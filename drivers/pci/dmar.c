@@ -377,11 +377,18 @@ int __init early_dmar_detect(void)
 	return (ACPI_SUCCESS(status) ? 1 : 0);
 }
 
-struct intel_iommu *alloc_iommu(struct intel_iommu *iommu,
-				struct dmar_drhd_unit *drhd)
+struct intel_iommu *alloc_iommu(struct dmar_drhd_unit *drhd)
 {
+	struct intel_iommu *iommu;
 	int map_size;
 	u32 ver;
+	static int iommu_allocated = 0;
+
+	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
+	if (!iommu)
+		return NULL;
+
+	iommu->seq_id = iommu_allocated++;
 
 	iommu->reg = ioremap(drhd->reg_base_addr, PAGE_SIZE_4K);
 	if (!iommu->reg) {

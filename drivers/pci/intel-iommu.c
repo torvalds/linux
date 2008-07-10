@@ -58,8 +58,6 @@ static void flush_unmaps_timeout(unsigned long data);
 
 DEFINE_TIMER(unmap_timer,  flush_unmaps_timeout, 0, 0);
 
-static struct intel_iommu *g_iommus;
-
 #define HIGH_WATER_MARK 250
 struct deferred_flush_tables {
 	int next;
@@ -1649,8 +1647,6 @@ int __init init_dmars(void)
 	 * endfor
 	 */
 	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
 		g_num_of_iommus++;
 		/*
 		 * lock not needed as this is only incremented in the single
@@ -1659,26 +1655,17 @@ int __init init_dmars(void)
 		 */
 	}
 
-	g_iommus = kzalloc(g_num_of_iommus * sizeof(*iommu), GFP_KERNEL);
-	if (!g_iommus) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
 	deferred_flush = kzalloc(g_num_of_iommus *
 		sizeof(struct deferred_flush_tables), GFP_KERNEL);
 	if (!deferred_flush) {
-		kfree(g_iommus);
 		ret = -ENOMEM;
 		goto error;
 	}
 
-	i = 0;
 	for_each_drhd_unit(drhd) {
 		if (drhd->ignored)
 			continue;
-		iommu = alloc_iommu(&g_iommus[i], drhd);
-		i++;
+		iommu = alloc_iommu(drhd);
 		if (!iommu) {
 			ret = -ENOMEM;
 			goto error;
@@ -1770,7 +1757,6 @@ error:
 		iommu = drhd->iommu;
 		free_iommu(iommu);
 	}
-	kfree(g_iommus);
 	return ret;
 }
 
@@ -1927,7 +1913,10 @@ static void flush_unmaps(void)
 	/* just flush them all */
 	for (i = 0; i < g_num_of_iommus; i++) {
 		if (deferred_flush[i].next) {
-			iommu_flush_iotlb_global(&g_iommus[i], 0);
+			struct intel_iommu *iommu =
+				deferred_flush[i].domain[0]->iommu;
+
+			iommu_flush_iotlb_global(iommu, 0);
 			for (j = 0; j < deferred_flush[i].next; j++) {
 				__free_iova(&deferred_flush[i].domain[j]->iovad,
 						deferred_flush[i].iova[j]);
@@ -1957,7 +1946,8 @@ static void add_unmap(struct dmar_domain *dom, struct iova *iova)
 	if (list_size == HIGH_WATER_MARK)
 		flush_unmaps();
 
-	iommu_id = dom->iommu - g_iommus;
+	iommu_id = dom->iommu->seq_id;
+
 	next = deferred_flush[iommu_id].next;
 	deferred_flush[iommu_id].domain[next] = dom;
 	deferred_flush[iommu_id].iova[next] = iova;

@@ -182,6 +182,7 @@ struct intel_iommu {
 	int		seg;
 	u32		gcmd; /* Holds TE, EAFL. Don't need SRTP, SFL, WBF */
 	spinlock_t	register_lock; /* protect register handling */
+	int		seq_id;	/* sequence id of the iommu */
 
 #ifdef CONFIG_DMAR
 	unsigned long 	*domain_ids; /* bitmap of domains */
@@ -198,8 +199,7 @@ struct intel_iommu {
 
 extern struct dmar_drhd_unit * dmar_find_matched_drhd_unit(struct pci_dev *dev);
 
-extern struct intel_iommu *alloc_iommu(struct intel_iommu *iommu,
-				       struct dmar_drhd_unit *drhd);
+extern struct intel_iommu *alloc_iommu(struct dmar_drhd_unit *drhd);
 extern void free_iommu(struct intel_iommu *iommu);
 
 #endif
