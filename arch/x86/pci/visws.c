@@ -8,6 +8,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 
+#include <asm/setup.h>
 #include "cobalt.h"
 #include "lithium.h"
 
@@ -107,7 +108,11 @@ static int __init pci_visws_init(void)
 
 static __init int pci_subsys_init(void)
 {
-	return -1;
+	if (!is_visws_box())
+		return -1;
+
+	pcibios_enable_irq = &pci_visws_enable_irq;
+	pcibios_disable_irq = &pci_visws_disable_irq;
 
 	pci_visws_init();
 	pcibios_init();

@@ -10,8 +10,10 @@ void vsmp_init(void);
 
 #ifdef CONFIG_X86_VISWS
 extern void visws_early_detect(void);
+extern int is_visws_box(void);
 #else
 static inline void visws_early_detect(void) { }
+static inline int is_visws_box(void) { return 0; }
 #endif
 
 /*
