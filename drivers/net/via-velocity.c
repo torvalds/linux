@@ -1155,7 +1155,7 @@ static void velocity_free_rings(struct velocity_info *vptr)
 	pci_free_consistent(vptr->pdev, size, vptr->rd_ring, vptr->rd_pool_dma);
 }
 
-static inline void velocity_give_many_rx_descs(struct velocity_info *vptr)
+static void velocity_give_many_rx_descs(struct velocity_info *vptr)
 {
 	struct mac_regs __iomem *regs = vptr->mac_regs;
 	int avail, dirty, unusable;
@@ -1182,7 +1182,7 @@ static inline void velocity_give_many_rx_descs(struct velocity_info *vptr)
 
 static int velocity_rx_refill(struct velocity_info *vptr)
 {
-	int dirty = vptr->rd_dirty, done = 0, ret = 0;
+	int dirty = vptr->rd_dirty, done = 0;
 
 	do {
 		struct rx_desc *rd = vptr->rd_ring + dirty;
@@ -1192,8 +1192,7 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 			break;
 
 		if (!vptr->rd_info[dirty].skb) {
-			ret = velocity_alloc_rx_buf(vptr, dirty);
-			if (ret < 0)
+			if (velocity_alloc_rx_buf(vptr, dirty) < 0)
 				break;
 		}
 		done++;
@@ -1203,10 +1202,9 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 	if (done) {
 		vptr->rd_dirty = dirty;
 		vptr->rd_filled += done;
-		velocity_give_many_rx_descs(vptr);
 	}
 
-	return ret;
+	return done;
 }
 
 /**
@@ -1219,25 +1217,27 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 
 static int velocity_init_rd_ring(struct velocity_info *vptr)
 {
-	int ret;
 	int mtu = vptr->dev->mtu;
+	int ret = -ENOMEM;
 
 	vptr->rx_buf_sz = (mtu <= ETH_DATA_LEN) ? PKT_BUF_SZ : mtu + 32;
 
 	vptr->rd_info = kcalloc(vptr->options.numrx,
 				sizeof(struct velocity_rd_info), GFP_KERNEL);
 	if (!vptr->rd_info)
-		return -ENOMEM;
+		goto out;
 
 	vptr->rd_filled = vptr->rd_dirty = vptr->rd_curr = 0;
 
-	ret = velocity_rx_refill(vptr);
-	if (ret < 0) {
+	if (velocity_rx_refill(vptr) != vptr->options.numrx) {
 		VELOCITY_PRT(MSG_LEVEL_ERR, KERN_ERR
 			"%s: failed to allocate RX buffer.\n", vptr->dev->name);
 		velocity_free_rd_ring(vptr);
+		goto out;
 	}
 
+	ret = 0;
+out:
 	return ret;
 }
 
@@ -1412,10 +1412,8 @@ static int velocity_rx_srv(struct velocity_info *vptr, int status)
 
 	vptr->rd_curr = rd_curr;
 
-	if (works > 0 && velocity_rx_refill(vptr) < 0) {
-		VELOCITY_PRT(MSG_LEVEL_ERR, KERN_ERR
-			"%s: rx buf allocation failure\n", vptr->dev->name);
-	}
+	if ((works > 0) && (velocity_rx_refill(vptr) > 0))
+		velocity_give_many_rx_descs(vptr);
 
 	VAR_USED(stats);
 	return works;
@@ -1876,6 +1874,8 @@ static int velocity_open(struct net_device *dev)
 
 	/* Ensure chip is running */
 	pci_set_power_state(vptr->pdev, PCI_D0);
+
+	velocity_give_many_rx_descs(vptr);
 
 	velocity_init_registers(vptr, VELOCITY_INIT_COLD);
 
