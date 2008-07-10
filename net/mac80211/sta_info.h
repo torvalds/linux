@@ -285,6 +285,7 @@ struct sta_info {
 	unsigned long tx_fragments;
 	int txrate_idx;
 	int last_txrate_idx;
+	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	unsigned int wme_tx_queue[NUM_RX_DATA_QUEUES];
 #endif

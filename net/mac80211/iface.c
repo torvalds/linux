@@ -162,7 +162,6 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 	/* reset some values that shouldn't be kept across type changes */
 	sdata->basic_rates = 0;
 	sdata->drop_unencrypted = 0;
-	sdata->sequence = 0;
 
 	return 0;
 }

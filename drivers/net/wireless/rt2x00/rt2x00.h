@@ -364,6 +364,8 @@ struct rt2x00_intf {
 #define DELAYED_UPDATE_BEACON		0x00000001
 #define DELAYED_CONFIG_ERP		0x00000002
 #define DELAYED_LED_ASSOC		0x00000004
+
+	u16 seqno;
 };
 
 static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)

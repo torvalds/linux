@@ -239,6 +239,17 @@ struct ieee80211_bss_conf {
  * 	is for the whole aggregation.
  * @IEEE80211_TX_STAT_AMPDU_NO_BACK: no block ack was returned,
  * 	so consider using block ack request (BAR).
+ * @IEEE80211_TX_CTL_ASSIGN_SEQ: The driver has to assign a sequence
+ *	number to this frame, taking care of not overwriting the fragment
+ *	number and increasing the sequence number only when the
+ *	IEEE80211_TX_CTL_FIRST_FRAGMENT flags is set. mac80211 will properly
+ *	assign sequence numbers to QoS-data frames but cannot do so correctly
+ *	for non-QoS-data and management frames because beacons need them from
+ *	that counter as well and mac80211 cannot guarantee proper sequencing.
+ *	If this flag is set, the driver should instruct the hardware to
+ *	assign a sequence number to the frame or assign one itself. Cf. IEEE
+ *	802.11-2007 7.1.3.4.1 paragraph 3. This flag will always be set for
+ *	beacons always be clear for frames without a sequence number field.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -265,6 +276,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_STAT_ACK			= BIT(21),
 	IEEE80211_TX_STAT_AMPDU			= BIT(22),
 	IEEE80211_TX_STAT_AMPDU_NO_BACK		= BIT(23),
+	IEEE80211_TX_CTL_ASSIGN_SEQ		= BIT(24),
 };
 
 

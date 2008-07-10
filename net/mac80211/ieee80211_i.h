@@ -419,8 +419,6 @@ struct ieee80211_sub_if_data {
 	 */
 	u64 basic_rates;
 
-	u16 sequence;
-
 	/* Fragment table for host-based reassembly */
 	struct ieee80211_fragment_entry	fragments[IEEE80211_FRAGMENT_MAX];
 	unsigned int fragment_next;
