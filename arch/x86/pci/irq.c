@@ -1107,7 +1107,7 @@ static struct dmi_system_id __initdata pciirq_dmi_table[] = {
 	{ }
 };
 
-static int __init pcibios_irq_init(void)
+int __init pcibios_irq_init(void)
 {
 	DBG(KERN_DEBUG "PCI: IRQ init\n");
 
@@ -1141,9 +1141,6 @@ static int __init pcibios_irq_init(void)
 	pcibios_fixup_irqs();
 	return 0;
 }
-
-subsys_initcall(pcibios_irq_init);
-
 
 static void pirq_penalize_isa_irq(int irq, int active)
 {

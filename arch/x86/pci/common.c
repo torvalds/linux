@@ -328,18 +328,18 @@ static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
 #endif
 	{
 		.callback = set_bf_sort,
-		.ident = "HP ProLiant DL360",
+		.ident = "HP ProLiant DL385 G2",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL360"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL385 G2"),
 		},
 	},
 	{
 		.callback = set_bf_sort,
-		.ident = "HP ProLiant DL380",
+		.ident = "HP ProLiant DL585 G2",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL380"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL585 G2"),
 		},
 	},
 	{}
@@ -384,7 +384,7 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 
 extern u8 pci_cache_line_size;
 
-static int __init pcibios_init(void)
+int __init pcibios_init(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
@@ -410,8 +410,6 @@ static int __init pcibios_init(void)
 		pci_sort_breadthfirst();
 	return 0;
 }
-
-subsys_initcall(pcibios_init);
 
 char * __devinit  pcibios_setup(char *str)
 {
