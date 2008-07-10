@@ -169,13 +169,16 @@ static void start_hnp(struct ohci_hcd *ohci)
 {
 	const unsigned	port = ohci_to_hcd(ohci)->self.otg_port - 1;
 	unsigned long	flags;
+	u32 l;
 
 	otg_start_hnp(ohci->transceiver);
 
 	local_irq_save(flags);
 	ohci->transceiver->state = OTG_STATE_A_SUSPEND;
 	writel (RH_PS_PSS, &ohci->regs->roothub.portstatus [port]);
-	OTG_CTRL_REG &= ~OTG_A_BUSREQ;
+	l = omap_readl(OTG_CTRL);
+	l &= ~OTG_A_BUSREQ;
+	omap_writel(l, OTG_CTRL);
 	local_irq_restore(flags);
 }
 

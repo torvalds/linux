@@ -110,6 +110,6 @@
 #define AT91SAM9RL_ROM_SIZE	(2 * SZ_16K)	/* Internal ROM size (32Kb) */
 
 #define AT91SAM9RL_LCDC_BASE	0x00500000	/* LCD Controller */
-#define AT91SAM9RL_UDPHS_BASE	0x00600000	/* USB Device HS controller */
+#define AT91SAM9RL_UDPHS_FIFO	0x00600000	/* USB Device HS controller */
 
 #endif

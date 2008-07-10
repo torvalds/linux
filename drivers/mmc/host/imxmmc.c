@@ -1017,8 +1017,8 @@ static int imxmci_probe(struct platform_device *pdev)
 	host->imask = IMXMCI_INT_MASK_DEFAULT;
 	MMC_INT_MASK = host->imask;
 
-
-	if(imx_dma_request_by_prio(&host->dma, DRIVER_NAME, DMA_PRIO_LOW)<0){
+	host->dma = imx_dma_request_by_prio(DRIVER_NAME, DMA_PRIO_LOW);
+	if(host->dma < 0) {
 		dev_err(mmc_dev(host->mmc), "imx_dma_request_by_prio failed\n");
 		ret = -EBUSY;
 		goto out;

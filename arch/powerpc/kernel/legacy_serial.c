@@ -136,6 +136,11 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	if (of_get_property(np, "clock-frequency", NULL) == NULL)
 		return -1;
 
+	/* if reg-shift or offset, don't try to use it */
+	if ((of_get_property(np, "reg-shift", NULL) != NULL) ||
+		(of_get_property(np, "reg-offset", NULL) != NULL))
+		return -1;
+
 	/* if rtas uses this device, don't try to use it as well */
 	if (of_get_property(np, "used-by-rtas", NULL) != NULL)
 		return -1;

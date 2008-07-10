@@ -66,6 +66,7 @@ void omap_dm_timer_stop(struct omap_dm_timer *timer);
 
 void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source);
 void omap_dm_timer_set_load(struct omap_dm_timer *timer, int autoreload, unsigned int value);
+void omap_dm_timer_set_load_start(struct omap_dm_timer *timer, int autoreload, unsigned int value);
 void omap_dm_timer_set_match(struct omap_dm_timer *timer, int enable, unsigned int match);
 void omap_dm_timer_set_pwm(struct omap_dm_timer *timer, int def_on, int toggle, int trigger);
 void omap_dm_timer_set_prescaler(struct omap_dm_timer *timer, int prescaler);

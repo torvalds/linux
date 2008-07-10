@@ -88,6 +88,8 @@ struct wireless_dev;
 #define NETDEV_TX_BUSY 1	/* driver tx path was busy*/
 #define NETDEV_TX_LOCKED -1	/* driver tx lock was already taken */
 
+#ifdef  __KERNEL__
+
 /*
  *	Compute the worst case header length according to the protocols
  *	used.
@@ -113,6 +115,8 @@ struct wireless_dev;
 #else
 #define MAX_HEADER (LL_MAX_HEADER + 48)
 #endif
+
+#endif  /*  __KERNEL__  */
 
 struct net_device_subqueue
 {

@@ -85,19 +85,6 @@
 
 #define MAX_ECARDS	9
 
-typedef enum {				/* Cards address space		*/
-	ECARD_IOC,
-	ECARD_MEMC,
-	ECARD_EASI
-} card_type_t;
-
-typedef enum {				/* Speed for ECARD_IOC space	*/
-	ECARD_SLOW	 = 0,
-	ECARD_MEDIUM	 = 1,
-	ECARD_FAST	 = 2,
-	ECARD_SYNC	 = 3
-} card_speed_t;
-
 struct ecard_id {			/* Card ID structure		*/
 	unsigned short	manufacturer;
 	unsigned short	product;
@@ -190,16 +177,6 @@ struct in_chunk_dir {
 };
 
 /*
- * ecard_claim: claim an expansion card entry
- */
-#define ecard_claim(ec) ((ec)->claimed = 1)
-
-/*
- * ecard_release: release an expansion card entry
- */
-#define ecard_release(ec) ((ec)->claimed = 0)
-
-/*
  * Read a chunk from an expansion card
  * cd : where to put read data
  * ec : expansion card info struct
@@ -207,18 +184,6 @@ struct in_chunk_dir {
  * num: (n+1)'th id to find.
  */
 extern int ecard_readchunk (struct in_chunk_dir *cd, struct expansion_card *ec, int id, int num);
-
-/*
- * Obtain the address of a card.  This returns the "old style" address
- * and should no longer be used.
- */
-static inline unsigned int __deprecated
-ecard_address(struct expansion_card *ec, card_type_t type, card_speed_t speed)
-{
-	extern unsigned int __ecard_address(struct expansion_card *,
-					    card_type_t, card_speed_t);
-	return __ecard_address(ec, type, speed);
-}
 
 /*
  * Request and release ecard resources

@@ -133,11 +133,14 @@ endif
  machine-$(CONFIG_ARCH_NETX)	   := netx
  machine-$(CONFIG_ARCH_NS9XXX)	   := ns9xxx
  machine-$(CONFIG_ARCH_DAVINCI)	   := davinci
+ machine-$(CONFIG_ARCH_KIRKWOOD)   := kirkwood
  machine-$(CONFIG_ARCH_KS8695)     := ks8695
   incdir-$(CONFIG_ARCH_MXC)	   := mxc
  machine-$(CONFIG_ARCH_MX3)	   := mx3
  machine-$(CONFIG_ARCH_ORION5X)	   := orion5x
  machine-$(CONFIG_ARCH_MSM7X00A)   := msm
+ machine-$(CONFIG_ARCH_LOKI)       := loki
+ machine-$(CONFIG_ARCH_MV78XX0)    := mv78xx0
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.
@@ -188,8 +191,6 @@ core-$(CONFIG_PLAT_S3C24XX)		+= arch/arm/plat-s3c24xx/
 core-$(CONFIG_ARCH_MXC)		+= arch/arm/plat-mxc/
 
 drivers-$(CONFIG_OPROFILE)      += arch/arm/oprofile/
-drivers-$(CONFIG_ARCH_CLPS7500)	+= drivers/acorn/char/
-drivers-$(CONFIG_ARCH_L7200)	+= drivers/acorn/char/
 
 libs-y				:= arch/arm/lib/ $(libs-y)
 
