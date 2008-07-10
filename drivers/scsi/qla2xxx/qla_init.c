@@ -1501,18 +1501,25 @@ qla2x00_set_model_info(scsi_qla_host_t *ha, uint8_t *model, size_t len, char *de
 		index = (ha->pdev->subsystem_device & 0xff);
 		if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_QLOGIC &&
 		    index < QLA_MODEL_NAMES)
-			ha->model_desc = qla2x00_model_name[index * 2 + 1];
+			strncpy(ha->model_desc,
+			    qla2x00_model_name[index * 2 + 1],
+			    sizeof(ha->model_desc) - 1);
 	} else {
 		index = (ha->pdev->subsystem_device & 0xff);
 		if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_QLOGIC &&
 		    index < QLA_MODEL_NAMES) {
 			strcpy(ha->model_number,
 			    qla2x00_model_name[index * 2]);
-			ha->model_desc = qla2x00_model_name[index * 2 + 1];
+			strncpy(ha->model_desc,
+			    qla2x00_model_name[index * 2 + 1],
+			    sizeof(ha->model_desc) - 1);
 		} else {
 			strcpy(ha->model_number, def);
 		}
 	}
+	if (IS_FWI2_CAPABLE(ha))
+		qla2xxx_get_vpd_field(ha, "\x82", ha->model_desc,
+		    sizeof(ha->model_desc));
 }
 
 /* On sparc systems, obtain port and node WWN from firmware

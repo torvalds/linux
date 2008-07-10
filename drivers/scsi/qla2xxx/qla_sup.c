@@ -2303,6 +2303,51 @@ qla24xx_get_flash_version(scsi_qla_host_t *ha, void *mbuf)
 }
 
 static int
+qla2xxx_is_vpd_valid(uint8_t *pos, uint8_t *end)
+{
+	if (pos >= end || *pos != 0x82)
+		return 0;
+
+	pos += 3 + pos[1];
+	if (pos >= end || *pos != 0x90)
+		return 0;
+
+	pos += 3 + pos[1];
+	if (pos >= end || *pos != 0x78)
+		return 0;
+
+	return 1;
+}
+
+int
+qla2xxx_get_vpd_field(scsi_qla_host_t *ha, char *key, char *str, size_t size)
+{
+	uint8_t *pos = ha->vpd;
+	uint8_t *end = pos + ha->vpd_size;
+	int len = 0;
+
+	if (!IS_FWI2_CAPABLE(ha) || !qla2xxx_is_vpd_valid(pos, end))
+		return 0;
+
+	while (pos < end && *pos != 0x78) {
+		len = (*pos == 0x82) ? pos[1] : pos[2];
+
+		if (!strncmp(pos, key, strlen(key)))
+			break;
+
+		if (*pos != 0x90 && *pos != 0x91)
+			pos += len;
+
+		pos += 3;
+	}
+
+	if (pos < end - len && *pos != 0x78)
+		return snprintf(str, size, "%.*s", len, pos + 3);
+
+	return 0;
+}
+
+static int
 qla2xxx_hw_event_store(scsi_qla_host_t *ha, uint32_t *fdata)
 {
 	uint32_t d[2], faddr;

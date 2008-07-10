@@ -2518,7 +2518,7 @@ typedef struct scsi_qla_host {
 
 	uint8_t		model_number[16+1];
 #define BINZERO		"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	char		*model_desc;
+	char		model_desc[80];
 	uint8_t		adapter_id[16+1];
 
 	uint8_t		*node_name;

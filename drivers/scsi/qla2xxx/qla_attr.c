@@ -557,8 +557,10 @@ qla2x00_serial_num_show(struct device *dev, struct device_attribute *attr,
 	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	uint32_t sn;
 
-	if (IS_FWI2_CAPABLE(ha))
-		return snprintf(buf, PAGE_SIZE, "\n");
+	if (IS_FWI2_CAPABLE(ha)) {
+		qla2xxx_get_vpd_field(ha, "SN", buf, PAGE_SIZE);
+		return snprintf(buf, PAGE_SIZE, "%s\n", buf);
+	}
 
 	sn = ((ha->serial0 & 0x1f) << 16) | (ha->serial2 << 8) | ha->serial1;
 	return snprintf(buf, PAGE_SIZE, "%c%05d\n", 'A' + sn / 100000,
