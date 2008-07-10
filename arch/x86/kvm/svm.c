@@ -1710,9 +1710,9 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	sync_lapic_to_cr8(vcpu);
 
 	save_host_msrs(vcpu);
-	fs_selector = read_fs();
-	gs_selector = read_gs();
-	ldt_selector = read_ldt();
+	fs_selector = kvm_read_fs();
+	gs_selector = kvm_read_gs();
+	ldt_selector = kvm_read_ldt();
 	svm->host_cr2 = kvm_read_cr2();
 	svm->host_dr6 = read_dr6();
 	svm->host_dr7 = read_dr7();
@@ -1845,9 +1845,9 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	write_dr7(svm->host_dr7);
 	kvm_write_cr2(svm->host_cr2);
 
-	load_fs(fs_selector);
-	load_gs(gs_selector);
-	load_ldt(ldt_selector);
+	kvm_load_fs(fs_selector);
+	kvm_load_gs(gs_selector);
+	kvm_load_ldt(ldt_selector);
 	load_host_msrs(vcpu);
 
 	reload_tss(vcpu);

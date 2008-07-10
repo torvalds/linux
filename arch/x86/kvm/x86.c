@@ -3767,14 +3767,14 @@ void fx_init(struct kvm_vcpu *vcpu)
 	 * allocate ram with GFP_KERNEL.
 	 */
 	if (!used_math())
-		fx_save(&vcpu->arch.host_fx_image);
+		kvm_fx_save(&vcpu->arch.host_fx_image);
 
 	/* Initialize guest FPU by resetting ours and saving into guest's */
 	preempt_disable();
-	fx_save(&vcpu->arch.host_fx_image);
-	fx_finit();
-	fx_save(&vcpu->arch.guest_fx_image);
-	fx_restore(&vcpu->arch.host_fx_image);
+	kvm_fx_save(&vcpu->arch.host_fx_image);
+	kvm_fx_finit();
+	kvm_fx_save(&vcpu->arch.guest_fx_image);
+	kvm_fx_restore(&vcpu->arch.host_fx_image);
 	preempt_enable();
 
 	vcpu->arch.cr0 |= X86_CR0_ET;
@@ -3791,8 +3791,8 @@ void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 		return;
 
 	vcpu->guest_fpu_loaded = 1;
-	fx_save(&vcpu->arch.host_fx_image);
-	fx_restore(&vcpu->arch.guest_fx_image);
+	kvm_fx_save(&vcpu->arch.host_fx_image);
+	kvm_fx_restore(&vcpu->arch.guest_fx_image);
 }
 EXPORT_SYMBOL_GPL(kvm_load_guest_fpu);
 
@@ -3802,8 +3802,8 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 		return;
 
 	vcpu->guest_fpu_loaded = 0;
-	fx_save(&vcpu->arch.guest_fx_image);
-	fx_restore(&vcpu->arch.host_fx_image);
+	kvm_fx_save(&vcpu->arch.guest_fx_image);
+	kvm_fx_restore(&vcpu->arch.host_fx_image);
 	++vcpu->stat.fpu_reload;
 }
 EXPORT_SYMBOL_GPL(kvm_put_guest_fpu);

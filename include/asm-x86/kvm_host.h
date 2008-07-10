@@ -567,55 +567,53 @@ static inline struct kvm_mmu_page *page_header(hpa_t shadow_page)
 	return (struct kvm_mmu_page *)page_private(page);
 }
 
-static inline u16 read_fs(void)
+static inline u16 kvm_read_fs(void)
 {
 	u16 seg;
 	asm("mov %%fs, %0" : "=g"(seg));
 	return seg;
 }
 
-static inline u16 read_gs(void)
+static inline u16 kvm_read_gs(void)
 {
 	u16 seg;
 	asm("mov %%gs, %0" : "=g"(seg));
 	return seg;
 }
 
-static inline u16 read_ldt(void)
+static inline u16 kvm_read_ldt(void)
 {
 	u16 ldt;
 	asm("sldt %0" : "=g"(ldt));
 	return ldt;
 }
 
-static inline void load_fs(u16 sel)
+static inline void kvm_load_fs(u16 sel)
 {
 	asm("mov %0, %%fs" : : "rm"(sel));
 }
 
-static inline void load_gs(u16 sel)
+static inline void kvm_load_gs(u16 sel)
 {
 	asm("mov %0, %%gs" : : "rm"(sel));
 }
 
-#ifndef load_ldt
-static inline void load_ldt(u16 sel)
+static inline void kvm_load_ldt(u16 sel)
 {
 	asm("lldt %0" : : "rm"(sel));
 }
-#endif
 
-static inline void get_idt(struct descriptor_table *table)
+static inline void kvm_get_idt(struct descriptor_table *table)
 {
 	asm("sidt %0" : "=m"(*table));
 }
 
-static inline void get_gdt(struct descriptor_table *table)
+static inline void kvm_get_gdt(struct descriptor_table *table)
 {
 	asm("sgdt %0" : "=m"(*table));
 }
 
-static inline unsigned long read_tr_base(void)
+static inline unsigned long kvm_read_tr_base(void)
 {
 	u16 tr;
 	asm("str %0" : "=g"(tr));
@@ -632,17 +630,17 @@ static inline unsigned long read_msr(unsigned long msr)
 }
 #endif
 
-static inline void fx_save(struct i387_fxsave_struct *image)
+static inline void kvm_fx_save(struct i387_fxsave_struct *image)
 {
 	asm("fxsave (%0)":: "r" (image));
 }
 
-static inline void fx_restore(struct i387_fxsave_struct *image)
+static inline void kvm_fx_restore(struct i387_fxsave_struct *image)
 {
 	asm("fxrstor (%0)":: "r" (image));
 }
 
-static inline void fx_finit(void)
+static inline void kvm_fx_finit(void)
 {
 	asm("finit");
 }
