@@ -1337,7 +1337,9 @@ static void __init acpi_process_madt(void)
 				acpi_ioapic = 1;
 
 				smp_found_config = 1;
+#ifdef CONFIG_X86_32
 				setup_apic_routing();
+#endif
 			}
 		}
 		if (error == -EINVAL) {

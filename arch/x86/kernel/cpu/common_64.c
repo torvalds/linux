@@ -606,6 +606,8 @@ void __cpuinit cpu_init(void)
 	barrier();
 
 	check_efer();
+	if (cpu != 0 && x2apic)
+		enable_x2apic();
 
 	/*
 	 * set up and load the per-CPU TSS

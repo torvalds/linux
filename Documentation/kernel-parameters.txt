@@ -1377,6 +1377,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
 
+	nox2apic	[X86-64,APIC] Do not enable x2APIC mode.
+
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.
 

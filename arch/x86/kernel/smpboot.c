@@ -1145,6 +1145,11 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	current_thread_info()->cpu = 0;  /* needed? */
 	set_cpu_sibling_map(0);
 
+#ifdef CONFIG_X86_64
+	enable_IR_x2apic();
+	setup_apic_routing();
+#endif
+
 	if (smp_sanity_check(max_cpus) < 0) {
 		printk(KERN_INFO "SMP disabled\n");
 		disable_smp();

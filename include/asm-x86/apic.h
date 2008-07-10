@@ -100,6 +100,11 @@ extern void apic_wait_icr_idle(void);
 extern u32 safe_apic_wait_icr_idle(void);
 extern void apic_icr_write(u32 low, u32 id);
 #else
+extern int x2apic, x2apic_preenabled;
+extern void check_x2apic(void);
+extern void enable_x2apic(void);
+extern void enable_IR_x2apic(void);
+extern void x2apic_icr_write(u32 low, u32 id);
 
 struct apic_ops {
 	u32 (*read)(u32 reg);

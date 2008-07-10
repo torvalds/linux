@@ -16,6 +16,7 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/hardirq.h>
+#include <linux/dmar.h>
 
 #include <asm/smp.h>
 #include <asm/ipi.h>
