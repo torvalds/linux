@@ -86,6 +86,13 @@ MODULE_PARM_DESC(ql2xqfullrampup,
 		"depth for a device after a queue-full condition has been "
 		"detected.  Default is 120 seconds.");
 
+int ql2xiidmaenable=1;
+module_param(ql2xiidmaenable, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xiidmaenable,
+		"Enables iIDMA settings "
+		"Default is 1 - perform iIDMA. 0 - no iIDMA.");
+
+
 /*
  * SCSI host template entry points
  */

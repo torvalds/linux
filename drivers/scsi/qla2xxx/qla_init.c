@@ -2559,7 +2559,8 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		} else if (qla2x00_gnn_id(ha, swl) != QLA_SUCCESS) {
 			kfree(swl);
 			swl = NULL;
-		} else if (qla2x00_gfpn_id(ha, swl) == QLA_SUCCESS) {
+		} else if (ql2xiidmaenable &&
+		    qla2x00_gfpn_id(ha, swl) == QLA_SUCCESS) {
 			qla2x00_gpsc(ha, swl);
 		}
 	}
