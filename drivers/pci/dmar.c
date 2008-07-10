@@ -28,6 +28,7 @@
 
 #include <linux/pci.h>
 #include <linux/dmar.h>
+#include <linux/timer.h>
 #include "iova.h"
 #include "intel-iommu.h"
 
@@ -508,4 +509,153 @@ void free_iommu(struct intel_iommu *iommu)
 	if (iommu->reg)
 		iounmap(iommu->reg);
 	kfree(iommu);
+}
+
+/*
+ * Reclaim all the submitted descriptors which have completed its work.
+ */
+static inline void reclaim_free_desc(struct q_inval *qi)
+{
+	while (qi->desc_status[qi->free_tail] == QI_DONE) {
+		qi->desc_status[qi->free_tail] = QI_FREE;
+		qi->free_tail = (qi->free_tail + 1) % QI_LENGTH;
+		qi->free_cnt++;
+	}
+}
+
+/*
+ * Submit the queued invalidation descriptor to the remapping
+ * hardware unit and wait for its completion.
+ */
+void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
+{
+	struct q_inval *qi = iommu->qi;
+	struct qi_desc *hw, wait_desc;
+	int wait_index, index;
+	unsigned long flags;
+
+	if (!qi)
+		return;
+
+	hw = qi->desc;
+
+	spin_lock(&qi->q_lock);
+	while (qi->free_cnt < 3) {
+		spin_unlock(&qi->q_lock);
+		cpu_relax();
+		spin_lock(&qi->q_lock);
+	}
+
+	index = qi->free_head;
+	wait_index = (index + 1) % QI_LENGTH;
+
+	qi->desc_status[index] = qi->desc_status[wait_index] = QI_IN_USE;
+
+	hw[index] = *desc;
+
+	wait_desc.low = QI_IWD_STATUS_DATA(2) | QI_IWD_STATUS_WRITE | QI_IWD_TYPE;
+	wait_desc.high = virt_to_phys(&qi->desc_status[wait_index]);
+
+	hw[wait_index] = wait_desc;
+
+	__iommu_flush_cache(iommu, &hw[index], sizeof(struct qi_desc));
+	__iommu_flush_cache(iommu, &hw[wait_index], sizeof(struct qi_desc));
+
+	qi->free_head = (qi->free_head + 2) % QI_LENGTH;
+	qi->free_cnt -= 2;
+
+	spin_lock_irqsave(&iommu->register_lock, flags);
+	/*
+	 * update the HW tail register indicating the presence of
+	 * new descriptors.
+	 */
+	writel(qi->free_head << 4, iommu->reg + DMAR_IQT_REG);
+	spin_unlock_irqrestore(&iommu->register_lock, flags);
+
+	while (qi->desc_status[wait_index] != QI_DONE) {
+		spin_unlock(&qi->q_lock);
+		cpu_relax();
+		spin_lock(&qi->q_lock);
+	}
+
+	qi->desc_status[index] = QI_DONE;
+
+	reclaim_free_desc(qi);
+	spin_unlock(&qi->q_lock);
+}
+
+/*
+ * Flush the global interrupt entry cache.
+ */
+void qi_global_iec(struct intel_iommu *iommu)
+{
+	struct qi_desc desc;
+
+	desc.low = QI_IEC_TYPE;
+	desc.high = 0;
+
+	qi_submit_sync(&desc, iommu);
+}
+
+/*
+ * Enable Queued Invalidation interface. This is a must to support
+ * interrupt-remapping. Also used by DMA-remapping, which replaces
+ * register based IOTLB invalidation.
+ */
+int dmar_enable_qi(struct intel_iommu *iommu)
+{
+	u32 cmd, sts;
+	unsigned long flags;
+	struct q_inval *qi;
+
+	if (!ecap_qis(iommu->ecap))
+		return -ENOENT;
+
+	/*
+	 * queued invalidation is already setup and enabled.
+	 */
+	if (iommu->qi)
+		return 0;
+
+	iommu->qi = kmalloc(sizeof(*qi), GFP_KERNEL);
+	if (!iommu->qi)
+		return -ENOMEM;
+
+	qi = iommu->qi;
+
+	qi->desc = (void *)(get_zeroed_page(GFP_KERNEL));
+	if (!qi->desc) {
+		kfree(qi);
+		iommu->qi = 0;
+		return -ENOMEM;
+	}
+
+	qi->desc_status = kmalloc(QI_LENGTH * sizeof(int), GFP_KERNEL);
+	if (!qi->desc_status) {
+		free_page((unsigned long) qi->desc);
+		kfree(qi);
+		iommu->qi = 0;
+		return -ENOMEM;
+	}
+
+	qi->free_head = qi->free_tail = 0;
+	qi->free_cnt = QI_LENGTH;
+
+	spin_lock_init(&qi->q_lock);
+
+	spin_lock_irqsave(&iommu->register_lock, flags);
+	/* write zero to the tail reg */
+	writel(0, iommu->reg + DMAR_IQT_REG);
+
+	dmar_writeq(iommu->reg + DMAR_IQA_REG, virt_to_phys(qi->desc));
+
+	cmd = iommu->gcmd | DMA_GCMD_QIE;
+	iommu->gcmd |= DMA_GCMD_QIE;
+	writel(cmd, iommu->reg + DMAR_GCMD_REG);
+
+	/* Make sure hardware complete it */
+	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG, readl, (sts & DMA_GSTS_QIES), sts);
+	spin_unlock_irqrestore(&iommu->register_lock, flags);
+
+	return 0;
 }

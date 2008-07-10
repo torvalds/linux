@@ -27,6 +27,7 @@
 #include <linux/sysdev.h>
 #include "iova.h"
 #include <linux/io.h>
+#include <asm/cacheflush.h>
 #include "dma_remapping.h"
 
 /*
@@ -51,6 +52,10 @@
 #define	DMAR_PLMLIMIT_REG 0x6c	/* PMRR low limit */
 #define	DMAR_PHMBASE_REG 0x70	/* pmrr high base addr */
 #define	DMAR_PHMLIMIT_REG 0x78	/* pmrr high limit */
+#define DMAR_IQH_REG	0x80	/* Invalidation queue head register */
+#define DMAR_IQT_REG	0x88	/* Invalidation queue tail register */
+#define DMAR_IQA_REG	0x90	/* Invalidation queue addr register */
+#define DMAR_ICS_REG	0x98	/* Invalidation complete status register */
 
 #define OFFSET_STRIDE		(9)
 /*
@@ -114,6 +119,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define ecap_max_iotlb_offset(e) \
 	(ecap_iotlb_offset(e) + ecap_niotlb_iunits(e) * 16)
 #define ecap_coherent(e)	((e) & 0x1)
+#define ecap_qis(e)		((e) & 0x2)
 #define ecap_eim_support(e)	((e >> 4) & 0x1)
 #define ecap_ir_support(e)	((e >> 3) & 0x1)
 
@@ -131,6 +137,17 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_TLB_IH_NONLEAF (((u64)1) << 6)
 #define DMA_TLB_MAX_SIZE (0x3f)
 
+/* INVALID_DESC */
+#define DMA_ID_TLB_GLOBAL_FLUSH	(((u64)1) << 3)
+#define DMA_ID_TLB_DSI_FLUSH	(((u64)2) << 3)
+#define DMA_ID_TLB_PSI_FLUSH	(((u64)3) << 3)
+#define DMA_ID_TLB_READ_DRAIN	(((u64)1) << 7)
+#define DMA_ID_TLB_WRITE_DRAIN	(((u64)1) << 6)
+#define DMA_ID_TLB_DID(id)	(((u64)((id & 0xffff) << 16)))
+#define DMA_ID_TLB_IH_NONLEAF	(((u64)1) << 6)
+#define DMA_ID_TLB_ADDR(addr)	(addr)
+#define DMA_ID_TLB_ADDR_MASK(mask)	(mask)
+
 /* PMEN_REG */
 #define DMA_PMEN_EPM (((u32)1)<<31)
 #define DMA_PMEN_PRS (((u32)1)<<0)
@@ -140,6 +157,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_GCMD_SRTP (((u32)1) << 30)
 #define DMA_GCMD_SFL (((u32)1) << 29)
 #define DMA_GCMD_EAFL (((u32)1) << 28)
+#define DMA_GCMD_QIE (((u32)1) << 26)
 #define DMA_GCMD_WBF (((u32)1) << 27)
 
 /* GSTS_REG */
@@ -147,6 +165,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_GSTS_RTPS (((u32)1) << 30)
 #define DMA_GSTS_FLS (((u32)1) << 29)
 #define DMA_GSTS_AFLS (((u32)1) << 28)
+#define DMA_GSTS_QIES (((u32)1) << 26)
 #define DMA_GSTS_WBFS (((u32)1) << 27)
 
 /* CCMD_REG */
@@ -192,6 +211,40 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 	}\
 }
 
+#define QI_LENGTH	256	/* queue length */
+
+enum {
+	QI_FREE,
+	QI_IN_USE,
+	QI_DONE
+};
+
+#define QI_CC_TYPE		0x1
+#define QI_IOTLB_TYPE		0x2
+#define QI_DIOTLB_TYPE		0x3
+#define QI_IEC_TYPE		0x4
+#define QI_IWD_TYPE		0x5
+
+#define QI_IEC_SELECTIVE	(((u64)1) << 4)
+#define QI_IEC_IIDEX(idx)	(((u64)(idx & 0xffff) << 32))
+#define QI_IEC_IM(m)		(((u64)(m & 0x1f) << 27))
+
+#define QI_IWD_STATUS_DATA(d)	(((u64)d) << 32)
+#define QI_IWD_STATUS_WRITE	(((u64)1) << 5)
+
+struct qi_desc {
+	u64 low, high;
+};
+
+struct q_inval {
+	spinlock_t      q_lock;
+	struct qi_desc  *desc;          /* invalidation queue */
+	int             *desc_status;   /* desc status */
+	int             free_head;      /* first free entry */
+	int             free_tail;      /* last free entry */
+	int             free_cnt;
+};
+
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64		cap;
@@ -212,7 +265,15 @@ struct intel_iommu {
 	struct msi_msg saved_msg;
 	struct sys_device sysdev;
 #endif
+	struct q_inval  *qi;            /* Queued invalidation info */
 };
+
+static inline void __iommu_flush_cache(
+	struct intel_iommu *iommu, void *addr, int size)
+{
+	if (!ecap_coherent(iommu->ecap))
+		clflush_cache_range(addr, size);
+}
 
 extern struct dmar_drhd_unit * dmar_find_matched_drhd_unit(struct pci_dev *dev);
 
