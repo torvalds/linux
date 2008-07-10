@@ -154,7 +154,6 @@ static char mv643xx_eth_driver_version[] = "1.1";
 #define SET_MII_SPEED_TO_100			(1 << 24)
 #define SET_GMII_SPEED_TO_1000			(1 << 23)
 #define SET_FULL_DUPLEX_MODE			(1 << 21)
-#define MAX_RX_PACKET_1522BYTE			(1 << 17)
 #define MAX_RX_PACKET_9700BYTE			(5 << 17)
 #define MAX_RX_PACKET_MASK			(7 << 17)
 #define DISABLE_AUTO_NEG_SPEED_GMII		(1 << 13)
@@ -1674,13 +1673,12 @@ static void update_pscr(struct mv643xx_eth_private *mp, int speed, int duplex)
 			    SET_FULL_DUPLEX_MODE   |
 			    MAX_RX_PACKET_MASK);
 
-	if (speed == SPEED_1000) {
-		pscr_n |= SET_GMII_SPEED_TO_1000 | MAX_RX_PACKET_9700BYTE;
-	} else {
-		if (speed == SPEED_100)
-			pscr_n |= SET_MII_SPEED_TO_100;
-		pscr_n |= MAX_RX_PACKET_1522BYTE;
-	}
+	pscr_n |= MAX_RX_PACKET_9700BYTE;
+
+	if (speed == SPEED_1000)
+		pscr_n |= SET_GMII_SPEED_TO_1000;
+	else if (speed == SPEED_100)
+		pscr_n |= SET_MII_SPEED_TO_100;
 
 	if (duplex == DUPLEX_FULL)
 		pscr_n |= SET_FULL_DUPLEX_MODE;
