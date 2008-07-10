@@ -632,3 +632,27 @@ int ubi_is_mapped(struct ubi_volume_desc *desc, int lnum)
 	return vol->eba_tbl[lnum] >= 0;
 }
 EXPORT_SYMBOL_GPL(ubi_is_mapped);
+
+/**
+ * ubi_sync - synchronize UBI device buffers.
+ * @ubi_num: UBI device to synchronize
+ *
+ * The underlying MTD device may cache data in hardware or in software. This
+ * function ensures the caches are flushed. Returns zero in case of success and
+ * a negative error code in case of failure.
+ */
+int ubi_sync(int ubi_num)
+{
+	struct ubi_device *ubi;
+
+	ubi = ubi_get_device(ubi_num);
+	if (!ubi)
+		return -ENODEV;
+
+	if (ubi->mtd->sync)
+		ubi->mtd->sync(ubi->mtd);
+
+	ubi_put_device(ubi);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ubi_sync);
