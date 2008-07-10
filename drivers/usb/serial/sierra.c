@@ -51,7 +51,7 @@ enum devicetype {
 static int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
 {
 	int result;
-	dev_dbg(&udev->dev, "%s", "SET POWER STATE\n");
+	dev_dbg(&udev->dev, "%s", __func__);
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			SWIMS_USB_REQUEST_SetPower,	/* __u8 request      */
 			USB_TYPE_VENDOR,		/* __u8 request type */
@@ -66,7 +66,7 @@ static int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
 static int sierra_set_ms_mode(struct usb_device *udev, __u16 eSWocMode)
 {
 	int result;
-	dev_dbg(&udev->dev, "%s", "DEVICE MODE SWITCH\n");
+	dev_dbg(&udev->dev,  "%s", __func__);
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			SWIMS_USB_REQUEST_SetMode,	/* __u8 request      */
 			USB_TYPE_VENDOR,		/* __u8 request type */
@@ -81,7 +81,7 @@ static int sierra_set_ms_mode(struct usb_device *udev, __u16 eSWocMode)
 static int sierra_vsc_set_nmea(struct usb_device *udev, __u16 enable)
 {
 	int result;
-	dev_dbg(&udev->dev, "%s", "NMEA Enable sent\n");
+	dev_dbg(&udev->dev, "%s", __func__);
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			SWIMS_USB_REQUEST_SetNmea,	/* __u8 request      */
 			USB_TYPE_VENDOR,		/* __u8 request type */
@@ -97,6 +97,7 @@ static int sierra_calc_num_ports(struct usb_serial *serial)
 {
 	int result;
 	int *num_ports = usb_get_serial_data(serial);
+	dev_dbg(&serial->dev->dev, "%s", __func__);
 
 	result = *num_ports;
 
@@ -110,22 +111,23 @@ static int sierra_calc_num_ports(struct usb_serial *serial)
 
 static int sierra_calc_interface(struct usb_serial *serial)
 {
-		int interface;
-		struct usb_interface *p_interface;
-		struct usb_host_interface *p_host_interface;
+	int interface;
+	struct usb_interface *p_interface;
+	struct usb_host_interface *p_host_interface;
+	dev_dbg(&serial->dev->dev, "%s", __func__);
 
-		/* Get the interface structure pointer from the serial struct */
-		p_interface = serial->interface;
+	/* Get the interface structure pointer from the serial struct */
+	p_interface = serial->interface;
 
-		/* Get a pointer to the host interface structure */
-		p_host_interface = p_interface->cur_altsetting;
+	/* Get a pointer to the host interface structure */
+	p_host_interface = p_interface->cur_altsetting;
 
-		/* read the interface descriptor for this active altsetting
-		 * to find out the interface number we are on
-		*/
-		interface = p_host_interface->desc.bInterfaceNumber;
+	/* read the interface descriptor for this active altsetting
+	 * to find out the interface number we are on
+	*/
+	interface = p_host_interface->desc.bInterfaceNumber;
 
-		return interface;
+	return interface;
 }
 
 static int sierra_probe(struct usb_serial *serial,
@@ -135,6 +137,7 @@ static int sierra_probe(struct usb_serial *serial,
 	struct usb_device *udev;
 	int *num_ports;
 	u8 ifnum;
+	dev_dbg(&serial->dev->dev, "%s", __func__);
 
 	num_ports = kmalloc(sizeof(*num_ports), GFP_KERNEL);
 	if (!num_ports)
@@ -187,24 +190,26 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x0218) },	/* Sierra Wireless MC5720 */
 	{ USB_DEVICE(0x0f30, 0x1b1d) },	/* Sierra Wireless MC5720 */
 	{ USB_DEVICE(0x1199, 0x0020) },	/* Sierra Wireless MC5725 */
+	{ USB_DEVICE(0x1199, 0x0024) },	/* Sierra Wireless MC5727 */
 	{ USB_DEVICE(0x1199, 0x0220) },	/* Sierra Wireless MC5725 */
 	{ USB_DEVICE(0x1199, 0x0019) },	/* Sierra Wireless AirCard 595 */
 	{ USB_DEVICE(0x1199, 0x0021) },	/* Sierra Wireless AirCard 597E */
 	{ USB_DEVICE(0x1199, 0x0120) },	/* Sierra Wireless USB Dongle 595U */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0023, 0xFF, 0xFF, 0xFF) }, /* Sierra Wireless C597 */
+	 /* Sierra Wireless C597 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0023, 0xFF, 0xFF, 0xFF) },
 
 	{ USB_DEVICE(0x1199, 0x6802) },	/* Sierra Wireless MC8755 */
 	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 */
 	{ USB_DEVICE(0x1199, 0x6803) },	/* Sierra Wireless MC8765 */
 	{ USB_DEVICE(0x1199, 0x6812) },	/* Sierra Wireless MC8775 & AC 875U */
-	{ USB_DEVICE(0x1199, 0x6813) },	/* Sierra Wireless MC8775 (Thinkpad internal) */
+	{ USB_DEVICE(0x1199, 0x6813) },	/* Sierra Wireless MC8775 (Lenovo) */
 	{ USB_DEVICE(0x1199, 0x6815) },	/* Sierra Wireless MC8775 */
 	{ USB_DEVICE(0x03f0, 0x1e1d) },	/* HP hs2300 a.k.a MC8775 */
 	{ USB_DEVICE(0x1199, 0x6820) },	/* Sierra Wireless AirCard 875 */
 	{ USB_DEVICE(0x1199, 0x6821) },	/* Sierra Wireless AirCard 875U */
-	{ USB_DEVICE(0x1199, 0x6832) },	/* Sierra Wireless MC8780*/
-	{ USB_DEVICE(0x1199, 0x6833) },	/* Sierra Wireless MC8781*/
-	{ USB_DEVICE(0x1199, 0x683B), .driver_info = DEVICE_1_PORT },	/* Sierra Wireless MC8785 Composite*/
+	{ USB_DEVICE(0x1199, 0x6832) },	/* Sierra Wireless MC8780 */
+	{ USB_DEVICE(0x1199, 0x6833) },	/* Sierra Wireless MC8781 */
+	{ USB_DEVICE(0x1199, 0x683B), .driver_info = DEVICE_1_PORT },	/* Sierra Wireless MC8785 Composite */
 	{ USB_DEVICE(0x1199, 0x6850) },	/* Sierra Wireless AirCard 880 */
 	{ USB_DEVICE(0x1199, 0x6851) },	/* Sierra Wireless AirCard 881 */
 	{ USB_DEVICE(0x1199, 0x6852) },	/* Sierra Wireless AirCard 880 E */
@@ -213,9 +218,6 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x6856) },	/* Sierra Wireless AirCard 881 U */
 	{ USB_DEVICE(0x1199, 0x6859), .driver_info = DEVICE_1_PORT },	/* Sierra Wireless AirCard 885 E */
 	{ USB_DEVICE(0x1199, 0x685A), .driver_info = DEVICE_1_PORT },	/* Sierra Wireless AirCard 885 E */
-
-	{ USB_DEVICE(0x1199, 0x6468) }, /* Sierra Wireless MP3G - EVDO */
-	{ USB_DEVICE(0x1199, 0x6469) }, /* Sierra Wireless MP3G - UMTS/HSPA */
 
 	{ USB_DEVICE(0x1199, 0x0112), .driver_info = DEVICE_1_PORT }, /* Sierra Wireless AirCard 580 */
 	{ USB_DEVICE(0x0F3D, 0x0112), .driver_info = DEVICE_1_PORT }, /* Airprime/Sierra PC 5220 */
@@ -713,7 +715,7 @@ static void sierra_shutdown(struct usb_serial *serial)
 static struct usb_serial_driver sierra_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
-		.name =		"sierra1",
+		.name =		"sierra",
 	},
 	.description       = "Sierra USB modem",
 	.id_table          = id_table,
@@ -769,14 +771,10 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
-module_param(truinstall, bool, 0);
-MODULE_PARM_DESC(truinstall, "TRU-Install support");
-
-module_param(nmea, bool, 0);
+module_param(nmea, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nmea, "NMEA streaming");
 
 #ifdef CONFIG_USB_DEBUG
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug messages");
 #endif
-
