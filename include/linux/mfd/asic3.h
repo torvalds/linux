@@ -265,44 +265,12 @@ struct asic3_platform_data {
 #define ASIC3_EXTCF_CF_SLEEP             (1 << 15) /* CF sleep mode control */
 
 /*********************************************
- *  The Onewire interface registers
- *
- *  OWM_CMD
- *  OWM_DAT
- *  OWM_INTR
- *  OWM_INTEN
- *  OWM_CLKDIV
+ *  The Onewire interface (DS1WM) is handled
+ *  by the ds1wm driver.
  *
  *********************************************/
 
-#define ASIC3_OWM_Base		0xC00
-
-#define ASIC3_OWM_CMD         0x00
-#define ASIC3_OWM_DAT         0x04
-#define ASIC3_OWM_INTR        0x08
-#define ASIC3_OWM_INTEN       0x0C
-#define ASIC3_OWM_CLKDIV      0x10
-
-#define ASIC3_OWM_CMD_ONEWR         (1 << 0)
-#define ASIC3_OWM_CMD_SRA           (1 << 1)
-#define ASIC3_OWM_CMD_DQO           (1 << 2)
-#define ASIC3_OWM_CMD_DQI           (1 << 3)
-
-#define ASIC3_OWM_INTR_PD          (1 << 0)
-#define ASIC3_OWM_INTR_PDR         (1 << 1)
-#define ASIC3_OWM_INTR_TBE         (1 << 2)
-#define ASIC3_OWM_INTR_TEMP        (1 << 3)
-#define ASIC3_OWM_INTR_RBF         (1 << 4)
-
-#define ASIC3_OWM_INTEN_EPD        (1 << 0)
-#define ASIC3_OWM_INTEN_IAS        (1 << 1)
-#define ASIC3_OWM_INTEN_ETBE       (1 << 2)
-#define ASIC3_OWM_INTEN_ETMT       (1 << 3)
-#define ASIC3_OWM_INTEN_ERBF       (1 << 4)
-
-#define ASIC3_OWM_CLKDIV_PRE       (3 << 0) /* two bits wide at bit 0 */
-#define ASIC3_OWM_CLKDIV_DIV       (7 << 2) /* 3 bits wide at bit 2 */
-
+#define ASIC3_OWM_BASE		0xC00
 
 /*****************************************************************************
  *  The SD configuration registers are at a completely different location
