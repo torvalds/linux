@@ -3,8 +3,9 @@
  * Author: MontaVista Software, Inc.
  *              ahennessy@mvista.com
  *
+ * arch/mips/jmr3927/common/init.c
+ *
  * Copyright (C) 2000-2001 Toshiba Corporation
- * Copyright (C) 2004 by Ralf Baechle (ralf@linux-mips.org)
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -26,33 +27,31 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/types.h>
-#include <linux/pci.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
-
+#include <asm/bootinfo.h>
 #include <asm/txx9/jmr3927.h>
-#include <asm/debug.h>
 
-struct resource pci_io_resource = {
-	.name	= "IO MEM",
-	.start	= 0x1000,			/* reserve regacy I/O space */
-	.end	= 0x1000 + JMR3927_PCIIO_SIZE - 1,
-	.flags	= IORESOURCE_IO
-};
+extern void  __init prom_init_cmdline(void);
 
-struct resource pci_mem_resource = {
-	.name	= "PCI MEM",
-	.start	= JMR3927_PCIMEM,
-	.end	= JMR3927_PCIMEM + JMR3927_PCIMEM_SIZE - 1,
-	.flags	= IORESOURCE_MEM
-};
+const char *get_system_type(void)
+{
+	return "Toshiba"
+#ifdef CONFIG_TOSHIBA_JMR3927
+	       " JMR_TX3927"
+#endif
+	;
+}
 
-extern struct pci_ops jmr3927_pci_ops;
+extern void puts(const char *cp);
 
-struct pci_controller jmr3927_controller = {
-	.pci_ops	= &jmr3927_pci_ops,
-	.io_resource	= &pci_io_resource,
-	.mem_resource	= &pci_mem_resource,
-	.mem_offset	= JMR3927_PCIMEM
-};
+void __init prom_init(void)
+{
+#ifdef CONFIG_TOSHIBA_JMR3927
+	/* CCFG */
+	if ((tx3927_ccfgptr->ccfg & TX3927_CCFG_TLBOFF) == 0)
+		puts("Warning: TX3927 TLB off\n");
+#endif
+
+	prom_init_cmdline();
+	add_memory_region(0, JMR3927_SDRAM_SIZE, BOOT_MEM_RAM);
+}

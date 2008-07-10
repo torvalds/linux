@@ -31,7 +31,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 
-#include <asm/jmr3927/jmr3927.h>
+#include <asm/txx9/jmr3927.h>
 
 int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {

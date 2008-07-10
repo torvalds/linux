@@ -39,7 +39,7 @@
 #include <linux/init.h>
 
 #include <asm/addrspace.h>
-#include <asm/jmr3927/jmr3927.h>
+#include <asm/txx9/jmr3927.h>
 
 static inline int mkaddr(unsigned char bus, unsigned char dev_fn,
 	unsigned char where)

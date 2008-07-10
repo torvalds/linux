@@ -37,7 +37,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <asm/tx4927/tx4927.h>
+#include <asm/txx9/tx4927.h>
 
 #undef  DEBUG
 #ifdef  DEBUG

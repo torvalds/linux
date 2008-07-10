@@ -642,8 +642,7 @@ source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
-source "arch/mips/tx4927/Kconfig"
-source "arch/mips/tx4938/Kconfig"
+source "arch/mips/txx9/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 
 endmenu

@@ -1,10 +1,19 @@
 /*
+ * BRIEF MODULE DESCRIPTION
+ *    PROM library initialisation code, assuming a version of
+ *    pmon is the boot code.
+ *
  * Copyright 2001 MontaVista Software Inc.
  * Author: MontaVista Software, Inc.
  *              ahennessy@mvista.com
  *
- * Copyright (C) 2000-2001 Toshiba Corporation
- * Copyright (C) 2004 by Ralf Baechle (ralf@linux-mips.org)
+ * Based on arch/mips/au1000/common/prom.c
+ *
+ * This file was derived from Carsten Langgaard's
+ * arch/mips/mips-boards/xx files.
+ *
+ * Carsten Langgaard, carstenl@mips.com
+ * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -26,33 +35,64 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/types.h>
-#include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/string.h>
 
-#include <asm/txx9/jmr3927.h>
-#include <asm/debug.h>
+#include <asm/bootinfo.h>
+#include <asm/txx9/tx3927.h>
 
-struct resource pci_io_resource = {
-	.name	= "IO MEM",
-	.start	= 0x1000,			/* reserve regacy I/O space */
-	.end	= 0x1000 + JMR3927_PCIIO_SIZE - 1,
-	.flags	= IORESOURCE_IO
-};
+char * __init prom_getcmdline(void)
+{
+	return &(arcs_cmdline[0]);
+}
 
-struct resource pci_mem_resource = {
-	.name	= "PCI MEM",
-	.start	= JMR3927_PCIMEM,
-	.end	= JMR3927_PCIMEM + JMR3927_PCIMEM_SIZE - 1,
-	.flags	= IORESOURCE_MEM
-};
+void  __init prom_init_cmdline(void)
+{
+	char *cp;
+	int actr;
+	int prom_argc = fw_arg0;
+	char **prom_argv = (char **) fw_arg1;
 
-extern struct pci_ops jmr3927_pci_ops;
+	actr = 1; /* Always ignore argv[0] */
 
-struct pci_controller jmr3927_controller = {
-	.pci_ops	= &jmr3927_pci_ops,
-	.io_resource	= &pci_io_resource,
-	.mem_resource	= &pci_mem_resource,
-	.mem_offset	= JMR3927_PCIMEM
-};
+	cp = &(arcs_cmdline[0]);
+	while(actr < prom_argc) {
+	        strcpy(cp, prom_argv[actr]);
+		cp += strlen(prom_argv[actr]);
+		*cp++ = ' ';
+		actr++;
+	}
+	if (cp != &(arcs_cmdline[0])) /* get rid of trailing space */
+		--cp;
+	*cp = '\0';
+}
+
+void __init prom_free_prom_memory(void)
+{
+}
+
+#define TIMEOUT       0xffffff
+
+void
+prom_putchar(char c)
+{
+        int i = 0;
+
+        do {
+            i++;
+            if (i>TIMEOUT)
+                break;
+        } while (!(tx3927_sioptr(1)->cisr & TXx927_SICISR_TXALS));
+	tx3927_sioptr(1)->tfifo = c;
+	return;
+}
+
+void
+puts(const char *cp)
+{
+    while (*cp)
+	prom_putchar(*cp++);
+    prom_putchar('\r');
+    prom_putchar('\n');
+}

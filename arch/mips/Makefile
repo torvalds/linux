@@ -553,8 +553,8 @@ all-$(CONFIG_SNI_RM)		:= vmlinux.ecoff
 #
 # Toshiba JMR-TX3927 board
 #
-core-$(CONFIG_TOSHIBA_JMR3927)	+= arch/mips/jmr3927/rbhma3100/ \
-				   arch/mips/jmr3927/common/
+core-$(CONFIG_TOSHIBA_JMR3927)	+= arch/mips/txx9/jmr3927/ \
+				   arch/mips/txx9/generic/
 cflags-$(CONFIG_TOSHIBA_JMR3927) += -Iinclude/asm-mips/mach-jmr3927
 load-$(CONFIG_TOSHIBA_JMR3927)	+= 0xffffffff80050000
 
@@ -562,16 +562,16 @@ load-$(CONFIG_TOSHIBA_JMR3927)	+= 0xffffffff80050000
 # Toshiba RBTX4927 board or
 # Toshiba RBTX4937 board
 #
-core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/tx4927/toshiba_rbtx4927/
-core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/tx4927/common/
+core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/txx9/rbtx4927/
+core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/txx9/generic/
 cflags-$(CONFIG_TOSHIBA_RBTX4927) += -Iinclude/asm-mips/mach-tx49xx
 load-$(CONFIG_TOSHIBA_RBTX4927)	+= 0xffffffff80020000
 
 #
 # Toshiba RBTX4938 board
 #
-core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/tx4938/toshiba_rbtx4938/
-core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/tx4938/common/
+core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/txx9/rbtx4938/
+core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/txx9/generic/
 cflags-$(CONFIG_TOSHIBA_RBTX4938) += -Iinclude/asm-mips/mach-tx49xx
 load-$(CONFIG_TOSHIBA_RBTX4938) += 0xffffffff80100000
 

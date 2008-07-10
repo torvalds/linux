@@ -15,7 +15,7 @@
 #include <linux/init.h>
 
 #include <asm/addrspace.h>
-#include <asm/tx4938/rbtx4938.h>
+#include <asm/txx9/rbtx4938.h>
 
 /* initialize in setup */
 struct resource pci_io_resource = {
