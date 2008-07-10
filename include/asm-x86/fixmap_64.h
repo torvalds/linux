@@ -12,6 +12,7 @@
 #define _ASM_FIXMAP_64_H
 
 #include <linux/kernel.h>
+#include <asm/acpi.h>
 #include <asm/apicdef.h>
 #include <asm/page.h>
 #include <asm/vsyscall.h>
@@ -48,6 +49,10 @@ enum fixed_addresses {
 				  + MAX_EFI_IO_PAGES - 1,
 #ifdef CONFIG_PARAVIRT
 	FIX_PARAVIRT_BOOTMAP,
+#endif
+#ifdef CONFIG_ACPI
+	FIX_ACPI_BEGIN,
+	FIX_ACPI_END = FIX_ACPI_BEGIN + FIX_ACPI_PAGES - 1,
 #endif
 #ifdef CONFIG_PROVIDE_OHCI1394_DMA_INIT
 	FIX_OHCI1394_BASE,

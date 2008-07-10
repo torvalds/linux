@@ -109,21 +109,6 @@ static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
  */
 enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_PIC;
 
-#ifdef	CONFIG_X86_64
-
-/* rely on all ACPI tables being in the direct mapping */
-char *__init __acpi_map_table(unsigned long phys_addr, unsigned long size)
-{
-	if (!phys_addr || !size)
-		return NULL;
-
-	if (phys_addr+size <= (max_pfn_mapped << PAGE_SHIFT) + PAGE_SIZE)
-		return __va(phys_addr);
-
-	return NULL;
-}
-
-#else
 
 /*
  * Temporarily use the virtual area starting from FIX_IO_APIC_BASE_END,
@@ -142,11 +127,15 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 	unsigned long base, offset, mapped_size;
 	int idx;
 
-	if (phys + size < 8 * 1024 * 1024)
+	if (!phys || !size)
+		return NULL;
+
+	if (phys+size <= (max_pfn_mapped << PAGE_SHIFT))
 		return __va(phys);
 
 	offset = phys & (PAGE_SIZE - 1);
 	mapped_size = PAGE_SIZE - offset;
+	clear_fixmap(FIX_ACPI_END);
 	set_fixmap(FIX_ACPI_END, phys);
 	base = fix_to_virt(FIX_ACPI_END);
 
@@ -158,13 +147,13 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 		if (--idx < FIX_ACPI_BEGIN)
 			return NULL;	/* cannot handle this */
 		phys += PAGE_SIZE;
+		clear_fixmap(idx);
 		set_fixmap(idx, phys);
 		mapped_size += PAGE_SIZE;
 	}
 
 	return ((unsigned char *)base + offset);
 }
-#endif
 
 #ifdef CONFIG_PCI_MMCONFIG
 /* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
