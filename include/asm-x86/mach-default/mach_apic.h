@@ -31,6 +31,7 @@ static inline cpumask_t target_cpus(void)
 #define phys_pkg_id	(genapic->phys_pkg_id)
 #define vector_allocation_domain    (genapic->vector_allocation_domain)
 #define read_apic_id  (genapic->read_apic_id)
+#define send_IPI_self (genapic->send_IPI_self)
 extern void setup_apic_routing(void);
 #else
 #define INT_DELIVERY_MODE dest_LowestPrio
