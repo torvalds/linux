@@ -334,6 +334,8 @@ static int
 qla2x00_isp_firmware(scsi_qla_host_t *ha)
 {
 	int  rval;
+	uint16_t loop_id, topo, sw_cap;
+	uint8_t domain, area, al_pa;
 
 	/* Assume loading risc code */
 	rval = QLA_FUNCTION_FAILED;
@@ -345,6 +347,11 @@ qla2x00_isp_firmware(scsi_qla_host_t *ha)
 
 		/* Verify checksum of loaded RISC code. */
 		rval = qla2x00_verify_checksum(ha, ha->fw_srisc_address);
+		if (rval == QLA_SUCCESS) {
+			/* And, verify we are not in ROM code. */
+			rval = qla2x00_get_adapter_id(ha, &loop_id, &al_pa,
+			    &area, &domain, &topo, &sw_cap);
+		}
 	}
 
 	if (rval) {

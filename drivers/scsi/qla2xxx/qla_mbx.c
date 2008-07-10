@@ -919,6 +919,8 @@ qla2x00_get_adapter_id(scsi_qla_host_t *ha, uint16_t *id, uint8_t *al_pa,
 	rval = qla2x00_mailbox_command(ha, mcp);
 	if (mcp->mb[0] == MBS_COMMAND_ERROR)
 		rval = QLA_COMMAND_ERROR;
+	else if (mcp->mb[0] == MBS_INVALID_COMMAND)
+		rval = QLA_INVALID_COMMAND;
 
 	/* Return data. */
 	*id = mcp->mb[1];
