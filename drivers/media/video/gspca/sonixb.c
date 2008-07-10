@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SN9C102 USB Camera Driver");
@@ -87,7 +87,6 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
-#define SD_BRIGHTNESS 0
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -102,7 +101,6 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
-#define SD_GAIN 1
 	{
 	    {
 		.id      = V4L2_CID_GAIN,
@@ -118,7 +116,6 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setgain,
 	    .get = sd_getgain,
 	},
-#define SD_EXPOSURE 2
 	{
 		{
 			.id = V4L2_CID_EXPOSURE,
@@ -135,7 +132,6 @@ static struct ctrl sd_ctrls[] = {
 		.set = sd_setexposure,
 		.get = sd_getexposure,
 	},
-#define SD_AUTOGAIN 3
 	{
 		{
 			.id = V4L2_CID_AUTOGAIN,
@@ -144,7 +140,8 @@ static struct ctrl sd_ctrls[] = {
 			.minimum = 0,
 			.maximum = 1,
 			.step = 1,
-			.default_value = 1,
+#define AUTOGAIN_DEF 1
+			.default_value = AUTOGAIN_DEF,
 			.flags = 0,
 		},
 		.set = sd_setautogain,
@@ -246,10 +243,12 @@ static const __u8 initOv7630[] = {
 static const __u8 initOv7630_3[] = {
 	0x44, 0x44, 0x00, 0x1a, 0x20, 0x20, 0x20, 0x80,	/* r01 .. r08 */
 	0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,	/* r09 .. r10 */
-	0x00, 0x02, 0x01, 0x0a,				/* r11 .. r14 */
-	0x28, 0x1e,			/* H & V sizes     r15 .. r16 */
-	0x68, COMP1, MCK_INIT1,				/* r17 .. r19 */
-	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c		/* r1a .. r1f */
+	0x00, 0x01, 0x01, 0x0a,				/* r11 .. r14 */
+	0x16, 0x12,			/* H & V sizes     r15 .. r16 */
+	0x68, 0x8f, MCK_INIT1,				/* r17 .. r19 */
+	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c, 0x00,	/* r1a .. r20 */
+	0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, /* r21 .. r28 */
+	0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0, 0xff  /* r29 .. r30 */
 };
 static const __u8 ov7630_sensor_init_com[][8] = {
 	{0xa0, 0x21, 0x12, 0x80, 0x00, 0x00, 0x00, 0x10},
@@ -280,14 +279,14 @@ static const __u8 ov7630_sensor_init[][8] = {
 	{0xa0, 0x21, 0x00, 0x10, 0xbd, 0x06, 0xf6, 0x15},	/* gain */
 };
 static const __u8 ov7630_sensor_init_3[][8] = {
-	{0xa0, 0x21, 0x10, 0x36, 0xbd, 0x06, 0xf6, 0x16},	/* exposure */
-	{0xa0, 0x21, 0x76, 0x03, 0xbd, 0x06, 0xf6, 0x16},
-	{0xa0, 0x21, 0x11, 0x01, 0xbd, 0x06, 0xf6, 0x16},
+	{0xa0, 0x21, 0x10, 0x83, 0xbd, 0x06, 0xf6, 0x16},      /* exposure */
+	{0xa0, 0x21, 0x76, 0x00, 0xbd, 0x06, 0xf6, 0x16},
+	{0xa0, 0x21, 0x11, 0x00, 0xbd, 0x06, 0xf6, 0x16},
 	{0xa0, 0x21, 0x00, 0x10, 0xbd, 0x06, 0xf6, 0x15},	/* gain */
 /*	{0xb0, 0x21, 0x2a, 0xc0, 0x3c, 0x06, 0xf6, 0x1d},
 		* a0 1c,a0 1f,c0 3c frame rate ?line interval from ov6630 */
 /*	{0xb0, 0x21, 0x2a, 0xa0, 0x1f, 0x06, 0xf6, 0x1d},	 * from win */
-	{0xb0, 0x21, 0x2a, 0xa0, 0x1c, 0x06, 0xf6, 0x1d},
+	{0xb0, 0x21, 0x2a, 0x80, 0x60, 0x06, 0xf6, 0x1d},
 };
 
 static const __u8 initPas106[] = {
@@ -403,7 +402,7 @@ static void reg_w(struct usb_device *dev,
 			  const __u8 *buffer,
 			  int len)
 {
-	__u8 tmpbuf[32];
+	__u8 tmpbuf[48];
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	if (len > sizeof tmpbuf) {
@@ -554,14 +553,15 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 		i2c[4] = 255 - gain;
 		if (i2c_w(gspca_dev->dev, i2c) < 0)
 			goto err;
-		break; }
-
+		break;
+	    }
 	case SENSOR_OV6650: {
 		__u8 i2c[] = {0xa0, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
 		i2c[3] = gain;
 		if (i2c_w(gspca_dev->dev, i2c) < 0)
 			goto err;
-		break; }
+		break;
+	    }
 	}
 	return;
 err:
@@ -605,7 +605,8 @@ static void setexposure(struct gspca_dev *gspca_dev)
 			reg = 15;
 		reg = (reg << 4) | 0x0b;
 		reg_w(gspca_dev->dev, 0x19, &reg, 1);
-		break; }
+		break;
+	    }
 	case SENSOR_OV6650: {
 		__u8 i2c[] = {0xa0, 0x60, 0x11, 0xc0, 0x00, 0x00, 0x00, 0x10};
 		i2c[3] = 30 / fps - 1;
@@ -614,7 +615,8 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		i2c[3] |= 0xc0;
 		if (i2c_w(gspca_dev->dev, i2c) < 0)
 			PDEBUG(D_ERR, "i2c error exposure");
-		break; }
+		break;
+	    }
 	}
 }
 
@@ -641,7 +643,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-/*	__u16 vendor; */
 	__u16 product;
 	int sif = 0;
 
@@ -650,11 +651,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->sd_desc = &sd->sd_desc;
 
 	sd->fr_h_sz = 12;		/* default size of the frame header */
-	sd->sd_desc.nctrls = 2;		/* default no ctrls */
+	sd->sd_desc.nctrls = 2;		/* default nb of ctrls */
 
-/*	vendor = id->idVendor; */
 	product = id->idProduct;
-/*	switch (vendor) { */
+/*	switch (id->idVendor) { */
 /*	case 0x0c45:				 * Sonix */
 		switch (product) {
 		case 0x6001:			/* SN9C102 */
@@ -711,15 +711,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->epaddr = 0x01;
 	if (!sif) {
 		cam->cam_mode = vga_mode;
-		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+		cam->nmodes = ARRAY_SIZE(vga_mode);
 	} else {
 		cam->cam_mode = sif_mode;
-		cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
+		cam->nmodes = ARRAY_SIZE(sif_mode);
 	}
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->gain = GAIN_DEF;
 	sd->exposure = EXPOSURE_DEF;
-	sd->autogain = 1;
+	sd->autogain = AUTOGAIN_DEF;
 	if (sd->sensor == SENSOR_OV7630_3)	/* jfm: from win trace */
 		reg_w(gspca_dev->dev, 0x01, probe_ov7630, sizeof probe_ov7630);
 	return 0;
@@ -762,6 +762,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	const __u8 *sn9c10x;
 	__u8 reg01, reg17;
 	__u8 reg17_19[3];
+	static const __u8 reg15[2] = { 0x28, 0x1e };
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	switch (sd->sensor) {
@@ -824,7 +825,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_OV7630_3:
 		reg01 = 0x44;
 		reg17 = 0x68;
-		l = 0x10;
+		l = sizeof initOv7630_3;
 		break;
 	default:
 		reg01 = sn9c10x[0];
@@ -882,18 +883,21 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 	/* H_size V_size  0x28, 0x1e maybe 640x480 */
-	reg_w(dev, 0x15, &sn9c10x[0x15 - 1], 2);
+	reg_w(dev, 0x15, reg15, 2);
 	/* compression register */
 	reg_w(dev, 0x18, &reg17_19[1], 1);
-	/* H_start */		/*fixme: not ov7630*/
-	reg_w(dev, 0x12, &sn9c10x[0x12 - 1], 1);
-	/* V_START */		/*fixme: not ov7630*/
-	reg_w(dev, 0x13, &sn9c10x[0x13 - 1], 1);
+	if (sd->sensor != SENSOR_OV7630_3) {
+		/* H_start */
+		reg_w(dev, 0x12, &sn9c10x[0x12 - 1], 1);
+		/* V_START */
+		reg_w(dev, 0x13, &sn9c10x[0x13 - 1], 1);
+	}
 	/* reset 0x17 SensorClk enable inv Clk 0x60 */
 				/*fixme: ov7630 [17]=68 8f (+20 if 102)*/
 	reg_w(dev, 0x17, &reg17_19[0], 1);
 	/*MCKSIZE ->3 */	/*fixme: not ov7630*/
-	reg_w(dev, 0x19, &reg17_19[2], 1);
+	if (sd->sensor != SENSOR_OV7630_3)
+		reg_w(dev, 0x19, &reg17_19[2], 1);
 	/* AE_STRX AE_STRY AE_ENDX AE_ENDY */
 	reg_w(dev, 0x1c, &sn9c10x[0x1c - 1], 4);
 	/* Enable video transfert */
@@ -912,7 +916,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	__u8 ByteSend = 0;
+	__u8 ByteSend;
 
 	ByteSend = 0x09;	/* 0X00 */
 	reg_w(gspca_dev->dev, 0x01, &ByteSend, 1);
