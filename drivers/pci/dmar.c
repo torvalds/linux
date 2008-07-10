@@ -174,19 +174,37 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 	struct acpi_dmar_hardware_unit *drhd;
 	struct dmar_drhd_unit *dmaru;
 	int ret = 0;
-	static int include_all;
 
 	dmaru = kzalloc(sizeof(*dmaru), GFP_KERNEL);
 	if (!dmaru)
 		return -ENOMEM;
 
+	dmaru->hdr = header;
 	drhd = (struct acpi_dmar_hardware_unit *)header;
 	dmaru->reg_base_addr = drhd->address;
 	dmaru->include_all = drhd->flags & 0x1; /* BIT0: INCLUDE_ALL */
 
+	ret = alloc_iommu(dmaru);
+	if (ret) {
+		kfree(dmaru);
+		return ret;
+	}
+	dmar_register_drhd_unit(dmaru);
+	return 0;
+}
+
+static int __init
+dmar_parse_dev(struct dmar_drhd_unit *dmaru)
+{
+	struct acpi_dmar_hardware_unit *drhd;
+	static int include_all;
+	int ret;
+
+	drhd = (struct acpi_dmar_hardware_unit *) dmaru->hdr;
+
 	if (!dmaru->include_all)
 		ret = dmar_parse_dev_scope((void *)(drhd + 1),
-				((void *)drhd) + header->length,
+				((void *)drhd) + drhd->header.length,
 				&dmaru->devices_cnt, &dmaru->devices,
 				drhd->segment);
 	else {
@@ -199,10 +217,10 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 		include_all = 1;
 	}
 
-	if (ret || (dmaru->devices_cnt == 0 && !dmaru->include_all))
+	if (ret || (dmaru->devices_cnt == 0 && !dmaru->include_all)) {
+		list_del(&dmaru->list);
 		kfree(dmaru);
-	else
-		dmar_register_drhd_unit(dmaru);
+	}
 	return ret;
 }
 
@@ -211,23 +229,35 @@ dmar_parse_one_rmrr(struct acpi_dmar_header *header)
 {
 	struct acpi_dmar_reserved_memory *rmrr;
 	struct dmar_rmrr_unit *rmrru;
-	int ret = 0;
 
 	rmrru = kzalloc(sizeof(*rmrru), GFP_KERNEL);
 	if (!rmrru)
 		return -ENOMEM;
 
+	rmrru->hdr = header;
 	rmrr = (struct acpi_dmar_reserved_memory *)header;
 	rmrru->base_address = rmrr->base_address;
 	rmrru->end_address = rmrr->end_address;
+
+	dmar_register_rmrr_unit(rmrru);
+	return 0;
+}
+
+static int __init
+rmrr_parse_dev(struct dmar_rmrr_unit *rmrru)
+{
+	struct acpi_dmar_reserved_memory *rmrr;
+	int ret;
+
+	rmrr = (struct acpi_dmar_reserved_memory *) rmrru->hdr;
 	ret = dmar_parse_dev_scope((void *)(rmrr + 1),
-		((void *)rmrr) + header->length,
+		((void *)rmrr) + rmrr->header.length,
 		&rmrru->devices_cnt, &rmrru->devices, rmrr->segment);
 
-	if (ret || (rmrru->devices_cnt == 0))
+	if (ret || (rmrru->devices_cnt == 0)) {
+		list_del(&rmrru->list);
 		kfree(rmrru);
-	else
-		dmar_register_rmrr_unit(rmrru);
+	}
 	return ret;
 }
 
@@ -333,15 +363,42 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 	return NULL;
 }
 
+int __init dmar_dev_scope_init(void)
+{
+	struct dmar_drhd_unit *drhd;
+	struct dmar_rmrr_unit *rmrr;
+	int ret = -ENODEV;
+
+	for_each_drhd_unit(drhd) {
+		ret = dmar_parse_dev(drhd);
+		if (ret)
+			return ret;
+	}
+
+	for_each_rmrr_units(rmrr) {
+		ret = rmrr_parse_dev(rmrr);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 
 int __init dmar_table_init(void)
 {
-
+	static int dmar_table_initialized;
 	int ret;
+
+	if (dmar_table_initialized)
+		return 0;
+
+	dmar_table_initialized = 1;
 
 	ret = parse_dmar_table();
 	if (ret) {
-		printk(KERN_INFO PREFIX "parse DMAR table failure.\n");
+		if (ret != -ENODEV)
+			printk(KERN_INFO PREFIX "parse DMAR table failure.\n");
 		return ret;
 	}
 
@@ -377,7 +434,7 @@ int __init early_dmar_detect(void)
 	return (ACPI_SUCCESS(status) ? 1 : 0);
 }
 
-struct intel_iommu *alloc_iommu(struct dmar_drhd_unit *drhd)
+int alloc_iommu(struct dmar_drhd_unit *drhd)
 {
 	struct intel_iommu *iommu;
 	int map_size;
@@ -386,7 +443,7 @@ struct intel_iommu *alloc_iommu(struct dmar_drhd_unit *drhd)
 
 	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
-		return NULL;
+		return -ENOMEM;
 
 	iommu->seq_id = iommu_allocated++;
 
@@ -419,10 +476,10 @@ struct intel_iommu *alloc_iommu(struct dmar_drhd_unit *drhd)
 	spin_lock_init(&iommu->register_lock);
 
 	drhd->iommu = iommu;
-	return iommu;
+	return 0;
 error:
 	kfree(iommu);
-	return NULL;
+	return -1;
 }
 
 void free_iommu(struct intel_iommu *iommu)

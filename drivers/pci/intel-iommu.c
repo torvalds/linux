@@ -1665,11 +1665,8 @@ int __init init_dmars(void)
 	for_each_drhd_unit(drhd) {
 		if (drhd->ignored)
 			continue;
-		iommu = alloc_iommu(drhd);
-		if (!iommu) {
-			ret = -ENOMEM;
-			goto error;
-		}
+
+		iommu = drhd->iommu;
 
 		ret = iommu_init_domains(iommu);
 		if (ret)
@@ -2322,6 +2319,9 @@ int __init intel_iommu_init(void)
 		return -ENODEV;
 
 	if (dmar_table_init())
+		return 	-ENODEV;
+
+	if (dmar_dev_scope_init())
 		return 	-ENODEV;
 
 	iommu_init_mempool();

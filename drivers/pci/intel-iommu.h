@@ -199,7 +199,7 @@ struct intel_iommu {
 
 extern struct dmar_drhd_unit * dmar_find_matched_drhd_unit(struct pci_dev *dev);
 
-extern struct intel_iommu *alloc_iommu(struct dmar_drhd_unit *drhd);
+extern int alloc_iommu(struct dmar_drhd_unit *drhd);
 extern void free_iommu(struct intel_iommu *iommu);
 
 #endif

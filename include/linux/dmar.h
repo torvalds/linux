@@ -46,12 +46,14 @@ extern int intel_iommu_init(void);
 
 extern int dmar_table_init(void);
 extern int early_dmar_detect(void);
+extern int dmar_dev_scope_init(void);
 
 extern struct list_head dmar_drhd_units;
 extern struct list_head dmar_rmrr_units;
 
 struct dmar_drhd_unit {
 	struct list_head list;		/* list of drhd units	*/
+	struct  acpi_dmar_header *hdr;	/* ACPI header		*/
 	u64	reg_base_addr;		/* register base address*/
 	struct	pci_dev **devices; 	/* target device array	*/
 	int	devices_cnt;		/* target device count	*/
@@ -62,6 +64,7 @@ struct dmar_drhd_unit {
 
 struct dmar_rmrr_unit {
 	struct list_head list;		/* list of rmrr units	*/
+	struct acpi_dmar_header *hdr;	/* ACPI header		*/
 	u64	base_address;		/* reserved base address*/
 	u64	end_address;		/* reserved end address */
 	struct pci_dev **devices;	/* target devices */
@@ -72,6 +75,8 @@ struct dmar_rmrr_unit {
 	list_for_each_entry(drhd, &dmar_drhd_units, list)
 #define for_each_rmrr_units(rmrr) \
 	list_for_each_entry(rmrr, &dmar_rmrr_units, list)
+
+extern int alloc_iommu(struct dmar_drhd_unit *);
 #else
 static inline void detect_intel_iommu(void)
 {
@@ -81,6 +86,9 @@ static inline int intel_iommu_init(void)
 {
 	return -ENODEV;
 }
-
+static inline int dmar_table_init(void)
+{
+	return -ENODEV;
+}
 #endif /* !CONFIG_DMAR */
 #endif /* __DMAR_H__ */
