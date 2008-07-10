@@ -137,6 +137,8 @@ static int sierra_probe(struct usb_serial *serial,
 	struct usb_device *udev;
 	int *num_ports;
 	u8 ifnum;
+	u8 numendpoints;
+
 	dev_dbg(&serial->dev->dev, "%s", __func__);
 
 	num_ports = kmalloc(sizeof(*num_ports), GFP_KERNEL);
@@ -144,23 +146,22 @@ static int sierra_probe(struct usb_serial *serial,
 		return -ENOMEM;
 
 	ifnum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
+	numendpoints = serial->interface->cur_altsetting->desc.bNumEndpoints;
 	udev = serial->dev;
 
-		/* Figure out the interface number from the serial structure */
-		ifnum = sierra_calc_interface(serial);
+	/* Figure out the interface number from the serial structure */
+	ifnum = sierra_calc_interface(serial);
 
-		/*
-		 * If this interface supports more than 1 alternate
-		 * select the 2nd one
-		 */
-		if (serial->interface->num_altsetting == 2) {
-			dev_dbg(&udev->dev,
-				"Selecting alt setting for interface %d\n",
-				ifnum);
-
-			/* We know the alternate setting is 1 for the MC8785 */
-			usb_set_interface(udev, ifnum, 1);
-		}
+	/*
+	 * If this interface supports more than 1 alternate
+	 * select the 2nd one
+	 */
+	if (serial->interface->num_altsetting == 2) {
+		dev_dbg(&udev->dev, "Selecting alt setting for interface %d\n",
+			ifnum);
+		/* We know the alternate setting is 1 for the MC8785 */
+		usb_set_interface(udev, ifnum, 1);
+	}
 
 	/* Check if in installer mode */
 	if (truinstall && id->driver_info == DEVICE_INSTALLER) {
@@ -169,12 +170,14 @@ static int sierra_probe(struct usb_serial *serial,
 		/* Don't bind to the device when in installer mode */
 		kfree(num_ports);
 		return -EIO;
-	} else if (id->driver_info == DEVICE_1_PORT)
-		*num_ports = 1;
-	else if (ifnum == 0x99)
+	/* Dummy interface present on some SKUs should be ignored */
+	} else if (ifnum == 0x99)
 		*num_ports = 0;
+	else if (numendpoints <= 3)
+		*num_ports = 1;
 	else
-		*num_ports = 3;
+		*num_ports = (numendpoints-1)/2;
+
 	/*
 	 * save off our num_ports info so that we can use it in the
 	 * calc_num_ports callback
@@ -197,6 +200,9 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x0120) },	/* Sierra Wireless USB Dongle 595U */
 	 /* Sierra Wireless C597 */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0023, 0xFF, 0xFF, 0xFF) },
+	 /* Sierra Wireless Device */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0025, 0xFF, 0xFF, 0xFF) },
+	{ USB_DEVICE(0x1199, 0x0026) }, /* Sierra Wireless Device */
 
 	{ USB_DEVICE(0x1199, 0x6802) },	/* Sierra Wireless MC8755 */
 	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 */
@@ -209,18 +215,27 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x6821) },	/* Sierra Wireless AirCard 875U */
 	{ USB_DEVICE(0x1199, 0x6832) },	/* Sierra Wireless MC8780 */
 	{ USB_DEVICE(0x1199, 0x6833) },	/* Sierra Wireless MC8781 */
-	{ USB_DEVICE(0x1199, 0x683B), .driver_info = DEVICE_1_PORT },	/* Sierra Wireless MC8785 Composite */
+	{ USB_DEVICE(0x1199, 0x683B) },	/* Sierra Wireless MC8785 Composite */
+	{ USB_DEVICE(0x1199, 0x683C) },	/* Sierra Wireless MC8790 */
+	{ USB_DEVICE(0x1199, 0x683D) },	/* Sierra Wireless MC8790 */
+	{ USB_DEVICE(0x1199, 0x683E) },	/* Sierra Wireless MC8790 */
 	{ USB_DEVICE(0x1199, 0x6850) },	/* Sierra Wireless AirCard 880 */
 	{ USB_DEVICE(0x1199, 0x6851) },	/* Sierra Wireless AirCard 881 */
 	{ USB_DEVICE(0x1199, 0x6852) },	/* Sierra Wireless AirCard 880 E */
 	{ USB_DEVICE(0x1199, 0x6853) },	/* Sierra Wireless AirCard 881 E */
 	{ USB_DEVICE(0x1199, 0x6855) },	/* Sierra Wireless AirCard 880 U */
 	{ USB_DEVICE(0x1199, 0x6856) },	/* Sierra Wireless AirCard 881 U */
-	{ USB_DEVICE(0x1199, 0x6859), .driver_info = DEVICE_1_PORT },	/* Sierra Wireless AirCard 885 E */
-	{ USB_DEVICE(0x1199, 0x685A), .driver_info = DEVICE_1_PORT },	/* Sierra Wireless AirCard 885 E */
+	{ USB_DEVICE(0x1199, 0x6859) },	/* Sierra Wireless AirCard 885 E */
+	{ USB_DEVICE(0x1199, 0x685A) },	/* Sierra Wireless AirCard 885 E */
+	/* Sierra Wireless C885 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6880, 0xFF, 0xFF, 0xFF)},
+	/* Sierra Wireless Device */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6890, 0xFF, 0xFF, 0xFF)},
+	/* Sierra Wireless Device */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6892, 0xFF, 0xFF, 0xFF)},
 
-	{ USB_DEVICE(0x1199, 0x0112), .driver_info = DEVICE_1_PORT }, /* Sierra Wireless AirCard 580 */
-	{ USB_DEVICE(0x0F3D, 0x0112), .driver_info = DEVICE_1_PORT }, /* Airprime/Sierra PC 5220 */
+	{ USB_DEVICE(0x1199, 0x0112) }, /* Sierra Wireless AirCard 580 */
+	{ USB_DEVICE(0x0F3D, 0x0112) }, /* Airprime/Sierra PC 5220 */
 
 	{ USB_DEVICE(0x1199, 0x0FFF), .driver_info = DEVICE_INSTALLER},
 	{ }
@@ -270,13 +285,19 @@ static int sierra_send_setup(struct tty_struct *tty,
 		if (portdata->rts_state)
 			val |= 0x02;
 
-		/* Determine which port is targeted */
-		if (port->bulk_out_endpointAddress == 2)
-			interface = 0;
-		else if (port->bulk_out_endpointAddress == 4)
-			interface = 1;
-		else if (port->bulk_out_endpointAddress == 5)
-			interface = 2;
+		/* If composite device then properly report interface */
+		if (serial->num_ports == 1)
+			interface = sierra_calc_interface(serial);
+
+		/* Otherwise the need to do non-composite mapping */
+		else {
+			if (port->bulk_out_endpointAddress == 2)
+				interface = 0;
+			else if (port->bulk_out_endpointAddress == 4)
+				interface = 1;
+			else if (port->bulk_out_endpointAddress == 5)
+				interface = 2;
+		}
 
 		return usb_control_msg(serial->dev,
 				usb_rcvctrlpipe(serial->dev, 0),
