@@ -134,7 +134,6 @@ static const u32 fsflags_to_gfs2[32] = {
 	[7] = GFS2_DIF_NOATIME,
 	[12] = GFS2_DIF_EXHASH,
 	[14] = GFS2_DIF_INHERIT_JDATA,
-	[20] = GFS2_DIF_INHERIT_DIRECTIO,
 };
 
 static const u32 gfs2_to_fsflags[32] = {
@@ -143,7 +142,6 @@ static const u32 gfs2_to_fsflags[32] = {
 	[gfs2fl_AppendOnly] = FS_APPEND_FL,
 	[gfs2fl_NoAtime] = FS_NOATIME_FL,
 	[gfs2fl_ExHash] = FS_INDEX_FL,
-	[gfs2fl_InheritDirectio] = FS_DIRECTIO_FL,
 	[gfs2fl_InheritJdata] = FS_JOURNAL_DATA_FL,
 };
 
@@ -161,12 +159,8 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 		return error;
 
 	fsflags = fsflags_cvt(gfs2_to_fsflags, ip->i_di.di_flags);
-	if (!S_ISDIR(inode->i_mode)) {
-		if (ip->i_di.di_flags & GFS2_DIF_JDATA)
-			fsflags |= FS_JOURNAL_DATA_FL;
-		if (ip->i_di.di_flags & GFS2_DIF_DIRECTIO)
-			fsflags |= FS_DIRECTIO_FL;
-	}
+	if (!S_ISDIR(inode->i_mode) && ip->i_di.di_flags & GFS2_DIF_JDATA)
+		fsflags |= FS_JOURNAL_DATA_FL;
 	if (put_user(fsflags, ptr))
 		error = -EFAULT;
 
@@ -195,13 +189,11 @@ void gfs2_set_inode_flags(struct inode *inode)
 
 /* Flags that can be set by user space */
 #define GFS2_FLAGS_USER_SET (GFS2_DIF_JDATA|			\
-			     GFS2_DIF_DIRECTIO|			\
 			     GFS2_DIF_IMMUTABLE|		\
 			     GFS2_DIF_APPENDONLY|		\
 			     GFS2_DIF_NOATIME|			\
 			     GFS2_DIF_SYNC|			\
 			     GFS2_DIF_SYSTEM|			\
-			     GFS2_DIF_INHERIT_DIRECTIO|		\
 			     GFS2_DIF_INHERIT_JDATA)
 
 /**
@@ -292,8 +284,6 @@ static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 	if (!S_ISDIR(inode->i_mode)) {
 		if (gfsflags & GFS2_DIF_INHERIT_JDATA)
 			gfsflags ^= (GFS2_DIF_JDATA | GFS2_DIF_INHERIT_JDATA);
-		if (gfsflags & GFS2_DIF_INHERIT_DIRECTIO)
-			gfsflags ^= (GFS2_DIF_DIRECTIO | GFS2_DIF_INHERIT_DIRECTIO);
 		return do_gfs2_set_flags(filp, gfsflags, ~0);
 	}
 	return do_gfs2_set_flags(filp, gfsflags, ~GFS2_DIF_JDATA);
@@ -493,11 +483,6 @@ static int gfs2_open(struct inode *inode, struct file *file)
 			error = -EOVERFLOW;
 			goto fail_gunlock;
 		}
-
-		/* Listen to the Direct I/O flag */
-
-		if (ip->i_di.di_flags & GFS2_DIF_DIRECTIO)
-			file->f_flags |= O_DIRECT;
 
 		gfs2_glock_dq_uninit(&i_gh);
 	}

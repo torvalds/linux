@@ -789,12 +789,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 		if ((dip->i_di.di_flags & GFS2_DIF_INHERIT_JDATA) ||
 		    gfs2_tune_get(sdp, gt_new_files_jdata))
 			di->di_flags |= cpu_to_be32(GFS2_DIF_JDATA);
-		if ((dip->i_di.di_flags & GFS2_DIF_INHERIT_DIRECTIO) ||
-		    gfs2_tune_get(sdp, gt_new_files_directio))
-			di->di_flags |= cpu_to_be32(GFS2_DIF_DIRECTIO);
 	} else if (S_ISDIR(mode)) {
-		di->di_flags |= cpu_to_be32(dip->i_di.di_flags &
-					    GFS2_DIF_INHERIT_DIRECTIO);
 		di->di_flags |= cpu_to_be32(dip->i_di.di_flags &
 					    GFS2_DIF_INHERIT_JDATA);
 	}

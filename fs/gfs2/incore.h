@@ -421,7 +421,6 @@ struct gfs2_tune {
 	unsigned int gt_quota_quantum; /* Secs between syncs to quota file */
 	unsigned int gt_atime_quantum; /* Min secs between atime updates */
 	unsigned int gt_new_files_jdata;
-	unsigned int gt_new_files_directio;
 	unsigned int gt_max_readahead; /* Max bytes to read-ahead from disk */
 	unsigned int gt_stall_secs; /* Detects trouble! */
 	unsigned int gt_complain_secs;

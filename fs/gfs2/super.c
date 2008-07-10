@@ -65,7 +65,6 @@ void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_quota_quantum = 60;
 	gt->gt_atime_quantum = 3600;
 	gt->gt_new_files_jdata = 0;
-	gt->gt_new_files_directio = 0;
 	gt->gt_max_readahead = 1 << 18;
 	gt->gt_stall_secs = 600;
 	gt->gt_complain_secs = 10;
