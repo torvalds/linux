@@ -1207,6 +1207,11 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 	return done;
 }
 
+static void velocity_set_rxbufsize(struct velocity_info *vptr, int mtu)
+{
+	vptr->rx_buf_sz = (mtu <= ETH_DATA_LEN) ? PKT_BUF_SZ : mtu + 32;
+}
+
 /**
  *	velocity_init_rd_ring	-	set up receive ring
  *	@vptr: velocity to configure
@@ -1217,10 +1222,7 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 
 static int velocity_init_rd_ring(struct velocity_info *vptr)
 {
-	int mtu = vptr->dev->mtu;
 	int ret = -ENOMEM;
-
-	vptr->rx_buf_sz = (mtu <= ETH_DATA_LEN) ? PKT_BUF_SZ : mtu + 32;
 
 	vptr->rd_info = kcalloc(vptr->options.numrx,
 				sizeof(struct velocity_rd_info), GFP_KERNEL);
@@ -1860,6 +1862,8 @@ static int velocity_open(struct net_device *dev)
 	struct velocity_info *vptr = netdev_priv(dev);
 	int ret;
 
+	velocity_set_rxbufsize(vptr, dev->mtu);
+
 	ret = velocity_init_rings(vptr);
 	if (ret < 0)
 		goto out;
@@ -1940,6 +1944,8 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 		velocity_free_rd_ring(vptr);
 
 		dev->mtu = new_mtu;
+
+		velocity_set_rxbufsize(vptr, new_mtu);
 
 		ret = velocity_init_rd_ring(vptr);
 		if (ret < 0)
