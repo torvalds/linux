@@ -81,7 +81,7 @@ void __init intr_init_hook(void)
  *
  * Description:
  *	generally used to activate any machine specific identification
- *	routines that may be needed before setup_arch() runs.  On VISWS
+ *	routines that may be needed before setup_arch() runs.  On Voyager
  *	this is used to get the board revision and type.
  **/
 void __init pre_setup_arch_hook(void)
