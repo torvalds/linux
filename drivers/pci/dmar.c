@@ -457,6 +457,31 @@ void __init detect_intel_iommu(void)
 
 #ifdef CONFIG_DMAR
 	{
+		struct acpi_table_dmar *dmar;
+		/*
+		 * for now we will disable dma-remapping when interrupt
+		 * remapping is enabled.
+		 * When support for queued invalidation for IOTLB invalidation
+		 * is added, we will not need this any more.
+		 */
+		dmar = (struct acpi_table_dmar *) dmar_tbl;
+		if (ret && cpu_has_x2apic && dmar->flags & 0x1) {
+			printk(KERN_INFO
+			       "Queued invalidation will be enabled to support "
+			       "x2apic and Intr-remapping.\n");
+			printk(KERN_INFO
+			       "Disabling IOMMU detection, because of missing "
+			       "queued invalidation support for IOTLB "
+			       "invalidation\n");
+			printk(KERN_INFO
+			       "Use \"nox2apic\", if you want to use Intel "
+			       " IOMMU for DMA-remapping and don't care about "
+			       " x2apic support\n");
+
+			dmar_disabled = 1;
+			return;
+		}
+
 		if (ret && !no_iommu && !iommu_detected && !swiotlb &&
 		    !dmar_disabled)
 			iommu_detected = 1;
