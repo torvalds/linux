@@ -62,8 +62,10 @@ static __init void cobalt_init(void)
 		co_apic_read(CO_APIC_ID));
 }
 
-void __init trap_init_hook_dontuse(void)
+int __init visws_trap_init_quirk(void)
 {
 	lithium_init();
 	cobalt_init();
+
+	return 1;
 }

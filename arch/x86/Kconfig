@@ -186,7 +186,7 @@ config X86_HT
 
 config X86_BIOS_REBOOT
 	bool
-	depends on !X86_VISWS && !X86_VOYAGER
+	depends on !X86_VOYAGER
 	default y
 
 config X86_TRAMPOLINE

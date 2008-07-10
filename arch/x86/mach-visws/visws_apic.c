@@ -25,9 +25,6 @@
 
 #include "cobalt.h"
 
-char visws_board_type = -1;
-char visws_board_rev = -1;
-
 static DEFINE_SPINLOCK(cobalt_lock);
 
 /*
