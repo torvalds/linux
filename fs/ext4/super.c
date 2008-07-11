@@ -756,6 +756,9 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",nomballoc");
 	if (test_opt(sb, I_VERSION))
 		seq_puts(seq, ",i_version");
+	if (!test_opt(sb, DELALLOC))
+		seq_puts(seq, ",nodelalloc");
+
 
 	if (sbi->s_stripe)
 		seq_printf(seq, ",stripe=%lu", sbi->s_stripe);
@@ -903,7 +906,7 @@ enum {
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
 	Opt_grpquota, Opt_extents, Opt_noextents, Opt_i_version,
-	Opt_mballoc, Opt_nomballoc, Opt_stripe, Opt_delalloc,
+	Opt_mballoc, Opt_nomballoc, Opt_stripe, Opt_delalloc, Opt_nodelalloc,
 };
 
 static match_table_t tokens = {
@@ -963,6 +966,7 @@ static match_table_t tokens = {
 	{Opt_stripe, "stripe=%u"},
 	{Opt_resize, "resize"},
 	{Opt_delalloc, "delalloc"},
+	{Opt_nodelalloc, "nodelalloc"},
 	{Opt_err, NULL},
 };
 
@@ -1327,6 +1331,9 @@ set_qf_format:
 		case Opt_i_version:
 			set_opt(sbi->s_mount_opt, I_VERSION);
 			sb->s_flags |= MS_I_VERSION;
+			break;
+		case Opt_nodelalloc:
+			clear_opt(sbi->s_mount_opt, DELALLOC);
 			break;
 		case Opt_mballoc:
 			set_opt(sbi->s_mount_opt, MBALLOC);
@@ -1984,6 +1991,13 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	 */
 	set_opt(sbi->s_mount_opt, MBALLOC);
 
+	/*
+	 * enable delayed allocation by default
+	 * Use -o nodelalloc to turn it off
+	 */
+	set_opt(sbi->s_mount_opt, DELALLOC);
+
+
 	if (!parse_options ((char *) data, sb, &journal_inum, &journal_devnum,
 			    NULL, 0))
 		goto failed_mount;
@@ -2421,6 +2435,13 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		test_opt(sb,DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ? "journal":
 		test_opt(sb,DATA_FLAGS) == EXT4_MOUNT_ORDERED_DATA ? "ordered":
 		"writeback");
+
+	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
+		printk(KERN_WARNING "EXT4-fs: Ignoring delalloc option - "
+				"requested data journaling mode\n");
+		clear_opt(sbi->s_mount_opt, DELALLOC);
+	} else if (test_opt(sb, DELALLOC))
+		printk(KERN_INFO "EXT4-fs: delayed allocation enabled\n");
 
 	ext4_ext_init(sb);
 	ext4_mb_init(sb, needs_recovery);
