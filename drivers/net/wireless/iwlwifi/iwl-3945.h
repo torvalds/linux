@@ -794,6 +794,7 @@ struct iwl3945_priv {
 	u8 last_blink_rate;
 	u8 allow_blinking;
 	unsigned int rxtxpackets;
+	u64 led_tpt;
 #endif
 
 
