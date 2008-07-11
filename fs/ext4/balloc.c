@@ -47,7 +47,7 @@ static int ext4_block_in_group(struct super_block *sb, ext4_fsblk_t block,
 			ext4_group_t block_group)
 {
 	ext4_group_t actual_group;
-	ext4_get_group_no_and_offset(sb, block, &actual_group, 0);
+	ext4_get_group_no_and_offset(sb, block, &actual_group, NULL);
 	if (actual_group == block_group)
 		return 1;
 	return 0;
