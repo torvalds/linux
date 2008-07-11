@@ -1341,7 +1341,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 		   "server",
 #elif defined(CONFIG_PREEMPT_VOLUNTARY)
 		   "desktop",
-#elif defined(CONFIG_PREEMPT_DESKTOP)
+#elif defined(CONFIG_PREEMPT)
 		   "preempt",
 #else
 		   "unknown",
