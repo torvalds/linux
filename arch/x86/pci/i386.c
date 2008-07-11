@@ -334,7 +334,9 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		flags = new_flags;
 	}
 
-	if (vma->vm_pgoff <= max_pfn_mapped &&
+	if (((vma->vm_pgoff <= max_low_pfn_mapped) ||
+	     (vma->vm_pgoff >= (1UL<<(32 - PAGE_SHIFT)) &&
+	      vma->vm_pgoff <= max_pfn_mapped)) &&
 	    ioremap_change_attr((unsigned long)__va(addr), len, flags)) {
 		free_memtype(addr, addr + len);
 		return -EINVAL;

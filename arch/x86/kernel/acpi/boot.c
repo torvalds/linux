@@ -130,7 +130,7 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 	if (!phys || !size)
 		return NULL;
 
-	if (phys+size <= (max_pfn_mapped << PAGE_SHIFT))
+	if (phys+size <= (max_low_pfn_mapped << PAGE_SHIFT))
 		return __va(phys);
 
 	offset = phys & (PAGE_SIZE - 1);

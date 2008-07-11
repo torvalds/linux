@@ -199,10 +199,14 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		 * Don't do it for gbpages because there seems very little
 		 * benefit in doing so.
 		 */
-		if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg) &&
-		    (tseg >> PMD_SHIFT) <
-			(max_pfn_mapped >> (PMD_SHIFT-PAGE_SHIFT)))
+		if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg)) {
+		    if ((tseg>>PMD_SHIFT) <
+				(max_low_pfn_mapped>>(PMD_SHIFT-PAGE_SHIFT)) ||
+			((tseg>>PMD_SHIFT) <
+				(max_pfn_mapped>>(PMD_SHIFT-PAGE_SHIFT)) &&
+			 (tseg>>PMD_SHIFT) >= (1ULL<<(32 - PMD_SHIFT))))
 			set_memory_4k((unsigned long)__va(tseg), 1);
+		}
 	}
 }
 

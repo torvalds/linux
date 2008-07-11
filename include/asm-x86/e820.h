@@ -99,7 +99,8 @@ extern void free_early(u64 start, u64 end);
 extern void early_res_to_bootmem(u64 start, u64 end);
 extern u64 early_reserve_e820(u64 startt, u64 sizet, u64 align);
 
-extern unsigned long e820_end(void);
+extern unsigned long e820_end_of_ram_pfn(void);
+extern unsigned long e820_end_of_low_ram_pfn(void);
 extern int e820_find_active_region(const struct e820entry *ei,
 				  unsigned long start_pfn,
 				  unsigned long last_pfn,

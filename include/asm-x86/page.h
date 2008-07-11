@@ -61,6 +61,7 @@ extern void map_devmem(unsigned long pfn, unsigned long size,
 extern void unmap_devmem(unsigned long pfn, unsigned long size,
 			 pgprot_t vma_prot);
 
+extern unsigned long max_low_pfn_mapped;
 extern unsigned long max_pfn_mapped;
 
 struct page;

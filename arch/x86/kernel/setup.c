@@ -713,14 +713,14 @@ void __init setup_arch(char **cmdline_p)
 	 * partially used pages are not usable - thus
 	 * we are rounding upwards:
 	 */
-	max_pfn = e820_end();
+	max_pfn = e820_end_of_ram_pfn();
 
 	/* preallocate 4k for mptable mpc */
 	early_reserve_e820_mpc_new();
 	/* update e820 for memory not covered by WB MTRRs */
 	mtrr_bp_init();
 	if (mtrr_trim_uncached_memory(max_pfn))
-		max_pfn = e820_end();
+		max_pfn = e820_end_of_ram_pfn();
 
 #ifdef CONFIG_X86_32
 	/* max_low_pfn get updated here */
@@ -732,12 +732,26 @@ void __init setup_arch(char **cmdline_p)
 
 	/* How many end-of-memory variables you have, grandma! */
 	/* need this before calling reserve_initrd */
-	max_low_pfn = max_pfn;
+	if (max_pfn > (1UL<<(32 - PAGE_SHIFT)))
+		max_low_pfn = e820_end_of_low_ram_pfn();
+	else
+		max_low_pfn = max_pfn;
+
 	high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
 #endif
 
 	/* max_pfn_mapped is updated here */
-	max_pfn_mapped = init_memory_mapping(0, (max_low_pfn << PAGE_SHIFT));
+	max_low_pfn_mapped = init_memory_mapping(0, max_low_pfn<<PAGE_SHIFT);
+	max_pfn_mapped = max_low_pfn_mapped;
+
+#ifdef CONFIG_X86_64
+	if (max_pfn > max_low_pfn) {
+		max_pfn_mapped = init_memory_mapping(1UL<<32,
+						     max_pfn<<PAGE_SHIFT);
+		/* can we preseve max_low_pfn ?*/
+		max_low_pfn = max_pfn;
+	}
+#endif
 
 	/*
 	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.

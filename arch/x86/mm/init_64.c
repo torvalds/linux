@@ -53,6 +53,7 @@
  * The direct mapping extends to max_pfn_mapped, so that we can directly access
  * apertures, ACPI and other tables without having to play with fixmaps.
  */
+unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
 
 static unsigned long dma_reserve __initdata;
