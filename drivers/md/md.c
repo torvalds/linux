@@ -2688,7 +2688,7 @@ array_state_show(mddev_t *mddev, char *page)
 	return sprintf(page, "%s\n", array_states[st]);
 }
 
-static int do_md_stop(mddev_t * mddev, int ro);
+static int do_md_stop(mddev_t * mddev, int ro, int is_open);
 static int do_md_run(mddev_t * mddev);
 static int restart_array(mddev_t *mddev);
 
@@ -2704,14 +2704,14 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 		/* stopping an active array */
 		if (atomic_read(&mddev->active) > 1)
 			return -EBUSY;
-		err = do_md_stop(mddev, 0);
+		err = do_md_stop(mddev, 0, 0);
 		break;
 	case inactive:
 		/* stopping an active array */
 		if (mddev->pers) {
 			if (atomic_read(&mddev->active) > 1)
 				return -EBUSY;
-			err = do_md_stop(mddev, 2);
+			err = do_md_stop(mddev, 2, 0);
 		} else
 			err = 0; /* already inactive */
 		break;
@@ -2719,7 +2719,7 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 		break; /* not supported yet */
 	case readonly:
 		if (mddev->pers)
-			err = do_md_stop(mddev, 1);
+			err = do_md_stop(mddev, 1, 0);
 		else {
 			mddev->ro = 1;
 			set_disk_ro(mddev->gendisk, 1);
@@ -2729,7 +2729,7 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 	case read_auto:
 		if (mddev->pers) {
 			if (mddev->ro != 1)
-				err = do_md_stop(mddev, 1);
+				err = do_md_stop(mddev, 1, 0);
 			else
 				err = restart_array(mddev);
 			if (err == 0) {
@@ -3818,16 +3818,17 @@ static void restore_bitmap_write_access(struct file *file)
  *   1 - switch to readonly
  *   2 - stop but do not disassemble array
  */
-static int do_md_stop(mddev_t * mddev, int mode)
+static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 {
 	int err = 0;
 	struct gendisk *disk = mddev->gendisk;
 
+	if (atomic_read(&mddev->active) > 1 + is_open) {
+		printk("md: %s still in use.\n",mdname(mddev));
+		return -EBUSY;
+	}
+
 	if (mddev->pers) {
-		if (atomic_read(&mddev->active)>2) {
-			printk("md: %s still in use.\n",mdname(mddev));
-			return -EBUSY;
-		}
 
 		if (mddev->sync_thread) {
 			set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
@@ -3976,7 +3977,7 @@ static void autorun_array(mddev_t *mddev)
 	err = do_md_run (mddev);
 	if (err) {
 		printk(KERN_WARNING "md: do_md_run() returned %d\n", err);
-		do_md_stop (mddev, 0);
+		do_md_stop (mddev, 0, 0);
 	}
 }
 
@@ -4931,11 +4932,11 @@ static int md_ioctl(struct inode *inode, struct file *file,
 			goto done_unlock;
 
 		case STOP_ARRAY:
-			err = do_md_stop (mddev, 0);
+			err = do_md_stop (mddev, 0, 1);
 			goto done_unlock;
 
 		case STOP_ARRAY_RO:
-			err = do_md_stop (mddev, 1);
+			err = do_md_stop (mddev, 1, 1);
 			goto done_unlock;
 
 	}
@@ -6226,7 +6227,7 @@ static int md_notify_reboot(struct notifier_block *this,
 
 		for_each_mddev(mddev, tmp)
 			if (mddev_trylock(mddev)) {
-				do_md_stop (mddev, 1);
+				do_md_stop (mddev, 1, 0);
 				mddev_unlock(mddev);
 			}
 		/*
