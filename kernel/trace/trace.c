@@ -96,6 +96,9 @@ static DEFINE_PER_CPU(struct trace_array_cpu, max_data);
 /* tracer_enabled is used to toggle activation of a tracer */
 static int			tracer_enabled = 1;
 
+/* function tracing enabled */
+int				ftrace_function_enabled;
+
 /*
  * trace_nr_entries is the number of entries that is allocated
  * for a buffer. Note, the number of entries is always rounded
@@ -134,6 +137,7 @@ static notrace void no_trace_init(struct trace_array *tr)
 {
 	int cpu;
 
+	ftrace_function_enabled = 0;
 	if(tr->ctrl)
 		for_each_online_cpu(cpu)
 			tracing_reset(tr->data[cpu]);
@@ -985,7 +989,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	long disabled;
 	int cpu;
 
-	if (unlikely(!tracer_enabled))
+	if (unlikely(!ftrace_function_enabled))
 		return;
 
 	if (skip_trace(ip))
@@ -1010,11 +1014,15 @@ static struct ftrace_ops trace_ops __read_mostly =
 
 void tracing_start_function_trace(void)
 {
+	ftrace_function_enabled = 0;
 	register_ftrace_function(&trace_ops);
+	if (tracer_enabled)
+		ftrace_function_enabled = 1;
 }
 
 void tracing_stop_function_trace(void)
 {
+	ftrace_function_enabled = 0;
 	unregister_ftrace_function(&trace_ops);
 }
 #endif
@@ -1850,8 +1858,10 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 		m->private = iter;
 
 		/* stop the trace while dumping */
-		if (iter->tr->ctrl)
+		if (iter->tr->ctrl) {
 			tracer_enabled = 0;
+			ftrace_function_enabled = 0;
+		}
 
 		if (iter->trace && iter->trace->open)
 			iter->trace->open(iter);
@@ -1884,8 +1894,14 @@ int tracing_release(struct inode *inode, struct file *file)
 		iter->trace->close(iter);
 
 	/* reenable tracing if it was previously enabled */
-	if (iter->tr->ctrl)
+	if (iter->tr->ctrl) {
 		tracer_enabled = 1;
+		/*
+		 * It is safe to enable function tracing even if it
+		 * isn't used
+		 */
+		ftrace_function_enabled = 1;
+	}
 	mutex_unlock(&trace_types_lock);
 
 	seq_release(inode, file);
