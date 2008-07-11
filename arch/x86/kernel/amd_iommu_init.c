@@ -394,16 +394,14 @@ static int __init find_last_devid_acpi(struct acpi_table_header *table)
  */
 static u8 * __init alloc_command_buffer(struct amd_iommu *iommu)
 {
-	u8 *cmd_buf = (u8 *)__get_free_pages(GFP_KERNEL,
+	u8 *cmd_buf = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 			get_order(CMD_BUFFER_SIZE));
-	u64 entry = 0;
+	u64 entry;
 
 	if (cmd_buf == NULL)
 		return NULL;
 
 	iommu->cmd_buf_size = CMD_BUFFER_SIZE;
-
-	memset(cmd_buf, 0, CMD_BUFFER_SIZE);
 
 	entry = (u64)virt_to_phys(cmd_buf);
 	entry |= MMIO_CMD_SIZE_512;
