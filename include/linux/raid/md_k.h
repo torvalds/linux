@@ -59,7 +59,7 @@ struct mdk_rdev_s
 	int		sb_loaded;
 	__u64		sb_events;
 	sector_t	data_offset;	/* start of data in array */
-	sector_t	sb_offset;
+	sector_t 	sb_start;	/* offset of the super block (in 512byte sectors) */
 	int		sb_size;	/* bytes in the superblock */
 	int		preferred_minor;	/* autorun support */
 

@@ -356,7 +356,7 @@ static inline sector_t calc_dev_sboffset(struct block_device *bdev)
 
 static sector_t calc_num_sectors(mdk_rdev_t *rdev, unsigned chunk_size)
 {
-	sector_t num_sectors = rdev->sb_offset * 2;
+	sector_t num_sectors = rdev->sb_start;
 
 	if (chunk_size)
 		num_sectors &= ~((sector_t)chunk_size/512 - 1);
@@ -383,7 +383,7 @@ static void free_disk_sb(mdk_rdev_t * rdev)
 		put_page(rdev->sb_page);
 		rdev->sb_loaded = 0;
 		rdev->sb_page = NULL;
-		rdev->sb_offset = 0;
+		rdev->sb_start = 0;
 		rdev->size = 0;
 	}
 }
@@ -529,7 +529,7 @@ static int read_disk_sb(mdk_rdev_t * rdev, int size)
 		return 0;
 
 
-	if (!sync_page_io(rdev->bdev, rdev->sb_offset<<1, size, rdev->sb_page, READ))
+	if (!sync_page_io(rdev->bdev, rdev->sb_start, size, rdev->sb_page, READ))
 		goto fail;
 	rdev->sb_loaded = 1;
 	return 0;
@@ -666,16 +666,14 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 	char b[BDEVNAME_SIZE], b2[BDEVNAME_SIZE];
 	mdp_super_t *sb;
 	int ret;
-	sector_t sb_offset;
 
 	/*
-	 * Calculate the position of the superblock,
+	 * Calculate the position of the superblock (512byte sectors),
 	 * it's at the end of the disk.
 	 *
 	 * It also happens to be a multiple of 4Kb.
 	 */
-	sb_offset = calc_dev_sboffset(rdev->bdev) / 2;
-	rdev->sb_offset = sb_offset;
+	rdev->sb_start = calc_dev_sboffset(rdev->bdev);
 
 	ret = read_disk_sb(rdev, MD_SB_BYTES);
 	if (ret) return ret;
@@ -1007,10 +1005,10 @@ super_90_rdev_size_change(mdk_rdev_t *rdev, unsigned long long size)
 	size *= 2; /* convert to sectors */
 	if (rdev->mddev->bitmap_offset)
 		return 0; /* can't move bitmap */
-	rdev->sb_offset = calc_dev_sboffset(rdev->bdev) / 2;
-	if (!size || size > rdev->sb_offset*2)
-		size = rdev->sb_offset*2;
-	md_super_write(rdev->mddev, rdev, rdev->sb_offset << 1, rdev->sb_size,
+	rdev->sb_start = calc_dev_sboffset(rdev->bdev);
+	if (!size || size > rdev->sb_start)
+		size = rdev->sb_start;
+	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
 		       rdev->sb_page);
 	md_super_wait(rdev->mddev);
 	return size/2; /* kB for sysfs */
@@ -1048,12 +1046,12 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 {
 	struct mdp_superblock_1 *sb;
 	int ret;
-	sector_t sb_offset;
+	sector_t sb_start;
 	char b[BDEVNAME_SIZE], b2[BDEVNAME_SIZE];
 	int bmask;
 
 	/*
-	 * Calculate the position of the superblock.
+	 * Calculate the position of the superblock in 512byte sectors.
 	 * It is always aligned to a 4K boundary and
 	 * depeding on minor_version, it can be:
 	 * 0: At least 8K, but less than 12K, from end of device
@@ -1062,22 +1060,20 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	 */
 	switch(minor_version) {
 	case 0:
-		sb_offset = rdev->bdev->bd_inode->i_size >> 9;
-		sb_offset -= 8*2;
-		sb_offset &= ~(sector_t)(4*2-1);
-		/* convert from sectors to K */
-		sb_offset /= 2;
+		sb_start = rdev->bdev->bd_inode->i_size >> 9;
+		sb_start -= 8*2;
+		sb_start &= ~(sector_t)(4*2-1);
 		break;
 	case 1:
-		sb_offset = 0;
+		sb_start = 0;
 		break;
 	case 2:
-		sb_offset = 4;
+		sb_start = 8;
 		break;
 	default:
 		return -EINVAL;
 	}
-	rdev->sb_offset = sb_offset;
+	rdev->sb_start = sb_start;
 
 	/* superblock is rarely larger than 1K, but it can be larger,
 	 * and it is safe to read 4k, so we do that
@@ -1091,7 +1087,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	if (sb->magic != cpu_to_le32(MD_SB_MAGIC) ||
 	    sb->major_version != cpu_to_le32(1) ||
 	    le32_to_cpu(sb->max_dev) > (4096-256)/2 ||
-	    le64_to_cpu(sb->super_offset) != (rdev->sb_offset<<1) ||
+	    le64_to_cpu(sb->super_offset) != rdev->sb_start ||
 	    (le32_to_cpu(sb->feature_map) & ~MD_FEATURE_ALL) != 0)
 		return -EINVAL;
 
@@ -1127,7 +1123,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 		rdev->sb_size = (rdev->sb_size | bmask) + 1;
 
 	if (minor_version
-	    && rdev->data_offset < sb_offset + (rdev->sb_size/512))
+	    && rdev->data_offset < sb_start + (rdev->sb_size/512))
 		return -EINVAL;
 
 	if (sb->level == cpu_to_le32(LEVEL_MULTIPATH))
@@ -1163,7 +1159,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	if (minor_version)
 		rdev->size = ((rdev->bdev->bd_inode->i_size>>9) - le64_to_cpu(sb->data_offset)) / 2;
 	else
-		rdev->size = rdev->sb_offset;
+		rdev->size = rdev->sb_start / 2;
 	if (rdev->size < le64_to_cpu(sb->data_size)/2)
 		return -EINVAL;
 	rdev->size = le64_to_cpu(sb->data_size)/2;
@@ -1350,7 +1346,7 @@ super_1_rdev_size_change(mdk_rdev_t *rdev, unsigned long long size)
 	if (size && size < rdev->mddev->size)
 		return 0; /* component must fit device */
 	size *= 2; /* convert to sectors */
-	if (rdev->sb_offset < rdev->data_offset/2) {
+	if (rdev->sb_start < rdev->data_offset) {
 		/* minor versions 1 and 2; superblock before data */
 		max_size = (rdev->bdev->bd_inode->i_size >> 9);
 		max_size -= rdev->data_offset;
@@ -1361,19 +1357,19 @@ super_1_rdev_size_change(mdk_rdev_t *rdev, unsigned long long size)
 		return 0;
 	} else {
 		/* minor version 0; superblock after data */
-		sector_t sb_offset;
-		sb_offset = (rdev->bdev->bd_inode->i_size >> 9) - 8*2;
-		sb_offset &= ~(sector_t)(4*2 - 1);
-		max_size = rdev->size*2 + sb_offset - rdev->sb_offset*2;
+		sector_t sb_start;
+		sb_start = (rdev->bdev->bd_inode->i_size >> 9) - 8*2;
+		sb_start &= ~(sector_t)(4*2 - 1);
+		max_size = rdev->size*2 + sb_start - rdev->sb_start;
 		if (!size || size > max_size)
 			size = max_size;
-		rdev->sb_offset = sb_offset/2;
+		rdev->sb_start = sb_start;
 	}
 	sb = (struct mdp_superblock_1 *) page_address(rdev->sb_page);
 	sb->data_size = cpu_to_le64(size);
-	sb->super_offset = rdev->sb_offset*2;
+	sb->super_offset = rdev->sb_start;
 	sb->sb_csum = calc_sb_1_csum(sb);
-	md_super_write(rdev->mddev, rdev, rdev->sb_offset << 1, rdev->sb_size,
+	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
 		       rdev->sb_page);
 	md_super_wait(rdev->mddev);
 	return size/2; /* kB for sysfs */
@@ -1810,11 +1806,11 @@ repeat:
 		dprintk("%s ", bdevname(rdev->bdev,b));
 		if (!test_bit(Faulty, &rdev->flags)) {
 			md_super_write(mddev,rdev,
-				       rdev->sb_offset<<1, rdev->sb_size,
+				       rdev->sb_start, rdev->sb_size,
 				       rdev->sb_page);
 			dprintk(KERN_INFO "(write) %s's sb offset: %llu\n",
 				bdevname(rdev->bdev,b),
-				(unsigned long long)rdev->sb_offset);
+				(unsigned long long)rdev->sb_start);
 			rdev->sb_events = mddev->events;
 
 		} else
@@ -3577,16 +3573,16 @@ static int do_md_run(mddev_t * mddev)
 		 * We don't want the data to overlap the metadata,
 		 * Internal Bitmap issues has handled elsewhere.
 		 */
-		if (rdev->data_offset < rdev->sb_offset) {
+		if (rdev->data_offset < rdev->sb_start) {
 			if (mddev->size &&
 			    rdev->data_offset + mddev->size*2
-			    > rdev->sb_offset*2) {
+			    > rdev->sb_start) {
 				printk("md: %s: data overlaps metadata\n",
 				       mdname(mddev));
 				return -EINVAL;
 			}
 		} else {
-			if (rdev->sb_offset*2 + rdev->sb_size/512
+			if (rdev->sb_start + rdev->sb_size/512
 			    > rdev->data_offset) {
 				printk("md: %s: metadata overlaps data\n",
 				       mdname(mddev));
@@ -4355,9 +4351,9 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 
 		if (!mddev->persistent) {
 			printk(KERN_INFO "md: nonpersistent superblock ...\n");
-			rdev->sb_offset = rdev->bdev->bd_inode->i_size >> BLOCK_SIZE_BITS;
+			rdev->sb_start = rdev->bdev->bd_inode->i_size / 512;
 		} else 
-			rdev->sb_offset = calc_dev_sboffset(rdev->bdev) / 2;
+			rdev->sb_start = calc_dev_sboffset(rdev->bdev);
 		rdev->size = calc_num_sectors(rdev, mddev->chunk_size) / 2;
 
 		err = bind_rdev_to_array(rdev, mddev);
@@ -4424,10 +4420,9 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 	}
 
 	if (mddev->persistent)
-		rdev->sb_offset = calc_dev_sboffset(rdev->bdev) / 2;
+		rdev->sb_start = calc_dev_sboffset(rdev->bdev);
 	else
-		rdev->sb_offset =
-			rdev->bdev->bd_inode->i_size >> BLOCK_SIZE_BITS;
+		rdev->sb_start = rdev->bdev->bd_inode->i_size / 512;
 
 	rdev->size = calc_num_sectors(rdev, mddev->chunk_size) / 2;
 
@@ -4628,7 +4623,7 @@ static int update_size(mddev_t *mddev, sector_t num_sectors)
 	 * linear and raid0 always use whatever space is available. We can only
 	 * consider changing this number if no resync or reconstruction is
 	 * happening, and if the new size is acceptable. It must fit before the
-	 * sb_offset or, if that is <data_offset, it must fit before the size
+	 * sb_start or, if that is <data_offset, it must fit before the size
 	 * of each device.  If num_sectors is zero, we find the largest size
 	 * that fits.
 

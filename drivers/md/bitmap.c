@@ -225,7 +225,7 @@ static struct page *read_sb_page(mddev_t *mddev, long offset, unsigned long inde
 		    || test_bit(Faulty, &rdev->flags))
 			continue;
 
-		target = (rdev->sb_offset << 1) + offset + index * (PAGE_SIZE/512);
+		target = rdev->sb_start + offset + index * (PAGE_SIZE/512);
 
 		if (sync_page_io(rdev->bdev, target, PAGE_SIZE, page, READ)) {
 			page->index = index;
@@ -262,12 +262,12 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 					/* bitmap runs in to metadata */
 					return -EINVAL;
 				if (rdev->data_offset + mddev->size*2
-				    > rdev->sb_offset*2 + bitmap->offset)
+				    > rdev->sb_start + bitmap->offset)
 					/* data runs in to bitmap */
 					return -EINVAL;
-			} else if (rdev->sb_offset*2 < rdev->data_offset) {
+			} else if (rdev->sb_start < rdev->data_offset) {
 				/* METADATA BITMAP DATA */
-				if (rdev->sb_offset*2
+				if (rdev->sb_start
 				    + bitmap->offset
 				    + page->index*(PAGE_SIZE/512) + size/512
 				    > rdev->data_offset)
@@ -277,7 +277,7 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 				/* DATA METADATA BITMAP - no problems */
 			}
 			md_super_write(mddev, rdev,
-				       (rdev->sb_offset<<1) + bitmap->offset
+				       rdev->sb_start + bitmap->offset
 				       + page->index * (PAGE_SIZE/512),
 				       size,
 				       page);
