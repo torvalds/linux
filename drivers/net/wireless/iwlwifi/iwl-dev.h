@@ -933,7 +933,7 @@ struct iwl_priv {
 #endif
 
 #ifdef CONFIG_IWLWIFI_LEDS
-	struct iwl4965_led led[IWL_LED_TRG_MAX];
+	struct iwl_led led[IWL_LED_TRG_MAX];
 	unsigned long last_blink_time;
 	u8 last_blink_rate;
 	u8 allow_blinking;

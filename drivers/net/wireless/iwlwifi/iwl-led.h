@@ -49,7 +49,7 @@ enum led_type {
 };
 
 
-struct iwl4965_led {
+struct iwl_led {
 	struct iwl_priv *priv;
 	struct led_classdev led_dev;
 
