@@ -1621,7 +1621,7 @@ ext4_fsblk_t ext4_has_free_blocks(struct ext4_sb_info *sbi,
 #ifdef CONFIG_SMP
 	if (free_blocks - root_blocks < FBC_BATCH)
 		free_blocks =
-			percpu_counter_sum_positive(&sbi->s_freeblocks_counter);
+			percpu_counter_sum_and_set(&sbi->s_freeblocks_counter);
 #endif
 	if (free_blocks - root_blocks < nblocks)
 		return free_blocks - root_blocks;
