@@ -2565,6 +2565,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	int err = 0, depth, ret;
 	unsigned long allocated = 0;
 	struct ext4_allocation_request ar;
+	loff_t disksize;
 
 	__clear_bit(BH_New, &bh_result->b_state);
 	ext_debug("blocks %u/%lu requested for inode %u\n",
@@ -2755,8 +2756,13 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	newblock = ext_pblock(&newex);
 	allocated = ext4_ext_get_actual_len(&newex);
 outnew:
-	if (extend_disksize && inode->i_size > EXT4_I(inode)->i_disksize)
-		EXT4_I(inode)->i_disksize = inode->i_size;
+	if (extend_disksize) {
+		disksize = ((loff_t) iblock + ar.len) << inode->i_blkbits;
+		if (disksize > i_size_read(inode))
+			disksize = i_size_read(inode);
+		if (disksize > EXT4_I(inode)->i_disksize)
+			EXT4_I(inode)->i_disksize = disksize;
+	}
 
 	set_buffer_new(bh_result);
 
