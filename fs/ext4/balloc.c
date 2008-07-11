@@ -295,7 +295,7 @@ err_out:
 	return 0;
 }
 /**
- * read_block_bitmap()
+ * ext4_read_block_bitmap()
  * @sb:			super block
  * @block_group:	given block group
  *
@@ -305,7 +305,7 @@ err_out:
  * Return buffer_head on success or NULL in case of failure.
  */
 struct buffer_head *
-read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
+ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 {
 	struct ext4_group_desc * desc;
 	struct buffer_head * bh = NULL;
@@ -693,7 +693,7 @@ do_more:
 		count -= overflow;
 	}
 	brelse(bitmap_bh);
-	bitmap_bh = read_block_bitmap(sb, block_group);
+	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
 	if (!bitmap_bh)
 		goto error_return;
 	desc = ext4_get_group_desc (sb, block_group, &gd_bh);
@@ -1733,7 +1733,7 @@ retry_alloc:
 		my_rsv = NULL;
 
 	if (free_blocks > 0) {
-		bitmap_bh = read_block_bitmap(sb, group_no);
+		bitmap_bh = ext4_read_block_bitmap(sb, group_no);
 		if (!bitmap_bh)
 			goto io_error;
 		grp_alloc_blk = ext4_try_to_allocate_with_rsv(sb, handle,
@@ -1769,7 +1769,7 @@ retry_alloc:
 			continue;
 
 		brelse(bitmap_bh);
-		bitmap_bh = read_block_bitmap(sb, group_no);
+		bitmap_bh = ext4_read_block_bitmap(sb, group_no);
 		if (!bitmap_bh)
 			goto io_error;
 		/*
@@ -1985,7 +1985,7 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 			continue;
 		desc_count += le16_to_cpu(gdp->bg_free_blocks_count);
 		brelse(bitmap_bh);
-		bitmap_bh = read_block_bitmap(sb, i);
+		bitmap_bh = ext4_read_block_bitmap(sb, i);
 		if (bitmap_bh == NULL)
 			continue;
 

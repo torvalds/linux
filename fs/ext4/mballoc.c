@@ -2326,7 +2326,7 @@ static int ext4_mb_init_backend(struct super_block *sb)
 			meta_group_info[j]->bb_bitmap =
 				kmalloc(sb->s_blocksize, GFP_KERNEL);
 			BUG_ON(meta_group_info[j]->bb_bitmap == NULL);
-			bh = read_block_bitmap(sb, i);
+			bh = ext4_read_block_bitmap(sb, i);
 			BUG_ON(bh == NULL);
 			memcpy(meta_group_info[j]->bb_bitmap, bh->b_data,
 					sb->s_blocksize);
@@ -2769,7 +2769,7 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 
 
 	err = -EIO;
-	bitmap_bh = read_block_bitmap(sb, ac->ac_b_ex.fe_group);
+	bitmap_bh = ext4_read_block_bitmap(sb, ac->ac_b_ex.fe_group);
 	if (!bitmap_bh)
 		goto out_err;
 
@@ -3589,7 +3589,7 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 	if (list_empty(&grp->bb_prealloc_list))
 		return 0;
 
-	bitmap_bh = read_block_bitmap(sb, group);
+	bitmap_bh = ext4_read_block_bitmap(sb, group);
 	if (bitmap_bh == NULL) {
 		/* error handling here */
 		ext4_mb_release_desc(&e4b);
@@ -3763,7 +3763,7 @@ repeat:
 		err = ext4_mb_load_buddy(sb, group, &e4b);
 		BUG_ON(err != 0); /* error handling here */
 
-		bitmap_bh = read_block_bitmap(sb, group);
+		bitmap_bh = ext4_read_block_bitmap(sb, group);
 		if (bitmap_bh == NULL) {
 			/* error handling here */
 			ext4_mb_release_desc(&e4b);
@@ -4262,7 +4262,7 @@ do_more:
 		overflow = bit + count - EXT4_BLOCKS_PER_GROUP(sb);
 		count -= overflow;
 	}
-	bitmap_bh = read_block_bitmap(sb, block_group);
+	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
 	if (!bitmap_bh)
 		goto error_return;
 	gdp = ext4_get_group_desc(sb, block_group, &gd_bh);

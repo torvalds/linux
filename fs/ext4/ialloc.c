@@ -600,7 +600,7 @@ got:
 	/* We may have to initialize the block bitmap if it isn't already */
 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_GDT_CSUM) &&
 	    gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
-		struct buffer_head *block_bh = read_block_bitmap(sb, group);
+		struct buffer_head *block_bh = ext4_read_block_bitmap(sb, group);
 
 		BUFFER_TRACE(block_bh, "get block bitmap access");
 		err = ext4_journal_get_write_access(handle, block_bh);
