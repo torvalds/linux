@@ -2768,6 +2768,9 @@ void ext4_ext_truncate(struct inode *inode)
 	if (inode->i_size & (sb->s_blocksize - 1))
 		ext4_block_truncate_page(handle, mapping, inode->i_size);
 
+	if (ext4_orphan_add(handle, inode))
+		goto out_stop;
+
 	down_write(&EXT4_I(inode)->i_data_sem);
 	ext4_ext_invalidate_cache(inode);
 
@@ -2778,8 +2781,6 @@ void ext4_ext_truncate(struct inode *inode)
 	 * Probably we need not scan at all,
 	 * because page truncation is enough.
 	 */
-	if (ext4_orphan_add(handle, inode))
-		goto out_stop;
 
 	/* we have to know where to truncate from in crash case */
 	EXT4_I(inode)->i_disksize = inode->i_size;
@@ -2796,6 +2797,7 @@ void ext4_ext_truncate(struct inode *inode)
 		handle->h_sync = 1;
 
 out_stop:
+	up_write(&EXT4_I(inode)->i_data_sem);
 	/*
 	 * If this was a simple ftruncate() and the file will remain alive,
 	 * then we need to clear up the orphan record which we created above.
@@ -2806,7 +2808,6 @@ out_stop:
 	if (inode->i_nlink)
 		ext4_orphan_del(handle, inode);
 
-	up_write(&EXT4_I(inode)->i_data_sem);
 	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
 	ext4_journal_stop(handle);
