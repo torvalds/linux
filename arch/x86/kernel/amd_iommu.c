@@ -39,7 +39,7 @@ static DEFINE_RWLOCK(amd_iommu_devtable_lock);
 /*
  * general struct to manage commands send to an IOMMU
  */
-struct command {
+struct iommu_cmd {
 	u32 data[4];
 };
 
@@ -62,7 +62,7 @@ static int iommu_has_npcache(struct amd_iommu *iommu)
  * Writes the command to the IOMMUs command buffer and informs the
  * hardware about the new command. Must be called with iommu->lock held.
  */
-static int __iommu_queue_command(struct amd_iommu *iommu, struct command *cmd)
+static int __iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 {
 	u32 tail, head;
 	u8 *target;
@@ -83,7 +83,7 @@ static int __iommu_queue_command(struct amd_iommu *iommu, struct command *cmd)
  * General queuing function for commands. Takes iommu->lock and calls
  * __iommu_queue_command().
  */
-static int iommu_queue_command(struct amd_iommu *iommu, struct command *cmd)
+static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 {
 	unsigned long flags;
 	int ret;
@@ -105,7 +105,7 @@ static int iommu_queue_command(struct amd_iommu *iommu, struct command *cmd)
 static int iommu_completion_wait(struct amd_iommu *iommu)
 {
 	int ret;
-	struct command cmd;
+	struct iommu_cmd cmd;
 	volatile u64 ready = 0;
 	unsigned long ready_phys = virt_to_phys(&ready);
 	unsigned long i = 0;
@@ -139,7 +139,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
  */
 static int iommu_queue_inv_dev_entry(struct amd_iommu *iommu, u16 devid)
 {
-	struct command cmd;
+	struct iommu_cmd cmd;
 
 	BUG_ON(iommu == NULL);
 
@@ -158,7 +158,7 @@ static int iommu_queue_inv_dev_entry(struct amd_iommu *iommu, u16 devid)
 static int iommu_queue_inv_iommu_pages(struct amd_iommu *iommu,
 		u64 address, u16 domid, int pde, int s)
 {
-	struct command cmd;
+	struct iommu_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
 	address &= PAGE_MASK;
