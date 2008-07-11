@@ -749,11 +749,11 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 	}
 	write_unlock_bh(&idev->lock);
 
+	addrconf_del_timer(ifp);
+
 	ipv6_ifa_notify(RTM_DELADDR, ifp);
 
 	atomic_notifier_call_chain(&inet6addr_chain, NETDEV_DOWN, ifp);
-
-	addrconf_del_timer(ifp);
 
 	/*
 	 * Purge or update corresponding prefix
