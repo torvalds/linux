@@ -159,6 +159,7 @@ struct iwl_mod_params {
 	int debug;		/* def: 0 = minimal debug log messages */
 	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
+	int num_of_ampdu_queues;/* def: HW dependent */
 	int enable_qos;		/* def: 1 = use quality of service */
 	int disable_11n;	/* def: 0 = disable 11n capabilities */
 	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */

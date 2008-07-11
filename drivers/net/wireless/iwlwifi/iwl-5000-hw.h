@@ -81,6 +81,7 @@
 #define IWL50_QUEUE_SIZE                 256
 #define IWL50_CMD_FIFO_NUM                 7
 #define IWL50_NUM_QUEUES                  20
+#define IWL50_NUM_AMPDU_QUEUES		  10
 #define IWL50_FIRST_AMPDU_QUEUE		  10
 
 #define IWL_sta_id_POS 12

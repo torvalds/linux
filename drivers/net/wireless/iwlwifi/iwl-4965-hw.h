@@ -819,6 +819,7 @@ enum {
 #define IWL49_NUM_FIFOS 	7
 #define IWL49_CMD_FIFO_NUM	4
 #define IWL49_NUM_QUEUES	16
+#define IWL49_NUM_AMPDU_QUEUES	8
 
 /**
  * struct iwl_tfd_frame_data

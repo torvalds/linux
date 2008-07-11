@@ -52,6 +52,7 @@ static int iwl4965_hw_get_temperature(const struct iwl_priv *priv);
 /* module parameters */
 static struct iwl_mod_params iwl4965_mod_params = {
 	.num_of_queues = IWL49_NUM_QUEUES,
+	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
 	.enable_qos = 1,
 	.amsdu_size_8K = 1,
 	.restart_fw = 1,
@@ -1943,9 +1944,11 @@ static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 {
 	int ret = 0;
 
-	if (IWL49_FIRST_AMPDU_QUEUE > txq_id) {
-		IWL_WARNING("queue number too small: %d, must be > %d\n",
-				txq_id, IWL49_FIRST_AMPDU_QUEUE);
+	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
+	    (IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES <= txq_id)) {
+		IWL_WARNING("queue number out of range: %d, must be %d to %d\n",
+			txq_id, IWL49_FIRST_AMPDU_QUEUE,
+			IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES - 1);
 		return -EINVAL;
 	}
 
@@ -2012,9 +2015,13 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	int ret;
 	u16 ra_tid;
 
-	if (IWL49_FIRST_AMPDU_QUEUE > txq_id)
-		IWL_WARNING("queue number too small: %d, must be > %d\n",
-			txq_id, IWL49_FIRST_AMPDU_QUEUE);
+	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
+	    (IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES <= txq_id)) {
+		IWL_WARNING("queue number out of range: %d, must be %d to %d\n",
+			txq_id, IWL49_FIRST_AMPDU_QUEUE,
+			IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES - 1);
+		return -EINVAL;
+	}
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
