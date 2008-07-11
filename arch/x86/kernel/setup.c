@@ -96,7 +96,7 @@
 #include <asm/smp.h>
 #include <asm/desc.h>
 #include <asm/dma.h>
-#include <asm/gart.h>
+#include <asm/iommu.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 

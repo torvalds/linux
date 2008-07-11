@@ -25,7 +25,7 @@
 #include <asm/pci-direct.h>
 #include <asm/amd_iommu_types.h>
 #include <asm/amd_iommu.h>
-#include <asm/gart.h>
+#include <asm/iommu.h>
 
 /*
  * definitions for the ACPI scanning code

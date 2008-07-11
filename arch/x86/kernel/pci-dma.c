@@ -5,7 +5,7 @@
 
 #include <asm/proto.h>
 #include <asm/dma.h>
-#include <asm/gart.h>
+#include <asm/iommu.h>
 #include <asm/calgary.h>
 #include <asm/amd_iommu.h>
 
