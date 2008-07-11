@@ -509,7 +509,7 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 	u8 *end = p, flags = 0;
 	u16 dev_i, devid = 0, devid_start = 0, devid_to = 0;
 	u32 ext_flags = 0;
-	bool alias = 0;
+	bool alias = false;
 	struct ivhd_entry *e;
 
 	/*
@@ -559,7 +559,7 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			devid_start = e->devid;
 			flags = e->flags;
 			ext_flags = 0;
-			alias = 0;
+			alias = false;
 			break;
 		case IVHD_DEV_ALIAS:
 			devid = e->devid;
@@ -572,7 +572,7 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			flags = e->flags;
 			devid_to = e->ext >> 8;
 			ext_flags = 0;
-			alias = 1;
+			alias = true;
 			break;
 		case IVHD_DEV_EXT_SELECT:
 			devid = e->devid;
@@ -582,7 +582,7 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			devid_start = e->devid;
 			flags = e->flags;
 			ext_flags = e->ext;
-			alias = 0;
+			alias = false;
 			break;
 		case IVHD_DEV_RANGE_END:
 			devid = e->devid;
