@@ -16,6 +16,9 @@ config CPU_PXA310
 config CPU_PXA320
 	bool "PXA320 (codename Monahans-P)"
 
+config CPU_PXA930
+	bool "PXA930 (codename Tavor-P)"
+
 endmenu
 
 endif

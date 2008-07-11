@@ -126,6 +126,16 @@
 #define __cpu_is_pxa320(id)	(0)
 #endif
 
+#ifdef CONFIG_CPU_PXA930
+#define __cpu_is_pxa930(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		_id == 0x683;		\
+	 })
+#else
+#define __cpu_is_pxa930(id)	(0)
+#endif
+
 #define cpu_is_pxa21x()					\
 	({						\
 		__cpu_is_pxa21x(read_cpuid_id());	\
@@ -159,6 +169,12 @@
 #define cpu_is_pxa320()					\
 	({						\
 		__cpu_is_pxa320(read_cpuid_id());	\
+	 })
+
+#define cpu_is_pxa930()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa930(id);			\
 	 })
 
 /*
