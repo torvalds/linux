@@ -197,6 +197,10 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 		/* This device does not support hotplug */
 		return;
 
+	if (event == ACPI_NOTIFY_BUS_CHECK ||
+	    event == ACPI_NOTIFY_DEVICE_CHECK)
+		status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
+
 	spin_lock_irqsave(ap->lock, flags);
 
 	switch (event) {
@@ -204,7 +208,6 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		ata_ehi_push_desc(ehi, "ACPI event");
 
-		status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
 		if (ACPI_FAILURE(status)) {
 			ata_port_printk(ap, KERN_ERR,
 				"acpi: failed to determine bay status (0x%x)\n",
