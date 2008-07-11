@@ -51,6 +51,7 @@ ifeq ($(CONFIG_MACH_ZYLONITE),y)
 endif
 obj-$(CONFIG_MACH_LITTLETON)	+= littleton.o
 obj-$(CONFIG_MACH_TAVOREVB)	+= tavorevb.o
+obj-$(CONFIG_MACH_SAAR)		+= saar.o
 
 obj-$(CONFIG_MACH_ARMCORE)      += cm-x270.o
 obj-$(CONFIG_PXA_EZX)           += ezx.o
