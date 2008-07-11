@@ -2716,13 +2716,13 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		goto out2;
 	}
 
-	if (extend_disksize && inode->i_size > EXT4_I(inode)->i_disksize)
-		EXT4_I(inode)->i_disksize = inode->i_size;
-
 	/* previous routine could use block we allocated */
 	newblock = ext_pblock(&newex);
 	allocated = ext4_ext_get_actual_len(&newex);
 outnew:
+	if (extend_disksize && inode->i_size > EXT4_I(inode)->i_disksize)
+		EXT4_I(inode)->i_disksize = inode->i_size;
+
 	__set_bit(BH_New, &bh_result->b_state);
 
 	/* Cache only when it is _not_ an uninitialized extent */
