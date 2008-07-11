@@ -253,9 +253,7 @@ struct e1000_adapter {
 	u16 link_speed;
 	u16 link_duplex;
 	spinlock_t stats_lock;
-#ifdef CONFIG_E1000_NAPI
 	spinlock_t tx_queue_lock;
-#endif
 	unsigned int total_tx_bytes;
 	unsigned int total_tx_packets;
 	unsigned int total_rx_bytes;
@@ -293,22 +291,16 @@ struct e1000_adapter {
 	bool detect_tx_hung;
 
 	/* RX */
-#ifdef CONFIG_E1000_NAPI
 	bool (*clean_rx)(struct e1000_adapter *adapter,
 			 struct e1000_rx_ring *rx_ring,
 			 int *work_done, int work_to_do);
-#else
-	bool (*clean_rx)(struct e1000_adapter *adapter,
-			 struct e1000_rx_ring *rx_ring);
-#endif
 	void (*alloc_rx_buf)(struct e1000_adapter *adapter,
 			     struct e1000_rx_ring *rx_ring,
 			     int cleaned_count);
 	struct e1000_rx_ring *rx_ring;      /* One per active queue */
-#ifdef CONFIG_E1000_NAPI
 	struct napi_struct napi;
 	struct net_device *polling_netdev;  /* One per active queue */
-#endif
+
 	int num_tx_queues;
 	int num_rx_queues;
 
