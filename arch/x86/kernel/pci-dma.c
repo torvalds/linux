@@ -122,9 +122,7 @@ void __init pci_iommu_alloc(void)
 
 	amd_iommu_detect();
 
-#ifdef CONFIG_SWIOTLB
 	pci_swiotlb_init();
-#endif
 }
 #endif
 
