@@ -1534,7 +1534,7 @@ static int netlbl_unlabel_staticlistdef(struct sk_buff *skb,
 		}
 	}
 	list_for_each_entry_rcu(addr6, &iface->addr6_list, list) {
-		if (addr6->valid || iter_addr6++ < skip_addr6)
+		if (!addr6->valid || iter_addr6++ < skip_addr6)
 			continue;
 		if (netlbl_unlabel_staticlist_gen(NLBL_UNLABEL_C_STATICLISTDEF,
 					   iface,

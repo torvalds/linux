@@ -1123,7 +1123,7 @@ hfsc_destroy_class(struct Qdisc *sch, struct hfsc_class *cl)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
 
-	tcf_destroy_chain(cl->filter_list);
+	tcf_destroy_chain(&cl->filter_list);
 	qdisc_destroy(cl->qdisc);
 	gen_kill_estimator(&cl->bstats, &cl->rate_est);
 	if (cl != &q->root)
@@ -1540,6 +1540,10 @@ hfsc_destroy_qdisc(struct Qdisc *sch)
 	struct hfsc_class *cl, *next;
 	unsigned int i;
 
+	for (i = 0; i < HFSC_HSIZE; i++) {
+		list_for_each_entry(cl, &q->clhash[i], hlist)
+			tcf_destroy_chain(&cl->filter_list);
+	}
 	for (i = 0; i < HFSC_HSIZE; i++) {
 		list_for_each_entry_safe(cl, next, &q->clhash[i], hlist)
 			hfsc_destroy_class(sch, cl);

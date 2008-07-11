@@ -30,7 +30,6 @@ struct xc5000_priv {
 	u32 bandwidth;
 	u8  video_standard;
 	u8  rf_mode;
-	u8  fwloaded;
 
 	void *devptr;
 };

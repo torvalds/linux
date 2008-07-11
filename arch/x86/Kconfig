@@ -966,8 +966,8 @@ config NUMA_EMU
 	  number of nodes. This is only useful for debugging.
 
 config NODES_SHIFT
-	int "Max num nodes shift(1-15)"
-	range 1 15  if X86_64
+	int "Max num nodes shift(1-9)"
+	range 1 9  if X86_64
 	default "6" if X86_64
 	default "4" if X86_NUMAQ
 	default "3"

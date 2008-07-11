@@ -33,13 +33,14 @@ static struct legacy_serial_info {
 	phys_addr_t			taddr;
 } legacy_serial_infos[MAX_LEGACY_SERIAL_PORTS];
 
-static struct __initdata of_device_id parents[] = {
+static struct __initdata of_device_id legacy_serial_parents[] = {
 	{.type = "soc",},
 	{.type = "tsi-bridge",},
 	{.type = "opb", },
 	{.compatible = "ibm,opb",},
 	{.compatible = "simple-bus",},
 	{.compatible = "wrs,epld-localbus",},
+	{},
 };
 
 static unsigned int legacy_serial_count;
@@ -134,6 +135,11 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	 * encoded in the device-tree.
 	 */
 	if (of_get_property(np, "clock-frequency", NULL) == NULL)
+		return -1;
+
+	/* if reg-shift or offset, don't try to use it */
+	if ((of_get_property(np, "reg-shift", NULL) != NULL) ||
+		(of_get_property(np, "reg-offset", NULL) != NULL))
 		return -1;
 
 	/* if rtas uses this device, don't try to use it as well */
@@ -322,7 +328,7 @@ void __init find_legacy_serial_ports(void)
 		struct device_node *parent = of_get_parent(np);
 		if (!parent)
 			continue;
-		if (of_match_node(parents, parent) != NULL) {
+		if (of_match_node(legacy_serial_parents, parent) != NULL) {
 			index = add_legacy_soc_port(np, np);
 			if (index >= 0 && np == stdout)
 				legacy_serial_console = index;
