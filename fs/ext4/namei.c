@@ -993,19 +993,21 @@ static struct buffer_head * ext4_dx_find_entry(struct dentry *dentry,
 		de = (struct ext4_dir_entry_2 *) bh->b_data;
 		top = (struct ext4_dir_entry_2 *) ((char *) de + sb->s_blocksize -
 				       EXT4_DIR_REC_LEN(0));
-		for (; de < top; de = ext4_next_entry(de))
-		if (ext4_match (namelen, name, de)) {
-			if (!ext4_check_dir_entry("ext4_find_entry",
-						  dir, de, bh,
-				  (block<<EXT4_BLOCK_SIZE_BITS(sb))
-					  +((char *)de - bh->b_data))) {
-				brelse (bh);
+		for (; de < top; de = ext4_next_entry(de)) {
+			int off = (block << EXT4_BLOCK_SIZE_BITS(sb))
+				  + ((char *) de - bh->b_data);
+
+			if (!ext4_check_dir_entry(__func__, dir, de, bh, off)) {
+				brelse(bh);
 				*err = ERR_BAD_DX_DIR;
 				goto errout;
 			}
-			*res_dir = de;
-			dx_release (frames);
-			return bh;
+
+			if (ext4_match(namelen, name, de)) {
+				*res_dir = de;
+				dx_release(frames);
+				return bh;
+			}
 		}
 		brelse (bh);
 		/* Check to see if we should continue to search */
