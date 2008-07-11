@@ -47,7 +47,6 @@
 #include <linux/kref.h>
 #include <linux/compat.h>
 #include <linux/semaphore.h>
-#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -778,23 +777,33 @@ static long ib_umad_compat_ioctl(struct file *filp, unsigned int cmd,
 }
 #endif
 
+/*
+ * ib_umad_open() does not need the BKL:
+ *
+ *  - umad_port[] accesses are protected by port_lock, the
+ *    ib_umad_port structures are properly reference counted, and
+ *    everything else is purely local to the file being created, so
+ *    races against other open calls are not a problem;
+ *  - the ioctl method does not affect any global state outside of the
+ *    file structure being operated on;
+ *  - the port is added to umad_port[] as the last part of module
+ *    initialization so the open method will either immediately run
+ *    -ENXIO, or all required initialization will be done.
+ */
 static int ib_umad_open(struct inode *inode, struct file *filp)
 {
 	struct ib_umad_port *port;
 	struct ib_umad_file *file;
 	int ret = 0;
 
-	lock_kernel();
 	spin_lock(&port_lock);
 	port = umad_port[iminor(inode) - IB_UMAD_MINOR_BASE];
 	if (port)
 		kref_get(&port->umad_dev->ref);
 	spin_unlock(&port_lock);
 
-	if (!port) {
-		unlock_kernel();
+	if (!port)
 		return -ENXIO;
-	}
 
 	mutex_lock(&port->file_mutex);
 
@@ -823,7 +832,6 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 
 out:
 	mutex_unlock(&port->file_mutex);
-	unlock_kernel();
 	return ret;
 }
 
