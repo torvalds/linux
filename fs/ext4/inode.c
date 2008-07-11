@@ -2298,6 +2298,29 @@ out:
 	return ret;
 }
 
+/*
+ * Check if we should update i_disksize
+ * when write to the end of file but not require block allocation
+ */
+static int ext4_da_should_update_i_disksize(struct page *page,
+					 unsigned long offset)
+{
+	struct buffer_head *bh;
+	struct inode *inode = page->mapping->host;
+	unsigned int idx;
+	int i;
+
+	bh = page_buffers(page);
+	idx = offset >> inode->i_blkbits;
+
+	for (i=0; i < idx; i++)
+		bh = bh->b_this_page;
+
+	if (!buffer_mapped(bh) || (buffer_delay(bh)))
+		return 0;
+	return 1;
+}
+
 static int ext4_da_write_end(struct file *file,
 				struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned copied,
@@ -2307,6 +2330,10 @@ static int ext4_da_write_end(struct file *file,
 	int ret = 0, ret2;
 	handle_t *handle = ext4_journal_current_handle();
 	loff_t new_i_size;
+	unsigned long start, end;
+
+	start = pos & (PAGE_CACHE_SIZE - 1);
+	end = start + copied -1;
 
 	/*
 	 * generic_write_end() will run mark_inode_dirty() if i_size
@@ -2315,18 +2342,23 @@ static int ext4_da_write_end(struct file *file,
 	 */
 
 	new_i_size = pos + copied;
-	if (new_i_size > EXT4_I(inode)->i_disksize)
-		if (!walk_page_buffers(NULL, page_buffers(page),
-				       0, len, NULL, ext4_bh_unmapped_or_delay)){
-			/*
-			 * Updating i_disksize when extending file without
-			 * needing block allocation
-			 */
-			if (ext4_should_order_data(inode))
-				ret = ext4_jbd2_file_inode(handle, inode);
+	if (new_i_size > EXT4_I(inode)->i_disksize) {
+		if (ext4_da_should_update_i_disksize(page, end)) {
+			down_write(&EXT4_I(inode)->i_data_sem);
+			if (new_i_size > EXT4_I(inode)->i_disksize) {
+				/*
+				 * Updating i_disksize when extending file
+				 * without needing block allocation
+				 */
+				if (ext4_should_order_data(inode))
+					ret = ext4_jbd2_file_inode(handle,
+								   inode);
 
-			EXT4_I(inode)->i_disksize = new_i_size;
+				EXT4_I(inode)->i_disksize = new_i_size;
+			}
+			up_write(&EXT4_I(inode)->i_data_sem);
 		}
+	}
 	ret2 = generic_write_end(file, mapping, pos, len, copied,
 							page, fsdata);
 	copied = ret2;
@@ -3394,6 +3426,11 @@ void ext4_truncate(struct inode *inode)
 		goto out_stop;
 
 	/*
+	 * From here we block out all ext4_get_block() callers who want to
+	 * modify the block allocation tree.
+	 */
+	down_write(&ei->i_data_sem);
+	/*
 	 * The orphan list entry will now protect us from any crash which
 	 * occurs before the truncate completes, so it is now safe to propagate
 	 * the new, shorter inode size (held for now in i_size) into the
@@ -3401,12 +3438,6 @@ void ext4_truncate(struct inode *inode)
 	 * ext4 *really* writes onto the disk inode.
 	 */
 	ei->i_disksize = inode->i_size;
-
-	/*
-	 * From here we block out all ext4_get_block() callers who want to
-	 * modify the block allocation tree.
-	 */
-	down_write(&ei->i_data_sem);
 
 	if (n == 1) {		/* direct blocks */
 		ext4_free_data(handle, inode, NULL, i_data+offsets[0],
