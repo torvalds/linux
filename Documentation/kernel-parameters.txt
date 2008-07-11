@@ -1379,6 +1379,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nox2apic	[X86-64,APIC] Do not enable x2APIC mode.
 
+	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
+			default x2apic cluster mode on platforms
+			supporting x2apic.
+
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.
 
