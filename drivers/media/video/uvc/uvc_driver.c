@@ -1633,13 +1633,16 @@ static void uvc_disconnect(struct usb_interface *intf)
 	 * reference to the uvc_device instance after uvc_v4l2_open() received
 	 * the pointer to the device (video_devdata) but before it got the
 	 * chance to increase the reference count (kref_get).
+	 *
+	 * Note that the reference can't be released with the lock held,
+	 * otherwise a AB-BA deadlock can occur with videodev_lock that
+	 * videodev acquires in videodev_open() and video_unregister_device().
 	 */
 	mutex_lock(&uvc_driver.open_mutex);
-
 	dev->state |= UVC_DEV_DISCONNECTED;
-	kref_put(&dev->kref, uvc_delete);
-
 	mutex_unlock(&uvc_driver.open_mutex);
+
+	kref_put(&dev->kref, uvc_delete);
 }
 
 static int uvc_suspend(struct usb_interface *intf, pm_message_t message)
