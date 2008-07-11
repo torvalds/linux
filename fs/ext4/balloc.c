@@ -1599,23 +1599,35 @@ out:
 
 /**
  * ext4_has_free_blocks()
- * @sbi:		in-core super block structure.
+ * @sbi:	in-core super block structure.
+ * @nblocks:	number of neeed blocks
  *
- * Check if filesystem has at least 1 free block available for allocation.
+ * Check if filesystem has free blocks available for allocation.
+ * Return the number of blocks avaible for allocation for this request
+ * On success, return nblocks
  */
-static int ext4_has_free_blocks(struct ext4_sb_info *sbi)
+ext4_fsblk_t ext4_has_free_blocks(struct ext4_sb_info *sbi,
+						ext4_fsblk_t nblocks)
 {
-	ext4_fsblk_t free_blocks, root_blocks;
+	ext4_fsblk_t free_blocks;
+	ext4_fsblk_t root_blocks = 0;
 
 	free_blocks = percpu_counter_read_positive(&sbi->s_freeblocks_counter);
-	root_blocks = ext4_r_blocks_count(sbi->s_es);
-	if (free_blocks < root_blocks + 1 && !capable(CAP_SYS_RESOURCE) &&
+
+	if (!capable(CAP_SYS_RESOURCE) &&
 		sbi->s_resuid != current->fsuid &&
-		(sbi->s_resgid == 0 || !in_group_p (sbi->s_resgid))) {
-		return 0;
-	}
-	return 1;
-}
+		(sbi->s_resgid == 0 || !in_group_p(sbi->s_resgid)))
+		root_blocks = ext4_r_blocks_count(sbi->s_es);
+#ifdef CONFIG_SMP
+	if (free_blocks - root_blocks < FBC_BATCH)
+		free_blocks =
+			percpu_counter_sum_positive(&sbi->s_freeblocks_counter);
+#endif
+	if (free_blocks - root_blocks < nblocks)
+		return free_blocks - root_blocks;
+	return nblocks;
+ }
+
 
 /**
  * ext4_should_retry_alloc()
@@ -1631,7 +1643,7 @@ static int ext4_has_free_blocks(struct ext4_sb_info *sbi)
  */
 int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 {
-	if (!ext4_has_free_blocks(EXT4_SB(sb)) || (*retries)++ > 3)
+	if (!ext4_has_free_blocks(EXT4_SB(sb), 1) || (*retries)++ > 3)
 		return 0;
 
 	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
@@ -1681,12 +1693,20 @@ ext4_fsblk_t ext4_old_new_blocks(handle_t *handle, struct inode *inode,
 	ext4_group_t ngroups;
 	unsigned long num = *count;
 
-	*errp = -ENOSPC;
 	sb = inode->i_sb;
 	if (!sb) {
+		*errp = -ENODEV;
 		printk("ext4_new_block: nonexistent device");
 		return 0;
 	}
+
+	sbi = EXT4_SB(sb);
+	*count = ext4_has_free_blocks(sbi, *count);
+	if (*count == 0) {
+		*errp = -ENOSPC;
+		return 0;	/*return with ENOSPC error */
+	}
+	num = *count;
 
 	/*
 	 * Check quota for allocation of this block.
@@ -1710,11 +1730,6 @@ ext4_fsblk_t ext4_old_new_blocks(handle_t *handle, struct inode *inode,
 	block_i = EXT4_I(inode)->i_block_alloc_info;
 	if (block_i && ((windowsz = block_i->rsv_window_node.rsv_goal_size) > 0))
 		my_rsv = &block_i->rsv_window_node;
-
-	if (!ext4_has_free_blocks(sbi)) {
-		*errp = -ENOSPC;
-		goto out;
-	}
 
 	/*
 	 * First, test whether the goal block is free.

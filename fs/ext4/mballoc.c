@@ -4045,6 +4045,12 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 					    &(ar->len), errp);
 		return block;
 	}
+	ar->len = ext4_has_free_blocks(sbi, ar->len);
+
+	if (ar->len == 0) {
+		*errp = -ENOSPC;
+		return 0;
+	}
 
 	while (ar->len && DQUOT_ALLOC_BLOCK(ar->inode, ar->len)) {
 		ar->flags |= EXT4_MB_HINT_NOPREALLOC;
@@ -4073,7 +4079,6 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 
 	ac->ac_op = EXT4_MB_HISTORY_PREALLOC;
 	if (!ext4_mb_use_preallocated(ac)) {
-
 		ac->ac_op = EXT4_MB_HISTORY_ALLOC;
 		ext4_mb_normalize_request(ac, ar);
 repeat:
