@@ -120,7 +120,7 @@ static int uv_apic_id_registered(void)
 	return 1;
 }
 
-static inline void uv_init_apic_ldr(void)
+static void uv_init_apic_ldr(void)
 {
 }
 
