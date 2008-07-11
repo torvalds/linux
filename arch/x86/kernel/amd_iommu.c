@@ -32,6 +32,8 @@
 #define to_pages(addr, size) \
 	 (round_up(((addr) & ~PAGE_MASK) + (size), PAGE_SIZE) >> PAGE_SHIFT)
 
+#define EXIT_LOOP_COUNT 10000000
+
 static DEFINE_RWLOCK(amd_iommu_devtable_lock);
 
 /*
@@ -106,6 +108,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 	struct command cmd;
 	volatile u64 ready = 0;
 	unsigned long ready_phys = virt_to_phys(&ready);
+	unsigned long i = 0;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.data[0] = LOW_U32(ready_phys) | CMD_COMPL_WAIT_STORE_MASK;
@@ -120,8 +123,13 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 	if (ret)
 		return ret;
 
-	while (!ready)
+	while (!ready && (i < EXIT_LOOP_COUNT)) {
+		++i;
 		cpu_relax();
+	}
+
+	if (unlikely((i == EXIT_LOOP_COUNT) && printk_ratelimit()))
+		printk(KERN_WARNING "AMD IOMMU: Completion wait loop failed\n");
 
 	return 0;
 }
