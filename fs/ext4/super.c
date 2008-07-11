@@ -898,7 +898,7 @@ enum {
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
 	Opt_grpquota, Opt_extents, Opt_noextents, Opt_i_version,
-	Opt_mballoc, Opt_nomballoc, Opt_stripe,
+	Opt_mballoc, Opt_nomballoc, Opt_stripe, Opt_delalloc,
 };
 
 static match_table_t tokens = {
@@ -957,6 +957,7 @@ static match_table_t tokens = {
 	{Opt_nomballoc, "nomballoc"},
 	{Opt_stripe, "stripe=%u"},
 	{Opt_resize, "resize"},
+	{Opt_delalloc, "delalloc"},
 	{Opt_err, NULL},
 };
 
@@ -1334,6 +1335,9 @@ set_qf_format:
 			if (option < 0)
 				return 0;
 			sbi->s_stripe = option;
+			break;
+		case Opt_delalloc:
+			set_opt(sbi->s_mount_opt, DELALLOC);
 			break;
 		default:
 			printk (KERN_ERR
