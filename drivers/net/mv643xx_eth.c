@@ -405,6 +405,17 @@ static void rxq_disable(struct rx_queue *rxq)
 		udelay(10);
 }
 
+static void txq_reset_hw_ptr(struct tx_queue *txq)
+{
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
+	int off = TXQ_CURRENT_DESC_PTR(mp->port_num, txq->index);
+	u32 addr;
+
+	addr = (u32)txq->tx_desc_dma;
+	addr += txq->tx_curr_desc * sizeof(struct tx_desc);
+	wrl(mp, off, addr);
+}
+
 static void txq_enable(struct tx_queue *txq)
 {
 	struct mv643xx_eth_private *mp = txq_to_mp(txq);
@@ -1545,8 +1556,11 @@ static int txq_init(struct mv643xx_eth_private *mp, int index)
 
 	tx_desc = (struct tx_desc *)txq->tx_desc_area;
 	for (i = 0; i < txq->tx_ring_size; i++) {
+		struct tx_desc *txd = tx_desc + i;
 		int nexti = (i + 1) % txq->tx_ring_size;
-		tx_desc[i].next_desc_ptr = txq->tx_desc_dma +
+
+		txd->cmd_sts = 0;
+		txd->next_desc_ptr = txq->tx_desc_dma +
 					nexti * sizeof(struct tx_desc);
 	}
 
@@ -1583,8 +1597,11 @@ static void txq_reclaim(struct tx_queue *txq, int force)
 		desc = &txq->tx_desc_area[tx_index];
 		cmd_sts = desc->cmd_sts;
 
-		if (!force && (cmd_sts & BUFFER_OWNED_BY_DMA))
-			break;
+		if (cmd_sts & BUFFER_OWNED_BY_DMA) {
+			if (!force)
+				break;
+			desc->cmd_sts = cmd_sts & ~BUFFER_OWNED_BY_DMA;
+		}
 
 		txq->tx_used_desc = (tx_index + 1) % txq->tx_ring_size;
 		txq->tx_desc_count--;
@@ -1705,8 +1722,6 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 
 	if (int_cause_ext & (INT_EXT_PHY | INT_EXT_LINK)) {
 		if (mp->phy_addr == -1 || mii_link_ok(&mp->mii)) {
-			int i;
-
 			if (mp->phy_addr != -1) {
 				struct ethtool_cmd cmd;
 
@@ -1714,17 +1729,24 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 				update_pscr(mp, cmd.speed, cmd.duplex);
 			}
 
-			for (i = 0; i < 8; i++)
-				if (mp->txq_mask & (1 << i))
-					txq_enable(mp->txq + i);
-
 			if (!netif_carrier_ok(dev)) {
 				netif_carrier_on(dev);
-				__txq_maybe_wake(mp->txq + mp->txq_primary);
+				netif_wake_queue(dev);
 			}
 		} else if (netif_carrier_ok(dev)) {
+			int i;
+
 			netif_stop_queue(dev);
 			netif_carrier_off(dev);
+
+			for (i = 0; i < 8; i++) {
+				struct tx_queue *txq = mp->txq + i;
+
+				if (mp->txq_mask & (1 << i)) {
+					txq_reclaim(txq, 1);
+					txq_reset_hw_ptr(txq);
+				}
+			}
 		}
 	}
 
@@ -1762,9 +1784,11 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 		 * Enough space again in the primary TX queue for a
 		 * full packet?
 		 */
-		spin_lock(&mp->lock);
-		__txq_maybe_wake(mp->txq + mp->txq_primary);
-		spin_unlock(&mp->lock);
+		if (netif_carrier_ok(dev)) {
+			spin_lock(&mp->lock);
+			__txq_maybe_wake(mp->txq + mp->txq_primary);
+			spin_unlock(&mp->lock);
+		}
 	}
 
 	/*
@@ -1851,16 +1875,11 @@ static void port_start(struct mv643xx_eth_private *mp)
 	tx_set_rate(mp, 1000000000, 16777216);
 	for (i = 0; i < 8; i++) {
 		struct tx_queue *txq = mp->txq + i;
-		int off = TXQ_CURRENT_DESC_PTR(mp->port_num, i);
-		u32 addr;
 
 		if ((mp->txq_mask & (1 << i)) == 0)
 			continue;
 
-		addr = (u32)txq->tx_desc_dma;
-		addr += txq->tx_curr_desc * sizeof(struct tx_desc);
-		wrl(mp, off, addr);
-
+		txq_reset_hw_ptr(txq);
 		txq_set_rate(txq, 1000000000, 16777216);
 		txq_set_fixed_prio_mode(txq);
 	}
