@@ -991,11 +991,10 @@ static void kvm_mmu_reset_last_pte_updated(struct kvm *kvm)
 			kvm->vcpus[i]->arch.last_pte_updated = NULL;
 }
 
-static void kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
+static void kvm_mmu_unlink_parents(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	u64 *parent_pte;
 
-	++kvm->stat.mmu_shadow_zapped;
 	while (sp->multimapped || sp->parent_pte) {
 		if (!sp->multimapped)
 			parent_pte = sp->parent_pte;
@@ -1010,7 +1009,13 @@ static void kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 		kvm_mmu_put_page(sp, parent_pte);
 		set_shadow_pte(parent_pte, shadow_trap_nonpresent_pte);
 	}
+}
+
+static void kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
+{
+	++kvm->stat.mmu_shadow_zapped;
 	kvm_mmu_page_unlink_children(kvm, sp);
+	kvm_mmu_unlink_parents(kvm, sp);
 	if (!sp->root_count) {
 		if (!sp->role.metaphysical && !sp->role.invalid)
 			unaccount_shadowed(kvm, sp->gfn);
