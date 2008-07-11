@@ -121,12 +121,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 				le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks);
 		}
 	} else { /* For META_BG_BLOCK_GROUPS */
-		int group_rel = (block_group -
-				 le32_to_cpu(sbi->s_es->s_first_meta_bg)) %
-				EXT4_DESC_PER_BLOCK(sb);
-		if (group_rel == 0 || group_rel == 1 ||
-		    (group_rel == EXT4_DESC_PER_BLOCK(sb) - 1))
-			bit_max += 1;
+		bit_max += ext4_bg_num_gdb(sb, block_group);
 	}
 
 	if (block_group == sbi->s_groups_count - 1) {
