@@ -58,7 +58,7 @@ static int __init pci_legacy_init(void)
 int __init pci_subsys_init(void)
 {
 #ifdef CONFIG_X86_NUMAQ
-	pci_numa_init();
+	pci_numaq_init();
 #endif
 #ifdef CONFIG_ACPI
 	pci_acpi_init();
