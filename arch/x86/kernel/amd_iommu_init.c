@@ -890,7 +890,7 @@ int __init amd_iommu_init(void)
 	ret = -ENOMEM;
 
 	/* Device table - directly used by all IOMMUs */
-	amd_iommu_dev_table = (void *)__get_free_pages(GFP_KERNEL,
+	amd_iommu_dev_table = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 				      get_order(dev_table_size));
 	if (amd_iommu_dev_table == NULL)
 		goto out;
@@ -914,26 +914,22 @@ int __init amd_iommu_init(void)
 	 * Protection Domain table - maps devices to protection domains
 	 * This table has the same size as the rlookup_table
 	 */
-	amd_iommu_pd_table = (void *)__get_free_pages(GFP_KERNEL,
+	amd_iommu_pd_table = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 				     get_order(rlookup_table_size));
 	if (amd_iommu_pd_table == NULL)
 		goto free;
 
-	amd_iommu_pd_alloc_bitmap = (void *)__get_free_pages(GFP_KERNEL,
+	amd_iommu_pd_alloc_bitmap = (void *)__get_free_pages(
+					    GFP_KERNEL | __GFP_ZERO,
 					    get_order(MAX_DOMAIN_ID/8));
 	if (amd_iommu_pd_alloc_bitmap == NULL)
 		goto free;
 
 	/*
-	 * memory is allocated now; initialize the device table with all zeroes
-	 * and let all alias entries point to itself
+	 * let all alias entries point to itself
 	 */
-	memset(amd_iommu_dev_table, 0, dev_table_size);
 	for (i = 0; i < amd_iommu_last_bdf; ++i)
 		amd_iommu_alias_table[i] = i;
-
-	memset(amd_iommu_pd_table, 0, rlookup_table_size);
-	memset(amd_iommu_pd_alloc_bitmap, 0, MAX_DOMAIN_ID / 8);
 
 	/*
 	 * never allocate domain 0 because its used as the non-allocated and
