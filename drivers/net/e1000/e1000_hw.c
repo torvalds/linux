@@ -520,7 +520,7 @@ void e1000_set_media_type(struct e1000_hw *hw)
             hw->media_type = e1000_media_type_copper;
             break;
         default:
-            status = E1000_READ_REG(hw, STATUS);
+            status = er32(STATUS);
             if (status & E1000_STATUS_TBIMODE) {
                 hw->media_type = e1000_media_type_fiber;
                 /* tbi_compatibility not valid on fiber */
@@ -568,15 +568,15 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
 
     /* Clear interrupt mask to stop board from generating interrupts */
     DEBUGOUT("Masking off all interrupts\n");
-    E1000_WRITE_REG(hw, IMC, 0xffffffff);
+    ew32(IMC, 0xffffffff);
 
     /* Disable the Transmit and Receive units.  Then delay to allow
      * any pending transactions to complete before we hit the MAC with
      * the global reset.
      */
-    E1000_WRITE_REG(hw, RCTL, 0);
-    E1000_WRITE_REG(hw, TCTL, E1000_TCTL_PSP);
-    E1000_WRITE_FLUSH(hw);
+    ew32(RCTL, 0);
+    ew32(TCTL, E1000_TCTL_PSP);
+    E1000_WRITE_FLUSH();
 
     /* The tbi_compatibility_on Flag must be cleared when Rctl is cleared. */
     hw->tbi_compatibility_on = false;
@@ -586,11 +586,11 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
      */
     msleep(10);
 
-    ctrl = E1000_READ_REG(hw, CTRL);
+    ctrl = er32(CTRL);
 
     /* Must reset the PHY before resetting the MAC */
     if ((hw->mac_type == e1000_82541) || (hw->mac_type == e1000_82547)) {
-        E1000_WRITE_REG(hw, CTRL, (ctrl | E1000_CTRL_PHY_RST));
+        ew32(CTRL, (ctrl | E1000_CTRL_PHY_RST));
         msleep(5);
     }
 
@@ -599,12 +599,12 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
     if (hw->mac_type == e1000_82573) {
         timeout = 10;
 
-        extcnf_ctrl = E1000_READ_REG(hw, EXTCNF_CTRL);
+        extcnf_ctrl = er32(EXTCNF_CTRL);
         extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 
         do {
-            E1000_WRITE_REG(hw, EXTCNF_CTRL, extcnf_ctrl);
-            extcnf_ctrl = E1000_READ_REG(hw, EXTCNF_CTRL);
+            ew32(EXTCNF_CTRL, extcnf_ctrl);
+            extcnf_ctrl = er32(EXTCNF_CTRL);
 
             if (extcnf_ctrl & E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP)
                 break;
@@ -619,9 +619,9 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
     /* Workaround for ICH8 bit corruption issue in FIFO memory */
     if (hw->mac_type == e1000_ich8lan) {
         /* Set Tx and Rx buffer allocation to 8k apiece. */
-        E1000_WRITE_REG(hw, PBA, E1000_PBA_8K);
+        ew32(PBA, E1000_PBA_8K);
         /* Set Packet Buffer Size to 16k. */
-        E1000_WRITE_REG(hw, PBS, E1000_PBS_16K);
+        ew32(PBS, E1000_PBS_16K);
     }
 
     /* Issue a global reset to the MAC.  This will reset the chip's
@@ -645,7 +645,7 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
         case e1000_82545_rev_3:
         case e1000_82546_rev_3:
             /* Reset is performed on a shadow of the control register */
-            E1000_WRITE_REG(hw, CTRL_DUP, (ctrl | E1000_CTRL_RST));
+            ew32(CTRL_DUP, (ctrl | E1000_CTRL_RST));
             break;
         case e1000_ich8lan:
             if (!hw->phy_reset_disable &&
@@ -658,11 +658,11 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
             }
 
             e1000_get_software_flag(hw);
-            E1000_WRITE_REG(hw, CTRL, (ctrl | E1000_CTRL_RST));
+            ew32(CTRL, (ctrl | E1000_CTRL_RST));
             msleep(5);
             break;
         default:
-            E1000_WRITE_REG(hw, CTRL, (ctrl | E1000_CTRL_RST));
+            ew32(CTRL, (ctrl | E1000_CTRL_RST));
             break;
     }
 
@@ -677,10 +677,10 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
         case e1000_82544:
             /* Wait for reset to complete */
             udelay(10);
-            ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+            ctrl_ext = er32(CTRL_EXT);
             ctrl_ext |= E1000_CTRL_EXT_EE_RST;
-            E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
-            E1000_WRITE_FLUSH(hw);
+            ew32(CTRL_EXT, ctrl_ext);
+            E1000_WRITE_FLUSH();
             /* Wait for EEPROM reload */
             msleep(2);
             break;
@@ -694,10 +694,10 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
         case e1000_82573:
             if (!e1000_is_onboard_nvm_eeprom(hw)) {
                 udelay(10);
-                ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+                ctrl_ext = er32(CTRL_EXT);
                 ctrl_ext |= E1000_CTRL_EXT_EE_RST;
-                E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
-                E1000_WRITE_FLUSH(hw);
+                ew32(CTRL_EXT, ctrl_ext);
+                E1000_WRITE_FLUSH();
             }
             /* fall through */
         default:
@@ -710,27 +710,27 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
 
     /* Disable HW ARPs on ASF enabled adapters */
     if (hw->mac_type >= e1000_82540 && hw->mac_type <= e1000_82547_rev_2) {
-        manc = E1000_READ_REG(hw, MANC);
+        manc = er32(MANC);
         manc &= ~(E1000_MANC_ARP_EN);
-        E1000_WRITE_REG(hw, MANC, manc);
+        ew32(MANC, manc);
     }
 
     if ((hw->mac_type == e1000_82541) || (hw->mac_type == e1000_82547)) {
         e1000_phy_init_script(hw);
 
         /* Configure activity LED after PHY reset */
-        led_ctrl = E1000_READ_REG(hw, LEDCTL);
+        led_ctrl = er32(LEDCTL);
         led_ctrl &= IGP_ACTIVITY_LED_MASK;
         led_ctrl |= (IGP_ACTIVITY_LED_ENABLE | IGP_LED3_MODE);
-        E1000_WRITE_REG(hw, LEDCTL, led_ctrl);
+        ew32(LEDCTL, led_ctrl);
     }
 
     /* Clear interrupt mask to stop board from generating interrupts */
     DEBUGOUT("Masking off all interrupts\n");
-    E1000_WRITE_REG(hw, IMC, 0xffffffff);
+    ew32(IMC, 0xffffffff);
 
     /* Clear any pending interrupt events. */
-    icr = E1000_READ_REG(hw, ICR);
+    icr = er32(ICR);
 
     /* If MWI was previously enabled, reenable it. */
     if (hw->mac_type == e1000_82542_rev2_0) {
@@ -739,9 +739,9 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
     }
 
     if (hw->mac_type == e1000_ich8lan) {
-        u32 kab = E1000_READ_REG(hw, KABGTXD);
+        u32 kab = er32(KABGTXD);
         kab |= E1000_KABGTXD_BGSQLBIAS;
-        E1000_WRITE_REG(hw, KABGTXD, kab);
+        ew32(KABGTXD, kab);
     }
 
     return E1000_SUCCESS;
@@ -766,22 +766,22 @@ static void e1000_initialize_hardware_bits(struct e1000_hw *hw)
         u32 reg_txdctl, reg_txdctl1;
 
         /* link autonegotiation/sync workarounds */
-        reg_tarc0 = E1000_READ_REG(hw, TARC0);
+        reg_tarc0 = er32(TARC0);
         reg_tarc0 &= ~((1 << 30)|(1 << 29)|(1 << 28)|(1 << 27));
 
         /* Enable not-done TX descriptor counting */
-        reg_txdctl = E1000_READ_REG(hw, TXDCTL);
+        reg_txdctl = er32(TXDCTL);
         reg_txdctl |= E1000_TXDCTL_COUNT_DESC;
-        E1000_WRITE_REG(hw, TXDCTL, reg_txdctl);
-        reg_txdctl1 = E1000_READ_REG(hw, TXDCTL1);
+        ew32(TXDCTL, reg_txdctl);
+        reg_txdctl1 = er32(TXDCTL1);
         reg_txdctl1 |= E1000_TXDCTL_COUNT_DESC;
-        E1000_WRITE_REG(hw, TXDCTL1, reg_txdctl1);
+        ew32(TXDCTL1, reg_txdctl1);
 
         switch (hw->mac_type) {
             case e1000_82571:
             case e1000_82572:
                 /* Clear PHY TX compatible mode bits */
-                reg_tarc1 = E1000_READ_REG(hw, TARC1);
+                reg_tarc1 = er32(TARC1);
                 reg_tarc1 &= ~((1 << 30)|(1 << 29));
 
                 /* link autonegotiation/sync workarounds */
@@ -791,25 +791,25 @@ static void e1000_initialize_hardware_bits(struct e1000_hw *hw)
                 reg_tarc1 |= ((1 << 26)|(1 << 25)|(1 << 24));
 
                 /* Multiple read bit is reversed polarity */
-                reg_tctl = E1000_READ_REG(hw, TCTL);
+                reg_tctl = er32(TCTL);
                 if (reg_tctl & E1000_TCTL_MULR)
                     reg_tarc1 &= ~(1 << 28);
                 else
                     reg_tarc1 |= (1 << 28);
 
-                E1000_WRITE_REG(hw, TARC1, reg_tarc1);
+                ew32(TARC1, reg_tarc1);
                 break;
             case e1000_82573:
-                reg_ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+                reg_ctrl_ext = er32(CTRL_EXT);
                 reg_ctrl_ext &= ~(1 << 23);
                 reg_ctrl_ext |= (1 << 22);
 
                 /* TX byte count fix */
-                reg_ctrl = E1000_READ_REG(hw, CTRL);
+                reg_ctrl = er32(CTRL);
                 reg_ctrl &= ~(1 << 29);
 
-                E1000_WRITE_REG(hw, CTRL_EXT, reg_ctrl_ext);
-                E1000_WRITE_REG(hw, CTRL, reg_ctrl);
+                ew32(CTRL_EXT, reg_ctrl_ext);
+                ew32(CTRL, reg_ctrl);
                 break;
             case e1000_80003es2lan:
                 /* improve small packet performace for fiber/serdes */
@@ -819,14 +819,14 @@ static void e1000_initialize_hardware_bits(struct e1000_hw *hw)
                 }
 
                 /* Multiple read bit is reversed polarity */
-                reg_tctl = E1000_READ_REG(hw, TCTL);
-                reg_tarc1 = E1000_READ_REG(hw, TARC1);
+                reg_tctl = er32(TCTL);
+                reg_tarc1 = er32(TARC1);
                 if (reg_tctl & E1000_TCTL_MULR)
                     reg_tarc1 &= ~(1 << 28);
                 else
                     reg_tarc1 |= (1 << 28);
 
-                E1000_WRITE_REG(hw, TARC1, reg_tarc1);
+                ew32(TARC1, reg_tarc1);
                 break;
             case e1000_ich8lan:
                 /* Reduce concurrent DMA requests to 3 from 4 */
@@ -835,16 +835,16 @@ static void e1000_initialize_hardware_bits(struct e1000_hw *hw)
                      (hw->device_id != E1000_DEV_ID_ICH8_IGP_M)))
                     reg_tarc0 |= ((1 << 29)|(1 << 28));
 
-                reg_ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+                reg_ctrl_ext = er32(CTRL_EXT);
                 reg_ctrl_ext |= (1 << 22);
-                E1000_WRITE_REG(hw, CTRL_EXT, reg_ctrl_ext);
+                ew32(CTRL_EXT, reg_ctrl_ext);
 
                 /* workaround TX hang with TSO=on */
                 reg_tarc0 |= ((1 << 27)|(1 << 26)|(1 << 24)|(1 << 23));
 
                 /* Multiple read bit is reversed polarity */
-                reg_tctl = E1000_READ_REG(hw, TCTL);
-                reg_tarc1 = E1000_READ_REG(hw, TARC1);
+                reg_tctl = er32(TCTL);
+                reg_tarc1 = er32(TARC1);
                 if (reg_tctl & E1000_TCTL_MULR)
                     reg_tarc1 &= ~(1 << 28);
                 else
@@ -853,13 +853,13 @@ static void e1000_initialize_hardware_bits(struct e1000_hw *hw)
                 /* workaround TX hang with TSO=on */
                 reg_tarc1 |= ((1 << 30)|(1 << 26)|(1 << 24));
 
-                E1000_WRITE_REG(hw, TARC1, reg_tarc1);
+                ew32(TARC1, reg_tarc1);
                 break;
             default:
                 break;
         }
 
-        E1000_WRITE_REG(hw, TARC0, reg_tarc0);
+        ew32(TARC0, reg_tarc0);
     }
 }
 
@@ -890,9 +890,9 @@ s32 e1000_init_hw(struct e1000_hw *hw)
         ((hw->revision_id < 3) ||
          ((hw->device_id != E1000_DEV_ID_ICH8_IGP_M_AMT) &&
           (hw->device_id != E1000_DEV_ID_ICH8_IGP_M)))) {
-            reg_data = E1000_READ_REG(hw, STATUS);
+            reg_data = er32(STATUS);
             reg_data &= ~0x80000000;
-            E1000_WRITE_REG(hw, STATUS, reg_data);
+            ew32(STATUS, reg_data);
     }
 
     /* Initialize Identification LED */
@@ -913,7 +913,7 @@ s32 e1000_init_hw(struct e1000_hw *hw)
     /* VET hardcoded to standard value and VFTA removed in ICH8 LAN */
     if (hw->mac_type != e1000_ich8lan) {
         if (hw->mac_type < e1000_82545_rev_3)
-            E1000_WRITE_REG(hw, VET, 0);
+            ew32(VET, 0);
         e1000_clear_vfta(hw);
     }
 
@@ -921,8 +921,8 @@ s32 e1000_init_hw(struct e1000_hw *hw)
     if (hw->mac_type == e1000_82542_rev2_0) {
         DEBUGOUT("Disabling MWI on 82542 rev 2.0\n");
         e1000_pci_clear_mwi(hw);
-        E1000_WRITE_REG(hw, RCTL, E1000_RCTL_RST);
-        E1000_WRITE_FLUSH(hw);
+        ew32(RCTL, E1000_RCTL_RST);
+        E1000_WRITE_FLUSH();
         msleep(5);
     }
 
@@ -933,8 +933,8 @@ s32 e1000_init_hw(struct e1000_hw *hw)
 
     /* For 82542 (rev 2.0), take the receiver out of reset and enable MWI */
     if (hw->mac_type == e1000_82542_rev2_0) {
-        E1000_WRITE_REG(hw, RCTL, 0);
-        E1000_WRITE_FLUSH(hw);
+        ew32(RCTL, 0);
+        E1000_WRITE_FLUSH();
         msleep(1);
         if (hw->pci_cmd_word & PCI_COMMAND_INVALIDATE)
             e1000_pci_set_mwi(hw);
@@ -949,7 +949,7 @@ s32 e1000_init_hw(struct e1000_hw *hw)
         E1000_WRITE_REG_ARRAY(hw, MTA, i, 0);
         /* use write flush to prevent Memory Write Block (MWB) from
          * occuring when accessing our register space */
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
     }
 
     /* Set the PCI priority bit correctly in the CTRL register.  This
@@ -958,8 +958,8 @@ s32 e1000_init_hw(struct e1000_hw *hw)
      * 82542 and 82543 silicon.
      */
     if (hw->dma_fairness && hw->mac_type <= e1000_82543) {
-        ctrl = E1000_READ_REG(hw, CTRL);
-        E1000_WRITE_REG(hw, CTRL, ctrl | E1000_CTRL_PRIOR);
+        ctrl = er32(CTRL);
+        ew32(CTRL, ctrl | E1000_CTRL_PRIOR);
     }
 
     switch (hw->mac_type) {
@@ -982,9 +982,9 @@ s32 e1000_init_hw(struct e1000_hw *hw)
 
     /* Set the transmit descriptor write-back policy */
     if (hw->mac_type > e1000_82544) {
-        ctrl = E1000_READ_REG(hw, TXDCTL);
+        ctrl = er32(TXDCTL);
         ctrl = (ctrl & ~E1000_TXDCTL_WTHRESH) | E1000_TXDCTL_FULL_TX_DESC_WB;
-        E1000_WRITE_REG(hw, TXDCTL, ctrl);
+        ew32(TXDCTL, ctrl);
     }
 
     if (hw->mac_type == e1000_82573) {
@@ -996,21 +996,21 @@ s32 e1000_init_hw(struct e1000_hw *hw)
         break;
     case e1000_80003es2lan:
         /* Enable retransmit on late collisions */
-        reg_data = E1000_READ_REG(hw, TCTL);
+        reg_data = er32(TCTL);
         reg_data |= E1000_TCTL_RTLC;
-        E1000_WRITE_REG(hw, TCTL, reg_data);
+        ew32(TCTL, reg_data);
 
         /* Configure Gigabit Carry Extend Padding */
-        reg_data = E1000_READ_REG(hw, TCTL_EXT);
+        reg_data = er32(TCTL_EXT);
         reg_data &= ~E1000_TCTL_EXT_GCEX_MASK;
         reg_data |= DEFAULT_80003ES2LAN_TCTL_EXT_GCEX;
-        E1000_WRITE_REG(hw, TCTL_EXT, reg_data);
+        ew32(TCTL_EXT, reg_data);
 
         /* Configure Transmit Inter-Packet Gap */
-        reg_data = E1000_READ_REG(hw, TIPG);
+        reg_data = er32(TIPG);
         reg_data &= ~E1000_TIPG_IPGT_MASK;
         reg_data |= DEFAULT_80003ES2LAN_TIPG_IPGT_1000;
-        E1000_WRITE_REG(hw, TIPG, reg_data);
+        ew32(TIPG, reg_data);
 
         reg_data = E1000_READ_REG_ARRAY(hw, FFLT, 0x0001);
         reg_data &= ~0x00100000;
@@ -1019,17 +1019,17 @@ s32 e1000_init_hw(struct e1000_hw *hw)
     case e1000_82571:
     case e1000_82572:
     case e1000_ich8lan:
-        ctrl = E1000_READ_REG(hw, TXDCTL1);
+        ctrl = er32(TXDCTL1);
         ctrl = (ctrl & ~E1000_TXDCTL_WTHRESH) | E1000_TXDCTL_FULL_TX_DESC_WB;
-        E1000_WRITE_REG(hw, TXDCTL1, ctrl);
+        ew32(TXDCTL1, ctrl);
         break;
     }
 
 
     if (hw->mac_type == e1000_82573) {
-        u32 gcr = E1000_READ_REG(hw, GCR);
+        u32 gcr = er32(GCR);
         gcr |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
-        E1000_WRITE_REG(hw, GCR, gcr);
+        ew32(GCR, gcr);
     }
 
     /* Clear all of the statistics registers (clear on read).  It is
@@ -1046,11 +1046,11 @@ s32 e1000_init_hw(struct e1000_hw *hw)
 
     if (hw->device_id == E1000_DEV_ID_82546GB_QUAD_COPPER ||
         hw->device_id == E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3) {
-        ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+        ctrl_ext = er32(CTRL_EXT);
         /* Relaxed ordering must be disabled to avoid a parity
          * error crash in a PCI slot. */
         ctrl_ext |= E1000_CTRL_EXT_RO_DIS;
-        E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+        ew32(CTRL_EXT, ctrl_ext);
     }
 
     return ret_val;
@@ -1181,7 +1181,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
         }
         ctrl_ext = ((eeprom_data & EEPROM_WORD0F_SWPDIO_EXT) <<
                     SWDPIO__EXT_SHIFT);
-        E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+        ew32(CTRL_EXT, ctrl_ext);
     }
 
     /* Call the necessary subroutine to configure the link. */
@@ -1198,12 +1198,12 @@ s32 e1000_setup_link(struct e1000_hw *hw)
 
     /* FCAL/H and FCT are hardcoded to standard values in e1000_ich8lan. */
     if (hw->mac_type != e1000_ich8lan) {
-        E1000_WRITE_REG(hw, FCT, FLOW_CONTROL_TYPE);
-        E1000_WRITE_REG(hw, FCAH, FLOW_CONTROL_ADDRESS_HIGH);
-        E1000_WRITE_REG(hw, FCAL, FLOW_CONTROL_ADDRESS_LOW);
+        ew32(FCT, FLOW_CONTROL_TYPE);
+        ew32(FCAH, FLOW_CONTROL_ADDRESS_HIGH);
+        ew32(FCAL, FLOW_CONTROL_ADDRESS_LOW);
     }
 
-    E1000_WRITE_REG(hw, FCTTV, hw->fc_pause_time);
+    ew32(FCTTV, hw->fc_pause_time);
 
     /* Set the flow control receive threshold registers.  Normally,
      * these registers will be set to a default threshold that may be
@@ -1212,18 +1212,18 @@ s32 e1000_setup_link(struct e1000_hw *hw)
      * registers will be set to 0.
      */
     if (!(hw->fc & E1000_FC_TX_PAUSE)) {
-        E1000_WRITE_REG(hw, FCRTL, 0);
-        E1000_WRITE_REG(hw, FCRTH, 0);
+        ew32(FCRTL, 0);
+        ew32(FCRTH, 0);
     } else {
         /* We need to set up the Receive Threshold high and low water marks
          * as well as (optionally) enabling the transmission of XON frames.
          */
         if (hw->fc_send_xon) {
-            E1000_WRITE_REG(hw, FCRTL, (hw->fc_low_water | E1000_FCRTL_XONE));
-            E1000_WRITE_REG(hw, FCRTH, hw->fc_high_water);
+            ew32(FCRTL, (hw->fc_low_water | E1000_FCRTL_XONE));
+            ew32(FCRTH, hw->fc_high_water);
         } else {
-            E1000_WRITE_REG(hw, FCRTL, hw->fc_low_water);
-            E1000_WRITE_REG(hw, FCRTH, hw->fc_high_water);
+            ew32(FCRTL, hw->fc_low_water);
+            ew32(FCRTH, hw->fc_high_water);
         }
     }
     return ret_val;
@@ -1255,7 +1255,7 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
      * loopback mode is disabled during initialization.
      */
     if (hw->mac_type == e1000_82571 || hw->mac_type == e1000_82572)
-        E1000_WRITE_REG(hw, SCTL, E1000_DISABLE_SERDES_LOOPBACK);
+        ew32(SCTL, E1000_DISABLE_SERDES_LOOPBACK);
 
     /* On adapters with a MAC newer than 82544, SWDP 1 will be
      * set when the optics detect a signal. On older adapters, it will be
@@ -1263,7 +1263,7 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
      * If we're on serdes media, adjust the output amplitude to value
      * set in the EEPROM.
      */
-    ctrl = E1000_READ_REG(hw, CTRL);
+    ctrl = er32(CTRL);
     if (hw->media_type == e1000_media_type_fiber)
         signal = (hw->mac_type > e1000_82544) ? E1000_CTRL_SWDPIN1 : 0;
 
@@ -1334,9 +1334,9 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
      */
     DEBUGOUT("Auto-negotiation enabled\n");
 
-    E1000_WRITE_REG(hw, TXCW, txcw);
-    E1000_WRITE_REG(hw, CTRL, ctrl);
-    E1000_WRITE_FLUSH(hw);
+    ew32(TXCW, txcw);
+    ew32(CTRL, ctrl);
+    E1000_WRITE_FLUSH();
 
     hw->txcw = txcw;
     msleep(1);
@@ -1348,11 +1348,11 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
      * For internal serdes, we just assume a signal is present, then poll.
      */
     if (hw->media_type == e1000_media_type_internal_serdes ||
-       (E1000_READ_REG(hw, CTRL) & E1000_CTRL_SWDPIN1) == signal) {
+       (er32(CTRL) & E1000_CTRL_SWDPIN1) == signal) {
         DEBUGOUT("Looking for Link\n");
         for (i = 0; i < (LINK_UP_TIMEOUT / 10); i++) {
             msleep(10);
-            status = E1000_READ_REG(hw, STATUS);
+            status = er32(STATUS);
             if (status & E1000_STATUS_LU) break;
         }
         if (i == (LINK_UP_TIMEOUT / 10)) {
@@ -1392,7 +1392,7 @@ static s32 e1000_copper_link_preconfig(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_copper_link_preconfig");
 
-    ctrl = E1000_READ_REG(hw, CTRL);
+    ctrl = er32(CTRL);
     /* With 82543, we need to force speed and duplex on the MAC equal to what
      * the PHY speed and duplex configuration is. In addition, we need to
      * perform a hardware reset on the PHY to take it out of reset.
@@ -1400,10 +1400,10 @@ static s32 e1000_copper_link_preconfig(struct e1000_hw *hw)
     if (hw->mac_type > e1000_82543) {
         ctrl |= E1000_CTRL_SLU;
         ctrl &= ~(E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
-        E1000_WRITE_REG(hw, CTRL, ctrl);
+        ew32(CTRL, ctrl);
     } else {
         ctrl |= (E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX | E1000_CTRL_SLU);
-        E1000_WRITE_REG(hw, CTRL, ctrl);
+        ew32(CTRL, ctrl);
         ret_val = e1000_phy_hw_reset(hw);
         if (ret_val)
             return ret_val;
@@ -1464,10 +1464,10 @@ static s32 e1000_copper_link_igp_setup(struct e1000_hw *hw)
     msleep(15);
     if (hw->mac_type != e1000_ich8lan) {
     /* Configure activity LED after PHY reset */
-    led_ctrl = E1000_READ_REG(hw, LEDCTL);
+    led_ctrl = er32(LEDCTL);
     led_ctrl &= IGP_ACTIVITY_LED_MASK;
     led_ctrl |= (IGP_ACTIVITY_LED_ENABLE | IGP_LED3_MODE);
-    E1000_WRITE_REG(hw, LEDCTL, led_ctrl);
+    ew32(LEDCTL, led_ctrl);
     }
 
     /* The NVM settings will configure LPLU in D3 for IGP2 and IGP3 PHYs */
@@ -1680,9 +1680,9 @@ static s32 e1000_copper_link_ggp_setup(struct e1000_hw *hw)
         if (ret_val)
             return ret_val;
 
-        reg_data = E1000_READ_REG(hw, CTRL_EXT);
+        reg_data = er32(CTRL_EXT);
         reg_data &= ~(E1000_CTRL_EXT_LINK_MODE_MASK);
-        E1000_WRITE_REG(hw, CTRL_EXT, reg_data);
+        ew32(CTRL_EXT, reg_data);
 
         ret_val = e1000_read_phy_reg(hw, GG82563_PHY_PWR_MGMT_CTRL,
                                           &phy_data);
@@ -2074,10 +2074,10 @@ static s32 e1000_configure_kmrn_for_10_100(struct e1000_hw *hw, u16 duplex)
         return ret_val;
 
     /* Configure Transmit Inter-Packet Gap */
-    tipg = E1000_READ_REG(hw, TIPG);
+    tipg = er32(TIPG);
     tipg &= ~E1000_TIPG_IPGT_MASK;
     tipg |= DEFAULT_80003ES2LAN_TIPG_IPGT_10_100;
-    E1000_WRITE_REG(hw, TIPG, tipg);
+    ew32(TIPG, tipg);
 
     ret_val = e1000_read_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL, &reg_data);
 
@@ -2109,10 +2109,10 @@ static s32 e1000_configure_kmrn_for_1000(struct e1000_hw *hw)
         return ret_val;
 
     /* Configure Transmit Inter-Packet Gap */
-    tipg = E1000_READ_REG(hw, TIPG);
+    tipg = er32(TIPG);
     tipg &= ~E1000_TIPG_IPGT_MASK;
     tipg |= DEFAULT_80003ES2LAN_TIPG_IPGT_1000;
-    E1000_WRITE_REG(hw, TIPG, tipg);
+    ew32(TIPG, tipg);
 
     ret_val = e1000_read_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL, &reg_data);
 
@@ -2295,7 +2295,7 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
     DEBUGOUT1("hw->fc = %d\n", hw->fc);
 
     /* Read the Device Control Register. */
-    ctrl = E1000_READ_REG(hw, CTRL);
+    ctrl = er32(CTRL);
 
     /* Set the bits to Force Speed and Duplex in the Device Ctrl Reg. */
     ctrl |= (E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
@@ -2350,7 +2350,7 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
     e1000_config_collision_dist(hw);
 
     /* Write the configured values back to the Device Control Reg. */
-    E1000_WRITE_REG(hw, CTRL, ctrl);
+    ew32(CTRL, ctrl);
 
     if ((hw->phy_type == e1000_phy_m88) ||
         (hw->phy_type == e1000_phy_gg82563)) {
@@ -2539,13 +2539,13 @@ void e1000_config_collision_dist(struct e1000_hw *hw)
     else
         coll_dist = E1000_COLLISION_DISTANCE;
 
-    tctl = E1000_READ_REG(hw, TCTL);
+    tctl = er32(TCTL);
 
     tctl &= ~E1000_TCTL_COLD;
     tctl |= coll_dist << E1000_COLD_SHIFT;
 
-    E1000_WRITE_REG(hw, TCTL, tctl);
-    E1000_WRITE_FLUSH(hw);
+    ew32(TCTL, tctl);
+    E1000_WRITE_FLUSH();
 }
 
 /******************************************************************************
@@ -2573,7 +2573,7 @@ static s32 e1000_config_mac_to_phy(struct e1000_hw *hw)
     /* Read the Device Control Register and set the bits to Force Speed
      * and Duplex.
      */
-    ctrl = E1000_READ_REG(hw, CTRL);
+    ctrl = er32(CTRL);
     ctrl |= (E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
     ctrl &= ~(E1000_CTRL_SPD_SEL | E1000_CTRL_ILOS);
 
@@ -2600,7 +2600,7 @@ static s32 e1000_config_mac_to_phy(struct e1000_hw *hw)
         ctrl |= E1000_CTRL_SPD_100;
 
     /* Write the configured values back to the Device Control Reg. */
-    E1000_WRITE_REG(hw, CTRL, ctrl);
+    ew32(CTRL, ctrl);
     return E1000_SUCCESS;
 }
 
@@ -2622,7 +2622,7 @@ s32 e1000_force_mac_fc(struct e1000_hw *hw)
     DEBUGFUNC("e1000_force_mac_fc");
 
     /* Get the current configuration of the Device Control Register */
-    ctrl = E1000_READ_REG(hw, CTRL);
+    ctrl = er32(CTRL);
 
     /* Because we didn't get link via the internal auto-negotiation
      * mechanism (we either forced link or we got link via PHY
@@ -2666,7 +2666,7 @@ s32 e1000_force_mac_fc(struct e1000_hw *hw)
     if (hw->mac_type == e1000_82542_rev2_0)
         ctrl &= (~E1000_CTRL_TFCE);
 
-    E1000_WRITE_REG(hw, CTRL, ctrl);
+    ew32(CTRL, ctrl);
     return E1000_SUCCESS;
 }
 
@@ -2898,8 +2898,8 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_check_for_link");
 
-    ctrl = E1000_READ_REG(hw, CTRL);
-    status = E1000_READ_REG(hw, STATUS);
+    ctrl = er32(CTRL);
+    status = er32(STATUS);
 
     /* On adapters with a MAC newer than 82544, SW Defineable pin 1 will be
      * set when the optics detect a signal. On older adapters, it will be
@@ -2907,7 +2907,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
      */
     if ((hw->media_type == e1000_media_type_fiber) ||
         (hw->media_type == e1000_media_type_internal_serdes)) {
-        rxcw = E1000_READ_REG(hw, RXCW);
+        rxcw = er32(RXCW);
 
         if (hw->media_type == e1000_media_type_fiber) {
             signal = (hw->mac_type > e1000_82544) ? E1000_CTRL_SWDPIN1 : 0;
@@ -2953,11 +2953,11 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
                 (!hw->autoneg) &&
                 (hw->forced_speed_duplex == e1000_10_full ||
                  hw->forced_speed_duplex == e1000_10_half)) {
-                E1000_WRITE_REG(hw, IMC, 0xffffffff);
+                ew32(IMC, 0xffffffff);
                 ret_val = e1000_polarity_reversal_workaround(hw);
-                icr = E1000_READ_REG(hw, ICR);
-                E1000_WRITE_REG(hw, ICS, (icr & ~E1000_ICS_LSC));
-                E1000_WRITE_REG(hw, IMS, IMS_ENABLE_MASK);
+                icr = er32(ICR);
+                ew32(ICS, (icr & ~E1000_ICS_LSC));
+                ew32(IMS, IMS_ENABLE_MASK);
             }
 
         } else {
@@ -3022,9 +3022,9 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
                  */
                 if (hw->tbi_compatibility_on) {
                     /* If we previously were in the mode, turn it off. */
-                    rctl = E1000_READ_REG(hw, RCTL);
+                    rctl = er32(RCTL);
                     rctl &= ~E1000_RCTL_SBP;
-                    E1000_WRITE_REG(hw, RCTL, rctl);
+                    ew32(RCTL, rctl);
                     hw->tbi_compatibility_on = false;
                 }
             } else {
@@ -3035,9 +3035,9 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
                  */
                 if (!hw->tbi_compatibility_on) {
                     hw->tbi_compatibility_on = true;
-                    rctl = E1000_READ_REG(hw, RCTL);
+                    rctl = er32(RCTL);
                     rctl |= E1000_RCTL_SBP;
-                    E1000_WRITE_REG(hw, RCTL, rctl);
+                    ew32(RCTL, rctl);
                 }
             }
         }
@@ -3061,12 +3061,12 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
         DEBUGOUT("NOT RXing /C/, disable AutoNeg and force link.\n");
 
         /* Disable auto-negotiation in the TXCW register */
-        E1000_WRITE_REG(hw, TXCW, (hw->txcw & ~E1000_TXCW_ANE));
+        ew32(TXCW, (hw->txcw & ~E1000_TXCW_ANE));
 
         /* Force link-up and also force full-duplex. */
-        ctrl = E1000_READ_REG(hw, CTRL);
+        ctrl = er32(CTRL);
         ctrl |= (E1000_CTRL_SLU | E1000_CTRL_FD);
-        E1000_WRITE_REG(hw, CTRL, ctrl);
+        ew32(CTRL, ctrl);
 
         /* Configure Flow Control after forcing link up. */
         ret_val = e1000_config_fc_after_link_up(hw);
@@ -3084,8 +3084,8 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
               (hw->media_type == e1000_media_type_internal_serdes)) &&
               (ctrl & E1000_CTRL_SLU) && (rxcw & E1000_RXCW_C)) {
         DEBUGOUT("RXing /C/, enable AutoNeg and stop forcing link.\n");
-        E1000_WRITE_REG(hw, TXCW, hw->txcw);
-        E1000_WRITE_REG(hw, CTRL, (ctrl & ~E1000_CTRL_SLU));
+        ew32(TXCW, hw->txcw);
+        ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 
         hw->serdes_link_down = false;
     }
@@ -3093,10 +3093,10 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
      * based on MAC synchronization for internal serdes media type.
      */
     else if ((hw->media_type == e1000_media_type_internal_serdes) &&
-             !(E1000_TXCW_ANE & E1000_READ_REG(hw, TXCW))) {
+             !(E1000_TXCW_ANE & er32(TXCW))) {
         /* SYNCH bit and IV bit are sticky. */
         udelay(10);
-        if (E1000_RXCW_SYNCH & E1000_READ_REG(hw, RXCW)) {
+        if (E1000_RXCW_SYNCH & er32(RXCW)) {
             if (!(rxcw & E1000_RXCW_IV)) {
                 hw->serdes_link_down = false;
                 DEBUGOUT("SERDES: Link is up.\n");
@@ -3107,8 +3107,8 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
         }
     }
     if ((hw->media_type == e1000_media_type_internal_serdes) &&
-        (E1000_TXCW_ANE & E1000_READ_REG(hw, TXCW))) {
-        hw->serdes_link_down = !(E1000_STATUS_LU & E1000_READ_REG(hw, STATUS));
+        (E1000_TXCW_ANE & er32(TXCW))) {
+        hw->serdes_link_down = !(E1000_STATUS_LU & er32(STATUS));
     }
     return E1000_SUCCESS;
 }
@@ -3129,7 +3129,7 @@ s32 e1000_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex)
     DEBUGFUNC("e1000_get_speed_and_duplex");
 
     if (hw->mac_type >= e1000_82543) {
-        status = E1000_READ_REG(hw, STATUS);
+        status = er32(STATUS);
         if (status & E1000_STATUS_SPEED_1000) {
             *speed = SPEED_1000;
             DEBUGOUT("1000 Mbs, ");
@@ -3238,8 +3238,8 @@ static void e1000_raise_mdi_clk(struct e1000_hw *hw, u32 *ctrl)
     /* Raise the clock input to the Management Data Clock (by setting the MDC
      * bit), and then delay 10 microseconds.
      */
-    E1000_WRITE_REG(hw, CTRL, (*ctrl | E1000_CTRL_MDC));
-    E1000_WRITE_FLUSH(hw);
+    ew32(CTRL, (*ctrl | E1000_CTRL_MDC));
+    E1000_WRITE_FLUSH();
     udelay(10);
 }
 
@@ -3254,8 +3254,8 @@ static void e1000_lower_mdi_clk(struct e1000_hw *hw, u32 *ctrl)
     /* Lower the clock input to the Management Data Clock (by clearing the MDC
      * bit), and then delay 10 microseconds.
      */
-    E1000_WRITE_REG(hw, CTRL, (*ctrl & ~E1000_CTRL_MDC));
-    E1000_WRITE_FLUSH(hw);
+    ew32(CTRL, (*ctrl & ~E1000_CTRL_MDC));
+    E1000_WRITE_FLUSH();
     udelay(10);
 }
 
@@ -3280,7 +3280,7 @@ static void e1000_shift_out_mdi_bits(struct e1000_hw *hw, u32 data, u16 count)
     mask = 0x01;
     mask <<= (count - 1);
 
-    ctrl = E1000_READ_REG(hw, CTRL);
+    ctrl = er32(CTRL);
 
     /* Set MDIO_DIR and MDC_DIR direction bits to be used as output pins. */
     ctrl |= (E1000_CTRL_MDIO_DIR | E1000_CTRL_MDC_DIR);
@@ -3296,8 +3296,8 @@ static void e1000_shift_out_mdi_bits(struct e1000_hw *hw, u32 data, u16 count)
         else
             ctrl &= ~E1000_CTRL_MDIO;
 
-        E1000_WRITE_REG(hw, CTRL, ctrl);
-        E1000_WRITE_FLUSH(hw);
+        ew32(CTRL, ctrl);
+        E1000_WRITE_FLUSH();
 
         udelay(10);
 
@@ -3328,14 +3328,14 @@ static u16 e1000_shift_in_mdi_bits(struct e1000_hw *hw)
      * by raising the input to the Management Data Clock (setting the MDC bit),
      * and then reading the value of the MDIO bit.
      */
-    ctrl = E1000_READ_REG(hw, CTRL);
+    ctrl = er32(CTRL);
 
     /* Clear MDIO_DIR (SWDPIO1) to indicate this bit is to be used as input. */
     ctrl &= ~E1000_CTRL_MDIO_DIR;
     ctrl &= ~E1000_CTRL_MDIO;
 
-    E1000_WRITE_REG(hw, CTRL, ctrl);
-    E1000_WRITE_FLUSH(hw);
+    ew32(CTRL, ctrl);
+    E1000_WRITE_FLUSH();
 
     /* Raise and Lower the clock before reading in the data. This accounts for
      * the turnaround bits. The first clock occurred when we clocked out the
@@ -3347,7 +3347,7 @@ static u16 e1000_shift_in_mdi_bits(struct e1000_hw *hw)
     for (data = 0, i = 0; i < 16; i++) {
         data = data << 1;
         e1000_raise_mdi_clk(hw, &ctrl);
-        ctrl = E1000_READ_REG(hw, CTRL);
+        ctrl = er32(CTRL);
         /* Check to see if we shifted in a "1". */
         if (ctrl & E1000_CTRL_MDIO)
             data |= 1;
@@ -3379,7 +3379,7 @@ static s32 e1000_swfw_sync_acquire(struct e1000_hw *hw, u16 mask)
             if (e1000_get_hw_eeprom_semaphore(hw))
                 return -E1000_ERR_SWFW_SYNC;
 
-            swfw_sync = E1000_READ_REG(hw, SW_FW_SYNC);
+            swfw_sync = er32(SW_FW_SYNC);
             if (!(swfw_sync & (fwmask | swmask))) {
                 break;
             }
@@ -3397,7 +3397,7 @@ static s32 e1000_swfw_sync_acquire(struct e1000_hw *hw, u16 mask)
     }
 
     swfw_sync |= swmask;
-    E1000_WRITE_REG(hw, SW_FW_SYNC, swfw_sync);
+    ew32(SW_FW_SYNC, swfw_sync);
 
     e1000_put_hw_eeprom_semaphore(hw);
     return E1000_SUCCESS;
@@ -3425,9 +3425,9 @@ static void e1000_swfw_sync_release(struct e1000_hw *hw, u16 mask)
     while (e1000_get_hw_eeprom_semaphore(hw) != E1000_SUCCESS);
         /* empty */
 
-    swfw_sync = E1000_READ_REG(hw, SW_FW_SYNC);
+    swfw_sync = er32(SW_FW_SYNC);
     swfw_sync &= ~swmask;
-    E1000_WRITE_REG(hw, SW_FW_SYNC, swfw_sync);
+    ew32(SW_FW_SYNC, swfw_sync);
 
     e1000_put_hw_eeprom_semaphore(hw);
 }
@@ -3446,7 +3446,7 @@ s32 e1000_read_phy_reg(struct e1000_hw *hw, u32 reg_addr, u16 *phy_data)
     DEBUGFUNC("e1000_read_phy_reg");
 
     if ((hw->mac_type == e1000_80003es2lan) &&
-        (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)) {
+        (er32(STATUS) & E1000_STATUS_FUNC_1)) {
         swfw = E1000_SWFW_PHY1_SM;
     } else {
         swfw = E1000_SWFW_PHY0_SM;
@@ -3517,12 +3517,12 @@ static s32 e1000_read_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
                 (phy_addr << E1000_MDIC_PHY_SHIFT) |
                 (E1000_MDIC_OP_READ));
 
-        E1000_WRITE_REG(hw, MDIC, mdic);
+        ew32(MDIC, mdic);
 
         /* Poll the ready bit to see if the MDI read completed */
         for (i = 0; i < 64; i++) {
             udelay(50);
-            mdic = E1000_READ_REG(hw, MDIC);
+            mdic = er32(MDIC);
             if (mdic & E1000_MDIC_READY) break;
         }
         if (!(mdic & E1000_MDIC_READY)) {
@@ -3581,7 +3581,7 @@ s32 e1000_write_phy_reg(struct e1000_hw *hw, u32 reg_addr, u16 phy_data)
     DEBUGFUNC("e1000_write_phy_reg");
 
     if ((hw->mac_type == e1000_80003es2lan) &&
-        (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)) {
+        (er32(STATUS) & E1000_STATUS_FUNC_1)) {
         swfw = E1000_SWFW_PHY1_SM;
     } else {
         swfw = E1000_SWFW_PHY0_SM;
@@ -3653,12 +3653,12 @@ static s32 e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
                 (phy_addr << E1000_MDIC_PHY_SHIFT) |
                 (E1000_MDIC_OP_WRITE));
 
-        E1000_WRITE_REG(hw, MDIC, mdic);
+        ew32(MDIC, mdic);
 
         /* Poll the ready bit to see if the MDI read completed */
         for (i = 0; i < 641; i++) {
             udelay(5);
-            mdic = E1000_READ_REG(hw, MDIC);
+            mdic = er32(MDIC);
             if (mdic & E1000_MDIC_READY) break;
         }
         if (!(mdic & E1000_MDIC_READY)) {
@@ -3697,7 +3697,7 @@ static s32 e1000_read_kmrn_reg(struct e1000_hw *hw, u32 reg_addr, u16 *data)
     DEBUGFUNC("e1000_read_kmrn_reg");
 
     if ((hw->mac_type == e1000_80003es2lan) &&
-        (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)) {
+        (er32(STATUS) & E1000_STATUS_FUNC_1)) {
         swfw = E1000_SWFW_PHY1_SM;
     } else {
         swfw = E1000_SWFW_PHY0_SM;
@@ -3709,11 +3709,11 @@ static s32 e1000_read_kmrn_reg(struct e1000_hw *hw, u32 reg_addr, u16 *data)
     reg_val = ((reg_addr << E1000_KUMCTRLSTA_OFFSET_SHIFT) &
               E1000_KUMCTRLSTA_OFFSET) |
               E1000_KUMCTRLSTA_REN;
-    E1000_WRITE_REG(hw, KUMCTRLSTA, reg_val);
+    ew32(KUMCTRLSTA, reg_val);
     udelay(2);
 
     /* Read the data returned */
-    reg_val = E1000_READ_REG(hw, KUMCTRLSTA);
+    reg_val = er32(KUMCTRLSTA);
     *data = (u16)reg_val;
 
     e1000_swfw_sync_release(hw, swfw);
@@ -3727,7 +3727,7 @@ static s32 e1000_write_kmrn_reg(struct e1000_hw *hw, u32 reg_addr, u16 data)
     DEBUGFUNC("e1000_write_kmrn_reg");
 
     if ((hw->mac_type == e1000_80003es2lan) &&
-        (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)) {
+        (er32(STATUS) & E1000_STATUS_FUNC_1)) {
         swfw = E1000_SWFW_PHY1_SM;
     } else {
         swfw = E1000_SWFW_PHY0_SM;
@@ -3737,7 +3737,7 @@ static s32 e1000_write_kmrn_reg(struct e1000_hw *hw, u32 reg_addr, u16 data)
 
     reg_val = ((reg_addr << E1000_KUMCTRLSTA_OFFSET_SHIFT) &
               E1000_KUMCTRLSTA_OFFSET) | data;
-    E1000_WRITE_REG(hw, KUMCTRLSTA, reg_val);
+    ew32(KUMCTRLSTA, reg_val);
     udelay(2);
 
     e1000_swfw_sync_release(hw, swfw);
@@ -3768,7 +3768,7 @@ s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 
     if (hw->mac_type > e1000_82543) {
         if ((hw->mac_type == e1000_80003es2lan) &&
-            (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)) {
+            (er32(STATUS) & E1000_STATUS_FUNC_1)) {
             swfw = E1000_SWFW_PHY1_SM;
         } else {
             swfw = E1000_SWFW_PHY0_SM;
@@ -3783,17 +3783,17 @@ s32 e1000_phy_hw_reset(struct e1000_hw *hw)
          * and deassert.  For e1000_82571 hardware and later, we instead delay
          * for 50us between and 10ms after the deassertion.
          */
-        ctrl = E1000_READ_REG(hw, CTRL);
-        E1000_WRITE_REG(hw, CTRL, ctrl | E1000_CTRL_PHY_RST);
-        E1000_WRITE_FLUSH(hw);
+        ctrl = er32(CTRL);
+        ew32(CTRL, ctrl | E1000_CTRL_PHY_RST);
+        E1000_WRITE_FLUSH();
 
         if (hw->mac_type < e1000_82571)
             msleep(10);
         else
             udelay(100);
 
-        E1000_WRITE_REG(hw, CTRL, ctrl);
-        E1000_WRITE_FLUSH(hw);
+        ew32(CTRL, ctrl);
+        E1000_WRITE_FLUSH();
 
         if (hw->mac_type >= e1000_82571)
             mdelay(10);
@@ -3803,24 +3803,24 @@ s32 e1000_phy_hw_reset(struct e1000_hw *hw)
         /* Read the Extended Device Control Register, assert the PHY_RESET_DIR
          * bit to put the PHY into reset. Then, take it out of reset.
          */
-        ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+        ctrl_ext = er32(CTRL_EXT);
         ctrl_ext |= E1000_CTRL_EXT_SDP4_DIR;
         ctrl_ext &= ~E1000_CTRL_EXT_SDP4_DATA;
-        E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
-        E1000_WRITE_FLUSH(hw);
+        ew32(CTRL_EXT, ctrl_ext);
+        E1000_WRITE_FLUSH();
         msleep(10);
         ctrl_ext |= E1000_CTRL_EXT_SDP4_DATA;
-        E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
-        E1000_WRITE_FLUSH(hw);
+        ew32(CTRL_EXT, ctrl_ext);
+        E1000_WRITE_FLUSH();
     }
     udelay(150);
 
     if ((hw->mac_type == e1000_82541) || (hw->mac_type == e1000_82547)) {
         /* Configure activity LED after PHY reset */
-        led_ctrl = E1000_READ_REG(hw, LEDCTL);
+        led_ctrl = er32(LEDCTL);
         led_ctrl &= IGP_ACTIVITY_LED_MASK;
         led_ctrl |= (IGP_ACTIVITY_LED_ENABLE | IGP_LED3_MODE);
-        E1000_WRITE_REG(hw, LEDCTL, led_ctrl);
+        ew32(LEDCTL, led_ctrl);
     }
 
     /* Wait for FW to finish PHY configuration. */
@@ -3906,8 +3906,8 @@ void e1000_phy_powerdown_workaround(struct e1000_hw *hw)
 
     do {
         /* Disable link */
-        reg = E1000_READ_REG(hw, PHY_CTRL);
-        E1000_WRITE_REG(hw, PHY_CTRL, reg | E1000_PHY_CTRL_GBE_DISABLE |
+        reg = er32(PHY_CTRL);
+        ew32(PHY_CTRL, reg | E1000_PHY_CTRL_GBE_DISABLE |
                         E1000_PHY_CTRL_NOND0A_GBE_DISABLE);
 
         /* Write VR power-down enable - bits 9:8 should be 10b */
@@ -3922,8 +3922,8 @@ void e1000_phy_powerdown_workaround(struct e1000_hw *hw)
             break;
 
         /* Issue PHY reset and repeat at most one more time */
-        reg = E1000_READ_REG(hw, CTRL);
-        E1000_WRITE_REG(hw, CTRL, reg | E1000_CTRL_PHY_RST);
+        reg = er32(CTRL);
+        ew32(CTRL, reg | E1000_CTRL_PHY_RST);
         retry++;
     } while (retry);
 
@@ -3981,8 +3981,8 @@ static s32 e1000_kumeran_lock_loss_workaround(struct e1000_hw *hw)
             mdelay(5);
         }
         /* Disable GigE link negotiation */
-        reg = E1000_READ_REG(hw, PHY_CTRL);
-        E1000_WRITE_REG(hw, PHY_CTRL, reg | E1000_PHY_CTRL_GBE_DISABLE |
+        reg = er32(PHY_CTRL);
+        ew32(PHY_CTRL, reg | E1000_PHY_CTRL_GBE_DISABLE |
                         E1000_PHY_CTRL_NOND0A_GBE_DISABLE);
 
         /* unable to acquire PCS lock */
@@ -4388,7 +4388,7 @@ s32 e1000_validate_mdi_setting(struct e1000_hw *hw)
 s32 e1000_init_eeprom_params(struct e1000_hw *hw)
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
-    u32 eecd = E1000_READ_REG(hw, EECD);
+    u32 eecd = er32(EECD);
     s32 ret_val = E1000_SUCCESS;
     u16 eeprom_size;
 
@@ -4490,7 +4490,7 @@ s32 e1000_init_eeprom_params(struct e1000_hw *hw)
             /* Ensure that the Autonomous FLASH update bit is cleared due to
              * Flash update issue on parts which use a FLASH for NVM. */
             eecd &= ~E1000_EECD_AUPDEN;
-            E1000_WRITE_REG(hw, EECD, eecd);
+            ew32(EECD, eecd);
         }
         break;
     case e1000_80003es2lan:
@@ -4580,8 +4580,8 @@ static void e1000_raise_ee_clk(struct e1000_hw *hw, u32 *eecd)
      * wait <delay> microseconds.
      */
     *eecd = *eecd | E1000_EECD_SK;
-    E1000_WRITE_REG(hw, EECD, *eecd);
-    E1000_WRITE_FLUSH(hw);
+    ew32(EECD, *eecd);
+    E1000_WRITE_FLUSH();
     udelay(hw->eeprom.delay_usec);
 }
 
@@ -4597,8 +4597,8 @@ static void e1000_lower_ee_clk(struct e1000_hw *hw, u32 *eecd)
      * wait 50 microseconds.
      */
     *eecd = *eecd & ~E1000_EECD_SK;
-    E1000_WRITE_REG(hw, EECD, *eecd);
-    E1000_WRITE_FLUSH(hw);
+    ew32(EECD, *eecd);
+    E1000_WRITE_FLUSH();
     udelay(hw->eeprom.delay_usec);
 }
 
@@ -4620,7 +4620,7 @@ static void e1000_shift_out_ee_bits(struct e1000_hw *hw, u16 data, u16 count)
      * In order to do this, "data" must be broken down into bits.
      */
     mask = 0x01 << (count - 1);
-    eecd = E1000_READ_REG(hw, EECD);
+    eecd = er32(EECD);
     if (eeprom->type == e1000_eeprom_microwire) {
         eecd &= ~E1000_EECD_DO;
     } else if (eeprom->type == e1000_eeprom_spi) {
@@ -4637,8 +4637,8 @@ static void e1000_shift_out_ee_bits(struct e1000_hw *hw, u16 data, u16 count)
         if (data & mask)
             eecd |= E1000_EECD_DI;
 
-        E1000_WRITE_REG(hw, EECD, eecd);
-        E1000_WRITE_FLUSH(hw);
+        ew32(EECD, eecd);
+        E1000_WRITE_FLUSH();
 
         udelay(eeprom->delay_usec);
 
@@ -4651,7 +4651,7 @@ static void e1000_shift_out_ee_bits(struct e1000_hw *hw, u16 data, u16 count)
 
     /* We leave the "DI" bit set to "0" when we leave this routine. */
     eecd &= ~E1000_EECD_DI;
-    E1000_WRITE_REG(hw, EECD, eecd);
+    ew32(EECD, eecd);
 }
 
 /******************************************************************************
@@ -4672,7 +4672,7 @@ static u16 e1000_shift_in_ee_bits(struct e1000_hw *hw, u16 count)
      * always be clear.
      */
 
-    eecd = E1000_READ_REG(hw, EECD);
+    eecd = er32(EECD);
 
     eecd &= ~(E1000_EECD_DO | E1000_EECD_DI);
     data = 0;
@@ -4681,7 +4681,7 @@ static u16 e1000_shift_in_ee_bits(struct e1000_hw *hw, u16 count)
         data = data << 1;
         e1000_raise_ee_clk(hw, &eecd);
 
-        eecd = E1000_READ_REG(hw, EECD);
+        eecd = er32(EECD);
 
         eecd &= ~(E1000_EECD_DI);
         if (eecd & E1000_EECD_DO)
@@ -4710,23 +4710,23 @@ static s32 e1000_acquire_eeprom(struct e1000_hw *hw)
 
     if (e1000_swfw_sync_acquire(hw, E1000_SWFW_EEP_SM))
         return -E1000_ERR_SWFW_SYNC;
-    eecd = E1000_READ_REG(hw, EECD);
+    eecd = er32(EECD);
 
     if (hw->mac_type != e1000_82573) {
         /* Request EEPROM Access */
         if (hw->mac_type > e1000_82544) {
             eecd |= E1000_EECD_REQ;
-            E1000_WRITE_REG(hw, EECD, eecd);
-            eecd = E1000_READ_REG(hw, EECD);
+            ew32(EECD, eecd);
+            eecd = er32(EECD);
             while ((!(eecd & E1000_EECD_GNT)) &&
                   (i < E1000_EEPROM_GRANT_ATTEMPTS)) {
                 i++;
                 udelay(5);
-                eecd = E1000_READ_REG(hw, EECD);
+                eecd = er32(EECD);
             }
             if (!(eecd & E1000_EECD_GNT)) {
                 eecd &= ~E1000_EECD_REQ;
-                E1000_WRITE_REG(hw, EECD, eecd);
+                ew32(EECD, eecd);
                 DEBUGOUT("Could not acquire EEPROM grant\n");
                 e1000_swfw_sync_release(hw, E1000_SWFW_EEP_SM);
                 return -E1000_ERR_EEPROM;
@@ -4739,15 +4739,15 @@ static s32 e1000_acquire_eeprom(struct e1000_hw *hw)
     if (eeprom->type == e1000_eeprom_microwire) {
         /* Clear SK and DI */
         eecd &= ~(E1000_EECD_DI | E1000_EECD_SK);
-        E1000_WRITE_REG(hw, EECD, eecd);
+        ew32(EECD, eecd);
 
         /* Set CS */
         eecd |= E1000_EECD_CS;
-        E1000_WRITE_REG(hw, EECD, eecd);
+        ew32(EECD, eecd);
     } else if (eeprom->type == e1000_eeprom_spi) {
         /* Clear SK and CS */
         eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
-        E1000_WRITE_REG(hw, EECD, eecd);
+        ew32(EECD, eecd);
         udelay(1);
     }
 
@@ -4764,40 +4764,40 @@ static void e1000_standby_eeprom(struct e1000_hw *hw)
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     u32 eecd;
 
-    eecd = E1000_READ_REG(hw, EECD);
+    eecd = er32(EECD);
 
     if (eeprom->type == e1000_eeprom_microwire) {
         eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
-        E1000_WRITE_REG(hw, EECD, eecd);
-        E1000_WRITE_FLUSH(hw);
+        ew32(EECD, eecd);
+        E1000_WRITE_FLUSH();
         udelay(eeprom->delay_usec);
 
         /* Clock high */
         eecd |= E1000_EECD_SK;
-        E1000_WRITE_REG(hw, EECD, eecd);
-        E1000_WRITE_FLUSH(hw);
+        ew32(EECD, eecd);
+        E1000_WRITE_FLUSH();
         udelay(eeprom->delay_usec);
 
         /* Select EEPROM */
         eecd |= E1000_EECD_CS;
-        E1000_WRITE_REG(hw, EECD, eecd);
-        E1000_WRITE_FLUSH(hw);
+        ew32(EECD, eecd);
+        E1000_WRITE_FLUSH();
         udelay(eeprom->delay_usec);
 
         /* Clock low */
         eecd &= ~E1000_EECD_SK;
-        E1000_WRITE_REG(hw, EECD, eecd);
-        E1000_WRITE_FLUSH(hw);
+        ew32(EECD, eecd);
+        E1000_WRITE_FLUSH();
         udelay(eeprom->delay_usec);
     } else if (eeprom->type == e1000_eeprom_spi) {
         /* Toggle CS to flush commands */
         eecd |= E1000_EECD_CS;
-        E1000_WRITE_REG(hw, EECD, eecd);
-        E1000_WRITE_FLUSH(hw);
+        ew32(EECD, eecd);
+        E1000_WRITE_FLUSH();
         udelay(eeprom->delay_usec);
         eecd &= ~E1000_EECD_CS;
-        E1000_WRITE_REG(hw, EECD, eecd);
-        E1000_WRITE_FLUSH(hw);
+        ew32(EECD, eecd);
+        E1000_WRITE_FLUSH();
         udelay(eeprom->delay_usec);
     }
 }
@@ -4813,13 +4813,13 @@ static void e1000_release_eeprom(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_release_eeprom");
 
-    eecd = E1000_READ_REG(hw, EECD);
+    eecd = er32(EECD);
 
     if (hw->eeprom.type == e1000_eeprom_spi) {
         eecd |= E1000_EECD_CS;  /* Pull CS high */
         eecd &= ~E1000_EECD_SK; /* Lower SCK */
 
-        E1000_WRITE_REG(hw, EECD, eecd);
+        ew32(EECD, eecd);
 
         udelay(hw->eeprom.delay_usec);
     } else if (hw->eeprom.type == e1000_eeprom_microwire) {
@@ -4828,25 +4828,25 @@ static void e1000_release_eeprom(struct e1000_hw *hw)
         /* CS on Microwire is active-high */
         eecd &= ~(E1000_EECD_CS | E1000_EECD_DI);
 
-        E1000_WRITE_REG(hw, EECD, eecd);
+        ew32(EECD, eecd);
 
         /* Rising edge of clock */
         eecd |= E1000_EECD_SK;
-        E1000_WRITE_REG(hw, EECD, eecd);
-        E1000_WRITE_FLUSH(hw);
+        ew32(EECD, eecd);
+        E1000_WRITE_FLUSH();
         udelay(hw->eeprom.delay_usec);
 
         /* Falling edge of clock */
         eecd &= ~E1000_EECD_SK;
-        E1000_WRITE_REG(hw, EECD, eecd);
-        E1000_WRITE_FLUSH(hw);
+        ew32(EECD, eecd);
+        E1000_WRITE_FLUSH();
         udelay(hw->eeprom.delay_usec);
     }
 
     /* Stop requesting EEPROM access */
     if (hw->mac_type > e1000_82544) {
         eecd &= ~E1000_EECD_REQ;
-        E1000_WRITE_REG(hw, EECD, eecd);
+        ew32(EECD, eecd);
     }
 
     e1000_swfw_sync_release(hw, E1000_SWFW_EEP_SM);
@@ -5009,13 +5009,13 @@ static s32 e1000_read_eeprom_eerd(struct e1000_hw *hw, u16 offset, u16 words,
         eerd = ((offset+i) << E1000_EEPROM_RW_ADDR_SHIFT) +
                          E1000_EEPROM_RW_REG_START;
 
-        E1000_WRITE_REG(hw, EERD, eerd);
+        ew32(EERD, eerd);
         error = e1000_poll_eerd_eewr_done(hw, E1000_EEPROM_POLL_READ);
 
         if (error) {
             break;
         }
-        data[i] = (E1000_READ_REG(hw, EERD) >> E1000_EEPROM_RW_REG_DATA);
+        data[i] = (er32(EERD) >> E1000_EEPROM_RW_REG_DATA);
 
     }
 
@@ -5050,7 +5050,7 @@ static s32 e1000_write_eeprom_eewr(struct e1000_hw *hw, u16 offset, u16 words,
             break;
         }
 
-        E1000_WRITE_REG(hw, EEWR, register_value);
+        ew32(EEWR, register_value);
 
         error = e1000_poll_eerd_eewr_done(hw, E1000_EEPROM_POLL_WRITE);
 
@@ -5076,9 +5076,9 @@ static s32 e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int eerd)
 
     for (i = 0; i < attempts; i++) {
         if (eerd == E1000_EEPROM_POLL_READ)
-            reg = E1000_READ_REG(hw, EERD);
+            reg = er32(EERD);
         else
-            reg = E1000_READ_REG(hw, EEWR);
+            reg = er32(EEWR);
 
         if (reg & E1000_EEPROM_RW_REG_DONE) {
             done = E1000_SUCCESS;
@@ -5105,7 +5105,7 @@ static bool e1000_is_onboard_nvm_eeprom(struct e1000_hw *hw)
         return false;
 
     if (hw->mac_type == e1000_82573) {
-        eecd = E1000_READ_REG(hw, EECD);
+        eecd = er32(EECD);
 
         /* Isolate bits 15 & 16 */
         eecd = ((eecd >> 15) & 0x03);
@@ -5215,9 +5215,9 @@ s32 e1000_update_eeprom_checksum(struct e1000_hw *hw)
         e1000_commit_shadow_ram(hw);
         /* Reload the EEPROM, or else modifications will not appear
          * until after next adapter reset. */
-        ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+        ctrl_ext = er32(CTRL_EXT);
         ctrl_ext |= E1000_CTRL_EXT_EE_RST;
-        E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+        ew32(CTRL_EXT, ctrl_ext);
         msleep(10);
     }
     return E1000_SUCCESS;
@@ -5395,7 +5395,7 @@ static s32 e1000_write_eeprom_microwire(struct e1000_hw *hw, u16 offset,
          * If DO does not go high in 10 milliseconds, then error out.
          */
         for (i = 0; i < 200; i++) {
-            eecd = E1000_READ_REG(hw, EECD);
+            eecd = er32(EECD);
             if (eecd & E1000_EECD_DO) break;
             udelay(50);
         }
@@ -5449,9 +5449,9 @@ static s32 e1000_commit_shadow_ram(struct e1000_hw *hw)
 
     if (hw->mac_type == e1000_82573) {
         /* The flop register will be used to determine if flash type is STM */
-        flop = E1000_READ_REG(hw, FLOP);
+        flop = er32(FLOP);
         for (i=0; i < attempts; i++) {
-            eecd = E1000_READ_REG(hw, EECD);
+            eecd = er32(EECD);
             if ((eecd & E1000_EECD_FLUPD) == 0) {
                 break;
             }
@@ -5464,14 +5464,14 @@ static s32 e1000_commit_shadow_ram(struct e1000_hw *hw)
 
         /* If STM opcode located in bits 15:8 of flop, reset firmware */
         if ((flop & 0xFF00) == E1000_STM_OPCODE) {
-            E1000_WRITE_REG(hw, HICR, E1000_HICR_FW_RESET);
+            ew32(HICR, E1000_HICR_FW_RESET);
         }
 
         /* Perform the flash update */
-        E1000_WRITE_REG(hw, EECD, eecd | E1000_EECD_FLUPD);
+        ew32(EECD, eecd | E1000_EECD_FLUPD);
 
         for (i=0; i < attempts; i++) {
-            eecd = E1000_READ_REG(hw, EECD);
+            eecd = er32(EECD);
             if ((eecd & E1000_EECD_FLUPD) == 0) {
                 break;
             }
@@ -5487,7 +5487,7 @@ static s32 e1000_commit_shadow_ram(struct e1000_hw *hw)
         /* We're writing to the opposite bank so if we're on bank 1,
          * write to bank 0 etc.  We also need to erase the segment that
          * is going to be written */
-        if (!(E1000_READ_REG(hw, EECD) & E1000_EECD_SEC1VAL)) {
+        if (!(er32(EECD) & E1000_EECD_SEC1VAL)) {
             new_bank_offset = hw->flash_bank_size * 2;
             old_bank_offset = 0;
             e1000_erase_ich8_4k_segment(hw, 1);
@@ -5621,7 +5621,7 @@ s32 e1000_read_mac_addr(struct e1000_hw *hw)
     case e1000_82546_rev_3:
     case e1000_82571:
     case e1000_80003es2lan:
-        if (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)
+        if (er32(STATUS) & E1000_STATUS_FUNC_1)
             hw->perm_mac_addr[5] ^= 0x01;
         break;
     }
@@ -5666,9 +5666,9 @@ static void e1000_init_rx_addrs(struct e1000_hw *hw)
     DEBUGOUT("Clearing RAR[1-15]\n");
     for (i = 1; i < rar_num; i++) {
         E1000_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
         E1000_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
     }
 }
 
@@ -5772,12 +5772,12 @@ void e1000_mta_set(struct e1000_hw *hw, u32 hash_value)
     if ((hw->mac_type == e1000_82544) && ((hash_reg & 0x1) == 1)) {
         temp = E1000_READ_REG_ARRAY(hw, MTA, (hash_reg - 1));
         E1000_WRITE_REG_ARRAY(hw, MTA, hash_reg, mta);
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
         E1000_WRITE_REG_ARRAY(hw, MTA, (hash_reg - 1), temp);
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
     } else {
         E1000_WRITE_REG_ARRAY(hw, MTA, hash_reg, mta);
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
     }
 }
 
@@ -5831,9 +5831,9 @@ void e1000_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
     }
 
     E1000_WRITE_REG_ARRAY(hw, RA, (index << 1), rar_low);
-    E1000_WRITE_FLUSH(hw);
+    E1000_WRITE_FLUSH();
     E1000_WRITE_REG_ARRAY(hw, RA, ((index << 1) + 1), rar_high);
-    E1000_WRITE_FLUSH(hw);
+    E1000_WRITE_FLUSH();
 }
 
 /******************************************************************************
@@ -5853,12 +5853,12 @@ void e1000_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
     if ((hw->mac_type == e1000_82544) && ((offset & 0x1) == 1)) {
         temp = E1000_READ_REG_ARRAY(hw, VFTA, (offset - 1));
         E1000_WRITE_REG_ARRAY(hw, VFTA, offset, value);
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
         E1000_WRITE_REG_ARRAY(hw, VFTA, (offset - 1), temp);
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
     } else {
         E1000_WRITE_REG_ARRAY(hw, VFTA, offset, value);
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
     }
 }
 
@@ -5896,7 +5896,7 @@ static void e1000_clear_vfta(struct e1000_hw *hw)
          * manageability unit */
         vfta_value = (offset == vfta_offset) ? vfta_bit_in_reg : 0;
         E1000_WRITE_REG_ARRAY(hw, VFTA, offset, vfta_value);
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
     }
 }
 
@@ -5916,7 +5916,7 @@ static s32 e1000_id_led_init(struct e1000_hw *hw)
         return E1000_SUCCESS;
     }
 
-    ledctl = E1000_READ_REG(hw, LEDCTL);
+    ledctl = er32(LEDCTL);
     hw->ledctl_default = ledctl;
     hw->ledctl_mode1 = hw->ledctl_default;
     hw->ledctl_mode2 = hw->ledctl_default;
@@ -6013,7 +6013,7 @@ s32 e1000_setup_led(struct e1000_hw *hw)
         /* Fall Through */
     default:
         if (hw->media_type == e1000_media_type_fiber) {
-            ledctl = E1000_READ_REG(hw, LEDCTL);
+            ledctl = er32(LEDCTL);
             /* Save current LEDCTL settings */
             hw->ledctl_default = ledctl;
             /* Turn off LED0 */
@@ -6022,9 +6022,9 @@ s32 e1000_setup_led(struct e1000_hw *hw)
                         E1000_LEDCTL_LED0_MODE_MASK);
             ledctl |= (E1000_LEDCTL_MODE_LED_OFF <<
                        E1000_LEDCTL_LED0_MODE_SHIFT);
-            E1000_WRITE_REG(hw, LEDCTL, ledctl);
+            ew32(LEDCTL, ledctl);
         } else if (hw->media_type == e1000_media_type_copper)
-            E1000_WRITE_REG(hw, LEDCTL, hw->ledctl_mode1);
+            ew32(LEDCTL, hw->ledctl_mode1);
         break;
     }
 
@@ -6064,7 +6064,7 @@ s32 e1000_blink_led_start(struct e1000_hw *hw)
                 ledctl_blink |= (E1000_LEDCTL_LED0_BLINK << (i * 8));
     }
 
-    E1000_WRITE_REG(hw, LEDCTL, ledctl_blink);
+    ew32(LEDCTL, ledctl_blink);
 
     return E1000_SUCCESS;
 }
@@ -6103,7 +6103,7 @@ s32 e1000_cleanup_led(struct e1000_hw *hw)
             break;
         }
         /* Restore LEDCTL settings */
-        E1000_WRITE_REG(hw, LEDCTL, hw->ledctl_default);
+        ew32(LEDCTL, hw->ledctl_default);
         break;
     }
 
@@ -6117,7 +6117,7 @@ s32 e1000_cleanup_led(struct e1000_hw *hw)
  *****************************************************************************/
 s32 e1000_led_on(struct e1000_hw *hw)
 {
-    u32 ctrl = E1000_READ_REG(hw, CTRL);
+    u32 ctrl = er32(CTRL);
 
     DEBUGFUNC("e1000_led_on");
 
@@ -6149,13 +6149,13 @@ s32 e1000_led_on(struct e1000_hw *hw)
             e1000_write_phy_reg(hw, IFE_PHY_SPECIAL_CONTROL_LED,
                  (IFE_PSCL_PROBE_MODE | IFE_PSCL_PROBE_LEDS_ON));
         } else if (hw->media_type == e1000_media_type_copper) {
-            E1000_WRITE_REG(hw, LEDCTL, hw->ledctl_mode2);
+            ew32(LEDCTL, hw->ledctl_mode2);
             return E1000_SUCCESS;
         }
         break;
     }
 
-    E1000_WRITE_REG(hw, CTRL, ctrl);
+    ew32(CTRL, ctrl);
 
     return E1000_SUCCESS;
 }
@@ -6167,7 +6167,7 @@ s32 e1000_led_on(struct e1000_hw *hw)
  *****************************************************************************/
 s32 e1000_led_off(struct e1000_hw *hw)
 {
-    u32 ctrl = E1000_READ_REG(hw, CTRL);
+    u32 ctrl = er32(CTRL);
 
     DEBUGFUNC("e1000_led_off");
 
@@ -6199,13 +6199,13 @@ s32 e1000_led_off(struct e1000_hw *hw)
             e1000_write_phy_reg(hw, IFE_PHY_SPECIAL_CONTROL_LED,
                  (IFE_PSCL_PROBE_MODE | IFE_PSCL_PROBE_LEDS_OFF));
         } else if (hw->media_type == e1000_media_type_copper) {
-            E1000_WRITE_REG(hw, LEDCTL, hw->ledctl_mode1);
+            ew32(LEDCTL, hw->ledctl_mode1);
             return E1000_SUCCESS;
         }
         break;
     }
 
-    E1000_WRITE_REG(hw, CTRL, ctrl);
+    ew32(CTRL, ctrl);
 
     return E1000_SUCCESS;
 }
@@ -6219,93 +6219,93 @@ static void e1000_clear_hw_cntrs(struct e1000_hw *hw)
 {
     volatile u32 temp;
 
-    temp = E1000_READ_REG(hw, CRCERRS);
-    temp = E1000_READ_REG(hw, SYMERRS);
-    temp = E1000_READ_REG(hw, MPC);
-    temp = E1000_READ_REG(hw, SCC);
-    temp = E1000_READ_REG(hw, ECOL);
-    temp = E1000_READ_REG(hw, MCC);
-    temp = E1000_READ_REG(hw, LATECOL);
-    temp = E1000_READ_REG(hw, COLC);
-    temp = E1000_READ_REG(hw, DC);
-    temp = E1000_READ_REG(hw, SEC);
-    temp = E1000_READ_REG(hw, RLEC);
-    temp = E1000_READ_REG(hw, XONRXC);
-    temp = E1000_READ_REG(hw, XONTXC);
-    temp = E1000_READ_REG(hw, XOFFRXC);
-    temp = E1000_READ_REG(hw, XOFFTXC);
-    temp = E1000_READ_REG(hw, FCRUC);
+    temp = er32(CRCERRS);
+    temp = er32(SYMERRS);
+    temp = er32(MPC);
+    temp = er32(SCC);
+    temp = er32(ECOL);
+    temp = er32(MCC);
+    temp = er32(LATECOL);
+    temp = er32(COLC);
+    temp = er32(DC);
+    temp = er32(SEC);
+    temp = er32(RLEC);
+    temp = er32(XONRXC);
+    temp = er32(XONTXC);
+    temp = er32(XOFFRXC);
+    temp = er32(XOFFTXC);
+    temp = er32(FCRUC);
 
     if (hw->mac_type != e1000_ich8lan) {
-    temp = E1000_READ_REG(hw, PRC64);
-    temp = E1000_READ_REG(hw, PRC127);
-    temp = E1000_READ_REG(hw, PRC255);
-    temp = E1000_READ_REG(hw, PRC511);
-    temp = E1000_READ_REG(hw, PRC1023);
-    temp = E1000_READ_REG(hw, PRC1522);
+    temp = er32(PRC64);
+    temp = er32(PRC127);
+    temp = er32(PRC255);
+    temp = er32(PRC511);
+    temp = er32(PRC1023);
+    temp = er32(PRC1522);
     }
 
-    temp = E1000_READ_REG(hw, GPRC);
-    temp = E1000_READ_REG(hw, BPRC);
-    temp = E1000_READ_REG(hw, MPRC);
-    temp = E1000_READ_REG(hw, GPTC);
-    temp = E1000_READ_REG(hw, GORCL);
-    temp = E1000_READ_REG(hw, GORCH);
-    temp = E1000_READ_REG(hw, GOTCL);
-    temp = E1000_READ_REG(hw, GOTCH);
-    temp = E1000_READ_REG(hw, RNBC);
-    temp = E1000_READ_REG(hw, RUC);
-    temp = E1000_READ_REG(hw, RFC);
-    temp = E1000_READ_REG(hw, ROC);
-    temp = E1000_READ_REG(hw, RJC);
-    temp = E1000_READ_REG(hw, TORL);
-    temp = E1000_READ_REG(hw, TORH);
-    temp = E1000_READ_REG(hw, TOTL);
-    temp = E1000_READ_REG(hw, TOTH);
-    temp = E1000_READ_REG(hw, TPR);
-    temp = E1000_READ_REG(hw, TPT);
+    temp = er32(GPRC);
+    temp = er32(BPRC);
+    temp = er32(MPRC);
+    temp = er32(GPTC);
+    temp = er32(GORCL);
+    temp = er32(GORCH);
+    temp = er32(GOTCL);
+    temp = er32(GOTCH);
+    temp = er32(RNBC);
+    temp = er32(RUC);
+    temp = er32(RFC);
+    temp = er32(ROC);
+    temp = er32(RJC);
+    temp = er32(TORL);
+    temp = er32(TORH);
+    temp = er32(TOTL);
+    temp = er32(TOTH);
+    temp = er32(TPR);
+    temp = er32(TPT);
 
     if (hw->mac_type != e1000_ich8lan) {
-    temp = E1000_READ_REG(hw, PTC64);
-    temp = E1000_READ_REG(hw, PTC127);
-    temp = E1000_READ_REG(hw, PTC255);
-    temp = E1000_READ_REG(hw, PTC511);
-    temp = E1000_READ_REG(hw, PTC1023);
-    temp = E1000_READ_REG(hw, PTC1522);
+    temp = er32(PTC64);
+    temp = er32(PTC127);
+    temp = er32(PTC255);
+    temp = er32(PTC511);
+    temp = er32(PTC1023);
+    temp = er32(PTC1522);
     }
 
-    temp = E1000_READ_REG(hw, MPTC);
-    temp = E1000_READ_REG(hw, BPTC);
+    temp = er32(MPTC);
+    temp = er32(BPTC);
 
     if (hw->mac_type < e1000_82543) return;
 
-    temp = E1000_READ_REG(hw, ALGNERRC);
-    temp = E1000_READ_REG(hw, RXERRC);
-    temp = E1000_READ_REG(hw, TNCRS);
-    temp = E1000_READ_REG(hw, CEXTERR);
-    temp = E1000_READ_REG(hw, TSCTC);
-    temp = E1000_READ_REG(hw, TSCTFC);
+    temp = er32(ALGNERRC);
+    temp = er32(RXERRC);
+    temp = er32(TNCRS);
+    temp = er32(CEXTERR);
+    temp = er32(TSCTC);
+    temp = er32(TSCTFC);
 
     if (hw->mac_type <= e1000_82544) return;
 
-    temp = E1000_READ_REG(hw, MGTPRC);
-    temp = E1000_READ_REG(hw, MGTPDC);
-    temp = E1000_READ_REG(hw, MGTPTC);
+    temp = er32(MGTPRC);
+    temp = er32(MGTPDC);
+    temp = er32(MGTPTC);
 
     if (hw->mac_type <= e1000_82547_rev_2) return;
 
-    temp = E1000_READ_REG(hw, IAC);
-    temp = E1000_READ_REG(hw, ICRXOC);
+    temp = er32(IAC);
+    temp = er32(ICRXOC);
 
     if (hw->mac_type == e1000_ich8lan) return;
 
-    temp = E1000_READ_REG(hw, ICRXPTC);
-    temp = E1000_READ_REG(hw, ICRXATC);
-    temp = E1000_READ_REG(hw, ICTXPTC);
-    temp = E1000_READ_REG(hw, ICTXATC);
-    temp = E1000_READ_REG(hw, ICTXQEC);
-    temp = E1000_READ_REG(hw, ICTXQMTC);
-    temp = E1000_READ_REG(hw, ICRXDMTC);
+    temp = er32(ICRXPTC);
+    temp = er32(ICRXATC);
+    temp = er32(ICTXPTC);
+    temp = er32(ICTXATC);
+    temp = er32(ICTXQEC);
+    temp = er32(ICTXQMTC);
+    temp = er32(ICRXDMTC);
 }
 
 /******************************************************************************
@@ -6331,7 +6331,7 @@ void e1000_reset_adaptive(struct e1000_hw *hw)
             hw->ifs_ratio = IFS_RATIO;
         }
         hw->in_ifs_mode = false;
-        E1000_WRITE_REG(hw, AIT, 0);
+        ew32(AIT, 0);
     } else {
         DEBUGOUT("Not in Adaptive IFS mode!\n");
     }
@@ -6358,14 +6358,14 @@ void e1000_update_adaptive(struct e1000_hw *hw)
                         hw->current_ifs_val = hw->ifs_min_val;
                     else
                         hw->current_ifs_val += hw->ifs_step_size;
-                    E1000_WRITE_REG(hw, AIT, hw->current_ifs_val);
+                    ew32(AIT, hw->current_ifs_val);
                 }
             }
         } else {
             if (hw->in_ifs_mode && (hw->tx_packet_delta <= MIN_NUM_XMITS)) {
                 hw->current_ifs_val = 0;
                 hw->in_ifs_mode = false;
-                E1000_WRITE_REG(hw, AIT, 0);
+                ew32(AIT, 0);
             }
         }
     } else {
@@ -6489,7 +6489,7 @@ void e1000_get_bus_info(struct e1000_hw *hw)
         hw->bus_width = e1000_bus_width_pciex_1;
         break;
     default:
-        status = E1000_READ_REG(hw, STATUS);
+        status = er32(STATUS);
         hw->bus_type = (status & E1000_STATUS_PCIX_MODE) ?
                        e1000_bus_type_pcix : e1000_bus_type_pci;
 
@@ -7114,7 +7114,7 @@ static s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active)
         /* MAC writes into PHY register based on the state transition
          * and start auto-negotiation. SW driver can overwrite the settings
          * in CSR PHY power control E1000_PHY_CTRL register. */
-        phy_ctrl = E1000_READ_REG(hw, PHY_CTRL);
+        phy_ctrl = er32(PHY_CTRL);
     } else {
         ret_val = e1000_read_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, &phy_data);
         if (ret_val)
@@ -7131,7 +7131,7 @@ static s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active)
         } else {
             if (hw->mac_type == e1000_ich8lan) {
                 phy_ctrl &= ~E1000_PHY_CTRL_NOND0A_LPLU;
-                E1000_WRITE_REG(hw, PHY_CTRL, phy_ctrl);
+                ew32(PHY_CTRL, phy_ctrl);
             } else {
                 phy_data &= ~IGP02E1000_PM_D3_LPLU;
                 ret_val = e1000_write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT,
@@ -7182,7 +7182,7 @@ static s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active)
         } else {
             if (hw->mac_type == e1000_ich8lan) {
                 phy_ctrl |= E1000_PHY_CTRL_NOND0A_LPLU;
-                E1000_WRITE_REG(hw, PHY_CTRL, phy_ctrl);
+                ew32(PHY_CTRL, phy_ctrl);
             } else {
                 phy_data |= IGP02E1000_PM_D3_LPLU;
                 ret_val = e1000_write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT,
@@ -7231,7 +7231,7 @@ static s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active)
         return E1000_SUCCESS;
 
     if (hw->mac_type == e1000_ich8lan) {
-        phy_ctrl = E1000_READ_REG(hw, PHY_CTRL);
+        phy_ctrl = er32(PHY_CTRL);
     } else {
         ret_val = e1000_read_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, &phy_data);
         if (ret_val)
@@ -7241,7 +7241,7 @@ static s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active)
     if (!active) {
         if (hw->mac_type == e1000_ich8lan) {
             phy_ctrl &= ~E1000_PHY_CTRL_D0A_LPLU;
-            E1000_WRITE_REG(hw, PHY_CTRL, phy_ctrl);
+            ew32(PHY_CTRL, phy_ctrl);
         } else {
             phy_data &= ~IGP02E1000_PM_D0_LPLU;
             ret_val = e1000_write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, phy_data);
@@ -7282,7 +7282,7 @@ static s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active)
 
         if (hw->mac_type == e1000_ich8lan) {
             phy_ctrl |= E1000_PHY_CTRL_D0A_LPLU;
-            E1000_WRITE_REG(hw, PHY_CTRL, phy_ctrl);
+            ew32(PHY_CTRL, phy_ctrl);
         } else {
             phy_data |= IGP02E1000_PM_D0_LPLU;
             ret_val = e1000_write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, phy_data);
@@ -7404,14 +7404,14 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
     u8 i;
 
     /* Check that the host interface is enabled. */
-    hicr = E1000_READ_REG(hw, HICR);
+    hicr = er32(HICR);
     if ((hicr & E1000_HICR_EN) == 0) {
         DEBUGOUT("E1000_HOST_EN bit disabled.\n");
         return -E1000_ERR_HOST_INTERFACE_COMMAND;
     }
     /* check the previous command is completed */
     for (i = 0; i < E1000_MNG_DHCP_COMMAND_TIMEOUT; i++) {
-        hicr = E1000_READ_REG(hw, HICR);
+        hicr = er32(HICR);
         if (!(hicr & E1000_HICR_C))
             break;
         mdelay(1);
@@ -7524,7 +7524,7 @@ static s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
     /* The device driver writes the relevant command block into the ram area. */
     for (i = 0; i < length; i++) {
         E1000_WRITE_REG_ARRAY_DWORD(hw, HOST_IF, i, *((u32 *) hdr + i));
-        E1000_WRITE_FLUSH(hw);
+        E1000_WRITE_FLUSH();
     }
 
     return E1000_SUCCESS;
@@ -7541,9 +7541,9 @@ static s32 e1000_mng_write_commit(struct e1000_hw *hw)
 {
     u32 hicr;
 
-    hicr = E1000_READ_REG(hw, HICR);
+    hicr = er32(HICR);
     /* Setting this bit tells the ARC that a new command is pending. */
-    E1000_WRITE_REG(hw, HICR, hicr | E1000_HICR_C);
+    ew32(HICR, hicr | E1000_HICR_C);
 
     return E1000_SUCCESS;
 }
@@ -7558,7 +7558,7 @@ bool e1000_check_mng_mode(struct e1000_hw *hw)
 {
     u32 fwsm;
 
-    fwsm = E1000_READ_REG(hw, FWSM);
+    fwsm = er32(FWSM);
 
     if (hw->mac_type == e1000_ich8lan) {
         if ((fwsm & E1000_FWSM_MODE_MASK) ==
@@ -7671,14 +7671,14 @@ u32 e1000_enable_mng_pass_thru(struct e1000_hw *hw)
     u32 fwsm, factps;
 
     if (hw->asf_firmware_present) {
-        manc = E1000_READ_REG(hw, MANC);
+        manc = er32(MANC);
 
         if (!(manc & E1000_MANC_RCV_TCO_EN) ||
             !(manc & E1000_MANC_EN_MAC_ADDR_FILTER))
             return false;
         if (e1000_arc_subsystem_valid(hw)) {
-            fwsm = E1000_READ_REG(hw, FWSM);
-            factps = E1000_READ_REG(hw, FACTPS);
+            fwsm = er32(FWSM);
+            factps = er32(FACTPS);
 
             if ((((fwsm & E1000_FWSM_MODE_MASK) >> E1000_FWSM_MODE_SHIFT) ==
                    e1000_mng_mode_pt) && !(factps & E1000_FACTPS_MNGCG))
@@ -7792,9 +7792,9 @@ static void e1000_set_pci_express_master_disable(struct e1000_hw *hw)
     if (hw->bus_type != e1000_bus_type_pci_express)
         return;
 
-    ctrl = E1000_READ_REG(hw, CTRL);
+    ctrl = er32(CTRL);
     ctrl |= E1000_CTRL_GIO_MASTER_DISABLE;
-    E1000_WRITE_REG(hw, CTRL, ctrl);
+    ew32(CTRL, ctrl);
 }
 
 /*******************************************************************************
@@ -7820,7 +7820,7 @@ s32 e1000_disable_pciex_master(struct e1000_hw *hw)
     e1000_set_pci_express_master_disable(hw);
 
     while (timeout) {
-        if (!(E1000_READ_REG(hw, STATUS) & E1000_STATUS_GIO_MASTER_ENABLE))
+        if (!(er32(STATUS) & E1000_STATUS_GIO_MASTER_ENABLE))
             break;
         else
             udelay(100);
@@ -7861,7 +7861,7 @@ static s32 e1000_get_auto_rd_done(struct e1000_hw *hw)
     case e1000_80003es2lan:
     case e1000_ich8lan:
         while (timeout) {
-            if (E1000_READ_REG(hw, EECD) & E1000_EECD_AUTO_RD)
+            if (er32(EECD) & E1000_EECD_AUTO_RD)
                 break;
             else msleep(1);
             timeout--;
@@ -7905,13 +7905,13 @@ static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw)
         break;
     case e1000_80003es2lan:
         /* Separate *_CFG_DONE_* bit for each port */
-        if (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)
+        if (er32(STATUS) & E1000_STATUS_FUNC_1)
             cfg_mask = E1000_EEPROM_CFG_DONE_PORT_1;
         /* Fall Through */
     case e1000_82571:
     case e1000_82572:
         while (timeout) {
-            if (E1000_READ_REG(hw, EEMNGCTL) & cfg_mask)
+            if (er32(EEMNGCTL) & cfg_mask)
                 break;
             else
                 msleep(1);
@@ -7957,11 +7957,11 @@ static s32 e1000_get_hw_eeprom_semaphore(struct e1000_hw *hw)
     /* Get the FW semaphore. */
     timeout = hw->eeprom.word_size + 1;
     while (timeout) {
-        swsm = E1000_READ_REG(hw, SWSM);
+        swsm = er32(SWSM);
         swsm |= E1000_SWSM_SWESMBI;
-        E1000_WRITE_REG(hw, SWSM, swsm);
+        ew32(SWSM, swsm);
         /* if we managed to set the bit we got the semaphore. */
-        swsm = E1000_READ_REG(hw, SWSM);
+        swsm = er32(SWSM);
         if (swsm & E1000_SWSM_SWESMBI)
             break;
 
@@ -7996,13 +7996,13 @@ static void e1000_put_hw_eeprom_semaphore(struct e1000_hw *hw)
     if (!hw->eeprom_semaphore_present)
         return;
 
-    swsm = E1000_READ_REG(hw, SWSM);
+    swsm = er32(SWSM);
     if (hw->mac_type == e1000_80003es2lan) {
         /* Release both semaphores. */
         swsm &= ~(E1000_SWSM_SMBI | E1000_SWSM_SWESMBI);
     } else
         swsm &= ~(E1000_SWSM_SWESMBI);
-    E1000_WRITE_REG(hw, SWSM, swsm);
+    ew32(SWSM, swsm);
 }
 
 /***************************************************************************
@@ -8027,7 +8027,7 @@ static s32 e1000_get_software_semaphore(struct e1000_hw *hw)
     }
 
     while (timeout) {
-        swsm = E1000_READ_REG(hw, SWSM);
+        swsm = er32(SWSM);
         /* If SMBI bit cleared, it is now set and we hold the semaphore */
         if (!(swsm & E1000_SWSM_SMBI))
             break;
@@ -8060,10 +8060,10 @@ static void e1000_release_software_semaphore(struct e1000_hw *hw)
         return;
     }
 
-    swsm = E1000_READ_REG(hw, SWSM);
+    swsm = er32(SWSM);
     /* Release the SW semaphores.*/
     swsm &= ~E1000_SWSM_SMBI;
-    E1000_WRITE_REG(hw, SWSM, swsm);
+    ew32(SWSM, swsm);
 }
 
 /******************************************************************************
@@ -8083,13 +8083,13 @@ s32 e1000_check_phy_reset_block(struct e1000_hw *hw)
     u32 fwsm = 0;
 
     if (hw->mac_type == e1000_ich8lan) {
-        fwsm = E1000_READ_REG(hw, FWSM);
+        fwsm = er32(FWSM);
         return (fwsm & E1000_FWSM_RSPCIPHY) ? E1000_SUCCESS
                                             : E1000_BLK_PHY_RESET;
     }
 
     if (hw->mac_type > e1000_82547_rev_2)
-        manc = E1000_READ_REG(hw, MANC);
+        manc = er32(MANC);
     return (manc & E1000_MANC_BLK_PHY_RST_ON_IDE) ?
         E1000_BLK_PHY_RESET : E1000_SUCCESS;
 }
@@ -8108,7 +8108,7 @@ static u8 e1000_arc_subsystem_valid(struct e1000_hw *hw)
     case e1000_82572:
     case e1000_82573:
     case e1000_80003es2lan:
-        fwsm = E1000_READ_REG(hw, FWSM);
+        fwsm = er32(FWSM);
         if ((fwsm & E1000_FWSM_MODE_MASK) != 0)
             return true;
         break;
@@ -8143,19 +8143,19 @@ static s32 e1000_set_pci_ex_no_snoop(struct e1000_hw *hw, u32 no_snoop)
         return E1000_SUCCESS;
 
     if (no_snoop) {
-        gcr_reg = E1000_READ_REG(hw, GCR);
+        gcr_reg = er32(GCR);
         gcr_reg &= ~(PCI_EX_NO_SNOOP_ALL);
         gcr_reg |= no_snoop;
-        E1000_WRITE_REG(hw, GCR, gcr_reg);
+        ew32(GCR, gcr_reg);
     }
     if (hw->mac_type == e1000_ich8lan) {
         u32 ctrl_ext;
 
-        E1000_WRITE_REG(hw, GCR, PCI_EX_82566_SNOOP_ALL);
+        ew32(GCR, PCI_EX_82566_SNOOP_ALL);
 
-        ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+        ctrl_ext = er32(CTRL_EXT);
         ctrl_ext |= E1000_CTRL_EXT_RO_DIS;
-        E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+        ew32(CTRL_EXT, ctrl_ext);
     }
 
     return E1000_SUCCESS;
@@ -8179,11 +8179,11 @@ static s32 e1000_get_software_flag(struct e1000_hw *hw)
 
     if (hw->mac_type == e1000_ich8lan) {
         while (timeout) {
-            extcnf_ctrl = E1000_READ_REG(hw, EXTCNF_CTRL);
+            extcnf_ctrl = er32(EXTCNF_CTRL);
             extcnf_ctrl |= E1000_EXTCNF_CTRL_SWFLAG;
-            E1000_WRITE_REG(hw, EXTCNF_CTRL, extcnf_ctrl);
+            ew32(EXTCNF_CTRL, extcnf_ctrl);
 
-            extcnf_ctrl = E1000_READ_REG(hw, EXTCNF_CTRL);
+            extcnf_ctrl = er32(EXTCNF_CTRL);
             if (extcnf_ctrl & E1000_EXTCNF_CTRL_SWFLAG)
                 break;
             mdelay(1);
@@ -8215,9 +8215,9 @@ static void e1000_release_software_flag(struct e1000_hw *hw)
     DEBUGFUNC("e1000_release_software_flag");
 
     if (hw->mac_type == e1000_ich8lan) {
-        extcnf_ctrl= E1000_READ_REG(hw, EXTCNF_CTRL);
+        extcnf_ctrl= er32(EXTCNF_CTRL);
         extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
-        E1000_WRITE_REG(hw, EXTCNF_CTRL, extcnf_ctrl);
+        ew32(EXTCNF_CTRL, extcnf_ctrl);
     }
 
     return;
@@ -8248,7 +8248,7 @@ static s32 e1000_read_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words,
      * to be updated with each read.
      */
     /* Value of bit 22 corresponds to the flash bank we're on. */
-    flash_bank = (E1000_READ_REG(hw, EECD) & E1000_EECD_SEC1VAL) ? 1 : 0;
+    flash_bank = (er32(EECD) & E1000_EECD_SEC1VAL) ? 1 : 0;
 
     /* Adjust offset appropriately if we're on bank 1 - adjust for word size */
     bank_offset = flash_bank * (hw->flash_bank_size * 2);
@@ -8813,32 +8813,32 @@ static s32 e1000_init_lcd_from_nvm(struct e1000_hw *hw)
           return E1000_SUCCESS;
 
     /* Check if SW needs configure the PHY */
-    reg_data = E1000_READ_REG(hw, FEXTNVM);
+    reg_data = er32(FEXTNVM);
     if (!(reg_data & FEXTNVM_SW_CONFIG))
         return E1000_SUCCESS;
 
     /* Wait for basic configuration completes before proceeding*/
     loop = 0;
     do {
-        reg_data = E1000_READ_REG(hw, STATUS) & E1000_STATUS_LAN_INIT_DONE;
+        reg_data = er32(STATUS) & E1000_STATUS_LAN_INIT_DONE;
         udelay(100);
         loop++;
     } while ((!reg_data) && (loop < 50));
 
     /* Clear the Init Done bit for the next init event */
-    reg_data = E1000_READ_REG(hw, STATUS);
+    reg_data = er32(STATUS);
     reg_data &= ~E1000_STATUS_LAN_INIT_DONE;
-    E1000_WRITE_REG(hw, STATUS, reg_data);
+    ew32(STATUS, reg_data);
 
     /* Make sure HW does not configure LCD from PHY extended configuration
        before SW configuration */
-    reg_data = E1000_READ_REG(hw, EXTCNF_CTRL);
+    reg_data = er32(EXTCNF_CTRL);
     if ((reg_data & E1000_EXTCNF_CTRL_LCD_WRITE_ENABLE) == 0x0000) {
-        reg_data = E1000_READ_REG(hw, EXTCNF_SIZE);
+        reg_data = er32(EXTCNF_SIZE);
         cnf_size = reg_data & E1000_EXTCNF_SIZE_EXT_PCIE_LENGTH;
         cnf_size >>= 16;
         if (cnf_size) {
-            reg_data = E1000_READ_REG(hw, EXTCNF_CTRL);
+            reg_data = er32(EXTCNF_CTRL);
             cnf_base_addr = reg_data & E1000_EXTCNF_CTRL_EXT_CNF_POINTER;
             /* cnf_base_addr is in DWORD */
             cnf_base_addr >>= 16;
