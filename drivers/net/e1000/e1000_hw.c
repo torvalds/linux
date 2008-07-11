@@ -42,48 +42,65 @@ static void e1000_release_software_semaphore(struct e1000_hw *hw);
 
 static u8 e1000_arc_subsystem_valid(struct e1000_hw *hw);
 static s32 e1000_check_downshift(struct e1000_hw *hw);
-static s32 e1000_check_polarity(struct e1000_hw *hw, e1000_rev_polarity *polarity);
+static s32 e1000_check_polarity(struct e1000_hw *hw,
+				e1000_rev_polarity *polarity);
 static void e1000_clear_hw_cntrs(struct e1000_hw *hw);
 static void e1000_clear_vfta(struct e1000_hw *hw);
 static s32 e1000_commit_shadow_ram(struct e1000_hw *hw);
 static s32 e1000_config_dsp_after_link_change(struct e1000_hw *hw,
-						  bool link_up);
+					      bool link_up);
 static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw);
 static s32 e1000_detect_gig_phy(struct e1000_hw *hw);
 static s32 e1000_erase_ich8_4k_segment(struct e1000_hw *hw, u32 bank);
 static s32 e1000_get_auto_rd_done(struct e1000_hw *hw);
-static s32 e1000_get_cable_length(struct e1000_hw *hw, u16 *min_length, u16 *max_length);
+static s32 e1000_get_cable_length(struct e1000_hw *hw, u16 *min_length,
+				  u16 *max_length);
 static s32 e1000_get_hw_eeprom_semaphore(struct e1000_hw *hw);
 static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw);
 static s32 e1000_get_software_flag(struct e1000_hw *hw);
 static s32 e1000_ich8_cycle_init(struct e1000_hw *hw);
 static s32 e1000_ich8_flash_cycle(struct e1000_hw *hw, u32 timeout);
 static s32 e1000_id_led_init(struct e1000_hw *hw);
-static s32 e1000_init_lcd_from_nvm_config_region(struct e1000_hw *hw, u32 cnf_base_addr, u32 cnf_size);
+static s32 e1000_init_lcd_from_nvm_config_region(struct e1000_hw *hw,
+						 u32 cnf_base_addr,
+						 u32 cnf_size);
 static s32 e1000_init_lcd_from_nvm(struct e1000_hw *hw);
 static void e1000_init_rx_addrs(struct e1000_hw *hw);
 static void e1000_initialize_hardware_bits(struct e1000_hw *hw);
 static bool e1000_is_onboard_nvm_eeprom(struct e1000_hw *hw);
 static s32 e1000_kumeran_lock_loss_workaround(struct e1000_hw *hw);
 static s32 e1000_mng_enable_host_if(struct e1000_hw *hw);
-static s32 e1000_mng_host_if_write(struct e1000_hw *hw, u8 *buffer, u16 length, u16 offset, u8 *sum);
-static s32 e1000_mng_write_cmd_header(struct e1000_hw* hw, struct e1000_host_mng_command_header* hdr);
+static s32 e1000_mng_host_if_write(struct e1000_hw *hw, u8 *buffer, u16 length,
+				   u16 offset, u8 *sum);
+static s32 e1000_mng_write_cmd_header(struct e1000_hw* hw,
+				      struct e1000_host_mng_command_header
+				      *hdr);
 static s32 e1000_mng_write_commit(struct e1000_hw *hw);
-static s32 e1000_phy_ife_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
-static s32 e1000_phy_igp_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
-static s32 e1000_read_eeprom_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
-static s32 e1000_write_eeprom_eewr(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
+static s32 e1000_phy_ife_get_info(struct e1000_hw *hw,
+				  struct e1000_phy_info *phy_info);
+static s32 e1000_phy_igp_get_info(struct e1000_hw *hw,
+				  struct e1000_phy_info *phy_info);
+static s32 e1000_read_eeprom_eerd(struct e1000_hw *hw, u16 offset, u16 words,
+				  u16 *data);
+static s32 e1000_write_eeprom_eewr(struct e1000_hw *hw, u16 offset, u16 words,
+				   u16 *data);
 static s32 e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int eerd);
-static s32 e1000_phy_m88_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
+static s32 e1000_phy_m88_get_info(struct e1000_hw *hw,
+				  struct e1000_phy_info *phy_info);
 static void e1000_put_hw_eeprom_semaphore(struct e1000_hw *hw);
 static s32 e1000_read_ich8_byte(struct e1000_hw *hw, u32 index, u8 *data);
-static s32 e1000_verify_write_ich8_byte(struct e1000_hw *hw, u32 index, u8 byte);
+static s32 e1000_verify_write_ich8_byte(struct e1000_hw *hw, u32 index,
+					u8 byte);
 static s32 e1000_write_ich8_byte(struct e1000_hw *hw, u32 index, u8 byte);
 static s32 e1000_read_ich8_word(struct e1000_hw *hw, u32 index, u16 *data);
-static s32 e1000_read_ich8_data(struct e1000_hw *hw, u32 index, u32 size, u16 *data);
-static s32 e1000_write_ich8_data(struct e1000_hw *hw, u32 index, u32 size, u16 data);
-static s32 e1000_read_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
-static s32 e1000_write_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
+static s32 e1000_read_ich8_data(struct e1000_hw *hw, u32 index, u32 size,
+				u16 *data);
+static s32 e1000_write_ich8_data(struct e1000_hw *hw, u32 index, u32 size,
+				 u16 data);
+static s32 e1000_read_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words,
+				  u16 *data);
+static s32 e1000_write_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words,
+				   u16 *data);
 static void e1000_release_software_flag(struct e1000_hw *hw);
 static s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active);
 static s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active);
@@ -101,23 +118,21 @@ static s32 e1000_config_mac_to_phy(struct e1000_hw *hw);
 static void e1000_raise_mdi_clk(struct e1000_hw *hw, u32 *ctrl);
 static void e1000_lower_mdi_clk(struct e1000_hw *hw, u32 *ctrl);
 static void e1000_shift_out_mdi_bits(struct e1000_hw *hw, u32 data,
-                                     u16 count);
+				     u16 count);
 static u16 e1000_shift_in_mdi_bits(struct e1000_hw *hw);
 static s32 e1000_phy_reset_dsp(struct e1000_hw *hw);
 static s32 e1000_write_eeprom_spi(struct e1000_hw *hw, u16 offset,
                                       u16 words, u16 *data);
-static s32 e1000_write_eeprom_microwire(struct e1000_hw *hw,
-                                            u16 offset, u16 words,
-                                            u16 *data);
+static s32 e1000_write_eeprom_microwire(struct e1000_hw *hw, u16 offset,
+					u16 words, u16 *data);
 static s32 e1000_spi_eeprom_ready(struct e1000_hw *hw);
 static void e1000_raise_ee_clk(struct e1000_hw *hw, u32 *eecd);
 static void e1000_lower_ee_clk(struct e1000_hw *hw, u32 *eecd);
-static void e1000_shift_out_ee_bits(struct e1000_hw *hw, u16 data,
-                                    u16 count);
+static void e1000_shift_out_ee_bits(struct e1000_hw *hw, u16 data, u16 count);
 static s32 e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
-                                      u16 phy_data);
+				  u16 phy_data);
 static s32 e1000_read_phy_reg_ex(struct e1000_hw *hw,u32 reg_addr,
-                                     u16 *phy_data);
+				 u16 *phy_data);
 static u16 e1000_shift_in_ee_bits(struct e1000_hw *hw, u16 count);
 static s32 e1000_acquire_eeprom(struct e1000_hw *hw);
 static void e1000_release_eeprom(struct e1000_hw *hw);
@@ -127,8 +142,7 @@ static s32 e1000_polarity_reversal_workaround(struct e1000_hw *hw);
 static s32 e1000_set_phy_mode(struct e1000_hw *hw);
 static s32 e1000_host_if_read_cookie(struct e1000_hw *hw, u8 *buffer);
 static u8 e1000_calculate_mng_checksum(char *buffer, u32 length);
-static s32 e1000_configure_kmrn_for_10_100(struct e1000_hw *hw,
-                                               u16 duplex);
+static s32 e1000_configure_kmrn_for_10_100(struct e1000_hw *hw, u16 duplex);
 static s32 e1000_configure_kmrn_for_1000(struct e1000_hw *hw);
 
 /* IGP cable length table */
@@ -159,8 +173,7 @@ u16 e1000_igp_2_cable_length_table[IGP02E1000_AGC_LENGTH_TABLE_SIZE] =
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static s32
-e1000_set_phy_type(struct e1000_hw *hw)
+static s32 e1000_set_phy_type(struct e1000_hw *hw)
 {
     DEBUGFUNC("e1000_set_phy_type");
 
@@ -210,8 +223,7 @@ e1000_set_phy_type(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static void
-e1000_phy_init_script(struct e1000_hw *hw)
+static void e1000_phy_init_script(struct e1000_hw *hw)
 {
     u32 ret_val;
     u16 phy_saved_data;
@@ -306,8 +318,7 @@ e1000_phy_init_script(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-s32
-e1000_set_mac_type(struct e1000_hw *hw)
+s32 e1000_set_mac_type(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_set_mac_type");
 
@@ -474,8 +485,7 @@ e1000_set_mac_type(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  * **************************************************************************/
-void
-e1000_set_media_type(struct e1000_hw *hw)
+void e1000_set_media_type(struct e1000_hw *hw)
 {
     u32 status;
 
@@ -528,8 +538,7 @@ e1000_set_media_type(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-s32
-e1000_reset_hw(struct e1000_hw *hw)
+s32 e1000_reset_hw(struct e1000_hw *hw)
 {
     u32 ctrl;
     u32 ctrl_ext;
@@ -747,8 +756,7 @@ e1000_reset_hw(struct e1000_hw *hw)
  * This function contains hardware limitation workarounds for PCI-E adapters
  *
  *****************************************************************************/
-static void
-e1000_initialize_hardware_bits(struct e1000_hw *hw)
+static void e1000_initialize_hardware_bits(struct e1000_hw *hw)
 {
     if ((hw->mac_type >= e1000_82571) && (!hw->initialize_hw_bits_disable)) {
         /* Settings common to all PCI-express silicon */
@@ -866,8 +874,7 @@ e1000_initialize_hardware_bits(struct e1000_hw *hw)
  * configuration and flow control settings. Clears all on-chip counters. Leaves
  * the transmit and receive units disabled and uninitialized.
  *****************************************************************************/
-s32
-e1000_init_hw(struct e1000_hw *hw)
+s32 e1000_init_hw(struct e1000_hw *hw)
 {
     u32 ctrl;
     u32 i;
@@ -1054,8 +1061,7 @@ e1000_init_hw(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code.
  *****************************************************************************/
-static s32
-e1000_adjust_serdes_amplitude(struct e1000_hw *hw)
+static s32 e1000_adjust_serdes_amplitude(struct e1000_hw *hw)
 {
     u16 eeprom_data;
     s32  ret_val;
@@ -1100,8 +1106,7 @@ e1000_adjust_serdes_amplitude(struct e1000_hw *hw)
  * established. Assumes the hardware has previously been reset and the
  * transmitter and receiver are not enabled.
  *****************************************************************************/
-s32
-e1000_setup_link(struct e1000_hw *hw)
+s32 e1000_setup_link(struct e1000_hw *hw)
 {
     u32 ctrl_ext;
     s32 ret_val;
@@ -1233,8 +1238,7 @@ e1000_setup_link(struct e1000_hw *hw)
  * link. Assumes the hardware has been previously reset and the transmitter
  * and receiver are not enabled.
  *****************************************************************************/
-static s32
-e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
+static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 {
     u32 ctrl;
     u32 status;
@@ -1380,8 +1384,7 @@ e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-static s32
-e1000_copper_link_preconfig(struct e1000_hw *hw)
+static s32 e1000_copper_link_preconfig(struct e1000_hw *hw)
 {
     u32 ctrl;
     s32 ret_val;
@@ -1440,8 +1443,7 @@ e1000_copper_link_preconfig(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 *********************************************************************/
-static s32
-e1000_copper_link_igp_setup(struct e1000_hw *hw)
+static s32 e1000_copper_link_igp_setup(struct e1000_hw *hw)
 {
     u32 led_ctrl;
     s32 ret_val;
@@ -1587,8 +1589,7 @@ e1000_copper_link_igp_setup(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 *********************************************************************/
-static s32
-e1000_copper_link_ggp_setup(struct e1000_hw *hw)
+static s32 e1000_copper_link_ggp_setup(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 phy_data;
@@ -1735,8 +1736,7 @@ e1000_copper_link_ggp_setup(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 *********************************************************************/
-static s32
-e1000_copper_link_mgp_setup(struct e1000_hw *hw)
+static s32 e1000_copper_link_mgp_setup(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 phy_data;
@@ -1839,8 +1839,7 @@ e1000_copper_link_mgp_setup(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 *********************************************************************/
-static s32
-e1000_copper_link_autoneg(struct e1000_hw *hw)
+static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 phy_data;
@@ -1910,8 +1909,7 @@ e1000_copper_link_autoneg(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-static s32
-e1000_copper_link_postconfig(struct e1000_hw *hw)
+static s32 e1000_copper_link_postconfig(struct e1000_hw *hw)
 {
     s32 ret_val;
     DEBUGFUNC("e1000_copper_link_postconfig");
@@ -1948,8 +1946,7 @@ e1000_copper_link_postconfig(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-static s32
-e1000_setup_copper_link(struct e1000_hw *hw)
+static s32 e1000_setup_copper_link(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 i;
@@ -2062,8 +2059,7 @@ e1000_setup_copper_link(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-static s32
-e1000_configure_kmrn_for_10_100(struct e1000_hw *hw, u16 duplex)
+static s32 e1000_configure_kmrn_for_10_100(struct e1000_hw *hw, u16 duplex)
 {
     s32 ret_val = E1000_SUCCESS;
     u32 tipg;
@@ -2098,8 +2094,7 @@ e1000_configure_kmrn_for_10_100(struct e1000_hw *hw, u16 duplex)
     return ret_val;
 }
 
-static s32
-e1000_configure_kmrn_for_1000(struct e1000_hw *hw)
+static s32 e1000_configure_kmrn_for_1000(struct e1000_hw *hw)
 {
     s32 ret_val = E1000_SUCCESS;
     u16 reg_data;
@@ -2135,8 +2130,7 @@ e1000_configure_kmrn_for_1000(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-s32
-e1000_phy_setup_autoneg(struct e1000_hw *hw)
+s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 mii_autoneg_adv_reg;
@@ -2284,8 +2278,7 @@ e1000_phy_setup_autoneg(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-static s32
-e1000_phy_force_speed_duplex(struct e1000_hw *hw)
+static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 {
     u32 ctrl;
     s32 ret_val;
@@ -2535,8 +2528,7 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 * Link should have been established previously. Reads the speed and duplex
 * information from the Device Status register.
 ******************************************************************************/
-void
-e1000_config_collision_dist(struct e1000_hw *hw)
+void e1000_config_collision_dist(struct e1000_hw *hw)
 {
     u32 tctl, coll_dist;
 
@@ -2565,8 +2557,7 @@ e1000_config_collision_dist(struct e1000_hw *hw)
 * The contents of the PHY register containing the needed information need to
 * be passed in.
 ******************************************************************************/
-static s32
-e1000_config_mac_to_phy(struct e1000_hw *hw)
+static s32 e1000_config_mac_to_phy(struct e1000_hw *hw)
 {
     u32 ctrl;
     s32 ret_val;
@@ -2624,8 +2615,7 @@ e1000_config_mac_to_phy(struct e1000_hw *hw)
  * by the PHY rather than the MAC. Software must also configure these
  * bits when link is forced on a fiber connection.
  *****************************************************************************/
-s32
-e1000_force_mac_fc(struct e1000_hw *hw)
+s32 e1000_force_mac_fc(struct e1000_hw *hw)
 {
     u32 ctrl;
 
@@ -2691,8 +2681,7 @@ e1000_force_mac_fc(struct e1000_hw *hw)
  * based on the flow control negotiated by the PHY. In TBI mode, the TFCE
  * and RFCE bits will be automaticaly set to the negotiated flow control mode.
  *****************************************************************************/
-static s32
-e1000_config_fc_after_link_up(struct e1000_hw *hw)
+static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 mii_status_reg;
@@ -2896,8 +2885,7 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
  *
  * Called by any function that needs to check the link status of the adapter.
  *****************************************************************************/
-s32
-e1000_check_for_link(struct e1000_hw *hw)
+s32 e1000_check_for_link(struct e1000_hw *hw)
 {
     u32 rxcw = 0;
     u32 ctrl;
@@ -3132,10 +3120,7 @@ e1000_check_for_link(struct e1000_hw *hw)
  * speed - Speed of the connection
  * duplex - Duplex setting of the connection
  *****************************************************************************/
-s32
-e1000_get_speed_and_duplex(struct e1000_hw *hw,
-                           u16 *speed,
-                           u16 *duplex)
+s32 e1000_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex)
 {
     u32 status;
     s32 ret_val;
@@ -3214,8 +3199,7 @@ e1000_get_speed_and_duplex(struct e1000_hw *hw,
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-static s32
-e1000_wait_autoneg(struct e1000_hw *hw)
+static s32 e1000_wait_autoneg(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 i;
@@ -3249,9 +3233,7 @@ e1000_wait_autoneg(struct e1000_hw *hw)
 * hw - Struct containing variables accessed by shared code
 * ctrl - Device control register's current value
 ******************************************************************************/
-static void
-e1000_raise_mdi_clk(struct e1000_hw *hw,
-                    u32 *ctrl)
+static void e1000_raise_mdi_clk(struct e1000_hw *hw, u32 *ctrl)
 {
     /* Raise the clock input to the Management Data Clock (by setting the MDC
      * bit), and then delay 10 microseconds.
@@ -3267,9 +3249,7 @@ e1000_raise_mdi_clk(struct e1000_hw *hw,
 * hw - Struct containing variables accessed by shared code
 * ctrl - Device control register's current value
 ******************************************************************************/
-static void
-e1000_lower_mdi_clk(struct e1000_hw *hw,
-                    u32 *ctrl)
+static void e1000_lower_mdi_clk(struct e1000_hw *hw, u32 *ctrl)
 {
     /* Lower the clock input to the Management Data Clock (by clearing the MDC
      * bit), and then delay 10 microseconds.
@@ -3288,10 +3268,7 @@ e1000_lower_mdi_clk(struct e1000_hw *hw,
 *
 * Bits are shifted out in MSB to LSB order.
 ******************************************************************************/
-static void
-e1000_shift_out_mdi_bits(struct e1000_hw *hw,
-                         u32 data,
-                         u16 count)
+static void e1000_shift_out_mdi_bits(struct e1000_hw *hw, u32 data, u16 count)
 {
     u32 ctrl;
     u32 mask;
@@ -3338,8 +3315,7 @@ e1000_shift_out_mdi_bits(struct e1000_hw *hw,
 *
 * Bits are shifted in in MSB to LSB order.
 ******************************************************************************/
-static u16
-e1000_shift_in_mdi_bits(struct e1000_hw *hw)
+static u16 e1000_shift_in_mdi_bits(struct e1000_hw *hw)
 {
     u32 ctrl;
     u16 data = 0;
@@ -3384,8 +3360,7 @@ e1000_shift_in_mdi_bits(struct e1000_hw *hw)
     return data;
 }
 
-static s32
-e1000_swfw_sync_acquire(struct e1000_hw *hw, u16 mask)
+static s32 e1000_swfw_sync_acquire(struct e1000_hw *hw, u16 mask)
 {
     u32 swfw_sync = 0;
     u32 swmask = mask;
@@ -3428,8 +3403,7 @@ e1000_swfw_sync_acquire(struct e1000_hw *hw, u16 mask)
     return E1000_SUCCESS;
 }
 
-static void
-e1000_swfw_sync_release(struct e1000_hw *hw, u16 mask)
+static void e1000_swfw_sync_release(struct e1000_hw *hw, u16 mask)
 {
     u32 swfw_sync;
     u32 swmask = mask;
@@ -3464,10 +3438,7 @@ e1000_swfw_sync_release(struct e1000_hw *hw, u16 mask)
 * hw - Struct containing variables accessed by shared code
 * reg_addr - address of the PHY register to read
 ******************************************************************************/
-s32
-e1000_read_phy_reg(struct e1000_hw *hw,
-                   u32 reg_addr,
-                   u16 *phy_data)
+s32 e1000_read_phy_reg(struct e1000_hw *hw, u32 reg_addr, u16 *phy_data)
 {
     u32 ret_val;
     u16 swfw;
@@ -3523,9 +3494,8 @@ e1000_read_phy_reg(struct e1000_hw *hw,
     return ret_val;
 }
 
-static s32
-e1000_read_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
-                      u16 *phy_data)
+static s32 e1000_read_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
+				 u16 *phy_data)
 {
     u32 i;
     u32 mdic = 0;
@@ -3603,9 +3573,7 @@ e1000_read_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
 * reg_addr - address of the PHY register to write
 * data - data to write to the PHY
 ******************************************************************************/
-s32
-e1000_write_phy_reg(struct e1000_hw *hw, u32 reg_addr,
-                    u16 phy_data)
+s32 e1000_write_phy_reg(struct e1000_hw *hw, u32 reg_addr, u16 phy_data)
 {
     u32 ret_val;
     u16 swfw;
@@ -3661,9 +3629,8 @@ e1000_write_phy_reg(struct e1000_hw *hw, u32 reg_addr,
     return ret_val;
 }
 
-static s32
-e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
-                       u16 phy_data)
+static s32 e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
+				  u16 phy_data)
 {
     u32 i;
     u32 mdic = 0;
@@ -3723,10 +3690,7 @@ e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
     return E1000_SUCCESS;
 }
 
-static s32
-e1000_read_kmrn_reg(struct e1000_hw *hw,
-                    u32 reg_addr,
-                    u16 *data)
+static s32 e1000_read_kmrn_reg(struct e1000_hw *hw, u32 reg_addr, u16 *data)
 {
     u32 reg_val;
     u16 swfw;
@@ -3756,10 +3720,7 @@ e1000_read_kmrn_reg(struct e1000_hw *hw,
     return E1000_SUCCESS;
 }
 
-static s32
-e1000_write_kmrn_reg(struct e1000_hw *hw,
-                     u32 reg_addr,
-                     u16 data)
+static s32 e1000_write_kmrn_reg(struct e1000_hw *hw, u32 reg_addr, u16 data)
 {
     u32 reg_val;
     u16 swfw;
@@ -3788,8 +3749,7 @@ e1000_write_kmrn_reg(struct e1000_hw *hw,
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-s32
-e1000_phy_hw_reset(struct e1000_hw *hw)
+s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 {
     u32 ctrl, ctrl_ext;
     u32 led_ctrl;
@@ -3882,8 +3842,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
 *
 * Sets bit 15 of the MII Control register
 ******************************************************************************/
-s32
-e1000_phy_reset(struct e1000_hw *hw)
+s32 e1000_phy_reset(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 phy_data;
@@ -3934,8 +3893,7 @@ e1000_phy_reset(struct e1000_hw *hw)
 *
 * hw - struct containing variables accessed by shared code
 ******************************************************************************/
-void
-e1000_phy_powerdown_workaround(struct e1000_hw *hw)
+void e1000_phy_powerdown_workaround(struct e1000_hw *hw)
 {
     s32 reg;
     u16 phy_data;
@@ -3987,8 +3945,7 @@ e1000_phy_powerdown_workaround(struct e1000_hw *hw)
 *
 * hw - struct containing variables accessed by shared code
 ******************************************************************************/
-static s32
-e1000_kumeran_lock_loss_workaround(struct e1000_hw *hw)
+static s32 e1000_kumeran_lock_loss_workaround(struct e1000_hw *hw)
 {
     s32 ret_val;
     s32 reg;
@@ -4040,8 +3997,7 @@ e1000_kumeran_lock_loss_workaround(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-static s32
-e1000_detect_gig_phy(struct e1000_hw *hw)
+static s32 e1000_detect_gig_phy(struct e1000_hw *hw)
 {
     s32 phy_init_status, ret_val;
     u16 phy_id_high, phy_id_low;
@@ -4136,8 +4092,7 @@ e1000_detect_gig_phy(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-static s32
-e1000_phy_reset_dsp(struct e1000_hw *hw)
+static s32 e1000_phy_reset_dsp(struct e1000_hw *hw)
 {
     s32 ret_val;
     DEBUGFUNC("e1000_phy_reset_dsp");
@@ -4163,9 +4118,8 @@ e1000_phy_reset_dsp(struct e1000_hw *hw)
 * hw - Struct containing variables accessed by shared code
 * phy_info - PHY information structure
 ******************************************************************************/
-static s32
-e1000_phy_igp_get_info(struct e1000_hw *hw,
-                       struct e1000_phy_info *phy_info)
+static s32 e1000_phy_igp_get_info(struct e1000_hw *hw,
+				  struct e1000_phy_info *phy_info)
 {
     s32 ret_val;
     u16 phy_data, min_length, max_length, average;
@@ -4240,9 +4194,8 @@ e1000_phy_igp_get_info(struct e1000_hw *hw,
 * hw - Struct containing variables accessed by shared code
 * phy_info - PHY information structure
 ******************************************************************************/
-static s32
-e1000_phy_ife_get_info(struct e1000_hw *hw,
-                       struct e1000_phy_info *phy_info)
+static s32 e1000_phy_ife_get_info(struct e1000_hw *hw,
+				  struct e1000_phy_info *phy_info)
 {
     s32 ret_val;
     u16 phy_data;
@@ -4290,9 +4243,8 @@ e1000_phy_ife_get_info(struct e1000_hw *hw,
 * hw - Struct containing variables accessed by shared code
 * phy_info - PHY information structure
 ******************************************************************************/
-static s32
-e1000_phy_m88_get_info(struct e1000_hw *hw,
-                       struct e1000_phy_info *phy_info)
+static s32 e1000_phy_m88_get_info(struct e1000_hw *hw,
+				  struct e1000_phy_info *phy_info)
 {
     s32 ret_val;
     u16 phy_data;
@@ -4369,9 +4321,7 @@ e1000_phy_m88_get_info(struct e1000_hw *hw,
 * hw - Struct containing variables accessed by shared code
 * phy_info - PHY information structure
 ******************************************************************************/
-s32
-e1000_phy_get_info(struct e1000_hw *hw,
-                   struct e1000_phy_info *phy_info)
+s32 e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info)
 {
     s32 ret_val;
     u16 phy_data;
@@ -4415,8 +4365,7 @@ e1000_phy_get_info(struct e1000_hw *hw,
         return e1000_phy_m88_get_info(hw, phy_info);
 }
 
-s32
-e1000_validate_mdi_setting(struct e1000_hw *hw)
+s32 e1000_validate_mdi_setting(struct e1000_hw *hw)
 {
     DEBUGFUNC("e1000_validate_mdi_settings");
 
@@ -4436,8 +4385,7 @@ e1000_validate_mdi_setting(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-s32
-e1000_init_eeprom_params(struct e1000_hw *hw)
+s32 e1000_init_eeprom_params(struct e1000_hw *hw)
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     u32 eecd = E1000_READ_REG(hw, EECD);
@@ -4626,9 +4574,7 @@ e1000_init_eeprom_params(struct e1000_hw *hw)
  * hw - Struct containing variables accessed by shared code
  * eecd - EECD's current value
  *****************************************************************************/
-static void
-e1000_raise_ee_clk(struct e1000_hw *hw,
-                   u32 *eecd)
+static void e1000_raise_ee_clk(struct e1000_hw *hw, u32 *eecd)
 {
     /* Raise the clock input to the EEPROM (by setting the SK bit), and then
      * wait <delay> microseconds.
@@ -4645,9 +4591,7 @@ e1000_raise_ee_clk(struct e1000_hw *hw,
  * hw - Struct containing variables accessed by shared code
  * eecd - EECD's current value
  *****************************************************************************/
-static void
-e1000_lower_ee_clk(struct e1000_hw *hw,
-                   u32 *eecd)
+static void e1000_lower_ee_clk(struct e1000_hw *hw, u32 *eecd)
 {
     /* Lower the clock input to the EEPROM (by clearing the SK bit), and then
      * wait 50 microseconds.
@@ -4665,10 +4609,7 @@ e1000_lower_ee_clk(struct e1000_hw *hw,
  * data - data to send to the EEPROM
  * count - number of bits to shift out
  *****************************************************************************/
-static void
-e1000_shift_out_ee_bits(struct e1000_hw *hw,
-                        u16 data,
-                        u16 count)
+static void e1000_shift_out_ee_bits(struct e1000_hw *hw, u16 data, u16 count)
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     u32 eecd;
@@ -4718,9 +4659,7 @@ e1000_shift_out_ee_bits(struct e1000_hw *hw,
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static u16
-e1000_shift_in_ee_bits(struct e1000_hw *hw,
-                       u16 count)
+static u16 e1000_shift_in_ee_bits(struct e1000_hw *hw, u16 count)
 {
     u32 eecd;
     u32 i;
@@ -4762,8 +4701,7 @@ e1000_shift_in_ee_bits(struct e1000_hw *hw,
  * Lowers EEPROM clock. Clears input pin. Sets the chip select pin. This
  * function should be called before issuing a command to the EEPROM.
  *****************************************************************************/
-static s32
-e1000_acquire_eeprom(struct e1000_hw *hw)
+static s32 e1000_acquire_eeprom(struct e1000_hw *hw)
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     u32 eecd, i=0;
@@ -4821,8 +4759,7 @@ e1000_acquire_eeprom(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static void
-e1000_standby_eeprom(struct e1000_hw *hw)
+static void e1000_standby_eeprom(struct e1000_hw *hw)
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     u32 eecd;
@@ -4870,8 +4807,7 @@ e1000_standby_eeprom(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static void
-e1000_release_eeprom(struct e1000_hw *hw)
+static void e1000_release_eeprom(struct e1000_hw *hw)
 {
     u32 eecd;
 
@@ -4921,8 +4857,7 @@ e1000_release_eeprom(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static s32
-e1000_spi_eeprom_ready(struct e1000_hw *hw)
+static s32 e1000_spi_eeprom_ready(struct e1000_hw *hw)
 {
     u16 retry_count = 0;
     u8 spi_stat_reg;
@@ -4967,11 +4902,7 @@ e1000_spi_eeprom_ready(struct e1000_hw *hw)
  * data - word read from the EEPROM
  * words - number of words to read
  *****************************************************************************/
-s32
-e1000_read_eeprom(struct e1000_hw *hw,
-                  u16 offset,
-                  u16 words,
-                  u16 *data)
+s32 e1000_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     u32 i = 0;
@@ -5068,11 +4999,8 @@ e1000_read_eeprom(struct e1000_hw *hw,
  * data - word read from the EEPROM
  * words - number of words to read
  *****************************************************************************/
-static s32
-e1000_read_eeprom_eerd(struct e1000_hw *hw,
-                  u16 offset,
-                  u16 words,
-                  u16 *data)
+static s32 e1000_read_eeprom_eerd(struct e1000_hw *hw, u16 offset, u16 words,
+				  u16 *data)
 {
     u32 i, eerd = 0;
     s32 error = 0;
@@ -5102,11 +5030,8 @@ e1000_read_eeprom_eerd(struct e1000_hw *hw,
  * data - word read from the EEPROM
  * words - number of words to read
  *****************************************************************************/
-static s32
-e1000_write_eeprom_eewr(struct e1000_hw *hw,
-                   u16 offset,
-                   u16 words,
-                   u16 *data)
+static s32 e1000_write_eeprom_eewr(struct e1000_hw *hw, u16 offset, u16 words,
+				   u16 *data)
 {
     u32    register_value = 0;
     u32    i              = 0;
@@ -5143,8 +5068,7 @@ e1000_write_eeprom_eewr(struct e1000_hw *hw,
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static s32
-e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int eerd)
+static s32 e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int eerd)
 {
     u32 attempts = 100000;
     u32 i, reg = 0;
@@ -5171,8 +5095,7 @@ e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int eerd)
 *
 * hw - Struct containing variables accessed by shared code
 ****************************************************************************/
-static bool
-e1000_is_onboard_nvm_eeprom(struct e1000_hw *hw)
+static bool e1000_is_onboard_nvm_eeprom(struct e1000_hw *hw)
 {
     u32 eecd = 0;
 
@@ -5204,8 +5127,7 @@ e1000_is_onboard_nvm_eeprom(struct e1000_hw *hw)
  * If the the sum of the 64 16 bit words is 0xBABA, the EEPROM's checksum is
  * valid.
  *****************************************************************************/
-s32
-e1000_validate_eeprom_checksum(struct e1000_hw *hw)
+s32 e1000_validate_eeprom_checksum(struct e1000_hw *hw)
 {
     u16 checksum = 0;
     u16 i, eeprom_data;
@@ -5268,8 +5190,7 @@ e1000_validate_eeprom_checksum(struct e1000_hw *hw)
  * Sums the first 63 16 bit words of the EEPROM. Subtracts the sum from 0xBABA.
  * Writes the difference to word offset 63 of the EEPROM.
  *****************************************************************************/
-s32
-e1000_update_eeprom_checksum(struct e1000_hw *hw)
+s32 e1000_update_eeprom_checksum(struct e1000_hw *hw)
 {
     u32 ctrl_ext;
     u16 checksum = 0;
@@ -5313,11 +5234,7 @@ e1000_update_eeprom_checksum(struct e1000_hw *hw)
  * If e1000_update_eeprom_checksum is not called after this function, the
  * EEPROM will most likely contain an invalid checksum.
  *****************************************************************************/
-s32
-e1000_write_eeprom(struct e1000_hw *hw,
-                   u16 offset,
-                   u16 words,
-                   u16 *data)
+s32 e1000_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     s32 status = 0;
@@ -5370,11 +5287,8 @@ e1000_write_eeprom(struct e1000_hw *hw,
  * data - pointer to array of 8 bit words to be written to the EEPROM
  *
  *****************************************************************************/
-static s32
-e1000_write_eeprom_spi(struct e1000_hw *hw,
-                       u16 offset,
-                       u16 words,
-                       u16 *data)
+static s32 e1000_write_eeprom_spi(struct e1000_hw *hw, u16 offset, u16 words,
+				  u16 *data)
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     u16 widx = 0;
@@ -5436,11 +5350,8 @@ e1000_write_eeprom_spi(struct e1000_hw *hw,
  * data - pointer to array of 16 bit words to be written to the EEPROM
  *
  *****************************************************************************/
-static s32
-e1000_write_eeprom_microwire(struct e1000_hw *hw,
-                             u16 offset,
-                             u16 words,
-                             u16 *data)
+static s32 e1000_write_eeprom_microwire(struct e1000_hw *hw, u16 offset,
+					u16 words, u16 *data)
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     u32 eecd;
@@ -5523,8 +5434,7 @@ e1000_write_eeprom_microwire(struct e1000_hw *hw,
  * data - word read from the EEPROM
  * words - number of words to read
  *****************************************************************************/
-static s32
-e1000_commit_shadow_ram(struct e1000_hw *hw)
+static s32 e1000_commit_shadow_ram(struct e1000_hw *hw)
 {
     u32 attempts = 100000;
     u32 eecd = 0;
@@ -5687,8 +5597,7 @@ e1000_commit_shadow_ram(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-s32
-e1000_read_mac_addr(struct e1000_hw * hw)
+s32 e1000_read_mac_addr(struct e1000_hw *hw)
 {
     u16 offset;
     u16 eeprom_data, i;
@@ -5731,8 +5640,7 @@ e1000_read_mac_addr(struct e1000_hw * hw)
  * of the receive addresss registers. Clears the multicast table. Assumes
  * the receiver is in reset when the routine is called.
  *****************************************************************************/
-static void
-e1000_init_rx_addrs(struct e1000_hw *hw)
+static void e1000_init_rx_addrs(struct e1000_hw *hw)
 {
     u32 i;
     u32 rar_num;
@@ -5770,9 +5678,7 @@ e1000_init_rx_addrs(struct e1000_hw *hw)
  * hw - Struct containing variables accessed by shared code
  * mc_addr - the multicast address to hash
  *****************************************************************************/
-u32
-e1000_hash_mc_addr(struct e1000_hw *hw,
-                   u8 *mc_addr)
+u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 {
     u32 hash_value = 0;
 
@@ -5835,9 +5741,7 @@ e1000_hash_mc_addr(struct e1000_hw *hw,
  * hw - Struct containing variables accessed by shared code
  * hash_value - Multicast address hash value
  *****************************************************************************/
-void
-e1000_mta_set(struct e1000_hw *hw,
-              u32 hash_value)
+void e1000_mta_set(struct e1000_hw *hw, u32 hash_value)
 {
     u32 hash_bit, hash_reg;
     u32 mta;
@@ -5884,10 +5788,7 @@ e1000_mta_set(struct e1000_hw *hw,
  * addr - Address to put into receive address register
  * index - Receive address register to write
  *****************************************************************************/
-void
-e1000_rar_set(struct e1000_hw *hw,
-              u8 *addr,
-              u32 index)
+void e1000_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 {
     u32 rar_low, rar_high;
 
@@ -5942,10 +5843,7 @@ e1000_rar_set(struct e1000_hw *hw,
  * offset - Offset in VLAN filer table to write
  * value - Value to write into VLAN filter table
  *****************************************************************************/
-void
-e1000_write_vfta(struct e1000_hw *hw,
-                 u32 offset,
-                 u32 value)
+void e1000_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 {
     u32 temp;
 
@@ -5969,8 +5867,7 @@ e1000_write_vfta(struct e1000_hw *hw,
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static void
-e1000_clear_vfta(struct e1000_hw *hw)
+static void e1000_clear_vfta(struct e1000_hw *hw)
 {
     u32 offset;
     u32 vfta_value = 0;
@@ -6003,8 +5900,7 @@ e1000_clear_vfta(struct e1000_hw *hw)
     }
 }
 
-static s32
-e1000_id_led_init(struct e1000_hw * hw)
+static s32 e1000_id_led_init(struct e1000_hw *hw)
 {
     u32 ledctl;
     const u32 ledctl_mask = 0x000000FF;
@@ -6086,8 +5982,7 @@ e1000_id_led_init(struct e1000_hw * hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-s32
-e1000_setup_led(struct e1000_hw *hw)
+s32 e1000_setup_led(struct e1000_hw *hw)
 {
     u32 ledctl;
     s32 ret_val = E1000_SUCCESS;
@@ -6145,8 +6040,7 @@ e1000_setup_led(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-s32
-e1000_blink_led_start(struct e1000_hw *hw)
+s32 e1000_blink_led_start(struct e1000_hw *hw)
 {
     s16  i;
     u32 ledctl_blink = 0;
@@ -6180,8 +6074,7 @@ e1000_blink_led_start(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-s32
-e1000_cleanup_led(struct e1000_hw *hw)
+s32 e1000_cleanup_led(struct e1000_hw *hw)
 {
     s32 ret_val = E1000_SUCCESS;
 
@@ -6222,8 +6115,7 @@ e1000_cleanup_led(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-s32
-e1000_led_on(struct e1000_hw *hw)
+s32 e1000_led_on(struct e1000_hw *hw)
 {
     u32 ctrl = E1000_READ_REG(hw, CTRL);
 
@@ -6273,8 +6165,7 @@ e1000_led_on(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-s32
-e1000_led_off(struct e1000_hw *hw)
+s32 e1000_led_off(struct e1000_hw *hw)
 {
     u32 ctrl = E1000_READ_REG(hw, CTRL);
 
@@ -6324,8 +6215,7 @@ e1000_led_off(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static void
-e1000_clear_hw_cntrs(struct e1000_hw *hw)
+static void e1000_clear_hw_cntrs(struct e1000_hw *hw)
 {
     volatile u32 temp;
 
@@ -6428,8 +6318,7 @@ e1000_clear_hw_cntrs(struct e1000_hw *hw)
  * current_ifs_val, ifs_min_val, ifs_max_val, ifs_step_size, and ifs_ratio
  * before calling this function.
  *****************************************************************************/
-void
-e1000_reset_adaptive(struct e1000_hw *hw)
+void e1000_reset_adaptive(struct e1000_hw *hw)
 {
     DEBUGFUNC("e1000_reset_adaptive");
 
@@ -6456,8 +6345,7 @@ e1000_reset_adaptive(struct e1000_hw *hw)
  * tx_packets - Number of transmits since last callback
  * total_collisions - Number of collisions since last callback
  *****************************************************************************/
-void
-e1000_update_adaptive(struct e1000_hw *hw)
+void e1000_update_adaptive(struct e1000_hw *hw)
 {
     DEBUGFUNC("e1000_update_adaptive");
 
@@ -6492,11 +6380,8 @@ e1000_update_adaptive(struct e1000_hw *hw)
  * frame_len - The length of the frame in question
  * mac_addr - The Ethernet destination address of the frame in question
  *****************************************************************************/
-void
-e1000_tbi_adjust_stats(struct e1000_hw *hw,
-                       struct e1000_hw_stats *stats,
-                       u32 frame_len,
-                       u8 *mac_addr)
+void e1000_tbi_adjust_stats(struct e1000_hw *hw, struct e1000_hw_stats *stats,
+			    u32 frame_len, u8 *mac_addr)
 {
     u64 carry_bit;
 
@@ -6570,8 +6455,7 @@ e1000_tbi_adjust_stats(struct e1000_hw *hw,
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-void
-e1000_get_bus_info(struct e1000_hw *hw)
+void e1000_get_bus_info(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 pci_ex_link_status;
@@ -6645,10 +6529,7 @@ e1000_get_bus_info(struct e1000_hw *hw)
  * offset - offset to write to
  * value - value to write
  *****************************************************************************/
-static void
-e1000_write_reg_io(struct e1000_hw *hw,
-                   u32 offset,
-                   u32 value)
+static void e1000_write_reg_io(struct e1000_hw *hw, u32 offset, u32 value)
 {
     unsigned long io_addr = hw->io_base;
     unsigned long io_data = hw->io_base + 4;
@@ -6672,10 +6553,8 @@ e1000_write_reg_io(struct e1000_hw *hw,
  * register to the minimum and maximum range.
  * For IGP phy's, the function calculates the range by the AGC registers.
  *****************************************************************************/
-static s32
-e1000_get_cable_length(struct e1000_hw *hw,
-                       u16 *min_length,
-                       u16 *max_length)
+static s32 e1000_get_cable_length(struct e1000_hw *hw, u16 *min_length,
+				  u16 *max_length)
 {
     s32 ret_val;
     u16 agc_value = 0;
@@ -6863,9 +6742,8 @@ e1000_get_cable_length(struct e1000_hw *hw,
  * return 0.  If the link speed is 1000 Mbps the polarity status is in the
  * IGP01E1000_PHY_PCS_INIT_REG.
  *****************************************************************************/
-static s32
-e1000_check_polarity(struct e1000_hw *hw,
-                     e1000_rev_polarity *polarity)
+static s32 e1000_check_polarity(struct e1000_hw *hw,
+				e1000_rev_polarity *polarity)
 {
     s32 ret_val;
     u16 phy_data;
@@ -6939,8 +6817,7 @@ e1000_check_polarity(struct e1000_hw *hw,
  * Link Health register.  In IGP this bit is latched high, so the driver must
  * read it immediately after link is established.
  *****************************************************************************/
-static s32
-e1000_check_downshift(struct e1000_hw *hw)
+static s32 e1000_check_downshift(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 phy_data;
@@ -6985,9 +6862,7 @@ e1000_check_downshift(struct e1000_hw *hw)
  *
  ****************************************************************************/
 
-static s32
-e1000_config_dsp_after_link_change(struct e1000_hw *hw,
-                                   bool link_up)
+static s32 e1000_config_dsp_after_link_change(struct e1000_hw *hw, bool link_up)
 {
     s32 ret_val;
     u16 phy_data, phy_saved_data, speed, duplex, i;
@@ -7173,8 +7048,7 @@ e1000_config_dsp_after_link_change(struct e1000_hw *hw,
  *
  * hw - Struct containing variables accessed by shared code
  ****************************************************************************/
-static s32
-e1000_set_phy_mode(struct e1000_hw *hw)
+static s32 e1000_set_phy_mode(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 eeprom_data;
@@ -7218,9 +7092,7 @@ e1000_set_phy_mode(struct e1000_hw *hw)
  *
  ****************************************************************************/
 
-static s32
-e1000_set_d3_lplu_state(struct e1000_hw *hw,
-                        bool active)
+static s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active)
 {
     u32 phy_ctrl = 0;
     s32 ret_val;
@@ -7348,9 +7220,7 @@ e1000_set_d3_lplu_state(struct e1000_hw *hw,
  *
  ****************************************************************************/
 
-static s32
-e1000_set_d0_lplu_state(struct e1000_hw *hw,
-                        bool active)
+static s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active)
 {
     u32 phy_ctrl = 0;
     s32 ret_val;
@@ -7439,8 +7309,7 @@ e1000_set_d0_lplu_state(struct e1000_hw *hw,
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static s32
-e1000_set_vco_speed(struct e1000_hw *hw)
+static s32 e1000_set_vco_speed(struct e1000_hw *hw)
 {
     s32  ret_val;
     u16 default_page = 0;
@@ -7503,8 +7372,7 @@ e1000_set_vco_speed(struct e1000_hw *hw)
  *
  * returns: - E1000_SUCCESS .
  ****************************************************************************/
-static s32
-e1000_host_if_read_cookie(struct e1000_hw * hw, u8 *buffer)
+static s32 e1000_host_if_read_cookie(struct e1000_hw *hw, u8 *buffer)
 {
     u8 i;
     u32 offset = E1000_MNG_DHCP_COOKIE_OFFSET;
@@ -7530,8 +7398,7 @@ e1000_host_if_read_cookie(struct e1000_hw * hw, u8 *buffer)
  *            timeout
  *          - E1000_SUCCESS for success.
  ****************************************************************************/
-static s32
-e1000_mng_enable_host_if(struct e1000_hw * hw)
+static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 {
     u32 hicr;
     u8 i;
@@ -7564,9 +7431,8 @@ e1000_mng_enable_host_if(struct e1000_hw * hw)
  *
  * returns  - E1000_SUCCESS for success.
  ****************************************************************************/
-static s32
-e1000_mng_host_if_write(struct e1000_hw * hw, u8 *buffer,
-                        u16 length, u16 offset, u8 *sum)
+static s32 e1000_mng_host_if_write(struct e1000_hw *hw, u8 *buffer, u16 length,
+				   u16 offset, u8 *sum)
 {
     u8 *tmp;
     u8 *bufptr = buffer;
@@ -7632,9 +7498,8 @@ e1000_mng_host_if_write(struct e1000_hw * hw, u8 *buffer,
  *
  * returns  - E1000_SUCCESS for success.
  ****************************************************************************/
-static s32
-e1000_mng_write_cmd_header(struct e1000_hw * hw,
-                           struct e1000_host_mng_command_header * hdr)
+static s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
+				      struct e1000_host_mng_command_header *hdr)
 {
     u16 i;
     u8 sum;
@@ -7672,8 +7537,7 @@ e1000_mng_write_cmd_header(struct e1000_hw * hw,
  *
  * returns  - E1000_SUCCESS for success.
  ****************************************************************************/
-static s32
-e1000_mng_write_commit(struct e1000_hw * hw)
+static s32 e1000_mng_write_commit(struct e1000_hw *hw)
 {
     u32 hicr;
 
@@ -7690,8 +7554,7 @@ e1000_mng_write_commit(struct e1000_hw * hw)
  *
  * returns  - true when the mode is IAMT or false.
  ****************************************************************************/
-bool
-e1000_check_mng_mode(struct e1000_hw *hw)
+bool e1000_check_mng_mode(struct e1000_hw *hw)
 {
     u32 fwsm;
 
@@ -7712,9 +7575,7 @@ e1000_check_mng_mode(struct e1000_hw *hw)
 /*****************************************************************************
  * This function writes the dhcp info .
  ****************************************************************************/
-s32
-e1000_mng_write_dhcp_info(struct e1000_hw * hw, u8 *buffer,
-                          u16 length)
+s32 e1000_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length)
 {
     s32 ret_val;
     struct e1000_host_mng_command_header hdr;
@@ -7744,8 +7605,7 @@ e1000_mng_write_dhcp_info(struct e1000_hw * hw, u8 *buffer,
  *
  * returns  - checksum of buffer contents.
  ****************************************************************************/
-static u8
-e1000_calculate_mng_checksum(char *buffer, u32 length)
+static u8 e1000_calculate_mng_checksum(char *buffer, u32 length)
 {
     u8 sum = 0;
     u32 i;
@@ -7764,8 +7624,7 @@ e1000_calculate_mng_checksum(char *buffer, u32 length)
  *
  * returns  - true for packet filtering or false.
  ****************************************************************************/
-bool
-e1000_enable_tx_pkt_filtering(struct e1000_hw *hw)
+bool e1000_enable_tx_pkt_filtering(struct e1000_hw *hw)
 {
     /* called in init as well as watchdog timer functions */
 
@@ -7806,8 +7665,7 @@ e1000_enable_tx_pkt_filtering(struct e1000_hw *hw)
  * returns: - true/false
  *
  *****************************************************************************/
-u32
-e1000_enable_mng_pass_thru(struct e1000_hw *hw)
+u32 e1000_enable_mng_pass_thru(struct e1000_hw *hw)
 {
     u32 manc;
     u32 fwsm, factps;
@@ -7832,8 +7690,7 @@ e1000_enable_mng_pass_thru(struct e1000_hw *hw)
     return false;
 }
 
-static s32
-e1000_polarity_reversal_workaround(struct e1000_hw *hw)
+static s32 e1000_polarity_reversal_workaround(struct e1000_hw *hw)
 {
     s32 ret_val;
     u16 mii_status_reg;
@@ -7926,8 +7783,7 @@ e1000_polarity_reversal_workaround(struct e1000_hw *hw)
  * returns: - none.
  *
  ***************************************************************************/
-static void
-e1000_set_pci_express_master_disable(struct e1000_hw *hw)
+static void e1000_set_pci_express_master_disable(struct e1000_hw *hw)
 {
     u32 ctrl;
 
@@ -7952,8 +7808,7 @@ e1000_set_pci_express_master_disable(struct e1000_hw *hw)
  *            E1000_SUCCESS master requests disabled.
  *
  ******************************************************************************/
-s32
-e1000_disable_pciex_master(struct e1000_hw *hw)
+s32 e1000_disable_pciex_master(struct e1000_hw *hw)
 {
     s32 timeout = MASTER_DISABLE_TIMEOUT;   /* 80ms */
 
@@ -7990,8 +7845,7 @@ e1000_disable_pciex_master(struct e1000_hw *hw)
  *            E1000_SUCCESS at any other case.
  *
  ******************************************************************************/
-static s32
-e1000_get_auto_rd_done(struct e1000_hw *hw)
+static s32 e1000_get_auto_rd_done(struct e1000_hw *hw)
 {
     s32 timeout = AUTO_READ_DONE_TIMEOUT;
 
@@ -8038,8 +7892,7 @@ e1000_get_auto_rd_done(struct e1000_hw *hw)
  *            E1000_SUCCESS at any other case.
  *
  ***************************************************************************/
-static s32
-e1000_get_phy_cfg_done(struct e1000_hw *hw)
+static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw)
 {
     s32 timeout = PHY_CFG_TIMEOUT;
     u32 cfg_mask = E1000_EEPROM_CFG_DONE;
@@ -8085,8 +7938,7 @@ e1000_get_phy_cfg_done(struct e1000_hw *hw)
  *            E1000_SUCCESS at any other case.
  *
  ***************************************************************************/
-static s32
-e1000_get_hw_eeprom_semaphore(struct e1000_hw *hw)
+static s32 e1000_get_hw_eeprom_semaphore(struct e1000_hw *hw)
 {
     s32 timeout;
     u32 swsm;
@@ -8135,8 +7987,7 @@ e1000_get_hw_eeprom_semaphore(struct e1000_hw *hw)
  * returns: - None.
  *
  ***************************************************************************/
-static void
-e1000_put_hw_eeprom_semaphore(struct e1000_hw *hw)
+static void e1000_put_hw_eeprom_semaphore(struct e1000_hw *hw)
 {
     u32 swsm;
 
@@ -8164,8 +8015,7 @@ e1000_put_hw_eeprom_semaphore(struct e1000_hw *hw)
  *            E1000_SUCCESS at any other case.
  *
  ***************************************************************************/
-static s32
-e1000_get_software_semaphore(struct e1000_hw *hw)
+static s32 e1000_get_software_semaphore(struct e1000_hw *hw)
 {
     s32 timeout = hw->eeprom.word_size + 1;
     u32 swsm;
@@ -8200,8 +8050,7 @@ e1000_get_software_semaphore(struct e1000_hw *hw)
  * hw: Struct containing variables accessed by shared code
  *
  ***************************************************************************/
-static void
-e1000_release_software_semaphore(struct e1000_hw *hw)
+static void e1000_release_software_semaphore(struct e1000_hw *hw)
 {
     u32 swsm;
 
@@ -8228,8 +8077,7 @@ e1000_release_software_semaphore(struct e1000_hw *hw)
  *            E1000_SUCCESS
  *
  *****************************************************************************/
-s32
-e1000_check_phy_reset_block(struct e1000_hw *hw)
+s32 e1000_check_phy_reset_block(struct e1000_hw *hw)
 {
     u32 manc = 0;
     u32 fwsm = 0;
@@ -8246,8 +8094,7 @@ e1000_check_phy_reset_block(struct e1000_hw *hw)
         E1000_BLK_PHY_RESET : E1000_SUCCESS;
 }
 
-static u8
-e1000_arc_subsystem_valid(struct e1000_hw *hw)
+static u8 e1000_arc_subsystem_valid(struct e1000_hw *hw)
 {
     u32 fwsm;
 
@@ -8283,8 +8130,7 @@ e1000_arc_subsystem_valid(struct e1000_hw *hw)
  * returns: E1000_SUCCESS
  *
  *****************************************************************************/
-static s32
-e1000_set_pci_ex_no_snoop(struct e1000_hw *hw, u32 no_snoop)
+static s32 e1000_set_pci_ex_no_snoop(struct e1000_hw *hw, u32 no_snoop)
 {
     u32 gcr_reg = 0;
 
@@ -8324,8 +8170,7 @@ e1000_set_pci_ex_no_snoop(struct e1000_hw *hw, u32 no_snoop)
  * hw: Struct containing variables accessed by shared code
  *
  ***************************************************************************/
-static s32
-e1000_get_software_flag(struct e1000_hw *hw)
+static s32 e1000_get_software_flag(struct e1000_hw *hw)
 {
     s32 timeout = PHY_CFG_TIMEOUT;
     u32 extcnf_ctrl;
@@ -8363,8 +8208,7 @@ e1000_get_software_flag(struct e1000_hw *hw)
  * hw: Struct containing variables accessed by shared code
  *
  ***************************************************************************/
-static void
-e1000_release_software_flag(struct e1000_hw *hw)
+static void e1000_release_software_flag(struct e1000_hw *hw)
 {
     u32 extcnf_ctrl;
 
@@ -8388,9 +8232,8 @@ e1000_release_software_flag(struct e1000_hw *hw)
  * data - word read from the EEPROM
  * words - number of words to read
  *****************************************************************************/
-static s32
-e1000_read_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words,
-                       u16 *data)
+static s32 e1000_read_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words,
+				  u16 *data)
 {
     s32  error = E1000_SUCCESS;
     u32 flash_bank = 0;
@@ -8444,9 +8287,8 @@ e1000_read_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words,
  * words - number of words to write
  * data - words to write to the EEPROM
  *****************************************************************************/
-static s32
-e1000_write_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words,
-                        u16 *data)
+static s32 e1000_write_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words,
+				   u16 *data)
 {
     u32 i = 0;
     s32 error = E1000_SUCCESS;
@@ -8491,8 +8333,7 @@ e1000_write_eeprom_ich8(struct e1000_hw *hw, u16 offset, u16 words,
  *
  * hw - The pointer to the hw structure
  ****************************************************************************/
-static s32
-e1000_ich8_cycle_init(struct e1000_hw *hw)
+static s32 e1000_ich8_cycle_init(struct e1000_hw *hw)
 {
     union ich8_hws_flash_status hsfsts;
     s32 error = E1000_ERR_EEPROM;
@@ -8558,8 +8399,7 @@ e1000_ich8_cycle_init(struct e1000_hw *hw)
  *
  * hw - The pointer to the hw structure
  ****************************************************************************/
-static s32
-e1000_ich8_flash_cycle(struct e1000_hw *hw, u32 timeout)
+static s32 e1000_ich8_flash_cycle(struct e1000_hw *hw, u32 timeout)
 {
     union ich8_hws_flash_ctrl hsflctl;
     union ich8_hws_flash_status hsfsts;
@@ -8593,9 +8433,8 @@ e1000_ich8_flash_cycle(struct e1000_hw *hw, u32 timeout)
  * size - Size of data to read, 1=byte 2=word
  * data - Pointer to the word to store the value read.
  *****************************************************************************/
-static s32
-e1000_read_ich8_data(struct e1000_hw *hw, u32 index,
-                     u32 size, u16* data)
+static s32 e1000_read_ich8_data(struct e1000_hw *hw, u32 index, u32 size,
+				u16 *data)
 {
     union ich8_hws_flash_status hsfsts;
     union ich8_hws_flash_ctrl hsflctl;
@@ -8672,9 +8511,8 @@ e1000_read_ich8_data(struct e1000_hw *hw, u32 index,
  * size - Size of data to read, 1=byte 2=word
  * data - The byte(s) to write to the NVM.
  *****************************************************************************/
-static s32
-e1000_write_ich8_data(struct e1000_hw *hw, u32 index, u32 size,
-                      u16 data)
+static s32 e1000_write_ich8_data(struct e1000_hw *hw, u32 index, u32 size,
+				 u16 data)
 {
     union ich8_hws_flash_status hsfsts;
     union ich8_hws_flash_ctrl hsflctl;
@@ -8747,8 +8585,7 @@ e1000_write_ich8_data(struct e1000_hw *hw, u32 index, u32 size,
  * index - The index of the byte to read.
  * data - Pointer to a byte to store the value read.
  *****************************************************************************/
-static s32
-e1000_read_ich8_byte(struct e1000_hw *hw, u32 index, u8* data)
+static s32 e1000_read_ich8_byte(struct e1000_hw *hw, u32 index, u8 *data)
 {
     s32 status = E1000_SUCCESS;
     u16 word = 0;
@@ -8770,8 +8607,7 @@ e1000_read_ich8_byte(struct e1000_hw *hw, u32 index, u8* data)
  * index - The index of the byte to write.
  * byte - The byte to write to the NVM.
  *****************************************************************************/
-static s32
-e1000_verify_write_ich8_byte(struct e1000_hw *hw, u32 index, u8 byte)
+static s32 e1000_verify_write_ich8_byte(struct e1000_hw *hw, u32 index, u8 byte)
 {
     s32 error = E1000_SUCCESS;
     s32 program_retries = 0;
@@ -8803,8 +8639,7 @@ e1000_verify_write_ich8_byte(struct e1000_hw *hw, u32 index, u8 byte)
  * index - The index of the byte to read.
  * data - The byte to write to the NVM.
  *****************************************************************************/
-static s32
-e1000_write_ich8_byte(struct e1000_hw *hw, u32 index, u8 data)
+static s32 e1000_write_ich8_byte(struct e1000_hw *hw, u32 index, u8 data)
 {
     s32 status = E1000_SUCCESS;
     u16 word = (u16)data;
@@ -8821,8 +8656,7 @@ e1000_write_ich8_byte(struct e1000_hw *hw, u32 index, u8 data)
  * index - The starting byte index of the word to read.
  * data - Pointer to a word to store the value read.
  *****************************************************************************/
-static s32
-e1000_read_ich8_word(struct e1000_hw *hw, u32 index, u16 *data)
+static s32 e1000_read_ich8_word(struct e1000_hw *hw, u32 index, u16 *data)
 {
     s32 status = E1000_SUCCESS;
     status = e1000_read_ich8_data(hw, index, 2, data);
@@ -8840,8 +8674,7 @@ e1000_read_ich8_word(struct e1000_hw *hw, u32 index, u16 *data)
  * amount of NVM used in each bank is a *minimum* of 4 KBytes, but in fact the
  * bank size may be 4, 8 or 64 KBytes
  *****************************************************************************/
-static s32
-e1000_erase_ich8_4k_segment(struct e1000_hw *hw, u32 bank)
+static s32 e1000_erase_ich8_4k_segment(struct e1000_hw *hw, u32 bank)
 {
     union ich8_hws_flash_status hsfsts;
     union ich8_hws_flash_ctrl hsflctl;
@@ -8930,9 +8763,9 @@ e1000_erase_ich8_4k_segment(struct e1000_hw *hw, u32 bank)
     return error;
 }
 
-static s32
-e1000_init_lcd_from_nvm_config_region(struct e1000_hw *hw,
-                                      u32 cnf_base_addr, u32 cnf_size)
+static s32 e1000_init_lcd_from_nvm_config_region(struct e1000_hw *hw,
+						 u32 cnf_base_addr,
+						 u32 cnf_size)
 {
     u32 ret_val = E1000_SUCCESS;
     u16 word_addr, reg_data, reg_addr;
@@ -8972,8 +8805,7 @@ e1000_init_lcd_from_nvm_config_region(struct e1000_hw *hw,
  *
  * hw: Struct containing variables accessed by shared code
  *****************************************************************************/
-static s32
-e1000_init_lcd_from_nvm(struct e1000_hw *hw)
+static s32 e1000_init_lcd_from_nvm(struct e1000_hw *hw)
 {
     u32 reg_data, cnf_base_addr, cnf_size, ret_val, loop;
 
