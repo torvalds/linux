@@ -3533,7 +3533,7 @@ static s32 e1000_read_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
             DEBUGOUT("MDI Error\n");
             return -E1000_ERR_PHY;
         }
-        *phy_data = (u16) mdic;
+        *phy_data = (u16)mdic;
     } else {
         /* We must first send a preamble through the MDIO pin to signal the
          * beginning of an MII instruction.  This is done by sending 32
@@ -3648,7 +3648,7 @@ static s32 e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
          * for the PHY register in the MDI Control register.  The MAC will take
          * care of interfacing with the PHY to send the desired data.
          */
-        mdic = (((u32) phy_data) |
+        mdic = (((u32)phy_data) |
                 (reg_addr << E1000_MDIC_REG_SHIFT) |
                 (phy_addr << E1000_MDIC_PHY_SHIFT) |
                 (E1000_MDIC_OP_WRITE));
@@ -3682,7 +3682,7 @@ static s32 e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
         mdic = ((PHY_TURNAROUND) | (reg_addr << 2) | (phy_addr << 7) |
                 (PHY_OP_WRITE << 12) | (PHY_SOF << 14));
         mdic <<= 16;
-        mdic |= (u32) phy_data;
+        mdic |= (u32)phy_data;
 
         e1000_shift_out_mdi_bits(hw, mdic, 32);
     }
@@ -4032,14 +4032,14 @@ static s32 e1000_detect_gig_phy(struct e1000_hw *hw)
     if (ret_val)
         return ret_val;
 
-    hw->phy_id = (u32) (phy_id_high << 16);
+    hw->phy_id = (u32)(phy_id_high << 16);
     udelay(20);
     ret_val = e1000_read_phy_reg(hw, PHY_ID2, &phy_id_low);
     if (ret_val)
         return ret_val;
 
-    hw->phy_id |= (u32) (phy_id_low & PHY_REVISION_MASK);
-    hw->phy_revision = (u32) phy_id_low & ~PHY_REVISION_MASK;
+    hw->phy_id |= (u32)(phy_id_low & PHY_REVISION_MASK);
+    hw->phy_revision = (u32)phy_id_low & ~PHY_REVISION_MASK;
 
     switch (hw->mac_type) {
     case e1000_82543:
@@ -5174,7 +5174,7 @@ s32 e1000_validate_eeprom_checksum(struct e1000_hw *hw)
         checksum += eeprom_data;
     }
 
-    if (checksum == (u16) EEPROM_SUM)
+    if (checksum == (u16)EEPROM_SUM)
         return E1000_SUCCESS;
     else {
         DEBUGOUT("EEPROM Checksum Invalid\n");
@@ -5205,7 +5205,7 @@ s32 e1000_update_eeprom_checksum(struct e1000_hw *hw)
         }
         checksum += eeprom_data;
     }
-    checksum = (u16) EEPROM_SUM - checksum;
+    checksum = (u16)EEPROM_SUM - checksum;
     if (e1000_write_eeprom(hw, EEPROM_CHECKSUM_REG, 1, &checksum) < 0) {
         DEBUGOUT("EEPROM Write Error\n");
         return -E1000_ERR_EEPROM;
@@ -5610,8 +5610,8 @@ s32 e1000_read_mac_addr(struct e1000_hw *hw)
             DEBUGOUT("EEPROM Read Error\n");
             return -E1000_ERR_EEPROM;
         }
-        hw->perm_mac_addr[i] = (u8) (eeprom_data & 0x00FF);
-        hw->perm_mac_addr[i+1] = (u8) (eeprom_data >> 8);
+        hw->perm_mac_addr[i] = (u8)(eeprom_data & 0x00FF);
+        hw->perm_mac_addr[i+1] = (u8)(eeprom_data >> 8);
     }
 
     switch (hw->mac_type) {
@@ -5693,37 +5693,37 @@ u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
     case 0:
         if (hw->mac_type == e1000_ich8lan) {
             /* [47:38] i.e. 0x158 for above example address */
-            hash_value = ((mc_addr[4] >> 6) | (((u16) mc_addr[5]) << 2));
+            hash_value = ((mc_addr[4] >> 6) | (((u16)mc_addr[5]) << 2));
         } else {
             /* [47:36] i.e. 0x563 for above example address */
-            hash_value = ((mc_addr[4] >> 4) | (((u16) mc_addr[5]) << 4));
+            hash_value = ((mc_addr[4] >> 4) | (((u16)mc_addr[5]) << 4));
         }
         break;
     case 1:
         if (hw->mac_type == e1000_ich8lan) {
             /* [46:37] i.e. 0x2B1 for above example address */
-            hash_value = ((mc_addr[4] >> 5) | (((u16) mc_addr[5]) << 3));
+            hash_value = ((mc_addr[4] >> 5) | (((u16)mc_addr[5]) << 3));
         } else {
             /* [46:35] i.e. 0xAC6 for above example address */
-            hash_value = ((mc_addr[4] >> 3) | (((u16) mc_addr[5]) << 5));
+            hash_value = ((mc_addr[4] >> 3) | (((u16)mc_addr[5]) << 5));
         }
         break;
     case 2:
         if (hw->mac_type == e1000_ich8lan) {
             /*[45:36] i.e. 0x163 for above example address */
-            hash_value = ((mc_addr[4] >> 4) | (((u16) mc_addr[5]) << 4));
+            hash_value = ((mc_addr[4] >> 4) | (((u16)mc_addr[5]) << 4));
         } else {
             /* [45:34] i.e. 0x5D8 for above example address */
-            hash_value = ((mc_addr[4] >> 2) | (((u16) mc_addr[5]) << 6));
+            hash_value = ((mc_addr[4] >> 2) | (((u16)mc_addr[5]) << 6));
         }
         break;
     case 3:
         if (hw->mac_type == e1000_ich8lan) {
             /* [43:34] i.e. 0x18D for above example address */
-            hash_value = ((mc_addr[4] >> 2) | (((u16) mc_addr[5]) << 6));
+            hash_value = ((mc_addr[4] >> 2) | (((u16)mc_addr[5]) << 6));
         } else {
             /* [43:32] i.e. 0x634 for above example address */
-            hash_value = ((mc_addr[4]) | (((u16) mc_addr[5]) << 8));
+            hash_value = ((mc_addr[4]) | (((u16)mc_addr[5]) << 8));
         }
         break;
     }
@@ -5795,10 +5795,9 @@ void e1000_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
     /* HW expects these in little endian so we reverse the byte order
      * from network order (big endian) to little endian
      */
-    rar_low = ((u32) addr[0] |
-               ((u32) addr[1] << 8) |
-               ((u32) addr[2] << 16) | ((u32) addr[3] << 24));
-    rar_high = ((u32) addr[4] | ((u32) addr[5] << 8));
+    rar_low = ((u32)addr[0] | ((u32)addr[1] << 8) |
+               ((u32)addr[2] << 16) | ((u32)addr[3] << 24));
+    rar_high = ((u32)addr[4] | ((u32)addr[5] << 8));
 
     /* Disable Rx and flush all Rx frames before enabling RSS to avoid Rx
      * unit hang.
@@ -6412,7 +6411,7 @@ void e1000_tbi_adjust_stats(struct e1000_hw *hw, struct e1000_hw_stats *stats,
      * since the test for a multicast frame will test positive on
      * a broadcast frame.
      */
-    if ((mac_addr[0] == (u8) 0xff) && (mac_addr[1] == (u8) 0xff))
+    if ((mac_addr[0] == (u8)0xff) && (mac_addr[1] == (u8)0xff))
         /* Broadcast packet */
         stats->bprc++;
     else if (*mac_addr & 0x01)
@@ -7382,7 +7381,7 @@ static s32 e1000_host_if_read_cookie(struct e1000_hw *hw, u8 *buffer)
     offset = (offset >> 2);
 
     for (i = 0; i < length; i++) {
-        *((u32 *) buffer + i) =
+        *((u32 *)buffer + i) =
             E1000_READ_REG_ARRAY_DWORD(hw, HOST_IF, offset + i);
     }
     return E1000_SUCCESS;
@@ -7513,7 +7512,7 @@ static s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
     sum = hdr->checksum;
     hdr->checksum = 0;
 
-    buffer = (u8 *) hdr;
+    buffer = (u8 *)hdr;
     i = length;
     while (i--)
         sum += buffer[i];
@@ -7523,7 +7522,7 @@ static s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
     length >>= 2;
     /* The device driver writes the relevant command block into the ram area. */
     for (i = 0; i < length; i++) {
-        E1000_WRITE_REG_ARRAY_DWORD(hw, HOST_IF, i, *((u32 *) hdr + i));
+        E1000_WRITE_REG_ARRAY_DWORD(hw, HOST_IF, i, *((u32 *)hdr + i));
         E1000_WRITE_FLUSH();
     }
 
@@ -7616,7 +7615,7 @@ static u8 e1000_calculate_mng_checksum(char *buffer, u32 length)
     for (i=0; i < length; i++)
         sum += buffer[i];
 
-    return (u8) (0 - sum);
+    return (u8)(0 - sum);
 }
 
 /*****************************************************************************

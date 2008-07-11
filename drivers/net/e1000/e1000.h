@@ -287,16 +287,16 @@ struct e1000_adapter {
 
 	/* RX */
 #ifdef CONFIG_E1000_NAPI
-	bool (*clean_rx) (struct e1000_adapter *adapter,
-			  struct e1000_rx_ring *rx_ring,
-			  int *work_done, int work_to_do);
+	bool (*clean_rx)(struct e1000_adapter *adapter,
+			 struct e1000_rx_ring *rx_ring,
+			 int *work_done, int work_to_do);
 #else
-	bool (*clean_rx) (struct e1000_adapter *adapter,
-			  struct e1000_rx_ring *rx_ring);
+	bool (*clean_rx)(struct e1000_adapter *adapter,
+			 struct e1000_rx_ring *rx_ring);
 #endif
-	void (*alloc_rx_buf) (struct e1000_adapter *adapter,
-			      struct e1000_rx_ring *rx_ring,
-				int cleaned_count);
+	void (*alloc_rx_buf)(struct e1000_adapter *adapter,
+			     struct e1000_rx_ring *rx_ring,
+			     int cleaned_count);
 	struct e1000_rx_ring *rx_ring;      /* One per active queue */
 #ifdef CONFIG_E1000_NAPI
 	struct napi_struct napi;

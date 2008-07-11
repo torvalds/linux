@@ -55,7 +55,7 @@
 #define DEBUGOUT7 DEBUGOUT3
 
 
-#define er32(reg)\
+#define er32(reg)							\
 	(readl(hw->hw_addr + ((hw->mac_type >= e1000_82543)		\
 			       ? E1000_##reg : E1000_82542_##reg)))
 

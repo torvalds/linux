@@ -881,7 +881,7 @@ static int e1000_eeprom_test(struct e1000_adapter *adapter, u64 *data)
 	}
 
 	/* If Checksum is not Correct return error else test passed */
-	if ((checksum != (u16) EEPROM_SUM) && !(*data))
+	if ((checksum != (u16)EEPROM_SUM) && !(*data))
 		*data = 2;
 
 	return *data;
@@ -889,7 +889,7 @@ static int e1000_eeprom_test(struct e1000_adapter *adapter, u64 *data)
 
 static irqreturn_t e1000_test_intr(int irq, void *data)
 {
-	struct net_device *netdev = (struct net_device *) data;
+	struct net_device *netdev = (struct net_device *)data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
@@ -1074,8 +1074,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	memset(txdr->desc, 0, txdr->size);
 	txdr->next_to_use = txdr->next_to_clean = 0;
 
-	ew32(TDBAL, ((u64) txdr->dma & 0x00000000FFFFFFFF));
-	ew32(TDBAH, ((u64) txdr->dma >> 32));
+	ew32(TDBAL, ((u64)txdr->dma & 0x00000000FFFFFFFF));
+	ew32(TDBAH, ((u64)txdr->dma >> 32));
 	ew32(TDLEN, txdr->count * sizeof(struct e1000_tx_desc));
 	ew32(TDH, 0);
 	ew32(TDT, 0);
@@ -1128,8 +1128,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 
 	rctl = er32(RCTL);
 	ew32(RCTL, rctl & ~E1000_RCTL_EN);
-	ew32(RDBAL, ((u64) rxdr->dma & 0xFFFFFFFF));
-	ew32(RDBAH, ((u64) rxdr->dma >> 32));
+	ew32(RDBAL, ((u64)rxdr->dma & 0xFFFFFFFF));
+	ew32(RDBAH, ((u64)rxdr->dma >> 32));
 	ew32(RDLEN, rxdr->size);
 	ew32(RDH, 0);
 	ew32(RDT, 0);
@@ -1863,7 +1863,7 @@ static int e1000_phys_id(struct net_device *netdev, u32 data)
 		if (!adapter->blink_timer.function) {
 			init_timer(&adapter->blink_timer);
 			adapter->blink_timer.function = e1000_led_blink_callback;
-			adapter->blink_timer.data = (unsigned long) adapter;
+			adapter->blink_timer.data = (unsigned long)adapter;
 		}
 		e1000_setup_led(hw);
 		mod_timer(&adapter->blink_timer, jiffies);
@@ -1873,7 +1873,7 @@ static int e1000_phys_id(struct net_device *netdev, u32 data)
 		if (!adapter->blink_timer.function) {
 			init_timer(&adapter->blink_timer);
 			adapter->blink_timer.function = e1000_led_blink_callback;
-			adapter->blink_timer.data = (unsigned long) adapter;
+			adapter->blink_timer.data = (unsigned long)adapter;
 		}
 		mod_timer(&adapter->blink_timer, jiffies);
 		msleep_interruptible(data * 1000);

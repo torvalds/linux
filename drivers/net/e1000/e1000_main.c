@@ -1056,7 +1056,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	init_timer(&adapter->tx_fifo_stall_timer);
 	adapter->tx_fifo_stall_timer.function = &e1000_82547_tx_fifo_stall;
-	adapter->tx_fifo_stall_timer.data = (unsigned long) adapter;
+	adapter->tx_fifo_stall_timer.data = (unsigned long)adapter;
 
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = &e1000_watchdog;
@@ -1064,7 +1064,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	init_timer(&adapter->phy_info_timer);
 	adapter->phy_info_timer.function = &e1000_update_phy_info;
-	adapter->phy_info_timer.data = (unsigned long) adapter;
+	adapter->phy_info_timer.data = (unsigned long)adapter;
 
 	INIT_WORK(&adapter->reset_task, e1000_reset_task);
 
@@ -1542,7 +1542,7 @@ static bool e1000_check_64k_bound(struct e1000_adapter *adapter, void *start,
 				  unsigned long len)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	unsigned long begin = (unsigned long) start;
+	unsigned long begin = (unsigned long)start;
 	unsigned long end = begin + len;
 
 	/* First rev 82545 and 82546 need to not allow any memory
@@ -2538,7 +2538,7 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 
 static void e1000_update_phy_info(unsigned long data)
 {
-	struct e1000_adapter *adapter = (struct e1000_adapter *) data;
+	struct e1000_adapter *adapter = (struct e1000_adapter *)data;
 	struct e1000_hw *hw = &adapter->hw;
 	e1000_phy_get_info(hw, &adapter->phy_info);
 }
@@ -2550,7 +2550,7 @@ static void e1000_update_phy_info(unsigned long data)
 
 static void e1000_82547_tx_fifo_stall(unsigned long data)
 {
-	struct e1000_adapter *adapter = (struct e1000_adapter *) data;
+	struct e1000_adapter *adapter = (struct e1000_adapter *)data;
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 	u32 tctl;
@@ -2583,7 +2583,7 @@ static void e1000_82547_tx_fifo_stall(unsigned long data)
  **/
 static void e1000_watchdog(unsigned long data)
 {
-	struct e1000_adapter *adapter = (struct e1000_adapter *) data;
+	struct e1000_adapter *adapter = (struct e1000_adapter *)data;
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_tx_ring *txdr = adapter->tx_ring;
@@ -3225,7 +3225,7 @@ static int e1000_transfer_dhcp_info(struct e1000_adapter *adapter,
 			return 0;
 	}
 	if (skb->len > MINIMUM_DHCP_PACKET_SIZE) {
-		struct ethhdr *eth = (struct ethhdr *) skb->data;
+		struct ethhdr *eth = (struct ethhdr *)skb->data;
 		if ((htons(ETH_P_IP) == eth->h_proto)) {
 			const struct iphdr *ip =
 				(struct iphdr *)((u8 *)skb->data+14);
