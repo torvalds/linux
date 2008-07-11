@@ -725,7 +725,7 @@ struct iwl4965_csa_notification {
  * transmission retry.  Device uses cw_max as a bit mask, ANDed with new CW
  * value, to cap the CW value.
  */
-struct iwl4965_ac_qos {
+struct iwl_ac_qos {
 	__le16 cw_min;
 	__le16 cw_max;
 	u8 aifsn;
@@ -747,9 +747,9 @@ struct iwl4965_ac_qos {
  * This command sets up timings for each of the 4 prioritized EDCA Tx FIFOs
  * 0: Background, 1: Best Effort, 2: Video, 3: Voice.
  */
-struct iwl4965_qosparam_cmd {
+struct iwl_qosparam_cmd {
 	__le32 qos_flags;
-	struct iwl4965_ac_qos ac[AC_NUM];
+	struct iwl_ac_qos ac[AC_NUM];
 } __attribute__ ((packed));
 
 /******************************************************************************

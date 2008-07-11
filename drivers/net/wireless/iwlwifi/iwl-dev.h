@@ -290,7 +290,7 @@ struct iwl_cmd {
 		struct iwl4965_bt_cmd bt;
 		struct iwl4965_rxon_time_cmd rxon_time;
 		struct iwl4965_powertable_cmd powertable;
-		struct iwl4965_qosparam_cmd qosparam;
+		struct iwl_qosparam_cmd qosparam;
 		struct iwl_tx_cmd tx;
 		struct iwl4965_tx_beacon_cmd tx_beacon;
 		struct iwl4965_rxon_assoc_cmd rxon_assoc;
@@ -435,7 +435,7 @@ struct iwl_ht_info {
 	u8 non_GF_STA_present;
 };
 
-union iwl4965_qos_capabity {
+union iwl_qos_capabity {
 	struct {
 		u8 edca_count:4;	/* bit 0-3 */
 		u8 q_ack:1;		/* bit 4 */
@@ -456,11 +456,11 @@ union iwl4965_qos_capabity {
 };
 
 /* QoS structures */
-struct iwl4965_qos_info {
+struct iwl_qos_info {
 	int qos_enable;
 	int qos_active;
-	union iwl4965_qos_capabity qos_cap;
-	struct iwl4965_qosparam_cmd def_qos_parm;
+	union iwl_qos_capabity qos_cap;
+	struct iwl_qosparam_cmd def_qos_parm;
 };
 
 #define STA_PS_STATUS_WAKE             0
@@ -1042,7 +1042,7 @@ struct iwl_priv {
 	u16 assoc_capability;
 	u8 ps_mode;
 
-	struct iwl4965_qos_info qos_data;
+	struct iwl_qos_info qos_data;
 
 	struct workqueue_struct *workqueue;
 
