@@ -2052,7 +2052,7 @@ static struct irq_chip lapic_chip __read_mostly = {
 	.name		= "local-APIC",
 	.mask		= mask_lapic_irq,
 	.unmask		= unmask_lapic_irq,
-	.eoi		= ack_apic,
+	.ack		= ack_apic,
 };
 
 static void __init setup_nmi(void)
@@ -2257,8 +2257,8 @@ static inline void __init check_timer(void)
 
 	printk(KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
-	set_irq_chip_and_handler_name(0, &lapic_chip, handle_fasteoi_irq,
-				      "fasteoi");
+	set_irq_chip_and_handler_name(0, &lapic_chip, handle_edge_irq,
+				      "edge");
 	apic_write_around(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 
