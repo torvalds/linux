@@ -898,22 +898,28 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
 	DECLARE_MAC_BUF(mac);
 
-	if ((err = pci_enable_device(pdev)))
+	err = pci_enable_device(pdev);
+	if (err)
 		return err;
 
-	if (!(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK)) &&
-	    !(err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))) {
+	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK) &&
+	    !pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK)) {
 		pci_using_dac = 1;
 	} else {
-		if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) &&
-		    (err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))) {
-			E1000_ERR("No usable DMA configuration, aborting\n");
-			goto err_dma;
+		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		if (err) {
+			err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			if (err) {
+				E1000_ERR("No usable DMA configuration, "
+					  "aborting\n");
+				goto err_dma;
+			}
 		}
 		pci_using_dac = 0;
 	}
 
-	if ((err = pci_request_regions(pdev, e1000_driver_name)))
+	err = pci_request_regions(pdev, e1000_driver_name);
+	if (err)
 		goto err_pci_reg;
 
 	pci_set_master(pdev);
@@ -975,7 +981,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* setup the private structure */
 
-	if ((err = e1000_sw_init(adapter)))
+	err = e1000_sw_init(adapter);
+	if (err)
 		goto err_sw_init;
 
 	err = -EIO;
@@ -1182,7 +1189,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	netif_stop_queue(netdev);
 
 	strcpy(netdev->name, "eth%d");
-	if ((err = register_netdev(netdev)))
+	err = register_netdev(netdev);
+	if (err)
 		goto err_register;
 
 	DPRINTK(PROBE, INFO, "Intel(R) PRO/1000 Network Connection\n");
@@ -4400,7 +4408,8 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		}
 
 		for (j = 0; j < adapter->rx_ps_pages; j++) {
-			if (!(length= le16_to_cpu(rx_desc->wb.upper.length[j])))
+			length = le16_to_cpu(rx_desc->wb.upper.length[j]);
+			if (!length)
 				break;
 			pci_unmap_page(pdev, ps_page_dma->ps_page_dma[j],
 					PAGE_SIZE, PCI_DMA_FROMDEVICE);
@@ -5153,7 +5162,8 @@ static int e1000_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	if ((err = pci_enable_device(pdev))) {
+	err = pci_enable_device(pdev);
+	if (err) {
 		printk(KERN_ERR "e1000: Cannot enable PCI device from suspend\n");
 		return err;
 	}
@@ -5162,8 +5172,11 @@ static int e1000_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_enable_wake(pdev, PCI_D3cold, 0);
 
-	if (netif_running(netdev) && (err = e1000_request_irq(adapter)))
-		return err;
+	if (netif_running(netdev)) {
+		err = e1000_request_irq(adapter);
+		if (err)
+			return err;
+	}
 
 	e1000_power_up_phy(adapter);
 	e1000_reset(adapter);

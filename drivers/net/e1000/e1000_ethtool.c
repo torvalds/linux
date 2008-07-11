@@ -483,10 +483,12 @@ static int e1000_get_eeprom(struct net_device *netdev,
 					    last_word - first_word + 1,
 					    eeprom_buff);
 	else {
-		for (i = 0; i < last_word - first_word + 1; i++)
-			if ((ret_val = e1000_read_eeprom(hw, first_word + i, 1,
-							&eeprom_buff[i])))
+		for (i = 0; i < last_word - first_word + 1; i++) {
+			ret_val = e1000_read_eeprom(hw, first_word + i, 1,
+						    &eeprom_buff[i]);
+			if (ret_val)
 				break;
+		}
 	}
 
 	/* Device's eeprom is always little-endian, word addressable */
@@ -669,9 +671,11 @@ static int e1000_set_ringparam(struct net_device *netdev,
 
 	if (netif_running(adapter->netdev)) {
 		/* Try to get new resources before deleting old */
-		if ((err = e1000_setup_all_rx_resources(adapter)))
+		err = e1000_setup_all_rx_resources(adapter);
+		if (err)
 			goto err_setup_rx;
-		if ((err = e1000_setup_all_tx_resources(adapter)))
+		err = e1000_setup_all_tx_resources(adapter);
+		if (err)
 			goto err_setup_tx;
 
 		/* save the new, restore the old in order to free it,
@@ -685,7 +689,8 @@ static int e1000_set_ringparam(struct net_device *netdev,
 		kfree(rx_old);
 		adapter->rx_ring = rxdr;
 		adapter->tx_ring = txdr;
-		if ((err = e1000_up(adapter)))
+		err = e1000_up(adapter);
+		if (err)
 			goto err_setup;
 	}
 
@@ -1057,17 +1062,17 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	if (!txdr->count)
 		txdr->count = E1000_DEFAULT_TXD;
 
-	if (!(txdr->buffer_info = kcalloc(txdr->count,
-	                                  sizeof(struct e1000_buffer),
-		                          GFP_KERNEL))) {
+	txdr->buffer_info = kcalloc(txdr->count, sizeof(struct e1000_buffer),
+				    GFP_KERNEL);
+	if (!txdr->buffer_info) {
 		ret_val = 1;
 		goto err_nomem;
 	}
 
 	txdr->size = txdr->count * sizeof(struct e1000_tx_desc);
 	txdr->size = ALIGN(txdr->size, 4096);
-	if (!(txdr->desc = pci_alloc_consistent(pdev, txdr->size,
-	                                        &txdr->dma))) {
+	txdr->desc = pci_alloc_consistent(pdev, txdr->size, &txdr->dma);
+	if (!txdr->desc) {
 		ret_val = 2;
 		goto err_nomem;
 	}
@@ -1088,7 +1093,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		struct sk_buff *skb;
 		unsigned int size = 1024;
 
-		if (!(skb = alloc_skb(size, GFP_KERNEL))) {
+		skb = alloc_skb(size, GFP_KERNEL);
+		if (!skb) {
 			ret_val = 3;
 			goto err_nomem;
 		}
@@ -1111,15 +1117,16 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	if (!rxdr->count)
 		rxdr->count = E1000_DEFAULT_RXD;
 
-	if (!(rxdr->buffer_info = kcalloc(rxdr->count,
-	                                  sizeof(struct e1000_buffer),
-	                                  GFP_KERNEL))) {
+	rxdr->buffer_info = kcalloc(rxdr->count, sizeof(struct e1000_buffer),
+				    GFP_KERNEL);
+	if (!rxdr->buffer_info) {
 		ret_val = 4;
 		goto err_nomem;
 	}
 
 	rxdr->size = rxdr->count * sizeof(struct e1000_rx_desc);
-	if (!(rxdr->desc = pci_alloc_consistent(pdev, rxdr->size, &rxdr->dma))) {
+	rxdr->desc = pci_alloc_consistent(pdev, rxdr->size, &rxdr->dma);
+	if (!rxdr->desc) {
 		ret_val = 5;
 		goto err_nomem;
 	}
@@ -1142,8 +1149,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		struct e1000_rx_desc *rx_desc = E1000_RX_DESC(*rxdr, i);
 		struct sk_buff *skb;
 
-		if (!(skb = alloc_skb(E1000_RXBUFFER_2048 + NET_IP_ALIGN,
-				GFP_KERNEL))) {
+		skb = alloc_skb(E1000_RXBUFFER_2048 + NET_IP_ALIGN, GFP_KERNEL);
+		if (!skb) {
 			ret_val = 6;
 			goto err_nomem;
 		}
@@ -1564,9 +1571,11 @@ static int e1000_loopback_test(struct e1000_adapter *adapter, u64 *data)
 		goto out;
 	}
 
-	if ((*data = e1000_setup_desc_rings(adapter)))
+	*data = e1000_setup_desc_rings(adapter);
+	if (*data)
 		goto out;
-	if ((*data = e1000_setup_loopback_test(adapter)))
+	*data = e1000_setup_loopback_test(adapter);
+	if (*data)
 		goto err_loopback;
 	*data = e1000_run_loopback_test(adapter);
 	e1000_loopback_cleanup(adapter);
