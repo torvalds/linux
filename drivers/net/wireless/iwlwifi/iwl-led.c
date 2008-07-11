@@ -106,7 +106,8 @@ static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 }
 
 /* Set led pattern command */
-static int iwl4965_led_pattern(struct iwl_priv *priv, int led_id, int idx)
+static int iwl4965_led_pattern(struct iwl_priv *priv, int led_id,
+			       unsigned int idx)
 {
 	struct iwl_led_cmd led_cmd = {
 		.id = led_id,

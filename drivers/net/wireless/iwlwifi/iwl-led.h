@@ -55,7 +55,7 @@ struct iwl_led {
 
 	int (*led_on) (struct iwl_priv *priv, int led_id);
 	int (*led_off) (struct iwl_priv *priv, int led_id);
-	int (*led_pattern) (struct iwl_priv *priv, int led_id, int idx);
+	int (*led_pattern) (struct iwl_priv *priv, int led_id, unsigned int idx);
 
 	enum led_type type;
 	unsigned int registered;
