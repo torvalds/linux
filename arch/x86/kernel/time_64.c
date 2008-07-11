@@ -34,11 +34,15 @@ unsigned long profile_pc(struct pt_regs *regs)
 	   of flags from PUSHF
 	   Eflags always has bits 22 and up cleared unlike kernel addresses. */
 	if (!user_mode(regs) && in_lock_functions(pc)) {
+#ifdef CONFIG_FRAME_POINTER
+		return *(unsigned long *)(regs->bp + sizeof(long));
+#else
 		unsigned long *sp = (unsigned long *)regs->sp;
 		if (sp[0] >> 22)
 			return sp[0];
 		if (sp[1] >> 22)
 			return sp[1];
+#endif
 	}
 	return pc;
 }
