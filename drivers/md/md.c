@@ -372,7 +372,7 @@ static int alloc_disk_sb(mdk_rdev_t * rdev)
 	rdev->sb_page = alloc_page(GFP_KERNEL);
 	if (!rdev->sb_page) {
 		printk(KERN_ALERT "md: out of memory.\n");
-		return -EINVAL;
+		return -ENOMEM;
 	}
 
 	return 0;
