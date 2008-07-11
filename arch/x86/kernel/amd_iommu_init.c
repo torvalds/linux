@@ -1042,20 +1042,10 @@ static int __init parse_amd_iommu_options(char *str)
 
 static int __init parse_amd_iommu_size_options(char *str)
 {
-	for (; *str; ++str) {
-		if (strcmp(str, "32M") == 0)
-			amd_iommu_aperture_order = 25;
-		if (strcmp(str, "64M") == 0)
-			amd_iommu_aperture_order = 26;
-		if (strcmp(str, "128M") == 0)
-			amd_iommu_aperture_order = 27;
-		if (strcmp(str, "256M") == 0)
-			amd_iommu_aperture_order = 28;
-		if (strcmp(str, "512M") == 0)
-			amd_iommu_aperture_order = 29;
-		if (strcmp(str, "1G") == 0)
-			amd_iommu_aperture_order = 30;
-	}
+	unsigned order = PAGE_SHIFT + get_order(memparse(str, &str));
+
+	if ((order > 24) && (order < 31))
+		amd_iommu_aperture_order = order;
 
 	return 1;
 }
