@@ -116,9 +116,7 @@ void __init pci_iommu_alloc(void)
 	 */
 	gart_iommu_hole_init();
 
-#ifdef CONFIG_CALGARY_IOMMU
 	detect_calgary();
-#endif
 
 	detect_intel_iommu();
 
@@ -496,9 +494,7 @@ EXPORT_SYMBOL(dma_free_coherent);
 
 static int __init pci_iommu_init(void)
 {
-#ifdef CONFIG_CALGARY_IOMMU
 	calgary_iommu_init();
-#endif
 
 	intel_iommu_init();
 
