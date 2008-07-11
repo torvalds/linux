@@ -151,16 +151,11 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	/* Invalidate TLB0 */
 	li	r6,0x04
 	tlbivax 0,r6
-#ifdef CONFIG_SMP
-	tlbsync
-#endif
+	TLBSYNC
 	/* Invalidate TLB1 */
 	li	r6,0x0c
 	tlbivax 0,r6
-#ifdef CONFIG_SMP
-	tlbsync
-#endif
-	msync
+	TLBSYNC
 
 /* 3. Setup a temp mapping and jump to it */
 	andi.	r5, r3, 0x1	/* Find an entry not used and is non-zero */
@@ -238,10 +233,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	/* Invalidate TLB1 */
 	li	r9,0x0c
 	tlbivax 0,r9
-#ifdef CONFIG_SMP
-	tlbsync
-#endif
-	msync
+	TLBSYNC
 
 /* 6. Setup KERNELBASE mapping in TLB1[0] */
 	lis	r6,0x1000		/* Set MAS0(TLBSEL) = TLB1(1), ESEL = 0 */
@@ -283,10 +275,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	/* Invalidate TLB1 */
 	li	r9,0x0c
 	tlbivax 0,r9
-#ifdef CONFIG_SMP
-	tlbsync
-#endif
-	msync
+	TLBSYNC
 
 	/* Establish the interrupt vector offsets */
 	SET_IVOR(0,  CriticalInput);
