@@ -33,7 +33,6 @@
 #define DEVID(bus, devfn) (((bus) << 8) | (devfn))
 #define PCI_BUS(x) (((x) >> 8) & 0xff)
 #define IVRS_HEADER_LENGTH 48
-#define TBL_SIZE(x) (1 << (PAGE_SHIFT + get_order(amd_iommu_last_bdf * (x))))
 
 #define ACPI_IVHD_TYPE                  0x10
 #define ACPI_IVMD_TYPE_ALL              0x20
@@ -168,6 +167,14 @@ static inline void update_last_devid(u16 devid)
 {
 	if (devid > amd_iommu_last_bdf)
 		amd_iommu_last_bdf = devid;
+}
+
+static inline unsigned long tbl_size(int entry_size)
+{
+	unsigned shift = PAGE_SHIFT +
+			 get_order(amd_iommu_last_bdf * entry_size);
+
+	return 1UL << shift;
 }
 
 /****************************************************************************
@@ -884,9 +891,9 @@ int __init amd_iommu_init(void)
 	if (acpi_table_parse("IVRS", find_last_devid_acpi) != 0)
 		return -ENODEV;
 
-	dev_table_size     = TBL_SIZE(DEV_TABLE_ENTRY_SIZE);
-	alias_table_size   = TBL_SIZE(ALIAS_TABLE_ENTRY_SIZE);
-	rlookup_table_size = TBL_SIZE(RLOOKUP_TABLE_ENTRY_SIZE);
+	dev_table_size     = tbl_size(DEV_TABLE_ENTRY_SIZE);
+	alias_table_size   = tbl_size(ALIAS_TABLE_ENTRY_SIZE);
+	rlookup_table_size = tbl_size(RLOOKUP_TABLE_ENTRY_SIZE);
 
 	ret = -ENOMEM;
 
