@@ -1602,6 +1602,21 @@ core_initcall(ftrace_dynamic_init);
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /**
+ * ftrace_kill_atomic - kill ftrace from critical sections
+ *
+ * This function should be used by panic code. It stops ftrace
+ * but in a not so nice way. If you need to simply kill ftrace
+ * from a non-atomic section, use ftrace_kill.
+ */
+void ftrace_kill_atomic(void)
+{
+	ftrace_disabled = 1;
+	ftrace_enabled = 0;
+	ftraced_suspend = -1;
+	clear_ftrace_function();
+}
+
+/**
  * ftrace_kill - totally shutdown ftrace
  *
  * This is a safety measure. If something was detected that seems
