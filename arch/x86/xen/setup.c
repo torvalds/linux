@@ -144,7 +144,9 @@ void __cpuinit xen_enable_syscall(void)
 		if (ret != 0) {
 			printk(KERN_INFO "Xen: 32-bit syscall not supported: disabling vdso\n");
 			setup_clear_cpu_cap(X86_FEATURE_SYSCALL32);
+#ifdef CONFIG_COMPAT
 			sysctl_vsyscall32 = 0;
+#endif
 		}
 	}
 #endif /* CONFIG_X86_64 */
