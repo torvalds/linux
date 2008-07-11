@@ -38,8 +38,3 @@ void wrppmc_machine_halt(void)
 			cpu_wait();
 	}
 }
-
-void wrppmc_machine_power_off(void)
-{
-	wrppmc_machine_halt();
-}
