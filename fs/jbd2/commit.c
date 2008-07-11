@@ -112,6 +112,7 @@ static int journal_submit_commit_record(journal_t *journal,
 	struct buffer_head *bh;
 	int ret;
 	int barrier_done = 0;
+	struct timespec now = current_kernel_time();
 
 	if (is_journal_aborted(journal))
 		return 0;
@@ -126,6 +127,8 @@ static int journal_submit_commit_record(journal_t *journal,
 	tmp->h_magic = cpu_to_be32(JBD2_MAGIC_NUMBER);
 	tmp->h_blocktype = cpu_to_be32(JBD2_COMMIT_BLOCK);
 	tmp->h_sequence = cpu_to_be32(commit_transaction->t_tid);
+	tmp->h_commit_sec = cpu_to_be64(now.tv_sec);
+	tmp->h_commit_nsec = cpu_to_be32(now.tv_nsec);
 
 	if (JBD2_HAS_COMPAT_FEATURE(journal,
 				    JBD2_FEATURE_COMPAT_CHECKSUM)) {
