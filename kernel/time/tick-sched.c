@@ -235,6 +235,7 @@ void tick_nohz_stop_sched_tick(void)
 			       local_softirq_pending());
 			ratelimit++;
 		}
+		goto end;
 	}
 
 	ts->idle_calls++;
