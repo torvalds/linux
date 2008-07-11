@@ -114,9 +114,7 @@ void __init pci_iommu_alloc(void)
 	 * The order of these functions is important for
 	 * fall-back/fail-over reasons
 	 */
-#ifdef CONFIG_GART_IOMMU
 	gart_iommu_hole_init();
-#endif
 
 #ifdef CONFIG_CALGARY_IOMMU
 	detect_calgary();
@@ -184,9 +182,7 @@ static __init int iommu_setup(char *p)
 			swiotlb = 1;
 #endif
 
-#ifdef CONFIG_GART_IOMMU
 		gart_parse_options(p);
-#endif
 
 #ifdef CONFIG_CALGARY_IOMMU
 		if (!strncmp(p, "calgary", 7))
@@ -508,9 +504,7 @@ static int __init pci_iommu_init(void)
 
 	amd_iommu_init();
 
-#ifdef CONFIG_GART_IOMMU
 	gart_iommu_init();
-#endif
 
 	no_iommu_init();
 	return 0;
