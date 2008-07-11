@@ -1059,6 +1059,8 @@ int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
 extern struct inode *ext4_iget(struct super_block *, unsigned long);
 extern int  ext4_write_inode (struct inode *, int);
 extern int  ext4_setattr (struct dentry *, struct iattr *);
+extern int  ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
+				struct kstat *stat);
 extern void ext4_delete_inode (struct inode *);
 extern int  ext4_sync_inode (handle_t *, struct inode *);
 extern void ext4_discard_reservation (struct inode *);
