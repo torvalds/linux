@@ -514,6 +514,23 @@ static inline void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
 }
 #endif
 
+/* This is necessary only for a number of statistics, see the caller. */
+static int iwl3945_is_network_packet(struct iwl3945_priv *priv,
+		struct ieee80211_hdr *header)
+{
+	/* Filter incoming packets to determine if they are targeted toward
+	 * this network, discarding packets coming from ourselves */
+	switch (priv->iw_mode) {
+	case IEEE80211_IF_TYPE_IBSS: /* Header: Dest. | Source    | BSSID */
+		/* packets to our IBSS update information */
+		return !compare_ether_addr(header->addr3, priv->bssid);
+	case IEEE80211_IF_TYPE_STA: /* Header: Dest. | AP{BSSID} | Source */
+		/* packets to our IBSS update information */
+		return !compare_ether_addr(header->addr2, priv->bssid);
+	default:
+		return 1;
+	}
+}
 
 static void iwl3945_add_radiotap(struct iwl3945_priv *priv,
 				 struct sk_buff *skb,
@@ -608,12 +625,12 @@ static void iwl3945_add_radiotap(struct iwl3945_priv *priv,
 	stats->flag |= RX_FLAG_RADIOTAP;
 }
 
-static void iwl3945_handle_data_packet(struct iwl3945_priv *priv, int is_data,
+static void iwl3945_pass_packet_to_mac80211(struct iwl3945_priv *priv,
 				   struct iwl3945_rx_mem_buffer *rxb,
 				   struct ieee80211_rx_status *stats)
 {
-	struct ieee80211_hdr *hdr;
 	struct iwl3945_rx_packet *pkt = (struct iwl3945_rx_packet *)rxb->skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)IWL_RX_DATA(pkt);
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
 	short len = le16_to_cpu(rx_hdr->len);
@@ -635,8 +652,6 @@ static void iwl3945_handle_data_packet(struct iwl3945_priv *priv, int is_data,
 	/* Set the size of the skb to the size of the frame */
 	skb_put(rxb->skb, le16_to_cpu(rx_hdr->len));
 
-	hdr = (void *)rxb->skb->data;
-
 	if (iwl3945_param_hwcrypto)
 		iwl3945_set_decrypted_flag(priv, rxb->skb,
 				       le32_to_cpu(rx_end->status), stats);
@@ -645,7 +660,7 @@ static void iwl3945_handle_data_packet(struct iwl3945_priv *priv, int is_data,
 		iwl3945_add_radiotap(priv, rxb->skb, rx_hdr, stats);
 
 #ifdef CONFIG_IWL3945_LEDS
-	if (is_data)
+	if (ieee80211_is_data(hdr->frame_control))
 		priv->rxtxpackets += len;
 #endif
 	ieee80211_rx_irqsafe(priv->hw, rxb->skb, stats);
@@ -694,7 +709,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 	}
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR) {
-		iwl3945_handle_data_packet(priv, 1, rxb, &rx_status);
+		iwl3945_pass_packet_to_mac80211(priv, rxb, &rx_status);
 		return;
 	}
 
@@ -842,26 +857,11 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 			}
 		}
 
-		iwl3945_handle_data_packet(priv, 0, rxb, &rx_status);
+	case IEEE80211_FTYPE_DATA:
+		/* fall through */
+	default:
+		iwl3945_pass_packet_to_mac80211(priv, rxb, &rx_status);
 		break;
-
-	case IEEE80211_FTYPE_CTL:
-		break;
-
-	case IEEE80211_FTYPE_DATA: {
-		DECLARE_MAC_BUF(mac1);
-		DECLARE_MAC_BUF(mac2);
-		DECLARE_MAC_BUF(mac3);
-
-		if (unlikely(iwl3945_is_duplicate_packet(priv, header)))
-			IWL_DEBUG_DROP("Dropping (dup): %s, %s, %s\n",
-				       print_mac(mac1, header->addr1),
-				       print_mac(mac2, header->addr2),
-				       print_mac(mac3, header->addr3));
-		else
-			iwl3945_handle_data_packet(priv, 1, rxb, &rx_status);
-		break;
-	}
 	}
 }
 

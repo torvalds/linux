@@ -490,8 +490,6 @@ struct iwl_ucode {
 	u8 data[0];		/* data in same order as "size" elements */
 };
 
-#define IWL_IBSS_MAC_HASH_SIZE 32
-
 struct iwl4965_ibss_seq {
 	u8 mac[ETH_ALEN];
 	u16 seq_num;
