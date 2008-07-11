@@ -22,6 +22,8 @@
 #include <linux/pagemap.h>
 #include <linux/jiffies.h>
 #include <linux/crc32.h>
+#include <linux/writeback.h>
+#include <linux/backing-dev.h>
 
 /*
  * Default IO end handler for temporary BJ_IO buffer_heads.
@@ -185,6 +187,27 @@ static int journal_wait_on_commit_record(struct buffer_head *bh)
 }
 
 /*
+ * write the filemap data using writepage() address_space_operations.
+ * We don't do block allocation here even for delalloc. We don't
+ * use writepages() because with dealyed allocation we may be doing
+ * block allocation in writepages().
+ */
+static int journal_submit_inode_data_buffers(struct address_space *mapping)
+{
+	int ret;
+	struct writeback_control wbc = {
+		.sync_mode =  WB_SYNC_ALL,
+		.nr_to_write = mapping->nrpages * 2,
+		.range_start = 0,
+		.range_end = i_size_read(mapping->host),
+		.for_writepages = 1,
+	};
+
+	ret = generic_writepages(mapping, &wbc);
+	return ret;
+}
+
+/*
  * Submit all the data buffers of inode associated with the transaction to
  * disk.
  *
@@ -192,7 +215,7 @@ static int journal_wait_on_commit_record(struct buffer_head *bh)
  * our inode list. We use JI_COMMIT_RUNNING flag to protect inode we currently
  * operate on from being released while we write out pages.
  */
-static int journal_submit_inode_data_buffers(journal_t *journal,
+static int journal_submit_data_buffers(journal_t *journal,
 		transaction_t *commit_transaction)
 {
 	struct jbd2_inode *jinode;
@@ -204,8 +227,13 @@ static int journal_submit_inode_data_buffers(journal_t *journal,
 		mapping = jinode->i_vfs_inode->i_mapping;
 		jinode->i_flags |= JI_COMMIT_RUNNING;
 		spin_unlock(&journal->j_list_lock);
-		err = filemap_fdatawrite_range(mapping, 0,
-					i_size_read(jinode->i_vfs_inode));
+		/*
+		 * submit the inode data buffers. We use writepage
+		 * instead of writepages. Because writepages can do
+		 * block allocation  with delalloc. We need to write
+		 * only allocated blocks here.
+		 */
+		err = journal_submit_inode_data_buffers(mapping);
 		if (!ret)
 			ret = err;
 		spin_lock(&journal->j_list_lock);
@@ -228,7 +256,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 	struct jbd2_inode *jinode, *next_i;
 	int err, ret = 0;
 
-	/* For locking, see the comment in journal_submit_inode_data_buffers() */
+	/* For locking, see the comment in journal_submit_data_buffers() */
 	spin_lock(&journal->j_list_lock);
 	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
 		jinode->i_flags |= JI_COMMIT_RUNNING;
@@ -431,7 +459,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 * Now start flushing things to disk, in the order they appear
 	 * on the transaction lists.  Data blocks go first.
 	 */
-	err = journal_submit_inode_data_buffers(journal, commit_transaction);
+	err = journal_submit_data_buffers(journal, commit_transaction);
 	if (err)
 		jbd2_journal_abort(journal, err);
 
