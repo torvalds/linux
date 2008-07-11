@@ -328,16 +328,6 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 	if (!priv->error_recovering)
 		priv->start_calib = 0;
 
-	iwl_init_sensitivity(priv);
-
-	/* If we issue a new RXON command which required a tune then we must
-	 * send a new TXPOWER command or we won't be able to Tx any frames */
-	ret = iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
-	if (ret) {
-		IWL_ERROR("Error sending TX power (%d)\n", ret);
-		return ret;
-	}
-
 	/* Add the broadcast address so we can send broadcast frames */
 	if (iwl_rxon_add_station(priv, iwl_bcast_addr, 0) ==
 						IWL_INVALID_STATION) {
@@ -371,6 +361,16 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 			return ret;
 		}
 		memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
+	}
+
+	iwl_init_sensitivity(priv);
+
+	/* If we issue a new RXON command which required a tune then we must
+	 * send a new TXPOWER command or we won't be able to Tx any frames */
+	ret = iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+	if (ret) {
+		IWL_ERROR("Error sending TX power (%d)\n", ret);
+		return ret;
 	}
 
 	return 0;
