@@ -32,20 +32,6 @@
 #include <asm/txx9irq.h>
 #include <asm/txx9/tx4927pcic.h>
 
-#define TX4927_IRQ_CP0_BEG  MIPS_CPU_IRQ_BASE
-#define TX4927_IRQ_CP0_END  (MIPS_CPU_IRQ_BASE + 8 - 1)
-
-#define TX4927_IRQ_PIC_BEG  TXX9_IRQ_BASE
-#define TX4927_IRQ_PIC_END  (TXX9_IRQ_BASE + TXx9_MAX_IR - 1)
-
-
-#define TX4927_IRQ_USER0	    (TX4927_IRQ_CP0_BEG+0)
-#define TX4927_IRQ_USER1	    (TX4927_IRQ_CP0_BEG+1)
-#define TX4927_IRQ_NEST_PIC_ON_CP0  (TX4927_IRQ_CP0_BEG+2)
-#define TX4927_IRQ_CPU_TIMER	    (TX4927_IRQ_CP0_BEG+7)
-
-#define TX4927_IRQ_NEST_EXT_ON_PIC  (TX4927_IRQ_PIC_BEG+3)
-
 #define TX4927_SDRAMC_REG	0xff1f8000
 #define TX4927_EBUSC_REG	0xff1f9000
 #define TX4927_PCIC_REG		0xff1fd000
@@ -54,9 +40,13 @@
 #define TX4927_NR_TMR	3
 #define TX4927_TMR_REG(ch)	(0xff1ff000 + (ch) * 0x100)
 
+#define TX4927_IR_INT(n)	(2 + (n))
+#define TX4927_IR_SIO(n)	(8 + (n))
 #define TX4927_IR_PCIC		16
 #define TX4927_IR_PCIERR	22
 #define TX4927_NUM_IR	32
+
+#define TX4927_IRC_INT	2	/* IP[2] in Status register */
 
 struct tx4927_sdramc_reg {
 	volatile unsigned long long cr[4];
@@ -224,5 +214,6 @@ static inline void tx4927_ccfg_change(__u64 change, __u64 new)
 
 int tx4927_report_pciclk(void);
 int tx4927_pciclk66_setup(void);
+void tx4927_irq_init(void);
 
 #endif /* __ASM_TXX9_TX4927_H */

@@ -39,6 +39,7 @@
 #include <asm/system.h>
 
 #include <asm/processor.h>
+#include <asm/txx9/generic.h>
 #include <asm/txx9/jmr3927.h>
 
 #if JMR3927_IRQ_END > NR_IRQS
@@ -77,37 +78,30 @@ static void unmask_irq_ioc(unsigned int irq)
 	(void)jmr3927_ioc_reg_in(JMR3927_IOC_REV_ADDR);
 }
 
-asmlinkage void plat_irq_dispatch(void)
-{
-	unsigned long cp0_cause = read_c0_cause();
-	int irq;
-
-	if ((cp0_cause & CAUSEF_IP7) == 0)
-		return;
-	irq = (cp0_cause >> CAUSEB_IP2) & 0x0f;
-
-	do_IRQ(irq + JMR3927_IRQ_IRC);
-}
-
-static irqreturn_t jmr3927_ioc_interrupt(int irq, void *dev_id)
+static int jmr3927_ioc_irqroute(void)
 {
 	unsigned char istat = jmr3927_ioc_reg_in(JMR3927_IOC_INTS2_ADDR);
 	int i;
 
 	for (i = 0; i < JMR3927_NR_IRQ_IOC; i++) {
-		if (istat & (1 << i)) {
-			irq = JMR3927_IRQ_IOC + i;
-			do_IRQ(irq);
-		}
+		if (istat & (1 << i))
+			return JMR3927_IRQ_IOC + i;
 	}
-	return IRQ_HANDLED;
+	return -1;
 }
 
-static struct irqaction ioc_action = {
-	.handler = jmr3927_ioc_interrupt,
-	.mask = CPU_MASK_NONE,
-	.name = "IOC",
-};
+static int jmr3927_irq_dispatch(int pending)
+{
+	int irq;
+
+	if ((pending & CAUSEF_IP7) == 0)
+		return -1;
+	irq = (pending >> CAUSEB_IP2) & 0x0f;
+	irq += JMR3927_IRQ_IRC;
+	if (irq == JMR3927_IRQ_IOCINT)
+		irq = jmr3927_ioc_irqroute();
+	return irq;
+}
 
 #ifdef CONFIG_PCI
 static irqreturn_t jmr3927_pcierr_interrupt(int irq, void *dev_id)
@@ -127,8 +121,9 @@ static struct irqaction pcierr_action = {
 
 static void __init jmr3927_irq_init(void);
 
-void __init arch_init_irq(void)
+void __init jmr3927_irq_setup(void)
 {
+	txx9_irq_dispatch = jmr3927_irq_dispatch;
 	/* Now, interrupt control disabled, */
 	/* all IRC interrupts are masked, */
 	/* all IRC interrupt mode are Low Active. */
@@ -146,7 +141,7 @@ void __init arch_init_irq(void)
 	jmr3927_irq_init();
 
 	/* setup IOC interrupt 1 (PCI, MODEM) */
-	setup_irq(JMR3927_IRQ_IOCINT, &ioc_action);
+	set_irq_chained_handler(JMR3927_IRQ_IOCINT, handle_simple_irq);
 
 #ifdef CONFIG_PCI
 	setup_irq(JMR3927_IRQ_IRC_PCI, &pcierr_action);

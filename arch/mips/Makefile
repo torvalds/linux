@@ -551,29 +551,30 @@ endif
 all-$(CONFIG_SNI_RM)		:= vmlinux.ecoff
 
 #
+# Common TXx9
+#
+core-$(CONFIG_MACH_TX39XX)	+= arch/mips/txx9/generic/
+cflags-$(CONFIG_MACH_TX39XX) += -Iinclude/asm-mips/mach-jmr3927
+load-$(CONFIG_MACH_TX39XX)	+= 0xffffffff80050000
+core-$(CONFIG_MACH_TX49XX)	+= arch/mips/txx9/generic/
+cflags-$(CONFIG_MACH_TX49XX) += -Iinclude/asm-mips/mach-tx49xx
+load-$(CONFIG_MACH_TX49XX)	+= 0xffffffff80100000
+
+#
 # Toshiba JMR-TX3927 board
 #
-core-$(CONFIG_TOSHIBA_JMR3927)	+= arch/mips/txx9/jmr3927/ \
-				   arch/mips/txx9/generic/
-cflags-$(CONFIG_TOSHIBA_JMR3927) += -Iinclude/asm-mips/mach-jmr3927
-load-$(CONFIG_TOSHIBA_JMR3927)	+= 0xffffffff80050000
+core-$(CONFIG_TOSHIBA_JMR3927)	+= arch/mips/txx9/jmr3927/
 
 #
 # Toshiba RBTX4927 board or
 # Toshiba RBTX4937 board
 #
 core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/txx9/rbtx4927/
-core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/txx9/generic/
-cflags-$(CONFIG_TOSHIBA_RBTX4927) += -Iinclude/asm-mips/mach-tx49xx
-load-$(CONFIG_TOSHIBA_RBTX4927)	+= 0xffffffff80020000
 
 #
 # Toshiba RBTX4938 board
 #
 core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/txx9/rbtx4938/
-core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/txx9/generic/
-cflags-$(CONFIG_TOSHIBA_RBTX4938) += -Iinclude/asm-mips/mach-tx49xx
-load-$(CONFIG_TOSHIBA_RBTX4938) += 0xffffffff80100000
 
 cflags-y			+= -Iinclude/asm-mips/mach-generic
 drivers-$(CONFIG_PCI)		+= arch/mips/pci/

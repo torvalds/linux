@@ -18,11 +18,6 @@
 #define tx4938_read_nfmc(addr) (*(volatile unsigned int *)(addr))
 #define tx4938_write_nfmc(b, addr) (*(volatile unsigned int *)(addr)) = (b)
 
-#define TX4938_NR_IRQ_LOCAL     TX4938_IRQ_PIC_BEG
-
-#define TX4938_IRQ_IRC_PCIC     (TX4938_NR_IRQ_LOCAL + TX4938_IR_PCIC)
-#define TX4938_IRQ_IRC_PCIERR   (TX4938_NR_IRQ_LOCAL + TX4938_IR_PCIERR)
-
 #define TX4938_PCIIO_0 0x10000000
 #define TX4938_PCIIO_1 0x01010000
 #define TX4938_PCIMEM_0 0x08000000
@@ -271,6 +266,8 @@ struct tx4938_ccfg_reg {
 #define TX4938_IR_ETH0	TX4938_IR_INT(4)
 #define TX4938_IR_ETH1	TX4938_IR_INT(3)
 
+#define TX4938_IRC_INT	2	/* IP[2] in Status register */
+
 /*
  * CCFG
  */
@@ -463,5 +460,6 @@ void tx4938_report_pci1clk(void);
 int tx4938_pciclk66_setup(void);
 struct pci_dev;
 int tx4938_pcic1_map_irq(const struct pci_dev *dev, u8 slot);
+void tx4938_irq_init(void);
 
 #endif

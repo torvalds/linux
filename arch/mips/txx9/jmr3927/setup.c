@@ -34,15 +34,16 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
-#include <linux/clk.h>
 #include <linux/gpio.h>
 #ifdef CONFIG_SERIAL_TXX9
 #include <linux/serial_core.h>
 #endif
 
+#include <asm/bootinfo.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
 #include <asm/reboot.h>
+#include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
 #include <asm/txx9/jmr3927.h>
 #include <asm/mipsregs.h>
@@ -83,7 +84,7 @@ static void jmr3927_machine_power_off(void)
 	while (1);
 }
 
-void __init plat_time_init(void)
+static void __init jmr3927_time_init(void)
 {
 	txx9_clockevent_init(TX3927_TMR_REG(0),
 			     TXX9_IRQ_BASE + JMR3927_IRQ_IRC_TMR(0),
@@ -97,7 +98,7 @@ void __init plat_time_init(void)
 extern char * __init prom_getcmdline(void);
 static void jmr3927_board_init(void);
 
-void __init plat_mem_setup(void)
+static void __init jmr3927_mem_setup(void)
 {
 	char *argptr;
 
@@ -233,6 +234,8 @@ static void __init tx3927_setup(void)
 {
 	int i;
 
+	txx9_cpu_clock = JMR3927_CORECLK;
+	txx9_gbus_clock = JMR3927_GBUSCLK;
 	/* SDRAMC are configured by PROM */
 
 	/* ROMC */
@@ -336,7 +339,6 @@ static int __init jmr3927_rtc_init(void)
 	dev = platform_device_register_simple("rtc-ds1742", -1, &res, 1);
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
-device_initcall(jmr3927_rtc_init);
 
 /* Watchdog support */
 
@@ -356,36 +358,22 @@ static int __init jmr3927_wdt_init(void)
 {
 	return txx9_wdt_init(TX3927_TMR_REG(2));
 }
-device_initcall(jmr3927_wdt_init);
 
-/* Minimum CLK support */
-
-struct clk *clk_get(struct device *dev, const char *id)
+static void __init jmr3927_device_init(void)
 {
-	if (!strcmp(id, "imbus_clk"))
-		return (struct clk *)JMR3927_IMCLK;
-	return ERR_PTR(-ENOENT);
+	jmr3927_rtc_init();
+	jmr3927_wdt_init();
 }
-EXPORT_SYMBOL(clk_get);
 
-int clk_enable(struct clk *clk)
-{
-	return 0;
-}
-EXPORT_SYMBOL(clk_enable);
-
-void clk_disable(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_disable);
-
-unsigned long clk_get_rate(struct clk *clk)
-{
-	return (unsigned long)clk;
-}
-EXPORT_SYMBOL(clk_get_rate);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
+struct txx9_board_vec jmr3927_vec __initdata = {
+	.type = MACH_TOSHIBA_JMR3927,
+	.system = "Toshiba JMR_TX3927",
+	.prom_init = jmr3927_prom_init,
+	.mem_setup = jmr3927_mem_setup,
+	.irq_setup = jmr3927_irq_setup,
+	.time_init = jmr3927_time_init,
+	.device_init = jmr3927_device_init,
+#ifdef CONFIG_PCI
+	.pci_map_irq = jmr3927_pci_map_irq,
+#endif
+};

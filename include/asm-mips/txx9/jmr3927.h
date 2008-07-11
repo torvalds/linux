@@ -174,4 +174,9 @@
  *	INT[3:0]
  */
 
+void jmr3927_prom_init(void);
+void jmr3927_irq_setup(void);
+struct pci_dev;
+int jmr3927_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
+
 #endif /* __ASM_TXX9_JMR3927_H */

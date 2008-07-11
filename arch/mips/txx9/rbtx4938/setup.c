@@ -17,7 +17,6 @@
 #include <linux/console.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
-#include <linux/clk.h>
 #include <linux/gpio.h>
 
 #include <asm/reboot.h>
@@ -147,9 +146,9 @@ static void __init rbtx4938_pci_setup(void)
 #define	SEEPROM3_CS	1	/* IOC */
 #define	SRTC_CS	2	/* IOC */
 
-#ifdef CONFIG_PCI
 static int __init rbtx4938_ethaddr_init(void)
 {
+#ifdef CONFIG_PCI
 	unsigned char dat[17];
 	unsigned char sum;
 	int i;
@@ -179,10 +178,9 @@ static int __init rbtx4938_ethaddr_init(void)
 		    platform_device_add(pdev))
 			platform_device_put(pdev);
 	}
+#endif /* CONFIG_PCI */
 	return 0;
 }
-device_initcall(rbtx4938_ethaddr_init);
-#endif /* CONFIG_PCI */
 
 static void __init rbtx4938_spi_setup(void)
 {
@@ -366,7 +364,7 @@ void __init tx4938_board_setup(void)
 #endif
 }
 
-void __init plat_time_init(void)
+static void __init rbtx4938_time_init(void)
 {
 	mips_hpt_frequency = txx9_cpu_clock / 2;
 	if (____raw_readq(&tx4938_ccfgptr->ccfg) & TX4938_CCFG_TINTDIS)
@@ -375,7 +373,7 @@ void __init plat_time_init(void)
 				     txx9_gbus_clock / 2);
 }
 
-void __init plat_mem_setup(void)
+static void __init rbtx4938_mem_setup(void)
 {
 	unsigned long long pcfg;
 	char *argptr;
@@ -496,7 +494,6 @@ static int __init rbtx4938_ne_init(void)
 						res, ARRAY_SIZE(res));
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
-device_initcall(rbtx4938_ne_init);
 
 /* GPIO support */
 
@@ -587,14 +584,13 @@ static int __init rbtx4938_spi_init(void)
 	return 0;
 }
 
-static int __init rbtx4938_arch_init(void)
+static void __init rbtx4938_arch_init(void)
 {
 	txx9_gpio_init(TX4938_PIO_REG & 0xfffffffffULL, 0, 16);
 	gpiochip_add(&rbtx4938_spi_gpio_chip);
 	rbtx4938_pci_setup();
-	return rbtx4938_spi_init();
+	rbtx4938_spi_init();
 }
-arch_initcall(rbtx4938_arch_init);
 
 /* Watchdog support */
 
@@ -614,38 +610,24 @@ static int __init rbtx4938_wdt_init(void)
 {
 	return txx9_wdt_init(TX4938_TMR_REG(2) & 0xfffffffffULL);
 }
-device_initcall(rbtx4938_wdt_init);
 
-/* Minimum CLK support */
-
-struct clk *clk_get(struct device *dev, const char *id)
+static void __init rbtx4938_device_init(void)
 {
-	if (!strcmp(id, "spi-baseclk"))
-		return (struct clk *)(txx9_gbus_clock / 2 / 4);
-	if (!strcmp(id, "imbus_clk"))
-		return (struct clk *)(txx9_gbus_clock / 2);
-	return ERR_PTR(-ENOENT);
+	rbtx4938_ethaddr_init();
+	rbtx4938_ne_init();
+	rbtx4938_wdt_init();
 }
-EXPORT_SYMBOL(clk_get);
 
-int clk_enable(struct clk *clk)
-{
-	return 0;
-}
-EXPORT_SYMBOL(clk_enable);
-
-void clk_disable(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_disable);
-
-unsigned long clk_get_rate(struct clk *clk)
-{
-	return (unsigned long)clk;
-}
-EXPORT_SYMBOL(clk_get_rate);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
+struct txx9_board_vec rbtx4938_vec __initdata = {
+	.type = MACH_TOSHIBA_RBTX4938,
+	.system = "Toshiba RBTX4938",
+	.prom_init = rbtx4938_prom_init,
+	.mem_setup = rbtx4938_mem_setup,
+	.irq_setup = rbtx4938_irq_setup,
+	.time_init = rbtx4938_time_init,
+	.device_init = rbtx4938_device_init,
+	.arch_init = rbtx4938_arch_init,
+#ifdef CONFIG_PCI
+	.pci_map_irq = rbtx4938_pci_map_irq,
+#endif
+};

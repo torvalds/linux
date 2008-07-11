@@ -49,7 +49,6 @@
 #include <linux/interrupt.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
-#include <linux/clk.h>
 #include <linux/delay.h>
 
 #include <asm/bootinfo.h>
@@ -75,8 +74,6 @@ extern void toshiba_rbtx4927_irq_setup(void);
 char *prom_getcmdline(void);
 
 static int tx4927_ccfg_toeon = 1;
-
-char *toshiba_name = "";
 
 #ifdef CONFIG_PCI
 static void __init tx4927_pci_setup(void)
@@ -171,15 +168,15 @@ static void __init tx4937_pci_setup(void)
 	}
 }
 
-static int __init rbtx4927_arch_init(void)
+static void __init rbtx4927_arch_init(void)
 {
 	if (mips_machtype == MACH_TOSHIBA_RBTX4937)
 		tx4937_pci_setup();
 	else
 		tx4927_pci_setup();
-	return 0;
 }
-arch_initcall(rbtx4927_arch_init);
+#else
+#define rbtx4927_arch_init NULL
 #endif /* CONFIG_PCI */
 
 static void __noreturn wait_forever(void)
@@ -223,13 +220,11 @@ void toshiba_rbtx4927_power_off(void)
 	/* no return */
 }
 
-void __init plat_mem_setup(void)
+static void __init rbtx4927_mem_setup(void)
 {
 	int i;
 	u32 cp0_config;
 	char *argptr;
-
-	printk("CPU is %s\n", toshiba_name);
 
 	/* f/w leaves this on at startup */
 	clear_c0_status(ST0_ERL);
@@ -323,7 +318,7 @@ void __init plat_mem_setup(void)
 			req.iotype = UPIO_MEM;
 			req.membase = (char *)(0xff1ff300 + i * 0x100);
 			req.mapbase = 0xff1ff300 + i * 0x100;
-			req.irq = TX4927_IRQ_PIC_BEG + 8 + i;
+			req.irq = TXX9_IRQ_BASE + TX4927_IR_SIO(i);
 			req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
 			req.uartclk = 50000000;
 			early_serial_txx9_setup(&req);
@@ -352,7 +347,7 @@ void __init plat_mem_setup(void)
 #endif
 }
 
-void __init plat_time_init(void)
+static void __init rbtx4927_time_init(void)
 {
 	mips_hpt_frequency = txx9_cpu_clock / 2;
 	if (____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_TINTDIS)
@@ -372,7 +367,6 @@ static int __init toshiba_rbtx4927_rtc_init(void)
 		platform_device_register_simple("rtc-ds1742", -1, &res, 1);
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
-device_initcall(toshiba_rbtx4927_rtc_init);
 
 static int __init rbtx4927_ne_init(void)
 {
@@ -391,7 +385,6 @@ static int __init rbtx4927_ne_init(void)
 						res, ARRAY_SIZE(res));
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
-device_initcall(rbtx4927_ne_init);
 
 /* Watchdog support */
 
@@ -411,36 +404,37 @@ static int __init rbtx4927_wdt_init(void)
 {
 	return txx9_wdt_init(TX4927_TMR_REG(2) & 0xfffffffffULL);
 }
-device_initcall(rbtx4927_wdt_init);
 
-/* Minimum CLK support */
-
-struct clk *clk_get(struct device *dev, const char *id)
+static void __init rbtx4927_device_init(void)
 {
-	if (!strcmp(id, "imbus_clk"))
-		return (struct clk *)50000000;
-	return ERR_PTR(-ENOENT);
+	toshiba_rbtx4927_rtc_init();
+	rbtx4927_ne_init();
+	rbtx4927_wdt_init();
 }
-EXPORT_SYMBOL(clk_get);
 
-int clk_enable(struct clk *clk)
-{
-	return 0;
-}
-EXPORT_SYMBOL(clk_enable);
-
-void clk_disable(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_disable);
-
-unsigned long clk_get_rate(struct clk *clk)
-{
-	return (unsigned long)clk;
-}
-EXPORT_SYMBOL(clk_get_rate);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
+struct txx9_board_vec rbtx4927_vec __initdata = {
+	.type = MACH_TOSHIBA_RBTX4927,
+	.system = "Toshiba RBTX4927",
+	.prom_init = rbtx4927_prom_init,
+	.mem_setup = rbtx4927_mem_setup,
+	.irq_setup = rbtx4927_irq_setup,
+	.time_init = rbtx4927_time_init,
+	.device_init = rbtx4927_device_init,
+	.arch_init = rbtx4927_arch_init,
+#ifdef CONFIG_PCI
+	.pci_map_irq = rbtx4927_pci_map_irq,
+#endif
+};
+struct txx9_board_vec rbtx4937_vec __initdata = {
+	.type = MACH_TOSHIBA_RBTX4937,
+	.system = "Toshiba RBTX4937",
+	.prom_init = rbtx4927_prom_init,
+	.mem_setup = rbtx4927_mem_setup,
+	.irq_setup = rbtx4927_irq_setup,
+	.time_init = rbtx4927_time_init,
+	.device_init = rbtx4927_device_init,
+	.arch_init = rbtx4927_arch_init,
+#ifdef CONFIG_PCI
+	.pci_map_irq = rbtx4927_pci_map_irq,
+#endif
+};

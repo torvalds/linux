@@ -35,42 +35,10 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/string.h>
-
 #include <asm/bootinfo.h>
-#include <asm/txx9/tx3927.h>
-
-char * __init prom_getcmdline(void)
-{
-	return &(arcs_cmdline[0]);
-}
-
-void  __init prom_init_cmdline(void)
-{
-	char *cp;
-	int actr;
-	int prom_argc = fw_arg0;
-	char **prom_argv = (char **) fw_arg1;
-
-	actr = 1; /* Always ignore argv[0] */
-
-	cp = &(arcs_cmdline[0]);
-	while(actr < prom_argc) {
-	        strcpy(cp, prom_argv[actr]);
-		cp += strlen(prom_argv[actr]);
-		*cp++ = ' ';
-		actr++;
-	}
-	if (cp != &(arcs_cmdline[0])) /* get rid of trailing space */
-		--cp;
-	*cp = '\0';
-}
-
-void __init prom_free_prom_memory(void)
-{
-}
+#include <asm/txx9/generic.h>
+#include <asm/txx9/jmr3927.h>
 
 #define TIMEOUT       0xffffff
 
@@ -95,4 +63,14 @@ puts(const char *cp)
 	prom_putchar(*cp++);
     prom_putchar('\r');
     prom_putchar('\n');
+}
+
+void __init jmr3927_prom_init(void)
+{
+	/* CCFG */
+	if ((tx3927_ccfgptr->ccfg & TX3927_CCFG_TLBOFF) == 0)
+		puts("Warning: TX3927 TLB off\n");
+
+	prom_init_cmdline();
+	add_memory_region(0, JMR3927_SDRAM_SIZE, BOOT_MEM_RAM);
 }

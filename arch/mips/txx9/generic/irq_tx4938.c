@@ -14,35 +14,12 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <asm/irq_cpu.h>
-#include <asm/mipsregs.h>
-#include <asm/txx9/rbtx4938.h>
+#include <asm/txx9/tx4938.h>
 
-void __init
-tx4938_irq_init(void)
+void __init tx4938_irq_init(void)
 {
 	mips_cpu_irq_init();
 	txx9_irq_init(TX4938_IRC_REG);
-	set_irq_chained_handler(TX4938_IRQ_NEST_PIC_ON_CP0, handle_simple_irq);
-}
-
-int toshiba_rbtx4938_irq_nested(int irq);
-
-asmlinkage void plat_irq_dispatch(void)
-{
-	unsigned int pending = read_c0_cause() & read_c0_status();
-
-	if (pending & STATUSF_IP7)
-		do_IRQ(TX4938_IRQ_CPU_TIMER);
-	else if (pending & STATUSF_IP2) {
-		int irq = txx9_irq();
-		if (irq == TX4938_IRQ_PIC_BEG + TX4938_IR_INT(0))
-			irq = toshiba_rbtx4938_irq_nested(irq);
-		if (irq >= 0)
-			do_IRQ(irq);
-		else
-			spurious_interrupt();
-	} else if (pending & STATUSF_IP1)
-		do_IRQ(TX4938_IRQ_USER1);
-	else if (pending & STATUSF_IP0)
-		do_IRQ(TX4938_IRQ_USER0);
+	set_irq_chained_handler(MIPS_CPU_IRQ_BASE + TX4938_IRC_INT,
+				handle_simple_irq);
 }

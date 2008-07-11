@@ -111,16 +111,9 @@ JP7 is not bus master -- do NOT use -- only 4 pci bus master's allowed -- SouthB
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
+#include <asm/mipsregs.h>
+#include <asm/txx9/generic.h>
 #include <asm/txx9/rbtx4927.h>
-
-#define TOSHIBA_RBTX4927_IRQ_IOC_RAW_BEG   0
-#define TOSHIBA_RBTX4927_IRQ_IOC_RAW_END   7
-
-#define TOSHIBA_RBTX4927_IRQ_IOC_BEG  ((TX4927_IRQ_PIC_END+1)+TOSHIBA_RBTX4927_IRQ_IOC_RAW_BEG)	/* 56 */
-#define TOSHIBA_RBTX4927_IRQ_IOC_END  ((TX4927_IRQ_PIC_END+1)+TOSHIBA_RBTX4927_IRQ_IOC_RAW_END)	/* 63 */
-
-#define TOSHIBA_RBTX4927_IRQ_NEST_IOC_ON_PIC TX4927_IRQ_NEST_EXT_ON_PIC
-#define TOSHIBA_RBTX4927_IRQ_NEST_ISA_ON_IOC (TOSHIBA_RBTX4927_IRQ_IOC_BEG+2)
 
 static void toshiba_rbtx4927_irq_ioc_enable(unsigned int irq);
 static void toshiba_rbtx4927_irq_ioc_disable(unsigned int irq);
@@ -136,34 +129,25 @@ static struct irq_chip toshiba_rbtx4927_irq_ioc_type = {
 #define TOSHIBA_RBTX4927_IOC_INTR_ENAB (void __iomem *)0xbc002000UL
 #define TOSHIBA_RBTX4927_IOC_INTR_STAT (void __iomem *)0xbc002006UL
 
-int toshiba_rbtx4927_irq_nested(int sw_irq)
+static int toshiba_rbtx4927_irq_nested(int sw_irq)
 {
 	u8 level3;
 
 	level3 = readb(TOSHIBA_RBTX4927_IOC_INTR_STAT) & 0x1f;
 	if (level3)
-		sw_irq = TOSHIBA_RBTX4927_IRQ_IOC_BEG + fls(level3) - 1;
+		sw_irq = RBTX4927_IRQ_IOC + fls(level3) - 1;
 	return (sw_irq);
 }
-
-static struct irqaction toshiba_rbtx4927_irq_ioc_action = {
-	.handler	= no_action,
-	.flags		= IRQF_SHARED,
-	.mask		= CPU_MASK_NONE,
-	.name		= TOSHIBA_RBTX4927_IOC_NAME
-};
 
 static void __init toshiba_rbtx4927_irq_ioc_init(void)
 {
 	int i;
 
-	for (i = TOSHIBA_RBTX4927_IRQ_IOC_BEG;
-	     i <= TOSHIBA_RBTX4927_IRQ_IOC_END; i++)
+	for (i = RBTX4927_IRQ_IOC;
+	     i < RBTX4927_IRQ_IOC + RBTX4927_NR_IRQ_IOC; i++)
 		set_irq_chip_and_handler(i, &toshiba_rbtx4927_irq_ioc_type,
 					 handle_level_irq);
-
-	setup_irq(TOSHIBA_RBTX4927_IRQ_NEST_IOC_ON_PIC,
-		  &toshiba_rbtx4927_irq_ioc_action);
+	set_irq_chained_handler(RBTX4927_IRQ_IOCINT, handle_simple_irq);
 }
 
 static void toshiba_rbtx4927_irq_ioc_enable(unsigned int irq)
@@ -171,7 +155,7 @@ static void toshiba_rbtx4927_irq_ioc_enable(unsigned int irq)
 	unsigned char v;
 
 	v = readb(TOSHIBA_RBTX4927_IOC_INTR_ENAB);
-	v |= (1 << (irq - TOSHIBA_RBTX4927_IRQ_IOC_BEG));
+	v |= (1 << (irq - RBTX4927_IRQ_IOC));
 	writeb(v, TOSHIBA_RBTX4927_IOC_INTR_ENAB);
 }
 
@@ -180,15 +164,34 @@ static void toshiba_rbtx4927_irq_ioc_disable(unsigned int irq)
 	unsigned char v;
 
 	v = readb(TOSHIBA_RBTX4927_IOC_INTR_ENAB);
-	v &= ~(1 << (irq - TOSHIBA_RBTX4927_IRQ_IOC_BEG));
+	v &= ~(1 << (irq - RBTX4927_IRQ_IOC));
 	writeb(v, TOSHIBA_RBTX4927_IOC_INTR_ENAB);
 	mmiowb();
 }
 
-void __init arch_init_irq(void)
-{
-	extern void tx4927_irq_init(void);
 
+static int rbtx4927_irq_dispatch(int pending)
+{
+	int irq;
+
+	if (pending & STATUSF_IP7)			/* cpu timer */
+		irq = MIPS_CPU_IRQ_BASE + 7;
+	else if (pending & STATUSF_IP2) {		/* tx4927 pic */
+		irq = txx9_irq();
+		if (irq == RBTX4927_IRQ_IOCINT)
+			irq = toshiba_rbtx4927_irq_nested(irq);
+	} else if (pending & STATUSF_IP0)		/* user line 0 */
+		irq = MIPS_CPU_IRQ_BASE + 0;
+	else if (pending & STATUSF_IP1)			/* user line 1 */
+		irq = MIPS_CPU_IRQ_BASE + 1;
+	else
+		irq = -1;
+	return irq;
+}
+
+void __init rbtx4927_irq_setup(void)
+{
+	txx9_irq_dispatch = rbtx4927_irq_dispatch;
 	tx4927_irq_init();
 	toshiba_rbtx4927_irq_ioc_init();
 	/* Onboard 10M Ether: High Active */

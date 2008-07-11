@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/io.h>
+#include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
 #ifdef CONFIG_TOSHIBA_FPCIB0
 #include <linux/interrupt.h>
@@ -375,3 +376,13 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_1,
 #endif
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, final_fixup);
 DECLARE_PCI_FIXUP_RESUME(PCI_ANY_ID, PCI_ANY_ID, final_fixup);
+
+int pcibios_plat_dev_init(struct pci_dev *dev)
+{
+	return 0;
+}
+
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+{
+	return txx9_board_vec->pci_map_irq(dev, slot, pin);
+}
