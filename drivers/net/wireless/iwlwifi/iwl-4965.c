@@ -49,6 +49,13 @@
 static int iwl4965_send_tx_power(struct iwl_priv *priv);
 static int iwl4965_hw_get_temperature(const struct iwl_priv *priv);
 
+/* Change firmware file name, using "-" and incrementing number,
+ *   *only* when uCode interface or architecture changes so that it
+ *   is not compatible with earlier drivers.
+ * This number will also appear in << 8 position of 1st dword of uCode file */
+#define IWL4965_UCODE_API "-2"
+
+
 /* module parameters */
 static struct iwl_mod_params iwl4965_mod_params = {
 	.num_of_queues = IWL49_NUM_QUEUES,
@@ -2453,6 +2460,9 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.ops = &iwl4965_ops,
 	.mod_params = &iwl4965_mod_params,
 };
+
+/* Module firmware */
+MODULE_FIRMWARE("iwlwifi-4965" IWL4965_UCODE_API ".ucode");
 
 module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");

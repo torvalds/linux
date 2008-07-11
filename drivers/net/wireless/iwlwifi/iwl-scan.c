@@ -375,6 +375,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 	u16 passive_dwell = 0;
 	u16 active_dwell = 0;
 	int added, i;
+	u16 channel;
 
 	sband = iwl_get_hw_mode(priv, band);
 	if (!sband)
@@ -389,24 +390,25 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 		if (channels[i].flags & IEEE80211_CHAN_DISABLED)
 			continue;
 
-		scan_ch->channel =
+		channel =
 			ieee80211_frequency_to_channel(channels[i].center_freq);
+		scan_ch->channel = cpu_to_le16(channel);
 
-		ch_info = iwl_get_channel_info(priv, band, scan_ch->channel);
+		ch_info = iwl_get_channel_info(priv, band, channel);
 		if (!is_channel_valid(ch_info)) {
 			IWL_DEBUG_SCAN("Channel %d is INVALID for this band.\n",
-				       scan_ch->channel);
+					channel);
 			continue;
 		}
 
 		if (!is_active || is_channel_passive(ch_info) ||
 		    (channels[i].flags & IEEE80211_CHAN_PASSIVE_SCAN))
-			scan_ch->type = 0;
+			scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
 		else
-			scan_ch->type = 1;
+			scan_ch->type = SCAN_CHANNEL_TYPE_ACTIVE;
 
-		if (scan_ch->type & 1)
-			scan_ch->type |= (direct_mask << 1);
+		if (scan_ch->type & SCAN_CHANNEL_TYPE_ACTIVE)
+			scan_ch->type |= cpu_to_le32(direct_mask << 1);
 
 		scan_ch->active_dwell = cpu_to_le16(active_dwell);
 		scan_ch->passive_dwell = cpu_to_le16(passive_dwell);
@@ -425,9 +427,10 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 		}
 
 		IWL_DEBUG_SCAN("Scanning %d [%s %d]\n",
-			       scan_ch->channel,
-			       (scan_ch->type & 1) ? "ACTIVE" : "PASSIVE",
-			       (scan_ch->type & 1) ?
+			       channel,
+			       (scan_ch->type & SCAN_CHANNEL_TYPE_ACTIVE) ?
+				"ACTIVE" : "PASSIVE",
+			       (scan_ch->type & SCAN_CHANNEL_TYPE_ACTIVE) ?
 			       active_dwell : passive_dwell);
 
 		scan_ch++;

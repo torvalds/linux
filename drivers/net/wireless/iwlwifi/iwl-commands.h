@@ -2099,6 +2099,9 @@ struct iwl_ct_kill_config {
  *
  *****************************************************************************/
 
+#define SCAN_CHANNEL_TYPE_PASSIVE __constant_cpu_to_le32(0)
+#define SCAN_CHANNEL_TYPE_ACTIVE  __constant_cpu_to_le32(1)
+
 /**
  * struct iwl_scan_channel - entry in REPLY_SCAN_CMD channel table
  *
@@ -2122,12 +2125,12 @@ struct iwl_scan_channel {
 	/*
 	 * type is defined as:
 	 * 0:0 1 = active, 0 = passive
-	 * 1:4 SSID direct bit map; if a bit is set, then corresponding
+	 * 1:20 SSID direct bit map; if a bit is set, then corresponding
 	 *     SSID IE is transmitted in probe request.
-	 * 5:7 reserved
+	 * 21:31 reserved
 	 */
-	u8 type;
-	u8 channel;	/* band is selected by iwl4965_scan_cmd "flags" field */
+	__le32 type;
+	__le16 channel;	/* band is selected by iwl_scan_cmd "flags" field */
 	u8 tx_gain;		/* gain for analog radio */
 	u8 dsp_atten;		/* gain for DSP */
 	__le16 active_dwell;	/* in 1024-uSec TU (time units), typ 5-50 */
@@ -2147,9 +2150,9 @@ struct iwl_ssid_ie {
 	u8 ssid[32];
 } __attribute__ ((packed));
 
-#define PROBE_OPTION_MAX        0x4
+#define PROBE_OPTION_MAX        	0x14
 #define TX_CMD_LIFE_TIME_INFINITE	__constant_cpu_to_le32(0xFFFFFFFF)
-#define IWL_GOOD_CRC_TH		__constant_cpu_to_le16(1)
+#define IWL_GOOD_CRC_TH			__constant_cpu_to_le16(1)
 #define IWL_MAX_SCAN_SIZE 1024
 
 /*

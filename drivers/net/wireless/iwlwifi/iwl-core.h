@@ -70,7 +70,7 @@ struct iwl_host_cmd;
 struct iwl_cmd;
 
 
-#define IWLWIFI_VERSION "1.2.26k"
+#define IWLWIFI_VERSION "1.3.27k"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2008 Intel Corporation"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
