@@ -2179,7 +2179,21 @@ static void ext4_free_data(handle_t *handle, struct inode *inode,
 
 	if (this_bh) {
 		BUFFER_TRACE(this_bh, "call ext4_journal_dirty_metadata");
-		ext4_journal_dirty_metadata(handle, this_bh);
+
+		/*
+		 * The buffer head should have an attached journal head at this
+		 * point. However, if the data is corrupted and an indirect
+		 * block pointed to itself, it would have been detached when
+		 * the block was cleared. Check for this instead of OOPSing.
+		 */
+		if (bh2jh(this_bh))
+			ext4_journal_dirty_metadata(handle, this_bh);
+		else
+			ext4_error(inode->i_sb, __func__,
+				   "circular indirect block detected, "
+				   "inode=%lu, block=%llu",
+				   inode->i_ino,
+				   (unsigned long long) this_bh->b_blocknr);
 	}
 }
 
