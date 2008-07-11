@@ -1065,7 +1065,6 @@ struct iwl_priv {
 	struct delayed_work init_alive_start;
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;
-	struct delayed_work post_associate;
 	/* TX Power */
 	s8 tx_power_user_lmt;
 	s8 tx_power_channel_lmt;

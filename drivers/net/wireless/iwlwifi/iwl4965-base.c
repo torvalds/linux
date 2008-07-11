@@ -2520,18 +2520,6 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 }
 
-
-static void iwl4965_bg_post_associate(struct work_struct *data)
-{
-	struct iwl_priv *priv = container_of(data, struct iwl_priv,
-					     post_associate.work);
-
-	mutex_lock(&priv->mutex);
-	iwl4965_post_associate(priv);
-	mutex_unlock(&priv->mutex);
-
-}
-
 static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
 
 static void iwl_bg_scan_completed(struct work_struct *work)
@@ -2662,7 +2650,6 @@ static void iwl4965_mac_stop(struct ieee80211_hw *hw)
 		 */
 		mutex_lock(&priv->mutex);
 		iwl_scan_cancel_timeout(priv, 100);
-		cancel_delayed_work(&priv->post_associate);
 		mutex_unlock(&priv->mutex);
 	}
 
@@ -3064,7 +3051,6 @@ static void iwl4965_mac_remove_interface(struct ieee80211_hw *hw,
 
 	if (iwl_is_ready_rf(priv)) {
 		iwl_scan_cancel_timeout(priv, 100);
-		cancel_delayed_work(&priv->post_associate);
 		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		iwl4965_commit_rxon(priv);
 	}
@@ -3428,8 +3414,6 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl_reset_qos(priv);
-
-	cancel_delayed_work(&priv->post_associate);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->assoc_id = 0;
@@ -4032,7 +4016,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->beacon_update, iwl4965_bg_beacon_update);
 	INIT_WORK(&priv->set_monitor, iwl4965_bg_set_monitor);
 	INIT_WORK(&priv->run_time_calib_work, iwl_bg_run_time_calib_work);
-	INIT_DELAYED_WORK(&priv->post_associate, iwl4965_bg_post_associate);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 
@@ -4059,7 +4042,6 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_delayed_work_sync(&priv->init_alive_start);
 	cancel_delayed_work(&priv->scan_check);
 	cancel_delayed_work(&priv->alive_start);
-	cancel_delayed_work(&priv->post_associate);
 	cancel_work_sync(&priv->beacon_update);
 	del_timer_sync(&priv->statistics_periodic);
 }
