@@ -227,14 +227,14 @@ void tracing_stop_cmdline_record(void)
 static void start_sched_trace(struct trace_array *tr)
 {
 	sched_switch_reset(tr);
-	tracer_enabled = 1;
 	tracing_start_cmdline_record();
+	tracer_enabled = 1;
 }
 
 static void stop_sched_trace(struct trace_array *tr)
 {
-	tracing_stop_cmdline_record();
 	tracer_enabled = 0;
+	tracing_stop_cmdline_record();
 }
 
 static void sched_switch_trace_init(struct trace_array *tr)
