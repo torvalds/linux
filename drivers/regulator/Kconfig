@@ -46,4 +46,14 @@ config REGULATOR_VIRTUAL_CONSUMER
 
           If unsure, say no.
 
+config REGULATOR_BQ24022
+	tristate "TI bq24022 Dual Input 1-Cell Li-Ion Charger IC"
+	default n
+	select REGULATOR
+	help
+	  This driver controls a TI bq24022 Charger attached via
+	  GPIOs. The provided current regulator can enable/disable
+	  charging select between 100 mA and 500 mA charging current
+	  limit.
+
 endmenu
