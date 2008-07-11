@@ -63,6 +63,9 @@ int __init pci_subsys_init(void)
 #ifdef CONFIG_ACPI
 	pci_acpi_init();
 #endif
+#ifdef CONFIG_X86_VISWS
+	pci_visws_init();
+#endif
 	pci_legacy_init();
 	pcibios_irq_init();
 	pcibios_init();
