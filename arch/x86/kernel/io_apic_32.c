@@ -2027,7 +2027,7 @@ static inline void init_IO_APIC_traps(void)
  * The local APIC irq-chip implementation:
  */
 
-static void ack_apic(unsigned int irq)
+static void ack_lapic_irq(unsigned int irq)
 {
 	ack_APIC_irq();
 }
@@ -2052,8 +2052,16 @@ static struct irq_chip lapic_chip __read_mostly = {
 	.name		= "local-APIC",
 	.mask		= mask_lapic_irq,
 	.unmask		= unmask_lapic_irq,
-	.ack		= ack_apic,
+	.ack		= ack_lapic_irq,
 };
+
+static void lapic_register_intr(int irq, int vector)
+{
+	irq_desc[irq].status &= ~IRQ_LEVEL;
+	set_irq_chip_and_handler_name(irq, &lapic_chip, handle_edge_irq,
+				      "edge");
+	set_intr_gate(vector, interrupt[irq]);
+}
 
 static void __init setup_nmi(void)
 {
@@ -2257,8 +2265,7 @@ static inline void __init check_timer(void)
 
 	printk(KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
-	set_irq_chip_and_handler_name(0, &lapic_chip, handle_edge_irq,
-				      "edge");
+	lapic_register_intr(0, vector);
 	apic_write_around(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 

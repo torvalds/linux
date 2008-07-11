@@ -1561,7 +1561,7 @@ static inline void init_IO_APIC_traps(void)
 	}
 }
 
-static void enable_lapic_irq (unsigned int irq)
+static void unmask_lapic_irq(unsigned int irq)
 {
 	unsigned long v;
 
@@ -1569,7 +1569,7 @@ static void enable_lapic_irq (unsigned int irq)
 	apic_write(APIC_LVT0, v & ~APIC_LVT_MASKED);
 }
 
-static void disable_lapic_irq (unsigned int irq)
+static void mask_lapic_irq(unsigned int irq)
 {
 	unsigned long v;
 
@@ -1582,18 +1582,19 @@ static void ack_lapic_irq (unsigned int irq)
 	ack_APIC_irq();
 }
 
-static void end_lapic_irq (unsigned int i) { /* nothing */ }
-
-static struct hw_interrupt_type lapic_irq_type __read_mostly = {
-	.name = "local-APIC",
-	.typename = "local-APIC-edge",
-	.startup = NULL, /* startup_irq() not used for IRQ0 */
-	.shutdown = NULL, /* shutdown_irq() not used for IRQ0 */
-	.enable = enable_lapic_irq,
-	.disable = disable_lapic_irq,
-	.ack = ack_lapic_irq,
-	.end = end_lapic_irq,
+static struct irq_chip lapic_chip __read_mostly = {
+	.name		= "local-APIC",
+	.mask		= mask_lapic_irq,
+	.unmask		= unmask_lapic_irq,
+	.ack		= ack_lapic_irq,
 };
+
+static void lapic_register_intr(int irq)
+{
+	irq_desc[irq].status &= ~IRQ_LEVEL;
+	set_irq_chip_and_handler_name(irq, &lapic_chip, handle_edge_irq,
+				      "edge");
+}
 
 static void __init setup_nmi(void)
 {
@@ -1784,7 +1785,7 @@ static inline void __init check_timer(void)
 
 	apic_printk(APIC_VERBOSE, KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
-	irq_desc[0].chip = &lapic_irq_type;
+	lapic_register_intr(0);
 	apic_write(APIC_LVT0, APIC_DM_FIXED | cfg->vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 
