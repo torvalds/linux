@@ -543,22 +543,10 @@ struct transaction_s
 	struct journal_head	*t_reserved_list;
 
 	/*
-	 * Doubly-linked circular list of all buffers under writeout during
-	 * commit [j_list_lock]
-	 */
-	struct journal_head	*t_locked_list;
-
-	/*
 	 * Doubly-linked circular list of all metadata buffers owned by this
 	 * transaction [j_list_lock]
 	 */
 	struct journal_head	*t_buffers;
-
-	/*
-	 * Doubly-linked circular list of all data buffers still to be
-	 * flushed before this transaction can be committed [j_list_lock]
-	 */
-	struct journal_head	*t_sync_datalist;
 
 	/*
 	 * Doubly-linked circular list of all forget buffers (superseded
@@ -1044,7 +1032,6 @@ extern int	 jbd2_journal_extend (handle_t *, int nblocks);
 extern int	 jbd2_journal_get_write_access(handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_get_create_access (handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_get_undo_access(handle_t *, struct buffer_head *);
-extern int	 jbd2_journal_dirty_data (handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_dirty_metadata (handle_t *, struct buffer_head *);
 extern void	 jbd2_journal_release_buffer (handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_forget (handle_t *, struct buffer_head *);
@@ -1223,15 +1210,13 @@ static inline int jbd_space_needed(journal_t *journal)
 
 /* journaling buffer types */
 #define BJ_None		0	/* Not journaled */
-#define BJ_SyncData	1	/* Normal data: flush before commit */
-#define BJ_Metadata	2	/* Normal journaled metadata */
-#define BJ_Forget	3	/* Buffer superseded by this transaction */
-#define BJ_IO		4	/* Buffer is for temporary IO use */
-#define BJ_Shadow	5	/* Buffer contents being shadowed to the log */
-#define BJ_LogCtl	6	/* Buffer contains log descriptors */
-#define BJ_Reserved	7	/* Buffer is reserved for access by journal */
-#define BJ_Locked	8	/* Locked for I/O during commit */
-#define BJ_Types	9
+#define BJ_Metadata	1	/* Normal journaled metadata */
+#define BJ_Forget	2	/* Buffer superseded by this transaction */
+#define BJ_IO		3	/* Buffer is for temporary IO use */
+#define BJ_Shadow	4	/* Buffer contents being shadowed to the log */
+#define BJ_LogCtl	5	/* Buffer contains log descriptors */
+#define BJ_Reserved	6	/* Buffer is reserved for access by journal */
+#define BJ_Types	7
 
 extern int jbd_blocks_per_page(struct inode *inode);
 
