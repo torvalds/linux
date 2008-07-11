@@ -602,6 +602,12 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	tun->attached = 1;
 	get_net(dev_net(tun->dev));
 
+	/* Make sure persistent devices do not get stuck in
+	 * xoff state.
+	 */
+	if (netif_running(tun->dev))
+		netif_wake_queue(tun->dev);
+
 	strcpy(ifr->ifr_name, tun->dev->name);
 	return 0;
 
