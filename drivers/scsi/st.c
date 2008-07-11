@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static const char *verstr = "20080224";
+static const char *verstr = "20080504";
 
 #include <linux/module.h>
 
@@ -1670,6 +1670,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 				if (undone <= do_count) {
 					/* Only data from this write is not written */
 					count += undone;
+					b_point -= undone;
 					do_count -= undone;
 					if (STp->block_size)
 						blks = (transfer - undone) / STp->block_size;
