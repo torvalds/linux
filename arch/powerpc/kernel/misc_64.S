@@ -508,12 +508,12 @@ _GLOBAL(giveup_altivec)
 
 #ifdef CONFIG_VSX
 /*
- * giveup_vsx(tsk)
- * Disable VSX for the task given as the argument,
- * and save the vector registers in its thread_struct.
+ * __giveup_vsx(tsk)
+ * Disable VSX for the task given as the argument.
+ * Does NOT save vsx registers.
  * Enables the VSX for use in the kernel on return.
  */
-_GLOBAL(giveup_vsx)
+_GLOBAL(__giveup_vsx)
 	mfmsr	r5
 	oris	r5,r5,MSR_VSX@h
 	mtmsrd	r5			/* enable use of VSX now */

@@ -122,7 +122,7 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	 * VMX data.
 	 */
 	if (current->thread.used_vsr) {
-		flush_vsx_to_thread(current);
+		__giveup_vsx(current);
 		v_regs += ELF_NVRREG;
 		err |= copy_vsx_to_user(v_regs, current);
 		/* set MSR_VSX in the MSR value in the frame to

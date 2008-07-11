@@ -159,6 +159,13 @@ void enable_kernel_vsx(void)
 EXPORT_SYMBOL(enable_kernel_vsx);
 #endif
 
+void giveup_vsx(struct task_struct *tsk)
+{
+	giveup_fpu(tsk);
+	giveup_altivec(tsk);
+	__giveup_vsx(tsk);
+}
+
 void flush_vsx_to_thread(struct task_struct *tsk)
 {
 	if (tsk->thread.regs) {
@@ -290,7 +297,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_VSX
 	if (prev->thread.regs && (prev->thread.regs->msr & MSR_VSX))
-		giveup_vsx(prev);
+		/* VMX and FPU registers are already save here */
+		__giveup_vsx(prev);
 #endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 	/*
