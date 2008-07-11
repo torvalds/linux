@@ -2003,11 +2003,15 @@ static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
 	handle_t *handle = NULL;
 
 	handle = ext4_journal_current_handle();
-	BUG_ON(handle == NULL);
-	BUG_ON(create == 0);
-
-	ret = ext4_get_blocks_wrap(handle, inode, iblock, max_blocks,
+	if (!handle) {
+		ret = ext4_get_blocks_wrap(handle, inode, iblock, max_blocks,
+				   bh_result, 0, 0, 0);
+		BUG_ON(!ret);
+	} else {
+		ret = ext4_get_blocks_wrap(handle, inode, iblock, max_blocks,
 				   bh_result, create, 0, EXT4_DELALLOC_RSVED);
+	}
+
 	if (ret > 0) {
 		bh_result->b_size = (ret << inode->i_blkbits);
 
@@ -2040,15 +2044,37 @@ static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
 
 static int ext4_bh_unmapped_or_delay(handle_t *handle, struct buffer_head *bh)
 {
-	return !buffer_mapped(bh) || buffer_delay(bh);
+	/*
+	 * unmapped buffer is possible for holes.
+	 * delay buffer is possible with delayed allocation
+	 */
+	return ((!buffer_mapped(bh) || buffer_delay(bh)) && buffer_dirty(bh));
+}
+
+static int ext4_normal_get_block_write(struct inode *inode, sector_t iblock,
+				   struct buffer_head *bh_result, int create)
+{
+	int ret = 0;
+	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
+
+	/*
+	 * we don't want to do block allocation in writepage
+	 * so call get_block_wrap with create = 0
+	 */
+	ret = ext4_get_blocks_wrap(NULL, inode, iblock, max_blocks,
+				   bh_result, 0, 0, 0);
+	if (ret > 0) {
+		bh_result->b_size = (ret << inode->i_blkbits);
+		ret = 0;
+	}
+	return ret;
 }
 
 /*
- * get called vi ext4_da_writepages after taking page lock
- * We may end up doing block allocation here in case
- * mpage_da_map_blocks failed to allocate blocks.
- *
- * We also get called via journal_submit_inode_data_buffers
+ * get called vi ext4_da_writepages after taking page lock (have journal handle)
+ * get called via journal_submit_inode_data_buffers (no journal handle)
+ * get called via shrink_page_list via pdflush (no journal handle)
+ * or grab_page_cache when doing write_begin (have journal handle)
  */
 static int ext4_da_writepage(struct page *page,
 				struct writeback_control *wbc)
@@ -2056,37 +2082,61 @@ static int ext4_da_writepage(struct page *page,
 	int ret = 0;
 	loff_t size;
 	unsigned long len;
-	handle_t *handle = NULL;
 	struct buffer_head *page_bufs;
 	struct inode *inode = page->mapping->host;
 
-	handle = ext4_journal_current_handle();
-	if (!handle) {
-		/*
-		 * This can happen when we aren't called via
-		 * ext4_da_writepages() but directly (shrink_page_list).
-		 * We cannot easily start a transaction here so we just skip
-		 * writing the page in case we would have to do so.
-		 * We reach here also via journal_submit_inode_data_buffers
-		 */
-		size = i_size_read(inode);
+	size = i_size_read(inode);
+	if (page->index == size >> PAGE_CACHE_SHIFT)
+		len = size & ~PAGE_CACHE_MASK;
+	else
+		len = PAGE_CACHE_SIZE;
 
+	if (page_has_buffers(page)) {
 		page_bufs = page_buffers(page);
-		if (page->index == size >> PAGE_CACHE_SHIFT)
-			len = size & ~PAGE_CACHE_MASK;
-		else
-			len = PAGE_CACHE_SIZE;
-
-		if (walk_page_buffers(NULL, page_bufs, 0,
-				len, NULL, ext4_bh_unmapped_or_delay)) {
+		if (walk_page_buffers(NULL, page_bufs, 0, len, NULL,
+					ext4_bh_unmapped_or_delay)) {
 			/*
-			 * We can't do block allocation under
-			 * page lock without a handle . So redirty
-			 * the page and return
+			 * We don't want to do  block allocation
+			 * So redirty the page and return
 			 * We may reach here when we do a journal commit
 			 * via journal_submit_inode_data_buffers.
 			 * If we don't have mapping block we just ignore
-			 * them
+			 * them. We can also reach here via shrink_page_list
+			 */
+			redirty_page_for_writepage(wbc, page);
+			unlock_page(page);
+			return 0;
+		}
+	} else {
+		/*
+		 * The test for page_has_buffers() is subtle:
+		 * We know the page is dirty but it lost buffers. That means
+		 * that at some moment in time after write_begin()/write_end()
+		 * has been called all buffers have been clean and thus they
+		 * must have been written at least once. So they are all
+		 * mapped and we can happily proceed with mapping them
+		 * and writing the page.
+		 *
+		 * Try to initialize the buffer_heads and check whether
+		 * all are mapped and non delay. We don't want to
+		 * do block allocation here.
+		 */
+		ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
+						ext4_normal_get_block_write);
+		if (!ret) {
+			page_bufs = page_buffers(page);
+			/* check whether all are mapped and non delay */
+			if (walk_page_buffers(NULL, page_bufs, 0, len, NULL,
+						ext4_bh_unmapped_or_delay)) {
+				redirty_page_for_writepage(wbc, page);
+				unlock_page(page);
+				return 0;
+			}
+		} else {
+			/*
+			 * We can't do block allocation here
+			 * so just redity the page and unlock
+			 * and return
 			 */
 			redirty_page_for_writepage(wbc, page);
 			unlock_page(page);
@@ -2095,9 +2145,11 @@ static int ext4_da_writepage(struct page *page,
 	}
 
 	if (test_opt(inode->i_sb, NOBH) && ext4_should_writeback_data(inode))
-		ret = nobh_writepage(page, ext4_da_get_block_write, wbc);
+		ret = nobh_writepage(page, ext4_normal_get_block_write, wbc);
 	else
-		ret = block_write_full_page(page, ext4_da_get_block_write, wbc);
+		ret = block_write_full_page(page,
+						ext4_normal_get_block_write,
+						wbc);
 
 	return ret;
 }
@@ -2438,11 +2490,13 @@ static int __ext4_normal_writepage(struct page *page,
 	struct inode *inode = page->mapping->host;
 
 	if (test_opt(inode->i_sb, NOBH))
-		return nobh_writepage(page, ext4_get_block, wbc);
+		return nobh_writepage(page,
+					ext4_normal_get_block_write, wbc);
 	else
-		return block_write_full_page(page, ext4_get_block, wbc);
+		return block_write_full_page(page,
+						ext4_normal_get_block_write,
+						wbc);
 }
-
 
 static int ext4_normal_writepage(struct page *page,
 				struct writeback_control *wbc)
@@ -2452,13 +2506,24 @@ static int ext4_normal_writepage(struct page *page,
 	loff_t len;
 
 	J_ASSERT(PageLocked(page));
-	J_ASSERT(page_has_buffers(page));
 	if (page->index == size >> PAGE_CACHE_SHIFT)
 		len = size & ~PAGE_CACHE_MASK;
 	else
 		len = PAGE_CACHE_SIZE;
-	BUG_ON(walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
-				 ext4_bh_unmapped_or_delay));
+
+	if (page_has_buffers(page)) {
+		/* if page has buffers it should all be mapped
+		 * and allocated. If there are not buffers attached
+		 * to the page we know the page is dirty but it lost
+		 * buffers. That means that at some moment in time
+		 * after write_begin() / write_end() has been called
+		 * all buffers have been clean and thus they must have been
+		 * written at least once. So they are all mapped and we can
+		 * happily proceed with mapping them and writing the page.
+		 */
+		BUG_ON(walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
+					ext4_bh_unmapped_or_delay));
+	}
 
 	if (!ext4_journal_current_handle())
 		return __ext4_normal_writepage(page, wbc);
@@ -2478,7 +2543,8 @@ static int __ext4_journalled_writepage(struct page *page,
 	int ret = 0;
 	int err;
 
-	ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE, ext4_get_block);
+	ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
+					ext4_normal_get_block_write);
 	if (ret != 0)
 		goto out_unlock;
 
@@ -2525,13 +2591,24 @@ static int ext4_journalled_writepage(struct page *page,
 	loff_t len;
 
 	J_ASSERT(PageLocked(page));
-	J_ASSERT(page_has_buffers(page));
 	if (page->index == size >> PAGE_CACHE_SHIFT)
 		len = size & ~PAGE_CACHE_MASK;
 	else
 		len = PAGE_CACHE_SIZE;
-	BUG_ON(walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
-				 ext4_bh_unmapped_or_delay));
+
+	if (page_has_buffers(page)) {
+		/* if page has buffers it should all be mapped
+		 * and allocated. If there are not buffers attached
+		 * to the page we know the page is dirty but it lost
+		 * buffers. That means that at some moment in time
+		 * after write_begin() / write_end() has been called
+		 * all buffers have been clean and thus they must have been
+		 * written at least once. So they are all mapped and we can
+		 * happily proceed with mapping them and writing the page.
+		 */
+		BUG_ON(walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
+					ext4_bh_unmapped_or_delay));
+	}
 
 	if (ext4_journal_current_handle())
 		goto no_write;
@@ -2549,7 +2626,9 @@ static int ext4_journalled_writepage(struct page *page,
 		 * really know unless we go poke around in the buffer_heads.
 		 * But block_write_full_page will do the right thing.
 		 */
-		return block_write_full_page(page, ext4_get_block, wbc);
+		return block_write_full_page(page,
+						ext4_normal_get_block_write,
+						wbc);
 	}
 no_write:
 	redirty_page_for_writepage(wbc, page);
