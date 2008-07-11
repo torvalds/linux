@@ -109,7 +109,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.data[0] = LOW_U32(ready_phys) | CMD_COMPL_WAIT_STORE_MASK;
-	cmd.data[1] = HIGH_U32(ready_phys);
+	cmd.data[1] = upper_32_bits(ready_phys);
 	cmd.data[2] = 1; /* value written to 'ready' */
 	CMD_SET_TYPE(&cmd, CMD_COMPL_WAIT);
 
@@ -157,7 +157,7 @@ static int iommu_queue_inv_iommu_pages(struct amd_iommu *iommu,
 	CMD_SET_TYPE(&cmd, CMD_INV_IOMMU_PAGES);
 	cmd.data[1] |= domid;
 	cmd.data[2] = LOW_U32(address);
-	cmd.data[3] = HIGH_U32(address);
+	cmd.data[3] = upper_32_bits(address);
 	if (s) /* size bit - we flush more than one 4kb page */
 		cmd.data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
 	if (pde) /* PDE bit - we wan't flush everything not only the PTEs */

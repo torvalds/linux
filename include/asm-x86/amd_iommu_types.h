@@ -33,7 +33,6 @@
 
 /* helper macros */
 #define LOW_U32(x) ((x) & ((1ULL << 32)-1))
-#define HIGH_U32(x) (LOW_U32((x) >> 32))
 
 /* Length of the MMIO region for the AMD IOMMU */
 #define MMIO_REGION_LENGTH       0x4000
