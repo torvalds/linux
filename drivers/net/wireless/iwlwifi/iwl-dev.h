@@ -282,7 +282,7 @@ struct iwl_cmd {
 	struct iwl_cmd_header hdr;	/* uCode API */
 	union {
 		struct iwl_addsta_cmd addsta;
-		struct iwl4965_led_cmd led;
+		struct iwl_led_cmd led;
 		u32 flags;
 		u8 val8;
 		u16 val16;
