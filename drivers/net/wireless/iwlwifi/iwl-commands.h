@@ -556,6 +556,8 @@ enum {
 #define RXON_FLG_CHANNEL_MODE_MSK		__constant_cpu_to_le32(0x3 << 25)
 #define RXON_FLG_CHANNEL_MODE_PURE_40_MSK	__constant_cpu_to_le32(0x1 << 25)
 #define RXON_FLG_CHANNEL_MODE_MIXED_MSK		__constant_cpu_to_le32(0x2 << 25)
+/* CTS to self (if spec allows) flag */
+#define RXON_FLG_SELF_CTS_EN			__constant_cpu_to_le32(0x1<<30)
 
 /* rx_config filter flags */
 /* accept all data frames */
@@ -1138,6 +1140,11 @@ struct iwl4965_rx_mpdu_res_start {
  *****************************************************************************/
 
 /* REPLY_TX Tx flags field */
+
+/* 1: Use RTS/CTS protocol or CTS-to-self if spec alows it
+ * before this frame. if CTS-to-self required check
+ * RXON_FLG_SELF_CTS_EN status. */
+#define TX_CMD_FLG_RTS_CTS_MSK __constant_cpu_to_le32(1 << 0)
 
 /* 1: Use Request-To-Send protocol before this frame.
  * Mutually exclusive vs. TX_CMD_FLG_CTS_MSK. */

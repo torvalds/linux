@@ -93,6 +93,8 @@ struct iwl_hcmd_utils_ops {
 			u16 min_average_noise_antennat_i,
 			u32 min_average_noise);
 	void (*chain_noise_reset)(struct iwl_priv *priv);
+	void (*rts_tx_cmd_flag)(struct ieee80211_tx_info *info,
+			__le32 *tx_flags);
 };
 
 struct iwl_lib_ops {

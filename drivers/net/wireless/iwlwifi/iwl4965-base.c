@@ -250,6 +250,9 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 
 	/* always get timestamp with Rx frame */
 	priv->staging_rxon.flags |= RXON_FLG_TSF2HOST_MSK;
+	/* allow CTS-to-self if possible. this is relevant only for
+	 * 5000, but will not damage 4965 */
+	priv->staging_rxon.flags |= RXON_FLG_SELF_CTS_EN;
 
 	ret = iwl4965_check_rxon_cmd(&priv->staging_rxon);
 	if (ret) {

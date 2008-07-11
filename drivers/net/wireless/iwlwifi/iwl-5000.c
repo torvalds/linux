@@ -370,6 +370,16 @@ static void iwl5000_chain_noise_reset(struct iwl_priv *priv)
 	}
 }
 
+static void iwl5000_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
+			__le32 *tx_flags)
+{
+	if ((info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) ||
+	    (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT))
+		*tx_flags |= TX_CMD_FLG_RTS_CTS_MSK;
+	else
+		*tx_flags &= ~TX_CMD_FLG_RTS_CTS_MSK;
+}
+
 static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 	.min_nrg_cck = 95,
 	.max_nrg_cck = 0,
@@ -1437,6 +1447,7 @@ static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 	.build_addsta_hcmd = iwl5000_build_addsta_hcmd,
 	.gain_computation = iwl5000_gain_computation,
 	.chain_noise_reset = iwl5000_chain_noise_reset,
+	.rts_tx_cmd_flag = iwl5000_rts_tx_cmd_flag,
 };
 
 static struct iwl_lib_ops iwl5000_lib = {

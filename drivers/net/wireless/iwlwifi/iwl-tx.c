@@ -601,13 +601,7 @@ static void iwl_tx_cmd_build_basic(struct iwl_priv *priv,
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
-	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
-		tx_flags |= TX_CMD_FLG_RTS_MSK;
-		tx_flags &= ~TX_CMD_FLG_CTS_MSK;
-	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
-		tx_flags &= ~TX_CMD_FLG_RTS_MSK;
-		tx_flags |= TX_CMD_FLG_CTS_MSK;
-	}
+	priv->cfg->ops->utils->rts_tx_cmd_flag(info, &tx_flags);
 
 	if ((tx_flags & TX_CMD_FLG_RTS_MSK) || (tx_flags & TX_CMD_FLG_CTS_MSK))
 		tx_flags |= TX_CMD_FLG_FULL_TXOP_PROT_MSK;

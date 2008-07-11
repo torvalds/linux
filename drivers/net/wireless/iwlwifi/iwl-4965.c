@@ -642,6 +642,18 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 	data->beacon_count = 0;
 }
 
+static void iwl4965_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
+			__le32 *tx_flags)
+{
+	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
+		*tx_flags |= TX_CMD_FLG_RTS_MSK;
+		*tx_flags &= ~TX_CMD_FLG_CTS_MSK;
+	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
+		*tx_flags &= ~TX_CMD_FLG_RTS_MSK;
+		*tx_flags |= TX_CMD_FLG_CTS_MSK;
+	}
+}
+
 static void iwl4965_bg_txpower_work(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
@@ -2372,6 +2384,7 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.build_addsta_hcmd = iwl4965_build_addsta_hcmd,
 	.chain_noise_reset = iwl4965_chain_noise_reset,
 	.gain_computation = iwl4965_gain_computation,
+	.rts_tx_cmd_flag = iwl4965_rts_tx_cmd_flag,
 };
 
 static struct iwl_lib_ops iwl4965_lib = {
