@@ -118,12 +118,12 @@ static int __initdata amd_iommu_detected;
 
 u16 amd_iommu_last_bdf;			/* largest PCI device id we have
 					   to handle */
-struct list_head amd_iommu_unity_map;	/* a list of required unity mappings
+LIST_HEAD(amd_iommu_unity_map);		/* a list of required unity mappings
 					   we find in ACPI */
 unsigned amd_iommu_aperture_order = 26; /* size of aperture in power of 2 */
 int amd_iommu_isolate;			/* if 1, device isolation is enabled */
 
-struct list_head amd_iommu_list;	/* list of all AMD IOMMUs in the
+LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
 					   system */
 
 /*
@@ -673,8 +673,6 @@ static int __init init_iommu_all(struct acpi_table_header *table)
 	struct amd_iommu *iommu;
 	int ret;
 
-	INIT_LIST_HEAD(&amd_iommu_list);
-
 	end += table->length;
 	p += IVRS_HEADER_LENGTH;
 
@@ -779,8 +777,6 @@ static int __init init_memory_definitions(struct acpi_table_header *table)
 {
 	u8 *p = (u8 *)table, *end = (u8 *)table;
 	struct ivmd_header *m;
-
-	INIT_LIST_HEAD(&amd_iommu_unity_map);
 
 	end += table->length;
 	p += IVRS_HEADER_LENGTH;
