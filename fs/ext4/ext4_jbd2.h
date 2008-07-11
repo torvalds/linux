@@ -154,8 +154,6 @@ int __ext4_journal_dirty_metadata(const char *where,
 #define ext4_journal_forget(handle, bh) \
 	__ext4_journal_forget(__func__, (handle), (bh))
 
-int ext4_journal_dirty_data(handle_t *handle, struct buffer_head *bh);
-
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks);
 int __ext4_journal_stop(const char *where, handle_t *handle);
 
@@ -190,6 +188,11 @@ static inline int ext4_journal_blocks_per_page(struct inode *inode)
 static inline int ext4_journal_force_commit(journal_t *journal)
 {
 	return jbd2_journal_force_commit(journal);
+}
+
+static inline int ext4_jbd2_file_inode(handle_t *handle, struct inode *inode)
+{
+	return jbd2_journal_file_inode(handle, &EXT4_I(inode)->jinode);
 }
 
 /* super.c */

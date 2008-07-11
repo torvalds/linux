@@ -150,6 +150,7 @@ struct ext4_inode_info {
 	 */
 	struct rw_semaphore i_data_sem;
 	struct inode vfs_inode;
+	struct jbd2_inode jinode;
 
 	unsigned long i_ext_generation;
 	struct ext4_ext_cache i_cached_extent;

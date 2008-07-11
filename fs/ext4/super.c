@@ -573,6 +573,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	memset(&ei->i_cached_extent, 0, sizeof(struct ext4_ext_cache));
 	INIT_LIST_HEAD(&ei->i_prealloc_list);
 	spin_lock_init(&ei->i_prealloc_lock);
+	jbd2_journal_init_jbd_inode(&ei->jinode, &ei->vfs_inode);
 	return &ei->vfs_inode;
 }
 
@@ -637,6 +638,8 @@ static void ext4_clear_inode(struct inode *inode)
 	EXT4_I(inode)->i_block_alloc_info = NULL;
 	if (unlikely(rsv))
 		kfree(rsv);
+	jbd2_journal_release_jbd_inode(EXT4_SB(inode->i_sb)->s_journal,
+				       &EXT4_I(inode)->jinode);
 }
 
 static inline void ext4_show_quota_options(struct seq_file *seq, struct super_block *sb)
@@ -3378,7 +3381,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 			err = ext4_journal_dirty_metadata(handle, bh);
 		else {
 			/* Always do at least ordered writes for quotas */
-			err = ext4_journal_dirty_data(handle, bh);
+			err = ext4_jbd2_file_inode(handle, inode);
 			mark_buffer_dirty(bh);
 		}
 		brelse(bh);

@@ -39,6 +39,13 @@
 #include "xattr.h"
 #include "acl.h"
 
+static inline int ext4_begin_ordered_truncate(struct inode *inode,
+					      loff_t new_size)
+{
+	return jbd2_journal_begin_ordered_truncate(&EXT4_I(inode)->jinode,
+						   new_size);
+}
+
 /*
  * Test whether an inode is a fast symlink.
  */
@@ -181,6 +188,8 @@ void ext4_delete_inode (struct inode * inode)
 {
 	handle_t *handle;
 
+	if (ext4_should_order_data(inode))
+		ext4_begin_ordered_truncate(inode, 0);
 	truncate_inode_pages(&inode->i_data, 0);
 
 	if (is_bad_inode(inode))
@@ -1273,15 +1282,6 @@ out:
 	return ret;
 }
 
-int ext4_journal_dirty_data(handle_t *handle, struct buffer_head *bh)
-{
-	int err = jbd2_journal_dirty_data(handle, bh);
-	if (err)
-		ext4_journal_abort_handle(__func__, __func__,
-						bh, handle, err);
-	return err;
-}
-
 /* For write_end() in data=journal mode */
 static int write_end_fn(handle_t *handle, struct buffer_head *bh)
 {
@@ -1311,8 +1311,7 @@ static int ext4_ordered_write_end(struct file *file,
 	from = pos & (PAGE_CACHE_SIZE - 1);
 	to = from + len;
 
-	ret = walk_page_buffers(handle, page_buffers(page),
-		from, to, NULL, ext4_journal_dirty_data);
+	ret = ext4_jbd2_file_inode(handle, inode);
 
 	if (ret == 0) {
 		/*
@@ -1472,25 +1471,22 @@ static int bput_one(handle_t *handle, struct buffer_head *bh)
 	return 0;
 }
 
-static int jbd2_journal_dirty_data_fn(handle_t *handle, struct buffer_head *bh)
-{
-	if (buffer_mapped(bh))
-		return ext4_journal_dirty_data(handle, bh);
-	return 0;
-}
-
 static int ext4_bh_unmapped_or_delay(handle_t *handle, struct buffer_head *bh)
 {
 	return !buffer_mapped(bh) || buffer_delay(bh);
 }
 
 /*
- * Note that we don't need to start a transaction unless we're journaling
- * data because we should have holes filled from ext4_page_mkwrite(). If
- * we are journaling data, we cannot start transaction directly because
- * transaction start ranks above page lock so we have to do some magic...
+ * Note that we don't need to start a transaction unless we're journaling data
+ * because we should have holes filled from ext4_page_mkwrite(). We even don't
+ * need to file the inode to the transaction's list in ordered mode because if
+ * we are writing back data added by write(), the inode is already there and if
+ * we are writing back data modified via mmap(), noone guarantees in which
+ * transaction the data will hit the disk. In case we are journaling data, we
+ * cannot start transaction directly because transaction start ranks above page
+ * lock so we have to do some magic.
  *
- * In all journalling modes block_write_full_page() will start the I/O.
+ * In all journaling modes block_write_full_page() will start the I/O.
  *
  * Problem:
  *
@@ -1533,86 +1529,7 @@ static int ext4_bh_unmapped_or_delay(handle_t *handle, struct buffer_head *bh)
  * us.
  *
  */
-static int __ext4_ordered_writepage(struct page *page,
-				struct writeback_control *wbc)
-{
-	struct inode *inode = page->mapping->host;
-	struct buffer_head *page_bufs;
-	handle_t *handle = NULL;
-	int ret = 0;
-	int err;
-
-	if (!page_has_buffers(page)) {
-		create_empty_buffers(page, inode->i_sb->s_blocksize,
-				(1 << BH_Dirty)|(1 << BH_Uptodate));
-	}
-	page_bufs = page_buffers(page);
-	walk_page_buffers(handle, page_bufs, 0,
-			PAGE_CACHE_SIZE, NULL, bget_one);
-
-	ret = block_write_full_page(page, ext4_get_block, wbc);
-
-	/*
-	 * The page can become unlocked at any point now, and
-	 * truncate can then come in and change things.  So we
-	 * can't touch *page from now on.  But *page_bufs is
-	 * safe due to elevated refcount.
-	 */
-
-	/*
-	 * And attach them to the current transaction.  But only if
-	 * block_write_full_page() succeeded.  Otherwise they are unmapped,
-	 * and generally junk.
-	 */
-	if (ret == 0) {
-		handle = ext4_journal_start(inode,
-					ext4_writepage_trans_blocks(inode));
-		if (IS_ERR(handle)) {
-			ret = PTR_ERR(handle);
-			goto out_put;
-		}
-
-		ret = walk_page_buffers(handle, page_bufs, 0, PAGE_CACHE_SIZE,
-					NULL, jbd2_journal_dirty_data_fn);
-		err = ext4_journal_stop(handle);
-		if (!ret)
-			ret = err;
-	}
-out_put:
-	walk_page_buffers(handle, page_bufs, 0, PAGE_CACHE_SIZE, NULL,
-			  bput_one);
-	return ret;
-}
-
-static int ext4_ordered_writepage(struct page *page,
-				struct writeback_control *wbc)
-{
-	struct inode *inode = page->mapping->host;
-	loff_t size = i_size_read(inode);
-	loff_t len;
-
-	J_ASSERT(PageLocked(page));
-	J_ASSERT(page_has_buffers(page));
-	if (page->index == size >> PAGE_CACHE_SHIFT)
-		len = size & ~PAGE_CACHE_MASK;
-	else
-		len = PAGE_CACHE_SIZE;
-	BUG_ON(walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
-				 ext4_bh_unmapped_or_delay));
-
-	/*
-	 * We give up here if we're reentered, because it might be for a
-	 * different filesystem.
-	 */
-	if (!ext4_journal_current_handle())
-		return __ext4_ordered_writepage(page, wbc);
-
-	redirty_page_for_writepage(wbc, page);
-	unlock_page(page);
-	return 0;
-}
-
-static int __ext4_writeback_writepage(struct page *page,
+static int __ext4_normal_writepage(struct page *page,
 				struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
@@ -1624,7 +1541,7 @@ static int __ext4_writeback_writepage(struct page *page,
 }
 
 
-static int ext4_writeback_writepage(struct page *page,
+static int ext4_normal_writepage(struct page *page,
 				struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
@@ -1641,7 +1558,7 @@ static int ext4_writeback_writepage(struct page *page,
 				 ext4_bh_unmapped_or_delay));
 
 	if (!ext4_journal_current_handle())
-		return __ext4_writeback_writepage(page, wbc);
+		return __ext4_normal_writepage(page, wbc);
 
 	redirty_page_for_writepage(wbc, page);
 	unlock_page(page);
@@ -1877,7 +1794,7 @@ static int ext4_journalled_set_page_dirty(struct page *page)
 static const struct address_space_operations ext4_ordered_aops = {
 	.readpage	= ext4_readpage,
 	.readpages	= ext4_readpages,
-	.writepage	= ext4_ordered_writepage,
+	.writepage	= ext4_normal_writepage,
 	.sync_page	= block_sync_page,
 	.write_begin	= ext4_write_begin,
 	.write_end	= ext4_ordered_write_end,
@@ -1891,7 +1808,7 @@ static const struct address_space_operations ext4_ordered_aops = {
 static const struct address_space_operations ext4_writeback_aops = {
 	.readpage	= ext4_readpage,
 	.readpages	= ext4_readpages,
-	.writepage	= ext4_writeback_writepage,
+	.writepage	= ext4_normal_writepage,
 	.sync_page	= block_sync_page,
 	.write_begin	= ext4_write_begin,
 	.write_end	= ext4_writeback_write_end,
@@ -2019,7 +1936,7 @@ int ext4_block_truncate_page(handle_t *handle,
 		err = ext4_journal_dirty_metadata(handle, bh);
 	} else {
 		if (ext4_should_order_data(inode))
-			err = ext4_journal_dirty_data(handle, bh);
+			err = ext4_jbd2_file_inode(handle, inode);
 		mark_buffer_dirty(bh);
 	}
 
@@ -3171,7 +3088,14 @@ int ext4_write_inode(struct inode *inode, int wait)
  * be freed, so we have a strong guarantee that no future commit will
  * leave these blocks visible to the user.)
  *
- * Called with inode->sem down.
+ * Another thing we have to assure is that if we are in ordered mode
+ * and inode is still attached to the committing transaction, we must
+ * we start writeout of all the dirty pages which are being truncated.
+ * This way we are sure that all the data written in the previous
+ * transaction are already on disk (truncate waits for pages under
+ * writeback).
+ *
+ * Called with inode->i_mutex down.
  */
 int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 {
@@ -3237,6 +3161,22 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 		if (!error)
 			error = rc;
 		ext4_journal_stop(handle);
+
+		if (ext4_should_order_data(inode)) {
+			error = ext4_begin_ordered_truncate(inode,
+							    attr->ia_size);
+			if (error) {
+				/* Do as much error cleanup as possible */
+				handle = ext4_journal_start(inode, 3);
+				if (IS_ERR(handle)) {
+					ext4_orphan_del(NULL, inode);
+					goto err_out;
+				}
+				ext4_orphan_del(handle, inode);
+				ext4_journal_stop(handle);
+				goto err_out;
+			}
+		}
 	}
 
 	rc = inode_setattr(inode, attr);
