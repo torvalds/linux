@@ -171,6 +171,9 @@ int __init check_nmi_watchdog(void)
 error:
 	if (nmi_watchdog == NMI_IO_APIC && !timer_through_8259)
 		disable_8259A_irq(0);
+#ifdef CONFIG_X86_32
+	timer_ack = 0;
+#endif
 	return -1;
 }
 
