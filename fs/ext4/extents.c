@@ -2622,8 +2622,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 				 */
 				if (allocated > max_blocks)
 					allocated = max_blocks;
-				/* mark the buffer unwritten */
-				__set_bit(BH_Unwritten, &bh_result->b_state);
+				set_buffer_unwritten(bh_result);
 				goto out2;
 			}
 
@@ -2729,7 +2728,7 @@ outnew:
 	if (extend_disksize && inode->i_size > EXT4_I(inode)->i_disksize)
 		EXT4_I(inode)->i_disksize = inode->i_size;
 
-	__set_bit(BH_New, &bh_result->b_state);
+	set_buffer_new(bh_result);
 
 	/* Cache only when it is _not_ an uninitialized extent */
 	if (create != EXT4_CREATE_UNINITIALIZED_EXT)
@@ -2739,7 +2738,7 @@ out:
 	if (allocated > max_blocks)
 		allocated = max_blocks;
 	ext4_ext_show_leaf(inode, path);
-	__set_bit(BH_Mapped, &bh_result->b_state);
+	set_buffer_mapped(bh_result);
 	bh_result->b_bdev = inode->i_sb->s_bdev;
 	bh_result->b_blocknr = newblock;
 out2:
