@@ -88,6 +88,8 @@ static int uio_pdrv_remove(struct platform_device *pdev)
 
 	uio_unregister_device(pdata->uioinfo);
 
+	kfree(pdata);
+
 	return 0;
 }
 
