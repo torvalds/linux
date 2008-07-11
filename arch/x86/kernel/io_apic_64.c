@@ -1823,11 +1823,21 @@ static int __init notimercheck(char *s)
 __setup("no_timer_check", notimercheck);
 
 /*
- *
- * IRQs that are handled by the PIC in the MPS IOAPIC case.
- * - IRQ2 is the cascade IRQ, and cannot be a io-apic IRQ.
- *   Linux doesn't really care, as it's not actually used
- *   for any interrupt handling anyway.
+ * Traditionally ISA IRQ2 is the cascade IRQ, and is not available
+ * to devices.  However there may be an I/O APIC pin available for
+ * this interrupt regardless.  The pin may be left unconnected, but
+ * typically it will be reused as an ExtINT cascade interrupt for
+ * the master 8259A.  In the MPS case such a pin will normally be
+ * reported as an ExtINT interrupt in the MP table.  With ACPI
+ * there is no provision for ExtINT interrupts, and in the absence
+ * of an override it would be treated as an ordinary ISA I/O APIC
+ * interrupt, that is edge-triggered and unmasked by default.  We
+ * used to do this, but it caused problems on some systems because
+ * of the NMI watchdog and sometimes IRQ0 of the 8254 timer using
+ * the same ExtINT cascade interrupt to drive the local APIC of the
+ * bootstrap processor.  Therefore we refrain from routing IRQ2 to
+ * the I/O APIC in all cases now.  No actual device should request
+ * it anyway.  --macro
  */
 #define PIC_IRQS	(1<<2)
 
@@ -1838,10 +1848,7 @@ void __init setup_IO_APIC(void)
 	 * calling enable_IO_APIC() is moved to setup_local_APIC for BP
 	 */
 
-	if (acpi_ioapic)
-		io_apic_irqs = ~0;	/* all IRQs go through IOAPIC */
-	else
-		io_apic_irqs = ~PIC_IRQS;
+	io_apic_irqs = ~PIC_IRQS;
 
 	apic_printk(APIC_VERBOSE, "ENABLING IO-APIC IRQs\n");
 
