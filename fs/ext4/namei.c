@@ -183,6 +183,16 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 			     struct inode *inode);
 
 /*
+ * p is at least 6 bytes before the end of page
+ */
+static inline struct ext4_dir_entry_2 *
+ext4_next_entry(struct ext4_dir_entry_2 *p)
+{
+	return (struct ext4_dir_entry_2 *)((char *)p +
+		ext4_rec_len_from_disk(p->rec_len));
+}
+
+/*
  * Future: use high four bits of block for coalesce-on-delete flags
  * Mask them off for now.
  */
@@ -552,15 +562,6 @@ static int ext4_htree_next_block(struct inode *dir, __u32 hash,
 	return 1;
 }
 
-
-/*
- * p is at least 6 bytes before the end of page
- */
-static inline struct ext4_dir_entry_2 *ext4_next_entry(struct ext4_dir_entry_2 *p)
-{
-	return (struct ext4_dir_entry_2 *)((char *)p +
-		ext4_rec_len_from_disk(p->rec_len));
-}
 
 /*
  * This function fills a red-black tree with information from a
