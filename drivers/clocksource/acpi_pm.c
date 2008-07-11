@@ -227,8 +227,8 @@ static int __init parse_pmtmr(char *arg)
 	if (strict_strtoul(arg, 16, &base))
 		return -EINVAL;
 
-	printk(KERN_INFO "PMTMR IOPort override: 0x%04lx -> 0x%04lx\n",
-	       pmtmr_ioport, base);
+	printk(KERN_INFO "PMTMR IOPort override: 0x%04x -> 0x%04x\n",
+	       (unsigned int)pmtmr_ioport, base);
 	pmtmr_ioport = base;
 
 	return 1;
