@@ -561,7 +561,7 @@ static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
 		goto allocated;
 	/* Now allocate data blocks */
 	count = target;
-	/* allocating blocks for indirect blocks and direct blocks */
+	/* allocating blocks for data blocks */
 	current_block = ext4_new_blocks(handle, inode, iblock,
 						goal, &count, err);
 	if (*err && (target == blks)) {

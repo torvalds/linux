@@ -4041,7 +4041,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	sbi = EXT4_SB(sb);
 
 	if (!test_opt(sb, MBALLOC)) {
-		block = ext4_new_blocks_old(handle, ar->inode, ar->goal,
+		block = ext4_old_new_blocks(handle, ar->inode, ar->goal,
 					    &(ar->len), errp);
 		return block;
 	}

@@ -1640,20 +1640,24 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 }
 
 /**
- * ext4_new_blocks_old() -- core block(s) allocation function
+ * ext4_old_new_blocks() -- core block bitmap based block allocation function
+ *
  * @handle:		handle to this transaction
  * @inode:		file inode
  * @goal:		given target block(filesystem wide)
  * @count:		target number of blocks to allocate
  * @errp:		error code
  *
- * ext4_new_blocks uses a goal block to assist allocation.  It tries to
- * allocate block(s) from the block group contains the goal block first. If that
- * fails, it will try to allocate block(s) from other block groups without
- * any specific goal block.
+ * ext4_old_new_blocks uses a goal block to assist allocation and look up
+ * the block bitmap directly to do block allocation.  It tries to
+ * allocate block(s) from the block group contains the goal block first. If
+ * that fails, it will try to allocate block(s) from other block groups
+ * without any specific goal block.
+ *
+ * This function is called when -o nomballoc mount option is enabled
  *
  */
-ext4_fsblk_t ext4_new_blocks_old(handle_t *handle, struct inode *inode,
+ext4_fsblk_t ext4_old_new_blocks(handle_t *handle, struct inode *inode,
 			ext4_fsblk_t goal, unsigned long *count, int *errp)
 {
 	struct buffer_head *bitmap_bh = NULL;
@@ -1923,78 +1927,95 @@ out:
 	return 0;
 }
 
-ext4_fsblk_t ext4_new_meta_block(handle_t *handle, struct inode *inode,
-		ext4_fsblk_t goal, int *errp)
-{
-	struct ext4_allocation_request ar;
-	ext4_fsblk_t ret;
+#define EXT4_META_BLOCK 0x1
 
-	if (!test_opt(inode->i_sb, MBALLOC)) {
-		unsigned long count = 1;
-		ret = ext4_new_blocks_old(handle, inode, goal, &count, errp);
-		return ret;
-	}
-
-	memset(&ar, 0, sizeof(ar));
-	ar.inode = inode;
-	ar.goal = goal;
-	ar.len = 1;
-	ret = ext4_mb_new_blocks(handle, &ar, errp);
-	return ret;
-}
-ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
-		ext4_fsblk_t goal, unsigned long *count, int *errp)
-{
-	struct ext4_allocation_request ar;
-	ext4_fsblk_t ret;
-
-	if (!test_opt(inode->i_sb, MBALLOC)) {
-		ret = ext4_new_blocks_old(handle, inode, goal, count, errp);
-		return ret;
-	}
-
-	memset(&ar, 0, sizeof(ar));
-	ar.inode = inode;
-	ar.goal = goal;
-	ar.len = *count;
-	ret = ext4_mb_new_blocks(handle, &ar, errp);
-	*count = ar.len;
-	return ret;
-}
-
-ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
+static ext4_fsblk_t do_blk_alloc(handle_t *handle, struct inode *inode,
 				ext4_lblk_t iblock, ext4_fsblk_t goal,
-				unsigned long *count, int *errp)
+				unsigned long *count, int *errp, int flags)
 {
 	struct ext4_allocation_request ar;
 	ext4_fsblk_t ret;
 
 	if (!test_opt(inode->i_sb, MBALLOC)) {
-		ret = ext4_new_blocks_old(handle, inode, goal, count, errp);
-		return ret;
+		return ext4_old_new_blocks(handle, inode, goal, count, errp);
 	}
 
 	memset(&ar, 0, sizeof(ar));
 	/* Fill with neighbour allocated blocks */
-	ar.lleft  = 0;
-	ar.pleft  = 0;
-	ar.lright = 0;
-	ar.pright = 0;
 
 	ar.inode = inode;
 	ar.goal = goal;
 	ar.len = *count;
 	ar.logical = iblock;
-	if (S_ISREG(inode->i_mode))
+
+	if (S_ISREG(inode->i_mode) && !(flags & EXT4_META_BLOCK))
+		/* enable in-core preallocation for data block allocation */
 		ar.flags = EXT4_MB_HINT_DATA;
 	else
 		/* disable in-core preallocation for non-regular files */
 		ar.flags = 0;
+
 	ret = ext4_mb_new_blocks(handle, &ar, errp);
 	*count = ar.len;
 	return ret;
 }
 
+/*
+ * ext4_new_meta_block() -- allocate block for meta data (indexing) blocks
+ *
+ * @handle:             handle to this transaction
+ * @inode:              file inode
+ * @goal:               given target block(filesystem wide)
+ * @errp:               error code
+ *
+ * Return allocated block number on success
+ */
+ext4_fsblk_t ext4_new_meta_block(handle_t *handle, struct inode *inode,
+		ext4_fsblk_t goal, int *errp)
+{
+	unsigned long count = 1;
+	return do_blk_alloc(handle, inode, 0, goal,
+			&count, errp, EXT4_META_BLOCK);
+}
+
+/*
+ * ext4_new_meta_blocks() -- allocate block for meta data (indexing) blocks
+ *
+ * @handle:             handle to this transaction
+ * @inode:              file inode
+ * @goal:               given target block(filesystem wide)
+ * @count:		total number of blocks need
+ * @errp:               error code
+ *
+ * Return 1st allocated block numberon success, *count stores total account
+ * error stores in errp pointer
+ */
+ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
+		ext4_fsblk_t goal, unsigned long *count, int *errp)
+{
+	return do_blk_alloc(handle, inode, 0, goal,
+			count, errp, EXT4_META_BLOCK);
+}
+
+/*
+ * ext4_new_blocks() -- allocate data blocks
+ *
+ * @handle:             handle to this transaction
+ * @inode:              file inode
+ * @goal:               given target block(filesystem wide)
+ * @count:		total number of blocks need
+ * @errp:               error code
+ *
+ * Return 1st allocated block numberon success, *count stores total account
+ * error stores in errp pointer
+ */
+
+ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
+				ext4_lblk_t iblock, ext4_fsblk_t goal,
+				unsigned long *count, int *errp)
+{
+	return do_blk_alloc(handle, inode, iblock, goal, count, errp, 0);
+}
 
 /**
  * ext4_count_free_blocks() -- count filesystem free blocks
