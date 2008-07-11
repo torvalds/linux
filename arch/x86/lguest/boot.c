@@ -783,11 +783,11 @@ static void lguest_wbinvd(void)
  * code qualifies for Advanced.  It will also never interrupt anything.  It
  * does, however, allow us to get through the Linux boot code. */
 #ifdef CONFIG_X86_LOCAL_APIC
-static void lguest_apic_write(unsigned long reg, u32 v)
+static void lguest_apic_write(u32 reg, u32 v)
 {
 }
 
-static u32 lguest_apic_read(unsigned long reg)
+static u32 lguest_apic_read(u32 reg)
 {
 	return 0;
 }

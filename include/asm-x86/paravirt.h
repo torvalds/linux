@@ -200,13 +200,15 @@ struct pv_irq_ops {
 
 struct pv_apic_ops {
 #ifdef CONFIG_X86_LOCAL_APIC
+#ifndef CONFIG_X86_64
 	/*
 	 * Direct APIC operations, principally for VMI.  Ideally
 	 * these shouldn't be in this interface.
 	 */
-	void (*apic_write)(unsigned long reg, u32 v);
-	void (*apic_write_atomic)(unsigned long reg, u32 v);
-	u32 (*apic_read)(unsigned long reg);
+	void (*apic_write)(u32 reg, u32 v);
+	void (*apic_write_atomic)(u32 reg, u32 v);
+	u32 (*apic_read)(u32 reg);
+#endif
 	void (*setup_boot_clock)(void);
 	void (*setup_secondary_clock)(void);
 
@@ -892,17 +894,17 @@ static inline void slow_down_io(void)
  * Basic functions accessing APICs.
  */
 #ifndef CONFIG_X86_64
-static inline void apic_write(unsigned long reg, u32 v)
+static inline void apic_write(u32 reg, u32 v)
 {
 	PVOP_VCALL2(pv_apic_ops.apic_write, reg, v);
 }
 
-static inline void apic_write_atomic(unsigned long reg, u32 v)
+static inline void apic_write_atomic(u32 reg, u32 v)
 {
 	PVOP_VCALL2(pv_apic_ops.apic_write_atomic, reg, v);
 }
 
-static inline u32 apic_read(unsigned long reg)
+static inline u32 apic_read(u32 reg)
 {
 	return PVOP_CALL1(unsigned long, pv_apic_ops.apic_read, reg);
 }
