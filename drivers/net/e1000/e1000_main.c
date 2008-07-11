@@ -866,7 +866,7 @@ static void e1000_dump_eeprom(struct e1000_adapter *adapter)
 	printk(KERN_ERR "to enable this network device.\n");
 	printk(KERN_ERR "Please inspect the EEPROM dump and report the issue "
 	       "to your hardware vendor\n");
-	printk(KERN_ERR "or Intel Customer Support: linux-nics@intel.com\n");
+	printk(KERN_ERR "or Intel Customer Support.\n");
 	printk(KERN_ERR "/*********************/\n");
 
 	kfree(data);
