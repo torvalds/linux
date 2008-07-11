@@ -1923,7 +1923,7 @@ out:
 	return 0;
 }
 
-ext4_fsblk_t ext4_new_block(handle_t *handle, struct inode *inode,
+ext4_fsblk_t ext4_new_meta_block(handle_t *handle, struct inode *inode,
 		ext4_fsblk_t goal, int *errp)
 {
 	struct ext4_allocation_request ar;
@@ -1942,8 +1942,7 @@ ext4_fsblk_t ext4_new_block(handle_t *handle, struct inode *inode,
 	ret = ext4_mb_new_blocks(handle, &ar, errp);
 	return ret;
 }
-
-ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
+ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 		ext4_fsblk_t goal, unsigned long *count, int *errp)
 {
 	struct ext4_allocation_request ar;
@@ -1958,6 +1957,39 @@ ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
 	ar.inode = inode;
 	ar.goal = goal;
 	ar.len = *count;
+	ret = ext4_mb_new_blocks(handle, &ar, errp);
+	*count = ar.len;
+	return ret;
+}
+
+ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
+				ext4_lblk_t iblock, ext4_fsblk_t goal,
+				unsigned long *count, int *errp)
+{
+	struct ext4_allocation_request ar;
+	ext4_fsblk_t ret;
+
+	if (!test_opt(inode->i_sb, MBALLOC)) {
+		ret = ext4_new_blocks_old(handle, inode, goal, count, errp);
+		return ret;
+	}
+
+	memset(&ar, 0, sizeof(ar));
+	/* Fill with neighbour allocated blocks */
+	ar.lleft  = 0;
+	ar.pleft  = 0;
+	ar.lright = 0;
+	ar.pright = 0;
+
+	ar.inode = inode;
+	ar.goal = goal;
+	ar.len = *count;
+	ar.logical = iblock;
+	if (S_ISREG(inode->i_mode))
+		ar.flags = EXT4_MB_HINT_DATA;
+	else
+		/* disable in-core preallocation for non-regular files */
+		ar.flags = 0;
 	ret = ext4_mb_new_blocks(handle, &ar, errp);
 	*count = ar.len;
 	return ret;

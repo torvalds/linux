@@ -508,11 +508,12 @@ static int ext4_blks_to_allocate(Indirect *branch, int k, unsigned long blks,
  *		direct blocks
  */
 static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
-			ext4_fsblk_t goal, int indirect_blks, int blks,
-			ext4_fsblk_t new_blocks[4], int *err)
+				ext4_lblk_t iblock, ext4_fsblk_t goal,
+				int indirect_blks, int blks,
+				ext4_fsblk_t new_blocks[4], int *err)
 {
 	int target, i;
-	unsigned long count = 0;
+	unsigned long count = 0, blk_allocated = 0;
 	int index = 0;
 	ext4_fsblk_t current_block = 0;
 	int ret = 0;
@@ -525,12 +526,13 @@ static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
 	 * the first direct block of this branch.  That's the
 	 * minimum number of blocks need to allocate(required)
 	 */
-	target = blks + indirect_blks;
-
-	while (1) {
+	/* first we try to allocate the indirect blocks */
+	target = indirect_blks;
+	while (target > 0) {
 		count = target;
 		/* allocating blocks for indirect blocks and direct blocks */
-		current_block = ext4_new_blocks(handle,inode,goal,&count,err);
+		current_block = ext4_new_meta_blocks(handle, inode,
+							goal, &count, err);
 		if (*err)
 			goto failed_out;
 
@@ -540,16 +542,48 @@ static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
 			new_blocks[index++] = current_block++;
 			count--;
 		}
-
-		if (count > 0)
+		if (count > 0) {
+			/*
+			 * save the new block number
+			 * for the first direct block
+			 */
+			new_blocks[index] = current_block;
+			printk(KERN_INFO "%s returned more blocks than "
+						"requested\n", __func__);
+			WARN_ON(1);
 			break;
+		}
 	}
 
-	/* save the new block number for the first direct block */
-	new_blocks[index] = current_block;
-
+	target = blks - count ;
+	blk_allocated = count;
+	if (!target)
+		goto allocated;
+	/* Now allocate data blocks */
+	count = target;
+	/* allocating blocks for indirect blocks and direct blocks */
+	current_block = ext4_new_blocks(handle, inode, iblock,
+						goal, &count, err);
+	if (*err && (target == blks)) {
+		/*
+		 * if the allocation failed and we didn't allocate
+		 * any blocks before
+		 */
+		goto failed_out;
+	}
+	if (!*err) {
+		if (target == blks) {
+		/*
+		 * save the new block number
+		 * for the first direct block
+		 */
+			new_blocks[index] = current_block;
+		}
+		blk_allocated += count;
+	}
+allocated:
 	/* total number of blocks allocated for direct blocks */
-	ret = count;
+	ret = blk_allocated;
 	*err = 0;
 	return ret;
 failed_out:
@@ -584,8 +618,9 @@ failed_out:
  *	as described above and return 0.
  */
 static int ext4_alloc_branch(handle_t *handle, struct inode *inode,
-			int indirect_blks, int *blks, ext4_fsblk_t goal,
-			ext4_lblk_t *offsets, Indirect *branch)
+				ext4_lblk_t iblock, int indirect_blks,
+				int *blks, ext4_fsblk_t goal,
+				ext4_lblk_t *offsets, Indirect *branch)
 {
 	int blocksize = inode->i_sb->s_blocksize;
 	int i, n = 0;
@@ -595,7 +630,7 @@ static int ext4_alloc_branch(handle_t *handle, struct inode *inode,
 	ext4_fsblk_t new_blocks[4];
 	ext4_fsblk_t current_block;
 
-	num = ext4_alloc_blocks(handle, inode, goal, indirect_blks,
+	num = ext4_alloc_blocks(handle, inode, iblock, goal, indirect_blks,
 				*blks, new_blocks, &err);
 	if (err)
 		return err;
@@ -855,8 +890,9 @@ int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
 	/*
 	 * Block out ext4_truncate while we alter the tree
 	 */
-	err = ext4_alloc_branch(handle, inode, indirect_blks, &count, goal,
-				offsets + (partial - chain), partial);
+	err = ext4_alloc_branch(handle, inode, iblock, indirect_blks,
+					&count, goal,
+					offsets + (partial - chain), partial);
 
 	/*
 	 * The ext4_splice_branch call will free and forget any buffers

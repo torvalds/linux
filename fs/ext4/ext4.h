@@ -970,10 +970,13 @@ extern ext4_grpblk_t ext4_block_group_offset(struct super_block *sb,
 extern int ext4_bg_has_super(struct super_block *sb, ext4_group_t group);
 extern unsigned long ext4_bg_num_gdb(struct super_block *sb,
 			ext4_group_t group);
-extern ext4_fsblk_t ext4_new_block (handle_t *handle, struct inode *inode,
+extern ext4_fsblk_t ext4_new_meta_block(handle_t *handle, struct inode *inode,
 			ext4_fsblk_t goal, int *errp);
-extern ext4_fsblk_t ext4_new_blocks (handle_t *handle, struct inode *inode,
+extern ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 			ext4_fsblk_t goal, unsigned long *count, int *errp);
+extern ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
+					ext4_lblk_t iblock, ext4_fsblk_t goal,
+					unsigned long *count, int *errp);
 extern ext4_fsblk_t ext4_new_blocks_old(handle_t *handle, struct inode *inode,
 			ext4_fsblk_t goal, unsigned long *count, int *errp);
 extern void ext4_free_blocks (handle_t *handle, struct inode *inode,
