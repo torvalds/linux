@@ -355,12 +355,6 @@ core-$(CONFIG_MACH_VR41XX)	+= arch/mips/vr41xx/common/
 cflags-$(CONFIG_MACH_VR41XX)	+= -Iinclude/asm-mips/mach-vr41xx
 
 #
-# NEC VR4133
-#
-core-$(CONFIG_NEC_CMBVR4133)	+= arch/mips/vr41xx/nec-cmbvr4133/
-load-$(CONFIG_NEC_CMBVR4133)	+= 0xffffffff80100000
-
-#
 # ZAO Networks Capcella (VR4131)
 #
 load-$(CONFIG_ZAO_CAPCELLA)	+= 0xffffffff80000000
