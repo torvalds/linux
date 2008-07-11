@@ -3766,40 +3766,25 @@ static int do_md_run(mddev_t * mddev)
 static int restart_array(mddev_t *mddev)
 {
 	struct gendisk *disk = mddev->gendisk;
-	int err;
 
-	/*
-	 * Complain if it has no devices
-	 */
-	err = -ENXIO;
+	/* Complain if it has no devices */
 	if (list_empty(&mddev->disks))
-		goto out;
-
-	if (mddev->pers) {
-		err = -EBUSY;
-		if (!mddev->ro)
-			goto out;
-
-		mddev->safemode = 0;
-		mddev->ro = 0;
-		set_disk_ro(disk, 0);
-
-		printk(KERN_INFO "md: %s switched to read-write mode.\n",
-			mdname(mddev));
-		/*
-		 * Kick recovery or resync if necessary
-		 */
-		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-		md_wakeup_thread(mddev->thread);
-		md_wakeup_thread(mddev->sync_thread);
-		err = 0;
-		sysfs_notify(&mddev->kobj, NULL, "array_state");
-
-	} else
-		err = -EINVAL;
-
-out:
-	return err;
+		return -ENXIO;
+	if (!mddev->pers)
+		return -EINVAL;
+	if (!mddev->ro)
+		return -EBUSY;
+	mddev->safemode = 0;
+	mddev->ro = 0;
+	set_disk_ro(disk, 0);
+	printk(KERN_INFO "md: %s switched to read-write mode.\n",
+		mdname(mddev));
+	/* Kick recovery or resync if necessary */
+	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	md_wakeup_thread(mddev->thread);
+	md_wakeup_thread(mddev->sync_thread);
+	sysfs_notify(&mddev->kobj, NULL, "array_state");
+	return 0;
 }
 
 /* similar to deny_write_access, but accounts for our holding a reference
