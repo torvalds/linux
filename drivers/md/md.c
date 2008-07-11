@@ -572,11 +572,7 @@ static int sb_equal(mdp_super_t *sb1, mdp_super_t *sb2)
 	tmp1->nr_disks = 0;
 	tmp2->nr_disks = 0;
 
-	if (memcmp(tmp1, tmp2, MD_SB_GENERIC_CONSTANT_WORDS * 4))
-		ret = 0;
-	else
-		ret = 1;
-
+	ret = (memcmp(tmp1, tmp2, MD_SB_GENERIC_CONSTANT_WORDS * 4) == 0);
 abort:
 	kfree(tmp1);
 	kfree(tmp2);
