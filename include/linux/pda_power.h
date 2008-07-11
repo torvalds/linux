@@ -16,10 +16,14 @@
 #define PDA_POWER_CHARGE_AC  (1 << 0)
 #define PDA_POWER_CHARGE_USB (1 << 1)
 
+struct device;
+
 struct pda_power_pdata {
+	int (*init)(struct device *dev);
 	int (*is_ac_online)(void);
 	int (*is_usb_online)(void);
 	void (*set_charge)(int flags);
+	void (*exit)(struct device *dev);
 
 	char **supplied_to;
 	size_t num_supplicants;

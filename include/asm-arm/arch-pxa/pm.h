@@ -10,7 +10,7 @@
 #include <linux/suspend.h>
 
 struct pxa_cpu_pm_fns {
-	int	save_size;
+	int	save_count;
 	void	(*save)(unsigned long *);
 	void	(*restore)(unsigned long *);
 	int	(*valid)(suspend_state_t state);

@@ -38,6 +38,9 @@ enum pci_bf_sort_state {
 	pci_dmi_bf,
 };
 
+extern void __init dmi_check_pciprobe(void);
+extern void __init dmi_check_skip_isa_align(void);
+
 /* pci-i386.c */
 
 extern unsigned int pcibios_max_latency;
@@ -98,7 +101,7 @@ extern struct pci_raw_ops pci_direct_conf1;
 extern int pci_direct_probe(void);
 extern void pci_direct_init(int type);
 extern void pci_pcbios_init(void);
-extern void pci_olpc_init(void);
+extern int pci_olpc_init(void);
 
 /* pci-mmconfig.c */
 

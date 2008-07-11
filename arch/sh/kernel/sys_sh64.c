@@ -31,23 +31,6 @@
 #include <asm/unistd.h>
 
 /*
- * sys_pipe() is the normal C calling standard for creating
- * a pipe. It's not the way Unix traditionally does this, though.
- */
-asmlinkage int sys_pipe(unsigned long * fildes)
-{
-        int fd[2];
-        int error;
-
-        error = do_pipe(fd);
-        if (!error) {
-                if (copy_to_user(fildes, fd, 2*sizeof(int)))
-                        error = -EFAULT;
-        }
-        return error;
-}
-
-/*
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */

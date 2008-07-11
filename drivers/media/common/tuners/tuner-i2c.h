@@ -170,4 +170,12 @@ __fail:									\
 	__ret;								\
 })
 
+#define hybrid_tuner_report_instance_count(state)			\
+({									\
+	int __ret = 0;							\
+	if (state)							\
+		__ret = state->i2c_props.count;				\
+	__ret;								\
+})
+
 #endif /* __TUNER_I2C_H__ */

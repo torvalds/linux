@@ -26,25 +26,6 @@
 
 #define FEC_WATCHDOG_TIMEOUT	((400*HZ)/1000)
 
-struct mpc52xx_fec_priv {
-	int duplex;
-	int r_irq;
-	int t_irq;
-	struct mpc52xx_fec __iomem *fec;
-	struct bcom_task *rx_dmatsk;
-	struct bcom_task *tx_dmatsk;
-	spinlock_t lock;
-	int msg_enable;
-
-	int has_phy;
-	unsigned int phy_speed;
-	unsigned int phy_addr;
-	struct phy_device *phydev;
-	enum phy_state link;
-	int speed;
-};
-
-
 /* ======================================================================== */
 /* Hardware register sets & bits                                            */
 /* ======================================================================== */

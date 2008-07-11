@@ -33,7 +33,6 @@
 #ifndef _AU1000_PSC_H_
 #define _AU1000_PSC_H_
 
-
 /* The PSC base addresses.  */
 #ifdef CONFIG_SOC_AU1550
 #define PSC0_BASE_ADDR		0xb1a00000
@@ -47,8 +46,8 @@
 #define PSC1_BASE_ADDR		0xb1b00000
 #endif
 
-/* The PSC select and control registers are common to
- * all protocols.
+/*
+ * The PSC select and control registers are common to all protocols.
  */
 #define PSC_SEL_OFFSET		0x00000000
 #define PSC_CTRL_OFFSET		0x00000004
@@ -59,18 +58,17 @@
 #define PSC_SEL_CLK_SERCLK	(2 << 4)
 
 #define PSC_SEL_PS_MASK		0x00000007
-#define PSC_SEL_PS_DISABLED	(0)
-#define PSC_SEL_PS_SPIMODE	(2)
-#define PSC_SEL_PS_I2SMODE	(3)
-#define PSC_SEL_PS_AC97MODE	(4)
-#define PSC_SEL_PS_SMBUSMODE	(5)
+#define PSC_SEL_PS_DISABLED	0
+#define PSC_SEL_PS_SPIMODE	2
+#define PSC_SEL_PS_I2SMODE	3
+#define PSC_SEL_PS_AC97MODE	4
+#define PSC_SEL_PS_SMBUSMODE	5
 
-#define PSC_CTRL_DISABLE	(0)
-#define PSC_CTRL_SUSPEND	(2)
-#define PSC_CTRL_ENABLE		(3)
+#define PSC_CTRL_DISABLE	0
+#define PSC_CTRL_SUSPEND	2
+#define PSC_CTRL_ENABLE 	3
 
-/* AC97 Registers.
-*/
+/* AC97 Registers. */
 #define PSC_AC97CFG_OFFSET	0x00000008
 #define PSC_AC97MSK_OFFSET	0x0000000c
 #define PSC_AC97PCR_OFFSET	0x00000010
@@ -95,8 +93,7 @@
 #define PSC_AC97GPO		(AC97_PSC_BASE + PSC_AC97GPO_OFFSET)
 #define PSC_AC97GPI		(AC97_PSC_BASE + PSC_AC97GPI_OFFSET)
 
-/* AC97 Config Register.
-*/
+/* AC97 Config Register. */
 #define PSC_AC97CFG_RT_MASK	(3 << 30)
 #define PSC_AC97CFG_RT_FIFO1	(0 << 30)
 #define PSC_AC97CFG_RT_FIFO2	(1 << 30)
@@ -118,20 +115,19 @@
 #define PSC_AC97CFG_RXSLOT_MASK	(0x3ff << 1)
 #define PSC_AC97CFG_GE_ENABLE	(1)
 
-/* Enable slots 3-12.
-*/
+/* Enable slots 3-12. */
 #define PSC_AC97CFG_TXSLOT_ENA(x)	(1 << (((x) - 3) + 11))
 #define PSC_AC97CFG_RXSLOT_ENA(x)	(1 << (((x) - 3) + 1))
 
-/* The word length equation is ((x) * 2) + 2, so choose 'x' appropriately.
+/*
+ * The word length equation is ((x) * 2) + 2, so choose 'x' appropriately.
  * The only sensible numbers are 7, 9, or possibly 11.  Nah, just do the
  * arithmetic in the macro.
  */
-#define PSC_AC97CFG_SET_LEN(x)	(((((x)-2)/2) & 0xf) << 21)
+#define PSC_AC97CFG_SET_LEN(x)	(((((x) - 2) / 2) & 0xf) << 21)
 #define PSC_AC97CFG_GET_LEN(x)	(((((x) >> 21) & 0xf) * 2) + 2)
 
-/* AC97 Mask Register.
-*/
+/* AC97 Mask Register. */
 #define PSC_AC97MSK_GR		(1 << 25)
 #define PSC_AC97MSK_CD		(1 << 24)
 #define PSC_AC97MSK_RR		(1 << 13)
@@ -148,8 +144,7 @@
 				 PSC_AC97MSK_TO | PSC_AC97MSK_TU | \
 				 PSC_AC97MSK_RD | PSC_AC97MSK_TD)
 
-/* AC97 Protocol Control Register.
-*/
+/* AC97 Protocol Control Register. */
 #define PSC_AC97PCR_RC		(1 << 6)
 #define PSC_AC97PCR_RP		(1 << 5)
 #define PSC_AC97PCR_RS		(1 << 4)
@@ -157,8 +152,7 @@
 #define PSC_AC97PCR_TP		(1 << 1)
 #define PSC_AC97PCR_TS		(1 << 0)
 
-/* AC97 Status register (read only).
-*/
+/* AC97 Status register (read only). */
 #define PSC_AC97STAT_CB		(1 << 26)
 #define PSC_AC97STAT_CP		(1 << 25)
 #define PSC_AC97STAT_CR		(1 << 24)
@@ -174,8 +168,7 @@
 #define PSC_AC97STAT_DR		(1 << 1)
 #define PSC_AC97STAT_SR		(1 << 0)
 
-/* AC97 Event Register.
-*/
+/* AC97 Event Register. */
 #define PSC_AC97EVNT_GR		(1 << 25)
 #define PSC_AC97EVNT_CD		(1 << 24)
 #define PSC_AC97EVNT_RR		(1 << 13)
@@ -187,22 +180,18 @@
 #define PSC_AC97EVNT_RD		(1 << 5)
 #define PSC_AC97EVNT_TD		(1 << 4)
 
-/* CODEC Command Register.
-*/
+/* CODEC Command Register. */
 #define PSC_AC97CDC_RD		(1 << 25)
 #define PSC_AC97CDC_ID_MASK	(3 << 23)
 #define PSC_AC97CDC_INDX_MASK	(0x7f << 16)
-#define PSC_AC97CDC_ID(x)	(((x) & 0x3) << 23)
+#define PSC_AC97CDC_ID(x)	(((x) & 0x03) << 23)
 #define PSC_AC97CDC_INDX(x)	(((x) & 0x7f) << 16)
 
-/* AC97 Reset Control Register.
-*/
+/* AC97 Reset Control Register. */
 #define PSC_AC97RST_RST		(1 << 1)
 #define PSC_AC97RST_SNC		(1 << 0)
 
-
-/* PSC in I2S Mode.
-*/
+/* PSC in I2S Mode. */
 typedef struct	psc_i2s {
 	u32	psc_sel;
 	u32	psc_ctrl;
@@ -215,8 +204,7 @@ typedef struct	psc_i2s {
 	u32	psc_i2sudf;
 } psc_i2s_t;
 
-/* I2S Config Register.
-*/
+/* I2S Config Register. */
 #define PSC_I2SCFG_RT_MASK	(3 << 30)
 #define PSC_I2SCFG_RT_FIFO1	(0 << 30)
 #define PSC_I2SCFG_RT_FIFO2	(1 << 30)
@@ -247,8 +235,7 @@ typedef struct	psc_i2s {
 #define PSC_I2SCFG_MLJ		(1 << 10)
 #define PSC_I2SCFG_XM		(1 << 9)
 
-/* The word length equation is simply LEN+1.
- */
+/* The word length equation is simply LEN+1. */
 #define PSC_I2SCFG_SET_LEN(x)	((((x) - 1) & 0x1f) << 4)
 #define PSC_I2SCFG_GET_LEN(x)	((((x) >> 4) & 0x1f) + 1)
 
@@ -256,8 +243,7 @@ typedef struct	psc_i2s {
 #define PSC_I2SCFG_MLF		(1 << 1)
 #define PSC_I2SCFG_MS		(1 << 0)
 
-/* I2S Mask Register.
-*/
+/* I2S Mask Register. */
 #define PSC_I2SMSK_RR		(1 << 13)
 #define PSC_I2SMSK_RO		(1 << 12)
 #define PSC_I2SMSK_RU		(1 << 11)
@@ -271,8 +257,7 @@ typedef struct	psc_i2s {
 				 PSC_I2SMSK_TO | PSC_I2SMSK_TU | \
 				 PSC_I2SMSK_RD | PSC_I2SMSK_TD)
 
-/* I2S Protocol Control Register.
-*/
+/* I2S Protocol Control Register. */
 #define PSC_I2SPCR_RC		(1 << 6)
 #define PSC_I2SPCR_RP		(1 << 5)
 #define PSC_I2SPCR_RS		(1 << 4)
@@ -280,8 +265,7 @@ typedef struct	psc_i2s {
 #define PSC_I2SPCR_TP		(1 << 1)
 #define PSC_I2SPCR_TS		(1 << 0)
 
-/* I2S Status register (read only).
-*/
+/* I2S Status register (read only). */
 #define PSC_I2SSTAT_RF		(1 << 13)
 #define PSC_I2SSTAT_RE		(1 << 12)
 #define PSC_I2SSTAT_RR		(1 << 11)
@@ -294,8 +278,7 @@ typedef struct	psc_i2s {
 #define PSC_I2SSTAT_DR		(1 << 1)
 #define PSC_I2SSTAT_SR		(1 << 0)
 
-/* I2S Event Register.
-*/
+/* I2S Event Register. */
 #define PSC_I2SEVNT_RR		(1 << 13)
 #define PSC_I2SEVNT_RO		(1 << 12)
 #define PSC_I2SEVNT_RU		(1 << 11)
@@ -305,8 +288,7 @@ typedef struct	psc_i2s {
 #define PSC_I2SEVNT_RD		(1 << 5)
 #define PSC_I2SEVNT_TD		(1 << 4)
 
-/* PSC in SPI Mode.
-*/
+/* PSC in SPI Mode. */
 typedef struct	psc_spi {
 	u32	psc_sel;
 	u32	psc_ctrl;
@@ -318,8 +300,7 @@ typedef struct	psc_spi {
 	u32	psc_spitxrx;
 } psc_spi_t;
 
-/* SPI Config Register.
-*/
+/* SPI Config Register. */
 #define PSC_SPICFG_RT_MASK	(3 << 30)
 #define PSC_SPICFG_RT_FIFO1	(0 << 30)
 #define PSC_SPICFG_RT_FIFO2	(1 << 30)
@@ -355,8 +336,7 @@ typedef struct	psc_spi {
 #define PSC_SPICFG_MLF		(1 << 1)
 #define PSC_SPICFG_MO		(1 << 0)
 
-/* SPI Mask Register.
-*/
+/* SPI Mask Register. */
 #define PSC_SPIMSK_MM		(1 << 16)
 #define PSC_SPIMSK_RR		(1 << 13)
 #define PSC_SPIMSK_RO		(1 << 12)
@@ -371,16 +351,14 @@ typedef struct	psc_spi {
 				 PSC_SPIMSK_TU | PSC_SPIMSK_SD | \
 				 PSC_SPIMSK_MD)
 
-/* SPI Protocol Control Register.
-*/
+/* SPI Protocol Control Register. */
 #define PSC_SPIPCR_RC		(1 << 6)
 #define PSC_SPIPCR_SP		(1 << 5)
 #define PSC_SPIPCR_SS		(1 << 4)
 #define PSC_SPIPCR_TC		(1 << 2)
 #define PSC_SPIPCR_MS		(1 << 0)
 
-/* SPI Status register (read only).
-*/
+/* SPI Status register (read only). */
 #define PSC_SPISTAT_RF		(1 << 13)
 #define PSC_SPISTAT_RE		(1 << 12)
 #define PSC_SPISTAT_RR		(1 << 11)
@@ -393,8 +371,7 @@ typedef struct	psc_spi {
 #define PSC_SPISTAT_DR		(1 << 1)
 #define PSC_SPISTAT_SR		(1 << 0)
 
-/* SPI Event Register.
-*/
+/* SPI Event Register. */
 #define PSC_SPIEVNT_MM		(1 << 16)
 #define PSC_SPIEVNT_RR		(1 << 13)
 #define PSC_SPIEVNT_RO		(1 << 12)
@@ -405,13 +382,11 @@ typedef struct	psc_spi {
 #define PSC_SPIEVNT_SD		(1 << 5)
 #define PSC_SPIEVNT_MD		(1 << 4)
 
-/* Transmit register control.
-*/
+/* Transmit register control. */
 #define PSC_SPITXRX_LC		(1 << 29)
 #define PSC_SPITXRX_SR		(1 << 28)
 
-/* PSC in SMBus (I2C) Mode.
-*/
+/* PSC in SMBus (I2C) Mode. */
 typedef struct	psc_smb {
 	u32	psc_sel;
 	u32	psc_ctrl;
@@ -424,8 +399,7 @@ typedef struct	psc_smb {
 	u32	psc_smbtmr;
 } psc_smb_t;
 
-/* SMBus Config Register.
-*/
+/* SMBus Config Register. */
 #define PSC_SMBCFG_RT_MASK	(3 << 30)
 #define PSC_SMBCFG_RT_FIFO1	(0 << 30)
 #define PSC_SMBCFG_RT_FIFO2	(1 << 30)
@@ -452,8 +426,7 @@ typedef struct	psc_smb {
 
 #define PSC_SMBCFG_SET_SLV(x)	(((x) & 0x7f) << 1)
 
-/* SMBus Mask Register.
-*/
+/* SMBus Mask Register. */
 #define PSC_SMBMSK_DN		(1 << 30)
 #define PSC_SMBMSK_AN		(1 << 29)
 #define PSC_SMBMSK_AL		(1 << 28)
@@ -471,13 +444,11 @@ typedef struct	psc_smb {
 				 PSC_SMBMSK_TU | PSC_SMBMSK_SD | \
 				 PSC_SMBMSK_MD)
 
-/* SMBus Protocol Control Register.
-*/
+/* SMBus Protocol Control Register. */
 #define PSC_SMBPCR_DC		(1 << 2)
 #define PSC_SMBPCR_MS		(1 << 0)
 
-/* SMBus Status register (read only).
-*/
+/* SMBus Status register (read only). */
 #define PSC_SMBSTAT_BB		(1 << 28)
 #define PSC_SMBSTAT_RF		(1 << 13)
 #define PSC_SMBSTAT_RE		(1 << 12)
@@ -491,8 +462,7 @@ typedef struct	psc_smb {
 #define PSC_SMBSTAT_DR		(1 << 1)
 #define PSC_SMBSTAT_SR		(1 << 0)
 
-/* SMBus Event Register.
-*/
+/* SMBus Event Register. */
 #define PSC_SMBEVNT_DN		(1 << 30)
 #define PSC_SMBEVNT_AN		(1 << 29)
 #define PSC_SMBEVNT_AL		(1 << 28)
@@ -510,21 +480,18 @@ typedef struct	psc_smb {
 				 PSC_SMBEVNT_TU | PSC_SMBEVNT_SD | \
 				 PSC_SMBEVNT_MD)
 
-/* Transmit register control.
-*/
+/* Transmit register control. */
 #define PSC_SMBTXRX_RSR		(1 << 28)
 #define PSC_SMBTXRX_STP		(1 << 29)
-#define PSC_SMBTXRX_DATAMASK	(0xff)
+#define PSC_SMBTXRX_DATAMASK	0xff
 
-/* SMBus protocol timers register.
-*/
-#define PSC_SMBTMR_SET_TH(x)	(((x) & 0x3) << 30)
+/* SMBus protocol timers register. */
+#define PSC_SMBTMR_SET_TH(x)	(((x) & 0x03) << 30)
 #define PSC_SMBTMR_SET_PS(x)	(((x) & 0x1f) << 25)
 #define PSC_SMBTMR_SET_PU(x)	(((x) & 0x1f) << 20)
 #define PSC_SMBTMR_SET_SH(x)	(((x) & 0x1f) << 15)
 #define PSC_SMBTMR_SET_SU(x)	(((x) & 0x1f) << 10)
 #define PSC_SMBTMR_SET_CL(x)	(((x) & 0x1f) << 5)
 #define PSC_SMBTMR_SET_CH(x)	(((x) & 0x1f) << 0)
-
 
 #endif /* _AU1000_PSC_H_ */

@@ -96,7 +96,7 @@ static int __devinit snd_card_pcsp_probe(int devnum, struct device *dev)
 		return -EINVAL;
 
 	hrtimer_init(&pcsp_chip.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	pcsp_chip.timer.cb_mode = HRTIMER_CB_IRQSAFE;
+	pcsp_chip.timer.cb_mode = HRTIMER_CB_SOFTIRQ;
 	pcsp_chip.timer.function = pcsp_do_timer;
 
 	card = snd_card_new(index, id, THIS_MODULE, 0);
@@ -194,6 +194,7 @@ static void pcsp_stop_beep(struct snd_pcsp *chip)
 	spin_unlock_irq(&chip->substream_lock);
 }
 
+#ifdef CONFIG_PM
 static int pcsp_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct snd_pcsp *chip = platform_get_drvdata(dev);
@@ -201,6 +202,9 @@ static int pcsp_suspend(struct platform_device *dev, pm_message_t state)
 	snd_pcm_suspend_all(chip->pcm);
 	return 0;
 }
+#else
+#define pcsp_suspend NULL
+#endif	/* CONFIG_PM */
 
 static void pcsp_shutdown(struct platform_device *dev)
 {

@@ -88,7 +88,7 @@ asp_init_chip(struct parisc_device *dev)
 	ret = -EBUSY;
 	dev->irq = gsc_claim_irq(&gsc_irq, ASP_GSC_IRQ);
 	if (dev->irq < 0) {
-		printk(KERN_ERR "%s(): cannot get GSC irq\n", __FUNCTION__);
+		printk(KERN_ERR "%s(): cannot get GSC irq\n", __func__);
 		goto out;
 	}
 

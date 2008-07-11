@@ -400,8 +400,9 @@ struct uhci_hcd {
 	unsigned int scan_in_progress:1;	/* Schedule scan is running */
 	unsigned int need_rescan:1;		/* Redo the schedule scan */
 	unsigned int dead:1;			/* Controller has died */
-	unsigned int working_RD:1;		/* Suspended root hub doesn't
-						   need to be polled */
+	unsigned int RD_enable:1;		/* Suspended root hub with
+						   Resume-Detect interrupts
+						   enabled */
 	unsigned int is_initialized:1;		/* Data structure is usable */
 	unsigned int fsbr_is_on:1;		/* FSBR is turned on */
 	unsigned int fsbr_is_wanted:1;		/* Does any URB want FSBR? */

@@ -14,6 +14,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/nand.h>
 #include <linux/i2c.h>
+#include <linux/smc91x.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
@@ -27,6 +28,11 @@
  * 0x18000000       8GB    8   NAND Flash (K9K8G08U0A)
  */
 
+static struct smc91x_platdata smc91x_info = {
+	.flags = SMC91X_USE_16BIT,
+	.irq_flags = IRQF_TRIGGER_HIGH,
+};
+
 static struct resource smc91x_eth_resources[] = {
 	[0] = {
 		.name   = "SMC91C111" ,
@@ -36,7 +42,7 @@ static struct resource smc91x_eth_resources[] = {
 	},
 	[1] = {
 		.start  = 32, /* IRQ0 */
-		.flags  = IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
+		.flags  = IORESOURCE_IRQ,
 	},
 };
 
@@ -44,6 +50,9 @@ static struct platform_device smc91x_eth_device = {
 	.name           = "smc91x",
 	.num_resources  = ARRAY_SIZE(smc91x_eth_resources),
 	.resource       = smc91x_eth_resources,
+	.dev	= {
+		.platform_data	= &smc91x_info,
+	},
 };
 
 static struct sh_keysc_info sh_keysc_info = {

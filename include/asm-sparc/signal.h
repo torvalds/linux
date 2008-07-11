@@ -1,4 +1,3 @@
-/* $Id: signal.h,v 1.35 1999/09/06 08:22:04 jj Exp $ */
 #ifndef _ASMSPARC_SIGNAL_H
 #define _ASMSPARC_SIGNAL_H
 
@@ -199,13 +198,7 @@ typedef struct sigaltstack {
 	size_t		ss_size;
 } stack_t;
 
-struct sparc_deliver_cookie {
-	int restart_syscall;
-	unsigned long orig_i0;
-};
-
-struct pt_regs;
-extern void ptrace_signal_deliver(struct pt_regs *regs, void *cookie);
+#define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
 #endif /* !(__KERNEL__) */
 

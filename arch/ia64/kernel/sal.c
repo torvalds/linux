@@ -229,6 +229,14 @@ static void __init sal_desc_ap_wakeup(void *p) { }
  */
 static int sal_cache_flush_drops_interrupts;
 
+static int __init
+force_pal_cache_flush(char *str)
+{
+	sal_cache_flush_drops_interrupts = 1;
+	return 0;
+}
+early_param("force_pal_cache_flush", force_pal_cache_flush);
+
 void __init
 check_sal_cache_flush (void)
 {
@@ -237,15 +245,17 @@ check_sal_cache_flush (void)
 	u64 vector, cache_type = 3;
 	struct ia64_sal_retval isrv;
 
+	if (sal_cache_flush_drops_interrupts)
+		return;
+
 	cpu = get_cpu();
 	local_irq_save(flags);
 
 	/*
-	 * Schedule a timer interrupt, wait until it's reported, and see if
-	 * SAL_CACHE_FLUSH drops it.
+	 * Send ourselves a timer interrupt, wait until it's reported, and see
+	 * if SAL_CACHE_FLUSH drops it.
 	 */
-	ia64_set_itv(IA64_TIMER_VECTOR);
-	ia64_set_itm(ia64_get_itc() + 1000);
+	platform_send_ipi(cpu, IA64_TIMER_VECTOR, IA64_IPI_DM_INT, 0);
 
 	while (!ia64_get_irr(IA64_TIMER_VECTOR))
 		cpu_relax();

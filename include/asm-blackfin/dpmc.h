@@ -1,7 +1,7 @@
 /*
  * include/asm-blackfin/dpmc.h -  Miscellaneous IOCTL commands for Dynamic Power
  *   			 	Management Controller Driver.
- * Copyright (C) 2004 Analog Device Inc.
+ * Copyright (C) 2004-2008 Analog Device Inc.
  *
  */
 #ifndef _BLACKFIN_DPMC_H_
@@ -64,6 +64,14 @@ void disable_wdog_timer(void);
 
 extern unsigned long get_cclk(void);
 extern unsigned long get_sclk(void);
+
+struct bfin_dpmc_platform_data {
+	const unsigned int *tuple_tab;
+	unsigned short tabsize;
+	unsigned short vr_settling_time; /* in us */
+};
+
+#define VRPAIR(vlev, freq) (((vlev) << 16) | ((freq) >> 16))
 
 #endif	/* __KERNEL__ */
 

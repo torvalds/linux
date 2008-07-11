@@ -146,11 +146,13 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
 	unsigned long nm;
 	ssize_t ret = queue_var_store(&nm, page, count);
 
+	spin_lock_irq(q->queue_lock);
 	if (nm)
-	       set_bit(QUEUE_FLAG_NOMERGES, &q->queue_flags);
+		queue_flag_set(QUEUE_FLAG_NOMERGES, q);
 	else
-	       clear_bit(QUEUE_FLAG_NOMERGES, &q->queue_flags);
+		queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
 
+	spin_unlock_irq(q->queue_lock);
 	return ret;
 }
 

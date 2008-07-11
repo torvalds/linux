@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsfs.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2007
+ *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   Common Internet FileSystem (CIFS) client
@@ -97,9 +97,6 @@ cifs_read_super(struct super_block *sb, void *data,
 {
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb;
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	int len;
-#endif
 	int rc = 0;
 
 	/* BB should we make this contingent on mount parm? */
@@ -117,15 +114,17 @@ cifs_read_super(struct super_block *sb, void *data,
 	 * complex operation (mount), and in case of fail
 	 * just exit instead of doing mount and attempting
 	 * undo it if this copy fails?*/
-	len = strlen(data);
-	cifs_sb->mountdata = kzalloc(len + 1, GFP_KERNEL);
-	if (cifs_sb->mountdata == NULL) {
-		kfree(sb->s_fs_info);
-		sb->s_fs_info = NULL;
-		return -ENOMEM;
+	if (data) {
+		int len = strlen(data);
+		cifs_sb->mountdata = kzalloc(len + 1, GFP_KERNEL);
+		if (cifs_sb->mountdata == NULL) {
+			kfree(sb->s_fs_info);
+			sb->s_fs_info = NULL;
+			return -ENOMEM;
+		}
+		strncpy(cifs_sb->mountdata, data, len + 1);
+		cifs_sb->mountdata[len] = '\0';
 	}
-	strncpy(cifs_sb->mountdata, data, len + 1);
-	cifs_sb->mountdata[len] = '\0';
 #endif
 
 	rc = cifs_mount(sb, cifs_sb, data, devname);
@@ -222,50 +221,50 @@ static int
 cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
-	int xid;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
 	int rc = -EOPNOTSUPP;
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
+	int xid;
 
 	xid = GetXid();
 
-	cifs_sb = CIFS_SB(sb);
-	pTcon = cifs_sb->tcon;
-
 	buf->f_type = CIFS_MAGIC_NUMBER;
 
-	/* instead could get the real value via SMB_QUERY_FS_ATTRIBUTE_INFO */
-	buf->f_namelen = PATH_MAX; /* PATH_MAX may be too long - it would
-				      presumably be total path, but note
-				      that some servers (includinng Samba 3)
-				      have a shorter maximum path */
+	/*
+	 * PATH_MAX may be too long - it would presumably be total path,
+	 * but note that some servers (includinng Samba 3) have a shorter
+	 * maximum path.
+	 *
+	 * Instead could get the real value via SMB_QUERY_FS_ATTRIBUTE_INFO.
+	 */
+	buf->f_namelen = PATH_MAX;
 	buf->f_files = 0;	/* undefined */
 	buf->f_ffree = 0;	/* unlimited */
 
-/* BB we could add a second check for a QFS Unix capability bit */
-/* BB FIXME check CIFS_POSIX_EXTENSIONS Unix cap first FIXME BB */
-    if ((pTcon->ses->capabilities & CAP_UNIX) && (CIFS_POSIX_EXTENSIONS &
-			le64_to_cpu(pTcon->fsUnixInfo.Capability)))
-	    rc = CIFSSMBQFSPosixInfo(xid, pTcon, buf);
+	/*
+	 * We could add a second check for a QFS Unix capability bit
+	 */
+	if ((tcon->ses->capabilities & CAP_UNIX) &&
+	    (CIFS_POSIX_EXTENSIONS & le64_to_cpu(tcon->fsUnixInfo.Capability)))
+		rc = CIFSSMBQFSPosixInfo(xid, tcon, buf);
 
-    /* Only need to call the old QFSInfo if failed
-    on newer one */
-    if (rc)
-	if (pTcon->ses->capabilities & CAP_NT_SMBS)
-		rc = CIFSSMBQFSInfo(xid, pTcon, buf); /* not supported by OS2 */
+	/*
+	 * Only need to call the old QFSInfo if failed on newer one,
+	 * e.g. by OS/2.
+	 **/
+	if (rc && (tcon->ses->capabilities & CAP_NT_SMBS))
+		rc = CIFSSMBQFSInfo(xid, tcon, buf);
 
-	/* Some old Windows servers also do not support level 103, retry with
-	   older level one if old server failed the previous call or we
-	   bypassed it because we detected that this was an older LANMAN sess */
+	/*
+	 * Some old Windows servers also do not support level 103, retry with
+	 * older level one if old server failed the previous call or we
+	 * bypassed it because we detected that this was an older LANMAN sess
+	 */
 	if (rc)
-		rc = SMBOldQFSInfo(xid, pTcon, buf);
-	/* int f_type;
-	   __fsid_t f_fsid;
-	   int f_namelen;  */
-	/* BB get from info in tcon struct at mount time call to QFSAttrInfo */
+		rc = SMBOldQFSInfo(xid, tcon, buf);
+
 	FreeXid(xid);
-	return 0;		/* always return success? what if volume is no
-				   longer available? */
+	return 0;
 }
 
 static int cifs_permission(struct inode *inode, int mask, struct nameidata *nd)
@@ -306,8 +305,8 @@ cifs_alloc_inode(struct super_block *sb)
 	/* Until the file is open and we have gotten oplock
 	info back from the server, can not assume caching of
 	file data or metadata */
-	cifs_inode->clientCanCacheRead = FALSE;
-	cifs_inode->clientCanCacheAll = FALSE;
+	cifs_inode->clientCanCacheRead = false;
+	cifs_inode->clientCanCacheAll = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 
 	/* Can not set i_flags here - they get immediately overwritten
@@ -353,9 +352,41 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID) ||
 			   !(cifs_sb->tcon->unix_ext))
 				seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
+			if (!cifs_sb->tcon->unix_ext) {
+				seq_printf(s, ",file_mode=0%o,dir_mode=0%o",
+					   cifs_sb->mnt_file_mode,
+					   cifs_sb->mnt_dir_mode);
+			}
+			if (cifs_sb->tcon->seal)
+				seq_printf(s, ",seal");
+			if (cifs_sb->tcon->nocase)
+				seq_printf(s, ",nocase");
+			if (cifs_sb->tcon->retry)
+				seq_printf(s, ",hard");
 		}
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
 			seq_printf(s, ",posixpaths");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)
+			seq_printf(s, ",setuids");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
+			seq_printf(s, ",serverino");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
+			seq_printf(s, ",directio");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
+			seq_printf(s, ",nouser_xattr");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
+			seq_printf(s, ",mapchars");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)
+			seq_printf(s, ",sfu");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			seq_printf(s, ",nobrl");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
+			seq_printf(s, ",cifsacl");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
+			seq_printf(s, ",dynperm");
+		if (m->mnt_sb->s_flags & MS_POSIXACL)
+			seq_printf(s, ",acl");
+
 		seq_printf(s, ",rsize=%d", cifs_sb->rsize);
 		seq_printf(s, ",wsize=%d", cifs_sb->wsize);
 	}
@@ -657,7 +688,7 @@ const struct file_operations cifs_file_ops = {
 	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
-	.ioctl	= cifs_ioctl,
+	.unlocked_ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
@@ -677,7 +708,7 @@ const struct file_operations cifs_file_direct_ops = {
 	.flush = cifs_flush,
 	.splice_read = generic_file_splice_read,
 #ifdef CONFIG_CIFS_POSIX
-	.ioctl  = cifs_ioctl,
+	.unlocked_ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
@@ -697,7 +728,7 @@ const struct file_operations cifs_file_nobrl_ops = {
 	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
-	.ioctl	= cifs_ioctl,
+	.unlocked_ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
@@ -716,7 +747,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.flush = cifs_flush,
 	.splice_read = generic_file_splice_read,
 #ifdef CONFIG_CIFS_POSIX
-	.ioctl  = cifs_ioctl,
+	.unlocked_ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
@@ -731,7 +762,7 @@ const struct file_operations cifs_dir_ops = {
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
-	.ioctl  = cifs_ioctl,
+	.unlocked_ioctl  = cifs_ioctl,
 };
 
 static void
@@ -940,7 +971,7 @@ static int cifs_oplock_thread(void *dummyarg)
 				    rc = CIFSSMBLock(0, pTcon, netfid,
 					    0 /* len */ , 0 /* offset */, 0,
 					    0, LOCKING_ANDX_OPLOCK_RELEASE,
-					    0 /* wait flag */);
+					    false /* wait flag */);
 					cFYI(1, ("Oplock release rc = %d", rc));
 				}
 			} else

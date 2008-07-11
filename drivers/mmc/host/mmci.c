@@ -425,7 +425,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			host->cclk = host->mclk;
 		} else {
 			clk = host->mclk / (2 * ios->clock) - 1;
-			if (clk > 256)
+			if (clk >= 256)
 				clk = 255;
 			host->cclk = host->mclk / (2 * (clk + 1));
 		}
@@ -512,6 +512,18 @@ static int mmci_probe(struct amba_device *dev, void *id)
 
 	host->plat = plat;
 	host->mclk = clk_get_rate(host->clk);
+	/*
+	 * According to the spec, mclk is max 100 MHz,
+	 * so we try to adjust the clock down to this,
+	 * (if possible).
+	 */
+	if (host->mclk > 100000000) {
+		ret = clk_set_rate(host->clk, 100000000);
+		if (ret < 0)
+			goto clk_disable;
+		host->mclk = clk_get_rate(host->clk);
+		DBG(host, "eventual mclk rate: %u Hz\n", host->mclk);
+	}
 	host->mmc = mmc;
 	host->base = ioremap(dev->res.start, SZ_4K);
 	if (!host->base) {

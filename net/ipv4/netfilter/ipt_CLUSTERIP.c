@@ -169,14 +169,14 @@ clusterip_config_init(const struct ipt_clusterip_tgt_info *i, __be32 ip,
 
 		/* create proc dir entry */
 		sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(ip));
-		c->pde = proc_create(buffer, S_IWUSR|S_IRUSR,
-				     clusterip_procdir, &clusterip_proc_fops);
+		c->pde = proc_create_data(buffer, S_IWUSR|S_IRUSR,
+					  clusterip_procdir,
+					  &clusterip_proc_fops, c);
 		if (!c->pde) {
 			kfree(c);
 			return NULL;
 		}
 	}
-	c->pde->data = c;
 #endif
 
 	write_lock_bh(&clusterip_lock);

@@ -157,6 +157,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
 		.mts_firmware = 1,
+		.has_dvb        = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -420,7 +421,13 @@ struct usb_device_id em28xx_id_table [] = {
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
 	{ USB_DEVICE(0x2040, 0x6502),
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
-	{ USB_DEVICE(0x2040, 0x6513),
+	{ USB_DEVICE(0x2040, 0x6513), /* HCW HVR-980 */
+			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950 },
+	{ USB_DEVICE(0x2040, 0x6517), /* HP  HVR-950 */
+			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950 },
+	{ USB_DEVICE(0x2040, 0x651b), /* RP  HVR-950 */
+			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950 },
+	{ USB_DEVICE(0x2040, 0x651f), /* HCW HVR-850 */
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950 },
 	{ USB_DEVICE(0x0ccd, 0x0042),
 			.driver_info = EM2880_BOARD_TERRATEC_HYBRID_XS },
@@ -518,6 +525,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	rc = em28xx_read_reg(dev, EM28XX_R0A_CHIPID);
 	if (rc > 0) {
 		switch (rc) {
+		case CHIP_ID_EM2860:
+			em28xx_info("chip ID is em2860\n");
+			break;
 		case CHIP_ID_EM2883:
 			em28xx_info("chip ID is em2882/em2883\n");
 			dev->wait_after_write = 0;

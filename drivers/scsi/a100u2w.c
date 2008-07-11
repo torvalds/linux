@@ -895,7 +895,7 @@ static void inia100_build_scb(struct orc_host * host, struct orc_scb * scb, stru
 	} else {
 		scb->tag_msg = 0;	/* No tag support               */
 	}
-	memcpy(&scb->cdb[0], &cmd->cmnd, scb->cdb_len);
+	memcpy(scb->cdb, cmd->cmnd, scb->cdb_len);
 }
 
 /**

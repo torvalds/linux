@@ -150,9 +150,7 @@ static struct clk pxa25x_clks[] = {
  * More ones like CP and general purpose register values are preserved
  * with the stack pointer in sleep.S.
  */
-enum {	SLEEP_SAVE_START = 0,
-
-	SLEEP_SAVE_PGSR0, SLEEP_SAVE_PGSR1, SLEEP_SAVE_PGSR2,
+enum {	SLEEP_SAVE_PGSR0, SLEEP_SAVE_PGSR1, SLEEP_SAVE_PGSR2,
 
 	SLEEP_SAVE_GAFR0_L, SLEEP_SAVE_GAFR0_U,
 	SLEEP_SAVE_GAFR1_L, SLEEP_SAVE_GAFR1_U,
@@ -162,7 +160,7 @@ enum {	SLEEP_SAVE_START = 0,
 
 	SLEEP_SAVE_CKEN,
 
-	SLEEP_SAVE_SIZE
+	SLEEP_SAVE_COUNT
 };
 
 
@@ -200,6 +198,9 @@ static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 
 static void pxa25x_cpu_pm_enter(suspend_state_t state)
 {
+	/* Clear reset status */
+	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
+
 	switch (state) {
 	case PM_SUSPEND_MEM:
 		/* set resume return address */
@@ -210,7 +211,7 @@ static void pxa25x_cpu_pm_enter(suspend_state_t state)
 }
 
 static struct pxa_cpu_pm_fns pxa25x_cpu_pm_fns = {
-	.save_size	= SLEEP_SAVE_SIZE,
+	.save_count	= SLEEP_SAVE_COUNT,
 	.valid		= suspend_valid_only_mem,
 	.save		= pxa25x_cpu_pm_save,
 	.restore	= pxa25x_cpu_pm_restore,

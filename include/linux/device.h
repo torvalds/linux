@@ -183,7 +183,6 @@ struct class {
 	struct module		*owner;
 
 	struct kset		subsys;
-	struct list_head	children;
 	struct list_head	devices;
 	struct list_head	interfaces;
 	struct kset		class_dirs;
@@ -380,6 +379,15 @@ struct device {
 /* Get the wakeup routines, which depend on struct device */
 #include <linux/pm_wakeup.h>
 
+static inline const char *dev_name(struct device *dev)
+{
+	/* will be changed into kobject_name(&dev->kobj) in the near future */
+	return dev->bus_id;
+}
+
+extern int dev_set_name(struct device *dev, const char *name, ...)
+			__attribute__((format(printf, 2, 3)));
+
 #ifdef CONFIG_NUMA
 static inline int dev_to_node(struct device *dev)
 {
@@ -444,9 +452,21 @@ extern int __must_check device_reprobe(struct device *dev);
 /*
  * Easy functions for dynamically creating devices on the fly
  */
+extern struct device *device_create_vargs(struct class *cls,
+					  struct device *parent,
+					  dev_t devt,
+					  void *drvdata,
+					  const char *fmt,
+					  va_list vargs);
 extern struct device *device_create(struct class *cls, struct device *parent,
 				    dev_t devt, const char *fmt, ...)
 				    __attribute__((format(printf, 4, 5)));
+extern struct device *device_create_drvdata(struct class *cls,
+					    struct device *parent,
+					    dev_t devt,
+					    void *drvdata,
+					    const char *fmt, ...)
+				    __attribute__((format(printf, 5, 6)));
 extern void device_destroy(struct class *cls, dev_t devt);
 
 /*
@@ -478,7 +498,7 @@ extern void sysdev_shutdown(void);
 extern const char *dev_driver_string(struct device *dev);
 #define dev_printk(level, dev, format, arg...)	\
 	printk(level "%s %s: " format , dev_driver_string(dev) , \
-	       (dev)->bus_id , ## arg)
+	       dev_name(dev) , ## arg)
 
 #define dev_emerg(dev, format, arg...)		\
 	dev_printk(KERN_EMERG , dev , format , ## arg)

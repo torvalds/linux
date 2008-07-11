@@ -520,8 +520,11 @@ static ssize_t fw_show_drv_device_ids(struct device_driver *drv, char *buf)
 	char *scratch = buf;
 
 	driver = container_of(drv, struct hpsb_protocol_driver, driver);
+	id = driver->id_table;
+	if (!id)
+		return 0;
 
-	for (id = driver->id_table; id->match_flags != 0; id++) {
+	for (; id->match_flags != 0; id++) {
 		int need_coma = 0;
 
 		if (id->match_flags & IEEE1394_MATCH_VENDOR_ID) {

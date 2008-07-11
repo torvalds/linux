@@ -140,7 +140,7 @@ struct rmc_entry {
 
 struct mesh_rmc {
 	struct rmc_entry bucket[RMC_BUCKETS];
-	u8 idx_mask;
+	u32 idx_mask;
 };
 
 

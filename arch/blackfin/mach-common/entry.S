@@ -151,26 +151,62 @@ ENTRY(_ex_soft_bp)
 ENDPROC(_ex_soft_bp)
 
 ENTRY(_ex_single_step)
+	/* If we just returned from an interrupt, the single step event is
+	   for the RTI instruction.  */
 	r7 = retx;
 	r6 = reti;
 	cc = r7 == r6;
-	if cc jump _bfin_return_from_exception
+	if cc jump _bfin_return_from_exception;
+
+	/* If we were in user mode, do the single step normally.  */
+	p5.l = lo(IPEND);
+	p5.h = hi(IPEND);
+	r6 = [p5];
+	r7 = 0xffe0 (z);
+	r7 = r7 & r6;
+	cc = r7 == 0;
+	if !cc jump 1f;
+
+	/* Single stepping only a single instruction, so clear the trace
+	 * bit here.  */
+	r7 = syscfg;
+	bitclr (r7, 0);
+	syscfg = R7;
+	jump _ex_trap_c;
+
+1:
+	/*
+	 * We were in an interrupt handler.  By convention, all of them save
+	 * SYSCFG with their first instruction, so by checking whether our
+	 * RETX points at the entry point, we can determine whether to allow
+	 * a single step, or whether to clear SYSCFG.
+	 *
+	 * First, find out the interrupt level and the event vector for it.
+	 */
+	p5.l = lo(EVT0);
+	p5.h = hi(EVT0);
+	p5 += -4;
+2:
+	r7 = rot r7 by -1;
+	p5 += 4;
+	if !cc jump 2b;
+
+	/* What we actually do is test for the _second_ instruction in the
+	 * IRQ handler.  That way, if there are insns following the restore
+	 * of SYSCFG after leaving the handler, we will not turn off SYSCFG
+	 * for them.  */
+
+	r7 = [p5];
+	r7 += 2;
+	r6 = RETX;
+	cc = R7 == R6;
+	if !cc jump _bfin_return_from_exception;
+
 	r7 = syscfg;
 	bitclr (r7, 0);
 	syscfg = R7;
 
-	p5.l = lo(IPEND);
-	p5.h = hi(IPEND);
-	r6 = [p5];
-	cc = bittst(r6, 5);
-	if !cc jump _ex_trap_c;
-	p4.l = lo(EVT5);
-	p4.h = hi(EVT5);
-	r6.h = _exception_to_level5;
-	r6.l = _exception_to_level5;
-	r7 = [p4];
-	cc = r6 == r7;
-	if !cc jump _ex_trap_c;
+	/* Fall through to _bfin_return_from_exception.  */
 ENDPROC(_ex_single_step)
 
 ENTRY(_bfin_return_from_exception)
@@ -234,20 +270,26 @@ ENTRY(_ex_trap_c)
 	p5.l = _saved_icplb_fault_addr;
 	[p5] = r7;
 
-	p4.l = __retx;
-	p4.h = __retx;
+	p4.l = _excpt_saved_stuff;
+	p4.h = _excpt_saved_stuff;
+
 	r6 = retx;
 	[p4] = r6;
-	p4.l = lo(SAFE_USER_INSTRUCTION);
-	p4.h = hi(SAFE_USER_INSTRUCTION);
-	retx = p4;
+
+	r6 = SYSCFG;
+	[p4 + 4] = r6;
+	BITCLR(r6, 0);
+	SYSCFG = r6;
 
 	/* Disable all interrupts, but make sure level 5 is enabled so
 	 * we can switch to that level.  Save the old mask.  */
 	cli r6;
-	p4.l = _excpt_saved_imask;
-	p4.h = _excpt_saved_imask;
-	[p4] = r6;
+	[p4 + 8] = r6;
+
+	p4.l = lo(SAFE_USER_INSTRUCTION);
+	p4.h = hi(SAFE_USER_INSTRUCTION);
+	retx = p4;
+
 	r6 = 0x3f;
 	sti r6;
 
@@ -295,6 +337,11 @@ ENTRY(_double_fault)
          */
         SAVE_ALL_SYS
 
+	/* The dumping functions expect the return address in the RETI
+	 * slot.  */
+	r6 = retx;
+	[sp + PT_PC] = r6;
+
         r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
         SP += -12;
         call _double_fault_c;
@@ -307,16 +354,17 @@ ENDPROC(_double_fault)
 ENTRY(_exception_to_level5)
 	SAVE_ALL_SYS
 
-	p4.l = __retx;
-	p4.h = __retx;
+	p4.l = _excpt_saved_stuff;
+	p4.h = _excpt_saved_stuff;
 	r6 = [p4];
 	[sp + PT_PC] = r6;
 
+	r6 = [p4 + 4];
+	[sp + PT_SYSCFG] = r6;
+
 	/* Restore interrupt mask.  We haven't pushed RETI, so this
 	 * doesn't enable interrupts until we return from this handler.  */
-	p4.l = _excpt_saved_imask;
-	p4.h = _excpt_saved_imask;
-	r6 = [p4];
+	r6 = [p4 + 8];
 	sti r6;
 
 	/* Restore the hardware error vector.  */
@@ -1344,7 +1392,14 @@ ENTRY(_sys_call_table)
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall
 	.endr
-_excpt_saved_imask:
+
+	/*
+	 * Used to save the real RETX, IMASK and SYSCFG when temporarily
+	 * storing safe values across the transition from exception to IRQ5.
+	 */
+_excpt_saved_stuff:
+	.long 0;
+	.long 0;
 	.long 0;
 
 _exception_stack:
@@ -1358,7 +1413,3 @@ _exception_stack_top:
 _last_cplb_fault_retx:
 	.long 0;
 #endif
-	/* Used to save the real RETX when temporarily storing a safe
-	 * return address.  */
-__retx:
-	.long 0;

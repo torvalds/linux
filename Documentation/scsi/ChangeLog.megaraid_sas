@@ -1,3 +1,25 @@
+1 Release Date    : Mon. March 10 11:02:31 PDT 2008 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Sumant Patro
+			Bo Yang
+
+2 Current Version : 00.00.03.20-RC1
+3 Older Version   : 00.00.03.16
+
+1. Rollback the sense info implementation
+	Sense buffer ptr data type in the ioctl path is reverted back
+	to u32 * as in previous versions of driver.
+
+2. Fixed the driver frame count.
+	When Driver sent wrong frame count to firmware.  As this
+	particular command is sent to drive, FW is seeing continuous
+	chip resets and so the command will timeout.
+
+3. Add the new controller(1078DE) support to the driver
+	and Increase the max_wait to 60 from 10 in the controller
+	operational status.  With this max_wait increase, driver will
+	make sure the FW will 	finish the pending cmd for KDUMP case.
+
 1 Release Date    : Thur. Nov. 07 16:30:43 PST 2007 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Sumant Patro

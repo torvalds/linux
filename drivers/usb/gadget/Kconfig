@@ -231,6 +231,26 @@ config SUPERH_BUILT_IN_M66592
 	   However, this problem is improved if change a value of
 	   NET_IP_ALIGN to 4.
 
+config USB_GADGET_PXA27X
+	boolean "PXA 27x"
+	depends on ARCH_PXA && PXA27x
+	help
+	   Intel's PXA 27x series XScale ARM v5TE processors include
+	   an integrated full speed USB 1.1 device controller.
+
+	   It has up to 23 endpoints, as well as endpoint zero (for
+	   control transfers).
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "pxa27x_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_PXA27X
+	tristate
+	depends on USB_GADGET_PXA27X
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_GOKU
 	boolean "Toshiba TC86C001 'Goku-S'"
 	depends on PCI

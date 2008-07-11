@@ -38,7 +38,7 @@
 #include "onetouch.h"
 #include "debug.h"
 
-void onetouch_release_input(void *onetouch_);
+static void onetouch_release_input(void *onetouch_);
 
 struct usb_onetouch {
 	char name[128];
@@ -223,7 +223,7 @@ int onetouch_connect_input(struct us_data *ss)
 	return error;
 }
 
-void onetouch_release_input(void *onetouch_)
+static void onetouch_release_input(void *onetouch_)
 {
 	struct usb_onetouch *onetouch = (struct usb_onetouch *) onetouch_;
 

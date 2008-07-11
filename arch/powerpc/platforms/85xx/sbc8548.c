@@ -49,6 +49,8 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
+static int sbc_rev;
+
 static void __init sbc8548_pic_init(void)
 {
 	struct mpic *mpic;
@@ -79,6 +81,30 @@ static void __init sbc8548_pic_init(void)
 	mpic_init(mpic);
 }
 
+/* Extract the HW Rev from the EPLD on the board */
+static int __init sbc8548_hw_rev(void)
+{
+	struct device_node *np;
+	struct resource res;
+	unsigned int *rev;
+	int board_rev = 0;
+
+	np = of_find_compatible_node(NULL, NULL, "hw-rev");
+	if (np == NULL) {
+		printk("No HW-REV found in DTB.\n");
+		return -ENODEV;
+	}
+
+	of_address_to_resource(np, 0, &res);
+	of_node_put(np);
+
+	rev = ioremap(res.start,sizeof(unsigned int));
+	board_rev = (*rev) >> 28;
+	iounmap(rev);
+
+	return board_rev;
+}
+
 /*
  * Setup the architecture
  */
@@ -104,6 +130,7 @@ static void __init sbc8548_setup_arch(void)
 		}
 	}
 #endif
+	sbc_rev = sbc8548_hw_rev();
 }
 
 static void sbc8548_show_cpuinfo(struct seq_file *m)
@@ -115,7 +142,7 @@ static void sbc8548_show_cpuinfo(struct seq_file *m)
 	svid = mfspr(SPRN_SVR);
 
 	seq_printf(m, "Vendor\t\t: Wind River\n");
-	seq_printf(m, "Machine\t\t: SBC8548\n");
+	seq_printf(m, "Machine\t\t: SBC8548 v%d\n", sbc_rev);
 	seq_printf(m, "PVR\t\t: 0x%x\n", pvid);
 	seq_printf(m, "SVR\t\t: 0x%x\n", svid);
 
@@ -130,6 +157,7 @@ static void sbc8548_show_cpuinfo(struct seq_file *m)
 static struct of_device_id __initdata of_bus_ids[] = {
 	{ .name = "soc", },
 	{ .type = "soc", },
+	{ .compatible = "simple-bus", },
 	{},
 };
 

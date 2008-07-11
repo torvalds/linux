@@ -1713,7 +1713,7 @@ static int mos7840_tiocmset(struct usb_serial_port *port, struct file *file,
 {
 	struct moschip_port *mos7840_port;
 	unsigned int mcr;
-	unsigned int status;
+	int status;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -1740,11 +1740,10 @@ static int mos7840_tiocmset(struct usb_serial_port *port, struct file *file,
 
 	mos7840_port->shadowMCR = mcr;
 
-	status = 0;
 	status = mos7840_set_uart_reg(port, MODEM_CONTROL_REGISTER, mcr);
 	if (status < 0) {
 		dbg("setting MODEM_CONTROL_REGISTER Failed\n");
-		return -1;
+		return status;
 	}
 
 	return 0;

@@ -1774,7 +1774,10 @@ static int iwl4965_scan_initiate(struct iwl_priv *priv)
 	}
 
 	IWL_DEBUG_INFO("Starting scan...\n");
-	priv->scan_bands = 2;
+	if (priv->cfg->sku & IWL_SKU_G)
+		priv->scan_bands |= BIT(IEEE80211_BAND_2GHZ);
+	if (priv->cfg->sku & IWL_SKU_A)
+		priv->scan_bands |= BIT(IEEE80211_BAND_5GHZ);
 	set_bit(STATUS_SCANNING, &priv->status);
 	priv->scan_start = jiffies;
 	priv->scan_pass_start = priv->scan_start;
@@ -3023,8 +3026,9 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 	IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
 	if (index != -1) {
-		int freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
 #ifdef CONFIG_IWL4965_HT
+		int freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
+
 		if (tid != MAX_TID_COUNT)
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 		if (iwl4965_queue_space(&txq->q) > txq->q.low_mark &&
@@ -3276,13 +3280,18 @@ static void iwl4965_rx_scan_complete_notif(struct iwl_priv *priv,
 	cancel_delayed_work(&priv->scan_check);
 
 	IWL_DEBUG_INFO("Scan pass on %sGHz took %dms\n",
-		       (priv->scan_bands == 2) ? "2.4" : "5.2",
+		       (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) ?
+						"2.4" : "5.2",
 		       jiffies_to_msecs(elapsed_jiffies
 					(priv->scan_pass_start, jiffies)));
 
-	/* Remove this scanned band from the list
-	 * of pending bands to scan */
-	priv->scan_bands--;
+	/* Remove this scanned band from the list of pending
+	 * bands to scan, band G precedes A in order of scanning
+	 * as seen in iwl_bg_request_scan */
+	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ))
+		priv->scan_bands &= ~BIT(IEEE80211_BAND_2GHZ);
+	else if (priv->scan_bands &  BIT(IEEE80211_BAND_5GHZ))
+		priv->scan_bands &= ~BIT(IEEE80211_BAND_5GHZ);
 
 	/* If a request to abort was given, or the scan did not succeed
 	 * then we reset the scan state machine and terminate,
@@ -3292,7 +3301,7 @@ static void iwl4965_rx_scan_complete_notif(struct iwl_priv *priv,
 		clear_bit(STATUS_SCAN_ABORTING, &priv->status);
 	} else {
 		/* If there are more bands on this scan pass reschedule */
-		if (priv->scan_bands > 0)
+		if (priv->scan_bands)
 			goto reschedule;
 	}
 
@@ -4633,23 +4642,11 @@ static int iwl4965_get_channels_for_scan(struct iwl_priv *priv,
 		if (channels[i].flags & IEEE80211_CHAN_DISABLED)
 			continue;
 
-		if (ieee80211_frequency_to_channel(channels[i].center_freq) ==
-		    le16_to_cpu(priv->active_rxon.channel)) {
-			if (iwl_is_associated(priv)) {
-				IWL_DEBUG_SCAN
-				    ("Skipping current channel %d\n",
-				     le16_to_cpu(priv->active_rxon.channel));
-				continue;
-			}
-		} else if (priv->only_active_channel)
-			continue;
-
 		scan_ch->channel = ieee80211_frequency_to_channel(channels[i].center_freq);
 
-		ch_info = iwl_get_channel_info(priv, band,
-					 scan_ch->channel);
+		ch_info = iwl_get_channel_info(priv, band, scan_ch->channel);
 		if (!is_channel_valid(ch_info)) {
-			IWL_DEBUG_SCAN("Channel %d is INVALID for this SKU.\n",
+			IWL_DEBUG_SCAN("Channel %d is INVALID for this band.\n",
 				       scan_ch->channel);
 			continue;
 		}
@@ -5824,11 +5821,15 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 		       priv->direct_ssid, priv->direct_ssid_len);
 		direct_mask = 1;
 	} else if (!iwl_is_associated(priv) && priv->essid_len) {
+		IWL_DEBUG_SCAN
+		  ("Kicking off one direct scan for '%s' when not associated\n",
+		   iwl4965_escape_essid(priv->essid, priv->essid_len));
 		scan->direct_scan[0].id = WLAN_EID_SSID;
 		scan->direct_scan[0].len = priv->essid_len;
 		memcpy(scan->direct_scan[0].ssid, priv->essid, priv->essid_len);
 		direct_mask = 1;
 	} else {
+		IWL_DEBUG_SCAN("Kicking off one indirect scan.\n");
 		direct_mask = 0;
 	}
 
@@ -5837,8 +5838,7 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 
-	switch (priv->scan_bands) {
-	case 2:
+	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) {
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		scan->tx_cmd.rate_n_flags =
 				iwl4965_hw_set_rate_n_flags(IWL_RATE_1M_PLCP,
@@ -5846,17 +5846,13 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 
 		scan->good_CRC_th = 0;
 		band = IEEE80211_BAND_2GHZ;
-		break;
-
-	case 1:
+	} else if (priv->scan_bands & BIT(IEEE80211_BAND_5GHZ)) {
 		scan->tx_cmd.rate_n_flags =
 				iwl4965_hw_set_rate_n_flags(IWL_RATE_6M_PLCP,
 				RATE_MCS_ANT_B_MSK);
 		scan->good_CRC_th = IWL_GOOD_CRC_TH;
 		band = IEEE80211_BAND_5GHZ;
-		break;
-
-	default:
+	} else {
 		IWL_WARNING("Invalid scan band count\n");
 		goto done;
 	}
@@ -5881,23 +5877,18 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR)
 		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
 
-	if (direct_mask) {
-		IWL_DEBUG_SCAN
-		    ("Initiating direct scan for %s.\n",
-		     iwl4965_escape_essid(priv->essid, priv->essid_len));
+	if (direct_mask)
 		scan->channel_count =
 			iwl4965_get_channels_for_scan(
 				priv, band, 1, /* active */
 				direct_mask,
 				(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
-	} else {
-		IWL_DEBUG_SCAN("Initiating indirect scan.\n");
+	else
 		scan->channel_count =
 			iwl4965_get_channels_for_scan(
 				priv, band, 0, /* passive */
 				direct_mask,
 				(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
-	}
 
 	cmd.len += le16_to_cpu(scan->tx_cmd.len) +
 	    scan->channel_count * sizeof(struct iwl4965_scan_channel);
@@ -6246,7 +6237,8 @@ static int iwl4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR) {
 		IWL_DEBUG_MAC80211("leave - monitor\n");
-		return -1;
+		dev_kfree_skb_any(skb);
+		return 0;
 	}
 
 	IWL_DEBUG_TX("dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
@@ -7060,8 +7052,6 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 		mutex_unlock(&priv->mutex);
 		return;
 	}
-
-	priv->only_active_channel = 0;
 
 	iwl4965_set_rate(priv);
 

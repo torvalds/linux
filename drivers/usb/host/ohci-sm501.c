@@ -75,6 +75,7 @@ static const struct hc_driver ohci_sm501_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
+	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,
@@ -90,7 +91,7 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource	*res, *mem;
 	int retval, irq;
-	struct usb_hcd *hcd = 0;
+	struct usb_hcd *hcd = NULL;
 
 	irq = retval = platform_get_irq(pdev, 0);
 	if (retval < 0)

@@ -219,6 +219,7 @@ static void dev_watchdog(unsigned long arg)
 				printk(KERN_INFO "NETDEV WATCHDOG: %s: transmit timed out\n",
 				       dev->name);
 				dev->tx_timeout(dev);
+				WARN_ON_ONCE(1);
 			}
 			if (!mod_timer(&dev->watchdog_timer, round_jiffies(jiffies + dev->watchdog_timeo)))
 				dev_hold(dev);
@@ -467,7 +468,7 @@ struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops)
 
 	return sch;
 errout:
-	return ERR_PTR(-err);
+	return ERR_PTR(err);
 }
 
 struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops,

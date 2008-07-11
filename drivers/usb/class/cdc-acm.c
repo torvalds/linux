@@ -1125,9 +1125,6 @@ static void stop_data_traffic(struct acm *acm)
 	for (i = 0; i < acm->rx_buflimit; i++)
 		usb_kill_urb(acm->ru[i].urb);
 
-	INIT_LIST_HEAD(&acm->filled_read_bufs);
-	INIT_LIST_HEAD(&acm->spare_read_bufs);
-
 	tasklet_enable(&acm->urb_task);
 
 	cancel_work_sync(&acm->work);
@@ -1246,6 +1243,9 @@ static struct usb_device_id acm_ids[] = {
 	.driver_info = SINGLE_RX_URB, /* firmware bug */
 	},
 	{ USB_DEVICE(0x22b8, 0x7000), /* Motorola Q Phone */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
+	{ USB_DEVICE(0x0803, 0x3095), /* Zoom Telephonics Model 3095F USB MODEM */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
 

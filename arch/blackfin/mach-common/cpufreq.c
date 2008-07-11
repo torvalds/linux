@@ -62,6 +62,14 @@ static struct bfin_dpm_state {
 	unsigned int tscale; /* change the divider on the core timer interrupt */
 } dpm_state_table[3];
 
+/*
+   normalized to maximum frequncy offset for CYCLES,
+   used in time-ts cycles clock source, but could be used
+   somewhere also.
+ */
+unsigned long long __bfin_cycles_off;
+unsigned int __bfin_cycles_mod;
+
 /**************************************************************************/
 
 static unsigned int bfin_getfreq(unsigned int cpu)
@@ -80,6 +88,7 @@ static int bfin_target(struct cpufreq_policy *policy,
 	unsigned int index, plldiv, tscale;
 	unsigned long flags, cclk_hz;
 	struct cpufreq_freqs freqs;
+	cycles_t cycles;
 
 	if (cpufreq_frequency_table_target(policy, bfin_freq_table,
 		 target_freq, relation, &index))
@@ -101,8 +110,14 @@ static int bfin_target(struct cpufreq_policy *policy,
 		bfin_write_PLL_DIV(plldiv);
 		/* we have to adjust the core timer, because it is using cclk */
 		bfin_write_TSCALE(tscale);
+		cycles = get_cycles();
 		SSYNC();
+	cycles += 10; /* ~10 cycles we loose after get_cycles() */
+	__bfin_cycles_off += (cycles << __bfin_cycles_mod) - (cycles << index);
+	__bfin_cycles_mod = index;
 	local_irq_restore(flags);
+	/* TODO: just test case for cycles clock source, remove later */
+	pr_debug("cpufreq: done\n");
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
@@ -119,22 +134,13 @@ static int __init __bfin_cpu_init(struct cpufreq_policy *policy)
 	unsigned long cclk, sclk, csel, min_cclk;
 	int index;
 
-#ifdef CONFIG_CYCLES_CLOCKSOURCE
-/*
- * Clocksource CYCLES is still CONTINUOUS but not longer MONOTONIC in case we enable
- * CPU frequency scaling, since CYCLES runs off Core Clock.
- */
-	printk(KERN_WARNING "CPU frequency scaling not supported: Clocksource not suitable\n"
-		return -ENODEV;
-#endif
-
 	if (policy->cpu != 0)
 		return -EINVAL;
 
 	cclk = get_cclk();
 	sclk = get_sclk();
 
-#if ANOMALY_05000273
+#if ANOMALY_05000273 || (!defined(CONFIG_BF54x) && defined(CONFIG_BFIN_DCACHE))
 	min_cclk = sclk * 2;
 #else
 	min_cclk = sclk;

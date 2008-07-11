@@ -1,4 +1,4 @@
-/* $Id: strncpy_from_user.S,v 1.6 1999/05/25 16:53:05 jj Exp $
+/*
  * strncpy_from_user.S: Sparc64 strncpy from userspace.
  *
  *  Copyright (C) 1997, 1999 Jakub Jelinek (jj@ultra.linux.cz)

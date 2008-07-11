@@ -214,7 +214,7 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		 *     sense id information. So, for intervention required,
 		 *     we use the "whack it until it talks" strategy...
 		 */
-		CIO_MSG_EVENT(2, "SenseID : device %04x on Subchannel "
+		CIO_MSG_EVENT(0, "SenseID : device %04x on Subchannel "
 			      "0.%x.%04x reports cmd reject\n",
 			      cdev->private->dev_id.devno, sch->schid.ssid,
 			      sch->schid.sch_no);
@@ -239,7 +239,7 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 
 		lpm = to_io_private(sch)->orb.lpm;
 		if ((lpm & sch->schib.pmcw.pim & sch->schib.pmcw.pam) != 0)
-			CIO_MSG_EVENT(2, "SenseID : path %02X for device %04x "
+			CIO_MSG_EVENT(4, "SenseID : path %02X for device %04x "
 				      "on subchannel 0.%x.%04x is "
 				      "'not operational'\n", lpm,
 				      cdev->private->dev_id.devno,

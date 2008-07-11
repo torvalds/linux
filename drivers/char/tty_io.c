@@ -78,6 +78,7 @@
 #include <linux/tty_flip.h>
 #include <linux/devpts_fs.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/console.h>
 #include <linux/timer.h>
 #include <linux/ctype.h>
@@ -1214,10 +1215,11 @@ int tty_check_change(struct tty_struct *tty)
 
 	if (!tty->pgrp) {
 		printk(KERN_WARNING "tty_check_change: tty->pgrp == NULL!\n");
-		goto out;
+		goto out_unlock;
 	}
 	if (task_pgrp(current) == tty->pgrp)
-		goto out;
+		goto out_unlock;
+	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 	if (is_ignored(SIGTTOU))
 		goto out;
 	if (is_current_pgrp_orphaned()) {
@@ -1228,6 +1230,8 @@ int tty_check_change(struct tty_struct *tty)
 	set_thread_flag(TIF_SIGPENDING);
 	ret = -ERESTARTSYS;
 out:
+	return ret;
+out_unlock:
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 	return ret;
 }
@@ -3318,7 +3322,7 @@ static int send_break(struct tty_struct *tty, unsigned int duration)
 		msleep_interruptible(duration);
 	tty->ops->break_ctl(tty, 0);
 	tty_write_unlock(tty);
-	if (!signal_pending(current))
+	if (signal_pending(current))
 		return -EINTR;
 	return 0;
 }

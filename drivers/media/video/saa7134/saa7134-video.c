@@ -1634,7 +1634,7 @@ static int saa7134_s_fmt_overlay(struct file *file, void *priv,
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 	int err;
-	unsigned int flags;
+	unsigned long flags;
 
 	if (saa7134_no_overlay > 0) {
 		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");

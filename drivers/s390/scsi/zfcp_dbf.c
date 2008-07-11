@@ -1055,7 +1055,7 @@ static void zfcp_scsi_dbf_event(const char *tag, const char *tag2, int level,
 				rec->scsi_result = scsi_cmnd->result;
 				rec->scsi_cmnd = (unsigned long)scsi_cmnd;
 				rec->scsi_serial = scsi_cmnd->serial_number;
-				memcpy(rec->scsi_opcode, &scsi_cmnd->cmnd,
+				memcpy(rec->scsi_opcode, scsi_cmnd->cmnd,
 					min((int)scsi_cmnd->cmd_len,
 						ZFCP_DBF_SCSI_OPCODE));
 				rec->scsi_retries = scsi_cmnd->retries;

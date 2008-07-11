@@ -135,6 +135,7 @@ config IA64_GENERIC
 	  HP-zx1/sx1000		For HP systems
 	  HP-zx1/sx1000+swiotlb	For HP systems with (broken) DMA-constrained devices.
 	  SGI-SN2		For SGI Altix systems
+	  SGI-UV		For SGI UV systems
 	  Ski-simulator		For the HP simulator <http://www.hpl.hp.com/research/linux/ski/>
 
 	  If you don't know what to do, choose "generic".
@@ -167,6 +168,18 @@ config IA64_SGI_SN2
 	  Selecting this option will optimize the kernel for use on sn2 based
 	  systems, but the resulting kernel binary will not run on other
 	  types of ia64 systems.  If you have an SGI Altix system, it's safe
+	  to select this option.  If in doubt, select ia64 generic support
+	  instead.
+
+config IA64_SGI_UV`
+	bool "SGI-UV`"
+	select NUMA
+	select ACPI_NUMA
+	select SWIOTLB
+	help
+	  Selecting this option will optimize the kernel for use on UV based
+	  systems, but the resulting kernel binary will not run on other
+	  types of ia64 systems.  If you have an SGI UV system, it's safe
 	  to select this option.  If in doubt, select ia64 generic support
 	  instead.
 

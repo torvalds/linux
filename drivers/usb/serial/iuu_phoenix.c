@@ -643,7 +643,7 @@ static void read_buf_callback(struct urb *urb)
 static int iuu_bulk_write(struct usb_serial_port *port)
 {
 	struct iuu_private *priv = usb_get_serial_port_data(port);
-	unsigned int flags;
+	unsigned long flags;
 	int result;
 	int i;
 	char *buf_ptr = port->write_urb->transfer_buffer;
@@ -694,7 +694,7 @@ static void iuu_uart_read_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
-	unsigned int flags;
+	unsigned long flags;
 	int status;
 	int error = 0;
 	int len = 0;
@@ -759,7 +759,7 @@ static int iuu_uart_write(struct usb_serial_port *port, const u8 *buf,
 			  int count)
 {
 	struct iuu_private *priv = usb_get_serial_port_data(port);
-	unsigned int flags;
+	unsigned long flags;
 	dbg("%s - enter", __func__);
 
 	if (count > 256)

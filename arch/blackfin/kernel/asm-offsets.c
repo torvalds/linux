@@ -56,9 +56,6 @@ int main(void)
 	/* offsets into the thread struct */
 	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
 	DEFINE(THREAD_USP, offsetof(struct thread_struct, usp));
-	DEFINE(THREAD_SR, offsetof(struct thread_struct, seqstat));
-	DEFINE(PT_SR, offsetof(struct thread_struct, seqstat));
-	DEFINE(THREAD_ESP0, offsetof(struct thread_struct, esp0));
 	DEFINE(THREAD_PC, offsetof(struct thread_struct, pc));
 	DEFINE(KERNEL_STACK_SIZE, THREAD_SIZE);
 

@@ -31,6 +31,7 @@ struct v4l2_i2c_driver_data {
 	int (*resume)(struct i2c_client *client);
 	int (*legacy_probe)(struct i2c_adapter *adapter);
 	int legacy_class;
+	const struct i2c_device_id *id_table;
 };
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data;
@@ -124,6 +125,7 @@ static int __init v4l2_i2c_drv_init(void)
 	v4l2_i2c_driver.command = v4l2_i2c_data.command;
 	v4l2_i2c_driver.probe = v4l2_i2c_data.probe;
 	v4l2_i2c_driver.remove = v4l2_i2c_data.remove;
+	v4l2_i2c_driver.id_table = v4l2_i2c_data.id_table;
 	err = i2c_add_driver(&v4l2_i2c_driver);
 	if (err)
 		i2c_del_driver(&v4l2_i2c_driver_legacy);

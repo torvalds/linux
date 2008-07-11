@@ -343,6 +343,7 @@ unsigned long onchip_remap(unsigned long phys, unsigned long size, const char *n
 
 	return shmedia_alloc_io(phys, size, name);
 }
+EXPORT_SYMBOL(onchip_remap);
 
 void onchip_unmap(unsigned long vaddr)
 {
@@ -370,6 +371,7 @@ void onchip_unmap(unsigned long vaddr)
 		kfree(res);
 	}
 }
+EXPORT_SYMBOL(onchip_unmap);
 
 #ifdef CONFIG_PROC_FS
 static int

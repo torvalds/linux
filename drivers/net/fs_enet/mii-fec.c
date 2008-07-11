@@ -194,7 +194,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 
 	ret = of_address_to_resource(ofdev->node, 0, &res);
 	if (ret)
-		return ret;
+		goto out_res;
 
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
@@ -236,6 +236,7 @@ out_free_irqs:
 	kfree(new_bus->irq);
 out_unmap_regs:
 	iounmap(fec->fecp);
+out_res:
 out_fec:
 	kfree(fec);
 out_mii:

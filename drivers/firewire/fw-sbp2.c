@@ -784,7 +784,7 @@ static void sbp2_release_target(struct kref *kref)
 		kfree(lu);
 	}
 	scsi_remove_host(shost);
-	fw_notify("released %s\n", tgt->bus_id);
+	fw_notify("released %s, target %d:0:0\n", tgt->bus_id, shost->host_no);
 
 	fw_unit_put(tgt->unit);
 	scsi_host_put(shost);
@@ -1051,7 +1051,8 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
 			break;
 
 		case SBP2_CSR_LOGICAL_UNIT_DIRECTORY:
-			if (sbp2_scan_logical_unit_dir(tgt, ci.p + value) < 0)
+			/* Adjust for the increment in the iterator */
+			if (sbp2_scan_logical_unit_dir(tgt, ci.p - 1 + value) < 0)
 				return -ENOMEM;
 			break;
 		}
@@ -1487,7 +1488,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	if (scsi_sg_count(cmd) && sbp2_map_scatterlist(orb, device, lu) < 0)
 		goto out;
 
-	memcpy(orb->request.command_block, cmd->cmnd, COMMAND_SIZE(*cmd->cmnd));
+	memcpy(orb->request.command_block, cmd->cmnd, cmd->cmd_len);
 
 	orb->base.callback = complete_command_orb;
 	orb->base.request_bus =

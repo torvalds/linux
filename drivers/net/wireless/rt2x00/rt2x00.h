@@ -328,6 +328,11 @@ static inline int rt2x00_get_link_ant_rssi(struct link *link)
 	return DEFAULT_RSSI;
 }
 
+static inline void rt2x00_reset_link_ant_rssi(struct link *link)
+{
+	link->ant.rssi_ant = 0;
+}
+
 static inline int rt2x00_get_link_ant_rssi_history(struct link *link,
 						   enum antenna ant)
 {
@@ -816,6 +821,7 @@ struct rt2x00_dev {
 	/*
 	 * Scheduled work.
 	 */
+	struct workqueue_struct *workqueue;
 	struct work_struct intf_work;
 	struct work_struct filter_work;
 

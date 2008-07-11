@@ -255,22 +255,8 @@ static int ieee80211_open(struct net_device *dev)
 
 	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_WDS:
-		if (is_zero_ether_addr(sdata->u.wds.remote_addr))
+		if (!is_valid_ether_addr(sdata->u.wds.remote_addr))
 			return -ENOLINK;
-
-		/* Create STA entry for the WDS peer */
-		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
-				     GFP_KERNEL);
-		if (!sta)
-			return -ENOMEM;
-
-		sta->flags |= WLAN_STA_AUTHORIZED;
-
-		res = sta_info_insert(sta);
-		if (res) {
-			/* STA has been freed */
-			return res;
-		}
 		break;
 	case IEEE80211_IF_TYPE_VLAN:
 		if (!sdata->u.vlan.ap)
@@ -337,10 +323,8 @@ static int ieee80211_open(struct net_device *dev)
 		conf.type = sdata->vif.type;
 		conf.mac_addr = dev->dev_addr;
 		res = local->ops->add_interface(local_to_hw(local), &conf);
-		if (res && !local->open_count && local->ops->stop)
-			local->ops->stop(local_to_hw(local));
 		if (res)
-			return res;
+			goto err_stop;
 
 		ieee80211_if_config(dev);
 		ieee80211_reset_erp_info(dev);
@@ -353,9 +337,29 @@ static int ieee80211_open(struct net_device *dev)
 			netif_carrier_on(dev);
 	}
 
+	if (sdata->vif.type == IEEE80211_IF_TYPE_WDS) {
+		/* Create STA entry for the WDS peer */
+		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
+				     GFP_KERNEL);
+		if (!sta) {
+			res = -ENOMEM;
+			goto err_del_interface;
+		}
+
+		sta->flags |= WLAN_STA_AUTHORIZED;
+
+		res = sta_info_insert(sta);
+		if (res) {
+			/* STA has been freed */
+			goto err_del_interface;
+		}
+	}
+
 	if (local->open_count == 0) {
 		res = dev_open(local->mdev);
 		WARN_ON(res);
+		if (res)
+			goto err_del_interface;
 		tasklet_enable(&local->tx_pending_tasklet);
 		tasklet_enable(&local->tasklet);
 	}
@@ -390,6 +394,12 @@ static int ieee80211_open(struct net_device *dev)
 	netif_start_queue(dev);
 
 	return 0;
+ err_del_interface:
+	local->ops->remove_interface(local_to_hw(local), &conf);
+ err_stop:
+	if (!local->open_count && local->ops->stop)
+		local->ops->stop(local_to_hw(local));
+	return res;
 }
 
 static int ieee80211_stop(struct net_device *dev)
@@ -501,6 +511,7 @@ static int ieee80211_stop(struct net_device *dev)
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		sdata->u.sta.state = IEEE80211_DISABLED;
+		memset(sdata->u.sta.bssid, 0, ETH_ALEN);
 		del_timer_sync(&sdata->u.sta.timer);
 		/*
 		 * When we get here, the interface is marked down.
@@ -518,8 +529,6 @@ static int ieee80211_stop(struct net_device *dev)
 			} else
 				local->sta_hw_scanning = 0;
 		}
-
-		flush_workqueue(local->hw.workqueue);
 
 		sdata->u.sta.flags &= ~IEEE80211_STA_PRIVACY_INVOKED;
 		kfree(sdata->u.sta.extra_ie);
@@ -543,6 +552,8 @@ static int ieee80211_stop(struct net_device *dev)
 			local->ops->stop(local_to_hw(local));
 
 		ieee80211_led_radio(local, 0);
+
+		flush_workqueue(local->hw.workqueue);
 
 		tasklet_disable(&local->tx_pending_tasklet);
 		tasklet_disable(&local->tasklet);
@@ -975,6 +986,7 @@ static int __ieee80211_if_config(struct net_device *dev,
 		conf.ssid_len = sdata->u.sta.ssid_len;
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		conf.beacon = beacon;
+		conf.beacon_control = control;
 		ieee80211_start_mesh(dev);
 	} else if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
 		conf.ssid = sdata->u.ap.ssid;
@@ -1302,7 +1314,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	/*
 	 * Clear the TX filter mask for this STA when sending the next
 	 * packet. If the STA went to power save mode, this will happen
-	 * happen when it wakes up for the next time.
+	 * when it wakes up for the next time.
 	 */
 	sta->flags |= WLAN_STA_CLEAR_PS_FILT;
 
@@ -1755,6 +1767,7 @@ fail_wep:
 fail_rate:
 	ieee80211_debugfs_remove_netdev(IEEE80211_DEV_TO_SUB_IF(local->mdev));
 	unregister_netdevice(local->mdev);
+	local->mdev = NULL;
 fail_dev:
 	rtnl_unlock();
 	sta_info_stop(local);
@@ -1762,8 +1775,10 @@ fail_sta_info:
 	debugfs_hw_del(local);
 	destroy_workqueue(local->hw.workqueue);
 fail_workqueue:
-	ieee80211_if_free(local->mdev);
-	local->mdev = NULL;
+	if (local->mdev != NULL) {
+		ieee80211_if_free(local->mdev);
+		local->mdev = NULL;
+	}
 fail_mdev_alloc:
 	wiphy_unregister(local->hw.wiphy);
 	return result;

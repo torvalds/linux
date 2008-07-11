@@ -53,15 +53,16 @@
 #include <linux/scatterlist.h>
 
 #define CCISS_DRIVER_VERSION(maj,min,submin) ((maj<<16)|(min<<8)|(submin))
-#define DRIVER_NAME "HP CISS Driver (v 3.6.14)"
-#define DRIVER_VERSION CCISS_DRIVER_VERSION(3,6,14)
+#define DRIVER_NAME "HP CISS Driver (v 3.6.20)"
+#define DRIVER_VERSION CCISS_DRIVER_VERSION(3, 6, 20)
 
 /* Embedded module documentation macros - see modules.h */
 MODULE_AUTHOR("Hewlett-Packard Company");
-MODULE_DESCRIPTION("Driver for HP Controller SA5xxx SA6xxx version 3.6.14");
+MODULE_DESCRIPTION("Driver for HP Smart Array Controllers");
 MODULE_SUPPORTED_DEVICE("HP SA5i SA5i+ SA532 SA5300 SA5312 SA641 SA642 SA6400"
-			" SA6i P600 P800 P400 P400i E200 E200i E500");
-MODULE_VERSION("3.6.14");
+			" SA6i P600 P800 P400 P400i E200 E200i E500 P700m"
+			" Smart Array G2 Series SAS/SATA Controllers");
+MODULE_VERSION("3.6.20");
 MODULE_LICENSE("GPL");
 
 #include "cciss_cmd.h"
@@ -90,6 +91,11 @@ static const struct pci_device_id cciss_pci_device_id[] = {
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSD,     0x103C, 0x3215},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSC,     0x103C, 0x3237},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSC,     0x103C, 0x323D},
+	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3241},
+	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3243},
+	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3245},
+	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3247},
+	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3249},
 	{PCI_VENDOR_ID_HP,     PCI_ANY_ID,	PCI_ANY_ID, PCI_ANY_ID,
 		PCI_CLASS_STORAGE_RAID << 8, 0xffff << 8, 0},
 	{0,}
@@ -100,30 +106,34 @@ MODULE_DEVICE_TABLE(pci, cciss_pci_device_id);
 /*  board_id = Subsystem Device ID & Vendor ID
  *  product = Marketing Name for the board
  *  access = Address of the struct of function pointers
- *  nr_cmds = Number of commands supported by controller
  */
 static struct board_type products[] = {
-	{0x40700E11, "Smart Array 5300", &SA5_access, 512},
-	{0x40800E11, "Smart Array 5i", &SA5B_access, 512},
-	{0x40820E11, "Smart Array 532", &SA5B_access, 512},
-	{0x40830E11, "Smart Array 5312", &SA5B_access, 512},
-	{0x409A0E11, "Smart Array 641", &SA5_access, 512},
-	{0x409B0E11, "Smart Array 642", &SA5_access, 512},
-	{0x409C0E11, "Smart Array 6400", &SA5_access, 512},
-	{0x409D0E11, "Smart Array 6400 EM", &SA5_access, 512},
-	{0x40910E11, "Smart Array 6i", &SA5_access, 512},
-	{0x3225103C, "Smart Array P600", &SA5_access, 512},
-	{0x3223103C, "Smart Array P800", &SA5_access, 512},
-	{0x3234103C, "Smart Array P400", &SA5_access, 512},
-	{0x3235103C, "Smart Array P400i", &SA5_access, 512},
-	{0x3211103C, "Smart Array E200i", &SA5_access, 120},
-	{0x3212103C, "Smart Array E200", &SA5_access, 120},
-	{0x3213103C, "Smart Array E200i", &SA5_access, 120},
-	{0x3214103C, "Smart Array E200i", &SA5_access, 120},
-	{0x3215103C, "Smart Array E200i", &SA5_access, 120},
-	{0x3237103C, "Smart Array E500", &SA5_access, 512},
-	{0x323D103C, "Smart Array P700m", &SA5_access, 512},
-	{0xFFFF103C, "Unknown Smart Array", &SA5_access, 120},
+	{0x40700E11, "Smart Array 5300", &SA5_access},
+	{0x40800E11, "Smart Array 5i", &SA5B_access},
+	{0x40820E11, "Smart Array 532", &SA5B_access},
+	{0x40830E11, "Smart Array 5312", &SA5B_access},
+	{0x409A0E11, "Smart Array 641", &SA5_access},
+	{0x409B0E11, "Smart Array 642", &SA5_access},
+	{0x409C0E11, "Smart Array 6400", &SA5_access},
+	{0x409D0E11, "Smart Array 6400 EM", &SA5_access},
+	{0x40910E11, "Smart Array 6i", &SA5_access},
+	{0x3225103C, "Smart Array P600", &SA5_access},
+	{0x3223103C, "Smart Array P800", &SA5_access},
+	{0x3234103C, "Smart Array P400", &SA5_access},
+	{0x3235103C, "Smart Array P400i", &SA5_access},
+	{0x3211103C, "Smart Array E200i", &SA5_access},
+	{0x3212103C, "Smart Array E200", &SA5_access},
+	{0x3213103C, "Smart Array E200i", &SA5_access},
+	{0x3214103C, "Smart Array E200i", &SA5_access},
+	{0x3215103C, "Smart Array E200i", &SA5_access},
+	{0x3237103C, "Smart Array E500", &SA5_access},
+	{0x323D103C, "Smart Array P700m", &SA5_access},
+	{0x3241103C, "Smart Array P212", &SA5_access},
+	{0x3243103C, "Smart Array P410", &SA5_access},
+	{0x3245103C, "Smart Array P410i", &SA5_access},
+	{0x3247103C, "Smart Array P411", &SA5_access},
+	{0x3249103C, "Smart Array P812", &SA5_access},
+	{0xFFFF103C, "Unknown Smart Array", &SA5_access},
 };
 
 /* How long to wait (in milliseconds) for board to go into simple mode */
@@ -3075,11 +3085,20 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	print_cfg_table(c->cfgtable);
 #endif				/* CCISS_DEBUG */
 
+	/* Some controllers support Zero Memory Raid (ZMR).
+	 * When configured in ZMR mode the number of supported
+	 * commands drops to 64. So instead of just setting an
+	 * arbitrary value we make the driver a little smarter.
+	 * We read the config table to tell us how many commands
+	 * are supported on the controller then subtract 4 to
+	 * leave a little room for ioctl calls.
+	 */
+	c->max_commands = readl(&(c->cfgtable->CmdsOutMax));
 	for (i = 0; i < ARRAY_SIZE(products); i++) {
 		if (board_id == products[i].board_id) {
 			c->product_name = products[i].product_name;
 			c->access = *(products[i].access);
-			c->nr_cmds = products[i].nr_cmds;
+			c->nr_cmds = c->max_commands - 4;
 			break;
 		}
 	}
@@ -3099,7 +3118,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 		if (subsystem_vendor_id == PCI_VENDOR_ID_HP) {
 			c->product_name = products[i-1].product_name;
 			c->access = *(products[i-1].access);
-			c->nr_cmds = products[i-1].nr_cmds;
+			c->nr_cmds = c->max_commands - 4;
 			printk(KERN_WARNING "cciss: This is an unknown "
 				"Smart Array controller.\n"
 				"cciss: Please update to the latest driver "
@@ -3534,6 +3553,10 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 	for (j = 0; j <= hba[i]->highest_lun; j++)
 		add_disk(hba[i]->gendisk[j]);
+
+	/* we must register the controller even if no disks exist */
+	if (hba[i]->highest_lun == -1)
+		add_disk(hba[i]->gendisk[0]);
 
 	return 1;
 

@@ -2,6 +2,7 @@
    All C exports should go in the respective C files. */
 
 #include <linux/module.h>
+#include <net/checksum.h>
 #include <linux/smp.h>
 
 #include <asm/processor.h>
@@ -28,6 +29,8 @@ EXPORT_SYMBOL(__copy_from_user_inatomic);
 
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);
+
+EXPORT_SYMBOL(csum_partial);
 
 /*
  * Export string functions. We normally rely on gcc builtin for most of these,

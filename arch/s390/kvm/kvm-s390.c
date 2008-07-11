@@ -31,6 +31,7 @@
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "userspace_handled", VCPU_STAT(exit_userspace) },
+	{ "exit_null", VCPU_STAT(exit_null) },
 	{ "exit_validity", VCPU_STAT(exit_validity) },
 	{ "exit_stop_request", VCPU_STAT(exit_stop_request) },
 	{ "exit_external_request", VCPU_STAT(exit_external_request) },
@@ -221,10 +222,6 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	vcpu->arch.guest_fpregs.fpc &= FPC_VALID_MASK;
 	restore_fp_regs(&vcpu->arch.guest_fpregs);
 	restore_access_regs(vcpu->arch.guest_acrs);
-
-	if (signal_pending(current))
-		atomic_set_mask(CPUSTAT_STOP_INT,
-			&vcpu->arch.sie_block->cpuflags);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
@@ -426,6 +423,8 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	return -EINVAL; /* not implemented yet */
 }
 
+extern void s390_handle_mcck(void);
+
 static void __vcpu_run(struct kvm_vcpu *vcpu)
 {
 	memcpy(&vcpu->arch.sie_block->gg14, &vcpu->arch.guest_gprs[14], 16);
@@ -433,13 +432,21 @@ static void __vcpu_run(struct kvm_vcpu *vcpu)
 	if (need_resched())
 		schedule();
 
+	if (test_thread_flag(TIF_MCCK_PENDING))
+		s390_handle_mcck();
+
+	kvm_s390_deliver_pending_interrupts(vcpu);
+
 	vcpu->arch.sie_block->icptcode = 0;
 	local_irq_disable();
 	kvm_guest_enter();
 	local_irq_enable();
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
 		   atomic_read(&vcpu->arch.sie_block->cpuflags));
-	sie64a(vcpu->arch.sie_block, vcpu->arch.guest_gprs);
+	if (sie64a(vcpu->arch.sie_block, vcpu->arch.guest_gprs)) {
+		VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
+		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	}
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
 	local_irq_disable();
@@ -478,7 +485,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	might_sleep();
 
 	do {
-		kvm_s390_deliver_pending_interrupts(vcpu);
 		__vcpu_run(vcpu);
 		rc = kvm_handle_sie_intercept(vcpu);
 	} while (!signal_pending(current) && !rc);

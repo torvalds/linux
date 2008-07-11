@@ -354,7 +354,7 @@ struct ieee80211_if_sta {
 	int preq_queue_len;
 	struct mesh_stats mshstats;
 	struct mesh_config mshcfg;
-	u8 mesh_seqnum[3];
+	u32 mesh_seqnum;
 	bool accepting_plinks;
 #endif
 	u16 aid;
@@ -899,7 +899,7 @@ extern const struct iw_handler_def ieee80211_iw_handler_def;
 
 
 /* ieee80211_ioctl.c */
-int ieee80211_set_freq(struct ieee80211_local *local, int freq);
+int ieee80211_set_freq(struct net_device *dev, int freq);
 /* ieee80211_sta.c */
 void ieee80211_sta_timer(unsigned long data);
 void ieee80211_sta_work(struct work_struct *work);

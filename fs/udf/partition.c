@@ -27,8 +27,8 @@
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
 
-inline uint32_t udf_get_pblock(struct super_block *sb, uint32_t block,
-			       uint16_t partition, uint32_t offset)
+uint32_t udf_get_pblock(struct super_block *sb, uint32_t block,
+			uint16_t partition, uint32_t offset)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map;

@@ -175,7 +175,15 @@ static inline int save_i387(struct _fpstate __user *buf)
  */
 static inline int restore_i387(struct _fpstate __user *buf)
 {
-	set_used_math();
+	struct task_struct *tsk = current;
+	int err;
+
+	if (!used_math()) {
+		err = init_fpu(tsk);
+		if (err)
+			return err;
+	}
+
 	if (!(task_thread_info(current)->status & TS_USEDFPU)) {
 		clts();
 		task_thread_info(current)->status |= TS_USEDFPU;
@@ -184,6 +192,8 @@ static inline int restore_i387(struct _fpstate __user *buf)
 }
 
 #else  /* CONFIG_X86_32 */
+
+extern void finit(void);
 
 static inline void tolerant_fwait(void)
 {

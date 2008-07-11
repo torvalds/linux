@@ -586,12 +586,6 @@ static void test_cipher(char *algo, int enc,
 	j = 0;
 	for (i = 0; i < tcount; i++) {
 
-		data = kzalloc(template[i].ilen, GFP_KERNEL);
-		if (!data)
-			continue;
-
-		memcpy(data, template[i].input, template[i].ilen);
-
 		if (template[i].iv)
 			memcpy(iv, template[i].iv, MAX_IVLEN);
 		else
@@ -613,10 +607,8 @@ static void test_cipher(char *algo, int enc,
 				printk("setkey() failed flags=%x\n",
 						crypto_ablkcipher_get_flags(tfm));
 
-				if (!template[i].fail) {
-					kfree(data);
+				if (!template[i].fail)
 					goto out;
-				}
 			}
 
 			temp = 0;

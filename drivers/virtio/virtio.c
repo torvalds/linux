@@ -2,6 +2,9 @@
 #include <linux/spinlock.h>
 #include <linux/virtio_config.h>
 
+/* Unique numbering for virtio devices. */
+static unsigned int dev_index;
+
 static ssize_t device_show(struct device *_d,
 			   struct device_attribute *attr, char *buf)
 {
@@ -80,19 +83,51 @@ static void add_status(struct virtio_device *dev, unsigned status)
 	dev->config->set_status(dev, dev->config->get_status(dev) | status);
 }
 
+void virtio_check_driver_offered_feature(const struct virtio_device *vdev,
+					 unsigned int fbit)
+{
+	unsigned int i;
+	struct virtio_driver *drv = container_of(vdev->dev.driver,
+						 struct virtio_driver, driver);
+
+	for (i = 0; i < drv->feature_table_size; i++)
+		if (drv->feature_table[i] == fbit)
+			return;
+	BUG();
+}
+EXPORT_SYMBOL_GPL(virtio_check_driver_offered_feature);
+
 static int virtio_dev_probe(struct device *_d)
 {
-	int err;
+	int err, i;
 	struct virtio_device *dev = container_of(_d,struct virtio_device,dev);
 	struct virtio_driver *drv = container_of(dev->dev.driver,
 						 struct virtio_driver, driver);
+	u32 device_features;
 
+	/* We have a driver! */
 	add_status(dev, VIRTIO_CONFIG_S_DRIVER);
+
+	/* Figure out what features the device supports. */
+	device_features = dev->config->get_features(dev);
+
+	/* Features supported by both device and driver into dev->features. */
+	memset(dev->features, 0, sizeof(dev->features));
+	for (i = 0; i < drv->feature_table_size; i++) {
+		unsigned int f = drv->feature_table[i];
+		BUG_ON(f >= 32);
+		if (device_features & (1 << f))
+			set_bit(f, dev->features);
+	}
+
 	err = drv->probe(dev);
 	if (err)
 		add_status(dev, VIRTIO_CONFIG_S_FAILED);
-	else
+	else {
+		/* They should never have set feature bits beyond 32 */
+		dev->config->set_features(dev, dev->features[0]);
 		add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
+	}
 	return err;
 }
 
@@ -114,6 +149,8 @@ static int virtio_dev_remove(struct device *_d)
 
 int register_virtio_driver(struct virtio_driver *driver)
 {
+	/* Catch this early. */
+	BUG_ON(driver->feature_table_size && !driver->feature_table);
 	driver->driver.bus = &virtio_bus;
 	driver->driver.probe = virtio_dev_probe;
 	driver->driver.remove = virtio_dev_remove;
@@ -132,7 +169,10 @@ int register_virtio_device(struct virtio_device *dev)
 	int err;
 
 	dev->dev.bus = &virtio_bus;
-	sprintf(dev->dev.bus_id, "%u", dev->index);
+
+	/* Assign a unique device index and hence name. */
+	dev->index = dev_index++;
+	sprintf(dev->dev.bus_id, "virtio%u", dev->index);
 
 	/* We always start by resetting the device, in case a previous
 	 * driver messed it up.  This also tests that code path a little. */

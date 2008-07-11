@@ -55,7 +55,7 @@ static unsigned char irl2irq[HL_NR_IRL] __initdata = {
 static DECLARE_INTC_DESC(intc_desc, "r7780rp", vectors,
 			 NULL, mask_registers, NULL, NULL);
 
-unsigned char * __init highlander_init_irq_r7780rp(void)
+unsigned char * __init highlander_plat_irq_setup(void)
 {
 	if (ctrl_inw(0xa5000600)) {
 		printk(KERN_INFO "Using r7780rp interrupt controller.\n");

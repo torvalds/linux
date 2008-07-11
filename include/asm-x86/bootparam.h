@@ -14,10 +14,10 @@
 
 /* extensible setup data list node */
 struct setup_data {
-	u64 next;
-	u32 type;
-	u32 len;
-	u8 data[0];
+	__u64 next;
+	__u32 type;
+	__u32 len;
+	__u8 data[0];
 };
 
 struct setup_header {

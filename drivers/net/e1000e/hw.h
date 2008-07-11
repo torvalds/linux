@@ -216,6 +216,21 @@ enum e1e_registers {
 #define IGP01E1000_PHY_LINK_HEALTH	0x13 /* PHY Link Health */
 #define IGP02E1000_PHY_POWER_MGMT	0x19 /* Power Management */
 #define IGP01E1000_PHY_PAGE_SELECT	0x1F /* Page Select */
+#define BM_PHY_PAGE_SELECT		22   /* Page Select for BM */
+#define IGP_PAGE_SHIFT			5
+#define PHY_REG_MASK			0x1F
+
+#define BM_WUC_PAGE			800
+#define BM_WUC_ADDRESS_OPCODE		0x11
+#define BM_WUC_DATA_OPCODE		0x12
+#define BM_WUC_ENABLE_PAGE		769
+#define BM_WUC_ENABLE_REG		17
+#define BM_WUC_ENABLE_BIT		(1 << 2)
+#define BM_WUC_HOST_WU_BIT		(1 << 4)
+
+#define BM_WUC	PHY_REG(BM_WUC_PAGE, 1)
+#define BM_WUFC PHY_REG(BM_WUC_PAGE, 2)
+#define BM_WUS	PHY_REG(BM_WUC_PAGE, 3)
 
 #define IGP01E1000_PHY_PCS_INIT_REG	0x00B4
 #define IGP01E1000_PHY_POLARITY_MASK	0x0078
@@ -331,10 +346,16 @@ enum e1e_registers {
 #define E1000_DEV_ID_ICH8_IFE_G			0x10C5
 #define E1000_DEV_ID_ICH8_IGP_M			0x104D
 #define E1000_DEV_ID_ICH9_IGP_AMT		0x10BD
+#define E1000_DEV_ID_ICH9_IGP_M_AMT		0x10F5
+#define E1000_DEV_ID_ICH9_IGP_M			0x10BF
+#define E1000_DEV_ID_ICH9_IGP_M_V		0x10CB
 #define E1000_DEV_ID_ICH9_IGP_C			0x294C
 #define E1000_DEV_ID_ICH9_IFE			0x10C0
 #define E1000_DEV_ID_ICH9_IFE_GT		0x10C3
 #define E1000_DEV_ID_ICH9_IFE_G			0x10C2
+#define E1000_DEV_ID_ICH10_R_BM_LM		0x10CC
+#define E1000_DEV_ID_ICH10_R_BM_LF		0x10CD
+#define E1000_DEV_ID_ICH10_R_BM_V		0x10CE
 
 #define E1000_FUNC_1 1
 
@@ -378,6 +399,7 @@ enum e1000_phy_type {
 	e1000_phy_gg82563,
 	e1000_phy_igp_3,
 	e1000_phy_ife,
+	e1000_phy_bm,
 };
 
 enum e1000_bus_width {

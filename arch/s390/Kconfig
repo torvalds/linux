@@ -304,9 +304,13 @@ config ARCH_SPARSEMEM_ENABLE
 	def_bool y
 	select SPARSEMEM_VMEMMAP_ENABLE
 	select SPARSEMEM_VMEMMAP
+	select SPARSEMEM_STATIC if !64BIT
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
+
+config ARCH_SELECT_MEMORY_MODEL
+       def_bool y
 
 source "mm/Kconfig"
 
@@ -429,6 +433,13 @@ config CMM_IUCV
 	help
 	  Select this option to enable the special message interface to
 	  the cooperative memory management.
+
+config PAGE_STATES
+	bool "Unused page notification"
+	help
+	  This enables the notification of unused pages to the
+	  hypervisor. The ESSA instruction is used to do the states
+	  changes between a page that has content and the unused state.
 
 config VIRT_TIMER
 	bool "Virtual CPU timer support"

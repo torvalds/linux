@@ -402,7 +402,7 @@ static int add_mc_to_global_list(struct mem_ctl_info *mci)
 fail0:
 	edac_printk(KERN_WARNING, EDAC_MC,
 		"%s (%s) %s %s already assigned %d\n", p->dev->bus_id,
-		dev_name(mci), p->mod_name, p->ctl_name, p->mc_idx);
+		edac_dev_name(mci), p->mod_name, p->ctl_name, p->mc_idx);
 	return 1;
 
 fail1:
@@ -517,7 +517,7 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 
 	/* Report action taken */
 	edac_mc_printk(mci, KERN_INFO, "Giving out device to '%s' '%s':"
-		" DEV %s\n", mci->mod_name, mci->ctl_name, dev_name(mci));
+		" DEV %s\n", mci->mod_name, mci->ctl_name, edac_dev_name(mci));
 
 	mutex_unlock(&mem_ctls_mutex);
 	return 0;
@@ -565,7 +565,7 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 
 	edac_printk(KERN_INFO, EDAC_MC,
 		"Removed device %d for %s %s: DEV %s\n", mci->mc_idx,
-		mci->mod_name, mci->ctl_name, dev_name(mci));
+		mci->mod_name, mci->ctl_name, edac_dev_name(mci));
 
 	return mci;
 }

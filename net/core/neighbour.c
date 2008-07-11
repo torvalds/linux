@@ -1430,11 +1430,10 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 		panic("cannot create neighbour cache statistics");
 
 #ifdef CONFIG_PROC_FS
-	tbl->pde = proc_create(tbl->id, 0, init_net.proc_net_stat,
-			       &neigh_stat_seq_fops);
+	tbl->pde = proc_create_data(tbl->id, 0, init_net.proc_net_stat,
+				    &neigh_stat_seq_fops, tbl);
 	if (!tbl->pde)
 		panic("cannot create neighbour proc dir entry");
-	tbl->pde->data = tbl;
 #endif
 
 	tbl->hash_mask = 1;
@@ -1715,7 +1714,8 @@ static int neightbl_fill_parms(struct sk_buff *skb, struct neigh_parms *parms)
 	return nla_nest_end(skb, nest);
 
 nla_put_failure:
-	return nla_nest_cancel(skb, nest);
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
 }
 
 static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
@@ -2058,9 +2058,9 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 		goto nla_put_failure;
 	}
 
-	ci.ndm_used	 = now - neigh->used;
-	ci.ndm_confirmed = now - neigh->confirmed;
-	ci.ndm_updated	 = now - neigh->updated;
+	ci.ndm_used	 = jiffies_to_clock_t(now - neigh->used);
+	ci.ndm_confirmed = jiffies_to_clock_t(now - neigh->confirmed);
+	ci.ndm_updated	 = jiffies_to_clock_t(now - neigh->updated);
 	ci.ndm_refcnt	 = atomic_read(&neigh->refcnt) - 1;
 	read_unlock_bh(&neigh->lock);
 

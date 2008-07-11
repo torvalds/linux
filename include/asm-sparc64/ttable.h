@@ -1,4 +1,3 @@
-/* $Id: ttable.h,v 1.18 2002/02/09 19:49:32 davem Exp $ */
 #ifndef _SPARC64_TTABLE_H
 #define _SPARC64_TTABLE_H
 
@@ -91,13 +90,14 @@
 	 nop;
 	
 #define SYSCALL_TRAP(routine, systbl)			\
+	rdpr	%pil, %g2;				\
+	mov	TSTATE_SYSCALL, %g3;			\
 	sethi	%hi(109f), %g7;				\
-	ba,pt	%xcc, etrap;				\
+	ba,pt	%xcc, etrap_syscall;			\
 109:	 or	%g7, %lo(109b), %g7;			\
 	sethi	%hi(systbl), %l7;			\
 	ba,pt	%xcc, routine;				\
-	 or	%l7, %lo(systbl), %l7;			\
-	nop; nop;
+	 or	%l7, %lo(systbl), %l7;
 	
 #define TRAP_UTRAP(handler,lvl)				\
 	mov	handler, %g3;				\

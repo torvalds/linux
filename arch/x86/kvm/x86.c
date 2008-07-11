@@ -492,8 +492,8 @@ static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 {
 	static int version;
-	struct kvm_wall_clock wc;
-	struct timespec wc_ts;
+	struct pvclock_wall_clock wc;
+	struct timespec now, sys, boot;
 
 	if (!wall_clock)
 		return;
@@ -502,15 +502,63 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 
 	kvm_write_guest(kvm, wall_clock, &version, sizeof(version));
 
-	wc_ts = current_kernel_time();
-	wc.wc_sec = wc_ts.tv_sec;
-	wc.wc_nsec = wc_ts.tv_nsec;
-	wc.wc_version = version;
+	/*
+	 * The guest calculates current wall clock time by adding
+	 * system time (updated by kvm_write_guest_time below) to the
+	 * wall clock specified here.  guest system time equals host
+	 * system time for us, thus we must fill in host boot time here.
+	 */
+	now = current_kernel_time();
+	ktime_get_ts(&sys);
+	boot = ns_to_timespec(timespec_to_ns(&now) - timespec_to_ns(&sys));
+
+	wc.sec = boot.tv_sec;
+	wc.nsec = boot.tv_nsec;
+	wc.version = version;
 
 	kvm_write_guest(kvm, wall_clock, &wc, sizeof(wc));
 
 	version++;
 	kvm_write_guest(kvm, wall_clock, &version, sizeof(version));
+}
+
+static uint32_t div_frac(uint32_t dividend, uint32_t divisor)
+{
+	uint32_t quotient, remainder;
+
+	/* Don't try to replace with do_div(), this one calculates
+	 * "(dividend << 32) / divisor" */
+	__asm__ ( "divl %4"
+		  : "=a" (quotient), "=d" (remainder)
+		  : "0" (0), "1" (dividend), "r" (divisor) );
+	return quotient;
+}
+
+static void kvm_set_time_scale(uint32_t tsc_khz, struct pvclock_vcpu_time_info *hv_clock)
+{
+	uint64_t nsecs = 1000000000LL;
+	int32_t  shift = 0;
+	uint64_t tps64;
+	uint32_t tps32;
+
+	tps64 = tsc_khz * 1000LL;
+	while (tps64 > nsecs*2) {
+		tps64 >>= 1;
+		shift--;
+	}
+
+	tps32 = (uint32_t)tps64;
+	while (tps32 <= (uint32_t)nsecs) {
+		tps32 <<= 1;
+		shift++;
+	}
+
+	hv_clock->tsc_shift = shift;
+	hv_clock->tsc_to_system_mul = div_frac(nsecs, tps32);
+
+	pr_debug("%s: tsc_khz %u, tsc_shift %d, tsc_mul %u\n",
+		 __FUNCTION__, tsc_khz, hv_clock->tsc_shift,
+		 hv_clock->tsc_to_system_mul);
 }
 
 static void kvm_write_guest_time(struct kvm_vcpu *v)
@@ -522,6 +570,11 @@ static void kvm_write_guest_time(struct kvm_vcpu *v)
 
 	if ((!vcpu->time_page))
 		return;
+
+	if (unlikely(vcpu->hv_clock_tsc_khz != tsc_khz)) {
+		kvm_set_time_scale(tsc_khz, &vcpu->hv_clock);
+		vcpu->hv_clock_tsc_khz = tsc_khz;
+	}
 
 	/* Keep irq disabled to prevent changes to the clock */
 	local_irq_save(flags);
@@ -537,14 +590,14 @@ static void kvm_write_guest_time(struct kvm_vcpu *v)
 	/*
 	 * The interface expects us to write an even number signaling that the
 	 * update is finished. Since the guest won't see the intermediate
-	 * state, we just write "2" at the end
+	 * state, we just increase by 2 at the end.
 	 */
-	vcpu->hv_clock.version = 2;
+	vcpu->hv_clock.version += 2;
 
 	shared_kaddr = kmap_atomic(vcpu->time_page, KM_USER0);
 
 	memcpy(shared_kaddr + vcpu->time_offset, &vcpu->hv_clock,
-		sizeof(vcpu->hv_clock));
+	       sizeof(vcpu->hv_clock));
 
 	kunmap_atomic(shared_kaddr, KM_USER0);
 
@@ -598,10 +651,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 		/* ...but clean it before doing the actual write */
 		vcpu->arch.time_offset = data & ~(PAGE_MASK | 1);
-
-		vcpu->arch.hv_clock.tsc_to_system_mul =
-					clocksource_khz2mult(tsc_khz, 22);
-		vcpu->arch.hv_clock.tsc_shift = 22;
 
 		down_read(&current->mm->mmap_sem);
 		vcpu->arch.time_page =
@@ -2417,6 +2466,9 @@ int kvm_arch_init(void *opaque)
 
 	kvm_x86_ops = ops;
 	kvm_mmu_set_nonpresent_ptes(0ull, 0ull);
+	kvm_mmu_set_base_ptes(PT_PRESENT_MASK);
+	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
+			PT_DIRTY_MASK, PT64_NX_MASK, 0);
 	return 0;
 
 out:
@@ -2755,7 +2807,9 @@ again:
 
 	if (vcpu->requests) {
 		if (test_and_clear_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests))
-			__kvm_migrate_apic_timer(vcpu);
+			__kvm_migrate_timers(vcpu);
+		if (test_and_clear_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests))
+			kvm_x86_ops->tlb_flush(vcpu);
 		if (test_and_clear_bit(KVM_REQ_REPORT_TPR_ACCESS,
 				       &vcpu->requests)) {
 			kvm_run->exit_reason = KVM_EXIT_TPR_ACCESS;
@@ -2769,6 +2823,7 @@ again:
 		}
 	}
 
+	clear_bit(KVM_REQ_PENDING_TIMER, &vcpu->requests);
 	kvm_inject_pending_timer_irqs(vcpu);
 
 	preempt_disable();
@@ -2778,20 +2833,12 @@ again:
 
 	local_irq_disable();
 
-	if (need_resched()) {
+	if (vcpu->requests || need_resched()) {
 		local_irq_enable();
 		preempt_enable();
 		r = 1;
 		goto out;
 	}
-
-	if (vcpu->requests)
-		if (test_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests)) {
-			local_irq_enable();
-			preempt_enable();
-			r = 1;
-			goto out;
-		}
 
 	if (signal_pending(current)) {
 		local_irq_enable();
@@ -2822,9 +2869,6 @@ again:
 
 	kvm_guest_enter();
 
-	if (vcpu->requests)
-		if (test_and_clear_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests))
-			kvm_x86_ops->tlb_flush(vcpu);
 
 	KVMTRACE_0D(VMENTRY, vcpu, entryexit);
 	kvm_x86_ops->run(vcpu, kvm_run);
@@ -3018,6 +3062,8 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	kvm_x86_ops->set_rflags(vcpu, regs->rflags);
 
 	kvm_x86_ops->decache_regs(vcpu);
+
+	vcpu->arch.exception.pending = false;
 
 	vcpu_put(vcpu);
 
@@ -3481,7 +3527,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 	}
 
 	if (reason == TASK_SWITCH_IRET || reason == TASK_SWITCH_JMP) {
-		cseg_desc.type &= ~(1 << 8); //clear the B flag
+		cseg_desc.type &= ~(1 << 1); //clear the B flag
 		save_guest_segment_descriptor(vcpu, tr_seg.selector,
 					      &cseg_desc);
 	}
@@ -3507,7 +3553,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 	}
 
 	if (reason != TASK_SWITCH_IRET) {
-		nseg_desc.type |= (1 << 8);
+		nseg_desc.type |= (1 << 1);
 		save_guest_segment_descriptor(vcpu, tss_selector,
 					      &nseg_desc);
 	}
@@ -3698,10 +3744,19 @@ void fx_init(struct kvm_vcpu *vcpu)
 {
 	unsigned after_mxcsr_mask;
 
+	/*
+	 * Touch the fpu the first time in non atomic context as if
+	 * this is the first fpu instruction the exception handler
+	 * will fire before the instruction returns and it'll have to
+	 * allocate ram with GFP_KERNEL.
+	 */
+	if (!used_math())
+		fx_save(&vcpu->arch.host_fx_image);
+
 	/* Initialize guest FPU by resetting ours and saving into guest's */
 	preempt_disable();
 	fx_save(&vcpu->arch.host_fx_image);
-	fpu_init();
+	fx_finit();
 	fx_save(&vcpu->arch.guest_fx_image);
 	fx_restore(&vcpu->arch.host_fx_image);
 	preempt_enable();
@@ -3906,6 +3961,8 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_free_physmem(kvm);
 	if (kvm->arch.apic_access_page)
 		put_page(kvm->arch.apic_access_page);
+	if (kvm->arch.ept_identity_pagetable)
+		put_page(kvm->arch.ept_identity_pagetable);
 	kfree(kvm);
 }
 

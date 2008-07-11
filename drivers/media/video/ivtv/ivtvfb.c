@@ -948,7 +948,8 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 	}
 
 	/* Allocate the pseudo palette */
-	oi->ivtvfb_info.pseudo_palette = kmalloc(sizeof(u32) * 16, GFP_KERNEL);
+	oi->ivtvfb_info.pseudo_palette =
+		kmalloc(sizeof(u32) * 16, GFP_KERNEL|__GFP_NOWARN);
 
 	if (!oi->ivtvfb_info.pseudo_palette) {
 		IVTVFB_ERR("abort, unable to alloc pseudo pallete\n");
@@ -1056,7 +1057,8 @@ static int ivtvfb_init_card(struct ivtv *itv)
 		return -EBUSY;
 	}
 
-	itv->osd_info = kzalloc(sizeof(struct osd_info), GFP_ATOMIC);
+	itv->osd_info = kzalloc(sizeof(struct osd_info),
+					GFP_ATOMIC|__GFP_NOWARN);
 	if (itv->osd_info == NULL) {
 		IVTVFB_ERR("Failed to allocate memory for osd_info\n");
 		return -ENOMEM;

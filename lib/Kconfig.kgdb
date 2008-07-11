@@ -1,4 +1,10 @@
 
+config HAVE_ARCH_KGDB_SHADOW_INFO
+	bool
+
+config HAVE_ARCH_KGDB
+	bool
+
 menuconfig KGDB
 	bool "KGDB: kernel debugging with remote gdb"
 	select FRAME_POINTER
@@ -10,15 +16,10 @@ menuconfig KGDB
 	  at http://kgdb.sourceforge.net as well as in DocBook form
 	  in Documentation/DocBook/.  If unsure, say N.
 
-config HAVE_ARCH_KGDB_SHADOW_INFO
-	bool
-
-config HAVE_ARCH_KGDB
-	bool
+if KGDB
 
 config KGDB_SERIAL_CONSOLE
 	tristate "KGDB: use kgdb over the serial console"
-	depends on KGDB
 	select CONSOLE_POLL
 	select MAGIC_SYSRQ
 	default y
@@ -28,7 +29,6 @@ config KGDB_SERIAL_CONSOLE
 
 config KGDB_TESTS
 	bool "KGDB: internal test suite"
-	depends on KGDB
 	default n
 	help
 	  This is a kgdb I/O module specifically designed to test
@@ -56,3 +56,5 @@ config KGDB_TESTS_BOOT_STRING
 	  boot.  See the drivers/misc/kgdbts.c for detailed
 	  information about other strings you could use beyond the
 	  default of V1F100.
+
+endif # KGDB

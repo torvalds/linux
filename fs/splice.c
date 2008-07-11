@@ -58,8 +58,8 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 		 */
 		wait_on_page_writeback(page);
 
-		if (PagePrivate(page))
-			try_to_release_page(page, GFP_KERNEL);
+		if (PagePrivate(page) && !try_to_release_page(page, GFP_KERNEL))
+			goto out_unlock;
 
 		/*
 		 * If we succeeded in removing the mapping, set LRU flag
@@ -75,6 +75,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 	 * Raced with truncate or failed to remove page from current
 	 * address space, unlock and return failure.
 	 */
+out_unlock:
 	unlock_page(page);
 	return 1;
 }
@@ -811,24 +812,19 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 {
 	struct address_space *mapping = out->f_mapping;
 	struct inode *inode = mapping->host;
-	int killsuid, killpriv;
+	struct splice_desc sd = {
+		.total_len = len,
+		.flags = flags,
+		.pos = *ppos,
+		.u.file = out,
+	};
 	ssize_t ret;
-	int err = 0;
 
-	killpriv = security_inode_need_killpriv(out->f_path.dentry);
-	killsuid = should_remove_suid(out->f_path.dentry);
-	if (unlikely(killsuid || killpriv)) {
-		mutex_lock(&inode->i_mutex);
-		if (killpriv)
-			err = security_inode_killpriv(out->f_path.dentry);
-		if (!err && killsuid)
-			err = __remove_suid(out->f_path.dentry, killsuid);
-		mutex_unlock(&inode->i_mutex);
-		if (err)
-			return err;
-	}
-
-	ret = splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
+	inode_double_lock(inode, pipe->inode);
+	ret = remove_suid(out->f_path.dentry);
+	if (likely(!ret))
+		ret = __splice_from_pipe(pipe, &sd, pipe_to_file);
+	inode_double_unlock(inode, pipe->inode);
 	if (ret > 0) {
 		unsigned long nr_pages;
 
@@ -840,6 +836,8 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		 * sync it.
 		 */
 		if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(inode))) {
+			int err;
+
 			mutex_lock(&inode->i_mutex);
 			err = generic_osync_inode(inode, mapping,
 						  OSYNC_METADATA|OSYNC_DATA);
@@ -986,7 +984,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 
 	while (len) {
 		size_t read_len;
-		loff_t pos = sd->pos;
+		loff_t pos = sd->pos, prev_pos = pos;
 
 		ret = do_splice_to(in, &pos, pipe, len, flags);
 		if (unlikely(ret <= 0))
@@ -1001,15 +999,19 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		 * could get stuck data in the internal pipe:
 		 */
 		ret = actor(pipe, sd);
-		if (unlikely(ret <= 0))
+		if (unlikely(ret <= 0)) {
+			sd->pos = prev_pos;
 			goto out_release;
+		}
 
 		bytes += ret;
 		len -= ret;
 		sd->pos = pos;
 
-		if (ret < read_len)
+		if (ret < read_len) {
+			sd->pos = prev_pos + ret;
 			goto out_release;
+		}
 	}
 
 done:

@@ -268,11 +268,6 @@ unsigned long long peek_real_address_q(unsigned long long addr);
 unsigned long long poke_real_address_q(unsigned long long addr,
 				       unsigned long long val);
 
-/* arch/sh/mm/ioremap_64.c */
-unsigned long onchip_remap(unsigned long addr, unsigned long size,
-			   const char *name);
-extern void onchip_unmap(unsigned long vaddr);
-
 #if !defined(CONFIG_MMU)
 #define virt_to_phys(address)	((unsigned long)(address))
 #define phys_to_virt(address)	((void *)(address))
@@ -302,9 +297,16 @@ extern void onchip_unmap(unsigned long vaddr);
 void __iomem *__ioremap(unsigned long offset, unsigned long size,
 			unsigned long flags);
 void __iounmap(void __iomem *addr);
+
+/* arch/sh/mm/ioremap_64.c */
+unsigned long onchip_remap(unsigned long addr, unsigned long size,
+			   const char *name);
+extern void onchip_unmap(unsigned long vaddr);
 #else
 #define __ioremap(offset, size, flags)	((void __iomem *)(offset))
 #define __iounmap(addr)			do { } while (0)
+#define onchip_remap(addr, size, name)	(addr)
+#define onchip_unmap(addr)		do { } while (0)
 #endif /* CONFIG_MMU */
 
 static inline void __iomem *

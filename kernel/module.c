@@ -890,6 +890,19 @@ static struct module_attribute *modinfo_attrs[] = {
 
 static const char vermagic[] = VERMAGIC_STRING;
 
+static int try_to_force_load(struct module *mod, const char *symname)
+{
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	if (!(tainted & TAINT_FORCED_MODULE))
+		printk("%s: no version for \"%s\" found: kernel tainted.\n",
+		       mod->name, symname);
+	add_taint_module(mod, TAINT_FORCED_MODULE);
+	return 0;
+#else
+	return -ENOEXEC;
+#endif
+}
+
 #ifdef CONFIG_MODVERSIONS
 static int check_version(Elf_Shdr *sechdrs,
 			 unsigned int versindex,
@@ -904,6 +917,10 @@ static int check_version(Elf_Shdr *sechdrs,
 	if (!crc)
 		return 1;
 
+	/* No versions at all?  modprobe --force does this. */
+	if (versindex == 0)
+		return try_to_force_load(mod, symname) == 0;
+
 	versions = (void *) sechdrs[versindex].sh_addr;
 	num_versions = sechdrs[versindex].sh_size
 		/ sizeof(struct modversion_info);
@@ -914,18 +931,19 @@ static int check_version(Elf_Shdr *sechdrs,
 
 		if (versions[i].crc == *crc)
 			return 1;
-		printk("%s: disagrees about version of symbol %s\n",
-		       mod->name, symname);
 		DEBUGP("Found checksum %lX vs module %lX\n",
 		       *crc, versions[i].crc);
-		return 0;
+		goto bad_version;
 	}
-	/* Not in module's version table.  OK, but that taints the kernel. */
-	if (!(tainted & TAINT_FORCED_MODULE))
-		printk("%s: no version for \"%s\" found: kernel tainted.\n",
-		       mod->name, symname);
-	add_taint_module(mod, TAINT_FORCED_MODULE);
-	return 1;
+
+	printk(KERN_WARNING "%s: no symbol version for %s\n",
+	       mod->name, symname);
+	return 0;
+
+bad_version:
+	printk("%s: disagrees about version of symbol %s\n",
+	       mod->name, symname);
+	return 0;
 }
 
 static inline int check_modstruct_version(Elf_Shdr *sechdrs,
@@ -939,11 +957,14 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 	return check_version(sechdrs, versindex, "struct_module", mod, crc);
 }
 
-/* First part is kernel version, which we ignore. */
-static inline int same_magic(const char *amagic, const char *bmagic)
+/* First part is kernel version, which we ignore if module has crcs. */
+static inline int same_magic(const char *amagic, const char *bmagic,
+			     bool has_crcs)
 {
-	amagic += strcspn(amagic, " ");
-	bmagic += strcspn(bmagic, " ");
+	if (has_crcs) {
+		amagic += strcspn(amagic, " ");
+		bmagic += strcspn(bmagic, " ");
+	}
 	return strcmp(amagic, bmagic) == 0;
 }
 #else
@@ -963,7 +984,8 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 	return 1;
 }
 
-static inline int same_magic(const char *amagic, const char *bmagic)
+static inline int same_magic(const char *amagic, const char *bmagic,
+			     bool has_crcs)
 {
 	return strcmp(amagic, bmagic) == 0;
 }
@@ -1315,7 +1337,19 @@ out_unreg:
 	kobject_put(&mod->mkobj.kobj);
 	return err;
 }
-#endif
+
+static void mod_sysfs_fini(struct module *mod)
+{
+	kobject_put(&mod->mkobj.kobj);
+}
+
+#else /* CONFIG_SYSFS */
+
+static void mod_sysfs_fini(struct module *mod)
+{
+}
+
+#endif /* CONFIG_SYSFS */
 
 static void mod_kobject_remove(struct module *mod)
 {
@@ -1323,7 +1357,7 @@ static void mod_kobject_remove(struct module *mod)
 	module_param_sysfs_remove(mod);
 	kobject_put(mod->mkobj.drivers_dir);
 	kobject_put(mod->holders_dir);
-	kobject_put(&mod->mkobj.kobj);
+	mod_sysfs_fini(mod);
 }
 
 /*
@@ -1758,7 +1792,7 @@ static struct module *load_module(void __user *umod,
 
 	/* Sanity checks against insmoding binaries or wrong arch,
            weird elf version */
-	if (memcmp(hdr->e_ident, ELFMAG, 4) != 0
+	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0
 	    || hdr->e_type != ET_REL
 	    || !elf_check_arch(hdr)
 	    || hdr->e_shentsize != sizeof(*sechdrs)) {
@@ -1853,10 +1887,10 @@ static struct module *load_module(void __user *umod,
 	modmagic = get_modinfo(sechdrs, infoindex, "vermagic");
 	/* This is allowed: modprobe --force will invalidate it. */
 	if (!modmagic) {
-		add_taint_module(mod, TAINT_FORCED_MODULE);
-		printk(KERN_WARNING "%s: no version magic, tainting kernel.\n",
-		       mod->name);
-	} else if (!same_magic(modmagic, vermagic)) {
+		err = try_to_force_load(mod, "magic");
+		if (err)
+			goto free_hdr;
+	} else if (!same_magic(modmagic, vermagic, versindex)) {
 		printk(KERN_ERR "%s: version magic '%s' should be '%s'\n",
 		       mod->name, modmagic, vermagic);
 		err = -ENOEXEC;
@@ -2006,9 +2040,10 @@ static struct module *load_module(void __user *umod,
 	    (mod->num_gpl_future_syms && !gplfuturecrcindex) ||
 	    (mod->num_unused_syms && !unusedcrcindex) ||
 	    (mod->num_unused_gpl_syms && !unusedgplcrcindex)) {
-		printk(KERN_WARNING "%s: No versions for exported symbols."
-		       " Tainting kernel.\n", mod->name);
-		add_taint_module(mod, TAINT_FORCED_MODULE);
+		printk(KERN_WARNING "%s: No versions for exported symbols.\n", mod->name);
+		err = try_to_force_load(mod, "nocrc");
+		if (err)
+			goto cleanup;
 	}
 #endif
 	markersindex = find_sec(hdr, sechdrs, secstrings, "__markers");

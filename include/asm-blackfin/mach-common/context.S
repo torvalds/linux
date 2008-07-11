@@ -28,6 +28,11 @@
  */
 
 /*
+ * NOTE!  The single-stepping code assumes that all interrupt handlers
+ * start by saving SYSCFG on the stack with their first instruction.
+ */
+
+/*
  * Code to save processor context.
  *  We even save the register which are preserved by a function call
  *	 - r4, r5, r6, r7, p3, p4, p5

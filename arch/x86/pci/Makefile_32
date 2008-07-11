@@ -6,11 +6,19 @@ obj-$(CONFIG_PCI_DIRECT)	+= direct.o
 obj-$(CONFIG_PCI_OLPC)		+= olpc.o
 
 pci-y				:= fixup.o
+
+# Do not change the ordering here. There is a nasty init function
+# ordering dependency which breaks when you move acpi.o below
+# legacy/irq.o
 pci-$(CONFIG_ACPI)		+= acpi.o
 pci-y				+= legacy.o irq.o
 
-pci-$(CONFIG_X86_VISWS)		+= visws.o fixup.o
-pci-$(CONFIG_X86_NUMAQ)		+= numa.o irq.o
+# Careful: VISWS and NUMAQ overrule the pci-y above. The colons are
+# therefor correct. This needs a proper fix by distangling the code.
+pci-$(CONFIG_X86_VISWS)		:= visws.o fixup.o
+pci-$(CONFIG_X86_NUMAQ)		:= numa.o irq.o
+
+# Necessary for NUMAQ as well
 pci-$(CONFIG_NUMA)		+= mp_bus_to_node.o
 
 obj-y				+= $(pci-y) common.o early.o

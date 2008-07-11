@@ -539,7 +539,8 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 				" has %s in unusual_devs.h (kernel"
 				" %s)\n"
 				"   Please send a copy of this message to "
-				"<linux-usb-devel@lists.sourceforge.net>\n",
+				"<linux-usb@vger.kernel.org> and "
+				"<usb-storage@lists.one-eyed-alien.net>\n",
 				le16_to_cpu(ddesc->idVendor),
 				le16_to_cpu(ddesc->idProduct),
 				le16_to_cpu(ddesc->bcdDevice),

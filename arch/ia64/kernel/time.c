@@ -117,6 +117,7 @@ void account_system_vtime(struct task_struct *tsk)
 
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(account_system_vtime);
 
 /*
  * Called from the timer interrupt handler to charge accumulated user time
@@ -378,11 +379,6 @@ static struct irqaction timer_irqaction = {
 	.flags =	IRQF_DISABLED | IRQF_IRQPOLL,
 	.name =		"timer"
 };
-
-void __devinit ia64_disable_timer(void)
-{
-	ia64_set_itv(1 << 16);
-}
 
 void __init
 time_init (void)

@@ -18,6 +18,7 @@
 #include <linux/kvm_para.h>
 #include <linux/kvm_types.h>
 
+#include <asm/pvclock-abi.h>
 #include <asm/desc.h>
 
 #define KVM_MAX_VCPUS 16
@@ -282,7 +283,8 @@ struct kvm_vcpu_arch {
 	struct x86_emulate_ctxt emulate_ctxt;
 
 	gpa_t time;
-	struct kvm_vcpu_time_info hv_clock;
+	struct pvclock_vcpu_time_info hv_clock;
+	unsigned int hv_clock_tsc_khz;
 	unsigned int time_offset;
 	struct page *time_page;
 };
@@ -314,6 +316,9 @@ struct kvm_arch{
 	struct page *apic_access_page;
 
 	gpa_t wall_clock;
+
+	struct page *ept_identity_pagetable;
+	bool ept_identity_pagetable_done;
 };
 
 struct kvm_vm_stat {
@@ -422,6 +427,7 @@ struct kvm_x86_ops {
 				       struct kvm_run *run);
 
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
+	int (*get_tdp_level)(void);
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;
@@ -433,6 +439,9 @@ void kvm_mmu_destroy(struct kvm_vcpu *vcpu);
 int kvm_mmu_create(struct kvm_vcpu *vcpu);
 int kvm_mmu_setup(struct kvm_vcpu *vcpu);
 void kvm_mmu_set_nonpresent_ptes(u64 trap_pte, u64 notrap_pte);
+void kvm_mmu_set_base_ptes(u64 base_pte);
+void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
+		u64 dirty_mask, u64 nx_mask, u64 x_mask);
 
 int kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot);
@@ -620,7 +629,7 @@ static inline void fx_restore(struct i387_fxsave_struct *image)
 	asm("fxrstor (%0)":: "r" (image));
 }
 
-static inline void fpu_init(void)
+static inline void fx_finit(void)
 {
 	asm("finit");
 }
@@ -644,6 +653,7 @@ static inline void kvm_inject_gp(struct kvm_vcpu *vcpu, u32 error_code)
 #define ASM_VMX_VMWRITE_RSP_RDX   ".byte 0x0f, 0x79, 0xd4"
 #define ASM_VMX_VMXOFF            ".byte 0x0f, 0x01, 0xc4"
 #define ASM_VMX_VMXON_RAX         ".byte 0xf3, 0x0f, 0xc7, 0x30"
+#define ASM_VMX_INVEPT		  ".byte 0x66, 0x0f, 0x38, 0x80, 0x08"
 #define ASM_VMX_INVVPID		  ".byte 0x66, 0x0f, 0x38, 0x81, 0x08"
 
 #define MSR_IA32_TIME_STAMP_COUNTER		0x010

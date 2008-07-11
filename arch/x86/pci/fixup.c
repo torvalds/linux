@@ -502,7 +502,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SIEMENS, 0x0015,
  */
 static void fam10h_pci_cfg_space_size(struct pci_dev *dev)
 {
-	dev->cfg_size = pci_cfg_space_size_ext(dev, 0);
+	dev->cfg_size = pci_cfg_space_size_ext(dev);
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, 0x1200, fam10h_pci_cfg_space_size);

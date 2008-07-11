@@ -172,10 +172,3 @@ void reserve_top_address(unsigned long reserve)
 	__FIXADDR_TOP = -reserve - PAGE_SIZE;
 	__VMALLOC_RESERVE += reserve;
 }
-
-int pmd_bad(pmd_t pmd)
-{
-	WARN_ON_ONCE(pmd_bad_v1(pmd) != pmd_bad_v2(pmd));
-
-	return pmd_bad_v1(pmd);
-}

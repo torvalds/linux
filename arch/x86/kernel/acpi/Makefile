@@ -10,5 +10,5 @@ endif
 $(obj)/wakeup_rm.o:    $(obj)/realmode/wakeup.bin
 
 $(obj)/realmode/wakeup.bin: FORCE
-	$(Q)$(MAKE) $(build)=$(obj)/realmode $@
+	$(Q)$(MAKE) $(build)=$(obj)/realmode
 

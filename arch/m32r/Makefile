@@ -5,6 +5,8 @@
 # architecture-specific flags and dependencies.
 #
 
+KBUILD_DEFCONFIG := m32700ut.smp_defconfig
+
 LDFLAGS		:=
 OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
 LDFLAGS_vmlinux	:=

@@ -184,10 +184,7 @@ enum ps3_sys_manager_next_op {
 
 /**
  * enum ps3_sys_manager_wake_source - Next-op wakeup source (bit position mask).
- * @PS3_SM_WAKE_DEFAULT: Disk insert, power button, eject button, IR
- * controller, and bluetooth controller.
- * @PS3_SM_WAKE_RTC:
- * @PS3_SM_WAKE_RTC_ERROR:
+ * @PS3_SM_WAKE_DEFAULT: Disk insert, power button, eject button.
  * @PS3_SM_WAKE_W_O_L: Ether or wireless LAN.
  * @PS3_SM_WAKE_P_O_R: Power on reset.
  *
@@ -200,8 +197,6 @@ enum ps3_sys_manager_next_op {
 enum ps3_sys_manager_wake_source {
 	/* version 3 */
 	PS3_SM_WAKE_DEFAULT   = 0,
-	PS3_SM_WAKE_RTC       = 0x00000040,
-	PS3_SM_WAKE_RTC_ERROR = 0x00000080,
 	PS3_SM_WAKE_W_O_L     = 0x00000400,
 	PS3_SM_WAKE_P_O_R     = 0x80000000,
 };

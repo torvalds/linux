@@ -298,7 +298,8 @@ static int lbs_do_scan(struct lbs_private *priv, uint8_t bsstype,
 	uint8_t *tlv;	/* pointer into our current, growing TLV storage area */
 
 	lbs_deb_enter_args(LBS_DEB_SCAN, "bsstype %d, chanlist[].chan %d, chan_count %d",
-			   bsstype, chan_list[0].channumber, chan_count);
+		bsstype, chan_list ? chan_list[0].channumber : -1,
+		chan_count);
 
 	/* create the fixed part for scan command */
 	scan_cmd = kzalloc(MAX_SCAN_CFG_ALLOC, GFP_KERNEL);
@@ -566,11 +567,11 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 	pos += 8;
 
 	/* beacon interval is 2 bytes long */
-	bss->beaconperiod = le16_to_cpup((void *) pos);
+	bss->beaconperiod = get_unaligned_le16(pos);
 	pos += 2;
 
 	/* capability information is 2 bytes long */
-	bss->capability = le16_to_cpup((void *) pos);
+	bss->capability = get_unaligned_le16(pos);
 	lbs_deb_scan("process_bss: capabilities 0x%04x\n", bss->capability);
 	pos += 2;
 

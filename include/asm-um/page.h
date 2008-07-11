@@ -7,15 +7,19 @@
 #ifndef __UM_PAGE_H
 #define __UM_PAGE_H
 
+#include <linux/const.h>
+
+/* PAGE_SHIFT determines the page size */
+#define PAGE_SHIFT	12
+#define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
+#define PAGE_MASK	(~(PAGE_SIZE-1))
+
+#ifndef __ASSEMBLY__
+
 struct page;
 
 #include <linux/types.h>
 #include <asm/vm-flags.h>
-
-/* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	12
-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
-#define PAGE_MASK	(~(PAGE_SIZE-1))
 
 /*
  * These are used to make use of C type-checking..
@@ -120,4 +124,5 @@ extern struct page *arch_validate(struct page *page, gfp_t mask, int order);
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
-#endif
+#endif	/* __ASSEMBLY__ */
+#endif	/* __UM_PAGE_H */

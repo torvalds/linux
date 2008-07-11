@@ -559,7 +559,7 @@ static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
 				       const char *path, const __u16 *pfid)
 {
 	struct cifsFileInfo *open_file = NULL;
-	int unlock_file = FALSE;
+	bool unlock_file = false;
 	int xid;
 	int rc = -EIO;
 	__u16 fid;
@@ -586,10 +586,10 @@ static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
 	cifs_sb = CIFS_SB(sb);
 
 	if (open_file) {
-		unlock_file = TRUE;
+		unlock_file = true;
 		fid = open_file->netfid;
 	} else if (pfid == NULL) {
-		int oplock = FALSE;
+		int oplock = 0;
 		/* open file */
 		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
 				READ_CONTROL, 0, &fid, &oplock, NULL,
@@ -604,7 +604,7 @@ static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
 
 	rc = CIFSSMBGetCIFSACL(xid, cifs_sb->tcon, fid, &pntsd, pacllen);
 	cFYI(1, ("GetCIFSACL rc = %d ACL len %d", rc, *pacllen));
-	if (unlock_file == TRUE) /* find_readable_file increments ref count */
+	if (unlock_file == true) /* find_readable_file increments ref count */
 		atomic_dec(&open_file->wrtPending);
 	else if (pfid == NULL) /* if opened above we have to close the handle */
 		CIFSSMBClose(xid, cifs_sb->tcon, fid);
@@ -619,7 +619,7 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 				struct inode *inode, const char *path)
 {
 	struct cifsFileInfo *open_file;
-	int unlock_file = FALSE;
+	bool unlock_file = false;
 	int xid;
 	int rc = -EIO;
 	__u16 fid;
@@ -640,10 +640,10 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 
 	open_file = find_readable_file(CIFS_I(inode));
 	if (open_file) {
-		unlock_file = TRUE;
+		unlock_file = true;
 		fid = open_file->netfid;
 	} else {
-		int oplock = FALSE;
+		int oplock = 0;
 		/* open file */
 		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
 				WRITE_DAC, 0, &fid, &oplock, NULL,
@@ -658,7 +658,7 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 
 	rc = CIFSSMBSetCIFSACL(xid, cifs_sb->tcon, fid, pnntsd, acllen);
 	cFYI(DBG2, ("SetCIFSACL rc = %d", rc));
-	if (unlock_file == TRUE)
+	if (unlock_file)
 		atomic_dec(&open_file->wrtPending);
 	else
 		CIFSSMBClose(xid, cifs_sb->tcon, fid);

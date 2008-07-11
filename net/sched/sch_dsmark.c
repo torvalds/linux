@@ -416,7 +416,7 @@ static void dsmark_destroy(struct Qdisc *sch)
 
 	pr_debug("dsmark_destroy(sch %p,[qdisc %p])\n", sch, p);
 
-	tcf_destroy_chain(p->filter_list);
+	tcf_destroy_chain(&p->filter_list);
 	qdisc_destroy(p->q);
 	kfree(p->mask);
 }
@@ -444,7 +444,8 @@ static int dsmark_dump_class(struct Qdisc *sch, unsigned long cl,
 	return nla_nest_end(skb, opts);
 
 nla_put_failure:
-	return nla_nest_cancel(skb, opts);
+	nla_nest_cancel(skb, opts);
+	return -EMSGSIZE;
 }
 
 static int dsmark_dump(struct Qdisc *sch, struct sk_buff *skb)
@@ -466,7 +467,8 @@ static int dsmark_dump(struct Qdisc *sch, struct sk_buff *skb)
 	return nla_nest_end(skb, opts);
 
 nla_put_failure:
-	return nla_nest_cancel(skb, opts);
+	nla_nest_cancel(skb, opts);
+	return -EMSGSIZE;
 }
 
 static const struct Qdisc_class_ops dsmark_class_ops = {

@@ -235,10 +235,6 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #define	DEV_CONFIG_CDC
 #endif
 
-#ifdef CONFIG_USB_GADGET_PXA27X
-#define DEV_CONFIG_CDC
-#endif
-
 #ifdef CONFIG_USB_GADGET_S3C2410
 #define DEV_CONFIG_CDC
 #endif
@@ -267,6 +263,10 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
  * Anything that talks bulk (without notable bugs) can do this.
  */
 #ifdef CONFIG_USB_GADGET_PXA2XX
+#define	DEV_CONFIG_SUBSET
+#endif
+
+#ifdef CONFIG_USB_GADGET_PXA27X
 #define	DEV_CONFIG_SUBSET
 #endif
 

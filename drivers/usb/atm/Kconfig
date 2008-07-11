@@ -19,7 +19,6 @@ if USB_ATM
 
 config USB_SPEEDTOUCH
 	tristate "Speedtouch USB support"
-	depends on USB_ATM
 	select FW_LOADER
 	help
 	  Say Y here if you have an SpeedTouch USB or SpeedTouch 330
@@ -32,7 +31,6 @@ config USB_SPEEDTOUCH
 
 config USB_CXACRU
 	tristate "Conexant AccessRunner USB support"
-	depends on USB_ATM
 	select FW_LOADER
 	help
 	  Say Y here if you have an ADSL USB modem based on the Conexant
@@ -45,7 +43,6 @@ config USB_CXACRU
 
 config USB_UEAGLEATM
 	tristate "ADI 930 and eagle USB DSL modem"
-	depends on USB_ATM
 	select FW_LOADER
 	help
 	  Say Y here if you have an ADSL USB modem based on the ADI 930
@@ -58,7 +55,6 @@ config USB_UEAGLEATM
 
 config USB_XUSBATM
 	tristate "Other USB DSL modem support"
-	depends on USB_ATM
 	help
 	  Say Y here if you have a DSL USB modem not explicitly supported by
 	  another USB DSL drivers.  In order to use your modem you will need to

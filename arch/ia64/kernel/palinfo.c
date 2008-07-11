@@ -900,12 +900,6 @@ static void
 palinfo_smp_call(void *info)
 {
 	palinfo_smp_data_t *data = (palinfo_smp_data_t *)info;
-	if (data == NULL) {
-		printk(KERN_ERR "palinfo: data pointer is NULL\n");
-		data->ret = 0; /* no output */
-		return;
-	}
-	/* does this actual call */
 	data->ret = (*data->func)(data->page);
 }
 
@@ -1053,7 +1047,7 @@ static int __cpuinit palinfo_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block palinfo_cpu_notifier __cpuinitdata =
+static struct notifier_block __refdata palinfo_cpu_notifier =
 {
 	.notifier_call = palinfo_cpu_callback,
 	.priority = 0,

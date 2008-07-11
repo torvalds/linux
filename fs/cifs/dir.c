@@ -49,18 +49,25 @@ build_path_from_dentry(struct dentry *direntry)
 	struct dentry *temp;
 	int namelen;
 	int pplen;
+	int dfsplen;
 	char *full_path;
 	char dirsep;
+	struct cifs_sb_info *cifs_sb;
 
 	if (direntry == NULL)
 		return NULL;  /* not much we can do if dentry is freed and
 		we need to reopen the file after it was closed implicitly
 		when the server crashed */
 
-	dirsep = CIFS_DIR_SEP(CIFS_SB(direntry->d_sb));
-	pplen = CIFS_SB(direntry->d_sb)->prepathlen;
+	cifs_sb = CIFS_SB(direntry->d_sb);
+	dirsep = CIFS_DIR_SEP(cifs_sb);
+	pplen = cifs_sb->prepathlen;
+	if (cifs_sb->tcon && (cifs_sb->tcon->Flags & SMB_SHARE_IS_IN_DFS))
+		dfsplen = strnlen(cifs_sb->tcon->treeName, MAX_TREE_SIZE + 1);
+	else
+		dfsplen = 0;
 cifs_bp_rename_retry:
-	namelen = pplen;
+	namelen = pplen + dfsplen;
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
@@ -91,7 +98,7 @@ cifs_bp_rename_retry:
 			return NULL;
 		}
 	}
-	if (namelen != pplen) {
+	if (namelen != pplen + dfsplen) {
 		cERROR(1,
 		       ("did not end path lookup where expected namelen is %d",
 			namelen));
@@ -107,7 +114,18 @@ cifs_bp_rename_retry:
 	   since the '\' is a valid posix character so we can not switch
 	   those safely to '/' if any are found in the middle of the prepath */
 	/* BB test paths to Windows with '/' in the midst of prepath */
-	strncpy(full_path, CIFS_SB(direntry->d_sb)->prepath, pplen);
+
+	if (dfsplen) {
+		strncpy(full_path, cifs_sb->tcon->treeName, dfsplen);
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) {
+			int i;
+			for (i = 0; i < dfsplen; i++) {
+				if (full_path[i] == '\\')
+					full_path[i] = '/';
+			}
+		}
+	}
+	strncpy(full_path + dfsplen, CIFS_SB(direntry->d_sb)->prepath, pplen);
 	return full_path;
 }
 
@@ -119,6 +137,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 {
 	int rc = -ENOENT;
 	int xid;
+	int create_options = CREATE_NOT_DIR;
 	int oplock = 0;
 	int desiredAccess = GENERIC_READ | GENERIC_WRITE;
 	__u16 fileHandle;
@@ -130,7 +149,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	struct cifsFileInfo *pCifsFile = NULL;
 	struct cifsInodeInfo *pCifsInode;
 	int disposition = FILE_OVERWRITE_IF;
-	int write_only = FALSE;
+	bool write_only = false;
 
 	xid = GetXid();
 
@@ -152,7 +171,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		if (oflags & FMODE_WRITE) {
 			desiredAccess |= GENERIC_WRITE;
 			if (!(oflags & FMODE_READ))
-				write_only = TRUE;
+				write_only = true;
 		}
 
 		if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
@@ -176,9 +195,19 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		FreeXid(xid);
 		return -ENOMEM;
 	}
+
+	mode &= ~current->fs->umask;
+
+	/*
+	 * if we're not using unix extensions, see if we need to set
+	 * ATTR_READONLY on the create call
+	 */
+	if (!pTcon->unix_ext && (mode & S_IWUGO) == 0)
+		create_options |= CREATE_OPTION_READONLY;
+
 	if (cifs_sb->tcon->ses->capabilities & CAP_NT_SMBS)
 		rc = CIFSSMBOpen(xid, pTcon, full_path, disposition,
-			 desiredAccess, CREATE_NOT_DIR,
+			 desiredAccess, create_options,
 			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else
@@ -187,7 +216,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	if (rc == -EIO) {
 		/* old server, retry the open legacy style */
 		rc = SMBLegacyOpen(xid, pTcon, full_path, disposition,
-			desiredAccess, CREATE_NOT_DIR,
+			desiredAccess, create_options,
 			&fileHandle, &oplock, buf, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
@@ -197,7 +226,6 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		/* If Open reported that we actually created a file
 		then we now have to set the mode if possible */
 		if ((pTcon->unix_ext) && (oplock & CIFS_CREATE_ACTION)) {
-			mode &= ~current->fs->umask;
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode,
 					(__u64)current->fsuid,
@@ -232,7 +260,9 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 						 buf, inode->i_sb, xid,
 						 &fileHandle);
 			if (newinode) {
-				newinode->i_mode = mode;
+				if (cifs_sb->mnt_cifs_flags &
+				    CIFS_MOUNT_DYNPERM)
+					newinode->i_mode = mode;
 				if ((oplock & CIFS_CREATE_ACTION) &&
 				    (cifs_sb->mnt_cifs_flags &
 				     CIFS_MOUNT_SET_UID)) {
@@ -254,7 +284,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			d_instantiate(direntry, newinode);
 		}
 		if ((nd == NULL /* nfsd case - nfs srv does not set nd */) ||
-			((nd->flags & LOOKUP_OPEN) == FALSE)) {
+			(!(nd->flags & LOOKUP_OPEN))) {
 			/* mknod case - do not leave file open */
 			CIFSSMBClose(xid, pTcon, fileHandle);
 		} else if (newinode) {
@@ -266,8 +296,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			pCifsFile->netfid = fileHandle;
 			pCifsFile->pid = current->tgid;
 			pCifsFile->pInode = newinode;
-			pCifsFile->invalidHandle = FALSE;
-			pCifsFile->closePend     = FALSE;
+			pCifsFile->invalidHandle = false;
+			pCifsFile->closePend     = false;
 			init_MUTEX(&pCifsFile->fh_sem);
 			mutex_init(&pCifsFile->lock_mutex);
 			INIT_LIST_HEAD(&pCifsFile->llist);
@@ -280,7 +310,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			pCifsInode = CIFS_I(newinode);
 			if (pCifsInode) {
 				/* if readable file instance put first in list*/
-				if (write_only == TRUE) {
+				if (write_only) {
 					list_add_tail(&pCifsFile->flist,
 						&pCifsInode->openFileList);
 				} else {
@@ -288,12 +318,12 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 						&pCifsInode->openFileList);
 				}
 				if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-					pCifsInode->clientCanCacheAll = TRUE;
-					pCifsInode->clientCanCacheRead = TRUE;
+					pCifsInode->clientCanCacheAll = true;
+					pCifsInode->clientCanCacheRead = true;
 					cFYI(1, ("Exclusive Oplock inode %p",
 						newinode));
 				} else if ((oplock & 0xF) == OPLOCK_READ)
-					pCifsInode->clientCanCacheRead = TRUE;
+					pCifsInode->clientCanCacheRead = true;
 			}
 			write_unlock(&GlobalSMBSeslock);
 		}
@@ -580,7 +610,7 @@ static int cifs_ci_compare(struct dentry *dentry, struct qstr *a,
 		 * case take precedence.  If a is not a negative dentry, this
 		 * should have no side effects
 		 */
-		memcpy(a->name, b->name, a->len);
+		memcpy((void *)a->name, b->name, a->len);
 		return 0;
 	}
 	return 1;

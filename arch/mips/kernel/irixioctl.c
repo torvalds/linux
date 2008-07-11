@@ -27,33 +27,6 @@ struct irix_termios {
 	cc_t c_cc[NCCS];
 };
 
-extern void start_tty(struct tty_struct *tty);
-static struct tty_struct *get_tty(int fd)
-{
-	struct file *filp;
-	struct tty_struct *ttyp = NULL;
-
-	rcu_read_lock();
-	filp = fcheck(fd);
-	if(filp && filp->private_data) {
-		ttyp = (struct tty_struct *) filp->private_data;
-
-		if(ttyp->magic != TTY_MAGIC)
-			ttyp =NULL;
-	}
-	rcu_read_unlock();
-	return ttyp;
-}
-
-static struct tty_struct *get_real_tty(struct tty_struct *tp)
-{
-	if (tp->driver->type == TTY_DRIVER_TYPE_PTY &&
-	   tp->driver->subtype == PTY_TYPE_MASTER)
-		return tp->link;
-	else
-		return tp;
-}
-
 asmlinkage int irix_ioctl(int fd, unsigned long cmd, unsigned long arg)
 {
 	struct tty_struct *tp, *rtp;
@@ -146,34 +119,24 @@ asmlinkage int irix_ioctl(int fd, unsigned long cmd, unsigned long arg)
 		error = sys_ioctl(fd, TIOCNOTTY, arg);
 		break;
 
-	case 0x00007416:
+	case 0x00007416: {
+		pid_t pid;
 #ifdef DEBUG_IOCTLS
 		printk("TIOCGSID, %08lx) ", arg);
 #endif
-		tp = get_tty(fd);
-		if(!tp) {
-			error = -EINVAL;
-			break;
-		}
-		rtp = get_real_tty(tp);
-#ifdef DEBUG_IOCTLS
-		printk("rtp->session=%d ", rtp->session);
-#endif
-		error = put_user(rtp->session, (unsigned long __user *) arg);
+		old_fs = get_fs(); set_fs(get_ds());
+		error = sys_ioctl(fd, TIOCGSID, (unsigned long)&pid);
+		set_fs(old_fs);
+		if (!error)
+			error = put_user(pid, (unsigned long __user *) arg);
 		break;
-
+	}
 	case 0x746e:
 		/* TIOCSTART, same effect as hitting ^Q */
 #ifdef DEBUG_IOCTLS
 		printk("TIOCSTART, %08lx) ", arg);
 #endif
-		tp = get_tty(fd);
-		if(!tp) {
-			error = -EINVAL;
-			break;
-		}
-		rtp = get_real_tty(tp);
-		start_tty(rtp);
+		error = sys_ioctl(fd, TCXONC, TCOON);
 		break;
 
 	case 0x20006968:

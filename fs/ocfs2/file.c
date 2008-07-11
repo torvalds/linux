@@ -1048,6 +1048,10 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	mlog_entry("(0x%p, '%.*s')\n", dentry,
 	           dentry->d_name.len, dentry->d_name.name);
 
+	/* ensuring we don't even attempt to truncate a symlink */
+	if (S_ISLNK(inode->i_mode))
+		attr->ia_valid &= ~ATTR_SIZE;
+
 	if (attr->ia_valid & ATTR_MODE)
 		mlog(0, "mode change: %d\n", attr->ia_mode);
 	if (attr->ia_valid & ATTR_UID)

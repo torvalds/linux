@@ -341,6 +341,7 @@ static struct resource mv64x60_eth0_resources[] = {
 };
 
 static struct mv643xx_eth_platform_data eth0_pd = {
+	.shared		= &mv64x60_eth_shared_device;
 	.port_number	= 0,
 };
 
@@ -366,6 +367,7 @@ static struct resource mv64x60_eth1_resources[] = {
 };
 
 static struct mv643xx_eth_platform_data eth1_pd = {
+	.shared		= &mv64x60_eth_shared_device;
 	.port_number	= 1,
 };
 
@@ -391,6 +393,7 @@ static struct resource mv64x60_eth2_resources[] = {
 };
 
 static struct mv643xx_eth_platform_data eth2_pd = {
+	.shared		= &mv64x60_eth_shared_device;
 	.port_number	= 2,
 };
 

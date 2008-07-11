@@ -416,7 +416,7 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd)
 			 * to put data into its FIFO.  Without it, ALSA starts
 			 * to complain about overruns.
 			 */
-			msleep(1);
+			mdelay(1);
 		}
 		break;
 

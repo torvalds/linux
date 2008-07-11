@@ -64,7 +64,7 @@ static unsigned char irl2irq[HL_NR_IRL] __initdata = {
 static DECLARE_INTC_DESC(intc_desc, "r7785rp", vectors,
 			 NULL, mask_registers, NULL, NULL);
 
-unsigned char * __init highlander_init_irq_r7785rp(void)
+unsigned char * __init highlander_plat_irq_setup(void)
 {
 	if ((ctrl_inw(0xa4000158) & 0xf000) != 0x1000)
 		return NULL;

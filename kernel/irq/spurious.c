@@ -209,8 +209,8 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		 * Now kill the IRQ
 		 */
 		printk(KERN_EMERG "Disabling IRQ #%d\n", irq);
-		desc->status |= IRQ_DISABLED;
-		desc->depth = 1;
+		desc->status |= IRQ_DISABLED | IRQ_SPURIOUS_DISABLED;
+		desc->depth++;
 		desc->chip->disable(irq);
 	}
 	desc->irqs_unhandled = 0;

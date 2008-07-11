@@ -271,8 +271,6 @@ sysc_noemu:
 	stg	%r2,SP_R2(%r15) # store return value (change R2 on stack)
 
 sysc_return:
-	tm	SP_PSW+1(%r15),0x01	# returning to user ?
-	jno	sysc_restore
 	tm	__TI_flags+7(%r9),_TIF_WORK_SVC
 	jnz	sysc_work	# there is work to do (signals etc.)
 sysc_restore:
@@ -304,6 +302,8 @@ sysc_work_loop:
 # One of the work bits is on. Find out which one.
 #
 sysc_work:
+	tm	SP_PSW+1(%r15),0x01	# returning to user ?
+	jno	sysc_restore
 	tm	__TI_flags+7(%r9),_TIF_MCCK_PENDING
 	jo	sysc_mcck_pending
 	tm	__TI_flags+7(%r9),_TIF_NEED_RESCHED
@@ -585,12 +585,6 @@ io_no_vtime:
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	brasl	%r14,do_IRQ		# call standard irq handler
 io_return:
-	tm	SP_PSW+1(%r15),0x01	# returning to user ?
-#ifdef CONFIG_PREEMPT
-	jno	io_preempt		# no -> check for preemptive scheduling
-#else
-	jno	io_restore		# no-> skip resched & signal
-#endif
 	tm	__TI_flags+7(%r9),_TIF_WORK_INT
 	jnz	io_work 		# there is work to do (signals etc.)
 io_restore:
@@ -612,10 +606,41 @@ io_restore_trace_psw:
 	.quad	0, io_restore_trace
 #endif
 
-#ifdef CONFIG_PREEMPT
-io_preempt:
+#
+# There is work todo, we need to check if we return to userspace, then
+# check, if we are in SIE, if yes leave it
+#
+io_work:
+	tm	SP_PSW+1(%r15),0x01	# returning to user ?
+#ifndef CONFIG_PREEMPT
+#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+	jnz	io_work_user		# yes -> no need to check for SIE
+	la	%r1, BASED(sie_opcode)	# we return to kernel here
+	lg	%r2, SP_PSW+8(%r15)
+	clc	0(2,%r1), 0(%r2)	# is current instruction = SIE?
+	jne	io_restore		# no-> return to kernel
+	lg	%r1, SP_PSW+8(%r15)	# yes-> add 4 bytes to leave SIE
+	aghi	%r1, 4
+	stg	%r1, SP_PSW+8(%r15)
+	j	io_restore		# return to kernel
+#else
+	jno	io_restore		# no-> skip resched & signal
+#endif
+#else
+	jnz	io_work_user		# yes -> do resched & signal
+#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+	la	%r1, BASED(sie_opcode)
+	lg	%r2, SP_PSW+8(%r15)
+	clc	0(2,%r1), 0(%r2)	# is current instruction = SIE?
+	jne	0f			# no -> leave PSW alone
+	lg	%r1, SP_PSW+8(%r15)	# yes-> add 4 bytes to leave SIE
+	aghi	%r1, 4
+	stg	%r1, SP_PSW+8(%r15)
+0:
+#endif
+	# check for preemptive scheduling
 	icm	%r0,15,__TI_precount(%r9)
-	jnz	io_restore
+	jnz	io_restore		# preemption is disabled
 	# switch to kernel stack
 	lg	%r1,SP_R15(%r15)
 	aghi	%r1,-SP_SIZE
@@ -629,10 +654,7 @@ io_resume_loop:
 	jg	preempt_schedule_irq
 #endif
 
-#
-# switch to kernel stack, then check TIF bits
-#
-io_work:
+io_work_user:
 	lg	%r1,__LC_KERNEL_STACK
 	aghi	%r1,-SP_SIZE
 	mvc	SP_PTREGS(__PT_SIZE,%r1),SP_PTREGS(%r15)
@@ -652,6 +674,11 @@ io_work_loop:
 	jnz	io_sigpending
 	j	io_restore
 io_work_done:
+
+#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+sie_opcode:
+	.long 0xb2140000
+#endif
 
 #
 # _TIF_MCCK_PENDING is set, call handler

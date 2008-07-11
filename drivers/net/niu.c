@@ -1,6 +1,6 @@
 /* niu.c: Neptune ethernet driver.
  *
- * Copyright (C) 2007 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 2007, 2008 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/module.h>
@@ -33,8 +33,8 @@
 
 #define DRV_MODULE_NAME		"niu"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.8"
-#define DRV_MODULE_RELDATE	"April 24, 2008"
+#define DRV_MODULE_VERSION	"0.9"
+#define DRV_MODULE_RELDATE	"May 4, 2008"
 
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
@@ -865,7 +865,6 @@ static int link_status_1g_serdes(struct niu *np, int *link_up_p)
 	return 0;
 }
 
-
 static int link_status_10g_serdes(struct niu *np, int *link_up_p)
 {
 	unsigned long flags;
@@ -899,7 +898,6 @@ static int link_status_10g_serdes(struct niu *np, int *link_up_p)
 	*link_up_p = link_up;
 	return 0;
 }
-
 
 static int link_status_1g_rgmii(struct niu *np, int *link_up_p)
 {
@@ -956,7 +954,6 @@ out:
 	*link_up_p = link_up;
 	return err;
 }
-
 
 static int bcm8704_reset(struct niu *np)
 {
@@ -1357,8 +1354,6 @@ static int mii_reset(struct niu *np)
 	return 0;
 }
 
-
-
 static int xcvr_init_1g_rgmii(struct niu *np)
 {
 	int err;
@@ -1418,7 +1413,6 @@ static int xcvr_init_1g_rgmii(struct niu *np)
 
 	return 0;
 }
-
 
 static int mii_init_common(struct niu *np)
 {
@@ -7008,31 +7002,20 @@ static int __devinit niu_phy_type_prop_decode(struct niu *np,
 	return 0;
 }
 
-/* niu board models have a trailing dash version incremented
- * with HW rev change. Need to ingnore the  dash version while
- * checking for match
- *
- * for example, for the 10G card the current vpd.board_model
- * is 501-5283-04, of which -04 is the  dash version and have
- * to be ignored
- */
-static int niu_board_model_match(struct niu *np, const char *model)
-{
-	return !strncmp(np->vpd.board_model, model, strlen(model));
-}
-
 static int niu_pci_vpd_get_nports(struct niu *np)
 {
 	int ports = 0;
 
-	if ((niu_board_model_match(np, NIU_QGC_LP_BM_STR)) ||
-	    (niu_board_model_match(np, NIU_QGC_PEM_BM_STR)) ||
-	    (niu_board_model_match(np, NIU_ALONSO_BM_STR))) {
+	if ((!strcmp(np->vpd.model, NIU_QGC_LP_MDL_STR)) ||
+	    (!strcmp(np->vpd.model, NIU_QGC_PEM_MDL_STR)) ||
+	    (!strcmp(np->vpd.model, NIU_MARAMBA_MDL_STR)) ||
+	    (!strcmp(np->vpd.model, NIU_KIMI_MDL_STR)) ||
+	    (!strcmp(np->vpd.model, NIU_ALONSO_MDL_STR))) {
 		ports = 4;
-	} else if ((niu_board_model_match(np, NIU_2XGF_LP_BM_STR)) ||
-		   (niu_board_model_match(np, NIU_2XGF_PEM_BM_STR)) ||
-		   (niu_board_model_match(np, NIU_FOXXY_BM_STR)) ||
-		   (niu_board_model_match(np, NIU_2XGF_MRVL_BM_STR))) {
+	} else if ((!strcmp(np->vpd.model, NIU_2XGF_LP_MDL_STR)) ||
+		   (!strcmp(np->vpd.model, NIU_2XGF_PEM_MDL_STR)) ||
+		   (!strcmp(np->vpd.model, NIU_FOXXY_MDL_STR)) ||
+		   (!strcmp(np->vpd.model, NIU_2XGF_MRVL_MDL_STR))) {
 		ports = 2;
 	}
 
@@ -7053,8 +7036,8 @@ static void __devinit niu_pci_vpd_validate(struct niu *np)
 		return;
 	}
 
-	if (!strcmp(np->vpd.model, "SUNW,CP3220") ||
-	    !strcmp(np->vpd.model, "SUNW,CP3260")) {
+	if (!strcmp(np->vpd.model, NIU_ALONSO_MDL_STR) ||
+	    !strcmp(np->vpd.model, NIU_KIMI_MDL_STR)) {
 		np->flags |= NIU_FLAGS_10G;
 		np->flags &= ~NIU_FLAGS_FIBER;
 		np->flags |= NIU_FLAGS_XCVR_SERDES;
@@ -7065,7 +7048,7 @@ static void __devinit niu_pci_vpd_validate(struct niu *np)
 		}
 		if (np->flags & NIU_FLAGS_10G)
 			 np->mac_xcvr = MAC_XCVR_XPCS;
-	} else if (niu_board_model_match(np, NIU_FOXXY_BM_STR)) {
+	} else if (!strcmp(np->vpd.model, NIU_FOXXY_MDL_STR)) {
 		np->flags |= (NIU_FLAGS_10G | NIU_FLAGS_FIBER |
 			      NIU_FLAGS_HOTPLUG_PHY);
 	} else if (niu_phy_type_prop_decode(np, np->vpd.phy_type)) {
@@ -7264,8 +7247,11 @@ static int __devinit niu_get_and_validate_port(struct niu *np)
 				parent->num_ports = nr64(ESPC_NUM_PORTS_MACS) &
 					ESPC_NUM_PORTS_MACS_VAL;
 
+				/* All of the current probing methods fail on
+				 * Maramba on-board parts.
+				 */
 				if (!parent->num_ports)
-					return -ENODEV;
+					parent->num_ports = 4;
 			}
 		}
 	}
@@ -7538,8 +7524,8 @@ static int __devinit walk_phys(struct niu *np, struct niu_parent *parent)
 	u32 val;
 	int err;
 
-	if (!strcmp(np->vpd.model, "SUNW,CP3220") ||
-	    !strcmp(np->vpd.model, "SUNW,CP3260")) {
+	if (!strcmp(np->vpd.model, NIU_ALONSO_MDL_STR) ||
+	    !strcmp(np->vpd.model, NIU_KIMI_MDL_STR)) {
 		num_10g = 0;
 		num_1g = 2;
 		parent->plat_type = PLAT_TYPE_ATCA_CP3220;
@@ -7548,7 +7534,7 @@ static int __devinit walk_phys(struct niu *np, struct niu_parent *parent)
 		       phy_encode(PORT_TYPE_1G, 1) |
 		       phy_encode(PORT_TYPE_1G, 2) |
 		       phy_encode(PORT_TYPE_1G, 3));
-	} else if (niu_board_model_match(np, NIU_FOXXY_BM_STR)) {
+	} else if (!strcmp(np->vpd.model, NIU_FOXXY_MDL_STR)) {
 		num_10g = 2;
 		num_1g = 0;
 		parent->num_ports = 2;
@@ -7943,6 +7929,7 @@ static int __devinit niu_get_of_props(struct niu *np)
 	struct device_node *dp;
 	const char *phy_type;
 	const u8 *mac_addr;
+	const char *model;
 	int prop_len;
 
 	if (np->parent->plat_type == PLAT_TYPE_NIU)
@@ -7996,6 +7983,11 @@ static int __devinit niu_get_of_props(struct niu *np)
 	}
 
 	memcpy(dev->dev_addr, dev->perm_addr, dev->addr_len);
+
+	model = of_get_property(dp, "model", &prop_len);
+
+	if (model)
+		strcpy(np->vpd.model, model);
 
 	return 0;
 #else

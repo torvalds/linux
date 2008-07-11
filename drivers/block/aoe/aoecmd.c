@@ -755,11 +755,13 @@ diskstats(struct gendisk *disk, struct bio *bio, ulong duration, sector_t sector
 {
 	unsigned long n_sect = bio->bi_size >> 9;
 	const int rw = bio_data_dir(bio);
+	struct hd_struct *part;
 
-	all_stat_inc(disk, ios[rw], sector);
-	all_stat_add(disk, ticks[rw], duration, sector);
-	all_stat_add(disk, sectors[rw], n_sect, sector);
-	all_stat_add(disk, io_ticks, duration, sector);
+	part = get_part(disk, sector);
+	all_stat_inc(disk, part, ios[rw], sector);
+	all_stat_add(disk, part, ticks[rw], duration, sector);
+	all_stat_add(disk, part, sectors[rw], n_sect, sector);
+	all_stat_add(disk, part, io_ticks, duration, sector);
 }
 
 void

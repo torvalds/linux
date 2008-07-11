@@ -34,11 +34,7 @@
  * Non-CPU Masters address decoding --
  * Unlike the CPU, we setup the access from Orion's master interfaces to DDR
  * banks only (the typical use case).
- * Setup access for each master to DDR is issued by common.c.
- *
- * Note: although orion_setbits() and orion_clrbits() are not atomic
- * no locking is necessary here since code in this file is only called
- * at boot time when there is no concurrency issues.
+ * Setup access for each master to DDR is issued by platform device setup.
  */
 
 /*
@@ -48,10 +44,6 @@
 #define TARGET_DEV_BUS		1
 #define TARGET_PCI		3
 #define TARGET_PCIE		4
-#define ATTR_DDR_CS(n)		(((n) ==0) ? 0xe :	\
-				((n) == 1) ? 0xd :	\
-				((n) == 2) ? 0xb :	\
-				((n) == 3) ? 0x7 : 0xf)
 #define ATTR_PCIE_MEM		0x59
 #define ATTR_PCIE_IO		0x51
 #define ATTR_PCIE_WA		0x79
@@ -61,17 +53,12 @@
 #define ATTR_DEV_CS1		0x1d
 #define ATTR_DEV_CS2		0x1b
 #define ATTR_DEV_BOOT		0xf
-#define WIN_EN			1
 
 /*
  * Helpers to get DDR bank info
  */
-#define DDR_BASE_CS(n)		ORION5X_DDR_REG(0x1500 + ((n) * 8))
-#define DDR_SIZE_CS(n)		ORION5X_DDR_REG(0x1504 + ((n) * 8))
-#define DDR_MAX_CS		4
-#define DDR_REG_TO_SIZE(reg)	(((reg) | 0xffffff) + 1)
-#define DDR_REG_TO_BASE(reg)	((reg) & 0xff000000)
-#define DDR_BANK_EN		1
+#define DDR_BASE_CS(n)		ORION5X_DDR_REG(0x1500 + ((n) << 3))
+#define DDR_SIZE_CS(n)		ORION5X_DDR_REG(0x1504 + ((n) << 3))
 
 /*
  * CPU Address Decode Windows registers
@@ -80,17 +67,6 @@
 #define CPU_WIN_BASE(n)		ORION5X_BRIDGE_REG(0x004 | ((n) << 4))
 #define CPU_WIN_REMAP_LO(n)	ORION5X_BRIDGE_REG(0x008 | ((n) << 4))
 #define CPU_WIN_REMAP_HI(n)	ORION5X_BRIDGE_REG(0x00c | ((n) << 4))
-
-/*
- * Gigabit Ethernet Address Decode Windows registers
- */
-#define ETH_WIN_BASE(win)	ORION5X_ETH_REG(0x200 + ((win) * 8))
-#define ETH_WIN_SIZE(win)	ORION5X_ETH_REG(0x204 + ((win) * 8))
-#define ETH_WIN_REMAP(win)	ORION5X_ETH_REG(0x280 + ((win) * 4))
-#define ETH_WIN_EN		ORION5X_ETH_REG(0x290)
-#define ETH_WIN_PROT		ORION5X_ETH_REG(0x294)
-#define ETH_MAX_WIN		6
-#define ETH_MAX_REMAP_WIN	4
 
 
 struct mbus_dram_target_info orion5x_mbus_dram_info;
@@ -201,40 +177,4 @@ void __init orion5x_setup_dev2_win(u32 base, u32 size)
 void __init orion5x_setup_pcie_wa_win(u32 base, u32 size)
 {
 	setup_cpu_win(7, base, size, TARGET_PCIE, ATTR_PCIE_WA, -1);
-}
-
-void __init orion5x_setup_eth_wins(void)
-{
-	int i;
-
-	/*
-	 * First, disable and clear windows
-	 */
-	for (i = 0; i < ETH_MAX_WIN; i++) {
-		orion5x_write(ETH_WIN_BASE(i), 0);
-		orion5x_write(ETH_WIN_SIZE(i), 0);
-		orion5x_setbits(ETH_WIN_EN, 1 << i);
-		orion5x_clrbits(ETH_WIN_PROT, 0x3 << (i * 2));
-		if (i < ETH_MAX_REMAP_WIN)
-			orion5x_write(ETH_WIN_REMAP(i), 0);
-	}
-
-	/*
-	 * Setup windows for DDR banks.
-	 */
-	for (i = 0; i < DDR_MAX_CS; i++) {
-		u32 base, size;
-		size = orion5x_read(DDR_SIZE_CS(i));
-		base = orion5x_read(DDR_BASE_CS(i));
-		if (size & DDR_BANK_EN) {
-			base = DDR_REG_TO_BASE(base);
-			size = DDR_REG_TO_SIZE(size);
-			orion5x_write(ETH_WIN_SIZE(i), (size-1) & 0xffff0000);
-			orion5x_write(ETH_WIN_BASE(i), (base & 0xffff0000) |
-					(ATTR_DDR_CS(i) << 8) |
-					TARGET_DDR);
-			orion5x_clrbits(ETH_WIN_EN, 1 << i);
-			orion5x_setbits(ETH_WIN_PROT, 0x3 << (i * 2));
-		}
-	}
 }

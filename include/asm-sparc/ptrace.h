@@ -1,4 +1,3 @@
-/* $Id: ptrace.h,v 1.25 1997/03/04 16:27:25 jj Exp $ */
 #ifndef _SPARC_PTRACE_H
 #define _SPARC_PTRACE_H
 
@@ -9,6 +8,8 @@
  */
 
 #ifndef __ASSEMBLY__
+
+#include <linux/types.h>
 
 struct pt_regs {
 	unsigned long psr;
@@ -38,6 +39,16 @@ struct pt_regs {
 #define UREG_FADDR     UREG_G0
 #define UREG_FP        UREG_I6
 #define UREG_RETPC     UREG_I7
+
+static inline bool pt_regs_is_syscall(struct pt_regs *regs)
+{
+	return (regs->psr & PSR_SYSCALL);
+}
+
+static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
+{
+	return (regs->psr &= ~PSR_SYSCALL);
+}
 
 /* A register window */
 struct reg_window {
@@ -149,6 +160,7 @@ extern void show_regs(struct pt_regs *);
 #define SF_XXARG  0x5c
 
 /* Stuff for the ptrace system call */
+#define PTRACE_SPARC_DETACH       11
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13
 #define PTRACE_GETFPREGS          14

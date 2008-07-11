@@ -234,7 +234,8 @@ affs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 int
 affs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	pr_debug("AFFS: unlink(dir=%d, \"%.*s\")\n", (u32)dir->i_ino,
+	pr_debug("AFFS: unlink(dir=%d, %lu \"%.*s\")\n", (u32)dir->i_ino,
+		 dentry->d_inode->i_ino,
 		 (int)dentry->d_name.len, dentry->d_name.name);
 
 	return affs_remove_header(dentry);
@@ -302,7 +303,8 @@ affs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 int
 affs_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	pr_debug("AFFS: rmdir(dir=%u, \"%.*s\")\n", (u32)dir->i_ino,
+	pr_debug("AFFS: rmdir(dir=%u, %lu \"%.*s\")\n", (u32)dir->i_ino,
+		 dentry->d_inode->i_ino,
 		 (int)dentry->d_name.len, dentry->d_name.name);
 
 	return affs_remove_header(dentry);

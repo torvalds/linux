@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/input.h>
+#include <linux/smc91x.h>
 #include <asm/machvec.h>
 #include <asm/se7722.h>
 #include <asm/io.h>
@@ -44,6 +45,10 @@ static struct platform_device heartbeat_device = {
 };
 
 /* SMC91x */
+static struct smc91x_platdata smc91x_info = {
+	.flags = SMC91X_USE_16BIT,
+};
+
 static struct resource smc91x_eth_resources[] = {
 	[0] = {
 		.name   = "smc91x-regs" ,
@@ -64,6 +69,7 @@ static struct platform_device smc91x_eth_device = {
 	.dev = {
 		.dma_mask               = NULL,         /* don't use dma */
 		.coherent_dma_mask      = 0xffffffff,
+		.platform_data	= &smc91x_info,
 	},
 	.num_resources  = ARRAY_SIZE(smc91x_eth_resources),
 	.resource       = smc91x_eth_resources,

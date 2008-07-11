@@ -334,6 +334,7 @@ struct ipoib_dev_priv {
 #endif
 	int	hca_caps;
 	struct ipoib_ethtool_st ethtool;
+	struct timer_list poll_timer;
 };
 
 struct ipoib_ah {
@@ -404,6 +405,7 @@ extern struct workqueue_struct *ipoib_workqueue;
 
 int ipoib_poll(struct napi_struct *napi, int budget);
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr);
+void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr);
 
 struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 				 struct ib_pd *pd, struct ib_ah_attr *attr);

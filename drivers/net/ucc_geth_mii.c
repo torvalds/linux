@@ -104,7 +104,7 @@ int uec_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 }
 
 /* Reset the MIIM registers, and wait for the bus to free */
-int uec_mdio_reset(struct mii_bus *bus)
+static int uec_mdio_reset(struct mii_bus *bus)
 {
 	struct ucc_mii_mng __iomem *regs = (void __iomem *)bus->priv;
 	unsigned int timeout = PHY_INIT_TIMEOUT;
@@ -240,7 +240,7 @@ reg_map_fail:
 	return err;
 }
 
-int uec_mdio_remove(struct of_device *ofdev)
+static int uec_mdio_remove(struct of_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct mii_bus *bus = dev_get_drvdata(device);

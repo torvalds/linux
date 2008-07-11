@@ -22,6 +22,7 @@
 
 #include <linux/elf.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/module.h>

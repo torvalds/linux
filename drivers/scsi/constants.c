@@ -28,7 +28,6 @@
 #define SERVICE_ACTION_OUT_12 0xa9
 #define SERVICE_ACTION_IN_16 0x9e
 #define SERVICE_ACTION_OUT_16 0x9f
-#define VARIABLE_LENGTH_CMD 0x7f
 
 
 
@@ -210,7 +209,7 @@ static void print_opcode_name(unsigned char * cdbp, int cdb_len)
 	cdb0 = cdbp[0];
 	switch(cdb0) {
 	case VARIABLE_LENGTH_CMD:
-		len = cdbp[7] + 8;
+		len = scsi_varlen_cdb_length(cdbp);
 		if (len < 10) {
 			printk("short variable length command, "
 			       "len=%d ext_len=%d", len, cdb_len);
@@ -300,7 +299,7 @@ static void print_opcode_name(unsigned char * cdbp, int cdb_len)
 	cdb0 = cdbp[0];
 	switch(cdb0) {
 	case VARIABLE_LENGTH_CMD:
-		len = cdbp[7] + 8;
+		len = scsi_varlen_cdb_length(cdbp);
 		if (len < 10) {
 			printk("short opcode=0x%x command, len=%d "
 			       "ext_len=%d", cdb0, len, cdb_len);
@@ -335,10 +334,7 @@ void __scsi_print_command(unsigned char *cdb)
 	int k, len;
 
 	print_opcode_name(cdb, 0);
-	if (VARIABLE_LENGTH_CMD == cdb[0])
-		len = cdb[7] + 8;
-	else
-		len = COMMAND_SIZE(cdb[0]);
+	len = scsi_command_size(cdb);
 	/* print out all bytes in cdb */
 	for (k = 0; k < len; ++k) 
 		printk(" %02x", cdb[k]);

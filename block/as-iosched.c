@@ -831,6 +831,8 @@ static void as_completed_request(struct request_queue *q, struct request *rq)
 	}
 
 	if (ad->changed_batch && ad->nr_dispatched == 1) {
+		ad->current_batch_expires = jiffies +
+					ad->batch_expire[ad->batch_data_dir];
 		kblockd_schedule_work(&ad->antic_work);
 		ad->changed_batch = 0;
 

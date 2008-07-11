@@ -17,6 +17,11 @@
 #define	PF_DTRACE_OFF	1
 #define	PF_DTRACE_BIT	5
 
+/*
+ * NOTE!  The single-stepping code assumes that all interrupt handlers
+ * start by saving SYSCFG on the stack with their first instruction.
+ */
+
 /* This one is used for exceptions, emulation, and NMI.  It doesn't push
    RETI and doesn't do cli.  */
 #define SAVE_ALL_SYS		save_context_no_interrupts

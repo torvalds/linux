@@ -648,14 +648,46 @@ extern void xfrm_audit_state_notfound(struct sk_buff *skb, u16 family,
 extern void xfrm_audit_state_icvfail(struct xfrm_state *x,
 				     struct sk_buff *skb, u8 proto);
 #else
-#define xfrm_audit_policy_add(x, r, a, se, s)	do { ; } while (0)
-#define xfrm_audit_policy_delete(x, r, a, se, s)	do { ; } while (0)
-#define xfrm_audit_state_add(x, r, a, se, s)	do { ; } while (0)
-#define xfrm_audit_state_delete(x, r, a, se, s)	do { ; } while (0)
-#define xfrm_audit_state_replay_overflow(x, s)	do { ; } while (0)
-#define xfrm_audit_state_notfound_simple(s, f)	do { ; } while (0)
-#define xfrm_audit_state_notfound(s, f, sp, sq)	do { ; } while (0)
-#define xfrm_audit_state_icvfail(x, s, p)	do { ; } while (0)
+
+static inline void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
+				  u32 auid, u32 ses, u32 secid)
+{
+}
+
+static inline void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
+				  u32 auid, u32 ses, u32 secid)
+{
+}
+
+static inline void xfrm_audit_state_add(struct xfrm_state *x, int result,
+				 u32 auid, u32 ses, u32 secid)
+{
+}
+
+static inline void xfrm_audit_state_delete(struct xfrm_state *x, int result,
+				    u32 auid, u32 ses, u32 secid)
+{
+}
+
+static inline void xfrm_audit_state_replay_overflow(struct xfrm_state *x,
+					     struct sk_buff *skb)
+{
+}
+
+static inline void xfrm_audit_state_notfound_simple(struct sk_buff *skb,
+				      u16 family)
+{
+}
+
+static inline void xfrm_audit_state_notfound(struct sk_buff *skb, u16 family,
+				      __be32 net_spi, __be32 net_seq)
+{
+}
+
+static inline void xfrm_audit_state_icvfail(struct xfrm_state *x,
+				     struct sk_buff *skb, u8 proto)
+{
+}
 #endif /* CONFIG_AUDITSYSCALL */
 
 static inline void xfrm_pol_hold(struct xfrm_policy *policy)

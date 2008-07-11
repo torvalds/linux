@@ -48,10 +48,11 @@ s390_collect_crw_info(void *param)
 	int ccode;
 	struct semaphore *sem;
 	unsigned int chain;
+	int ignore;
 
 	sem = (struct semaphore *)param;
 repeat:
-	down_interruptible(sem);
+	ignore = down_interruptible(sem);
 	chain = 0;
 	while (1) {
 		if (unlikely(chain > 1)) {
@@ -206,6 +207,7 @@ s390_handle_mcck(void)
 		do_exit(SIGSEGV);
 	}
 }
+EXPORT_SYMBOL_GPL(s390_handle_mcck);
 
 /*
  * returns 0 if all registers could be validated

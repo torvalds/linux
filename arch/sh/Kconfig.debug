@@ -7,6 +7,7 @@ source "lib/Kconfig.debug"
 
 config SH_STANDARD_BIOS
 	bool "Use LinuxSH standard BIOS"
+	depends on SUPERH32
 	help
 	  Say Y here if your target has the gdb-sh-stub
 	  package from www.m17n.org (or any conforming standard LinuxSH BIOS)
@@ -80,7 +81,7 @@ config DEBUG_STACK_USAGE
 
 config 4KSTACKS
 	bool "Use 4Kb for kernel stacks instead of 8Kb"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && (MMU || BROKEN)
 	help
 	  If you say Y here the kernel will use a 4Kb stacksize for the
 	  kernel stack attached to each process/thread. This facilitates

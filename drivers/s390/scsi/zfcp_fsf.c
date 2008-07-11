@@ -4014,7 +4014,7 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
 		ZFCP_LOG_TRACE("scpnt->result =0x%x, command was:\n",
 			       scpnt->result);
 		ZFCP_HEX_DUMP(ZFCP_LOG_LEVEL_TRACE,
-			      (void *) &scpnt->cmnd, scpnt->cmd_len);
+			      scpnt->cmnd, scpnt->cmd_len);
 
 		ZFCP_LOG_TRACE("%i bytes sense data provided by FCP\n",
 			       fcp_rsp_iu->fcp_sns_len);

@@ -377,27 +377,3 @@ config FOO
 
 limits FOO to module (=m) or disabled (=n).
 
-
-Build limited by a third config symbol which may be =y or =m
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-A common idiom that we see (and sometimes have problems with) is this:
-
-When option C in B (module or subsystem) uses interfaces from A (module
-or subsystem), and both A and B are tristate (could be =y or =m if they
-were independent of each other, but they aren't), then we need to limit
-C such that it cannot be built statically if A is built as a loadable
-module.  (C already depends on B, so there is no dependency issue to
-take care of here.)
-
-If A is linked statically into the kernel image, C can be built
-statically or as loadable module(s).  However, if A is built as loadable
-module(s), then C must be restricted to loadable module(s) also.  This
-can be expressed in kconfig language as:
-
-config C
-	depends on A = y || A = B
-
-or for real examples, use this command in a kernel tree:
-
-$ find . -name Kconfig\* | xargs grep -ns "depends on.*=.*||.*=" | grep -v orig
-

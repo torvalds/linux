@@ -167,8 +167,10 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct vegas *vegas = inet_csk_ca(sk);
 
-	if (!vegas->doing_vegas_now)
-		return tcp_reno_cong_avoid(sk, ack, in_flight);
+	if (!vegas->doing_vegas_now) {
+		tcp_reno_cong_avoid(sk, ack, in_flight);
+		return;
+	}
 
 	/* The key players are v_beg_snd_una and v_beg_snd_nxt.
 	 *

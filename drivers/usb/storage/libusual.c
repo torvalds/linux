@@ -135,7 +135,7 @@ static int usu_probe(struct usb_interface *intf,
 	stat[type].fls |= USU_MOD_FL_THREAD;
 	spin_unlock_irqrestore(&usu_lock, flags);
 
-	task = kthread_run(usu_probe_thread, (void*)type, "libusual_%d", type);
+	task = kthread_run(usu_probe_thread, (void*)type, "libusual_%ld", type);
 	if (IS_ERR(task)) {
 		rc = PTR_ERR(task);
 		printk(KERN_WARNING "libusual: "

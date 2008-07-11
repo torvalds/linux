@@ -247,12 +247,10 @@ int snmp6_register_dev(struct inet6_dev *idev)
 	if (!proc_net_devsnmp6)
 		return -ENOENT;
 
-	p = proc_create(idev->dev->name, S_IRUGO,
-			proc_net_devsnmp6, &snmp6_seq_fops);
+	p = proc_create_data(idev->dev->name, S_IRUGO,
+			     proc_net_devsnmp6, &snmp6_seq_fops, idev);
 	if (!p)
 		return -ENOMEM;
-
-	p->data = idev;
 
 	idev->stats.proc_dir_entry = p;
 	return 0;

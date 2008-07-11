@@ -101,8 +101,10 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
 
-	if (!ca->hybla_en)
-		return tcp_reno_cong_avoid(sk, ack, in_flight);
+	if (!ca->hybla_en) {
+		tcp_reno_cong_avoid(sk, ack, in_flight);
+		return;
+	}
 
 	if (ca->rho == 0)
 		hybla_recalc_param(sk);

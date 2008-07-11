@@ -42,16 +42,14 @@ static inline int pt_regs_trap_type(struct pt_regs *regs)
 	return regs->magic & 0x1ff;
 }
 
-static inline int pt_regs_clear_trap_type(struct pt_regs *regs)
-{
-	return regs->magic &= ~0x1ff;
-}
-
 static inline bool pt_regs_is_syscall(struct pt_regs *regs)
 {
-	int tt = pt_regs_trap_type(regs);
+	return (regs->tstate & TSTATE_SYSCALL);
+}
 
-	return (tt == 0x110 || tt == 0x111 || tt == 0x16d);
+static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
+{
+	return (regs->tstate &= ~TSTATE_SYSCALL);
 }
 
 struct pt_regs32 {
@@ -129,6 +127,17 @@ struct sparc_trapf {
 #define STACKFRAME32_SZ	sizeof(struct sparc_stackf32)
 
 #ifdef __KERNEL__
+
+struct global_reg_snapshot {
+	unsigned long		tstate;
+	unsigned long		tpc;
+	unsigned long		tnpc;
+	unsigned long		o7;
+	unsigned long		i7;
+	struct thread_info	*thread;
+	unsigned long		pad1;
+	unsigned long		pad2;
+};
 
 #define __ARCH_WANT_COMPAT_SYS_PTRACE
 
@@ -297,7 +306,22 @@ extern void __show_regs(struct pt_regs *);
 #define SF_XARG5  0x58
 #define SF_XXARG  0x5c
 
+#ifdef __KERNEL__
+
+/* global_reg_snapshot offsets */
+#define GR_SNAP_TSTATE	0x00
+#define GR_SNAP_TPC	0x08
+#define GR_SNAP_TNPC	0x10
+#define GR_SNAP_O7	0x18
+#define GR_SNAP_I7	0x20
+#define GR_SNAP_THREAD	0x28
+#define GR_SNAP_PAD1	0x30
+#define GR_SNAP_PAD2	0x38
+
+#endif  /*  __KERNEL__  */
+
 /* Stuff for the ptrace system call */
+#define PTRACE_SPARC_DETACH       11
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13
 #define PTRACE_GETFPREGS          14

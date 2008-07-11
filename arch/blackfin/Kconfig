@@ -479,16 +479,6 @@ comment "Memory Setup"
 
 comment "Misc"
 
-config ENET_FLASH_PIN
-	int "PF port/pin used for flash and ethernet sharing"
-	depends on (BFIN533_STAMP)
-	default  0
-	help
-	  PF port/pin used for flash and ethernet sharing to allow other PF
-	  pins to be used on other platforms without having to touch common
-	  code.
-	  For example: PF0 --> 0,PF1 --> 1,PF2 --> 2, etc.
-
 choice
 	prompt "Blackfin Exception Scratch Register"
 	default BFIN_SCRATCH_REG_RETN
@@ -695,6 +685,8 @@ choice
 	prompt "Uncached SDRAM region"
 	default DMA_UNCACHED_1M
 	depends on BFIN_DMA_5XX
+config DMA_UNCACHED_4M
+	bool "Enable 4M DMA region"
 config DMA_UNCACHED_2M
 	bool "Enable 2M DMA region"
 config DMA_UNCACHED_1M
@@ -832,6 +824,7 @@ config BANK_0
 config BANK_1
 	hex "Bank 1"
 	default 0x7BB0
+	default 0x5558 if BF54x
 
 config BANK_2
 	hex "Bank 2"
@@ -963,21 +956,22 @@ endchoice
 
 endmenu
 
-if (BF537 || BF533 || BF54x)
-
 menu "CPU Frequency scaling"
 
 source "drivers/cpufreq/Kconfig"
 
-config CPU_FREQ
-	bool
+config CPU_VOLTAGE
+	bool "CPU Voltage scaling"
+	depends on EXPERIMENTAL	
+	depends on CPU_FREQ
 	default n
 	help
-	  If you want to enable this option, you should select the
-	  DPMC driver from Character Devices.
-endmenu
+	  Say Y here if you want CPU voltage scaling according to the CPU frequency.
+	  This option violates the PLL BYPASS recommendation in the Blackfin Processor
+	  manuals. There is a theoretical risk that during VDDINT transitions 
+	  the PLL may unlock.
 
-endif
+endmenu
 
 source "net/Kconfig"
 

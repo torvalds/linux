@@ -259,6 +259,8 @@ if BROKEN
 	source "drivers/mtd/Kconfig"
 endif
 
+source "drivers/leds/Kconfig"
+
 #This is just to shut up some Kconfig warnings, so no prompt.
 config INPUT
 	bool

@@ -160,10 +160,17 @@ static int cs5345_probe(struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
+static const struct i2c_device_id cs5345_id[] = {
+	{ "cs5345", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, cs5345_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "cs5345",
 	.driverid = I2C_DRIVERID_CS5345,
 	.command = cs5345_command,
 	.probe = cs5345_probe,
+	.id_table = cs5345_id,
 };
 

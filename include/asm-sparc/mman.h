@@ -1,4 +1,3 @@
-/* $Id: mman.h,v 1.9 2000/03/15 02:44:23 davem Exp $ */
 #ifndef __SPARC_MMAN_H__
 #define __SPARC_MMAN_H__
 
@@ -24,9 +23,8 @@
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
-#define arch_mmap_check	sparc_mmap_check
-int sparc_mmap_check(unsigned long addr, unsigned long len,
-		unsigned long flags);
+#define arch_mmap_check(addr,len,flags)	sparc_mmap_check(addr,len)
+int sparc_mmap_check(unsigned long addr, unsigned long len);
 #endif
 #endif
 

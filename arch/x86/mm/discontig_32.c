@@ -476,29 +476,3 @@ int memory_add_physaddr_to_nid(u64 addr)
 
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
-
-#ifndef CONFIG_HAVE_ARCH_PARSE_SRAT
-/*
- * XXX FIXME: Make SLIT table parsing available to 32-bit NUMA
- *
- * These stub functions are needed to compile 32-bit NUMA when SRAT is
- * not set. There are functions in srat_64.c for parsing this table
- * and it may be possible to make them common functions.
- */
-void acpi_numa_slit_init (struct acpi_table_slit *slit)
-{
-	printk(KERN_INFO "ACPI: No support for parsing SLIT table\n");
-}
-
-void acpi_numa_processor_affinity_init (struct acpi_srat_cpu_affinity *pa)
-{
-}
-
-void acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma)
-{
-}
-
-void acpi_numa_arch_fixup(void)
-{
-}
-#endif /* CONFIG_HAVE_ARCH_PARSE_SRAT */

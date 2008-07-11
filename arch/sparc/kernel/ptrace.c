@@ -170,8 +170,8 @@ static int genregs32_set(struct task_struct *target,
 		switch (pos) {
 		case 32: /* PSR */
 			psr = regs->psr;
-			psr &= ~PSR_ICC;
-			psr |= (reg & PSR_ICC);
+			psr &= ~(PSR_ICC | PSR_SYSCALL);
+			psr |= (reg & (PSR_ICC | PSR_SYSCALL));
 			regs->psr = psr;
 			break;
 		case 33: /* PC */
@@ -441,6 +441,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	default:
+		if (request == PTRACE_SPARC_DETACH)
+			request = PTRACE_DETACH;
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}

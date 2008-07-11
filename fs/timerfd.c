@@ -181,10 +181,8 @@ static struct file *timerfd_fget(int fd)
 
 asmlinkage long sys_timerfd_create(int clockid, int flags)
 {
-	int error, ufd;
+	int ufd;
 	struct timerfd_ctx *ctx;
-	struct file *file;
-	struct inode *inode;
 
 	if (flags)
 		return -EINVAL;
@@ -200,12 +198,9 @@ asmlinkage long sys_timerfd_create(int clockid, int flags)
 	ctx->clockid = clockid;
 	hrtimer_init(&ctx->tmr, clockid, HRTIMER_MODE_ABS);
 
-	error = anon_inode_getfd(&ufd, &inode, &file, "[timerfd]",
-				 &timerfd_fops, ctx);
-	if (error) {
+	ufd = anon_inode_getfd("[timerfd]", &timerfd_fops, ctx);
+	if (ufd < 0)
 		kfree(ctx);
-		return error;
-	}
 
 	return ufd;
 }

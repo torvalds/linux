@@ -52,6 +52,7 @@
 #include <asm/byteorder.h>
 #include <asm/atomic.h>
 #include <asm/system.h>
+#include <asm/unaligned.h>
 
 static int kgdb_break_asap;
 
@@ -61,7 +62,7 @@ struct kgdb_state {
 	int			err_code;
 	int			cpu;
 	int			pass_exception;
-	long			threadid;
+	unsigned long		threadid;
 	long			kgdb_usethreadid;
 	struct pt_regs		*linux_regs;
 };
@@ -146,7 +147,7 @@ atomic_t			kgdb_cpu_doing_single_step = ATOMIC_INIT(-1);
  * the other CPUs might interfere with your debugging context, so
  * use this with care:
  */
-int				kgdb_do_roundup = 1;
+static int kgdb_do_roundup = 1;
 
 static int __init opt_nokgdbroundup(char *str)
 {
@@ -226,8 +227,6 @@ void __weak kgdb_disable_hw_debug(struct pt_regs *regs)
 /*
  * GDB remote protocol parser:
  */
-
-static const char	hexchars[] = "0123456789abcdef";
 
 static int hex(char ch)
 {
@@ -316,8 +315,8 @@ static void put_packet(char *buffer)
 		}
 
 		kgdb_io_ops->write_char('#');
-		kgdb_io_ops->write_char(hexchars[checksum >> 4]);
-		kgdb_io_ops->write_char(hexchars[checksum & 0xf]);
+		kgdb_io_ops->write_char(hex_asc_hi(checksum));
+		kgdb_io_ops->write_char(hex_asc_lo(checksum));
 		if (kgdb_io_ops->flush)
 			kgdb_io_ops->flush();
 
@@ -344,14 +343,6 @@ static void put_packet(char *buffer)
 			return;
 		}
 	}
-}
-
-static char *pack_hex_byte(char *pkt, u8 byte)
-{
-	*pkt++ = hexchars[byte >> 4];
-	*pkt++ = hexchars[byte & 0xf];
-
-	return pkt;
 }
 
 /*
@@ -438,7 +429,7 @@ int kgdb_hex2mem(char *buf, char *mem, int count)
  * While we find nice hex chars, build a long_val.
  * Return number of chars processed.
  */
-int kgdb_hex2long(char **ptr, long *long_val)
+int kgdb_hex2long(char **ptr, unsigned long *long_val)
 {
 	int hex_val;
 	int num = 0;
@@ -486,8 +477,8 @@ static void error_packet(char *pkt, int error)
 {
 	error = -error;
 	pkt[0] = 'E';
-	pkt[1] = hexchars[(error / 10)];
-	pkt[2] = hexchars[(error % 10)];
+	pkt[1] = hex_asc[(error / 10)];
+	pkt[2] = hex_asc[(error % 10)];
 	pkt[3] = '\0';
 }
 
@@ -518,10 +509,7 @@ static void int_to_threadref(unsigned char *id, int value)
 	scan = (unsigned char *)id;
 	while (i--)
 		*scan++ = 0;
-	*scan++ = (value >> 24) & 0xff;
-	*scan++ = (value >> 16) & 0xff;
-	*scan++ = (value >> 8) & 0xff;
-	*scan++ = (value & 0xff);
+	put_unaligned_be32(value, scan);
 }
 
 static struct task_struct *getthread(struct pt_regs *regs, int tid)
@@ -709,7 +697,7 @@ int kgdb_isremovedbreak(unsigned long addr)
 	return 0;
 }
 
-int remove_all_break(void)
+static int remove_all_break(void)
 {
 	unsigned long addr;
 	int error;
@@ -1511,7 +1499,8 @@ int kgdb_nmicallback(int cpu, void *regs)
 	return 1;
 }
 
-void kgdb_console_write(struct console *co, const char *s, unsigned count)
+static void kgdb_console_write(struct console *co, const char *s,
+   unsigned count)
 {
 	unsigned long flags;
 

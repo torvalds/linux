@@ -75,11 +75,11 @@ struct scsi_eh_save {
 	int result;
 	enum dma_data_direction data_direction;
 	unsigned char cmd_len;
-	unsigned char cmnd[MAX_COMMAND_SIZE];
+	unsigned char *cmnd;
 	struct scsi_data_buffer sdb;
 	struct request *next_rq;
-
 	/* new command support */
+	unsigned char eh_cmnd[BLK_MAX_CDB];
 	struct scatterlist sense_sgl;
 };
 

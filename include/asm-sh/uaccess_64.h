@@ -274,7 +274,9 @@ struct exception_table_entry
 	unsigned long insn, fixup;
 };
 
+#ifdef CONFIG_MMU
 #define ARCH_HAS_SEARCH_EXTABLE
+#endif
 
 /* Returns 0 if exception not found and fixup.unit otherwise.  */
 extern unsigned long search_exception_table(unsigned long addr);

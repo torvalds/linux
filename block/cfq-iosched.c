@@ -124,6 +124,8 @@ struct cfq_data {
 struct cfq_queue {
 	/* reference count */
 	atomic_t ref;
+	/* various state flags, see below */
+	unsigned int flags;
 	/* parent cfq_data */
 	struct cfq_data *cfqd;
 	/* service_tree member */
@@ -138,14 +140,14 @@ struct cfq_queue {
 	int queued[2];
 	/* currently allocated requests */
 	int allocated[2];
-	/* pending metadata requests */
-	int meta_pending;
 	/* fifo list of requests in sort_list */
 	struct list_head fifo;
 
 	unsigned long slice_end;
 	long slice_resid;
 
+	/* pending metadata requests */
+	int meta_pending;
 	/* number of requests that are on the dispatch list or inside driver */
 	int dispatched;
 
@@ -153,8 +155,6 @@ struct cfq_queue {
 	unsigned short ioprio, org_ioprio;
 	unsigned short ioprio_class, org_ioprio_class;
 
-	/* various state flags, see below */
-	unsigned int flags;
 };
 
 enum cfqq_state_flags {
@@ -1143,18 +1143,28 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 }
 
 /*
+ * Must always be called with the rcu_read_lock() held
+ */
+static void
+__call_for_each_cic(struct io_context *ioc,
+		    void (*func)(struct io_context *, struct cfq_io_context *))
+{
+	struct cfq_io_context *cic;
+	struct hlist_node *n;
+
+	hlist_for_each_entry_rcu(cic, n, &ioc->cic_list, cic_list)
+		func(ioc, cic);
+}
+
+/*
  * Call func for each cic attached to this ioc.
  */
 static void
 call_for_each_cic(struct io_context *ioc,
 		  void (*func)(struct io_context *, struct cfq_io_context *))
 {
-	struct cfq_io_context *cic;
-	struct hlist_node *n;
-
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(cic, n, &ioc->cic_list, cic_list)
-		func(ioc, cic);
+	__call_for_each_cic(ioc, func);
 	rcu_read_unlock();
 }
 
@@ -1190,6 +1200,11 @@ static void cic_free_func(struct io_context *ioc, struct cfq_io_context *cic)
 	cfq_cic_free(cic);
 }
 
+/*
+ * Must be called with rcu_read_lock() held or preemption otherwise disabled.
+ * Only two callers of this - ->dtor() which is called with the rcu_read_lock(),
+ * and ->trim() which is called with the task lock held
+ */
 static void cfq_free_io_context(struct io_context *ioc)
 {
 	/*
@@ -1198,7 +1213,7 @@ static void cfq_free_io_context(struct io_context *ioc)
 	 * should be ok to iterate over the known list, we will see all cic's
 	 * since no new ones are added.
 	 */
-	call_for_each_cic(ioc, cic_free_func);
+	__call_for_each_cic(ioc, cic_free_func);
 }
 
 static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
@@ -1296,10 +1311,10 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct io_context *ioc)
 		printk(KERN_ERR "cfq: bad prio %x\n", ioprio_class);
 	case IOPRIO_CLASS_NONE:
 		/*
-		 * no prio set, place us in the middle of the BE classes
+		 * no prio set, inherit CPU scheduling settings
 		 */
 		cfqq->ioprio = task_nice_ioprio(tsk);
-		cfqq->ioprio_class = IOPRIO_CLASS_BE;
+		cfqq->ioprio_class = task_nice_ioclass(tsk);
 		break;
 	case IOPRIO_CLASS_RT:
 		cfqq->ioprio = task_ioprio(ioc);
@@ -1495,20 +1510,24 @@ static struct cfq_io_context *
 cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 {
 	struct cfq_io_context *cic;
+	unsigned long flags;
 	void *k;
 
 	if (unlikely(!ioc))
 		return NULL;
 
+	rcu_read_lock();
+
 	/*
 	 * we maintain a last-hit cache, to avoid browsing over the tree
 	 */
 	cic = rcu_dereference(ioc->ioc_data);
-	if (cic && cic->key == cfqd)
+	if (cic && cic->key == cfqd) {
+		rcu_read_unlock();
 		return cic;
+	}
 
 	do {
-		rcu_read_lock();
 		cic = radix_tree_lookup(&ioc->radix_root, (unsigned long) cfqd);
 		rcu_read_unlock();
 		if (!cic)
@@ -1517,10 +1536,13 @@ cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 		k = cic->key;
 		if (unlikely(!k)) {
 			cfq_drop_dead_cic(cfqd, ioc, cic);
+			rcu_read_lock();
 			continue;
 		}
 
+		spin_lock_irqsave(&ioc->lock, flags);
 		rcu_assign_pointer(ioc->ioc_data, cic);
+		spin_unlock_irqrestore(&ioc->lock, flags);
 		break;
 	} while (1);
 
@@ -2127,6 +2149,10 @@ static void *cfq_init_queue(struct request_queue *q)
 
 static void cfq_slab_kill(void)
 {
+	/*
+	 * Caller already ensured that pending RCU callbacks are completed,
+	 * so we should have no busy allocations at this point.
+	 */
 	if (cfq_pool)
 		kmem_cache_destroy(cfq_pool);
 	if (cfq_ioc_pool)
@@ -2285,6 +2311,11 @@ static void __exit cfq_exit(void)
 	ioc_gone = &all_gone;
 	/* ioc_gone's update must be visible before reading ioc_count */
 	smp_wmb();
+
+	/*
+	 * this also protects us from entering cfq_slab_kill() with
+	 * pending RCU callbacks
+	 */
 	if (elv_ioc_count_read(ioc_count))
 		wait_for_completion(ioc_gone);
 	cfq_slab_kill();

@@ -2307,6 +2307,29 @@ static int halt_bulk_in_endpoint(struct fsg_dev *fsg)
 	return rc;
 }
 
+static int wedge_bulk_in_endpoint(struct fsg_dev *fsg)
+{
+	int	rc;
+
+	DBG(fsg, "bulk-in set wedge\n");
+	rc = usb_ep_set_wedge(fsg->bulk_in);
+	if (rc == -EAGAIN)
+		VDBG(fsg, "delayed bulk-in endpoint wedge\n");
+	while (rc != 0) {
+		if (rc != -EAGAIN) {
+			WARN(fsg, "usb_ep_set_wedge -> %d\n", rc);
+			rc = 0;
+			break;
+		}
+
+		/* Wait for a short time and then try again */
+		if (msleep_interruptible(100) != 0)
+			return -EINTR;
+		rc = usb_ep_set_wedge(fsg->bulk_in);
+	}
+	return rc;
+}
+
 static int pad_with_zeros(struct fsg_dev *fsg)
 {
 	struct fsg_buffhd	*bh = fsg->next_buffhd_to_fill;
@@ -2957,7 +2980,7 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 		 * We aren't required to halt the OUT endpoint; instead
 		 * we can simply accept and discard any data received
 		 * until the next reset. */
-		halt_bulk_in_endpoint(fsg);
+		wedge_bulk_in_endpoint(fsg);
 		set_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags);
 		return -EINVAL;
 	}

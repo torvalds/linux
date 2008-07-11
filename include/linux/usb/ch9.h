@@ -455,7 +455,7 @@ struct usb_encryption_descriptor {
 
 /*-------------------------------------------------------------------------*/
 
-/* USB_DT_BOS:  group of wireless capabilities */
+/* USB_DT_BOS:  group of device-level capabilities */
 struct usb_bos_descriptor {
 	__u8  bLength;
 	__u8  bDescriptorType;
@@ -499,6 +499,16 @@ struct usb_wireless_cap_descriptor {	/* Ultra Wide Band */
 	__u8  bmFFITXPowerInfo;	/* FFI power levels */
 	__le16 bmBandGroup;
 	__u8  bReserved;
+} __attribute__((packed));
+
+#define	USB_CAP_TYPE_EXT		2
+
+struct usb_ext_cap_descriptor {		/* Link Power Management */
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType;
+	__u8  bmAttributes;
+#define USB_LPM_SUPPORT			(1 << 1)	/* supports LPM */
 } __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/

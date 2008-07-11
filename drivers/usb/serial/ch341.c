@@ -28,6 +28,7 @@ static int debug;
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x4348, 0x5523) },
+	{ USB_DEVICE(0x1a86, 0x7523) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -130,7 +131,7 @@ static int ch341_get_status(struct usb_device *dev)
 		return -ENOMEM;
 
 	r = ch341_control_in(dev, 0x95, 0x0706, 0, buffer, size);
-	if ( r < 0)
+	if (r < 0)
 		goto out;
 
 	/* Not having the datasheet for the CH341, we ignore the bytes returned

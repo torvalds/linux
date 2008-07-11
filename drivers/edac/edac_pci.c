@@ -150,7 +150,7 @@ static int add_edac_pci_to_global_list(struct edac_pci_ctl_info *pci)
 fail0:
 	edac_printk(KERN_WARNING, EDAC_PCI,
 		"%s (%s) %s %s already assigned %d\n",
-		rover->dev->bus_id, dev_name(rover),
+		rover->dev->bus_id, edac_dev_name(rover),
 		rover->mod_name, rover->ctl_name, rover->pci_idx);
 	return 1;
 
@@ -360,7 +360,7 @@ int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 			" DEV '%s' (%s)\n",
 			pci->mod_name,
 			pci->ctl_name,
-			dev_name(pci), edac_op_state_to_string(pci->op_state));
+			edac_dev_name(pci), edac_op_state_to_string(pci->op_state));
 
 	mutex_unlock(&edac_pci_ctls_mutex);
 	return 0;
@@ -415,7 +415,7 @@ struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 
 	edac_printk(KERN_INFO, EDAC_PCI,
 		"Removed device %d for %s %s: DEV %s\n",
-		pci->pci_idx, pci->mod_name, pci->ctl_name, dev_name(pci));
+		pci->pci_idx, pci->mod_name, pci->ctl_name, edac_dev_name(pci));
 
 	return pci;
 }

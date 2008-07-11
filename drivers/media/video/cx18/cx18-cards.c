@@ -23,6 +23,7 @@
 
 #include "cx18-driver.h"
 #include "cx18-cards.h"
+#include "cx18-av-core.h"
 #include "cx18-i2c.h"
 #include <media/cs5345.h>
 
@@ -47,28 +48,29 @@ static struct cx18_card_tuner_i2c cx18_i2c_std = {
 static const struct cx18_card cx18_card_hvr1600_esmt = {
 	.type = CX18_CARD_HVR_1600_ESMT,
 	.name = "Hauppauge HVR-1600",
-	.comment = "DVB & VBI are not yet supported\n",
+	.comment = "VBI is not yet supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_muxer = CX18_HW_CS5345,
-	.hw_all = CX18_HW_TVEEPROM | CX18_HW_TUNER | CX18_HW_CS5345,
+	.hw_all = CX18_HW_TVEEPROM | CX18_HW_TUNER |
+		  CX18_HW_CS5345 | CX18_HW_DVB,
 	.video_inputs = {
-		{ CX18_CARD_INPUT_VID_TUNER,  0, CX23418_COMPOSITE7 },
-		{ CX18_CARD_INPUT_SVIDEO1,    1, CX23418_SVIDEO1    },
-		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX23418_COMPOSITE3 },
-		{ CX18_CARD_INPUT_SVIDEO2,    2, CX23418_SVIDEO2    },
-		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX23418_COMPOSITE4 },
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE7 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1, CX18_AV_SVIDEO1    },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE3 },
+		{ CX18_CARD_INPUT_SVIDEO2,    2, CX18_AV_SVIDEO2    },
+		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX18_AV_COMPOSITE4 },
 	},
 	.audio_inputs = {
 		{ CX18_CARD_INPUT_AUD_TUNER,
-		  CX23418_AUDIO8, CS5345_IN_1 | CS5345_MCLK_1_5 },
+		  CX18_AV_AUDIO8, CS5345_IN_1 | CS5345_MCLK_1_5 },
 		{ CX18_CARD_INPUT_LINE_IN1,
-		  CX23418_AUDIO_SERIAL, CS5345_IN_2 },
+		  CX18_AV_AUDIO_SERIAL, CS5345_IN_2 },
 		{ CX18_CARD_INPUT_LINE_IN2,
-		  CX23418_AUDIO_SERIAL, CS5345_IN_2 },
+		  CX18_AV_AUDIO_SERIAL, CS5345_IN_3 },
 	},
 	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
-			 CX23418_AUDIO_SERIAL, 0 },
+			 CX18_AV_AUDIO_SERIAL, CS5345_IN_4 },
 	.ddr = {
 		/* ESMT M13S128324A-5B memory */
 		.chip_config = 0x003,
@@ -80,34 +82,40 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 	},
 	.gpio_init.initial_value = 0x3001,
 	.gpio_init.direction = 0x3001,
+	.gpio_i2c_slave_reset = {
+		.active_lo_mask = 0x3001,
+		.msecs_asserted = 10,
+		.msecs_recovery = 40,
+	},
 	.i2c = &cx18_i2c_std,
 };
 
 static const struct cx18_card cx18_card_hvr1600_samsung = {
 	.type = CX18_CARD_HVR_1600_SAMSUNG,
 	.name = "Hauppauge HVR-1600 (Preproduction)",
-	.comment = "DVB & VBI are not yet supported\n",
+	.comment = "VBI is not yet supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_muxer = CX18_HW_CS5345,
-	.hw_all = CX18_HW_TVEEPROM | CX18_HW_TUNER | CX18_HW_CS5345,
+	.hw_all = CX18_HW_TVEEPROM | CX18_HW_TUNER |
+		  CX18_HW_CS5345 | CX18_HW_DVB,
 	.video_inputs = {
-		{ CX18_CARD_INPUT_VID_TUNER,  0, CX23418_COMPOSITE7 },
-		{ CX18_CARD_INPUT_SVIDEO1,    1, CX23418_SVIDEO1    },
-		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX23418_COMPOSITE3 },
-		{ CX18_CARD_INPUT_SVIDEO2,    2, CX23418_SVIDEO2    },
-		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX23418_COMPOSITE4 },
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE7 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1, CX18_AV_SVIDEO1    },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE3 },
+		{ CX18_CARD_INPUT_SVIDEO2,    2, CX18_AV_SVIDEO2    },
+		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX18_AV_COMPOSITE4 },
 	},
 	.audio_inputs = {
 		{ CX18_CARD_INPUT_AUD_TUNER,
-		  CX23418_AUDIO8, CS5345_IN_1 | CS5345_MCLK_1_5 },
+		  CX18_AV_AUDIO8, CS5345_IN_1 | CS5345_MCLK_1_5 },
 		{ CX18_CARD_INPUT_LINE_IN1,
-		  CX23418_AUDIO_SERIAL, CS5345_IN_2 },
+		  CX18_AV_AUDIO_SERIAL, CS5345_IN_2 },
 		{ CX18_CARD_INPUT_LINE_IN2,
-		  CX23418_AUDIO_SERIAL, CS5345_IN_2 },
+		  CX18_AV_AUDIO_SERIAL, CS5345_IN_3 },
 	},
 	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
-			 CX23418_AUDIO_SERIAL, 0 },
+			 CX18_AV_AUDIO_SERIAL, CS5345_IN_4 },
 	.ddr = {
 		/* Samsung K4D263238G-VC33 memory */
 		.chip_config = 0x003,
@@ -119,12 +127,17 @@ static const struct cx18_card cx18_card_hvr1600_samsung = {
 	},
 	.gpio_init.initial_value = 0x3001,
 	.gpio_init.direction = 0x3001,
+	.gpio_i2c_slave_reset = {
+		.active_lo_mask = 0x3001,
+		.msecs_asserted = 10,
+		.msecs_recovery = 40,
+	},
 	.i2c = &cx18_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
 
-/* Compro VideoMate H900: not working at the moment! */
+/* Compro VideoMate H900: note that this card is analog only! */
 
 static const struct cx18_card_pci_info cx18_pci_h900[] = {
 	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_COMPRO, 0xe100 },
@@ -134,23 +147,24 @@ static const struct cx18_card_pci_info cx18_pci_h900[] = {
 static const struct cx18_card cx18_card_h900 = {
 	.type = CX18_CARD_COMPRO_H900,
 	.name = "Compro VideoMate H900",
-	.comment = "Not yet supported!\n",
-	.v4l2_capabilities = 0,
+	.comment = "VBI is not yet supported\n",
+	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_all = CX18_HW_TUNER,
 	.video_inputs = {
-		{ CX18_CARD_INPUT_VID_TUNER,  0, CX23418_COMPOSITE7 },
-		{ CX18_CARD_INPUT_SVIDEO1,    1, CX23418_SVIDEO1    },
-		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX23418_COMPOSITE3 },
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1,
+			CX18_AV_SVIDEO_LUMA3 | CX18_AV_SVIDEO_CHROMA4 },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE1 },
 	},
 	.audio_inputs = {
 		{ CX18_CARD_INPUT_AUD_TUNER,
-		  CX23418_AUDIO8, 0 },
+		  CX18_AV_AUDIO8, 0 },
 		{ CX18_CARD_INPUT_LINE_IN1,
-		  CX23418_AUDIO_SERIAL, 0 },
+		  CX18_AV_AUDIO_SERIAL, 0 },
 	},
 	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
-			 CX23418_AUDIO_SERIAL, 0 },
+			 CX18_AV_AUDIO_SERIAL, 0 },
 	.tuners = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
@@ -163,6 +177,7 @@ static const struct cx18_card cx18_card_h900 = {
 		.tune_lane = 0,
 		.initial_emrs = 0,
 	},
+	.xceive_pin = 15,
 	.pci_list = cx18_pci_h900,
 	.i2c = &cx18_i2c_std,
 };
@@ -179,29 +194,30 @@ static const struct cx18_card_pci_info cx18_pci_mpc718[] = {
 static const struct cx18_card cx18_card_mpc718 = {
 	.type = CX18_CARD_YUAN_MPC718,
 	.name = "Yuan MPC718",
-	.comment = "Not yet supported!\n",
-	.v4l2_capabilities = 0,
+	.comment = "Some Composite and S-Video inputs are currently working.\n",
+	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_all = CX18_HW_TUNER,
 	.video_inputs = {
-		{ CX18_CARD_INPUT_VID_TUNER,  0, CX23418_COMPOSITE7 },
-		{ CX18_CARD_INPUT_SVIDEO1,    1, CX23418_SVIDEO1    },
-		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX23418_COMPOSITE3 },
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1,
+				CX18_AV_SVIDEO_LUMA3 | CX18_AV_SVIDEO_CHROMA4 },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE1 },
+		{ CX18_CARD_INPUT_SVIDEO2,    2,
+				CX18_AV_SVIDEO_LUMA7 | CX18_AV_SVIDEO_CHROMA8 },
+		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX18_AV_COMPOSITE6 },
+		{ CX18_CARD_INPUT_COMPOSITE3, 2, CX18_AV_COMPOSITE3 },
 	},
 	.audio_inputs = {
-		{ CX18_CARD_INPUT_AUD_TUNER,
-		  CX23418_AUDIO8, 0 },
-		{ CX18_CARD_INPUT_LINE_IN1,
-		  CX23418_AUDIO_SERIAL, 0 },
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5,       0 },
+		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL, 0 },
+		{ CX18_CARD_INPUT_LINE_IN2,  CX18_AV_AUDIO_SERIAL, 0 },
 	},
-	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
-			 CX23418_AUDIO_SERIAL, 0 },
+	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO_SERIAL, 0 },
 	.tuners = {
 		/* XC3028 tuner */
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
-	/* tuner reset */
-	.gpio_init = { .direction = 0x1000, .initial_value = 0x1000 },
 	.ddr = {
 		/* Probably Samsung K4D263238G-VC33 memory */
 		.chip_config = 0x003,
@@ -211,6 +227,7 @@ static const struct cx18_card cx18_card_mpc718 = {
 		.tune_lane = 0,
 		.initial_emrs = 2,
 	},
+	.xceive_pin = 15,
 	.pci_list = cx18_pci_mpc718,
 	.i2c = &cx18_i2c_std,
 };

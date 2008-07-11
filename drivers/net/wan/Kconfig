@@ -150,11 +150,9 @@ config HDLC_FR
 
 config HDLC_PPP
 	tristate "Synchronous Point-to-Point Protocol (PPP) support"
-	depends on HDLC && BROKEN
+	depends on HDLC
 	help
 	  Generic HDLC driver supporting PPP over WAN connections.
-	  This module is currently broken and will cause a kernel panic
-	  when a device configured in PPP mode is activated.
 
 	  It will be replaced by new PPP implementation in Linux 2.6.26.
 

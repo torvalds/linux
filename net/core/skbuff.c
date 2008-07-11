@@ -200,7 +200,9 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 		goto nodata;
 
 	/*
-	 * See comment in sk_buff definition, just before the 'tail' member
+	 * Only clear those fields we need to clear, not those that we will
+	 * actually initialise below. Hence, don't put any more fields after
+	 * the tail pointer in struct sk_buff!
 	 */
 	memset(skb, 0, offsetof(struct sk_buff, tail));
 	skb->truesize = size + sizeof(struct sk_buff);
@@ -1290,12 +1292,14 @@ static int __skb_splice_bits(struct sk_buff *skb, unsigned int *offset,
 {
 	unsigned int nr_pages = spd->nr_pages;
 	unsigned int poff, plen, len, toff, tlen;
-	int headlen, seg;
+	int headlen, seg, error = 0;
 
 	toff = *offset;
 	tlen = *total_len;
-	if (!tlen)
+	if (!tlen) {
+		error = 1;
 		goto err;
+	}
 
 	/*
 	 * if the offset is greater than the linear part, go directly to
@@ -1337,7 +1341,8 @@ static int __skb_splice_bits(struct sk_buff *skb, unsigned int *offset,
 		 * just jump directly to update and return, no point
 		 * in going over fragments when the output is full.
 		 */
-		if (spd_fill_page(spd, virt_to_page(p), plen, poff, skb))
+		error = spd_fill_page(spd, virt_to_page(p), plen, poff, skb);
+		if (error)
 			goto done;
 
 		tlen -= plen;
@@ -1367,7 +1372,8 @@ map_frag:
 		if (!plen)
 			break;
 
-		if (spd_fill_page(spd, f->page, plen, poff, skb))
+		error = spd_fill_page(spd, f->page, plen, poff, skb);
+		if (error)
 			break;
 
 		tlen -= plen;
@@ -1380,7 +1386,10 @@ done:
 		return 0;
 	}
 err:
-	return 1;
+	/* update the offset to reflect the linear part skip, if any */
+	if (!error)
+		*offset = toff;
+	return error;
 }
 
 /*
@@ -1443,6 +1452,7 @@ done:
 
 	if (spd.nr_pages) {
 		int ret;
+		struct sock *sk = __skb->sk;
 
 		/*
 		 * Drop the socket lock, otherwise we have reverse
@@ -1453,9 +1463,9 @@ done:
 		 * we call into ->sendpage() with the i_mutex lock held
 		 * and networking will grab the socket lock.
 		 */
-		release_sock(__skb->sk);
+		release_sock(sk);
 		ret = splice_to_pipe(pipe, &spd);
-		lock_sock(__skb->sk);
+		lock_sock(sk);
 		return ret;
 	}
 

@@ -250,7 +250,6 @@ void cxio_hal_destroy_resource(struct cxio_hal_resource *rscp)
  */
 
 #define MIN_PBL_SHIFT 8			/* 256B == min PBL size (32 entries) */
-#define PBL_CHUNK 2*1024*1024
 
 u32 cxio_hal_pblpool_alloc(struct cxio_rdev *rdev_p, int size)
 {
@@ -267,14 +266,35 @@ void cxio_hal_pblpool_free(struct cxio_rdev *rdev_p, u32 addr, int size)
 
 int cxio_hal_pblpool_create(struct cxio_rdev *rdev_p)
 {
-	unsigned long i;
+	unsigned pbl_start, pbl_chunk;
+
 	rdev_p->pbl_pool = gen_pool_create(MIN_PBL_SHIFT, -1);
-	if (rdev_p->pbl_pool)
-		for (i = rdev_p->rnic_info.pbl_base;
-		     i <= rdev_p->rnic_info.pbl_top - PBL_CHUNK + 1;
-		     i += PBL_CHUNK)
-			gen_pool_add(rdev_p->pbl_pool, i, PBL_CHUNK, -1);
-	return rdev_p->pbl_pool ? 0 : -ENOMEM;
+	if (!rdev_p->pbl_pool)
+		return -ENOMEM;
+
+	pbl_start = rdev_p->rnic_info.pbl_base;
+	pbl_chunk = rdev_p->rnic_info.pbl_top - pbl_start + 1;
+
+	while (pbl_start < rdev_p->rnic_info.pbl_top) {
+		pbl_chunk = min(rdev_p->rnic_info.pbl_top - pbl_start + 1,
+				pbl_chunk);
+		if (gen_pool_add(rdev_p->pbl_pool, pbl_start, pbl_chunk, -1)) {
+			PDBG("%s failed to add PBL chunk (%x/%x)\n",
+			     __func__, pbl_start, pbl_chunk);
+			if (pbl_chunk <= 1024 << MIN_PBL_SHIFT) {
+				printk(KERN_WARNING MOD "%s: Failed to add all PBL chunks (%x/%x)\n",
+				       __func__, pbl_start, rdev_p->rnic_info.pbl_top - pbl_start);
+				return 0;
+			}
+			pbl_chunk >>= 1;
+		} else {
+			PDBG("%s added PBL chunk (%x/%x)\n",
+			     __func__, pbl_start, pbl_chunk);
+			pbl_start += pbl_chunk;
+		}
+	}
+
+	return 0;
 }
 
 void cxio_hal_pblpool_destroy(struct cxio_rdev *rdev_p)

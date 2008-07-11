@@ -946,8 +946,7 @@ err:
 		work_done++;
 	}
 
-	while ((skb = __skb_dequeue(&errq)))
-		kfree_skb(skb);
+	__skb_queue_purge(&errq);
 
 	work_done -= handle_incoming_queue(dev, &rxq);
 
@@ -1079,8 +1078,7 @@ static void xennet_release_rx_bufs(struct netfront_info *np)
 		}
 	}
 
-	while ((skb = __skb_dequeue(&free_list)) != NULL)
-		dev_kfree_skb(skb);
+	__skb_queue_purge(&free_list);
 
 	spin_unlock_bh(&np->rx_lock);
 }
@@ -1803,7 +1801,7 @@ static void __exit netif_exit(void)
 	if (is_initial_xendomain())
 		return;
 
-	return xenbus_unregister_driver(&netfront);
+	xenbus_unregister_driver(&netfront);
 }
 module_exit(netif_exit);
 

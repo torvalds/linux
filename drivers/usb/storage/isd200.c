@@ -292,6 +292,7 @@ struct isd200_info {
 
 	/* maximum number of LUNs supported */
 	unsigned char MaxLUNs;
+	unsigned char cmnd[BLK_MAX_CDB];
 	struct scsi_cmnd srb;
 	struct scatterlist sg;
 };
@@ -450,6 +451,7 @@ static int isd200_action( struct us_data *us, int action,
 
 	memset(&ata, 0, sizeof(ata));
 	memset(&srb_dev, 0, sizeof(srb_dev));
+	srb->cmnd = info->cmnd;
 	srb->device = &srb_dev;
 	++srb->serial_number;
 

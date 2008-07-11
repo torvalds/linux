@@ -65,15 +65,15 @@
 
 #define VMALLOC_REGION_ID	(REGION_ID(VMALLOC_START))
 #define KERNEL_REGION_ID	(REGION_ID(PAGE_OFFSET))
+#define VMEMMAP_REGION_ID	(0xfUL)
 #define USER_REGION_ID		(0UL)
 
 /*
- * Defines the address of the vmemap area, in the top 16th of the
- * kernel region.
+ * Defines the address of the vmemap area, in its own region
  */
-#define VMEMMAP_BASE (ASM_CONST(CONFIG_KERNEL_START) + \
-					(0xfUL << (REGION_SHIFT - 4)))
-#define vmemmap ((struct page *)VMEMMAP_BASE)
+#define VMEMMAP_BASE		(VMEMMAP_REGION_ID << REGION_SHIFT)
+#define vmemmap			((struct page *)VMEMMAP_BASE)
+
 
 /*
  * Common bits in a linux-style PTE.  These match the bits in the
@@ -312,6 +312,16 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
        	if ((pte_val(*ptep) & _PAGE_RW) == 0)
        		return;
 	old = pte_update(mm, addr, ptep, _PAGE_RW, 0);
+}
+
+static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+					   unsigned long addr, pte_t *ptep)
+{
+	unsigned long old;
+
+	if ((pte_val(*ptep) & _PAGE_RW) == 0)
+		return;
+	old = pte_update(mm, addr, ptep, _PAGE_RW, 1);
 }
 
 /*

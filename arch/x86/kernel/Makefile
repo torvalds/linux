@@ -82,10 +82,9 @@ obj-$(CONFIG_VMI)		+= vmi_32.o vmiclock_32.o
 obj-$(CONFIG_KVM_GUEST)		+= kvm.o
 obj-$(CONFIG_KVM_CLOCK)		+= kvmclock.o
 obj-$(CONFIG_PARAVIRT)		+= paravirt.o paravirt_patch_$(BITS).o
+obj-$(CONFIG_PARAVIRT_CLOCK)	+= pvclock.o
 
-ifdef CONFIG_INPUT_PCSPKR
-obj-y				+= pcspeaker.o
-endif
+obj-$(CONFIG_PCSPKR_PLATFORM)	+= pcspeaker.o
 
 obj-$(CONFIG_SCx200)		+= scx200.o
 scx200-y			+= scx200_32.o

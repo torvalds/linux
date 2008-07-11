@@ -191,7 +191,7 @@ static void read_ehdr(FILE *fp)
 		die("Cannot read ELF header: %s\n",
 			strerror(errno));
 	}
-	if (memcmp(ehdr.e_ident, ELFMAG, 4) != 0) {
+	if (memcmp(ehdr.e_ident, ELFMAG, SELFMAG) != 0) {
 		die("No ELF magic\n");
 	}
 	if (ehdr.e_ident[EI_CLASS] != ELFCLASS32) {

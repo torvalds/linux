@@ -104,6 +104,7 @@ struct sie_block {
 
 struct kvm_vcpu_stat {
 	u32 exit_userspace;
+	u32 exit_null;
 	u32 exit_external_request;
 	u32 exit_external_interrupt;
 	u32 exit_stop_request;

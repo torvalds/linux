@@ -209,6 +209,12 @@ static int pda_power_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 
+	if (pdata->init) {
+		ret = pdata->init(dev);
+		if (ret < 0)
+			goto init_failed;
+	}
+
 	update_status();
 	update_charger();
 
@@ -298,6 +304,9 @@ ac_irq_failed:
 	if (pdata->is_ac_online)
 		power_supply_unregister(&pda_psy_ac);
 ac_supply_failed:
+	if (pdata->exit)
+		pdata->exit(dev);
+init_failed:
 wrongid:
 	return ret;
 }
@@ -318,6 +327,8 @@ static int pda_power_remove(struct platform_device *pdev)
 		power_supply_unregister(&pda_psy_usb);
 	if (pdata->is_ac_online)
 		power_supply_unregister(&pda_psy_ac);
+	if (pdata->exit)
+		pdata->exit(dev);
 
 	return 0;
 }

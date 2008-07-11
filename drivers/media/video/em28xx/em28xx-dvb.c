@@ -251,7 +251,6 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 		printk(KERN_ERR "%s/2: xc3028 attach failed\n",
 		       dev->name);
 		dvb_frontend_detach(dev->dvb->frontend);
-		dvb_unregister_frontend(dev->dvb->frontend);
 		dev->dvb->frontend = NULL;
 		return -EINVAL;
 	}
@@ -383,6 +382,11 @@ static int dvb_init(struct em28xx *dev)
 	int result = 0;
 	struct em28xx_dvb *dvb;
 
+	if (!dev->has_dvb) {
+		/* This device does not support the extension */
+		return 0;
+	}
+
 	dvb = kzalloc(sizeof(struct em28xx_dvb), GFP_KERNEL);
 
 	if (dvb == NULL) {
@@ -445,6 +449,11 @@ out_free:
 
 static int dvb_fini(struct em28xx *dev)
 {
+	if (!dev->has_dvb) {
+		/* This device does not support the extension */
+		return 0;
+	}
+
 	if (dev->dvb) {
 		unregister_dvb(dev->dvb);
 		dev->dvb = NULL;

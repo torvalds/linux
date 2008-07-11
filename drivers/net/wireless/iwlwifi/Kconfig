@@ -1,6 +1,5 @@
 config IWLWIFI
-	bool
-	default n
+	tristate
 
 config IWLCORE
 	tristate "Intel Wireless Wifi Core"

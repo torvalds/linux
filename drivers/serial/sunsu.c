@@ -1173,7 +1173,7 @@ out:
 
 static struct uart_driver sunsu_reg = {
 	.owner			= THIS_MODULE,
-	.driver_name		= "serial",
+	.driver_name		= "sunsu",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 };

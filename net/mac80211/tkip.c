@@ -230,10 +230,8 @@ void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
 
 	iv16 = data[hdr_len] << 8;
 	iv16 += data[hdr_len + 2];
-	iv32 = data[hdr_len + 4] +
-		(data[hdr_len + 5] >> 8) +
-		(data[hdr_len + 6] >> 16) +
-		(data[hdr_len + 7] >> 24);
+	iv32 = data[hdr_len + 4] | (data[hdr_len + 5] << 8) |
+	       (data[hdr_len + 6] << 16) | (data[hdr_len + 7] << 24);
 
 #ifdef CONFIG_TKIP_DEBUG
 	printk(KERN_DEBUG "TKIP encrypt: iv16 = 0x%04x, iv32 = 0x%08x\n",

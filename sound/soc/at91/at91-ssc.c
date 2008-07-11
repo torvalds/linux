@@ -590,7 +590,7 @@ static int at91_ssc_hw_params(struct snd_pcm_substream *substream,
 			printk(KERN_WARNING "at91-ssc: request_irq failure\n");
 
 			DBG("Stopping pid %d clock\n", ssc_p->ssc.pid);
-			at91_sys_write(AT91_PMC_PCER, 1<<ssc_p->ssc.pid);
+			at91_sys_write(AT91_PMC_PCDR, 1<<ssc_p->ssc.pid);
 			return ret;
 		}
 

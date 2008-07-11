@@ -42,12 +42,9 @@ int pxa_pm_enter(suspend_state_t state)
 	if (state != PM_SUSPEND_STANDBY) {
 		pxa_cpu_pm_fns->save(sleep_save);
 		/* before sleeping, calculate and save a checksum */
-		for (i = 0; i < pxa_cpu_pm_fns->save_size - 1; i++)
+		for (i = 0; i < pxa_cpu_pm_fns->save_count - 1; i++)
 			sleep_save_checksum += sleep_save[i];
 	}
-
-	/* Clear reset status */
-	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
 
 	/* *** go zzz *** */
 	pxa_cpu_pm_fns->enter(state);
@@ -55,7 +52,7 @@ int pxa_pm_enter(suspend_state_t state)
 
 	if (state != PM_SUSPEND_STANDBY) {
 		/* after sleeping, validate the checksum */
-		for (i = 0; i < pxa_cpu_pm_fns->save_size - 1; i++)
+		for (i = 0; i < pxa_cpu_pm_fns->save_count - 1; i++)
 			checksum += sleep_save[i];
 
 		/* if invalid, display message and wait for a hardware reset */
@@ -101,7 +98,8 @@ static int __init pxa_pm_init(void)
 		return -EINVAL;
 	}
 
-	sleep_save = kmalloc(pxa_cpu_pm_fns->save_size, GFP_KERNEL);
+	sleep_save = kmalloc(pxa_cpu_pm_fns->save_count * sizeof(unsigned long),
+			     GFP_KERNEL);
 	if (!sleep_save) {
 		printk(KERN_ERR "failed to alloc memory for pm save\n");
 		return -ENOMEM;

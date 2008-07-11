@@ -102,7 +102,7 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 {
 	/* We have a limited number the number of CPUs in the lguest struct. */
-	if (id >= NR_CPUS)
+	if (id >= ARRAY_SIZE(cpu->lg->cpus))
 		return -EINVAL;
 
 	/* Set up this CPU's id, and pointer back to the lguest struct. */
@@ -251,8 +251,6 @@ static ssize_t write(struct file *file, const char __user *in,
 		if (!lg || (cpu_id >= lg->nr_cpus))
 			return -EINVAL;
 		cpu = &lg->cpus[cpu_id];
-		if (!cpu)
-			return -EINVAL;
 
 		/* Once the Guest is dead, you can only read() why it died. */
 		if (lg->dead)

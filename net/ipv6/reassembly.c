@@ -197,6 +197,7 @@ static void ip6_frag_expire(unsigned long data)
 {
 	struct frag_queue *fq;
 	struct net_device *dev = NULL;
+	struct net *net;
 
 	fq = container_of((struct inet_frag_queue *)data, struct frag_queue, q);
 
@@ -207,7 +208,8 @@ static void ip6_frag_expire(unsigned long data)
 
 	fq_kill(fq);
 
-	dev = dev_get_by_index(&init_net, fq->iif);
+	net = container_of(fq->q.net, struct net, ipv6.frags);
+	dev = dev_get_by_index(net, fq->iif);
 	if (!dev)
 		goto out;
 
@@ -245,6 +247,8 @@ fq_find(struct net *net, __be32 id, struct in6_addr *src, struct in6_addr *dst,
 	arg.id = id;
 	arg.src = src;
 	arg.dst = dst;
+
+	read_lock(&ip6_frags.lock);
 	hash = ip6qhashfn(id, src, dst);
 
 	q = inet_frag_find(&net->ipv6.frags, &ip6_frags, &arg, hash);

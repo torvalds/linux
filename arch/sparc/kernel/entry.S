@@ -1306,6 +1306,8 @@ ret_from_fork:
 	.align	4
 	.globl	linux_sparc_syscall
 linux_sparc_syscall:
+	sethi	%hi(PSR_SYSCALL), %l4
+	or	%l0, %l4, %l0
 	/* Direct access to user regs, must faster. */
 	cmp	%g1, NR_SYSCALLS
 	bgeu	linux_sparc_ni_syscall

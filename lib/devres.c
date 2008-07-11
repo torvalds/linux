@@ -2,7 +2,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-static void devm_ioremap_release(struct device *dev, void *res)
+void devm_ioremap_release(struct device *dev, void *res)
 {
 	iounmap(*(void __iomem **)res);
 }

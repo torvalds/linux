@@ -185,8 +185,8 @@ void ptrace_disable(struct task_struct *child)
 {
 	unsigned long tmp;
 	/* make sure the single step bit is not set. */
-	tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
-	put_reg(child, PT_SR, tmp);
+	tmp = get_reg(child, PT_SYSCFG) & ~TRACE_BITS;
+	put_reg(child, PT_SYSCFG, tmp);
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)

@@ -54,15 +54,16 @@ static DEFINE_PER_CPU(struct list_head, blk_cpu_done);
 
 static void drive_stat_acct(struct request *rq, int new_io)
 {
+	struct hd_struct *part;
 	int rw = rq_data_dir(rq);
 
 	if (!blk_fs_request(rq) || !rq->rq_disk)
 		return;
 
-	if (!new_io) {
-		__all_stat_inc(rq->rq_disk, merges[rw], rq->sector);
-	} else {
-		struct hd_struct *part = get_part(rq->rq_disk, rq->sector);
+	part = get_part(rq->rq_disk, rq->sector);
+	if (!new_io)
+		__all_stat_inc(rq->rq_disk, part, merges[rw], rq->sector);
+	else {
 		disk_round_stats(rq->rq_disk);
 		rq->rq_disk->in_flight++;
 		if (part) {
@@ -253,9 +254,11 @@ EXPORT_SYMBOL(__generic_unplug_device);
  **/
 void generic_unplug_device(struct request_queue *q)
 {
-	spin_lock_irq(q->queue_lock);
-	__generic_unplug_device(q);
-	spin_unlock_irq(q->queue_lock);
+	if (blk_queue_plugged(q)) {
+		spin_lock_irq(q->queue_lock);
+		__generic_unplug_device(q);
+		spin_unlock_irq(q->queue_lock);
+	}
 }
 EXPORT_SYMBOL(generic_unplug_device);
 
@@ -479,6 +482,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	kobject_init(&q->kobj, &blk_queue_ktype);
 
 	mutex_init(&q->sysfs_lock);
+	spin_lock_init(&q->__queue_lock);
 
 	return q;
 }
@@ -541,10 +545,8 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	 * if caller didn't supply a lock, they get per-queue locking with
 	 * our embedded lock
 	 */
-	if (!lock) {
-		spin_lock_init(&q->__queue_lock);
+	if (!lock)
 		lock = &q->__queue_lock;
-	}
 
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
@@ -804,35 +806,32 @@ static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 	rq = get_request(q, rw_flags, bio, GFP_NOIO);
 	while (!rq) {
 		DEFINE_WAIT(wait);
+		struct io_context *ioc;
 		struct request_list *rl = &q->rq;
 
 		prepare_to_wait_exclusive(&rl->wait[rw], &wait,
 				TASK_UNINTERRUPTIBLE);
 
-		rq = get_request(q, rw_flags, bio, GFP_NOIO);
+		blk_add_trace_generic(q, bio, rw, BLK_TA_SLEEPRQ);
 
-		if (!rq) {
-			struct io_context *ioc;
+		__generic_unplug_device(q);
+		spin_unlock_irq(q->queue_lock);
+		io_schedule();
 
-			blk_add_trace_generic(q, bio, rw, BLK_TA_SLEEPRQ);
+		/*
+		 * After sleeping, we become a "batching" process and
+		 * will be able to allocate at least one request, and
+		 * up to a big batch of them for a small period time.
+		 * See ioc_batching, ioc_set_batching
+		 */
+		ioc = current_io_context(GFP_NOIO, q->node);
+		ioc_set_batching(q, ioc);
 
-			__generic_unplug_device(q);
-			spin_unlock_irq(q->queue_lock);
-			io_schedule();
-
-			/*
-			 * After sleeping, we become a "batching" process and
-			 * will be able to allocate at least one request, and
-			 * up to a big batch of them for a small period time.
-			 * See ioc_batching, ioc_set_batching
-			 */
-			ioc = current_io_context(GFP_NOIO, q->node);
-			ioc_set_batching(q, ioc);
-
-			spin_lock_irq(q->queue_lock);
-		}
+		spin_lock_irq(q->queue_lock);
 		finish_wait(&rl->wait[rw], &wait);
-	}
+
+		rq = get_request(q, rw_flags, bio, GFP_NOIO);
+	};
 
 	return rq;
 }
@@ -1536,10 +1535,11 @@ static int __end_that_request_first(struct request *req, int error,
 	}
 
 	if (blk_fs_request(req) && req->rq_disk) {
+		struct hd_struct *part = get_part(req->rq_disk, req->sector);
 		const int rw = rq_data_dir(req);
 
-		all_stat_add(req->rq_disk, sectors[rw],
-			     nr_bytes >> 9, req->sector);
+		all_stat_add(req->rq_disk, part, sectors[rw],
+				nr_bytes >> 9, req->sector);
 	}
 
 	total_bytes = bio_nbytes = 0;
@@ -1725,8 +1725,8 @@ static void end_that_request_last(struct request *req, int error)
 		const int rw = rq_data_dir(req);
 		struct hd_struct *part = get_part(disk, req->sector);
 
-		__all_stat_inc(disk, ios[rw], req->sector);
-		__all_stat_add(disk, ticks[rw], duration, req->sector);
+		__all_stat_inc(disk, part, ios[rw], req->sector);
+		__all_stat_add(disk, part, ticks[rw], duration, req->sector);
 		disk_round_stats(disk);
 		disk->in_flight--;
 		if (part) {

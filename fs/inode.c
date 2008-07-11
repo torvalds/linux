@@ -1149,12 +1149,7 @@ static inline void iput_final(struct inode *inode)
 void iput(struct inode *inode)
 {
 	if (inode) {
-		const struct super_operations *op = inode->i_sb->s_op;
-
 		BUG_ON(inode->i_state == I_CLEAR);
-
-		if (op && op->put_inode)
-			op->put_inode(inode);
 
 		if (atomic_dec_and_lock(&inode->i_count, &inode_lock))
 			iput_final(inode);

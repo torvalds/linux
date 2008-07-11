@@ -43,20 +43,18 @@ extern void sa1100_cpu_resume(void);
  * More ones like CP and general purpose register values are preserved
  * on the stack and then the stack pointer is stored last in sleep.S.
  */
-enum {	SLEEP_SAVE_SP = 0,
-
-	SLEEP_SAVE_GPDR, SLEEP_SAVE_GAFR,
+enum {	SLEEP_SAVE_GPDR, SLEEP_SAVE_GAFR,
 	SLEEP_SAVE_PPDR, SLEEP_SAVE_PPSR, SLEEP_SAVE_PPAR, SLEEP_SAVE_PSDR,
 
 	SLEEP_SAVE_Ser1SDCR0,
 
-	SLEEP_SAVE_SIZE
+	SLEEP_SAVE_COUNT
 };
 
 
 static int sa11x0_pm_enter(suspend_state_t state)
 {
-	unsigned long gpio, sleep_save[SLEEP_SAVE_SIZE];
+	unsigned long gpio, sleep_save[SLEEP_SAVE_COUNT];
 
 	gpio = GPLR;
 

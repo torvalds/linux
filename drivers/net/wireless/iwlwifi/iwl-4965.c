@@ -3528,8 +3528,12 @@ static void iwl4965_add_radiotap(struct iwl_priv *priv,
 
 	if (rate == -1)
 		iwl4965_rt->rt_rate = 0;
-	else
+	else {
+		if (stats->band == IEEE80211_BAND_5GHZ)
+			rate += IWL_FIRST_OFDM_RATE;
+
 		iwl4965_rt->rt_rate = iwl4965_rates[rate].ieee;
+	}
 
 	/*
 	 * "antenna number"
@@ -3978,7 +3982,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 
 	rx_status.mactime = le64_to_cpu(rx_start->timestamp);
 	rx_status.freq =
-		ieee80211_frequency_to_channel(le16_to_cpu(rx_start->channel));
+		ieee80211_channel_to_frequency(le16_to_cpu(rx_start->channel));
 	rx_status.band = (rx_start->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
 				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
 	rx_status.rate_idx =

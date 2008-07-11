@@ -59,6 +59,16 @@ enum viosrp_crq_formats {
 	VIOSRP_INLINE_FORMAT = 0x07
 };
 
+enum viosrp_crq_status {
+	VIOSRP_OK = 0x0,
+	VIOSRP_NONRECOVERABLE_ERR = 0x1,
+	VIOSRP_VIOLATES_MAX_XFER = 0x2,
+	VIOSRP_PARTNER_PANIC = 0x3,
+	VIOSRP_DEVICE_BUSY = 0x8,
+	VIOSRP_ADAPTER_FAIL = 0x10,
+	VIOSRP_OK2 = 0x99,
+};
+
 struct viosrp_crq {
 	u8 valid;		/* used by RPA */
 	u8 format;		/* SCSI vs out-of-band */

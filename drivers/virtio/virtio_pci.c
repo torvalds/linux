@@ -78,32 +78,28 @@ static struct device virtio_pci_root = {
 	.bus_id		= "virtio-pci",
 };
 
-/* Unique numbering for devices under the kvm root */
-static unsigned int dev_index;
-
 /* Convert a generic virtio device to our structure */
 static struct virtio_pci_device *to_vp_device(struct virtio_device *vdev)
 {
 	return container_of(vdev, struct virtio_pci_device, vdev);
 }
 
-/* virtio config->feature() implementation */
-static bool vp_feature(struct virtio_device *vdev, unsigned bit)
+/* virtio config->get_features() implementation */
+static u32 vp_get_features(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
-	u32 mask;
 
-	/* Since this function is supposed to have the side effect of
-	 * enabling a queried feature, we simulate that by doing a read
-	 * from the host feature bitmask and then writing to the guest
-	 * feature bitmask */
-	mask = ioread32(vp_dev->ioaddr + VIRTIO_PCI_HOST_FEATURES);
-	if (mask & (1 << bit)) {
-		mask |= (1 << bit);
-		iowrite32(mask, vp_dev->ioaddr + VIRTIO_PCI_GUEST_FEATURES);
-	}
+	/* When someone needs more than 32 feature bits, we'll need to
+	 * steal a bit to indicate that the rest are somewhere else. */
+	return ioread32(vp_dev->ioaddr + VIRTIO_PCI_HOST_FEATURES);
+}
 
-	return !!(mask & (1 << bit));
+/* virtio config->set_features() implementation */
+static void vp_set_features(struct virtio_device *vdev, u32 features)
+{
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+
+	iowrite32(features, vp_dev->ioaddr + VIRTIO_PCI_GUEST_FEATURES);
 }
 
 /* virtio config->get() implementation */
@@ -145,14 +141,14 @@ static void vp_set_status(struct virtio_device *vdev, u8 status)
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	/* We should never be setting status to 0. */
 	BUG_ON(status == 0);
-	return iowrite8(status, vp_dev->ioaddr + VIRTIO_PCI_STATUS);
+	iowrite8(status, vp_dev->ioaddr + VIRTIO_PCI_STATUS);
 }
 
 static void vp_reset(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	/* 0 status means a reset. */
-	return iowrite8(0, vp_dev->ioaddr + VIRTIO_PCI_STATUS);
+	iowrite8(0, vp_dev->ioaddr + VIRTIO_PCI_STATUS);
 }
 
 /* the notify function used when creating a virt queue */
@@ -293,7 +289,6 @@ static void vp_del_vq(struct virtqueue *vq)
 }
 
 static struct virtio_config_ops virtio_pci_config_ops = {
-	.feature	= vp_feature,
 	.get		= vp_get,
 	.set		= vp_set,
 	.get_status	= vp_get_status,
@@ -301,6 +296,8 @@ static struct virtio_config_ops virtio_pci_config_ops = {
 	.reset		= vp_reset,
 	.find_vq	= vp_find_vq,
 	.del_vq		= vp_del_vq,
+	.get_features	= vp_get_features,
+	.set_features	= vp_set_features,
 };
 
 /* the PCI probing function */
@@ -324,10 +321,6 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 	vp_dev = kzalloc(sizeof(struct virtio_pci_device), GFP_KERNEL);
 	if (vp_dev == NULL)
 		return -ENOMEM;
-
-	snprintf(vp_dev->vdev.dev.bus_id, BUS_ID_SIZE, "virtio%d", dev_index);
-	vp_dev->vdev.index = dev_index;
-	dev_index++;
 
 	vp_dev->vdev.dev.parent = &virtio_pci_root;
 	vp_dev->vdev.config = &virtio_pci_config_ops;

@@ -1517,10 +1517,6 @@ _INIT_STATIC(start_here_multiplatform)
 	addi	r2,r2,0x4000
 	add	r2,r2,r26
 
-	/* Set initial ptr to current */
-	LOAD_REG_IMMEDIATE(r4, init_task)
-	std	r4,PACACURRENT(r13)
-
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/
 

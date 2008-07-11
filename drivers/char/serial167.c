@@ -1073,7 +1073,7 @@ static int cy_put_char(struct tty_struct *tty, unsigned char ch)
 		return 0;
 
 	if (!info->xmit_buf)
-		return;
+		return 0;
 
 	local_irq_save(flags);
 	if (info->xmit_cnt >= PAGE_SIZE - 1) {

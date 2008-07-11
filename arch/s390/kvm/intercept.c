@@ -105,6 +105,9 @@ static intercept_handler_t instruction_handlers[256] = {
 static int handle_noop(struct kvm_vcpu *vcpu)
 {
 	switch (vcpu->arch.sie_block->icptcode) {
+	case 0x0:
+		vcpu->stat.exit_null++;
+		break;
 	case 0x10:
 		vcpu->stat.exit_external_request++;
 		break;

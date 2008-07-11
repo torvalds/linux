@@ -411,7 +411,7 @@ static int s3c24xx_clkout_setparent(struct clk *clk, struct clk *parent)
 
 	clk->parent = parent;
 
-	if (clk == &s3c24xx_dclk0)
+	if (clk == &s3c24xx_clkout0)
 		mask = S3C2410_MISCCR_CLK0_MASK;
 	else {
 		source <<= 4;
@@ -437,7 +437,7 @@ struct clk s3c24xx_dclk0 = {
 struct clk s3c24xx_dclk1 = {
 	.name		= "dclk1",
 	.id		= -1,
-	.ctrlbit	= S3C2410_DCLKCON_DCLK0EN,
+	.ctrlbit	= S3C2410_DCLKCON_DCLK1EN,
 	.enable		= s3c24xx_dclk_enable,
 	.set_parent	= s3c24xx_dclk_setparent,
 	.set_rate	= s3c24xx_set_dclk_rate,

@@ -15,7 +15,8 @@ static __init int pci_access_init(void)
 	pci_mmcfg_early_init();
 
 #ifdef CONFIG_PCI_OLPC
-	pci_olpc_init();
+	if (!pci_olpc_init())
+		return 0;	/* skip additional checks if it's an XO */
 #endif
 #ifdef CONFIG_PCI_BIOS
 	pci_pcbios_init();
@@ -32,6 +33,10 @@ static __init int pci_access_init(void)
 	if (!raw_pci_ops && !raw_pci_ext_ops)
 		printk(KERN_ERR
 		"PCI: Fatal: No config space access function found\n");
+
+	dmi_check_pciprobe();
+
+	dmi_check_skip_isa_align();
 
 	return 0;
 }

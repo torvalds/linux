@@ -1,4 +1,3 @@
-/* $Id: pstate.h,v 1.6 1997/06/25 07:39:45 jj Exp $ */
 #ifndef _SPARC64_PSTATE_H
 #define _SPARC64_PSTATE_H
 
@@ -62,6 +61,7 @@
 #define TSTATE_PRIV	_AC(0x0000000000000400,UL) /* Privilege.	*/
 #define TSTATE_IE	_AC(0x0000000000000200,UL) /* Interrupt Enable.	*/
 #define TSTATE_AG	_AC(0x0000000000000100,UL) /* Alternate Globals.*/
+#define TSTATE_SYSCALL	_AC(0x0000000000000020,UL) /* in syscall trap   */
 #define TSTATE_CWP	_AC(0x000000000000001f,UL) /* Curr Win-Pointer.	*/
 
 /* Floating-Point Registers State Register.

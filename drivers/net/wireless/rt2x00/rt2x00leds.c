@@ -72,6 +72,21 @@ void rt2x00leds_led_quality(struct rt2x00_dev *rt2x00dev, int rssi)
 	}
 }
 
+void rt2x00led_led_activity(struct rt2x00_dev *rt2x00dev, bool enabled)
+{
+	struct rt2x00_led *led = &rt2x00dev->led_qual;
+	unsigned int brightness;
+
+	if ((led->type != LED_TYPE_ACTIVITY) || !(led->flags & LED_REGISTERED))
+		return;
+
+	brightness = enabled ? LED_FULL : LED_OFF;
+	if (brightness != led->led_dev.brightness) {
+		led->led_dev.brightness_set(&led->led_dev, brightness);
+		led->led_dev.brightness = brightness;
+	}
+}
+
 void rt2x00leds_led_assoc(struct rt2x00_dev *rt2x00dev, bool enabled)
 {
 	struct rt2x00_led *led = &rt2x00dev->led_assoc;

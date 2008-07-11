@@ -73,23 +73,6 @@ long old_mmap(unsigned long addr, unsigned long len,
  out:
 	return err;
 }
-/*
- * sys_pipe() is the normal C calling standard for creating
- * a pipe. It's not the way unix traditionally does this, though.
- */
-long sys_pipe(unsigned long __user * fildes)
-{
-	int fd[2];
-	long error;
-
-	error = do_pipe(fd);
-	if (!error) {
-		if (copy_to_user(fildes, fd, sizeof(fd)))
-			error = -EFAULT;
-	}
-	return error;
-}
-
 
 long sys_uname(struct old_utsname __user * name)
 {

@@ -389,8 +389,8 @@ static int __init gfar_of_init(void)
 			}
 
 			gfar_data.phy_id = *id;
-			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "%x",
-					res.start);
+			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "%llx",
+				 (unsigned long long)res.start);
 
 			of_node_put(phy);
 			of_node_put(mdio);
@@ -432,7 +432,7 @@ static struct i2c_driver_device i2c_devices[] __initdata = {
 	{"dallas,ds1339",  "ds1339"},
 	{"dallas,ds1340",  "ds1340"},
 	{"stm,m41t00",     "m41t00"},
-	{"dallas,ds1374",  "rtc-ds1374"},
+	{"dallas,ds1374",  "ds1374"},
 };
 
 static int __init of_find_i2c_driver(struct device_node *node,

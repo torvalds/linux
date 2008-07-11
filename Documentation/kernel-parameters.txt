@@ -295,7 +295,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			when initialising the APIC and IO-APIC components.
 
 	apm=		[APM] Advanced Power Management
-			See header of arch/i386/kernel/apm.c.
+			See header of arch/x86/kernel/apm_32.c.
 
 	arcrimi=	[HW,NET] ARCnet - "RIM I" (entirely mem-mapped) cards
 			Format: <io>,<irq>,<nodeID>
@@ -396,9 +396,6 @@ and is between 256 and 4096 characters. It is defined in the file
 				/selinux/checkreqprot.
 
 	cio_ignore=	[S390]
-			See Documentation/s390/CommonIO for details.
-
-	cio_msg=	[S390]
 			See Documentation/s390/CommonIO for details.
 
 	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
@@ -641,7 +638,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	elanfreq=	[X86-32]
 			See comment before function elanfreq_setup() in
-			arch/i386/kernel/cpu/cpufreq/elanfreq.c.
+			arch/x86/kernel/cpu/cpufreq/elanfreq.c.
 
 	elevator=	[IOSCHED]
 			Format: {"anticipatory" | "cfq" | "deadline" | "noop"}
@@ -688,6 +685,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	floppy=		[HW]
 			See Documentation/floppy.txt.
+
+	force_pal_cache_flush
+			[IA-64] Avoid check_sal_cache_flush which may hang on
+			buggy SAL_CACHE_FLUSH implementations. Using this
+			parameter will force ia64_sal_cache_flush to call
+			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
 
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
@@ -1093,9 +1096,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	mac5380=	[HW,SCSI] Format:
 			<can_queue>,<cmd_per_lun>,<sg_tablesize>,<hostid>,<use_tags>
-
-	mac53c9x=	[HW,SCSI] Format:
-			<num_esps>,<disconnect>,<nosync>,<can_queue>,<cmd_per_lun>,<sg_tablesize>,<hostid>,<use_tags>
 
 	machvec=	[IA64] Force the use of a particular machine-vector
 			(machvec) in a generic kernel.
@@ -1525,6 +1525,8 @@ and is between 256 and 4096 characters. It is defined in the file
 				This is normally done in pci_enable_device(),
 				so this option is a temporary workaround
 				for broken drivers that don't call it.
+		skip_isa_align	[X86] do not align io start addr, so can
+				handle more pci cards
 		firmware	[ARM] Do not re-enumerate the bus but instead
 				just use the configuration from the
 				bootloader. This is currently used on
@@ -1676,6 +1678,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	reboot=		[BUGS=X86-32,BUGS=ARM,BUGS=IA-64] Rebooting mode
 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
 			See arch/*/kernel/reboot.c or arch/*/kernel/process.c			
+
+	relax_domain_level=
+			[KNL, SMP] Set scheduler's default relax_domain_level.
+			See Documentation/cpusets.txt.
 
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 

@@ -13,7 +13,6 @@
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz \
 		   head_64.o misc_64.o cache.o piggy.o
-EXTRA_AFLAGS	:= -traditional
 
 OBJECTS		:= $(obj)/vmlinux_64.lds $(obj)/head_64.o $(obj)/misc_64.o \
 		   $(obj)/cache.o

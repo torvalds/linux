@@ -390,6 +390,7 @@ struct pktgen_thread {
 	int cpu;
 
 	wait_queue_head_t queue;
+	struct completion start_done;
 };
 
 #define REMOVE 1
@@ -3414,6 +3415,7 @@ static int pktgen_thread_worker(void *arg)
 	BUG_ON(smp_processor_id() != cpu);
 
 	init_waitqueue_head(&t->queue);
+	complete(&t->start_done);
 
 	pr_debug("pktgen: starting pktgen/%d:  pid=%d\n", cpu, task_pid_nr(current));
 
@@ -3570,15 +3572,14 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	if (err)
 		goto out1;
 
-	pkt_dev->entry = proc_create(ifname, 0600,
-				     pg_proc_dir, &pktgen_if_fops);
+	pkt_dev->entry = proc_create_data(ifname, 0600, pg_proc_dir,
+					  &pktgen_if_fops, pkt_dev);
 	if (!pkt_dev->entry) {
 		printk(KERN_ERR "pktgen: cannot create %s/%s procfs entry.\n",
 		       PG_PROC_DIR, ifname);
 		err = -EINVAL;
 		goto out2;
 	}
-	pkt_dev->entry->data = pkt_dev;
 #ifdef CONFIG_XFRM
 	pkt_dev->ipsmode = XFRM_MODE_TRANSPORT;
 	pkt_dev->ipsproto = IPPROTO_ESP;
@@ -3616,6 +3617,7 @@ static int __init pktgen_create_thread(int cpu)
 	INIT_LIST_HEAD(&t->if_list);
 
 	list_add_tail(&t->th_list, &pktgen_threads);
+	init_completion(&t->start_done);
 
 	p = kthread_create(pktgen_thread_worker, t, "kpktgend_%d", cpu);
 	if (IS_ERR(p)) {
@@ -3628,7 +3630,8 @@ static int __init pktgen_create_thread(int cpu)
 	kthread_bind(p, cpu);
 	t->tsk = p;
 
-	pe = proc_create(t->tsk->comm, 0600, pg_proc_dir, &pktgen_thread_fops);
+	pe = proc_create_data(t->tsk->comm, 0600, pg_proc_dir,
+			      &pktgen_thread_fops, t);
 	if (!pe) {
 		printk(KERN_ERR "pktgen: cannot create %s/%s procfs entry.\n",
 		       PG_PROC_DIR, t->tsk->comm);
@@ -3638,9 +3641,8 @@ static int __init pktgen_create_thread(int cpu)
 		return -EINVAL;
 	}
 
-	pe->data = t;
-
 	wake_up_process(p);
+	wait_for_completion(&t->start_done);
 
 	return 0;
 }
@@ -3715,8 +3717,6 @@ static int __init pg_init(void)
 		proc_net_remove(&init_net, PG_PROC_DIR);
 		return -EINVAL;
 	}
-
-	pe->data = NULL;
 
 	/* Register us to receive netdevice events */
 	register_netdevice_notifier(&pktgen_notifier_block);

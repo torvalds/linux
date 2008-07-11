@@ -417,12 +417,10 @@ int atm_proc_dev_register(struct atm_dev *dev)
 		goto err_out;
 	sprintf(dev->proc_name,"%s:%d",dev->type, dev->number);
 
-	dev->proc_entry = proc_create(dev->proc_name, 0, atm_proc_root,
-				      &proc_atm_dev_ops);
+	dev->proc_entry = proc_create_data(dev->proc_name, 0, atm_proc_root,
+					   &proc_atm_dev_ops, dev);
 	if (!dev->proc_entry)
 		goto err_free_name;
-	dev->proc_entry->data = dev;
-	dev->proc_entry->owner = THIS_MODULE;
 	return 0;
 err_free_name:
 	kfree(dev->proc_name);

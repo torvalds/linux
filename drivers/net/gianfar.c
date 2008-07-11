@@ -138,6 +138,7 @@ static int gfar_poll(struct napi_struct *napi, int budget);
 static void gfar_netpoll(struct net_device *dev);
 #endif
 int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit);
+static int gfar_clean_tx_ring(struct net_device *dev);
 static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb, int length);
 static void gfar_vlan_rx_register(struct net_device *netdev,
 		                struct vlan_group *grp);
@@ -634,6 +635,8 @@ static void free_skb_resources(struct gfar_private *priv)
 			dev_kfree_skb_any(priv->tx_skbuff[i]);
 			priv->tx_skbuff[i] = NULL;
 		}
+
+		txbdp++;
 	}
 
 	kfree(priv->tx_skbuff);
@@ -1141,7 +1144,7 @@ static int gfar_close(struct net_device *dev)
 }
 
 /* Changes the mac address if the controller is not running. */
-int gfar_set_mac_address(struct net_device *dev)
+static int gfar_set_mac_address(struct net_device *dev)
 {
 	gfar_set_mac_for_addr(dev, 0, dev->dev_addr);
 
@@ -1260,7 +1263,7 @@ static void gfar_timeout(struct net_device *dev)
 }
 
 /* Interrupt Handler for Transmit complete */
-int gfar_clean_tx_ring(struct net_device *dev)
+static int gfar_clean_tx_ring(struct net_device *dev)
 {
 	struct txbd8 *bdp;
 	struct gfar_private *priv = netdev_priv(dev);

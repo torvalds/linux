@@ -28,9 +28,9 @@
 #include <asm/udbg.h>
 
 #ifdef DEBUG
-#define DBG(fmt...) udbg_printf(fmt)
+#define DBG(fmt...) printk(fmt)
 #else
-#define DBG(fmt...)
+#define DBG pr_debug
 #endif
 
 extern void slb_allocate_realmode(unsigned long ea);
@@ -44,13 +44,13 @@ static void slb_allocate(unsigned long ea)
 	slb_allocate_realmode(ea);
 }
 
+#define slb_esid_mask(ssize)	\
+	(((ssize) == MMU_SEGSIZE_256M)? ESID_MASK: ESID_MASK_1T)
+
 static inline unsigned long mk_esid_data(unsigned long ea, int ssize,
 					 unsigned long slot)
 {
-	unsigned long mask;
-
-	mask = (ssize == MMU_SEGSIZE_256M)? ESID_MASK: ESID_MASK_1T;
-	return (ea & mask) | SLB_ESID_V | slot;
+	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | slot;
 }
 
 #define slb_vsid_shift(ssize)	\
@@ -263,13 +263,19 @@ void slb_initialize(void)
 	extern unsigned int *slb_miss_kernel_load_linear;
 	extern unsigned int *slb_miss_kernel_load_io;
 	extern unsigned int *slb_compare_rr_to_size;
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	extern unsigned int *slb_miss_kernel_load_vmemmap;
+	unsigned long vmemmap_llp;
+#endif
 
 	/* Prepare our SLB miss handler based on our page size */
 	linear_llp = mmu_psize_defs[mmu_linear_psize].sllp;
 	io_llp = mmu_psize_defs[mmu_io_psize].sllp;
 	vmalloc_llp = mmu_psize_defs[mmu_vmalloc_psize].sllp;
 	get_paca()->vmalloc_sllp = SLB_VSID_KERNEL | vmalloc_llp;
-
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	vmemmap_llp = mmu_psize_defs[mmu_vmemmap_psize].sllp;
+#endif
 	if (!slb_encoding_inited) {
 		slb_encoding_inited = 1;
 		patch_slb_encoding(slb_miss_kernel_load_linear,
@@ -279,8 +285,14 @@ void slb_initialize(void)
 		patch_slb_encoding(slb_compare_rr_to_size,
 				   mmu_slb_size);
 
-		DBG("SLB: linear  LLP = %04x\n", linear_llp);
-		DBG("SLB: io      LLP = %04x\n", io_llp);
+		DBG("SLB: linear  LLP = %04lx\n", linear_llp);
+		DBG("SLB: io      LLP = %04lx\n", io_llp);
+
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+		patch_slb_encoding(slb_miss_kernel_load_vmemmap,
+				   SLB_VSID_KERNEL | vmemmap_llp);
+		DBG("SLB: vmemmap LLP = %04lx\n", vmemmap_llp);
+#endif
 	}
 
 	get_paca()->stab_rr = SLB_NUM_BOLTED;
@@ -301,11 +313,16 @@ void slb_initialize(void)
 
 	create_shadowed_slbe(VMALLOC_START, mmu_kernel_ssize, vflags, 1);
 
+	/* For the boot cpu, we're running on the stack in init_thread_union,
+	 * which is in the first segment of the linear mapping, and also
+	 * get_paca()->kstack hasn't been initialized yet.
+	 * For secondary cpus, we need to bolt the kernel stack entry now.
+	 */
 	slb_shadow_clear(2);
+	if (raw_smp_processor_id() != boot_cpuid &&
+	    (get_paca()->kstack & slb_esid_mask(mmu_kernel_ssize)) > PAGE_OFFSET)
+		create_shadowed_slbe(get_paca()->kstack,
+				     mmu_kernel_ssize, lflags, 2);
 
-	/* We don't bolt the stack for the time being - we're in boot,
-	 * so the stack is in the bolted segment.  By the time it goes
-	 * elsewhere, we'll call _switch() which will bolt in the new
-	 * one. */
 	asm volatile("isync":::"memory");
 }

@@ -143,12 +143,22 @@ resvec_save_area:
 trap_jtable:
 	.long	do_exception_error		/* 0x000 */
 	.long	do_exception_error		/* 0x020 */
+#ifdef CONFIG_MMU
 	.long	tlb_miss_load				/* 0x040 */
 	.long	tlb_miss_store				/* 0x060 */
+#else
+	.long	do_exception_error
+	.long	do_exception_error
+#endif
 	! ARTIFICIAL pseudo-EXPEVT setting
 	.long	do_debug_interrupt		/* 0x080 */
+#ifdef CONFIG_MMU
 	.long	tlb_miss_load				/* 0x0A0 */
 	.long	tlb_miss_store				/* 0x0C0 */
+#else
+	.long	do_exception_error
+	.long	do_exception_error
+#endif
 	.long	do_address_error_load	/* 0x0E0 */
 	.long	do_address_error_store	/* 0x100 */
 #ifdef CONFIG_SH_FPU
@@ -185,10 +195,18 @@ trap_jtable:
 	.endr
 	.long	do_IRQ			/* 0xA00 */
 	.long	do_IRQ			/* 0xA20 */
+#ifdef CONFIG_MMU
 	.long	itlb_miss_or_IRQ			/* 0xA40 */
+#else
+	.long	do_IRQ
+#endif
 	.long	do_IRQ			/* 0xA60 */
 	.long	do_IRQ			/* 0xA80 */
+#ifdef CONFIG_MMU
 	.long	itlb_miss_or_IRQ			/* 0xAA0 */
+#else
+	.long	do_IRQ
+#endif
 	.long	do_exception_error		/* 0xAC0 */
 	.long	do_address_error_exec	/* 0xAE0 */
 	.rept 8
@@ -274,6 +292,7 @@ not_a_tlb_miss:
 	 * Instead of '.space 1024-TEXT_SIZE' place the RESVEC
 	 * block making sure the final alignment is correct.
 	 */
+#ifdef CONFIG_MMU
 tlb_miss:
 	synco	/* TAKum03020 (but probably a good idea anyway.) */
 	putcon	SP, KCR1
@@ -377,6 +396,9 @@ fixup_to_invoke_general_handler:
 	getcon	KCR1, SP
 	pta	handle_exception, tr0
 	blink	tr0, ZERO
+#else /* CONFIG_MMU */
+	.balign 256
+#endif
 
 /* NB TAKE GREAT CARE HERE TO ENSURE THAT THE INTERRUPT CODE
    DOES END UP AT VBR+0x600 */
@@ -1103,6 +1125,7 @@ restore_all:
  * fpu_error_or_IRQ? is a helper to deflect to the right cause.
  *
  */
+#ifdef CONFIG_MMU
 tlb_miss_load:
 	or	SP, ZERO, r2
 	or	ZERO, ZERO, r3		/* Read */
@@ -1132,6 +1155,7 @@ call_do_page_fault:
 	movi	do_page_fault, r6
         ptabs	r6, tr0
         blink	tr0, ZERO
+#endif /* CONFIG_MMU */
 
 fpu_error_or_IRQA:
 	pta	its_IRQ, tr0
@@ -1481,6 +1505,7 @@ poke_real_address_q:
 	ptabs	LINK, tr0
 	blink	tr0, r63
 
+#ifdef CONFIG_MMU
 /*
  * --- User Access Handling Section
  */
@@ -1604,6 +1629,7 @@ ___clear_user_exit:
 	ptabs	LINK, tr0
 	blink	tr0, ZERO
 
+#endif /* CONFIG_MMU */
 
 /*
  * int __strncpy_from_user(unsigned long __dest, unsigned long __src,
@@ -2014,9 +2040,11 @@ sa_default_restorer:
 	.global asm_uaccess_start	/* Just a marker */
 asm_uaccess_start:
 
+#ifdef CONFIG_MMU
 	.long	___copy_user1, ___copy_user_exit
 	.long	___copy_user2, ___copy_user_exit
 	.long	___clear_user1, ___clear_user_exit
+#endif
 	.long	___strncpy_from_user1, ___strncpy_from_user_exit
 	.long	___strnlen_user1, ___strnlen_user_exit
 	.long	___get_user_asm_b1, ___get_user_asm_b_exit

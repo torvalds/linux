@@ -25,31 +25,24 @@
 #include <asm/mtrr.h>
 #include <asm/io.h>
 
-int pat_wc_enabled = 1;
+#ifdef CONFIG_X86_PAT
+int __read_mostly pat_wc_enabled = 1;
 
-static u64 __read_mostly boot_pat_state;
-
-static int nopat(char *str)
+void __cpuinit pat_disable(char *reason)
 {
 	pat_wc_enabled = 0;
-	printk(KERN_INFO "x86: PAT support disabled.\n");
+	printk(KERN_INFO "%s\n", reason);
+}
 
+static int __init nopat(char *str)
+{
+	pat_disable("PAT support disabled.");
 	return 0;
 }
 early_param("nopat", nopat);
+#endif
 
-static int pat_known_cpu(void)
-{
-	if (!pat_wc_enabled)
-		return 0;
-
-	if (cpu_has_pat)
-		return 1;
-
-	pat_wc_enabled = 0;
-	printk(KERN_INFO "CPU and/or kernel does not support PAT.\n");
-	return 0;
-}
+static u64 __read_mostly boot_pat_state;
 
 enum {
 	PAT_UC = 0,		/* uncached */
@@ -66,17 +59,19 @@ void pat_init(void)
 {
 	u64 pat;
 
-#ifndef CONFIG_X86_PAT
-	nopat(NULL);
-#endif
-
-	/* Boot CPU enables PAT based on CPU feature */
-	if (!smp_processor_id() && !pat_known_cpu())
+	if (!pat_wc_enabled)
 		return;
 
-	/* APs enable PAT iff boot CPU has enabled it before */
-	if (smp_processor_id() && !pat_wc_enabled)
-		return;
+	/* Paranoia check. */
+	if (!cpu_has_pat) {
+		printk(KERN_ERR "PAT enabled, but CPU feature cleared\n");
+		/*
+		 * Panic if this happens on the secondary CPU, and we
+		 * switched to PAT on the boot CPU. We have no way to
+		 * undo PAT.
+		*/
+		BUG_ON(boot_pat_state);
+	}
 
 	/* Set PWT to Write-Combining. All other bits stay the same */
 	/*
@@ -95,9 +90,8 @@ void pat_init(void)
 	      PAT(4,WB) | PAT(5,WC) | PAT(6,UC_MINUS) | PAT(7,UC);
 
 	/* Boot CPU check */
-	if (!smp_processor_id()) {
+	if (!boot_pat_state)
 		rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
-	}
 
 	wrmsrl(MSR_IA32_CR_PAT, pat);
 	printk(KERN_INFO "x86 PAT enabled: cpu %d, old 0x%Lx, new 0x%Lx\n",
@@ -157,32 +151,33 @@ static int pat_x_mtrr_type(u64 start, u64 end, unsigned long prot,
 	unsigned long pat_type;
 	u8 mtrr_type;
 
-	mtrr_type = mtrr_type_lookup(start, end);
-	if (mtrr_type == 0xFF) {		/* MTRR not enabled */
-		*ret_prot = prot;
-		return 0;
-	}
-	if (mtrr_type == 0xFE) {		/* MTRR match error */
-		*ret_prot = _PAGE_CACHE_UC;
-		return -1;
-	}
-	if (mtrr_type != MTRR_TYPE_UNCACHABLE &&
-	    mtrr_type != MTRR_TYPE_WRBACK &&
-	    mtrr_type != MTRR_TYPE_WRCOMB) {	/* MTRR type unhandled */
-		*ret_prot = _PAGE_CACHE_UC;
-		return -1;
-	}
-
 	pat_type = prot & _PAGE_CACHE_MASK;
 	prot &= (~_PAGE_CACHE_MASK);
 
-	/* Currently doing intersection by hand. Optimize it later. */
+	/*
+	 * We return the PAT request directly for types where PAT takes
+	 * precedence with respect to MTRR and for UC_MINUS.
+	 * Consistency checks with other PAT requests is done later
+	 * while going through memtype list.
+	 */
 	if (pat_type == _PAGE_CACHE_WC) {
 		*ret_prot = prot | _PAGE_CACHE_WC;
+		return 0;
 	} else if (pat_type == _PAGE_CACHE_UC_MINUS) {
 		*ret_prot = prot | _PAGE_CACHE_UC_MINUS;
-	} else if (pat_type == _PAGE_CACHE_UC ||
-	           mtrr_type == MTRR_TYPE_UNCACHABLE) {
+		return 0;
+	} else if (pat_type == _PAGE_CACHE_UC) {
+		*ret_prot = prot | _PAGE_CACHE_UC;
+		return 0;
+	}
+
+	/*
+	 * Look for MTRR hint to get the effective type in case where PAT
+	 * request is for WB.
+	 */
+	mtrr_type = mtrr_type_lookup(start, end);
+
+	if (mtrr_type == MTRR_TYPE_UNCACHABLE) {
 		*ret_prot = prot | _PAGE_CACHE_UC;
 	} else if (mtrr_type == MTRR_TYPE_WRCOMB) {
 		*ret_prot = prot | _PAGE_CACHE_WC;
@@ -239,14 +234,12 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 	if (req_type == -1) {
 		/*
-		 * Special case where caller wants to inherit from mtrr or
-		 * existing pat mapping, defaulting to UC_MINUS in case of
-		 * no match.
+		 * Call mtrr_lookup to get the type hint. This is an
+		 * optimization for /dev/mem mmap'ers into WB memory (BIOS
+		 * tools and ACPI tools). Use WB request for WB memory and use
+		 * UC_MINUS otherwise.
 		 */
 		u8 mtrr_type = mtrr_type_lookup(start, end);
-		if (mtrr_type == 0xFE) { /* MTRR match error */
-			err = -1;
-		}
 
 		if (mtrr_type == MTRR_TYPE_WRBACK) {
 			req_type = _PAGE_CACHE_WB;
@@ -561,7 +554,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 		"%s:%d /dev/mem ioremap_change_attr failed %s for %Lx-%Lx\n",
 			current->comm, current->pid,
 			cattr_name(flags),
-			offset, offset + size);
+			offset, (unsigned long long)(offset + size));
 		return 0;
 	}
 
@@ -582,7 +575,7 @@ void map_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 		"%s:%d /dev/mem expected mapping type %s for %Lx-%Lx, got %s\n",
 			current->comm, current->pid,
 			cattr_name(want_flags),
-			addr, addr + size,
+			addr, (unsigned long long)(addr + size),
 			cattr_name(flags));
 	}
 }

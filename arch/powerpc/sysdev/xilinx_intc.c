@@ -107,7 +107,7 @@ xilinx_intc_init(struct device_node *np)
 	}
 	regs = ioremap(res.start, 32);
 
-	printk(KERN_INFO "Xilinx intc at 0x%08X mapped to 0x%p\n",
+	printk(KERN_INFO "Xilinx intc at 0x%08LX mapped to 0x%p\n",
 		res.start, regs);
 
 	/* Setup interrupt controller */

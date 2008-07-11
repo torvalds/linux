@@ -280,7 +280,7 @@ static int ep93xx_gpio_irq_type(unsigned int irq, unsigned int type)
 	const int port = gpio >> 3;
 	const int port_mask = 1 << (gpio & 7);
 
-	gpio_direction_output(gpio, gpio_get_value(gpio));
+	gpio_direction_input(gpio);
 
 	switch (type) {
 	case IRQT_RISING:

@@ -33,13 +33,12 @@
 #include <scsi/scsi_cmnd.h>
 
 /* Command group 3 is reserved and should never be used.  */
-const unsigned char scsi_command_size[8] =
+const unsigned char scsi_command_size_tbl[8] =
 {
 	6, 10, 10, 12,
 	16, 12, 10, 10
 };
-
-EXPORT_SYMBOL(scsi_command_size);
+EXPORT_SYMBOL(scsi_command_size_tbl);
 
 #include <scsi/sg.h>
 

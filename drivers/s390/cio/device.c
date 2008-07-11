@@ -341,7 +341,7 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 		rc = device_schedule_callback(&cdev->dev,
 					      ccw_device_remove_orphan_cb);
 		if (rc)
-			CIO_MSG_EVENT(2, "Couldn't unregister orphan "
+			CIO_MSG_EVENT(0, "Couldn't unregister orphan "
 				      "0.%x.%04x\n",
 				      cdev->private->dev_id.ssid,
 				      cdev->private->dev_id.devno);
@@ -351,7 +351,7 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 	rc = device_schedule_callback(cdev->dev.parent,
 				      ccw_device_remove_sch_cb);
 	if (rc)
-		CIO_MSG_EVENT(2, "Couldn't unregister disconnected device "
+		CIO_MSG_EVENT(0, "Couldn't unregister disconnected device "
 			      "0.%x.%04x\n",
 			      cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno);
@@ -397,7 +397,7 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 	if (ret == 0)
 		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
 	else {
-		CIO_MSG_EVENT(2, "ccw_device_offline returned %d, "
+		CIO_MSG_EVENT(0, "ccw_device_offline returned %d, "
 			      "device 0.%x.%04x\n",
 			      ret, cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno);
@@ -433,7 +433,7 @@ int ccw_device_set_online(struct ccw_device *cdev)
 	if (ret == 0)
 		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
 	else {
-		CIO_MSG_EVENT(2, "ccw_device_online returned %d, "
+		CIO_MSG_EVENT(0, "ccw_device_online returned %d, "
 			      "device 0.%x.%04x\n",
 			      ret, cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno);
@@ -451,7 +451,7 @@ int ccw_device_set_online(struct ccw_device *cdev)
 	if (ret == 0)
 		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
 	else
-		CIO_MSG_EVENT(2, "ccw_device_offline returned %d, "
+		CIO_MSG_EVENT(0, "ccw_device_offline returned %d, "
 			      "device 0.%x.%04x\n",
 			      ret, cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno);
@@ -803,7 +803,7 @@ static void sch_attach_disconnected_device(struct subchannel *sch,
 	other_sch = to_subchannel(get_device(cdev->dev.parent));
 	ret = device_move(&cdev->dev, &sch->dev);
 	if (ret) {
-		CIO_MSG_EVENT(2, "Moving disconnected device 0.%x.%04x failed "
+		CIO_MSG_EVENT(0, "Moving disconnected device 0.%x.%04x failed "
 			      "(ret=%d)!\n", cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno, ret);
 		put_device(&other_sch->dev);
@@ -933,7 +933,7 @@ io_subchannel_register(struct work_struct *work)
 			ret = device_reprobe(&cdev->dev);
 			if (ret)
 				/* We can't do much here. */
-				CIO_MSG_EVENT(2, "device_reprobe() returned"
+				CIO_MSG_EVENT(0, "device_reprobe() returned"
 					      " %d for 0.%x.%04x\n", ret,
 					      cdev->private->dev_id.ssid,
 					      cdev->private->dev_id.devno);
@@ -1086,7 +1086,7 @@ static void ccw_device_move_to_sch(struct work_struct *work)
 	rc = device_move(&cdev->dev, &sch->dev);
 	mutex_unlock(&sch->reg_mutex);
 	if (rc) {
-		CIO_MSG_EVENT(2, "Moving device 0.%x.%04x to subchannel "
+		CIO_MSG_EVENT(0, "Moving device 0.%x.%04x to subchannel "
 			      "0.%x.%04x failed (ret=%d)!\n",
 			      cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno, sch->schid.ssid,
@@ -1446,8 +1446,7 @@ ccw_device_remove (struct device *dev)
 			wait_event(cdev->private->wait_q,
 				   dev_fsm_final_state(cdev));
 		else
-			//FIXME: we can't fail!
-			CIO_MSG_EVENT(2, "ccw_device_offline returned %d, "
+			CIO_MSG_EVENT(0, "ccw_device_offline returned %d, "
 				      "device 0.%x.%04x\n",
 				      ret, cdev->private->dev_id.ssid,
 				      cdev->private->dev_id.devno);
@@ -1524,7 +1523,7 @@ static int recovery_check(struct device *dev, void *data)
 	spin_lock_irq(cdev->ccwlock);
 	switch (cdev->private->state) {
 	case DEV_STATE_DISCONNECTED:
-		CIO_MSG_EVENT(3, "recovery: trigger 0.%x.%04x\n",
+		CIO_MSG_EVENT(4, "recovery: trigger 0.%x.%04x\n",
 			      cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno);
 		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
@@ -1554,7 +1553,7 @@ static void recovery_work_func(struct work_struct *unused)
 		}
 		spin_unlock_irq(&recovery_lock);
 	} else
-		CIO_MSG_EVENT(2, "recovery: end\n");
+		CIO_MSG_EVENT(4, "recovery: end\n");
 }
 
 static DECLARE_WORK(recovery_work, recovery_work_func);
@@ -1572,7 +1571,7 @@ void ccw_device_schedule_recovery(void)
 {
 	unsigned long flags;
 
-	CIO_MSG_EVENT(2, "recovery: schedule\n");
+	CIO_MSG_EVENT(4, "recovery: schedule\n");
 	spin_lock_irqsave(&recovery_lock, flags);
 	if (!timer_pending(&recovery_timer) || (recovery_phase != 0)) {
 		recovery_phase = 0;

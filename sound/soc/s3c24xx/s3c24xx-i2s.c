@@ -224,6 +224,7 @@ static int s3c24xx_i2s_set_fmt(struct snd_soc_cpu_dai *cpu_dai,
 		iismod |= S3C2410_IISMOD_SLAVE;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
+		iismod &= ~S3C2410_IISMOD_SLAVE;
 		break;
 	default:
 		return -EINVAL;
@@ -234,6 +235,7 @@ static int s3c24xx_i2s_set_fmt(struct snd_soc_cpu_dai *cpu_dai,
 		iismod |= S3C2410_IISMOD_MSB;
 		break;
 	case SND_SOC_DAIFMT_I2S:
+		iismod &= ~S3C2410_IISMOD_MSB;
 		break;
 	default:
 		return -EINVAL;

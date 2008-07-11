@@ -225,6 +225,9 @@ static void uli526x_set_filter_mode(struct net_device *);
 static const struct ethtool_ops netdev_ethtool_ops;
 static u16 read_srom_word(long, int);
 static irqreturn_t uli526x_interrupt(int, void *);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void uli526x_poll(struct net_device *dev);
+#endif
 static void uli526x_descriptor_init(struct uli526x_board_info *, unsigned long);
 static void allocate_rx_buffer(struct uli526x_board_info *);
 static void update_cr6(u32, unsigned long);
@@ -339,6 +342,9 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 	dev->get_stats = &uli526x_get_stats;
 	dev->set_multicast_list = &uli526x_set_filter_mode;
 	dev->ethtool_ops = &netdev_ethtool_ops;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = &uli526x_poll;
+#endif
 	spin_lock_init(&db->lock);
 
 
@@ -434,10 +440,6 @@ static int uli526x_open(struct net_device *dev)
 
 	ULI526X_DBUG(0, "uli526x_open", 0);
 
-	ret = request_irq(dev->irq, &uli526x_interrupt, IRQF_SHARED, dev->name, dev);
-	if (ret)
-		return ret;
-
 	/* system variable init */
 	db->cr6_data = CR6_DEFAULT | uli526x_cr6_user_set;
 	db->tx_packet_cnt = 0;
@@ -455,6 +457,10 @@ static int uli526x_open(struct net_device *dev)
 
 	/* Initialize ULI526X board */
 	uli526x_init(dev);
+
+	ret = request_irq(dev->irq, &uli526x_interrupt, IRQF_SHARED, dev->name, dev);
+	if (ret)
+		return ret;
 
 	/* Active System Interface */
 	netif_wake_queue(dev);
@@ -681,8 +687,9 @@ static irqreturn_t uli526x_interrupt(int irq, void *dev_id)
 	db->cr5_data = inl(ioaddr + DCR5);
 	outl(db->cr5_data, ioaddr + DCR5);
 	if ( !(db->cr5_data & 0x180c1) ) {
-		spin_unlock_irqrestore(&db->lock, flags);
+		/* Restore CR7 to enable interrupt mask */
 		outl(db->cr7_data, ioaddr + DCR7);
+		spin_unlock_irqrestore(&db->lock, flags);
 		return IRQ_HANDLED;
 	}
 
@@ -715,6 +722,13 @@ static irqreturn_t uli526x_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void uli526x_poll(struct net_device *dev)
+{
+	/* ISR grabs the irqsave lock, so this should be safe */
+	uli526x_interrupt(dev->irq, dev);
+}
+#endif
 
 /*
  *	Free TX resource after TX complete
@@ -1368,6 +1382,12 @@ static void update_cr6(u32 cr6_data, unsigned long ioaddr)
  *	This setup frame initialize ULI526X address filter mode
  */
 
+#ifdef __BIG_ENDIAN
+#define FLT_SHIFT 16
+#else
+#define FLT_SHIFT 0
+#endif
+
 static void send_filter_frame(struct net_device *dev, int mc_cnt)
 {
 	struct uli526x_board_info *db = netdev_priv(dev);
@@ -1384,27 +1404,27 @@ static void send_filter_frame(struct net_device *dev, int mc_cnt)
 
 	/* Node address */
 	addrptr = (u16 *) dev->dev_addr;
-	*suptr++ = addrptr[0];
-	*suptr++ = addrptr[1];
-	*suptr++ = addrptr[2];
+	*suptr++ = addrptr[0] << FLT_SHIFT;
+	*suptr++ = addrptr[1] << FLT_SHIFT;
+	*suptr++ = addrptr[2] << FLT_SHIFT;
 
 	/* broadcast address */
-	*suptr++ = 0xffff;
-	*suptr++ = 0xffff;
-	*suptr++ = 0xffff;
+	*suptr++ = 0xffff << FLT_SHIFT;
+	*suptr++ = 0xffff << FLT_SHIFT;
+	*suptr++ = 0xffff << FLT_SHIFT;
 
 	/* fit the multicast address */
 	for (mcptr = dev->mc_list, i = 0; i < mc_cnt; i++, mcptr = mcptr->next) {
 		addrptr = (u16 *) mcptr->dmi_addr;
-		*suptr++ = addrptr[0];
-		*suptr++ = addrptr[1];
-		*suptr++ = addrptr[2];
+		*suptr++ = addrptr[0] << FLT_SHIFT;
+		*suptr++ = addrptr[1] << FLT_SHIFT;
+		*suptr++ = addrptr[2] << FLT_SHIFT;
 	}
 
 	for (; i<14; i++) {
-		*suptr++ = 0xffff;
-		*suptr++ = 0xffff;
-		*suptr++ = 0xffff;
+		*suptr++ = 0xffff << FLT_SHIFT;
+		*suptr++ = 0xffff << FLT_SHIFT;
+		*suptr++ = 0xffff << FLT_SHIFT;
 	}
 
 	/* prepare the setup frame */
