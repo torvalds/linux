@@ -417,9 +417,7 @@ static u8 * __init alloc_command_buffer(struct amd_iommu *iommu)
 
 static void __init free_command_buffer(struct amd_iommu *iommu)
 {
-	if (iommu->cmd_buf)
-		free_pages((unsigned long)iommu->cmd_buf,
-				get_order(CMD_BUFFER_SIZE));
+	free_pages((unsigned long)iommu->cmd_buf, get_order(CMD_BUFFER_SIZE));
 }
 
 /* sets a specific bit in the device table entry. */
@@ -987,24 +985,19 @@ out:
 	return ret;
 
 free:
-	if (amd_iommu_pd_alloc_bitmap)
-		free_pages((unsigned long)amd_iommu_pd_alloc_bitmap, 1);
+	free_pages((unsigned long)amd_iommu_pd_alloc_bitmap, 1);
 
-	if (amd_iommu_pd_table)
-		free_pages((unsigned long)amd_iommu_pd_table,
-				get_order(rlookup_table_size));
+	free_pages((unsigned long)amd_iommu_pd_table,
+		   get_order(rlookup_table_size));
 
-	if (amd_iommu_rlookup_table)
-		free_pages((unsigned long)amd_iommu_rlookup_table,
-				get_order(rlookup_table_size));
+	free_pages((unsigned long)amd_iommu_rlookup_table,
+		   get_order(rlookup_table_size));
 
-	if (amd_iommu_alias_table)
-		free_pages((unsigned long)amd_iommu_alias_table,
-				get_order(alias_table_size));
+	free_pages((unsigned long)amd_iommu_alias_table,
+		   get_order(alias_table_size));
 
-	if (amd_iommu_dev_table)
-		free_pages((unsigned long)amd_iommu_dev_table,
-				get_order(dev_table_size));
+	free_pages((unsigned long)amd_iommu_dev_table,
+		   get_order(dev_table_size));
 
 	free_iommu_all();
 
