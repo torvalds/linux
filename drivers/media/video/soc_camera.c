@@ -26,6 +26,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
+#include <media/videobuf-core.h>
 #include <media/soc_camera.h>
 
 static LIST_HEAD(hosts);
@@ -233,11 +234,7 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 	file->private_data = icf;
 	dev_dbg(&icd->dev, "camera device open\n");
 
-	/* We must pass NULL as dev pointer, then all pci_* dma operations
-	 * transform to normal dma_* ones. */
-	videobuf_queue_sg_init(&icf->vb_vidq, ici->vbq_ops, NULL, icf->lock,
-				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				ici->msize, icd);
+	ici->ops->init_videobuf(&icf->vb_vidq, icf->lock, icd);
 
 	return 0;
 
@@ -787,7 +784,7 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	int ret;
 	struct soc_camera_host *ix;
 
-	if (!ici->vbq_ops || !ici->ops->add || !ici->ops->remove)
+	if (!ici->ops->init_videobuf || !ici->ops->add || !ici->ops->remove)
 		return -EINVAL;
 
 	/* Number might be equal to the platform device ID */

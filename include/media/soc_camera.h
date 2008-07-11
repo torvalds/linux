@@ -13,7 +13,7 @@
 #define SOC_CAMERA_H
 
 #include <linux/videodev2.h>
-#include <media/videobuf-dma-sg.h>
+#include <media/videobuf-core.h>
 
 struct soc_camera_device {
 	struct list_head list;
@@ -55,8 +55,6 @@ struct soc_camera_host {
 	struct list_head list;
 	struct device dev;
 	unsigned char nr;				/* Host number */
-	size_t msize;
-	struct videobuf_queue_ops *vbq_ops;
 	void *priv;
 	char *drv_name;
 	struct soc_camera_host_ops *ops;
@@ -69,6 +67,8 @@ struct soc_camera_host_ops {
 	int (*set_fmt_cap)(struct soc_camera_device *, __u32,
 			   struct v4l2_rect *);
 	int (*try_fmt_cap)(struct soc_camera_device *, struct v4l2_format *);
+	void (*init_videobuf)(struct videobuf_queue*, spinlock_t *,
+			      struct soc_camera_device *);
 	int (*reqbufs)(struct soc_camera_file *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
 	int (*try_bus_param)(struct soc_camera_device *, __u32);

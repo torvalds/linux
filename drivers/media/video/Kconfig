@@ -921,7 +921,7 @@ endif # V4L_USB_DRIVERS
 config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA
-	select VIDEOBUF_DMA_SG
+	select VIDEOBUF_GEN
 	help
 	  SoC Camera is a common API to several cameras, not connecting
 	  over a bus like PCI or USB. For example some i2c camera connected
@@ -960,6 +960,7 @@ config VIDEO_PXA27x
 	tristate "PXA27x Quick Capture Interface driver"
 	depends on VIDEO_DEV && PXA27x
 	select SOC_CAMERA
+	select VIDEOBUF_DMA_SG
 	---help---
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface
 
