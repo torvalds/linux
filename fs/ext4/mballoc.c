@@ -4058,8 +4058,9 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
 	if (!ac) {
+		ar->len = 0;
 		*errp = -ENOMEM;
-		return 0;
+		goto out1;
 	}
 
 	ext4_mb_poll_new_transaction(sb, handle);
@@ -4067,7 +4068,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	*errp = ext4_mb_initialize_context(ac, ar);
 	if (*errp) {
 		ar->len = 0;
-		goto out;
+		goto out2;
 	}
 
 	ac->ac_op = EXT4_MB_HISTORY_PREALLOC;
@@ -4115,11 +4116,12 @@ repeat:
 
 	ext4_mb_release_context(ac);
 
-out:
+out2:
+	kmem_cache_free(ext4_ac_cachep, ac);
+out1:
 	if (ar->len < inquota)
 		DQUOT_FREE_BLOCK(ar->inode, inquota - ar->len);
 
-	kmem_cache_free(ext4_ac_cachep, ac);
 	return block;
 }
 static void ext4_mb_poll_new_transaction(struct super_block *sb,
