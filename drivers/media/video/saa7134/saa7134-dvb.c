@@ -1263,6 +1263,7 @@ static int dvb_init(struct saa7134_dev *dev)
 						&avermedia_xc3028_mt352_dev,
 						&dev->i2c_adap);
 		attach_xc3028 = 1;
+		break;
 	case SAA7134_BOARD_MD7134_BRIDGE_2:
 		dev->dvb.frontend = dvb_attach(tda10086_attach,
 						&sd1878_4m, &dev->i2c_adap);
@@ -1289,6 +1290,15 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->original_set_high_voltage = fe->ops.enable_high_lnb_voltage;
 			fe->ops.enable_high_lnb_voltage = md8800_set_high_voltage;
 		}
+		break;
+	case SAA7134_BOARD_AVERMEDIA_M103:
+		saa7134_set_gpio(dev, 25, 0);
+		msleep(10);
+		saa7134_set_gpio(dev, 25, 1);
+		dev->dvb.frontend = dvb_attach(mt352_attach,
+						&avermedia_xc3028_mt352_dev,
+						&dev->i2c_adap);
+		attach_xc3028 = 1;
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");

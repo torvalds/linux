@@ -1287,6 +1287,22 @@ struct saa7134_board saa7134_boards[] = {
 			.vmux = 8,
 		}},
 	},
+	[SAA7134_BOARD_AVERMEDIA_M103] = {
+		/* Massimo Piccioni <dafastidio@libero.it> */
+		.name           = "AVerMedia MiniPCI DVB-T Hybrid M103",
+		.audio_clock    = 0x187de7,
+		.tuner_type     = TUNER_XC2028,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		 .mpeg           = SAA7134_MPEG_DVB,
+		 .inputs         = {{
+			 .name = name_tv,
+			 .vmux = 1,
+			 .amux = TV,
+			 .tv   = 1,
+		 } },
+	},
 	[SAA7134_BOARD_NOVAC_PRIMETV7133] = {
 		/* toshii@netbsd.org */
 		.name           = "Noval Prime TV 7133",
@@ -5377,6 +5393,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x6290,
 		.driver_data  = SAA7134_BOARD_BEHOLD_H6,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xf636,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_M103,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -5441,6 +5463,7 @@ static int saa7134_xc2028_callback(struct saa7134_dev *dev,
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x00008000, 0x00008000);
 		switch (dev->board) {
 		case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
+		case SAA7134_BOARD_AVERMEDIA_M103:
 			saa7134_set_gpio(dev, 23, 0);
 			msleep(10);
 			saa7134_set_gpio(dev, 23, 1);
@@ -5649,6 +5672,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		msleep(10);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
+	case SAA7134_BOARD_AVERMEDIA_M103:
 		saa7134_set_gpio(dev, 23, 0);
 		msleep(10);
 		saa7134_set_gpio(dev, 23, 1);
@@ -5774,6 +5798,7 @@ static void saa7134_tuner_setup(struct saa7134_dev *dev)
 		switch (dev->board) {
 		case SAA7134_BOARD_AVERMEDIA_A16D:
 		case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
+		case SAA7134_BOARD_AVERMEDIA_M103:
 			ctl.demod = XC3028_FE_ZARLINK456;
 			break;
 		default:
