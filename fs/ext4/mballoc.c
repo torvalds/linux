@@ -2842,6 +2842,14 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	spin_unlock(sb_bgl_lock(sbi, ac->ac_b_ex.fe_group));
 	percpu_counter_sub(&sbi->s_freeblocks_counter, ac->ac_b_ex.fe_len);
 
+	if (sbi->s_log_groups_per_flex) {
+		ext4_group_t flex_group = ext4_flex_group(sbi,
+							  ac->ac_b_ex.fe_group);
+		spin_lock(sb_bgl_lock(sbi, flex_group));
+		sbi->s_flex_groups[flex_group].free_blocks -= ac->ac_b_ex.fe_len;
+		spin_unlock(sb_bgl_lock(sbi, flex_group));
+	}
+
 	err = ext4_journal_dirty_metadata(handle, bitmap_bh);
 	if (err)
 		goto out_err;
@@ -4341,6 +4349,13 @@ do_more:
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, block_group, gdp);
 	spin_unlock(sb_bgl_lock(sbi, block_group));
 	percpu_counter_add(&sbi->s_freeblocks_counter, count);
+
+	if (sbi->s_log_groups_per_flex) {
+		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
+		spin_lock(sb_bgl_lock(sbi, flex_group));
+		sbi->s_flex_groups[flex_group].free_blocks += count;
+		spin_unlock(sb_bgl_lock(sbi, flex_group));
+	}
 
 	ext4_mb_release_desc(&e4b);
 
