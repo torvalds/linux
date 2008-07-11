@@ -347,22 +347,18 @@ static noinline void __stack_chk_test_func(void)
 	if ((unsigned long)__builtin_return_address(0) ==
 					*(((unsigned long *)&foo)+1)) {
 		printk(KERN_ERR "No -fstack-protector-stack-frame!\n");
-		return;
 	}
 #ifdef CONFIG_FRAME_POINTER
 	/* We also don't want to clobber the frame pointer */
 	if ((unsigned long)__builtin_return_address(0) ==
 					*(((unsigned long *)&foo)+2)) {
 		printk(KERN_ERR "No -fstack-protector-stack-frame!\n");
-		return;
 	}
 #endif
-	barrier();
-	if (current->stack_canary == *(((unsigned long *)&foo)+1))
-		*(((unsigned long *)&foo)+1) = 0;
-	else
+	if (current->stack_canary != *(((unsigned long *)&foo)+1))
 		printk(KERN_ERR "No -fstack-protector canary found\n");
-	barrier();
+
+	current->stack_canary = ~current->stack_canary;
 }
 
 static int __stack_chk_test(void)
@@ -373,7 +369,8 @@ static int __stack_chk_test(void)
 	if (__stack_check_testing) {
 		printk(KERN_ERR "-fstack-protector-all test failed\n");
 		WARN_ON(1);
-	}
+	};
+	current->stack_canary = ~current->stack_canary;
 	return 0;
 }
 /*
