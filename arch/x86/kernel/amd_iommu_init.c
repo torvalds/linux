@@ -30,11 +30,6 @@
 /*
  * definitions for the ACPI scanning code
  */
-#define UPDATE_LAST_BDF(x) do {\
-	if ((x) > amd_iommu_last_bdf) \
-		amd_iommu_last_bdf = (x); \
-	} while (0);
-
 #define DEVID(bus, devfn) (((bus) << 8) | (devfn))
 #define PCI_BUS(x) (((x) >> 8) & 0xff)
 #define IVRS_HEADER_LENGTH 48
@@ -169,6 +164,12 @@ static u32 dev_table_size;	/* size of the device table */
 static u32 alias_table_size;	/* size of the alias table */
 static u32 rlookup_table_size;	/* size if the rlookup table */
 
+static inline void update_last_devid(u16 devid)
+{
+	if (devid > amd_iommu_last_bdf)
+		amd_iommu_last_bdf = devid;
+}
+
 /****************************************************************************
  *
  * AMD IOMMU MMIO register space handling functions
@@ -287,7 +288,7 @@ static int __init find_last_devid_on_pci(int bus, int dev, int fn, int cap_ptr)
 	u32 cap;
 
 	cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
-	UPDATE_LAST_BDF(DEVID(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
+	update_last_devid(DEVID(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
 
 	return 0;
 }
@@ -317,7 +318,7 @@ static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
 		case IVHD_DEV_ALIAS:
 		case IVHD_DEV_EXT_SELECT:
 			/* all the above subfield types refer to device ids */
-			UPDATE_LAST_BDF(dev->devid);
+			update_last_devid(dev->devid);
 			break;
 		default:
 			break;
