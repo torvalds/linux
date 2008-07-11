@@ -890,6 +890,7 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 	int pnum;
 	int poff;
 	struct page *page;
+	int ret;
 
 	mb_debug("load group %lu\n", group);
 
@@ -921,15 +922,21 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 		if (page) {
 			BUG_ON(page->mapping != inode->i_mapping);
 			if (!PageUptodate(page)) {
-				ext4_mb_init_cache(page, NULL);
+				ret = ext4_mb_init_cache(page, NULL);
+				if (ret) {
+					unlock_page(page);
+					goto err;
+				}
 				mb_cmp_bitmaps(e4b, page_address(page) +
 					       (poff * sb->s_blocksize));
 			}
 			unlock_page(page);
 		}
 	}
-	if (page == NULL || !PageUptodate(page))
+	if (page == NULL || !PageUptodate(page)) {
+		ret = -EIO;
 		goto err;
+	}
 	e4b->bd_bitmap_page = page;
 	e4b->bd_bitmap = page_address(page) + (poff * sb->s_blocksize);
 	mark_page_accessed(page);
@@ -945,14 +952,20 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 		page = find_or_create_page(inode->i_mapping, pnum, GFP_NOFS);
 		if (page) {
 			BUG_ON(page->mapping != inode->i_mapping);
-			if (!PageUptodate(page))
-				ext4_mb_init_cache(page, e4b->bd_bitmap);
-
+			if (!PageUptodate(page)) {
+				ret = ext4_mb_init_cache(page, e4b->bd_bitmap);
+				if (ret) {
+					unlock_page(page);
+					goto err;
+				}
+			}
 			unlock_page(page);
 		}
 	}
-	if (page == NULL || !PageUptodate(page))
+	if (page == NULL || !PageUptodate(page)) {
+		ret = -EIO;
 		goto err;
+	}
 	e4b->bd_buddy_page = page;
 	e4b->bd_buddy = page_address(page) + (poff * sb->s_blocksize);
 	mark_page_accessed(page);
@@ -969,7 +982,7 @@ err:
 		page_cache_release(e4b->bd_buddy_page);
 	e4b->bd_buddy = NULL;
 	e4b->bd_bitmap = NULL;
-	return -EIO;
+	return ret;
 }
 
 static void ext4_mb_release_desc(struct ext4_buddy *e4b)
