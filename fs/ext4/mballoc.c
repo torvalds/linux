@@ -1736,10 +1736,6 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 		ac->ac_g_ex.fe_start = sbi->s_mb_last_start;
 		spin_unlock(&sbi->s_md_lock);
 	}
-
-	/* searching for the right group start from the goal value specified */
-	group = ac->ac_g_ex.fe_group;
-
 	/* Let's just scan groups to find more-less suitable blocks */
 	cr = ac->ac_2order ? 0 : 1;
 	/*
@@ -1749,6 +1745,12 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 repeat:
 	for (; cr < 4 && ac->ac_status == AC_STATUS_CONTINUE; cr++) {
 		ac->ac_criteria = cr;
+		/*
+		 * searching for the right group start
+		 * from the goal value specified
+		 */
+		group = ac->ac_g_ex.fe_group;
+
 		for (i = 0; i < EXT4_SB(sb)->s_groups_count; group++, i++) {
 			struct ext4_group_info *grp;
 			struct ext4_group_desc *desc;
