@@ -25,7 +25,7 @@
 #include <linux/rbtree.h>
 
 /*
- * third extended-fs super-block data in memory
+ * fourth extended-fs super-block data in memory
  */
 struct ext4_sb_info {
 	unsigned long s_desc_size;	/* Size of a group descriptor in bytes */

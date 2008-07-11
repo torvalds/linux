@@ -79,7 +79,7 @@ struct ext4_ext_cache {
 };
 
 /*
- * third extended file system inode data in memory
+ * fourth extended file system inode data in memory
  */
 struct ext4_inode_info {
 	__le32	i_data[15];	/* unconverted */

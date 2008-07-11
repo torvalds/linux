@@ -22,7 +22,7 @@
 #include "ext4_i.h"
 
 /*
- * The second extended filesystem constants/structures
+ * The fourth extended filesystem constants/structures
  */
 
 /*
