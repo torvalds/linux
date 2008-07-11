@@ -809,6 +809,7 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 		if (!buffer_uptodate(bh[i]))
 			goto out;
 
+	err = 0;
 	first_block = page->index * blocks_per_page;
 	for (i = 0; i < blocks_per_page; i++) {
 		int group;
