@@ -27,7 +27,7 @@
 /*
  * some size calculation constants
  */
-#define DEV_TABLE_ENTRY_SIZE		256
+#define DEV_TABLE_ENTRY_SIZE		32
 #define ALIAS_TABLE_ENTRY_SIZE		2
 #define RLOOKUP_TABLE_ENTRY_SIZE	(sizeof(void *))
 
