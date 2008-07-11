@@ -1324,6 +1324,13 @@ set_qf_format:
 			clear_opt(sbi->s_mount_opt, NOBH);
 			break;
 		case Opt_extents:
+			if (!EXT4_HAS_INCOMPAT_FEATURE(sb,
+					EXT4_FEATURE_INCOMPAT_EXTENTS)) {
+				ext4_warning(sb, __func__,
+					"extents feature not enabled "
+					"on this filesystem, use tune2fs\n");
+				return 0;
+			}
 			set_opt (sbi->s_mount_opt, EXTENTS);
 			break;
 		case Opt_noextents:
@@ -1997,12 +2004,18 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 
 	/*
 	 * turn on extents feature by default in ext4 filesystem
-	 * User -o noextents to turn it off
+	 * only if feature flag already set by mkfs or tune2fs.
+	 * Use -o noextents to turn it off
 	 */
-	set_opt(sbi->s_mount_opt, EXTENTS);
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS))
+		set_opt(sbi->s_mount_opt, EXTENTS);
+	else
+		ext4_warning(sb, __func__,
+			"extents feature not enabled on this filesystem, "
+			"use tune2fs.\n");
 	/*
-	 * turn on mballoc feature by default in ext4 filesystem
-	 * User -o nomballoc to turn it off
+	 * turn on mballoc code by default in ext4 filesystem
+	 * Use -o nomballoc to turn it off
 	 */
 	set_opt(sbi->s_mount_opt, MBALLOC);
 
