@@ -381,22 +381,28 @@ static inline void mb_clear_bit_atomic(spinlock_t *lock, int bit, void *addr)
 
 static inline int mb_find_next_zero_bit(void *addr, int max, int start)
 {
-	int fix = 0;
+	int fix = 0, ret, tmpmax;
 	addr = mb_correct_addr_and_bit(&fix, addr);
-	max += fix;
+	tmpmax = max + fix;
 	start += fix;
 
-	return ext4_find_next_zero_bit(addr, max, start) - fix;
+	ret = ext4_find_next_zero_bit(addr, tmpmax, start) - fix;
+	if (ret > max)
+		return max;
+	return ret;
 }
 
 static inline int mb_find_next_bit(void *addr, int max, int start)
 {
-	int fix = 0;
+	int fix = 0, ret, tmpmax;
 	addr = mb_correct_addr_and_bit(&fix, addr);
-	max += fix;
+	tmpmax = max + fix;
 	start += fix;
 
-	return ext4_find_next_bit(addr, max, start) - fix;
+	ret = ext4_find_next_bit(addr, tmpmax, start) - fix;
+	if (ret > max)
+		return max;
+	return ret;
 }
 
 static void *mb_find_buddy(struct ext4_buddy *e4b, int order, int *max)
@@ -3473,8 +3479,6 @@ ext4_mb_release_inode_pa(struct ext4_buddy *e4b, struct buffer_head *bitmap_bh,
 		if (bit >= end)
 			break;
 		next = mb_find_next_bit(bitmap_bh->b_data, end, bit);
-		if (next > end)
-			next = end;
 		start = group * EXT4_BLOCKS_PER_GROUP(sb) + bit +
 				le32_to_cpu(sbi->s_es->s_first_data_block);
 		mb_debug("    free preallocated %u/%u in group %u\n",
