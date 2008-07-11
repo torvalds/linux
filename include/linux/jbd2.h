@@ -381,6 +381,38 @@ static inline void jbd_unlock_bh_journal_head(struct buffer_head *bh)
 	bit_spin_unlock(BH_JournalHead, &bh->b_state);
 }
 
+/* Flags in jbd_inode->i_flags */
+#define __JI_COMMIT_RUNNING 0
+/* Commit of the inode data in progress. We use this flag to protect us from
+ * concurrent deletion of inode. We cannot use reference to inode for this
+ * since we cannot afford doing last iput() on behalf of kjournald
+ */
+#define JI_COMMIT_RUNNING (1 << __JI_COMMIT_RUNNING)
+
+/**
+ * struct jbd_inode is the structure linking inodes in ordered mode
+ *   present in a transaction so that we can sync them during commit.
+ */
+struct jbd2_inode {
+	/* Which transaction does this inode belong to? Either the running
+	 * transaction or the committing one. [j_list_lock] */
+	transaction_t *i_transaction;
+
+	/* Pointer to the running transaction modifying inode's data in case
+	 * there is already a committing transaction touching it. [j_list_lock] */
+	transaction_t *i_next_transaction;
+
+	/* List of inodes in the i_transaction [j_list_lock] */
+	struct list_head i_list;
+
+	/* VFS inode this inode belongs to [constant during the lifetime
+	 * of the structure] */
+	struct inode *i_vfs_inode;
+
+	/* Flags of inode [j_list_lock] */
+	unsigned int i_flags;
+};
+
 struct jbd2_revoke_table_s;
 
 /**
@@ -565,6 +597,12 @@ struct transaction_s
 	 * log. [j_list_lock]
 	 */
 	struct journal_head	*t_log_list;
+
+	/*
+	 * List of inodes whose data we've modified in data=ordered mode.
+	 * [j_list_lock]
+	 */
+	struct list_head	t_inode_list;
 
 	/*
 	 * Protects info related to handles
@@ -1046,6 +1084,10 @@ extern void	   jbd2_journal_ack_err    (journal_t *);
 extern int	   jbd2_journal_clear_err  (journal_t *);
 extern int	   jbd2_journal_bmap(journal_t *, unsigned long, unsigned long long *);
 extern int	   jbd2_journal_force_commit(journal_t *);
+extern int	   jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *inode);
+extern int	   jbd2_journal_begin_ordered_truncate(struct jbd2_inode *inode, loff_t new_size);
+extern void	   jbd2_journal_init_jbd_inode(struct jbd2_inode *jinode, struct inode *inode);
+extern void	   jbd2_journal_release_jbd_inode(journal_t *journal, struct jbd2_inode *jinode);
 
 /*
  * journal_head management

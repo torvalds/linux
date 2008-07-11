@@ -82,6 +82,10 @@ EXPORT_SYMBOL(jbd2_journal_blocks_per_page);
 EXPORT_SYMBOL(jbd2_journal_invalidatepage);
 EXPORT_SYMBOL(jbd2_journal_try_to_free_buffers);
 EXPORT_SYMBOL(jbd2_journal_force_commit);
+EXPORT_SYMBOL(jbd2_journal_file_inode);
+EXPORT_SYMBOL(jbd2_journal_init_jbd_inode);
+EXPORT_SYMBOL(jbd2_journal_release_jbd_inode);
+EXPORT_SYMBOL(jbd2_journal_begin_ordered_truncate);
 
 static int journal_convert_superblock_v1(journal_t *, journal_superblock_t *);
 static void __journal_abort_soft (journal_t *journal, int errno);
@@ -2192,6 +2196,54 @@ void jbd2_journal_put_journal_head(struct journal_head *jh)
 		__brelse(bh);
 	}
 	jbd_unlock_bh_journal_head(bh);
+}
+
+/*
+ * Initialize jbd inode head
+ */
+void jbd2_journal_init_jbd_inode(struct jbd2_inode *jinode, struct inode *inode)
+{
+	jinode->i_transaction = NULL;
+	jinode->i_next_transaction = NULL;
+	jinode->i_vfs_inode = inode;
+	jinode->i_flags = 0;
+	INIT_LIST_HEAD(&jinode->i_list);
+}
+
+/*
+ * Function to be called before we start removing inode from memory (i.e.,
+ * clear_inode() is a fine place to be called from). It removes inode from
+ * transaction's lists.
+ */
+void jbd2_journal_release_jbd_inode(journal_t *journal,
+				    struct jbd2_inode *jinode)
+{
+	int writeout = 0;
+
+	if (!journal)
+		return;
+restart:
+	spin_lock(&journal->j_list_lock);
+	/* Is commit writing out inode - we have to wait */
+	if (jinode->i_flags & JI_COMMIT_RUNNING) {
+		wait_queue_head_t *wq;
+		DEFINE_WAIT_BIT(wait, &jinode->i_flags, __JI_COMMIT_RUNNING);
+		wq = bit_waitqueue(&jinode->i_flags, __JI_COMMIT_RUNNING);
+		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+		spin_unlock(&journal->j_list_lock);
+		schedule();
+		finish_wait(wq, &wait.wait);
+		goto restart;
+	}
+
+	/* Do we need to wait for data writeback? */
+	if (journal->j_committing_transaction == jinode->i_transaction)
+		writeout = 1;
+	if (jinode->i_transaction) {
+		list_del(&jinode->i_list);
+		jinode->i_transaction = NULL;
+	}
+	spin_unlock(&journal->j_list_lock);
 }
 
 /*

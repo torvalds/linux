@@ -51,6 +51,7 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
 	transaction->t_tid = journal->j_transaction_sequence++;
 	transaction->t_expires = jiffies + journal->j_commit_interval;
 	spin_lock_init(&transaction->t_handle_lock);
+	INIT_LIST_HEAD(&transaction->t_inode_list);
 
 	/* Set up the commit timer for the new transaction. */
 	journal->j_commit_timer.expires = round_jiffies(transaction->t_expires);
@@ -2194,4 +2195,89 @@ void jbd2_journal_refile_buffer(journal_t *journal, struct journal_head *jh)
 
 	spin_unlock(&journal->j_list_lock);
 	__brelse(bh);
+}
+
+/*
+ * File inode in the inode list of the handle's transaction
+ */
+int jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *jinode)
+{
+	transaction_t *transaction = handle->h_transaction;
+	journal_t *journal = transaction->t_journal;
+
+	if (is_handle_aborted(handle))
+		return -EIO;
+
+	jbd_debug(4, "Adding inode %lu, tid:%d\n", jinode->i_vfs_inode->i_ino,
+			transaction->t_tid);
+
+	/*
+	 * First check whether inode isn't already on the transaction's
+	 * lists without taking the lock. Note that this check is safe
+	 * without the lock as we cannot race with somebody removing inode
+	 * from the transaction. The reason is that we remove inode from the
+	 * transaction only in journal_release_jbd_inode() and when we commit
+	 * the transaction. We are guarded from the first case by holding
+	 * a reference to the inode. We are safe against the second case
+	 * because if jinode->i_transaction == transaction, commit code
+	 * cannot touch the transaction because we hold reference to it,
+	 * and if jinode->i_next_transaction == transaction, commit code
+	 * will only file the inode where we want it.
+	 */
+	if (jinode->i_transaction == transaction ||
+	    jinode->i_next_transaction == transaction)
+		return 0;
+
+	spin_lock(&journal->j_list_lock);
+
+	if (jinode->i_transaction == transaction ||
+	    jinode->i_next_transaction == transaction)
+		goto done;
+
+	/* On some different transaction's list - should be
+	 * the committing one */
+	if (jinode->i_transaction) {
+		J_ASSERT(jinode->i_next_transaction == NULL);
+		J_ASSERT(jinode->i_transaction ==
+					journal->j_committing_transaction);
+		jinode->i_next_transaction = transaction;
+		goto done;
+	}
+	/* Not on any transaction list... */
+	J_ASSERT(!jinode->i_next_transaction);
+	jinode->i_transaction = transaction;
+	list_add(&jinode->i_list, &transaction->t_inode_list);
+done:
+	spin_unlock(&journal->j_list_lock);
+
+	return 0;
+}
+
+/*
+ * This function must be called when inode is journaled in ordered mode
+ * before truncation happens. It starts writeout of truncated part in
+ * case it is in the committing transaction so that we stand to ordered
+ * mode consistency guarantees.
+ */
+int jbd2_journal_begin_ordered_truncate(struct jbd2_inode *inode,
+					loff_t new_size)
+{
+	journal_t *journal;
+	transaction_t *commit_trans;
+	int ret = 0;
+
+	if (!inode->i_transaction && !inode->i_next_transaction)
+		goto out;
+	journal = inode->i_transaction->t_journal;
+	spin_lock(&journal->j_state_lock);
+	commit_trans = journal->j_committing_transaction;
+	spin_unlock(&journal->j_state_lock);
+	if (inode->i_transaction == commit_trans) {
+		ret = filemap_fdatawrite_range(inode->i_vfs_inode->i_mapping,
+			new_size, LLONG_MAX);
+		if (ret)
+			jbd2_journal_abort(journal, ret);
+	}
+out:
+	return ret;
 }

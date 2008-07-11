@@ -355,6 +355,81 @@ write_out_data:
 	journal_do_submit_data(wbuf, bufs);
 }
 
+/*
+ * Submit all the data buffers of inode associated with the transaction to
+ * disk.
+ *
+ * We are in a committing transaction. Therefore no new inode can be added to
+ * our inode list. We use JI_COMMIT_RUNNING flag to protect inode we currently
+ * operate on from being released while we write out pages.
+ */
+static int journal_submit_inode_data_buffers(journal_t *journal,
+		transaction_t *commit_transaction)
+{
+	struct jbd2_inode *jinode;
+	int err, ret = 0;
+	struct address_space *mapping;
+
+	spin_lock(&journal->j_list_lock);
+	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
+		mapping = jinode->i_vfs_inode->i_mapping;
+		jinode->i_flags |= JI_COMMIT_RUNNING;
+		spin_unlock(&journal->j_list_lock);
+		err = filemap_fdatawrite_range(mapping, 0,
+					i_size_read(jinode->i_vfs_inode));
+		if (!ret)
+			ret = err;
+		spin_lock(&journal->j_list_lock);
+		J_ASSERT(jinode->i_transaction == commit_transaction);
+		jinode->i_flags &= ~JI_COMMIT_RUNNING;
+		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
+	}
+	spin_unlock(&journal->j_list_lock);
+	return ret;
+}
+
+/*
+ * Wait for data submitted for writeout, refile inodes to proper
+ * transaction if needed.
+ *
+ */
+static int journal_finish_inode_data_buffers(journal_t *journal,
+		transaction_t *commit_transaction)
+{
+	struct jbd2_inode *jinode, *next_i;
+	int err, ret = 0;
+
+	/* For locking, see the comment in journal_submit_inode_data_buffers() */
+	spin_lock(&journal->j_list_lock);
+	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
+		jinode->i_flags |= JI_COMMIT_RUNNING;
+		spin_unlock(&journal->j_list_lock);
+		err = filemap_fdatawait(jinode->i_vfs_inode->i_mapping);
+		if (!ret)
+			ret = err;
+		spin_lock(&journal->j_list_lock);
+		jinode->i_flags &= ~JI_COMMIT_RUNNING;
+		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
+	}
+
+	/* Now refile inode to proper lists */
+	list_for_each_entry_safe(jinode, next_i,
+				 &commit_transaction->t_inode_list, i_list) {
+		list_del(&jinode->i_list);
+		if (jinode->i_next_transaction) {
+			jinode->i_transaction = jinode->i_next_transaction;
+			jinode->i_next_transaction = NULL;
+			list_add(&jinode->i_list,
+				&jinode->i_transaction->t_inode_list);
+		} else {
+			jinode->i_transaction = NULL;
+		}
+	}
+	spin_unlock(&journal->j_list_lock);
+
+	return ret;
+}
+
 static __u32 jbd2_checksum_data(__u32 crc32_sum, struct buffer_head *bh)
 {
 	struct page *page = bh->b_page;
@@ -529,6 +604,9 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 */
 	err = 0;
 	journal_submit_data_buffers(journal, commit_transaction);
+	err = journal_submit_inode_data_buffers(journal, commit_transaction);
+	if (err)
+		jbd2_journal_abort(journal, err);
 
 	/*
 	 * Wait for all previously submitted IO to complete if commit
@@ -760,6 +838,17 @@ start_journal_io:
 			__jbd2_journal_abort_hard(journal);
 	}
 
+	/*
+	 * This is the right place to wait for data buffers both for ASYNC
+	 * and !ASYNC commit. If commit is ASYNC, we need to wait only after
+	 * the commit block went to disk (which happens above). If commit is
+	 * SYNC, we need to wait for data buffers before we start writing
+	 * commit block, which happens below in such setting.
+	 */
+	err = journal_finish_inode_data_buffers(journal, commit_transaction);
+	if (err)
+		jbd2_journal_abort(journal, err);
+
 	/* Lo and behold: we have just managed to send a transaction to
            the log.  Before we can commit it, wait for the IO so far to
            complete.  Control buffers being written are on the
@@ -880,6 +969,7 @@ wait_for_iobuf:
 	jbd_debug(3, "JBD: commit phase 7\n");
 
 	J_ASSERT(commit_transaction->t_sync_datalist == NULL);
+	J_ASSERT(list_empty(&commit_transaction->t_inode_list));
 	J_ASSERT(commit_transaction->t_buffers == NULL);
 	J_ASSERT(commit_transaction->t_checkpoint_list == NULL);
 	J_ASSERT(commit_transaction->t_iobuf_list == NULL);
