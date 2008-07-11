@@ -352,6 +352,9 @@ static int __init gfar_of_init(void)
 		else
 			gfar_data.interface = PHY_INTERFACE_MODE_MII;
 
+		if (of_get_property(np, "fsl,magic-packet", NULL))
+			gfar_data.device_flags |= FSL_GIANFAR_DEV_HAS_MAGIC_PACKET;
+
 		ph = of_get_property(np, "phy-handle", NULL);
 		if (ph == NULL) {
 			u32 *fixed_link;
