@@ -24,46 +24,39 @@ Example:
 
 * Gianfar-compatible ethernet nodes
 
-Required properties:
+Properties:
 
   - device_type : Should be "network"
   - model : Model of the device.  Can be "TSEC", "eTSEC", or "FEC"
   - compatible : Should be "gianfar"
   - reg : Offset and length of the register set for the device
-  - mac-address : List of bytes representing the ethernet address of
+  - local-mac-address : List of bytes representing the ethernet address of
     this controller
-  - interrupts : <a b> where a is the interrupt number and b is a
-    field that represents an encoding of the sense and level
-    information for the interrupt.  This should be encoded based on
-    the information in section 2) depending on the type of interrupt
-    controller you have.
-  - interrupt-parent : the phandle for the interrupt controller that
-    services interrupts for this device.
+  - interrupts : For FEC devices, the first interrupt is the device's
+    interrupt.  For TSEC and eTSEC devices, the first interrupt is
+    transmit, the second is receive, and the third is error.
   - phy-handle : The phandle for the PHY connected to this ethernet
     controller.
   - fixed-link : <a b c d e> where a is emulated phy id - choose any,
     but unique to the all specified fixed-links, b is duplex - 0 half,
     1 full, c is link speed - d#10/d#100/d#1000, d is pause - 0 no
     pause, 1 pause, e is asym_pause - 0 no asym_pause, 1 asym_pause.
-
-Recommended properties:
-
   - phy-connection-type : a string naming the controller/PHY interface type,
     i.e., "mii" (default), "rmii", "gmii", "rgmii", "rgmii-id", "sgmii",
     "tbi", or "rtbi".  This property is only really needed if the connection
     is of type "rgmii-id", as all other connection types are detected by
     hardware.
-
+  - fsl,magic-packet : If present, indicates that the hardware supports
+    waking up via magic packet.
 
 Example:
 	ethernet@24000 {
-		#size-cells = <0>;
 		device_type = "network";
 		model = "TSEC";
 		compatible = "gianfar";
-		reg = <24000 1000>;
-		mac-address = [ 00 E0 0C 00 73 00 ];
-		interrupts = <d 3 e 3 12 3>;
-		interrupt-parent = <40000>;
-		phy-handle = <2452000>
+		reg = <0x24000 0x1000>;
+		local-mac-address = [ 00 E0 0C 00 73 00 ];
+		interrupts = <29 2 30 2 34 2>;
+		interrupt-parent = <&mpic>;
+		phy-handle = <&phy0>
 	};
