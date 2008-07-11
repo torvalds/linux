@@ -1506,6 +1506,24 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.mod_params = &iwl50_mod_params,
 };
 
+struct iwl_cfg iwl5100_bg_cfg = {
+	.name = "5100BG",
+	.fw_name = "iwlwifi-5000" IWL5000_UCODE_API ".ucode",
+	.sku = IWL_SKU_G,
+	.ops = &iwl5000_ops,
+	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.mod_params = &iwl50_mod_params,
+};
+
+struct iwl_cfg iwl5100_abg_cfg = {
+	.name = "5100ABG",
+	.fw_name = "iwlwifi-5000" IWL5000_UCODE_API ".ucode",
+	.sku = IWL_SKU_A|IWL_SKU_G,
+	.ops = &iwl5000_ops,
+	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.mod_params = &iwl50_mod_params,
+};
+
 struct iwl_cfg iwl5100_agn_cfg = {
 	.name = "5100AGN",
 	.fw_name = "iwlwifi-5000" IWL5000_UCODE_API ".ucode",

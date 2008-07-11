@@ -4421,8 +4421,16 @@ static struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
 	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
 #ifdef CONFIG_IWL5000
-	{IWL_PCI_DEVICE(0x4235, PCI_ANY_ID, iwl5300_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4232, 0x1205, iwl5100_bg_cfg)},
+	{IWL_PCI_DEVICE(0x4232, 0x1305, iwl5100_bg_cfg)},
+	{IWL_PCI_DEVICE(0x4232, 0x1206, iwl5100_abg_cfg)},
+	{IWL_PCI_DEVICE(0x4232, 0x1306, iwl5100_abg_cfg)},
+	{IWL_PCI_DEVICE(0x4232, 0x1326, iwl5100_abg_cfg)},
+	{IWL_PCI_DEVICE(0x4237, 0x1216, iwl5100_abg_cfg)},
 	{IWL_PCI_DEVICE(0x4232, PCI_ANY_ID, iwl5100_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4235, PCI_ANY_ID, iwl5300_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4236, PCI_ANY_ID, iwl5300_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4237, PCI_ANY_ID, iwl5100_agn_cfg)},
 	{IWL_PCI_DEVICE(0x423A, PCI_ANY_ID, iwl5350_agn_cfg)},
 #endif /* CONFIG_IWL5000 */
 	{0}
