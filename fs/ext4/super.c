@@ -1004,6 +1004,7 @@ static int parse_options (char *options, struct super_block *sb,
 	int qtype, qfmt;
 	char *qname;
 #endif
+	ext4_fsblk_t last_block;
 
 	if (!options)
 		return 1;
@@ -1326,6 +1327,20 @@ set_qf_format:
 			set_opt (sbi->s_mount_opt, EXTENTS);
 			break;
 		case Opt_noextents:
+			/*
+			 * When e2fsprogs support resizing an already existing
+			 * ext3 file system to greater than 2**32 we need to
+			 * add support to block allocator to handle growing
+			 * already existing block  mapped inode so that blocks
+			 * allocated for them fall within 2**32
+			 */
+			last_block = ext4_blocks_count(sbi->s_es) - 1;
+			if (last_block  > 0xffffffffULL) {
+				printk(KERN_ERR "EXT4-fs: Filesystem too "
+						"large to mount with "
+						"-o noextents options\n");
+				return 0;
+			}
 			clear_opt (sbi->s_mount_opt, EXTENTS);
 			break;
 		case Opt_i_version:
