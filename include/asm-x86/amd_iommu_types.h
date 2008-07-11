@@ -332,4 +332,11 @@ static inline void print_devid(u16 devid, int nl)
 		printk("\n");
 }
 
+/* takes bus and device/function and returns the device id
+ * FIXME: should that be in generic PCI code? */
+static inline u16 calc_devid(u8 bus, u8 devfn)
+{
+	return (((u16)bus) << 8) | devfn;
+}
+
 #endif

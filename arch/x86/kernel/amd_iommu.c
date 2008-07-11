@@ -664,7 +664,7 @@ static int get_device_resources(struct device *dev,
 	BUG_ON(!dev || dev->bus != &pci_bus_type || !dev->dma_mask);
 
 	pcidev = to_pci_dev(dev);
-	_bdf = (pcidev->bus->number << 8) | pcidev->devfn;
+	_bdf = calc_devid(pcidev->bus->number, pcidev->devfn);
 
 	/* device not translated by any IOMMU in the system? */
 	if (_bdf >= amd_iommu_last_bdf) {

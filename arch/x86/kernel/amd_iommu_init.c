@@ -30,7 +30,6 @@
 /*
  * definitions for the ACPI scanning code
  */
-#define DEVID(bus, devfn) (((bus) << 8) | (devfn))
 #define PCI_BUS(x) (((x) >> 8) & 0xff)
 #define IVRS_HEADER_LENGTH 48
 
@@ -295,7 +294,7 @@ static int __init find_last_devid_on_pci(int bus, int dev, int fn, int cap_ptr)
 	u32 cap;
 
 	cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
-	update_last_devid(DEVID(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
+	update_last_devid(calc_devid(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
 
 	return 0;
 }
@@ -494,8 +493,10 @@ static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 	iommu->cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_CAP_HDR_OFFSET);
 
 	range = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
-	iommu->first_device = DEVID(MMIO_GET_BUS(range), MMIO_GET_FD(range));
-	iommu->last_device = DEVID(MMIO_GET_BUS(range), MMIO_GET_LD(range));
+	iommu->first_device = calc_devid(MMIO_GET_BUS(range),
+					 MMIO_GET_FD(range));
+	iommu->last_device = calc_devid(MMIO_GET_BUS(range),
+					MMIO_GET_LD(range));
 }
 
 /*
