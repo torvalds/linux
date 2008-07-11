@@ -2236,21 +2236,192 @@ ext4_mb_store_history(struct ext4_allocation_context *ac)
 #define ext4_mb_history_init(sb)
 #endif
 
+
+/* Create and initialize ext4_group_info data for the given group. */
+int ext4_mb_add_groupinfo(struct super_block *sb, ext4_group_t group,
+			  struct ext4_group_desc *desc)
+{
+	int i, len;
+	int metalen = 0;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_group_info **meta_group_info;
+
+	/*
+	 * First check if this group is the first of a reserved block.
+	 * If it's true, we have to allocate a new table of pointers
+	 * to ext4_group_info structures
+	 */
+	if (group % EXT4_DESC_PER_BLOCK(sb) == 0) {
+		metalen = sizeof(*meta_group_info) <<
+			EXT4_DESC_PER_BLOCK_BITS(sb);
+		meta_group_info = kmalloc(metalen, GFP_KERNEL);
+		if (meta_group_info == NULL) {
+			printk(KERN_ERR "EXT4-fs: can't allocate mem for a "
+			       "buddy group\n");
+			goto exit_meta_group_info;
+		}
+		sbi->s_group_info[group >> EXT4_DESC_PER_BLOCK_BITS(sb)] =
+			meta_group_info;
+	}
+
+	/*
+	 * calculate needed size. if change bb_counters size,
+	 * don't forget about ext4_mb_generate_buddy()
+	 */
+	len = offsetof(typeof(**meta_group_info),
+		       bb_counters[sb->s_blocksize_bits + 2]);
+
+	meta_group_info =
+		sbi->s_group_info[group >> EXT4_DESC_PER_BLOCK_BITS(sb)];
+	i = group & (EXT4_DESC_PER_BLOCK(sb) - 1);
+
+	meta_group_info[i] = kzalloc(len, GFP_KERNEL);
+	if (meta_group_info[i] == NULL) {
+		printk(KERN_ERR "EXT4-fs: can't allocate buddy mem\n");
+		goto exit_group_info;
+	}
+	set_bit(EXT4_GROUP_INFO_NEED_INIT_BIT,
+		&(meta_group_info[i]->bb_state));
+
+	/*
+	 * initialize bb_free to be able to skip
+	 * empty groups without initialization
+	 */
+	if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
+		meta_group_info[i]->bb_free =
+			ext4_free_blocks_after_init(sb, group, desc);
+	} else {
+		meta_group_info[i]->bb_free =
+			le16_to_cpu(desc->bg_free_blocks_count);
+	}
+
+	INIT_LIST_HEAD(&meta_group_info[i]->bb_prealloc_list);
+
+#ifdef DOUBLE_CHECK
+	{
+		struct buffer_head *bh;
+		meta_group_info[i]->bb_bitmap =
+			kmalloc(sb->s_blocksize, GFP_KERNEL);
+		BUG_ON(meta_group_info[i]->bb_bitmap == NULL);
+		bh = ext4_read_block_bitmap(sb, group);
+		BUG_ON(bh == NULL);
+		memcpy(meta_group_info[i]->bb_bitmap, bh->b_data,
+			sb->s_blocksize);
+		put_bh(bh);
+	}
+#endif
+
+	return 0;
+
+exit_group_info:
+	/* If a meta_group_info table has been allocated, release it now */
+	if (group % EXT4_DESC_PER_BLOCK(sb) == 0)
+		kfree(sbi->s_group_info[group >> EXT4_DESC_PER_BLOCK_BITS(sb)]);
+exit_meta_group_info:
+	return -ENOMEM;
+} /* ext4_mb_add_groupinfo */
+
+/*
+ * Add a group to the existing groups.
+ * This function is used for online resize
+ */
+int ext4_mb_add_more_groupinfo(struct super_block *sb, ext4_group_t group,
+			       struct ext4_group_desc *desc)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct inode *inode = sbi->s_buddy_cache;
+	int blocks_per_page;
+	int block;
+	int pnum;
+	struct page *page;
+	int err;
+
+	/* Add group based on group descriptor*/
+	err = ext4_mb_add_groupinfo(sb, group, desc);
+	if (err)
+		return err;
+
+	/*
+	 * Cache pages containing dynamic mb_alloc datas (buddy and bitmap
+	 * datas) are set not up to date so that they will be re-initilaized
+	 * during the next call to ext4_mb_load_buddy
+	 */
+
+	/* Set buddy page as not up to date */
+	blocks_per_page = PAGE_CACHE_SIZE / sb->s_blocksize;
+	block = group * 2;
+	pnum = block / blocks_per_page;
+	page = find_get_page(inode->i_mapping, pnum);
+	if (page != NULL) {
+		ClearPageUptodate(page);
+		page_cache_release(page);
+	}
+
+	/* Set bitmap page as not up to date */
+	block++;
+	pnum = block / blocks_per_page;
+	page = find_get_page(inode->i_mapping, pnum);
+	if (page != NULL) {
+		ClearPageUptodate(page);
+		page_cache_release(page);
+	}
+
+	return 0;
+}
+
+/*
+ * Update an existing group.
+ * This function is used for online resize
+ */
+void ext4_mb_update_group_info(struct ext4_group_info *grp, ext4_grpblk_t add)
+{
+	grp->bb_free += add;
+}
+
 static int ext4_mb_init_backend(struct super_block *sb)
 {
 	ext4_group_t i;
-	int j, len, metalen;
+	int metalen;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	int num_meta_group_infos =
-		(sbi->s_groups_count + EXT4_DESC_PER_BLOCK(sb) - 1) >>
-			EXT4_DESC_PER_BLOCK_BITS(sb);
+	struct ext4_super_block *es = sbi->s_es;
+	int num_meta_group_infos;
+	int num_meta_group_infos_max;
+	int array_size;
 	struct ext4_group_info **meta_group_info;
+	struct ext4_group_desc *desc;
 
+	/* This is the number of blocks used by GDT */
+	num_meta_group_infos = (sbi->s_groups_count + EXT4_DESC_PER_BLOCK(sb) -
+				1) >> EXT4_DESC_PER_BLOCK_BITS(sb);
+
+	/*
+	 * This is the total number of blocks used by GDT including
+	 * the number of reserved blocks for GDT.
+	 * The s_group_info array is allocated with this value
+	 * to allow a clean online resize without a complex
+	 * manipulation of pointer.
+	 * The drawback is the unused memory when no resize
+	 * occurs but it's very low in terms of pages
+	 * (see comments below)
+	 * Need to handle this properly when META_BG resizing is allowed
+	 */
+	num_meta_group_infos_max = num_meta_group_infos +
+				le16_to_cpu(es->s_reserved_gdt_blocks);
+
+	/*
+	 * array_size is the size of s_group_info array. We round it
+	 * to the next power of two because this approximation is done
+	 * internally by kmalloc so we can have some more memory
+	 * for free here (e.g. may be used for META_BG resize).
+	 */
+	array_size = 1;
+	while (array_size < sizeof(*sbi->s_group_info) *
+	       num_meta_group_infos_max)
+		array_size = array_size << 1;
 	/* An 8TB filesystem with 64-bit pointers requires a 4096 byte
 	 * kmalloc. A 128kb malloc should suffice for a 256TB filesystem.
 	 * So a two level scheme suffices for now. */
-	sbi->s_group_info = kmalloc(sizeof(*sbi->s_group_info) *
-				    num_meta_group_infos, GFP_KERNEL);
+	sbi->s_group_info = kmalloc(array_size, GFP_KERNEL);
 	if (sbi->s_group_info == NULL) {
 		printk(KERN_ERR "EXT4-fs: can't allocate buddy meta group\n");
 		return -ENOMEM;
@@ -2277,62 +2448,15 @@ static int ext4_mb_init_backend(struct super_block *sb)
 		sbi->s_group_info[i] = meta_group_info;
 	}
 
-	/*
-	 * calculate needed size. if change bb_counters size,
-	 * don't forget about ext4_mb_generate_buddy()
-	 */
-	len = sizeof(struct ext4_group_info);
-	len += sizeof(unsigned short) * (sb->s_blocksize_bits + 2);
 	for (i = 0; i < sbi->s_groups_count; i++) {
-		struct ext4_group_desc *desc;
-
-		meta_group_info =
-			sbi->s_group_info[i >> EXT4_DESC_PER_BLOCK_BITS(sb)];
-		j = i & (EXT4_DESC_PER_BLOCK(sb) - 1);
-
-		meta_group_info[j] = kzalloc(len, GFP_KERNEL);
-		if (meta_group_info[j] == NULL) {
-			printk(KERN_ERR "EXT4-fs: can't allocate buddy mem\n");
-			goto err_freebuddy;
-		}
 		desc = ext4_get_group_desc(sb, i, NULL);
 		if (desc == NULL) {
 			printk(KERN_ERR
 				"EXT4-fs: can't read descriptor %lu\n", i);
-			i++;
 			goto err_freebuddy;
 		}
-		set_bit(EXT4_GROUP_INFO_NEED_INIT_BIT,
-			&(meta_group_info[j]->bb_state));
-
-		/*
-		 * initialize bb_free to be able to skip
-		 * empty groups without initialization
-		 */
-		if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
-			meta_group_info[j]->bb_free =
-				ext4_free_blocks_after_init(sb, i, desc);
-		} else {
-			meta_group_info[j]->bb_free =
-				le16_to_cpu(desc->bg_free_blocks_count);
-		}
-
-		INIT_LIST_HEAD(&meta_group_info[j]->bb_prealloc_list);
-
-#ifdef DOUBLE_CHECK
-		{
-			struct buffer_head *bh;
-			meta_group_info[j]->bb_bitmap =
-				kmalloc(sb->s_blocksize, GFP_KERNEL);
-			BUG_ON(meta_group_info[j]->bb_bitmap == NULL);
-			bh = ext4_read_block_bitmap(sb, i);
-			BUG_ON(bh == NULL);
-			memcpy(meta_group_info[j]->bb_bitmap, bh->b_data,
-					sb->s_blocksize);
-			put_bh(bh);
-		}
-#endif
-
+		if (ext4_mb_add_groupinfo(sb, i, desc) != 0)
+			goto err_freebuddy;
 	}
 
 	return 0;
