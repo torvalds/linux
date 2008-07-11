@@ -1612,7 +1612,9 @@ void ftrace_kill_atomic(void)
 {
 	ftrace_disabled = 1;
 	ftrace_enabled = 0;
+#ifdef CONFIG_DYNAMIC_FTRACE
 	ftraced_suspend = -1;
+#endif
 	clear_ftrace_function();
 }
 
