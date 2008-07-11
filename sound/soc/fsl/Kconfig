@@ -1,5 +1,3 @@
-menu "ALSA SoC audio for Freescale SOCs"
-
 config SND_SOC_MPC8610
 	bool "ALSA SoC support for the MPC8610 SOC"
 	depends on MPC8610_HPCD
@@ -16,5 +14,3 @@ config SND_SOC_MPC8610_HPCD
 	default y if MPC8610_HPCD
 	help
 	  Say Y if you want to enable audio on the Freescale MPC8610 HPCD.
-
-endmenu
