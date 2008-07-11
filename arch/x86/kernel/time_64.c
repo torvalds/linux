@@ -48,7 +48,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 }
 EXPORT_SYMBOL(profile_pc);
 
-static irqreturn_t timer_event_interrupt(int irq, void *dev_id)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	add_pda(irq0_irqs, 1);
 
@@ -104,7 +104,7 @@ unsigned long __init calibrate_cpu(void)
 }
 
 static struct irqaction irq0 = {
-	.handler	= timer_event_interrupt,
+	.handler	= timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_IRQPOLL | IRQF_NOBALANCING,
 	.mask		= CPU_MASK_NONE,
 	.name		= "timer"
