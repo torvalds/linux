@@ -974,7 +974,7 @@ void __cpuinit setup_local_APIC(void)
 	 * Double-check whether this APIC is really registered.
 	 */
 	if (!apic_id_registered())
-		BUG();
+		WARN_ON_ONCE(1);
 
 	/*
 	 * Intel recommends to set DFR, LDR and TPR before enabling

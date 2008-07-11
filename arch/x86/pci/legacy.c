@@ -62,6 +62,11 @@ int __init pci_subsys_init(void)
 #endif
 	pci_legacy_init();
 	pcibios_irq_init();
+#ifdef CONFIG_X86_NUMAQ
+	pci_numa_init();
+#endif
 	pcibios_init();
+
+	return 0;
 }
 subsys_initcall(pci_subsys_init);

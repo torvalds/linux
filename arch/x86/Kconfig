@@ -181,12 +181,12 @@ config X86_64_SMP
 config X86_HT
 	bool
 	depends on SMP
-	depends on (X86_32 && !(X86_VISWS || X86_VOYAGER)) || X86_64
+	depends on (X86_32 && !X86_VOYAGER) || X86_64
 	default y
 
 config X86_BIOS_REBOOT
 	bool
-	depends on !X86_VISWS && !X86_VOYAGER
+	depends on !X86_VOYAGER
 	default y
 
 config X86_TRAMPOLINE
@@ -232,13 +232,13 @@ config SMP
 
 config X86_FIND_SMP_CONFIG
 	def_bool y
-	depends on X86_MPPARSE || X86_VOYAGER || X86_VISWS
+	depends on X86_MPPARSE || X86_VOYAGER
 
 if ACPI
 config X86_MPPARSE
 	def_bool y
 	bool "Enable MPS table"
-	depends on X86_LOCAL_APIC && !X86_VISWS
+	depends on X86_LOCAL_APIC
 	help
 	  For old smp systems that do not have proper acpi support. Newer systems
 	  (esp with 64bit cpus) with acpi support, MADT and DSDT will override it
@@ -247,7 +247,7 @@ endif
 if !ACPI
 config X86_MPPARSE
 	def_bool y
-	depends on X86_LOCAL_APIC && !X86_VISWS
+	depends on X86_LOCAL_APIC
 endif
 
 choice
@@ -280,18 +280,6 @@ config X86_VOYAGER
 
 	  If you do not specifically know you have a Voyager based machine,
 	  say N here, otherwise the kernel you build will not be bootable.
-
-config X86_VISWS
-	bool "SGI 320/540 (Visual Workstation)"
-	depends on X86_32 && PCI
-	help
-	  The SGI Visual Workstation series is an IA32-based workstation
-	  based on SGI systems chips with some legacy PC hardware attached.
-
-	  Say Y here to create a kernel to run on the SGI 320 or 540.
-
-	  A kernel compiled for the Visual Workstation will not run on PCs
-	  and vice versa. See <file:Documentation/sgi-visws.txt> for details.
 
 config X86_GENERICARCH
        bool "Generic architecture"
@@ -363,6 +351,18 @@ config X86_VSMP
 
 endchoice
 
+config X86_VISWS
+	bool "SGI 320/540 (Visual Workstation)"
+	depends on X86_32 && PCI && !X86_VOYAGER && X86_MPPARSE && PCI_GODIRECT
+	help
+	  The SGI Visual Workstation series is an IA32-based workstation
+	  based on SGI systems chips with some legacy PC hardware attached.
+
+	  Say Y here to create a kernel to run on the SGI 320 or 540.
+
+	  A kernel compiled for the Visual Workstation will run on general
+	  PCs as well. See <file:Documentation/sgi-visws.txt> for details.
+
 config SCHED_NO_NO_OMIT_FRAME_POINTER
 	def_bool y
 	prompt "Single-depth WCHAN output"
@@ -391,7 +391,7 @@ config VMI
 	bool "VMI Guest support"
 	select PARAVIRT
 	depends on X86_32
-	depends on !(X86_VISWS || X86_VOYAGER)
+	depends on !X86_VOYAGER
 	help
 	  VMI provides a paravirtualized interface to the VMware ESX server
 	  (it could be used by other hypervisors in theory too, but is not
@@ -402,7 +402,7 @@ config KVM_CLOCK
 	bool "KVM paravirtualized clock"
 	select PARAVIRT
 	select PARAVIRT_CLOCK
-	depends on !(X86_VISWS || X86_VOYAGER)
+	depends on !X86_VOYAGER
 	help
 	  Turning on this option will allow you to run a paravirtualized clock
 	  when running over the KVM hypervisor. Instead of relying on a PIT
@@ -413,7 +413,7 @@ config KVM_CLOCK
 config KVM_GUEST
 	bool "KVM Guest support"
 	select PARAVIRT
-	depends on !(X86_VISWS || X86_VOYAGER)
+	depends on !X86_VOYAGER
 	help
 	 This option enables various optimizations for running under the KVM
 	 hypervisor.
@@ -422,7 +422,7 @@ source "arch/x86/lguest/Kconfig"
 
 config PARAVIRT
 	bool "Enable paravirtualization code"
-	depends on !(X86_VISWS || X86_VOYAGER)
+	depends on !X86_VOYAGER
 	help
 	  This changes the kernel so it can modify itself when it is run
 	  under a hypervisor, potentially improving performance significantly
@@ -628,7 +628,7 @@ source "kernel/Kconfig.preempt"
 
 config X86_UP_APIC
 	bool "Local APIC support on uniprocessors"
-	depends on X86_32 && !SMP && !(X86_VISWS || X86_VOYAGER || X86_GENERICARCH)
+	depends on X86_32 && !SMP && !(X86_VOYAGER || X86_GENERICARCH)
 	help
 	  A local APIC (Advanced Programmable Interrupt Controller) is an
 	  integrated interrupt controller in the CPU. If you have a single-CPU
@@ -653,11 +653,11 @@ config X86_UP_IOAPIC
 
 config X86_LOCAL_APIC
 	def_bool y
-	depends on X86_64 || (X86_32 && (X86_UP_APIC || ((X86_VISWS || SMP) && !X86_VOYAGER) || X86_GENERICARCH))
+	depends on X86_64 || (X86_32 && (X86_UP_APIC || (SMP && !X86_VOYAGER) || X86_GENERICARCH))
 
 config X86_IO_APIC
 	def_bool y
-	depends on X86_64 || (X86_32 && (X86_UP_IOAPIC || (SMP && !(X86_VISWS || X86_VOYAGER)) || X86_GENERICARCH))
+	depends on X86_64 || (X86_32 && (X86_UP_IOAPIC || (SMP && !X86_VOYAGER) || X86_GENERICARCH))
 
 config X86_VISWS_APIC
 	def_bool y
@@ -711,7 +711,7 @@ config X86_MCE_NONFATAL
 
 config X86_MCE_P4THERMAL
 	bool "check for P4 thermal throttling interrupt."
-	depends on X86_32 && X86_MCE && (X86_UP_APIC || SMP) && !X86_VISWS
+	depends on X86_32 && X86_MCE && (X86_UP_APIC || SMP)
 	help
 	  Enabling this feature will cause a message to be printed when the P4
 	  enters thermal throttling.
@@ -1414,7 +1414,7 @@ config X86_APM_BOOT
 
 menuconfig APM
 	tristate "APM (Advanced Power Management) BIOS support"
-	depends on X86_32 && PM_SLEEP && !X86_VISWS
+	depends on X86_32 && PM_SLEEP
 	---help---
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with
@@ -1561,7 +1561,7 @@ config PCI
 
 choice
 	prompt "PCI access mode"
-	depends on X86_32 && PCI && !X86_VISWS
+	depends on X86_32 && PCI
 	default PCI_GOANY
 	---help---
 	  On PCI systems, the BIOS can be used to detect the PCI devices and
@@ -1598,12 +1598,12 @@ endchoice
 
 config PCI_BIOS
 	def_bool y
-	depends on X86_32 && !X86_VISWS && PCI && (PCI_GOBIOS || PCI_GOANY)
+	depends on X86_32 && PCI && (PCI_GOBIOS || PCI_GOANY)
 
 # x86-64 doesn't support PCI BIOS access from long mode so always go direct.
 config PCI_DIRECT
 	def_bool y
-	depends on PCI && (X86_64 || (PCI_GODIRECT || PCI_GOANY || PCI_GOOLPC) || X86_VISWS)
+	depends on PCI && (X86_64 || (PCI_GODIRECT || PCI_GOANY || PCI_GOOLPC))
 
 config PCI_MMCONFIG
 	def_bool y
@@ -1663,7 +1663,7 @@ if X86_32
 
 config ISA
 	bool "ISA support"
-	depends on !(X86_VOYAGER || X86_VISWS)
+	depends on !X86_VOYAGER
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
@@ -1690,7 +1690,7 @@ config EISA
 source "drivers/eisa/Kconfig"
 
 config MCA
-	bool "MCA support" if !(X86_VISWS || X86_VOYAGER)
+	bool "MCA support" if !X86_VOYAGER
 	default y if X86_VOYAGER
 	help
 	  MicroChannel Architecture is found in some IBM PS/2 machines and

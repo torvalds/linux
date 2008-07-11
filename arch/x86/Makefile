@@ -113,10 +113,6 @@ mcore-y  := arch/x86/mach-default/
 mflags-$(CONFIG_X86_VOYAGER)	:= -Iinclude/asm-x86/mach-voyager
 mcore-$(CONFIG_X86_VOYAGER)	:= arch/x86/mach-voyager/
 
-# VISWS subarch support
-mflags-$(CONFIG_X86_VISWS)	:= -Iinclude/asm-x86/mach-visws
-mcore-$(CONFIG_X86_VISWS)	:= arch/x86/mach-visws/
-
 # generic subarchitecture
 mflags-$(CONFIG_X86_GENERICARCH):= -Iinclude/asm-x86/mach-generic
 fcore-$(CONFIG_X86_GENERICARCH)	+= arch/x86/mach-generic/

@@ -107,9 +107,9 @@
 #define LAST_VM86_IRQ		15
 #define invalid_vm86_irq(irq)	((irq) < 3 || (irq) > 15)
 
-#if !defined(CONFIG_X86_VISWS) && !defined(CONFIG_X86_VOYAGER)
+#if !defined(CONFIG_X86_VOYAGER)
 
-# if defined(CONFIG_X86_IO_APIC) || defined(CONFIG_PARAVIRT)
+# if defined(CONFIG_X86_IO_APIC) || defined(CONFIG_PARAVIRT) || defined(CONFIG_X86_VISWS)
 
 #  define NR_IRQS		224
 

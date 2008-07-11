@@ -726,12 +726,22 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 static struct intel_mp_floating *mpf_found;
 
 /*
+ * Machine specific quirk for finding the SMP config before other setup
+ * activities destroy the table:
+ */
+int (*mach_get_smp_config_quirk)(unsigned int early);
+
+/*
  * Scan the memory blocks for an SMP configuration block.
  */
-static void __init __get_smp_config(unsigned early)
+static void __init __get_smp_config(unsigned int early)
 {
 	struct intel_mp_floating *mpf = mpf_found;
 
+	if (mach_get_smp_config_quirk) {
+		if (mach_get_smp_config_quirk(early))
+			return;
+	}
 	if (acpi_lapic && early)
 		return;
 	/*
@@ -889,10 +899,16 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 	return 0;
 }
 
-static void __init __find_smp_config(unsigned reserve)
+int (*mach_find_smp_config_quirk)(unsigned int reserve);
+
+static void __init __find_smp_config(unsigned int reserve)
 {
 	unsigned int address;
 
+	if (mach_find_smp_config_quirk) {
+		if (mach_find_smp_config_quirk(reserve))
+			return;
+	}
 	/*
 	 * FIXME: Linux assumes you have 640K of base ram..
 	 * this continues the error...
