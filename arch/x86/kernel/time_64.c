@@ -115,6 +115,7 @@ void __init hpet_time_init(void)
 	if (!hpet_enable())
 		setup_pit_timer();
 
+	irq0.mask = cpumask_of_cpu(0);
 	setup_irq(0, &irq0);
 }
 
