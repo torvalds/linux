@@ -183,7 +183,6 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 	struct soc_camera_device *icd;
 	struct soc_camera_host *ici;
 	struct soc_camera_file *icf;
-	spinlock_t *lock;
 	int ret;
 
 	icf = vmalloc(sizeof(*icf));
@@ -210,13 +209,6 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 	}
 
 	icf->icd = icd;
-
-	icf->lock = ici->ops->spinlock_alloc(icf);
-	if (!icf->lock) {
-		ret = -ENOMEM;
-		goto esla;
-	}
-
 	icd->use_count++;
 
 	/* Now we really have to activate the camera */
@@ -234,17 +226,12 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 	file->private_data = icf;
 	dev_dbg(&icd->dev, "camera device open\n");
 
-	ici->ops->init_videobuf(&icf->vb_vidq, icf->lock, icd);
+	ici->ops->init_videobuf(&icf->vb_vidq, icd);
 
 	return 0;
 
 	/* All errors are entered with the video_lock held */
 eiciadd:
-	lock = icf->lock;
-	icf->lock = NULL;
-	if (ici->ops->spinlock_free)
-		ici->ops->spinlock_free(lock);
-esla:
 	module_put(ici->ops->owner);
 emgi:
 	module_put(icd->ops->owner);
@@ -260,15 +247,11 @@ static int soc_camera_close(struct inode *inode, struct file *file)
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct video_device *vdev = icd->vdev;
-	spinlock_t *lock = icf->lock;
 
 	mutex_lock(&video_lock);
 	icd->use_count--;
 	if (!icd->use_count)
 		ici->ops->remove(icd);
-	icf->lock = NULL;
-	if (ici->ops->spinlock_free)
-		ici->ops->spinlock_free(lock);
 	module_put(icd->ops->owner);
 	module_put(ici->ops->owner);
 	mutex_unlock(&video_lock);
@@ -764,21 +747,6 @@ static void dummy_release(struct device *dev)
 {
 }
 
-static spinlock_t *spinlock_alloc(struct soc_camera_file *icf)
-{
-	spinlock_t *lock = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
-
-	if (lock)
-		spin_lock_init(lock);
-
-	return lock;
-}
-
-static void spinlock_free(spinlock_t *lock)
-{
-	kfree(lock);
-}
-
 int soc_camera_host_register(struct soc_camera_host *ici)
 {
 	int ret;
@@ -807,11 +775,6 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 
 	if (ret)
 		goto edevr;
-
-	if (!ici->ops->spinlock_alloc) {
-		ici->ops->spinlock_alloc = spinlock_alloc;
-		ici->ops->spinlock_free = spinlock_free;
-	}
 
 	scan_add_host(ici);
 
