@@ -1497,6 +1497,21 @@ static void scsi_request_fn(struct request_queue *q)
 		}
 		spin_lock(shost->host_lock);
 
+		/*
+		 * We hit this when the driver is using a host wide
+		 * tag map. For device level tag maps the queue_depth check
+		 * in the device ready fn would prevent us from trying
+		 * to allocate a tag. Since the map is a shared host resource
+		 * we add the dev to the starved list so it eventually gets
+		 * a run when a tag is freed.
+		 */
+		if (blk_queue_tagged(q) && (req->tag == -1)) {
+			if (list_empty(&sdev->starved_entry))
+				list_add_tail(&sdev->starved_entry,
+					      &shost->starved_list);
+			goto not_ready;
+		}
+
 		if (!scsi_host_queue_ready(q, shost, sdev))
 			goto not_ready;
 		if (scsi_target(sdev)->single_lun) {
