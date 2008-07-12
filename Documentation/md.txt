@@ -347,7 +347,7 @@ Each directory contains:
         for storage of data.  This will normally be the same as the
 	component_size.  This can be written while assembling an
         array.  If a value less than the current component_size is
-        written, component_size will be reduced to this value.
+        written, it will be rejected.
 
 
 An active md device will also contain and entry for each active device

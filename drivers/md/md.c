@@ -2101,16 +2101,17 @@ static int overlaps(sector_t s1, sector_t l1, sector_t s2, sector_t l2)
 static ssize_t
 rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 {
-	char *e;
-	unsigned long long size = simple_strtoull(buf, &e, 10);
+	unsigned long long size;
 	unsigned long long oldsize = rdev->size;
 	mddev_t *my_mddev = rdev->mddev;
 
-	if (e==buf || (*e && *e != '\n'))
+	if (strict_strtoull(buf, 10, &size) < 0)
+		return -EINVAL;
+	if (size < my_mddev->size)
 		return -EINVAL;
 	if (my_mddev->pers && rdev->raid_disk >= 0) {
-		if (rdev->mddev->persistent) {
-			size = super_types[rdev->mddev->major_version].
+		if (my_mddev->persistent) {
+			size = super_types[my_mddev->major_version].
 				rdev_size_change(rdev, size);
 			if (!size)
 				return -EBUSY;
@@ -2118,12 +2119,12 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			size = (rdev->bdev->bd_inode->i_size >> 10);
 			size -= rdev->data_offset/2;
 		}
-		if (size < rdev->mddev->size)
+		if (size < my_mddev->size)
 			return -EINVAL; /* component must fit device */
 	}
 
 	rdev->size = size;
-	if (size > oldsize && rdev->mddev->external) {
+	if (size > oldsize && my_mddev->external) {
 		/* need to check that all other rdevs with the same ->bdev
 		 * do not overlap.  We need to unlock the mddev to avoid
 		 * a deadlock.  We have already changed rdev->size, and if
@@ -2165,8 +2166,6 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			return -EBUSY;
 		}
 	}
-	if (size < my_mddev->size || my_mddev->size == 0)
-		my_mddev->size = size;
 	return len;
 }
 
