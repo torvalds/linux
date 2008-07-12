@@ -9,6 +9,13 @@ menuconfig SND_MIPS
 
 if SND_MIPS
 
+config SND_SGI_HAL2
+        tristate "SGI HAL2 Audio"
+        depends on SGI_HAS_HAL2
+        help
+                Sound support for the SGI Indy and Indigo2 Workstation.
+
+
 config SND_AU1X00
 	tristate "Au1x00 AC97 Port Driver"
 	depends on SOC_AU1000 || SOC_AU1100 || SOC_AU1500
