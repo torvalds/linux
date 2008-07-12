@@ -670,7 +670,7 @@ static int acquire_console_semaphore_for_printk(unsigned int cpu)
 	return retval;
 }
 
-const char printk_recursion_bug_msg [] =
+static const char printk_recursion_bug_msg [] =
 			KERN_CRIT "BUG: recent printk recursion!\n";
 static int printk_recursion_bug;
 

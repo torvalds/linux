@@ -755,9 +755,8 @@ static ssize_t ipmi_write(struct file *file,
 		rv = ipmi_heartbeat();
 		if (rv)
 			return rv;
-		return 1;
 	}
-	return 0;
+	return len;
 }
 
 static ssize_t ipmi_read(struct file *file,
