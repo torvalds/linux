@@ -69,6 +69,12 @@
 		_id == 0x212;				\
 	})
 
+#define __cpu_is_pxa255(id)                             \
+	({                                              \
+		unsigned int _id = (id) >> 4 & 0xfff;   \
+		_id == 0x2d0;                           \
+	 })
+
 #define __cpu_is_pxa25x(id)				\
 	({						\
 		unsigned int _id = (id) >> 4 & 0xfff;	\
@@ -76,6 +82,7 @@
 	})
 #else
 #define __cpu_is_pxa21x(id)	(0)
+#define __cpu_is_pxa255(id)	(0)
 #define __cpu_is_pxa25x(id)	(0)
 #endif
 
@@ -122,6 +129,11 @@
 #define cpu_is_pxa21x()					\
 	({						\
 		__cpu_is_pxa21x(read_cpuid_id());	\
+	})
+
+#define cpu_is_pxa255()                                 \
+	({                                              \
+		__cpu_is_pxa255(read_cpuid_id());       \
 	})
 
 #define cpu_is_pxa25x()					\

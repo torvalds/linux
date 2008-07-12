@@ -47,6 +47,15 @@ struct clk {
 		.other	= _other,			\
 	}
 
+#define INIT_CLK(_name, _ops, _rate, _delay, _dev)      \
+	{                                               \
+		.name   = _name,                        \
+		.dev    = _dev,                         \
+		.ops    = _ops,                         \
+		.rate   = _rate,                        \
+		.delay	= _delay,			\
+	}
+
 extern const struct clkops clk_cken_ops;
 
 void clk_cken_enable(struct clk *clk);
