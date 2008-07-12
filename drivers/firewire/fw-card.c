@@ -539,7 +539,7 @@ fw_core_remove_card(struct fw_card *card)
 	wait_for_completion(&card->done);
 
 	cancel_delayed_work_sync(&card->work);
-	fw_flush_transactions(card);
+	WARN_ON(!list_empty(&card->transaction_list));
 	del_timer_sync(&card->flush_timer);
 }
 EXPORT_SYMBOL(fw_core_remove_card);
