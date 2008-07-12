@@ -124,10 +124,19 @@ config MACH_E330
 	  Say Y here if you intend to run this kernel on a Toshiba
 	  e330 family PDA.
 
+config MACH_E350
+	bool "Toshiba e350"
+	default y
+	depends on ARCH_PXA_ESERIES
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e350 family PDA.
+
 config MACH_E740
 	bool "Toshiba e740"
 	default y
 	depends on ARCH_PXA_ESERIES
+	select FB_W100
 	help
 	  Say Y here if you intend to run this kernel on a Toshiba
 	  e740 family PDA.
@@ -136,6 +145,7 @@ config MACH_E750
 	bool "Toshiba e750"
 	default y
 	depends on ARCH_PXA_ESERIES
+	select FB_W100
 	help
 	  Say Y here if you intend to run this kernel on a Toshiba
 	  e750 family PDA.
@@ -152,6 +162,7 @@ config MACH_E800
 	bool "Toshiba e800"
 	default y
 	depends on ARCH_PXA_ESERIES
+	select FB_W100
 	help
 	  Say Y here if you intend to run this kernel on a Toshiba
 	  e800 family PDA.
