@@ -151,7 +151,7 @@ transmit_complete_callback(struct fw_packet *packet,
 
 static void
 fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
-		int node_id, int source_id, int generation, int speed,
+		int destination_id, int source_id, int generation, int speed,
 		unsigned long long offset, void *payload, size_t length)
 {
 	int ext_tcode;
@@ -166,7 +166,7 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 		HEADER_RETRY(RETRY_X) |
 		HEADER_TLABEL(tlabel) |
 		HEADER_TCODE(tcode) |
-		HEADER_DESTINATION(node_id);
+		HEADER_DESTINATION(destination_id);
 	packet->header[1] =
 		HEADER_OFFSET_HIGH(offset >> 32) | HEADER_SOURCE(source_id);
 	packet->header[2] =
@@ -252,7 +252,7 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 		fw_transaction_callback_t callback, void *callback_data)
 {
 	unsigned long flags;
-	int tlabel, source;
+	int tlabel;
 
 	/*
 	 * Bump the flush timer up 100ms first of all so we
@@ -268,7 +268,6 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 
 	spin_lock_irqsave(&card->lock, flags);
 
-	source = card->node_id;
 	tlabel = card->current_tlabel;
 	if (card->tlabel_mask & (1 << tlabel)) {
 		spin_unlock_irqrestore(&card->lock, flags);
@@ -284,9 +283,8 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 	t->callback = callback;
 	t->callback_data = callback_data;
 
-	fw_fill_request(&t->packet, tcode, t->tlabel,
-			node_id, source, generation,
-			speed, offset, payload, length);
+	fw_fill_request(&t->packet, tcode, t->tlabel, node_id, card->node_id,
+			generation, speed, offset, payload, length);
 	t->packet.callback = transmit_complete_callback;
 
 	list_add_tail(&t->link, &card->transaction_list);
