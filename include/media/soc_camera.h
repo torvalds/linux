@@ -153,11 +153,12 @@ static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
 #define SOCAM_DATAWIDTH_8		(1 << 6)
 #define SOCAM_DATAWIDTH_9		(1 << 7)
 #define SOCAM_DATAWIDTH_10		(1 << 8)
-#define SOCAM_PCLK_SAMPLE_RISING	(1 << 9)
-#define SOCAM_PCLK_SAMPLE_FALLING	(1 << 10)
+#define SOCAM_DATAWIDTH_16		(1 << 9)
+#define SOCAM_PCLK_SAMPLE_RISING	(1 << 10)
+#define SOCAM_PCLK_SAMPLE_FALLING	(1 << 11)
 
 #define SOCAM_DATAWIDTH_MASK (SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_9 | \
-			      SOCAM_DATAWIDTH_10)
+			      SOCAM_DATAWIDTH_10 | SOCAM_DATAWIDTH_16)
 
 static inline unsigned long soc_camera_bus_param_compatible(
 			unsigned long camera_flags, unsigned long bus_flags)
