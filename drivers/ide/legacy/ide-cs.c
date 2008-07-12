@@ -63,11 +63,11 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 #define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
 
-#ifdef PCMCIA_DEBUG
-INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#ifdef CONFIG_PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, 0);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"ide-cs.c 1.3 2002/10/26 05:45:31 (David Hinds)";
+/*static char *version =
+"ide-cs.c 1.3 2002/10/26 05:45:31 (David Hinds)";*/
 #else
 #define DEBUG(n, args...)
 #endif
