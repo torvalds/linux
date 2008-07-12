@@ -137,7 +137,7 @@ void __cpuinit xen_enable_syscall(void)
 
 	ret = register_callback(CALLBACKTYPE_syscall, xen_syscall_target);
 	if (ret != 0) {
-		printk(KERN_ERR "Failed to set syscall: %d\n", ret);
+		printk(KERN_ERR "Failed to set syscall callback: %d\n", ret);
 		/* Pretty fatal; 64-bit userspace has no other
 		   mechanism for syscalls. */
 	}
@@ -145,13 +145,8 @@ void __cpuinit xen_enable_syscall(void)
 	if (boot_cpu_has(X86_FEATURE_SYSCALL32)) {
 		ret = register_callback(CALLBACKTYPE_syscall32,
 					xen_syscall32_target);
-		if (ret != 0) {
-			printk(KERN_INFO "Xen: 32-bit syscall not supported: disabling vdso\n");
+		if (ret != 0)
 			setup_clear_cpu_cap(X86_FEATURE_SYSCALL32);
-#ifdef CONFIG_COMPAT
-			sysctl_vsyscall32 = 0;
-#endif
-		}
 	}
 #endif /* CONFIG_X86_64 */
 }
