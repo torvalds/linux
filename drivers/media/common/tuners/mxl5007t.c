@@ -830,27 +830,53 @@ fail:
 static int mxl5007t_init(struct dvb_frontend *fe)
 {
 	struct mxl5007t_state *state = fe->tuner_priv;
-	//int ret;
+	int ret;
+	u8 d;
 
 	mutex_lock(&state->lock);
-	/* do init */
-//fail:
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	ret = mxl5007t_read_reg(state, 0x05, &d);
+	if (mxl_fail(ret))
+		goto fail;
+
+	ret = mxl5007t_write_reg(state, 0x05, d | 0x01);
+	mxl_fail(ret);
+fail:
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
 	mutex_unlock(&state->lock);
 
-	return 0;//ret;
+	return ret;
 }
 
 static int mxl5007t_sleep(struct dvb_frontend *fe)
 {
 	struct mxl5007t_state *state = fe->tuner_priv;
-	//int ret;
+	int ret;
+	u8 d;
 
 	mutex_lock(&state->lock);
-	/* do standby */
-//fail:
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	ret = mxl5007t_read_reg(state, 0x05, &d);
+	if (mxl_fail(ret))
+		goto fail;
+
+	ret = mxl5007t_write_reg(state, 0x05, d & ~0x01);
+	mxl_fail(ret);
+fail:
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
 	mutex_unlock(&state->lock);
 
-	return 0;//ret;
+	return ret;
 }
 
 /* ------------------------------------------------------------------------- */
