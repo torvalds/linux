@@ -962,6 +962,7 @@ static int patch_cxt5045(struct hda_codec *codec)
 		codec->patch_ops.init = cxt5045_init;
 		break;
 	case CXT5045_LAPTOP_MICSENSE:
+		codec->patch_ops.unsol_event = cxt5045_hp_unsol_event;
 		spec->input_mux = &cxt5045_capture_source;
 		spec->num_init_verbs = 2;
 		spec->init_verbs[1] = cxt5045_mic_sense_init_verbs;
