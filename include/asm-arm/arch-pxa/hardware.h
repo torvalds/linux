@@ -208,6 +208,11 @@ extern void pxa_gpio_set_value(unsigned gpio, int value);
  */
 extern unsigned int get_memclk_frequency_10khz(void);
 
+/*
+ * register GPIO as reset generator
+ */
+extern int init_gpio_reset(int gpio);
+
 #endif
 
 #if defined(CONFIG_MACH_ARMCORE) && defined(CONFIG_PCI)

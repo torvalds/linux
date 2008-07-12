@@ -310,4 +310,13 @@ config PXA_PWM
 	default BACKLIGHT_PWM
 	help
 	  Enable support for PXA2xx/PXA3xx PWM controllers
+
+config TOSA_BT
+	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"
+	depends on MACH_TOSA
+	select RFKILL
+	help
+	  This is a simple driver that is able to control
+	  the state of built in bluetooth chip on tosa.
+
 endif

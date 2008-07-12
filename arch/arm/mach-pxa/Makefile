@@ -4,7 +4,7 @@
 
 # Common support (must be linked before board specific support)
 obj-y				+= clock.o devices.o generic.o irq.o dma.o \
-				   time.o gpio.o
+				   time.o gpio.o reset.o
 obj-$(CONFIG_PM)		+= pm.o sleep.o standby.o
 obj-$(CONFIG_CPU_FREQ)		+= cpu-pxa.o
 
@@ -61,3 +61,5 @@ obj-$(CONFIG_LEDS)		+= $(led-y)
 ifeq ($(CONFIG_PCI),y)
 obj-$(CONFIG_MACH_ARMCORE) += cm-x270-pci.o
 endif
+
+obj-$(CONFIG_TOSA_BT)		+= tosa-bt.o
