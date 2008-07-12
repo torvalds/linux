@@ -49,11 +49,6 @@ extern int disable_apic;
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
-#ifndef CONFIG_X86_64
-#define apic_write native_apic_mem_write
-#define apic_write_atomic native_apic_mem_write_atomic
-#define apic_read native_apic_mem_read
-#endif
 #define setup_boot_clock setup_boot_APIC_clock
 #define setup_secondary_clock setup_secondary_APIC_clock
 #endif
@@ -95,16 +90,13 @@ static inline u32 native_apic_msr_read(u32 reg)
 	return low;
 }
 
-#ifdef CONFIG_X86_32
-extern void apic_wait_icr_idle(void);
-extern u32 safe_apic_wait_icr_idle(void);
-extern void apic_icr_write(u32 low, u32 id);
-#else
+#ifndef CONFIG_X86_32
 extern int x2apic, x2apic_preenabled;
 extern void check_x2apic(void);
 extern void enable_x2apic(void);
 extern void enable_IR_x2apic(void);
 extern void x2apic_icr_write(u32 low, u32 id);
+#endif
 
 struct apic_ops {
 	u32 (*read)(u32 reg);
@@ -125,7 +117,6 @@ extern struct apic_ops *apic_ops;
 #define apic_icr_write (apic_ops->icr_write)
 #define apic_wait_icr_idle (apic_ops->wait_icr_idle)
 #define safe_apic_wait_icr_idle (apic_ops->safe_wait_icr_idle)
-#endif
 
 extern int get_physical_broadcast(void);
 
