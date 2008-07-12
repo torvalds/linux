@@ -84,8 +84,6 @@ int acpi_lapic;
 int acpi_ioapic;
 int acpi_strict;
 
-static int disable_irq0_through_ioapic __initdata;
-
 u8 acpi_sci_flags __initdata;
 int acpi_sci_override_gsi __initdata;
 int acpi_skip_timer_override __initdata;
@@ -982,10 +980,6 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	int pin;
 	struct mp_config_intsrc mp_irq;
 
-	/* Skip the 8254 timer interrupt (IRQ 0) if requested.  */
-	if (bus_irq == 0 && disable_irq0_through_ioapic)
-		return;
-
 	/*
 	 * Convert 'gsi' to 'ioapic.pin'.
 	 */
@@ -1051,10 +1045,6 @@ void __init mp_config_acpi_legacy_irqs(void)
 	 */
 	for (i = 0; i < 16; i++) {
 		int idx;
-
-		/* Skip the 8254 timer interrupt (IRQ 0) if requested.  */
-		if (i == 0 && disable_irq0_through_ioapic)
-			continue;
 
 		for (idx = 0; idx < mp_irq_entries; idx++) {
 			struct mp_config_intsrc *irq = mp_irqs + idx;
@@ -1413,17 +1403,6 @@ static int __init force_acpi_ht(const struct dmi_system_id *d)
 }
 
 /*
- * Don't register any I/O APIC entries for the 8254 timer IRQ.
- */
-static int __init
-dmi_disable_irq0_through_ioapic(const struct dmi_system_id *d)
-{
-	pr_notice("%s detected: disabling IRQ 0 through I/O APIC\n", d->ident);
-	disable_irq0_through_ioapic = 1;
-	return 0;
-}
-
-/*
  * Force ignoring BIOS IRQ0 pin2 override
  */
 static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
@@ -1599,32 +1578,6 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 360"),
-		     },
-	 },
-	/*
-	 * HP laptops which use a DSDT reporting as HP/SB400/10000,
-	 * which includes some code which overrides all temperature
-	 * trip points to 16C if the INTIN2 input of the I/O APIC
-	 * is enabled.  This input is incorrectly designated the
-	 * ISA IRQ 0 via an interrupt source override even though
-	 * it is wired to the output of the master 8259A and INTIN0
-	 * is not connected at all.  Abandon any attempts to route
-	 * IRQ 0 through the I/O APIC therefore.
-	 */
-	{
-	 .callback = dmi_disable_irq0_through_ioapic,
-	 .ident = "HP NX6125 laptop",
-	 .matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6125"),
-		     },
-	 },
-	{
-	 .callback = dmi_disable_irq0_through_ioapic,
-	 .ident = "HP NX6325 laptop",
-	 .matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6325"),
 		     },
 	 },
 	/*
