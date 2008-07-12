@@ -763,6 +763,20 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	end_pfn = end>>PAGE_SHIFT;
 	nr_range = save_mr(mr, nr_range, start_pfn, end_pfn, 0);
 
+	/* try to merge same page size and continuous */
+	for (i = 0; nr_range > 1 && i < nr_range - 1; i++) {
+		unsigned long old_start;
+		if (mr[i].end != mr[i+1].start ||
+		    mr[i].page_size_mask != mr[i+1].page_size_mask)
+			continue;
+		/* move it */
+		old_start = mr[i].start;
+		memmove(&mr[i], &mr[i+1],
+			 (nr_range - 1 - i) * sizeof (struct map_range));
+		mr[i].start = old_start;
+		nr_range--;
+	}
+
 	for (i = 0; i < nr_range; i++)
 		printk(KERN_DEBUG " %010lx - %010lx page %s\n",
 				mr[i].start, mr[i].end,
