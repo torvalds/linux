@@ -131,4 +131,5 @@ do {									\
 
 #define PDA_STACKOFFSET (5*8)
 
+#define refresh_stack_canary() write_pda(stack_canary, current->stack_canary)
 #endif

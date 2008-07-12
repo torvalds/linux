@@ -328,37 +328,21 @@ EXPORT_SYMBOL(warn_on_slowpath);
 #ifndef GCC_HAS_SP
 #warning You have selected the CONFIG_CC_STACKPROTECTOR option, but the gcc used does not support this.
 #endif
+
 static unsigned long __stack_check_testing;
+
 /*
  * Self test function for the stack-protector feature.
  * This test requires that the local variable absolutely has
- * a stack slot, hence the barrier()s.
+ * a stack slot.
  */
 static noinline void __stack_chk_test_func(void)
 {
-	unsigned long foo;
-	barrier();
-	/*
-	 * we need to make sure we're not about to clobber the return address,
-	 * while real exploits do this, it's unhealthy on a running system.
-	 * Besides, if we would, the test is already failed anyway so
-	 * time to pull the emergency brake on it.
-	 */
-	if ((unsigned long)__builtin_return_address(0) ==
-					*(((unsigned long *)&foo)+1)) {
-		printk(KERN_ERR "No -fstack-protector-stack-frame!\n");
-	}
-#ifdef CONFIG_FRAME_POINTER
-	/* We also don't want to clobber the frame pointer */
-	if ((unsigned long)__builtin_return_address(0) ==
-					*(((unsigned long *)&foo)+2)) {
-		printk(KERN_ERR "No -fstack-protector-stack-frame!\n");
-	}
-#endif
-	if (current->stack_canary != *(((unsigned long *)&foo)+1))
-		printk(KERN_ERR "No -fstack-protector canary found\n");
+	unsigned long dummy_buffer[64]; /* force gcc to use the canary */
 
 	current->stack_canary = ~current->stack_canary;
+	refresh_stack_canary();
+	dummy_buffer[3] = 1; /* fool gcc into keeping the variable */
 }
 
 static int __stack_chk_test(void)
@@ -371,6 +355,7 @@ static int __stack_chk_test(void)
 		WARN_ON(1);
 	};
 	current->stack_canary = ~current->stack_canary;
+	refresh_stack_canary();
 	return 0;
 }
 /*
