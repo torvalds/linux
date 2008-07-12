@@ -2489,13 +2489,11 @@ W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
-LINUX FOR POWERPC EMBEDDED MPC52XX
+LINUX FOR POWERPC EMBEDDED MPC5XXX
 P:	Sylvain Munaut
 M:	tnt@246tNt.com
 P:	Grant Likely
 M:	grant.likely@secretlab.ca
-W:	http://www.246tNt.com/mpc52xx/
-W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
