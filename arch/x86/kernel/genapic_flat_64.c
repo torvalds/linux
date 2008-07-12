@@ -101,7 +101,7 @@ static unsigned int read_xapic_id(void)
 {
 	unsigned int id;
 
-	id = GET_XAPIC_ID(apic_read(APIC_ID));
+	id = GET_APIC_ID(apic_read(APIC_ID));
 	return id;
 }
 

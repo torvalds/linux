@@ -56,7 +56,7 @@ static inline void init_apic_ldr(void)
 
 static inline int apic_id_registered(void)
 {
-	return physid_isset(GET_APIC_ID(read_apic_id()), phys_cpu_present_map);
+	return physid_isset(read_apic_id(), phys_cpu_present_map);
 }
 
 static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
