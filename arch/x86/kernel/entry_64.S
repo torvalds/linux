@@ -1189,6 +1189,7 @@ END(device_not_available)
 	/* runs on exception stack */
 KPROBE_ENTRY(debug)
  	INTR_FRAME
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq $0
 	CFI_ADJUST_CFA_OFFSET 8		
 	paranoidentry do_debug, DEBUG_STACK
@@ -1198,6 +1199,7 @@ KPROBE_END(debug)
 	/* runs on exception stack */	
 KPROBE_ENTRY(nmi)
 	INTR_FRAME
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq $-1
 	CFI_ADJUST_CFA_OFFSET 8
 	paranoidentry do_nmi, 0, 0
@@ -1211,6 +1213,7 @@ KPROBE_END(nmi)
 
 KPROBE_ENTRY(int3)
  	INTR_FRAME
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
  	pushq $0
  	CFI_ADJUST_CFA_OFFSET 8
  	paranoidentry do_int3, DEBUG_STACK
@@ -1237,6 +1240,7 @@ END(coprocessor_segment_overrun)
 	/* runs on exception stack */
 ENTRY(double_fault)
 	XCPT_FRAME
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	paranoidentry do_double_fault
 	jmp paranoid_exit1
 	CFI_ENDPROC
@@ -1253,6 +1257,7 @@ END(segment_not_present)
 	/* runs on exception stack */
 ENTRY(stack_segment)
 	XCPT_FRAME
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	paranoidentry do_stack_segment
 	jmp paranoid_exit1
 	CFI_ENDPROC
@@ -1278,6 +1283,7 @@ END(spurious_interrupt_bug)
 	/* runs on exception stack */
 ENTRY(machine_check)
 	INTR_FRAME
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq $0
 	CFI_ADJUST_CFA_OFFSET 8	
 	paranoidentry do_machine_check
