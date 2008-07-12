@@ -42,8 +42,8 @@ MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 6)
-static const char version[] = "2.1.6";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 static int video_nr = -1;
 
@@ -558,11 +558,6 @@ static void gspca_stream_off(struct gspca_dev *gspca_dev)
 		gspca_set_alt0(gspca_dev);
 		gspca_dev->sd_desc->stop0(gspca_dev);
 		PDEBUG(D_STREAM, "stream off OK");
-	} else {
-		destroy_urbs(gspca_dev);
-		atomic_inc(&gspca_dev->nevent);
-		wake_up_interruptible(&gspca_dev->wq);
-		PDEBUG(D_ERR|D_STREAM, "stream off no device ??");
 	}
 }
 
@@ -680,9 +675,6 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	w = fmt->fmt.pix.width;
 	h = fmt->fmt.pix.height;
 
-	/* (luvcview problem) */
-	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
-		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_JPEG;
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	if (gspca_debug & D_CONF)
 		PDEBUG_MODE("try fmt cap", fmt->fmt.pix.pixelformat, w, h);
@@ -816,7 +808,7 @@ static int dev_close(struct inode *inode, struct file *file)
 		return -ERESTARTSYS;
 	gspca_dev->users--;
 
-	/* if the file did capture, free the streaming resources */
+	/* if the file did the capture, free the streaming resources */
 	if (gspca_dev->capt_file == file) {
 		mutex_lock(&gspca_dev->usb_lock);
 		if (gspca_dev->streaming)
@@ -981,7 +973,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	if (rb->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	switch (rb->memory) {
-	case GSPCA_MEMORY_READ:
+	case GSPCA_MEMORY_READ:			/* (internal call) */
 	case V4L2_MEMORY_MMAP:
 	case V4L2_MEMORY_USERPTR:
 		break;
@@ -991,33 +983,46 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
 
-	/* only one file may do capture */
-	if ((gspca_dev->capt_file != NULL && gspca_dev->capt_file != file)
-	    || gspca_dev->streaming) {
+	if (gspca_dev->memory != GSPCA_MEMORY_NO
+	    && gspca_dev->memory != rb->memory) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	if (rb->count == 0) {			/* unrequest */
-		for (i = 0; i < gspca_dev->nframes; i++) {
-			if (gspca_dev->frame[i].vma_use_count) {
-				ret = -EBUSY;
-				goto out;
-			}
-		}
-		frame_free(gspca_dev);
-		gspca_dev->capt_file = NULL;
-	} else {
-		if (gspca_dev->nframes != 0) {
+	/* only one file may do the capture */
+	if (gspca_dev->capt_file != NULL
+	    && gspca_dev->capt_file != file) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	/* if allocated, the buffers must not be mapped */
+	for (i = 0; i < gspca_dev->nframes; i++) {
+		if (gspca_dev->frame[i].vma_use_count) {
 			ret = -EBUSY;
 			goto out;
 		}
-		gspca_dev->memory = rb->memory;
-		ret = frame_alloc(gspca_dev, rb->count);
-		if (ret == 0) {
-			rb->count = gspca_dev->nframes;
-			gspca_dev->capt_file = file;
-		}
+	}
+
+	/* stop streaming */
+	if (gspca_dev->streaming) {
+		mutex_lock(&gspca_dev->usb_lock);
+		gspca_stream_off(gspca_dev);
+		mutex_unlock(&gspca_dev->usb_lock);
+	}
+
+	/* free the previous allocated buffers, if any */
+	if (gspca_dev->nframes != 0) {
+		frame_free(gspca_dev);
+		gspca_dev->capt_file = NULL;
+	}
+	if (rb->count == 0)			/* unrequest */
+		goto out;
+	gspca_dev->memory = rb->memory;
+	ret = frame_alloc(gspca_dev, rb->count);
+	if (ret == 0) {
+		rb->count = gspca_dev->nframes;
+		gspca_dev->capt_file = file;
 	}
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
@@ -1059,10 +1064,6 @@ static int vidioc_streamon(struct file *file, void *priv,
 		ret = -EINVAL;
 		goto out;
 	}
-	if (gspca_dev->capt_file != file) {
-		ret = -EINVAL;
-		goto out;
-	}
 	if (!gspca_dev->streaming) {
 		ret = gspca_init_transfer(gspca_dev);
 		if (ret < 0)
@@ -1086,7 +1087,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 				enum v4l2_buf_type buf_type)
 {
 	struct gspca_dev *gspca_dev = priv;
-	int ret;
+	int i, ret;
 
 	if (buf_type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1094,18 +1095,23 @@ static int vidioc_streamoff(struct file *file, void *priv,
 		return 0;
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
+
+	/* stop streaming */
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock)) {
 		ret = -ERESTARTSYS;
 		goto out;
 	}
-	if (gspca_dev->capt_file != file) {
-		ret = -EINVAL;
-		goto out2;
-	}
 	gspca_stream_off(gspca_dev);
-	ret = 0;
-out2:
 	mutex_unlock(&gspca_dev->usb_lock);
+
+	/* empty the application queues */
+	for (i = 0; i < gspca_dev->nframes; i++)
+		gspca_dev->frame[i].v4l2_buf.flags &= ~BUF_ALL_FLAGS;
+	gspca_dev->fr_i = gspca_dev->fr_o = gspca_dev->fr_q = 0;
+	gspca_dev->last_packet_type = DISCARD_PACKET;
+	gspca_dev->sequence = 0;
+	atomic_set(&gspca_dev->nevent, 0);
+	ret = 0;
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
 	return ret;
@@ -1364,14 +1370,17 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 		return -EINVAL;
 	if (v4l2_buf->memory != gspca_dev->memory)
 		return -EINVAL;
-	if (!gspca_dev->streaming)
-		return -EINVAL;
-	if (gspca_dev->capt_file != file) {
-		ret = -EINVAL;
-		goto out;
-	}
 
-	/* only one read */
+	/* if not streaming, be sure the application will not loop forever */
+	if (!(file->f_flags & O_NONBLOCK)
+	    && !gspca_dev->streaming && gspca_dev->users == 1)
+		return -EINVAL;
+
+	/* only the capturing file may dequeue */
+	if (gspca_dev->capt_file != file)
+		return -EINVAL;
+
+	/* only one dequeue / read at a time */
 	if (mutex_lock_interruptible(&gspca_dev->read_lock))
 		return -ERESTARTSYS;
 
@@ -1416,24 +1425,23 @@ static int vidioc_qbuf(struct file *file, void *priv,
 	if (v4l2_buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
+	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
+		return -ERESTARTSYS;
+
 	index = v4l2_buf->index;
 	if ((unsigned) index >= gspca_dev->nframes) {
 		PDEBUG(D_FRAM,
 			"qbuf idx %d >= %d", index, gspca_dev->nframes);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
-	frame = &gspca_dev->frame[index];
-
-	if (v4l2_buf->memory != frame->v4l2_buf.memory) {
+	if (v4l2_buf->memory != gspca_dev->memory) {
 		PDEBUG(D_FRAM, "qbuf bad memory type");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
-	if (gspca_dev->capt_file != file)
-		return -EINVAL;
 
-	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
-		return -ERESTARTSYS;
-
+	frame = &gspca_dev->frame[index];
 	if (frame->v4l2_buf.flags & BUF_ALL_FLAGS) {
 		PDEBUG(D_FRAM, "qbuf bad state");
 		ret = -EINVAL;
@@ -1492,9 +1500,6 @@ static int read_alloc(struct gspca_dev *gspca_dev,
 		v4l2_buf.memory = GSPCA_MEMORY_READ;
 		for (i = 0; i < gspca_dev->nbufread; i++) {
 			v4l2_buf.index = i;
-/*fixme: ugly!*/
-			gspca_dev->frame[i].v4l2_buf.flags |=
-							V4L2_BUF_FLAG_MAPPED;
 			ret = vidioc_qbuf(file, gspca_dev, &v4l2_buf);
 			if (ret != 0) {
 				PDEBUG(D_STREAM, "read qbuf err: %d", ret);
@@ -1522,17 +1527,13 @@ static unsigned int dev_poll(struct file *file, poll_table *wait)
 	if (!gspca_dev->present)
 		return POLLERR;
 
-	/* if not streaming, the user would use read() */
-	if (!gspca_dev->streaming) {
-		if (gspca_dev->memory != GSPCA_MEMORY_NO) {
-			ret = POLLERR;		/* not the 1st time */
-			goto out;
-		}
+	/* if reqbufs is not done, the user would use read() */
+	if (gspca_dev->nframes == 0) {
+		if (gspca_dev->memory != GSPCA_MEMORY_NO)
+			return POLLERR;		/* not the 1st time */
 		ret = read_alloc(gspca_dev, file);
-		if (ret != 0) {
-			ret = POLLERR;
-			goto out;
-		}
+		if (ret != 0)
+			return POLLERR;
 	}
 
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock) != 0)
@@ -1542,6 +1543,7 @@ static unsigned int dev_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 
+	/* check the next incoming buffer */
 	i = gspca_dev->fr_o;
 	i = gspca_dev->fr_queue[i];
 	if (gspca_dev->frame[i].v4l2_buf.flags & V4L2_BUF_FLAG_DONE)
