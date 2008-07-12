@@ -3519,6 +3519,39 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = TV,
 			.gpio = 0x0200000,
 		},
+       },
+       [SAA7134_BOARD_ASUSTeK_P7131_ANALOG] = {
+	       .name           = "ASUSTeK P7131 Analog",
+	       .audio_clock    = 0x00187de7,
+	       .tuner_type     = TUNER_PHILIPS_TDA8290,
+	       .radio_type     = UNSET,
+	       .tuner_addr     = ADDR_UNSET,
+	       .radio_addr     = ADDR_UNSET,
+	       .gpiomask       = 1 << 21,
+	       .inputs         = {{
+		       .name = name_tv,
+		       .vmux = 1,
+		       .amux = TV,
+		       .tv   = 1,
+		       .gpio = 0x0000000,
+	       }, {
+		       .name = name_comp1,
+		       .vmux = 3,
+		       .amux = LINE2,
+	       }, {
+		       .name = name_comp2,
+		       .vmux = 0,
+		       .amux = LINE2,
+	       }, {
+		       .name = name_svideo,
+		       .vmux = 8,
+		       .amux = LINE2,
+	       } },
+	       .radio = {
+		       .name = name_radio,
+		       .amux = TV,
+		       .gpio = 0x0200000,
+	       },
 	},
 	[SAA7134_BOARD_SABRENT_TV_PCB05] = {
 		.name           = "Sabrent PCMCIA TV-PCB05",
@@ -5605,6 +5638,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_FLYDVBT_LR301:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
+       case SAA7134_BOARD_ASUSTeK_P7131_ANALOG:
 	case SAA7134_BOARD_FLYDVBTDUO:
 	case SAA7134_BOARD_PROTEUS_2309:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
@@ -5941,6 +5975,15 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
 		break;
 	}
+       case SAA7134_BOARD_ASUSTeK_TVFM7135:
+       /* The card below is detected as card=53, but is different */
+	       if (dev->autodetected && (dev->eedata[0x27] == 0x03)) {
+		       dev->board = SAA7134_BOARD_ASUSTeK_P7131_ANALOG;
+		       printk(KERN_INFO "%s: P7131 analog only, using "
+						       "entry of %s\n",
+		       dev->name, saa7134_boards[dev->board].name);
+	       }
+	       break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		hauppauge_eeprom(dev, dev->eedata+0x80);
 		/* break intentionally omitted */
