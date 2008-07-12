@@ -279,11 +279,6 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 	card->current_tlabel = (card->current_tlabel + 1) & 0x1f;
 	card->tlabel_mask |= (1 << tlabel);
 
-	list_add_tail(&t->link, &card->transaction_list);
-
-	spin_unlock_irqrestore(&card->lock, flags);
-
-	/* Initialize rest of transaction, fill out packet and send it. */
 	t->node_id = node_id;
 	t->tlabel = tlabel;
 	t->callback = callback;
@@ -293,6 +288,10 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 			node_id, source, generation,
 			speed, offset, payload, length);
 	t->packet.callback = transmit_complete_callback;
+
+	list_add_tail(&t->link, &card->transaction_list);
+
+	spin_unlock_irqrestore(&card->lock, flags);
 
 	card->driver->send_request(card, &t->packet);
 }
