@@ -110,9 +110,9 @@ static unsigned long mainstone_pin_config[] = {
 	GPIO45_AC97_SYSCLK,
 
 	/* Keypad */
-	GPIO93_KP_DKIN_0	| WAKEUP_ON_LEVEL_HIGH,
-	GPIO94_KP_DKIN_1	| WAKEUP_ON_LEVEL_HIGH,
-	GPIO95_KP_DKIN_2	| WAKEUP_ON_LEVEL_HIGH,
+	GPIO93_KP_DKIN_0,
+	GPIO94_KP_DKIN_1,
+	GPIO95_KP_DKIN_2,
 	GPIO100_KP_MKIN_0	| WAKEUP_ON_LEVEL_HIGH,
 	GPIO101_KP_MKIN_1	| WAKEUP_ON_LEVEL_HIGH,
 	GPIO102_KP_MKIN_2	| WAKEUP_ON_LEVEL_HIGH,
@@ -514,7 +514,7 @@ static struct pxaohci_platform_data mainstone_ohci_platform_data = {
 	.init		= mainstone_ohci_init,
 };
 
-#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULES)
+#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
 static unsigned int mainstone_matrix_keys[] = {
 	KEY(0, 0, KEY_A), KEY(1, 0, KEY_B), KEY(2, 0, KEY_C),
 	KEY(3, 0, KEY_D), KEY(4, 0, KEY_E), KEY(5, 0, KEY_F),
