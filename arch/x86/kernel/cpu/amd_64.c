@@ -200,6 +200,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		 * benefit in doing so.
 		 */
 		if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg)) {
+		    printk(KERN_DEBUG "tseg: %010llx\n", tseg);
 		    if ((tseg>>PMD_SHIFT) <
 				(max_low_pfn_mapped>>(PMD_SHIFT-PAGE_SHIFT)) ||
 			((tseg>>PMD_SHIFT) <

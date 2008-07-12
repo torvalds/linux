@@ -658,11 +658,11 @@ static int cpa_process_alias(struct cpa_data *cpa)
 	struct cpa_data alias_cpa;
 	int ret = 0;
 
-	if (cpa->pfn > max_pfn_mapped)
+	if (cpa->pfn >= max_pfn_mapped)
 		return 0;
 
 #ifdef CONFIG_X86_64
-	if (cpa->pfn > max_low_pfn_mapped && cpa->pfn < (1UL<<(32-PAGE_SHIFT)))
+	if (cpa->pfn >= max_low_pfn_mapped && cpa->pfn < (1UL<<(32-PAGE_SHIFT)))
 		return 0;
 #endif
 	/*
