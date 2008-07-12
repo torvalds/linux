@@ -2,7 +2,7 @@
 #define _ASM_ARCH_PXA25X_UDC_H
 
 #ifdef _ASM_ARCH_PXA27X_UDC_H
-#error You can't include both PXA25x and PXA27x UDC support
+#error "You can't include both PXA25x and PXA27x UDC support"
 #endif
 
 #define UDC_RES1	__REG(0x40600004)  /* UDC Undocumented - Reserved1 */
