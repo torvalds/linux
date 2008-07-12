@@ -686,7 +686,7 @@ static struct snd_kcontrol_new cxt5045_mixers_hp530[] = {
 
 static struct hda_verb cxt5045_init_verbs[] = {
 	/* Line in, Mic */
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN|AC_PINCTL_VREF_80 },
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN|AC_PINCTL_VREF_80 },
 	/* HP, Amp  */
 	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
