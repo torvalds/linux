@@ -2224,9 +2224,6 @@ static void kvm_guest_debug_pre(struct kvm_vcpu *vcpu)
 static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 				  int vec, u32 err_code)
 {
-	if (!vcpu->arch.rmode.active)
-		return 0;
-
 	/*
 	 * Instruction with address size override prefix opcode 0x67
 	 * Cause the #SS fault with 0 error code in VM86 mode.
