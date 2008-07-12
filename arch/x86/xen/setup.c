@@ -83,12 +83,16 @@ static void xen_idle(void)
 
 /*
  * Set the bit indicating "nosegneg" library variants should be used.
+ * We only need to bother in pure 32-bit mode; compat 32-bit processes
+ * can have un-truncated segments, so wrapping around is allowed.
  */
 static void __init fiddle_vdso(void)
 {
-#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
-	extern const char vdso32_default_start;
-	u32 *mask = VDSO32_SYMBOL(&vdso32_default_start, NOTE_MASK);
+#ifdef CONFIG_X86_32
+	u32 *mask;
+	mask = VDSO32_SYMBOL(&vdso32_int80_start, NOTE_MASK);
+	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
+	mask = VDSO32_SYMBOL(&vdso32_sysenter_start, NOTE_MASK);
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
 #endif
 }

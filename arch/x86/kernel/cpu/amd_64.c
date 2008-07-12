@@ -115,6 +115,8 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 	/* c->x86_power is 8000_0007 edx. Bit 8 is constant TSC */
 	if (c->x86_power & (1<<8))
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
+
+	set_cpu_cap(c, X86_FEATURE_SYSCALL32);
 }
 
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
