@@ -94,6 +94,22 @@ static unsigned int x2apic_cpu_mask_to_apicid(cpumask_t cpumask)
 		return BAD_APICID;
 }
 
+static unsigned int get_apic_id(unsigned long x)
+{
+	unsigned int id;
+
+	id = x;
+	return id;
+}
+
+static unsigned long set_apic_id(unsigned int id)
+{
+	unsigned long x;
+
+	x = id;
+	return x;
+}
+
 static unsigned int x2apic_read_id(void)
 {
 	return apic_read(APIC_ID);
@@ -131,5 +147,7 @@ struct genapic apic_x2apic_cluster = {
 	.send_IPI_self = x2apic_send_IPI_self,
 	.cpu_mask_to_apicid = x2apic_cpu_mask_to_apicid,
 	.phys_pkg_id = phys_pkg_id,
-	.read_apic_id = x2apic_read_id,
+	.get_apic_id = get_apic_id,
+	.set_apic_id = set_apic_id,
+	.apic_id_mask = (0xFFFFFFFFu),
 };

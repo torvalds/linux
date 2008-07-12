@@ -139,14 +139,29 @@ static unsigned int uv_cpu_mask_to_apicid(cpumask_t cpumask)
 		return BAD_APICID;
 }
 
-static unsigned int uv_read_apic_id(void)
+static unsigned int get_apic_id(unsigned long x)
 {
 	unsigned int id;
 
 	WARN_ON(preemptible() && num_online_cpus() > 1);
-	id = apic_read(APIC_ID) | __get_cpu_var(x2apic_extra_bits);
+	id = x | __get_cpu_var(x2apic_extra_bits);
 
 	return id;
+}
+
+static long set_apic_id(unsigned int id)
+{
+	unsigned long x;
+
+	/* maskout x2apic_extra_bits ? */
+	x = id;
+	return x;
+}
+
+static unsigned int uv_read_apic_id(void)
+{
+
+	return get_apic_id(apic_read(APIC_ID));
 }
 
 static unsigned int phys_pkg_id(int index_msb)
@@ -175,7 +190,9 @@ struct genapic apic_x2apic_uv_x = {
 	/* ZZZ.send_IPI_self = uv_send_IPI_self, */
 	.cpu_mask_to_apicid = uv_cpu_mask_to_apicid,
 	.phys_pkg_id = phys_pkg_id,	/* Fixme ZZZ */
-	.read_apic_id = uv_read_apic_id,
+	.get_apic_id = get_apic_id,
+	.set_apic_id = set_apic_id,
+	.apic_id_mask = (0xFFFFFFFFu),
 };
 
 static __cpuinit void set_x2apic_extra_bits(int pnode)
