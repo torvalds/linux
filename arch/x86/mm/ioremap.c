@@ -142,7 +142,7 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	/*
 	 * Don't remap the low PCI/ISA area, it's always mapped..
 	 */
-	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
+	if (is_ISA_range(phys_addr, last_addr))
 		return (__force void __iomem *)phys_to_virt(phys_addr);
 
 	/*
@@ -261,7 +261,7 @@ void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
 {
 	/*
 	 * Ideally, this should be:
-	 *	pat_wc_enabled ? _PAGE_CACHE_UC : _PAGE_CACHE_UC_MINUS;
+	 *	pat_enabled ? _PAGE_CACHE_UC : _PAGE_CACHE_UC_MINUS;
 	 *
 	 * Till we fix all X drivers to use ioremap_wc(), we will use
 	 * UC MINUS.
@@ -285,7 +285,7 @@ EXPORT_SYMBOL(ioremap_nocache);
  */
 void __iomem *ioremap_wc(unsigned long phys_addr, unsigned long size)
 {
-	if (pat_wc_enabled)
+	if (pat_enabled)
 		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_WC,
 					__builtin_return_address(0));
 	else
@@ -341,8 +341,8 @@ void iounmap(volatile void __iomem *addr)
 	 * vm_area and by simply returning an address into the kernel mapping
 	 * of ISA space.   So handle that here.
 	 */
-	if (addr >= phys_to_virt(ISA_START_ADDRESS) &&
-	    addr < phys_to_virt(ISA_END_ADDRESS))
+	if ((void __force *)addr >= phys_to_virt(ISA_START_ADDRESS) &&
+	    (void __force *)addr < phys_to_virt(ISA_END_ADDRESS))
 		return;
 
 	addr = (volatile void __iomem *)
@@ -355,7 +355,7 @@ void iounmap(volatile void __iomem *addr)
 	   cpa takes care of the direct mappings. */
 	read_lock(&vmlist_lock);
 	for (p = vmlist; p; p = p->next) {
-		if (p->addr == addr)
+		if (p->addr == (void __force *)addr)
 			break;
 	}
 	read_unlock(&vmlist_lock);
@@ -369,7 +369,7 @@ void iounmap(volatile void __iomem *addr)
 	free_memtype(p->phys_addr, p->phys_addr + get_vm_area_size(p));
 
 	/* Finally remove it */
-	o = remove_vm_area((void *)addr);
+	o = remove_vm_area((void __force *)addr);
 	BUG_ON(p != o || o == NULL);
 	kfree(p);
 }
@@ -388,7 +388,7 @@ void *xlate_dev_mem_ptr(unsigned long phys)
 	if (page_is_ram(start >> PAGE_SHIFT))
 		return __va(phys);
 
-	addr = (void *)ioremap_default(start, PAGE_SIZE);
+	addr = (void __force *)ioremap_default(start, PAGE_SIZE);
 	if (addr)
 		addr = (void *)((unsigned long)addr | (phys & ~PAGE_MASK));
 
@@ -404,8 +404,6 @@ void unxlate_dev_mem_ptr(unsigned long phys, void *addr)
 	return;
 }
 
-#ifdef CONFIG_X86_32
-
 int __initdata early_ioremap_debug;
 
 static int __init early_ioremap_debug_setup(char *str)
@@ -417,8 +415,7 @@ static int __init early_ioremap_debug_setup(char *str)
 early_param("early_ioremap_debug", early_ioremap_debug_setup);
 
 static __initdata int after_paging_init;
-static pte_t bm_pte[PAGE_SIZE/sizeof(pte_t)]
-		__section(.bss.page_aligned);
+static pte_t bm_pte[PAGE_SIZE/sizeof(pte_t)] __page_aligned_bss;
 
 static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
 {
@@ -507,10 +504,11 @@ static void __init __early_set_fixmap(enum fixed_addresses idx,
 		return;
 	}
 	pte = early_ioremap_pte(addr);
+
 	if (pgprot_val(flags))
 		set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, flags));
 	else
-		pte_clear(NULL, addr, pte);
+		pte_clear(&init_mm, addr, pte);
 	__flush_tlb_one(addr);
 }
 
@@ -648,5 +646,3 @@ void __this_fixmap_does_not_exist(void)
 {
 	WARN_ON(1);
 }
-
-#endif /* CONFIG_X86_32 */

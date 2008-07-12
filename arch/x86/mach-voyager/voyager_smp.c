@@ -59,11 +59,6 @@ __u32 voyager_quad_processors = 0;
  * activity count.  Finally exported by i386_ksyms.c */
 static int voyager_extended_cpus = 1;
 
-/* Have we found an SMP box - used by time.c to do the profiling
-   interrupt for timeslicing; do not set to 1 until the per CPU timer
-   interrupt is active */
-int smp_found_config = 0;
-
 /* Used for the invalidate map that's also checked in the spinlock */
 static volatile unsigned long smp_invalidate_needed;
 
@@ -1135,15 +1130,6 @@ static void do_flush_tlb_all(void *info)
 void flush_tlb_all(void)
 {
 	on_each_cpu(do_flush_tlb_all, 0, 1, 1);
-}
-
-/* used to set up the trampoline for other CPUs when the memory manager
- * is sorted out */
-void __init smp_alloc_memory(void)
-{
-	trampoline_base = alloc_bootmem_low_pages(PAGE_SIZE);
-	if (__pa(trampoline_base) >= 0x93000)
-		BUG();
 }
 
 /* send a reschedule CPI to one CPU by physical CPU number*/

@@ -59,8 +59,7 @@
 #endif	
 
 #ifdef CONFIG_PARAVIRT
-ENTRY(native_irq_enable_syscall_ret)
-	movq	%gs:pda_oldrsp,%rsp
+ENTRY(native_usergs_sysret64)
 	swapgs
 	sysretq
 #endif /* CONFIG_PARAVIRT */
@@ -104,7 +103,7 @@ ENTRY(native_irq_enable_syscall_ret)
 	.macro FAKE_STACK_FRAME child_rip
 	/* push in order ss, rsp, eflags, cs, rip */
 	xorl %eax, %eax
-	pushq %rax /* ss */
+	pushq $__KERNEL_DS /* ss */
 	CFI_ADJUST_CFA_OFFSET	8
 	/*CFI_REL_OFFSET	ss,0*/
 	pushq %rax /* rsp */
@@ -169,13 +168,13 @@ ENTRY(ret_from_fork)
 	CFI_ADJUST_CFA_OFFSET -4
 	call schedule_tail
 	GET_THREAD_INFO(%rcx)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),threadinfo_flags(%rcx)
+	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),TI_flags(%rcx)
 	jnz rff_trace
 rff_action:	
 	RESTORE_REST
 	testl $3,CS-ARGOFFSET(%rsp)	# from kernel_thread?
 	je   int_ret_from_sys_call
-	testl $_TIF_IA32,threadinfo_flags(%rcx)
+	testl $_TIF_IA32,TI_flags(%rcx)
 	jnz  int_ret_from_sys_call
 	RESTORE_TOP_OF_STACK %rdi,ARGOFFSET
 	jmp ret_from_sys_call
@@ -244,7 +243,8 @@ ENTRY(system_call_after_swapgs)
 	movq  %rcx,RIP-ARGOFFSET(%rsp)
 	CFI_REL_OFFSET rip,RIP-ARGOFFSET
 	GET_THREAD_INFO(%rcx)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%rcx)
+	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP), \
+		TI_flags(%rcx)
 	jnz tracesys
 	cmpq $__NR_syscall_max,%rax
 	ja badsys
@@ -263,7 +263,7 @@ sysret_check:
 	GET_THREAD_INFO(%rcx)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	movl threadinfo_flags(%rcx),%edx
+	movl TI_flags(%rcx),%edx
 	andl %edi,%edx
 	jnz  sysret_careful 
 	CFI_REMEMBER_STATE
@@ -275,7 +275,8 @@ sysret_check:
 	CFI_REGISTER	rip,rcx
 	RESTORE_ARGS 0,-ARG_SKIP,1
 	/*CFI_REGISTER	rflags,r11*/
-	ENABLE_INTERRUPTS_SYSCALL_RET
+	movq	%gs:pda_oldrsp, %rsp
+	USERGS_SYSRET64
 
 	CFI_RESTORE_STATE
 	/* Handle reschedules */
@@ -305,7 +306,7 @@ sysret_signal:
 	leaq -ARGOFFSET(%rsp),%rdi # &pt_regs -> arg1
 	xorl %esi,%esi # oldset -> arg2
 	call ptregscall_common
-1:	movl $_TIF_NEED_RESCHED,%edi
+1:	movl $_TIF_WORK_MASK,%edi
 	/* Use IRET because user could have changed frame. This
 	   works because ptregscall_common has called FIXUP_TOP_OF_STACK. */
 	DISABLE_INTERRUPTS(CLBR_NONE)
@@ -347,10 +348,10 @@ int_ret_from_sys_call:
 int_with_check:
 	LOCKDEP_SYS_EXIT_IRQ
 	GET_THREAD_INFO(%rcx)
-	movl threadinfo_flags(%rcx),%edx
+	movl TI_flags(%rcx),%edx
 	andl %edi,%edx
 	jnz   int_careful
-	andl    $~TS_COMPAT,threadinfo_status(%rcx)
+	andl    $~TS_COMPAT,TI_status(%rcx)
 	jmp   retint_swapgs
 
 	/* Either reschedule or signal or syscall exit tracking needed. */
@@ -393,7 +394,7 @@ int_signal:
 	movq %rsp,%rdi		# &ptregs -> arg1
 	xorl %esi,%esi		# oldset -> arg2
 	call do_notify_resume
-1:	movl $_TIF_NEED_RESCHED,%edi	
+1:	movl $_TIF_WORK_MASK,%edi
 int_restore_rest:
 	RESTORE_REST
 	DISABLE_INTERRUPTS(CLBR_NONE)
@@ -420,7 +421,6 @@ END(\label)
 	PTREGSCALL stub_clone, sys_clone, %r8
 	PTREGSCALL stub_fork, sys_fork, %rdi
 	PTREGSCALL stub_vfork, sys_vfork, %rdi
-	PTREGSCALL stub_rt_sigsuspend, sys_rt_sigsuspend, %rdx
 	PTREGSCALL stub_sigaltstack, sys_sigaltstack, %rdx
 	PTREGSCALL stub_iopl, sys_iopl, %rsi
 
@@ -559,7 +559,7 @@ retint_with_reschedule:
 	movl $_TIF_WORK_MASK,%edi
 retint_check:
 	LOCKDEP_SYS_EXIT_IRQ
-	movl threadinfo_flags(%rcx),%edx
+	movl TI_flags(%rcx),%edx
 	andl %edi,%edx
 	CFI_REMEMBER_STATE
 	jnz  retint_careful
@@ -647,17 +647,16 @@ retint_signal:
 	RESTORE_REST
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	movl $_TIF_NEED_RESCHED,%edi
 	GET_THREAD_INFO(%rcx)
-	jmp retint_check
+	jmp retint_with_reschedule
 
 #ifdef CONFIG_PREEMPT
 	/* Returning to kernel space. Check if we need preemption */
 	/* rcx:	 threadinfo. interrupts off. */
 ENTRY(retint_kernel)
-	cmpl $0,threadinfo_preempt_count(%rcx)
+	cmpl $0,TI_preempt_count(%rcx)
 	jnz  retint_restore_args
-	bt  $TIF_NEED_RESCHED,threadinfo_flags(%rcx)
+	bt  $TIF_NEED_RESCHED,TI_flags(%rcx)
 	jnc  retint_restore_args
 	bt   $9,EFLAGS-ARGOFFSET(%rsp)	/* interrupts off? */
 	jnc  retint_restore_args
@@ -720,6 +719,10 @@ ENTRY(apic_timer_interrupt)
 	apicinterrupt LOCAL_TIMER_VECTOR,smp_apic_timer_interrupt
 END(apic_timer_interrupt)
 
+ENTRY(uv_bau_message_intr1)
+	apicinterrupt 220,uv_bau_message_interrupt
+END(uv_bau_message_intr1)
+
 ENTRY(error_interrupt)
 	apicinterrupt ERROR_APIC_VECTOR,smp_error_interrupt
 END(error_interrupt)
@@ -733,6 +736,7 @@ END(spurious_interrupt)
  */ 		
 	.macro zeroentry sym
 	INTR_FRAME
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq $0	/* push error code/oldrax */ 
 	CFI_ADJUST_CFA_OFFSET 8
 	pushq %rax	/* push real oldrax to the rdi slot */ 
@@ -745,6 +749,7 @@ END(spurious_interrupt)
 
 	.macro errorentry sym
 	XCPT_FRAME
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	pushq %rax
 	CFI_ADJUST_CFA_OFFSET 8
 	CFI_REL_OFFSET rax,0
@@ -814,7 +819,7 @@ paranoid_restore\trace:
 	jmp irq_return
 paranoid_userspace\trace:
 	GET_THREAD_INFO(%rcx)
-	movl threadinfo_flags(%rcx),%ebx
+	movl TI_flags(%rcx),%ebx
 	andl $_TIF_WORK_MASK,%ebx
 	jz paranoid_swapgs\trace
 	movq %rsp,%rdi			/* &pt_regs */
@@ -912,7 +917,7 @@ error_exit:
 	testl %eax,%eax
 	jne  retint_kernel
 	LOCKDEP_SYS_EXIT_IRQ
-	movl  threadinfo_flags(%rcx),%edx
+	movl  TI_flags(%rcx),%edx
 	movl  $_TIF_WORK_MASK,%edi
 	andl  %edi,%edx
 	jnz  retint_careful
@@ -926,11 +931,11 @@ error_kernelspace:
 	   iret run with kernel gs again, so don't set the user space flag.
 	   B stepping K8s sometimes report an truncated RIP for IRET 
 	   exceptions returning to compat mode. Check for these here too. */
-	leaq irq_return(%rip),%rbp
-	cmpq %rbp,RIP(%rsp) 
+	leaq irq_return(%rip),%rcx
+	cmpq %rcx,RIP(%rsp)
 	je   error_swapgs
-	movl %ebp,%ebp	/* zero extend */
-	cmpq %rbp,RIP(%rsp) 
+	movl %ecx,%ecx	/* zero extend */
+	cmpq %rcx,RIP(%rsp)
 	je   error_swapgs
 	cmpq $gs_change,RIP(%rsp)
         je   error_swapgs
@@ -939,7 +944,7 @@ KPROBE_END(error_entry)
 	
        /* Reload gs selector with exception handling */
        /* edi:  new selector */ 
-ENTRY(load_gs_index)
+ENTRY(native_load_gs_index)
 	CFI_STARTPROC
 	pushf
 	CFI_ADJUST_CFA_OFFSET 8
@@ -953,7 +958,7 @@ gs_change:
 	CFI_ADJUST_CFA_OFFSET -8
         ret
 	CFI_ENDPROC
-ENDPROC(load_gs_index)
+ENDPROC(native_load_gs_index)
        
         .section __ex_table,"a"
         .align 8
@@ -1119,10 +1124,6 @@ END(invalid_op)
 ENTRY(coprocessor_segment_overrun)
 	zeroentry do_coprocessor_segment_overrun
 END(coprocessor_segment_overrun)
-
-ENTRY(reserved)
-	zeroentry do_reserved
-END(reserved)
 
 	/* runs on exception stack */
 ENTRY(double_fault)

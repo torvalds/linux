@@ -16,27 +16,8 @@
 #include <asm/page.h>		/* PAGE_SIZE */
 #include <asm/e820.h>
 #include <asm/k8.h>
+#include <asm/gart.h>
 #include "agp.h"
-
-/* PTE bits. */
-#define GPTE_VALID	1
-#define GPTE_COHERENT	2
-
-/* Aperture control register bits. */
-#define GARTEN		(1<<0)
-#define DISGARTCPU	(1<<4)
-#define DISGARTIO	(1<<5)
-
-/* GART cache control register bits. */
-#define INVGART		(1<<0)
-#define GARTPTEERR	(1<<1)
-
-/* K8 On-cpu GART registers */
-#define AMD64_GARTAPERTURECTL	0x90
-#define AMD64_GARTAPERTUREBASE	0x94
-#define AMD64_GARTTABLEBASE	0x98
-#define AMD64_GARTCACHECTL	0x9c
-#define AMD64_GARTEN		(1<<0)
 
 /* NVIDIA K8 registers */
 #define NVIDIA_X86_64_0_APBASE		0x10
@@ -165,29 +146,18 @@ static int amd64_fetch_size(void)
  * In a multiprocessor x86-64 system, this function gets
  * called once for each CPU.
  */
-static u64 amd64_configure (struct pci_dev *hammer, u64 gatt_table)
+static u64 amd64_configure(struct pci_dev *hammer, u64 gatt_table)
 {
 	u64 aperturebase;
 	u32 tmp;
-	u64 addr, aper_base;
+	u64 aper_base;
 
 	/* Address to map to */
-	pci_read_config_dword (hammer, AMD64_GARTAPERTUREBASE, &tmp);
+	pci_read_config_dword(hammer, AMD64_GARTAPERTUREBASE, &tmp);
 	aperturebase = tmp << 25;
 	aper_base = (aperturebase & PCI_BASE_ADDRESS_MEM_MASK);
 
-	/* address of the mappings table */
-	addr = (u64) gatt_table;
-	addr >>= 12;
-	tmp = (u32) addr<<4;
-	tmp &= ~0xf;
-	pci_write_config_dword (hammer, AMD64_GARTTABLEBASE, tmp);
-
-	/* Enable GART translation for this hammer. */
-	pci_read_config_dword(hammer, AMD64_GARTAPERTURECTL, &tmp);
-	tmp |= GARTEN;
-	tmp &= ~(DISGARTCPU | DISGARTIO);
-	pci_write_config_dword(hammer, AMD64_GARTAPERTURECTL, tmp);
+	enable_gart_translation(hammer, gatt_table);
 
 	return aper_base;
 }
@@ -226,9 +196,9 @@ static void amd64_cleanup(void)
         for (i = 0; i < num_k8_northbridges; i++) {
 		struct pci_dev *dev = k8_northbridges[i];
 		/* disable gart translation */
-		pci_read_config_dword (dev, AMD64_GARTAPERTURECTL, &tmp);
+		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &tmp);
 		tmp &= ~AMD64_GARTEN;
-		pci_write_config_dword (dev, AMD64_GARTAPERTURECTL, tmp);
+		pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, tmp);
 	}
 }
 
@@ -258,24 +228,10 @@ static const struct agp_bridge_driver amd_8151_driver = {
 };
 
 /* Some basic sanity checks for the aperture. */
-static int __devinit aperture_valid(u64 aper, u32 size)
+static int __devinit agp_aperture_valid(u64 aper, u32 size)
 {
-	if (aper == 0) {
-		printk(KERN_ERR PFX "No aperture\n");
+	if (!aperture_valid(aper, size, 32*1024*1024))
 		return 0;
-	}
-	if (size < 32*1024*1024) {
-		printk(KERN_ERR PFX "Aperture too small (%d MB)\n", size>>20);
-		return 0;
-	}
-       if ((u64)aper + size > 0x100000000ULL) {
-		printk(KERN_ERR PFX "Aperture out of bounds\n");
-		return 0;
-	}
-	if (e820_any_mapped(aper, aper + size, E820_RAM)) {
-		printk(KERN_ERR PFX "Aperture pointing to RAM\n");
-		return 0;
-	}
 
 	/* Request the Aperture. This catches cases when someone else
 	   already put a mapping in there - happens with some very broken BIOS
@@ -308,11 +264,11 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	u32 nb_order, nb_base;
 	u16 apsize;
 
-	pci_read_config_dword(nb, 0x90, &nb_order);
+	pci_read_config_dword(nb, AMD64_GARTAPERTURECTL, &nb_order);
 	nb_order = (nb_order >> 1) & 7;
-	pci_read_config_dword(nb, 0x94, &nb_base);
+	pci_read_config_dword(nb, AMD64_GARTAPERTUREBASE, &nb_base);
 	nb_aper = nb_base << 25;
-	if (aperture_valid(nb_aper, (32*1024*1024)<<nb_order)) {
+	if (agp_aperture_valid(nb_aper, (32*1024*1024)<<nb_order)) {
 		return 0;
 	}
 
@@ -331,12 +287,23 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	pci_read_config_dword(agp, 0x10, &aper_low);
 	pci_read_config_dword(agp, 0x14, &aper_hi);
 	aper = (aper_low & ~((1<<22)-1)) | ((u64)aper_hi << 32);
+
+	/*
+	 * On some sick chips APSIZE is 0. This means it wants 4G
+	 * so let double check that order, and lets trust the AMD NB settings
+	 */
+	if (order >=0 && aper + (32ULL<<(20 + order)) > 0x100000000ULL) {
+		printk(KERN_INFO "Aperture size %u MB is not right, using settings from NB\n",
+				  32 << order);
+		order = nb_order;
+	}
+
 	printk(KERN_INFO PFX "Aperture from AGP @ %Lx size %u MB\n", aper, 32 << order);
-	if (order < 0 || !aperture_valid(aper, (32*1024*1024)<<order))
+	if (order < 0 || !agp_aperture_valid(aper, (32*1024*1024)<<order))
 		return -1;
 
-	pci_write_config_dword(nb, 0x90, order << 1);
-	pci_write_config_dword(nb, 0x94, aper >> 25);
+	pci_write_config_dword(nb, AMD64_GARTAPERTURECTL, order << 1);
+	pci_write_config_dword(nb, AMD64_GARTAPERTUREBASE, aper >> 25);
 
 	return 0;
 }

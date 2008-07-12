@@ -1,3 +1,6 @@
+#ifndef ASM_X86__XOR_64_H
+#define ASM_X86__XOR_64_H
+
 /*
  * Optimized RAID-5 checksumming functions for MMX and SSE.
  *
@@ -354,3 +357,5 @@ do {						\
    We may also be able to load into the L1 only depending on how the cpu
    deals with a load to a line that is being prefetched.  */
 #define XOR_SELECT_TEMPLATE(FASTEST) (&xor_block_sse)
+
+#endif /* ASM_X86__XOR_64_H */
