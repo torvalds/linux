@@ -115,6 +115,57 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 }
 
 /**
+ * ubi_vtbl_rename_volumes - rename UBI volumes in the volume table.
+ * @ubi: UBI device description object
+ * @renam_list: list of &struct ubi_rename_entry objects
+ *
+ * This function re-names multiple volumes specified in @req in the volume
+ * table. Returns zero in case of success and a negative error code in case of
+ * failure.
+ */
+int ubi_vtbl_rename_volumes(struct ubi_device *ubi,
+			    struct list_head *rename_list)
+{
+	int i, err;
+	struct ubi_rename_entry *re;
+	struct ubi_volume *layout_vol;
+
+	list_for_each_entry(re, rename_list, list) {
+		uint32_t crc;
+		struct ubi_volume *vol = re->desc->vol;
+		struct ubi_vtbl_record *vtbl_rec = &ubi->vtbl[vol->vol_id];
+
+		if (re->remove) {
+			memcpy(vtbl_rec, &empty_vtbl_record,
+			       sizeof(struct ubi_vtbl_record));
+			continue;
+		}
+
+		vtbl_rec->name_len = cpu_to_be16(re->new_name_len);
+		memcpy(vtbl_rec->name, re->new_name, re->new_name_len);
+		memset(vtbl_rec->name + re->new_name_len, 0,
+		       UBI_VOL_NAME_MAX + 1 - re->new_name_len);
+		crc = crc32(UBI_CRC32_INIT, vtbl_rec,
+			    UBI_VTBL_RECORD_SIZE_CRC);
+		vtbl_rec->crc = cpu_to_be32(crc);
+	}
+
+	layout_vol = ubi->volumes[vol_id2idx(ubi, UBI_LAYOUT_VOLUME_ID)];
+	for (i = 0; i < UBI_LAYOUT_VOLUME_EBS; i++) {
+		err = ubi_eba_unmap_leb(ubi, layout_vol, i);
+		if (err)
+			return err;
+
+		err = ubi_eba_write_leb(ubi, layout_vol, i, ubi->vtbl, 0,
+					ubi->vtbl_size, UBI_LONGTERM);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+/**
  * vtbl_check - check if volume table is not corrupted and contains sensible
  *              data.
  * @ubi: UBI device description object

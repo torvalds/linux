@@ -131,6 +131,27 @@ struct ubi_ltree_entry {
 	struct rw_semaphore mutex;
 };
 
+/**
+ * struct ubi_rename_entry - volume re-name description data structure.
+ * @new_name_len: new volume name length
+ * @new_name: new volume name
+ * @remove: if not zero, this volume should be removed, not re-named
+ * @desc: descriptor of the volume
+ * @list: links re-name entries into a list
+ *
+ * This data structure is utilized in the multiple volume re-name code. Namely,
+ * UBI first creates a list of &struct ubi_rename_entry objects from the
+ * &struct ubi_rnvol_req request object, and then utilizes this list to do all
+ * the job.
+ */
+struct ubi_rename_entry {
+	int new_name_len;
+	char new_name[UBI_VOL_NAME_MAX + 1];
+	int remove;
+	struct ubi_volume_desc *desc;
+	struct list_head list;
+};
+
 struct ubi_volume_desc;
 
 /**
@@ -206,7 +227,7 @@ struct ubi_volume {
 	int alignment;
 	int data_pad;
 	int name_len;
-	char name[UBI_VOL_NAME_MAX+1];
+	char name[UBI_VOL_NAME_MAX + 1];
 
 	int upd_ebs;
 	int ch_lnum;
@@ -272,7 +293,7 @@ struct ubi_wl_entry;
  * @vtbl_size: size of the volume table in bytes
  * @vtbl: in-RAM volume table copy
  * @volumes_mutex: protects on-flash volume table and serializes volume
- *                 changes, like creation, deletion, update, resize
+ *                 changes, like creation, deletion, update, re-size and re-name
  *
  * @max_ec: current highest erase counter value
  * @mean_ec: current mean erase counter value
@@ -330,6 +351,8 @@ struct ubi_wl_entry;
  * @peb_buf1: a buffer of PEB size used for different purposes
  * @peb_buf2: another buffer of PEB size used for different purposes
  * @buf_mutex: proptects @peb_buf1 and @peb_buf2
+ * @ckvol_mutex: serializes static volume checking when opening
+ * @mult_mutex: serializes operations on multiple volumes, like re-nameing
  * @dbg_peb_buf: buffer of PEB size used for debugging
  * @dbg_buf_mutex: proptects @dbg_peb_buf
  */
@@ -410,6 +433,7 @@ struct ubi_device {
 	void *peb_buf2;
 	struct mutex buf_mutex;
 	struct mutex ckvol_mutex;
+	struct mutex mult_mutex;
 #ifdef CONFIG_MTD_UBI_DEBUG
 	void *dbg_peb_buf;
 	struct mutex dbg_buf_mutex;
@@ -426,12 +450,15 @@ extern struct mutex ubi_devices_mutex;
 /* vtbl.c */
 int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 			   struct ubi_vtbl_record *vtbl_rec);
+int ubi_vtbl_rename_volumes(struct ubi_device *ubi,
+			    struct list_head *rename_list);
 int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si);
 
 /* vmt.c */
 int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req);
-int ubi_remove_volume(struct ubi_volume_desc *desc);
+int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl);
 int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs);
+int ubi_rename_volumes(struct ubi_device *ubi, struct list_head *rename_list);
 int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol);
 void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol);
 

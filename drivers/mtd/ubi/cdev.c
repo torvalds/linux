@@ -605,6 +605,166 @@ static int verify_rsvol_req(const struct ubi_device *ubi,
 	return 0;
 }
 
+/**
+ * rename_volumes - rename UBI volumes.
+ * @ubi: UBI device description object
+ * @req: volumes re-name request
+ *
+ * This is a helper function for the volume re-name IOCTL which validates the
+ * the request, opens the volume and calls corresponding volumes management
+ * function. Returns zero in case of success and a negative error code in case
+ * of failure.
+ */
+static int rename_volumes(struct ubi_device *ubi,
+			  struct ubi_rnvol_req *req)
+{
+	int i, n, err;
+	struct list_head rename_list;
+	struct ubi_rename_entry *re, *re1;
+
+	if (req->count < 0 || req->count > UBI_MAX_RNVOL)
+		return -EINVAL;
+
+	if (req->count == 0)
+		return 0;
+
+	/* Validate volume IDs and names in the request */
+	for (i = 0; i < req->count; i++) {
+		if (req->ents[i].vol_id < 0 ||
+		    req->ents[i].vol_id >= ubi->vtbl_slots)
+			return -EINVAL;
+		if (req->ents[i].name_len < 0)
+			return -EINVAL;
+		if (req->ents[i].name_len > UBI_VOL_NAME_MAX)
+			return -ENAMETOOLONG;
+		req->ents[i].name[req->ents[i].name_len] = '\0';
+		n = strlen(req->ents[i].name);
+		if (n != req->ents[i].name_len)
+			err = -EINVAL;
+	}
+
+	/* Make sure volume IDs and names are unique */
+	for (i = 0; i < req->count - 1; i++) {
+		for (n = i + 1; n < req->count; n++) {
+			if (req->ents[i].vol_id == req->ents[n].vol_id) {
+				dbg_err("duplicated volume id %d",
+					req->ents[i].vol_id);
+				return -EINVAL;
+			}
+			if (!strcmp(req->ents[i].name, req->ents[n].name)) {
+				dbg_err("duplicated volume name \"%s\"",
+					req->ents[i].name);
+				return -EINVAL;
+			}
+		}
+	}
+
+	/* Create the re-name list */
+	INIT_LIST_HEAD(&rename_list);
+	for (i = 0; i < req->count; i++) {
+		int vol_id = req->ents[i].vol_id;
+		int name_len = req->ents[i].name_len;
+		const char *name = req->ents[i].name;
+
+		re = kzalloc(sizeof(struct ubi_rename_entry), GFP_KERNEL);
+		if (!re) {
+			err = -ENOMEM;
+			goto out_free;
+		}
+
+		re->desc = ubi_open_volume(ubi->ubi_num, vol_id, UBI_EXCLUSIVE);
+		if (IS_ERR(re->desc)) {
+			err = PTR_ERR(re->desc);
+			dbg_err("cannot open volume %d, error %d", vol_id, err);
+			kfree(re);
+			goto out_free;
+		}
+
+		/* Skip this re-naming if the name does not really change */
+		if (re->desc->vol->name_len == name_len &&
+		    !memcmp(re->desc->vol->name, name, name_len)) {
+			ubi_close_volume(re->desc);
+			kfree(re);
+			continue;
+		}
+
+		re->new_name_len = name_len;
+		memcpy(re->new_name, name, name_len);
+		list_add_tail(&re->list, &rename_list);
+		dbg_msg("will rename volume %d from \"%s\" to \"%s\"",
+			vol_id, re->desc->vol->name, name);
+	}
+
+	if (list_empty(&rename_list))
+		return 0;
+
+	/* Find out the volumes which have to be removed */
+	list_for_each_entry(re, &rename_list, list) {
+		struct ubi_volume_desc *desc;
+		int no_remove_needed = 0;
+
+		/*
+		 * Volume @re->vol_id is going to be re-named to
+		 * @re->new_name, while its current name is @name. If a volume
+		 * with name @re->new_name currently exists, it has to be
+		 * removed, unless it is also re-named in the request (@req).
+		 */
+		list_for_each_entry(re1, &rename_list, list) {
+			if (re->new_name_len == re1->desc->vol->name_len &&
+			    !memcmp(re->new_name, re1->desc->vol->name,
+				    re1->desc->vol->name_len)) {
+				no_remove_needed = 1;
+				break;
+			}
+		}
+
+		if (no_remove_needed)
+			continue;
+
+		/*
+		 * It seems we need to remove volume with name @re->new_name,
+		 * if it exists.
+		 */
+		desc = ubi_open_volume_nm(ubi->ubi_num, re->new_name, UBI_EXCLUSIVE);
+		if (IS_ERR(desc)) {
+			err = PTR_ERR(desc);
+			if (err == -ENODEV)
+				/* Re-naming into a non-existing volume name */
+				continue;
+
+			/* The volume exists but busy, or an error occurred */
+			dbg_err("cannot open volume \"%s\", error %d",
+				re->new_name, err);
+			goto out_free;
+		}
+
+		re = kzalloc(sizeof(struct ubi_rename_entry), GFP_KERNEL);
+		if (!re) {
+			err = -ENOMEM;
+			ubi_close_volume(desc);
+			goto out_free;
+		}
+
+		re->remove = 1;
+		re->desc = desc;
+		list_add(&re->list, &rename_list);
+		dbg_msg("will remove volume %d, name \"%s\"",
+			re->desc->vol->vol_id, re->desc->vol->name);
+	}
+
+	mutex_lock(&ubi->volumes_mutex);
+	err = ubi_rename_volumes(ubi, &rename_list);
+	mutex_unlock(&ubi->volumes_mutex);
+
+out_free:
+	list_for_each_entry_safe(re, re1, &rename_list, list) {
+		ubi_close_volume(re->desc);
+		list_del(&re->list);
+		kfree(re);
+	}
+	return err;
+}
+
 static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
@@ -670,7 +830,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		}
 
 		mutex_lock(&ubi->volumes_mutex);
-		err = ubi_remove_volume(desc);
+		err = ubi_remove_volume(desc, 0);
 		mutex_unlock(&ubi->volumes_mutex);
 
 		/*
@@ -714,6 +874,32 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		err = ubi_resize_volume(desc, pebs);
 		mutex_unlock(&ubi->volumes_mutex);
 		ubi_close_volume(desc);
+		break;
+	}
+
+	/* Re-name volumes command */
+	case UBI_IOCRNVOL:
+	{
+		struct ubi_rnvol_req *req;
+
+		dbg_msg("re-name volumes");
+		req = kmalloc(sizeof(struct ubi_rnvol_req), GFP_KERNEL);
+		if (!req) {
+			err = -ENOMEM;
+			break;
+		};
+
+		err = copy_from_user(req, argp, sizeof(struct ubi_rnvol_req));
+		if (err) {
+			err = -EFAULT;
+			kfree(req);
+			break;
+		}
+
+		mutex_lock(&ubi->mult_mutex);
+		err = rename_volumes(ubi, req);
+		mutex_unlock(&ubi->mult_mutex);
+		kfree(req);
 		break;
 	}
 

@@ -402,13 +402,14 @@ out_unlock:
 /**
  * ubi_remove_volume - remove volume.
  * @desc: volume descriptor
+ * @no_vtbl: do not change volume table if not zero
  *
  * This function removes volume described by @desc. The volume has to be opened
  * in "exclusive" mode. Returns zero in case of success and a negative error
  * code in case of failure. The caller has to have the @ubi->volumes_mutex
  * locked.
  */
-int ubi_remove_volume(struct ubi_volume_desc *desc)
+int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
 {
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
@@ -437,9 +438,11 @@ int ubi_remove_volume(struct ubi_volume_desc *desc)
 	if (err)
 		goto out_err;
 
-	err = ubi_change_vtbl_record(ubi, vol_id, NULL);
-	if (err)
-		goto out_err;
+	if (!no_vtbl) {
+		err = ubi_change_vtbl_record(ubi, vol_id, NULL);
+		if (err)
+			goto out_err;
+	}
 
 	for (i = 0; i < vol->reserved_pebs; i++) {
 		err = ubi_eba_unmap_leb(ubi, vol, i);
@@ -465,7 +468,8 @@ int ubi_remove_volume(struct ubi_volume_desc *desc)
 	ubi->vol_count -= 1;
 	spin_unlock(&ubi->volumes_lock);
 
-	err = paranoid_check_volumes(ubi);
+	if (!no_vtbl)
+		err = paranoid_check_volumes(ubi);
 	return err;
 
 out_err:
@@ -598,6 +602,44 @@ out_acc:
 	}
 out_free:
 	kfree(new_mapping);
+	return err;
+}
+
+/**
+ * ubi_rename_volumes - re-name UBI volumes.
+ * @ubi: UBI device description object
+ * @renam_list: list of &struct ubi_rename_entry objects
+ *
+ * This function re-names or removes volumes specified in the re-name list.
+ * Returns zero in case of success and a negative error code in case of
+ * failure.
+ */
+int ubi_rename_volumes(struct ubi_device *ubi, struct list_head *rename_list)
+{
+	int err;
+	struct ubi_rename_entry *re;
+
+	err = ubi_vtbl_rename_volumes(ubi, rename_list);
+	if (err)
+		return err;
+
+	list_for_each_entry(re, rename_list, list) {
+		if (re->remove) {
+			err = ubi_remove_volume(re->desc, 1);
+			if (err)
+				break;
+		} else {
+			struct ubi_volume *vol = re->desc->vol;
+
+			spin_lock(&ubi->volumes_lock);
+			vol->name_len = re->new_name_len;
+			memcpy(vol->name, re->new_name, re->new_name_len + 1);
+			spin_unlock(&ubi->volumes_lock);
+		}
+	}
+
+	if (!err)
+		paranoid_check_volumes(ubi);
 	return err;
 }
 
@@ -826,10 +868,9 @@ static int paranoid_check_volume(struct ubi_device *ubi, int vol_id)
 
 fail:
 	ubi_err("paranoid check failed for volume %d", vol_id);
-	if (vol) {
+	if (vol)
 		ubi_dbg_dump_vol_info(vol);
-		ubi_dbg_dump_vtbl_record(&ubi->vtbl[vol_id], vol_id);
-	}
+	ubi_dbg_dump_vtbl_record(&ubi->vtbl[vol_id], vol_id);
 	spin_unlock(&ubi->volumes_lock);
 	return -EINVAL;
 }
