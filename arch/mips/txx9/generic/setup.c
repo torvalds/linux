@@ -99,19 +99,6 @@ extern struct txx9_board_vec rbtx4927_vec;
 extern struct txx9_board_vec rbtx4937_vec;
 extern struct txx9_board_vec rbtx4938_vec;
 
-/* board definitions */
-static struct txx9_board_vec *board_vecs[] __initdata = {
-#ifdef CONFIG_TOSHIBA_JMR3927
-	&jmr3927_vec,
-#endif
-#ifdef CONFIG_TOSHIBA_RBTX4927
-	&rbtx4927_vec,
-	&rbtx4937_vec,
-#endif
-#ifdef CONFIG_TOSHIBA_RBTX4938
-	&rbtx4938_vec,
-#endif
-};
 struct txx9_board_vec *txx9_board_vec __initdata;
 static char txx9_system_type[32];
 
@@ -134,31 +121,26 @@ void __init prom_init_cmdline(void)
 
 void __init prom_init(void)
 {
-	int i;
-
 #ifdef CONFIG_CPU_TX39XX
-	mips_machtype = MACH_TOSHIBA_JMR3927;
+	txx9_board_vec = &jmr3927_vec;
 #endif
 #ifdef CONFIG_CPU_TX49XX
 	switch (TX4938_REV_PCODE()) {
 	case 0x4927:
-		mips_machtype = MACH_TOSHIBA_RBTX4927;
+		txx9_board_vec = &rbtx4927_vec;
 		break;
 	case 0x4937:
-		mips_machtype = MACH_TOSHIBA_RBTX4937;
+		txx9_board_vec = &rbtx4937_vec;
 		break;
 	case 0x4938:
-		mips_machtype = MACH_TOSHIBA_RBTX4938;
+		txx9_board_vec = &rbtx4938_vec;
 		break;
 	}
 #endif
-	for (i = 0; i < ARRAY_SIZE(board_vecs); i++) {
-		if (board_vecs[i]->type == mips_machtype) {
-			txx9_board_vec = board_vecs[i];
-			strcpy(txx9_system_type, txx9_board_vec->system);
-			return txx9_board_vec->prom_init();
-		}
-	}
+
+	strcpy(txx9_system_type, txx9_board_vec->system);
+
+	return txx9_board_vec->prom_init();
 }
 
 void __init prom_free_prom_memory(void)
