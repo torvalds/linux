@@ -163,9 +163,9 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RDC R6040 NAPI PCI FastEthernet driver");
 
 /* RX and TX interrupts that we handle */
-#define RX_INT			(RX_FINISH)
-#define TX_INT			(TX_FINISH)
-#define INT_MASK		(RX_INT | TX_INT)
+#define RX_INTS			(RX_FIFO_FULL | RX_NO_DESC | RX_FINISH)
+#define TX_INTS			(TX_FINISH)
+#define INT_MASK		(RX_INTS | TX_INTS)
 
 struct r6040_descriptor {
 	u16	status, len;		/* 0-3 */
@@ -671,7 +671,7 @@ static int r6040_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		netif_rx_complete(dev, napi);
 		/* Enable RX interrupt */
-		iowrite16(ioread16(ioaddr + MIER) | RX_INT, ioaddr + MIER);
+		iowrite16(ioread16(ioaddr + MIER) | RX_INTS, ioaddr + MIER);
 	}
 	return work_done;
 }
@@ -693,14 +693,22 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	/* RX interrupt request */
-	if (status & 0x01) {
+	if (status & RX_INTS) {
+		if (status & RX_NO_DESC) {
+			/* RX descriptor unavailable */
+			dev->stats.rx_dropped++;
+			dev->stats.rx_missed_errors++;
+		}
+		if (status & RX_FIFO_FULL)
+			dev->stats.rx_fifo_errors++;
+
 		/* Mask off RX interrupt */
-		iowrite16(ioread16(ioaddr + MIER) & ~RX_INT, ioaddr + MIER);
+		iowrite16(ioread16(ioaddr + MIER) & ~RX_INTS, ioaddr + MIER);
 		netif_rx_schedule(dev, &lp->napi);
 	}
 
 	/* TX interrupt request */
-	if (status & 0x10)
+	if (status & TX_INTS)
 		r6040_tx(dev);
 
 	return IRQ_HANDLED;
