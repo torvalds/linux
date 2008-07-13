@@ -312,7 +312,7 @@ static void r6040_rx_buf_alloc(struct r6040_private *lp, struct net_device *dev)
 	lp->rx_insert_ptr = descptr;
 }
 
-static void r6040_alloc_txbufs(struct net_device *dev)
+static void r6040_init_txbufs(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 
@@ -322,16 +322,39 @@ static void r6040_alloc_txbufs(struct net_device *dev)
 	r6040_init_ring_desc(lp->tx_ring, lp->tx_ring_dma, TX_DCNT);
 }
 
-static void r6040_alloc_rxbufs(struct net_device *dev)
+static int r6040_alloc_rxbufs(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
-
-	lp->rx_free_desc = 0;
+	struct r6040_descriptor *desc;
+	struct sk_buff *skb;
+	int rc;
 
 	lp->rx_remove_ptr = lp->rx_insert_ptr = lp->rx_ring;
 	r6040_init_ring_desc(lp->rx_ring, lp->rx_ring_dma, RX_DCNT);
 
-	r6040_rx_buf_alloc(lp, dev);
+	/* Allocate skbs for the rx descriptors */
+	desc = lp->rx_ring;
+	do {
+		skb = netdev_alloc_skb(dev, MAX_BUF_SIZE);
+		if (!skb) {
+			printk(KERN_ERR "%s: failed to alloc skb for rx\n", dev->name);
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+		desc->skb_ptr = skb;
+		desc->buf = cpu_to_le32(pci_map_single(lp->pdev,
+						desc->skb_ptr->data,
+						MAX_BUF_SIZE, PCI_DMA_FROMDEVICE));
+		desc->status = 0x8000;
+		desc = desc->vndescp;
+	} while (desc != lp->rx_ring);
+
+	return 0;
+
+err_exit:
+	/* Deallocate all previously allocated skbs */
+	r6040_free_rxbufs(dev);
+	return rc;
 }
 
 static void r6040_init_mac_regs(struct net_device *dev)
@@ -697,14 +720,17 @@ static void r6040_poll_controller(struct net_device *dev)
 #endif
 
 /* Init RDC MAC */
-static void r6040_up(struct net_device *dev)
+static int r6040_up(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
+	int ret;
 
 	/* Initialise and alloc RX/TX buffers */
-	r6040_alloc_txbufs(dev);
-	r6040_alloc_rxbufs(dev);
+	r6040_init_txbufs(dev);
+	ret = r6040_alloc_rxbufs(dev);
+	if (ret)
+		return ret;
 
 	/* Read the PHY ID */
 	lp->switch_sig = r6040_phy_read(ioaddr, 0, 2);
@@ -734,6 +760,8 @@ static void r6040_up(struct net_device *dev)
 
 	/* Initialize all MAC registers */
 	r6040_init_mac_regs(dev);
+
+	return 0;
 }
 
 /*
@@ -812,7 +840,14 @@ static int r6040_open(struct net_device *dev)
 		return -ENOMEM;
 	}
 
-	r6040_up(dev);
+	ret = r6040_up(dev);
+	if (ret) {
+		pci_free_consistent(lp->pdev, TX_DESC_SIZE, lp->tx_ring,
+							lp->tx_ring_dma);
+		pci_free_consistent(lp->pdev, RX_DESC_SIZE, lp->rx_ring,
+							lp->rx_ring_dma);
+		return ret;
+	}
 
 	napi_enable(&lp->napi);
 	netif_start_queue(dev);
