@@ -64,7 +64,7 @@ struct tfrc_rx_hist_entry {
 	u64		 tfrchrx_seqno:48,
 			 tfrchrx_ccval:4,
 			 tfrchrx_type:4;
-	u32		 tfrchrx_ndp; /* In fact it is from 8 to 24 bits */
+	u64		 tfrchrx_ndp:48;
 	ktime_t		 tfrchrx_tstamp;
 };
 
@@ -145,14 +145,14 @@ static inline int tfrc_rx_hist_new_loss_indicated(struct tfrc_rx_hist *h,
 }
 
 extern void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
-				    const struct sk_buff *skb, const u32 ndp);
+				    const struct sk_buff *skb, const u64 ndp);
 
 extern int tfrc_rx_hist_duplicate(struct tfrc_rx_hist *h, struct sk_buff *skb);
 
 struct tfrc_loss_hist;
 extern int  tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 				struct tfrc_loss_hist *lh,
-				struct sk_buff *skb, u32 ndp,
+				struct sk_buff *skb, const u64 ndp,
 				u32 (*first_li)(struct sock *sk),
 				struct sock *sk);
 extern u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h,

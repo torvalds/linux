@@ -364,8 +364,6 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 /* FIXME: for now we're default to 1 but it should really be 0 */
 #define DCCPF_INITIAL_SEND_NDP_COUNT		1
 
-#define DCCP_NDP_LIMIT 0xFFFFFF
-
 /**
   * struct dccp_minisock - Minimal DCCP connection representation
   *
@@ -437,7 +435,7 @@ extern int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			      struct sk_buff *skb);
 
 struct dccp_options_received {
-	u32	dccpor_ndp; /* only 24 bits */
+	u64	dccpor_ndp:48;
 	u32	dccpor_timestamp;
 	u32	dccpor_timestamp_echo;
 	u32	dccpor_elapsed_time;
@@ -533,7 +531,7 @@ struct dccp_sock {
 	__u16				dccps_r_ack_ratio;
 	__u16				dccps_pcslen;
 	__u16				dccps_pcrlen;
-	unsigned long			dccps_ndp_count;
+	__u64				dccps_ndp_count:48;
 	unsigned long			dccps_rate_last;
 	struct dccp_minisock		dccps_minisock;
 	struct dccp_ackvec		*dccps_hc_rx_ackvec;

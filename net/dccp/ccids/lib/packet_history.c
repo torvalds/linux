@@ -153,7 +153,7 @@ void tfrc_rx_packet_history_exit(void)
 
 static inline void tfrc_rx_hist_entry_from_skb(struct tfrc_rx_hist_entry *entry,
 					       const struct sk_buff *skb,
-					       const u32 ndp)
+					       const u64 ndp)
 {
 	const struct dccp_hdr *dh = dccp_hdr(skb);
 
@@ -166,7 +166,7 @@ static inline void tfrc_rx_hist_entry_from_skb(struct tfrc_rx_hist_entry *entry,
 
 void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
 			     const struct sk_buff *skb,
-			     const u32 ndp)
+			     const u64 ndp)
 {
 	struct tfrc_rx_hist_entry *entry = tfrc_rx_hist_last_rcv(h);
 
@@ -356,7 +356,7 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
  */
 int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 			struct tfrc_loss_hist *lh,
-			struct sk_buff *skb, u32 ndp,
+			struct sk_buff *skb, const u64 ndp,
 			u32 (*calc_first_li)(struct sock *), struct sock *sk)
 {
 	int is_new_loss = 0;
