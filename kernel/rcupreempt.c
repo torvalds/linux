@@ -925,7 +925,15 @@ void rcu_offline_cpu(int cpu)
 	spin_unlock_irqrestore(&rdp->lock, flags);
 }
 
-void __devinit rcu_online_cpu(int cpu)
+#else /* #ifdef CONFIG_HOTPLUG_CPU */
+
+void rcu_offline_cpu(int cpu)
+{
+}
+
+#endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
+
+void __cpuinit rcu_online_cpu(int cpu)
 {
 	unsigned long flags;
 
@@ -933,18 +941,6 @@ void __devinit rcu_online_cpu(int cpu)
 	cpu_set(cpu, rcu_cpu_online_map);
 	spin_unlock_irqrestore(&rcu_ctrlblk.fliplock, flags);
 }
-
-#else /* #ifdef CONFIG_HOTPLUG_CPU */
-
-void rcu_offline_cpu(int cpu)
-{
-}
-
-void __devinit rcu_online_cpu(int cpu)
-{
-}
-
-#endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
 
 static void rcu_process_callbacks(struct softirq_action *unused)
 {

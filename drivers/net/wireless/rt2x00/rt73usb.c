@@ -1006,6 +1006,15 @@ static int rt73usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, TXRX_CSR8_ACK_CTS_54MBS, 42);
 	rt73usb_register_write(rt2x00dev, TXRX_CSR8, reg);
 
+	rt73usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_INTERVAL, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TIMESTAMP_COMPENSATE, 0);
+	rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
+
 	rt73usb_register_write(rt2x00dev, TXRX_CSR15, 0x0000000f);
 
 	rt73usb_register_read(rt2x00dev, MAC_CSR6, &reg);
