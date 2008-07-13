@@ -38,8 +38,6 @@
 #ifdef CONFIG_SERIAL_TXX9
 #include <linux/serial_core.h>
 #endif
-
-#include <asm/bootinfo.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
 #include <asm/reboot.h>
@@ -95,7 +93,6 @@ static void __init jmr3927_time_init(void)
 #define DO_WRITE_THROUGH
 #define DO_ENABLE_CACHE
 
-extern char * __init prom_getcmdline(void);
 static void jmr3927_board_init(void);
 
 static void __init jmr3927_mem_setup(void)

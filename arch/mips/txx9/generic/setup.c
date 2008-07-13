@@ -140,7 +140,7 @@ void __init prom_init(void)
 
 	strcpy(txx9_system_type, txx9_board_vec->system);
 
-	return txx9_board_vec->prom_init();
+	txx9_board_vec->prom_init();
 }
 
 void __init prom_free_prom_memory(void)

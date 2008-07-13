@@ -36,5 +36,6 @@ struct txx9_board_vec {
 extern struct txx9_board_vec *txx9_board_vec;
 extern int (*txx9_irq_dispatch)(int pending);
 void prom_init_cmdline(void);
+char *prom_getcmdline(void);
 
 #endif /* __ASM_TXX9_GENERIC_H */

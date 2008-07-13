@@ -50,8 +50,6 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-
-#include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/reboot.h>
@@ -64,14 +62,6 @@
 #ifdef CONFIG_SERIAL_TXX9
 #include <linux/serial_core.h>
 #endif
-
-/* These functions are used for rebooting or halting the machine*/
-extern void toshiba_rbtx4927_restart(char *command);
-extern void toshiba_rbtx4927_halt(void);
-extern void toshiba_rbtx4927_power_off(void);
-extern void toshiba_rbtx4927_irq_setup(void);
-
-char *prom_getcmdline(void);
 
 static int tx4927_ccfg_toeon = 1;
 
@@ -189,7 +179,7 @@ static void __noreturn wait_forever(void)
 			(*cpu_wait)();
 }
 
-void toshiba_rbtx4927_restart(char *command)
+static void toshiba_rbtx4927_restart(char *command)
 {
 	printk(KERN_NOTICE "System Rebooting...\n");
 
@@ -209,7 +199,7 @@ void toshiba_rbtx4927_restart(char *command)
 	/* no return */
 }
 
-void toshiba_rbtx4927_halt(void)
+static void toshiba_rbtx4927_halt(void)
 {
 	printk(KERN_NOTICE "System Halted\n");
 	local_irq_disable();
@@ -217,7 +207,7 @@ void toshiba_rbtx4927_halt(void)
 	/* no return */
 }
 
-void toshiba_rbtx4927_power_off(void)
+static void toshiba_rbtx4927_power_off(void)
 {
 	toshiba_rbtx4927_halt();
 	/* no return */

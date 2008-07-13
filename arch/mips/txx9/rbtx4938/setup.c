@@ -23,7 +23,6 @@
 #include <asm/time.h>
 #include <asm/txx9tmr.h>
 #include <asm/io.h>
-#include <asm/bootinfo.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
 #include <asm/txx9/rbtx4938.h>
@@ -34,15 +33,9 @@
 #include <asm/txx9/spi.h>
 #include <asm/txx9pio.h>
 
-extern char * __init prom_getcmdline(void);
-/* These functions are used for rebooting or halting the machine*/
-extern void rbtx4938_machine_restart(char *command);
-extern void rbtx4938_machine_halt(void);
-extern void rbtx4938_machine_power_off(void);
-
 static int tx4938_ccfg_toeon = 1;
 
-void rbtx4938_machine_halt(void)
+static void rbtx4938_machine_halt(void)
 {
         printk(KERN_NOTICE "System Halted\n");
 	local_irq_disable();
@@ -53,13 +46,13 @@ void rbtx4938_machine_halt(void)
 			".set\tmips0");
 }
 
-void rbtx4938_machine_power_off(void)
+static void rbtx4938_machine_power_off(void)
 {
         rbtx4938_machine_halt();
         /* no return */
 }
 
-void rbtx4938_machine_restart(char *command)
+static void rbtx4938_machine_restart(char *command)
 {
 	local_irq_disable();
 
