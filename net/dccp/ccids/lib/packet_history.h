@@ -118,30 +118,10 @@ static inline struct tfrc_rx_hist_entry *
 	return h->ring[h->loss_start];
 }
 
-/* initialise loss detection and disable RTT sampling */
-static inline void tfrc_rx_hist_loss_indicated(struct tfrc_rx_hist *h)
-{
-	h->loss_count = 1;
-}
-
 /* indicate whether previously a packet was detected missing */
-static inline int tfrc_rx_hist_loss_pending(const struct tfrc_rx_hist *h)
+static inline bool tfrc_rx_hist_loss_pending(const struct tfrc_rx_hist *h)
 {
-	return h->loss_count;
-}
-
-/* any data packets missing between last reception and skb ? */
-static inline int tfrc_rx_hist_new_loss_indicated(struct tfrc_rx_hist *h,
-						  const struct sk_buff *skb,
-						  u32 ndp)
-{
-	int delta = dccp_delta_seqno(tfrc_rx_hist_last_rcv(h)->tfrchrx_seqno,
-				     DCCP_SKB_CB(skb)->dccpd_seq);
-
-	if (delta > 1 && ndp < delta)
-		tfrc_rx_hist_loss_indicated(h);
-
-	return tfrc_rx_hist_loss_pending(h);
+	return h->loss_count > 0;
 }
 
 extern void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,

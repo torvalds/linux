@@ -206,10 +206,21 @@ static void tfrc_rx_hist_swap(struct tfrc_rx_hist *h, const u8 a, const u8 b)
  *
  * In the descriptions, `Si' refers to the sequence number of entry number i,
  * whose NDP count is `Ni' (lower case is used for variables).
- * Note: All __after_loss functions expect that a test against duplicates has
- *       been performed already: the seqno of the skb must not be less than the
- *       seqno of loss_prev; and it must not equal that of any valid hist_entry.
+ * Note: All __xxx_loss functions expect that a test against duplicates has been
+ *       performed already: the seqno of the skb must not be less than the seqno
+ *       of loss_prev; and it must not equal that of any valid history entry.
  */
+static void __do_track_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u64 n1)
+{
+	u64 s0 = tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno,
+	    s1 = DCCP_SKB_CB(skb)->dccpd_seq;
+
+	if (!dccp_loss_free(s0, s1, n1)) {	/* gap between S0 and S1 */
+		h->loss_count = 1;
+		tfrc_rx_hist_entry_from_skb(tfrc_rx_hist_entry(h, 1), skb, n1);
+	}
+}
+
 static void __one_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n2)
 {
 	u64 s0 = tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno,
@@ -353,6 +364,9 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
  *  Chooses action according to pending loss, updates LI database when a new
  *  loss was detected, and does required post-processing. Returns 1 when caller
  *  should send feedback, 0 otherwise.
+ *  Since it also takes care of reordering during loss detection and updates the
+ *  records accordingly, the caller should not perform any more RX history
+ *  operations when loss_count is greater than 0 after calling this function.
  */
 int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 			struct tfrc_loss_hist *lh,
@@ -361,7 +375,9 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 {
 	int is_new_loss = 0;
 
-	if (h->loss_count == 1) {
+	if (h->loss_count == 0) {
+		__do_track_loss(h, skb, ndp);
+	} else if (h->loss_count == 1) {
 		__one_after_loss(h, skb, ndp);
 	} else if (h->loss_count != 2) {
 		DCCP_BUG("invalid loss_count %d", h->loss_count);
