@@ -376,7 +376,7 @@ failed:
 
 ======================================================================*/
 
-void ide_release(struct pcmcia_device *link)
+static void ide_release(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
     ide_hwif_t *hwif = info->hwif;
