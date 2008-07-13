@@ -252,55 +252,6 @@ static void __init rbtx4927_mem_setup(void)
 	set_io_port_base(KSEG1 + RBTX4927_ISA_IO_OFFSET);
 #endif
 
-	/*
-	   * ASSUMPTION: PCIDIVMODE is configured for PCI 33MHz or 66MHz.
-	   *
-	   * For TX4927:
-	   * PCIDIVMODE[12:11]'s initial value is given by S9[4:3] (ON:0, OFF:1).
-	   * CPU 166MHz: PCI 66MHz : PCIDIVMODE: 00 (1/2.5)
-	   * CPU 200MHz: PCI 66MHz : PCIDIVMODE: 01 (1/3)
-	   * CPU 166MHz: PCI 33MHz : PCIDIVMODE: 10 (1/5)
-	   * CPU 200MHz: PCI 33MHz : PCIDIVMODE: 11 (1/6)
-	   * i.e. S9[3]: ON (83MHz), OFF (100MHz)
-	   *
-	   * For TX4937:
-	   * PCIDIVMODE[12:11]'s initial value is given by S1[5:4] (ON:0, OFF:1)
-	   * PCIDIVMODE[10] is 0.
-	   * CPU 266MHz: PCI 33MHz : PCIDIVMODE: 000 (1/8)
-	   * CPU 266MHz: PCI 66MHz : PCIDIVMODE: 001 (1/4)
-	   * CPU 300MHz: PCI 33MHz : PCIDIVMODE: 010 (1/9)
-	   * CPU 300MHz: PCI 66MHz : PCIDIVMODE: 011 (1/4.5)
-	   * CPU 333MHz: PCI 33MHz : PCIDIVMODE: 100 (1/10)
-	   * CPU 333MHz: PCI 66MHz : PCIDIVMODE: 101 (1/5)
-	   *
-	 */
-	if (mips_machtype == MACH_TOSHIBA_RBTX4937)
-		switch ((unsigned long)__raw_readq(&tx4938_ccfgptr->ccfg) &
-			TX4938_CCFG_PCIDIVMODE_MASK) {
-		case TX4938_CCFG_PCIDIVMODE_8:
-		case TX4938_CCFG_PCIDIVMODE_4:
-			txx9_cpu_clock = 266666666;	/* 266MHz */
-			break;
-		case TX4938_CCFG_PCIDIVMODE_9:
-		case TX4938_CCFG_PCIDIVMODE_4_5:
-			txx9_cpu_clock = 300000000;	/* 300MHz */
-			break;
-		default:
-			txx9_cpu_clock = 333333333;	/* 333MHz */
-		}
-	else
-		switch ((unsigned long)__raw_readq(&tx4927_ccfgptr->ccfg) &
-			TX4927_CCFG_PCIDIVMODE_MASK) {
-		case TX4927_CCFG_PCIDIVMODE_2_5:
-		case TX4927_CCFG_PCIDIVMODE_5:
-			txx9_cpu_clock = 166666666;	/* 166MHz */
-			break;
-		default:
-			txx9_cpu_clock = 200000000;	/* 200MHz */
-		}
-	/* change default value to udelay/mdelay take reasonable time */
-	loops_per_jiffy = txx9_cpu_clock / HZ / 2;
-
 	/* CCFG */
 	/* do reset on watchdog */
 	tx4927_ccfg_set(TX4927_CCFG_WR);
@@ -349,6 +300,55 @@ static void __init rbtx4927_mem_setup(void)
 
 static void __init rbtx4927_time_init(void)
 {
+	/*
+	 * ASSUMPTION: PCIDIVMODE is configured for PCI 33MHz or 66MHz.
+	 *
+	 * For TX4927:
+	 * PCIDIVMODE[12:11]'s initial value is given by S9[4:3] (ON:0, OFF:1).
+	 * CPU 166MHz: PCI 66MHz : PCIDIVMODE: 00 (1/2.5)
+	 * CPU 200MHz: PCI 66MHz : PCIDIVMODE: 01 (1/3)
+	 * CPU 166MHz: PCI 33MHz : PCIDIVMODE: 10 (1/5)
+	 * CPU 200MHz: PCI 33MHz : PCIDIVMODE: 11 (1/6)
+	 * i.e. S9[3]: ON (83MHz), OFF (100MHz)
+	 *
+	 * For TX4937:
+	 * PCIDIVMODE[12:11]'s initial value is given by S1[5:4] (ON:0, OFF:1)
+	 * PCIDIVMODE[10] is 0.
+	 * CPU 266MHz: PCI 33MHz : PCIDIVMODE: 000 (1/8)
+	 * CPU 266MHz: PCI 66MHz : PCIDIVMODE: 001 (1/4)
+	 * CPU 300MHz: PCI 33MHz : PCIDIVMODE: 010 (1/9)
+	 * CPU 300MHz: PCI 66MHz : PCIDIVMODE: 011 (1/4.5)
+	 * CPU 333MHz: PCI 33MHz : PCIDIVMODE: 100 (1/10)
+	 * CPU 333MHz: PCI 66MHz : PCIDIVMODE: 101 (1/5)
+	 */
+	if (mips_machtype == MACH_TOSHIBA_RBTX4937)
+		switch ((unsigned long)__raw_readq(&tx4938_ccfgptr->ccfg) &
+			TX4938_CCFG_PCIDIVMODE_MASK) {
+		case TX4938_CCFG_PCIDIVMODE_8:
+		case TX4938_CCFG_PCIDIVMODE_4:
+			txx9_cpu_clock = 266666666;	/* 266MHz */
+			break;
+		case TX4938_CCFG_PCIDIVMODE_9:
+		case TX4938_CCFG_PCIDIVMODE_4_5:
+			txx9_cpu_clock = 300000000;	/* 300MHz */
+			break;
+		default:
+			txx9_cpu_clock = 333333333;	/* 333MHz */
+		}
+	else
+		switch ((unsigned long)__raw_readq(&tx4927_ccfgptr->ccfg) &
+			TX4927_CCFG_PCIDIVMODE_MASK) {
+		case TX4927_CCFG_PCIDIVMODE_2_5:
+		case TX4927_CCFG_PCIDIVMODE_5:
+			txx9_cpu_clock = 166666666;	/* 166MHz */
+			break;
+		default:
+			txx9_cpu_clock = 200000000;	/* 200MHz */
+		}
+
+	/* change default value to udelay/mdelay take reasonable time */
+	loops_per_jiffy = txx9_cpu_clock / HZ / 2;
+
 	mips_hpt_frequency = txx9_cpu_clock / 2;
 	if (____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_TINTDIS)
 		txx9_clockevent_init(TX4927_TMR_REG(0) & 0xfffffffffULL,
