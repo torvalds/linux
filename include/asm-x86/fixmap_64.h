@@ -40,7 +40,6 @@ enum fixed_addresses {
 	VSYSCALL_HPET,
 	FIX_DBGP_BASE,
 	FIX_EARLYCON_MEM_BASE,
-	FIX_HPET_BASE,
 	FIX_APIC_BASE,	/* local (CPU) APIC) -- required for SMP or not */
 	FIX_IO_APIC_BASE_0,
 	FIX_IO_APIC_BASE_END = FIX_IO_APIC_BASE_0 + MAX_IO_APICS - 1,
