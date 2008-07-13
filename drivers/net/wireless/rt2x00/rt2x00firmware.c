@@ -100,6 +100,14 @@ int rt2x00lib_load_firmware(struct rt2x00_dev *rt2x00dev)
 	retval = rt2x00dev->ops->lib->load_firmware(rt2x00dev,
 						    rt2x00dev->fw->data,
 						    rt2x00dev->fw->size);
+
+	/*
+	 * When the firmware is uploaded to the hardware the LED
+	 * association status might have been triggered, for correct
+	 * LED handling it should now be reset.
+	 */
+	rt2x00leds_led_assoc(rt2x00dev, false);
+
 	return retval;
 }
 
