@@ -1152,7 +1152,6 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
 				break;
 		default:
 			target_state = state;
-			pci_enable_wake(dev, target_state, true);
 		}
 	} else if (device_may_wakeup(&dev->dev)) {
 		/*
@@ -1167,9 +1166,10 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
 			while (target_state
 			      && !(dev->pme_support & (1 << target_state)))
 				target_state--;
-			pci_pme_active(dev, true);
 		}
 	}
+
+	pci_enable_wake(dev, target_state, true);
 
 	error = pci_set_power_state(dev, target_state);
 
