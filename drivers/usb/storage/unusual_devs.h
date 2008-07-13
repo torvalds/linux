@@ -1752,6 +1752,15 @@ UNUSUAL_DEV(  0x22b8, 0x4810, 0x0001, 0x0002,
 		US_FL_FIX_CAPACITY),
 
 /*
+ * Patch by Jost Diederichs <jost@qdusa.com>
+ */
+UNUSUAL_DEV(0x22b8, 0x6410, 0x0001, 0x9999,
+		"Motorola Inc.",
+		"Motorola Phone (RAZRV3xx)",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
+/*
  * Patch by Constantin Baranov <const@tltsu.ru>
  * Report by Andreas Koenecke.
  * Motorola ROKR Z6.
