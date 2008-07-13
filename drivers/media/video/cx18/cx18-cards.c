@@ -88,6 +88,7 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 		.active_lo_mask = 0x3001,
 		.msecs_asserted = 10,
 		.msecs_recovery = 40,
+		.ir_reset_mask  = 0x0001,
 	},
 	.i2c = &cx18_i2c_std,
 };
@@ -133,6 +134,7 @@ static const struct cx18_card cx18_card_hvr1600_samsung = {
 		.active_lo_mask = 0x3001,
 		.msecs_asserted = 10,
 		.msecs_recovery = 40,
+		.ir_reset_mask  = 0x0001,
 	},
 	.i2c = &cx18_i2c_std,
 };

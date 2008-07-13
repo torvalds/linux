@@ -754,6 +754,15 @@ static int cx18_default(struct file *file, void *fh, int cmd, void *arg)
 		cx18_audio_set_route(cx, route);
 		break;
 	}
+
+	case VIDIOC_INT_RESET: {
+		u32 val = *(u32 *)arg;
+
+		if ((val == 0) || (val & 0x01))
+			cx18_reset_ir_gpio(&cx->i2c_algo_cb_data[0]);
+		break;
+	}
+
 	default:
 		return -EINVAL;
 	}

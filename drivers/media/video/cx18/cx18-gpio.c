@@ -83,6 +83,47 @@ void cx18_reset_i2c_slaves_gpio(struct cx18 *cx)
 	mutex_unlock(&cx->gpio_lock);
 }
 
+void cx18_reset_ir_gpio(void *data)
+{
+	struct cx18 *cx = ((struct cx18_i2c_algo_callback_data *)data)->cx;
+	const struct cx18_gpio_i2c_slave_reset *p;
+
+	p = &cx->card->gpio_i2c_slave_reset;
+
+	if (p->ir_reset_mask == 0)
+		return;
+
+	CX18_DEBUG_INFO("Resetting IR microcontroller\n");
+
+	/*
+	   Assert timing for the Z8F0811 on HVR-1600 boards:
+	   1. Assert RESET for min of 4 clock cycles at 18.432 MHz to initiate
+	   2. Reset then takes 66 WDT cycles at 10 kHz + 16 xtal clock cycles
+		(6,601,085 nanoseconds ~= 7 milliseconds)
+	   3. DBG pin must be high before chip exits reset for normal operation.
+		DBG is open drain and hopefully pulled high since we don't
+		normally drive it (GPIO 1?) for the HVR-1600
+	   4. Z8F0811 won't exit reset until RESET is deasserted
+	*/
+	mutex_lock(&cx->gpio_lock);
+	cx->gpio_val = cx->gpio_val & ~p->ir_reset_mask;
+	gpio_write(cx);
+	mutex_unlock(&cx->gpio_lock);
+	schedule_timeout_uninterruptible(msecs_to_jiffies(p->msecs_asserted));
+
+	/*
+	   Zilog comes out of reset, loads reset vector address and executes
+	   from there. Required recovery delay unknown.
+	*/
+	mutex_lock(&cx->gpio_lock);
+	cx->gpio_val = cx->gpio_val | p->ir_reset_mask;
+	gpio_write(cx);
+	mutex_unlock(&cx->gpio_lock);
+	schedule_timeout_uninterruptible(msecs_to_jiffies(p->msecs_recovery));
+}
+EXPORT_SYMBOL(cx18_reset_ir_gpio);
+/* This symbol is exported for use by an infrared module for the IR-blaster */
+
 void cx18_gpio_init(struct cx18 *cx)
 {
 	mutex_lock(&cx->gpio_lock);
