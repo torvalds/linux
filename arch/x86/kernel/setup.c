@@ -849,6 +849,14 @@ void __init setup_arch(char **cmdline_p)
 	init_cpu_to_node();
 #endif
 
+#ifdef CONFIG_X86_NUMAQ
+	/*
+	 * need to check online nodes num, call it
+	 * here before time_init/tsc_init
+	 */
+	numaq_tsc_disable();
+#endif
+
 	init_apic_mappings();
 	ioapic_init_mappings();
 

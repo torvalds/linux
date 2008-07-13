@@ -93,12 +93,13 @@ int __init get_memcfg_numaq(void)
 	return 1;
 }
 
-static int __init numaq_tsc_disable(void)
+void __init numaq_tsc_disable(void)
 {
+	if (!found_numaq)
+		return -1;
+
 	if (num_online_nodes() > 1) {
 		printk(KERN_DEBUG "NUMAQ: disabling TSC\n");
 		setup_clear_cpu_cap(X86_FEATURE_TSC);
 	}
-	return 0;
 }
-arch_initcall(numaq_tsc_disable);

@@ -157,6 +157,8 @@ struct sys_cfg_data {
 	struct		eachquadmem eq[MAX_NUMNODES];	/* indexed by quad id */
 };
 
+void numaq_tsc_disable(void);
+
 #else
 static inline int get_memcfg_numaq(void)
 {
