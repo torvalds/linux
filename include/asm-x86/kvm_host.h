@@ -57,6 +57,7 @@
 #define KVM_PAGES_PER_HPAGE (KVM_HPAGE_SIZE / PAGE_SIZE)
 
 #define DE_VECTOR 0
+#define DB_VECTOR 1
 #define UD_VECTOR 6
 #define NM_VECTOR 7
 #define DF_VECTOR 8

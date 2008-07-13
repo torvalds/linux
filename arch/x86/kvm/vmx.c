@@ -470,7 +470,7 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 	if (!vcpu->fpu_active)
 		eb |= 1u << NM_VECTOR;
 	if (vcpu->guest_debug.enabled)
-		eb |= 1u << 1;
+		eb |= 1u << DB_VECTOR;
 	if (vcpu->arch.rmode.active)
 		eb = ~0;
 	if (vm_need_ept())

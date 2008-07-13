@@ -36,10 +36,6 @@ MODULE_LICENSE("GPL");
 #define IOPM_ALLOC_ORDER 2
 #define MSRPM_ALLOC_ORDER 1
 
-#define DB_VECTOR 1
-#define UD_VECTOR 6
-#define GP_VECTOR 13
-
 #define DR7_GD_MASK (1 << 13)
 #define DR6_BD_MASK (1 << 13)
 
