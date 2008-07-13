@@ -200,3 +200,13 @@ asmlinkage void plat_irq_dispatch(void)
 	else
 		spurious_interrupt();
 }
+
+/* see include/asm-mips/mach-tx39xx/mangle-port.h, for example. */
+#ifdef NEEDS_TXX9_SWIZZLE_ADDR_B
+static unsigned long __swizzle_addr_none(unsigned long port)
+{
+	return port;
+}
+unsigned long (*__swizzle_addr_b)(unsigned long port) = __swizzle_addr_none;
+EXPORT_SYMBOL(__swizzle_addr_b);
+#endif

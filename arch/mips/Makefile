@@ -548,7 +548,7 @@ all-$(CONFIG_SNI_RM)		:= vmlinux.ecoff
 # Common TXx9
 #
 core-$(CONFIG_MACH_TX39XX)	+= arch/mips/txx9/generic/
-cflags-$(CONFIG_MACH_TX39XX) += -Iinclude/asm-mips/mach-jmr3927
+cflags-$(CONFIG_MACH_TX39XX) += -Iinclude/asm-mips/mach-tx39xx
 load-$(CONFIG_MACH_TX39XX)	+= 0xffffffff80050000
 core-$(CONFIG_MACH_TX49XX)	+= arch/mips/txx9/generic/
 cflags-$(CONFIG_MACH_TX49XX) += -Iinclude/asm-mips/mach-tx49xx

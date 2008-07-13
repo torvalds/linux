@@ -315,7 +315,7 @@ static void __init tx3927_setup(void)
 }
 
 /* This trick makes rtc-ds1742 driver usable as is. */
-unsigned long __swizzle_addr_b(unsigned long port)
+static unsigned long jmr3927_swizzle_addr_b(unsigned long port)
 {
 	if ((port & 0xffff0000) != JMR3927_IOC_NVRAMB_ADDR)
 		return port;
@@ -326,7 +326,6 @@ unsigned long __swizzle_addr_b(unsigned long port)
 	return port | 1;
 #endif
 }
-EXPORT_SYMBOL(__swizzle_addr_b);
 
 static int __init jmr3927_rtc_init(void)
 {
@@ -361,6 +360,7 @@ static int __init jmr3927_wdt_init(void)
 
 static void __init jmr3927_device_init(void)
 {
+	__swizzle_addr_b = jmr3927_swizzle_addr_b;
 	jmr3927_rtc_init();
 	jmr3927_wdt_init();
 }

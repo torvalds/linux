@@ -1,13 +1,13 @@
 /*
- *	include/asm-mips/mach-jmr3927/ioremap.h
+ *	include/asm-mips/mach-tx39xx/ioremap.h
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  */
-#ifndef __ASM_MACH_JMR3927_IOREMAP_H
-#define __ASM_MACH_JMR3927_IOREMAP_H
+#ifndef __ASM_MACH_TX39XX_IOREMAP_H
+#define __ASM_MACH_TX39XX_IOREMAP_H
 
 #include <linux/types.h>
 
@@ -35,4 +35,4 @@ static inline int plat_iounmap(const volatile void __iomem *addr)
 	return (unsigned long)addr >= TXX9_DIRECTMAP_BASE;
 }
 
-#endif /* __ASM_MACH_JMR3927_IOREMAP_H */
+#endif /* __ASM_MACH_TX39XX_IOREMAP_H */
