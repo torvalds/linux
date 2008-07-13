@@ -275,7 +275,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	vol->data_pad  = ubi->leb_size % vol->alignment;
 	vol->vol_type  = req->vol_type;
 	vol->name_len  = req->name_len;
-	memcpy(vol->name, req->name, vol->name_len + 1);
+	memcpy(vol->name, req->name, vol->name_len);
 	vol->ubi = ubi;
 
 	/*
@@ -350,7 +350,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 		vtbl_rec.vol_type = UBI_VID_DYNAMIC;
 	else
 		vtbl_rec.vol_type = UBI_VID_STATIC;
-	memcpy(vtbl_rec.name, vol->name, vol->name_len + 1);
+	memcpy(vtbl_rec.name, vol->name, vol->name_len);
 
 	err = ubi_change_vtbl_record(ubi, vol_id, &vtbl_rec);
 	if (err)

@@ -574,6 +574,10 @@ static int verify_mkvol_req(const struct ubi_device *ubi,
 		goto bad;
 	}
 
+	n = strnlen(req->name, req->name_len + 1);
+	if (n != req->name_len)
+		goto bad;
+
 	return 0;
 
 bad:
@@ -629,11 +633,10 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
+		req.name[req.name_len] = '\0';
 		err = verify_mkvol_req(ubi, &req);
 		if (err)
 			break;
-
-		req.name[req.name_len] = '\0';
 
 		mutex_lock(&ubi->volumes_mutex);
 		err = ubi_create_volume(ubi, &req);
