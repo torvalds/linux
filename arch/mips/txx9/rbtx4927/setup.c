@@ -170,13 +170,16 @@ static void __init tx4937_pci_setup(void)
 
 static void __init rbtx4927_arch_init(void)
 {
-	if (mips_machtype == MACH_TOSHIBA_RBTX4937)
-		tx4937_pci_setup();
-	else
-		tx4927_pci_setup();
+	tx4927_pci_setup();
+}
+
+static void __init rbtx4937_arch_init(void)
+{
+	tx4937_pci_setup();
 }
 #else
 #define rbtx4927_arch_init NULL
+#define rbtx4937_arch_init NULL
 #endif /* CONFIG_PCI */
 
 static void __noreturn wait_forever(void)
@@ -433,7 +436,7 @@ struct txx9_board_vec rbtx4937_vec __initdata = {
 	.irq_setup = rbtx4927_irq_setup,
 	.time_init = rbtx4927_time_init,
 	.device_init = rbtx4927_device_init,
-	.arch_init = rbtx4927_arch_init,
+	.arch_init = rbtx4937_arch_init,
 #ifdef CONFIG_PCI
 	.pci_map_irq = rbtx4927_pci_map_irq,
 #endif
