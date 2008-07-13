@@ -12,7 +12,7 @@
 #
 #   http://www.arm.linux.org.uk/developer/machines/?action=new
 #
-# Last update: Mon Jul 7 16:25:39 2008
+# Last update: Sun Jul 13 12:04:05 2008
 #
 # machine_is_xxx	CONFIG_xxxx		MACH_TYPE_xxx		number
 #
@@ -1812,3 +1812,11 @@ jade			MACH_JADE		JADE			1821
 ks8695_softplc		MACH_KS8695_SOFTPLC	KS8695_SOFTPLC		1822
 gprisc4			MACH_GPRISC4		GPRISC4			1823
 stamp9260		MACH_STAMP9260		STAMP9260		1824
+smdk6430		MACH_SMDK6430		SMDK6430		1825
+smdkc100		MACH_SMDKC100		SMDKC100		1826
+tavorevb		MACH_TAVOREVB		TAVOREVB		1827
+saar			MACH_SAAR		SAAR			1828
+deister_eyecam		MACH_DEISTER_EYECAM	DEISTER_EYECAM		1829
+at91sam9m10ek		MACH_AT91SAM9M10EK	AT91SAM9M10EK		1830
+linkstation_produo	MACH_LINKSTATION_PRODUO	LINKSTATION_PRODUO	1831
+hit_b0			MACH_HIT_B0		HIT_B0			1832
