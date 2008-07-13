@@ -716,8 +716,10 @@ static int cx18_log_status(struct file *file, void *fh)
 	cx18_get_audio_input(cx, cx->audio_input, &audin);
 	CX18_INFO("Video Input: %s\n", vidin.name);
 	CX18_INFO("Audio Input: %s\n", audin.name);
+	mutex_lock(&cx->gpio_lock);
 	CX18_INFO("GPIO:  direction 0x%08x, value 0x%08x\n",
 		cx->gpio_dir, cx->gpio_val);
+	mutex_unlock(&cx->gpio_lock);
 	CX18_INFO("Tuner: %s\n",
 		test_bit(CX18_F_I_RADIO_USER, &cx->i_flags) ?  "Radio" : "TV");
 	cx2341x_log_status(&cx->params, cx->name);

@@ -69,6 +69,7 @@ void cx18_reset_i2c_slaves_gpio(struct cx18 *cx)
 	/* Assuming that the masks are a subset of the bits in gpio_dir */
 
 	/* Assert */
+	mutex_lock(&cx->gpio_lock);
 	cx->gpio_val =
 		(cx->gpio_val | p->active_hi_mask) & ~(p->active_lo_mask);
 	gpio_write(cx);
@@ -79,10 +80,12 @@ void cx18_reset_i2c_slaves_gpio(struct cx18 *cx)
 		(cx->gpio_val | p->active_lo_mask) & ~(p->active_hi_mask);
 	gpio_write(cx);
 	schedule_timeout_uninterruptible(msecs_to_jiffies(p->msecs_recovery));
+	mutex_unlock(&cx->gpio_lock);
 }
 
 void cx18_gpio_init(struct cx18 *cx)
 {
+	mutex_lock(&cx->gpio_lock);
 	cx->gpio_dir = cx->card->gpio_init.direction;
 	cx->gpio_val = cx->card->gpio_init.initial_value;
 
@@ -91,14 +94,17 @@ void cx18_gpio_init(struct cx18 *cx)
 		cx->gpio_val |= 1 << cx->card->xceive_pin;
 	}
 
-	if (cx->gpio_dir == 0)
+	if (cx->gpio_dir == 0) {
+		mutex_unlock(&cx->gpio_lock);
 		return;
+	}
 
 	CX18_DEBUG_INFO("GPIO initial dir: %08x/%08x out: %08x/%08x\n",
 		   read_reg(CX18_REG_GPIO_DIR1), read_reg(CX18_REG_GPIO_DIR2),
 		   read_reg(CX18_REG_GPIO_OUT1), read_reg(CX18_REG_GPIO_OUT2));
 
 	gpio_write(cx);
+	mutex_unlock(&cx->gpio_lock);
 }
 
 /* Xceive tuner reset function */
@@ -112,13 +118,16 @@ int cx18_reset_tuner_gpio(void *dev, int cmd, int value)
 		return 0;
 	CX18_DEBUG_INFO("Resetting tuner\n");
 
+	mutex_lock(&cx->gpio_lock);
 	cx->gpio_val &= ~(1 << cx->card->xceive_pin);
-
 	gpio_write(cx);
+	mutex_unlock(&cx->gpio_lock);
 	schedule_timeout_interruptible(msecs_to_jiffies(1));
 
+	mutex_lock(&cx->gpio_lock);
 	cx->gpio_val |= 1 << cx->card->xceive_pin;
 	gpio_write(cx);
+	mutex_unlock(&cx->gpio_lock);
 	schedule_timeout_interruptible(msecs_to_jiffies(1));
 	return 0;
 }
@@ -151,8 +160,10 @@ int cx18_gpio(struct cx18 *cx, unsigned int command, void *arg)
 		return -EINVAL;
 	}
 	if (mask) {
+		mutex_lock(&cx->gpio_lock);
 		cx->gpio_val = (cx->gpio_val & ~mask) | (data & mask);
 		gpio_write(cx);
+		mutex_unlock(&cx->gpio_lock);
 	}
 	return 0;
 }

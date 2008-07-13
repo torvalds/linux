@@ -427,6 +427,7 @@ struct cx18 {
 	/* gpio */
 	u32 gpio_dir;
 	u32 gpio_val;
+	struct mutex gpio_lock;
 
 	/* v4l2 and User settings */
 
