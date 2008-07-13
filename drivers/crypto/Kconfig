@@ -195,6 +195,7 @@ config CRYPTO_DEV_IXP4XX
 	depends on ARCH_IXP4XX
 	select CRYPTO_DES
 	select CRYPTO_ALGAPI
+	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
 	help
 	  Driver for the IXP4xx NPE crypto engine.
