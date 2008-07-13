@@ -278,7 +278,7 @@ static void __kvm_ioapic_update_eoi(struct kvm_ioapic *ioapic, int gsi)
 
 	ent->fields.remote_irr = 0;
 	if (!ent->fields.mask && (ioapic->irr & (1 << gsi)))
-		ioapic_deliver(ioapic, gsi);
+		ioapic_service(ioapic, gsi);
 }
 
 void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
