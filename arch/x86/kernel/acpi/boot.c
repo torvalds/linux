@@ -1409,7 +1409,6 @@ static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
 {
 	pr_notice("%s detected: Ignoring BIOS IRQ0 pin2 override\n", d->ident);
 	acpi_skip_timer_override = 1;
-	force_mask_ioapic_irq_2();
 	return 0;
 }
 

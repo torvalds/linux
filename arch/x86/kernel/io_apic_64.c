@@ -94,13 +94,6 @@ static int no_timer_check;
 
 static int disable_timer_pin_1 __initdata;
 
-static bool mask_ioapic_irq_2 __initdata;
-
-void __init force_mask_ioapic_irq_2(void)
-{
-	mask_ioapic_irq_2 = true;
-}
-
 int timer_through_8259 __initdata;
 
 /* Where if anywhere is the i8259 connect in external int mode */
@@ -1705,9 +1698,6 @@ static inline void __init check_timer(void)
 
 	apic_printk(APIC_VERBOSE,KERN_INFO "..TIMER: vector=0x%02X apic1=%d pin1=%d apic2=%d pin2=%d\n",
 		cfg->vector, apic1, pin1, apic2, pin2);
-
-	if (mask_ioapic_irq_2)
-		mask_IO_APIC_irq(2);
 
 	/*
 	 * Some BIOS writers are clueless and report the ExtINTA
