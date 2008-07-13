@@ -62,17 +62,6 @@
 #define  MACH_SGI_IP30		4	/* Octane, Octane2              */
 
 /*
- * Valid machtypes for group Toshiba
- */
-#define  MACH_PALLAS		0
-#define  MACH_TOPAS		1
-#define  MACH_JMR		2
-#define  MACH_TOSHIBA_JMR3927	3	/* JMR-TX3927 CPU/IO board */
-#define  MACH_TOSHIBA_RBTX4927	4
-#define  MACH_TOSHIBA_RBTX4937	5
-#define  MACH_TOSHIBA_RBTX4938	6
-
-/*
  * Valid machtype for group LASAT
  */
 #define  MACH_LASAT_100		0	/* Masquerade II/SP100/SP50/SP25 */

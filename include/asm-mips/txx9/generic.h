@@ -22,7 +22,6 @@ extern unsigned int txx9_gbus_clock;
 
 struct pci_dev;
 struct txx9_board_vec {
-	unsigned long type;
 	const char *system;
 	void (*prom_init)(void);
 	void (*mem_setup)(void);

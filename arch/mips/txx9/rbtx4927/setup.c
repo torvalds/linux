@@ -428,7 +428,6 @@ static void __init rbtx4927_device_init(void)
 }
 
 struct txx9_board_vec rbtx4927_vec __initdata = {
-	.type = MACH_TOSHIBA_RBTX4927,
 	.system = "Toshiba RBTX4927",
 	.prom_init = rbtx4927_prom_init,
 	.mem_setup = rbtx4927_mem_setup,
@@ -441,7 +440,6 @@ struct txx9_board_vec rbtx4927_vec __initdata = {
 #endif
 };
 struct txx9_board_vec rbtx4937_vec __initdata = {
-	.type = MACH_TOSHIBA_RBTX4937,
 	.system = "Toshiba RBTX4937",
 	.prom_init = rbtx4927_prom_init,
 	.mem_setup = rbtx4927_mem_setup,

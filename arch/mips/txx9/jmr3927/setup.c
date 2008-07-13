@@ -366,7 +366,6 @@ static void __init jmr3927_device_init(void)
 }
 
 struct txx9_board_vec jmr3927_vec __initdata = {
-	.type = MACH_TOSHIBA_JMR3927,
 	.system = "Toshiba JMR_TX3927",
 	.prom_init = jmr3927_prom_init,
 	.mem_setup = jmr3927_mem_setup,

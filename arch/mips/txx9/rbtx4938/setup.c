@@ -619,7 +619,6 @@ static void __init rbtx4938_device_init(void)
 }
 
 struct txx9_board_vec rbtx4938_vec __initdata = {
-	.type = MACH_TOSHIBA_RBTX4938,
 	.system = "Toshiba RBTX4938",
 	.prom_init = rbtx4938_prom_init,
 	.mem_setup = rbtx4938_mem_setup,
