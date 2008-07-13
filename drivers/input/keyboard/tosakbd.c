@@ -215,8 +215,6 @@ static int tosakbd_suspend(struct platform_device *dev, pm_message_t state)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tosakbd->lock, flags);
-	PGSR1 = (PGSR1 & ~TOSA_GPIO_LOW_STROBE_BIT);
-	PGSR2 = (PGSR2 & ~TOSA_GPIO_HIGH_STROBE_BIT);
 	tosakbd->suspended = 1;
 	spin_unlock_irqrestore(&tosakbd->lock, flags);
 

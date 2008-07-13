@@ -627,7 +627,7 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	if (!sachip)
 		return -ENOMEM;
 
-	sachip->clk = clk_get(me, "GPIO27_CLK");
+	sachip->clk = clk_get(me, "SA1111_CLK");
 	if (!sachip->clk) {
 		ret = PTR_ERR(sachip->clk);
 		goto err_free;

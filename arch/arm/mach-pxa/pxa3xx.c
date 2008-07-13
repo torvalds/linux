@@ -144,7 +144,7 @@ static unsigned long clk_pxa3xx_hsio_getrate(struct clk *clk)
 	return hsio_clk;
 }
 
-static void clk_pxa3xx_cken_enable(struct clk *clk)
+void clk_pxa3xx_cken_enable(struct clk *clk)
 {
 	unsigned long mask = 1ul << (clk->cken & 0x1f);
 
@@ -154,7 +154,7 @@ static void clk_pxa3xx_cken_enable(struct clk *clk)
 		CKENB |= mask;
 }
 
-static void clk_pxa3xx_cken_disable(struct clk *clk)
+void clk_pxa3xx_cken_disable(struct clk *clk)
 {
 	unsigned long mask = 1ul << (clk->cken & 0x1f);
 
@@ -164,7 +164,7 @@ static void clk_pxa3xx_cken_disable(struct clk *clk)
 		CKENB &= ~mask;
 }
 
-static const struct clkops clk_pxa3xx_cken_ops = {
+const struct clkops clk_pxa3xx_cken_ops = {
 	.enable		= clk_pxa3xx_cken_enable,
 	.disable	= clk_pxa3xx_cken_disable,
 };
@@ -196,24 +196,6 @@ static const struct clkops clk_pout_ops = {
 	.disable	= clk_pout_disable,
 };
 
-#define PXA3xx_CKEN(_name, _cken, _rate, _delay, _dev)	\
-	{						\
-		.name	= _name,			\
-		.dev	= _dev,				\
-		.ops	= &clk_pxa3xx_cken_ops,		\
-		.rate	= _rate,			\
-		.cken	= CKEN_##_cken,			\
-		.delay	= _delay,			\
-	}
-
-#define PXA3xx_CK(_name, _cken, _ops, _dev)		\
-	{						\
-		.name	= _name,			\
-		.dev	= _dev,				\
-		.ops	= _ops,				\
-		.cken	= CKEN_##_cken,			\
-	}
-
 static struct clk pxa3xx_clks[] = {
 	{
 		.name           = "CLK_POUT",
@@ -231,7 +213,7 @@ static struct clk pxa3xx_clks[] = {
 	PXA3xx_CKEN("UARTCLK", STUART, 14857000, 1, NULL),
 
 	PXA3xx_CKEN("I2CCLK", I2C,  32842000, 0, &pxa_device_i2c.dev),
-	PXA3xx_CKEN("UDCCLK", UDC,  48000000, 5, &pxa_device_udc.dev),
+	PXA3xx_CKEN("UDCCLK", UDC,  48000000, 5, &pxa27x_device_udc.dev),
 	PXA3xx_CKEN("USBCLK", USBH, 48000000, 0, &pxa27x_device_ohci.dev),
 	PXA3xx_CKEN("KBDCLK", KEYPAD,  32768, 0, &pxa27x_device_keypad.dev),
 
@@ -239,10 +221,11 @@ static struct clk pxa3xx_clks[] = {
 	PXA3xx_CKEN("SSPCLK", SSP2, 13000000, 0, &pxa27x_device_ssp2.dev),
 	PXA3xx_CKEN("SSPCLK", SSP3, 13000000, 0, &pxa27x_device_ssp3.dev),
 	PXA3xx_CKEN("SSPCLK", SSP4, 13000000, 0, &pxa3xx_device_ssp4.dev),
+	PXA3xx_CKEN("PWMCLK", PWM0, 13000000, 0, &pxa27x_device_pwm0.dev),
+	PXA3xx_CKEN("PWMCLK", PWM1, 13000000, 0, &pxa27x_device_pwm1.dev),
 
 	PXA3xx_CKEN("MMCCLK", MMC1, 19500000, 0, &pxa_device_mci.dev),
 	PXA3xx_CKEN("MMCCLK", MMC2, 19500000, 0, &pxa3xx_device_mci2.dev),
-	PXA3xx_CKEN("MMCCLK", MMC3, 19500000, 0, &pxa3xx_device_mci3.dev),
 };
 
 #ifdef CONFIG_PM
@@ -520,7 +503,7 @@ void __init pxa3xx_init_irq(void)
  */
 
 static struct platform_device *devices[] __initdata = {
-	&pxa_device_udc,
+/*	&pxa_device_udc,	The UDC driver is PXA25x only */
 	&pxa_device_ffuart,
 	&pxa_device_btuart,
 	&pxa_device_stuart,
@@ -530,6 +513,8 @@ static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_ssp2,
 	&pxa27x_device_ssp3,
 	&pxa3xx_device_ssp4,
+	&pxa27x_device_pwm0,
+	&pxa27x_device_pwm1,
 };
 
 static struct sys_device pxa3xx_sysdev[] = {
