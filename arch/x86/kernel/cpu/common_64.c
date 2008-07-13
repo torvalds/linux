@@ -98,7 +98,7 @@ int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 
 void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 {
-	unsigned int n, dummy, eax, ebx, ecx, edx;
+	unsigned int n, dummy, ebx, ecx, edx;
 
 	n = c->extended_cpuid_level;
 
@@ -120,11 +120,6 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 
 		printk(KERN_INFO "CPU: L2 Cache: %dK (%d bytes/line)\n",
 		c->x86_cache_size, ecx & 0xFF);
-	}
-	if (n >= 0x80000008) {
-		cpuid(0x80000008, &eax, &dummy, &dummy, &dummy);
-		c->x86_virt_bits = (eax >> 8) & 0xff;
-		c->x86_phys_bits = eax & 0xff;
 	}
 }
 
@@ -313,6 +308,13 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 	c->extended_cpuid_level = cpuid_eax(0x80000000);
 	if (c->extended_cpuid_level >= 0x80000007)
 		c->x86_power = cpuid_edx(0x80000007);
+
+	if (c->extended_cpuid_level >= 0x80000008) {
+		u32 eax = cpuid_eax(0x80000008);
+
+		c->x86_virt_bits = (eax >> 8) & 0xff;
+		c->x86_phys_bits = eax & 0xff;
+	}
 
 	/* Assume all 64-bit CPUs support 32-bit syscall */
 	set_cpu_cap(c, X86_FEATURE_SYSCALL32);
