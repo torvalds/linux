@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <linux/types.h>
 #include <asm/page.h>
 
 #include "dmxdev.h"
