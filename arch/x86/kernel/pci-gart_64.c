@@ -679,11 +679,8 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	/* need to map that range */
 	end_pfn = (aper_base>>PAGE_SHIFT) + (aper_size>>PAGE_SHIFT);
 	if (end_pfn > max_low_pfn_mapped) {
-		start_pfn = max_low_pfn_mapped;
-		max_low_pfn_mapped = init_memory_mapping(start_pfn<<PAGE_SHIFT,
-							 end_pfn<<PAGE_SHIFT);
-		if (max_pfn_mapped < max_low_pfn_mapped)
-			max_pfn_mapped = max_low_pfn_mapped;
+		start_pfn = (aper_base>>PAGE_SHIFT);
+		init_memory_mapping(start_pfn<<PAGE_SHIFT, end_pfn<<PAGE_SHIFT);
 	}
 	return 0;
 
