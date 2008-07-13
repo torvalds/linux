@@ -388,8 +388,8 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	iowrite16(lp->rx_ring_dma >> 16, ioaddr + MRD_SA1);
 
 	/* Set interrupt waiting time and packet numbers */
-	iowrite16(0x0F06, ioaddr + MT_ICR);
-	iowrite16(0x0F06, ioaddr + MR_ICR);
+	iowrite16(0, ioaddr + MT_ICR);
+	iowrite16(0, ioaddr + MR_ICR);
 
 	/* Enable interrupts */
 	iowrite16(INT_MASK, ioaddr + MIER);
