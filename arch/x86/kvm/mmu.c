@@ -1189,9 +1189,10 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 				return -ENOMEM;
 			}
 
-			table[index] = __pa(new_table->spt)
-				| PT_PRESENT_MASK | PT_WRITABLE_MASK
-				| shadow_user_mask | shadow_x_mask;
+			set_shadow_pte(&table[index],
+				       __pa(new_table->spt)
+				       | PT_PRESENT_MASK | PT_WRITABLE_MASK
+				       | shadow_user_mask | shadow_x_mask);
 		}
 		table_addr = table[index] & PT64_BASE_ADDR_MASK;
 	}
