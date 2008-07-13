@@ -485,6 +485,7 @@ static int r6040_close(struct net_device *dev)
 	del_timer_sync(&lp->timer);
 
 	spin_lock_irq(&lp->lock);
+	napi_disable(&lp->napi);
 	netif_stop_queue(dev);
 	r6040_down(dev);
 	spin_unlock_irq(&lp->lock);
@@ -1080,8 +1081,6 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp = netdev_priv(dev);
-	lp->pdev = pdev;
-	lp->dev = dev;
 
 	if (pci_request_regions(pdev, DRV_NAME)) {
 		printk(KERN_ERR DRV_NAME ": Failed to request PCI regions\n");
@@ -1113,6 +1112,7 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 
 	/* Link new device into r6040_root_dev */
 	lp->pdev = pdev;
+	lp->dev = dev;
 
 	/* Init RDC private data */
 	lp->mcr0 = 0x1002;
