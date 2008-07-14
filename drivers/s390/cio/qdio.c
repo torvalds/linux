@@ -2082,7 +2082,6 @@ qdio_timeout_handler(struct ccw_device *cdev)
 	default:
 		BUG();
 	}
-	ccw_device_set_timeout(cdev, 0);
 	wake_up(&cdev->private->wait_q);
 }
 
@@ -2121,6 +2120,8 @@ qdio_handler(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		case -EIO:
 			QDIO_PRINT_ERR("i/o error on device %s\n",
 				       cdev->dev.bus_id);
+			qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
+			wake_up(&cdev->private->wait_q);
 			return;
 		case -ETIMEDOUT:
 			qdio_timeout_handler(cdev);
@@ -2667,12 +2668,12 @@ qdio_shutdown(struct ccw_device *cdev, int how)
 		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	} else if (rc == 0) {
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_CLEANUP);
-		ccw_device_set_timeout(cdev, timeout);
 		spin_unlock_irqrestore(get_ccwdev_lock(cdev),flags);
 
-		wait_event(cdev->private->wait_q,
-			   irq_ptr->state == QDIO_IRQ_STATE_INACTIVE ||
-			   irq_ptr->state == QDIO_IRQ_STATE_ERR);
+		wait_event_interruptible_timeout(cdev->private->wait_q,
+			irq_ptr->state == QDIO_IRQ_STATE_INACTIVE ||
+			irq_ptr->state == QDIO_IRQ_STATE_ERR,
+			timeout);
 	} else {
 		QDIO_PRINT_INFO("ccw_device_{halt,clear} returned %d for "
 				"device %s\n", result, cdev->dev.bus_id);
@@ -2692,7 +2693,6 @@ qdio_shutdown(struct ccw_device *cdev, int how)
 
 	/* Ignore errors. */
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
-	ccw_device_set_timeout(cdev, 0);
 out:
 	up(&irq_ptr->setting_up_sema);
 	return result;
@@ -2907,13 +2907,10 @@ qdio_establish_handle_irq(struct ccw_device *cdev, int cstat, int dstat)
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	QDIO_DBF_TEXT0(0,trace,dbf_text);
 
-	if (qdio_establish_irq_check_for_errors(cdev, cstat, dstat)) {
-		ccw_device_set_timeout(cdev, 0);
+	if (qdio_establish_irq_check_for_errors(cdev, cstat, dstat))
 		return;
-	}
 
 	qdio_set_state(irq_ptr,QDIO_IRQ_STATE_ESTABLISHED);
-	ccw_device_set_timeout(cdev, 0);
 }
 
 int
@@ -3196,8 +3193,6 @@ qdio_establish(struct qdio_initialize *init_data)
 				irq_ptr->schid.ssid, irq_ptr->schid.sch_no,
 				result, result2);
 		result=result2;
-		if (result)
-			ccw_device_set_timeout(cdev, 0);
 	}
 
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev),saveflags);
@@ -3279,7 +3274,6 @@ qdio_activate(struct ccw_device *cdev, int flags)
 
 	spin_lock_irqsave(get_ccwdev_lock(cdev),saveflags);
 
-	ccw_device_set_timeout(cdev, 0);
 	ccw_device_set_options(cdev, CCWDEV_REPORT_ALL);
 	result=ccw_device_start(cdev,&irq_ptr->ccw,QDIO_DOING_ACTIVATE,
 				0, DOIO_DENY_PREFETCH);
