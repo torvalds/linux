@@ -16,6 +16,7 @@
 #include <asm/cio.h>
 #include <asm/chpid.h>
 
+#include "../s390mach.h"
 #include "css.h"
 #include "cio.h"
 #include "cio_debug.h"
@@ -372,17 +373,25 @@ static void chsc_process_sei(struct chsc_sei_area *sei_area)
 	}
 }
 
-void chsc_process_crw(void)
+static void chsc_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 {
 	struct chsc_sei_area *sei_area;
 
+	if (overflow) {
+		css_schedule_eval_all();
+		return;
+	}
+	CIO_CRW_EVENT(2, "CRW reports slct=%d, oflw=%d, "
+		      "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
+		      crw0->slct, crw0->oflw, crw0->chn, crw0->rsc, crw0->anc,
+		      crw0->erc, crw0->rsid);
 	if (!sei_page)
 		return;
 	/* Access to sei_page is serialized through machine check handler
 	 * thread, so no need for locking. */
 	sei_area = sei_page;
 
-	CIO_TRACE_EVENT( 2, "prcss");
+	CIO_TRACE_EVENT(2, "prcss");
 	do {
 		memset(sei_area, 0, sizeof(*sei_area));
 		sei_area->request.length = 0x0010;
@@ -751,15 +760,23 @@ out:
 
 int __init chsc_alloc_sei_area(void)
 {
+	int ret;
+
 	sei_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-	if (!sei_page)
+	if (!sei_page) {
 		CIO_MSG_EVENT(0, "Can't allocate page for processing of "
 			      "chsc machine checks!\n");
-	return (sei_page ? 0 : -ENOMEM);
+		return -ENOMEM;
+	}
+	ret = s390_register_crw_handler(CRW_RSC_CSS, chsc_process_crw);
+	if (ret)
+		kfree(sei_page);
+	return ret;
 }
 
 void __init chsc_free_sei_area(void)
 {
+	s390_unregister_crw_handler(CRW_RSC_CSS);
 	kfree(sei_page);
 }
 

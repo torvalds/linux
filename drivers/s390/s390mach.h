@@ -72,6 +72,13 @@ struct crw {
 	__u32 rsid    : 16;   /* reporting-source ID */
 } __attribute__ ((packed));
 
+typedef void (*crw_handler_t)(struct crw *, struct crw *, int);
+
+extern int s390_register_crw_handler(int rsc, crw_handler_t handler);
+extern void s390_unregister_crw_handler(int rsc);
+
+#define NR_RSCS 16
+
 #define CRW_RSC_MONITOR  0x2  /* monitoring facility */
 #define CRW_RSC_SCH      0x3  /* subchannel */
 #define CRW_RSC_CPATH    0x4  /* channel path */

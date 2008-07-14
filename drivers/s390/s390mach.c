@@ -2,10 +2,10 @@
  *  drivers/s390/s390mach.c
  *   S/390 machine check handler
  *
- *  S390 version
- *    Copyright (C) 2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2000,2008
  *    Author(s): Ingo Adlung (adlung@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
+ *		 Cornelia Huck <cornelia.huck@de.ibm.com>
  */
 
 #include <linux/init.h>
@@ -18,10 +18,6 @@
 #include <asm/etr.h>
 #include <asm/lowcore.h>
 #include <asm/cio.h>
-#include "cio/cio.h"
-#include "cio/chsc.h"
-#include "cio/css.h"
-#include "cio/chp.h"
 #include "s390mach.h"
 
 static struct semaphore m_sem;
@@ -36,13 +32,40 @@ s390_handle_damage(char *msg)
 	for(;;);
 }
 
+static crw_handler_t crw_handlers[NR_RSCS];
+
+/**
+ * s390_register_crw_handler() - register a channel report word handler
+ * @rsc: reporting source code to handle
+ * @handler: handler to be registered
+ *
+ * Returns %0 on success and a negative error value otherwise.
+ */
+int s390_register_crw_handler(int rsc, crw_handler_t handler)
+{
+	if ((rsc < 0) || (rsc >= NR_RSCS))
+		return -EINVAL;
+	if (!cmpxchg(&crw_handlers[rsc], NULL, handler))
+		return 0;
+	return -EBUSY;
+}
+
+/**
+ * s390_unregister_crw_handler() - unregister a channel report word handler
+ * @rsc: reporting source code to handle
+ */
+void s390_unregister_crw_handler(int rsc)
+{
+	if ((rsc < 0) || (rsc >= NR_RSCS))
+		return;
+	xchg(&crw_handlers[rsc], NULL);
+	synchronize_sched();
+}
+
 /*
  * Retrieve CRWs and call function to handle event.
- *
- * Note : we currently process CRWs for io and chsc subchannels only
  */
-static int
-s390_collect_crw_info(void *param)
+static int s390_collect_crw_info(void *param)
 {
 	struct crw crw[2];
 	int ccode;
@@ -84,57 +107,24 @@ repeat:
 		       crw[chain].rsid);
 		/* Check for overflows. */
 		if (crw[chain].oflw) {
+			int i;
+
 			pr_debug("%s: crw overflow detected!\n", __func__);
-			css_schedule_eval_all();
+			for (i = 0; i < NR_RSCS; i++) {
+				if (crw_handlers[i])
+					crw_handlers[i](NULL, NULL, 1);
+			}
 			chain = 0;
 			continue;
 		}
-		switch (crw[chain].rsc) {
-		case CRW_RSC_SCH:
-			if (crw[0].chn && !chain)
-				break;
-			pr_debug("source is subchannel %04X\n", crw[0].rsid);
-			css_process_crw(crw[0].rsid, chain ? crw[1].rsid : 0);
-			break;
-		case CRW_RSC_MONITOR:
-			pr_debug("source is monitoring facility\n");
-			break;
-		case CRW_RSC_CPATH:
-			pr_debug("source is channel path %02X\n", crw[0].rsid);
-			/*
-			 * Check for solicited machine checks. These are
-			 * created by reset channel path and need not be
-			 * reported to the common I/O layer.
-			 */
-			if (crw[chain].slct) {
-				pr_debug("solicited machine check for "
-					 "channel path %02X\n", crw[0].rsid);
-				break;
-			}
-			switch (crw[0].erc) {
-			case CRW_ERC_IPARM: /* Path has come. */
-				chp_process_crw(crw[0].rsid, 1);
-				break;
-			case CRW_ERC_PERRI: /* Path has gone. */
-			case CRW_ERC_PERRN:
-				chp_process_crw(crw[0].rsid, 0);
-				break;
-			default:
-				pr_debug("Don't know how to handle erc=%x\n",
-					 crw[0].erc);
-			}
-			break;
-		case CRW_RSC_CONFIG:
-			pr_debug("source is configuration-alert facility\n");
-			break;
-		case CRW_RSC_CSS:
-			pr_debug("source is channel subsystem\n");
-			chsc_process_crw();
-			break;
-		default:
-			pr_debug("unknown source\n");
-			break;
+		if (crw[0].chn && !chain) {
+			chain++;
+			continue;
 		}
+		if (crw_handlers[crw[chain].rsc])
+			crw_handlers[crw[chain].rsc](&crw[0],
+						     chain ? &crw[1] : NULL,
+						     0);
 		/* chain is always 0 or 1 here. */
 		chain = crw[chain].chn ? chain + 1 : 0;
 	}

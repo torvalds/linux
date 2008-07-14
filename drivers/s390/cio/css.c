@@ -14,6 +14,7 @@
 #include <linux/list.h>
 #include <linux/reboot.h>
 
+#include "../s390mach.h"
 #include "css.h"
 #include "cio.h"
 #include "cio_debug.h"
@@ -530,18 +531,29 @@ EXPORT_SYMBOL_GPL(css_schedule_reprobe);
 /*
  * Called from the machine check handler for subchannel report words.
  */
-void css_process_crw(int rsid1, int rsid2)
+static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 {
 	struct subchannel_id mchk_schid;
 
-	CIO_CRW_EVENT(2, "source is subchannel %04X, subsystem id %x\n",
-		      rsid1, rsid2);
+	if (overflow) {
+		css_schedule_eval_all();
+		return;
+	}
+	CIO_CRW_EVENT(2, "CRW0 reports slct=%d, oflw=%d, "
+		      "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
+		      crw0->slct, crw0->oflw, crw0->chn, crw0->rsc, crw0->anc,
+		      crw0->erc, crw0->rsid);
+	if (crw1)
+		CIO_CRW_EVENT(2, "CRW1 reports slct=%d, oflw=%d, "
+			      "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
+			      crw1->slct, crw1->oflw, crw1->chn, crw1->rsc,
+			      crw1->anc, crw1->erc, crw1->rsid);
 	init_subchannel_id(&mchk_schid);
-	mchk_schid.sch_no = rsid1;
-	if (rsid2 != 0)
-		mchk_schid.ssid = (rsid2 >> 8) & 3;
+	mchk_schid.sch_no = crw0->rsid;
+	if (crw1)
+		mchk_schid.ssid = (crw1->rsid >> 8) & 3;
 
-	/* 
+	/*
 	 * Since we are always presented with IPI in the CRW, we have to
 	 * use stsch() to find out if the subchannel in question has come
 	 * or gone.
@@ -740,6 +752,10 @@ init_channel_subsystem (void)
 	if (ret)
 		goto out;
 
+	ret = s390_register_crw_handler(CRW_RSC_SCH, css_process_crw);
+	if (ret)
+		goto out;
+
 	if ((ret = bus_register(&css_bus_type)))
 		goto out;
 
@@ -817,6 +833,7 @@ out_unregister:
 out_bus:
 	bus_unregister(&css_bus_type);
 out:
+	s390_unregister_crw_handler(CRW_RSC_CSS);
 	chsc_free_sei_area();
 	kfree(slow_subchannel_set);
 	printk(KERN_WARNING"cio: failed to initialize css driver (%d)!\n",

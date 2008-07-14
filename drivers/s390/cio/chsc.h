@@ -36,8 +36,6 @@ struct channel_path_desc {
 
 struct channel_path;
 
-extern void chsc_process_crw(void);
-
 struct css_general_char {
 	u64 : 41;
 	u32 aif : 1;     /* bit 41 */
