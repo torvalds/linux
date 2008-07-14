@@ -735,12 +735,30 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 				bool has_error_code, u32 error_code)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (has_error_code)
+		vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE, error_code);
+
+	if (vcpu->arch.rmode.active) {
+		vmx->rmode.irq.pending = true;
+		vmx->rmode.irq.vector = nr;
+		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
+		if (nr == BP_VECTOR)
+			vmx->rmode.irq.rip++;
+		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
+			     nr | INTR_TYPE_SOFT_INTR
+			     | (has_error_code ? INTR_INFO_DELIVER_CODE_MASK : 0)
+			     | INTR_INFO_VALID_MASK);
+		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
+		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
+		return;
+	}
+
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 		     nr | INTR_TYPE_EXCEPTION
 		     | (has_error_code ? INTR_INFO_DELIVER_CODE_MASK : 0)
 		     | INTR_INFO_VALID_MASK);
-	if (has_error_code)
-		vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE, error_code);
 }
 
 static bool vmx_exception_injected(struct kvm_vcpu *vcpu)
@@ -2231,6 +2249,25 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 	if (((vec == GP_VECTOR) || (vec == SS_VECTOR)) && err_code == 0)
 		if (emulate_instruction(vcpu, NULL, 0, 0, 0) == EMULATE_DONE)
 			return 1;
+	/*
+	 * Forward all other exceptions that are valid in real mode.
+	 * FIXME: Breaks guest debugging in real mode, needs to be fixed with
+	 *        the required debugging infrastructure rework.
+	 */
+	switch (vec) {
+	case DE_VECTOR:
+	case DB_VECTOR:
+	case BP_VECTOR:
+	case OF_VECTOR:
+	case BR_VECTOR:
+	case UD_VECTOR:
+	case DF_VECTOR:
+	case SS_VECTOR:
+	case GP_VECTOR:
+	case MF_VECTOR:
+		kvm_queue_exception(vcpu, vec);
+		return 1;
+	}
 	return 0;
 }
 
