@@ -866,8 +866,9 @@ EXPORT_SYMBOL(i2c_detach_client);
  */
 struct i2c_client *i2c_use_client(struct i2c_client *client)
 {
-	get_device(&client->dev);
-	return client;
+	if (client && get_device(&client->dev))
+		return client;
+	return NULL;
 }
 EXPORT_SYMBOL(i2c_use_client);
 
@@ -879,7 +880,8 @@ EXPORT_SYMBOL(i2c_use_client);
  */
 void i2c_release_client(struct i2c_client *client)
 {
-	put_device(&client->dev);
+	if (client)
+		put_device(&client->dev);
 }
 EXPORT_SYMBOL(i2c_release_client);
 
