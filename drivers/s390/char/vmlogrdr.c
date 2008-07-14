@@ -216,9 +216,7 @@ static int vmlogrdr_get_recording_class_AB(void)
 	char *tail;
 	int len,i;
 
-	printk (KERN_DEBUG "vmlogrdr: query command: %s\n", cp_command);
 	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
-	printk (KERN_DEBUG "vmlogrdr: response: %s", cp_response);
 	len = strnlen(cp_response,sizeof(cp_response));
 	// now the parsing
 	tail=strnchr(cp_response,len,'=');
@@ -268,11 +266,7 @@ static int vmlogrdr_recording(struct vmlogrdr_priv_t * logptr,
 			 logptr->recording_name,
 			 qid_string);
 
-		printk (KERN_DEBUG "vmlogrdr: recording command: %s\n",
-			cp_command);
 		cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
-		printk (KERN_DEBUG "vmlogrdr: recording response: %s",
-			cp_response);
 	}
 
 	memset(cp_command, 0x00, sizeof(cp_command));
@@ -282,10 +276,7 @@ static int vmlogrdr_recording(struct vmlogrdr_priv_t * logptr,
 		onoff,
 		qid_string);
 
-	printk (KERN_DEBUG "vmlogrdr: recording command: %s\n", cp_command);
 	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
-	printk (KERN_DEBUG "vmlogrdr: recording response: %s",
-		cp_response);
 	/* The recording command will usually answer with 'Command complete'
 	 * on success, but when the specific service was never connected
 	 * before then there might be an additional informational message
@@ -567,10 +558,7 @@ static ssize_t vmlogrdr_purge_store(struct device * dev,
 			 "RECORDING %s PURGE ",
 			 priv->recording_name);
 
-	printk (KERN_DEBUG "vmlogrdr: recording command: %s\n", cp_command);
 	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
-	printk (KERN_DEBUG "vmlogrdr: recording response: %s",
-		cp_response);
 
 	return count;
 }
@@ -682,28 +670,20 @@ static int vmlogrdr_register_driver(void)
 
 	/* Register with iucv driver */
 	ret = iucv_register(&vmlogrdr_iucv_handler, 1);
-	if (ret) {
-		printk (KERN_ERR "vmlogrdr: failed to register with "
-			"iucv driver\n");
+	if (ret)
 		goto out;
-	}
 
 	ret = driver_register(&vmlogrdr_driver);
-	if (ret) {
-		printk(KERN_ERR "vmlogrdr: failed to register driver.\n");
+	if (ret)
 		goto out_iucv;
-	}
 
 	ret = driver_create_file(&vmlogrdr_driver,
 				 &driver_attr_recording_status);
-	if (ret) {
-		printk(KERN_ERR "vmlogrdr: failed to add driver attribute.\n");
+	if (ret)
 		goto out_driver;
-	}
 
 	vmlogrdr_class = class_create(THIS_MODULE, "vmlogrdr");
 	if (IS_ERR(vmlogrdr_class)) {
-		printk(KERN_ERR "vmlogrdr: failed to create class.\n");
 		ret = PTR_ERR(vmlogrdr_class);
 		vmlogrdr_class = NULL;
 		goto out_attr;
@@ -871,12 +851,10 @@ static int __init vmlogrdr_init(void)
 	rc = vmlogrdr_register_cdev(dev);
 	if (rc)
 		goto cleanup;
-	printk (KERN_INFO "vmlogrdr: driver loaded\n");
 	return 0;
 
 cleanup:
 	vmlogrdr_cleanup();
-	printk (KERN_ERR "vmlogrdr: driver not loaded.\n");
 	return rc;
 }
 
@@ -884,7 +862,6 @@ cleanup:
 static void __exit vmlogrdr_exit(void)
 {
 	vmlogrdr_cleanup();
-	printk (KERN_INFO "vmlogrdr: driver unloaded\n");
 	return;
 }
 
