@@ -426,6 +426,10 @@ static void rpcb_getport_done(struct rpc_task *child, void *data)
 	map->r_status = status;
 }
 
+/*
+ * XDR functions for rpcbind
+ */
+
 static int rpcb_encode_mapping(struct rpc_rqst *req, __be32 *p,
 			       struct rpcbind_args *rpcb)
 {
@@ -581,14 +585,14 @@ static struct rpc_procinfo rpcb_procedures2[] = {
 };
 
 static struct rpc_procinfo rpcb_procedures3[] = {
-	PROC(SET,		mapping,	set),
-	PROC(UNSET,		mapping,	set),
+	PROC(SET,		getaddr,	set),
+	PROC(UNSET,		getaddr,	set),
 	PROC(GETADDR,		getaddr,	getaddr),
 };
 
 static struct rpc_procinfo rpcb_procedures4[] = {
-	PROC(SET,		mapping,	set),
-	PROC(UNSET,		mapping,	set),
+	PROC(SET,		getaddr,	set),
+	PROC(UNSET,		getaddr,	set),
 	PROC(GETADDR,		getaddr,	getaddr),
 	PROC(GETVERSADDR,	getaddr,	getaddr),
 };
