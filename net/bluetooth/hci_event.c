@@ -619,6 +619,60 @@ static void hci_cs_add_sco(struct hci_dev *hdev, __u8 status)
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cs_auth_requested(struct hci_dev *hdev, __u8 status)
+{
+	struct hci_cp_auth_requested *cp;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	if (!status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_AUTH_REQUESTED);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
+	if (conn) {
+		if (conn->state == BT_CONFIG) {
+			hci_proto_connect_cfm(conn, status);
+			hci_conn_put(conn);
+		}
+	}
+
+	hci_dev_unlock(hdev);
+}
+
+static void hci_cs_set_conn_encrypt(struct hci_dev *hdev, __u8 status)
+{
+	struct hci_cp_set_conn_encrypt *cp;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	if (!status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_SET_CONN_ENCRYPT);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
+	if (conn) {
+		if (conn->state == BT_CONFIG) {
+			hci_proto_connect_cfm(conn, status);
+			hci_conn_put(conn);
+		}
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%x", hdev->name, status);
@@ -643,7 +697,6 @@ static void hci_cs_read_remote_features(struct hci_dev *hdev, __u8 status)
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
 	if (conn) {
 		if (conn->state == BT_CONFIG) {
-			conn->state = BT_CONNECTED;
 			hci_proto_connect_cfm(conn, status);
 			hci_conn_put(conn);
 		}
@@ -671,7 +724,6 @@ static void hci_cs_read_remote_ext_features(struct hci_dev *hdev, __u8 status)
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
 	if (conn) {
 		if (conn->state == BT_CONFIG) {
-			conn->state = BT_CONNECTED;
 			hci_proto_connect_cfm(conn, status);
 			hci_conn_put(conn);
 		}
@@ -982,15 +1034,29 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 
 		clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
 
-		hci_auth_cfm(conn, ev->status);
+		if (conn->state == BT_CONFIG) {
+			if (!ev->status && hdev->ssp_mode > 0 &&
+							conn->ssp_mode > 0) {
+				struct hci_cp_set_conn_encrypt cp;
+				cp.handle  = ev->handle;
+				cp.encrypt = 0x01;
+				hci_send_cmd(hdev, HCI_OP_SET_CONN_ENCRYPT,
+							sizeof(cp), &cp);
+			} else {
+				conn->state = BT_CONNECTED;
+				hci_proto_connect_cfm(conn, ev->status);
+				hci_conn_put(conn);
+			}
+		} else
+			hci_auth_cfm(conn, ev->status);
 
 		if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend)) {
 			if (!ev->status) {
 				struct hci_cp_set_conn_encrypt cp;
-				cp.handle  = cpu_to_le16(conn->handle);
-				cp.encrypt = 1;
-				hci_send_cmd(conn->hdev,
-					HCI_OP_SET_CONN_ENCRYPT, sizeof(cp), &cp);
+				cp.handle  = ev->handle;
+				cp.encrypt = 0x01;
+				hci_send_cmd(hdev, HCI_OP_SET_CONN_ENCRYPT,
+							sizeof(cp), &cp);
 			} else {
 				clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend);
 				hci_encrypt_cfm(conn, ev->status, 0x00);
@@ -1030,7 +1096,14 @@ static inline void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *
 
 		clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend);
 
-		hci_encrypt_cfm(conn, ev->status, ev->encrypt);
+		if (conn->state == BT_CONFIG) {
+			if (!ev->status)
+				conn->state = BT_CONNECTED;
+
+			hci_proto_connect_cfm(conn, ev->status);
+			hci_conn_put(conn);
+		} else
+			hci_encrypt_cfm(conn, ev->status, ev->encrypt);
 	}
 
 	hci_dev_unlock(hdev);
@@ -1248,6 +1321,14 @@ static inline void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_ADD_SCO:
 		hci_cs_add_sco(hdev, ev->status);
+		break;
+
+	case HCI_OP_AUTH_REQUESTED:
+		hci_cs_auth_requested(hdev, ev->status);
+		break;
+
+	case HCI_OP_SET_CONN_ENCRYPT:
+		hci_cs_set_conn_encrypt(hdev, ev->status);
 		break;
 
 	case HCI_OP_REMOTE_NAME_REQ:
@@ -1518,9 +1599,20 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 		}
 
 		if (conn->state == BT_CONFIG) {
-			conn->state = BT_CONNECTED;
-			hci_proto_connect_cfm(conn, ev->status);
-			hci_conn_put(conn);
+			if (!ev->status && hdev->ssp_mode > 0 &&
+							conn->ssp_mode > 0) {
+				if (conn->out) {
+					struct hci_cp_auth_requested cp;
+					cp.handle = ev->handle;
+					hci_send_cmd(hdev,
+						HCI_OP_AUTH_REQUESTED,
+							sizeof(cp), &cp);
+				}
+			} else {
+				conn->state = BT_CONNECTED;
+				hci_proto_connect_cfm(conn, ev->status);
+				hci_conn_put(conn);
+			}
 		}
 	}
 
