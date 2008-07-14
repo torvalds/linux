@@ -23,8 +23,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA505 USB Camera Driver");
@@ -593,29 +593,27 @@ static int reg_write(struct usb_device *dev,
 }
 
 /* returns: negative is error, pos or zero is data */
-static int reg_read(struct usb_device *dev,
+static int reg_read(struct gspca_dev *gspca_dev,
 			__u16 reg,	/* bRequest */
 			__u16 index,	/* wIndex */
 			__u16 length)	/* wLength (1 or 2 only) */
 {
 	int ret;
-	__u8 buf[4];
 
-	buf[1] = 0;
-	ret = usb_control_msg(dev,
-			usb_rcvctrlpipe(dev, 0),
+	gspca_dev->usb_buf[1] = 0;
+	ret = usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			reg,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			(__u16) 0,		/* value */
 			(__u16) index,
-			buf,
-			length,
+			gspca_dev->usb_buf, length,
 			500);			/* timeout */
 	if (ret < 0) {
 		PDEBUG(D_ERR, "reg_read err %d", ret);
 		return -1;
 	}
-	return (buf[1] << 8) + buf[0];
+	return (gspca_dev->usb_buf[1] << 8) + gspca_dev->usb_buf[0];
 }
 
 static int write_vector(struct gspca_dev *gspca_dev,
@@ -697,7 +695,7 @@ static int sd_open(struct gspca_dev *gspca_dev)
 		write_vector(gspca_dev, spca505b_open_data_ccd);
 	else
 		write_vector(gspca_dev, spca505_open_data_ccd);
-	ret = reg_read(gspca_dev->dev, 6, 0x16, 2);
+	ret = reg_read(gspca_dev, 6, 0x16, 2);
 
 	if (ret < 0) {
 		PDEBUG(D_ERR|D_STREAM,
@@ -874,8 +872,8 @@ static void getbrightness(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->brightness = 255
-		- ((reg_read(gspca_dev->dev, 5, 0x01, 1) >> 2)
-			+ (reg_read(gspca_dev->dev, 5, 0x0, 1) << 6));
+		- ((reg_read(gspca_dev, 5, 0x01, 1) >> 2)
+			+ (reg_read(gspca_dev, 5, 0x0, 1) << 6));
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

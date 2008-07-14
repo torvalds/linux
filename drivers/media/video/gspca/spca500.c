@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA500 USB Camera Driver");
@@ -372,26 +372,27 @@ static const __u8 qtable_pocketdv[2][64] = {
 	 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28}
 };
 
-static void reg_r(struct usb_device *dev,
-			   __u16 index,
-			   __u8 *buffer, __u16 length)
+/* read 'len' bytes to gspca_dev->usb_buf */
+static void reg_r(struct gspca_dev *gspca_dev,
+		  __u16 index,
+		  __u16 length)
 {
-	usb_control_msg(dev,
-			usb_rcvctrlpipe(dev, 0),
+	usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,		/* value */
-			index, buffer, length, 500);
+			index, gspca_dev->usb_buf, length, 500);
 }
 
-static int reg_w(struct usb_device *dev,
+static int reg_w(struct gspca_dev *gspca_dev,
 		     __u16 req, __u16 index, __u16 value)
 {
 	int ret;
 
 	PDEBUG(D_USBO, "reg write: [0x%02x] = 0x%02x", index, value);
-	ret = usb_control_msg(dev,
-			usb_sndctrlpipe(dev, 0),
+	ret = usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
 			req,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0, 500);
@@ -401,28 +402,27 @@ static int reg_w(struct usb_device *dev,
 }
 
 /* returns: negative is error, pos or zero is data */
-static int reg_r_12(struct usb_device *dev,
+static int reg_r_12(struct gspca_dev *gspca_dev,
 			__u16 req,	/* bRequest */
 			__u16 index,	/* wIndex */
 			__u16 length)	/* wLength (1 or 2 only) */
 {
 	int ret;
-	__u8 buf[2];
 
-	buf[1] = 0;
-	ret = usb_control_msg(dev,
-			usb_rcvctrlpipe(dev, 0),
+	gspca_dev->usb_buf[1] = 0;
+	ret = usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			req,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,		/* value */
 			index,
-			buf, length,
+			gspca_dev->usb_buf, length,
 			500);		/* timeout */
 	if (ret < 0) {
 		PDEBUG(D_ERR, "reg_r_12 err %d", ret);
 		return -1;
 	}
-	return (buf[1] << 8) + buf[0];
+	return (gspca_dev->usb_buf[1] << 8) + gspca_dev->usb_buf[0];
 }
 
 /*
@@ -430,13 +430,13 @@ static int reg_r_12(struct usb_device *dev,
  * a reg_read call.
  * Returns: negative is error or timeout, zero is success.
  */
-static int reg_r_wait(struct usb_device *dev,
+static int reg_r_wait(struct gspca_dev *gspca_dev,
 			__u16 reg, __u16 index, __u16 value)
 {
 	int ret, cnt = 20;
 
 	while (--cnt > 0) {
-		ret = reg_r_12(dev, reg, index, 1);
+		ret = reg_r_12(gspca_dev, reg, index, 1);
 		if (ret == value)
 			return 0;
 		msleep(50);
@@ -447,11 +447,10 @@ static int reg_r_wait(struct usb_device *dev,
 static int write_vector(struct gspca_dev *gspca_dev,
 			const __u16 data[][3])
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int ret, i = 0;
 
 	while (data[i][0] != 0 || data[i][1] != 0 || data[i][2] != 0) {
-		ret = reg_w(dev, data[i][0], data[i][2], data[i][1]);
+		ret = reg_w(gspca_dev, data[i][0], data[i][2], data[i][1]);
 		if (ret < 0)
 			return ret;
 		i++;
@@ -465,19 +464,18 @@ static int spca50x_setup_qtable(struct gspca_dev *gspca_dev,
 				unsigned int cbase,
 				const __u8 qtable[2][64])
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int i, err;
 
 	/* loop over y components */
 	for (i = 0; i < 64; i++) {
-		err = reg_w(dev, request, ybase + i, qtable[0][i]);
+		err = reg_w(gspca_dev, request, ybase + i, qtable[0][i]);
 		if (err < 0)
 			return err;
 	}
 
 	/* loop over c components */
 	for (i = 0; i < 64; i++) {
-		err = reg_w(dev, request, cbase + i, qtable[1][i]);
+		err = reg_w(gspca_dev, request, cbase + i, qtable[1][i]);
 		if (err < 0)
 			return err;
 	}
@@ -486,37 +484,33 @@ static int spca50x_setup_qtable(struct gspca_dev *gspca_dev,
 
 static void spca500_ping310(struct gspca_dev *gspca_dev)
 {
-	__u8 Data[2];
-
-	reg_r(gspca_dev->dev, 0x0d04, Data, 2);
+	reg_r(gspca_dev, 0x0d04, 2);
 	PDEBUG(D_STREAM, "ClickSmart310 ping 0x0d04 0x%02x 0x%02x",
-		Data[0], Data[1]);
+		gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
 }
 
 static void spca500_clksmart310_init(struct gspca_dev *gspca_dev)
 {
-	__u8 Data[2];
-
-	reg_r(gspca_dev->dev, 0x0d05, Data, 2);
+	reg_r(gspca_dev, 0x0d05, 2);
 	PDEBUG(D_STREAM, "ClickSmart310 init 0x0d05 0x%02x 0x%02x",
-		Data[0], Data[1]);
-	reg_w(gspca_dev->dev, 0x00, 0x8167, 0x5a);
+		gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
+	reg_w(gspca_dev, 0x00, 0x8167, 0x5a);
 	spca500_ping310(gspca_dev);
 
-	reg_w(gspca_dev->dev, 0x00, 0x8168, 0x22);
-	reg_w(gspca_dev->dev, 0x00, 0x816a, 0xc0);
-	reg_w(gspca_dev->dev, 0x00, 0x816b, 0x0b);
-	reg_w(gspca_dev->dev, 0x00, 0x8169, 0x25);
-	reg_w(gspca_dev->dev, 0x00, 0x8157, 0x5b);
-	reg_w(gspca_dev->dev, 0x00, 0x8158, 0x5b);
-	reg_w(gspca_dev->dev, 0x00, 0x813f, 0x03);
-	reg_w(gspca_dev->dev, 0x00, 0x8151, 0x4a);
-	reg_w(gspca_dev->dev, 0x00, 0x8153, 0x78);
-	reg_w(gspca_dev->dev, 0x00, 0x0d01, 0x04);
+	reg_w(gspca_dev, 0x00, 0x8168, 0x22);
+	reg_w(gspca_dev, 0x00, 0x816a, 0xc0);
+	reg_w(gspca_dev, 0x00, 0x816b, 0x0b);
+	reg_w(gspca_dev, 0x00, 0x8169, 0x25);
+	reg_w(gspca_dev, 0x00, 0x8157, 0x5b);
+	reg_w(gspca_dev, 0x00, 0x8158, 0x5b);
+	reg_w(gspca_dev, 0x00, 0x813f, 0x03);
+	reg_w(gspca_dev, 0x00, 0x8151, 0x4a);
+	reg_w(gspca_dev, 0x00, 0x8153, 0x78);
+	reg_w(gspca_dev, 0x00, 0x0d01, 0x04);
 						/* 00 for adjust shutter */
-	reg_w(gspca_dev->dev, 0x00, 0x0d02, 0x01);
-	reg_w(gspca_dev->dev, 0x00, 0x8169, 0x25);
-	reg_w(gspca_dev->dev, 0x00, 0x0d01, 0x02);
+	reg_w(gspca_dev, 0x00, 0x0d02, 0x01);
+	reg_w(gspca_dev, 0x00, 0x8169, 0x25);
+	reg_w(gspca_dev, 0x00, 0x0d01, 0x02);
 }
 
 static void spca500_setmode(struct gspca_dev *gspca_dev,
@@ -525,14 +519,14 @@ static void spca500_setmode(struct gspca_dev *gspca_dev,
 	int mode;
 
 	/* set x multiplier */
-	reg_w(gspca_dev->dev, 0, 0x8001, xmult);
+	reg_w(gspca_dev, 0, 0x8001, xmult);
 
 	/* set y multiplier */
-	reg_w(gspca_dev->dev, 0, 0x8002, ymult);
+	reg_w(gspca_dev, 0, 0x8002, ymult);
 
 	/* use compressed mode, VGA, with mode specific subsample */
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
-	reg_w(gspca_dev->dev, 0, 0x8003, mode << 4);
+	reg_w(gspca_dev, 0, 0x8003, mode << 4);
 }
 
 static int spca500_full_reset(struct gspca_dev *gspca_dev)
@@ -540,18 +534,18 @@ static int spca500_full_reset(struct gspca_dev *gspca_dev)
 	int err;
 
 	/* send the reset command */
-	err = reg_w(gspca_dev->dev, 0xe0, 0x0001, 0x0000);
+	err = reg_w(gspca_dev, 0xe0, 0x0001, 0x0000);
 	if (err < 0)
 		return err;
 
 	/* wait for the reset to complete */
-	err = reg_r_wait(gspca_dev->dev, 0x06, 0x0000, 0x0000);
+	err = reg_r_wait(gspca_dev, 0x06, 0x0000, 0x0000);
 	if (err < 0)
 		return err;
-	err = reg_w(gspca_dev->dev, 0xe0, 0x0000, 0x0000);
+	err = reg_w(gspca_dev, 0xe0, 0x0000, 0x0000);
 	if (err < 0)
 		return err;
-	err = reg_r_wait(gspca_dev->dev, 0x06, 0, 0);
+	err = reg_r_wait(gspca_dev, 0x06, 0, 0);
 	if (err < 0) {
 		PDEBUG(D_ERR, "reg_r_wait() failed");
 		return err;
@@ -568,15 +562,13 @@ static int spca500_full_reset(struct gspca_dev *gspca_dev)
 /* up-port the same feature as in 2.4.x kernel */
 static int spca500_synch310(struct gspca_dev *gspca_dev)
 {
-	__u8 Data;
-
 	if (usb_set_interface(gspca_dev->dev, gspca_dev->iface, 0) < 0) {
 		PDEBUG(D_ERR, "Set packet size: set interface error");
 		goto error;
 	}
 	spca500_ping310(gspca_dev);
 
-	reg_r(gspca_dev->dev, 0x0d00, &Data, 1);
+	reg_r(gspca_dev, 0x0d00, 1);
 
 	/* need alt setting here */
 	PDEBUG(D_PACK, "ClickSmart310 sync alt: %d", gspca_dev->alt);
@@ -600,12 +592,12 @@ static void spca500_reinit(struct gspca_dev *gspca_dev)
 
 	/* some unknow command from Aiptek pocket dv and family300 */
 
-	reg_w(gspca_dev->dev, 0x00, 0x0d01, 0x01);
-	reg_w(gspca_dev->dev, 0x00, 0x0d03, 0x00);
-	reg_w(gspca_dev->dev, 0x00, 0x0d02, 0x01);
+	reg_w(gspca_dev, 0x00, 0x0d01, 0x01);
+	reg_w(gspca_dev, 0x00, 0x0d03, 0x00);
+	reg_w(gspca_dev, 0x00, 0x0d02, 0x01);
 
 	/* enable drop packet */
-	reg_w(gspca_dev->dev, 0x00, 0x850a, 0x0001);
+	reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
 
 	err = spca50x_setup_qtable(gspca_dev, 0x00, 0x8800, 0x8840,
 				 qtable_pocketdv);
@@ -613,22 +605,23 @@ static void spca500_reinit(struct gspca_dev *gspca_dev)
 		PDEBUG(D_ERR|D_STREAM, "spca50x_setup_qtable failed on init");
 
 	/* set qtable index */
-	reg_w(gspca_dev->dev, 0x00, 0x8880, 2);
+	reg_w(gspca_dev, 0x00, 0x8880, 2);
 	/* family cam Quicksmart stuff */
-	reg_w(gspca_dev->dev, 0x00, 0x800a, 0x00);
+	reg_w(gspca_dev, 0x00, 0x800a, 0x00);
 	/* Set agc transfer: synced inbetween frames */
-	reg_w(gspca_dev->dev, 0x00, 0x820f, 0x01);
+	reg_w(gspca_dev, 0x00, 0x820f, 0x01);
 	/* Init SDRAM - needed for SDRAM access */
-	reg_w(gspca_dev->dev, 0x00, 0x870a, 0x04);
+	reg_w(gspca_dev, 0x00, 0x870a, 0x04);
 	/*Start init sequence or stream */
-
-	reg_w(gspca_dev->dev, 0, 0x8003, 0x00);
+	reg_w(gspca_dev, 0, 0x8003, 0x00);
 	/* switch to video camera mode */
-	reg_w(gspca_dev->dev, 0x00, 0x8000, 0x0004);
+	reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 	msleep(2000);
-	if (reg_r_wait(gspca_dev->dev, 0, 0x8000, 0x44) != 0)
-		reg_r(gspca_dev->dev, 0x816b, &Data, 1);
-	reg_w(gspca_dev->dev, 0x00, 0x816b, Data);
+	if (reg_r_wait(gspca_dev, 0, 0x8000, 0x44) != 0) {
+		reg_r(gspca_dev, 0x816b, 1);
+		Data = gspca_dev->usb_buf[0];
+		reg_w(gspca_dev, 0x00, 0x816b, Data);
+	}
 }
 
 /* this function is called at probe time */
@@ -785,9 +778,10 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	/* is there a sensor here ? */
-	reg_r(gspca_dev->dev, 0x8a04, &Data, 1);
-	PDEBUG(D_STREAM, "Spca500 Sensor Address 0x%02X", Data);
-	PDEBUG(D_STREAM, "Spca500 curr_mode: %d Xmult: 0x%02X, Ymult: 0x%02X",
+	reg_r(gspca_dev, 0x8a04, 1);
+	PDEBUG(D_STREAM, "Spca500 Sensor Address 0x%02x",
+		gspca_dev->usb_buf[0]);
+	PDEBUG(D_STREAM, "Spca500 curr_mode: %d Xmult: 0x%02x, Ymult: 0x%02x",
 		gspca_dev->curr_mode, xmult, ymult);
 
 	/* setup qtable */
@@ -796,33 +790,34 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		 spca500_setmode(gspca_dev, xmult, ymult);
 
 		/* enable drop packet */
-		reg_w(gspca_dev->dev, 0x00, 0x850a, 0x0001);
-		reg_w(gspca_dev->dev, 0x00, 0x8880, 3);
+		reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
+		reg_w(gspca_dev, 0x00, 0x8880, 3);
 		err = spca50x_setup_qtable(gspca_dev,
 					   0x00, 0x8800, 0x8840,
 					   qtable_creative_pccam);
 		if (err < 0)
 			PDEBUG(D_ERR, "spca50x_setup_qtable failed");
 		/* Init SDRAM - needed for SDRAM access */
-		reg_w(gspca_dev->dev, 0x00, 0x870a, 0x04);
+		reg_w(gspca_dev, 0x00, 0x870a, 0x04);
 
 		/* switch to video camera mode */
-		reg_w(gspca_dev->dev, 0x00, 0x8000, 0x0004);
+		reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 		msleep(500);
-		if (reg_r_wait(gspca_dev->dev, 0, 0x8000, 0x44) != 0)
+		if (reg_r_wait(gspca_dev, 0, 0x8000, 0x44) != 0)
 			PDEBUG(D_ERR, "reg_r_wait() failed");
 
-		reg_r(gspca_dev->dev, 0x816b, &Data, 1);
-		reg_w(gspca_dev->dev, 0x00, 0x816b, Data);
+		reg_r(gspca_dev, 0x816b, 1);
+		Data = gspca_dev->usb_buf[0];
+		reg_w(gspca_dev, 0x00, 0x816b, Data);
 
 		spca500_synch310(gspca_dev);
 
 		write_vector(gspca_dev, spca500_visual_defaults);
 		spca500_setmode(gspca_dev, xmult, ymult);
 		/* enable drop packet */
-		reg_w(gspca_dev->dev, 0x00, 0x850a, 0x0001);
+		reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
 			PDEBUG(D_ERR, "failed to enable drop packet");
-		reg_w(gspca_dev->dev, 0x00, 0x8880, 3);
+		reg_w(gspca_dev, 0x00, 0x8880, 3);
 		err = spca50x_setup_qtable(gspca_dev,
 					   0x00, 0x8800, 0x8840,
 					   qtable_creative_pccam);
@@ -830,16 +825,17 @@ static void sd_start(struct gspca_dev *gspca_dev)
 			PDEBUG(D_ERR, "spca50x_setup_qtable failed");
 
 		/* Init SDRAM - needed for SDRAM access */
-		reg_w(gspca_dev->dev, 0x00, 0x870a, 0x04);
+		reg_w(gspca_dev, 0x00, 0x870a, 0x04);
 
 		/* switch to video camera mode */
-		reg_w(gspca_dev->dev, 0x00, 0x8000, 0x0004);
+		reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 
-		if (reg_r_wait(gspca_dev->dev, 0, 0x8000, 0x44) != 0)
+		if (reg_r_wait(gspca_dev, 0, 0x8000, 0x44) != 0)
 			PDEBUG(D_ERR, "reg_r_wait() failed");
 
-		reg_r(gspca_dev->dev, 0x816b, &Data, 1);
-		reg_w(gspca_dev->dev, 0x00, 0x816b, Data);
+		reg_r(gspca_dev, 0x816b, 1);
+		Data = gspca_dev->usb_buf[0];
+		reg_w(gspca_dev, 0x00, 0x816b, Data);
 		break;
 	case CreativePCCam300:		/* Creative PC-CAM 300 640x480 CCD */
 	case IntelPocketPCCamera:	/* FIXME: Temporary fix for
@@ -852,10 +848,10 @@ static void sd_start(struct gspca_dev *gspca_dev)
 			PDEBUG(D_ERR, "spca500_full_reset failed");
 
 		/* enable drop packet */
-		err = reg_w(gspca_dev->dev, 0x00, 0x850a, 0x0001);
+		err = reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
 		if (err < 0)
 			PDEBUG(D_ERR, "failed to enable drop packet");
-		reg_w(gspca_dev->dev, 0x00, 0x8880, 3);
+		reg_w(gspca_dev, 0x00, 0x8880, 3);
 		err = spca50x_setup_qtable(gspca_dev,
 					   0x00, 0x8800, 0x8840,
 					   qtable_creative_pccam);
@@ -863,16 +859,17 @@ static void sd_start(struct gspca_dev *gspca_dev)
 			PDEBUG(D_ERR, "spca50x_setup_qtable failed");
 
 		spca500_setmode(gspca_dev, xmult, ymult);
-		reg_w(gspca_dev->dev, 0x20, 0x0001, 0x0004);
+		reg_w(gspca_dev, 0x20, 0x0001, 0x0004);
 
 		/* switch to video camera mode */
-		reg_w(gspca_dev->dev, 0x00, 0x8000, 0x0004);
+		reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 
-		if (reg_r_wait(gspca_dev->dev, 0, 0x8000, 0x44) != 0)
+		if (reg_r_wait(gspca_dev, 0, 0x8000, 0x44) != 0)
 			PDEBUG(D_ERR, "reg_r_wait() failed");
 
-		reg_r(gspca_dev->dev, 0x816b, &Data, 1);
-		reg_w(gspca_dev->dev, 0x00, 0x816b, Data);
+		reg_r(gspca_dev, 0x816b, 1);
+		Data = gspca_dev->usb_buf[0];
+		reg_w(gspca_dev, 0x00, 0x816b, Data);
 
 /*		write_vector(gspca_dev, spca500_visual_defaults); */
 		break;
@@ -883,8 +880,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		if (err < 0)
 			PDEBUG(D_ERR, "spca500_full_reset failed");
 		/* enable drop packet */
-		reg_w(gspca_dev->dev, 0x00, 0x850a, 0x0001);
-		reg_w(gspca_dev->dev, 0x00, 0x8880, 0);
+		reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
+		reg_w(gspca_dev, 0x00, 0x8880, 0);
 		err = spca50x_setup_qtable(gspca_dev,
 					   0x00, 0x8800, 0x8840,
 					   qtable_kodak_ez200);
@@ -892,16 +889,17 @@ static void sd_start(struct gspca_dev *gspca_dev)
 			PDEBUG(D_ERR, "spca50x_setup_qtable failed");
 		spca500_setmode(gspca_dev, xmult, ymult);
 
-		reg_w(gspca_dev->dev, 0x20, 0x0001, 0x0004);
+		reg_w(gspca_dev, 0x20, 0x0001, 0x0004);
 
 		/* switch to video camera mode */
-		reg_w(gspca_dev->dev, 0x00, 0x8000, 0x0004);
+		reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 
-		if (reg_r_wait(gspca_dev->dev, 0, 0x8000, 0x44) != 0)
+		if (reg_r_wait(gspca_dev, 0, 0x8000, 0x44) != 0)
 			PDEBUG(D_ERR, "reg_r_wait() failed");
 
-		reg_r(gspca_dev->dev, 0x816b, &Data, 1);
-		reg_w(gspca_dev->dev, 0x00, 0x816b, Data);
+		reg_r(gspca_dev, 0x816b, 1);
+		Data = gspca_dev->usb_buf[0];
+		reg_w(gspca_dev, 0x00, 0x816b, Data);
 
 /*		write_vector(gspca_dev, spca500_visual_defaults); */
 		break;
@@ -916,56 +914,58 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	case ToptroIndus:
 	case AgfaCl20:
 		spca500_reinit(gspca_dev);
-		reg_w(gspca_dev->dev, 0x00, 0x0d01, 0x01);
+		reg_w(gspca_dev, 0x00, 0x0d01, 0x01);
 		/* enable drop packet */
-		reg_w(gspca_dev->dev, 0x00, 0x850a, 0x0001);
+		reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
 
 		err = spca50x_setup_qtable(gspca_dev,
 				   0x00, 0x8800, 0x8840, qtable_pocketdv);
 		if (err < 0)
 			PDEBUG(D_ERR, "spca50x_setup_qtable failed");
-		reg_w(gspca_dev->dev, 0x00, 0x8880, 2);
+		reg_w(gspca_dev, 0x00, 0x8880, 2);
 
 		/* familycam Quicksmart pocketDV stuff */
-		reg_w(gspca_dev->dev, 0x00, 0x800a, 0x00);
+		reg_w(gspca_dev, 0x00, 0x800a, 0x00);
 		/* Set agc transfer: synced inbetween frames */
-		reg_w(gspca_dev->dev, 0x00, 0x820f, 0x01);
+		reg_w(gspca_dev, 0x00, 0x820f, 0x01);
 		/* Init SDRAM - needed for SDRAM access */
-		reg_w(gspca_dev->dev, 0x00, 0x870a, 0x04);
+		reg_w(gspca_dev, 0x00, 0x870a, 0x04);
 
 		spca500_setmode(gspca_dev, xmult, ymult);
 		/* switch to video camera mode */
-		reg_w(gspca_dev->dev, 0x00, 0x8000, 0x0004);
+		reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 
-		reg_r_wait(gspca_dev->dev, 0, 0x8000, 0x44);
+		reg_r_wait(gspca_dev, 0, 0x8000, 0x44);
 
-		reg_r(gspca_dev->dev, 0x816b, &Data, 1);
-		reg_w(gspca_dev->dev, 0x00, 0x816b, Data);
+		reg_r(gspca_dev, 0x816b, 1);
+		Data = gspca_dev->usb_buf[0];
+		reg_w(gspca_dev, 0x00, 0x816b, Data);
 		break;
 	case LogitechTraveler:
 	case LogitechClickSmart510:
-		reg_w(gspca_dev->dev, 0x02, 0x00, 0x00);
+		reg_w(gspca_dev, 0x02, 0x00, 0x00);
 		/* enable drop packet */
-		reg_w(gspca_dev->dev, 0x00, 0x850a, 0x0001);
+		reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
 
 		err = spca50x_setup_qtable(gspca_dev,
 					0x00, 0x8800,
 					0x8840, qtable_creative_pccam);
 		if (err < 0)
 			PDEBUG(D_ERR, "spca50x_setup_qtable failed");
-		reg_w(gspca_dev->dev, 0x00, 0x8880, 3);
-		reg_w(gspca_dev->dev, 0x00, 0x800a, 0x00);
+		reg_w(gspca_dev, 0x00, 0x8880, 3);
+		reg_w(gspca_dev, 0x00, 0x800a, 0x00);
 		/* Init SDRAM - needed for SDRAM access */
-		reg_w(gspca_dev->dev, 0x00, 0x870a, 0x04);
+		reg_w(gspca_dev, 0x00, 0x870a, 0x04);
 
 		spca500_setmode(gspca_dev, xmult, ymult);
 
 		/* switch to video camera mode */
-		reg_w(gspca_dev->dev, 0x00, 0x8000, 0x0004);
-		reg_r_wait(gspca_dev->dev, 0, 0x8000, 0x44);
+		reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
+		reg_r_wait(gspca_dev, 0, 0x8000, 0x44);
 
-		reg_r(gspca_dev->dev, 0x816b, &Data, 1);
-		reg_w(gspca_dev->dev, 0x00, 0x816b, Data);
+		reg_r(gspca_dev, 0x816b, 1);
+		Data = gspca_dev->usb_buf[0];
+		reg_w(gspca_dev, 0x00, 0x816b, Data);
 		write_vector(gspca_dev, Clicksmart510_defaults);
 		break;
 	}
@@ -973,14 +973,13 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	__u8 data;
-
-	reg_w(gspca_dev->dev, 0, 0x8003, 0x00);
+	reg_w(gspca_dev, 0, 0x8003, 0x00);
 
 	/* switch to video camera mode */
-	reg_w(gspca_dev->dev, 0x00, 0x8000, 0x0004);
-	reg_r(gspca_dev->dev, 0x8000, &data, 1);
-	PDEBUG(D_STREAM, "stop SPCA500 done reg8000: 0x%2x", data);
+	reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
+	reg_r(gspca_dev, 0x8000, 1);
+	PDEBUG(D_STREAM, "stop SPCA500 done reg8000: 0x%2x",
+		gspca_dev->usb_buf[0]);
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -1043,7 +1042,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	reg_w(gspca_dev->dev, 0x00, 0x8167,
+	reg_w(gspca_dev, 0x00, 0x8167,
 			(__u8) (sd->brightness - 128));
 }
 
@@ -1052,7 +1051,7 @@ static void getbrightness(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret;
 
-	ret = reg_r_12(gspca_dev->dev, 0x00, 0x8167, 1);
+	ret = reg_r_12(gspca_dev, 0x00, 0x8167, 1);
 	if (ret >= 0)
 		sd->brightness = ret + 128;
 }
@@ -1061,7 +1060,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	reg_w(gspca_dev->dev, 0x00, 0x8168, sd->contrast);
+	reg_w(gspca_dev, 0x00, 0x8168, sd->contrast);
 }
 
 static void getcontrast(struct gspca_dev *gspca_dev)
@@ -1069,7 +1068,7 @@ static void getcontrast(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret;
 
-	ret = reg_r_12(gspca_dev->dev, 0x0, 0x8168, 1);
+	ret = reg_r_12(gspca_dev, 0x0, 0x8168, 1);
 	if (ret >= 0)
 		sd->contrast = ret;
 }
@@ -1078,7 +1077,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	reg_w(gspca_dev->dev, 0x00, 0x8169, sd->colors);
+	reg_w(gspca_dev, 0x00, 0x8169, sd->colors);
 }
 
 static void getcolors(struct gspca_dev *gspca_dev)
@@ -1086,7 +1085,7 @@ static void getcolors(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret;
 
-	ret = reg_r_12(gspca_dev->dev, 0x0, 0x8169, 1);
+	ret = reg_r_12(gspca_dev, 0x0, 0x8169, 1);
 	if (ret >= 0)
 		sd->colors = ret;
 }

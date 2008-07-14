@@ -22,8 +22,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA508 USB Camera Driver");
@@ -1433,26 +1433,26 @@ static int reg_write(struct usb_device *dev,
 
 /* read 1 byte */
 /* returns: negative is error, pos or zero is data */
-static int reg_read(struct usb_device *dev,
+static int reg_read(struct gspca_dev *gspca_dev,
 			__u16 index)	/* wIndex */
 {
 	int ret;
-	__u8 data;
 
-	ret = usb_control_msg(dev,
-			usb_rcvctrlpipe(dev, 0),
+	ret = usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0,			/* register */
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			(__u16) 0,		/* value */
+			0,		/* value */
 			index,
-			&data, 1,
+			gspca_dev->usb_buf, 1,
 			500);			/* timeout */
-	PDEBUG(D_USBI, "reg read i:%04x --> %02x", index, data);
+	PDEBUG(D_USBI, "reg read i:%04x --> %02x",
+		index, gspca_dev->usb_buf[0]);
 	if (ret < 0) {
 		PDEBUG(D_ERR|D_USBI, "reg_read err %d", ret);
 		return ret;
 	}
-	return data;
+	return gspca_dev->usb_buf[0];
 }
 
 static int write_vector(struct gspca_dev *gspca_dev,
@@ -1475,15 +1475,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	struct cam *cam;
-	__u16 vendor;
 	__u16 product;
 	int data1, data2;
 
-	vendor = id->idVendor;
 	product = id->idProduct;
-	switch (vendor) {
+	switch (id->idVendor) {
 	case 0x0130:		/* Clone webcam */
 /*		switch (product) { */
 /*		case 0x0130: */
@@ -1535,15 +1532,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	 * prove that we can communicate with the device.  This works, which
 	 * confirms at we are communicating properly and that the device
 	 * is a 508. */
-	data1 = reg_read(dev, 0x8104);
-	data2 = reg_read(dev, 0x8105);
+	data1 = reg_read(gspca_dev, 0x8104);
+	data2 = reg_read(gspca_dev, 0x8105);
 	PDEBUG(D_PROBE, "Webcam Vendor ID: 0x%02x%02x", data2, data1);
 
-	data1 = reg_read(dev, 0x8106);
-	data2 = reg_read(dev, 0x8107);
+	data1 = reg_read(gspca_dev, 0x8106);
+	data2 = reg_read(gspca_dev, 0x8107);
 	PDEBUG(D_PROBE, "Webcam Product ID: 0x%02x%02x", data2, data1);
 
-	data1 = reg_read(dev, 0x8621);
+	data1 = reg_read(gspca_dev, 0x8621);
 	PDEBUG(D_PROBE, "Window 1 average luminance: %d", data1);
 
 	cam = &gspca_dev->cam;
@@ -1711,7 +1708,7 @@ static void getbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sd->brightness = reg_read(gspca_dev->dev, 0x8651);
+	sd->brightness = reg_read(gspca_dev, 0x8651);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

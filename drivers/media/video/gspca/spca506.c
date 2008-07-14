@@ -25,8 +25,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA506 USB Camera Driver");
@@ -153,17 +153,18 @@ static struct v4l2_pix_format vga_mode[] = {
 #define SAA7113_hue 0x0d	/* defaults 0x00 */
 #define SAA7113_I2C_BASE_WRITE 0x4a
 
-static void reg_r(struct usb_device *dev,
+/* read 'len' bytes to gspca_dev->usb_buf */
+static void reg_r(struct gspca_dev *gspca_dev,
 		  __u16 req,
 		  __u16 index,
-		  __u8 *buffer, __u16 length)
+		  __u16 length)
 {
-	usb_control_msg(dev,
-			usb_rcvctrlpipe(dev, 0),
+	usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			req,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,		/* value */
-			index, buffer, length,
+			index, gspca_dev->usb_buf, length,
 			500);
 }
 
@@ -189,13 +190,12 @@ static void spca506_WriteI2c(struct gspca_dev *gspca_dev, __u16 valeur,
 			     __u16 reg)
 {
 	int retry = 60;
-	__u8 Data[2];
 
 	reg_w(gspca_dev->dev, 0x07, reg, 0x0001);
 	reg_w(gspca_dev->dev, 0x07, valeur, 0x0000);
 	while (retry--) {
-		reg_r(gspca_dev->dev, 0x07, 0x0003, Data, 2);
-		if ((Data[0] | Data[1]) == 0x00)
+		reg_r(gspca_dev, 0x07, 0x0003, 2);
+		if ((gspca_dev->usb_buf[0] | gspca_dev->usb_buf[1]) == 0x00)
 			break;
 	}
 }
@@ -203,21 +203,19 @@ static void spca506_WriteI2c(struct gspca_dev *gspca_dev, __u16 valeur,
 static int spca506_ReadI2c(struct gspca_dev *gspca_dev, __u16 reg)
 {
 	int retry = 60;
-	__u8 Data[2];
-	__u8 value;
 
 	reg_w(gspca_dev->dev, 0x07, SAA7113_I2C_BASE_WRITE, 0x0004);
 	reg_w(gspca_dev->dev, 0x07, reg, 0x0001);
 	reg_w(gspca_dev->dev, 0x07, 0x01, 0x0002);
 	while (--retry) {
-		reg_r(gspca_dev->dev, 0x07, 0x0003, Data, 2);
-		if ((Data[0] | Data[1]) == 0x00)
+		reg_r(gspca_dev, 0x07, 0x0003, 2);
+		if ((gspca_dev->usb_buf[0] | gspca_dev->usb_buf[1]) == 0x00)
 			break;
 	}
 	if (retry == 0)
 		return -1;
-	reg_r(gspca_dev->dev, 0x07, 0x0000, &value, 1);
-	return value;
+	reg_r(gspca_dev, 0x07, 0x0000, 1);
+	return gspca_dev->usb_buf[0];
 }
 
 static void spca506_SetNormeInput(struct gspca_dev *gspca_dev,
@@ -437,7 +435,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	struct usb_device *dev = gspca_dev->dev;
 	__u16 norme;
 	__u16 channel;
-	__u8 Data[2];
 
 	/**************************************/
 	reg_w(dev, 0x03, 0x00, 0x0004);
@@ -555,8 +552,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	/* compress setting and size */
 	/* set i2c luma */
 	reg_w(dev, 0x02, 0x01, 0x0000);
-	reg_w(dev, 0x03, 0x12, 0x000);
-	reg_r(dev, 0x04, 0x0001, Data, 2);
+	reg_w(dev, 0x03, 0x12, 0x0000);
+	reg_r(gspca_dev, 0x04, 0x0001, 2);
 	PDEBUG(D_STREAM, "webcam started");
 	spca506_GetNormeInput(gspca_dev, &norme, &channel);
 	spca506_SetNormeInput(gspca_dev, norme, channel);

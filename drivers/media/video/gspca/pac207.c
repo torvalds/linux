@@ -27,8 +27,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
 MODULE_DESCRIPTION("Pixart PAC207");
@@ -187,18 +187,18 @@ static const __u8 PacReg72[] = { 0x00, 0x00, 0x36, 0x00 };
 static const unsigned char pac207_sof_marker[5] =
 		{ 0xff, 0xff, 0x00, 0xff, 0x96 };
 
-int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
+static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 	const u8 *buffer, u16 length)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int err;
-	u8 kbuf[8];
 
-	memcpy(kbuf, buffer, length);
+	memcpy(gspca_dev->usb_buf, buffer, length);
 
 	err = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x01,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-			0x00, index, kbuf, length, PAC207_CTRL_TIMEOUT);
+			0x00, index,
+			gspca_dev->usb_buf, length, PAC207_CTRL_TIMEOUT);
 	if (err < 0)
 		PDEBUG(D_ERR,
 			"Failed to write registers to index 0x%04X, error %d)",
@@ -227,12 +227,12 @@ int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
 int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 {
 	struct usb_device *udev = gspca_dev->dev;
-	u8 buff;
 	int res;
 
 	res = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), 0x00,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-			0x00, index, &buff, 1, PAC207_CTRL_TIMEOUT);
+			0x00, index,
+			gspca_dev->usb_buf, 1, PAC207_CTRL_TIMEOUT);
 	if (res < 0) {
 		PDEBUG(D_ERR,
 			"Failed to read a register (index 0x%04X, error %d)",
@@ -240,9 +240,8 @@ int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 		return res;
 	}
 
-	return buff;
+	return gspca_dev->usb_buf[0];
 }
-
 
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,

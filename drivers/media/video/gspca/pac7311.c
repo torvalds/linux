@@ -23,8 +23,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7311");
@@ -206,46 +206,43 @@ static const __u8 pac7311_jpeg_header[] = {
 	0x11, 0x00, 0x3f, 0x00
 };
 
-static void reg_w(struct usb_device *dev,
+static void reg_w_buf(struct gspca_dev *gspca_dev,
 		  __u16 index,
 		  const char *buffer, __u16 len)
 {
-	__u8 tmpbuf[8];
-
-	memcpy(tmpbuf, buffer, len);
-	usb_control_msg(dev,
-			usb_sndctrlpipe(dev, 0),
+	memcpy(gspca_dev->usb_buf, buffer, len);
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
 			1,		/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,		/* value */
-			index, tmpbuf, len,
+			index, gspca_dev->usb_buf, len,
 			500);
 }
 
-static void pac7311_reg_read(struct usb_device *dev, __u16 index,
-			    __u8 *buffer)
+static __u8 reg_r(struct gspca_dev *gspca_dev,
+			     __u16 index)
 {
-	usb_control_msg(dev,
-			usb_rcvctrlpipe(dev, 0),
+	usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0,			/* request */
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,			/* value */
-			index, buffer, 1,
+			index, gspca_dev->usb_buf, 1,
 			500);
+	return gspca_dev->usb_buf[0];
 }
 
-static void pac7311_reg_write(struct usb_device *dev,
-			      __u16 index,
-			      __u8 value)
+static void reg_w(struct gspca_dev *gspca_dev,
+		  __u16 index,
+		  __u8 value)
 {
-	__u8 buf;
-
-	buf = value;
-	usb_control_msg(dev,
-			usb_sndctrlpipe(dev, 0),
+	gspca_dev->usb_buf[0] = value;
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0,			/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			value, index, &buf, 1,
+			value, index, gspca_dev->usb_buf, 1,
 			500);
 }
 
@@ -254,20 +251,19 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	struct cam *cam;
 
 	PDEBUG(D_CONF, "Find Sensor PAC7311");
-	pac7311_reg_write(dev, 0x78, 0x40); /* Bit_0=start stream, Bit_7=LED */
-	pac7311_reg_write(dev, 0x78, 0x40); /* Bit_0=start stream, Bit_7=LED */
-	pac7311_reg_write(dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
-	pac7311_reg_write(dev, 0xff, 0x04);
-	pac7311_reg_write(dev, 0x27, 0x80);
-	pac7311_reg_write(dev, 0x28, 0xca);
-	pac7311_reg_write(dev, 0x29, 0x53);
-	pac7311_reg_write(dev, 0x2a, 0x0e);
-	pac7311_reg_write(dev, 0xff, 0x01);
-	pac7311_reg_write(dev, 0x3e, 0x20);
+	reg_w(gspca_dev, 0x78, 0x40); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0x78, 0x40); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0xff, 0x04);
+	reg_w(gspca_dev, 0x27, 0x80);
+	reg_w(gspca_dev, 0x28, 0xca);
+	reg_w(gspca_dev, 0x29, 0x53);
+	reg_w(gspca_dev, 0x2a, 0x0e);
+	reg_w(gspca_dev, 0xff, 0x01);
+	reg_w(gspca_dev, 0x3e, 0x20);
 
 	cam = &gspca_dev->cam;
 	cam->dev_name = (char *) id->driver_info;
@@ -289,11 +285,11 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 
 /*jfm: inverted?*/
 	brightness = BRIGHTNESS_MAX - sd->brightness;
-	pac7311_reg_write(gspca_dev->dev, 0xff, 0x04);
-/*	pac7311_reg_write(gspca_dev->dev, 0x0e, 0x00); */
-	pac7311_reg_write(gspca_dev->dev, 0x0f, brightness);
+	reg_w(gspca_dev, 0xff, 0x04);
+/*	reg_w(gspca_dev, 0x0e, 0x00); */
+	reg_w(gspca_dev, 0x0f, brightness);
 	/* load registers to sensor (Bit 0, auto clear) */
-	pac7311_reg_write(gspca_dev->dev, 0x11, 0x01);
+	reg_w(gspca_dev, 0x11, 0x01);
 	PDEBUG(D_CONF|D_STREAM, "brightness: %i", brightness);
 }
 
@@ -301,10 +297,10 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	pac7311_reg_write(gspca_dev->dev, 0xff, 0x01);
-	pac7311_reg_write(gspca_dev->dev, 0x80, sd->contrast);
+	reg_w(gspca_dev, 0xff, 0x01);
+	reg_w(gspca_dev, 0x80, sd->contrast);
 	/* load registers to sensor (Bit 0, auto clear) */
-	pac7311_reg_write(gspca_dev->dev, 0x11, 0x01);
+	reg_w(gspca_dev, 0x11, 0x01);
 	PDEBUG(D_CONF|D_STREAM, "contrast: %i", sd->contrast);
 }
 
@@ -312,94 +308,93 @@ static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	pac7311_reg_write(gspca_dev->dev, 0xff, 0x01);
-	pac7311_reg_write(gspca_dev->dev, 0x10, sd->colors);
+	reg_w(gspca_dev, 0xff, 0x01);
+	reg_w(gspca_dev, 0x10, sd->colors);
 	/* load registers to sensor (Bit 0, auto clear) */
-	pac7311_reg_write(gspca_dev->dev, 0x11, 0x01);
+	reg_w(gspca_dev, 0x11, 0x01);
 	PDEBUG(D_CONF|D_STREAM, "color: %i", sd->colors);
 }
 
 /* this function is called at open time */
 static int sd_open(struct gspca_dev *gspca_dev)
 {
-	pac7311_reg_write(gspca_dev->dev, 0x78, 0x00);	/* Turn on LED */
+	reg_w(gspca_dev, 0x78, 0x00);	/* Turn on LED */
 	return 0;
 }
 
 static void sd_start(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	pac7311_reg_write(dev, 0xff, 0x01);
-	reg_w(dev, 0x0002, "\x48\x0a\x40\x08\x00\x00\x08\x00", 8);
-	reg_w(dev, 0x000a, "\x06\xff\x11\xff\x5a\x30\x90\x4c", 8);
-	reg_w(dev, 0x0012, "\x00\x07\x00\x0a\x10\x00\xa0\x10", 8);
-	reg_w(dev, 0x001a, "\x02\x00\x00\x00\x00\x0b\x01\x00", 8);
-	reg_w(dev, 0x0022, "\x00\x00\x00\x00\x00\x00\x00\x00", 8);
-	reg_w(dev, 0x002a, "\x00\x00\x00", 3);
-	reg_w(dev, 0x003e, "\x00\x00\x78\x52\x4a\x52\x78\x6e", 8);
-	reg_w(dev, 0x0046, "\x48\x46\x48\x6e\x5f\x49\x42\x49", 8);
-	reg_w(dev, 0x004e, "\x5f\x5f\x49\x42\x49\x5f\x6e\x48", 8);
-	reg_w(dev, 0x0056, "\x46\x48\x6e\x78\x52\x4a\x52\x78", 8);
-	reg_w(dev, 0x005e, "\x00\x00\x09\x1b\x34\x49\x5c\x9b", 8);
-	reg_w(dev, 0x0066, "\xd0\xff", 2);
-	reg_w(dev, 0x0078, "\x44\x00\xf2\x01\x01\x80", 6);
-	reg_w(dev, 0x007f, "\x2a\x1c\x00\xc8\x02\x58\x03\x84", 8);
-	reg_w(dev, 0x0087, "\x12\x00\x1a\x04\x08\x0c\x10\x14", 8);
-	reg_w(dev, 0x008f, "\x18\x20", 2);
-	reg_w(dev, 0x0096, "\x01\x08\x04", 3);
-	reg_w(dev, 0x00a0, "\x44\x44\x44\x04", 4);
-	reg_w(dev, 0x00f0, "\x01\x00\x00\x00\x22\x00\x20\x00", 8);
-	reg_w(dev, 0x00f8, "\x3f\x00\x0a\x01\x00", 5);
+	reg_w(gspca_dev, 0xff, 0x01);
+	reg_w_buf(gspca_dev, 0x0002, "\x48\x0a\x40\x08\x00\x00\x08\x00", 8);
+	reg_w_buf(gspca_dev, 0x000a, "\x06\xff\x11\xff\x5a\x30\x90\x4c", 8);
+	reg_w_buf(gspca_dev, 0x0012, "\x00\x07\x00\x0a\x10\x00\xa0\x10", 8);
+	reg_w_buf(gspca_dev, 0x001a, "\x02\x00\x00\x00\x00\x0b\x01\x00", 8);
+	reg_w_buf(gspca_dev, 0x0022, "\x00\x00\x00\x00\x00\x00\x00\x00", 8);
+	reg_w_buf(gspca_dev, 0x002a, "\x00\x00\x00", 3);
+	reg_w_buf(gspca_dev, 0x003e, "\x00\x00\x78\x52\x4a\x52\x78\x6e", 8);
+	reg_w_buf(gspca_dev, 0x0046, "\x48\x46\x48\x6e\x5f\x49\x42\x49", 8);
+	reg_w_buf(gspca_dev, 0x004e, "\x5f\x5f\x49\x42\x49\x5f\x6e\x48", 8);
+	reg_w_buf(gspca_dev, 0x0056, "\x46\x48\x6e\x78\x52\x4a\x52\x78", 8);
+	reg_w_buf(gspca_dev, 0x005e, "\x00\x00\x09\x1b\x34\x49\x5c\x9b", 8);
+	reg_w_buf(gspca_dev, 0x0066, "\xd0\xff", 2);
+	reg_w_buf(gspca_dev, 0x0078, "\x44\x00\xf2\x01\x01\x80", 6);
+	reg_w_buf(gspca_dev, 0x007f, "\x2a\x1c\x00\xc8\x02\x58\x03\x84", 8);
+	reg_w_buf(gspca_dev, 0x0087, "\x12\x00\x1a\x04\x08\x0c\x10\x14", 8);
+	reg_w_buf(gspca_dev, 0x008f, "\x18\x20", 2);
+	reg_w_buf(gspca_dev, 0x0096, "\x01\x08\x04", 3);
+	reg_w_buf(gspca_dev, 0x00a0, "\x44\x44\x44\x04", 4);
+	reg_w_buf(gspca_dev, 0x00f0, "\x01\x00\x00\x00\x22\x00\x20\x00", 8);
+	reg_w_buf(gspca_dev, 0x00f8, "\x3f\x00\x0a\x01\x00", 5);
 
-	pac7311_reg_write(dev, 0xff, 0x04);
-	pac7311_reg_write(dev, 0x02, 0x04);
-	pac7311_reg_write(dev, 0x03, 0x54);
-	pac7311_reg_write(dev, 0x04, 0x07);
-	pac7311_reg_write(dev, 0x05, 0x2b);
-	pac7311_reg_write(dev, 0x06, 0x09);
-	pac7311_reg_write(dev, 0x07, 0x0f);
-	pac7311_reg_write(dev, 0x08, 0x09);
-	pac7311_reg_write(dev, 0x09, 0x00);
-	pac7311_reg_write(dev, 0x0c, 0x07);
-	pac7311_reg_write(dev, 0x0d, 0x00);
-	pac7311_reg_write(dev, 0x0e, 0x00);
-	pac7311_reg_write(dev, 0x0f, 0x62);
-	pac7311_reg_write(dev, 0x10, 0x08);
-	pac7311_reg_write(dev, 0x12, 0x07);
-	pac7311_reg_write(dev, 0x13, 0x00);
-	pac7311_reg_write(dev, 0x14, 0x00);
-	pac7311_reg_write(dev, 0x15, 0x00);
-	pac7311_reg_write(dev, 0x16, 0x00);
-	pac7311_reg_write(dev, 0x17, 0x00);
-	pac7311_reg_write(dev, 0x18, 0x00);
-	pac7311_reg_write(dev, 0x19, 0x00);
-	pac7311_reg_write(dev, 0x1a, 0x00);
-	pac7311_reg_write(dev, 0x1b, 0x03);
-	pac7311_reg_write(dev, 0x1c, 0xa0);
-	pac7311_reg_write(dev, 0x1d, 0x01);
-	pac7311_reg_write(dev, 0x1e, 0xf4);
-	pac7311_reg_write(dev, 0x21, 0x00);
-	pac7311_reg_write(dev, 0x22, 0x08);
-	pac7311_reg_write(dev, 0x24, 0x03);
-	pac7311_reg_write(dev, 0x26, 0x00);
-	pac7311_reg_write(dev, 0x27, 0x01);
-	pac7311_reg_write(dev, 0x28, 0xca);
-	pac7311_reg_write(dev, 0x29, 0x10);
-	pac7311_reg_write(dev, 0x2a, 0x06);
-	pac7311_reg_write(dev, 0x2b, 0x78);
-	pac7311_reg_write(dev, 0x2c, 0x00);
-	pac7311_reg_write(dev, 0x2d, 0x00);
-	pac7311_reg_write(dev, 0x2e, 0x00);
-	pac7311_reg_write(dev, 0x2f, 0x00);
-	pac7311_reg_write(dev, 0x30, 0x23);
-	pac7311_reg_write(dev, 0x31, 0x28);
-	pac7311_reg_write(dev, 0x32, 0x04);
-	pac7311_reg_write(dev, 0x33, 0x11);
-	pac7311_reg_write(dev, 0x34, 0x00);
-	pac7311_reg_write(dev, 0x35, 0x00);
-	pac7311_reg_write(dev, 0x11, 0x01);
+	reg_w(gspca_dev, 0xff, 0x04);
+	reg_w(gspca_dev, 0x02, 0x04);
+	reg_w(gspca_dev, 0x03, 0x54);
+	reg_w(gspca_dev, 0x04, 0x07);
+	reg_w(gspca_dev, 0x05, 0x2b);
+	reg_w(gspca_dev, 0x06, 0x09);
+	reg_w(gspca_dev, 0x07, 0x0f);
+	reg_w(gspca_dev, 0x08, 0x09);
+	reg_w(gspca_dev, 0x09, 0x00);
+	reg_w(gspca_dev, 0x0c, 0x07);
+	reg_w(gspca_dev, 0x0d, 0x00);
+	reg_w(gspca_dev, 0x0e, 0x00);
+	reg_w(gspca_dev, 0x0f, 0x62);
+	reg_w(gspca_dev, 0x10, 0x08);
+	reg_w(gspca_dev, 0x12, 0x07);
+	reg_w(gspca_dev, 0x13, 0x00);
+	reg_w(gspca_dev, 0x14, 0x00);
+	reg_w(gspca_dev, 0x15, 0x00);
+	reg_w(gspca_dev, 0x16, 0x00);
+	reg_w(gspca_dev, 0x17, 0x00);
+	reg_w(gspca_dev, 0x18, 0x00);
+	reg_w(gspca_dev, 0x19, 0x00);
+	reg_w(gspca_dev, 0x1a, 0x00);
+	reg_w(gspca_dev, 0x1b, 0x03);
+	reg_w(gspca_dev, 0x1c, 0xa0);
+	reg_w(gspca_dev, 0x1d, 0x01);
+	reg_w(gspca_dev, 0x1e, 0xf4);
+	reg_w(gspca_dev, 0x21, 0x00);
+	reg_w(gspca_dev, 0x22, 0x08);
+	reg_w(gspca_dev, 0x24, 0x03);
+	reg_w(gspca_dev, 0x26, 0x00);
+	reg_w(gspca_dev, 0x27, 0x01);
+	reg_w(gspca_dev, 0x28, 0xca);
+	reg_w(gspca_dev, 0x29, 0x10);
+	reg_w(gspca_dev, 0x2a, 0x06);
+	reg_w(gspca_dev, 0x2b, 0x78);
+	reg_w(gspca_dev, 0x2c, 0x00);
+	reg_w(gspca_dev, 0x2d, 0x00);
+	reg_w(gspca_dev, 0x2e, 0x00);
+	reg_w(gspca_dev, 0x2f, 0x00);
+	reg_w(gspca_dev, 0x30, 0x23);
+	reg_w(gspca_dev, 0x31, 0x28);
+	reg_w(gspca_dev, 0x32, 0x04);
+	reg_w(gspca_dev, 0x33, 0x11);
+	reg_w(gspca_dev, 0x34, 0x00);
+	reg_w(gspca_dev, 0x35, 0x00);
+	reg_w(gspca_dev, 0x11, 0x01);
 	setcontrast(gspca_dev);
 	setbrightness(gspca_dev);
 	setcolors(gspca_dev);
@@ -407,39 +402,39 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	/* set correct resolution */
 	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 	case 2:					/* 160x120 */
-		pac7311_reg_write(dev, 0xff, 0x04);
-		pac7311_reg_write(dev, 0x02, 0x03);
-		pac7311_reg_write(dev, 0xff, 0x01);
-		pac7311_reg_write(dev, 0x08, 0x09);
-		pac7311_reg_write(dev, 0x17, 0x20);
-		pac7311_reg_write(dev, 0x1b, 0x00);
-/*		pac7311_reg_write(dev, 0x80, 0x69); */
-		pac7311_reg_write(dev, 0x87, 0x10);
+		reg_w(gspca_dev, 0xff, 0x04);
+		reg_w(gspca_dev, 0x02, 0x03);
+		reg_w(gspca_dev, 0xff, 0x01);
+		reg_w(gspca_dev, 0x08, 0x09);
+		reg_w(gspca_dev, 0x17, 0x20);
+		reg_w(gspca_dev, 0x1b, 0x00);
+/*		reg_w(gspca_dev, 0x80, 0x69); */
+		reg_w(gspca_dev, 0x87, 0x10);
 		break;
 	case 1:					/* 320x240 */
-		pac7311_reg_write(dev, 0xff, 0x04);
-		pac7311_reg_write(dev, 0x02, 0x03);
-		pac7311_reg_write(dev, 0xff, 0x01);
-		pac7311_reg_write(dev, 0x08, 0x09);
-		pac7311_reg_write(dev, 0x17, 0x30);
-/*		pac7311_reg_write(dev, 0x80, 0x3f); */
-		pac7311_reg_write(dev, 0x87, 0x11);
+		reg_w(gspca_dev, 0xff, 0x04);
+		reg_w(gspca_dev, 0x02, 0x03);
+		reg_w(gspca_dev, 0xff, 0x01);
+		reg_w(gspca_dev, 0x08, 0x09);
+		reg_w(gspca_dev, 0x17, 0x30);
+/*		reg_w(gspca_dev, 0x80, 0x3f); */
+		reg_w(gspca_dev, 0x87, 0x11);
 		break;
 	case 0:					/* 640x480 */
-		pac7311_reg_write(dev, 0xff, 0x04);
-		pac7311_reg_write(dev, 0x02, 0x03);
-		pac7311_reg_write(dev, 0xff, 0x01);
-		pac7311_reg_write(dev, 0x08, 0x08);
-		pac7311_reg_write(dev, 0x17, 0x00);
-/*		pac7311_reg_write(dev, 0x80, 0x1c); */
-		pac7311_reg_write(dev, 0x87, 0x12);
+		reg_w(gspca_dev, 0xff, 0x04);
+		reg_w(gspca_dev, 0x02, 0x03);
+		reg_w(gspca_dev, 0xff, 0x01);
+		reg_w(gspca_dev, 0x08, 0x08);
+		reg_w(gspca_dev, 0x17, 0x00);
+/*		reg_w(gspca_dev, 0x80, 0x1c); */
+		reg_w(gspca_dev, 0x87, 0x12);
 		break;
 	}
 
 	/* start stream */
-	pac7311_reg_write(dev, 0xff, 0x01);
-	pac7311_reg_write(dev, 0x78, 0x04);
-	pac7311_reg_write(dev, 0x78, 0x05);
+	reg_w(gspca_dev, 0xff, 0x01);
+	reg_w(gspca_dev, 0x78, 0x04);
+	reg_w(gspca_dev, 0x78, 0x05);
 
 	if (sd->autogain) {
 		sd->ag_cnt = AG_CNT_START;
@@ -451,18 +446,16 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
-
-	pac7311_reg_write(dev, 0xff, 0x04);
-	pac7311_reg_write(dev, 0x27, 0x80);
-	pac7311_reg_write(dev, 0x28, 0xca);
-	pac7311_reg_write(dev, 0x29, 0x53);
-	pac7311_reg_write(dev, 0x2a, 0x0e);
-	pac7311_reg_write(dev, 0xff, 0x01);
-	pac7311_reg_write(dev, 0x3e, 0x20);
-	pac7311_reg_write(dev, 0x78, 0x04); /* Bit_0=start stream, Bit_7=LED */
-	pac7311_reg_write(dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
-	pac7311_reg_write(dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0xff, 0x04);
+	reg_w(gspca_dev, 0x27, 0x80);
+	reg_w(gspca_dev, 0x28, 0xca);
+	reg_w(gspca_dev, 0x29, 0x53);
+	reg_w(gspca_dev, 0x2a, 0x0e);
+	reg_w(gspca_dev, 0xff, 0x01);
+	reg_w(gspca_dev, 0x3e, 0x20);
+	reg_w(gspca_dev, 0x78, 0x04); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -472,18 +465,16 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 /* this function is called at close time */
 static void sd_close(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
-
-	pac7311_reg_write(dev, 0xff, 0x04);
-	pac7311_reg_write(dev, 0x27, 0x80);
-	pac7311_reg_write(dev, 0x28, 0xca);
-	pac7311_reg_write(dev, 0x29, 0x53);
-	pac7311_reg_write(dev, 0x2a, 0x0e);
-	pac7311_reg_write(dev, 0xff, 0x01);
-	pac7311_reg_write(dev, 0x3e, 0x20);
-	pac7311_reg_write(dev, 0x78, 0x04); /* Bit_0=start stream, Bit_7=LED */
-	pac7311_reg_write(dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
-	pac7311_reg_write(dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0xff, 0x04);
+	reg_w(gspca_dev, 0x27, 0x80);
+	reg_w(gspca_dev, 0x28, 0xca);
+	reg_w(gspca_dev, 0x29, 0x53);
+	reg_w(gspca_dev, 0x2a, 0x0e);
+	reg_w(gspca_dev, 0xff, 0x01);
+	reg_w(gspca_dev, 0x3e, 0x20);
+	reg_w(gspca_dev, 0x78, 0x04); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
 }
 
 static void setautogain(struct gspca_dev *gspca_dev, int luma)
@@ -491,11 +482,9 @@ static void setautogain(struct gspca_dev *gspca_dev, int luma)
 	int luma_mean = 128;
 	int luma_delta = 20;
 	__u8 spring = 5;
-	__u8 Pxclk;
 	int Gbright;
 
-	pac7311_reg_read(gspca_dev->dev, 0x02, &Pxclk);
-	Gbright = Pxclk;
+	Gbright = reg_r(gspca_dev, 0x02);
 	PDEBUG(D_FRAM, "luma mean %d", luma);
 	if (luma < luma_mean - luma_delta ||
 	    luma > luma_mean + luma_delta) {
@@ -505,10 +494,10 @@ static void setautogain(struct gspca_dev *gspca_dev, int luma)
 		else if (Gbright < 4)
 			Gbright = 4;
 		PDEBUG(D_FRAM, "gbright %d", Gbright);
-		pac7311_reg_write(gspca_dev->dev, 0xff, 0x04);
-		pac7311_reg_write(gspca_dev->dev, 0x0f, Gbright);
+		reg_w(gspca_dev, 0xff, 0x04);
+		reg_w(gspca_dev, 0x0f, Gbright);
 		/* load registers to sensor (Bit 0, auto clear) */
-		pac7311_reg_write(gspca_dev->dev, 0x11, 0x01);
+		reg_w(gspca_dev, 0x11, 0x01);
 	}
 }
 
@@ -623,11 +612,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 static void getbrightness(struct gspca_dev *gspca_dev)
 {
-/*	__u8 brightness = 0;
-
-	pac7311_reg_read(gspca_dev->dev, 0x0008, &brightness);
-	spca50x->brightness = brightness;
-	return spca50x->brightness;	*/
+/*	sd->brightness = reg_r(gspca_dev, 0x08);
+	return sd->brightness;	*/
 /*	PDEBUG(D_CONF, "Called pac7311_getbrightness: Not implemented yet"); */
 }
 

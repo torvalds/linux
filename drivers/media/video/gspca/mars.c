@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/Mars USB Camera Driver");
@@ -83,39 +83,53 @@ enum {
 	REG_HW_MI_63,
 	REG_HW_MI_64,
 	REG_HW_MI_F1 = 0xf1,
-	ATTR_TOTAL_MI_REG = 242
+	ATTR_TOTAL_MI_REG = 0xf2
 };
 
-static int pcam_reg_write(struct usb_device *dev,
-			  __u16 index, __u8 *value, int len)
+/* the bytes to write are in gspca_dev->usb_buf */
+static int reg_w(struct gspca_dev *gspca_dev,
+		 __u16 index, int len)
 {
 	int rc;
 
-	rc = usb_control_msg(dev,
-			 usb_sndbulkpipe(dev, 4),
+	rc = usb_control_msg(gspca_dev->dev,
+			 usb_sndbulkpipe(gspca_dev->dev, 4),
 			 0x12,
-/*		?? 0xc8 = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_??? !? */
-			 0xc8,
+			 0xc8,		/* ?? */
 			 0,		/* value */
-			 index, value, len, 500);
+			 index, gspca_dev->usb_buf, len, 500);
 	if (rc < 0)
 		PDEBUG(D_ERR, "reg write [%02x] error %d", index, rc);
 	return rc;
 }
 
-static void MISensor_BulkWrite(struct usb_device *dev,
-				unsigned short *pch,
-				char Address)
+static int reg_w_buf(struct gspca_dev *gspca_dev,
+			__u16 index, __u8 *buf, int len)
 {
-	__u8 data[6];
+	int rc;
 
-	data[0] = 0x1f;
-	data[1] = 0;			/* control byte */
-	data[2] = Address;
-	data[3] = *pch >> 8;		/* high byte */
-	data[4] = *pch;			/* low byte */
+	rc = usb_control_msg(gspca_dev->dev,
+			 usb_sndbulkpipe(gspca_dev->dev, 4),
+			 0x12,
+			 0xc8,		/* ?? */
+			 0,		/* value */
+			 index, buf, len, 500);
+	if (rc < 0)
+		PDEBUG(D_ERR, "reg write [%02x] error %d", index, rc);
+	return rc;
+}
 
-	pcam_reg_write(dev, Address, data, 5);
+static void bulk_w(struct gspca_dev *gspca_dev,
+		   __u16 *pch,
+		   __u16 Address)
+{
+	gspca_dev->usb_buf[0] = 0x1f;
+	gspca_dev->usb_buf[1] = 0;			/* control byte */
+	gspca_dev->usb_buf[2] = Address;
+	gspca_dev->usb_buf[3] = *pch >> 8;		/* high byte */
+	gspca_dev->usb_buf[4] = *pch;			/* low byte */
+
+	reg_w(gspca_dev, Address, 5);
 }
 
 /* this function is called at probe time */
@@ -142,33 +156,30 @@ static int sd_open(struct gspca_dev *gspca_dev)
 
 static void sd_start(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int err_code;
-	__u8 data[12];
-	__u16 MI_buf[242];
+	__u8 *data;
+	__u16 *MI_buf;
 	int h_size, v_size;
 	int intpipe;
-/*	struct usb_device *dev = pcam->dev; */
-
-	memset(data, 0, sizeof data);
-	memset(MI_buf, 0, sizeof MI_buf);
 
 	PDEBUG(D_STREAM, "camera start, iface %d, alt 8", gspca_dev->iface);
-	if (usb_set_interface(dev, gspca_dev->iface, 8) < 0) {
+	if (usb_set_interface(gspca_dev->dev, gspca_dev->iface, 8) < 0) {
 		PDEBUG(D_ERR|D_STREAM, "Set packet size: set interface error");
 		return;
 	}
 
+	data = gspca_dev->usb_buf;
 	data[0] = 0x01;		/* address */
 	data[1] = 0x01;
 
-	err_code = pcam_reg_write(dev, data[0], data, 2);
+	err_code = reg_w(gspca_dev, data[0], 2);
 	if (err_code < 0)
 		return;
 
 	/*
 	   Initialize the MR97113 chip register
 	 */
+	data = kmalloc(16, GFP_KERNEL);
 	data[0] = 0x00;		/* address */
 	data[1] = 0x0c | 0x01;	/* reg 0 */
 	data[2] = 0x01;		/* reg 1 */
@@ -181,34 +192,34 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	data[6] = 4;		/* reg 5, H start */
 	data[7] = 0xc0;		/* reg 6, gamma 1.5 */
 	data[8] = 3;		/* reg 7, V start */
-/*	if(h_size == 320 ) */
+/*	if (h_size == 320 ) */
 /*		data[9]= 0x56;	 * reg 8, 24MHz, 2:1 scale down */
 /*	else */
 	data[9] = 0x52;		/* reg 8, 24MHz, no scale down */
 	data[10] = 0x5d;	/* reg 9, I2C device address
 				 *	[for PAS5101 (0x40)] [for MI (0x5d)] */
 
-	err_code = pcam_reg_write(dev, data[0], data, 11);
+	err_code = reg_w_buf(gspca_dev, data[0], data, 11);
+	kfree(data);
 	if (err_code < 0)
 		return;
 
+	data = gspca_dev->usb_buf;
 	data[0] = 0x23;		/* address */
 	data[1] = 0x09;		/* reg 35, append frame header */
 
-	err_code = pcam_reg_write(dev, data[0], data, 2);
-	if (err_code < 0) {
-		PDEBUG(D_ERR, "Register write failed");
+	err_code = reg_w(gspca_dev, data[0], 2);
+	if (err_code < 0)
 		return;
-	}
 
-	data[0] = 0x3C;		/* address */
-/*	if (pcam->width == 1280) */
+	data[0] = 0x3c;		/* address */
+/*	if (gspca_dev->width == 1280) */
 /*		data[1] = 200;	 * reg 60, pc-cam frame size
 				 *	(unit: 4KB) 800KB */
 /*	else */
 	data[1] = 50;		/* 50 reg 60, pc-cam frame size
 				 *	(unit: 4KB) 200KB */
-	err_code = pcam_reg_write(dev, data[0], data, 2);
+	err_code = reg_w(gspca_dev, data[0], 2);
 	if (err_code < 0)
 		return;
 
@@ -250,19 +261,20 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	/* auto dark-gain */
 	data[0] = 0x5e;		/* address */
 
-	err_code = pcam_reg_write(dev, data[0], data, 6);
+	err_code = reg_w(gspca_dev, data[0], 6);
 	if (err_code < 0)
 		return;
 
 	data[0] = 0x67;
 	data[1] = 0x13;		/* reg 103, first pixel B, disable sharpness */
-	err_code = pcam_reg_write(dev, data[0], data, 2);
+	err_code = reg_w(gspca_dev, data[0], 2);
 	if (err_code < 0)
 		return;
 
 	/*
 	 * initialize the value of MI sensor...
 	 */
+	MI_buf = kzalloc(ATTR_TOTAL_MI_REG * sizeof *MI_buf, GFP_KERNEL);
 	MI_buf[REG_HW_MI_1] = 0x000a;
 	MI_buf[REG_HW_MI_2] = 0x000c;
 	MI_buf[REG_HW_MI_3] = 0x0405;
@@ -304,48 +316,48 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	}
 	MI_buf[0x20] = 0x1104;
 
-	MISensor_BulkWrite(dev, MI_buf + 1, 1);
-	MISensor_BulkWrite(dev, MI_buf + 2, 2);
-	MISensor_BulkWrite(dev, MI_buf + 3, 3);
-	MISensor_BulkWrite(dev, MI_buf + 4, 4);
-	MISensor_BulkWrite(dev, MI_buf + 5, 5);
-	MISensor_BulkWrite(dev, MI_buf + 6, 6);
-	MISensor_BulkWrite(dev, MI_buf + 7, 7);
-	MISensor_BulkWrite(dev, MI_buf + 9, 9);
-	MISensor_BulkWrite(dev, MI_buf + 0x0b, 0x0b);
-	MISensor_BulkWrite(dev, MI_buf + 0x0c, 0x0c);
-	MISensor_BulkWrite(dev, MI_buf + 0x0d, 0x0d);
-	MISensor_BulkWrite(dev, MI_buf + 0x1e, 0x1e);
-	MISensor_BulkWrite(dev, MI_buf + 0x20, 0x20);
-	MISensor_BulkWrite(dev, MI_buf + 0x2b, 0x2b);
-	MISensor_BulkWrite(dev, MI_buf + 0x2c, 0x2c);
-	MISensor_BulkWrite(dev, MI_buf + 0x2d, 0x2d);
-	MISensor_BulkWrite(dev, MI_buf + 0x2e, 0x2e);
-	MISensor_BulkWrite(dev, MI_buf + 0x35, 0x35);
-	MISensor_BulkWrite(dev, MI_buf + 0x5f, 0x5f);
-	MISensor_BulkWrite(dev, MI_buf + 0x60, 0x60);
-	MISensor_BulkWrite(dev, MI_buf + 0x61, 0x61);
-	MISensor_BulkWrite(dev, MI_buf + 0x62, 0x62);
-	MISensor_BulkWrite(dev, MI_buf + 0x63, 0x63);
-	MISensor_BulkWrite(dev, MI_buf + 0x64, 0x64);
-	MISensor_BulkWrite(dev, MI_buf + 0xf1, 0xf1);
+	bulk_w(gspca_dev, MI_buf + 1, 1);
+	bulk_w(gspca_dev, MI_buf + 2, 2);
+	bulk_w(gspca_dev, MI_buf + 3, 3);
+	bulk_w(gspca_dev, MI_buf + 4, 4);
+	bulk_w(gspca_dev, MI_buf + 5, 5);
+	bulk_w(gspca_dev, MI_buf + 6, 6);
+	bulk_w(gspca_dev, MI_buf + 7, 7);
+	bulk_w(gspca_dev, MI_buf + 9, 9);
+	bulk_w(gspca_dev, MI_buf + 0x0b, 0x0b);
+	bulk_w(gspca_dev, MI_buf + 0x0c, 0x0c);
+	bulk_w(gspca_dev, MI_buf + 0x0d, 0x0d);
+	bulk_w(gspca_dev, MI_buf + 0x1e, 0x1e);
+	bulk_w(gspca_dev, MI_buf + 0x20, 0x20);
+	bulk_w(gspca_dev, MI_buf + 0x2b, 0x2b);
+	bulk_w(gspca_dev, MI_buf + 0x2c, 0x2c);
+	bulk_w(gspca_dev, MI_buf + 0x2d, 0x2d);
+	bulk_w(gspca_dev, MI_buf + 0x2e, 0x2e);
+	bulk_w(gspca_dev, MI_buf + 0x35, 0x35);
+	bulk_w(gspca_dev, MI_buf + 0x5f, 0x5f);
+	bulk_w(gspca_dev, MI_buf + 0x60, 0x60);
+	bulk_w(gspca_dev, MI_buf + 0x61, 0x61);
+	bulk_w(gspca_dev, MI_buf + 0x62, 0x62);
+	bulk_w(gspca_dev, MI_buf + 0x63, 0x63);
+	bulk_w(gspca_dev, MI_buf + 0x64, 0x64);
+	bulk_w(gspca_dev, MI_buf + 0xf1, 0xf1);
+	kfree(MI_buf);
 
-	intpipe = usb_sndintpipe(dev, 0);
-	err_code = usb_clear_halt(dev, intpipe);
+	intpipe = usb_sndintpipe(gspca_dev->dev, 0);
+	err_code = usb_clear_halt(gspca_dev->dev, intpipe);
 
 	data[0] = 0x00;
 	data[1] = 0x4d;		/* ISOC transfering enable... */
-	pcam_reg_write(dev, data[0], data, 2);
+	reg_w(gspca_dev, data[0], 2);
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	int result;
-	__u8 data[2];
 
-	data[0] = 1;
-	data[1] = 0;
-	result = pcam_reg_write(gspca_dev->dev, data[0], data, 2);
+	gspca_dev->usb_buf[0] = 1;
+	gspca_dev->usb_buf[1] = 0;
+	result = reg_w(gspca_dev, gspca_dev->usb_buf[0], 2);
 	if (result < 0)
 		PDEBUG(D_ERR, "Camera Stop failed");
 }

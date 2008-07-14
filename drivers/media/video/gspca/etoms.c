@@ -22,8 +22,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("Etoms USB Camera Driver");
@@ -229,201 +229,215 @@ static const __u8 I2c3[] = { 0x12, 0x05 };
 
 static const __u8 I2c4[] = { 0x41, 0x08 };
 
-static void reg_r(struct usb_device *dev,
-		       __u16 index, __u8 *buffer, int len)
+/* read 'len' bytes to gspca_dev->usb_buf */
+static void reg_r(struct gspca_dev *gspca_dev,
+		  __u16 index,
+		  __u16 len)
 {
+	struct usb_device *dev = gspca_dev->dev;
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	if (len > sizeof gspca_dev->usb_buf) {
+		err("reg_r: buffer overflow");
+		return;
+	}
+#endif
 	usb_control_msg(dev,
 			usb_rcvctrlpipe(dev, 0),
 			0,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-			0, index, buffer, len, 500);
+			0,
+			index, gspca_dev->usb_buf, len, 500);
+	PDEBUG(D_USBI, "reg read [%02x] -> %02x ..",
+			index, gspca_dev->usb_buf[0]);
 }
 
-static void reg_w_val(struct usb_device *dev,
-			__u16 index, __u8 val)
+static void reg_w_val(struct gspca_dev *gspca_dev,
+			__u16 index,
+			__u8 val)
 {
-	__u8 data;
+	struct usb_device *dev = gspca_dev->dev;
 
-	data = val;
+	gspca_dev->usb_buf[0] = val;
 	usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
 			0,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-			0, index, &data, 1, 500);
+			0,
+			index, gspca_dev->usb_buf, 1, 500);
 }
 
-static void reg_w(struct usb_device *dev,
-		  __u16 index, const __u8 *buffer, __u16 len)
+static void reg_w(struct gspca_dev *gspca_dev,
+		  __u16 index,
+		  const __u8 *buffer,
+		  __u16 len)
 {
-	__u8 tmpbuf[8];
+	struct usb_device *dev = gspca_dev->dev;
 
-	memcpy(tmpbuf, buffer, len);
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	if (len > sizeof gspca_dev->usb_buf) {
+		err("reg_w: buffer overflow");
+		return;
+	}
+	PDEBUG(D_USBO, "reg write [%02x] = %02x..", index, *buffer);
+#endif
+	memcpy(gspca_dev->usb_buf, buffer, len);
 	usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
 			0,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-			0, index, tmpbuf, len, 500);
+			0, index, gspca_dev->usb_buf, len, 500);
 }
 
-static int Et_i2cwrite(struct usb_device *dev, __u8 reg,
-			const __u8 *buffer,
-			__u16 len, __u8 mode)
+static int i2c_w(struct gspca_dev *gspca_dev,
+		 __u8 reg,
+		 const __u8 *buffer,
+		 __u16 len, __u8 mode)
 {
 	/* buffer should be [D0..D7] */
 	__u8 ptchcount;
 
 	/* set the base address */
-	reg_w_val(dev, ET_I2C_BASE, 0x40); /* sensor base for the pas106 */
+	reg_w_val(gspca_dev, ET_I2C_BASE, 0x40);
+					 /* sensor base for the pas106 */
 	/* set count and prefetch */
 	ptchcount = ((len & 0x07) << 4) | (mode & 0x03);
-	reg_w_val(dev, ET_I2C_COUNT, ptchcount);
+	reg_w_val(gspca_dev, ET_I2C_COUNT, ptchcount);
 	/* set the register base */
-	reg_w_val(dev, ET_I2C_REG, reg);
+	reg_w_val(gspca_dev, ET_I2C_REG, reg);
 	while (--len >= 0)
-		reg_w_val(dev, ET_I2C_DATA0 + len, buffer[len]);
+		reg_w_val(gspca_dev, ET_I2C_DATA0 + len, buffer[len]);
 	return 0;
 }
 
-static int Et_i2cread(struct usb_device *dev, __u8 reg,
-			__u8 *buffer,
-			__u16 length, __u8 mode)
+static int i2c_r(struct gspca_dev *gspca_dev,
+			__u8 reg)
 {
-	/* buffer should be [D0..D7] */
-	int i, j;
-	__u8 ptchcount;
-
 	/* set the base address */
-	reg_w_val(dev, ET_I2C_BASE, 0x40); /* sensor base for the pas106 */
-	/* set count and prefetch */
-	ptchcount = ((length & 0x07) << 4) | (mode & 0x03);
-	reg_w_val(dev, ET_I2C_COUNT, ptchcount);
-	/* set the register base */
-	reg_w_val(dev, ET_I2C_REG, reg);
-	reg_w_val(dev, ET_I2C_PREFETCH, 0x02);	/* prefetch */
-	reg_w_val(dev, ET_I2C_PREFETCH, 0);
-	j = length - 1;
-	for (i = 0; i < length; i++) {
-		reg_r(dev, (ET_I2C_DATA0 + j), &buffer[j], 1);
-		j--;
-	}
+	reg_w_val(gspca_dev, ET_I2C_BASE, 0x40);
+					/* sensor base for the pas106 */
+	/* set count and prefetch (cnd: 4 bits - mode: 4 bits) */
+	reg_w_val(gspca_dev, ET_I2C_COUNT, 0x11);
+	reg_w_val(gspca_dev, ET_I2C_REG, reg);	/* set the register base */
+	reg_w_val(gspca_dev, ET_I2C_PREFETCH, 0x02);	/* prefetch */
+	reg_w_val(gspca_dev, ET_I2C_PREFETCH, 0x00);
+	reg_r(gspca_dev, ET_I2C_DATA0, 1);	/* read one byte */
 	return 0;
 }
 
-static int Et_WaitStatus(struct usb_device *dev)
+static int Et_WaitStatus(struct gspca_dev *gspca_dev)
 {
-	__u8 bytereceived;
 	int retry = 10;
 
 	while (retry--) {
-		reg_r(dev, ET_ClCK, &bytereceived, 1);
-		if (bytereceived != 0)
+		reg_r(gspca_dev, ET_ClCK, 1);
+		if (gspca_dev->usb_buf[0] != 0)
 			return 1;
 	}
 	return 0;
 }
 
-static int et_video(struct usb_device *dev, int on)
+static int et_video(struct gspca_dev *gspca_dev,
+		    int on)
 {
-	int err;
+	int ret;
 
-	reg_w_val(dev, ET_GPIO_OUT, on
-				? 0x10		/* startvideo - set Bit5 */
-				: 0);		/* stopvideo */
-	err = Et_WaitStatus(dev);
-	if (!err)
+	reg_w_val(gspca_dev, ET_GPIO_OUT,
+		  on ? 0x10		/* startvideo - set Bit5 */
+		     : 0);		/* stopvideo */
+	ret = Et_WaitStatus(gspca_dev);
+	if (ret != 0)
 		PDEBUG(D_ERR, "timeout video on/off");
-	return err;
+	return ret;
 }
 
 static void Et_init2(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	__u8 value;
-	__u8 received;
 	static const __u8 FormLine[] = { 0x84, 0x03, 0x14, 0xf4, 0x01, 0x05 };
 
 	PDEBUG(D_STREAM, "Open Init2 ET");
-	reg_w_val(dev, ET_GPIO_DIR_CTRL, 0x2f);
-	reg_w_val(dev, ET_GPIO_OUT, 0x10);
-	reg_r(dev, ET_GPIO_IN, &received, 1);
-	reg_w_val(dev, ET_ClCK, 0x14);	/* 0x14 // 0x16 enabled pattern */
-	reg_w_val(dev, ET_CTRL, 0x1b);
+	reg_w_val(gspca_dev, ET_GPIO_DIR_CTRL, 0x2f);
+	reg_w_val(gspca_dev, ET_GPIO_OUT, 0x10);
+	reg_r(gspca_dev, ET_GPIO_IN, 1);
+	reg_w_val(gspca_dev, ET_ClCK, 0x14); /* 0x14 // 0x16 enabled pattern */
+	reg_w_val(gspca_dev, ET_CTRL, 0x1b);
 
 	/*  compression et subsampling */
 	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv)
 		value = ET_COMP_VAL1;	/* 320 */
 	else
 		value = ET_COMP_VAL0;	/* 640 */
-	reg_w_val(dev, ET_COMP, value);
-	reg_w_val(dev, ET_MAXQt, 0x1f);
-	reg_w_val(dev, ET_MINQt, 0x04);
+	reg_w_val(gspca_dev, ET_COMP, value);
+	reg_w_val(gspca_dev, ET_MAXQt, 0x1f);
+	reg_w_val(gspca_dev, ET_MINQt, 0x04);
 	/* undocumented registers */
-	reg_w_val(dev, ET_REG1d, 0xff);
-	reg_w_val(dev, ET_REG1e, 0xff);
-	reg_w_val(dev, ET_REG1f, 0xff);
-	reg_w_val(dev, ET_REG20, 0x35);
-	reg_w_val(dev, ET_REG21, 0x01);
-	reg_w_val(dev, ET_REG22, 0x00);
-	reg_w_val(dev, ET_REG23, 0xff);
-	reg_w_val(dev, ET_REG24, 0xff);
-	reg_w_val(dev, ET_REG25, 0x0f);
+	reg_w_val(gspca_dev, ET_REG1d, 0xff);
+	reg_w_val(gspca_dev, ET_REG1e, 0xff);
+	reg_w_val(gspca_dev, ET_REG1f, 0xff);
+	reg_w_val(gspca_dev, ET_REG20, 0x35);
+	reg_w_val(gspca_dev, ET_REG21, 0x01);
+	reg_w_val(gspca_dev, ET_REG22, 0x00);
+	reg_w_val(gspca_dev, ET_REG23, 0xff);
+	reg_w_val(gspca_dev, ET_REG24, 0xff);
+	reg_w_val(gspca_dev, ET_REG25, 0x0f);
 	/* colors setting */
-	reg_w_val(dev, 0x30, 0x11);		/* 0x30 */
-	reg_w_val(dev, 0x31, 0x40);
-	reg_w_val(dev, 0x32, 0x00);
-	reg_w_val(dev, ET_O_RED, 0x00);		/* 0x34 */
-	reg_w_val(dev, ET_O_GREEN1, 0x00);
-	reg_w_val(dev, ET_O_BLUE, 0x00);
-	reg_w_val(dev, ET_O_GREEN2, 0x00);
+	reg_w_val(gspca_dev, 0x30, 0x11);		/* 0x30 */
+	reg_w_val(gspca_dev, 0x31, 0x40);
+	reg_w_val(gspca_dev, 0x32, 0x00);
+	reg_w_val(gspca_dev, ET_O_RED, 0x00);		/* 0x34 */
+	reg_w_val(gspca_dev, ET_O_GREEN1, 0x00);
+	reg_w_val(gspca_dev, ET_O_BLUE, 0x00);
+	reg_w_val(gspca_dev, ET_O_GREEN2, 0x00);
 	/*************/
-	reg_w_val(dev, ET_G_RED, 0x80);		/* 0x4d */
-	reg_w_val(dev, ET_G_GREEN1, 0x80);
-	reg_w_val(dev, ET_G_BLUE, 0x80);
-	reg_w_val(dev, ET_G_GREEN2, 0x80);
-	reg_w_val(dev, ET_G_GR_H, 0x00);
-	reg_w_val(dev, ET_G_GB_H, 0x00);		/* 0x52 */
+	reg_w_val(gspca_dev, ET_G_RED, 0x80);		/* 0x4d */
+	reg_w_val(gspca_dev, ET_G_GREEN1, 0x80);
+	reg_w_val(gspca_dev, ET_G_BLUE, 0x80);
+	reg_w_val(gspca_dev, ET_G_GREEN2, 0x80);
+	reg_w_val(gspca_dev, ET_G_GR_H, 0x00);
+	reg_w_val(gspca_dev, ET_G_GB_H, 0x00);		/* 0x52 */
 	/* Window control registers */
-	reg_w_val(dev, 0x61, 0x80);		/* use cmc_out */
-	reg_w_val(dev, 0x62, 0x02);
-	reg_w_val(dev, 0x63, 0x03);
-	reg_w_val(dev, 0x64, 0x14);
-	reg_w_val(dev, 0x65, 0x0e);
-	reg_w_val(dev, 0x66, 0x02);
-	reg_w_val(dev, 0x67, 0x02);
+	reg_w_val(gspca_dev, 0x61, 0x80);		/* use cmc_out */
+	reg_w_val(gspca_dev, 0x62, 0x02);
+	reg_w_val(gspca_dev, 0x63, 0x03);
+	reg_w_val(gspca_dev, 0x64, 0x14);
+	reg_w_val(gspca_dev, 0x65, 0x0e);
+	reg_w_val(gspca_dev, 0x66, 0x02);
+	reg_w_val(gspca_dev, 0x67, 0x02);
 
 	/**************************************/
-	reg_w_val(dev, ET_SYNCHRO, 0x8f);	/* 0x68 */
-	reg_w_val(dev, ET_STARTX, 0x69);		/* 0x6a //0x69 */
-	reg_w_val(dev, ET_STARTY, 0x0d);		/* 0x0d //0x0c */
-	reg_w_val(dev, ET_WIDTH_LOW, 0x80);
-	reg_w_val(dev, ET_HEIGTH_LOW, 0xe0);
-	reg_w_val(dev, ET_W_H_HEIGTH, 0x60);	/* 6d */
-	reg_w_val(dev, ET_REG6e, 0x86);
-	reg_w_val(dev, ET_REG6f, 0x01);
-	reg_w_val(dev, ET_REG70, 0x26);
-	reg_w_val(dev, ET_REG71, 0x7a);
-	reg_w_val(dev, ET_REG72, 0x01);
+	reg_w_val(gspca_dev, ET_SYNCHRO, 0x8f);		/* 0x68 */
+	reg_w_val(gspca_dev, ET_STARTX, 0x69);		/* 0x6a //0x69 */
+	reg_w_val(gspca_dev, ET_STARTY, 0x0d);		/* 0x0d //0x0c */
+	reg_w_val(gspca_dev, ET_WIDTH_LOW, 0x80);
+	reg_w_val(gspca_dev, ET_HEIGTH_LOW, 0xe0);
+	reg_w_val(gspca_dev, ET_W_H_HEIGTH, 0x60);	/* 6d */
+	reg_w_val(gspca_dev, ET_REG6e, 0x86);
+	reg_w_val(gspca_dev, ET_REG6f, 0x01);
+	reg_w_val(gspca_dev, ET_REG70, 0x26);
+	reg_w_val(gspca_dev, ET_REG71, 0x7a);
+	reg_w_val(gspca_dev, ET_REG72, 0x01);
 	/* Clock Pattern registers ***************** */
-	reg_w_val(dev, ET_REG73, 0x00);
-	reg_w_val(dev, ET_REG74, 0x18);		/* 0x28 */
-	reg_w_val(dev, ET_REG75, 0x0f);		/* 0x01 */
+	reg_w_val(gspca_dev, ET_REG73, 0x00);
+	reg_w_val(gspca_dev, ET_REG74, 0x18);		/* 0x28 */
+	reg_w_val(gspca_dev, ET_REG75, 0x0f);		/* 0x01 */
 	/**********************************************/
-	reg_w_val(dev, 0x8a, 0x20);
-	reg_w_val(dev, 0x8d, 0x0f);
-	reg_w_val(dev, 0x8e, 0x08);
+	reg_w_val(gspca_dev, 0x8a, 0x20);
+	reg_w_val(gspca_dev, 0x8d, 0x0f);
+	reg_w_val(gspca_dev, 0x8e, 0x08);
 	/**************************************/
-	reg_w_val(dev, 0x03, 0x08);
-	reg_w_val(dev, ET_PXL_CLK, 0x03);
-	reg_w_val(dev, 0x81, 0xff);
-	reg_w_val(dev, 0x80, 0x00);
-	reg_w_val(dev, 0x81, 0xff);
-	reg_w_val(dev, 0x80, 0x20);
-	reg_w_val(dev, 0x03, 0x01);
-	reg_w_val(dev, 0x03, 0x00);
-	reg_w_val(dev, 0x03, 0x08);
+	reg_w_val(gspca_dev, 0x03, 0x08);
+	reg_w_val(gspca_dev, ET_PXL_CLK, 0x03);
+	reg_w_val(gspca_dev, 0x81, 0xff);
+	reg_w_val(gspca_dev, 0x80, 0x00);
+	reg_w_val(gspca_dev, 0x81, 0xff);
+	reg_w_val(gspca_dev, 0x80, 0x20);
+	reg_w_val(gspca_dev, 0x03, 0x01);
+	reg_w_val(gspca_dev, 0x03, 0x00);
+	reg_w_val(gspca_dev, 0x03, 0x08);
 	/********************************************/
 
-/*	reg_r(dev, ET_I2C_BASE, &received, 1);
+/*	reg_r(gspca_dev, ET_I2C_BASE, 1);
 					 always 0x40 as the pas106 ??? */
 	/* set the sensor */
 	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv)
@@ -435,25 +449,24 @@ static void Et_init2(struct gspca_dev *gspca_dev)
 					 * 0x0b -> 24/(11+1) = 2 Mhz
 					 * 0x17 -> 24/(23+1) = 1 Mhz
 					 */
-	reg_w_val(dev, ET_PXL_CLK, value);
+	reg_w_val(gspca_dev, ET_PXL_CLK, value);
 	/* now set by fifo the FormatLine setting */
-	reg_w(dev, 0x62, FormLine, 6);
+	reg_w(gspca_dev, 0x62, FormLine, 6);
 
 	/* set exposure times [ 0..0x78] 0->longvalue 0x78->shortvalue */
-	reg_w_val(dev, 0x81, 0x47);		/* 0x47; */
-	reg_w_val(dev, 0x80, 0x40);		/* 0x40; */
+	reg_w_val(gspca_dev, 0x81, 0x47);	/* 0x47; */
+	reg_w_val(gspca_dev, 0x80, 0x40);	/* 0x40; */
 	/* Pedro change */
 	/* Brightness change Brith+ decrease value */
 	/* Brigth- increase value */
 	/* original value = 0x70; */
-	reg_w_val(dev, 0x81, 0x30);		/* 0x20; - set brightness */
-	reg_w_val(dev, 0x80, 0x20);		/* 0x20; */
+	reg_w_val(gspca_dev, 0x81, 0x30);	/* 0x20; - set brightness */
+	reg_w_val(gspca_dev, 0x80, 0x20);	/* 0x20; */
 }
 
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	__u8 I2cc[] = { 0x05, 0x02, 0x02, 0x05, 0x0d };
 	__u8 i2cflags = 0x01;
 	/* __u8 green = 0; */
@@ -464,8 +477,8 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	/* green = 15 - ((((7*I2cc[0]) >> 2 ) + I2cc[3]) >> 1); */
 	/* I2cc[1] = I2cc[2] = green; */
 	if (sd->sensor == SENSOR_PAS106) {
-		Et_i2cwrite(dev, PAS106_REG13, &i2cflags, 1, 3);
-		Et_i2cwrite(dev, PAS106_REG9, I2cc, sizeof I2cc, 1);
+		i2c_w(gspca_dev, PAS106_REG13, &i2cflags, 1, 3);
+		i2c_w(gspca_dev, PAS106_REG9, I2cc, sizeof I2cc, 1);
 	}
 /*	PDEBUG(D_CONF , "Etoms red %d blue %d green %d",
 		I2cc[3], I2cc[0], green); */
@@ -474,21 +487,17 @@ static void setcolors(struct gspca_dev *gspca_dev)
 static void getcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-/*	__u8 valblue; */
-	__u8 valred;
 
 	if (sd->sensor == SENSOR_PAS106) {
-/*		Et_i2cread(gspca_dev->dev, PAS106_REG9, &valblue, 1, 1); */
-		Et_i2cread(gspca_dev->dev, PAS106_REG9 + 3, &valred, 1, 1);
-		sd->colors = valred & 0x0f;
+/*		i2c_r(gspca_dev, PAS106_REG9);		 * blue */
+		i2c_r(gspca_dev, PAS106_REG9 + 3);	/* red */
+		sd->colors = gspca_dev->usb_buf[0] & 0x0f;
 	}
 }
 
 static void Et_init1(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	__u8 value;
-	__u8 received;
 /*	__u8 I2c0 [] = {0x0a, 0x12, 0x05, 0x22, 0xac, 0x00, 0x01, 0x00}; */
 	__u8 I2c0[] = { 0x0a, 0x12, 0x05, 0x6d, 0xcd, 0x00, 0x01, 0x00 };
 						/* try 1/120 0x6d 0xcd 0x40 */
@@ -496,12 +505,12 @@ static void Et_init1(struct gspca_dev *gspca_dev)
 						 * 1/60000 hmm ?? */
 
 	PDEBUG(D_STREAM, "Open Init1 ET");
-	reg_w_val(dev, ET_GPIO_DIR_CTRL, 7);
-	reg_r(dev, ET_GPIO_IN, &received, 1);
-	reg_w_val(dev, ET_RESET_ALL, 1);
-	reg_w_val(dev, ET_RESET_ALL, 0);
-	reg_w_val(dev, ET_ClCK, 0x10);
-	reg_w_val(dev, ET_CTRL, 0x19);
+	reg_w_val(gspca_dev, ET_GPIO_DIR_CTRL, 7);
+	reg_r(gspca_dev, ET_GPIO_IN, 1);
+	reg_w_val(gspca_dev, ET_RESET_ALL, 1);
+	reg_w_val(gspca_dev, ET_RESET_ALL, 0);
+	reg_w_val(gspca_dev, ET_ClCK, 0x10);
+	reg_w_val(gspca_dev, ET_CTRL, 0x19);
 	/*   compression et subsampling */
 	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv)
 		value = ET_COMP_VAL1;
@@ -510,80 +519,79 @@ static void Et_init1(struct gspca_dev *gspca_dev)
 	PDEBUG(D_STREAM, "Open mode %d Compression %d",
 	       gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv,
 	       value);
-	reg_w_val(dev, ET_COMP, value);
-	reg_w_val(dev, ET_MAXQt, 0x1d);
-	reg_w_val(dev, ET_MINQt, 0x02);
+	reg_w_val(gspca_dev, ET_COMP, value);
+	reg_w_val(gspca_dev, ET_MAXQt, 0x1d);
+	reg_w_val(gspca_dev, ET_MINQt, 0x02);
 	/* undocumented registers */
-	reg_w_val(dev, ET_REG1d, 0xff);
-	reg_w_val(dev, ET_REG1e, 0xff);
-	reg_w_val(dev, ET_REG1f, 0xff);
-	reg_w_val(dev, ET_REG20, 0x35);
-	reg_w_val(dev, ET_REG21, 0x01);
-	reg_w_val(dev, ET_REG22, 0x00);
-	reg_w_val(dev, ET_REG23, 0xf7);
-	reg_w_val(dev, ET_REG24, 0xff);
-	reg_w_val(dev, ET_REG25, 0x07);
+	reg_w_val(gspca_dev, ET_REG1d, 0xff);
+	reg_w_val(gspca_dev, ET_REG1e, 0xff);
+	reg_w_val(gspca_dev, ET_REG1f, 0xff);
+	reg_w_val(gspca_dev, ET_REG20, 0x35);
+	reg_w_val(gspca_dev, ET_REG21, 0x01);
+	reg_w_val(gspca_dev, ET_REG22, 0x00);
+	reg_w_val(gspca_dev, ET_REG23, 0xf7);
+	reg_w_val(gspca_dev, ET_REG24, 0xff);
+	reg_w_val(gspca_dev, ET_REG25, 0x07);
 	/* colors setting */
-	reg_w_val(dev, ET_G_RED, 0x80);
-	reg_w_val(dev, ET_G_GREEN1, 0x80);
-	reg_w_val(dev, ET_G_BLUE, 0x80);
-	reg_w_val(dev, ET_G_GREEN2, 0x80);
-	reg_w_val(dev, ET_G_GR_H, 0x00);
-	reg_w_val(dev, ET_G_GB_H, 0x00);
+	reg_w_val(gspca_dev, ET_G_RED, 0x80);
+	reg_w_val(gspca_dev, ET_G_GREEN1, 0x80);
+	reg_w_val(gspca_dev, ET_G_BLUE, 0x80);
+	reg_w_val(gspca_dev, ET_G_GREEN2, 0x80);
+	reg_w_val(gspca_dev, ET_G_GR_H, 0x00);
+	reg_w_val(gspca_dev, ET_G_GB_H, 0x00);
 	/* Window control registers */
-	reg_w_val(dev, ET_SYNCHRO, 0xf0);
-	reg_w_val(dev, ET_STARTX, 0x56);		/* 0x56 */
-	reg_w_val(dev, ET_STARTY, 0x05);		/* 0x04 */
-	reg_w_val(dev, ET_WIDTH_LOW, 0x60);
-	reg_w_val(dev, ET_HEIGTH_LOW, 0x20);
-	reg_w_val(dev, ET_W_H_HEIGTH, 0x50);
-	reg_w_val(dev, ET_REG6e, 0x86);
-	reg_w_val(dev, ET_REG6f, 0x01);
-	reg_w_val(dev, ET_REG70, 0x86);
-	reg_w_val(dev, ET_REG71, 0x14);
-	reg_w_val(dev, ET_REG72, 0x00);
+	reg_w_val(gspca_dev, ET_SYNCHRO, 0xf0);
+	reg_w_val(gspca_dev, ET_STARTX, 0x56);		/* 0x56 */
+	reg_w_val(gspca_dev, ET_STARTY, 0x05);		/* 0x04 */
+	reg_w_val(gspca_dev, ET_WIDTH_LOW, 0x60);
+	reg_w_val(gspca_dev, ET_HEIGTH_LOW, 0x20);
+	reg_w_val(gspca_dev, ET_W_H_HEIGTH, 0x50);
+	reg_w_val(gspca_dev, ET_REG6e, 0x86);
+	reg_w_val(gspca_dev, ET_REG6f, 0x01);
+	reg_w_val(gspca_dev, ET_REG70, 0x86);
+	reg_w_val(gspca_dev, ET_REG71, 0x14);
+	reg_w_val(gspca_dev, ET_REG72, 0x00);
 	/* Clock Pattern registers */
-	reg_w_val(dev, ET_REG73, 0x00);
-	reg_w_val(dev, ET_REG74, 0x00);
-	reg_w_val(dev, ET_REG75, 0x0a);
-	reg_w_val(dev, ET_I2C_CLK, 0x04);
-	reg_w_val(dev, ET_PXL_CLK, 0x01);
+	reg_w_val(gspca_dev, ET_REG73, 0x00);
+	reg_w_val(gspca_dev, ET_REG74, 0x00);
+	reg_w_val(gspca_dev, ET_REG75, 0x0a);
+	reg_w_val(gspca_dev, ET_I2C_CLK, 0x04);
+	reg_w_val(gspca_dev, ET_PXL_CLK, 0x01);
 	/* set the sensor */
 	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 		I2c0[0] = 0x06;
-		Et_i2cwrite(dev, PAS106_REG2, I2c0, sizeof I2c0, 1);
-		Et_i2cwrite(dev, PAS106_REG9, I2c2, sizeof I2c2, 1);
+		i2c_w(gspca_dev, PAS106_REG2, I2c0, sizeof I2c0, 1);
+		i2c_w(gspca_dev, PAS106_REG9, I2c2, sizeof I2c2, 1);
 		value = 0x06;
-		Et_i2cwrite(dev, PAS106_REG2, &value, 1, 1);
-		Et_i2cwrite(dev, PAS106_REG3, I2c3, sizeof I2c3, 1);
+		i2c_w(gspca_dev, PAS106_REG2, &value, 1, 1);
+		i2c_w(gspca_dev, PAS106_REG3, I2c3, sizeof I2c3, 1);
 		/* value = 0x1f; */
 		value = 0x04;
-		Et_i2cwrite(dev, PAS106_REG0e, &value, 1, 1);
+		i2c_w(gspca_dev, PAS106_REG0e, &value, 1, 1);
 	} else {
 		I2c0[0] = 0x0a;
 
-		Et_i2cwrite(dev, PAS106_REG2, I2c0, sizeof I2c0, 1);
-		Et_i2cwrite(dev, PAS106_REG9, I2c2, sizeof I2c2, 1);
+		i2c_w(gspca_dev, PAS106_REG2, I2c0, sizeof I2c0, 1);
+		i2c_w(gspca_dev, PAS106_REG9, I2c2, sizeof I2c2, 1);
 		value = 0x0a;
-
-		Et_i2cwrite(dev, PAS106_REG2, &value, 1, 1);
-		Et_i2cwrite(dev, PAS106_REG3, I2c3, sizeof I2c3, 1);
+		i2c_w(gspca_dev, PAS106_REG2, &value, 1, 1);
+		i2c_w(gspca_dev, PAS106_REG3, I2c3, sizeof I2c3, 1);
 		value = 0x04;
 		/* value = 0x10; */
-		Et_i2cwrite(dev, PAS106_REG0e, &value, 1, 1);
+		i2c_w(gspca_dev, PAS106_REG0e, &value, 1, 1);
 		/* bit 2 enable bit 1:2 select 0 1 2 3
 		   value = 0x07;                                * curve 0 *
-		   Et_i2cwrite(dev,PAS106_REG0f,&value,1,1);
+		   i2c_w(gspca_dev, PAS106_REG0f, &value, 1, 1);
 		 */
 	}
 
 /*	value = 0x01; */
 /*	value = 0x22; */
-/*	Et_i2cwrite(dev, PAS106_REG5, &value, 1, 1); */
+/*	i2c_w(gspca_dev, PAS106_REG5, &value, 1, 1); */
 	/* magnetude and sign bit for DAC */
-	Et_i2cwrite(dev, PAS106_REG7, I2c4, sizeof I2c4, 1);
+	i2c_w(gspca_dev, PAS106_REG7, I2c4, sizeof I2c4, 1);
 	/* now set by fifo the whole colors setting */
-	reg_w(dev, ET_G_RED, GainRGBG, 6);
+	reg_w(gspca_dev, ET_G_RED, GainRGBG, 6);
 	getcolors(gspca_dev);
 	setcolors(gspca_dev);
 }
@@ -632,14 +640,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 static int sd_open(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 
 	if (sd->sensor == SENSOR_PAS106)
 		Et_init1(gspca_dev);
 	else
 		Et_init2(gspca_dev);
-	reg_w_val(dev, ET_RESET_ALL, 0x08);
-	et_video(dev, 0);		/* video off */
+	reg_w_val(gspca_dev, ET_RESET_ALL, 0x08);
+	et_video(gspca_dev, 0);		/* video off */
 	return 0;
 }
 
@@ -647,20 +654,19 @@ static int sd_open(struct gspca_dev *gspca_dev)
 static void sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 
 	if (sd->sensor == SENSOR_PAS106)
 		Et_init1(gspca_dev);
 	else
 		Et_init2(gspca_dev);
 
-	reg_w_val(dev, ET_RESET_ALL, 0x08);
-	et_video(dev, 1);		/* video on */
+	reg_w_val(gspca_dev, ET_RESET_ALL, 0x08);
+	et_video(gspca_dev, 1);		/* video on */
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	et_video(gspca_dev->dev, 0);	/* video off */
+	et_video(gspca_dev, 0);		/* video off */
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -678,7 +684,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	__u8 brightness = sd->brightness;
 
 	for (i = 0; i < 4; i++)
-		reg_w_val(gspca_dev->dev, (ET_O_RED + i), brightness);
+		reg_w_val(gspca_dev, ET_O_RED + i, brightness);
 }
 
 static void getbrightness(struct gspca_dev *gspca_dev)
@@ -686,11 +692,10 @@ static void getbrightness(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
 	int brightness = 0;
-	__u8 value;
 
 	for (i = 0; i < 4; i++) {
-		reg_r(gspca_dev->dev, (ET_O_RED + i), &value, 1);
-		brightness += value;
+		reg_r(gspca_dev, ET_O_RED + i, 1);
+		brightness += gspca_dev->usb_buf[0];
 	}
 	sd->brightness = brightness >> 3;
 }
@@ -701,8 +706,8 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	__u8 RGBG[] = { 0x80, 0x80, 0x80, 0x80, 0x00, 0x00 };
 	__u8 contrast = sd->contrast;
 
-	memset(RGBG, contrast, sizeof RGBG - 2);
-	reg_w(gspca_dev->dev, ET_G_RED, RGBG, 6);
+	memset(RGBG, contrast, sizeof(RGBG) - 2);
+	reg_w(gspca_dev, ET_G_RED, RGBG, 6);
 }
 
 static void getcontrast(struct gspca_dev *gspca_dev)
@@ -710,11 +715,10 @@ static void getcontrast(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
 	int contrast = 0;
-	__u8 value = 0;
 
 	for (i = 0; i < 4; i++) {
-		reg_r(gspca_dev->dev, (ET_G_RED + i), &value, 1);
-		contrast += value;
+		reg_r(gspca_dev, ET_G_RED + i, 1);
+		contrast += gspca_dev->usb_buf[0];
 	}
 	sd->contrast = contrast >> 2;
 }
@@ -722,12 +726,11 @@ static void getcontrast(struct gspca_dev *gspca_dev)
 static __u8 Et_getgainG(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 value = 0;
 
 	if (sd->sensor == SENSOR_PAS106) {
-		Et_i2cread(gspca_dev->dev, PAS106_REG0e, &value, 1, 1);
-		PDEBUG(D_CONF, "Etoms gain G %d", value);
-		return value;
+		i2c_r(gspca_dev, PAS106_REG0e);
+		PDEBUG(D_CONF, "Etoms gain G %d", gspca_dev->usb_buf[0]);
+		return gspca_dev->usb_buf[0];
 	}
 	return 0x1f;
 }
@@ -735,12 +738,12 @@ static __u8 Et_getgainG(struct gspca_dev *gspca_dev)
 static void Et_setgainG(struct gspca_dev *gspca_dev, __u8 gain)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
-	__u8 i2cflags = 0x01;
 
 	if (sd->sensor == SENSOR_PAS106) {
-		Et_i2cwrite(dev, PAS106_REG13, &i2cflags, 1, 3);
-		Et_i2cwrite(dev, PAS106_REG0e, &gain, 1, 1);
+		__u8 i2cflags = 0x01;
+
+		i2c_w(gspca_dev, PAS106_REG13, &i2cflags, 1, 3);
+		i2c_w(gspca_dev, PAS106_REG0e, &gain, 1, 1);
 	}
 }
 
@@ -751,8 +754,6 @@ static void Et_setgainG(struct gspca_dev *gspca_dev, __u8 gain)
 
 static void setautogain(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
-	__u8 GRBG[] = { 0, 0, 0, 0 };
 	__u8 luma = 0;
 	__u8 luma_mean = 128;
 	__u8 luma_delta = 20;
@@ -761,10 +762,10 @@ static void setautogain(struct gspca_dev *gspca_dev)
 	__u8 r, g, b;
 
 	Gbright = Et_getgainG(gspca_dev);
-	reg_r(dev, ET_LUMA_CENTER, GRBG, 4);
-	g = (GRBG[0] + GRBG[3]) >> 1;
-	r = GRBG[1];
-	b = GRBG[2];
+	reg_r(gspca_dev, ET_LUMA_CENTER, 4);
+	g = (gspca_dev->usb_buf[0] + gspca_dev->usb_buf[3]) >> 1;
+	r = gspca_dev->usb_buf[1];
+	b = gspca_dev->usb_buf[2];
 	r = ((r << 8) - (r << 4) - (r << 3)) >> 10;
 	b = ((b << 7) >> 10);
 	g = ((g << 9) + (g << 7) + (g << 5)) >> 10;

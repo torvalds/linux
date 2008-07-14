@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA561 USB Camera Driver");
@@ -177,27 +177,28 @@ static void write_vector(struct gspca_dev *gspca_dev,
 	}
 }
 
-static void reg_r(struct usb_device *dev,
-		  __u16 index, __u8 *buffer, __u16 length)
+/* read 'len' bytes to gspca_dev->usb_buf */
+static void reg_r(struct gspca_dev *gspca_dev,
+		  __u16 index, __u16 length)
 {
-	usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
+	usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0,			/* request */
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,			/* value */
-			index, buffer, length, 500);
+			index, gspca_dev->usb_buf, length, 500);
 }
 
-static void reg_w_buf(struct usb_device *dev,
+static void reg_w_buf(struct gspca_dev *gspca_dev,
 		      __u16 index, const __u8 *buffer, __u16 len)
 {
-	__u8 tmpbuf[8];
-
-	memcpy(tmpbuf, buffer, len);
-	usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+	memcpy(gspca_dev->usb_buf, buffer, len);
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0,			/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,			/* value */
-			index, tmpbuf, len, 500);
+			index, gspca_dev->usb_buf, len, 500);
 }
 
 static void i2c_init(struct gspca_dev *gspca_dev, __u8 mode)
@@ -211,7 +212,6 @@ static void i2c_write(struct gspca_dev *gspca_dev, __u16 valeur, __u16 reg)
 	int retry = 60;
 	__u8 DataLow;
 	__u8 DataHight;
-	__u8 Data;
 
 	DataLow = valeur;
 	DataHight = valeur >> 8;
@@ -219,8 +219,8 @@ static void i2c_write(struct gspca_dev *gspca_dev, __u16 valeur, __u16 reg)
 	reg_w_val(gspca_dev->dev, DataLow, 0x8805);
 	reg_w_val(gspca_dev->dev, DataHight, 0x8800);
 	while (retry--) {
-		reg_r(gspca_dev->dev, 0x8803, &Data, 1);
-		if (!Data)
+		reg_r(gspca_dev, 0x8803, 1);
+		if (!gspca_dev->usb_buf[0])
 			break;
 	}
 }
@@ -230,20 +230,21 @@ static int i2c_read(struct gspca_dev *gspca_dev, __u16 reg, __u8 mode)
 	int retry = 60;
 	__u8 value;
 	__u8 vallsb;
-	__u8 Data;
 
 	reg_w_val(gspca_dev->dev, 0x92, 0x8804);
 	reg_w_val(gspca_dev->dev, reg, 0x8801);
 	reg_w_val(gspca_dev->dev, (mode | 0x01), 0x8802);
 	while (retry--) {
-		reg_r(gspca_dev->dev, 0x8803, &Data, 1);
-		if (!Data)
+		reg_r(gspca_dev, 0x8803, 1);
+		if (!gspca_dev->usb_buf)
 			break;
 	}
 	if (retry == 0)
 		return -1;
-	reg_r(gspca_dev->dev, 0x8800, &value, 1);
-	reg_r(gspca_dev->dev, 0x8805, &vallsb, 1);
+	reg_r(gspca_dev, 0x8800, 1);
+	value = gspca_dev->usb_buf[0];
+	reg_r(gspca_dev, 0x8805, 1);
+	vallsb = gspca_dev->usb_buf[0];
 	return ((int) value << 8) | vallsb;
 }
 
@@ -541,7 +542,7 @@ static void sensor_mapwrite(struct gspca_dev *gspca_dev,
 	while (sensormap[i][0]) {
 		usbval[0] = sensormap[i][1];
 		usbval[1] = sensormap[i][1] >> 8;
-		reg_w_buf(gspca_dev->dev, sensormap[i][0], usbval, 2);
+		reg_w_buf(gspca_dev, sensormap[i][0], usbval, 2);
 		i++;
 	}
 }
@@ -559,7 +560,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		     const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	struct cam *cam;
 	__u16 vendor, product;
 	__u8 data1, data2;
@@ -568,11 +568,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	 * prove that we can communicate with the device.  This works, which
 	 * confirms at we are communicating properly and that the device
 	 * is a 561. */
-	reg_r(dev, 0x8104, &data1, 1);
-	reg_r(dev, 0x8105, &data2, 1);
+	reg_r(gspca_dev, 0x8104, 1);
+	data1 = gspca_dev->usb_buf[0];
+	reg_r(gspca_dev, 0x8105, 1);
+	data2 = gspca_dev->usb_buf[0];
 	vendor = (data2 << 8) | data1;
-	reg_r(dev, 0x8106, &data1, 1);
-	reg_r(dev, 0x8107, &data2, 1);
+	reg_r(gspca_dev, 0x8106, 1);
+	data1 = gspca_dev->usb_buf[0];
+	reg_r(gspca_dev, 0x8107, 1);
+	data2 = gspca_dev->usb_buf[0];
 	product = (data2 << 8) | data1;
 	if (vendor != id->idVendor || product != id->idProduct) {
 		PDEBUG(D_PROBE, "Bad vendor / product from device");
@@ -656,8 +660,8 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		Reg8391[0] = expotimes & 0xff;	/* exposure */
 		Reg8391[1] = 0x18 | (expotimes >> 8);
 		Reg8391[2] = sd->brightness;	/* gain */
-		reg_w_buf(dev, 0x8391, Reg8391, 8);
-		reg_w_buf(dev, 0x8390, Reg8391, 8);
+		reg_w_buf(gspca_dev, 0x8391, Reg8391, 8);
+		reg_w_buf(gspca_dev, 0x8390, Reg8391, 8);
 		break;
 	    }
 	}
@@ -714,10 +718,11 @@ static void sd_start(struct gspca_dev *gspca_dev)
 			 * is sufficient to push raw frames at ~20fps */
 			reg_w_val(dev, 0x8500, mode);
 		}		/* -- qq@kuku.eu.org */
-		reg_w_buf(dev, 0x8307, Reg8307, 2);
-		reg_w_val(dev, 0x8700, Clck);	/* 0x8f 0x85 0x27 clock */
-		reg_w_val(dev, 0x8112, 0x1e | 0x20);
-		reg_w_val(dev, 0x850b, 0x03);
+		reg_w_buf(gspca_dev, 0x8307, Reg8307, 2);
+		reg_w_val(gspca_dev->dev, 0x8700, Clck);
+						/* 0x8f 0x85 0x27 clock */
+		reg_w_val(gspca_dev->dev, 0x8112, 0x1e | 0x20);
+		reg_w_val(gspca_dev->dev, 0x850b, 0x03);
 		setcontrast(gspca_dev);
 		break;
 	}
@@ -752,10 +757,14 @@ static void setautogain(struct gspca_dev *gspca_dev)
 
 	switch (sd->chip_revision) {
 	case Rev072A:
-		reg_r(gspca_dev->dev, 0x8621, &Gr, 1);
-		reg_r(gspca_dev->dev, 0x8622, &R, 1);
-		reg_r(gspca_dev->dev, 0x8623, &B, 1);
-		reg_r(gspca_dev->dev, 0x8624, &Gb, 1);
+		reg_r(gspca_dev, 0x8621, 1);
+		Gr = gspca_dev->usb_buf[0];
+		reg_r(gspca_dev, 0x8622, 1);
+		R = gspca_dev->usb_buf[0];
+		reg_r(gspca_dev, 0x8623, 1);
+		B = gspca_dev->usb_buf[0];
+		reg_r(gspca_dev, 0x8624, 1);
+		Gb = gspca_dev->usb_buf[0];
 		y = (77 * R + 75 * (Gr + Gb) + 29 * B) >> 8;
 		/* u= (128*B-(43*(Gr+Gb+R))) >> 8; */
 		/* v= (128*R-(53*(Gr+Gb))-21*B) >> 8; */
@@ -867,20 +876,19 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 static void getbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 value;
 	__u16 tot;
 
 	switch (sd->chip_revision) {
 	case Rev072A:
 		tot = 0;
-		reg_r(gspca_dev->dev, 0x8611, &value, 1);
-		tot += value;
-		reg_r(gspca_dev->dev, 0x8612, &value, 1);
-		tot += value;
-		reg_r(gspca_dev->dev, 0x8613, &value, 1);
-		tot += value;
-		reg_r(gspca_dev->dev, 0x8614, &value, 1);
-		tot += value;
+		reg_r(gspca_dev, 0x8611, 1);
+		tot += gspca_dev->usb_buf[0];
+		reg_r(gspca_dev, 0x8612, 1);
+		tot += gspca_dev->usb_buf[0];
+		reg_r(gspca_dev, 0x8613, 1);
+		tot += gspca_dev->usb_buf[0];
+		reg_r(gspca_dev, 0x8614, 1);
+		tot += gspca_dev->usb_buf[0];
 		sd->brightness = tot >> 2;
 		break;
 	default:
@@ -893,20 +901,19 @@ static void getbrightness(struct gspca_dev *gspca_dev)
 static void getcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 value;
 	__u16 tot;
 
 	switch (sd->chip_revision) {
 	case Rev072A:
 		tot = 0;
-		reg_r(gspca_dev->dev, 0x8651, &value, 1);
-		tot += value;
-		reg_r(gspca_dev->dev, 0x8652, &value, 1);
-		tot += value;
-		reg_r(gspca_dev->dev, 0x8653, &value, 1);
-		tot += value;
-		reg_r(gspca_dev->dev, 0x8654, &value, 1);
-		tot += value;
+		reg_r(gspca_dev, 0x8651, 1);
+		tot += gspca_dev->usb_buf[0];
+		reg_r(gspca_dev, 0x8652, 1);
+		tot += gspca_dev->usb_buf[0];
+		reg_r(gspca_dev, 0x8653, 1);
+		tot += gspca_dev->usb_buf[0];
+		reg_r(gspca_dev, 0x8654, 1);
+		tot += gspca_dev->usb_buf[0];
 		sd->contrast = tot << 6;
 		break;
 	default:

@@ -384,64 +384,82 @@ static const __u8 tas5130_sensor_init[][8] = {
 	{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10},
 };
 
-static void reg_r(struct usb_device *dev,
-			 __u16 value, __u8 *buffer)
+/* get one byte in gspca_dev->usb_buf */
+static void reg_r(struct gspca_dev *gspca_dev,
+		  __u16 value)
 {
-	usb_control_msg(dev,
-			usb_rcvctrlpipe(dev, 0),
+	usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0,			/* request */
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			value,
 			0,			/* index */
-			buffer, 1,
+			gspca_dev->usb_buf, 1,
 			500);
 }
 
-static void reg_w(struct usb_device *dev,
-			  __u16 value,
-			  const __u8 *buffer,
-			  int len)
+static void reg_w(struct gspca_dev *gspca_dev,
+		  __u16 value,
+		  const __u8 *buffer,
+		  int len)
 {
-	__u8 tmpbuf[48];
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	if (len > sizeof tmpbuf) {
+	if (len > sizeof gspca_dev->usb_buf) {
 		PDEBUG(D_ERR|D_PACK, "reg_w: buffer overflow");
 		return;
 	}
 #endif
+	memcpy(gspca_dev->usb_buf, buffer, len);
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0x08,			/* request */
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			value,
+			0,			/* index */
+			gspca_dev->usb_buf, len,
+			500);
+}
+
+static void reg_w_big(struct gspca_dev *gspca_dev,
+		  __u16 value,
+		  const __u8 *buffer,
+		  int len)
+{
+	__u8 *tmpbuf;
+
+	tmpbuf = kmalloc(len, GFP_KERNEL);
 	memcpy(tmpbuf, buffer, len);
-	usb_control_msg(dev,
-			usb_sndctrlpipe(dev, 0),
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0x08,			/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			value,
 			0,			/* index */
 			tmpbuf, len,
 			500);
+	kfree(tmpbuf);
 }
 
-static int i2c_w(struct usb_device *dev, const __u8 *buffer)
+static int i2c_w(struct gspca_dev *gspca_dev, const __u8 *buffer)
 {
 	int retry = 60;
-	__u8 ByteReceive;
 
 	/* is i2c ready */
-	reg_w(dev, 0x08, buffer, 8);
+	reg_w(gspca_dev, 0x08, buffer, 8);
 	while (retry--) {
 		msleep(10);
-		reg_r(dev, 0x08, &ByteReceive);
-		if (ByteReceive == 4)
+		reg_r(gspca_dev, 0x08);
+		if (gspca_dev->usb_buf[0] == 4)
 			return 0;
 	}
 	return -1;
 }
 
-static void i2c_w_vector(struct usb_device *dev,
+static void i2c_w_vector(struct gspca_dev *gspca_dev,
 			const __u8 buffer[][8], int len)
 {
 	for (;;) {
-		reg_w(dev, 0x08, *buffer, 8);
+		reg_w(gspca_dev, 0x08, *buffer, 8);
 		len -= 8;
 		if (len <= 0)
 			break;
@@ -460,7 +478,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 			{0xa0, 0x60, 0x06, 0x11, 0x99, 0x04, 0x94, 0x15};
 
 		i2cOV6650[3] = sd->brightness;
-		if (i2c_w(gspca_dev->dev, i2cOV6650) < 0)
+		if (i2c_w(gspca_dev, i2cOV6650) < 0)
 			 goto err;
 		break;
 	    }
@@ -470,7 +488,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 
 		/* change reg 0x06 */
 		i2cOV[3] = sd->brightness;
-		if (i2c_w(gspca_dev->dev, i2cOV) < 0)
+		if (i2c_w(gspca_dev, i2cOV) < 0)
 			goto err;
 		break;
 	    }
@@ -480,11 +498,11 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 
 		i2c1[3] = sd->brightness >> 3;
 		i2c1[2] = 0x0e;
-		if (i2c_w(gspca_dev->dev, i2c1) < 0)
+		if (i2c_w(gspca_dev, i2c1) < 0)
 			goto err;
 		i2c1[3] = 0x01;
 		i2c1[2] = 0x13;
-		if (i2c_w(gspca_dev->dev, i2c1) < 0)
+		if (i2c_w(gspca_dev, i2c1) < 0)
 			goto err;
 		break;
 	    }
@@ -500,18 +518,18 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 
 		/* change reg 0x10 */
 		i2cpexpo[4] = 0xff - sd->brightness;
-/*		if(i2c_w(gspca_dev->dev,i2cpexpo1) < 0)
+/*		if(i2c_w(gspca_dev,i2cpexpo1) < 0)
 			goto err; */
-/*		if(i2c_w(gspca_dev->dev,i2cpdoit) < 0)
+/*		if(i2c_w(gspca_dev,i2cpdoit) < 0)
 			goto err; */
-		if (i2c_w(gspca_dev->dev, i2cpexpo) < 0)
+		if (i2c_w(gspca_dev, i2cpexpo) < 0)
 			goto err;
-		if (i2c_w(gspca_dev->dev, i2cpdoit) < 0)
+		if (i2c_w(gspca_dev, i2cpdoit) < 0)
 			goto err;
 		i2cp202[3] = sd->brightness >> 3;
-		if (i2c_w(gspca_dev->dev, i2cp202) < 0)
+		if (i2c_w(gspca_dev, i2cp202) < 0)
 			goto err;
-		if (i2c_w(gspca_dev->dev, i2cpdoit) < 0)
+		if (i2c_w(gspca_dev, i2cpdoit) < 0)
 			goto err;
 		break;
 	    }
@@ -522,7 +540,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		value = 0xff - sd->brightness;
 		i2c[4] = value;
 		PDEBUG(D_CONF, "brightness %d : %d", value, i2c[4]);
-		if (i2c_w(gspca_dev->dev, i2c) < 0)
+		if (i2c_w(gspca_dev, i2c) < 0)
 			goto err;
 		break;
 	    }
@@ -551,14 +569,14 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 			{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10};
 
 		i2c[4] = 255 - gain;
-		if (i2c_w(gspca_dev->dev, i2c) < 0)
+		if (i2c_w(gspca_dev, i2c) < 0)
 			goto err;
 		break;
 	    }
 	case SENSOR_OV6650: {
 		__u8 i2c[] = {0xa0, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
 		i2c[3] = gain;
-		if (i2c_w(gspca_dev->dev, i2c) < 0)
+		if (i2c_w(gspca_dev, i2c) < 0)
 			goto err;
 		break;
 	    }
@@ -578,10 +596,10 @@ static void setgain(struct gspca_dev *gspca_dev)
 
 	/* red and blue gain */
 	rgb_value = gain << 4 | gain;
-	reg_w(gspca_dev->dev, 0x10, &rgb_value, 1);
+	reg_w(gspca_dev, 0x10, &rgb_value, 1);
 	/* green gain */
 	rgb_value = gain;
-	reg_w(gspca_dev->dev, 0x11, &rgb_value, 1);
+	reg_w(gspca_dev, 0x11, &rgb_value, 1);
 
 	if (sd->sensor_has_gain)
 		setsensorgain(gspca_dev);
@@ -604,7 +622,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		if (reg > 15)
 			reg = 15;
 		reg = (reg << 4) | 0x0b;
-		reg_w(gspca_dev->dev, 0x19, &reg, 1);
+		reg_w(gspca_dev, 0x19, &reg, 1);
 		break;
 	    }
 	case SENSOR_OV6650: {
@@ -613,7 +631,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		if (i2c[3] > 15)
 			i2c[3] = 15;
 		i2c[3] |= 0xc0;
-		if (i2c_w(gspca_dev->dev, i2c) < 0)
+		if (i2c_w(gspca_dev, i2c) < 0)
 			PDEBUG(D_ERR, "i2c error exposure");
 		break;
 	    }
@@ -721,22 +739,20 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->exposure = EXPOSURE_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	if (sd->sensor == SENSOR_OV7630_3)	/* jfm: from win trace */
-		reg_w(gspca_dev->dev, 0x01, probe_ov7630, sizeof probe_ov7630);
+		reg_w(gspca_dev, 0x01, probe_ov7630, sizeof probe_ov7630);
 	return 0;
 }
 
 /* this function is called at open time */
 static int sd_open(struct gspca_dev *gspca_dev)
 {
-	__u8 ByteReceive;
-
-	reg_r(gspca_dev->dev, 0x00, &ByteReceive);
-	if (ByteReceive != 0x10)
+	reg_r(gspca_dev, 0x00);
+	if (gspca_dev->usb_buf[0] != 0x10)
 		return -ENODEV;
 	return 0;
 }
 
-static void pas106_i2cinit(struct usb_device *dev)
+static void pas106_i2cinit(struct gspca_dev *gspca_dev)
 {
 	int i;
 	const __u8 *data;
@@ -747,7 +763,7 @@ static void pas106_i2cinit(struct usb_device *dev)
 	while (--i >= 0) {
 		memcpy(&i2c1[2], data, 2);
 					/* copy 2 bytes from the template */
-		if (i2c_w(dev, i2c1) < 0)
+		if (i2c_w(gspca_dev, i2c1) < 0)
 			PDEBUG(D_ERR, "i2c error pas106");
 		data += 2;
 	}
@@ -757,7 +773,6 @@ static void pas106_i2cinit(struct usb_device *dev)
 static void sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	int mode, l;
 	const __u8 *sn9c10x;
 	__u8 reg01, reg17;
@@ -835,75 +850,75 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	/* reg 0x01 bit 2 video transfert on */
-	reg_w(dev, 0x01, &reg01, 1);
+	reg_w(gspca_dev, 0x01, &reg01, 1);
 	/* reg 0x17 SensorClk enable inv Clk 0x60 */
-	reg_w(dev, 0x17, &reg17, 1);
+	reg_w(gspca_dev, 0x17, &reg17, 1);
 /*fixme: for ov7630 102
-	reg_w(dev, 0x01, {0x06, sn9c10x[1]}, 2); */
+	reg_w(gspca_dev, 0x01, {0x06, sn9c10x[1]}, 2); */
 	/* Set the registers from the template */
-	reg_w(dev, 0x01, sn9c10x, l);
+	reg_w_big(gspca_dev, 0x01, sn9c10x, l);
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
-		i2c_w_vector(dev, hv7131_sensor_init,
+		i2c_w_vector(gspca_dev, hv7131_sensor_init,
 				sizeof hv7131_sensor_init);
 		break;
 	case SENSOR_OV6650:
-		i2c_w_vector(dev, ov6650_sensor_init,
+		i2c_w_vector(gspca_dev, ov6650_sensor_init,
 				sizeof ov6650_sensor_init);
 		break;
 	case SENSOR_OV7630:
-		i2c_w_vector(dev, ov7630_sensor_init_com,
+		i2c_w_vector(gspca_dev, ov7630_sensor_init_com,
 				sizeof ov7630_sensor_init_com);
 		msleep(200);
-		i2c_w_vector(dev, ov7630_sensor_init,
+		i2c_w_vector(gspca_dev, ov7630_sensor_init,
 				sizeof ov7630_sensor_init);
 		break;
 	case SENSOR_OV7630_3:
-		i2c_w_vector(dev, ov7630_sensor_init_com,
+		i2c_w_vector(gspca_dev, ov7630_sensor_init_com,
 				sizeof ov7630_sensor_init_com);
 		msleep(200);
-		i2c_w_vector(dev, ov7630_sensor_init_3,
+		i2c_w_vector(gspca_dev, ov7630_sensor_init_3,
 				sizeof ov7630_sensor_init_3);
 		break;
 	case SENSOR_PAS106:
-		pas106_i2cinit(dev);
+		pas106_i2cinit(gspca_dev);
 		break;
 	case SENSOR_PAS202:
-		i2c_w_vector(dev, pas202_sensor_init,
+		i2c_w_vector(gspca_dev, pas202_sensor_init,
 				sizeof pas202_sensor_init);
 		break;
 	case SENSOR_TAS5110:
-		i2c_w_vector(dev, tas5110_sensor_init,
+		i2c_w_vector(gspca_dev, tas5110_sensor_init,
 				sizeof tas5110_sensor_init);
 		break;
 	default:
 /*	case SENSOR_TAS5130CXX: */
-		i2c_w_vector(dev, tas5130_sensor_init,
+		i2c_w_vector(gspca_dev, tas5130_sensor_init,
 				sizeof tas5130_sensor_init);
 		break;
 	}
 	/* H_size V_size  0x28, 0x1e maybe 640x480 */
-	reg_w(dev, 0x15, reg15, 2);
+	reg_w(gspca_dev, 0x15, reg15, 2);
 	/* compression register */
-	reg_w(dev, 0x18, &reg17_19[1], 1);
+	reg_w(gspca_dev, 0x18, &reg17_19[1], 1);
 	if (sd->sensor != SENSOR_OV7630_3) {
 		/* H_start */
-		reg_w(dev, 0x12, &sn9c10x[0x12 - 1], 1);
+		reg_w(gspca_dev, 0x12, &sn9c10x[0x12 - 1], 1);
 		/* V_START */
-		reg_w(dev, 0x13, &sn9c10x[0x13 - 1], 1);
+		reg_w(gspca_dev, 0x13, &sn9c10x[0x13 - 1], 1);
 	}
 	/* reset 0x17 SensorClk enable inv Clk 0x60 */
 				/*fixme: ov7630 [17]=68 8f (+20 if 102)*/
-	reg_w(dev, 0x17, &reg17_19[0], 1);
+	reg_w(gspca_dev, 0x17, &reg17_19[0], 1);
 	/*MCKSIZE ->3 */	/*fixme: not ov7630*/
 	if (sd->sensor != SENSOR_OV7630_3)
-		reg_w(dev, 0x19, &reg17_19[2], 1);
+		reg_w(gspca_dev, 0x19, &reg17_19[2], 1);
 	/* AE_STRX AE_STRY AE_ENDX AE_ENDY */
-	reg_w(dev, 0x1c, &sn9c10x[0x1c - 1], 4);
+	reg_w(gspca_dev, 0x1c, &sn9c10x[0x1c - 1], 4);
 	/* Enable video transfert */
-	reg_w(dev, 0x01, &sn9c10x[0], 1);
+	reg_w(gspca_dev, 0x01, &sn9c10x[0], 1);
 	/* Compression */
-	reg_w(dev, 0x18, &reg17_19[1], 2);
+	reg_w(gspca_dev, 0x18, &reg17_19[1], 2);
 	msleep(20);
 
 	setgain(gspca_dev);
@@ -919,7 +934,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	__u8 ByteSend;
 
 	ByteSend = 0x09;	/* 0X00 */
-	reg_w(gspca_dev->dev, 0x01, &ByteSend, 1);
+	reg_w(gspca_dev, 0x01, &ByteSend, 1);
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)

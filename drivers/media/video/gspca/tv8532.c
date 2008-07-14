@@ -22,8 +22,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("TV8532 USB Camera Driver");
@@ -168,63 +168,74 @@ static const __u32 tv_8532_eeprom_data[] = {
 	0x0c0509f1, 0
 };
 
-static void reg_r(struct usb_device *dev,
-		  __u16 index, __u8 *buffer)
+static int reg_r(struct gspca_dev *gspca_dev,
+		 __u16 index)
 {
-	usb_control_msg(dev,
-			usb_rcvctrlpipe(dev, 0),
+	usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			TV8532_REQ_RegRead,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,	/* value */
-			index, buffer, sizeof(__u8),
+			index, gspca_dev->usb_buf, 1,
 			500);
+	return gspca_dev->usb_buf[0];
 }
 
-static void reg_w(struct usb_device *dev,
-		  __u16 index, __u8 *buffer, __u16 length)
+/* write 1 byte */
+static void reg_w_1(struct gspca_dev *gspca_dev,
+		  __u16 index, __u8 value)
 {
-	usb_control_msg(dev,
-			usb_sndctrlpipe(dev, 0),
+	gspca_dev->usb_buf[0] = value;
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
 			TV8532_REQ_RegWrite,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,	/* value */
-			index, buffer, length, 500);
+			index, gspca_dev->usb_buf, 1, 500);
+}
+
+/* write 2 bytes */
+static void reg_w_2(struct gspca_dev *gspca_dev,
+		  __u16 index, __u8 val1, __u8 val2)
+{
+	gspca_dev->usb_buf[0] = val1;
+	gspca_dev->usb_buf[1] = val2;
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			TV8532_REQ_RegWrite,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0,	/* value */
+			index, gspca_dev->usb_buf, 2, 500);
 }
 
 static void tv_8532WriteEEprom(struct gspca_dev *gspca_dev)
 {
 	int i = 0;
-	__u8 reg, data0, data1, data2, datacmd;
-	struct usb_device *dev = gspca_dev->dev;
+	__u8 reg, data0, data1, data2;
 
-	datacmd = 0xb0;;
-	reg_w(dev, TV8532_GPIO, &datacmd, 1);
-	datacmd = TV8532_CMD_EEprom_Open;
-	reg_w(dev, TV8532_CTRL, &datacmd, 1);
+	reg_w_1(gspca_dev, TV8532_GPIO, 0xb0);
+	reg_w_1(gspca_dev, TV8532_CTRL, TV8532_CMD_EEprom_Open);
 /*	msleep(1); */
 	while (tv_8532_eeprom_data[i]) {
 		reg = (tv_8532_eeprom_data[i] & 0xff000000) >> 24;
-		reg_w(dev, TV8532_EEprom_Add, &reg, 1);
+		reg_w_1(gspca_dev, TV8532_EEprom_Add, reg);
 		/* msleep(1); */
 		data0 = (tv_8532_eeprom_data[i] & 0x000000ff);
-		reg_w(dev, TV8532_EEprom_DataL, &data0, 1);
+		reg_w_1(gspca_dev, TV8532_EEprom_DataL, data0);
 		/* msleep(1); */
-		data1 = (tv_8532_eeprom_data[i] & 0x0000FF00) >> 8;
-		reg_w(dev, TV8532_EEprom_DataM, &data1, 1);
+		data1 = (tv_8532_eeprom_data[i] & 0x0000ff00) >> 8;
+		reg_w_1(gspca_dev, TV8532_EEprom_DataM, data1);
 		/* msleep(1); */
-		data2 = (tv_8532_eeprom_data[i] & 0x00FF0000) >> 16;
-		reg_w(dev, TV8532_EEprom_DataH, &data2, 1);
+		data2 = (tv_8532_eeprom_data[i] & 0x00ff0000) >> 16;
+		reg_w_1(gspca_dev, TV8532_EEprom_DataH, data2);
 		/* msleep(1); */
-		datacmd = 0;
-		reg_w(dev, TV8532_EEprom_Write, &datacmd, 1);
+		reg_w_1(gspca_dev, TV8532_EEprom_Write, 0);
 		/* msleep(10); */
 		i++;
 	}
-	datacmd = i;
-	reg_w(dev, TV8532_EEprom_TableLength, &datacmd, 1);
+	reg_w_1(gspca_dev, TV8532_EEprom_TableLength, i);
 /*	msleep(1); */
-	datacmd = TV8532_CMD_EEprom_Close;
-	reg_w(dev, TV8532_CTRL, &datacmd, 1);
+	reg_w_1(gspca_dev, TV8532_CTRL, TV8532_CMD_EEprom_Close);
 	msleep(10);
 }
 
@@ -250,154 +261,121 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 static void tv_8532ReadRegisters(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	__u8 data;
-/*	__u16 vid, pid; */
 
-	reg_r(dev, 0x0001, &data);
+	data = reg_r(gspca_dev, 0x0001);
 	PDEBUG(D_USBI, "register 0x01-> %x", data);
-	reg_r(dev, 0x0002, &data);
+	data = reg_r(gspca_dev, 0x0002);
 	PDEBUG(D_USBI, "register 0x02-> %x", data);
-	reg_r(dev, TV8532_ADWIDTH_L, &data);
-	reg_r(dev, TV8532_ADWIDTH_H, &data);
-	reg_r(dev, TV8532_QUANT_COMP, &data);
-	reg_r(dev, TV8532_MODE_PACKET, &data);
-	reg_r(dev, TV8532_SETCLK, &data);
-	reg_r(dev, TV8532_POINT_L, &data);
-	reg_r(dev, TV8532_POINT_H, &data);
-	reg_r(dev, TV8532_POINTB_L, &data);
-	reg_r(dev, TV8532_POINTB_H, &data);
-	reg_r(dev, TV8532_BUDGET_L, &data);
-	reg_r(dev, TV8532_BUDGET_H, &data);
-	reg_r(dev, TV8532_VID_L, &data);
-	reg_r(dev, TV8532_VID_H, &data);
-	reg_r(dev, TV8532_PID_L, &data);
-	reg_r(dev, TV8532_PID_H, &data);
-	reg_r(dev, TV8532_DeviceID, &data);
-	reg_r(dev, TV8532_AD_COLBEGIN_L, &data);
-	reg_r(dev, TV8532_AD_COLBEGIN_H, &data);
-	reg_r(dev, TV8532_AD_ROWBEGIN_L, &data);
-	reg_r(dev, TV8532_AD_ROWBEGIN_H, &data);
+	reg_r(gspca_dev, TV8532_ADWIDTH_L);
+	reg_r(gspca_dev, TV8532_ADWIDTH_H);
+	reg_r(gspca_dev, TV8532_QUANT_COMP);
+	reg_r(gspca_dev, TV8532_MODE_PACKET);
+	reg_r(gspca_dev, TV8532_SETCLK);
+	reg_r(gspca_dev, TV8532_POINT_L);
+	reg_r(gspca_dev, TV8532_POINT_H);
+	reg_r(gspca_dev, TV8532_POINTB_L);
+	reg_r(gspca_dev, TV8532_POINTB_H);
+	reg_r(gspca_dev, TV8532_BUDGET_L);
+	reg_r(gspca_dev, TV8532_BUDGET_H);
+	reg_r(gspca_dev, TV8532_VID_L);
+	reg_r(gspca_dev, TV8532_VID_H);
+	reg_r(gspca_dev, TV8532_PID_L);
+	reg_r(gspca_dev, TV8532_PID_H);
+	reg_r(gspca_dev, TV8532_DeviceID);
+	reg_r(gspca_dev, TV8532_AD_COLBEGIN_L);
+	reg_r(gspca_dev, TV8532_AD_COLBEGIN_H);
+	reg_r(gspca_dev, TV8532_AD_ROWBEGIN_L);
+	reg_r(gspca_dev, TV8532_AD_ROWBEGIN_H);
 }
 
 static void tv_8532_setReg(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
-	__u8 data;
-	__u8 value[2] = { 0, 0 };
+	reg_w_1(gspca_dev, TV8532_AD_COLBEGIN_L,
+			ADCBEGINL);			/* 0x10 */
+	reg_w_1(gspca_dev, TV8532_AD_COLBEGIN_H,
+			ADCBEGINH);			/* also digital gain */
+	reg_w_1(gspca_dev, TV8532_PART_CTRL,
+			TV8532_CMD_UPDATE);		/* 0x00<-0x84 */
 
-	data = ADCBEGINL;
-	reg_w(dev, TV8532_AD_COLBEGIN_L, &data, 1);	/* 0x10 */
-	data = ADCBEGINH;	/* also digital gain */
-	reg_w(dev, TV8532_AD_COLBEGIN_H, &data, 1);
-	data = TV8532_CMD_UPDATE;
-	reg_w(dev, TV8532_PART_CTRL, &data, 1);	/* 0x00<-0x84 */
-
-	data = 0x0a;
-	reg_w(dev, TV8532_GPIO_OE, &data, 1);
+	reg_w_1(gspca_dev, TV8532_GPIO_OE, 0x0a);
 	/******************************************************/
-	data = ADHEIGHL;
-	reg_w(dev, TV8532_ADHEIGHT_L, &data, 1);	/* 0e */
-	data = ADHEIGHH;
-	reg_w(dev, TV8532_ADHEIGHT_H, &data, 1);	/* 0f */
-	value[0] = EXPOL;
-	value[1] = EXPOH;	/* 350d 0x014c; */
-	reg_w(dev, TV8532_EXPOSURE, value, 2);	/* 1c */
-	data = ADCBEGINL;
-	reg_w(dev, TV8532_AD_COLBEGIN_L, &data, 1);	/* 0x10 */
-	data = ADCBEGINH;	/* also digital gain */
-	reg_w(dev, TV8532_AD_COLBEGIN_H, &data, 1);
-	data = ADRBEGINL;
-	reg_w(dev, TV8532_AD_ROWBEGIN_L, &data, 1);	/* 0x14 */
+	reg_w_1(gspca_dev, TV8532_ADHEIGHT_L, ADHEIGHL); /* 0e */
+	reg_w_1(gspca_dev, TV8532_ADHEIGHT_H, ADHEIGHH); /* 0f */
+	reg_w_2(gspca_dev, TV8532_EXPOSURE,
+			EXPOL, EXPOH);			/* 350d 0x014c; 1c */
+	reg_w_1(gspca_dev, TV8532_AD_COLBEGIN_L,
+			ADCBEGINL);			/* 0x10 */
+	reg_w_1(gspca_dev, TV8532_AD_COLBEGIN_H,
+			ADCBEGINH);			/* also digital gain */
+	reg_w_1(gspca_dev, TV8532_AD_ROWBEGIN_L,
+			ADRBEGINL);			/* 0x14 */
 
-	data = 0x00;
-	reg_w(dev, TV8532_AD_SLOPE, &data, 1);	/* 0x91 */
-	data = 0x02;
-	reg_w(dev, TV8532_AD_BITCTRL, &data, 1);	/* 0x94 */
+	reg_w_1(gspca_dev, TV8532_AD_SLOPE, 0x00);	/* 0x91 */
+	reg_w_1(gspca_dev, TV8532_AD_BITCTRL, 0x02);	/* 0x94 */
 
+	reg_w_1(gspca_dev, TV8532_CTRL,
+			TV8532_CMD_EEprom_Close);	/* 0x01 */
 
-	data = TV8532_CMD_EEprom_Close;
-	reg_w(dev, TV8532_CTRL, &data, 1);	/* 0x01 */
-
-	data = 0x00;
-	reg_w(dev, TV8532_AD_SLOPE, &data, 1);	/* 0x91 */
-	data = TV8532_CMD_UPDATE;
-	reg_w(dev, TV8532_PART_CTRL, &data, 1);	/* 0x00<-0x84 */
+	reg_w_1(gspca_dev, TV8532_AD_SLOPE, 0x00);	/* 0x91 */
+	reg_w_1(gspca_dev, TV8532_PART_CTRL,
+			TV8532_CMD_UPDATE);		/* 0x00<-0x84 */
 }
 
 static void tv_8532_PollReg(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
-	__u8 data;
 	int i;
 
 	/* strange polling from tgc */
 	for (i = 0; i < 10; i++) {
-		data = TESTCLK;	/* 0x48; //0x08; */
-		reg_w(dev, TV8532_SETCLK, &data, 1);	/* 0x2c */
-		data = TV8532_CMD_UPDATE;
-		reg_w(dev, TV8532_PART_CTRL, &data, 1);
-		data = 0x01;
-		reg_w(dev, TV8532_UDP_UPDATE, &data, 1);	/* 0x31 */
+		reg_w_1(gspca_dev, TV8532_SETCLK,
+			TESTCLK);		/* 0x48; //0x08; 0x2c */
+		reg_w_1(gspca_dev, TV8532_PART_CTRL, TV8532_CMD_UPDATE);
+		reg_w_1(gspca_dev, TV8532_UDP_UPDATE, 0x01);	/* 0x31 */
 	}
 }
 
 /* this function is called at open time */
 static int sd_open(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
-	__u8 data;
-	__u8 dataStart;
-	__u8 value[2];
-
-	data = 0x32;
-	reg_w(dev, TV8532_AD_SLOPE, &data, 1);
-	data = 0;
-	reg_w(dev, TV8532_AD_BITCTRL, &data, 1);
+	reg_w_1(gspca_dev, TV8532_AD_SLOPE, 0x32);
+	reg_w_1(gspca_dev, TV8532_AD_BITCTRL, 0x00);
 	tv_8532ReadRegisters(gspca_dev);
-	data = 0x0b;
-	reg_w(dev, TV8532_GPIO_OE, &data, 1);
-	value[0] = ADHEIGHL;
-	value[1] = ADHEIGHH;	/* 401d 0x0169; */
-	reg_w(dev, TV8532_ADHEIGHT_L, value, 2);	/* 0e */
-	value[0] = EXPOL;
-	value[1] = EXPOH;	/* 350d 0x014c; */
-	reg_w(dev, TV8532_EXPOSURE, value, 2);	/* 1c */
-	data = ADWIDTHL;	/* 0x20; */
-	reg_w(dev, TV8532_ADWIDTH_L, &data, 1);	/* 0x0c */
-	data = ADWIDTHH;
-	reg_w(dev, TV8532_ADWIDTH_H, &data, 1);	/* 0x0d */
+	reg_w_1(gspca_dev, TV8532_GPIO_OE, 0x0b);
+	reg_w_2(gspca_dev, TV8532_ADHEIGHT_L, ADHEIGHL,
+				ADHEIGHH);	/* 401d 0x0169; 0e */
+	reg_w_2(gspca_dev, TV8532_EXPOSURE, EXPOL,
+				EXPOH);		/* 350d 0x014c; 1c */
+	reg_w_1(gspca_dev, TV8532_ADWIDTH_L, ADWIDTHL);	/* 0x20; 0x0c */
+	reg_w_1(gspca_dev, TV8532_ADWIDTH_H, ADWIDTHH);	/* 0x0d */
 
 	/*******************************************************************/
-	data = TESTCOMP;	/* 0x72 compressed mode */
-	reg_w(dev, TV8532_QUANT_COMP, &data, 1);	/* 0x28 */
-	data = TESTLINE;	/* 0x84; // CIF | 4 packet */
-	reg_w(dev, TV8532_MODE_PACKET, &data, 1);	/* 0x29 */
+	reg_w_1(gspca_dev, TV8532_QUANT_COMP,
+			TESTCOMP);	/* 0x72 compressed mode 0x28 */
+	reg_w_1(gspca_dev, TV8532_MODE_PACKET,
+			TESTLINE);	/* 0x84; // CIF | 4 packet 0x29 */
 
 	/************************************************/
-	data = TESTCLK;		/* 0x48; //0x08; */
-	reg_w(dev, TV8532_SETCLK, &data, 1);	/* 0x2c */
-	data = TESTPTL;		/* 0x38; */
-	reg_w(dev, TV8532_POINT_L, &data, 1);	/* 0x2d */
-	data = TESTPTH;		/* 0x04; */
-	reg_w(dev, TV8532_POINT_H, &data, 1);	/* 0x2e */
-	dataStart = TESTPTBL;	/* 0x04; */
-	reg_w(dev, TV8532_POINTB_L, &dataStart, 1);	/* 0x2f */
-	data = TESTPTBH;	/* 0x04; */
-	reg_w(dev, TV8532_POINTB_H, &data, 1);	/* 0x30 */
-	data = TV8532_CMD_UPDATE;
-	reg_w(dev, TV8532_PART_CTRL, &data, 1);	/* 0x00<-0x84 */
+	reg_w_1(gspca_dev, TV8532_SETCLK,
+			TESTCLK);		/* 0x48; //0x08; 0x2c */
+	reg_w_1(gspca_dev, TV8532_POINT_L,
+			TESTPTL);		/* 0x38; 0x2d */
+	reg_w_1(gspca_dev, TV8532_POINT_H,
+			TESTPTH);		/* 0x04; 0x2e */
+	reg_w_1(gspca_dev, TV8532_POINTB_L,
+			TESTPTBL);		/* 0x04; 0x2f */
+	reg_w_1(gspca_dev, TV8532_POINTB_H,
+			TESTPTBH);		/* 0x04; 0x30 */
+	reg_w_1(gspca_dev, TV8532_PART_CTRL,
+			TV8532_CMD_UPDATE);	/* 0x00<-0x84 */
 	/*************************************************/
-	data = 0x01;
-	reg_w(dev, TV8532_UDP_UPDATE, &data, 1);	/* 0x31 */
+	reg_w_1(gspca_dev, TV8532_UDP_UPDATE, 0x01);	/* 0x31 */
 	msleep(200);
-	data = 0x00;
-	reg_w(dev, TV8532_UDP_UPDATE, &data, 1);	/* 0x31 */
+	reg_w_1(gspca_dev, TV8532_UDP_UPDATE, 0x00);	/* 0x31 */
 	/*************************************************/
 	tv_8532_setReg(gspca_dev);
 	/*************************************************/
-	data = 0x0b;
-	reg_w(dev, TV8532_GPIO_OE, &data, 1);
+	reg_w_1(gspca_dev, TV8532_GPIO_OE, 0x0b);
 	/*************************************************/
 	tv_8532_setReg(gspca_dev);
 	/*************************************************/
@@ -408,94 +386,72 @@ static int sd_open(struct gspca_dev *gspca_dev)
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 value[2];
-	__u8 data;
 	int brightness = sd->brightness;
 
-	value[1] = (brightness >> 8) & 0xff;
-	value[0] = (brightness) & 0xff;
-	reg_w(gspca_dev->dev, TV8532_EXPOSURE, value, 2);	/* 1c */
-	data = TV8532_CMD_UPDATE;
-	reg_w(gspca_dev->dev, TV8532_PART_CTRL, &data, 1);
+	reg_w_2(gspca_dev, TV8532_EXPOSURE,
+		brightness >> 8, brightness);		/* 1c */
+	reg_w_1(gspca_dev, TV8532_PART_CTRL, TV8532_CMD_UPDATE);
 }
 
 /* -- start the camera -- */
 static void sd_start(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
-	__u8 data;
-	__u8 value[2];
-
-	data = 0x32;
-	reg_w(dev, TV8532_AD_SLOPE, &data, 1);
-	data = 0;
-	reg_w(dev, TV8532_AD_BITCTRL, &data, 1);
+	reg_w_1(gspca_dev, TV8532_AD_SLOPE, 0x32);
+	reg_w_1(gspca_dev, TV8532_AD_BITCTRL, 0x00);
 	tv_8532ReadRegisters(gspca_dev);
-	data = 0x0b;
-	reg_w(dev, TV8532_GPIO_OE, &data, 1);
-	value[0] = ADHEIGHL;
-	value[1] = ADHEIGHH;	/* 401d 0x0169; */
-	reg_w(dev, TV8532_ADHEIGHT_L, value, 2);	/* 0e */
-/*	value[0] = EXPOL; value[1] =EXPOH; 		 * 350d 0x014c; */
-/*	reg_w(dev,TV8532_REQ_RegWrite,0,TV8532_EXPOSURE,value,2);  * 1c */
+	reg_w_1(gspca_dev, TV8532_GPIO_OE, 0x0b);
+	reg_w_2(gspca_dev, TV8532_ADHEIGHT_L,
+		ADHEIGHL, ADHEIGHH);	/* 401d 0x0169; 0e */
+/*	reg_w_2(gspca_dev, TV8532_EXPOSURE,
+		EXPOL, EXPOH);		 * 350d 0x014c; 1c */
 	setbrightness(gspca_dev);
 
-	data = ADWIDTHL;	/* 0x20; */
-	reg_w(dev, TV8532_ADWIDTH_L, &data, 1);	/* 0x0c */
-	data = ADWIDTHH;
-	reg_w(dev, TV8532_ADWIDTH_H, &data, 1);	/* 0x0d */
+	reg_w_1(gspca_dev, TV8532_ADWIDTH_L, ADWIDTHL);	/* 0x20; 0x0c */
+	reg_w_1(gspca_dev, TV8532_ADWIDTH_H, ADWIDTHH);	/* 0x0d */
 
 	/************************************************/
-	data = TESTCOMP;	/* 0x72 compressed mode */
-	reg_w(dev, TV8532_QUANT_COMP, &data, 1);	/* 0x28 */
+	reg_w_1(gspca_dev, TV8532_QUANT_COMP,
+			TESTCOMP);	/* 0x72 compressed mode 0x28 */
 	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 		/* 176x144 */
-		data = QCIFLINE;	/* 0x84; // CIF | 4 packet */
-		reg_w(dev, TV8532_MODE_PACKET, &data, 1);	/* 0x29 */
+		reg_w_1(gspca_dev, TV8532_MODE_PACKET,
+			QCIFLINE);	/* 0x84; // CIF | 4 packet 0x29 */
 	} else {
 		/* 352x288 */
-		data = TESTLINE;	/* 0x84; // CIF | 4 packet */
-		reg_w(dev, TV8532_MODE_PACKET, &data, 1);	/* 0x29 */
+		reg_w_1(gspca_dev, TV8532_MODE_PACKET,
+			TESTLINE);	/* 0x84; // CIF | 4 packet 0x29 */
 	}
 	/************************************************/
-	data = TESTCLK;		/* 0x48; //0x08; */
-	reg_w(dev, TV8532_SETCLK, &data, 1);	/* 0x2c */
-	data = TESTPTL;		/* 0x38; */
-	reg_w(dev, TV8532_POINT_L, &data, 1);	/* 0x2d */
-	data = TESTPTH;		/* 0x04; */
-	reg_w(dev, TV8532_POINT_H, &data, 1);	/* 0x2e */
-	data = TESTPTBL;	/* 0x04; */
-	reg_w(dev, TV8532_POINTB_L, &data, 1);	/* 0x2f */
-	data = TESTPTBH;	/* 0x04; */
-	reg_w(dev, TV8532_POINTB_H, &data, 1);	/* 0x30 */
-	data = TV8532_CMD_UPDATE;
-	reg_w(dev, TV8532_PART_CTRL, &data, 1);	/* 0x00<-0x84 */
+	reg_w_1(gspca_dev, TV8532_SETCLK,
+			TESTCLK);		/* 0x48; //0x08; 0x2c */
+	reg_w_1(gspca_dev, TV8532_POINT_L,
+			TESTPTL);		/* 0x38; 0x2d */
+	reg_w_1(gspca_dev, TV8532_POINT_H,
+			TESTPTH);		/* 0x04; 0x2e */
+	reg_w_1(gspca_dev, TV8532_POINTB_L,
+			TESTPTBL);		/* 0x04; 0x2f */
+	reg_w_1(gspca_dev, TV8532_POINTB_H,
+			TESTPTBH);		/* 0x04; 0x30 */
+	reg_w_1(gspca_dev, TV8532_PART_CTRL,
+			TV8532_CMD_UPDATE);	/* 0x00<-0x84 */
 	/************************************************/
-	data = 0x01;
-	reg_w(dev, TV8532_UDP_UPDATE, &data, 1);	/* 0x31 */
+	reg_w_1(gspca_dev, TV8532_UDP_UPDATE, 0x01);	/* 0x31 */
 	msleep(200);
-	data = 0x00;
-	reg_w(dev, TV8532_UDP_UPDATE, &data, 1);	/* 0x31 */
+	reg_w_1(gspca_dev, TV8532_UDP_UPDATE, 0x00);	/* 0x31 */
 	/************************************************/
 	tv_8532_setReg(gspca_dev);
 	/************************************************/
-	data = 0x0b;
-	reg_w(dev, TV8532_GPIO_OE, &data, 1);
+	reg_w_1(gspca_dev, TV8532_GPIO_OE, 0x0b);
 	/************************************************/
 	tv_8532_setReg(gspca_dev);
 	/************************************************/
 	tv_8532_PollReg(gspca_dev);
-	data = 0x00;
-	reg_w(dev, TV8532_UDP_UPDATE, &data, 1);	/* 0x31 */
+	reg_w_1(gspca_dev, TV8532_UDP_UPDATE, 0x00);	/* 0x31 */
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
-	__u8 data;
-
-	data = 0x0b;
-	reg_w(dev, TV8532_GPIO_OE, &data, 1);
+	reg_w_1(gspca_dev, TV8532_GPIO_OE, 0x0b);
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)

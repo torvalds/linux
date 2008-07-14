@@ -25,8 +25,8 @@
 #define CONEX_CAM 1		/* special JPEG header */
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA USB Conexant Camera Driver");
@@ -119,40 +119,67 @@ static struct v4l2_pix_format vga_mode[] = {
 		.priv = 0},
 };
 
-static void reg_r(struct usb_device *dev,
-			   __u16 index,
-			   __u8 *buffer, __u16 length)
+/* the read bytes are found in gspca_dev->usb_buf */
+static void reg_r(struct gspca_dev *gspca_dev,
+		  __u16 index,
+		  __u16 len)
 {
+	struct usb_device *dev = gspca_dev->dev;
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	if (len > sizeof gspca_dev->usb_buf) {
+		err("reg_r: buffer overflow");
+		return;
+	}
+#endif
 	usb_control_msg(dev,
 			usb_rcvctrlpipe(dev, 0),
 			0,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,
-			index, buffer, length,
+			index, gspca_dev->usb_buf, len,
 			500);
-	PDEBUG(D_USBI, "reg read [%02x] -> %02x ..", index, *buffer);
+	PDEBUG(D_USBI, "reg read [%02x] -> %02x ..",
+			index, gspca_dev->usb_buf[0]);
 }
 
-static void reg_w(struct usb_device *dev,
-		  __u16 index,
-		  const __u8 *buffer, __u16 len)
+/* the bytes to write are in gspca_dev->usb_buf */
+static void reg_w_val(struct gspca_dev *gspca_dev,
+			__u16 index,
+			__u8 val)
 {
-	__u8 tmpbuf[8];
+	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	if (len > sizeof tmpbuf) {
-		PDEBUG(D_ERR|D_PACK, "reg_w: buffer overflow");
-		return;
-	}
-	PDEBUG(D_USBO, "reg write [%02x] = %02x..", index, *buffer);
-#endif
-	memcpy(tmpbuf, buffer, len);
+	gspca_dev->usb_buf[0] = val;
 	usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
 			0,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,
-			index, tmpbuf, len, 500);
+			index, gspca_dev->usb_buf, 1, 500);
+}
+
+static void reg_w(struct gspca_dev *gspca_dev,
+		  __u16 index,
+		  const __u8 *buffer,
+		  __u16 len)
+{
+	struct usb_device *dev = gspca_dev->dev;
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	if (len > sizeof gspca_dev->usb_buf) {
+		err("reg_w: buffer overflow");
+		return;
+	}
+	PDEBUG(D_USBO, "reg write [%02x] = %02x..", index, *buffer);
+#endif
+	memcpy(gspca_dev->usb_buf, buffer, len);
+	usb_control_msg(dev,
+			usb_sndctrlpipe(dev, 0),
+			0,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0,
+			index, gspca_dev->usb_buf, len, 500);
 }
 
 static const __u8 cx_sensor_init[][4] = {
@@ -232,17 +259,14 @@ static const __u8 cx11646_fw1[][3] = {
 };
 static void cx11646_fw(struct gspca_dev*gspca_dev)
 {
-	__u8 val;
 	int i = 0;
 
-	val = 0x02;
-	reg_w(gspca_dev->dev, 0x006a, &val, 1);
+	reg_w_val(gspca_dev, 0x006a, 0x02);
 	while (cx11646_fw1[i][1]) {
-		reg_w(gspca_dev->dev, 0x006b, cx11646_fw1[i], 3);
+		reg_w(gspca_dev, 0x006b, cx11646_fw1[i], 3);
 		i++;
 	}
-	val = 0x00;
-	reg_w(gspca_dev->dev, 0x006a, &val, 1);
+	reg_w_val(gspca_dev, 0x006a, 0x00);
 }
 
 static const __u8 cxsensor[] = {
@@ -273,52 +297,47 @@ static const __u8 reg7b[] = { 0x00, 0xff, 0x00, 0xff, 0x00, 0xff };
 
 static void cx_sensor(struct gspca_dev*gspca_dev)
 {
-	__u8 val;
 	int i = 0;
-	__u8 bufread[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	int length;
 	const __u8 *ptsensor = cxsensor;
 
-	reg_w(gspca_dev->dev, 0x0020, reg20, 8);
-	reg_w(gspca_dev->dev, 0x0028, reg28, 8);
-	reg_w(gspca_dev->dev, 0x0010, reg10, 8);
-	val = 0x03;
-	reg_w(gspca_dev->dev, 0x0092, &val, 1);
+	reg_w(gspca_dev, 0x0020, reg20, 8);
+	reg_w(gspca_dev, 0x0028, reg28, 8);
+	reg_w(gspca_dev, 0x0010, reg10, 8);
+	reg_w_val(gspca_dev, 0x0092, 0x03);
 
 	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 	case 0:
-		reg_w(gspca_dev->dev, 0x0071, reg71a, 4);
+		reg_w(gspca_dev, 0x0071, reg71a, 4);
 		break;
 	case 1:
-		reg_w(gspca_dev->dev, 0x0071, reg71b, 4);
+		reg_w(gspca_dev, 0x0071, reg71b, 4);
 		break;
 	default:
 /*	case 2: */
-		reg_w(gspca_dev->dev, 0x0071, reg71c, 4);
+		reg_w(gspca_dev, 0x0071, reg71c, 4);
 		break;
 	case 3:
-		reg_w(gspca_dev->dev, 0x0071, reg71d, 4);
+		reg_w(gspca_dev, 0x0071, reg71d, 4);
 		break;
 	}
-	reg_w(gspca_dev->dev, 0x007b, reg7b, 6);
-	val = 0x00;
-	reg_w(gspca_dev->dev, 0x00f8, &val, 1);
-	reg_w(gspca_dev->dev, 0x0010, reg10, 8);
-	val = 0x41;
-	reg_w(gspca_dev->dev, 0x0098, &val, 1);
+	reg_w(gspca_dev, 0x007b, reg7b, 6);
+	reg_w_val(gspca_dev, 0x00f8, 0x00);
+	reg_w(gspca_dev, 0x0010, reg10, 8);
+	reg_w_val(gspca_dev, 0x0098, 0x41);
 	for (i = 0; i < 11; i++) {
 		if (i == 3 || i == 5 || i == 8)
 			length = 8;
 		else
 			length = 4;
-		reg_w(gspca_dev->dev, 0x00e5, ptsensor, length);
+		reg_w(gspca_dev, 0x00e5, ptsensor, length);
 		if (length == 4)
-			reg_r(gspca_dev->dev, 0x00e8, &val, 1);
+			reg_r(gspca_dev, 0x00e8, 1);
 		else
-			reg_r(gspca_dev->dev, 0x00e8, bufread, length);
+			reg_r(gspca_dev, 0x00e8, length);
 		ptsensor += length;
 	}
-	reg_r(gspca_dev->dev, 0x00e7, bufread, 8);
+	reg_r(gspca_dev, 0x00e7, 8);
 }
 
 static const __u8 cx_inits_176[] = {
@@ -358,10 +377,9 @@ static const __u8 cx_inits_640[] = {
 	0x77, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-static int cx11646_initsize(struct gspca_dev *gspca_dev)
+static void cx11646_initsize(struct gspca_dev *gspca_dev)
 {
 	const __u8 *cxinit;
-	__u8 val;
 	static const __u8 reg12[] = { 0x08, 0x05, 0x07, 0x04, 0x24 };
 	static const __u8 reg17[] =
 			{ 0x0a, 0x00, 0xf2, 0x01, 0x0f, 0x00, 0x97, 0x02 };
@@ -381,35 +399,29 @@ static int cx11646_initsize(struct gspca_dev *gspca_dev)
 		cxinit = cx_inits_176;
 		break;
 	}
-	val = 0x01;
-	reg_w(gspca_dev->dev, 0x009a, &val, 1);
-	val = 0x10;
-	reg_w(gspca_dev->dev, 0x0010, &val, 1);
-	reg_w(gspca_dev->dev, 0x0012, reg12, 5);
-	reg_w(gspca_dev->dev, 0x0017, reg17, 8);
-	val = 0x00;
-	reg_w(gspca_dev->dev, 0x00c0, &val, 1);
-	val = 0x04;
-	reg_w(gspca_dev->dev, 0x00c1, &val, 1);
-	val = 0x04;
-	reg_w(gspca_dev->dev, 0x00c2, &val, 1);
+	reg_w_val(gspca_dev, 0x009a, 0x01);
+	reg_w_val(gspca_dev, 0x0010, 0x10);
+	reg_w(gspca_dev, 0x0012, reg12, 5);
+	reg_w(gspca_dev, 0x0017, reg17, 8);
+	reg_w_val(gspca_dev, 0x00c0, 0x00);
+	reg_w_val(gspca_dev, 0x00c1, 0x04);
+	reg_w_val(gspca_dev, 0x00c2, 0x04);
 
-	reg_w(gspca_dev->dev, 0x0061, cxinit, 8);
+	reg_w(gspca_dev, 0x0061, cxinit, 8);
 	cxinit += 8;
-	reg_w(gspca_dev->dev, 0x00ca, cxinit, 8);
+	reg_w(gspca_dev, 0x00ca, cxinit, 8);
 	cxinit += 8;
-	reg_w(gspca_dev->dev, 0x00d2, cxinit, 8);
+	reg_w(gspca_dev, 0x00d2, cxinit, 8);
 	cxinit += 8;
-	reg_w(gspca_dev->dev, 0x00da, cxinit, 6);
+	reg_w(gspca_dev, 0x00da, cxinit, 6);
 	cxinit += 8;
-	reg_w(gspca_dev->dev, 0x0041, cxinit, 8);
+	reg_w(gspca_dev, 0x0041, cxinit, 8);
 	cxinit += 8;
-	reg_w(gspca_dev->dev, 0x0049, cxinit, 8);
+	reg_w(gspca_dev, 0x0049, cxinit, 8);
 	cxinit += 8;
-	reg_w(gspca_dev->dev, 0x0051, cxinit, 2);
+	reg_w(gspca_dev, 0x0051, cxinit, 2);
 
-	reg_r(gspca_dev->dev, 0x0010, &val, 1);
-	return val;
+	reg_r(gspca_dev, 0x0010, 1);
 }
 
 static const __u8 cx_jpeg_init[][8] = {
@@ -636,26 +648,21 @@ static const __u8 cxjpeg_qtable[][8] = {
 
 static void cx11646_jpegInit(struct gspca_dev*gspca_dev)
 {
-	__u8 val;
 	int i;
 	int length;
 
-	val = 0x01;
-	reg_w(gspca_dev->dev, 0x00c0, &val, 1);
-	val = 0x00;
-	reg_w(gspca_dev->dev, 0x00c3, &val, 1);
-	val = 0x00;
-	reg_w(gspca_dev->dev, 0x00c0, &val, 1);
-	reg_r(gspca_dev->dev, 0x0001, &val, 1);
+	reg_w_val(gspca_dev, 0x00c0, 0x01);
+	reg_w_val(gspca_dev, 0x00c3, 0x00);
+	reg_w_val(gspca_dev, 0x00c0, 0x00);
+	reg_r(gspca_dev, 0x0001, 1);
 	length = 8;
 	for (i = 0; i < 79; i++) {
 		if (i == 78)
 			length = 6;
-		reg_w(gspca_dev->dev, 0x0008, cx_jpeg_init[i], length);
+		reg_w(gspca_dev, 0x0008, cx_jpeg_init[i], length);
 	}
-	reg_r(gspca_dev->dev, 0x0002, &val, 1);
-	val = 0x14;
-	reg_w(gspca_dev->dev, 0x0055, &val, 1);
+	reg_r(gspca_dev, 0x0002, 1);
+	reg_w_val(gspca_dev, 0x0055, 0x14);
 }
 
 static const __u8 reg12[] = { 0x0a, 0x05, 0x07, 0x04, 0x19 };
@@ -665,31 +672,26 @@ static const __u8 regE5a[] = { 0x88, 0x0a, 0x0c, 0x01 };
 static const __u8 regE5b[] = { 0x88, 0x0b, 0x12, 0x01 };
 static const __u8 regE5c[] = { 0x88, 0x05, 0x01, 0x01 };
 static const __u8 reg51[] = { 0x77, 0x03 };
-static const __u8 reg70 = 0x03;
+#define reg70 0x03
 
 static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 {
-	__u8 val;
 	int i;
 	int length;
 	__u8 Reg55;
-	__u8 bufread[8];
 	int retry;
 
-	val = 0x01;
-	reg_w(gspca_dev->dev, 0x00c0, &val, 1);
-	val = 0x00;
-	reg_w(gspca_dev->dev, 0x00c3, &val, 1);
-	val = 0x00;
-	reg_w(gspca_dev->dev, 0x00c0, &val, 1);
-	reg_r(gspca_dev->dev, 0x0001, &val, 1);
+	reg_w_val(gspca_dev, 0x00c0, 0x01);
+	reg_w_val(gspca_dev, 0x00c3, 0x00);
+	reg_w_val(gspca_dev, 0x00c0, 0x00);
+	reg_r(gspca_dev, 0x0001, 1);
 	length = 8;
 	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 	case 0:
 		for (i = 0; i < 27; i++) {
 			if (i == 26)
 				length = 2;
-			reg_w(gspca_dev->dev, 0x0008, cxjpeg_640[i], length);
+			reg_w(gspca_dev, 0x0008, cxjpeg_640[i], length);
 		}
 		Reg55 = 0x28;
 		break;
@@ -697,7 +699,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 		for (i = 0; i < 27; i++) {
 			if (i == 26)
 				length = 2;
-			reg_w(gspca_dev->dev, 0x0008, cxjpeg_352[i], length);
+			reg_w(gspca_dev, 0x0008, cxjpeg_352[i], length);
 		}
 		Reg55 = 0x16;
 		break;
@@ -706,7 +708,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 		for (i = 0; i < 27; i++) {
 			if (i == 26)
 				length = 2;
-			reg_w(gspca_dev->dev, 0x0008, cxjpeg_320[i], length);
+			reg_w(gspca_dev, 0x0008, cxjpeg_320[i], length);
 		}
 		Reg55 = 0x14;
 		break;
@@ -714,124 +716,98 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 		for (i = 0; i < 27; i++) {
 			if (i == 26)
 				length = 2;
-			reg_w(gspca_dev->dev, 0x0008, cxjpeg_176[i], length);
+			reg_w(gspca_dev, 0x0008, cxjpeg_176[i], length);
 		}
 		Reg55 = 0x0B;
 		break;
 	}
 
-	reg_r(gspca_dev->dev, 0x0002, &val, 1);
-	val = Reg55;
-	reg_w(gspca_dev->dev, 0x0055, &val, 1);
-	reg_r(gspca_dev->dev, 0x0002, &val, 1);
-	reg_w(gspca_dev->dev, 0x0010, reg10, 2);
-	val = 0x02;
-	reg_w(gspca_dev->dev, 0x0054, &val, 1);
-	val = 0x01;
-	reg_w(gspca_dev->dev, 0x0054, &val, 1);
-	val = 0x94;
-	reg_w(gspca_dev->dev, 0x0000, &val, 1);
-	val = 0xc0;
-	reg_w(gspca_dev->dev, 0x0053, &val, 1);
-	val = 0xe1;
-	reg_w(gspca_dev->dev, 0x00fc, &val, 1);
-	val = 0x00;
-	reg_w(gspca_dev->dev, 0x0000, &val, 1);
+	reg_r(gspca_dev, 0x0002, 1);
+	reg_w_val(gspca_dev, 0x0055, Reg55);
+	reg_r(gspca_dev, 0x0002, 1);
+	reg_w(gspca_dev, 0x0010, reg10, 2);
+	reg_w_val(gspca_dev, 0x0054, 0x02);
+	reg_w_val(gspca_dev, 0x0054, 0x01);
+	reg_w_val(gspca_dev, 0x0000, 0x94);
+	reg_w_val(gspca_dev, 0x0053, 0xc0);
+	reg_w_val(gspca_dev, 0x00fc, 0xe1);
+	reg_w_val(gspca_dev, 0x0000, 0x00);
 	/* wait for completion */
 	retry = 50;
 	while (retry--) {
-		reg_r(gspca_dev->dev, 0x0002, &val, 1);
+		reg_r(gspca_dev, 0x0002, 1);
 							/* 0x07 until 0x00 */
-		if (val == 0x00)
+		if (gspca_dev->usb_buf[0] == 0x00)
 			break;
-		val = 0x00;
-		reg_w(gspca_dev->dev, 0x0053, &val, 1);
+		reg_w_val(gspca_dev, 0x0053, 0x00);
 	}
 	if (retry == 0)
 		PDEBUG(D_ERR, "Damned Errors sending jpeg Table");
 	/* send the qtable now */
-	reg_r(gspca_dev->dev, 0x0001, &val, 1);		/* -> 0x18 */
+	reg_r(gspca_dev, 0x0001, 1);		/* -> 0x18 */
 	length = 8;
 	for (i = 0; i < 18; i++) {
 		if (i == 17)
 			length = 2;
-		reg_w(gspca_dev->dev, 0x0008, cxjpeg_qtable[i], length);
+		reg_w(gspca_dev, 0x0008, cxjpeg_qtable[i], length);
 
 	}
-	reg_r(gspca_dev->dev, 0x0002, &val, 1);	/* 0x00 */
-	reg_r(gspca_dev->dev, 0x0053, &val, 1);	/* 0x00 */
-	val = 0x02;
-	reg_w(gspca_dev->dev, 0x0054, &val, 1);
-	val = 0x01;
-	reg_w(gspca_dev->dev, 0x0054, &val, 1);
-	val = 0x94;
-	reg_w(gspca_dev->dev, 0x0000, &val, 1);
-	val = 0xc0;
-	reg_w(gspca_dev->dev, 0x0053, &val, 1);
+	reg_r(gspca_dev, 0x0002, 1);	/* 0x00 */
+	reg_r(gspca_dev, 0x0053, 1);	/* 0x00 */
+	reg_w_val(gspca_dev, 0x0054, 0x02);
+	reg_w_val(gspca_dev, 0x0054, 0x01);
+	reg_w_val(gspca_dev, 0x0000, 0x94);
+	reg_w_val(gspca_dev, 0x0053, 0xc0);
 
-	reg_r(gspca_dev->dev, 0x0038, &val, 1);	/* 0x40 */
-	reg_r(gspca_dev->dev, 0x0038, &val, 1);	/* 0x40 */
-	reg_r(gspca_dev->dev, 0x001f, &val, 1);	/* 0x38 */
-	reg_w(gspca_dev->dev, 0x0012, reg12, 5);
-	reg_w(gspca_dev->dev, 0x00e5, regE5_8, 8);
-	reg_r(gspca_dev->dev, 0x00e8, bufread, 8);
-	reg_w(gspca_dev->dev, 0x00e5, regE5a, 4);
-	reg_r(gspca_dev->dev, 0x00e8, &val, 1);	/* 0x00 */
-	val = 0x01;
-	reg_w(gspca_dev->dev, 0x009a, &val, 1);
-	reg_w(gspca_dev->dev, 0x00e5, regE5b, 4);
-	reg_r(gspca_dev->dev, 0x00e8, &val, 1);	/* 0x00 */
-	reg_w(gspca_dev->dev, 0x00e5, regE5c, 4);
-	reg_r(gspca_dev->dev, 0x00e8, &val, 1);	/* 0x00 */
+	reg_r(gspca_dev, 0x0038, 1);		/* 0x40 */
+	reg_r(gspca_dev, 0x0038, 1);		/* 0x40 */
+	reg_r(gspca_dev, 0x001f, 1);		/* 0x38 */
+	reg_w(gspca_dev, 0x0012, reg12, 5);
+	reg_w(gspca_dev, 0x00e5, regE5_8, 8);
+	reg_r(gspca_dev, 0x00e8, 8);
+	reg_w(gspca_dev, 0x00e5, regE5a, 4);
+	reg_r(gspca_dev, 0x00e8, 1);		/* 0x00 */
+	reg_w_val(gspca_dev, 0x009a, 0x01);
+	reg_w(gspca_dev, 0x00e5, regE5b, 4);
+	reg_r(gspca_dev, 0x00e8, 1);		/* 0x00 */
+	reg_w(gspca_dev, 0x00e5, regE5c, 4);
+	reg_r(gspca_dev, 0x00e8, 1);		/* 0x00 */
 
-	reg_w(gspca_dev->dev, 0x0051, reg51, 2);
-	reg_w(gspca_dev->dev, 0x0010, reg10, 2);
-	reg_w(gspca_dev->dev, 0x0070, &reg70, 1);
+	reg_w(gspca_dev, 0x0051, reg51, 2);
+	reg_w(gspca_dev, 0x0010, reg10, 2);
+	reg_w_val(gspca_dev, 0x0070, reg70);
 }
 
 static void cx11646_init1(struct gspca_dev *gspca_dev)
 {
-	__u8 val;
 	int i = 0;
 
-	val = 0;
-	reg_w(gspca_dev->dev, 0x0010, &val, 1);
-	reg_w(gspca_dev->dev, 0x0053, &val, 1);
-	reg_w(gspca_dev->dev, 0x0052, &val, 1);
-	val = 0x2f;
-	reg_w(gspca_dev->dev, 0x009b, &val, 1);
-	val = 0x10;
-	reg_w(gspca_dev->dev, 0x009c, &val, 1);
-	reg_r(gspca_dev->dev, 0x0098, &val, 1);
-	val = 0x40;
-	reg_w(gspca_dev->dev, 0x0098, &val, 1);
-	reg_r(gspca_dev->dev, 0x0099, &val, 1);
-	val = 0x07;
-	reg_w(gspca_dev->dev, 0x0099, &val, 1);
-	val = 0x40;
-	reg_w(gspca_dev->dev, 0x0039, &val, 1);
-	val = 0xff;
-	reg_w(gspca_dev->dev, 0x003c, &val, 1);
-	val = 0x1f;
-	reg_w(gspca_dev->dev, 0x003f, &val, 1);
-	val = 0x40;
-	reg_w(gspca_dev->dev, 0x003d, &val, 1);
-/*	val= 0x60; */
-/*	reg_w(gspca_dev->dev, 0x00, 0x00, 0x003d, &val, 1); */
-	reg_r(gspca_dev->dev, 0x0099, &val, 1);			/* ->0x07 */
+	reg_w_val(gspca_dev, 0x0010, 0x00);
+	reg_w_val(gspca_dev, 0x0053, 0x00);
+	reg_w_val(gspca_dev, 0x0052, 0x00);
+	reg_w_val(gspca_dev, 0x009b, 0x2f);
+	reg_w_val(gspca_dev, 0x009c, 0x10);
+	reg_r(gspca_dev, 0x0098, 1);
+	reg_w_val(gspca_dev, 0x0098, 0x40);
+	reg_r(gspca_dev, 0x0099, 1);
+	reg_w_val(gspca_dev, 0x0099, 0x07);
+	reg_w_val(gspca_dev, 0x0039, 0x40);
+	reg_w_val(gspca_dev, 0x003c, 0xff);
+	reg_w_val(gspca_dev, 0x003f, 0x1f);
+	reg_w_val(gspca_dev, 0x003d, 0x40);
+/*	reg_w_val(gspca_dev, 0x003d, 0x60); */
+	reg_r(gspca_dev, 0x0099, 1);			/* ->0x07 */
 
 	while (cx_sensor_init[i][0]) {
-		reg_w(gspca_dev->dev, 0x00e5, cx_sensor_init[i], 1);
-		reg_r(gspca_dev->dev, 0x00e8, &val, 1);		/* -> 0x00 */
+		reg_w_val(gspca_dev, 0x00e5, cx_sensor_init[i][0]);
+		reg_r(gspca_dev, 0x00e8, 1);		/* -> 0x00 */
 		if (i == 1) {
-			val = 1;
-			reg_w(gspca_dev->dev, 0x00ed, &val, 1);
-			reg_r(gspca_dev->dev, 0x00ed, &val, 1);	/* -> 0x01 */
+			reg_w_val(gspca_dev, 0x00ed, 0x01);
+			reg_r(gspca_dev, 0x00ed, 1);	/* -> 0x01 */
 		}
 		i++;
 	}
-	val = 0x00;
-	reg_w(gspca_dev->dev, 0x00c3, &val, 1);
+	reg_w_val(gspca_dev, 0x00c3, 0x00);
 }
 
 /* this function is called at probe time */
@@ -880,29 +856,23 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	int retry = 50;
-	__u8 val;
 
-	val = 0;
-	reg_w(gspca_dev->dev, 0x0000, &val, 1);
-	reg_r(gspca_dev->dev, 0x0002, &val, 1);
-	val = 0;
-	reg_w(gspca_dev->dev, 0x0053, &val, 1);
+	reg_w_val(gspca_dev, 0x0000, 0x00);
+	reg_r(gspca_dev, 0x0002, 1);
+	reg_w_val(gspca_dev, 0x0053, 0x00);
 
 	while (retry--) {
-/*		reg_r(gspca_dev->dev, 0x0002, &val, 1);*/
-		reg_r(gspca_dev->dev, 0x0053, &val, 1);
-		if (val == 0)
+/*		reg_r(gspca_dev, 0x0002, 1);*/
+		reg_r(gspca_dev, 0x0053, 1);
+		if (gspca_dev->usb_buf[0] == 0)
 			break;
 	}
-	val = 0;
-	reg_w(gspca_dev->dev, 0x0000, &val, 1);
-	reg_r(gspca_dev->dev, 0x0002, &val, 1);
+	reg_w_val(gspca_dev, 0x0000, 0x00);
+	reg_r(gspca_dev, 0x0002, 1);
 
-	val = 0;
-	reg_w(gspca_dev->dev, 0x0010, &val, 1);
-	reg_r(gspca_dev->dev, 0x0033, &val, 1);
-	val = 0xe0;
-	reg_w(gspca_dev->dev, 0x00fc, &val, 1);
+	reg_w_val(gspca_dev, 0x0010, 0x00);
+	reg_r(gspca_dev, 0x0033, 1);
+	reg_w_val(gspca_dev, 0x00fc, 0xe0);
 }
 
 static void sd_close(struct gspca_dev *gspca_dev)
@@ -937,22 +907,20 @@ static void setbrightness(struct gspca_dev*gspca_dev)
 	__u8 reg51c[2];
 	__u8 bright;
 	__u8 colors;
-	__u8 val;
-	__u8 bufread[8];
 
 	bright = sd->brightness;
 	regE5cbx[2] = bright;
-	reg_w(gspca_dev->dev, 0x00e5, regE5cbx, 8);
-	reg_r(gspca_dev->dev, 0x00e8, bufread, 8);
-	reg_w(gspca_dev->dev, 0x00e5, regE5c, 4);
-	reg_r(gspca_dev->dev, 0x00e8, &val, 1);	/* 0x00 */
+	reg_w(gspca_dev, 0x00e5, regE5cbx, 8);
+	reg_r(gspca_dev, 0x00e8, 8);
+	reg_w(gspca_dev, 0x00e5, regE5c, 4);
+	reg_r(gspca_dev, 0x00e8, 1);		/* 0x00 */
 
 	colors = sd->colors;
 	reg51c[0] = 0x77;
 	reg51c[1] = colors;
-	reg_w(gspca_dev->dev, 0x0051, reg51c, 2);
-	reg_w(gspca_dev->dev, 0x0010, reg10, 2);
-	reg_w(gspca_dev->dev, 0x0070, &reg70, 1);
+	reg_w(gspca_dev, 0x0051, reg51c, 2);
+	reg_w(gspca_dev, 0x0010, reg10, 2);
+	reg_w_val(gspca_dev, 0x0070, reg70);
 }
 
 static void setcontrast(struct gspca_dev*gspca_dev)
@@ -961,16 +929,15 @@ static void setcontrast(struct gspca_dev*gspca_dev)
 	__u8 regE5acx[] = { 0x88, 0x0a, 0x0c, 0x01 };	/* seem MSB */
 /*	__u8 regE5bcx[] = { 0x88, 0x0b, 0x12, 0x01};	 * LSB */
 	__u8 reg51c[2];
-	__u8 val;
 
 	regE5acx[2] = sd->contrast;
-	reg_w(gspca_dev->dev, 0x00e5, regE5acx, 4);
-	reg_r(gspca_dev->dev, 0x00e8, &val, 1);	/* 0x00 */
+	reg_w(gspca_dev, 0x00e5, regE5acx, 4);
+	reg_r(gspca_dev, 0x00e8, 1);		/* 0x00 */
 	reg51c[0] = 0x77;
 	reg51c[1] = sd->colors;
-	reg_w(gspca_dev->dev, 0x0051, reg51c, 2);
-	reg_w(gspca_dev->dev, 0x0010, reg10, 2);
-	reg_w(gspca_dev->dev, 0x0070, &reg70, 1);
+	reg_w(gspca_dev, 0x0051, reg51c, 2);
+	reg_w(gspca_dev, 0x0010, reg10, 2);
+	reg_w_val(gspca_dev, 0x0070, reg70);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

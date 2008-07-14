@@ -23,8 +23,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("Syntek DV4000 (STK014) USB Camera Driver");
@@ -127,7 +127,7 @@ static struct v4l2_pix_format vga_mode[] = {
 
 /* -- read a register -- */
 static int reg_r(struct gspca_dev *gspca_dev,
-			__u16 index, __u8 *buf)
+			__u16 index)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int ret;
@@ -137,11 +137,13 @@ static int reg_r(struct gspca_dev *gspca_dev,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0x00,
 			index,
-			buf, 1,
+			gspca_dev->usb_buf, 1,
 			500);
-	if (ret < 0)
+	if (ret < 0) {
 		PDEBUG(D_ERR, "reg_r err %d", ret);
-	return ret;
+		return ret;
+	}
+	return gspca_dev->usb_buf[0];
 }
 
 /* -- write a register -- */
@@ -164,58 +166,55 @@ static int reg_w(struct gspca_dev *gspca_dev,
 	return ret;
 }
 
-/* -- get a value -- */
+/* -- get a bulk value (4 bytes) -- */
 static int rcv_val(struct gspca_dev *gspca_dev,
-			int ads,
-			int len)
+			int ads)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int alen, ret;
-	unsigned char bulk_buf[4];
 
 	reg_w(gspca_dev, 0x634, (ads >> 16) & 0xff);
 	reg_w(gspca_dev, 0x635, (ads >> 8) & 0xff);
 	reg_w(gspca_dev, 0x636, ads & 0xff);
 	reg_w(gspca_dev, 0x637, 0);
-	reg_w(gspca_dev, 0x638, len & 0xff);
-	reg_w(gspca_dev, 0x639, len >> 8);
+	reg_w(gspca_dev, 0x638, 4);	/* len & 0xff */
+	reg_w(gspca_dev, 0x639, 0);	/* len >> 8 */
 	reg_w(gspca_dev, 0x63a, 0);
 	reg_w(gspca_dev, 0x63b, 0);
 	reg_w(gspca_dev, 0x630, 5);
-	if (len > sizeof bulk_buf)
-		return -1;
 	ret = usb_bulk_msg(dev,
 			usb_rcvbulkpipe(dev, 5),
-			bulk_buf,
-			len,
+			gspca_dev->usb_buf,
+			4,		/* length */
 			&alen,
-			500);	/* timeout in milliseconds */
+			500);		/* timeout in milliseconds */
 	return ret;
 }
 
-/* -- send a value -- */
+/* -- send a bulk value -- */
 static int snd_val(struct gspca_dev *gspca_dev,
 			int ads,
 			unsigned int val)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int alen, ret;
-	__u8 value, seq;
-	unsigned char bulk_buf[4];
+	__u8 seq = 0;
 
 	if (ads == 0x003f08) {
-		ret = reg_r(gspca_dev, 0x0704, &value);
+		ret = reg_r(gspca_dev, 0x0704);
 		if (ret < 0)
 			goto ko;
-		ret = reg_r(gspca_dev, 0x0705, &seq);
+		ret = reg_r(gspca_dev, 0x0705);
 		if (ret < 0)
 			goto ko;
-		ret = reg_r(gspca_dev, 0x0650, &value);
+		seq = ret;		/* keep the sequence number */
+		ret = reg_r(gspca_dev, 0x0650);
 		if (ret < 0)
 			goto ko;
 		reg_w(gspca_dev, 0x654, seq);
-	} else
+	} else {
 		reg_w(gspca_dev, 0x654, (ads >> 16) & 0xff);
+	}
 	reg_w(gspca_dev, 0x655, (ads >> 8) & 0xff);
 	reg_w(gspca_dev, 0x656, ads & 0xff);
 	reg_w(gspca_dev, 0x657, 0);
@@ -224,13 +223,13 @@ static int snd_val(struct gspca_dev *gspca_dev,
 	reg_w(gspca_dev, 0x65a, 0);
 	reg_w(gspca_dev, 0x65b, 0);
 	reg_w(gspca_dev, 0x650, 5);
-	bulk_buf[0] = (val >> 24) & 0xff;
-	bulk_buf[1] = (val >> 16) & 0xff;
-	bulk_buf[2] = (val >> 8) & 0xff;
-	bulk_buf[3] = val & 0xff;
+	gspca_dev->usb_buf[0] = val >> 24;
+	gspca_dev->usb_buf[1] = val >> 16;
+	gspca_dev->usb_buf[2] = val >> 8;
+	gspca_dev->usb_buf[3] = val;
 	ret = usb_bulk_msg(dev,
 			usb_sndbulkpipe(dev, 6),
-			bulk_buf,
+			gspca_dev->usb_buf,
 			4,
 			&alen,
 			500);	/* timeout in milliseconds */
@@ -303,7 +302,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x02;
 	gspca_dev->cam.cam_mode = vga_mode;
-	gspca_dev->cam.nmodes = sizeof vga_mode / sizeof vga_mode[0];
+	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
@@ -314,16 +313,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at open time */
 static int sd_open(struct gspca_dev *gspca_dev)
 {
-	__u8 value;
 	int ret;
 
 	/* check if the device responds */
 	usb_set_interface(gspca_dev->dev, gspca_dev->iface, 1);
-	ret = reg_r(gspca_dev, 0x0740, &value);
+	ret = reg_r(gspca_dev, 0x0740);
 	if (ret < 0)
 		return ret;
-	if (value != 0xff) {
-		PDEBUG(D_ERR|D_STREAM, "init reg: 0x%02x", value);
+	if (ret != 0xff) {
+		PDEBUG(D_ERR|D_STREAM, "init reg: 0x%02x", ret);
 		return -1;
 	}
 	return 0;
@@ -332,7 +330,6 @@ static int sd_open(struct gspca_dev *gspca_dev)
 /* -- start the camera -- */
 static void sd_start(struct gspca_dev *gspca_dev)
 {
-	__u8 dum;
 	int ret, value;
 
 	/* work on alternate 1 */
@@ -355,11 +352,11 @@ static void sd_start(struct gspca_dev *gspca_dev)
 			gspca_dev->iface, gspca_dev->alt);
 		goto out;
 	}
-	ret = reg_r(gspca_dev, 0x0630, &dum);
+	ret = reg_r(gspca_dev, 0x0630);
 	if (ret < 0)
 		goto out;
-	rcv_val(gspca_dev, 0x000020, 4);	/* << (value ff ff ff ff) */
-	ret = reg_r(gspca_dev, 0x0650, &dum);
+	rcv_val(gspca_dev, 0x000020);	/* << (value ff ff ff ff) */
+	ret = reg_r(gspca_dev, 0x0650);
 	if (ret < 0)
 		goto out;
 	snd_val(gspca_dev, 0x000020, 0xffffffff);
@@ -389,14 +386,13 @@ out:
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 value;
 
 	set_par(gspca_dev, 0x02000000);
 	set_par(gspca_dev, 0x02000000);
 	usb_set_interface(dev, gspca_dev->iface, 1);
-	reg_r(gspca_dev, 0x0630, &value);
-	rcv_val(gspca_dev, 0x000020, 4);	/* << (value ff ff ff ff) */
-	reg_r(gspca_dev, 0x0650, &value);
+	reg_r(gspca_dev, 0x0630);
+	rcv_val(gspca_dev, 0x000020);	/* << (value ff ff ff ff) */
+	reg_r(gspca_dev, 0x0650);
 	snd_val(gspca_dev, 0x000020, 0xffffffff);
 	reg_w(gspca_dev, 0x0620, 0);
 	reg_w(gspca_dev, 0x0630, 0);
@@ -538,10 +534,10 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
-	.nctrls = sizeof sd_ctrls / sizeof sd_ctrls[0],
+	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.open = sd_open,
 	.start = sd_start,
@@ -554,7 +550,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x05e1, 0x0893), DVNM("Syntek DV4000")},
 	{}
 };

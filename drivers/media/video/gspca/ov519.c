@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("OV519 USB Camera Driver");
@@ -282,15 +282,14 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 static int reg_w(struct sd *sd, __u16 index, __u8 value)
 {
 	int ret;
-	__u8 data;
 
-	data = value;
+	sd->gspca_dev.usb_buf[0] = value;
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
 			1,			/* REQ_IO (ov518/519) */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index,
-			&data, 1, 500);
+			sd->gspca_dev.usb_buf, 1, 500);
 	if (ret < 0)
 		PDEBUG(D_ERR, "Write reg [%02x] %02x failed", index, value);
 	return ret;
@@ -301,16 +300,15 @@ static int reg_w(struct sd *sd, __u16 index, __u8 value)
 static int reg_r(struct sd *sd, __u16 index)
 {
 	int ret;
-	__u8 data;
 
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
 			1,			/* REQ_IO */
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0, index, &data, 1, 500);
+			0, index, sd->gspca_dev.usb_buf, 1, 500);
 
 	if (ret >= 0)
-		ret = data;
+		ret = sd->gspca_dev.usb_buf[0];
 	else
 		PDEBUG(D_ERR, "Read reg [0x%02x] failed", index);
 	return ret;
@@ -321,16 +319,15 @@ static int reg_r8(struct sd *sd,
 		  __u16 index)
 {
 	int ret;
-	__u8 buf[8];
 
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
 			1,			/* REQ_IO */
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0, index, &buf[0], 8, 500);
+			0, index, sd->gspca_dev.usb_buf, 8, 500);
 
 	if (ret >= 0)
-		ret = buf[0];
+		ret = sd->gspca_dev.usb_buf[0];
 	else
 		PDEBUG(D_ERR, "Read reg 8 [0x%02x] failed", index);
 	return ret;

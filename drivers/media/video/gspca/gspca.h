@@ -125,6 +125,7 @@ struct gspca_dev {
 	struct cam cam;				/* device information */
 	const struct sd_desc *sd_desc;		/* subdriver description */
 
+	__u8 usb_buf[8];			/* buffer for USB exchanges */
 	struct urb *urb[MAX_NURBS];
 
 	__u8 *frbuf;				/* buffer for nframes */

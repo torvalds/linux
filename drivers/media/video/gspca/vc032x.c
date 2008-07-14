@@ -1227,17 +1227,18 @@ static const struct sensor_info sensor_info_data[] = {
 	{SENSOR_MI1310_SOC, 0x80 | 0x5d, 0x00, 0x143a, 0x24, 0x25, 0x01},
 };
 
-static void reg_r(struct usb_device *dev,
-			   __u16 req,
-			   __u16 index,
-			   __u8 *buffer, __u16 length)
+/* read 'len' bytes in gspca_dev->usb_buf */
+static void reg_r(struct gspca_dev *gspca_dev,
+		  __u16 req,
+		  __u16 index,
+		  __u16 len)
 {
-	usb_control_msg(dev,
-			usb_rcvctrlpipe(dev, 0),
+	usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			req,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			1,			/* value */
-			index, buffer, length,
+			index, gspca_dev->usb_buf, len,
 			500);
 }
 
@@ -1254,55 +1255,55 @@ static void reg_w(struct usb_device *dev,
 			500);
 }
 
-static void vc032x_read_sensor_register(struct usb_device *dev,
+static void read_sensor_register(struct gspca_dev *gspca_dev,
 				__u16 address, __u16 *value)
 {
+	struct usb_device *dev = gspca_dev->dev;
 	__u8 ldata, mdata, hdata;
-	__u8 tmpvalue = 0;
 	int retry = 50;
-	ldata = 0;
-	mdata = 0;
-	hdata = 0;
+
 	*value = 0;
 
-	reg_r(dev, 0xa1, 0xb33f, &tmpvalue, 1);
+	reg_r(gspca_dev, 0xa1, 0xb33f, 1);
 	/*PDEBUG(D_PROBE, " I2c Bus Busy Wait  0x%02X ", tmpvalue); */
-	if (!(tmpvalue & 0x02)) {
-		PDEBUG(D_ERR, "I2c Bus Busy Wait %d", tmpvalue & 0x02);
+	if (!(gspca_dev->usb_buf[0] & 0x02)) {
+		PDEBUG(D_ERR, "I2c Bus Busy Wait %d",
+			gspca_dev->usb_buf[0] & 0x02);
 		return;
 	}
 	reg_w(dev, 0xa0, address, 0xb33a);
 	reg_w(dev, 0xa0, 0x02, 0xb339);
 
-	tmpvalue = 0;
-	reg_r(dev, 0xa1, 0xb33b, &tmpvalue, 1);
-	while (retry-- && tmpvalue) {
-		reg_r(dev, 0xa1, 0xb33b, &tmpvalue, 1);
+	reg_r(gspca_dev, 0xa1, 0xb33b, 1);
+	while (retry-- && gspca_dev->usb_buf[0]) {
+		reg_r(gspca_dev, 0xa1, 0xb33b, 1);
 /*		PDEBUG(D_PROBE, "Read again 0xb33b %d", tmpvalue); */
 		msleep(1);
 	}
-	reg_r(dev, 0xa1, 0xb33e, &hdata, 1);
-	reg_r(dev, 0xa1, 0xb33d, &mdata, 1);
-	reg_r(dev, 0xa1, 0xb33c, &ldata, 1);
+	reg_r(gspca_dev, 0xa1, 0xb33e, 1);
+	hdata = gspca_dev->usb_buf[0];
+	reg_r(gspca_dev, 0xa1, 0xb33d, 1);
+	mdata = gspca_dev->usb_buf[0];
+	reg_r(gspca_dev, 0xa1, 0xb33c, 1);
+	ldata = gspca_dev->usb_buf[0];
 	PDEBUG(D_PROBE, "Read Sensor h (0x%02X) m (0x%02X) l (0x%02X)",
 		hdata, mdata, ldata);
-	tmpvalue = 0;
-	reg_r(dev, 0xa1, 0xb334, &tmpvalue, 1);
-	if (tmpvalue == 0x02)
+	reg_r(gspca_dev, 0xa1, 0xb334, 1);
+	if (gspca_dev->usb_buf[0] == 0x02)
 		*value = (ldata << 8) + mdata;
 	else
 		*value = ldata;
 }
+
 static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int i;
-	__u8 data;
 	__u16 value;
 	const struct sensor_info *ptsensor_info;
 
-	reg_r(dev, 0xa1, 0xbfcf, &data, 1);
-	PDEBUG(D_PROBE, "check sensor header %d", data);
+	reg_r(gspca_dev, 0xa1, 0xbfcf, 1);
+	PDEBUG(D_PROBE, "check sensor header %d", gspca_dev->usb_buf[0]);
 	for (i = 0; i < ARRAY_SIZE(sensor_info_data); i++) {
 		ptsensor_info = &sensor_info_data[i];
 		reg_w(dev, 0xa0, 0x02, 0xb334);
@@ -1315,7 +1316,7 @@ static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 			"check sensor VC032X -> %d Add -> ox%02X!",
 			i, ptsensor_info->I2cAdd); */
 		reg_w(dev, 0xa0, ptsensor_info->op, 0xb301);
-		vc032x_read_sensor_register(dev, ptsensor_info->IdAdd, &value);
+		read_sensor_register(gspca_dev, ptsensor_info->IdAdd, &value);
 		if (value == ptsensor_info->VpId) {
 /*			PDEBUG(D_PROBE, "find sensor VC032X -> ox%04X!",
 				ptsensor_info->VpId); */
@@ -1325,14 +1326,14 @@ static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 	return -1;
 }
 
-static __u8 i2c_write(struct usb_device *dev,
+static __u8 i2c_write(struct gspca_dev *gspca_dev,
 			__u8 reg, const __u8 *val, __u8 size)
 {
-	__u8 retbyte;
+	struct usb_device *dev = gspca_dev->dev;
 
 	if (size > 3 || size < 1)
 		return -EINVAL;
-	reg_r(dev, 0xa1, 0xb33f, &retbyte, 1);
+	reg_r(gspca_dev, 0xa1, 0xb33f, 1);
 	reg_w(dev, 0xa0, size, 0xb334);
 	reg_w(dev, 0xa0, reg, 0xb33a);
 	switch (size) {
@@ -1353,8 +1354,8 @@ static __u8 i2c_write(struct usb_device *dev,
 		return -EINVAL;
 	}
 	reg_w(dev, 0xa0, 0x01, 0xb339);
-	reg_r(dev, 0xa1, 0xb33b, &retbyte, 1);
-	return retbyte == 0;
+	reg_r(gspca_dev, 0xa1, 0xb33b, 1);
+	return gspca_dev->usb_buf[0] == 0;
 }
 
 static void put_tab_to_reg(struct gspca_dev *gspca_dev,
@@ -1382,10 +1383,10 @@ static void usb_exchange(struct gspca_dev *gspca_dev,
 					((data[i][0])<<8) | data[i][1]);
 			break;
 		case 0xaa:			/* i2c op */
-			i2c_write(dev, data[i][1], &data[i][2], 1);
+			i2c_write(gspca_dev, data[i][1], &data[i][2], 1);
 			break;
 		case 0xbb:			/* i2c op */
-			i2c_write(dev, data[i][0], &data[i][1], 2);
+			i2c_write(gspca_dev, data[i][0], &data[i][1], 2);
 			break;
 		case 0xdd:
 			msleep(data[i][2] + 10);
@@ -1417,7 +1418,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
 	struct cam *cam;
-	__u8 tmp2[4];
 	int sensor;
 	__u16 product;
 
@@ -1488,10 +1488,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->lightfreq = FREQ_DEF;
 
 	if (sd->bridge == BRIDGE_VC0321) {
-		reg_r(dev, 0x8a, 0, tmp2, 3);
+		reg_r(gspca_dev, 0x8a, 0, 3);
 		reg_w(dev, 0x87, 0x00, 0x0f0f);
 
-		reg_r(dev, 0x8b, 0, tmp2, 3);
+		reg_r(gspca_dev, 0x8b, 0, 3);
 		reg_w(dev, 0x88, 0x00, 0x0202);
 	}
 	return 0;
@@ -1525,7 +1525,6 @@ static void setlightfreq(struct gspca_dev *gspca_dev)
 static void sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-/*	__u8 tmp2; */
 	const __u8 *GammaT = NULL;
 	const __u8 *MatrixT = NULL;
 	int mode;
@@ -1627,7 +1626,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev->dev, 0xa0, 0x40, 0xb824);
 		*/
 		/* Only works for HV7131R ??
-		reg_r (gspca_dev->dev, 0xa1, 0xb881, &tmp2, 1);
+		reg_r (gspca_dev, 0xa1, 0xb881, 1);
 		reg_w(gspca_dev->dev, 0xa0, 0xfe01, 0xb881);
 		reg_w(gspca_dev->dev, 0xa0, 0x79, 0xb801);
 		*/

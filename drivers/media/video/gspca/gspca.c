@@ -1347,9 +1347,11 @@ ok:
 		gspca_dev->fr_i,
 		gspca_dev->fr_o);
 
-	if (gspca_dev->sd_desc->dq_callback)
+	if (gspca_dev->sd_desc->dq_callback) {
+		mutex_lock(&gspca_dev->usb_lock);
 		gspca_dev->sd_desc->dq_callback(gspca_dev);
-
+		mutex_unlock(&gspca_dev->usb_lock);
+	}
 	return j;
 }
 
