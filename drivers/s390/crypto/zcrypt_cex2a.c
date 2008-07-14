@@ -49,6 +49,7 @@
 
 static struct ap_device_id zcrypt_cex2a_ids[] = {
 	{ AP_DEVICE(AP_DEVICE_TYPE_CEX2A) },
+	{ AP_DEVICE(AP_DEVICE_TYPE_CEX2A2) },
 	{ /* end of list */ },
 };
 
