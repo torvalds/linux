@@ -874,6 +874,8 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		} else
 			conn->state = BT_CONNECTED;
 
+		hci_conn_add_sysfs(conn);
+
 		if (test_bit(HCI_AUTH, &hdev->flags))
 			conn->link_mode |= HCI_LM_AUTH;
 
@@ -1011,6 +1013,9 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn) {
 		conn->state = BT_CLOSED;
+
+		hci_conn_del_sysfs(conn);
+
 		hci_proto_disconn_ind(conn, ev->reason);
 		hci_conn_del(conn);
 	}
@@ -1643,6 +1648,8 @@ static inline void hci_sync_conn_complete_evt(struct hci_dev *hdev, struct sk_bu
 	if (!ev->status) {
 		conn->handle = __le16_to_cpu(ev->handle);
 		conn->state  = BT_CONNECTED;
+
+		hci_conn_add_sysfs(conn);
 	} else
 		conn->state = BT_CLOSED;
 

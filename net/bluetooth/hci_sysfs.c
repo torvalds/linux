@@ -311,7 +311,6 @@ static void add_conn(struct work_struct *work)
 void hci_conn_add_sysfs(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
-	bdaddr_t *ba = &conn->dst;
 
 	BT_DBG("conn %p", conn);
 
@@ -320,11 +319,8 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 
 	conn->dev.release = bt_release;
 
-	snprintf(conn->dev.bus_id, BUS_ID_SIZE,
-			"%s%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X",
-			conn->type == ACL_LINK ? "acl" : "sco",
-			ba->b[5], ba->b[4], ba->b[3],
-			ba->b[2], ba->b[1], ba->b[0]);
+	snprintf(conn->dev.bus_id, BUS_ID_SIZE, "%s:%d",
+					hdev->name, conn->handle);
 
 	dev_set_drvdata(&conn->dev, conn);
 

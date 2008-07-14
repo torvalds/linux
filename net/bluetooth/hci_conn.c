@@ -245,8 +245,6 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_ADD);
 
-	hci_conn_add_sysfs(conn);
-
 	tasklet_enable(&hdev->tx_task);
 
 	return conn;
@@ -278,12 +276,14 @@ int hci_conn_del(struct hci_conn *conn)
 	}
 
 	tasklet_disable(&hdev->tx_task);
+
 	hci_conn_hash_del(hdev, conn);
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
+
 	tasklet_enable(&hdev->tx_task);
+
 	skb_queue_purge(&conn->data_q);
-	hci_conn_del_sysfs(conn);
 
 	return 0;
 }
@@ -531,6 +531,8 @@ void hci_conn_hash_flush(struct hci_dev *hdev)
 		p = p->next;
 
 		c->state = BT_CLOSED;
+
+		hci_conn_del_sysfs(c);
 
 		hci_proto_disconn_ind(c, 0x16);
 		hci_conn_del(c);
