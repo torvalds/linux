@@ -49,16 +49,14 @@ SECTIONS
   	_etext = .;			/* End of text section */
   } :text = 0x9090
 
+  NOTES :text :note
+
   . = ALIGN(16);		/* Exception table */
   __ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) {
   	__start___ex_table = .;
 	 *(__ex_table)
   	__stop___ex_table = .;
-  }
-
-  NOTES :text :note
-
-  BUG_TABLE :text
+  } :text = 0x9090
 
   RODATA
 
