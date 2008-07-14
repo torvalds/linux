@@ -6,8 +6,9 @@
 # for more details.
 #
 
-
-CROSS_COMPILE    ?= bfin-uclinux-
+ifeq ($(CROSS_COMPILE),)
+CROSS_COMPILE    := bfin-uclinux-
+endif
 LDFLAGS_vmlinux  := -X
 OBJCOPYFLAGS     := -O binary -R .note -R .comment -S
 GZFLAGS          := -9
