@@ -690,6 +690,8 @@ static int rfcomm_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		copied += chunk;
 		size   -= chunk;
 
+		sock_recv_timestamp(msg, sk, skb);
+
 		if (!(flags & MSG_PEEK)) {
 			atomic_sub(chunk, &sk->sk_rmem_alloc);
 
@@ -795,15 +797,20 @@ static int rfcomm_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned lon
 	struct sock *sk = sock->sk;
 	int err;
 
-	lock_sock(sk);
+	BT_DBG("sk %p cmd %x arg %lx", sk, cmd, arg);
 
+	err = bt_sock_ioctl(sock, cmd, arg);
+
+	if (err == -ENOIOCTLCMD) {
 #ifdef CONFIG_BT_RFCOMM_TTY
-	err = rfcomm_dev_ioctl(sk, cmd, (void __user *)arg);
+		lock_sock(sk);
+		err = rfcomm_dev_ioctl(sk, cmd, (void __user *) arg);
+		release_sock(sk);
 #else
-	err = -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
 #endif
+	}
 
-	release_sock(sk);
 	return err;
 }
 

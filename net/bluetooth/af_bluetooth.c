@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <net/sock.h>
+#include <asm/ioctls.h>
 
 #if defined(CONFIG_KMOD)
 #include <linux/kmod.h>
@@ -266,6 +267,8 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	skb_reset_transport_header(skb);
 	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	if (err == 0)
+		sock_recv_timestamp(msg, sk, skb);
 
 	skb_free_datagram(sk, skb);
 
@@ -328,6 +331,31 @@ unsigned int bt_sock_poll(struct file * file, struct socket *sock, poll_table *w
 	return mask;
 }
 EXPORT_SYMBOL(bt_sock_poll);
+
+int bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	struct sock *sk = sock->sk;
+	int err;
+
+	BT_DBG("sk %p cmd %x arg %lx", sk, cmd, arg);
+
+	switch (cmd) {
+	case SIOCGSTAMP:
+		err = sock_get_timestamp(sk, (struct timeval __user *) arg);
+		break;
+
+	case SIOCGSTAMPNS:
+		err = sock_get_timestampns(sk, (struct timespec __user *) arg);
+		break;
+
+	default:
+		err = -ENOIOCTLCMD;
+		break;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(bt_sock_ioctl);
 
 int bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo)
 {
