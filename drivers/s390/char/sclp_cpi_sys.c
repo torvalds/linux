@@ -27,6 +27,8 @@
 #define CPI_LENGTH_NAME 8
 #define CPI_LENGTH_LEVEL 16
 
+static DEFINE_MUTEX(sclp_cpi_mutex);
+
 struct cpi_evbuf {
 	struct evbuf_header header;
 	u8	id_format;
@@ -223,7 +225,12 @@ static void set_string(char *attr, const char *value)
 static ssize_t system_name_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "%s\n", system_name);
+	int rc;
+
+	mutex_lock(&sclp_cpi_mutex);
+	rc = snprintf(page, PAGE_SIZE, "%s\n", system_name);
+	mutex_unlock(&sclp_cpi_mutex);
+	return rc;
 }
 
 static ssize_t system_name_store(struct kobject *kobj,
@@ -237,7 +244,9 @@ static ssize_t system_name_store(struct kobject *kobj,
 	if (rc)
 		return rc;
 
+	mutex_lock(&sclp_cpi_mutex);
 	set_string(system_name, buf);
+	mutex_unlock(&sclp_cpi_mutex);
 
 	return len;
 }
@@ -248,7 +257,12 @@ static struct kobj_attribute system_name_attr =
 static ssize_t sysplex_name_show(struct kobject *kobj,
 				 struct kobj_attribute *attr, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "%s\n", sysplex_name);
+	int rc;
+
+	mutex_lock(&sclp_cpi_mutex);
+	rc = snprintf(page, PAGE_SIZE, "%s\n", sysplex_name);
+	mutex_unlock(&sclp_cpi_mutex);
+	return rc;
 }
 
 static ssize_t sysplex_name_store(struct kobject *kobj,
@@ -262,7 +276,9 @@ static ssize_t sysplex_name_store(struct kobject *kobj,
 	if (rc)
 		return rc;
 
+	mutex_lock(&sclp_cpi_mutex);
 	set_string(sysplex_name, buf);
+	mutex_unlock(&sclp_cpi_mutex);
 
 	return len;
 }
@@ -273,7 +289,12 @@ static struct kobj_attribute sysplex_name_attr =
 static ssize_t system_type_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "%s\n", system_type);
+	int rc;
+
+	mutex_lock(&sclp_cpi_mutex);
+	rc = snprintf(page, PAGE_SIZE, "%s\n", system_type);
+	mutex_unlock(&sclp_cpi_mutex);
+	return rc;
 }
 
 static ssize_t system_type_store(struct kobject *kobj,
@@ -287,7 +308,9 @@ static ssize_t system_type_store(struct kobject *kobj,
 	if (rc)
 		return rc;
 
+	mutex_lock(&sclp_cpi_mutex);
 	set_string(system_type, buf);
+	mutex_unlock(&sclp_cpi_mutex);
 
 	return len;
 }
@@ -298,8 +321,11 @@ static struct kobj_attribute system_type_attr =
 static ssize_t system_level_show(struct kobject *kobj,
 				 struct kobj_attribute *attr, char *page)
 {
-	unsigned long long level = system_level;
+	unsigned long long level;
 
+	mutex_lock(&sclp_cpi_mutex);
+	level = system_level;
+	mutex_unlock(&sclp_cpi_mutex);
 	return snprintf(page, PAGE_SIZE, "%#018llx\n", level);
 }
 
@@ -320,8 +346,9 @@ static ssize_t system_level_store(struct kobject *kobj,
 	if (*endp)
 		return -EINVAL;
 
+	mutex_lock(&sclp_cpi_mutex);
 	system_level = level;
-
+	mutex_unlock(&sclp_cpi_mutex);
 	return len;
 }
 
@@ -334,7 +361,9 @@ static ssize_t set_store(struct kobject *kobj,
 {
 	int rc;
 
+	mutex_lock(&sclp_cpi_mutex);
 	rc = cpi_req();
+	mutex_unlock(&sclp_cpi_mutex);
 	if (rc)
 		return rc;
 
@@ -373,12 +402,16 @@ int sclp_cpi_set_data(const char *system, const char *sysplex, const char *type,
 	if (rc)
 		return rc;
 
+	mutex_lock(&sclp_cpi_mutex);
 	set_string(system_name, system);
 	set_string(sysplex_name, sysplex);
 	set_string(system_type, type);
 	system_level = level;
 
-	return cpi_req();
+	rc = cpi_req();
+	mutex_unlock(&sclp_cpi_mutex);
+
+	return rc;
 }
 EXPORT_SYMBOL(sclp_cpi_set_data);
 
