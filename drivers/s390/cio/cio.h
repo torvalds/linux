@@ -5,6 +5,8 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <asm/chpid.h>
+#include <asm/cio.h>
+#include <asm/fcx.h>
 #include "chsc.h"
 #include "schid.h"
 
@@ -99,6 +101,9 @@ extern int cio_cancel (struct subchannel *);
 extern int cio_set_options (struct subchannel *, int);
 extern int cio_get_options (struct subchannel *);
 extern int cio_modify (struct subchannel *);
+
+int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key);
+int cio_tm_intrg(struct subchannel *sch);
 
 int cio_create_sch_lock(struct subchannel *);
 void do_adapter_IO(void);

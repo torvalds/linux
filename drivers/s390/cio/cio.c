@@ -25,6 +25,7 @@
 #include <asm/chpid.h>
 #include <asm/airq.h>
 #include <asm/cpu.h>
+#include <asm/fcx.h>
 #include "cio.h"
 #include "css.h"
 #include "chsc.h"
@@ -167,30 +168,30 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 {
 	char dbf_txt[15];
 	int ccode;
-	struct orb *orb;
+	union orb *orb;
 
 	CIO_TRACE_EVENT(4, "stIO");
 	CIO_TRACE_EVENT(4, sch->dev.bus_id);
 
 	orb = &to_io_private(sch)->orb;
 	/* sch is always under 2G. */
-	orb->intparm = (u32)(addr_t)sch;
-	orb->fmt = 1;
+	orb->cmd.intparm = (u32)(addr_t)sch;
+	orb->cmd.fmt = 1;
 
-	orb->pfch = sch->options.prefetch == 0;
-	orb->spnd = sch->options.suspend;
-	orb->ssic = sch->options.suspend && sch->options.inter;
-	orb->lpm = (lpm != 0) ? lpm : sch->lpm;
+	orb->cmd.pfch = sch->options.prefetch == 0;
+	orb->cmd.spnd = sch->options.suspend;
+	orb->cmd.ssic = sch->options.suspend && sch->options.inter;
+	orb->cmd.lpm = (lpm != 0) ? lpm : sch->lpm;
 #ifdef CONFIG_64BIT
 	/*
 	 * for 64 bit we always support 64 bit IDAWs with 4k page size only
 	 */
-	orb->c64 = 1;
-	orb->i2k = 0;
+	orb->cmd.c64 = 1;
+	orb->cmd.i2k = 0;
 #endif
-	orb->key = key >> 4;
+	orb->cmd.key = key >> 4;
 	/* issue "Start Subchannel" */
-	orb->cpa = (__u32) __pa(cpa);
+	orb->cmd.cpa = (__u32) __pa(cpa);
 	ccode = ssch(sch->schid, orb);
 
 	/* process condition code */
@@ -1066,4 +1067,62 @@ int __init cio_get_iplinfo(struct cio_iplinfo *iplinfo)
 	iplinfo->devno = schib.pmcw.dev;
 	iplinfo->is_qdio = schib.pmcw.qf;
 	return 0;
+}
+
+/**
+ * cio_tm_start_key - perform start function
+ * @sch: subchannel on which to perform the start function
+ * @tcw: transport-command word to be started
+ * @lpm: mask of paths to use
+ * @key: storage key to use for storage access
+ *
+ * Start the tcw on the given subchannel. Return zero on success, non-zero
+ * otherwise.
+ */
+int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key)
+{
+	int cc;
+	union orb *orb = &to_io_private(sch)->orb;
+
+	memset(orb, 0, sizeof(union orb));
+	orb->tm.intparm = (u32) (addr_t) sch;
+	orb->tm.key = key >> 4;
+	orb->tm.b = 1;
+	orb->tm.lpm = lpm ? lpm : sch->lpm;
+	orb->tm.tcw = (u32) (addr_t) tcw;
+	cc = ssch(sch->schid, orb);
+	switch (cc) {
+	case 0:
+		return 0;
+	case 1:
+	case 2:
+		return -EBUSY;
+	default:
+		return cio_start_handle_notoper(sch, lpm);
+	}
+}
+
+/**
+ * cio_tm_intrg - perform interrogate function
+ * @sch - subchannel on which to perform the interrogate function
+ *
+ * If the specified subchannel is running in transport-mode, perform the
+ * interrogate function. Return zero on success, non-zero otherwie.
+ */
+int cio_tm_intrg(struct subchannel *sch)
+{
+	int cc;
+
+	if (!to_io_private(sch)->orb.tm.b)
+		return -EINVAL;
+	cc = xsch(sch->schid);
+	switch (cc) {
+	case 0:
+	case 2:
+		return 0;
+	case 1:
+		return -EBUSY;
+	default:
+		return -ENODEV;
+	}
 }

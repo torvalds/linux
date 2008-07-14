@@ -39,31 +39,43 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 	struct schib schib;
 	struct subchannel *sch;
 	struct io_subchannel_private *private;
+	union orb *orb;
 	int cc;
 
 	sch = to_subchannel(cdev->dev.parent);
 	private = to_io_private(sch);
+	orb = &private->orb;
 	cc = stsch(sch->schid, &schib);
 
 	printk(KERN_WARNING "cio: ccw device timeout occurred at %llx, "
 	       "device information:\n", get_clock());
 	printk(KERN_WARNING "cio: orb:\n");
 	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
-		       &private->orb, sizeof(private->orb), 0);
+		       orb, sizeof(*orb), 0);
 	printk(KERN_WARNING "cio: ccw device bus id: %s\n", cdev->dev.bus_id);
 	printk(KERN_WARNING "cio: subchannel bus id: %s\n", sch->dev.bus_id);
 	printk(KERN_WARNING "cio: subchannel lpm: %02x, opm: %02x, "
 	       "vpm: %02x\n", sch->lpm, sch->opm, sch->vpm);
 
-	if ((void *)(addr_t)private->orb.cpa == &private->sense_ccw ||
-	    (void *)(addr_t)private->orb.cpa == cdev->private->iccws)
-		printk(KERN_WARNING "cio: last channel program (intern):\n");
-	else
-		printk(KERN_WARNING "cio: last channel program:\n");
+	if (orb->tm.b) {
+		printk(KERN_WARNING "cio: orb indicates transport mode\n");
+		printk(KERN_WARNING "cio: last tcw:\n");
+		print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
+			       (void *)(addr_t)orb->tm.tcw,
+			       sizeof(struct tcw), 0);
+	} else {
+		printk(KERN_WARNING "cio: orb indicates command mode\n");
+		if ((void *)(addr_t)orb->cmd.cpa == &private->sense_ccw ||
+		    (void *)(addr_t)orb->cmd.cpa == cdev->private->iccws)
+			printk(KERN_WARNING "cio: last channel program "
+			       "(intern):\n");
+		else
+			printk(KERN_WARNING "cio: last channel program:\n");
 
-	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
-		       (void *)(addr_t)private->orb.cpa,
-		       sizeof(struct ccw1), 0);
+		print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
+			       (void *)(addr_t)orb->cmd.cpa,
+			       sizeof(struct ccw1), 0);
+	}
 	printk(KERN_WARNING "cio: ccw device state: %d\n",
 	       cdev->private->state);
 	printk(KERN_WARNING "cio: store subchannel returned: cc=%d\n", cc);
@@ -135,10 +147,13 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 	/* Stage 1: cancel io. */
 	if (!(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_HALT_PEND) &&
 	    !(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_CLEAR_PEND)) {
-		ret = cio_cancel(sch);
-		if (ret != -EINVAL)
-			return ret;
-		/* cancel io unsuccessful. From now on it is asynchronous. */
+		if (!scsw_is_tm(&sch->schib.scsw)) {
+			ret = cio_cancel(sch);
+			if (ret != -EINVAL)
+				return ret;
+		}
+		/* cancel io unsuccessful or not applicable (transport mode).
+		 * Continue with asynchronous instructions. */
 		cdev->private->iretry = 3;	/* 3 halt retries. */
 	}
 	if (!(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_CLEAR_PEND)) {
@@ -751,11 +766,13 @@ static void
 ccw_device_irq(struct ccw_device *cdev, enum dev_event dev_event)
 {
 	struct irb *irb;
+	int is_cmd;
 
 	irb = (struct irb *) __LC_IRB;
+	is_cmd = !scsw_is_tm(&irb->scsw);
 	/* Check for unsolicited interrupt. */
 	if (!scsw_is_solicited(&irb->scsw)) {
-		if ((irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) &&
+		if (is_cmd && (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) &&
 		    !irb->esw.esw0.erw.cons) {
 			/* Unit check but no sense data. Need basic sense. */
 			if (ccw_device_do_sense(cdev, irb) != 0)
@@ -774,7 +791,7 @@ call_handler_unsol:
 	}
 	/* Accumulate status and find out if a basic sense is needed. */
 	ccw_device_accumulate_irb(cdev, irb);
-	if (cdev->private->flags.dosense) {
+	if (is_cmd && cdev->private->flags.dosense) {
 		if (ccw_device_do_sense(cdev, irb) == 0) {
 			cdev->private->state = DEV_STATE_W4SENSE;
 		}

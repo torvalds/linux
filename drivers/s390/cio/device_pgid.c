@@ -158,7 +158,7 @@ __ccw_device_check_sense_pgid(struct ccw_device *cdev)
 	if (irb->scsw.cmd.cc == 3) {
 		u8 lpm;
 
-		lpm = to_io_private(sch)->orb.lpm;
+		lpm = to_io_private(sch)->orb.cmd.lpm;
 		CIO_MSG_EVENT(3, "SNID - Device %04x on Subchannel 0.%x.%04x,"
 			      " lpm %02X, became 'not operational'\n",
 			      cdev->private->dev_id.devno, sch->schid.ssid,

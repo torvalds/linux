@@ -4,9 +4,9 @@
 #include "schid.h"
 
 /*
- * operation request block
+ * command-mode operation request block
  */
-struct orb {
+struct cmd_orb {
 	u32 intparm;	/* interruption parameter */
 	u32 key  : 4;	/* flags, like key, suspend control, etc. */
 	u32 spnd : 1;	/* suspend control */
@@ -28,8 +28,36 @@ struct orb {
 	u32 cpa;	/* channel program address */
 }  __attribute__ ((packed, aligned(4)));
 
+/*
+ * transport-mode operation request block
+ */
+struct tm_orb {
+	u32 intparm;
+	u32 key:4;
+	u32 :9;
+	u32 b:1;
+	u32 :2;
+	u32 lpm:8;
+	u32 :7;
+	u32 x:1;
+	u32 tcw;
+	u32 prio:8;
+	u32 :8;
+	u32 rsvpgm:8;
+	u32 :8;
+	u32 :32;
+	u32 :32;
+	u32 :32;
+	u32 :32;
+}  __attribute__ ((packed, aligned(4)));
+
+union orb {
+	struct cmd_orb cmd;
+	struct tm_orb tm;
+}  __attribute__ ((packed, aligned(4)));
+
 struct io_subchannel_private {
-	struct orb orb;		/* operation request block */
+	union orb orb;		/* operation request block */
 	struct ccw1 sense_ccw;	/* static ccw for sense command */
 } __attribute__ ((aligned(8)));
 
@@ -95,16 +123,18 @@ struct ccw_device_private {
 	void *cmb_wait;			/* deferred cmb enable/disable */
 };
 
-static inline int ssch(struct subchannel_id schid, volatile struct orb *addr)
+static inline int ssch(struct subchannel_id schid, volatile union orb *addr)
 {
 	register struct subchannel_id reg1 asm("1") = schid;
-	int ccode;
+	int ccode = -EIO;
 
 	asm volatile(
 		"	ssch	0(%2)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode) : "d" (reg1), "a" (addr), "m" (*addr) : "cc");
+		"0:	ipm	%0\n"
+		"	srl	%0,28\n"
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: "+d" (ccode) : "d" (reg1), "a" (addr), "m" (*addr) : "cc");
 	return ccode;
 }
 

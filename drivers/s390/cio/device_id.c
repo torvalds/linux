@@ -237,7 +237,7 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 	if (irb->scsw.cmd.cc == 3) {
 		u8 lpm;
 
-		lpm = to_io_private(sch)->orb.lpm;
+		lpm = to_io_private(sch)->orb.cmd.lpm;
 		if ((lpm & sch->schib.pmcw.pim & sch->schib.pmcw.pam) != 0)
 			CIO_MSG_EVENT(4, "SenseID : path %02X for device %04x "
 				      "on subchannel 0.%x.%04x is "

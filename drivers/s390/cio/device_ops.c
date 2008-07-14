@@ -17,6 +17,7 @@
 #include <asm/ccwdev.h>
 #include <asm/idals.h>
 #include <asm/chpid.h>
+#include <asm/fcx.h>
 
 #include "cio.h"
 #include "cio_debug.h"
@@ -568,6 +569,122 @@ void ccw_device_get_id(struct ccw_device *cdev, struct ccw_dev_id *dev_id)
 	*dev_id = cdev->private->dev_id;
 }
 EXPORT_SYMBOL(ccw_device_get_id);
+
+/**
+ * ccw_device_tm_start_key - perform start function
+ * @cdev: ccw device on which to perform the start function
+ * @tcw: transport-command word to be started
+ * @intparm: user defined parameter to be passed to the interrupt handler
+ * @lpm: mask of paths to use
+ * @key: storage key to use for storage access
+ *
+ * Start the tcw on the given ccw device. Return zero on success, non-zero
+ * otherwise.
+ */
+int ccw_device_tm_start_key(struct ccw_device *cdev, struct tcw *tcw,
+			    unsigned long intparm, u8 lpm, u8 key)
+{
+	struct subchannel *sch;
+	int rc;
+
+	sch = to_subchannel(cdev->dev.parent);
+	if (cdev->private->state != DEV_STATE_ONLINE)
+		return -EIO;
+	/* Adjust requested path mask to excluded varied off paths. */
+	if (lpm) {
+		lpm &= sch->opm;
+		if (lpm == 0)
+			return -EACCES;
+	}
+	rc = cio_tm_start_key(sch, tcw, lpm, key);
+	if (rc == 0)
+		cdev->private->intparm = intparm;
+	return rc;
+}
+EXPORT_SYMBOL(ccw_device_tm_start_key);
+
+/**
+ * ccw_device_tm_start_timeout_key - perform start function
+ * @cdev: ccw device on which to perform the start function
+ * @tcw: transport-command word to be started
+ * @intparm: user defined parameter to be passed to the interrupt handler
+ * @lpm: mask of paths to use
+ * @key: storage key to use for storage access
+ * @expires: time span in jiffies after which to abort request
+ *
+ * Start the tcw on the given ccw device. Return zero on success, non-zero
+ * otherwise.
+ */
+int ccw_device_tm_start_timeout_key(struct ccw_device *cdev, struct tcw *tcw,
+				    unsigned long intparm, u8 lpm, u8 key,
+				    int expires)
+{
+	int ret;
+
+	ccw_device_set_timeout(cdev, expires);
+	ret = ccw_device_tm_start_key(cdev, tcw, intparm, lpm, key);
+	if (ret != 0)
+		ccw_device_set_timeout(cdev, 0);
+	return ret;
+}
+EXPORT_SYMBOL(ccw_device_tm_start_timeout_key);
+
+/**
+ * ccw_device_tm_start - perform start function
+ * @cdev: ccw device on which to perform the start function
+ * @tcw: transport-command word to be started
+ * @intparm: user defined parameter to be passed to the interrupt handler
+ * @lpm: mask of paths to use
+ *
+ * Start the tcw on the given ccw device. Return zero on success, non-zero
+ * otherwise.
+ */
+int ccw_device_tm_start(struct ccw_device *cdev, struct tcw *tcw,
+			unsigned long intparm, u8 lpm)
+{
+	return ccw_device_tm_start_key(cdev, tcw, intparm, lpm,
+				       PAGE_DEFAULT_KEY);
+}
+EXPORT_SYMBOL(ccw_device_tm_start);
+
+/**
+ * ccw_device_tm_start_timeout - perform start function
+ * @cdev: ccw device on which to perform the start function
+ * @tcw: transport-command word to be started
+ * @intparm: user defined parameter to be passed to the interrupt handler
+ * @lpm: mask of paths to use
+ * @expires: time span in jiffies after which to abort request
+ *
+ * Start the tcw on the given ccw device. Return zero on success, non-zero
+ * otherwise.
+ */
+int ccw_device_tm_start_timeout(struct ccw_device *cdev, struct tcw *tcw,
+			       unsigned long intparm, u8 lpm, int expires)
+{
+	return ccw_device_tm_start_timeout_key(cdev, tcw, intparm, lpm,
+					       PAGE_DEFAULT_KEY, expires);
+}
+EXPORT_SYMBOL(ccw_device_tm_start_timeout);
+
+/**
+ * ccw_device_tm_intrg - perform interrogate function
+ * @cdev: ccw device on which to perform the interrogate function
+ *
+ * Perform an interrogate function on the given ccw device. Return zero on
+ * success, non-zero otherwise.
+ */
+int ccw_device_tm_intrg(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
+	if (cdev->private->state != DEV_STATE_ONLINE)
+		return -EIO;
+	if (!scsw_is_tm(&sch->schib.scsw) ||
+	    !(scsw_actl(&sch->schib.scsw) | SCSW_ACTL_START_PEND))
+		return -EINVAL;
+	return cio_tm_intrg(sch);
+}
+EXPORT_SYMBOL(ccw_device_tm_intrg);
 
 // FIXME: these have to go:
 
