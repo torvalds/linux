@@ -1,0 +1,39 @@
+comment "MX2 family CPU support"
+	depends on ARCH_MX2
+
+config MACH_MX27
+	bool "i.MX27 support"
+	depends on ARCH_MX2
+	help
+	  This enables support for Freescale's MX2 based i.MX27 processor.
+
+comment "MX2 Platforms"
+	depends on ARCH_MX2
+
+config MACH_MX27ADS
+	bool "MX27ADS platform"
+	depends on MACH_MX27
+	help
+	  Include support for MX27ADS platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_PCM038
+	bool "Phytec phyCORE-i.MX27 CPU module (pcm038)"
+	depends on MACH_MX27
+	help
+	  Include support for phyCORE-i.MX27 (aka pcm038) platform. This
+	  includes specific configurations for the module and its peripherals.
+
+choice
+	prompt "Baseboard"
+	depends on MACH_PCM038
+	default MACH_PCM970_BASEBOARD
+
+config MACH_PCM970_BASEBOARD
+	prompt "PHYTEC PCM970 development board"
+	bool
+	help
+	  This adds board specific devices that can be found on Phytec's
+	  PCM970 evaluation board.
+
+endchoice

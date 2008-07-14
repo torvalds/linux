@@ -60,6 +60,7 @@
 #define IO_SIZE		0x40000
 #define IO_VIRT		(IO_PHYS - IO_OFFSET)
 #define IO_ADDRESS(pa)	((pa) - IO_OFFSET)
+#define OMAP1_IO_ADDRESS(pa)	((pa) - IO_OFFSET)
 #define io_p2v(pa)	((pa) - IO_OFFSET)
 #define io_v2p(va)	((va) + IO_OFFSET)
 
@@ -91,6 +92,7 @@
 
 #define IO_OFFSET	0x90000000
 #define IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
+#define OMAP2_IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
 #define io_p2v(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
 #define io_v2p(va)	((va) - IO_OFFSET)	/* Works for L3 and L4 */
 
@@ -148,6 +150,7 @@
 
 #define IO_OFFSET		0x90000000
 #define IO_ADDRESS(pa)		((pa) + IO_OFFSET)/* Works for L3 and L4 */
+#define OMAP2_IO_ADDRESS(pa)	((pa) + IO_OFFSET)/* Works for L3 and L4 */
 #define io_p2v(pa)		((pa) + IO_OFFSET)/* Works for L3 and L4 */
 #define io_v2p(va)		((va) - IO_OFFSET)/* Works for L3 and L4 */
 
@@ -183,34 +186,11 @@
 #define omap_writew(v,a)	(*(volatile unsigned short *)IO_ADDRESS(a) = (v))
 #define omap_writel(v,a)	(*(volatile unsigned int   *)IO_ADDRESS(a) = (v))
 
-/* 16 bit uses LDRH/STRH, base +/- offset_8 */
-typedef struct { volatile u16 offset[256]; } __regbase16;
-#define __REGV16(vaddr)		((__regbase16 *)((vaddr)&~0xff)) \
-					->offset[((vaddr)&0xff)>>1]
-#define __REG16(paddr)          __REGV16(io_p2v(paddr))
-
-/* 8/32 bit uses LDR/STR, base +/- offset_12 */
-typedef struct { volatile u8 offset[4096]; } __regbase8;
-#define __REGV8(vaddr)		((__regbase8  *)((vaddr)&~4095)) \
-					->offset[((vaddr)&4095)>>0]
-#define __REG8(paddr)		__REGV8(io_p2v(paddr))
-
-typedef struct { volatile u32 offset[4096]; } __regbase32;
-#define __REGV32(vaddr)		((__regbase32 *)((vaddr)&~4095)) \
-					->offset[((vaddr)&4095)>>2]
-#define __REG32(paddr)		__REGV32(io_p2v(paddr))
-
 extern void omap1_map_common_io(void);
 extern void omap1_init_common_hw(void);
 
 extern void omap2_map_common_io(void);
 extern void omap2_init_common_hw(void);
-
-#else
-
-#define __REG8(paddr)		io_p2v(paddr)
-#define __REG16(paddr)		io_p2v(paddr)
-#define __REG32(paddr)		io_p2v(paddr)
 
 #endif
 

@@ -29,6 +29,7 @@ config MACH_ANUBIS
 	bool "Simtec Electronics ANUBIS"
 	select CPU_S3C2440
 	select PM_SIMTEC if PM
+	select HAVE_PATA_PLATFORM
 	help
 	  Say Y here if you are using the Simtec Electronics ANUBIS
 	  development system
@@ -67,6 +68,11 @@ config SMDK2440_CPU2440
 	default y if ARCH_S3C2440
 	select CPU_S3C2440
 
+config MACH_AT2440EVB
+	bool "Avantech AT2440EVB development board"
+	select CPU_S3C2440
+	help
+	  Say Y here if you are using the AT2440EVB development board
 
 endmenu
 

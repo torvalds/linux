@@ -118,7 +118,7 @@
 #define AT91CAP9_ROM_SIZE	(32 * SZ_1K)	/* Internal ROM size (32Kb) */
 
 #define AT91CAP9_LCDC_BASE	0x00500000	/* LCD Controller */
-#define AT91CAP9_UDPHS_BASE	0x00600000	/* USB High Speed Device Port */
+#define AT91CAP9_UDPHS_FIFO	0x00600000	/* USB High Speed Device Port */
 #define AT91CAP9_UHP_BASE	0x00700000	/* USB Host controller */
 
 #define CONFIG_DRAM_BASE	AT91_CHIPSELECT_6

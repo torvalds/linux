@@ -41,7 +41,7 @@
 #define	DBG(x...)
 #endif
 
-#if defined(CONFIG_ARCH_AT91SAM9260)
+#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9G20)
 #define NUM_SSC_DEVICES		1
 #else
 #define NUM_SSC_DEVICES		3

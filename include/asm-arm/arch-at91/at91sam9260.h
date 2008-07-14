@@ -6,6 +6,8 @@
  * Common definitions.
  * Based on AT91SAM9260 datasheet revision A (Preliminary).
  *
+ * Includes also definitions for AT91SAM9XE and AT91SAM9G families
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -123,5 +125,14 @@
 #define AT91SAM9XE_FLASH_BASE	0x00200000	/* Internal FLASH base address */
 #define AT91SAM9XE_SRAM_BASE	0x00300000	/* Internal SRAM base address */
 
+#define AT91SAM9G20_ROM_BASE	0x00100000	/* Internal ROM base address */
+#define AT91SAM9G20_ROM_SIZE	SZ_32K		/* Internal ROM size (32Kb) */
+
+#define AT91SAM9G20_SRAM0_BASE	0x00200000	/* Internal SRAM 0 base address */
+#define AT91SAM9G20_SRAM0_SIZE	SZ_16K		/* Internal SRAM 0 size (16Kb) */
+#define AT91SAM9G20_SRAM1_BASE	0x00300000	/* Internal SRAM 1 base address */
+#define AT91SAM9G20_SRAM1_SIZE	SZ_16K		/* Internal SRAM 1 size (16Kb) */
+
+#define AT91SAM9G20_UHP_BASE	0x00500000	/* USB Host controller */
 
 #endif

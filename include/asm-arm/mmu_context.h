@@ -97,6 +97,11 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 #ifdef CONFIG_MMU
 	unsigned int cpu = smp_processor_id();
 
+#ifdef CONFIG_SMP
+	/* check for possible thread migration */
+	if (!cpus_empty(next->cpu_vm_mask) && !cpu_isset(cpu, next->cpu_vm_mask))
+		__flush_icache_all();
+#endif
 	if (!cpu_test_and_set(cpu, next->cpu_vm_mask) || prev != next) {
 		check_context(next);
 		cpu_switch_mm(next->pgd, next);
