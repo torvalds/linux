@@ -33,10 +33,6 @@ struct i2c_algo_pcf_data {
 	int  (*getclock) (void *data);
 	void (*waitforpin) (void);
 
-	/* local settings */
-	int udelay;
-	int timeout;
-
 	/* Multi-master lost arbitration back-off delay (msecs)
 	 * This should be set by the bus adapter or knowledgable client
 	 * if bus is multi-mastered, else zero

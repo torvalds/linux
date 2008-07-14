@@ -196,8 +196,6 @@ static struct i2c_algo_pcf_data pcf_isa_data = {
 	.getown	    = pcf_isa_getown,
 	.getclock   = pcf_isa_getclock,
 	.waitforpin = pcf_isa_waitforpin,
-	.udelay	    = 10,
-	.timeout    = 100,
 };
 
 static struct i2c_adapter pcf_isa_ops = {
