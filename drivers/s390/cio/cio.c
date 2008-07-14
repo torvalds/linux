@@ -810,7 +810,7 @@ cio_release_console(void)
 {
 	console_subchannel.schib.pmcw.intparm = 0;
 	cio_modify(&console_subchannel);
-	ctl_clear_bit(6, 24);
+	ctl_clear_bit(6, 30);
 	console_subchannel_in_use = 0;
 }
 
