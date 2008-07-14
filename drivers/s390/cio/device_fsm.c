@@ -346,21 +346,15 @@ ccw_device_oper_notify(struct work_struct *work)
 	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
 	int ret;
-	unsigned long flags;
 
 	priv = container_of(work, struct ccw_device_private, kick_work);
 	cdev = priv->cdev;
 	ret = ccw_device_notify(cdev, CIO_OPER);
-	spin_lock_irqsave(cdev->ccwlock, flags);
 	if (ret) {
 		/* Reenable channel measurements, if needed. */
-		spin_unlock_irqrestore(cdev->ccwlock, flags);
 		cmf_reenable(cdev);
-		spin_lock_irqsave(cdev->ccwlock, flags);
 		wake_up(&cdev->private->wait_q);
-	}
-	spin_unlock_irqrestore(cdev->ccwlock, flags);
-	if (!ret)
+	} else
 		/* Driver doesn't want device back. */
 		ccw_device_do_unreg_rereg(work);
 }
