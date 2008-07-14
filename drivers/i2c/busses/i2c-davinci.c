@@ -262,7 +262,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_CNT_REG, dev->buf_len);
 
-	init_completion(&dev->cmd_complete);
+	INIT_COMPLETION(dev->cmd_complete);
 	dev->cmd_err = 0;
 
 	/* Take I2C out of reset, configure it as master and set the
@@ -519,6 +519,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 		goto err_release_region;
 	}
 
+	init_completion(&dev->cmd_complete);
 	dev->dev = get_device(&pdev->dev);
 	dev->irq = irq->start;
 	platform_set_drvdata(pdev, dev);
