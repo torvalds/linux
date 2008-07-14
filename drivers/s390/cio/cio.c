@@ -24,6 +24,7 @@
 #include <asm/ipl.h>
 #include <asm/chpid.h>
 #include <asm/airq.h>
+#include <asm/isc.h>
 #include <asm/cpu.h>
 #include <asm/fcx.h>
 #include "cio.h"
@@ -699,9 +700,9 @@ void wait_cons_dev(void)
 	if (!console_subchannel_in_use)
 		return;
 
-	/* disable all but isc 1 (console device) */
+	/* disable all but the console isc */
 	__ctl_store (save_cr6, 6, 6);
-	cr6 = 0x40000000;
+	cr6 = 1UL << (31 - CONSOLE_ISC);
 	__ctl_load (cr6, 6, 6);
 
 	do {
@@ -783,10 +784,10 @@ cio_probe_console(void)
 	}
 
 	/*
-	 * enable console I/O-interrupt subclass 1
+	 * enable console I/O-interrupt subclass
 	 */
-	ctl_set_bit(6, 30);
-	console_subchannel.schib.pmcw.isc = 1;
+	ctl_set_bit(6, 31 - CONSOLE_ISC);
+	console_subchannel.schib.pmcw.isc = CONSOLE_ISC;
 	console_subchannel.schib.pmcw.intparm =
 		(u32)(addr_t)&console_subchannel;
 	ret = cio_modify(&console_subchannel);
@@ -802,7 +803,7 @@ cio_release_console(void)
 {
 	console_subchannel.schib.pmcw.intparm = 0;
 	cio_modify(&console_subchannel);
-	ctl_clear_bit(6, 30);
+	ctl_clear_bit(6, 31 - CONSOLE_ISC);
 	console_subchannel_in_use = 0;
 }
 

@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/reboot.h>
+#include <asm/isc.h>
 
 #include "../s390mach.h"
 #include "css.h"
@@ -804,7 +805,8 @@ init_channel_subsystem (void)
 		goto out_pseudo;
 	css_init_done = 1;
 
-	ctl_set_bit(6, 28);
+	/* Enable default isc for I/O subchannels. */
+	ctl_set_bit(6, 31 - IO_SCH_ISC);
 
 	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;

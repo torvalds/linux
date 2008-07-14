@@ -22,6 +22,7 @@
 #include <asm/cio.h>
 #include <asm/param.h>		/* HZ */
 #include <asm/cmb.h>
+#include <asm/isc.h>
 
 #include "chp.h"
 #include "cio.h"
@@ -1121,7 +1122,7 @@ static void io_subchannel_init_fields(struct subchannel *sch)
 	else
 		sch->opm = chp_get_sch_opm(sch);
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
-	sch->isc = cio_is_console(sch->schid) ? 1 : 3;
+	sch->isc = cio_is_console(sch->schid) ? CONSOLE_ISC : IO_SCH_ISC;
 
 	CIO_MSG_EVENT(6, "Detected device %04x on subchannel 0.%x.%04X"
 		      " - PIM = %02X, PAM = %02X, POM = %02X\n",
