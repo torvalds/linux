@@ -299,7 +299,7 @@ int ubi_create_gluebi(struct ubi_device *ubi, struct ubi_volume *vol)
 		mtd->size = vol->used_bytes;
 
 	if (add_mtd_device(mtd)) {
-		ubi_err("cannot not add MTD device\n");
+		ubi_err("cannot not add MTD device");
 		kfree(mtd->name);
 		return -ENFILE;
 	}
