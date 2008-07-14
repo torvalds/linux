@@ -877,6 +877,12 @@ __clear_io_subchannel_easy(struct subchannel_id schid)
 	return -EBUSY;
 }
 
+static void __clear_chsc_subchannel_easy(void)
+{
+	/* It seems we can only wait for a bit here :/ */
+	udelay_reset(100);
+}
+
 static int pgm_check_occured;
 
 static void cio_reset_pgm_check_handler(void)
@@ -919,6 +925,9 @@ static int __shutdown_subchannel_easy(struct subchannel_id schid, void *data)
 		case SUBCHANNEL_TYPE_IO:
 			if (__clear_io_subchannel_easy(schid))
 				goto out; /* give up... */
+			break;
+		case SUBCHANNEL_TYPE_CHSC:
+			__clear_chsc_subchannel_easy();
 			break;
 		default:
 			/* No default clear strategy */

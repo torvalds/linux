@@ -15,6 +15,7 @@
 
 #include <asm/cio.h>
 #include <asm/chpid.h>
+#include <asm/chsc.h>
 
 #include "../s390mach.h"
 #include "css.h"
@@ -627,23 +628,33 @@ chsc_secm(struct channel_subsystem *css, int enable)
 	return ret;
 }
 
-int chsc_determine_channel_path_description(struct chp_id chpid,
-					    struct channel_path_desc *desc)
+int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
+				     int c, int m,
+				     struct chsc_response_struct *resp)
 {
 	int ccode, ret;
 
 	struct {
 		struct chsc_header request;
-		u32 : 24;
+		u32 : 2;
+		u32 m : 1;
+		u32 c : 1;
+		u32 fmt : 4;
+		u32 cssid : 8;
+		u32 : 4;
+		u32 rfmt : 4;
 		u32 first_chpid : 8;
 		u32 : 24;
 		u32 last_chpid : 8;
 		u32 zeroes1;
 		struct chsc_header response;
-		u32 zeroes2;
-		struct channel_path_desc desc;
+		u8 data[PAGE_SIZE - 20];
 	} __attribute__ ((packed)) *scpd_area;
 
+	if ((rfmt == 1) && !css_general_characteristics.fcs)
+		return -EINVAL;
+	if ((rfmt == 2) && !css_general_characteristics.cib)
+		return -EINVAL;
 	scpd_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scpd_area)
 		return -ENOMEM;
@@ -651,8 +662,13 @@ int chsc_determine_channel_path_description(struct chp_id chpid,
 	scpd_area->request.length = 0x0010;
 	scpd_area->request.code = 0x0002;
 
+	scpd_area->cssid = chpid.cssid;
 	scpd_area->first_chpid = chpid.id;
 	scpd_area->last_chpid = chpid.id;
+	scpd_area->m = m;
+	scpd_area->c = c;
+	scpd_area->fmt = fmt;
+	scpd_area->rfmt = rfmt;
 
 	ccode = chsc(scpd_area);
 	if (ccode > 0) {
@@ -663,13 +679,31 @@ int chsc_determine_channel_path_description(struct chp_id chpid,
 	ret = chsc_error_from_response(scpd_area->response.code);
 	if (ret == 0)
 		/* Success. */
-		memcpy(desc, &scpd_area->desc,
-		       sizeof(struct channel_path_desc));
+		memcpy(resp, &scpd_area->response, scpd_area->response.length);
 	else
 		CIO_CRW_EVENT(2, "chsc: scpd failed (rc=%04x)\n",
 			      scpd_area->response.code);
 out:
 	free_page((unsigned long)scpd_area);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(chsc_determine_channel_path_desc);
+
+int chsc_determine_base_channel_path_desc(struct chp_id chpid,
+					  struct channel_path_desc *desc)
+{
+	struct chsc_response_struct *chsc_resp;
+	int ret;
+
+	chsc_resp = kzalloc(sizeof(*chsc_resp), GFP_KERNEL);
+	if (!chsc_resp)
+		return -ENOMEM;
+	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 0, 0, chsc_resp);
+	if (ret)
+		goto out_free;
+	memcpy(desc, &chsc_resp->data, chsc_resp->length);
+out_free:
+	kfree(chsc_resp);
 	return ret;
 }
 

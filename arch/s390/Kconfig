@@ -345,6 +345,22 @@ config QDIO_DEBUG
 
 	  If unsure, say N.
 
+config CHSC_SCH
+	tristate "Support for CHSC subchannels"
+	help
+	  This driver allows usage of CHSC subchannels. A CHSC subchannel
+	  is usually present on LPAR only.
+	  The driver creates a device /dev/chsc, which may be used to
+	  obtain I/O configuration information about the machine and
+	  to issue asynchronous chsc commands (DANGEROUS).
+	  You will usually only want to use this interface on a special
+	  LPAR designated for system management.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called chsc_sch.
+
+	  If unsure, say N.
+
 comment "Misc"
 
 config IPL

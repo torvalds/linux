@@ -407,7 +407,7 @@ int chp_new(struct chp_id chpid)
 		 chpid.id);
 
 	/* Obtain channel path description and fill it in. */
-	ret = chsc_determine_channel_path_description(chpid, &chp->desc);
+	ret = chsc_determine_base_channel_path_desc(chpid, &chp->desc);
 	if (ret)
 		goto out_free;
 	if ((chp->desc.flags & 0x80) == 0) {

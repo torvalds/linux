@@ -9,8 +9,7 @@
 
 #include <asm/cio.h>
 #include <asm/chpid.h>
-
-#include "schid.h"
+#include <asm/schid.h>
 
 /*
  * path grouping stuff

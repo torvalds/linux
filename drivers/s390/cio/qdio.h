@@ -3,8 +3,7 @@
 
 #include <asm/page.h>
 #include <asm/isc.h>
-
-#include "schid.h"
+#include <asm/schid.h>
 
 #ifdef CONFIG_QDIO_DEBUG
 #define QDIO_VERBOSE_LEVEL 9

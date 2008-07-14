@@ -1,7 +1,7 @@
 #ifndef S390_IO_SCH_H
 #define S390_IO_SCH_H
 
-#include "schid.h"
+#include <asm/schid.h>
 
 /*
  * command-mode operation request block
