@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 #include <linux/thread_info.h>
+#include <linux/module.h>
 
 register unsigned long current_frame_pointer asm("r7");
 
