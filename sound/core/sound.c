@@ -60,14 +60,14 @@ EXPORT_SYMBOL(snd_ecards_limit);
 static struct snd_minor *snd_minors[SNDRV_OS_MINORS];
 static DEFINE_MUTEX(sound_mutex);
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 
 /**
  * snd_request_card - try to load the card module
  * @card: the card number
  *
  * Tries to load the module "snd-card-X" for the given card number
- * via KMOD.  Returns immediately if already loaded.
+ * via request_module.  Returns immediately if already loaded.
  */
 void snd_request_card(int card)
 {
@@ -92,7 +92,7 @@ static void snd_request_other(int minor)
 	request_module(str);
 }
 
-#endif				/* request_module support */
+#endif	/* modular kernel */
 
 /**
  * snd_lookup_minor_data - get user data of a registered device
@@ -132,7 +132,7 @@ static int snd_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	mptr = snd_minors[minor];
 	if (mptr == NULL) {
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 		int dev = SNDRV_MINOR_DEVICE(minor);
 		if (dev == SNDRV_MINOR_CONTROL) {
 			/* /dev/aloadC? */
