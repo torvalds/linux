@@ -1,6 +1,8 @@
 #ifndef _ASM_S390_ISC_H
 #define _ASM_S390_ISC_H
 
+#include <linux/types.h>
+
 /*
  * I/O interruption subclasses used by drivers.
  * Please add all used iscs here so that it is possible to distribute
@@ -14,5 +16,9 @@
 #define CONSOLE_ISC 1			/* console I/O subchannel */
 /* Adapter interrupts. */
 #define QDIO_AIRQ_ISC IO_SCH_ISC	/* I/O subchannel in qdio mode */
+
+/* Functions for registration of I/O interruption subclasses */
+void isc_register(unsigned int isc);
+void isc_unregister(unsigned int isc);
 
 #endif /* _ASM_S390_ISC_H */
