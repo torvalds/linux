@@ -192,27 +192,23 @@ static int __init vmcp_init(void)
 		PRINT_WARN("z/VM CP interface is only available under z/VM\n");
 		return -ENODEV;
 	}
+
 	vmcp_debug = debug_register("vmcp", 1, 1, 240);
-	if (!vmcp_debug) {
-		PRINT_ERR("z/VM CP interface not loaded. Could not register "
-			   "debug feature\n");
+	if (!vmcp_debug)
 		return -ENOMEM;
-	}
+
 	ret = debug_register_view(vmcp_debug, &debug_hex_ascii_view);
 	if (ret) {
-		PRINT_ERR("z/VM CP interface not loaded. Could not register "
-			  "debug feature view. Error code: %d\n", ret);
 		debug_unregister(vmcp_debug);
 		return ret;
 	}
+
 	ret = misc_register(&vmcp_dev);
 	if (ret) {
-		PRINT_ERR("z/VM CP interface not loaded. Could not register "
-			   "misc device. Error code: %d\n", ret);
 		debug_unregister(vmcp_debug);
 		return ret;
 	}
-	PRINT_INFO("z/VM CP interface loaded\n");
+
 	return 0;
 }
 
@@ -220,7 +216,6 @@ static void __exit vmcp_exit(void)
 {
 	misc_deregister(&vmcp_dev);
 	debug_unregister(vmcp_debug);
-	PRINT_INFO("z/VM CP interface unloaded.\n");
 }
 
 module_init(vmcp_init);
