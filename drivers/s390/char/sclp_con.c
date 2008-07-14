@@ -222,8 +222,6 @@ sclp_console_init(void)
 	INIT_LIST_HEAD(&sclp_con_pages);
 	for (i = 0; i < MAX_CONSOLE_PAGES; i++) {
 		page = alloc_bootmem_low_pages(PAGE_SIZE);
-		if (page == NULL)
-			return -ENOMEM;
 		list_add_tail((struct list_head *) page, &sclp_con_pages);
 	}
 	INIT_LIST_HEAD(&sclp_con_outqueue);

@@ -153,19 +153,10 @@ struct raw3270_request __init *raw3270_request_alloc_bootmem(size_t size)
 	struct raw3270_request *rq;
 
 	rq = alloc_bootmem_low(sizeof(struct raw3270));
-	if (!rq)
-		return ERR_PTR(-ENOMEM);
-	memset(rq, 0, sizeof(struct raw3270_request));
 
 	/* alloc output buffer. */
-	if (size > 0) {
+	if (size > 0)
 		rq->buffer = alloc_bootmem_low(size);
-		if (!rq->buffer) {
-			free_bootmem((unsigned long) rq,
-				     sizeof(struct raw3270));
-			return ERR_PTR(-ENOMEM);
-		}
-	}
 	rq->size = size;
 	INIT_LIST_HEAD(&rq->list);
 
