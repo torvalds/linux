@@ -164,7 +164,8 @@ static int css_sch_device_register(struct subchannel *sch)
 void css_sch_device_unregister(struct subchannel *sch)
 {
 	mutex_lock(&sch->reg_mutex);
-	device_unregister(&sch->dev);
+	if (device_is_registered(&sch->dev))
+		device_unregister(&sch->dev);
 	mutex_unlock(&sch->reg_mutex);
 }
 EXPORT_SYMBOL_GPL(css_sch_device_unregister);
