@@ -128,7 +128,8 @@ static int io_subchannel_probe(struct subchannel *);
 static int io_subchannel_remove(struct subchannel *);
 static void io_subchannel_shutdown(struct subchannel *);
 static int io_subchannel_sch_event(struct subchannel *, int);
-static int io_subchannel_chp_event(struct subchannel *, void *, int);
+static int io_subchannel_chp_event(struct subchannel *, struct chp_link *,
+				   int);
 
 static struct css_driver io_subchannel_driver = {
 	.owner = THIS_MODULE,
@@ -1329,14 +1330,12 @@ static void io_subchannel_terminate_path(struct subchannel *sch, u8 mask)
 
 }
 
-static int io_subchannel_chp_event(struct subchannel *sch, void *data,
-				   int event)
+static int io_subchannel_chp_event(struct subchannel *sch,
+				   struct chp_link *link, int event)
 {
 	int mask;
-	struct res_acc_data *res_data;
 
-	res_data = data;
-	mask = chp_ssd_get_mask(&sch->ssd_info, res_data);
+	mask = chp_ssd_get_mask(&sch->ssd_info, link);
 	if (!mask)
 		return 0;
 	switch (event) {

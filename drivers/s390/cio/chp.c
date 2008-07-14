@@ -525,7 +525,7 @@ static void chp_process_crw(struct crw *crw0, struct crw *crw1,
 	}
 }
 
-int chp_ssd_get_mask(struct chsc_ssd_info *ssd, struct res_acc_data *data)
+int chp_ssd_get_mask(struct chsc_ssd_info *ssd, struct chp_link *link)
 {
 	int i;
 	int mask;
@@ -534,10 +534,10 @@ int chp_ssd_get_mask(struct chsc_ssd_info *ssd, struct res_acc_data *data)
 		mask = 0x80 >> i;
 		if (!(ssd->path_mask & mask))
 			continue;
-		if (!chp_id_is_equal(&ssd->chpid[i], &data->chpid))
+		if (!chp_id_is_equal(&ssd->chpid[i], &link->chpid))
 			continue;
 		if ((ssd->fla_valid_mask & mask) &&
-		    ((ssd->fla[i] & data->fla_mask) != data->fla))
+		    ((ssd->fla[i] & link->fla_mask) != link->fla))
 			continue;
 		return mask;
 	}

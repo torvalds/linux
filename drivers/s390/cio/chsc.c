@@ -146,15 +146,18 @@ out_unreg:
 void chsc_chp_offline(struct chp_id chpid)
 {
 	char dbf_txt[15];
+	struct chp_link link;
 
 	sprintf(dbf_txt, "chpr%x.%02x", chpid.cssid, chpid.id);
 	CIO_TRACE_EVENT(2, dbf_txt);
 
 	if (chp_get_status(chpid) <= 0)
 		return;
+	memset(&link, 0, sizeof(struct chp_link));
+	link.chpid = chpid;
 	/* Wait until previous actions have settled. */
 	css_wait_for_slow_path();
-	for_each_subchannel_staged(s390_subchannel_remove_chpid, NULL, &chpid);
+	for_each_subchannel_staged(s390_subchannel_remove_chpid, NULL, &link);
 }
 
 static int s390_process_res_acc_new_sch(struct subchannel_id schid, void *data)
@@ -187,15 +190,15 @@ static int __s390_process_res_acc(struct subchannel *sch, void *data)
 	return 0;
 }
 
-static void s390_process_res_acc (struct res_acc_data *res_data)
+static void s390_process_res_acc(struct chp_link *link)
 {
 	char dbf_txt[15];
 
-	sprintf(dbf_txt, "accpr%x.%02x", res_data->chpid.cssid,
-		res_data->chpid.id);
+	sprintf(dbf_txt, "accpr%x.%02x", link->chpid.cssid,
+		link->chpid.id);
 	CIO_TRACE_EVENT( 2, dbf_txt);
-	if (res_data->fla != 0) {
-		sprintf(dbf_txt, "fla%x", res_data->fla);
+	if (link->fla != 0) {
+		sprintf(dbf_txt, "fla%x", link->fla);
 		CIO_TRACE_EVENT( 2, dbf_txt);
 	}
 	/* Wait until previous actions have settled. */
@@ -208,7 +211,7 @@ static void s390_process_res_acc (struct res_acc_data *res_data)
 	 * will we have to do.
 	 */
 	for_each_subchannel_staged(__s390_process_res_acc,
-				   s390_process_res_acc_new_sch, res_data);
+				   s390_process_res_acc_new_sch, link);
 }
 
 static int
@@ -281,7 +284,7 @@ static void chsc_process_sei_link_incident(struct chsc_sei_area *sei_area)
 
 static void chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
 {
-	struct res_acc_data res_data;
+	struct chp_link link;
 	struct chp_id chpid;
 	int status;
 
@@ -297,18 +300,18 @@ static void chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
 		chp_new(chpid);
 	else if (!status)
 		return;
-	memset(&res_data, 0, sizeof(struct res_acc_data));
-	res_data.chpid = chpid;
+	memset(&link, 0, sizeof(struct chp_link));
+	link.chpid = chpid;
 	if ((sei_area->vf & 0xc0) != 0) {
-		res_data.fla = sei_area->fla;
+		link.fla = sei_area->fla;
 		if ((sei_area->vf & 0xc0) == 0xc0)
 			/* full link address */
-			res_data.fla_mask = 0xffff;
+			link.fla_mask = 0xffff;
 		else
 			/* link address */
-			res_data.fla_mask = 0xff00;
+			link.fla_mask = 0xff00;
 	}
-	s390_process_res_acc(&res_data);
+	s390_process_res_acc(&link);
 }
 
 struct chp_config_data {
@@ -413,18 +416,18 @@ static void chsc_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 void chsc_chp_online(struct chp_id chpid)
 {
 	char dbf_txt[15];
-	struct res_acc_data res_data;
+	struct chp_link link;
 
 	sprintf(dbf_txt, "cadd%x.%02x", chpid.cssid, chpid.id);
 	CIO_TRACE_EVENT(2, dbf_txt);
 
 	if (chp_get_status(chpid) != 0) {
-		memset(&res_data, 0, sizeof(struct res_acc_data));
-		res_data.chpid = chpid;
+		memset(&link, 0, sizeof(struct chp_link));
+		link.chpid = chpid;
 		/* Wait until previous actions have settled. */
 		css_wait_for_slow_path();
 		for_each_subchannel_staged(__s390_process_res_acc, NULL,
-					   &res_data);
+					   &link);
 	}
 }
 
@@ -432,13 +435,13 @@ static void __s390_subchannel_vary_chpid(struct subchannel *sch,
 					 struct chp_id chpid, int on)
 {
 	unsigned long flags;
-	struct res_acc_data res_data;
+	struct chp_link link;
 
-	memset(&res_data, 0, sizeof(struct res_acc_data));
-	res_data.chpid = chpid;
+	memset(&link, 0, sizeof(struct chp_link));
+	link.chpid = chpid;
 	spin_lock_irqsave(sch->lock, flags);
 	if (sch->driver && sch->driver->chp_event)
-		sch->driver->chp_event(sch, &res_data,
+		sch->driver->chp_event(sch, &link,
 				       on ? CHP_VARY_ON : CHP_VARY_OFF);
 	spin_unlock_irqrestore(sch->lock, flags);
 }
@@ -479,6 +482,10 @@ __s390_vary_chpid_on(struct subchannel_id schid, void *data)
  */
 int chsc_chp_vary(struct chp_id chpid, int on)
 {
+	struct chp_link link;
+
+	memset(&link, 0, sizeof(struct chp_link));
+	link.chpid = chpid;
 	/* Wait until previous actions have settled. */
 	css_wait_for_slow_path();
 	/*
@@ -487,10 +494,10 @@ int chsc_chp_vary(struct chp_id chpid, int on)
 
 	if (on)
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_on,
-					   __s390_vary_chpid_on, &chpid);
+					   __s390_vary_chpid_on, &link);
 	else
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_off,
-					   NULL, &chpid);
+					   NULL, &link);
 
 	return 0;
 }

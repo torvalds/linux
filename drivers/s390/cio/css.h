@@ -59,6 +59,7 @@ struct pgid {
 } __attribute__ ((packed));
 
 struct subchannel;
+struct chp_link;
 /**
  * struct css_driver - device driver for subchannels
  * @owner: owning module
@@ -77,7 +78,7 @@ struct css_driver {
 	unsigned int subchannel_type;
 	struct device_driver drv;
 	void (*irq)(struct subchannel *);
-	int (*chp_event)(struct subchannel *, void *, int);
+	int (*chp_event)(struct subchannel *, struct chp_link *, int);
 	int (*sch_event)(struct subchannel *, int);
 	int (*probe)(struct subchannel *);
 	int (*remove)(struct subchannel *);

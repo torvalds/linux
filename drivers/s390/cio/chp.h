@@ -24,7 +24,7 @@
 #define CHP_VARY_ON 2
 #define CHP_VARY_OFF 3
 
-struct res_acc_data {
+struct chp_link {
 	struct chp_id chpid;
 	u32 fla_mask;
 	u16 fla;
@@ -60,5 +60,5 @@ int chp_new(struct chp_id chpid);
 void chp_cfg_schedule(struct chp_id chpid, int configure);
 void chp_cfg_cancel_deconfigure(struct chp_id chpid);
 int chp_info_get_status(struct chp_id chpid);
-int chp_ssd_get_mask(struct chsc_ssd_info *, struct res_acc_data *);
+int chp_ssd_get_mask(struct chsc_ssd_info *, struct chp_link *);
 #endif /* S390_CHP_H */
