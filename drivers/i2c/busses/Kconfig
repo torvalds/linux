@@ -101,10 +101,9 @@ config I2C_AU1550
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
 	depends on BLACKFIN
+	depends on !BF561 && !BF531 && !BF532 && !BF533
 	help
-	  This is the TWI I2C device driver for Blackfin BF522, BF525,
-	  BF527, BF534, BF536, BF537 and BF54x. For other Blackfin processors,
-	  please don't use this driver.
+	  This is the I2C bus driver for Blackfin on-chip TWI interface.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-bfin-twi.
