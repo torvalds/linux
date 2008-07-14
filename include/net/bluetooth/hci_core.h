@@ -474,7 +474,7 @@ struct hci_proto {
 	int (*recv_acldata)	(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
 	int (*recv_scodata)	(struct hci_conn *conn, struct sk_buff *skb);
 	int (*auth_cfm)		(struct hci_conn *conn, __u8 status);
-	int (*encrypt_cfm)	(struct hci_conn *conn, __u8 status);
+	int (*encrypt_cfm)	(struct hci_conn *conn, __u8 status, __u8 encrypt);
 };
 
 static inline int hci_proto_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type)
@@ -532,17 +532,17 @@ static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
 		hp->auth_cfm(conn, status);
 }
 
-static inline void hci_proto_encrypt_cfm(struct hci_conn *conn, __u8 status)
+static inline void hci_proto_encrypt_cfm(struct hci_conn *conn, __u8 status, __u8 encrypt)
 {
 	register struct hci_proto *hp;
 
 	hp = hci_proto[HCI_PROTO_L2CAP];
 	if (hp && hp->encrypt_cfm)
-		hp->encrypt_cfm(conn, status);
+		hp->encrypt_cfm(conn, status, encrypt);
 
 	hp = hci_proto[HCI_PROTO_SCO];
 	if (hp && hp->encrypt_cfm)
-		hp->encrypt_cfm(conn, status);
+		hp->encrypt_cfm(conn, status, encrypt);
 }
 
 int hci_register_proto(struct hci_proto *hproto);
@@ -579,7 +579,7 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status, __u8 encr
 {
 	struct list_head *p;
 
-	hci_proto_encrypt_cfm(conn, status);
+	hci_proto_encrypt_cfm(conn, status, encrypt);
 
 	read_lock_bh(&hci_cb_list_lock);
 	list_for_each(p, &hci_cb_list) {

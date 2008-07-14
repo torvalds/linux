@@ -2197,7 +2197,7 @@ static int l2cap_auth_cfm(struct hci_conn *hcon, u8 status)
 	return 0;
 }
 
-static int l2cap_encrypt_cfm(struct hci_conn *hcon, u8 status)
+static int l2cap_encrypt_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 {
 	struct l2cap_chan_list *l;
 	struct l2cap_conn *conn = hcon->l2cap_data;
@@ -2215,7 +2215,18 @@ static int l2cap_encrypt_cfm(struct hci_conn *hcon, u8 status)
 	read_lock(&l->lock);
 
 	for (sk = l->head; sk; sk = l2cap_pi(sk)->next_c) {
+		struct l2cap_pinfo *pi = l2cap_pi(sk);
+
 		bh_lock_sock(sk);
+
+		if ((pi->link_mode & (L2CAP_LM_ENCRYPT | L2CAP_LM_SECURE)) &&
+					(sk->sk_state == BT_CONNECTED ||
+						sk->sk_state == BT_CONFIG) &&
+						!status && encrypt == 0x00) {
+			__l2cap_sock_close(sk, ECONNREFUSED);
+			bh_unlock_sock(sk);
+			continue;
+		}
 
 		if (sk->sk_state != BT_CONNECT2) {
 			bh_unlock_sock(sk);
