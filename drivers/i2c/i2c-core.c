@@ -974,7 +974,7 @@ int i2c_transfer(struct i2c_adapter * adap, struct i2c_msg *msgs, int num)
 		return ret;
 	} else {
 		dev_dbg(&adap->dev, "I2C level transfers not supported\n");
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 	}
 }
 EXPORT_SYMBOL(i2c_transfer);
@@ -1106,7 +1106,7 @@ int i2c_probe(struct i2c_adapter *adapter,
 
 		dev_warn(&adapter->dev, "SMBus Quick command not supported, "
 			 "can't probe for chips\n");
-		return -1;
+		return -EOPNOTSUPP;
 	}
 
 	/* Probe entries are done second, and are not affected by ignore
@@ -1298,7 +1298,7 @@ static int i2c_smbus_check_pec(u8 cpec, struct i2c_msg *msg)
 	if (rpec != cpec) {
 		pr_debug("i2c-core: Bad PEC 0x%02x vs. 0x%02x\n",
 			rpec, cpec);
-		return -1;
+		return -EBADMSG;
 	}
 	return 0;
 }
@@ -1313,11 +1313,12 @@ EXPORT_SYMBOL(i2c_smbus_write_quick);
 s32 i2c_smbus_read_byte(struct i2c_client *client)
 {
 	union i2c_smbus_data data;
-	if (i2c_smbus_xfer(client->adapter,client->addr,client->flags,
-	                   I2C_SMBUS_READ,0,I2C_SMBUS_BYTE, &data))
-		return -1;
-	else
-		return data.byte;
+	int status;
+
+	status = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
+				I2C_SMBUS_READ, 0,
+				I2C_SMBUS_BYTE, &data);
+	return (status < 0) ? status : data.byte;
 }
 EXPORT_SYMBOL(i2c_smbus_read_byte);
 
@@ -1331,11 +1332,12 @@ EXPORT_SYMBOL(i2c_smbus_write_byte);
 s32 i2c_smbus_read_byte_data(struct i2c_client *client, u8 command)
 {
 	union i2c_smbus_data data;
-	if (i2c_smbus_xfer(client->adapter,client->addr,client->flags,
-	                   I2C_SMBUS_READ,command, I2C_SMBUS_BYTE_DATA,&data))
-		return -1;
-	else
-		return data.byte;
+	int status;
+
+	status = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
+				I2C_SMBUS_READ, command,
+				I2C_SMBUS_BYTE_DATA, &data);
+	return (status < 0) ? status : data.byte;
 }
 EXPORT_SYMBOL(i2c_smbus_read_byte_data);
 
@@ -1352,11 +1354,12 @@ EXPORT_SYMBOL(i2c_smbus_write_byte_data);
 s32 i2c_smbus_read_word_data(struct i2c_client *client, u8 command)
 {
 	union i2c_smbus_data data;
-	if (i2c_smbus_xfer(client->adapter,client->addr,client->flags,
-	                   I2C_SMBUS_READ,command, I2C_SMBUS_WORD_DATA, &data))
-		return -1;
-	else
-		return data.word;
+	int status;
+
+	status = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
+				I2C_SMBUS_READ, command,
+				I2C_SMBUS_WORD_DATA, &data);
+	return (status < 0) ? status : data.word;
 }
 EXPORT_SYMBOL(i2c_smbus_read_word_data);
 
@@ -1390,11 +1393,13 @@ s32 i2c_smbus_read_block_data(struct i2c_client *client, u8 command,
 			      u8 *values)
 {
 	union i2c_smbus_data data;
+	int status;
 
-	if (i2c_smbus_xfer(client->adapter, client->addr, client->flags,
-	                   I2C_SMBUS_READ, command,
-	                   I2C_SMBUS_BLOCK_DATA, &data))
-		return -1;
+	status = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
+				I2C_SMBUS_READ, command,
+				I2C_SMBUS_BLOCK_DATA, &data);
+	if (status)
+		return status;
 
 	memcpy(values, &data.block[1], data.block[0]);
 	return data.block[0];
@@ -1421,14 +1426,16 @@ s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client, u8 command,
 				  u8 length, u8 *values)
 {
 	union i2c_smbus_data data;
+	int status;
 
 	if (length > I2C_SMBUS_BLOCK_MAX)
 		length = I2C_SMBUS_BLOCK_MAX;
 	data.block[0] = length;
-	if (i2c_smbus_xfer(client->adapter,client->addr,client->flags,
-	                      I2C_SMBUS_READ,command,
-	                      I2C_SMBUS_I2C_BLOCK_DATA,&data))
-		return -1;
+	status = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
+				I2C_SMBUS_READ, command,
+				I2C_SMBUS_I2C_BLOCK_DATA, &data);
+	if (status < 0)
+		return status;
 
 	memcpy(values, &data.block[1], data.block[0]);
 	return data.block[0];
@@ -1469,6 +1476,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 	                        };
 	int i;
 	u8 partial_pec = 0;
+	int status;
 
 	msgbuf0[0] = command;
 	switch(size) {
@@ -1518,10 +1526,10 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 		} else {
 			msg[0].len = data->block[0] + 2;
 			if (msg[0].len > I2C_SMBUS_BLOCK_MAX + 2) {
-				dev_err(&adapter->dev, "smbus_access called with "
-				       "invalid block write size (%d)\n",
-				       data->block[0]);
-				return -1;
+				dev_err(&adapter->dev,
+					"Invalid block write size %d\n",
+					data->block[0]);
+				return -EINVAL;
 			}
 			for (i = 1; i < msg[0].len; i++)
 				msgbuf0[i] = data->block[i-1];
@@ -1531,10 +1539,10 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 		num = 2; /* Another special case */
 		read_write = I2C_SMBUS_READ;
 		if (data->block[0] > I2C_SMBUS_BLOCK_MAX) {
-			dev_err(&adapter->dev, "%s called with invalid "
-				"block proc call size (%d)\n", __func__,
+			dev_err(&adapter->dev,
+				"Invalid block write size %d\n",
 				data->block[0]);
-			return -1;
+			return -EINVAL;
 		}
 		msg[0].len = data->block[0] + 2;
 		for (i = 1; i < msg[0].len; i++)
@@ -1549,19 +1557,18 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 		} else {
 			msg[0].len = data->block[0] + 1;
 			if (msg[0].len > I2C_SMBUS_BLOCK_MAX + 1) {
-				dev_err(&adapter->dev, "i2c_smbus_xfer_emulated called with "
-				       "invalid block write size (%d)\n",
-				       data->block[0]);
-				return -1;
+				dev_err(&adapter->dev,
+					"Invalid block write size %d\n",
+					data->block[0]);
+				return -EINVAL;
 			}
 			for (i = 1; i <= data->block[0]; i++)
 				msgbuf0[i] = data->block[i];
 		}
 		break;
 	default:
-		dev_err(&adapter->dev, "smbus_access called with invalid size (%d)\n",
-		       size);
-		return -1;
+		dev_err(&adapter->dev, "Unsupported transaction %d\n", size);
+		return -EOPNOTSUPP;
 	}
 
 	i = ((flags & I2C_CLIENT_PEC) && size != I2C_SMBUS_QUICK
@@ -1579,13 +1586,15 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 			msg[num-1].len++;
 	}
 
-	if (i2c_transfer(adapter, msg, num) < 0)
-		return -1;
+	status = i2c_transfer(adapter, msg, num);
+	if (status < 0)
+		return status;
 
 	/* Check PEC if last message is a read */
 	if (i && (msg[num-1].flags & I2C_M_RD)) {
-		if (i2c_smbus_check_pec(partial_pec, &msg[num-1]) < 0)
-			return -1;
+		status = i2c_smbus_check_pec(partial_pec, &msg[num-1]);
+		if (status < 0)
+			return status;
 	}
 
 	if (read_write == I2C_SMBUS_READ)
