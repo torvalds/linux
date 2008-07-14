@@ -170,11 +170,13 @@ static void hci_conn_timeout(unsigned long arg)
 
 	switch (conn->state) {
 	case BT_CONNECT:
+	case BT_CONNECT2:
 		if (conn->type == ACL_LINK)
 			hci_acl_connect_cancel(conn);
 		else
 			hci_acl_disconn(conn, 0x13);
 		break;
+	case BT_CONFIG:
 	case BT_CONNECTED:
 		hci_acl_disconn(conn, 0x13);
 		break;

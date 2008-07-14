@@ -624,6 +624,62 @@ static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 	BT_DBG("%s status 0x%x", hdev->name, status);
 }
 
+static void hci_cs_read_remote_features(struct hci_dev *hdev, __u8 status)
+{
+	struct hci_cp_read_remote_features *cp;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	if (!status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_READ_REMOTE_FEATURES);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
+	if (conn) {
+		if (conn->state == BT_CONFIG) {
+			conn->state = BT_CONNECTED;
+			hci_proto_connect_cfm(conn, status);
+			hci_conn_put(conn);
+		}
+	}
+
+	hci_dev_unlock(hdev);
+}
+
+static void hci_cs_read_remote_ext_features(struct hci_dev *hdev, __u8 status)
+{
+	struct hci_cp_read_remote_ext_features *cp;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	if (!status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_READ_REMOTE_EXT_FEATURES);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
+	if (conn) {
+		if (conn->state == BT_CONFIG) {
+			conn->state = BT_CONNECTED;
+			hci_proto_connect_cfm(conn, status);
+			hci_conn_put(conn);
+		}
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cs_setup_sync_conn(struct hci_dev *hdev, __u8 status)
 {
 	struct hci_cp_setup_sync_conn *cp;
@@ -759,7 +815,12 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 
 	if (!ev->status) {
 		conn->handle = __le16_to_cpu(ev->handle);
-		conn->state  = BT_CONNECTED;
+
+		if (conn->type == ACL_LINK) {
+			conn->state = BT_CONFIG;
+			hci_conn_hold(conn);
+		} else
+			conn->state = BT_CONNECTED;
 
 		if (test_bit(HCI_AUTH, &hdev->flags))
 			conn->link_mode |= HCI_LM_AUTH;
@@ -771,7 +832,8 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		if (conn->type == ACL_LINK) {
 			struct hci_cp_read_remote_features cp;
 			cp.handle = ev->handle;
-			hci_send_cmd(hdev, HCI_OP_READ_REMOTE_FEATURES, sizeof(cp), &cp);
+			hci_send_cmd(hdev, HCI_OP_READ_REMOTE_FEATURES,
+							sizeof(cp), &cp);
 		}
 
 		/* Set packet type for incoming connection */
@@ -781,10 +843,6 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			cp.pkt_type = cpu_to_le16(conn->pkt_type);
 			hci_send_cmd(hdev, HCI_OP_CHANGE_CONN_PTYPE,
 							sizeof(cp), &cp);
-		} else {
-			/* Update disconnect timer */
-			hci_conn_hold(conn);
-			hci_conn_put(conn);
 		}
 	} else
 		conn->state = BT_CLOSED;
@@ -804,9 +862,10 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		}
 	}
 
-	hci_proto_connect_cfm(conn, ev->status);
-	if (ev->status)
+	if (ev->status) {
+		hci_proto_connect_cfm(conn, ev->status);
 		hci_conn_del(conn);
+	}
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -1006,14 +1065,29 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 
 	BT_DBG("%s status %d", hdev->name, ev->status);
 
-	if (ev->status)
-		return;
-
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
-	if (conn)
-		memcpy(conn->features, ev->features, 8);
+	if (conn) {
+		if (!ev->status)
+			memcpy(conn->features, ev->features, 8);
+
+		if (conn->state == BT_CONFIG) {
+			if (!ev->status && lmp_ssp_capable(hdev) &&
+						lmp_ssp_capable(conn)) {
+				struct hci_cp_read_remote_ext_features cp;
+				cp.handle = ev->handle;
+				cp.page = 0x01;
+				hci_send_cmd(hdev,
+					HCI_OP_READ_REMOTE_EXT_FEATURES,
+							sizeof(cp), &cp);
+			} else {
+				conn->state = BT_CONNECTED;
+				hci_proto_connect_cfm(conn, ev->status);
+				hci_conn_put(conn);
+			}
+		}
+	}
 
 	hci_dev_unlock(hdev);
 }
@@ -1178,6 +1252,14 @@ static inline void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_REMOTE_NAME_REQ:
 		hci_cs_remote_name_req(hdev, ev->status);
+		break;
+
+	case HCI_OP_READ_REMOTE_FEATURES:
+		hci_cs_read_remote_features(hdev, ev->status);
+		break;
+
+	case HCI_OP_READ_REMOTE_EXT_FEATURES:
+		hci_cs_read_remote_ext_features(hdev, ev->status);
 		break;
 
 	case HCI_OP_SETUP_SYNC_CONN:
@@ -1422,19 +1504,24 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 
 	BT_DBG("%s", hdev->name);
 
-	if (ev->status || ev->page != 0x01)
-		return;
-
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn) {
-		struct inquiry_entry *ie;
+		if (!ev->status && ev->page == 0x01) {
+			struct inquiry_entry *ie;
 
-		if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst)))
-			ie->data.ssp_mode = (ev->features[0] & 0x01);
+			if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst)))
+				ie->data.ssp_mode = (ev->features[0] & 0x01);
 
-		conn->ssp_mode = (ev->features[0] & 0x01);
+			conn->ssp_mode = (ev->features[0] & 0x01);
+		}
+
+		if (conn->state == BT_CONFIG) {
+			conn->state = BT_CONNECTED;
+			hci_proto_connect_cfm(conn, ev->status);
+			hci_conn_put(conn);
+		}
 	}
 
 	hci_dev_unlock(hdev);

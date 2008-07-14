@@ -180,6 +180,8 @@ enum {
 
 #define LMP_SNIFF_SUBR	0x02
 
+#define LMP_SIMPLE_PAIR	0x08
+
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
 #define HCI_CM_HOLD	0x0001

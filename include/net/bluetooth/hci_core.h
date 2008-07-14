@@ -348,7 +348,7 @@ static inline void hci_conn_put(struct hci_conn *conn)
 			if (conn->state == BT_CONNECTED) {
 				timeo = msecs_to_jiffies(HCI_DISCONN_TIMEOUT);
 				if (!conn->out)
-					timeo *= 2;
+					timeo *= 5;
 			} else
 				timeo = msecs_to_jiffies(10);
 		} else
@@ -463,6 +463,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_sniff_capable(dev)     ((dev)->features[0] & LMP_SNIFF)
 #define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
 #define lmp_esco_capable(dev)      ((dev)->features[3] & LMP_ESCO)
+#define lmp_ssp_capable(dev)       ((dev)->features[6] & LMP_SIMPLE_PAIR)
 
 /* ----- HCI protocols ----- */
 struct hci_proto {

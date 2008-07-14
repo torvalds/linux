@@ -1283,9 +1283,12 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 		struct hci_conn *c;
 		c = list_entry(p, struct hci_conn, list);
 
-		if (c->type != type || c->state != BT_CONNECTED
-				|| skb_queue_empty(&c->data_q))
+		if (c->type != type || skb_queue_empty(&c->data_q))
 			continue;
+
+		if (c->state != BT_CONNECTED && c->state != BT_CONFIG)
+			continue;
+
 		num++;
 
 		if (c->sent < min) {
