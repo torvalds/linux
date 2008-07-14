@@ -44,6 +44,10 @@ static struct i2c_driver foo_driver = {
 	.id_table	= foo_ids,
 	.probe		= foo_probe,
 	.remove		= foo_remove,
+	/* if device autodetection is needed: */
+	.class		= I2C_CLASS_SOMETHING,
+	.detect		= foo_detect,
+	.address_data	= &addr_data,
 
 	/* else, driver uses "legacy" binding model: */
 	.attach_adapter	= foo_attach_adapter,
@@ -215,6 +219,31 @@ many times.
 The call to i2c_new_device() or i2c_new_probed_device() typically happens
 in the I2C bus driver. You may want to save the returned i2c_client
 reference for later use.
+
+
+Device Detection (Standard driver model)
+----------------------------------------
+
+Sometimes you do not know in advance which I2C devices are connected to
+a given I2C bus.  This is for example the case of hardware monitoring
+devices on a PC's SMBus.  In that case, you may want to let your driver
+detect supported devices automatically.  This is how the legacy model
+was working, and is now available as an extension to the standard
+driver model (so that we can finally get rid of the legacy model.)
+
+You simply have to define a detect callback which will attempt to
+identify supported devices (returning 0 for supported ones and -ENODEV
+for unsupported ones), a list of addresses to probe, and a device type
+(or class) so that only I2C buses which may have that type of device
+connected (and not otherwise enumerated) will be probed.  The i2c
+core will then call you back as needed and will instantiate a device
+for you for every successful detection.
+
+Note that this mechanism is purely optional and not suitable for all
+devices.  You need some reliable way to identify the supported devices
+(typically using device-specific, dedicated identification registers),
+otherwise misdetections are likely to occur and things can get wrong
+quickly.
 
 
 Device Deletion (Standard driver model)
