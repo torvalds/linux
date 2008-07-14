@@ -1762,7 +1762,7 @@ lcs_get_control(struct lcs_card *card, struct lcs_cmd *cmd)
 				netif_carrier_off(card->dev);
 			break;
 		default:
-			PRINT_INFO("UNRECOGNIZED LGW COMMAND\n");
+			LCS_DBF_TEXT(5, trace, "noLGWcmd");
 			break;
 		}
 	} else
@@ -2043,13 +2043,12 @@ lcs_probe_device(struct ccwgroup_device *ccwgdev)
 	LCS_DBF_TEXT(2, setup, "add_dev");
         card = lcs_alloc_card();
         if (!card) {
-                PRINT_ERR("Allocation of lcs card failed\n");
+		LCS_DBF_TEXT_(2, setup, "  rc%d", -ENOMEM);
 		put_device(&ccwgdev->dev);
                 return -ENOMEM;
         }
 	ret = sysfs_create_group(&ccwgdev->dev.kobj, &lcs_attr_group);
 	if (ret) {
-                PRINT_ERR("Creating attributes failed");
 		lcs_free_card(card);
 		put_device(&ccwgdev->dev);
 		return ret;
@@ -2141,7 +2140,6 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 	default:
 		LCS_DBF_TEXT(3, setup, "errinit");
 		PRINT_ERR("LCS: Initialization failed\n");
-		PRINT_ERR("LCS: No device found!\n");
 		goto out;
 	}
 	if (!dev)
@@ -2270,7 +2268,6 @@ lcs_remove_device(struct ccwgroup_device *ccwgdev)
 	if (!card)
 		return;
 
-	PRINT_INFO("Removing lcs group device ....\n");
 	LCS_DBF_TEXT(3, setup, "remdev");
 	LCS_DBF_HEX(3, setup, &card, sizeof(void*));
 	if (ccwgdev->state == CCWGROUP_ONLINE) {
