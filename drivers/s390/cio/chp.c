@@ -496,6 +496,26 @@ void chp_process_crw(int id, int status)
 		chsc_chp_offline(chpid);
 }
 
+int chp_ssd_get_mask(struct chsc_ssd_info *ssd, struct res_acc_data *data)
+{
+	int i;
+	int mask;
+
+	for (i = 0; i < 8; i++) {
+		mask = 0x80 >> i;
+		if (!(ssd->path_mask & mask))
+			continue;
+		if (!chp_id_is_equal(&ssd->chpid[i], &data->chpid))
+			continue;
+		if ((ssd->fla_valid_mask & mask) &&
+		    ((ssd->fla[i] & data->fla_mask) != data->fla))
+			continue;
+		return mask;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(chp_ssd_get_mask);
+
 static inline int info_bit_num(struct chp_id id)
 {
 	return id.id + id.cssid * (__MAX_CHPID + 1);

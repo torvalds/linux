@@ -564,6 +564,7 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 	}
 	/* Copy subchannel type from path management control word. */
 	sch->st = sch->schib.pmcw.st;
+
 	switch (sch->st) {
 	case SUBCHANNEL_TYPE_IO:
 		err = cio_validate_io_subchannel(sch);

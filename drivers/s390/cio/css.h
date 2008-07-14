@@ -58,18 +58,27 @@ struct pgid {
 	__u32 tod_high;		/* high word TOD clock */
 } __attribute__ ((packed));
 
-/*
- * A css driver handles all subchannels of one type.
- */
 struct subchannel;
+/**
+ * struct css_driver - device driver for subchannels
+ * @owner: owning module
+ * @subchannel_type: subchannel type supported by this driver
+ * @drv: embedded device driver structure
+ * @irq: called on interrupts
+ * @chp_event: called for events affecting a channel path
+ * @sch_event: called for events affecting the subchannel
+ * @probe: function called on probe
+ * @remove: function called on remove
+ * @shutdown: called at device shutdown
+ * @name: name of the device driver
+ */
 struct css_driver {
 	struct module *owner;
 	unsigned int subchannel_type;
 	struct device_driver drv;
 	void (*irq)(struct subchannel *);
-	int (*notify)(struct subchannel *, int);
-	void (*verify)(struct subchannel *);
-	void (*termination)(struct subchannel *);
+	int (*chp_event)(struct subchannel *, void *, int);
+	int (*sch_event)(struct subchannel *, int);
 	int (*probe)(struct subchannel *);
 	int (*remove)(struct subchannel *);
 	void (*shutdown)(struct subchannel *);
@@ -87,7 +96,8 @@ extern int css_driver_register(struct css_driver *);
 extern void css_driver_unregister(struct css_driver *);
 
 extern void css_sch_device_unregister(struct subchannel *);
-extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);
+extern int css_probe_device(struct subchannel_id);
+extern struct subchannel *get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 			       int (*fn_unknown)(struct subchannel_id,
@@ -118,20 +128,6 @@ struct channel_subsystem {
 
 extern struct bus_type css_bus_type;
 extern struct channel_subsystem *channel_subsystems[];
-
-/* Some helper functions for disconnected state. */
-int device_is_disconnected(struct subchannel *);
-void device_set_disconnected(struct subchannel *);
-void device_trigger_reprobe(struct subchannel *);
-
-/* Helper functions for vary on/off. */
-int device_is_online(struct subchannel *);
-void device_kill_io(struct subchannel *);
-void device_set_intretry(struct subchannel *sch);
-int device_trigger_verify(struct subchannel *sch);
-
-/* Machine check helper function. */
-void device_kill_pending_timer(struct subchannel *);
 
 /* Helper functions to build lists for the slow path. */
 void css_schedule_eval(struct subchannel_id schid);

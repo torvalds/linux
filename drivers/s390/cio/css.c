@@ -283,7 +283,7 @@ static int css_register_subchannel(struct subchannel *sch)
 	return ret;
 }
 
-static int css_probe_device(struct subchannel_id schid)
+int css_probe_device(struct subchannel_id schid)
 {
 	int ret;
 	struct subchannel *sch;
@@ -330,112 +330,6 @@ int css_sch_is_valid(struct schib *schib)
 }
 EXPORT_SYMBOL_GPL(css_sch_is_valid);
 
-static int css_get_subchannel_status(struct subchannel *sch)
-{
-	struct schib schib;
-
-	if (stsch(sch->schid, &schib))
-		return CIO_GONE;
-	if (!css_sch_is_valid(&schib))
-		return CIO_GONE;
-	if (sch->schib.pmcw.dnv && (schib.pmcw.dev != sch->schib.pmcw.dev))
-		return CIO_REVALIDATE;
-	if (!sch->lpm)
-		return CIO_NO_PATH;
-	return CIO_OPER;
-}
-
-static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
-{
-	int event, ret, disc;
-	unsigned long flags;
-	enum { NONE, UNREGISTER, UNREGISTER_PROBE, REPROBE } action;
-
-	spin_lock_irqsave(sch->lock, flags);
-	disc = device_is_disconnected(sch);
-	if (disc && slow) {
-		/* Disconnected devices are evaluated directly only.*/
-		spin_unlock_irqrestore(sch->lock, flags);
-		return 0;
-	}
-	/* No interrupt after machine check - kill pending timers. */
-	device_kill_pending_timer(sch);
-	if (!disc && !slow) {
-		/* Non-disconnected devices are evaluated on the slow path. */
-		spin_unlock_irqrestore(sch->lock, flags);
-		return -EAGAIN;
-	}
-	event = css_get_subchannel_status(sch);
-	CIO_MSG_EVENT(4, "Evaluating schid 0.%x.%04x, event %d, %s, %s path.\n",
-		      sch->schid.ssid, sch->schid.sch_no, event,
-		      disc ? "disconnected" : "normal",
-		      slow ? "slow" : "fast");
-	/* Analyze subchannel status. */
-	action = NONE;
-	switch (event) {
-	case CIO_NO_PATH:
-		if (disc) {
-			/* Check if paths have become available. */
-			action = REPROBE;
-			break;
-		}
-		/* fall through */
-	case CIO_GONE:
-		/* Prevent unwanted effects when opening lock. */
-		cio_disable_subchannel(sch);
-		device_set_disconnected(sch);
-		/* Ask driver what to do with device. */
-		action = UNREGISTER;
-		if (sch->driver && sch->driver->notify) {
-			spin_unlock_irqrestore(sch->lock, flags);
-			ret = sch->driver->notify(sch, event);
-			spin_lock_irqsave(sch->lock, flags);
-			if (ret)
-				action = NONE;
-		}
-		break;
-	case CIO_REVALIDATE:
-		/* Device will be removed, so no notify necessary. */
-		if (disc)
-			/* Reprobe because immediate unregister might block. */
-			action = REPROBE;
-		else
-			action = UNREGISTER_PROBE;
-		break;
-	case CIO_OPER:
-		if (disc)
-			/* Get device operational again. */
-			action = REPROBE;
-		break;
-	}
-	/* Perform action. */
-	ret = 0;
-	switch (action) {
-	case UNREGISTER:
-	case UNREGISTER_PROBE:
-		/* Unregister device (will use subchannel lock). */
-		spin_unlock_irqrestore(sch->lock, flags);
-		css_sch_device_unregister(sch);
-		spin_lock_irqsave(sch->lock, flags);
-
-		/* Reset intparm to zeroes. */
-		sch->schib.pmcw.intparm = 0;
-		cio_modify(sch);
-		break;
-	case REPROBE:
-		device_trigger_reprobe(sch);
-		break;
-	default:
-		break;
-	}
-	spin_unlock_irqrestore(sch->lock, flags);
-	/* Probe if necessary. */
-	if (action == UNREGISTER_PROBE)
-		ret = css_probe_device(sch->schid);
-
-	return ret;
-}
-
 static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 {
 	struct schib schib;
@@ -452,6 +346,21 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 			 "slow path.\n", schid.ssid, schid.sch_no, CIO_OPER);
 
 	return css_probe_device(schid);
+}
+
+static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
+{
+	int ret = 0;
+
+	if (sch->driver) {
+		if (sch->driver->sch_event)
+			ret = sch->driver->sch_event(sch, slow);
+		else
+			dev_dbg(&sch->dev,
+				"Got subchannel machine check but "
+				"no sch_event handler provided.\n");
+	}
+	return ret;
 }
 
 static void css_evaluate_subchannel(struct subchannel_id schid, int slow)

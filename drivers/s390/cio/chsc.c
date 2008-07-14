@@ -2,8 +2,7 @@
  *  drivers/s390/cio/chsc.c
  *   S/390 common I/O routines -- channel subsystem call
  *
- *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
- *			      IBM Corporation
+ *    Copyright IBM Corp. 1999,2008
  *    Author(s): Ingo Adlung (adlung@de.ibm.com)
  *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Arnd Bergmann (arndb@de.ibm.com)
@@ -127,77 +126,12 @@ out_free:
 	return ret;
 }
 
-static int check_for_io_on_path(struct subchannel *sch, int mask)
-{
-	int cc;
-
-	cc = stsch(sch->schid, &sch->schib);
-	if (cc)
-		return 0;
-	if (sch->schib.scsw.actl && sch->schib.pmcw.lpum == mask)
-		return 1;
-	return 0;
-}
-
-static void terminate_internal_io(struct subchannel *sch)
-{
-	if (cio_clear(sch)) {
-		/* Recheck device in case clear failed. */
-		sch->lpm = 0;
-		if (device_trigger_verify(sch) != 0)
-			css_schedule_eval(sch->schid);
-		return;
-	}
-	/* Request retry of internal operation. */
-	device_set_intretry(sch);
-	/* Call handler. */
-	if (sch->driver && sch->driver->termination)
-		sch->driver->termination(sch);
-}
-
 static int s390_subchannel_remove_chpid(struct subchannel *sch, void *data)
 {
-	int j;
-	int mask;
-	struct chp_id *chpid = data;
-	struct schib schib;
-
-	for (j = 0; j < 8; j++) {
-		mask = 0x80 >> j;
-		if ((sch->schib.pmcw.pim & mask) &&
-		    (sch->schib.pmcw.chpid[j] == chpid->id))
-			break;
-	}
-	if (j >= 8)
-		return 0;
-
 	spin_lock_irq(sch->lock);
-
-	stsch(sch->schid, &schib);
-	if (!css_sch_is_valid(&schib))
-		goto out_unreg;
-	memcpy(&sch->schib, &schib, sizeof(struct schib));
-	/* Check for single path devices. */
-	if (sch->schib.pmcw.pim == 0x80)
-		goto out_unreg;
-
-	if (check_for_io_on_path(sch, mask)) {
-		if (device_is_online(sch))
-			device_kill_io(sch);
-		else {
-			terminate_internal_io(sch);
-			/* Re-start path verification. */
-			if (sch->driver && sch->driver->verify)
-				sch->driver->verify(sch);
-		}
-	} else {
-		/* trigger path verification. */
-		if (sch->driver && sch->driver->verify)
-			sch->driver->verify(sch);
-		else if (sch->lpm == mask)
+	if (sch->driver && sch->driver->chp_event)
+		if (sch->driver->chp_event(sch, data, CHP_OFFLINE) != 0)
 			goto out_unreg;
-	}
-
 	spin_unlock_irq(sch->lock);
 	return 0;
 
@@ -242,53 +176,11 @@ static int s390_process_res_acc_new_sch(struct subchannel_id schid, void *data)
 	return 0;
 }
 
-struct res_acc_data {
-	struct chp_id chpid;
-	u32 fla_mask;
-	u16 fla;
-};
-
-static int get_res_chpid_mask(struct chsc_ssd_info *ssd,
-			      struct res_acc_data *data)
-{
-	int i;
-	int mask;
-
-	for (i = 0; i < 8; i++) {
-		mask = 0x80 >> i;
-		if (!(ssd->path_mask & mask))
-			continue;
-		if (!chp_id_is_equal(&ssd->chpid[i], &data->chpid))
-			continue;
-		if ((ssd->fla_valid_mask & mask) &&
-		    ((ssd->fla[i] & data->fla_mask) != data->fla))
-			continue;
-		return mask;
-	}
-	return 0;
-}
-
 static int __s390_process_res_acc(struct subchannel *sch, void *data)
 {
-	int chp_mask, old_lpm;
-	struct res_acc_data *res_data = data;
-
 	spin_lock_irq(sch->lock);
-	chp_mask = get_res_chpid_mask(&sch->ssd_info, res_data);
-	if (chp_mask == 0)
-		goto out;
-	if (stsch(sch->schid, &sch->schib))
-		goto out;
-	old_lpm = sch->lpm;
-	sch->lpm = ((sch->schib.pmcw.pim &
-		     sch->schib.pmcw.pam &
-		     sch->schib.pmcw.pom)
-		    | chp_mask) & sch->opm;
-	if (!old_lpm && sch->lpm)
-		device_trigger_reprobe(sch);
-	else if (sch->driver && sch->driver->verify)
-		sch->driver->verify(sch);
-out:
+	if (sch->driver && sch->driver->chp_event)
+		sch->driver->chp_event(sch, data, CHP_ONLINE);
 	spin_unlock_irq(sch->lock);
 
 	return 0;
@@ -509,114 +401,36 @@ void chsc_process_crw(void)
 	} while (sei_area->flags & 0x80);
 }
 
-static int __chp_add_new_sch(struct subchannel_id schid, void *data)
-{
-	struct schib schib;
-
-	if (stsch_err(schid, &schib))
-		/* We're through */
-		return -ENXIO;
-
-	/* Put it on the slow path. */
-	css_schedule_eval(schid);
-	return 0;
-}
-
-
-static int __chp_add(struct subchannel *sch, void *data)
-{
-	int i, mask;
-	struct chp_id *chpid = data;
-
-	spin_lock_irq(sch->lock);
-	for (i=0; i<8; i++) {
-		mask = 0x80 >> i;
-		if ((sch->schib.pmcw.pim & mask) &&
-		    (sch->schib.pmcw.chpid[i] == chpid->id))
-			break;
-	}
-	if (i==8) {
-		spin_unlock_irq(sch->lock);
-		return 0;
-	}
-	if (stsch(sch->schid, &sch->schib)) {
-		spin_unlock_irq(sch->lock);
-		css_schedule_eval(sch->schid);
-		return 0;
-	}
-	sch->lpm = ((sch->schib.pmcw.pim &
-		     sch->schib.pmcw.pam &
-		     sch->schib.pmcw.pom)
-		    | mask) & sch->opm;
-
-	if (sch->driver && sch->driver->verify)
-		sch->driver->verify(sch);
-
-	spin_unlock_irq(sch->lock);
-
-	return 0;
-}
-
 void chsc_chp_online(struct chp_id chpid)
 {
 	char dbf_txt[15];
+	struct res_acc_data res_data;
 
 	sprintf(dbf_txt, "cadd%x.%02x", chpid.cssid, chpid.id);
 	CIO_TRACE_EVENT(2, dbf_txt);
 
 	if (chp_get_status(chpid) != 0) {
+		memset(&res_data, 0, sizeof(struct res_acc_data));
+		res_data.chpid = chpid;
 		/* Wait until previous actions have settled. */
 		css_wait_for_slow_path();
-		for_each_subchannel_staged(__chp_add, __chp_add_new_sch,
-					   &chpid);
+		for_each_subchannel_staged(__s390_process_res_acc, NULL,
+					   &res_data);
 	}
 }
 
 static void __s390_subchannel_vary_chpid(struct subchannel *sch,
 					 struct chp_id chpid, int on)
 {
-	int chp, old_lpm;
-	int mask;
 	unsigned long flags;
+	struct res_acc_data res_data;
 
+	memset(&res_data, 0, sizeof(struct res_acc_data));
+	res_data.chpid = chpid;
 	spin_lock_irqsave(sch->lock, flags);
-	old_lpm = sch->lpm;
-	for (chp = 0; chp < 8; chp++) {
-		mask = 0x80 >> chp;
-		if (!(sch->ssd_info.path_mask & mask))
-			continue;
-		if (!chp_id_is_equal(&sch->ssd_info.chpid[chp], &chpid))
-			continue;
-
-		if (on) {
-			sch->opm |= mask;
-			sch->lpm |= mask;
-			if (!old_lpm)
-				device_trigger_reprobe(sch);
-			else if (sch->driver && sch->driver->verify)
-				sch->driver->verify(sch);
-			break;
-		}
-		sch->opm &= ~mask;
-		sch->lpm &= ~mask;
-		if (check_for_io_on_path(sch, mask)) {
-			if (device_is_online(sch))
-				/* Path verification is done after killing. */
-				device_kill_io(sch);
-			else {
-				/* Kill and retry internal I/O. */
-				terminate_internal_io(sch);
-				/* Re-start path verification. */
-				if (sch->driver && sch->driver->verify)
-					sch->driver->verify(sch);
-			}
-		} else if (!sch->lpm) {
-			if (device_trigger_verify(sch) != 0)
-				css_schedule_eval(sch->schid);
-		} else if (sch->driver && sch->driver->verify)
-			sch->driver->verify(sch);
-		break;
-	}
+	if (sch->driver && sch->driver->chp_event)
+		sch->driver->chp_event(sch, &res_data,
+				       on ? CHP_VARY_ON : CHP_VARY_OFF);
 	spin_unlock_irqrestore(sch->lock, flags);
 }
 
