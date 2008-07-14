@@ -377,12 +377,6 @@ ENTRY(_start_dma_code)
 	w[p0] = r0.l;
 	ssync;
 
-	p0.l = LO(EBIU_SDBCTL);
-	p0.h = HI(EBIU_SDBCTL);     /* SDRAM Memory Bank Control Register */
-	r0 = mem_SDBCTL;
-	w[p0] = r0.l;
-	ssync;
-
 	P2.H = hi(EBIU_SDGCTL);
 	P2.L = lo(EBIU_SDGCTL);
 	R0 = [P2];

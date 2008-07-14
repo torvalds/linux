@@ -315,20 +315,6 @@ config MEM_SIZE
 	depends on BFIN_KERNEL_CLOCK
 	default 64
 
-config MEM_ADD_WIDTH
-	int "Memory Address Width"
-	depends on BFIN_KERNEL_CLOCK
-	depends on (!BF54x)
-	range 8 11
-	default  9 if BFIN533_EZKIT
-	default  9 if BFIN561_EZKIT
-	default  9 if H8606_HVSISTEMAS
-	default 10 if BFIN527_EZKIT
-	default 10 if BFIN537_STAMP
-	default 11 if BFIN533_STAMP
-	default 10 if PNAV10
-	default 10 if BFIN532_IP0X
-
 config PLL_BYPASS
 	bool "Bypass PLL"
 	depends on BFIN_KERNEL_CLOCK

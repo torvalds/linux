@@ -31,7 +31,7 @@
 #include <linux/init.h>
 #include <asm/blackfin.h>
 #include <asm/trace.h>
-#if CONFIG_BFIN_KERNEL_CLOCK
+#ifdef CONFIG_BFIN_KERNEL_CLOCK
 #include <asm/mach-common/clocks.h>
 #include <asm/mach/mem_init.h>
 #endif
@@ -186,7 +186,7 @@ ENTRY(__start)
 
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bf53x_relocate_l1_mem;
-#if CONFIG_BFIN_KERNEL_CLOCK
+#ifdef CONFIG_BFIN_KERNEL_CLOCK
 	call _start_dma_code;
 #endif
 
@@ -319,7 +319,7 @@ ENDPROC(_real_start)
 __FINIT
 
 .section .l1.text
-#if CONFIG_BFIN_KERNEL_CLOCK
+#ifdef CONFIG_BFIN_KERNEL_CLOCK
 ENTRY(_start_dma_code)
 	p0.h = hi(SIC_IWR);
 	p0.l = lo(SIC_IWR);
@@ -387,12 +387,6 @@ ENTRY(_start_dma_code)
 	p0.l = lo(EBIU_SDRRC);
 	p0.h = hi(EBIU_SDRRC);
 	r0 = mem_SDRRC;
-	w[p0] = r0.l;
-	ssync;
-
-	p0.l = LO(EBIU_SDBCTL);
-	p0.h = HI(EBIU_SDBCTL);     /* SDRAM Memory Bank Control Register */
-	r0 = mem_SDBCTL;
 	w[p0] = r0.l;
 	ssync;
 
