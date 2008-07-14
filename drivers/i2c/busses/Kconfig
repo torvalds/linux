@@ -315,6 +315,19 @@ config I2C_NFORCE2
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-nforce2.
 
+config I2C_NFORCE2_S4985
+	tristate "SMBus multiplexing on the Tyan S4985"
+	depends on I2C_NFORCE2 && EXPERIMENTAL
+	help
+	  Enabling this option will add specific SMBus support for the Tyan
+	  S4985 motherboard.  On this 4-CPU board, the SMBus is multiplexed
+	  over 4 different channels, where the various memory module EEPROMs
+	  live.  Saying yes here will give you access to these in addition
+	  to the trunk.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-nforce2-s4985.
+
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
 	depends on EXPERIMENTAL

@@ -124,6 +124,20 @@ static struct dmi_system_id __devinitdata nforce2_dmi_blacklist2[] = {
 
 static struct pci_driver nforce2_driver;
 
+/* For multiplexing support, we need a global reference to the 1st
+   SMBus channel */
+#if defined CONFIG_I2C_NFORCE2_S4985 || defined CONFIG_I2C_NFORCE2_S4985_MODULE
+struct i2c_adapter *nforce2_smbus;
+EXPORT_SYMBOL_GPL(nforce2_smbus);
+
+static void nforce2_set_reference(struct i2c_adapter *adap)
+{
+	nforce2_smbus = adap;
+}
+#else
+static inline void nforce2_set_reference(struct i2c_adapter *adap) { }
+#endif
+
 static void nforce2_abort(struct i2c_adapter *adap)
 {
 	struct nforce2_smbus *smbus = adap->algo_data;
@@ -398,6 +412,7 @@ static int __devinit nforce2_probe(struct pci_dev *dev, const struct pci_device_
 		return -ENODEV;
 	}
 
+	nforce2_set_reference(&smbuses[0].adapter);
 	return 0;
 }
 
@@ -406,6 +421,7 @@ static void __devexit nforce2_remove(struct pci_dev *dev)
 {
 	struct nforce2_smbus *smbuses = (void*) pci_get_drvdata(dev);
 
+	nforce2_set_reference(NULL);
 	if (smbuses[0].base) {
 		i2c_del_adapter(&smbuses[0].adapter);
 		release_region(smbuses[0].base, smbuses[0].size);
