@@ -1931,7 +1931,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 			       "no rate found\n",
 			       wiphy_name(local->hw.wiphy));
 		}
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		skb = NULL;
 		goto out;
 	}
