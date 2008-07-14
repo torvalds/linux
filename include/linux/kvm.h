@@ -474,5 +474,6 @@ struct kvm_trace_rec {
 #define KVM_TRC_GTLB_WRITE       (KVM_TRC_HANDLER + 0x16)
 #define KVM_TRC_STLB_WRITE       (KVM_TRC_HANDLER + 0x17)
 #define KVM_TRC_STLB_INVAL       (KVM_TRC_HANDLER + 0x18)
+#define KVM_TRC_PPC_INSTR        (KVM_TRC_HANDLER + 0x19)
 
 #endif
