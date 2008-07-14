@@ -1,0 +1,72 @@
+config UBIFS_FS
+	tristate "UBIFS file system support"
+	select CRC16
+	select CRC32
+	select CRYPTO if UBIFS_FS_ADVANCED_COMPR
+	select CRYPTO if UBIFS_FS_LZO
+	select CRYPTO if UBIFS_FS_ZLIB
+	select CRYPTO_LZO if UBIFS_FS_LZO
+	select CRYPTO_DEFLATE if UBIFS_FS_ZLIB
+	depends on MTD_UBI
+	help
+	  UBIFS is a file system for flash devices which works on top of UBI.
+
+config UBIFS_FS_XATTR
+	bool "Extended attributes support"
+	depends on UBIFS_FS
+	help
+	  This option enables support of extended attributes.
+
+config UBIFS_FS_ADVANCED_COMPR
+	bool "Advanced compression options"
+	depends on UBIFS_FS
+	help
+	  This option allows to explicitly choose which compressions, if any,
+	  are enabled in UBIFS. Removing compressors means inbility to read
+	  existing file systems.
+
+	  If unsure, say 'N'.
+
+config UBIFS_FS_LZO
+	bool "LZO compression support" if UBIFS_FS_ADVANCED_COMPR
+	depends on UBIFS_FS
+	default y
+	help
+	   LZO compressor is generally faster then zlib but compresses worse.
+	   Say 'Y' if unsure.
+
+config UBIFS_FS_ZLIB
+	bool "ZLIB compression support" if UBIFS_FS_ADVANCED_COMPR
+	depends on UBIFS_FS
+	default y
+	help
+	  Zlib copresses better then LZO but it is slower. Say 'Y' if unsure.
+
+# Debugging-related stuff
+config UBIFS_FS_DEBUG
+	bool "Enable debugging"
+	depends on UBIFS_FS
+	select DEBUG_FS
+	select KALLSYMS_ALL
+	help
+	  This option enables UBIFS debugging.
+
+config UBIFS_FS_DEBUG_MSG_LVL
+	int "Default message level (0 = no extra messages, 3 = lots)"
+	depends on UBIFS_FS_DEBUG
+	default "0"
+	help
+	  This controls the amount of debugging messages produced by UBIFS.
+	  If reporting bugs, please try to have available a full dump of the
+	  messages at level 1 while the misbehaviour was occurring. Level 2
+	  may become necessary if level 1 messages were not enough to find the
+	  bug. Generally Level 3 should be avoided.
+
+config UBIFS_FS_DEBUG_CHKS
+	bool "Enable extra checks"
+	depends on UBIFS_FS_DEBUG
+	help
+	  If extra checks are enabled UBIFS will check the consistency of its
+	  internal data structures during operation. However, UBIFS performance
+	  is dramatically slower when this option is selected especially if the
+	  file system is large.
