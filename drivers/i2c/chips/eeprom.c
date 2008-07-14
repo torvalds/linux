@@ -158,7 +158,7 @@ static int eeprom_attach_adapter(struct i2c_adapter *adapter)
 /* This function is called by i2c_probe */
 static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 {
-	struct i2c_client *new_client;
+	struct i2c_client *client;
 	struct eeprom_data *data;
 	int err = 0;
 
@@ -184,22 +184,20 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit;
 	}
 
-	new_client = &data->client;
+	client = &data->client;
 	memset(data->data, 0xff, EEPROM_SIZE);
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &eeprom_driver;
-	new_client->flags = 0;
+	i2c_set_clientdata(client, data);
+	client->addr = address;
+	client->adapter = adapter;
+	client->driver = &eeprom_driver;
 
 	/* Fill in the remaining client fields */
-	strlcpy(new_client->name, "eeprom", I2C_NAME_SIZE);
-	data->valid = 0;
+	strlcpy(client->name, "eeprom", I2C_NAME_SIZE);
 	mutex_init(&data->update_lock);
 	data->nature = UNKNOWN;
 
 	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
+	if ((err = i2c_attach_client(client)))
 		goto exit_kfree;
 
 	/* Detect the Vaio nature of EEPROMs.
@@ -208,27 +206,27 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 	 && i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_BYTE_DATA)) {
 		char name[4];
 
-		name[0] = i2c_smbus_read_byte_data(new_client, 0x80);
-		name[1] = i2c_smbus_read_byte_data(new_client, 0x81);
-		name[2] = i2c_smbus_read_byte_data(new_client, 0x82);
-		name[3] = i2c_smbus_read_byte_data(new_client, 0x83);
+		name[0] = i2c_smbus_read_byte_data(client, 0x80);
+		name[1] = i2c_smbus_read_byte_data(client, 0x81);
+		name[2] = i2c_smbus_read_byte_data(client, 0x82);
+		name[3] = i2c_smbus_read_byte_data(client, 0x83);
 
 		if (!memcmp(name, "PCG-", 4) || !memcmp(name, "VGN-", 4)) {
-			dev_info(&new_client->dev, "Vaio EEPROM detected, "
+			dev_info(&client->dev, "Vaio EEPROM detected, "
 				 "enabling privacy protection\n");
 			data->nature = VAIO;
 		}
 	}
 
 	/* create the sysfs eeprom file */
-	err = sysfs_create_bin_file(&new_client->dev.kobj, &eeprom_attr);
+	err = sysfs_create_bin_file(&client->dev.kobj, &eeprom_attr);
 	if (err)
 		goto exit_detach;
 
 	return 0;
 
 exit_detach:
-	i2c_detach_client(new_client);
+	i2c_detach_client(client);
 exit_kfree:
 	kfree(data);
 exit:

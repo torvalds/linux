@@ -188,7 +188,7 @@ static int pcf8591_attach_adapter(struct i2c_adapter *adapter)
 /* This function is called by i2c_probe */
 static int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 {
-	struct i2c_client *new_client;
+	struct i2c_client *client;
 	struct pcf8591_data *data;
 	int err = 0;
 
@@ -203,12 +203,11 @@ static int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit;
 	}
 	
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &pcf8591_driver;
-	new_client->flags = 0;
+	client = &data->client;
+	i2c_set_clientdata(client, data);
+	client->addr = address;
+	client->adapter = adapter;
+	client->driver = &pcf8591_driver;
 
 	/* Now, we would do the remaining detection. But the PCF8591 is plainly
 	   impossible to detect! Stupid chip. */
@@ -219,31 +218,31 @@ static int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Fill in the remaining client fields and put it into the global 
 	   list */
-	strlcpy(new_client->name, "pcf8591", I2C_NAME_SIZE);
+	strlcpy(client->name, "pcf8591", I2C_NAME_SIZE);
 	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
+	if ((err = i2c_attach_client(client)))
 		goto exit_kfree;
 
 	/* Initialize the PCF8591 chip */
-	pcf8591_init_client(new_client);
+	pcf8591_init_client(client);
 
 	/* Register sysfs hooks */
-	err = sysfs_create_group(&new_client->dev.kobj, &pcf8591_attr_group);
+	err = sysfs_create_group(&client->dev.kobj, &pcf8591_attr_group);
 	if (err)
 		goto exit_detach;
 
 	/* Register input2 if not in "two differential inputs" mode */
 	if (input_mode != 3) {
-		if ((err = device_create_file(&new_client->dev,
+		if ((err = device_create_file(&client->dev,
 					      &dev_attr_in2_input)))
 			goto exit_sysfs_remove;
 	}
 
 	/* Register input3 only in "four single ended inputs" mode */
 	if (input_mode == 0) {
-		if ((err = device_create_file(&new_client->dev,
+		if ((err = device_create_file(&client->dev,
 					      &dev_attr_in3_input)))
 			goto exit_sysfs_remove;
 	}
@@ -251,10 +250,10 @@ static int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 	return 0;
 
 exit_sysfs_remove:
-	sysfs_remove_group(&new_client->dev.kobj, &pcf8591_attr_group_opt);
-	sysfs_remove_group(&new_client->dev.kobj, &pcf8591_attr_group);
+	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group_opt);
+	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group);
 exit_detach:
-	i2c_detach_client(new_client);
+	i2c_detach_client(client);
 exit_kfree:
 	kfree(data);
 exit:

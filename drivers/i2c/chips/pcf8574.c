@@ -127,7 +127,7 @@ static int pcf8574_attach_adapter(struct i2c_adapter *adapter)
 /* This function is called by i2c_probe */
 static int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
 {
-	struct i2c_client *new_client;
+	struct i2c_client *client;
 	struct pcf8574_data *data;
 	int err = 0;
 	const char *client_name = "";
@@ -142,12 +142,11 @@ static int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit;
 	}
 
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &pcf8574_driver;
-	new_client->flags = 0;
+	client = &data->client;
+	i2c_set_clientdata(client, data);
+	client->addr = address;
+	client->adapter = adapter;
+	client->driver = &pcf8574_driver;
 
 	/* Now, we would do the remaining detection. But the PCF8574 is plainly
 	   impossible to detect! Stupid chip. */
@@ -166,23 +165,23 @@ static int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
 		client_name = "pcf8574";
 
 	/* Fill in the remaining client fields and put it into the global list */
-	strlcpy(new_client->name, client_name, I2C_NAME_SIZE);
+	strlcpy(client->name, client_name, I2C_NAME_SIZE);
 
 	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
+	if ((err = i2c_attach_client(client)))
 		goto exit_free;
 	
 	/* Initialize the PCF8574 chip */
-	pcf8574_init_client(new_client);
+	pcf8574_init_client(client);
 
 	/* Register sysfs hooks */
-	err = sysfs_create_group(&new_client->dev.kobj, &pcf8574_attr_group);
+	err = sysfs_create_group(&client->dev.kobj, &pcf8574_attr_group);
 	if (err)
 		goto exit_detach;
 	return 0;
 
       exit_detach:
-	i2c_detach_client(new_client);
+	i2c_detach_client(client);
       exit_free:
 	kfree(data);
       exit:
