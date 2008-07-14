@@ -624,7 +624,7 @@ static inline unsigned long long pte_update(pte_t *p,
 	: "cc" );
 #else /* PTE_ATOMIC_UPDATES */
 	unsigned long long old = pte_val(*p);
-	*p = __pte((old & ~clr) | set);
+	*p = __pte((old & ~(unsigned long long)clr) | set);
 #endif /* !PTE_ATOMIC_UPDATES */
 
 #ifdef CONFIG_44x
