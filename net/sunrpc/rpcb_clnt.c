@@ -168,6 +168,30 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 	return rpc_create(&args);
 }
 
+static int rpcb_register_call(struct sockaddr *addr, size_t addrlen,
+			      u32 version, struct rpc_message *msg,
+			      int *result)
+{
+	struct rpc_clnt *rpcb_clnt;
+	int error = 0;
+
+	*result = 0;
+
+	rpcb_clnt = rpcb_create_local(addr, addrlen, version);
+	if (!IS_ERR(rpcb_clnt)) {
+		error = rpc_call_sync(rpcb_clnt, msg, 0);
+		rpc_shutdown_client(rpcb_clnt);
+	} else
+		error = PTR_ERR(rpcb_clnt);
+
+	if (error < 0)
+		printk(KERN_WARNING "RPC: failed to contact local rpcbind "
+				"server (errno %d).\n", -error);
+	dprintk("RPC:       registration status %d/%d\n", error, *result);
+
+	return error;
+}
+
 /**
  * rpcb_register - set or unset a port registration with the local rpcbind svc
  * @prog: RPC program number to bind
@@ -189,33 +213,21 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 		.r_port		= port,
 	};
 	struct rpc_message msg = {
-		.rpc_proc	= &rpcb_procedures2[port ?
-					RPCBPROC_SET : RPCBPROC_UNSET],
 		.rpc_argp	= &map,
 		.rpc_resp	= okay,
 	};
-	struct rpc_clnt *rpcb_clnt;
-	int error = 0;
 
 	dprintk("RPC:       %sregistering (%u, %u, %d, %u) with local "
 			"rpcbind\n", (port ? "" : "un"),
 			prog, vers, prot, port);
 
-	rpcb_clnt = rpcb_create_local((struct sockaddr *)&rpcb_inaddr_loopback,
+	msg.rpc_proc = &rpcb_procedures2[RPCBPROC_UNSET];
+	if (port)
+		msg.rpc_proc = &rpcb_procedures2[RPCBPROC_SET];
+
+	return rpcb_register_call((struct sockaddr *)&rpcb_inaddr_loopback,
 					sizeof(rpcb_inaddr_loopback),
-					RPCBVERS_2);
-	if (!IS_ERR(rpcb_clnt)) {
-		error = rpc_call_sync(rpcb_clnt, &msg, 0);
-		rpc_shutdown_client(rpcb_clnt);
-	} else
-		error = PTR_ERR(rpcb_clnt);
-
-	if (error < 0)
-		printk(KERN_WARNING "RPC: failed to contact local rpcbind "
-				"server (errno %d).\n", -error);
-	dprintk("RPC:       registration status %d/%d\n", error, *okay);
-
-	return error;
+					RPCBVERS_2, &msg, okay);
 }
 
 /**
