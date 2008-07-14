@@ -861,7 +861,7 @@ static struct platform_device bfin_sport1_uart_device = {
 #endif
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
-#define PATA_INT	55
+#define PATA_INT	IRQ_PF5
 
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 1,
