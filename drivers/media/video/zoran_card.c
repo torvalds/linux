@@ -355,8 +355,14 @@ i2cid_to_modulename (u16 i2c_id)
 	case I2C_DRIVERID_BT856:
 		name = "bt856";
 		break;
+	case I2C_DRIVERID_BT866:
+		name = "bt866";
+		break;
 	case I2C_DRIVERID_VPX3220:
 		name = "vpx3220";
+		break;
+	case I2C_DRIVERID_KS0127:
+		name = "ks0127";
 		break;
 	}
 
