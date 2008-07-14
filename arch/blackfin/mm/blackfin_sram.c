@@ -549,13 +549,16 @@ EXPORT_SYMBOL(sram_alloc_with_lsl);
 /* Once we get a real allocator, we'll throw all of this away.
  * Until then, we need some sort of visibility into the L1 alloc.
  */
-static void _l1sram_proc_read(char *buf, int *len, const char *desc,
+/* Need to keep line of output the same.  Currently, that is 44 bytes
+ * (including newline).
+ */
+static int _l1sram_proc_read(char *buf, int *len, int count, const char *desc,
 		struct l1_sram_piece *pfree, const int array_size)
 {
 	int i;
 
-	*len += sprintf(&buf[*len], "--- L1 %-14s Size  PID State\n", desc);
-	for (i = 0; i < array_size; ++i) {
+	*len += sprintf(&buf[*len], "--- L1 %-14s Size   PID State     \n", desc);
+	for (i = 0; i < array_size && *len < count; ++i) {
 		const char *alloc_type;
 		switch (pfree[i].flag) {
 		case SRAM_SLT_NULL:      alloc_type = "NULL"; break;
@@ -563,31 +566,42 @@ static void _l1sram_proc_read(char *buf, int *len, const char *desc,
 		case SRAM_SLT_ALLOCATED: alloc_type = "ALLOCATED"; break;
 		default:                 alloc_type = "????"; break;
 		}
-		*len += sprintf(&buf[*len], "%p-%p %8i %4i %s\n",
+		/* if we've got a lot of space to cover, omit things */
+		if ((PAGE_SIZE - 1024) < (CONFIG_L1_MAX_PIECE + 1) * 4 * 44 &&
+		    pfree[i].size == 0)
+			continue;
+		*len += sprintf(&buf[*len], "%p-%p %8i %5i %-10s\n",
 			pfree[i].paddr, pfree[i].paddr + pfree[i].size,
 			pfree[i].size, pfree[i].pid, alloc_type);
 	}
+	return (i != array_size);
 }
 static int l1sram_proc_read(char *buf, char **start, off_t offset, int count,
 		int *eof, void *data)
 {
 	int len = 0;
 
-	_l1sram_proc_read(buf, &len, "Scratchpad",
-			l1_ssram, ARRAY_SIZE(l1_ssram));
+	if (_l1sram_proc_read(buf, &len, count, "Scratchpad",
+			l1_ssram, ARRAY_SIZE(l1_ssram)))
+		goto not_done;
 #if L1_DATA_A_LENGTH != 0
-	_l1sram_proc_read(buf, &len, "Data A",
-			l1_data_A_sram, ARRAY_SIZE(l1_data_A_sram));
+	if (_l1sram_proc_read(buf, &len, count, "Data A",
+			l1_data_A_sram, ARRAY_SIZE(l1_data_A_sram)))
+		goto not_done;
 #endif
 #if L1_DATA_B_LENGTH != 0
-	_l1sram_proc_read(buf, &len, "Data B",
-			l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
+	if (_l1sram_proc_read(buf, &len, count, "Data B",
+			l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram)))
+		goto not_done;
 #endif
 #if L1_CODE_LENGTH != 0
-	_l1sram_proc_read(buf, &len, "Instruction",
-			l1_inst_sram, ARRAY_SIZE(l1_inst_sram));
+	if (_l1sram_proc_read(buf, &len, count, "Instruction",
+			l1_inst_sram, ARRAY_SIZE(l1_inst_sram)))
+		goto not_done;
 #endif
 
+	*eof = 1;
+ not_done:
 	return len;
 }
 
