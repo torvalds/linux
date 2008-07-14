@@ -30,6 +30,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
+#include <asm/ftrace.h>
 
 #undef SHOW_SYSCALLS
 #undef SHOW_SYSCALLS_TASK
@@ -1035,3 +1036,129 @@ machine_check_in_rtas:
 	/* XXX load up BATs and panic */
 
 #endif /* CONFIG_PPC_RTAS */
+
+#ifdef CONFIG_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE
+_GLOBAL(mcount)
+_GLOBAL(_mcount)
+	stwu	r1,-48(r1)
+	stw	r3, 12(r1)
+	stw	r4, 16(r1)
+	stw	r5, 20(r1)
+	stw	r6, 24(r1)
+	mflr	r3
+	stw	r7, 28(r1)
+	mfcr	r5
+	stw	r8, 32(r1)
+	stw	r9, 36(r1)
+	stw	r10,40(r1)
+	stw	r3, 44(r1)
+	stw	r5, 8(r1)
+	subi	r3, r3, MCOUNT_INSN_SIZE
+	.globl mcount_call
+mcount_call:
+	bl	ftrace_stub
+	nop
+	lwz	r6, 8(r1)
+	lwz	r0, 44(r1)
+	lwz	r3, 12(r1)
+	mtctr	r0
+	lwz	r4, 16(r1)
+	mtcr	r6
+	lwz	r5, 20(r1)
+	lwz	r6, 24(r1)
+	lwz	r0, 52(r1)
+	lwz	r7, 28(r1)
+	lwz	r8, 32(r1)
+	mtlr	r0
+	lwz	r9, 36(r1)
+	lwz	r10,40(r1)
+	addi	r1, r1, 48
+	bctr
+
+_GLOBAL(ftrace_caller)
+	/* Based off of objdump optput from glibc */
+	stwu	r1,-48(r1)
+	stw	r3, 12(r1)
+	stw	r4, 16(r1)
+	stw	r5, 20(r1)
+	stw	r6, 24(r1)
+	mflr	r3
+	lwz	r4, 52(r1)
+	mfcr	r5
+	stw	r7, 28(r1)
+	stw	r8, 32(r1)
+	stw	r9, 36(r1)
+	stw	r10,40(r1)
+	stw	r3, 44(r1)
+	stw	r5, 8(r1)
+	subi	r3, r3, MCOUNT_INSN_SIZE
+.globl ftrace_call
+ftrace_call:
+	bl	ftrace_stub
+	nop
+	lwz	r6, 8(r1)
+	lwz	r0, 44(r1)
+	lwz	r3, 12(r1)
+	mtctr	r0
+	lwz	r4, 16(r1)
+	mtcr	r6
+	lwz	r5, 20(r1)
+	lwz	r6, 24(r1)
+	lwz	r0, 52(r1)
+	lwz	r7, 28(r1)
+	lwz	r8, 32(r1)
+	mtlr	r0
+	lwz	r9, 36(r1)
+	lwz	r10,40(r1)
+	addi	r1, r1, 48
+	bctr
+#else
+_GLOBAL(mcount)
+_GLOBAL(_mcount)
+	stwu	r1,-48(r1)
+	stw	r3, 12(r1)
+	stw	r4, 16(r1)
+	stw	r5, 20(r1)
+	stw	r6, 24(r1)
+	mflr	r3
+	lwz	r4, 52(r1)
+	mfcr	r5
+	stw	r7, 28(r1)
+	stw	r8, 32(r1)
+	stw	r9, 36(r1)
+	stw	r10,40(r1)
+	stw	r3, 44(r1)
+	stw	r5, 8(r1)
+
+	subi	r3, r3, MCOUNT_INSN_SIZE
+	LOAD_REG_ADDR(r5, ftrace_trace_function)
+	lwz	r5,0(r5)
+
+	mtctr	r5
+	bctrl
+
+	nop
+
+	lwz	r6, 8(r1)
+	lwz	r0, 44(r1)
+	lwz	r3, 12(r1)
+	mtctr	r0
+	lwz	r4, 16(r1)
+	mtcr	r6
+	lwz	r5, 20(r1)
+	lwz	r6, 24(r1)
+	lwz	r0, 52(r1)
+	lwz	r7, 28(r1)
+	lwz	r8, 32(r1)
+	mtlr	r0
+	lwz	r9, 36(r1)
+	lwz	r10,40(r1)
+	addi	r1, r1, 48
+	bctr
+#endif
+
+_GLOBAL(ftrace_stub)
+	blr
+
+#endif /* CONFIG_MCOUNT */
