@@ -136,7 +136,7 @@ static inline void set_vtimer(__u64 expires)
 }
 #endif
 
-static void start_cpu_timer(void)
+void vtime_start_cpu_timer(void)
 {
 	struct vtimer_queue *vt_list;
 
@@ -150,7 +150,7 @@ static void start_cpu_timer(void)
 		set_vtimer(vt_list->idle);
 }
 
-static void stop_cpu_timer(void)
+void vtime_stop_cpu_timer(void)
 {
 	struct vtimer_queue *vt_list;
 
@@ -536,33 +536,12 @@ void init_cpu_vtimer(void)
 
 }
 
-static int vtimer_idle_notify(struct notifier_block *self,
-			      unsigned long action, void *hcpu)
-{
-	switch (action) {
-	case S390_CPU_IDLE:
-		stop_cpu_timer();
-		break;
-	case S390_CPU_NOT_IDLE:
-		start_cpu_timer();
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block vtimer_idle_nb = {
-	.notifier_call = vtimer_idle_notify,
-};
-
 void __init vtime_init(void)
 {
 	/* request the cpu timer external interrupt */
 	if (register_early_external_interrupt(0x1005, do_cpu_timer_interrupt,
 					      &ext_int_info_timer) != 0)
 		panic("Couldn't request external interrupt 0x1005");
-
-	if (register_idle_notifier(&vtimer_idle_nb))
-		panic("Couldn't register idle notifier");
 
 	/* Enable cpu timer interrupts on the boot cpu. */
 	init_cpu_vtimer();

@@ -336,16 +336,6 @@ extern void (*s390_base_mcck_handler_fn)(void);
 extern void (*s390_base_pgm_handler_fn)(void);
 extern void (*s390_base_ext_handler_fn)(void);
 
-/*
- * CPU idle notifier chain.
- */
-#define S390_CPU_IDLE		0
-#define S390_CPU_NOT_IDLE	1
-
-struct notifier_block;
-int register_idle_notifier(struct notifier_block *nb);
-int unregister_idle_notifier(struct notifier_block *nb);
-
 #define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
 
 #endif
