@@ -152,7 +152,7 @@ static int vt596_transaction(u8 size)
 		if ((temp = inb_p(SMBHSTSTS)) & 0x1F) {
 			dev_err(&vt596_adapter.dev, "SMBus reset failed! "
 				"(0x%02x)\n", temp);
-			return -1;
+			return -EBUSY;
 		}
 	}
 
@@ -167,24 +167,24 @@ static int vt596_transaction(u8 size)
 
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
-		result = -1;
+		result = -ETIMEDOUT;
 		dev_err(&vt596_adapter.dev, "SMBus timeout!\n");
 	}
 
 	if (temp & 0x10) {
-		result = -1;
+		result = -EIO;
 		dev_err(&vt596_adapter.dev, "Transaction failed (0x%02x)\n",
 			size);
 	}
 
 	if (temp & 0x08) {
-		result = -1;
+		result = -EIO;
 		dev_err(&vt596_adapter.dev, "SMBus collision!\n");
 	}
 
 	if (temp & 0x04) {
 		int read = inb_p(SMBHSTADD) & 0x01;
-		result = -1;
+		result = -ENXIO;
 		/* The quick and receive byte commands are used to probe
 		   for chips, so errors are expected, and we don't want
 		   to frighten the user. */
@@ -202,12 +202,13 @@ static int vt596_transaction(u8 size)
 	return result;
 }
 
-/* Return -1 on error, 0 on success */
+/* Return negative errno on error, 0 on success */
 static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 		unsigned short flags, char read_write, u8 command,
 		int size, union i2c_smbus_data *data)
 {
 	int i;
+	int status;
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
@@ -258,8 +259,9 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 
 	outb_p(((addr & 0x7f) << 1) | read_write, SMBHSTADD);
 
-	if (vt596_transaction(size)) /* Error in transaction */
-		return -1;
+	status = vt596_transaction(size);
+	if (status)
+		return status;
 
 	if ((read_write == I2C_SMBUS_WRITE) || (size == VT596_QUICK))
 		return 0;
@@ -287,7 +289,7 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 exit_unsupported:
 	dev_warn(&vt596_adapter.dev, "Unsupported command invoked! (0x%02x)\n",
 		 size);
-	return -1;
+	return -EOPNOTSUPP;
 }
 
 static u32 vt596_func(struct i2c_adapter *adapter)

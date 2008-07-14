@@ -67,6 +67,7 @@ static int ali1563_transaction(struct i2c_adapter * a, int size)
 {
 	u32 data;
 	int timeout;
+	int status = -EIO;
 
 	dev_dbg(&a->dev, "Transaction (pre): STS=%02x, CNTL1=%02x, "
 		"CNTL2=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
@@ -103,13 +104,15 @@ static int ali1563_transaction(struct i2c_adapter * a, int size)
 		/* Issue 'kill' to host controller */
 		outb_p(HST_CNTL2_KILL,SMB_HST_CNTL2);
 		data = inb_p(SMB_HST_STS);
+		status = -ETIMEDOUT;
  	}
 
 	/* device error - no response, ignore the autodetection case */
-	if ((data & HST_STS_DEVERR) && (size != HST_CNTL2_QUICK)) {
-		dev_err(&a->dev, "Device error!\n");
+	if (data & HST_STS_DEVERR) {
+		if (size != HST_CNTL2_QUICK)
+			dev_err(&a->dev, "Device error!\n");
+		status = -ENXIO;
 	}
-
 	/* bus collision */
 	if (data & HST_STS_BUSERR) {
 		dev_err(&a->dev, "Bus collision!\n");
@@ -122,13 +125,14 @@ static int ali1563_transaction(struct i2c_adapter * a, int size)
 		outb_p(0x0,SMB_HST_CNTL2);
 	}
 
-	return -1;
+	return status;
 }
 
 static int ali1563_block_start(struct i2c_adapter * a)
 {
 	u32 data;
 	int timeout;
+	int status = -EIO;
 
 	dev_dbg(&a->dev, "Block (pre): STS=%02x, CNTL1=%02x, "
 		"CNTL2=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
@@ -164,13 +168,20 @@ static int ali1563_block_start(struct i2c_adapter * a)
 
 	if (timeout && !(data & HST_STS_BAD))
 		return 0;
+
+	if (timeout == 0)
+		status = -ETIMEDOUT;
+
+	if (data & HST_STS_DEVERR)
+		status = -ENXIO;
+
 	dev_err(&a->dev, "SMBus Error: %s%s%s%s%s\n",
-		timeout ? "Timeout " : "",
+		timeout ? "" : "Timeout ",
 		data & HST_STS_FAIL ? "Transaction Failed " : "",
 		data & HST_STS_BUSERR ? "No response or Bus Collision " : "",
 		data & HST_STS_DEVERR ? "Device Error " : "",
 		!(data & HST_STS_DONE) ? "Transaction Never Finished " : "");
-	return -1;
+	return status;
 }
 
 static int ali1563_block(struct i2c_adapter * a, union i2c_smbus_data * data, u8 rw)

@@ -151,7 +151,7 @@ static int i801_transaction(int xact)
 		outb_p(temp, SMBHSTSTS);
 		if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
 			dev_dbg(&I801_dev->dev, "Failed! (%02x)\n", temp);
-			return -1;
+			return -EBUSY;
 		} else {
 			dev_dbg(&I801_dev->dev, "Successful!\n");
 		}
@@ -170,7 +170,7 @@ static int i801_transaction(int xact)
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
 		dev_dbg(&I801_dev->dev, "SMBus Timeout!\n");
-		result = -1;
+		result = -ETIMEDOUT;
 		/* try to stop the current command */
 		dev_dbg(&I801_dev->dev, "Terminating the current operation\n");
 		outb_p(inb_p(SMBHSTCNT) | SMBHSTCNT_KILL, SMBHSTCNT);
@@ -179,19 +179,19 @@ static int i801_transaction(int xact)
 	}
 
 	if (temp & SMBHSTSTS_FAILED) {
-		result = -1;
+		result = -EIO;
 		dev_dbg(&I801_dev->dev, "Error: Failed bus transaction\n");
 	}
 
 	if (temp & SMBHSTSTS_BUS_ERR) {
-		result = -1;
+		result = -EIO;
 		dev_err(&I801_dev->dev, "Bus collision! SMBus may be locked "
 			"until next hard reset. (sorry!)\n");
 		/* Clock stops and slave is stuck in mid-transmission */
 	}
 
 	if (temp & SMBHSTSTS_DEV_ERR) {
-		result = -1;
+		result = -ENXIO;
 		dev_dbg(&I801_dev->dev, "Error: no response!\n");
 	}
 
@@ -231,6 +231,7 @@ static int i801_block_transaction_by_block(union i2c_smbus_data *data,
 					   char read_write, int hwpec)
 {
 	int i, len;
+	int status;
 
 	inb_p(SMBHSTCNT); /* reset the data buffer index */
 
@@ -242,14 +243,15 @@ static int i801_block_transaction_by_block(union i2c_smbus_data *data,
 			outb_p(data->block[i+1], SMBBLKDAT);
 	}
 
-	if (i801_transaction(I801_BLOCK_DATA | ENABLE_INT9 |
-			     I801_PEC_EN * hwpec))
-		return -1;
+	status = i801_transaction(I801_BLOCK_DATA | ENABLE_INT9 |
+				  I801_PEC_EN * hwpec);
+	if (status)
+		return status;
 
 	if (read_write == I2C_SMBUS_READ) {
 		len = inb_p(SMBHSTDAT0);
 		if (len < 1 || len > I2C_SMBUS_BLOCK_MAX)
-			return -1;
+			return -EPROTO;
 
 		data->block[0] = len;
 		for (i = 0; i < len; i++)
@@ -314,11 +316,11 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 			if (((temp = inb_p(SMBHSTSTS)) & errmask) != 0x00) {
 				dev_err(&I801_dev->dev,
 					"Reset failed! (%02x)\n", temp);
-				return -1;
+				return -EBUSY;
 			}
 			if (i != 1)
 				/* if die in middle of block transaction, fail */
-				return -1;
+				return -EIO;
 		}
 
 		if (i == 1)
@@ -342,19 +344,19 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 			msleep(1);
 			outb_p(inb_p(SMBHSTCNT) & (~SMBHSTCNT_KILL),
 				SMBHSTCNT);
-			result = -1;
+			result = -ETIMEDOUT;
 			dev_dbg(&I801_dev->dev, "SMBus Timeout!\n");
 		}
 
 		if (temp & SMBHSTSTS_FAILED) {
-			result = -1;
+			result = -EIO;
 			dev_dbg(&I801_dev->dev,
 				"Error: Failed bus transaction\n");
 		} else if (temp & SMBHSTSTS_BUS_ERR) {
-			result = -1;
+			result = -EIO;
 			dev_err(&I801_dev->dev, "Bus collision!\n");
 		} else if (temp & SMBHSTSTS_DEV_ERR) {
-			result = -1;
+			result = -ENXIO;
 			dev_dbg(&I801_dev->dev, "Error: no response!\n");
 		}
 
@@ -362,7 +364,7 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 		 && command != I2C_SMBUS_I2C_BLOCK_DATA) {
 			len = inb_p(SMBHSTDAT0);
 			if (len < 1 || len > I2C_SMBUS_BLOCK_MAX)
-				return -1;
+				return -EPROTO;
 			data->block[0] = len;
 		}
 
@@ -394,7 +396,7 @@ static int i801_set_block_buffer_mode(void)
 {
 	outb_p(inb_p(SMBAUXCTL) | SMBAUXCTL_E32B, SMBAUXCTL);
 	if ((inb_p(SMBAUXCTL) & SMBAUXCTL_E32B) == 0)
-		return -1;
+		return -EIO;
 	return 0;
 }
 
@@ -414,7 +416,7 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		} else if (!(i801_features & FEATURE_I2C_BLOCK_READ)) {
 			dev_err(&I801_dev->dev,
 				"I2C block read is unsupported!\n");
-			return -1;
+			return -EOPNOTSUPP;
 		}
 	}
 
@@ -449,7 +451,7 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 	return result;
 }
 
-/* Return -1 on error. */
+/* Return negative errno on error. */
 static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		       unsigned short flags, char read_write, u8 command,
 		       int size, union i2c_smbus_data * data)
@@ -514,7 +516,7 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 	case I2C_SMBUS_PROC_CALL:
 	default:
 		dev_err(&I801_dev->dev, "Unsupported transaction %d\n", size);
-		return -1;
+		return -EOPNOTSUPP;
 	}
 
 	if (hwpec)	/* enable/disable hardware PEC */
@@ -537,7 +539,7 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 	if(block)
 		return ret;
 	if(ret)
-		return -1;
+		return ret;
 	if ((read_write == I2C_SMBUS_WRITE) || (xact == I801_QUICK))
 		return 0;
 

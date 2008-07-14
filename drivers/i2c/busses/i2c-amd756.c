@@ -151,17 +151,17 @@ static int amd756_transaction(struct i2c_adapter *adap)
 	}
 
 	if (temp & GS_PRERR_STS) {
-		result = -1;
+		result = -ENXIO;
 		dev_dbg(&adap->dev, "SMBus Protocol error (no response)!\n");
 	}
 
 	if (temp & GS_COL_STS) {
-		result = -1;
+		result = -EIO;
 		dev_warn(&adap->dev, "SMBus collision!\n");
 	}
 
 	if (temp & GS_TO_STS) {
-		result = -1;
+		result = -ETIMEDOUT;
 		dev_dbg(&adap->dev, "SMBus protocol timeout!\n");
 	}
 
@@ -189,22 +189,23 @@ static int amd756_transaction(struct i2c_adapter *adap)
 	outw_p(inw(SMB_GLOBAL_ENABLE) | GE_ABORT, SMB_GLOBAL_ENABLE);
 	msleep(100);
 	outw_p(GS_CLEAR_STS, SMB_GLOBAL_STATUS);
-	return -1;
+	return -EIO;
 }
 
-/* Return -1 on error. */
+/* Return negative errno on error. */
 static s32 amd756_access(struct i2c_adapter * adap, u16 addr,
 		  unsigned short flags, char read_write,
 		  u8 command, int size, union i2c_smbus_data * data)
 {
 	int i, len;
+	int status;
 
 	/** TODO: Should I supporte the 10-bit transfers? */
 	switch (size) {
 	case I2C_SMBUS_PROC_CALL:
 		dev_dbg(&adap->dev, "I2C_SMBUS_PROC_CALL not supported!\n");
 		/* TODO: Well... It is supported, I'm just not sure what to do here... */
-		return -1;
+		return -EOPNOTSUPP;
 	case I2C_SMBUS_QUICK:
 		outw_p(((addr & 0x7f) << 1) | (read_write & 0x01),
 		       SMB_HOST_ADDRESS);
@@ -256,8 +257,9 @@ static s32 amd756_access(struct i2c_adapter * adap, u16 addr,
 	/* How about enabling interrupts... */
 	outw_p(size & GE_CYC_TYPE_MASK, SMB_GLOBAL_ENABLE);
 
-	if (amd756_transaction(adap))	/* Error in transaction */
-		return -1;
+	status = amd756_transaction(adap);
+	if (status)
+		return status;
 
 	if ((read_write == I2C_SMBUS_WRITE) || (size == AMD756_QUICK))
 		return 0;

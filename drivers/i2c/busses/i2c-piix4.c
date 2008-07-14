@@ -253,7 +253,7 @@ static int piix4_transaction(void)
 		outb_p(temp, SMBHSTSTS);
 		if ((temp = inb_p(SMBHSTSTS)) != 0x00) {
 			dev_err(&piix4_adapter.dev, "Failed! (%02x)\n", temp);
-			return -1;
+			return -EBUSY;
 		} else {
 			dev_dbg(&piix4_adapter.dev, "Successful!\n");
 		}
@@ -275,23 +275,23 @@ static int piix4_transaction(void)
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
 		dev_err(&piix4_adapter.dev, "SMBus Timeout!\n");
-		result = -1;
+		result = -ETIMEDOUT;
 	}
 
 	if (temp & 0x10) {
-		result = -1;
+		result = -EIO;
 		dev_err(&piix4_adapter.dev, "Error: Failed bus transaction\n");
 	}
 
 	if (temp & 0x08) {
-		result = -1;
+		result = -EIO;
 		dev_dbg(&piix4_adapter.dev, "Bus collision! SMBus may be "
 			"locked until next hard reset. (sorry!)\n");
 		/* Clock stops and slave is stuck in mid-transmission */
 	}
 
 	if (temp & 0x04) {
-		result = -1;
+		result = -ENXIO;
 		dev_dbg(&piix4_adapter.dev, "Error: no response!\n");
 	}
 
@@ -309,17 +309,18 @@ static int piix4_transaction(void)
 	return result;
 }
 
-/* Return -1 on error. */
+/* Return negative errno on error. */
 static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 		 unsigned short flags, char read_write,
 		 u8 command, int size, union i2c_smbus_data * data)
 {
 	int i, len;
+	int status;
 
 	switch (size) {
 	case I2C_SMBUS_PROC_CALL:
 		dev_err(&adap->dev, "I2C_SMBUS_PROC_CALL not supported!\n");
-		return -1;
+		return -EOPNOTSUPP;
 	case I2C_SMBUS_QUICK:
 		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
 		       SMBHSTADD);
@@ -371,8 +372,9 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 
 	outb_p((size & 0x1C) + (ENABLE_INT9 & 1), SMBHSTCNT);
 
-	if (piix4_transaction())	/* Error in transaction */
-		return -1;
+	status = piix4_transaction();
+	if (status)
+		return status;
 
 	if ((read_write == I2C_SMBUS_WRITE) || (size == PIIX4_QUICK))
 		return 0;

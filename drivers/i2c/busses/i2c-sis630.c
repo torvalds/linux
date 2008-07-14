@@ -134,7 +134,7 @@ static int sis630_transaction_start(struct i2c_adapter *adap, int size, u8 *oldc
 
 		if ((temp = sis630_read(SMB_CNT) & 0x03) != 0x00) {
 			dev_dbg(&adap->dev, "Failed! (%02x)\n", temp);
-			return -1;
+			return -EBUSY;
                 } else {
 			dev_dbg(&adap->dev, "Successful!\n");
 		}
@@ -177,17 +177,17 @@ static int sis630_transaction_wait(struct i2c_adapter *adap, int size)
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
 		dev_dbg(&adap->dev, "SMBus Timeout!\n");
-		result = -1;
+		result = -ETIMEDOUT;
 	}
 
 	if (temp & 0x02) {
 		dev_dbg(&adap->dev, "Error: Failed bus transaction\n");
-		result = -1;
+		result = -ENXIO;
 	}
 
 	if (temp & 0x04) {
 		dev_err(&adap->dev, "Bus collision!\n");
-		result = -1;
+		result = -EIO;
 		/*
 		  TBD: Datasheet say:
 		  the software should clear this bit and restart SMBUS operation.
@@ -250,8 +250,10 @@ static int sis630_block_data(struct i2c_adapter *adap, union i2c_smbus_data *dat
 			if (i==8 || (len<8 && i==len)) {
 				dev_dbg(&adap->dev, "start trans len=%d i=%d\n",len ,i);
 				/* first transaction */
-				if (sis630_transaction_start(adap, SIS630_BLOCK_DATA, &oldclock))
-					return -1;
+				rc = sis630_transaction_start(adap,
+						SIS630_BLOCK_DATA, &oldclock);
+				if (rc)
+					return rc;
 			}
 			else if ((i-1)%8 == 7 || i==len) {
 				dev_dbg(&adap->dev, "trans_wait len=%d i=%d\n",len,i);
@@ -264,9 +266,10 @@ static int sis630_block_data(struct i2c_adapter *adap, union i2c_smbus_data *dat
 					*/
 					sis630_write(SMB_STS,0x10);
 				}
-				if (sis630_transaction_wait(adap, SIS630_BLOCK_DATA)) {
+				rc = sis630_transaction_wait(adap,
+						SIS630_BLOCK_DATA);
+				if (rc) {
 					dev_dbg(&adap->dev, "trans_wait failed\n");
-					rc = -1;
 					break;
 				}
 			}
@@ -275,13 +278,14 @@ static int sis630_block_data(struct i2c_adapter *adap, union i2c_smbus_data *dat
 	else {
 		/* read request */
 		data->block[0] = len = 0;
-		if (sis630_transaction_start(adap, SIS630_BLOCK_DATA, &oldclock)) {
-			return -1;
-		}
+		rc = sis630_transaction_start(adap,
+				SIS630_BLOCK_DATA, &oldclock);
+		if (rc)
+			return rc;
 		do {
-			if (sis630_transaction_wait(adap, SIS630_BLOCK_DATA)) {
+			rc = sis630_transaction_wait(adap, SIS630_BLOCK_DATA);
+			if (rc) {
 				dev_dbg(&adap->dev, "trans_wait failed\n");
-				rc = -1;
 				break;
 			}
 			/* if this first transaction then read byte count */
@@ -311,11 +315,13 @@ static int sis630_block_data(struct i2c_adapter *adap, union i2c_smbus_data *dat
 	return rc;
 }
 
-/* Return -1 on error. */
+/* Return negative errno on error. */
 static s32 sis630_access(struct i2c_adapter *adap, u16 addr,
 			 unsigned short flags, char read_write,
 			 u8 command, int size, union i2c_smbus_data *data)
 {
+	int status;
+
 	switch (size) {
 		case I2C_SMBUS_QUICK:
 			sis630_write(SMB_ADDR, ((addr & 0x7f) << 1) | (read_write & 0x01));
@@ -350,13 +356,13 @@ static s32 sis630_access(struct i2c_adapter *adap, u16 addr,
 			size = SIS630_BLOCK_DATA;
 			return sis630_block_data(adap, data, read_write);
 		default:
-			printk("Unsupported I2C size\n");
-			return -1;
-			break;
+			printk("Unsupported SMBus operation\n");
+			return -EOPNOTSUPP;
 	}
 
-	if (sis630_transaction(adap, size))
-		return -1;
+	status = sis630_transaction(adap, size);
+	if (status)
+		return status;
 
 	if ((size != SIS630_PCALL) &&
 		((read_write == I2C_SMBUS_WRITE) || (size == SIS630_QUICK))) {
@@ -373,8 +379,7 @@ static s32 sis630_access(struct i2c_adapter *adap, u16 addr,
 			data->word = sis630_read(SMB_BYTE) + (sis630_read(SMB_BYTE + 1) << 8);
 			break;
 		default:
-			return -1;
-			break;
+			return -EOPNOTSUPP;
 	}
 
 	return 0;

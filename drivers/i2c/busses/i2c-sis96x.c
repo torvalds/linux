@@ -111,7 +111,7 @@ static int sis96x_transaction(int size)
 		/* check it again */
 		if (((temp = sis96x_read(SMB_CNT)) & 0x03) != 0x00) {
 			dev_dbg(&sis96x_adapter.dev, "Failed (0x%02x)\n", temp);
-			return -1;
+			return -EBUSY;
 		} else {
 			dev_dbg(&sis96x_adapter.dev, "Successful\n");
 		}
@@ -136,19 +136,19 @@ static int sis96x_transaction(int size)
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
 		dev_dbg(&sis96x_adapter.dev, "SMBus Timeout! (0x%02x)\n", temp);
-		result = -1;
+		result = -ETIMEDOUT;
 	}
 
 	/* device error - probably missing ACK */
 	if (temp & 0x02) {
 		dev_dbg(&sis96x_adapter.dev, "Failed bus transaction!\n");
-		result = -1;
+		result = -ENXIO;
 	}
 
 	/* bus collision */
 	if (temp & 0x04) {
 		dev_dbg(&sis96x_adapter.dev, "Bus collision!\n");
-		result = -1;
+		result = -EIO;
 	}
 
 	/* Finish up by resetting the bus */
@@ -161,11 +161,12 @@ static int sis96x_transaction(int size)
 	return result;
 }
 
-/* Return -1 on error. */
+/* Return negative errno on error. */
 static s32 sis96x_access(struct i2c_adapter * adap, u16 addr,
 			 unsigned short flags, char read_write,
 			 u8 command, int size, union i2c_smbus_data * data)
 {
+	int status;
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
@@ -203,17 +204,17 @@ static s32 sis96x_access(struct i2c_adapter * adap, u16 addr,
 	case I2C_SMBUS_BLOCK_DATA:
 		/* TO DO: */
 		dev_info(&adap->dev, "SMBus block not implemented!\n");
-		return -1;
+		return -EOPNOTSUPP;
 		break;
 
 	default:
-		dev_info(&adap->dev, "Unsupported I2C size\n");
-		return -1;
-		break;
+		dev_info(&adap->dev, "Unsupported SMBus operation\n");
+		return -EOPNOTSUPP;
 	}
 
-	if (sis96x_transaction(size))
-		return -1;
+	status = sis96x_transaction(size);
+	if (status)
+		return status;
 
 	if ((size != SIS96x_PROC_CALL) &&
 		((read_write == I2C_SMBUS_WRITE) || (size == SIS96x_QUICK)))
