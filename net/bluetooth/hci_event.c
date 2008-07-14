@@ -1464,6 +1464,38 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 	hci_dev_unlock(hdev);
 }
 
+static inline void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_io_capa_request *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+	if (conn)
+		hci_conn_hold(conn);
+
+	hci_dev_unlock(hdev);
+}
+
+static inline void hci_simple_pair_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_simple_pair_complete *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+	if (conn)
+		hci_conn_put(conn);
+
+	hci_dev_unlock(hdev);
+}
+
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_event_hdr *hdr = (void *) skb->data;
@@ -1586,6 +1618,14 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_EXTENDED_INQUIRY_RESULT:
 		hci_extended_inquiry_result_evt(hdev, skb);
+		break;
+
+	case HCI_EV_IO_CAPA_REQUEST:
+		hci_io_capa_request_evt(hdev, skb);
+		break;
+
+	case HCI_EV_SIMPLE_PAIR_COMPLETE:
+		hci_simple_pair_complete_evt(hdev, skb);
 		break;
 
 	default:
