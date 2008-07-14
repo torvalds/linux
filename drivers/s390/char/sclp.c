@@ -506,6 +506,8 @@ sclp_state_change_cb(struct evbuf_header *evbuf)
 	if (scbuf->validity_sclp_send_mask)
 		sclp_send_mask = scbuf->sclp_send_mask;
 	spin_unlock_irqrestore(&sclp_lock, flags);
+	if (scbuf->validity_sclp_active_facility_mask)
+		sclp_facilities = scbuf->sclp_active_facility_mask;
 	sclp_dispatch_state_change();
 }
 
