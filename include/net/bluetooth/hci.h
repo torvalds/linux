@@ -137,6 +137,8 @@ enum {
 #define ESCO_EV4	0x0010
 #define ESCO_EV5	0x0020
 
+#define SCO_ESCO_MASK  (ESCO_HV1 | ESCO_HV2 | ESCO_HV3)
+
 /* ACL flags */
 #define ACL_CONT		0x01
 #define ACL_START		0x02
@@ -694,6 +696,13 @@ struct hci_ev_clock_offset {
 	__u8     status;
 	__le16   handle;
 	__le16   clock_offset;
+} __attribute__ ((packed));
+
+#define HCI_EV_PKT_TYPE_CHANGE		0x1d
+struct hci_ev_pkt_type_change {
+	__u8     status;
+	__le16   handle;
+	__le16   pkt_type;
 } __attribute__ ((packed));
 
 #define HCI_EV_PSCAN_REP_MODE		0x20

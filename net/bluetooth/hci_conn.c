@@ -59,7 +59,8 @@ void hci_acl_connect(struct hci_conn *conn)
 	BT_DBG("%p", conn);
 
 	conn->state = BT_CONNECT;
-	conn->out   = 1;
+	conn->out = 1;
+
 	conn->link_mode = HCI_LM_MASTER;
 
 	conn->attempt++;
@@ -76,7 +77,7 @@ void hci_acl_connect(struct hci_conn *conn)
 		memcpy(conn->dev_class, ie->data.dev_class, 3);
 	}
 
-	cp.pkt_type = cpu_to_le16(hdev->pkt_type & ACL_PTYPE_MASK);
+	cp.pkt_type = cpu_to_le16(conn->pkt_type);
 	if (lmp_rswitch_capable(hdev) && !(hdev->link_mode & HCI_LM_MASTER))
 		cp.role_switch = 0x01;
 	else
@@ -122,7 +123,7 @@ void hci_add_sco(struct hci_conn *conn, __u16 handle)
 	conn->out = 1;
 
 	cp.handle   = cpu_to_le16(handle);
-	cp.pkt_type = cpu_to_le16(hdev->pkt_type & SCO_PTYPE_MASK);
+	cp.pkt_type = cpu_to_le16(conn->pkt_type);
 
 	hci_send_cmd(hdev, HCI_OP_ADD_SCO, sizeof(cp), &cp);
 }
@@ -138,7 +139,7 @@ void hci_setup_sync(struct hci_conn *conn, __u16 handle)
 	conn->out = 1;
 
 	cp.handle   = cpu_to_le16(handle);
-	cp.pkt_type = cpu_to_le16(hdev->esco_type);
+	cp.pkt_type = cpu_to_le16(conn->pkt_type);
 
 	cp.tx_bandwidth   = cpu_to_le32(0x00001f40);
 	cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
@@ -199,12 +200,27 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 		return NULL;
 
 	bacpy(&conn->dst, dst);
-	conn->hdev   = hdev;
-	conn->type   = type;
-	conn->mode   = HCI_CM_ACTIVE;
-	conn->state  = BT_OPEN;
+	conn->hdev  = hdev;
+	conn->type  = type;
+	conn->mode  = HCI_CM_ACTIVE;
+	conn->state = BT_OPEN;
 
 	conn->power_save = 1;
+
+	switch (type) {
+	case ACL_LINK:
+		conn->pkt_type = hdev->pkt_type & ACL_PTYPE_MASK;
+		break;
+	case SCO_LINK:
+		if (lmp_esco_capable(hdev))
+			conn->pkt_type = hdev->esco_type & SCO_ESCO_MASK;
+		else
+			conn->pkt_type = hdev->pkt_type & SCO_PTYPE_MASK;
+		break;
+	case ESCO_LINK:
+		conn->pkt_type = hdev->esco_type;
+		break;
+	}
 
 	skb_queue_head_init(&conn->data_q);
 

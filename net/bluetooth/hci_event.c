@@ -699,14 +699,12 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		}
 
 		/* Set packet type for incoming connection */
-		if (!conn->out) {
+		if (!conn->out && hdev->hci_ver < 3) {
 			struct hci_cp_change_conn_ptype cp;
 			cp.handle = ev->handle;
-			cp.pkt_type = (conn->type == ACL_LINK) ?
-				cpu_to_le16(hdev->pkt_type & ACL_PTYPE_MASK):
-				cpu_to_le16(hdev->pkt_type & SCO_PTYPE_MASK);
-
-			hci_send_cmd(hdev, HCI_OP_CHANGE_CONN_PTYPE, sizeof(cp), &cp);
+			cp.pkt_type = cpu_to_le16(conn->pkt_type);
+			hci_send_cmd(hdev, HCI_OP_CHANGE_CONN_PTYPE,
+							sizeof(cp), &cp);
 		} else {
 			/* Update disconnect timer */
 			hci_conn_hold(conn);
@@ -786,7 +784,7 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 			struct hci_cp_accept_sync_conn_req cp;
 
 			bacpy(&cp.bdaddr, &ev->bdaddr);
-			cp.pkt_type = cpu_to_le16(hdev->esco_type);
+			cp.pkt_type = cpu_to_le16(conn->pkt_type);
 
 			cp.tx_bandwidth   = cpu_to_le32(0x00001f40);
 			cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
@@ -1237,6 +1235,22 @@ static inline void hci_clock_offset_evt(struct hci_dev *hdev, struct sk_buff *sk
 	hci_dev_unlock(hdev);
 }
 
+static inline void hci_pkt_type_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_pkt_type_change *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status %d", hdev->name, ev->status);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
+	if (conn && !ev->status)
+		conn->pkt_type = __le16_to_cpu(ev->pkt_type);
+
+	hci_dev_unlock(hdev);
+}
+
 static inline void hci_pscan_rep_mode_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_pscan_rep_mode *ev = (void *) skb->data;
@@ -1478,6 +1492,10 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_CLOCK_OFFSET:
 		hci_clock_offset_evt(hdev, skb);
+		break;
+
+	case HCI_EV_PKT_TYPE_CHANGE:
+		hci_pkt_type_change_evt(hdev, skb);
 		break;
 
 	case HCI_EV_PSCAN_REP_MODE:
