@@ -453,7 +453,8 @@ static __init int svm_hardware_setup(void)
 	if (npt_enabled) {
 		printk(KERN_INFO "kvm: Nested Paging enabled\n");
 		kvm_enable_tdp();
-	}
+	} else
+		kvm_disable_tdp();
 
 	return 0;
 

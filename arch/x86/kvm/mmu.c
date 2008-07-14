@@ -1870,6 +1870,12 @@ void kvm_enable_tdp(void)
 }
 EXPORT_SYMBOL_GPL(kvm_enable_tdp);
 
+void kvm_disable_tdp(void)
+{
+	tdp_enabled = false;
+}
+EXPORT_SYMBOL_GPL(kvm_disable_tdp);
+
 static void free_mmu_pages(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu_page *sp;
