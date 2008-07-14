@@ -221,18 +221,17 @@ static void __init conmode_default(void)
 #if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
 static void __init setup_zfcpdump(unsigned int console_devno)
 {
-	static char str[64];
+	static char str[41];
 
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return;
 	if (console_devno != -1)
-		sprintf(str, "cio_ignore=all,!0.0.%04x,!0.0.%04x",
+		sprintf(str, " cio_ignore=all,!0.0.%04x,!0.0.%04x",
 			ipl_info.data.fcp.dev_id.devno, console_devno);
 	else
-		sprintf(str, "cio_ignore=all,!0.0.%04x",
+		sprintf(str, " cio_ignore=all,!0.0.%04x",
 			ipl_info.data.fcp.dev_id.devno);
-	strcat(COMMAND_LINE, " ");
-	strcat(COMMAND_LINE, str);
+	strcat(boot_command_line, str);
 	console_loglevel = 2;
 }
 #else
@@ -778,11 +777,9 @@ setup_arch(char **cmdline_p)
 		printk("We are running native (64 bit mode)\n");
 #endif /* CONFIG_64BIT */
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(boot_command_line, COMMAND_LINE, COMMAND_LINE_SIZE);
-
-	*cmdline_p = COMMAND_LINE;
-	*(*cmdline_p + COMMAND_LINE_SIZE - 1) = '\0';
+	/* Have one command line that is parsed and saved in /proc/cmdline */
+	/* boot_command_line has been already set up in early.c */
+	*cmdline_p = boot_command_line;
 
         ROOT_DEV = Root_RAM0;
 

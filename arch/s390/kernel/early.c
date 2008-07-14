@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/pfn.h>
 #include <linux/uaccess.h>
+#include <asm/ebcdic.h>
 #include <asm/ipl.h>
 #include <asm/lowcore.h>
 #include <asm/processor.h>
@@ -26,12 +27,40 @@
 /*
  * Create a Kernel NSS if the SAVESYS= parameter is defined
  */
-#define DEFSYS_CMD_SIZE		96
+#define DEFSYS_CMD_SIZE		128
 #define SAVESYS_CMD_SIZE	32
 
 char kernel_nss_name[NSS_NAME_SIZE + 1];
 
+static void __init setup_boot_command_line(void);
+
+
 #ifdef CONFIG_SHARED_KERNEL
+int __init savesys_ipl_nss(char *cmd, const int cmdlen);
+
+asm(
+	"	.section .init.text,\"ax\",@progbits\n"
+	"	.align	4\n"
+	"	.type	savesys_ipl_nss, @function\n"
+	"savesys_ipl_nss:\n"
+#ifdef CONFIG_64BIT
+	"	stmg	6,15,48(15)\n"
+	"	lgr	14,3\n"
+	"	sam31\n"
+	"	diag	2,14,0x8\n"
+	"	sam64\n"
+	"	lgr	2,14\n"
+	"	lmg	6,15,48(15)\n"
+#else
+	"	stm	6,15,24(15)\n"
+	"	lr	14,3\n"
+	"	diag	2,14,0x8\n"
+	"	lr	2,14\n"
+	"	lm	6,15,24(15)\n"
+#endif
+	"	br	14\n"
+	"	.size	savesys_ipl_nss, .-savesys_ipl_nss\n");
+
 static noinline __init void create_kernel_nss(void)
 {
 	unsigned int i, stext_pfn, eshared_pfn, end_pfn, min_size;
@@ -39,6 +68,7 @@ static noinline __init void create_kernel_nss(void)
 	unsigned int sinitrd_pfn, einitrd_pfn;
 #endif
 	int response;
+	size_t len;
 	char *savesys_ptr;
 	char upper_command_line[COMMAND_LINE_SIZE];
 	char defsys_cmd[DEFSYS_CMD_SIZE];
@@ -49,8 +79,8 @@ static noinline __init void create_kernel_nss(void)
 		return;
 
 	/* Convert COMMAND_LINE to upper case */
-	for (i = 0; i < strlen(COMMAND_LINE); i++)
-		upper_command_line[i] = toupper(COMMAND_LINE[i]);
+	for (i = 0; i < strlen(boot_command_line); i++)
+		upper_command_line[i] = toupper(boot_command_line[i]);
 
 	savesys_ptr = strstr(upper_command_line, "SAVESYS=");
 
@@ -83,7 +113,8 @@ static noinline __init void create_kernel_nss(void)
 	}
 #endif
 
-	sprintf(defsys_cmd, "%s EW MINSIZE=%.7iK", defsys_cmd, min_size);
+	sprintf(defsys_cmd, "%s EW MINSIZE=%.7iK PARMREGS=0-13",
+		defsys_cmd, min_size);
 	sprintf(savesys_cmd, "SAVESYS %s \n IPL %s",
 		kernel_nss_name, kernel_nss_name);
 
@@ -94,12 +125,23 @@ static noinline __init void create_kernel_nss(void)
 		return;
 	}
 
-	__cpcmd(savesys_cmd, NULL, 0, &response);
+	len = strlen(savesys_cmd);
+	ASCEBC(savesys_cmd, len);
+	response = savesys_ipl_nss(savesys_cmd, len);
 
-	if (response != strlen(savesys_cmd)) {
+	/* On success: response is equal to the command size,
+	 *	       max SAVESYS_CMD_SIZE
+	 * On error: response contains the numeric portion of cp error message.
+	 *	     for SAVESYS it will be >= 263
+	 */
+	if (response > SAVESYS_CMD_SIZE) {
 		kernel_nss_name[0] = '\0';
 		return;
 	}
+
+	/* re-setup boot command line with new ipl vm parms */
+	ipl_update_parameters();
+	setup_boot_command_line();
 
 	ipl_flags = IPL_NSS_VALID;
 }
@@ -397,6 +439,26 @@ static __init void rescue_initrd(void)
 #endif
 }
 
+/* Set up boot command line */
+static void __init setup_boot_command_line(void)
+{
+	char *parm = NULL;
+
+	/* copy arch command line */
+	strlcpy(boot_command_line, COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
+	boot_command_line[ARCH_COMMAND_LINE_SIZE - 1] = 0;
+
+	/* append IPL PARM data to the boot command line */
+	if (MACHINE_IS_VM) {
+		parm = boot_command_line + strlen(boot_command_line);
+		*parm++ = ' ';
+		get_ipl_vmparm(parm);
+		if (parm[0] == '=')
+			memmove(boot_command_line, parm + 1, strlen(parm));
+	}
+}
+
+
 /*
  * Save ipl parameters, clear bss memory, initialize storage keys
  * and create a kernel NSS at startup if the SAVESYS= parm is defined
@@ -411,10 +473,12 @@ void __init startup_init(void)
 	init_kernel_storage_key();
 	lockdep_init();
 	lockdep_off();
-	detect_machine_type();
-	create_kernel_nss();
 	sort_main_extable();
 	setup_lowcore_early();
+	detect_machine_type();
+	ipl_update_parameters();
+	setup_boot_command_line();
+	create_kernel_nss();
 	detect_mvpg();
 	detect_ieee();
 	detect_csp();

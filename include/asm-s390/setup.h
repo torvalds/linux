@@ -8,7 +8,9 @@
 #ifndef _ASM_S390_SETUP_H
 #define _ASM_S390_SETUP_H
 
-#define COMMAND_LINE_SIZE 	896
+#define COMMAND_LINE_SIZE	1024
+
+#define ARCH_COMMAND_LINE_SIZE	896
 
 #ifdef __KERNEL__
 
