@@ -387,8 +387,10 @@ cio_modify (struct subchannel *sch)
 	return ret;
 }
 
-/*
- * Enable subchannel.
+/**
+ * cio_enable_subchannel - enable a subchannel.
+ * @sch: subchannel to be enabled
+ * @intparm: interruption parameter to set
  */
 int cio_enable_subchannel(struct subchannel *sch, u32 intparm)
 {
@@ -434,12 +436,13 @@ int cio_enable_subchannel(struct subchannel *sch, u32 intparm)
 	CIO_TRACE_EVENT (2, dbf_txt);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cio_enable_subchannel);
 
-/*
- * Disable subchannel.
+/**
+ * cio_disable_subchannel - disable a subchannel.
+ * @sch: subchannel to disable
  */
-int
-cio_disable_subchannel (struct subchannel *sch)
+int cio_disable_subchannel(struct subchannel *sch)
 {
 	char dbf_txt[15];
 	int ccode;
@@ -484,6 +487,7 @@ cio_disable_subchannel (struct subchannel *sch)
 	CIO_TRACE_EVENT (2, dbf_txt);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cio_disable_subchannel);
 
 int cio_create_sch_lock(struct subchannel *sch)
 {

@@ -95,6 +95,7 @@ u8 chp_get_sch_opm(struct subchannel *sch)
 	}
 	return opm;
 }
+EXPORT_SYMBOL_GPL(chp_get_sch_opm);
 
 /**
  * chp_is_registered - check if a channel-path is registered

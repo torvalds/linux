@@ -158,12 +158,17 @@ static int css_sch_device_register(struct subchannel *sch)
 	return ret;
 }
 
+/**
+ * css_sch_device_unregister - unregister a subchannel
+ * @sch: subchannel to be unregistered
+ */
 void css_sch_device_unregister(struct subchannel *sch)
 {
 	mutex_lock(&sch->reg_mutex);
 	device_unregister(&sch->dev);
 	mutex_unlock(&sch->reg_mutex);
 }
+EXPORT_SYMBOL_GPL(css_sch_device_unregister);
 
 static void ssd_from_pmcw(struct chsc_ssd_info *ssd, struct pmcw *pmcw)
 {
