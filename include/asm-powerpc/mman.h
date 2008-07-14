@@ -1,9 +1,7 @@
 #ifndef _ASM_POWERPC_MMAN_H
 #define _ASM_POWERPC_MMAN_H
 
-#include <asm/cputable.h>
 #include <asm-generic/mman.h>
-#include <linux/mm.h>
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -28,7 +26,12 @@
 #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
 #define MAP_NONBLOCK	0x10000		/* do not block on IO */
 
+#ifdef __KERNEL__
 #ifdef CONFIG_PPC64
+
+#include <asm/cputable.h>
+#include <linux/mm.h>
+
 /*
  * This file is included by linux/mman.h, so we can't use cacl_vm_prot_bits()
  * here.  How important is the optimization?
@@ -56,4 +59,5 @@ static inline int arch_validate_prot(unsigned long prot)
 #define arch_validate_prot(prot) arch_validate_prot(prot)
 
 #endif /* CONFIG_PPC64 */
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_MMAN_H */

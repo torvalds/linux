@@ -2,7 +2,6 @@ include include/asm-generic/Kbuild.asm
 
 header-y += auxvec.h
 header-y += ioctls.h
-header-y += mman.h
 header-y += sembuf.h
 header-y += siginfo.h
 header-y += stat.h
