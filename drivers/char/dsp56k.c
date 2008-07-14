@@ -33,6 +33,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/smp_lock.h>
 
 #include <asm/atarihw.h>
 #include <asm/traps.h>
@@ -436,13 +437,17 @@ static unsigned int dsp56k_poll(struct file *file, poll_table *wait)
 static int dsp56k_open(struct inode *inode, struct file *file)
 {
 	int dev = iminor(inode) & 0x0f;
+	int ret = 0;
 
+	lock_kernel();
 	switch(dev)
 	{
 	case DSP56K_DEV_56001:
 
-		if (test_and_set_bit(0, &dsp56k.in_use))
-			return -EBUSY;
+		if (test_and_set_bit(0, &dsp56k.in_use)) {
+			ret = -EBUSY;
+			goto out;
+		}
 
 		dsp56k.timeout = TIMEOUT;
 		dsp56k.maxio = MAXIO;
@@ -458,10 +463,11 @@ static int dsp56k_open(struct inode *inode, struct file *file)
 		break;
 
 	default:
-		return -ENODEV;
+		ret = -ENODEV;
 	}
-
-	return 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int dsp56k_release(struct inode *inode, struct file *file)

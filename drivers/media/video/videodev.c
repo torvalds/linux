@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
@@ -442,6 +443,7 @@ static int video_open(struct inode *inode, struct file *file)
 
 	if(minor>=VIDEO_NUM_DEVICES)
 		return -ENODEV;
+	lock_kernel();
 	mutex_lock(&videodev_lock);
 	vfl=video_device[minor];
 	if(vfl==NULL) {
@@ -451,6 +453,7 @@ static int video_open(struct inode *inode, struct file *file)
 		vfl=video_device[minor];
 		if (vfl==NULL) {
 			mutex_unlock(&videodev_lock);
+			unlock_kernel();
 			return -ENODEV;
 		}
 	}
@@ -464,6 +467,7 @@ static int video_open(struct inode *inode, struct file *file)
 	}
 	fops_put(old_fops);
 	mutex_unlock(&videodev_lock);
+	unlock_kernel();
 	return err;
 }
 

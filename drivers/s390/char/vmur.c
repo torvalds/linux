@@ -9,6 +9,7 @@
  */
 
 #include <linux/cdev.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 #include <asm/cio.h>
@@ -669,7 +670,7 @@ static int ur_open(struct inode *inode, struct file *file)
 
 	if (accmode == O_RDWR)
 		return -EACCES;
-
+	lock_kernel();
 	/*
 	 * We treat the minor number as the devno of the ur device
 	 * to find in the driver tree.
@@ -677,8 +678,10 @@ static int ur_open(struct inode *inode, struct file *file)
 	devno = MINOR(file->f_dentry->d_inode->i_rdev);
 
 	urd = urdev_get_from_devno(devno);
-	if (!urd)
-		return -ENXIO;
+	if (!urd) {
+		rc = -ENXIO;
+		goto out;
+	}
 
 	spin_lock(&urd->open_lock);
 	while (urd->open_flag) {
@@ -721,6 +724,7 @@ static int ur_open(struct inode *inode, struct file *file)
 		goto fail_urfile_free;
 	urf->file_reclen = rc;
 	file->private_data = urf;
+	unlock_kernel();
 	return 0;
 
 fail_urfile_free:
@@ -731,6 +735,8 @@ fail_unlock:
 	spin_unlock(&urd->open_lock);
 fail_put:
 	urdev_put(urd);
+out:
+	unlock_kernel();
 	return rc;
 }
 

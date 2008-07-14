@@ -37,6 +37,7 @@
 #include "drmP.h"
 #include "drm_sarea.h"
 #include <linux/poll.h>
+#include <linux/smp_lock.h>
 
 static int drm_open_helper(struct inode *inode, struct file *filp,
 			   struct drm_device * dev);
@@ -174,12 +175,14 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("\n");
 
+	/* BKL pushdown: note that nothing else serializes idr_find() */
+	lock_kernel();
 	minor = idr_find(&drm_minors_idr, minor_id);
 	if (!minor)
-		return -ENODEV;
+		goto out;
 
 	if (!(dev = minor->dev))
-		return -ENODEV;
+		goto out;
 
 	old_fops = filp->f_op;
 	filp->f_op = fops_get(&dev->driver->fops);
@@ -189,6 +192,8 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 	}
 	fops_put(old_fops);
 
+out:
+	unlock_kernel();
 	return err;
 }
 

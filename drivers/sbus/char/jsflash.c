@@ -27,6 +27,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
@@ -417,11 +418,17 @@ static int jsf_mmap(struct file * file, struct vm_area_struct * vma)
 
 static int jsf_open(struct inode * inode, struct file * filp)
 {
-
-	if (jsf0.base == 0) return -ENXIO;
-	if (test_and_set_bit(0, (void *)&jsf0.busy) != 0)
+	lock_kernel();
+	if (jsf0.base == 0) {
+		unlock_kernel();
+		return -ENXIO;
+	}
+	if (test_and_set_bit(0, (void *)&jsf0.busy) != 0) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 
+	unlock_kernel();
 	return 0;	/* XXX What security? */
 }
 

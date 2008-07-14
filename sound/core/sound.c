@@ -21,6 +21,7 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/device.h>
 #include <linux/moduleparam.h>
@@ -121,7 +122,7 @@ void *snd_lookup_minor_data(unsigned int minor, int type)
 
 EXPORT_SYMBOL(snd_lookup_minor_data);
 
-static int snd_open(struct inode *inode, struct file *file)
+static int __snd_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode);
 	struct snd_minor *mptr = NULL;
@@ -161,6 +162,18 @@ static int snd_open(struct inode *inode, struct file *file)
 	}
 	fops_put(old_fops);
 	return err;
+}
+
+
+/* BKL pushdown: nasty #ifdef avoidance wrapper */
+static int snd_open(struct inode *inode, struct file *file)
+{
+	int ret;
+
+	lock_kernel();
+	ret = __snd_open(inode, file);
+	unlock_kernel();
+	return ret;
 }
 
 static const struct file_operations snd_fops =

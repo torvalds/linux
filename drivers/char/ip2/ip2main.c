@@ -98,6 +98,7 @@
 #include <linux/major.h>
 #include <linux/wait.h>
 #include <linux/device.h>
+#include <linux/smp_lock.h>
 
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -2908,42 +2909,11 @@ ip2_ipl_ioctl ( struct inode *pInode, struct file *pFile, UINT cmd, ULONG arg )
 static int
 ip2_ipl_open( struct inode *pInode, struct file *pFile )
 {
-	unsigned int iplminor = iminor(pInode);
-	i2eBordStrPtr pB;
-	i2ChanStrPtr  pCh;
 
 #ifdef IP2DEBUG_IPL
 	printk (KERN_DEBUG "IP2IPL: open\n" );
 #endif
-
-	switch(iplminor) {
-	// These are the IPL devices
-	case 0:
-	case 4:
-	case 8:
-	case 12:
-		break;
-
-	// These are the status devices
-	case 1:
-	case 5:
-	case 9:
-	case 13:
-		break;
-
-	// These are the debug devices
-	case 2:
-	case 6:
-	case 10:
-	case 14:
-		pB = i2BoardPtrTable[iplminor / 4];
-		pCh = (i2ChanStrPtr) pB->i2eChannelPtr;
-		break;
-
-	// This is the trace device
-	case 3:
-		break;
-	}
+	cycle_kernel_lock();
 	return 0;
 }
 

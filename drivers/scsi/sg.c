@@ -49,6 +49,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
 #include <linux/blktrace_api.h>
+#include <linux/smp_lock.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -227,19 +228,26 @@ sg_open(struct inode *inode, struct file *filp)
 	int res;
 	int retval;
 
+	lock_kernel();
 	nonseekable_open(inode, filp);
 	SCSI_LOG_TIMEOUT(3, printk("sg_open: dev=%d, flags=0x%x\n", dev, flags));
 	sdp = sg_get_dev(dev);
-	if ((!sdp) || (!sdp->device))
+	if ((!sdp) || (!sdp->device)) {
+		unlock_kernel();
 		return -ENXIO;
-	if (sdp->detached)
+	}
+	if (sdp->detached) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	/* This driver's module count bumped by fops_get in <linux/fs.h> */
 	/* Prevent the device driver from vanishing while we sleep */
 	retval = scsi_device_get(sdp->device);
-	if (retval)
+	if (retval) {
+		unlock_kernel();
 		return retval;
+	}
 
 	if (!((flags & O_NONBLOCK) ||
 	      scsi_block_when_processing_errors(sdp->device))) {
@@ -295,10 +303,12 @@ sg_open(struct inode *inode, struct file *filp)
 		retval = -ENOMEM;
 		goto error_out;
 	}
+	unlock_kernel();
 	return 0;
 
       error_out:
 	scsi_device_put(sdp->device);
+	unlock_kernel();
 	return retval;
 }
 

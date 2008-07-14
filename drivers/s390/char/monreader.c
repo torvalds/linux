@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -291,6 +292,7 @@ static int mon_open(struct inode *inode, struct file *filp)
 	/*
 	 * only one user allowed
 	 */
+	lock_kernel();
 	rc = -EBUSY;
 	if (test_and_set_bit(MON_IN_USE, &mon_in_use))
 		goto out;
@@ -327,6 +329,7 @@ static int mon_open(struct inode *inode, struct file *filp)
 		goto out_path;
 	}
 	filp->private_data = monpriv;
+	unlock_kernel();
 	return nonseekable_open(inode, filp);
 
 out_path:
@@ -336,6 +339,7 @@ out_priv:
 out_use:
 	clear_bit(MON_IN_USE, &mon_in_use);
 out:
+	unlock_kernel();
 	return rc;
 }
 

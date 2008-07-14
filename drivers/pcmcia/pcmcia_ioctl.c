@@ -27,6 +27,7 @@
 #include <linux/proc_fs.h>
 #include <linux/poll.h>
 #include <linux/pci.h>
+#include <linux/smp_lock.h>
 #include <linux/workqueue.h>
 
 #include <pcmcia/cs_types.h>
@@ -545,20 +546,27 @@ static int ds_open(struct inode *inode, struct file *file)
     struct pcmcia_socket *s;
     user_info_t *user;
     static int warning_printed = 0;
+    int ret = 0;
 
     ds_dbg(0, "ds_open(socket %d)\n", i);
 
+    lock_kernel();
     s = pcmcia_get_socket_by_nr(i);
-    if (!s)
-	    return -ENODEV;
+    if (!s) {
+	    ret = -ENODEV;
+	    goto out;
+    }
     s = pcmcia_get_socket(s);
-    if (!s)
-	    return -ENODEV;
+    if (!s) {
+	    ret = -ENODEV;
+	    goto out;
+    }
 
     if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 	    if (s->pcmcia_state.busy) {
 		    pcmcia_put_socket(s);
-		    return -EBUSY;
+		    ret = -EBUSY;
+		    goto out;
 	    }
 	else
 	    s->pcmcia_state.busy = 1;
@@ -567,7 +575,8 @@ static int ds_open(struct inode *inode, struct file *file)
     user = kmalloc(sizeof(user_info_t), GFP_KERNEL);
     if (!user) {
 	    pcmcia_put_socket(s);
-	    return -ENOMEM;
+	    ret = -ENOMEM;
+	    goto out;
     }
     user->event_tail = user->event_head = 0;
     user->next = s->user;
@@ -589,7 +598,9 @@ static int ds_open(struct inode *inode, struct file *file)
 
     if (s->pcmcia_state.present)
 	queue_event(user, CS_EVENT_CARD_INSERTION);
-    return 0;
+out:
+    unlock_kernel();
+    return ret;
 } /* ds_open */
 
 /*====================================================================*/

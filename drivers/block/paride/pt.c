@@ -650,8 +650,11 @@ static int pt_open(struct inode *inode, struct file *file)
 	struct pt_unit *tape = pt + unit;
 	int err;
 
-	if (unit >= PT_UNITS || (!tape->present))
+	lock_kernel();
+	if (unit >= PT_UNITS || (!tape->present)) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	err = -EBUSY;
 	if (!atomic_dec_and_test(&tape->available))
@@ -678,10 +681,12 @@ static int pt_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = tape;
+	unlock_kernel();
 	return 0;
 
 out:
 	atomic_inc(&tape->available);
+	unlock_kernel();
 	return err;
 }
 

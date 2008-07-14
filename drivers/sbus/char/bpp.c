@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/major.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -429,6 +430,7 @@ static int bpp_open(struct inode *inode, struct file *f)
       unsigned minor = iminor(inode);
       int ret;
 
+      lock_kernel();
       spin_lock(&bpp_open_lock);
       ret = 0;
       if (minor >= BPP_NO) {
@@ -444,6 +446,7 @@ static int bpp_open(struct inode *inode, struct file *f)
 	      }
       }
       spin_unlock(&bpp_open_lock);
+      unlock_kernel();
 
       return ret;
 }
