@@ -159,6 +159,8 @@ static struct bin_attribute eeprom_attr = {
 
 static int eeprom_attach_adapter(struct i2c_adapter *adapter)
 {
+	if (!(adapter->class & (I2C_CLASS_DDC | I2C_CLASS_SPD)))
+		return 0;
 	return i2c_probe(adapter, &addr_data, eeprom_detect);
 }
 
@@ -168,6 +170,12 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *new_client;
 	struct eeprom_data *data;
 	int err = 0;
+
+	/* EDID EEPROMs are often 24C00 EEPROMs, which answer to all
+	   addresses 0x50-0x57, but we only care about 0x50. So decline
+	   attaching to addresses >= 0x51 on DDC buses */
+	if (!(adapter->class & I2C_CLASS_SPD) && address >= 0x51)
+		goto exit;
 
 	/* There are three ways we can read the EEPROM data:
 	   (1) I2C block reads (faster, but unsupported by most adapters)
