@@ -57,19 +57,11 @@ static unsigned short int sclp_tty_chars_count;
 
 struct tty_driver *sclp_tty_driver;
 
-static struct sclp_ioctls sclp_ioctls;
-static struct sclp_ioctls sclp_ioctls_init =
-{
-	8,			/* 1 hor. tab. = 8 spaces */
-	0,			/* no echo of input by this driver */
-	80,			/* 80 characters/line */
-	1,			/* write after 1/10 s without final new line */
-	MAX_KMEM_PAGES,		/* quick fix: avoid __alloc_pages */
-	MAX_KMEM_PAGES,		/* take 32/64 pages from kernel memory, */
-	0,			/* do not convert to lower case */
-	0x6c			/* to seprate upper and lower case */
-				/* ('%' in EBCDIC) */
-};
+static int sclp_tty_tolower;
+static int sclp_tty_columns = 80;
+
+#define SPACES_PER_TAB 8
+#define CASE_DELIMITER 0x6c /* to separate upper and lower case (% in EBCDIC) */
 
 /* This routine is called whenever we try to open a SCLP terminal. */
 static int
@@ -88,136 +80,6 @@ sclp_tty_close(struct tty_struct *tty, struct file *filp)
 	if (tty->count > 1)
 		return;
 	sclp_tty = NULL;
-}
-
-/* execute commands to control the i/o behaviour of the SCLP tty at runtime */
-static int
-sclp_tty_ioctl(struct tty_struct *tty, struct file * file,
-	       unsigned int cmd, unsigned long arg)
-{
-	unsigned long flags;
-	unsigned int obuf;
-	int check;
-	int rc;
-
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return -EIO;
-	rc = 0;
-	check = 0;
-	switch (cmd) {
-	case TIOCSCLPSHTAB:
-		/* set width of horizontal tab	*/
-		if (get_user(sclp_ioctls.htab, (unsigned short __user *) arg))
-			rc = -EFAULT;
-		else
-			check = 1;
-		break;
-	case TIOCSCLPGHTAB:
-		/* get width of horizontal tab	*/
-		if (put_user(sclp_ioctls.htab, (unsigned short __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPSECHO:
-		/* enable/disable echo of input */
-		if (get_user(sclp_ioctls.echo, (unsigned char __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPGECHO:
-		/* Is echo of input enabled ?  */
-		if (put_user(sclp_ioctls.echo, (unsigned char __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPSCOLS:
-		/* set number of columns for output  */
-		if (get_user(sclp_ioctls.columns, (unsigned short __user *) arg))
-			rc = -EFAULT;
-		else
-			check = 1;
-		break;
-	case TIOCSCLPGCOLS:
-		/* get number of columns for output  */
-		if (put_user(sclp_ioctls.columns, (unsigned short __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPSNL:
-		/* enable/disable writing without final new line character  */
-		if (get_user(sclp_ioctls.final_nl, (signed char __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPGNL:
-		/* Is writing without final new line character enabled ?  */
-		if (put_user(sclp_ioctls.final_nl, (signed char __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPSOBUF:
-		/*
-		 * set the maximum buffers size for output, will be rounded
-		 * up to next 4kB boundary and stored as number of SCCBs
-		 * (4kB Buffers) limitation: 256 x 4kB
-		 */
-		if (get_user(obuf, (unsigned int __user *) arg) == 0) {
-			if (obuf & 0xFFF)
-				sclp_ioctls.max_sccb = (obuf >> 12) + 1;
-			else
-				sclp_ioctls.max_sccb = (obuf >> 12);
-		} else
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPGOBUF:
-		/* get the maximum buffers size for output  */
-		obuf = sclp_ioctls.max_sccb << 12;
-		if (put_user(obuf, (unsigned int __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPGKBUF:
-		/* get the number of buffers got from kernel at startup */
-		if (put_user(sclp_ioctls.kmem_sccb, (unsigned short __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPSCASE:
-		/* enable/disable conversion from upper to lower case */
-		if (get_user(sclp_ioctls.tolower, (unsigned char __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPGCASE:
-		/* Is conversion from upper to lower case of input enabled? */
-		if (put_user(sclp_ioctls.tolower, (unsigned char __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPSDELIM:
-		/*
-		 * set special character used for separating upper and
-		 * lower case, 0x00 disables this feature
-		 */
-		if (get_user(sclp_ioctls.delim, (unsigned char __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPGDELIM:
-		/*
-		 * get special character used for separating upper and
-		 * lower case, 0x00 disables this feature
-		 */
-		if (put_user(sclp_ioctls.delim, (unsigned char __user *) arg))
-			rc = -EFAULT;
-		break;
-	case TIOCSCLPSINIT:
-		/* set initial (default) sclp ioctls  */
-		sclp_ioctls = sclp_ioctls_init;
-		check = 1;
-		break;
-	default:
-		rc = -ENOIOCTLCMD;
-		break;
-	}
-	if (check) {
-		spin_lock_irqsave(&sclp_tty_lock, flags);
-		if (sclp_ttybuf != NULL) {
-			sclp_set_htab(sclp_ttybuf, sclp_ioctls.htab);
-			sclp_set_columns(sclp_ttybuf, sclp_ioctls.columns);
-		}
-		spin_unlock_irqrestore(&sclp_tty_lock, flags);
-	}
-	return rc;
 }
 
 /*
@@ -339,9 +201,8 @@ sclp_tty_write_string(const unsigned char *str, int count)
 			}
 			page = sclp_tty_pages.next;
 			list_del((struct list_head *) page);
-			sclp_ttybuf = sclp_make_buffer(page,
-						       sclp_ioctls.columns,
-						       sclp_ioctls.htab);
+			sclp_ttybuf = sclp_make_buffer(page, sclp_tty_columns,
+						       SPACES_PER_TAB);
 		}
 		/* try to write the string to the current output buffer */
 		written = sclp_write(sclp_ttybuf, str, count);
@@ -361,25 +222,13 @@ sclp_tty_write_string(const unsigned char *str, int count)
 		count -= written;
 	} while (count > 0);
 	/* Setup timer to output current console buffer after 1/10 second */
-	if (sclp_ioctls.final_nl) {
-		if (sclp_ttybuf != NULL &&
-		    sclp_chars_in_buffer(sclp_ttybuf) != 0 &&
-		    !timer_pending(&sclp_tty_timer)) {
-			init_timer(&sclp_tty_timer);
-			sclp_tty_timer.function = sclp_tty_timeout;
-			sclp_tty_timer.data = 0UL;
-			sclp_tty_timer.expires = jiffies + HZ/10;
-			add_timer(&sclp_tty_timer);
-		}
-	} else {
-		if (sclp_ttybuf != NULL &&
-		    sclp_chars_in_buffer(sclp_ttybuf) != 0) {
-			buf = sclp_ttybuf;
-			sclp_ttybuf = NULL;
-			spin_unlock_irqrestore(&sclp_tty_lock, flags);
-			__sclp_ttybuf_emit(buf);
-			spin_lock_irqsave(&sclp_tty_lock, flags);
-		}
+	if (sclp_ttybuf && sclp_chars_in_buffer(sclp_ttybuf) &&
+	    !timer_pending(&sclp_tty_timer)) {
+		init_timer(&sclp_tty_timer);
+		sclp_tty_timer.function = sclp_tty_timeout;
+		sclp_tty_timer.data = 0UL;
+		sclp_tty_timer.expires = jiffies + HZ/10;
+		add_timer(&sclp_tty_timer);
 	}
 	spin_unlock_irqrestore(&sclp_tty_lock, flags);
 }
@@ -515,9 +364,7 @@ sclp_tty_input(unsigned char* buf, unsigned int count)
  * modifiy original string,
  * returns length of resulting string
  */
-static int
-sclp_switch_cases(unsigned char *buf, int count,
-		  unsigned char delim, int tolower)
+static int sclp_switch_cases(unsigned char *buf, int count)
 {
 	unsigned char *ip, *op;
 	int toggle;
@@ -527,9 +374,9 @@ sclp_switch_cases(unsigned char *buf, int count,
 	ip = op = buf;
 	while (count-- > 0) {
 		/* compare with special character */
-		if (*ip == delim) {
+		if (*ip == CASE_DELIMITER) {
 			/* followed by another special character? */
-			if (count && ip[1] == delim) {
+			if (count && ip[1] == CASE_DELIMITER) {
 				/*
 				 * ... then put a single copy of the special
 				 * character to the output string
@@ -548,7 +395,7 @@ sclp_switch_cases(unsigned char *buf, int count,
 			/* not the special character */
 			if (toggle)
 				/* but case switching is on */
-				if (tolower)
+				if (sclp_tty_tolower)
 					/* switch to uppercase */
 					*op++ = _ebc_toupper[(int) *ip++];
 				else
@@ -568,29 +415,11 @@ sclp_get_input(unsigned char *start, unsigned char *end)
 	int count;
 
 	count = end - start;
-	/*
-	 * if set in ioctl convert EBCDIC to lower case
-	 * (modify original input in SCCB)
-	 */
-	if (sclp_ioctls.tolower)
+	if (sclp_tty_tolower)
 		EBC_TOLOWER(start, count);
-
-	/*
-	 * if set in ioctl find out characters in lower or upper case
-	 * (depends on current case) separated by a special character,
-	 * works on EBCDIC
-	 */
-	if (sclp_ioctls.delim)
-		count = sclp_switch_cases(start, count,
-					  sclp_ioctls.delim,
-					  sclp_ioctls.tolower);
-
+	count = sclp_switch_cases(start, count);
 	/* convert EBCDIC to ASCII (modify original input in SCCB) */
 	sclp_ebcasc_str(start, count);
-
-	/* if set in ioctl write operators input to console  */
-	if (sclp_ioctls.echo)
-		sclp_tty_write(sclp_tty, start, count);
 
 	/* transfer input to high level driver */
 	sclp_tty_input(start, count);
@@ -715,7 +544,6 @@ static const struct tty_operations sclp_ops = {
 	.write_room = sclp_tty_write_room,
 	.chars_in_buffer = sclp_tty_chars_in_buffer,
 	.flush_buffer = sclp_tty_flush_buffer,
-	.ioctl = sclp_tty_ioctl,
 };
 
 static int __init
@@ -758,11 +586,10 @@ sclp_tty_init(void)
 		 * save 4 characters for the CPU number
 		 * written at start of each line by VM/CP
 		 */
-		sclp_ioctls_init.columns = 76;
+		sclp_tty_columns = 76;
 		/* case input lines to lowercase */
-		sclp_ioctls_init.tolower = 1;
+		sclp_tty_tolower = 1;
 	}
-	sclp_ioctls = sclp_ioctls_init;
 	sclp_tty_chars_count = 0;
 	sclp_tty = NULL;
 

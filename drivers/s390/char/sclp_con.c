@@ -14,6 +14,7 @@
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/bootmem.h>
+#include <linux/termios.h>
 #include <linux/err.h>
 
 #include "sclp.h"
