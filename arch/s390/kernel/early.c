@@ -380,6 +380,23 @@ static __init void detect_machine_facilities(void)
 #endif
 }
 
+static __init void rescue_initrd(void)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	/*
+	 * Move the initrd right behind the bss section in case it starts
+	 * within the bss section. So we don't overwrite it when the bss
+	 * section gets cleared.
+	 */
+	if (!INITRD_START || !INITRD_SIZE)
+		return;
+	if (INITRD_START >= (unsigned long) __bss_stop)
+		return;
+	memmove(__bss_stop, (void *) INITRD_START, INITRD_SIZE);
+	INITRD_START = (unsigned long) __bss_stop;
+#endif
+}
+
 /*
  * Save ipl parameters, clear bss memory, initialize storage keys
  * and create a kernel NSS at startup if the SAVESYS= parm is defined
@@ -389,6 +406,7 @@ void __init startup_init(void)
 	unsigned long long memsize;
 
 	ipl_save_parameters();
+	rescue_initrd();
 	clear_bss_section();
 	init_kernel_storage_key();
 	lockdep_init();
