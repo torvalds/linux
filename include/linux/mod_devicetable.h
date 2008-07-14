@@ -159,6 +159,15 @@ struct ap_device_id {
 
 #define AP_DEVICE_ID_MATCH_DEVICE_TYPE		0x01
 
+/* s390 css bus devices (subchannels) */
+struct css_device_id {
+	__u8 type; /* subchannel type */
+	__u8 pad1;
+	__u16 pad2;
+	__u32 pad3;
+	kernel_ulong_t driver_data;
+};
+
 #define ACPI_ID_LEN	16 /* only 9 bytes needed here, 16 bytes are used */
 			   /* to workaround crosscompile issues */
 

@@ -3,6 +3,7 @@
 
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 #include <asm/chpid.h>
 #include "chsc.h"
 #include "schid.h"

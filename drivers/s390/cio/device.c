@@ -585,19 +585,14 @@ static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
 static DEVICE_ATTR(online, 0644, online_show, online_store);
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
 
-static struct attribute * subch_attrs[] = {
+static struct attribute *io_subchannel_attrs[] = {
 	&dev_attr_chpids.attr,
 	&dev_attr_pimpampom.attr,
 	NULL,
 };
 
-static struct attribute_group subch_attr_group = {
-	.attrs = subch_attrs,
-};
-
-struct attribute_group *subch_attr_groups[] = {
-	&subch_attr_group,
-	NULL,
+static struct attribute_group io_subchannel_attr_group = {
+	.attrs = io_subchannel_attrs,
 };
 
 static struct attribute * ccwdev_attrs[] = {
@@ -1157,11 +1152,21 @@ static int io_subchannel_probe(struct subchannel *sch)
 
 	cdev = sch_get_cdev(sch);
 	if (cdev) {
+		rc = sysfs_create_group(&sch->dev.kobj,
+					&io_subchannel_attr_group);
+		if (rc)
+			CIO_MSG_EVENT(0, "Failed to create io subchannel "
+				      "attributes for subchannel "
+				      "0.%x.%04x (rc=%d)\n",
+				      sch->schid.ssid, sch->schid.sch_no, rc);
 		/*
 		 * This subchannel already has an associated ccw_device.
-		 * Register it and exit. This happens for all early
-		 * device, e.g. the console.
+		 * Throw the delayed uevent for the subchannel, register
+		 * the ccw_device and exit. This happens for all early
+		 * devices, e.g. the console.
 		 */
+		sch->dev.uevent_suppress = 0;
+		kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 		cdev->dev.groups = ccwdev_attr_groups;
 		device_initialize(&cdev->dev);
 		ccw_device_register(cdev);
@@ -1184,11 +1189,17 @@ static int io_subchannel_probe(struct subchannel *sch)
 	 */
 	dev_id.devno = sch->schib.pmcw.dev;
 	dev_id.ssid = sch->schid.ssid;
+	rc = sysfs_create_group(&sch->dev.kobj,
+				&io_subchannel_attr_group);
+	if (rc)
+		return rc;
 	/* Allocate I/O subchannel private data. */
 	sch->private = kzalloc(sizeof(struct io_subchannel_private),
 			       GFP_KERNEL | GFP_DMA);
-	if (!sch->private)
-		return -ENOMEM;
+	if (!sch->private) {
+		rc = -ENOMEM;
+		goto out_err;
+	}
 	cdev = get_disc_ccwdev_by_dev_id(&dev_id, NULL);
 	if (!cdev)
 		cdev = get_orphaned_ccwdev_by_dev_id(to_css(sch->dev.parent),
@@ -1207,8 +1218,8 @@ static int io_subchannel_probe(struct subchannel *sch)
 	}
 	cdev = io_subchannel_create_ccwdev(sch);
 	if (IS_ERR(cdev)) {
-		kfree(sch->private);
-		return PTR_ERR(cdev);
+		rc = PTR_ERR(cdev);
+		goto out_err;
 	}
 	rc = io_subchannel_recog(cdev, sch);
 	if (rc) {
@@ -1217,9 +1228,12 @@ static int io_subchannel_probe(struct subchannel *sch)
 		spin_unlock_irqrestore(sch->lock, flags);
 		if (cdev->dev.release)
 			cdev->dev.release(&cdev->dev);
-		kfree(sch->private);
+		goto out_err;
 	}
-
+	return 0;
+out_err:
+	kfree(sch->private);
+	sysfs_remove_group(&sch->dev.kobj, &io_subchannel_attr_group);
 	return rc;
 }
 
@@ -1240,6 +1254,7 @@ io_subchannel_remove (struct subchannel *sch)
 	ccw_device_unregister(cdev);
 	put_device(&cdev->dev);
 	kfree(sch->private);
+	sysfs_remove_group(&sch->dev.kobj, &io_subchannel_attr_group);
 	return 0;
 }
 

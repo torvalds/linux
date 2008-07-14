@@ -143,6 +143,4 @@ int css_sch_is_valid(struct schib *);
 
 extern struct workqueue_struct *slow_path_wq;
 void css_wait_for_slow_path(void);
-
-extern struct attribute_group *subch_attr_groups[];
 #endif
