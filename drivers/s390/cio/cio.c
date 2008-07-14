@@ -498,13 +498,8 @@ int cio_create_sch_lock(struct subchannel *sch)
 	return 0;
 }
 
-static int cio_validate_io_subchannel(struct subchannel *sch)
+static int cio_check_devno_blacklisted(struct subchannel *sch)
 {
-	/* Initialization for io subchannels. */
-	if (!css_sch_is_valid(&sch->schib))
-		return -ENODEV;
-
-	/* Devno is valid. */
 	if (is_blacklisted(sch->schid.ssid, sch->schib.pmcw.dev)) {
 		/*
 		 * This device must not be known to Linux. So we simply
@@ -516,6 +511,26 @@ static int cio_validate_io_subchannel(struct subchannel *sch)
 		return -ENODEV;
 	}
 	return 0;
+}
+
+static int cio_validate_io_subchannel(struct subchannel *sch)
+{
+	/* Initialization for io subchannels. */
+	if (!css_sch_is_valid(&sch->schib))
+		return -ENODEV;
+
+	/* Devno is valid. */
+	return cio_check_devno_blacklisted(sch);
+}
+
+static int cio_validate_msg_subchannel(struct subchannel *sch)
+{
+	/* Initialization for message subchannels. */
+	if (!css_sch_is_valid(&sch->schib))
+		return -ENODEV;
+
+	/* Devno is valid. */
+	return cio_check_devno_blacklisted(sch);
 }
 
 /**
@@ -572,6 +587,9 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 	switch (sch->st) {
 	case SUBCHANNEL_TYPE_IO:
 		err = cio_validate_io_subchannel(sch);
+		break;
+	case SUBCHANNEL_TYPE_MSG:
+		err = cio_validate_msg_subchannel(sch);
 		break;
 	default:
 		err = 0;

@@ -14,7 +14,7 @@
 struct pmcw {
 	u32 intparm;		/* interruption parameter */
 	u32 qf	 : 1;		/* qdio facility */
-	u32 res0 : 1;		/* reserved zeros */
+	u32 w	 : 1;
 	u32 isc  : 3;		/* interruption sublass */
 	u32 res5 : 3;		/* reserved zeros */
 	u32 ena  : 1;		/* enabled */

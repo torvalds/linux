@@ -332,6 +332,8 @@ int css_sch_is_valid(struct schib *schib)
 {
 	if ((schib->pmcw.st == SUBCHANNEL_TYPE_IO) && !schib->pmcw.dnv)
 		return 0;
+	if ((schib->pmcw.st == SUBCHANNEL_TYPE_MSG) && !schib->pmcw.w)
+		return 0;
 	return 1;
 }
 EXPORT_SYMBOL_GPL(css_sch_is_valid);
