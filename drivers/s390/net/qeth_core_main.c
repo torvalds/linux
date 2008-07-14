@@ -420,7 +420,7 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 				QETH_DBF_TEXT(TRACE, 3, "urla");
 				break;
 			default:
-				PRINT_WARN("Received data is IPA "
+				QETH_DBF_MESSAGE(2, "Received data is IPA "
 					   "but not a reply!\n");
 				break;
 			}
@@ -4092,7 +4092,6 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 
 	rc = qeth_determine_card_type(card);
 	if (rc) {
-		PRINT_WARN("%s: not a valid card type\n", __func__);
 		QETH_DBF_TEXT_(SETUP, 2, "3err%d", rc);
 		goto err_card;
 	}
