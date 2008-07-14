@@ -47,11 +47,6 @@
 #define  MACH_LASAT_200		1	/* Masquerade PRO/SP200 */
 
 /*
- * Valid machtype for group NEC EMMA2RH
- */
-#define  MACH_NEC_MARKEINS	0	/* NEC EMMA2RH Mark-eins	*/
-
-/*
  * Valid machtype for group PMC-MSP
  */
 #define MACH_MSP4200_EVAL       0	/* PMC-Sierra MSP4200 Evaluation */
