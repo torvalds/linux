@@ -883,8 +883,6 @@ sclp_init(void)
 	unsigned long flags;
 	int rc;
 
-	if (!MACHINE_HAS_SCLP)
-		return -ENODEV;
 	spin_lock_irqsave(&sclp_lock, flags);
 	/* Check for previous or running initialization */
 	if (sclp_init_state != sclp_init_state_uninitialized) {

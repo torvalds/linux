@@ -205,12 +205,6 @@ static void __init conmode_default(void)
 			SET_CONSOLE_SCLP;
 #endif
 		}
-        } else if (MACHINE_IS_P390) {
-#if defined(CONFIG_TN3215_CONSOLE)
-		SET_CONSOLE_3215;
-#elif defined(CONFIG_TN3270_CONSOLE)
-		SET_CONSOLE_3270;
-#endif
 	} else {
 #if defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 		SET_CONSOLE_SCLP;

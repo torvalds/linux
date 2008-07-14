@@ -183,10 +183,6 @@ static noinline __init void detect_machine_type(void)
 	if (cpuinfo->cpu_id.version == 0xff)
 		machine_flags |= MACHINE_FLAG_VM;
 
-	/* Running on a P/390 ? */
-	if (cpuinfo->cpu_id.machine == 0x7490)
-		machine_flags |= MACHINE_FLAG_P390;
-
 	/* Running under KVM ? */
 	if (cpuinfo->cpu_id.version == 0xfe)
 		machine_flags |= MACHINE_FLAG_KVM;

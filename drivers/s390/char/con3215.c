@@ -373,7 +373,7 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	struct raw3215_req *req;
 	struct tty_struct *tty;
 	int cstat, dstat;
-	int count, slen;
+	int count;
 
 	raw = cdev->dev.driver_data;
 	req = (struct raw3215_req *) intparm;
@@ -390,8 +390,6 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			break;
 		/* Attention interrupt, someone hit the enter key */
 		raw3215_mk_read_req(raw);
-		if (MACHINE_IS_P390)
-			memset(raw->inbuf, 0, RAW3215_INBUF_SIZE);
 		tasklet_schedule(&raw->tasklet);
 		break;
 	case 0x08:
@@ -414,11 +412,6 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 
 			tty = raw->tty;
 			count = 160 - req->residual;
-			if (MACHINE_IS_P390) {
-				slen = strnlen(raw->inbuf, RAW3215_INBUF_SIZE);
-				if (count > slen)
-					count = slen;
-			} else
 			EBCASC(raw->inbuf, count);
 			cchar = ctrlchar_handle(raw->inbuf, count, tty);
 			switch (cchar & CTRLCHAR_MASK) {

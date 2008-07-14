@@ -65,7 +65,6 @@ extern unsigned long machine_flags;
 
 #define MACHINE_FLAG_VM		(1UL << 0)
 #define MACHINE_FLAG_IEEE	(1UL << 1)
-#define MACHINE_FLAG_P390	(1UL << 2)
 #define MACHINE_FLAG_CSP	(1UL << 3)
 #define MACHINE_FLAG_MVPG	(1UL << 4)
 #define MACHINE_FLAG_DIAG44	(1UL << 5)
@@ -101,7 +100,6 @@ extern unsigned long machine_flags;
 #define MACHINE_HAS_PFMF	(machine_flags & MACHINE_FLAG_PFMF)
 #endif /* __s390x__ */
 
-#define MACHINE_HAS_SCLP	(!MACHINE_IS_P390)
 #define ZFCPDUMP_HSA_SIZE	(32UL<<20)
 
 /*
