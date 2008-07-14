@@ -458,6 +458,10 @@ s390_do_machine_check(struct pt_regs *regs)
 			etr_sync_check();
 		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SWITCH))
 			etr_switch_to_local();
+		if (S390_lowcore.external_damage_code & (1U << ED_STP_SYNC))
+			stp_sync_check();
+		if (S390_lowcore.external_damage_code & (1U << ED_STP_ISLAND))
+			stp_island_check();
 	}
 
 	if (mci->se)

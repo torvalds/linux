@@ -874,3 +874,52 @@ exit:
 
 EXPORT_SYMBOL_GPL(css_general_characteristics);
 EXPORT_SYMBOL_GPL(css_chsc_characteristics);
+
+int chsc_sstpc(void *page, unsigned int op, u16 ctrl)
+{
+	struct {
+		struct chsc_header request;
+		unsigned int rsvd0;
+		unsigned int op : 8;
+		unsigned int rsvd1 : 8;
+		unsigned int ctrl : 16;
+		unsigned int rsvd2[5];
+		struct chsc_header response;
+		unsigned int rsvd3[7];
+	} __attribute__ ((packed)) *rr;
+	int rc;
+
+	memset(page, 0, PAGE_SIZE);
+	rr = page;
+	rr->request.length = 0x0020;
+	rr->request.code = 0x0033;
+	rr->op = op;
+	rr->ctrl = ctrl;
+	rc = chsc(rr);
+	if (rc)
+		return -EIO;
+	rc = (rr->response.code == 0x0001) ? 0 : -EIO;
+	return rc;
+}
+
+int chsc_sstpi(void *page, void *result, size_t size)
+{
+	struct {
+		struct chsc_header request;
+		unsigned int rsvd0[3];
+		struct chsc_header response;
+		char data[size];
+	} __attribute__ ((packed)) *rr;
+	int rc;
+
+	memset(page, 0, PAGE_SIZE);
+	rr = page;
+	rr->request.length = 0x0010;
+	rr->request.code = 0x0038;
+	rc = chsc(rr);
+	if (rc)
+		return -EIO;
+	memcpy(result, &rr->data, size);
+	return (rr->response.code == 0x0001) ? 0 : -EIO;
+}
+
