@@ -29,6 +29,7 @@
  * the S390 page table tree.
  */
 #ifndef __ASSEMBLY__
+#include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <asm/bitops.h>
 #include <asm/bug.h>
