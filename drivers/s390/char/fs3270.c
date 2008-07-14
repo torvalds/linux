@@ -512,11 +512,8 @@ fs3270_init(void)
 	int rc;
 
 	rc = register_chrdev(IBM_FS3270_MAJOR, "fs3270", &fs3270_fops);
-	if (rc) {
-		printk(KERN_ERR "fs3270 can't get major number %d: errno %d\n",
-		       IBM_FS3270_MAJOR, rc);
+	if (rc)
 		return rc;
-	}
 	return 0;
 }
 

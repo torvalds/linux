@@ -1792,15 +1792,12 @@ static int __init tty3270_init(void)
 	tty_set_operations(driver, &tty3270_ops);
 	ret = tty_register_driver(driver);
 	if (ret) {
-		printk(KERN_ERR "tty3270 registration failed with %d\n", ret);
 		put_tty_driver(driver);
 		return ret;
 	}
 	tty3270_driver = driver;
 	ret = raw3270_register_notifier(tty3270_notifier);
 	if (ret) {
-		printk(KERN_ERR "tty3270 notifier registration failed "
-		       "with %d\n", ret);
 		put_tty_driver(driver);
 		return ret;
 

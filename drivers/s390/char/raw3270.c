@@ -610,7 +610,6 @@ __raw3270_size_device_vm(struct raw3270 *rp)
 		rp->cols = 132;
 		break;
 	default:
-		printk(KERN_WARNING "vrdccrmd is 0x%.8x\n", model);
 		rc = -EOPNOTSUPP;
 		break;
 	}
