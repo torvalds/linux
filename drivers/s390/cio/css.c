@@ -806,7 +806,7 @@ init_channel_subsystem (void)
 	css_init_done = 1;
 
 	/* Enable default isc for I/O subchannels. */
-	ctl_set_bit(6, 31 - IO_SCH_ISC);
+	isc_register(IO_SCH_ISC);
 
 	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;

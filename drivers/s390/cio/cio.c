@@ -786,12 +786,13 @@ cio_probe_console(void)
 	/*
 	 * enable console I/O-interrupt subclass
 	 */
-	ctl_set_bit(6, 31 - CONSOLE_ISC);
+	isc_register(CONSOLE_ISC);
 	console_subchannel.schib.pmcw.isc = CONSOLE_ISC;
 	console_subchannel.schib.pmcw.intparm =
 		(u32)(addr_t)&console_subchannel;
 	ret = cio_modify(&console_subchannel);
 	if (ret) {
+		isc_unregister(CONSOLE_ISC);
 		console_subchannel_in_use = 0;
 		return ERR_PTR(ret);
 	}
@@ -803,7 +804,7 @@ cio_release_console(void)
 {
 	console_subchannel.schib.pmcw.intparm = 0;
 	cio_modify(&console_subchannel);
-	ctl_clear_bit(6, 31 - CONSOLE_ISC);
+	isc_unregister(CONSOLE_ISC);
 	console_subchannel_in_use = 0;
 }
 
