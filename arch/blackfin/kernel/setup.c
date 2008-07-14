@@ -664,11 +664,8 @@ static __init void setup_bootmem_allocator(void)
 })
 static inline int __init get_mem_size(void)
 {
-#ifdef CONFIG_MEM_SIZE
-	return CONFIG_MEM_SIZE;
-#else
-# if defined(EBIU_SDBCTL)
-#  if defined(BF561_FAMILY)
+#if defined(EBIU_SDBCTL)
+# if defined(BF561_FAMILY)
 	int ret = 0;
 	u32 sdbctl = bfin_read_EBIU_SDBCTL();
 	ret += EBSZ_TO_MEG(sdbctl >>  0);
@@ -676,10 +673,10 @@ static inline int __init get_mem_size(void)
 	ret += EBSZ_TO_MEG(sdbctl >> 16);
 	ret += EBSZ_TO_MEG(sdbctl >> 24);
 	return ret;
-#  else
+# else
 	return EBSZ_TO_MEG(bfin_read_EBIU_SDBCTL());
-#  endif
-# elif defined(EBIU_DDRCTL1)
+# endif
+#elif defined(EBIU_DDRCTL1)
 	u32 ddrctl = bfin_read_EBIU_DDRCTL1();
 	int ret = 0;
 	switch (ddrctl & 0xc0000) {
@@ -694,7 +691,6 @@ static inline int __init get_mem_size(void)
 		case DEVWD_16: break;
 	}
 	return ret;
-# endif
 #endif
 	BUG();
 }

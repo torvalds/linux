@@ -310,11 +310,6 @@ config BFIN_KERNEL_CLOCK
 	  are also not changed, and the Bootloader does 100% of the hardware
 	  configuration.
 
-config MEM_SIZE
-	int "SDRAM Memory Size in MBytes"
-	depends on BFIN_KERNEL_CLOCK
-	default 64
-
 config PLL_BYPASS
 	bool "Bypass PLL"
 	depends on BFIN_KERNEL_CLOCK
@@ -376,7 +371,7 @@ config SCLK_DIV
 
 config MAX_MEM_SIZE
 	int "Max SDRAM Memory Size in MBytes"
-	depends on !BFIN_KERNEL_CLOCK && !MPU
+	depends on !MPU
 	default 512
 	help
 	  This is the max memory size that the kernel will create CPLB
