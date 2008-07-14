@@ -201,7 +201,7 @@ static struct device_attribute i2c_dev_attrs[] = {
 	{ },
 };
 
-static struct bus_type i2c_bus_type = {
+struct bus_type i2c_bus_type = {
 	.name		= "i2c",
 	.dev_attrs	= i2c_dev_attrs,
 	.match		= i2c_device_match,
@@ -212,6 +212,7 @@ static struct bus_type i2c_bus_type = {
 	.suspend	= i2c_device_suspend,
 	.resume		= i2c_device_resume,
 };
+EXPORT_SYMBOL_GPL(i2c_bus_type);
 
 
 /**
