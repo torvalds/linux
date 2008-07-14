@@ -91,6 +91,7 @@ static char mv643xx_eth_driver_version[] = "1.1";
 #define PORT_STATUS(p)			(0x0444 + ((p) << 10))
 #define  TX_FIFO_EMPTY			0x00000400
 #define  TX_IN_PROGRESS			0x00000080
+#define  LINK_UP			0x00000002
 #define TXQ_COMMAND(p)			(0x0448 + ((p) << 10))
 #define TXQ_FIX_PRIO_CONF(p)		(0x044c + ((p) << 10))
 #define TX_BW_RATE(p)			(0x0450 + ((p) << 10))
@@ -156,7 +157,6 @@ static char mv643xx_eth_driver_version[] = "1.1";
 #define SET_GMII_SPEED_TO_1000			(1 << 23)
 #define SET_FULL_DUPLEX_MODE			(1 << 21)
 #define MAX_RX_PACKET_9700BYTE			(5 << 17)
-#define MAX_RX_PACKET_MASK			(7 << 17)
 #define DISABLE_AUTO_NEG_SPEED_GMII		(1 << 13)
 #define DO_NOT_FORCE_LINK_FAIL			(1 << 10)
 #define SERIAL_PORT_CONTROL_RESERVED		(1 << 9)
@@ -1135,10 +1135,28 @@ static int mv643xx_eth_get_settings(struct net_device *dev, struct ethtool_cmd *
 
 static int mv643xx_eth_get_settings_phyless(struct net_device *dev, struct ethtool_cmd *cmd)
 {
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	u32 port_status;
+
+	port_status = rdl(mp, PORT_STATUS(mp->port_num));
+
 	cmd->supported = SUPPORTED_MII;
 	cmd->advertising = ADVERTISED_MII;
-	cmd->speed = SPEED_1000;
-	cmd->duplex = DUPLEX_FULL;
+	switch (port_status & PORT_SPEED_MASK) {
+	case PORT_SPEED_10:
+		cmd->speed = SPEED_10;
+		break;
+	case PORT_SPEED_100:
+		cmd->speed = SPEED_100;
+		break;
+	case PORT_SPEED_1000:
+		cmd->speed = SPEED_1000;
+		break;
+	default:
+		cmd->speed = -1;
+		break;
+	}
+	cmd->duplex = (port_status & FULL_DUPLEX) ? DUPLEX_FULL : DUPLEX_HALF;
 	cmd->port = PORT_MII;
 	cmd->phy_address = 0;
 	cmd->transceiver = XCVR_INTERNAL;
@@ -1661,51 +1679,6 @@ static void txq_deinit(struct tx_queue *txq)
 
 
 /* netdev ops and related ***************************************************/
-static void update_pscr(struct mv643xx_eth_private *mp, int speed, int duplex)
-{
-	u32 pscr_o;
-	u32 pscr_n;
-
-	pscr_o = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
-
-	/* clear speed, duplex and rx buffer size fields */
-	pscr_n = pscr_o & ~(SET_MII_SPEED_TO_100   |
-			    SET_GMII_SPEED_TO_1000 |
-			    SET_FULL_DUPLEX_MODE   |
-			    MAX_RX_PACKET_MASK);
-
-	pscr_n |= MAX_RX_PACKET_9700BYTE;
-
-	if (speed == SPEED_1000)
-		pscr_n |= SET_GMII_SPEED_TO_1000;
-	else if (speed == SPEED_100)
-		pscr_n |= SET_MII_SPEED_TO_100;
-
-	if (duplex == DUPLEX_FULL)
-		pscr_n |= SET_FULL_DUPLEX_MODE;
-
-	if (pscr_n != pscr_o) {
-		if ((pscr_o & SERIAL_PORT_ENABLE) == 0)
-			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_n);
-		else {
-			int i;
-
-			for (i = 0; i < 8; i++)
-				if (mp->txq_mask & (1 << i))
-					txq_disable(mp->txq + i);
-
-			pscr_o &= ~SERIAL_PORT_ENABLE;
-			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_o);
-			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_n);
-			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_n);
-
-			for (i = 0; i < 8; i++)
-				if (mp->txq_mask & (1 << i))
-					txq_enable(mp->txq + i);
-		}
-	}
-}
-
 static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
@@ -1726,14 +1699,7 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 	}
 
 	if (int_cause_ext & (INT_EXT_PHY | INT_EXT_LINK)) {
-		if (mp->phy_addr == -1 || mii_link_ok(&mp->mii)) {
-			if (mp->phy_addr != -1) {
-				struct ethtool_cmd cmd;
-
-				mii_ethtool_gset(&mp->mii, &cmd);
-				update_pscr(mp, cmd.speed, cmd.duplex);
-			}
-
+		if (rdl(mp, PORT_STATUS(mp->port_num)) & LINK_UP) {
 			if (!netif_carrier_ok(dev)) {
 				netif_carrier_on(dev);
 				netif_wake_queue(dev);
@@ -1847,23 +1813,6 @@ static void port_start(struct mv643xx_eth_private *mp)
 	int i;
 
 	/*
-	 * Configure basic link parameters.
-	 */
-	pscr = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
-	pscr &= ~(SERIAL_PORT_ENABLE | FORCE_LINK_PASS);
-	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
-	pscr |= DISABLE_AUTO_NEG_FOR_FLOW_CTRL |
-		DISABLE_AUTO_NEG_SPEED_GMII    |
-		DISABLE_AUTO_NEG_FOR_DUPLEX    |
-		DO_NOT_FORCE_LINK_FAIL	       |
-		SERIAL_PORT_CONTROL_RESERVED;
-	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
-	pscr |= SERIAL_PORT_ENABLE;
-	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
-
-	wrl(mp, SDMA_CONFIG(mp->port_num), PORT_SDMA_CONFIG_DEFAULT_VALUE);
-
-	/*
 	 * Perform PHY reset, if there is a PHY.
 	 */
 	if (mp->phy_addr != -1) {
@@ -1873,6 +1822,21 @@ static void port_start(struct mv643xx_eth_private *mp)
 		phy_reset(mp);
 		mv643xx_eth_set_settings(mp->dev, &cmd);
 	}
+
+	/*
+	 * Configure basic link parameters.
+	 */
+	pscr = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
+
+	pscr |= SERIAL_PORT_ENABLE;
+	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
+
+	pscr |= DO_NOT_FORCE_LINK_FAIL;
+	if (mp->phy_addr == -1)
+		pscr |= FORCE_LINK_PASS;
+	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
+
+	wrl(mp, SDMA_CONFIG(mp->port_num), PORT_SDMA_CONFIG_DEFAULT_VALUE);
 
 	/*
 	 * Configure TX path and queues.
@@ -2441,10 +2405,37 @@ static int phy_init(struct mv643xx_eth_private *mp,
 		cmd.duplex = pd->duplex;
 	}
 
-	update_pscr(mp, cmd.speed, cmd.duplex);
 	mv643xx_eth_set_settings(mp->dev, &cmd);
 
 	return 0;
+}
+
+static void init_pscr(struct mv643xx_eth_private *mp, int speed, int duplex)
+{
+	u32 pscr;
+
+	pscr = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
+	if (pscr & SERIAL_PORT_ENABLE) {
+		pscr &= ~SERIAL_PORT_ENABLE;
+		wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
+	}
+
+	pscr = MAX_RX_PACKET_9700BYTE | SERIAL_PORT_CONTROL_RESERVED;
+	if (mp->phy_addr == -1) {
+		pscr |= DISABLE_AUTO_NEG_SPEED_GMII;
+		if (speed == SPEED_1000)
+			pscr |= SET_GMII_SPEED_TO_1000;
+		else if (speed == SPEED_100)
+			pscr |= SET_MII_SPEED_TO_100;
+
+		pscr |= DISABLE_AUTO_NEG_FOR_FLOW_CTRL;
+
+		pscr |= DISABLE_AUTO_NEG_FOR_DUPLEX;
+		if (duplex == DUPLEX_FULL)
+			pscr |= SET_FULL_DUPLEX_MODE;
+	}
+
+	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
 }
 
 static int mv643xx_eth_probe(struct platform_device *pdev)
@@ -2500,6 +2491,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	} else {
 		SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops_phyless);
 	}
+	init_pscr(mp, pd->speed, pd->duplex);
 
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
