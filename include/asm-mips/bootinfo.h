@@ -26,13 +26,6 @@
 #define  MACH_UNKNOWN		0	/* whatever...			*/
 
 /*
- * Valid machtype values for group JAZZ
- */
-#define  MACH_ACER_PICA_61	0	/* Acer PICA-61 (PICA1)		*/
-#define  MACH_MIPS_MAGNUM_4000	1	/* Mips Magnum 4000 "RC4030"	*/
-#define  MACH_OLIVETTI_M700	2	/* Olivetti M700-10 (-15 ??)    */
-
-/*
  * Valid machtype for group DEC
  */
 #define  MACH_DSUNKNOWN		0
@@ -46,20 +39,6 @@
 #define  MACH_DS5500		8	/* DECsystem 5500		*/
 #define  MACH_DS5800		9	/* DECsystem 5800		*/
 #define  MACH_DS5900		10	/* DECsystem 5900		*/
-
-/*
- * Valid machtype for group SNI_RM
- */
-#define  MACH_SNI_RM200_PCI	0	/* RM200/RM300/RM400 PCI series */
-
-/*
- * Valid machtype for group SGI
- */
-#define  MACH_SGI_IP22		0	/* Indy, Indigo2, Challenge S	*/
-#define  MACH_SGI_IP27		1	/* Origin 200, Origin 2000, Onyx 2 */
-#define  MACH_SGI_IP28		2	/* Indigo2 Impact		*/
-#define  MACH_SGI_IP32		3	/* O2				*/
-#define  MACH_SGI_IP30		4	/* Octane, Octane2              */
 
 /*
  * Valid machtype for group LASAT
