@@ -113,11 +113,13 @@ static ssize_t show_inquiry_cache(struct device *dev, struct device_attribute *a
 		struct inquiry_data *data = &e->data;
 		bdaddr_t bdaddr;
 		baswap(&bdaddr, &data->bdaddr);
-		n += sprintf(buf + n, "%s %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %u\n",
+		n += sprintf(buf + n, "%s %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
 				batostr(&bdaddr),
-				data->pscan_rep_mode, data->pscan_period_mode, data->pscan_mode,
-				data->dev_class[2], data->dev_class[1], data->dev_class[0],
-				__le16_to_cpu(data->clock_offset), data->rssi, e->timestamp);
+				data->pscan_rep_mode, data->pscan_period_mode,
+				data->pscan_mode, data->dev_class[2],
+				data->dev_class[1], data->dev_class[0],
+				__le16_to_cpu(data->clock_offset),
+				data->rssi, data->ssp_mode, e->timestamp);
 	}
 
 	hci_dev_unlock_bh(hdev);
@@ -249,15 +251,28 @@ static ssize_t show_conn_address(struct device *dev, struct device_attribute *at
 	return sprintf(buf, "%s\n", batostr(&bdaddr));
 }
 
+static ssize_t show_conn_features(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_conn *conn = dev_get_drvdata(dev);
+
+	return sprintf(buf, "0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				conn->features[0], conn->features[1],
+				conn->features[2], conn->features[3],
+				conn->features[4], conn->features[5],
+				conn->features[6], conn->features[7]);
+}
+
 #define CONN_ATTR(_name,_mode,_show,_store) \
 struct device_attribute conn_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
 static CONN_ATTR(type, S_IRUGO, show_conn_type, NULL);
 static CONN_ATTR(address, S_IRUGO, show_conn_address, NULL);
+static CONN_ATTR(features, S_IRUGO, show_conn_features, NULL);
 
 static struct device_attribute *conn_attrs[] = {
 	&conn_attr_type,
 	&conn_attr_address,
+	&conn_attr_features,
 	NULL
 };
 
