@@ -807,11 +807,7 @@ static int __devexit iic_remove(struct of_device *ofdev)
 }
 
 static const struct of_device_id ibm_iic_match[] = {
-	{ .compatible = "ibm,iic-405ex", },
-	{ .compatible = "ibm,iic-405gp", },
-	{ .compatible = "ibm,iic-440gp", },
-	{ .compatible = "ibm,iic-440gpx", },
-	{ .compatible = "ibm,iic-440grx", },
+	{ .compatible = "ibm,iic", },
 	{}
 };
 
