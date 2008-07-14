@@ -3322,7 +3322,7 @@ static int send_break(struct tty_struct *tty, unsigned int duration)
 		msleep_interruptible(duration);
 	tty->ops->break_ctl(tty, 0);
 	tty_write_unlock(tty);
-	if (!signal_pending(current))
+	if (signal_pending(current))
 		return -EINTR;
 	return 0;
 }

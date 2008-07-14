@@ -415,7 +415,7 @@ nfs_dirty_request(struct nfs_page *req)
 
 	if (page == NULL || test_bit(PG_NEED_COMMIT, &req->wb_flags))
 		return 0;
-	return !PageWriteback(req->wb_page);
+	return !PageWriteback(page);
 }
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
@@ -739,12 +739,13 @@ int nfs_updatepage(struct file *file, struct page *page,
 	}
 
 	status = nfs_writepage_setup(ctx, page, offset, count);
-	__set_page_dirty_nobuffers(page);
+	if (status < 0)
+		nfs_set_pageerror(page);
+	else
+		__set_page_dirty_nobuffers(page);
 
         dprintk("NFS:      nfs_updatepage returns %d (isize %Ld)\n",
 			status, (long long)i_size_read(inode));
-	if (status < 0)
-		nfs_set_pageerror(page);
 	return status;
 }
 

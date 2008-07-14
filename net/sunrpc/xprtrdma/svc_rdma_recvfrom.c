@@ -260,10 +260,15 @@ static int rdma_read_max_sge(struct svcxprt_rdma *xprt, int sge_count)
  * On our side, we need to read into a pagelist. The first page immediately
  * follows the RPC header.
  *
- * This function returns 1 to indicate success. The data is not yet in
+ * This function returns:
+ * 0 - No error and no read-list found.
+ *
+ * 1 - Successful read-list processing. The data is not yet in
  * the pagelist and therefore the RPC request must be deferred. The
  * I/O completion will enqueue the transport again and
  * svc_rdma_recvfrom will complete the request.
+ *
+ * <0 - Error processing/posting read-list.
  *
  * NOTE: The ctxt must not be touched after the last WR has been posted
  * because the I/O completion processing may occur on another
@@ -284,7 +289,6 @@ static int rdma_read_xdr(struct svcxprt_rdma *xprt,
 	u64 sgl_offset;
 	struct rpcrdma_read_chunk *ch;
 	struct svc_rdma_op_ctxt *ctxt = NULL;
-	struct svc_rdma_op_ctxt *head;
 	struct svc_rdma_op_ctxt *tmp_sge_ctxt;
 	struct svc_rdma_op_ctxt *tmp_ch_ctxt;
 	struct chunk_sge *ch_sge_ary;
@@ -302,25 +306,19 @@ static int rdma_read_xdr(struct svcxprt_rdma *xprt,
 	ch_sge_ary = (struct chunk_sge *)tmp_ch_ctxt->sge;
 
 	svc_rdma_rcl_chunk_counts(ch, &ch_count, &byte_count);
+	if (ch_count > RPCSVC_MAXPAGES)
+		return -EINVAL;
 	sge_count = rdma_rcl_to_sge(xprt, rqstp, hdr_ctxt, rmsgp,
 				    sge, ch_sge_ary,
 				    ch_count, byte_count);
-	head = svc_rdma_get_context(xprt);
 	sgl_offset = 0;
 	ch_no = 0;
 
 	for (ch = (struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
 	     ch->rc_discrim != 0; ch++, ch_no++) {
 next_sge:
-		if (!ctxt)
-			ctxt = head;
-		else {
-			ctxt->next = svc_rdma_get_context(xprt);
-			ctxt = ctxt->next;
-		}
-		ctxt->next = NULL;
+		ctxt = svc_rdma_get_context(xprt);
 		ctxt->direction = DMA_FROM_DEVICE;
-		clear_bit(RDMACTXT_F_READ_DONE, &ctxt->flags);
 		clear_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
 
 		/* Prepare READ WR */
@@ -347,20 +345,15 @@ next_sge:
 			 * the client and the RPC needs to be enqueued.
 			 */
 			set_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
-			ctxt->next = hdr_ctxt;
-			hdr_ctxt->next = head;
+			ctxt->read_hdr = hdr_ctxt;
 		}
 		/* Post the read */
 		err = svc_rdma_send(xprt, &read_wr);
 		if (err) {
-			printk(KERN_ERR "svcrdma: Error posting send = %d\n",
+			printk(KERN_ERR "svcrdma: Error %d posting RDMA_READ\n",
 			       err);
-			/*
-			 * Break the circular list so free knows when
-			 * to stop if the error happened to occur on
-			 * the last read
-			 */
-			ctxt->next = NULL;
+			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+			svc_rdma_put_context(ctxt, 0);
 			goto out;
 		}
 		atomic_inc(&rdma_stat_read);
@@ -371,7 +364,7 @@ next_sge:
 			goto next_sge;
 		}
 		sgl_offset = 0;
-		err = 0;
+		err = 1;
 	}
 
  out:
@@ -389,25 +382,12 @@ next_sge:
 	while (rqstp->rq_resused)
 		rqstp->rq_respages[--rqstp->rq_resused] = NULL;
 
-	if (err) {
-		printk(KERN_ERR "svcrdma : RDMA_READ error = %d\n", err);
-		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-		/* Free the linked list of read contexts */
-		while (head != NULL) {
-			ctxt = head->next;
-			svc_rdma_put_context(head, 1);
-			head = ctxt;
-		}
-		return 0;
-	}
-
-	return 1;
+	return err;
 }
 
 static int rdma_read_complete(struct svc_rqst *rqstp,
-			      struct svc_rdma_op_ctxt *data)
+			      struct svc_rdma_op_ctxt *head)
 {
-	struct svc_rdma_op_ctxt *head = data->next;
 	int page_no;
 	int ret;
 
@@ -433,21 +413,12 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 	rqstp->rq_arg.len = head->arg.len;
 	rqstp->rq_arg.buflen = head->arg.buflen;
 
+	/* Free the context */
+	svc_rdma_put_context(head, 0);
+
 	/* XXX: What should this be? */
 	rqstp->rq_prot = IPPROTO_MAX;
-
-	/*
-	 * Free the contexts we used to build the RDMA_READ. We have
-	 * to be careful here because the context list uses the same
-	 * next pointer used to chain the contexts associated with the
-	 * RDMA_READ
-	 */
-	data->next = NULL;	/* terminate circular list */
-	do {
-		data = head->next;
-		svc_rdma_put_context(head, 0);
-		head = data;
-	} while (head != NULL);
+	svc_xprt_copy_addrs(rqstp, rqstp->rq_xprt);
 
 	ret = rqstp->rq_arg.head[0].iov_len
 		+ rqstp->rq_arg.page_len
@@ -457,8 +428,6 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 		ret, rqstp->rq_arg.len,	rqstp->rq_arg.head[0].iov_base,
 		rqstp->rq_arg.head[0].iov_len);
 
-	/* Indicate that we've consumed an RQ credit */
-	rqstp->rq_xprt_ctxt = rqstp->rq_xprt;
 	svc_xprt_received(rqstp->rq_xprt);
 	return ret;
 }
@@ -479,13 +448,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	int len;
 
 	dprintk("svcrdma: rqstp=%p\n", rqstp);
-
-	/*
-	 * The rq_xprt_ctxt indicates if we've consumed an RQ credit
-	 * or not. It is used in the rdma xpo_release_rqst function to
-	 * determine whether or not to return an RQ WQE to the RQ.
-	 */
-	rqstp->rq_xprt_ctxt = NULL;
 
 	spin_lock_bh(&rdma_xprt->sc_read_complete_lock);
 	if (!list_empty(&rdma_xprt->sc_read_complete_q)) {
@@ -537,21 +499,22 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	/* If the request is invalid, reply with an error */
 	if (len < 0) {
 		if (len == -ENOSYS)
-			(void)svc_rdma_send_error(rdma_xprt, rmsgp, ERR_VERS);
+			svc_rdma_send_error(rdma_xprt, rmsgp, ERR_VERS);
 		goto close_out;
 	}
 
-	/* Read read-list data. If we would need to wait, defer
-	 * it. Not that in this case, we don't return the RQ credit
-	 * until after the read completes.
-	 */
-	if (rdma_read_xdr(rdma_xprt, rmsgp, rqstp, ctxt)) {
+	/* Read read-list data. */
+	ret = rdma_read_xdr(rdma_xprt, rmsgp, rqstp, ctxt);
+	if (ret > 0) {
+		/* read-list posted, defer until data received from client. */
 		svc_xprt_received(xprt);
 		return 0;
 	}
-
-	/* Indicate we've consumed an RQ credit */
-	rqstp->rq_xprt_ctxt = rqstp->rq_xprt;
+	if (ret < 0) {
+		/* Post of read-list failed, free context. */
+		svc_rdma_put_context(ctxt, 1);
+		return 0;
+	}
 
 	ret = rqstp->rq_arg.head[0].iov_len
 		+ rqstp->rq_arg.page_len
@@ -569,11 +532,8 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	return ret;
 
  close_out:
-	if (ctxt) {
+	if (ctxt)
 		svc_rdma_put_context(ctxt, 1);
-		/* Indicate we've consumed an RQ credit */
-		rqstp->rq_xprt_ctxt = rqstp->rq_xprt;
-	}
 	dprintk("svcrdma: transport %p is closing\n", xprt);
 	/*
 	 * Set the close bit and enqueue it. svc_recv will see the

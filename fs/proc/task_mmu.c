@@ -315,9 +315,9 @@ struct mem_size_stats {
 };
 
 static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-			   void *private)
+			   struct mm_walk *walk)
 {
-	struct mem_size_stats *mss = private;
+	struct mem_size_stats *mss = walk->private;
 	struct vm_area_struct *vma = mss->vma;
 	pte_t *pte, ptent;
 	spinlock_t *ptl;
@@ -365,19 +365,21 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	return 0;
 }
 
-static struct mm_walk smaps_walk = { .pmd_entry = smaps_pte_range };
-
 static int show_smap(struct seq_file *m, void *v)
 {
 	struct vm_area_struct *vma = v;
 	struct mem_size_stats mss;
 	int ret;
+	struct mm_walk smaps_walk = {
+		.pmd_entry = smaps_pte_range,
+		.mm = vma->vm_mm,
+		.private = &mss,
+	};
 
 	memset(&mss, 0, sizeof mss);
 	mss.vma = vma;
 	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
-		walk_page_range(vma->vm_mm, vma->vm_start, vma->vm_end,
-				&smaps_walk, &mss);
+		walk_page_range(vma->vm_start, vma->vm_end, &smaps_walk);
 
 	ret = show_map(m, v);
 	if (ret)
@@ -426,9 +428,9 @@ const struct file_operations proc_smaps_operations = {
 };
 
 static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
-				unsigned long end, void *private)
+				unsigned long end, struct mm_walk *walk)
 {
-	struct vm_area_struct *vma = private;
+	struct vm_area_struct *vma = walk->private;
 	pte_t *pte, ptent;
 	spinlock_t *ptl;
 	struct page *page;
@@ -452,8 +454,6 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
 	return 0;
 }
 
-static struct mm_walk clear_refs_walk = { .pmd_entry = clear_refs_pte_range };
-
 static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
@@ -476,11 +476,17 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 		return -ESRCH;
 	mm = get_task_mm(task);
 	if (mm) {
+		struct mm_walk clear_refs_walk = {
+			.pmd_entry = clear_refs_pte_range,
+			.mm = mm,
+		};
 		down_read(&mm->mmap_sem);
-		for (vma = mm->mmap; vma; vma = vma->vm_next)
+		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+			clear_refs_walk.private = vma;
 			if (!is_vm_hugetlb_page(vma))
-				walk_page_range(mm, vma->vm_start, vma->vm_end,
-						&clear_refs_walk, vma);
+				walk_page_range(vma->vm_start, vma->vm_end,
+						&clear_refs_walk);
+		}
 		flush_tlb_mm(mm);
 		up_read(&mm->mmap_sem);
 		mmput(mm);
@@ -496,7 +502,7 @@ const struct file_operations proc_clear_refs_operations = {
 };
 
 struct pagemapread {
-	char __user *out, *end;
+	u64 __user *out, *end;
 };
 
 #define PM_ENTRY_BYTES      sizeof(u64)
@@ -519,28 +525,18 @@ struct pagemapread {
 static int add_to_pagemap(unsigned long addr, u64 pfn,
 			  struct pagemapread *pm)
 {
-	/*
-	 * Make sure there's room in the buffer for an
-	 * entire entry.  Otherwise, only copy part of
-	 * the pfn.
-	 */
-	if (pm->out + PM_ENTRY_BYTES >= pm->end) {
-		if (copy_to_user(pm->out, &pfn, pm->end - pm->out))
-			return -EFAULT;
-		pm->out = pm->end;
-		return PM_END_OF_BUFFER;
-	}
-
 	if (put_user(pfn, pm->out))
 		return -EFAULT;
-	pm->out += PM_ENTRY_BYTES;
+	pm->out++;
+	if (pm->out >= pm->end)
+		return PM_END_OF_BUFFER;
 	return 0;
 }
 
 static int pagemap_pte_hole(unsigned long start, unsigned long end,
-				void *private)
+				struct mm_walk *walk)
 {
-	struct pagemapread *pm = private;
+	struct pagemapread *pm = walk->private;
 	unsigned long addr;
 	int err = 0;
 	for (addr = start; addr < end; addr += PAGE_SIZE) {
@@ -557,24 +553,45 @@ static u64 swap_pte_to_pagemap_entry(pte_t pte)
 	return swp_type(e) | (swp_offset(e) << MAX_SWAPFILES_SHIFT);
 }
 
-static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-			     void *private)
+static unsigned long pte_to_pagemap_entry(pte_t pte)
 {
-	struct pagemapread *pm = private;
+	unsigned long pme = 0;
+	if (is_swap_pte(pte))
+		pme = PM_PFRAME(swap_pte_to_pagemap_entry(pte))
+			| PM_PSHIFT(PAGE_SHIFT) | PM_SWAP;
+	else if (pte_present(pte))
+		pme = PM_PFRAME(pte_pfn(pte))
+			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
+	return pme;
+}
+
+static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+			     struct mm_walk *walk)
+{
+	struct vm_area_struct *vma;
+	struct pagemapread *pm = walk->private;
 	pte_t *pte;
 	int err = 0;
 
+	/* find the first VMA at or above 'addr' */
+	vma = find_vma(walk->mm, addr);
 	for (; addr != end; addr += PAGE_SIZE) {
 		u64 pfn = PM_NOT_PRESENT;
-		pte = pte_offset_map(pmd, addr);
-		if (is_swap_pte(*pte))
-			pfn = PM_PFRAME(swap_pte_to_pagemap_entry(*pte))
-				| PM_PSHIFT(PAGE_SHIFT) | PM_SWAP;
-		else if (pte_present(*pte))
-			pfn = PM_PFRAME(pte_pfn(*pte))
-				| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
-		/* unmap so we're not in atomic when we copy to userspace */
-		pte_unmap(pte);
+
+		/* check to see if we've left 'vma' behind
+		 * and need a new, higher one */
+		if (vma && (addr >= vma->vm_end))
+			vma = find_vma(walk->mm, addr);
+
+		/* check that 'vma' actually covers this address,
+		 * and that it isn't a huge page vma */
+		if (vma && (vma->vm_start <= addr) &&
+		    !is_vm_hugetlb_page(vma)) {
+			pte = pte_offset_map(pmd, addr);
+			pfn = pte_to_pagemap_entry(*pte);
+			/* unmap before userspace copy */
+			pte_unmap(pte);
+		}
 		err = add_to_pagemap(addr, pfn, pm);
 		if (err)
 			return err;
@@ -584,11 +601,6 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 
 	return err;
 }
-
-static struct mm_walk pagemap_walk = {
-	.pmd_entry = pagemap_pte_range,
-	.pte_hole = pagemap_pte_hole
-};
 
 /*
  * /proc/pid/pagemap - an array mapping virtual pages to pfns
@@ -624,6 +636,11 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	struct pagemapread pm;
 	int pagecount;
 	int ret = -ESRCH;
+	struct mm_walk pagemap_walk;
+	unsigned long src;
+	unsigned long svpfn;
+	unsigned long start_vaddr;
+	unsigned long end_vaddr;
 
 	if (!task)
 		goto out;
@@ -634,7 +651,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 
 	ret = -EINVAL;
 	/* file position must be aligned */
-	if (*ppos % PM_ENTRY_BYTES)
+	if ((*ppos % PM_ENTRY_BYTES) || (count % PM_ENTRY_BYTES))
 		goto out_task;
 
 	ret = 0;
@@ -642,11 +659,15 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	if (!mm)
 		goto out_task;
 
-	ret = -ENOMEM;
+
 	uaddr = (unsigned long)buf & PAGE_MASK;
 	uend = (unsigned long)(buf + count);
 	pagecount = (PAGE_ALIGN(uend) - uaddr) / PAGE_SIZE;
-	pages = kmalloc(pagecount * sizeof(struct page *), GFP_KERNEL);
+	ret = 0;
+	if (pagecount == 0)
+		goto out_mm;
+	pages = kcalloc(pagecount, sizeof(struct page *), GFP_KERNEL);
+	ret = -ENOMEM;
 	if (!pages)
 		goto out_mm;
 
@@ -664,36 +685,36 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		goto out_pages;
 	}
 
-	pm.out = buf;
-	pm.end = buf + count;
+	pm.out = (u64 *)buf;
+	pm.end = (u64 *)(buf + count);
 
-	if (!ptrace_may_attach(task)) {
-		ret = -EIO;
-	} else {
-		unsigned long src = *ppos;
-		unsigned long svpfn = src / PM_ENTRY_BYTES;
-		unsigned long start_vaddr = svpfn << PAGE_SHIFT;
-		unsigned long end_vaddr = TASK_SIZE_OF(task);
+	pagemap_walk.pmd_entry = pagemap_pte_range;
+	pagemap_walk.pte_hole = pagemap_pte_hole;
+	pagemap_walk.mm = mm;
+	pagemap_walk.private = &pm;
 
-		/* watch out for wraparound */
-		if (svpfn > TASK_SIZE_OF(task) >> PAGE_SHIFT)
-			start_vaddr = end_vaddr;
+	src = *ppos;
+	svpfn = src / PM_ENTRY_BYTES;
+	start_vaddr = svpfn << PAGE_SHIFT;
+	end_vaddr = TASK_SIZE_OF(task);
 
-		/*
-		 * The odds are that this will stop walking way
-		 * before end_vaddr, because the length of the
-		 * user buffer is tracked in "pm", and the walk
-		 * will stop when we hit the end of the buffer.
-		 */
-		ret = walk_page_range(mm, start_vaddr, end_vaddr,
-					&pagemap_walk, &pm);
-		if (ret == PM_END_OF_BUFFER)
-			ret = 0;
-		/* don't need mmap_sem for these, but this looks cleaner */
-		*ppos += pm.out - buf;
-		if (!ret)
-			ret = pm.out - buf;
-	}
+	/* watch out for wraparound */
+	if (svpfn > TASK_SIZE_OF(task) >> PAGE_SHIFT)
+		start_vaddr = end_vaddr;
+
+	/*
+	 * The odds are that this will stop walking way
+	 * before end_vaddr, because the length of the
+	 * user buffer is tracked in "pm", and the walk
+	 * will stop when we hit the end of the buffer.
+	 */
+	ret = walk_page_range(start_vaddr, end_vaddr, &pagemap_walk);
+	if (ret == PM_END_OF_BUFFER)
+		ret = 0;
+	/* don't need mmap_sem for these, but this looks cleaner */
+	*ppos += (char *)pm.out - buf;
+	if (!ret)
+		ret = (char *)pm.out - buf;
 
 out_pages:
 	for (; pagecount; pagecount--) {

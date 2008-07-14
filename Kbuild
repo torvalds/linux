@@ -96,5 +96,4 @@ missing-syscalls: scripts/checksyscalls.sh FORCE
 	$(call cmd,syscalls)
 
 # Delete all targets during make clean
-clean-files := $(addprefix $(objtree)/,$(targets))
-
+clean-files := $(addprefix $(objtree)/,$(filter-out $(bounds-file) $(offsets-file),$(targets)))

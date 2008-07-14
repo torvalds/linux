@@ -1546,6 +1546,7 @@ static int via_ircc_net_open(struct net_device *dev)
 			IRDA_WARNING("%s, unable to allocate dma2=%d\n",
 				     driver_name, self->io.dma2);
 			free_irq(self->io.irq, self);
+			free_dma(self->io.dma);
 			return -EAGAIN;
 		}
 	}
@@ -1606,6 +1607,8 @@ static int via_ircc_net_close(struct net_device *dev)
 	EnAllInt(iobase, OFF);
 	free_irq(self->io.irq, dev);
 	free_dma(self->io.dma);
+	if (self->io.dma2 != self->io.dma)
+		free_dma(self->io.dma2);
 
 	return 0;
 }

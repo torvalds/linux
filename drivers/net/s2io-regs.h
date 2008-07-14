@@ -250,7 +250,7 @@ struct XENA_dev_config {
 	u64 tx_mat0_n[0x8];
 #define TX_MAT_SET(fifo, msi)			vBIT(msi, (8 * fifo), 8)
 
-	u8 unused_1[0x8];
+	u64 xmsi_mask_reg;
 	u64 stat_byte_cnt;
 #define STAT_BC(n)                              vBIT(n,4,12)
 

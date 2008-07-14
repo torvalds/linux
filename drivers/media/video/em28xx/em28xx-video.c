@@ -1166,13 +1166,13 @@ static int vidioc_g_register(struct file *file, void *priv,
 
 		reg->val = ret;
 	} else {
-		u64 val = 0;
+		__le64 val = 0;
 		ret = em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
 						   reg->reg, (char *)&val, 2);
 		if (ret < 0)
 			return ret;
 
-		reg->val = cpu_to_le64((__u64)val);
+		reg->val = le64_to_cpu(val);
 	}
 
 	return 0;
@@ -1183,9 +1183,9 @@ static int vidioc_s_register(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	u64 buf;
+	__le64 buf;
 
-	buf = le64_to_cpu((__u64)reg->val);
+	buf = cpu_to_le64(reg->val);
 
 	return em28xx_write_regs(dev, reg->reg, (char *)&buf,
 				 em28xx_reg_len(reg->reg));
@@ -1848,32 +1848,28 @@ static DEFINE_MUTEX(em28xx_extension_devlist_lock);
 
 int em28xx_register_extension(struct em28xx_ops *ops)
 {
-	struct em28xx *h, *dev = NULL;
-
-	list_for_each_entry(h, &em28xx_devlist, devlist)
-		dev = h;
+	struct em28xx *dev = NULL;
 
 	mutex_lock(&em28xx_extension_devlist_lock);
 	list_add_tail(&ops->next, &em28xx_extension_devlist);
-	if (dev)
-		ops->init(dev);
-
+	list_for_each_entry(dev, &em28xx_devlist, devlist) {
+		if (dev)
+			ops->init(dev);
+	}
 	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
 	mutex_unlock(&em28xx_extension_devlist_lock);
-
 	return 0;
 }
 EXPORT_SYMBOL(em28xx_register_extension);
 
 void em28xx_unregister_extension(struct em28xx_ops *ops)
 {
-	struct em28xx *h, *dev = NULL;
+	struct em28xx *dev = NULL;
 
-	list_for_each_entry(h, &em28xx_devlist, devlist)
-		dev = h;
-
-	if (dev)
-		ops->fini(dev);
+	list_for_each_entry(dev, &em28xx_devlist, devlist) {
+		if (dev)
+			ops->fini(dev);
+	}
 
 	mutex_lock(&em28xx_extension_devlist_lock);
 	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);

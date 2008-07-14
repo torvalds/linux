@@ -1704,7 +1704,7 @@ static void cbq_destroy_class(struct Qdisc *sch, struct cbq_class *cl)
 
 	BUG_TRAP(!cl->filters);
 
-	tcf_destroy_chain(cl->filter_list);
+	tcf_destroy_chain(&cl->filter_list);
 	qdisc_destroy(cl->q);
 	qdisc_put_rtab(cl->R_tab);
 	gen_kill_estimator(&cl->bstats, &cl->rate_est);
@@ -1728,10 +1728,8 @@ cbq_destroy(struct Qdisc* sch)
 	 * be bound to classes which have been destroyed already. --TGR '04
 	 */
 	for (h = 0; h < 16; h++) {
-		for (cl = q->classes[h]; cl; cl = cl->next) {
-			tcf_destroy_chain(cl->filter_list);
-			cl->filter_list = NULL;
-		}
+		for (cl = q->classes[h]; cl; cl = cl->next)
+			tcf_destroy_chain(&cl->filter_list);
 	}
 	for (h = 0; h < 16; h++) {
 		struct cbq_class *next;

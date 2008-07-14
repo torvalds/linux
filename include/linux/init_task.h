@@ -1,7 +1,6 @@
 #ifndef _LINUX__INIT_TASK_H
 #define _LINUX__INIT_TASK_H
 
-#include <linux/fdtable.h>
 #include <linux/rcupdate.h>
 #include <linux/irqflags.h>
 #include <linux/utsname.h>
@@ -12,27 +11,7 @@
 #include <linux/securebits.h>
 #include <net/net_namespace.h>
 
-#define INIT_FDTABLE \
-{							\
-	.max_fds	= NR_OPEN_DEFAULT, 		\
-	.fd		= &init_files.fd_array[0], 	\
-	.close_on_exec	= (fd_set *)&init_files.close_on_exec_init, \
-	.open_fds	= (fd_set *)&init_files.open_fds_init, 	\
-	.rcu		= RCU_HEAD_INIT, 		\
-	.next		= NULL,		 		\
-}
-
-#define INIT_FILES \
-{ 							\
-	.count		= ATOMIC_INIT(1), 		\
-	.fdt		= &init_files.fdtab, 		\
-	.fdtab		= INIT_FDTABLE,			\
-	.file_lock	= __SPIN_LOCK_UNLOCKED(init_task.file_lock), \
-	.next_fd	= 0, 				\
-	.close_on_exec_init = { { 0, } }, 		\
-	.open_fds_init	= { { 0, } }, 			\
-	.fd_array	= { NULL, } 			\
-}
+extern struct files_struct init_files;
 
 #define INIT_KIOCTX(name, which_mm) \
 {							\

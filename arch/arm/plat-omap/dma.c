@@ -501,8 +501,6 @@ static inline void omap_enable_channel_irq(int lch)
 
 	/* Enable some nice interrupts. */
 	OMAP_DMA_CICR_REG(lch) = dma_chan[lch].enabled_irqs;
-
-	dma_chan[lch].flags |= OMAP_DMA_ACTIVE;
 }
 
 static void omap_disable_channel_irq(int lch)
@@ -604,6 +602,7 @@ int omap_request_dma(int dev_id, const char *dev_name,
 	chan->data = data;
 #ifndef CONFIG_ARCH_OMAP1
 	chan->chain_id = -1;
+	chan->next_linked_ch = -1;
 #endif
 	chan->enabled_irqs = OMAP_DMA_DROP_IRQ | OMAP_DMA_BLOCK_IRQ;
 
@@ -1087,7 +1086,6 @@ int omap_request_dma_chain(int dev_id, const char *dev_name,
 			printk(KERN_ERR "omap_dma: Request failed %d\n", err);
 			return err;
 		}
-		dma_chan[channels[i]].next_linked_ch = -1;
 		dma_chan[channels[i]].prev_linked_ch = -1;
 		dma_chan[channels[i]].state = DMA_CH_NOTSTARTED;
 

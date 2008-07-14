@@ -136,6 +136,9 @@ static void pxa27x_keypad_build_keycode(struct pxa27x_keypad *keypad)
 		set_bit(code, input_dev->keybit);
 	}
 
+	for (i = 0; i < pdata->direct_key_num; i++)
+		set_bit(pdata->direct_key_map[i], input_dev->keybit);
+
 	keypad->rotary_up_key[0] = pdata->rotary0_up_key;
 	keypad->rotary_up_key[1] = pdata->rotary1_up_key;
 	keypad->rotary_down_key[0] = pdata->rotary0_down_key;
@@ -143,17 +146,21 @@ static void pxa27x_keypad_build_keycode(struct pxa27x_keypad *keypad)
 	keypad->rotary_rel_code[0] = pdata->rotary0_rel_code;
 	keypad->rotary_rel_code[1] = pdata->rotary1_rel_code;
 
-	if (pdata->rotary0_up_key && pdata->rotary0_down_key) {
-		set_bit(pdata->rotary0_up_key, input_dev->keybit);
-		set_bit(pdata->rotary0_down_key, input_dev->keybit);
-	} else
-		set_bit(pdata->rotary0_rel_code, input_dev->relbit);
+	if (pdata->enable_rotary0) {
+		if (pdata->rotary0_up_key && pdata->rotary0_down_key) {
+			set_bit(pdata->rotary0_up_key, input_dev->keybit);
+			set_bit(pdata->rotary0_down_key, input_dev->keybit);
+		} else
+			set_bit(pdata->rotary0_rel_code, input_dev->relbit);
+	}
 
-	if (pdata->rotary1_up_key && pdata->rotary1_down_key) {
-		set_bit(pdata->rotary1_up_key, input_dev->keybit);
-		set_bit(pdata->rotary1_down_key, input_dev->keybit);
-	} else
-		set_bit(pdata->rotary1_rel_code, input_dev->relbit);
+	if (pdata->enable_rotary1) {
+		if (pdata->rotary1_up_key && pdata->rotary1_down_key) {
+			set_bit(pdata->rotary1_up_key, input_dev->keybit);
+			set_bit(pdata->rotary1_down_key, input_dev->keybit);
+		} else
+			set_bit(pdata->rotary1_rel_code, input_dev->relbit);
+	}
 }
 
 static inline unsigned int lookup_matrix_keycode(
@@ -484,8 +491,13 @@ static int __devinit pxa27x_keypad_probe(struct platform_device *pdev)
 	keypad->input_dev = input_dev;
 	input_set_drvdata(input_dev, keypad);
 
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP) |
-		BIT_MASK(EV_REL);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
+	if ((keypad->pdata->enable_rotary0 &&
+			keypad->pdata->rotary0_rel_code) ||
+	    (keypad->pdata->enable_rotary1 &&
+			keypad->pdata->rotary1_rel_code)) {
+		input_dev->evbit[0] |= BIT_MASK(EV_REL);
+	}
 
 	pxa27x_keypad_build_keycode(keypad);
 	platform_set_drvdata(pdev, keypad);

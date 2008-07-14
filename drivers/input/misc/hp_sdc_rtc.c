@@ -691,6 +691,11 @@ static int __init hp_sdc_rtc_init(void)
 {
 	int ret;
 
+#ifdef __mc68000__
+	if (!MACH_IS_HP300)
+		return -ENODEV;
+#endif
+
 	init_MUTEX(&i8042tregs);
 
 	if ((ret = hp_sdc_request_timer_irq(&hp_sdc_rtc_isr)))

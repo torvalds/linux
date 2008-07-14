@@ -37,6 +37,7 @@
  */
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/bug.h>
 #include <linux/sched.h>
 
@@ -149,6 +150,7 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 			       (void *)bugaddr);
 
 		show_regs(regs);
+		add_taint(TAINT_WARN);
 		return BUG_TRAP_TYPE_WARN;
 	}
 

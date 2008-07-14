@@ -793,6 +793,14 @@ menuconfig V4L_USB_DRIVERS
 
 if V4L_USB_DRIVERS && USB
 
+config USB_VIDEO_CLASS
+	tristate "USB Video Class (UVC)"
+	---help---
+	  Support for the USB Video Class (UVC).  Currently only video
+	  input devices, such as webcams, are supported.
+
+	  For more information see: <http://linux-uvc.berlios.de/>
+
 source "drivers/media/video/pvrusb2/Kconfig"
 
 source "drivers/media/video/em28xx/Kconfig"
@@ -901,7 +909,7 @@ endif # V4L_USB_DRIVERS
 
 config SOC_CAMERA
 	tristate "SoC camera support"
-	depends on VIDEO_V4L2
+	depends on VIDEO_V4L2 && HAS_DMA
 	select VIDEOBUF_DMA_SG
 	help
 	  SoC Camera is a common API to several cameras, not connecting
