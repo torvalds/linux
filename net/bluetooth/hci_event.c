@@ -198,12 +198,14 @@ static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
+	if (status)
+		return;
+
 	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_LOCAL_NAME);
 	if (!sent)
 		return;
 
-	if (!status)
-		memcpy(hdev->dev_name, sent, 248);
+	memcpy(hdev->dev_name, sent, 248);
 }
 
 static void hci_cc_read_local_name(struct hci_dev *hdev, struct sk_buff *skb)
@@ -313,12 +315,14 @@ static void hci_cc_write_class_of_dev(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
+	if (status)
+		return;
+
 	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_CLASS_OF_DEV);
 	if (!sent)
 		return;
 
-	if (!status)
-		memcpy(hdev->dev_class, sent, 3);
+	memcpy(hdev->dev_class, sent, 3);
 }
 
 static void hci_cc_read_voice_setting(struct hci_dev *hdev, struct sk_buff *skb)
@@ -333,7 +337,7 @@ static void hci_cc_read_voice_setting(struct hci_dev *hdev, struct sk_buff *skb)
 
 	setting = __le16_to_cpu(rp->voice_setting);
 
-	if (hdev->voice_setting == setting )
+	if (hdev->voice_setting == setting)
 		return;
 
 	hdev->voice_setting = setting;
@@ -350,28 +354,31 @@ static void hci_cc_read_voice_setting(struct hci_dev *hdev, struct sk_buff *skb)
 static void hci_cc_write_voice_setting(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
+	__u16 setting;
 	void *sent;
 
 	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	if (status)
+		return;
 
 	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_VOICE_SETTING);
 	if (!sent)
 		return;
 
-	if (!status) {
-		__u16 setting = get_unaligned_le16(sent);
+	setting = get_unaligned_le16(sent);
 
-		if (hdev->voice_setting != setting) {
-			hdev->voice_setting = setting;
+	if (hdev->voice_setting == setting)
+		return;
 
-			BT_DBG("%s voice setting 0x%04x", hdev->name, setting);
+	hdev->voice_setting = setting;
 
-			if (hdev->notify) {
-				tasklet_disable(&hdev->tx_task);
-				hdev->notify(hdev, HCI_NOTIFY_VOICE_SETTING);
-				tasklet_enable(&hdev->tx_task);
-			}
-		}
+	BT_DBG("%s voice setting 0x%04x", hdev->name, setting);
+
+	if (hdev->notify) {
+		tasklet_disable(&hdev->tx_task);
+		hdev->notify(hdev, HCI_NOTIFY_VOICE_SETTING);
+		tasklet_enable(&hdev->tx_task);
 	}
 }
 
