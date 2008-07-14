@@ -29,7 +29,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 	const struct firmware *fw = NULL;
 	u32 size;
 	u32 v;
-	u8 *ptr;
+	const u8 *ptr;
 	int i;
 
 	if (request_firmware(&fw, FWFILE, &cx->dev->dev) != 0) {
