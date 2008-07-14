@@ -581,6 +581,12 @@ static int hidp_session(void *arg)
 		hid_free_device(session->hid);
 	}
 
+	/* Wakeup user-space polling for socket errors */
+	session->intr_sock->sk->sk_err = EUNATCH;
+	session->ctrl_sock->sk->sk_err = EUNATCH;
+
+	hidp_schedule(session);
+
 	fput(session->intr_sock->file);
 
 	wait_event_timeout(*(ctrl_sk->sk_sleep),
@@ -878,6 +884,10 @@ int hidp_del_connection(struct hidp_conndel_req *req)
 			/* Flush the transmit queues */
 			skb_queue_purge(&session->ctrl_transmit);
 			skb_queue_purge(&session->intr_transmit);
+
+			/* Wakeup user-space polling for socket errors */
+			session->intr_sock->sk->sk_err = EUNATCH;
+			session->ctrl_sock->sk->sk_err = EUNATCH;
 
 			/* Kill session thread */
 			atomic_inc(&session->terminate);
