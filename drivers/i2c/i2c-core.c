@@ -29,7 +29,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/idr.h>
-#include <linux/seq_file.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
