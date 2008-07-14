@@ -2,7 +2,8 @@
 # Makefile for the S/390 common i/o drivers
 #
 
-obj-y += airq.o blacklist.o chsc.o cio.o css.o chp.o idset.o scsw.o fcx.o
+obj-y += airq.o blacklist.o chsc.o cio.o css.o chp.o idset.o scsw.o fcx.o \
+	 itcw.o
 ccw_device-objs += device.o device_fsm.o device_ops.o
 ccw_device-objs += device_id.o device_pgid.o device_status.o
 obj-y += ccw_device.o cmf.o
