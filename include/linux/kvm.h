@@ -311,9 +311,13 @@ struct kvm_s390_interrupt {
 
 /* This structure represents a single trace buffer record. */
 struct kvm_trace_rec {
-	__u32 event:28;
-	__u32 extra_u32:3;
-	__u32 cycle_in:1;
+	/* variable rec_val
+	 * is split into:
+	 * bits 0 - 27  -> event id
+	 * bits 28 -30  -> number of extra data args of size u32
+	 * bits 31      -> binary indicator for if tsc is in record
+	 */
+	__u32 rec_val;
 	__u32 pid;
 	__u32 vcpu_id;
 	union {
@@ -326,6 +330,13 @@ struct kvm_trace_rec {
 		} nocycle;
 	} u;
 };
+
+#define TRACE_REC_EVENT_ID(val) \
+		(0x0fffffff & (val))
+#define TRACE_REC_NUM_DATA_ARGS(val) \
+		(0x70000000 & ((val) << 28))
+#define TRACE_REC_TCS(val) \
+		(0x80000000 & ((val) << 31))
 
 #define KVMIO 0xAE
 

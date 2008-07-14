@@ -54,12 +54,13 @@ static void kvm_add_trace(void *probe_private, void *call_data,
 	struct kvm_trace *kt = kvm_trace;
 	struct kvm_trace_rec rec;
 	struct kvm_vcpu *vcpu;
-	int    i, extra, size;
+	int    i, size;
+	u32    extra;
 
 	if (unlikely(kt->trace_state != KVM_TRACE_STATE_RUNNING))
 		return;
 
-	rec.event	= va_arg(*args, u32);
+	rec.rec_val	= TRACE_REC_EVENT_ID(va_arg(*args, u32));
 	vcpu		= va_arg(*args, struct kvm_vcpu *);
 	rec.pid		= current->tgid;
 	rec.vcpu_id	= vcpu->vcpu_id;
@@ -67,21 +68,21 @@ static void kvm_add_trace(void *probe_private, void *call_data,
 	extra   	= va_arg(*args, u32);
 	WARN_ON(!(extra <= KVM_TRC_EXTRA_MAX));
 	extra 		= min_t(u32, extra, KVM_TRC_EXTRA_MAX);
-	rec.extra_u32   = extra;
 
-	rec.cycle_in 	= p->cycle_in;
+	rec.rec_val |= TRACE_REC_TCS(p->cycle_in)
+			| TRACE_REC_NUM_DATA_ARGS(extra);
 
-	if (rec.cycle_in) {
+	if (p->cycle_in) {
 		rec.u.cycle.cycle_u64 = get_cycles();
 
-		for (i = 0; i < rec.extra_u32; i++)
+		for (i = 0; i < extra; i++)
 			rec.u.cycle.extra_u32[i] = va_arg(*args, u32);
 	} else {
-		for (i = 0; i < rec.extra_u32; i++)
+		for (i = 0; i < extra; i++)
 			rec.u.nocycle.extra_u32[i] = va_arg(*args, u32);
 	}
 
-	size = calc_rec_size(rec.cycle_in, rec.extra_u32 * sizeof(u32));
+	size = calc_rec_size(p->cycle_in, extra * sizeof(u32));
 	relay_write(kt->rchan, &rec, size);
 }
 
