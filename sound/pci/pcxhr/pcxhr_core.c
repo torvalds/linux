@@ -269,7 +269,7 @@ int pcxhr_load_xilinx_binary(struct pcxhr_mgr *mgr, const struct firmware *xilin
 	unsigned int chipsc;
 	unsigned char data;
 	unsigned char mask;
-	unsigned char *image;
+	const unsigned char *image;
 
 	/* test first xilinx */
 	chipsc = PCXHR_INPL(mgr, PCXHR_PLX_CHIPSC);
@@ -316,7 +316,7 @@ static int pcxhr_download_dsp(struct pcxhr_mgr *mgr, const struct firmware *dsp)
 	int err;
 	unsigned int i;
 	unsigned int len;
-	unsigned char *data;
+	const unsigned char *data;
 	unsigned char dummy;
 	/* check the length of boot image */
 	snd_assert(dsp->size > 0, return -EINVAL);

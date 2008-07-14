@@ -560,7 +560,7 @@ static const struct {
 static void build_wpa_mib(struct atmel_private *priv);
 static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void atmel_copy_to_card(struct net_device *dev, u16 dest,
-			       unsigned char *src, u16 len);
+			       const unsigned char *src, u16 len);
 static void atmel_copy_to_host(struct net_device *dev, unsigned char *dest,
 			       u16 src, u16 len);
 static void atmel_set_gcr(struct net_device *dev, u16 mask);
@@ -3853,7 +3853,7 @@ static int reset_atmel_card(struct net_device *dev)
 	if (priv->card_type == CARD_TYPE_EEPROM) {
 		/* copy in firmware if needed */
 		const struct firmware *fw_entry = NULL;
-		unsigned char *fw;
+		const unsigned char *fw;
 		int len = priv->firmware_length;
 		if (!(fw = priv->firmware)) {
 			if (priv->firmware_type == ATMEL_FW_TYPE_NONE) {
@@ -4120,7 +4120,7 @@ static void atmel_writeAR(struct net_device *dev, u16 data)
 }
 
 static void atmel_copy_to_card(struct net_device *dev, u16 dest,
-			       unsigned char *src, u16 len)
+			       const unsigned char *src, u16 len)
 {
 	int i;
 	atmel_writeAR(dev, dest);
