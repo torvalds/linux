@@ -53,7 +53,9 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "0.5"
+#define VERSION "0.6"
+
+static int disable_esco = 0;
 
 static const struct proto_ops sco_sock_ops;
 
@@ -193,7 +195,10 @@ static int sco_connect(struct sock *sk)
 
 	err = -ENOMEM;
 
-	type = lmp_esco_capable(hdev) ? ESCO_LINK : SCO_LINK;
+	if (lmp_esco_capable(hdev) && !disable_esco)
+		type = ESCO_LINK;
+	else
+		type = SCO_LINK;
 
 	hcon = hci_connect(hdev, type, dst);
 	if (!hcon)
@@ -993,6 +998,9 @@ static void __exit sco_exit(void)
 
 module_init(sco_init);
 module_exit(sco_exit);
+
+module_param(disable_esco, bool, 0644);
+MODULE_PARM_DESC(disable_esco, "Disable eSCO connection creation");
 
 MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>, Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth SCO ver " VERSION);
