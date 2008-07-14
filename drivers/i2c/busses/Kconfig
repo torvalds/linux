@@ -186,26 +186,6 @@ config I2C_I801
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
 
-config I2C_I810
-	tristate "Intel 810/815 (DEPRECATED)"
-	default n
-	depends on PCI
-	select I2C_ALGOBIT
-	help
-	  If you say yes to this option, support will be included for the Intel
-	  810/815 family of mainboard I2C interfaces.  Specifically, the
-	  following versions of the chipset are supported:
-	    i810AA
-	    i810AB
-	    i810E
-	    i815
-	    i845G
-
-	  This driver is deprecated in favor of the i810fb and intelfb drivers.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-i810.
-
 config I2C_PXA
 	tristate "Intel PXA2XX I2C adapter (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && ARCH_PXA
@@ -402,44 +382,12 @@ config I2C_PASEMI
 	help
 	  Supports the PA Semi PWRficient on-chip SMBus interfaces.
 
-config I2C_PROSAVAGE
-	tristate "S3/VIA (Pro)Savage (DEPRECATED)"
-	default n
-	depends on PCI
-	select I2C_ALGOBIT
-	help
-	  If you say yes to this option, support will be included for the
-	  I2C bus and DDC bus of the S3VIA embedded Savage4 and ProSavage8
-	  graphics processors.
-	  chipsets supported:
-	    S3/VIA KM266/VT8375 aka ProSavage8
-	    S3/VIA KM133/VT8365 aka Savage4
-
-	  This driver is deprecated in favor of the savagefb driver.
-
-	  This support is also available as a module.  If so, the module
-	  will be called i2c-prosavage.
-
 config I2C_S3C2410
 	tristate "S3C2410 I2C Driver"
 	depends on ARCH_S3C2410
 	help
 	  Say Y here to include support for I2C controller in the
 	  Samsung S3C2410 based System-on-Chip devices.
-
-config I2C_SAVAGE4
-	tristate "S3 Savage 4 (DEPRECATED)"
-	default n
-	depends on PCI
-	select I2C_ALGOBIT
-	help
-	  If you say yes to this option, support will be included for the
-	  S3 Savage 4 I2C interface.
-
-	  This driver is deprecated in favor of the savagefb driver.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-savage4.
 
 config I2C_SIBYTE
 	tristate "SiByte SMBus interface"

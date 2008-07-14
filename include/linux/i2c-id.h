@@ -111,7 +111,6 @@
 #define I2C_HW_B_RIVA		0x010010 /* Riva based graphics cards */
 #define I2C_HW_B_IOC		0x010011 /* IOC bit-wiggling */
 #define I2C_HW_B_IXP2000	0x010016 /* GPIO on IXP2000 systems */
-#define I2C_HW_B_S3VIA		0x010018 /* S3Via ProSavage adapter */
 #define I2C_HW_B_ZR36067	0x010019 /* Zoran-36057/36067 based boards */
 #define I2C_HW_B_PCILYNX	0x01001a /* TI PCILynx I2C adapter */
 #define I2C_HW_B_CX2388x	0x01001b /* connexant 2388x based tv cards */
