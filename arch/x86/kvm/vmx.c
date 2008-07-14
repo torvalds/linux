@@ -2955,6 +2955,14 @@ static void fixup_rmode_irq(struct vcpu_vmx *vmx)
 		| vmx->rmode.irq.vector;
 }
 
+#ifdef CONFIG_X86_64
+#define R "r"
+#define Q "q"
+#else
+#define R "e"
+#define Q "l"
+#endif
+
 static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -2972,26 +2980,21 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	asm(
 		/* Store host registers */
-#ifdef CONFIG_X86_64
-		"push %%rdx; push %%rbp;"
-		"push %%rcx \n\t"
-#else
-		"push %%edx; push %%ebp;"
-		"push %%ecx \n\t"
-#endif
+		"push %%"R"dx; push %%"R"bp;"
+		"push %%"R"cx \n\t"
 		__ex(ASM_VMX_VMWRITE_RSP_RDX) "\n\t"
 		/* Check if vmlaunch of vmresume is needed */
 		"cmpl $0, %c[launched](%0) \n\t"
 		/* Load guest registers.  Don't clobber flags. */
+		"mov %c[cr2](%0), %%"R"ax \n\t"
+		"mov %%"R"ax, %%cr2 \n\t"
+		"mov %c[rax](%0), %%"R"ax \n\t"
+		"mov %c[rbx](%0), %%"R"bx \n\t"
+		"mov %c[rdx](%0), %%"R"dx \n\t"
+		"mov %c[rsi](%0), %%"R"si \n\t"
+		"mov %c[rdi](%0), %%"R"di \n\t"
+		"mov %c[rbp](%0), %%"R"bp \n\t"
 #ifdef CONFIG_X86_64
-		"mov %c[cr2](%0), %%rax \n\t"
-		"mov %%rax, %%cr2 \n\t"
-		"mov %c[rax](%0), %%rax \n\t"
-		"mov %c[rbx](%0), %%rbx \n\t"
-		"mov %c[rdx](%0), %%rdx \n\t"
-		"mov %c[rsi](%0), %%rsi \n\t"
-		"mov %c[rdi](%0), %%rdi \n\t"
-		"mov %c[rbp](%0), %%rbp \n\t"
 		"mov %c[r8](%0),  %%r8  \n\t"
 		"mov %c[r9](%0),  %%r9  \n\t"
 		"mov %c[r10](%0), %%r10 \n\t"
@@ -3000,18 +3003,9 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		"mov %c[r13](%0), %%r13 \n\t"
 		"mov %c[r14](%0), %%r14 \n\t"
 		"mov %c[r15](%0), %%r15 \n\t"
-		"mov %c[rcx](%0), %%rcx \n\t" /* kills %0 (rcx) */
-#else
-		"mov %c[cr2](%0), %%eax \n\t"
-		"mov %%eax,   %%cr2 \n\t"
-		"mov %c[rax](%0), %%eax \n\t"
-		"mov %c[rbx](%0), %%ebx \n\t"
-		"mov %c[rdx](%0), %%edx \n\t"
-		"mov %c[rsi](%0), %%esi \n\t"
-		"mov %c[rdi](%0), %%edi \n\t"
-		"mov %c[rbp](%0), %%ebp \n\t"
-		"mov %c[rcx](%0), %%ecx \n\t" /* kills %0 (ecx) */
 #endif
+		"mov %c[rcx](%0), %%"R"cx \n\t" /* kills %0 (ecx) */
+
 		/* Enter guest mode */
 		"jne .Llaunched \n\t"
 		__ex(ASM_VMX_VMLAUNCH) "\n\t"
@@ -3019,15 +3013,15 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		".Llaunched: " __ex(ASM_VMX_VMRESUME) "\n\t"
 		".Lkvm_vmx_return: "
 		/* Save guest registers, load host registers, keep flags */
+		"xchg %0,     (%%"R"sp) \n\t"
+		"mov %%"R"ax, %c[rax](%0) \n\t"
+		"mov %%"R"bx, %c[rbx](%0) \n\t"
+		"push"Q" (%%"R"sp); pop"Q" %c[rcx](%0) \n\t"
+		"mov %%"R"dx, %c[rdx](%0) \n\t"
+		"mov %%"R"si, %c[rsi](%0) \n\t"
+		"mov %%"R"di, %c[rdi](%0) \n\t"
+		"mov %%"R"bp, %c[rbp](%0) \n\t"
 #ifdef CONFIG_X86_64
-		"xchg %0,     (%%rsp) \n\t"
-		"mov %%rax, %c[rax](%0) \n\t"
-		"mov %%rbx, %c[rbx](%0) \n\t"
-		"pushq (%%rsp); popq %c[rcx](%0) \n\t"
-		"mov %%rdx, %c[rdx](%0) \n\t"
-		"mov %%rsi, %c[rsi](%0) \n\t"
-		"mov %%rdi, %c[rdi](%0) \n\t"
-		"mov %%rbp, %c[rbp](%0) \n\t"
 		"mov %%r8,  %c[r8](%0) \n\t"
 		"mov %%r9,  %c[r9](%0) \n\t"
 		"mov %%r10, %c[r10](%0) \n\t"
@@ -3036,24 +3030,11 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		"mov %%r13, %c[r13](%0) \n\t"
 		"mov %%r14, %c[r14](%0) \n\t"
 		"mov %%r15, %c[r15](%0) \n\t"
-		"mov %%cr2, %%rax   \n\t"
-		"mov %%rax, %c[cr2](%0) \n\t"
-
-		"pop  %%rbp; pop  %%rbp; pop  %%rdx \n\t"
-#else
-		"xchg %0, (%%esp) \n\t"
-		"mov %%eax, %c[rax](%0) \n\t"
-		"mov %%ebx, %c[rbx](%0) \n\t"
-		"pushl (%%esp); popl %c[rcx](%0) \n\t"
-		"mov %%edx, %c[rdx](%0) \n\t"
-		"mov %%esi, %c[rsi](%0) \n\t"
-		"mov %%edi, %c[rdi](%0) \n\t"
-		"mov %%ebp, %c[rbp](%0) \n\t"
-		"mov %%cr2, %%eax  \n\t"
-		"mov %%eax, %c[cr2](%0) \n\t"
-
-		"pop %%ebp; pop %%ebp; pop %%edx \n\t"
 #endif
+		"mov %%cr2, %%"R"ax   \n\t"
+		"mov %%"R"ax, %c[cr2](%0) \n\t"
+
+		"pop  %%"R"bp; pop  %%"R"bp; pop  %%"R"dx \n\t"
 		"setbe %c[fail](%0) \n\t"
 	      : : "c"(vmx), "d"((unsigned long)HOST_RSP),
 		[launched]"i"(offsetof(struct vcpu_vmx, launched)),
@@ -3077,11 +3058,9 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 #endif
 		[cr2]"i"(offsetof(struct vcpu_vmx, vcpu.arch.cr2))
 	      : "cc", "memory"
+		, R"bx", R"di", R"si"
 #ifdef CONFIG_X86_64
-		, "rbx", "rdi", "rsi"
 		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
-#else
-		, "ebx", "edi", "rsi"
 #endif
 	      );
 
@@ -3110,6 +3089,9 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	vmx_complete_interrupts(vmx);
 }
+
+#undef R
+#undef Q
 
 static void vmx_free_vmcs(struct kvm_vcpu *vcpu)
 {
