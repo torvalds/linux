@@ -49,7 +49,9 @@ struct css_general_char {
 	u32 qebsm : 1;   /* bit 58 */
 	u32 : 8;
 	u32 aif_osa : 1; /* bit 67 */
-	u32 : 28;
+	u32 : 20;
+	u32 fcx : 1;	 /* bit 88 */
+	u32 : 7;
 }__attribute__((packed));
 
 struct css_chsc_char {
