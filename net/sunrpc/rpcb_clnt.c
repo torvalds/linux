@@ -116,6 +116,29 @@ static void rpcb_map_release(void *data)
 	kfree(map);
 }
 
+static const struct sockaddr_in rpcb_inaddr_loopback = {
+	.sin_family		= AF_INET,
+	.sin_addr.s_addr	= htonl(INADDR_LOOPBACK),
+	.sin_port		= htons(RPCBIND_PORT),
+};
+
+static struct rpc_clnt *rpcb_create_local(struct sockaddr *addr,
+					  size_t addrlen, u32 version)
+{
+	struct rpc_create_args args = {
+		.protocol	= XPRT_TRANSPORT_UDP,
+		.address	= addr,
+		.addrsize	= addrlen,
+		.servername	= "localhost",
+		.program	= &rpcb_program,
+		.version	= version,
+		.authflavor	= RPC_AUTH_UNIX,
+		.flags		= RPC_CLNT_CREATE_NOPING,
+	};
+
+	return rpc_create(&args);
+}
+
 static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 				    size_t salen, int proto, u32 version,
 				    int privileged)
@@ -161,10 +184,6 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
  */
 int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 {
-	struct sockaddr_in sin = {
-		.sin_family		= AF_INET,
-		.sin_addr.s_addr	= htonl(INADDR_LOOPBACK),
-	};
 	struct rpcbind_args map = {
 		.r_prog		= prog,
 		.r_vers		= vers,
@@ -184,14 +203,15 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 			"rpcbind\n", (port ? "" : "un"),
 			prog, vers, prot, port);
 
-	rpcb_clnt = rpcb_create("localhost", (struct sockaddr *) &sin,
-				sizeof(sin), XPRT_TRANSPORT_UDP, RPCBVERS_2, 1);
-	if (IS_ERR(rpcb_clnt))
-		return PTR_ERR(rpcb_clnt);
+	rpcb_clnt = rpcb_create_local((struct sockaddr *)&rpcb_inaddr_loopback,
+					sizeof(rpcb_inaddr_loopback),
+					RPCBVERS_2);
+	if (!IS_ERR(rpcb_clnt)) {
+		error = rpc_call_sync(rpcb_clnt, &msg, 0);
+		rpc_shutdown_client(rpcb_clnt);
+	} else
+		error = PTR_ERR(rpcb_clnt);
 
-	error = rpc_call_sync(rpcb_clnt, &msg, 0);
-
-	rpc_shutdown_client(rpcb_clnt);
 	if (error < 0)
 		printk(KERN_WARNING "RPC: failed to contact local rpcbind "
 				"server (errno %d).\n", -error);
