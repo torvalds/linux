@@ -168,6 +168,7 @@ struct hci_conn {
 	__u16            pkt_type;
 	__u16            link_policy;
 	__u32		 link_mode;
+	__u8             auth_type;
 	__u8             power_save;
 	unsigned long	 pend;
 
@@ -422,6 +423,7 @@ int hci_get_dev_list(void __user *arg);
 int hci_get_dev_info(void __user *arg);
 int hci_get_conn_list(void __user *arg);
 int hci_get_conn_info(struct hci_dev *hdev, void __user *arg);
+int hci_get_auth_info(struct hci_dev *hdev, void __user *arg);
 int hci_inquiry(void __user *arg);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);

@@ -2150,7 +2150,7 @@ static int l2cap_disconn_ind(struct hci_conn *hcon, u8 reason)
 static int l2cap_auth_cfm(struct hci_conn *hcon, u8 status)
 {
 	struct l2cap_chan_list *l;
-	struct l2cap_conn *conn = conn = hcon->l2cap_data;
+	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct l2cap_conn_rsp rsp;
 	struct sock *sk;
 	int result;
@@ -2165,11 +2165,17 @@ static int l2cap_auth_cfm(struct hci_conn *hcon, u8 status)
 	read_lock(&l->lock);
 
 	for (sk = l->head; sk; sk = l2cap_pi(sk)->next_c) {
+		struct l2cap_pinfo *pi = l2cap_pi(sk);
+
 		bh_lock_sock(sk);
 
-		if (sk->sk_state != BT_CONNECT2 ||
-				(l2cap_pi(sk)->link_mode & L2CAP_LM_ENCRYPT) ||
-				(l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE)) {
+		if (sk->sk_state != BT_CONNECT2) {
+			bh_unlock_sock(sk);
+			continue;
+		}
+
+		if ((pi->link_mode & (L2CAP_LM_ENCRYPT | L2CAP_LM_SECURE)) &&
+					!(hcon->link_mode & HCI_LM_ENCRYPT)) {
 			bh_unlock_sock(sk);
 			continue;
 		}

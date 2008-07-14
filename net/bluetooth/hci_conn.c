@@ -379,13 +379,21 @@ int hci_conn_auth(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
 
+	if (conn->ssp_mode > 0 && conn->hdev->ssp_mode > 0) {
+		if (!(conn->auth_type & 0x01)) {
+			conn->auth_type = HCI_AT_GENERAL_BONDING_MITM;
+			conn->link_mode &= ~HCI_LM_AUTH;
+		}
+	}
+
 	if (conn->link_mode & HCI_LM_AUTH)
 		return 1;
 
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->pend)) {
 		struct hci_cp_auth_requested cp;
 		cp.handle = cpu_to_le16(conn->handle);
-		hci_send_cmd(conn->hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
+		hci_send_cmd(conn->hdev, HCI_OP_AUTH_REQUESTED,
+							sizeof(cp), &cp);
 	}
 	return 0;
 }
@@ -397,7 +405,7 @@ int hci_conn_encrypt(struct hci_conn *conn)
 	BT_DBG("conn %p", conn);
 
 	if (conn->link_mode & HCI_LM_ENCRYPT)
-		return 1;
+		return hci_conn_auth(conn);
 
 	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
 		return 0;
@@ -406,7 +414,8 @@ int hci_conn_encrypt(struct hci_conn *conn)
 		struct hci_cp_set_conn_encrypt cp;
 		cp.handle  = cpu_to_le16(conn->handle);
 		cp.encrypt = 1;
-		hci_send_cmd(conn->hdev, HCI_OP_SET_CONN_ENCRYPT, sizeof(cp), &cp);
+		hci_send_cmd(conn->hdev, HCI_OP_SET_CONN_ENCRYPT,
+							sizeof(cp), &cp);
 	}
 	return 0;
 }
@@ -420,7 +429,8 @@ int hci_conn_change_link_key(struct hci_conn *conn)
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->pend)) {
 		struct hci_cp_change_conn_link_key cp;
 		cp.handle = cpu_to_le16(conn->handle);
-		hci_send_cmd(conn->hdev, HCI_OP_CHANGE_CONN_LINK_KEY, sizeof(cp), &cp);
+		hci_send_cmd(conn->hdev, HCI_OP_CHANGE_CONN_LINK_KEY,
+							sizeof(cp), &cp);
 	}
 	return 0;
 }
@@ -623,4 +633,24 @@ int hci_get_conn_info(struct hci_dev *hdev, void __user *arg)
 		return -ENOENT;
 
 	return copy_to_user(ptr, &ci, sizeof(ci)) ? -EFAULT : 0;
+}
+
+int hci_get_auth_info(struct hci_dev *hdev, void __user *arg)
+{
+	struct hci_auth_info_req req;
+	struct hci_conn *conn;
+
+	if (copy_from_user(&req, arg, sizeof(req)))
+		return -EFAULT;
+
+	hci_dev_lock_bh(hdev);
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &req.bdaddr);
+	if (conn)
+		req.type = conn->auth_type;
+	hci_dev_unlock_bh(hdev);
+
+	if (!conn)
+		return -ENOENT;
+
+	return copy_to_user(arg, &req, sizeof(req)) ? -EFAULT : 0;
 }

@@ -1969,7 +1969,8 @@ static void rfcomm_auth_cfm(struct hci_conn *conn, u8 status)
 	list_for_each_safe(p, n, &s->dlcs) {
 		d = list_entry(p, struct rfcomm_dlc, list);
 
-		if (d->link_mode & (RFCOMM_LM_ENCRYPT | RFCOMM_LM_SECURE))
+		if ((d->link_mode & (RFCOMM_LM_ENCRYPT | RFCOMM_LM_SECURE)) &&
+				!(conn->link_mode & HCI_LM_ENCRYPT) && !status)
 			continue;
 
 		if (!test_and_clear_bit(RFCOMM_AUTH_PENDING, &d->flags))

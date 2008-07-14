@@ -72,8 +72,6 @@ enum {
 	HCI_INQUIRY,
 
 	HCI_RAW,
-
-	HCI_SECMGR
 };
 
 /* HCI ioctl defines */
@@ -86,6 +84,7 @@ enum {
 #define HCIGETDEVINFO	_IOR('H', 211, int)
 #define HCIGETCONNLIST	_IOR('H', 212, int)
 #define HCIGETCONNINFO	_IOR('H', 213, int)
+#define HCIGETAUTHINFO	_IOR('H', 215, int)
 
 #define HCISETRAW	_IOW('H', 220, int)
 #define HCISETSCAN	_IOW('H', 221, int)
@@ -96,8 +95,6 @@ enum {
 #define HCISETLINKMODE	_IOW('H', 226, int)
 #define HCISETACLMTU	_IOW('H', 227, int)
 #define HCISETSCOMTU	_IOW('H', 228, int)
-
-#define HCISETSECMGR	_IOW('H', 230, int)
 
 #define HCIINQUIRY	_IOR('H', 240, int)
 
@@ -202,6 +199,14 @@ enum {
 #define HCI_LM_TRUSTED	0x0008
 #define HCI_LM_RELIABLE	0x0010
 #define HCI_LM_SECURE	0x0020
+
+/* Authentication types */
+#define HCI_AT_NO_BONDING		0x00
+#define HCI_AT_NO_BONDING_MITM		0x01
+#define HCI_AT_DEDICATED_BONDING	0x02
+#define HCI_AT_DEDICATED_BONDING_MITM	0x03
+#define HCI_AT_GENERAL_BONDING		0x04
+#define HCI_AT_GENERAL_BONDING_MITM	0x05
 
 /* -----  HCI Commands ---- */
 #define HCI_OP_INQUIRY			0x0401
@@ -999,6 +1004,11 @@ struct hci_conn_info_req {
 	bdaddr_t bdaddr;
 	__u8     type;
 	struct   hci_conn_info conn_info[0];
+};
+
+struct hci_auth_info_req {
+	bdaddr_t bdaddr;
+	__u8     type;
 };
 
 struct hci_inquiry_req {
