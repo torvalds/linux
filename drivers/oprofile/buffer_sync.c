@@ -564,9 +564,11 @@ void sync_buffer(int cpu)
 	struct task_struct *new;
 	unsigned long cookie = 0;
 	int in_kernel = 1;
-	unsigned int i;
 	sync_buffer_state state = sb_buffer_start;
+#ifndef CONFIG_OPROFILE_IBS
+	unsigned int i;
 	unsigned long available;
+#endif
 
 	mutex_lock(&buffer_mutex);
 
@@ -574,9 +576,13 @@ void sync_buffer(int cpu)
 
 	/* Remember, only we can modify tail_pos */
 
+#ifndef CONFIG_OPROFILE_IBS
 	available = get_slots(cpu_buf);
 
 	for (i = 0; i < available; ++i) {
+#else
+	while (get_slots(cpu_buf)) {
+#endif
 		struct op_sample *s = &cpu_buf->buffer[cpu_buf->tail_pos];
 
 		if (is_code(s->eip)) {
