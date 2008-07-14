@@ -223,8 +223,6 @@ void trace_function(struct trace_array *tr,
 		    unsigned long parent_ip,
 		    unsigned long flags);
 
-void tracing_start_function_trace(void);
-void tracing_stop_function_trace(void);
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);
 int register_tracer(struct tracer *type);
@@ -240,6 +238,14 @@ void update_max_tr_single(struct trace_array *tr,
 			  struct task_struct *tsk, int cpu);
 
 extern cycle_t ftrace_now(int cpu);
+
+#ifdef CONFIG_FTRACE
+void tracing_start_function_trace(void);
+void tracing_stop_function_trace(void);
+#else
+# define tracing_start_function_trace()		do { } while (0)
+# define tracing_stop_function_trace()		do { } while (0)
+#endif
 
 #ifdef CONFIG_CONTEXT_SWITCH_TRACER
 typedef void

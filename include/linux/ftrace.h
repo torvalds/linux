@@ -89,6 +89,7 @@ void ftrace_enable_daemon(void);
 
 /* totally disable ftrace - can not re-enable after this */
 void ftrace_kill(void);
+void ftrace_kill_atomic(void);
 
 static inline void tracer_disable(void)
 {

@@ -28,7 +28,10 @@ static void function_reset(struct trace_array *tr)
 
 static void start_function_trace(struct trace_array *tr)
 {
+	tr->cpu = get_cpu();
 	function_reset(tr);
+	put_cpu();
+
 	tracing_start_cmdline_record();
 	tracing_start_function_trace();
 }

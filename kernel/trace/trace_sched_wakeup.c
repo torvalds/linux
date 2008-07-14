@@ -352,8 +352,9 @@ static void start_wakeup_tracer(struct trace_array *tr)
 	 */
 	smp_wmb();
 
-	tracer_enabled = 1;
 	register_ftrace_function(&trace_ops);
+
+	tracer_enabled = 1;
 
 	return;
 fail_deprobe_wake_new:
