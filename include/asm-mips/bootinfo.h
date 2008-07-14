@@ -41,12 +41,6 @@
 #define  MACH_DS5900		10	/* DECsystem 5900		*/
 
 /*
- * Valid machtype for group LASAT
- */
-#define  MACH_LASAT_100		0	/* Masquerade II/SP100/SP50/SP25 */
-#define  MACH_LASAT_200		1	/* Masquerade PRO/SP200 */
-
-/*
  * Valid machtype for group PMC-MSP
  */
 #define MACH_MSP4200_EVAL       0	/* PMC-Sierra MSP4200 Evaluation */
