@@ -240,7 +240,7 @@ static void cpm_i2c_parse_message(struct i2c_adapter *adap,
 		eieio();
 		setbits16(&tbdf->cbd_sc, BD_SC_READY);
 	} else {
-		dev_dbg(&adap->dev, "cpm_iic_write(abyte=0x%x)\n", addr);
+		dev_dbg(&adap->dev, "cpm_i2c_write(abyte=0x%x)\n", addr);
 
 		memcpy(tb+1, pmsg->buf, pmsg->len);
 
@@ -349,7 +349,7 @@ static int cpm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	}
 	/* Start transfer now */
 	/* Enable RX/TX/Error interupts */
-	out_8(&i2c_reg->i2cmr, I2CER_BUSY | I2CER_TXB | I2CER_RXB);
+	out_8(&i2c_reg->i2cmr, I2CER_TXE | I2CER_TXB | I2CER_RXB);
 	out_8(&i2c_reg->i2cer, 0xff);	/* Clear interrupt status */
 	/* Chip bug, set enable here */
 	setbits8(&i2c_reg->i2mod, I2MOD_EN);	/* Enable */
@@ -552,8 +552,8 @@ static int __devinit cpm_i2c_setup(struct cpm_i2c *cpm)
 
 	cpm_reset_i2c_params(cpm);
 
-	dev_dbg(&cpm->ofdev->dev, "i2c_ram %p, i2c_addr 0x%04x\n",
-		cpm->i2c_ram, cpm->i2c_addr);
+	dev_dbg(&cpm->ofdev->dev, "i2c_ram 0x%p, i2c_addr 0x%04x, freq %d\n",
+		cpm->i2c_ram, cpm->i2c_addr, cpm->freq);
 	dev_dbg(&cpm->ofdev->dev, "tbase 0x%04x, rbase 0x%04x\n",
 		(u8 __iomem *)cpm->tbase - DPRAM_BASE,
 		(u8 __iomem *)cpm->rbase - DPRAM_BASE);
