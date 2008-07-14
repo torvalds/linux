@@ -53,7 +53,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "1.8"
+#define VERSION "1.9"
 
 static int disable_cfc = 0;
 static int channel_mtu = -1;
@@ -230,6 +230,21 @@ static int rfcomm_l2sock_create(struct socket **sock)
 	return err;
 }
 
+static inline int rfcomm_check_link_mode(struct rfcomm_dlc *d)
+{
+	struct sock *sk = d->session->sock->sk;
+
+	if (d->link_mode & (RFCOMM_LM_ENCRYPT | RFCOMM_LM_SECURE)) {
+		if (!hci_conn_encrypt(l2cap_pi(sk)->conn->hcon))
+			return 1;
+	} else if (d->link_mode & RFCOMM_LM_AUTH) {
+		if (!hci_conn_auth(l2cap_pi(sk)->conn->hcon))
+			return 1;
+	}
+
+	return 0;
+}
+
 /* ---- RFCOMM DLCs ---- */
 static void rfcomm_dlc_timeout(unsigned long arg)
 {
@@ -371,15 +386,23 @@ static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 	d->addr     = __addr(s->initiator, dlci);
 	d->priority = 7;
 
-	d->state    = BT_CONFIG;
+	d->state = BT_CONFIG;
 	rfcomm_dlc_link(s, d);
+
+	d->out = 1;
 
 	d->mtu = s->mtu;
 	d->cfc = (s->cfc == RFCOMM_CFC_UNKNOWN) ? 0 : s->cfc;
 
-	if (s->state == BT_CONNECTED)
-		rfcomm_send_pn(s, 1, d);
+	if (s->state == BT_CONNECTED) {
+		if (rfcomm_check_link_mode(d))
+			set_bit(RFCOMM_AUTH_PENDING, &d->flags);
+		else
+			rfcomm_send_pn(s, 1, d);
+	}
+
 	rfcomm_dlc_set_timer(d, RFCOMM_CONN_TIMEOUT);
+
 	return 0;
 }
 
@@ -1146,21 +1169,6 @@ static int rfcomm_recv_disc(struct rfcomm_session *s, u8 dlci)
 	return 0;
 }
 
-static inline int rfcomm_check_link_mode(struct rfcomm_dlc *d)
-{
-	struct sock *sk = d->session->sock->sk;
-
-	if (d->link_mode & (RFCOMM_LM_ENCRYPT | RFCOMM_LM_SECURE)) {
-		if (!hci_conn_encrypt(l2cap_pi(sk)->conn->hcon))
-			return 1;
-	} else if (d->link_mode & RFCOMM_LM_AUTH) {
-		if (!hci_conn_auth(l2cap_pi(sk)->conn->hcon))
-			return 1;
-	}
-
-	return 0;
-}
-
 static void rfcomm_dlc_accept(struct rfcomm_dlc *d)
 {
 	struct sock *sk = d->session->sock->sk;
@@ -1205,10 +1213,8 @@ static int rfcomm_recv_sabm(struct rfcomm_session *s, u8 dlci)
 			if (rfcomm_check_link_mode(d)) {
 				set_bit(RFCOMM_AUTH_PENDING, &d->flags);
 				rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
-				return 0;
-			}
-
-			rfcomm_dlc_accept(d);
+			} else
+				rfcomm_dlc_accept(d);
 		}
 		return 0;
 	}
@@ -1223,10 +1229,8 @@ static int rfcomm_recv_sabm(struct rfcomm_session *s, u8 dlci)
 		if (rfcomm_check_link_mode(d)) {
 			set_bit(RFCOMM_AUTH_PENDING, &d->flags);
 			rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
-			return 0;
-		}
-
-		rfcomm_dlc_accept(d);
+		} else
+			rfcomm_dlc_accept(d);
 	} else {
 		rfcomm_send_dm(s, dlci);
 	}
@@ -1636,7 +1640,11 @@ static void rfcomm_process_connect(struct rfcomm_session *s)
 		d = list_entry(p, struct rfcomm_dlc, list);
 		if (d->state == BT_CONFIG) {
 			d->mtu = s->mtu;
-			rfcomm_send_pn(s, 1, d);
+			if (rfcomm_check_link_mode(d)) {
+				set_bit(RFCOMM_AUTH_PENDING, &d->flags);
+				rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
+			} else
+				rfcomm_send_pn(s, 1, d);
 		}
 	}
 }
@@ -1709,7 +1717,11 @@ static inline void rfcomm_process_dlcs(struct rfcomm_session *s)
 
 		if (test_and_clear_bit(RFCOMM_AUTH_ACCEPT, &d->flags)) {
 			rfcomm_dlc_clear_timer(d);
-			rfcomm_dlc_accept(d);
+			if (d->out) {
+				rfcomm_send_pn(s, 1, d);
+				rfcomm_dlc_set_timer(d, RFCOMM_CONN_TIMEOUT);
+			} else
+				rfcomm_dlc_accept(d);
 			if (d->link_mode & RFCOMM_LM_SECURE) {
 				struct sock *sk = s->sock->sk;
 				hci_conn_change_link_key(l2cap_pi(sk)->conn->hcon);
@@ -1717,7 +1729,10 @@ static inline void rfcomm_process_dlcs(struct rfcomm_session *s)
 			continue;
 		} else if (test_and_clear_bit(RFCOMM_AUTH_REJECT, &d->flags)) {
 			rfcomm_dlc_clear_timer(d);
-			rfcomm_send_dm(s, d->dlci);
+			if (!d->out)
+				rfcomm_send_dm(s, d->dlci);
+			else
+				d->state = BT_CLOSED;
 			__rfcomm_dlc_close(d, ECONNREFUSED);
 			continue;
 		}
@@ -1726,7 +1741,7 @@ static inline void rfcomm_process_dlcs(struct rfcomm_session *s)
 			continue;
 
 		if ((d->state == BT_CONNECTED || d->state == BT_DISCONN) &&
-				d->mscex == RFCOMM_MSCEX_OK)
+						d->mscex == RFCOMM_MSCEX_OK)
 			rfcomm_process_tx(d);
 	}
 }

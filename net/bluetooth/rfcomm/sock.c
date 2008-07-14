@@ -309,13 +309,13 @@ static struct sock *rfcomm_sock_alloc(struct net *net, struct socket *sock, int 
 	sk->sk_destruct = rfcomm_sock_destruct;
 	sk->sk_sndtimeo = RFCOMM_CONN_TIMEOUT;
 
-	sk->sk_sndbuf   = RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 10;
-	sk->sk_rcvbuf   = RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 10;
+	sk->sk_sndbuf = RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 10;
+	sk->sk_rcvbuf = RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 10;
 
 	sock_reset_flag(sk, SOCK_ZAPPED);
 
 	sk->sk_protocol = proto;
-	sk->sk_state	= BT_OPEN;
+	sk->sk_state    = BT_OPEN;
 
 	bt_sock_link(&rfcomm_sk_list, sk);
 
@@ -412,6 +412,8 @@ static int rfcomm_sock_connect(struct socket *sock, struct sockaddr *addr, int a
 	sk->sk_state = BT_CONNECT;
 	bacpy(&bt_sk(sk)->dst, &sa->rc_bdaddr);
 	rfcomm_pi(sk)->channel = sa->rc_channel;
+
+	d->link_mode = rfcomm_pi(sk)->link_mode;
 
 	err = rfcomm_dlc_open(d, &bt_sk(sk)->src, &sa->rc_bdaddr, sa->rc_channel);
 	if (!err)
