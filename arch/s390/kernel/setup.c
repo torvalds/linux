@@ -289,32 +289,6 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
-/*
- * "ipldelay=XXX[sm]" sets ipl delay in seconds or minutes
- */
-static int __init early_parse_ipldelay(char *p)
-{
-	unsigned long delay = 0;
-
-	delay = simple_strtoul(p, &p, 0);
-
-	switch (*p) {
-	case 's':
-	case 'S':
-		delay *= 1000000;
-		break;
-	case 'm':
-	case 'M':
-		delay *= 60 * 1000000;
-	}
-
-	/* now wait for the requested amount of time */
-	udelay(delay);
-
-	return 0;
-}
-early_param("ipldelay", early_parse_ipldelay);
-
 #ifdef CONFIG_S390_SWITCH_AMODE
 #ifdef CONFIG_PGSTE
 unsigned int switch_amode = 1;
