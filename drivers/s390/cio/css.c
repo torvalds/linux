@@ -121,25 +121,6 @@ css_alloc_subchannel(struct subchannel_id schid)
 		kfree(sch);
 		return ERR_PTR(ret);
 	}
-
-	if (sch->st != SUBCHANNEL_TYPE_IO) {
-		/* For now we ignore all non-io subchannels. */
-		kfree(sch);
-		return ERR_PTR(-EINVAL);
-	}
-
-	/* 
-	 * Set intparm to subchannel address.
-	 * This is fine even on 64bit since the subchannel is always located
-	 * under 2G.
-	 */
-	sch->schib.pmcw.intparm = (u32)(addr_t)sch;
-	ret = cio_modify(sch);
-	if (ret) {
-		kfree(sch->lock);
-		kfree(sch);
-		return ERR_PTR(ret);
-	}
 	return sch;
 }
 

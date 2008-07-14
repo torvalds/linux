@@ -12,6 +12,7 @@
 #include <linux/device.h>
 #include <asm/chpid.h>
 #include "chsc.h"
+#include "css.h"
 
 #define CHP_STATUS_STANDBY		0
 #define CHP_STATUS_CONFIGURED		1

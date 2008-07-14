@@ -24,6 +24,7 @@
 #include <asm/param.h>		/* HZ */
 #include <asm/cmb.h>
 
+#include "chp.h"
 #include "cio.h"
 #include "cio_debug.h"
 #include "css.h"
@@ -1037,7 +1038,6 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	struct ccw_device_private *priv;
 
 	sch_set_cdev(sch, cdev);
-	sch->driver = &io_subchannel_driver;
 	cdev->ccwlock = sch->lock;
 
 	/* Init private data. */
@@ -1122,8 +1122,33 @@ static void io_subchannel_irq(struct subchannel *sch)
 		dev_fsm_event(cdev, DEV_EVENT_INTERRUPT);
 }
 
-static int
-io_subchannel_probe (struct subchannel *sch)
+static void io_subchannel_init_fields(struct subchannel *sch)
+{
+	if (cio_is_console(sch->schid))
+		sch->opm = 0xff;
+	else
+		sch->opm = chp_get_sch_opm(sch);
+	sch->lpm = sch->schib.pmcw.pam & sch->opm;
+	sch->isc = cio_is_console(sch->schid) ? 1 : 3;
+
+	CIO_MSG_EVENT(6, "Detected device %04x on subchannel 0.%x.%04X"
+		      " - PIM = %02X, PAM = %02X, POM = %02X\n",
+		      sch->schib.pmcw.dev, sch->schid.ssid,
+		      sch->schid.sch_no, sch->schib.pmcw.pim,
+		      sch->schib.pmcw.pam, sch->schib.pmcw.pom);
+	/* Initially set up some fields in the pmcw. */
+	sch->schib.pmcw.ena = 0;
+	sch->schib.pmcw.csense = 1;	/* concurrent sense */
+	if ((sch->lpm & (sch->lpm - 1)) != 0)
+		sch->schib.pmcw.mp = 1; /* multipath mode */
+	/* clean up possible residual cmf stuff */
+	sch->schib.pmcw.mme = 0;
+	sch->schib.pmcw.mbfc = 0;
+	sch->schib.pmcw.mbi = 0;
+	sch->schib.mba = 0;
+}
+
+static int io_subchannel_probe(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 	int rc;
@@ -1152,6 +1177,7 @@ io_subchannel_probe (struct subchannel *sch)
 			get_device(&cdev->dev);
 		return 0;
 	}
+	io_subchannel_init_fields(sch);
 	/*
 	 * First check if a fitting device may be found amongst the
 	 * disconnected devices or in the orphanage.
@@ -1297,14 +1323,16 @@ spinlock_t * cio_get_console_lock(void)
 	return &ccw_console_lock;
 }
 
-static int
-ccw_device_console_enable (struct ccw_device *cdev, struct subchannel *sch)
+static int ccw_device_console_enable(struct ccw_device *cdev,
+				     struct subchannel *sch)
 {
 	int rc;
 
 	/* Attach subchannel private data. */
 	sch->private = cio_get_console_priv();
 	memset(sch->private, 0, sizeof(struct io_subchannel_private));
+	io_subchannel_init_fields(sch);
+	sch->driver = &io_subchannel_driver;
 	/* Initialize the ccw_device structure. */
 	cdev->dev.parent= &sch->dev;
 	rc = io_subchannel_recog(cdev, sch);

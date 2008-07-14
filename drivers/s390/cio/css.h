@@ -60,8 +60,6 @@ struct pgid {
 
 /*
  * A css driver handles all subchannels of one type.
- * Currently, we only care about I/O subchannels (type 0), these
- * have a ccw_device connected to them.
  */
 struct subchannel;
 struct css_driver {
