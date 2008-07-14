@@ -322,12 +322,12 @@ struct kvm_trace_rec {
 	__u32 vcpu_id;
 	union {
 		struct {
-			__u64 cycle_u64;
+			__u64 timestamp;
 			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
-		} __attribute__((packed)) cycle;
+		} __attribute__((packed)) timestamp;
 		struct {
 			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
-		} nocycle;
+		} notimestamp;
 	} u;
 };
 
