@@ -299,6 +299,16 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 	help
 	  The unit of the TWI clock is kHz.
 
+config I2C_CPM
+	tristate "Freescale CPM1 or CPM2 (MPC8xx/826x)"
+	depends on (CPM1 || CPM2) && OF_I2C
+	help
+	  This supports the use of the I2C interface on Freescale
+	  processors with CPM1 or CPM2.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-cpm.
+
 config I2C_DAVINCI
 	tristate "DaVinci I2C driver"
 	depends on ARCH_DAVINCI
