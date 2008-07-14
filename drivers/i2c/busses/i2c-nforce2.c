@@ -51,6 +51,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 MODULE_LICENSE("GPL");
@@ -342,6 +343,11 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 		smbus->base = iobase & PCI_BASE_ADDRESS_IO_MASK;
 		smbus->size = 64;
 	}
+
+	error = acpi_check_region(smbus->base, smbus->size,
+				  nforce2_driver.name);
+	if (error)
+		return -1;
 
 	if (!request_region(smbus->base, smbus->size, nforce2_driver.name)) {
 		dev_err(&smbus->adapter.dev, "Error requesting region %02x .. %02X for %s\n",

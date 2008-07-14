@@ -61,6 +61,7 @@
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 
@@ -158,6 +159,11 @@ static int ali1535_setup(struct pci_dev *dev)
 			"ALI1535_smb region uninitialized - upgrade BIOS?\n");
 		goto exit;
 	}
+
+	retval = acpi_check_region(ali1535_smba, ALI1535_SMB_IOSIZE,
+				   ali1535_driver.name);
+	if (retval)
+		goto exit;
 
 	if (!request_region(ali1535_smba, ALI1535_SMB_IOSIZE,
 			    ali1535_driver.name)) {

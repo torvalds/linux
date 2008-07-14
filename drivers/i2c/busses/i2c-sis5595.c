@@ -62,6 +62,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 static int blacklist[] = {
@@ -174,6 +175,11 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 
 	/* NB: We grab just the two SMBus registers here, but this may still
 	 * interfere with ACPI :-(  */
+	retval = acpi_check_region(sis5595_base + SMB_INDEX, 2,
+				   sis5595_driver.name);
+	if (retval)
+		return retval;
+
 	if (!request_region(sis5595_base + SMB_INDEX, 2,
 			    sis5595_driver.name)) {
 		dev_err(&SIS5595_dev->dev, "SMBus registers 0x%04x-0x%04x already in use!\n",

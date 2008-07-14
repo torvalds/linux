@@ -45,6 +45,7 @@
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 /* AMD756 SMBus address offsets */
@@ -367,6 +368,11 @@ static int __devinit amd756_probe(struct pci_dev *pdev,
 		amd756_ioport &= 0xff00;
 		amd756_ioport += SMB_ADDR_OFFSET;
 	}
+
+	error = acpi_check_region(amd756_ioport, SMB_IOSIZE,
+				  amd756_driver.name);
+	if (error)
+		return error;
 
 	if (!request_region(amd756_ioport, SMB_IOSIZE, amd756_driver.name)) {
 		dev_err(&pdev->dev, "SMB region 0x%x already in use!\n",

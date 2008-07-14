@@ -68,6 +68,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 /* ALI15X3 SMBus address offsets */
@@ -165,6 +166,10 @@ static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 
 	if(force_addr)
 		ali15x3_smba = force_addr & ~(ALI15X3_SMB_IOSIZE - 1);
+
+	if (acpi_check_region(ali15x3_smba, ALI15X3_SMB_IOSIZE,
+			      ali15x3_driver.name))
+		return -EBUSY;
 
 	if (!request_region(ali15x3_smba, ALI15X3_SMB_IOSIZE,
 			    ali15x3_driver.name)) {

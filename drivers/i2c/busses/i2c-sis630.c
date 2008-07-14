@@ -55,6 +55,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 /* SIS630 SMBus registers */
@@ -436,6 +437,11 @@ static int sis630_setup(struct pci_dev *sis630_dev)
 	}
 
 	dev_dbg(&sis630_dev->dev, "ACPI base at 0x%04x\n", acpi_base);
+
+	retval = acpi_check_region(acpi_base + SMB_STS, SIS630_SMB_IOREGION,
+				   sis630_driver.name);
+	if (retval)
+		goto exit;
 
 	/* Everything is happy, let's grab the memory and set things up. */
 	if (!request_region(acpi_base + SMB_STS, SIS630_SMB_IOREGION,

@@ -50,6 +50,7 @@
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 static struct pci_dev *vt596_pdev;
@@ -356,6 +357,10 @@ static int __devinit vt596_probe(struct pci_dev *pdev,
 	}
 
 found:
+	error = acpi_check_region(vt596_smba, 8, vt596_driver.name);
+	if (error)
+		return error;
+
 	if (!request_region(vt596_smba, 8, vt596_driver.name)) {
 		dev_err(&pdev->dev, "SMBus region 0x%x already in use!\n",
 			vt596_smba);

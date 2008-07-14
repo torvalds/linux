@@ -40,6 +40,7 @@
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 /* base address register in PCI config space */
@@ -280,6 +281,10 @@ static int __devinit sis96x_probe(struct pci_dev *dev,
 	}
 	dev_info(&dev->dev, "SiS96x SMBus base address: 0x%04x\n",
 			sis96x_smbus_base);
+
+	retval = acpi_check_resource_conflict(&dev->resource[SIS96x_BAR]);
+	if (retval)
+		return retval;
 
 	/* Everything is happy, let's grab the memory and set things up. */
 	if (!request_region(sis96x_smbus_base, SMB_IOSIZE,

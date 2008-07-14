@@ -21,6 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/acpi.h>
 
 #define ALI1563_MAX_TIMEOUT	500
 #define	ALI1563_SMBBA		0x80
@@ -355,6 +356,10 @@ static int __devinit ali1563_setup(struct pci_dev * dev)
 			goto Err;
 		}
 	}
+
+	if (acpi_check_region(ali1563_smba, ALI1563_SMB_IOSIZE,
+			      ali1563_pci_driver.name))
+		goto Err;
 
 	if (!request_region(ali1563_smba, ALI1563_SMB_IOSIZE,
 			    ali1563_pci_driver.name)) {

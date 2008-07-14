@@ -35,6 +35,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/acpi.h>
 
 /* SCH SMBus address offsets */
 #define SMBHSTCNT	(0 + sch_smba)
@@ -279,6 +280,8 @@ static int __devinit sch_probe(struct pci_dev *dev,
 		dev_err(&dev->dev, "SMBus base address uninitialized!\n");
 		return -ENODEV;
 	}
+	if (acpi_check_region(sch_smba, SMBIOSIZE, sch_driver.name))
+		return -EBUSY;
 	if (!request_region(sch_smba, SMBIOSIZE, sch_driver.name)) {
 		dev_err(&dev->dev, "SMBus region 0x%x already in use!\n",
 			sch_smba);

@@ -64,6 +64,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 /* I801 SMBus address offsets */
@@ -623,6 +624,10 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 		err = -ENODEV;
 		goto exit;
 	}
+
+	err = acpi_check_resource_conflict(&dev->resource[SMBBAR]);
+	if (err)
+		goto exit;
 
 	err = pci_request_region(dev, SMBBAR, i801_driver.name);
 	if (err) {

@@ -39,6 +39,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 
@@ -167,6 +168,9 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 			return -ENODEV;
 		}
 	}
+
+	if (acpi_check_region(piix4_smba, SMBIOSIZE, piix4_driver.name))
+		return -EBUSY;
 
 	if (!request_region(piix4_smba, SMBIOSIZE, piix4_driver.name)) {
 		dev_err(&PIIX4_dev->dev, "SMBus region 0x%x already in use!\n",
