@@ -1701,7 +1701,12 @@ ext4_fsblk_t ext4_old_new_blocks(handle_t *handle, struct inode *inode,
 	}
 
 	sbi = EXT4_SB(sb);
-	*count = ext4_has_free_blocks(sbi, *count);
+	if (!EXT4_I(inode)->i_delalloc_reserved_flag) {
+		/*
+		 * With delalloc we already reserved the blocks
+		 */
+		*count = ext4_has_free_blocks(sbi, *count);
+	}
 	if (*count == 0) {
 		*errp = -ENOSPC;
 		return 0;	/*return with ENOSPC error */
@@ -1902,7 +1907,8 @@ allocated:
 	le16_add_cpu(&gdp->bg_free_blocks_count, -num);
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, group_no, gdp);
 	spin_unlock(sb_bgl_lock(sbi, group_no));
-	percpu_counter_sub(&sbi->s_freeblocks_counter, num);
+	if (!EXT4_I(inode)->i_delalloc_reserved_flag)
+		percpu_counter_sub(&sbi->s_freeblocks_counter, num);
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi, group_no);
@@ -1976,24 +1982,6 @@ static ext4_fsblk_t do_blk_alloc(handle_t *handle, struct inode *inode,
 }
 
 /*
- * ext4_new_meta_block() -- allocate block for meta data (indexing) blocks
- *
- * @handle:             handle to this transaction
- * @inode:              file inode
- * @goal:               given target block(filesystem wide)
- * @errp:               error code
- *
- * Return allocated block number on success
- */
-ext4_fsblk_t ext4_new_meta_block(handle_t *handle, struct inode *inode,
-		ext4_fsblk_t goal, int *errp)
-{
-	unsigned long count = 1;
-	return do_blk_alloc(handle, inode, 0, goal,
-			&count, errp, EXT4_META_BLOCK);
-}
-
-/*
  * ext4_new_meta_blocks() -- allocate block for meta data (indexing) blocks
  *
  * @handle:             handle to this transaction
@@ -2008,8 +1996,35 @@ ext4_fsblk_t ext4_new_meta_block(handle_t *handle, struct inode *inode,
 ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 		ext4_fsblk_t goal, unsigned long *count, int *errp)
 {
-	return do_blk_alloc(handle, inode, 0, goal,
-			count, errp, EXT4_META_BLOCK);
+	ext4_fsblk_t ret;
+	ret = do_blk_alloc(handle, inode, 0, goal,
+				count, errp, EXT4_META_BLOCK);
+	/*
+	 * Account for the allocated meta blocks
+	 */
+	if (!(*errp)) {
+		spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
+		EXT4_I(inode)->i_allocated_meta_blocks += *count;
+		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+	}
+	return ret;
+}
+
+/*
+ * ext4_new_meta_block() -- allocate block for meta data (indexing) blocks
+ *
+ * @handle:             handle to this transaction
+ * @inode:              file inode
+ * @goal:               given target block(filesystem wide)
+ * @errp:               error code
+ *
+ * Return allocated block number on success
+ */
+ext4_fsblk_t ext4_new_meta_block(handle_t *handle, struct inode *inode,
+		ext4_fsblk_t goal, int *errp)
+{
+	unsigned long count = 1;
+	return ext4_new_meta_blocks(handle, inode, goal, &count, errp);
 }
 
 /*

@@ -39,6 +39,7 @@
 #include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
+#include "ext4_extents.h"
 
 static inline int ext4_begin_ordered_truncate(struct inode *inode,
 					      loff_t new_size)
@@ -982,7 +983,7 @@ out:
  */
 int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 			unsigned long max_blocks, struct buffer_head *bh,
-			int create, int extend_disksize)
+			int create, int extend_disksize, int flag)
 {
 	int retval;
 
@@ -1023,6 +1024,15 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 	 * with create == 1 flag.
 	 */
 	down_write((&EXT4_I(inode)->i_data_sem));
+
+	/*
+	 * if the caller is from delayed allocation writeout path
+	 * we have already reserved fs blocks for allocation
+	 * let the underlying get_block() function know to
+	 * avoid double accounting
+	 */
+	if (flag)
+		EXT4_I(inode)->i_delalloc_reserved_flag = 1;
 	/*
 	 * We need to check for EXT4 here because migrate
 	 * could have changed the inode type in between
@@ -1044,6 +1054,18 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 							~EXT4_EXT_MIGRATE;
 		}
 	}
+
+	if (flag) {
+		EXT4_I(inode)->i_delalloc_reserved_flag = 0;
+		/*
+		 * Update reserved blocks/metadata blocks
+		 * after successful block allocation
+		 * which were deferred till now
+		 */
+		if ((retval > 0) && buffer_delay(bh))
+			ext4_da_release_space(inode, retval, 0);
+	}
+
 	up_write((&EXT4_I(inode)->i_data_sem));
 	return retval;
 }
@@ -1069,7 +1091,7 @@ static int ext4_get_block(struct inode *inode, sector_t iblock,
 	}
 
 	ret = ext4_get_blocks_wrap(handle, inode, iblock,
-					max_blocks, bh_result, create, 0);
+					max_blocks, bh_result, create, 0, 0);
 	if (ret > 0) {
 		bh_result->b_size = (ret << inode->i_blkbits);
 		ret = 0;
@@ -1095,7 +1117,7 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	dummy.b_blocknr = -1000;
 	buffer_trace_init(&dummy.b_history);
 	err = ext4_get_blocks_wrap(handle, inode, block, 1,
-					&dummy, create, 1);
+					&dummy, create, 1, 0);
 	/*
 	 * ext4_get_blocks_handle() returns number of blocks
 	 * mapped. 0 in case of a HOLE.
@@ -1408,6 +1430,122 @@ static int ext4_journalled_write_end(struct file *file,
 	page_cache_release(page);
 
 	return ret ? ret : copied;
+}
+/*
+ * Calculate the number of metadata blocks need to reserve
+ * to allocate @blocks for non extent file based file
+ */
+static int ext4_indirect_calc_metadata_amount(struct inode *inode, int blocks)
+{
+	int icap = EXT4_ADDR_PER_BLOCK(inode->i_sb);
+	int ind_blks, dind_blks, tind_blks;
+
+	/* number of new indirect blocks needed */
+	ind_blks = (blocks + icap - 1) / icap;
+
+	dind_blks = (ind_blks + icap - 1) / icap;
+
+	tind_blks = 1;
+
+	return ind_blks + dind_blks + tind_blks;
+}
+
+/*
+ * Calculate the number of metadata blocks need to reserve
+ * to allocate given number of blocks
+ */
+static int ext4_calc_metadata_amount(struct inode *inode, int blocks)
+{
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
+		return ext4_ext_calc_metadata_amount(inode, blocks);
+
+	return ext4_indirect_calc_metadata_amount(inode, blocks);
+}
+
+static int ext4_da_reserve_space(struct inode *inode, int nrblocks)
+{
+       struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+       unsigned long md_needed, mdblocks, total = 0;
+
+	/*
+	 * recalculate the amount of metadata blocks to reserve
+	 * in order to allocate nrblocks
+	 * worse case is one extent per block
+	 */
+	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
+	total = EXT4_I(inode)->i_reserved_data_blocks + nrblocks;
+	mdblocks = ext4_calc_metadata_amount(inode, total);
+	BUG_ON(mdblocks < EXT4_I(inode)->i_reserved_meta_blocks);
+
+	md_needed = mdblocks - EXT4_I(inode)->i_reserved_meta_blocks;
+	total = md_needed + nrblocks;
+
+	if (ext4_has_free_blocks(sbi, total) < total) {
+		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+		return -ENOSPC;
+	}
+
+	/* reduce fs free blocks counter */
+	percpu_counter_sub(&sbi->s_freeblocks_counter, total);
+
+	EXT4_I(inode)->i_reserved_data_blocks += nrblocks;
+	EXT4_I(inode)->i_reserved_meta_blocks = mdblocks;
+
+	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+	return 0;       /* success */
+}
+
+void ext4_da_release_space(struct inode *inode, int used, int to_free)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	int total, mdb, mdb_free, release;
+
+	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
+	/* recalculate the number of metablocks still need to be reserved */
+	total = EXT4_I(inode)->i_reserved_data_blocks - used - to_free;
+	mdb = ext4_calc_metadata_amount(inode, total);
+
+	/* figure out how many metablocks to release */
+	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
+	mdb_free = EXT4_I(inode)->i_reserved_meta_blocks - mdb;
+
+	/* Account for allocated meta_blocks */
+	mdb_free -= EXT4_I(inode)->i_allocated_meta_blocks;
+
+	release = to_free + mdb_free;
+
+	/* update fs free blocks counter for truncate case */
+	percpu_counter_add(&sbi->s_freeblocks_counter, release);
+
+	/* update per-inode reservations */
+	BUG_ON(used + to_free > EXT4_I(inode)->i_reserved_data_blocks);
+	EXT4_I(inode)->i_reserved_data_blocks -= (used + to_free);
+
+	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
+	EXT4_I(inode)->i_reserved_meta_blocks = mdb;
+	EXT4_I(inode)->i_allocated_meta_blocks = 0;
+	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+}
+
+static void ext4_da_page_release_reservation(struct page *page,
+						unsigned long offset)
+{
+	int to_release = 0;
+	struct buffer_head *head, *bh;
+	unsigned int curr_off = 0;
+
+	head = page_buffers(page);
+	bh = head;
+	do {
+		unsigned int next_off = curr_off + bh->b_size;
+
+		if ((offset <= curr_off) && (buffer_delay(bh))) {
+			to_release++;
+			clear_buffer_delay(bh);
+		}
+		curr_off = next_off;
+	} while ((bh = bh->b_this_page) != head);
+	ext4_da_release_space(page->mapping->host, 0, to_release);
 }
 
 /*
@@ -1829,14 +1967,18 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 	 * preallocated blocks are unmapped but should treated
 	 * the same as allocated blocks.
 	 */
-	ret = ext4_get_blocks_wrap(NULL, inode, iblock, 1,  bh_result, 0, 0);
-	if (ret == 0) {
-		/* the block isn't allocated yet, let's reserve space */
-		/* XXX: call reservation here */
+	ret = ext4_get_blocks_wrap(NULL, inode, iblock, 1,  bh_result, 0, 0, 0);
+	if ((ret == 0) && !buffer_delay(bh_result)) {
+		/* the block isn't (pre)allocated yet, let's reserve space */
 		/*
 		 * XXX: __block_prepare_write() unmaps passed block,
 		 * is it OK?
 		 */
+		ret = ext4_da_reserve_space(inode, 1);
+		if (ret)
+			/* not enough space to reserve */
+			return ret;
+
 		map_bh(bh_result, inode->i_sb, 0);
 		set_buffer_new(bh_result);
 		set_buffer_delay(bh_result);
@@ -1847,7 +1989,7 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 
 	return ret;
 }
-
+#define		EXT4_DELALLOC_RSVED	1
 static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
 				   struct buffer_head *bh_result, int create)
 {
@@ -1865,7 +2007,7 @@ static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
 	}
 
 	ret = ext4_get_blocks_wrap(handle, inode, iblock, max_blocks,
-				   bh_result, create, 0);
+				   bh_result, create, 0, EXT4_DELALLOC_RSVED);
 	if (ret > 0) {
 		bh_result->b_size = (ret << inode->i_blkbits);
 
@@ -1952,7 +2094,7 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned flags,
 				struct page **pagep, void **fsdata)
 {
-	int ret;
+	int ret, retries = 0;
 	struct page *page;
 	pgoff_t index;
 	unsigned from, to;
@@ -1963,6 +2105,7 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 	from = pos & (PAGE_CACHE_SIZE - 1);
 	to = from + len;
 
+retry:
 	/*
 	 * With delayed allocation, we don't log the i_disksize update
 	 * if there is delayed block allocation. But we still need
@@ -1988,6 +2131,8 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 		page_cache_release(page);
 	}
 
+	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
+		goto retry;
 out:
 	return ret;
 }
@@ -2040,9 +2185,6 @@ static int ext4_da_write_end(struct file *file,
 
 static void ext4_da_invalidatepage(struct page *page, unsigned long offset)
 {
-	struct buffer_head *head, *bh;
-	unsigned int curr_off = 0;
-
 	/*
 	 * Drop reserved blocks
 	 */
@@ -2050,21 +2192,7 @@ static void ext4_da_invalidatepage(struct page *page, unsigned long offset)
 	if (!page_has_buffers(page))
 		goto out;
 
-	head = page_buffers(page);
-	bh = head;
-	do {
-		unsigned int next_off = curr_off + bh->b_size;
-
-		/*
-		 * is this block fully invalidated?
-		 */
-		if (offset <= curr_off && buffer_delay(bh)) {
-			clear_buffer_delay(bh);
-			/* XXX: add real stuff here */
-		}
-		curr_off = next_off;
-		bh = bh->b_this_page;
-	} while (bh != head);
+	ext4_da_page_release_reservation(page, offset);
 
 out:
 	ext4_invalidatepage(page, offset);

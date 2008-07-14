@@ -74,6 +74,9 @@
 #define EXT4_MB_HINT_GOAL_ONLY		256
 /* goal is meaningful */
 #define EXT4_MB_HINT_TRY_GOAL		512
+/* blocks already pre-reserved by delayed allocation */
+#define EXT4_MB_DELALLOC_RESERVED      1024
+
 
 struct ext4_allocation_request {
 	/* target inode for block we're allocating */
@@ -1041,6 +1044,7 @@ extern void ext4_mb_update_group_info(struct ext4_group_info *grp,
 
 
 /* inode.c */
+void ext4_da_release_space(struct inode *inode, int used, int to_free);
 int ext4_forget(handle_t *handle, int is_metadata, struct inode *inode,
 		struct buffer_head *bh, ext4_fsblk_t blocknr);
 struct buffer_head *ext4_getblk(handle_t *, struct inode *,
@@ -1234,7 +1238,7 @@ extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
 extern int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode,
 			sector_t block, unsigned long max_blocks,
 			struct buffer_head *bh, int create,
-			int extend_disksize);
+			int extend_disksize, int flag);
 #endif	/* __KERNEL__ */
 
 #endif	/* _EXT4_H */

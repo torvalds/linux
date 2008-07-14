@@ -163,6 +163,13 @@ struct ext4_inode_info {
 	/* mballoc */
 	struct list_head i_prealloc_list;
 	spinlock_t i_prealloc_lock;
+
+	/* allocation reservation info for delalloc */
+	unsigned long i_reserved_data_blocks;
+	unsigned long i_reserved_meta_blocks;
+	unsigned long i_allocated_meta_blocks;
+	unsigned short i_delalloc_reserved_flag;
+	spinlock_t i_block_reservation_lock;
 };
 
 #endif	/* _EXT4_I */

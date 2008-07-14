@@ -574,6 +574,11 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	INIT_LIST_HEAD(&ei->i_prealloc_list);
 	spin_lock_init(&ei->i_prealloc_lock);
 	jbd2_journal_init_jbd_inode(&ei->jinode, &ei->vfs_inode);
+	ei->i_reserved_data_blocks = 0;
+	ei->i_reserved_meta_blocks = 0;
+	ei->i_allocated_meta_blocks = 0;
+	ei->i_delalloc_reserved_flag = 0;
+	spin_lock_init(&(ei->i_block_reservation_lock));
 	return &ei->vfs_inode;
 }
 

@@ -248,6 +248,36 @@ static int ext4_ext_space_root_idx(struct inode *inode)
 	return size;
 }
 
+/*
+ * Calculate the number of metadata blocks needed
+ * to allocate @blocks
+ * Worse case is one block per extent
+ */
+int ext4_ext_calc_metadata_amount(struct inode *inode, int blocks)
+{
+	int lcap, icap, rcap, leafs, idxs, num;
+	int newextents = blocks;
+
+	rcap = ext4_ext_space_root_idx(inode);
+	lcap = ext4_ext_space_block(inode);
+	icap = ext4_ext_space_block_idx(inode);
+
+	/* number of new leaf blocks needed */
+	num = leafs = (newextents + lcap - 1) / lcap;
+
+	/*
+	 * Worse case, we need separate index block(s)
+	 * to link all new leaf blocks
+	 */
+	idxs = (leafs + icap - 1) / icap;
+	do {
+		num += idxs;
+		idxs = (idxs + icap - 1) / icap;
+	} while (idxs > rcap);
+
+	return num;
+}
+
 static int
 ext4_ext_max_entries(struct inode *inode, int depth)
 {
@@ -2910,7 +2940,7 @@ retry:
 		}
 		ret = ext4_get_blocks_wrap(handle, inode, block,
 					  max_blocks, &map_bh,
-					  EXT4_CREATE_UNINITIALIZED_EXT, 0);
+					  EXT4_CREATE_UNINITIALIZED_EXT, 0, 0);
 		if (ret <= 0) {
 #ifdef EXT4FS_DEBUG
 			WARN_ON(ret <= 0);
