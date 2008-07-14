@@ -2688,7 +2688,8 @@ __lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
  */
 static void check_flags(unsigned long flags)
 {
-#if defined(CONFIG_DEBUG_LOCKDEP) && defined(CONFIG_TRACE_IRQFLAGS)
+#if defined(CONFIG_PROVE_LOCKING) && defined(CONFIG_DEBUG_LOCKDEP) && \
+    defined(CONFIG_TRACE_IRQFLAGS)
 	if (!debug_locks)
 		return;
 
