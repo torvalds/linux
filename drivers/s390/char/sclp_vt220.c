@@ -27,7 +27,6 @@
 #include <asm/uaccess.h>
 #include "sclp.h"
 
-#define SCLP_VT220_PRINT_HEADER 	"sclp vt220 tty driver: "
 #define SCLP_VT220_MAJOR		TTY_MAJOR
 #define SCLP_VT220_MINOR		65
 #define SCLP_VT220_DRIVER_NAME		"sclp_vt220"
@@ -716,12 +715,8 @@ static int __init sclp_vt220_tty_init(void)
 	tty_set_operations(driver, &sclp_vt220_ops);
 
 	rc = tty_register_driver(driver);
-	if (rc) {
-		printk(KERN_ERR SCLP_VT220_PRINT_HEADER
-		       "could not register tty - "
-		       "tty_register_driver returned %d\n", rc);
+	if (rc)
 		goto out_init;
-	}
 	sclp_vt220_driver = driver;
 	return 0;
 

@@ -25,8 +25,6 @@
 #include "sclp_rw.h"
 #include "sclp_tty.h"
 
-#define SCLP_TTY_PRINT_HEADER "sclp tty driver: "
-
 /*
  * size of a buffer that collects single characters coming in
  * via sclp_tty_put_char()
@@ -736,9 +734,6 @@ sclp_tty_init(void)
 
 	rc = sclp_rw_init();
 	if (rc) {
-		printk(KERN_ERR SCLP_TTY_PRINT_HEADER
-		       "could not register tty - "
-		       "sclp_rw_init returned %d\n", rc);
 		put_tty_driver(driver);
 		return rc;
 	}
@@ -792,9 +787,6 @@ sclp_tty_init(void)
 	tty_set_operations(driver, &sclp_ops);
 	rc = tty_register_driver(driver);
 	if (rc) {
-		printk(KERN_ERR SCLP_TTY_PRINT_HEADER
-		       "could not register tty - "
-		       "tty_register_driver returned %d\n", rc);
 		put_tty_driver(driver);
 		return rc;
 	}

@@ -784,11 +784,9 @@ sclp_check_handler(__u16 code)
 	/* Is this the interrupt we are waiting for? */
 	if (finished_sccb == 0)
 		return;
-	if (finished_sccb != (u32) (addr_t) sclp_init_sccb) {
-		printk(KERN_WARNING SCLP_HEADER "unsolicited interrupt "
-		       "for buffer at 0x%x\n", finished_sccb);
-		return;
-	}
+	if (finished_sccb != (u32) (addr_t) sclp_init_sccb)
+		panic("sclp: unsolicited interrupt for buffer at 0x%x\n",
+		      finished_sccb);
 	spin_lock(&sclp_lock);
 	if (sclp_running_state == sclp_running_state_running) {
 		sclp_init_req.status = SCLP_REQ_DONE;

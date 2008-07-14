@@ -126,21 +126,15 @@ static int cpi_req(void)
 	int response;
 
 	rc = sclp_register(&sclp_cpi_event);
-	if (rc) {
-		printk(KERN_WARNING "cpi: could not register "
-			"to hardware console.\n");
+	if (rc)
 		goto out;
-	}
 	if (!(sclp_cpi_event.sclp_receive_mask & EVTYP_CTLPROGIDENT_MASK)) {
-		printk(KERN_WARNING "cpi: no control program "
-			"identification support\n");
 		rc = -EOPNOTSUPP;
 		goto out_unregister;
 	}
 
 	req = cpi_prepare_req();
 	if (IS_ERR(req)) {
-		printk(KERN_WARNING "cpi: could not allocate request\n");
 		rc = PTR_ERR(req);
 		goto out_unregister;
 	}
@@ -150,10 +144,8 @@ static int cpi_req(void)
 
 	/* Add request to sclp queue */
 	rc = sclp_add_request(req);
-	if (rc) {
-		printk(KERN_WARNING "cpi: could not start request\n");
+	if (rc)
 		goto out_free_req;
-	}
 
 	wait_for_completion(&completion);
 

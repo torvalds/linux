@@ -20,8 +20,6 @@
 #include "sclp_rw.h"
 #include "sclp_tty.h"
 
-#define SCLP_CON_PRINT_HEADER "sclp console driver: "
-
 #define sclp_console_major 4		/* TTYAUX_MAJOR */
 #define sclp_console_minor 64
 #define sclp_console_name  "ttyS"
