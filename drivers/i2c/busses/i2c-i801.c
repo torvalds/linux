@@ -134,18 +134,18 @@ static unsigned int i801_features;
 
 static int i801_transaction(int xact)
 {
-	int temp;
+	int status;
 	int result = 0;
 	int timeout = 0;
 
 	/* Make sure the SMBus host is ready to start transmitting */
 	/* 0x1f = Failed, Bus_Err, Dev_Err, Intr, Host_Busy */
-	if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
+	if ((status = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
 		dev_dbg(&I801_dev->dev, "SMBus busy (%02x). Resetting...\n",
-			temp);
-		outb_p(temp, SMBHSTSTS);
-		if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
-			dev_dbg(&I801_dev->dev, "Failed! (%02x)\n", temp);
+			status);
+		outb_p(status, SMBHSTSTS);
+		if ((status = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
+			dev_dbg(&I801_dev->dev, "Failed! (%02x)\n", status);
 			return -EBUSY;
 		} else {
 			dev_dbg(&I801_dev->dev, "Successful!\n");
@@ -159,8 +159,8 @@ static int i801_transaction(int xact)
 	/* We will always wait for a fraction of a second! */
 	do {
 		msleep(1);
-		temp = inb_p(SMBHSTSTS);
-	} while ((temp & SMBHSTSTS_HOST_BUSY) && (timeout++ < MAX_TIMEOUT));
+		status = inb_p(SMBHSTSTS);
+	} while ((status & SMBHSTSTS_HOST_BUSY) && (timeout++ < MAX_TIMEOUT));
 
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
@@ -173,17 +173,17 @@ static int i801_transaction(int xact)
 		outb_p(inb_p(SMBHSTCNT) & (~SMBHSTCNT_KILL), SMBHSTCNT);
 	}
 
-	if (temp & SMBHSTSTS_FAILED) {
+	if (status & SMBHSTSTS_FAILED) {
 		result = -EIO;
 		dev_dbg(&I801_dev->dev, "Error: Failed bus transaction\n");
 	}
 
-	if (temp & SMBHSTSTS_BUS_ERR) {
+	if (status & SMBHSTSTS_BUS_ERR) {
 		result = -EAGAIN;
 		dev_dbg(&I801_dev->dev, "Lost arbitration\n");
 	}
 
-	if (temp & SMBHSTSTS_DEV_ERR) {
+	if (status & SMBHSTSTS_DEV_ERR) {
 		result = -ENXIO;
 		dev_dbg(&I801_dev->dev, "Error: no response!\n");
 	}
@@ -191,9 +191,9 @@ static int i801_transaction(int xact)
 	if ((inb_p(SMBHSTSTS) & 0x1f) != 0x00)
 		outb_p(inb(SMBHSTSTS), SMBHSTSTS);
 
-	if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
+	if ((status = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
 		dev_dbg(&I801_dev->dev, "Failed reset at end of transaction "
-			"(%02x)\n", temp);
+			"(%02x)\n", status);
 	}
 	return result;
 }
@@ -202,18 +202,18 @@ static int i801_transaction(int xact)
 static void i801_wait_hwpec(void)
 {
 	int timeout = 0;
-	int temp;
+	int status;
 
 	do {
 		msleep(1);
-		temp = inb_p(SMBHSTSTS);
-	} while ((!(temp & SMBHSTSTS_INTR))
+		status = inb_p(SMBHSTSTS);
+	} while ((!(status & SMBHSTSTS_INTR))
 		 && (timeout++ < MAX_TIMEOUT));
 
 	if (timeout >= MAX_TIMEOUT) {
 		dev_dbg(&I801_dev->dev, "PEC Timeout!\n");
 	}
-	outb_p(temp, SMBHSTSTS);
+	outb_p(status, SMBHSTSTS);
 }
 
 static int i801_block_transaction_by_block(union i2c_smbus_data *data,
@@ -255,7 +255,7 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 {
 	int i, len;
 	int smbcmd;
-	int temp;
+	int status;
 	int result = 0;
 	int timeout;
 	unsigned char errmask;
@@ -283,7 +283,7 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 		outb_p(smbcmd | ENABLE_INT9, SMBHSTCNT);
 
 		/* Make sure the SMBus host is ready to start transmitting */
-		temp = inb_p(SMBHSTSTS);
+		status = inb_p(SMBHSTSTS);
 		if (i == 1) {
 			/* Erroneous conditions before transaction:
 			 * Byte_Done, Failed, Bus_Err, Dev_Err, Intr, Host_Busy */
@@ -293,13 +293,13 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 			 * Failed, Bus_Err, Dev_Err, Intr */
 			errmask = 0x1e;
 		}
-		if (temp & errmask) {
+		if (status & errmask) {
 			dev_dbg(&I801_dev->dev, "SMBus busy (%02x). "
-				"Resetting...\n", temp);
-			outb_p(temp, SMBHSTSTS);
-			if (((temp = inb_p(SMBHSTSTS)) & errmask) != 0x00) {
+				"Resetting...\n", status);
+			outb_p(status, SMBHSTSTS);
+			if (((status = inb_p(SMBHSTSTS)) & errmask) != 0x00) {
 				dev_err(&I801_dev->dev,
-					"Reset failed! (%02x)\n", temp);
+					"Reset failed! (%02x)\n", status);
 				return -EBUSY;
 			}
 			if (i != 1)
@@ -314,9 +314,9 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 		timeout = 0;
 		do {
 			msleep(1);
-			temp = inb_p(SMBHSTSTS);
+			status = inb_p(SMBHSTSTS);
 		}
-		while ((!(temp & SMBHSTSTS_BYTE_DONE))
+		while ((!(status & SMBHSTSTS_BYTE_DONE))
 		       && (timeout++ < MAX_TIMEOUT));
 
 		/* If the SMBus is still busy, we give up */
@@ -332,14 +332,14 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 			dev_dbg(&I801_dev->dev, "SMBus Timeout!\n");
 		}
 
-		if (temp & SMBHSTSTS_FAILED) {
+		if (status & SMBHSTSTS_FAILED) {
 			result = -EIO;
 			dev_dbg(&I801_dev->dev,
 				"Error: Failed bus transaction\n");
-		} else if (temp & SMBHSTSTS_BUS_ERR) {
+		} else if (status & SMBHSTSTS_BUS_ERR) {
 			result = -EAGAIN;
 			dev_dbg(&I801_dev->dev, "Lost arbitration\n");
-		} else if (temp & SMBHSTSTS_DEV_ERR) {
+		} else if (status & SMBHSTSTS_DEV_ERR) {
 			result = -ENXIO;
 			dev_dbg(&I801_dev->dev, "Error: no response!\n");
 		}
@@ -357,13 +357,13 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 			data->block[i] = inb_p(SMBBLKDAT);
 		if (read_write == I2C_SMBUS_WRITE && i+1 <= len)
 			outb_p(data->block[i+1], SMBBLKDAT);
-		if ((temp & 0x9e) != 0x00)
-			outb_p(temp, SMBHSTSTS);  /* signals SMBBLKDAT ready */
+		if ((status & 0x9e) != 0x00)
+			outb_p(status, SMBHSTSTS);  /* signals SMBBLKDAT ready */
 
-		if ((temp = (0x1e & inb_p(SMBHSTSTS))) != 0x00) {
+		if ((status = (0x1e & inb_p(SMBHSTSTS))) != 0x00) {
 			dev_dbg(&I801_dev->dev,
 				"Bad status (%02x) at end of transaction\n",
-				temp);
+				status);
 		}
 
 		if (result < 0)
