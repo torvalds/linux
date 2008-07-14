@@ -391,6 +391,35 @@ static void hci_cc_host_buffer_size(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_req_complete(hdev, status);
 }
 
+static void hci_cc_read_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_read_ssp_mode *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hdev->ssp_mode = rp->mode;
+}
+
+static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+	void *sent;
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	if (status)
+		return;
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_SSP_MODE);
+	if (!sent)
+		return;
+
+	hdev->ssp_mode = *((__u8 *) sent);
+}
+
 static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_rp_read_local_version *rp = (void *) skb->data;
@@ -1082,6 +1111,14 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	case HCI_OP_HOST_BUFFER_SIZE:
 		hci_cc_host_buffer_size(hdev, skb);
+		break;
+
+	case HCI_OP_READ_SSP_MODE:
+		hci_cc_read_ssp_mode(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_SSP_MODE:
+		hci_cc_write_ssp_mode(hdev, skb);
 		break;
 
 	case HCI_OP_READ_LOCAL_VERSION:

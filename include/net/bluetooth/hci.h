@@ -514,6 +514,17 @@ struct hci_cp_host_buffer_size {
 	__le16   sco_max_pkt;
 } __attribute__ ((packed));
 
+#define HCI_OP_READ_SSP_MODE		0x0c55
+struct hci_rp_read_ssp_mode {
+	__u8     status;
+	__u8     mode;
+} __attribute__ ((packed));
+
+#define HCI_OP_WRITE_SSP_MODE		0x0c56
+struct hci_cp_write_ssp_mode {
+	__u8     mode;
+} __attribute__ ((packed));
+
 #define HCI_OP_READ_LOCAL_VERSION	0x1001
 struct hci_rp_read_local_version {
 	__u8     status;
