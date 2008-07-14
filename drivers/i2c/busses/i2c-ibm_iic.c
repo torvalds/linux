@@ -43,6 +43,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/of_platform.h>
+#include <linux/of_i2c.h>
 
 #include "i2c-ibm_iic.h"
 
@@ -696,7 +697,7 @@ static int __devinit iic_probe(struct of_device *ofdev,
 	struct device_node *np = ofdev->node;
 	struct ibm_iic_private *dev;
 	struct i2c_adapter *adap;
-	const u32 *indexp, *freq;
+	const u32 *freq;
 	int ret;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -706,14 +707,6 @@ static int __devinit iic_probe(struct of_device *ofdev,
 	}
 
 	dev_set_drvdata(&ofdev->dev, dev);
-
-	indexp = of_get_property(np, "index", NULL);
-	if (!indexp) {
-		dev_err(&ofdev->dev, "no index specified\n");
-		ret = -EINVAL;
-		goto error_cleanup;
-	}
-	dev->idx = *indexp;
 
 	dev->vaddr = of_iomap(np, 0);
 	if (dev->vaddr == NULL) {
@@ -757,13 +750,15 @@ static int __devinit iic_probe(struct of_device *ofdev,
 	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->algo = &iic_algo;
 	adap->timeout = 1;
-	adap->nr = dev->idx;
 
-	ret = i2c_add_numbered_adapter(adap);
+	ret = i2c_add_adapter(adap);
 	if (ret  < 0) {
 		dev_err(&ofdev->dev, "failed to register i2c adapter\n");
 		goto error_cleanup;
 	}
+
+	/* Now register all the child nodes */
+	of_register_i2c_devices(adap, np);
 
 	dev_info(&ofdev->dev, "using %s mode\n",
 		 dev->fast_mode ? "fast (400 kHz)" : "standard (100 kHz)");
