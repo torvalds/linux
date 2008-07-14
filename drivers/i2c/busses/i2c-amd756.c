@@ -1,7 +1,4 @@
 /*
-    amd756.c - Part of lm_sensors, Linux kernel modules for hardware
-              monitoring
-
     Copyright (c) 1999-2002 Merlin Hughes <merlin@merlin.org>
 
     Shamelessly ripped from i2c-piix4.c:

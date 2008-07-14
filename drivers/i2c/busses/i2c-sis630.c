@@ -1,7 +1,4 @@
 /*
-    i2c-sis630.c - Part of lm_sensors, Linux kernel modules for hardware
-              monitoring
-
     Copyright (c) 2002,2003 Alexander Malysh <amalysh@web.de>
 
     This program is free software; you can redistribute it and/or modify

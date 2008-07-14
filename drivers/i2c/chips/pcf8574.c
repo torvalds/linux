@@ -1,6 +1,4 @@
 /*
-    pcf8574.c - Part of lm_sensors, Linux kernel modules for hardware
-             monitoring
     Copyright (c) 2000  Frodo Looijaard <frodol@dds.nl>, 
                         Philip Edelbrock <phil@netroedge.com>,
                         Dan Eaton <dan.eaton@rocketlogix.com>

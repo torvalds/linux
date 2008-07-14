@@ -1,6 +1,4 @@
 /*
-    i2c-i801.c - Part of lm_sensors, Linux kernel modules for hardware
-              monitoring
     Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
     Philip Edelbrock <phil@netroedge.com>, and Mark D. Studebaker
     <mdsxyz123@yahoo.com>

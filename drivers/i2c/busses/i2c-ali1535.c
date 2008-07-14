@@ -1,6 +1,4 @@
 /*
-    i2c-ali1535.c - Part of lm_sensors, Linux kernel modules for hardware
-                    monitoring
     Copyright (c) 2000  Frodo Looijaard <frodol@dds.nl>, 
                         Philip Edelbrock <phil@netroedge.com>, 
                         Mark D. Studebaker <mdsxyz123@yahoo.com>,

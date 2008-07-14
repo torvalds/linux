@@ -1,6 +1,4 @@
 /*
-    ali15x3.c - Part of lm_sensors, Linux kernel modules for hardware
-              monitoring
     Copyright (c) 1999  Frodo Looijaard <frodol@dds.nl> and
     Philip Edelbrock <phil@netroedge.com> and
     Mark D. Studebaker <mdsxyz123@yahoo.com>

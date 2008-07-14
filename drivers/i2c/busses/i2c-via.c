@@ -1,7 +1,4 @@
 /*
-    i2c-via.c - Part of lm_sensors,  Linux kernel modules
-                for hardware monitoring
-
     i2c Support for Via Technologies 82C586B South Bridge
 
     Copyright (c) 1998, 1999 Kyösti Mälkki <kmalkki@cc.hut.fi>

@@ -1,15 +1,9 @@
 /*
-    eeprom.c - Part of lm_sensors, Linux kernel modules for hardware
-               monitoring
     Copyright (C) 1998, 1999  Frodo Looijaard <frodol@dds.nl> and
 			       Philip Edelbrock <phil@netroedge.com>
     Copyright (C) 2003 Greg Kroah-Hartman <greg@kroah.com>
     Copyright (C) 2003 IBM Corp.
-
-    2004-01-16  Jean Delvare <khali@linux-fr.org>
-    Divide the eeprom in 32-byte (arbitrary) slices. This significantly
-    speeds sensors up, as well as various scripts using the eeprom
-    module.
+    Copyright (C) 2004 Jean Delvare <khali@linux-fr.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

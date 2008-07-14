@@ -1,6 +1,4 @@
 /*
-    pcf8591.c - Part of lm_sensors, Linux kernel modules for hardware
-                monitoring
     Copyright (C) 2001-2004 Aurelien Jarno <aurelien@aurel32.net>
     Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with 
     the help of Jean Delvare <khali@linux-fr.org>
