@@ -60,16 +60,25 @@ int acpi_save_state_mem(void)
 	header->video_mode = saved_video_mode;
 
 	header->wakeup_jmp_seg = acpi_wakeup_address >> 4;
+
+	/*
+	 * Set up the wakeup GDT.  We set these up as Big Real Mode,
+	 * that is, with limits set to 4 GB.  At least the Lenovo
+	 * Thinkpad X61 is known to need this for the video BIOS
+	 * initialization quirk to work; this is likely to also
+	 * be the case for other laptops or integrated video devices.
+	 */
+
 	/* GDT[0]: GDT self-pointer */
 	header->wakeup_gdt[0] =
 		(u64)(sizeof(header->wakeup_gdt) - 1) +
 		((u64)(acpi_wakeup_address +
 			((char *)&header->wakeup_gdt - (char *)acpi_realmode))
 				<< 16);
-	/* GDT[1]: real-mode-like code segment */
+	/* GDT[1]: big real mode-like code segment */
 	header->wakeup_gdt[1] =
 		GDT_ENTRY(0x809b, acpi_wakeup_address, 0xfffff);
-	/* GDT[2]: real-mode-like data segment */
+	/* GDT[2]: big real mode-like data segment */
 	header->wakeup_gdt[2] =
 		GDT_ENTRY(0x8093, acpi_wakeup_address, 0xfffff);
 
