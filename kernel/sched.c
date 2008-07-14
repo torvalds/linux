@@ -8152,7 +8152,7 @@ void __init sched_init(void)
 #endif
 
 #ifdef CONFIG_SMP
-	open_softirq(SCHED_SOFTIRQ, run_rebalance_domains, NULL);
+	open_softirq(SCHED_SOFTIRQ, run_rebalance_domains);
 #endif
 
 #ifdef CONFIG_RT_MUTEXES

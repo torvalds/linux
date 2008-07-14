@@ -543,7 +543,7 @@ static void __cpuinit rcu_online_cpu(int cpu)
 
 	rcu_init_percpu_data(cpu, &rcu_ctrlblk, rdp);
 	rcu_init_percpu_data(cpu, &rcu_bh_ctrlblk, bh_rdp);
-	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks, NULL);
+	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }
 
 static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
