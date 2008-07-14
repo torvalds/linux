@@ -1,6 +1,5 @@
 /*
- * linux/drivers/usb/gadget/pxa2xx_udc.h
- * Intel PXA2xx on-chip full speed USB device controller
+ * Intel PXA25x on-chip full speed USB device controller
  *
  * Copyright (C) 2003 Robert Schwebel <r.schwebel@pengutronix.de>, Pengutronix
  * Copyright (C) 2003 David Brownell
@@ -21,14 +20,14 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __LINUX_USB_GADGET_PXA2XX_H
-#define __LINUX_USB_GADGET_PXA2XX_H
+#ifndef __LINUX_USB_GADGET_PXA25X_H
+#define __LINUX_USB_GADGET_PXA25X_H
 
 #include <linux/types.h>
 
 /*-------------------------------------------------------------------------*/
 
-/* pxa2xx has this (move to include/asm-arm/arch-pxa/pxa-regs.h) */
+/* pxa25x has this (move to include/asm-arm/arch-pxa/pxa-regs.h) */
 #define UFNRH_SIR	(1 << 7)	/* SOF interrupt request */
 #define UFNRH_SIM	(1 << 6)	/* SOF interrupt mask */
 #define UFNRH_IPE14	(1 << 5)	/* ISO packet error, ep14 */
@@ -45,11 +44,11 @@
 
 /*-------------------------------------------------------------------------*/
 
-struct pxa2xx_udc;
+struct pxa25x_udc;
 
-struct pxa2xx_ep {
+struct pxa25x_ep {
 	struct usb_ep				ep;
-	struct pxa2xx_udc			*dev;
+	struct pxa25x_udc			*dev;
 
 	const struct usb_endpoint_descriptor	*desc;
 	struct list_head			queue;
@@ -72,7 +71,7 @@ struct pxa2xx_ep {
 	volatile u32				*reg_uddr;
 };
 
-struct pxa2xx_request {
+struct pxa25x_request {
 	struct usb_request			req;
 	struct list_head			queue;
 };
@@ -98,7 +97,7 @@ struct udc_stats {
 	unsigned long			irqs;
 };
 
-#ifdef CONFIG_USB_PXA2XX_SMALL
+#ifdef CONFIG_USB_PXA25X_SMALL
 /* when memory's tight, SMALL config saves code+data.  */
 #define	PXA_UDC_NUM_ENDPOINTS	3
 #endif
@@ -107,7 +106,7 @@ struct udc_stats {
 #define	PXA_UDC_NUM_ENDPOINTS	16
 #endif
 
-struct pxa2xx_udc {
+struct pxa25x_udc {
 	struct usb_gadget			gadget;
 	struct usb_gadget_driver		*driver;
 
@@ -130,7 +129,7 @@ struct pxa2xx_udc {
 	struct clk				*clk;
 	struct pxa2xx_udc_mach_info		*mach;
 	u64					dma_mask;
-	struct pxa2xx_ep			ep [PXA_UDC_NUM_ENDPOINTS];
+	struct pxa25x_ep			ep [PXA_UDC_NUM_ENDPOINTS];
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	struct dentry				*debugfs_udc;
@@ -144,7 +143,7 @@ struct pxa2xx_udc {
 /* lubbock can also report usb connect/disconnect irqs */
 #endif
 
-static struct pxa2xx_udc *the_controller;
+static struct pxa25x_udc *the_controller;
 
 /*-------------------------------------------------------------------------*/
 
@@ -209,7 +208,7 @@ dump_udccs0(const char *label)
 }
 
 static void __maybe_unused
-dump_state(struct pxa2xx_udc *dev)
+dump_state(struct pxa25x_udc *dev)
 {
 	u32		tmp;
 	unsigned	i;
@@ -264,4 +263,4 @@ dump_state(struct pxa2xx_udc *dev)
 #define INFO(stuff...)		pr_info("udc: " stuff)
 
 
-#endif /* __LINUX_USB_GADGET_PXA2XX_H */
+#endif /* __LINUX_USB_GADGET_PXA25X_H */

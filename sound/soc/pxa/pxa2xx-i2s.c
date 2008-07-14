@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -40,6 +41,7 @@ struct pxa_i2s_port {
 	u32 fmt;
 };
 static struct pxa_i2s_port pxa_i2s;
+static struct clk *clk_i2s;
 
 static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_out = {
 	.name			= "I2S PCM Stereo out",
@@ -81,6 +83,10 @@ static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+
+	clk_i2s = clk_get(NULL, "I2SCLK");
+	if (IS_ERR(clk_i2s))
+		return PTR_ERR(clk_i2s);
 
 	if (!cpu_dai->active) {
 		SACR0 |= SACR0_RST;
@@ -149,7 +155,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].tx);
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].frm);
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].clk);
-	pxa_set_cken(CKEN_I2S, 1);
+	clk_enable(clk_i2s);
 	pxa_i2s_wait();
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -234,8 +240,10 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream)
 	if (SACR1 & (SACR1_DREC | SACR1_DRPL)) {
 		SACR0 &= ~SACR0_ENB;
 		pxa_i2s_wait();
-		pxa_set_cken(CKEN_I2S, 0);
+		clk_disable(clk_i2s);
 	}
+
+	clk_put(clk_i2s);
 }
 
 #ifdef CONFIG_PM
