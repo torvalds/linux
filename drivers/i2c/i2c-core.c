@@ -743,13 +743,11 @@ void i2c_del_driver(struct i2c_driver *driver)
 {
 	mutex_lock(&core_lock);
 
-	/* new-style driver? */
-	if (is_newstyle_driver(driver))
-		goto unregister;
+	/* legacy driver? */
+	if (!is_newstyle_driver(driver))
+		class_for_each_device(&i2c_adapter_class, driver,
+				      __detach_adapter);
 
-	class_for_each_device(&i2c_adapter_class, driver, __detach_adapter);
-
- unregister:
 	driver_unregister(&driver->driver);
 	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
 
