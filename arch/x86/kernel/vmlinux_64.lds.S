@@ -53,13 +53,6 @@ SECTIONS
 
   RODATA
 
-  . = ALIGN(4);
-  .tracedata : AT(ADDR(.tracedata) - LOAD_OFFSET) {
-  	__tracedata_start = .;
-	*(.tracedata)
-  	__tracedata_end = .;
-  }
-
   . = ALIGN(PAGE_SIZE);		/* Align data segment to page size boundary */
 				/* Data */
   .data : AT(ADDR(.data) - LOAD_OFFSET) {
@@ -177,6 +170,7 @@ SECTIONS
 	*(.con_initcall.init)
   }
   __con_initcall_end = .;
+  . = ALIGN(16);
   __x86cpuvendor_start = .;
   .x86cpuvendor.init : AT(ADDR(.x86cpuvendor.init) - LOAD_OFFSET) {
 	*(.x86cpuvendor.init)

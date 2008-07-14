@@ -56,6 +56,131 @@
 #include "multicalls.h"
 #include "mmu.h"
 
+#define P2M_ENTRIES_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long))
+#define TOP_ENTRIES		(MAX_DOMAIN_PAGES / P2M_ENTRIES_PER_PAGE)
+
+/* Placeholder for holes in the address space */
+static unsigned long p2m_missing[P2M_ENTRIES_PER_PAGE]
+	__attribute__((section(".data.page_aligned"))) =
+		{ [ 0 ... P2M_ENTRIES_PER_PAGE-1 ] = ~0UL };
+
+ /* Array of pointers to pages containing p2m entries */
+static unsigned long *p2m_top[TOP_ENTRIES]
+	__attribute__((section(".data.page_aligned"))) =
+		{ [ 0 ... TOP_ENTRIES - 1] = &p2m_missing[0] };
+
+/* Arrays of p2m arrays expressed in mfns used for save/restore */
+static unsigned long p2m_top_mfn[TOP_ENTRIES]
+	__attribute__((section(".bss.page_aligned")));
+
+static unsigned long p2m_top_mfn_list[
+			PAGE_ALIGN(TOP_ENTRIES / P2M_ENTRIES_PER_PAGE)]
+	__attribute__((section(".bss.page_aligned")));
+
+static inline unsigned p2m_top_index(unsigned long pfn)
+{
+	BUG_ON(pfn >= MAX_DOMAIN_PAGES);
+	return pfn / P2M_ENTRIES_PER_PAGE;
+}
+
+static inline unsigned p2m_index(unsigned long pfn)
+{
+	return pfn % P2M_ENTRIES_PER_PAGE;
+}
+
+/* Build the parallel p2m_top_mfn structures */
+void xen_setup_mfn_list_list(void)
+{
+	unsigned pfn, idx;
+
+	for(pfn = 0; pfn < MAX_DOMAIN_PAGES; pfn += P2M_ENTRIES_PER_PAGE) {
+		unsigned topidx = p2m_top_index(pfn);
+
+		p2m_top_mfn[topidx] = virt_to_mfn(p2m_top[topidx]);
+	}
+
+	for(idx = 0; idx < ARRAY_SIZE(p2m_top_mfn_list); idx++) {
+		unsigned topidx = idx * P2M_ENTRIES_PER_PAGE;
+		p2m_top_mfn_list[idx] = virt_to_mfn(&p2m_top_mfn[topidx]);
+	}
+
+	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
+
+	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
+		virt_to_mfn(p2m_top_mfn_list);
+	HYPERVISOR_shared_info->arch.max_pfn = xen_start_info->nr_pages;
+}
+
+/* Set up p2m_top to point to the domain-builder provided p2m pages */
+void __init xen_build_dynamic_phys_to_machine(void)
+{
+	unsigned long *mfn_list = (unsigned long *)xen_start_info->mfn_list;
+	unsigned long max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
+	unsigned pfn;
+
+	for(pfn = 0; pfn < max_pfn; pfn += P2M_ENTRIES_PER_PAGE) {
+		unsigned topidx = p2m_top_index(pfn);
+
+		p2m_top[topidx] = &mfn_list[pfn];
+	}
+}
+
+unsigned long get_phys_to_machine(unsigned long pfn)
+{
+	unsigned topidx, idx;
+
+	if (unlikely(pfn >= MAX_DOMAIN_PAGES))
+		return INVALID_P2M_ENTRY;
+
+	topidx = p2m_top_index(pfn);
+	idx = p2m_index(pfn);
+	return p2m_top[topidx][idx];
+}
+EXPORT_SYMBOL_GPL(get_phys_to_machine);
+
+static void alloc_p2m(unsigned long **pp, unsigned long *mfnp)
+{
+	unsigned long *p;
+	unsigned i;
+
+	p = (void *)__get_free_page(GFP_KERNEL | __GFP_NOFAIL);
+	BUG_ON(p == NULL);
+
+	for(i = 0; i < P2M_ENTRIES_PER_PAGE; i++)
+		p[i] = INVALID_P2M_ENTRY;
+
+	if (cmpxchg(pp, p2m_missing, p) != p2m_missing)
+		free_page((unsigned long)p);
+	else
+		*mfnp = virt_to_mfn(p);
+}
+
+void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+{
+	unsigned topidx, idx;
+
+	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap))) {
+		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
+		return;
+	}
+
+	if (unlikely(pfn >= MAX_DOMAIN_PAGES)) {
+		BUG_ON(mfn != INVALID_P2M_ENTRY);
+		return;
+	}
+
+	topidx = p2m_top_index(pfn);
+	if (p2m_top[topidx] == p2m_missing) {
+		/* no need to allocate a page to store an invalid entry */
+		if (mfn == INVALID_P2M_ENTRY)
+			return;
+		alloc_p2m(&p2m_top[topidx], &p2m_top_mfn[topidx]);
+	}
+
+	idx = p2m_index(pfn);
+	p2m_top[topidx][idx] = mfn;
+}
+
 xmaddr_t arbitrary_virt_to_machine(unsigned long address)
 {
 	unsigned int level;
@@ -98,22 +223,58 @@ void make_lowmem_page_readwrite(void *vaddr)
 }
 
 
-void xen_set_pmd(pmd_t *ptr, pmd_t val)
+static bool page_pinned(void *ptr)
+{
+	struct page *page = virt_to_page(ptr);
+
+	return PagePinned(page);
+}
+
+static void extend_mmu_update(const struct mmu_update *update)
 {
 	struct multicall_space mcs;
 	struct mmu_update *u;
 
+	mcs = xen_mc_extend_args(__HYPERVISOR_mmu_update, sizeof(*u));
+
+	if (mcs.mc != NULL)
+		mcs.mc->args[1]++;
+	else {
+		mcs = __xen_mc_entry(sizeof(*u));
+		MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, DOMID_SELF);
+	}
+
+	u = mcs.args;
+	*u = *update;
+}
+
+void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
+{
+	struct mmu_update u;
+
 	preempt_disable();
 
-	mcs = xen_mc_entry(sizeof(*u));
-	u = mcs.args;
-	u->ptr = virt_to_machine(ptr).maddr;
-	u->val = pmd_val_ma(val);
-	MULTI_mmu_update(mcs.mc, u, 1, NULL, DOMID_SELF);
+	xen_mc_batch();
+
+	u.ptr = virt_to_machine(ptr).maddr;
+	u.val = pmd_val_ma(val);
+	extend_mmu_update(&u);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 	preempt_enable();
+}
+
+void xen_set_pmd(pmd_t *ptr, pmd_t val)
+{
+	/* If page is not pinned, we can just update the entry
+	   directly */
+	if (!page_pinned(ptr)) {
+		*ptr = val;
+		return;
+	}
+
+	xen_set_pmd_hyper(ptr, val);
 }
 
 /*
@@ -179,6 +340,26 @@ out:
 		preempt_enable();
 }
 
+pte_t xen_ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	/* Just return the pte as-is.  We preserve the bits on commit */
+	return *ptep;
+}
+
+void xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
+				 pte_t *ptep, pte_t pte)
+{
+	struct mmu_update u;
+
+	xen_mc_batch();
+
+	u.ptr = virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
+	u.val = pte_val_ma(pte);
+	extend_mmu_update(&u);
+
+	xen_mc_issue(PARAVIRT_LAZY_MMU);
+}
+
 /* Assume pteval_t is equivalent to all the other *val_t types. */
 static pteval_t pte_mfn_to_pfn(pteval_t val)
 {
@@ -229,22 +410,33 @@ pmdval_t xen_pmd_val(pmd_t pmd)
 	return pte_mfn_to_pfn(pmd.pmd);
 }
 
-void xen_set_pud(pud_t *ptr, pud_t val)
+void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 {
-	struct multicall_space mcs;
-	struct mmu_update *u;
+	struct mmu_update u;
 
 	preempt_disable();
 
-	mcs = xen_mc_entry(sizeof(*u));
-	u = mcs.args;
-	u->ptr = virt_to_machine(ptr).maddr;
-	u->val = pud_val_ma(val);
-	MULTI_mmu_update(mcs.mc, u, 1, NULL, DOMID_SELF);
+	xen_mc_batch();
+
+	u.ptr = virt_to_machine(ptr).maddr;
+	u.val = pud_val_ma(val);
+	extend_mmu_update(&u);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 	preempt_enable();
+}
+
+void xen_set_pud(pud_t *ptr, pud_t val)
+{
+	/* If page is not pinned, we can just update the entry
+	   directly */
+	if (!page_pinned(ptr)) {
+		*ptr = val;
+		return;
+	}
+
+	xen_set_pud_hyper(ptr, val);
 }
 
 void xen_set_pte(pte_t *ptep, pte_t pte)
@@ -268,7 +460,7 @@ void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 
 void xen_pmd_clear(pmd_t *pmdp)
 {
-	xen_set_pmd(pmdp, __pmd(0));
+	set_pmd(pmdp, __pmd(0));
 }
 
 pmd_t xen_make_pmd(pmdval_t pmd)
@@ -441,6 +633,29 @@ void xen_pgd_pin(pgd_t *pgd)
 	xen_mc_issue(0);
 }
 
+/*
+ * On save, we need to pin all pagetables to make sure they get their
+ * mfns turned into pfns.  Search the list for any unpinned pgds and pin
+ * them (unpinned pgds are not currently in use, probably because the
+ * process is under construction or destruction).
+ */
+void xen_mm_pin_all(void)
+{
+	unsigned long flags;
+	struct page *page;
+
+	spin_lock_irqsave(&pgd_lock, flags);
+
+	list_for_each_entry(page, &pgd_list, lru) {
+		if (!PagePinned(page)) {
+			xen_pgd_pin((pgd_t *)page_address(page));
+			SetPageSavePinned(page);
+		}
+	}
+
+	spin_unlock_irqrestore(&pgd_lock, flags);
+}
+
 /* The init_mm pagetable is really pinned as soon as its created, but
    that's before we have page structures to store the bits.  So do all
    the book-keeping now. */
@@ -496,6 +711,29 @@ static void xen_pgd_unpin(pgd_t *pgd)
 	pgd_walk(pgd, unpin_page, TASK_SIZE);
 
 	xen_mc_issue(0);
+}
+
+/*
+ * On resume, undo any pinning done at save, so that the rest of the
+ * kernel doesn't see any unexpected pinned pagetables.
+ */
+void xen_mm_unpin_all(void)
+{
+	unsigned long flags;
+	struct page *page;
+
+	spin_lock_irqsave(&pgd_lock, flags);
+
+	list_for_each_entry(page, &pgd_list, lru) {
+		if (PageSavePinned(page)) {
+			BUG_ON(!PagePinned(page));
+			printk("unpinning pinned %p\n", page_address(page));
+			xen_pgd_unpin((pgd_t *)page_address(page));
+			ClearPageSavePinned(page);
+		}
+	}
+
+	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
 void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next)
@@ -591,7 +829,7 @@ void xen_exit_mmap(struct mm_struct *mm)
 	spin_lock(&mm->page_table_lock);
 
 	/* pgd may not be pinned in the error exit path of execve */
-	if (PagePinned(virt_to_page(mm->pgd)))
+	if (page_pinned(mm->pgd))
 		xen_pgd_unpin(mm->pgd);
 
 	spin_unlock(&mm->page_table_lock);

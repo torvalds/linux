@@ -20,9 +20,9 @@
 #include <asm/mmu_context.h>
 
 #ifdef CONFIG_SMP
-static void flush_ldt(void *null)
+static void flush_ldt(void *current_mm)
 {
-	if (current->active_mm)
+	if (current->active_mm == current_mm)
 		load_LDT(&current->active_mm->context);
 }
 #endif
@@ -68,7 +68,7 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 		load_LDT(pc);
 		mask = cpumask_of_cpu(smp_processor_id());
 		if (!cpus_equal(current->mm->cpu_vm_mask, mask))
-			smp_call_function(flush_ldt, NULL, 1, 1);
+			smp_call_function(flush_ldt, current->mm, 1, 1);
 		preempt_enable();
 #else
 		load_LDT(pc);

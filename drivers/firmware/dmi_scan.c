@@ -8,6 +8,11 @@
 #include <linux/slab.h>
 #include <asm/dmi.h>
 
+/*
+ * DMI stands for "Desktop Management Interface".  It is part
+ * of and an antecedent to, SMBIOS, which stands for System
+ * Management BIOS.  See further: http://www.dmtf.org/standards
+ */
 static char dmi_empty_string[] = "        ";
 
 static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)

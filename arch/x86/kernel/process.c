@@ -6,6 +6,7 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/pm.h>
+#include <linux/clockchips.h>
 
 struct kmem_cache *task_xstate_cachep;
 
@@ -44,6 +45,76 @@ void arch_task_cache_init(void)
 				  __alignof__(union thread_xstate),
 				  SLAB_PANIC, NULL);
 }
+
+/*
+ * Idle related variables and functions
+ */
+unsigned long boot_option_idle_override = 0;
+EXPORT_SYMBOL(boot_option_idle_override);
+
+/*
+ * Powermanagement idle function, if any..
+ */
+void (*pm_idle)(void);
+EXPORT_SYMBOL(pm_idle);
+
+#ifdef CONFIG_X86_32
+/*
+ * This halt magic was a workaround for ancient floppy DMA
+ * wreckage. It should be safe to remove.
+ */
+static int hlt_counter;
+void disable_hlt(void)
+{
+	hlt_counter++;
+}
+EXPORT_SYMBOL(disable_hlt);
+
+void enable_hlt(void)
+{
+	hlt_counter--;
+}
+EXPORT_SYMBOL(enable_hlt);
+
+static inline int hlt_use_halt(void)
+{
+	return (!hlt_counter && boot_cpu_data.hlt_works_ok);
+}
+#else
+static inline int hlt_use_halt(void)
+{
+	return 1;
+}
+#endif
+
+/*
+ * We use this if we don't have any better
+ * idle routine..
+ */
+void default_idle(void)
+{
+	if (hlt_use_halt()) {
+		current_thread_info()->status &= ~TS_POLLING;
+		/*
+		 * TS_POLLING-cleared state must be visible before we
+		 * test NEED_RESCHED:
+		 */
+		smp_mb();
+
+		if (!need_resched())
+			safe_halt();	/* enables interrupts racelessly */
+		else
+			local_irq_enable();
+		current_thread_info()->status |= TS_POLLING;
+	} else {
+		local_irq_enable();
+		/* loop is done by the caller */
+		cpu_relax();
+	}
+}
+#ifdef CONFIG_APM_MODULE
+EXPORT_SYMBOL(default_idle);
+#endif
 
 static void do_nothing(void *unused)
 {
@@ -122,44 +193,129 @@ static void poll_idle(void)
  *
  * idle=mwait overrides this decision and forces the usage of mwait.
  */
+
+#define MWAIT_INFO			0x05
+#define MWAIT_ECX_EXTENDED_INFO		0x01
+#define MWAIT_EDX_C1			0xf0
+
 static int __cpuinit mwait_usable(const struct cpuinfo_x86 *c)
 {
+	u32 eax, ebx, ecx, edx;
+
 	if (force_mwait)
 		return 1;
 
-	if (c->x86_vendor == X86_VENDOR_AMD) {
-		switch(c->x86) {
-		case 0x10:
-		case 0x11:
-			return 0;
+	if (c->cpuid_level < MWAIT_INFO)
+		return 0;
+
+	cpuid(MWAIT_INFO, &eax, &ebx, &ecx, &edx);
+	/* Check, whether EDX has extended info about MWAIT */
+	if (!(ecx & MWAIT_ECX_EXTENDED_INFO))
+		return 1;
+
+	/*
+	 * edx enumeratios MONITOR/MWAIT extensions. Check, whether
+	 * C1  supports MWAIT
+	 */
+	return (edx & MWAIT_EDX_C1);
+}
+
+/*
+ * Check for AMD CPUs, which have potentially C1E support
+ */
+static int __cpuinit check_c1e_idle(const struct cpuinfo_x86 *c)
+{
+	if (c->x86_vendor != X86_VENDOR_AMD)
+		return 0;
+
+	if (c->x86 < 0x0F)
+		return 0;
+
+	/* Family 0x0f models < rev F do not have C1E */
+	if (c->x86 == 0x0f && c->x86_model < 0x40)
+		return 0;
+
+	return 1;
+}
+
+/*
+ * C1E aware idle routine. We check for C1E active in the interrupt
+ * pending message MSR. If we detect C1E, then we handle it the same
+ * way as C3 power states (local apic timer and TSC stop)
+ */
+static void c1e_idle(void)
+{
+	static cpumask_t c1e_mask = CPU_MASK_NONE;
+	static int c1e_detected;
+
+	if (need_resched())
+		return;
+
+	if (!c1e_detected) {
+		u32 lo, hi;
+
+		rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
+		if (lo & K8_INTP_C1E_ACTIVE_MASK) {
+			c1e_detected = 1;
+			mark_tsc_unstable("TSC halt in C1E");
+			printk(KERN_INFO "System has C1E enabled\n");
 		}
 	}
-	return 1;
+
+	if (c1e_detected) {
+		int cpu = smp_processor_id();
+
+		if (!cpu_isset(cpu, c1e_mask)) {
+			cpu_set(cpu, c1e_mask);
+			/*
+			 * Force broadcast so ACPI can not interfere. Needs
+			 * to run with interrupts enabled as it uses
+			 * smp_function_call.
+			 */
+			local_irq_enable();
+			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE,
+					   &cpu);
+			printk(KERN_INFO "Switch to broadcast mode on CPU%d\n",
+			       cpu);
+			local_irq_disable();
+		}
+		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
+
+		default_idle();
+
+		/*
+		 * The switch back from broadcast mode needs to be
+		 * called with interrupts disabled.
+		 */
+		 local_irq_disable();
+		 clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
+		 local_irq_enable();
+	} else
+		default_idle();
 }
 
 void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 {
-	static int selected;
-
-	if (selected)
-		return;
 #ifdef CONFIG_X86_SMP
 	if (pm_idle == poll_idle && smp_num_siblings > 1) {
 		printk(KERN_WARNING "WARNING: polling idle and HT enabled,"
 			" performance may degrade.\n");
 	}
 #endif
+	if (pm_idle)
+		return;
+
 	if (cpu_has(c, X86_FEATURE_MWAIT) && mwait_usable(c)) {
 		/*
-		 * Skip, if setup has overridden idle.
 		 * One CPU supports mwait => All CPUs supports mwait
 		 */
-		if (!pm_idle) {
-			printk(KERN_INFO "using mwait in idle threads.\n");
-			pm_idle = mwait_idle;
-		}
-	}
-	selected = 1;
+		printk(KERN_INFO "using mwait in idle threads.\n");
+		pm_idle = mwait_idle;
+	} else if (check_c1e_idle(c)) {
+		printk(KERN_INFO "using C1E aware idle routine\n");
+		pm_idle = c1e_idle;
+	} else
+		pm_idle = default_idle;
 }
 
 static int __init idle_setup(char *str)

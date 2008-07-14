@@ -249,7 +249,7 @@ static ctl_table kernel_root_table2[] = {
    doesn't violate that. We'll find out if it does. */
 static void __cpuinit vsyscall_set_cpu(int cpu)
 {
-	unsigned long *d;
+	unsigned long d;
 	unsigned long node = 0;
 #ifdef CONFIG_NUMA
 	node = cpu_to_node(cpu);
@@ -260,11 +260,11 @@ static void __cpuinit vsyscall_set_cpu(int cpu)
 	/* Store cpu number in limit so that it can be loaded quickly
 	   in user space in vgetcpu.
 	   12 bits for the CPU and 8 bits for the node. */
-	d = (unsigned long *)(get_cpu_gdt_table(cpu) + GDT_ENTRY_PER_CPU);
-	*d = 0x0f40000000000ULL;
-	*d |= cpu;
-	*d |= (node & 0xf) << 12;
-	*d |= (node >> 4) << 48;
+	d = 0x0f40000000000ULL;
+	d |= cpu;
+	d |= (node & 0xf) << 12;
+	d |= (node >> 4) << 48;
+	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
 }
 
 static void __cpuinit cpu_vsyscall_init(void *arg)

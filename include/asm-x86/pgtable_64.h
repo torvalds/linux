@@ -70,6 +70,9 @@ extern void paging_init(void);
 
 struct mm_struct;
 
+void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte);
+
+
 static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr,
 				    pte_t *ptep)
 {
@@ -190,12 +193,9 @@ static inline int pmd_bad(pmd_t pmd)
 #define pgd_page_vaddr(pgd)						\
 	((unsigned long)__va((unsigned long)pgd_val((pgd)) & PTE_MASK))
 #define pgd_page(pgd)		(pfn_to_page(pgd_val((pgd)) >> PAGE_SHIFT))
-#define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
-#define pgd_offset(mm, address)	((mm)->pgd + pgd_index((address)))
-#define pgd_offset_k(address) (init_level4_pgt + pgd_index((address)))
 #define pgd_present(pgd) (pgd_val(pgd) & _PAGE_PRESENT)
 static inline int pgd_large(pgd_t pgd) { return 0; }
-#define mk_kernel_pgd(address) ((pgd_t){ (address) | _KERNPG_TABLE })
+#define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
 
 /* PUD - Level3 access */
 /* to find an entry in a page-table-directory. */

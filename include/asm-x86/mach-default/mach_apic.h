@@ -77,7 +77,11 @@ static inline void setup_apic_routing(void)
 
 static inline int apicid_to_node(int logical_apicid)
 {
+#ifdef CONFIG_SMP
+	return apicid_2_node[hard_smp_processor_id()];
+#else
 	return 0;
+#endif
 }
 #endif
 

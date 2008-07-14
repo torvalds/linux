@@ -4,7 +4,7 @@
 
 /* arch_initcall has too random ordering, so call the initializers
    in the right sequence from here. */
-static __init int pci_access_init(void)
+static __init int pci_arch_init(void)
 {
 #ifdef CONFIG_PCI_DIRECT
 	int type = 0;
@@ -40,4 +40,4 @@ static __init int pci_access_init(void)
 
 	return 0;
 }
-arch_initcall(pci_access_init);
+arch_initcall(pci_arch_init);
