@@ -2661,6 +2661,10 @@ static int ext4_mb_init_per_dev_proc(struct super_block *sb)
 	struct proc_dir_entry *proc;
 	char devname[64];
 
+	if (proc_root_ext4 == NULL) {
+		sbi->s_mb_proc = NULL;
+		return -EINVAL;
+	}
 	bdevname(sb->s_bdev, devname);
 	sbi->s_mb_proc = proc_mkdir(devname, proc_root_ext4);
 
