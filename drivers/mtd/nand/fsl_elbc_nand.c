@@ -836,8 +836,8 @@ static int fsl_elbc_chip_remove(struct fsl_elbc_mtd *priv)
 	return 0;
 }
 
-static int fsl_elbc_chip_probe(struct fsl_elbc_ctrl *ctrl,
-                               struct device_node *node)
+static int __devinit fsl_elbc_chip_probe(struct fsl_elbc_ctrl *ctrl,
+					 struct device_node *node)
 {
 	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
 	struct fsl_elbc_mtd *priv;
