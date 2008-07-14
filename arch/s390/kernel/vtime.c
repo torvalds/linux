@@ -318,8 +318,7 @@ static void internal_add_vtimer(struct vtimer_list *timer)
 	vt_list = &per_cpu(virt_cpu_timer, timer->cpu);
 	spin_lock_irqsave(&vt_list->lock, flags);
 
-	if (timer->cpu != smp_processor_id())
-		printk("internal_add_vtimer: BUG, running on wrong CPU");
+	BUG_ON(timer->cpu != smp_processor_id());
 
 	/* if list is empty we only have to set the timer */
 	if (list_empty(&vt_list->list)) {
@@ -353,25 +352,12 @@ static void internal_add_vtimer(struct vtimer_list *timer)
 	put_cpu();
 }
 
-static inline int prepare_vtimer(struct vtimer_list *timer)
+static inline void prepare_vtimer(struct vtimer_list *timer)
 {
-	if (!timer->function) {
-		printk("add_virt_timer: uninitialized timer\n");
-		return -EINVAL;
-	}
-
-	if (!timer->expires || timer->expires > VTIMER_MAX_SLICE) {
-		printk("add_virt_timer: invalid timer expire value!\n");
-		return -EINVAL;
-	}
-
-	if (vtimer_pending(timer)) {
-		printk("add_virt_timer: timer pending\n");
-		return -EBUSY;
-	}
-
+	BUG_ON(!timer->function);
+	BUG_ON(!timer->expires || timer->expires > VTIMER_MAX_SLICE);
+	BUG_ON(vtimer_pending(timer));
 	timer->cpu = get_cpu();
-	return 0;
 }
 
 /*
@@ -382,10 +368,7 @@ void add_virt_timer(void *new)
 	struct vtimer_list *timer;
 
 	timer = (struct vtimer_list *)new;
-
-	if (prepare_vtimer(timer) < 0)
-		return;
-
+	prepare_vtimer(timer);
 	timer->interval = 0;
 	internal_add_vtimer(timer);
 }
@@ -399,10 +382,7 @@ void add_virt_timer_periodic(void *new)
 	struct vtimer_list *timer;
 
 	timer = (struct vtimer_list *)new;
-
-	if (prepare_vtimer(timer) < 0)
-		return;
-
+	prepare_vtimer(timer);
 	timer->interval = timer->expires;
 	internal_add_vtimer(timer);
 }
@@ -423,15 +403,8 @@ int mod_virt_timer(struct vtimer_list *timer, __u64 expires)
 	unsigned long flags;
 	int cpu;
 
-	if (!timer->function) {
-		printk("mod_virt_timer: uninitialized timer\n");
-		return	-EINVAL;
-	}
-
-	if (!expires || expires > VTIMER_MAX_SLICE) {
-		printk("mod_virt_timer: invalid expire range\n");
-		return -EINVAL;
-	}
+	BUG_ON(!timer->function);
+	BUG_ON(!expires || expires > VTIMER_MAX_SLICE);
 
 	/*
 	 * This is a common optimization triggered by the
@@ -443,6 +416,9 @@ int mod_virt_timer(struct vtimer_list *timer, __u64 expires)
 
 	cpu = get_cpu();
 	vt_list = &per_cpu(virt_cpu_timer, cpu);
+
+	/* check if we run on the right CPU */
+	BUG_ON(timer->cpu != cpu);
 
 	/* disable interrupts before test if timer is pending */
 	spin_lock_irqsave(&vt_list->lock, flags);
@@ -456,14 +432,6 @@ int mod_virt_timer(struct vtimer_list *timer, __u64 expires)
 		timer->cpu = cpu;
 		internal_add_vtimer(timer);
 		return 0;
-	}
-
-	/* check if we run on the right CPU */
-	if (timer->cpu != cpu) {
-		printk("mod_virt_timer: running on wrong CPU, check your code\n");
-		spin_unlock_irqrestore(&vt_list->lock, flags);
-		put_cpu();
-		return -EINVAL;
 	}
 
 	list_del_init(&timer->entry);
