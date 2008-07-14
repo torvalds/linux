@@ -796,9 +796,13 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	if (mask & HCI_LM_ACCEPT) {
 		/* Connection accepted */
+		struct inquiry_entry *ie;
 		struct hci_conn *conn;
 
 		hci_dev_lock(hdev);
+
+		if ((ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr)))
+			memcpy(ie->data.dev_class, ev->dev_class, 3);
 
 		conn = hci_conn_hash_lookup_ba(hdev, ev->link_type, &ev->bdaddr);
 		if (!conn) {
