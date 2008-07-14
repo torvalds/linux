@@ -128,7 +128,7 @@ cio_tpi(void)
 	local_bh_disable();
 	irq_enter ();
 	spin_lock(sch->lock);
-	memcpy (&sch->schib.scsw, &irb->scsw, sizeof (struct scsw));
+	memcpy(&sch->schib.scsw, &irb->scsw, sizeof(union scsw));
 	if (sch->driver && sch->driver->irq)
 		sch->driver->irq(sch);
 	spin_unlock(sch->lock);
@@ -202,7 +202,7 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 		/*
 		 * initialize device status information
 		 */
-		sch->schib.scsw.actl |= SCSW_ACTL_START_PEND;
+		sch->schib.scsw.cmd.actl |= SCSW_ACTL_START_PEND;
 		return 0;
 	case 1:		/* status pending */
 	case 2:		/* busy */
@@ -237,7 +237,7 @@ cio_resume (struct subchannel *sch)
 
 	switch (ccode) {
 	case 0:
-		sch->schib.scsw.actl |= SCSW_ACTL_RESUME_PEND;
+		sch->schib.scsw.cmd.actl |= SCSW_ACTL_RESUME_PEND;
 		return 0;
 	case 1:
 		return -EBUSY;
@@ -277,7 +277,7 @@ cio_halt(struct subchannel *sch)
 
 	switch (ccode) {
 	case 0:
-		sch->schib.scsw.actl |= SCSW_ACTL_HALT_PEND;
+		sch->schib.scsw.cmd.actl |= SCSW_ACTL_HALT_PEND;
 		return 0;
 	case 1:		/* status pending */
 	case 2:		/* busy */
@@ -312,7 +312,7 @@ cio_clear(struct subchannel *sch)
 
 	switch (ccode) {
 	case 0:
-		sch->schib.scsw.actl |= SCSW_ACTL_CLEAR_PEND;
+		sch->schib.scsw.cmd.actl |= SCSW_ACTL_CLEAR_PEND;
 		return 0;
 	default:		/* device not operational */
 		return -ENODEV;
@@ -458,7 +458,7 @@ int cio_disable_subchannel(struct subchannel *sch)
 	if (ccode == 3)		/* Not operational. */
 		return -ENODEV;
 
-	if (sch->schib.scsw.actl != 0)
+	if (scsw_actl(&sch->schib.scsw) != 0)
 		/*
 		 * the disable function must not be called while there are
 		 *  requests pending for completion !
@@ -708,7 +708,7 @@ void wait_cons_dev(void)
 		if (!cio_tpi())
 			cpu_relax();
 		spin_lock(console_subchannel.lock);
-	} while (console_subchannel.schib.scsw.actl != 0);
+	} while (console_subchannel.schib.scsw.cmd.actl != 0);
 	/*
 	 * restore previous isc value
 	 */

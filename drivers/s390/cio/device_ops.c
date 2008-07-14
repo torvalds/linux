@@ -179,8 +179,8 @@ int ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
 			return -EBUSY;
 	}
 	if (cdev->private->state != DEV_STATE_ONLINE ||
-	    ((sch->schib.scsw.stctl & SCSW_STCTL_PRIM_STATUS) &&
-	     !(sch->schib.scsw.stctl & SCSW_STCTL_SEC_STATUS)) ||
+	    ((sch->schib.scsw.cmd.stctl & SCSW_STCTL_PRIM_STATUS) &&
+	     !(sch->schib.scsw.cmd.stctl & SCSW_STCTL_SEC_STATUS)) ||
 	    cdev->private->flags.doverify)
 		return -EBUSY;
 	ret = cio_set_options (sch, flags);
@@ -379,7 +379,7 @@ int ccw_device_resume(struct ccw_device *cdev)
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE ||
-	    !(sch->schib.scsw.actl & SCSW_ACTL_SUSPENDED))
+	    !(sch->schib.scsw.cmd.actl & SCSW_ACTL_SUSPENDED))
 		return -EINVAL;
 	return cio_resume(sch);
 }
@@ -404,7 +404,7 @@ ccw_device_call_handler(struct ccw_device *cdev)
 	 *  - fast notification was requested (primary status)
 	 *  - unsolicited interrupts
 	 */
-	stctl = cdev->private->irb.scsw.stctl;
+	stctl = scsw_stctl(&cdev->private->irb.scsw);
 	ending_status = (stctl & SCSW_STCTL_SEC_STATUS) ||
 		(stctl == (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND)) ||
 		(stctl == SCSW_STCTL_STATUS_PEND);
@@ -528,14 +528,15 @@ ccw_device_stlck(struct ccw_device *cdev)
 		cio_disable_subchannel(sch); //FIXME: return code?
 		goto out_unlock;
 	}
-	cdev->private->irb.scsw.actl |= SCSW_ACTL_START_PEND;
+	cdev->private->irb.scsw.cmd.actl |= SCSW_ACTL_START_PEND;
 	spin_unlock_irqrestore(sch->lock, flags);
-	wait_event(cdev->private->wait_q, cdev->private->irb.scsw.actl == 0);
+	wait_event(cdev->private->wait_q,
+		   cdev->private->irb.scsw.cmd.actl == 0);
 	spin_lock_irqsave(sch->lock, flags);
 	cio_disable_subchannel(sch); //FIXME: return code?
-	if ((cdev->private->irb.scsw.dstat !=
+	if ((cdev->private->irb.scsw.cmd.dstat !=
 	     (DEV_STAT_CHN_END|DEV_STAT_DEV_END)) ||
-	    (cdev->private->irb.scsw.cstat != 0))
+	    (cdev->private->irb.scsw.cmd.cstat != 0))
 		ret = -EIO;
 	/* Clear irb. */
 	memset(&cdev->private->irb, 0, sizeof(struct irb));

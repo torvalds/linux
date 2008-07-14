@@ -257,9 +257,9 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 	if (duration > ch->prof.tx_time)
 		ch->prof.tx_time = duration;
 
-	if (ch->irb->scsw.count != 0)
+	if (ch->irb->scsw.cmd.count != 0)
 		ctcm_pr_debug("%s: TX not complete, remaining %d bytes\n",
-			     dev->name, ch->irb->scsw.count);
+			     dev->name, ch->irb->scsw.cmd.count);
 	fsm_deltimer(&ch->timer);
 	while ((skb = skb_dequeue(&ch->io_queue))) {
 		priv->stats.tx_packets++;
@@ -353,7 +353,7 @@ static void chx_rx(fsm_instance *fi, int event, void *arg)
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
 	struct ctcm_priv *priv = dev->priv;
-	int len = ch->max_bufsize - ch->irb->scsw.count;
+	int len = ch->max_bufsize - ch->irb->scsw.cmd.count;
 	struct sk_buff *skb = ch->trans_skb;
 	__u16 block_len = *((__u16 *)skb->data);
 	int check_len;
@@ -1234,9 +1234,9 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 	if (duration > ch->prof.tx_time)
 		ch->prof.tx_time = duration;
 
-	if (ch->irb->scsw.count != 0)
+	if (ch->irb->scsw.cmd.count != 0)
 		ctcm_pr_debug("%s: TX not complete, remaining %d bytes\n",
-				dev->name, ch->irb->scsw.count);
+				dev->name, ch->irb->scsw.cmd.count);
 	fsm_deltimer(&ch->timer);
 	while ((skb = skb_dequeue(&ch->io_queue))) {
 		priv->stats.tx_packets++;
@@ -1394,7 +1394,7 @@ static void ctcmpc_chx_rx(fsm_instance *fi, int event, void *arg)
 	struct sk_buff		*skb = ch->trans_skb;
 	struct sk_buff		*new_skb;
 	unsigned long	saveflags = 0;	/* avoids compiler warning */
-	int len	= ch->max_bufsize - ch->irb->scsw.count;
+	int len	= ch->max_bufsize - ch->irb->scsw.cmd.count;
 
 	if (do_debug_data) {
 		CTCM_DBF_TEXT_(TRACE, CTC_DBF_DEBUG, "mpc_ch_rx %s cp:%i %s\n",

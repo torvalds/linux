@@ -735,8 +735,8 @@ static int qeth_get_problem(struct ccw_device *cdev, struct irb *irb)
 	char *sense;
 
 	sense = (char *) irb->ecw;
-	cstat = irb->scsw.cstat;
-	dstat = irb->scsw.dstat;
+	cstat = irb->scsw.cmd.cstat;
+	dstat = irb->scsw.cmd.dstat;
 
 	if (cstat & (SCHN_STAT_CHN_CTRL_CHK | SCHN_STAT_INTF_CTRL_CHK |
 		     SCHN_STAT_CHN_DATA_CHK | SCHN_STAT_CHAIN_CHECK |
@@ -823,8 +823,8 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 
 	if (__qeth_check_irb_error(cdev, intparm, irb))
 		return;
-	cstat = irb->scsw.cstat;
-	dstat = irb->scsw.dstat;
+	cstat = irb->scsw.cmd.cstat;
+	dstat = irb->scsw.cmd.dstat;
 
 	card = CARD_FROM_CDEV(cdev);
 	if (!card)
@@ -842,10 +842,10 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 	}
 	atomic_set(&channel->irq_pending, 0);
 
-	if (irb->scsw.fctl & (SCSW_FCTL_CLEAR_FUNC))
+	if (irb->scsw.cmd.fctl & (SCSW_FCTL_CLEAR_FUNC))
 		channel->state = CH_STATE_STOPPED;
 
-	if (irb->scsw.fctl & (SCSW_FCTL_HALT_FUNC))
+	if (irb->scsw.cmd.fctl & (SCSW_FCTL_HALT_FUNC))
 		channel->state = CH_STATE_HALTED;
 
 	/*let's wake up immediately on data channel*/

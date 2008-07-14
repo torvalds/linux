@@ -1327,8 +1327,8 @@ lcs_get_problem(struct ccw_device *cdev, struct irb *irb)
 	char *sense;
 
 	sense = (char *) irb->ecw;
-	cstat = irb->scsw.cstat;
-	dstat = irb->scsw.dstat;
+	cstat = irb->scsw.cmd.cstat;
+	dstat = irb->scsw.cmd.dstat;
 
 	if (cstat & (SCHN_STAT_CHN_CTRL_CHK | SCHN_STAT_INTF_CTRL_CHK |
 		     SCHN_STAT_CHN_DATA_CHK | SCHN_STAT_CHAIN_CHECK |
@@ -1388,11 +1388,13 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	else
 		channel = &card->write;
 
-	cstat = irb->scsw.cstat;
-	dstat = irb->scsw.dstat;
+	cstat = irb->scsw.cmd.cstat;
+	dstat = irb->scsw.cmd.dstat;
 	LCS_DBF_TEXT_(5, trace, "Rint%s",cdev->dev.bus_id);
-	LCS_DBF_TEXT_(5, trace, "%4x%4x",irb->scsw.cstat, irb->scsw.dstat);
-	LCS_DBF_TEXT_(5, trace, "%4x%4x",irb->scsw.fctl, irb->scsw.actl);
+	LCS_DBF_TEXT_(5, trace, "%4x%4x", irb->scsw.cmd.cstat,
+		      irb->scsw.cmd.dstat);
+	LCS_DBF_TEXT_(5, trace, "%4x%4x", irb->scsw.cmd.fctl,
+		      irb->scsw.cmd.actl);
 
 	/* Check for channel and device errors presented */
 	rc = lcs_get_problem(cdev, irb);
@@ -1410,11 +1412,11 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	}
 	/* How far in the ccw chain have we processed? */
 	if ((channel->state != LCS_CH_STATE_INIT) &&
-	    (irb->scsw.fctl & SCSW_FCTL_START_FUNC)) {
-		index = (struct ccw1 *) __va((addr_t) irb->scsw.cpa)
+	    (irb->scsw.cmd.fctl & SCSW_FCTL_START_FUNC)) {
+		index = (struct ccw1 *) __va((addr_t) irb->scsw.cmd.cpa)
 			- channel->ccws;
-		if ((irb->scsw.actl & SCSW_ACTL_SUSPENDED) ||
-		    (irb->scsw.cstat & SCHN_STAT_PCI))
+		if ((irb->scsw.cmd.actl & SCSW_ACTL_SUSPENDED) ||
+		    (irb->scsw.cmd.cstat & SCHN_STAT_PCI))
 			/* Bloody io subsystem tells us lies about cpa... */
 			index = (index - 1) & (LCS_NUM_BUFFS - 1);
 		while (channel->io_idx != index) {
@@ -1425,25 +1427,24 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		}
 	}
 
-	if ((irb->scsw.dstat & DEV_STAT_DEV_END) ||
-	    (irb->scsw.dstat & DEV_STAT_CHN_END) ||
-	    (irb->scsw.dstat & DEV_STAT_UNIT_CHECK))
+	if ((irb->scsw.cmd.dstat & DEV_STAT_DEV_END) ||
+	    (irb->scsw.cmd.dstat & DEV_STAT_CHN_END) ||
+	    (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK))
 		/* Mark channel as stopped. */
 		channel->state = LCS_CH_STATE_STOPPED;
-	else if (irb->scsw.actl & SCSW_ACTL_SUSPENDED)
+	else if (irb->scsw.cmd.actl & SCSW_ACTL_SUSPENDED)
 		/* CCW execution stopped on a suspend bit. */
 		channel->state = LCS_CH_STATE_SUSPENDED;
-	if (irb->scsw.fctl & SCSW_FCTL_HALT_FUNC) {
-		if (irb->scsw.cc != 0) {
+	if (irb->scsw.cmd.fctl & SCSW_FCTL_HALT_FUNC) {
+		if (irb->scsw.cmd.cc != 0) {
 			ccw_device_halt(channel->ccwdev, (addr_t) channel);
 			return;
 		}
 		/* The channel has been stopped by halt_IO. */
 		channel->state = LCS_CH_STATE_HALTED;
 	}
-	if (irb->scsw.fctl & SCSW_FCTL_CLEAR_FUNC) {
+	if (irb->scsw.cmd.fctl & SCSW_FCTL_CLEAR_FUNC)
 		channel->state = LCS_CH_STATE_CLEARED;
-	}
 	/* Do the rest in the tasklet. */
 	tasklet_schedule(&channel->irq_tasklet);
 }

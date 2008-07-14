@@ -385,8 +385,8 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 
 	raw = cdev->dev.driver_data;
 	req = (struct raw3215_req *) intparm;
-	cstat = irb->scsw.cstat;
-	dstat = irb->scsw.dstat;
+	cstat = irb->scsw.cmd.cstat;
+	dstat = irb->scsw.cmd.dstat;
 	if (cstat != 0) {
 		raw->message = KERN_WARNING
 			"Got nonzero channel status in raw3215_irq "
@@ -415,7 +415,7 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			return;		     /* That shouldn't happen ... */
 		if (req->type == RAW3215_READ) {
 			/* store residual count, then wait for device end */
-			req->residual = irb->scsw.count;
+			req->residual = irb->scsw.cmd.count;
 		}
 		if (dstat == 0x08)
 			break;

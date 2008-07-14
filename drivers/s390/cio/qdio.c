@@ -2140,8 +2140,8 @@ qdio_handler(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	QDIO_DBF_TEXT4(0, trace, dbf_text);
 #endif /* CONFIG_QDIO_DEBUG */
 
-        cstat = irb->scsw.cstat;
-        dstat = irb->scsw.dstat;
+	cstat = irb->scsw.cmd.cstat;
+	dstat = irb->scsw.cmd.dstat;
 
 	switch (irq_ptr->state) {
 	case QDIO_IRQ_STATE_INACTIVE:

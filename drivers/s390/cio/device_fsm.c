@@ -133,15 +133,15 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 		/* Not operational -> done. */
 		return 0;
 	/* Stage 1: cancel io. */
-	if (!(sch->schib.scsw.actl & SCSW_ACTL_HALT_PEND) &&
-	    !(sch->schib.scsw.actl & SCSW_ACTL_CLEAR_PEND)) {
+	if (!(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_HALT_PEND) &&
+	    !(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_CLEAR_PEND)) {
 		ret = cio_cancel(sch);
 		if (ret != -EINVAL)
 			return ret;
 		/* cancel io unsuccessful. From now on it is asynchronous. */
 		cdev->private->iretry = 3;	/* 3 halt retries. */
 	}
-	if (!(sch->schib.scsw.actl & SCSW_ACTL_CLEAR_PEND)) {
+	if (!(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_CLEAR_PEND)) {
 		/* Stage 2: halt io. */
 		if (cdev->private->iretry) {
 			cdev->private->iretry--;
@@ -551,10 +551,11 @@ ccw_device_verify_done(struct ccw_device *cdev, int err)
 		/* Deliver fake irb to device driver, if needed. */
 		if (cdev->private->flags.fake_irb) {
 			memset(&cdev->private->irb, 0, sizeof(struct irb));
-			cdev->private->irb.scsw.cc = 1;
-			cdev->private->irb.scsw.fctl = SCSW_FCTL_START_FUNC;
-			cdev->private->irb.scsw.actl = SCSW_ACTL_START_PEND;
-			cdev->private->irb.scsw.stctl = SCSW_STCTL_STATUS_PEND;
+			cdev->private->irb.scsw.cmd.cc = 1;
+			cdev->private->irb.scsw.cmd.fctl = SCSW_FCTL_START_FUNC;
+			cdev->private->irb.scsw.cmd.actl = SCSW_ACTL_START_PEND;
+			cdev->private->irb.scsw.cmd.stctl =
+				SCSW_STCTL_STATUS_PEND;
 			cdev->private->flags.fake_irb = 0;
 			if (cdev->handler)
 				cdev->handler(cdev, cdev->private->intparm,
@@ -648,13 +649,10 @@ ccw_device_offline(struct ccw_device *cdev)
 	sch = to_subchannel(cdev->dev.parent);
 	if (stsch(sch->schid, &sch->schib) || !sch->schib.pmcw.dnv)
 		return -ENODEV;
-	if (cdev->private->state != DEV_STATE_ONLINE) {
-		if (sch->schib.scsw.actl != 0)
-			return -EBUSY;
-		return -EINVAL;
-	}
-	if (sch->schib.scsw.actl != 0)
+	if (scsw_actl(&sch->schib.scsw) != 0)
 		return -EBUSY;
+	if (cdev->private->state != DEV_STATE_ONLINE)
+		return -EINVAL;
 	/* Are we doing path grouping? */
 	if (!cdev->private->options.pgroup) {
 		/* No, set state offline immediately. */
@@ -729,9 +727,9 @@ ccw_device_online_verify(struct ccw_device *cdev, enum dev_event dev_event)
 	 */
 	stsch(sch->schid, &sch->schib);
 
-	if (sch->schib.scsw.actl != 0 ||
-	    (sch->schib.scsw.stctl & SCSW_STCTL_STATUS_PEND) ||
-	    (cdev->private->irb.scsw.stctl & SCSW_STCTL_STATUS_PEND)) {
+	if (scsw_actl(&sch->schib.scsw) != 0 ||
+	    (scsw_stctl(&sch->schib.scsw) & SCSW_STCTL_STATUS_PEND) ||
+	    (scsw_stctl(&cdev->private->irb.scsw) & SCSW_STCTL_STATUS_PEND)) {
 		/*
 		 * No final status yet or final status not yet delivered
 		 * to the device driver. Can't do path verfication now,
@@ -756,10 +754,8 @@ ccw_device_irq(struct ccw_device *cdev, enum dev_event dev_event)
 
 	irb = (struct irb *) __LC_IRB;
 	/* Check for unsolicited interrupt. */
-	if ((irb->scsw.stctl ==
-	    		(SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS))
-	    && (!irb->scsw.cc)) {
-		if ((irb->scsw.dstat & DEV_STAT_UNIT_CHECK) &&
+	if (!scsw_is_solicited(&irb->scsw)) {
+		if ((irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) &&
 		    !irb->esw.esw0.erw.cons) {
 			/* Unit check but no sense data. Need basic sense. */
 			if (ccw_device_do_sense(cdev, irb) != 0)
@@ -822,9 +818,9 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 
 	irb = (struct irb *) __LC_IRB;
 	/* Check for unsolicited interrupt. */
-	if (irb->scsw.stctl ==
-	    		(SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
-		if (irb->scsw.cc == 1)
+	if (scsw_stctl(&irb->scsw) ==
+	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
+		if (scsw_cc(&irb->scsw) == 1)
 			/* Basic sense hasn't started. Try again. */
 			ccw_device_do_sense(cdev, irb);
 		else {
@@ -842,7 +838,8 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 	 * only deliver the halt/clear interrupt to the device driver as if it
 	 * had killed the original request.
 	 */
-	if (irb->scsw.fctl & (SCSW_FCTL_CLEAR_FUNC | SCSW_FCTL_HALT_FUNC)) {
+	if (scsw_fctl(&irb->scsw) &
+	    (SCSW_FCTL_CLEAR_FUNC | SCSW_FCTL_HALT_FUNC)) {
 		/* Retry Basic Sense if requested. */
 		if (cdev->private->flags.intretry) {
 			cdev->private->flags.intretry = 0;
@@ -949,9 +946,9 @@ ccw_device_stlck_done(struct ccw_device *cdev, enum dev_event dev_event)
 	case DEV_EVENT_INTERRUPT:
 		irb = (struct irb *) __LC_IRB;
 		/* Check for unsolicited interrupt. */
-		if ((irb->scsw.stctl ==
+		if ((scsw_stctl(&irb->scsw) ==
 		     (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) &&
-		    (!irb->scsw.cc))
+		    (!scsw_cc(&irb->scsw)))
 			/* FIXME: we should restart stlck here, but this
 			 * is extremely unlikely ... */
 			goto out_wakeup;

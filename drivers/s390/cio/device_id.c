@@ -196,7 +196,7 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 	irb = &cdev->private->irb;
 
 	/* Check the error cases. */
-	if (irb->scsw.fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC)) {
+	if (irb->scsw.cmd.fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC)) {
 		/* Retry Sense ID if requested. */
 		if (cdev->private->flags.intretry) {
 			cdev->private->flags.intretry = 0;
@@ -234,7 +234,7 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 			      irb->ecw[6], irb->ecw[7]);
 		return -EAGAIN;
 	}
-	if (irb->scsw.cc == 3) {
+	if (irb->scsw.cmd.cc == 3) {
 		u8 lpm;
 
 		lpm = to_io_private(sch)->orb.lpm;
@@ -248,9 +248,9 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 	}
 
 	/* Did we get a proper answer ? */
-	if (irb->scsw.cc == 0 && cdev->private->senseid.cu_type != 0xFFFF &&
+	if (irb->scsw.cmd.cc == 0 && cdev->private->senseid.cu_type != 0xFFFF &&
 	    cdev->private->senseid.reserved == 0xFF) {
-		if (irb->scsw.count < sizeof(struct senseid) - 8)
+		if (irb->scsw.cmd.count < sizeof(struct senseid) - 8)
 			cdev->private->flags.esid = 1;
 		return 0; /* Success */
 	}
@@ -260,7 +260,7 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		      "subchannel 0.%x.%04x returns status %02X%02X\n",
 		      cdev->private->dev_id.devno, sch->schid.ssid,
 		      sch->schid.sch_no,
-		      irb->scsw.dstat, irb->scsw.cstat);
+		      irb->scsw.cmd.dstat, irb->scsw.cmd.cstat);
 	return -EAGAIN;
 }
 
@@ -277,9 +277,9 @@ ccw_device_sense_id_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	sch = to_subchannel(cdev->dev.parent);
 	irb = (struct irb *) __LC_IRB;
 	/* Retry sense id, if needed. */
-	if (irb->scsw.stctl ==
+	if (irb->scsw.cmd.stctl ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
-		if ((irb->scsw.cc == 1) || !irb->scsw.actl) {
+		if ((irb->scsw.cmd.cc == 1) || !irb->scsw.cmd.actl) {
 			ret = __ccw_device_sense_id_start(cdev);
 			if (ret && ret != -EBUSY)
 				ccw_device_sense_id_done(cdev, ret);

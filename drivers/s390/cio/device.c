@@ -1281,7 +1281,7 @@ static int check_for_io_on_path(struct subchannel *sch, int mask)
 	cc = stsch(sch->schid, &sch->schib);
 	if (cc)
 		return 0;
-	if (sch->schib.scsw.actl && sch->schib.pmcw.lpum == mask)
+	if (scsw_actl(&sch->schib.scsw) && sch->schib.pmcw.lpum == mask)
 		return 1;
 	return 0;
 }

@@ -48,7 +48,7 @@ struct pmcw {
  */
 struct schib {
 	struct pmcw pmcw;	 /* path management control word */
-	struct scsw scsw;	 /* subchannel status word */
+	union scsw scsw;	 /* subchannel status word */
 	__u64 mba;               /* measurement block address */
 	__u8 mda[4];		 /* model dependent area */
 } __attribute__ ((packed,aligned(4)));
