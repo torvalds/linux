@@ -101,19 +101,14 @@ static int i2c_device_probe(struct device *dev)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
 	struct i2c_driver	*driver = to_i2c_driver(dev->driver);
-	const struct i2c_device_id *id;
 	int status;
 
-	if (!driver->probe)
+	if (!driver->probe || !driver->id_table)
 		return -ENODEV;
 	client->driver = driver;
 	dev_dbg(dev, "probe\n");
 
-	if (driver->id_table)
-		id = i2c_match_id(driver->id_table, client);
-	else
-		id = NULL;
-	status = driver->probe(client, id);
+	status = driver->probe(client, i2c_match_id(driver->id_table, client));
 	if (status)
 		client->driver = NULL;
 	return status;
