@@ -1314,8 +1314,16 @@ static inline void hci_sync_conn_complete_evt(struct hci_dev *hdev, struct sk_bu
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ev->link_type, &ev->bdaddr);
-	if (!conn)
-		goto unlock;
+	if (!conn) {
+		if (ev->link_type == ESCO_LINK)
+			goto unlock;
+
+		conn = hci_conn_hash_lookup_ba(hdev, ESCO_LINK, &ev->bdaddr);
+		if (!conn)
+			goto unlock;
+
+		conn->type = SCO_LINK;
+	}
 
 	if (!ev->status) {
 		conn->handle = __le16_to_cpu(ev->handle);
