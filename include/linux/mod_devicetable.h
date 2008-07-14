@@ -161,8 +161,8 @@ struct ap_device_id {
 
 /* s390 css bus devices (subchannels) */
 struct css_device_id {
+	__u8 match_flags;
 	__u8 type; /* subchannel type */
-	__u8 pad1;
 	__u16 pad2;
 	__u32 pad3;
 	kernel_ulong_t driver_data;

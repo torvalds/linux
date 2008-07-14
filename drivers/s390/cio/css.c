@@ -850,19 +850,16 @@ int sch_is_pseudo_sch(struct subchannel *sch)
 	return sch == to_css(sch->dev.parent)->pseudo_subchannel;
 }
 
-/*
- * find a driver for a subchannel. They identify by the subchannel
- * type with the exception that the console subchannel driver has its own
- * subchannel type although the device is an i/o subchannel
- */
-static int
-css_bus_match (struct device *dev, struct device_driver *drv)
+static int css_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct subchannel *sch = to_subchannel(dev);
 	struct css_driver *driver = to_cssdriver(drv);
+	struct css_device_id *id;
 
-	if (sch->st == driver->subchannel_type)
-		return 1;
+	for (id = driver->subchannel_type; id->match_flags; id++) {
+		if (sch->st == id->type)
+			return 1;
+	}
 
 	return 0;
 }

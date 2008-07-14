@@ -75,7 +75,7 @@ struct chp_link;
  */
 struct css_driver {
 	struct module *owner;
-	unsigned int subchannel_type;
+	struct css_device_id *subchannel_type;
 	struct device_driver drv;
 	void (*irq)(struct subchannel *);
 	int (*chp_event)(struct subchannel *, struct chp_link *, int);

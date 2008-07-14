@@ -131,9 +131,15 @@ static int io_subchannel_sch_event(struct subchannel *, int);
 static int io_subchannel_chp_event(struct subchannel *, struct chp_link *,
 				   int);
 
+static struct css_device_id io_subchannel_ids[] = {
+	{ .match_flags = 0x1, .type = SUBCHANNEL_TYPE_IO, },
+	{ /* end of list */ },
+};
+MODULE_DEVICE_TABLE(css, io_subchannel_ids);
+
 static struct css_driver io_subchannel_driver = {
 	.owner = THIS_MODULE,
-	.subchannel_type = SUBCHANNEL_TYPE_IO,
+	.subchannel_type = io_subchannel_ids,
 	.name = "io_subchannel",
 	.irq = io_subchannel_irq,
 	.sch_event = io_subchannel_sch_event,
