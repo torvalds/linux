@@ -140,8 +140,7 @@ static struct rpc_clnt *rpcb_create_local(struct sockaddr *addr,
 }
 
 static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
-				    size_t salen, int proto, u32 version,
-				    int privileged)
+				    size_t salen, int proto, u32 version)
 {
 	struct rpc_create_args args = {
 		.protocol	= proto,
@@ -151,7 +150,8 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 		.program	= &rpcb_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
-		.flags		= RPC_CLNT_CREATE_NOPING,
+		.flags		= (RPC_CLNT_CREATE_NOPING |
+					RPC_CLNT_CREATE_NONPRIVPORT),
 	};
 
 	switch (srvaddr->sa_family) {
@@ -165,8 +165,6 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 		return NULL;
 	}
 
-	if (!privileged)
-		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 	return rpc_create(&args);
 }
 
@@ -255,7 +253,7 @@ int rpcb_getport_sync(struct sockaddr_in *sin, u32 prog, u32 vers, int prot)
 		__func__, NIPQUAD(sin->sin_addr.s_addr), prog, vers, prot);
 
 	rpcb_clnt = rpcb_create(NULL, (struct sockaddr *)sin,
-				sizeof(*sin), prot, RPCBVERS_2, 0);
+				sizeof(*sin), prot, RPCBVERS_2);
 	if (IS_ERR(rpcb_clnt))
 		return PTR_ERR(rpcb_clnt);
 
@@ -365,7 +363,7 @@ void rpcb_getport_async(struct rpc_task *task)
 		task->tk_pid, __func__, bind_version);
 
 	rpcb_clnt = rpcb_create(clnt->cl_server, sap, salen, xprt->prot,
-				bind_version, 0);
+				bind_version);
 	if (IS_ERR(rpcb_clnt)) {
 		status = PTR_ERR(rpcb_clnt);
 		dprintk("RPC: %5u %s: rpcb_create failed, error %ld\n",
