@@ -96,6 +96,7 @@ static char mv643xx_eth_driver_version[] = "1.1";
 #define TX_BW_MTU(p)			(0x0458 + ((p) << 10))
 #define TX_BW_BURST(p)			(0x045c + ((p) << 10))
 #define INT_CAUSE(p)			(0x0460 + ((p) << 10))
+#define  INT_TX_END_0			0x00080000
 #define  INT_TX_END			0x07f80000
 #define  INT_RX				0x0007fbfc
 #define  INT_EXT			0x00000002
@@ -706,6 +707,7 @@ static inline __be16 sum16_as_be(__sum16 sum)
 
 static void txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 {
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int tx_index;
 	struct tx_desc *desc;
@@ -758,6 +760,10 @@ static void txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 	/* ensure all other descriptors are written before first cmd_sts */
 	wmb();
 	desc->cmd_sts = cmd_sts;
+
+	/* clear TX_END interrupt status */
+	wrl(mp, INT_CAUSE(mp->port_num), ~(INT_TX_END_0 << txq->index));
+	rdl(mp, INT_CAUSE(mp->port_num));
 
 	/* ensure all descriptors are written before poking hardware */
 	wmb();
@@ -1684,7 +1690,6 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	u32 int_cause;
 	u32 int_cause_ext;
-	u32 txq_active;
 
 	int_cause = rdl(mp, INT_CAUSE(mp->port_num)) &
 			(INT_TX_END | INT_RX | INT_EXT);
@@ -1743,8 +1748,6 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 	}
 #endif
 
-	txq_active = rdl(mp, TXQ_COMMAND(mp->port_num));
-
 	/*
 	 * TxBuffer or TxError set for any of the 8 queues?
 	 */
@@ -1754,6 +1757,14 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 		for (i = 0; i < 8; i++)
 			if (mp->txq_mask & (1 << i))
 				txq_reclaim(mp->txq + i, 0);
+
+		/*
+		 * Enough space again in the primary TX queue for a
+		 * full packet?
+		 */
+		spin_lock(&mp->lock);
+		__txq_maybe_wake(mp->txq + mp->txq_primary);
+		spin_unlock(&mp->lock);
 	}
 
 	/*
@@ -1763,19 +1774,25 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 		int i;
 
 		wrl(mp, INT_CAUSE(mp->port_num), ~(int_cause & INT_TX_END));
+
+		spin_lock(&mp->lock);
 		for (i = 0; i < 8; i++) {
 			struct tx_queue *txq = mp->txq + i;
-			if (txq->tx_desc_count && !((txq_active >> i) & 1))
+			u32 hw_desc_ptr;
+			u32 expected_ptr;
+
+			if ((int_cause & (INT_TX_END_0 << i)) == 0)
+				continue;
+
+			hw_desc_ptr =
+				rdl(mp, TXQ_CURRENT_DESC_PTR(mp->port_num, i));
+			expected_ptr = (u32)txq->tx_desc_dma +
+				txq->tx_curr_desc * sizeof(struct tx_desc);
+
+			if (hw_desc_ptr != expected_ptr)
 				txq_enable(txq);
 		}
-	}
-
-	/*
-	 * Enough space again in the primary TX queue for a full packet?
-	 */
-	if (int_cause_ext & INT_EXT_TX) {
-		struct tx_queue *txq = mp->txq + mp->txq_primary;
-		__txq_maybe_wake(txq);
+		spin_unlock(&mp->lock);
 	}
 
 	return IRQ_HANDLED;
