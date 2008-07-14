@@ -1463,8 +1463,12 @@ static int rfcomm_recv_msc(struct rfcomm_session *s, int cr, struct sk_buff *skb
 			clear_bit(RFCOMM_TX_THROTTLED, &d->flags);
 
 		rfcomm_dlc_lock(d);
+
+		d->remote_v24_sig = msc->v24_sig;
+
 		if (d->modem_status)
 			d->modem_status(d, msc->v24_sig);
+
 		rfcomm_dlc_unlock(d);
 
 		rfcomm_send_msc(s, 0, dlci, msc->v24_sig);

@@ -271,6 +271,9 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 
 	dlc->owner = dev;
 	dev->dlc   = dlc;
+
+	rfcomm_dev_modem_status(dlc, dlc->remote_v24_sig);
+
 	rfcomm_dlc_unlock(dlc);
 
 	/* It's safe to call __module_get() here because socket already
