@@ -69,7 +69,7 @@ extern s32 i2c_smbus_xfer (struct i2c_adapter * adapter, u16 addr,
                            union i2c_smbus_data * data);
 
 /* Now follow the 'nice' access routines. These also document the calling
-   conventions of smbus_access. */
+   conventions of i2c_smbus_xfer. */
 
 extern s32 i2c_smbus_read_byte(struct i2c_client * client);
 extern s32 i2c_smbus_write_byte(struct i2c_client * client, u8 value);
@@ -536,7 +536,7 @@ union i2c_smbus_data {
 	                       /* and one more for user-space compatibility */
 };
 
-/* smbus_access read or write markers */
+/* i2c_smbus_xfer read or write markers */
 #define I2C_SMBUS_READ	1
 #define I2C_SMBUS_WRITE	0
 
