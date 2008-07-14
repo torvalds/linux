@@ -1713,7 +1713,8 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 
 		status = acpi_video_bus_get_one_device(dev, video);
 		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status, "Cant attach device"));
+			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
+					"Cant attach device"));
 			continue;
 		}
 	}

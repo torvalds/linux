@@ -231,6 +231,9 @@ struct tape_device {
 	/* Request queue. */
 	struct list_head		req_queue;
 
+	/* Request wait queue. */
+	wait_queue_head_t		wait_queue;
+
 	/* Each tape device has (currently) two minor numbers. */
 	int				first_minor;
 

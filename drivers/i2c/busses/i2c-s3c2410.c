@@ -290,12 +290,12 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 		 * bus, or started a new i2c message
 		 */
 		
-		if (iicstat  & S3C2410_IICSTAT_LASTBIT &&
+		if (iicstat & S3C2410_IICSTAT_LASTBIT &&
 		    !(i2c->msg->flags & I2C_M_IGNORE_NAK)) {
 			/* ack was not received... */
 
 			dev_dbg(i2c->dev, "ack was not received\n");
-			s3c24xx_i2c_stop(i2c, -EREMOTEIO);
+			s3c24xx_i2c_stop(i2c, -ENXIO);
 			goto out_ack;
 		}
 
@@ -305,7 +305,7 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 			i2c->state = STATE_WRITE;
 
 		/* terminate the transfer if there is nothing to do
-		 * (used by the i2c probe to find devices */
+		 * as this is used by the i2c probe to find devices. */
 
 		if (is_lastmsg(i2c) && i2c->msg->len == 0) {
 			s3c24xx_i2c_stop(i2c, 0);
@@ -323,7 +323,17 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 		 * end of the message, and if so, work out what to do
 		 */
 
+		if (!(i2c->msg->flags & I2C_M_IGNORE_NAK)) {
+			if (iicstat & S3C2410_IICSTAT_LASTBIT) {
+				dev_dbg(i2c->dev, "WRITE: No Ack\n");
+
+				s3c24xx_i2c_stop(i2c, -ECONNREFUSED);
+				goto out_ack;
+			}
+		}
+
 	retry_write:
+
 		if (!is_msgend(i2c)) {
 			byte = i2c->msg->buf[i2c->msg_ptr++];
 			writeb(byte, i2c->regs + S3C2410_IICDS);
@@ -376,17 +386,6 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 		 * something with it, and then work out wether we are
 		 * going to do any more read/write
 		 */
-
-		if (!(i2c->msg->flags & I2C_M_IGNORE_NAK) &&
-		    !(is_msglast(i2c) && is_lastmsg(i2c))) {
-
-			if (iicstat & S3C2410_IICSTAT_LASTBIT) {
-				dev_dbg(i2c->dev, "READ: No Ack\n");
-
-				s3c24xx_i2c_stop(i2c, -ECONNREFUSED);
-				goto out_ack;
-			}
-		}
 
 		byte = readb(i2c->regs + S3C2410_IICDS);
 		i2c->msg->buf[i2c->msg_ptr++] = byte;
@@ -949,3 +948,4 @@ MODULE_DESCRIPTION("S3C24XX I2C Bus driver");
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:s3c2410-i2c");
+MODULE_ALIAS("platform:s3c2440-i2c");

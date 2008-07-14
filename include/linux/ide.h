@@ -153,7 +153,7 @@ enum {		ide_unknown,	ide_generic,	ide_pci,
 		ide_qd65xx,	ide_umc8672,	ide_ht6560b,
 		ide_rz1000,	ide_trm290,
 		ide_cmd646,	ide_cy82c693,	ide_4drives,
-		ide_pmac,	ide_etrax100,	ide_acorn,
+		ide_pmac,	ide_acorn,
 		ide_au1xxx,	ide_palm3710
 };
 
@@ -187,6 +187,21 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 		hw->io_ports_array[i] = io_addr++;
 
 	hw->io_ports.ctl_addr = ctl_addr;
+}
+
+/* for IDE PCI controllers in legacy mode, temporary */
+static inline int __ide_default_irq(unsigned long base)
+{
+	switch (base) {
+#ifdef CONFIG_IA64
+	case 0x1f0: return isa_irq_to_vector(14);
+	case 0x170: return isa_irq_to_vector(15);
+#else
+	case 0x1f0: return 14;
+	case 0x170: return 15;
+#endif
+	}
+	return 0;
 }
 
 #include <asm/ide.h>

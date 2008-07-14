@@ -36,36 +36,6 @@
 #define	CX18_CARD_INPUT_COMPOSITE2 	5
 #define	CX18_CARD_INPUT_COMPOSITE3 	6
 
-enum cx34180_video_input {
-	/* Composite video inputs In1-In8 */
-	CX23418_COMPOSITE1 = 1,
-	CX23418_COMPOSITE2,
-	CX23418_COMPOSITE3,
-	CX23418_COMPOSITE4,
-	CX23418_COMPOSITE5,
-	CX23418_COMPOSITE6,
-	CX23418_COMPOSITE7,
-	CX23418_COMPOSITE8,
-
-	/* S-Video inputs consist of one luma input (In1-In4) ORed with one
-	   chroma input (In5-In8) */
-	CX23418_SVIDEO_LUMA1 = 0x10,
-	CX23418_SVIDEO_LUMA2 = 0x20,
-	CX23418_SVIDEO_LUMA3 = 0x30,
-	CX23418_SVIDEO_LUMA4 = 0x40,
-	CX23418_SVIDEO_CHROMA4 = 0x400,
-	CX23418_SVIDEO_CHROMA5 = 0x500,
-	CX23418_SVIDEO_CHROMA6 = 0x600,
-	CX23418_SVIDEO_CHROMA7 = 0x700,
-	CX23418_SVIDEO_CHROMA8 = 0x800,
-
-	/* S-Video aliases for common luma/chroma combinations */
-	CX23418_SVIDEO1 = 0x510,
-	CX23418_SVIDEO2 = 0x620,
-	CX23418_SVIDEO3 = 0x730,
-	CX23418_SVIDEO4 = 0x840,
-};
-
 /* audio inputs */
 #define	CX18_CARD_INPUT_AUD_TUNER	1
 #define	CX18_CARD_INPUT_LINE_IN1 	2
@@ -74,16 +44,6 @@ enum cx34180_video_input {
 #define CX18_CARD_MAX_VIDEO_INPUTS 6
 #define CX18_CARD_MAX_AUDIO_INPUTS 3
 #define CX18_CARD_MAX_TUNERS  	   2
-
-enum cx23418_audio_input {
-	/* Audio inputs: serial or In4-In8 */
-	CX23418_AUDIO_SERIAL,
-	CX23418_AUDIO4 = 4,
-	CX23418_AUDIO5,
-	CX23418_AUDIO6,
-	CX23418_AUDIO7,
-	CX23418_AUDIO8,
-};
 
 /* V4L2 capability aliases */
 #define CX18_CAP_ENCODER (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER | \
@@ -116,6 +76,13 @@ struct cx18_card_pci_info {
 struct cx18_gpio_init { /* set initial GPIO DIR and OUT values */
 	u32 direction; 	/* DIR setting. Leave to 0 if no init is needed */
 	u32 initial_value;
+};
+
+struct cx18_gpio_i2c_slave_reset {
+	u32 active_lo_mask; /* GPIO outputs that reset i2c chips when low */
+	u32 active_hi_mask; /* GPIO outputs that reset i2c chips when high */
+	int msecs_asserted; /* time period reset must remain asserted */
+	int msecs_recovery; /* time after deassert for chips to be ready */
 };
 
 struct cx18_card_tuner {
@@ -154,7 +121,8 @@ struct cx18_card {
 
 	/* GPIO card-specific settings */
 	u8 xceive_pin; 		/* XCeive tuner GPIO reset pin */
-	struct cx18_gpio_init 		gpio_init;
+	struct cx18_gpio_init 		 gpio_init;
+	struct cx18_gpio_i2c_slave_reset gpio_i2c_slave_reset;
 
 	struct cx18_card_tuner tuners[CX18_CARD_MAX_TUNERS];
 	struct cx18_card_tuner_i2c *i2c;

@@ -1686,9 +1686,14 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->bus_type = SAS;
 	}
 
-	if (ioc->bus_type == SAS && mpt_msi_enable == -1)
-		ioc->msi_enable = 1;
-	else
+	if (mpt_msi_enable == -1) {
+		/* Enable on SAS, disable on FC and SPI */
+		if (ioc->bus_type == SAS)
+			ioc->msi_enable = 1;
+		else
+			ioc->msi_enable = 0;
+	} else
+		/* follow flag: 0 - disable; 1 - enable */
 		ioc->msi_enable = mpt_msi_enable;
 
 	if (ioc->errata_flag_1064)

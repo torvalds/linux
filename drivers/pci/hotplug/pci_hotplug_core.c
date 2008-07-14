@@ -619,6 +619,7 @@ static struct hotplug_slot *get_slot_from_name (const char *name)
 int pci_hp_register (struct hotplug_slot *slot)
 {
 	int result;
+	struct hotplug_slot *tmp;
 
 	if (slot == NULL)
 		return -ENODEV;
@@ -630,7 +631,11 @@ int pci_hp_register (struct hotplug_slot *slot)
 		return -EINVAL;
 	}
 
-	/* this can fail if we have already registered a slot with the same name */
+	/* Check if we have already registered a slot with the same name. */
+	tmp = get_slot_from_name(slot->name);
+	if (tmp)
+		return -EEXIST;
+
 	slot->kobj.kset = pci_hotplug_slots_kset;
 	result = kobject_init_and_add(&slot->kobj, &hotplug_slot_ktype, NULL,
 				      "%s", slot->name);

@@ -26,7 +26,7 @@
 static unsigned long icache_size, dcache_size;		/* Size in bytes */
 static unsigned long icache_lsize, dcache_lsize;	/* Size in bytes */
 
-unsigned long __init r3k_cache_size(unsigned long ca_flags)
+unsigned long __cpuinit r3k_cache_size(unsigned long ca_flags)
 {
 	unsigned long flags, status, dummy, size;
 	volatile unsigned long *p;
@@ -61,7 +61,7 @@ unsigned long __init r3k_cache_size(unsigned long ca_flags)
 	return size * sizeof(*p);
 }
 
-unsigned long __init r3k_cache_lsize(unsigned long ca_flags)
+unsigned long __cpuinit r3k_cache_lsize(unsigned long ca_flags)
 {
 	unsigned long flags, status, lsize, i;
 	volatile unsigned long *p;
@@ -90,7 +90,7 @@ unsigned long __init r3k_cache_lsize(unsigned long ca_flags)
 	return lsize * sizeof(*p);
 }
 
-static void __init r3k_probe_cache(void)
+static void __cpuinit r3k_probe_cache(void)
 {
 	dcache_size = r3k_cache_size(ST0_ISC);
 	if (dcache_size)

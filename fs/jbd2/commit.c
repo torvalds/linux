@@ -168,6 +168,7 @@ static int journal_submit_commit_record(journal_t *journal,
 		spin_unlock(&journal->j_state_lock);
 
 		/* And try again, without the barrier */
+		lock_buffer(bh);
 		set_buffer_uptodate(bh);
 		set_buffer_dirty(bh);
 		ret = submit_bh(WRITE, bh);

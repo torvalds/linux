@@ -488,7 +488,7 @@ static int nfs_create_rpc_client(struct nfs_client *clp,
 	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
 		dprintk("%s: cannot create RPC client. Error = %ld\n",
-				__FUNCTION__, PTR_ERR(clnt));
+				__func__, PTR_ERR(clnt));
 		return PTR_ERR(clnt);
 	}
 
@@ -576,7 +576,7 @@ static int nfs_init_server_rpcclient(struct nfs_server *server,
 
 	server->client = rpc_clone_client(clp->cl_rpcclient);
 	if (IS_ERR(server->client)) {
-		dprintk("%s: couldn't create rpc_client!\n", __FUNCTION__);
+		dprintk("%s: couldn't create rpc_client!\n", __func__);
 		return PTR_ERR(server->client);
 	}
 
@@ -590,7 +590,7 @@ static int nfs_init_server_rpcclient(struct nfs_server *server,
 
 		auth = rpcauth_create(pseudoflavour, server->client);
 		if (IS_ERR(auth)) {
-			dprintk("%s: couldn't create credcache!\n", __FUNCTION__);
+			dprintk("%s: couldn't create credcache!\n", __func__);
 			return PTR_ERR(auth);
 		}
 	}
@@ -985,7 +985,7 @@ static int nfs4_init_client(struct nfs_client *clp,
 	error = nfs_idmap_new(clp);
 	if (error < 0) {
 		dprintk("%s: failed to create idmapper. Error = %d\n",
-			__FUNCTION__, error);
+			__func__, error);
 		goto error;
 	}
 	__set_bit(NFS_CS_IDMAP, &clp->cl_res_state);

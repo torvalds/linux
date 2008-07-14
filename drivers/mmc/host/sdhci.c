@@ -55,6 +55,10 @@ static unsigned int debug_quirks = 0;
 #define SDHCI_QUIRK_32BIT_DMA_SIZE			(1<<7)
 /* Controller needs to be reset after each request to stay stable */
 #define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<8)
+/* Controller needs voltage and power writes to happen separately */
+#define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<9)
+/* Controller has an off-by-one issue with timeout value */
+#define SDHCI_QUIRK_INCR_TIMEOUT_CONTROL		(1<<10)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -115,7 +119,8 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor      = PCI_ANY_ID,
 		.subdevice      = PCI_ANY_ID,
 		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
-				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
+				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS |
+				  SDHCI_QUIRK_BROKEN_DMA,
 	},
 
 	{
@@ -124,7 +129,17 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor      = PCI_ANY_ID,
 		.subdevice      = PCI_ANY_ID,
 		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
-				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
+				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS |
+				  SDHCI_QUIRK_BROKEN_DMA,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_MARVELL,
+		.device         = PCI_DEVICE_ID_MARVELL_CAFE_SD,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER |
+				  SDHCI_QUIRK_INCR_TIMEOUT_CONTROL,
 	},
 
 	{
@@ -469,6 +484,13 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 			break;
 	}
 
+	/*
+	 * Compensate for an off-by-one error in the CaFe hardware; otherwise,
+	 * a too-small count gives us interrupt timeouts.
+	 */
+	if ((host->chip->quirks & SDHCI_QUIRK_INCR_TIMEOUT_CONTROL))
+		count++;
+
 	if (count >= 0xF) {
 		printk(KERN_WARNING "%s: Too large timeout requested!\n",
 			mmc_hostname(host->mmc));
@@ -773,6 +795,14 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	default:
 		BUG();
 	}
+
+	/*
+	 * At least the CaFe chip gets confused if we set the voltage
+	 * and set turn on power at the same time, so set the voltage first.
+	 */
+	if ((host->chip->quirks & SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER))
+		writeb(pwr & ~SDHCI_POWER_ON,
+				host->ioaddr + SDHCI_POWER_CONTROL);
 
 	writeb(pwr, host->ioaddr + SDHCI_POWER_CONTROL);
 

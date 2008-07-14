@@ -468,7 +468,7 @@ struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops)
 
 	return sch;
 errout:
-	return ERR_PTR(-err);
+	return ERR_PTR(err);
 }
 
 struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops,

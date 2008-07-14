@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsfs.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2007
+ *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   Common Internet FileSystem (CIFS) client
@@ -97,9 +97,6 @@ cifs_read_super(struct super_block *sb, void *data,
 {
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb;
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	int len;
-#endif
 	int rc = 0;
 
 	/* BB should we make this contingent on mount parm? */
@@ -117,15 +114,17 @@ cifs_read_super(struct super_block *sb, void *data,
 	 * complex operation (mount), and in case of fail
 	 * just exit instead of doing mount and attempting
 	 * undo it if this copy fails?*/
-	len = strlen(data);
-	cifs_sb->mountdata = kzalloc(len + 1, GFP_KERNEL);
-	if (cifs_sb->mountdata == NULL) {
-		kfree(sb->s_fs_info);
-		sb->s_fs_info = NULL;
-		return -ENOMEM;
+	if (data) {
+		int len = strlen(data);
+		cifs_sb->mountdata = kzalloc(len + 1, GFP_KERNEL);
+		if (cifs_sb->mountdata == NULL) {
+			kfree(sb->s_fs_info);
+			sb->s_fs_info = NULL;
+			return -ENOMEM;
+		}
+		strncpy(cifs_sb->mountdata, data, len + 1);
+		cifs_sb->mountdata[len] = '\0';
 	}
-	strncpy(cifs_sb->mountdata, data, len + 1);
-	cifs_sb->mountdata[len] = '\0';
 #endif
 
 	rc = cifs_mount(sb, cifs_sb, data, devname);
@@ -353,9 +352,41 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID) ||
 			   !(cifs_sb->tcon->unix_ext))
 				seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
+			if (!cifs_sb->tcon->unix_ext) {
+				seq_printf(s, ",file_mode=0%o,dir_mode=0%o",
+					   cifs_sb->mnt_file_mode,
+					   cifs_sb->mnt_dir_mode);
+			}
+			if (cifs_sb->tcon->seal)
+				seq_printf(s, ",seal");
+			if (cifs_sb->tcon->nocase)
+				seq_printf(s, ",nocase");
+			if (cifs_sb->tcon->retry)
+				seq_printf(s, ",hard");
 		}
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
 			seq_printf(s, ",posixpaths");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)
+			seq_printf(s, ",setuids");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
+			seq_printf(s, ",serverino");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
+			seq_printf(s, ",directio");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
+			seq_printf(s, ",nouser_xattr");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
+			seq_printf(s, ",mapchars");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)
+			seq_printf(s, ",sfu");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			seq_printf(s, ",nobrl");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
+			seq_printf(s, ",cifsacl");
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
+			seq_printf(s, ",dynperm");
+		if (m->mnt_sb->s_flags & MS_POSIXACL)
+			seq_printf(s, ",acl");
+
 		seq_printf(s, ",rsize=%d", cifs_sb->rsize);
 		seq_printf(s, ",wsize=%d", cifs_sb->wsize);
 	}
@@ -657,7 +688,7 @@ const struct file_operations cifs_file_ops = {
 	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
-	.ioctl	= cifs_ioctl,
+	.unlocked_ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
@@ -677,7 +708,7 @@ const struct file_operations cifs_file_direct_ops = {
 	.flush = cifs_flush,
 	.splice_read = generic_file_splice_read,
 #ifdef CONFIG_CIFS_POSIX
-	.ioctl  = cifs_ioctl,
+	.unlocked_ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
@@ -697,7 +728,7 @@ const struct file_operations cifs_file_nobrl_ops = {
 	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
-	.ioctl	= cifs_ioctl,
+	.unlocked_ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
@@ -716,7 +747,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.flush = cifs_flush,
 	.splice_read = generic_file_splice_read,
 #ifdef CONFIG_CIFS_POSIX
-	.ioctl  = cifs_ioctl,
+	.unlocked_ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
@@ -731,7 +762,7 @@ const struct file_operations cifs_dir_ops = {
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
-	.ioctl  = cifs_ioctl,
+	.unlocked_ioctl  = cifs_ioctl,
 };
 
 static void

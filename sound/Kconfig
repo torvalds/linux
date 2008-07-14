@@ -28,11 +28,6 @@ config SOUND
 	  and read <file:Documentation/sound/oss/README.modules>; the module
 	  will be called soundcore.
 
-	  I'm told that even without a sound card, you can make your computer
-	  say more than an occasional beep, by programming the PC speaker.
-	  Kernel patches and supporting utilities to do that are in the pcsp
-	  package, available at <ftp://ftp.infradead.org/pub/pcsp/>.
-
 source "sound/oss/dmasound/Kconfig"
 
 if !M68K

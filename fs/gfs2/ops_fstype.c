@@ -142,8 +142,8 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	if (!table[0])
 		table = sdp->sd_vfs->s_id;
 
-	snprintf(sdp->sd_proto_name, GFS2_FSNAME_LEN, "%s", proto);
-	snprintf(sdp->sd_table_name, GFS2_FSNAME_LEN, "%s", table);
+	strlcpy(sdp->sd_proto_name, proto, GFS2_FSNAME_LEN);
+	strlcpy(sdp->sd_table_name, table, GFS2_FSNAME_LEN);
 
 	table = sdp->sd_table_name;
 	while ((table = strchr(table, '/')))

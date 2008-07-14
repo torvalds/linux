@@ -1,4 +1,4 @@
-/* $Id: bitops.h,v 1.39 2002/01/30 01:40:00 davem Exp $
+/*
  * bitops.h: Bit string operations on the V9.
  *
  * Copyright 1996, 1997 David S. Miller (davem@caip.rutgers.edu)

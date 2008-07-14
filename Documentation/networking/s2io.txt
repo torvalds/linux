@@ -83,9 +83,9 @@ Valid range: Limited by memory on system
 Default: 30 
 
 e. intr_type
-Specifies interrupt type. Possible values 1(INTA), 2(MSI), 3(MSI-X)
-Valid range: 1-3
-Default: 1 
+Specifies interrupt type. Possible values 0(INTA), 2(MSI-X)
+Valid values: 0, 2
+Default: 2
 
 5.  Performance suggestions
 General:

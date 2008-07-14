@@ -138,11 +138,8 @@ static void rt2500usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt2500usb_bbp_check(rt2x00dev);
-	if (rt2x00_get_field16(reg, PHY_CSR8_BUSY)) {
-		ERROR(rt2x00dev, "PHY_CSR8 register busy. Write failed.\n");
-		mutex_unlock(&rt2x00dev->usb_cache_mutex);
-		return;
-	}
+	if (rt2x00_get_field16(reg, PHY_CSR8_BUSY))
+		goto exit_fail;
 
 	/*
 	 * Write the data into the BBP.
@@ -155,6 +152,13 @@ static void rt2500usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 	rt2500usb_register_write_lock(rt2x00dev, PHY_CSR7, reg);
 
 	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+
+	ERROR(rt2x00dev, "PHY_CSR8 register busy. Write failed.\n");
 }
 
 static void rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
@@ -168,10 +172,8 @@ static void rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt2500usb_bbp_check(rt2x00dev);
-	if (rt2x00_get_field16(reg, PHY_CSR8_BUSY)) {
-		ERROR(rt2x00dev, "PHY_CSR8 register busy. Read failed.\n");
-		return;
-	}
+	if (rt2x00_get_field16(reg, PHY_CSR8_BUSY))
+		goto exit_fail;
 
 	/*
 	 * Write the request into the BBP.
@@ -186,17 +188,21 @@ static void rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt2500usb_bbp_check(rt2x00dev);
-	if (rt2x00_get_field16(reg, PHY_CSR8_BUSY)) {
-		ERROR(rt2x00dev, "PHY_CSR8 register busy. Read failed.\n");
-		*value = 0xff;
-		mutex_unlock(&rt2x00dev->usb_cache_mutex);
-		return;
-	}
+	if (rt2x00_get_field16(reg, PHY_CSR8_BUSY))
+		goto exit_fail;
 
 	rt2500usb_register_read_lock(rt2x00dev, PHY_CSR7, &reg);
 	*value = rt2x00_get_field16(reg, PHY_CSR7_DATA);
 
 	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+
+	ERROR(rt2x00dev, "PHY_CSR8 register busy. Read failed.\n");
+	*value = 0xff;
 }
 
 static void rt2500usb_rf_write(struct rt2x00_dev *rt2x00dev,
@@ -794,6 +800,13 @@ static int rt2500usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field16(&reg, TXRX_CSR8_BBP_ID1, 0);
 	rt2x00_set_field16(&reg, TXRX_CSR8_BBP_ID1_VALID, 0);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR8, reg);
+
+	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
+	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 0);
+	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_SYNC, 0);
+	rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 0);
+	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR21, 0xe78f);
 	rt2500usb_register_write(rt2x00dev, MAC_CSR9, 0xff1d);
