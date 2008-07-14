@@ -30,34 +30,6 @@
 #ifndef _ZCRYPT_API_H_
 #define _ZCRYPT_API_H_
 
-/**
- * Macro definitions
- *
- * PDEBUG debugs in the form "zcrypt: function_name -> message"
- *
- * PRINTK is like PDEBUG, except that it is always enabled
- * PRINTKN is like PRINTK, except that it does not include the function name
- * PRINTKW is like PRINTK, except that it uses KERN_WARNING
- * PRINTKC is like PRINTK, except that it uses KERN_CRIT
- */
-#define DEV_NAME	"zcrypt"
-
-#define PRINTK(fmt, args...) \
-	printk(KERN_DEBUG DEV_NAME ": %s -> " fmt, __func__ , ## args)
-#define PRINTKN(fmt, args...) \
-	printk(KERN_DEBUG DEV_NAME ": " fmt, ## args)
-#define PRINTKW(fmt, args...) \
-	printk(KERN_WARNING DEV_NAME ": %s -> " fmt, __func__ , ## args)
-#define PRINTKC(fmt, args...) \
-	printk(KERN_CRIT DEV_NAME ": %s -> " fmt, __func__ , ## args)
-
-#ifdef ZCRYPT_DEBUG
-#define PDEBUG(fmt, args...) \
-	printk(KERN_DEBUG DEV_NAME ": %s -> " fmt, __func__ , ## args)
-#else
-#define PDEBUG(fmt, args...) do {} while (0)
-#endif
-
 #include "ap_bus.h"
 #include <asm/zcrypt.h>
 

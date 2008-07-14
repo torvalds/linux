@@ -277,7 +277,8 @@ static void ur_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	struct urdev *urd;
 
 	TRACE("ur_int_handler: intparm=0x%lx cstat=%02x dstat=%02x res=%u\n",
-	      intparm, irb->scsw.cstat, irb->scsw.dstat, irb->scsw.count);
+	      intparm, irb->scsw.cmd.cstat, irb->scsw.cmd.dstat,
+	      irb->scsw.cmd.count);
 
 	if (!intparm) {
 		TRACE("ur_int_handler: unsolicited interrupt\n");
@@ -288,7 +289,7 @@ static void ur_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	/* On special conditions irb is an error pointer */
 	if (IS_ERR(irb))
 		urd->io_request_rc = PTR_ERR(irb);
-	else if (irb->scsw.dstat == (DEV_STAT_CHN_END | DEV_STAT_DEV_END))
+	else if (irb->scsw.cmd.dstat == (DEV_STAT_CHN_END | DEV_STAT_DEV_END))
 		urd->io_request_rc = 0;
 	else
 		urd->io_request_rc = -EIO;

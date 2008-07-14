@@ -185,11 +185,8 @@ static int __init prng_init(void)
 	prng_seed(16);
 
 	ret = misc_register(&prng_dev);
-	if (ret) {
-		printk(KERN_WARNING
-		       "Could not register misc device for PRNG.\n");
+	if (ret)
 		goto out_buf;
-	}
 	return 0;
 
 out_buf:

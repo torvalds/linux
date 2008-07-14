@@ -8,14 +8,16 @@
 #ifndef _ASM_S390_SETUP_H
 #define _ASM_S390_SETUP_H
 
-#define COMMAND_LINE_SIZE 	896
+#define COMMAND_LINE_SIZE	1024
+
+#define ARCH_COMMAND_LINE_SIZE	896
 
 #ifdef __KERNEL__
 
 #include <asm/types.h>
 
 #define PARMAREA		0x10400
-#define MEMORY_CHUNKS		16	/* max 0x7fff */
+#define MEMORY_CHUNKS		256
 
 #ifndef __ASSEMBLY__
 
@@ -36,11 +38,13 @@
 struct mem_chunk {
 	unsigned long addr;
 	unsigned long size;
-	unsigned long type;
+	int type;
 };
 
 extern struct mem_chunk memory_chunk[];
 extern unsigned long real_memory_size;
+
+void detect_memory_layout(struct mem_chunk chunk[]);
 
 #ifdef CONFIG_S390_SWITCH_AMODE
 extern unsigned int switch_amode;
@@ -61,7 +65,6 @@ extern unsigned long machine_flags;
 
 #define MACHINE_FLAG_VM		(1UL << 0)
 #define MACHINE_FLAG_IEEE	(1UL << 1)
-#define MACHINE_FLAG_P390	(1UL << 2)
 #define MACHINE_FLAG_CSP	(1UL << 3)
 #define MACHINE_FLAG_MVPG	(1UL << 4)
 #define MACHINE_FLAG_DIAG44	(1UL << 5)
@@ -97,7 +100,6 @@ extern unsigned long machine_flags;
 #define MACHINE_HAS_PFMF	(machine_flags & MACHINE_FLAG_PFMF)
 #endif /* __s390x__ */
 
-#define MACHINE_HAS_SCLP	(!MACHINE_IS_P390)
 #define ZFCPDUMP_HSA_SIZE	(32UL<<20)
 
 /*

@@ -92,23 +92,15 @@ static int vmwdt_keepalive(void)
 
 	func = vmwdt_conceal ? (wdt_init | wdt_conceal) : wdt_init;
 	ret = __diag288(func, vmwdt_interval, ebc_cmd, len);
+	WARN_ON(ret != 0);
 	kfree(ebc_cmd);
-
-	if (ret) {
-		printk(KERN_WARNING "%s: problem setting interval %d, "
-			"cmd %s\n", __func__, vmwdt_interval,
-			vmwdt_cmd);
-	}
 	return ret;
 }
 
 static int vmwdt_disable(void)
 {
 	int ret = __diag288(wdt_cancel, 0, "", 0);
-	if (ret) {
-		printk(KERN_WARNING "%s: problem disabling watchdog\n",
-			__func__);
-	}
+	WARN_ON(ret != 0);
 	return ret;
 }
 
@@ -121,10 +113,8 @@ static int __init vmwdt_probe(void)
 	static char __initdata ebc_begin[] = {
 		194, 197, 199, 201, 213
 	};
-	if (__diag288(wdt_init, 15, ebc_begin, sizeof(ebc_begin)) != 0) {
-		printk(KERN_INFO "z/VM watchdog not available\n");
+	if (__diag288(wdt_init, 15, ebc_begin, sizeof(ebc_begin)) != 0)
 		return -EINVAL;
-	}
 	return vmwdt_disable();
 }
 

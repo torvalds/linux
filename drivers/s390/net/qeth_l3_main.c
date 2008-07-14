@@ -944,15 +944,8 @@ static int qeth_l3_deregister_addr_entry(struct qeth_card *card,
 	else
 		rc = qeth_l3_send_setdelip(card, addr, IPA_CMD_DELIP,
 					addr->del_flags);
-	if (rc) {
+	if (rc)
 		QETH_DBF_TEXT(TRACE, 2, "failed");
-		/* TODO: re-activate this warning as soon as we have a
-		 * clean mirco code
-		qeth_ipaddr_to_string(addr->proto, (u8 *)&addr->u, buf);
-		PRINT_WARN("Could not deregister IP address %s (rc=%x)\n",
-			   buf, rc);
-		*/
-	}
 
 	return rc;
 }
