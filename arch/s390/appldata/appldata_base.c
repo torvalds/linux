@@ -584,7 +584,9 @@ EXPORT_SYMBOL_GPL(appldata_register_ops);
 EXPORT_SYMBOL_GPL(appldata_unregister_ops);
 EXPORT_SYMBOL_GPL(appldata_diag);
 
+#ifdef CONFIG_SWAP
 EXPORT_SYMBOL_GPL(si_swapinfo);
+#endif
 EXPORT_SYMBOL_GPL(nr_threads);
 EXPORT_SYMBOL_GPL(nr_running);
 EXPORT_SYMBOL_GPL(nr_iowait);
