@@ -53,7 +53,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "1.9"
+#define VERSION "1.10"
 
 static int disable_cfc = 0;
 static int channel_mtu = -1;

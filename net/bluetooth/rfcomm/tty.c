@@ -77,6 +77,8 @@ struct rfcomm_dev {
 	struct device		*tty_dev;
 
 	atomic_t 		wmem_alloc;
+
+	struct sk_buff_head	pending;
 };
 
 static LIST_HEAD(rfcomm_dev_list);
@@ -264,7 +266,25 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 	init_waitqueue_head(&dev->wait);
 	tasklet_init(&dev->wakeup_task, rfcomm_tty_wakeup, (unsigned long) dev);
 
+	skb_queue_head_init(&dev->pending);
+
 	rfcomm_dlc_lock(dlc);
+
+	if (req->flags & (1 << RFCOMM_REUSE_DLC)) {
+		struct sock *sk = dlc->owner;
+		struct sk_buff *skb;
+
+		BUG_ON(!sk);
+
+		rfcomm_dlc_throttle(dlc);
+
+		while ((skb = skb_dequeue(&sk->sk_receive_queue))) {
+			skb_orphan(skb);
+			skb_queue_tail(&dev->pending, skb);
+			atomic_sub(skb->len, &sk->sk_rmem_alloc);
+		}
+	}
+
 	dlc->data_ready   = rfcomm_dev_data_ready;
 	dlc->state_change = rfcomm_dev_state_change;
 	dlc->modem_status = rfcomm_dev_modem_status;
@@ -542,8 +562,13 @@ static void rfcomm_dev_data_ready(struct rfcomm_dlc *dlc, struct sk_buff *skb)
 	struct rfcomm_dev *dev = dlc->owner;
 	struct tty_struct *tty;
 
-	if (!dev || !(tty = dev->tty)) {
+	if (!dev) {
 		kfree_skb(skb);
+		return;
+	}
+
+	if (!(tty = dev->tty) || !skb_queue_empty(&dev->pending)) {
+		skb_queue_tail(&dev->pending, skb);
 		return;
 	}
 
@@ -630,6 +655,30 @@ static void rfcomm_tty_wakeup(unsigned long arg)
 #endif
 }
 
+static void rfcomm_tty_copy_pending(struct rfcomm_dev *dev)
+{
+	struct tty_struct *tty = dev->tty;
+	struct sk_buff *skb;
+	int inserted = 0;
+
+	if (!tty)
+		return;
+
+	BT_DBG("dev %p tty %p", dev, tty);
+
+	rfcomm_dlc_lock(dev->dlc);
+
+	while ((skb = skb_dequeue(&dev->pending))) {
+		inserted += tty_insert_flip_string(tty, skb->data, skb->len);
+		kfree_skb(skb);
+	}
+
+	rfcomm_dlc_unlock(dev->dlc);
+
+	if (inserted > 0)
+		tty_flip_buffer_push(tty);
+}
+
 static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
 {
 	DECLARE_WAITQUEUE(wait, current);
@@ -693,6 +742,10 @@ static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
 
 	if (err == 0)
 		device_move(dev->tty_dev, rfcomm_get_device(dev));
+
+	rfcomm_tty_copy_pending(dev);
+
+	rfcomm_dlc_unthrottle(dev->dlc);
 
 	return err;
 }
