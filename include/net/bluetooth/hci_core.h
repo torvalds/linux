@@ -40,6 +40,7 @@ struct inquiry_data {
 	__u8		dev_class[3];
 	__le16		clock_offset;
 	__s8		rssi;
+	__u8		ssp_mode;
 };
 
 struct inquiry_entry {
@@ -162,6 +163,7 @@ struct hci_conn {
 	__u8		 attempt;
 	__u8		 dev_class[3];
 	__u8             features[8];
+	__u8             ssp_mode;
 	__u16            interval;
 	__u16            pkt_type;
 	__u16            link_policy;

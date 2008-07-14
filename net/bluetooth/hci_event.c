@@ -736,6 +736,7 @@ static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *
 		memcpy(data.dev_class, info->dev_class, 3);
 		data.clock_offset	= info->clock_offset;
 		data.rssi		= 0x00;
+		data.ssp_mode		= 0x00;
 		info++;
 		hci_inquiry_cache_update(hdev, &data);
 	}
@@ -1390,6 +1391,7 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 			memcpy(data.dev_class, info->dev_class, 3);
 			data.clock_offset	= info->clock_offset;
 			data.rssi		= info->rssi;
+			data.ssp_mode		= 0x00;
 			info++;
 			hci_inquiry_cache_update(hdev, &data);
 		}
@@ -1404,6 +1406,7 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 			memcpy(data.dev_class, info->dev_class, 3);
 			data.clock_offset	= info->clock_offset;
 			data.rssi		= info->rssi;
+			data.ssp_mode		= 0x00;
 			info++;
 			hci_inquiry_cache_update(hdev, &data);
 		}
@@ -1414,7 +1417,27 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 
 static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
+	struct hci_ev_remote_ext_features *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
 	BT_DBG("%s", hdev->name);
+
+	if (ev->status || ev->page != 0x01)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
+	if (conn) {
+		struct inquiry_entry *ie;
+
+		if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst)))
+			ie->data.ssp_mode = (ev->features[0] & 0x01);
+
+		conn->ssp_mode = (ev->features[0] & 0x01);
+	}
+
+	hci_dev_unlock(hdev);
 }
 
 static inline void hci_sync_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1494,6 +1517,7 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 		memcpy(data.dev_class, info->dev_class, 3);
 		data.clock_offset       = info->clock_offset;
 		data.rssi               = info->rssi;
+		data.ssp_mode		= 0x01;
 		info++;
 		hci_inquiry_cache_update(hdev, &data);
 	}
@@ -1529,6 +1553,21 @@ static inline void hci_simple_pair_complete_evt(struct hci_dev *hdev, struct sk_
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (conn)
 		hci_conn_put(conn);
+
+	hci_dev_unlock(hdev);
+}
+
+static inline void hci_remote_host_features_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_remote_host_features *ev = (void *) skb->data;
+	struct inquiry_entry *ie;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock(hdev);
+
+	if ((ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr)))
+		ie->data.ssp_mode = (ev->features[0] & 0x01);
 
 	hci_dev_unlock(hdev);
 }
@@ -1663,6 +1702,10 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_SIMPLE_PAIR_COMPLETE:
 		hci_simple_pair_complete_evt(hdev, skb);
+		break;
+
+	case HCI_EV_REMOTE_HOST_FEATURES:
+		hci_remote_host_features_evt(hdev, skb);
 		break;
 
 	default:

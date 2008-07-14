@@ -71,12 +71,16 @@ void hci_acl_connect(struct hci_conn *conn)
 	bacpy(&cp.bdaddr, &conn->dst);
 	cp.pscan_rep_mode = 0x02;
 
-	if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst)) &&
-			inquiry_entry_age(ie) <= INQUIRY_ENTRY_AGE_MAX) {
-		cp.pscan_rep_mode = ie->data.pscan_rep_mode;
-		cp.pscan_mode     = ie->data.pscan_mode;
-		cp.clock_offset   = ie->data.clock_offset | cpu_to_le16(0x8000);
+	if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst))) {
+		if (inquiry_entry_age(ie) <= INQUIRY_ENTRY_AGE_MAX) {
+			cp.pscan_rep_mode = ie->data.pscan_rep_mode;
+			cp.pscan_mode     = ie->data.pscan_mode;
+			cp.clock_offset   = ie->data.clock_offset |
+							cpu_to_le16(0x8000);
+		}
+
 		memcpy(conn->dev_class, ie->data.dev_class, 3);
+		conn->ssp_mode = ie->data.ssp_mode;
 	}
 
 	cp.pkt_type = cpu_to_le16(conn->pkt_type);
