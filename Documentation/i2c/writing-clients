@@ -569,7 +569,6 @@ SMBus communication
   in terms of it. Never use this function directly!
 
 
-  extern s32 i2c_smbus_write_quick(struct i2c_client * client, u8 value);
   extern s32 i2c_smbus_read_byte(struct i2c_client * client);
   extern s32 i2c_smbus_write_byte(struct i2c_client * client, u8 value);
   extern s32 i2c_smbus_read_byte_data(struct i2c_client * client, u8 command);
@@ -578,20 +577,21 @@ SMBus communication
   extern s32 i2c_smbus_read_word_data(struct i2c_client * client, u8 command);
   extern s32 i2c_smbus_write_word_data(struct i2c_client * client,
                                        u8 command, u16 value);
+  extern s32 i2c_smbus_read_block_data(struct i2c_client * client,
+                                       u8 command, u8 *values);
   extern s32 i2c_smbus_write_block_data(struct i2c_client * client,
                                         u8 command, u8 length,
                                         u8 *values);
   extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
                                            u8 command, u8 length, u8 *values);
-
-These ones were removed in Linux 2.6.10 because they had no users, but could
-be added back later if needed:
-
-  extern s32 i2c_smbus_read_block_data(struct i2c_client * client,
-                                       u8 command, u8 *values);
   extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client * client,
                                             u8 command, u8 length,
                                             u8 *values);
+
+These ones were removed from i2c-core because they had no users, but could
+be added back later if needed:
+
+  extern s32 i2c_smbus_write_quick(struct i2c_client * client, u8 value);
   extern s32 i2c_smbus_process_call(struct i2c_client * client,
                                     u8 command, u16 value);
   extern s32 i2c_smbus_block_process_call(struct i2c_client *client,

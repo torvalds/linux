@@ -1303,13 +1303,6 @@ static int i2c_smbus_check_pec(u8 cpec, struct i2c_msg *msg)
 	return 0;
 }
 
-s32 i2c_smbus_write_quick(struct i2c_client *client, u8 value)
-{
-	return i2c_smbus_xfer(client->adapter,client->addr,client->flags,
-	                      value,0,I2C_SMBUS_QUICK,NULL);
-}
-EXPORT_SYMBOL(i2c_smbus_write_quick);
-
 s32 i2c_smbus_read_byte(struct i2c_client *client)
 {
 	union i2c_smbus_data data;
