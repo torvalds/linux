@@ -300,6 +300,14 @@ void i2c_unregister_device(struct i2c_client *client)
 		return;
 	}
 
+	if (adapter->client_unregister) {
+		if (adapter->client_unregister(client)) {
+			dev_warn(&client->dev,
+				 "client_unregister [%s] failed\n",
+				 client->name);
+		}
+	}
+
 	mutex_lock(&adapter->clist_lock);
 	list_del(&client->list);
 	mutex_unlock(&adapter->clist_lock);
