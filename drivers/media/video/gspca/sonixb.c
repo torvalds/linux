@@ -39,8 +39,8 @@ struct sd {
 					   sensor, so we use a per cam copy */
 	atomic_t avg_lum;
 
-	unsigned short gain;
-	unsigned short exposure;
+	unsigned char gain;
+	unsigned char exposure;
 	unsigned char brightness;
 	unsigned char autogain;
 	unsigned char autogain_ignore_frames;
@@ -73,7 +73,7 @@ struct sd {
    ignore atleast the 2 next frames for the new settings to come into effect
    before doing any other adjustments */
 #define AUTOGAIN_IGNORE_FRAMES 3
-#define AUTOGAIN_DEADZONE 500
+#define AUTOGAIN_DEADZONE 1000
 #define DESIRED_AVG_LUM 7000
 
 /* V4L2 controls supported by the driver */
@@ -107,10 +107,10 @@ static struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Gain",
 		.minimum = 0,
-		.maximum = 511,
+		.maximum = 255,
 		.step    = 1,
-#define GAIN_DEF 255
-#define GAIN_KNEE 400
+#define GAIN_DEF 127
+#define GAIN_KNEE 200
 		.default_value = GAIN_DEF,
 	    },
 	    .set = sd_setgain,
@@ -122,9 +122,9 @@ static struct ctrl sd_ctrls[] = {
 			.type = V4L2_CTRL_TYPE_INTEGER,
 			.name = "Exposure",
 #define EXPOSURE_DEF 0
-#define EXPOSURE_KNEE 353 /* 10 fps */
+#define EXPOSURE_KNEE 176 /* 10 fps */
 			.minimum = 0,
-			.maximum = 511,
+			.maximum = 255,
 			.step = 1,
 			.default_value = EXPOSURE_DEF,
 			.flags = 0,
@@ -563,11 +563,6 @@ err:
 static void setsensorgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	unsigned short gain;
-
-	gain = (sd->gain + 1) >> 1;
-	if (gain > 255)
-		gain = 255;
 
 	switch (sd->sensor) {
 
@@ -575,14 +570,15 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 		__u8 i2c[] =
 			{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10};
 
-		i2c[4] = 255 - gain;
+		i2c[4] = 255 - sd->gain;
 		if (i2c_w(gspca_dev, i2c) < 0)
 			goto err;
 		break;
 	    }
 	case SENSOR_OV6650: {
 		__u8 i2c[] = {0xa0, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
-		i2c[3] = gain;
+
+		i2c[3] = sd->gain >> 3;
 		if (i2c_w(gspca_dev, i2c) < 0)
 			goto err;
 		break;
@@ -599,7 +595,7 @@ static void setgain(struct gspca_dev *gspca_dev)
 	__u8 gain;
 	__u8 rgb_value;
 
-	gain = sd->gain >> 5;
+	gain = sd->gain >> 4;
 
 	/* red and blue gain */
 	rgb_value = gain << 4 | gain;
@@ -616,7 +612,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	/* translate 0 - 255 to a number of fps in a 30 - 1 scale */
-	int fps = 30 - sd->exposure * 29 / 511;
+	int fps = 30 - sd->exposure * 29 / 255;
 
 	switch (sd->sensor) {
 	case SENSOR_TAS5110: {
