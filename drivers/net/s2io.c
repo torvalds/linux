@@ -2625,9 +2625,7 @@ static int fill_rx_buffers(struct ring_info *ring)
 			rxdp1->Buffer0_ptr = pci_map_single
 			    (ring->pdev, skb->data, size - NET_IP_ALIGN,
 				PCI_DMA_FROMDEVICE);
-			if( (rxdp1->Buffer0_ptr == 0) ||
-				(rxdp1->Buffer0_ptr ==
-				DMA_ERROR_CODE))
+			if(pci_dma_mapping_error(rxdp1->Buffer0_ptr))
 				goto pci_map_failed;
 
 			rxdp->Control_2 =
@@ -2657,6 +2655,7 @@ static int fill_rx_buffers(struct ring_info *ring)
 			skb->data = (void *) (unsigned long)tmp;
 			skb_reset_tail_pointer(skb);
 
+			/* AK: check is wrong. 0 can be valid dma address */
 			if (!(rxdp3->Buffer0_ptr))
 				rxdp3->Buffer0_ptr =
 				   pci_map_single(ring->pdev, ba->ba_0,
@@ -2665,8 +2664,7 @@ static int fill_rx_buffers(struct ring_info *ring)
 				pci_dma_sync_single_for_device(ring->pdev,
 				(dma_addr_t) rxdp3->Buffer0_ptr,
 				    BUF0_LEN, PCI_DMA_FROMDEVICE);
-			if( (rxdp3->Buffer0_ptr == 0) ||
-				(rxdp3->Buffer0_ptr == DMA_ERROR_CODE))
+			if (pci_dma_mapping_error(rxdp3->Buffer0_ptr))
 				goto pci_map_failed;
 
 			rxdp->Control_2 = SET_BUFFER0_SIZE_3(BUF0_LEN);
@@ -2681,18 +2679,17 @@ static int fill_rx_buffers(struct ring_info *ring)
 				(ring->pdev, skb->data, ring->mtu + 4,
 						PCI_DMA_FROMDEVICE);
 
-				if( (rxdp3->Buffer2_ptr == 0) ||
-					(rxdp3->Buffer2_ptr == DMA_ERROR_CODE))
+				if (pci_dma_mapping_error(rxdp3->Buffer2_ptr))
 					goto pci_map_failed;
 
+				/* AK: check is wrong */
 				if (!rxdp3->Buffer1_ptr)
 					rxdp3->Buffer1_ptr =
 						pci_map_single(ring->pdev,
 						ba->ba_1, BUF1_LEN,
 						PCI_DMA_FROMDEVICE);
 
-				if( (rxdp3->Buffer1_ptr == 0) ||
-					(rxdp3->Buffer1_ptr == DMA_ERROR_CODE)) {
+				if (pci_dma_mapping_error(rxdp3->Buffer1_ptr)) {
 					pci_unmap_single
 						(ring->pdev,
 						(dma_addr_t)(unsigned long)
@@ -4264,16 +4261,14 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Buffer_Pointer = pci_map_single(sp->pdev,
 					fifo->ufo_in_band_v,
 					sizeof(u64), PCI_DMA_TODEVICE);
-		if((txdp->Buffer_Pointer == 0) ||
-			(txdp->Buffer_Pointer == DMA_ERROR_CODE))
+		if (pci_dma_mapping_error(txdp->Buffer_Pointer))
 			goto pci_map_failed;
 		txdp++;
 	}
 
 	txdp->Buffer_Pointer = pci_map_single
 	    (sp->pdev, skb->data, frg_len, PCI_DMA_TODEVICE);
-	if((txdp->Buffer_Pointer == 0) ||
-		(txdp->Buffer_Pointer == DMA_ERROR_CODE))
+	if (pci_dma_mapping_error(txdp->Buffer_Pointer))
 		goto pci_map_failed;
 
 	txdp->Host_Control = (unsigned long) skb;
@@ -6884,10 +6879,8 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 				pci_map_single( sp->pdev, (*skb)->data,
 					size - NET_IP_ALIGN,
 					PCI_DMA_FROMDEVICE);
-			if( (rxdp1->Buffer0_ptr == 0) ||
-				(rxdp1->Buffer0_ptr == DMA_ERROR_CODE)) {
+			if (pci_dma_mapping_error(rxdp1->Buffer0_ptr))
 				goto memalloc_failed;
-			}
 			rxdp->Host_Control = (unsigned long) (*skb);
 		}
 	} else if ((sp->rxd_mode == RXD_MODE_3B) && (rxdp->Host_Control == 0)) {
@@ -6913,15 +6906,12 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 				pci_map_single(sp->pdev, (*skb)->data,
 					       dev->mtu + 4,
 					       PCI_DMA_FROMDEVICE);
-			if( (rxdp3->Buffer2_ptr == 0) ||
-				(rxdp3->Buffer2_ptr == DMA_ERROR_CODE)) {
+			if (pci_dma_mapping_error(rxdp3->Buffer2_ptr))
 				goto memalloc_failed;
-			}
 			rxdp3->Buffer0_ptr = *temp0 =
 				pci_map_single( sp->pdev, ba->ba_0, BUF0_LEN,
 						PCI_DMA_FROMDEVICE);
-			if( (rxdp3->Buffer0_ptr == 0) ||
-				(rxdp3->Buffer0_ptr == DMA_ERROR_CODE)) {
+			if (pci_dma_mapping_error(rxdp3->Buffer0_ptr)) {
 				pci_unmap_single (sp->pdev,
 					(dma_addr_t)rxdp3->Buffer2_ptr,
 					dev->mtu + 4, PCI_DMA_FROMDEVICE);
@@ -6933,8 +6923,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			rxdp3->Buffer1_ptr = *temp1 =
 				pci_map_single(sp->pdev, ba->ba_1, BUF1_LEN,
 						PCI_DMA_FROMDEVICE);
-			if( (rxdp3->Buffer1_ptr == 0) ||
-				(rxdp3->Buffer1_ptr == DMA_ERROR_CODE)) {
+			if (pci_dma_mapping_error(rxdp3->Buffer1_ptr)) {
 				pci_unmap_single (sp->pdev,
 					(dma_addr_t)rxdp3->Buffer0_ptr,
 					BUF0_LEN, PCI_DMA_FROMDEVICE);

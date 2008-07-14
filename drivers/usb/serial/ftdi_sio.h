@@ -828,6 +828,9 @@
 /* Propox devices */
 #define FTDI_PROPOX_JTAGCABLEII_PID	0xD738
 
+/* Rig Expert Ukraine devices */
+#define FTDI_REU_TINY_PID		0xED22	/* RigExpert Tiny */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */

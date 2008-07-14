@@ -240,7 +240,7 @@ static inline int rt6_need_strict(struct in6_addr *daddr)
 static inline struct rt6_info *rt6_device_match(struct net *net,
 						    struct rt6_info *rt,
 						    int oif,
-						    int strict)
+						    int flags)
 {
 	struct rt6_info *local = NULL;
 	struct rt6_info *sprt;
@@ -253,7 +253,7 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 			if (dev->flags & IFF_LOOPBACK) {
 				if (sprt->rt6i_idev == NULL ||
 				    sprt->rt6i_idev->dev->ifindex != oif) {
-					if (strict && oif)
+					if (flags & RT6_LOOKUP_F_IFACE && oif)
 						continue;
 					if (local && (!oif ||
 						      local->rt6i_idev->dev->ifindex == oif))
@@ -266,7 +266,7 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 		if (local)
 			return local;
 
-		if (strict)
+		if (flags & RT6_LOOKUP_F_IFACE)
 			return net->ipv6.ip6_null_entry;
 	}
 	return rt;

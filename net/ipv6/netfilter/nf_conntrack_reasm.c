@@ -207,9 +207,10 @@ fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst)
 	arg.id = id;
 	arg.src = src;
 	arg.dst = dst;
+
+	read_lock_bh(&nf_frags.lock);
 	hash = ip6qhashfn(id, src, dst);
 
-	local_bh_disable();
 	q = inet_frag_find(&nf_init_frags, &nf_frags, &arg, hash);
 	local_bh_enable();
 	if (q == NULL)

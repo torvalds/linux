@@ -121,6 +121,27 @@ static int cap_validate_magic(cap_user_header_t header, unsigned *tocopy)
  * uninteresting and/or not to be changed.
  */
 
+/*
+ * Atomically modify the effective capabilities returning the original
+ * value. No permission check is performed here - it is assumed that the
+ * caller is permitted to set the desired effective capabilities.
+ */
+kernel_cap_t cap_set_effective(const kernel_cap_t pE_new)
+{
+	kernel_cap_t pE_old;
+
+	spin_lock(&task_capability_lock);
+
+	pE_old = current->cap_effective;
+	current->cap_effective = pE_new;
+
+	spin_unlock(&task_capability_lock);
+
+	return pE_old;
+}
+
+EXPORT_SYMBOL(cap_set_effective);
+
 /**
  * sys_capget - get the capabilities of a given process.
  * @header: pointer to struct that contains capability version and
