@@ -624,6 +624,7 @@ static void cfg_func(struct work_struct *work)
 {
 	struct chp_id chpid;
 	enum cfg_task_t t;
+	int rc;
 
 	mutex_lock(&cfg_lock);
 	t = cfg_none;
@@ -638,14 +639,24 @@ static void cfg_func(struct work_struct *work)
 
 	switch (t) {
 	case cfg_configure:
-		sclp_chp_configure(chpid);
-		info_expire();
-		chsc_chp_online(chpid);
+		rc = sclp_chp_configure(chpid);
+		if (rc)
+			CIO_MSG_EVENT(2, "chp: sclp_chp_configure(%x.%02x)="
+				      "%d\n", chpid.cssid, chpid.id, rc);
+		else {
+			info_expire();
+			chsc_chp_online(chpid);
+		}
 		break;
 	case cfg_deconfigure:
-		sclp_chp_deconfigure(chpid);
-		info_expire();
-		chsc_chp_offline(chpid);
+		rc = sclp_chp_deconfigure(chpid);
+		if (rc)
+			CIO_MSG_EVENT(2, "chp: sclp_chp_deconfigure(%x.%02x)="
+				      "%d\n", chpid.cssid, chpid.id, rc);
+		else {
+			info_expire();
+			chsc_chp_offline(chpid);
+		}
 		break;
 	case cfg_none:
 		/* Get updated information after last change. */
