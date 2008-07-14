@@ -1344,8 +1344,7 @@ static int __init init_cmf(void)
 	 * to basic mode.
 	 */
 	if (format == CMF_AUTODETECT) {
-		if (!css_characteristics_avail ||
-		    !css_general_characteristics.ext_mb) {
+		if (!css_general_characteristics.ext_mb) {
 			format = CMF_BASIC;
 		} else {
 			format = CMF_EXTENDED;

@@ -415,8 +415,7 @@ int chp_new(struct chp_id chpid)
 		goto out_free;
 	}
 	/* Get channel-measurement characteristics. */
-	if (css_characteristics_avail && css_chsc_characteristics.scmc
-	    && css_chsc_characteristics.secm) {
+	if (css_chsc_characteristics.scmc && css_chsc_characteristics.secm) {
 		ret = chsc_get_channel_measurement_chars(chp);
 		if (ret)
 			goto out_free;

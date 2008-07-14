@@ -30,8 +30,6 @@ static int max_ssid = 0;
 
 struct channel_subsystem *channel_subsystems[__MAX_CSSID + 1];
 
-int css_characteristics_avail = 0;
-
 int
 for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
 {
@@ -611,7 +609,7 @@ __init_channel_subsystem(struct subchannel_id schid, void *data)
 static void __init
 css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 {
-	if (css_characteristics_avail && css_general_characteristics.mcss) {
+	if (css_general_characteristics.mcss) {
 		css->global_pgid.pgid_high.ext_cssid.version = 0x80;
 		css->global_pgid.pgid_high.ext_cssid.cssid = css->cssid;
 	} else {
@@ -748,8 +746,6 @@ init_channel_subsystem (void)
 	ret = chsc_determine_css_characteristics();
 	if (ret == -ENOMEM)
 		goto out; /* No need to continue. */
-	if (ret == 0)
-		css_characteristics_avail = 1;
 
 	ret = chsc_alloc_sei_area();
 	if (ret)
@@ -793,8 +789,7 @@ init_channel_subsystem (void)
 		ret = device_register(&css->device);
 		if (ret)
 			goto out_free_all;
-		if (css_characteristics_avail &&
-		    css_chsc_characteristics.secm) {
+		if (css_chsc_characteristics.secm) {
 			ret = device_create_file(&css->device,
 						 &dev_attr_cm_enable);
 			if (ret)
@@ -832,7 +827,7 @@ out_unregister:
 		i--;
 		css = channel_subsystems[i];
 		device_unregister(&css->pseudo_subchannel->dev);
-		if (css_characteristics_avail && css_chsc_characteristics.secm)
+		if (css_chsc_characteristics.secm)
 			device_remove_file(&css->device,
 					   &dev_attr_cm_enable);
 		device_unregister(&css->device);
@@ -956,4 +951,3 @@ subsys_initcall(init_channel_subsystem);
 
 MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(css_bus_type);
-EXPORT_SYMBOL_GPL(css_characteristics_avail);

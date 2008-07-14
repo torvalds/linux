@@ -2354,9 +2354,6 @@ tiqdio_check_chsc_availability(void)
 {
 	char dbf_text[15];
 
-	if (!css_characteristics_avail)
-		return -EIO;
-
 	/* Check for bit 41. */
 	if (!css_general_characteristics.aif) {
 		QDIO_PRINT_WARN("Adapter interruption facility not " \
