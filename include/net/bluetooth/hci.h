@@ -404,6 +404,17 @@ struct hci_rp_write_link_policy {
 	__le16   handle;
 } __attribute__ ((packed));
 
+#define HCI_OP_READ_DEF_LINK_POLICY	0x080e
+struct hci_rp_read_def_link_policy {
+	__u8     status;
+	__le16   policy;
+} __attribute__ ((packed));
+
+#define HCI_OP_WRITE_DEF_LINK_POLICY	0x080f
+struct hci_cp_write_def_link_policy {
+	__le16   policy;
+} __attribute__ ((packed));
+
 #define HCI_OP_SNIFF_SUBRATE		0x0811
 struct hci_cp_sniff_subrate {
 	__le16   handle;

@@ -65,6 +65,8 @@ void hci_acl_connect(struct hci_conn *conn)
 
 	conn->attempt++;
 
+	conn->link_policy = hdev->link_policy;
+
 	memset(&cp, 0, sizeof(cp));
 	bacpy(&cp.bdaddr, &conn->dst);
 	cp.pscan_rep_mode = 0x02;

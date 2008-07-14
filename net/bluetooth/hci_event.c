@@ -110,6 +110,25 @@ static void hci_cc_role_discovery(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cc_read_link_policy(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_read_link_policy *rp = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
+	if (conn)
+		conn->link_policy = __le16_to_cpu(rp->policy);
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cc_write_link_policy(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_rp_write_link_policy *rp = (void *) skb->data;
@@ -128,11 +147,39 @@ static void hci_cc_write_link_policy(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
-	if (conn) {
+	if (conn)
 		conn->link_policy = get_unaligned_le16(sent + 2);
-	}
 
 	hci_dev_unlock(hdev);
+}
+
+static void hci_cc_read_def_link_policy(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_read_def_link_policy *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hdev->link_policy = __le16_to_cpu(rp->policy);
+}
+
+static void hci_cc_write_def_link_policy(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+	void *sent;
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_DEF_LINK_POLICY);
+	if (!sent)
+		return;
+
+	if (!status)
+		hdev->link_policy = get_unaligned_le16(sent);
+
+	hci_req_complete(hdev, status);
 }
 
 static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
@@ -347,8 +394,8 @@ static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
 		return;
 
 	hdev->hci_ver = rp->hci_ver;
-	hdev->hci_rev = btohs(rp->hci_rev);
-	hdev->manufacturer = btohs(rp->manufacturer);
+	hdev->hci_rev = __le16_to_cpu(rp->hci_rev);
+	hdev->manufacturer = __le16_to_cpu(rp->manufacturer);
 
 	BT_DBG("%s manufacturer %d hci ver %d:%d", hdev->name,
 					hdev->manufacturer,
@@ -690,14 +737,6 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			hci_send_cmd(hdev, HCI_OP_READ_REMOTE_FEATURES, sizeof(cp), &cp);
 		}
 
-		/* Set link policy */
-		if (conn->type == ACL_LINK && hdev->link_policy) {
-			struct hci_cp_write_link_policy cp;
-			cp.handle = ev->handle;
-			cp.policy = cpu_to_le16(hdev->link_policy);
-			hci_send_cmd(hdev, HCI_OP_WRITE_LINK_POLICY, sizeof(cp), &cp);
-		}
-
 		/* Set packet type for incoming connection */
 		if (!conn->out && hdev->hci_ver < 3) {
 			struct hci_cp_change_conn_ptype cp;
@@ -974,8 +1013,20 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 		hci_cc_role_discovery(hdev, skb);
 		break;
 
+	case HCI_OP_READ_LINK_POLICY:
+		hci_cc_read_link_policy(hdev, skb);
+		break;
+
 	case HCI_OP_WRITE_LINK_POLICY:
 		hci_cc_write_link_policy(hdev, skb);
+		break;
+
+	case HCI_OP_READ_DEF_LINK_POLICY:
+		hci_cc_read_def_link_policy(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_DEF_LINK_POLICY:
+		hci_cc_write_def_link_policy(hdev, skb);
 		break;
 
 	case HCI_OP_RESET:
