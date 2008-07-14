@@ -307,9 +307,6 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 	int status;
 
 	switch (size) {
-	case I2C_SMBUS_PROC_CALL:
-		dev_err(&adap->dev, "I2C_SMBUS_PROC_CALL not supported!\n");
-		return -EOPNOTSUPP;
 	case I2C_SMBUS_QUICK:
 		outb_p((addr << 1) | read_write,
 		       SMBHSTADD);
@@ -355,6 +352,9 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 		}
 		size = PIIX4_BLOCK_DATA;
 		break;
+	default:
+		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
+		return -EOPNOTSUPP;
 	}
 
 	outb_p((size & 0x1C) + (ENABLE_INT9 & 1), SMBHSTCNT);

@@ -201,14 +201,8 @@ static s32 sis96x_access(struct i2c_adapter * adap, u16 addr,
 			SIS96x_PROC_CALL : SIS96x_WORD_DATA);
 		break;
 
-	case I2C_SMBUS_BLOCK_DATA:
-		/* TO DO: */
-		dev_info(&adap->dev, "SMBus block not implemented!\n");
-		return -EOPNOTSUPP;
-		break;
-
 	default:
-		dev_info(&adap->dev, "Unsupported SMBus operation\n");
+		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
 		return -EOPNOTSUPP;
 	}
 

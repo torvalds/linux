@@ -200,12 +200,7 @@ static s32 amd756_access(struct i2c_adapter * adap, u16 addr,
 	int i, len;
 	int status;
 
-	/** TODO: Should I supporte the 10-bit transfers? */
 	switch (size) {
-	case I2C_SMBUS_PROC_CALL:
-		dev_dbg(&adap->dev, "I2C_SMBUS_PROC_CALL not supported!\n");
-		/* TODO: Well... It is supported, I'm just not sure what to do here... */
-		return -EOPNOTSUPP;
 	case I2C_SMBUS_QUICK:
 		outw_p(((addr & 0x7f) << 1) | (read_write & 0x01),
 		       SMB_HOST_ADDRESS);
@@ -252,6 +247,9 @@ static s32 amd756_access(struct i2c_adapter * adap, u16 addr,
 		}
 		size = AMD756_BLOCK_DATA;
 		break;
+	default:
+		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
+		return -EOPNOTSUPP;
 	}
 
 	/* How about enabling interrupts... */

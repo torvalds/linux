@@ -287,7 +287,7 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 	return 0;
 
 exit_unsupported:
-	dev_warn(&vt596_adapter.dev, "Unsupported command invoked! (0x%02x)\n",
+	dev_warn(&vt596_adapter.dev, "Unsupported transaction %d\n",
 		 size);
 	return -EOPNOTSUPP;
 }

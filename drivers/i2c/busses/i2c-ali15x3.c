@@ -362,9 +362,6 @@ static s32 ali15x3_access(struct i2c_adapter * adap, u16 addr,
 	}
 
 	switch (size) {
-	case I2C_SMBUS_PROC_CALL:
-		dev_err(&adap->dev, "I2C_SMBUS_PROC_CALL not supported!\n");
-		return -EOPNOTSUPP;
 	case I2C_SMBUS_QUICK:
 		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
 		       SMBHSTADD);
@@ -417,6 +414,9 @@ static s32 ali15x3_access(struct i2c_adapter * adap, u16 addr,
 		}
 		size = ALI15X3_BLOCK_DATA;
 		break;
+	default:
+		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
+		return -EOPNOTSUPP;
 	}
 
 	outb_p(size, SMBHSTCNT);	/* output command */

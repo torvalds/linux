@@ -246,10 +246,6 @@ static s32 ali1563_access(struct i2c_adapter * a, u16 addr,
 
 	/* Map the size to what the chip understands */
 	switch (size) {
-	case I2C_SMBUS_PROC_CALL:
-		dev_err(&a->dev, "I2C_SMBUS_PROC_CALL not supported!\n");
-		error = -EINVAL;
-		break;
 	case I2C_SMBUS_QUICK:
 		size = HST_CNTL2_QUICK;
 		break;
@@ -265,6 +261,10 @@ static s32 ali1563_access(struct i2c_adapter * a, u16 addr,
 	case I2C_SMBUS_BLOCK_DATA:
 		size = HST_CNTL2_BLOCK;
 		break;
+	default:
+		dev_warn(&a->dev, "Unsupported transaction %d\n", size);
+		error = -EOPNOTSUPP;
+		goto Done;
 	}
 
 	outb_p(((addr & 0x7f) << 1) | (rw & 0x01), SMB_HST_ADD);

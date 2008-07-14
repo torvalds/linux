@@ -356,7 +356,8 @@ static s32 sis630_access(struct i2c_adapter *adap, u16 addr,
 			size = SIS630_BLOCK_DATA;
 			return sis630_block_data(adap, data, read_write);
 		default:
-			printk("Unsupported SMBus operation\n");
+			dev_warn(&adap->dev, "Unsupported transaction %d\n",
+				 size);
 			return -EOPNOTSUPP;
 	}
 
@@ -378,8 +379,6 @@ static s32 sis630_access(struct i2c_adapter *adap, u16 addr,
 		case SIS630_WORD_DATA:
 			data->word = sis630_read(SMB_BYTE) + (sis630_read(SMB_BYTE + 1) << 8);
 			break;
-		default:
-			return -EOPNOTSUPP;
 	}
 
 	return 0;

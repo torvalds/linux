@@ -513,7 +513,6 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 			outb_p(command, SMBHSTCMD);
 		block = 1;
 		break;
-	case I2C_SMBUS_PROC_CALL:
 	default:
 		dev_err(&I801_dev->dev, "Unsupported transaction %d\n", size);
 		return -EOPNOTSUPP;
