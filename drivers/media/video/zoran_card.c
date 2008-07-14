@@ -161,7 +161,7 @@ static struct pci_device_id zr36067_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, zr36067_pci_tbl);
 
 int zoran_num;			/* number of Buzs in use */
-struct zoran zoran[BUZ_MAX];
+struct zoran *zoran[BUZ_MAX];
 
 /* videocodec bus functions ZR36060 */
 static u32
@@ -1164,7 +1164,7 @@ static void
 zoran_release (struct zoran *zr)
 {
 	if (!zr->initialized)
-		return;
+		goto exit_free;
 	/* unregister videocodec bus */
 	if (zr->codec) {
 		struct videocodec_master *master = zr->codec->master_data;
@@ -1192,6 +1192,8 @@ zoran_release (struct zoran *zr)
 	iounmap(zr->zr36057_mem);
 	pci_disable_device(zr->pci_dev);
 	video_unregister_device(zr->video_dev);
+exit_free:
+	kfree(zr);
 }
 
 void
@@ -1269,8 +1271,14 @@ find_zr36057 (void)
 	while (zoran_num < BUZ_MAX &&
 	       (dev = pci_get_device(PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36057, dev)) != NULL) {
 		card_num = card[zoran_num];
-		zr = &zoran[zoran_num];
-		memset(zr, 0, sizeof(struct zoran));	// Just in case if previous cycle failed
+		zr = kzalloc(sizeof(struct zoran), GFP_KERNEL);
+		if (!zr) {
+			dprintk(1,
+				KERN_ERR
+				"%s: find_zr36057() - kzalloc failed\n",
+				ZORAN_NAME);
+			continue;
+		}
 		zr->pci_dev = dev;
 		//zr->zr36057_mem = NULL;
 		zr->id = zoran_num;
@@ -1278,7 +1286,7 @@ find_zr36057 (void)
 		spin_lock_init(&zr->spinlock);
 		mutex_init(&zr->resource_lock);
 		if (pci_enable_device(dev))
-			continue;
+			goto zr_free_mem;
 		zr->zr36057_adr = pci_resource_start(zr->pci_dev, 0);
 		pci_read_config_byte(zr->pci_dev, PCI_CLASS_REVISION,
 				     &zr->revision);
@@ -1294,7 +1302,7 @@ find_zr36057 (void)
 					KERN_ERR
 					"%s: find_zr36057() - no card specified, please use the card=X insmod option\n",
 					ZR_DEVNAME(zr));
-				continue;
+				goto zr_free_mem;
 			}
 		} else {
 			int i;
@@ -1333,7 +1341,7 @@ find_zr36057 (void)
 						KERN_ERR
 						"%s: find_zr36057() - unknown card\n",
 						ZR_DEVNAME(zr));
-					continue;
+					goto zr_free_mem;
 				}
 			}
 		}
@@ -1343,7 +1351,7 @@ find_zr36057 (void)
 				KERN_ERR
 				"%s: find_zr36057() - invalid cardnum %d\n",
 				ZR_DEVNAME(zr), card_num);
-			continue;
+			goto zr_free_mem;
 		}
 
 		/* even though we make this a non pointer and thus
@@ -1361,7 +1369,7 @@ find_zr36057 (void)
 				KERN_ERR
 				"%s: find_zr36057() - ioremap failed\n",
 				ZR_DEVNAME(zr));
-			continue;
+			goto zr_free_mem;
 		}
 
 		result = request_irq(zr->pci_dev->irq,
@@ -1530,7 +1538,7 @@ find_zr36057 (void)
 		}
 		/* Success so keep the pci_dev referenced */
 		pci_dev_get(zr->pci_dev);
-		zoran_num++;
+		zoran[zoran_num++] = zr;
 		continue;
 
 		// Init errors
@@ -1549,6 +1557,8 @@ find_zr36057 (void)
 		free_irq(zr->pci_dev->irq, zr);
 	      zr_unmap:
 		iounmap(zr->zr36057_mem);
+	      zr_free_mem:
+		kfree(zr);
 		continue;
 	}
 	if (dev)	/* Clean up ref count on early exit */
@@ -1620,7 +1630,7 @@ init_dc10_cards (void)
 
 	/* take care of Natoma chipset and a revision 1 zr36057 */
 	for (i = 0; i < zoran_num; i++) {
-		struct zoran *zr = &zoran[i];
+		struct zoran *zr = zoran[i];
 
 		if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1) {
 			zr->jpg_buffers.need_contiguous = 1;
@@ -1632,7 +1642,7 @@ init_dc10_cards (void)
 
 		if (zr36057_init(zr) < 0) {
 			for (i = 0; i < zoran_num; i++)
-				zoran_release(&zoran[i]);
+				zoran_release(zoran[i]);
 			return -EIO;
 		}
 		zoran_proc_init(zr);
@@ -1647,7 +1657,7 @@ unload_dc10_cards (void)
 	int i;
 
 	for (i = 0; i < zoran_num; i++)
-		zoran_release(&zoran[i]);
+		zoran_release(zoran[i]);
 }
 
 module_init(init_dc10_cards);

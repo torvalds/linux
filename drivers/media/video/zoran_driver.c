@@ -1213,8 +1213,8 @@ zoran_open (struct inode *inode,
 
 	/* find the device */
 	for (i = 0; i < zoran_num; i++) {
-		if (zoran[i].video_dev->minor == minor) {
-			zr = &zoran[i];
+		if (zoran[i]->video_dev->minor == minor) {
+			zr = zoran[i];
 			break;
 		}
 	}
