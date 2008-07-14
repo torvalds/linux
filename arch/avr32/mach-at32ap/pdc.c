@@ -11,14 +11,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <asm/arch/init.h>
-
-void __init setup_platform(void)
-{
-	at32_clock_init();
-	at32_portmux_init();
-}
-
 static int __init pdc_probe(struct platform_device *pdev)
 {
 	struct clk *pclk, *hclk;

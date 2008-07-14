@@ -11,21 +11,21 @@
 
 #include <asm/mmu_context.h>
 
-#define _TLBEHI_I	0x100
+/* TODO: Get the correct number from the CONFIG1 system register */
+#define NR_TLB_ENTRIES 32
 
-void show_dtlb_entry(unsigned int index)
+static void show_dtlb_entry(unsigned int index)
 {
-	unsigned int tlbehi, tlbehi_save, tlbelo, mmucr, mmucr_save;
+	u32 tlbehi, tlbehi_save, tlbelo, mmucr, mmucr_save;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	mmucr_save = sysreg_read(MMUCR);
 	tlbehi_save = sysreg_read(TLBEHI);
-	mmucr = mmucr_save & 0x13;
-	mmucr |= index << 14;
+	mmucr = SYSREG_BFINS(DRP, index, mmucr_save);
 	sysreg_write(MMUCR, mmucr);
 
-	asm volatile("tlbr" : : : "memory");
+	__builtin_tlbr();
 	cpu_sync_pipeline();
 
 	tlbehi = sysreg_read(TLBEHI);
@@ -33,15 +33,17 @@ void show_dtlb_entry(unsigned int index)
 
 	printk("%2u: %c %c %02x   %05x %05x %o  %o  %c %c %c %c\n",
 	       index,
-	       (tlbehi & 0x200)?'1':'0',
-	       (tlbelo & 0x100)?'1':'0',
-	       (tlbehi & 0xff),
-	       (tlbehi >> 12), (tlbelo >> 12),
-	       (tlbelo >> 4) & 7, (tlbelo >> 2) & 3,
-	       (tlbelo & 0x200)?'1':'0',
-	       (tlbelo & 0x080)?'1':'0',
-	       (tlbelo & 0x001)?'1':'0',
-	       (tlbelo & 0x002)?'1':'0');
+	       SYSREG_BFEXT(TLBEHI_V, tlbehi) ? '1' : '0',
+	       SYSREG_BFEXT(G, tlbelo) ? '1' : '0',
+	       SYSREG_BFEXT(ASID, tlbehi),
+	       SYSREG_BFEXT(VPN, tlbehi) >> 2,
+	       SYSREG_BFEXT(PFN, tlbelo) >> 2,
+	       SYSREG_BFEXT(AP, tlbelo),
+	       SYSREG_BFEXT(SZ, tlbelo),
+	       SYSREG_BFEXT(TLBELO_C, tlbelo) ? 'C' : ' ',
+	       SYSREG_BFEXT(B, tlbelo) ? 'B' : ' ',
+	       SYSREG_BFEXT(W, tlbelo) ? 'W' : ' ',
+	       SYSREG_BFEXT(TLBELO_D, tlbelo) ? 'D' : ' ');
 
 	sysreg_write(MMUCR, mmucr_save);
 	sysreg_write(TLBEHI, tlbehi_save);
@@ -54,29 +56,33 @@ void dump_dtlb(void)
 	unsigned int i;
 
 	printk("ID  V G ASID VPN   PFN   AP SZ C B W D\n");
-	for (i = 0; i < 32; i++)
+	for (i = 0; i < NR_TLB_ENTRIES; i++)
 		show_dtlb_entry(i);
 }
 
-static unsigned long last_mmucr;
-
-static inline void set_replacement_pointer(unsigned shift)
+static void update_dtlb(unsigned long address, pte_t pte)
 {
-	unsigned long mmucr, mmucr_save;
+	u32 tlbehi;
+	u32 mmucr;
 
-	mmucr = mmucr_save = sysreg_read(MMUCR);
+	/*
+	 * We're not changing the ASID here, so no need to flush the
+	 * pipeline.
+	 */
+	tlbehi = sysreg_read(TLBEHI);
+	tlbehi = SYSREG_BF(ASID, SYSREG_BFEXT(ASID, tlbehi));
+	tlbehi |= address & MMU_VPN_MASK;
+	tlbehi |= SYSREG_BIT(TLBEHI_V);
+	sysreg_write(TLBEHI, tlbehi);
 
 	/* Does this mapping already exist? */
-	__asm__ __volatile__(
-		"	tlbs\n"
-		"	mfsr %0, %1"
-		: "=r"(mmucr)
-		: "i"(SYSREG_MMUCR));
+	__builtin_tlbs();
+	mmucr = sysreg_read(MMUCR);
 
 	if (mmucr & SYSREG_BIT(MMUCR_N)) {
 		/* Not found -- pick a not-recently-accessed entry */
-		unsigned long rp;
-		unsigned long tlbar = sysreg_read(TLBARLO);
+		unsigned int rp;
+		u32 tlbar = sysreg_read(TLBARLO);
 
 		rp = 32 - fls(tlbar);
 		if (rp == 32) {
@@ -84,30 +90,14 @@ static inline void set_replacement_pointer(unsigned shift)
 			sysreg_write(TLBARLO, -1L);
 		}
 
-		mmucr &= 0x13;
-		mmucr |= (rp << shift);
-
+		mmucr = SYSREG_BFINS(DRP, rp, mmucr);
 		sysreg_write(MMUCR, mmucr);
 	}
-
-	last_mmucr = mmucr;
-}
-
-static void update_dtlb(unsigned long address, pte_t pte, unsigned long asid)
-{
-	unsigned long vpn;
-
-	vpn = (address & MMU_VPN_MASK) | _TLBEHI_VALID | asid;
-	sysreg_write(TLBEHI, vpn);
-	cpu_sync_pipeline();
-
-	set_replacement_pointer(14);
 
 	sysreg_write(TLBELO, pte_val(pte) & _PAGE_FLAGS_HARDWARE_MASK);
 
 	/* Let's go */
-	asm volatile("nop\n\ttlbw" : : : "memory");
-	cpu_sync_pipeline();
+	__builtin_tlbw();
 }
 
 void update_mmu_cache(struct vm_area_struct *vma,
@@ -120,39 +110,40 @@ void update_mmu_cache(struct vm_area_struct *vma,
 		return;
 
 	local_irq_save(flags);
-	update_dtlb(address, pte, get_asid());
+	update_dtlb(address, pte);
 	local_irq_restore(flags);
 }
 
-void __flush_tlb_page(unsigned long asid, unsigned long page)
+static void __flush_tlb_page(unsigned long asid, unsigned long page)
 {
-	unsigned long mmucr, tlbehi;
+	u32 mmucr, tlbehi;
 
-	page |= asid;
-	sysreg_write(TLBEHI, page);
-	cpu_sync_pipeline();
-	asm volatile("tlbs");
+	/*
+	 * Caller is responsible for masking out non-PFN bits in page
+	 * and changing the current ASID if necessary. This means that
+	 * we don't need to flush the pipeline after writing TLBEHI.
+	 */
+	tlbehi = page | asid;
+	sysreg_write(TLBEHI, tlbehi);
+
+	__builtin_tlbs();
 	mmucr = sysreg_read(MMUCR);
 
 	if (!(mmucr & SYSREG_BIT(MMUCR_N))) {
-		unsigned long tlbarlo;
-		unsigned long entry;
+		unsigned int entry;
+		u32 tlbarlo;
 
 		/* Clear the "valid" bit */
-		tlbehi = sysreg_read(TLBEHI);
-		tlbehi &= ~_TLBEHI_VALID;
 		sysreg_write(TLBEHI, tlbehi);
-		cpu_sync_pipeline();
 
 		/* mark the entry as "not accessed" */
-		entry = (mmucr >> 14) & 0x3f;
+		entry = SYSREG_BFEXT(DRP, mmucr);
 		tlbarlo = sysreg_read(TLBARLO);
-		tlbarlo |= (0x80000000 >> entry);
+		tlbarlo |= (0x80000000UL >> entry);
 		sysreg_write(TLBARLO, tlbarlo);
 
 		/* update the entry with valid bit clear */
-		asm volatile("tlbw");
-		cpu_sync_pipeline();
+		__builtin_tlbw();
 	}
 }
 
@@ -190,17 +181,22 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 		local_irq_save(flags);
 		size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
+
 		if (size > (MMU_DTLB_ENTRIES / 4)) { /* Too many entries to flush */
 			mm->context = NO_CONTEXT;
 			if (mm == current->mm)
 				activate_context(mm);
 		} else {
-			unsigned long asid = mm->context & MMU_CONTEXT_ASID_MASK;
-			unsigned long saved_asid = MMU_NO_ASID;
+			unsigned long asid;
+			unsigned long saved_asid;
+
+			asid = mm->context & MMU_CONTEXT_ASID_MASK;
+			saved_asid = MMU_NO_ASID;
 
 			start &= PAGE_MASK;
 			end += (PAGE_SIZE - 1);
 			end &= PAGE_MASK;
+
 			if (mm != current->mm) {
 				saved_asid = get_asid();
 				set_asid(asid);
@@ -218,33 +214,34 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 }
 
 /*
- * TODO: If this is only called for addresses > TASK_SIZE, we can probably
- * skip the ASID stuff and just use the Global bit...
+ * This function depends on the pages to be flushed having the G
+ * (global) bit set in their pte. This is true for all
+ * PAGE_KERNEL(_RO) pages.
  */
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	unsigned long flags;
 	int size;
 
-	local_irq_save(flags);
 	size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 	if (size > (MMU_DTLB_ENTRIES / 4)) { /* Too many entries to flush */
 		flush_tlb_all();
 	} else {
-		unsigned long asid = init_mm.context & MMU_CONTEXT_ASID_MASK;
-		unsigned long saved_asid = get_asid();
+		unsigned long asid;
+
+		local_irq_save(flags);
+		asid = get_asid();
 
 		start &= PAGE_MASK;
 		end += (PAGE_SIZE - 1);
 		end &= PAGE_MASK;
-		set_asid(asid);
+
 		while (start < end) {
 			__flush_tlb_page(asid, start);
 			start += PAGE_SIZE;
 		}
-		set_asid(saved_asid);
+		local_irq_restore(flags);
 	}
-	local_irq_restore(flags);
 }
 
 void flush_tlb_mm(struct mm_struct *mm)
@@ -280,7 +277,7 @@ static void *tlb_start(struct seq_file *tlb, loff_t *pos)
 {
 	static unsigned long tlb_index;
 
-	if (*pos >= 32)
+	if (*pos >= NR_TLB_ENTRIES)
 		return NULL;
 
 	tlb_index = 0;
@@ -291,7 +288,7 @@ static void *tlb_next(struct seq_file *tlb, void *v, loff_t *pos)
 {
 	unsigned long *index = v;
 
-	if (*index >= 31)
+	if (*index >= NR_TLB_ENTRIES - 1)
 		return NULL;
 
 	++*pos;
@@ -313,16 +310,16 @@ static int tlb_show(struct seq_file *tlb, void *v)
 	if (*index == 0)
 		seq_puts(tlb, "ID  V G ASID VPN   PFN   AP SZ C B W D\n");
 
-	BUG_ON(*index >= 32);
+	BUG_ON(*index >= NR_TLB_ENTRIES);
 
 	local_irq_save(flags);
 	mmucr_save = sysreg_read(MMUCR);
 	tlbehi_save = sysreg_read(TLBEHI);
-	mmucr = mmucr_save & 0x13;
-	mmucr |= *index << 14;
+	mmucr = SYSREG_BFINS(DRP, *index, mmucr_save);
 	sysreg_write(MMUCR, mmucr);
 
-	asm volatile("tlbr" : : : "memory");
+	/* TLBR might change the ASID */
+	__builtin_tlbr();
 	cpu_sync_pipeline();
 
 	tlbehi = sysreg_read(TLBEHI);
@@ -334,16 +331,18 @@ static int tlb_show(struct seq_file *tlb, void *v)
 	local_irq_restore(flags);
 
 	seq_printf(tlb, "%2lu: %c %c %02x   %05x %05x %o  %o  %c %c %c %c\n",
-	       *index,
-	       (tlbehi & 0x200)?'1':'0',
-	       (tlbelo & 0x100)?'1':'0',
-	       (tlbehi & 0xff),
-	       (tlbehi >> 12), (tlbelo >> 12),
-	       (tlbelo >> 4) & 7, (tlbelo >> 2) & 3,
-	       (tlbelo & 0x200)?'1':'0',
-	       (tlbelo & 0x080)?'1':'0',
-	       (tlbelo & 0x001)?'1':'0',
-	       (tlbelo & 0x002)?'1':'0');
+		   *index,
+		   SYSREG_BFEXT(TLBEHI_V, tlbehi) ? '1' : '0',
+		   SYSREG_BFEXT(G, tlbelo) ? '1' : '0',
+		   SYSREG_BFEXT(ASID, tlbehi),
+		   SYSREG_BFEXT(VPN, tlbehi) >> 2,
+		   SYSREG_BFEXT(PFN, tlbelo) >> 2,
+		   SYSREG_BFEXT(AP, tlbelo),
+		   SYSREG_BFEXT(SZ, tlbelo),
+		   SYSREG_BFEXT(TLBELO_C, tlbelo) ? '1' : '0',
+		   SYSREG_BFEXT(B, tlbelo) ? '1' : '0',
+		   SYSREG_BFEXT(W, tlbelo) ? '1' : '0',
+		   SYSREG_BFEXT(TLBELO_D, tlbelo) ? '1' : '0');
 
 	return 0;
 }
