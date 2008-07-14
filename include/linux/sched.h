@@ -1558,13 +1558,28 @@ static inline void sched_clock_idle_sleep_event(void)
 static inline void sched_clock_idle_wakeup_event(u64 delta_ns)
 {
 }
-#else
+
+#ifdef CONFIG_NO_HZ
+static inline void sched_clock_tick_stop(int cpu)
+{
+}
+
+static inline void sched_clock_tick_start(int cpu)
+{
+}
+#endif
+
+#else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 extern void sched_clock_init(void);
 extern u64 sched_clock_cpu(int cpu);
 extern void sched_clock_tick(void);
 extern void sched_clock_idle_sleep_event(void);
 extern void sched_clock_idle_wakeup_event(u64 delta_ns);
+#ifdef CONFIG_NO_HZ
+extern void sched_clock_tick_stop(int cpu);
+extern void sched_clock_tick_start(int cpu);
 #endif
+#endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 
 /*
  * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
