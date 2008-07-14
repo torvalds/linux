@@ -192,100 +192,6 @@ static noinline __init void detect_machine_type(void)
 		machine_flags |= MACHINE_FLAG_KVM;
 }
 
-#ifdef CONFIG_64BIT
-static noinline __init int memory_fast_detect(void)
-{
-	unsigned long val0 = 0;
-	unsigned long val1 = 0xc;
-	int ret = -ENOSYS;
-
-	if (ipl_flags & IPL_NSS_VALID)
-		return -ENOSYS;
-
-	asm volatile(
-		"	diag	%1,%2,0x260\n"
-		"0:	lhi	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "+d" (ret), "+d" (val0), "+d" (val1) : : "cc");
-
-	if (ret || val0 != val1)
-		return -ENOSYS;
-
-	memory_chunk[0].size = val0 + 1;
-	return 0;
-}
-#else
-static inline int memory_fast_detect(void)
-{
-	return -ENOSYS;
-}
-#endif
-
-static inline __init unsigned long __tprot(unsigned long addr)
-{
-	int cc = -1;
-
-	asm volatile(
-		"	tprot	0(%1),0\n"
-		"0:	ipm	%0\n"
-		"	srl	%0,28\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "+d" (cc) : "a" (addr) : "cc");
-	return (unsigned long)cc;
-}
-
-/* Checking memory in 128KB increments. */
-#define CHUNK_INCR	(1UL << 17)
-#define ADDR2G		(1UL << 31)
-
-static noinline __init void find_memory_chunks(unsigned long memsize)
-{
-	unsigned long addr = 0, old_addr = 0;
-	unsigned long old_cc = CHUNK_READ_WRITE;
-	unsigned long cc;
-	int chunk = 0;
-
-	while (chunk < MEMORY_CHUNKS) {
-		cc = __tprot(addr);
-		while (cc == old_cc) {
-			addr += CHUNK_INCR;
-			if (memsize && addr >= memsize)
-				break;
-#ifndef CONFIG_64BIT
-			if (addr == ADDR2G)
-				break;
-#endif
-			cc = __tprot(addr);
-		}
-
-		if (old_addr != addr &&
-		    (old_cc == CHUNK_READ_WRITE || old_cc == CHUNK_READ_ONLY)) {
-			memory_chunk[chunk].addr = old_addr;
-			memory_chunk[chunk].size = addr - old_addr;
-			memory_chunk[chunk].type = old_cc;
-			chunk++;
-		}
-
-		old_addr = addr;
-		old_cc = cc;
-
-#ifndef CONFIG_64BIT
-		if (addr == ADDR2G)
-			break;
-#endif
-		/*
-		 * Finish memory detection at the first hole
-		 * if storage size is unknown.
-		 */
-		if (cc == -1UL && !memsize)
-			break;
-		if (memsize && addr >= memsize)
-			break;
-	}
-}
-
 static __init void early_pgm_check_handler(void)
 {
 	unsigned long addr;
@@ -465,8 +371,6 @@ static void __init setup_boot_command_line(void)
  */
 void __init startup_init(void)
 {
-	unsigned long long memsize;
-
 	ipl_save_parameters();
 	rescue_initrd();
 	clear_bss_section();
@@ -486,18 +390,7 @@ void __init startup_init(void)
 	detect_diag44();
 	detect_machine_facilities();
 	setup_hpage();
-	sclp_read_info_early();
 	sclp_facilities_detect();
-	memsize = sclp_memory_detect();
-#ifndef CONFIG_64BIT
-	/*
-	 * Can't deal with more than 2G in 31 bit addressing mode, so
-	 * limit the value in order to avoid strange side effects.
-	 */
-	if (memsize > ADDR2G)
-		memsize = ADDR2G;
-#endif
-	if (memory_fast_detect() < 0)
-		find_memory_chunks((unsigned long) memsize);
+	detect_memory_layout(memory_chunk);
 	lockdep_on();
 }

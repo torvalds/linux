@@ -17,7 +17,7 @@
 #include <asm/types.h>
 
 #define PARMAREA		0x10400
-#define MEMORY_CHUNKS		16	/* max 0x7fff */
+#define MEMORY_CHUNKS		256
 
 #ifndef __ASSEMBLY__
 
@@ -38,11 +38,13 @@
 struct mem_chunk {
 	unsigned long addr;
 	unsigned long size;
-	unsigned long type;
+	int type;
 };
 
 extern struct mem_chunk memory_chunk[];
 extern unsigned long real_memory_size;
+
+void detect_memory_layout(struct mem_chunk chunk[]);
 
 #ifdef CONFIG_S390_SWITCH_AMODE
 extern unsigned int switch_amode;

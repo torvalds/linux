@@ -67,7 +67,7 @@ out:
 	return rc;
 }
 
-void __init sclp_read_info_early(void)
+static void __init sclp_read_info_early(void)
 {
 	int rc;
 	int i;
@@ -97,30 +97,33 @@ void __init sclp_read_info_early(void)
 
 void __init sclp_facilities_detect(void)
 {
-	if (!early_read_info_sccb_valid)
-		return;
-	sclp_facilities = early_read_info_sccb.facilities;
-	sclp_fac84 = early_read_info_sccb.fac84;
-}
-
-unsigned long long __init sclp_memory_detect(void)
-{
-	unsigned long long memsize;
 	struct read_info_sccb *sccb;
 
+	sclp_read_info_early();
 	if (!early_read_info_sccb_valid)
-		return 0;
+		return;
+
 	sccb = &early_read_info_sccb;
+	sclp_facilities = sccb->facilities;
+	sclp_fac84 = sccb->fac84;
 	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	rzm <<= 20;
-	memsize = rzm * rnmax;
-	return memsize;
+}
+
+unsigned long long sclp_get_rnmax(void)
+{
+	return rnmax;
+}
+
+unsigned long long sclp_get_rzm(void)
+{
+	return rzm;
 }
 
 /*
- * This function will be called after sclp_memory_detect(), which gets called
- * early from early.c code. Therefore the sccb should have valid contents.
+ * This function will be called after sclp_facilities_detect(), which gets
+ * called from early.c code. Therefore the sccb should have valid contents.
  */
 void __init sclp_get_ipl_info(struct sclp_ipl_info *info)
 {
