@@ -101,6 +101,16 @@ config I2C_I801
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
 
+config I2C_ISCH
+	tristate "Intel SCH SMBus 1.0"
+	depends on PCI
+	help
+	  Say Y here if you want to use SMBus controller on the Intel SCH
+	  based systems.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-isch.
+
 config I2C_PIIX4
 	tristate "Intel PIIX4 and compatible (ATI/Serverworks/Broadcom/SMSC)"
 	depends on PCI
