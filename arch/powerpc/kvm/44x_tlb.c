@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <linux/highmem.h>
 #include <asm/mmu-44x.h>
@@ -175,6 +176,10 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 	stlbe->word1 = (hpaddr & 0xfffffc00) | ((hpaddr >> 32) & 0xf);
 	stlbe->word2 = kvmppc_44x_tlb_shadow_attrib(flags,
 	                                            vcpu->arch.msr & MSR_PR);
+
+	KVMTRACE_5D(STLB_WRITE, vcpu, victim,
+			stlbe->tid, stlbe->word0, stlbe->word1, stlbe->word2,
+			handler);
 }
 
 void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
@@ -204,6 +209,9 @@ void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 		kvmppc_44x_shadow_release(vcpu, i);
 		stlbe->word0 = 0;
+		KVMTRACE_5D(STLB_INVAL, vcpu, i,
+				stlbe->tid, stlbe->word0, stlbe->word1,
+				stlbe->word2, handler);
 	}
 	up_write(&current->mm->mmap_sem);
 }
@@ -217,8 +225,13 @@ void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
 	/* XXX Replace loop with fancy data structures. */
 	down_write(&current->mm->mmap_sem);
 	for (i = 0; i <= tlb_44x_hwater; i++) {
+		struct tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
+
 		kvmppc_44x_shadow_release(vcpu, i);
-		vcpu->arch.shadow_tlb[i].word0 = 0;
+		stlbe->word0 = 0;
+		KVMTRACE_5D(STLB_INVAL, vcpu, i,
+				stlbe->tid, stlbe->word0, stlbe->word1,
+				stlbe->word2, handler);
 	}
 	up_write(&current->mm->mmap_sem);
 }

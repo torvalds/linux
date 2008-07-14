@@ -170,6 +170,10 @@ static int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u32 inst)
 		kvmppc_mmu_map(vcpu, eaddr, raddr >> PAGE_SHIFT, asid, flags);
 	}
 
+	KVMTRACE_5D(GTLB_WRITE, vcpu, index,
+			tlbe->tid, tlbe->word0, tlbe->word1, tlbe->word2,
+			handler);
+
 	return EMULATE_DONE;
 }
 

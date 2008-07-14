@@ -471,5 +471,8 @@ struct kvm_trace_rec {
 #define KVM_TRC_LMSW             (KVM_TRC_HANDLER + 0x13)
 #define KVM_TRC_APIC_ACCESS      (KVM_TRC_HANDLER + 0x14)
 #define KVM_TRC_TDP_FAULT        (KVM_TRC_HANDLER + 0x15)
+#define KVM_TRC_GTLB_WRITE       (KVM_TRC_HANDLER + 0x16)
+#define KVM_TRC_STLB_WRITE       (KVM_TRC_HANDLER + 0x17)
+#define KVM_TRC_STLB_INVAL       (KVM_TRC_HANDLER + 0x18)
 
 #endif
