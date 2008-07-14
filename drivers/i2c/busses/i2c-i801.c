@@ -179,10 +179,8 @@ static int i801_transaction(int xact)
 	}
 
 	if (temp & SMBHSTSTS_BUS_ERR) {
-		result = -EIO;
-		dev_err(&I801_dev->dev, "Bus collision! SMBus may be locked "
-			"until next hard reset. (sorry!)\n");
-		/* Clock stops and slave is stuck in mid-transmission */
+		result = -EAGAIN;
+		dev_dbg(&I801_dev->dev, "Lost arbitration\n");
 	}
 
 	if (temp & SMBHSTSTS_DEV_ERR) {
@@ -339,8 +337,8 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 			dev_dbg(&I801_dev->dev,
 				"Error: Failed bus transaction\n");
 		} else if (temp & SMBHSTSTS_BUS_ERR) {
-			result = -EIO;
-			dev_err(&I801_dev->dev, "Bus collision!\n");
+			result = -EAGAIN;
+			dev_dbg(&I801_dev->dev, "Lost arbitration\n");
 		} else if (temp & SMBHSTSTS_DEV_ERR) {
 			result = -ENXIO;
 			dev_dbg(&I801_dev->dev, "Error: no response!\n");
