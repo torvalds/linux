@@ -1680,6 +1680,13 @@ L:	linuxppc-embedded@ozlabs.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+FREESCALE I2C CPM DRIVER
+P:	Jochen Friedrich
+M:	jochen@scram.de
+L:	linuxppc-dev@ozlabs.org
+L:	i2c@lm-sensors.org
+S:	Maintained
+
 FREESCALE SOC FS_ENET DRIVER
 P:	Pantelis Antoniou
 M:	pantelis.antoniou@gmail.com
