@@ -3713,7 +3713,8 @@ tiqdio_register_thinints(void)
 	char dbf_text[20];
 
 	tiqdio_ind =
-		s390_register_adapter_interrupt(&tiqdio_thinint_handler, NULL);
+		s390_register_adapter_interrupt(&tiqdio_thinint_handler, NULL,
+						TIQDIO_THININT_ISC);
 	if (IS_ERR(tiqdio_ind)) {
 		sprintf(dbf_text, "regthn%lx", PTR_ERR(tiqdio_ind));
 		QDIO_DBF_TEXT0(0,setup,dbf_text);
@@ -3729,7 +3730,8 @@ static void
 tiqdio_unregister_thinints(void)
 {
 	if (tiqdio_ind)
-		s390_unregister_adapter_interrupt(tiqdio_ind);
+		s390_unregister_adapter_interrupt(tiqdio_ind,
+						  TIQDIO_THININT_ISC);
 }
 
 static int
