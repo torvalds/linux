@@ -78,7 +78,7 @@ static struct i2c_driver eeprom_driver = {
 static void eeprom_update_client(struct i2c_client *client, u8 slice)
 {
 	struct eeprom_data *data = i2c_get_clientdata(client);
-	int i, j;
+	int i;
 
 	mutex_lock(&data->update_lock);
 
@@ -93,15 +93,12 @@ static void eeprom_update_client(struct i2c_client *client, u8 slice)
 							!= 32)
 					goto exit;
 		} else {
-			if (i2c_smbus_write_byte(client, slice << 5)) {
-				dev_dbg(&client->dev, "eeprom read start has failed!\n");
-				goto exit;
-			}
-			for (i = slice << 5; i < (slice + 1) << 5; i++) {
-				j = i2c_smbus_read_byte(client);
-				if (j < 0)
+			for (i = slice << 5; i < (slice + 1) << 5; i += 2) {
+				int word = i2c_smbus_read_word_data(client, i);
+				if (word < 0)
 					goto exit;
-				data->data[i] = (u8) j;
+				data->data[i] = word & 0xff;
+				data->data[i + 1] = word >> 8;
 			}
 		}
 		data->last_updated[slice] = jiffies;
@@ -177,14 +174,15 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (!(adapter->class & I2C_CLASS_SPD) && address >= 0x51)
 		goto exit;
 
-	/* There are three ways we can read the EEPROM data:
+	/* There are four ways we can read the EEPROM data:
 	   (1) I2C block reads (faster, but unsupported by most adapters)
-	   (2) Consecutive byte reads (100% overhead)
-	   (3) Regular byte data reads (200% overhead)
-	   The third method is not implemented by this driver because all
-	   known adapters support at least the second. */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_BYTE_DATA
-					    | I2C_FUNC_SMBUS_BYTE))
+	   (2) Word reads (128% overhead)
+	   (3) Consecutive byte reads (88% overhead, unsafe)
+	   (4) Regular byte data reads (265% overhead)
+	   The third and fourth methods are not implemented by this driver
+	   because all known adapters support one of the first two. */
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_WORD_DATA)
+	 && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_I2C_BLOCK))
 		goto exit;
 
 	if (!(data = kzalloc(sizeof(struct eeprom_data), GFP_KERNEL))) {
@@ -212,13 +210,14 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Detect the Vaio nature of EEPROMs.
 	   We use the "PCG-" or "VGN-" prefix as the signature. */
-	if (address == 0x57) {
+	if (address == 0x57
+	 && i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_BYTE_DATA)) {
 		char name[4];
 
 		name[0] = i2c_smbus_read_byte_data(new_client, 0x80);
-		name[1] = i2c_smbus_read_byte(new_client);
-		name[2] = i2c_smbus_read_byte(new_client);
-		name[3] = i2c_smbus_read_byte(new_client);
+		name[1] = i2c_smbus_read_byte_data(new_client, 0x81);
+		name[2] = i2c_smbus_read_byte_data(new_client, 0x82);
+		name[3] = i2c_smbus_read_byte_data(new_client, 0x83);
 
 		if (!memcmp(name, "PCG-", 4) || !memcmp(name, "VGN-", 4)) {
 			dev_info(&new_client->dev, "Vaio EEPROM detected, "
