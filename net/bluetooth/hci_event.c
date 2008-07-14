@@ -883,9 +883,11 @@ static inline void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn) {
 		if (!ev->status) {
-			if (ev->encrypt)
+			if (ev->encrypt) {
+				/* Encryption implies authentication */
+				conn->link_mode |= HCI_LM_AUTH;
 				conn->link_mode |= HCI_LM_ENCRYPT;
-			else
+			} else
 				conn->link_mode &= ~HCI_LM_ENCRYPT;
 		}
 
