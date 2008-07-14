@@ -142,6 +142,7 @@ static int i2c_davinci_init(struct davinci_i2c_dev *dev)
 	struct davinci_i2c_platform_data *pdata = dev->dev->platform_data;
 	u16 psc;
 	u32 clk;
+	u32 d;
 	u32 clkh;
 	u32 clkl;
 	u32 input_clock = clk_get_rate(dev->clk);
@@ -171,23 +172,29 @@ static int i2c_davinci_init(struct davinci_i2c_dev *dev)
 	 *       if PSC > 1 , d = 5
 	 */
 
-	psc = 26; /* To get 1MHz clock */
+	/* get minimum of 7 MHz clock, but max of 12 MHz */
+	psc = (input_clock / 7000000) - 1;
+	if ((input_clock / (psc + 1)) > 12000000)
+		psc++;	/* better to run under spec than over */
+	d = (psc >= 2) ? 5 : 7 - psc;
 
-	clk = ((input_clock / (psc + 1)) / (pdata->bus_freq * 1000)) - 10;
-	clkh = (50 * clk) / 100;
+	clk = ((input_clock / (psc + 1)) / (pdata->bus_freq * 1000)) - (d << 1);
+	clkh = clk >> 1;
 	clkl = clk - clkh;
 
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_PSC_REG, psc);
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_CLKH_REG, clkh);
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_CLKL_REG, clkl);
 
-	dev_dbg(dev->dev, "CLK  = %d\n", clk);
+	dev_dbg(dev->dev, "input_clock = %d, CLK = %d\n", input_clock, clk);
 	dev_dbg(dev->dev, "PSC  = %d\n",
 		davinci_i2c_read_reg(dev, DAVINCI_I2C_PSC_REG));
 	dev_dbg(dev->dev, "CLKL = %d\n",
 		davinci_i2c_read_reg(dev, DAVINCI_I2C_CLKL_REG));
 	dev_dbg(dev->dev, "CLKH = %d\n",
 		davinci_i2c_read_reg(dev, DAVINCI_I2C_CLKH_REG));
+	dev_dbg(dev->dev, "bus_freq = %dkHz, bus_delay = %d\n",
+		pdata->bus_freq, pdata->bus_delay);
 
 	/* Take the I2C module out of reset: */
 	w = davinci_i2c_read_reg(dev, DAVINCI_I2C_MDR_REG);
