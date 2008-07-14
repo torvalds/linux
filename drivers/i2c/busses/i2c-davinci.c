@@ -345,12 +345,11 @@ i2c_davinci_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	for (i = 0; i < num; i++) {
 		ret = i2c_davinci_xfer_msg(adap, &msgs[i], (i == (num - 1)));
+		dev_dbg(dev->dev, "%s [%d/%d] ret: %d\n", __func__, i + 1, num,
+			ret);
 		if (ret < 0)
 			return ret;
 	}
-
-	dev_dbg(dev->dev, "%s:%d ret: %d\n", __func__, __LINE__, ret);
-
 	return num;
 }
 
