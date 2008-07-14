@@ -559,7 +559,6 @@ static void xen_apic_write(u32 reg, u32 val)
 	WARN_ON(1);
 }
 
-#ifdef CONFIG_X86_64
 static u64 xen_apic_icr_read(void)
 {
 	return 0;
@@ -576,6 +575,11 @@ static void xen_apic_wait_icr_idle(void)
         return;
 }
 
+static u32 xen_safe_apic_wait_icr_idle(void)
+{
+        return 0;
+}
+
 static struct apic_ops xen_basic_apic_ops = {
 	.read = xen_apic_read,
 	.write = xen_apic_write,
@@ -583,9 +587,8 @@ static struct apic_ops xen_basic_apic_ops = {
 	.icr_read = xen_apic_icr_read,
 	.icr_write = xen_apic_icr_write,
 	.wait_icr_idle = xen_apic_wait_icr_idle,
-	.safe_wait_icr_idle = xen_apic_wait_icr_idle,
+	.safe_wait_icr_idle = xen_safe_apic_wait_icr_idle,
 };
-#endif
 
 #endif
 
@@ -1159,11 +1162,6 @@ static const struct pv_irq_ops xen_irq_ops __initdata = {
 
 static const struct pv_apic_ops xen_apic_ops __initdata = {
 #ifdef CONFIG_X86_LOCAL_APIC
-#ifndef CONFIG_X86_64
-	.apic_write = xen_apic_write,
-	.apic_write_atomic = xen_apic_write,
-	.apic_read = xen_apic_read,
-#endif
 	.setup_boot_clock = paravirt_nop,
 	.setup_secondary_clock = paravirt_nop,
 	.startup_ipi_hook = paravirt_nop,
@@ -1322,9 +1320,10 @@ asmlinkage void __init xen_start_kernel(void)
 	pv_irq_ops = xen_irq_ops;
 	pv_apic_ops = xen_apic_ops;
 	pv_mmu_ops = xen_mmu_ops;
-#ifdef CONFIG_X86_64
+
+#ifdef CONFIG_X86_LOCAL_APIC
 	/*
-	 * for 64bit, set up the basic apic ops aswell.
+	 * set up the basic apic ops.
 	 */
 	apic_ops = &xen_basic_apic_ops;
 #endif
