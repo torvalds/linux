@@ -74,7 +74,6 @@ out_unregister:
 		debug_unregister(cio_debug_trace_id);
 	if (cio_debug_crw_id)
 		debug_unregister(cio_debug_crw_id);
-	printk(KERN_WARNING"cio: could not initialize debugging\n");
 	return -1;
 }
 
@@ -755,7 +754,6 @@ cio_get_console_sch_no(void)
 		/* unlike in 2.4, we cannot autoprobe here, since
 		 * the channel subsystem is not fully initialized.
 		 * With some luck, the HWC console can take over */
-		printk(KERN_WARNING "cio: No ccw console found!\n");
 		return -1;
 	}
 	return console_irq;
@@ -772,6 +770,7 @@ cio_probe_console(void)
 	sch_no = cio_get_console_sch_no();
 	if (sch_no == -1) {
 		console_subchannel_in_use = 0;
+		printk(KERN_WARNING "cio: No ccw console found!\n");
 		return ERR_PTR(-ENODEV);
 	}
 	memset(&console_subchannel, 0, sizeof(struct subchannel));

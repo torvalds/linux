@@ -612,9 +612,6 @@ static int alloc_cmb(struct ccw_device *cdev)
 			free_pages((unsigned long)mem, get_order(size));
 		} else if (!mem) {
 			/* no luck */
-			printk(KERN_WARNING "cio: failed to allocate area "
-			       "for measuring %d subchannels\n",
-			       cmb_area.num_channels);
 			ret = -ENOMEM;
 			goto out;
 		} else {
@@ -1230,13 +1227,9 @@ static ssize_t cmb_enable_store(struct device *dev,
 	switch (val) {
 	case 0:
 		ret = disable_cmf(cdev);
-		if (ret)
-			dev_info(&cdev->dev, "disable_cmf failed (%d)\n", ret);
 		break;
 	case 1:
 		ret = enable_cmf(cdev);
-		if (ret && ret != -EBUSY)
-			dev_info(&cdev->dev, "enable_cmf failed (%d)\n", ret);
 		break;
 	}
 
@@ -1364,8 +1357,6 @@ static int __init init_cmf(void)
 		cmbops = &cmbops_extended;
 		break;
 	default:
-		printk(KERN_ERR "cio: Invalid format %d for channel "
-			"measurement facility\n", format);
 		return 1;
 	}
 

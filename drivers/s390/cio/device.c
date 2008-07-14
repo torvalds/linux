@@ -493,25 +493,22 @@ static int online_store_recog_and_online(struct ccw_device *cdev)
 		ccw_device_set_online(cdev);
 	return 0;
 }
-static void online_store_handle_online(struct ccw_device *cdev, int force)
+static int online_store_handle_online(struct ccw_device *cdev, int force)
 {
 	int ret;
 
 	ret = online_store_recog_and_online(cdev);
 	if (ret)
-		return;
+		return ret;
 	if (force && cdev->private->state == DEV_STATE_BOXED) {
 		ret = ccw_device_stlck(cdev);
-		if (ret) {
-			dev_warn(&cdev->dev,
-				 "ccw_device_stlck returned %d!\n", ret);
-			return;
-		}
+		if (ret)
+			return ret;
 		if (cdev->id.cu_type == 0)
 			cdev->private->state = DEV_STATE_NOT_OPER;
 		online_store_recog_and_online(cdev);
 	}
-
+	return 0;
 }
 
 static ssize_t online_store (struct device *dev, struct device_attribute *attr,
@@ -544,8 +541,9 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 		ret = count;
 		break;
 	case 1:
-		online_store_handle_online(cdev, force);
-		ret = count;
+		ret = online_store_handle_online(cdev, force);
+		if (!ret)
+			ret = count;
 		break;
 	default:
 		ret = -EINVAL;

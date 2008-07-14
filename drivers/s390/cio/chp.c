@@ -123,11 +123,8 @@ static int s390_vary_chpid(struct chp_id chpid, int on)
 	CIO_TRACE_EVENT(2, dbf_text);
 
 	status = chp_get_status(chpid);
-	if (!on && !status) {
-		printk(KERN_ERR "cio: chpid %x.%02x is already offline\n",
-		       chpid.cssid, chpid.id);
-		return -EINVAL;
-	}
+	if (!on && !status)
+		return 0;
 
 	set_chp_logically_online(chpid, on);
 	chsc_chp_vary(chpid, on);
