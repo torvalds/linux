@@ -580,8 +580,7 @@ static int i2c_do_del_adapter(struct device_driver *d, void *data)
  */
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
-	struct list_head  *item, *_n;
-	struct i2c_client *client;
+	struct i2c_client *client, *_n;
 	int res = 0;
 
 	mutex_lock(&core_lock);
@@ -602,10 +601,9 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 
 	/* detach any active clients. This must be done first, because
 	 * it can fail; in which case we give up. */
-	list_for_each_safe(item, _n, &adap->clients) {
+	list_for_each_entry_safe(client, _n, &adap->clients, list) {
 		struct i2c_driver	*driver;
 
-		client = list_entry(item, struct i2c_client, list);
 		driver = client->driver;
 
 		/* new style, follow standard driver model */
@@ -718,11 +716,9 @@ static int __detach_adapter(struct device *dev, void *data)
 				"detach_adapter failed for driver [%s]\n",
 				driver->driver.name);
 	} else {
-		struct list_head *item, *_n;
-		struct i2c_client *client;
+		struct i2c_client *client, *_n;
 
-		list_for_each_safe(item, _n, &adapter->clients) {
-			client = list_entry(item, struct i2c_client, list);
+		list_for_each_entry_safe(client, _n, &adapter->clients, list) {
 			if (client->driver != driver)
 				continue;
 			dev_dbg(&adapter->dev,
