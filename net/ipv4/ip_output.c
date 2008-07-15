@@ -1211,6 +1211,7 @@ int ip_push_pending_frames(struct sock *sk)
 	struct sk_buff *skb, *tmp_skb;
 	struct sk_buff **tail_skb;
 	struct inet_sock *inet = inet_sk(sk);
+	struct net *net = sock_net(sk);
 	struct ip_options *opt = NULL;
 	struct rtable *rt = (struct rtable *)inet->cork.dst;
 	struct iphdr *iph;
@@ -1280,7 +1281,7 @@ int ip_push_pending_frames(struct sock *sk)
 	skb->dst = dst_clone(&rt->u.dst);
 
 	if (iph->protocol == IPPROTO_ICMP)
-		icmp_out_count(((struct icmphdr *)
+		icmp_out_count(net, ((struct icmphdr *)
 			skb_transport_header(skb))->type);
 
 	/* Netfilter gets whole the not fragmented skb. */

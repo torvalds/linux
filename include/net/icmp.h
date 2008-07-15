@@ -44,12 +44,13 @@ DECLARE_SNMP_STAT(struct icmpmsg_mib, icmpmsg_statistics);
 struct dst_entry;
 struct net_proto_family;
 struct sk_buff;
+struct net;
 
 extern void	icmp_send(struct sk_buff *skb_in,  int type, int code, __be32 info);
 extern int	icmp_rcv(struct sk_buff *skb);
 extern int	icmp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 extern int	icmp_init(void);
-extern void	icmp_out_count(unsigned char type);
+extern void	icmp_out_count(struct net *net, unsigned char type);
 
 /* Move into dst.h ? */
 extern int 	xrlim_allow(struct dst_entry *dst, int timeout);
