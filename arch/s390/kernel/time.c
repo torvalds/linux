@@ -1432,7 +1432,7 @@ static void stp_work_fn(struct work_struct *work)
 	 */
 	memset(&stp_sync, 0, sizeof(stp_sync));
 	preempt_disable();
-	smp_call_function(clock_sync_cpu_start, &stp_sync, 0, 0);
+	smp_call_function(clock_sync_cpu_start, &stp_sync, 0);
 	local_irq_disable();
 	enable_sync_clock();
 
@@ -1465,7 +1465,7 @@ static void stp_work_fn(struct work_struct *work)
 		stp_sync.in_sync = 1;
 
 	local_irq_enable();
-	smp_call_function(clock_sync_cpu_end, NULL, 0, 0);
+	smp_call_function(clock_sync_cpu_end, NULL, 0);
 	preempt_enable();
 }
 
