@@ -216,6 +216,7 @@ static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 	rq->data_len = 18;
 
 	rq->cmd_type = REQ_TYPE_SENSE;
+	rq->cmd_flags |= REQ_PREEMPT;
 
 	/* NOTE! Save the failed command in "rq->buffer" */
 	rq->buffer = (void *) failed_command;

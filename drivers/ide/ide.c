@@ -606,6 +606,7 @@ static int generic_ide_resume(struct device *dev)
 	memset(&rqpm, 0, sizeof(rqpm));
 	memset(&args, 0, sizeof(args));
 	rq.cmd_type = REQ_TYPE_PM_RESUME;
+	rq.cmd_flags |= REQ_PREEMPT;
 	rq.special = &args;
 	rq.data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_resume;

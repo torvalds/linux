@@ -688,6 +688,7 @@ static void idetape_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	struct ide_tape_obj *tape = drive->driver_data;
 
 	idetape_init_rq(rq, REQ_IDETAPE_PC1);
+	rq->cmd_flags |= REQ_PREEMPT;
 	rq->buffer = (char *) pc;
 	rq->rq_disk = tape->disk;
 	(void) ide_do_drive_cmd(drive, rq, ide_preempt);
