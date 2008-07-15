@@ -575,8 +575,11 @@ void ipoib_mcast_join_task(struct work_struct *work)
 
 	priv->mcast_mtu = IPOIB_UD_MTU(ib_mtu_enum_to_int(priv->broadcast->mcmember.mtu));
 
-	if (!ipoib_cm_admin_enabled(dev))
+	if (!ipoib_cm_admin_enabled(dev)) {
+		rtnl_lock();
 		dev->mtu = min(priv->mcast_mtu, priv->admin_mtu);
+		rtnl_unlock();
+	}
 
 	ipoib_dbg_mcast(priv, "successfully joined all multicast groups\n");
 
