@@ -150,7 +150,10 @@ axon_ram_direct_access(struct block_device *device, sector_t sector,
 	struct axon_ram_bank *bank = device->bd_disk->private_data;
 	loff_t offset;
 
-	offset = sector << AXON_RAM_SECTOR_SHIFT;
+	offset = sector;
+	if (device->bd_part != NULL)
+		offset += device->bd_part->start_sect;
+	offset <<= AXON_RAM_SECTOR_SHIFT;
 	if (offset >= bank->size) {
 		dev_err(&bank->device->dev, "Access outside of address space\n");
 		return -ERANGE;
