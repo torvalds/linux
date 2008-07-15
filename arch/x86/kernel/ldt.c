@@ -62,12 +62,12 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 
 	if (reload) {
 #ifdef CONFIG_SMP
-		cpumask_t mask;
+		cpumask_of_cpu_ptr_declare(mask);
 
 		preempt_disable();
 		load_LDT(pc);
-		mask = cpumask_of_cpu(smp_processor_id());
-		if (!cpus_equal(current->mm->cpu_vm_mask, mask))
+		cpumask_of_cpu_ptr_next(mask, smp_processor_id());
+		if (!cpus_equal(current->mm->cpu_vm_mask, *mask))
 			smp_call_function(flush_ldt, current->mm, 1);
 		preempt_enable();
 #else
