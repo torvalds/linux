@@ -994,11 +994,6 @@ static inline void netif_schedule_queue(struct netdev_queue *txq)
 		__netif_schedule(txq);
 }
 
-static inline void netif_schedule(struct net_device *dev)
-{
-	netif_schedule_queue(netdev_get_tx_queue(dev, 0));
-}
-
 static inline void netif_tx_schedule_all(struct net_device *dev)
 {
 	unsigned int i;
