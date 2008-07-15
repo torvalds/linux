@@ -494,13 +494,14 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 	/* Set the interrupt routine */
 	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 
-	/* Send the actual packet */
-	hwif->output_data(drive, NULL, scsi->pc->c, 12);
-
 	if (pc->flags & PC_FLAG_DMA_OK) {
 		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
 		hwif->dma_ops->dma_start(drive);
 	}
+
+	/* Send the actual packet */
+	hwif->output_data(drive, NULL, scsi->pc->c, 12);
+
 	return ide_started;
 }
 
