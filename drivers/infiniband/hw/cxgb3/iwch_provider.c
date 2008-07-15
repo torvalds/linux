@@ -56,6 +56,7 @@
 #include "iwch_provider.h"
 #include "iwch_cm.h"
 #include "iwch_user.h"
+#include "common.h"
 
 static int iwch_modify_port(struct ib_device *ibdev,
 			    u8 port, int port_modify_mask,
@@ -1245,6 +1246,61 @@ static ssize_t show_board(struct device *dev, struct device_attribute *attr,
 		       iwch_dev->rdev.rnic_info.pdev->device);
 }
 
+static int iwch_get_mib(struct ib_device *ibdev,
+			union rdma_protocol_stats *stats)
+{
+	struct iwch_dev *dev;
+	struct tp_mib_stats m;
+	int ret;
+
+	PDBG("%s ibdev %p\n", __func__, ibdev);
+	dev = to_iwch_dev(ibdev);
+	ret = dev->rdev.t3cdev_p->ctl(dev->rdev.t3cdev_p, RDMA_GET_MIB, &m);
+	if (ret)
+		return -ENOSYS;
+
+	memset(stats, 0, sizeof *stats);
+	stats->iw.ipInReceives = ((u64) m.ipInReceive_hi << 32) +
+				m.ipInReceive_lo;
+	stats->iw.ipInHdrErrors = ((u64) m.ipInHdrErrors_hi << 32) +
+				  m.ipInHdrErrors_lo;
+	stats->iw.ipInAddrErrors = ((u64) m.ipInAddrErrors_hi << 32) +
+				   m.ipInAddrErrors_lo;
+	stats->iw.ipInUnknownProtos = ((u64) m.ipInUnknownProtos_hi << 32) +
+				      m.ipInUnknownProtos_lo;
+	stats->iw.ipInDiscards = ((u64) m.ipInDiscards_hi << 32) +
+				 m.ipInDiscards_lo;
+	stats->iw.ipInDelivers = ((u64) m.ipInDelivers_hi << 32) +
+				 m.ipInDelivers_lo;
+	stats->iw.ipOutRequests = ((u64) m.ipOutRequests_hi << 32) +
+				  m.ipOutRequests_lo;
+	stats->iw.ipOutDiscards = ((u64) m.ipOutDiscards_hi << 32) +
+				  m.ipOutDiscards_lo;
+	stats->iw.ipOutNoRoutes = ((u64) m.ipOutNoRoutes_hi << 32) +
+				  m.ipOutNoRoutes_lo;
+	stats->iw.ipReasmTimeout = (u64) m.ipReasmTimeout;
+	stats->iw.ipReasmReqds = (u64) m.ipReasmReqds;
+	stats->iw.ipReasmOKs = (u64) m.ipReasmOKs;
+	stats->iw.ipReasmFails = (u64) m.ipReasmFails;
+	stats->iw.tcpActiveOpens = (u64) m.tcpActiveOpens;
+	stats->iw.tcpPassiveOpens = (u64) m.tcpPassiveOpens;
+	stats->iw.tcpAttemptFails = (u64) m.tcpAttemptFails;
+	stats->iw.tcpEstabResets = (u64) m.tcpEstabResets;
+	stats->iw.tcpOutRsts = (u64) m.tcpOutRsts;
+	stats->iw.tcpCurrEstab = (u64) m.tcpCurrEstab;
+	stats->iw.tcpInSegs = ((u64) m.tcpInSegs_hi << 32) +
+			      m.tcpInSegs_lo;
+	stats->iw.tcpOutSegs = ((u64) m.tcpOutSegs_hi << 32) +
+			       m.tcpOutSegs_lo;
+	stats->iw.tcpRetransSegs = ((u64) m.tcpRetransSeg_hi << 32) +
+				  m.tcpRetransSeg_lo;
+	stats->iw.tcpInErrs = ((u64) m.tcpInErrs_hi << 32) +
+			      m.tcpInErrs_lo;
+	stats->iw.tcpRtoMin = (u64) m.tcpRtoMin;
+	stats->iw.tcpRtoMax = (u64) m.tcpRtoMax;
+	return 0;
+}
+
 static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
 static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
@@ -1254,7 +1310,7 @@ static struct device_attribute *iwch_class_attributes[] = {
 	&dev_attr_hw_rev,
 	&dev_attr_fw_ver,
 	&dev_attr_hca_type,
-	&dev_attr_board_id
+	&dev_attr_board_id,
 };
 
 int iwch_register_device(struct iwch_dev *dev)
@@ -1325,15 +1381,13 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.alloc_fast_reg_mr = iwch_alloc_fast_reg_mr;
 	dev->ibdev.alloc_fast_reg_page_list = iwch_alloc_fastreg_pbl;
 	dev->ibdev.free_fast_reg_page_list = iwch_free_fastreg_pbl;
-
 	dev->ibdev.attach_mcast = iwch_multicast_attach;
 	dev->ibdev.detach_mcast = iwch_multicast_detach;
 	dev->ibdev.process_mad = iwch_process_mad;
-
 	dev->ibdev.req_notify_cq = iwch_arm_cq;
 	dev->ibdev.post_send = iwch_post_send;
 	dev->ibdev.post_recv = iwch_post_receive;
-
+	dev->ibdev.get_protocol_stats = iwch_get_mib;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)
