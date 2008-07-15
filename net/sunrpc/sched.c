@@ -626,19 +626,15 @@ static void __rpc_execute(struct rpc_task *task)
 		/*
 		 * Execute any pending callback.
 		 */
-		if (RPC_DO_CALLBACK(task)) {
-			/* Define a callback save pointer */
+		if (task->tk_callback) {
 			void (*save_callback)(struct rpc_task *);
 
 			/*
-			 * If a callback exists, save it, reset it,
-			 * call it.
-			 * The save is needed to stop from resetting
-			 * another callback set within the callback handler
-			 * - Dave
+			 * We set tk_callback to NULL before calling it,
+			 * in case it sets the tk_callback field itself:
 			 */
-			save_callback=task->tk_callback;
-			task->tk_callback=NULL;
+			save_callback = task->tk_callback;
+			task->tk_callback = NULL;
 			save_callback(task);
 		}
 
