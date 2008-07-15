@@ -842,7 +842,6 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
 		printk(KERN_ERR "ide-tape: The tape wants to issue more "
 				"interrupts in DMA mode\n");
-		printk(KERN_ERR "ide-tape: DMA disabled, reverting to PIO\n");
 		ide_dma_off(drive);
 		return ide_do_reset(drive);
 	}
