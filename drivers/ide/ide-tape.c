@@ -696,7 +696,7 @@ static void idetape_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
  *	last packet command. We queue a request sense packet command in
  *	the head of the request list.
  */
-static ide_startstop_t idetape_retry_pc (ide_drive_t *drive)
+static void idetape_retry_pc(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc *pc;
@@ -708,7 +708,6 @@ static ide_startstop_t idetape_retry_pc (ide_drive_t *drive)
 	idetape_create_request_sense_cmd(pc);
 	set_bit(IDETAPE_FLAG_IGNORE_DSC, &tape->flags);
 	idetape_queue_pc_head(drive, pc, rq);
-	return ide_stopped;
 }
 
 /*
@@ -784,7 +783,8 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 					pc->c[0]);
 
 			/* Retry operation */
-			return idetape_retry_pc(drive);
+			idetape_retry_pc(drive);
+			return ide_stopped;
 		}
 		pc->error = 0;
 		if ((pc->flags & PC_FLAG_WAIT_FOR_DSC) &&
@@ -1078,7 +1078,8 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 				printk(KERN_ERR "ide-tape: %s: I/O error, ",
 						tape->name);
 			/* Retry operation */
-			return idetape_retry_pc(drive);
+			idetape_retry_pc(drive);
+			return ide_stopped;
 		}
 		pc->error = 0;
 		if (tape->failed_pc == pc)
