@@ -1498,6 +1498,26 @@ static inline void netif_tx_disable(struct net_device *dev)
 	netif_tx_unlock_bh(dev);
 }
 
+static inline void netif_addr_lock(struct net_device *dev)
+{
+	spin_lock(&dev->addr_list_lock);
+}
+
+static inline void netif_addr_lock_bh(struct net_device *dev)
+{
+	spin_lock_bh(&dev->addr_list_lock);
+}
+
+static inline void netif_addr_unlock(struct net_device *dev)
+{
+	spin_unlock(&dev->addr_list_lock);
+}
+
+static inline void netif_addr_unlock_bh(struct net_device *dev)
+{
+	spin_unlock_bh(&dev->addr_list_lock);
+}
+
 /* These functions live elsewhere (drivers/net/net_init.c, but related) */
 
 extern void		ether_setup(struct net_device *dev);

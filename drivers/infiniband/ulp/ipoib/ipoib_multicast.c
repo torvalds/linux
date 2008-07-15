@@ -775,6 +775,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 
 	local_irq_save(flags);
 	netif_tx_lock(dev);
+	netif_addr_lock(dev);
 	spin_lock(&priv->lock);
 
 	/*
@@ -851,6 +852,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	}
 
 	spin_unlock(&priv->lock);
+	netif_addr_unlock(dev);
 	netif_tx_unlock(dev);
 	local_irq_restore(flags);
 

@@ -594,6 +594,7 @@ static int lbs_add_mcast_addrs(struct cmd_ds_mac_multicast_adr *cmd,
 		return nr_addrs;
 
 	netif_tx_lock_bh(dev);
+	netif_addr_lock(dev);
 	for (mc_list = dev->mc_list; mc_list; mc_list = mc_list->next) {
 		if (mac_in_list(cmd->maclist, nr_addrs, mc_list->dmi_addr)) {
 			lbs_deb_net("mcast address %s:%s skipped\n", dev->name,
@@ -608,6 +609,7 @@ static int lbs_add_mcast_addrs(struct cmd_ds_mac_multicast_adr *cmd,
 			    print_mac(mac, mc_list->dmi_addr));
 		i++;
 	}
+	netif_addr_unlock(dev);
 	netif_tx_unlock_bh(dev);
 	if (mc_list)
 		return -EOVERFLOW;

@@ -2982,7 +2982,9 @@ void __dev_set_rx_mode(struct net_device *dev)
 void dev_set_rx_mode(struct net_device *dev)
 {
 	netif_tx_lock_bh(dev);
+	netif_addr_lock(dev);
 	__dev_set_rx_mode(dev);
+	netif_addr_unlock(dev);
 	netif_tx_unlock_bh(dev);
 }
 
@@ -3062,9 +3064,11 @@ int dev_unicast_delete(struct net_device *dev, void *addr, int alen)
 	ASSERT_RTNL();
 
 	netif_tx_lock_bh(dev);
+	netif_addr_lock(dev);
 	err = __dev_addr_delete(&dev->uc_list, &dev->uc_count, addr, alen, 0);
 	if (!err)
 		__dev_set_rx_mode(dev);
+	netif_addr_unlock(dev);
 	netif_tx_unlock_bh(dev);
 	return err;
 }
@@ -3088,9 +3092,11 @@ int dev_unicast_add(struct net_device *dev, void *addr, int alen)
 	ASSERT_RTNL();
 
 	netif_tx_lock_bh(dev);
+	netif_addr_lock(dev);
 	err = __dev_addr_add(&dev->uc_list, &dev->uc_count, addr, alen, 0);
 	if (!err)
 		__dev_set_rx_mode(dev);
+	netif_addr_unlock(dev);
 	netif_tx_unlock_bh(dev);
 	return err;
 }
@@ -3159,10 +3165,12 @@ int dev_unicast_sync(struct net_device *to, struct net_device *from)
 	int err = 0;
 
 	netif_tx_lock_bh(to);
+	netif_addr_lock(to);
 	err = __dev_addr_sync(&to->uc_list, &to->uc_count,
 			      &from->uc_list, &from->uc_count);
 	if (!err)
 		__dev_set_rx_mode(to);
+	netif_addr_unlock(to);
 	netif_tx_unlock_bh(to);
 	return err;
 }
@@ -3180,13 +3188,17 @@ EXPORT_SYMBOL(dev_unicast_sync);
 void dev_unicast_unsync(struct net_device *to, struct net_device *from)
 {
 	netif_tx_lock_bh(from);
+	netif_addr_lock(from);
 	netif_tx_lock_bh(to);
+	netif_addr_lock(to);
 
 	__dev_addr_unsync(&to->uc_list, &to->uc_count,
 			  &from->uc_list, &from->uc_count);
 	__dev_set_rx_mode(to);
 
+	netif_addr_unlock(to);
 	netif_tx_unlock_bh(to);
+	netif_addr_unlock(from);
 	netif_tx_unlock_bh(from);
 }
 EXPORT_SYMBOL(dev_unicast_unsync);
@@ -3208,6 +3220,7 @@ static void __dev_addr_discard(struct dev_addr_list **list)
 static void dev_addr_discard(struct net_device *dev)
 {
 	netif_tx_lock_bh(dev);
+	netif_addr_lock(dev);
 
 	__dev_addr_discard(&dev->uc_list);
 	dev->uc_count = 0;
@@ -3215,6 +3228,7 @@ static void dev_addr_discard(struct net_device *dev)
 	__dev_addr_discard(&dev->mc_list);
 	dev->mc_count = 0;
 
+	netif_addr_unlock(dev);
 	netif_tx_unlock_bh(dev);
 }
 

@@ -3869,6 +3869,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 
 	netif_tx_lock_bh(local->mdev);
+	netif_addr_lock(local->mdev);
 	local->filter_flags &= ~FIF_BCN_PRBRESP_PROMISC;
 	local->ops->configure_filter(local_to_hw(local),
 				     FIF_BCN_PRBRESP_PROMISC,
@@ -3876,6 +3877,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 				     local->mdev->mc_count,
 				     local->mdev->mc_list);
 
+	netif_addr_unlock(local->mdev);
 	netif_tx_unlock_bh(local->mdev);
 
 	rcu_read_lock();
@@ -4063,12 +4065,14 @@ static int ieee80211_sta_start_scan(struct net_device *dev,
 	local->scan_dev = dev;
 
 	netif_tx_lock_bh(local->mdev);
+	netif_addr_lock(local->mdev);
 	local->filter_flags |= FIF_BCN_PRBRESP_PROMISC;
 	local->ops->configure_filter(local_to_hw(local),
 				     FIF_BCN_PRBRESP_PROMISC,
 				     &local->filter_flags,
 				     local->mdev->mc_count,
 				     local->mdev->mc_list);
+	netif_addr_unlock(local->mdev);
 	netif_tx_unlock_bh(local->mdev);
 
 	/* TODO: start scan as soon as all nullfunc frames are ACKed */

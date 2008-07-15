@@ -2831,6 +2831,7 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 		 */
 		nv_disable_irq(dev);
 		netif_tx_lock_bh(dev);
+		netif_addr_lock(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
 		nv_stop_rxtx(dev);
@@ -2855,6 +2856,7 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 		/* restart rx engine */
 		nv_start_rxtx(dev);
 		spin_unlock(&np->lock);
+		netif_addr_unlock(dev);
 		netif_tx_unlock_bh(dev);
 		nv_enable_irq(dev);
 	}
@@ -2891,6 +2893,7 @@ static int nv_set_mac_address(struct net_device *dev, void *addr)
 
 	if (netif_running(dev)) {
 		netif_tx_lock_bh(dev);
+		netif_addr_lock(dev);
 		spin_lock_irq(&np->lock);
 
 		/* stop rx engine */
@@ -2902,6 +2905,7 @@ static int nv_set_mac_address(struct net_device *dev, void *addr)
 		/* restart rx engine */
 		nv_start_rx(dev);
 		spin_unlock_irq(&np->lock);
+		netif_addr_unlock(dev);
 		netif_tx_unlock_bh(dev);
 	} else {
 		nv_copy_mac_to_hw(dev);
@@ -3971,6 +3975,7 @@ static void nv_do_nic_poll(unsigned long data)
 		printk(KERN_INFO "forcedeth: MAC in recoverable error state\n");
 		if (netif_running(dev)) {
 			netif_tx_lock_bh(dev);
+			netif_addr_lock(dev);
 			spin_lock(&np->lock);
 			/* stop engines */
 			nv_stop_rxtx(dev);
@@ -3995,6 +4000,7 @@ static void nv_do_nic_poll(unsigned long data)
 			/* restart rx engine */
 			nv_start_rxtx(dev);
 			spin_unlock(&np->lock);
+			netif_addr_unlock(dev);
 			netif_tx_unlock_bh(dev);
 		}
 	}
@@ -4202,6 +4208,7 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 		nv_disable_irq(dev);
 		netif_tx_lock_bh(dev);
+		netif_addr_lock(dev);
 		/* with plain spinlock lockdep complains */
 		spin_lock_irqsave(&np->lock, flags);
 		/* stop engines */
@@ -4215,6 +4222,7 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		 */
 		nv_stop_rxtx(dev);
 		spin_unlock_irqrestore(&np->lock, flags);
+		netif_addr_unlock(dev);
 		netif_tx_unlock_bh(dev);
 	}
 
@@ -4360,10 +4368,12 @@ static int nv_nway_reset(struct net_device *dev)
 		if (netif_running(dev)) {
 			nv_disable_irq(dev);
 			netif_tx_lock_bh(dev);
+			netif_addr_lock(dev);
 			spin_lock(&np->lock);
 			/* stop engines */
 			nv_stop_rxtx(dev);
 			spin_unlock(&np->lock);
+			netif_addr_unlock(dev);
 			netif_tx_unlock_bh(dev);
 			printk(KERN_INFO "%s: link down.\n", dev->name);
 		}
@@ -4471,6 +4481,7 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 	if (netif_running(dev)) {
 		nv_disable_irq(dev);
 		netif_tx_lock_bh(dev);
+		netif_addr_lock(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
 		nv_stop_rxtx(dev);
@@ -4519,6 +4530,7 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 		/* restart engines */
 		nv_start_rxtx(dev);
 		spin_unlock(&np->lock);
+		netif_addr_unlock(dev);
 		netif_tx_unlock_bh(dev);
 		nv_enable_irq(dev);
 	}
@@ -4556,10 +4568,12 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 	if (netif_running(dev)) {
 		nv_disable_irq(dev);
 		netif_tx_lock_bh(dev);
+		netif_addr_lock(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
 		nv_stop_rxtx(dev);
 		spin_unlock(&np->lock);
+		netif_addr_unlock(dev);
 		netif_tx_unlock_bh(dev);
 	}
 
@@ -4946,6 +4960,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 			napi_disable(&np->napi);
 #endif
 			netif_tx_lock_bh(dev);
+			netif_addr_lock(dev);
 			spin_lock_irq(&np->lock);
 			nv_disable_hw_interrupts(dev, np->irqmask);
 			if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
@@ -4959,6 +4974,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 			/* drain rx queue */
 			nv_drain_rxtx(dev);
 			spin_unlock_irq(&np->lock);
+			netif_addr_unlock(dev);
 			netif_tx_unlock_bh(dev);
 		}
 

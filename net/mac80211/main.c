@@ -292,7 +292,9 @@ static int ieee80211_open(struct net_device *dev)
 			local->fif_other_bss++;
 
 		netif_tx_lock_bh(local->mdev);
+		netif_addr_lock(local->mdev);
 		ieee80211_configure_filter(local);
+		netif_addr_unlock(local->mdev);
 		netif_tx_unlock_bh(local->mdev);
 		break;
 	case IEEE80211_IF_TYPE_STA:
@@ -491,7 +493,9 @@ static int ieee80211_stop(struct net_device *dev)
 			local->fif_other_bss--;
 
 		netif_tx_lock_bh(local->mdev);
+		netif_addr_lock(local->mdev);
 		ieee80211_configure_filter(local);
+		netif_addr_unlock(local->mdev);
 		netif_tx_unlock_bh(local->mdev);
 		break;
 	case IEEE80211_IF_TYPE_MESH_POINT:
