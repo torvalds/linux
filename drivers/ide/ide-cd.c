@@ -839,34 +839,54 @@ static void ide_cd_request_sense_fixup(struct request *rq)
 		}
 }
 
-int ide_cd_queue_pc(ide_drive_t *drive, struct request *rq)
+int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
+		    int write, void *buffer, unsigned *bufflen,
+		    struct request_sense *sense, int timeout,
+		    unsigned int cmd_flags)
 {
-	struct request_sense sense;
+	struct cdrom_info *info = drive->driver_data;
+	struct request_sense local_sense;
 	int retries = 10;
-	unsigned int flags = rq->cmd_flags;
+	unsigned int flags = 0;
 
-	if (rq->sense == NULL)
-		rq->sense = &sense;
+	if (!sense)
+		sense = &local_sense;
 
 	/* start of retry loop */
 	do {
+		struct request *rq;
 		int error;
-		unsigned long time = jiffies;
-		rq->cmd_flags = flags;
 
-		error = ide_do_drive_cmd(drive, rq, ide_wait);
-		time = jiffies - time;
+		rq = blk_get_request(drive->queue, write, __GFP_WAIT);
+
+		memcpy(rq->cmd, cmd, BLK_MAX_CDB);
+		rq->cmd_type = REQ_TYPE_ATA_PC;
+		rq->sense = sense;
+		rq->cmd_flags |= cmd_flags;
+		rq->timeout = timeout;
+		if (buffer) {
+			rq->data = buffer;
+			rq->data_len = *bufflen;
+		}
+
+		error = blk_execute_rq(drive->queue, info->disk, rq, 0);
+
+		if (buffer)
+			*bufflen = rq->data_len;
+
+		flags = rq->cmd_flags;
+		blk_put_request(rq);
 
 		/*
 		 * FIXME: we should probably abort/retry or something in case of
 		 * failure.
 		 */
-		if (rq->cmd_flags & REQ_FAILED) {
+		if (flags & REQ_FAILED) {
 			/*
 			 * The request failed.  Retry if it was due to a unit
 			 * attention status (usually means media was changed).
 			 */
-			struct request_sense *reqbuf = rq->sense;
+			struct request_sense *reqbuf = sense;
 
 			if (reqbuf->sense_key == UNIT_ATTENTION)
 				cdrom_saw_media_change(drive);
@@ -886,10 +906,10 @@ int ide_cd_queue_pc(ide_drive_t *drive, struct request *rq)
 		}
 
 		/* end of retry loop */
-	} while ((rq->cmd_flags & REQ_FAILED) && retries >= 0);
+	} while ((flags & REQ_FAILED) && retries >= 0);
 
 	/* return an error if the command failed */
-	return (rq->cmd_flags & REQ_FAILED) ? -EIO : 0;
+	return (flags & REQ_FAILED) ? -EIO : 0;
 }
 
 /*
@@ -1269,23 +1289,20 @@ static void msf_from_bcd(struct atapi_msf *msf)
 
 int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
 {
-	struct request req;
 	struct cdrom_info *info = drive->driver_data;
 	struct cdrom_device_info *cdi = &info->devinfo;
+	unsigned char cmd[BLK_MAX_CDB];
 
-	ide_cd_init_rq(drive, &req);
-
-	req.sense = sense;
-	req.cmd[0] = GPCMD_TEST_UNIT_READY;
-	req.cmd_flags |= REQ_QUIET;
+	memset(cmd, 0, BLK_MAX_CDB);
+	cmd[0] = GPCMD_TEST_UNIT_READY;
 
 	/*
 	 * Sanyo 3 CD changer uses byte 7 of TEST_UNIT_READY to switch CDs
 	 * instead of supporting the LOAD_UNLOAD opcode.
 	 */
-	req.cmd[7] = cdi->sanyo_slot % 3;
+	cmd[7] = cdi->sanyo_slot % 3;
 
-	return ide_cd_queue_pc(drive, &req);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, 0, sense, 0, REQ_QUIET);
 }
 
 static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
@@ -1298,17 +1315,14 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	} capbuf;
 
 	int stat;
-	struct request req;
+	unsigned char cmd[BLK_MAX_CDB];
+	unsigned len = sizeof(capbuf);
 
-	ide_cd_init_rq(drive, &req);
+	memset(cmd, 0, BLK_MAX_CDB);
+	cmd[0] = GPCMD_READ_CDVD_CAPACITY;
 
-	req.sense = sense;
-	req.cmd[0] = GPCMD_READ_CDVD_CAPACITY;
-	req.data = (char *)&capbuf;
-	req.data_len = sizeof(capbuf);
-	req.cmd_flags |= REQ_QUIET;
-
-	stat = ide_cd_queue_pc(drive, &req);
+	stat = ide_cd_queue_pc(drive, cmd, 0, &capbuf, &len, sense, 0,
+			       REQ_QUIET);
 	if (stat == 0) {
 		*capacity = 1 + be32_to_cpu(capbuf.lba);
 		*sectors_per_frame =
@@ -1322,24 +1336,20 @@ static int cdrom_read_tocentry(ide_drive_t *drive, int trackno, int msf_flag,
 				int format, char *buf, int buflen,
 				struct request_sense *sense)
 {
-	struct request req;
+	unsigned char cmd[BLK_MAX_CDB];
 
-	ide_cd_init_rq(drive, &req);
+	memset(cmd, 0, BLK_MAX_CDB);
 
-	req.sense = sense;
-	req.data =  buf;
-	req.data_len = buflen;
-	req.cmd_flags |= REQ_QUIET;
-	req.cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
-	req.cmd[6] = trackno;
-	req.cmd[7] = (buflen >> 8);
-	req.cmd[8] = (buflen & 0xff);
-	req.cmd[9] = (format << 6);
+	cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
+	cmd[6] = trackno;
+	cmd[7] = (buflen >> 8);
+	cmd[8] = (buflen & 0xff);
+	cmd[9] = (format << 6);
 
 	if (msf_flag)
-		req.cmd[1] = 2;
+		cmd[1] = 2;
 
-	return ide_cd_queue_pc(drive, &req);
+	return ide_cd_queue_pc(drive, cmd, 0, buf, &buflen, sense, 0, REQ_QUIET);
 }
 
 /* Try to read the entire TOC for the disk into our internal buffer. */
