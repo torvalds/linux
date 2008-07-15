@@ -1519,12 +1519,16 @@ static void idetape_create_test_unit_ready_cmd(struct ide_atapi_pc *pc)
 static int idetape_queue_pc_tail(ide_drive_t *drive, struct ide_atapi_pc *pc)
 {
 	struct ide_tape_obj *tape = drive->driver_data;
-	struct request rq;
+	struct request *rq;
+	int error;
 
-	idetape_init_rq(&rq, REQ_IDETAPE_PC1);
-	rq.buffer = (char *) pc;
-	rq.rq_disk = tape->disk;
-	return ide_do_drive_cmd(drive, &rq, ide_wait);
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd[0] = REQ_IDETAPE_PC1;
+	rq->buffer = (char *)pc;
+	error = blk_execute_rq(drive->queue, tape->disk, rq, 0);
+	blk_put_request(rq);
+	return error;
 }
 
 static void idetape_create_load_unload_cmd(ide_drive_t *drive,
@@ -1701,26 +1705,33 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int blocks,
 				 struct idetape_bh *bh)
 {
 	idetape_tape_t *tape = drive->driver_data;
-	struct request rq;
+	struct request *rq;
+	int ret, errors;
 
 	debug_log(DBG_SENSE, "%s: cmd=%d\n", __func__, cmd);
 
-	idetape_init_rq(&rq, cmd);
-	rq.rq_disk = tape->disk;
-	rq.special = (void *)bh;
-	rq.sector = tape->first_frame;
-	rq.nr_sectors		= blocks;
-	rq.current_nr_sectors	= blocks;
-	(void) ide_do_drive_cmd(drive, &rq, ide_wait);
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd[0] = cmd;
+	rq->rq_disk = tape->disk;
+	rq->special = (void *)bh;
+	rq->sector = tape->first_frame;
+	rq->nr_sectors = blocks;
+	rq->current_nr_sectors = blocks;
+	blk_execute_rq(drive->queue, tape->disk, rq, 0);
+
+	errors = rq->errors;
+	ret = tape->blk_size * (blocks - rq->current_nr_sectors);
+	blk_put_request(rq);
 
 	if ((cmd & (REQ_IDETAPE_READ | REQ_IDETAPE_WRITE)) == 0)
 		return 0;
 
 	if (tape->merge_bh)
 		idetape_init_merge_buffer(tape);
-	if (rq.errors == IDETAPE_ERROR_GENERAL)
+	if (errors == IDETAPE_ERROR_GENERAL)
 		return -EIO;
-	return (tape->blk_size * (blocks-rq.current_nr_sectors));
+	return ret;
 }
 
 static void idetape_create_inquiry_cmd(struct ide_atapi_pc *pc)
