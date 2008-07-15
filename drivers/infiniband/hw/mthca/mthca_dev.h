@@ -277,7 +277,6 @@ struct mthca_mcg_table {
 struct mthca_catas_err {
 	u64			addr;
 	u32 __iomem	       *map;
-	unsigned long		stop;
 	u32			size;
 	struct timer_list	timer;
 	struct list_head	list;

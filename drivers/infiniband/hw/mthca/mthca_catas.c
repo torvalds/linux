@@ -126,7 +126,6 @@ static void handle_catas(struct mthca_dev *dev)
 static void poll_catas(unsigned long dev_ptr)
 {
 	struct mthca_dev *dev = (struct mthca_dev *) dev_ptr;
-	unsigned long flags;
 	int i;
 
 	for (i = 0; i < dev->catas_err.size; ++i)
@@ -135,13 +134,8 @@ static void poll_catas(unsigned long dev_ptr)
 			return;
 		}
 
-	spin_lock_irqsave(&catas_lock, flags);
-	if (!dev->catas_err.stop)
-		mod_timer(&dev->catas_err.timer,
-			  jiffies + MTHCA_CATAS_POLL_INTERVAL);
-	spin_unlock_irqrestore(&catas_lock, flags);
-
-	return;
+	mod_timer(&dev->catas_err.timer,
+		  jiffies + MTHCA_CATAS_POLL_INTERVAL);
 }
 
 void mthca_start_catas_poll(struct mthca_dev *dev)
@@ -149,7 +143,6 @@ void mthca_start_catas_poll(struct mthca_dev *dev)
 	unsigned long addr;
 
 	init_timer(&dev->catas_err.timer);
-	dev->catas_err.stop = 0;
 	dev->catas_err.map  = NULL;
 
 	addr = pci_resource_start(dev->pdev, 0) +
@@ -180,10 +173,6 @@ void mthca_start_catas_poll(struct mthca_dev *dev)
 
 void mthca_stop_catas_poll(struct mthca_dev *dev)
 {
-	spin_lock_irq(&catas_lock);
-	dev->catas_err.stop = 1;
-	spin_unlock_irq(&catas_lock);
-
 	del_timer_sync(&dev->catas_err.timer);
 
 	if (dev->catas_err.map) {
