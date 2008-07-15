@@ -86,9 +86,6 @@ static const u8 ide_hwif_to_major[] = { IDE0_MAJOR, IDE1_MAJOR,
 					IDE6_MAJOR, IDE7_MAJOR,
 					IDE8_MAJOR, IDE9_MAJOR };
 
-static int idebus_parameter;	/* holds the "idebus=" parameter */
-static int system_bus_speed;	/* holds what we think is VESA/PCI bus speed */
-
 DEFINE_MUTEX(ide_cfg_mtx);
  __cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
 
@@ -187,38 +184,6 @@ static void __init init_ide_data (void)
 
 		ide_init_port_data(hwif, index);
 	}
-}
-
-/**
- *	ide_system_bus_speed	-	guess bus speed
- *
- *	ide_system_bus_speed() returns what we think is the system VESA/PCI
- *	bus speed (in MHz). This is used for calculating interface PIO timings.
- *	The default is 40 for known PCI systems, 50 otherwise.
- *	The "idebus=xx" parameter can be used to override this value.
- *	The actual value to be used is computed/displayed the first time
- *	through. Drivers should only use this as a last resort.
- *
- *	Returns a guessed speed in MHz.
- */
-
-static int ide_system_bus_speed(void)
-{
-#ifdef CONFIG_PCI
-	static struct pci_device_id pci_default[] = {
-		{ PCI_DEVICE(PCI_ANY_ID, PCI_ANY_ID) },
-		{ }
-	};
-#else
-#define pci_default 0
-#endif /* CONFIG_PCI */
-
-	/* user supplied value */
-	if (idebus_parameter)
-		return idebus_parameter;
-
-	/* safe default value for PCI or VESA and PCI*/
-	return pci_dev_present(pci_default) ? 33 : 50;
 }
 
 void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
@@ -540,20 +505,6 @@ static int set_unmaskirq(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-/**
- *	system_bus_clock	-	clock guess
- *
- *	External version of the bus clock guess used by very old IDE drivers
- *	for things like VLB timings. Should not be used.
- */
-
-int system_bus_clock (void)
-{
-	return system_bus_speed;
-}
-
-EXPORT_SYMBOL(system_bus_clock);
-
 static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
 	ide_drive_t *drive = dev->driver_data;
@@ -851,7 +802,7 @@ static int __init ide_setup(char *s)
 	if (strncmp(s,"hd",2) == 0 && s[2] == '=')	/* hd= is for hd.c   */
 		return 0;				/* driver and not us */
 
-	if (strncmp(s,"ide",3) && strncmp(s,"idebus",6) && strncmp(s,"hd",2))
+	if (strncmp(s, "ide", 3) && strncmp(s, "hd", 2))
 		return 0;
 
 	printk(KERN_INFO "ide_setup: %s", s);
@@ -949,21 +900,6 @@ static int __init ide_setup(char *s)
 			default:
 				goto bad_option;
 		}
-	}
-
-	if (s[0] != 'i' || s[1] != 'd' || s[2] != 'e')
-		goto bad_option;
-	/*
-	 * Look for bus speed option:  "idebus="
-	 */
-	if (s[3] == 'b' && s[4] == 'u' && s[5] == 's') {
-		if (match_parm(&s[6], NULL, vals, 1) != 1)
-			goto bad_option;
-		if (vals[0] >= 20 && vals[0] <= 66) {
-			idebus_parameter = vals[0];
-		} else
-			printk(" -- BAD BUS SPEED! Expected value from 20 to 66");
-		goto obsolete_option;
 	}
 
 bad_option:
@@ -1287,11 +1223,6 @@ static int __init ide_init(void)
 	int ret;
 
 	printk(KERN_INFO "Uniform Multi-Platform E-IDE driver\n");
-	system_bus_speed = ide_system_bus_speed();
-
-	printk(KERN_INFO "ide: Assuming %dMHz system bus speed "
-			 "for PIO modes%s\n", system_bus_speed,
-			idebus_parameter ? "" : "; override with idebus=xx");
 
 	ret = bus_register(&ide_bus_type);
 	if (ret < 0) {
