@@ -626,6 +626,12 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 		for (i = 0; i < 8; i++)
 			if (mp->txq_mask & (1 << i))
 				txq_reclaim(mp->txq + i, 0);
+
+		if (netif_carrier_ok(mp->dev)) {
+			spin_lock(&mp->lock);
+			__txq_maybe_wake(mp->txq + mp->txq_primary);
+			spin_unlock(&mp->lock);
+		}
 	}
 #endif
 
