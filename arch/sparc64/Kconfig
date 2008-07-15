@@ -81,6 +81,10 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 	bool
 	def_bool y
 
+source "init/Kconfig"
+
+menu "Processor type and features"
+
 choice
 	prompt "Kernel page size"
 	default SPARC64_PAGE_SIZE_8KB
@@ -136,13 +140,9 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
-source "init/Kconfig"
-
 config GENERIC_HARDIRQS
 	bool
 	default y
-
-menu "General machine setup"
 
 source "kernel/time/Kconfig"
 
