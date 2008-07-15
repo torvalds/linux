@@ -1932,6 +1932,21 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 	spin_unlock(&sysctl_lock);
 }
 
+int sysctl_is_seen(struct ctl_table_header *p)
+{
+	struct ctl_table_set *set = p->set;
+	int res;
+	spin_lock(&sysctl_lock);
+	if (p->unregistering)
+		res = 0;
+	else if (!set->is_seen)
+		res = 1;
+	else
+		res = set->is_seen(set);
+	spin_unlock(&sysctl_lock);
+	return res;
+}
+
 void setup_sysctl_set(struct ctl_table_set *p,
 	struct ctl_table_set *parent,
 	int (*is_seen)(struct ctl_table_set *))

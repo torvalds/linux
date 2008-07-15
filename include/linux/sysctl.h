@@ -961,6 +961,7 @@ struct ctl_table_header;
 
 extern void sysctl_head_get(struct ctl_table_header *);
 extern void sysctl_head_put(struct ctl_table_header *);
+extern int sysctl_is_seen(struct ctl_table_header *);
 extern struct ctl_table_header *sysctl_head_grab(struct ctl_table_header *);
 extern struct ctl_table_header *sysctl_head_next(struct ctl_table_header *prev);
 extern struct ctl_table_header *__sysctl_head_next(struct nsproxy *namespaces,
