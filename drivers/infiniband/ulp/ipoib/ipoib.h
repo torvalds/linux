@@ -485,7 +485,7 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 #endif
 
 int ipoib_mcast_attach(struct net_device *dev, u16 mlid,
-		       union ib_gid *mgid);
+		       union ib_gid *mgid, int set_qkey);
 int ipoib_mcast_detach(struct net_device *dev, u16 mlid,
 		       union ib_gid *mgid);
 

@@ -186,6 +186,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_ah *ah;
 	int ret;
+	int set_qkey = 0;
 
 	mcast->mcmember = *mcmember;
 
@@ -200,6 +201,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		priv->qkey = be32_to_cpu(priv->broadcast->mcmember.qkey);
 		spin_unlock_irq(&priv->lock);
 		priv->tx_wr.wr.ud.remote_qkey = priv->qkey;
+		set_qkey = 1;
 	}
 
 	if (!test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {
@@ -212,7 +214,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		}
 
 		ret = ipoib_mcast_attach(dev, be16_to_cpu(mcast->mcmember.mlid),
-					 &mcast->mcmember.mgid);
+					 &mcast->mcmember.mgid, set_qkey);
 		if (ret < 0) {
 			ipoib_warn(priv, "couldn't attach QP to multicast group "
 				   IPOIB_GID_FMT "\n",

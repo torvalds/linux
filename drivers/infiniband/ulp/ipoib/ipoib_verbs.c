@@ -33,17 +33,12 @@
 
 #include "ipoib.h"
 
-int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
+int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid, int set_qkey)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ib_qp_attr *qp_attr;
+	struct ib_qp_attr *qp_attr = NULL;
 	int ret;
 	u16 pkey_index;
-
-	ret = -ENOMEM;
-	qp_attr = kmalloc(sizeof *qp_attr, GFP_KERNEL);
-	if (!qp_attr)
-		goto out;
 
 	if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &pkey_index)) {
 		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
@@ -52,12 +47,19 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
 	}
 	set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 
-	/* set correct QKey for QP */
-	qp_attr->qkey = priv->qkey;
-	ret = ib_modify_qp(priv->qp, qp_attr, IB_QP_QKEY);
-	if (ret) {
-		ipoib_warn(priv, "failed to modify QP, ret = %d\n", ret);
-		goto out;
+	if (set_qkey) {
+		ret = -ENOMEM;
+		qp_attr = kmalloc(sizeof *qp_attr, GFP_KERNEL);
+		if (!qp_attr)
+			goto out;
+
+		/* set correct QKey for QP */
+		qp_attr->qkey = priv->qkey;
+		ret = ib_modify_qp(priv->qp, qp_attr, IB_QP_QKEY);
+		if (ret) {
+			ipoib_warn(priv, "failed to modify QP, ret = %d\n", ret);
+			goto out;
+		}
 	}
 
 	/* attach QP to multicast group */
