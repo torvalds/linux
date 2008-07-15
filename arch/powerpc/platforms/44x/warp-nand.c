@@ -113,9 +113,14 @@ static int warp_setup_nand_flash(void)
 		pp = of_find_property(np, "reg", NULL);
 		if (pp && (pp->length == 12)) {
 			u32 *v = pp->value;
-			if (v[2] == 0x4000000)
+			if (v[2] == 0x4000000) {
 				/* Rev A = 64M NAND */
-				warp_nand_chip0.nr_partitions = 2;
+				warp_nand_chip0.nr_partitions = 3;
+
+				nand_parts[1].size   = 0x3000000;
+				nand_parts[2].offset = 0x3200000;
+				nand_parts[2].size   = 0x0e00000;
+			}
 		}
 		of_node_put(np);
 	}

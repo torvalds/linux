@@ -207,7 +207,15 @@ adder875-redboot)
     binary=y
     ;;
 simpleboot-virtex405-*)
-    platformo="$object/virtex405-head.o $object/simpleboot.o"
+    platformo="$object/virtex405-head.o $object/simpleboot.o $object/virtex.o"
+    binary=y
+    ;;
+simpleboot-virtex440-*)
+    platformo="$object/simpleboot.o $object/virtex.o"
+    binary=y
+    ;;
+simpleboot-*)
+    platformo="$object/simpleboot.o"
     binary=y
     ;;
 asp834x-redboot)

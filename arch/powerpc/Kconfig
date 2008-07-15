@@ -459,6 +459,19 @@ config CMDLINE
 	  some command-line options at build time by entering them here.  In
 	  most cases you will need to specify the root device here.
 
+config EXTRA_TARGETS
+	string "Additional default image types"
+	help
+	  List additional targets to be built by the bootwrapper here (separated
+	  by spaces).  This is useful for targets that depend of device tree
+	  files in the .dts directory.
+
+	  Targets in this list will be build as part of the default build
+	  target, or when the user does a 'make zImage' or a
+	  'make zImage.initrd'.
+
+	  If unsure, leave blank
+
 if !44x || BROKEN
 config ARCH_WANTS_FREEZER_CONTROL
 	def_bool y
