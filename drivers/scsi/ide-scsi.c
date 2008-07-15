@@ -370,6 +370,10 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		pc->callback(drive);
 		return ide_stopped;
 	}
+
+	/* Clear the interrupt */
+	stat = ide_read_status(drive);
+
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
 		if (hwif->dma_ops->dma_end(drive))
 			pc->flags |= PC_FLAG_DMA_ERROR;
@@ -377,9 +381,6 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 			pc->xferred = pc->req_xfer;
 		debug_log("%s: DMA finished\n", drive->name);
 	}
-
-	/* Clear the interrupt */
-	stat = ide_read_status(drive);
 
 	if ((stat & DRQ_STAT) == 0) {
 		/* No more interrupts */

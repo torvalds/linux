@@ -399,6 +399,9 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 
 	debug_log("Enter %s - interrupt handler\n", __func__);
 
+	/* Clear the interrupt */
+	stat = ide_read_status(drive);
+
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
 		dma_error = hwif->dma_ops->dma_end(drive);
 		if (dma_error) {
@@ -411,9 +414,6 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 		}
 		debug_log("%s: DMA finished\n", drive->name);
 	}
-
-	/* Clear the interrupt */
-	stat = ide_read_status(drive);
 
 	/* No more interrupts */
 	if ((stat & DRQ_STAT) == 0) {
