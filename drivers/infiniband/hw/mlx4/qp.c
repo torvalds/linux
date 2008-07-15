@@ -1132,23 +1132,6 @@ out:
 	return err;
 }
 
-static const struct ib_qp_attr mlx4_ib_qp_attr = { .port_num = 1 };
-static const int mlx4_ib_qp_attr_mask_table[IB_QPT_UD + 1] = {
-		[IB_QPT_UD]  = (IB_QP_PKEY_INDEX		|
-				IB_QP_PORT			|
-				IB_QP_QKEY),
-		[IB_QPT_UC]  = (IB_QP_PKEY_INDEX		|
-				IB_QP_PORT			|
-				IB_QP_ACCESS_FLAGS),
-		[IB_QPT_RC]  = (IB_QP_PKEY_INDEX		|
-				IB_QP_PORT			|
-				IB_QP_ACCESS_FLAGS),
-		[IB_QPT_SMI] = (IB_QP_PKEY_INDEX		|
-				IB_QP_QKEY),
-		[IB_QPT_GSI] = (IB_QP_PKEY_INDEX		|
-				IB_QP_QKEY),
-};
-
 int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		      int attr_mask, struct ib_udata *udata)
 {
@@ -1189,15 +1172,6 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
 		err = 0;
 		goto out;
-	}
-
-	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_ERR) {
-		err = __mlx4_ib_modify_qp(ibqp, &mlx4_ib_qp_attr,
-					  mlx4_ib_qp_attr_mask_table[ibqp->qp_type],
-					  IB_QPS_RESET, IB_QPS_INIT);
-		if (err)
-			goto out;
-		cur_state = IB_QPS_INIT;
 	}
 
 	err = __mlx4_ib_modify_qp(ibqp, attr, attr_mask, cur_state, new_state);
