@@ -554,10 +554,7 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	else
 		queue->cw_max = 10; /* cw_min: 2^10 = 1024. */
 
-	if (params->aifs >= 0)
-		queue->aifs = params->aifs;
-	else
-		queue->aifs = 2;
+	queue->aifs = params->aifs;
 
 	INFO(rt2x00dev,
 	     "Configured TX queue %d - CWmin: %d, CWmax: %d, Aifs: %d.\n",

@@ -3073,53 +3073,20 @@ static void b43_qos_params_upload(struct b43_wldev *dev,
 				  u16 shm_offset)
 {
 	u16 params[B43_NR_QOSPARAMS];
-	int cw_min, cw_max, aifs, bslots, tmp;
+	int bslots, tmp;
 	unsigned int i;
 
-	const u16 aCWmin = 0x0001;
-	const u16 aCWmax = 0x03FF;
-
-	/* Calculate the default values for the parameters, if needed. */
-	switch (shm_offset) {
-	case B43_QOS_VOICE:
-		aifs = (p->aifs == -1) ? 2 : p->aifs;
-		cw_min = (p->cw_min == 0) ? ((aCWmin + 1) / 4 - 1) : p->cw_min;
-		cw_max = (p->cw_max == 0) ? ((aCWmin + 1) / 2 - 1) : p->cw_max;
-		break;
-	case B43_QOS_VIDEO:
-		aifs = (p->aifs == -1) ? 2 : p->aifs;
-		cw_min = (p->cw_min == 0) ? ((aCWmin + 1) / 2 - 1) : p->cw_min;
-		cw_max = (p->cw_max == 0) ? aCWmin : p->cw_max;
-		break;
-	case B43_QOS_BESTEFFORT:
-		aifs = (p->aifs == -1) ? 3 : p->aifs;
-		cw_min = (p->cw_min == 0) ? aCWmin : p->cw_min;
-		cw_max = (p->cw_max == 0) ? aCWmax : p->cw_max;
-		break;
-	case B43_QOS_BACKGROUND:
-		aifs = (p->aifs == -1) ? 7 : p->aifs;
-		cw_min = (p->cw_min == 0) ? aCWmin : p->cw_min;
-		cw_max = (p->cw_max == 0) ? aCWmax : p->cw_max;
-		break;
-	default:
-		B43_WARN_ON(1);
-		return;
-	}
-	if (cw_min <= 0)
-		cw_min = aCWmin;
-	if (cw_max <= 0)
-		cw_max = aCWmin;
-	bslots = b43_read16(dev, B43_MMIO_RNG) % cw_min;
+	bslots = b43_read16(dev, B43_MMIO_RNG) & p->cw_min;
 
 	memset(&params, 0, sizeof(params));
 
 	params[B43_QOSPARAM_TXOP] = p->txop * 32;
-	params[B43_QOSPARAM_CWMIN] = cw_min;
-	params[B43_QOSPARAM_CWMAX] = cw_max;
-	params[B43_QOSPARAM_CWCUR] = cw_min;
-	params[B43_QOSPARAM_AIFS] = aifs;
+	params[B43_QOSPARAM_CWMIN] = p->cw_min;
+	params[B43_QOSPARAM_CWMAX] = p->cw_max;
+	params[B43_QOSPARAM_CWCUR] = p->cw_min;
+	params[B43_QOSPARAM_AIFS] = p->aifs;
 	params[B43_QOSPARAM_BSLOTS] = bslots;
-	params[B43_QOSPARAM_REGGAP] = bslots + aifs;
+	params[B43_QOSPARAM_REGGAP] = bslots + p->aifs;
 
 	for (i = 0; i < ARRAY_SIZE(params); i++) {
 		if (i == B43_QOSPARAM_STATUS) {
