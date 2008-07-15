@@ -790,8 +790,7 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	rq->special = (char *) pc;
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	spin_unlock_irq(host->host_lock);
-	rq->rq_disk = scsi->disk;
-	(void) ide_do_drive_cmd (drive, rq, ide_end);
+	blk_execute_rq_nowait(drive->queue, scsi->disk, rq, 0, NULL);
 	spin_lock_irq(host->host_lock);
 	return 0;
 abort:
