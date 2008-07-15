@@ -18,15 +18,11 @@
 /*
  *  Changes:
  *
- *  Brian Braunstein <linuxkernel@bristyle.com> 2007/03/23
- *    Fixed hw address handling.  Now net_device.dev_addr is kept consistent
- *    with tun.dev_addr when the address is set by this module.
- *
  *  Mike Kershaw <dragorn@kismetwireless.net> 2005/08/14
  *    Add TUNSETLINK ioctl to set the link encapsulation
  *
  *  Mark Smith <markzzzsmith@yahoo.com.au>
- *   Use random_ether_addr() for tap MAC address.
+ *    Use random_ether_addr() for tap MAC address.
  *
  *  Harald Roelle <harald.roelle@ifi.lmu.de>  2004/04/20
  *    Fixes in packet dropping, queue length setting and queue wakeup.
@@ -83,9 +79,16 @@ static int debug;
 #define DBG1( a... )
 #endif
 
+#define FLT_EXACT_COUNT 8
+struct tap_filter {
+	unsigned int    count;    /* Number of addrs. Zero means disabled */
+	u32             mask[2];  /* Mask of the hashed addrs */
+	unsigned char	addr[FLT_EXACT_COUNT][ETH_ALEN];
+};
+
 struct tun_struct {
 	struct list_head        list;
-	unsigned long 		flags;
+	unsigned int 		flags;
 	int			attached;
 	uid_t			owner;
 	gid_t			group;
@@ -94,18 +97,118 @@ struct tun_struct {
 	struct sk_buff_head	readq;
 
 	struct net_device	*dev;
+	struct fasync_struct	*fasync;
 
-	struct fasync_struct    *fasync;
-
-	unsigned long if_flags;
-	u8 dev_addr[ETH_ALEN];
-	u32 chr_filter[2];
-	u32 net_filter[2];
+	struct tap_filter       txflt;
 
 #ifdef TUN_DEBUG
 	int debug;
 #endif
 };
+
+/* TAP filterting */
+static void addr_hash_set(u32 *mask, const u8 *addr)
+{
+	int n = ether_crc(ETH_ALEN, addr) >> 26;
+	mask[n >> 5] |= (1 << (n & 31));
+}
+
+static unsigned int addr_hash_test(const u32 *mask, const u8 *addr)
+{
+	int n = ether_crc(ETH_ALEN, addr) >> 26;
+	return mask[n >> 5] & (1 << (n & 31));
+}
+
+static int update_filter(struct tap_filter *filter, void __user *arg)
+{
+	struct { u8 u[ETH_ALEN]; } *addr;
+	struct tun_filter uf;
+	int err, alen, n, nexact;
+
+	if (copy_from_user(&uf, arg, sizeof(uf)))
+		return -EFAULT;
+
+	if (!uf.count) {
+		/* Disabled */
+		filter->count = 0;
+		return 0;
+	}
+
+	alen = ETH_ALEN * uf.count;
+	addr = kmalloc(alen, GFP_KERNEL);
+	if (!addr)
+		return -ENOMEM;
+
+	if (copy_from_user(addr, arg + sizeof(uf), alen)) {
+		err = -EFAULT;
+		goto done;
+	}
+
+	/* The filter is updated without holding any locks. Which is
+	 * perfectly safe. We disable it first and in the worst
+	 * case we'll accept a few undesired packets. */
+	filter->count = 0;
+	wmb();
+
+	/* Use first set of addresses as an exact filter */
+	for (n = 0; n < uf.count && n < FLT_EXACT_COUNT; n++)
+		memcpy(filter->addr[n], addr[n].u, ETH_ALEN);
+
+	nexact = n;
+
+	/* The rest is hashed */
+	memset(filter->mask, 0, sizeof(filter->mask));
+	for (; n < uf.count; n++)
+		addr_hash_set(filter->mask, addr[n].u);
+
+	/* For ALLMULTI just set the mask to all ones.
+	 * This overrides the mask populated above. */
+	if ((uf.flags & TUN_FLT_ALLMULTI))
+		memset(filter->mask, ~0, sizeof(filter->mask));
+
+	/* Now enable the filter */
+	wmb();
+	filter->count = nexact;
+
+	/* Return the number of exact filters */
+	err = nexact;
+
+done:
+	kfree(addr);
+	return err;
+}
+
+/* Returns: 0 - drop, !=0 - accept */
+static int run_filter(struct tap_filter *filter, const struct sk_buff *skb)
+{
+	/* Cannot use eth_hdr(skb) here because skb_mac_hdr() is incorrect
+	 * at this point. */
+	struct ethhdr *eh = (struct ethhdr *) skb->data;
+	int i;
+
+	/* Exact match */
+	for (i = 0; i < filter->count; i++)
+		if (!compare_ether_addr(eh->h_dest, filter->addr[i]))
+			return 1;
+
+	/* Inexact match (multicast only) */
+	if (is_multicast_ether_addr(eh->h_dest))
+		return addr_hash_test(filter->mask, eh->h_dest);
+
+	return 0;
+}
+
+/*
+ * Checks whether the packet is accepted or not.
+ * Returns: 0 - drop, !=0 - accept
+ */
+static int check_filter(struct tap_filter *filter, const struct sk_buff *skb)
+{
+	if (!filter->count)
+		return 1;
+
+	return run_filter(filter, skb);
+}
 
 /* Network device part of the driver */
 
@@ -141,7 +244,12 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!tun->attached)
 		goto drop;
 
-	/* Packet dropping */
+	/* Drop if the filter does not like it.
+	 * This is a noop if the filter is disabled.
+	 * Filter can be enabled only for the TAP devices. */
+	if (!check_filter(&tun->txflt, skb))
+		goto drop;
+
 	if (skb_queue_len(&tun->readq) >= dev->tx_queue_len) {
 		if (!(tun->flags & TUN_ONE_QUEUE)) {
 			/* Normal queueing mode. */
@@ -158,7 +266,7 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	/* Queue packet */
+	/* Enqueue packet */
 	skb_queue_tail(&tun->readq, skb);
 	dev->trans_start = jiffies;
 
@@ -174,41 +282,14 @@ drop:
 	return 0;
 }
 
-/** Add the specified Ethernet address to this multicast filter. */
-static void
-add_multi(u32* filter, const u8* addr)
+static void tun_net_mclist(struct net_device *dev)
 {
-	int bit_nr = ether_crc(ETH_ALEN, addr) >> 26;
-	filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
-}
-
-/** Remove the specified Ethernet addres from this multicast filter. */
-static void
-del_multi(u32* filter, const u8* addr)
-{
-	int bit_nr = ether_crc(ETH_ALEN, addr) >> 26;
-	filter[bit_nr >> 5] &= ~(1 << (bit_nr & 31));
-}
-
-/** Update the list of multicast groups to which the network device belongs.
- * This list is used to filter packets being sent from the character device to
- * the network device. */
-static void
-tun_net_mclist(struct net_device *dev)
-{
-	struct tun_struct *tun = netdev_priv(dev);
-	const struct dev_mc_list *mclist;
-	int i;
-	DECLARE_MAC_BUF(mac);
-	DBG(KERN_DEBUG "%s: tun_net_mclist: mc_count %d\n",
-			dev->name, dev->mc_count);
-	memset(tun->chr_filter, 0, sizeof tun->chr_filter);
-	for (i = 0, mclist = dev->mc_list; i < dev->mc_count && mclist != NULL;
-			i++, mclist = mclist->next) {
-		add_multi(tun->net_filter, mclist->dmi_addr);
-		DBG(KERN_DEBUG "%s: tun_net_mclist: %s\n",
-		    dev->name, print_mac(mac, mclist->dmi_addr));
-	}
+	/*
+	 * This callback is supposed to deal with mc filter in
+	 * _rx_ path and has nothing to do with the _tx_ path.
+	 * In rx path we always accept everything userspace gives us.
+	 */
+	return;
 }
 
 #define MIN_MTU 68
@@ -244,13 +325,11 @@ static void tun_net_init(struct net_device *dev)
 
 	case TUN_TAP_DEV:
 		/* Ethernet TAP Device */
+		ether_setup(dev);
+		dev->change_mtu         = tun_net_change_mtu;
 		dev->set_multicast_list = tun_net_mclist;
 
-		ether_setup(dev);
-		dev->change_mtu = tun_net_change_mtu;
-
-		/* random address already created for us by tun_set_iff, use it */
-		memcpy(dev->dev_addr, tun->dev_addr, min(sizeof(tun->dev_addr), sizeof(dev->dev_addr)) );
+		random_ether_addr(dev->dev_addr);
 
 		dev->tx_queue_len = TUN_READQ_SIZE;  /* We prefer our own queue length */
 		break;
@@ -486,7 +565,6 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 	DECLARE_WAITQUEUE(wait, current);
 	struct sk_buff *skb;
 	ssize_t len, ret = 0;
-	DECLARE_MAC_BUF(mac);
 
 	if (!tun)
 		return -EBADFD;
@@ -499,10 +577,6 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 
 	add_wait_queue(&tun->read_wait, &wait);
 	while (len) {
-		const u8 ones[ ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-		u8 addr[ ETH_ALEN];
-		int bit_nr;
-
 		current->state = TASK_INTERRUPTIBLE;
 
 		/* Read frames from the queue */
@@ -522,36 +596,9 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 		}
 		netif_wake_queue(tun->dev);
 
-		/** Decide whether to accept this packet. This code is designed to
-		 * behave identically to an Ethernet interface. Accept the packet if
-		 * - we are promiscuous.
-		 * - the packet is addressed to us.
-		 * - the packet is broadcast.
-		 * - the packet is multicast and
-		 *   - we are multicast promiscous.
-		 *   - we belong to the multicast group.
-		 */
-		skb_copy_from_linear_data(skb, addr, min_t(size_t, sizeof addr,
-								   skb->len));
-		bit_nr = ether_crc(sizeof addr, addr) >> 26;
-		if ((tun->if_flags & IFF_PROMISC) ||
-				memcmp(addr, tun->dev_addr, sizeof addr) == 0 ||
-				memcmp(addr, ones, sizeof addr) == 0 ||
-				(((addr[0] == 1 && addr[1] == 0 && addr[2] == 0x5e) ||
-				  (addr[0] == 0x33 && addr[1] == 0x33)) &&
-				 ((tun->if_flags & IFF_ALLMULTI) ||
-				  (tun->chr_filter[bit_nr >> 5] & (1 << (bit_nr & 31)))))) {
-			DBG(KERN_DEBUG "%s: tun_chr_readv: accepted: %s\n",
-					tun->dev->name, print_mac(mac, addr));
-			ret = tun_put_user(tun, skb, (struct iovec *) iv, len);
-			kfree_skb(skb);
-			break;
-		} else {
-			DBG(KERN_DEBUG "%s: tun_chr_readv: rejected: %s\n",
-					tun->dev->name, print_mac(mac, addr));
-			kfree_skb(skb);
-			continue;
-		}
+		ret = tun_put_user(tun, skb, (struct iovec *) iv, len);
+		kfree_skb(skb);
+		break;
 	}
 
 	current->state = TASK_RUNNING;
@@ -647,12 +694,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		tun = netdev_priv(dev);
 		tun->dev = dev;
 		tun->flags = flags;
-		/* Be promiscuous by default to maintain previous behaviour. */
-		tun->if_flags = IFF_PROMISC;
-		/* Generate random Ethernet address. */
-		*(__be16 *)tun->dev_addr = htons(0x00FF);
-		get_random_bytes(tun->dev_addr + sizeof(u16), 4);
-		memset(tun->chr_filter, 0, sizeof tun->chr_filter);
+		tun->txflt.count = 0;
 
 		tun_net_init(dev);
 
@@ -751,6 +793,7 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 	struct tun_struct *tun = file->private_data;
 	void __user* argp = (void __user*)arg;
 	struct ifreq ifr;
+	int ret;
 	DECLARE_MAC_BUF(mac);
 
 	if (cmd == TUNSETIFF || _IOC_TYPE(cmd) == 0x89)
@@ -826,9 +869,6 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case TUNSETLINK:
-	{
-		int ret;
-
 		/* Only allow setting the type when the interface is down */
 		rtnl_lock();
 		if (tun->dev->flags & IFF_UP) {
@@ -842,94 +882,44 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		}
 		rtnl_unlock();
 		return ret;
-	}
 
 #ifdef TUN_DEBUG
 	case TUNSETDEBUG:
 		tun->debug = arg;
 		break;
 #endif
-
 	case TUNSETOFFLOAD:
-	{
-		int ret;
 		rtnl_lock();
 		ret = set_offload(tun->dev, arg);
 		rtnl_unlock();
 		return ret;
-	}
 
-	case SIOCGIFFLAGS:
-		ifr.ifr_flags = tun->if_flags;
-		if (copy_to_user( argp, &ifr, sizeof ifr))
-			return -EFAULT;
-		return 0;
-
-	case SIOCSIFFLAGS:
-		/** Set the character device's interface flags. Currently only
-		 * IFF_PROMISC and IFF_ALLMULTI are used. */
-		tun->if_flags = ifr.ifr_flags;
-		DBG(KERN_INFO "%s: interface flags 0x%lx\n",
-				tun->dev->name, tun->if_flags);
-		return 0;
+	case TUNSETTXFILTER:
+		/* Can be set only for TAPs */
+		if ((tun->flags & TUN_TYPE_MASK) != TUN_TAP_DEV)
+			return -EINVAL;
+		rtnl_lock();
+		ret = update_filter(&tun->txflt, (void *) __user arg);
+		rtnl_unlock();
+		return ret;
 
 	case SIOCGIFHWADDR:
-		/* Note: the actual net device's address may be different */
-		memcpy(ifr.ifr_hwaddr.sa_data, tun->dev_addr,
-				min(sizeof ifr.ifr_hwaddr.sa_data, sizeof tun->dev_addr));
-		if (copy_to_user( argp, &ifr, sizeof ifr))
+		/* Get hw addres */
+		memcpy(ifr.ifr_hwaddr.sa_data, tun->dev->dev_addr, ETH_ALEN);
+		ifr.ifr_hwaddr.sa_family = tun->dev->type;
+		if (copy_to_user(argp, &ifr, sizeof ifr))
 			return -EFAULT;
 		return 0;
 
 	case SIOCSIFHWADDR:
-	{
-		/* try to set the actual net device's hw address */
-		int ret;
+		/* Set hw address */
+		DBG(KERN_DEBUG "%s: set hw address: %s\n",
+			tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
 
 		rtnl_lock();
 		ret = dev_set_mac_address(tun->dev, &ifr.ifr_hwaddr);
 		rtnl_unlock();
-
-		if (ret == 0) {
-			/** Set the character device's hardware address. This is used when
-			 * filtering packets being sent from the network device to the character
-			 * device. */
-			memcpy(tun->dev_addr, ifr.ifr_hwaddr.sa_data,
-					min(sizeof ifr.ifr_hwaddr.sa_data, sizeof tun->dev_addr));
-			DBG(KERN_DEBUG "%s: set hardware address: %x:%x:%x:%x:%x:%x\n",
-					tun->dev->name,
-					tun->dev_addr[0], tun->dev_addr[1], tun->dev_addr[2],
-					tun->dev_addr[3], tun->dev_addr[4], tun->dev_addr[5]);
-		}
-
-		return  ret;
-	}
-
-	case SIOCADDMULTI:
-		/** Add the specified group to the character device's multicast filter
-		 * list. */
-		rtnl_lock();
-		netif_tx_lock_bh(tun->dev);
-		add_multi(tun->chr_filter, ifr.ifr_hwaddr.sa_data);
-		netif_tx_unlock_bh(tun->dev);
-		rtnl_unlock();
-
-		DBG(KERN_DEBUG "%s: add multi: %s\n",
-		    tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
-		return 0;
-
-	case SIOCDELMULTI:
-		/** Remove the specified group from the character device's multicast
-		 * filter list. */
-		rtnl_lock();
-		netif_tx_lock_bh(tun->dev);
-		del_multi(tun->chr_filter, ifr.ifr_hwaddr.sa_data);
-		netif_tx_unlock_bh(tun->dev);
-		rtnl_unlock();
-
-		DBG(KERN_DEBUG "%s: del multi: %s\n",
-		    tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
-		return 0;
+		return ret;
 
 	default:
 		return -EINVAL;
