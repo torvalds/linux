@@ -609,6 +609,7 @@ struct net_device
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned short          dev_id;		/* for shared network cards */
 
+	spinlock_t		addr_list_lock;
 	struct dev_addr_list	*uc_list;	/* Secondary unicast mac addresses */
 	int			uc_count;	/* Number of installed ucasts	*/
 	int			uc_promisc;

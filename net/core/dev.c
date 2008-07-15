@@ -3836,6 +3836,7 @@ int register_netdevice(struct net_device *dev)
 	BUG_ON(!dev_net(dev));
 	net = dev_net(dev);
 
+	spin_lock_init(&dev->addr_list_lock);
 	netdev_init_queue_locks(dev);
 
 	dev->iflink = -1;
