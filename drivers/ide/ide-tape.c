@@ -1050,7 +1050,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 		pc->flags &= ~PC_FLAG_DMA_ERROR;
 		ide_dma_off(drive);
 	}
-	if ((pc->flags & PC_FLAG_DMA_RECOMMENDED) && drive->using_dma)
+	if ((pc->flags & PC_FLAG_DMA_OK) && drive->using_dma)
 		dma_ok = !hwif->dma_ops->dma_setup(drive);
 
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma_ok);
@@ -1138,7 +1138,7 @@ static void idetape_create_read_cmd(idetape_tape_t *tape,
 	pc->buf_size = length * tape->blk_size;
 	pc->req_xfer = pc->buf_size;
 	if (pc->req_xfer == tape->buffer_size)
-		pc->flags |= PC_FLAG_DMA_RECOMMENDED;
+		pc->flags |= PC_FLAG_DMA_OK;
 }
 
 static void idetape_create_write_cmd(idetape_tape_t *tape,
@@ -1157,7 +1157,7 @@ static void idetape_create_write_cmd(idetape_tape_t *tape,
 	pc->buf_size = length * tape->blk_size;
 	pc->req_xfer = pc->buf_size;
 	if (pc->req_xfer == tape->buffer_size)
-		pc->flags |= PC_FLAG_DMA_RECOMMENDED;
+		pc->flags |= PC_FLAG_DMA_OK;
 }
 
 static ide_startstop_t idetape_do_request(ide_drive_t *drive,

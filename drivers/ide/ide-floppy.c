@@ -630,7 +630,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	}
 	dma = 0;
 
-	if ((pc->flags & PC_FLAG_DMA_RECOMMENDED) && drive->using_dma)
+	if ((pc->flags & PC_FLAG_DMA_OK) && drive->using_dma)
 		dma = !hwif->dma_ops->dma_setup(drive);
 
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma);
@@ -755,7 +755,7 @@ static void idefloppy_create_rw_cmd(idefloppy_floppy_t *floppy,
 		pc->flags |= PC_FLAG_WRITING;
 	pc->buf = NULL;
 	pc->req_xfer = pc->buf_size = blocks * floppy->block_size;
-	pc->flags |= PC_FLAG_DMA_RECOMMENDED;
+	pc->flags |= PC_FLAG_DMA_OK;
 }
 
 static void idefloppy_blockpc_cmd(idefloppy_floppy_t *floppy,
@@ -769,7 +769,7 @@ static void idefloppy_blockpc_cmd(idefloppy_floppy_t *floppy,
 		pc->flags |= PC_FLAG_WRITING;
 	pc->buf = rq->data;
 	if (rq->bio)
-		pc->flags |= PC_FLAG_DMA_RECOMMENDED;
+		pc->flags |= PC_FLAG_DMA_OK;
 	/*
 	 * possibly problematic, doesn't look like ide-floppy correctly
 	 * handled scattered requests if dma fails...

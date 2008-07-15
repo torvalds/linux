@@ -602,12 +602,11 @@ enum {
 	PC_FLAG_SUPPRESS_ERROR		= (1 << 1),
 	PC_FLAG_WAIT_FOR_DSC		= (1 << 2),
 	PC_FLAG_DMA_OK			= (1 << 3),
-	PC_FLAG_DMA_RECOMMENDED		= (1 << 4),
-	PC_FLAG_DMA_IN_PROGRESS		= (1 << 5),
-	PC_FLAG_DMA_ERROR		= (1 << 6),
-	PC_FLAG_WRITING			= (1 << 7),
+	PC_FLAG_DMA_IN_PROGRESS		= (1 << 4),
+	PC_FLAG_DMA_ERROR		= (1 << 5),
+	PC_FLAG_WRITING			= (1 << 6),
 	/* command timed out */
-	PC_FLAG_TIMEDOUT		= (1 << 8),
+	PC_FLAG_TIMEDOUT		= (1 << 7),
 };
 
 struct ide_atapi_pc {
