@@ -602,8 +602,6 @@ module_init(au1xxx_nand_init);
  */
 static void __exit au1550_cleanup(void)
 {
-	struct nand_chip *this = (struct nand_chip *)&au1550_mtd[1];
-
 	/* Release resources, unregister device */
 	nand_release(au1550_mtd);
 
