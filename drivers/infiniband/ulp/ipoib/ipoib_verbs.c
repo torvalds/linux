@@ -290,15 +290,17 @@ void ipoib_event(struct ib_event_handler *handler,
 	if (record->element.port_num != priv->port)
 		return;
 
-	if (record->event == IB_EVENT_PORT_ERR    ||
-	    record->event == IB_EVENT_PORT_ACTIVE ||
-	    record->event == IB_EVENT_LID_CHANGE  ||
-	    record->event == IB_EVENT_SM_CHANGE   ||
+	ipoib_dbg(priv, "Event %d on device %s port %d\n", record->event,
+		  record->device->name, record->element.port_num);
+
+	if (record->event == IB_EVENT_SM_CHANGE ||
 	    record->event == IB_EVENT_CLIENT_REREGISTER) {
-		ipoib_dbg(priv, "Port state change event\n");
-		queue_work(ipoib_workqueue, &priv->flush_task);
+		queue_work(ipoib_workqueue, &priv->flush_light);
+	} else if (record->event == IB_EVENT_PORT_ERR ||
+		   record->event == IB_EVENT_PORT_ACTIVE ||
+		   record->event == IB_EVENT_LID_CHANGE) {
+		queue_work(ipoib_workqueue, &priv->flush_normal);
 	} else if (record->event == IB_EVENT_PKEY_CHANGE) {
-		ipoib_dbg(priv, "P_Key change event on port:%d\n", priv->port);
-		queue_work(ipoib_workqueue, &priv->pkey_event_task);
+		queue_work(ipoib_workqueue, &priv->flush_heavy);
 	}
 }

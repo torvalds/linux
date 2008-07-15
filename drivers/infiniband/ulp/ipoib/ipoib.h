@@ -54,6 +54,12 @@
 
 /* constants */
 
+enum ipoib_flush_level {
+	IPOIB_FLUSH_LIGHT,
+	IPOIB_FLUSH_NORMAL,
+	IPOIB_FLUSH_HEAVY
+};
+
 enum {
 	IPOIB_ENCAP_LEN		  = 4,
 
@@ -284,10 +290,11 @@ struct ipoib_dev_priv {
 
 	struct delayed_work pkey_poll_task;
 	struct delayed_work mcast_task;
-	struct work_struct flush_task;
+	struct work_struct flush_light;
+	struct work_struct flush_normal;
+	struct work_struct flush_heavy;
 	struct work_struct restart_task;
 	struct delayed_work ah_reap_task;
-	struct work_struct pkey_event_task;
 
 	struct ib_device *ca;
 	u8		  port;
@@ -369,6 +376,7 @@ struct ipoib_path {
 
 	struct rb_node	      rb_node;
 	struct list_head      list;
+	int  		      valid;
 };
 
 struct ipoib_neigh {
@@ -433,11 +441,14 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		struct ipoib_ah *address, u32 qpn);
 void ipoib_reap_ah(struct work_struct *work);
 
+void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
 struct ipoib_dev_priv *ipoib_intf_alloc(const char *format);
 
 int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
-void ipoib_ib_dev_flush(struct work_struct *work);
+void ipoib_ib_dev_flush_light(struct work_struct *work);
+void ipoib_ib_dev_flush_normal(struct work_struct *work);
+void ipoib_ib_dev_flush_heavy(struct work_struct *work);
 void ipoib_pkey_event(struct work_struct *work);
 void ipoib_ib_dev_cleanup(struct net_device *dev);
 

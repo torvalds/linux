@@ -357,6 +357,23 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */
 
+void ipoib_mark_paths_invalid(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_path *path, *tp;
+
+	spin_lock_irq(&priv->lock);
+
+	list_for_each_entry_safe(path, tp, &priv->path_list, list) {
+		ipoib_dbg(priv, "mark path LID 0x%04x GID " IPOIB_GID_FMT " invalid\n",
+			be16_to_cpu(path->pathrec.dlid),
+			IPOIB_GID_ARG(path->pathrec.dgid));
+		path->valid =  0;
+	}
+
+	spin_unlock_irq(&priv->lock);
+}
+
 void ipoib_flush_paths(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -393,6 +410,7 @@ static void path_rec_completion(int status,
 	struct net_device *dev = path->dev;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_ah *ah = NULL;
+	struct ipoib_ah *old_ah;
 	struct ipoib_neigh *neigh, *tn;
 	struct sk_buff_head skqueue;
 	struct sk_buff *skb;
@@ -416,6 +434,7 @@ static void path_rec_completion(int status,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
+	old_ah   = path->ah;
 	path->ah = ah;
 
 	if (ah) {
@@ -428,6 +447,17 @@ static void path_rec_completion(int status,
 			__skb_queue_tail(&skqueue, skb);
 
 		list_for_each_entry_safe(neigh, tn, &path->neigh_list, list) {
+			if (neigh->ah) {
+				WARN_ON(neigh->ah != old_ah);
+				/*
+				 * Dropping the ah reference inside
+				 * priv->lock is safe here, because we
+				 * will hold one more reference from
+				 * the original value of path->ah (ie
+				 * old_ah).
+				 */
+				ipoib_put_ah(neigh->ah);
+			}
 			kref_get(&path->ah->ref);
 			neigh->ah = path->ah;
 			memcpy(&neigh->dgid.raw, &path->pathrec.dgid.raw,
@@ -450,12 +480,16 @@ static void path_rec_completion(int status,
 			while ((skb = __skb_dequeue(&neigh->queue)))
 				__skb_queue_tail(&skqueue, skb);
 		}
+		path->valid = 1;
 	}
 
 	path->query = NULL;
 	complete(&path->done);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (old_ah)
+		ipoib_put_ah(old_ah);
 
 	while ((skb = __skb_dequeue(&skqueue))) {
 		skb->dev = dev;
@@ -630,8 +664,9 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 	spin_lock(&priv->lock);
 
 	path = __path_find(dev, phdr->hwaddr + 4);
-	if (!path) {
-		path = path_rec_create(dev, phdr->hwaddr + 4);
+	if (!path || !path->valid) {
+		if (!path)
+			path = path_rec_create(dev, phdr->hwaddr + 4);
 		if (path) {
 			/* put pseudoheader back on for next time */
 			skb_push(skb, sizeof *phdr);
@@ -1046,9 +1081,10 @@ static void ipoib_setup(struct net_device *dev)
 	INIT_LIST_HEAD(&priv->multicast_list);
 
 	INIT_DELAYED_WORK(&priv->pkey_poll_task, ipoib_pkey_poll);
-	INIT_WORK(&priv->pkey_event_task, ipoib_pkey_event);
 	INIT_DELAYED_WORK(&priv->mcast_task,   ipoib_mcast_join_task);
-	INIT_WORK(&priv->flush_task,   ipoib_ib_dev_flush);
+	INIT_WORK(&priv->flush_light,   ipoib_ib_dev_flush_light);
+	INIT_WORK(&priv->flush_normal,   ipoib_ib_dev_flush_normal);
+	INIT_WORK(&priv->flush_heavy,   ipoib_ib_dev_flush_heavy);
 	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task);
 	INIT_DELAYED_WORK(&priv->ah_reap_task, ipoib_reap_ah);
 }
