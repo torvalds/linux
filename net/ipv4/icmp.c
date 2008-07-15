@@ -298,7 +298,7 @@ out:
  */
 void icmp_out_count(struct net *net, unsigned char type)
 {
-	ICMPMSGOUT_INC_STATS(type);
+	ICMPMSGOUT_INC_STATS(net, type);
 	ICMP_INC_STATS(net, ICMP_MIB_OUTMSGS);
 }
 
