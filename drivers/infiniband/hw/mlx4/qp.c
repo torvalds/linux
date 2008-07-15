@@ -129,9 +129,10 @@ static void stamp_send_wqe(struct mlx4_ib_qp *qp, int n, int size)
 	int ind;
 	void *buf;
 	__be32 stamp;
+	struct mlx4_wqe_ctrl_seg *ctrl;
 
-	s = roundup(size, 1U << qp->sq.wqe_shift);
 	if (qp->sq_max_wqes_per_wr > 1) {
+		s = roundup(size, 1U << qp->sq.wqe_shift);
 		for (i = 0; i < s; i += 64) {
 			ind = (i >> qp->sq.wqe_shift) + n;
 			stamp = ind & qp->sq.wqe_cnt ? cpu_to_be32(0x7fffffff) :
@@ -141,7 +142,8 @@ static void stamp_send_wqe(struct mlx4_ib_qp *qp, int n, int size)
 			*wqe = stamp;
 		}
 	} else {
-		buf = get_send_wqe(qp, n & (qp->sq.wqe_cnt - 1));
+		ctrl = buf = get_send_wqe(qp, n & (qp->sq.wqe_cnt - 1));
+		s = (ctrl->fence_size & 0x3f) << 4;
 		for (i = 64; i < s; i += 64) {
 			wqe = buf + i;
 			*wqe = cpu_to_be32(0xffffffff);
@@ -1063,6 +1065,8 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		for (i = 0; i < qp->sq.wqe_cnt; ++i) {
 			ctrl = get_send_wqe(qp, i);
 			ctrl->owner_opcode = cpu_to_be32(1 << 31);
+			if (qp->sq_max_wqes_per_wr == 1)
+				ctrl->fence_size = 1 << (qp->sq.wqe_shift - 4);
 
 			stamp_send_wqe(qp, i, 1 << qp->sq.wqe_shift);
 		}
