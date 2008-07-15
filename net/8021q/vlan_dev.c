@@ -21,22 +21,15 @@
  */
 
 #include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/in.h>
-#include <linux/init.h>
-#include <asm/uaccess.h> /* for copy_from_user */
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <net/datalink.h>
-#include <net/p8022.h>
 #include <net/arp.h>
 
 #include "vlan.h"
 #include "vlanproc.h"
 #include <linux/if_vlan.h>
-#include <net/ip.h>
 
 /*
  *	Rebuild the Ethernet MAC header. This is called after an ARP

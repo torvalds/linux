@@ -18,16 +18,9 @@
  *****************************************************************************/
 
 #include <linux/module.h>
-#include <linux/stddef.h>	/* offsetof(), etc. */
-#include <linux/errno.h>	/* return codes */
+#include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>		/* kmalloc(), kfree() */
-#include <linux/mm.h>
-#include <linux/string.h>	/* inline mem*, str* functions */
-#include <linux/init.h>		/* __initfunc et al. */
-#include <asm/byteorder.h>	/* htons(), etc. */
-#include <asm/uaccess.h>	/* copy_to_user */
-#include <asm/io.h>
+#include <linux/string.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/fs.h>

@@ -18,21 +18,17 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#include <asm/uaccess.h> /* for copy_from_user */
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <net/datalink.h>
-#include <linux/mm.h>
-#include <linux/in.h>
 #include <linux/init.h>
-#include <net/p8022.h>
-#include <net/arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/notifier.h>
+#include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+#include <asm/uaccess.h>
 
 #include <linux/if_vlan.h>
 #include "vlan.h"
