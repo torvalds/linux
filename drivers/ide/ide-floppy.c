@@ -397,7 +397,7 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 	u16 bcount;
 	u8 stat, ireason;
 
-	debug_log("Reached %s interrupt handler\n", __func__);
+	debug_log("Enter %s - interrupt handler\n", __func__);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
 		dma_error = hwif->dma_ops->dma_end(drive);
@@ -409,7 +409,7 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 			pc->xferred = pc->req_xfer;
 			idefloppy_update_buffers(drive, pc);
 		}
-		debug_log("DMA finished\n");
+		debug_log("%s: DMA finished\n", drive->name);
 	}
 
 	/* Clear the interrupt */
@@ -432,6 +432,9 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 						" command\n", drive->name);
 				return ide_do_reset(drive);
 			}
+
+			debug_log("[cmd %x]: check condition\n", pc->c[0]);
+
 			/* Retry operation */
 			idefloppy_retry_pc(drive);
 			/* queued, but not started */
@@ -504,6 +507,9 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 	/* Update the current position */
 	pc->xferred += bcount;
 	pc->cur_pos += bcount;
+
+	debug_log("[cmd %x] transferred %d bytes on that intr.\n",
+		  pc->c[0], bcount);
 
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, &idefloppy_pc_intr, IDEFLOPPY_WAIT_CMD, NULL);
