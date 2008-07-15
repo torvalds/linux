@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
-
 #include <linux/mv643xx.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>

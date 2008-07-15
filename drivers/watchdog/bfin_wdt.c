@@ -24,8 +24,8 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <asm/blackfin.h>
 #include <linux/uaccess.h>
+#include <asm/blackfin.h>
 
 #define stamp(fmt, args...) pr_debug("%s:%i: " fmt "\n", __func__, __LINE__, ## args)
 #define stampit() stamp("here i am")

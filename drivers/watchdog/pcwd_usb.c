@@ -40,8 +40,7 @@
 #include <linux/slab.h>		/* For kmalloc, ... */
 #include <linux/mutex.h>	/* For mutex locking */
 #include <linux/hid.h>		/* For HID_REQ_SET_REPORT & HID_DT_REPORT */
-
-#include <asm/uaccess.h>	/* For copy_to_user/put_user/... */
+#include <linux/uaccess.h>	/* For copy_to_user/put_user/... */
 
 
 #ifdef CONFIG_USB_DEBUG

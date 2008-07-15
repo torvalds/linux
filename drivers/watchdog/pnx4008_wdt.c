@@ -28,10 +28,10 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/spinlock.h>
-
-#include <asm/hardware.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+
+#include <asm/hardware.h>
 
 #define MODULE_NAME "PNX4008-WDT: "
 

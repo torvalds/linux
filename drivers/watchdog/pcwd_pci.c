@@ -46,9 +46,8 @@
 #include <linux/pci.h>		/* For pci functions */
 #include <linux/ioport.h>	/* For io-port access */
 #include <linux/spinlock.h>	/* For spin_lock/spin_unlock/... */
-
-#include <asm/uaccess.h>	/* For copy_to_user/put_user/... */
-#include <asm/io.h>		/* For inb/outb/... */
+#include <linux/uaccess.h>	/* For copy_to_user/put_user/... */
+#include <linux/io.h>		/* For inb/outb/... */
 
 /* Module and version information */
 #define WATCHDOG_VERSION "1.03"

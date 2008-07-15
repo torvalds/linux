@@ -41,9 +41,9 @@
 #include <linux/spinlock.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
-
 #include <linux/io.h>
 #include <linux/uaccess.h>
+
 #include <asm/system.h>
 
 static struct platform_device *ibwdt_platform_device;

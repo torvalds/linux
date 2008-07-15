@@ -31,7 +31,6 @@
 #include <linux/kernel.h>		/* For printk/panic/... */
 #include <linux/init.h>			/* For __init/__exit/... */
 #include <linux/ioport.h>		/* For io-port access */
-
 #include <linux/io.h>			/* For inb/outb/... */
 
 #include "iTCO_vendor.h"

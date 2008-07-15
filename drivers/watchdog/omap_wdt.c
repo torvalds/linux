@@ -40,8 +40,7 @@
 #include <linux/moduleparam.h>
 #include <linux/clk.h>
 #include <linux/bitops.h>
-
-#include </io.h>
+#include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/hardware.h>
 

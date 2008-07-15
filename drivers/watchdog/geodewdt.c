@@ -17,8 +17,8 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
 #include <asm/geode.h>
 
 #define GEODEWDT_HZ 500
