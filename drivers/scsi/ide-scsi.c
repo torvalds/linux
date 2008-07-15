@@ -427,7 +427,15 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		printk(KERN_ERR "ide-scsi: CoD != 0 in idescsi_pc_intr\n");
 		return ide_do_reset (drive);
 	}
-	if (ireason & IO) {
+	if (((ireason & IO) == IO) == !!(pc->flags & PC_FLAG_WRITING)) {
+		/* Hopefully, we will never get here */
+		printk(KERN_ERR "%s: We wanted to %s, but the device wants us "
+				"to %s!\n", drive->name,
+				(ireason & IO) ? "Write" : "Read",
+				(ireason & IO) ? "Read" : "Write");
+		return ide_do_reset(drive);
+	}
+	if (!(pc->flags & PC_FLAG_WRITING)) {
 		temp = pc->xferred + bcount;
 		if (temp > pc->req_xfer) {
 			if (temp > pc->buf_size) {
@@ -436,7 +444,6 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 					"- discarding data\n");
 				temp = pc->buf_size - pc->xferred;
 				if (temp) {
-					pc->flags &= ~PC_FLAG_WRITING;
 					if (pc->sg)
 						idescsi_input_buffers(drive, pc,
 									temp);
@@ -457,15 +464,11 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 			printk (KERN_NOTICE "ide-scsi: The scsi wants to send us more data than expected - allowing transfer\n");
 #endif /* IDESCSI_DEBUG_LOG */
 		}
-	}
-	if (ireason & IO) {
-		pc->flags &= ~PC_FLAG_WRITING;
 		if (pc->sg)
 			idescsi_input_buffers(drive, pc, bcount);
 		else
 			hwif->input_data(drive, NULL, pc->cur_pos, bcount);
 	} else {
-		pc->flags |= PC_FLAG_WRITING;
 		if (pc->sg)
 			idescsi_output_buffers(drive, pc, bcount);
 		else
@@ -777,6 +780,8 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 
 	memset (pc->c, 0, 12);
 	pc->flags = 0;
+	if (cmd->sc_data_direction == DMA_TO_DEVICE)
+		pc->flags |= PC_FLAG_WRITING;
 	pc->rq = rq;
 	memcpy (pc->c, cmd->cmnd, cmd->cmd_len);
 	pc->buf = NULL;
