@@ -908,7 +908,8 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			       attr->path_mtu);
 			goto out;
 		}
-		context->mtu_msgmax = (attr->path_mtu << 5) | 31;
+		context->mtu_msgmax = (attr->path_mtu << 5) |
+			ilog2(dev->dev->caps.max_msg_sz);
 	}
 
 	if (qp->rq.wqe_cnt)
