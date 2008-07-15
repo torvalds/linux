@@ -106,6 +106,11 @@
 #define AT91_MPBS0_SFR		(AT91_MATRIX + 0x114)	/* MPBlock Slave 0 Special Function Register */
 #define AT91_MPBS1_SFR		(AT91_MATRIX + 0x11C)	/* MPBlock Slave 1 Special Function Register */
 
+#define AT91_MATRIX_UDPHS	(AT91_MATRIX + 0x118)	/* USBHS Special Function Register [AT91CAP9 only] */
+#define		AT91_MATRIX_SELECT_UDPHS	(0 << 31)	/* select High Speed UDP */
+#define		AT91_MATRIX_SELECT_UDP		(1 << 31)	/* select standard UDP */
+#define		AT91_MATRIX_UDPHS_BYPASS_LOCK	(1 << 30)	/* bypass lock bit */
+
 #define AT91_MATRIX_EBICSA	(AT91_MATRIX + 0x120)	/* EBI Chip Select Assignment Register */
 #define		AT91_MATRIX_EBI_CS1A		(1 << 1)	/* Chip Select 1 Assignment */
 #define			AT91_MATRIX_EBI_CS1A_SMC		(0 << 1)

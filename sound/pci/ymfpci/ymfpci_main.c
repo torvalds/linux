@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/mutex.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -1993,55 +1994,6 @@ static void snd_ymfpci_disable_dsp(struct snd_ymfpci *chip)
 	}
 }
 
-#ifdef CONFIG_SND_YMFPCI_FIRMWARE_IN_KERNEL
-
-#include "ymfpci_image.h"
-
-static struct firmware snd_ymfpci_dsp_microcode = {
-	.size = YDSXG_DSPLENGTH,
-	.data = (u8 *)DspInst,
-};
-static struct firmware snd_ymfpci_controller_microcode = {
-	.size = YDSXG_CTRLLENGTH,
-	.data = (u8 *)CntrlInst,
-};
-static struct firmware snd_ymfpci_controller_1e_microcode = {
-	.size = YDSXG_CTRLLENGTH,
-	.data = (u8 *)CntrlInst1E,
-};
-#endif
-
-#ifdef CONFIG_SND_YMFPCI_FIRMWARE_IN_KERNEL
-static int snd_ymfpci_request_firmware(struct snd_ymfpci *chip)
-{
-	chip->dsp_microcode = &snd_ymfpci_dsp_microcode;
-	if (chip->device_id == PCI_DEVICE_ID_YAMAHA_724F ||
-	    chip->device_id == PCI_DEVICE_ID_YAMAHA_740C ||
-	    chip->device_id == PCI_DEVICE_ID_YAMAHA_744 ||
-	    chip->device_id == PCI_DEVICE_ID_YAMAHA_754)
-		chip->controller_microcode =
-			&snd_ymfpci_controller_1e_microcode;
-	else
-		chip->controller_microcode =
-			&snd_ymfpci_controller_microcode;
-	return 0;
-}
-
-#else /* use fw_loader */
-
-#ifdef __LITTLE_ENDIAN
-static inline void snd_ymfpci_convert_from_le(const struct firmware *fw) { }
-#else
-static void snd_ymfpci_convert_from_le(const struct firmware *fw)
-{
-	int i;
-	u32 *data = (u32 *)fw->data;
-
-	for (i = 0; i < fw->size / 4; ++i)
-		le32_to_cpus(&data[i]);
-}
-#endif
-
 static int snd_ymfpci_request_firmware(struct snd_ymfpci *chip)
 {
 	int err, is_1e;
@@ -2050,9 +2002,7 @@ static int snd_ymfpci_request_firmware(struct snd_ymfpci *chip)
 	err = request_firmware(&chip->dsp_microcode, "yamaha/ds1_dsp.fw",
 			       &chip->pci->dev);
 	if (err >= 0) {
-		if (chip->dsp_microcode->size == YDSXG_DSPLENGTH)
-			snd_ymfpci_convert_from_le(chip->dsp_microcode);
-		else {
+		if (chip->dsp_microcode->size != YDSXG_DSPLENGTH) {
 			snd_printk(KERN_ERR "DSP microcode has wrong size\n");
 			err = -EINVAL;
 		}
@@ -2067,9 +2017,7 @@ static int snd_ymfpci_request_firmware(struct snd_ymfpci *chip)
 	err = request_firmware(&chip->controller_microcode, name,
 			       &chip->pci->dev);
 	if (err >= 0) {
-		if (chip->controller_microcode->size == YDSXG_CTRLLENGTH)
-			snd_ymfpci_convert_from_le(chip->controller_microcode);
-		else {
+		if (chip->controller_microcode->size != YDSXG_CTRLLENGTH) {
 			snd_printk(KERN_ERR "controller microcode"
 				   " has wrong size\n");
 			err = -EINVAL;
@@ -2084,13 +2032,11 @@ MODULE_FIRMWARE("yamaha/ds1_dsp.fw");
 MODULE_FIRMWARE("yamaha/ds1_ctrl.fw");
 MODULE_FIRMWARE("yamaha/ds1e_ctrl.fw");
 
-#endif
-
 static void snd_ymfpci_download_image(struct snd_ymfpci *chip)
 {
 	int i;
 	u16 ctrl;
-	u32 *inst;
+	const __le32 *inst;
 
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEDACOUTVOL, 0x00000000);
 	snd_ymfpci_disable_dsp(chip);
@@ -2105,14 +2051,16 @@ static void snd_ymfpci_download_image(struct snd_ymfpci *chip)
 	snd_ymfpci_writew(chip, YDSXGR_GLOBALCTRL, ctrl & ~0x0007);
 
 	/* setup DSP instruction code */
-	inst = (u32 *)chip->dsp_microcode->data;
+	inst = (const __le32 *)chip->dsp_microcode->data;
 	for (i = 0; i < YDSXG_DSPLENGTH / 4; i++)
-		snd_ymfpci_writel(chip, YDSXGR_DSPINSTRAM + (i << 2), inst[i]);
+		snd_ymfpci_writel(chip, YDSXGR_DSPINSTRAM + (i << 2),
+				  le32_to_cpu(inst[i]));
 
 	/* setup control instruction code */
-	inst = (u32 *)chip->controller_microcode->data;
+	inst = (const __le32 *)chip->controller_microcode->data;
 	for (i = 0; i < YDSXG_CTRLLENGTH / 4; i++)
-		snd_ymfpci_writel(chip, YDSXGR_CTRLINSTRAM + (i << 2), inst[i]);
+		snd_ymfpci_writel(chip, YDSXGR_CTRLINSTRAM + (i << 2),
+				  le32_to_cpu(inst[i]));
 
 	snd_ymfpci_enable_dsp(chip);
 }
@@ -2205,6 +2153,7 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 	for (reg = 0x80; reg < 0xc0; reg += 4)
 		snd_ymfpci_writel(chip, reg, 0);
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEDACOUTVOL, 0x3fff3fff);
+	snd_ymfpci_writel(chip, YDSXGR_BUF441OUTVOL, 0x3fff3fff);
 	snd_ymfpci_writel(chip, YDSXGR_ZVOUTVOL, 0x3fff3fff);
 	snd_ymfpci_writel(chip, YDSXGR_SPDIFOUTVOL, 0x3fff3fff);
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEADCINVOL, 0x3fff3fff);
@@ -2264,10 +2213,8 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 	pci_write_config_word(chip->pci, 0x40, chip->old_legacy_ctrl);
 	
 	pci_disable_device(chip->pci);
-#ifndef CONFIG_SND_YMFPCI_FIRMWARE_IN_KERNEL
 	release_firmware(chip->dsp_microcode);
 	release_firmware(chip->controller_microcode);
-#endif
 	kfree(chip);
 	return 0;
 }
@@ -2324,6 +2271,7 @@ int snd_ymfpci_suspend(struct pci_dev *pci, pm_message_t state)
 		chip->saved_regs[i] = snd_ymfpci_readl(chip, saved_regs_index[i]);
 	chip->saved_ydsxgr_mode = snd_ymfpci_readl(chip, YDSXGR_MODE);
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEDACOUTVOL, 0);
+	snd_ymfpci_writel(chip, YDSXGR_BUF441OUTVOL, 0);
 	snd_ymfpci_disable_dsp(chip);
 	pci_disable_device(pci);
 	pci_save_state(pci);

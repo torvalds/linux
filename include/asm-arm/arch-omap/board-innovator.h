@@ -36,9 +36,6 @@
 #define OMAP1510P1_EMIFS_PRI_VALUE		0x00
 #define OMAP1510P1_EMIFF_PRI_VALUE		0x00
 
-#define NR_FPGA_IRQS		24
-#define NR_IRQS                 (IH_BOARD_BASE + NR_FPGA_IRQS)
-
 #ifndef __ASSEMBLY__
 void fpga_write(unsigned char val, int reg);
 unsigned char fpga_read(int reg);

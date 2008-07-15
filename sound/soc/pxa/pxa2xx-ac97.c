@@ -283,7 +283,7 @@ static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_mic_mono_in = {
 
 #ifdef CONFIG_PM
 static int pxa2xx_ac97_suspend(struct platform_device *pdev,
-	struct snd_soc_cpu_dai *dai)
+	struct snd_soc_dai *dai)
 {
 	GCR |= GCR_ACLINK_OFF;
 	clk_disable(ac97_clk);
@@ -291,7 +291,7 @@ static int pxa2xx_ac97_suspend(struct platform_device *pdev,
 }
 
 static int pxa2xx_ac97_resume(struct platform_device *pdev,
-	struct snd_soc_cpu_dai *dai)
+	struct snd_soc_dai *dai)
 {
 	pxa_gpio_mode(GPIO31_SYNC_AC97_MD);
 	pxa_gpio_mode(GPIO30_SDATA_OUT_AC97_MD);
@@ -310,7 +310,8 @@ static int pxa2xx_ac97_resume(struct platform_device *pdev,
 #define pxa2xx_ac97_resume	NULL
 #endif
 
-static int pxa2xx_ac97_probe(struct platform_device *pdev)
+static int pxa2xx_ac97_probe(struct platform_device *pdev,
+			     struct snd_soc_dai *dai)
 {
 	int ret;
 
@@ -355,7 +356,8 @@ static int pxa2xx_ac97_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static void pxa2xx_ac97_remove(struct platform_device *pdev)
+static void pxa2xx_ac97_remove(struct platform_device *pdev,
+			       struct snd_soc_dai *dai)
 {
 	GCR |= GCR_ACLINK_OFF;
 	free_irq(IRQ_AC97, NULL);
@@ -372,7 +374,7 @@ static int pxa2xx_ac97_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		cpu_dai->dma_data = &pxa2xx_ac97_pcm_stereo_out;
@@ -386,7 +388,7 @@ static int pxa2xx_ac97_hw_aux_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		cpu_dai->dma_data = &pxa2xx_ac97_pcm_aux_mono_out;
@@ -400,7 +402,7 @@ static int pxa2xx_ac97_hw_mic_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
@@ -418,7 +420,7 @@ static int pxa2xx_ac97_hw_mic_params(struct snd_pcm_substream *substream,
  * There is only 1 physical AC97 interface for pxa2xx, but it
  * has extra fifo's that can be used for aux DACs and ADCs.
  */
-struct snd_soc_cpu_dai pxa_ac97_dai[] = {
+struct snd_soc_dai pxa_ac97_dai[] = {
 {
 	.name = "pxa2xx-ac97",
 	.id = 0,

@@ -51,14 +51,15 @@
 #include <asm/percpu.h>
 #include <asm/dwarf2.h>
 #include <asm/processor-flags.h>
-#include "irq_vectors.h"
+#include <asm/ftrace.h>
+#include <asm/irq_vectors.h>
 
 /*
  * We use macros for low-level operations which need to be overridden
  * for paravirtualization.  The following will never clobber any registers:
  *   INTERRUPT_RETURN (aka. "iret")
  *   GET_CR0_INTO_EAX (aka. "movl %cr0, %eax")
- *   ENABLE_INTERRUPTS_SYSCALL_RET (aka "sti; sysexit").
+ *   ENABLE_INTERRUPTS_SYSEXIT (aka "sti; sysexit").
  *
  * For DISABLE_INTERRUPTS/ENABLE_INTERRUPTS (aka "cli"/"sti"), you must
  * specify what registers can be overwritten (CLBR_NONE, CLBR_EAX/EDX/ECX/ANY).
@@ -349,7 +350,7 @@ sysenter_past_esp:
 	xorl %ebp,%ebp
 	TRACE_IRQS_ON
 1:	mov  PT_FS(%esp), %fs
-	ENABLE_INTERRUPTS_SYSCALL_RET
+	ENABLE_INTERRUPTS_SYSEXIT
 	CFI_ENDPROC
 .pushsection .fixup,"ax"
 2:	movl $0,PT_FS(%esp)
@@ -874,10 +875,10 @@ ENTRY(native_iret)
 .previous
 END(native_iret)
 
-ENTRY(native_irq_enable_syscall_ret)
+ENTRY(native_irq_enable_sysexit)
 	sti
 	sysexit
-END(native_irq_enable_syscall_ret)
+END(native_irq_enable_sysexit)
 #endif
 
 KPROBE_ENTRY(int3)
@@ -1024,6 +1025,7 @@ ENTRY(xen_sysenter_target)
 	RING0_INT_FRAME
 	addl $5*4, %esp		/* remove xen-provided frame */
 	jmp sysenter_past_esp
+	CFI_ENDPROC
 
 ENTRY(xen_hypervisor_callback)
 	CFI_STARTPROC
@@ -1109,6 +1111,77 @@ ENTRY(xen_failsafe_callback)
 ENDPROC(xen_failsafe_callback)
 
 #endif	/* CONFIG_XEN */
+
+#ifdef CONFIG_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+ENTRY(mcount)
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl 0xc(%esp), %eax
+	subl $MCOUNT_INSN_SIZE, %eax
+
+.globl mcount_call
+mcount_call:
+	call ftrace_stub
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+	ret
+END(mcount)
+
+ENTRY(ftrace_caller)
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl 0xc(%esp), %eax
+	movl 0x4(%ebp), %edx
+	subl $MCOUNT_INSN_SIZE, %eax
+
+.globl ftrace_call
+ftrace_call:
+	call ftrace_stub
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+.globl ftrace_stub
+ftrace_stub:
+	ret
+END(ftrace_caller)
+
+#else /* ! CONFIG_DYNAMIC_FTRACE */
+
+ENTRY(mcount)
+	cmpl $ftrace_stub, ftrace_trace_function
+	jnz trace
+.globl ftrace_stub
+ftrace_stub:
+	ret
+
+	/* taken from glibc */
+trace:
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl 0xc(%esp), %eax
+	movl 0x4(%ebp), %edx
+	subl $MCOUNT_INSN_SIZE, %eax
+
+	call *ftrace_trace_function
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+	jmp ftrace_stub
+END(mcount)
+#endif /* CONFIG_DYNAMIC_FTRACE */
+#endif /* CONFIG_FTRACE */
 
 .section .rodata,"a"
 #include "syscall_table_32.S"

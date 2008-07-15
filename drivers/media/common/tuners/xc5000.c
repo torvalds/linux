@@ -278,7 +278,7 @@ static int xc_read_reg(struct xc5000_priv *priv, u16 regAddr, u16 *i2cData)
 	return result;
 }
 
-static int xc_load_i2c_sequence(struct dvb_frontend *fe, u8 i2c_sequence[])
+static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 

@@ -9,7 +9,8 @@
  *	      James Morris <jmorris@redhat.com>
  *
  *  Copyright (C) 2001,2002 Networks Associates Technology, Inc.
- *  Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
+ *  Copyright (C) 2003-2008 Red Hat, Inc., James Morris <jmorris@redhat.com>
+ *					   Eric Paris <eparis@redhat.com>
  *  Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
  *			    <dgoeddel@trustedcs.com>
  *  Copyright (C) 2006, 2007 Hewlett-Packard Development Company, L.P.
@@ -42,9 +43,7 @@
 #include <linux/fdtable.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
-#include <linux/ext2_fs.h>
 #include <linux/proc_fs.h>
-#include <linux/kd.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include <linux/tty.h>
@@ -53,7 +52,7 @@
 #include <net/tcp.h>		/* struct or_callable used in sock_rcv_skb */
 #include <net/net_namespace.h>
 #include <net/netlabel.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ioctls.h>
 #include <asm/atomic.h>
 #include <linux/bitops.h>
@@ -104,7 +103,9 @@ int selinux_enforcing;
 
 static int __init enforcing_setup(char *str)
 {
-	selinux_enforcing = simple_strtol(str, NULL, 0);
+	unsigned long enforcing;
+	if (!strict_strtoul(str, 0, &enforcing))
+		selinux_enforcing = enforcing ? 1 : 0;
 	return 1;
 }
 __setup("enforcing=", enforcing_setup);
@@ -115,7 +116,9 @@ int selinux_enabled = CONFIG_SECURITY_SELINUX_BOOTPARAM_VALUE;
 
 static int __init selinux_enabled_setup(char *str)
 {
-	selinux_enabled = simple_strtol(str, NULL, 0);
+	unsigned long enabled;
+	if (!strict_strtoul(str, 0, &enabled))
+		selinux_enabled = enabled ? 1 : 0;
 	return 1;
 }
 __setup("selinux=", selinux_enabled_setup);
@@ -123,13 +126,11 @@ __setup("selinux=", selinux_enabled_setup);
 int selinux_enabled = 1;
 #endif
 
-/* Original (dummy) security module. */
-static struct security_operations *original_ops;
 
-/* Minimal support for a secondary security module,
-   just to allow the use of the dummy or capability modules.
-   The owlsm module can alternatively be used as a secondary
-   module as long as CONFIG_OWLSM_FD is not enabled. */
+/*
+ * Minimal support for a secondary security module,
+ * just to allow the use of the capability module.
+ */
 static struct security_operations *secondary_ops;
 
 /* Lists of inode and superblock security structures initialized
@@ -554,13 +555,15 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	struct task_security_struct *tsec = current->security;
 	struct superblock_security_struct *sbsec = sb->s_security;
 	const char *name = sb->s_type->name;
-	struct inode *inode = sbsec->sb->s_root->d_inode;
-	struct inode_security_struct *root_isec = inode->i_security;
+	struct dentry *root = sb->s_root;
+	struct inode *root_inode = root->d_inode;
+	struct inode_security_struct *root_isec = root_inode->i_security;
 	u32 fscontext_sid = 0, context_sid = 0, rootcontext_sid = 0;
 	u32 defcontext_sid = 0;
 	char **mount_options = opts->mnt_opts;
 	int *flags = opts->mnt_opts_flags;
 	int num_opts = opts->num_mnt_opts;
+	bool can_xattr = false;
 
 	mutex_lock(&sbsec->lock);
 
@@ -594,7 +597,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	 */
 	if (sbsec->initialized && (sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)
 	    && (num_opts == 0))
-	        goto out;
+		goto out;
 
 	/*
 	 * parse the mount options, check if they are valid sids.
@@ -664,14 +667,24 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 		goto out;
 	}
 
-	if (strcmp(sb->s_type->name, "proc") == 0)
+	if (strcmp(name, "proc") == 0)
 		sbsec->proc = 1;
 
+	/*
+	 * test if the fs supports xattrs, fs_use might make use of this if the
+	 * fs has no definition in policy.
+	 */
+	if (root_inode->i_op->getxattr) {
+		rc = root_inode->i_op->getxattr(root, XATTR_NAME_SELINUX, NULL, 0);
+		if (rc >= 0 || rc == -ENODATA)
+			can_xattr = true;
+	}
+
 	/* Determine the labeling behavior to use for this filesystem type. */
-	rc = security_fs_use(sb->s_type->name, &sbsec->behavior, &sbsec->sid);
+	rc = security_fs_use(name, &sbsec->behavior, &sbsec->sid, can_xattr);
 	if (rc) {
 		printk(KERN_WARNING "%s: security_fs_use(%s) returned %d\n",
-		       __func__, sb->s_type->name, rc);
+		       __func__, name, rc);
 		goto out;
 	}
 
@@ -953,6 +966,57 @@ out:
 
 out_err:
 	security_free_mnt_opts(&opts);
+	return rc;
+}
+
+void selinux_write_opts(struct seq_file *m, struct security_mnt_opts *opts)
+{
+	int i;
+	char *prefix;
+
+	for (i = 0; i < opts->num_mnt_opts; i++) {
+		char *has_comma = strchr(opts->mnt_opts[i], ',');
+
+		switch (opts->mnt_opts_flags[i]) {
+		case CONTEXT_MNT:
+			prefix = CONTEXT_STR;
+			break;
+		case FSCONTEXT_MNT:
+			prefix = FSCONTEXT_STR;
+			break;
+		case ROOTCONTEXT_MNT:
+			prefix = ROOTCONTEXT_STR;
+			break;
+		case DEFCONTEXT_MNT:
+			prefix = DEFCONTEXT_STR;
+			break;
+		default:
+			BUG();
+		};
+		/* we need a comma before each option */
+		seq_putc(m, ',');
+		seq_puts(m, prefix);
+		if (has_comma)
+			seq_putc(m, '\"');
+		seq_puts(m, opts->mnt_opts[i]);
+		if (has_comma)
+			seq_putc(m, '\"');
+	}
+}
+
+static int selinux_sb_show_options(struct seq_file *m, struct super_block *sb)
+{
+	struct security_mnt_opts opts;
+	int rc;
+
+	rc = selinux_get_mnt_opts(sb, &opts);
+	if (rc)
+		return rc;
+
+	selinux_write_opts(m, &opts);
+
+	security_free_mnt_opts(&opts);
+
 	return rc;
 }
 
@@ -1682,13 +1746,22 @@ static inline u32 file_to_av(struct file *file)
 
 /* Hook functions begin here. */
 
-static int selinux_ptrace(struct task_struct *parent, struct task_struct *child)
+static int selinux_ptrace(struct task_struct *parent,
+			  struct task_struct *child,
+			  unsigned int mode)
 {
 	int rc;
 
-	rc = secondary_ops->ptrace(parent, child);
+	rc = secondary_ops->ptrace(parent, child, mode);
 	if (rc)
 		return rc;
+
+	if (mode == PTRACE_MODE_READ) {
+		struct task_security_struct *tsec = parent->security;
+		struct task_security_struct *csec = child->security;
+		return avc_has_perm(tsec->sid, csec->sid,
+				    SECCLASS_FILE, FILE__READ, NULL);
+	}
 
 	return task_has_perm(parent, child, PROCESS__PTRACE);
 }
@@ -2495,7 +2568,7 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	}
 
 	if (value && len) {
-		rc = security_sid_to_context(newsid, &context, &clen);
+		rc = security_sid_to_context_force(newsid, &context, &clen);
 		if (rc) {
 			kfree(namep);
 			return rc;
@@ -2669,6 +2742,11 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 		return rc;
 
 	rc = security_context_to_sid(value, size, &newsid);
+	if (rc == -EINVAL) {
+		if (!capable(CAP_MAC_ADMIN))
+			return rc;
+		rc = security_context_to_sid_force(value, size, &newsid);
+	}
 	if (rc)
 		return rc;
 
@@ -2690,7 +2768,7 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 }
 
 static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
-                                        const void *value, size_t size,
+					const void *value, size_t size,
 					int flags)
 {
 	struct inode *inode = dentry->d_inode;
@@ -2703,10 +2781,11 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
 		return;
 	}
 
-	rc = security_context_to_sid(value, size, &newsid);
+	rc = security_context_to_sid_force(value, size, &newsid);
 	if (rc) {
-		printk(KERN_WARNING "%s:  unable to obtain SID for context "
-		       "%s, rc=%d\n", __func__, (char *)value, -rc);
+		printk(KERN_ERR "SELinux:  unable to map context to SID"
+		       "for (%s, %lu), rc=%d\n",
+		       inode->i_sb->s_id, inode->i_ino, -rc);
 		return;
 	}
 
@@ -2735,9 +2814,7 @@ static int selinux_inode_removexattr(struct dentry *dentry, const char *name)
 }
 
 /*
- * Copy the in-core inode security context value to the user.  If the
- * getxattr() prior to this succeeded, check to see if we need to
- * canonicalize the value to be finally returned to the user.
+ * Copy the inode security context value to the user.
  *
  * Permission check is handled by selinux_inode_getxattr hook.
  */
@@ -2746,12 +2823,33 @@ static int selinux_inode_getsecurity(const struct inode *inode, const char *name
 	u32 size;
 	int error;
 	char *context = NULL;
+	struct task_security_struct *tsec = current->security;
 	struct inode_security_struct *isec = inode->i_security;
 
 	if (strcmp(name, XATTR_SELINUX_SUFFIX))
 		return -EOPNOTSUPP;
 
-	error = security_sid_to_context(isec->sid, &context, &size);
+	/*
+	 * If the caller has CAP_MAC_ADMIN, then get the raw context
+	 * value even if it is not defined by current policy; otherwise,
+	 * use the in-core value under current policy.
+	 * Use the non-auditing forms of the permission checks since
+	 * getxattr may be called by unprivileged processes commonly
+	 * and lack of permission just means that we fall back to the
+	 * in-core context value, not a denial.
+	 */
+	error = secondary_ops->capable(current, CAP_MAC_ADMIN);
+	if (!error)
+		error = avc_has_perm_noaudit(tsec->sid, tsec->sid,
+					     SECCLASS_CAPABILITY2,
+					     CAPABILITY2__MAC_ADMIN,
+					     0,
+					     NULL);
+	if (!error)
+		error = security_sid_to_context_force(isec->sid, &context,
+						      &size);
+	else
+		error = security_sid_to_context(isec->sid, &context, &size);
 	if (error)
 		return error;
 	error = size;
@@ -2865,46 +2963,16 @@ static void selinux_file_free_security(struct file *file)
 static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
-	int error = 0;
+	u32 av = 0;
 
-	switch (cmd) {
-	case FIONREAD:
-	/* fall through */
-	case FIBMAP:
-	/* fall through */
-	case FIGETBSZ:
-	/* fall through */
-	case EXT2_IOC_GETFLAGS:
-	/* fall through */
-	case EXT2_IOC_GETVERSION:
-		error = file_has_perm(current, file, FILE__GETATTR);
-		break;
+	if (_IOC_DIR(cmd) & _IOC_WRITE)
+		av |= FILE__WRITE;
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		av |= FILE__READ;
+	if (!av)
+		av = FILE__IOCTL;
 
-	case EXT2_IOC_SETFLAGS:
-	/* fall through */
-	case EXT2_IOC_SETVERSION:
-		error = file_has_perm(current, file, FILE__SETATTR);
-		break;
-
-	/* sys_ioctl() checks */
-	case FIONBIO:
-	/* fall through */
-	case FIOASYNC:
-		error = file_has_perm(current, file, 0);
-		break;
-
-	case KDSKBENT:
-	case KDSKBSENT:
-		error = task_has_capability(current, CAP_SYS_TTY_CONFIG);
-		break;
-
-	/* default case assumes that the command will go
-	 * to the file's ioctl() function.
-	 */
-	default:
-		error = file_has_perm(current, file, FILE__IOCTL);
-	}
-	return error;
+	return file_has_perm(current, file, av);
 }
 
 static int file_map_prot_check(struct file *file, unsigned long prot, int shared)
@@ -3663,7 +3731,7 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		struct sockaddr_in6 *addr6 = NULL;
 		unsigned short snum;
 		struct sock *sk = sock->sk;
-		u32 sid, node_perm, addrlen;
+		u32 sid, node_perm;
 
 		tsec = current->security;
 		isec = SOCK_INODE(sock)->i_security;
@@ -3671,12 +3739,10 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		if (family == PF_INET) {
 			addr4 = (struct sockaddr_in *)address;
 			snum = ntohs(addr4->sin_port);
-			addrlen = sizeof(addr4->sin_addr.s_addr);
 			addrp = (char *)&addr4->sin_addr.s_addr;
 		} else {
 			addr6 = (struct sockaddr_in6 *)address;
 			snum = ntohs(addr6->sin6_port);
-			addrlen = sizeof(addr6->sin6_addr.s6_addr);
 			addrp = (char *)&addr6->sin6_addr.s6_addr;
 		}
 
@@ -5047,24 +5113,6 @@ static void selinux_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
 	*secid = isec->sid;
 }
 
-/* module stacking operations */
-static int selinux_register_security(const char *name, struct security_operations *ops)
-{
-	if (secondary_ops != original_ops) {
-		printk(KERN_ERR "%s:  There is already a secondary security "
-		       "module registered.\n", __func__);
-		return -EINVAL;
-	}
-
-	secondary_ops = ops;
-
-	printk(KERN_INFO "%s:  Registering secondary module %s\n",
-	       __func__,
-	       name);
-
-	return 0;
-}
-
 static void selinux_d_instantiate(struct dentry *dentry, struct inode *inode)
 {
 	if (inode)
@@ -5153,6 +5201,12 @@ static int selinux_setprocattr(struct task_struct *p,
 			size--;
 		}
 		error = security_context_to_sid(value, size, &sid);
+		if (error == -EINVAL && !strcmp(name, "fscreate")) {
+			if (!capable(CAP_MAC_ADMIN))
+				return error;
+			error = security_context_to_sid_force(value, size,
+							      &sid);
+		}
 		if (error)
 			return error;
 	}
@@ -5186,12 +5240,12 @@ static int selinux_setprocattr(struct task_struct *p,
 			struct task_struct *g, *t;
 			struct mm_struct *mm = p->mm;
 			read_lock(&tasklist_lock);
-			do_each_thread(g, t)
+			do_each_thread(g, t) {
 				if (t->mm == mm && t != p) {
 					read_unlock(&tasklist_lock);
 					return -EPERM;
 				}
-			while_each_thread(g, t);
+			} while_each_thread(g, t);
 			read_unlock(&tasklist_lock);
 		}
 
@@ -5343,10 +5397,10 @@ static struct security_operations selinux_ops = {
 	.sb_free_security =		selinux_sb_free_security,
 	.sb_copy_data =			selinux_sb_copy_data,
 	.sb_kern_mount =		selinux_sb_kern_mount,
+	.sb_show_options =		selinux_sb_show_options,
 	.sb_statfs =			selinux_sb_statfs,
 	.sb_mount =			selinux_mount,
 	.sb_umount =			selinux_umount,
-	.sb_get_mnt_opts =		selinux_get_mnt_opts,
 	.sb_set_mnt_opts =		selinux_set_mnt_opts,
 	.sb_clone_mnt_opts =		selinux_sb_clone_mnt_opts,
 	.sb_parse_opts_str = 		selinux_parse_opts_str,
@@ -5378,7 +5432,7 @@ static struct security_operations selinux_ops = {
 	.inode_listsecurity =		selinux_inode_listsecurity,
 	.inode_need_killpriv =		selinux_inode_need_killpriv,
 	.inode_killpriv =		selinux_inode_killpriv,
-	.inode_getsecid =               selinux_inode_getsecid,
+	.inode_getsecid =		selinux_inode_getsecid,
 
 	.file_permission =		selinux_file_permission,
 	.file_alloc_security =		selinux_file_alloc_security,
@@ -5419,7 +5473,7 @@ static struct security_operations selinux_ops = {
 	.task_to_inode =		selinux_task_to_inode,
 
 	.ipc_permission =		selinux_ipc_permission,
-	.ipc_getsecid =                 selinux_ipc_getsecid,
+	.ipc_getsecid =			selinux_ipc_getsecid,
 
 	.msg_msg_alloc_security =	selinux_msg_msg_alloc_security,
 	.msg_msg_free_security =	selinux_msg_msg_free_security,
@@ -5442,8 +5496,6 @@ static struct security_operations selinux_ops = {
 	.sem_associate =		selinux_sem_associate,
 	.sem_semctl =			selinux_sem_semctl,
 	.sem_semop =			selinux_sem_semop,
-
-	.register_security =		selinux_register_security,
 
 	.d_instantiate =		selinux_d_instantiate,
 
@@ -5538,7 +5590,7 @@ static __init int selinux_init(void)
 					    0, SLAB_PANIC, NULL);
 	avc_init();
 
-	original_ops = secondary_ops = security_ops;
+	secondary_ops = security_ops;
 	if (!secondary_ops)
 		panic("SELinux: No initial security operations\n");
 	if (register_security(&selinux_ops))

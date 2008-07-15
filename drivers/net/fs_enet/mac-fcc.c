@@ -463,6 +463,9 @@ static void restart(struct net_device *dev)
 	else
 		C32(fccp, fcc_fpsmr, FCC_PSMR_FDE | FCC_PSMR_LPB);
 
+	/* Restore multicast and promiscuous settings */
+	set_multicast_list(dev);
+
 	S32(fccp, fcc_gfmr, FCC_GFMR_ENR | FCC_GFMR_ENT);
 }
 

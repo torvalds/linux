@@ -122,7 +122,7 @@ static inline void if_cs_write16(struct if_cs_card *card, uint reg, u16 val)
 static inline void if_cs_write16_rep(
 	struct if_cs_card *card,
 	uint reg,
-	void *buf,
+	const void *buf,
 	unsigned long count)
 {
 	if (debug_output)

@@ -225,10 +225,6 @@ static int ns87415_dma_setup(ide_drive_t *drive)
 	return 1;
 }
 
-#ifndef ide_default_irq
-#define ide_default_irq(irq) 0
-#endif
-
 static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -288,7 +284,7 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	}
 
 	if (!using_inta)
-		hwif->irq = ide_default_irq(hwif->io_ports.data_addr);
+		hwif->irq = __ide_default_irq(hwif->io_ports.data_addr);
 	else if (!hwif->irq && hwif->mate && hwif->mate->irq)
 		hwif->irq = hwif->mate->irq;	/* share IRQ with mate */
 

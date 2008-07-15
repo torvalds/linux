@@ -33,6 +33,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/smp.h>
+#include <linux/smp_lock.h>
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/smp_lock.h>
@@ -107,15 +108,23 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 
 static int cpuid_open(struct inode *inode, struct file *file)
 {
-	unsigned int cpu = iminor(file->f_path.dentry->d_inode);
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	unsigned int cpu;
+	struct cpuinfo_x86 *c;
+	int ret = 0;
+	
+	lock_kernel();
 
-	if (cpu >= NR_CPUS || !cpu_online(cpu))
-		return -ENXIO;	/* No such CPU */
+	cpu = iminor(file->f_path.dentry->d_inode);
+	if (cpu >= NR_CPUS || !cpu_online(cpu)) {
+		ret = -ENXIO;	/* No such CPU */
+		goto out;
+	}
+	c = &cpu_data(cpu);
 	if (c->cpuid_level < 0)
-		return -EIO;	/* CPUID not supported */
-
-	return 0;
+		ret = -EIO;	/* CPUID not supported */
+out:
+	unlock_kernel();
+	return ret;
 }
 
 /*

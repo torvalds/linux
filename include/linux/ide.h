@@ -189,6 +189,21 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 	hw->io_ports.ctl_addr = ctl_addr;
 }
 
+/* for IDE PCI controllers in legacy mode, temporary */
+static inline int __ide_default_irq(unsigned long base)
+{
+	switch (base) {
+#ifdef CONFIG_IA64
+	case 0x1f0: return isa_irq_to_vector(14);
+	case 0x170: return isa_irq_to_vector(15);
+#else
+	case 0x1f0: return 14;
+	case 0x170: return 15;
+#endif
+	}
+	return 0;
+}
+
 #include <asm/ide.h>
 
 #if !defined(MAX_HWIFS) || defined(CONFIG_EMBEDDED)

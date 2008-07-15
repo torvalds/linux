@@ -282,7 +282,7 @@ static irqreturn_t fsl_dma_isr(int irq, void *dev_id)
  * once for each .dai_link in the machine driver's snd_soc_machine
  * structure.
  */
-static int fsl_dma_new(struct snd_card *card, struct snd_soc_codec_dai *dai,
+static int fsl_dma_new(struct snd_card *card, struct snd_soc_dai *dai,
 	struct snd_pcm *pcm)
 {
 	static u64 fsl_dma_dmamask = DMA_BIT_MASK(32);

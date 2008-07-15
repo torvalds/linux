@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
+#include <linux/smp_lock.h>
 #include <linux/pm.h>
 
 #include <asm/io.h>
@@ -75,6 +76,7 @@ static inline void apc_free(void)
 
 static int apc_open(struct inode *inode, struct file *f)
 {
+	cycle_kernel_lock();
 	return 0;
 }
 

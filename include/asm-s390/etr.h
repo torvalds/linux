@@ -122,7 +122,7 @@ struct etr_aib {
 } __attribute__ ((packed,aligned(8)));
 
 /* ETR interruption parameter */
-struct etr_interruption_parameter {
+struct etr_irq_parm {
 	unsigned int _pad0	: 8;
 	unsigned int pc0	: 1;	/* port 0 state change */
 	unsigned int pc1	: 1;	/* port 1 state change */
@@ -213,7 +213,46 @@ static inline int etr_ptff(void *ptff_block, unsigned int func)
 #define ETR_PTFF_SGS	0x43	/* set gross steering rate */
 
 /* Functions needed by the machine check handler */
-extern void etr_switch_to_local(void);
-extern void etr_sync_check(void);
+void etr_switch_to_local(void);
+void etr_sync_check(void);
+
+/* STP interruption parameter */
+struct stp_irq_parm {
+	unsigned int _pad0	: 14;
+	unsigned int tsc	: 1;	/* Timing status change */
+	unsigned int lac	: 1;	/* Link availability change */
+	unsigned int tcpc	: 1;	/* Time control parameter change */
+	unsigned int _pad2	: 15;
+} __attribute__ ((packed));
+
+#define STP_OP_SYNC	1
+#define STP_OP_CTRL	3
+
+struct stp_sstpi {
+	unsigned int rsvd0;
+	unsigned int rsvd1 : 8;
+	unsigned int stratum : 8;
+	unsigned int vbits : 16;
+	unsigned int leaps : 16;
+	unsigned int tmd : 4;
+	unsigned int ctn : 4;
+	unsigned int rsvd2 : 3;
+	unsigned int c : 1;
+	unsigned int tst : 4;
+	unsigned int tzo : 16;
+	unsigned int dsto : 16;
+	unsigned int ctrl : 16;
+	unsigned int rsvd3 : 16;
+	unsigned int tto;
+	unsigned int rsvd4;
+	unsigned int ctnid[3];
+	unsigned int rsvd5;
+	unsigned int todoff[4];
+	unsigned int rsvd6[48];
+} __attribute__ ((packed));
+
+/* Functions needed by the machine check handler */
+void stp_sync_check(void);
+void stp_island_check(void);
 
 #endif /* __S390_ETR_H */

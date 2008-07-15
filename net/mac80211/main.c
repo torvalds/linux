@@ -530,8 +530,6 @@ static int ieee80211_stop(struct net_device *dev)
 				local->sta_hw_scanning = 0;
 		}
 
-		flush_workqueue(local->hw.workqueue);
-
 		sdata->u.sta.flags &= ~IEEE80211_STA_PRIVACY_INVOKED;
 		kfree(sdata->u.sta.extra_ie);
 		sdata->u.sta.extra_ie = NULL;
@@ -554,6 +552,8 @@ static int ieee80211_stop(struct net_device *dev)
 			local->ops->stop(local_to_hw(local));
 
 		ieee80211_led_radio(local, 0);
+
+		flush_workqueue(local->hw.workqueue);
 
 		tasklet_disable(&local->tx_pending_tasklet);
 		tasklet_disable(&local->tasklet);

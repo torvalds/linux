@@ -146,6 +146,7 @@ config MATHEMU
 config COMPAT
 	bool "Kernel support for 31 bit emulation"
 	depends on 64BIT
+	select COMPAT_BINFMT_ELF
 	help
 	  Select this option if you want to enable your system kernel to
 	  handle system-calls from ELF binaries for 31 bit ESA.  This option
@@ -312,6 +313,10 @@ config ARCH_SPARSEMEM_DEFAULT
 config ARCH_SELECT_MEMORY_MODEL
        def_bool y
 
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	def_bool y
+	depends on SPARSEMEM
+
 source "mm/Kconfig"
 
 comment "I/O subsystem configuration"
@@ -341,6 +346,22 @@ config QDIO_DEBUG
 	  Say Y here to get extended debugging output in
 	    /sys/kernel/debug/s390dbf/qdio...
 	  Warning: this option reduces the performance of the QDIO module.
+
+	  If unsure, say N.
+
+config CHSC_SCH
+	tristate "Support for CHSC subchannels"
+	help
+	  This driver allows usage of CHSC subchannels. A CHSC subchannel
+	  is usually present on LPAR only.
+	  The driver creates a device /dev/chsc, which may be used to
+	  obtain I/O configuration information about the machine and
+	  to issue asynchronous chsc commands (DANGEROUS).
+	  You will usually only want to use this interface on a special
+	  LPAR designated for system management.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called chsc_sch.
 
 	  If unsure, say N.
 

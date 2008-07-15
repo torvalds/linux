@@ -202,7 +202,6 @@ CONFIG_AT91_CF=y
 # Kernel Features
 #
 # CONFIG_PREEMPT is not set
-# CONFIG_NO_IDLE_HZ is not set
 CONFIG_HZ=100
 # CONFIG_AEABI is not set
 # CONFIG_ARCH_DISCONTIGMEM_ENABLE is not set

@@ -204,6 +204,7 @@
 #include <linux/module.h>
 
 #include <linux/poll.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/timer.h>
@@ -228,6 +229,7 @@
 #include <linux/suspend.h>
 #include <linux/kthread.h>
 #include <linux/jiffies.h>
+#include <linux/smp_lock.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -1149,7 +1151,7 @@ static void queue_event(apm_event_t event, struct apm_user *sender)
 				as->event_tail = 0;
 		}
 		as->events[as->event_head] = event;
-		if ((!as->suser) || (!as->writer))
+		if (!as->suser || !as->writer)
 			continue;
 		switch (event) {
 		case APM_SYS_SUSPEND:
@@ -1396,7 +1398,7 @@ static void apm_mainloop(void)
 
 static int check_apm_user(struct apm_user *as, const char *func)
 {
-	if ((as == NULL) || (as->magic != APM_BIOS_MAGIC)) {
+	if (as == NULL || as->magic != APM_BIOS_MAGIC) {
 		printk(KERN_ERR "apm: %s passed bad filp\n", func);
 		return 1;
 	}
@@ -1459,18 +1461,19 @@ static unsigned int do_poll(struct file *fp, poll_table *wait)
 	return 0;
 }
 
-static int do_ioctl(struct inode *inode, struct file *filp,
-		    u_int cmd, u_long arg)
+static long do_ioctl(struct file *filp, u_int cmd, u_long arg)
 {
 	struct apm_user *as;
+	int ret;
 
 	as = filp->private_data;
 	if (check_apm_user(as, "ioctl"))
 		return -EIO;
-	if ((!as->suser) || (!as->writer))
+	if (!as->suser || !as->writer)
 		return -EPERM;
 	switch (cmd) {
 	case APM_IOC_STANDBY:
+		lock_kernel();
 		if (as->standbys_read > 0) {
 			as->standbys_read--;
 			as->standbys_pending--;
@@ -1479,8 +1482,10 @@ static int do_ioctl(struct inode *inode, struct file *filp,
 			queue_event(APM_USER_STANDBY, as);
 		if (standbys_pending <= 0)
 			standby();
+		unlock_kernel();
 		break;
 	case APM_IOC_SUSPEND:
+		lock_kernel();
 		if (as->suspends_read > 0) {
 			as->suspends_read--;
 			as->suspends_pending--;
@@ -1488,16 +1493,17 @@ static int do_ioctl(struct inode *inode, struct file *filp,
 		} else
 			queue_event(APM_USER_SUSPEND, as);
 		if (suspends_pending <= 0) {
-			return suspend(1);
+			ret = suspend(1);
 		} else {
 			as->suspend_wait = 1;
 			wait_event_interruptible(apm_suspend_waitqueue,
 					as->suspend_wait == 0);
-			return as->suspend_result;
+			ret = as->suspend_result;
 		}
-		break;
+		unlock_kernel();
+		return ret;
 	default:
-		return -EINVAL;
+		return -ENOTTY;
 	}
 	return 0;
 }
@@ -1544,10 +1550,12 @@ static int do_open(struct inode *inode, struct file *filp)
 {
 	struct apm_user *as;
 
+	lock_kernel();
 	as = kmalloc(sizeof(*as), GFP_KERNEL);
 	if (as == NULL) {
 		printk(KERN_ERR "apm: cannot allocate struct of size %d bytes\n",
 		       sizeof(*as));
+		       unlock_kernel();
 		return -ENOMEM;
 	}
 	as->magic = APM_BIOS_MAGIC;
@@ -1569,6 +1577,7 @@ static int do_open(struct inode *inode, struct file *filp)
 	user_list = as;
 	spin_unlock(&user_list_lock);
 	filp->private_data = as;
+	unlock_kernel();
 	return 0;
 }
 
@@ -1860,7 +1869,7 @@ static const struct file_operations apm_bios_fops = {
 	.owner		= THIS_MODULE,
 	.read		= do_read,
 	.poll		= do_poll,
-	.ioctl		= do_ioctl,
+	.unlocked_ioctl	= do_ioctl,
 	.open		= do_open,
 	.release	= do_release,
 };

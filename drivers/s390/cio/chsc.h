@@ -4,7 +4,8 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <asm/chpid.h>
-#include "schid.h"
+#include <asm/chsc.h>
+#include <asm/schid.h>
 
 #define CHSC_SDA_OC_MSS   0x2
 
@@ -36,14 +37,15 @@ struct channel_path_desc {
 
 struct channel_path;
 
-extern void chsc_process_crw(void);
-
 struct css_general_char {
-	u64 : 41;
+	u64 : 12;
+	u32 dynio : 1;	 /* bit 12 */
+	u32 : 28;
 	u32 aif : 1;     /* bit 41 */
 	u32 : 3;
 	u32 mcss : 1;    /* bit 45 */
-	u32 : 2;
+	u32 fcs : 1;	 /* bit 46 */
+	u32 : 1;
 	u32 ext_mb : 1;  /* bit 48 */
 	u32 : 7;
 	u32 aif_tdd : 1; /* bit 56 */
@@ -51,7 +53,11 @@ struct css_general_char {
 	u32 qebsm : 1;   /* bit 58 */
 	u32 : 8;
 	u32 aif_osa : 1; /* bit 67 */
-	u32 : 28;
+	u32 : 14;
+	u32 cib : 1;	 /* bit 82 */
+	u32 : 5;
+	u32 fcx : 1;	 /* bit 88 */
+	u32 : 7;
 }__attribute__((packed));
 
 struct css_chsc_char {
@@ -78,7 +84,6 @@ struct chsc_ssd_info {
 extern int chsc_get_ssd_info(struct subchannel_id schid,
 			     struct chsc_ssd_info *ssd);
 extern int chsc_determine_css_characteristics(void);
-extern int css_characteristics_avail;
 extern int chsc_alloc_sei_area(void);
 extern void chsc_free_sei_area(void);
 
@@ -87,8 +92,11 @@ struct channel_subsystem;
 extern int chsc_secm(struct channel_subsystem *, int);
 
 int chsc_chp_vary(struct chp_id chpid, int on);
-int chsc_determine_channel_path_description(struct chp_id chpid,
-					    struct channel_path_desc *desc);
+int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
+				     int c, int m,
+				     struct chsc_response_struct *resp);
+int chsc_determine_base_channel_path_desc(struct chp_id chpid,
+					  struct channel_path_desc *desc);
 void chsc_chp_online(struct chp_id chpid);
 void chsc_chp_offline(struct chp_id chpid);
 int chsc_get_channel_measurement_chars(struct channel_path *chp);
