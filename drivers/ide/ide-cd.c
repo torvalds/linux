@@ -2106,11 +2106,6 @@ static int ide_cd_probe(ide_drive_t *drive)
 			goto failed;
 		}
 	}
-	if (drive->scsi) {
-		printk(KERN_INFO "ide-cd: passing drive %s to ide-scsi "
-				 "emulation.\n", drive->name);
-		goto failed;
-	}
 	info = kzalloc(sizeof(struct cdrom_info), GFP_KERNEL);
 	if (info == NULL) {
 		printk(KERN_ERR "%s: Can't allocate a cdrom structure\n",

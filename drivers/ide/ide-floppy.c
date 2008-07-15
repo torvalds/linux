@@ -1579,11 +1579,6 @@ static int ide_floppy_probe(ide_drive_t *drive)
 				" of ide-floppy\n", drive->name);
 		goto failed;
 	}
-	if (drive->scsi) {
-		printk(KERN_INFO "ide-floppy: passing drive %s to ide-scsi"
-				" emulation.\n", drive->name);
-		goto failed;
-	}
 	floppy = kzalloc(sizeof(idefloppy_floppy_t), GFP_KERNEL);
 	if (!floppy) {
 		printk(KERN_ERR "ide-floppy: %s: Can't allocate a floppy"

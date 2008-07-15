@@ -2850,11 +2850,6 @@ static int ide_tape_probe(ide_drive_t *drive)
 				" the driver\n", drive->name);
 		goto failed;
 	}
-	if (drive->scsi) {
-		printk(KERN_INFO "ide-tape: passing drive %s to ide-scsi"
-				 " emulation.\n", drive->name);
-		goto failed;
-	}
 	tape = kzalloc(sizeof(idetape_tape_t), GFP_KERNEL);
 	if (tape == NULL) {
 		printk(KERN_ERR "ide-tape: %s: Can't allocate a tape struct\n",
