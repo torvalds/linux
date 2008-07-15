@@ -96,7 +96,7 @@ static void h8300_tf_read(ide_drive_t *drive, ide_task_t *task)
 	}
 
 	/* be sure we're looking at the low order bits */
-	outb(drive->ctl & ~0x80, io_ports->ctl_addr);
+	outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = inb(io_ports->nsect_addr);
@@ -110,7 +110,7 @@ static void h8300_tf_read(ide_drive_t *drive, ide_task_t *task)
 		tf->device = inb(io_ports->device_addr);
 
 	if (task->tf_flags & IDE_TFLAG_LBA48) {
-		outb(drive->ctl | 0x80, io_ports->ctl_addr);
+		outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
 
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
 			tf->hob_feature = inb(io_ports->feature_addr);

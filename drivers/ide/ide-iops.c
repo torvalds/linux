@@ -186,7 +186,7 @@ static void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 	}
 
 	/* be sure we're looking at the low order bits */
-	tf_outb(drive->ctl & ~0x80, io_ports->ctl_addr);
+	tf_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = tf_inb(io_ports->nsect_addr);
@@ -200,7 +200,7 @@ static void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 		tf->device = tf_inb(io_ports->device_addr);
 
 	if (task->tf_flags & IDE_TFLAG_LBA48) {
-		tf_outb(drive->ctl | 0x80, io_ports->ctl_addr);
+		tf_outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
 
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
 			tf->hob_feature = tf_inb(io_ports->feature_addr);
@@ -1125,13 +1125,13 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	 * recover from reset very quickly, saving us the first 50ms wait time.
 	 */
 	/* set SRST and nIEN */
-	hwif->OUTBSYNC(hwif, drive->ctl | 6, io_ports->ctl_addr);
+	hwif->OUTBSYNC(hwif, ATA_DEVCTL_OBS | 6, io_ports->ctl_addr);
 	/* more than enough time */
 	udelay(10);
 	if (drive->quirk_list == 2)
-		ctl = drive->ctl;	/* clear SRST and nIEN */
+		ctl = ATA_DEVCTL_OBS;		/* clear SRST and nIEN */
 	else
-		ctl = drive->ctl | 2;	/* clear SRST, leave nIEN */
+		ctl = ATA_DEVCTL_OBS | 2;	/* clear SRST, leave nIEN */
 	hwif->OUTBSYNC(hwif, ctl, io_ports->ctl_addr);
 	/* more than enough time */
 	udelay(10);

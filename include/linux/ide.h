@@ -364,7 +364,6 @@ typedef struct ide_drive_s {
         u8	wcache;		/* status of write cache */
 	u8	acoustic;	/* acoustic management */
 	u8	media;		/* disk, cdrom, tape, floppy, ... */
-	u8	ctl;		/* "normal" value for Control register */
 	u8	ready_stat;	/* min status value for drive ready */
 	u8	mult_count;	/* current multiple sector setting */
 	u8	mult_req;	/* requested multiple sector setting */
@@ -1340,7 +1339,7 @@ static inline void ide_set_irq(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	hwif->OUTBSYNC(hwif, drive->ctl | (on ? 0 : 2),
+	hwif->OUTBSYNC(hwif, ATA_DEVCTL_OBS | (on ? 0 : 2),
 		       hwif->io_ports.ctl_addr);
 }
 
