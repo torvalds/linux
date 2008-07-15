@@ -22,22 +22,14 @@ static struct gdlm_ls *init_gdlm(lm_callback_t cb, struct gfs2_sbd *sdp,
 	if (!ls)
 		return NULL;
 
-	ls->drop_locks_count = GDLM_DROP_COUNT;
-	ls->drop_locks_period = GDLM_DROP_PERIOD;
 	ls->fscb = cb;
 	ls->sdp = sdp;
 	ls->fsflags = flags;
 	spin_lock_init(&ls->async_lock);
-	INIT_LIST_HEAD(&ls->complete);
-	INIT_LIST_HEAD(&ls->blocking);
 	INIT_LIST_HEAD(&ls->delayed);
 	INIT_LIST_HEAD(&ls->submit);
-	INIT_LIST_HEAD(&ls->all_locks);
 	init_waitqueue_head(&ls->thread_wait);
 	init_waitqueue_head(&ls->wait_control);
-	ls->thread1 = NULL;
-	ls->thread2 = NULL;
-	ls->drop_time = jiffies;
 	ls->jid = -1;
 
 	strncpy(buf, table_name, 256);
@@ -180,7 +172,6 @@ out:
 static void gdlm_unmount(void *lockspace)
 {
 	struct gdlm_ls *ls = lockspace;
-	int rv;
 
 	log_debug("unmount flags %lx", ls->flags);
 
@@ -194,9 +185,7 @@ static void gdlm_unmount(void *lockspace)
 	gdlm_kobject_release(ls);
 	dlm_release_lockspace(ls->dlm_lockspace, 2);
 	gdlm_release_threads(ls);
-	rv = gdlm_release_all_locks(ls);
-	if (rv)
-		log_info("gdlm_unmount: %d stray locks freed", rv);
+	BUG_ON(ls->all_locks_count);
 out:
 	kfree(ls);
 }
@@ -232,7 +221,6 @@ static void gdlm_withdraw(void *lockspace)
 
 	dlm_release_lockspace(ls->dlm_lockspace, 2);
 	gdlm_release_threads(ls);
-	gdlm_release_all_locks(ls);
 	gdlm_kobject_release(ls);
 }
 

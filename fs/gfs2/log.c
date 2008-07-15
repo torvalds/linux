@@ -87,6 +87,8 @@ void gfs2_remove_from_ail(struct gfs2_bufdata *bd)
  */
 
 static void gfs2_ail1_start_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
+__releases(&sdp->sd_log_lock)
+__acquires(&sdp->sd_log_lock)
 {
 	struct gfs2_bufdata *bd, *s;
 	struct buffer_head *bh;
