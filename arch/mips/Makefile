@@ -14,7 +14,7 @@
 
 KBUILD_DEFCONFIG := ip22_defconfig
 
-cflags-y :=
+cflags-y := -ffunction-sections
 
 #
 # Select the object file format to substitute into the linker script.
