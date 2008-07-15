@@ -157,6 +157,11 @@ struct ipoib_tx_buf {
 	u64		mapping[MAX_SKB_FRAGS + 1];
 };
 
+struct ipoib_cm_tx_buf {
+	struct sk_buff *skb;
+	u64		mapping;
+};
+
 struct ib_cm_id;
 
 struct ipoib_cm_data {
@@ -215,7 +220,7 @@ struct ipoib_cm_tx {
 	struct net_device   *dev;
 	struct ipoib_neigh  *neigh;
 	struct ipoib_path   *path;
-	struct ipoib_tx_buf *tx_ring;
+	struct ipoib_cm_tx_buf *tx_ring;
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
 	unsigned long	     flags;
