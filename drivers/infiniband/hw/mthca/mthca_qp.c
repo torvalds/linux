@@ -1249,10 +1249,10 @@ static int mthca_set_qp_size(struct mthca_dev *dev, struct ib_qp_cap *cap,
 		return -EINVAL;
 
 	/*
-	 * For MLX transport we need 2 extra S/G entries:
+	 * For MLX transport we need 2 extra send gather entries:
 	 * one for the header and one for the checksum at the end
 	 */
-	if (qp->transport == MLX && cap->max_recv_sge + 2 > dev->limits.max_sg)
+	if (qp->transport == MLX && cap->max_send_sge + 2 > dev->limits.max_sg)
 		return -EINVAL;
 
 	if (mthca_is_memfree(dev)) {
