@@ -13,6 +13,7 @@
 
 #include <linux/i2c.h>
 #include <linux/of.h>
+#include <linux/of_i2c.h>
 #include <linux/module.h>
 
 struct i2c_driver_device {
