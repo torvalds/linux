@@ -71,8 +71,6 @@ static void rnic_init(struct iwch_dev *rnicp)
 	idr_init(&rnicp->mmidr);
 	spin_lock_init(&rnicp->lock);
 
-	rnicp->attr.vendor_id = 0x168;
-	rnicp->attr.vendor_part_id = 7;
 	rnicp->attr.max_qps = T3_MAX_NUM_QP - 32;
 	rnicp->attr.max_wrs = T3_MAX_QP_DEPTH;
 	rnicp->attr.max_sge_per_wr = T3_MAX_SGE;
