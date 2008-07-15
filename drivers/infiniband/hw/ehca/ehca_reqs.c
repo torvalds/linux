@@ -544,8 +544,16 @@ int ehca_post_recv(struct ib_qp *qp,
 		   struct ib_recv_wr *recv_wr,
 		   struct ib_recv_wr **bad_recv_wr)
 {
-	return internal_post_recv(container_of(qp, struct ehca_qp, ib_qp),
-				  qp->device, recv_wr, bad_recv_wr);
+	struct ehca_qp *my_qp = container_of(qp, struct ehca_qp, ib_qp);
+
+	/* Reject WR if QP is in RESET state */
+	if (unlikely(my_qp->state == IB_QPS_RESET)) {
+		ehca_err(qp->device, "Invalid QP state  qp_state=%d qpn=%x",
+			 my_qp->state, qp->qp_num);
+		return -EINVAL;
+	}
+
+	return internal_post_recv(my_qp, qp->device, recv_wr, bad_recv_wr);
 }
 
 int ehca_post_srq_recv(struct ib_srq *srq,
@@ -681,7 +689,7 @@ poll_cq_one_read_cqe:
 	wc->dlid_path_bits = cqe->dlid;
 	wc->src_qp = cqe->remote_qp_number;
 	wc->wc_flags = cqe->w_completion_flags;
-	wc->imm_data = cpu_to_be32(cqe->immediate_data);
+	wc->ex.imm_data = cpu_to_be32(cqe->immediate_data);
 	wc->sl = cqe->service_level;
 
 poll_cq_one_exit0:

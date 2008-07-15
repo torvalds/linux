@@ -42,9 +42,6 @@
  *	Zhenyu Wang
  * Modified by:
  *      Erez Zilber
- *
- *
- * $Id: iscsi_iser.c 6965 2006-05-07 11:36:20Z ogerlitz $
  */
 
 #include <linux/types.h>

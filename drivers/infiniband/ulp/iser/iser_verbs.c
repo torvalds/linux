@@ -29,8 +29,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: iser_verbs.c 7051 2006-05-10 12:29:11Z ogerlitz $
  */
 #include <linux/kernel.h>
 #include <linux/module.h>

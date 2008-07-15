@@ -1603,7 +1603,6 @@ static struct nes_cm_listener *mini_cm_listen(struct nes_cm_core *cm_core,
 			return NULL;
 		}
 
-		memset(listener, 0, sizeof(struct nes_cm_listener));
 		listener->loc_addr = htonl(cm_info->loc_addr);
 		listener->loc_port = htons(cm_info->loc_port);
 		listener->reused_node = 0;
