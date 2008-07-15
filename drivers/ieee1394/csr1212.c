@@ -1049,6 +1049,24 @@ int csr1212_read(struct csr1212_csr *csr, u32 offset, void *buffer, u32 len)
 	return -ENOENT;
 }
 
+/*
+ * Apparently there are many different wrong implementations of the CRC
+ * algorithm.  We don't fail, we just warn... approximately once per GUID.
+ */
+static void
+csr1212_check_crc(const u32 *buffer, size_t length, u16 crc, __be32 *guid)
+{
+	static u64 last_bad_eui64;
+	u64 eui64 = ((u64)be32_to_cpu(guid[0]) << 32) | be32_to_cpu(guid[1]);
+
+	if (csr1212_crc16(buffer, length) == crc ||
+	    csr1212_msft_crc16(buffer, length) == crc ||
+	    eui64 == last_bad_eui64)
+		return;
+
+	printk(KERN_DEBUG "ieee1394: config ROM CRC error\n");
+	last_bad_eui64 = eui64;
+}
 
 /* Parse a chunk of data as a Config ROM */
 
@@ -1092,11 +1110,8 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 			return ret;
 	}
 
-	/* Apparently there are many different wrong implementations of the CRC
-	 * algorithm.  We don't fail, we just warn. */
-	if ((csr1212_crc16(bi->data, bi->crc_length) != bi->crc) &&
-	    (csr1212_msft_crc16(bi->data, bi->crc_length) != bi->crc))
-		printk(KERN_DEBUG "IEEE 1394 device has ROM CRC error\n");
+	csr1212_check_crc(bi->data, bi->crc_length, bi->crc,
+			  &csr->bus_info_data[3]);
 
 	cr = CSR1212_MALLOC(sizeof(*cr));
 	if (!cr)
@@ -1205,11 +1220,8 @@ int csr1212_parse_keyval(struct csr1212_keyval *kv,
 		&cache->data[bytes_to_quads(kv->offset - cache->offset)];
 	kvi_len = be16_to_cpu(kvi->length);
 
-	/* Apparently there are many different wrong implementations of the CRC
-	 * algorithm.  We don't fail, we just warn. */
-	if ((csr1212_crc16(kvi->data, kvi_len) != kvi->crc) &&
-	    (csr1212_msft_crc16(kvi->data, kvi_len) != kvi->crc))
-		printk(KERN_DEBUG "IEEE 1394 device has ROM CRC error\n");
+	/* GUID is wrong in here in case of extended ROM.  We don't care. */
+	csr1212_check_crc(kvi->data, kvi_len, kvi->crc, &cache->data[3]);
 
 	switch (kv->key.type) {
 	case CSR1212_KV_TYPE_DIRECTORY:
