@@ -443,6 +443,7 @@ static struct net_device *ip6mr_reg_vif(void)
 	if (dev_open(dev))
 		goto failure;
 
+	dev_hold(dev);
 	return dev;
 
 failure:
@@ -616,6 +617,7 @@ static int mif6_add(struct mif6ctl *vifc, int mrtsock)
 		err = dev_set_allmulti(dev, 1);
 		if (err) {
 			unregister_netdevice(dev);
+			dev_put(dev);
 			return err;
 		}
 		break;
@@ -624,10 +626,11 @@ static int mif6_add(struct mif6ctl *vifc, int mrtsock)
 		dev = dev_get_by_index(&init_net, vifc->mif6c_pifi);
 		if (!dev)
 			return -EADDRNOTAVAIL;
-		dev_put(dev);
 		err = dev_set_allmulti(dev, 1);
-		if (err)
+		if (err) {
+			dev_put(dev);
 			return err;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -651,7 +654,6 @@ static int mif6_add(struct mif6ctl *vifc, int mrtsock)
 
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
-	dev_hold(dev);
 	v->dev = dev;
 #ifdef CONFIG_IPV6_PIMSM_V2
 	if (v->flags & MIFF_REGISTER)
