@@ -39,6 +39,9 @@
 
 #define T3_MAX_SGE      4
 #define T3_MAX_INLINE	64
+#define T3_STAG0_PBL_SIZE (2 * T3_MAX_SGE << 3)
+#define T3_STAG0_MAX_PBE_LEN (128 * 1024 * 1024)
+#define T3_STAG0_PAGE_SHIFT 15
 
 #define Q_EMPTY(rptr,wptr) ((rptr)==(wptr))
 #define Q_FULL(rptr,wptr,size_log2)  ( (((wptr)-(rptr))>>(size_log2)) && \
@@ -665,6 +668,11 @@ struct t3_swsq {
 	int			signaled;
 };
 
+struct t3_swrq {
+	__u64			wr_id;
+	__u32			pbl_addr;
+};
+
 /*
  * A T3 WQ implements both the SQ and RQ.
  */
@@ -681,14 +689,15 @@ struct t3_wq {
 	u32 sq_wptr;			/* sq_wptr - sq_rptr == count of */
 	u32 sq_rptr;			/* pending wrs */
 	u32 sq_size_log2;		/* sq size */
-	u64 *rq;			/* SW RQ (holds consumer wr_ids */
+	struct t3_swrq *rq;		/* SW RQ (holds consumer wr_ids */
 	u32 rq_wptr;			/* rq_wptr - rq_rptr == count of */
 	u32 rq_rptr;			/* pending wrs */
-	u64 *rq_oldest_wr;		/* oldest wr on the SW RQ */
+	struct t3_swrq *rq_oldest_wr;	/* oldest wr on the SW RQ */
 	u32 rq_size_log2;		/* rq size */
 	u32 rq_addr;			/* rq adapter address */
 	void __iomem *doorbell;		/* kernel db */
 	u64 udb;			/* user db if any */
+	struct cxio_rdev *rdev;
 };
 
 struct t3_cq {

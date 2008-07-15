@@ -278,7 +278,7 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
 	if (!wq->qpid)
 		return -ENOMEM;
 
-	wq->rq = kzalloc(depth * sizeof(u64), GFP_KERNEL);
+	wq->rq = kzalloc(depth * sizeof(struct t3_swrq), GFP_KERNEL);
 	if (!wq->rq)
 		goto err1;
 
@@ -302,6 +302,7 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
 	if (!kernel_domain)
 		wq->udb = (u64)rdev_p->rnic_info.udbell_physbase +
 					(wq->qpid << rdev_p->qpshift);
+	wq->rdev = rdev_p;
 	PDBG("%s qpid 0x%x doorbell 0x%p udb 0x%llx\n", __func__,
 	     wq->qpid, wq->doorbell, (unsigned long long) wq->udb);
 	return 0;
@@ -1266,13 +1267,16 @@ proc_cqe:
 		wq->sq_rptr = CQE_WRID_SQ_WPTR(*hw_cqe);
 		PDBG("%s completing sq idx %ld\n", __func__,
 		     Q_PTR2IDX(wq->sq_rptr, wq->sq_size_log2));
-		*cookie = (wq->sq +
-			   Q_PTR2IDX(wq->sq_rptr, wq->sq_size_log2))->wr_id;
+		*cookie = wq->sq[Q_PTR2IDX(wq->sq_rptr, wq->sq_size_log2)].wr_id;
 		wq->sq_rptr++;
 	} else {
 		PDBG("%s completing rq idx %ld\n", __func__,
 		     Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2));
-		*cookie = *(wq->rq + Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2));
+		*cookie = wq->rq[Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2)].wr_id;
+		if (wq->rq[Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2)].pbl_addr)
+			cxio_hal_pblpool_free(wq->rdev,
+				wq->rq[Q_PTR2IDX(wq->rq_rptr,
+				wq->rq_size_log2)].pbl_addr, T3_STAG0_PBL_SIZE);
 		wq->rq_rptr++;
 	}
 
