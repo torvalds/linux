@@ -184,6 +184,7 @@ struct net_device *ipmr_new_tunnel(struct vifctl *v)
 
 			if (dev_open(dev))
 				goto failure;
+			dev_hold(dev);
 		}
 	}
 	return dev;
@@ -250,6 +251,8 @@ static struct net_device *ipmr_reg_vif(void)
 	if (dev_open(dev))
 		goto failure;
 
+	dev_hold(dev);
+
 	return dev;
 
 failure:
@@ -264,9 +267,10 @@ failure:
 
 /*
  *	Delete a VIF entry
+ *	@notify: Set to 1, if the caller is a notifier_call
  */
 
-static int vif_delete(int vifi)
+static int vif_delete(int vifi, int notify)
 {
 	struct vif_device *v;
 	struct net_device *dev;
@@ -309,7 +313,7 @@ static int vif_delete(int vifi)
 		ip_rt_multicast_event(in_dev);
 	}
 
-	if (v->flags&(VIFF_TUNNEL|VIFF_REGISTER))
+	if (v->flags&(VIFF_TUNNEL|VIFF_REGISTER) && !notify)
 		unregister_netdevice(dev);
 
 	dev_put(dev);
@@ -435,6 +439,7 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 		err = dev_set_allmulti(dev, 1);
 		if (err) {
 			unregister_netdevice(dev);
+			dev_put(dev);
 			return err;
 		}
 		break;
@@ -446,6 +451,7 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 		err = dev_set_allmulti(dev, 1);
 		if (err) {
 			ipmr_del_tunnel(dev, vifc);
+			dev_put(dev);
 			return err;
 		}
 		break;
@@ -453,10 +459,11 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 		dev = ip_dev_find(&init_net, vifc->vifc_lcl_addr.s_addr);
 		if (!dev)
 			return -EADDRNOTAVAIL;
-		dev_put(dev);
 		err = dev_set_allmulti(dev, 1);
-		if (err)
+		if (err) {
+			dev_put(dev);
 			return err;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -487,7 +494,6 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
-	dev_hold(dev);
 	v->dev=dev;
 #ifdef CONFIG_IP_PIMSM
 	if (v->flags&VIFF_REGISTER)
@@ -834,7 +840,7 @@ static void mroute_clean_tables(struct sock *sk)
 	 */
 	for (i=0; i<maxvif; i++) {
 		if (!(vif_table[i].flags&VIFF_STATIC))
-			vif_delete(i);
+			vif_delete(i, 0);
 	}
 
 	/*
@@ -947,7 +953,7 @@ int ip_mroute_setsockopt(struct sock *sk,int optname,char __user *optval,int opt
 		if (optname==MRT_ADD_VIF) {
 			ret = vif_add(&vif, sk==mroute_socket);
 		} else {
-			ret = vif_delete(vif.vifc_vifi);
+			ret = vif_delete(vif.vifc_vifi, 0);
 		}
 		rtnl_unlock();
 		return ret;
@@ -1126,7 +1132,7 @@ static int ipmr_device_event(struct notifier_block *this, unsigned long event, v
 	v=&vif_table[0];
 	for (ct=0;ct<maxvif;ct++,v++) {
 		if (v->dev==dev)
-			vif_delete(ct);
+			vif_delete(ct, 1);
 	}
 	return NOTIFY_DONE;
 }
