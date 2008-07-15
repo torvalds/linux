@@ -564,7 +564,7 @@ update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
  *	partition_sched_domains().
  */
 
-static void rebuild_sched_domains(void)
+void rebuild_sched_domains(void)
 {
 	struct kfifo *q;	/* queue of cpusets to be scanned */
 	struct cpuset *cp;	/* scans q */

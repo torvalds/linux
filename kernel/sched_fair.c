@@ -1004,6 +1004,8 @@ static void yield_task_fair(struct rq *rq)
  * not idle and an idle cpu is available.  The span of cpus to
  * search starts with cpus closest then further out as needed,
  * so we always favor a closer, idle cpu.
+ * Domains may include CPUs that are not usable for migration,
+ * hence we need to mask them out (cpu_active_map)
  *
  * Returns the CPU we should wake onto.
  */
@@ -1031,6 +1033,7 @@ static int wake_idle(int cpu, struct task_struct *p)
 		    || ((sd->flags & SD_WAKE_IDLE_FAR)
 			&& !task_hot(p, task_rq(p)->clock, sd))) {
 			cpus_and(tmp, sd->span, p->cpus_allowed);
+			cpus_and(tmp, tmp, cpu_active_map);
 			for_each_cpu_mask(i, tmp) {
 				if (idle_cpu(i)) {
 					if (i != task_cpu(p)) {

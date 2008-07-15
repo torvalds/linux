@@ -934,6 +934,13 @@ static int find_lowest_rq(struct task_struct *task)
 		return -1; /* No targets found */
 
 	/*
+	 * Only consider CPUs that are usable for migration.
+	 * I guess we might want to change cpupri_find() to ignore those
+	 * in the first place.
+	 */
+	cpus_and(*lowest_mask, *lowest_mask, cpu_active_map);
+
+	/*
 	 * At this point we have built a mask of cpus representing the
 	 * lowest priority tasks in the system.  Now we want to elect
 	 * the best one based on our affinity and topology.

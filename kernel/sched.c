@@ -2881,7 +2881,7 @@ static void sched_migrate_task(struct task_struct *p, int dest_cpu)
 
 	rq = task_rq_lock(p, &flags);
 	if (!cpu_isset(dest_cpu, p->cpus_allowed)
-	    || unlikely(cpu_is_offline(dest_cpu)))
+	    || unlikely(!cpu_active(dest_cpu)))
 		goto out;
 
 	/* force the process onto the specified CPU */
@@ -3849,7 +3849,7 @@ int select_nohz_load_balancer(int stop_tick)
 		/*
 		 * If we are going offline and still the leader, give up!
 		 */
-		if (cpu_is_offline(cpu) &&
+		if (!cpu_active(cpu) &&
 		    atomic_read(&nohz.load_balancer) == cpu) {
 			if (atomic_cmpxchg(&nohz.load_balancer, cpu, -1) != cpu)
 				BUG();
@@ -5876,7 +5876,7 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 	struct rq *rq_dest, *rq_src;
 	int ret = 0, on_rq;
 
-	if (unlikely(cpu_is_offline(dest_cpu)))
+	if (unlikely(!cpu_active(dest_cpu)))
 		return ret;
 
 	rq_src = cpu_rq(src_cpu);
@@ -7554,18 +7554,6 @@ void __attribute__((weak)) arch_update_cpu_topology(void)
 }
 
 /*
- * Free current domain masks.
- * Called after all cpus are attached to NULL domain.
- */
-static void free_sched_domains(void)
-{
-	ndoms_cur = 0;
-	if (doms_cur != &fallback_doms)
-		kfree(doms_cur);
-	doms_cur = &fallback_doms;
-}
-
-/*
  * Set up scheduler domains and groups. Callers must hold the hotplug lock.
  * For now this just excludes isolated cpus, but could be used to
  * exclude other special cases in the future.
@@ -7643,7 +7631,7 @@ static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
  * ownership of it and will kfree it when done with it. If the caller
  * failed the kmalloc call, then it can pass in doms_new == NULL,
  * and partition_sched_domains() will fallback to the single partition
- * 'fallback_doms'.
+ * 'fallback_doms', it also forces the domains to be rebuilt.
  *
  * Call with hotplug lock held
  */
@@ -7657,12 +7645,8 @@ void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
 	/* always unregister in case we don't destroy any domains */
 	unregister_sched_domain_sysctl();
 
-	if (doms_new == NULL) {
-		ndoms_new = 1;
-		doms_new = &fallback_doms;
-		cpus_andnot(doms_new[0], cpu_online_map, cpu_isolated_map);
-		dattr_new = NULL;
-	}
+	if (doms_new == NULL)
+		ndoms_new = 0;
 
 	/* Destroy deleted domains */
 	for (i = 0; i < ndoms_cur; i++) {
@@ -7675,6 +7659,14 @@ void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
 		detach_destroy_domains(doms_cur + i);
 match1:
 		;
+	}
+
+	if (doms_new == NULL) {
+		ndoms_cur = 0;
+		ndoms_new = 1;
+		doms_new = &fallback_doms;
+		cpus_andnot(doms_new[0], cpu_online_map, cpu_isolated_map);
+		dattr_new = NULL;
 	}
 
 	/* Build new domains */
@@ -7707,17 +7699,10 @@ match2:
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
 int arch_reinit_sched_domains(void)
 {
-	int err;
-
 	get_online_cpus();
-	mutex_lock(&sched_domains_mutex);
-	detach_destroy_domains(&cpu_online_map);
-	free_sched_domains();
-	err = arch_init_sched_domains(&cpu_online_map);
-	mutex_unlock(&sched_domains_mutex);
+	rebuild_sched_domains();
 	put_online_cpus();
-
-	return err;
+	return 0;
 }
 
 static ssize_t sched_power_savings_store(const char *buf, size_t count, int smt)
@@ -7783,13 +7768,29 @@ int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls)
 }
 #endif /* CONFIG_SCHED_MC || CONFIG_SCHED_SMT */
 
+#ifndef CONFIG_CPUSETS
 /*
- * Force a reinitialization of the sched domains hierarchy. The domains
- * and groups cannot be updated in place without racing with the balancing
- * code, so we temporarily attach all running cpus to the NULL domain
- * which will prevent rebalancing while the sched domains are recalculated.
+ * Add online and remove offline CPUs from the scheduler domains.
+ * When cpusets are enabled they take over this function.
  */
 static int update_sched_domains(struct notifier_block *nfb,
+				unsigned long action, void *hcpu)
+{
+	switch (action) {
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
+	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
+		partition_sched_domains(0, NULL, NULL);
+		return NOTIFY_OK;
+
+	default:
+		return NOTIFY_DONE;
+	}
+}
+#endif
+
+static int update_runtime(struct notifier_block *nfb,
 				unsigned long action, void *hcpu)
 {
 	int cpu = (int)(long)hcpu;
@@ -7798,44 +7799,18 @@ static int update_sched_domains(struct notifier_block *nfb,
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		disable_runtime(cpu_rq(cpu));
-		/* fall-through */
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-		detach_destroy_domains(&cpu_online_map);
-		free_sched_domains();
 		return NOTIFY_OK;
-
 
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
 		enable_runtime(cpu_rq(cpu));
-		/* fall-through */
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		/*
-		 * Fall through and re-initialise the domains.
-		 */
-		break;
+		return NOTIFY_OK;
+
 	default:
 		return NOTIFY_DONE;
 	}
-
-#ifndef CONFIG_CPUSETS
-	/*
-	 * Create default domain partitioning if cpusets are disabled.
-	 * Otherwise we let cpusets rebuild the domains based on the
-	 * current setup.
-	 */
-
-	/* The hotplug lock is already held by cpu_up/cpu_down */
-	arch_init_sched_domains(&cpu_online_map);
-#endif
-
-	return NOTIFY_OK;
 }
 
 void __init sched_init_smp(void)
@@ -7855,8 +7830,15 @@ void __init sched_init_smp(void)
 		cpu_set(smp_processor_id(), non_isolated_cpus);
 	mutex_unlock(&sched_domains_mutex);
 	put_online_cpus();
+
+#ifndef CONFIG_CPUSETS
 	/* XXX: Theoretical race here - CPU may be hotplugged now */
 	hotcpu_notifier(update_sched_domains, 0);
+#endif
+
+	/* RT runtime code needs to handle some hotplug events */
+	hotcpu_notifier(update_runtime, 0);
+
 	init_hrtick();
 
 	/* Move init over to a non-isolated CPU */
