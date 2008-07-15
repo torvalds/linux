@@ -763,7 +763,7 @@ static void icmp_unreach(struct sk_buff *skb)
 out:
 	return;
 out_err:
-	ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+	ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
 	goto out;
 }
 
@@ -803,7 +803,7 @@ static void icmp_redirect(struct sk_buff *skb)
 out:
 	return;
 out_err:
-	ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+	ICMP_INC_STATS_BH(dev_net(skb->dev), ICMP_MIB_INERRORS);
 	goto out;
 }
 
@@ -874,7 +874,7 @@ static void icmp_timestamp(struct sk_buff *skb)
 out:
 	return;
 out_err:
-	ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+	ICMP_INC_STATS_BH(dev_net(skb->dst->dev), ICMP_MIB_INERRORS);
 	goto out;
 }
 
@@ -994,7 +994,7 @@ int icmp_rcv(struct sk_buff *skb)
 		skb_set_network_header(skb, nh);
 	}
 
-	ICMP_INC_STATS_BH(ICMP_MIB_INMSGS);
+	ICMP_INC_STATS_BH(net, ICMP_MIB_INMSGS);
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
@@ -1053,7 +1053,7 @@ drop:
 	kfree_skb(skb);
 	return 0;
 error:
-	ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+	ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
 	goto drop;
 }
 
