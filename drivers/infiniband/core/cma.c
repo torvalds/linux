@@ -974,7 +974,7 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		event.param.conn.private_data_len = IB_CM_REJ_PRIVATE_DATA_SIZE;
 		break;
 	default:
-		printk(KERN_ERR "RDMA CMA: unexpected IB CM event: %d",
+		printk(KERN_ERR "RDMA CMA: unexpected IB CM event: %d\n",
 		       ib_event->event);
 		goto out;
 	}
@@ -1450,7 +1450,7 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 	ret = rdma_listen(id, id_priv->backlog);
 	if (ret)
 		printk(KERN_WARNING "RDMA CMA: cma_listen_on_dev, error %d, "
-		       "listening on device %s", ret, cma_dev->device->name);
+		       "listening on device %s\n", ret, cma_dev->device->name);
 }
 
 static void cma_listen_on_all(struct rdma_id_private *id_priv)
@@ -2155,7 +2155,7 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 		event.status = 0;
 		break;
 	default:
-		printk(KERN_ERR "RDMA CMA: unexpected IB CM event: %d",
+		printk(KERN_ERR "RDMA CMA: unexpected IB CM event: %d\n",
 		       ib_event->event);
 		goto out;
 	}
