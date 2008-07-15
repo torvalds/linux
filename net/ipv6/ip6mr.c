@@ -595,6 +595,7 @@ static int mif6_add(struct mif6ctl *vifc, int mrtsock)
 	int vifi = vifc->mif6c_mifi;
 	struct mif_device *v = &vif6_table[vifi];
 	struct net_device *dev;
+	int err;
 
 	/* Is vif busy ? */
 	if (MIF_EXISTS(vifi))
@@ -612,6 +613,11 @@ static int mif6_add(struct mif6ctl *vifc, int mrtsock)
 		dev = ip6mr_reg_vif();
 		if (!dev)
 			return -ENOBUFS;
+		err = dev_set_allmulti(dev, 1);
+		if (err) {
+			unregister_netdevice(dev);
+			return err;
+		}
 		break;
 #endif
 	case 0:
@@ -619,12 +625,13 @@ static int mif6_add(struct mif6ctl *vifc, int mrtsock)
 		if (!dev)
 			return -EADDRNOTAVAIL;
 		dev_put(dev);
+		err = dev_set_allmulti(dev, 1);
+		if (err)
+			return err;
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	dev_set_allmulti(dev, 1);
 
 	/*
 	 *	Fill in the VIF structures
