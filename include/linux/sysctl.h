@@ -957,6 +957,11 @@ extern void setup_sysctl_set(struct ctl_table_set *p,
 	struct ctl_table_set *parent,
 	int (*is_seen)(struct ctl_table_set *));
 
+struct ctl_table_header;
+
+extern void sysctl_head_get(struct ctl_table_header *);
+extern void sysctl_head_put(struct ctl_table_header *);
+extern struct ctl_table_header *sysctl_head_grab(struct ctl_table_header *);
 extern struct ctl_table_header *sysctl_head_next(struct ctl_table_header *prev);
 extern struct ctl_table_header *__sysctl_head_next(struct nsproxy *namespaces,
 						struct ctl_table_header *prev);
@@ -1073,6 +1078,7 @@ struct ctl_table_header
 	struct ctl_table *ctl_table;
 	struct list_head ctl_entry;
 	int used;
+	int count;
 	struct completion *unregistering;
 	struct ctl_table *ctl_table_arg;
 	struct ctl_table_root *root;
