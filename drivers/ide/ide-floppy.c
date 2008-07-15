@@ -534,6 +534,7 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_atapi_pc *pc = floppy->pc;
 	ide_expiry_t *expiry;
 	unsigned int timeout;
 	ide_startstop_t startstop;
@@ -567,6 +568,12 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 	}
 
 	ide_set_handler(drive, &idefloppy_pc_intr, timeout, expiry);
+
+	/* Begin DMA, if necessary */
+	if (pc->flags & PC_FLAG_DMA_OK) {
+		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
+		hwif->dma_ops->dma_start(drive);
+	}
 
 	if ((floppy->flags & IDEFLOPPY_FLAG_ZIP_DRIVE) == 0)
 		/* Send the actual packet */
@@ -633,13 +640,10 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	if ((pc->flags & PC_FLAG_DMA_OK) && drive->using_dma)
 		dma = !hwif->dma_ops->dma_setup(drive);
 
-	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma);
+	if (!dma)
+		pc->flags &= ~PC_FLAG_DMA_OK;
 
-	if (dma) {
-		/* Begin DMA, if necessary */
-		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
-		hwif->dma_ops->dma_start(drive);
-	}
+	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma);
 
 	if (floppy->flags & IDEFLOPPY_FLAG_DRQ_INTERRUPT) {
 		/* Issue the packet command */
