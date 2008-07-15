@@ -772,39 +772,49 @@ static struct dev_mc_list *bond_mc_list_find_dmi(struct dev_mc_list *dmi, struct
 /*
  * Push the promiscuity flag down to appropriate slaves
  */
-static void bond_set_promiscuity(struct bonding *bond, int inc)
+static int bond_set_promiscuity(struct bonding *bond, int inc)
 {
+	int err = 0;
 	if (USES_PRIMARY(bond->params.mode)) {
 		/* write lock already acquired */
 		if (bond->curr_active_slave) {
-			dev_set_promiscuity(bond->curr_active_slave->dev, inc);
+			err = dev_set_promiscuity(bond->curr_active_slave->dev,
+						  inc);
 		}
 	} else {
 		struct slave *slave;
 		int i;
 		bond_for_each_slave(bond, slave, i) {
-			dev_set_promiscuity(slave->dev, inc);
+			err = dev_set_promiscuity(slave->dev, inc);
+			if (err)
+				return err;
 		}
 	}
+	return err;
 }
 
 /*
  * Push the allmulti flag down to all slaves
  */
-static void bond_set_allmulti(struct bonding *bond, int inc)
+static int bond_set_allmulti(struct bonding *bond, int inc)
 {
+	int err = 0;
 	if (USES_PRIMARY(bond->params.mode)) {
 		/* write lock already acquired */
 		if (bond->curr_active_slave) {
-			dev_set_allmulti(bond->curr_active_slave->dev, inc);
+			err = dev_set_allmulti(bond->curr_active_slave->dev,
+					       inc);
 		}
 	} else {
 		struct slave *slave;
 		int i;
 		bond_for_each_slave(bond, slave, i) {
-			dev_set_allmulti(slave->dev, inc);
+			err = dev_set_allmulti(slave->dev, inc);
+			if (err)
+				return err;
 		}
 	}
+	return err;
 }
 
 /*
@@ -965,6 +975,7 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active, struct 
 	}
 
 	if (new_active) {
+		/* FIXME: Signal errors upstream. */
 		if (bond->dev->flags & IFF_PROMISC) {
 			dev_set_promiscuity(new_active->dev, 1);
 		}
@@ -1544,12 +1555,16 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	if (!USES_PRIMARY(bond->params.mode)) {
 		/* set promiscuity level to new slave */
 		if (bond_dev->flags & IFF_PROMISC) {
-			dev_set_promiscuity(slave_dev, 1);
+			res = dev_set_promiscuity(slave_dev, 1);
+			if (res)
+				goto err_close;
 		}
 
 		/* set allmulti level to new slave */
 		if (bond_dev->flags & IFF_ALLMULTI) {
-			dev_set_allmulti(slave_dev, 1);
+			res = dev_set_allmulti(slave_dev, 1);
+			if (res)
+				goto err_close;
 		}
 
 		netif_tx_lock_bh(bond_dev);
@@ -4065,6 +4080,10 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 	 * Do promisc before checking multicast_mode
 	 */
 	if ((bond_dev->flags & IFF_PROMISC) && !(bond->flags & IFF_PROMISC)) {
+		/*
+		 * FIXME: Need to handle the error when one of the multi-slaves
+		 * encounters error.
+		 */
 		bond_set_promiscuity(bond, 1);
 	}
 
@@ -4074,6 +4093,10 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 
 	/* set allmulti flag to slaves */
 	if ((bond_dev->flags & IFF_ALLMULTI) && !(bond->flags & IFF_ALLMULTI)) {
+		/*
+		 * FIXME: Need to handle the error when one of the multi-slaves
+		 * encounters error.
+		 */
 		bond_set_allmulti(bond, 1);
 	}
 
