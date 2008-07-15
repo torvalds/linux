@@ -1038,8 +1038,6 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 
 	if (pc->flags & PC_FLAG_DMA_ERROR) {
 		pc->flags &= ~PC_FLAG_DMA_ERROR;
-		printk(KERN_WARNING "ide-tape: DMA disabled, "
-				"reverting to PIO\n");
 		ide_dma_off(drive);
 	}
 	if ((pc->flags & PC_FLAG_DMA_RECOMMENDED) && drive->using_dma)
