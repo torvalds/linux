@@ -1083,6 +1083,9 @@ struct ctl_table_header
 	struct ctl_table *ctl_table_arg;
 	struct ctl_table_root *root;
 	struct ctl_table_set *set;
+	struct ctl_table *attached_by;
+	struct ctl_table *attached_to;
+	struct ctl_table_header *parent;
 };
 
 /* struct ctl_path describes where in the hierarchy a table is added */

@@ -1680,6 +1680,52 @@ static __init int sysctl_init(void)
 
 core_initcall(sysctl_init);
 
+static int is_branch_in(struct ctl_table *branch, struct ctl_table *table)
+{
+	struct ctl_table *p;
+	const char *s = branch->procname;
+
+	/* branch should have named subdirectory as its first element */
+	if (!s || !branch->child)
+		return 0;
+
+	/* ... and nothing else */
+	if (branch[1].procname || branch[1].ctl_name)
+		return 0;
+
+	/* table should contain subdirectory with the same name */
+	for (p = table; p->procname || p->ctl_name; p++) {
+		if (!p->child)
+			continue;
+		if (p->procname && strcmp(p->procname, s) == 0)
+			return 1;
+	}
+	return 0;
+}
+
+/* see if attaching q to p would be an improvement */
+static void try_attach(struct ctl_table_header *p, struct ctl_table_header *q)
+{
+	struct ctl_table *to = p->ctl_table, *by = q->ctl_table;
+	int is_better = 0;
+	int not_in_parent = !p->attached_by;
+
+	while (is_branch_in(by, to)) {
+		if (by == q->attached_by)
+			is_better = 1;
+		if (to == p->attached_by)
+			not_in_parent = 1;
+		by = by->child;
+		to = to->child;
+	}
+
+	if (is_better && not_in_parent) {
+		q->attached_by = by;
+		q->attached_to = to;
+		q->parent = p;
+	}
+}
+
 /**
  * __register_sysctl_paths - register a sysctl hierarchy
  * @root: List of sysctl headers to register on
@@ -1759,6 +1805,7 @@ struct ctl_table_header *__register_sysctl_paths(
 	struct ctl_table_header *header;
 	struct ctl_table *new, **prevp;
 	unsigned int n, npath;
+	struct ctl_table_set *set;
 
 	/* Count the path components */
 	for (npath = 0; path[npath].ctl_name || path[npath].procname; ++npath)
@@ -1809,6 +1856,18 @@ struct ctl_table_header *__register_sysctl_paths(
 #endif
 	spin_lock(&sysctl_lock);
 	header->set = lookup_header_set(root, namespaces);
+	header->attached_by = header->ctl_table;
+	header->attached_to = root_table;
+	header->parent = &root_table_header;
+	for (set = header->set; set; set = set->parent) {
+		struct ctl_table_header *p;
+		list_for_each_entry(p, &set->list, ctl_entry) {
+			if (p->unregistering)
+				continue;
+			try_attach(p, header);
+		}
+	}
+	header->parent->count++;
 	list_add_tail(&header->ctl_entry, &header->set->list);
 	spin_unlock(&sysctl_lock);
 
@@ -1864,6 +1923,10 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 
 	spin_lock(&sysctl_lock);
 	start_unregistering(header);
+	if (!--header->parent->count) {
+		WARN_ON(1);
+		kfree(header->parent);
+	}
 	if (!--header->count)
 		kfree(header);
 	spin_unlock(&sysctl_lock);
