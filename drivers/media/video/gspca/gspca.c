@@ -168,7 +168,7 @@ static void isoc_irq(struct urb *urb
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
 
-	PDEBUG(D_PACK, "isoc irq mmap");
+	PDEBUG(D_PACK, "isoc irq");
 	if (!gspca_dev->streaming)
 		return;
 	fill_frame(gspca_dev, urb);

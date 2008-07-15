@@ -199,11 +199,11 @@ vc032x		0ac8:c002	Sony embedded vimicro
 spca508		0af9:0010	Hama USB Sightcam 100
 spca508		0af9:0011	Hama USB Sightcam 100
 sonixb		0c45:6001	Genius VideoCAM NB
-sonixb		0c45:6005	Sweex Tas5110
+sonixb		0c45:6005	Microdia Sweex Mini Webcam
 sonixb		0c45:6007	Sonix sn9c101 + Tas5110D
 sonixb		0c45:6009	spcaCam@120
 sonixb		0c45:600d	spcaCam@120
-sonixb		0c45:6011	MAX Webcam (Microdia - OV6650 - SN9C101G)
+sonixb		0c45:6011	Microdia PC Camera (SN9C102)
 sonixb		0c45:6019	Generic Sonix OV7630
 sonixb		0c45:6024	Generic Sonix Tas5130c
 sonixb		0c45:6025	Xcam Shanga

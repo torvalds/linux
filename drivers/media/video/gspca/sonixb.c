@@ -244,7 +244,7 @@ static const __u8 initOv7630_3[] = {
 	0x44, 0x44, 0x00, 0x1a, 0x20, 0x20, 0x20, 0x80,	/* r01 .. r08 */
 	0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,	/* r09 .. r10 */
 	0x00, 0x01, 0x01, 0x0a,				/* r11 .. r14 */
-	0x16, 0x12,			/* H & V sizes     r15 .. r16 */
+	0x28, 0x1e,			/* H & V sizes     r15 .. r16 */
 	0x68, 0x8f, MCK_INIT1,				/* r17 .. r19 */
 	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c, 0x00,	/* r1a .. r20 */
 	0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, /* r21 .. r28 */
@@ -785,7 +785,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	const __u8 *sn9c10x;
 	__u8 reg01, reg17;
 	__u8 reg17_19[3];
-	static const __u8 reg15[2] = { 0x28, 0x1e };
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	switch (sd->sensor) {
@@ -905,8 +904,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 				sizeof tas5130_sensor_init);
 		break;
 	}
-	/* H_size V_size  0x28, 0x1e maybe 640x480 */
-	reg_w(gspca_dev, 0x15, reg15, 2);
+	/* H_size V_size 0x28, 0x1e -> 640x480. 0x16, 0x12 -> 352x288 */
+	reg_w(gspca_dev, 0x15, &sn9c10x[0x15 - 1], 2);
 	/* compression register */
 	reg_w(gspca_dev, 0x18, &reg17_19[1], 1);
 	if (sd->sensor != SENSOR_OV7630_3) {

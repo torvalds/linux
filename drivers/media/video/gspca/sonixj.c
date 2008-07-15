@@ -47,20 +47,19 @@ struct sd {
 #define AG_CNT_START 13
 
 	char qindex;
+	unsigned char bridge;
+#define BRIDGE_SN9C102P 0
+#define BRIDGE_SN9C105 1
+#define BRIDGE_SN9C110 2
+#define BRIDGE_SN9C120 3
+#define BRIDGE_SN9C325 4
 	char sensor;			/* Type of image sensor chip */
 #define SENSOR_HV7131R 0
 #define SENSOR_MI0360 1
 #define SENSOR_MO4000 2
 #define SENSOR_OV7648 3
 #define SENSOR_OV7660 4
-	unsigned char customid;
-#define SN9C102P 0
-#define SN9C105 1
-#define SN9C110 2
-#define SN9C120 3
-#define SN9C325 4
 	unsigned char i2c_base;
-	unsigned char i2c_ctrl_reg;
 };
 
 /* V4L2 controls supported by the driver */
@@ -563,7 +562,7 @@ static void i2c_w2(struct gspca_dev *gspca_dev,
 	__u8 mode[8];
 
 	/* is i2c ready */
-	mode[0] = sd->i2c_ctrl_reg | (2 << 4);
+	mode[0] = 0x81 | (2 << 4);
 	mode[1] = sd->i2c_base;
 	mode[2] = buffer[0];
 	mode[3] = buffer[1];
@@ -588,7 +587,7 @@ static void i2c_r5(struct gspca_dev *gspca_dev, __u8 reg)
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 mode[8];
 
-	mode[0] = sd->i2c_ctrl_reg | 0x10;
+	mode[0] = 0x81 | 0x10;
 	mode[1] = sd->i2c_base;
 	mode[2] = reg;
 	mode[3] = 0;
@@ -597,7 +596,7 @@ static void i2c_r5(struct gspca_dev *gspca_dev, __u8 reg)
 	mode[6] = 0;
 	mode[7] = 0x10;
 	i2c_w8(gspca_dev, mode);
-	mode[0] = sd->i2c_ctrl_reg | (5 << 4) | 0x02;
+	mode[0] = 0x81 | (5 << 4) | 0x02;
 	mode[2] = 0;
 	i2c_w8(gspca_dev, mode);
 	reg_r(gspca_dev, 0x0a, 5);
@@ -658,11 +657,11 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 	reg_w(gspca_dev, 0x01, &sn9c1xx[1], 2);
 	reg_w(gspca_dev, 0x08, &sn9c1xx[8], 2);
 	reg_w(gspca_dev, 0x17, &sn9c1xx[0x17], 3);
-	switch (sd->customid) {
-	case SN9C325:
+	switch (sd->bridge) {
+	case BRIDGE_SN9C325:
 		reg9a = reg9a_sn9c325;
 		break;
-	case SN9C120:
+	case BRIDGE_SN9C120:
 		reg9a = reg9a_sn9c120;
 		break;
 	default:
@@ -676,8 +675,8 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 
 	reg_w(gspca_dev, 0x03, &sn9c1xx[3], 0x0f);
 
-	switch (sd->customid) {
-	case SN9C120:				/* from win trace */
+	switch (sd->bridge) {
+	case BRIDGE_SN9C120:			/* from win trace */
 		data = 0x61;
 		reg_w(gspca_dev, 0x01, &data, 1);
 		data = 0x20;
@@ -685,7 +684,7 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 		data = 0x60;
 		reg_w(gspca_dev, 0x01, &data, 1);
 		break;
-	case SN9C325:
+	case BRIDGE_SN9C325:
 		data = 0x43;
 		reg_w(gspca_dev, 0x01, &data, 1);
 		data = 0xae;
@@ -778,9 +777,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	case 0x0458:				/* Genius */
 /*		switch (product) {
 		case 0x7025: */
-			sd->customid = SN9C120;
+			sd->bridge = BRIDGE_SN9C120;
 			sd->sensor = SENSOR_MI0360;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x5d;
 /*			break;
 		} */
@@ -789,9 +787,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /*		switch (product) {
 		case 0x00f5:
 		case 0x00f7: */
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_OV7660;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x21;
 /*			break;
 		} */
@@ -801,9 +798,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		case 0x0327:
 		case 0x0328:
 		case 0x0330: */
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_MI0360;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x5d;
 /*			break;
 		} */
@@ -811,161 +807,135 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	case 0x0c45:				/* Sonix */
 		switch (product) {
 		case 0x6040:
-			sd->customid = SN9C102P;
+			sd->bridge = BRIDGE_SN9C102P;
 			sd->sensor = SENSOR_MI0360;	/* from BW600.inf */
 /*			sd->sensor = SENSOR_HV7131R;	 * gspcav1 value */
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x11;
 			break;
 /*		case 0x607a:				* from BW600.inf
-			sd->customid = SN9C102P;
+			sd->bridge = BRIDGE_SN9C102P;
 			sd->sensor = SENSOR_OV7648;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 		case 0x607c:
-			sd->customid = SN9C102P;
+			sd->bridge = BRIDGE_SN9C102P;
 			sd->sensor = SENSOR_HV7131R;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x11;
 			break;
 /*		case 0x607e:				* from BW600.inf
-			sd->customid = SN9C102P;
+			sd->bridge = BRIDGE_SN9C102P;
 			sd->sensor = SENSOR_OV7630;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 		case 0x60c0:
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_MI0360;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x5d;
 			break;
 /*		case 0x60c8:				* from BW600.inf
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_OM6801;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 /*		case 0x60cc:				* from BW600.inf
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_HV7131GP;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 		case 0x60ec:
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_MO4000;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x21;
 			break;
 /*		case 0x60ef:				* from BW600.inf
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_ICM105C;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 /*		case 0x60fa:				* from BW600.inf
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_OV7648;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 		case 0x60fb:
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_OV7660;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x21;
 			break;
 		case 0x60fc:
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_HV7131R;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x11;
 			break;
 /*		case 0x60fe:				* from BW600.inf
-			sd->customid = SN9C105;
+			sd->bridge = BRIDGE_SN9C105;
 			sd->sensor = SENSOR_OV7630;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 /*		case 0x6108:				* from BW600.inf
-			sd->customid = SN9C120;
+			sd->bridge = BRIDGE_SN9C120;
 			sd->sensor = SENSOR_OM6801;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 /*		case 0x6122:				* from BW600.inf
-			sd->customid = SN9C110;
+			sd->bridge = BRIDGE_SN9C110;
 			sd->sensor = SENSOR_ICM105C;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 		case 0x612a:
-/*			sd->customid = SN9C110;		 * in BW600.inf */
-			sd->customid = SN9C325;
+/*			sd->bridge = BRIDGE_SN9C110;		 * in BW600.inf */
+			sd->bridge = BRIDGE_SN9C325;
 			sd->sensor = SENSOR_OV7648;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x21;
 			break;
 /*		case 0x6123:				* from BW600.inf
-			sd->customid = SN9C110;
+			sd->bridge = BRIDGE_SN9C110;
 			sd->sensor = SENSOR_SanyoCCD;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 		case 0x612c:
-			sd->customid = SN9C110;
+			sd->bridge = BRIDGE_SN9C110;
 			sd->sensor = SENSOR_MO4000;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x21;
 			break;
 /*		case 0x612e:				* from BW600.inf
-			sd->customid = SN9C110;
+			sd->bridge = BRIDGE_SN9C110;
 			sd->sensor = SENSOR_OV7630;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 /*		case 0x612f:				* from BW600.inf
-			sd->customid = SN9C110;
+			sd->bridge = BRIDGE_SN9C110;
 			sd->sensor = SENSOR_ICM105C;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 		case 0x6130:
-			sd->customid = SN9C120;
+			sd->bridge = BRIDGE_SN9C120;
 			sd->sensor = SENSOR_MI0360;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x5d;
 			break;
 		case 0x6138:
-			sd->customid = SN9C120;
+			sd->bridge = BRIDGE_SN9C120;
 			sd->sensor = SENSOR_MO4000;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x21;
 			break;
 /*		case 0x613a:				* from BW600.inf
-			sd->customid = SN9C120;
+			sd->bridge = BRIDGE_SN9C120;
 			sd->sensor = SENSOR_OV7648;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 		case 0x613b:
-			sd->customid = SN9C120;
+			sd->bridge = BRIDGE_SN9C120;
 			sd->sensor = SENSOR_OV7660;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x21;
 			break;
 		case 0x613c:
-			sd->customid = SN9C120;
+			sd->bridge = BRIDGE_SN9C120;
 			sd->sensor = SENSOR_HV7131R;
-			sd->i2c_ctrl_reg = 0x81;
 			sd->i2c_base = 0x11;
 			break;
 /*		case 0x613e:				* from BW600.inf
-			sd->customid = SN9C120;
+			sd->bridge = BRIDGE_SN9C120;
 			sd->sensor = SENSOR_OV7630;
-			sd->i2c_ctrl_reg = 0x??;
 			sd->i2c_base = 0x??;
 			break; */
 		}
@@ -999,7 +969,7 @@ static int sd_open(struct gspca_dev *gspca_dev)
 	__u8 regF1;
 	__u8 regGpio[] = { 0x29, 0x74 };
 
-	/* setup a selector by customid */
+	/* setup a selector by bridge */
 	regF1 = 0x01;
 	reg_w(gspca_dev, 0xf1, &regF1, 1);
 	reg_r(gspca_dev, 0x00, 1);		/* -> regF1 = 0x00 */
@@ -1007,31 +977,31 @@ static int sd_open(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xf1, &regF1, 1);
 	reg_r(gspca_dev, 0x00, 1);
 	regF1 = gspca_dev->usb_buf[0];
-	switch (sd->customid) {
-	case SN9C102P:
+	switch (sd->bridge) {
+	case BRIDGE_SN9C102P:
 		if (regF1 != 0x11)
 			return -ENODEV;
 		reg_w(gspca_dev, 0x02, &regGpio[1], 1);
 		break;
-	case SN9C105:
+	case BRIDGE_SN9C105:
 		if (regF1 != 0x11)
 			return -ENODEV;
 		reg_w(gspca_dev, 0x02, regGpio, 2);
 		break;
-	case SN9C110:
+	case BRIDGE_SN9C110:
 		if (regF1 != 0x12)
 			return -ENODEV;
 		regGpio[1] = 0x62;
 		reg_w(gspca_dev, 0x02, &regGpio[1], 1);
 		break;
-	case SN9C120:
+	case BRIDGE_SN9C120:
 		if (regF1 != 0x12)
 			return -ENODEV;
 		regGpio[1] = 0x70;
 		reg_w(gspca_dev, 0x02, regGpio, 2);
 		break;
 	default:
-/*	case SN9C325: */
+/*	case BRIDGE_SN9C325: */
 		if (regF1 != 0x12)
 			return -ENODEV;
 		regGpio[1] = 0x62;
@@ -1207,7 +1177,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xc9, &DC29[5], 1);
 /*fixme:jfm end of ending sequence */
 	reg_w(gspca_dev, 0x18, &sn9c1xx[0x18], 1);
-	if (sd->customid == SN9C325)
+	if (sd->bridge == BRIDGE_SN9C325)
 		data = 0xae;
 	else
 		data = 0x60;
@@ -1216,7 +1186,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x07, &sn9c1xx[7], 1);
 	reg_w(gspca_dev, 0x06, &sn9c1xx[6], 1);
 	reg_w(gspca_dev, 0x14, &sn9c1xx[0x14], 1);
-	if (sd->customid == SN9C325) {
+	if (sd->bridge == BRIDGE_SN9C325) {
 		reg_w(gspca_dev, 0x20, regsn20_sn9c325, 0x11);
 		for (i = 0; i < 8; i++)
 			reg_w(gspca_dev, 0x84, reg84_sn9c325, 0x15);
@@ -1285,17 +1255,17 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 	reg_w(gspca_dev, 0xc0, C0, 6);
-	switch (sd->customid) {
-	case SN9C120:			/*jfm ?? */
+	switch (sd->bridge) {
+	case BRIDGE_SN9C120:			/*jfm ?? */
 		reg_w(gspca_dev, 0xca, CA_sn9c120, 4);
 		break;
 	default:
 		reg_w(gspca_dev, 0xca, CA, 4);
 		break;
 	}
-	switch (sd->customid) {
-	case SN9C120:			/*jfm ?? */
-	case SN9C325:
+	switch (sd->bridge) {
+	case BRIDGE_SN9C120:			/*jfm ?? */
+	case BRIDGE_SN9C325:
 		reg_w(gspca_dev, 0xce, CE_sn9c325, 4);
 		break;
 	default:
