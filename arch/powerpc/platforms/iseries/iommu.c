@@ -42,7 +42,8 @@
 #include <asm/iseries/iommu.h>
 
 static void tce_build_iSeries(struct iommu_table *tbl, long index, long npages,
-		unsigned long uaddr, enum dma_data_direction direction)
+		unsigned long uaddr, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
 	u64 rc;
 	u64 tce, rpn;

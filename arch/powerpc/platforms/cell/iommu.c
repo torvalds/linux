@@ -173,7 +173,8 @@ static void invalidate_tce_cache(struct cbe_iommu *iommu, unsigned long *pte,
 }
 
 static void tce_build_cell(struct iommu_table *tbl, long index, long npages,
-		unsigned long uaddr, enum dma_data_direction direction)
+		unsigned long uaddr, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
 	int i;
 	unsigned long *io_pte, base_pte;
@@ -519,7 +520,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 
 	__set_bit(0, window->table.it_map);
 	tce_build_cell(&window->table, window->table.it_offset, 1,
-		       (unsigned long)iommu->pad_page, DMA_TO_DEVICE);
+		       (unsigned long)iommu->pad_page, DMA_TO_DEVICE, NULL);
 	window->table.it_hint = window->table.it_blocksize;
 
 	return window;

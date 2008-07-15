@@ -80,7 +80,8 @@ struct machdep_calls {
 				     long index,
 				     long npages,
 				     unsigned long uaddr,
-				     enum dma_data_direction direction);
+				     enum dma_data_direction direction,
+				     struct dma_attrs *attrs);
 	void		(*tce_free)(struct iommu_table *tbl,
 				    long index,
 				    long npages);
