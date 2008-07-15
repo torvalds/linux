@@ -4255,35 +4255,43 @@ nvram_write_end:
 }
 
 static void
-bnx2_init_remote_phy(struct bnx2 *bp)
+bnx2_init_fw_cap(struct bnx2 *bp)
 {
-	u32 val;
+	u32 val, sig = 0;
 
 	bp->phy_flags &= ~BNX2_PHY_FLAG_REMOTE_PHY_CAP;
-	if (!(bp->phy_flags & BNX2_PHY_FLAG_SERDES))
-		return;
+	bp->flags &= ~BNX2_FLAG_CAN_KEEP_VLAN;
+
+	if (!(bp->flags & BNX2_FLAG_ASF_ENABLE))
+		bp->flags |= BNX2_FLAG_CAN_KEEP_VLAN;
 
 	val = bnx2_shmem_rd(bp, BNX2_FW_CAP_MB);
 	if ((val & BNX2_FW_CAP_SIGNATURE_MASK) != BNX2_FW_CAP_SIGNATURE)
 		return;
 
-	if (val & BNX2_FW_CAP_REMOTE_PHY_CAPABLE) {
+	if ((val & BNX2_FW_CAP_CAN_KEEP_VLAN) == BNX2_FW_CAP_CAN_KEEP_VLAN) {
+		bp->flags |= BNX2_FLAG_CAN_KEEP_VLAN;
+		sig |= BNX2_DRV_ACK_CAP_SIGNATURE | BNX2_FW_CAP_CAN_KEEP_VLAN;
+	}
+
+	if ((bp->phy_flags & BNX2_PHY_FLAG_SERDES) &&
+	    (val & BNX2_FW_CAP_REMOTE_PHY_CAPABLE)) {
+		u32 link;
+
 		bp->phy_flags |= BNX2_PHY_FLAG_REMOTE_PHY_CAP;
 
-		val = bnx2_shmem_rd(bp, BNX2_LINK_STATUS);
-		if (val & BNX2_LINK_STATUS_SERDES_LINK)
+		link = bnx2_shmem_rd(bp, BNX2_LINK_STATUS);
+		if (link & BNX2_LINK_STATUS_SERDES_LINK)
 			bp->phy_port = PORT_FIBRE;
 		else
 			bp->phy_port = PORT_TP;
 
-		if (netif_running(bp->dev)) {
-			u32 sig;
-
-			sig = BNX2_DRV_ACK_CAP_SIGNATURE |
-			      BNX2_FW_CAP_REMOTE_PHY_CAPABLE;
-			bnx2_shmem_wr(bp, BNX2_DRV_ACK_CAP_MB, sig);
-		}
+		sig |= BNX2_DRV_ACK_CAP_SIGNATURE |
+		       BNX2_FW_CAP_REMOTE_PHY_CAPABLE;
 	}
+
+	if (netif_running(bp->dev) && sig)
+		bnx2_shmem_wr(bp, BNX2_DRV_ACK_CAP_MB, sig);
 }
 
 static void
@@ -4380,7 +4388,7 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 
 	spin_lock_bh(&bp->phy_lock);
 	old_port = bp->phy_port;
-	bnx2_init_remote_phy(bp);
+	bnx2_init_fw_cap(bp);
 	if ((bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP) &&
 	    old_port != bp->phy_port)
 		bnx2_set_default_remote_link(bp);
@@ -5879,6 +5887,8 @@ bnx2_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp)
 
 	bp->vlgrp = vlgrp;
 	bnx2_set_rx_mode(dev);
+	if (bp->flags & BNX2_FLAG_CAN_KEEP_VLAN)
+		bnx2_fw_sync(bp, BNX2_DRV_MSG_CODE_KEEP_VLAN_UPDATE, 0, 1);
 
 	bnx2_netif_start(bp);
 }
@@ -7483,8 +7493,6 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			if (reg & BNX2_SHARED_HW_CFG_PHY_2_5G)
 				bp->phy_flags |= BNX2_PHY_FLAG_2_5G_CAPABLE;
 		}
-		bnx2_init_remote_phy(bp);
-
 	} else if (CHIP_NUM(bp) == CHIP_NUM_5706 ||
 		   CHIP_NUM(bp) == CHIP_NUM_5708)
 		bp->phy_flags |= BNX2_PHY_FLAG_CRC_FIX;
@@ -7492,6 +7500,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		 (CHIP_REV(bp) == CHIP_REV_Ax ||
 		  CHIP_REV(bp) == CHIP_REV_Bx))
 		bp->phy_flags |= BNX2_PHY_FLAG_DIS_EARLY_DAC;
+
+	bnx2_init_fw_cap(bp);
 
 	if ((CHIP_ID(bp) == CHIP_ID_5708_A0) ||
 	    (CHIP_ID(bp) == CHIP_ID_5708_B0) ||
