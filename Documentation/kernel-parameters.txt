@@ -1612,6 +1612,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: { parport<nr> | timid | 0 }
 			See also Documentation/parport.txt.
 
+	pmtmr=		[X86] Manual setup of pmtmr I/O Port. 
+			Override pmtimer IOPort with a hex value.
+			e.g. pmtmr=0x508
+
 	pnpacpi=	[ACPI]
 			{ off }
 
