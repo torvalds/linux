@@ -1089,6 +1089,7 @@ extern int drm_mm_remove_space_from_tail(struct drm_mm *mm, unsigned long size);
 extern int drm_mm_add_space_to_tail(struct drm_mm *mm, unsigned long size);
 
 extern void drm_core_ioremap(struct drm_map *map, struct drm_device *dev);
+extern void drm_core_ioremap_wc(struct drm_map *map, struct drm_device *dev);
 extern void drm_core_ioremapfree(struct drm_map *map, struct drm_device *dev);
 
 static __inline__ struct drm_map *drm_core_findmap(struct drm_device *dev,
