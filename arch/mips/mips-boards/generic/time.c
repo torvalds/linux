@@ -45,9 +45,6 @@
 #ifdef CONFIG_MIPS_MALTA
 #include <asm/mips-boards/maltaint.h>
 #endif
-#ifdef CONFIG_MIPS_SEAD
-#include <asm/mips-boards/seadint.h>
-#endif
 
 unsigned long cpu_khz;
 
@@ -73,7 +70,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 	unsigned int prid = read_c0_prid() & 0xffff00;
 	unsigned int count;
 
-#if defined(CONFIG_MIPS_SEAD) || defined(CONFIG_MIPS_SIM)
+#ifdef CONFIG_MIPS_SIM
 	/*
 	 * The SEAD board doesn't have a real time clock, so we can't
 	 * really calculate the timer frequency

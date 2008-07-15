@@ -52,7 +52,7 @@ void mips_reboot_setup(void)
 {
 	_machine_restart = mips_machine_restart;
 	_machine_halt = mips_machine_halt;
-#if defined(CONFIG_MIPS_MALTA) || defined(CONFIG_MIPS_SEAD)
+#ifdef CONFIG_MIPS_MALTA
 	pm_power_off = mips_machine_halt;
 #endif
 }

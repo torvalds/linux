@@ -22,21 +22,9 @@
 #include <linux/serial_reg.h>
 #include <asm/io.h>
 
-#if   defined(CONFIG_MIPS_SEAD)
-
-#include <asm/mips-boards/sead.h>
-
-#ifdef CONFIG_CPU_LITTLE_ENDIAN
-#define PORT(offset) (SEAD_UART0_REGS_BASE     + ((offset)<<3))
-#else
-#define PORT(offset) (SEAD_UART0_REGS_BASE + 3 + ((offset)<<3))
-#endif
-
-#else
 
 #define PORT(offset) (0x3f8 + (offset))
 
-#endif
 
 static inline unsigned int serial_in(int offset)
 {

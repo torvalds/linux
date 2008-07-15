@@ -318,14 +318,6 @@ load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
 all-$(CONFIG_MIPS_MALTA)	:= vmlinux.bin
 
 #
-# MIPS SEAD board
-#
-core-$(CONFIG_MIPS_SEAD)	+= arch/mips/mips-boards/sead/
-cflags-$(CONFIG_MIPS_SEAD)	+= -Iinclude/asm-mips/mach-mips
-load-$(CONFIG_MIPS_SEAD)	+= 0xffffffff80100000
-all-$(CONFIG_MIPS_SEAD)		:= vmlinux.srec
-
-#
 # MIPS SIM
 #
 core-$(CONFIG_MIPS_SIM)		+= arch/mips/mipssim/
