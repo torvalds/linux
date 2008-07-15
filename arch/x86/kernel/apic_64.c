@@ -314,7 +314,7 @@ static void setup_APIC_timer(void)
 
 #define TICK_COUNT 100000000
 
-static void __init calibrate_APIC_clock(void)
+static int __init calibrate_APIC_clock(void)
 {
 	unsigned apic, apic_start;
 	unsigned long tsc, tsc_start;
@@ -368,6 +368,17 @@ static void __init calibrate_APIC_clock(void)
 		clockevent_delta2ns(0xF, &lapic_clockevent);
 
 	calibration_result = result / HZ;
+
+	/*
+	 * Do a sanity check on the APIC calibration result
+	 */
+	if (calibration_result < (1000000 / HZ)) {
+		printk(KERN_WARNING
+			"APIC frequency too slow, disabling apic timer\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 /*
@@ -394,14 +405,7 @@ void __init setup_boot_APIC_clock(void)
 	}
 
 	printk(KERN_INFO "Using local APIC timer interrupts.\n");
-	calibrate_APIC_clock();
-
-	/*
-	 * Do a sanity check on the APIC calibration result
-	 */
-	if (calibration_result < (1000000 / HZ)) {
-		printk(KERN_WARNING
-		       "APIC frequency too slow, disabling apic timer\n");
+	if (calibrate_APIC_clock()) {
 		/* No broadcast on UP ! */
 		if (num_possible_cpus() > 1)
 			setup_APIC_timer();
