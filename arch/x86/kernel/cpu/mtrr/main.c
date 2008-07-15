@@ -223,7 +223,7 @@ static void set_mtrr(unsigned int reg, unsigned long base,
 	atomic_set(&data.gate,0);
 
 	/*  Start the ball rolling on other CPUs  */
-	if (smp_call_function(ipi_handler, &data, 1, 0) != 0)
+	if (smp_call_function(ipi_handler, &data, 0) != 0)
 		panic("mtrr: timed out waiting for other CPUs\n");
 
 	local_irq_save(flags);
@@ -1682,7 +1682,7 @@ void mtrr_ap_init(void)
  */
 void mtrr_save_state(void)
 {
-	smp_call_function_single(0, mtrr_save_fixed_ranges, NULL, 1, 1);
+	smp_call_function_single(0, mtrr_save_fixed_ranges, NULL, 1);
 }
 
 static int __init mtrr_init_finialize(void)

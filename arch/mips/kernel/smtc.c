@@ -877,7 +877,6 @@ static void ipi_resched_interrupt(void)
 	/* Return from interrupt should be enough to cause scheduler check */
 }
 
-
 static void ipi_call_interrupt(void)
 {
 	/* Invoke generic function invocation code in smp.c */

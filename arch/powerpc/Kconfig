@@ -111,6 +111,7 @@ config PPC
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_LMB
+	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_OPROFILE
 
 config EARLY_PRINTK
