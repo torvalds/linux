@@ -6215,6 +6215,12 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	    !(bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP))
 		goto err_out_unlock;
 
+	/* If device is down, we can store the settings only if the user
+	 * is setting the currently active port.
+	 */
+	if (!netif_running(dev) && cmd->port != bp->phy_port)
+		goto err_out_unlock;
+
 	if (cmd->autoneg == AUTONEG_ENABLE) {
 		autoneg |= AUTONEG_SPEED;
 
@@ -6272,7 +6278,12 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	bp->req_line_speed = req_line_speed;
 	bp->req_duplex = req_duplex;
 
-	err = bnx2_setup_phy(bp, cmd->port);
+	err = 0;
+	/* If device is down, the new settings will be picked up when it is
+	 * brought up.
+	 */
+	if (netif_running(dev))
+		err = bnx2_setup_phy(bp, cmd->port);
 
 err_out_unlock:
 	spin_unlock_bh(&bp->phy_lock);
