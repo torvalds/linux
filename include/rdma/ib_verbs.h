@@ -91,7 +91,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_RC_RNR_NAK_GEN	= (1<<12),
 	IB_DEVICE_SRQ_RESIZE		= (1<<13),
 	IB_DEVICE_N_NOTIFY_CQ		= (1<<14),
-	IB_DEVICE_ZERO_STAG		= (1<<15),
+	IB_DEVICE_LOCAL_DMA_LKEY	= (1<<15),
 	IB_DEVICE_RESERVED		= (1<<16), /* old SEND_W_INV */
 	IB_DEVICE_MEM_WINDOW		= (1<<17),
 	/*
@@ -1149,6 +1149,7 @@ struct ib_device {
 
 	char			     node_desc[64];
 	__be64			     node_guid;
+	u32			     local_dma_lkey;
 	u8                           node_type;
 	u8                           phys_port_cnt;
 };

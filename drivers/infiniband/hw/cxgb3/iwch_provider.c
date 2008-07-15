@@ -1325,8 +1325,10 @@ int iwch_register_device(struct iwch_dev *dev)
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
 	dev->ibdev.owner = THIS_MODULE;
-	dev->device_cap_flags = IB_DEVICE_ZERO_STAG |
-				IB_DEVICE_MEM_WINDOW;
+	dev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY | IB_DEVICE_MEM_WINDOW;
+
+	/* cxgb3 supports STag 0. */
+	dev->ibdev.local_dma_lkey = 0;
 	if (fw_supports_fastreg(dev))
 		dev->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 
