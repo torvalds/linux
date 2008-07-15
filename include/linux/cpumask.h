@@ -75,6 +75,17 @@
  * CPU_MASK_NONE			Initializer - no bits set
  * unsigned long *cpus_addr(mask)	Array of unsigned long's in mask
  *
+ *if NR_CPUS > BITS_PER_LONG
+ *   CPUMASK_ALLOC(m)			Declares and allocates struct m *m =
+ *					   (struct m *)kmalloc(sizeof(*m), ...)
+ *   CPUMASK_FREE(m)			Macro for kfree(v)
+ *else
+ *   CPUMASK_ALLOC(m)			Declares struct m _m, *m = &_m
+ *   CPUMASK_FREE(m)			Nop
+ *endif
+ *   CPUMASK_VAR(v, m)			Declares cpumask_t *v =
+ *						m + offset(struct m, v)
+ *
  * int cpumask_scnprintf(buf, len, mask) Format cpumask for printing
  * int cpumask_parse_user(ubuf, ulen, mask)	Parse ascii string as cpumask
  * int cpulist_scnprintf(buf, len, mask) Format cpumask as list for printing
@@ -310,6 +321,16 @@ extern cpumask_t cpu_mask_all;
 } }
 
 #define cpus_addr(src) ((src).bits)
+
+#if NR_CPUS > BITS_PER_LONG
+#define	CPUMASK_ALLOC(m)	struct m *m = kmalloc(sizeof(*m), GFP_KERNEL)
+#define	CPUMASK_FREE(m)		kfree(m)
+#else
+#define	CPUMASK_ALLOC(m)	struct allmasks _m, *m = &_m
+#define	CPUMASK_FREE(m)
+#endif
+#define	CPUMASK_VAR(v, m) 	cpumask_t *v = (cpumask_t *)		\
+				((unsigned long)(m) + offsetof(struct m, v))
 
 #define cpumask_scnprintf(buf, len, src) \
 			__cpumask_scnprintf((buf), (len), &(src), NR_CPUS)
