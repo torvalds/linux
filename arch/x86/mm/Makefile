@@ -21,3 +21,4 @@ obj-$(CONFIG_K8_NUMA)		+= k8topology_64.o
 endif
 obj-$(CONFIG_ACPI_NUMA)		+= srat_$(BITS).o
 
+obj-$(CONFIG_MEMTEST)		+= memtest.o
