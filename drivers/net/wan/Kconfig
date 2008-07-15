@@ -390,8 +390,7 @@ config WAN_ROUTER_DRIVERS
 
 	  Select driver your card and remember to say Y to "Wan Router."
 	  You will need the wan-tools package which is available from
-	  <ftp://ftp.sangoma.com/>. For more information read:
-	  <file:Documentation/networking/wan-router.txt>.
+	  <ftp://ftp.sangoma.com/>.
 
 	  Note that the answer to this question won't directly affect the
 	  kernel except for how subordinate drivers may be built:
