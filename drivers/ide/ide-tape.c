@@ -56,6 +56,8 @@ enum {
 	DBG_PROCS =		(1 << 3),
 	/* buffer alloc info (pc_stack & rq_stack) */
 	DBG_PCRQ_STACK =	(1 << 4),
+	/* IRQ handler (always log debug info if debugging is on) */
+	DBG_PC_INTR = 		(1 << 5),
 };
 
 /* define to see debug info */
@@ -64,7 +66,7 @@ enum {
 #if IDETAPE_DEBUG_LOG
 #define debug_log(lvl, fmt, args...)			\
 {							\
-	if (tape->debug_mask & lvl)			\
+	if ((lvl & DBG_PC_INTR) || (tape->debug_mask & lvl)) \
 	printk(KERN_INFO "ide-tape: " fmt, ## args);	\
 }
 #else
@@ -806,7 +808,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 	u16 bcount;
 	u8 stat, ireason;
 
-	debug_log(DBG_PROCS, "Enter %s - interrupt handler\n", __func__);
+	debug_log(DBG_PC_INTR, "Enter %s - interrupt handler\n", __func__);
 
 	/* Clear the interrupt */
 	stat = ide_read_status(drive);
@@ -818,13 +820,12 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 			pc->xferred = pc->req_xfer;
 			idetape_update_buffers(pc);
 		}
-		debug_log(DBG_PROCS, "DMA finished\n");
-
+		debug_log(DBG_PC_INTR, "%s: DMA finished\n", drive->name);
 	}
 
 	/* No more interrupts */
 	if ((stat & DRQ_STAT) == 0) {
-		debug_log(DBG_SENSE, "Packet command completed, %d bytes"
+		debug_log(DBG_PC_INTR, "Packet command completed, %d bytes"
 				" transferred\n", pc->xferred);
 
 		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
@@ -834,14 +835,14 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 			stat &= ~ERR_STAT;
 		if ((stat & ERR_STAT) || (pc->flags & PC_FLAG_DMA_ERROR)) {
 			/* Error detected */
-			debug_log(DBG_ERR, "%s: I/O error\n", tape->name);
+			debug_log(DBG_PC_INTR, "%s: I/O error\n", drive->name);
 
 			if (pc->c[0] == REQUEST_SENSE) {
 				printk(KERN_ERR "%s: I/O error in request sense"
 						" command\n", drive->name);
 				return ide_do_reset(drive);
 			}
-			debug_log(DBG_ERR, "[cmd %x]: check condition\n",
+			debug_log(DBG_PC_INTR, "[cmd %x]: check condition\n",
 					pc->c[0]);
 
 			/* Retry operation */
@@ -898,7 +899,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 						IDETAPE_WAIT_CMD, NULL);
 				return ide_started;
 			}
-			debug_log(DBG_SENSE, "The device wants to send us more "
+			debug_log(DBG_PC_INTR, "The device wants to send us more "
 				"data than expected - allowing transfer\n");
 		}
 		xferfunc = hwif->input_data;
@@ -916,7 +917,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 	pc->xferred += bcount;
 	pc->cur_pos += bcount;
 
-	debug_log(DBG_SENSE, "[cmd %x] transferred %d bytes on that intr.\n",
+	debug_log(DBG_PC_INTR, "[cmd %x] transferred %d bytes on that intr.\n",
 			pc->c[0], bcount);
 
 	/* And set the interrupt handler again */
