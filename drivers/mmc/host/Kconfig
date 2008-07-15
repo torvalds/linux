@@ -164,3 +164,13 @@ config MMC_S3C
 
 	  If unsure, say N.
 
+config MMC_SDRICOH_CS
+	tristate "MMC/SD driver for Ricoh Bay1Controllers (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && MMC && PCI && PCMCIA
+	help
+	  Say Y here if your Notebook reports a Ricoh Bay1Controller PCMCIA
+	  card whenever you insert a MMC or SD card into the card slot.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sdricoh_cs.
+
