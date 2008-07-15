@@ -492,11 +492,12 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
 
 int ide_raw_taskfile(ide_drive_t *drive, ide_task_t *task, u8 *buf, u16 nsect)
 {
-	struct request rq;
+	struct request *rq;
+	int error;
 
-	blk_rq_init(NULL, &rq);
-	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
-	rq.buffer = buf;
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq->buffer = buf;
 
 	/*
 	 * (ks) We transfer currently only whole sectors.
@@ -504,16 +505,19 @@ int ide_raw_taskfile(ide_drive_t *drive, ide_task_t *task, u8 *buf, u16 nsect)
 	 * if we would find a solution to transfer any size.
 	 * To support special commands like READ LONG.
 	 */
-	rq.hard_nr_sectors = rq.nr_sectors = nsect;
-	rq.hard_cur_sectors = rq.current_nr_sectors = nsect;
+	rq->hard_nr_sectors = rq->nr_sectors = nsect;
+	rq->hard_cur_sectors = rq->current_nr_sectors = nsect;
 
 	if (task->tf_flags & IDE_TFLAG_WRITE)
-		rq.cmd_flags |= REQ_RW;
+		rq->cmd_flags |= REQ_RW;
 
-	rq.special = task;
-	task->rq = &rq;
+	rq->special = task;
+	task->rq = rq;
 
-	return ide_do_drive_cmd(drive, &rq, ide_wait);
+	error = blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_put_request(rq);
+
+	return error;
 }
 
 EXPORT_SYMBOL(ide_raw_taskfile);
@@ -739,12 +743,14 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	struct hd_driveid *id = drive->id;
 
 	if (NULL == (void *) arg) {
-		struct request rq;
+		struct request *rq;
 
-		ide_init_drive_cmd(&rq);
-		rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
+		rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+		rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+		err = blk_execute_rq(drive->queue, NULL, rq, 0);
+		blk_put_request(rq);
 
-		return ide_do_drive_cmd(drive, &rq, ide_wait);
+		return err;
 	}
 
 	if (copy_from_user(args, (void __user *)arg, 4))
