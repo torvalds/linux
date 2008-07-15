@@ -312,6 +312,7 @@ int smp_call_function_mask(cpumask_t mask, void (*func)(void *), void *info,
 	if (!data) {
 		data = &d;
 		data->csd.flags = CSD_FLAG_WAIT;
+		wait = 1;
 	}
 
 	spin_lock_init(&data->lock);
