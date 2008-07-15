@@ -31,7 +31,7 @@ struct icmp_err {
 extern struct icmp_err icmp_err_convert[];
 DECLARE_SNMP_STAT(struct icmp_mib, icmp_statistics);
 DECLARE_SNMP_STAT(struct icmpmsg_mib, icmpmsg_statistics);
-#define ICMP_INC_STATS(field)		SNMP_INC_STATS(icmp_statistics, field)
+#define ICMP_INC_STATS(net, field)	SNMP_INC_STATS(icmp_statistics, field)
 #define ICMP_INC_STATS_BH(field)	SNMP_INC_STATS_BH(icmp_statistics, field)
 #define ICMPMSGOUT_INC_STATS(field)	SNMP_INC_STATS(icmpmsg_statistics, field+256)
 #define ICMPMSGIN_INC_STATS_BH(field)	SNMP_INC_STATS_BH(icmpmsg_statistics, field)
