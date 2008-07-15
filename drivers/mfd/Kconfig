@@ -56,6 +56,12 @@ config MFD_T7L66XB
 	help
 	  Support for Toshiba Mobile IO Controller T7L66XB
 
+config MFD_TC6387XB
+	bool "Support Toshiba TC6387XB"
+	select MFD_CORE
+	help
+	  Support for Toshiba Mobile IO Controller TC6387XB
+
 config MFD_TC6393XB
 	bool "Support Toshiba TC6393XB"
 	depends on GPIOLIB && ARM
