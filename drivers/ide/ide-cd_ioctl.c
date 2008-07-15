@@ -296,14 +296,14 @@ int ide_cdrom_reset(struct cdrom_device_info *cdi)
 	ide_drive_t *drive = cdi->handle;
 	struct cdrom_info *cd = drive->driver_data;
 	struct request_sense sense;
-	struct request req;
+	struct request *rq;
 	int ret;
 
-	ide_cd_init_rq(drive, &req);
-	req.cmd_type = REQ_TYPE_SPECIAL;
-	req.cmd_flags = REQ_QUIET;
-	ret = ide_do_drive_cmd(drive, &req, ide_wait);
-
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd_flags = REQ_QUIET;
+	ret = blk_execute_rq(drive->queue, cd->disk, rq, 0);
+	blk_put_request(rq);
 	/*
 	 * A reset will unlock the door. If it was previously locked,
 	 * lock it again.
