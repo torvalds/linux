@@ -438,8 +438,8 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 			debug_log("%s: I/O error\n", drive->name);
 			rq->errors++;
 			if (pc->c[0] == GPCMD_REQUEST_SENSE) {
-				printk(KERN_ERR "ide-floppy: I/O error in "
-					"request sense command\n");
+				printk(KERN_ERR "%s: I/O error in request sense"
+						" command\n", drive->name);
 				return ide_do_reset(drive);
 			}
 			/* Retry operation */
@@ -457,8 +457,8 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
 		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
-		printk(KERN_ERR "ide-floppy: The floppy wants to issue "
-			"more interrupts in DMA mode\n");
+		printk(KERN_ERR "%s: The device wants to issue more interrupts "
+				"in DMA mode\n", drive->name);
 		ide_dma_off(drive);
 		return ide_do_reset(drive);
 	}
@@ -470,14 +470,14 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 
 	if (ireason & CD) {
-		printk(KERN_ERR "ide-floppy: CoD != 0 in %s\n", __func__);
+		printk(KERN_ERR "%s: CoD != 0 in %s\n", drive->name, __func__);
 		return ide_do_reset(drive);
 	}
 	if (((ireason & IO) == IO) == !!(pc->flags & PC_FLAG_WRITING)) {
 		/* Hopefully, we will never get here */
-		printk(KERN_ERR "ide-floppy: We wanted to %s, ",
-				(ireason & IO) ? "Write" : "Read");
-		printk(KERN_ERR "but the floppy wants us to %s !\n",
+		printk(KERN_ERR "%s: We wanted to %s, but the device wants us "
+				"to %s!\n", drive->name,
+				(ireason & IO) ? "Write" : "Read",
 				(ireason & IO) ? "Read" : "Write");
 		return ide_do_reset(drive);
 	}
@@ -486,9 +486,10 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 		temp = pc->xferred + bcount;
 		if (temp > pc->req_xfer) {
 			if (temp > pc->buf_size) {
-				printk(KERN_ERR "ide-floppy: The floppy wants "
-					"to send us more data than expected "
-					"- discarding data\n");
+				printk(KERN_ERR "%s: The device wants to send "
+						"us more data than expected - "
+						"discarding data\n",
+						drive->name);
 				ide_pad_transfer(drive, 0, bcount);
 
 				ide_set_handler(drive,
@@ -497,8 +498,8 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 						NULL);
 				return ide_started;
 			}
-			debug_log("The floppy wants to send us more data than"
-					" expected - allowing transfer\n");
+			debug_log("The device wants to send us more data than "
+				  "expected - allowing transfer\n");
 		}
 	}
 	if (pc->flags & PC_FLAG_WRITING)
@@ -552,14 +553,14 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 	u8 ireason;
 
 	if (ide_wait_stat(&startstop, drive, DRQ_STAT, BUSY_STAT, WAIT_READY)) {
-		printk(KERN_ERR "ide-floppy: Strange, packet command "
-				"initiated yet DRQ isn't asserted\n");
+		printk(KERN_ERR "%s: Strange, packet command initiated yet "
+				"DRQ isn't asserted\n", drive->name);
 		return startstop;
 	}
 	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 	if ((ireason & CD) == 0 || (ireason & IO)) {
-		printk(KERN_ERR "ide-floppy: (IO,CoD) != (0,1) "
-				"while issuing a packet command\n");
+		printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
+				"a packet command\n", drive->name);
 		return ide_do_reset(drive);
 	}
 	/*

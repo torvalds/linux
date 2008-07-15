@@ -391,7 +391,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 
 	if (ireason & CD) {
-		printk(KERN_ERR "ide-scsi: CoD != 0 in idescsi_pc_intr\n");
+		printk(KERN_ERR "%s: CoD != 0 in %s\n", drive->name, __func__);
 		return ide_do_reset (drive);
 	}
 	if (((ireason & IO) == IO) == !!(pc->flags & PC_FLAG_WRITING)) {
@@ -406,9 +406,10 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		temp = pc->xferred + bcount;
 		if (temp > pc->req_xfer) {
 			if (temp > pc->buf_size) {
-				printk(KERN_ERR "ide-scsi: The scsi wants to "
-					"send us more data than expected "
-					"- discarding data\n");
+				printk(KERN_ERR "%s: The device wants to send "
+						"us more data than expected - "
+						"discarding data\n",
+						drive->name);
 				temp = pc->buf_size - pc->xferred;
 				if (temp) {
 					if (pc->sg)
@@ -417,8 +418,9 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 					else
 						hwif->input_data(drive, NULL,
 							pc->cur_pos, temp);
-					printk(KERN_ERR "ide-scsi: transferred"
-							" %d of %d bytes\n",
+					printk(KERN_ERR "%s: transferred %d of "
+							"%d bytes\n",
+							drive->name,
 							temp, bcount);
 				}
 				pc->xferred += temp;
@@ -427,7 +429,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 				ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 				return ide_started;
 			}
-			debug_log("The scsi wants to send us more data than "
+			debug_log("The device wants to send us more data than "
 				  "expected - allowing transfer\n");
 		}
 		xferfunc = hwif->input_data;
@@ -458,14 +460,14 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 	u8 ireason;
 
 	if (ide_wait_stat(&startstop,drive,DRQ_STAT,BUSY_STAT,WAIT_READY)) {
-		printk(KERN_ERR "ide-scsi: Strange, packet command "
-			"initiated yet DRQ isn't asserted\n");
+		printk(KERN_ERR "%s: Strange, packet command initiated yet "
+				"DRQ isn't asserted\n", drive->name);
 		return startstop;
 	}
 	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 	if ((ireason & CD) == 0 || (ireason & IO)) {
-		printk(KERN_ERR "ide-scsi: (IO,CoD) != (0,1) while "
-				"issuing a packet command\n");
+		printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
+				"a packet command\n", drive->name);
 		return ide_do_reset (drive);
 	}
 
