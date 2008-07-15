@@ -25,6 +25,7 @@
 #include <linux/etherdevice.h>
 #include <net/wireless.h>
 #include <net/iw_handler.h>
+#include <net/mac80211.h>
 #include "key.h"
 #include "sta_info.h"
 
@@ -537,6 +538,9 @@ enum {
 	IEEE80211_ADDBA_MSG	= 4,
 };
 
+/* maximum number of hardware queues we support. */
+#define QD_MAX_QUEUES (IEEE80211_MAX_AMPDU_QUEUES + IEEE80211_MAX_QUEUES)
+
 struct ieee80211_local {
 	/* embed the driver visible part.
 	 * don't cast (use the static inlines below), but we keep
@@ -544,6 +548,8 @@ struct ieee80211_local {
 	struct ieee80211_hw hw;
 
 	const struct ieee80211_ops *ops;
+
+	unsigned long queue_pool[BITS_TO_LONGS(QD_MAX_QUEUES)];
 
 	struct net_device *mdev; /* wmaster# - "master" 802.11 device */
 	int open_count;
@@ -739,15 +745,6 @@ struct ieee80211_local {
 	} debugfs;
 #endif
 };
-
-static inline int ieee80211_is_multiqueue(struct ieee80211_local *local)
-{
-#ifdef CONFIG_MAC80211_QOS
-	return netif_is_multiqueue(local->mdev);
-#else
-	return 0;
-#endif
-}
 
 static inline struct ieee80211_sub_if_data *
 IEEE80211_DEV_TO_SUB_IF(struct net_device *dev)

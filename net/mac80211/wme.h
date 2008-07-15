@@ -23,45 +23,12 @@
 
 extern const int ieee802_1d_to_ac[8];
 
-#ifdef CONFIG_MAC80211_QOS
-void ieee80211_install_qdisc(struct net_device *dev);
-int ieee80211_qdisc_installed(struct net_device *dev);
+u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb);
 int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 			       struct sta_info *sta, u16 tid);
 void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
 				   struct sta_info *sta, u16 tid,
 				   u8 requeue);
 void ieee80211_requeue(struct ieee80211_local *local, int queue);
-int ieee80211_wme_register(void);
-void ieee80211_wme_unregister(void);
-#else
-static inline void ieee80211_install_qdisc(struct net_device *dev)
-{
-}
-static inline int ieee80211_qdisc_installed(struct net_device *dev)
-{
-	return 0;
-}
-static inline int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
-					     struct sta_info *sta, u16 tid)
-{
-	return -EAGAIN;
-}
-static inline void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
-						 struct sta_info *sta, u16 tid,
-						 u8 requeue)
-{
-}
-static inline void ieee80211_requeue(struct ieee80211_local *local, int queue)
-{
-}
-static inline int ieee80211_wme_register(void)
-{
-	return 0;
-}
-static inline void ieee80211_wme_unregister(void)
-{
-}
-#endif /* CONFIG_NET_SCHED */
 
 #endif /* _WME_H */

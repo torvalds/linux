@@ -11,17 +11,6 @@ config MAC80211
 	  This option enables the hardware independent IEEE 802.11
 	  networking stack.
 
-config MAC80211_QOS
-	def_bool y
-	depends on MAC80211
-	depends on NET_SCHED
-	depends on BROKEN
-
-comment "QoS/HT support disabled"
-	depends on MAC80211 && !MAC80211_QOS
-comment "QoS/HT support needs CONFIG_NET_SCHED"
-	depends on MAC80211 && !NET_SCHED
-
 menu "Rate control algorithm selection"
 	depends on MAC80211 != n
 

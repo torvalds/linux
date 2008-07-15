@@ -847,20 +847,12 @@ static inline void SET_IEEE80211_PERM_ADDR(struct ieee80211_hw *hw, u8 *addr)
 
 static inline int ieee80211_num_regular_queues(struct ieee80211_hw *hw)
 {
-#ifdef CONFIG_MAC80211_QOS
 	return hw->queues;
-#else
-	return 1;
-#endif
 }
 
 static inline int ieee80211_num_queues(struct ieee80211_hw *hw)
 {
-#ifdef CONFIG_MAC80211_QOS
 	return hw->queues + hw->ampdu_queues;
-#else
-	return 1;
-#endif
 }
 
 static inline struct ieee80211_rate *

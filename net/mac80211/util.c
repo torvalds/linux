@@ -363,12 +363,7 @@ void ieee80211_wake_queue(struct ieee80211_hw *hw, int queue)
 	if (test_bit(queue, local->queues_pending)) {
 		tasklet_schedule(&local->tx_pending_tasklet);
 	} else {
-		if (ieee80211_is_multiqueue(local)) {
-			netif_wake_subqueue(local->mdev, queue);
-		} else {
-			WARN_ON(queue != 0);
-			netif_wake_queue(local->mdev);
-		}
+		netif_wake_subqueue(local->mdev, queue);
 	}
 }
 EXPORT_SYMBOL(ieee80211_wake_queue);
@@ -377,12 +372,7 @@ void ieee80211_stop_queue(struct ieee80211_hw *hw, int queue)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (ieee80211_is_multiqueue(local)) {
-		netif_stop_subqueue(local->mdev, queue);
-	} else {
-		WARN_ON(queue != 0);
-		netif_stop_queue(local->mdev);
-	}
+	netif_stop_subqueue(local->mdev, queue);
 }
 EXPORT_SYMBOL(ieee80211_stop_queue);
 
