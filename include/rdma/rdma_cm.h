@@ -61,11 +61,11 @@ enum rdma_cm_event_type {
 };
 
 enum rdma_port_space {
-	RDMA_PS_SDP  = 0x0001,
-	RDMA_PS_IPOIB= 0x0002,
-	RDMA_PS_TCP  = 0x0106,
-	RDMA_PS_UDP  = 0x0111,
-	RDMA_PS_SCTP = 0x0183
+	RDMA_PS_SDP   = 0x0001,
+	RDMA_PS_IPOIB = 0x0002,
+	RDMA_PS_TCP   = 0x0106,
+	RDMA_PS_UDP   = 0x0111,
+	RDMA_PS_SCTP  = 0x0183
 };
 
 struct rdma_addr {

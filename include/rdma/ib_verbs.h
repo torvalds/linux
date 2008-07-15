@@ -34,8 +34,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: ib_verbs.h 1349 2004-12-16 21:09:43Z roland $
  */
 
 #if !defined(IB_VERBS_H)
@@ -777,7 +775,7 @@ struct ib_cq {
 	struct ib_uobject      *uobject;
 	ib_comp_handler   	comp_handler;
 	void                  (*event_handler)(struct ib_event *, void *);
-	void *            	cq_context;
+	void                   *cq_context;
 	int               	cqe;
 	atomic_t          	usecnt; /* count number of work queues */
 };
@@ -883,7 +881,7 @@ struct ib_dma_mapping_ops {
 	void		(*sync_single_for_cpu)(struct ib_device *dev,
 					       u64 dma_handle,
 					       size_t size,
-				               enum dma_data_direction dir);
+					       enum dma_data_direction dir);
 	void		(*sync_single_for_device)(struct ib_device *dev,
 						  u64 dma_handle,
 						  size_t size,
