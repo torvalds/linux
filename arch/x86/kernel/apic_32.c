@@ -369,12 +369,7 @@ static void __init lapic_cal_handler(struct clock_event_device *dev)
 	}
 }
 
-/*
- * Setup the boot APIC
- *
- * Calibrate and verify the result.
- */
-void __init setup_boot_APIC_clock(void)
+static int __init calibrate_APIC_clock(void)
 {
 	struct clock_event_device *levt = &__get_cpu_var(lapic_events);
 	const long pm_100ms = PMTMR_TICKS_PER_SEC/10;
@@ -383,24 +378,6 @@ void __init setup_boot_APIC_clock(void)
 	unsigned long deltaj;
 	long delta, deltapm;
 	int pm_referenced = 0;
-
-	/*
-	 * The local apic timer can be disabled via the kernel
-	 * commandline or from the CPU detection code. Register the lapic
-	 * timer as a dummy clock event source on SMP systems, so the
-	 * broadcast mechanism is used. On UP systems simply ignore it.
-	 */
-	if (local_apic_timer_disabled) {
-		/* No broadcast on UP ! */
-		if (num_possible_cpus() > 1) {
-			lapic_clockevent.mult = 1;
-			setup_APIC_timer();
-		}
-		return;
-	}
-
-	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
-		    "calibrating APIC timer ...\n");
 
 	local_irq_disable();
 
@@ -486,8 +463,6 @@ void __init setup_boot_APIC_clock(void)
 		    calibration_result / (1000000 / HZ),
 		    calibration_result % (1000000 / HZ));
 
-	local_apic_timer_verify_ok = 1;
-
 	/*
 	 * Do a sanity check on the APIC calibration result
 	 */
@@ -495,11 +470,10 @@ void __init setup_boot_APIC_clock(void)
 		local_irq_enable();
 		printk(KERN_WARNING
 		       "APIC frequency too slow, disabling apic timer\n");
-		/* No broadcast on UP ! */
-		if (num_possible_cpus() > 1)
-			setup_APIC_timer();
-		return;
+		return -1;
 	}
+
+	local_apic_timer_verify_ok = 1;
 
 	/* We trust the pm timer based calibration */
 	if (!pm_referenced) {
@@ -540,21 +514,54 @@ void __init setup_boot_APIC_clock(void)
 	if (!local_apic_timer_verify_ok) {
 		printk(KERN_WARNING
 		       "APIC timer disabled due to verification failure.\n");
-		/* No broadcast on UP ! */
-		if (num_possible_cpus() == 1)
-			return;
-	} else {
-		/*
-		 * If nmi_watchdog is set to IO_APIC, we need the
-		 * PIT/HPET going.  Otherwise register lapic as a dummy
-		 * device.
-		 */
-		if (nmi_watchdog != NMI_IO_APIC)
-			lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
-		else
-			printk(KERN_WARNING "APIC timer registered as dummy,"
-				" due to nmi_watchdog=%d!\n", nmi_watchdog);
+			return -1;
 	}
+
+	return 0;
+}
+
+/*
+ * Setup the boot APIC
+ *
+ * Calibrate and verify the result.
+ */
+void __init setup_boot_APIC_clock(void)
+{
+	/*
+	 * The local apic timer can be disabled via the kernel
+	 * commandline or from the CPU detection code. Register the lapic
+	 * timer as a dummy clock event source on SMP systems, so the
+	 * broadcast mechanism is used. On UP systems simply ignore it.
+	 */
+	if (local_apic_timer_disabled) {
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() > 1) {
+			lapic_clockevent.mult = 1;
+			setup_APIC_timer();
+		}
+		return;
+	}
+
+	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
+		    "calibrating APIC timer ...\n");
+
+	if (calibrate_APIC_clock()) {
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() > 1)
+			setup_APIC_timer();
+		return;
+	}
+
+	/*
+	 * If nmi_watchdog is set to IO_APIC, we need the
+	 * PIT/HPET going.  Otherwise register lapic as a dummy
+	 * device.
+	 */
+	if (nmi_watchdog != NMI_IO_APIC)
+		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
+	else
+		printk(KERN_WARNING "APIC timer registered as dummy,"
+			" due to nmi_watchdog=%d!\n", nmi_watchdog);
 
 	/* Setup the lapic or request the broadcast */
 	setup_APIC_timer();
