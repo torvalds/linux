@@ -87,9 +87,9 @@ static const u8 ide_hwif_to_major[] = { IDE0_MAJOR, IDE1_MAJOR,
 					IDE8_MAJOR, IDE9_MAJOR };
 
 DEFINE_MUTEX(ide_cfg_mtx);
- __cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
 
-int noautodma = 0;
+__cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
+EXPORT_SYMBOL(ide_lock);
 
 ide_hwif_t ide_hwifs[MAX_HWIFS];	/* master data repository */
 
@@ -698,59 +698,6 @@ set_val:
 
 EXPORT_SYMBOL(generic_ide_ioctl);
 
-/*
- * ide_setup() gets called VERY EARLY during initialization,
- * to handle kernel "command line" strings beginning with "ide".
- *
- * Remember to update Documentation/ide/ide.txt if you change something here.
- */
-static int __init ide_setup(char *s)
-{
-	printk(KERN_INFO "ide_setup: %s", s);
-
-#ifdef CONFIG_BLK_DEV_IDEDOUBLER
-	if (!strcmp(s, "ide=doubler")) {
-		extern int ide_doubler;
-
-		printk(" : Enabled support for IDE doublers\n");
-		ide_doubler = 1;
-		goto obsolete_option;
-	}
-#endif /* CONFIG_BLK_DEV_IDEDOUBLER */
-
-	if (!strcmp(s, "ide=nodma")) {
-		printk(" : Prevented DMA\n");
-		noautodma = 1;
-		goto obsolete_option;
-	}
-
-#ifdef CONFIG_BLK_DEV_IDEACPI
-	if (!strcmp(s, "ide=noacpi")) {
-		//printk(" : Disable IDE ACPI support.\n");
-		ide_noacpi = 1;
-		goto obsolete_option;
-	}
-	if (!strcmp(s, "ide=acpigtf")) {
-		//printk(" : Enable IDE ACPI _GTF support.\n");
-		ide_acpigtf = 1;
-		goto obsolete_option;
-	}
-	if (!strcmp(s, "ide=acpionboot")) {
-		//printk(" : Call IDE ACPI methods on boot.\n");
-		ide_acpionboot = 1;
-		goto obsolete_option;
-	}
-#endif /* CONFIG_BLK_DEV_IDEACPI */
-
-	printk(" -- BAD OPTION\n");
-	return 1;
-obsolete_option:
-	printk(" -- OBSOLETE OPTION, WILL BE REMOVED SOON!\n");
-	return 1;
-}
-
-EXPORT_SYMBOL(ide_lock);
-
 static int ide_bus_match(struct device *dev, struct device_driver *drv)
 {
 	return 1;
@@ -1087,32 +1034,7 @@ out_port_class:
 	return ret;
 }
 
-#ifdef MODULE
-static char *options = NULL;
-module_param(options, charp, 0);
-MODULE_LICENSE("GPL");
-
-static void __init parse_options (char *line)
-{
-	char *next = line;
-
-	if (line == NULL || !*line)
-		return;
-	while ((line = next) != NULL) {
- 		if ((next = strchr(line,' ')) != NULL)
-			*next++ = 0;
-		if (!ide_setup(line))
-			printk (KERN_INFO "Unknown option '%s'\n", line);
-	}
-}
-
-int __init init_module (void)
-{
-	parse_options(options);
-	return ide_init();
-}
-
-void __exit cleanup_module (void)
+static void __exit ide_exit(void)
 {
 	proc_ide_destroy();
 
@@ -1121,10 +1043,7 @@ void __exit cleanup_module (void)
 	bus_unregister(&ide_bus_type);
 }
 
-#else /* !MODULE */
-
-__setup("", ide_setup);
-
 module_init(ide_init);
+module_exit(ide_exit);
 
-#endif /* MODULE */
+MODULE_LICENSE("GPL");

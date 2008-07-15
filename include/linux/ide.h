@@ -813,10 +813,6 @@ int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsig
 #ifndef _IDE_C
 extern	ide_hwif_t	ide_hwifs[];		/* master data repository */
 #endif
-extern int ide_noacpi;
-extern int ide_acpigtf;
-extern int ide_acpionboot;
-extern int noautodma;
 
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
