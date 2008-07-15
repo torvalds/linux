@@ -592,10 +592,6 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 		queue_delayed_work(ipoib_workqueue, &priv->mcast_task, 0);
 	mutex_unlock(&mcast_mutex);
 
-	spin_lock_irq(&priv->lock);
-	set_bit(IPOIB_MCAST_STARTED, &priv->flags);
-	spin_unlock_irq(&priv->lock);
-
 	return 0;
 }
 
@@ -604,10 +600,6 @@ int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	ipoib_dbg_mcast(priv, "stopping multicast thread\n");
-
-	spin_lock_irq(&priv->lock);
-	clear_bit(IPOIB_MCAST_STARTED, &priv->flags);
-	spin_unlock_irq(&priv->lock);
 
 	mutex_lock(&mcast_mutex);
 	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
