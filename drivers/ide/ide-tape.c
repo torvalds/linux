@@ -794,7 +794,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 				" transferred\n", pc->xferred);
 
 		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
-		local_irq_enable();
+		local_irq_enable_in_hardirq();
 
 #if SIMULATE_ERRORS
 		if ((pc->c[0] == WRITE_6 || pc->c[0] == READ_6) &&
