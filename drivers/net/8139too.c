@@ -788,6 +788,7 @@ static int __devinit rtl8139_init_board (struct pci_dev *pdev,
 	DPRINTK("PIO region size == 0x%02X\n", pio_len);
 	DPRINTK("MMIO region size == 0x%02lX\n", mmio_len);
 
+retry:
 	if (use_io) {
 		/* make sure PCI base addr 0 is PIO */
 		if (!(pio_flags & IORESOURCE_IO)) {
@@ -836,9 +837,10 @@ static int __devinit rtl8139_init_board (struct pci_dev *pdev,
 		/* ioremap MMIO region */
 		ioaddr = pci_iomap(pdev, 1, 0);
 		if (ioaddr == NULL) {
-			dev_err(&pdev->dev, "cannot remap MMIO, aborting\n");
-			rc = -EIO;
-			goto err_out;
+			dev_err(&pdev->dev, "cannot remap MMIO, trying PIO\n");
+			pci_release_regions(pdev);
+			use_io = 1;
+			goto retry;
 		}
 		dev->base_addr = (long) ioaddr;
 		tp->regs_len = mmio_len;
