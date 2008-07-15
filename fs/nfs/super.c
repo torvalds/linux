@@ -91,6 +91,7 @@ enum {
 	/* Mount options that take string arguments */
 	Opt_sec, Opt_proto, Opt_mountproto, Opt_mounthost,
 	Opt_addr, Opt_mountaddr, Opt_clientaddr,
+	Opt_lookupcache,
 
 	/* Special mount options */
 	Opt_userspace, Opt_deprecated, Opt_sloppy,
@@ -154,6 +155,8 @@ static match_table_t nfs_mount_option_tokens = {
 	{ Opt_mounthost, "mounthost=%s" },
 	{ Opt_mountaddr, "mountaddr=%s" },
 
+	{ Opt_lookupcache, "lookupcache=%s" },
+
 	{ Opt_err, NULL }
 };
 
@@ -198,6 +201,22 @@ static match_table_t nfs_secflavor_tokens = {
 	{ Opt_sec_spkmp, "spkm3p" },
 
 	{ Opt_sec_err, NULL }
+};
+
+enum {
+	Opt_lookupcache_all, Opt_lookupcache_positive,
+	Opt_lookupcache_none,
+
+	Opt_lookupcache_err
+};
+
+static match_table_t nfs_lookupcache_tokens = {
+	{ Opt_lookupcache_all, "all" },
+	{ Opt_lookupcache_positive, "pos" },
+	{ Opt_lookupcache_positive, "positive" },
+	{ Opt_lookupcache_none, "none" },
+
+	{ Opt_lookupcache_err, NULL }
 };
 
 
@@ -1249,6 +1268,30 @@ static int nfs_parse_mount_options(char *raw,
 						&mnt->mount_server.address,
 					     &mnt->mount_server.addrlen);
 			kfree(string);
+			break;
+		case Opt_lookupcache:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			token = match_token(string,
+					nfs_lookupcache_tokens, args);
+			kfree(string);
+			switch (token) {
+				case Opt_lookupcache_all:
+					mnt->flags &= ~(NFS_MOUNT_LOOKUP_CACHE_NONEG|NFS_MOUNT_LOOKUP_CACHE_NONE);
+					break;
+				case Opt_lookupcache_positive:
+					mnt->flags &= ~NFS_MOUNT_LOOKUP_CACHE_NONE;
+					mnt->flags |= NFS_MOUNT_LOOKUP_CACHE_NONEG;
+					break;
+				case Opt_lookupcache_none:
+					mnt->flags |= NFS_MOUNT_LOOKUP_CACHE_NONEG|NFS_MOUNT_LOOKUP_CACHE_NONE;
+					break;
+				default:
+					errors++;
+					dfprintk(MOUNT, "NFS:   invalid "
+							"lookupcache argument\n");
+			};
 			break;
 
 		/*
