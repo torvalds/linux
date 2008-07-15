@@ -224,7 +224,9 @@ void nlm_release_call(struct nlm_rqst *call)
 
 static void nlmclnt_rpc_release(void *data)
 {
+	lock_kernel();
 	nlm_release_call(data);
+	unlock_kernel();
 }
 
 static int nlm_wait_on_grace(wait_queue_head_t *queue)
@@ -710,7 +712,9 @@ static void nlmclnt_unlock_callback(struct rpc_task *task, void *data)
 die:
 	return;
  retry_rebind:
+	lock_kernel();
 	nlm_rebind_host(req->a_host);
+	unlock_kernel();
  retry_unlock:
 	rpc_restart_call(task);
 }
@@ -788,7 +792,9 @@ retry_cancel:
 	/* Don't ever retry more than 3 times */
 	if (req->a_retries++ >= NLMCLNT_MAX_RETRIES)
 		goto die;
+	lock_kernel();
 	nlm_rebind_host(req->a_host);
+	unlock_kernel();
 	rpc_restart_call(task);
 	rpc_delay(task, 30 * HZ);
 }

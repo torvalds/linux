@@ -451,9 +451,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		/* Save the delegation */
 		memcpy(stateid.data, delegation->stateid.data, sizeof(stateid.data));
 		rcu_read_unlock();
-		lock_kernel();
 		ret = nfs_may_open(state->inode, state->owner->so_cred, open_mode);
-		unlock_kernel();
 		if (ret != 0)
 			goto out;
 		ret = -EAGAIN;

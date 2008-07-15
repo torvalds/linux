@@ -128,9 +128,7 @@ nfs_file_open(struct inode *inode, struct file *filp)
 		return res;
 
 	nfs_inc_stats(inode, NFSIOS_VFSOPEN);
-	lock_kernel();
 	res = nfs_open(inode, filp);
-	unlock_kernel();
 	return res;
 }
 
@@ -398,9 +396,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 			zero_user_segment(page, pglen, PAGE_CACHE_SIZE);
 	}
 
-	lock_kernel();
 	status = nfs_updatepage(file, page, offset, copied);
-	unlock_kernel();
 
 	unlock_page(page);
 	page_cache_release(page);
