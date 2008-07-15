@@ -354,7 +354,7 @@ static void idefloppy_init_pc(struct ide_atapi_pc *pc)
 	pc->req_xfer = 0;
 	pc->buf = pc->pc_buf;
 	pc->buf_size = IDEFLOPPY_PC_BUFFER_SIZE;
-	pc->idefloppy_callback = &ide_floppy_callback;
+	pc->callback = ide_floppy_callback;
 }
 
 static void idefloppy_create_request_sense_cmd(struct ide_atapi_pc *pc)
@@ -438,7 +438,7 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 		if (floppy->failed_pc == pc)
 			floppy->failed_pc = NULL;
 		/* Command finished - Call the callback function */
-		pc->idefloppy_callback(drive);
+		pc->callback(drive);
 		return ide_stopped;
 	}
 
@@ -612,7 +612,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		pc->error = IDEFLOPPY_ERROR_GENERAL;
 
 		floppy->failed_pc = NULL;
-		pc->idefloppy_callback(drive);
+		pc->callback(drive);
 		return ide_stopped;
 	}
 
