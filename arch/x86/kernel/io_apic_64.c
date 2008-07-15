@@ -1372,12 +1372,10 @@ static unsigned int startup_ioapic_irq(unsigned int irq)
 static int ioapic_retrigger_irq(unsigned int irq)
 {
 	struct irq_cfg *cfg = &irq_cfg[irq];
-	cpumask_t mask;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vector_lock, flags);
-	mask = cpumask_of_cpu(first_cpu(cfg->domain));
-	send_IPI_mask(mask, cfg->vector);
+	send_IPI_mask(cpumask_of_cpu(first_cpu(cfg->domain)), cfg->vector);
 	spin_unlock_irqrestore(&vector_lock, flags);
 
 	return 1;
