@@ -469,7 +469,7 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 				"issuing a packet command\n");
 		return ide_do_reset (drive);
 	}
-	BUG_ON(HWGROUP(drive)->handler != NULL);
+
 	/* Set the interrupt routine */
 	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 
