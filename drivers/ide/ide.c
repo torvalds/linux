@@ -722,89 +722,13 @@ set_val:
 EXPORT_SYMBOL(generic_ide_ioctl);
 
 /*
- * stridx() returns the offset of c within s,
- * or -1 if c is '\0' or not found within s.
- */
-static int __init stridx (const char *s, char c)
-{
-	char *i = strchr(s, c);
-	return (i && c) ? i - s : -1;
-}
-
-/*
- * match_parm() does parsing for ide_setup():
- *
- * 1. the first char of s must be '='.
- * 2. if the remainder matches one of the supplied keywords,
- *     the index (1 based) of the keyword is negated and returned.
- * 3. if the remainder is a series of no more than max_vals numbers
- *     separated by commas, the numbers are saved in vals[] and a
- *     count of how many were saved is returned.  Base10 is assumed,
- *     and base16 is allowed when prefixed with "0x".
- * 4. otherwise, zero is returned.
- */
-static int __init match_parm (char *s, const char *keywords[], int vals[], int max_vals)
-{
-	static const char *decimal = "0123456789";
-	static const char *hex = "0123456789abcdef";
-	int i, n;
-
-	if (*s++ == '=') {
-		/*
-		 * Try matching against the supplied keywords,
-		 * and return -(index+1) if we match one
-		 */
-		if (keywords != NULL) {
-			for (i = 0; *keywords != NULL; ++i) {
-				if (!strcmp(s, *keywords++))
-					return -(i+1);
-			}
-		}
-		/*
-		 * Look for a series of no more than "max_vals"
-		 * numeric values separated by commas, in base10,
-		 * or base16 when prefixed with "0x".
-		 * Return a count of how many were found.
-		 */
-		for (n = 0; (i = stridx(decimal, *s)) >= 0;) {
-			vals[n] = i;
-			while ((i = stridx(decimal, *++s)) >= 0)
-				vals[n] = (vals[n] * 10) + i;
-			if (*s == 'x' && !vals[n]) {
-				while ((i = stridx(hex, *++s)) >= 0)
-					vals[n] = (vals[n] * 0x10) + i;
-			}
-			if (++n == max_vals)
-				break;
-			if (*s == ',' || *s == ';')
-				++s;
-		}
-		if (!*s)
-			return n;
-	}
-	return 0;	/* zero = nothing matched */
-}
-
-/*
  * ide_setup() gets called VERY EARLY during initialization,
- * to handle kernel "command line" strings beginning with "hdx=" or "ide".
+ * to handle kernel "command line" strings beginning with "ide".
  *
  * Remember to update Documentation/ide/ide.txt if you change something here.
  */
 static int __init ide_setup(char *s)
 {
-	ide_hwif_t *hwif;
-	ide_drive_t *drive;
-	unsigned int hw, unit;
-	int vals[3];
-	const char max_drive = 'a' + ((MAX_HWIFS * MAX_DRIVES) - 1);
-
-	if (strncmp(s,"hd",2) == 0 && s[2] == '=')	/* hd= is for hd.c   */
-		return 0;				/* driver and not us */
-
-	if (strncmp(s, "ide", 3) && strncmp(s, "hd", 2))
-		return 0;
-
 	printk(KERN_INFO "ide_setup: %s", s);
 	init_ide_data ();
 
@@ -842,67 +766,6 @@ static int __init ide_setup(char *s)
 	}
 #endif /* CONFIG_BLK_DEV_IDEACPI */
 
-	/*
-	 * Look for drive options:  "hdx="
-	 */
-	if (s[0] == 'h' && s[1] == 'd' && s[2] >= 'a' && s[2] <= max_drive) {
-		const char *hd_words[] = {
-			"none", "noprobe", "nowerr", "cdrom", "nodma",
-			"-6", "-7", "-8", "-9", "-10",
-			"noflush", "remap", "remap63", "scsi", NULL };
-		unit = s[2] - 'a';
-		hw   = unit / MAX_DRIVES;
-		unit = unit % MAX_DRIVES;
-		hwif = &ide_hwifs[hw];
-		drive = &hwif->drives[unit];
-		if (strncmp(s + 4, "ide-", 4) == 0) {
-			strlcpy(drive->driver_req, s + 4, sizeof(drive->driver_req));
-			goto obsolete_option;
-		}
-		switch (match_parm(&s[3], hd_words, vals, 3)) {
-			case -1: /* "none" */
-			case -2: /* "noprobe" */
-				drive->noprobe = 1;
-				goto obsolete_option;
-			case -3: /* "nowerr" */
-				drive->bad_wstat = BAD_R_STAT;
-				goto obsolete_option;
-			case -4: /* "cdrom" */
-				drive->present = 1;
-				drive->media = ide_cdrom;
-				/* an ATAPI device ignores DRDY */
-				drive->ready_stat = 0;
-				goto obsolete_option;
-			case -5: /* nodma */
-				drive->nodma = 1;
-				goto obsolete_option;
-			case -11: /* noflush */
-				drive->noflush = 1;
-				goto obsolete_option;
-			case -12: /* "remap" */
-				drive->remap_0_to_1 = 1;
-				goto obsolete_option;
-			case -13: /* "remap63" */
-				drive->sect0 = 63;
-				goto obsolete_option;
-			case -14: /* "scsi" */
-				drive->scsi = 1;
-				goto obsolete_option;
-			case 3: /* cyl,head,sect */
-				drive->media	= ide_disk;
-				drive->ready_stat = READY_STAT;
-				drive->cyl	= drive->bios_cyl  = vals[0];
-				drive->head	= drive->bios_head = vals[1];
-				drive->sect	= drive->bios_sect = vals[2];
-				drive->present	= 1;
-				drive->forced_geom = 1;
-				goto obsolete_option;
-			default:
-				goto bad_option;
-		}
-	}
-
-bad_option:
 	printk(" -- BAD OPTION\n");
 	return 1;
 obsolete_option:
