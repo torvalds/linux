@@ -189,12 +189,20 @@ static int macvlan_open(struct net_device *dev)
 
 	err = dev_unicast_add(lowerdev, dev->dev_addr, ETH_ALEN);
 	if (err < 0)
-		return err;
-	if (dev->flags & IFF_ALLMULTI)
-		dev_set_allmulti(lowerdev, 1);
+		goto out;
+	if (dev->flags & IFF_ALLMULTI) {
+		err = dev_set_allmulti(lowerdev, 1);
+		if (err < 0)
+			goto del_unicast;
+	}
 
 	hlist_add_head_rcu(&vlan->hlist, &port->vlan_hash[dev->dev_addr[5]]);
 	return 0;
+
+del_unicast:
+	dev_unicast_delete(lowerdev, dev->dev_addr, ETH_ALEN);
+out:
+	return err;
 }
 
 static int macvlan_stop(struct net_device *dev)
