@@ -744,9 +744,6 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	int error = 0;
 	u8 stat;
 
-//	while (HWGROUP(drive)->busy)
-//		msleep(50);
-
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (hwif->dma_ops)	/* check if host supports DMA */
 		hwif->dma_ops->dma_host_set(drive, 0);
