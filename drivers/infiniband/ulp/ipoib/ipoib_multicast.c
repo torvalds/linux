@@ -627,10 +627,10 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 				IPOIB_GID_ARG(mcast->mcmember.mgid));
 
 		/* Remove ourselves from the multicast group */
-		ret = ipoib_mcast_detach(dev, be16_to_cpu(mcast->mcmember.mlid),
-					 &mcast->mcmember.mgid);
+		ret = ib_detach_mcast(priv->qp, &mcast->mcmember.mgid,
+				      be16_to_cpu(mcast->mcmember.mlid));
 		if (ret)
-			ipoib_warn(priv, "ipoib_mcast_detach failed (result = %d)\n", ret);
+			ipoib_warn(priv, "ib_detach_mcast failed (result = %d)\n", ret);
 	}
 
 	return 0;

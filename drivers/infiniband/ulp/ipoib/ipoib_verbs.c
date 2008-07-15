@@ -72,18 +72,6 @@ out:
 	return ret;
 }
 
-int ipoib_mcast_detach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	int ret;
-
-	ret = ib_detach_mcast(priv->qp, mgid, mlid);
-	if (ret)
-		ipoib_warn(priv, "ib_detach_mcast failed (result = %d)\n", ret);
-
-	return ret;
-}
-
 int ipoib_init_qp(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
