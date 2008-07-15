@@ -1458,7 +1458,7 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 			if (priv->hca_caps & IB_DEVICE_UD_TSO)
 				dev->features |= NETIF_F_TSO;
 		}
-		dev->mtu = min(priv->mcast_mtu, dev->mtu);
+		dev_set_mtu(dev, min(priv->mcast_mtu, dev->mtu));
 		rtnl_unlock();
 		ipoib_flush_paths(dev);
 

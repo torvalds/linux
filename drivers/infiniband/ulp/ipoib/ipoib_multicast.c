@@ -577,7 +577,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 
 	if (!ipoib_cm_admin_enabled(dev)) {
 		rtnl_lock();
-		dev->mtu = min(priv->mcast_mtu, priv->admin_mtu);
+		dev_set_mtu(dev, min(priv->mcast_mtu, priv->admin_mtu));
 		rtnl_unlock();
 	}
 
