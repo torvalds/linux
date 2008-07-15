@@ -1340,7 +1340,8 @@ static inline void ide_set_irq(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	hwif->OUTB(drive->ctl | (on ? 0 : 2), hwif->io_ports.ctl_addr);
+	hwif->OUTBSYNC(hwif, drive->ctl | (on ? 0 : 2),
+		       hwif->io_ports.ctl_addr);
 }
 
 static inline u8 ide_read_status(ide_drive_t *drive)
