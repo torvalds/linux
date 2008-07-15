@@ -245,7 +245,8 @@ static int idescsi_check_condition(ide_drive_t *drive,
 		ide_scsi_hex_dump(pc->c, 6);
 	}
 	rq->rq_disk = scsi->disk;
-	return ide_do_drive_cmd(drive, rq, ide_preempt);
+	ide_do_drive_cmd(drive, rq);
+	return 0;
 }
 
 static int idescsi_end_request(ide_drive_t *, int, int);

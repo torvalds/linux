@@ -213,7 +213,7 @@ static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 	/* NOTE! Save the failed command in "rq->buffer" */
 	rq->buffer = (void *) failed_command;
 
-	(void) ide_do_drive_cmd(drive, rq, ide_preempt);
+	ide_do_drive_cmd(drive, rq);
 }
 
 static void cdrom_end_request(ide_drive_t *drive, int uptodate)

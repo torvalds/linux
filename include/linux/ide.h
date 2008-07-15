@@ -851,17 +851,7 @@ int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
 
 extern ide_startstop_t ide_do_reset (ide_drive_t *);
 
-/*
- * "action" parameter type for ide_do_drive_cmd() below.
- */
-typedef enum {
-	ide_wait,	/* insert rq at end of list, and wait for it */
-	ide_preempt,	/* insert rq in front of current request */
-	ide_head_wait,	/* insert rq in front of current request and wait for it */
-	ide_end		/* insert rq at end of list, but don't wait for it */
-} ide_action_t;
-
-extern int ide_do_drive_cmd(ide_drive_t *, struct request *, ide_action_t);
+extern void ide_do_drive_cmd(ide_drive_t *, struct request *);
 
 extern void ide_end_drive_cmd(ide_drive_t *, u8, u8);
 

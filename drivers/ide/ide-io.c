@@ -1520,49 +1520,27 @@ irqreturn_t ide_intr (int irq, void *dev_id)
  *	ide_do_drive_cmd	-	issue IDE special command
  *	@drive: device to issue command
  *	@rq: request to issue
- *	@action: action for processing
  *
  *	This function issues a special IDE device request
  *	onto the request queue.
  *
- *	If action is ide_wait, then the rq is queued at the end of the
- *	request queue, and the function sleeps until it has been processed.
- *	This is for use when invoked from an ioctl handler.
- *
- *	If action is ide_preempt, then the rq is queued at the head of
- *	the request queue, displacing the currently-being-processed
- *	request and this function returns immediately without waiting
- *	for the new rq to be completed.  This is VERY DANGEROUS, and is
- *	intended for careful use by the ATAPI tape/cdrom driver code.
- *
- *	If action is ide_end, then the rq is queued at the end of the
- *	request queue, and the function returns immediately without waiting
- *	for the new rq to be completed. This is again intended for careful
- *	use by the ATAPI tape/cdrom driver code.
+ *	the rq is queued at the head of the request queue, displacing
+ *	the currently-being-processed request and this function
+ *	returns immediately without waiting for the new rq to be
+ *	completed.  This is VERY DANGEROUS, and is intended for
+ *	careful use by the ATAPI tape/cdrom driver code.
  */
- 
-int ide_do_drive_cmd (ide_drive_t *drive, struct request *rq, ide_action_t action)
+
+void ide_do_drive_cmd(ide_drive_t *drive, struct request *rq)
 {
 	unsigned long flags;
 	ide_hwgroup_t *hwgroup = HWGROUP(drive);
-	int where = ELEVATOR_INSERT_BACK;
-
-	rq->errors = 0;
-
-	if (action == ide_preempt)
-		where = ELEVATOR_INSERT_FRONT;
 
 	spin_lock_irqsave(&ide_lock, flags);
-	if (action == ide_preempt)
-		hwgroup->rq = NULL;
-	__elv_add_request(drive->queue, rq, where, 1);
+	hwgroup->rq = NULL;
+	__elv_add_request(drive->queue, rq, ELEVATOR_INSERT_FRONT, 1);
 	__generic_unplug_device(drive->queue);
-	/* the queue is stopped so it won't be plugged+unplugged */
-	if (blk_pm_resume_request(rq))
-		do_ide_request(drive->queue);
 	spin_unlock_irqrestore(&ide_lock, flags);
-
-	return 0;
 }
 
 EXPORT_SYMBOL(ide_do_drive_cmd);
