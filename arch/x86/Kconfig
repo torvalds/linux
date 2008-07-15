@@ -665,6 +665,30 @@ config X86_VISWS_APIC
 	def_bool y
 	depends on X86_32 && X86_VISWS
 
+config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
+	bool "Reroute for broken boot IRQs"
+	default n
+	depends on X86_IO_APIC
+	help
+	  This option enables a workaround that fixes a source of
+	  spurious interrupts. This is recommended when threaded
+	  interrupt handling is used on systems where the generation of
+	  superfluous "boot interrupts" cannot be disabled.
+
+	  Some chipsets generate a legacy INTx "boot IRQ" when the IRQ
+	  entry in the chipset's IO-APIC is masked (as, e.g. the RT
+	  kernel does during interrupt handling). On chipsets where this
+	  boot IRQ generation cannot be disabled, this workaround keeps
+	  the original IRQ line masked so that only the equivalent "boot
+	  IRQ" is delivered to the CPUs. The workaround also tells the
+	  kernel to set up the IRQ handler on the boot IRQ line. In this
+	  way only one interrupt is delivered to the kernel. Otherwise
+	  the spurious second interrupt may cause the kernel to bring
+	  down (vital) interrupt lines.
+
+	  Only affects "broken" chipsets. Interrupt sharing may be
+	  increased on these systems.
+
 config X86_MCE
 	bool "Machine Check Exception"
 	depends on !X86_VOYAGER

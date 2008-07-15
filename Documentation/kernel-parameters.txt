@@ -1536,6 +1536,10 @@ and is between 256 and 4096 characters. It is defined in the file
 				primary IO-APIC for bridges that cannot disable
 				boot IRQs. This fixes a source of spurious IRQs
 				when the system masks IRQs.
+		noioapicreroute	[APIC] Disable workaround that uses the
+				boot IRQ equivalent of an IRQ that connects to
+				a chipset where boot IRQs cannot be disabled.
+				The opposite of ioapicreroute.
 		biosirq		[X86-32] Use PCI BIOS calls to get the interrupt
 				routing table. These calls are known to be buggy
 				on several machines and they hang the machine
