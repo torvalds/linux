@@ -522,40 +522,6 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 }
 
 /*
- * This is the original routine that did the packet transfer.
- * It fails at high speeds on the Iomega ZIP drive, so there's a slower version
- * for that drive below. The algorithm is chosen based on drive type
- */
-static ide_startstop_t idefloppy_transfer_pc(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	ide_startstop_t startstop;
-	idefloppy_floppy_t *floppy = drive->driver_data;
-	u8 ireason;
-
-	if (ide_wait_stat(&startstop, drive, DRQ_STAT, BUSY_STAT, WAIT_READY)) {
-		printk(KERN_ERR "ide-floppy: Strange, packet command "
-				"initiated yet DRQ isn't asserted\n");
-		return startstop;
-	}
-	ireason = hwif->INB(hwif->io_ports.nsect_addr);
-	if ((ireason & CD) == 0 || (ireason & IO)) {
-		printk(KERN_ERR "ide-floppy: (IO,CoD) != (0,1) while "
-				"issuing a packet command\n");
-		return ide_do_reset(drive);
-	}
-
-	/* Set the interrupt routine */
-	ide_set_handler(drive, &idefloppy_pc_intr, IDEFLOPPY_WAIT_CMD, NULL);
-
-	/* Send the actual packet */
-	hwif->output_data(drive, NULL, floppy->pc->c, 12);
-
-	return ide_started;
-}
-
-
-/*
  * What we have here is a classic case of a top half / bottom half interrupt
  * service routine. In interrupt mode, the device sends an interrupt to signal
  * that it is ready to receive a packet. However, we need to delay about 2-3
@@ -580,6 +546,8 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	idefloppy_floppy_t *floppy = drive->driver_data;
+	ide_expiry_t *expiry;
+	unsigned int timeout;
 	ide_startstop_t startstop;
 	u8 ireason;
 
@@ -602,9 +570,20 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 	 * 40 and 50msec work well. idefloppy_pc_intr will not be actually
 	 * used until after the packet is moved in about 50 msec.
 	 */
+	if (floppy->flags & IDEFLOPPY_FLAG_ZIP_DRIVE) {
+		timeout = floppy->ticks;
+		expiry = &idefloppy_transfer_pc2;
+	} else {
+		timeout = IDEFLOPPY_WAIT_CMD;
+		expiry = NULL;
+	}
 
-	ide_set_handler(drive, &idefloppy_pc_intr, floppy->ticks,
-			&idefloppy_transfer_pc2);
+	ide_set_handler(drive, &idefloppy_pc_intr, timeout, expiry);
+
+	if ((floppy->flags & IDEFLOPPY_FLAG_ZIP_DRIVE) == 0)
+		/* Send the actual packet */
+		hwif->output_data(drive, NULL, floppy->pc->c, 12);
+
 	return ide_started;
 }
 
@@ -629,7 +608,6 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
-	ide_handler_t *pkt_xfer_routine;
 	u16 bcount;
 	u8 dma;
 
@@ -675,26 +653,17 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		hwif->dma_ops->dma_start(drive);
 	}
 
-	/* Can we transfer the packet when we get the interrupt or wait? */
-	if (floppy->flags & IDEFLOPPY_FLAG_ZIP_DRIVE) {
-		/* wait */
-		pkt_xfer_routine = &idefloppy_transfer_pc1;
-	} else {
-		/* immediate */
-		pkt_xfer_routine = &idefloppy_transfer_pc;
-	}
-
 	if (floppy->flags & IDEFLOPPY_FLAG_DRQ_INTERRUPT) {
 		/* Issue the packet command */
 		ide_execute_command(drive, WIN_PACKETCMD,
-				pkt_xfer_routine,
+				&idefloppy_transfer_pc1,
 				IDEFLOPPY_WAIT_CMD,
 				NULL);
 		return ide_started;
 	} else {
 		/* Issue the packet command */
 		ide_execute_pkt_cmd(drive);
-		return (*pkt_xfer_routine) (drive);
+		return idefloppy_transfer_pc1(drive);
 	}
 }
 
