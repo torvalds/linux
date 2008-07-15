@@ -74,11 +74,11 @@ static void rnic_init(struct iwch_dev *rnicp)
 	rnicp->attr.vendor_id = 0x168;
 	rnicp->attr.vendor_part_id = 7;
 	rnicp->attr.max_qps = T3_MAX_NUM_QP - 32;
-	rnicp->attr.max_wrs = (1UL << 24) - 1;
+	rnicp->attr.max_wrs = T3_MAX_QP_DEPTH;
 	rnicp->attr.max_sge_per_wr = T3_MAX_SGE;
 	rnicp->attr.max_sge_per_rdma_write_wr = T3_MAX_SGE;
 	rnicp->attr.max_cqs = T3_MAX_NUM_CQ - 1;
-	rnicp->attr.max_cqes_per_cq = (1UL << 24) - 1;
+	rnicp->attr.max_cqes_per_cq = T3_MAX_CQ_DEPTH;
 	rnicp->attr.max_mem_regs = cxio_num_stags(&rnicp->rdev);
 	rnicp->attr.max_phys_buf_entries = T3_MAX_PBL_SIZE;
 	rnicp->attr.max_pds = T3_MAX_NUM_PD - 1;

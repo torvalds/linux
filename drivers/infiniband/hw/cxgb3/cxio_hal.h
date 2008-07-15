@@ -45,13 +45,14 @@
 #define T3_CTRL_QP_SIZE_LOG2  8
 #define T3_CTRL_CQ_ID    0
 
-/* TBD */
 #define T3_MAX_NUM_RI (1<<15)
 #define T3_MAX_NUM_QP (1<<15)
 #define T3_MAX_NUM_CQ (1<<15)
 #define T3_MAX_NUM_PD (1<<15)
 #define T3_MAX_PBL_SIZE 256
 #define T3_MAX_RQ_SIZE 1024
+#define T3_MAX_QP_DEPTH (T3_MAX_RQ_SIZE-1)
+#define T3_MAX_CQ_DEPTH 8192
 #define T3_MAX_NUM_STAG (1<<15)
 #define T3_MAX_MR_SIZE 0x100000000ULL
 

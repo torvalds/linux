@@ -1093,6 +1093,29 @@ static int iwch_query_gid(struct ib_device *ibdev, u8 port,
 	return 0;
 }
 
+static u64 fw_vers_string_to_u64(struct iwch_dev *iwch_dev)
+{
+	struct ethtool_drvinfo info;
+	struct net_device *lldev = iwch_dev->rdev.t3cdev_p->lldev;
+	char *cp, *next;
+	unsigned fw_maj, fw_min, fw_mic;
+
+	rtnl_lock();
+	lldev->ethtool_ops->get_drvinfo(lldev, &info);
+	rtnl_unlock();
+
+	next = info.fw_version + 1;
+	cp = strsep(&next, ".");
+	sscanf(cp, "%i", &fw_maj);
+	cp = strsep(&next, ".");
+	sscanf(cp, "%i", &fw_min);
+	cp = strsep(&next, ".");
+	sscanf(cp, "%i", &fw_mic);
+
+	return (((u64)fw_maj & 0xffff) << 32) | ((fw_min & 0xffff) << 16) |
+	       (fw_mic & 0xffff);
+}
+
 static int iwch_query_device(struct ib_device *ibdev,
 			     struct ib_device_attr *props)
 {
@@ -1103,6 +1126,8 @@ static int iwch_query_device(struct ib_device *ibdev,
 	dev = to_iwch_dev(ibdev);
 	memset(props, 0, sizeof *props);
 	memcpy(&props->sys_image_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
+	props->hw_ver = dev->rdev.t3cdev_p->type;
+	props->fw_ver = fw_vers_string_to_u64(dev);
 	props->device_cap_flags = dev->device_cap_flags;
 	props->vendor_id = (u32)dev->rdev.rnic_info.pdev->vendor;
 	props->vendor_part_id = (u32)dev->rdev.rnic_info.pdev->device;
