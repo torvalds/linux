@@ -148,11 +148,8 @@ static void scc_ide_outb(u8 addr, unsigned long port)
 	out_be32((void*)port, addr);
 }
 
-static void
-scc_ide_outbsync(ide_drive_t * drive, u8 addr, unsigned long port)
+static void scc_ide_outbsync(ide_hwif_t *hwif, u8 addr, unsigned long port)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-
 	out_be32((void*)port, addr);
 	eieio();
 	in_be32((void*)(hwif->dma_base + 0x01c));

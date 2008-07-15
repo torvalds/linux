@@ -257,7 +257,7 @@ idescsi_atapi_error(ide_drive_t *drive, struct request *rq, u8 stat, u8 err)
 
 	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
-		hwif->OUTBSYNC(drive, WIN_IDLEIMMEDIATE,
+		hwif->OUTBSYNC(hwif, WIN_IDLEIMMEDIATE,
 			       hwif->io_ports.command_addr);
 
 	rq->errors++;

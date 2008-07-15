@@ -493,7 +493,7 @@ typedef struct hwif_s {
 	void (*ide_dma_clear_irq)(ide_drive_t *drive);
 
 	void (*OUTB)(u8 addr, unsigned long port);
-	void (*OUTBSYNC)(ide_drive_t *drive, u8 addr, unsigned long port);
+	void (*OUTBSYNC)(struct hwif_s *hwif, u8 addr, unsigned long port);
 
 	u8  (*INB)(unsigned long port);
 
