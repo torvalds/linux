@@ -42,9 +42,6 @@
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
 
-#ifdef CONFIG_MIPS_ATLAS
-#include <asm/mips-boards/atlasint.h>
-#endif
 #ifdef CONFIG_MIPS_MALTA
 #include <asm/mips-boards/maltaint.h>
 #endif
@@ -89,7 +86,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 	else
 		count = 6000000;
 #endif
-#if defined(CONFIG_MIPS_ATLAS) || defined(CONFIG_MIPS_MALTA)
+#ifdef CONFIG_MIPS_MALTA
 	unsigned long flags;
 	unsigned int start;
 

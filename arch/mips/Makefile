@@ -310,15 +310,6 @@ cflags-$(CONFIG_LEMOTE_FULONG) += -Iinclude/asm-mips/mach-lemote
 core-$(CONFIG_MIPS_BOARDS_GEN)	+= arch/mips/mips-boards/generic/
 
 #
-# MIPS Atlas board
-#
-core-$(CONFIG_MIPS_ATLAS)	+= arch/mips/mips-boards/atlas/
-cflags-$(CONFIG_MIPS_ATLAS)	+= -Iinclude/asm-mips/mach-atlas
-cflags-$(CONFIG_MIPS_ATLAS)	+= -Iinclude/asm-mips/mach-mips
-load-$(CONFIG_MIPS_ATLAS)	+= 0xffffffff80100000
-all-$(CONFIG_MIPS_ATLAS)	:= vmlinux.bin
-
-#
 # MIPS Malta board
 #
 core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mips-boards/malta/

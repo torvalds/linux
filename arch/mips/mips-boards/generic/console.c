@@ -22,16 +22,7 @@
 #include <linux/serial_reg.h>
 #include <asm/io.h>
 
-#ifdef CONFIG_MIPS_ATLAS
-#include <asm/mips-boards/atlas.h>
-
-#ifdef CONFIG_CPU_LITTLE_ENDIAN
-#define PORT(offset) (ATLAS_UART_REGS_BASE     + ((offset)<<3))
-#else
-#define PORT(offset) (ATLAS_UART_REGS_BASE + 3 + ((offset)<<3))
-#endif
-
-#elif defined(CONFIG_MIPS_SEAD)
+#if   defined(CONFIG_MIPS_SEAD)
 
 #include <asm/mips-boards/sead.h>
 
