@@ -1,4 +1,3 @@
-#include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/mmzone.h>
 #include <linux/nodemask.h>
@@ -84,13 +83,10 @@ void nmi_cpu_eframe_save(nasid_t nasid, int slice)
 	/*
 	 * Saved cp0 registers
 	 */
-	printk("epc   : %016lx ", nr->epc);
-	print_symbol("%s ", nr->epc);
+	printk("epc   : %016lx %pS\n", nr->epc, (void *) nr->epc);
 	printk("%s\n", print_tainted());
-	printk("ErrEPC: %016lx ", nr->error_epc);
-	print_symbol("%s\n", nr->error_epc);
-	printk("ra    : %016lx ", nr->gpr[31]);
-	print_symbol("%s\n", nr->gpr[31]);
+	printk("ErrEPC: %016lx %pS\n", nr->error_epc, (void *) nr->error_epc);
+	printk("ra    : %016lx %pS\n", nr->gpr[31], (void *) nr->gpr[31]);
 	printk("Status: %08lx         ", nr->sr);
 
 	if (nr->sr & ST0_KX)

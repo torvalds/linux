@@ -248,11 +248,11 @@ static void __show_regs(const struct pt_regs *regs)
 	/*
 	 * Saved cp0 registers
 	 */
-	printk("epc   : %0*lx ", field, regs->cp0_epc);
-	print_symbol("%s ", regs->cp0_epc);
+	printk("epc   : %0*lx %pS\n", field, regs->cp0_epc,
+	       (void *) regs->cp0_epc);
 	printk("    %s\n", print_tainted());
-	printk("ra    : %0*lx ", field, regs->regs[31]);
-	print_symbol("%s\n", regs->regs[31]);
+	printk("ra    : %0*lx %pS\n", field, regs->regs[31],
+	       (void *) regs->regs[31]);
 
 	printk("Status: %08x    ", (uint32_t) regs->cp0_status);
 
