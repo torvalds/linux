@@ -442,6 +442,13 @@ static int centrino_verify (struct cpufreq_policy *policy)
  *
  * Sets a new CPUFreq policy.
  */
+struct allmasks {
+	cpumask_t		online_policy_cpus;
+	cpumask_t		saved_mask;
+	cpumask_t		set_mask;
+	cpumask_t		covered_cpus;
+};
+
 static int centrino_target (struct cpufreq_policy *policy,
 			    unsigned int target_freq,
 			    unsigned int relation)
@@ -449,48 +456,55 @@ static int centrino_target (struct cpufreq_policy *policy,
 	unsigned int    newstate = 0;
 	unsigned int	msr, oldmsr = 0, h = 0, cpu = policy->cpu;
 	struct cpufreq_freqs	freqs;
-	cpumask_t		online_policy_cpus;
-	cpumask_t		saved_mask;
-	cpumask_t		set_mask;
-	cpumask_t		covered_cpus;
 	int			retval = 0;
 	unsigned int		j, k, first_cpu, tmp;
+	CPUMASK_ALLOC(allmasks);
+	CPUMASK_VAR(online_policy_cpus, allmasks);
+	CPUMASK_VAR(saved_mask, allmasks);
+	CPUMASK_VAR(set_mask, allmasks);
+	CPUMASK_VAR(covered_cpus, allmasks);
 
-	if (unlikely(centrino_model[cpu] == NULL))
-		return -ENODEV;
+	if (unlikely(allmasks == NULL))
+		return -ENOMEM;
+
+	if (unlikely(centrino_model[cpu] == NULL)) {
+		retval = -ENODEV;
+		goto out;
+	}
 
 	if (unlikely(cpufreq_frequency_table_target(policy,
 			centrino_model[cpu]->op_points,
 			target_freq,
 			relation,
 			&newstate))) {
-		return -EINVAL;
+		retval = -EINVAL;
+		goto out;
 	}
 
 #ifdef CONFIG_HOTPLUG_CPU
 	/* cpufreq holds the hotplug lock, so we are safe from here on */
-	cpus_and(online_policy_cpus, cpu_online_map, policy->cpus);
+	cpus_and(*online_policy_cpus, cpu_online_map, policy->cpus);
 #else
-	online_policy_cpus = policy->cpus;
+	*online_policy_cpus = policy->cpus;
 #endif
 
-	saved_mask = current->cpus_allowed;
+	*saved_mask = current->cpus_allowed;
 	first_cpu = 1;
-	cpus_clear(covered_cpus);
-	for_each_cpu_mask_nr(j, online_policy_cpus) {
+	cpus_clear(*covered_cpus);
+	for_each_cpu_mask_nr(j, *online_policy_cpus) {
 		/*
 		 * Support for SMP systems.
 		 * Make sure we are running on CPU that wants to change freq
 		 */
-		cpus_clear(set_mask);
+		cpus_clear(*set_mask);
 		if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
-			cpus_or(set_mask, set_mask, online_policy_cpus);
+			cpus_or(*set_mask, *set_mask, *online_policy_cpus);
 		else
-			cpu_set(j, set_mask);
+			cpu_set(j, *set_mask);
 
-		set_cpus_allowed_ptr(current, &set_mask);
+		set_cpus_allowed_ptr(current, set_mask);
 		preempt_disable();
-		if (unlikely(!cpu_isset(smp_processor_id(), set_mask))) {
+		if (unlikely(!cpu_isset(smp_processor_id(), *set_mask))) {
 			dprintk("couldn't limit to CPUs in this domain\n");
 			retval = -EAGAIN;
 			if (first_cpu) {
@@ -518,7 +532,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 			dprintk("target=%dkHz old=%d new=%d msr=%04x\n",
 				target_freq, freqs.old, freqs.new, msr);
 
-			for_each_cpu_mask_nr(k, online_policy_cpus) {
+			for_each_cpu_mask_nr(k, *online_policy_cpus) {
 				freqs.cpu = k;
 				cpufreq_notify_transition(&freqs,
 					CPUFREQ_PRECHANGE);
@@ -537,11 +551,11 @@ static int centrino_target (struct cpufreq_policy *policy,
 			break;
 		}
 
-		cpu_set(j, covered_cpus);
+		cpu_set(j, *covered_cpus);
 		preempt_enable();
 	}
 
-	for_each_cpu_mask_nr(k, online_policy_cpus) {
+	for_each_cpu_mask_nr(k, *online_policy_cpus) {
 		freqs.cpu = k;
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	}
@@ -554,10 +568,10 @@ static int centrino_target (struct cpufreq_policy *policy,
 		 * Best effort undo..
 		 */
 
-		if (!cpus_empty(covered_cpus)) {
+		if (!cpus_empty(*covered_cpus)) {
 			cpumask_of_cpu_ptr_declare(new_mask);
 
-			for_each_cpu_mask_nr(j, covered_cpus) {
+			for_each_cpu_mask_nr(j, *covered_cpus) {
 				cpumask_of_cpu_ptr_next(new_mask, j);
 				set_cpus_allowed_ptr(current, new_mask);
 				wrmsr(MSR_IA32_PERF_CTL, oldmsr, h);
@@ -567,19 +581,22 @@ static int centrino_target (struct cpufreq_policy *policy,
 		tmp = freqs.new;
 		freqs.new = freqs.old;
 		freqs.old = tmp;
-		for_each_cpu_mask_nr(j, online_policy_cpus) {
+		for_each_cpu_mask_nr(j, *online_policy_cpus) {
 			freqs.cpu = j;
 			cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 			cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 		}
 	}
-	set_cpus_allowed_ptr(current, &saved_mask);
-	return 0;
+	set_cpus_allowed_ptr(current, saved_mask);
+	retval = 0;
+	goto out;
 
 migrate_end:
 	preempt_enable();
-	set_cpus_allowed_ptr(current, &saved_mask);
-	return 0;
+	set_cpus_allowed_ptr(current, saved_mask);
+out:
+	CPUMASK_FREE(allmasks);
+	return retval;
 }
 
 static struct freq_attr* centrino_attr[] = {
