@@ -518,19 +518,35 @@ static int vlan_dev_open(struct net_device *dev)
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr)) {
 		err = dev_unicast_add(real_dev, dev->dev_addr, ETH_ALEN);
 		if (err < 0)
-			return err;
+			goto out;
 	}
-	memcpy(vlan->real_dev_addr, real_dev->dev_addr, ETH_ALEN);
 
-	if (dev->flags & IFF_ALLMULTI)
-		dev_set_allmulti(real_dev, 1);
-	if (dev->flags & IFF_PROMISC)
-		dev_set_promiscuity(real_dev, 1);
+	if (dev->flags & IFF_ALLMULTI) {
+		err = dev_set_allmulti(real_dev, 1);
+		if (err < 0)
+			goto del_unicast;
+	}
+	if (dev->flags & IFF_PROMISC) {
+		err = dev_set_promiscuity(real_dev, 1);
+		if (err < 0)
+			goto clear_allmulti;
+	}
+
+	memcpy(vlan->real_dev_addr, real_dev->dev_addr, ETH_ALEN);
 
 	if (vlan->flags & VLAN_FLAG_GVRP)
 		vlan_gvrp_request_join(dev);
 
 	return 0;
+
+clear_allmulti:
+	if (dev->flags & IFF_ALLMULTI)
+		dev_set_allmulti(real_dev, -1);
+del_unicast:
+	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
+		dev_unicast_delete(real_dev, dev->dev_addr, ETH_ALEN);
+out:
+	return err;
 }
 
 static int vlan_dev_stop(struct net_device *dev)
