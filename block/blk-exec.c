@@ -18,7 +18,7 @@
  * @rq: request to complete
  * @error: end io status of the request
  */
-void blk_end_sync_rq(struct request *rq, int error)
+static void blk_end_sync_rq(struct request *rq, int error)
 {
 	struct completion *waiting = rq->end_io_data;
 
@@ -31,7 +31,6 @@ void blk_end_sync_rq(struct request *rq, int error)
 	 */
 	complete(waiting);
 }
-EXPORT_SYMBOL(blk_end_sync_rq);
 
 /**
  * blk_execute_rq_nowait - insert a request into queue for execution
