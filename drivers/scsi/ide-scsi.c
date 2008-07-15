@@ -502,38 +502,12 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
 		struct ide_atapi_pc *pc)
 {
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
-	ide_hwif_t *hwif = drive->hwif;
-	u16 bcount;
-	u8 dma = 0;
 
 	/* Set the current packet command */
 	scsi->pc = pc;
-	/* We haven't transferred any data yet */
-	pc->xferred = 0;
-	pc->cur_pos = pc->buf;
-	/* Request to transfer the entire buffer at once */
-	bcount = min(pc->req_xfer, 63 * 1024);
 
-	if ((pc->flags & PC_FLAG_DMA_OK) && drive->using_dma) {
-		hwif->sg_mapped = 1;
-		dma = !hwif->dma_ops->dma_setup(drive);
-		hwif->sg_mapped = 0;
-	}
-
-	if (!dma)
-		pc->flags &= ~PC_FLAG_DMA_OK;
-
-	ide_pktcmd_tf_load(drive, 0, bcount, dma);
-
-	if (pc->flags & PC_FLAG_DRQ_INTERRUPT) {
-		ide_execute_command(drive, WIN_PACKETCMD, &idescsi_transfer_pc,
-				    get_timeout(pc), idescsi_expiry);
-		return ide_started;
-	} else {
-		/* Issue the packet command */
-		ide_execute_pkt_cmd(drive);
-		return idescsi_transfer_pc(drive);
-	}
+	return ide_issue_pc(drive, pc, idescsi_transfer_pc,
+			    get_timeout(pc), idescsi_expiry);
 }
 
 /*

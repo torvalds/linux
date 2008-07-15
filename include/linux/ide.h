@@ -970,6 +970,8 @@ void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
 
 ide_startstop_t ide_transfer_pc(ide_drive_t *, struct ide_atapi_pc *,
 				ide_handler_t *, unsigned int, ide_expiry_t *);
+ide_startstop_t ide_issue_pc(ide_drive_t *, struct ide_atapi_pc *,
+			     ide_handler_t *, unsigned int, ide_expiry_t *);
 
 ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 

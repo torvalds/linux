@@ -576,9 +576,6 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		struct ide_atapi_pc *pc)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
-	ide_hwif_t *hwif = drive->hwif;
-	u16 bcount;
-	u8 dma;
 
 	if (floppy->failed_pc == NULL &&
 	    pc->c[0] != GPCMD_REQUEST_SENSE)
@@ -600,37 +597,9 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	debug_log("Retry number - %d\n", pc->retries);
 
 	pc->retries++;
-	/* We haven't transferred any data yet */
-	pc->xferred = 0;
-	pc->cur_pos = pc->buf;
-	bcount = min(pc->req_xfer, 63 * 1024);
 
-	if (pc->flags & PC_FLAG_DMA_ERROR) {
-		pc->flags &= ~PC_FLAG_DMA_ERROR;
-		ide_dma_off(drive);
-	}
-	dma = 0;
-
-	if ((pc->flags & PC_FLAG_DMA_OK) && drive->using_dma)
-		dma = !hwif->dma_ops->dma_setup(drive);
-
-	if (!dma)
-		pc->flags &= ~PC_FLAG_DMA_OK;
-
-	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma);
-
-	if (pc->flags & PC_FLAG_DRQ_INTERRUPT) {
-		/* Issue the packet command */
-		ide_execute_command(drive, WIN_PACKETCMD,
-				&idefloppy_transfer_pc1,
-				IDEFLOPPY_WAIT_CMD,
-				NULL);
-		return ide_started;
-	} else {
-		/* Issue the packet command */
-		ide_execute_pkt_cmd(drive);
-		return idefloppy_transfer_pc1(drive);
-	}
+	return ide_issue_pc(drive, pc, idefloppy_transfer_pc1,
+			    IDEFLOPPY_WAIT_CMD, NULL);
 }
 
 static void idefloppy_create_prevent_cmd(struct ide_atapi_pc *pc, int prevent)

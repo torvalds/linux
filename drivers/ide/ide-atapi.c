@@ -68,3 +68,52 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	return ide_started;
 }
 EXPORT_SYMBOL_GPL(ide_transfer_pc);
+
+ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
+			     ide_handler_t *handler, unsigned int timeout,
+			     ide_expiry_t *expiry)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	u16 bcount;
+	u8 dma = 0;
+
+	/* We haven't transferred any data yet */
+	pc->xferred = 0;
+	pc->cur_pos = pc->buf;
+
+	/* Request to transfer the entire buffer at once */
+	if (drive->media == ide_tape && !drive->scsi)
+		bcount = pc->req_xfer;
+	else
+		bcount = min(pc->req_xfer, 63 * 1024);
+
+	if (pc->flags & PC_FLAG_DMA_ERROR) {
+		pc->flags &= ~PC_FLAG_DMA_ERROR;
+		ide_dma_off(drive);
+	}
+
+	if ((pc->flags & PC_FLAG_DMA_OK) && drive->using_dma) {
+		if (drive->scsi)
+			hwif->sg_mapped = 1;
+		dma = !hwif->dma_ops->dma_setup(drive);
+		if (drive->scsi)
+			hwif->sg_mapped = 0;
+	}
+
+	if (!dma)
+		pc->flags &= ~PC_FLAG_DMA_OK;
+
+	ide_pktcmd_tf_load(drive, drive->scsi ? 0 : IDE_TFLAG_OUT_DEVICE,
+			   bcount, dma);
+
+	/* Issue the packet command */
+	if (pc->flags & PC_FLAG_DRQ_INTERRUPT) {
+		ide_execute_command(drive, WIN_PACKETCMD, handler,
+				    timeout, NULL);
+		return ide_started;
+	} else {
+		ide_execute_pkt_cmd(drive);
+		return (*handler)(drive);
+	}
+}
+EXPORT_SYMBOL_GPL(ide_issue_pc);

@@ -958,10 +958,7 @@ static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 		struct ide_atapi_pc *pc)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	idetape_tape_t *tape = drive->driver_data;
-	int dma_ok = 0;
-	u16 bcount;
 
 	if (tape->pc->c[0] == REQUEST_SENSE &&
 	    pc->c[0] == REQUEST_SENSE) {
@@ -1002,32 +999,9 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 	debug_log(DBG_SENSE, "Retry #%d, cmd = %02X\n", pc->retries, pc->c[0]);
 
 	pc->retries++;
-	/* We haven't transferred any data yet */
-	pc->xferred = 0;
-	pc->cur_pos = pc->buf;
-	/* Request to transfer the entire buffer at once */
-	bcount = pc->req_xfer;
 
-	if (pc->flags & PC_FLAG_DMA_ERROR) {
-		pc->flags &= ~PC_FLAG_DMA_ERROR;
-		ide_dma_off(drive);
-	}
-	if ((pc->flags & PC_FLAG_DMA_OK) && drive->using_dma)
-		dma_ok = !hwif->dma_ops->dma_setup(drive);
-
-	if (!dma_ok)
-		pc->flags &= ~PC_FLAG_DMA_OK;
-
-	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma_ok);
-
-	if (pc->flags & PC_FLAG_DRQ_INTERRUPT) {
-		ide_execute_command(drive, WIN_PACKETCMD, &idetape_transfer_pc,
-				    IDETAPE_WAIT_CMD, NULL);
-		return ide_started;
-	} else {
-		ide_execute_pkt_cmd(drive);
-		return idetape_transfer_pc(drive);
-	}
+	return ide_issue_pc(drive, pc, idetape_transfer_pc,
+			    IDETAPE_WAIT_CMD, NULL);
 }
 
 /* A mode sense command is used to "sense" tape parameters. */
