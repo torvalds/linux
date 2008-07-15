@@ -90,6 +90,7 @@ static char mv643xx_eth_driver_version[] = "1.1";
 #define PORT_SERIAL_CONTROL(p)		(0x043c + ((p) << 10))
 #define PORT_STATUS(p)			(0x0444 + ((p) << 10))
 #define  TX_FIFO_EMPTY			0x00000400
+#define  TX_IN_PROGRESS			0x00000080
 #define TXQ_COMMAND(p)			(0x0448 + ((p) << 10))
 #define TXQ_FIX_PRIO_CONF(p)		(0x044c + ((p) << 10))
 #define TX_BW_RATE(p)			(0x0450 + ((p) << 10))
@@ -2039,8 +2040,14 @@ static void port_reset(struct mv643xx_eth_private *mp)
 		if (mp->txq_mask & (1 << i))
 			txq_disable(mp->txq + i);
 	}
-	while (!(rdl(mp, PORT_STATUS(mp->port_num)) & TX_FIFO_EMPTY))
+
+	while (1) {
+		u32 ps = rdl(mp, PORT_STATUS(mp->port_num));
+
+		if ((ps & (TX_IN_PROGRESS | TX_FIFO_EMPTY)) == TX_FIFO_EMPTY)
+			break;
 		udelay(10);
+	}
 
 	/* Reset the Enable bit in the Configuration Register */
 	data = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
