@@ -758,27 +758,6 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
 		if (hwif->dma_ops->dma_end(drive) || (stat & ERR_STAT)) {
-			/*
-			 * A DMA error is sometimes expected. For example,
-			 * if the tape is crossing a filemark during a
-			 * READ command, it will issue an irq and position
-			 * itself before the filemark, so that only a partial
-			 * data transfer will occur (which causes the DMA
-			 * error). In that case, we will later ask the tape
-			 * how much bytes of the original request were
-			 * actually transferred (we can't receive that
-			 * information from the DMA engine on most chipsets).
-			 */
-
-			/*
-			 * On the contrary, a DMA error is never expected;
-			 * it usually indicates a hardware error or abort.
-			 * If the tape crosses a filemark during a READ
-			 * command, it will issue an irq and position itself
-			 * after the filemark (not before). Only a partial
-			 * data transfer will occur, but no DMA error.
-			 * (AS, 19 Apr 2001)
-			 */
 			pc->flags |= PC_FLAG_DMA_ERROR;
 		} else {
 			pc->xferred = pc->req_xfer;
