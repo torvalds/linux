@@ -453,36 +453,10 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 
 static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
-	struct ide_atapi_pc *pc = scsi->pc;
-	ide_startstop_t startstop;
-	u8 ireason;
 
-	if (ide_wait_stat(&startstop,drive,DRQ_STAT,BUSY_STAT,WAIT_READY)) {
-		printk(KERN_ERR "%s: Strange, packet command initiated yet "
-				"DRQ isn't asserted\n", drive->name);
-		return startstop;
-	}
-	ireason = hwif->INB(hwif->io_ports.nsect_addr);
-	if ((ireason & CD) == 0 || (ireason & IO)) {
-		printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
-				"a packet command\n", drive->name);
-		return ide_do_reset (drive);
-	}
-
-	/* Set the interrupt routine */
-	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
-
-	if (pc->flags & PC_FLAG_DMA_OK) {
-		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
-		hwif->dma_ops->dma_start(drive);
-	}
-
-	/* Send the actual packet */
-	hwif->output_data(drive, NULL, scsi->pc->c, 12);
-
-	return ide_started;
+	return ide_transfer_pc(drive, scsi->pc, idescsi_pc_intr,
+			       get_timeout(scsi->pc), idescsi_expiry);
 }
 
 static inline int idescsi_set_direction(struct ide_atapi_pc *pc)

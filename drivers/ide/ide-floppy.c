@@ -532,25 +532,11 @@ static int idefloppy_transfer_pc2(ide_drive_t *drive)
 
 static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	struct ide_atapi_pc *pc = floppy->pc;
 	ide_expiry_t *expiry;
 	unsigned int timeout;
-	ide_startstop_t startstop;
-	u8 ireason;
 
-	if (ide_wait_stat(&startstop, drive, DRQ_STAT, BUSY_STAT, WAIT_READY)) {
-		printk(KERN_ERR "%s: Strange, packet command initiated yet "
-				"DRQ isn't asserted\n", drive->name);
-		return startstop;
-	}
-	ireason = hwif->INB(hwif->io_ports.nsect_addr);
-	if ((ireason & CD) == 0 || (ireason & IO)) {
-		printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
-				"a packet command\n", drive->name);
-		return ide_do_reset(drive);
-	}
 	/*
 	 * The following delay solves a problem with ATAPI Zip 100 drives
 	 * where the Busy flag was apparently being deasserted before the
@@ -567,19 +553,7 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 		expiry = NULL;
 	}
 
-	ide_set_handler(drive, &idefloppy_pc_intr, timeout, expiry);
-
-	/* Begin DMA, if necessary */
-	if (pc->flags & PC_FLAG_DMA_OK) {
-		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
-		hwif->dma_ops->dma_start(drive);
-	}
-
-	if ((pc->flags & PC_FLAG_ZIP_DRIVE) == 0)
-		/* Send the actual packet */
-		hwif->output_data(drive, NULL, floppy->pc->c, 12);
-
-	return ide_started;
+	return ide_transfer_pc(drive, pc, idefloppy_pc_intr, timeout, expiry);
 }
 
 static void ide_floppy_report_error(idefloppy_floppy_t *floppy,

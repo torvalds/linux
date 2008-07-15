@@ -967,6 +967,9 @@ extern int drive_is_ready(ide_drive_t *);
 
 void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
 
+ide_startstop_t ide_transfer_pc(ide_drive_t *, struct ide_atapi_pc *,
+				ide_handler_t *, unsigned int, ide_expiry_t *);
+
 ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 
 void task_end_request(ide_drive_t *, struct request *, u8);
