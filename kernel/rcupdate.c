@@ -39,16 +39,16 @@
 #include <linux/sched.h>
 #include <asm/atomic.h>
 #include <linux/bitops.h>
-#include <linux/completion.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
 
-struct rcu_synchronize {
-	struct rcu_head head;
-	struct completion completion;
+enum rcu_barrier {
+	RCU_BARRIER_STD,
+	RCU_BARRIER_BH,
+	RCU_BARRIER_SCHED,
 };
 
 static DEFINE_PER_CPU(struct rcu_head, rcu_barrier_head) = {NULL};
@@ -60,7 +60,7 @@ static struct completion rcu_barrier_completion;
  * Awaken the corresponding synchronize_rcu() instance now that a
  * grace period has elapsed.
  */
-static void wakeme_after_rcu(struct rcu_head  *head)
+void wakeme_after_rcu(struct rcu_head  *head)
 {
 	struct rcu_synchronize *rcu;
 
@@ -77,17 +77,7 @@ static void wakeme_after_rcu(struct rcu_head  *head)
  * sections are delimited by rcu_read_lock() and rcu_read_unlock(),
  * and may be nested.
  */
-void synchronize_rcu(void)
-{
-	struct rcu_synchronize rcu;
-
-	init_completion(&rcu.completion);
-	/* Will wake me after RCU finished */
-	call_rcu(&rcu.head, wakeme_after_rcu);
-
-	/* Wait for it */
-	wait_for_completion(&rcu.completion);
-}
+synchronize_rcu_xxx(synchronize_rcu, call_rcu)
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
 static void rcu_barrier_callback(struct rcu_head *notused)
@@ -99,19 +89,30 @@ static void rcu_barrier_callback(struct rcu_head *notused)
 /*
  * Called with preemption disabled, and from cross-cpu IRQ context.
  */
-static void rcu_barrier_func(void *notused)
+static void rcu_barrier_func(void *type)
 {
 	int cpu = smp_processor_id();
 	struct rcu_head *head = &per_cpu(rcu_barrier_head, cpu);
 
 	atomic_inc(&rcu_barrier_cpu_count);
-	call_rcu(head, rcu_barrier_callback);
+	switch ((enum rcu_barrier)type) {
+	case RCU_BARRIER_STD:
+		call_rcu(head, rcu_barrier_callback);
+		break;
+	case RCU_BARRIER_BH:
+		call_rcu_bh(head, rcu_barrier_callback);
+		break;
+	case RCU_BARRIER_SCHED:
+		call_rcu_sched(head, rcu_barrier_callback);
+		break;
+	}
 }
 
-/**
- * rcu_barrier - Wait until all the in-flight RCUs are complete.
+/*
+ * Orchestrate the specified type of RCU barrier, waiting for all
+ * RCU callbacks of the specified type to complete.
  */
-void rcu_barrier(void)
+static void _rcu_barrier(enum rcu_barrier type)
 {
 	BUG_ON(in_interrupt());
 	/* Take cpucontrol mutex to protect against CPU hotplug */
@@ -127,12 +128,38 @@ void rcu_barrier(void)
 	 * until all the callbacks are queued.
 	 */
 	rcu_read_lock();
-	on_each_cpu(rcu_barrier_func, NULL, 0, 1);
+	on_each_cpu(rcu_barrier_func, (void *)type, 0, 1);
 	rcu_read_unlock();
 	wait_for_completion(&rcu_barrier_completion);
 	mutex_unlock(&rcu_barrier_mutex);
 }
+
+/**
+ * rcu_barrier - Wait until all in-flight call_rcu() callbacks complete.
+ */
+void rcu_barrier(void)
+{
+	_rcu_barrier(RCU_BARRIER_STD);
+}
 EXPORT_SYMBOL_GPL(rcu_barrier);
+
+/**
+ * rcu_barrier_bh - Wait until all in-flight call_rcu_bh() callbacks complete.
+ */
+void rcu_barrier_bh(void)
+{
+	_rcu_barrier(RCU_BARRIER_BH);
+}
+EXPORT_SYMBOL_GPL(rcu_barrier_bh);
+
+/**
+ * rcu_barrier_sched - Wait for in-flight call_rcu_sched() callbacks.
+ */
+void rcu_barrier_sched(void)
+{
+	_rcu_barrier(RCU_BARRIER_SCHED);
+}
+EXPORT_SYMBOL_GPL(rcu_barrier_sched);
 
 void __init rcu_init(void)
 {
