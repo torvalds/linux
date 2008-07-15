@@ -514,16 +514,16 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
 	/* Request to transfer the entire buffer at once */
 	bcount = min(pc->req_xfer, 63 * 1024);
 
-	if (drive->using_dma && !idescsi_map_sg(drive, pc)) {
+	if ((pc->flags & PC_FLAG_DMA_OK) && drive->using_dma) {
 		hwif->sg_mapped = 1;
 		dma = !hwif->dma_ops->dma_setup(drive);
 		hwif->sg_mapped = 0;
 	}
 
-	ide_pktcmd_tf_load(drive, 0, bcount, dma);
+	if (!dma)
+		pc->flags &= ~PC_FLAG_DMA_OK;
 
-	if (dma)
-		pc->flags |= PC_FLAG_DMA_OK;
+	ide_pktcmd_tf_load(drive, 0, bcount, dma);
 
 	if (test_bit(IDESCSI_DRQ_INTERRUPT, &scsi->flags)) {
 		ide_execute_command(drive, WIN_PACKETCMD, &idescsi_transfer_pc,
@@ -547,8 +547,12 @@ static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *r
 		  rq->sector, rq->nr_sectors, rq->current_nr_sectors);
 
 	if (blk_sense_request(rq) || blk_special_request(rq)) {
-		return idescsi_issue_pc(drive,
-				(struct ide_atapi_pc *) rq->special);
+		struct ide_atapi_pc *pc = (struct ide_atapi_pc *)rq->special;
+
+		if (drive->using_dma && !idescsi_map_sg(drive, pc))
+			pc->flags |= PC_FLAG_DMA_OK;
+
+		return idescsi_issue_pc(drive, pc);
 	}
 	blk_dump_rq_flags(rq, "ide-scsi: unsup command");
 	idescsi_end_request (drive, 0, 0);
