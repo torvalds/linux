@@ -886,7 +886,7 @@ retry:
 		return netlink_unicast_kernel(sk, skb);
 
 	if (sk_filter(sk, skb)) {
-		int err = skb->len;
+		err = skb->len;
 		kfree_skb(skb);
 		sock_put(sk);
 		return err;

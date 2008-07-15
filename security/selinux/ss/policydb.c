@@ -1478,7 +1478,8 @@ int policydb_read(struct policydb *p, void *fp)
 	struct ocontext *l, *c, *newc;
 	struct genfs *genfs_p, *genfs, *newgenfs;
 	int i, j, rc;
-	__le32 buf[8];
+	__le32 buf[4];
+	u32 nodebuf[8];
 	u32 len, len2, config, nprim, nel, nel2;
 	char *policydb_str;
 	struct policydb_compat_info *info;
@@ -1749,11 +1750,11 @@ int policydb_read(struct policydb *p, void *fp)
 					goto bad;
 				break;
 			case OCON_NODE:
-				rc = next_entry(buf, fp, sizeof(u32) * 2);
+				rc = next_entry(nodebuf, fp, sizeof(u32) * 2);
 				if (rc < 0)
 					goto bad;
-				c->u.node.addr = le32_to_cpu(buf[0]);
-				c->u.node.mask = le32_to_cpu(buf[1]);
+				c->u.node.addr = nodebuf[0]; /* network order */
+				c->u.node.mask = nodebuf[1]; /* network order */
 				rc = context_read_and_validate(&c->context[0], p, fp);
 				if (rc)
 					goto bad;
@@ -1782,13 +1783,13 @@ int policydb_read(struct policydb *p, void *fp)
 			case OCON_NODE6: {
 				int k;
 
-				rc = next_entry(buf, fp, sizeof(u32) * 8);
+				rc = next_entry(nodebuf, fp, sizeof(u32) * 8);
 				if (rc < 0)
 					goto bad;
 				for (k = 0; k < 4; k++)
-					c->u.node6.addr[k] = le32_to_cpu(buf[k]);
+					c->u.node6.addr[k] = nodebuf[k];
 				for (k = 0; k < 4; k++)
-					c->u.node6.mask[k] = le32_to_cpu(buf[k+4]);
+					c->u.node6.mask[k] = nodebuf[k+4];
 				if (context_read_and_validate(&c->context[0], p, fp))
 					goto bad;
 				break;

@@ -243,9 +243,6 @@ typedef union {
 #define JFS_REMOVE 3
 #define JFS_RENAME 4
 
-#define DIRENTSIZ(namlen) \
-    ( (sizeof(struct dirent) - 2*(JFS_NAME_MAX+1) + 2*((namlen)+1) + 3) &~ 3 )
-
 /*
  * Maximum file offset for directories.
  */

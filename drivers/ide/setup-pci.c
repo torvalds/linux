@@ -87,7 +87,7 @@ unsigned long ide_pci_dma_base(ide_hwif_t *hwif, const struct ide_port_info *d)
 	unsigned long dma_base = 0;
 	u8 dma_stat = 0;
 
-	if (hwif->mmio)
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
 		return hwif->dma_base;
 
 	if (hwif->mate && hwif->mate->dma_base) {
@@ -374,7 +374,7 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 		if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
 			return -1;
 
-		if (hwif->mmio)
+		if (hwif->host_flags & IDE_HFLAG_MMIO)
 			printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 		else
 			printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx\n",

@@ -2665,7 +2665,7 @@ static void release_dev(struct file *filp)
  *		 ->siglock protects ->signal/->sighand
  */
 
-static int tty_open(struct inode *inode, struct file *filp)
+static int __tty_open(struct inode *inode, struct file *filp)
 {
 	struct tty_struct *tty;
 	int noctty, retval;
@@ -2779,6 +2779,19 @@ got_driver:
 	return 0;
 }
 
+/* BKL pushdown: scary code avoidance wrapper */
+static int tty_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+
+	lock_kernel();
+	ret = __tty_open(inode, filp);
+	unlock_kernel();
+	return ret;
+}
+
+
+
 #ifdef CONFIG_UNIX98_PTYS
 /**
  *	ptmx_open		-	open a unix 98 pty master
@@ -2792,7 +2805,7 @@ got_driver:
  *		allocated_ptys_lock handles the list of free pty numbers
  */
 
-static int ptmx_open(struct inode *inode, struct file *filp)
+static int __ptmx_open(struct inode *inode, struct file *filp)
 {
 	struct tty_struct *tty;
 	int retval;
@@ -2830,6 +2843,16 @@ out1:
 out:
 	devpts_kill_index(index);
 	return retval;
+}
+
+static int ptmx_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+
+	lock_kernel();
+	ret = __ptmx_open(inode, filp);
+	unlock_kernel();
+	return ret;
 }
 #endif
 
@@ -2886,15 +2909,16 @@ static int tty_fasync(int fd, struct file *filp, int on)
 {
 	struct tty_struct *tty;
 	unsigned long flags;
-	int retval;
+	int retval = 0;
 
+	lock_kernel();
 	tty = (struct tty_struct *)filp->private_data;
 	if (tty_paranoia_check(tty, filp->f_path.dentry->d_inode, "tty_fasync"))
-		return 0;
+		goto out;
 
 	retval = fasync_helper(fd, filp, on, &tty->fasync);
 	if (retval <= 0)
-		return retval;
+		goto out;
 
 	if (on) {
 		enum pid_type type;
@@ -2912,12 +2936,15 @@ static int tty_fasync(int fd, struct file *filp, int on)
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		retval = __f_setown(filp, pid, type, 0);
 		if (retval)
-			return retval;
+			goto out;
 	} else {
 		if (!tty->fasync && !waitqueue_active(&tty->read_wait))
 			tty->minimum_to_wake = N_TTY_BUF_SIZE;
 	}
-	return 0;
+	retval = 0;
+out:
+	unlock_kernel();
+	return retval;
 }
 
 /**
@@ -3322,7 +3349,7 @@ static int send_break(struct tty_struct *tty, unsigned int duration)
 		msleep_interruptible(duration);
 	tty->ops->break_ctl(tty, 0);
 	tty_write_unlock(tty);
-	if (!signal_pending(current))
+	if (signal_pending(current))
 		return -EINTR;
 	return 0;
 }

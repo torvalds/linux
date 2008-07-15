@@ -548,11 +548,15 @@ static int
 mptctl_fasync(int fd, struct file *filep, int mode)
 {
 	MPT_ADAPTER	*ioc;
+	int ret;
 
+	lock_kernel();
 	list_for_each_entry(ioc, &ioc_list, list)
 		ioc->aen_event_read_flag=0;
 
-	return fasync_helper(fd, filep, mode, &async_queue);
+	ret = fasync_helper(fd, filep, mode, &async_queue);
+	unlock_kernel();
+	return ret;
 }
 
 static int

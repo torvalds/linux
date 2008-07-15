@@ -7,7 +7,7 @@
 
 config SOUND_BCM_CS4297A
 	tristate "Crystal Sound CS4297a (for Swarm)"
-	depends on SOUND_PRIME && SIBYTE_SWARM
+	depends on SIBYTE_SWARM
 	help
 	  The BCM91250A has a Crystal CS4297a on synchronous serial
 	  port B (in addition to the DB-9 serial port).  Say Y or M
@@ -17,7 +17,7 @@ config SOUND_BCM_CS4297A
 
 config SOUND_VWSND
 	tristate "SGI Visual Workstation Sound"
-	depends on SOUND_PRIME && X86_VISWS
+	depends on X86_VISWS
 	help
 	  Say Y or M if you have an SGI Visual Workstation and you want to be
 	  able to use its on-board audio.  Read
@@ -26,19 +26,18 @@ config SOUND_VWSND
 
 config SOUND_HAL2
 	tristate "SGI HAL2 sound (EXPERIMENTAL)"
-	depends on SOUND_PRIME && SGI_IP22 && EXPERIMENTAL
+	depends on SGI_IP22 && EXPERIMENTAL
 	help
 	  Say Y or M if you have an SGI Indy or Indigo2 system and want to be able to
 	  use its on-board A2 audio system.
 
 config SOUND_AU1550_AC97
 	tristate "Au1550/Au1200 AC97 Sound"
-	select SND_AC97_CODEC
-	depends on SOUND_PRIME && (SOC_AU1550 || SOC_AU1200)
+	depends on SOC_AU1550 || SOC_AU1200
 
 config SOUND_TRIDENT
 	tristate "Trident 4DWave DX/NX, SiS 7018 or ALi 5451 PCI Audio Core"
-	depends on SOUND_PRIME && PCI
+	depends on PCI
 	---help---
 	  Say Y or M if you have a PCI sound card utilizing the Trident
 	  4DWave-DX/NX chipset or your mother board chipset has SiS 7018
@@ -79,7 +78,7 @@ config SOUND_TRIDENT
 
 config SOUND_MSNDCLAS
 	tristate "Support for Turtle Beach MultiSound Classic, Tahiti, Monterey"
-	depends on SOUND_PRIME && (m || !STANDALONE) && ISA
+	depends on (m || !STANDALONE) && ISA
 	help
 	  Say M here if you have a Turtle Beach MultiSound Classic, Tahiti or
 	  Monterey (not for the Pinnacle or Fiji).
@@ -143,7 +142,7 @@ config MSNDCLAS_IO
 
 config SOUND_MSNDPIN
 	tristate "Support for Turtle Beach MultiSound Pinnacle, Fiji"
-	depends on SOUND_PRIME && (m || !STANDALONE) && ISA
+	depends on (m || !STANDALONE) && ISA
 	help
 	  Say M here if you have a Turtle Beach MultiSound Pinnacle or Fiji.
 	  See <file:Documentation/sound/oss/MultiSound> for important information
@@ -229,7 +228,7 @@ config MSNDPIN_NONPNP
 	  configure the card's resources.
 
 comment "MSND Pinnacle DSP section will be configured to above parameters."
-	depends on SOUND_PRIME && SOUND_MSNDPIN=y && MSNDPIN_NONPNP
+	depends on SOUND_MSNDPIN=y && MSNDPIN_NONPNP
 
 config MSNDPIN_CFG
 	hex "MSND Pinnacle config port 250,260,270"
@@ -242,7 +241,7 @@ config MSNDPIN_CFG
 	  Mode".
 
 comment "Pinnacle-specific Device Configuration (0 disables)"
-	depends on SOUND_PRIME && SOUND_MSNDPIN=y && MSNDPIN_NONPNP
+	depends on SOUND_MSNDPIN=y && MSNDPIN_NONPNP
 
 config MSNDPIN_MPU_IO
 	hex "MSND Pinnacle MPU I/O (e.g. 330)"
@@ -294,7 +293,7 @@ config MSNDPIN_JOYSTICK_IO
 
 config MSND_FIFOSIZE
 	int "MSND buffer size (kB)"
-	depends on SOUND_PRIME && (SOUND_MSNDPIN=y || SOUND_MSNDCLAS=y)
+	depends on SOUND_MSNDPIN=y || SOUND_MSNDCLAS=y
 	default "128"
 	help
 	  Configures the size of each audio buffer, in kilobytes, for
@@ -302,9 +301,9 @@ config MSND_FIFOSIZE
 	  and Pinnacle). Larger values reduce the chance of data overruns at
 	  the expense of overall latency. If unsure, use the default.
 
-config SOUND_OSS
+menuconfig SOUND_OSS
 	tristate "OSS sound modules"
-	depends on SOUND_PRIME && ISA_DMA_API && VIRT_TO_BUS
+	depends on ISA_DMA_API && VIRT_TO_BUS
 	help
 	  OSS is the Open Sound System suite of sound card drivers.  They make
 	  sound programming easier since they provide a common API.  Say Y or
@@ -312,16 +311,16 @@ config SOUND_OSS
 	  driver for your sound card above, then pick your driver from the
 	  list below.
 
+if SOUND_OSS
+
 config SOUND_TRACEINIT
 	bool "Verbose initialisation"
-	depends on SOUND_OSS
 	help
 	  Verbose soundcard initialization -- affects the format of autoprobe
 	  and initialization messages at boot time.
 
 config SOUND_DMAP
 	bool "Persistent DMA buffers"
-	depends on SOUND_OSS
 	---help---
 	  Linux can often have problems allocating DMA buffers for ISA sound
 	  cards on machines with more than 16MB of RAM. This is because ISA
@@ -338,8 +337,6 @@ config SOUND_DMAP
 
 config SOUND_SSCAPE
 	tristate "Ensoniq SoundScape support"
-	depends on SOUND_OSS
-	depends on VIRT_TO_BUS
 	help
 	  Answer Y if you have a sound card based on the Ensoniq SoundScape
 	  chipset. Such cards are being manufactured at least by Ensoniq, Spea
@@ -352,13 +349,11 @@ config SOUND_SSCAPE
 
 config SOUND_VMIDI
 	tristate "Loopback MIDI device support"
-	depends on SOUND_OSS
 	help
 	  Support for MIDI loopback on port 1 or 2.
 
 config SOUND_TRIX
 	tristate "MediaTrix AudioTrix Pro support"
-	depends on SOUND_OSS
 	help
 	  Answer Y if you have the AudioTriX Pro sound card manufactured
 	  by MediaTrix.
@@ -382,7 +377,6 @@ config TRIX_BOOT_FILE
 
 config SOUND_MSS
 	tristate "Microsoft Sound System support"
-	depends on SOUND_OSS
 	---help---
 	  Again think carefully before answering Y to this question.  It's
 	  safe to answer Y if you have the original Windows Sound System card
@@ -414,7 +408,6 @@ config SOUND_MSS
 
 config SOUND_MPU401
 	tristate "MPU-401 support (NOT for SB16)"
-	depends on SOUND_OSS
 	---help---
 	  Be careful with this question.  The MPU401 interface is supported by
 	  all sound cards.  However, some natively supported cards have their
@@ -430,7 +423,6 @@ config SOUND_MPU401
 
 config SOUND_PAS
 	tristate "ProAudioSpectrum 16 support"
-	depends on SOUND_OSS
 	---help---
 	  Answer Y only if you have a Pro Audio Spectrum 16, ProAudio Studio
 	  16 or Logitech SoundMan 16 sound card. Answer N if you have some
@@ -452,7 +444,6 @@ config PAS_JOYSTICK
 
 config SOUND_PSS
 	tristate "PSS (AD1848, ADSP-2115, ESC614) support"
-	depends on SOUND_OSS
 	help
 	  Answer Y or M if you have an Orchid SW32, Cardinal DSP16, Beethoven
 	  ADSP-16 or some other card based on the PSS chipset (AD1848 codec +
@@ -495,7 +486,6 @@ config PSS_BOOT_FILE
 
 config SOUND_SB
 	tristate "100% Sound Blaster compatibles (SB16/32/64, ESS, Jazz16) support"
-	depends on SOUND_OSS
 	---help---
 	  Answer Y if you have an original Sound Blaster card made by Creative
 	  Labs or a 100% hardware compatible clone (like the Thunderboard or
@@ -522,7 +512,6 @@ config SOUND_SB
 
 config SOUND_YM3812
 	tristate "Yamaha FM synthesizer (YM3812/OPL-3) support"
-	depends on SOUND_OSS
 	---help---
 	  Answer Y if your card has a FM chip made by Yamaha (OPL2/OPL3/OPL4).
 	  Answering Y is usually a safe and recommended choice, however some
@@ -538,7 +527,6 @@ config SOUND_YM3812
 
 config SOUND_UART6850
 	tristate "6850 UART support"
-	depends on SOUND_OSS
 	help
 	  This option enables support for MIDI interfaces based on the 6850
 	  UART chip. This interface is rarely found on sound cards. It's safe
@@ -549,7 +537,6 @@ config SOUND_UART6850
 
 config SOUND_AEDSP16
 	tristate "Gallant Audio Cards (SC-6000 and SC-6600 based)"
-	depends on SOUND_OSS
 	---help---
 	  Answer Y if you have a Gallant's Audio Excel DSP 16 card. This
 	  driver supports Audio Excel DSP 16 but not the III nor PnP versions
@@ -630,14 +617,14 @@ endchoice
 
 config SOUND_VIDC
 	tristate "VIDC 16-bit sound"
-	depends on ARM && (ARCH_ACORN || ARCH_CLPS7500) && SOUND_OSS
+	depends on ARM && (ARCH_ACORN || ARCH_CLPS7500)
 	help
 	  16-bit support for the VIDC onboard sound hardware found on Acorn
 	  machines.
 
 config SOUND_WAVEARTIST
 	tristate "Netwinder WaveArtist"
-	depends on ARM && SOUND_OSS && ARCH_NETWINDER
+	depends on ARM && ARCH_NETWINDER
 	help
 	  Say Y here to include support for the Rockwell WaveArtist sound
 	  system.  This driver is mainly for the NetWinder.
@@ -646,9 +633,11 @@ config SOUND_KAHLUA
 	tristate "XpressAudio Sound Blaster emulation"
 	depends on SOUND_SB
 
+endif	# SOUND_OSS
+
 config SOUND_SH_DAC_AUDIO
 	tristate "SuperH DAC audio support"
-	depends on SOUND_PRIME && CPU_SH3
+	depends on CPU_SH3
 
 config SOUND_SH_DAC_AUDIO_CHANNEL
 	int "DAC channel"

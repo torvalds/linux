@@ -49,8 +49,9 @@ MODULE_PARM_DESC(enable_loopback, "Enable AC97 ADC/DAC Loopback Control");
 
 #ifdef CONFIG_SND_AC97_POWER_SAVE
 static int power_save = CONFIG_SND_AC97_POWER_SAVE_DEFAULT;
-module_param(power_save, bool, 0644);
-MODULE_PARM_DESC(power_save, "Enable AC97 power-saving control");
+module_param(power_save, int, 0644);
+MODULE_PARM_DESC(power_save, "Automatic power-saving timeout "
+		 "(in second, 0 = disable).");
 #endif
 /*
 
@@ -2294,9 +2295,11 @@ static void snd_ac97_powerdown(struct snd_ac97 *ac97)
 	power |= AC97_PD_PR0 | AC97_PD_PR1;	/* ADC & DAC powerdown */
 	snd_ac97_write(ac97, AC97_POWERDOWN, power);
 	udelay(100);
-	power |= AC97_PD_PR2 | AC97_PD_PR3;	/* Analog Mixer powerdown */
+	power |= AC97_PD_PR2;	/* Analog Mixer powerdown (Vref on) */
 	snd_ac97_write(ac97, AC97_POWERDOWN, power);
 	if (ac97_is_power_save_mode(ac97)) {
+		power |= AC97_PD_PR3;	/* Analog Mixer powerdown */
+		snd_ac97_write(ac97, AC97_POWERDOWN, power);
 		udelay(100);
 		/* AC-link powerdown, internal Clk disable */
 		/* FIXME: this may cause click noises on some boards */
@@ -2362,7 +2365,7 @@ int snd_ac97_update_power(struct snd_ac97 *ac97, int reg, int powerup)
 		 *  that open/close frequently)
 		 */
 		schedule_delayed_work(&ac97->power_work,
-				      msecs_to_jiffies(2000));
+				      msecs_to_jiffies(power_save * 1000));
 	else {
 		cancel_delayed_work(&ac97->power_work);
 		update_power_regs(ac97);

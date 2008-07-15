@@ -35,7 +35,7 @@
 #include "xen-ops.h"
 #include "mmu.h"
 
-static cpumask_t xen_cpu_initialized_map;
+cpumask_t xen_cpu_initialized_map;
 static DEFINE_PER_CPU(int, resched_irq) = -1;
 static DEFINE_PER_CPU(int, callfunc_irq) = -1;
 static DEFINE_PER_CPU(int, debug_irq) = -1;
@@ -65,6 +65,12 @@ static struct call_data_struct *call_data;
  */
 static irqreturn_t xen_reschedule_interrupt(int irq, void *dev_id)
 {
+#ifdef CONFIG_X86_32
+	__get_cpu_var(irq_stat).irq_resched_count++;
+#else
+	add_pda(irq_resched_count, 1);
+#endif
+
 	return IRQ_HANDLED;
 }
 

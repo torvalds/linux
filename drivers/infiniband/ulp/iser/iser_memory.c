@@ -28,8 +28,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: iser_memory.c 6964 2006-05-07 11:11:43Z ogerlitz $
  */
 #include <linux/module.h>
 #include <linux/kernel.h>

@@ -439,8 +439,8 @@ static unsigned char asn1_oid_decode(struct asn1_ctx *ctx,
 				     unsigned int *len)
 {
 	unsigned long subid;
-	unsigned int  size;
 	unsigned long *optr;
+	size_t size;
 
 	size = eoc - ctx->pointer + 1;
 

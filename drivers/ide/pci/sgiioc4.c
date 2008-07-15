@@ -111,7 +111,7 @@ sgiioc4_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
 static void
 sgiioc4_maskproc(ide_drive_t * drive, int mask)
 {
-	writeb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
+	writeb(ATA_DEVCTL_OBS | (mask ? 2 : 0),
 	       (void __iomem *)drive->hwif->io_ports.ctl_addr);
 }
 
@@ -369,8 +369,7 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 	hwif->sg_max_nents = IOC4_PRD_ENTRIES;
 
 	pad = pci_alloc_consistent(dev, IOC4_IDE_CACHELINE_SIZE,
-				   (dma_addr_t *) &(hwif->dma_status));
-
+				   (dma_addr_t *)&hwif->extra_base);
 	if (pad) {
 		ide_set_hwifdata(hwif, pad);
 		return 0;
@@ -439,7 +438,7 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 
 	/* Address of the Ending DMA */
 	memset(ide_get_hwifdata(hwif), 0, IOC4_IDE_CACHELINE_SIZE);
-	ending_dma_addr = cpu_to_le32(hwif->dma_status);
+	ending_dma_addr = cpu_to_le32(hwif->extra_base);
 	writel(ending_dma_addr, (void __iomem *)(dma_base + IOC4_DMA_END_ADDR * 4));
 
 	writel(dma_direction, (void __iomem *)ioc4_dma_addr);

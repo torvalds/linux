@@ -126,7 +126,7 @@ static inline unsigned sz __in##fnsuffix (unsigned int port)		\
 	return (unsigned sz)value;						\
 }
 
-static inline void __iomem *__ioaddr(unsigned int port)
+static inline void __iomem *__deprecated __ioaddr(unsigned int port)
 {
 	void __iomem *ret;
 	if (__PORT_PCIO(port))
@@ -232,8 +232,7 @@ DECLARE_IO(int,l,"")
 	result;									\
 })
 
-#define __ioaddrc(port)		\
-	((__PORT_PCIO(port) ? PCIO_BASE : IO_BASE) + ((port) << 2))
+#define __ioaddrc(port)		__ioaddr(port)
 
 #define inb(p)	 	(__builtin_constant_p((p)) ? __inbc(p)    : __inb(p))
 #define inw(p)	 	(__builtin_constant_p((p)) ? __inwc(p)    : __inw(p))

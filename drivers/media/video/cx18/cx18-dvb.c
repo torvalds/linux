@@ -69,11 +69,21 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 	struct dvb_demux *demux = feed->demux;
 	struct cx18_stream *stream = (struct cx18_stream *) demux->priv;
 	struct cx18 *cx = stream->cx;
-	int ret = -EINVAL;
+	int ret;
 	u32 v;
 
 	CX18_DEBUG_INFO("Start feed: pid = 0x%x index = %d\n",
 			feed->pid, feed->index);
+
+	mutex_lock(&cx->serialize_lock);
+	ret = cx18_init_on_first_open(cx);
+	mutex_unlock(&cx->serialize_lock);
+	if (ret) {
+		CX18_ERR("Failed to initialize firmware starting DVB feed\n");
+		return ret;
+	}
+	ret = -EINVAL;
+
 	switch (cx->card->type) {
 	case CX18_CARD_HVR_1600_ESMT:
 	case CX18_CARD_HVR_1600_SAMSUNG:
@@ -101,6 +111,11 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 		if (stream->dvb.feeding++ == 0) {
 			CX18_DEBUG_INFO("Starting Transport DMA\n");
 			ret = cx18_start_v4l2_encode_stream(stream);
+			if (ret < 0) {
+				CX18_DEBUG_INFO(
+					"Failed to start Transport DMA\n");
+				stream->dvb.feeding--;
+			}
 		} else
 			ret = 0;
 		mutex_unlock(&stream->dvb.feedlock);

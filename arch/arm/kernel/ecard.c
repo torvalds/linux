@@ -680,7 +680,7 @@ static int __init ecard_probeirqhw(void)
 #define IO_EC_MEMC8_BASE 0
 #endif
 
-unsigned int __ecard_address(ecard_t *ec, card_type_t type, card_speed_t speed)
+static unsigned int __ecard_address(ecard_t *ec, card_type_t type, card_speed_t speed)
 {
 	unsigned long address = 0;
 	int slot = ec->slot_no;
@@ -1002,7 +1002,7 @@ ecard_probe(int slot, card_type_t type)
 	}
 
 	rc = -ENODEV;
-	if ((ec->podaddr = ecard_address(ec, type, ECARD_SYNC)) == 0)
+	if ((ec->podaddr = __ecard_address(ec, type, ECARD_SYNC)) == 0)
 		goto nodev;
 
 	cid.r_zero = 1;
@@ -1141,10 +1141,10 @@ static int ecard_drv_probe(struct device *dev)
 
 	id = ecard_match_device(drv->id_table, ec);
 
-	ecard_claim(ec);
+	ec->claimed = 1;
 	ret = drv->probe(ec, id);
 	if (ret)
-		ecard_release(ec);
+		ec->claimed = 0;
 	return ret;
 }
 
@@ -1154,7 +1154,7 @@ static int ecard_drv_remove(struct device *dev)
 	struct ecard_driver *drv = ECARD_DRV(dev->driver);
 
 	drv->remove(ec);
-	ecard_release(ec);
+	ec->claimed = 0;
 
 	/*
 	 * Restore the default operations.  We ensure that the
@@ -1182,7 +1182,7 @@ static void ecard_drv_shutdown(struct device *dev)
 	if (dev->driver) {
 		if (drv->shutdown)
 			drv->shutdown(ec);
-		ecard_release(ec);
+		ec->claimed = 0;
 	}
 
 	/*
@@ -1239,7 +1239,6 @@ static int ecard_bus_init(void)
 postcore_initcall(ecard_bus_init);
 
 EXPORT_SYMBOL(ecard_readchunk);
-EXPORT_SYMBOL(__ecard_address);
 EXPORT_SYMBOL(ecard_register_driver);
 EXPORT_SYMBOL(ecard_remove_driver);
 EXPORT_SYMBOL(ecard_bus_type);

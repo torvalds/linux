@@ -30,6 +30,7 @@
 #include <asm/page.h>
 #include <asm/boot.h>
 #include <asm/msr.h>
+#include <asm/processor-flags.h>
 #include <asm/asm-offsets.h>
 
 .section ".text.head"
@@ -109,7 +110,7 @@ startup_32:
 
 	/* Enable PAE mode */
 	xorl	%eax, %eax
-	orl	$(1 << 5), %eax
+	orl	$(X86_CR4_PAE), %eax
 	movl	%eax, %cr4
 
  /*
@@ -170,7 +171,7 @@ startup_32:
 	pushl	%eax
 
 	/* Enter paged protected Mode, activating Long Mode */
-	movl	$0x80000001, %eax /* Enable Paging and Protected mode */
+	movl	$(X86_CR0_PG | X86_CR0_PE), %eax /* Enable Paging and Protected mode */
 	movl	%eax, %cr0
 
 	/* Jump from 32bit compatibility mode into 64bit mode. */

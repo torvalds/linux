@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/miscdevice.h>
 #include <linux/init.h>
@@ -689,9 +690,11 @@ static int openprom_open(struct inode * inode, struct file * file)
 	if (!data)
 		return -ENOMEM;
 
+	lock_kernel();
 	data->current_node = of_find_node_by_path("/");
 	data->lastnode = data->current_node;
 	file->private_data = (void *) data;
+	unlock_kernel();
 
 	return 0;
 }

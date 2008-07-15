@@ -371,11 +371,6 @@ static void clear_rgrpdi(struct gfs2_sbd *sdp)
 
 	spin_lock(&sdp->sd_rindex_spin);
 	sdp->sd_rindex_forward = NULL;
-	head = &sdp->sd_rindex_recent_list;
-	while (!list_empty(head)) {
-		rgd = list_entry(head->next, struct gfs2_rgrpd, rd_recent);
-		list_del(&rgd->rd_recent);
-	}
 	spin_unlock(&sdp->sd_rindex_spin);
 
 	head = &sdp->sd_rindex_list;
@@ -945,104 +940,27 @@ static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
 }
 
 /**
- * recent_rgrp_first - get first RG from "recent" list
- * @sdp: The GFS2 superblock
- * @rglast: address of the rgrp used last
- *
- * Returns: The first rgrp in the recent list
- */
-
-static struct gfs2_rgrpd *recent_rgrp_first(struct gfs2_sbd *sdp,
-					    u64 rglast)
-{
-	struct gfs2_rgrpd *rgd;
-
-	spin_lock(&sdp->sd_rindex_spin);
-
-	if (rglast) {
-		list_for_each_entry(rgd, &sdp->sd_rindex_recent_list, rd_recent) {
-			if (rgrp_contains_block(rgd, rglast))
-				goto out;
-		}
-	}
-	rgd = NULL;
-	if (!list_empty(&sdp->sd_rindex_recent_list))
-		rgd = list_entry(sdp->sd_rindex_recent_list.next,
-				 struct gfs2_rgrpd, rd_recent);
-out:
-	spin_unlock(&sdp->sd_rindex_spin);
-	return rgd;
-}
-
-/**
  * recent_rgrp_next - get next RG from "recent" list
  * @cur_rgd: current rgrp
- * @remove:
  *
  * Returns: The next rgrp in the recent list
  */
 
-static struct gfs2_rgrpd *recent_rgrp_next(struct gfs2_rgrpd *cur_rgd,
-					   int remove)
+static struct gfs2_rgrpd *recent_rgrp_next(struct gfs2_rgrpd *cur_rgd)
 {
 	struct gfs2_sbd *sdp = cur_rgd->rd_sbd;
 	struct list_head *head;
 	struct gfs2_rgrpd *rgd;
 
 	spin_lock(&sdp->sd_rindex_spin);
-
-	head = &sdp->sd_rindex_recent_list;
-
-	list_for_each_entry(rgd, head, rd_recent) {
-		if (rgd == cur_rgd) {
-			if (cur_rgd->rd_recent.next != head)
-				rgd = list_entry(cur_rgd->rd_recent.next,
-						 struct gfs2_rgrpd, rd_recent);
-			else
-				rgd = NULL;
-
-			if (remove)
-				list_del(&cur_rgd->rd_recent);
-
-			goto out;
-		}
+	head = &sdp->sd_rindex_mru_list;
+	if (unlikely(cur_rgd->rd_list_mru.next == head)) {
+		spin_unlock(&sdp->sd_rindex_spin);
+		return NULL;
 	}
-
-	rgd = NULL;
-	if (!list_empty(head))
-		rgd = list_entry(head->next, struct gfs2_rgrpd, rd_recent);
-
-out:
+	rgd = list_entry(cur_rgd->rd_list_mru.next, struct gfs2_rgrpd, rd_list_mru);
 	spin_unlock(&sdp->sd_rindex_spin);
 	return rgd;
-}
-
-/**
- * recent_rgrp_add - add an RG to tail of "recent" list
- * @new_rgd: The rgrp to add
- *
- */
-
-static void recent_rgrp_add(struct gfs2_rgrpd *new_rgd)
-{
-	struct gfs2_sbd *sdp = new_rgd->rd_sbd;
-	struct gfs2_rgrpd *rgd;
-	unsigned int count = 0;
-	unsigned int max = sdp->sd_rgrps / gfs2_jindex_size(sdp);
-
-	spin_lock(&sdp->sd_rindex_spin);
-
-	list_for_each_entry(rgd, &sdp->sd_rindex_recent_list, rd_recent) {
-		if (rgd == new_rgd)
-			goto out;
-
-		if (++count >= max)
-			goto out;
-	}
-	list_add_tail(&new_rgd->rd_recent, &sdp->sd_rindex_recent_list);
-
-out:
-	spin_unlock(&sdp->sd_rindex_spin);
 }
 
 /**
@@ -1112,9 +1030,7 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 	int loops = 0;
 	int error, rg_locked;
 
-	/* Try recently successful rgrps */
-
-	rgd = recent_rgrp_first(sdp, ip->i_goal);
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_goal);
 
 	while (rgd) {
 		rg_locked = 0;
@@ -1136,11 +1052,9 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 				gfs2_glock_dq_uninit(&al->al_rgd_gh);
 			if (inode)
 				return inode;
-			rgd = recent_rgrp_next(rgd, 1);
-			break;
-
+			/* fall through */
 		case GLR_TRYFAILED:
-			rgd = recent_rgrp_next(rgd, 0);
+			rgd = recent_rgrp_next(rgd);
 			break;
 
 		default:
@@ -1199,7 +1113,9 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 
 out:
 	if (begin) {
-		recent_rgrp_add(rgd);
+		spin_lock(&sdp->sd_rindex_spin);
+		list_move(&rgd->rd_list_mru, &sdp->sd_rindex_mru_list);
+		spin_unlock(&sdp->sd_rindex_spin);
 		rgd = gfs2_rgrpd_get_next(rgd);
 		if (!rgd)
 			rgd = gfs2_rgrpd_get_first(sdp);

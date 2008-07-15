@@ -55,4 +55,6 @@ static inline void outb_pic(unsigned char value, unsigned int port)
 	udelay(2);
 }
 
+extern struct irq_chip i8259A_chip;
+
 #endif	/* __ASM_I8259_H__ */

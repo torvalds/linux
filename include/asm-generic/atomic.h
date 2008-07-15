@@ -2,7 +2,7 @@
 #define _ASM_GENERIC_ATOMIC_H
 /*
  * Copyright (C) 2005 Silicon Graphics, Inc.
- *	Christoph Lameter <clameter@sgi.com>
+ *	Christoph Lameter
  *
  * Allows to provide arch independent atomic definitions without the need to
  * edit all arch specific atomic.h files.

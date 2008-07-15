@@ -2,8 +2,8 @@
 #define _CIO_QDIO_H
 
 #include <asm/page.h>
-
-#include "schid.h"
+#include <asm/isc.h>
+#include <asm/schid.h>
 
 #ifdef CONFIG_QDIO_DEBUG
 #define QDIO_VERBOSE_LEVEL 9
@@ -26,7 +26,7 @@
  */
 #define IQDIO_FILL_LEVEL_TO_POLL 4
 
-#define TIQDIO_THININT_ISC 3
+#define TIQDIO_THININT_ISC QDIO_AIRQ_ISC
 #define TIQDIO_DELAY_TARGET 0
 #define QDIO_BUSY_BIT_PATIENCE 100 /* in microsecs */
 #define QDIO_BUSY_BIT_GIVE_UP 10000000 /* 10 seconds */

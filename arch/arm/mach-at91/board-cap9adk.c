@@ -78,6 +78,12 @@ static struct at91_usbh_data __initdata cap9adk_usbh_data = {
 	.ports		= 2,
 };
 
+/*
+ * USB HS Device port
+ */
+static struct usba_platform_data __initdata cap9adk_usba_udc_data = {
+	.vbus_pin	= AT91_PIN_PB31,
+};
 
 /*
  * ADS7846 Touchscreen
@@ -326,6 +332,9 @@ static void __init cap9adk_board_init(void)
 	/* USB Host */
 	set_irq_type(AT91CAP9_ID_UHP, IRQT_HIGH);
 	at91_add_device_usbh(&cap9adk_usbh_data);
+	/* USB HS */
+	set_irq_type(AT91CAP9_ID_UDPHS, IRQT_HIGH);
+	at91_add_device_usba(&cap9adk_usba_udc_data);
 	/* SPI */
 	at91_add_device_spi(cap9adk_spi_devices, ARRAY_SIZE(cap9adk_spi_devices));
 	/* Touchscreen */

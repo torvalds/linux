@@ -1,15 +1,9 @@
 /*
-    eeprom.c - Part of lm_sensors, Linux kernel modules for hardware
-               monitoring
     Copyright (C) 1998, 1999  Frodo Looijaard <frodol@dds.nl> and
 			       Philip Edelbrock <phil@netroedge.com>
     Copyright (C) 2003 Greg Kroah-Hartman <greg@kroah.com>
     Copyright (C) 2003 IBM Corp.
-
-    2004-01-16  Jean Delvare <khali@linux-fr.org>
-    Divide the eeprom in 32-byte (arbitrary) slices. This significantly
-    speeds sensors up, as well as various scripts using the eeprom
-    module.
+    Copyright (C) 2004 Jean Delvare <khali@linux-fr.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -78,7 +72,7 @@ static struct i2c_driver eeprom_driver = {
 static void eeprom_update_client(struct i2c_client *client, u8 slice)
 {
 	struct eeprom_data *data = i2c_get_clientdata(client);
-	int i, j;
+	int i;
 
 	mutex_lock(&data->update_lock);
 
@@ -93,15 +87,12 @@ static void eeprom_update_client(struct i2c_client *client, u8 slice)
 							!= 32)
 					goto exit;
 		} else {
-			if (i2c_smbus_write_byte(client, slice << 5)) {
-				dev_dbg(&client->dev, "eeprom read start has failed!\n");
-				goto exit;
-			}
-			for (i = slice << 5; i < (slice + 1) << 5; i++) {
-				j = i2c_smbus_read_byte(client);
-				if (j < 0)
+			for (i = slice << 5; i < (slice + 1) << 5; i += 2) {
+				int word = i2c_smbus_read_word_data(client, i);
+				if (word < 0)
 					goto exit;
-				data->data[i] = (u8) j;
+				data->data[i] = word & 0xff;
+				data->data[i + 1] = word >> 8;
 			}
 		}
 		data->last_updated[slice] = jiffies;
@@ -159,24 +150,33 @@ static struct bin_attribute eeprom_attr = {
 
 static int eeprom_attach_adapter(struct i2c_adapter *adapter)
 {
+	if (!(adapter->class & (I2C_CLASS_DDC | I2C_CLASS_SPD)))
+		return 0;
 	return i2c_probe(adapter, &addr_data, eeprom_detect);
 }
 
 /* This function is called by i2c_probe */
 static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 {
-	struct i2c_client *new_client;
+	struct i2c_client *client;
 	struct eeprom_data *data;
 	int err = 0;
 
-	/* There are three ways we can read the EEPROM data:
+	/* EDID EEPROMs are often 24C00 EEPROMs, which answer to all
+	   addresses 0x50-0x57, but we only care about 0x50. So decline
+	   attaching to addresses >= 0x51 on DDC buses */
+	if (!(adapter->class & I2C_CLASS_SPD) && address >= 0x51)
+		goto exit;
+
+	/* There are four ways we can read the EEPROM data:
 	   (1) I2C block reads (faster, but unsupported by most adapters)
-	   (2) Consecutive byte reads (100% overhead)
-	   (3) Regular byte data reads (200% overhead)
-	   The third method is not implemented by this driver because all
-	   known adapters support at least the second. */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_BYTE_DATA
-					    | I2C_FUNC_SMBUS_BYTE))
+	   (2) Word reads (128% overhead)
+	   (3) Consecutive byte reads (88% overhead, unsafe)
+	   (4) Regular byte data reads (265% overhead)
+	   The third and fourth methods are not implemented by this driver
+	   because all known adapters support one of the first two. */
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_WORD_DATA)
+	 && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_I2C_BLOCK))
 		goto exit;
 
 	if (!(data = kzalloc(sizeof(struct eeprom_data), GFP_KERNEL))) {
@@ -184,50 +184,49 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit;
 	}
 
-	new_client = &data->client;
+	client = &data->client;
 	memset(data->data, 0xff, EEPROM_SIZE);
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &eeprom_driver;
-	new_client->flags = 0;
+	i2c_set_clientdata(client, data);
+	client->addr = address;
+	client->adapter = adapter;
+	client->driver = &eeprom_driver;
 
 	/* Fill in the remaining client fields */
-	strlcpy(new_client->name, "eeprom", I2C_NAME_SIZE);
-	data->valid = 0;
+	strlcpy(client->name, "eeprom", I2C_NAME_SIZE);
 	mutex_init(&data->update_lock);
 	data->nature = UNKNOWN;
 
 	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
+	if ((err = i2c_attach_client(client)))
 		goto exit_kfree;
 
 	/* Detect the Vaio nature of EEPROMs.
 	   We use the "PCG-" or "VGN-" prefix as the signature. */
-	if (address == 0x57) {
+	if (address == 0x57
+	 && i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_BYTE_DATA)) {
 		char name[4];
 
-		name[0] = i2c_smbus_read_byte_data(new_client, 0x80);
-		name[1] = i2c_smbus_read_byte(new_client);
-		name[2] = i2c_smbus_read_byte(new_client);
-		name[3] = i2c_smbus_read_byte(new_client);
+		name[0] = i2c_smbus_read_byte_data(client, 0x80);
+		name[1] = i2c_smbus_read_byte_data(client, 0x81);
+		name[2] = i2c_smbus_read_byte_data(client, 0x82);
+		name[3] = i2c_smbus_read_byte_data(client, 0x83);
 
 		if (!memcmp(name, "PCG-", 4) || !memcmp(name, "VGN-", 4)) {
-			dev_info(&new_client->dev, "Vaio EEPROM detected, "
+			dev_info(&client->dev, "Vaio EEPROM detected, "
 				 "enabling privacy protection\n");
 			data->nature = VAIO;
 		}
 	}
 
 	/* create the sysfs eeprom file */
-	err = sysfs_create_bin_file(&new_client->dev.kobj, &eeprom_attr);
+	err = sysfs_create_bin_file(&client->dev.kobj, &eeprom_attr);
 	if (err)
 		goto exit_detach;
 
 	return 0;
 
 exit_detach:
-	i2c_detach_client(new_client);
+	i2c_detach_client(client);
 exit_kfree:
 	kfree(data);
 exit:

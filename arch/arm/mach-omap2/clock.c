@@ -41,6 +41,24 @@
 
 #define MAX_CLOCK_ENABLE_WAIT		100000
 
+/* DPLL rate rounding: minimum DPLL multiplier, divider values */
+#define DPLL_MIN_MULTIPLIER		1
+#define DPLL_MIN_DIVIDER		1
+
+/* Possible error results from _dpll_test_mult */
+#define DPLL_MULT_UNDERFLOW		(1 << 0)
+
+/*
+ * Scale factor to mitigate roundoff errors in DPLL rate rounding.
+ * The higher the scale factor, the greater the risk of arithmetic overflow,
+ * but the closer the rounded rate to the target rate.  DPLL_SCALE_FACTOR
+ * must be a power of DPLL_SCALE_BASE.
+ */
+#define DPLL_SCALE_FACTOR		64
+#define DPLL_SCALE_BASE			2
+#define DPLL_ROUNDING_VAL		((DPLL_SCALE_BASE / 2) * \
+					 (DPLL_SCALE_FACTOR / DPLL_SCALE_BASE))
+
 u8 cpu_mask;
 
 /*-------------------------------------------------------------------------
@@ -95,7 +113,7 @@ u32 omap2_get_dpll_rate(struct clk *clk)
 {
 	long long dpll_clk;
 	u32 dpll_mult, dpll_div, dpll;
-	const struct dpll_data *dd;
+	struct dpll_data *dd;
 
 	dd = clk->dpll_data;
 	/* REVISIT: What do we return on error? */
@@ -603,7 +621,8 @@ int omap2_clksel_set_rate(struct clk *clk, unsigned long rate)
 	clk->rate = clk->parent->rate / new_div;
 
 	if (clk->flags & DELAYED_APP && cpu_is_omap24xx()) {
-		__raw_writel(OMAP24XX_VALID_CONFIG, OMAP24XX_PRCM_CLKCFG_CTRL);
+		prm_write_mod_reg(OMAP24XX_VALID_CONFIG,
+			OMAP24XX_GR_MOD, OMAP24XX_PRCM_CLKCFG_CTRL_OFFSET);
 		wmb();
 	}
 
@@ -721,6 +740,184 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 		propagate_rate(clk);
 
 	return 0;
+}
+
+/* DPLL rate rounding code */
+
+/**
+ * omap2_dpll_set_rate_tolerance: set the error tolerance during rate rounding
+ * @clk: struct clk * of the DPLL
+ * @tolerance: maximum rate error tolerance
+ *
+ * Set the maximum DPLL rate error tolerance for the rate rounding
+ * algorithm.  The rate tolerance is an attempt to balance DPLL power
+ * saving (the least divider value "n") vs. rate fidelity (the least
+ * difference between the desired DPLL target rate and the rounded
+ * rate out of the algorithm).  So, increasing the tolerance is likely
+ * to decrease DPLL power consumption and increase DPLL rate error.
+ * Returns -EINVAL if provided a null clock ptr or a clk that is not a
+ * DPLL; or 0 upon success.
+ */
+int omap2_dpll_set_rate_tolerance(struct clk *clk, unsigned int tolerance)
+{
+	if (!clk || !clk->dpll_data)
+		return -EINVAL;
+
+	clk->dpll_data->rate_tolerance = tolerance;
+
+	return 0;
+}
+
+static unsigned long _dpll_compute_new_rate(unsigned long parent_rate, unsigned int m, unsigned int n)
+{
+	unsigned long long num;
+
+	num = (unsigned long long)parent_rate * m;
+	do_div(num, n);
+	return num;
+}
+
+/*
+ * _dpll_test_mult - test a DPLL multiplier value
+ * @m: pointer to the DPLL m (multiplier) value under test
+ * @n: current DPLL n (divider) value under test
+ * @new_rate: pointer to storage for the resulting rounded rate
+ * @target_rate: the desired DPLL rate
+ * @parent_rate: the DPLL's parent clock rate
+ *
+ * This code tests a DPLL multiplier value, ensuring that the
+ * resulting rate will not be higher than the target_rate, and that
+ * the multiplier value itself is valid for the DPLL.  Initially, the
+ * integer pointed to by the m argument should be prescaled by
+ * multiplying by DPLL_SCALE_FACTOR.  The code will replace this with
+ * a non-scaled m upon return.  This non-scaled m will result in a
+ * new_rate as close as possible to target_rate (but not greater than
+ * target_rate) given the current (parent_rate, n, prescaled m)
+ * triple. Returns DPLL_MULT_UNDERFLOW in the event that the
+ * non-scaled m attempted to underflow, which can allow the calling
+ * function to bail out early; or 0 upon success.
+ */
+static int _dpll_test_mult(int *m, int n, unsigned long *new_rate,
+			   unsigned long target_rate,
+			   unsigned long parent_rate)
+{
+	int flags = 0, carry = 0;
+
+	/* Unscale m and round if necessary */
+	if (*m % DPLL_SCALE_FACTOR >= DPLL_ROUNDING_VAL)
+		carry = 1;
+	*m = (*m / DPLL_SCALE_FACTOR) + carry;
+
+	/*
+	 * The new rate must be <= the target rate to avoid programming
+	 * a rate that is impossible for the hardware to handle
+	 */
+	*new_rate = _dpll_compute_new_rate(parent_rate, *m, n);
+	if (*new_rate > target_rate) {
+		(*m)--;
+		*new_rate = 0;
+	}
+
+	/* Guard against m underflow */
+	if (*m < DPLL_MIN_MULTIPLIER) {
+		*m = DPLL_MIN_MULTIPLIER;
+		*new_rate = 0;
+		flags = DPLL_MULT_UNDERFLOW;
+	}
+
+	if (*new_rate == 0)
+		*new_rate = _dpll_compute_new_rate(parent_rate, *m, n);
+
+	return flags;
+}
+
+/**
+ * omap2_dpll_round_rate - round a target rate for an OMAP DPLL
+ * @clk: struct clk * for a DPLL
+ * @target_rate: desired DPLL clock rate
+ *
+ * Given a DPLL, a desired target rate, and a rate tolerance, round
+ * the target rate to a possible, programmable rate for this DPLL.
+ * Rate tolerance is assumed to be set by the caller before this
+ * function is called.  Attempts to select the minimum possible n
+ * within the tolerance to reduce power consumption.  Stores the
+ * computed (m, n) in the DPLL's dpll_data structure so set_rate()
+ * will not need to call this (expensive) function again.  Returns ~0
+ * if the target rate cannot be rounded, either because the rate is
+ * too low or because the rate tolerance is set too tightly; or the
+ * rounded rate upon success.
+ */
+long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
+{
+	int m, n, r, e, scaled_max_m;
+	unsigned long scaled_rt_rp, new_rate;
+	int min_e = -1, min_e_m = -1, min_e_n = -1;
+
+	if (!clk || !clk->dpll_data)
+		return ~0;
+
+	pr_debug("clock: starting DPLL round_rate for clock %s, target rate "
+		 "%ld\n", clk->name, target_rate);
+
+	scaled_rt_rp = target_rate / (clk->parent->rate / DPLL_SCALE_FACTOR);
+	scaled_max_m = clk->dpll_data->max_multiplier * DPLL_SCALE_FACTOR;
+
+	clk->dpll_data->last_rounded_rate = 0;
+
+	for (n = clk->dpll_data->max_divider; n >= DPLL_MIN_DIVIDER; n--) {
+
+		/* Compute the scaled DPLL multiplier, based on the divider */
+		m = scaled_rt_rp * n;
+
+		/*
+		 * Since we're counting n down, a m overflow means we can
+		 * can immediately skip to the next n
+		 */
+		if (m > scaled_max_m)
+			continue;
+
+		r = _dpll_test_mult(&m, n, &new_rate, target_rate,
+				    clk->parent->rate);
+
+		e = target_rate - new_rate;
+		pr_debug("clock: n = %d: m = %d: rate error is %d "
+			 "(new_rate = %ld)\n", n, m, e, new_rate);
+
+		if (min_e == -1 ||
+		    min_e >= (int)(abs(e) - clk->dpll_data->rate_tolerance)) {
+			min_e = e;
+			min_e_m = m;
+			min_e_n = n;
+
+			pr_debug("clock: found new least error %d\n", min_e);
+		}
+
+		/*
+		 * Since we're counting n down, a m underflow means we
+		 * can bail out completely (since as n decreases in
+		 * the next iteration, there's no way that m can
+		 * increase beyond the current m)
+		 */
+		if (r & DPLL_MULT_UNDERFLOW)
+			break;
+	}
+
+	if (min_e < 0) {
+		pr_debug("clock: error: target rate or tolerance too low\n");
+		return ~0;
+	}
+
+	clk->dpll_data->last_rounded_m = min_e_m;
+	clk->dpll_data->last_rounded_n = min_e_n;
+	clk->dpll_data->last_rounded_rate =
+		_dpll_compute_new_rate(clk->parent->rate, min_e_m,  min_e_n);
+
+	pr_debug("clock: final least error: e = %d, m = %d, n = %d\n",
+		 min_e, min_e_m, min_e_n);
+	pr_debug("clock: final rate: %ld  (target rate: %ld)\n",
+		 clk->dpll_data->last_rounded_rate, target_rate);
+
+	return clk->dpll_data->last_rounded_rate;
 }
 
 /*-------------------------------------------------------------------------

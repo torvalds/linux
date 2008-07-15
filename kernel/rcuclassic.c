@@ -89,8 +89,22 @@ static void force_quiescent_state(struct rcu_data *rdp,
 		/*
 		 * Don't send IPI to itself. With irqs disabled,
 		 * rdp->cpu is the current cpu.
+		 *
+		 * cpu_online_map is updated by the _cpu_down()
+		 * using stop_machine_run(). Since we're in irqs disabled
+		 * section, stop_machine_run() is not exectuting, hence
+		 * the cpu_online_map is stable.
+		 *
+		 * However,  a cpu might have been offlined _just_ before
+		 * we disabled irqs while entering here.
+		 * And rcu subsystem might not yet have handled the CPU_DEAD
+		 * notification, leading to the offlined cpu's bit
+		 * being set in the rcp->cpumask.
+		 *
+		 * Hence cpumask = (rcp->cpumask & cpu_online_map) to prevent
+		 * sending smp_reschedule() to an offlined CPU.
 		 */
-		cpumask = rcp->cpumask;
+		cpus_and(cpumask, rcp->cpumask, cpu_online_map);
 		cpu_clear(rdp->cpu, cpumask);
 		for_each_cpu_mask(cpu, cpumask)
 			smp_send_reschedule(cpu);
@@ -529,7 +543,7 @@ static void __cpuinit rcu_online_cpu(int cpu)
 
 	rcu_init_percpu_data(cpu, &rcu_ctrlblk, rdp);
 	rcu_init_percpu_data(cpu, &rcu_bh_ctrlblk, bh_rdp);
-	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks, NULL);
+	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }
 
 static int __cpuinit rcu_cpu_notify(struct notifier_block *self,

@@ -28,9 +28,6 @@
 #include <linux/usb.h>
 #include <linux/moduleparam.h>
 
-/* flag to keep track of how we were registered */
-static int secondary;
-
 /* default is a generic type of usb to serial converter */
 static int vendor_id = 0x0557;
 static int product_id = 0x2008;
@@ -97,13 +94,7 @@ static int __init rootplug_init (void)
 	if (register_security (&rootplug_security_ops)) {
 		printk (KERN_INFO 
 			"Failure registering Root Plug module with the kernel\n");
-		/* try registering with primary module */
-		if (mod_reg_security (MY_NAME, &rootplug_security_ops)) {
-			printk (KERN_INFO "Failure registering Root Plug "
-				" module with primary security module.\n");
 			return -EINVAL;
-		}
-		secondary = 1;
 	}
 	printk (KERN_INFO "Root Plug module initialized, "
 		"vendor_id = %4.4x, product id = %4.4x\n", vendor_id, product_id);

@@ -28,6 +28,12 @@
 
 #include "atstk1000.h"
 
+/* Oscillator frequencies. These are board specific */
+unsigned long at32_board_osc_rates[3] = {
+	[0] = 32768,	/* 32.768 kHz on RTC osc */
+	[1] = 20000000,	/* 20 MHz on osc0 */
+	[2] = 12000000,	/* 12 MHz on osc1 */
+};
 
 struct eth_addr {
 	u8 addr[6];
@@ -232,7 +238,7 @@ static int __init atstk1002_init(void)
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
 #else
 	at32_add_device_lcdc(0, &atstk1000_lcdc_data,
-			     fbmem_start, fbmem_size);
+			     fbmem_start, fbmem_size, 0);
 #endif
 	at32_add_device_usba(0, NULL);
 #ifndef CONFIG_BOARD_ATSTK100X_SW3_CUSTOM

@@ -442,12 +442,16 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 
 void __exit br_cleanup_bridges(void)
 {
-	struct net_device *dev, *nxt;
+	struct net_device *dev;
 
 	rtnl_lock();
-	for_each_netdev_safe(&init_net, dev, nxt)
-		if (dev->priv_flags & IFF_EBRIDGE)
+restart:
+	for_each_netdev(&init_net, dev) {
+		if (dev->priv_flags & IFF_EBRIDGE) {
 			del_br(dev->priv);
+			goto restart;
+		}
+	}
 	rtnl_unlock();
 
 }

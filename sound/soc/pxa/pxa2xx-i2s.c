@@ -9,15 +9,13 @@
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
- *
- *  Revision history
- *    12th Aug 2005   Initial version.
  */
 
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -40,6 +38,7 @@ struct pxa_i2s_port {
 	u32 fmt;
 };
 static struct pxa_i2s_port pxa_i2s;
+static struct clk *clk_i2s;
 
 static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_out = {
 	.name			= "I2S PCM Stereo out",
@@ -80,7 +79,11 @@ static struct pxa2xx_gpio gpio_bus[] = {
 static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+
+	clk_i2s = clk_get(NULL, "I2SCLK");
+	if (IS_ERR(clk_i2s))
+		return PTR_ERR(clk_i2s);
 
 	if (!cpu_dai->active) {
 		SACR0 |= SACR0_RST;
@@ -101,7 +104,7 @@ static int pxa_i2s_wait(void)
 	return 0;
 }
 
-static int pxa2xx_i2s_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
+static int pxa2xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
 	/* interface format */
@@ -127,7 +130,7 @@ static int pxa2xx_i2s_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
 	return 0;
 }
 
-static int pxa2xx_i2s_set_dai_sysclk(struct snd_soc_cpu_dai *cpu_dai,
+static int pxa2xx_i2s_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	if (clk_id != PXA2XX_I2S_SYSCLK)
@@ -143,13 +146,13 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].rx);
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].tx);
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].frm);
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].clk);
-	pxa_set_cken(CKEN_I2S, 1);
+	clk_enable(clk_i2s);
 	pxa_i2s_wait();
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -234,13 +237,15 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream)
 	if (SACR1 & (SACR1_DREC | SACR1_DRPL)) {
 		SACR0 &= ~SACR0_ENB;
 		pxa_i2s_wait();
-		pxa_set_cken(CKEN_I2S, 0);
+		clk_disable(clk_i2s);
 	}
+
+	clk_put(clk_i2s);
 }
 
 #ifdef CONFIG_PM
 static int pxa2xx_i2s_suspend(struct platform_device *dev,
-	struct snd_soc_cpu_dai *dai)
+	struct snd_soc_dai *dai)
 {
 	if (!dai->active)
 		return 0;
@@ -258,7 +263,7 @@ static int pxa2xx_i2s_suspend(struct platform_device *dev,
 }
 
 static int pxa2xx_i2s_resume(struct platform_device *pdev,
-	struct snd_soc_cpu_dai *dai)
+	struct snd_soc_dai *dai)
 {
 	if (!dai->active)
 		return 0;
@@ -283,7 +288,7 @@ static int pxa2xx_i2s_resume(struct platform_device *pdev,
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
 		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
 
-struct snd_soc_cpu_dai pxa_i2s_dai = {
+struct snd_soc_dai pxa_i2s_dai = {
 	.name = "pxa2xx-i2s",
 	.id = 0,
 	.type = SND_SOC_DAI_I2S,

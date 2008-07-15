@@ -170,7 +170,7 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *real_client;
 	struct i2c_client *fake_client;
 	struct max6875_data *data;
-	int err = 0;
+	int err;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WRITE_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_BYTE))
@@ -195,7 +195,6 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	real_client->addr = address;
 	real_client->adapter = adapter;
 	real_client->driver = &max6875_driver;
-	real_client->flags = 0;
 	strlcpy(real_client->name, "max6875", I2C_NAME_SIZE);
 	mutex_init(&data->update_lock);
 
@@ -204,7 +203,6 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	fake_client->addr = address | 1;
 	fake_client->adapter = adapter;
 	fake_client->driver = &max6875_driver;
-	fake_client->flags = 0;
 	strlcpy(fake_client->name, "max6875 subclient", I2C_NAME_SIZE);
 
 	if ((err = i2c_attach_client(real_client)) != 0)

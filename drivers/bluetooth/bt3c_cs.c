@@ -470,7 +470,8 @@ static int bt3c_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long 
 /* ======================== Card services HCI interaction ======================== */
 
 
-static int bt3c_load_firmware(bt3c_info_t *info, unsigned char *firmware, int count)
+static int bt3c_load_firmware(bt3c_info_t *info, const unsigned char *firmware,
+			      int count)
 {
 	char *ptr = (char *) firmware;
 	char b[9];

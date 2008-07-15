@@ -170,6 +170,7 @@ force_reval:
 
 static loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
 {
+	loff_t loff;
 	/* origin == SEEK_END => we must revalidate the cached file length */
 	if (origin == SEEK_END) {
 		struct inode *inode = filp->f_mapping->host;
@@ -177,7 +178,10 @@ static loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
 		if (retval < 0)
 			return (loff_t)retval;
 	}
-	return remote_llseek(filp, offset, origin);
+	lock_kernel();	/* BKL needed? */
+	loff = generic_file_llseek_unlocked(filp, offset, origin);
+	unlock_kernel();
+	return loff;
 }
 
 /*

@@ -37,6 +37,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
@@ -86,6 +87,7 @@ static int rng_dev_open(struct inode *inode, struct file *filp)
 		return -EINVAL;
 	if (filp->f_mode & FMODE_WRITE)
 		return -EINVAL;
+	cycle_kernel_lock();
 	return 0;
 }
 

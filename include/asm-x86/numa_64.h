@@ -14,32 +14,30 @@ extern int compute_hash_shift(struct bootnode *nodes, int numblks,
 
 #define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
 
-extern void numa_add_cpu(int cpu);
 extern void numa_init_array(void);
 extern int numa_off;
 
-extern void numa_set_node(int cpu, int node);
 extern void srat_reserve_add_area(int nodeid);
 extern int hotadd_percent;
 
 extern s16 apicid_to_node[MAX_LOCAL_APIC];
 
-extern void numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn);
 extern unsigned long numa_free_all_bootmem(void);
 extern void setup_node_bootmem(int nodeid, unsigned long start,
 			       unsigned long end);
 
 #ifdef CONFIG_NUMA
 extern void __init init_cpu_to_node(void);
-
-static inline void clear_node_cpumask(int cpu)
-{
-	clear_bit(cpu, (unsigned long *)&node_to_cpumask_map[cpu_to_node(cpu)]);
-}
-
+extern void __cpuinit numa_set_node(int cpu, int node);
+extern void __cpuinit numa_clear_node(int cpu);
+extern void __cpuinit numa_add_cpu(int cpu);
+extern void __cpuinit numa_remove_cpu(int cpu);
 #else
-#define init_cpu_to_node() do {} while (0)
-#define clear_node_cpumask(cpu) do {} while (0)
+static inline void init_cpu_to_node(void)		{ }
+static inline void numa_set_node(int cpu, int node)	{ }
+static inline void numa_clear_node(int cpu)		{ }
+static inline void numa_add_cpu(int cpu, int node)	{ }
+static inline void numa_remove_cpu(int cpu)		{ }
 #endif
 
 #endif
