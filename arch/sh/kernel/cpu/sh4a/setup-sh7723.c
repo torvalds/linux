@@ -12,7 +12,83 @@
 #include <linux/serial.h>
 #include <linux/mm.h>
 #include <linux/serial_sci.h>
+#include <linux/uio_driver.h>
 #include <asm/mmzone.h>
+
+static struct uio_info vpu_platform_data = {
+	.name = "VPU5",
+	.version = "0",
+	.irq = 60,
+};
+
+static struct resource vpu_resources[] = {
+	[0] = {
+		.name	= "VPU",
+		.start	= 0xfe900000,
+		.end	= 0xfe902807,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device vpu_device = {
+	.name		= "uio_pdrv_genirq",
+	.id		= 0,
+	.dev = {
+		.platform_data	= &vpu_platform_data,
+	},
+	.resource	= vpu_resources,
+	.num_resources	= ARRAY_SIZE(vpu_resources),
+};
+
+static struct uio_info veu0_platform_data = {
+	.name = "VEU",
+	.version = "0",
+	.irq = 54,
+};
+
+static struct resource veu0_resources[] = {
+	[0] = {
+		.name	= "VEU2H0",
+		.start	= 0xfe920000,
+		.end	= 0xfe92027b,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device veu0_device = {
+	.name		= "uio_pdrv_genirq",
+	.id		= 1,
+	.dev = {
+		.platform_data	= &veu0_platform_data,
+	},
+	.resource	= veu0_resources,
+	.num_resources	= ARRAY_SIZE(veu0_resources),
+};
+
+static struct uio_info veu1_platform_data = {
+	.name = "VEU",
+	.version = "0",
+	.irq = 27,
+};
+
+static struct resource veu1_resources[] = {
+	[0] = {
+		.name	= "VEU2H1",
+		.start	= 0xfe924000,
+		.end	= 0xfe92427b,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device veu1_device = {
+	.name		= "uio_pdrv_genirq",
+	.id		= 2,
+	.dev = {
+		.platform_data	= &veu1_platform_data,
+	},
+	.resource	= veu1_resources,
+	.num_resources	= ARRAY_SIZE(veu1_resources),
+};
 
 static struct plat_sci_port sci_platform_data[] = {
 	{
@@ -138,6 +214,9 @@ static struct platform_device *sh7723_devices[] __initdata = {
 	&rtc_device,
 	&iic_device,
 	&sh7723_usb_host_device,
+	&vpu_device,
+	&veu0_device,
+	&veu1_device,
 };
 
 static int __init sh7723_devices_setup(void)
