@@ -1584,23 +1584,11 @@ int ide_do_drive_cmd (ide_drive_t *drive, struct request *rq, ide_action_t actio
 {
 	unsigned long flags;
 	ide_hwgroup_t *hwgroup = HWGROUP(drive);
-	DECLARE_COMPLETION_ONSTACK(wait);
-	int where = ELEVATOR_INSERT_BACK, err;
-	int must_wait = (action == ide_wait || action == ide_head_wait);
+	int where = ELEVATOR_INSERT_BACK;
 
 	rq->errors = 0;
 
-	/*
-	 * we need to hold an extra reference to request for safe inspection
-	 * after completion
-	 */
-	if (must_wait) {
-		rq->ref_count++;
-		rq->end_io_data = &wait;
-		rq->end_io = blk_end_sync_rq;
-	}
-
-	if (action == ide_preempt || action == ide_head_wait)
+	if (action == ide_preempt)
 		where = ELEVATOR_INSERT_FRONT;
 
 	spin_lock_irqsave(&ide_lock, flags);
@@ -1613,16 +1601,7 @@ int ide_do_drive_cmd (ide_drive_t *drive, struct request *rq, ide_action_t actio
 		do_ide_request(drive->queue);
 	spin_unlock_irqrestore(&ide_lock, flags);
 
-	err = 0;
-	if (must_wait) {
-		wait_for_completion(&wait);
-		if (rq->errors)
-			err = -EIO;
-
-		blk_put_request(rq);
-	}
-
-	return err;
+	return 0;
 }
 
 EXPORT_SYMBOL(ide_do_drive_cmd);
