@@ -307,9 +307,8 @@ cflags-$(CONFIG_LEMOTE_FULONG) += -Iinclude/asm-mips/mach-lemote
 #
 # MIPS Malta board
 #
-core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mips-boards/generic/	\
-				   arch/mips/mips-boards/malta/
-cflags-$(CONFIG_MIPS_MALTA)	+= -Iinclude/asm-mips/mach-mips
+core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mti-malta/
+cflags-$(CONFIG_MIPS_MALTA)	+= -Iinclude/asm-mips/mach-malta
 load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
 all-$(CONFIG_MIPS_MALTA)	:= vmlinux.bin
 
