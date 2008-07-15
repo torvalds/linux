@@ -92,11 +92,25 @@
 #define fast_wmb()	__sync()
 #define fast_rmb()	__sync()
 #define fast_mb()	__sync()
+#ifdef CONFIG_SGI_IP28
+#define fast_iob()				\
+	__asm__ __volatile__(			\
+		".set	push\n\t"		\
+		".set	noreorder\n\t"		\
+		"lw	$0,%0\n\t"		\
+		"sync\n\t"			\
+		"lw	$0,%0\n\t"		\
+		".set	pop"			\
+		: /* no output */		\
+		: "m" (*(int *)CKSEG1ADDR(0x1fa00004)) \
+		: "memory")
+#else
 #define fast_iob()				\
 	do {					\
 		__sync();			\
 		__fast_iob();			\
 	} while (0)
+#endif
 
 #ifdef CONFIG_CPU_HAS_WB
 

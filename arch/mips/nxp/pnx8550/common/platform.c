@@ -13,6 +13,7 @@
  * warranty of any kind, whether express or implied.
  */
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/resource.h>
@@ -91,16 +92,16 @@ struct pnx8xxx_port pnx8xxx_ports[] = {
 };
 
 /* The dmamask must be set for OHCI to work */
-static u64 ohci_dmamask = ~(u32)0;
+static u64 ohci_dmamask = DMA_32BIT_MASK;
 
-static u64 uart_dmamask = ~(u32)0;
+static u64 uart_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device pnx8550_usb_ohci_device = {
 	.name		= "pnx8550-ohci",
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &ohci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 	},
 	.num_resources	= ARRAY_SIZE(pnx8550_usb_ohci_resources),
 	.resource	= pnx8550_usb_ohci_resources,
@@ -111,7 +112,7 @@ static struct platform_device pnx8550_uart_device = {
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &uart_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 		.platform_data = pnx8xxx_ports,
 	},
 	.num_resources	= ARRAY_SIZE(pnx8550_uart_resources),
