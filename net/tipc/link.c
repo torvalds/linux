@@ -1561,7 +1561,7 @@ u32 tipc_link_push_packet(struct link *l_ptr)
 			l_ptr->retransm_queue_head = mod(++r_q_head);
 			l_ptr->retransm_queue_size = --r_q_size;
 			l_ptr->stats.retransmitted++;
-			return TIPC_OK;
+			return 0;
 		} else {
 			l_ptr->stats.bearer_congs++;
 			msg_dbg(buf_msg(buf), "|>DEF-RETR>");
@@ -1580,7 +1580,7 @@ u32 tipc_link_push_packet(struct link *l_ptr)
 			l_ptr->unacked_window = 0;
 			buf_discard(buf);
 			l_ptr->proto_msg_queue = NULL;
-			return TIPC_OK;
+			return 0;
 		} else {
 			msg_dbg(buf_msg(buf), "|>DEF-PROT>");
 			l_ptr->stats.bearer_congs++;
@@ -1604,7 +1604,7 @@ u32 tipc_link_push_packet(struct link *l_ptr)
 					msg_set_type(msg, CLOSED_MSG);
 				msg_dbg(msg, ">PUSH-DATA>");
 				l_ptr->next_out = buf->next;
-				return TIPC_OK;
+				return 0;
 			} else {
 				msg_dbg(msg, "|PUSH-DATA|");
 				l_ptr->stats.bearer_congs++;
@@ -1628,8 +1628,8 @@ void tipc_link_push_queue(struct link *l_ptr)
 
 	do {
 		res = tipc_link_push_packet(l_ptr);
-	}
-	while (res == TIPC_OK);
+	} while (!res);
+
 	if (res == PUSH_FAILED)
 		tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
 }
@@ -2998,7 +2998,7 @@ struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space
 			link_set_supervision_props(l_ptr, new_value);
 			tipc_link_send_proto_msg(l_ptr, STATE_MSG,
 						 0, 0, new_value, 0, 0);
-			res = TIPC_OK;
+			res = 0;
 		}
 		break;
 	case TIPC_CMD_SET_LINK_PRI:
@@ -3007,14 +3007,14 @@ struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space
 			l_ptr->priority = new_value;
 			tipc_link_send_proto_msg(l_ptr, STATE_MSG,
 						 0, 0, 0, new_value, 0);
-			res = TIPC_OK;
+			res = 0;
 		}
 		break;
 	case TIPC_CMD_SET_LINK_WINDOW:
 		if ((new_value >= TIPC_MIN_LINK_WIN) &&
 		    (new_value <= TIPC_MAX_LINK_WIN)) {
 			tipc_link_set_queue_limits(l_ptr, new_value);
-			res = TIPC_OK;
+			res = 0;
 		}
 		break;
 	}
@@ -3230,7 +3230,7 @@ int link_control(const char *name, u32 op, u32 val)
 			if (op == TIPC_CMD_UNBLOCK_LINK) {
 				l_ptr->blocked = 0;
 			}
-			res = TIPC_OK;
+			res = 0;
 		}
 		tipc_node_unlock(node);
 	}

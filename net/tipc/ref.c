@@ -123,7 +123,7 @@ int tipc_ref_table_init(u32 requested_size, u32 start)
 	tipc_ref_table.index_mask = actual_size - 1;
 	tipc_ref_table.start_mask = start & ~tipc_ref_table.index_mask;
 
-	return TIPC_OK;
+	return 0;
 }
 
 /**

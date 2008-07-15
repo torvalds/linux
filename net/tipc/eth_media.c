@@ -82,7 +82,7 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 				 dev->dev_addr, clone->len);
 		dev_queue_xmit(clone);
 	}
-	return TIPC_OK;
+	return 0;
 }
 
 /**
@@ -113,12 +113,12 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 			if (likely(buf->len == size)) {
 				buf->next = NULL;
 				tipc_recv_msg(buf, eb_ptr->bearer);
-				return TIPC_OK;
+				return 0;
 			}
 		}
 	}
 	kfree_skb(buf);
-	return TIPC_OK;
+	return 0;
 }
 
 /**

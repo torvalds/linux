@@ -165,7 +165,7 @@ static int net_init(void)
 	if (!tipc_net.zones) {
 		return -ENOMEM;
 	}
-	return TIPC_OK;
+	return 0;
 }
 
 static void net_stop(void)
@@ -295,7 +295,7 @@ int tipc_net_start(u32 addr)
 	info("Started in network mode\n");
 	info("Own node address %s, network identity %u\n",
 	     addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
-	return TIPC_OK;
+	return 0;
 }
 
 void tipc_net_stop(void)
