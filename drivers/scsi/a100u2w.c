@@ -840,7 +840,7 @@ static irqreturn_t orc_interrupt(struct orc_host * host)
  *	Build a host adapter control block from the SCSI mid layer command
  */
 
-static void inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struct scsi_cmnd * cmd)
+static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struct scsi_cmnd * cmd)
 {				/* Create corresponding SCB     */
 	struct scatterlist *sg;
 	struct orc_sgent *sgent;		/* Pointer to SG list           */
@@ -865,7 +865,8 @@ static void inia100_build_scb(struct orc_host * host, struct orc_scb * scb, stru
 	sgent = (struct orc_sgent *) & escb->sglist[0];
 
 	count_sg = scsi_dma_map(cmd);
-	BUG_ON(count_sg < 0);
+	if (count_sg < 0)
+		return count_sg;
 	BUG_ON(count_sg > TOTAL_SG_ENTRY);
 
 	/* Build the scatter gather lists */
@@ -898,6 +899,7 @@ static void inia100_build_scb(struct orc_host * host, struct orc_scb * scb, stru
 		scb->tag_msg = 0;	/* No tag support               */
 	}
 	memcpy(scb->cdb, cmd->cmnd, scb->cdb_len);
+	return 0;
 }
 
 /**
@@ -921,7 +923,10 @@ static int inia100_queue(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd 
 	if ((scb = orc_alloc_scb(host)) == NULL)
 		return SCSI_MLQUEUE_HOST_BUSY;
 
-	inia100_build_scb(host, scb, cmd);
+	if (inia100_build_scb(host, scb, cmd)) {
+		orc_release_scb(host, scb);
+		return SCSI_MLQUEUE_HOST_BUSY;
+	}
 	orc_exec_scb(host, scb);	/* Start execute SCB            */
 	return 0;
 }
