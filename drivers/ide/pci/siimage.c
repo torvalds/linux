@@ -94,7 +94,7 @@ static unsigned long siimage_selreg(ide_hwif_t *hwif, int r)
 	unsigned long base = (unsigned long)hwif->hwif_data;
 
 	base += 0xA0 + r;
-	if (hwif->mmio)
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
 		base += hwif->channel << 6;
 	else
 		base += hwif->channel << 4;
@@ -117,7 +117,7 @@ static inline unsigned long siimage_seldev(ide_drive_t *drive, int r)
 	unsigned long base	= (unsigned long)hwif->hwif_data;
 
 	base += 0xA0 + r;
-	if (hwif->mmio)
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
 		base += hwif->channel << 6;
 	else
 		base += hwif->channel << 4;
@@ -190,7 +190,9 @@ static u8 sil_pata_udma_filter(ide_drive_t *drive)
 	unsigned long base	= (unsigned long)hwif->hwif_data;
 	u8 scsc, mask		= 0;
 
-	scsc = sil_ioread8(dev, base + (hwif->mmio ? 0x4A : 0x8A));
+	base += (hwif->host_flags & IDE_HFLAG_MMIO) ? 0x4A : 0x8A;
+
+	scsc = sil_ioread8(dev, base);
 
 	switch (scsc & 0x30) {
 	case 0x10:	/* 133 */
@@ -238,8 +240,9 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 	unsigned long tfaddr	= siimage_selreg(hwif,	0x02);
 	unsigned long base	= (unsigned long)hwif->hwif_data;
 	u8 tf_pio		= pio;
-	u8 addr_mask		= hwif->channel ? (hwif->mmio ? 0xF4 : 0x84)
-						: (hwif->mmio ? 0xB4 : 0x80);
+	u8 mmio			= (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
+	u8 addr_mask		= hwif->channel ? (mmio ? 0xF4 : 0x84)
+						: (mmio ? 0xB4 : 0x80);
 	u8 mode			= 0;
 	u8 unit			= drive->select.b.unit;
 
@@ -290,13 +293,13 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	u16 ultra = 0, multi	= 0;
 	u8 mode = 0, unit	= drive->select.b.unit;
 	unsigned long base	= (unsigned long)hwif->hwif_data;
-	u8 scsc = 0, addr_mask	= hwif->channel ?
-					(hwif->mmio ? 0xF4 : 0x84) :
-					(hwif->mmio ? 0xB4 : 0x80);
+	u8 mmio			= (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
+	u8 scsc = 0, addr_mask	= hwif->channel ? (mmio ? 0xF4 : 0x84)
+						: (mmio ? 0xB4 : 0x80);
 	unsigned long ma	= siimage_seldev(drive, 0x08);
 	unsigned long ua	= siimage_seldev(drive, 0x0C);
 
-	scsc  = sil_ioread8 (dev, base + (hwif->mmio ? 0x4A : 0x8A));
+	scsc  = sil_ioread8 (dev, base + (mmio ? 0x4A : 0x8A));
 	mode  = sil_ioread8 (dev, base + addr_mask);
 	multi = sil_ioread16(dev, ma);
 	ultra = sil_ioread16(dev, ua);
@@ -391,7 +394,7 @@ static int siimage_mmio_dma_test_irq(ide_drive_t *drive)
 
 static int siimage_dma_test_irq(ide_drive_t *drive)
 {
-	if (drive->hwif->mmio)
+	if (drive->hwif->host_flags & IDE_HFLAG_MMIO)
 		return siimage_mmio_dma_test_irq(drive);
 	else
 		return siimage_io_dma_test_irq(drive);
@@ -640,8 +643,6 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 	hwif->irq = dev->irq;
 
 	hwif->dma_base = (unsigned long)addr + (ch ? 0x08 : 0x00);
-
-	hwif->mmio = 1;
 }
 
 static int is_dev_seagate_sata(ide_drive_t *drive)

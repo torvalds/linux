@@ -110,7 +110,7 @@ static void qd65xx_select(ide_drive_t *drive)
 
 static u8 qd6500_compute_timing (ide_hwif_t *hwif, int active_time, int recovery_time)
 {
-	int clk = ide_vlb_clk ? ide_vlb_clk : system_bus_clock();
+	int clk = ide_vlb_clk ? ide_vlb_clk : 50;
 	u8 act_cyc, rec_cyc;
 
 	if (clk <= 33) {
@@ -132,7 +132,7 @@ static u8 qd6500_compute_timing (ide_hwif_t *hwif, int active_time, int recovery
 
 static u8 qd6580_compute_timing (int active_time, int recovery_time)
 {
-	int clk = ide_vlb_clk ? ide_vlb_clk : system_bus_clock();
+	int clk = ide_vlb_clk ? ide_vlb_clk : 50;
 	u8 act_cyc, rec_cyc;
 
 	act_cyc = 17 - IDE_IN(active_time   * clk / 1000 + 1, 2, 17);
