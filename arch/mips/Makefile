@@ -305,14 +305,10 @@ load-$(CONFIG_LEMOTE_FULONG) +=0xffffffff80100000
 cflags-$(CONFIG_LEMOTE_FULONG) += -Iinclude/asm-mips/mach-lemote
 
 #
-# For all MIPS, Inc. eval boards
-#
-core-$(CONFIG_MIPS_BOARDS_GEN)	+= arch/mips/mips-boards/generic/
-
-#
 # MIPS Malta board
 #
-core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mips-boards/malta/
+core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mips-boards/generic/	\
+				   arch/mips/mips-boards/malta/
 cflags-$(CONFIG_MIPS_MALTA)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
 all-$(CONFIG_MIPS_MALTA)	:= vmlinux.bin

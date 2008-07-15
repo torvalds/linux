@@ -42,9 +42,7 @@
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
 
-#ifdef CONFIG_MIPS_MALTA
 #include <asm/mips-boards/maltaint.h>
-#endif
 
 unsigned long cpu_khz;
 
@@ -70,7 +68,6 @@ static unsigned int __init estimate_cpu_frequency(void)
 	unsigned int prid = read_c0_prid() & 0xffff00;
 	unsigned int count;
 
-#ifdef CONFIG_MIPS_MALTA
 	unsigned long flags;
 	unsigned int start;
 
@@ -91,7 +88,6 @@ static unsigned int __init estimate_cpu_frequency(void)
 
 	/* restore interrupts */
 	local_irq_restore(flags);
-#endif
 
 	mips_hpt_frequency = count;
 	if ((prid != (PRID_COMP_MIPS | PRID_IMP_20KC)) &&
