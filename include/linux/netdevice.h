@@ -118,14 +118,6 @@ struct wireless_dev;
 
 #endif  /*  __KERNEL__  */
 
-struct net_device_subqueue
-{
-	/* Give a control state for each queue.  This struct may contain
-	 * per-queue locks in the future.
-	 */
-	unsigned long   state;
-};
-
 /*
  *	Network device statistics. Akin to the 2.0 ether stats but
  *	with byte counters.
@@ -761,10 +753,6 @@ struct net_device
 	/* for setting kernel sock attribute on TCP connection setup */
 #define GSO_MAX_SIZE		65536
 	unsigned int		gso_max_size;
-
-	/* The TX queue control structures */
-	unsigned int			egress_subqueue_count;
-	struct net_device_subqueue	egress_subqueue[1];
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
