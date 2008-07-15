@@ -7899,8 +7899,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->ibss_beacon = NULL;
 
 	/* Tell mac80211 our characteristics */
-	hw->flags = IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
-		    IEEE80211_HW_SIGNAL_DBM |
+	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM;
 
 	/* 4 EDCA QOS priorities */
