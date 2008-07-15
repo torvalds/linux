@@ -952,40 +952,29 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 	return ide_stopped;
 }
 
-static void idetape_create_read_cmd(idetape_tape_t *tape,
-		struct ide_atapi_pc *pc,
-		unsigned int length, struct idetape_bh *bh)
+static void ide_tape_create_rw_cmd(idetape_tape_t *tape,
+		struct ide_atapi_pc *pc, unsigned int length,
+		struct idetape_bh *bh, u8 opcode)
 {
 	idetape_init_pc(pc);
-	pc->c[0] = READ_6;
 	put_unaligned(cpu_to_be32(length), (unsigned int *) &pc->c[1]);
 	pc->c[1] = 1;
 	pc->bh = bh;
-	atomic_set(&bh->b_count, 0);
 	pc->buf = NULL;
 	pc->buf_size = length * tape->blk_size;
 	pc->req_xfer = pc->buf_size;
 	if (pc->req_xfer == tape->buffer_size)
 		pc->flags |= PC_FLAG_DMA_OK;
-}
 
-static void idetape_create_write_cmd(idetape_tape_t *tape,
-		struct ide_atapi_pc *pc,
-		unsigned int length, struct idetape_bh *bh)
-{
-	idetape_init_pc(pc);
-	pc->c[0] = WRITE_6;
-	put_unaligned(cpu_to_be32(length), (unsigned int *) &pc->c[1]);
-	pc->c[1] = 1;
-	pc->flags |= PC_FLAG_WRITING;
-	pc->bh = bh;
-	pc->b_data = bh->b_data;
-	pc->b_count = atomic_read(&bh->b_count);
-	pc->buf = NULL;
-	pc->buf_size = length * tape->blk_size;
-	pc->req_xfer = pc->buf_size;
-	if (pc->req_xfer == tape->buffer_size)
-		pc->flags |= PC_FLAG_DMA_OK;
+	if (opcode == READ_6) {
+		pc->c[0] = READ_6;
+		atomic_set(&bh->b_count, 0);
+	} else if (opcode == WRITE_6) {
+		pc->c[0] = WRITE_6;
+		pc->flags |= PC_FLAG_WRITING;
+		pc->b_data = bh->b_data;
+		pc->b_count = atomic_read(&bh->b_count);
+	}
 }
 
 static ide_startstop_t idetape_do_request(ide_drive_t *drive,
@@ -1062,14 +1051,16 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	}
 	if (rq->cmd[0] & REQ_IDETAPE_READ) {
 		pc = idetape_next_pc_storage(drive);
-		idetape_create_read_cmd(tape, pc, rq->current_nr_sectors,
-					(struct idetape_bh *)rq->special);
+		ide_tape_create_rw_cmd(tape, pc, rq->current_nr_sectors,
+					(struct idetape_bh *)rq->special,
+					READ_6);
 		goto out;
 	}
 	if (rq->cmd[0] & REQ_IDETAPE_WRITE) {
 		pc = idetape_next_pc_storage(drive);
-		idetape_create_write_cmd(tape, pc, rq->current_nr_sectors,
-					 (struct idetape_bh *)rq->special);
+		ide_tape_create_rw_cmd(tape, pc, rq->current_nr_sectors,
+					 (struct idetape_bh *)rq->special,
+					 WRITE_6);
 		goto out;
 	}
 	if (rq->cmd[0] & REQ_IDETAPE_PC1) {
