@@ -780,15 +780,14 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 			}
 			kobject_put(per_cpu(cache_kobject, cpu));
 			cpuid4_cache_sysfs_exit(cpu);
-			break;
+			return retval;
 		}
 		kobject_uevent(&(this_object->kobj), KOBJ_ADD);
 	}
-	if (!retval)
-		cpu_set(cpu, cache_dev_map);
+	cpu_set(cpu, cache_dev_map);
 
 	kobject_uevent(per_cpu(cache_kobject, cpu), KOBJ_ADD);
-	return retval;
+	return 0;
 }
 
 static void __cpuinit cache_remove_dev(struct sys_device * sys_dev)
