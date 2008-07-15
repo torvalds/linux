@@ -530,8 +530,8 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 		info->dma = !hwif->dma_ops->dma_setup(drive);
 
 	/* set up the controller registers */
-	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL |
-			   IDE_TFLAG_NO_SELECT_MASK, xferlen, info->dma);
+	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL,
+			   xferlen, info->dma);
 
 	if (info->cd_flags & IDE_CD_FLAG_DRQ_INTERRUPT) {
 		/* waiting for CDB interrupt, not DMA yet. */

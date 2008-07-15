@@ -667,8 +667,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	if ((pc->flags & PC_FLAG_DMA_RECOMMENDED) && drive->using_dma)
 		dma = !hwif->dma_ops->dma_setup(drive);
 
-	ide_pktcmd_tf_load(drive, IDE_TFLAG_NO_SELECT_MASK |
-			   IDE_TFLAG_OUT_DEVICE, bcount, dma);
+	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma);
 
 	if (dma) {
 		/* Begin DMA, if necessary */

@@ -1046,8 +1046,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 	if ((pc->flags & PC_FLAG_DMA_RECOMMENDED) && drive->using_dma)
 		dma_ok = !hwif->dma_ops->dma_setup(drive);
 
-	ide_pktcmd_tf_load(drive, IDE_TFLAG_NO_SELECT_MASK |
-			   IDE_TFLAG_OUT_DEVICE, bcount, dma_ok);
+	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma_ok);
 
 	if (dma_ok)
 		/* Will begin DMA later */

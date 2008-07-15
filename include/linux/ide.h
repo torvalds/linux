@@ -869,7 +869,6 @@ extern void ide_end_drive_cmd(ide_drive_t *, u8, u8);
 
 enum {
 	IDE_TFLAG_LBA48			= (1 << 0),
-	IDE_TFLAG_NO_SELECT_MASK	= (1 << 1),
 	IDE_TFLAG_FLAGGED		= (1 << 2),
 	IDE_TFLAG_OUT_DATA		= (1 << 3),
 	IDE_TFLAG_OUT_HOB_FEATURE	= (1 << 4),

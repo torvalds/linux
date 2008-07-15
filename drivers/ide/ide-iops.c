@@ -121,9 +121,7 @@ static void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 		HIHI = 0xFF;
 
 	ide_set_irq(drive, 1);
-
-	if ((task->tf_flags & IDE_TFLAG_NO_SELECT_MASK) == 0)
-		SELECT_MASK(drive, 0);
+	SELECT_MASK(drive, 0);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DATA) {
 		u16 data = (tf->hob_data << 8) | tf->data;

@@ -564,7 +564,7 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
 		hwif->sg_mapped = 0;
 	}
 
-	ide_pktcmd_tf_load(drive, IDE_TFLAG_NO_SELECT_MASK, bcount, dma);
+	ide_pktcmd_tf_load(drive, 0, bcount, dma);
 
 	if (dma)
 		pc->flags |= PC_FLAG_DMA_OK;
