@@ -144,9 +144,6 @@ enum {
 
 /*************************** End of tunable parameters ***********************/
 
-/* Read/Write error simulation */
-#define SIMULATE_ERRORS			0
-
 /* tape directions */
 enum {
 	IDETAPE_DIR_NONE  = (1 << 0),
@@ -745,9 +742,6 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 	xfer_func_t *xferfunc;
 	idetape_io_buf *iobuf;
 	unsigned int temp;
-#if SIMULATE_ERRORS
-	static int error_sim_count;
-#endif
 	u16 bcount;
 	u8 stat, ireason;
 
@@ -775,14 +769,6 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
 		local_irq_enable_in_hardirq();
 
-#if SIMULATE_ERRORS
-		if ((pc->c[0] == WRITE_6 || pc->c[0] == READ_6) &&
-		    (++error_sim_count % 100) == 0) {
-			printk(KERN_INFO "ide-tape: %s: simulating error\n",
-				tape->name);
-			stat |= ERR_STAT;
-		}
-#endif
 		if ((stat & ERR_STAT) && pc->c[0] == REQUEST_SENSE)
 			stat &= ~ERR_STAT;
 		if ((stat & ERR_STAT) || (pc->flags & PC_FLAG_DMA_ERROR)) {
