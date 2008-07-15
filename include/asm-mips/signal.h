@@ -119,9 +119,6 @@ struct sigaction {
 
 struct k_sigaction {
 	struct sigaction sa;
-#ifdef CONFIG_BINFMT_IRIX
-	void		(*sa_restorer)(void);
-#endif
 };
 
 /* IRIX compatible stack_t  */
