@@ -578,7 +578,7 @@ static int __init enable_pci_io_ecs(void)
 	/* assume all cpus from fam10h have IO ECS */
         if (boot_cpu_data.x86 < 0x10)
 		return 0;
-	on_each_cpu(enable_pci_io_ecs_per_cpu, NULL, 1, 1);
+	on_each_cpu(enable_pci_io_ecs_per_cpu, NULL, 1);
 	pci_probe |= PCI_HAS_IO_ECS;
 	return 0;
 }

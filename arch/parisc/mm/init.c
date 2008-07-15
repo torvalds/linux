@@ -1053,7 +1053,7 @@ void flush_tlb_all(void)
 	    do_recycle++;
 	}
 	spin_unlock(&sid_lock);
-	on_each_cpu(flush_tlb_all_local, NULL, 1, 1);
+	on_each_cpu(flush_tlb_all_local, NULL, 1);
 	if (do_recycle) {
 	    spin_lock(&sid_lock);
 	    recycle_sids(recycle_ndirty,recycle_dirty_array);

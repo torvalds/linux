@@ -43,12 +43,12 @@
  *    primary cache.
  */
 static inline void r4k_on_each_cpu(void (*func) (void *info), void *info,
-                                   int retry, int wait)
+                                   int wait)
 {
 	preempt_disable();
 
 #if !defined(CONFIG_MIPS_MT_SMP) && !defined(CONFIG_MIPS_MT_SMTC)
-	smp_call_function(func, info, retry, wait);
+	smp_call_function(func, info, wait);
 #endif
 	func(info);
 	preempt_enable();
@@ -350,7 +350,7 @@ static inline void local_r4k___flush_cache_all(void * args)
 
 static void r4k___flush_cache_all(void)
 {
-	r4k_on_each_cpu(local_r4k___flush_cache_all, NULL, 1, 1);
+	r4k_on_each_cpu(local_r4k___flush_cache_all, NULL, 1);
 }
 
 static inline int has_valid_asid(const struct mm_struct *mm)
@@ -397,7 +397,7 @@ static void r4k_flush_cache_range(struct vm_area_struct *vma,
 	int exec = vma->vm_flags & VM_EXEC;
 
 	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc))
-		r4k_on_each_cpu(local_r4k_flush_cache_range, vma, 1, 1);
+		r4k_on_each_cpu(local_r4k_flush_cache_range, vma, 1);
 }
 
 static inline void local_r4k_flush_cache_mm(void * args)
@@ -429,7 +429,7 @@ static void r4k_flush_cache_mm(struct mm_struct *mm)
 	if (!cpu_has_dc_aliases)
 		return;
 
-	r4k_on_each_cpu(local_r4k_flush_cache_mm, mm, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_cache_mm, mm, 1);
 }
 
 struct flush_cache_page_args {
@@ -521,7 +521,7 @@ static void r4k_flush_cache_page(struct vm_area_struct *vma,
 	args.addr = addr;
 	args.pfn = pfn;
 
-	r4k_on_each_cpu(local_r4k_flush_cache_page, &args, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_cache_page, &args, 1);
 }
 
 static inline void local_r4k_flush_data_cache_page(void * addr)
@@ -535,7 +535,7 @@ static void r4k_flush_data_cache_page(unsigned long addr)
 		local_r4k_flush_data_cache_page((void *)addr);
 	else
 		r4k_on_each_cpu(local_r4k_flush_data_cache_page, (void *) addr,
-			        1, 1);
+			        1);
 }
 
 struct flush_icache_range_args {
@@ -571,7 +571,7 @@ static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 	args.start = start;
 	args.end = end;
 
-	r4k_on_each_cpu(local_r4k_flush_icache_range, &args, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_icache_range, &args, 1);
 	instruction_hazard();
 }
 
@@ -672,7 +672,7 @@ static void local_r4k_flush_cache_sigtramp(void * arg)
 
 static void r4k_flush_cache_sigtramp(unsigned long addr)
 {
-	r4k_on_each_cpu(local_r4k_flush_cache_sigtramp, (void *) addr, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_cache_sigtramp, (void *) addr, 1);
 }
 
 static void r4k_flush_icache_all(void)

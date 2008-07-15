@@ -335,7 +335,7 @@ static void vcpu_clear(struct vcpu_vmx *vmx)
 {
 	if (vmx->vcpu.cpu == -1)
 		return;
-	smp_call_function_single(vmx->vcpu.cpu, __vcpu_clear, vmx, 0, 1);
+	smp_call_function_single(vmx->vcpu.cpu, __vcpu_clear, vmx, 1);
 	vmx->launched = 0;
 }
 
@@ -2968,7 +2968,7 @@ static void vmx_free_vmcs(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	if (vmx->vmcs) {
-		on_each_cpu(__vcpu_clear, vmx, 0, 1);
+		on_each_cpu(__vcpu_clear, vmx, 1);
 		free_vmcs(vmx->vmcs);
 		vmx->vmcs = NULL;
 	}

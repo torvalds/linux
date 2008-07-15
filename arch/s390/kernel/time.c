@@ -707,7 +707,7 @@ static int etr_sync_clock(struct etr_aib *aib, int port)
 	 */
 	memset(&etr_sync, 0, sizeof(etr_sync));
 	preempt_disable();
-	smp_call_function(clock_sync_cpu_start, &etr_sync, 0, 0);
+	smp_call_function(clock_sync_cpu_start, &etr_sync, 0);
 	local_irq_disable();
 	enable_sync_clock();
 
@@ -746,7 +746,7 @@ static int etr_sync_clock(struct etr_aib *aib, int port)
 		rc = -EAGAIN;
 	}
 	local_irq_enable();
-	smp_call_function(clock_sync_cpu_end, NULL, 0, 0);
+	smp_call_function(clock_sync_cpu_end, NULL, 0);
 	preempt_enable();
 	return rc;
 }
@@ -926,7 +926,7 @@ static void etr_work_fn(struct work_struct *work)
 	if (!eacr.ea) {
 		/* Both ports offline. Reset everything. */
 		eacr.dp = eacr.es = eacr.sl = 0;
-		on_each_cpu(disable_sync_clock, NULL, 0, 1);
+		on_each_cpu(disable_sync_clock, NULL, 1);
 		del_timer_sync(&etr_timer);
 		etr_update_eacr(eacr);
 		clear_bit(CLOCK_SYNC_ETR, &clock_sync_flags);
@@ -1432,7 +1432,7 @@ static void stp_work_fn(struct work_struct *work)
 	 */
 	memset(&stp_sync, 0, sizeof(stp_sync));
 	preempt_disable();
-	smp_call_function(clock_sync_cpu_start, &stp_sync, 0, 0);
+	smp_call_function(clock_sync_cpu_start, &stp_sync, 0);
 	local_irq_disable();
 	enable_sync_clock();
 
@@ -1465,7 +1465,7 @@ static void stp_work_fn(struct work_struct *work)
 		stp_sync.in_sync = 1;
 
 	local_irq_enable();
-	smp_call_function(clock_sync_cpu_end, NULL, 0, 0);
+	smp_call_function(clock_sync_cpu_end, NULL, 0);
 	preempt_enable();
 }
 

@@ -796,7 +796,7 @@ static void drop_mm_ref(struct mm_struct *mm)
 	}
 
 	if (!cpus_empty(mask))
-		xen_smp_call_function_mask(mask, drop_other_mm_ref, mm, 1);
+		smp_call_function_mask(mask, drop_other_mm_ref, mm, 1);
 }
 #else
 static void drop_mm_ref(struct mm_struct *mm)

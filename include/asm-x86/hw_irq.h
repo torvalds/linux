@@ -48,6 +48,7 @@ extern void irq_move_cleanup_interrupt(void);
 extern void threshold_interrupt(void);
 
 extern void call_function_interrupt(void);
+extern void call_function_single_interrupt(void);
 
 /* PIC specific functions */
 extern void disable_8259A_irq(unsigned int irq);
