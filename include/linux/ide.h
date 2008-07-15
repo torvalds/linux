@@ -857,8 +857,6 @@ int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
 
 extern ide_startstop_t ide_do_reset (ide_drive_t *);
 
-extern void ide_init_drive_cmd (struct request *rq);
-
 /*
  * "action" parameter type for ide_do_drive_cmd() below.
  */

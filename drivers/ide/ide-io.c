@@ -1539,23 +1539,6 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 }
 
 /**
- *	ide_init_drive_cmd	-	initialize a drive command request
- *	@rq: request object
- *
- *	Initialize a request before we fill it in and send it down to
- *	ide_do_drive_cmd. Commands must be set up by this function. Right
- *	now it doesn't do a lot, but if that changes abusers will have a
- *	nasty surprise.
- */
-
-void ide_init_drive_cmd (struct request *rq)
-{
-	blk_rq_init(NULL, rq);
-}
-
-EXPORT_SYMBOL(ide_init_drive_cmd);
-
-/**
  *	ide_do_drive_cmd	-	issue IDE special command
  *	@drive: device to issue command
  *	@rq: request to issue

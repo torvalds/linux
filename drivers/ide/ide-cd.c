@@ -193,7 +193,7 @@ void ide_cd_init_rq(ide_drive_t *drive, struct request *rq)
 {
 	struct cdrom_info *cd = drive->driver_data;
 
-	ide_init_drive_cmd(rq);
+	blk_rq_init(NULL, rq);
 	rq->cmd_type = REQ_TYPE_ATA_PC;
 	rq->rq_disk = cd->disk;
 }

@@ -228,7 +228,7 @@ static int idescsi_check_condition(ide_drive_t *drive,
 		kfree(pc);
 		return -ENOMEM;
 	}
-	ide_init_drive_cmd(rq);
+	blk_rq_init(NULL, rq);
 	rq->special = (char *) pc;
 	pc->rq = rq;
 	pc->buf = buf;
@@ -786,7 +786,7 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 		}
 	}
 
-	ide_init_drive_cmd (rq);
+	blk_rq_init(NULL, rq);
 	rq->special = (char *) pc;
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	spin_unlock_irq(host->host_lock);

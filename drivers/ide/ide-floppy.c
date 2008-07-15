@@ -286,7 +286,7 @@ static void idefloppy_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
 {
 	struct ide_floppy_obj *floppy = drive->driver_data;
 
-	ide_init_drive_cmd(rq);
+	blk_rq_init(NULL, rq);
 	rq->buffer = (char *) pc;
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd_flags |= REQ_PREEMPT;
