@@ -498,7 +498,7 @@ out:
 
 int set_pio_mode(ide_drive_t *drive, int arg)
 {
-	struct request rq;
+	struct request *rq;
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 
@@ -512,12 +512,15 @@ int set_pio_mode(ide_drive_t *drive, int arg)
 	if (drive->special.b.set_tune)
 		return -EBUSY;
 
-	ide_init_drive_cmd(&rq);
-	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 
 	drive->tune_req = (u8) arg;
 	drive->special.b.set_tune = 1;
-	(void) ide_do_drive_cmd(drive, &rq, ide_wait);
+
+	blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_put_request(rq);
+
 	return 0;
 }
 
@@ -555,7 +558,7 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
 	ide_drive_t *drive = dev->driver_data;
 	ide_hwif_t *hwif = HWIF(drive);
-	struct request rq;
+	struct request *rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
 	int ret;
@@ -564,18 +567,19 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	if (!(drive->dn % 2))
 		ide_acpi_get_timing(hwif);
 
-	blk_rq_init(NULL, &rq);
 	memset(&rqpm, 0, sizeof(rqpm));
 	memset(&args, 0, sizeof(args));
-	rq.cmd_type = REQ_TYPE_PM_SUSPEND;
-	rq.special = &args;
-	rq.data = &rqpm;
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_PM_SUSPEND;
+	rq->special = &args;
+	rq->data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_suspend;
 	if (mesg.event == PM_EVENT_PRETHAW)
 		mesg.event = PM_EVENT_FREEZE;
 	rqpm.pm_state = mesg.event;
 
-	ret = ide_do_drive_cmd(drive, &rq, ide_wait);
+	ret = blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_put_request(rq);
 	/* only call ACPI _PS3 after both drivers are suspended */
 	if (!ret && (((drive->dn % 2) && hwif->drives[0].present
 		 && hwif->drives[1].present)
@@ -589,7 +593,7 @@ static int generic_ide_resume(struct device *dev)
 {
 	ide_drive_t *drive = dev->driver_data;
 	ide_hwif_t *hwif = HWIF(drive);
-	struct request rq;
+	struct request *rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
 	int err;
@@ -602,17 +606,18 @@ static int generic_ide_resume(struct device *dev)
 
 	ide_acpi_exec_tfs(drive);
 
-	blk_rq_init(NULL, &rq);
 	memset(&rqpm, 0, sizeof(rqpm));
 	memset(&args, 0, sizeof(args));
-	rq.cmd_type = REQ_TYPE_PM_RESUME;
-	rq.cmd_flags |= REQ_PREEMPT;
-	rq.special = &args;
-	rq.data = &rqpm;
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_PM_RESUME;
+	rq->cmd_flags |= REQ_PREEMPT;
+	rq->special = &args;
+	rq->data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_resume;
 	rqpm.pm_state = PM_EVENT_ON;
 
-	err = ide_do_drive_cmd(drive, &rq, ide_head_wait);
+	err = blk_execute_rq(drive->queue, NULL, rq, 1);
+	blk_put_request(rq);
 
 	if (err == 0 && dev->driver) {
 		ide_driver_t *drv = to_ide_driver(dev->driver);
