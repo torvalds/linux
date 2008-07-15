@@ -151,32 +151,9 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 	}
 }
 
-/*
- * init_ide_data() sets reasonable default values into all fields
- * of all instances of the hwifs and drives, but only on the first call.
- * Subsequent calls have no effect (they don't wipe out anything).
- *
- * This routine is normally called at driver initialization time,
- * but may also be called MUCH earlier during kernel "command-line"
- * parameter processing.  As such, we cannot depend on any other parts
- * of the kernel (such as memory allocation) to be functioning yet.
- *
- * This is too bad, as otherwise we could dynamically allocate the
- * ide_drive_t structs as needed, rather than always consuming memory
- * for the max possible number (MAX_HWIFS * MAX_DRIVES) of them.
- *
- * FIXME: We should stuff the setup data into __init and copy the
- * relevant hwifs/allocate them properly during boot.
- */
-#define MAGIC_COOKIE 0x12345678
 static void __init init_ide_data (void)
 {
 	unsigned int index;
-	static unsigned long magic_cookie = MAGIC_COOKIE;
-
-	if (magic_cookie != MAGIC_COOKIE)
-		return;		/* already initialized */
-	magic_cookie = 0;
 
 	/* Initialise all interface structures */
 	for (index = 0; index < MAX_HWIFS; ++index) {
@@ -730,7 +707,6 @@ EXPORT_SYMBOL(generic_ide_ioctl);
 static int __init ide_setup(char *s)
 {
 	printk(KERN_INFO "ide_setup: %s", s);
-	init_ide_data ();
 
 #ifdef CONFIG_BLK_DEV_IDEDOUBLER
 	if (!strcmp(s, "ide=doubler")) {
