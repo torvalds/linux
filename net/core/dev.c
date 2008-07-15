@@ -1670,6 +1670,9 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 {
 	u16 queue_index = 0;
 
+	if (dev->select_queue)
+		queue_index = dev->select_queue(dev, skb);
+
 	skb_set_queue_mapping(skb, queue_index);
 	return netdev_get_tx_queue(dev, queue_index);
 }
@@ -1710,13 +1713,13 @@ int dev_queue_xmit(struct sk_buff *skb)
 	}
 
 gso:
-	txq = dev_pick_tx(dev, skb);
-	spin_lock_prefetch(&txq->lock);
-
 	/* Disable soft irqs for various locks below. Also
 	 * stops preemption for RCU.
 	 */
 	rcu_read_lock_bh();
+
+	txq = dev_pick_tx(dev, skb);
+	spin_lock_prefetch(&txq->lock);
 
 	/* Updates of qdisc are serialized by queue->lock.
 	 * The struct Qdisc which is pointed to by qdisc is now a
