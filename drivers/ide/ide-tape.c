@@ -780,7 +780,14 @@ static void ide_tape_handle_dsc(ide_drive_t *drive)
 	idetape_postpone_request(drive);
 }
 
-typedef void idetape_io_buf(ide_drive_t *, struct ide_atapi_pc *, unsigned int);
+static void ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
+				unsigned int bcount, int write)
+{
+	if (write)
+		idetape_output_buffers(drive, pc, bcount);
+	else
+		idetape_input_buffers(drive, pc, bcount);
+}
 
 /*
  * This is the usual interrupt handler which will be called during a packet
@@ -795,7 +802,6 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc *pc = tape->pc;
 	xfer_func_t *xferfunc;
-	idetape_io_buf *iobuf;
 	unsigned int temp;
 	u16 bcount;
 	u8 stat, ireason;
@@ -895,15 +901,14 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 			debug_log(DBG_SENSE, "The device wants to send us more "
 				"data than expected - allowing transfer\n");
 		}
-		iobuf = &idetape_input_buffers;
 		xferfunc = hwif->input_data;
 	} else {
-		iobuf = &idetape_output_buffers;
 		xferfunc = hwif->output_data;
 	}
 
 	if (pc->bh)
-		iobuf(drive, pc, bcount);
+		ide_tape_io_buffers(drive, pc, bcount,
+				    !!(pc->flags & PC_FLAG_WRITING));
 	else
 		xferfunc(drive, NULL, pc->cur_pos, bcount);
 
