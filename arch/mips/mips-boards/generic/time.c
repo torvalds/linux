@@ -70,19 +70,6 @@ static unsigned int __init estimate_cpu_frequency(void)
 	unsigned int prid = read_c0_prid() & 0xffff00;
 	unsigned int count;
 
-#ifdef CONFIG_MIPS_SIM
-	/*
-	 * The SEAD board doesn't have a real time clock, so we can't
-	 * really calculate the timer frequency
-	 * For now we hardwire the SEAD board frequency to 12MHz.
-	 */
-
-	if ((prid == (PRID_COMP_MIPS | PRID_IMP_20KC)) ||
-	    (prid == (PRID_COMP_MIPS | PRID_IMP_25KF)))
-		count = 12000000;
-	else
-		count = 6000000;
-#endif
 #ifdef CONFIG_MIPS_MALTA
 	unsigned long flags;
 	unsigned int start;
