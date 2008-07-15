@@ -949,6 +949,14 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 			   "Use the \"8139cp\" driver for improved performance and stability.\n");
 	}
 
+	if (pdev->vendor == PCI_VENDOR_ID_REALTEK &&
+	    pdev->device == PCI_DEVICE_ID_REALTEK_8139 &&
+	    pdev->subsystem_vendor == PCI_VENDOR_ID_ATHEROS &&
+	    pdev->subsystem_device == PCI_DEVICE_ID_REALTEK_8139) {
+		printk(KERN_INFO "8139too: OQO Model 2 detected. Forcing PIO\n");
+		use_io = 1;
+	}
+
 	i = rtl8139_init_board (pdev, &dev);
 	if (i < 0)
 		return i;
