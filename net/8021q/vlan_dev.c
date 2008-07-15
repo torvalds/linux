@@ -725,9 +725,22 @@ static u32 vlan_ethtool_get_rx_csum(struct net_device *dev)
 	return real_dev->ethtool_ops->get_rx_csum(real_dev);
 }
 
+static u32 vlan_ethtool_get_flags(struct net_device *dev)
+{
+	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	struct net_device *real_dev = vlan->real_dev;
+
+	if (!(real_dev->features & NETIF_F_HW_VLAN_RX) ||
+	    real_dev->ethtool_ops == NULL ||
+	    real_dev->ethtool_ops->get_flags == NULL)
+		return 0;
+	return real_dev->ethtool_ops->get_flags(real_dev);
+}
+
 static const struct ethtool_ops vlan_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_rx_csum		= vlan_ethtool_get_rx_csum,
+	.get_flags		= vlan_ethtool_get_flags,
 };
 
 void vlan_setup(struct net_device *dev)
