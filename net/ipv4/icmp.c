@@ -973,6 +973,7 @@ int icmp_rcv(struct sk_buff *skb)
 {
 	struct icmphdr *icmph;
 	struct rtable *rt = skb->rtable;
+	struct net *net = dev_net(rt->u.dst.dev);
 
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 		int nh;
@@ -1027,9 +1028,6 @@ int icmp_rcv(struct sk_buff *skb)
 	 */
 
 	if (rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST)) {
-		struct net *net;
-
-		net = dev_net(rt->u.dst.dev);
 		/*
 		 *	RFC 1122: 3.2.2.6 An ICMP_ECHO to broadcast MAY be
 		 *	  silently ignored (we let user decide with a sysctl).

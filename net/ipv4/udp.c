@@ -354,8 +354,9 @@ void __udp4_lib_err(struct sk_buff *skb, u32 info, struct hlist_head udptable[])
 	struct sock *sk;
 	int harderr;
 	int err;
+	struct net *net = dev_net(skb->dev);
 
-	sk = __udp4_lib_lookup(dev_net(skb->dev), iph->daddr, uh->dest,
+	sk = __udp4_lib_lookup(net, iph->daddr, uh->dest,
 			iph->saddr, uh->source, skb->dev->ifindex, udptable);
 	if (sk == NULL) {
 		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);

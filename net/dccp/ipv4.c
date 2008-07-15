@@ -205,13 +205,14 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 	struct sock *sk;
 	__u64 seq;
 	int err;
+	struct net *net = dev_net(skb->dev);
 
 	if (skb->len < (iph->ihl << 2) + 8) {
 		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
 		return;
 	}
 
-	sk = inet_lookup(dev_net(skb->dev), &dccp_hashinfo,
+	sk = inet_lookup(net, &dccp_hashinfo,
 			iph->daddr, dh->dccph_dport,
 			iph->saddr, dh->dccph_sport, inet_iif(skb));
 	if (sk == NULL) {
