@@ -447,7 +447,6 @@ config PARAVIRT_DEBUG
 
 config MEMTEST
 	bool "Memtest"
-	depends on X86_64
 	help
 	  This option adds a kernel parameter 'memtest', which allows memtest
 	  to be set.
