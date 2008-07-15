@@ -1020,7 +1020,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma_ok);
 
-	if (test_bit(IDETAPE_FLAG_DRQ_INTERRUPT, &tape->flags)) {
+	if (pc->flags & PC_FLAG_DRQ_INTERRUPT) {
 		ide_execute_command(drive, WIN_PACKETCMD, &idetape_transfer_pc,
 				    IDETAPE_WAIT_CMD, NULL);
 		return ide_started;
@@ -1143,8 +1143,10 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	}
 
 	/* Retry a failed packet command */
-	if (tape->failed_pc && tape->pc->c[0] == REQUEST_SENSE)
-		return idetape_issue_pc(drive, tape->failed_pc);
+	if (tape->failed_pc && tape->pc->c[0] == REQUEST_SENSE) {
+		pc = tape->failed_pc;
+		goto out;
+	}
 
 	if (postponed_rq != NULL)
 		if (rq != postponed_rq) {
@@ -1216,6 +1218,9 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	}
 	BUG();
 out:
+	if (test_bit(IDETAPE_FLAG_DRQ_INTERRUPT, &tape->flags))
+		pc->flags |= PC_FLAG_DRQ_INTERRUPT;
+
 	return idetape_issue_pc(drive, pc);
 }
 

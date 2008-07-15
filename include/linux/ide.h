@@ -608,6 +608,7 @@ enum {
 	/* command timed out */
 	PC_FLAG_TIMEDOUT		= (1 << 7),
 	PC_FLAG_ZIP_DRIVE		= (1 << 8),
+	PC_FLAG_DRQ_INTERRUPT		= (1 << 9),
 };
 
 struct ide_atapi_pc {

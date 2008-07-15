@@ -525,7 +525,7 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
 
 	ide_pktcmd_tf_load(drive, 0, bcount, dma);
 
-	if (test_bit(IDESCSI_DRQ_INTERRUPT, &scsi->flags)) {
+	if (pc->flags & PC_FLAG_DRQ_INTERRUPT) {
 		ide_execute_command(drive, WIN_PACKETCMD, &idescsi_transfer_pc,
 				    get_timeout(pc), idescsi_expiry);
 		return ide_started;
@@ -548,6 +548,10 @@ static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *r
 
 	if (blk_sense_request(rq) || blk_special_request(rq)) {
 		struct ide_atapi_pc *pc = (struct ide_atapi_pc *)rq->special;
+		idescsi_scsi_t *scsi = drive_to_idescsi(drive);
+
+		if (test_bit(IDESCSI_DRQ_INTERRUPT, &scsi->flags))
+			pc->flags |= PC_FLAG_DRQ_INTERRUPT;
 
 		if (drive->using_dma && !idescsi_map_sg(drive, pc))
 			pc->flags |= PC_FLAG_DMA_OK;

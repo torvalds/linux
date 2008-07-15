@@ -619,7 +619,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma);
 
-	if (floppy->flags & IDEFLOPPY_FLAG_DRQ_INTERRUPT) {
+	if (pc->flags & PC_FLAG_DRQ_INTERRUPT) {
 		/* Issue the packet command */
 		ide_execute_command(drive, WIN_PACKETCMD,
 				&idefloppy_transfer_pc1,
@@ -799,6 +799,9 @@ static ide_startstop_t idefloppy_do_request(ide_drive_t *drive,
 		idefloppy_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
+
+	if (floppy->flags & IDEFLOPPY_FLAG_DRQ_INTERRUPT)
+		pc->flags |= PC_FLAG_DRQ_INTERRUPT;
 
 	if (floppy->flags & IDEFLOPPY_FLAG_ZIP_DRIVE)
 		pc->flags |= PC_FLAG_ZIP_DRIVE;
