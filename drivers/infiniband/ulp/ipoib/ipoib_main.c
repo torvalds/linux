@@ -1302,6 +1302,12 @@ static int __init ipoib_init_module(void)
 	ipoib_max_conn_qp = min(ipoib_max_conn_qp, IPOIB_CM_MAX_CONN_QP);
 #endif
 
+	/*
+	 * When copying small received packets, we only copy from the
+	 * linear data part of the SKB, so we rely on this condition.
+	 */
+	BUILD_BUG_ON(IPOIB_CM_COPYBREAK > IPOIB_CM_HEAD_SIZE);
+
 	ret = ipoib_register_debugfs();
 	if (ret)
 		return ret;

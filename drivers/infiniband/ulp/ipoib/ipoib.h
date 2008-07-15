@@ -95,6 +95,7 @@ enum {
 	IPOIB_MCAST_FLAG_ATTACHED = 3,
 
 	MAX_SEND_CQE		  = 16,
+	IPOIB_CM_COPYBREAK	  = 256,
 };
 
 #define	IPOIB_OP_RECV   (1ul << 31)

@@ -523,6 +523,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	u64 mapping[IPOIB_CM_RX_SG];
 	int frags;
 	int has_srq;
+	struct sk_buff *small_skb;
 
 	ipoib_dbg_data(priv, "cm recv completion: id %d, status: %d\n",
 		       wr_id, wc->status);
@@ -577,6 +578,23 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		}
 	}
 
+	if (wc->byte_len < IPOIB_CM_COPYBREAK) {
+		int dlen = wc->byte_len;
+
+		small_skb = dev_alloc_skb(dlen + 12);
+		if (small_skb) {
+			skb_reserve(small_skb, 12);
+			ib_dma_sync_single_for_cpu(priv->ca, rx_ring[wr_id].mapping[0],
+						   dlen, DMA_FROM_DEVICE);
+			skb_copy_from_linear_data(skb, small_skb->data, dlen);
+			ib_dma_sync_single_for_device(priv->ca, rx_ring[wr_id].mapping[0],
+						      dlen, DMA_FROM_DEVICE);
+			skb_put(small_skb, dlen);
+			skb = small_skb;
+			goto copied;
+		}
+	}
+
 	frags = PAGE_ALIGN(wc->byte_len - min(wc->byte_len,
 					      (unsigned)IPOIB_CM_HEAD_SIZE)) / PAGE_SIZE;
 
@@ -599,6 +617,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 
 	skb_put_frags(skb, IPOIB_CM_HEAD_SIZE, wc->byte_len, newskb);
 
+copied:
 	skb->protocol = ((struct ipoib_header *) skb->data)->proto;
 	skb_reset_mac_header(skb);
 	skb_pull(skb, IPOIB_ENCAP_LEN);
