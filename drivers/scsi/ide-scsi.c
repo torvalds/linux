@@ -60,6 +60,13 @@
 
 #define IDESCSI_DEBUG_LOG		0
 
+#if IDESCSI_DEBUG_LOG
+#define debug_log(fmt, args...) \
+	printk(KERN_INFO "ide-scsi: " fmt, ## args)
+#else
+#define debug_log(fmt, args...) do {} while (0)
+#endif
+
 /*
  *	SCSI command transformation layer
  */
@@ -237,10 +244,9 @@ idescsi_atapi_error(ide_drive_t *drive, struct request *rq, u8 stat, u8 err)
 static ide_startstop_t
 idescsi_atapi_abort(ide_drive_t *drive, struct request *rq)
 {
-#if IDESCSI_DEBUG_LOG
-	printk(KERN_WARNING "idescsi_atapi_abort called for %lu\n",
+	debug_log("%s called for %lu\n", __func__,
 		((struct ide_atapi_pc *) rq->special)->scsi_cmd->serial_number);
-#endif
+
 	rq->errors |= ERROR_MAX;
 
 	idescsi_end_request(drive, 0, 0);
@@ -319,9 +325,9 @@ static int idescsi_expiry(ide_drive_t *drive)
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
 	struct ide_atapi_pc   *pc   = scsi->pc;
 
-#if IDESCSI_DEBUG_LOG
-	printk(KERN_WARNING "idescsi_expiry called for %lu at %lu\n", pc->scsi_cmd->serial_number, jiffies);
-#endif
+	debug_log("%s called for %lu at %lu\n", __func__,
+		  pc->scsi_cmd->serial_number, jiffies);
+
 	pc->flags |= PC_FLAG_TIMEDOUT;
 
 	return 0;					/* we do not want the ide subsystem to retry */
@@ -341,15 +347,11 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	u16 bcount;
 	u8 stat, ireason;
 
-#if IDESCSI_DEBUG_LOG
-	printk (KERN_INFO "ide-scsi: Reached idescsi_pc_intr interrupt handler\n");
-#endif /* IDESCSI_DEBUG_LOG */
+	debug_log("Reached %s interrupt handler\n", __func__);
 
 	if (pc->flags & PC_FLAG_TIMEDOUT) {
-#if IDESCSI_DEBUG_LOG
-		printk(KERN_WARNING "idescsi_pc_intr: got timed out packet  %lu at %lu\n",
-				pc->scsi_cmd->serial_number, jiffies);
-#endif
+		debug_log("%s: got timed out packet %lu at %lu\n", __func__,
+			  pc->scsi_cmd->serial_number, jiffies);
 		/* end this request now - scsi should retry it*/
 		idescsi_end_request (drive, 1, 0);
 		return ide_stopped;
@@ -359,9 +361,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 			pc->flags |= PC_FLAG_DMA_ERROR;
 		else
 			pc->xferred = pc->req_xfer;
-#if IDESCSI_DEBUG_LOG
-		printk ("ide-scsi: %s: DMA complete\n", drive->name);
-#endif /* IDESCSI_DEBUG_LOG */
+		debug_log("%s: DMA finished\n", drive->name);
 	}
 
 	/* Clear the interrupt */
@@ -427,9 +427,8 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 				ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 				return ide_started;
 			}
-#if IDESCSI_DEBUG_LOG
-			printk (KERN_NOTICE "ide-scsi: The scsi wants to send us more data than expected - allowing transfer\n");
-#endif /* IDESCSI_DEBUG_LOG */
+			debug_log("The scsi wants to send us more data than "
+				  "expected - allowing transfer\n");
 		}
 		xferfunc = hwif->input_data;
 	} else
@@ -566,10 +565,10 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
  */
 static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *rq, sector_t block)
 {
-#if IDESCSI_DEBUG_LOG
-	printk (KERN_INFO "dev: %s, cmd: %x, errors: %d\n", rq->rq_disk->disk_name,rq->cmd[0],rq->errors);
-	printk (KERN_INFO "sector: %ld, nr_sectors: %ld, current_nr_sectors: %d\n",rq->sector,rq->nr_sectors,rq->current_nr_sectors);
-#endif /* IDESCSI_DEBUG_LOG */
+	debug_log("dev: %s, cmd: %x, errors: %d\n", rq->rq_disk->disk_name,
+		  rq->cmd[0], rq->errors);
+	debug_log("sector: %ld, nr_sectors: %ld, current_nr_sectors: %d\n",
+		  rq->sector, rq->nr_sectors, rq->current_nr_sectors);
 
 	if (blk_sense_request(rq) || blk_special_request(rq)) {
 		return idescsi_issue_pc(drive,
@@ -976,10 +975,10 @@ static int ide_scsi_probe(ide_drive_t *drive)
 
 	host->max_id = 1;
 
-#if IDESCSI_DEBUG_LOG
 	if (drive->id->last_lun)
-		printk(KERN_NOTICE "%s: id->last_lun=%u\n", drive->name, drive->id->last_lun);
-#endif
+		debug_log("%s: id->last_lun=%u\n", drive->name,
+			  drive->id->last_lun);
+
 	if ((drive->id->last_lun & 0x7) != 7)
 		host->max_lun = (drive->id->last_lun & 0x7) + 1;
 	else
