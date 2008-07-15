@@ -288,7 +288,10 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->csum_ok))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	netif_receive_skb(skb);
+	if (dev->features & NETIF_F_LRO)
+		lro_receive_skb(&priv->lro.lro_mgr, skb, NULL);
+	else
+		netif_receive_skb(skb);
 
 repost:
 	if (unlikely(ipoib_ib_post_receive(dev, wr_id)))
@@ -440,6 +443,9 @@ poll_more:
 	}
 
 	if (done < budget) {
+		if (dev->features & NETIF_F_LRO)
+			lro_flush_all(&priv->lro.lro_mgr);
+
 		netif_rx_complete(dev, napi);
 		if (unlikely(ib_req_notify_cq(priv->recv_cq,
 					      IB_CQ_NEXT_COMP |
