@@ -768,6 +768,18 @@ static void idetape_postpone_request(ide_drive_t *drive)
 	ide_stall_queue(drive, tape->dsc_poll_freq);
 }
 
+static void ide_tape_handle_dsc(ide_drive_t *drive)
+{
+	idetape_tape_t *tape = drive->driver_data;
+
+	/* Media access command */
+	tape->dsc_polling_start = jiffies;
+	tape->dsc_poll_freq = IDETAPE_DSC_MA_FAST;
+	tape->dsc_timeout = jiffies + IDETAPE_DSC_MA_TIMEOUT;
+	/* Allow ide.c to handle other requests */
+	idetape_postpone_request(drive);
+}
+
 typedef void idetape_io_buf(ide_drive_t *, struct ide_atapi_pc *, unsigned int);
 
 /*
@@ -833,12 +845,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 		pc->error = 0;
 		if ((pc->flags & PC_FLAG_WAIT_FOR_DSC) &&
 		    (stat & SEEK_STAT) == 0) {
-			/* Media access command */
-			tape->dsc_polling_start = jiffies;
-			tape->dsc_poll_freq = IDETAPE_DSC_MA_FAST;
-			tape->dsc_timeout = jiffies + IDETAPE_DSC_MA_TIMEOUT;
-			/* Allow ide.c to handle other requests */
-			idetape_postpone_request(drive);
+			ide_tape_handle_dsc(drive);
 			return ide_stopped;
 		}
 		/* Command finished - Call the callback function */
