@@ -866,6 +866,7 @@ static void inia100_build_scb(struct orc_host * host, struct orc_scb * scb, stru
 
 	count_sg = scsi_dma_map(cmd);
 	BUG_ON(count_sg < 0);
+	BUG_ON(count_sg > TOTAL_SG_ENTRY);
 
 	/* Build the scatter gather lists */
 	if (count_sg) {
