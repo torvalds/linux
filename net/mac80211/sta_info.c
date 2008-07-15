@@ -320,7 +320,9 @@ int sta_info_insert(struct sta_info *sta)
 	/* notify driver */
 	if (local->ops->sta_notify) {
 		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
-			sdata = sdata->u.vlan.ap;
+			sdata = container_of(sdata->bss,
+					     struct ieee80211_sub_if_data,
+					     u.ap);
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
 				       STA_NOTIFY_ADD, sta->addr);
@@ -375,8 +377,10 @@ static inline void __bss_tim_clear(struct ieee80211_if_ap *bss, u16 aid)
 static void __sta_info_set_tim_bit(struct ieee80211_if_ap *bss,
 				   struct sta_info *sta)
 {
-	if (bss)
-		__bss_tim_set(bss, sta->aid);
+	BUG_ON(!bss);
+
+	__bss_tim_set(bss, sta->aid);
+
 	if (sta->local->ops->set_tim) {
 		sta->local->tim_in_locked_section = true;
 		sta->local->ops->set_tim(local_to_hw(sta->local), sta->aid, 1);
@@ -388,6 +392,8 @@ void sta_info_set_tim_bit(struct sta_info *sta)
 {
 	unsigned long flags;
 
+	BUG_ON(!sta->sdata->bss);
+
 	spin_lock_irqsave(&sta->local->sta_lock, flags);
 	__sta_info_set_tim_bit(sta->sdata->bss, sta);
 	spin_unlock_irqrestore(&sta->local->sta_lock, flags);
@@ -396,8 +402,10 @@ void sta_info_set_tim_bit(struct sta_info *sta)
 static void __sta_info_clear_tim_bit(struct ieee80211_if_ap *bss,
 				     struct sta_info *sta)
 {
-	if (bss)
-		__bss_tim_clear(bss, sta->aid);
+	BUG_ON(!bss);
+
+	__bss_tim_clear(bss, sta->aid);
+
 	if (sta->local->ops->set_tim) {
 		sta->local->tim_in_locked_section = true;
 		sta->local->ops->set_tim(local_to_hw(sta->local), sta->aid, 0);
@@ -408,6 +416,8 @@ static void __sta_info_clear_tim_bit(struct ieee80211_if_ap *bss,
 void sta_info_clear_tim_bit(struct sta_info *sta)
 {
 	unsigned long flags;
+
+	BUG_ON(!sta->sdata->bss);
 
 	spin_lock_irqsave(&sta->local->sta_lock, flags);
 	__sta_info_clear_tim_bit(sta->sdata->bss, sta);
@@ -437,8 +447,9 @@ void __sta_info_unlink(struct sta_info **sta)
 	list_del(&(*sta)->list);
 
 	if (test_and_clear_sta_flags(*sta, WLAN_STA_PS)) {
-		if (sdata->bss)
-			atomic_dec(&sdata->bss->num_sta_ps);
+		BUG_ON(!sdata->bss);
+
+		atomic_dec(&sdata->bss->num_sta_ps);
 		__sta_info_clear_tim_bit(sdata->bss, *sta);
 	}
 
@@ -446,7 +457,9 @@ void __sta_info_unlink(struct sta_info **sta)
 
 	if (local->ops->sta_notify) {
 		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
-			sdata = sdata->u.vlan.ap;
+			sdata = container_of(sdata->bss,
+					     struct ieee80211_sub_if_data,
+					     u.ap);
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
 				       STA_NOTIFY_REMOVE, (*sta)->addr);

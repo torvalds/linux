@@ -237,8 +237,6 @@ struct ieee80211_if_ap {
 	struct sk_buff_head ps_bc_buf;
 	atomic_t num_sta_ps; /* number of stations in PS mode */
 	int dtim_count;
-	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
-	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
 	int num_beacons; /* number of TXed beacon frames for this BSS */
 };
 
@@ -248,7 +246,6 @@ struct ieee80211_if_wds {
 };
 
 struct ieee80211_if_vlan {
-	struct ieee80211_sub_if_data *ap;
 	struct list_head list;
 };
 
@@ -422,8 +419,6 @@ struct ieee80211_sub_if_data {
 	 */
 	u64 basic_rates;
 
-	u16 sequence;
-
 	/* Fragment table for host-based reassembly */
 	struct ieee80211_fragment_entry	fragments[IEEE80211_FRAGMENT_MAX];
 	unsigned int fragment_next;
@@ -432,16 +427,18 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_key *keys[NUM_DEFAULT_KEYS];
 	struct ieee80211_key *default_key;
 
-	/*
-	 * BSS configuration for this interface.
-	 *
-	 * FIXME: I feel bad putting this here when we already have a
-	 *	  bss pointer, but the bss pointer is just wrong when
-	 *	  you have multiple virtual STA mode interfaces...
-	 *	  This needs to be fixed.
-	 */
+	/* BSS configuration for this interface. */
 	struct ieee80211_bss_conf bss_conf;
-	struct ieee80211_if_ap *bss; /* BSS that this device belongs to */
+
+	/*
+	 * AP this belongs to: self in AP mode and
+	 * corresponding AP in VLAN mode, NULL for
+	 * all others (might be needed later in IBSS)
+	 */
+	struct ieee80211_if_ap *bss;
+
+	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
+	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
 
 	union {
 		struct ieee80211_if_ap ap;
@@ -533,8 +530,6 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 	return container_of(p, struct ieee80211_sub_if_data, vif);
 }
 
-#define IEEE80211_DEV_TO_SUB_IF(dev) netdev_priv(dev)
-
 enum {
 	IEEE80211_RX_MSG	= 1,
 	IEEE80211_TX_STATUS_MSG	= 2,
@@ -560,12 +555,6 @@ struct ieee80211_local {
 	u8 wstats_flags;
 	bool tim_in_locked_section; /* see ieee80211_beacon_get() */
 	int tx_headroom; /* required headroom for hardware/radiotap */
-
-	enum {
-		IEEE80211_DEV_UNINITIALIZED = 0,
-		IEEE80211_DEV_REGISTERED,
-		IEEE80211_DEV_UNREGISTERED,
-	} reg_state;
 
 	/* Tasklet and skb queue to process calls from IRQ mode. All frames
 	 * added to skb_queue will be processed, but frames in
@@ -760,6 +749,16 @@ static inline int ieee80211_is_multiqueue(struct ieee80211_local *local)
 #endif
 }
 
+static inline struct ieee80211_sub_if_data *
+IEEE80211_DEV_TO_SUB_IF(struct net_device *dev)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+
+	BUG_ON(!local || local->mdev == dev);
+
+	return netdev_priv(dev);
+}
+
 /* this struct represents 802.11n's RA/TID combination */
 struct ieee80211_ra_tid {
 	u8 ra[ETH_ALEN];
@@ -853,10 +852,8 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 
 /* ieee80211.c */
 int ieee80211_hw_config(struct ieee80211_local *local);
-int ieee80211_if_config(struct net_device *dev);
-int ieee80211_if_config_beacon(struct net_device *dev);
+int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed);
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx);
-void ieee80211_if_setup(struct net_device *dev);
 u32 ieee80211_handle_ht(struct ieee80211_local *local, int enable_ht,
 			struct ieee80211_ht_info *req_ht_cap,
 			struct ieee80211_ht_bss_info *req_bss_cap);
@@ -883,8 +880,8 @@ int ieee80211_sta_scan_results(struct net_device *dev,
 ieee80211_rx_result ieee80211_sta_rx_scan(
 	struct net_device *dev, struct sk_buff *skb,
 	struct ieee80211_rx_status *rx_status);
-void ieee80211_rx_bss_list_init(struct net_device *dev);
-void ieee80211_rx_bss_list_deinit(struct net_device *dev);
+void ieee80211_rx_bss_list_init(struct ieee80211_local *local);
+void ieee80211_rx_bss_list_deinit(struct ieee80211_local *local);
 int ieee80211_sta_set_extra_ie(struct net_device *dev, char *ie, size_t len);
 struct sta_info *ieee80211_ibss_add_sta(struct net_device *dev,
 					struct sk_buff *skb, u8 *bssid,
@@ -925,17 +922,15 @@ static inline void ieee80211_start_mesh(struct net_device *dev)
 {}
 #endif
 
-/* ieee80211_iface.c */
-int ieee80211_if_add(struct net_device *dev, const char *name,
-		     struct net_device **new_dev, int type,
+/* interface handling */
+void ieee80211_if_setup(struct net_device *dev);
+int ieee80211_if_add(struct ieee80211_local *local, const char *name,
+		     struct net_device **new_dev, enum ieee80211_if_types type,
 		     struct vif_params *params);
-void ieee80211_if_set_type(struct net_device *dev, int type);
-void ieee80211_if_reinit(struct net_device *dev);
-void __ieee80211_if_del(struct ieee80211_local *local,
-			struct ieee80211_sub_if_data *sdata);
-int ieee80211_if_remove(struct net_device *dev, const char *name, int id);
-void ieee80211_if_free(struct net_device *dev);
-void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata);
+int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
+			     enum ieee80211_if_types type);
+void ieee80211_if_remove(struct net_device *dev);
+void ieee80211_remove_interfaces(struct ieee80211_local *local);
 
 /* tx handling */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local);

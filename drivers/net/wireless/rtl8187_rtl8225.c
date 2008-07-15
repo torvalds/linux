@@ -307,7 +307,8 @@ static void rtl8225_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3,
 			reg | RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, RTL8225_ANAPARAM2_ON);
+	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
+			  RTL8187_RTL8225_ANAPARAM2_ON);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3,
 			reg & ~RTL818X_CONFIG3_ANAPARAM_WRITE);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
@@ -560,7 +561,8 @@ static void rtl8225z2_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3,
 			reg | RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, RTL8225_ANAPARAM2_ON);
+	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
+			  RTL8187_RTL8225_ANAPARAM2_ON);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3,
 			reg & ~RTL818X_CONFIG3_ANAPARAM_WRITE);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
@@ -913,8 +915,19 @@ static void rtl8225_rf_stop(struct ieee80211_hw *dev)
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg | RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, RTL8225_ANAPARAM2_OFF);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM, RTL8225_ANAPARAM_OFF);
+	if (!priv->is_rtl8187b) {
+		rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
+				  RTL8187_RTL8225_ANAPARAM2_OFF);
+		rtl818x_iowrite32(priv, &priv->map->ANAPARAM,
+				  RTL8187_RTL8225_ANAPARAM_OFF);
+	} else {
+		rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
+				  RTL8187B_RTL8225_ANAPARAM2_OFF);
+		rtl818x_iowrite32(priv, &priv->map->ANAPARAM,
+				  RTL8187B_RTL8225_ANAPARAM_OFF);
+		rtl818x_iowrite8(priv, &priv->map->ANAPARAM3,
+				  RTL8187B_RTL8225_ANAPARAM3_OFF);
+	}
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg & ~RTL818X_CONFIG3_ANAPARAM_WRITE);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 }

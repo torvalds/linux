@@ -556,6 +556,8 @@ enum {
 #define RXON_FLG_CHANNEL_MODE_MSK		__constant_cpu_to_le32(0x3 << 25)
 #define RXON_FLG_CHANNEL_MODE_PURE_40_MSK	__constant_cpu_to_le32(0x1 << 25)
 #define RXON_FLG_CHANNEL_MODE_MIXED_MSK		__constant_cpu_to_le32(0x2 << 25)
+/* CTS to self (if spec allows) flag */
+#define RXON_FLG_SELF_CTS_EN			__constant_cpu_to_le32(0x1<<30)
 
 /* rx_config filter flags */
 /* accept all data frames */
@@ -723,7 +725,7 @@ struct iwl4965_csa_notification {
  * transmission retry.  Device uses cw_max as a bit mask, ANDed with new CW
  * value, to cap the CW value.
  */
-struct iwl4965_ac_qos {
+struct iwl_ac_qos {
 	__le16 cw_min;
 	__le16 cw_max;
 	u8 aifsn;
@@ -745,9 +747,9 @@ struct iwl4965_ac_qos {
  * This command sets up timings for each of the 4 prioritized EDCA Tx FIFOs
  * 0: Background, 1: Best Effort, 2: Video, 3: Voice.
  */
-struct iwl4965_qosparam_cmd {
+struct iwl_qosparam_cmd {
 	__le32 qos_flags;
-	struct iwl4965_ac_qos ac[AC_NUM];
+	struct iwl_ac_qos ac[AC_NUM];
 } __attribute__ ((packed));
 
 /******************************************************************************
@@ -1138,6 +1140,11 @@ struct iwl4965_rx_mpdu_res_start {
  *****************************************************************************/
 
 /* REPLY_TX Tx flags field */
+
+/* 1: Use RTS/CTS protocol or CTS-to-self if spec alows it
+ * before this frame. if CTS-to-self required check
+ * RXON_FLG_SELF_CTS_EN status. */
+#define TX_CMD_FLG_RTS_CTS_MSK __constant_cpu_to_le32(1 << 0)
 
 /* 1: Use Request-To-Send protocol before this frame.
  * Mutually exclusive vs. TX_CMD_FLG_CTS_MSK. */
@@ -2092,6 +2099,9 @@ struct iwl_ct_kill_config {
  *
  *****************************************************************************/
 
+#define SCAN_CHANNEL_TYPE_PASSIVE __constant_cpu_to_le32(0)
+#define SCAN_CHANNEL_TYPE_ACTIVE  __constant_cpu_to_le32(1)
+
 /**
  * struct iwl_scan_channel - entry in REPLY_SCAN_CMD channel table
  *
@@ -2115,12 +2125,12 @@ struct iwl_scan_channel {
 	/*
 	 * type is defined as:
 	 * 0:0 1 = active, 0 = passive
-	 * 1:4 SSID direct bit map; if a bit is set, then corresponding
+	 * 1:20 SSID direct bit map; if a bit is set, then corresponding
 	 *     SSID IE is transmitted in probe request.
-	 * 5:7 reserved
+	 * 21:31 reserved
 	 */
-	u8 type;
-	u8 channel;	/* band is selected by iwl4965_scan_cmd "flags" field */
+	__le32 type;
+	__le16 channel;	/* band is selected by iwl_scan_cmd "flags" field */
 	u8 tx_gain;		/* gain for analog radio */
 	u8 dsp_atten;		/* gain for DSP */
 	__le16 active_dwell;	/* in 1024-uSec TU (time units), typ 5-50 */
@@ -2140,9 +2150,9 @@ struct iwl_ssid_ie {
 	u8 ssid[32];
 } __attribute__ ((packed));
 
-#define PROBE_OPTION_MAX        0x4
+#define PROBE_OPTION_MAX        	0x14
 #define TX_CMD_LIFE_TIME_INFINITE	__constant_cpu_to_le32(0xFFFFFFFF)
-#define IWL_GOOD_CRC_TH		__constant_cpu_to_le16(1)
+#define IWL_GOOD_CRC_TH			__constant_cpu_to_le16(1)
 #define IWL_MAX_SCAN_SIZE 1024
 
 /*
@@ -2919,7 +2929,7 @@ struct iwl5000_calibration_chain_noise_gain_cmd {
  * For each of 3 possible LEDs (Activity/Link/Tech, selected by "id" field),
  * this command turns it on or off, or sets up a periodic blinking cycle.
  */
-struct iwl4965_led_cmd {
+struct iwl_led_cmd {
 	__le32 interval;	/* "interval" in uSec */
 	u8 id;			/* 1: Activity, 2: Link, 3: Tech */
 	u8 off;			/* # intervals off while blinking;

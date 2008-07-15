@@ -430,8 +430,10 @@ static int rtl8187_init_hw(struct ieee80211_hw *dev)
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg |
 			 RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM, RTL8225_ANAPARAM_ON);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, RTL8225_ANAPARAM2_ON);
+	rtl818x_iowrite32(priv, &priv->map->ANAPARAM,
+			  RTL8187_RTL8225_ANAPARAM_ON);
+	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
+			  RTL8187_RTL8225_ANAPARAM2_ON);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg &
 			 ~RTL818X_CONFIG3_ANAPARAM_WRITE);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
@@ -453,8 +455,10 @@ static int rtl8187_init_hw(struct ieee80211_hw *dev)
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3,
 			reg | RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM, RTL8225_ANAPARAM_ON);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, RTL8225_ANAPARAM2_ON);
+	rtl818x_iowrite32(priv, &priv->map->ANAPARAM,
+			  RTL8187_RTL8225_ANAPARAM_ON);
+	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
+			  RTL8187_RTL8225_ANAPARAM2_ON);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3,
 			reg & ~RTL818X_CONFIG3_ANAPARAM_WRITE);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
@@ -566,9 +570,12 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
 	reg |= RTL818X_CONFIG3_ANAPARAM_WRITE | RTL818X_CONFIG3_GNT_SELECT;
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, 0x727f3f52);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM, 0x45090658);
-	rtl818x_iowrite8(priv, &priv->map->ANAPARAM3, 0);
+	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
+			  RTL8187B_RTL8225_ANAPARAM2_ON);
+	rtl818x_iowrite32(priv, &priv->map->ANAPARAM,
+			  RTL8187B_RTL8225_ANAPARAM_ON);
+	rtl818x_iowrite8(priv, &priv->map->ANAPARAM3,
+			 RTL8187B_RTL8225_ANAPARAM3_ON);
 
 	rtl818x_iowrite8(priv, (u8 *)0xFF61, 0x10);
 	reg = rtl818x_ioread8(priv, (u8 *)0xFF62);
@@ -1180,7 +1187,7 @@ static struct usb_driver rtl8187_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rtl8187_table,
 	.probe		= rtl8187_probe,
-	.disconnect	= rtl8187_disconnect,
+	.disconnect	= __devexit_p(rtl8187_disconnect),
 };
 
 static int __init rtl8187_init(void)

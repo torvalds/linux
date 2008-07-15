@@ -2265,9 +2265,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 
 	/* as default allow aggregation for all tids */
 	lq_sta->tx_agg_tid_en = IWL_AGG_ALL_TID;
-#ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->drv = priv;
-#endif
 
 	rs_initialize_lq(priv, conf, sta);
 }

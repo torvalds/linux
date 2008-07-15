@@ -250,6 +250,9 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 
 	/* always get timestamp with Rx frame */
 	priv->staging_rxon.flags |= RXON_FLG_TSF2HOST_MSK;
+	/* allow CTS-to-self if possible. this is relevant only for
+	 * 5000, but will not damage 4965 */
+	priv->staging_rxon.flags |= RXON_FLG_SELF_CTS_EN;
 
 	ret = iwl4965_check_rxon_cmd(&priv->staging_rxon);
 	if (ret) {
@@ -325,16 +328,6 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 	if (!priv->error_recovering)
 		priv->start_calib = 0;
 
-	iwl_init_sensitivity(priv);
-
-	/* If we issue a new RXON command which required a tune then we must
-	 * send a new TXPOWER command or we won't be able to Tx any frames */
-	ret = iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
-	if (ret) {
-		IWL_ERROR("Error sending TX power (%d)\n", ret);
-		return ret;
-	}
-
 	/* Add the broadcast address so we can send broadcast frames */
 	if (iwl_rxon_add_station(priv, iwl_bcast_addr, 0) ==
 						IWL_INVALID_STATION) {
@@ -368,6 +361,16 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 			return ret;
 		}
 		memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
+	}
+
+	iwl_init_sensitivity(priv);
+
+	/* If we issue a new RXON command which required a tune then we must
+	 * send a new TXPOWER command or we won't be able to Tx any frames */
+	ret = iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+	if (ret) {
+		IWL_ERROR("Error sending TX power (%d)\n", ret);
+		return ret;
 	}
 
 	return 0;
@@ -572,25 +575,14 @@ static void iwl4965_ht_conf(struct iwl_priv *priv,
 /*
  * QoS  support
 */
-static int iwl4965_send_qos_params_command(struct iwl_priv *priv,
-				       struct iwl4965_qosparam_cmd *qos)
+static void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 {
-
-	return iwl_send_cmd_pdu(priv, REPLY_QOS_PARAM,
-				sizeof(struct iwl4965_qosparam_cmd), qos);
-}
-
-static void iwl4965_activate_qos(struct iwl_priv *priv, u8 force)
-{
-	unsigned long flags;
-
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	if (!priv->qos_data.qos_enable)
 		return;
 
-	spin_lock_irqsave(&priv->lock, flags);
 	priv->qos_data.def_qos_parm.qos_flags = 0;
 
 	if (priv->qos_data.qos_cap.q_AP.queue_request &&
@@ -604,15 +596,14 @@ static void iwl4965_activate_qos(struct iwl_priv *priv, u8 force)
 	if (priv->current_ht_config.is_ht)
 		priv->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
 
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	if (force || iwl_is_associated(priv)) {
 		IWL_DEBUG_QOS("send QoS cmd with Qos active=%d FLAGS=0x%X\n",
 				priv->qos_data.qos_active,
 				priv->qos_data.def_qos_parm.qos_flags);
 
-		iwl4965_send_qos_params_command(priv,
-				&(priv->qos_data.def_qos_parm));
+		iwl_send_cmd_pdu_async(priv, REPLY_QOS_PARAM,
+				       sizeof(struct iwl_qosparam_cmd),
+				       &priv->qos_data.def_qos_parm, NULL);
 	}
 }
 
@@ -2421,6 +2412,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	struct ieee80211_conf *conf = NULL;
 	int ret = 0;
 	DECLARE_MAC_BUF(mac);
+	unsigned long flags;
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
 		IWL_ERROR("%s Should not be called in AP mode\n", __FUNCTION__);
@@ -2510,23 +2502,13 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS)
 		priv->assoc_station_added = 1;
 
-	iwl4965_activate_qos(priv, 0);
+	spin_lock_irqsave(&priv->lock, flags);
+	iwl_activate_qos(priv, 0);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl_power_update_mode(priv, 0);
 	/* we have just associated, don't start scan too early */
 	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
-}
-
-
-static void iwl4965_bg_post_associate(struct work_struct *data)
-{
-	struct iwl_priv *priv = container_of(data, struct iwl_priv,
-					     post_associate.work);
-
-	mutex_lock(&priv->mutex);
-	iwl4965_post_associate(priv);
-	mutex_unlock(&priv->mutex);
-
 }
 
 static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
@@ -2659,7 +2641,6 @@ static void iwl4965_mac_stop(struct ieee80211_hw *hw)
 		 */
 		mutex_lock(&priv->mutex);
 		iwl_scan_cancel_timeout(priv, 100);
-		cancel_delayed_work(&priv->post_associate);
 		mutex_unlock(&priv->mutex);
 	}
 
@@ -2855,6 +2836,7 @@ out:
 static void iwl4965_config_ap(struct iwl_priv *priv)
 {
 	int ret = 0;
+	unsigned long flags;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -2902,7 +2884,9 @@ static void iwl4965_config_ap(struct iwl_priv *priv)
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwl4965_commit_rxon(priv);
-		iwl4965_activate_qos(priv, 1);
+		spin_lock_irqsave(&priv->lock, flags);
+		iwl_activate_qos(priv, 1);
+		spin_unlock_irqrestore(&priv->lock, flags);
 		iwl_rxon_add_station(priv, iwl_bcast_addr, 0);
 	}
 	iwl4965_send_beacon_cmd(priv);
@@ -2911,6 +2895,9 @@ static void iwl4965_config_ap(struct iwl_priv *priv)
 	 * configuration, reset the AP, unassoc, rxon timing, assoc,
 	 * clear sta table, add BCAST sta... */
 }
+
+/* temporary */
+static int iwl4965_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb);
 
 static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
@@ -2929,8 +2916,18 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 		return 0;
 	}
 
+	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS &&
+	    conf->changed & IEEE80211_IFCC_BEACON) {
+		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+		if (!beacon)
+			return -ENOMEM;
+		rc = iwl4965_mac_beacon_update(hw, beacon);
+		if (rc)
+			return rc;
+	}
+
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_AP) &&
-	    (!conf->beacon || !conf->ssid_len)) {
+	    (!conf->ssid_len)) {
 		IWL_DEBUG_MAC80211
 		    ("Leaving in AP mode because HostAPD is not ready.\n");
 		return 0;
@@ -2962,7 +2959,7 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 		if (priv->ibss_beacon)
 			dev_kfree_skb(priv->ibss_beacon);
 
-		priv->ibss_beacon = conf->beacon;
+		priv->ibss_beacon = ieee80211_beacon_get(hw, vif);
 	}
 
 	if (iwl_is_rfkill(priv))
@@ -3048,7 +3045,6 @@ static void iwl4965_mac_remove_interface(struct ieee80211_hw *hw,
 
 	if (iwl_is_ready_rf(priv)) {
 		iwl_scan_cancel_timeout(priv, 100);
-		cancel_delayed_work(&priv->post_associate);
 		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		iwl4965_commit_rxon(priv);
 	}
@@ -3338,15 +3334,12 @@ static int iwl4965_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	priv->qos_data.def_qos_parm.ac[q].reserved1 = 0;
 	priv->qos_data.qos_active = 1;
 
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	mutex_lock(&priv->mutex);
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP)
-		iwl4965_activate_qos(priv, 1);
+		iwl_activate_qos(priv, 1);
 	else if (priv->assoc_id && iwl_is_associated(priv))
-		iwl4965_activate_qos(priv, 0);
+		iwl_activate_qos(priv, 0);
 
-	mutex_unlock(&priv->mutex);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
@@ -3412,8 +3405,6 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl_reset_qos(priv);
-
-	cancel_delayed_work(&priv->post_associate);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->assoc_id = 0;
@@ -4016,7 +4007,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->beacon_update, iwl4965_bg_beacon_update);
 	INIT_WORK(&priv->set_monitor, iwl4965_bg_set_monitor);
 	INIT_WORK(&priv->run_time_calib_work, iwl_bg_run_time_calib_work);
-	INIT_DELAYED_WORK(&priv->post_associate, iwl4965_bg_post_associate);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 
@@ -4043,7 +4033,6 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_delayed_work_sync(&priv->init_alive_start);
 	cancel_delayed_work(&priv->scan_check);
 	cancel_delayed_work(&priv->alive_start);
-	cancel_delayed_work(&priv->post_associate);
 	cancel_work_sync(&priv->beacon_update);
 	del_timer_sync(&priv->statistics_periodic);
 }
@@ -4090,7 +4079,6 @@ static struct ieee80211_ops iwl4965_hw_ops = {
 	.get_tx_stats = iwl4965_mac_get_tx_stats,
 	.conf_tx = iwl4965_mac_conf_tx,
 	.reset_tsf = iwl4965_mac_reset_tsf,
-	.beacon_update = iwl4965_mac_beacon_update,
 	.bss_info_changed = iwl4965_bss_info_changed,
 	.ampdu_action = iwl4965_mac_ampdu_action,
 	.hw_scan = iwl4965_mac_hw_scan
@@ -4409,8 +4397,16 @@ static struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
 	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
 #ifdef CONFIG_IWL5000
-	{IWL_PCI_DEVICE(0x4235, PCI_ANY_ID, iwl5300_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4232, 0x1205, iwl5100_bg_cfg)},
+	{IWL_PCI_DEVICE(0x4232, 0x1305, iwl5100_bg_cfg)},
+	{IWL_PCI_DEVICE(0x4232, 0x1206, iwl5100_abg_cfg)},
+	{IWL_PCI_DEVICE(0x4232, 0x1306, iwl5100_abg_cfg)},
+	{IWL_PCI_DEVICE(0x4232, 0x1326, iwl5100_abg_cfg)},
+	{IWL_PCI_DEVICE(0x4237, 0x1216, iwl5100_abg_cfg)},
 	{IWL_PCI_DEVICE(0x4232, PCI_ANY_ID, iwl5100_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4235, PCI_ANY_ID, iwl5300_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4236, PCI_ANY_ID, iwl5300_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4237, PCI_ANY_ID, iwl5100_agn_cfg)},
 	{IWL_PCI_DEVICE(0x423A, PCI_ANY_ID, iwl5350_agn_cfg)},
 #endif /* CONFIG_IWL5000 */
 	{0}

@@ -126,7 +126,7 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 					  (1 << IEEE80211_RADIOTAP_CHANNEL));
 	hdr->rt_flags = 0;
 	hdr->rt_rate = txrate->bitrate / 5;
-	hdr->rt_channel = data->channel->center_freq;
+	hdr->rt_channel = cpu_to_le16(data->channel->center_freq);
 	flags = IEEE80211_CHAN_2GHZ;
 	if (txrate->flags & IEEE80211_RATE_ERP_G)
 		flags |= IEEE80211_CHAN_OFDM;

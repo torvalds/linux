@@ -6,8 +6,6 @@
 #ifdef CONFIG_MAC80211_DEBUGFS
 void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata);
 void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata);
-void ieee80211_debugfs_change_if_type(struct ieee80211_sub_if_data *sdata,
-				     int oldtype);
 void ieee80211_debugfs_netdev_init(void);
 void ieee80211_debugfs_netdev_exit(void);
 #else
@@ -16,9 +14,6 @@ static inline void ieee80211_debugfs_add_netdev(
 {}
 static inline void ieee80211_debugfs_remove_netdev(
 	struct ieee80211_sub_if_data *sdata)
-{}
-static inline void ieee80211_debugfs_change_if_type(
-	struct ieee80211_sub_if_data *sdata, int oldtype)
 {}
 static inline void ieee80211_debugfs_netdev_init(void)
 {}

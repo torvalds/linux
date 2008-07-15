@@ -510,8 +510,6 @@ struct iwl3945_ucode {
 	u8 data[0];		/* data in same order as "size" elements */
 };
 
-#define IWL_IBSS_MAC_HASH_SIZE 32
-
 struct iwl3945_ibss_seq {
 	u8 mac[ETH_ALEN];
 	u16 seq_num;
@@ -569,17 +567,8 @@ extern int iwl3945_send_add_station(struct iwl3945_priv *priv,
 				struct iwl3945_addsta_cmd *sta, u8 flags);
 extern u8 iwl3945_add_station(struct iwl3945_priv *priv, const u8 *bssid,
 			  int is_ap, u8 flags);
-extern int iwl3945_is_network_packet(struct iwl3945_priv *priv,
-				 struct ieee80211_hdr *header);
 extern int iwl3945_power_init_handle(struct iwl3945_priv *priv);
 extern int iwl3945_eeprom_init(struct iwl3945_priv *priv);
-extern void iwl3945_handle_data_packet_monitor(struct iwl3945_priv *priv,
-					   struct iwl3945_rx_mem_buffer *rxb,
-					   void *data, short len,
-					   struct ieee80211_rx_status *stats,
-					   u16 phy_flags);
-extern int iwl3945_is_duplicate_packet(struct iwl3945_priv *priv,
-				       struct ieee80211_hdr *header);
 extern int iwl3945_rx_queue_alloc(struct iwl3945_priv *priv);
 extern void iwl3945_rx_queue_reset(struct iwl3945_priv *priv,
 			       struct iwl3945_rx_queue *rxq);
@@ -805,6 +794,7 @@ struct iwl3945_priv {
 	u8 last_blink_rate;
 	u8 allow_blinking;
 	unsigned int rxtxpackets;
+	u64 led_tpt;
 #endif
 
 
@@ -858,14 +848,6 @@ struct iwl3945_priv {
 	/* Rx'd packet timing information */
 	u32 last_beacon_time;
 	u64 last_tsf;
-
-	/* Duplicate packet detection */
-	u16 last_seq_num;
-	u16 last_frag_num;
-	unsigned long last_packet_time;
-
-	/* Hash table for finding stations in IBSS network */
-	struct list_head ibss_mac_hash[IWL_IBSS_MAC_HASH_SIZE];
 
 	/* eeprom */
 	struct iwl3945_eeprom eeprom;

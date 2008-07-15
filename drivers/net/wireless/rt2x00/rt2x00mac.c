@@ -96,6 +96,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	enum data_queue_qid qid = skb_get_queue_mapping(skb);
+	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
 	struct data_queue *queue;
 	u16 frame_control;
 
@@ -149,6 +150,18 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			ieee80211_stop_queue(rt2x00dev->hw, qid);
 			return NETDEV_TX_BUSY;
 		}
+	}
+
+	/*
+	 * XXX: This is as wrong as the old mac80211 code was,
+	 *	due to beacons not getting sequence numbers assigned
+	 *	properly.
+	 */
+	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
+		if (tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+			intf->seqno += 0x10;
+		ieee80211hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		ieee80211hdr->seq_ctrl |= cpu_to_le16(intf->seqno);
 	}
 
 	if (rt2x00queue_write_tx_frame(queue, skb)) {
@@ -348,7 +361,8 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	int status;
+	int update_bssid = 0;
+	int status = 0;
 
 	/*
 	 * Mac80211 might be calling this function while we are trying
@@ -360,12 +374,13 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	spin_lock(&intf->lock);
 
 	/*
-	 * If the interface does not work in master mode,
-	 * then the bssid value in the interface structure
-	 * should now be set.
+	 * conf->bssid can be NULL if coming from the internal
+	 * beacon update routine.
 	 */
-	if (conf->type != IEEE80211_IF_TYPE_AP)
+	if (conf->changed & IEEE80211_IFCC_BSSID && conf->bssid) {
+		update_bssid = 1;
 		memcpy(&intf->bssid, conf->bssid, ETH_ALEN);
+	}
 
 	spin_unlock(&intf->lock);
 
@@ -375,17 +390,14 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	 * values as arguments we make keep access to rt2x00_intf thread safe
 	 * even without the lock.
 	 */
-	rt2x00lib_config_intf(rt2x00dev, intf, conf->type, NULL, conf->bssid);
+	rt2x00lib_config_intf(rt2x00dev, intf, vif->type, NULL,
+			      update_bssid ? conf->bssid : NULL);
 
 	/*
-	 * We only need to initialize the beacon when master mode is enabled.
+	 * Update the beacon.
 	 */
-	if (conf->type != IEEE80211_IF_TYPE_AP || !conf->beacon)
-		return 0;
-
-	status = rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw, conf->beacon);
-	if (status)
-		dev_kfree_skb(conf->beacon);
+	if (conf->changed & IEEE80211_IFCC_BEACON)
+		status = rt2x00queue_update_beacon(rt2x00dev, vif);
 
 	return status;
 }
@@ -501,7 +513,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	 * When the erp information has changed, we should perform
 	 * additional configuration steps. For all other changes we are done.
 	 */
-	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
+	if (changes & (BSS_CHANGED_ERP_PREAMBLE | BSS_CHANGED_ERP_CTS_PROT)) {
 		if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
 			rt2x00lib_config_erp(rt2x00dev, intf, bss_conf);
 		else

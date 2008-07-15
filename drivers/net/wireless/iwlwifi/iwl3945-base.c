@@ -2035,36 +2035,6 @@ static int iwl3945_send_power_mode(struct iwl3945_priv *priv, u32 mode)
 	return rc;
 }
 
-int iwl3945_is_network_packet(struct iwl3945_priv *priv, struct ieee80211_hdr *header)
-{
-	/* Filter incoming packets to determine if they are targeted toward
-	 * this network, discarding packets coming from ourselves */
-	switch (priv->iw_mode) {
-	case IEEE80211_IF_TYPE_IBSS: /* Header: Dest. | Source    | BSSID */
-		/* packets from our adapter are dropped (echo) */
-		if (!compare_ether_addr(header->addr2, priv->mac_addr))
-			return 0;
-		/* {broad,multi}cast packets to our IBSS go through */
-		if (is_multicast_ether_addr(header->addr1))
-			return !compare_ether_addr(header->addr3, priv->bssid);
-		/* packets to our adapter go through */
-		return !compare_ether_addr(header->addr1, priv->mac_addr);
-	case IEEE80211_IF_TYPE_STA: /* Header: Dest. | AP{BSSID} | Source */
-		/* packets from our adapter are dropped (echo) */
-		if (!compare_ether_addr(header->addr3, priv->mac_addr))
-			return 0;
-		/* {broad,multi}cast packets to our BSS go through */
-		if (is_multicast_ether_addr(header->addr1))
-			return !compare_ether_addr(header->addr2, priv->bssid);
-		/* packets to our adapter go through */
-		return !compare_ether_addr(header->addr1, priv->mac_addr);
-	default:
-		return 1;
-	}
-
-	return 1;
-}
-
 /**
  * iwl3945_scan_cancel - Cancel any currently executing HW scan
  *
@@ -2115,20 +2085,6 @@ static int iwl3945_scan_cancel_timeout(struct iwl3945_priv *priv, unsigned long 
 	}
 
 	return ret;
-}
-
-static void iwl3945_sequence_reset(struct iwl3945_priv *priv)
-{
-	/* Reset ieee stats */
-
-	/* We don't reset the net_device_stats (ieee->stats) on
-	 * re-association */
-
-	priv->last_seq_num = -1;
-	priv->last_frag_num = -1;
-	priv->last_packet_time = 0;
-
-	iwl3945_scan_cancel(priv);
 }
 
 #define MAX_UCODE_BEACON_INTERVAL	1024
@@ -2923,72 +2879,6 @@ void iwl3945_set_decrypted_flag(struct iwl3945_priv *priv, struct sk_buff *skb,
 	default:
 		break;
 	}
-}
-
-#define IWL_PACKET_RETRY_TIME HZ
-
-int iwl3945_is_duplicate_packet(struct iwl3945_priv *priv, struct ieee80211_hdr *header)
-{
-	u16 sc = le16_to_cpu(header->seq_ctrl);
-	u16 seq = (sc & IEEE80211_SCTL_SEQ) >> 4;
-	u16 frag = sc & IEEE80211_SCTL_FRAG;
-	u16 *last_seq, *last_frag;
-	unsigned long *last_time;
-
-	switch (priv->iw_mode) {
-	case IEEE80211_IF_TYPE_IBSS:{
-		struct list_head *p;
-		struct iwl3945_ibss_seq *entry = NULL;
-		u8 *mac = header->addr2;
-		int index = mac[5] & (IWL_IBSS_MAC_HASH_SIZE - 1);
-
-		__list_for_each(p, &priv->ibss_mac_hash[index]) {
-			entry = list_entry(p, struct iwl3945_ibss_seq, list);
-			if (!compare_ether_addr(entry->mac, mac))
-				break;
-		}
-		if (p == &priv->ibss_mac_hash[index]) {
-			entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-			if (!entry) {
-				IWL_ERROR("Cannot malloc new mac entry\n");
-				return 0;
-			}
-			memcpy(entry->mac, mac, ETH_ALEN);
-			entry->seq_num = seq;
-			entry->frag_num = frag;
-			entry->packet_time = jiffies;
-			list_add(&entry->list, &priv->ibss_mac_hash[index]);
-			return 0;
-		}
-		last_seq = &entry->seq_num;
-		last_frag = &entry->frag_num;
-		last_time = &entry->packet_time;
-		break;
-	}
-	case IEEE80211_IF_TYPE_STA:
-		last_seq = &priv->last_seq_num;
-		last_frag = &priv->last_frag_num;
-		last_time = &priv->last_packet_time;
-		break;
-	default:
-		return 0;
-	}
-	if ((*last_seq == seq) &&
-	    time_after(*last_time + IWL_PACKET_RETRY_TIME, jiffies)) {
-		if (*last_frag == frag)
-			goto drop;
-		if (*last_frag + 1 != frag)
-			/* out-of-order fragment */
-			goto drop;
-	} else
-		*last_seq = seq;
-
-	*last_frag = frag;
-	*last_time = jiffies;
-	return 0;
-
- drop:
-	return 1;
 }
 
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
@@ -6531,8 +6421,6 @@ static void iwl3945_bg_post_associate(struct work_struct *data)
 		break;
 	}
 
-	iwl3945_sequence_reset(priv);
-
 	iwl3945_activate_qos(priv, 0);
 
 	/* we have just associated, don't start scan too early */
@@ -6907,6 +6795,9 @@ static void iwl3945_config_ap(struct iwl3945_priv *priv)
 	 * clear sta table, add BCAST sta... */
 }
 
+/* temporary */
+static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb);
+
 static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
 				    struct ieee80211_if_conf *conf)
@@ -6924,10 +6815,21 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 		return 0;
 	}
 
+	/* handle this temporarily here */
+	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS &&
+	    conf->changed & IEEE80211_IFCC_BEACON) {
+		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+		if (!beacon)
+			return -ENOMEM;
+		rc = iwl3945_mac_beacon_update(hw, beacon);
+		if (rc)
+			return rc;
+	}
+
 	/* XXX: this MUST use conf->mac_addr */
 
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_AP) &&
-	    (!conf->beacon || !conf->ssid_len)) {
+	    (!conf->ssid_len)) {
 		IWL_DEBUG_MAC80211
 		    ("Leaving in AP mode because HostAPD is not ready.\n");
 		return 0;
@@ -6959,7 +6861,7 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 		if (priv->ibss_beacon)
 			dev_kfree_skb(priv->ibss_beacon);
 
-		priv->ibss_beacon = conf->beacon;
+		priv->ibss_beacon = ieee80211_beacon_get(hw, vif);
 	}
 
 	if (iwl3945_is_rfkill(priv))
@@ -7940,7 +7842,6 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.conf_tx = iwl3945_mac_conf_tx,
 	.get_tsf = iwl3945_mac_get_tsf,
 	.reset_tsf = iwl3945_mac_reset_tsf,
-	.beacon_update = iwl3945_mac_beacon_update,
 	.hw_scan = iwl3945_mac_hw_scan
 };
 
@@ -7950,7 +7851,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	struct iwl3945_priv *priv;
 	struct ieee80211_hw *hw;
 	struct iwl_3945_cfg *cfg = (struct iwl_3945_cfg *)(ent->driver_data);
-	int i;
 	unsigned long flags;
 	DECLARE_MAC_BUF(mac);
 
@@ -8010,9 +7910,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	spin_lock_init(&priv->power_data.lock);
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
-
-	for (i = 0; i < IWL_IBSS_MAC_HASH_SIZE; i++)
-		INIT_LIST_HEAD(&priv->ibss_mac_hash[i]);
 
 	INIT_LIST_HEAD(&priv->free_frames);
 
@@ -8186,8 +8083,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl3945_priv *priv = pci_get_drvdata(pdev);
-	struct list_head *p, *q;
-	int i;
 	unsigned long flags;
 
 	if (!priv)
@@ -8207,14 +8102,6 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl_synchronize_irq(priv);
-
-	/* Free MAC hash list for ADHOC */
-	for (i = 0; i < IWL_IBSS_MAC_HASH_SIZE; i++) {
-		list_for_each_safe(p, q, &priv->ibss_mac_hash[i]) {
-			list_del(p);
-			kfree(list_entry(p, struct iwl3945_ibss_seq, list));
-		}
-	}
 
 	sysfs_remove_group(&pdev->dev.kobj, &iwl3945_attribute_group);
 

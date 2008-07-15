@@ -825,7 +825,7 @@ int iwl_setup_mac(struct iwl_priv *priv)
 	hw->queues = 4;
 	/* queues to support 11n aggregation */
 	if (priv->cfg->sku & IWL_SKU_N)
-		hw->ampdu_queues = 12;
+		hw->ampdu_queues = priv->cfg->mod_params->num_of_ampdu_queues;
 
 	hw->conf.beacon_int = 100;
 

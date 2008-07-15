@@ -105,7 +105,7 @@ static int ieee80211_master_open(struct net_device *dev)
 
 	/* we hold the RTNL here so can safely walk the list */
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (sdata->dev != dev && netif_running(sdata->dev)) {
+		if (netif_running(sdata->dev)) {
 			res = 0;
 			break;
 		}
@@ -126,7 +126,7 @@ static int ieee80211_master_stop(struct net_device *dev)
 
 	/* we hold the RTNL here so can safely walk the list */
 	list_for_each_entry(sdata, &local->interfaces, list)
-		if (sdata->dev != dev && netif_running(sdata->dev))
+		if (netif_running(sdata->dev))
 			dev_close(sdata->dev);
 
 	return 0;
@@ -194,7 +194,7 @@ static int ieee80211_open(struct net_device *dev)
 	list_for_each_entry(nsdata, &local->interfaces, list) {
 		struct net_device *ndev = nsdata->dev;
 
-		if (ndev != dev && ndev != local->mdev && netif_running(ndev)) {
+		if (ndev != dev && netif_running(ndev)) {
 			/*
 			 * Allow only a single IBSS interface to be up at any
 			 * time. This is restricted because beacon distribution
@@ -207,30 +207,6 @@ static int ieee80211_open(struct net_device *dev)
 			 */
 			if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
 			    nsdata->vif.type == IEEE80211_IF_TYPE_IBSS)
-				return -EBUSY;
-
-			/*
-			 * Disallow multiple IBSS/STA mode interfaces.
-			 *
-			 * This is a technical restriction, it is possible although
-			 * most likely not IEEE 802.11 compliant to have multiple
-			 * STAs with just a single hardware (the TSF timer will not
-			 * be adjusted properly.)
-			 *
-			 * However, because mac80211 uses the master device's BSS
-			 * information for each STA/IBSS interface, doing this will
-			 * currently corrupt that BSS information completely, unless,
-			 * a not very useful case, both STAs are associated to the
-			 * same BSS.
-			 *
-			 * To remove this restriction, the BSS information needs to
-			 * be embedded in the STA/IBSS mode sdata instead of using
-			 * the master device's BSS structure.
-			 */
-			if ((sdata->vif.type == IEEE80211_IF_TYPE_STA ||
-			     sdata->vif.type == IEEE80211_IF_TYPE_IBSS) &&
-			    (nsdata->vif.type == IEEE80211_IF_TYPE_STA ||
-			     nsdata->vif.type == IEEE80211_IF_TYPE_IBSS))
 				return -EBUSY;
 
 			/*
@@ -252,7 +228,7 @@ static int ieee80211_open(struct net_device *dev)
 			 */
 			if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN &&
 			    nsdata->vif.type == IEEE80211_IF_TYPE_AP)
-				sdata->u.vlan.ap = nsdata;
+				sdata->bss = &nsdata->u.ap;
 		}
 	}
 
@@ -262,10 +238,13 @@ static int ieee80211_open(struct net_device *dev)
 			return -ENOLINK;
 		break;
 	case IEEE80211_IF_TYPE_VLAN:
-		if (!sdata->u.vlan.ap)
+		if (!sdata->bss)
 			return -ENOLINK;
+		list_add(&sdata->u.vlan.list, &sdata->bss->vlans);
 		break;
 	case IEEE80211_IF_TYPE_AP:
+		sdata->bss = &sdata->u.ap;
+		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_MNTR:
 	case IEEE80211_IF_TYPE_IBSS:
@@ -283,14 +262,13 @@ static int ieee80211_open(struct net_device *dev)
 		if (local->ops->start)
 			res = local->ops->start(local_to_hw(local));
 		if (res)
-			return res;
+			goto err_del_bss;
 		need_hw_reconfig = 1;
 		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
 	}
 
 	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_VLAN:
-		list_add(&sdata->u.vlan.list, &sdata->u.vlan.ap->u.ap.vlans);
 		/* no need to tell driver */
 		break;
 	case IEEE80211_IF_TYPE_MNTR:
@@ -329,7 +307,8 @@ static int ieee80211_open(struct net_device *dev)
 		if (res)
 			goto err_stop;
 
-		ieee80211_if_config(dev);
+		if (ieee80211_vif_is_mesh(&sdata->vif))
+			ieee80211_start_mesh(sdata->dev);
 		changed |= ieee80211_reset_erp_info(dev);
 		ieee80211_bss_info_change_notify(sdata, changed);
 		ieee80211_enable_keys(sdata);
@@ -404,6 +383,10 @@ static int ieee80211_open(struct net_device *dev)
  err_stop:
 	if (!local->open_count && local->ops->stop)
 		local->ops->stop(local_to_hw(local));
+ err_del_bss:
+	sdata->bss = NULL;
+	if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
+		list_del(&sdata->u.vlan.list);
 	return res;
 }
 
@@ -486,7 +469,6 @@ static int ieee80211_stop(struct net_device *dev)
 	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_VLAN:
 		list_del(&sdata->u.vlan.list);
-		sdata->u.vlan.ap = NULL;
 		/* no need to tell driver */
 		break;
 	case IEEE80211_IF_TYPE_MNTR:
@@ -548,6 +530,8 @@ static int ieee80211_stop(struct net_device *dev)
 		ieee80211_disable_keys(sdata);
 		local->ops->remove_interface(local_to_hw(local), &conf);
 	}
+
+	sdata->bss = NULL;
 
 	if (local->open_count == 0) {
 		if (netif_running(local->mdev))
@@ -988,7 +972,6 @@ static const struct header_ops ieee80211_header_ops = {
 	.cache_update	= eth_header_cache_update,
 };
 
-/* Must not be called for mdev */
 void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -998,62 +981,52 @@ void ieee80211_if_setup(struct net_device *dev)
 	dev->change_mtu = ieee80211_change_mtu;
 	dev->open = ieee80211_open;
 	dev->stop = ieee80211_stop;
-	dev->destructor = ieee80211_if_free;
+	dev->destructor = free_netdev;
 }
 
 /* everything else */
 
-static int __ieee80211_if_config(struct net_device *dev,
-				 struct sk_buff *beacon)
+int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_conf conf;
 
-	if (!local->ops->config_interface || !netif_running(dev))
+	if (WARN_ON(!netif_running(sdata->dev)))
+		return 0;
+
+	if (!local->ops->config_interface)
 		return 0;
 
 	memset(&conf, 0, sizeof(conf));
-	conf.type = sdata->vif.type;
+	conf.changed = changed;
+
 	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
 	    sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		conf.bssid = sdata->u.sta.bssid;
 		conf.ssid = sdata->u.sta.ssid;
 		conf.ssid_len = sdata->u.sta.ssid_len;
-	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		conf.beacon = beacon;
-		ieee80211_start_mesh(dev);
 	} else if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
+		conf.bssid = sdata->dev->dev_addr;
 		conf.ssid = sdata->u.ap.ssid;
 		conf.ssid_len = sdata->u.ap.ssid_len;
-		conf.beacon = beacon;
+	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		u8 zero[ETH_ALEN] = { 0 };
+		conf.bssid = zero;
+		conf.ssid = zero;
+		conf.ssid_len = 0;
+	} else {
+		WARN_ON(1);
+		return -EINVAL;
 	}
+
+	if (WARN_ON(!conf.bssid && (changed & IEEE80211_IFCC_BSSID)))
+		return -EINVAL;
+
+	if (WARN_ON(!conf.ssid && (changed & IEEE80211_IFCC_SSID)))
+		return -EINVAL;
+
 	return local->ops->config_interface(local_to_hw(local),
 					    &sdata->vif, &conf);
-}
-
-int ieee80211_if_config(struct net_device *dev)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT &&
-	    (local->hw.flags & IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE))
-		return ieee80211_if_config_beacon(dev);
-	return __ieee80211_if_config(dev, NULL);
-}
-
-int ieee80211_if_config_beacon(struct net_device *dev)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct sk_buff *skb;
-
-	if (!(local->hw.flags & IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE))
-		return 0;
-	skb = ieee80211_beacon_get(local_to_hw(local), &sdata->vif);
-	if (!skb)
-		return -ENOMEM;
-	return __ieee80211_if_config(dev, skb);
 }
 
 int ieee80211_hw_config(struct ieee80211_local *local)
@@ -1659,7 +1632,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int result;
 	enum ieee80211_band band;
 	struct net_device *mdev;
-	struct ieee80211_sub_if_data *sdata;
+	struct wireless_dev *mwdev;
 
 	/*
 	 * generic code guarantees at least one band,
@@ -1699,8 +1672,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	hw->ampdu_queues = 0;
 #endif
 
-	/* for now, mdev needs sub_if_data :/ */
-	mdev = alloc_netdev_mq(sizeof(struct ieee80211_sub_if_data),
+	mdev = alloc_netdev_mq(sizeof(struct wireless_dev),
 			       "wmaster%d", ether_setup,
 			       ieee80211_num_queues(hw));
 	if (!mdev)
@@ -1709,13 +1681,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (ieee80211_num_queues(hw) > 1)
 		mdev->features |= NETIF_F_MULTI_QUEUE;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(mdev);
-	mdev->ieee80211_ptr = &sdata->wdev;
-	sdata->wdev.wiphy = local->hw.wiphy;
+	mwdev = netdev_priv(mdev);
+	mdev->ieee80211_ptr = mwdev;
+	mwdev->wiphy = local->hw.wiphy;
 
 	local->mdev = mdev;
 
-	ieee80211_rx_bss_list_init(mdev);
+	ieee80211_rx_bss_list_init(local);
 
 	mdev->hard_start_xmit = ieee80211_master_start_xmit;
 	mdev->open = ieee80211_master_open;
@@ -1723,16 +1695,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	mdev->type = ARPHRD_IEEE80211;
 	mdev->header_ops = &ieee80211_header_ops;
 	mdev->set_multicast_list = ieee80211_master_set_multicast_list;
-
-	sdata->vif.type = IEEE80211_IF_TYPE_AP;
-	sdata->dev = mdev;
-	sdata->local = local;
-	sdata->u.ap.force_unicast_rateidx = -1;
-	sdata->u.ap.max_ratectrl_rateidx = -1;
-	ieee80211_if_sdata_init(sdata);
-
-	/* no RCU needed since we're still during init phase */
-	list_add_tail(&sdata->list, &local->interfaces);
 
 	name = wiphy_dev(local->hw.wiphy)->driver->name;
 	local->hw.workqueue = create_freezeable_workqueue(name);
@@ -1779,9 +1741,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (result < 0)
 		goto fail_dev;
 
-	ieee80211_debugfs_add_netdev(IEEE80211_DEV_TO_SUB_IF(local->mdev));
-	ieee80211_if_set_type(local->mdev, IEEE80211_IF_TYPE_AP);
-
 	result = ieee80211_init_rate_ctrl_alg(local,
 					      hw->rate_control_algorithm);
 	if (result < 0) {
@@ -1801,13 +1760,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	ieee80211_install_qdisc(local->mdev);
 
 	/* add one default STA interface */
-	result = ieee80211_if_add(local->mdev, "wlan%d", NULL,
+	result = ieee80211_if_add(local, "wlan%d", NULL,
 				  IEEE80211_IF_TYPE_STA, NULL);
 	if (result)
 		printk(KERN_WARNING "%s: Failed to add default virtual iface\n",
 		       wiphy_name(local->hw.wiphy));
 
-	local->reg_state = IEEE80211_DEV_REGISTERED;
 	rtnl_unlock();
 
 	ieee80211_led_init(local);
@@ -1817,7 +1775,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 fail_wep:
 	rate_control_deinitialize(local);
 fail_rate:
-	ieee80211_debugfs_remove_netdev(IEEE80211_DEV_TO_SUB_IF(local->mdev));
 	unregister_netdevice(local->mdev);
 	local->mdev = NULL;
 fail_dev:
@@ -1827,10 +1784,8 @@ fail_sta_info:
 	debugfs_hw_del(local);
 	destroy_workqueue(local->hw.workqueue);
 fail_workqueue:
-	if (local->mdev != NULL) {
-		ieee80211_if_free(local->mdev);
-		local->mdev = NULL;
-	}
+	if (local->mdev)
+		free_netdev(local->mdev);
 fail_mdev_alloc:
 	wiphy_unregister(local->hw.wiphy);
 	return result;
@@ -1840,16 +1795,11 @@ EXPORT_SYMBOL(ieee80211_register_hw);
 void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_sub_if_data *sdata, *tmp;
 
 	tasklet_kill(&local->tx_pending_tasklet);
 	tasklet_kill(&local->tasklet);
 
 	rtnl_lock();
-
-	BUG_ON(local->reg_state != IEEE80211_DEV_REGISTERED);
-
-	local->reg_state = IEEE80211_DEV_UNREGISTERED;
 
 	/*
 	 * At this point, interface list manipulations are fine
@@ -1857,25 +1807,15 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	 * more and the tasklet is killed.
 	 */
 
-	/*
-	 * First, we remove all non-master interfaces. Do this because they
-	 * may have bss pointer dependency on the master, and when we free
-	 * the master these would be freed as well, breaking our list
-	 * iteration completely.
-	 */
-	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
-		if (sdata->dev == local->mdev)
-			continue;
-		list_del(&sdata->list);
-		__ieee80211_if_del(local, sdata);
-	}
+	/* First, we remove all virtual interfaces. */
+	ieee80211_remove_interfaces(local);
 
 	/* then, finally, remove the master interface */
-	__ieee80211_if_del(local, IEEE80211_DEV_TO_SUB_IF(local->mdev));
+	unregister_netdevice(local->mdev);
 
 	rtnl_unlock();
 
-	ieee80211_rx_bss_list_deinit(local->mdev);
+	ieee80211_rx_bss_list_deinit(local);
 	ieee80211_clear_tx_pending(local);
 	sta_info_stop(local);
 	rate_control_deinitialize(local);
@@ -1892,8 +1832,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	wiphy_unregister(local->hw.wiphy);
 	ieee80211_wep_free(local);
 	ieee80211_led_exit(local);
-	ieee80211_if_free(local->mdev);
-	local->mdev = NULL;
+	free_netdev(local->mdev);
 }
 EXPORT_SYMBOL(ieee80211_unregister_hw);
 

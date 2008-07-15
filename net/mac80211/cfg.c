@@ -50,14 +50,11 @@ static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 	struct ieee80211_sub_if_data *sdata;
 	int err;
 
-	if (unlikely(local->reg_state != IEEE80211_DEV_REGISTERED))
-		return -ENODEV;
-
 	itype = nl80211_type_to_mac80211_type(type);
 	if (itype == IEEE80211_IF_TYPE_INVALID)
 		return -EINVAL;
 
-	err = ieee80211_if_add(local->mdev, name, &dev, itype, params);
+	err = ieee80211_if_add(local, name, &dev, itype, params);
 	if (err || itype != IEEE80211_IF_TYPE_MNTR || !flags)
 		return err;
 
@@ -68,42 +65,31 @@ static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 
 static int ieee80211_del_iface(struct wiphy *wiphy, int ifindex)
 {
-	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct net_device *dev;
-	char *name;
-
-	if (unlikely(local->reg_state != IEEE80211_DEV_REGISTERED))
-		return -ENODEV;
 
 	/* we're under RTNL */
 	dev = __dev_get_by_index(&init_net, ifindex);
 	if (!dev)
-		return 0;
+		return -ENODEV;
 
-	name = dev->name;
+	ieee80211_if_remove(dev);
 
-	return ieee80211_if_remove(local->mdev, name, -1);
+	return 0;
 }
 
 static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
 				  enum nl80211_iftype type, u32 *flags,
 				  struct vif_params *params)
 {
-	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct net_device *dev;
 	enum ieee80211_if_types itype;
 	struct ieee80211_sub_if_data *sdata;
-
-	if (unlikely(local->reg_state != IEEE80211_DEV_REGISTERED))
-		return -ENODEV;
+	int ret;
 
 	/* we're under RTNL */
 	dev = __dev_get_by_index(&init_net, ifindex);
 	if (!dev)
 		return -ENODEV;
-
-	if (netif_running(dev))
-		return -EBUSY;
 
 	itype = nl80211_type_to_mac80211_type(type);
 	if (itype == IEEE80211_IF_TYPE_INVALID)
@@ -111,11 +97,9 @@ static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
-		return -EOPNOTSUPP;
-
-	ieee80211_if_reinit(dev);
-	ieee80211_if_set_type(dev, itype);
+	ret = ieee80211_if_change_type(sdata, itype);
+	if (ret)
+		return ret;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) && params->mesh_id_len)
 		ieee80211_if_sta_set_mesh_id(&sdata->u.sta,
@@ -485,7 +469,7 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 
 	kfree(old);
 
-	return ieee80211_if_config_beacon(sdata->dev);
+	return ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
 }
 
 static int ieee80211_add_beacon(struct wiphy *wiphy, struct net_device *dev,
@@ -539,7 +523,7 @@ static int ieee80211_del_beacon(struct wiphy *wiphy, struct net_device *dev)
 	synchronize_rcu();
 	kfree(old);
 
-	return ieee80211_if_config_beacon(dev);
+	return ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
 }
 
 /* Layer 2 Update frame (802.2 Type 1 LLC XID Update response) */

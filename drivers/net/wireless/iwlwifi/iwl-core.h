@@ -70,7 +70,7 @@ struct iwl_host_cmd;
 struct iwl_cmd;
 
 
-#define IWLWIFI_VERSION "1.2.26k"
+#define IWLWIFI_VERSION "1.3.27k"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2008 Intel Corporation"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
@@ -93,6 +93,8 @@ struct iwl_hcmd_utils_ops {
 			u16 min_average_noise_antennat_i,
 			u32 min_average_noise);
 	void (*chain_noise_reset)(struct iwl_priv *priv);
+	void (*rts_tx_cmd_flag)(struct ieee80211_tx_info *info,
+			__le32 *tx_flags);
 };
 
 struct iwl_lib_ops {
@@ -157,6 +159,7 @@ struct iwl_mod_params {
 	int debug;		/* def: 0 = minimal debug log messages */
 	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
+	int num_of_ampdu_queues;/* def: HW dependent */
 	int enable_qos;		/* def: 1 = use quality of service */
 	int disable_11n;	/* def: 0 = disable 11n capabilities */
 	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */

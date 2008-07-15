@@ -38,16 +38,6 @@
 
 /* misc utils */
 
-static inline void ieee80211_include_sequence(struct ieee80211_sub_if_data *sdata,
-					      struct ieee80211_hdr *hdr)
-{
-	/* Set the sequence number for this frame. */
-	hdr->seq_ctrl = cpu_to_le16(sdata->sequence);
-
-	/* Increase the sequence number. */
-	sdata->sequence = (sdata->sequence + 0x10) & IEEE80211_SCTL_SEQ;
-}
-
 #ifdef CONFIG_MAC80211_LOWTX_FRAME_DUMP
 static void ieee80211_dump_frame(const char *ifname, const char *title,
 				 const struct sk_buff *skb)
@@ -274,17 +264,6 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
-ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
-{
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
-
-	if (ieee80211_hdrlen(hdr->frame_control) >= 24)
-		ieee80211_include_sequence(tx->sdata, hdr);
-
-	return TX_CONTINUE;
-}
-
 /* This function is called whenever the AP is about to exceed the maximum limit
  * of buffered frames for power saving STAs. This situation should not really
  * happen often during normal operation, so dropping the oldest buffered packet
@@ -303,8 +282,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		struct ieee80211_if_ap *ap;
-		if (sdata->dev == local->mdev ||
-		    sdata->vif.type != IEEE80211_IF_TYPE_AP)
+		if (sdata->vif.type != IEEE80211_IF_TYPE_AP)
 			continue;
 		ap = &sdata->u.ap;
 		skb = skb_dequeue(&ap->ps_bc_buf);
@@ -346,8 +324,12 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	 * This is done either by the hardware or us.
 	 */
 
-	/* not AP/IBSS or ordered frame */
-	if (!tx->sdata->bss || (tx->fc & IEEE80211_FCTL_ORDER))
+	/* powersaving STAs only in AP/VLAN mode */
+	if (!tx->sdata->bss)
+		return TX_CONTINUE;
+
+	/* no buffering for ordered frames */
+	if (tx->fc & IEEE80211_FCTL_ORDER)
 		return TX_CONTINUE;
 
 	/* no stations in PS mode */
@@ -634,6 +616,49 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 
 	if (tx->sta)
 		info->control.aid = tx->sta->aid;
+
+	return TX_CONTINUE;
+}
+
+static ieee80211_tx_result debug_noinline
+ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
+	u16 *seq;
+	u8 *qc;
+	int tid;
+
+	/* only for injected frames */
+	if (unlikely(ieee80211_is_ctl(hdr->frame_control)))
+		return TX_CONTINUE;
+
+	if (ieee80211_hdrlen(hdr->frame_control) < 24)
+		return TX_CONTINUE;
+
+	if (!ieee80211_is_data_qos(hdr->frame_control)) {
+		info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
+		return TX_CONTINUE;
+	}
+
+	/*
+	 * This should be true for injected/management frames only, for
+	 * management frames we have set the IEEE80211_TX_CTL_ASSIGN_SEQ
+	 * above since they are not QoS-data frames.
+	 */
+	if (!tx->sta)
+		return TX_CONTINUE;
+
+	/* include per-STA, per-TID sequence counter */
+
+	qc = ieee80211_get_qos_ctl(hdr);
+	tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
+	seq = &tx->sta->tid_seq[tid];
+
+	hdr->seq_ctrl = cpu_to_le16(*seq);
+
+	/* Increase the sequence number. */
+	*seq = (*seq + 0x10) & IEEE80211_SCTL_SEQ;
 
 	return TX_CONTINUE;
 }
@@ -1107,12 +1132,12 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 		goto txh_done;
 
 	CALL_TXH(ieee80211_tx_h_check_assoc)
-	CALL_TXH(ieee80211_tx_h_sequence)
 	CALL_TXH(ieee80211_tx_h_ps_buf)
 	CALL_TXH(ieee80211_tx_h_select_key)
 	CALL_TXH(ieee80211_tx_h_michael_mic_add)
 	CALL_TXH(ieee80211_tx_h_rate_ctrl)
 	CALL_TXH(ieee80211_tx_h_misc)
+	CALL_TXH(ieee80211_tx_h_sequence)
 	CALL_TXH(ieee80211_tx_h_fragment)
 	/* handlers after fragment must be aware of tx info fragmentation! */
 	CALL_TXH(ieee80211_tx_h_encrypt)
@@ -1785,17 +1810,17 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct ieee80211_tx_info *info;
 	struct net_device *bdev;
 	struct ieee80211_sub_if_data *sdata = NULL;
 	struct ieee80211_if_ap *ap = NULL;
+	struct ieee80211_if_sta *ifsta = NULL;
 	struct rate_selection rsel;
 	struct beacon_data *beacon;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_mgmt *mgmt;
 	int *num_beacons;
-	bool err = true;
 	enum ieee80211_band band = local->hw.conf.channel->band;
 	u8 *pos;
 
@@ -1824,9 +1849,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 			memcpy(skb_put(skb, beacon->head_len), beacon->head,
 			       beacon->head_len);
 
-			ieee80211_include_sequence(sdata,
-					(struct ieee80211_hdr *)skb->data);
-
 			/*
 			 * Not very nice, but we want to allow the driver to call
 			 * ieee80211_beacon_get() as a response to the set_tim()
@@ -1849,9 +1871,24 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 				       beacon->tail, beacon->tail_len);
 
 			num_beacons = &ap->num_beacons;
+		} else
+			goto out;
+	} else if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
+		struct ieee80211_hdr *hdr;
+		ifsta = &sdata->u.sta;
 
-			err = false;
-		}
+		if (!ifsta->probe_resp)
+			goto out;
+
+		skb = skb_copy(ifsta->probe_resp, GFP_ATOMIC);
+		if (!skb)
+			goto out;
+
+		hdr = (struct ieee80211_hdr *) skb->data;
+		hdr->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
+						  IEEE80211_STYPE_BEACON);
+
+		num_beacons = &ifsta->num_beacons;
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		/* headroom, head length, tail length and maximum TIM length */
 		skb = dev_alloc_skb(local->tx_headroom + 400);
@@ -1878,17 +1915,8 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		mesh_mgmt_ies_add(skb, sdata->dev);
 
 		num_beacons = &sdata->u.sta.num_beacons;
-
-		err = false;
-	}
-
-	if (err) {
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		if (net_ratelimit())
-			printk(KERN_DEBUG "no beacon data avail for %s\n",
-			       bdev->name);
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
-		skb = NULL;
+	} else {
+		WARN_ON(1);
 		goto out;
 	}
 
@@ -1910,14 +1938,18 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 
 	info->control.vif = vif;
 	info->tx_rate_idx = rsel.rate_idx;
+
+	info->flags |= IEEE80211_TX_CTL_NO_ACK;
+	info->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
+	info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
+	info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
 	if (sdata->bss_conf.use_short_preamble &&
 	    sband->bitrates[rsel.rate_idx].flags & IEEE80211_RATE_SHORT_PREAMBLE)
 		info->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
+
 	info->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
-	info->flags |= IEEE80211_TX_CTL_NO_ACK;
-	info->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
 	info->control.retry_limit = 1;
-	info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
+
 	(*num_beacons)++;
 out:
 	rcu_read_unlock();

@@ -334,13 +334,18 @@ static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
 		else
 			rx->flags &= ~IEEE80211_RX_AMSDU;
 	} else {
-		if (unlikely(ieee80211_is_mgmt(hdr->frame_control))) {
-			/* Separate TID for management frames */
-			tid = NUM_RX_DATA_QUEUES - 1;
-		} else {
-			/* no qos control present */
-			tid = 0; /* 802.1d - Best Effort */
-		}
+		/*
+		 * IEEE 802.11-2007, 7.1.3.4.1 ("Sequence Number field"):
+		 *
+		 *	Sequence numbers for management frames, QoS data
+		 *	frames with a broadcast/multicast address in the
+		 *	Address 1 field, and all non-QoS data frames sent
+		 *	by QoS STAs are assigned using an additional single
+		 *	modulo-4096 counter, [...]
+		 *
+		 * We also use that counter for non-QoS STAs.
+		 */
+		tid = NUM_RX_DATA_QUEUES - 1;
 	}
 
 	rx->queue = tid;
@@ -647,8 +652,7 @@ static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
 
 	sdata = sta->sdata;
 
-	if (sdata->bss)
-		atomic_inc(&sdata->bss->num_sta_ps);
+	atomic_inc(&sdata->bss->num_sta_ps);
 	set_and_clear_sta_flags(sta, WLAN_STA_PS, WLAN_STA_PSPOLL);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %s aid %d enters power save mode\n",
@@ -667,8 +671,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 
 	sdata = sta->sdata;
 
-	if (sdata->bss)
-		atomic_dec(&sdata->bss->num_sta_ps);
+	atomic_dec(&sdata->bss->num_sta_ps);
 
 	clear_sta_flags(sta, WLAN_STA_PS | WLAN_STA_PSPOLL);
 
@@ -742,7 +745,9 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	sta->last_qual = rx->status->qual;
 	sta->last_noise = rx->status->noise;
 
-	if (!ieee80211_has_morefrags(hdr->frame_control)) {
+	if (!ieee80211_has_morefrags(hdr->frame_control) &&
+	    (rx->sdata->vif.type == IEEE80211_IF_TYPE_AP ||
+	     rx->sdata->vif.type == IEEE80211_IF_TYPE_VLAN)) {
 		/* Change STA power saving mode only in the end of a frame
 		 * exchange sequence */
 		if (test_sta_flags(sta, WLAN_STA_PS) &&
@@ -1772,11 +1777,6 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
 		}
-		if (sdata->dev == sdata->local->mdev &&
-		    !(rx->flags & IEEE80211_RX_IN_SCAN))
-			/* do not receive anything via
-			 * master device when not scanning */
-			return 0;
 		break;
 	case IEEE80211_IF_TYPE_WDS:
 		if (bssid || !ieee80211_is_data(hdr->frame_control))
@@ -2046,8 +2046,8 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 
 	tid_agg_rx = sta->ampdu_mlme.tid_rx[tid];
 
-	/* null data frames are excluded */
-	if (unlikely(ieee80211_is_nullfunc(hdr->frame_control)))
+	/* qos null data frames are excluded */
+	if (unlikely(hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_NULLFUNC)))
 		goto end_reorder;
 
 	/* new un-ordered ampdu frame - process it */

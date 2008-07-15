@@ -207,7 +207,6 @@ static struct ieee80211_ops ath5k_hw_ops = {
 	.get_tx_stats 	= ath5k_get_tx_stats,
 	.get_tsf 	= ath5k_get_tsf,
 	.reset_tsf 	= ath5k_reset_tsf,
-	.beacon_update 	= ath5k_beacon_update,
 };
 
 /*
@@ -2785,6 +2784,18 @@ ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		 * a clean way of letting us retrieve this yet. */
 		ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
 	}
+
+	if (conf->changed & IEEE80211_IFCC_BEACON &&
+	    vif->type == IEEE80211_IF_TYPE_IBSS) {
+		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+		if (!beacon) {
+			ret = -ENOMEM;
+			goto unlock;
+		}
+		/* call old handler for now */
+		ath5k_beacon_update(hw, beacon);
+	}
+
 	mutex_unlock(&sc->lock);
 
 	return ath5k_reset(hw);

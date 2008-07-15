@@ -317,7 +317,8 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	/* MAC control */
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		mac_ctl |= B43_TXH_MAC_ACK;
-	if (!ieee80211_is_pspoll(fctl))
+	/* use hardware sequence counter as the non-TID counter */
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 		mac_ctl |= B43_TXH_MAC_HWSEQ;
 	if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 		mac_ctl |= B43_TXH_MAC_STMSDU;

@@ -51,12 +51,8 @@ extern struct iwl_cfg iwl4965_agn_cfg;
 extern struct iwl_cfg iwl5300_agn_cfg;
 extern struct iwl_cfg iwl5100_agn_cfg;
 extern struct iwl_cfg iwl5350_agn_cfg;
-
-/* Change firmware file name, using "-" and incrementing number,
- *   *only* when uCode interface or architecture changes so that it
- *   is not compatible with earlier drivers.
- * This number will also appear in << 8 position of 1st dword of uCode file */
-#define IWL4965_UCODE_API "-1"
+extern struct iwl_cfg iwl5100_bg_cfg;
+extern struct iwl_cfg iwl5100_abg_cfg;
 
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD	110 /* in Celsius */
@@ -280,7 +276,7 @@ struct iwl_cmd {
 	struct iwl_cmd_header hdr;	/* uCode API */
 	union {
 		struct iwl_addsta_cmd addsta;
-		struct iwl4965_led_cmd led;
+		struct iwl_led_cmd led;
 		u32 flags;
 		u8 val8;
 		u16 val16;
@@ -288,7 +284,7 @@ struct iwl_cmd {
 		struct iwl4965_bt_cmd bt;
 		struct iwl4965_rxon_time_cmd rxon_time;
 		struct iwl4965_powertable_cmd powertable;
-		struct iwl4965_qosparam_cmd qosparam;
+		struct iwl_qosparam_cmd qosparam;
 		struct iwl_tx_cmd tx;
 		struct iwl4965_tx_beacon_cmd tx_beacon;
 		struct iwl4965_rxon_assoc_cmd rxon_assoc;
@@ -433,7 +429,7 @@ struct iwl_ht_info {
 	u8 non_GF_STA_present;
 };
 
-union iwl4965_qos_capabity {
+union iwl_qos_capabity {
 	struct {
 		u8 edca_count:4;	/* bit 0-3 */
 		u8 q_ack:1;		/* bit 4 */
@@ -454,11 +450,11 @@ union iwl4965_qos_capabity {
 };
 
 /* QoS structures */
-struct iwl4965_qos_info {
+struct iwl_qos_info {
 	int qos_enable;
 	int qos_active;
-	union iwl4965_qos_capabity qos_cap;
-	struct iwl4965_qosparam_cmd def_qos_parm;
+	union iwl_qos_capabity qos_cap;
+	struct iwl_qosparam_cmd def_qos_parm;
 };
 
 #define STA_PS_STATUS_WAKE             0
@@ -489,8 +485,6 @@ struct iwl_ucode {
 	__le32 boot_size;	/* bytes of bootstrap instructions */
 	u8 data[0];		/* data in same order as "size" elements */
 };
-
-#define IWL_IBSS_MAC_HASH_SIZE 32
 
 struct iwl4965_ibss_seq {
 	u8 mac[ETH_ALEN];
@@ -933,7 +927,7 @@ struct iwl_priv {
 #endif
 
 #ifdef CONFIG_IWLWIFI_LEDS
-	struct iwl4965_led led[IWL_LED_TRG_MAX];
+	struct iwl_led led[IWL_LED_TRG_MAX];
 	unsigned long last_blink_time;
 	u8 last_blink_rate;
 	u8 allow_blinking;
@@ -1042,7 +1036,7 @@ struct iwl_priv {
 	u16 assoc_capability;
 	u8 ps_mode;
 
-	struct iwl4965_qos_info qos_data;
+	struct iwl_qos_info qos_data;
 
 	struct workqueue_struct *workqueue;
 
@@ -1065,7 +1059,6 @@ struct iwl_priv {
 	struct delayed_work init_alive_start;
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;
-	struct delayed_work post_associate;
 	/* TX Power */
 	s8 tx_power_user_lmt;
 	s8 tx_power_channel_lmt;

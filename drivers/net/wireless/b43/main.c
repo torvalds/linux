@@ -1675,13 +1675,23 @@ static void b43_beacon_update_trigger_work(struct work_struct *work)
 
 /* Asynchronously update the packet templates in template RAM.
  * Locking: Requires wl->irq_lock to be locked. */
-static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon)
+static void b43_update_templates(struct b43_wl *wl)
 {
+	struct sk_buff *beacon;
+
 	/* This is the top half of the ansynchronous beacon update.
 	 * The bottom half is the beacon IRQ.
 	 * Beacon update must be asynchronous to avoid sending an
 	 * invalid beacon. This can happen for example, if the firmware
 	 * transmits a beacon while we are updating it. */
+
+	/* We could modify the existing beacon and set the aid bit in
+	 * the TIM field, but that would probably require resizing and
+	 * moving of data within the beacon template.
+	 * Simply request a new beacon and let mac80211 do the hard work. */
+	beacon = ieee80211_beacon_get(wl->hw, wl->vif);
+	if (unlikely(!beacon))
+		return;
 
 	if (wl->current_beacon)
 		dev_kfree_skb_any(wl->current_beacon);
@@ -3645,10 +3655,14 @@ static int b43_op_config_interface(struct ieee80211_hw *hw,
 	if (b43_status(dev) >= B43_STAT_INITIALIZED) {
 		if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP) ||
 		    b43_is_mode(wl, IEEE80211_IF_TYPE_MESH_POINT)) {
-			B43_WARN_ON(conf->type != wl->if_type);
-			b43_set_ssid(dev, conf->ssid, conf->ssid_len);
-			if (conf->beacon)
-				b43_update_templates(wl, conf->beacon);
+			B43_WARN_ON(vif->type != wl->if_type);
+			if (conf->changed & IEEE80211_IFCC_SSID)
+				b43_set_ssid(dev, conf->ssid, conf->ssid_len);
+			if (conf->changed & IEEE80211_IFCC_BEACON)
+				b43_update_templates(wl);
+		} else if (b43_is_mode(wl, IEEE80211_IF_TYPE_IBSS)) {
+			if (conf->changed & IEEE80211_IFCC_BEACON)
+				b43_update_templates(wl);
 		}
 		b43_write_mac_bssid_templates(dev);
 	}
@@ -4336,31 +4350,10 @@ out_unlock:
 static int b43_op_beacon_set_tim(struct ieee80211_hw *hw, int aid, int set)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
-	struct sk_buff *beacon;
-	unsigned long flags;
-
-	/* We could modify the existing beacon and set the aid bit in
-	 * the TIM field, but that would probably require resizing and
-	 * moving of data within the beacon template.
-	 * Simply request a new beacon and let mac80211 do the hard work. */
-	beacon = ieee80211_beacon_get(hw, wl->vif);
-	if (unlikely(!beacon))
-		return -ENOMEM;
-	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43_update_templates(wl, beacon);
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
-
-	return 0;
-}
-
-static int b43_op_ibss_beacon_update(struct ieee80211_hw *hw,
-				     struct sk_buff *beacon)
-{
-	struct b43_wl *wl = hw_to_b43_wl(hw);
 	unsigned long flags;
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43_update_templates(wl, beacon);
+	b43_update_templates(wl);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;
@@ -4391,7 +4384,6 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.stop			= b43_op_stop,
 	.set_retry_limit	= b43_op_set_retry_limit,
 	.set_tim		= b43_op_beacon_set_tim,
-	.beacon_update		= b43_op_ibss_beacon_update,
 	.sta_notify		= b43_op_sta_notify,
 };
 

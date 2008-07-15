@@ -296,15 +296,7 @@ static int ieee80211_ioctl_siwmode(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (type == sdata->vif.type)
-		return 0;
-	if (netif_running(dev))
-		return -EBUSY;
-
-	ieee80211_if_reinit(dev);
-	ieee80211_if_set_type(dev, type);
-
-	return 0;
+	return ieee80211_if_change_type(sdata, type);
 }
 
 
@@ -452,7 +444,7 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 		memset(sdata->u.ap.ssid + len, 0,
 		       IEEE80211_MAX_SSID_LEN - len);
 		sdata->u.ap.ssid_len = len;
-		return ieee80211_if_config(dev);
+		return ieee80211_if_config(sdata, IEEE80211_IFCC_SSID);
 	}
 	return -EOPNOTSUPP;
 }
@@ -627,16 +619,14 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 	struct ieee80211_supported_band *sband;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (!sdata->bss)
-		return -ENODEV;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	/* target_rate = -1, rate->fixed = 0 means auto only, so use all rates
 	 * target_rate = X, rate->fixed = 1 means only rate X
 	 * target_rate = X, rate->fixed = 0 means all rates <= X */
-	sdata->bss->max_ratectrl_rateidx = -1;
-	sdata->bss->force_unicast_rateidx = -1;
+	sdata->max_ratectrl_rateidx = -1;
+	sdata->force_unicast_rateidx = -1;
 	if (rate->value < 0)
 		return 0;
 
@@ -645,9 +635,9 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 		int this_rate = brate->bitrate;
 
 		if (target_rate == this_rate) {
-			sdata->bss->max_ratectrl_rateidx = i;
+			sdata->max_ratectrl_rateidx = i;
 			if (rate->fixed)
-				sdata->bss->force_unicast_rateidx = i;
+				sdata->force_unicast_rateidx = i;
 			err = 0;
 			break;
 		}
@@ -1009,6 +999,45 @@ static int ieee80211_ioctl_giwencode(struct net_device *dev,
 	return 0;
 }
 
+static int ieee80211_ioctl_siwpower(struct net_device *dev,
+				    struct iw_request_info *info,
+				    struct iw_param *wrq,
+				    char *extra)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_conf *conf = &local->hw.conf;
+
+	if (wrq->disabled) {
+		conf->flags &= ~IEEE80211_CONF_PS;
+		return ieee80211_hw_config(local);
+	}
+
+	switch (wrq->flags & IW_POWER_MODE) {
+	case IW_POWER_ON:       /* If not specified */
+	case IW_POWER_MODE:     /* If set all mask */
+	case IW_POWER_ALL_R:    /* If explicitely state all */
+		conf->flags |= IEEE80211_CONF_PS;
+		break;
+	default:                /* Otherwise we don't support it */
+		return -EINVAL;
+	}
+
+	return ieee80211_hw_config(local);
+}
+
+static int ieee80211_ioctl_giwpower(struct net_device *dev,
+				    struct iw_request_info *info,
+				    union iwreq_data *wrqu,
+				    char *extra)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_conf *conf = &local->hw.conf;
+
+	wrqu->power.disabled = !(conf->flags & IEEE80211_CONF_PS);
+
+	return 0;
+}
+
 static int ieee80211_ioctl_siwauth(struct net_device *dev,
 				   struct iw_request_info *info,
 				   struct iw_param *data, char *extra)
@@ -1211,8 +1240,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) ieee80211_ioctl_giwretry,		/* SIOCGIWRETRY */
 	(iw_handler) ieee80211_ioctl_siwencode,		/* SIOCSIWENCODE */
 	(iw_handler) ieee80211_ioctl_giwencode,		/* SIOCGIWENCODE */
-	(iw_handler) NULL,				/* SIOCSIWPOWER */
-	(iw_handler) NULL,				/* SIOCGIWPOWER */
+	(iw_handler) ieee80211_ioctl_siwpower,		/* SIOCSIWPOWER */
+	(iw_handler) ieee80211_ioctl_giwpower,		/* SIOCGIWPOWER */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) ieee80211_ioctl_siwgenie,		/* SIOCSIWGENIE */
