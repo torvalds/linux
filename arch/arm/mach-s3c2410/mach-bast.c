@@ -562,7 +562,7 @@ static struct platform_device *bast_devices[] __initdata = {
 	&bast_sio,
 };
 
-static struct clk *bast_clocks[] = {
+static struct clk *bast_clocks[] __initdata = {
 	&s3c24xx_dclk0,
 	&s3c24xx_dclk1,
 	&s3c24xx_clkout0,
