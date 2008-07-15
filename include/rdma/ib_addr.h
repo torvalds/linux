@@ -61,6 +61,7 @@ struct rdma_dev_addr {
 	unsigned char dst_dev_addr[MAX_ADDR_LEN];
 	unsigned char broadcast[MAX_ADDR_LEN];
 	enum rdma_node_type dev_type;
+	struct net_device *src_dev;
 };
 
 /**
