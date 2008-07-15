@@ -627,6 +627,9 @@ static void ide_tape_callback(ide_drive_t *drive)
 
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
 
+	if (tape->failed_pc == pc)
+		tape->failed_pc = NULL;
+
 	if (pc->c[0] == REQUEST_SENSE) {
 		if (uptodate)
 			idetape_analyze_error(drive, pc->buf);
@@ -838,8 +841,6 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 			idetape_postpone_request(drive);
 			return ide_stopped;
 		}
-		if (tape->failed_pc == pc)
-			tape->failed_pc = NULL;
 		/* Command finished - Call the callback function */
 		pc->callback(drive);
 		return ide_stopped;
@@ -1050,8 +1051,6 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 			return ide_stopped;
 		}
 		pc->error = 0;
-		if (tape->failed_pc == pc)
-			tape->failed_pc = NULL;
 	} else {
 		pc->error = IDETAPE_ERROR_GENERAL;
 		tape->failed_pc = NULL;

@@ -320,6 +320,9 @@ static void ide_floppy_callback(ide_drive_t *drive)
 
 	debug_log("Reached %s\n", __func__);
 
+	if (floppy->failed_pc == pc)
+		floppy->failed_pc = NULL;
+
 	if (pc->c[0] == GPCMD_READ_10 || pc->c[0] == GPCMD_WRITE_10 ||
 	    (pc->rq && blk_pc_request(pc->rq)))
 		uptodate = 1; /* FIXME */
@@ -435,8 +438,6 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 			return ide_stopped;
 		}
 		pc->error = 0;
-		if (floppy->failed_pc == pc)
-			floppy->failed_pc = NULL;
 		/* Command finished - Call the callback function */
 		pc->callback(drive);
 		return ide_stopped;
