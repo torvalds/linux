@@ -912,7 +912,7 @@ au1000_adjust_link(struct net_device *dev)
 		// link state changed
 
 		if (phydev->link) // link went up
-			netif_schedule(dev);
+			netif_tx_schedule_all(dev);
 		else { // link went down
 			aup->old_speed = 0;
 			aup->old_duplex = -1;

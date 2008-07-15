@@ -1234,7 +1234,7 @@ static void gfar_timeout(struct net_device *dev)
 		startup_gfar(dev);
 	}
 
-	netif_schedule(dev);
+	netif_tx_schedule_all(dev);
 }
 
 /* Interrupt Handler for Transmit complete */
@@ -1725,7 +1725,7 @@ static void adjust_link(struct net_device *dev)
 		if (!priv->oldlink) {
 			new_state = 1;
 			priv->oldlink = 1;
-			netif_schedule(dev);
+			netif_tx_schedule_all(dev);
 		}
 	} else if (priv->oldlink) {
 		new_state = 1;

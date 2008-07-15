@@ -1588,7 +1588,7 @@ static void adjust_link(struct net_device *dev)
 		if (!ugeth->oldlink) {
 			new_state = 1;
 			ugeth->oldlink = 1;
-			netif_schedule(dev);
+			netif_tx_schedule_all(dev);
 		}
 	} else if (ugeth->oldlink) {
 			new_state = 1;
@@ -3372,7 +3372,7 @@ static void ucc_geth_timeout(struct net_device *dev)
 		ucc_geth_startup(ugeth);
 	}
 
-	netif_schedule(dev);
+	netif_tx_schedule_all(dev);
 }
 
 /* This is called by the kernel when a frame is ready for transmission. */

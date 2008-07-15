@@ -642,7 +642,7 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 					| ECMR_DM, ioaddr + ECMR);
 			new_state = 1;
 			mdp->link = phydev->link;
-			netif_schedule(ndev);
+			netif_tx_schedule_all(ndev);
 			netif_carrier_on(ndev);
 			netif_start_queue(ndev);
 		}
