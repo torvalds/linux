@@ -135,7 +135,7 @@ static void poll_catas(unsigned long dev_ptr)
 		}
 
 	mod_timer(&dev->catas_err.timer,
-		  jiffies + MTHCA_CATAS_POLL_INTERVAL);
+		  round_jiffies(jiffies + MTHCA_CATAS_POLL_INTERVAL));
 }
 
 void mthca_start_catas_poll(struct mthca_dev *dev)
