@@ -314,9 +314,10 @@ svc_pool_map_set_cpumask(unsigned int pidx, cpumask_t *oldmask)
 	case SVC_POOL_PERCPU:
 	{
 		unsigned int cpu = m->pool_to[pidx];
+		cpumask_of_cpu_ptr(cpumask, cpu);
 
 		*oldmask = current->cpus_allowed;
-		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+		set_cpus_allowed_ptr(current, cpumask);
 		return 1;
 	}
 	case SVC_POOL_PERNODE:

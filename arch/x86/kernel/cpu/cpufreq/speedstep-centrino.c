@@ -313,9 +313,10 @@ static unsigned int get_cur_freq(unsigned int cpu)
 	unsigned l, h;
 	unsigned clock_freq;
 	cpumask_t saved_mask;
+	cpumask_of_cpu_ptr(new_mask, cpu);
 
 	saved_mask = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, new_mask);
 	if (smp_processor_id() != cpu)
 		return 0;
 
@@ -554,9 +555,11 @@ static int centrino_target (struct cpufreq_policy *policy,
 		 */
 
 		if (!cpus_empty(covered_cpus)) {
+			cpumask_of_cpu_ptr_declare(new_mask);
+
 			for_each_cpu_mask_nr(j, covered_cpus) {
-				set_cpus_allowed_ptr(current,
-						     &cpumask_of_cpu(j));
+				cpumask_of_cpu_ptr_next(new_mask, j);
+				set_cpus_allowed_ptr(current, new_mask);
 				wrmsr(MSR_IA32_PERF_CTL, oldmsr, h);
 			}
 		}

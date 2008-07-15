@@ -516,6 +516,7 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 	unsigned long		j;
 	int			retval;
 	cpumask_t		oldmask;
+	cpumask_of_cpu_ptr(newmask, cpu);
 
 	if (num_cache_leaves == 0)
 		return -ENOENT;
@@ -526,7 +527,7 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 		return -ENOMEM;
 
 	oldmask = current->cpus_allowed;
-	retval = set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+	retval = set_cpus_allowed_ptr(current, newmask);
 	if (retval)
 		goto out;
 

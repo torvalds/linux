@@ -244,7 +244,8 @@ static unsigned int _speedstep_get(const cpumask_t *cpus)
 
 static unsigned int speedstep_get(unsigned int cpu)
 {
-	return _speedstep_get(&cpumask_of_cpu(cpu));
+	cpumask_of_cpu_ptr(newmask, cpu);
+	return _speedstep_get(newmask);
 }
 
 /**
