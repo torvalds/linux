@@ -768,6 +768,68 @@ static int iwch_dealloc_mw(struct ib_mw *mw)
 	return 0;
 }
 
+static struct ib_mr *iwch_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
+{
+	struct iwch_dev *rhp;
+	struct iwch_pd *php;
+	struct iwch_mr *mhp;
+	u32 mmid;
+	u32 stag = 0;
+	int ret;
+
+	php = to_iwch_pd(pd);
+	rhp = php->rhp;
+	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
+	if (!mhp)
+		return ERR_PTR(-ENOMEM);
+
+	mhp->rhp = rhp;
+	ret = iwch_alloc_pbl(mhp, pbl_depth);
+	if (ret) {
+		kfree(mhp);
+		return ERR_PTR(ret);
+	}
+	mhp->attr.pbl_size = pbl_depth;
+	ret = cxio_allocate_stag(&rhp->rdev, &stag, php->pdid,
+				 mhp->attr.pbl_size, mhp->attr.pbl_addr);
+	if (ret) {
+		iwch_free_pbl(mhp);
+		kfree(mhp);
+		return ERR_PTR(ret);
+	}
+	mhp->attr.pdid = php->pdid;
+	mhp->attr.type = TPT_NON_SHARED_MR;
+	mhp->attr.stag = stag;
+	mhp->attr.state = 1;
+	mmid = (stag) >> 8;
+	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
+	insert_handle(rhp, &rhp->mmidr, mhp, mmid);
+	PDBG("%s mmid 0x%x mhp %p stag 0x%x\n", __func__, mmid, mhp, stag);
+	return &(mhp->ibmr);
+}
+
+static struct ib_fast_reg_page_list *iwch_alloc_fastreg_pbl(
+					struct ib_device *device,
+					int page_list_len)
+{
+	struct ib_fast_reg_page_list *page_list;
+
+	page_list = kmalloc(sizeof *page_list + page_list_len * sizeof(u64),
+			    GFP_KERNEL);
+	if (!page_list)
+		return ERR_PTR(-ENOMEM);
+
+	page_list->page_list = (u64 *)(page_list + 1);
+	page_list->max_page_list_len = page_list_len;
+
+	return page_list;
+}
+
+static void iwch_free_fastreg_pbl(struct ib_fast_reg_page_list *page_list)
+{
+	kfree(page_list);
+}
+
 static int iwch_destroy_qp(struct ib_qp *ib_qp)
 {
 	struct iwch_dev *rhp;
@@ -843,6 +905,15 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 	 */
 	sqsize = roundup_pow_of_two(attrs->cap.max_send_wr);
 	wqsize = roundup_pow_of_two(rqsize + sqsize);
+
+	/*
+	 * Kernel users need more wq space for fastreg WRs which can take
+	 * 2 WR fragments.
+	 */
+	ucontext = pd->uobject ? to_iwch_ucontext(pd->uobject->context) : NULL;
+	if (!ucontext && wqsize < (rqsize + (2 * sqsize)))
+		wqsize = roundup_pow_of_two(rqsize +
+				roundup_pow_of_two(attrs->cap.max_send_wr * 2));
 	PDBG("%s wqsize %d sqsize %d rqsize %d\n", __func__,
 	     wqsize, sqsize, rqsize);
 	qhp = kzalloc(sizeof(*qhp), GFP_KERNEL);
@@ -851,7 +922,6 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 	qhp->wq.size_log2 = ilog2(wqsize);
 	qhp->wq.rq_size_log2 = ilog2(rqsize);
 	qhp->wq.sq_size_log2 = ilog2(sqsize);
-	ucontext = pd->uobject ? to_iwch_ucontext(pd->uobject->context) : NULL;
 	if (cxio_create_qp(&rhp->rdev, !udata, &qhp->wq,
 			   ucontext ? &ucontext->uctx : &rhp->rdev.uctx)) {
 		kfree(qhp);
@@ -1048,6 +1118,7 @@ static int iwch_query_device(struct ib_device *ibdev,
 	props->max_mr = dev->attr.max_mem_regs;
 	props->max_pd = dev->attr.max_pds;
 	props->local_ca_ack_delay = 0;
+	props->max_fast_reg_page_list_len = T3_MAX_FASTREG_DEPTH;
 
 	return 0;
 }
@@ -1086,6 +1157,28 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 						 ibdev.dev);
 	PDBG("%s dev 0x%p\n", __func__, dev);
 	return sprintf(buf, "%d\n", iwch_dev->rdev.t3cdev_p->type);
+}
+
+static int fw_supports_fastreg(struct iwch_dev *iwch_dev)
+{
+	struct ethtool_drvinfo info;
+	struct net_device *lldev = iwch_dev->rdev.t3cdev_p->lldev;
+	char *cp, *next;
+	unsigned fw_maj, fw_min;
+
+	rtnl_lock();
+	lldev->ethtool_ops->get_drvinfo(lldev, &info);
+	rtnl_unlock();
+
+	next = info.fw_version+1;
+	cp = strsep(&next, ".");
+	sscanf(cp, "%i", &fw_maj);
+	cp = strsep(&next, ".");
+	sscanf(cp, "%i", &fw_min);
+
+	PDBG("%s maj %u min %u\n", __func__, fw_maj, fw_min);
+
+	return fw_maj > 6 || (fw_maj == 6 && fw_min > 0);
 }
 
 static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1149,8 +1242,10 @@ int iwch_register_device(struct iwch_dev *dev)
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
 	dev->ibdev.owner = THIS_MODULE;
-	dev->device_cap_flags =
-	    (IB_DEVICE_ZERO_STAG | IB_DEVICE_MEM_WINDOW);
+	dev->device_cap_flags = IB_DEVICE_ZERO_STAG |
+				IB_DEVICE_MEM_WINDOW;
+	if (fw_supports_fastreg(dev))
+		dev->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 
 	dev->ibdev.uverbs_cmd_mask =
 	    (1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
@@ -1202,6 +1297,9 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.alloc_mw = iwch_alloc_mw;
 	dev->ibdev.bind_mw = iwch_bind_mw;
 	dev->ibdev.dealloc_mw = iwch_dealloc_mw;
+	dev->ibdev.alloc_fast_reg_mr = iwch_alloc_fast_reg_mr;
+	dev->ibdev.alloc_fast_reg_page_list = iwch_alloc_fastreg_pbl;
+	dev->ibdev.free_fast_reg_page_list = iwch_free_fastreg_pbl;
 
 	dev->ibdev.attach_mcast = iwch_multicast_attach;
 	dev->ibdev.detach_mcast = iwch_multicast_detach;

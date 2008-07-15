@@ -165,6 +165,7 @@ int cxio_reregister_phys_mem(struct cxio_rdev *rdev, u32 * stag, u32 pdid,
 int cxio_dereg_mem(struct cxio_rdev *rdev, u32 stag, u32 pbl_size,
 		   u32 pbl_addr);
 int cxio_allocate_window(struct cxio_rdev *rdev, u32 * stag, u32 pdid);
+int cxio_allocate_stag(struct cxio_rdev *rdev, u32 *stag, u32 pdid, u32 pbl_size, u32 pbl_addr);
 int cxio_deallocate_window(struct cxio_rdev *rdev, u32 stag);
 int cxio_rdma_init(struct cxio_rdev *rdev, struct t3_rdma_init_attr *attr);
 void cxio_register_ev_cb(cxio_hal_ev_callback_func_t ev_cb);

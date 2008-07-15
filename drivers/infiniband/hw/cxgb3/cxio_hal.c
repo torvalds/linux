@@ -145,7 +145,9 @@ static int cxio_hal_clear_qp_ctx(struct cxio_rdev *rdev_p, u32 qpid)
 	}
 	wqe = (struct t3_modify_qp_wr *) skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof(*wqe));
-	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD, 3, 0, qpid, 7);
+	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD,
+		       T3_COMPLETION_FLAG | T3_NOTIFY_FLAG, 0, qpid, 7,
+		       T3_SOPEOP);
 	wqe->flags = cpu_to_be32(MODQP_WRITE_EC);
 	sge_cmd = qpid << 8 | 3;
 	wqe->sge_cmd = cpu_to_be64(sge_cmd);
@@ -558,7 +560,7 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 	wqe = (struct t3_modify_qp_wr *) skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof(*wqe));
 	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD, 0, 0,
-		       T3_CTL_QP_TID, 7);
+		       T3_CTL_QP_TID, 7, T3_SOPEOP);
 	wqe->flags = cpu_to_be32(MODQP_WRITE_EC);
 	sge_cmd = (3ULL << 56) | FW_RI_SGEEC_START << 8 | 3;
 	wqe->sge_cmd = cpu_to_be64(sge_cmd);
@@ -674,7 +676,7 @@ static int cxio_hal_ctrl_qp_write_mem(struct cxio_rdev *rdev_p, u32 addr,
 		build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_BP, flag,
 			       Q_GENBIT(rdev_p->ctrl_qp.wptr,
 					T3_CTRL_QP_SIZE_LOG2), T3_CTRL_QP_ID,
-			       wr_len);
+			       wr_len, T3_SOPEOP);
 		if (flag == T3_COMPLETION_FLAG)
 			ring_doorbell(rdev_p->ctrl_qp.doorbell, T3_CTRL_QP_ID);
 		len -= 96;
@@ -814,6 +816,13 @@ int cxio_deallocate_window(struct cxio_rdev *rdev_p, u32 stag)
 {
 	return __cxio_tpt_op(rdev_p, 1, &stag, 0, 0, 0, 0, 0, 0ULL, 0, 0,
 			     0, 0);
+}
+
+int cxio_allocate_stag(struct cxio_rdev *rdev_p, u32 *stag, u32 pdid, u32 pbl_size, u32 pbl_addr)
+{
+	*stag = T3_STAG_UNSET;
+	return __cxio_tpt_op(rdev_p, 0, stag, 0, pdid, TPT_NON_SHARED_MR,
+			     0, 0, 0ULL, 0, 0, pbl_size, pbl_addr);
 }
 
 int cxio_rdma_init(struct cxio_rdev *rdev_p, struct t3_rdma_init_attr *attr)
