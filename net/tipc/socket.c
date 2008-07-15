@@ -2,7 +2,7 @@
  * net/tipc/socket.c: TIPC socket API
  *
  * Copyright (c) 2001-2007, Ericsson AB
- * Copyright (c) 2004-2007, Wind River Systems
+ * Copyright (c) 2004-2008, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -189,7 +189,6 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 	socket_state state;
 	struct sock *sk;
 	struct tipc_port *tp_ptr;
-	u32 portref;
 
 	/* Validate arguments */
 
@@ -225,9 +224,9 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 
 	/* Allocate TIPC port for socket to use */
 
-	portref = tipc_createport_raw(sk, &dispatch, &wakeupdispatch,
-				      TIPC_LOW_IMPORTANCE, &tp_ptr);
-	if (unlikely(portref == 0)) {
+	tp_ptr = tipc_createport_raw(sk, &dispatch, &wakeupdispatch,
+				     TIPC_LOW_IMPORTANCE);
+	if (unlikely(!tp_ptr)) {
 		sk_free(sk);
 		return -ENOMEM;
 	}
@@ -240,14 +239,14 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 	sock_init_data(sock, sk);
 	sk->sk_rcvtimeo = msecs_to_jiffies(CONN_TIMEOUT_DEFAULT);
 	sk->sk_backlog_rcv = backlog_rcv;
-	tipc_sk(sk)->p = tipc_get_port(portref);
+	tipc_sk(sk)->p = tp_ptr;
 
 	spin_unlock_bh(tp_ptr->lock);
 
 	if (sock->state == SS_READY) {
-		tipc_set_portunreturnable(portref, 1);
+		tipc_set_portunreturnable(tp_ptr->ref, 1);
 		if (sock->type == SOCK_DGRAM)
-			tipc_set_portunreliable(portref, 1);
+			tipc_set_portunreliable(tp_ptr->ref, 1);
 	}
 
 	atomic_inc(&tipc_user_count);

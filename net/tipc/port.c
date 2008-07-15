@@ -2,7 +2,7 @@
  * net/tipc/port.c: TIPC port code
  *
  * Copyright (c) 1992-2007, Ericsson AB
- * Copyright (c) 2004-2007, Wind River Systems
+ * Copyright (c) 2004-2008, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -213,16 +213,13 @@ exit:
 /**
  * tipc_createport_raw - create a generic TIPC port
  *
- * Returns port reference, or 0 if unable to create it
- *
- * Note: The newly created port is returned in the locked state.
+ * Returns pointer to (locked) TIPC port, or NULL if unable to create it
  */
 
-u32 tipc_createport_raw(void *usr_handle,
+struct tipc_port *tipc_createport_raw(void *usr_handle,
 			u32 (*dispatcher)(struct tipc_port *, struct sk_buff *),
 			void (*wakeup)(struct tipc_port *),
-			const u32 importance,
-			struct tipc_port **tp_ptr)
+			const u32 importance)
 {
 	struct port *p_ptr;
 	struct tipc_msg *msg;
@@ -231,13 +228,13 @@ u32 tipc_createport_raw(void *usr_handle,
 	p_ptr = kzalloc(sizeof(*p_ptr), GFP_ATOMIC);
 	if (!p_ptr) {
 		warn("Port creation failed, no memory\n");
-		return 0;
+		return NULL;
 	}
 	ref = tipc_ref_acquire(p_ptr, &p_ptr->publ.lock);
 	if (!ref) {
 		warn("Port creation failed, reference table exhausted\n");
 		kfree(p_ptr);
-		return 0;
+		return NULL;
 	}
 
 	p_ptr->publ.usr_handle = usr_handle;
@@ -260,8 +257,7 @@ u32 tipc_createport_raw(void *usr_handle,
 	INIT_LIST_HEAD(&p_ptr->port_list);
 	list_add_tail(&p_ptr->port_list, &ports);
 	spin_unlock_bh(&tipc_port_list_lock);
-	*tp_ptr = &p_ptr->publ;
-	return ref;
+	return &(p_ptr->publ);
 }
 
 int tipc_deleteport(u32 ref)
@@ -1044,21 +1040,18 @@ int tipc_createport(u32 user_ref,
 {
 	struct user_port *up_ptr;
 	struct port *p_ptr;
-	struct tipc_port *tp_ptr;
-	u32 ref;
 
 	up_ptr = kmalloc(sizeof(*up_ptr), GFP_ATOMIC);
 	if (!up_ptr) {
 		warn("Port creation failed, no memory\n");
 		return -ENOMEM;
 	}
-	ref = tipc_createport_raw(NULL, port_dispatcher, port_wakeup,
-				  importance, &tp_ptr);
-	if (ref == 0) {
+	p_ptr = (struct port *)tipc_createport_raw(NULL, port_dispatcher,
+						   port_wakeup, importance);
+	if (!p_ptr) {
 		kfree(up_ptr);
 		return -ENOMEM;
 	}
-	p_ptr = (struct port *)tp_ptr;
 
 	p_ptr->user_port = up_ptr;
 	up_ptr->user_ref = user_ref;
@@ -1074,7 +1067,6 @@ int tipc_createport(u32 user_ref,
 	INIT_LIST_HEAD(&up_ptr->uport_list);
 	tipc_reg_add_port(up_ptr);
 	*portref = p_ptr->publ.ref;
-	dbg(" tipc_createport: %x with ref %u\n", p_ptr, p_ptr->publ.ref);
 	tipc_port_unlock(p_ptr);
 	return TIPC_OK;
 }
