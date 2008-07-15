@@ -710,9 +710,11 @@ int tipc_nametbl_mc_translate(u32 type, u32 lower, u32 upper, u32 limit,
 		if (sseq->lower > upper)
 			break;
 		publ = sseq->cluster_list;
-		if (publ && (publ->scope <= limit))
+		if (publ)
 			do {
-				if (publ->node == tipc_own_addr)
+				if (publ->scope > limit)
+					/* ignore out-of-scope publication */ ;
+				else if (publ->node == tipc_own_addr)
 					tipc_port_list_add(dports, publ->ref);
 				else
 					res = 1;
