@@ -1042,15 +1042,9 @@ void blk_put_request(struct request *req)
 	unsigned long flags;
 	struct request_queue *q = req->q;
 
-	/*
-	 * Gee, IDE calls in w/ NULL q.  Fix IDE and remove the
-	 * following if (q) test.
-	 */
-	if (q) {
-		spin_lock_irqsave(q->queue_lock, flags);
-		__blk_put_request(q, req);
-		spin_unlock_irqrestore(q->queue_lock, flags);
-	}
+	spin_lock_irqsave(q->queue_lock, flags);
+	__blk_put_request(q, req);
+	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_put_request);
 
