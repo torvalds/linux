@@ -76,7 +76,7 @@ extern struct dvb_frontend *tda10023_attach(
 	struct i2c_adapter *i2c, u8 pwm);
 #else
 static inline struct dvb_frontend *tda10023_attach(
-	const struct tda1002x_config *config,
+	const struct tda10023_config *config,
 	struct i2c_adapter *i2c, u8 pwm)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
