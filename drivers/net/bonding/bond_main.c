@@ -1567,14 +1567,12 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				goto err_close;
 		}
 
-		netif_tx_lock_bh(bond_dev);
-		netif_addr_lock(bond_dev);
+		netif_addr_lock_bh(bond_dev);
 		/* upload master's mc_list to new slave */
 		for (dmi = bond_dev->mc_list; dmi; dmi = dmi->next) {
 			dev_mc_add (slave_dev, dmi->dmi_addr, dmi->dmi_addrlen, 0);
 		}
-		netif_addr_unlock(bond_dev);
-		netif_tx_unlock_bh(bond_dev);
+		netif_addr_unlock_bh(bond_dev);
 	}
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
@@ -1938,11 +1936,9 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 
 		/* flush master's mc_list from slave */
-		netif_tx_lock_bh(bond_dev);
-		netif_addr_lock(bond_dev);
+		netif_addr_lock_bh(bond_dev);
 		bond_mc_list_flush(bond_dev, slave_dev);
-		netif_addr_unlock(bond_dev);
-		netif_tx_unlock_bh(bond_dev);
+		netif_addr_unlock_bh(bond_dev);
 	}
 
 	netdev_set_master(slave_dev, NULL);
@@ -2063,11 +2059,9 @@ static int bond_release_all(struct net_device *bond_dev)
 			}
 
 			/* flush master's mc_list from slave */
-			netif_tx_lock_bh(bond_dev);
-			netif_addr_lock(bond_dev);
+			netif_addr_lock_bh(bond_dev);
 			bond_mc_list_flush(bond_dev, slave_dev);
-			netif_addr_unlock(bond_dev);
-			netif_tx_unlock_bh(bond_dev);
+			netif_addr_unlock_bh(bond_dev);
 		}
 
 		netdev_set_master(slave_dev, NULL);
@@ -4679,11 +4673,9 @@ static void bond_free_all(void)
 		struct net_device *bond_dev = bond->dev;
 
 		bond_work_cancel_all(bond);
-		netif_tx_lock_bh(bond_dev);
-		netif_addr_lock(bond_dev);
+		netif_addr_lock_bh(bond_dev);
 		bond_mc_list_destroy(bond);
-		netif_addr_unlock(bond_dev);
-		netif_tx_unlock_bh(bond_dev);
+		netif_addr_unlock_bh(bond_dev);
 		/* Release the bonded slaves */
 		bond_release_all(bond_dev);
 		bond_destroy(bond);

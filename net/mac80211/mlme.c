@@ -4064,16 +4064,14 @@ static int ieee80211_sta_start_scan(struct net_device *dev,
 	local->scan_band = IEEE80211_BAND_2GHZ;
 	local->scan_dev = dev;
 
-	netif_tx_lock_bh(local->mdev);
-	netif_addr_lock(local->mdev);
+	netif_addr_lock_bh(local->mdev);
 	local->filter_flags |= FIF_BCN_PRBRESP_PROMISC;
 	local->ops->configure_filter(local_to_hw(local),
 				     FIF_BCN_PRBRESP_PROMISC,
 				     &local->filter_flags,
 				     local->mdev->mc_count,
 				     local->mdev->mc_list);
-	netif_addr_unlock(local->mdev);
-	netif_tx_unlock_bh(local->mdev);
+	netif_addr_unlock_bh(local->mdev);
 
 	/* TODO: start scan as soon as all nullfunc frames are ACKed */
 	queue_delayed_work(local->hw.workqueue, &local->scan_work,

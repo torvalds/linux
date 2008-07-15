@@ -696,10 +696,8 @@ static void efx_stop_port(struct efx_nic *efx)
 
 	/* Serialise against efx_set_multicast_list() */
 	if (efx_dev_registered(efx)) {
-		netif_tx_lock_bh(efx->net_dev);
-		netif_addr_lock(efx->net_dev);
-		netif_addr_unlock(efx->net_dev);
-		netif_tx_unlock_bh(efx->net_dev);
+		netif_addr_lock_bh(efx->net_dev);
+		netif_addr_unlock_bh(efx->net_dev);
 	}
 }
 
