@@ -947,21 +947,12 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
  * again, the callback function will be called and then we will handle the next
  * request.
  */
-static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
+
+static u8 ide_tape_wait_ireason(ide_drive_t *drive, u8 ireason)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	idetape_tape_t *tape = drive->driver_data;
-	struct ide_atapi_pc *pc = tape->pc;
 	int retries = 100;
-	ide_startstop_t startstop;
-	u8 ireason;
 
-	if (ide_wait_stat(&startstop, drive, DRQ_STAT, BUSY_STAT, WAIT_READY)) {
-		printk(KERN_ERR "%s: Strange, packet command initiated yet "
-				"DRQ isn't asserted\n", drive->name);
-		return startstop;
-	}
-	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 	while (retries-- && ((ireason & CD) == 0 || (ireason & IO))) {
 		printk(KERN_ERR "%s: (IO,CoD != (0,1) while issuing "
 				"a packet command, retrying\n", drive->name);
@@ -975,6 +966,27 @@ static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 			ireason &= ~IO;
 		}
 	}
+
+	return ireason;
+}
+
+static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	idetape_tape_t *tape = drive->driver_data;
+	struct ide_atapi_pc *pc = tape->pc;
+	ide_startstop_t startstop;
+	u8 ireason;
+
+	if (ide_wait_stat(&startstop, drive, DRQ_STAT, BUSY_STAT, WAIT_READY)) {
+		printk(KERN_ERR "%s: Strange, packet command initiated yet "
+				"DRQ isn't asserted\n", drive->name);
+		return startstop;
+	}
+
+	ireason = hwif->INB(hwif->io_ports.nsect_addr);
+	ireason = ide_tape_wait_ireason(drive, ireason);
+
 	if ((ireason & CD) == 0 || (ireason & IO)) {
 		printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
 				"a packet command\n", drive->name);
