@@ -64,6 +64,7 @@ struct t3cdev {
 	void *l3opt;		/* optional layer 3 data */
 	void *l4opt;		/* optional layer 4 data */
 	void *ulp;		/* ulp stuff */
+	void *ulp_iscsi;	/* ulp iscsi */
 };
 
 #endif				/* _T3CDEV_H_ */

@@ -207,6 +207,17 @@ static int cxgb_ulp_iscsi_ctl(struct adapter *adapter, unsigned int req,
 		break;
 	case ULP_ISCSI_SET_PARAMS:
 		t3_write_reg(adapter, A_ULPRX_ISCSI_TAGMASK, uiip->tagmask);
+		/* set MaxRxData and MaxCoalesceSize to 16224 */
+		t3_write_reg(adapter, A_TP_PARA_REG2, 0x3f603f60);
+		/* program the ddp page sizes */
+		{
+			int i;
+			unsigned int val = 0;
+			for (i = 0; i < 4; i++)
+				val |= (uiip->pgsz_factor[i] & 0xF) << (8 * i);
+			if (val)
+				t3_write_reg(adapter, A_ULPRX_ISCSI_PSZ, val);
+		}
 		break;
 	default:
 		ret = -EOPNOTSUPP;

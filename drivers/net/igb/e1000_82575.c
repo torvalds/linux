@@ -31,6 +31,7 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/if_ether.h>
 
 #include "e1000_mac.h"
 #include "e1000_82575.h"
@@ -45,7 +46,6 @@ static s32  igb_get_cfg_done_82575(struct e1000_hw *);
 static s32  igb_init_hw_82575(struct e1000_hw *);
 static s32  igb_phy_hw_reset_sgmii_82575(struct e1000_hw *);
 static s32  igb_read_phy_reg_sgmii_82575(struct e1000_hw *, u32, u16 *);
-static void igb_rar_set_82575(struct e1000_hw *, u8 *, u32);
 static s32  igb_reset_hw_82575(struct e1000_hw *);
 static s32  igb_set_d0_lplu_state_82575(struct e1000_hw *, bool);
 static s32  igb_setup_copper_link_82575(struct e1000_hw *);
@@ -83,6 +83,12 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_82575EB_FIBER_SERDES:
 	case E1000_DEV_ID_82575GB_QUAD_COPPER:
 		mac->type = e1000_82575;
+		break;
+	case E1000_DEV_ID_82576:
+	case E1000_DEV_ID_82576_FIBER:
+	case E1000_DEV_ID_82576_SERDES:
+	case E1000_DEV_ID_82576_QUAD_COPPER:
+		mac->type = e1000_82576;
 		break;
 	default:
 		return -E1000_ERR_MAC_INIT;
@@ -128,6 +134,8 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	mac->mta_reg_count = 128;
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES_82575;
+	if (mac->type == e1000_82576)
+		mac->rar_entry_count = E1000_RAR_ENTRIES_82576;
 	/* Set if part includes ASF firmware */
 	mac->asf_firmware_present = true;
 	/* Set if manageability features are enabled. */
@@ -694,13 +702,12 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 	if ((hw->phy.media_type != e1000_media_type_copper) ||
 	    (igb_sgmii_active_82575(hw)))
 		ret_val = igb_get_pcs_speed_and_duplex_82575(hw, &speed,
-							       &duplex);
+		                                             &duplex);
 	else
 		ret_val = igb_check_for_copper_link(hw);
 
 	return ret_val;
 }
-
 /**
  *  igb_get_pcs_speed_and_duplex_82575 - Retrieve current speed/duplex
  *  @hw: pointer to the HW structure
@@ -757,18 +764,129 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 }
 
 /**
- *  igb_rar_set_82575 - Set receive address register
+ *  igb_init_rx_addrs_82575 - Initialize receive address's
  *  @hw: pointer to the HW structure
- *  @addr: pointer to the receive address
- *  @index: receive address array register
+ *  @rar_count: receive address registers
  *
- *  Sets the receive address array register at index to the address passed
- *  in by addr.
+ *  Setups the receive address registers by setting the base receive address
+ *  register to the devices MAC address and clearing all the other receive
+ *  address registers to 0.
  **/
-static void igb_rar_set_82575(struct e1000_hw *hw, u8 *addr, u32 index)
+static void igb_init_rx_addrs_82575(struct e1000_hw *hw, u16 rar_count)
 {
-	if (index < E1000_RAR_ENTRIES_82575)
-		igb_rar_set(hw, addr, index);
+	u32 i;
+	u8 addr[6] = {0,0,0,0,0,0};
+	/*
+	 * This function is essentially the same as that of
+	 * e1000_init_rx_addrs_generic. However it also takes care
+	 * of the special case where the register offset of the
+	 * second set of RARs begins elsewhere. This is implicitly taken care by
+	 * function e1000_rar_set_generic.
+	 */
+
+	hw_dbg("e1000_init_rx_addrs_82575");
+
+	/* Setup the receive address */
+	hw_dbg("Programming MAC Address into RAR[0]\n");
+	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
+
+	/* Zero out the other (rar_entry_count - 1) receive addresses */
+	hw_dbg("Clearing RAR[1-%u]\n", rar_count-1);
+	for (i = 1; i < rar_count; i++)
+	    hw->mac.ops.rar_set(hw, addr, i);
+}
+
+/**
+ *  igb_update_mc_addr_list_82575 - Update Multicast addresses
+ *  @hw: pointer to the HW structure
+ *  @mc_addr_list: array of multicast addresses to program
+ *  @mc_addr_count: number of multicast addresses to program
+ *  @rar_used_count: the first RAR register free to program
+ *  @rar_count: total number of supported Receive Address Registers
+ *
+ *  Updates the Receive Address Registers and Multicast Table Array.
+ *  The caller must have a packed mc_addr_list of multicast addresses.
+ *  The parameter rar_count will usually be hw->mac.rar_entry_count
+ *  unless there are workarounds that change this.
+ **/
+void igb_update_mc_addr_list_82575(struct e1000_hw *hw,
+                                   u8 *mc_addr_list, u32 mc_addr_count,
+                                   u32 rar_used_count, u32 rar_count)
+{
+	u32 hash_value;
+	u32 i;
+	u8 addr[6] = {0,0,0,0,0,0};
+	/*
+	 * This function is essentially the same as that of 
+	 * igb_update_mc_addr_list_generic. However it also takes care 
+	 * of the special case where the register offset of the 
+	 * second set of RARs begins elsewhere. This is implicitly taken care by 
+	 * function e1000_rar_set_generic.
+	 */
+
+	/*
+	 * Load the first set of multicast addresses into the exact
+	 * filters (RAR).  If there are not enough to fill the RAR
+	 * array, clear the filters.
+	 */
+	for (i = rar_used_count; i < rar_count; i++) {
+		if (mc_addr_count) {
+			igb_rar_set(hw, mc_addr_list, i);
+			mc_addr_count--;
+			mc_addr_list += ETH_ALEN;
+		} else {
+			igb_rar_set(hw, addr, i);
+		}
+	}
+
+	/* Clear the old settings from the MTA */
+	hw_dbg("Clearing MTA\n");
+	for (i = 0; i < hw->mac.mta_reg_count; i++) {
+		array_wr32(E1000_MTA, i, 0);
+		wrfl();
+	}
+
+	/* Load any remaining multicast addresses into the hash table. */
+	for (; mc_addr_count > 0; mc_addr_count--) {
+		hash_value = igb_hash_mc_addr(hw, mc_addr_list);
+		hw_dbg("Hash value = 0x%03X\n", hash_value);
+		hw->mac.ops.mta_set(hw, hash_value);
+		mc_addr_list += ETH_ALEN;
+	}
+}
+
+/**
+ *  igb_shutdown_fiber_serdes_link_82575 - Remove link during power down
+ *  @hw: pointer to the HW structure
+ *
+ *  In the case of fiber serdes, shut down optics and PCS on driver unload
+ *  when management pass thru is not enabled.
+ **/
+void igb_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw)
+{
+	u32 reg;
+
+	if (hw->mac.type != e1000_82576 ||
+	    (hw->phy.media_type != e1000_media_type_fiber &&
+	     hw->phy.media_type != e1000_media_type_internal_serdes))
+		return;
+
+	/* if the management interface is not enabled, then power down */
+	if (!igb_enable_mng_pass_thru(hw)) {
+		/* Disable PCS to turn off link */
+		reg = rd32(E1000_PCS_CFG0);
+		reg &= ~E1000_PCS_CFG_PCS_EN;
+		wr32(E1000_PCS_CFG0, reg);
+
+		/* shutdown the laser */
+		reg = rd32(E1000_CTRL_EXT);
+		reg |= E1000_CTRL_EXT_SDP7_DATA;
+		wr32(E1000_CTRL_EXT, reg);
+
+		/* flush the write to verify completion */
+		wrfl();
+		msleep(1);
+	}
 
 	return;
 }
@@ -854,7 +972,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 	igb_clear_vfta(hw);
 
 	/* Setup the receive address */
-	igb_init_rx_addrs(hw, rar_count);
+	igb_init_rx_addrs_82575(hw, rar_count);
 	/* Zero out the Multicast HASH table */
 	hw_dbg("Zeroing the MTA\n");
 	for (i = 0; i < mac->mta_reg_count; i++)
@@ -1114,6 +1232,70 @@ out:
 }
 
 /**
+ *  igb_translate_register_82576 - Translate the proper register offset
+ *  @reg: e1000 register to be read
+ *
+ *  Registers in 82576 are located in different offsets than other adapters
+ *  even though they function in the same manner.  This function takes in
+ *  the name of the register to read and returns the correct offset for
+ *  82576 silicon.
+ **/
+u32 igb_translate_register_82576(u32 reg)
+{
+	/*
+	 * Some of the Kawela registers are located at different
+	 * offsets than they are in older adapters.
+	 * Despite the difference in location, the registers
+	 * function in the same manner.
+	 */
+	switch (reg) {
+	case E1000_TDBAL(0):
+		reg = 0x0E000;
+		break;
+	case E1000_TDBAH(0):
+		reg = 0x0E004;
+		break;
+	case E1000_TDLEN(0):
+		reg = 0x0E008;
+		break;
+	case E1000_TDH(0):
+		reg = 0x0E010;
+		break;
+	case E1000_TDT(0):
+		reg = 0x0E018;
+		break;
+	case E1000_TXDCTL(0):
+		reg = 0x0E028;
+		break;
+	case E1000_RDBAL(0):
+		reg = 0x0C000;
+		break;
+	case E1000_RDBAH(0):
+		reg = 0x0C004;
+		break;
+	case E1000_RDLEN(0):
+		reg = 0x0C008;
+		break;
+	case E1000_RDH(0):
+		reg = 0x0C010;
+		break;
+	case E1000_RDT(0):
+		reg = 0x0C018;
+		break;
+	case E1000_RXDCTL(0):
+		reg = 0x0C028;
+		break;
+	case E1000_SRRCTL(0):
+		reg = 0x0C00C;
+		break;
+	default:
+		break;
+	}
+
+	return reg;
+}
+
+/**
  *  igb_reset_init_script_82575 - Inits HW defaults after reset
  *  @hw: pointer to the HW structure
  *
@@ -1304,7 +1486,7 @@ static struct e1000_mac_operations e1000_mac_ops_82575 = {
 	.reset_hw             = igb_reset_hw_82575,
 	.init_hw              = igb_init_hw_82575,
 	.check_for_link       = igb_check_for_link_82575,
-	.rar_set              = igb_rar_set_82575,
+	.rar_set              = igb_rar_set,
 	.read_mac_addr        = igb_read_mac_addr_82575,
 	.get_speed_and_duplex = igb_get_speed_and_duplex_copper,
 };

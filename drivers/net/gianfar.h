@@ -77,13 +77,8 @@ extern const char gfar_driver_name[];
 extern const char gfar_driver_version[];
 
 /* These need to be powers of 2 for this driver */
-#ifdef CONFIG_GFAR_NAPI
 #define DEFAULT_TX_RING_SIZE	256
 #define DEFAULT_RX_RING_SIZE	256
-#else
-#define DEFAULT_TX_RING_SIZE    64
-#define DEFAULT_RX_RING_SIZE    64
-#endif
 
 #define GFAR_RX_MAX_RING_SIZE   256
 #define GFAR_TX_MAX_RING_SIZE   256
@@ -128,14 +123,8 @@ extern const char gfar_driver_version[];
 
 #define DEFAULT_RXTIME	21
 
-/* Non NAPI Case */
-#ifndef CONFIG_GFAR_NAPI
-#define DEFAULT_RX_COALESCE 1
-#define DEFAULT_RXCOUNT	16
-#else
 #define DEFAULT_RX_COALESCE 0
 #define DEFAULT_RXCOUNT	0
-#endif /* CONFIG_GFAR_NAPI */
 
 #define MIIMCFG_INIT_VALUE	0x00000007
 #define MIIMCFG_RESET           0x80000000

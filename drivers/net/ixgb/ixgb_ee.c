@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/10GbE Linux driver
-  Copyright(c) 1999 - 2006 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -108,7 +108,7 @@ ixgb_shift_out_bits(struct ixgb_hw *hw,
 		 */
 		eecd_reg &= ~IXGB_EECD_DI;
 
-		if(data & mask)
+		if (data & mask)
 			eecd_reg |= IXGB_EECD_DI;
 
 		IXGB_WRITE_REG(hw, EECD, eecd_reg);
@@ -120,7 +120,7 @@ ixgb_shift_out_bits(struct ixgb_hw *hw,
 
 		mask = mask >> 1;
 
-	} while(mask);
+	} while (mask);
 
 	/* We leave the "DI" bit set to "0" when we leave this routine. */
 	eecd_reg &= ~IXGB_EECD_DI;
@@ -152,14 +152,14 @@ ixgb_shift_in_bits(struct ixgb_hw *hw)
 	eecd_reg &= ~(IXGB_EECD_DO | IXGB_EECD_DI);
 	data = 0;
 
-	for(i = 0; i < 16; i++) {
+	for (i = 0; i < 16; i++) {
 		data = data << 1;
 		ixgb_raise_clock(hw, &eecd_reg);
 
 		eecd_reg = IXGB_READ_REG(hw, EECD);
 
 		eecd_reg &= ~(IXGB_EECD_DI);
-		if(eecd_reg & IXGB_EECD_DO)
+		if (eecd_reg & IXGB_EECD_DO)
 			data |= 1;
 
 		ixgb_lower_clock(hw, &eecd_reg);
@@ -205,7 +205,7 @@ ixgb_standby_eeprom(struct ixgb_hw *hw)
 
 	eecd_reg = IXGB_READ_REG(hw, EECD);
 
-	/*  Deselct EEPROM  */
+	/*  Deselect EEPROM  */
 	eecd_reg &= ~(IXGB_EECD_CS | IXGB_EECD_SK);
 	IXGB_WRITE_REG(hw, EECD, eecd_reg);
 	udelay(50);
@@ -293,14 +293,14 @@ ixgb_wait_eeprom_command(struct ixgb_hw *hw)
 	 */
 	ixgb_standby_eeprom(hw);
 
-	/* Now read DO repeatedly until is high (equal to '1').  The EEEPROM will
+	/* Now read DO repeatedly until is high (equal to '1').  The EEPROM will
 	 * signal that the command has been completed by raising the DO signal.
 	 * If DO does not go high in 10 milliseconds, then error out.
 	 */
-	for(i = 0; i < 200; i++) {
+	for (i = 0; i < 200; i++) {
 		eecd_reg = IXGB_READ_REG(hw, EECD);
 
-		if(eecd_reg & IXGB_EECD_DO)
+		if (eecd_reg & IXGB_EECD_DO)
 			return (true);
 
 		udelay(50);
@@ -328,10 +328,10 @@ ixgb_validate_eeprom_checksum(struct ixgb_hw *hw)
 	u16 checksum = 0;
 	u16 i;
 
-	for(i = 0; i < (EEPROM_CHECKSUM_REG + 1); i++)
+	for (i = 0; i < (EEPROM_CHECKSUM_REG + 1); i++)
 		checksum += ixgb_read_eeprom(hw, i);
 
-	if(checksum == (u16) EEPROM_SUM)
+	if (checksum == (u16) EEPROM_SUM)
 		return (true);
 	else
 		return (false);
@@ -351,7 +351,7 @@ ixgb_update_eeprom_checksum(struct ixgb_hw *hw)
 	u16 checksum = 0;
 	u16 i;
 
-	for(i = 0; i < EEPROM_CHECKSUM_REG; i++)
+	for (i = 0; i < EEPROM_CHECKSUM_REG; i++)
 		checksum += ixgb_read_eeprom(hw, i);
 
 	checksum = (u16) EEPROM_SUM - checksum;
@@ -365,7 +365,7 @@ ixgb_update_eeprom_checksum(struct ixgb_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  * reg - offset within the EEPROM to be written to
- * data - 16 bit word to be writen to the EEPROM
+ * data - 16 bit word to be written to the EEPROM
  *
  * If ixgb_update_eeprom_checksum is not called after this function, the
  * EEPROM will most likely contain an invalid checksum.
@@ -472,7 +472,7 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 	ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	DEBUGOUT("ixgb_ee: Reading eeprom data\n");
-	for(i = 0; i < IXGB_EEPROM_SIZE ; i++) {
+	for (i = 0; i < IXGB_EEPROM_SIZE ; i++) {
 		u16 ee_data;
 		ee_data = ixgb_read_eeprom(hw, i);
 		checksum += ee_data;

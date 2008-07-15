@@ -90,6 +90,11 @@
 #define E1000_I2CCMD_ERROR            0x80000000
 #define E1000_MAX_SGMII_PHY_REG_ADDR  255
 #define E1000_I2CCMD_PHY_TIMEOUT      200
+#define E1000_IVAR_VALID              0x80
+#define E1000_GPIE_NSICR              0x00000001
+#define E1000_GPIE_MSIX_MODE          0x00000010
+#define E1000_GPIE_EIAME              0x40000000
+#define E1000_GPIE_PBA                0x80000000
 
 /* Receive Descriptor bit definitions */
 #define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
@@ -213,6 +218,7 @@
 /* Device Control */
 #define E1000_CTRL_FD       0x00000001  /* Full duplex.0=half; 1=full */
 #define E1000_CTRL_GIO_MASTER_DISABLE 0x00000004 /*Blocks new Master requests */
+#define E1000_CTRL_LRST     0x00000008  /* Link reset. 0=normal,1=reset */
 #define E1000_CTRL_ASDE     0x00000020  /* Auto-speed detect enable */
 #define E1000_CTRL_SLU      0x00000040  /* Set link up (Force Link) */
 #define E1000_CTRL_ILOS     0x00000080  /* Invert Loss-Of Signal */
@@ -244,6 +250,7 @@
  */
 
 #define E1000_CONNSW_ENRGSRC             0x4
+#define E1000_PCS_CFG_PCS_EN             8
 #define E1000_PCS_LCTL_FLV_LINK_UP       1
 #define E1000_PCS_LCTL_FSV_100           2
 #define E1000_PCS_LCTL_FSV_1000          4
@@ -253,6 +260,7 @@
 #define E1000_PCS_LCTL_AN_ENABLE         0x10000
 #define E1000_PCS_LCTL_AN_RESTART        0x20000
 #define E1000_PCS_LCTL_AN_TIMEOUT        0x40000
+#define E1000_ENABLE_SERDES_LOOPBACK     0x0410
 
 #define E1000_PCS_LSTS_LINK_OK           1
 #define E1000_PCS_LSTS_SPEED_100         2
@@ -360,6 +368,7 @@
 #define E1000_PBA_16K 0x0010    /* 16KB, default TX allocation */
 #define E1000_PBA_24K 0x0018
 #define E1000_PBA_34K 0x0022
+#define E1000_PBA_64K 0x0040    /* 64KB */
 
 #define IFS_MAX       80
 #define IFS_MIN       40
@@ -528,6 +537,7 @@
 /* PHY Control Register */
 #define MII_CR_FULL_DUPLEX      0x0100  /* FDX =1, half duplex =0 */
 #define MII_CR_RESTART_AUTO_NEG 0x0200  /* Restart auto negotiation */
+#define MII_CR_POWER_DOWN       0x0800  /* Power down */
 #define MII_CR_AUTO_NEG_EN      0x1000  /* Auto Neg Enable */
 #define MII_CR_LOOPBACK         0x4000  /* 0 = normal, 1 = loopback */
 #define MII_CR_RESET            0x8000  /* 0 = normal, 1 = PHY reset */

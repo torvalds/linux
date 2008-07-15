@@ -36,7 +36,6 @@
 
 static s32 igb_set_default_fc(struct e1000_hw *hw);
 static s32 igb_set_fc_watermarks(struct e1000_hw *hw);
-static u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr);
 
 /**
  *  igb_remove_device - Free device specific structure
@@ -360,7 +359,7 @@ void igb_update_mc_addr_list(struct e1000_hw *hw,
  *  the multicast filter table array address and new table value.  See
  *  igb_mta_set()
  **/
-static u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
+u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 {
 	u32 hash_value, hash_mask;
 	u8 bit_shift = 0;

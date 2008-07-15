@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/10GbE Linux driver
-  Copyright(c) 1999 - 2006 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -136,7 +136,7 @@ IXGB_PARAM(RxFCLowThresh, "Receive Flow Control Low Threshold");
 /* Flow control request timeout (how long to pause the link partner's tx)
  * (PAP 15:0)
  *
- * Valid Range: 1 - 65535 
+ * Valid Range: 1 - 65535
  *
  * Default Value:  65535 (0xffff) (we'll send an xon if we recover)
  */
@@ -200,7 +200,7 @@ struct ixgb_option {
 static int __devinit
 ixgb_validate_option(unsigned int *value, const struct ixgb_option *opt)
 {
-	if(*value == OPTION_UNSET) {
+	if (*value == OPTION_UNSET) {
 		*value = opt->def;
 		return 0;
 	}
@@ -217,7 +217,7 @@ ixgb_validate_option(unsigned int *value, const struct ixgb_option *opt)
 		}
 		break;
 	case range_option:
-		if(*value >= opt->arg.r.min && *value <= opt->arg.r.max) {
+		if (*value >= opt->arg.r.min && *value <= opt->arg.r.max) {
 			printk(KERN_INFO "%s set to %i\n", opt->name, *value);
 			return 0;
 		}
@@ -226,10 +226,10 @@ ixgb_validate_option(unsigned int *value, const struct ixgb_option *opt)
 		int i;
 		struct ixgb_opt_list *ent;
 
-		for(i = 0; i < opt->arg.l.nr; i++) {
+		for (i = 0; i < opt->arg.l.nr; i++) {
 			ent = &opt->arg.l.p[i];
-			if(*value == ent->i) {
-				if(ent->str[0] != '\0')
+			if (*value == ent->i) {
+				if (ent->str[0] != '\0')
 					printk(KERN_INFO "%s\n", ent->str);
 				return 0;
 			}
@@ -260,7 +260,7 @@ void __devinit
 ixgb_check_options(struct ixgb_adapter *adapter)
 {
 	int bd = adapter->bd_number;
-	if(bd >= IXGB_MAX_NIC) {
+	if (bd >= IXGB_MAX_NIC) {
 		printk(KERN_NOTICE
 			   "Warning: no configuration for board #%i\n", bd);
 		printk(KERN_NOTICE "Using defaults for all values\n");
@@ -277,7 +277,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		};
 		struct ixgb_desc_ring *tx_ring = &adapter->tx_ring;
 
-		if(num_TxDescriptors > bd) {
+		if (num_TxDescriptors > bd) {
 			tx_ring->count = TxDescriptors[bd];
 			ixgb_validate_option(&tx_ring->count, &opt);
 		} else {
@@ -296,7 +296,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		};
 		struct ixgb_desc_ring *rx_ring = &adapter->rx_ring;
 
-		if(num_RxDescriptors > bd) {
+		if (num_RxDescriptors > bd) {
 			rx_ring->count = RxDescriptors[bd];
 			ixgb_validate_option(&rx_ring->count, &opt);
 		} else {
@@ -312,7 +312,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			.def  = OPTION_ENABLED
 		};
 
-		if(num_XsumRX > bd) {
+		if (num_XsumRX > bd) {
 			unsigned int rx_csum = XsumRX[bd];
 			ixgb_validate_option(&rx_csum, &opt);
 			adapter->rx_csum = rx_csum;
@@ -338,7 +338,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 					 .p = fc_list }}
 		};
 
-		if(num_FlowControl > bd) {
+		if (num_FlowControl > bd) {
 			unsigned int fc = FlowControl[bd];
 			ixgb_validate_option(&fc, &opt);
 			adapter->hw.fc.type = fc;
@@ -356,14 +356,14 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 					 .max = MAX_FCRTH}}
 		};
 
-		if(num_RxFCHighThresh > bd) {
+		if (num_RxFCHighThresh > bd) {
 			adapter->hw.fc.high_water = RxFCHighThresh[bd];
 			ixgb_validate_option(&adapter->hw.fc.high_water, &opt);
 		} else {
 			adapter->hw.fc.high_water = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			printk (KERN_INFO
+			printk(KERN_INFO
 				"Ignoring RxFCHighThresh when no RxFC\n");
 	}
 	{ /* Receive Flow Control Low Threshold */
@@ -376,14 +376,14 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 					 .max = MAX_FCRTL}}
 		};
 
-		if(num_RxFCLowThresh > bd) {
+		if (num_RxFCLowThresh > bd) {
 			adapter->hw.fc.low_water = RxFCLowThresh[bd];
 			ixgb_validate_option(&adapter->hw.fc.low_water, &opt);
 		} else {
 			adapter->hw.fc.low_water = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			printk (KERN_INFO
+			printk(KERN_INFO
 				"Ignoring RxFCLowThresh when no RxFC\n");
 	}
 	{ /* Flow Control Pause Time Request*/
@@ -396,7 +396,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 					.max = MAX_FCPAUSE}}
 		};
 
-		if(num_FCReqTimeout > bd) {
+		if (num_FCReqTimeout > bd) {
 			unsigned int pause_time = FCReqTimeout[bd];
 			ixgb_validate_option(&pause_time, &opt);
 			adapter->hw.fc.pause_time = pause_time;
@@ -404,7 +404,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			adapter->hw.fc.pause_time = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			printk (KERN_INFO
+			printk(KERN_INFO
 				"Ignoring FCReqTimeout when no RxFC\n");
 	}
 	/* high low and spacing check for rx flow control thresholds */
@@ -412,7 +412,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		/* high must be greater than low */
 		if (adapter->hw.fc.high_water < (adapter->hw.fc.low_water + 8)) {
 			/* set defaults */
-			printk (KERN_INFO 
+			printk(KERN_INFO
 				"RxFCHighThresh must be >= (RxFCLowThresh + 8), "
 				"Using Defaults\n");
 			adapter->hw.fc.high_water = DEFAULT_FCRTH;
@@ -429,7 +429,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 					 .max = MAX_RDTR}}
 		};
 
-		if(num_RxIntDelay > bd) {
+		if (num_RxIntDelay > bd) {
 			adapter->rx_int_delay = RxIntDelay[bd];
 			ixgb_validate_option(&adapter->rx_int_delay, &opt);
 		} else {
@@ -446,7 +446,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 					 .max = MAX_TIDV}}
 		};
 
-		if(num_TxIntDelay > bd) {
+		if (num_TxIntDelay > bd) {
 			adapter->tx_int_delay = TxIntDelay[bd];
 			ixgb_validate_option(&adapter->tx_int_delay, &opt);
 		} else {
@@ -462,7 +462,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			.def  = OPTION_ENABLED
 		};
 
-		if(num_IntDelayEnable > bd) {
+		if (num_IntDelayEnable > bd) {
 			unsigned int ide = IntDelayEnable[bd];
 			ixgb_validate_option(&ide, &opt);
 			adapter->tx_int_delay_enable = ide;

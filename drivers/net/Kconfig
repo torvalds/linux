@@ -1694,26 +1694,6 @@ config VIA_RHINE_MMIO
 
 	  If unsure, say Y.
 
-config VIA_RHINE_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on VIA_RHINE
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-config LAN_SAA9730
-	bool "Philips SAA9730 Ethernet support"
-	depends on NET_PCI && PCI && MIPS_ATLAS
-	help
-	  The SAA9730 is a combined multimedia and peripheral controller used
-	  in thin clients, Internet access terminals, and diskless
-	  workstations.
-	  See <http://www.semiconductors.philips.com/pip/SAA9730_flyer_1>.
-
 config SC92031
 	tristate "Silan SC92031 PCI Fast Ethernet Adapter driver (EXPERIMENTAL)"
 	depends on NET_PCI && PCI && EXPERIMENTAL
@@ -2029,6 +2009,15 @@ config IGB
          To compile this driver as a module, choose M here. The module
          will be called igb.
 
+config IGB_LRO 
+	bool "Use software LRO"
+	depends on IGB && INET
+	select INET_LRO
+	---help---
+	  Say Y here if you want to use large receive offload. 
+
+	  If in doubt, say N.
+
 source "drivers/net/ixp2000/Kconfig"
 
 config MYRI_SBUS
@@ -2273,10 +2262,6 @@ config GIANFAR
 	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
 	  and MPC86xx family of chips, and the FEC on the 8540.
 
-config GFAR_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on GIANFAR
-
 config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"
 	depends on QUICC_ENGINE
@@ -2284,10 +2269,6 @@ config UCC_GETH
 	help
 	  This driver supports the Gigabit Ethernet mode of the QUICC Engine,
 	  which is available on some Freescale SOCs.
-
-config UGETH_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on UCC_GETH
 
 config UGETH_MAGIC_PACKET
 	bool "Magic Packet detection support"
@@ -2378,14 +2359,6 @@ config CHELSIO_T1_1G
           Enables support for Chelsio's gigabit Ethernet PCI cards.  If you
           are using only 10G cards say 'N' here.
 
-config CHELSIO_T1_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on CHELSIO_T1
-	default y
-	help
-	  NAPI is a driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card.
-
 config CHELSIO_T3
 	tristate "Chelsio Communications T3 10Gb Ethernet support"
 	depends on PCI && INET
@@ -2456,20 +2429,6 @@ config IXGB
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgb.
-
-config IXGB_NAPI
-	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
-	depends on IXGB && EXPERIMENTAL
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  If in doubt, say N.
 
 config S2IO
 	tristate "S2IO 10Gbe XFrame NIC"
