@@ -399,12 +399,8 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
  * service routine. In interrupt mode, the device sends an interrupt to signal
  * that it is ready to receive a packet. However, we need to delay about 2-3
  * ticks before issuing the packet or we gets in trouble.
- *
- * So, follow carefully. transfer_pc1 is called as an interrupt (or directly).
- * In either case, when the device says it's ready for a packet, we schedule
- * the packet transfer to occur about 2-3 ticks later in transfer_pc2.
  */
-static int idefloppy_transfer_pc2(ide_drive_t *drive)
+static int idefloppy_transfer_pc(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 
@@ -415,7 +411,13 @@ static int idefloppy_transfer_pc2(ide_drive_t *drive)
 	return IDEFLOPPY_WAIT_CMD;
 }
 
-static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
+
+/*
+ * Called as an interrupt (or directly). When the device says it's ready for a
+ * packet, we schedule the packet transfer to occur about 2-3 ticks later in
+ * transfer_pc.
+ */
+static ide_startstop_t idefloppy_start_pc_transfer(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	struct ide_atapi_pc *pc = floppy->pc;
@@ -432,7 +434,7 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 	 */
 	if (pc->flags & PC_FLAG_ZIP_DRIVE) {
 		timeout = floppy->ticks;
-		expiry = &idefloppy_transfer_pc2;
+		expiry = &idefloppy_transfer_pc;
 	} else {
 		timeout = IDEFLOPPY_WAIT_CMD;
 		expiry = NULL;
@@ -483,7 +485,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 
 	pc->retries++;
 
-	return ide_issue_pc(drive, pc, idefloppy_transfer_pc1,
+	return ide_issue_pc(drive, pc, idefloppy_start_pc_transfer,
 			    IDEFLOPPY_WAIT_CMD, NULL);
 }
 
