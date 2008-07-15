@@ -388,11 +388,13 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		return ide_stopped;
 	}
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
+		if (hwif->dma_ops->dma_end(drive))
+			pc->flags |= PC_FLAG_DMA_ERROR;
+		else
+			pc->xferred = pc->req_xfer;
 #if IDESCSI_DEBUG_LOG
 		printk ("ide-scsi: %s: DMA complete\n", drive->name);
 #endif /* IDESCSI_DEBUG_LOG */
-		pc->xferred = pc->req_xfer;
-		(void)hwif->dma_ops->dma_end(drive);
 	}
 
 	/* Clear the interrupt */
@@ -405,7 +407,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 					" transferred\n", pc->xferred);
 		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
 		local_irq_enable_in_hardirq();
-		if (stat & ERR_STAT)
+		if ((stat & ERR_STAT) || (pc->flags & PC_FLAG_DMA_ERROR))
 			rq->errors++;
 		idescsi_end_request (drive, 1, 0);
 		return ide_stopped;
