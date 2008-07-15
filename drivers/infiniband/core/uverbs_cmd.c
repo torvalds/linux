@@ -917,7 +917,7 @@ ssize_t ib_uverbs_poll_cq(struct ib_uverbs_file *file,
 		resp->wc[i].opcode 	   = wc[i].opcode;
 		resp->wc[i].vendor_err 	   = wc[i].vendor_err;
 		resp->wc[i].byte_len 	   = wc[i].byte_len;
-		resp->wc[i].imm_data 	   = (__u32 __force) wc[i].imm_data;
+		resp->wc[i].ex.imm_data    = (__u32 __force) wc[i].ex.imm_data;
 		resp->wc[i].qp_num 	   = wc[i].qp->qp_num;
 		resp->wc[i].src_qp 	   = wc[i].src_qp;
 		resp->wc[i].wc_flags 	   = wc[i].wc_flags;

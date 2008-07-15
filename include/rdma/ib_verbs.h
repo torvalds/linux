@@ -103,6 +103,7 @@ enum ib_device_cap_flags {
 	 */
 	IB_DEVICE_UD_IP_CSUM		= (1<<18),
 	IB_DEVICE_UD_TSO		= (1<<19),
+	IB_DEVICE_MEM_MGT_EXTENSIONS	= (1<<21),
 };
 
 enum ib_atomic_cap {
@@ -148,6 +149,7 @@ struct ib_device_attr {
 	int			max_srq;
 	int			max_srq_wr;
 	int			max_srq_sge;
+	unsigned int		max_fast_reg_page_list_len;
 	u16			max_pkeys;
 	u8			local_ca_ack_delay;
 };
@@ -411,6 +413,8 @@ enum ib_wc_opcode {
 	IB_WC_FETCH_ADD,
 	IB_WC_BIND_MW,
 	IB_WC_LSO,
+	IB_WC_LOCAL_INV,
+	IB_WC_FAST_REG_MR,
 /*
  * Set value of IB_WC_RECV so consumers can test if a completion is a
  * receive by testing (opcode & IB_WC_RECV).
@@ -421,7 +425,8 @@ enum ib_wc_opcode {
 
 enum ib_wc_flags {
 	IB_WC_GRH		= 1,
-	IB_WC_WITH_IMM		= (1<<1)
+	IB_WC_WITH_IMM		= (1<<1),
+	IB_WC_WITH_INVALIDATE	= (1<<2),
 };
 
 struct ib_wc {
@@ -431,7 +436,10 @@ struct ib_wc {
 	u32			vendor_err;
 	u32			byte_len;
 	struct ib_qp	       *qp;
-	__be32			imm_data;
+	union {
+		__be32		imm_data;
+		u32		invalidate_rkey;
+	} ex;
 	u32			src_qp;
 	int			wc_flags;
 	u16			pkey_index;
@@ -625,6 +633,9 @@ enum ib_wr_opcode {
 	IB_WR_ATOMIC_FETCH_AND_ADD,
 	IB_WR_LSO,
 	IB_WR_SEND_WITH_INV,
+	IB_WR_RDMA_READ_WITH_INV,
+	IB_WR_LOCAL_INV,
+	IB_WR_FAST_REG_MR,
 };
 
 enum ib_send_flags {
@@ -639,6 +650,12 @@ struct ib_sge {
 	u64	addr;
 	u32	length;
 	u32	lkey;
+};
+
+struct ib_fast_reg_page_list {
+	struct ib_device       *device;
+	u64		       *page_list;
+	unsigned int		max_page_list_len;
 };
 
 struct ib_send_wr {
@@ -673,6 +690,15 @@ struct ib_send_wr {
 			u16	pkey_index; /* valid for GSI only */
 			u8	port_num;   /* valid for DR SMPs on switch only */
 		} ud;
+		struct {
+			u64				iova_start;
+			struct ib_fast_reg_page_list   *page_list;
+			unsigned int			page_shift;
+			unsigned int			page_list_len;
+			u32				length;
+			int				access_flags;
+			u32				rkey;
+		} fast_reg;
 	} wr;
 };
 
@@ -1011,6 +1037,11 @@ struct ib_device {
 	int                        (*query_mr)(struct ib_mr *mr,
 					       struct ib_mr_attr *mr_attr);
 	int                        (*dereg_mr)(struct ib_mr *mr);
+	struct ib_mr *		   (*alloc_fast_reg_mr)(struct ib_pd *pd,
+					       int max_page_list_len);
+	struct ib_fast_reg_page_list * (*alloc_fast_reg_page_list)(struct ib_device *device,
+								   int page_list_len);
+	void			   (*free_fast_reg_page_list)(struct ib_fast_reg_page_list *page_list);
 	int                        (*rereg_phys_mr)(struct ib_mr *mr,
 						    int mr_rereg_mask,
 						    struct ib_pd *pd,
@@ -1803,6 +1834,54 @@ int ib_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr);
  * @mr: The memory region to deregister.
  */
 int ib_dereg_mr(struct ib_mr *mr);
+
+/**
+ * ib_alloc_fast_reg_mr - Allocates memory region usable with the
+ *   IB_WR_FAST_REG_MR send work request.
+ * @pd: The protection domain associated with the region.
+ * @max_page_list_len: requested max physical buffer list length to be
+ *   used with fast register work requests for this MR.
+ */
+struct ib_mr *ib_alloc_fast_reg_mr(struct ib_pd *pd, int max_page_list_len);
+
+/**
+ * ib_alloc_fast_reg_page_list - Allocates a page list array
+ * @device - ib device pointer.
+ * @page_list_len - size of the page list array to be allocated.
+ *
+ * This allocates and returns a struct ib_fast_reg_page_list * and a
+ * page_list array that is at least page_list_len in size.  The actual
+ * size is returned in max_page_list_len.  The caller is responsible
+ * for initializing the contents of the page_list array before posting
+ * a send work request with the IB_WC_FAST_REG_MR opcode.
+ *
+ * The page_list array entries must be translated using one of the
+ * ib_dma_*() functions just like the addresses passed to
+ * ib_map_phys_fmr().  Once the ib_post_send() is issued, the struct
+ * ib_fast_reg_page_list must not be modified by the caller until the
+ * IB_WC_FAST_REG_MR work request completes.
+ */
+struct ib_fast_reg_page_list *ib_alloc_fast_reg_page_list(
+				struct ib_device *device, int page_list_len);
+
+/**
+ * ib_free_fast_reg_page_list - Deallocates a previously allocated
+ *   page list array.
+ * @page_list - struct ib_fast_reg_page_list pointer to be deallocated.
+ */
+void ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list);
+
+/**
+ * ib_update_fast_reg_key - updates the key portion of the fast_reg MR
+ *   R_Key and L_Key.
+ * @mr - struct ib_mr pointer to be updated.
+ * @newkey - new key to be used.
+ */
+static inline void ib_update_fast_reg_key(struct ib_mr *mr, u8 newkey)
+{
+	mr->lkey = (mr->lkey & 0xffffff00) | newkey;
+	mr->rkey = (mr->rkey & 0xffffff00) | newkey;
+}
 
 /**
  * ib_alloc_mw - Allocates a memory window.

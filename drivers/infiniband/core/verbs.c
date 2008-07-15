@@ -753,6 +753,52 @@ int ib_dereg_mr(struct ib_mr *mr)
 }
 EXPORT_SYMBOL(ib_dereg_mr);
 
+struct ib_mr *ib_alloc_fast_reg_mr(struct ib_pd *pd, int max_page_list_len)
+{
+	struct ib_mr *mr;
+
+	if (!pd->device->alloc_fast_reg_mr)
+		return ERR_PTR(-ENOSYS);
+
+	mr = pd->device->alloc_fast_reg_mr(pd, max_page_list_len);
+
+	if (!IS_ERR(mr)) {
+		mr->device  = pd->device;
+		mr->pd      = pd;
+		mr->uobject = NULL;
+		atomic_inc(&pd->usecnt);
+		atomic_set(&mr->usecnt, 0);
+	}
+
+	return mr;
+}
+EXPORT_SYMBOL(ib_alloc_fast_reg_mr);
+
+struct ib_fast_reg_page_list *ib_alloc_fast_reg_page_list(struct ib_device *device,
+							  int max_page_list_len)
+{
+	struct ib_fast_reg_page_list *page_list;
+
+	if (!device->alloc_fast_reg_page_list)
+		return ERR_PTR(-ENOSYS);
+
+	page_list = device->alloc_fast_reg_page_list(device, max_page_list_len);
+
+	if (!IS_ERR(page_list)) {
+		page_list->device = device;
+		page_list->max_page_list_len = max_page_list_len;
+	}
+
+	return page_list;
+}
+EXPORT_SYMBOL(ib_alloc_fast_reg_page_list);
+
+void ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list)
+{
+	page_list->device->free_fast_reg_page_list(page_list);
+}
+EXPORT_SYMBOL(ib_free_fast_reg_page_list);
+
 /* Memory windows */
 
 struct ib_mw *ib_alloc_mw(struct ib_pd *pd)

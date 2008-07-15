@@ -681,7 +681,7 @@ poll_cq_one_read_cqe:
 	wc->dlid_path_bits = cqe->dlid;
 	wc->src_qp = cqe->remote_qp_number;
 	wc->wc_flags = cqe->w_completion_flags;
-	wc->imm_data = cpu_to_be32(cqe->immediate_data);
+	wc->ex.imm_data = cpu_to_be32(cqe->immediate_data);
 	wc->sl = cqe->service_level;
 
 poll_cq_one_exit0:

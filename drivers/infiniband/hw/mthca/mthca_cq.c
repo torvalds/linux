@@ -620,13 +620,13 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 		case IB_OPCODE_SEND_LAST_WITH_IMMEDIATE:
 		case IB_OPCODE_SEND_ONLY_WITH_IMMEDIATE:
 			entry->wc_flags = IB_WC_WITH_IMM;
-			entry->imm_data = cqe->imm_etype_pkey_eec;
+			entry->ex.imm_data = cqe->imm_etype_pkey_eec;
 			entry->opcode = IB_WC_RECV;
 			break;
 		case IB_OPCODE_RDMA_WRITE_LAST_WITH_IMMEDIATE:
 		case IB_OPCODE_RDMA_WRITE_ONLY_WITH_IMMEDIATE:
 			entry->wc_flags = IB_WC_WITH_IMM;
-			entry->imm_data = cqe->imm_etype_pkey_eec;
+			entry->ex.imm_data = cqe->imm_etype_pkey_eec;
 			entry->opcode = IB_WC_RECV_RDMA_WITH_IMM;
 			break;
 		default:
