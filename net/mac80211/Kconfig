@@ -15,6 +15,7 @@ config MAC80211_QOS
 	def_bool y
 	depends on MAC80211
 	depends on NET_SCHED
+	depends on BROKEN
 
 comment "QoS/HT support disabled"
 	depends on MAC80211 && !MAC80211_QOS
