@@ -641,7 +641,7 @@ struct ide_atapi_pc {
 	 */
 	u8 pc_buf[256];
 	void (*idefloppy_callback) (ide_drive_t *);
-	ide_startstop_t (*idetape_callback) (ide_drive_t *);
+	void (*idetape_callback) (ide_drive_t *);
 
 	/* idetape only */
 	struct idetape_bh *bh;

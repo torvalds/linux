@@ -619,7 +619,7 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 	return 0;
 }
 
-static ide_startstop_t ide_tape_callback(ide_drive_t *drive)
+static void ide_tape_callback(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc *pc = tape->pc;
@@ -675,8 +675,6 @@ static ide_startstop_t ide_tape_callback(ide_drive_t *drive)
 	}
 
 	idetape_end_request(drive, uptodate, 0);
-
-	return ide_stopped;
 }
 
 static void idetape_init_pc(struct ide_atapi_pc *pc)
@@ -843,7 +841,8 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 		if (tape->failed_pc == pc)
 			tape->failed_pc = NULL;
 		/* Command finished - Call the callback function */
-		return pc->idetape_callback(drive);
+		pc->idetape_callback(drive);
+		return ide_stopped;
 	}
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
@@ -1035,7 +1034,8 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 			pc->error = IDETAPE_ERROR_GENERAL;
 		}
 		tape->failed_pc = NULL;
-		return pc->idetape_callback(drive);
+		pc->idetape_callback(drive);
+		return ide_stopped;
 	}
 	debug_log(DBG_SENSE, "Retry #%d, cmd = %02X\n", pc->retries, pc->c[0]);
 
@@ -1120,7 +1120,8 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 		pc->error = IDETAPE_ERROR_GENERAL;
 		tape->failed_pc = NULL;
 	}
-	return pc->idetape_callback(drive);
+	pc->idetape_callback(drive);
+	return ide_stopped;
 }
 
 static void idetape_create_read_cmd(idetape_tape_t *tape,
