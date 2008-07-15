@@ -167,10 +167,14 @@ void xen_vcpu_restore(void)
 
 static void __init xen_banner(void)
 {
+	unsigned version = HYPERVISOR_xen_version(XENVER_version, NULL);
+	struct xen_extraversion extra;
+	HYPERVISOR_xen_version(XENVER_extraversion, &extra);
+
 	printk(KERN_INFO "Booting paravirtualized kernel on %s\n",
 	       pv_info.name);
-	printk(KERN_INFO "Hypervisor signature: %s%s\n",
-	       xen_start_info->magic,
+	printk(KERN_INFO "Xen version: %d.%d%s%s\n",
+	       version >> 16, version & 0xffff, extra.extraversion,
 	       xen_feature(XENFEAT_mmu_pt_update_preserve_ad) ? " (preserve-AD)" : "");
 }
 
