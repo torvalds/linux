@@ -559,7 +559,7 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 	 * 40 and 50msec work well. idefloppy_pc_intr will not be actually
 	 * used until after the packet is moved in about 50 msec.
 	 */
-	if (floppy->flags & IDEFLOPPY_FLAG_ZIP_DRIVE) {
+	if (pc->flags & PC_FLAG_ZIP_DRIVE) {
 		timeout = floppy->ticks;
 		expiry = &idefloppy_transfer_pc2;
 	} else {
@@ -575,7 +575,7 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 		hwif->dma_ops->dma_start(drive);
 	}
 
-	if ((floppy->flags & IDEFLOPPY_FLAG_ZIP_DRIVE) == 0)
+	if ((pc->flags & PC_FLAG_ZIP_DRIVE) == 0)
 		/* Send the actual packet */
 		hwif->output_data(drive, NULL, floppy->pc->c, 12);
 
@@ -826,7 +826,11 @@ static ide_startstop_t idefloppy_do_request(ide_drive_t *drive,
 		return ide_stopped;
 	}
 
+	if (floppy->flags & IDEFLOPPY_FLAG_ZIP_DRIVE)
+		pc->flags |= PC_FLAG_ZIP_DRIVE;
+
 	pc->rq = rq;
+
 	return idefloppy_issue_pc(drive, pc);
 }
 
