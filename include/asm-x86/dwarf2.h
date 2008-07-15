@@ -38,23 +38,23 @@
 
 /* Due to the structure of pre-exisiting code, don't use assembler line
    comment character # to ignore the arguments. Instead, use a dummy macro. */
-.macro __cfi_ignore a=0, b=0, c=0, d=0
+.macro cfi_ignore a=0, b=0, c=0, d=0
 .endm
 
-#define CFI_STARTPROC	__cfi_ignore
-#define CFI_ENDPROC	__cfi_ignore
-#define CFI_DEF_CFA	__cfi_ignore
-#define CFI_DEF_CFA_REGISTER	__cfi_ignore
-#define CFI_DEF_CFA_OFFSET	__cfi_ignore
-#define CFI_ADJUST_CFA_OFFSET	__cfi_ignore
-#define CFI_OFFSET	__cfi_ignore
-#define CFI_REL_OFFSET	__cfi_ignore
-#define CFI_REGISTER	__cfi_ignore
-#define CFI_RESTORE	__cfi_ignore
-#define CFI_REMEMBER_STATE __cfi_ignore
-#define CFI_RESTORE_STATE __cfi_ignore
-#define CFI_UNDEFINED __cfi_ignore
-#define CFI_SIGNAL_FRAME __cfi_ignore
+#define CFI_STARTPROC	cfi_ignore
+#define CFI_ENDPROC	cfi_ignore
+#define CFI_DEF_CFA	cfi_ignore
+#define CFI_DEF_CFA_REGISTER	cfi_ignore
+#define CFI_DEF_CFA_OFFSET	cfi_ignore
+#define CFI_ADJUST_CFA_OFFSET	cfi_ignore
+#define CFI_OFFSET	cfi_ignore
+#define CFI_REL_OFFSET	cfi_ignore
+#define CFI_REGISTER	cfi_ignore
+#define CFI_RESTORE	cfi_ignore
+#define CFI_REMEMBER_STATE cfi_ignore
+#define CFI_RESTORE_STATE cfi_ignore
+#define CFI_UNDEFINED cfi_ignore
+#define CFI_SIGNAL_FRAME cfi_ignore
 
 #endif
 
