@@ -199,7 +199,10 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	init_attr.recv_cq = priv->recv_cq;
 
 	if (priv->hca_caps & IB_DEVICE_UD_TSO)
-		init_attr.create_flags = IB_QP_CREATE_IPOIB_UD_LSO;
+		init_attr.create_flags |= IB_QP_CREATE_IPOIB_UD_LSO;
+
+	if (priv->hca_caps & IB_DEVICE_BLOCK_MULTICAST_LOOPBACK)
+		init_attr.create_flags |= IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK;
 
 	if (dev->features & NETIF_F_SG)
 		init_attr.cap.max_send_sge = MAX_SKB_FRAGS + 1;
