@@ -388,7 +388,6 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		return ide_stopped;
 	}
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
-		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
 #if IDESCSI_DEBUG_LOG
 		printk ("ide-scsi: %s: DMA complete\n", drive->name);
 #endif /* IDESCSI_DEBUG_LOG */
@@ -404,11 +403,19 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
 			printk(KERN_INFO "Packet command completed, %d bytes"
 					" transferred\n", pc->xferred);
+		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
 		local_irq_enable_in_hardirq();
 		if (stat & ERR_STAT)
 			rq->errors++;
 		idescsi_end_request (drive, 1, 0);
 		return ide_stopped;
+	}
+	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
+		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
+		printk(KERN_ERR "%s: The device wants to issue more interrupts "
+				"in DMA mode\n", drive->name);
+		ide_dma_off(drive);
+		return ide_do_reset(drive);
 	}
 	bcount = (hwif->INB(hwif->io_ports.lbah_addr) << 8) |
 		  hwif->INB(hwif->io_ports.lbam_addr);
