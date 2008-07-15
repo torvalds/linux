@@ -454,19 +454,8 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	spin_lock_init(&qp->rq.lock);
 
 	qp->state	 = IB_QPS_RESET;
-	qp->atomic_rd_en = 0;
-	qp->resp_depth   = 0;
-
-	qp->rq.head	    = 0;
-	qp->rq.tail	    = 0;
-	qp->sq.head	    = 0;
-	qp->sq.tail	    = 0;
-	qp->sq_next_wqe     = 0;
-
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		qp->sq_signal_bits = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE);
-	else
-		qp->sq_signal_bits = 0;
 
 	err = set_rq_size(dev, &init_attr->cap, !!pd->uobject, !!init_attr->srq, qp);
 	if (err)
@@ -704,7 +693,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	case IB_QPT_UC:
 	case IB_QPT_UD:
 	{
-		qp = kmalloc(sizeof *qp, GFP_KERNEL);
+		qp = kzalloc(sizeof *qp, GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
@@ -725,7 +714,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 		if (pd->uobject)
 			return ERR_PTR(-EINVAL);
 
-		sqp = kmalloc(sizeof *sqp, GFP_KERNEL);
+		sqp = kzalloc(sizeof *sqp, GFP_KERNEL);
 		if (!sqp)
 			return ERR_PTR(-ENOMEM);
 
