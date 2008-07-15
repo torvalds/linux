@@ -511,6 +511,9 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	} else {
 		qp->sq_no_prefetch = 0;
 
+		if (init_attr->create_flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK)
+			qp->flags |= MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK;
+
 		if (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO)
 			qp->flags |= MLX4_IB_QP_LSO;
 
@@ -684,10 +687,15 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	struct mlx4_ib_qp *qp;
 	int err;
 
-	/* We only support LSO, and only for kernel UD QPs. */
-	if (init_attr->create_flags & ~IB_QP_CREATE_IPOIB_UD_LSO)
+	/*
+	 * We only support LSO and multicast loopback blocking, and
+	 * only for kernel UD QPs.
+	 */
+	if (init_attr->create_flags & ~(IB_QP_CREATE_IPOIB_UD_LSO |
+					IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK))
 		return ERR_PTR(-EINVAL);
-	if (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO &&
+
+	if (init_attr->create_flags &&
 	    (pd->uobject || init_attr->qp_type != IB_QPT_UD))
 		return ERR_PTR(-EINVAL);
 
@@ -1843,6 +1851,13 @@ done:
 	qp_attr->cap.max_inline_data = 0;
 
 	qp_init_attr->cap	     = qp_attr->cap;
+
+	qp_init_attr->create_flags = 0;
+	if (qp->flags & MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK)
+		qp_init_attr->create_flags |= IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK;
+
+	if (qp->flags & MLX4_IB_QP_LSO)
+		qp_init_attr->create_flags |= IB_QP_CREATE_IPOIB_UD_LSO;
 
 out:
 	mutex_unlock(&qp->mutex);
