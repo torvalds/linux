@@ -364,7 +364,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	u16 bcount;
 	u8 stat, ireason;
 
-	debug_log("Reached %s interrupt handler\n", __func__);
+	debug_log("Enter %s - interrupt handler\n", __func__);
 
 	if (pc->flags & PC_FLAG_TIMEDOUT) {
 		pc->callback(drive);
@@ -383,10 +383,16 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 
 	if ((stat & DRQ_STAT) == 0) {
 		/* No more interrupts */
+		debug_log("Packet command completed, %d bytes transferred\n",
+			  pc->xferred);
 		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
 		local_irq_enable_in_hardirq();
-		if ((stat & ERR_STAT) || (pc->flags & PC_FLAG_DMA_ERROR))
+		if ((stat & ERR_STAT) || (pc->flags & PC_FLAG_DMA_ERROR)) {
+			/* Error detected */
+			debug_log("%s: I/O error\n", drive->name);
+
 			rq->errors++;
+		}
 		pc->callback(drive);
 		return ide_stopped;
 	}
@@ -456,6 +462,9 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	/* Update the current position */
 	pc->xferred += bcount;
 	pc->cur_pos += bcount;
+
+	debug_log("[cmd %x] transferred %d bytes on that intr.\n",
+		  pc->c[0], bcount);
 
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
