@@ -14,6 +14,9 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 		return NET_RX_DROP;
 	}
 
+	skb->vlan_tci = vlan_tci;
+	netif_nit_deliver(skb);
+
 	skb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
 	if (skb->dev == NULL) {
 		dev_kfree_skb_any(skb);
@@ -22,6 +25,7 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 		return NET_RX_SUCCESS;
 	}
 	skb->dev->last_rx = jiffies;
+	skb->vlan_tci = 0;
 
 	stats = &skb->dev->stats;
 	stats->rx_packets++;

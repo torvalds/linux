@@ -2068,6 +2068,33 @@ out:
 }
 #endif
 
+/*
+ * 	netif_nit_deliver - deliver received packets to network taps
+ * 	@skb: buffer
+ *
+ * 	This function is used to deliver incoming packets to network
+ * 	taps. It should be used when the normal netif_receive_skb path
+ * 	is bypassed, for example because of VLAN acceleration.
+ */
+void netif_nit_deliver(struct sk_buff *skb)
+{
+	struct packet_type *ptype;
+
+	if (list_empty(&ptype_all))
+		return;
+
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
+	skb->mac_len = skb->network_header - skb->mac_header;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ptype, &ptype_all, list) {
+		if (!ptype->dev || ptype->dev == skb->dev)
+			deliver_skb(skb, ptype, skb->dev);
+	}
+	rcu_read_unlock();
+}
+
 /**
  *	netif_receive_skb - process receive buffer from network
  *	@skb: buffer to process
