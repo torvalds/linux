@@ -968,6 +968,12 @@ extern int drive_is_ready(ide_drive_t *);
 
 void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
 
+ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
+	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
+	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
+	void (*retry_pc)(ide_drive_t *), void (*dsc_handle)(ide_drive_t *),
+	void (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned int,
+			   int));
 ide_startstop_t ide_transfer_pc(ide_drive_t *, struct ide_atapi_pc *,
 				ide_handler_t *, unsigned int, ide_expiry_t *);
 ide_startstop_t ide_issue_pc(ide_drive_t *, struct ide_atapi_pc *,

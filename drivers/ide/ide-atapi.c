@@ -5,6 +5,183 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
+#include <scsi/scsi.h>
+
+#ifdef DEBUG
+#define debug_log(fmt, args...) \
+	printk(KERN_INFO "ide: " fmt, ## args)
+#else
+#define debug_log(fmt, args...) do {} while (0)
+#endif
+
+/* TODO: unify the code thus making some arguments go away */
+ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
+	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
+	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
+	void (*retry_pc)(ide_drive_t *), void (*dsc_handle)(ide_drive_t *),
+	void (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned, int))
+{
+	ide_hwif_t *hwif = drive->hwif;
+	xfer_func_t *xferfunc;
+	unsigned int temp;
+	u16 bcount;
+	u8 stat, ireason, scsi = drive->scsi;
+
+	debug_log("Enter %s - interrupt handler\n", __func__);
+
+	if (pc->flags & PC_FLAG_TIMEDOUT) {
+		pc->callback(drive);
+		return ide_stopped;
+	}
+
+	/* Clear the interrupt */
+	stat = ide_read_status(drive);
+
+	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
+		if (hwif->dma_ops->dma_end(drive) ||
+		    (drive->media == ide_tape && !scsi && (stat & ERR_STAT))) {
+			if (drive->media == ide_floppy && !scsi)
+				printk(KERN_ERR "%s: DMA %s error\n",
+					drive->name, rq_data_dir(pc->rq)
+						     ? "write" : "read");
+			pc->flags |= PC_FLAG_DMA_ERROR;
+		} else {
+			pc->xferred = pc->req_xfer;
+			if (update_buffers)
+				update_buffers(drive, pc);
+		}
+		debug_log("%s: DMA finished\n", drive->name);
+	}
+
+	/* No more interrupts */
+	if ((stat & DRQ_STAT) == 0) {
+		debug_log("Packet command completed, %d bytes transferred\n",
+			  pc->xferred);
+
+		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
+
+		local_irq_enable_in_hardirq();
+
+		if (drive->media == ide_tape && !scsi &&
+		    (stat & ERR_STAT) && pc->c[0] == REQUEST_SENSE)
+			stat &= ~ERR_STAT;
+		if ((stat & ERR_STAT) || (pc->flags & PC_FLAG_DMA_ERROR)) {
+			/* Error detected */
+			debug_log("%s: I/O error\n", drive->name);
+
+			if (drive->media != ide_tape || scsi) {
+				pc->rq->errors++;
+				if (scsi)
+					goto cmd_finished;
+			}
+
+			if (pc->c[0] == REQUEST_SENSE) {
+				printk(KERN_ERR "%s: I/O error in request sense"
+						" command\n", drive->name);
+				return ide_do_reset(drive);
+			}
+
+			debug_log("[cmd %x]: check condition\n", pc->c[0]);
+
+			/* Retry operation */
+			retry_pc(drive);
+			/* queued, but not started */
+			return ide_stopped;
+		}
+cmd_finished:
+		pc->error = 0;
+		if ((pc->flags & PC_FLAG_WAIT_FOR_DSC) &&
+		    (stat & SEEK_STAT) == 0) {
+			dsc_handle(drive);
+			return ide_stopped;
+		}
+		/* Command finished - Call the callback function */
+		pc->callback(drive);
+		return ide_stopped;
+	}
+
+	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
+		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
+		printk(KERN_ERR "%s: The device wants to issue more interrupts "
+				"in DMA mode\n", drive->name);
+		ide_dma_off(drive);
+		return ide_do_reset(drive);
+	}
+	/* Get the number of bytes to transfer on this interrupt. */
+	bcount = (hwif->INB(hwif->io_ports.lbah_addr) << 8) |
+		  hwif->INB(hwif->io_ports.lbam_addr);
+
+	ireason = hwif->INB(hwif->io_ports.nsect_addr);
+
+	if (ireason & CD) {
+		printk(KERN_ERR "%s: CoD != 0 in %s\n", drive->name, __func__);
+		return ide_do_reset(drive);
+	}
+	if (((ireason & IO) == IO) == !!(pc->flags & PC_FLAG_WRITING)) {
+		/* Hopefully, we will never get here */
+		printk(KERN_ERR "%s: We wanted to %s, but the device wants us "
+				"to %s!\n", drive->name,
+				(ireason & IO) ? "Write" : "Read",
+				(ireason & IO) ? "Read" : "Write");
+		return ide_do_reset(drive);
+	}
+	if (!(pc->flags & PC_FLAG_WRITING)) {
+		/* Reading - Check that we have enough space */
+		temp = pc->xferred + bcount;
+		if (temp > pc->req_xfer) {
+			if (temp > pc->buf_size) {
+				printk(KERN_ERR "%s: The device wants to send "
+						"us more data than expected - "
+						"discarding data\n",
+						drive->name);
+				if (scsi)
+					temp = pc->buf_size - pc->xferred;
+				else
+					temp = 0;
+				if (temp) {
+					if (pc->sg)
+						io_buffers(drive, pc, temp, 0);
+					else
+						hwif->input_data(drive, NULL,
+							pc->cur_pos, temp);
+					printk(KERN_ERR "%s: transferred %d of "
+							"%d bytes\n",
+							drive->name,
+							temp, bcount);
+				}
+				pc->xferred += temp;
+				pc->cur_pos += temp;
+				ide_pad_transfer(drive, 0, bcount - temp);
+				ide_set_handler(drive, handler, timeout,
+						expiry);
+				return ide_started;
+			}
+			debug_log("The device wants to send us more data than "
+				  "expected - allowing transfer\n");
+		}
+		xferfunc = hwif->input_data;
+	} else
+		xferfunc = hwif->output_data;
+
+	if ((drive->media == ide_floppy && !scsi && !pc->buf) ||
+	    (drive->media == ide_tape && !scsi && pc->bh) ||
+	    (scsi && pc->sg))
+		io_buffers(drive, pc, bcount, !!(pc->flags & PC_FLAG_WRITING));
+	else
+		xferfunc(drive, NULL, pc->cur_pos, bcount);
+
+	/* Update the current position */
+	pc->xferred += bcount;
+	pc->cur_pos += bcount;
+
+	debug_log("[cmd %x] transferred %d bytes on that intr.\n",
+		  pc->c[0], bcount);
+
+	/* And set the interrupt handler again */
+	ide_set_handler(drive, handler, timeout, expiry);
+	return ide_started;
+}
+EXPORT_SYMBOL_GPL(ide_pc_intr);
 
 static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
 {
