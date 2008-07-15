@@ -663,18 +663,18 @@ repoll:
 
 		switch (cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) {
 		case MLX4_RECV_OPCODE_RDMA_WRITE_IMM:
-			wc->opcode   = IB_WC_RECV_RDMA_WITH_IMM;
-			wc->wc_flags = IB_WC_WITH_IMM;
-			wc->imm_data = cqe->immed_rss_invalid;
+			wc->opcode	= IB_WC_RECV_RDMA_WITH_IMM;
+			wc->wc_flags	= IB_WC_WITH_IMM;
+			wc->ex.imm_data = cqe->immed_rss_invalid;
 			break;
 		case MLX4_RECV_OPCODE_SEND:
 			wc->opcode   = IB_WC_RECV;
 			wc->wc_flags = 0;
 			break;
 		case MLX4_RECV_OPCODE_SEND_IMM:
-			wc->opcode   = IB_WC_RECV;
-			wc->wc_flags = IB_WC_WITH_IMM;
-			wc->imm_data = cqe->immed_rss_invalid;
+			wc->opcode	= IB_WC_RECV;
+			wc->wc_flags	= IB_WC_WITH_IMM;
+			wc->ex.imm_data = cqe->immed_rss_invalid;
 			break;
 		}
 

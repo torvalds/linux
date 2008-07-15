@@ -1324,7 +1324,7 @@ static int fsl_diu_suspend(struct of_device *ofdev, pm_message_t state)
 {
 	struct fsl_diu_data *machine_data;
 
-	machine_data = dev_get_drvdata(&dev->dev);
+	machine_data = dev_get_drvdata(&ofdev->dev);
 	disable_lcdc(machine_data->fsl_diu_info[0]);
 
 	return 0;
@@ -1334,7 +1334,7 @@ static int fsl_diu_resume(struct of_device *ofdev)
 {
 	struct fsl_diu_data *machine_data;
 
-	machine_data = dev_get_drvdata(&dev->dev);
+	machine_data = dev_get_drvdata(&ofdev->dev);
 	enable_lcdc(machine_data->fsl_diu_info[0]);
 
 	return 0;

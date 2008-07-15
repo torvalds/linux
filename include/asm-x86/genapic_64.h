@@ -44,4 +44,6 @@ DECLARE_PER_CPU(int, x2apic_extra_bits);
 extern void uv_cpu_init(void);
 extern int uv_wakeup_secondary(int phys_apicid, unsigned int start_rip);
 
+extern void setup_apic_routing(void);
+
 #endif

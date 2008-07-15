@@ -74,7 +74,7 @@ orion_clkevt_next_event(unsigned long delta, struct clock_event_device *dev)
 	/*
 	 * Clear and enable clockevent timer interrupt.
 	 */
-	writel(~BRIDGE_INT_TIMER1, BRIDGE_CAUSE);
+	writel(BRIDGE_INT_TIMER1_CLR, BRIDGE_CAUSE);
 
 	u = readl(BRIDGE_MASK);
 	u |= BRIDGE_INT_TIMER1;
@@ -138,7 +138,7 @@ orion_clkevt_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 		/*
 		 * ACK pending timer interrupt.
 		 */
-		writel(~BRIDGE_INT_TIMER1, BRIDGE_CAUSE);
+		writel(BRIDGE_INT_TIMER1_CLR, BRIDGE_CAUSE);
 
 	}
 	local_irq_restore(flags);
@@ -159,7 +159,7 @@ static irqreturn_t orion_timer_interrupt(int irq, void *dev_id)
 	/*
 	 * ACK timer interrupt and call event handler.
 	 */
-	writel(~BRIDGE_INT_TIMER1, BRIDGE_CAUSE);
+	writel(BRIDGE_INT_TIMER1_CLR, BRIDGE_CAUSE);
 	orion_clkevt.event_handler(&orion_clkevt);
 
 	return IRQ_HANDLED;

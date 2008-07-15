@@ -45,4 +45,16 @@ static inline void xen_mc_issue(unsigned mode)
 /* Set up a callback to be called when the current batch is flushed */
 void xen_mc_callback(void (*fn)(void *), void *data);
 
+/*
+ * Try to extend the arguments of the previous multicall command.  The
+ * previous command's op must match.  If it does, then it attempts to
+ * extend the argument space allocated to the multicall entry by
+ * arg_size bytes.
+ *
+ * The returned multicall_space will return with mc pointing to the
+ * command on success, or NULL on failure, and args pointing to the
+ * newly allocated space.
+ */
+struct multicall_space xen_mc_extend_args(unsigned long op, size_t arg_size);
+
 #endif /* _XEN_MULTICALLS_H */

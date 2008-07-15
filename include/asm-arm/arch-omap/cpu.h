@@ -3,7 +3,7 @@
  *
  * OMAP cpu type detection
  *
- * Copyright (C) 2004 Nokia Corporation
+ * Copyright (C) 2004, 2008 Nokia Corporation
  *
  * Written by Tony Lindgren <tony.lindgren@nokia.com>
  *
@@ -25,6 +25,12 @@
 
 #ifndef __ASM_ARCH_OMAP_CPU_H
 #define __ASM_ARCH_OMAP_CPU_H
+
+struct omap_chip_id {
+	u8 oc;
+};
+
+#define OMAP_CHIP_INIT(x)	{ .oc = x }
 
 extern unsigned int system_rev;
 
@@ -345,6 +351,33 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define OMAP2430_REV_ES1_0	0x24300000
 #define OMAP3430_REV_ES1_0	0x34300000
 #define OMAP3430_REV_ES2_0	0x34301000
+#define OMAP3430_REV_ES2_1	0x34302000
+#define OMAP3430_REV_ES2_2	0x34303000
+
+/*
+ * omap_chip bits
+ *
+ * CHIP_IS_OMAP{2420,2430,3430} indicate that a particular structure is
+ * valid on all chips of that type.  CHIP_IS_OMAP3430ES{1,2} indicates
+ * something that is only valid on that particular ES revision.
+ *
+ * These bits may be ORed together to indicate structures that are
+ * available on multiple chip types.
+ *
+ * To test whether a particular structure matches the current OMAP chip type,
+ * use omap_chip_is().
+ *
+ */
+#define CHIP_IS_OMAP2420       (1 << 0)
+#define CHIP_IS_OMAP2430       (1 << 1)
+#define CHIP_IS_OMAP3430       (1 << 2)
+#define CHIP_IS_OMAP3430ES1    (1 << 3)
+#define CHIP_IS_OMAP3430ES2    (1 << 4)
+
+#define CHIP_IS_OMAP24XX       (CHIP_IS_OMAP2420 | CHIP_IS_OMAP2430)
+
+int omap_chip_is(struct omap_chip_id oci);
+
 
 /*
  * Macro to detect device type i.e. EMU/HS/TST/GP/BAD
@@ -362,6 +395,8 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define is_device_type_gp()	(get_device_type() == DEVICE_TYPE_GP)
 #define is_device_type_bad()	(get_device_type() == DEVICE_TYPE_BAD)
 
-#endif
+void omap2_check_revision(void);
+
+#endif    /* defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) */
 
 #endif

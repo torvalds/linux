@@ -819,10 +819,6 @@ static const char *usb_error_string(int err)
 		return "device disabled";
 	case -EHOSTUNREACH:
 		return "device suspended";
-#ifndef CONFIG_USB_EHCI_SPLIT_ISO
-	case -ENOSYS:
-		return "enable CONFIG_USB_EHCI_SPLIT_ISO to play through a hub";
-#endif
 	case -EINVAL:
 	case -EAGAIN:
 	case -EFBIG:

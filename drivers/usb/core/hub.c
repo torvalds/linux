@@ -2073,6 +2073,8 @@ int usb_port_resume(struct usb_device *udev)
 	}
 
 	clear_bit(port1, hub->busy_bits);
+	if (!hub->hdev->parent && !hub->busy_bits[0])
+		usb_enable_root_hub_irq(hub->hdev->bus);
 
 	if (status == 0)
 		status = finish_port_resume(udev);
@@ -3002,6 +3004,11 @@ static void hub_events(void)
 
 		hub->activating = 0;
 
+		/* If this is a root hub, tell the HCD it's okay to
+		 * re-enable port-change interrupts now. */
+		if (!hdev->parent && !hub->busy_bits[0])
+			usb_enable_root_hub_irq(hdev->bus);
+
 loop_autopm:
 		/* Allow autosuspend if we're not going to run again */
 		if (list_empty(&hub->event_list))
@@ -3227,6 +3234,8 @@ int usb_reset_device(struct usb_device *udev)
 			break;
 	}
 	clear_bit(port1, parent_hub->busy_bits);
+	if (!parent_hdev->parent && !parent_hub->busy_bits[0])
+		usb_enable_root_hub_irq(parent_hdev->bus);
 
 	if (ret < 0)
 		goto re_enumerate;

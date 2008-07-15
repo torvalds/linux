@@ -411,7 +411,7 @@ static void set_track(struct kmem_cache *s, void *object,
 	if (addr) {
 		p->addr = addr;
 		p->cpu = smp_processor_id();
-		p->pid = current ? current->pid : -1;
+		p->pid = current->pid;
 		p->when = jiffies;
 	} else
 		memset(p, 0, sizeof(struct track));
@@ -431,9 +431,8 @@ static void print_track(const char *s, struct track *t)
 	if (!t->addr)
 		return;
 
-	printk(KERN_ERR "INFO: %s in ", s);
-	__print_symbol("%s", (unsigned long)t->addr);
-	printk(" age=%lu cpu=%u pid=%d\n", jiffies - t->when, t->cpu, t->pid);
+	printk(KERN_ERR "INFO: %s in %pS age=%lu cpu=%u pid=%d\n",
+		s, t->addr, jiffies - t->when, t->cpu, t->pid);
 }
 
 static void print_tracking(struct kmem_cache *s, void *object)
@@ -1497,7 +1496,7 @@ static void flush_cpu_slab(void *d)
 static void flush_all(struct kmem_cache *s)
 {
 #ifdef CONFIG_SMP
-	on_each_cpu(flush_cpu_slab, s, 1, 1);
+	on_each_cpu(flush_cpu_slab, s, 1);
 #else
 	unsigned long flags;
 
@@ -1628,9 +1627,11 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 	void **object;
 	struct kmem_cache_cpu *c;
 	unsigned long flags;
+	unsigned int objsize;
 
 	local_irq_save(flags);
 	c = get_cpu_slab(s, smp_processor_id());
+	objsize = c->objsize;
 	if (unlikely(!c->freelist || !node_match(c, node)))
 
 		object = __slab_alloc(s, gfpflags, node, addr, c);
@@ -1643,7 +1644,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 	local_irq_restore(flags);
 
 	if (unlikely((gfpflags & __GFP_ZERO) && object))
-		memset(object, 0, c->objsize);
+		memset(object, 0, objsize);
 
 	return object;
 }
@@ -2765,6 +2766,7 @@ void kfree(const void *x)
 
 	page = virt_to_head_page(x);
 	if (unlikely(!PageSlab(page))) {
+		BUG_ON(!PageCompound(page));
 		put_page(page);
 		return;
 	}

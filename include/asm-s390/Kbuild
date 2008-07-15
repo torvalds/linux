@@ -8,6 +8,9 @@ header-y += ucontext.h
 header-y += vtoc.h
 header-y += zcrypt.h
 header-y += kvm.h
+header-y += schid.h
+header-y += chsc.h
 
 unifdef-y += cmb.h
 unifdef-y += debug.h
+unifdef-y += chpid.h

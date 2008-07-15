@@ -86,6 +86,12 @@ int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (rq->rq_disk != bio->bi_bdev->bd_disk || rq->special)
 		return 0;
 
+	/*
+	 * only merge integrity protected bio into ditto rq
+	 */
+	if (bio_integrity(bio) != blk_integrity_rq(rq))
+		return 0;
+
 	if (!elv_iosched_allow_merge(rq, bio))
 		return 0;
 
@@ -144,7 +150,7 @@ static struct elevator_type *elevator_get(const char *name)
 		else
 			sprintf(elv, "%s-iosched", name);
 
-		request_module(elv);
+		request_module("%s", elv);
 		spin_lock(&elv_list_lock);
 		e = elevator_find(name);
 	}

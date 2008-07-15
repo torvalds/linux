@@ -42,7 +42,7 @@ static void ide_outb (u8 val, unsigned long port)
 	outb(val, port);
 }
 
-static void ide_outbsync (ide_drive_t *drive, u8 addr, unsigned long port)
+static void ide_outbsync(ide_hwif_t *hwif, u8 addr, unsigned long port)
 {
 	outb(addr, port);
 }
@@ -68,7 +68,7 @@ static void ide_mm_outb (u8 value, unsigned long port)
 	writeb(value, (void __iomem *) port);
 }
 
-static void ide_mm_outbsync (ide_drive_t *drive, u8 value, unsigned long port)
+static void ide_mm_outbsync(ide_hwif_t *hwif, u8 value, unsigned long port)
 {
 	writeb(value, (void __iomem *) port);
 }
@@ -95,7 +95,7 @@ void SELECT_DRIVE (ide_drive_t *drive)
 	hwif->OUTB(drive->select.all, hwif->io_ports.device_addr);
 }
 
-static void SELECT_MASK(ide_drive_t *drive, int mask)
+void SELECT_MASK(ide_drive_t *drive, int mask)
 {
 	const struct ide_port_ops *port_ops = drive->hwif->port_ops;
 
@@ -119,11 +119,6 @@ static void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		HIHI = 0xFF;
-
-	ide_set_irq(drive, 1);
-
-	if ((task->tf_flags & IDE_TFLAG_NO_SELECT_MASK) == 0)
-		SELECT_MASK(drive, 0);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DATA) {
 		u16 data = (tf->hob_data << 8) | tf->data;
@@ -191,7 +186,7 @@ static void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 	}
 
 	/* be sure we're looking at the low order bits */
-	tf_outb(drive->ctl & ~0x80, io_ports->ctl_addr);
+	tf_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = tf_inb(io_ports->nsect_addr);
@@ -205,7 +200,7 @@ static void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 		tf->device = tf_inb(io_ports->device_addr);
 
 	if (task->tf_flags & IDE_TFLAG_LBA48) {
-		tf_outb(drive->ctl | 0x80, io_ports->ctl_addr);
+		tf_outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
 
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
 			tf->hob_feature = tf_inb(io_ports->feature_addr);
@@ -689,9 +684,9 @@ int ide_driveid_update(ide_drive_t *drive)
 	 */
 
 	SELECT_MASK(drive, 1);
-	ide_set_irq(drive, 1);
+	ide_set_irq(drive, 0);
 	msleep(50);
-	hwif->OUTBSYNC(drive, WIN_IDENTIFY, hwif->io_ports.command_addr);
+	hwif->OUTBSYNC(hwif, WIN_IDENTIFY, hwif->io_ports.command_addr);
 	timeout = jiffies + WAIT_WORSTCASE;
 	do {
 		if (time_after(jiffies, timeout)) {
@@ -744,9 +739,6 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	int error = 0;
 	u8 stat;
 
-//	while (HWGROUP(drive)->busy)
-//		msleep(50);
-
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (hwif->dma_ops)	/* check if host supports DMA */
 		hwif->dma_ops->dma_host_set(drive, 0);
@@ -781,7 +773,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	ide_set_irq(drive, 0);
 	hwif->OUTB(speed, io_ports->nsect_addr);
 	hwif->OUTB(SETFEATURES_XFER, io_ports->feature_addr);
-	hwif->OUTBSYNC(drive, WIN_SETFEATURES, io_ports->command_addr);
+	hwif->OUTBSYNC(hwif, WIN_SETFEATURES, io_ports->command_addr);
 	if (drive->quirk_list == 2)
 		ide_set_irq(drive, 1);
 
@@ -889,7 +881,7 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 
 	spin_lock_irqsave(&ide_lock, flags);
 	__ide_set_handler(drive, handler, timeout, expiry);
-	hwif->OUTBSYNC(drive, cmd, hwif->io_ports.command_addr);
+	hwif->OUTBSYNC(hwif, cmd, hwif->io_ports.command_addr);
 	/*
 	 * Drive takes 400nS to respond, we must avoid the IRQ being
 	 * serviced before that.
@@ -907,7 +899,7 @@ void ide_execute_pkt_cmd(ide_drive_t *drive)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ide_lock, flags);
-	hwif->OUTBSYNC(drive, WIN_PACKETCMD, hwif->io_ports.command_addr);
+	hwif->OUTBSYNC(hwif, WIN_PACKETCMD, hwif->io_ports.command_addr);
 	ndelay(400);
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
@@ -1102,7 +1094,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		pre_reset(drive);
 		SELECT_DRIVE(drive);
 		udelay (20);
-		hwif->OUTBSYNC(drive, WIN_SRST, io_ports->command_addr);
+		hwif->OUTBSYNC(hwif, WIN_SRST, io_ports->command_addr);
 		ndelay(400);
 		hwgroup->poll_timeout = jiffies + WAIT_WORSTCASE;
 		hwgroup->polling = 1;
@@ -1133,14 +1125,14 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	 * recover from reset very quickly, saving us the first 50ms wait time.
 	 */
 	/* set SRST and nIEN */
-	hwif->OUTBSYNC(drive, drive->ctl|6, io_ports->ctl_addr);
+	hwif->OUTBSYNC(hwif, ATA_DEVCTL_OBS | 6, io_ports->ctl_addr);
 	/* more than enough time */
 	udelay(10);
 	if (drive->quirk_list == 2)
-		ctl = drive->ctl;	/* clear SRST and nIEN */
+		ctl = ATA_DEVCTL_OBS;		/* clear SRST and nIEN */
 	else
-		ctl = drive->ctl | 2;	/* clear SRST, leave nIEN */
-	hwif->OUTBSYNC(drive, ctl, io_ports->ctl_addr);
+		ctl = ATA_DEVCTL_OBS | 2;	/* clear SRST, leave nIEN */
+	hwif->OUTBSYNC(hwif, ctl, io_ports->ctl_addr);
 	/* more than enough time */
 	udelay(10);
 	hwgroup->poll_timeout = jiffies + WAIT_WORSTCASE;

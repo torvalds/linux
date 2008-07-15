@@ -27,6 +27,7 @@
 #include <linux/bcd.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/miscdevice.h>
 #include <linux/ioport.h>
@@ -163,15 +164,18 @@ static long rtc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 static int rtc_open(struct inode *inode, struct file *file)
 {
+	lock_kernel();
 	spin_lock_irq(&rtc_lock);
 
 	if (rtc_status & RTC_IS_OPEN) {
 		spin_unlock_irq(&rtc_lock);
+		unlock_kernel();
 		return -EBUSY;
 	}
 
 	rtc_status |= RTC_IS_OPEN;
 	spin_unlock_irq(&rtc_lock);
+	unlock_kernel();
 
 	return 0;
 }

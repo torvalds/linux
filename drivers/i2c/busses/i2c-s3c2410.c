@@ -590,7 +590,7 @@ static struct s3c24xx_i2c s3c24xx_i2c = {
 		.owner			= THIS_MODULE,
 		.algo			= &s3c24xx_i2c_algorithm,
 		.retries		= 2,
-		.class			= I2C_CLASS_HWMON,
+		.class			= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	},
 };
 

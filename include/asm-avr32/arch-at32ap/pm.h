@@ -19,6 +19,7 @@
 
 #ifndef __ASSEMBLY__
 extern void cpu_enter_idle(void);
+extern void cpu_enter_standby(unsigned long sdramc_base);
 
 extern bool disable_idle_sleep;
 
@@ -43,6 +44,8 @@ static inline void cpu_idle_sleep(void)
 	else
 		cpu_enter_idle();
 }
+
+void intc_set_suspend_handler(unsigned long offset);
 #endif
 
 #endif /* __ASM_AVR32_ARCH_PM_H */

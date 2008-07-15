@@ -94,6 +94,7 @@ static int d7s_open(struct inode *inode, struct file *f)
 {
 	if (D7S_MINOR != iminor(inode))
 		return -ENODEV;
+	cycle_kernel_lock();
 	atomic_inc(&d7s_users);
 	return 0;
 }

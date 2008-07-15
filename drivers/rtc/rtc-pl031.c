@@ -12,23 +12,12 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-
-#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/init.h>
-#include <linux/fs.h>
 #include <linux/interrupt.h>
-#include <linux/string.h>
-#include <linux/pm.h>
-#include <linux/bitops.h>
-
 #include <linux/amba/bus.h>
-
-#include <asm/io.h>
-#include <asm/hardware.h>
-#include <asm/irq.h>
-#include <asm/rtc.h>
+#include <linux/io.h>
 
 /*
  * Register definitions
@@ -142,13 +131,12 @@ static int pl031_remove(struct amba_device *adev)
 {
 	struct pl031_local *ldata = dev_get_drvdata(&adev->dev);
 
-	if (ldata) {
-		dev_set_drvdata(&adev->dev, NULL);
-		free_irq(adev->irq[0], ldata->rtc);
-		rtc_device_unregister(ldata->rtc);
-		iounmap(ldata->base);
-		kfree(ldata);
-	}
+	amba_set_drvdata(adev, NULL);
+	free_irq(adev->irq[0], ldata->rtc);
+	rtc_device_unregister(ldata->rtc);
+	iounmap(ldata->base);
+	kfree(ldata);
+	amba_release_regions(adev);
 
 	return 0;
 }
@@ -158,13 +146,15 @@ static int pl031_probe(struct amba_device *adev, void *id)
 	int ret;
 	struct pl031_local *ldata;
 
+	ret = amba_request_regions(adev, NULL);
+	if (ret)
+		goto err_req;
 
 	ldata = kmalloc(sizeof(struct pl031_local), GFP_KERNEL);
 	if (!ldata) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	dev_set_drvdata(&adev->dev, ldata);
 
 	ldata->base = ioremap(adev->res.start,
 			      adev->res.end - adev->res.start + 1);
@@ -172,6 +162,8 @@ static int pl031_probe(struct amba_device *adev, void *id)
 		ret = -ENOMEM;
 		goto out_no_remap;
 	}
+
+	amba_set_drvdata(adev, ldata);
 
 	if (request_irq(adev->irq[0], pl031_interrupt, IRQF_DISABLED,
 			"rtc-pl031", ldata->rtc)) {
@@ -192,10 +184,12 @@ out_no_rtc:
 	free_irq(adev->irq[0], ldata->rtc);
 out_no_irq:
 	iounmap(ldata->base);
+	amba_set_drvdata(adev, NULL);
 out_no_remap:
-	dev_set_drvdata(&adev->dev, NULL);
 	kfree(ldata);
 out:
+	amba_release_regions(adev);
+err_req:
 	return ret;
 }
 

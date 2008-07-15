@@ -5,7 +5,7 @@
  * Exports appldata_register_ops() and appldata_unregister_ops() for the
  * data gathering modules.
  *
- * Copyright (C) 2003,2006 IBM Corporation, IBM Deutschland Entwicklung GmbH.
+ * Copyright IBM Corp. 2003, 2008
  *
  * Author: Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
@@ -108,9 +108,6 @@ static LIST_HEAD(appldata_ops_list);
  */
 static void appldata_timer_function(unsigned long data)
 {
-	P_DEBUG("   -= Timer =-\n");
-	P_DEBUG("CPU: %i, expire_count: %i\n", smp_processor_id(),
-		atomic_read(&appldata_expire_count));
 	if (atomic_dec_and_test(&appldata_expire_count)) {
 		atomic_set(&appldata_expire_count, num_online_cpus());
 		queue_work(appldata_wq, (struct work_struct *) data);
@@ -128,14 +125,11 @@ static void appldata_work_fn(struct work_struct *work)
 	struct appldata_ops *ops;
 	int i;
 
-	P_DEBUG("  -= Work Queue =-\n");
 	i = 0;
 	get_online_cpus();
 	spin_lock(&appldata_ops_lock);
 	list_for_each(lh, &appldata_ops_list) {
 		ops = list_entry(lh, struct appldata_ops, list);
-		P_DEBUG("list_for_each loop: %i) active = %u, name = %s\n",
-			++i, ops->active, ops->name);
 		if (ops->active == 1) {
 			ops->callback(ops->data);
 		}
@@ -209,10 +203,9 @@ __appldata_vtimer_setup(int cmd)
 			per_cpu(appldata_timer, i).expires = per_cpu_interval;
 			smp_call_function_single(i, add_virt_timer_periodic,
 						 &per_cpu(appldata_timer, i),
-						 0, 1);
+						 1);
 		}
 		appldata_timer_active = 1;
-		P_INFO("Monitoring timer started.\n");
 		break;
 	case APPLDATA_DEL_TIMER:
 		for_each_online_cpu(i)
@@ -221,7 +214,6 @@ __appldata_vtimer_setup(int cmd)
 			break;
 		appldata_timer_active = 0;
 		atomic_set(&appldata_expire_count, num_online_cpus());
-		P_INFO("Monitoring timer stopped.\n");
 		break;
 	case APPLDATA_MOD_TIMER:
 		per_cpu_interval = (u64) (appldata_interval*1000 /
@@ -236,7 +228,7 @@ __appldata_vtimer_setup(int cmd)
 			args.timer = &per_cpu(appldata_timer, i);
 			args.expires = per_cpu_interval;
 			smp_call_function_single(i, __appldata_mod_vtimer_wrap,
-						 &args, 0, 1);
+						 &args, 1);
 		}
 	}
 }
@@ -313,10 +305,8 @@ appldata_interval_handler(ctl_table *ctl, int write, struct file *filp,
 	}
 	interval = 0;
 	sscanf(buf, "%i", &interval);
-	if (interval <= 0) {
-		P_ERROR("Timer CPU interval has to be > 0!\n");
+	if (interval <= 0)
 		return -EINVAL;
-	}
 
 	get_online_cpus();
 	spin_lock(&appldata_timer_lock);
@@ -324,9 +314,6 @@ appldata_interval_handler(ctl_table *ctl, int write, struct file *filp,
 	__appldata_vtimer_setup(APPLDATA_MOD_TIMER);
 	spin_unlock(&appldata_timer_lock);
 	put_online_cpus();
-
-	P_INFO("Monitoring CPU interval set to %u milliseconds.\n",
-		 interval);
 out:
 	*lenp = len;
 	*ppos += len;
@@ -406,23 +393,16 @@ appldata_generic_handler(ctl_table *ctl, int write, struct file *filp,
 			P_ERROR("START DIAG 0xDC for %s failed, "
 				"return code: %d\n", ops->name, rc);
 			module_put(ops->owner);
-		} else {
-			P_INFO("Monitoring %s data enabled, "
-				"DIAG 0xDC started.\n", ops->name);
+		} else
 			ops->active = 1;
-		}
 	} else if ((buf[0] == '0') && (ops->active == 1)) {
 		ops->active = 0;
 		rc = appldata_diag(ops->record_nr, APPLDATA_STOP_REC,
 				(unsigned long) ops->data, ops->size,
 				ops->mod_lvl);
-		if (rc != 0) {
+		if (rc != 0)
 			P_ERROR("STOP DIAG 0xDC for %s failed, "
 				"return code: %d\n", ops->name, rc);
-		} else {
-			P_INFO("Monitoring %s data disabled, "
-				"DIAG 0xDC stopped.\n", ops->name);
-		}
 		module_put(ops->owner);
 	}
 	spin_unlock(&appldata_ops_lock);
@@ -468,7 +448,6 @@ int appldata_register_ops(struct appldata_ops *ops)
 	ops->sysctl_header = register_sysctl_table(ops->ctl_table);
 	if (!ops->sysctl_header)
 		goto out;
-	P_INFO("%s-ops registered!\n", ops->name);
 	return 0;
 out:
 	spin_lock(&appldata_ops_lock);
@@ -490,7 +469,6 @@ void appldata_unregister_ops(struct appldata_ops *ops)
 	spin_unlock(&appldata_ops_lock);
 	unregister_sysctl_table(ops->sysctl_header);
 	kfree(ops->ctl_table);
-	P_INFO("%s-ops unregistered!\n", ops->name);
 }
 /********************** module-ops management <END> **************************/
 
@@ -553,14 +531,9 @@ static int __init appldata_init(void)
 {
 	int i;
 
-	P_DEBUG("sizeof(parameter_list) = %lu\n",
-		sizeof(struct appldata_parameter_list));
-
 	appldata_wq = create_singlethread_workqueue("appldata");
-	if (!appldata_wq) {
-		P_ERROR("Could not create work queue\n");
+	if (!appldata_wq)
 		return -ENOMEM;
-	}
 
 	get_online_cpus();
 	for_each_online_cpu(i)
@@ -571,8 +544,6 @@ static int __init appldata_init(void)
 	register_hotcpu_notifier(&appldata_nb);
 
 	appldata_sysctl_header = register_sysctl_table(appldata_dir_table);
-
-	P_DEBUG("Base interface initialized.\n");
 	return 0;
 }
 
@@ -584,7 +555,9 @@ EXPORT_SYMBOL_GPL(appldata_register_ops);
 EXPORT_SYMBOL_GPL(appldata_unregister_ops);
 EXPORT_SYMBOL_GPL(appldata_diag);
 
+#ifdef CONFIG_SWAP
 EXPORT_SYMBOL_GPL(si_swapinfo);
+#endif
 EXPORT_SYMBOL_GPL(nr_threads);
 EXPORT_SYMBOL_GPL(nr_running);
 EXPORT_SYMBOL_GPL(nr_iowait);

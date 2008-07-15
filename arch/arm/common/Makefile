@@ -2,7 +2,6 @@
 # Makefile for the linux kernel.
 #
 
-obj-y				+= rtctime.o
 obj-$(CONFIG_ARM_GIC)		+= gic.o
 obj-$(CONFIG_ARM_VIC)		+= vic.o
 obj-$(CONFIG_ICST525)		+= icst525.o

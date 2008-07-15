@@ -271,6 +271,17 @@ and is between 256 and 4096 characters. It is defined in the file
 	aic79xx=	[HW,SCSI]
 			See Documentation/scsi/aic79xx.txt.
 
+	amd_iommu=	[HW,X86-84]
+			Pass parameters to the AMD IOMMU driver in the system.
+			Possible values are:
+			isolate - enable device isolation (each device, as far
+			          as possible, will get its own protection
+			          domain)
+	amd_iommu_size= [HW,X86-64]
+			Define the size of the aperture for the AMD IOMMU
+			driver. Possible values are:
+			'32M', '64M' (default), '128M', '256M', '512M', '1G'
+
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
 			Format: <a>,<b>
@@ -560,6 +571,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	debug_objects	[KNL] Enable object debugging
 
+	debugpat	[X86] Enable PAT debugging
+
 	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.
@@ -598,6 +611,29 @@ and is between 256 and 4096 characters. It is defined in the file
 	digiepca=	[HW,SERIAL]
 			See drivers/char/README.epca and
 			Documentation/digiepca.txt.
+
+	disable_mtrr_cleanup [X86]
+	enable_mtrr_cleanup [X86]
+			The kernel tries to adjust MTRR layout from continuous
+			to discrete, to make X server driver able to add WB
+			entry later. This parameter enables/disables that.
+
+	mtrr_chunk_size=nn[KMG] [X86]
+			used for mtrr cleanup. It is largest continous chunk
+			that could hold holes aka. UC entries.
+
+	mtrr_gran_size=nn[KMG] [X86]
+			Used for mtrr cleanup. It is granularity of mtrr block.
+			Default is 1.
+			Large value could prevent small alignment from
+			using up MTRRs.
+
+	mtrr_spare_reg_nr=n [X86]
+			Format: <integer>
+			Range: 0,7 : spare reg number
+			Default : 1
+			Used for mtrr cleanup. It is spare mtrr entries number.
+			Set to 2 or more if your graphical card needs more.
 
 	disable_mtrr_trim [X86, Intel and AMD only]
 			By default the kernel will trim any uncacheable
@@ -721,9 +757,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hd=		[EIDE] (E)IDE hard drive subsystem geometry
 			Format: <cyl>,<head>,<sect>
-
-	hd?=		[HW] (E)IDE subsystem
-	hd?lun=		See Documentation/ide/ide.txt.
 
 	highmem=nn[KMG]	[KNL,BOOT] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
@@ -1208,6 +1241,11 @@ and is between 256 and 4096 characters. It is defined in the file
 	mtdparts=	[MTD]
 			See drivers/mtd/cmdlinepart.c.
 
+	mtdset=		[ARM]
+			ARM/S3C2412 JIVE boot control
+
+			See arch/arm/mach-s3c2412/mach-jive.c
+
 	mtouchusb.raw_coordinates=
 			[HW] Make the MicroTouch USB driver use raw coordinates
 			('y', default) or cooked coordinates ('n')
@@ -1570,6 +1608,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	plip=		[PPT,NET] Parallel port network link
 			Format: { parport<nr> | timid | 0 }
 			See also Documentation/parport.txt.
+
+	pmtmr=		[X86] Manual setup of pmtmr I/O Port. 
+			Override pmtimer IOPort with a hex value.
+			e.g. pmtmr=0x508
 
 	pnpacpi=	[ACPI]
 			{ off }
@@ -2115,6 +2157,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
+
+	add_efi_memmap	[EFI; x86-32,X86-64] Include EFI memory map in
+			kernel's map of available physical RAM.
 
 	vdso=		[X86-32,SH,x86-64]
 			vdso=2: enable compat VDSO (default with COMPAT_VDSO)

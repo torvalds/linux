@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -263,9 +264,11 @@ static int vhci_open(struct inode *inode, struct file *file)
 	skb_queue_head_init(&data->readq);
 	init_waitqueue_head(&data->read_wait);
 
+	lock_kernel();
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		kfree(data);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -286,10 +289,12 @@ static int vhci_open(struct inode *inode, struct file *file)
 		BT_ERR("Can't register HCI device");
 		kfree(data);
 		hci_free_dev(hdev);
+		unlock_kernel();
 		return -EBUSY;
 	}
 
 	file->private_data = data;
+	unlock_kernel();
 
 	return nonseekable_open(inode, file);
 }
@@ -313,18 +318,21 @@ static int vhci_release(struct inode *inode, struct file *file)
 static int vhci_fasync(int fd, struct file *file, int on)
 {
 	struct vhci_data *data = file->private_data;
-	int err;
+	int err = 0;
 
+	lock_kernel();
 	err = fasync_helper(fd, file, on, &data->fasync);
 	if (err < 0)
-		return err;
+		goto out;
 
 	if (on)
 		data->flags |= VHCI_FASYNC;
 	else
 		data->flags &= ~VHCI_FASYNC;
 
-	return 0;
+out:
+	unlock_kernel();
+	return err;
 }
 
 static const struct file_operations vhci_fops = {

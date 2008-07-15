@@ -1359,17 +1359,17 @@ static int check_leaf(struct trie *t, struct leaf *l,
 			t->stats.semantic_match_miss++;
 #endif
 		if (err <= 0)
-			return plen;
+			return err;
 	}
 
-	return -1;
+	return 1;
 }
 
 static int fn_trie_lookup(struct fib_table *tb, const struct flowi *flp,
 			  struct fib_result *res)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
-	int plen, ret = 0;
+	int ret;
 	struct node *n;
 	struct tnode *pn;
 	int pos, bits;
@@ -1393,10 +1393,7 @@ static int fn_trie_lookup(struct fib_table *tb, const struct flowi *flp,
 
 	/* Just a leaf? */
 	if (IS_LEAF(n)) {
-		plen = check_leaf(t, (struct leaf *)n, key, flp, res);
-		if (plen < 0)
-			goto failed;
-		ret = 0;
+		ret = check_leaf(t, (struct leaf *)n, key, flp, res);
 		goto found;
 	}
 
@@ -1421,11 +1418,9 @@ static int fn_trie_lookup(struct fib_table *tb, const struct flowi *flp,
 		}
 
 		if (IS_LEAF(n)) {
-			plen = check_leaf(t, (struct leaf *)n, key, flp, res);
-			if (plen < 0)
+			ret = check_leaf(t, (struct leaf *)n, key, flp, res);
+			if (ret > 0)
 				goto backtrace;
-
-			ret = 0;
 			goto found;
 		}
 

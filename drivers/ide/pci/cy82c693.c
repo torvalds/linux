@@ -134,7 +134,7 @@ static int calc_clk(int time, int bus_speed)
 static void compute_clocks(u8 pio, pio_clocks_t *p_pclk)
 {
 	int clk1, clk2;
-	int bus_speed = ide_pci_clk ? ide_pci_clk : system_bus_clock();
+	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 
 	/* we don't check against CY82C693's min and max speed,
 	 * so you can play with the idebus=xx parameter

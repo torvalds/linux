@@ -1326,20 +1326,27 @@ fb_open(struct inode *inode, struct file *file)
 
 	if (fbidx >= FB_MAX)
 		return -ENODEV;
+	lock_kernel();
 #ifdef CONFIG_KMOD
 	if (!(info = registered_fb[fbidx]))
 		try_to_load(fbidx);
 #endif /* CONFIG_KMOD */
-	if (!(info = registered_fb[fbidx]))
-		return -ENODEV;
-	if (!try_module_get(info->fbops->owner))
-		return -ENODEV;
+	if (!(info = registered_fb[fbidx])) {
+		res = -ENODEV;
+		goto out;
+	}
+	if (!try_module_get(info->fbops->owner)) {
+		res = -ENODEV;
+		goto out;
+	}
 	file->private_data = info;
 	if (info->fbops->fb_open) {
 		res = info->fbops->fb_open(info,1);
 		if (res)
 			module_put(info->fbops->owner);
 	}
+out:
+	unlock_kernel();
 	return res;
 }
 

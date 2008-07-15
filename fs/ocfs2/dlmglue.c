@@ -1554,8 +1554,8 @@ out:
  */
 int ocfs2_file_lock(struct file *file, int ex, int trylock)
 {
-	int ret, level = ex ? LKM_EXMODE : LKM_PRMODE;
-	unsigned int lkm_flags = trylock ? LKM_NOQUEUE : 0;
+	int ret, level = ex ? DLM_LOCK_EX : DLM_LOCK_PR;
+	unsigned int lkm_flags = trylock ? DLM_LKF_NOQUEUE : 0;
 	unsigned long flags;
 	struct ocfs2_file_private *fp = file->private_data;
 	struct ocfs2_lock_res *lockres = &fp->fp_flock;
@@ -1582,7 +1582,7 @@ int ocfs2_file_lock(struct file *file, int ex, int trylock)
 		 * Get the lock at NLMODE to start - that way we
 		 * can cancel the upconvert request if need be.
 		 */
-		ret = ocfs2_lock_create(osb, lockres, LKM_NLMODE, 0);
+		ret = ocfs2_lock_create(osb, lockres, DLM_LOCK_NL, 0);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -1597,7 +1597,7 @@ int ocfs2_file_lock(struct file *file, int ex, int trylock)
 	}
 
 	lockres->l_action = OCFS2_AST_CONVERT;
-	lkm_flags |= LKM_CONVERT;
+	lkm_flags |= DLM_LKF_CONVERT;
 	lockres->l_requested = level;
 	lockres_or_flags(lockres, OCFS2_LOCK_BUSY);
 
@@ -1664,7 +1664,7 @@ void ocfs2_file_unlock(struct file *file)
 	if (!(lockres->l_flags & OCFS2_LOCK_ATTACHED))
 		return;
 
-	if (lockres->l_level == LKM_NLMODE)
+	if (lockres->l_level == DLM_LOCK_NL)
 		return;
 
 	mlog(0, "Unlock: \"%s\" flags: 0x%lx, level: %d, act: %d\n",
@@ -1678,11 +1678,11 @@ void ocfs2_file_unlock(struct file *file)
 	lockres_or_flags(lockres, OCFS2_LOCK_BLOCKED);
 	lockres->l_blocking = DLM_LOCK_EX;
 
-	gen = ocfs2_prepare_downconvert(lockres, LKM_NLMODE);
+	gen = ocfs2_prepare_downconvert(lockres, DLM_LOCK_NL);
 	lockres_add_mask_waiter(lockres, &mw, OCFS2_LOCK_BUSY, 0);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
-	ret = ocfs2_downconvert_lock(osb, lockres, LKM_NLMODE, 0, gen);
+	ret = ocfs2_downconvert_lock(osb, lockres, DLM_LOCK_NL, 0, gen);
 	if (ret) {
 		mlog_errno(ret);
 		return;

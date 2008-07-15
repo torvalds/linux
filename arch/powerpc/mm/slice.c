@@ -218,7 +218,7 @@ static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psiz
 	mb();
 
 	/* XXX this is sub-optimal but will do for now */
-	on_each_cpu(slice_flush_segments, mm, 0, 1);
+	on_each_cpu(slice_flush_segments, mm, 1);
 #ifdef CONFIG_SPU_BASE
 	spu_flush_all_slbs(mm);
 #endif

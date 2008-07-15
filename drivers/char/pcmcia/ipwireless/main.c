@@ -28,7 +28,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/device_id.h>
 #include <pcmcia/ss.h>

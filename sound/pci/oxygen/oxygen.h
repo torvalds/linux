@@ -16,6 +16,8 @@
 #define PCM_AC97	5
 #define PCM_COUNT	6
 
+#define OXYGEN_IO_SIZE	0x100
+
 /* model-specific configuration of outputs/inputs */
 #define PLAYBACK_0_TO_I2S	0x001
 #define PLAYBACK_1_TO_SPDIF	0x004
@@ -78,6 +80,12 @@ struct oxygen {
 	struct work_struct spdif_input_bits_work;
 	struct work_struct gpio_work;
 	wait_queue_head_t ac97_waitqueue;
+	union {
+		u8 _8[OXYGEN_IO_SIZE];
+		__le16 _16[OXYGEN_IO_SIZE / 2];
+		__le32 _32[OXYGEN_IO_SIZE / 4];
+	} saved_registers;
+	u16 saved_ac97_registers[2][0x40];
 };
 
 struct oxygen_model {
@@ -89,6 +97,8 @@ struct oxygen_model {
 	int (*control_filter)(struct snd_kcontrol_new *template);
 	int (*mixer_init)(struct oxygen *chip);
 	void (*cleanup)(struct oxygen *chip);
+	void (*suspend)(struct oxygen *chip);
+	void (*resume)(struct oxygen *chip);
 	void (*pcm_hardware_filter)(unsigned int channel,
 				    struct snd_pcm_hardware *hardware);
 	void (*set_dac_params)(struct oxygen *chip,
@@ -117,6 +127,10 @@ struct oxygen_model {
 int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		     const struct oxygen_model *model);
 void oxygen_pci_remove(struct pci_dev *pci);
+#ifdef CONFIG_PM
+int oxygen_pci_suspend(struct pci_dev *pci, pm_message_t state);
+int oxygen_pci_resume(struct pci_dev *pci);
+#endif
 
 /* oxygen_mixer.c */
 
