@@ -984,8 +984,10 @@ static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 	ide_set_handler(drive, &idetape_pc_intr, IDETAPE_WAIT_CMD, NULL);
 
 	/* Begin DMA, if necessary */
-	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS)
+	if (pc->flags & PC_FLAG_DMA_OK) {
+		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
 		hwif->dma_ops->dma_start(drive);
+	}
 
 	/* Send the actual packet */
 	hwif->output_data(drive, NULL, pc->c, 12);
@@ -1053,11 +1055,11 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 	if ((pc->flags & PC_FLAG_DMA_OK) && drive->using_dma)
 		dma_ok = !hwif->dma_ops->dma_setup(drive);
 
+	if (!dma_ok)
+		pc->flags &= ~PC_FLAG_DMA_OK;
+
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_DEVICE, bcount, dma_ok);
 
-	if (dma_ok)
-		/* Will begin DMA later */
-		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
 	if (test_bit(IDETAPE_FLAG_DRQ_INTERRUPT, &tape->flags)) {
 		ide_execute_command(drive, WIN_PACKETCMD, &idetape_transfer_pc,
 				    IDETAPE_WAIT_CMD, NULL);
