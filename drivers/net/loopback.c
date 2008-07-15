@@ -153,7 +153,7 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->last_rx = jiffies;
 
 	/* it's OK to use per_cpu_ptr() because BHs are off */
-	pcpu_lstats = netdev_priv(dev);
+	pcpu_lstats = dev->ml_priv;
 	lb_stats = per_cpu_ptr(pcpu_lstats, smp_processor_id());
 	lb_stats->bytes += skb->len;
 	lb_stats->packets++;
@@ -171,7 +171,7 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 	unsigned long packets = 0;
 	int i;
 
-	pcpu_lstats = netdev_priv(dev);
+	pcpu_lstats = dev->ml_priv;
 	for_each_possible_cpu(i) {
 		const struct pcpu_lstats *lb_stats;
 
@@ -207,13 +207,13 @@ static int loopback_dev_init(struct net_device *dev)
 	if (!lstats)
 		return -ENOMEM;
 
-	dev->priv = lstats;
+	dev->ml_priv = lstats;
 	return 0;
 }
 
 static void loopback_dev_free(struct net_device *dev)
 {
-	struct pcpu_lstats *lstats = netdev_priv(dev);
+	struct pcpu_lstats *lstats = dev->ml_priv;
 
 	free_percpu(lstats);
 	free_netdev(dev);

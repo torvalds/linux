@@ -808,7 +808,9 @@ void dev_net_set(struct net_device *dev, struct net *net)
  */
 static inline void *netdev_priv(const struct net_device *dev)
 {
-	return dev->priv;
+	return (char *)dev + ((sizeof(struct net_device)
+			       + NETDEV_ALIGN_CONST)
+			      & ~NETDEV_ALIGN_CONST);
 }
 
 /* Set the sysfs physical device reference for the network logical device
