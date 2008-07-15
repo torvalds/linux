@@ -459,6 +459,8 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->tc_verd		= old->tc_verd;
 #endif
 #endif
+	new->vlan_tci		= old->vlan_tci;
+
 	skb_copy_secmark(new, old);
 }
 
@@ -2286,6 +2288,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		skb_copy_queue_mapping(nskb, skb);
 		nskb->priority = skb->priority;
 		nskb->protocol = skb->protocol;
+		nskb->vlan_tci = skb->vlan_tci;
 		nskb->dst = dst_clone(skb->dst);
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
 		nskb->pkt_type = skb->pkt_type;
