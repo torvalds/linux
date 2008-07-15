@@ -226,9 +226,6 @@ static int convert_response(struct zcrypt_device *zdev,
 		return convert_type84(zdev, reply,
 				      outputdata, outputdatalength);
 	default: /* Unknown response type, this should NEVER EVER happen */
-		PRINTK("Unrecognized Message Header: %08x%08x\n",
-		       *(unsigned int *) reply->message,
-		       *(unsigned int *) (reply->message+4));
 		zdev->online = 0;
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}

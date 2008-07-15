@@ -179,7 +179,6 @@
 
 /* miscellaneous internal variables */
 
-#define POD_SPACE(x)	((x) + 0xd0000)
 #define MASK_ON		(MASKREG_M3|MASKREG_M2|MASKREG_M1|MASKREG_M0)
 #define MASK_OFF	(MASKREG_M3|MASKREG_M2|MASKREG_M1)
 
@@ -279,10 +278,11 @@ typedef struct acornscsi_hostdata {
     struct Scsi_Host	*host;			/* host					*/
     struct scsi_cmnd	*SCpnt;			/* currently processing command		*/
     struct scsi_cmnd	*origSCpnt;		/* original connecting command		*/
+    void __iomem	*base;			/* memc base address 			*/
+    void __iomem	*fast;			/* fast ioc base address		*/
 
     /* driver information */
     struct {
-	unsigned int	io_port;		/* base address of WD33C93		*/
 	unsigned int	irq;			/* interrupt				*/
 	phase_t		phase;			/* current phase			*/
 
@@ -329,8 +329,6 @@ typedef struct acornscsi_hostdata {
 
     /* DMA info */
     struct {
-	unsigned int	io_port;		/* base address of DMA controller	*/
-	unsigned int	io_intr_clear;		/* address of DMA interrupt clear	*/
 	unsigned int	free_addr;		/* next free address			*/
 	unsigned int	start_addr;		/* start address of current transfer	*/
 	dmadir_t	direction;		/* dma direction			*/
@@ -345,9 +343,6 @@ typedef struct acornscsi_hostdata {
 
     /* card info */
     struct {
-	unsigned int	io_intr;		/* base address of interrupt id reg	*/
-	unsigned int	io_page;		/* base address of page reg		*/
-	unsigned int	io_ram;			/* base address of RAM access		*/
 	unsigned char	page_reg;		/* current setting of page reg		*/
     } card;
 

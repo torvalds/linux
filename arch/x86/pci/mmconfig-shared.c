@@ -374,7 +374,7 @@ reject:
 
 static int __initdata known_bridge;
 
-void __init __pci_mmcfg_init(int early)
+static void __init __pci_mmcfg_init(int early)
 {
 	/* MMCONFIG disabled */
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)

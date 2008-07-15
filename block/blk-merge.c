@@ -441,6 +441,9 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	    || next->special)
 		return 0;
 
+	if (blk_integrity_rq(req) != blk_integrity_rq(next))
+		return 0;
+
 	/*
 	 * If we are allowed to merge, then append bio list
 	 * from next to rq and release next. merge_requests_fn

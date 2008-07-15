@@ -48,6 +48,29 @@ void ack_bad_irq(unsigned int irq)
 #endif
 }
 
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
+/* Debugging check for stack overflow: is there less than 1KB free? */
+static int check_stack_overflow(void)
+{
+	long sp;
+
+	__asm__ __volatile__("andl %%esp,%0" :
+			     "=r" (sp) : "0" (THREAD_SIZE - 1));
+
+	return sp < (sizeof(struct thread_info) + STACK_WARN);
+}
+
+static void print_stack_overflow(void)
+{
+	printk(KERN_WARNING "low stack detected by irq handler\n");
+	dump_stack();
+}
+
+#else
+static inline int check_stack_overflow(void) { return 0; }
+static inline void print_stack_overflow(void) { }
+#endif
+
 #ifdef CONFIG_4KSTACKS
 /*
  * per-CPU IRQ handling contexts (thread information and stack)
@@ -59,48 +82,29 @@ union irq_ctx {
 
 static union irq_ctx *hardirq_ctx[NR_CPUS] __read_mostly;
 static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
-#endif
 
-/*
- * do_IRQ handles all normal device IRQ's (the special
- * SMP cross-CPU interrupts have their own specific
- * handlers).
- */
-unsigned int do_IRQ(struct pt_regs *regs)
-{	
-	struct pt_regs *old_regs;
-	/* high bit used in ret_from_ code */
-	int irq = ~regs->orig_ax;
-	struct irq_desc *desc = irq_desc + irq;
-#ifdef CONFIG_4KSTACKS
+static char softirq_stack[NR_CPUS * THREAD_SIZE]
+		__attribute__((__section__(".bss.page_aligned")));
+
+static char hardirq_stack[NR_CPUS * THREAD_SIZE]
+		__attribute__((__section__(".bss.page_aligned")));
+
+static void call_on_stack(void *func, void *stack)
+{
+	asm volatile("xchgl	%%ebx,%%esp	\n"
+		     "call	*%%edi		\n"
+		     "movl	%%ebx,%%esp	\n"
+		     : "=b" (stack)
+		     : "0" (stack),
+		       "D"(func)
+		     : "memory", "cc", "edx", "ecx", "eax");
+}
+
+static inline int
+execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
+{
 	union irq_ctx *curctx, *irqctx;
-	u32 *isp;
-#endif
-
-	if (unlikely((unsigned)irq >= NR_IRQS)) {
-		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
-					__func__, irq);
-		BUG();
-	}
-
-	old_regs = set_irq_regs(regs);
-	irq_enter();
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	/* Debugging check for stack overflow: is there less than 1KB free? */
-	{
-		long sp;
-
-		__asm__ __volatile__("andl %%esp,%0" :
-					"=r" (sp) : "0" (THREAD_SIZE - 1));
-		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
-			printk("do_IRQ: stack overflow: %ld\n",
-				sp - sizeof(struct thread_info));
-			dump_stack();
-		}
-	}
-#endif
-
-#ifdef CONFIG_4KSTACKS
+	u32 *isp, arg1, arg2;
 
 	curctx = (union irq_ctx *) current_thread_info();
 	irqctx = hardirq_ctx[smp_processor_id()];
@@ -111,52 +115,39 @@ unsigned int do_IRQ(struct pt_regs *regs)
 	 * handler) we can't do that and just have to keep using the
 	 * current stack (which is the irq stack already after all)
 	 */
-	if (curctx != irqctx) {
-		int arg1, arg2, bx;
+	if (unlikely(curctx == irqctx))
+		return 0;
 
-		/* build the stack frame on the IRQ stack */
-		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
-		irqctx->tinfo.task = curctx->tinfo.task;
-		irqctx->tinfo.previous_esp = current_stack_pointer;
+	/* build the stack frame on the IRQ stack */
+	isp = (u32 *) ((char*)irqctx + sizeof(*irqctx));
+	irqctx->tinfo.task = curctx->tinfo.task;
+	irqctx->tinfo.previous_esp = current_stack_pointer;
 
-		/*
-		 * Copy the softirq bits in preempt_count so that the
-		 * softirq checks work in the hardirq context.
-		 */
-		irqctx->tinfo.preempt_count =
-			(irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK) |
-			(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
+	/*
+	 * Copy the softirq bits in preempt_count so that the
+	 * softirq checks work in the hardirq context.
+	 */
+	irqctx->tinfo.preempt_count =
+		(irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK) |
+		(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
 
-		asm volatile(
-			"       xchgl  %%ebx,%%esp    \n"
-			"       call   *%%edi         \n"
-			"       movl   %%ebx,%%esp    \n"
-			: "=a" (arg1), "=d" (arg2), "=b" (bx)
-			:  "0" (irq),   "1" (desc),  "2" (isp),
-			   "D" (desc->handle_irq)
-			: "memory", "cc", "ecx"
-		);
-	} else
-#endif
-		desc->handle_irq(irq, desc);
+	if (unlikely(overflow))
+		call_on_stack(print_stack_overflow, isp);
 
-	irq_exit();
-	set_irq_regs(old_regs);
+	asm volatile("xchgl	%%ebx,%%esp	\n"
+		     "call	*%%edi		\n"
+		     "movl	%%ebx,%%esp	\n"
+		     : "=a" (arg1), "=d" (arg2), "=b" (isp)
+		     :  "0" (irq),   "1" (desc),  "2" (isp),
+			"D" (desc->handle_irq)
+		     : "memory", "cc", "ecx");
 	return 1;
 }
-
-#ifdef CONFIG_4KSTACKS
-
-static char softirq_stack[NR_CPUS * THREAD_SIZE]
-		__attribute__((__section__(".bss.page_aligned")));
-
-static char hardirq_stack[NR_CPUS * THREAD_SIZE]
-		__attribute__((__section__(".bss.page_aligned")));
 
 /*
  * allocate per-cpu stacks for hardirq and for softirq processing
  */
-void irq_ctx_init(int cpu)
+void __cpuinit irq_ctx_init(int cpu)
 {
 	union irq_ctx *irqctx;
 
@@ -164,25 +155,25 @@ void irq_ctx_init(int cpu)
 		return;
 
 	irqctx = (union irq_ctx*) &hardirq_stack[cpu*THREAD_SIZE];
-	irqctx->tinfo.task              = NULL;
-	irqctx->tinfo.exec_domain       = NULL;
-	irqctx->tinfo.cpu               = cpu;
-	irqctx->tinfo.preempt_count     = HARDIRQ_OFFSET;
-	irqctx->tinfo.addr_limit        = MAKE_MM_SEG(0);
+	irqctx->tinfo.task		= NULL;
+	irqctx->tinfo.exec_domain	= NULL;
+	irqctx->tinfo.cpu		= cpu;
+	irqctx->tinfo.preempt_count	= HARDIRQ_OFFSET;
+	irqctx->tinfo.addr_limit	= MAKE_MM_SEG(0);
 
 	hardirq_ctx[cpu] = irqctx;
 
 	irqctx = (union irq_ctx*) &softirq_stack[cpu*THREAD_SIZE];
-	irqctx->tinfo.task              = NULL;
-	irqctx->tinfo.exec_domain       = NULL;
-	irqctx->tinfo.cpu               = cpu;
-	irqctx->tinfo.preempt_count     = 0;
-	irqctx->tinfo.addr_limit        = MAKE_MM_SEG(0);
+	irqctx->tinfo.task		= NULL;
+	irqctx->tinfo.exec_domain	= NULL;
+	irqctx->tinfo.cpu		= cpu;
+	irqctx->tinfo.preempt_count	= 0;
+	irqctx->tinfo.addr_limit	= MAKE_MM_SEG(0);
 
 	softirq_ctx[cpu] = irqctx;
 
-	printk("CPU %u irqstacks, hard=%p soft=%p\n",
-		cpu,hardirq_ctx[cpu],softirq_ctx[cpu]);
+	printk(KERN_DEBUG "CPU %u irqstacks, hard=%p soft=%p\n",
+	       cpu,hardirq_ctx[cpu],softirq_ctx[cpu]);
 }
 
 void irq_ctx_exit(int cpu)
@@ -211,23 +202,54 @@ asmlinkage void do_softirq(void)
 		/* build the stack frame on the softirq stack */
 		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
 
-		asm volatile(
-			"       xchgl   %%ebx,%%esp     \n"
-			"       call    __do_softirq    \n"
-			"       movl    %%ebx,%%esp     \n"
-			: "=b"(isp)
-			: "0"(isp)
-			: "memory", "cc", "edx", "ecx", "eax"
-		);
+		call_on_stack(__do_softirq, isp);
 		/*
 		 * Shouldnt happen, we returned above if in_interrupt():
-	 	 */
+		 */
 		WARN_ON_ONCE(softirq_count());
 	}
 
 	local_irq_restore(flags);
 }
+
+#else
+static inline int
+execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq) { return 0; }
 #endif
+
+/*
+ * do_IRQ handles all normal device IRQ's (the special
+ * SMP cross-CPU interrupts have their own specific
+ * handlers).
+ */
+unsigned int do_IRQ(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+	/* high bit used in ret_from_ code */
+	int overflow, irq = ~regs->orig_ax;
+	struct irq_desc *desc = irq_desc + irq;
+
+	if (unlikely((unsigned)irq >= NR_IRQS)) {
+		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
+					__func__, irq);
+		BUG();
+	}
+
+	old_regs = set_irq_regs(regs);
+	irq_enter();
+
+	overflow = check_stack_overflow();
+
+	if (!execute_on_irq_stack(overflow, desc, irq)) {
+		if (unlikely(overflow))
+			print_stack_overflow();
+		desc->handle_irq(irq, desc);
+	}
+
+	irq_exit();
+	set_irq_regs(old_regs);
+	return 1;
+}
 
 /*
  * Interrupt statistics:
@@ -313,22 +335,60 @@ skip:
 				per_cpu(irq_stat,j).irq_tlb_count);
 		seq_printf(p, "  TLB shootdowns\n");
 #endif
+#ifdef CONFIG_X86_MCE
 		seq_printf(p, "TRM: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ",
 				per_cpu(irq_stat,j).irq_thermal_count);
 		seq_printf(p, "  Thermal event interrupts\n");
+#endif
+#ifdef CONFIG_X86_LOCAL_APIC
 		seq_printf(p, "SPU: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ",
 				per_cpu(irq_stat,j).irq_spurious_count);
 		seq_printf(p, "  Spurious interrupts\n");
+#endif
 		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
 #if defined(CONFIG_X86_IO_APIC)
 		seq_printf(p, "MIS: %10u\n", atomic_read(&irq_mis_count));
 #endif
 	}
 	return 0;
+}
+
+/*
+ * /proc/stat helpers
+ */
+u64 arch_irq_stat_cpu(unsigned int cpu)
+{
+	u64 sum = nmi_count(cpu);
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	sum += per_cpu(irq_stat, cpu).apic_timer_irqs;
+#endif
+#ifdef CONFIG_SMP
+	sum += per_cpu(irq_stat, cpu).irq_resched_count;
+	sum += per_cpu(irq_stat, cpu).irq_call_count;
+	sum += per_cpu(irq_stat, cpu).irq_tlb_count;
+#endif
+#ifdef CONFIG_X86_MCE
+	sum += per_cpu(irq_stat, cpu).irq_thermal_count;
+#endif
+#ifdef CONFIG_X86_LOCAL_APIC
+	sum += per_cpu(irq_stat, cpu).irq_spurious_count;
+#endif
+	return sum;
+}
+
+u64 arch_irq_stat(void)
+{
+	u64 sum = atomic_read(&irq_err_count);
+
+#ifdef CONFIG_X86_IO_APIC
+	sum += atomic_read(&irq_mis_count);
+#endif
+	return sum;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

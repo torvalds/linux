@@ -121,7 +121,7 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	return ret;
 }
 
-int __ptrace_may_attach(struct task_struct *task)
+int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 {
 	/* May we inspect the given task?
 	 * This check is used both for attaching with ptrace
@@ -148,16 +148,16 @@ int __ptrace_may_attach(struct task_struct *task)
 	if (!dumpable && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
 
-	return security_ptrace(current, task);
+	return security_ptrace(current, task, mode);
 }
 
-int ptrace_may_attach(struct task_struct *task)
+bool ptrace_may_access(struct task_struct *task, unsigned int mode)
 {
 	int err;
 	task_lock(task);
-	err = __ptrace_may_attach(task);
+	err = __ptrace_may_access(task, mode);
 	task_unlock(task);
-	return !err;
+	return (!err ? true : false);
 }
 
 int ptrace_attach(struct task_struct *task)
@@ -195,7 +195,7 @@ repeat:
 	/* the same process cannot be attached many times */
 	if (task->ptrace & PT_PTRACED)
 		goto bad;
-	retval = __ptrace_may_attach(task);
+	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH);
 	if (retval)
 		goto bad;
 
@@ -494,7 +494,8 @@ int ptrace_traceme(void)
 	 */
 	task_lock(current);
 	if (!(current->ptrace & PT_PTRACED)) {
-		ret = security_ptrace(current->parent, current);
+		ret = security_ptrace(current->parent, current,
+				      PTRACE_MODE_ATTACH);
 		/*
 		 * Set the ptrace bit in the process ptrace flags.
 		 */

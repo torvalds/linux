@@ -300,11 +300,10 @@ EXPORT_SYMBOL_GPL(ktime_sub_ns);
  */
 u64 ktime_divns(const ktime_t kt, s64 div)
 {
-	u64 dclc, inc, dns;
+	u64 dclc;
 	int sft = 0;
 
-	dclc = dns = ktime_to_ns(kt);
-	inc = div;
+	dclc = ktime_to_ns(kt);
 	/* Make sure the divisor is less than 2^32: */
 	while (div >> 32) {
 		sft++;
@@ -632,8 +631,6 @@ void clock_was_set(void)
  */
 void hres_timers_resume(void)
 {
-	WARN_ON_ONCE(num_online_cpus() > 1);
-
 	/* Retrigger the CPU local events: */
 	retrigger_next_event(NULL);
 }
@@ -1003,10 +1000,18 @@ hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
 	 */
 	raise = timer->state == HRTIMER_STATE_PENDING;
 
+	/*
+	 * We use preempt_disable to prevent this task from migrating after
+	 * setting up the softirq and raising it. Otherwise, if me migrate
+	 * we will raise the softirq on the wrong CPU.
+	 */
+	preempt_disable();
+
 	unlock_hrtimer_base(timer, &flags);
 
 	if (raise)
 		hrtimer_raise_softirq();
+	preempt_enable();
 
 	return ret;
 }
@@ -1078,7 +1083,7 @@ ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
 }
 EXPORT_SYMBOL_GPL(hrtimer_get_remaining);
 
-#if defined(CONFIG_NO_IDLE_HZ) || defined(CONFIG_NO_HZ)
+#ifdef CONFIG_NO_HZ
 /**
  * hrtimer_get_next_event - get the time until next expiry event
  *
@@ -1669,7 +1674,7 @@ void __init hrtimers_init(void)
 			  (void *)(long)smp_processor_id());
 	register_cpu_notifier(&hrtimers_nb);
 #ifdef CONFIG_HIGH_RES_TIMERS
-	open_softirq(HRTIMER_SOFTIRQ, run_hrtimer_softirq, NULL);
+	open_softirq(HRTIMER_SOFTIRQ, run_hrtimer_softirq);
 #endif
 }
 

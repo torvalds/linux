@@ -8,6 +8,12 @@
 
 #define GPIO_PIN_NONE	(-1)
 
+/*
+ * Clock rates for various on-board oscillators. The number of entries
+ * in this array is chip-dependent.
+ */
+extern unsigned long at32_board_osc_rates[];
+  
 /* Add basic devices: system manager, interrupt controller, portmuxes, etc. */
 void at32_add_system_devices(void);
 
@@ -36,7 +42,8 @@ at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n);
 struct atmel_lcdfb_info;
 struct platform_device *
 at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
-		     unsigned long fbmem_start, unsigned long fbmem_len);
+		     unsigned long fbmem_start, unsigned long fbmem_len,
+		     unsigned int pin_config);
 
 struct usba_platform_data;
 struct platform_device *
@@ -73,6 +80,7 @@ struct platform_device *at32_add_device_twi(unsigned int id,
 struct platform_device *at32_add_device_mci(unsigned int id);
 struct platform_device *at32_add_device_ac97c(unsigned int id);
 struct platform_device *at32_add_device_abdac(unsigned int id);
+struct platform_device *at32_add_device_psif(unsigned int id);
 
 struct cf_platform_data {
 	int	detect_pin;

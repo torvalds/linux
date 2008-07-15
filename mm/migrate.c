@@ -9,7 +9,7 @@
  * IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
  * Hirokazu Takahashi <taka@valinux.co.jp>
  * Dave Hansen <haveblue@us.ibm.com>
- * Christoph Lameter <clameter@sgi.com>
+ * Christoph Lameter
  */
 
 #include <linux/migrate.h>

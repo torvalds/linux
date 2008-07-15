@@ -58,7 +58,7 @@ static s32 amd756_access_virt0(struct i2c_adapter * adap, u16 addr,
 	/* We exclude the multiplexed addresses */
 	if (addr == 0x4c || (addr & 0xfc) == 0x50 || (addr & 0xfc) == 0x30
 	 || addr == 0x18)
-		return -1;
+		return -ENXIO;
 
 	mutex_lock(&amd756_lock);
 
@@ -86,7 +86,7 @@ static inline s32 amd756_access_channel(struct i2c_adapter * adap, u16 addr,
 
 	/* We exclude the non-multiplexed addresses */
 	if (addr != 0x4c && (addr & 0xfc) != 0x50 && (addr & 0xfc) != 0x30)
-		return -1;
+		return -ENXIO;
 
 	mutex_lock(&amd756_lock);
 

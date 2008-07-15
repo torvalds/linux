@@ -419,7 +419,6 @@ config DEBUG_LOCKING_API_SELFTESTS
 
 config STACKTRACE
 	bool
-	depends on DEBUG_KERNEL
 	depends on STACKTRACE_SUPPORT
 
 config DEBUG_KOBJECT
@@ -563,6 +562,9 @@ config BACKTRACE_SELF_TEST
 	  for distributions or general kernels, but only for kernel
 	  developers working on architecture code.
 
+	  Note that if you want to also test saved backtraces, you will
+	  have to enable STACKTRACE as well.
+
 	  Say N if you are unsure.
 
 config LKDTM
@@ -633,6 +635,8 @@ config LATENCYTOP
 	help
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
+
+source kernel/trace/Kconfig
 
 config PROVIDE_OHCI1394_DMA_INIT
 	bool "Remote debugging over FireWire early on boot"

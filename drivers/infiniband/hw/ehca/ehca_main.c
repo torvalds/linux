@@ -923,6 +923,7 @@ static struct of_device_id ehca_device_table[] =
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, ehca_device_table);
 
 static struct of_platform_driver ehca_driver = {
 	.name        = "ehca",

@@ -82,7 +82,7 @@ static void mpage_end_io_write(struct bio *bio, int err)
 	bio_put(bio);
 }
 
-static struct bio *mpage_bio_submit(int rw, struct bio *bio)
+struct bio *mpage_bio_submit(int rw, struct bio *bio)
 {
 	bio->bi_end_io = mpage_end_io_read;
 	if (rw == WRITE)
@@ -90,6 +90,7 @@ static struct bio *mpage_bio_submit(int rw, struct bio *bio)
 	submit_bio(rw, bio);
 	return NULL;
 }
+EXPORT_SYMBOL(mpage_bio_submit);
 
 static struct bio *
 mpage_alloc(struct block_device *bdev,
@@ -435,15 +436,9 @@ EXPORT_SYMBOL(mpage_readpage);
  * written, so it can intelligently allocate a suitably-sized BIO.  For now,
  * just allocate full-size (16-page) BIOs.
  */
-struct mpage_data {
-	struct bio *bio;
-	sector_t last_block_in_bio;
-	get_block_t *get_block;
-	unsigned use_writepage;
-};
 
-static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
-			     void *data)
+int __mpage_writepage(struct page *page, struct writeback_control *wbc,
+		      void *data)
 {
 	struct mpage_data *mpd = data;
 	struct bio *bio = mpd->bio;
@@ -651,6 +646,7 @@ out:
 	mpd->bio = bio;
 	return ret;
 }
+EXPORT_SYMBOL(__mpage_writepage);
 
 /**
  * mpage_writepages - walk the list of dirty pages of the given address space & writepage() all of them

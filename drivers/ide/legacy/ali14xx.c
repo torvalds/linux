@@ -116,7 +116,7 @@ static void ali14xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	int time1, time2;
 	u8 param1, param2, param3, param4;
 	unsigned long flags;
-	int bus_speed = ide_vlb_clk ? ide_vlb_clk : system_bus_clock();
+	int bus_speed = ide_vlb_clk ? ide_vlb_clk : 50;
 
 	/* calculate timing, according to PIO mode */
 	time1 = ide_pio_cycle_time(drive, pio);

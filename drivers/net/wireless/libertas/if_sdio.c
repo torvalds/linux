@@ -392,7 +392,7 @@ static int if_sdio_prog_helper(struct if_sdio_card *card)
 	unsigned long timeout;
 	u8 *chunk_buffer;
 	u32 chunk_size;
-	u8 *firmware;
+	const u8 *firmware;
 	size_t size;
 
 	lbs_deb_enter(LBS_DEB_SDIO);
@@ -508,7 +508,7 @@ static int if_sdio_prog_real(struct if_sdio_card *card)
 	unsigned long timeout;
 	u8 *chunk_buffer;
 	u32 chunk_size;
-	u8 *firmware;
+	const u8 *firmware;
 	size_t size, req_size;
 
 	lbs_deb_enter(LBS_DEB_SDIO);

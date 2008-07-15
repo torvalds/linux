@@ -36,15 +36,11 @@ extern void generic_apic_probe(void);
 #ifdef CONFIG_X86_LOCAL_APIC
 
 extern int apic_verbosity;
-extern int timer_over_8254;
 extern int local_apic_timer_c2_ok;
-extern int local_apic_timer_disabled;
 
-extern int apic_runs_main_timer;
 extern int ioapic_force;
-extern int disable_apic;
-extern int disable_apic_timer;
 
+extern int disable_apic;
 /*
  * Basic functions accessing APICs.
  */
@@ -125,16 +121,22 @@ extern void enable_NMI_through_LVT0(void);
  */
 #ifdef CONFIG_X86_64
 extern void early_init_lapic_mapping(void);
+extern int apic_is_clustered_box(void);
+#else
+static inline int apic_is_clustered_box(void)
+{
+	return 0;
+}
 #endif
 
 extern u8 setup_APIC_eilvt_mce(u8 vector, u8 msg_type, u8 mask);
 extern u8 setup_APIC_eilvt_ibs(u8 vector, u8 msg_type, u8 mask);
 
-extern int apic_is_clustered_box(void);
 
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }
 #define local_apic_timer_c2_ok		1
+static inline void init_apic_mappings(void) { }
 
 #endif /* !CONFIG_X86_LOCAL_APIC */
 

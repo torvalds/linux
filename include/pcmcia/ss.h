@@ -21,7 +21,6 @@
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
-#include <pcmcia/bulkmem.h>
 #ifdef CONFIG_CARDBUS
 #include <linux/pci.h>
 #endif
@@ -136,8 +135,14 @@ struct pccard_resource_ops {
 	struct resource* (*find_mem)	(unsigned long base, unsigned long num,
 					 unsigned long align, int low,
 					 struct pcmcia_socket *s);
-	int	(*adjust_resource)	(struct pcmcia_socket *s,
-					 adjust_t *adj);
+	int	(*add_io)		(struct pcmcia_socket *s,
+					 unsigned int action,
+					 unsigned long r_start,
+					 unsigned long r_end);
+	int	(*add_mem)		(struct pcmcia_socket *s,
+					 unsigned int action,
+					 unsigned long r_start,
+					 unsigned long r_end);
 	int	(*init)			(struct pcmcia_socket *s);
 	void	(*exit)			(struct pcmcia_socket *s);
 };
@@ -245,7 +250,6 @@ struct pcmcia_socket {
 
 	struct task_struct		*thread;
 	struct completion		thread_done;
-	wait_queue_head_t		thread_wait;
 	spinlock_t			thread_lock;	/* protects thread_events */
 	unsigned int			thread_events;
 

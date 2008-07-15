@@ -31,25 +31,6 @@
 #define AUDIO_NAME "WM8750"
 #define WM8750_VERSION "0.12"
 
-/*
- * Debug
- */
-
-#define WM8750_DEBUG 0
-
-#ifdef WM8750_DEBUG
-#define dbg(format, arg...) \
-	printk(KERN_DEBUG AUDIO_NAME ": " format "\n" , ## arg)
-#else
-#define dbg(format, arg...) do {} while (0)
-#endif
-#define err(format, arg...) \
-	printk(KERN_ERR AUDIO_NAME ": " format "\n" , ## arg)
-#define info(format, arg...) \
-	printk(KERN_INFO AUDIO_NAME ": " format "\n" , ## arg)
-#define warn(format, arg...) \
-	printk(KERN_WARNING AUDIO_NAME ": " format "\n" , ## arg)
-
 /* codec private data */
 struct wm8750_priv {
 	unsigned int sysclk;
@@ -378,7 +359,7 @@ static const struct snd_soc_dapm_widget wm8750_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("RINPUT3"),
 };
 
-static const char *audio_map[][3] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 	/* left mixer */
 	{"Left Mixer", "Playback Switch", "Left DAC"},
 	{"Left Mixer", "Left Bypass Switch", "Left Line Mux"},
@@ -470,22 +451,14 @@ static const char *audio_map[][3] = {
 	/* ADC */
 	{"Left ADC", NULL, "Left ADC Mux"},
 	{"Right ADC", NULL, "Right ADC Mux"},
-
-	/* terminator */
-	{NULL, NULL, NULL},
 };
 
 static int wm8750_add_widgets(struct snd_soc_codec *codec)
 {
-	int i;
+	snd_soc_dapm_new_controls(codec, wm8750_dapm_widgets,
+				  ARRAY_SIZE(wm8750_dapm_widgets));
 
-	for (i = 0; i < ARRAY_SIZE(wm8750_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &wm8750_dapm_widgets[i]);
-
-	/* set up audio path audio_mapnects */
-	for (i = 0; audio_map[i][0] != NULL; i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-			audio_map[i][1], audio_map[i][2]);
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_new_widgets(codec);
 	return 0;
@@ -563,7 +536,7 @@ static inline int get_coeff(int mclk, int rate)
 	return -EINVAL;
 }
 
-static int wm8750_set_dai_sysclk(struct snd_soc_codec_dai *codec_dai,
+static int wm8750_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -581,7 +554,7 @@ static int wm8750_set_dai_sysclk(struct snd_soc_codec_dai *codec_dai,
 	return -EINVAL;
 }
 
-static int wm8750_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
+static int wm8750_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -674,7 +647,7 @@ static int wm8750_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8750_mute(struct snd_soc_codec_dai *dai, int mute)
+static int wm8750_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	u16 mute_reg = wm8750_read_reg_cache(codec, WM8750_ADCDAC) & 0xfff7;
@@ -686,29 +659,29 @@ static int wm8750_mute(struct snd_soc_codec_dai *dai, int mute)
 	return 0;
 }
 
-static int wm8750_dapm_event(struct snd_soc_codec *codec, int event)
+static int wm8750_set_bias_level(struct snd_soc_codec *codec,
+				 enum snd_soc_bias_level level)
 {
 	u16 pwr_reg = wm8750_read_reg_cache(codec, WM8750_PWR1) & 0xfe3e;
 
-	switch (event) {
-	case SNDRV_CTL_POWER_D0: /* full On */
+	switch (level) {
+	case SND_SOC_BIAS_ON:
 		/* set vmid to 50k and unmute dac */
 		wm8750_write(codec, WM8750_PWR1, pwr_reg | 0x00c0);
 		break;
-	case SNDRV_CTL_POWER_D1: /* partial On */
-	case SNDRV_CTL_POWER_D2: /* partial On */
+	case SND_SOC_BIAS_PREPARE:
 		/* set vmid to 5k for quick power up */
 		wm8750_write(codec, WM8750_PWR1, pwr_reg | 0x01c1);
 		break;
-	case SNDRV_CTL_POWER_D3hot: /* Off, with power */
+	case SND_SOC_BIAS_STANDBY:
 		/* mute dac and set vmid to 500k, enable VREF */
 		wm8750_write(codec, WM8750_PWR1, pwr_reg | 0x0141);
 		break;
-	case SNDRV_CTL_POWER_D3cold: /* Off, without power */
+	case SND_SOC_BIAS_OFF:
 		wm8750_write(codec, WM8750_PWR1, 0x0001);
 		break;
 	}
-	codec->dapm_state = event;
+	codec->bias_level = level;
 	return 0;
 }
 
@@ -719,7 +692,7 @@ static int wm8750_dapm_event(struct snd_soc_codec *codec, int event)
 #define WM8750_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
-struct snd_soc_codec_dai wm8750_dai = {
+struct snd_soc_dai wm8750_dai = {
 	.name = "WM8750",
 	.playback = {
 		.stream_name = "Playback",
@@ -748,7 +721,7 @@ static void wm8750_work(struct work_struct *work)
 {
 	struct snd_soc_codec *codec =
 		container_of(work, struct snd_soc_codec, delayed_work.work);
-	wm8750_dapm_event(codec, codec->dapm_state);
+	wm8750_set_bias_level(codec, codec->bias_level);
 }
 
 static int wm8750_suspend(struct platform_device *pdev, pm_message_t state)
@@ -756,7 +729,7 @@ static int wm8750_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->codec;
 
-	wm8750_dapm_event(codec, SNDRV_CTL_POWER_D3cold);
+	wm8750_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
@@ -777,12 +750,12 @@ static int wm8750_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 
-	wm8750_dapm_event(codec, SNDRV_CTL_POWER_D3hot);
+	wm8750_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* charge wm8750 caps */
-	if (codec->suspend_dapm_state == SNDRV_CTL_POWER_D0) {
-		wm8750_dapm_event(codec, SNDRV_CTL_POWER_D2);
-		codec->dapm_state = SNDRV_CTL_POWER_D0;
+	if (codec->suspend_bias_level == SND_SOC_BIAS_ON) {
+		wm8750_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
+		codec->bias_level = SND_SOC_BIAS_ON;
 		schedule_delayed_work(&codec->delayed_work,
 					msecs_to_jiffies(1000));
 	}
@@ -803,10 +776,10 @@ static int wm8750_init(struct snd_soc_device *socdev)
 	codec->owner = THIS_MODULE;
 	codec->read = wm8750_read_reg_cache;
 	codec->write = wm8750_write;
-	codec->dapm_event = wm8750_dapm_event;
+	codec->set_bias_level = wm8750_set_bias_level;
 	codec->dai = &wm8750_dai;
 	codec->num_dai = 1;
-	codec->reg_cache_size = sizeof(wm8750_reg);
+	codec->reg_cache_size = ARRAY_SIZE(wm8750_reg);
 	codec->reg_cache = kmemdup(wm8750_reg, sizeof(wm8750_reg), GFP_KERNEL);
 	if (codec->reg_cache == NULL)
 		return -ENOMEM;
@@ -821,8 +794,8 @@ static int wm8750_init(struct snd_soc_device *socdev)
 	}
 
 	/* charge output caps */
-	wm8750_dapm_event(codec, SNDRV_CTL_POWER_D2);
-	codec->dapm_state = SNDRV_CTL_POWER_D3hot;
+	wm8750_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
+	codec->bias_level = SND_SOC_BIAS_STANDBY;
 	schedule_delayed_work(&codec->delayed_work, msecs_to_jiffies(1000));
 
 	/* set the update bits */
@@ -904,13 +877,13 @@ static int wm8750_codec_probe(struct i2c_adapter *adap, int addr, int kind)
 
 	ret = i2c_attach_client(i2c);
 	if (ret < 0) {
-		err("failed to attach codec at addr %x\n", addr);
+		pr_err("failed to attach codec at addr %x\n", addr);
 		goto err;
 	}
 
 	ret = wm8750_init(socdev);
 	if (ret < 0) {
-	err("failed to initialise WM8750\n");
+		pr_err("failed to initialise WM8750\n");
 		goto err;
 	}
 	return ret;
@@ -961,7 +934,7 @@ static int wm8750_probe(struct platform_device *pdev)
 	struct wm8750_priv *wm8750;
 	int ret = 0;
 
-	info("WM8750 Audio Codec %s", WM8750_VERSION);
+	pr_info("WM8750 Audio Codec %s", WM8750_VERSION);
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
 	if (codec == NULL)
 		return -ENOMEM;
@@ -1021,7 +994,7 @@ static int wm8750_remove(struct platform_device *pdev)
 	struct snd_soc_codec *codec = socdev->codec;
 
 	if (codec->control_data)
-		wm8750_dapm_event(codec, SNDRV_CTL_POWER_D3cold);
+		wm8750_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	run_delayed_work(&codec->delayed_work);
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);

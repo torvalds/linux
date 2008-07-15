@@ -95,7 +95,6 @@ static struct ide_timing ide_timing[] = {
 #define IDE_TIMING_UDMA		0x80
 #define IDE_TIMING_ALL		0xff
 
-#define FIT(v,vmin,vmax)	max_t(short,min_t(short,v,vmax),vmin)
 #define ENOUGH(v,unit)		(((v)-1)/(unit)+1)
 #define EZ(v,unit)		((v)?ENOUGH(v,unit):0)
 

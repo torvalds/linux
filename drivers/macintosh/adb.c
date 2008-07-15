@@ -644,12 +644,18 @@ do_adb_query(struct adb_request *req)
 static int adb_open(struct inode *inode, struct file *file)
 {
 	struct adbdev_state *state;
+	int ret = 0;
 
-	if (iminor(inode) > 0 || adb_controller == NULL)
-		return -ENXIO;
+	lock_kernel();
+	if (iminor(inode) > 0 || adb_controller == NULL) {
+		ret = -ENXIO;
+		goto out;
+	}
 	state = kmalloc(sizeof(struct adbdev_state), GFP_KERNEL);
-	if (state == 0)
-		return -ENOMEM;
+	if (state == 0) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	file->private_data = state;
 	spin_lock_init(&state->lock);
 	atomic_set(&state->n_pending, 0);
@@ -657,7 +663,9 @@ static int adb_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&state->wait_queue);
 	state->inuse = 1;
 
-	return 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int adb_release(struct inode *inode, struct file *file)

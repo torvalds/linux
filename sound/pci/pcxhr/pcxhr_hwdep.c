@@ -394,7 +394,7 @@ static int pcxhr_hwdep_dsp_load(struct snd_hwdep *hw,
 			   (unsigned long)fw.size);
 		return -ENOMEM;
 	}
-	if (copy_from_user(fw.data, dsp->image, dsp->length)) {
+	if (copy_from_user((void *)fw.data, dsp->image, dsp->length)) {
 		vfree(fw.data);
 		return -EFAULT;
 	}

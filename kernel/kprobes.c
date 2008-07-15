@@ -79,7 +79,7 @@ static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
  *
  * For such cases, we now have a blacklist
  */
-struct kprobe_blackpoint kprobe_blacklist[] = {
+static struct kprobe_blackpoint kprobe_blacklist[] = {
 	{"preempt_schedule",},
 	{NULL}    /* Terminator */
 };

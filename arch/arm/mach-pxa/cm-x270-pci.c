@@ -41,18 +41,20 @@ void __init cmx270_pci_adjust_zones(int node, unsigned long *zone_size,
 {
 	unsigned int sz = SZ_64M >> PAGE_SHIFT;
 
-	pr_info("Adjusting zones for CM-x270\n");
+	if (machine_is_armcore()) {
+		pr_info("Adjusting zones for CM-x270\n");
 
-	/*
-	 * Only adjust if > 64M on current system
-	 */
-	if (node || (zone_size[0] <= sz))
-		return;
+		/*
+		 * Only adjust if > 64M on current system
+		 */
+		if (node || (zone_size[0] <= sz))
+			return;
 
-	zone_size[1] = zone_size[0] - sz;
-	zone_size[0] = sz;
-	zhole_size[1] = zhole_size[0];
-	zhole_size[0] = 0;
+		zone_size[1] = zone_size[0] - sz;
+		zone_size[0] = sz;
+		zhole_size[1] = zhole_size[0];
+		zhole_size[0] = 0;
+	}
 }
 
 static void cmx270_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)

@@ -66,6 +66,7 @@
 #include <linux/poll.h>
 #include <linux/major.h>
 #include <linux/ppdev.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 
 #define PP_VERSION "ppdev: user-space parallel port driver"
@@ -638,6 +639,7 @@ static int pp_open (struct inode * inode, struct file * file)
 	unsigned int minor = iminor(inode);
 	struct pp_struct *pp;
 
+	cycle_kernel_lock();
 	if (minor >= PARPORT_MAX)
 		return -ENXIO;
 

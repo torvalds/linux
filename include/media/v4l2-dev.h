@@ -40,9 +40,9 @@
 #define VFL_TYPE_VTX		3
 
 /*  Video standard functions  */
-extern char *v4l2_norm_to_name(v4l2_std_id id);
+extern const char *v4l2_norm_to_name(v4l2_std_id id);
 extern int v4l2_video_std_construct(struct v4l2_standard *vs,
-				    int id, char *name);
+				    int id, const char *name);
 /* Prints the ioctl in a human-readable format */
 extern void v4l_printk_ioctl(unsigned int cmd);
 

@@ -7,8 +7,4 @@
  */
 
 
-#ifdef CONFIG_ARCH_FOOTBRIDGE
 #define VMALLOC_END       (PAGE_OFFSET + 0x30000000)
-#else
-#define VMALLOC_END       (PAGE_OFFSET + 0x20000000)
-#endif

@@ -15,6 +15,7 @@
 #include <linux/poll.h>
 #include <linux/compat.h>
 #include <linux/mm.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -527,14 +528,17 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 	size_t size;
 	int rc;
 
+	lock_kernel();
 	mutex_lock(&mon_lock);
 	if ((mbus = mon_bus_lookup(iminor(inode))) == NULL) {
 		mutex_unlock(&mon_lock);
+		unlock_kernel();
 		return -ENODEV;
 	}
 	if (mbus != &mon_bus0 && mbus->u_bus == NULL) {
 		printk(KERN_ERR TAG ": consistency error on open\n");
 		mutex_unlock(&mon_lock);
+		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -568,6 +572,7 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 
 	file->private_data = rp;
 	mutex_unlock(&mon_lock);
+	unlock_kernel();
 	return 0;
 
 err_allocbuff:
@@ -576,6 +581,7 @@ err_allocvec:
 	kfree(rp);
 err_alloc:
 	mutex_unlock(&mon_lock);
+	unlock_kernel();
 	return rc;
 }
 

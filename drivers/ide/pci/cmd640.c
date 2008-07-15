@@ -525,12 +525,10 @@ static void cmd640_set_mode(ide_drive_t *drive, unsigned int index,
 	u8 setup_count, active_count, recovery_count, recovery_count2, cycle_count;
 	int bus_speed;
 
-	if (cmd640_vlb && ide_vlb_clk)
-		bus_speed = ide_vlb_clk;
-	else if (!cmd640_vlb && ide_pci_clk)
-		bus_speed = ide_pci_clk;
+	if (cmd640_vlb)
+		bus_speed = ide_vlb_clk ? ide_vlb_clk : 50;
 	else
-		bus_speed = system_bus_clock();
+		bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 
 	if (pio_mode > 5)
 		pio_mode = 5;

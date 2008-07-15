@@ -790,7 +790,7 @@ config BFIN_UART3_CTSRTS
 
 config SERIAL_IMX
 	bool "IMX serial port support"
-	depends on ARM && ARCH_IMX
+	depends on ARM && (ARCH_IMX || ARCH_MXC)
 	select SERIAL_CORE
 	help
 	  If you have a machine based on a Motorola IMX CPU you

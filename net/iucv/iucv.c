@@ -1559,16 +1559,11 @@ static void iucv_external_interrupt(u16 code)
 
 	p = iucv_irq_data[smp_processor_id()];
 	if (p->ippathid >= iucv_max_pathid) {
-		printk(KERN_WARNING "iucv_do_int: Got interrupt with "
-		       "pathid %d > max_connections (%ld)\n",
-		       p->ippathid, iucv_max_pathid - 1);
+		WARN_ON(p->ippathid >= iucv_max_pathid);
 		iucv_sever_pathid(p->ippathid, iucv_error_no_listener);
 		return;
 	}
-	if (p->iptype  < 0x01 || p->iptype > 0x09) {
-		printk(KERN_ERR "iucv_do_int: unknown iucv interrupt\n");
-		return;
-	}
+	BUG_ON(p->iptype  < 0x01 || p->iptype > 0x09);
 	work = kmalloc(sizeof(struct iucv_irq_list), GFP_ATOMIC);
 	if (!work) {
 		printk(KERN_WARNING "iucv_external_interrupt: out of memory\n");

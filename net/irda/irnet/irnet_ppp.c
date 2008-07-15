@@ -479,6 +479,7 @@ dev_irnet_open(struct inode *	inode,
   ap = kzalloc(sizeof(*ap), GFP_KERNEL);
   DABORT(ap == NULL, -ENOMEM, FS_ERROR, "Can't allocate struct irnet...\n");
 
+  lock_kernel();
   /* initialize the irnet structure */
   ap->file = file;
 
@@ -500,6 +501,7 @@ dev_irnet_open(struct inode *	inode,
     {
       DERROR(FS_ERROR, "Can't setup IrDA link...\n");
       kfree(ap);
+      unlock_kernel();
       return err;
     }
 
@@ -510,6 +512,7 @@ dev_irnet_open(struct inode *	inode,
   file->private_data = ap;
 
   DEXIT(FS_TRACE, " - ap=0x%p\n", ap);
+  unlock_kernel();
   return 0;
 }
 

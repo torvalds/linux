@@ -29,21 +29,12 @@ extern int smp_num_siblings;
 extern unsigned int num_processors;
 extern cpumask_t cpu_initialized;
 
-#ifdef CONFIG_SMP
-extern u16 x86_cpu_to_apicid_init[];
-extern u16 x86_bios_cpu_apicid_init[];
-extern void *x86_cpu_to_apicid_early_ptr;
-extern void *x86_bios_cpu_apicid_early_ptr;
-#else
-#define x86_cpu_to_apicid_early_ptr NULL
-#define x86_bios_cpu_apicid_early_ptr NULL
-#endif
-
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_t, cpu_core_map);
 DECLARE_PER_CPU(u16, cpu_llc_id);
-DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
-DECLARE_PER_CPU(u16, x86_bios_cpu_apicid);
+
+DECLARE_EARLY_PER_CPU(u16, x86_cpu_to_apicid);
+DECLARE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid);
 
 /* Static state in head.S used to set up a CPU */
 extern struct {
@@ -118,8 +109,6 @@ int native_cpu_up(unsigned int cpunum);
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 
-extern void prefill_possible_map(void);
-
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
 
@@ -129,6 +118,14 @@ static inline int num_booting_cpus(void)
 	return cpus_weight(cpu_callout_map);
 }
 #endif /* CONFIG_SMP */
+
+#if defined(CONFIG_SMP) && defined(CONFIG_HOTPLUG_CPU)
+extern void prefill_possible_map(void);
+#else
+static inline void prefill_possible_map(void)
+{
+}
+#endif
 
 extern unsigned disabled_cpus __cpuinitdata;
 
@@ -197,11 +194,9 @@ static inline int hard_smp_processor_id(void)
 #endif /* CONFIG_X86_LOCAL_APIC */
 
 #ifdef CONFIG_HOTPLUG_CPU
-extern void cpu_exit_clear(void);
 extern void cpu_uninit(void);
 #endif
 
-extern void smp_alloc_memory(void);
 extern void lock_ipi_call_lock(void);
 extern void unlock_ipi_call_lock(void);
 #endif /* __ASSEMBLY__ */

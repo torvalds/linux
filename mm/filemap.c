@@ -236,11 +236,12 @@ int filemap_fdatawrite(struct address_space *mapping)
 }
 EXPORT_SYMBOL(filemap_fdatawrite);
 
-static int filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
+int filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 				loff_t end)
 {
 	return __filemap_fdatawrite_range(mapping, start, end, WB_SYNC_ALL);
 }
+EXPORT_SYMBOL(filemap_fdatawrite_range);
 
 /**
  * filemap_flush - mostly a non-blocking flush

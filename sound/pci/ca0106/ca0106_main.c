@@ -249,6 +249,11 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .name   = "MSI K8N Diamond MB [SB0438]",
 	   .gpio_type = 2,
 	   .i2c_adc = 1 } ,
+	 /* Another MSI K8N Diamond MB, which has apprently a different SSID */
+	 { .serial = 0x10091102,
+	   .name   = "MSI K8N Diamond MB",
+	   .gpio_type = 2,
+	   .i2c_adc = 1 } ,
 	 /* Shuttle XPC SD31P which has an onboard Creative Labs
 	  * Sound Blaster Live! 24-bit EAX
 	  * high-definition 7.1 audio processor".

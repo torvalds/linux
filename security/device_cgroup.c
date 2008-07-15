@@ -222,7 +222,7 @@ static void devcgroup_destroy(struct cgroup_subsys *ss,
 #define DEVCG_DENY 2
 #define DEVCG_LIST 3
 
-#define MAJMINLEN 10
+#define MAJMINLEN 13
 #define ACCLEN 4
 
 static void set_access(char *acc, short access)
@@ -254,7 +254,7 @@ static void set_majmin(char *str, unsigned m)
 	if (m == ~0)
 		sprintf(str, "*");
 	else
-		snprintf(str, MAJMINLEN, "%d", m);
+		snprintf(str, MAJMINLEN, "%u", m);
 }
 
 static int devcgroup_seq_read(struct cgroup *cgroup, struct cftype *cft,
@@ -300,7 +300,7 @@ static int may_access_whitelist(struct dev_cgroup *c,
 			continue;
 		if (whitem->minor != ~0 && whitem->minor != refwh->minor)
 			continue;
-		if (refwh->access & (~(whitem->access | ACC_MASK)))
+		if (refwh->access & (~whitem->access))
 			continue;
 		return 1;
 	}
@@ -382,6 +382,8 @@ static ssize_t devcgroup_access_write(struct cgroup *cgroup, struct cftype *cft,
 	case 'a':
 		wh.type = DEV_ALL;
 		wh.access = ACC_MASK;
+		wh.major = ~0;
+		wh.minor = ~0;
 		goto handle;
 	case 'b':
 		wh.type = DEV_BLOCK;

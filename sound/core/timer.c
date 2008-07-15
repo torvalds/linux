@@ -146,7 +146,7 @@ static struct snd_timer *snd_timer_find(struct snd_timer_id *tid)
 	return NULL;
 }
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 
 static void snd_timer_request(struct snd_timer_id *tid)
 {
@@ -259,8 +259,8 @@ int snd_timer_open(struct snd_timer_instance **ti,
 	/* open a master instance */
 	mutex_lock(&register_mutex);
 	timer = snd_timer_find(tid);
-#ifdef CONFIG_KMOD
-	if (timer == NULL) {
+#ifdef CONFIG_MODULES
+	if (!timer) {
 		mutex_unlock(&register_mutex);
 		snd_timer_request(tid);
 		mutex_lock(&register_mutex);

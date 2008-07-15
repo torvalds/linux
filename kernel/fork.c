@@ -23,6 +23,7 @@
 #include <linux/sem.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
+#include <linux/iocontext.h>
 #include <linux/key.h>
 #include <linux/binfmts.h>
 #include <linux/mman.h>
@@ -909,7 +910,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	rt_mutex_init_task(p);
 
-#ifdef CONFIG_TRACE_IRQFLAGS
+#ifdef CONFIG_PROVE_LOCKING
 	DEBUG_LOCKS_WARN_ON(!p->hardirqs_enabled);
 	DEBUG_LOCKS_WARN_ON(!p->softirqs_enabled);
 #endif
