@@ -1404,13 +1404,14 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 
 	/* first of all check for state change pending interrupt */
 	mask = DEV_STAT_ATTENTION | DEV_STAT_DEV_END | DEV_STAT_UNIT_EXCEP;
-	if ((irb->scsw.dstat & mask) == mask) {
+	if ((irb->scsw.cmd.dstat & mask) == mask) {
 		dasd_generic_handle_state_change(device);
 		return;
 	}
 
 	/* summary unit check */
-	if ((irb->scsw.dstat & DEV_STAT_UNIT_CHECK) && irb->ecw[7] == 0x0D) {
+	if ((irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) &&
+	    (irb->ecw[7] == 0x0D)) {
 		dasd_alias_handle_summary_unit_check(device, irb);
 		return;
 	}
@@ -2068,11 +2069,11 @@ static void dasd_eckd_dump_sense(struct dasd_device *device,
 		      device->cdev->dev.bus_id);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " in req: %p CS: 0x%02X DS: 0x%02X\n", req,
-		       irb->scsw.cstat, irb->scsw.dstat);
+		       irb->scsw.cmd.cstat, irb->scsw.cmd.dstat);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
 		       device->cdev->dev.bus_id,
-		       (void *) (addr_t) irb->scsw.cpa);
+		       (void *) (addr_t) irb->scsw.cmd.cpa);
 	if (irb->esw.esw0.erw.cons) {
 		for (sl = 0; sl < 4; sl++) {
 			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
@@ -2122,7 +2123,8 @@ static void dasd_eckd_dump_sense(struct dasd_device *device,
 		/* scsw->cda is either valid or zero  */
 		len = 0;
 		from = ++to;
-		fail = (struct ccw1 *)(addr_t) irb->scsw.cpa; /* failing CCW */
+		fail = (struct ccw1 *)(addr_t)
+				irb->scsw.cmd.cpa; /* failing CCW */
 		if (from <  fail - 2) {
 			from = fail - 2;     /* there is a gap - print header */
 			len += sprintf(page, KERN_ERR PRINTK_HEADER "......\n");

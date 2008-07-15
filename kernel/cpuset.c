@@ -1194,6 +1194,15 @@ static int cpuset_can_attach(struct cgroup_subsys *ss,
 
 	if (cpus_empty(cs->cpus_allowed) || nodes_empty(cs->mems_allowed))
 		return -ENOSPC;
+	if (tsk->flags & PF_THREAD_BOUND) {
+		cpumask_t mask;
+
+		mutex_lock(&callback_mutex);
+		mask = cs->cpus_allowed;
+		mutex_unlock(&callback_mutex);
+		if (!cpus_equal(tsk->cpus_allowed, mask))
+			return -EINVAL;
+	}
 
 	return security_task_setscheduler(tsk, 0, NULL);
 }
@@ -1207,11 +1216,14 @@ static void cpuset_attach(struct cgroup_subsys *ss,
 	struct mm_struct *mm;
 	struct cpuset *cs = cgroup_cs(cont);
 	struct cpuset *oldcs = cgroup_cs(oldcont);
+	int err;
 
 	mutex_lock(&callback_mutex);
 	guarantee_online_cpus(cs, &cpus);
-	set_cpus_allowed_ptr(tsk, &cpus);
+	err = set_cpus_allowed_ptr(tsk, &cpus);
 	mutex_unlock(&callback_mutex);
+	if (err)
+		return;
 
 	from = oldcs->mems_allowed;
 	to = cs->mems_allowed;

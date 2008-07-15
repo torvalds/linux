@@ -67,6 +67,8 @@
 		*(.rodata1)						\
 	}								\
 									\
+	BUG_TABLE							\
+									\
 	/* PCI quirks */						\
 	.pci_fixup        : AT(ADDR(.pci_fixup) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__start_pci_fixups_early) = .;		\
@@ -92,6 +94,8 @@
 		*(.rio_route_ops)					\
 		VMLINUX_SYMBOL(__end_rio_route_ops) = .;		\
 	}								\
+									\
+	TRACEDATA							\
 									\
 	/* Kernel symbol table: Normal symbols */			\
 	__ksymtab         : AT(ADDR(__ksymtab) - LOAD_OFFSET) {		\
@@ -310,6 +314,7 @@
 		.stab.indexstr 0 : { *(.stab.indexstr) }		\
 		.comment 0 : { *(.comment) }
 
+#ifdef CONFIG_GENERIC_BUG
 #define BUG_TABLE							\
 	. = ALIGN(8);							\
 	__bug_table : AT(ADDR(__bug_table) - LOAD_OFFSET) {		\
@@ -317,6 +322,21 @@
 		*(__bug_table)						\
 		__stop___bug_table = .;					\
 	}
+#else
+#define BUG_TABLE
+#endif
+
+#ifdef CONFIG_PM_TRACE
+#define TRACEDATA							\
+	. = ALIGN(4);							\
+	.tracedata : AT(ADDR(.tracedata) - LOAD_OFFSET) {		\
+	  	__tracedata_start = .;					\
+		*(.tracedata)						\
+	  	__tracedata_end = .;					\
+	}
+#else
+#define TRACEDATA
+#endif
 
 #define NOTES								\
 	.notes : AT(ADDR(.notes) - LOAD_OFFSET) {			\

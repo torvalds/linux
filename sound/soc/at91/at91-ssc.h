@@ -21,7 +21,7 @@
 #define AT91SSC_TCMR_PERIOD	1 /* BCLK divider for transmit FS */
 #define AT91SSC_RCMR_PERIOD	2 /* BCLK divider for receive FS */
 
-extern struct snd_soc_cpu_dai at91_ssc_dai[];
+extern struct snd_soc_dai at91_ssc_dai[];
 
 #endif /* _AT91_SSC_H */
 

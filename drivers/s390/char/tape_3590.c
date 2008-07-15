@@ -837,13 +837,13 @@ tape_3590_erp_retry(struct tape_device *device, struct tape_request *request,
 static int
 tape_3590_unsolicited_irq(struct tape_device *device, struct irb *irb)
 {
-	if (irb->scsw.dstat == DEV_STAT_CHN_END)
+	if (irb->scsw.cmd.dstat == DEV_STAT_CHN_END)
 		/* Probably result of halt ssch */
 		return TAPE_IO_PENDING;
-	else if (irb->scsw.dstat == 0x85)
+	else if (irb->scsw.cmd.dstat == 0x85)
 		/* Device Ready */
 		DBF_EVENT(3, "unsol.irq! tape ready: %08x\n", device->cdev_id);
-	else if (irb->scsw.dstat & DEV_STAT_ATTENTION) {
+	else if (irb->scsw.cmd.dstat & DEV_STAT_ATTENTION) {
 		tape_3590_schedule_work(device, TO_READ_ATTMSG);
 	} else {
 		DBF_EVENT(3, "unsol.irq! dev end: %08x\n", device->cdev_id);
@@ -1515,18 +1515,19 @@ tape_3590_irq(struct tape_device *device, struct tape_request *request,
 	if (request == NULL)
 		return tape_3590_unsolicited_irq(device, irb);
 
-	if ((irb->scsw.dstat & DEV_STAT_UNIT_EXCEP) &&
-	    (irb->scsw.dstat & DEV_STAT_DEV_END) && (request->op == TO_WRI)) {
+	if ((irb->scsw.cmd.dstat & DEV_STAT_UNIT_EXCEP) &&
+	    (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) &&
+	    (request->op == TO_WRI)) {
 		/* Write at end of volume */
 		DBF_EVENT(2, "End of volume\n");
 		return tape_3590_erp_failed(device, request, irb, -ENOSPC);
 	}
 
-	if (irb->scsw.dstat & DEV_STAT_UNIT_CHECK)
+	if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK)
 		return tape_3590_unit_check(device, request, irb);
 
-	if (irb->scsw.dstat & DEV_STAT_DEV_END) {
-		if (irb->scsw.dstat == DEV_STAT_UNIT_EXCEP) {
+	if (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) {
+		if (irb->scsw.cmd.dstat == DEV_STAT_UNIT_EXCEP) {
 			if (request->op == TO_FSB || request->op == TO_BSB)
 				request->rescnt++;
 			else
@@ -1536,12 +1537,12 @@ tape_3590_irq(struct tape_device *device, struct tape_request *request,
 		return tape_3590_done(device, request);
 	}
 
-	if (irb->scsw.dstat & DEV_STAT_CHN_END) {
+	if (irb->scsw.cmd.dstat & DEV_STAT_CHN_END) {
 		DBF_EVENT(2, "cannel end\n");
 		return TAPE_IO_PENDING;
 	}
 
-	if (irb->scsw.dstat & DEV_STAT_ATTENTION) {
+	if (irb->scsw.cmd.dstat & DEV_STAT_ATTENTION) {
 		DBF_EVENT(2, "Unit Attention when busy..\n");
 		return TAPE_IO_PENDING;
 	}

@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/ide.h>
 #include <linux/i2c.h>
+#include <linux/pwm_backlight.h>
 
 #include <media/soc_camera.h>
 
@@ -33,12 +34,103 @@
 #include <asm/mach/map.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
+#include <asm/arch/audio.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pcm990_baseboard.h>
+#include <asm/arch/pxafb.h>
+
+#include "devices.h"
 
 /*
- * The PCM-990 development baseboard uses PCM-027's hardeware in the
+ * pcm990_lcd_power - control power supply to the LCD
+ * @on: 0 = switch off, 1 = switch on
+ *
+ * Called by the pxafb driver
+ */
+#ifndef CONFIG_PCM990_DISPLAY_NONE
+static void pcm990_lcd_power(int on, struct fb_var_screeninfo *var)
+{
+	if (on) {
+		/* enable LCD-Latches
+		 * power on LCD
+		 */
+		__PCM990_CTRL_REG(PCM990_CTRL_PHYS + PCM990_CTRL_REG3) =
+			PCM990_CTRL_LCDPWR + PCM990_CTRL_LCDON;
+	} else {
+		/* disable LCD-Latches
+		 * power off LCD
+		 */
+		__PCM990_CTRL_REG(PCM990_CTRL_PHYS + PCM990_CTRL_REG3) = 0x00;
+	}
+}
+#endif
+
+#if defined(CONFIG_PCM990_DISPLAY_SHARP)
+static struct pxafb_mode_info fb_info_sharp_lq084v1dg21 = {
+	.pixclock		= 28000,
+	.xres			= 640,
+	.yres			= 480,
+	.bpp			= 16,
+	.hsync_len		= 20,
+	.left_margin		= 103,
+	.right_margin		= 47,
+	.vsync_len		= 6,
+	.upper_margin		= 28,
+	.lower_margin		= 5,
+	.sync			= 0,
+	.cmap_greyscale		= 0,
+};
+
+static struct pxafb_mach_info pcm990_fbinfo __initdata = {
+	.modes			= &fb_info_sharp_lq084v1dg21,
+	.num_modes		= 1,
+	.lccr0			= LCCR0_PAS,
+	.lccr3			= LCCR3_PCP,
+	.pxafb_lcd_power	= pcm990_lcd_power,
+};
+#elif defined(CONFIG_PCM990_DISPLAY_NEC)
+struct pxafb_mode_info fb_info_nec_nl6448bc20_18d = {
+	.pixclock		= 39720,
+	.xres			= 640,
+	.yres			= 480,
+	.bpp			= 16,
+	.hsync_len		= 32,
+	.left_margin		= 16,
+	.right_margin		= 48,
+	.vsync_len		= 2,
+	.upper_margin		= 12,
+	.lower_margin		= 17,
+	.sync			= 0,
+	.cmap_greyscale		= 0,
+};
+
+static struct pxafb_mach_info pcm990_fbinfo __initdata = {
+	.modes			= &fb_info_nec_nl6448bc20_18d,
+	.num_modes		= 1,
+	.lccr0			= LCCR0_Act,
+	.lccr3			= LCCR3_PixFlEdg,
+	.pxafb_lcd_power	= pcm990_lcd_power,
+};
+#endif
+
+static struct platform_pwm_backlight_data pcm990_backlight_data = {
+	.pwm_id		= 0,
+	.max_brightness	= 1023,
+	.dft_brightness	= 1023,
+	.pwm_period_ns	= 78770,
+};
+
+static struct platform_device pcm990_backlight_device = {
+	.name		= "pwm-backlight",
+	.dev		= {
+		.parent = &pxa27x_device_pwm0.dev,
+		.platform_data = &pcm990_backlight_data,
+	},
+};
+
+/*
+ * The PCM-990 development baseboard uses PCM-027's hardware in the
  * following way:
  *
  * - LCD support is in use
@@ -333,36 +425,6 @@ static struct i2c_board_info __initdata pcm990_i2c_devices[] = {
 #endif /* CONFIG_VIDEO_PXA27x ||CONFIG_VIDEO_PXA27x_MODULE */
 
 /*
- * AC97 support
- * Note: The connected AC97 mixer also reports interrupts at PCM990_AC97_IRQ
- */
-static struct resource pxa27x_ac97_resources[] = {
-	[0] = {
-		.start  = 0x40500000,
-		.end	= 0x40500000 + 0xfff,
-		.flags  = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start  = IRQ_AC97,
-		.end    = IRQ_AC97,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static u64 pxa_ac97_dmamask = 0xffffffffUL;
-
-static struct platform_device pxa27x_device_ac97 = {
-	.name           = "pxa2xx-ac97",
-	.id             = -1,
-	.dev            = {
-		.dma_mask = &pxa_ac97_dmamask,
-		.coherent_dma_mask = 0xffffffff,
-	},
-	.num_resources  = ARRAY_SIZE(pxa27x_ac97_resources),
-	.resource       = pxa27x_ac97_resources,
-};
-
-/*
  * enable generic access to the base board control CPLDs U6 and U7
  */
 static struct map_desc pcm990_io_desc[] __initdata = {
@@ -393,7 +455,11 @@ void __init pcm990_baseboard_init(void)
 	/* register CPLD's IRQ controller */
 	pcm990_init_irq();
 
-	platform_device_register(&pxa27x_device_ac97);
+#ifndef CONFIG_PCM990_DISPLAY_NONE
+	set_pxa_fb_info(&pcm990_fbinfo);
+#endif
+	pxa_gpio_mode(GPIO16_PWM0_MD);
+	platform_device_register(&pcm990_backlight_device);
 
 	/* MMC */
 	pxa_set_mci_info(&pcm990_mci_platform_data);
@@ -402,6 +468,7 @@ void __init pcm990_baseboard_init(void)
 	pxa_set_ohci_info(&pcm990_ohci_platform_data);
 
 	pxa_set_i2c_info(NULL);
+	pxa_set_ac97_info(NULL);
 
 #if defined(CONFIG_VIDEO_PXA27x) || defined(CONFIG_VIDEO_PXA27x_MODULE)
 	pxa_set_camera_info(&pcm990_pxacamera_platform_data);

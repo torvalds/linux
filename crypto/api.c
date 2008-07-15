@@ -235,8 +235,12 @@ static int crypto_init_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 		return crypto_init_cipher_ops(tfm);
 		
 	case CRYPTO_ALG_TYPE_DIGEST:
-		return crypto_init_digest_ops(tfm);
-		
+		if ((mask & CRYPTO_ALG_TYPE_HASH_MASK) !=
+		    CRYPTO_ALG_TYPE_HASH_MASK)
+			return crypto_init_digest_ops_async(tfm);
+		else
+			return crypto_init_digest_ops(tfm);
+
 	case CRYPTO_ALG_TYPE_COMPRESS:
 		return crypto_init_compress_ops(tfm);
 	

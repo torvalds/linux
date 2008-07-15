@@ -23,7 +23,6 @@
 struct scsi_ioctl_command;
 
 struct request_queue;
-typedef struct request_queue request_queue_t __deprecated;
 struct elevator_queue;
 typedef struct elevator_queue elevator_t;
 struct request_pm_state;
@@ -33,12 +32,6 @@ struct sg_io_hdr;
 
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_MAX_RQ	128	/* Default maximum */
-
-int put_io_context(struct io_context *ioc);
-void exit_io_context(void);
-struct io_context *get_io_context(gfp_t gfp_flags, int node);
-struct io_context *alloc_io_context(gfp_t gfp_flags, int node);
-void copy_io_context(struct io_context **pdst, struct io_context **psrc);
 
 struct request;
 typedef void (rq_end_io_fn)(struct request *, int);
@@ -113,6 +106,7 @@ enum rq_flag_bits {
 	__REQ_ALLOCED,		/* request came from our alloc pool */
 	__REQ_RW_META,		/* metadata io request */
 	__REQ_COPY_USER,	/* contains copies of user pages */
+	__REQ_INTEGRITY,	/* integrity metadata has been remapped */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -135,6 +129,7 @@ enum rq_flag_bits {
 #define REQ_ALLOCED	(1 << __REQ_ALLOCED)
 #define REQ_RW_META	(1 << __REQ_RW_META)
 #define REQ_COPY_USER	(1 << __REQ_COPY_USER)
+#define REQ_INTEGRITY	(1 << __REQ_INTEGRITY)
 
 #define BLK_MAX_CDB	16
 
@@ -259,7 +254,14 @@ typedef int (prep_rq_fn) (struct request_queue *, struct request *);
 typedef void (unplug_fn) (struct request_queue *);
 
 struct bio_vec;
-typedef int (merge_bvec_fn) (struct request_queue *, struct bio *, struct bio_vec *);
+struct bvec_merge_data {
+	struct block_device *bi_bdev;
+	sector_t bi_sector;
+	unsigned bi_size;
+	unsigned long bi_rw;
+};
+typedef int (merge_bvec_fn) (struct request_queue *, struct bvec_merge_data *,
+			     struct bio_vec *);
 typedef void (prepare_flush_fn) (struct request_queue *, struct request *);
 typedef void (softirq_done_fn)(struct request *);
 typedef int (dma_drain_needed_fn)(struct request *);
@@ -424,6 +426,32 @@ static inline void queue_flag_set_unlocked(unsigned int flag,
 					   struct request_queue *q)
 {
 	__set_bit(flag, &q->queue_flags);
+}
+
+static inline int queue_flag_test_and_clear(unsigned int flag,
+					    struct request_queue *q)
+{
+	WARN_ON_ONCE(!queue_is_locked(q));
+
+	if (test_bit(flag, &q->queue_flags)) {
+		__clear_bit(flag, &q->queue_flags);
+		return 1;
+	}
+
+	return 0;
+}
+
+static inline int queue_flag_test_and_set(unsigned int flag,
+					  struct request_queue *q)
+{
+	WARN_ON_ONCE(!queue_is_locked(q));
+
+	if (!test_bit(flag, &q->queue_flags)) {
+		__set_bit(flag, &q->queue_flags);
+		return 0;
+	}
+
+	return 1;
 }
 
 static inline void queue_flag_set(unsigned int flag, struct request_queue *q)
@@ -676,7 +704,6 @@ extern int blk_execute_rq(struct request_queue *, struct gendisk *,
 			  struct request *, int);
 extern void blk_execute_rq_nowait(struct request_queue *, struct gendisk *,
 				  struct request *, int, rq_end_io_fn *);
-extern int blk_verify_command(unsigned char *, int);
 extern void blk_unplug(struct request_queue *q);
 
 static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
@@ -749,6 +776,7 @@ extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
 extern void blk_queue_hardsect_size(struct request_queue *, unsigned short);
 extern void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b);
 extern void blk_queue_dma_pad(struct request_queue *, unsigned int);
+extern void blk_queue_update_dma_pad(struct request_queue *, unsigned int);
 extern int blk_queue_dma_drain(struct request_queue *q,
 			       dma_drain_needed_fn *dma_drain_needed,
 			       void *buf, unsigned int size);
@@ -801,6 +829,15 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 }
 
 extern int blkdev_issue_flush(struct block_device *, sector_t *);
+
+/*
+* command filter functions
+*/
+extern int blk_verify_command(struct file *file, unsigned char *cmd);
+extern int blk_cmd_filter_verify_command(struct blk_scsi_cmd_filter *filter,
+					 unsigned char *cmd, mode_t *f_mode);
+extern int blk_register_filter(struct gendisk *disk);
+extern void blk_unregister_filter(struct gendisk *disk);
 
 #define MAX_PHYS_SEGMENTS 128
 #define MAX_HW_SEGMENTS 128
@@ -865,6 +902,105 @@ void kblockd_flush_work(struct work_struct *work);
 #define MODULE_ALIAS_BLOCKDEV_MAJOR(major) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-*")
 
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+
+#define INTEGRITY_FLAG_READ	2	/* verify data integrity on read */
+#define INTEGRITY_FLAG_WRITE	4	/* generate data integrity on write */
+
+struct blk_integrity_exchg {
+	void			*prot_buf;
+	void			*data_buf;
+	sector_t		sector;
+	unsigned int		data_size;
+	unsigned short		sector_size;
+	const char		*disk_name;
+};
+
+typedef void (integrity_gen_fn) (struct blk_integrity_exchg *);
+typedef int (integrity_vrfy_fn) (struct blk_integrity_exchg *);
+typedef void (integrity_set_tag_fn) (void *, void *, unsigned int);
+typedef void (integrity_get_tag_fn) (void *, void *, unsigned int);
+
+struct blk_integrity {
+	integrity_gen_fn	*generate_fn;
+	integrity_vrfy_fn	*verify_fn;
+	integrity_set_tag_fn	*set_tag_fn;
+	integrity_get_tag_fn	*get_tag_fn;
+
+	unsigned short		flags;
+	unsigned short		tuple_size;
+	unsigned short		sector_size;
+	unsigned short		tag_size;
+
+	const char		*name;
+
+	struct kobject		kobj;
+};
+
+extern int blk_integrity_register(struct gendisk *, struct blk_integrity *);
+extern void blk_integrity_unregister(struct gendisk *);
+extern int blk_integrity_compare(struct block_device *, struct block_device *);
+extern int blk_rq_map_integrity_sg(struct request *, struct scatterlist *);
+extern int blk_rq_count_integrity_sg(struct request *);
+
+static inline unsigned short blk_integrity_tuple_size(struct blk_integrity *bi)
+{
+	if (bi)
+		return bi->tuple_size;
+
+	return 0;
+}
+
+static inline struct blk_integrity *bdev_get_integrity(struct block_device *bdev)
+{
+	return bdev->bd_disk->integrity;
+}
+
+static inline unsigned int bdev_get_tag_size(struct block_device *bdev)
+{
+	struct blk_integrity *bi = bdev_get_integrity(bdev);
+
+	if (bi)
+		return bi->tag_size;
+
+	return 0;
+}
+
+static inline int bdev_integrity_enabled(struct block_device *bdev, int rw)
+{
+	struct blk_integrity *bi = bdev_get_integrity(bdev);
+
+	if (bi == NULL)
+		return 0;
+
+	if (rw == READ && bi->verify_fn != NULL &&
+	    (bi->flags & INTEGRITY_FLAG_READ))
+		return 1;
+
+	if (rw == WRITE && bi->generate_fn != NULL &&
+	    (bi->flags & INTEGRITY_FLAG_WRITE))
+		return 1;
+
+	return 0;
+}
+
+static inline int blk_integrity_rq(struct request *rq)
+{
+	return bio_integrity(rq->bio);
+}
+
+#else /* CONFIG_BLK_DEV_INTEGRITY */
+
+#define blk_integrity_rq(rq)			(0)
+#define blk_rq_count_integrity_sg(a)		(0)
+#define blk_rq_map_integrity_sg(a, b)		(0)
+#define bdev_get_integrity(a)			(0)
+#define bdev_get_tag_size(a)			(0)
+#define blk_integrity_compare(a, b)		(0)
+#define blk_integrity_register(a, b)		(0)
+#define blk_integrity_unregister(a)		do { } while (0);
+
+#endif /* CONFIG_BLK_DEV_INTEGRITY */
 
 #else /* CONFIG_BLOCK */
 /*
@@ -876,17 +1012,6 @@ static inline long nr_blockdev_pages(void)
 {
 	return 0;
 }
-
-static inline void exit_io_context(void)
-{
-}
-
-struct io_context;
-static inline int put_io_context(struct io_context *ioc)
-{
-	return 1;
-}
-
 
 #endif /* CONFIG_BLOCK */
 

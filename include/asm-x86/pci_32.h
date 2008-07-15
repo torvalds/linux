@@ -18,12 +18,14 @@ struct pci_dev;
 #define PCI_DMA_BUS_IS_PHYS	(1)
 
 /* pci_unmap_{page,single} is a nop so... */
-#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)
-#define DECLARE_PCI_UNMAP_LEN(LEN_NAME)
-#define pci_unmap_addr(PTR, ADDR_NAME)		(0)
-#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL)	do { } while (0)
-#define pci_unmap_len(PTR, LEN_NAME)		(0)
-#define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
+#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)	dma_addr_t ADDR_NAME[0];
+#define DECLARE_PCI_UNMAP_LEN(LEN_NAME)	unsigned LEN_NAME[0];
+#define pci_unmap_addr(PTR, ADDR_NAME)	sizeof((PTR)->ADDR_NAME)
+#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL) \
+	do { break; } while (pci_unmap_addr(PTR, ADDR_NAME))
+#define pci_unmap_len(PTR, LEN_NAME)		sizeof((PTR)->LEN_NAME)
+#define pci_unmap_len_set(PTR, LEN_NAME, VAL) \
+	do { break; } while (pci_unmap_len(PTR, LEN_NAME))
 
 
 #endif /* __KERNEL__ */

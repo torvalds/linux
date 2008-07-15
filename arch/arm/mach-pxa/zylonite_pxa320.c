@@ -49,6 +49,7 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO15_2_LCD_LCLK,
 	GPIO16_2_LCD_PCLK,
 	GPIO17_2_LCD_BIAS,
+	GPIO14_PWM3_OUT,	/* backlight */
 
 	/* FFUART */
 	GPIO41_UART1_RXD | MFP_LPM_EDGE_FALL,
@@ -187,7 +188,6 @@ void __init zylonite_pxa320_init(void)
 		zylonite_detect_lcd_panel();
 
 		/* GPIO pin assignment */
-		gpio_backlight	= mfp_to_gpio(MFP_PIN_GPIO14);
 		gpio_eth_irq	= mfp_to_gpio(MFP_PIN_GPIO9);
 
 		/* MMC card detect & write protect for controller 0 */

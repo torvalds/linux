@@ -1119,7 +1119,7 @@ void __init __rcu_init(void)
 	for_each_online_cpu(cpu)
 		rcu_cpu_notify(&rcu_nb, CPU_UP_PREPARE,	(void *)(long) cpu);
 
-	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks, NULL);
+	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }
 
 /*

@@ -699,6 +699,7 @@ static int viotap_open(struct inode *inode, struct file *file)
 	if (op == NULL)
 		return -ENOMEM;
 
+	lock_kernel();
 	get_dev_info(file->f_path.dentry->d_inode, &devi);
 
 	/* Note: We currently only support one mode! */
@@ -729,6 +730,7 @@ static int viotap_open(struct inode *inode, struct file *file)
 
 free_op:
 	free_op_struct(op);
+	unlock_kernel();
 	return ret;
 }
 

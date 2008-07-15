@@ -129,13 +129,6 @@ extern struct page *empty_zero_page;
 
 #define _PAGE_FLAGS_CACHE_MASK	(_PAGE_CACHABLE | _PAGE_BUFFER | _PAGE_WT)
 
-/* TODO: Check for saneness */
-/* User-mode page table flags (to be set in a pgd or pmd entry) */
-#define _PAGE_TABLE		(_PAGE_PRESENT | _PAGE_TYPE_SMALL | _PAGE_RW \
-				 | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
-/* Kernel-mode page table flags */
-#define _KERNPG_TABLE		(_PAGE_PRESENT | _PAGE_TYPE_SMALL | _PAGE_RW \
-				 | _PAGE_ACCESSED | _PAGE_DIRTY)
 /* Flags that may be modified by software */
 #define _PAGE_CHG_MASK		(PTE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY \
 				 | _PAGE_FLAGS_CACHE_MASK)
@@ -262,10 +255,14 @@ static inline pte_t pte_mkspecial(pte_t pte)
 }
 
 #define pmd_none(x)	(!pmd_val(x))
-#define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
-#define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
-#define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK & ~_PAGE_USER))	\
-			 != _KERNPG_TABLE)
+#define pmd_present(x)	(pmd_val(x))
+
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	set_pmd(pmdp, __pmd(0));
+}
+
+#define	pmd_bad(x)	(pmd_val(x) & ~PAGE_MASK)
 
 /*
  * Permanent address of a page. We don't support highmem, so this is
@@ -303,19 +300,16 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 #define page_pte(page)	page_pte_prot(page, __pgprot(0))
 
-#define pmd_page_vaddr(pmd)					\
-	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
-
-#define pmd_page(pmd)	(phys_to_page(pmd_val(pmd)))
+#define pmd_page_vaddr(pmd)	pmd_val(pmd)
+#define pmd_page(pmd)		(virt_to_page(pmd_val(pmd)))
 
 /* to find an entry in a page-table-directory. */
-#define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
-#define pgd_offset(mm, address) ((mm)->pgd+pgd_index(address))
-#define pgd_offset_current(address)				\
-	((pgd_t *)__mfsr(SYSREG_PTBR) + pgd_index(address))
+#define pgd_index(address)	(((address) >> PGDIR_SHIFT)	\
+				 & (PTRS_PER_PGD - 1))
+#define pgd_offset(mm, address)	((mm)->pgd + pgd_index(address))
 
 /* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(address) pgd_offset(&init_mm, address)
+#define pgd_offset_k(address)	pgd_offset(&init_mm, address)
 
 /* Find an entry in the third-level page table.. */
 #define pte_index(address)				\

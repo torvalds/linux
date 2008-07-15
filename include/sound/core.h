@@ -412,13 +412,13 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 
 #endif /* CONFIG_SND_DEBUG */
 
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 /**
  * snd_printdd - debug printk
  * @format: format string
  *
  * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG_DETECT is not set.
+ * Ignored when CONFIG_SND_DEBUG_VERBOSE is not set.
  */
 #define snd_printdd(format, args...) snd_printk(format, ##args)
 #else
@@ -442,7 +442,7 @@ struct snd_pci_quirk {
 	unsigned short subvendor;	/* PCI subvendor ID */
 	unsigned short subdevice;	/* PCI subdevice ID */
 	int value;			/* value */
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 	const char *name;		/* name of the device (optional) */
 #endif
 };
@@ -450,7 +450,7 @@ struct snd_pci_quirk {
 #define _SND_PCI_QUIRK_ID(vend,dev) \
 	.subvendor = (vend), .subdevice = (dev)
 #define SND_PCI_QUIRK_ID(vend,dev) {_SND_PCI_QUIRK_ID(vend, dev)}
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 #define SND_PCI_QUIRK(vend,dev,xname,val) \
 	{_SND_PCI_QUIRK_ID(vend, dev), .value = (val), .name = (xname)}
 #else

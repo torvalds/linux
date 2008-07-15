@@ -45,6 +45,7 @@
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -1159,6 +1160,7 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 {
 	struct ib_ucm_file *file;
 
+	cycle_kernel_lock();
 	file = kmalloc(sizeof(*file), GFP_KERNEL);
 	if (!file)
 		return -ENOMEM;

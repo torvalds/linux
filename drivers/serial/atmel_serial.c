@@ -1439,14 +1439,29 @@ static struct uart_driver atmel_uart = {
 };
 
 #ifdef CONFIG_PM
+static bool atmel_serial_clk_will_stop(void)
+{
+#ifdef CONFIG_ARCH_AT91
+	return at91_suspend_entering_slow_clock();
+#else
+	return false;
+#endif
+}
+
 static int atmel_serial_suspend(struct platform_device *pdev,
 				pm_message_t state)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
+	if (atmel_is_console_port(port) && console_suspend_enabled) {
+		/* Drain the TX shifter */
+		while (!(UART_GET_CSR(port) & ATMEL_US_TXEMPTY))
+			cpu_relax();
+	}
+
 	if (device_may_wakeup(&pdev->dev)
-	    && !at91_suspend_entering_slow_clock())
+	    && !atmel_serial_clk_will_stop())
 		enable_irq_wake(port->irq);
 	else {
 		uart_suspend_port(&atmel_uart, port);

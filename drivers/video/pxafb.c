@@ -1792,11 +1792,49 @@ failed:
 	return ret;
 }
 
+static int __devexit pxafb_remove(struct platform_device *dev)
+{
+	struct pxafb_info *fbi = platform_get_drvdata(dev);
+	struct resource *r;
+	int irq;
+	struct fb_info *info;
+
+	if (!fbi)
+		return 0;
+
+	info = &fbi->fb;
+
+	unregister_framebuffer(info);
+
+	pxafb_disable_controller(fbi);
+
+	if (fbi->fb.cmap.len)
+		fb_dealloc_cmap(&fbi->fb.cmap);
+
+	irq = platform_get_irq(dev, 0);
+	free_irq(irq, fbi);
+
+	dma_free_writecombine(&dev->dev, fbi->map_size,
+					fbi->map_cpu, fbi->map_dma);
+
+	iounmap(fbi->mmio_base);
+
+	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	release_mem_region(r->start, r->end - r->start + 1);
+
+	clk_put(fbi->clk);
+	kfree(fbi);
+
+	return 0;
+}
+
 static struct platform_driver pxafb_driver = {
 	.probe		= pxafb_probe,
+	.remove 	= pxafb_remove,
 	.suspend	= pxafb_suspend,
 	.resume		= pxafb_resume,
 	.driver		= {
+		.owner	= THIS_MODULE,
 		.name	= "pxa2xx-fb",
 	},
 };
@@ -1809,7 +1847,13 @@ static int __init pxafb_init(void)
 	return platform_driver_register(&pxafb_driver);
 }
 
+static void __exit pxafb_exit(void)
+{
+	platform_driver_unregister(&pxafb_driver);
+}
+
 module_init(pxafb_init);
+module_exit(pxafb_exit);
 
 MODULE_DESCRIPTION("loadable framebuffer driver for PXA");
 MODULE_LICENSE("GPL");

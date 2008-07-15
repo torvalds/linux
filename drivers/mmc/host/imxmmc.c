@@ -42,6 +42,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 
 #include <asm/dma.h>
 #include <asm/io.h>
@@ -92,6 +93,8 @@ struct imxmci_host {
 	unsigned char		actual_bus_width;
 
 	int			prev_cmd_code;
+
+	struct clk		*clk;
 };
 
 #define IMXMCI_PEND_IRQ_b	0
@@ -841,7 +844,7 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		/* The prescaler is 5 for PERCLK2 equal to 96MHz
 		 * then 96MHz / 5 = 19.2 MHz
 		 */
-		clk=imx_get_perclk2();
+		clk = clk_get_rate(host->clk);
 		prescaler=(clk+(CLK_RATE*7)/8)/CLK_RATE;
 		switch(prescaler) {
 		case 0:
@@ -994,6 +997,13 @@ static int imxmci_probe(struct platform_device *pdev)
 	host->res = r;
 	host->irq = irq;
 
+	host->clk = clk_get(&pdev->dev, "perclk2");
+	if (IS_ERR(host->clk)) {
+		ret = PTR_ERR(host->clk);
+		goto out;
+	}
+	clk_enable(host->clk);
+
 	imx_gpio_mode(PB8_PF_SD_DAT0);
 	imx_gpio_mode(PB9_PF_SD_DAT1);
 	imx_gpio_mode(PB10_PF_SD_DAT2);
@@ -1017,8 +1027,8 @@ static int imxmci_probe(struct platform_device *pdev)
 	host->imask = IMXMCI_INT_MASK_DEFAULT;
 	MMC_INT_MASK = host->imask;
 
-
-	if(imx_dma_request_by_prio(&host->dma, DRIVER_NAME, DMA_PRIO_LOW)<0){
+	host->dma = imx_dma_request_by_prio(DRIVER_NAME, DMA_PRIO_LOW);
+	if(host->dma < 0) {
 		dev_err(mmc_dev(host->mmc), "imx_dma_request_by_prio failed\n");
 		ret = -EBUSY;
 		goto out;
@@ -1053,6 +1063,10 @@ out:
 			imx_dma_free(host->dma);
 			host->dma_allocated=0;
 		}
+		if (host->clk) {
+			clk_disable(host->clk);
+			clk_put(host->clk);
+		}
 	}
 	if (mmc)
 		mmc_free_host(mmc);
@@ -1081,6 +1095,9 @@ static int imxmci_remove(struct platform_device *pdev)
 		}
 
 		tasklet_kill(&host->tasklet);
+
+		clk_disable(host->clk);
+		clk_put(host->clk);
 
 		release_resource(host->res);
 

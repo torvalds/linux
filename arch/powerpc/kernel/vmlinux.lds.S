@@ -64,8 +64,6 @@ SECTIONS
 
 	NOTES
 
-	BUG_TABLE
-
 /*
  * Init sections discarded at runtime
  */

@@ -47,19 +47,17 @@ static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		if (pte_present(oldpte)) {
 			pte_t ptent;
 
-			/* Avoid an SMP race with hardware updated dirty/clean
-			 * bits by wiping the pte and then setting the new pte
-			 * into place.
-			 */
-			ptent = ptep_get_and_clear(mm, addr, pte);
+			ptent = ptep_modify_prot_start(mm, addr, pte);
 			ptent = pte_modify(ptent, newprot);
+
 			/*
 			 * Avoid taking write faults for pages we know to be
 			 * dirty.
 			 */
 			if (dirty_accountable && pte_dirty(ptent))
 				ptent = pte_mkwrite(ptent);
-			set_pte_at(mm, addr, pte, ptent);
+
+			ptep_modify_prot_commit(mm, addr, pte, ptent);
 #ifdef CONFIG_MIGRATION
 		} else if (!pte_file(oldpte)) {
 			swp_entry_t entry = pte_to_swp_entry(oldpte);

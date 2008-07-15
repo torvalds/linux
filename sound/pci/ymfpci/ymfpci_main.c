@@ -2205,6 +2205,7 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 	for (reg = 0x80; reg < 0xc0; reg += 4)
 		snd_ymfpci_writel(chip, reg, 0);
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEDACOUTVOL, 0x3fff3fff);
+	snd_ymfpci_writel(chip, YDSXGR_BUF441OUTVOL, 0x3fff3fff);
 	snd_ymfpci_writel(chip, YDSXGR_ZVOUTVOL, 0x3fff3fff);
 	snd_ymfpci_writel(chip, YDSXGR_SPDIFOUTVOL, 0x3fff3fff);
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEADCINVOL, 0x3fff3fff);
@@ -2324,6 +2325,7 @@ int snd_ymfpci_suspend(struct pci_dev *pci, pm_message_t state)
 		chip->saved_regs[i] = snd_ymfpci_readl(chip, saved_regs_index[i]);
 	chip->saved_ydsxgr_mode = snd_ymfpci_readl(chip, YDSXGR_MODE);
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEDACOUTVOL, 0);
+	snd_ymfpci_writel(chip, YDSXGR_BUF441OUTVOL, 0);
 	snd_ymfpci_disable_dsp(chip);
 	pci_disable_device(pci);
 	pci_save_state(pci);

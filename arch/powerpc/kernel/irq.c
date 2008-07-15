@@ -98,7 +98,7 @@ EXPORT_SYMBOL(irq_desc);
 
 int distribute_irqs = 1;
 
-static inline unsigned long get_hard_enabled(void)
+static inline notrace unsigned long get_hard_enabled(void)
 {
 	unsigned long enabled;
 
@@ -108,13 +108,13 @@ static inline unsigned long get_hard_enabled(void)
 	return enabled;
 }
 
-static inline void set_soft_enabled(unsigned long enable)
+static inline notrace void set_soft_enabled(unsigned long enable)
 {
 	__asm__ __volatile__("stb %0,%1(13)"
 	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
 }
 
-void raw_local_irq_restore(unsigned long en)
+notrace void raw_local_irq_restore(unsigned long en)
 {
 	/*
 	 * get_paca()->soft_enabled = en;

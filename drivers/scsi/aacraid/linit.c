@@ -38,6 +38,7 @@
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
@@ -667,6 +668,7 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
 	unsigned minor_number = iminor(inode);
 	int err = -ENODEV;
 
+	lock_kernel();  /* BKL pushdown: nothing else protects this list */
 	list_for_each_entry(aac, &aac_devices, entry) {
 		if (aac->id == minor_number) {
 			file->private_data = aac;
@@ -674,6 +676,7 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
 			break;
 		}
 	}
+	unlock_kernel();
 
 	return err;
 }

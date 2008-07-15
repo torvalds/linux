@@ -1,11 +1,16 @@
 # ALSA PCI drivers
 
-menu "PCI devices"
-	depends on SND!=n && PCI
+menuconfig SND_PCI
+	bool "PCI sound devices"
+	depends on PCI
+	default y
+	help
+	  Support for sound devices connected via the PCI bus.
+
+if SND_PCI
 
 config SND_AD1889
 	tristate "Analog Devices AD1889"
-	depends on SND
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the integrated AC97 sound
@@ -17,7 +22,6 @@ config SND_AD1889
 
 config SND_ALS300
 	tristate "Avance Logic ALS300/ALS300+"
-	depends on SND
 	select SND_PCM
 	select SND_AC97_CODEC
 	select SND_OPL3_LIB
@@ -29,7 +33,7 @@ config SND_ALS300
 
 config SND_ALS4000
 	tristate "Avance Logic ALS4000"
-	depends on SND && ISA_DMA_API
+	depends on ISA_DMA_API
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
@@ -43,7 +47,6 @@ config SND_ALS4000
 
 config SND_ALI5451
 	tristate "ALi M5451 PCI Audio Controller"
-	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
 	help
@@ -57,7 +60,6 @@ config SND_ALI5451
 
 config SND_ATIIXP
 	tristate "ATI IXP AC97 Controller"
-	depends on SND
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the integrated AC97 sound
@@ -69,7 +71,6 @@ config SND_ATIIXP
 
 config SND_ATIIXP_MODEM
 	tristate "ATI IXP Modem"
-	depends on SND
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the integrated MC97 modem on
@@ -80,7 +81,6 @@ config SND_ATIIXP_MODEM
 
 config SND_AU8810
 	tristate "Aureal Advantage"
-	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
 	help
@@ -95,7 +95,6 @@ config SND_AU8810
 
 config SND_AU8820
 	tristate "Aureal Vortex"
-	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
 	help
@@ -109,7 +108,6 @@ config SND_AU8820
 
 config SND_AU8830
 	tristate "Aureal Vortex 2"
-	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
 	help
@@ -124,7 +122,6 @@ config SND_AU8830
 
 config SND_AW2
 	tristate "Emagic Audiowerk 2"
-	depends on SND
 	help
 	  Say Y here to include support for Emagic Audiowerk 2 soundcards.
 
@@ -139,7 +136,7 @@ config SND_AW2
 
 config SND_AZT3328
 	tristate "Aztech AZF3328 / PCI168 (EXPERIMENTAL)"
-	depends on SND && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
@@ -152,7 +149,6 @@ config SND_AZT3328
 
 config SND_BT87X
 	tristate "Bt87x Audio Capture"
-	depends on SND
 	select SND_PCM
 	help
 	  If you want to record audio from TV cards based on
@@ -174,7 +170,6 @@ config SND_BT87X_OVERCLOCK
 
 config SND_CA0106
 	tristate "SB Audigy LS / Live 24bit"
-	depends on SND
 	select SND_AC97_CODEC
 	select SND_RAWMIDI
 	select SND_VMASTER
@@ -187,7 +182,6 @@ config SND_CA0106
 
 config SND_CMIPCI
 	tristate "C-Media 8338, 8738, 8768, 8770"
-	depends on SND
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
@@ -201,13 +195,11 @@ config SND_CMIPCI
 
 config SND_OXYGEN_LIB
         tristate
-	depends on SND
 	select SND_PCM
 	select SND_MPU401_UART
 
 config SND_OXYGEN
 	tristate "C-Media 8788 (Oxygen)"
-	depends on SND
 	select SND_OXYGEN_LIB
 	help
 	  Say Y here to include support for sound cards based on the
@@ -225,7 +217,6 @@ config SND_OXYGEN
 
 config SND_CS4281
 	tristate "Cirrus Logic (Sound Fusion) CS4281"
-	depends on SND
 	select SND_OPL3_LIB
 	select SND_RAWMIDI
 	select SND_AC97_CODEC
@@ -237,7 +228,6 @@ config SND_CS4281
 
 config SND_CS46XX
 	tristate "Cirrus Logic (Sound Fusion) CS4280/CS461x/CS462x/CS463x"
-	depends on SND
 	select SND_RAWMIDI
 	select SND_AC97_CODEC
 	help
@@ -258,7 +248,7 @@ config SND_CS46XX_NEW_DSP
 
 config SND_CS5530
 	tristate "CS5530 Audio"
-	depends on SND && ISA_DMA_API
+	depends on ISA_DMA_API
 	select SND_SB16_DSP
 	help
 	  Say Y here to include support for audio on Cyrix/NatSemi CS5530 chips.
@@ -268,7 +258,7 @@ config SND_CS5530
 
 config SND_CS5535AUDIO
 	tristate "CS5535/CS5536 Audio"
-	depends on SND && X86 && !X86_64
+	depends on X86 && !X86_64
 	select SND_PCM
 	select SND_AC97_CODEC
 	help
@@ -286,7 +276,6 @@ config SND_CS5535AUDIO
 
 config SND_DARLA20
 	tristate "(Echoaudio) Darla20"
-	depends on SND
 	select FW_LOADER
 	select SND_PCM
 	help
@@ -297,7 +286,6 @@ config SND_DARLA20
 
 config SND_GINA20
 	tristate "(Echoaudio) Gina20"
-	depends on SND
 	select FW_LOADER
 	select SND_PCM
 	help
@@ -308,7 +296,6 @@ config SND_GINA20
 
 config SND_LAYLA20
 	tristate "(Echoaudio) Layla20"
-	depends on SND
 	select FW_LOADER
 	select SND_RAWMIDI
 	select SND_PCM
@@ -320,7 +307,6 @@ config SND_LAYLA20
 
 config SND_DARLA24
 	tristate "(Echoaudio) Darla24"
-	depends on SND
 	select FW_LOADER
 	select SND_PCM
 	help
@@ -331,7 +317,6 @@ config SND_DARLA24
 
 config SND_GINA24
 	tristate "(Echoaudio) Gina24"
-	depends on SND
 	select FW_LOADER
 	select SND_PCM
 	help
@@ -342,7 +327,6 @@ config SND_GINA24
 
 config SND_LAYLA24
 	tristate "(Echoaudio) Layla24"
-	depends on SND
 	select FW_LOADER
 	select SND_RAWMIDI
 	select SND_PCM
@@ -354,7 +338,6 @@ config SND_LAYLA24
 
 config SND_MONA
 	tristate "(Echoaudio) Mona"
-	depends on SND
 	select FW_LOADER
 	select SND_RAWMIDI
 	select SND_PCM
@@ -366,7 +349,6 @@ config SND_MONA
 
 config SND_MIA
 	tristate "(Echoaudio) Mia"
-	depends on SND
 	select FW_LOADER
 	select SND_RAWMIDI
 	select SND_PCM
@@ -378,7 +360,6 @@ config SND_MIA
 
 config SND_ECHO3G
 	tristate "(Echoaudio) 3G cards"
-	depends on SND
 	select FW_LOADER
 	select SND_RAWMIDI
 	select SND_PCM
@@ -390,7 +371,6 @@ config SND_ECHO3G
 
 config SND_INDIGO
 	tristate "(Echoaudio) Indigo"
-	depends on SND
 	select FW_LOADER
 	select SND_PCM
 	help
@@ -401,7 +381,6 @@ config SND_INDIGO
 
 config SND_INDIGOIO
 	tristate "(Echoaudio) Indigo IO"
-	depends on SND
 	select FW_LOADER
 	select SND_PCM
 	help
@@ -412,7 +391,6 @@ config SND_INDIGOIO
 
 config SND_INDIGODJ
 	tristate "(Echoaudio) Indigo DJ"
-	depends on SND
 	select FW_LOADER
 	select SND_PCM
 	help
@@ -423,7 +401,6 @@ config SND_INDIGODJ
 
 config SND_EMU10K1
 	tristate "Emu10k1 (SB Live!, Audigy, E-mu APS)"
-	depends on SND
 	select FW_LOADER
 	select SND_HWDEP
 	select SND_RAWMIDI
@@ -441,7 +418,6 @@ config SND_EMU10K1
 
 config SND_EMU10K1X
 	tristate "Emu10k1X (Dell OEM Version)"
-	depends on SND
 	select SND_AC97_CODEC
 	select SND_RAWMIDI
 	help
@@ -453,7 +429,6 @@ config SND_EMU10K1X
 
 config SND_ENS1370
 	tristate "(Creative) Ensoniq AudioPCI 1370"
-	depends on SND
 	select SND_RAWMIDI
 	select SND_PCM
 	help
@@ -464,7 +439,6 @@ config SND_ENS1370
 
 config SND_ENS1371
 	tristate "(Creative) Ensoniq AudioPCI 1371/1373"
-	depends on SND
 	select SND_RAWMIDI
 	select SND_AC97_CODEC
 	help
@@ -476,7 +450,6 @@ config SND_ENS1371
 
 config SND_ES1938
 	tristate "ESS ES1938/1946/1969 (Solo-1)"
-	depends on SND
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
@@ -489,7 +462,6 @@ config SND_ES1938
 
 config SND_ES1968
 	tristate "ESS ES1968/1978 (Maestro-1/2/2E)"
-	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
 	help
@@ -501,7 +473,6 @@ config SND_ES1968
 
 config SND_FM801
 	tristate "ForteMedia FM801"
-	depends on SND
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
@@ -528,7 +499,6 @@ config SND_FM801_TEA575X
 
 config SND_HDA_INTEL
 	tristate "Intel HD Audio"
-	depends on SND
 	select SND_PCM
 	select SND_VMASTER
 	help
@@ -637,7 +607,6 @@ config SND_HDA_POWER_SAVE_DEFAULT
 
 config SND_HDSP
 	tristate "RME Hammerfall DSP Audio"
-	depends on SND
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_PCM
@@ -650,7 +619,6 @@ config SND_HDSP
 
 config SND_HDSPM
 	tristate "RME Hammerfall DSP MADI"
-	depends on SND
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_PCM
@@ -663,7 +631,6 @@ config SND_HDSPM
 
 config SND_HIFIER
 	tristate "TempoTec HiFier Fantasia"
-	depends on SND
 	select SND_OXYGEN_LIB
 	help
 	  Say Y here to include support for the MediaTek/TempoTec HiFier
@@ -674,7 +641,6 @@ config SND_HIFIER
 
 config SND_ICE1712
 	tristate "ICEnsemble ICE1712 (Envy24)"
-	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
 	help
@@ -691,8 +657,7 @@ config SND_ICE1712
 
 config SND_ICE1724
 	tristate "ICE/VT1724/1720 (Envy24HT/PT)"
-	depends on SND
-	select SND_MPU401_UART
+	select SND_RAWMIDI
 	select SND_AC97_CODEC
 	select SND_VMASTER
 	help
@@ -709,7 +674,6 @@ config SND_ICE1724
 
 config SND_INTEL8X0
 	tristate "Intel/SiS/nVidia/AMD/ALi AC97 Controller"
-	depends on SND
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the integrated AC97 sound
@@ -722,7 +686,6 @@ config SND_INTEL8X0
 
 config SND_INTEL8X0M
 	tristate "Intel/SiS/nVidia/AMD MC97 Modem"
-	depends on SND
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the integrated MC97 modem on
@@ -733,7 +696,6 @@ config SND_INTEL8X0M
 
 config SND_KORG1212
 	tristate "Korg 1212 IO"
-	depends on SND
 	select FW_LOADER if !SND_KORG1212_FIRMWARE_IN_KERNEL
 	select SND_PCM
 	help
@@ -753,7 +715,6 @@ config SND_KORG1212_FIRMWARE_IN_KERNEL
 
 config SND_MAESTRO3
 	tristate "ESS Allegro/Maestro3"
-	depends on SND
 	select FW_LOADER if !SND_MAESTRO3_FIRMWARE_IN_KERNEL
 	select SND_AC97_CODEC
 	help
@@ -774,7 +735,6 @@ config SND_MAESTRO3_FIRMWARE_IN_KERNEL
 
 config SND_MIXART
 	tristate "Digigram miXart"
-	depends on SND
 	select SND_HWDEP
 	select SND_PCM
 	help
@@ -786,7 +746,6 @@ config SND_MIXART
 
 config SND_NM256
 	tristate "NeoMagic NM256AV/ZX"
-	depends on SND
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for NeoMagic NM256AV/ZX chips.
@@ -796,7 +755,6 @@ config SND_NM256
 
 config SND_PCXHR
 	tristate "Digigram PCXHR"
-	depends on SND
 	select SND_PCM
 	select SND_HWDEP
 	help
@@ -807,7 +765,6 @@ config SND_PCXHR
 
 config SND_RIPTIDE
 	tristate "Conexant Riptide"
-	depends on SND
 	select FW_LOADER
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
@@ -820,7 +777,6 @@ config SND_RIPTIDE
 
 config SND_RME32
 	tristate "RME Digi32, 32/8, 32 PRO"
-	depends on SND
 	select SND_PCM
 	help
 	  Say Y to include support for RME Digi32, Digi32 PRO and
@@ -832,7 +788,6 @@ config SND_RME32
 
 config SND_RME96
 	tristate "RME Digi96, 96/8, 96/8 PRO"
-	depends on SND
 	select SND_PCM
 	help
 	  Say Y here to include support for RME Digi96, Digi96/8 and
@@ -843,7 +798,6 @@ config SND_RME96
 
 config SND_RME9652
 	tristate "RME Digi9652 (Hammerfall)"
-	depends on SND
 	select SND_PCM
 	help
 	  Say Y here to include support for RME Hammerfall (RME
@@ -854,7 +808,7 @@ config SND_RME9652
 
 config SND_SIS7019
 	tristate "SiS 7019 Audio Accelerator"
-	depends on SND && X86 && !X86_64
+	depends on X86 && !X86_64
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the SiS 7019 Audio Accelerator.
@@ -864,7 +818,6 @@ config SND_SIS7019
 
 config SND_SONICVIBES
 	tristate "S3 SonicVibes"
-	depends on SND
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
@@ -877,7 +830,6 @@ config SND_SONICVIBES
 
 config SND_TRIDENT
 	tristate "Trident 4D-Wave DX/NX; SiS 7018"
-	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
 	help
@@ -889,7 +841,6 @@ config SND_TRIDENT
 
 config SND_VIA82XX
 	tristate "VIA 82C686A/B, 8233/8235 AC97 Controller"
-	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
 	help
@@ -901,7 +852,6 @@ config SND_VIA82XX
 
 config SND_VIA82XX_MODEM
 	tristate "VIA 82C686A/B, 8233 based Modems"
-	depends on SND
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the integrated MC97 modem on
@@ -912,7 +862,6 @@ config SND_VIA82XX_MODEM
 
 config SND_VIRTUOSO
 	tristate "Asus Virtuoso 100/200 (Xonar)"
-	depends on SND
 	select SND_OXYGEN_LIB
 	help
 	  Say Y here to include support for sound cards based on the
@@ -923,7 +872,6 @@ config SND_VIRTUOSO
 
 config SND_VX222
 	tristate "Digigram VX222"
-	depends on SND
 	select SND_VX_LIB
 	help
 	  Say Y here to include support for Digigram VX222 soundcards.
@@ -933,7 +881,6 @@ config SND_VX222
 
 config SND_YMFPCI
 	tristate "Yamaha YMF724/740/744/754"
-	depends on SND
 	select FW_LOADER if !SND_YMFPCI_FIRMWARE_IN_KERNEL
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
@@ -954,25 +901,4 @@ config SND_YMFPCI_FIRMWARE_IN_KERNEL
 	  for the YMFPCI driver.  If you choose N here, you need to
 	  install the firmware files from the alsa-firmware package.
 
-config SND_AC97_POWER_SAVE
-	bool "AC97 Power-Saving Mode"
-	depends on SND_AC97_CODEC && EXPERIMENTAL
-	default n
-	help
-	  Say Y here to enable the aggressive power-saving support of
-	  AC97 codecs.  In this mode, the power-mode is dynamically
-	  controlled at each open/close.
-
-	  The mode is activated by passing power_save=1 option to
-	  snd-ac97-codec driver.  You can toggle it dynamically over
-	  sysfs, too.
-
-config SND_AC97_POWER_SAVE_DEFAULT
-	int "Default time-out for AC97 power-save mode"
-	depends on SND_AC97_POWER_SAVE
-	default 0
-	help
-	  The default time-out value in seconds for AC97 automatic
-	  power-save mode.  0 means to disable the power-save mode.
-
-endmenu
+endif	# SND_PCI

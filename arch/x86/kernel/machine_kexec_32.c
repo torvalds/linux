@@ -11,6 +11,8 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/numa.h>
+#include <linux/ftrace.h>
+
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
@@ -39,7 +41,7 @@ static void set_idt(void *newidt, __u16 limit)
 	curidt.address = (unsigned long)newidt;
 
 	load_idt(&curidt);
-};
+}
 
 
 static void set_gdt(void *newgdt, __u16 limit)
@@ -51,7 +53,7 @@ static void set_gdt(void *newgdt, __u16 limit)
 	curgdt.address = (unsigned long)newgdt;
 
 	load_gdt(&curgdt);
-};
+}
 
 static void load_segments(void)
 {
@@ -106,6 +108,8 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 {
 	unsigned long page_list[PAGES_NR];
 	void *control_page;
+
+	tracer_disable();
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
