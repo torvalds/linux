@@ -622,7 +622,7 @@ static struct i2c_algorithm pmcmsptwi_algo = {
 
 static struct i2c_adapter pmcmsptwi_adapter = {
 	.owner		= THIS_MODULE,
-	.class		= I2C_CLASS_HWMON,
+	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.algo		= &pmcmsptwi_algo,
 	.name		= DRV_NAME,
 };

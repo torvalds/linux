@@ -367,8 +367,7 @@ static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
 	return res;
 }
 
-static int i2cdev_ioctl(struct inode *inode, struct file *file,
-		unsigned int cmd, unsigned long arg)
+static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct i2c_client *client = (struct i2c_client *)file->private_data;
 	unsigned long funcs;
@@ -497,7 +496,7 @@ static const struct file_operations i2cdev_fops = {
 	.llseek		= no_llseek,
 	.read		= i2cdev_read,
 	.write		= i2cdev_write,
-	.ioctl		= i2cdev_ioctl,
+	.unlocked_ioctl	= i2cdev_ioctl,
 	.open		= i2cdev_open,
 	.release	= i2cdev_release,
 };
@@ -559,19 +558,12 @@ static int i2cdev_detach_adapter(struct i2c_adapter *adap)
 	return 0;
 }
 
-static int i2cdev_detach_client(struct i2c_client *client)
-{
-	return 0;
-}
-
 static struct i2c_driver i2cdev_driver = {
 	.driver = {
 		.name	= "dev_driver",
 	},
-	.id		= I2C_DRIVERID_I2CDEV,
 	.attach_adapter	= i2cdev_attach_adapter,
 	.detach_adapter	= i2cdev_detach_adapter,
-	.detach_client	= i2cdev_detach_client,
 };
 
 /* ------------------------------------------------------------------------- */

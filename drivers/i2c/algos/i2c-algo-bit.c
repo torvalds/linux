@@ -320,7 +320,7 @@ static int try_address(struct i2c_adapter *i2c_adap,
 		       unsigned char addr, int retries)
 {
 	struct i2c_algo_bit_data *adap = i2c_adap->algo_data;
-	int i, ret = -1;
+	int i, ret = 0;
 
 	for (i = 0; i <= retries; i++) {
 		ret = i2c_outb(i2c_adap, addr);
@@ -508,7 +508,7 @@ static int bit_doAddress(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 			addr ^= 1;
 		ret = try_address(i2c_adap, addr, retries);
 		if ((ret != 1) && !nak_ok)
-			return -EREMOTEIO;
+			return -ENXIO;
 	}
 
 	return 0;
