@@ -3147,7 +3147,7 @@ int nes_manage_apbvt(struct nes_vnic *nesvnic, u32 accel_local_port,
 	nes_debug(NES_DBG_QP, "Waiting for CQP completion for APBVT.\n");
 
 	atomic_set(&cqp_request->refcount, 2);
-	nes_post_cqp_request(nesdev, cqp_request, NES_CQP_REQUEST_RING_DOORBELL);
+	nes_post_cqp_request(nesdev, cqp_request);
 
 	if (add_port == NES_MANAGE_APBVT_ADD)
 		ret = wait_event_timeout(cqp_request->waitq, (cqp_request->request_done != 0),
@@ -3217,7 +3217,7 @@ void nes_manage_arp_cache(struct net_device *netdev, unsigned char *mac_addr,
 			nesdev->cqp.sq_head, nesdev->cqp.sq_tail);
 
 	atomic_set(&cqp_request->refcount, 1);
-	nes_post_cqp_request(nesdev, cqp_request, NES_CQP_REQUEST_RING_DOORBELL);
+	nes_post_cqp_request(nesdev, cqp_request);
 }
 
 
@@ -3249,7 +3249,7 @@ void flush_wqes(struct nes_device *nesdev, struct nes_qp *nesqp,
 			cpu_to_le32(NES_CQP_FLUSH_WQES | which_wq);
 	cqp_wqe->wqe_words[NES_CQP_WQE_ID_IDX] = cpu_to_le32(nesqp->hwqp.qp_id);
 
-	nes_post_cqp_request(nesdev, cqp_request, NES_CQP_REQUEST_RING_DOORBELL);
+	nes_post_cqp_request(nesdev, cqp_request);
 
 	if (wait_completion) {
 		/* Wait for CQP */

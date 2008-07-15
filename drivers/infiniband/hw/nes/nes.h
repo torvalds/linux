@@ -94,9 +94,6 @@
 
 #define MAX_DPC_ITERATIONS               128
 
-#define NES_CQP_REQUEST_NO_DOORBELL_RING 0
-#define NES_CQP_REQUEST_RING_DOORBELL    1
-
 #define NES_DRV_OPT_ENABLE_MPA_VER_0     0x00000001
 #define NES_DRV_OPT_DISABLE_MPA_CRC      0x00000002
 #define NES_DRV_OPT_DISABLE_FIRST_WRITE  0x00000004
@@ -542,7 +539,7 @@ void nes_free_cqp_request(struct nes_device *nesdev,
 			  struct nes_cqp_request *cqp_request);
 void nes_put_cqp_request(struct nes_device *nesdev,
 			 struct nes_cqp_request *cqp_request);
-void nes_post_cqp_request(struct nes_device *, struct nes_cqp_request *, int);
+void nes_post_cqp_request(struct nes_device *, struct nes_cqp_request *);
 int nes_arp_table(struct nes_device *, u32, u8 *, u32);
 void nes_mh_fix(unsigned long);
 void nes_clc(unsigned long);

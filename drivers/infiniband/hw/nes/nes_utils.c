@@ -596,7 +596,7 @@ void nes_put_cqp_request(struct nes_device *nesdev,
  * nes_post_cqp_request
  */
 void nes_post_cqp_request(struct nes_device *nesdev,
-		struct nes_cqp_request *cqp_request, int ring_doorbell)
+			  struct nes_cqp_request *cqp_request)
 {
 	struct nes_hw_cqp_wqe *cqp_wqe;
 	unsigned long flags;
@@ -624,10 +624,9 @@ void nes_post_cqp_request(struct nes_device *nesdev,
 				nesdev->cqp.sq_head, nesdev->cqp.sq_tail, nesdev->cqp.sq_size,
 				cqp_request->waiting, atomic_read(&cqp_request->refcount));
 		barrier();
-		if (ring_doorbell) {
-			/* Ring doorbell (1 WQEs) */
-			nes_write32(nesdev->regs+NES_WQE_ALLOC, 0x01800000 | nesdev->cqp.qp_id);
-		}
+
+		/* Ring doorbell (1 WQEs) */
+		nes_write32(nesdev->regs+NES_WQE_ALLOC, 0x01800000 | nesdev->cqp.qp_id);
 
 		barrier();
 	} else {
