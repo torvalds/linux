@@ -104,6 +104,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_UD_IP_CSUM		= (1<<18),
 	IB_DEVICE_UD_TSO		= (1<<19),
 	IB_DEVICE_MEM_MGT_EXTENSIONS	= (1<<21),
+	IB_DEVICE_BLOCK_MULTICAST_LOOPBACK = (1<<22),
 };
 
 enum ib_atomic_cap {
@@ -555,7 +556,8 @@ enum ib_qp_type {
 };
 
 enum ib_qp_create_flags {
-	IB_QP_CREATE_IPOIB_UD_LSO	= 1 << 0,
+	IB_QP_CREATE_IPOIB_UD_LSO		= 1 << 0,
+	IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK	= 1 << 1,
 };
 
 struct ib_qp_init_attr {
