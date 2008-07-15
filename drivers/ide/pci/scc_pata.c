@@ -662,8 +662,6 @@ static void scc_tf_load(ide_drive_t *drive, ide_task_t *task)
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	ide_set_irq(drive, 1);
-
 	if (task->tf_flags & IDE_TFLAG_OUT_DATA)
 		out_be32((void *)io_ports->data_addr,
 			 (tf->hob_data << 8) | tf->data);

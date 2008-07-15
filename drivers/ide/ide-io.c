@@ -1579,6 +1579,8 @@ void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount, u8 dma)
 	task.tf.lbah    = (bcount >> 8) & 0xff;
 
 	ide_tf_dump(drive->name, &task.tf);
+	ide_set_irq(drive, 1);
+	SELECT_MASK(drive, 0);
 	drive->hwif->tf_load(drive, &task);
 }
 
