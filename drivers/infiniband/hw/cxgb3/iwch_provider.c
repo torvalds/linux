@@ -1130,6 +1130,7 @@ static int iwch_query_device(struct ib_device *ibdev,
 	props->hw_ver = dev->rdev.t3cdev_p->type;
 	props->fw_ver = fw_vers_string_to_u64(dev);
 	props->device_cap_flags = dev->device_cap_flags;
+	props->page_size_cap = dev->attr.mem_pgsizes_bitmask;
 	props->vendor_id = (u32)dev->rdev.rnic_info.pdev->vendor;
 	props->vendor_part_id = (u32)dev->rdev.rnic_info.pdev->device;
 	props->max_mr_size = dev->attr.max_mr_size;

@@ -55,6 +55,7 @@
 #define T3_MAX_CQ_DEPTH 8192
 #define T3_MAX_NUM_STAG (1<<15)
 #define T3_MAX_MR_SIZE 0x100000000ULL
+#define T3_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 
 #define T3_STAG_UNSET 0xffffffff
 
