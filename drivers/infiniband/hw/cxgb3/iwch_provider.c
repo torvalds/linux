@@ -748,6 +748,7 @@ static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd)
 	mhp->attr.type = TPT_MW;
 	mhp->attr.stag = stag;
 	mmid = (stag) >> 8;
+	mhp->ibmw.rkey = stag;
 	insert_handle(rhp, &rhp->mmidr, mhp, mmid);
 	PDBG("%s mmid 0x%x mhp %p stag 0x%x\n", __func__, mmid, mhp, stag);
 	return &(mhp->ibmw);
