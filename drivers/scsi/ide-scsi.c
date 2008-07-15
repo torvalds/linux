@@ -629,6 +629,8 @@ static void ide_scsi_remove(ide_drive_t *drive)
 	put_disk(g);
 
 	ide_scsi_put(scsi);
+
+	drive->scsi = 0;
 }
 
 static int ide_scsi_probe(ide_drive_t *);
@@ -969,6 +971,8 @@ static int ide_scsi_probe(ide_drive_t *drive)
 	    !(host = scsi_host_alloc(&idescsi_template,sizeof(idescsi_scsi_t))))
 		return -ENODEV;
 
+	drive->scsi = 1;
+
 	g = alloc_disk(1 << PARTN_BITS);
 	if (!g)
 		goto out_host_put;
@@ -1009,6 +1013,7 @@ static int ide_scsi_probe(ide_drive_t *drive)
 
 	put_disk(g);
 out_host_put:
+	drive->scsi = 0;
 	scsi_host_put(host);
 	return err;
 }
