@@ -130,8 +130,7 @@ struct rdma_id_private {
 
 	struct completion	comp;
 	atomic_t		refcount;
-	wait_queue_head_t	wait_remove;
-	atomic_t		dev_remove;
+	struct mutex		handler_mutex;
 
 	int			backlog;
 	int			timeout_ms;
@@ -355,26 +354,15 @@ static void cma_deref_id(struct rdma_id_private *id_priv)
 		complete(&id_priv->comp);
 }
 
-static int cma_disable_remove(struct rdma_id_private *id_priv,
+static int cma_disable_callback(struct rdma_id_private *id_priv,
 			      enum cma_state state)
 {
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&id_priv->lock, flags);
-	if (id_priv->state == state) {
-		atomic_inc(&id_priv->dev_remove);
-		ret = 0;
-	} else
-		ret = -EINVAL;
-	spin_unlock_irqrestore(&id_priv->lock, flags);
-	return ret;
-}
-
-static void cma_enable_remove(struct rdma_id_private *id_priv)
-{
-	if (atomic_dec_and_test(&id_priv->dev_remove))
-		wake_up(&id_priv->wait_remove);
+	mutex_lock(&id_priv->handler_mutex);
+	if (id_priv->state != state) {
+		mutex_unlock(&id_priv->handler_mutex);
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static int cma_has_cm_dev(struct rdma_id_private *id_priv)
@@ -399,8 +387,7 @@ struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
 	mutex_init(&id_priv->qp_mutex);
 	init_completion(&id_priv->comp);
 	atomic_set(&id_priv->refcount, 1);
-	init_waitqueue_head(&id_priv->wait_remove);
-	atomic_set(&id_priv->dev_remove, 0);
+	mutex_init(&id_priv->handler_mutex);
 	INIT_LIST_HEAD(&id_priv->listen_list);
 	INIT_LIST_HEAD(&id_priv->mc_list);
 	get_random_bytes(&id_priv->seq_num, sizeof id_priv->seq_num);
@@ -927,7 +914,7 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	struct rdma_cm_event event;
 	int ret = 0;
 
-	if (cma_disable_remove(id_priv, CMA_CONNECT))
+	if (cma_disable_callback(id_priv, CMA_CONNECT))
 		return 0;
 
 	memset(&event, 0, sizeof event);
@@ -984,12 +971,12 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		/* Destroy the CM ID by returning a non-zero value. */
 		id_priv->cm_id.ib = NULL;
 		cma_exch(id_priv, CMA_DESTROYING);
-		cma_enable_remove(id_priv);
+		mutex_unlock(&id_priv->handler_mutex);
 		rdma_destroy_id(&id_priv->id);
 		return ret;
 	}
 out:
-	cma_enable_remove(id_priv);
+	mutex_unlock(&id_priv->handler_mutex);
 	return ret;
 }
 
@@ -1101,7 +1088,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	int offset, ret;
 
 	listen_id = cm_id->context;
-	if (cma_disable_remove(listen_id, CMA_LISTEN))
+	if (cma_disable_callback(listen_id, CMA_LISTEN))
 		return -ECONNABORTED;
 
 	memset(&event, 0, sizeof event);
@@ -1122,7 +1109,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		goto out;
 	}
 
-	atomic_inc(&conn_id->dev_remove);
+	mutex_lock_nested(&conn_id->handler_mutex, SINGLE_DEPTH_NESTING);
 	mutex_lock(&lock);
 	ret = cma_acquire_dev(conn_id);
 	mutex_unlock(&lock);
@@ -1144,7 +1131,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		    !cma_is_ud_ps(conn_id->id.ps))
 			ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
 		mutex_unlock(&lock);
-		cma_enable_remove(conn_id);
+		mutex_unlock(&conn_id->handler_mutex);
 		goto out;
 	}
 
@@ -1153,11 +1140,11 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 
 release_conn_id:
 	cma_exch(conn_id, CMA_DESTROYING);
-	cma_enable_remove(conn_id);
+	mutex_unlock(&conn_id->handler_mutex);
 	rdma_destroy_id(&conn_id->id);
 
 out:
-	cma_enable_remove(listen_id);
+	mutex_unlock(&listen_id->handler_mutex);
 	return ret;
 }
 
@@ -1223,7 +1210,7 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 	struct sockaddr_in *sin;
 	int ret = 0;
 
-	if (cma_disable_remove(id_priv, CMA_CONNECT))
+	if (cma_disable_callback(id_priv, CMA_CONNECT))
 		return 0;
 
 	memset(&event, 0, sizeof event);
@@ -1267,12 +1254,12 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		/* Destroy the CM ID by returning a non-zero value. */
 		id_priv->cm_id.iw = NULL;
 		cma_exch(id_priv, CMA_DESTROYING);
-		cma_enable_remove(id_priv);
+		mutex_unlock(&id_priv->handler_mutex);
 		rdma_destroy_id(&id_priv->id);
 		return ret;
 	}
 
-	cma_enable_remove(id_priv);
+	mutex_unlock(&id_priv->handler_mutex);
 	return ret;
 }
 
@@ -1288,7 +1275,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	struct ib_device_attr attr;
 
 	listen_id = cm_id->context;
-	if (cma_disable_remove(listen_id, CMA_LISTEN))
+	if (cma_disable_callback(listen_id, CMA_LISTEN))
 		return -ECONNABORTED;
 
 	/* Create a new RDMA id for the new IW CM ID */
@@ -1300,19 +1287,19 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 		goto out;
 	}
 	conn_id = container_of(new_cm_id, struct rdma_id_private, id);
-	atomic_inc(&conn_id->dev_remove);
+	mutex_lock_nested(&conn_id->handler_mutex, SINGLE_DEPTH_NESTING);
 	conn_id->state = CMA_CONNECT;
 
 	dev = ip_dev_find(&init_net, iw_event->local_addr.sin_addr.s_addr);
 	if (!dev) {
 		ret = -EADDRNOTAVAIL;
-		cma_enable_remove(conn_id);
+		mutex_unlock(&conn_id->handler_mutex);
 		rdma_destroy_id(new_cm_id);
 		goto out;
 	}
 	ret = rdma_copy_addr(&conn_id->id.route.addr.dev_addr, dev, NULL);
 	if (ret) {
-		cma_enable_remove(conn_id);
+		mutex_unlock(&conn_id->handler_mutex);
 		rdma_destroy_id(new_cm_id);
 		goto out;
 	}
@@ -1321,7 +1308,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	ret = cma_acquire_dev(conn_id);
 	mutex_unlock(&lock);
 	if (ret) {
-		cma_enable_remove(conn_id);
+		mutex_unlock(&conn_id->handler_mutex);
 		rdma_destroy_id(new_cm_id);
 		goto out;
 	}
@@ -1337,7 +1324,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 
 	ret = ib_query_device(conn_id->id.device, &attr);
 	if (ret) {
-		cma_enable_remove(conn_id);
+		mutex_unlock(&conn_id->handler_mutex);
 		rdma_destroy_id(new_cm_id);
 		goto out;
 	}
@@ -1353,14 +1340,17 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 		/* User wants to destroy the CM ID */
 		conn_id->cm_id.iw = NULL;
 		cma_exch(conn_id, CMA_DESTROYING);
-		cma_enable_remove(conn_id);
+		mutex_unlock(&conn_id->handler_mutex);
 		rdma_destroy_id(&conn_id->id);
+		goto out;
 	}
+
+	mutex_unlock(&conn_id->handler_mutex);
 
 out:
 	if (dev)
 		dev_put(dev);
-	cma_enable_remove(listen_id);
+	mutex_unlock(&listen_id->handler_mutex);
 	return ret;
 }
 
@@ -1592,7 +1582,7 @@ static void cma_work_handler(struct work_struct *_work)
 	struct rdma_id_private *id_priv = work->id;
 	int destroy = 0;
 
-	atomic_inc(&id_priv->dev_remove);
+	mutex_lock(&id_priv->handler_mutex);
 	if (!cma_comp_exch(id_priv, work->old_state, work->new_state))
 		goto out;
 
@@ -1601,7 +1591,7 @@ static void cma_work_handler(struct work_struct *_work)
 		destroy = 1;
 	}
 out:
-	cma_enable_remove(id_priv);
+	mutex_unlock(&id_priv->handler_mutex);
 	cma_deref_id(id_priv);
 	if (destroy)
 		rdma_destroy_id(&id_priv->id);
@@ -1764,7 +1754,7 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 	struct rdma_cm_event event;
 
 	memset(&event, 0, sizeof event);
-	atomic_inc(&id_priv->dev_remove);
+	mutex_lock(&id_priv->handler_mutex);
 
 	/*
 	 * Grab mutex to block rdma_destroy_id() from removing the device while
@@ -1793,13 +1783,13 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 
 	if (id_priv->id.event_handler(&id_priv->id, &event)) {
 		cma_exch(id_priv, CMA_DESTROYING);
-		cma_enable_remove(id_priv);
+		mutex_unlock(&id_priv->handler_mutex);
 		cma_deref_id(id_priv);
 		rdma_destroy_id(&id_priv->id);
 		return;
 	}
 out:
-	cma_enable_remove(id_priv);
+	mutex_unlock(&id_priv->handler_mutex);
 	cma_deref_id(id_priv);
 }
 
@@ -2126,7 +2116,7 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 	struct ib_cm_sidr_rep_event_param *rep = &ib_event->param.sidr_rep_rcvd;
 	int ret = 0;
 
-	if (cma_disable_remove(id_priv, CMA_CONNECT))
+	if (cma_disable_callback(id_priv, CMA_CONNECT))
 		return 0;
 
 	memset(&event, 0, sizeof event);
@@ -2167,12 +2157,12 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 		/* Destroy the CM ID by returning a non-zero value. */
 		id_priv->cm_id.ib = NULL;
 		cma_exch(id_priv, CMA_DESTROYING);
-		cma_enable_remove(id_priv);
+		mutex_unlock(&id_priv->handler_mutex);
 		rdma_destroy_id(&id_priv->id);
 		return ret;
 	}
 out:
-	cma_enable_remove(id_priv);
+	mutex_unlock(&id_priv->handler_mutex);
 	return ret;
 }
 
@@ -2570,8 +2560,8 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 	int ret;
 
 	id_priv = mc->id_priv;
-	if (cma_disable_remove(id_priv, CMA_ADDR_BOUND) &&
-	    cma_disable_remove(id_priv, CMA_ADDR_RESOLVED))
+	if (cma_disable_callback(id_priv, CMA_ADDR_BOUND) &&
+	    cma_disable_callback(id_priv, CMA_ADDR_RESOLVED))
 		return 0;
 
 	mutex_lock(&id_priv->qp_mutex);
@@ -2596,12 +2586,12 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 	ret = id_priv->id.event_handler(&id_priv->id, &event);
 	if (ret) {
 		cma_exch(id_priv, CMA_DESTROYING);
-		cma_enable_remove(id_priv);
+		mutex_unlock(&id_priv->handler_mutex);
 		rdma_destroy_id(&id_priv->id);
 		return 0;
 	}
 
-	cma_enable_remove(id_priv);
+	mutex_unlock(&id_priv->handler_mutex);
 	return 0;
 }
 
@@ -2760,6 +2750,7 @@ static int cma_remove_id_dev(struct rdma_id_private *id_priv)
 {
 	struct rdma_cm_event event;
 	enum cma_state state;
+	int ret = 0;
 
 	/* Record that we want to remove the device */
 	state = cma_exch(id_priv, CMA_DEVICE_REMOVAL);
@@ -2767,15 +2758,18 @@ static int cma_remove_id_dev(struct rdma_id_private *id_priv)
 		return 0;
 
 	cma_cancel_operation(id_priv, state);
-	wait_event(id_priv->wait_remove, !atomic_read(&id_priv->dev_remove));
+	mutex_lock(&id_priv->handler_mutex);
 
 	/* Check for destruction from another callback. */
 	if (!cma_comp(id_priv, CMA_DEVICE_REMOVAL))
-		return 0;
+		goto out;
 
 	memset(&event, 0, sizeof event);
 	event.event = RDMA_CM_EVENT_DEVICE_REMOVAL;
-	return id_priv->id.event_handler(&id_priv->id, &event);
+	ret = id_priv->id.event_handler(&id_priv->id, &event);
+out:
+	mutex_unlock(&id_priv->handler_mutex);
+	return ret;
 }
 
 static void cma_process_remove(struct cma_device *cma_dev)
