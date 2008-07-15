@@ -223,23 +223,23 @@ static inline void nf_ct_refresh(struct nf_conn *ct,
 	__nf_ct_refresh_acct(ct, 0, skb, extra_jiffies, 0);
 }
 
-extern void __nf_ct_kill_acct(struct nf_conn *ct,
-				enum ip_conntrack_info ctinfo,
-				const struct sk_buff *skb,
-				int do_acct);
+extern bool __nf_ct_kill_acct(struct nf_conn *ct,
+			      enum ip_conntrack_info ctinfo,
+			      const struct sk_buff *skb,
+			      int do_acct);
 
 /* kill conntrack and do accounting */
-static inline void nf_ct_kill_acct(struct nf_conn *ct,
-				enum ip_conntrack_info ctinfo,
-				const struct sk_buff *skb)
+static inline bool nf_ct_kill_acct(struct nf_conn *ct,
+				   enum ip_conntrack_info ctinfo,
+				   const struct sk_buff *skb)
 {
-	__nf_ct_kill_acct(ct, ctinfo, skb, 1);
+	return __nf_ct_kill_acct(ct, ctinfo, skb, 1);
 }
 
 /* kill conntrack without accounting */
-static inline void nf_ct_kill(struct nf_conn *ct)
+static inline bool nf_ct_kill(struct nf_conn *ct)
 {
-	__nf_ct_kill_acct(ct, 0, NULL, 0);
+	return __nf_ct_kill_acct(ct, 0, NULL, 0);
 }
 
 /* These are for NAT.  Icky. */

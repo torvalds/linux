@@ -848,10 +848,10 @@ acct:
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 
-void __nf_ct_kill_acct(struct nf_conn *ct,
-		enum ip_conntrack_info ctinfo,
-		const struct sk_buff *skb,
-		int do_acct)
+bool __nf_ct_kill_acct(struct nf_conn *ct,
+		       enum ip_conntrack_info ctinfo,
+		       const struct sk_buff *skb,
+		       int do_acct)
 {
 #ifdef CONFIG_NF_CT_ACCT
 	if (do_acct) {
@@ -862,8 +862,11 @@ void __nf_ct_kill_acct(struct nf_conn *ct,
 		spin_unlock_bh(&nf_conntrack_lock);
 	}
 #endif
-	if (del_timer(&ct->timeout))
+	if (del_timer(&ct->timeout)) {
 		ct->timeout.function((unsigned long)ct);
+		return true;
+	}
+	return false;
 }
 EXPORT_SYMBOL_GPL(__nf_ct_kill_acct);
 
