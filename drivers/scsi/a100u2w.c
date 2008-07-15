@@ -401,6 +401,7 @@ static u8 orc_load_firmware(struct orc_host * host)
 
 	/* Copy the code from the BIOS to the SRAM */
 
+	udelay(500);	/* Required on Sun Ultra 5 ... 350 -> failures */
 	bios_addr = (u16) le32_to_cpu(data32);	/* FW code locate at BIOS address + ? */
 	for (i = 0, data32_ptr = (u8 *) & data32;	/* Download the code    */
 	     i < 0x1000;	/* Firmware code size = 4K      */
