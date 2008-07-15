@@ -43,6 +43,8 @@ struct sockaddr_ll
 #define PACKET_COPY_THRESH		7
 #define PACKET_AUXDATA			8
 #define PACKET_ORIGDEV			9
+#define PACKET_VERSION			10
+#define PACKET_HDRLEN			11
 
 struct tpacket_stats
 {
@@ -78,6 +80,25 @@ struct tpacket_hdr
 #define TPACKET_ALIGNMENT	16
 #define TPACKET_ALIGN(x)	(((x)+TPACKET_ALIGNMENT-1)&~(TPACKET_ALIGNMENT-1))
 #define TPACKET_HDRLEN		(TPACKET_ALIGN(sizeof(struct tpacket_hdr)) + sizeof(struct sockaddr_ll))
+
+struct tpacket2_hdr
+{
+	__u32		tp_status;
+	__u32		tp_len;
+	__u32		tp_snaplen;
+	__u16		tp_mac;
+	__u16		tp_net;
+	__u32		tp_sec;
+	__u32		tp_nsec;
+};
+
+#define TPACKET2_HDRLEN		(TPACKET_ALIGN(sizeof(struct tpacket2_hdr)) + sizeof(struct sockaddr_ll))
+
+enum tpacket_versions
+{
+	TPACKET_V1,
+	TPACKET_V2,
+};
 
 /*
    Frame structure:
