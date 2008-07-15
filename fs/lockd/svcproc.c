@@ -87,8 +87,7 @@ nlmsvc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 	return 0;
 
 no_locks:
-	if (host)
-		nlm_release_host(host);
+	nlm_release_host(host);
 	if (error)
 		return error;
 	return nlm_lck_denied_nolocks;
