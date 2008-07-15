@@ -83,6 +83,14 @@ config CBE_RAS
 	depends on PPC_CELL_NATIVE
 	default y
 
+config PPC_IBM_CELL_RESETBUTTON
+	bool "IBM Cell Blade Pinhole reset button"
+	depends on CBE_RAS && PPC_IBM_CELL_BLADE
+	default y
+	help
+	  Support Pinhole Resetbutton on IBM Cell blades.
+	  This adds a method to trigger system reset via front panel pinhole button.
+
 config CBE_THERM
 	tristate "CBE thermal support"
 	default m
