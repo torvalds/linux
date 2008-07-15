@@ -143,7 +143,6 @@ struct cdrom_info {
 void ide_cd_log_error(const char *, struct request *, struct request_sense *);
 
 /* ide-cd.c functions used by ide-cd_ioctl.c */
-void ide_cd_init_rq(ide_drive_t *, struct request *);
 int ide_cd_queue_pc(ide_drive_t *, const unsigned char *, int, void *,
 		    unsigned *, struct request_sense *, int, unsigned int);
 int ide_cd_read_toc(ide_drive_t *, struct request_sense *);

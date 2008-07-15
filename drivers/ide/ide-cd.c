@@ -188,16 +188,6 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 	ide_cd_log_error(drive->name, failed_command, sense);
 }
 
-/* Initialize a ide-cd packet command request */
-void ide_cd_init_rq(ide_drive_t *drive, struct request *rq)
-{
-	struct cdrom_info *cd = drive->driver_data;
-
-	blk_rq_init(NULL, rq);
-	rq->cmd_type = REQ_TYPE_ATA_PC;
-	rq->rq_disk = cd->disk;
-}
-
 static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 				      struct request *failed_command)
 {
@@ -208,7 +198,9 @@ static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 		sense = &info->sense_data;
 
 	/* stuff the sense request in front of our current request */
-	ide_cd_init_rq(drive, rq);
+	blk_rq_init(NULL, rq);
+	rq->cmd_type = REQ_TYPE_ATA_PC;
+	rq->rq_disk = info->disk;
 
 	rq->data = sense;
 	rq->cmd[0] = GPCMD_REQUEST_SENSE;
