@@ -973,11 +973,11 @@ static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 	}
 	/* Set the interrupt routine */
 	ide_set_handler(drive, &idetape_pc_intr, IDETAPE_WAIT_CMD, NULL);
-#ifdef CONFIG_BLK_DEV_IDEDMA
+
 	/* Begin DMA, if necessary */
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS)
 		hwif->dma_ops->dma_start(drive);
-#endif
+
 	/* Send the actual packet */
 	hwif->output_data(drive, NULL, pc->c, 12);
 
