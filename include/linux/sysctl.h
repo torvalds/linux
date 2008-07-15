@@ -947,6 +947,16 @@ struct ctl_table;
 struct nsproxy;
 struct ctl_table_root;
 
+struct ctl_table_set {
+	struct list_head list;
+	struct ctl_table_set *parent;
+	int (*is_seen)(struct ctl_table_set *);
+};
+
+extern void setup_sysctl_set(struct ctl_table_set *p,
+	struct ctl_table_set *parent,
+	int (*is_seen)(struct ctl_table_set *));
+
 extern struct ctl_table_header *sysctl_head_next(struct ctl_table_header *prev);
 extern struct ctl_table_header *__sysctl_head_next(struct nsproxy *namespaces,
 						struct ctl_table_header *prev);
@@ -1049,8 +1059,8 @@ struct ctl_table
 
 struct ctl_table_root {
 	struct list_head root_list;
-	struct list_head header_list;
-	struct list_head *(*lookup)(struct ctl_table_root *root,
+	struct ctl_table_set default_set;
+	struct ctl_table_set *(*lookup)(struct ctl_table_root *root,
 					   struct nsproxy *namespaces);
 	int (*permissions)(struct ctl_table_root *root,
 			struct nsproxy *namespaces, struct ctl_table *table);
@@ -1066,6 +1076,7 @@ struct ctl_table_header
 	struct completion *unregistering;
 	struct ctl_table *ctl_table_arg;
 	struct ctl_table_root *root;
+	struct ctl_table_set *set;
 };
 
 /* struct ctl_path describes where in the hierarchy a table is added */
