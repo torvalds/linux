@@ -59,6 +59,7 @@ struct tpacket_auxdata
 	__u32		tp_snaplen;
 	__u16		tp_mac;
 	__u16		tp_net;
+	__u16		tp_vlan_tci;
 };
 
 struct tpacket_hdr
@@ -90,6 +91,7 @@ struct tpacket2_hdr
 	__u16		tp_net;
 	__u32		tp_sec;
 	__u32		tp_nsec;
+	__u16		tp_vlan_tci;
 };
 
 #define TPACKET2_HDRLEN		(TPACKET_ALIGN(sizeof(struct tpacket2_hdr)) + sizeof(struct sockaddr_ll))
