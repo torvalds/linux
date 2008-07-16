@@ -568,6 +568,7 @@ static const struct ide_dma_ops sgiioc4_dma_ops = {
 };
 
 static const struct ide_port_info sgiioc4_port_info __devinitdata = {
+	.name			= DRV_NAME,
 	.chipset		= ide_pci,
 	.init_dma		= ide_dma_sgiioc4,
 	.port_ops		= &sgiioc4_port_ops,
@@ -587,12 +588,9 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	hw_regs_t hw;
 	struct ide_port_info d = sgiioc4_port_info;
 
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR "%s: too many IDE interfaces, no room in table\n",
-				DRV_NAME);
+	hwif = ide_find_port_slot(&d);
+	if (hwif == NULL)
 		return -ENOMEM;
-	}
 
 	/*  Get the CmdBlk and CtrlBlk Base Registers */
 	bar0 = pci_resource_start(dev, 0);

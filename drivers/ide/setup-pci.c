@@ -332,11 +332,8 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 	}
 
 	hwif = ide_find_port_slot(d);
-	if (hwif == NULL) {
-		printk(KERN_ERR "%s: too many IDE interfaces, no room in "
-				"table\n", d->name);
+	if (hwif == NULL)
 		return NULL;
-	}
 
 	memset(&hw, 0, sizeof(hw));
 	hw.irq = irq;

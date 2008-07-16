@@ -8,6 +8,8 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
+#define DRV_NAME "ide-h8300"
+
 #define bswap(d) \
 ({					\
 	u16 r;				\
@@ -196,11 +198,9 @@ static int __init h8300_ide_init(void)
 
 	hw_setup(&hw);
 
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR "ide-h8300: IDE I/F register failed\n");
+	hwif = ide_find_port_slot(&h8300_port_info);
+	if (hwif == NULL)
 		return -ENOENT;
-	}
 
 	index = hwif->index;
 	ide_init_port_hw(hwif, &hw);

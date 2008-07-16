@@ -1490,6 +1490,9 @@ ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
 		}
 	}
 
+	printk(KERN_ERR "%s: no free slot for interface\n",
+			d ? d->name : "ide");
+
 	return NULL;
 
 out_found:
