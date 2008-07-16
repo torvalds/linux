@@ -51,6 +51,7 @@ ENTRY(_sleep_mode)
 	RETS = [SP++];
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
+ENDPROC(_sleep_mode)
 
 ENTRY(_hibernate_mode)
 	[--SP] = ( R7:0, P5:0 );
@@ -75,6 +76,7 @@ ENTRY(_hibernate_mode)
 	IDLE;
 .Lforever:
 	jump .Lforever;
+ENDPROC(_hibernate_mode)
 
 ENTRY(_deep_sleep)
 	[--SP] = ( R7:0, P5:0 );
@@ -130,6 +132,7 @@ ENTRY(_deep_sleep)
 	RETS = [SP++];
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
+ENDPROC(_deep_sleep)
 
 ENTRY(_sleep_deeper)
 	[--SP] = ( R7:0, P5:0 );
@@ -231,7 +234,7 @@ ENTRY(_sleep_deeper)
 	RETS = [SP++];
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
-
+ENDPROC(_sleep_deeper)
 
 ENTRY(_set_dram_srfs)
 	/*  set the dram to self refresh mode */
@@ -270,7 +273,7 @@ ENTRY(_set_dram_srfs)
 	[P0] = R2;
 #endif
 	RTS;
-
+ENDPROC(_set_dram_srfs)
 
 ENTRY(_unset_dram_srfs)
 	/*  set the dram out of self refresh mode */
@@ -297,6 +300,7 @@ ENTRY(_unset_dram_srfs)
 #endif
 	SSYNC;
 	RTS;
+ENDPROC(_unset_dram_srfs)
 
 ENTRY(_set_sic_iwr)
 #if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)  || defined(CONFIG_BF561)
@@ -318,6 +322,7 @@ ENTRY(_set_sic_iwr)
 
 	SSYNC;
 	RTS;
+ENDPROC(_set_sic_iwr)
 
 ENTRY(_set_rtc_istat)
 #ifndef CONFIG_BF561
@@ -332,6 +337,7 @@ ENTRY(_set_rtc_istat)
 	nop;
 #endif
 	RTS;
+ENDPROC(_set_rtc_istat)
 
 ENTRY(_test_pll_locked)
 	P0.H = hi(PLL_STAT);
@@ -341,9 +347,9 @@ ENTRY(_test_pll_locked)
 	CC = BITTST(R0,5);
 	IF !CC JUMP 1b;
 	RTS;
+ENDPROC(_test_pll_locked)
 
 .section .text
-
 
 ENTRY(_do_hibernate)
 	[--SP] = ( R7:0, P5:0 );
@@ -593,8 +599,8 @@ ENTRY(_do_hibernate)
 	R0.H = 0xDEAD;	/* Hibernate Magic */
 	R0.L = 0xBEEF;
 	[P0++] = R0;	/* Store Hibernate Magic */
-	R0.H = pm_resume_here;
-	R0.L = pm_resume_here;
+	R0.H = .Lpm_resume_here;
+	R0.L = .Lpm_resume_here;
 	[P0++] = R0;	/* Save Return Address */
 	[P0++] = SP;	/* Save Stack Pointer */
 	P0.H = _hibernate_mode;
@@ -602,7 +608,7 @@ ENTRY(_do_hibernate)
 	R0 = R2;
 	call (P0); /* Goodbye */
 
-pm_resume_here:
+.Lpm_resume_here:
 
 	/* Restore Core Registers */
 	SEQSTAT = [sp++];
@@ -846,3 +852,4 @@ pm_resume_here:
 	RETS = [SP++];
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
+ENDPROC(_do_hibernate)
