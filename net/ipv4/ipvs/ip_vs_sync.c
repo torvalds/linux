@@ -742,7 +742,7 @@ static int sync_thread_master(void *data)
 			ip_vs_sync_buff_release(sb);
 		}
 
-		msleep_interruptible(1000);
+		schedule_timeout_interruptible(HZ);
 	}
 
 	/* clean up the sync_buff queue */
