@@ -1032,8 +1032,8 @@ static void rc_close(struct tty_struct *tty, struct file *filp)
 	 * the line discipline to only process XON/XOFF characters.
 	 */
 	tty->closing = 1;
-	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, port->closing_wait);
+	if (port->port.closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, port->port.closing_wait);
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts, and tell the
@@ -1065,8 +1065,8 @@ static void rc_close(struct tty_struct *tty, struct file *filp)
 	tty->closing = 0;
 	port->port.tty = NULL;
 	if (port->port.blocked_open) {
-		if (port->close_delay)
-			msleep_interruptible(jiffies_to_msecs(port->close_delay));
+		if (port->port.close_delay)
+			msleep_interruptible(jiffies_to_msecs(port->port.close_delay));
 		wake_up_interruptible(&port->port.open_wait);
 	}
 	port->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
@@ -1295,8 +1295,8 @@ static int rc_set_serial_info(struct riscom_port *port,
 			(tmp.flags & ASYNC_SPD_MASK));
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		if ((tmp.close_delay != port->close_delay) ||
-		    (tmp.closing_wait != port->closing_wait) ||
+		if ((tmp.close_delay != port->port.close_delay) ||
+		    (tmp.closing_wait != port->port.closing_wait) ||
 		    ((tmp.flags & ~ASYNC_USR_MASK) !=
 		     (port->port.flags & ~ASYNC_USR_MASK)))
 			return -EPERM;
@@ -1305,8 +1305,8 @@ static int rc_set_serial_info(struct riscom_port *port,
 	} else  {
 		port->port.flags = ((port->port.flags & ~ASYNC_FLAGS) |
 			       (tmp.flags & ASYNC_FLAGS));
-		port->close_delay = tmp.close_delay;
-		port->closing_wait = tmp.closing_wait;
+		port->port.close_delay = tmp.close_delay;
+		port->port.closing_wait = tmp.closing_wait;
 	}
 	if (change_speed)  {
 		unsigned long flags;
@@ -1331,8 +1331,8 @@ static int rc_get_serial_info(struct riscom_port *port,
 	tmp.irq  = bp->irq;
 	tmp.flags = port->port.flags;
 	tmp.baud_base = (RC_OSCFREQ + CD180_TPC/2) / CD180_TPC;
-	tmp.close_delay = port->close_delay * HZ/100;
-	tmp.closing_wait = port->closing_wait * HZ/100;
+	tmp.close_delay = port->port.close_delay * HZ/100;
+	tmp.closing_wait = port->port.closing_wait * HZ/100;
 	tmp.xmit_fifo_size = CD180_NFIFO;
 	return copy_to_user(retinfo, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
@@ -1549,10 +1549,8 @@ static int __init rc_init_drivers(void)
 	}
 	memset(rc_port, 0, sizeof(rc_port));
 	for (i = 0; i < RC_NPORT * RC_NBOARD; i++)  {
-		rc_port[i].magic = RISCOM8_MAGIC;
-		rc_port[i].close_delay = 50 * HZ / 100;
-		rc_port[i].closing_wait = 3000 * HZ / 100;
 		tty_port_init(&rc_port[i].port);
+		rc_port[i].magic = RISCOM8_MAGIC;
 	}
 	return 0;
 }

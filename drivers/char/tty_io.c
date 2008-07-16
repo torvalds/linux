@@ -2094,6 +2094,8 @@ void tty_port_init(struct tty_port *port)
 	init_waitqueue_head(&port->open_wait);
 	init_waitqueue_head(&port->close_wait);
 	mutex_init(&port->mutex);
+	port->close_delay = (50 * HZ) / 100;
+	port->closing_wait = (3000 * HZ) / 100;
 }
 EXPORT_SYMBOL(tty_port_init);
 

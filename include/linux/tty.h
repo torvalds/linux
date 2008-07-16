@@ -188,6 +188,8 @@ struct tty_port {
 	unsigned long		flags;		/* TTY flags ASY_*/
 	struct mutex		mutex;		/* Locking */
 	unsigned char		*xmit_buf;	/* Optional buffer */
+	int			close_delay;	/* Close port delay */
+	int			closing_wait;	/* Delay for output */
 };
 
 /*

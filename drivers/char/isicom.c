@@ -199,10 +199,8 @@ struct	isi_board {
 struct	isi_port {
 	unsigned short		magic;
 	struct tty_port		port;
-	int			close_delay;
 	u16			channel;
 	u16			status;
-	u16			closing_wait;
 	struct isi_board	*card;
 	unsigned char		*xmit_buf;
 	int			xmit_head;
@@ -1051,8 +1049,8 @@ static void isicom_close(struct tty_struct *tty, struct file *filp)
 	tty->closing = 1;
 	spin_unlock_irqrestore(&card->card_lock, flags);
 
-	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, port->closing_wait);
+	if (port->port.closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, port->port.closing_wait);
 	/* indicate to the card that no more data can be received
 	   on this port */
 	spin_lock_irqsave(&card->card_lock, flags);
@@ -1071,10 +1069,10 @@ static void isicom_close(struct tty_struct *tty, struct file *filp)
 
 	if (port->port.blocked_open) {
 		spin_unlock_irqrestore(&card->card_lock, flags);
-		if (port->close_delay) {
+		if (port->port.close_delay) {
 			pr_dbg("scheduling until time out.\n");
 			msleep_interruptible(
-				jiffies_to_msecs(port->close_delay));
+				jiffies_to_msecs(port->port.close_delay));
 		}
 		spin_lock_irqsave(&card->card_lock, flags);
 		wake_up_interruptible(&port->port.open_wait);
@@ -1256,8 +1254,8 @@ static int isicom_set_serial_info(struct isi_port *port,
 		(newinfo.flags & ASYNC_SPD_MASK));
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		if ((newinfo.close_delay != port->close_delay) ||
-				(newinfo.closing_wait != port->closing_wait) ||
+		if ((newinfo.close_delay != port->port.close_delay) ||
+				(newinfo.closing_wait != port->port.closing_wait) ||
 				((newinfo.flags & ~ASYNC_USR_MASK) !=
 				(port->port.flags & ~ASYNC_USR_MASK))) {
 			unlock_kernel();
@@ -1266,8 +1264,8 @@ static int isicom_set_serial_info(struct isi_port *port,
 		port->port.flags = ((port->port.flags & ~ASYNC_USR_MASK) |
 				(newinfo.flags & ASYNC_USR_MASK));
 	} else {
-		port->close_delay = newinfo.close_delay;
-		port->closing_wait = newinfo.closing_wait;
+		port->port.close_delay = newinfo.close_delay;
+		port->port.closing_wait = newinfo.closing_wait;
 		port->port.flags = ((port->port.flags & ~ASYNC_FLAGS) |
 				(newinfo.flags & ASYNC_FLAGS));
 	}
@@ -1294,8 +1292,8 @@ static int isicom_get_serial_info(struct isi_port *port,
 	out_info.irq = port->card->irq;
 	out_info.flags = port->port.flags;
 /*	out_info.baud_base = ? */
-	out_info.close_delay = port->close_delay;
-	out_info.closing_wait = port->closing_wait;
+	out_info.close_delay = port->port.close_delay;
+	out_info.closing_wait = port->port.closing_wait;
 	unlock_kernel();
 	if (copy_to_user(info, &out_info, sizeof(out_info)))
 		return -EFAULT;
@@ -1804,13 +1802,13 @@ static int __init isicom_init(void)
 		isi_card[idx].ports = port;
 		spin_lock_init(&isi_card[idx].card_lock);
 		for (channel = 0; channel < 16; channel++, port++) {
+			tty_port_init(&port->port);
 			port->magic = ISICOM_MAGIC;
 			port->card = &isi_card[idx];
 			port->channel = channel;
-			port->close_delay = 50 * HZ/100;
-			port->closing_wait = 3000 * HZ/100;
+			port->port.close_delay = 50 * HZ/100;
+			port->port.closing_wait = 3000 * HZ/100;
 			port->status = 0;
-			tty_port_init(&port->port);
 			/*  . . .  */
 		}
 		isi_card[idx].base = 0;

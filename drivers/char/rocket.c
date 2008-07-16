@@ -72,6 +72,7 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/serial.h>
 #include <linux/string.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
@@ -81,7 +82,7 @@
 #include <linux/completion.h>
 #include <linux/wait.h>
 #include <linux/pci.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <asm/unaligned.h>
 #include <linux/bitops.h>
@@ -648,8 +649,8 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 	info->board = board;
 	info->aiop = aiop;
 	info->chan = chan;
-	info->closing_wait = 3000;
-	info->close_delay = 50;
+	info->port.closing_wait = 3000;
+	info->port.close_delay = 50;
 	init_waitqueue_head(&info->port.open_wait);
 	init_completion(&info->close_wait);
 	info->flags &= ~ROCKET_MODE_MASK;
@@ -1137,8 +1138,8 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	/*
 	 * Wait for the transmit buffer to clear
 	 */
-	if (info->closing_wait != ROCKET_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, info->closing_wait);
+	if (info->port.closing_wait != ROCKET_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, info->port.closing_wait);
 	/*
 	 * Before we drop DTR, make sure the UART transmitter
 	 * has completely drained; this is especially
@@ -1168,8 +1169,8 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	clear_bit((info->aiop * 8) + info->chan, (void *) &xmit_flags[info->board]);
 
 	if (info->port.blocked_open) {
-		if (info->close_delay) {
-			msleep_interruptible(jiffies_to_msecs(info->close_delay));
+		if (info->port.close_delay) {
+			msleep_interruptible(jiffies_to_msecs(info->port.close_delay));
 		}
 		wake_up_interruptible(&info->port.open_wait);
 	} else {
@@ -1327,8 +1328,8 @@ static int get_config(struct r_port *info, struct rocket_config __user *retinfo)
 	memset(&tmp, 0, sizeof (tmp));
 	tmp.line = info->line;
 	tmp.flags = info->flags;
-	tmp.close_delay = info->close_delay;
-	tmp.closing_wait = info->closing_wait;
+	tmp.close_delay = info->port.close_delay;
+	tmp.closing_wait = info->port.closing_wait;
 	tmp.port = rcktpt_io_addr[(info->line >> 5) & 3];
 
 	if (copy_to_user(retinfo, &tmp, sizeof (*retinfo)))
@@ -1353,8 +1354,8 @@ static int set_config(struct r_port *info, struct rocket_config __user *new_info
 	}
 
 	info->flags = ((info->flags & ~ROCKET_FLAGS) | (new_serial.flags & ROCKET_FLAGS));
-	info->close_delay = new_serial.close_delay;
-	info->closing_wait = new_serial.closing_wait;
+	info->port.close_delay = new_serial.close_delay;
+	info->port.closing_wait = new_serial.closing_wait;
 
 	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_HI)
 		info->port.tty->alt_speed = 57600;

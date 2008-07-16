@@ -183,8 +183,6 @@ struct mgsl_struct {
 	struct tty_port		port;
 	int			line;
 	int                     hw_version;
-	unsigned short		close_delay;
-	unsigned short		closing_wait;	/* time to wait before closing */
 	
 	struct mgsl_icount	icount;
 	
@@ -3142,11 +3140,11 @@ static void mgsl_close(struct tty_struct *tty, struct file * filp)
 	
 	/* wait for transmit data to clear all layers */
 	
-	if (info->closing_wait != ASYNC_CLOSING_WAIT_NONE) {
+	if (info->port.closing_wait != ASYNC_CLOSING_WAIT_NONE) {
 		if (debug_level >= DEBUG_LEVEL_INFO)
 			printk("%s(%d):mgsl_close(%s) calling tty_wait_until_sent\n",
 				 __FILE__,__LINE__, info->device_name );
-		tty_wait_until_sent(tty, info->closing_wait);
+		tty_wait_until_sent(tty, info->port.closing_wait);
 	}
 		
  	if (info->port.flags & ASYNC_INITIALIZED)
@@ -3162,8 +3160,8 @@ static void mgsl_close(struct tty_struct *tty, struct file * filp)
 	info->port.tty = NULL;
 	
 	if (info->port.blocked_open) {
-		if (info->close_delay) {
-			msleep_interruptible(jiffies_to_msecs(info->close_delay));
+		if (info->port.close_delay) {
+			msleep_interruptible(jiffies_to_msecs(info->port.close_delay));
 		}
 		wake_up_interruptible(&info->port.open_wait);
 	}
@@ -4326,12 +4324,12 @@ static struct mgsl_struct* mgsl_allocate_device(void)
 	if (!info) {
 		printk("Error can't allocate device instance data\n");
 	} else {
+		tty_port_init(&info->port);
 		info->magic = MGSL_MAGIC;
 		INIT_WORK(&info->task, mgsl_bh_handler);
 		info->max_frame_size = 4096;
-		info->close_delay = 5*HZ/10;
-		info->closing_wait = 30*HZ;
-		tty_port_init(&info->port);
+		info->port.close_delay = 5*HZ/10;
+		info->port.closing_wait = 30*HZ;
 		init_waitqueue_head(&info->status_event_wait_q);
 		init_waitqueue_head(&info->event_wait_q);
 		spin_lock_init(&info->irq_spinlock);

@@ -2395,6 +2395,7 @@ static int sx_init_portstructs(int nboards, int nports)
 		board->ports = port;
 		for (j = 0; j < boards[i].nports; j++) {
 			sx_dprintk(SX_DEBUG_INIT, "initing port %d\n", j);
+			tty_port_init(&port->gs.port);
 			port->gs.magic = SX_MAGIC;
 			port->gs.close_delay = HZ / 2;
 			port->gs.closing_wait = 30 * HZ;
@@ -2407,7 +2408,6 @@ static int sx_init_portstructs(int nboards, int nports)
 			/*
 			 * Initializing wait queue
 			 */
-			tty_port_init(&port->gs.port);
 			port++;
 		}
 	}

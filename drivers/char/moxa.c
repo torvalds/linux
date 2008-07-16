@@ -135,7 +135,6 @@ struct moxa_port {
 	void __iomem *tableAddr;
 
 	int type;
-	int close_delay;
 	int cflag;
 	unsigned long statusflags;
 
@@ -822,10 +821,9 @@ static int moxa_init_board(struct moxa_board_conf *brd, struct device *dev)
 	}
 
 	for (i = 0, p = brd->ports; i < MAX_PORTS_PER_BOARD; i++, p++) {
-		p->type = PORT_16550A;
-		p->close_delay = 5 * HZ / 10;
-		p->cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
 		tty_port_init(&p->port);
+		p->type = PORT_16550A;
+		p->cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
 	}
 
 	switch (brd->boardType) {
@@ -2124,7 +2122,7 @@ static int moxa_get_serial_info(struct moxa_port *info,
 		.line = info->port.tty->index,
 		.flags = info->port.flags,
 		.baud_base = 921600,
-		.close_delay = info->close_delay
+		.close_delay = info->port.close_delay
 	};
 	return copy_to_user(retinfo, &tmp, sizeof(*retinfo)) ? -EFAULT : 0;
 }
@@ -2148,7 +2146,7 @@ static int moxa_set_serial_info(struct moxa_port *info,
 		     (info->port.flags & ~ASYNC_USR_MASK)))
 			return -EPERM;
 	} else
-		info->close_delay = new_serial.close_delay * HZ / 100;
+		info->port.close_delay = new_serial.close_delay * HZ / 100;
 
 	new_serial.flags = (new_serial.flags & ~ASYNC_FLAGS);
 	new_serial.flags |= (info->port.flags & ASYNC_FLAGS);

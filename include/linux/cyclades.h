@@ -567,8 +567,6 @@ struct cyclades_port {
 	int			chip_rev;
 	int			custom_divisor;
 	u8			x_char; /* to be pushed out ASAP */
-	int			close_delay;
-	unsigned short		closing_wait;
 	int                     breakon;
 	int                     breakoff;
 	int			xmit_head;
@@ -586,8 +584,8 @@ struct cyclades_port {
 };
 
 #define	CLOSING_WAIT_DELAY	30*HZ
-#define CY_CLOSING_WAIT_NONE	65535
-#define CY_CLOSING_WAIT_INF	0
+#define CY_CLOSING_WAIT_NONE	ASYNC_CLOSING_WAIT_NONE
+#define CY_CLOSING_WAIT_INF	ASYNC_CLOSING_WAIT_INF
 
 
 #define CyMAX_CHIPS_PER_CARD	8

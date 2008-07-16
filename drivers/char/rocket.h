@@ -64,8 +64,8 @@ struct rocket_version {
 /*
  * For closing_wait and closing_wait2
  */
-#define ROCKET_CLOSING_WAIT_NONE	65535
-#define ROCKET_CLOSING_WAIT_INF		0
+#define ROCKET_CLOSING_WAIT_NONE	ASYNC_CLOSING_WAIT_NONE
+#define ROCKET_CLOSING_WAIT_INF		ASYNC_CLOSING_WAIT_INF
 
 /*
  * Rocketport ioctls -- "RP"

@@ -243,10 +243,7 @@ struct mxser_port {
 	unsigned char ldisc_stop_rx;
 
 	int custom_divisor;
-	int close_delay;
-	unsigned short closing_wait;
 	unsigned char err_shadow;
-	unsigned long event;
 
 	struct async_icount icount; /* kernel counters for 4 input interrupts */
 	int timeout;
@@ -1199,8 +1196,8 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	 * the line discipline to only process XON/XOFF characters.
 	 */
 	tty->closing = 1;
-	if (info->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, info->closing_wait);
+	if (info->port.closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, info->port.closing_wait);
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts, and tell the
@@ -1231,11 +1228,10 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	tty_ldisc_flush(tty);
 
 	tty->closing = 0;
-	info->event = 0;
 	info->port.tty = NULL;
 	if (info->port.blocked_open) {
-		if (info->close_delay)
-			schedule_timeout_interruptible(info->close_delay);
+		if (info->port.close_delay)
+			schedule_timeout_interruptible(info->port.close_delay);
 		wake_up_interruptible(&info->port.open_wait);
 	}
 
@@ -1370,8 +1366,8 @@ static int mxser_get_serial_info(struct mxser_port *info,
 		.irq = info->board->irq,
 		.flags = info->port.flags,
 		.baud_base = info->baud_base,
-		.close_delay = info->close_delay,
-		.closing_wait = info->closing_wait,
+		.close_delay = info->port.close_delay,
+		.closing_wait = info->port.closing_wait,
 		.custom_divisor = info->custom_divisor,
 		.hub6 = 0
 	};
@@ -1402,7 +1398,7 @@ static int mxser_set_serial_info(struct mxser_port *info,
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		if ((new_serial.baud_base != info->baud_base) ||
-				(new_serial.close_delay != info->close_delay) ||
+				(new_serial.close_delay != info->port.close_delay) ||
 				((new_serial.flags & ~ASYNC_USR_MASK) != (info->port.flags & ~ASYNC_USR_MASK)))
 			return -EPERM;
 		info->port.flags = ((info->port.flags & ~ASYNC_USR_MASK) |
@@ -1414,8 +1410,8 @@ static int mxser_set_serial_info(struct mxser_port *info,
 		 */
 		info->port.flags = ((info->port.flags & ~ASYNC_FLAGS) |
 				(new_serial.flags & ASYNC_FLAGS));
-		info->close_delay = new_serial.close_delay * HZ / 100;
-		info->closing_wait = new_serial.closing_wait * HZ / 100;
+		info->port.close_delay = new_serial.close_delay * HZ / 100;
+		info->port.closing_wait = new_serial.closing_wait * HZ / 100;
 		info->port.tty->low_latency =
 				(info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 		info->port.tty->low_latency = 0;
@@ -2214,7 +2210,6 @@ static void mxser_hangup(struct tty_struct *tty)
 
 	mxser_flush_buffer(tty);
 	mxser_shutdown(info);
-	info->event = 0;
 	info->port.count = 0;
 	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->port.tty = NULL;
@@ -2545,6 +2540,7 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 
 	for (i = 0; i < brd->info->nports; i++) {
 		info = &brd->ports[i];
+		tty_port_init(&info->port);
 		info->board = brd;
 		info->stop_rx = 0;
 		info->ldisc_stop_rx = 0;
@@ -2559,10 +2555,9 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 		process_txrx_fifo(info);
 
 		info->custom_divisor = info->baud_base * 16;
-		info->close_delay = 5 * HZ / 10;
-		info->closing_wait = 30 * HZ;
+		info->port.close_delay = 5 * HZ / 10;
+		info->port.closing_wait = 30 * HZ;
 		info->normal_termios = mxvar_sdriver->init_termios;
-		tty_port_init(&info->port);
 		init_waitqueue_head(&info->delta_msr_wait);
 		memset(&info->mon_data, 0, sizeof(struct mxser_mon));
 		info->err_shadow = 0;

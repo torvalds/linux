@@ -69,14 +69,12 @@ struct riscom_port {
 	struct			tty_port port;
 	int			baud_base;
 	int			timeout;
-	int			close_delay;
 	int			custom_divisor;
 	int			xmit_head;
 	int			xmit_tail;
 	int			xmit_cnt;
 	short			wakeup_chars;
 	short			break_length;
-	unsigned short		closing_wait;
 	unsigned char		mark_mask;
 	unsigned char		IER;
 	unsigned char		MSVR;

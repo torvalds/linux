@@ -2677,8 +2677,8 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 	 */
 	tty->closing = 1;
 	spin_unlock_irqrestore(&card->card_lock, flags);
-	if (info->closing_wait != CY_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, info->closing_wait);
+	if (info->port.closing_wait != CY_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, info->port.closing_wait);
 
 	spin_lock_irqsave(&card->card_lock, flags);
 
@@ -2734,9 +2734,9 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 	info->port.tty = NULL;
 	if (info->port.blocked_open) {
 		spin_unlock_irqrestore(&card->card_lock, flags);
-		if (info->close_delay) {
+		if (info->port.close_delay) {
 			msleep_interruptible(jiffies_to_msecs
-						(info->close_delay));
+						(info->port.close_delay));
 		}
 		wake_up_interruptible(&info->port.open_wait);
 		spin_lock_irqsave(&card->card_lock, flags);
@@ -3382,8 +3382,8 @@ get_serial_info(struct cyclades_port *info,
 		cinfo->first_line;
 	tmp.irq = cinfo->irq;
 	tmp.flags = info->port.flags;
-	tmp.close_delay = info->close_delay;
-	tmp.closing_wait = info->closing_wait;
+	tmp.close_delay = info->port.close_delay;
+	tmp.closing_wait = info->port.closing_wait;
 	tmp.baud_base = info->baud;
 	tmp.custom_divisor = info->custom_divisor;
 	tmp.hub6 = 0;		/*!!! */
@@ -3402,7 +3402,7 @@ set_serial_info(struct cyclades_port *info,
 	old_info = *info;
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		if (new_serial.close_delay != info->close_delay ||
+		if (new_serial.close_delay != info->port.close_delay ||
 				new_serial.baud_base != info->baud ||
 				(new_serial.flags & ASYNC_FLAGS &
 					~ASYNC_USR_MASK) !=
@@ -3424,8 +3424,8 @@ set_serial_info(struct cyclades_port *info,
 	info->custom_divisor = new_serial.custom_divisor;
 	info->port.flags = (info->port.flags & ~ASYNC_FLAGS) |
 			(new_serial.flags & ASYNC_FLAGS);
-	info->close_delay = new_serial.close_delay * HZ / 100;
-	info->closing_wait = new_serial.closing_wait * HZ / 100;
+	info->port.close_delay = new_serial.close_delay * HZ / 100;
+	info->port.closing_wait = new_serial.closing_wait * HZ / 100;
 
 check_and_exit:
 	if (info->port.flags & ASYNC_INITIALIZED) {
@@ -3971,11 +3971,11 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 		break;
 #endif				/* CONFIG_CYZ_INTR */
 	case CYSETWAIT:
-		info->closing_wait = (unsigned short)arg * HZ / 100;
+		info->port.closing_wait = (unsigned short)arg * HZ / 100;
 		ret_val = 0;
 		break;
 	case CYGETWAIT:
-		ret_val = info->closing_wait / (HZ / 100);
+		ret_val = info->port.closing_wait / (HZ / 100);
 		break;
 	case TIOCGSERIAL:
 		ret_val = get_serial_info(info, argp);
@@ -4376,13 +4376,13 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 	for (port = cinfo->first_line; port < cinfo->first_line + nports;
 			port++) {
 		info = &cinfo->ports[port - cinfo->first_line];
+		tty_port_init(&info->port);
 		info->magic = CYCLADES_MAGIC;
 		info->card = cinfo;
 		info->line = port;
-		info->closing_wait = CLOSING_WAIT_DELAY;
-		info->close_delay = 5 * HZ / 10;
 
-		tty_port_init(&info->port);
+		info->port.closing_wait = CLOSING_WAIT_DELAY;
+		info->port.close_delay = 5 * HZ / 10;
 		info->port.flags = STD_COM_FLAGS;
 		init_completion(&info->shutdown_wait);
 		init_waitqueue_head(&info->delta_msr_wait);

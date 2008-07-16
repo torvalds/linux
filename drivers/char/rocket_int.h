@@ -1133,8 +1133,6 @@ struct r_port {
 	unsigned int chan:3;
 	CONTROLLER_t *ctlp;
 	CHANNEL_t channel;
-	int closing_wait;
-	int close_delay;
 	int intmask;
 	int xmit_fifo_room;	/* room in xmit fifo */
 	unsigned char *xmit_buf;
