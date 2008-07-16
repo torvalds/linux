@@ -456,8 +456,11 @@ static int i2c_w(struct gspca_dev *gspca_dev, const __u8 *buffer)
 	while (retry--) {
 		msleep(10);
 		reg_r(gspca_dev, 0x08);
-		if (gspca_dev->usb_buf[0] == 4)
+		if (gspca_dev->usb_buf[0] & 0x04) {
+			if (gspca_dev->usb_buf[0] & 0x08)
+				return -1;
 			return 0;
+		}
 	}
 	return -1;
 }
