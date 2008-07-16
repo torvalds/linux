@@ -29,43 +29,13 @@
 /* Main transmission queue. */
 
 /* Modifications to data participating in scheduling must be protected with
- * queue->lock spinlock.
+ * qdisc_root_lock(qdisc) spinlock.
  *
  * The idea is the following:
- * - enqueue, dequeue are serialized via top level device
- *   spinlock queue->lock.
- * - ingress filtering is serialized via top level device
- *   spinlock dev->rx_queue.lock.
+ * - enqueue, dequeue are serialized via qdisc root lock
+ * - ingress filtering is also serialized via qdisc root lock
  * - updates to tree and tree walking are only done under the rtnl mutex.
  */
-
-void qdisc_lock_tree(struct net_device *dev)
-	__acquires(dev->rx_queue.lock)
-{
-	unsigned int i;
-
-	local_bh_disable();
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		spin_lock(&txq->lock);
-	}
-	spin_lock(&dev->rx_queue.lock);
-}
-EXPORT_SYMBOL(qdisc_lock_tree);
-
-void qdisc_unlock_tree(struct net_device *dev)
-	__releases(dev->rx_queue.lock)
-{
-	unsigned int i;
-
-	spin_unlock(&dev->rx_queue.lock);
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		spin_unlock(&txq->lock);
-	}
-	local_bh_enable();
-}
-EXPORT_SYMBOL(qdisc_unlock_tree);
 
 static inline int qdisc_qlen(struct Qdisc *q)
 {

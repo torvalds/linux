@@ -180,9 +180,6 @@ static inline struct net_device *qdisc_dev(struct Qdisc *qdisc)
 	return qdisc->dev_queue->dev;
 }
 
-extern void qdisc_lock_tree(struct net_device *dev);
-extern void qdisc_unlock_tree(struct net_device *dev);
-
 static inline void sch_tree_lock(struct Qdisc *q)
 {
 	spin_lock_bh(qdisc_root_lock(q));
