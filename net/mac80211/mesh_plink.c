@@ -163,8 +163,8 @@ static int mesh_plink_frame_tx(struct net_device *dev,
 	mgmt = (struct ieee80211_mgmt *)
 		skb_put(skb, 25 + sizeof(mgmt->u.action.u.plink_action));
 	memset(mgmt, 0, 25 + sizeof(mgmt->u.action.u.plink_action));
-	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					   IEEE80211_STYPE_ACTION);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
 	/* BSSID is left zeroed, wildcard value */

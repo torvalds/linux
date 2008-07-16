@@ -99,8 +99,8 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 	mgmt = (struct ieee80211_mgmt *)
 		skb_put(skb, 25 + sizeof(mgmt->u.action.u.mesh_action));
 	memset(mgmt, 0, 25 + sizeof(mgmt->u.action.u.mesh_action));
-	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					   IEEE80211_STYPE_ACTION);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
 
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
@@ -178,8 +178,8 @@ int mesh_path_error_tx(u8 *dst, __le32 dst_dsn, u8 *ra,
 	mgmt = (struct ieee80211_mgmt *)
 		skb_put(skb, 25 + sizeof(mgmt->u.action.u.mesh_action));
 	memset(mgmt, 0, 25 + sizeof(mgmt->u.action.u.mesh_action));
-	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					   IEEE80211_STYPE_ACTION);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
 
 	memcpy(mgmt->da, ra, ETH_ALEN);
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);

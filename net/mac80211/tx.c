@@ -1889,8 +1889,8 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 			goto out;
 
 		hdr = (struct ieee80211_hdr *) skb->data;
-		hdr->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-						  IEEE80211_STYPE_BEACON);
+		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+						 IEEE80211_STYPE_BEACON);
 
 		num_beacons = &ifsta->num_beacons;
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {

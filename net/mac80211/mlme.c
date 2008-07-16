@@ -641,8 +641,8 @@ static void ieee80211_send_auth(struct net_device *dev,
 
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24 + 6);
 	memset(mgmt, 0, 24 + 6);
-	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					   IEEE80211_STYPE_AUTH);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_AUTH);
 	if (encrypt)
 		mgmt->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 	memcpy(mgmt->da, ifsta->bssid, ETH_ALEN);
@@ -771,8 +771,8 @@ static void ieee80211_send_assoc(struct net_device *dev,
 
 	if (ifsta->flags & IEEE80211_STA_PREV_BSSID_SET) {
 		skb_put(skb, 10);
-		mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-						   IEEE80211_STYPE_REASSOC_REQ);
+		mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+						  IEEE80211_STYPE_REASSOC_REQ);
 		mgmt->u.reassoc_req.capab_info = cpu_to_le16(capab);
 		mgmt->u.reassoc_req.listen_interval =
 				cpu_to_le16(local->hw.conf.listen_interval);
@@ -780,8 +780,8 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		       ETH_ALEN);
 	} else {
 		skb_put(skb, 4);
-		mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-						   IEEE80211_STYPE_ASSOC_REQ);
+		mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+						  IEEE80211_STYPE_ASSOC_REQ);
 		mgmt->u.assoc_req.capab_info = cpu_to_le16(capab);
 		mgmt->u.reassoc_req.listen_interval =
 				cpu_to_le16(local->hw.conf.listen_interval);
@@ -931,8 +931,8 @@ static void ieee80211_send_deauth(struct net_device *dev,
 	memcpy(mgmt->da, ifsta->bssid, ETH_ALEN);
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
 	memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
-	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					   IEEE80211_STYPE_DEAUTH);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_DEAUTH);
 	skb_put(skb, 2);
 	mgmt->u.deauth.reason_code = cpu_to_le16(reason);
 
@@ -960,8 +960,8 @@ static void ieee80211_send_disassoc(struct net_device *dev,
 	memcpy(mgmt->da, ifsta->bssid, ETH_ALEN);
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
 	memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
-	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					   IEEE80211_STYPE_DISASSOC);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_DISASSOC);
 	skb_put(skb, 2);
 	mgmt->u.disassoc.reason_code = cpu_to_le16(reason);
 
@@ -1115,8 +1115,8 @@ static void ieee80211_send_probe_req(struct net_device *dev, u8 *dst,
 
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
 	memset(mgmt, 0, 24);
-	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					   IEEE80211_STYPE_PROBE_REQ);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_PROBE_REQ);
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
 	if (dst) {
 		memcpy(mgmt->da, dst, ETH_ALEN);
@@ -1219,8 +1219,8 @@ static void ieee80211_send_addba_resp(struct net_device *dev, u8 *da, u16 tid,
 		memcpy(mgmt->bssid, dev->dev_addr, ETH_ALEN);
 	else
 		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
-	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					   IEEE80211_STYPE_ACTION);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
 
 	skb_put(skb, 1 + sizeof(mgmt->u.action.u.addba_resp));
 	mgmt->u.action.category = WLAN_CATEGORY_BACK;
@@ -1268,8 +1268,8 @@ void ieee80211_send_addba_request(struct net_device *dev, const u8 *da,
 	else
 		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
 
-	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					IEEE80211_STYPE_ACTION);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
 
 	skb_put(skb, 1 + sizeof(mgmt->u.action.u.addba_req));
 
@@ -1524,8 +1524,8 @@ void ieee80211_send_delba(struct net_device *dev, const u8 *da, u16 tid,
 		memcpy(mgmt->bssid, dev->dev_addr, ETH_ALEN);
 	else
 		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
-	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					IEEE80211_STYPE_ACTION);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
 
 	skb_put(skb, 1 + sizeof(mgmt->u.action.u.delba));
 
@@ -1556,8 +1556,8 @@ void ieee80211_send_bar(struct net_device *dev, u8 *ra, u16 tid, u16 ssn)
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 	bar = (struct ieee80211_bar *)skb_put(skb, sizeof(*bar));
 	memset(bar, 0, sizeof(*bar));
-	bar->frame_control = IEEE80211_FC(IEEE80211_FTYPE_CTL,
-					IEEE80211_STYPE_BACK_REQ);
+	bar->frame_control = cpu_to_le16(IEEE80211_FTYPE_CTL |
+					 IEEE80211_STYPE_BACK_REQ);
 	memcpy(bar->ra, ra, ETH_ALEN);
 	memcpy(bar->ta, dev->dev_addr, ETH_ALEN);
 	bar_control |= (u16)IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL;
@@ -1801,7 +1801,7 @@ static void ieee80211_send_refuse_measurement_request(struct net_device *dev,
 	memcpy(msr_report->da, da, ETH_ALEN);
 	memcpy(msr_report->sa, dev->dev_addr, ETH_ALEN);
 	memcpy(msr_report->bssid, bssid, ETH_ALEN);
-	msr_report->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
+	msr_report->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						IEEE80211_STYPE_ACTION);
 
 	skb_put(skb, 1 + sizeof(msr_report->u.action.u.measurement));
@@ -2446,8 +2446,8 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 		mgmt = (struct ieee80211_mgmt *)
 			skb_put(skb, 24 + sizeof(mgmt->u.beacon));
 		memset(mgmt, 0, 24 + sizeof(mgmt->u.beacon));
-		mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-						   IEEE80211_STYPE_PROBE_RESP);
+		mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+						  IEEE80211_STYPE_PROBE_RESP);
 		memset(mgmt->da, 0xff, ETH_ALEN);
 		memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
 		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);

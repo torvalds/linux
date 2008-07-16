@@ -38,8 +38,6 @@
 
 #define WLAN_FC_DATA_PRESENT(fc) (((fc) & 0x4c) == 0x08)
 
-#define IEEE80211_FC(type, subtype) cpu_to_le16(type | subtype)
-
 struct ieee80211_local;
 
 /* Maximum number of broadcast/multicast frames to buffer when some of the
