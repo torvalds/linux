@@ -297,7 +297,8 @@ void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 	memcpy(&hwif->io_ports, &hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
 	hwif->chipset = hw->chipset;
-	hwif->gendev.parent = hw->dev;
+	hwif->dev = hw->dev;
+	hwif->gendev.parent = hw->parent ? hw->parent : hw->dev;
 	hwif->ack_intr = hw->ack_intr;
 }
 EXPORT_SYMBOL_GPL(ide_init_port_hw);

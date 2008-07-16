@@ -625,8 +625,6 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	hw.dev = &dev->dev;
 	ide_init_port_hw(hwif, &hw);
 
-	hwif->dev = &dev->dev;
-
 	/* The IOC4 uses MMIO rather than Port IO. */
 	default_hwif_mmiops(hwif);
 

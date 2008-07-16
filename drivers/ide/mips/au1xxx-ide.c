@@ -600,8 +600,6 @@ static int au_ide_probe(struct device *dev)
 
 	ide_init_port_hw(hwif, &hw);
 
-	hwif->dev = dev;
-
 	/* If the user has selected DDMA assisted copies,
 	   then set up a few local I/O function entry points 
 	*/
