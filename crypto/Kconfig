@@ -219,7 +219,7 @@ config CRYPTO_CRC32C
 	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
 	  by iSCSI for header and data digests and by others.
 	  See Castagnoli93.  This implementation uses lib/libcrc32c.
-          Module will be crc32c.
+	  Module will be crc32c.
 
 config CRYPTO_MD4
 	tristate "MD4 digest algorithm"
@@ -243,55 +243,58 @@ config CRYPTO_MICHAEL_MIC
 	  of the algorithm.
 
 config CRYPTO_RMD128
-  tristate "RIPEMD-128 digest algorithm"
-  select CRYPTO_ALGAPI
-  help
-    RIPEMD-128 (ISO/IEC 10118-3:2004).
+	tristate "RIPEMD-128 digest algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  RIPEMD-128 (ISO/IEC 10118-3:2004).
 
-    RIPEMD-128 is a 128-bit cryptographic hash function. It should only
-    to be used as a secure replacement for RIPEMD. For other use cases
-    RIPEMD-160 should be used.
+	  RIPEMD-128 is a 128-bit cryptographic hash function. It should only
+	  to be used as a secure replacement for RIPEMD. For other use cases
+	  RIPEMD-160 should be used.
 
-    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD160
-  tristate "RIPEMD-160 digest algorithm"
-  select CRYPTO_ALGAPI
-  help
-    RIPEMD-160 (ISO/IEC 10118-3:2004).
+	tristate "RIPEMD-160 digest algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  RIPEMD-160 (ISO/IEC 10118-3:2004).
 
-    RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
-    to be used as a secure replacement for the 128-bit hash functions
-    MD4, MD5 and it's predecessor RIPEMD (not to be confused with RIPEMD-128).
+	  RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
+	  to be used as a secure replacement for the 128-bit hash functions
+	  MD4, MD5 and it's predecessor RIPEMD
+	  (not to be confused with RIPEMD-128).
 
-    It's speed is comparable to SHA1 and there are no known attacks against
-    RIPEMD-160.
+	  It's speed is comparable to SHA1 and there are no known attacks
+	  against RIPEMD-160.
 
-    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD256
-  tristate "RIPEMD-256 digest algorithm"
-  select CRYPTO_ALGAPI
-  help
-    RIPEMD-256 is an optional extension of RIPEMD-128 with a 256 bit hash.
-    It is intended for applications that require longer hash-results, without
-    needing a larger security level (than RIPEMD-128).
+	tristate "RIPEMD-256 digest algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  RIPEMD-256 is an optional extension of RIPEMD-128 with a
+	  256 bit hash. It is intended for applications that require
+	  longer hash-results, without needing a larger security level
+	  (than RIPEMD-128).
 
-    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD320
-  tristate "RIPEMD-320 digest algorithm"
-  select CRYPTO_ALGAPI
-  help
-    RIPEMD-320 is an optional extension of RIPEMD-160 with a 320 bit hash.
-    It is intended for applications that require longer hash-results, without
-    needing a larger security level (than RIPEMD-160).
+	tristate "RIPEMD-320 digest algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  RIPEMD-320 is an optional extension of RIPEMD-160 with a
+	  320 bit hash. It is intended for applications that require
+	  longer hash-results, without needing a larger security level
+	  (than RIPEMD-160).
 
-    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_SHA1
 	tristate "SHA1 digest algorithm"
@@ -308,8 +311,8 @@ config CRYPTO_SHA256
 	  This version of SHA implements a 256 bit hash with 128 bits of
 	  security against collision attacks.
 
-          This code also includes SHA-224, a 224 bit hash with 112 bits
-          of security against collision attacks.
+	  This code also includes SHA-224, a 224 bit hash with 112 bits
+	  of security against collision attacks.
 
 config CRYPTO_SHA512
 	tristate "SHA384 and SHA512 digest algorithms"
