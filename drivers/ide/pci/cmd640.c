@@ -611,11 +611,40 @@ static void cmd640_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 	display_clocks(index);
 }
+#endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
+
+static void cmd640_init_dev(ide_drive_t *drive)
+{
+	unsigned int i = drive->hwif->channel * 2 + drive->select.b.unit;
+
+#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
+	/*
+	 * Reset timing to the slowest speed and turn off prefetch.
+	 * This way, the drive identify code has a better chance.
+	 */
+	setup_counts[i]    =  4;	/* max possible */
+	active_counts[i]   = 16;	/* max possible */
+	recovery_counts[i] = 16;	/* max possible */
+	program_drive_counts(drive, i);
+	set_prefetch_mode(drive, i, 0);
+	printk(KERN_INFO DRV_NAME ": drive%d timings/prefetch cleared\n", i);
+#else
+	/*
+	 * Set the drive unmask flags to match the prefetch setting.
+	 */
+	check_prefetch(drive, i);
+	printk(KERN_INFO DRV_NAME ": drive%d timings/prefetch(%s) preserved\n",
+				  i, drive->no_io_32bit ? "off" : "on");
+#endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
+}
+
 
 static const struct ide_port_ops cmd640_port_ops = {
+	.init_dev		= cmd640_init_dev,
+#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	.set_pio_mode		= cmd640_set_pio_mode,
+#endif
 };
-#endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 
 static int pci_conf1(void)
 {
@@ -658,10 +687,8 @@ static const struct ide_port_info cmd640_port_info __initdata = {
 				  IDE_HFLAG_NO_DMA |
 				  IDE_HFLAG_ABUSE_PREFETCH |
 				  IDE_HFLAG_ABUSE_FAST_DEVSEL,
-#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	.port_ops		= &cmd640_port_ops,
 	.pio_mask		= ATA_PIO5,
-#endif
 };
 
 static int cmd640x_init_one(unsigned long base, unsigned long ctl)
@@ -689,7 +716,6 @@ static int __init cmd640x_init(void)
 {
 	int second_port_cmd640 = 0, rc;
 	const char *bus_type, *port2;
-	unsigned int index;
 	u8 b, cfr;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	hw_regs_t hw[2];
@@ -812,44 +838,6 @@ static int __init cmd640x_init(void)
 	}
 	printk(KERN_INFO "cmd640: %sserialized, secondary interface %s\n",
 			 second_port_cmd640 ? "" : "not ", port2);
-
-	/*
-	 * Establish initial timings/prefetch for all drives.
-	 * Do not unnecessarily disturb any prior BIOS setup of these.
-	 */
-	for (index = 0; index < (2 + (second_port_cmd640 << 1)); index++) {
-		ide_drive_t *drive;
-
-		if (index > 1) {
-			if (cmd_hwif1 == NULL)
-				continue;
-			drive = &cmd_hwif1->drives[index & 1];
-		} else  {
-			if (cmd_hwif0 == NULL)
-				continue;
-			drive = &cmd_hwif0->drives[index & 1];
-		}
-
-#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-		/*
-		 * Reset timing to the slowest speed and turn off prefetch.
-		 * This way, the drive identify code has a better chance.
-		 */
-		setup_counts    [index] = 4;	/* max possible */
-		active_counts   [index] = 16;	/* max possible */
-		recovery_counts [index] = 16;	/* max possible */
-		program_drive_counts(drive, index);
-		set_prefetch_mode(drive, index, 0);
-		printk("cmd640: drive%d timings/prefetch cleared\n", index);
-#else
-		/*
-		 * Set the drive unmask flags to match the prefetch setting
-		 */
-		check_prefetch(drive, index);
-		printk("cmd640: drive%d timings/prefetch(%s) preserved\n",
-			index, drive->no_io_32bit ? "off" : "on");
-#endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
-	}
 
 #ifdef CMD640_DUMP_REGS
 	cmd640_dump_regs();
