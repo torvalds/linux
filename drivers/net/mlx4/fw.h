@@ -38,6 +38,11 @@
 #include "mlx4.h"
 #include "icm.h"
 
+struct mlx4_mod_stat_cfg {
+	u8 log_pg_sz;
+	u8 log_pg_sz_m;
+};
+
 struct mlx4_dev_cap {
 	int max_srq_sz;
 	int max_qp_sz;
@@ -162,5 +167,6 @@ int mlx4_SET_ICM_SIZE(struct mlx4_dev *dev, u64 icm_size, u64 *aux_pages);
 int mlx4_MAP_ICM_AUX(struct mlx4_dev *dev, struct mlx4_icm *icm);
 int mlx4_UNMAP_ICM_AUX(struct mlx4_dev *dev);
 int mlx4_NOP(struct mlx4_dev *dev);
+int mlx4_MOD_STAT_CFG(struct mlx4_dev *dev, struct mlx4_mod_stat_cfg *cfg);
 
 #endif /* MLX4_FW_H */

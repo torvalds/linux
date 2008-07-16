@@ -72,7 +72,7 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	int s_time, a_time, c_time;
 	u8 s_clc, a_clc, r_clc;
 	unsigned long flags;
-	int bus_speed = ide_pci_clk ? ide_pci_clk : system_bus_clock();
+	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 	int port = hwif->channel ? 0x5c : 0x58;
 	int portFIFO = hwif->channel ? 0x55 : 0x54;
 	u8 cd_dma_fifo = 0;

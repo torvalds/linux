@@ -115,6 +115,7 @@ config PPC
 	select HAVE_KRETPROBES
 	select HAVE_LMB
 	select HAVE_DMA_ATTRS if PPC64
+	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_OPROFILE
 
 config EARLY_PRINTK

@@ -645,12 +645,12 @@ __init int spawn_ksoftirqd(void)
 /*
  * Call a function on all processors
  */
-int on_each_cpu(void (*func) (void *info), void *info, int retry, int wait)
+int on_each_cpu(void (*func) (void *info), void *info, int wait)
 {
 	int ret = 0;
 
 	preempt_disable();
-	ret = smp_call_function(func, info, retry, wait);
+	ret = smp_call_function(func, info, wait);
 	local_irq_disable();
 	func(info);
 	local_irq_enable();

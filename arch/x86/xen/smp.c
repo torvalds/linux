@@ -36,27 +36,14 @@
 #include "mmu.h"
 
 cpumask_t xen_cpu_initialized_map;
-static DEFINE_PER_CPU(int, resched_irq) = -1;
-static DEFINE_PER_CPU(int, callfunc_irq) = -1;
+
+static DEFINE_PER_CPU(int, resched_irq);
+static DEFINE_PER_CPU(int, callfunc_irq);
+static DEFINE_PER_CPU(int, callfuncsingle_irq);
 static DEFINE_PER_CPU(int, debug_irq) = -1;
 
-/*
- * Structure and data for smp_call_function(). This is designed to minimise
- * static memory requirements. It also looks cleaner.
- */
-static DEFINE_SPINLOCK(call_lock);
-
-struct call_data_struct {
-	void (*func) (void *info);
-	void *info;
-	atomic_t started;
-	atomic_t finished;
-	int wait;
-};
-
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id);
-
-static struct call_data_struct *call_data;
+static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id);
 
 /*
  * Reschedule call back. Nothing to do,
@@ -128,6 +115,17 @@ static int xen_smp_intr_init(unsigned int cpu)
 		goto fail;
 	per_cpu(debug_irq, cpu) = rc;
 
+	callfunc_name = kasprintf(GFP_KERNEL, "callfuncsingle%d", cpu);
+	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_SINGLE_VECTOR,
+				    cpu,
+				    xen_call_function_single_interrupt,
+				    IRQF_DISABLED|IRQF_PERCPU|IRQF_NOBALANCING,
+				    callfunc_name,
+				    NULL);
+	if (rc < 0)
+		goto fail;
+	per_cpu(callfuncsingle_irq, cpu) = rc;
+
 	return 0;
 
  fail:
@@ -137,6 +135,9 @@ static int xen_smp_intr_init(unsigned int cpu)
 		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
 	if (per_cpu(debug_irq, cpu) >= 0)
 		unbind_from_irqhandler(per_cpu(debug_irq, cpu), NULL);
+	if (per_cpu(callfuncsingle_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(callfuncsingle_irq, cpu), NULL);
+
 	return rc;
 }
 
@@ -336,14 +337,13 @@ static void stop_self(void *v)
 
 void xen_smp_send_stop(void)
 {
-	smp_call_function(stop_self, NULL, 0, 0);
+	smp_call_function(stop_self, NULL, 0);
 }
 
 void xen_smp_send_reschedule(int cpu)
 {
 	xen_send_IPI_one(cpu, XEN_RESCHEDULE_VECTOR);
 }
-
 
 static void xen_send_IPI_mask(cpumask_t mask, enum ipi_vector vector)
 {
@@ -355,83 +355,42 @@ static void xen_send_IPI_mask(cpumask_t mask, enum ipi_vector vector)
 		xen_send_IPI_one(cpu, vector);
 }
 
+void xen_smp_send_call_function_ipi(cpumask_t mask)
+{
+	int cpu;
+
+	xen_send_IPI_mask(mask, XEN_CALL_FUNCTION_VECTOR);
+
+	/* Make sure other vcpus get a chance to run if they need to. */
+	for_each_cpu_mask(cpu, mask) {
+		if (xen_vcpu_stolen(cpu)) {
+			HYPERVISOR_sched_op(SCHEDOP_yield, 0);
+			break;
+		}
+	}
+}
+
+void xen_smp_send_call_function_single_ipi(int cpu)
+{
+	xen_send_IPI_mask(cpumask_of_cpu(cpu), XEN_CALL_FUNCTION_SINGLE_VECTOR);
+}
+
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
 {
-	void (*func) (void *info) = call_data->func;
-	void *info = call_data->info;
-	int wait = call_data->wait;
-
-	/*
-	 * Notify initiating CPU that I've grabbed the data and am
-	 * about to execute the function
-	 */
-	mb();
-	atomic_inc(&call_data->started);
-	/*
-	 * At this point the info structure may be out of scope unless wait==1
-	 */
 	irq_enter();
-	(*func)(info);
+	generic_smp_call_function_interrupt();
 	__get_cpu_var(irq_stat).irq_call_count++;
 	irq_exit();
-
-	if (wait) {
-		mb();		/* commit everything before setting finished */
-		atomic_inc(&call_data->finished);
-	}
 
 	return IRQ_HANDLED;
 }
 
-int xen_smp_call_function_mask(cpumask_t mask, void (*func)(void *),
-			       void *info, int wait)
+static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id)
 {
-	struct call_data_struct data;
-	int cpus, cpu;
-	bool yield;
+	irq_enter();
+	generic_smp_call_function_single_interrupt();
+	__get_cpu_var(irq_stat).irq_call_count++;
+	irq_exit();
 
-	/* Holding any lock stops cpus from going down. */
-	spin_lock(&call_lock);
-
-	cpu_clear(smp_processor_id(), mask);
-
-	cpus = cpus_weight(mask);
-	if (!cpus) {
-		spin_unlock(&call_lock);
-		return 0;
-	}
-
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
-
-	data.func = func;
-	data.info = info;
-	atomic_set(&data.started, 0);
-	data.wait = wait;
-	if (wait)
-		atomic_set(&data.finished, 0);
-
-	call_data = &data;
-	mb();			/* write everything before IPI */
-
-	/* Send a message to other CPUs and wait for them to respond */
-	xen_send_IPI_mask(mask, XEN_CALL_FUNCTION_VECTOR);
-
-	/* Make sure other vcpus get a chance to run if they need to. */
-	yield = false;
-	for_each_cpu_mask(cpu, mask)
-		if (xen_vcpu_stolen(cpu))
-			yield = true;
-
-	if (yield)
-		HYPERVISOR_sched_op(SCHEDOP_yield, 0);
-
-	/* Wait for response */
-	while (atomic_read(&data.started) != cpus ||
-	       (wait && atomic_read(&data.finished) != cpus))
-		cpu_relax();
-
-	spin_unlock(&call_lock);
-
-	return 0;
+	return IRQ_HANDLED;
 }

@@ -322,7 +322,7 @@ void snapshot_timebases(void)
 {
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
-	on_each_cpu(snapshot_tb_and_purr, NULL, 0, 1);
+	on_each_cpu(snapshot_tb_and_purr, NULL, 1);
 }
 
 /*

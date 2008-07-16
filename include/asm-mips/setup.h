@@ -3,4 +3,6 @@
 
 #define COMMAND_LINE_SIZE	256
 
+extern void setup_early_printk(void);
+
 #endif /* __SETUP_H */

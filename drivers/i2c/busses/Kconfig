@@ -4,6 +4,9 @@
 
 menu "I2C Hardware Bus support"
 
+comment "PC SMBus host controller drivers"
+	depends on PCI
+
 config I2C_ALI1535
 	tristate "ALI 1535"
 	depends on PCI
@@ -73,6 +76,186 @@ config I2C_AMD8111
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-amd8111.
 
+config I2C_I801
+	tristate "Intel 82801 (ICH)"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the Intel
+	  801 family of mainboard I2C interfaces.  Specifically, the following
+	  versions of the chipset are supported:
+	    82801AA
+	    82801AB
+	    82801BA
+	    82801CA/CAM
+	    82801DB
+	    82801EB/ER (ICH5/ICH5R)
+	    6300ESB
+	    ICH6
+	    ICH7
+	    ESB2
+	    ICH8
+	    ICH9
+	    Tolapai
+	    ICH10
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-i801.
+
+config I2C_ISCH
+	tristate "Intel SCH SMBus 1.0"
+	depends on PCI
+	help
+	  Say Y here if you want to use SMBus controller on the Intel SCH
+	  based systems.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-isch.
+
+config I2C_PIIX4
+	tristate "Intel PIIX4 and compatible (ATI/Serverworks/Broadcom/SMSC)"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the Intel
+	  PIIX4 family of mainboard I2C interfaces.  Specifically, the following
+	  versions of the chipset are supported (note that Serverworks is part
+	  of Broadcom):
+	    Intel PIIX4
+	    Intel 440MX
+	    ATI IXP200
+	    ATI IXP300
+	    ATI IXP400
+	    ATI SB600
+	    ATI SB700
+	    ATI SB800
+	    Serverworks OSB4
+	    Serverworks CSB5
+	    Serverworks CSB6
+	    Serverworks HT-1000
+	    SMSC Victory66
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-piix4.
+
+config I2C_NFORCE2
+	tristate "Nvidia nForce2, nForce3 and nForce4"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the Nvidia
+	  nForce2, nForce3 and nForce4 families of mainboard I2C interfaces.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-nforce2.
+
+config I2C_NFORCE2_S4985
+	tristate "SMBus multiplexing on the Tyan S4985"
+	depends on I2C_NFORCE2 && EXPERIMENTAL
+	help
+	  Enabling this option will add specific SMBus support for the Tyan
+	  S4985 motherboard.  On this 4-CPU board, the SMBus is multiplexed
+	  over 4 different channels, where the various memory module EEPROMs
+	  live.  Saying yes here will give you access to these in addition
+	  to the trunk.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-nforce2-s4985.
+
+config I2C_SIS5595
+	tristate "SiS 5595"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the
+	  SiS5595 SMBus (a subset of I2C) interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-sis5595.
+
+config I2C_SIS630
+	tristate "SiS 630/730"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the
+	  SiS630 and SiS730 SMBus (a subset of I2C) interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-sis630.
+
+config I2C_SIS96X
+	tristate "SiS 96x"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the SiS
+	  96x SMBus (a subset of I2C) interfaces.  Specifically, the following
+	  chipsets are supported:
+	    645/961
+	    645DX/961
+	    645DX/962
+	    648/961
+	    650/961
+	    735
+	    745
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-sis96x.
+
+config I2C_VIA
+	tristate "VIA VT82C586B"
+	depends on PCI && EXPERIMENTAL
+	select I2C_ALGOBIT
+	help
+	  If you say yes to this option, support will be included for the VIA
+          82C586B I2C interface
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-via.
+
+config I2C_VIAPRO
+	tristate "VIA VT82C596/82C686/82xx and CX700"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the VIA
+	  VT82C596 and later SMBus interface.  Specifically, the following
+	  chipsets are supported:
+	    VT82C596A/B
+	    VT82C686A/B
+	    VT8231
+	    VT8233/A
+	    VT8235
+	    VT8237R/A/S
+	    VT8251
+	    CX700
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-viapro.
+
+comment "Mac SMBus host controller drivers"
+	depends on PPC_CHRP || PPC_PMAC
+
+config I2C_HYDRA
+	tristate "CHRP Apple Hydra Mac I/O I2C interface"
+	depends on PCI && PPC_CHRP && EXPERIMENTAL
+	select I2C_ALGOBIT
+	help
+	  This supports the use of the I2C interface in the Apple Hydra Mac
+	  I/O chip on some CHRP machines (e.g. the LongTrail).  Say Y if you
+	  have such a machine.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-hydra.
+
+config I2C_POWERMAC
+	tristate "Powermac I2C interface"
+	depends on PPC_PMAC
+	default y
+	help
+	  This exposes the various PowerMac i2c interfaces to the linux i2c
+	  layer and to userland. It is used by various drivers on the PowerMac
+	  platform, and should generally be enabled.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-powermac.
+
+comment "I2C system bus drivers (mostly embedded / system-on-chip)"
+
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
 	depends on ARCH_AT91 && EXPERIMENTAL && BROKEN
@@ -101,10 +284,9 @@ config I2C_AU1550
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
 	depends on BLACKFIN
+	depends on !BF561 && !BF531 && !BF532 && !BF533
 	help
-	  This is the TWI I2C device driver for Blackfin BF522, BF525,
-	  BF527, BF534, BF536, BF537 and BF54x. For other Blackfin processors,
-	  please don't use this driver.
+	  This is the I2C bus driver for Blackfin on-chip TWI interface.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-bfin-twi.
@@ -116,6 +298,16 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 	default 50
 	help
 	  The unit of the TWI clock is kHz.
+
+config I2C_CPM
+	tristate "Freescale CPM1 or CPM2 (MPC8xx/826x)"
+	depends on (CPM1 || CPM2) && OF_I2C
+	help
+	  This supports the use of the I2C interface on Freescale
+	  processors with CPM1 or CPM2.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-cpm.
 
 config I2C_DAVINCI
 	tristate "DaVinci I2C driver"
@@ -130,17 +322,6 @@ config I2C_DAVINCI
 	  devices such as DaVinci NIC.
 	  For details please see http://www.ti.com/davinci
 
-config I2C_ELEKTOR
-	tristate "Elektor ISA card"
-	depends on ISA && BROKEN_ON_SMP
-	select I2C_ALGOPCF
-	help
-	  This supports the PCF8584 ISA bus I2C adapter.  Say Y if you own
-	  such an adapter.
-
-	  This support is also available as a module.  If so, the module
-	  will be called i2c-elektor.
-
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
 	depends on GENERIC_GPIO
@@ -148,104 +329,6 @@ config I2C_GPIO
 	help
 	  This is a very simple bitbanging I2C driver utilizing the
 	  arch-neutral GPIO API to control the SCL and SDA lines.
-
-config I2C_HYDRA
-	tristate "CHRP Apple Hydra Mac I/O I2C interface"
-	depends on PCI && PPC_CHRP && EXPERIMENTAL
-	select I2C_ALGOBIT
-	help
-	  This supports the use of the I2C interface in the Apple Hydra Mac
-	  I/O chip on some CHRP machines (e.g. the LongTrail).  Say Y if you
-	  have such a machine.
-
-	  This support is also available as a module.  If so, the module
-	  will be called i2c-hydra.
-
-config I2C_I801
-	tristate "Intel 82801 (ICH)"
-	depends on PCI
-	help
-	  If you say yes to this option, support will be included for the Intel
-	  801 family of mainboard I2C interfaces.  Specifically, the following
-	  versions of the chipset are supported:
-	    82801AA
-	    82801AB
-	    82801BA
-	    82801CA/CAM
-	    82801DB
-	    82801EB/ER (ICH5/ICH5R)
-	    6300ESB
-	    ICH6
-	    ICH7
-	    ESB2
-	    ICH8
-	    ICH9
-	    Tolapai
-	    ICH10
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-i801.
-
-config I2C_I810
-	tristate "Intel 810/815 (DEPRECATED)"
-	default n
-	depends on PCI
-	select I2C_ALGOBIT
-	help
-	  If you say yes to this option, support will be included for the Intel
-	  810/815 family of mainboard I2C interfaces.  Specifically, the
-	  following versions of the chipset are supported:
-	    i810AA
-	    i810AB
-	    i810E
-	    i815
-	    i845G
-
-	  This driver is deprecated in favor of the i810fb and intelfb drivers.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-i810.
-
-config I2C_PXA
-	tristate "Intel PXA2XX I2C adapter (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && ARCH_PXA
-	help
-	  If you have devices in the PXA I2C bus, say yes to this option.
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-pxa.
-
-config I2C_PXA_SLAVE
-	bool "Intel PXA2XX I2C Slave comms support"
-	depends on I2C_PXA
-	help
-	  Support I2C slave mode communications on the PXA I2C bus.  This
-	  is necessary for systems where the PXA may be a target on the
-	  I2C bus.
-
-config I2C_PIIX4
-	tristate "Intel PIIX4 and compatible (ATI/Serverworks/Broadcom/SMSC)"
-	depends on PCI
-	help
-	  If you say yes to this option, support will be included for the Intel
-	  PIIX4 family of mainboard I2C interfaces.  Specifically, the following
-	  versions of the chipset are supported (note that Serverworks is part
-	  of Broadcom):
-	    Intel PIIX4
-	    Intel 440MX
-	    ATI IXP200
-	    ATI IXP300
-	    ATI IXP400
-	    ATI SB600
-	    ATI SB700
-	    ATI SB800
-	    Serverworks OSB4
-	    Serverworks CSB5
-	    Serverworks CSB6
-	    Serverworks HT-1000
-	    SMSC Victory66
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-piix4.
 
 config I2C_IBM_IIC
 	tristate "IBM PPC 4xx on-chip I2C interface"
@@ -281,18 +364,6 @@ config I2C_IXP2000
 	  This driver is deprecated and will be dropped soon. Use i2c-gpio
 	  instead.
 
-config I2C_POWERMAC
-	tristate "Powermac I2C interface"
-	depends on PPC_PMAC
-	default y
-	help
-	  This exposes the various PowerMac i2c interfaces to the linux i2c
-	  layer and to userland. It is used by various drivers on the PowerMac
-	  platform, and should generally be enabled.
-
-	  This support is also available as a module.  If so, the module
-	  will be called i2c-powermac.
-
 config I2C_MPC
 	tristate "MPC107/824x/85xx/52xx/86xx"
 	depends on PPC32
@@ -305,15 +376,15 @@ config I2C_MPC
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mpc.
 
-config I2C_NFORCE2
-	tristate "Nvidia nForce2, nForce3 and nForce4"
-	depends on PCI
+config I2C_MV64XXX
+	tristate "Marvell mv64xxx I2C Controller"
+	depends on (MV64X60 || PLAT_ORION) && EXPERIMENTAL
 	help
-	  If you say yes to this option, support will be included for the Nvidia
-	  nForce2, nForce3 and nForce4 families of mainboard I2C interfaces.
+	  If you say yes to this option, support will be included for the
+	  built-in I2C interface on the Marvell 64xxx line of host bridges.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-nforce2.
+	  will be called i2c-mv64xxx.
 
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
@@ -335,6 +406,89 @@ config I2C_OMAP
 	  I2C interface on the Texas Instruments OMAP1/2 family of processors.
 	  Like OMAP1510/1610/1710/5912 and OMAP242x.
 	  For details see http://www.ti.com/omap.
+
+config I2C_PASEMI
+	tristate "PA Semi SMBus interface"
+	depends on PPC_PASEMI && PCI
+	help
+	  Supports the PA Semi PWRficient on-chip SMBus interfaces.
+
+config I2C_PNX
+	tristate "I2C bus support for Philips PNX targets"
+	depends on ARCH_PNX4008
+	help
+	  This driver supports the Philips IP3204 I2C IP block master and/or
+	  slave controller
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-pnx.
+
+config I2C_PXA
+	tristate "Intel PXA2XX I2C adapter (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && ARCH_PXA
+	help
+	  If you have devices in the PXA I2C bus, say yes to this option.
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-pxa.
+
+config I2C_PXA_SLAVE
+	bool "Intel PXA2XX I2C Slave comms support"
+	depends on I2C_PXA
+	help
+	  Support I2C slave mode communications on the PXA I2C bus.  This
+	  is necessary for systems where the PXA may be a target on the
+	  I2C bus.
+
+config I2C_S3C2410
+	tristate "S3C2410 I2C Driver"
+	depends on ARCH_S3C2410
+	help
+	  Say Y here to include support for I2C controller in the
+	  Samsung S3C2410 based System-on-Chip devices.
+
+config I2C_SH7760
+	tristate "Renesas SH7760 I2C Controller"
+	depends on CPU_SUBTYPE_SH7760
+	help
+	  This driver supports the 2 I2C interfaces on the Renesas SH7760.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-sh7760.
+
+config I2C_SH_MOBILE
+	tristate "SuperH Mobile I2C Controller"
+	depends on SUPERH
+	help
+	  If you say yes to this option, support will be included for the
+	  built-in I2C interface on the Renesas SH-Mobile processor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-sh_mobile.
+
+config I2C_SIMTEC
+	tristate "Simtec Generic I2C interface"
+	select I2C_ALGOBIT
+	help
+	  If you say yes to this option, support will be included for
+	  the Simtec Generic I2C interface. This driver is for the
+	  simple I2C bus used on newer Simtec products for general
+	  I2C, such as DDC on the Simtec BBD2016A.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-simtec.
+
+config I2C_VERSATILE
+	tristate "ARM Versatile/Realview I2C bus support"
+	depends on ARCH_VERSATILE || ARCH_REALVIEW
+	select I2C_ALGOBIT
+	help
+	  Say yes if you want to support the I2C serial bus on ARMs Versatile
+	  range of platforms.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-versatile.
+
+comment "External I2C/SMBus adapter drivers"
 
 config I2C_PARPORT
 	tristate "Parallel port adapter"
@@ -383,50 +537,106 @@ config I2C_PARPORT_LIGHT
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-parport-light.
 
-config I2C_PASEMI
-	tristate "PA Semi SMBus interface"
-	depends on PPC_PASEMI && PCI
-	help
-	  Supports the PA Semi PWRficient on-chip SMBus interfaces.
-
-config I2C_PROSAVAGE
-	tristate "S3/VIA (Pro)Savage (DEPRECATED)"
+config I2C_TAOS_EVM
+	tristate "TAOS evaluation module"
+	depends on EXPERIMENTAL
+	select SERIO
+	select SERIO_SERPORT
 	default n
-	depends on PCI
-	select I2C_ALGOBIT
 	help
-	  If you say yes to this option, support will be included for the
-	  I2C bus and DDC bus of the S3VIA embedded Savage4 and ProSavage8
-	  graphics processors.
-	  chipsets supported:
-	    S3/VIA KM266/VT8375 aka ProSavage8
-	    S3/VIA KM133/VT8365 aka Savage4
+	  This supports TAOS evaluation modules on serial port. In order to
+	  use this driver, you will need the inputattach tool, which is part
+	  of the input-utils package.
 
-	  This driver is deprecated in favor of the savagefb driver.
+	  If unsure, say N.
 
 	  This support is also available as a module.  If so, the module
-	  will be called i2c-prosavage.
+	  will be called i2c-taos-evm.
 
-config I2C_S3C2410
-	tristate "S3C2410 I2C Driver"
-	depends on ARCH_S3C2410
+config I2C_TINY_USB
+	tristate "Tiny-USB adapter"
+	depends on USB
 	help
-	  Say Y here to include support for I2C controller in the
-	  Samsung S3C2410 based System-on-Chip devices.
+	  If you say yes to this option, support will be included for the
+	  i2c-tiny-usb, a simple do-it-yourself USB to I2C interface. See
+	  http://www.harbaum.org/till/i2c_tiny_usb for hardware details.
 
-config I2C_SAVAGE4
-	tristate "S3 Savage 4 (DEPRECATED)"
-	default n
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-tiny-usb.
+
+comment "Graphics adapter I2C/DDC channel drivers"
+	depends on PCI
+
+config I2C_VOODOO3
+	tristate "Voodoo 3"
 	depends on PCI
 	select I2C_ALGOBIT
 	help
 	  If you say yes to this option, support will be included for the
-	  S3 Savage 4 I2C interface.
-
-	  This driver is deprecated in favor of the savagefb driver.
+	  Voodoo 3 I2C interface.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-savage4.
+	  will be called i2c-voodoo3.
+
+comment "Other I2C/SMBus bus drivers"
+
+config I2C_ACORN
+	tristate "Acorn IOC/IOMD I2C bus support"
+	depends on ARCH_ACORN
+	default y
+	select I2C_ALGOBIT
+	help
+	  Say yes if you want to support the I2C bus on Acorn platforms.
+
+	  If you don't know, say Y.
+
+config I2C_ELEKTOR
+	tristate "Elektor ISA card"
+	depends on ISA && BROKEN_ON_SMP
+	select I2C_ALGOPCF
+	help
+	  This supports the PCF8584 ISA bus I2C adapter.  Say Y if you own
+	  such an adapter.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-elektor.
+
+config I2C_PCA_ISA
+	tristate "PCA9564 on an ISA bus"
+	depends on ISA
+	select I2C_ALGOPCA
+	default n
+	help
+	  This driver supports ISA boards using the Philips PCA9564
+	  parallel bus to I2C bus controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-pca-isa.
+
+	  This device is almost undetectable and using this driver on a
+	  system which doesn't have this device will result in long
+	  delays when I2C/SMBus chip drivers are loaded (e.g. at boot
+	  time).  If unsure, say N.
+
+config I2C_PCA_PLATFORM
+	tristate "PCA9564 as platform device"
+	select I2C_ALGOPCA
+	default n
+	help
+	  This driver supports a memory mapped Philips PCA9564
+	  parallel bus to I2C bus controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-pca-platform.
+
+config I2C_PMCMSP
+	tristate "PMC MSP I2C TWI Controller"
+	depends on PMC_MSP
+	help
+	  This driver supports the PMC TWI controller on MSP devices.
+
+	  This driver can also be built as module. If so, the module
+	  will be called i2c-pmcmsp.
 
 config I2C_SIBYTE
 	tristate "SiByte SMBus interface"
@@ -434,17 +644,18 @@ config I2C_SIBYTE
 	help
 	  Supports the SiByte SOC on-chip I2C interfaces (2 channels).
 
-config I2C_SIMTEC
-	tristate "Simtec Generic I2C interface"
-	select I2C_ALGOBIT
+config I2C_STUB
+	tristate "I2C/SMBus Test Stub"
+	depends on EXPERIMENTAL && m
+	default 'n'
 	help
-	  If you say yes to this option, support will be included for
-	  the Simtec Generic I2C interface. This driver is for the
-	  simple I2C bus used on newer Simtec products for general
-	  I2C, such as DDC on the Simtec BBD2016A.
+	  This module may be useful to developers of SMBus client drivers,
+	  especially for certain kinds of sensor chips.
 
-	  This driver can also be built as a module. If so, the module
-	  will be called i2c-simtec.
+	  If you do build this module, be sure to read the notes and warnings
+	  in <file:Documentation/i2c/i2c-stub>.
+
+	  If you don't know what to do here, definitely say N.
 
 config SCx200_I2C
 	tristate "NatSemi SCx200 I2C using GPIO pins (DEPRECATED)"
@@ -488,221 +699,5 @@ config SCx200_ACB
 
 	  This support is also available as a module.  If so, the module
 	  will be called scx200_acb.
-
-config I2C_SIS5595
-	tristate "SiS 5595"
-	depends on PCI
-	help
-	  If you say yes to this option, support will be included for the
-	  SiS5595 SMBus (a subset of I2C) interface.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-sis5595.
-
-config I2C_SIS630
-	tristate "SiS 630/730"
-	depends on PCI
-	help
-	  If you say yes to this option, support will be included for the
-	  SiS630 and SiS730 SMBus (a subset of I2C) interface.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-sis630.
-
-config I2C_SIS96X
-	tristate "SiS 96x"
-	depends on PCI
-	help
-	  If you say yes to this option, support will be included for the SiS
-	  96x SMBus (a subset of I2C) interfaces.  Specifically, the following
-	  chipsets are supported:
-	    645/961
-	    645DX/961
-	    645DX/962
-	    648/961
-	    650/961
-	    735
-	    745
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-sis96x.
-
-config I2C_TAOS_EVM
-	tristate "TAOS evaluation module"
-	depends on EXPERIMENTAL
-	select SERIO
-	select SERIO_SERPORT
-	default n
-	help
-	  This supports TAOS evaluation modules on serial port. In order to
-	  use this driver, you will need the inputattach tool, which is part
-	  of the input-utils package.
-
-	  If unsure, say N.
-
-	  This support is also available as a module.  If so, the module
-	  will be called i2c-taos-evm.
-
-config I2C_STUB
-	tristate "I2C/SMBus Test Stub"
-	depends on EXPERIMENTAL && m
-	default 'n'
-	help
-	  This module may be useful to developers of SMBus client drivers,
-	  especially for certain kinds of sensor chips.
-
-	  If you do build this module, be sure to read the notes and warnings
-	  in <file:Documentation/i2c/i2c-stub>.
-
-	  If you don't know what to do here, definitely say N.
-
-config I2C_TINY_USB
-	tristate "I2C-Tiny-USB"
-	depends on USB
-	help
-	  If you say yes to this option, support will be included for the
-	  i2c-tiny-usb, a simple do-it-yourself USB to I2C interface. See
-	  http://www.harbaum.org/till/i2c_tiny_usb for hardware details.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-tiny-usb.
-
-config I2C_VERSATILE
-	tristate "ARM Versatile/Realview I2C bus support"
-	depends on ARCH_VERSATILE || ARCH_REALVIEW
-	select I2C_ALGOBIT
-	help
-	  Say yes if you want to support the I2C serial bus on ARMs Versatile
-	  range of platforms.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-versatile.
-
-config I2C_ACORN
-	tristate "Acorn IOC/IOMD I2C bus support"
-	depends on ARCH_ACORN
-	default y
-	select I2C_ALGOBIT
-	help
-	  Say yes if you want to support the I2C bus on Acorn platforms.
-
-	  If you don't know, say Y.
-
-config I2C_VIA
-	tristate "VIA 82C586B"
-	depends on PCI && EXPERIMENTAL
-	select I2C_ALGOBIT
-	help
-	  If you say yes to this option, support will be included for the VIA
-          82C586B I2C interface
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-via.
-
-config I2C_VIAPRO
-	tristate "VIA VT82C596/82C686/82xx and CX700"
-	depends on PCI
-	help
-	  If you say yes to this option, support will be included for the VIA
-	  VT82C596 and later SMBus interface.  Specifically, the following
-	  chipsets are supported:
-	    VT82C596A/B
-	    VT82C686A/B
-	    VT8231
-	    VT8233/A
-	    VT8235
-	    VT8237R/A/S
-	    VT8251
-	    CX700
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-viapro.
-
-config I2C_VOODOO3
-	tristate "Voodoo 3"
-	depends on PCI
-	select I2C_ALGOBIT
-	help
-	  If you say yes to this option, support will be included for the
-	  Voodoo 3 I2C interface.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-voodoo3.
-
-config I2C_PCA_ISA
-	tristate "PCA9564 on an ISA bus"
-	depends on ISA
-	select I2C_ALGOPCA
-	default n
-	help
-	  This driver supports ISA boards using the Philips PCA9564
-	  parallel bus to I2C bus controller.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-pca-isa.
-
-	  This device is almost undetectable and using this driver on a
-	  system which doesn't have this device will result in long
-	  delays when I2C/SMBus chip drivers are loaded (e.g. at boot
-	  time).  If unsure, say N.
-
-config I2C_PCA_PLATFORM
-	tristate "PCA9564 as platform device"
-	select I2C_ALGOPCA
-	default n
-	help
-	  This driver supports a memory mapped Philips PCA9564
-	  parallel bus to I2C bus controller.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-pca-platform.
-
-config I2C_MV64XXX
-	tristate "Marvell mv64xxx I2C Controller"
-	depends on (MV64X60 || PLAT_ORION) && EXPERIMENTAL
-	help
-	  If you say yes to this option, support will be included for the
-	  built-in I2C interface on the Marvell 64xxx line of host bridges.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-mv64xxx.
-
-config I2C_PNX
-	tristate "I2C bus support for Philips PNX targets"
-	depends on ARCH_PNX4008
-	help
-	  This driver supports the Philips IP3204 I2C IP block master and/or
-	  slave controller
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-pnx.
-
-config I2C_PMCMSP
-	tristate "PMC MSP I2C TWI Controller"
-	depends on PMC_MSP
-	help
-	  This driver supports the PMC TWI controller on MSP devices.
-
-	  This driver can also be built as module. If so, the module
-	  will be called i2c-pmcmsp.
-
-config I2C_SH7760
-	tristate "Renesas SH7760 I2C Controller"
-	depends on CPU_SUBTYPE_SH7760
-	help
-	  This driver supports the 2 I2C interfaces on the Renesas SH7760.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-sh7760.
-
-config I2C_SH_MOBILE
-	tristate "SuperH Mobile I2C Controller"
-	depends on SUPERH
-	help
-	  If you say yes to this option, support will be included for the
-	  built-in I2C interface on the Renesas SH-Mobile processor.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-sh_mobile.
 
 endmenu

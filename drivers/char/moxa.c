@@ -721,7 +721,7 @@ static int moxa_load_code(struct moxa_board_conf *brd, const void *ptr,
 
 static int moxa_load_fw(struct moxa_board_conf *brd, const struct firmware *fw)
 {
-	void *ptr = fw->data;
+	const void *ptr = fw->data;
 	char rsn[64];
 	u16 lens[5];
 	size_t len;
@@ -734,7 +734,7 @@ static int moxa_load_fw(struct moxa_board_conf *brd, const struct firmware *fw)
 		u8 model;	/* C218T=1, C320T=2, CP204=3 */
 		u8 reserved2[8];
 		__le16 len[5];
-	} *hdr = ptr;
+	} const *hdr = ptr;
 
 	BUILD_BUG_ON(ARRAY_SIZE(hdr->len) != ARRAY_SIZE(lens));
 

@@ -51,6 +51,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 MODULE_LICENSE("GPL");
@@ -124,6 +125,20 @@ static struct dmi_system_id __devinitdata nforce2_dmi_blacklist2[] = {
 
 static struct pci_driver nforce2_driver;
 
+/* For multiplexing support, we need a global reference to the 1st
+   SMBus channel */
+#if defined CONFIG_I2C_NFORCE2_S4985 || defined CONFIG_I2C_NFORCE2_S4985_MODULE
+struct i2c_adapter *nforce2_smbus;
+EXPORT_SYMBOL_GPL(nforce2_smbus);
+
+static void nforce2_set_reference(struct i2c_adapter *adap)
+{
+	nforce2_smbus = adap;
+}
+#else
+static inline void nforce2_set_reference(struct i2c_adapter *adap) { }
+#endif
+
 static void nforce2_abort(struct i2c_adapter *adap)
 {
 	struct nforce2_smbus *smbus = adap->algo_data;
@@ -158,16 +173,16 @@ static int nforce2_check_status(struct i2c_adapter *adap)
 		dev_dbg(&adap->dev, "SMBus Timeout!\n");
 		if (smbus->can_abort)
 			nforce2_abort(adap);
-		return -1;
+		return -ETIMEDOUT;
 	}
 	if (!(temp & NVIDIA_SMB_STS_DONE) || (temp & NVIDIA_SMB_STS_STATUS)) {
 		dev_dbg(&adap->dev, "Transaction failed (0x%02x)!\n", temp);
-		return -1;
+		return -EIO;
 	}
 	return 0;
 }
 
-/* Return -1 on error */
+/* Return negative errno on error */
 static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 		unsigned short flags, char read_write,
 		u8 command, int size, union i2c_smbus_data * data)
@@ -175,7 +190,7 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 	struct nforce2_smbus *smbus = adap->algo_data;
 	unsigned char protocol, pec;
 	u8 len;
-	int i;
+	int i, status;
 
 	protocol = (read_write == I2C_SMBUS_READ) ? NVIDIA_SMB_PRTCL_READ :
 		NVIDIA_SMB_PRTCL_WRITE;
@@ -219,7 +234,7 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 						"Transaction failed "
 						"(requested block size: %d)\n",
 						len);
-					return -1;
+					return -EINVAL;
 				}
 				outb_p(len, NVIDIA_SMB_BCNT);
 				for (i = 0; i < I2C_SMBUS_BLOCK_MAX; i++)
@@ -231,14 +246,15 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 
 		default:
 			dev_err(&adap->dev, "Unsupported transaction %d\n", size);
-			return -1;
+			return -EOPNOTSUPP;
 	}
 
 	outb_p((addr & 0x7f) << 1, NVIDIA_SMB_ADDR);
 	outb_p(protocol, NVIDIA_SMB_PRTCL);
 
-	if (nforce2_check_status(adap))
-		return -1;
+	status = nforce2_check_status(adap);
+	if (status)
+		return status;
 
 	if (read_write == I2C_SMBUS_WRITE)
 		return 0;
@@ -260,7 +276,7 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 				dev_err(&adap->dev, "Transaction failed "
 					"(received block size: 0x%02x)\n",
 					len);
-				return -1;
+				return -EPROTO;
 			}
 			for (i = 0; i < len; i++)
 				data->block[i+1] = inb_p(NVIDIA_SMB_DATA + i);
@@ -321,21 +337,26 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 		    != PCIBIOS_SUCCESSFUL) {
 			dev_err(&dev->dev, "Error reading PCI config for %s\n",
 				name);
-			return -1;
+			return -EIO;
 		}
 
 		smbus->base = iobase & PCI_BASE_ADDRESS_IO_MASK;
 		smbus->size = 64;
 	}
 
+	error = acpi_check_region(smbus->base, smbus->size,
+				  nforce2_driver.name);
+	if (error)
+		return -1;
+
 	if (!request_region(smbus->base, smbus->size, nforce2_driver.name)) {
 		dev_err(&smbus->adapter.dev, "Error requesting region %02x .. %02X for %s\n",
 			smbus->base, smbus->base+smbus->size-1, name);
-		return -1;
+		return -EBUSY;
 	}
 	smbus->adapter.owner = THIS_MODULE;
 	smbus->adapter.id = I2C_HW_SMBUS_NFORCE2;
-	smbus->adapter.class = I2C_CLASS_HWMON;
+	smbus->adapter.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
 	smbus->adapter.dev.parent = &dev->dev;
@@ -346,7 +367,7 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 	if (error) {
 		dev_err(&smbus->adapter.dev, "Failed to register adapter.\n");
 		release_region(smbus->base, smbus->size);
-		return -1;
+		return error;
 	}
 	dev_info(&smbus->adapter.dev, "nForce2 SMBus adapter at %#x\n", smbus->base);
 	return 0;
@@ -398,6 +419,7 @@ static int __devinit nforce2_probe(struct pci_dev *dev, const struct pci_device_
 		return -ENODEV;
 	}
 
+	nforce2_set_reference(&smbuses[0].adapter);
 	return 0;
 }
 
@@ -406,6 +428,7 @@ static void __devexit nforce2_remove(struct pci_dev *dev)
 {
 	struct nforce2_smbus *smbuses = (void*) pci_get_drvdata(dev);
 
+	nforce2_set_reference(NULL);
 	if (smbuses[0].base) {
 		i2c_del_adapter(&smbuses[0].adapter);
 		release_region(smbuses[0].base, smbuses[0].size);

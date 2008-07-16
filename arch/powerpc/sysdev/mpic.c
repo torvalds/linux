@@ -1496,7 +1496,7 @@ void mpic_request_ipis(void)
 	static char *ipi_names[] = {
 		"IPI0 (call function)",
 		"IPI1 (reschedule)",
-		"IPI2 (unused)",
+		"IPI2 (call function single)",
 		"IPI3 (debugger break)",
 	};
 	BUG_ON(mpic == NULL);

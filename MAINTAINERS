@@ -1686,6 +1686,13 @@ L:	linuxppc-embedded@ozlabs.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+FREESCALE I2C CPM DRIVER
+P:	Jochen Friedrich
+M:	jochen@scram.de
+L:	linuxppc-dev@ozlabs.org
+L:	i2c@lm-sensors.org
+S:	Maintained
+
 FREESCALE SOC FS_ENET DRIVER
 P:	Pantelis Antoniou
 M:	pantelis.antoniou@gmail.com
@@ -1768,6 +1775,11 @@ FREEVXFS FILESYSTEM
 P:	Christoph Hellwig
 M:	hch@infradead.org
 W:	ftp://ftp.openlinux.org/pub/people/hch/vxfs
+S:	Maintained
+
+FTRACE
+P:	Steven Rostedt
+M:	srostedt@redhat.com
 S:	Maintained
 
 FUJITSU FR-V (FRV) PORT

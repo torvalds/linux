@@ -35,22 +35,6 @@
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
 /*
- * Structure and data for smp_call_function(). This is designed to minimise
- * static memory requirements. It also looks cleaner.
- */
-static DEFINE_SPINLOCK(call_lock);
-
-struct call_data_struct {
-	void (*func) (void *info);
-	void *info;
-	atomic_t started;
-	atomic_t finished;
-	int wait;
-} __attribute__ ((__aligned__(SMP_CACHE_BYTES)));
-
-static struct call_data_struct *call_data;
-
-/*
  * For flush_cache_all()
  */
 static DEFINE_SPINLOCK(flushcache_lock);
@@ -95,9 +79,6 @@ void smp_invalidate_interrupt(void);
 
 void smp_send_stop(void);
 static void stop_this_cpu(void *);
-
-int smp_call_function(void (*) (void *), void *, int, int);
-void smp_call_function_interrupt(void);
 
 void smp_send_timer(void);
 void smp_ipi_timer_interrupt(struct pt_regs *);
@@ -231,7 +212,7 @@ void smp_flush_tlb_all(void)
 	local_irq_save(flags);
 	__flush_tlb_all();
 	local_irq_restore(flags);
-	smp_call_function(flush_tlb_all_ipi, NULL, 1, 1);
+	smp_call_function(flush_tlb_all_ipi, NULL, 1);
 	preempt_enable();
 }
 
@@ -524,7 +505,7 @@ void smp_invalidate_interrupt(void)
  *==========================================================================*/
 void smp_send_stop(void)
 {
-	smp_call_function(stop_this_cpu, NULL, 1, 0);
+	smp_call_function(stop_this_cpu, NULL, 0);
 }
 
 /*==========================================================================*
@@ -565,86 +546,14 @@ static void stop_this_cpu(void *dummy)
 	for ( ; ; );
 }
 
-/*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
-/* Call function Routines                                                    */
-/*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
-
-/*==========================================================================*
- * Name:         smp_call_function
- *
- * Description:  This routine sends a 'CALL_FUNCTION_IPI' to all other CPUs
- *               in the system.
- *
- * Born on Date: 2002.02.05
- *
- * Arguments:    *func - The function to run. This must be fast and
- *                       non-blocking.
- *               *info - An arbitrary pointer to pass to the function.
- *               nonatomic - currently unused.
- *               wait - If true, wait (atomically) until function has
- *                      completed on other CPUs.
- *
- * Returns:      0 on success, else a negative status code. Does not return
- *               until remote CPUs are nearly ready to execute <<func>> or
- *               are or have executed.
- *
- * Cautions:     You must not call this function with disabled interrupts or
- *               from a hardware interrupt handler, you may call it from a
- *               bottom half handler.
- *
- * Modification log:
- * Date       Who Description
- * ---------- --- --------------------------------------------------------
- *
- *==========================================================================*/
-int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
-	int wait)
+void arch_send_call_function_ipi(cpumask_t mask)
 {
-	struct call_data_struct data;
-	int cpus;
+	send_IPI_mask(mask, CALL_FUNCTION_IPI, 0);
+}
 
-#ifdef DEBUG_SMP
-	unsigned long flags;
-	__save_flags(flags);
-	if (!(flags & 0x0040))	/* Interrupt Disable NONONO */
-		BUG();
-#endif /* DEBUG_SMP */
-
-	/* Holding any lock stops cpus from going down. */
-	spin_lock(&call_lock);
-	cpus = num_online_cpus() - 1;
-
-	if (!cpus) {
-		spin_unlock(&call_lock);
-		return 0;
-	}
-
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
-
-	data.func = func;
-	data.info = info;
-	atomic_set(&data.started, 0);
-	data.wait = wait;
-	if (wait)
-		atomic_set(&data.finished, 0);
-
-	call_data = &data;
-	mb();
-
-	/* Send a message to all other CPUs and wait for them to respond */
-	send_IPI_allbutself(CALL_FUNCTION_IPI, 0);
-
-	/* Wait for response */
-	while (atomic_read(&data.started) != cpus)
-		barrier();
-
-	if (wait)
-		while (atomic_read(&data.finished) != cpus)
-			barrier();
-	spin_unlock(&call_lock);
-
-	return 0;
+void arch_send_call_function_single_ipi(int cpu)
+{
+	send_IPI_mask(cpumask_of_cpu(cpu), CALL_FUNC_SINGLE_IPI, 0);
 }
 
 /*==========================================================================*
@@ -666,27 +575,16 @@ int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
  *==========================================================================*/
 void smp_call_function_interrupt(void)
 {
-	void (*func) (void *info) = call_data->func;
-	void *info = call_data->info;
-	int wait = call_data->wait;
-
-	/*
-	 * Notify initiating CPU that I've grabbed the data and am
-	 * about to execute the function
-	 */
-	mb();
-	atomic_inc(&call_data->started);
-	/*
-	 * At this point the info structure may be out of scope unless wait==1
-	 */
 	irq_enter();
-	(*func)(info);
+	generic_smp_call_function_interrupt();
 	irq_exit();
+}
 
-	if (wait) {
-		mb();
-		atomic_inc(&call_data->finished);
-	}
+void smp_call_function_single_interrupt(void)
+{
+	irq_enter();
+	generic_smp_call_function_single_interrupt();
+	irq_exit();
 }
 
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/

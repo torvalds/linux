@@ -480,13 +480,13 @@ pmac_ide_do_update_timings(ide_drive_t *drive)
 		pmac_ide_selectproc(drive);
 }
 
-static void
-pmac_outbsync(ide_drive_t *drive, u8 value, unsigned long port)
+static void pmac_outbsync(ide_hwif_t *hwif, u8 value, unsigned long port)
 {
 	u32 tmp;
 	
 	writeb(value, (void __iomem *) port);
-	tmp = readl(PMAC_IDE_REG(IDE_TIMING_CONFIG));
+	tmp = readl((void __iomem *)(hwif->io_ports.data_addr
+				     + IDE_TIMING_CONFIG));
 }
 
 /*

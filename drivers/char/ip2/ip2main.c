@@ -99,6 +99,8 @@
 #include <linux/wait.h>
 #include <linux/device.h>
 #include <linux/smp_lock.h>
+#include <linux/firmware.h>
+#include <linux/platform_device.h>
 
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -156,9 +158,7 @@ static char *pcDriver_name   = "ip2";
 static char *pcIpl    		 = "ip2ipl";
 
 // cheezy kludge or genius - you decide?
-int ip2_loadmain(int *, int *, unsigned char *, int);
-static unsigned char *Fip_firmware;
-static int Fip_firmware_size;
+int ip2_loadmain(int *, int *);
 
 /***********************/
 /* Function Prototypes */
@@ -209,7 +209,7 @@ static int ip2_ipl_open(struct inode *, struct file *);
 static int DumpTraceBuffer(char __user *, int);
 static int DumpFifoBuffer( char __user *, int);
 
-static void ip2_init_board(int);
+static void ip2_init_board(int, const struct firmware *);
 static unsigned short find_eisa_board(int);
 
 /***************/
@@ -475,8 +475,27 @@ static const struct tty_operations ip2_ops = {
 /* SA_RANDOM   - can be source for cert. random number generators */
 #define IP2_SA_FLAGS	0
 
+
+static const struct firmware *ip2_request_firmware(void)
+{
+	struct platform_device *pdev;
+	const struct firmware *fw;
+
+	pdev = platform_device_register_simple("ip2", 0, NULL, 0);
+	if (IS_ERR(pdev)) {
+		printk(KERN_ERR "Failed to register platform device for ip2\n");
+		return NULL;
+	}
+	if (request_firmware(&fw, "intelliport2.bin", &pdev->dev)) {
+		printk(KERN_ERR "Failed to load firmware 'intelliport2.bin'\n");
+		fw = NULL;
+	}
+	platform_device_unregister(pdev);
+	return fw;
+}
+
 int
-ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize) 
+ip2_loadmain(int *iop, int *irqp)
 {
 	int i, j, box;
 	int err = 0;
@@ -484,6 +503,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 	i2eBordStrPtr pB = NULL;
 	int rc = -1;
 	static struct pci_dev *pci_dev_i = NULL;
+	const struct firmware *fw = NULL;
 
 	ip2trace (ITRC_NO_PORT, ITRC_INIT, ITRC_ENTER, 0 );
 
@@ -516,9 +536,6 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 		}
 	}
 	poll_only = !poll_only;
-
-	Fip_firmware = firmware;
-	Fip_firmware_size = firmsize;
 
 	/* Announce our presence */
 	printk( KERN_INFO "%s version %s\n", pcName, pcVersion );
@@ -639,10 +656,18 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 		}
 	}
 	for ( i = 0; i < IP2_MAX_BOARDS; ++i ) {
+		/* We don't want to request the firmware unless we have at
+		   least one board */
 		if ( i2BoardPtrTable[i] != NULL ) {
-			ip2_init_board( i );
+			if (!fw)
+				fw = ip2_request_firmware();
+			if (!fw)
+				break;
+			ip2_init_board(i, fw);
 		}
 	}
+	if (fw)
+		release_firmware(fw);
 
 	ip2trace (ITRC_NO_PORT, ITRC_INIT, 2, 0 );
 
@@ -770,7 +795,7 @@ out:
 /* are reported on the console.                                               */
 /******************************************************************************/
 static void
-ip2_init_board( int boardnum )
+ip2_init_board(int boardnum, const struct firmware *fw)
 {
 	int i;
 	int nports = 0, nboxes = 0;
@@ -790,7 +815,7 @@ ip2_init_board( int boardnum )
 		goto err_initialize;
 	}
 
-	if ( iiDownloadAll ( pB, (loadHdrStrPtr)Fip_firmware, 1, Fip_firmware_size )
+	if ( iiDownloadAll ( pB, (loadHdrStrPtr)fw->data, 1, fw->size )
 	    != II_DOWN_GOOD ) {
 		printk ( KERN_ERR "IP2: failed to download loadware\n" );
 		goto err_release_region;

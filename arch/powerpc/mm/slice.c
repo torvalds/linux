@@ -556,7 +556,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	if (mask.low_slices || mask.high_slices) {
 		slice_convert(mm, mask, psize);
 		if (psize > MMU_PAGE_BASE)
-			on_each_cpu(slice_flush_segments, mm, 0, 1);
+			on_each_cpu(slice_flush_segments, mm, 1);
 	}
 	return addr;
 

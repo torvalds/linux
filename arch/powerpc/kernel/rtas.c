@@ -747,7 +747,7 @@ static int rtas_ibm_suspend_me(struct rtas_args *args)
 	/* Call function on all CPUs.  One of us will make the
 	 * rtas call
 	 */
-	if (on_each_cpu(rtas_percpu_suspend_me, &data, 1, 0))
+	if (on_each_cpu(rtas_percpu_suspend_me, &data, 0))
 		data.error = -EINVAL;
 
 	wait_for_completion(&done);

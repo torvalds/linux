@@ -317,7 +317,7 @@ static int tda10046h_set_bandwidth(struct tda1004x_state *state,
 }
 
 static int tda1004x_do_upload(struct tda1004x_state *state,
-			      unsigned char *mem, unsigned int len,
+			      const unsigned char *mem, unsigned int len,
 			      u8 dspCodeCounterReg, u8 dspCodeInReg)
 {
 	u8 buf[65];
