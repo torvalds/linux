@@ -550,11 +550,11 @@ struct cyclades_icount {
 
 struct cyclades_port {
 	int                     magic;
+	struct tty_port		port;
 	struct cyclades_card	*card;
 	int			line;
 	int			flags; 		/* defined in tty.h */
 	int                     type;		/* UART type */
-	struct tty_struct 	*tty;
 	int			read_status_mask;
 	int			ignore_status_mask;
 	int			timeout;
@@ -569,11 +569,8 @@ struct cyclades_port {
 	u8			x_char; /* to be pushed out ASAP */
 	int			close_delay;
 	unsigned short		closing_wait;
-	int			count;	/* # of fd on device */
 	int                     breakon;
 	int                     breakoff;
-	int			blocked_open; /* # of blocked opens */
-	unsigned char 		*xmit_buf;
 	int			xmit_head;
 	int			xmit_tail;
 	int			xmit_cnt;
@@ -583,8 +580,6 @@ struct cyclades_port {
 	struct cyclades_monitor	mon;
 	struct cyclades_idle_stats	idle_stats;
 	struct cyclades_icount	icount;
-	wait_queue_head_t       open_wait;
-	wait_queue_head_t       close_wait;
 	struct completion       shutdown_wait;
 	wait_queue_head_t       delta_msr_wait;
 	int throttle;
