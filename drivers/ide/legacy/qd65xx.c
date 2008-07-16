@@ -207,6 +207,7 @@ static void qd6500_set_pio_mode(ide_drive_t *drive, const u8 pio)
 static void qd6580_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
 	unsigned int cycle_time;
 	int active_time   = 175;
 	int recovery_time = 415; /* worst case values from the dos driver */
@@ -236,7 +237,7 @@ static void qd6580_set_pio_mode(ide_drive_t *drive, const u8 pio)
 					active_time = 110;
 					recovery_time = cycle_time - 120;
 				} else {
-					active_time = ide_pio_timings[pio].active_time;
+					active_time = t->active;
 					recovery_time = cycle_time - active_time;
 				}
 		}

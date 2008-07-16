@@ -1011,6 +1011,7 @@ config BLK_DEV_HT6560B
 
 config BLK_DEV_QD65XX
 	tristate "QDI QD65xx support"
+	select IDE_TIMINGS
 	help
 	  This driver is enabled at runtime using the "qd65xx.probe" kernel
 	  boot parameter.  It permits faster I/O speeds to be set.  See the
