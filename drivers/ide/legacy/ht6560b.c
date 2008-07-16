@@ -216,6 +216,7 @@ static u8 ht_pio2timings(ide_drive_t *drive, const u8 pio)
 
         if (pio) {
 		unsigned int cycle_time;
+		struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
 
 		cycle_time = ide_pio_cycle_time(drive, pio);
 
@@ -224,10 +225,8 @@ static u8 ht_pio2timings(ide_drive_t *drive, const u8 pio)
 		 *  actual cycle time for recovery and activity
 		 *  according system bus speed.
 		 */
-		active_time = ide_pio_timings[pio].active_time;
-		recovery_time = cycle_time
-			- active_time
-			- ide_pio_timings[pio].setup_time;
+		active_time = t->active;
+		recovery_time = cycle_time - active_time - t->setup;
 		/*
 		 *  Cycle times should be Vesa bus cycles
 		 */
