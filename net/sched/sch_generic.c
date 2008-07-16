@@ -130,8 +130,8 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
 /*
  * NOTE: Called under queue->lock with locally disabled BH.
  *
- * __QUEUE_STATE_QDISC_RUNNING guarantees only one CPU can process
- * this queue at a time. queue->lock serializes queue accesses for
+ * __QDISC_STATE_RUNNING guarantees only one CPU can process
+ * this qdisc at a time. queue->lock serializes queue accesses for
  * this queue AND txq->qdisc pointer itself.
  *
  *  netif_tx_lock serializes accesses to device driver.
@@ -146,9 +146,9 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
  *				>0 - queue is not empty.
  *
  */
-static inline int qdisc_restart(struct netdev_queue *txq)
+static inline int qdisc_restart(struct netdev_queue *txq,
+				struct Qdisc *q)
 {
-	struct Qdisc *q = txq->qdisc;
 	int ret = NETDEV_TX_BUSY;
 	struct net_device *dev;
 	struct sk_buff *skb;
@@ -168,7 +168,6 @@ static inline int qdisc_restart(struct netdev_queue *txq)
 	HARD_TX_UNLOCK(dev, txq);
 
 	spin_lock(&txq->lock);
-	q = txq->qdisc;
 
 	switch (ret) {
 	case NETDEV_TX_OK:
@@ -197,8 +196,9 @@ static inline int qdisc_restart(struct netdev_queue *txq)
 void __qdisc_run(struct netdev_queue *txq)
 {
 	unsigned long start_time = jiffies;
+	struct Qdisc *q = txq->qdisc;
 
-	while (qdisc_restart(txq)) {
+	while (qdisc_restart(txq, q)) {
 		if (netif_tx_queue_stopped(txq))
 			break;
 
@@ -213,7 +213,7 @@ void __qdisc_run(struct netdev_queue *txq)
 		}
 	}
 
-	clear_bit(__QUEUE_STATE_QDISC_RUNNING, &txq->state);
+	clear_bit(__QDISC_STATE_RUNNING, &q->state);
 }
 
 static void dev_watchdog(unsigned long arg)
@@ -666,14 +666,16 @@ static bool some_qdisc_is_running(struct net_device *dev, int lock)
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *dev_queue;
+		struct Qdisc *q;
 		int val;
 
 		dev_queue = netdev_get_tx_queue(dev, i);
+		q = dev_queue->qdisc;
 
 		if (lock)
 			spin_lock_bh(&dev_queue->lock);
 
-		val = test_bit(__QUEUE_STATE_QDISC_RUNNING, &dev_queue->state);
+		val = test_bit(__QDISC_STATE_RUNNING, &q->state);
 
 		if (lock)
 			spin_unlock_bh(&dev_queue->lock);

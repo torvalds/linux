@@ -23,6 +23,11 @@ struct qdisc_rate_table
 	int		refcnt;
 };
 
+enum qdisc_state_t
+{
+	__QDISC_STATE_RUNNING,
+};
+
 struct Qdisc
 {
 	int 			(*enqueue)(struct sk_buff *skb, struct Qdisc *dev);
@@ -36,6 +41,7 @@ struct Qdisc
 	u32			handle;
 	u32			parent;
 	atomic_t		refcnt;
+	unsigned long		state;
 	struct sk_buff		*gso_skb;
 	struct sk_buff_head	q;
 	struct netdev_queue	*dev_queue;

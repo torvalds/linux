@@ -441,7 +441,6 @@ static inline void napi_synchronize(const struct napi_struct *n)
 enum netdev_queue_state_t
 {
 	__QUEUE_STATE_XOFF,
-	__QUEUE_STATE_QDISC_RUNNING,
 };
 
 struct netdev_queue {
