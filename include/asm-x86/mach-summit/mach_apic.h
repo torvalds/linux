@@ -63,10 +63,10 @@ static inline void init_apic_ldr(void)
 	 * BIOS puts 5 CPUs in one APIC cluster, we're hosed. */
 	BUG_ON(count >= XAPIC_DEST_CPUS_SHIFT);
 	id = my_cluster | (1UL << count);
-	apic_write_around(APIC_DFR, APIC_DFR_VALUE);
+	apic_write(APIC_DFR, APIC_DFR_VALUE);
 	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
 	val |= SET_APIC_LOGICAL_ID(id);
-	apic_write_around(APIC_LDR, val);
+	apic_write(APIC_LDR, val);
 }
 
 static inline int multi_timer_check(int apic, int irq)

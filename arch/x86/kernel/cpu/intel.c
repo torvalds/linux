@@ -227,6 +227,16 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	if (cpu_has_bts)
 		ds_init_intel(c);
 
+	/*
+	 * See if we have a good local APIC by checking for buggy Pentia,
+	 * i.e. all B steppings and the C2 stepping of P54C when using their
+	 * integrated APIC (see 11AP erratum in "Pentium Processor
+	 * Specification Update").
+	 */
+	if (cpu_has_apic && (c->x86<<8 | c->x86_model<<4) == 0x520 &&
+	    (c->x86_mask < 0x6 || c->x86_mask == 0xb))
+		set_cpu_cap(c, X86_FEATURE_11AP);
+
 #ifdef CONFIG_X86_NUMAQ
 	numaq_tsc_disable();
 #endif

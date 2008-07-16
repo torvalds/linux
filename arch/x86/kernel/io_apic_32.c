@@ -756,7 +756,7 @@ void send_IPI_self(int vector)
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
-	apic_write_around(APIC_ICR, cfg);
+	apic_write(APIC_ICR, cfg);
 }
 #endif /* !CONFIG_SMP */
 
@@ -2030,7 +2030,7 @@ static void mask_lapic_irq(unsigned int irq)
 	unsigned long v;
 
 	v = apic_read(APIC_LVT0);
-	apic_write_around(APIC_LVT0, v | APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, v | APIC_LVT_MASKED);
 }
 
 static void unmask_lapic_irq(unsigned int irq)
@@ -2038,7 +2038,7 @@ static void unmask_lapic_irq(unsigned int irq)
 	unsigned long v;
 
 	v = apic_read(APIC_LVT0);
-	apic_write_around(APIC_LVT0, v & ~APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, v & ~APIC_LVT_MASKED);
 }
 
 static struct irq_chip lapic_chip __read_mostly = {
@@ -2168,7 +2168,7 @@ static inline void __init check_timer(void)
 	 * The AEOI mode will finish them in the 8259A
 	 * automatically.
 	 */
-	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
+	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	init_8259A(1);
 	timer_ack = (nmi_watchdog == NMI_IO_APIC && !APIC_INTEGRATED(ver));
 
@@ -2256,7 +2256,7 @@ static inline void __init check_timer(void)
 	printk(KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
 	lapic_register_intr(0, vector);
-	apic_write_around(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
+	apic_write(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 
 	if (timer_irq_works()) {
@@ -2264,14 +2264,14 @@ static inline void __init check_timer(void)
 		goto out;
 	}
 	disable_8259A_irq(0);
-	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | vector);
+	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | vector);
 	printk(" failed.\n");
 
 	printk(KERN_INFO "...trying to set up timer as ExtINT IRQ...");
 
 	init_8259A(0);
 	make_8259A_irq(0);
-	apic_write_around(APIC_LVT0, APIC_DM_EXTINT);
+	apic_write(APIC_LVT0, APIC_DM_EXTINT);
 
 	unlock_ExtINT_logic();
 

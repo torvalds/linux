@@ -546,8 +546,8 @@ static inline void __inquire_remote_apic(int apicid)
 			printk(KERN_CONT
 			       "a previous APIC delivery may have failed\n");
 
-		apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
-		apic_write_around(APIC_ICR, APIC_DM_REMRD | regs[i]);
+		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
+		apic_write(APIC_ICR, APIC_DM_REMRD | regs[i]);
 
 		timeout = 0;
 		do {
@@ -579,11 +579,11 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 	int maxlvt;
 
 	/* Target chip */
-	apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(logical_apicid));
+	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(logical_apicid));
 
 	/* Boot on the stack */
 	/* Kick the second */
-	apic_write_around(APIC_ICR, APIC_DM_NMI | APIC_DEST_LOGICAL);
+	apic_write(APIC_ICR, APIC_DM_NMI | APIC_DEST_LOGICAL);
 
 	Dprintk("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -592,14 +592,9 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 	 * Give the other CPU some time to accept the IPI.
 	 */
 	udelay(200);
-	/*
-	 * Due to the Pentium erratum 3AP.
-	 */
 	maxlvt = lapic_get_maxlvt();
-	if (maxlvt > 3) {
-		apic_read_around(APIC_SPIV);
+	if (maxlvt > 3)			/* Due to the Pentium erratum 3AP.  */
 		apic_write(APIC_ESR, 0);
-	}
 	accept_status = (apic_read(APIC_ESR) & 0xEF);
 	Dprintk("NMI sent.\n");
 
@@ -625,12 +620,14 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		return send_status;
 	}
 
+	maxlvt = lapic_get_maxlvt();
+
 	/*
 	 * Be paranoid about clearing APIC errors.
 	 */
 	if (APIC_INTEGRATED(apic_version[phys_apicid])) {
-		apic_read_around(APIC_SPIV);
-		apic_write(APIC_ESR, 0);
+		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
+			apic_write(APIC_ESR, 0);
 		apic_read(APIC_ESR);
 	}
 
@@ -639,13 +636,13 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	/*
 	 * Turn INIT on target chip
 	 */
-	apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
+	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
 
 	/*
 	 * Send IPI
 	 */
-	apic_write_around(APIC_ICR, APIC_INT_LEVELTRIG | APIC_INT_ASSERT
-				| APIC_DM_INIT);
+	apic_write(APIC_ICR,
+		   APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT);
 
 	Dprintk("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -655,10 +652,10 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	Dprintk("Deasserting INIT.\n");
 
 	/* Target chip */
-	apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
+	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
 
 	/* Send IPI */
-	apic_write_around(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
+	apic_write(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
 
 	Dprintk("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -689,12 +686,10 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	 */
 	Dprintk("#startup loops: %d.\n", num_starts);
 
-	maxlvt = lapic_get_maxlvt();
-
 	for (j = 1; j <= num_starts; j++) {
 		Dprintk("Sending STARTUP #%d.\n", j);
-		apic_read_around(APIC_SPIV);
-		apic_write(APIC_ESR, 0);
+		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
+			apic_write(APIC_ESR, 0);
 		apic_read(APIC_ESR);
 		Dprintk("After apic_write.\n");
 
@@ -703,12 +698,11 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		 */
 
 		/* Target chip */
-		apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
+		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
 
 		/* Boot on the stack */
 		/* Kick the second */
-		apic_write_around(APIC_ICR, APIC_DM_STARTUP
-					| (start_eip >> 12));
+		apic_write(APIC_ICR, APIC_DM_STARTUP | (start_eip >> 12));
 
 		/*
 		 * Give the other CPU some time to accept the IPI.
@@ -724,13 +718,8 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		 * Give the other CPU some time to accept the IPI.
 		 */
 		udelay(200);
-		/*
-		 * Due to the Pentium erratum 3AP.
-		 */
-		if (maxlvt > 3) {
-			apic_read_around(APIC_SPIV);
+		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
-		}
 		accept_status = (apic_read(APIC_ESR) & 0xEF);
 		if (send_status || accept_status)
 			break;

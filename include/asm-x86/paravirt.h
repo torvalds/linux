@@ -205,7 +205,6 @@ struct pv_apic_ops {
 	 * these shouldn't be in this interface.
 	 */
 	void (*apic_write)(unsigned long reg, u32 v);
-	void (*apic_write_atomic)(unsigned long reg, u32 v);
 	u32 (*apic_read)(unsigned long reg);
 	void (*setup_boot_clock)(void);
 	void (*setup_secondary_clock)(void);
@@ -894,11 +893,6 @@ static inline void slow_down_io(void)
 static inline void apic_write(unsigned long reg, u32 v)
 {
 	PVOP_VCALL2(pv_apic_ops.apic_write, reg, v);
-}
-
-static inline void apic_write_atomic(unsigned long reg, u32 v)
-{
-	PVOP_VCALL2(pv_apic_ops.apic_write_atomic, reg, v);
 }
 
 static inline u32 apic_read(unsigned long reg)

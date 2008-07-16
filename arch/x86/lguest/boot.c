@@ -991,7 +991,6 @@ __init void lguest_init(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* apic read/write intercepts */
 	pv_apic_ops.apic_write = lguest_apic_write;
-	pv_apic_ops.apic_write_atomic = lguest_apic_write;
 	pv_apic_ops.apic_read = lguest_apic_read;
 #endif
 

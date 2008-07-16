@@ -1131,7 +1131,6 @@ static const struct pv_irq_ops xen_irq_ops __initdata = {
 static const struct pv_apic_ops xen_apic_ops __initdata = {
 #ifdef CONFIG_X86_LOCAL_APIC
 	.apic_write = xen_apic_write,
-	.apic_write_atomic = xen_apic_write,
 	.apic_read = xen_apic_read,
 	.setup_boot_clock = paravirt_nop,
 	.setup_secondary_clock = paravirt_nop,
