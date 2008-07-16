@@ -267,7 +267,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int cifs_permission(struct inode *inode, int mask, struct nameidata *nd)
+static int cifs_permission(struct inode *inode, int mask)
 {
 	struct cifs_sb_info *cifs_sb;
 

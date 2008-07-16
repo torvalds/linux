@@ -830,22 +830,9 @@ out:
 }
 
 static int
-ecryptfs_permission(struct inode *inode, int mask, struct nameidata *nd)
+ecryptfs_permission(struct inode *inode, int mask)
 {
-	int rc;
-
-        if (nd) {
-		struct vfsmount *vfsmnt_save = nd->path.mnt;
-		struct dentry *dentry_save = nd->path.dentry;
-
-		nd->path.mnt = ecryptfs_dentry_to_lower_mnt(nd->path.dentry);
-		nd->path.dentry = ecryptfs_dentry_to_lower(nd->path.dentry);
-		rc = permission(ecryptfs_inode_to_lower(inode), mask, nd);
-		nd->path.mnt = vfsmnt_save;
-		nd->path.dentry = dentry_save;
-        } else
-		rc = permission(ecryptfs_inode_to_lower(inode), mask, NULL);
-        return rc;
+	return permission(ecryptfs_inode_to_lower(inode), mask, NULL);
 }
 
 /**

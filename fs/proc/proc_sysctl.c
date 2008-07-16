@@ -292,7 +292,7 @@ out:
 	return ret;
 }
 
-static int proc_sys_permission(struct inode *inode, int mask, struct nameidata *nd)
+static int proc_sys_permission(struct inode *inode, int mask)
 {
 	/*
 	 * sysctl entries that are not writeable,

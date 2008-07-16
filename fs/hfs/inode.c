@@ -511,8 +511,7 @@ void hfs_clear_inode(struct inode *inode)
 	}
 }
 
-static int hfs_permission(struct inode *inode, int mask,
-			  struct nameidata *nd)
+static int hfs_permission(struct inode *inode, int mask)
 {
 	if (S_ISREG(inode->i_mode) && mask & MAY_EXEC)
 		return 0;

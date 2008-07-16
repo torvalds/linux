@@ -238,7 +238,7 @@ static void hfsplus_set_perms(struct inode *inode, struct hfsplus_perm *perms)
 	perms->dev = cpu_to_be32(HFSPLUS_I(inode).dev);
 }
 
-static int hfsplus_permission(struct inode *inode, int mask, struct nameidata *nd)
+static int hfsplus_permission(struct inode *inode, int mask)
 {
 	/* MAY_EXEC is also used for lookup, if no x bit is set allow lookup,
 	 * open_exec has the same test, so it's still not executable, if a x bit

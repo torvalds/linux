@@ -60,6 +60,9 @@ extern int dir_notify_enable;
 #define MAY_WRITE 2
 #define MAY_READ 4
 #define MAY_APPEND 8
+#define MAY_ACCESS 16
+#define MAY_CHDIR 32
+#define MAY_OPEN 64
 
 #define FMODE_READ 1
 #define FMODE_WRITE 2
@@ -1272,7 +1275,7 @@ struct inode_operations {
 	void * (*follow_link) (struct dentry *, struct nameidata *);
 	void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
-	int (*permission) (struct inode *, int, struct nameidata *);
+	int (*permission) (struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);

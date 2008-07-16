@@ -1516,9 +1516,9 @@ static int do_sysctl_strategy(struct ctl_table_root *root,
 	int op = 0, rc;
 
 	if (oldval)
-		op |= 004;
+		op |= MAY_READ;
 	if (newval)
-		op |= 002;
+		op |= MAY_WRITE;
 	if (sysctl_perm(root, table, op))
 		return -EPERM;
 
@@ -1560,7 +1560,7 @@ repeat:
 		if (n == table->ctl_name) {
 			int error;
 			if (table->child) {
-				if (sysctl_perm(root, table, 001))
+				if (sysctl_perm(root, table, MAY_EXEC))
 					return -EPERM;
 				name++;
 				nlen--;
@@ -1635,7 +1635,7 @@ static int test_perm(int mode, int op)
 		mode >>= 6;
 	else if (in_egroup_p(0))
 		mode >>= 3;
-	if ((mode & op & 0007) == op)
+	if ((op & ~mode & (MAY_READ|MAY_WRITE|MAY_EXEC)) == 0)
 		return 0;
 	return -EACCES;
 }
@@ -1645,7 +1645,7 @@ int sysctl_perm(struct ctl_table_root *root, struct ctl_table *table, int op)
 	int error;
 	int mode;
 
-	error = security_sysctl(table, op);
+	error = security_sysctl(table, op & (MAY_READ | MAY_WRITE | MAY_EXEC));
 	if (error)
 		return error;
 

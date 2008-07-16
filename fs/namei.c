@@ -185,6 +185,8 @@ int generic_permission(struct inode *inode, int mask,
 {
 	umode_t			mode = inode->i_mode;
 
+	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
+
 	if (current->fsuid == inode->i_uid)
 		mode >>= 6;
 	else {
@@ -203,7 +205,7 @@ int generic_permission(struct inode *inode, int mask,
 	/*
 	 * If the DACs are ok we don't need any capability check.
 	 */
-	if (((mode & mask & (MAY_READ|MAY_WRITE|MAY_EXEC)) == mask))
+	if ((mask & ~mode) == 0)
 		return 0;
 
  check_capabilities:
@@ -228,7 +230,7 @@ int generic_permission(struct inode *inode, int mask,
 
 int permission(struct inode *inode, int mask, struct nameidata *nd)
 {
-	int retval, submask;
+	int retval;
 	struct vfsmount *mnt = NULL;
 
 	if (nd)
@@ -261,9 +263,17 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 	}
 
 	/* Ordinary permission routines do not understand MAY_APPEND. */
-	submask = mask & ~MAY_APPEND;
 	if (inode->i_op && inode->i_op->permission) {
-		retval = inode->i_op->permission(inode, submask, nd);
+		int extra = 0;
+		if (nd) {
+			if (nd->flags & LOOKUP_ACCESS)
+				extra |= MAY_ACCESS;
+			if (nd->flags & LOOKUP_CHDIR)
+				extra |= MAY_CHDIR;
+			if (nd->flags & LOOKUP_OPEN)
+				extra |= MAY_OPEN;
+		}
+		retval = inode->i_op->permission(inode, mask | extra);
 		if (!retval) {
 			/*
 			 * Exec permission on a regular file is denied if none
@@ -277,7 +287,7 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 				return -EACCES;
 		}
 	} else {
-		retval = generic_permission(inode, submask, NULL);
+		retval = generic_permission(inode, mask, NULL);
 	}
 	if (retval)
 		return retval;
@@ -286,7 +296,8 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 	if (retval)
 		return retval;
 
-	return security_inode_permission(inode, mask, nd);
+	return security_inode_permission(inode,
+			mask & (MAY_READ|MAY_WRITE|MAY_EXEC), nd);
 }
 
 /**
