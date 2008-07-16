@@ -1033,6 +1033,15 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	/* frames start with:
+	 *	ff ff 00 c4 c4 96	synchro
+	 *	00		(unknown)
+	 *	xx		(frame sequence / size / compression)
+	 *	(xx)		(idem - extra byte for sn9c103)
+	 *	ll mm		brightness sum inside auto exposure
+	 *	ll mm		brightness sum outside auto exposure
+	 *	(xx xx xx xx xx)	audio values for snc103
+	 */
 	if (len > 6 && len < 24) {
 		for (i = 0; i < len - 6; i++) {
 			if (data[0 + i] == 0xff
@@ -1043,15 +1052,18 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			    && data[5 + i] == 0x96) {	/* start of frame */
 				frame = gspca_frame_add(gspca_dev, LAST_PACKET,
 							frame, data, 0);
-				if (i < (len - 10)) {
-					atomic_set(&sd->avg_lum, data[i + 8] +
+				if (len - i < sd->fr_h_sz) {
+					atomic_set(&sd->avg_lum, -1);
+					PDEBUG(D_STREAM, "packet too short to"
+						" get avg brightness");
+				} else if (sd->fr_h_sz == 12) {
+					atomic_set(&sd->avg_lum,
+						data[i + 8] +
 							(data[i + 9] << 8));
 				} else {
-					atomic_set(&sd->avg_lum, -1);
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-					PDEBUG(D_STREAM, "packet too short to "
-						"get avg brightness");
-#endif
+					atomic_set(&sd->avg_lum,
+						data[i + 9] +
+							(data[i + 10] << 8));
 				}
 				data += i + sd->fr_h_sz;
 				len -= i + sd->fr_h_sz;
