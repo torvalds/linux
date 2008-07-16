@@ -14,8 +14,6 @@
 #include <linux/netdevice.h>
 #include "ieee80211_i.h"
 
-#define QOS_CONTROL_LEN 2
-
 #define QOS_CONTROL_ACK_POLICY_NORMAL 0
 #define QOS_CONTROL_ACK_POLICY_NOACK 1
 
