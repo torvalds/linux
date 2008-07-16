@@ -19,20 +19,20 @@
  */
 
 /*
- * The UBI Eraseblock Association (EBA) unit.
+ * The UBI Eraseblock Association (EBA) sub-system.
  *
- * This unit is responsible for I/O to/from logical eraseblock.
+ * This sub-system is responsible for I/O to/from logical eraseblock.
  *
  * Although in this implementation the EBA table is fully kept and managed in
  * RAM, which assumes poor scalability, it might be (partially) maintained on
  * flash in future implementations.
  *
- * The EBA unit implements per-logical eraseblock locking. Before accessing a
- * logical eraseblock it is locked for reading or writing. The per-logical
- * eraseblock locking is implemented by means of the lock tree. The lock tree
- * is an RB-tree which refers all the currently locked logical eraseblocks. The
- * lock tree elements are &struct ubi_ltree_entry objects. They are indexed by
- * (@vol_id, @lnum) pairs.
+ * The EBA sub-system implements per-logical eraseblock locking. Before
+ * accessing a logical eraseblock it is locked for reading or writing. The
+ * per-logical eraseblock locking is implemented by means of the lock tree. The
+ * lock tree is an RB-tree which refers all the currently locked logical
+ * eraseblocks. The lock tree elements are &struct ubi_ltree_entry objects.
+ * They are indexed by (@vol_id, @lnum) pairs.
  *
  * EBA also maintains the global sequence counter which is incremented each
  * time a logical eraseblock is mapped to a physical eraseblock and it is
@@ -1128,7 +1128,7 @@ out_unlock_leb:
 }
 
 /**
- * ubi_eba_init_scan - initialize the EBA unit using scanning information.
+ * ubi_eba_init_scan - initialize the EBA sub-system using scanning information.
  * @ubi: UBI device description object
  * @si: scanning information
  *
@@ -1143,7 +1143,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	struct ubi_scan_leb *seb;
 	struct rb_node *rb;
 
-	dbg_eba("initialize EBA unit");
+	dbg_eba("initialize EBA sub-system");
 
 	spin_lock_init(&ubi->ltree_lock);
 	mutex_init(&ubi->alc_mutex);
@@ -1209,7 +1209,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		ubi->rsvd_pebs  += ubi->beb_rsvd_pebs;
 	}
 
-	dbg_eba("EBA unit is initialized");
+	dbg_eba("EBA sub-system is initialized");
 	return 0;
 
 out_free:

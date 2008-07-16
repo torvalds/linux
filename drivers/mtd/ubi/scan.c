@@ -19,9 +19,9 @@
  */
 
 /*
- * UBI scanning unit.
+ * UBI scanning sub-system.
  *
- * This unit is responsible for scanning the flash media, checking UBI
+ * This sub-system is responsible for scanning the flash media, checking UBI
  * headers and providing complete information about the UBI flash image.
  *
  * The scanning information is represented by a &struct ubi_scan_info' object.
@@ -103,7 +103,7 @@ static int add_to_list(struct ubi_scan_info *si, int pnum, int ec,
  * non-zero if an inconsistency was found and zero if not.
  *
  * Note, UBI does sanity check of everything it reads from the flash media.
- * Most of the checks are done in the I/O unit. Here we check that the
+ * Most of the checks are done in the I/O sub-system. Here we check that the
  * information in the VID header is consistent to the information in other VID
  * headers of the same volume.
  */
@@ -256,8 +256,8 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 		 * that versions that are close to %0xFFFFFFFF are less then
 		 * versions that are close to %0.
 		 *
-		 * The UBI WL unit guarantees that the number of pending tasks
-		 * is not greater then %0x7FFFFFFF. So, if the difference
+		 * The UBI WL sub-system guarantees that the number of pending
+		 * tasks is not greater then %0x7FFFFFFF. So, if the difference
 		 * between any two versions is greater or equivalent to
 		 * %0x7FFFFFFF, there was an overflow and the logical
 		 * eraseblock with lower version is actually newer then the one
@@ -645,9 +645,9 @@ void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_scan_volume *sv)
  *
  * This function erases physical eraseblock 'pnum', and writes the erase
  * counter header to it. This function should only be used on UBI device
- * initialization stages, when the EBA unit had not been yet initialized. This
- * function returns zero in case of success and a negative error code in case
- * of failure.
+ * initialization stages, when the EBA sub-system had not been yet initialized.
+ * This function returns zero in case of success and a negative error code in
+ * case of failure.
  */
 int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_scan_info *si,
 		       int pnum, int ec)
@@ -687,9 +687,10 @@ out_free:
  * @si: scanning information
  *
  * This function returns a free physical eraseblock. It is supposed to be
- * called on the UBI initialization stages when the wear-leveling unit is not
- * initialized yet. This function picks a physical eraseblocks from one of the
- * lists, writes the EC header if it is needed, and removes it from the list.
+ * called on the UBI initialization stages when the wear-leveling sub-system is
+ * not initialized yet. This function picks a physical eraseblocks from one of
+ * the lists, writes the EC header if it is needed, and removes it from the
+ * list.
  *
  * This function returns scanning physical eraseblock information in case of
  * success and an error code in case of failure.
@@ -764,8 +765,9 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum
 		return err;
 	else if (err) {
 		/*
-		 * FIXME: this is actually duty of the I/O unit to initialize
-		 * this, but MTD does not provide enough information.
+		 * FIXME: this is actually duty of the I/O sub-system to
+		 * initialize this, but MTD does not provide enough
+		 * information.
 		 */
 		si->bad_peb_count += 1;
 		return 0;

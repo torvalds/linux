@@ -524,7 +524,7 @@ out_si:
 }
 
 /**
- * io_init - initialize I/O unit for a given UBI device.
+ * io_init - initialize I/O sub-system for a given UBI device.
  * @ubi: UBI device description object
  *
  * If @ubi->vid_hdr_offset or @ubi->leb_start is zero, default offsets are

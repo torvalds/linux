@@ -74,15 +74,15 @@
 #define UBI_IO_RETRIES 3
 
 /*
- * Error codes returned by the I/O unit.
+ * Error codes returned by the I/O sub-system.
  *
  * UBI_IO_PEB_EMPTY: the physical eraseblock is empty, i.e. it contains only
- * 0xFF bytes
+ *                   %0xFF bytes
  * UBI_IO_PEB_FREE: the physical eraseblock is free, i.e. it contains only a
- * valid erase counter header, and the rest are %0xFF bytes
+ *                  valid erase counter header, and the rest are %0xFF bytes
  * UBI_IO_BAD_EC_HDR: the erase counter header is corrupted (bad magic or CRC)
  * UBI_IO_BAD_VID_HDR: the volume identifier header is corrupted (bad magic or
- * CRC)
+ *                     CRC)
  * UBI_IO_BITFLIPS: bit-flips were detected and corrected
  */
 enum {
@@ -99,9 +99,9 @@ enum {
  * @ec: erase counter
  * @pnum: physical eraseblock number
  *
- * This data structure is used in the WL unit. Each physical eraseblock has a
- * corresponding &struct wl_entry object which may be kept in different
- * RB-trees. See WL unit for details.
+ * This data structure is used in the WL sub-system. Each physical eraseblock
+ * has a corresponding &struct wl_entry object which may be kept in different
+ * RB-trees. See WL sub-system for details.
  */
 struct ubi_wl_entry {
 	struct rb_node rb;
@@ -118,10 +118,10 @@ struct ubi_wl_entry {
  * @mutex: read/write mutex to implement read/write access serialization to
  *         the (@vol_id, @lnum) logical eraseblock
  *
- * This data structure is used in the EBA unit to implement per-LEB locking.
- * When a logical eraseblock is being locked - corresponding
+ * This data structure is used in the EBA sub-system to implement per-LEB
+ * locking. When a logical eraseblock is being locked - corresponding
  * &struct ubi_ltree_entry object is inserted to the lock tree (@ubi->ltree).
- * See EBA unit for details.
+ * See EBA sub-system for details.
  */
 struct ubi_ltree_entry {
 	struct rb_node rb;
@@ -225,7 +225,7 @@ struct ubi_volume {
 #ifdef CONFIG_MTD_UBI_GLUEBI
 	/*
 	 * Gluebi-related stuff may be compiled out.
-	 * TODO: this should not be built into UBI but should be a separate
+	 * Note: this should not be built into UBI but should be a separate
 	 * ubimtd driver which works on top of UBI and emulates MTD devices.
 	 */
 	struct ubi_volume_desc *gluebi_desc;
@@ -235,8 +235,7 @@ struct ubi_volume {
 };
 
 /**
- * struct ubi_volume_desc - descriptor of the UBI volume returned when it is
- * opened.
+ * struct ubi_volume_desc - UBI volume descriptor returned when it is opened.
  * @vol: reference to the corresponding volume description object
  * @mode: open mode (%UBI_READONLY, %UBI_READWRITE, or %UBI_EXCLUSIVE)
  */
@@ -316,11 +315,11 @@ struct ubi_wl_entry;
  * @ro_mode: if the UBI device is in read-only mode
  * @leb_size: logical eraseblock size
  * @leb_start: starting offset of logical eraseblocks within physical
- * eraseblocks
+ *             eraseblocks
  * @ec_hdr_alsize: size of the EC header aligned to @hdrs_min_io_size
  * @vid_hdr_alsize: size of the VID header aligned to @hdrs_min_io_size
  * @vid_hdr_offset: starting offset of the volume identifier header (might be
- * unaligned)
+ *                  unaligned)
  * @vid_hdr_aloffset: starting offset of the VID header aligned to
  * @hdrs_min_io_size
  * @vid_hdr_shift: contains @vid_hdr_offset - @vid_hdr_aloffset
@@ -356,16 +355,16 @@ struct ubi_device {
 	struct mutex volumes_mutex;
 
 	int max_ec;
-	/* TODO: mean_ec is not updated run-time, fix */
+	/* Note, mean_ec is not updated run-time - should be fixed */
 	int mean_ec;
 
-	/* EBA unit's stuff */
+	/* EBA sub-system's stuff */
 	unsigned long long global_sqnum;
 	spinlock_t ltree_lock;
 	struct rb_root ltree;
 	struct mutex alc_mutex;
 
-	/* Wear-leveling unit's stuff */
+	/* Wear-leveling sub-system's stuff */
 	struct rb_root used;
 	struct rb_root free;
 	struct rb_root scrub;
@@ -388,7 +387,7 @@ struct ubi_device {
 	int thread_enabled;
 	char bgt_name[sizeof(UBI_BGT_NAME_PATTERN)+2];
 
-	/* I/O unit's stuff */
+	/* I/O sub-system's stuff */
 	long long flash_size;
 	int peb_count;
 	int peb_size;

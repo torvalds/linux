@@ -76,21 +76,21 @@ void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
 #endif /* CONFIG_MTD_UBI_DEBUG_MSG */
 
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG_EBA
-/* Messages from the eraseblock association unit */
+/* Messages from the eraseblock association sub-system */
 #define dbg_eba(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
 #else
 #define dbg_eba(fmt, ...) ({})
 #endif
 
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG_WL
-/* Messages from the wear-leveling unit */
+/* Messages from the wear-leveling sub-system */
 #define dbg_wl(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
 #else
 #define dbg_wl(fmt, ...) ({})
 #endif
 
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG_IO
-/* Messages from the input/output unit */
+/* Messages from the input/output sub-system */
 #define dbg_io(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
 #else
 #define dbg_io(fmt, ...) ({})
