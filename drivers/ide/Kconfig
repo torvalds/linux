@@ -929,46 +929,6 @@ config BLK_DEV_PALMCHIP_BK3710
 	  Say Y here if you want to support the onchip IDE controller on the
 	  TI DaVinci SoC
 
-
-config BLK_DEV_MPC8xx_IDE
-	tristate "MPC8xx IDE support"
-	depends on 8xx && (LWMON || IVMS8 || IVML24 || TQM8xxL) && IDE=y && BLK_DEV_IDE=y && !PPC_MERGE
-	help
-	  This option provides support for IDE on Motorola MPC8xx Systems.
-	  Please see 'Type of MPC8xx IDE interface' for details.
-
-	  If unsure, say N.
-
-choice
-	prompt "Type of MPC8xx IDE interface"
-	depends on BLK_DEV_MPC8xx_IDE
-	default IDE_8xx_PCCARD
-
-config IDE_8xx_PCCARD
-	bool "8xx_PCCARD"
-	---help---
-	  Select how the IDE devices are connected to the MPC8xx system:
-
-	  8xx_PCCARD uses the 8xx internal PCMCIA interface in combination
-	  with a PC Card (e.g. ARGOSY portable Hard Disk Adapter),
-	  ATA PC Card HDDs or ATA PC Flash Cards (example: TQM8xxL
-	  systems)
-
-	  8xx_DIRECT is used for directly connected IDE devices using the 8xx
-	  internal PCMCIA interface (example: IVMS8 systems)
-
-	  EXT_DIRECT is used for IDE devices directly connected to the 8xx
-	  bus using some glue logic, but _not_ the 8xx internal
-	  PCMCIA interface (example: IDIF860 systems)
-
-config IDE_8xx_DIRECT
-	bool "8xx_DIRECT"
-
-config IDE_EXT_DIRECT
-	bool "EXT_DIRECT"
-
-endchoice
-
 # no isa -> no vlb
 if ISA && (ALPHA || X86 || MIPS)
 
