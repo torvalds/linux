@@ -44,6 +44,7 @@ struct sd {
 	unsigned char brightness;
 	unsigned char autogain;
 	unsigned char autogain_ignore_frames;
+	unsigned char freq;		/* light freq filter setting */
 
 	unsigned char fr_h_sz;		/* size of frame header */
 	char sensor;			/* Type of image sensor chip */
@@ -85,6 +86,8 @@ static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 	{
@@ -146,6 +149,20 @@ static struct ctrl sd_ctrls[] = {
 		},
 		.set = sd_setautogain,
 		.get = sd_getautogain,
+	},
+	{
+		{
+			.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
+			.type    = V4L2_CTRL_TYPE_MENU,
+			.name    = "Light frequency filter",
+			.minimum = 0,
+			.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
+			.step    = 1,
+#define FREQ_DEF 1
+			.default_value = FREQ_DEF,
+		},
+		.set = sd_setfreq,
+		.get = sd_getfreq,
 	},
 };
 
@@ -225,11 +242,6 @@ static const __u8 ov6650_sensor_init[][8] =
 	/* Some more unknown stuff */
 	{0xa0, 0x60, 0x68, 0x04, 0x68, 0xd8, 0xa4, 0x10},
 	{0xd0, 0x60, 0x17, 0x24, 0xd6, 0x04, 0x94, 0x10}, /* Clipreg */
-	{0xa0, 0x60, 0x10, 0x57, 0x99, 0x04, 0x94, 0x16},
-	/* Framerate adjust register for artificial light 50 hz flicker
-	   compensation, identical to ov6630 0x2b register, see 6630 datasheet.
-	   0x4f -> (30 fps -> 25 fps), 0x00 -> no adjustment */
-	{0xa0, 0x60, 0x2b, 0x4f, 0x99, 0x04, 0x94, 0x15},
 };
 
 static const __u8 initOv7630[] = {
@@ -657,8 +669,12 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		*/
 		__u8 i2c[] = {0xb0, 0x60, 0x10, 0x00, 0xc0, 0x00, 0x00, 0x10};
 		int reg10, reg11;
-		/* No clear idea why, but setting reg10 above this value
-		   results in no change */
+		/* ov6645 datasheet says reg10_max is 9a, but that uses
+		   tline * 2 * reg10 as formula for calculating texpo, the
+		   ov6650 probably uses the same formula as the 7730 which uses
+		   tline * 4 * reg10, which explains why the reg10max we've
+		   found experimentally for the ov6650 is exactly half that of
+		   the ov6645. */
 		const int reg10_max = 0x4d;
 
 		reg11 = (60 * sd->exposure + 999) / 1000;
@@ -713,6 +729,34 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	}
 }
 
+static void setfreq(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->sensor) {
+	case SENSOR_OV6650: {
+		/* Framerate adjust register for artificial light 50 hz flicker
+		   compensation, identical to ov6630 0x2b register, see ov6630
+		   datasheet.
+		   0x4f -> (30 fps -> 25 fps), 0x00 -> no adjustment */
+		__u8 i2c[] = {0xa0, 0x60, 0x2b, 0x00, 0x00, 0x00, 0x00, 0x10};
+		switch (sd->freq) {
+		default:
+/*		case 0:			 * no filter*/
+/*		case 2:			 * 60 hz */
+			i2c[3] = 0;
+			break;
+		case 1:			/* 50 hz */
+			i2c[3] = 0x4f;
+			break;
+		}
+		if (i2c_w(gspca_dev, i2c) < 0)
+			PDEBUG(D_ERR, "i2c error setfreq");
+		break;
+	    }
+	}
+}
+
 
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
@@ -746,6 +790,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->fr_h_sz = 12;		/* default size of the frame header */
 	sd->sd_desc.nctrls = 2;		/* default nb of ctrls */
 	sd->autogain = AUTOGAIN_DEF;    /* default is autogain active */
+	sd->freq = FREQ_DEF;
 
 	product = id->idProduct;
 /*	switch (id->idVendor) { */
@@ -1004,6 +1049,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	setgain(gspca_dev);
 	setbrightness(gspca_dev);
 	setexposure(gspca_dev);
+	setfreq(gspca_dev);
 
 	sd->autogain_ignore_frames = 0;
 	atomic_set(&sd->avg_lum, -1);
@@ -1161,6 +1207,45 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->freq = val;
+	if (gspca_dev->streaming)
+		setfreq(gspca_dev);
+	return 0;
+}
+
+static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->freq;
+	return 0;
+}
+
+static int sd_querymenu(struct gspca_dev *gspca_dev,
+			struct v4l2_querymenu *menu)
+{
+	switch (menu->id) {
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		switch (menu->index) {
+		case 0:		/* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
+			strcpy((char *) menu->name, "NoFliker");
+			return 0;
+		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
+			strcpy((char *) menu->name, "50 Hz");
+			return 0;
+		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
+			strcpy((char *) menu->name, "60 Hz");
+			return 0;
+		}
+		break;
+	}
+	return -EINVAL;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -1173,6 +1258,7 @@ static const struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
+	.querymenu = sd_querymenu,
 };
 
 /* -- module initialisation -- */
