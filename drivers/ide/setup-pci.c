@@ -6,19 +6,15 @@
  *  May be copied or modified under the terms of the GNU General Public License
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/init.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/ide.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 
 /**
  *	ide_setup_pci_baseregs	-	place a PCI IDE controller native
