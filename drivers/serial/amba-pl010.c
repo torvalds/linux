@@ -22,8 +22,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- *  $Id: amba.c,v 1.41 2002/07/28 10:03:27 rmk Exp $
- *
  * This is a generic driver for ARM AMBA-type serial ports.  They
  * have a lot of 16550-like features, but are not register compatible.
  * Note that although they do have CTS, DCD and DSR inputs, they do
@@ -791,7 +789,7 @@ static int __init pl010_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "Serial: AMBA driver $Revision: 1.41 $\n");
+	printk(KERN_INFO "Serial: AMBA driver\n");
 
 	ret = uart_register_driver(&amba_reg);
 	if (ret == 0) {
@@ -812,5 +810,5 @@ module_init(pl010_init);
 module_exit(pl010_exit);
 
 MODULE_AUTHOR("ARM Ltd/Deep Blue Solutions Ltd");
-MODULE_DESCRIPTION("ARM AMBA serial port driver $Revision: 1.41 $");
+MODULE_DESCRIPTION("ARM AMBA serial port driver");
 MODULE_LICENSE("GPL");

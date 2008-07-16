@@ -824,7 +824,7 @@ static int __init pnx8xxx_serial_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "Serial: PNX8XXX driver $Revision: 1.2 $\n");
+	printk(KERN_INFO "Serial: PNX8XXX driver\n");
 
 	pnx8xxx_init_ports();
 
