@@ -484,12 +484,12 @@ static int RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, struc
 				 ** If the device is a modem, then check the modem
 				 ** carrier.
 				 */
-				if (PortP->gs.tty == NULL)
+				if (PortP->gs.port.tty == NULL)
 					break;
-				if (PortP->gs.tty->termios == NULL)
+				if (PortP->gs.port.tty->termios == NULL)
 					break;
 
-				if (!(PortP->gs.tty->termios->c_cflag & CLOCAL) && ((PortP->State & (RIO_MOPEN | RIO_WOPEN)))) {
+				if (!(PortP->gs.port.tty->termios->c_cflag & CLOCAL) && ((PortP->State & (RIO_MOPEN | RIO_WOPEN)))) {
 
 					rio_dprintk(RIO_DEBUG_CMD, "Is there a Carrier?\n");
 					/*
@@ -506,7 +506,7 @@ static int RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, struc
 							 ** wakeup anyone in WOPEN
 							 */
 							if (PortP->State & (PORT_ISOPEN | RIO_WOPEN))
-								wake_up_interruptible(&PortP->gs.open_wait);
+								wake_up_interruptible(&PortP->gs.port.open_wait);
 						}
 					} else {
 						/*
@@ -514,7 +514,7 @@ static int RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, struc
 						 */
 						if (PortP->State & RIO_CARR_ON) {
 							if (PortP->State & (PORT_ISOPEN | RIO_WOPEN | RIO_MOPEN))
-								tty_hangup(PortP->gs.tty);
+								tty_hangup(PortP->gs.port.tty);
 							PortP->State &= ~RIO_CARR_ON;
 							rio_dprintk(RIO_DEBUG_CMD, "Carrirer just went down\n");
 						}

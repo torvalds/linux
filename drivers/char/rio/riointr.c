@@ -102,7 +102,7 @@ void RIOTxEnable(char *en)
 
 	PortP = (struct Port *) en;
 	p = (struct rio_info *) PortP->p;
-	tty = PortP->gs.tty;
+	tty = PortP->gs.port.tty;
 
 
 	rio_dprintk(RIO_DEBUG_INTR, "tx port %d: %d chars queued.\n", PortP->PortNum, PortP->gs.xmit_cnt);
@@ -158,7 +158,7 @@ void RIOTxEnable(char *en)
 	rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 
 	if (PortP->gs.xmit_cnt <= (PortP->gs.wakeup_chars + 2 * PKT_MAX_DATA_LEN))
-		tty_wakeup(PortP->gs.tty);
+		tty_wakeup(PortP->gs.port.tty);
 
 }
 
@@ -241,7 +241,7 @@ void RIOServiceHost(struct rio_info *p, struct Host *HostP)
 			 ** find corresponding tty structure. The process of mapping
 			 ** the ports puts these here.
 			 */
-			ttyP = PortP->gs.tty;
+			ttyP = PortP->gs.port.tty;
 
 			/*
 			 ** Lock the port before we begin working on it.
@@ -335,7 +335,7 @@ void RIOServiceHost(struct rio_info *p, struct Host *HostP)
 			 ** find corresponding tty structure. The process of mapping
 			 ** the ports puts these here.
 			 */
-			ttyP = PortP->gs.tty;
+			ttyP = PortP->gs.port.tty;
 			/* If ttyP is NULL, the port is getting closed. Forget about it. */
 			if (!ttyP) {
 				rio_dprintk(RIO_DEBUG_INTR, "no tty, so skipping.\n");
@@ -542,7 +542,7 @@ static void RIOReceive(struct rio_info *p, struct Port *PortP)
 
 	intCount++;
 
-	TtyP = PortP->gs.tty;
+	TtyP = PortP->gs.port.tty;
 	if (!TtyP) {
 		rio_dprintk(RIO_DEBUG_INTR, "RIOReceive: tty is null. \n");
 		return;

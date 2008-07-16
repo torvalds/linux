@@ -431,7 +431,7 @@ static void rio_disable_tx_interrupts(void *ptr)
 {
 	func_enter();
 
-	/*  port->gs.flags &= ~GS_TX_INTEN; */
+	/*  port->gs.port.flags &= ~GS_TX_INTEN; */
 
 	func_exit();
 }
@@ -455,7 +455,7 @@ static void rio_enable_tx_interrupts(void *ptr)
 	 * In general we cannot count on "tx empty" interrupts, although
 	 * the interrupt routine seems to be able to tell the difference.
 	 */
-	PortP->gs.flags &= ~GS_TX_INTEN;
+	PortP->gs.port.flags &= ~GS_TX_INTEN;
 
 	func_exit();
 }
@@ -510,7 +510,7 @@ static void rio_shutdown_port(void *ptr)
 	func_enter();
 
 	PortP = (struct Port *) ptr;
-	PortP->gs.tty = NULL;
+	PortP->gs.port.tty = NULL;
 	func_exit();
 }
 
@@ -529,7 +529,7 @@ static void rio_hungup(void *ptr)
 	func_enter();
 
 	PortP = (struct Port *) ptr;
-	PortP->gs.tty = NULL;
+	PortP->gs.port.tty = NULL;
 
 	func_exit();
 }
@@ -549,12 +549,12 @@ static void rio_close(void *ptr)
 
 	riotclose(ptr);
 
-	if (PortP->gs.count) {
-		printk(KERN_ERR "WARNING port count:%d\n", PortP->gs.count);
-		PortP->gs.count = 0;
+	if (PortP->gs.port.count) {
+		printk(KERN_ERR "WARNING port count:%d\n", PortP->gs.port.count);
+		PortP->gs.port.count = 0;
 	}
 
-	PortP->gs.tty = NULL;
+	PortP->gs.port.tty = NULL;
 	func_exit();
 }
 
@@ -849,8 +849,8 @@ static int rio_init_datastructures(void)
 		/*
 		 * Initializing wait queue
 		 */
-		init_waitqueue_head(&port->gs.open_wait);
-		init_waitqueue_head(&port->gs.close_wait);
+		init_waitqueue_head(&port->gs.port.open_wait);
+		init_waitqueue_head(&port->gs.port.close_wait);
 	}
 #else
 	/* We could postpone initializing them to when they are configured. */
