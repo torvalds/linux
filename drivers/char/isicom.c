@@ -1736,6 +1736,12 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 	if (card_count >= BOARD_COUNT)
 		goto err;
 
+	retval = pci_enable_device(pdev);
+	if (retval) {
+		dev_err(&pdev->dev, "failed to enable\n");
+		goto err;
+	}
+
 	dev_info(&pdev->dev, "ISI PCI Card(Device ID 0x%x)\n", ent->device);
 
 	/* allot the first empty slot in the array */
@@ -1790,6 +1796,7 @@ errunrr:
 errdec:
 	board->base = 0;
 	card_count--;
+	pci_disable_device(pdev);
 err:
 	return retval;
 }
@@ -1806,6 +1813,7 @@ static void __devexit isicom_remove(struct pci_dev *pdev)
 	pci_release_region(pdev, 3);
 	board->base = 0;
 	card_count--;
+	pci_disable_device(pdev);
 }
 
 static int __init isicom_init(void)
