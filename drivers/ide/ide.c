@@ -91,8 +91,6 @@ DEFINE_MUTEX(ide_cfg_mtx);
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
 EXPORT_SYMBOL(ide_lock);
 
-ide_hwif_t ide_hwifs[MAX_HWIFS];	/* master data repository */
-
 static void ide_port_init_devices_data(ide_hwif_t *);
 
 /*
