@@ -753,14 +753,6 @@ static ide_startstop_t cdrom_start_seek_continuation(ide_drive_t *drive)
 	return cdrom_transfer_packet_command(drive, rq, &cdrom_seek_intr);
 }
 
-static void cdrom_start_seek(ide_drive_t *drive)
-{
-	struct cdrom_info *info = drive->driver_data;
-
-	info->dma = 0;
-	info->start_seek = jiffies;
-}
-
 /*
  * Fix up a possibly partially-processed request so that we can start it over
  * entirely, or even put it back on the request queue.
@@ -1219,7 +1211,8 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		    drive->dsc_overlap) {
 			xferlen = 0;
 			fn = cdrom_start_seek_continuation;
-			cdrom_start_seek(drive);
+			info->dma = 0;
+			info->start_seek = jiffies;
 		} else {
 			xferlen = 32768;
 			fn = cdrom_start_rw_cont;
