@@ -666,16 +666,9 @@ static int ide_cd_check_transfer_size(ide_drive_t *drive, int len)
 
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
 
-/*
- * Routine to send a read/write packet command to the drive. This is usually
- * called directly from cdrom_start_{read,write}(). However, for drq_interrupt
- * devices, it is called from an interrupt when the drive is ready to accept
- * the command.
- */
-static ide_startstop_t cdrom_start_rw_cont(ide_drive_t *drive)
+static ide_startstop_t ide_cd_prepare_rw_request(ide_drive_t *drive,
+						 struct request *rq)
 {
-	struct request *rq = HWGROUP(drive)->rq;
-
 	if (rq_data_dir(rq) == READ) {
 		unsigned short sectors_per_frame =
 			queue_hardsect_size(drive->queue) >> SECTOR_BITS;
@@ -711,6 +704,19 @@ static ide_startstop_t cdrom_start_rw_cont(ide_drive_t *drive)
 #endif
 	/* set up the command */
 	rq->timeout = ATAPI_WAIT_PC;
+
+	return ide_started;
+}
+
+/*
+ * Routine to send a read/write packet command to the drive. This is usually
+ * called directly from cdrom_start_{read,write}(). However, for drq_interrupt
+ * devices, it is called from an interrupt when the drive is ready to accept
+ * the command.
+ */
+static ide_startstop_t cdrom_start_rw_cont(ide_drive_t *drive)
+{
+	struct request *rq = drive->hwif->hwgroup->rq;
 
 	/* send the command to the drive and return */
 	return cdrom_transfer_packet_command(drive, rq, cdrom_newpc_intr);
@@ -1224,7 +1230,11 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		} else {
 			xferlen = 32768;
 			fn = cdrom_start_rw_cont;
+
 			if (cdrom_start_rw(drive, rq) == ide_stopped)
+				return ide_stopped;
+
+			if (ide_cd_prepare_rw_request(drive, rq) == ide_stopped)
 				return ide_stopped;
 		}
 		info->last_block = block;
