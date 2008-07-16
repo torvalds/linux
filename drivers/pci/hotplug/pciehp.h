@@ -97,7 +97,7 @@ struct controller {
 	u32 slot_cap;
 	u8 cap_base;
 	struct timer_list poll_timer;
-	volatile int cmd_busy;
+	int cmd_busy;
 	unsigned int no_cmd_complete:1;
 };
 
