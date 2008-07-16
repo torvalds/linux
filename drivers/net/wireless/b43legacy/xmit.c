@@ -193,7 +193,6 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 {
 	const struct ieee80211_hdr *wlhdr;
 	int use_encryption = !!info->control.hw_key;
-	u16 fctl;
 	u8 rate;
 	struct ieee80211_rate *rate_fb;
 	int rate_ofdm;
@@ -204,7 +203,6 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	struct ieee80211_rate *tx_rate;
 
 	wlhdr = (const struct ieee80211_hdr *)fragment_data;
-	fctl = le16_to_cpu(wlhdr->frame_control);
 
 	memset(txhdr, 0, sizeof(*txhdr));
 
@@ -253,7 +251,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 			mac_ctl |= (key->algorithm <<
 				   B43legacy_TX4_MAC_KEYALG_SHIFT) &
 				   B43legacy_TX4_MAC_KEYALG;
-			wlhdr_len = ieee80211_get_hdrlen(fctl);
+			wlhdr_len = ieee80211_hdrlen(wlhdr->frame_control);
 			iv_len = min((size_t)info->control.iv_len,
 				     ARRAY_SIZE(txhdr->iv));
 			memcpy(txhdr->iv, ((u8 *)wlhdr) + wlhdr_len, iv_len);
