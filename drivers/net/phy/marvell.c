@@ -158,7 +158,6 @@ static int m88e1111_config_init(struct phy_device *phydev)
 {
 	int err;
 	int temp;
-	int mode;
 
 	/* Enable Fiber/Copper auto selection */
 	temp = phy_read(phydev, MII_M1111_PHY_EXT_SR);
@@ -198,9 +197,7 @@ static int m88e1111_config_init(struct phy_device *phydev)
 
 		temp &= ~(MII_M1111_HWCFG_MODE_MASK);
 
-		mode = phy_read(phydev, MII_M1111_PHY_EXT_CR);
-
-		if (mode & MII_M1111_HWCFG_FIBER_COPPER_RES)
+		if (temp & MII_M1111_HWCFG_FIBER_COPPER_RES)
 			temp |= MII_M1111_HWCFG_MODE_FIBER_RGMII;
 		else
 			temp |= MII_M1111_HWCFG_MODE_COPPER_RGMII;
