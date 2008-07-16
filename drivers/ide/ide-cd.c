@@ -1235,11 +1235,11 @@ static ide_startstop_t ide_do_rw_cdrom(ide_drive_t *drive, struct request *rq,
 		/* right now this can only be a reset... */
 		cdrom_end_request(drive, 1);
 		return ide_stopped;
+	} else {
+		blk_dump_rq_flags(rq, "ide-cd bad flags");
+		cdrom_end_request(drive, 0);
+		return ide_stopped;
 	}
-
-	blk_dump_rq_flags(rq, "ide-cd bad flags");
-	cdrom_end_request(drive, 0);
-	return ide_stopped;
 }
 
 
