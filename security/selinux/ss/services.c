@@ -1934,8 +1934,7 @@ out:
 int security_fs_use(
 	const char *fstype,
 	unsigned int *behavior,
-	u32 *sid,
-	bool can_xattr)
+	u32 *sid)
 {
 	int rc = 0;
 	struct ocontext *c;
@@ -1949,7 +1948,6 @@ int security_fs_use(
 		c = c->next;
 	}
 
-	/* look for labeling behavior defined in policy */
 	if (c) {
 		*behavior = c->v.behavior;
 		if (!c->sid[0]) {
@@ -1960,23 +1958,14 @@ int security_fs_use(
 				goto out;
 		}
 		*sid = c->sid[0];
-		goto out;
-	}
-
-	/* labeling behavior not in policy, use xattrs if possible */
-	if (can_xattr) {
-		*behavior = SECURITY_FS_USE_XATTR;
-		*sid = SECINITSID_FS;
-		goto out;
-	}
-
-	/* no behavior in policy and can't use xattrs, try GENFS */
-	rc = security_genfs_sid(fstype, "/", SECCLASS_DIR, sid);
-	if (rc) {
-		*behavior = SECURITY_FS_USE_NONE;
-		rc = 0;
 	} else {
-		*behavior = SECURITY_FS_USE_GENFS;
+		rc = security_genfs_sid(fstype, "/", SECCLASS_DIR, sid);
+		if (rc) {
+			*behavior = SECURITY_FS_USE_NONE;
+			rc = 0;
+		} else {
+			*behavior = SECURITY_FS_USE_GENFS;
+		}
 	}
 
 out:

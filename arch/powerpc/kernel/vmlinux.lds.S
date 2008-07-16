@@ -35,7 +35,7 @@ SECTIONS
 		ALIGN_FUNCTION();
 		*(.text.head)
 		_text = .;
-		*(.text .fixup .text.init.refok .exit.text.refok)
+		*(.text .fixup .text.init.refok .exit.text.refok __ftr_alt_*)
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
@@ -124,6 +124,12 @@ SECTIONS
 		__start___ftr_fixup = .;
 		*(__ftr_fixup)
 		__stop___ftr_fixup = .;
+	}
+	. = ALIGN(8);
+	__lwsync_fixup : AT(ADDR(__lwsync_fixup) - LOAD_OFFSET) {
+		__start___lwsync_fixup = .;
+		*(__lwsync_fixup)
+		__stop___lwsync_fixup = .;
 	}
 #ifdef CONFIG_PPC64
 	. = ALIGN(8);

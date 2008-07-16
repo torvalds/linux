@@ -17,7 +17,8 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-#include <linux/platform_device.h>
+#include <linux/of_platform.h>
+#include <linux/of_i2c.h>
 
 #include <asm/io.h>
 #include <linux/fsl_devices.h>
@@ -25,13 +26,13 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 
-#define MPC_I2C_ADDR  0x00
+#define DRV_NAME "mpc-i2c"
+
 #define MPC_I2C_FDR 	0x04
 #define MPC_I2C_CR	0x08
 #define MPC_I2C_SR	0x0c
 #define MPC_I2C_DR	0x10
 #define MPC_I2C_DFSRR 0x14
-#define MPC_I2C_REGION 0x20
 
 #define CCR_MEN  0x80
 #define CCR_MIEN 0x40
@@ -311,106 +312,121 @@ static struct i2c_adapter mpc_ops = {
 	.name = "MPC adapter",
 	.id = I2C_HW_MPC107,
 	.algo = &mpc_algo,
-	.class = I2C_CLASS_HWMON,
+	.class = I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.timeout = 1,
 };
 
-static int fsl_i2c_probe(struct platform_device *pdev)
+static int __devinit fsl_i2c_probe(struct of_device *op, const struct of_device_id *match)
 {
 	int result = 0;
 	struct mpc_i2c *i2c;
-	struct fsl_i2c_platform_data *pdata;
-	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	pdata = (struct fsl_i2c_platform_data *) pdev->dev.platform_data;
 
 	i2c = kzalloc(sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
-	i2c->irq = platform_get_irq(pdev, 0);
-	if (i2c->irq < 0)
-		i2c->irq = NO_IRQ; /* Use polling */
+	if (of_get_property(op->node, "dfsrr", NULL))
+		i2c->flags |= FSL_I2C_DEV_SEPARATE_DFSRR;
 
-	i2c->flags = pdata->device_flags;
+	if (of_device_is_compatible(op->node, "fsl,mpc5200-i2c") ||
+			of_device_is_compatible(op->node, "mpc5200-i2c"))
+		i2c->flags |= FSL_I2C_DEV_CLOCK_5200;
+
 	init_waitqueue_head(&i2c->queue);
 
-	i2c->base = ioremap((phys_addr_t)r->start, MPC_I2C_REGION);
-
+	i2c->base = of_iomap(op->node, 0);
 	if (!i2c->base) {
 		printk(KERN_ERR "i2c-mpc - failed to map controller\n");
 		result = -ENOMEM;
 		goto fail_map;
 	}
 
-	if (i2c->irq != NO_IRQ)
-		if ((result = request_irq(i2c->irq, mpc_i2c_isr,
-					  IRQF_SHARED, "i2c-mpc", i2c)) < 0) {
-			printk(KERN_ERR
-			       "i2c-mpc - failed to attach interrupt\n");
-			goto fail_irq;
+	i2c->irq = irq_of_parse_and_map(op->node, 0);
+	if (i2c->irq != NO_IRQ) { /* i2c->irq = NO_IRQ implies polling */
+		result = request_irq(i2c->irq, mpc_i2c_isr,
+				     IRQF_SHARED, "i2c-mpc", i2c);
+		if (result < 0) {
+			printk(KERN_ERR "i2c-mpc - failed to attach interrupt\n");
+			goto fail_request;
 		}
-
+	}
+	
 	mpc_i2c_setclock(i2c);
-	platform_set_drvdata(pdev, i2c);
+
+	dev_set_drvdata(&op->dev, i2c);
 
 	i2c->adap = mpc_ops;
-	i2c->adap.nr = pdev->id;
 	i2c_set_adapdata(&i2c->adap, i2c);
-	i2c->adap.dev.parent = &pdev->dev;
-	if ((result = i2c_add_numbered_adapter(&i2c->adap)) < 0) {
+	i2c->adap.dev.parent = &op->dev;
+
+	result = i2c_add_adapter(&i2c->adap);
+	if (result < 0) {
 		printk(KERN_ERR "i2c-mpc - failed to add adapter\n");
 		goto fail_add;
 	}
+	of_register_i2c_devices(&i2c->adap, op->node);
 
 	return result;
 
-      fail_add:
-	if (i2c->irq != NO_IRQ)
-		free_irq(i2c->irq, i2c);
-      fail_irq:
-	iounmap(i2c->base);
-      fail_map:
+ fail_add:
+	dev_set_drvdata(&op->dev, NULL);
+	free_irq(i2c->irq, i2c);
+ fail_request:
+	irq_dispose_mapping(i2c->irq);
+ 	iounmap(i2c->base);
+ fail_map:
 	kfree(i2c);
 	return result;
 };
 
-static int fsl_i2c_remove(struct platform_device *pdev)
+static int __devexit fsl_i2c_remove(struct of_device *op)
 {
-	struct mpc_i2c *i2c = platform_get_drvdata(pdev);
+	struct mpc_i2c *i2c = dev_get_drvdata(&op->dev);
 
 	i2c_del_adapter(&i2c->adap);
-	platform_set_drvdata(pdev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	if (i2c->irq != NO_IRQ)
 		free_irq(i2c->irq, i2c);
 
+	irq_dispose_mapping(i2c->irq);
 	iounmap(i2c->base);
 	kfree(i2c);
 	return 0;
 };
 
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:fsl-i2c");
+static const struct of_device_id mpc_i2c_of_match[] = {
+	{.compatible = "fsl-i2c",},
+	{},
+};
+MODULE_DEVICE_TABLE(of, mpc_i2c_of_match);
+
 
 /* Structure for a device driver */
-static struct platform_driver fsl_i2c_driver = {
-	.probe = fsl_i2c_probe,
-	.remove = fsl_i2c_remove,
-	.driver	= {
-		.owner = THIS_MODULE,
-		.name = "fsl-i2c",
+static struct of_platform_driver mpc_i2c_driver = {
+	.match_table	= mpc_i2c_of_match,
+	.probe		= fsl_i2c_probe,
+	.remove		= __devexit_p(fsl_i2c_remove),
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= DRV_NAME,
 	},
 };
 
 static int __init fsl_i2c_init(void)
 {
-	return platform_driver_register(&fsl_i2c_driver);
+	int rv;
+
+	rv = of_register_platform_driver(&mpc_i2c_driver);
+	if (rv)
+		printk(KERN_ERR DRV_NAME 
+		       " of_register_platform_driver failed (%i)\n", rv);
+	return rv;
 }
 
 static void __exit fsl_i2c_exit(void)
 {
-	platform_driver_unregister(&fsl_i2c_driver);
+	of_unregister_platform_driver(&mpc_i2c_driver);
 }
 
 module_init(fsl_i2c_init);

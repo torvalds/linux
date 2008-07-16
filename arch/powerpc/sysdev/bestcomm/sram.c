@@ -86,7 +86,7 @@ int bcom_sram_init(struct device_node *sram_node, char *owner)
 	if (!bcom_sram->base_virt) {
 		printk(KERN_ERR "%s: bcom_sram_init: "
 			"Map error SRAM zone 0x%08lx (0x%0x)!\n",
-			owner, bcom_sram->base_phys, bcom_sram->size );
+			owner, (long)bcom_sram->base_phys, bcom_sram->size );
 		rv = -ENOMEM;
 		goto error_release;
 	}

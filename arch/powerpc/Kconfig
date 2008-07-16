@@ -53,6 +53,9 @@ config STACKTRACE_SUPPORT
 	bool
 	default y
 
+config HAVE_LATENCYTOP_SUPPORT
+	def_bool y
+
 config TRACE_IRQFLAGS_SUPPORT
 	bool
 	depends on PPC64
@@ -111,6 +114,8 @@ config PPC
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_LMB
+	select HAVE_DMA_ATTRS if PPC64
+	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_OPROFILE
 
 config EARLY_PRINTK
@@ -310,8 +315,8 @@ config KEXEC
 	  strongly in flux, so no good recommendation can be made.
 
 config CRASH_DUMP
-	bool "Build a kdump crash kernel (EXPERIMENTAL)"
-	depends on PPC_MULTIPLATFORM && PPC64 && EXPERIMENTAL
+	bool "Build a kdump crash kernel"
+	depends on PPC_MULTIPLATFORM && PPC64
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
 	  The kernel will be linked at a different address than normal, and
@@ -460,6 +465,19 @@ config CMDLINE
 	  some command-line options at build time by entering them here.  In
 	  most cases you will need to specify the root device here.
 
+config EXTRA_TARGETS
+	string "Additional default image types"
+	help
+	  List additional targets to be built by the bootwrapper here (separated
+	  by spaces).  This is useful for targets that depend of device tree
+	  files in the .dts directory.
+
+	  Targets in this list will be build as part of the default build
+	  target, or when the user does a 'make zImage' or a
+	  'make zImage.initrd'.
+
+	  If unsure, leave blank
+
 if !44x || BROKEN
 config ARCH_WANTS_FREEZER_CONTROL
 	def_bool y
@@ -539,6 +557,12 @@ config FSL_LBC
 	bool
 	help
 	  Freescale Localbus support
+
+config FSL_GTM
+	bool
+	depends on PPC_83xx || QUICC_ENGINE || CPM2
+	help
+	  Freescale General-purpose Timers support
 
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA

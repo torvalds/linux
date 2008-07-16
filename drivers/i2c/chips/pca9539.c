@@ -113,7 +113,7 @@ static int pca9539_attach_adapter(struct i2c_adapter *adapter)
 /* This function is called by i2c_probe */
 static int pca9539_detect(struct i2c_adapter *adapter, int address, int kind)
 {
-	struct i2c_client *new_client;
+	struct i2c_client *client;
 	struct pca9539_data *data;
 	int err = 0;
 
@@ -127,29 +127,28 @@ static int pca9539_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit;
 	}
 
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &pca9539_driver;
-	new_client->flags = 0;
+	client = &data->client;
+	i2c_set_clientdata(client, data);
+	client->addr = address;
+	client->adapter = adapter;
+	client->driver = &pca9539_driver;
 
 	if (kind < 0) {
 		/* Detection: the pca9539 only has 8 registers (0-7).
 		   A read of 7 should succeed, but a read of 8 should fail. */
-		if ((i2c_smbus_read_byte_data(new_client, 7) < 0) ||
-		    (i2c_smbus_read_byte_data(new_client, 8) >= 0))
+		if ((i2c_smbus_read_byte_data(client, 7) < 0) ||
+		    (i2c_smbus_read_byte_data(client, 8) >= 0))
 			goto exit_kfree;
 	}
 
-	strlcpy(new_client->name, "pca9539", I2C_NAME_SIZE);
+	strlcpy(client->name, "pca9539", I2C_NAME_SIZE);
 
 	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
+	if ((err = i2c_attach_client(client)))
 		goto exit_kfree;
 
 	/* Register sysfs hooks */
-	err = sysfs_create_group(&new_client->dev.kobj,
+	err = sysfs_create_group(&client->dev.kobj,
 				 &pca9539_defattr_group);
 	if (err)
 		goto exit_detach;
@@ -157,7 +156,7 @@ static int pca9539_detect(struct i2c_adapter *adapter, int address, int kind)
 	return 0;
 
 exit_detach:
-	i2c_detach_client(new_client);
+	i2c_detach_client(client);
 exit_kfree:
 	kfree(data);
 exit:

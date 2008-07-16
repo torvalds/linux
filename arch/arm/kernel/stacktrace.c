@@ -92,4 +92,5 @@ void save_stack_trace(struct stack_trace *trace)
 {
 	save_stack_trace_tsk(current, trace);
 }
+EXPORT_SYMBOL_GPL(save_stack_trace);
 #endif

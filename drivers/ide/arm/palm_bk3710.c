@@ -83,7 +83,7 @@ static const struct palm_bk3710_udmatiming palm_bk3710_udmatimings[6] = {
 	{125, 160},		/* UDMA Mode 1 */
 	{100, 120},		/* UDMA Mode 2 */
 	{100, 90},		/* UDMA Mode 3 */
-	{85,  60},		/* UDMA Mode 4 */
+	{100, 60},		/* UDMA Mode 4 */
 };
 
 static void palm_bk3710_setudmamode(void __iomem *base, unsigned int dev,
@@ -405,7 +405,6 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	ide_init_port_data(hwif, i);
 	ide_init_port_hw(hwif, &hw);
 
-	hwif->mmio = 1;
 	default_hwif_mmiops(hwif);
 
 	idx[0] = i;

@@ -48,6 +48,13 @@ static void tick_do_update_jiffies64(ktime_t now)
 	unsigned long ticks = 0;
 	ktime_t delta;
 
+	/*
+	 * Do a quick check without holding xtime_lock:
+	 */
+	delta = ktime_sub(now, last_jiffies_update);
+	if (delta.tv64 < tick_period.tv64)
+		return;
+
 	/* Reevalute with xtime_lock held */
 	write_seqlock(&xtime_lock);
 
@@ -228,6 +235,7 @@ void tick_nohz_stop_sched_tick(void)
 			       local_softirq_pending());
 			ratelimit++;
 		}
+		goto end;
 	}
 
 	ts->idle_calls++;

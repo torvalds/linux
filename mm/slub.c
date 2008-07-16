@@ -411,7 +411,7 @@ static void set_track(struct kmem_cache *s, void *object,
 	if (addr) {
 		p->addr = addr;
 		p->cpu = smp_processor_id();
-		p->pid = current ? current->pid : -1;
+		p->pid = current->pid;
 		p->when = jiffies;
 	} else
 		memset(p, 0, sizeof(struct track));
@@ -1496,7 +1496,7 @@ static void flush_cpu_slab(void *d)
 static void flush_all(struct kmem_cache *s)
 {
 #ifdef CONFIG_SMP
-	on_each_cpu(flush_cpu_slab, s, 1, 1);
+	on_each_cpu(flush_cpu_slab, s, 1);
 #else
 	unsigned long flags;
 
@@ -2766,6 +2766,7 @@ void kfree(const void *x)
 
 	page = virt_to_head_page(x);
 	if (unlikely(!PageSlab(page))) {
+		BUG_ON(!PageCompound(page));
 		put_page(page);
 		return;
 	}

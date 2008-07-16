@@ -101,7 +101,8 @@ struct mlx4_ib_wq {
 };
 
 enum mlx4_ib_qp_flags {
-	MLX4_IB_QP_LSO		= 1 << 0
+	MLX4_IB_QP_LSO				= 1 << 0,
+	MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK	= 1 << 1,
 };
 
 struct mlx4_ib_qp {

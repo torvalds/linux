@@ -107,6 +107,9 @@ EXPORT_SYMBOL(giveup_fpu);
 #ifdef CONFIG_ALTIVEC
 EXPORT_SYMBOL(giveup_altivec);
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_VSX
+EXPORT_SYMBOL(giveup_vsx);
+#endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 EXPORT_SYMBOL(giveup_spe);
 #endif /* CONFIG_SPE */

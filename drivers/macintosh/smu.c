@@ -36,6 +36,8 @@
 #include <linux/sysdev.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -46,8 +48,6 @@
 #include <asm/sections.h>
 #include <asm/abs_addr.h>
 #include <asm/uaccess.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 
 #define VERSION "0.7"
 #define AUTHOR  "(c) 2005 Benjamin Herrenschmidt, IBM Corp."
@@ -475,6 +475,7 @@ int __init smu_init (void)
 {
 	struct device_node *np;
 	const u32 *data;
+	int ret = 0;
 
         np = of_find_node_by_type(NULL, "smu");
         if (np == NULL)
@@ -484,16 +485,11 @@ int __init smu_init (void)
 
 	if (smu_cmdbuf_abs == 0) {
 		printk(KERN_ERR "SMU: Command buffer not allocated !\n");
-		of_node_put(np);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail_np;
 	}
 
 	smu = alloc_bootmem(sizeof(struct smu_device));
-	if (smu == NULL) {
-		of_node_put(np);
-		return -ENOMEM;
-	}
-	memset(smu, 0, sizeof(*smu));
 
 	spin_lock_init(&smu->lock);
 	INIT_LIST_HEAD(&smu->cmd_list);
@@ -511,14 +507,14 @@ int __init smu_init (void)
 	smu->db_node = of_find_node_by_name(NULL, "smu-doorbell");
 	if (smu->db_node == NULL) {
 		printk(KERN_ERR "SMU: Can't find doorbell GPIO !\n");
-		goto fail;
+		ret = -ENXIO;
+		goto fail_bootmem;
 	}
 	data = of_get_property(smu->db_node, "reg", NULL);
 	if (data == NULL) {
-		of_node_put(smu->db_node);
-		smu->db_node = NULL;
 		printk(KERN_ERR "SMU: Can't find doorbell GPIO address !\n");
-		goto fail;
+		ret = -ENXIO;
+		goto fail_db_node;
 	}
 
 	/* Current setup has one doorbell GPIO that does both doorbell
@@ -552,7 +548,8 @@ int __init smu_init (void)
 	smu->db_buf = ioremap(0x8000860c, 0x1000);
 	if (smu->db_buf == NULL) {
 		printk(KERN_ERR "SMU: Can't map doorbell buffer pointer !\n");
-		goto fail;
+		ret = -ENXIO;
+		goto fail_msg_node;
 	}
 
 	/* U3 has an issue with NAP mode when issuing SMU commands */
@@ -563,10 +560,17 @@ int __init smu_init (void)
 	sys_ctrler = SYS_CTRLER_SMU;
 	return 0;
 
- fail:
+fail_msg_node:
+	if (smu->msg_node)
+		of_node_put(smu->msg_node);
+fail_db_node:
+	of_node_put(smu->db_node);
+fail_bootmem:
+	free_bootmem((unsigned long)smu, sizeof(struct smu_device));
 	smu = NULL;
-	return -ENXIO;
-
+fail_np:
+	of_node_put(np);
+	return ret;
 }
 
 

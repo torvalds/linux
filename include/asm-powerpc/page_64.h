@@ -126,16 +126,22 @@ extern unsigned int get_slice_psize(struct mm_struct *mm,
 
 extern void slice_init_context(struct mm_struct *mm, unsigned int psize);
 extern void slice_set_user_psize(struct mm_struct *mm, unsigned int psize);
+extern void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
+				  unsigned long len, unsigned int psize);
+
 #define slice_mm_new_context(mm)	((mm)->context.id == 0)
 
 #endif /* __ASSEMBLY__ */
 #else
 #define slice_init()
+#define get_slice_psize(mm, addr)	((mm)->context.user_psize)
 #define slice_set_user_psize(mm, psize)		\
 do {						\
 	(mm)->context.user_psize = (psize);	\
 	(mm)->context.sllp = SLB_VSID_USER | mmu_psize_defs[(psize)].sllp; \
 } while (0)
+#define slice_set_range_psize(mm, start, len, psize)	\
+	slice_set_user_psize((mm), (psize))
 #define slice_mm_new_context(mm)	1
 #endif /* CONFIG_PPC_MM_SLICES */
 

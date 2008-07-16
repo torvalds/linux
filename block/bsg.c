@@ -740,8 +740,13 @@ static int bsg_put_device(struct bsg_device *bd)
 	mutex_lock(&bsg_mutex);
 
 	do_free = atomic_dec_and_test(&bd->ref_count);
-	if (!do_free)
+	if (!do_free) {
+		mutex_unlock(&bsg_mutex);
 		goto out;
+	}
+
+	hlist_del(&bd->dev_list);
+	mutex_unlock(&bsg_mutex);
 
 	dprintk("%s: tearing down\n", bd->name);
 
@@ -757,10 +762,8 @@ static int bsg_put_device(struct bsg_device *bd)
 	 */
 	ret = bsg_complete_all_commands(bd);
 
-	hlist_del(&bd->dev_list);
 	kfree(bd);
 out:
-	mutex_unlock(&bsg_mutex);
 	kref_put(&q->bsg_dev.ref, bsg_kref_release_function);
 	if (do_free)
 		blk_put_queue(q);

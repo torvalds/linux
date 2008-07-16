@@ -160,7 +160,7 @@ common_shutdown(int mode, char *restart_cmd)
 	struct halt_info args;
 	args.mode = mode;
 	args.restart_cmd = restart_cmd;
-	on_each_cpu(common_shutdown_1, &args, 1, 0);
+	on_each_cpu(common_shutdown_1, &args, 0);
 }
 
 void

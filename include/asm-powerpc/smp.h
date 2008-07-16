@@ -37,6 +37,8 @@ extern void cpu_die(void);
 extern void smp_send_debugger_break(int cpu);
 extern void smp_message_recv(int);
 
+DECLARE_PER_CPU(unsigned int, pvr);
+
 #ifdef CONFIG_HOTPLUG_CPU
 extern void fixup_irqs(cpumask_t map);
 int generic_cpu_disable(void);
@@ -67,10 +69,7 @@ DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
  * in /proc/interrupts will be wrong!!! --Troy */
 #define PPC_MSG_CALL_FUNCTION   0
 #define PPC_MSG_RESCHEDULE      1
-/* This is unused now */
-#if 0
-#define PPC_MSG_MIGRATE_TASK    2
-#endif
+#define PPC_MSG_CALL_FUNC_SINGLE	2
 #define PPC_MSG_DEBUGGER_BREAK  3
 
 void smp_init_iSeries(void);
@@ -116,6 +115,9 @@ extern void smp_generic_give_timebase(void);
 extern void smp_generic_take_timebase(void);
 
 extern struct smp_ops_t *smp_ops;
+
+extern void arch_send_call_function_single_ipi(int cpu);
+extern void arch_send_call_function_ipi(cpumask_t mask);
 
 #endif /* __ASSEMBLY__ */
 

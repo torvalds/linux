@@ -1104,5 +1104,5 @@ static void __exit i2c_adap_pxa_exit(void)
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:pxa2xx-i2c");
 
-module_init(i2c_adap_pxa_init);
+subsys_initcall(i2c_adap_pxa_init);
 module_exit(i2c_adap_pxa_exit);

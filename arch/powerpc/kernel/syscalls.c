@@ -143,6 +143,9 @@ static inline unsigned long do_mmap2(unsigned long addr, size_t len,
 	struct file * file = NULL;
 	unsigned long ret = -EINVAL;
 
+	if (!arch_validate_prot(prot))
+		goto out;
+
 	if (shift) {
 		if (off & ((1 << shift) - 1))
 			goto out;

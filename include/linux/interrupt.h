@@ -104,8 +104,11 @@ extern void enable_irq(unsigned int irq);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_HARDIRQS)
 
+extern cpumask_t irq_default_affinity;
+
 extern int irq_set_affinity(unsigned int irq, cpumask_t cpumask);
 extern int irq_can_set_affinity(unsigned int irq);
+extern int irq_select_affinity(unsigned int irq);
 
 #else /* CONFIG_SMP */
 
@@ -118,6 +121,8 @@ static inline int irq_can_set_affinity(unsigned int irq)
 {
 	return 0;
 }
+
+static inline int irq_select_affinity(unsigned int irq)  { return 0; }
 
 #endif /* CONFIG_SMP && CONFIG_GENERIC_HARDIRQS */
 
