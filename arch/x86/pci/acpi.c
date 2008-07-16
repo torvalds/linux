@@ -4,7 +4,6 @@
 #include <linux/irq.h>
 #include <linux/dmi.h>
 #include <asm/numa.h>
-#include <asm/e820.h>
 #include "pci.h"
 
 struct pci_root_info {
@@ -13,11 +12,6 @@ struct pci_root_info {
 	struct resource *res;
 	struct pci_bus *bus;
 	int busnum;
-};
-
-struct gap_info {
-	unsigned long gapstart;
-	unsigned long gapsize;
 };
 
 static acpi_status
@@ -115,78 +109,6 @@ adjust_transparent_bridge_resources(struct pci_bus *bus)
 		}
 	}
 }
-
-static acpi_status search_gap(struct acpi_resource *resource, void *data)
-{
-	struct acpi_resource_address64 addr;
-	acpi_status status;
-	struct gap_info *gap = data;
-	unsigned long long start_addr, end_addr;
-
-	status = resource_to_addr(resource, &addr);
-	if (ACPI_SUCCESS(status) &&
-	    addr.resource_type == ACPI_MEMORY_RANGE &&
-	    addr.address_length > gap->gapsize) {
-		start_addr = addr.minimum + addr.translation_offset;
-		/*
-		 * We want space only in the 32bit address range
-		 */
-		if (start_addr < UINT_MAX) {
-			end_addr = start_addr + addr.address_length;
-			e820_search_gap(&gap->gapstart, &gap->gapsize,
-					start_addr, end_addr);
-		}
-	}
-
-	return AE_OK;
-}
-
-/*
- * Search for a hole in the 32 bit address space for PCI to assign MMIO
- * resources, for hotplug or unconfigured resources.
- * We query the CRS object of the PCI root device to look for possible producer
- * resources in the tree and consider these while calulating the start address
- * for this hole.
- */
-static void pci_setup_gap(acpi_handle *handle)
-{
-	struct gap_info gap;
-	acpi_status status;
-
-	gap.gapstart = 0;
-	gap.gapsize = 0x400000;
-
-	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
-				     search_gap, &gap);
-
-	if (ACPI_SUCCESS(status)) {
-		unsigned long round;
-
-		if (!gap.gapstart) {
-			printk(KERN_ERR "ACPI: Warning: Cannot find a gap "
-					"in the 32bit address range for PCI\n"
-					"ACPI: PCI devices may collide with "
-					"hotpluggable memory address range\n");
-		}
-		/*
-		 * Round the gapstart, uses the same logic as in
-		 * e820_gap_setup
-		 */
-		round = 0x100000;
-		while ((gap.gapsize >> 4) > round)
-			round += round;
-		/* Fun with two's complement */
-		pci_mem_start = (gap.gapstart + round) & -round;
-
-		printk(KERN_INFO "ACPI: PCI resources should "
-				"start at %lx (gap: %lx:%lx)\n",
-				pci_mem_start, gap.gapstart, gap.gapsize);
-	} else {
-		printk(KERN_ERR "ACPI: Error while searching for gap in "
-				"the 32bit address range for PCI\n");
-	}
-}
-
 
 static void
 get_current_resources(struct acpi_device *device, int busnum,
@@ -293,8 +215,6 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 
 	if (bus && (pci_probe & PCI_USE__CRS))
 		get_current_resources(device, busnum, domain, bus);
-
-	pci_setup_gap(device->handle);
 	return bus;
 }
 
