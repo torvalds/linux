@@ -74,8 +74,6 @@ struct palm_bk3710_udmatiming {
 #define BK3710_IORDYTMP		0x78
 #define BK3710_IORDYTMS		0x7C
 
-#include "../ide-timing.h"
-
 static unsigned ideclk_period; /* in nanoseconds */
 
 static const struct palm_bk3710_udmatiming palm_bk3710_udmatimings[6] = {

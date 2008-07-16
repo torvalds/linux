@@ -48,8 +48,6 @@
 #include <asm/mediabay.h>
 #endif
 
-#include "../ide-timing.h"
-
 #undef IDE_PMAC_DEBUG
 
 #define DMA_WAIT_TIMEOUT	50

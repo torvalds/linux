@@ -26,8 +26,6 @@
 #include <linux/pci.h>
 #include <linux/ide.h>
 
-#include "ide-timing.h"
-
 #define MSR_ATAC_BASE		0x51300000
 #define ATAC_GLD_MSR_CAP	(MSR_ATAC_BASE+0)
 #define ATAC_GLD_MSR_CONFIG	(MSR_ATAC_BASE+0x01)

@@ -1299,6 +1299,11 @@ enum {
 				  IDE_TIMING_CYCLE | IDE_TIMING_UDMA,
 };
 
+struct ide_timing *ide_timing_find_mode(u8);
+void ide_timing_merge(struct ide_timing *, struct ide_timing *,
+		      struct ide_timing *, unsigned int);
+int ide_timing_compute(ide_drive_t *, u8, struct ide_timing *, int, int);
+
 typedef struct ide_pio_timings_s {
 	int	setup_time;	/* Address setup (ns) minimum */
 	int	active_time;	/* Active pulse (ns) minimum */
