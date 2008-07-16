@@ -228,11 +228,10 @@ int ieee80211_wep_decrypt(struct ieee80211_local *local, struct sk_buff *skb,
 		return -1;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-
-	if (skb->len < 8 + hdrlen)
+	if (skb->len < hdrlen + WEP_IV_LEN + WEP_ICV_LEN)
 		return -1;
 
-	len = skb->len - hdrlen - 8;
+	len = skb->len - hdrlen - WEP_IV_LEN - WEP_ICV_LEN;
 
 	keyidx = skb->data[hdrlen + 3] >> 6;
 
@@ -303,7 +302,7 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx)
 	} else if (!(rx->status->flag & RX_FLAG_IV_STRIPPED)) {
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
 		/* remove ICV */
-		skb_trim(rx->skb, rx->skb->len - 4);
+		skb_trim(rx->skb, rx->skb->len - WEP_ICV_LEN);
 	}
 
 	return RX_CONTINUE;
