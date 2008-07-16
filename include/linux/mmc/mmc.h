@@ -16,7 +16,6 @@
  * Based strongly on code by:
  *
  * Author: Yong-iL Joh <tolkien@mizi.com>
- * Date  : $Date: 2002/06/18 12:37:30 $
  *
  * Author:  Andrew Christian
  *          15 May 2002

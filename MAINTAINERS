@@ -348,7 +348,9 @@ W:	http://www.linux-usb.org/SpeedTouch/
 S:	Maintained
 
 ALCHEMY AU1XX0 MMC DRIVER
-S:	Orphan
+P:	Manuel Lauss
+M:	manuel.lauss@gmail.com
+S:	Maintained
 
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
@@ -3559,6 +3561,13 @@ L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 
+S3C24XX SD/MMC Driver
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+
 SAA7146 VIDEO4LINUX-2 DRIVER
 P:	Michael Hunold
 M:	michael@mihu.de
@@ -3629,6 +3638,12 @@ S:	Maintained
 SCx200 HRT CLOCKSOURCE DRIVER
 P:	Jim Cromie
 M:	jim.cromie@gmail.com
+S:	Maintained
+
+SDRICOH_CS MMC/SD HOST CONTROLLER INTERFACE DRIVER
+P:	Sascha Sommer
+M:	saschasommer@freenet.de
+L:	sdricohcs-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 SECURITY CONTACT

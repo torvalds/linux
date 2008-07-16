@@ -14,6 +14,7 @@
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
 
+#include <asm/atmel-mci.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -1278,20 +1279,32 @@ static struct clk atmel_mci0_pclk = {
 	.index		= 9,
 };
 
-struct platform_device *__init at32_add_device_mci(unsigned int id)
+struct platform_device *__init
+at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 {
-	struct platform_device *pdev;
+	struct mci_platform_data	_data;
+	struct platform_device		*pdev;
+	struct dw_dma_slave		*dws;
 
 	if (id != 0)
 		return NULL;
 
 	pdev = platform_device_alloc("atmel_mci", id);
 	if (!pdev)
-		return NULL;
+		goto fail;
 
 	if (platform_device_add_resources(pdev, atmel_mci0_resource,
 				ARRAY_SIZE(atmel_mci0_resource)))
-		goto err_add_resources;
+		goto fail;
+
+	if (!data) {
+		data = &_data;
+		memset(data, 0, sizeof(struct mci_platform_data));
+	}
+
+	if (platform_device_add_data(pdev, data,
+				sizeof(struct mci_platform_data)))
+		goto fail;
 
 	select_peripheral(PA(10), PERIPH_A, 0);	/* CLK	 */
 	select_peripheral(PA(11), PERIPH_A, 0);	/* CMD	 */
@@ -1300,12 +1313,19 @@ struct platform_device *__init at32_add_device_mci(unsigned int id)
 	select_peripheral(PA(14), PERIPH_A, 0);	/* DATA2 */
 	select_peripheral(PA(15), PERIPH_A, 0);	/* DATA3 */
 
+	if (data) {
+		if (data->detect_pin != GPIO_PIN_NONE)
+			at32_select_gpio(data->detect_pin, 0);
+		if (data->wp_pin != GPIO_PIN_NONE)
+			at32_select_gpio(data->wp_pin, 0);
+	}
+
 	atmel_mci0_pclk.dev = &pdev->dev;
 
 	platform_device_add(pdev);
 	return pdev;
 
-err_add_resources:
+fail:
 	platform_device_put(pdev);
 	return NULL;
 }
