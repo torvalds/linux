@@ -30,10 +30,6 @@
 ** -----------------------------------------------------------------------------
 */
 
-#ifdef SCCS_LABELS
-static char *_rioparam_c_sccs_ = "@(#)rioparam.c	1.3";
-#endif
-
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/errno.h>

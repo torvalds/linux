@@ -25,11 +25,6 @@
  *      Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
  *      USA.
  *
- * Revision history:
- * $Log: rio.c,v $
- * Revision 1.1  1999/07/11 10:13:54  wolff
- * Initial revision
- *
  * */
 
 #include <linux/module.h>

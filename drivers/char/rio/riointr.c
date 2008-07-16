@@ -29,10 +29,6 @@
 **
 ** -----------------------------------------------------------------------------
 */
-#ifdef SCCS_LABELS
-static char *_riointr_c_sccs_ = "@(#)riointr.c	1.2";
-#endif
-
 
 #include <linux/module.h>
 #include <linux/slab.h>
