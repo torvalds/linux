@@ -824,7 +824,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	hdr_len = ieee80211_get_hdrlen(le16_to_cpu(fc));
+	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find (or create) index into station table for destination station */
 	sta_id = iwl_get_sta_id(priv, hdr);
@@ -842,7 +842,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	txq_id = swq_id;
 	if (ieee80211_is_data_qos(fc)) {
 		qc = ieee80211_get_qos_ctl(hdr);
-		tid = qc[0] & 0xf;
+		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 		seq_number = priv->stations[sta_id].tid[tid].seq_number;
 		seq_number &= IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl = hdr->seq_ctrl &
