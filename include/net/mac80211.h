@@ -1559,16 +1559,6 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
 
 /**
- * ieee80211_get_hdrlen - get header length from frame control
- *
- * This function returns the 802.11 header length in bytes (not including
- * encryption headers.)
- *
- * @fc: the frame control field (in CPU endianness)
- */
-int ieee80211_get_hdrlen(u16 fc);
-
-/**
  * ieee80211_hdrlen - get header length in bytes from frame control
  * @fc: frame control field in little-endian format
  */

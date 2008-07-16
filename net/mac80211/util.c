@@ -91,45 +91,6 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 	return NULL;
 }
 
-int ieee80211_get_hdrlen(u16 fc)
-{
-	int hdrlen = 24;
-
-	switch (fc & IEEE80211_FCTL_FTYPE) {
-	case IEEE80211_FTYPE_DATA:
-		if ((fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS))
-			hdrlen = 30; /* Addr4 */
-		/*
-		 * The QoS Control field is two bytes and its presence is
-		 * indicated by the IEEE80211_STYPE_QOS_DATA bit. Add 2 to
-		 * hdrlen if that bit is set.
-		 * This works by masking out the bit and shifting it to
-		 * bit position 1 so the result has the value 0 or 2.
-		 */
-		hdrlen += (fc & IEEE80211_STYPE_QOS_DATA)
-				>> (ilog2(IEEE80211_STYPE_QOS_DATA)-1);
-		break;
-	case IEEE80211_FTYPE_CTL:
-		/*
-		 * ACK and CTS are 10 bytes, all others 16. To see how
-		 * to get this condition consider
-		 *   subtype mask:   0b0000000011110000 (0x00F0)
-		 *   ACK subtype:    0b0000000011010000 (0x00D0)
-		 *   CTS subtype:    0b0000000011000000 (0x00C0)
-		 *   bits that matter:         ^^^      (0x00E0)
-		 *   value of those: 0b0000000011000000 (0x00C0)
-		 */
-		if ((fc & 0xE0) == 0xC0)
-			hdrlen = 10;
-		else
-			hdrlen = 16;
-		break;
-	}
-
-	return hdrlen;
-}
-EXPORT_SYMBOL(ieee80211_get_hdrlen);
-
 unsigned int ieee80211_hdrlen(__le16 fc)
 {
 	unsigned int hdrlen = 24;
