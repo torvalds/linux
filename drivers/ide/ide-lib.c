@@ -76,23 +76,6 @@ static u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 }
 
 /*
- * Standard (generic) timings for PIO modes, from ATA2 specification.
- * These timings are for access to the IDE data port register *only*.
- * Some drives may specify a mode, while also specifying a different
- * value for cycle_time (from drive identification data).
- */
-const ide_pio_timings_t ide_pio_timings[6] = {
-	{ 70,	165,	600 },	/* PIO Mode 0 */
-	{ 50,	125,	383 },	/* PIO Mode 1 */
-	{ 30,	100,	240 },	/* PIO Mode 2 */
-	{ 30,	80,	180 },	/* PIO Mode 3 with IORDY */
-	{ 25,	70,	120 },	/* PIO Mode 4 with IORDY */
-	{ 20,	50,	100 }	/* PIO Mode 5 with IORDY (nonstandard) */
-};
-
-EXPORT_SYMBOL_GPL(ide_pio_timings);
-
-/*
  * Shared data/functions for determining best PIO mode for an IDE drive.
  * Most of this stuff originally lived in cmd640.c, and changes to the
  * ide_pio_blacklist[] table should be made with EXTREME CAUTION to avoid
