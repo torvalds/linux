@@ -37,7 +37,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
-#include <linux/mc146818rtc.h> /* CMOS defines */
 #include <linux/init.h>
 #include <linux/blkpg.h>
 #include <linux/hdreg.h>
