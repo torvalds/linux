@@ -50,29 +50,16 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/genhd.h>
-#include <linux/blkpg.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/completion.h>
-#include <linux/reboot.h>
-#include <linux/cdrom.h>
-#include <linux/seq_file.h>
 #include <linux/device.h>
-#include <linux/bitops.h>
-
-#include <asm/byteorder.h>
-#include <asm/irq.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
 
 
 /* default maximum number of failures */
