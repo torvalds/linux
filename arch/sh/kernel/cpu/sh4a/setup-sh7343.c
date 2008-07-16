@@ -66,6 +66,9 @@ static struct resource vpu_resources[] = {
 		.end	= 0xfe9022eb,
 		.flags	= IORESOURCE_MEM,
 	},
+	[1] = {
+		/* place holder for contiguous memory */
+	},
 };
 
 static struct platform_device vpu_device = {
@@ -90,6 +93,9 @@ static struct resource veu_resources[] = {
 		.start	= 0xfe920000,
 		.end	= 0xfe9200b7,
 		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* place holder for contiguous memory */
 	},
 };
 
@@ -132,6 +138,8 @@ static struct platform_device *sh7343_devices[] __initdata = {
 
 static int __init sh7343_devices_setup(void)
 {
+	platform_resource_setup_memory(&vpu_device, "vpu", 1 << 20);
+	platform_resource_setup_memory(&veu_device, "veu", 2 << 20);
 	return platform_add_devices(sh7343_devices,
 				    ARRAY_SIZE(sh7343_devices));
 }
