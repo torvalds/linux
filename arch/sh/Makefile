@@ -124,6 +124,7 @@ machdir-$(CONFIG_SH_X3PROTO)			+= renesas/x3proto
 machdir-$(CONFIG_SH_RSK7203)			+= renesas/rsk7203
 machdir-$(CONFIG_SH_AP325RXA)			+= renesas/ap325rxa
 machdir-$(CONFIG_SH_SH7763RDP)			+= renesas/sh7763rdp
+machdir-$(CONFIG_SH_SH7785LCR)			+= renesas/sh7785lcr
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= superh/microdev
 machdir-$(CONFIG_SH_LANDISK)			+= landisk
 machdir-$(CONFIG_SH_TITAN)			+= titan
