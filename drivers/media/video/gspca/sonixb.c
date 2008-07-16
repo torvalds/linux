@@ -254,7 +254,7 @@ static const __u8 ov7630_sensor_init_com[][8] = {
 	{0xa0, 0x21, 0x12, 0x80, 0x00, 0x00, 0x00, 0x10},
 	{0xb0, 0x21, 0x01, 0x77, 0x3a, 0x00, 0x00, 0x10},
 /*	{0xd0, 0x21, 0x12, 0x7c, 0x01, 0x80, 0x34, 0x10},	   jfm */
-	{0xd0, 0x21, 0x12, 0x78, 0x00, 0x80, 0x34, 0x10},	/* jfm */
+	{0xd0, 0x21, 0x12, 0x1c, 0x00, 0x80, 0x34, 0x10},	/* jfm */
 	{0xa0, 0x21, 0x1b, 0x04, 0x00, 0x80, 0x34, 0x10},
 	{0xa0, 0x21, 0x20, 0x44, 0x00, 0x80, 0x34, 0x10},
 	{0xa0, 0x21, 0x23, 0xee, 0x00, 0x80, 0x34, 0x10},
@@ -262,8 +262,8 @@ static const __u8 ov7630_sensor_init_com[][8] = {
 	{0xb0, 0x21, 0x2a, 0x80, 0x00, 0xa0, 0x30, 0x10},
 	{0xb0, 0x21, 0x2f, 0x3d, 0x24, 0xa0, 0x30, 0x10},
 	{0xa0, 0x21, 0x32, 0x86, 0x24, 0xa0, 0x30, 0x10},
-/*	{0xb0, 0x21, 0x60, 0xa9, 0x4a, 0xa0, 0x30, 0x10},	   jfm */
-	{0xb0, 0x21, 0x60, 0xa9, 0x42, 0xa0, 0x30, 0x10},	/* jfm */
+	{0xb0, 0x21, 0x60, 0xa9, 0x4a, 0xa0, 0x30, 0x10},
+/*	{0xb0, 0x21, 0x60, 0xa9, 0x42, 0xa0, 0x30, 0x10},	 * jfm */
 	{0xa0, 0x21, 0x65, 0x00, 0x42, 0xa0, 0x30, 0x10},
 	{0xa0, 0x21, 0x69, 0x38, 0x42, 0xa0, 0x30, 0x10},
 	{0xc0, 0x21, 0x6f, 0x88, 0x0b, 0x00, 0x30, 0x10},
@@ -489,6 +489,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 			 goto err;
 		break;
 	    }
+	case  SENSOR_OV7630_3:
 	case  SENSOR_OV7630: {
 		__u8 i2cOV[] =
 			{0xa0, 0x21, 0x06, 0x36, 0xbd, 0x06, 0xf6, 0x16};
@@ -583,6 +584,14 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 			goto err;
 		break;
 	    }
+	case SENSOR_OV7630_3: {
+		__u8 i2c[] = {0xa0, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
+
+		i2c[3] = sd->gain >> 2;
+		if (i2c_w(gspca_dev, i2c) < 0)
+			goto err;
+		break;
+	    }
 	}
 	return;
 err:
@@ -670,6 +679,34 @@ static void setexposure(struct gspca_dev *gspca_dev)
 			PDEBUG(D_ERR, "i2c error exposure");
 		break;
 	    }
+	case SENSOR_OV7630_3: {
+		__u8 i2c[] = {0xb0, 0x21, 0x10, 0x00, 0xc0, 0x00, 0x00, 0x10};
+		int reg10, reg11;
+		/* No clear idea why, but setting reg10 above this value
+		   results in no change */
+		const int reg10_max = 0x4d;
+
+		reg11 = (60 * sd->exposure + 999) / 1000;
+		if (reg11 < 1)
+			reg11 = 1;
+		else if (reg11 > 16)
+			reg11 = 16;
+
+		/* frame exposure time in ms = 1000 * reg11 / 30    ->
+		reg10 = sd->exposure * 2 * reg10_max / (1000 * reg11 / 30) */
+		reg10 = (sd->exposure * 60 * reg10_max) / (1000 * reg11);
+		if (reg10 < 1) /* 0 is a valid value, but is very _black_ */
+			reg10 = 1;
+		else if (reg10 > reg10_max)
+			reg10 = reg10_max;
+
+		/* Write reg 10 and reg11 low nibble */
+		i2c[3] = reg10;
+		i2c[4] |= reg11 - 1;
+		if (i2c_w(gspca_dev, i2c) < 0)
+			PDEBUG(D_ERR, "i2c error exposure");
+		break;
+	    }
 	}
 }
 
@@ -705,6 +742,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	sd->fr_h_sz = 12;		/* default size of the frame header */
 	sd->sd_desc.nctrls = 2;		/* default nb of ctrls */
+	sd->autogain = AUTOGAIN_DEF;    /* default is autogain active */
 
 	product = id->idProduct;
 /*	switch (id->idVendor) { */
@@ -740,6 +778,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		case 0x60b0:			/* SN9C103 */
 			sd->sensor = SENSOR_OV7630_3;
 			sd->fr_h_sz = 18;	/* size of frame header */
+			sd->sensor_has_gain = 1;
+			sd->sd_desc.nctrls = 4;
+			sd->sd_desc.dq_callback = do_autogain;
+			sd->autogain = 0;
 			break;
 		case 0x6024:			/* SN9C102 */
 		case 0x6025:			/* SN9C102 */
@@ -777,7 +819,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->gain = GAIN_DEF;
 	sd->exposure = EXPOSURE_DEF;
-	sd->autogain = AUTOGAIN_DEF;
 	if (sd->sensor == SENSOR_OV7630_3)	/* jfm: from win trace */
 		reg_w(gspca_dev, 0x01, probe_ov7630, sizeof probe_ov7630);
 	return 0;
@@ -940,18 +981,15 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x15, &sn9c10x[0x15 - 1], 2);
 	/* compression register */
 	reg_w(gspca_dev, 0x18, &reg17_19[1], 1);
-	if (sd->sensor != SENSOR_OV7630_3) {
-		/* H_start */
-		reg_w(gspca_dev, 0x12, &sn9c10x[0x12 - 1], 1);
-		/* V_START */
-		reg_w(gspca_dev, 0x13, &sn9c10x[0x13 - 1], 1);
-	}
+	/* H_start */
+	reg_w(gspca_dev, 0x12, &sn9c10x[0x12 - 1], 1);
+	/* V_START */
+	reg_w(gspca_dev, 0x13, &sn9c10x[0x13 - 1], 1);
 	/* reset 0x17 SensorClk enable inv Clk 0x60 */
 				/*fixme: ov7630 [17]=68 8f (+20 if 102)*/
 	reg_w(gspca_dev, 0x17, &reg17_19[0], 1);
 	/*MCKSIZE ->3 */	/*fixme: not ov7630*/
-	if (sd->sensor != SENSOR_OV7630_3)
-		reg_w(gspca_dev, 0x19, &reg17_19[2], 1);
+	reg_w(gspca_dev, 0x19, &reg17_19[2], 1);
 	/* AE_STRX AE_STRY AE_ENDX AE_ENDY */
 	reg_w(gspca_dev, 0x1c, &sn9c10x[0x1c - 1], 4);
 	/* Enable video transfert */
