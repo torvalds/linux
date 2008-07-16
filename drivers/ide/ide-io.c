@@ -766,6 +766,18 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  	return ide_stopped;
 }
 
+static ide_startstop_t ide_special_rq(ide_drive_t *drive, struct request *rq)
+{
+	switch (rq->cmd[0]) {
+	case REQ_DRIVE_RESET:
+		return ide_do_reset(drive);
+	default:
+		blk_dump_rq_flags(rq, "ide_special_rq - bad request");
+		ide_end_request(drive, 0, 0);
+		return ide_stopped;
+	}
+}
+
 static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 {
 	struct request_pm_state *pm = rq->data;
@@ -869,7 +881,16 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			    pm->pm_step == ide_pm_state_completed)
 				ide_complete_pm_request(drive, rq);
 			return startstop;
-		}
+		} else if (!rq->rq_disk && blk_special_request(rq))
+			/*
+			 * TODO: Once all ULDs have been modified to
+			 * check for specific op codes rather than
+			 * blindly accepting any special request, the
+			 * check for ->rq_disk above may be replaced
+			 * by a more suitable mechanism or even
+			 * dropped entirely.
+			 */
+			return ide_special_rq(drive, rq);
 
 		drv = *(ide_driver_t **)rq->rq_disk->private_data;
 		return drv->do_request(drive, rq, block);

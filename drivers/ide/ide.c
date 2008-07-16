@@ -529,6 +529,19 @@ static int generic_ide_resume(struct device *dev)
 	return err;
 }
 
+static void generic_drive_reset(ide_drive_t *drive)
+{
+	struct request *rq;
+
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd_len = 1;
+	rq->cmd[0] = REQ_DRIVE_RESET;
+	rq->cmd_flags |= REQ_SOFTBARRIER;
+	blk_execute_rq(drive->queue, NULL, rq, 1);
+	blk_put_request(rq);
+}
+
 int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device *bdev,
 			unsigned int cmd, unsigned long arg)
 {
@@ -603,33 +616,9 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
 
-			/*
-			 *	Abort the current command on the
-			 *	group if there is one, taking
-			 *	care not to allow anything else
-			 *	to be queued and to die on the
-			 *	spot if we miss one somehow
-			 */
-
-			spin_lock_irqsave(&ide_lock, flags);
-
-			if (HWGROUP(drive)->resetting) {
-				spin_unlock_irqrestore(&ide_lock, flags);
-				return -EBUSY;
-			}
-
-			ide_abort(drive, "drive reset");
-
-			BUG_ON(HWGROUP(drive)->handler);
-
-			/* Ensure nothing gets queued after we
-			   drop the lock. Reset will clear the busy */
-
-			HWGROUP(drive)->busy = 1;
-			spin_unlock_irqrestore(&ide_lock, flags);
-			(void) ide_do_reset(drive);
-
+			generic_drive_reset(drive);
 			return 0;
+
 		case HDIO_GET_BUSSTATE:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;

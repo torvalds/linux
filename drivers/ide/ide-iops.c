@@ -905,6 +905,14 @@ void ide_execute_pkt_cmd(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_execute_pkt_cmd);
 
+static inline void ide_complete_drive_reset(ide_drive_t *drive)
+{
+	struct request *rq = drive->hwif->hwgroup->rq;
+
+	if (rq && blk_special_request(rq) && rq->cmd[0] == REQ_DRIVE_RESET)
+		ide_end_request(drive, 1, 0);
+}
+
 /* needed below */
 static ide_startstop_t do_reset1 (ide_drive_t *, int);
 
@@ -940,7 +948,7 @@ static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 	}
 	/* done polling */
 	hwgroup->polling = 0;
-	hwgroup->resetting = 0;
+	ide_complete_drive_reset(drive);
 	return ide_stopped;
 }
 
@@ -961,7 +969,7 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		if (port_ops->reset_poll(drive)) {
 			printk(KERN_ERR "%s: host reset_poll failure for %s.\n",
 				hwif->name, drive->name);
-			return ide_stopped;
+			goto out;
 		}
 	}
 
@@ -1004,7 +1012,8 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		}
 	}
 	hwgroup->polling = 0;	/* done polling */
-	hwgroup->resetting = 0; /* done reset attempt */
+out:
+	ide_complete_drive_reset(drive);
 	return ide_stopped;
 }
 
@@ -1090,7 +1099,6 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 
 	/* For an ATAPI device, first try an ATAPI SRST. */
 	if (drive->media != ide_disk && !do_not_try_atapi) {
-		hwgroup->resetting = 1;
 		pre_reset(drive);
 		SELECT_DRIVE(drive);
 		udelay (20);
@@ -1112,10 +1120,10 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 
 	if (io_ports->ctl_addr == 0) {
 		spin_unlock_irqrestore(&ide_lock, flags);
+		ide_complete_drive_reset(drive);
 		return ide_stopped;
 	}
 
-	hwgroup->resetting = 1;
 	/*
 	 * Note that we also set nIEN while resetting the device,
 	 * to mask unwanted interrupts from the interface during the reset.
