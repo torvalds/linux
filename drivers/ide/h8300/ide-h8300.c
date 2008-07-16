@@ -176,6 +176,10 @@ static inline void hwif_setup(ide_hwif_t *hwif)
 	hwif->output_data = h8300_output_data;
 }
 
+static const struct ide_port_info h8300_port_info = {
+	.host_flags		= IDE_HFLAG_NO_IO_32BIT | IDE_HFLAG_NO_DMA,
+};
+
 static int __init h8300_ide_init(void)
 {
 	hw_regs_t hw;
@@ -201,12 +205,11 @@ static int __init h8300_ide_init(void)
 	index = hwif->index;
 	ide_init_port_hw(hwif, &hw);
 	hwif_setup(hwif);
-	hwif->host_flags = IDE_HFLAG_NO_IO_32BIT;
 	printk(KERN_INFO "ide%d: H8/300 generic IDE interface\n", index);
 
 	idx[0] = index;
 
-	ide_device_add(idx, NULL);
+	ide_device_add(idx, &h8300_port_info);
 
 	return 0;
 
