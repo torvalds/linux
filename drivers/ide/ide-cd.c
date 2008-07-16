@@ -753,14 +753,12 @@ static ide_startstop_t cdrom_start_seek_continuation(ide_drive_t *drive)
 	return cdrom_transfer_packet_command(drive, rq, &cdrom_seek_intr);
 }
 
-static ide_startstop_t cdrom_start_seek(ide_drive_t *drive)
+static void cdrom_start_seek(ide_drive_t *drive)
 {
 	struct cdrom_info *info = drive->driver_data;
 
 	info->dma = 0;
 	info->start_seek = jiffies;
-	return cdrom_start_packet_command(drive, 0,
-					  cdrom_start_seek_continuation);
 }
 
 /*
@@ -1135,8 +1133,7 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	if (write)
 		cd->devinfo.media_written = 1;
 
-	/* start sending the read/write request to the drive */
-	return cdrom_start_packet_command(drive, 32768, cdrom_start_rw_cont);
+	return ide_started;
 }
 
 static ide_startstop_t cdrom_do_newpc_cont(ide_drive_t *drive)
@@ -1149,7 +1146,7 @@ static ide_startstop_t cdrom_do_newpc_cont(ide_drive_t *drive)
 	return cdrom_transfer_packet_command(drive, rq, cdrom_newpc_intr);
 }
 
-static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
+static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 {
 	struct cdrom_info *info = drive->driver_data;
 
@@ -1188,10 +1185,6 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		      ((unsigned long)current->stack & stack_mask)))
 			info->dma = 0;
 	}
-
-	/* start sending the command to the drive */
-	return cdrom_start_packet_command(drive, rq->data_len,
-					  cdrom_do_newpc_cont);
 }
 
 /*
@@ -1200,8 +1193,9 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
-	ide_startstop_t action;
 	struct cdrom_info *info = drive->driver_data;
+	ide_handler_t *fn;
+	int xferlen;
 
 	if (blk_fs_request(rq)) {
 		if (info->cd_flags & IDE_CD_FLAG_SEEKING) {
@@ -1221,16 +1215,23 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		}
 		if (rq_data_dir(rq) == READ &&
 		    IDE_LARGE_SEEK(info->last_block, block,
-				   IDECD_SEEK_THRESHOLD) &&
-		    drive->dsc_overlap)
-			action = cdrom_start_seek(drive);
-		else
-			action = cdrom_start_rw(drive, rq);
+			    IDECD_SEEK_THRESHOLD) &&
+		    drive->dsc_overlap) {
+			xferlen = 0;
+			fn = cdrom_start_seek_continuation;
+			cdrom_start_seek(drive);
+		} else {
+			xferlen = 32768;
+			fn = cdrom_start_rw_cont;
+			if (cdrom_start_rw(drive, rq) == ide_stopped)
+				return ide_stopped;
+		}
 		info->last_block = block;
-		return action;
 	} else if (blk_sense_request(rq) || blk_pc_request(rq) ||
 		   rq->cmd_type == REQ_TYPE_ATA_PC) {
-		return cdrom_do_block_pc(drive, rq);
+		xferlen = rq->data_len;
+		fn = cdrom_do_newpc_cont;
+		cdrom_do_block_pc(drive, rq);
 	} else if (blk_special_request(rq)) {
 		/* right now this can only be a reset... */
 		cdrom_end_request(drive, 1);
@@ -1240,6 +1241,8 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		cdrom_end_request(drive, 0);
 		return ide_stopped;
 	}
+
+	return cdrom_start_packet_command(drive, xferlen, fn);
 }
 
 
