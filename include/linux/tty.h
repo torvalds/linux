@@ -166,6 +166,29 @@ struct tty_bufhead {
 
 struct device;
 struct signal_struct;
+
+/*
+ * Port level information. Each device keeps its own port level information
+ * so provide a common structure for those ports wanting to use common support
+ * routines.
+ *
+ * The tty port has a different lifetime to the tty so must be kept apart.
+ * In addition be careful as tty -> port mappings are valid for the life
+ * of the tty object but in many cases port -> tty mappings are valid only
+ * until a hangup so don't use the wrong path.
+ */
+ 
+struct tty_port {
+	struct tty_struct	*tty;		/* Back pointer */
+	int			blocked_open;	/* Waiting to open */
+	int			count;		/* Usage count */
+	wait_queue_head_t	open_wait;	/* Open waiters */
+	wait_queue_head_t	close_wait;	/* Close waiters */
+	unsigned long		flags;		/* TTY flags ASY_*/
+	struct mutex		mutex;		/* Locking */
+	unsigned char		*xmit_buf;	/* Optional buffer */
+};
+
 /*
  * Where all of the state associated with a tty is kept while the tty
  * is open.  Since the termios state should be kept even if the tty
@@ -214,7 +237,7 @@ struct tty_struct {
 	struct list_head tty_files;
 
 #define N_TTY_BUF_SIZE 4096
-	
+
 	/*
 	 * The following is data for the N_TTY line discipline.  For
 	 * historical reasons, this is included in the tty structure.
@@ -242,6 +265,7 @@ struct tty_struct {
 	spinlock_t read_lock;
 	/* If the tty has a pending do_SAK, queue it here - akpm */
 	struct work_struct SAK_work;
+	struct tty_port *port;
 };
 
 /* tty magic number */
@@ -349,6 +373,10 @@ extern struct mutex tty_mutex;
 extern void tty_write_unlock(struct tty_struct *tty);
 extern int tty_write_lock(struct tty_struct *tty, int ndelay);
 #define tty_is_writelocked(tty)  (mutex_is_locked(&tty->atomic_write_lock))
+
+extern void tty_port_init(struct tty_port *port);
+extern int tty_port_alloc_xmit_buf(struct tty_port *port);
+extern void tty_port_free_xmit_buf(struct tty_port *port);
 
 
 
