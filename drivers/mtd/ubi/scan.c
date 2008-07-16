@@ -932,7 +932,7 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	for (pnum = 0; pnum < ubi->peb_count; pnum++) {
 		cond_resched();
 
-		dbg_msg("process PEB %d", pnum);
+		dbg_gen("process PEB %d", pnum);
 		err = process_eb(ubi, si, pnum);
 		if (err < 0)
 			goto out_vidh;

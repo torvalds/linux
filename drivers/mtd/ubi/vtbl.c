@@ -371,7 +371,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 	 *    to LEB 0.
 	 */
 
-	dbg_msg("check layout volume");
+	dbg_gen("check layout volume");
 
 	/* Read both LEB 0 and LEB 1 into memory */
 	ubi_rb_for_each_entry(rb, seb, &sv->root, u.rb) {

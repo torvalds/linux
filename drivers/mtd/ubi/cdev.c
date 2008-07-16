@@ -116,7 +116,7 @@ static int vol_cdev_open(struct inode *inode, struct file *file)
 	else
 		mode = UBI_READONLY;
 
-	dbg_msg("open volume %d, mode %d", vol_id, mode);
+	dbg_gen("open volume %d, mode %d", vol_id, mode);
 
 	desc = ubi_open_volume(ubi_num, vol_id, mode);
 	unlock_kernel();
@@ -132,7 +132,7 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_volume *vol = desc->vol;
 
-	dbg_msg("release volume %d, mode %d", vol->vol_id, desc->mode);
+	dbg_gen("release volume %d, mode %d", vol->vol_id, desc->mode);
 
 	if (vol->updating) {
 		ubi_warn("update of volume %d not finished, volume is damaged",
@@ -141,7 +141,7 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 		vol->updating = 0;
 		vfree(vol->upd_buf);
 	} else if (vol->changing_leb) {
-		dbg_msg("only %lld of %lld bytes received for atomic LEB change"
+		dbg_gen("only %lld of %lld bytes received for atomic LEB change"
 			" for volume %d:%d, cancel", vol->upd_received,
 			vol->upd_bytes, vol->ubi->ubi_num, vol->vol_id);
 		vol->changing_leb = 0;
@@ -183,7 +183,7 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 		return -EINVAL;
 	}
 
-	dbg_msg("seek volume %d, offset %lld, origin %d, new offset %lld",
+	dbg_gen("seek volume %d, offset %lld, origin %d, new offset %lld",
 		vol->vol_id, offset, origin, new_offset);
 
 	file->f_pos = new_offset;
@@ -201,7 +201,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 	void *tbuf;
 	uint64_t tmp;
 
-	dbg_msg("read %zd bytes from offset %lld of volume %d",
+	dbg_gen("read %zd bytes from offset %lld of volume %d",
 		count, *offp, vol->vol_id);
 
 	if (vol->updating) {
@@ -216,7 +216,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 		return 0;
 
 	if (vol->corrupted)
-		dbg_msg("read from corrupted volume %d", vol->vol_id);
+		dbg_gen("read from corrupted volume %d", vol->vol_id);
 
 	if (*offp + count > vol->used_bytes)
 		count_save = count = vol->used_bytes - *offp;
@@ -285,7 +285,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	char *tbuf;
 	uint64_t tmp;
 
-	dbg_msg("requested: write %zd bytes to offset %lld of volume %u",
+	dbg_gen("requested: write %zd bytes to offset %lld of volume %u",
 		count, *offp, vol->vol_id);
 
 	if (vol->vol_type == UBI_STATIC_VOLUME)
@@ -514,7 +514,7 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		dbg_msg("erase LEB %d:%d", vol->vol_id, lnum);
+		dbg_gen("erase LEB %d:%d", vol->vol_id, lnum);
 		err = ubi_eba_unmap_leb(ubi, vol, lnum);
 		if (err)
 			break;
@@ -626,7 +626,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 	{
 		struct ubi_mkvol_req req;
 
-		dbg_msg("create volume");
+		dbg_gen("create volume");
 		err = copy_from_user(&req, argp, sizeof(struct ubi_mkvol_req));
 		if (err) {
 			err = -EFAULT;
@@ -656,7 +656,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 	{
 		int vol_id;
 
-		dbg_msg("remove volume");
+		dbg_gen("remove volume");
 		err = get_user(vol_id, (__user int32_t *)argp);
 		if (err) {
 			err = -EFAULT;
@@ -689,7 +689,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		uint64_t tmp;
 		struct ubi_rsvol_req req;
 
-		dbg_msg("re-size volume");
+		dbg_gen("re-size volume");
 		err = copy_from_user(&req, argp, sizeof(struct ubi_rsvol_req));
 		if (err) {
 			err = -EFAULT;
@@ -742,7 +742,7 @@ static int ctrl_cdev_ioctl(struct inode *inode, struct file *file,
 		struct ubi_attach_req req;
 		struct mtd_info *mtd;
 
-		dbg_msg("attach MTD device");
+		dbg_gen("attach MTD device");
 		err = copy_from_user(&req, argp, sizeof(struct ubi_attach_req));
 		if (err) {
 			err = -EFAULT;
@@ -782,7 +782,7 @@ static int ctrl_cdev_ioctl(struct inode *inode, struct file *file,
 	{
 		int ubi_num;
 
-		dbg_msg("dettach MTD device");
+		dbg_gen("dettach MTD device");
 		err = get_user(ubi_num, (__user int32_t *)argp);
 		if (err) {
 			err = -EFAULT;

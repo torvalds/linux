@@ -187,7 +187,7 @@ retry:
 		ubi_assert(len == read);
 
 		if (ubi_dbg_is_bitflip()) {
-			dbg_msg("bit-flip (emulated)");
+			dbg_gen("bit-flip (emulated)");
 			err = UBI_IO_BITFLIPS;
 		}
 	}
@@ -1256,7 +1256,7 @@ static int paranoid_check_all_ff(struct ubi_device *ubi, int pnum, int offset,
 
 fail:
 	ubi_err("paranoid check failed for PEB %d", pnum);
-	dbg_msg("hex dump of the %d-%d region", offset, offset + len);
+	ubi_msg("hex dump of the %d-%d region", offset, offset + len);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 		       ubi->dbg_peb_buf, len, 1);
 	err = 1;

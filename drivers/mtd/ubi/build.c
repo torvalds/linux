@@ -403,7 +403,7 @@ static int uif_init(struct ubi_device *ubi)
 
 	ubi_assert(MINOR(dev) == 0);
 	cdev_init(&ubi->cdev, &ubi_cdev_operations);
-	dbg_msg("%s major is %u", ubi->ubi_name, MAJOR(dev));
+	dbg_gen("%s major is %u", ubi->ubi_name, MAJOR(dev));
 	ubi->cdev.owner = THIS_MODULE;
 
 	err = cdev_add(&ubi->cdev, dev, 1);
