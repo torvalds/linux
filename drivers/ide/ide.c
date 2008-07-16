@@ -529,17 +529,20 @@ static int generic_ide_resume(struct device *dev)
 	return err;
 }
 
-static void generic_drive_reset(ide_drive_t *drive)
+static int generic_drive_reset(ide_drive_t *drive)
 {
 	struct request *rq;
+	int ret = 0;
 
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd_len = 1;
 	rq->cmd[0] = REQ_DRIVE_RESET;
 	rq->cmd_flags |= REQ_SOFTBARRIER;
-	blk_execute_rq(drive->queue, NULL, rq, 1);
+	if (blk_execute_rq(drive->queue, NULL, rq, 1))
+		ret = rq->errors;
 	blk_put_request(rq);
+	return ret;
 }
 
 int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device *bdev,
@@ -616,8 +619,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
 
-			generic_drive_reset(drive);
-			return 0;
+			return generic_drive_reset(drive);
 
 		case HDIO_GET_BUSSTATE:
 			if (!capable(CAP_SYS_ADMIN))

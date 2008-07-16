@@ -905,12 +905,12 @@ void ide_execute_pkt_cmd(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_execute_pkt_cmd);
 
-static inline void ide_complete_drive_reset(ide_drive_t *drive)
+static inline void ide_complete_drive_reset(ide_drive_t *drive, int err)
 {
 	struct request *rq = drive->hwif->hwgroup->rq;
 
 	if (rq && blk_special_request(rq) && rq->cmd[0] == REQ_DRIVE_RESET)
-		ide_end_request(drive, 1, 0);
+		ide_end_request(drive, err ? err : 1, 0);
 }
 
 /* needed below */
@@ -948,7 +948,7 @@ static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 	}
 	/* done polling */
 	hwgroup->polling = 0;
-	ide_complete_drive_reset(drive);
+	ide_complete_drive_reset(drive, 0);
 	return ide_stopped;
 }
 
@@ -964,9 +964,11 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 	ide_hwif_t *hwif	= HWIF(drive);
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 	u8 tmp;
+	int err = 0;
 
 	if (port_ops && port_ops->reset_poll) {
-		if (port_ops->reset_poll(drive)) {
+		err = port_ops->reset_poll(drive);
+		if (err) {
 			printk(KERN_ERR "%s: host reset_poll failure for %s.\n",
 				hwif->name, drive->name);
 			goto out;
@@ -983,6 +985,7 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		}
 		printk("%s: reset timed-out, status=0x%02x\n", hwif->name, tmp);
 		drive->failures++;
+		err = -EIO;
 	} else  {
 		printk("%s: reset: ", hwif->name);
 		tmp = ide_read_error(drive);
@@ -1009,11 +1012,12 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 			if (tmp & 0x80)
 				printk("; slave: failed");
 			printk("\n");
+			err = -EIO;
 		}
 	}
-	hwgroup->polling = 0;	/* done polling */
 out:
-	ide_complete_drive_reset(drive);
+	hwgroup->polling = 0;	/* done polling */
+	ide_complete_drive_reset(drive, err);
 	return ide_stopped;
 }
 
@@ -1120,7 +1124,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 
 	if (io_ports->ctl_addr == 0) {
 		spin_unlock_irqrestore(&ide_lock, flags);
-		ide_complete_drive_reset(drive);
+		ide_complete_drive_reset(drive, -ENXIO);
 		return ide_stopped;
 	}
 
