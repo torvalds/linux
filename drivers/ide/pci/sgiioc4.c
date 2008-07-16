@@ -608,11 +608,11 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 
 	cmd_phys_base = bar0 + IOC4_CMD_OFFSET;
 	if (!request_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE,
-	    hwif->name)) {
+	    DRV_NAME)) {
 		printk(KERN_ERR
 			"%s : %s -- ERROR, Addresses "
 			"0x%p to 0x%p ALREADY in use\n",
-		       __func__, hwif->name, (void *) cmd_phys_base,
+		       __func__, DRV_NAME, (void *) cmd_phys_base,
 		       (void *) cmd_phys_base + IOC4_CMD_CTL_BLK_SIZE);
 		return -ENOMEM;
 	}
