@@ -3515,35 +3515,31 @@ static int tty_tiocmget(struct tty_struct *tty, struct file *file, int __user *p
 static int tty_tiocmset(struct tty_struct *tty, struct file *file, unsigned int cmd,
 	     unsigned __user *p)
 {
-	int retval = -EINVAL;
+	int retval;
+	unsigned int set, clear, val;
 
-	if (tty->ops->tiocmset) {
-		unsigned int set, clear, val;
+	if (tty->ops->tiocmset == NULL)
+		return -EINVAL;
 
-		retval = get_user(val, p);
-		if (retval)
-			return retval;
-
-		set = clear = 0;
-		switch (cmd) {
-		case TIOCMBIS:
-			set = val;
-			break;
-		case TIOCMBIC:
-			clear = val;
-			break;
-		case TIOCMSET:
-			set = val;
-			clear = ~val;
-			break;
-		}
-
-		set &= TIOCM_DTR|TIOCM_RTS|TIOCM_OUT1|TIOCM_OUT2|TIOCM_LOOP;
-		clear &= TIOCM_DTR|TIOCM_RTS|TIOCM_OUT1|TIOCM_OUT2|TIOCM_LOOP;
-
-		retval = tty->ops->tiocmset(tty, file, set, clear);
+	retval = get_user(val, p);
+	if (retval)
+		return retval;
+	set = clear = 0;
+	switch (cmd) {
+	case TIOCMBIS:
+		set = val;
+		break;
+	case TIOCMBIC:
+		clear = val;
+		break;
+	case TIOCMSET:
+		set = val;
+		clear = ~val;
+		break;
 	}
-	return retval;
+	set &= TIOCM_DTR|TIOCM_RTS|TIOCM_OUT1|TIOCM_OUT2|TIOCM_LOOP;
+	clear &= TIOCM_DTR|TIOCM_RTS|TIOCM_OUT1|TIOCM_OUT2|TIOCM_LOOP;
+	return tty->ops->tiocmset(tty, file, set, clear);
 }
 
 /*
