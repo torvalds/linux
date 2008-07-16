@@ -29,7 +29,7 @@
 #include <linux/hdreg.h>
 
 struct ide_timing {
-	short mode;
+	u8    mode;
 	short setup;	/* t1 */
 	short act8b;	/* t2 for 8-bit io */
 	short rec8b;	/* t2i for 8-bit io */
@@ -76,7 +76,7 @@ static struct ide_timing ide_timing[] = {
 
 	{ XFER_PIO_SLOW, 120, 290, 240, 960, 290, 240, 960,   0 },
 
-	{ -1 }
+	{ 0xff }
 };
 
 #define IDE_TIMING_SETUP	0x01
@@ -122,17 +122,18 @@ static void ide_timing_merge(struct ide_timing *a, struct ide_timing *b, struct 
 	if (what & IDE_TIMING_UDMA   ) m->udma    = max(a->udma,    b->udma);
 }
 
-static struct ide_timing* ide_timing_find_mode(short speed)
+static struct ide_timing *ide_timing_find_mode(u8 speed)
 {
 	struct ide_timing *t;
 
 	for (t = ide_timing; t->mode != speed; t++)
-		if (t->mode < 0)
+		if (t->mode == 0xff)
 			return NULL;
 	return t; 
 }
 
-static int ide_timing_compute(ide_drive_t *drive, short speed, struct ide_timing *t, int T, int UT)
+static int ide_timing_compute(ide_drive_t *drive, u8 speed,
+			      struct ide_timing *t, int T, int UT)
 {
 	struct hd_driveid *id = drive->id;
 	struct ide_timing *s, p;
