@@ -1197,7 +1197,7 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 /*
  * cdrom driver request routine.
  */
-static ide_startstop_t ide_do_rw_cdrom(ide_drive_t *drive, struct request *rq,
+static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
 	ide_startstop_t action;
@@ -1936,7 +1936,7 @@ static ide_driver_t ide_cdrom_driver = {
 	.version		= IDECD_VERSION,
 	.media			= ide_cdrom,
 	.supports_dsc_overlap	= 1,
-	.do_request		= ide_do_rw_cdrom,
+	.do_request		= ide_cd_do_request,
 	.end_request		= ide_end_request,
 	.error			= __ide_error,
 	.abort			= __ide_abort,
