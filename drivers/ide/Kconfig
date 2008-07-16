@@ -1000,7 +1000,7 @@ config BLK_DEV_IDEDMA
 
 endif
 
-config BLK_DEV_HD_ONLY
+config BLK_DEV_HD
 	bool "Old hard disk (MFM/RLL/IDE) driver"
 	depends on !ARM || ARCH_RPC || ARCH_SHARK || BROKEN
 	help
@@ -1022,8 +1022,5 @@ config BLK_DEV_HD_ONLY
 	  instead of this one. For more detailed information, read the
 	  Disk-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
-
-config BLK_DEV_HD
-	def_bool BLK_DEV_HD_ONLY
 
 endif # IDE
