@@ -120,6 +120,7 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tca[TCA_MAX + 1];
+	spinlock_t *root_lock;
 	struct tcmsg *t;
 	u32 protocol;
 	u32 prio;
@@ -204,6 +205,8 @@ replay:
 		}
 	}
 
+	root_lock = qdisc_root_lock(q);
+
 	if (tp == NULL) {
 		/* Proto-tcf does not exist, create new one */
 
@@ -263,10 +266,10 @@ replay:
 			goto errout;
 		}
 
-		qdisc_lock_tree(dev);
+		spin_lock_bh(root_lock);
 		tp->next = *back;
 		*back = tp;
-		qdisc_unlock_tree(dev);
+		spin_unlock_bh(root_lock);
 
 	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind))
 		goto errout;
@@ -275,9 +278,9 @@ replay:
 
 	if (fh == 0) {
 		if (n->nlmsg_type == RTM_DELTFILTER && t->tcm_handle == 0) {
-			qdisc_lock_tree(dev);
+			spin_lock_bh(root_lock);
 			*back = tp->next;
-			qdisc_unlock_tree(dev);
+			spin_lock_bh(root_lock);
 
 			tfilter_notify(skb, n, tp, fh, RTM_DELTFILTER);
 			tcf_destroy(tp);
