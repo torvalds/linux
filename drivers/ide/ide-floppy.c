@@ -1129,7 +1129,6 @@ static ide_driver_t idefloppy_driver = {
 	.do_request		= idefloppy_do_request,
 	.end_request		= idefloppy_end_request,
 	.error			= __ide_error,
-	.abort			= __ide_abort,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idefloppy_proc,
 #endif
