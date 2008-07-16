@@ -512,31 +512,12 @@ _GLOBAL(ret_from_except_lite)
 #endif
 
 restore:
-	ld	r5,SOFTE(r1)
-#ifdef CONFIG_PPC_ISERIES
 BEGIN_FW_FTR_SECTION
-	cmpdi	0,r5,0
-	beq	4f
-	/* Check for pending interrupts (iSeries) */
-	ld	r3,PACALPPACAPTR(r13)
-	ld	r3,LPPACAANYINT(r3)
-	cmpdi	r3,0
-	beq+	4f			/* skip do_IRQ if no interrupts */
-
-	li	r3,0
-	stb	r3,PACASOFTIRQEN(r13)	/* ensure we are soft-disabled */
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	.trace_hardirqs_off
-	mfmsr	r10
-#endif
-	ori	r10,r10,MSR_EE
-	mtmsrd	r10			/* hard-enable again */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_IRQ
-	b	.ret_from_except_lite		/* loop back and handle more */
-4:
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif
+	ld	r5,SOFTE(r1)
+FW_FTR_SECTION_ELSE
+	b	iseries_check_pending_irqs
+ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
+2:
 	TRACE_AND_RESTORE_IRQ(r5);
 
 	/* extract EE bit and use it to restore paca->hard_enabled */
@@ -591,6 +572,30 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 
 	rfid
 	b	.	/* prevent speculative execution */
+
+iseries_check_pending_irqs:
+#ifdef CONFIG_PPC_ISERIES
+	ld	r5,SOFTE(r1)
+	cmpdi	0,r5,0
+	beq	2b
+	/* Check for pending interrupts (iSeries) */
+	ld	r3,PACALPPACAPTR(r13)
+	ld	r3,LPPACAANYINT(r3)
+	cmpdi	r3,0
+	beq+	2b			/* skip do_IRQ if no interrupts */
+
+	li	r3,0
+	stb	r3,PACASOFTIRQEN(r13)	/* ensure we are soft-disabled */
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	.trace_hardirqs_off
+	mfmsr	r10
+#endif
+	ori	r10,r10,MSR_EE
+	mtmsrd	r10			/* hard-enable again */
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.do_IRQ
+	b	.ret_from_except_lite		/* loop back and handle more */
+#endif
 
 do_work:
 #ifdef CONFIG_PREEMPT
