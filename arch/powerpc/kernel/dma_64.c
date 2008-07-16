@@ -15,15 +15,6 @@
  * Generic iommu implementation
  */
 
-static inline unsigned long device_to_mask(struct device *dev)
-{
-	if (dev->dma_mask && *dev->dma_mask)
-		return *dev->dma_mask;
-	/* Assume devices without mask can take 32 bit addresses */
-	return 0xfffffffful;
-}
-
-
 /* Allocates a contiguous real buffer and creates mappings over it.
  * Returns the virtual address of the buffer and sets dma_handle
  * to the dma address (mapping) of the first page.
@@ -50,32 +41,38 @@ static void dma_iommu_free_coherent(struct device *dev, size_t size,
  */
 static dma_addr_t dma_iommu_map_single(struct device *dev, void *vaddr,
 				       size_t size,
-				       enum dma_data_direction direction)
+				       enum dma_data_direction direction,
+				       struct dma_attrs *attrs)
 {
 	return iommu_map_single(dev, dev->archdata.dma_data, vaddr, size,
-			        device_to_mask(dev), direction);
+				device_to_mask(dev), direction, attrs);
 }
 
 
 static void dma_iommu_unmap_single(struct device *dev, dma_addr_t dma_handle,
 				   size_t size,
-				   enum dma_data_direction direction)
+				   enum dma_data_direction direction,
+				   struct dma_attrs *attrs)
 {
-	iommu_unmap_single(dev->archdata.dma_data, dma_handle, size, direction);
+	iommu_unmap_single(dev->archdata.dma_data, dma_handle, size, direction,
+			   attrs);
 }
 
 
 static int dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
-			    int nelems, enum dma_data_direction direction)
+			    int nelems, enum dma_data_direction direction,
+			    struct dma_attrs *attrs)
 {
-	return iommu_map_sg(dev, sglist, nelems,
-			    device_to_mask(dev), direction);
+	return iommu_map_sg(dev, dev->archdata.dma_data, sglist, nelems,
+			    device_to_mask(dev), direction, attrs);
 }
 
 static void dma_iommu_unmap_sg(struct device *dev, struct scatterlist *sglist,
-		int nelems, enum dma_data_direction direction)
+		int nelems, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
-	iommu_unmap_sg(dev->archdata.dma_data, sglist, nelems, direction);
+	iommu_unmap_sg(dev->archdata.dma_data, sglist, nelems, direction,
+		       attrs);
 }
 
 /* We support DMA to/from any memory page via the iommu */
@@ -148,19 +145,22 @@ static void dma_direct_free_coherent(struct device *dev, size_t size,
 
 static dma_addr_t dma_direct_map_single(struct device *dev, void *ptr,
 					size_t size,
-					enum dma_data_direction direction)
+					enum dma_data_direction direction,
+					struct dma_attrs *attrs)
 {
 	return virt_to_abs(ptr) + get_dma_direct_offset(dev);
 }
 
 static void dma_direct_unmap_single(struct device *dev, dma_addr_t dma_addr,
 				    size_t size,
-				    enum dma_data_direction direction)
+				    enum dma_data_direction direction,
+				    struct dma_attrs *attrs)
 {
 }
 
 static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
-			     int nents, enum dma_data_direction direction)
+			     int nents, enum dma_data_direction direction,
+			     struct dma_attrs *attrs)
 {
 	struct scatterlist *sg;
 	int i;
@@ -174,7 +174,8 @@ static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
 }
 
 static void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sg,
-				int nents, enum dma_data_direction direction)
+				int nents, enum dma_data_direction direction,
+				struct dma_attrs *attrs)
 {
 }
 

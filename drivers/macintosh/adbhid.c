@@ -75,7 +75,7 @@ static struct notifier_block adbhid_adb_notifier = {
 #define ADB_KEY_POWER_OLD	0x7e
 #define ADB_KEY_POWER		0x7f
 
-u16 adb_to_linux_keycodes[128] = {
+static const u16 adb_to_linux_keycodes[128] = {
 	/* 0x00 */ KEY_A, 		/*  30 */
 	/* 0x01 */ KEY_S, 		/*  31 */
 	/* 0x02 */ KEY_D,		/*  32 */

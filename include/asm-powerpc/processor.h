@@ -12,6 +12,12 @@
 
 #include <asm/reg.h>
 
+#ifdef CONFIG_VSX
+#define TS_FPRWIDTH 2
+#else
+#define TS_FPRWIDTH 1
+#endif
+
 #ifndef __ASSEMBLY__
 #include <linux/compiler.h>
 #include <asm/ptrace.h>
@@ -78,9 +84,14 @@ extern long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 /* Lazy FPU handling on uni-processor */
 extern struct task_struct *last_task_used_math;
 extern struct task_struct *last_task_used_altivec;
+extern struct task_struct *last_task_used_vsx;
 extern struct task_struct *last_task_used_spe;
 
 #ifdef CONFIG_PPC32
+
+#if CONFIG_TASK_SIZE > CONFIG_KERNEL_START
+#error User TASK_SIZE overlaps with KERNEL_START address
+#endif
 #define TASK_SIZE	(CONFIG_TASK_SIZE)
 
 /* This decides where the kernel will search for a free chunk of vm
@@ -136,6 +147,10 @@ typedef struct {
 	unsigned long seg;
 } mm_segment_t;
 
+#define TS_FPROFFSET 0
+#define TS_VSRLOWOFFSET 1
+#define TS_FPR(i) fpr[i][TS_FPROFFSET]
+
 struct thread_struct {
 	unsigned long	ksp;		/* Kernel stack pointer */
 	unsigned long	ksp_limit;	/* if ksp <= ksp_limit stack overflow */
@@ -152,8 +167,9 @@ struct thread_struct {
 	unsigned long	dbcr0;		/* debug control register values */
 	unsigned long	dbcr1;
 #endif
-	double		fpr[32];	/* Complete floating point set */
-	struct {			/* fpr ... fpscr must be contiguous */
+	/* FP and VSX 0-31 register set */
+	double		fpr[32][TS_FPRWIDTH];
+	struct {
 
 		unsigned int pad;
 		unsigned int val;	/* Floating point status */
@@ -173,6 +189,10 @@ struct thread_struct {
 	unsigned long	vrsave;
 	int		used_vr;	/* set if process has used altivec */
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_VSX
+	/* VSR status */
+	int		used_vsr;	/* set if process has used altivec */
+#endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 	unsigned long	evr[32];	/* upper 32-bits of SPE regs */
 	u64		acc;		/* Accumulator */
@@ -202,7 +222,7 @@ struct thread_struct {
 	.ksp_limit = INIT_SP_LIMIT, \
 	.regs = (struct pt_regs *)INIT_SP - 1, /* XXX bogus, I think */ \
 	.fs = KERNEL_DS, \
-	.fpr = {0}, \
+	.fpr = {{0}}, \
 	.fpscr = { .val = 0, }, \
 	.fpexc_mode = 0, \
 }
@@ -213,6 +233,8 @@ struct thread_struct {
  */
 #define thread_saved_pc(tsk)    \
         ((tsk)->thread.regs? (tsk)->thread.regs->nip: 0)
+
+#define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.regs)
 
 unsigned long get_wchan(struct task_struct *p);
 

@@ -18,6 +18,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/dts-v1/;
+
 / {
 	model = "SonyPS3";
 	compatible = "sony,ps3";
@@ -34,7 +36,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0 0 0 0>;
+		reg = <0x00000000 0x00000000 0x00000000 0x00000000>;
 	};
 
 	/*
@@ -55,14 +57,14 @@
 
 		cpu@0 {
 			device_type = "cpu";
-			reg = <0>;
-			ibm,ppc-interrupt-server#s = <0 1>;
+			reg = <0x00000000>;
+			ibm,ppc-interrupt-server#s = <0x0 0x1>;
 			clock-frequency = <0>;
 			timebase-frequency = <0>;
-			i-cache-size = <8000>;
-			d-cache-size = <8000>;
-			i-cache-line-size = <80>;
-			d-cache-line-size = <80>;
+			i-cache-size = <32768>;
+			d-cache-size = <32768>;
+			i-cache-line-size = <128>;
+			d-cache-line-size = <128>;
 		};
 	};
 };
