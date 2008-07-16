@@ -561,12 +561,6 @@ static void idefloppy_create_start_stop_cmd(struct ide_atapi_pc *pc, int start)
 	pc->c[4] = start;
 }
 
-static void idefloppy_create_test_unit_ready_cmd(struct ide_atapi_pc *pc)
-{
-	idefloppy_init_pc(pc);
-	pc->c[0] = GPCMD_TEST_UNIT_READY;
-}
-
 static void idefloppy_create_rw_cmd(idefloppy_floppy_t *floppy,
 				    struct ide_atapi_pc *pc, struct request *rq,
 				    unsigned long sector)
@@ -1166,7 +1160,9 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 		floppy->flags &= ~IDEFLOPPY_FLAG_FORMAT_IN_PROGRESS;
 		/* Just in case */
 
-		idefloppy_create_test_unit_ready_cmd(&pc);
+		idefloppy_init_pc(&pc);
+		pc.c[0] = GPCMD_TEST_UNIT_READY;
+
 		if (idefloppy_queue_pc_tail(drive, &pc)) {
 			idefloppy_create_start_stop_cmd(&pc, 1);
 			(void) idefloppy_queue_pc_tail(drive, &pc);
