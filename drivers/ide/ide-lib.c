@@ -188,29 +188,6 @@ static int ide_scan_pio_blacklist (char *model)
 	return -1;
 }
 
-unsigned int ide_pio_cycle_time(ide_drive_t *drive, u8 pio)
-{
-	struct hd_driveid *id = drive->id;
-	int cycle_time = 0;
-
-	if (id->field_valid & 2) {
-		if (id->capability & 8)
-			cycle_time = id->eide_pio_iordy;
-		else
-			cycle_time = id->eide_pio;
-	}
-
-	/* conservative "downgrade" for all pre-ATA2 drives */
-	if (pio < 3) {
-		if (cycle_time && cycle_time < ide_pio_timings[pio].cycle_time)
-			cycle_time = 0; /* use standard timing */
-	}
-
-	return cycle_time ? cycle_time : ide_pio_timings[pio].cycle_time;
-}
-
-EXPORT_SYMBOL_GPL(ide_pio_cycle_time);
-
 /**
  *	ide_get_best_pio_mode	-	get PIO mode from drive
  *	@drive: drive to consider

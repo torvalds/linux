@@ -1,5 +1,6 @@
 /*
  *  Copyright (c) 1999-2001 Vojtech Pavlik
+ *  Copyright (c) 2007-2008 Bartlomiej Zolnierkiewicz
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,6 +75,27 @@ struct ide_timing *ide_timing_find_mode(u8 speed)
 	return t;
 }
 EXPORT_SYMBOL_GPL(ide_timing_find_mode);
+
+u16 ide_pio_cycle_time(ide_drive_t *drive, u8 pio)
+{
+	struct hd_driveid *id = drive->id;
+	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
+	u16 cycle = 0;
+
+	if (id->field_valid & 2) {
+		if (id->capability & 8)
+			cycle = id->eide_pio_iordy;
+		else
+			cycle = id->eide_pio;
+
+		/* conservative "downgrade" for all pre-ATA2 drives */
+		if (pio < 3 && cycle < t->cycle)
+			cycle = 0; /* use standard timing */
+	}
+
+	return cycle ? cycle : t->cycle;
+}
+EXPORT_SYMBOL_GPL(ide_pio_cycle_time);
 
 #define ENOUGH(v, unit)		(((v) - 1) / (unit) + 1)
 #define EZ(v, unit)		((v) ? ENOUGH(v, unit) : 0)
