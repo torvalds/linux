@@ -738,9 +738,8 @@ static ide_startstop_t cdrom_seek_intr(ide_drive_t *drive)
 	return ide_stopped;
 }
 
-static ide_startstop_t cdrom_start_seek_continuation(ide_drive_t *drive)
+static void ide_cd_prepare_seek_request(ide_drive_t *drive, struct request *rq)
 {
-	struct request *rq = HWGROUP(drive)->rq;
 	sector_t frame = rq->sector;
 
 	sector_div(frame, queue_hardsect_size(drive->queue) >> SECTOR_BITS);
@@ -750,6 +749,12 @@ static ide_startstop_t cdrom_start_seek_continuation(ide_drive_t *drive)
 	put_unaligned(cpu_to_be32(frame), (unsigned int *) &rq->cmd[2]);
 
 	rq->timeout = ATAPI_WAIT_PC;
+}
+
+static ide_startstop_t cdrom_start_seek_continuation(ide_drive_t *drive)
+{
+	struct request *rq = drive->hwif->hwgroup->rq;
+
 	return cdrom_transfer_packet_command(drive, rq, &cdrom_seek_intr);
 }
 
@@ -1211,8 +1216,11 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		    drive->dsc_overlap) {
 			xferlen = 0;
 			fn = cdrom_start_seek_continuation;
+
 			info->dma = 0;
 			info->start_seek = jiffies;
+
+			ide_cd_prepare_seek_request(drive, rq);
 		} else {
 			xferlen = 32768;
 			fn = cdrom_start_rw_cont;
