@@ -753,7 +753,7 @@ static ide_startstop_t cdrom_start_seek_continuation(ide_drive_t *drive)
 	return cdrom_transfer_packet_command(drive, rq, &cdrom_seek_intr);
 }
 
-static ide_startstop_t cdrom_start_seek(ide_drive_t *drive, unsigned int block)
+static ide_startstop_t cdrom_start_seek(ide_drive_t *drive)
 {
 	struct cdrom_info *info = drive->driver_data;
 
@@ -1223,7 +1223,7 @@ static ide_startstop_t ide_do_rw_cdrom(ide_drive_t *drive, struct request *rq,
 		    IDE_LARGE_SEEK(info->last_block, block,
 				   IDECD_SEEK_THRESHOLD) &&
 		    drive->dsc_overlap)
-			action = cdrom_start_seek(drive, block);
+			action = cdrom_start_seek(drive);
 		else
 			action = cdrom_start_rw(drive, rq);
 		info->last_block = block;
