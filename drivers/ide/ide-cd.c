@@ -1195,6 +1195,7 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		int mask = drive->queue->dma_alignment;
 		unsigned long addr =
 			(unsigned long)page_address(bio_page(rq->bio));
+		unsigned long stack_mask = ~(THREAD_SIZE - 1);
 
 		info->dma = drive->using_dma;
 
@@ -1205,6 +1206,10 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		 * separate masks.
 		 */
 		if ((rq->data_len & 15) || (addr & mask))
+			info->dma = 0;
+
+		if (!((addr & stack_mask) ^
+		      ((unsigned long)current->stack & stack_mask)))
 			info->dma = 0;
 	}
 
