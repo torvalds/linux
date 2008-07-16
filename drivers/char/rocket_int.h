@@ -1125,11 +1125,9 @@ Warnings: This function writes the data byte without checking to see if
 
 struct r_port {
 	int magic;
+	struct tty_port port;
 	int line;
-	int flags;
-	int count;
-	int blocked_open;
-	struct tty_struct *tty;
+	int flags;		/* Don't yet match the ASY_ flags!! */
 	unsigned int board:3;
 	unsigned int aiop:2;
 	unsigned int chan:3;
@@ -1148,8 +1146,7 @@ struct r_port {
 	int read_status_mask;
 	int cps;
 
-	wait_queue_head_t open_wait;
-	struct completion close_wait;
+	struct completion close_wait;	/* Not yet matching the core */
 	spinlock_t slock;
 	struct mutex write_mtx;
 };
