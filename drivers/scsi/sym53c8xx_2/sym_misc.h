@@ -121,9 +121,7 @@ static __inline void sym_que_move(struct sym_quehead *orig,
 	}
 }
 
-#define sym_que_entry(ptr, type, member) \
-	((type *)((char *)(ptr)-(unsigned int)(&((type *)0)->member)))
-
+#define sym_que_entry(ptr, type, member) container_of(ptr, type, member)
 
 #define sym_insque(new, pos)		__sym_que_add(new, pos, (pos)->flink)
 

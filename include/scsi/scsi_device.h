@@ -162,9 +162,29 @@ struct scsi_device {
 
 	struct execute_work	ew; /* used to get process context on put */
 
+	struct scsi_dh_data	*scsi_dh_data;
 	enum scsi_device_state sdev_state;
 	unsigned long		sdev_data[0];
 } __attribute__((aligned(sizeof(unsigned long))));
+
+struct scsi_device_handler {
+	/* Used by the infrastructure */
+	struct list_head list; /* list of scsi_device_handlers */
+	struct notifier_block nb;
+
+	/* Filled by the hardware handler */
+	struct module *module;
+	const char *name;
+	int (*check_sense)(struct scsi_device *, struct scsi_sense_hdr *);
+	int (*activate)(struct scsi_device *);
+	int (*prep_fn)(struct scsi_device *, struct request *);
+};
+
+struct scsi_dh_data {
+	struct scsi_device_handler *scsi_dh;
+	char buf[0];
+};
+
 #define	to_scsi_device(d)	\
 	container_of(d, struct scsi_device, sdev_gendev)
 #define	class_to_sdev(d)	\
@@ -231,7 +251,9 @@ extern struct scsi_device *__scsi_add_device(struct Scsi_Host *,
 		uint, uint, uint, void *hostdata);
 extern int scsi_add_device(struct Scsi_Host *host, uint channel,
 			   uint target, uint lun);
+extern int scsi_register_device_handler(struct scsi_device_handler *scsi_dh);
 extern void scsi_remove_device(struct scsi_device *);
+extern int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh);
 
 extern int scsi_device_get(struct scsi_device *);
 extern void scsi_device_put(struct scsi_device *);
