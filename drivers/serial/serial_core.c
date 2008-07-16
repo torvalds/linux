@@ -573,6 +573,8 @@ static void uart_flush_buffer(struct tty_struct *tty)
 
 	spin_lock_irqsave(&port->lock, flags);
 	uart_circ_clear(&state->info->xmit);
+	if (port->ops->flush_buffer)
+		port->ops->flush_buffer(port);
 	spin_unlock_irqrestore(&port->lock, flags);
 	tty_wakeup(tty);
 }
