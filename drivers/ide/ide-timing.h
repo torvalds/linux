@@ -28,9 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/hdreg.h>
 
-#define XFER_PIO_5		0x0d
-#define XFER_UDMA_SLOW		0x4f
-
 struct ide_timing {
 	short mode;
 	short setup;	/* t1 */
@@ -61,12 +58,10 @@ static struct ide_timing ide_timing[] = {
 	{ XFER_UDMA_1,     0,   0,   0,   0,   0,   0,   0,  80 },
 	{ XFER_UDMA_0,     0,   0,   0,   0,   0,   0,   0, 120 },
 
-	{ XFER_UDMA_SLOW,  0,   0,   0,   0,   0,   0,   0, 150 },
-                                          
 	{ XFER_MW_DMA_2,  25,   0,   0,   0,  70,  25, 120,   0 },
 	{ XFER_MW_DMA_1,  45,   0,   0,   0,  80,  50, 150,   0 },
 	{ XFER_MW_DMA_0,  60,   0,   0,   0, 215, 215, 480,   0 },
-                                          
+
 	{ XFER_SW_DMA_2,  60,   0,   0,   0, 120, 120, 240,   0 },
 	{ XFER_SW_DMA_1,  90,   0,   0,   0, 240, 240, 480,   0 },
 	{ XFER_SW_DMA_0, 120,   0,   0,   0, 480, 480, 960,   0 },
