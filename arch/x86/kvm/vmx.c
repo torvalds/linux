@@ -3305,7 +3305,7 @@ static int __init vmx_init(void)
 	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_IA32_SYSENTER_ESP);
 	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_IA32_SYSENTER_EIP);
 
-	if (cpu_has_vmx_ept())
+	if (vm_need_ept())
 		bypass_guest_pf = 0;
 
 	if (bypass_guest_pf)
