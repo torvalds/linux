@@ -21,6 +21,8 @@
 #include <asm/dma.h>
 #include <asm/ecard.h>
 
+#define DRV_NAME "icside"
+
 #define ICS_IDENT_OFFSET		0x2280
 
 #define ICS_ARCIN_V5_INTRSTAT		0x0000
@@ -546,26 +548,26 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	ide_init_port_hw(hwif, &hw[0]);
 	default_hwif_mmiops(hwif);
 
-	mate = ide_find_port();
-	if (mate == NULL)
-		return -ENODEV;
+	idx[0] = hwif->index;
 
-	ide_init_port_hw(mate, &hw[1]);
-	default_hwif_mmiops(mate);
+	mate = ide_find_port();
+	if (mate) {
+		ide_init_port_hw(mate, &hw[1]);
+		default_hwif_mmiops(mate);
+
+		idx[1] = mate->index;
+	}
 
 	state->hwif[0]    = hwif;
 	state->hwif[1]    = mate;
 
 	ecard_set_drvdata(ec, state);
 
-	if (ec->dma != NO_DMA && !request_dma(ec->dma, hwif->name)) {
+	if (ec->dma != NO_DMA && !request_dma(ec->dma, DRV_NAME)) {
 		d.init_dma = icside_dma_init;
 		d.port_ops = &icside_v6_port_ops;
 		d.dma_ops = NULL;
 	}
-
-	idx[0] = hwif->index;
-	idx[1] = mate->index;
 
 	ide_device_add(idx, &d);
 
