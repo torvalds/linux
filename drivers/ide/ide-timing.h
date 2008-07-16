@@ -28,18 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/hdreg.h>
 
-struct ide_timing {
-	u8    mode;
-	short setup;	/* t1 */
-	short act8b;	/* t2 for 8-bit io */
-	short rec8b;	/* t2i for 8-bit io */
-	short cyc8b;	/* t0 for 8-bit io */
-	short active;	/* t2 or tD */
-	short recover;	/* t2i or tK */
-	short cycle;	/* t0 */
-	short udma;	/* t2CYCTYP/2 */
-};
-
 /*
  * PIO 0-5, MWDMA 0-2 and UDMA 0-6 timings (in nanoseconds).
  * These were taken from ATA/ATAPI-6 standard, rev 0a, except
@@ -78,17 +66,6 @@ static struct ide_timing ide_timing[] = {
 
 	{ 0xff }
 };
-
-#define IDE_TIMING_SETUP	0x01
-#define IDE_TIMING_ACT8B	0x02
-#define IDE_TIMING_REC8B	0x04
-#define IDE_TIMING_CYC8B	0x08
-#define IDE_TIMING_8BIT		0x0e
-#define IDE_TIMING_ACTIVE	0x10
-#define IDE_TIMING_RECOVER	0x20
-#define IDE_TIMING_CYCLE	0x40
-#define IDE_TIMING_UDMA		0x80
-#define IDE_TIMING_ALL		0xff
 
 #define ENOUGH(v,unit)		(((v)-1)/(unit)+1)
 #define EZ(v,unit)		((v)?ENOUGH(v,unit):0)
