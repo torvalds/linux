@@ -189,6 +189,8 @@ static int __init h8300_ide_init(void)
 	int index;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
+	printk(KERN_INFO DRV_NAME ": H8/300 generic IDE interface\n");
+
 	if (!request_region(CONFIG_H8300_IDE_BASE, H8300_IDE_GAP*8, "ide-h8300"))
 		goto out_busy;
 	if (!request_region(CONFIG_H8300_IDE_ALT, H8300_IDE_GAP, "ide-h8300")) {
@@ -205,7 +207,6 @@ static int __init h8300_ide_init(void)
 	index = hwif->index;
 	ide_init_port_hw(hwif, &hw);
 	hwif_setup(hwif);
-	printk(KERN_INFO "ide%d: H8/300 generic IDE interface\n", index);
 
 	idx[0] = index;
 
