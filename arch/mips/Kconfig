@@ -330,6 +330,7 @@ config SGI_IP22
 	select SGI_HAS_DS1286
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
+	select SGI_HAS_HAL2
 	select SGI_HAS_SEEQ
 	select SGI_HAS_WD93
 	select SGI_HAS_ZILOG
@@ -385,7 +386,6 @@ config SGI_IP28
 	select SGI_HAS_DS1286
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
-	select SGI_HAS_HAL2
 	select SGI_HAS_HAL2
 	select SGI_HAS_SEEQ
 	select SGI_HAS_WD93
