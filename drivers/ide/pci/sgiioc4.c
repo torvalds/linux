@@ -588,10 +588,6 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	hw_regs_t hw;
 	struct ide_port_info d = sgiioc4_port_info;
 
-	hwif = ide_find_port_slot(&d);
-	if (hwif == NULL)
-		return -ENOMEM;
-
 	/*  Get the CmdBlk and CtrlBlk Base Registers */
 	bar0 = pci_resource_start(dev, 0);
 	virt_base = ioremap(bar0, pci_resource_len(dev, 0));
@@ -621,6 +617,11 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	hw.irq = dev->irq;
 	hw.chipset = ide_pci;
 	hw.dev = &dev->dev;
+
+	hwif = ide_find_port_slot(&d);
+	if (hwif == NULL)
+		goto err;
+
 	ide_init_port_hw(hwif, &hw);
 
 	/* The IOC4 uses MMIO rather than Port IO. */
@@ -637,6 +638,10 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 		return -EIO;
 
 	return 0;
+err:
+	release_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE);
+	iounmap(virt_base);
+	return -ENOMEM;
 }
 
 static unsigned int __devinit
