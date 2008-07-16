@@ -687,9 +687,6 @@ static int cmd640x_init_one(unsigned long base, unsigned long ctl)
  */
 static int __init cmd640x_init(void)
 {
-#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-	int second_port_toggled = 0;
-#endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 	int second_port_cmd640 = 0, rc;
 	const char *bus_type, *port2;
 	unsigned int index;
@@ -778,46 +775,40 @@ static int __init cmd640x_init(void)
 	put_cmd640_reg(CMDTIM, 0);
 	put_cmd640_reg(BRST, 0x40);
 
-	cmd_hwif1 = ide_find_port();
+	b = get_cmd640_reg(CNTRL);
 
 	/*
 	 * Try to enable the secondary interface, if not already enabled
 	 */
-	if (cmd_hwif1 &&
-	    cmd_hwif1->drives[0].noprobe && cmd_hwif1->drives[1].noprobe) {
-		port2 = "not probed";
+	if (secondary_port_responding()) {
+		if ((b & CNTRL_ENA_2ND)) {
+			second_port_cmd640 = 1;
+			port2 = "okay";
+		} else if (cmd640_vlb) {
+			second_port_cmd640 = 1;
+			port2 = "alive";
+		} else
+			port2 = "not cmd640";
 	} else {
-		b = get_cmd640_reg(CNTRL);
+		put_cmd640_reg(CNTRL, b ^ CNTRL_ENA_2ND); /* toggle the bit */
 		if (secondary_port_responding()) {
-			if ((b & CNTRL_ENA_2ND)) {
-				second_port_cmd640 = 1;
-				port2 = "okay";
-			} else if (cmd640_vlb) {
-				second_port_cmd640 = 1;
-				port2 = "alive";
-			} else
-				port2 = "not cmd640";
+			second_port_cmd640 = 1;
+			port2 = "enabled";
 		} else {
-			put_cmd640_reg(CNTRL, b ^ CNTRL_ENA_2ND); /* toggle the bit */
-			if (secondary_port_responding()) {
-				second_port_cmd640 = 1;
-#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-				second_port_toggled = 1;
-#endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
-				port2 = "enabled";
-			} else {
-				put_cmd640_reg(CNTRL, b); /* restore original setting */
-				port2 = "not responding";
-			}
+			put_cmd640_reg(CNTRL, b); /* restore original setting */
+			port2 = "not responding";
 		}
 	}
 
 	/*
 	 * Initialize data for secondary cmd640 port, if enabled
 	 */
-	if (second_port_cmd640 && cmd_hwif1) {
-		ide_init_port_hw(cmd_hwif1, &hw[1]);
-		idx[1] = cmd_hwif1->index;
+	if (second_port_cmd640) {
+		cmd_hwif1 = ide_find_port();
+		if (cmd_hwif1) {
+			ide_init_port_hw(cmd_hwif1, &hw[1]);
+			idx[1] = cmd_hwif1->index;
+		}
 	}
 	printk(KERN_INFO "cmd640: %sserialized, secondary interface %s\n",
 			 second_port_cmd640 ? "" : "not ", port2);
