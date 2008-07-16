@@ -139,7 +139,11 @@ char ip_vs_master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 char ip_vs_backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 
 /* multicast addr */
-static struct sockaddr_in mcast_addr;
+static struct sockaddr_in mcast_addr = {
+	.sin_family		= AF_INET,
+	.sin_port		= __constant_htons(IP_VS_SYNC_PORT),
+	.sin_addr.s_addr	= __constant_htonl(IP_VS_SYNC_GROUP),
+};
 
 
 static inline void sb_queue_tail(struct ip_vs_sync_buff *sb)
@@ -861,11 +865,6 @@ static int sync_thread(void *startup)
 
 	/* set the maximum length of sync message */
 	set_sync_mesg_maxlen(state);
-
-	/* set up multicast address */
-	mcast_addr.sin_family = AF_INET;
-	mcast_addr.sin_port = htons(IP_VS_SYNC_PORT);
-	mcast_addr.sin_addr.s_addr = htonl(IP_VS_SYNC_GROUP);
 
 	add_wait_queue(&sync_wait, &wait);
 
