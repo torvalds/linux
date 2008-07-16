@@ -183,10 +183,18 @@ static inline struct net_device *qdisc_dev(struct Qdisc *qdisc)
 extern void qdisc_lock_tree(struct net_device *dev);
 extern void qdisc_unlock_tree(struct net_device *dev);
 
-#define sch_tree_lock(q)	qdisc_lock_tree(qdisc_dev(q))
-#define sch_tree_unlock(q)	qdisc_unlock_tree(qdisc_dev(q))
-#define tcf_tree_lock(tp)	qdisc_lock_tree(qdisc_dev((tp)->q))
-#define tcf_tree_unlock(tp)	qdisc_unlock_tree(qdisc_dev((tp)->q))
+static inline void sch_tree_lock(struct Qdisc *q)
+{
+	spin_lock_bh(qdisc_root_lock(q));
+}
+
+static inline void sch_tree_unlock(struct Qdisc *q)
+{
+	spin_unlock_bh(qdisc_root_lock(q));
+}
+
+#define tcf_tree_lock(tp)	sch_tree_lock((tp)->q)
+#define tcf_tree_unlock(tp)	sch_tree_unlock((tp)->q)
 
 extern struct Qdisc noop_qdisc;
 extern struct Qdisc_ops noop_qdisc_ops;
