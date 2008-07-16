@@ -812,4 +812,4 @@ static int __init parse_hd_setup(char *line)
 }
 __setup("hd=", parse_hd_setup);
 
-module_init(hd_init);
+late_initcall(hd_init);

@@ -62,7 +62,6 @@ endif
 
 obj-$(CONFIG_BLK_DEV_IDE)		+= arm/ mips/
 
-# old hd driver must be last
 ifeq ($(CONFIG_BLK_DEV_HD), y)
 	hd-core-y += legacy/hd.o
 	obj-y += hd-core.o
