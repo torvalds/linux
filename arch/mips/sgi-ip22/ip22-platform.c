@@ -188,8 +188,7 @@ static int __init sgi_button_devinit(void)
 	if (ip22_is_fullhouse())
 		return 0; /* full house has no volume buttons */
 
-	return IS_ERR(platform_device_register_simple("sgiindybtns",
-						      -1, NULL, 0));
+	return IS_ERR(platform_device_register_simple("sgibtns", -1, NULL, 0));
 }
 
 device_initcall(sgi_button_devinit);
