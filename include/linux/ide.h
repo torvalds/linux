@@ -1305,6 +1305,8 @@ void ide_timing_merge(struct ide_timing *, struct ide_timing *,
 		      struct ide_timing *, unsigned int);
 int ide_timing_compute(ide_drive_t *, u8, struct ide_timing *, int, int);
 
+int ide_scan_pio_blacklist(char *);
+
 u8 ide_get_best_pio_mode(ide_drive_t *, u8, u8);
 
 int ide_set_pio_mode(ide_drive_t *, u8);
