@@ -161,6 +161,18 @@ struct tcf_proto
 	struct tcf_proto_ops	*ops;
 };
 
+static inline struct Qdisc *qdisc_root(struct Qdisc *qdisc)
+{
+	return qdisc->dev_queue->qdisc;
+}
+
+static inline spinlock_t *qdisc_root_lock(struct Qdisc *qdisc)
+{
+	struct Qdisc *root = qdisc_root(qdisc);
+
+	return &root->dev_queue->lock;
+}
+
 static inline struct net_device *qdisc_dev(struct Qdisc *qdisc)
 {
 	return qdisc->dev_queue->dev;

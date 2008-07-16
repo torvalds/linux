@@ -151,14 +151,17 @@ static inline int qdisc_restart(struct netdev_queue *txq,
 {
 	int ret = NETDEV_TX_BUSY;
 	struct net_device *dev;
+	spinlock_t *root_lock;
 	struct sk_buff *skb;
 
 	/* Dequeue packet */
 	if (unlikely((skb = dequeue_skb(q)) == NULL))
 		return 0;
 
-	/* And release queue */
-	spin_unlock(&txq->lock);
+	root_lock = qdisc_root_lock(q);
+
+	/* And release qdisc */
+	spin_unlock(root_lock);
 
 	dev = txq->dev;
 
@@ -167,7 +170,7 @@ static inline int qdisc_restart(struct netdev_queue *txq,
 		ret = dev_hard_start_xmit(skb, dev, txq);
 	HARD_TX_UNLOCK(dev, txq);
 
-	spin_lock(&txq->lock);
+	spin_lock(root_lock);
 
 	switch (ret) {
 	case NETDEV_TX_OK:
@@ -345,12 +348,18 @@ struct Qdisc_ops noop_qdisc_ops __read_mostly = {
 	.owner		=	THIS_MODULE,
 };
 
+static struct netdev_queue noop_netdev_queue = {
+	.lock		=	__SPIN_LOCK_UNLOCKED(noop_netdev_queue.lock),
+	.qdisc		=	&noop_qdisc,
+};
+
 struct Qdisc noop_qdisc = {
 	.enqueue	=	noop_enqueue,
 	.dequeue	=	noop_dequeue,
 	.flags		=	TCQ_F_BUILTIN,
 	.ops		=	&noop_qdisc_ops,
 	.list		=	LIST_HEAD_INIT(noop_qdisc.list),
+	.dev_queue	=	&noop_netdev_queue,
 };
 EXPORT_SYMBOL(noop_qdisc);
 
@@ -666,19 +675,21 @@ static bool some_qdisc_is_running(struct net_device *dev, int lock)
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *dev_queue;
+		spinlock_t *root_lock;
 		struct Qdisc *q;
 		int val;
 
 		dev_queue = netdev_get_tx_queue(dev, i);
 		q = dev_queue->qdisc;
+		root_lock = qdisc_root_lock(q);
 
 		if (lock)
-			spin_lock_bh(&dev_queue->lock);
+			spin_lock_bh(root_lock);
 
 		val = test_bit(__QDISC_STATE_RUNNING, &q->state);
 
 		if (lock)
-			spin_unlock_bh(&dev_queue->lock);
+			spin_unlock_bh(root_lock);
 
 		if (val)
 			return true;

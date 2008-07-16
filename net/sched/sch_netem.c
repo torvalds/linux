@@ -180,7 +180,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	 * skb will be queued.
 	 */
 	if (count > 1 && (skb2 = skb_clone(skb, GFP_ATOMIC)) != NULL) {
-		struct Qdisc *rootq = sch->dev_queue->qdisc;
+		struct Qdisc *rootq = qdisc_root(sch);
 		u32 dupsave = q->duplicate; /* prevent duplicating a dup... */
 		q->duplicate = 0;
 
@@ -319,6 +319,7 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	struct netem_sched_data *q = qdisc_priv(sch);
 	unsigned long n = nla_len(attr)/sizeof(__s16);
 	const __s16 *data = nla_data(attr);
+	spinlock_t *root_lock;
 	struct disttable *d;
 	int i;
 
@@ -333,9 +334,11 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	for (i = 0; i < n; i++)
 		d->table[i] = data[i];
 
-	spin_lock_bh(&sch->dev_queue->lock);
+	root_lock = qdisc_root_lock(sch);
+
+	spin_lock_bh(root_lock);
 	d = xchg(&q->delay_dist, d);
-	spin_unlock_bh(&sch->dev_queue->lock);
+	spin_unlock_bh(root_lock);
 
 	kfree(d);
 	return 0;

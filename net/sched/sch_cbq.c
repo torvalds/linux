@@ -1744,12 +1744,13 @@ static void cbq_put(struct Qdisc *sch, unsigned long arg)
 
 	if (--cl->refcnt == 0) {
 #ifdef CONFIG_NET_CLS_ACT
+		spinlock_t *root_lock = qdisc_root_lock(sch);
 		struct cbq_sched_data *q = qdisc_priv(sch);
 
-		spin_lock_bh(&sch->dev_queue->lock);
+		spin_lock_bh(root_lock);
 		if (q->rx_class == cl)
 			q->rx_class = NULL;
-		spin_unlock_bh(&sch->dev_queue->lock);
+		spin_unlock_bh(root_lock);
 #endif
 
 		cbq_destroy_class(sch, cl);
@@ -1828,7 +1829,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 
 		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
-					      &sch->dev_queue->lock,
+					      qdisc_root_lock(sch),
 					      tca[TCA_RATE]);
 		return 0;
 	}
@@ -1919,7 +1920,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 
 	if (tca[TCA_RATE])
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
-				  &sch->dev_queue->lock, tca[TCA_RATE]);
+				  qdisc_root_lock(sch), tca[TCA_RATE]);
 
 	*arg = (unsigned long)cl;
 	return 0;
