@@ -118,6 +118,20 @@ extern void ledtrig_ide_activity(void);
 #define ledtrig_ide_activity() do {} while(0)
 #endif
 
+/*
+ * Generic LED platform data for describing LED names and default triggers.
+ */
+struct led_info {
+	const char	*name;
+	char		*default_trigger;
+	int		flags;
+};
+
+struct led_platform_data {
+	int		num_leds;
+	struct led_info	*leds;
+};
+
 /* For the leds-gpio driver */
 struct gpio_led {
 	const char *name;
