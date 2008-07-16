@@ -471,7 +471,7 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
 
 	if (port->sc_port.info) {
 		/* The serial_core stuffs are initilized, use them */
-		tty = port->sc_port.info->tty;
+		tty = port->sc_port.info->port.tty;
 	}
 	else {
 		/* Not registered yet - can't pass to tty layer.  */
