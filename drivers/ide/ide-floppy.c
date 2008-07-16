@@ -702,10 +702,10 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
 	set_disk_ro(floppy->disk, floppy->wp);
 	page = &pc.buf[8];
 
-	transfer_rate = be16_to_cpu(*(u16 *)&pc.buf[8 + 2]);
-	sector_size   = be16_to_cpu(*(u16 *)&pc.buf[8 + 6]);
-	cyls          = be16_to_cpu(*(u16 *)&pc.buf[8 + 8]);
-	rpm           = be16_to_cpu(*(u16 *)&pc.buf[8 + 28]);
+	transfer_rate = be16_to_cpup((__be16 *)&pc.buf[8 + 2]);
+	sector_size   = be16_to_cpup((__be16 *)&pc.buf[8 + 6]);
+	cyls          = be16_to_cpup((__be16 *)&pc.buf[8 + 8]);
+	rpm           = be16_to_cpup((__be16 *)&pc.buf[8 + 28]);
 	heads         = pc.buf[8 + 4];
 	sectors       = pc.buf[8 + 5];
 
@@ -780,8 +780,8 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	for (i = 0; i < desc_cnt; i++) {
 		unsigned int desc_start = 4 + i*8;
 
-		blocks = be32_to_cpu(*(u32 *)&pc.buf[desc_start]);
-		length = be16_to_cpu(*(u16 *)&pc.buf[desc_start + 6]);
+		blocks = be32_to_cpup((__be32 *)&pc.buf[desc_start]);
+		length = be16_to_cpup((__be16 *)&pc.buf[desc_start + 6]);
 
 		debug_log("Descriptor %d: %dkB, %d blocks, %d sector size\n",
 				i, blocks * length / 1024, blocks, length);
@@ -902,8 +902,8 @@ static int ide_floppy_get_format_capacities(ide_drive_t *drive, int __user *arg)
 		if (u_index >= u_array_size)
 			break;	/* User-supplied buffer too small */
 
-		blocks = be32_to_cpu(*(u32 *)&pc.buf[desc_start]);
-		length = be16_to_cpu(*(u16 *)&pc.buf[desc_start + 6]);
+		blocks = be32_to_cpup((__be32 *)&pc.buf[desc_start]);
+		length = be16_to_cpup((__be16 *)&pc.buf[desc_start + 6]);
 
 		if (put_user(blocks, argp))
 			return(-EFAULT);
