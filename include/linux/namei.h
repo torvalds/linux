@@ -55,7 +55,6 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_OPEN		(0x0100)
 #define LOOKUP_CREATE		(0x0200)
 #define LOOKUP_ACCESS		(0x0400)
-#define LOOKUP_CHDIR		(0x0800)
 
 extern int __user_walk(const char __user *, unsigned, struct nameidata *);
 extern int __user_walk_fd(int dfd, const char __user *, unsigned, struct nameidata *);
