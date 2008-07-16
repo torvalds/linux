@@ -73,10 +73,10 @@
 
 #ifdef __x86_64__
 # define PTRACE_ARCH_PRCTL	  30
-#else
-# define PTRACE_SYSEMU		  31
-# define PTRACE_SYSEMU_SINGLESTEP 32
 #endif
+
+#define PTRACE_SYSEMU		  31
+#define PTRACE_SYSEMU_SINGLESTEP  32
 
 #define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
 
