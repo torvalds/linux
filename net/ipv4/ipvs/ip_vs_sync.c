@@ -27,6 +27,7 @@
 #include <linux/in.h>
 #include <linux/igmp.h>                 /* for ip_mc_join_group */
 #include <linux/udp.h>
+#include <linux/err.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
@@ -576,14 +577,17 @@ static int bind_mcastif_addr(struct socket *sock, char *ifname)
 static struct socket * make_send_sock(void)
 {
 	struct socket *sock;
+	int result;
 
 	/* First create a socket */
-	if (sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock) < 0) {
+	result = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
+	if (result < 0) {
 		IP_VS_ERR("Error during creation of socket; terminating\n");
-		return NULL;
+		return ERR_PTR(result);
 	}
 
-	if (set_mcast_if(sock->sk, ip_vs_master_mcast_ifn) < 0) {
+	result = set_mcast_if(sock->sk, ip_vs_master_mcast_ifn);
+	if (result < 0) {
 		IP_VS_ERR("Error setting outbound mcast interface\n");
 		goto error;
 	}
@@ -591,14 +595,15 @@ static struct socket * make_send_sock(void)
 	set_mcast_loop(sock->sk, 0);
 	set_mcast_ttl(sock->sk, 1);
 
-	if (bind_mcastif_addr(sock, ip_vs_master_mcast_ifn) < 0) {
+	result = bind_mcastif_addr(sock, ip_vs_master_mcast_ifn);
+	if (result < 0) {
 		IP_VS_ERR("Error binding address of the mcast interface\n");
 		goto error;
 	}
 
-	if (sock->ops->connect(sock,
-			       (struct sockaddr*)&mcast_addr,
-			       sizeof(struct sockaddr), 0) < 0) {
+	result = sock->ops->connect(sock, (struct sockaddr *) &mcast_addr,
+			sizeof(struct sockaddr), 0);
+	if (result < 0) {
 		IP_VS_ERR("Error connecting to the multicast addr\n");
 		goto error;
 	}
@@ -607,7 +612,7 @@ static struct socket * make_send_sock(void)
 
   error:
 	sock_release(sock);
-	return NULL;
+	return ERR_PTR(result);
 }
 
 
@@ -617,27 +622,30 @@ static struct socket * make_send_sock(void)
 static struct socket * make_receive_sock(void)
 {
 	struct socket *sock;
+	int result;
 
 	/* First create a socket */
-	if (sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock) < 0) {
+	result = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
+	if (result < 0) {
 		IP_VS_ERR("Error during creation of socket; terminating\n");
-		return NULL;
+		return ERR_PTR(result);
 	}
 
 	/* it is equivalent to the REUSEADDR option in user-space */
 	sock->sk->sk_reuse = 1;
 
-	if (sock->ops->bind(sock,
-			    (struct sockaddr*)&mcast_addr,
-			    sizeof(struct sockaddr)) < 0) {
+	result = sock->ops->bind(sock, (struct sockaddr *) &mcast_addr,
+			sizeof(struct sockaddr));
+	if (result < 0) {
 		IP_VS_ERR("Error binding to the multicast addr\n");
 		goto error;
 	}
 
 	/* join the multicast group */
-	if (join_mcast_group(sock->sk,
-			     (struct in_addr*)&mcast_addr.sin_addr,
-			     ip_vs_backup_mcast_ifn) < 0) {
+	result = join_mcast_group(sock->sk,
+			(struct in_addr *) &mcast_addr.sin_addr,
+			ip_vs_backup_mcast_ifn);
+	if (result < 0) {
 		IP_VS_ERR("Error joining to the multicast group\n");
 		goto error;
 	}
@@ -646,7 +654,7 @@ static struct socket * make_receive_sock(void)
 
   error:
 	sock_release(sock);
-	return NULL;
+	return ERR_PTR(result);
 }
 
 
@@ -719,7 +727,7 @@ static void sync_master_loop(void)
 
 	/* create the sending multicast socket */
 	sock = make_send_sock();
-	if (!sock)
+	if (IS_ERR(sock))
 		return;
 
 	IP_VS_INFO("sync thread started: state = MASTER, mcast_ifn = %s, "
@@ -772,7 +780,7 @@ static void sync_backup_loop(void)
 
 	/* create the receiving multicast socket */
 	sock = make_receive_sock();
-	if (!sock)
+	if (IS_ERR(sock))
 		goto out;
 
 	IP_VS_INFO("sync thread started: state = BACKUP, mcast_ifn = %s, "
