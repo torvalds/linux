@@ -434,27 +434,15 @@ config VIRTIO_BLK
           lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
 config BLK_DEV_HD
-	bool "Old hard disk (MFM/RLL/IDE) driver"
+	bool "Very old hard disk (MFM/RLL/IDE) driver"
 	depends on HAVE_IDE
 	depends on !ARM || ARCH_RPC || ARCH_SHARK || BROKEN
 	help
-	  There are two drivers for MFM/RLL/IDE hard disks. Most people use
-	  the newer enhanced driver, but this old one is still around for two
-	  reasons. Some older systems have strange timing problems and seem to
-	  work only with the old driver (which itself does not work with some
-	  newer systems). The other reason is that the old driver is smaller,
-	  since it lacks the enhanced functionality of the new one. This makes
-	  it a good choice for systems with very tight memory restrictions, or
-	  for systems with only older MFM/RLL/ESDI drives. Choosing the old
-	  driver can save 13 KB or so of kernel memory.
+	  This is a very old hard disk driver that lacks the enhanced
+	  functionality of the newer ones.
 
-	  If you want to use this driver together with the new one you have
-	  to use "hda=noprobe hdb=noprobe" kernel parameters to prevent the new
-	  driver from probing the primary interface.
+	  It is required for systems with ancient MFM/RLL/ESDI drives.
 
-	  If you are unsure, then just choose the Enhanced IDE/MFM/RLL driver
-	  instead of this one. For more detailed information, read the
-	  Disk-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If unsure, say N.
 
 endif # BLK_DEV
