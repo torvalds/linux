@@ -70,11 +70,6 @@ static struct ide_timing ide_timing[] = {
 #define ENOUGH(v,unit)		(((v)-1)/(unit)+1)
 #define EZ(v,unit)		((v)?ENOUGH(v,unit):0)
 
-#define XFER_MODE	0xf0
-#define XFER_MWDMA	0x20
-#define XFER_EPIO	0x01
-#define XFER_PIO	0x00
-
 static void ide_timing_quantize(struct ide_timing *t, struct ide_timing *q, int T, int UT)
 {
 	q->setup   = EZ(t->setup   * 1000,  T);
@@ -137,17 +132,12 @@ static int ide_timing_compute(ide_drive_t *drive, u8 speed,
 
 		memset(&p, 0, sizeof(p));
 
-		switch (speed & XFER_MODE) {
-
-			case XFER_PIO:
-				if (speed <= XFER_PIO_2) p.cycle = p.cyc8b = id->eide_pio;
-						    else p.cycle = p.cyc8b = id->eide_pio_iordy;
-				break;
-
-			case XFER_MWDMA:
-				p.cycle = id->eide_dma_min;
-				break;
-		}
+		if (speed <= XFER_PIO_2)
+			p.cycle = p.cyc8b = id->eide_pio;
+		else if (speed <= XFER_PIO_5)
+			p.cycle = p.cyc8b = id->eide_pio_iordy;
+		else if (speed >= XFER_MW_DMA_0 && speed <= XFER_MW_DMA_2)
+			p.cycle = id->eide_dma_min;
 
 		ide_timing_merge(&p, t, t, IDE_TIMING_CYCLE | IDE_TIMING_CYC8B);
 	}
@@ -164,7 +154,7 @@ static int ide_timing_compute(ide_drive_t *drive, u8 speed,
  * slower/equal than the fastest PIO timing.
  */
 
-	if ((speed & XFER_MODE) != XFER_PIO) {
+	if (speed >= XFER_SW_DMA_0) {
 		u8 pio = ide_get_best_pio_mode(drive, 255, 5);
 		ide_timing_compute(drive, XFER_PIO_0 + pio, &p, T, UT);
 		ide_timing_merge(&p, t, t, IDE_TIMING_ALL);
