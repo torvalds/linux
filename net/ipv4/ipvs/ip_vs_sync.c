@@ -29,6 +29,7 @@
 #include <linux/udp.h>
 #include <linux/err.h>
 #include <linux/kthread.h>
+#include <linux/wait.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
@@ -772,6 +773,10 @@ static int sync_thread_backup(void *data)
 		   ip_vs_backup_mcast_ifn, ip_vs_backup_syncid);
 
 	while (!kthread_should_stop()) {
+		wait_event_interruptible(*tinfo->sock->sk->sk_sleep,
+			 !skb_queue_empty(&tinfo->sock->sk->sk_receive_queue)
+			 || kthread_should_stop());
+
 		/* do we have data now? */
 		while (!skb_queue_empty(&(tinfo->sock->sk->sk_receive_queue))) {
 			len = ip_vs_receive(tinfo->sock, tinfo->buf,
@@ -787,8 +792,6 @@ static int sync_thread_backup(void *data)
 			ip_vs_process_message(tinfo->buf, len);
 			local_bh_enable();
 		}
-
-		msleep_interruptible(1000);
 	}
 
 	/* release the sending multicast socket */
