@@ -351,10 +351,7 @@ static void ide_floppy_callback(ide_drive_t *drive)
 
 static void idefloppy_init_pc(struct ide_atapi_pc *pc)
 {
-	memset(pc->c, 0, 12);
-	pc->retries = 0;
-	pc->flags = 0;
-	pc->req_xfer = 0;
+	memset(pc, 0, sizeof(*pc));
 	pc->buf = pc->pc_buf;
 	pc->buf_size = IDEFLOPPY_PC_BUFFER_SIZE;
 	pc->callback = ide_floppy_callback;
