@@ -757,18 +757,20 @@ static void shutdown_scheduler_queue(struct net_device *dev,
 	struct Qdisc *qdisc_default = _qdisc_default;
 
 	if (qdisc) {
+		spinlock_t *root_lock = qdisc_root_lock(qdisc);
+
 		dev_queue->qdisc = qdisc_default;
 		dev_queue->qdisc_sleeping = qdisc_default;
 
+		spin_lock(root_lock);
 		qdisc_destroy(qdisc);
+		spin_unlock(root_lock);
 	}
 }
 
 void dev_shutdown(struct net_device *dev)
 {
-	qdisc_lock_tree(dev);
 	netdev_for_each_tx_queue(dev, shutdown_scheduler_queue, &noop_qdisc);
 	shutdown_scheduler_queue(dev, &dev->rx_queue, NULL);
 	BUG_TRAP(!timer_pending(&dev->watchdog_timer));
-	qdisc_unlock_tree(dev);
 }
