@@ -1,5 +1,5 @@
 #ifndef _ASM_X86_FTRACE
-#define _ASM_SPARC64_FTRACE
+#define _ASM_X86_FTRACE
 
 #ifdef CONFIG_FTRACE
 #define MCOUNT_ADDR		((long)(mcount))
