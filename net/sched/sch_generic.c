@@ -77,7 +77,7 @@ static inline int dev_requeue_skb(struct sk_buff *skb,
 				  struct Qdisc *q)
 {
 	if (unlikely(skb->next))
-		dev_queue->gso_skb = skb;
+		q->gso_skb = skb;
 	else
 		q->ops->requeue(skb, q);
 
@@ -85,13 +85,12 @@ static inline int dev_requeue_skb(struct sk_buff *skb,
 	return 0;
 }
 
-static inline struct sk_buff *dequeue_skb(struct netdev_queue *dev_queue,
-					  struct Qdisc *q)
+static inline struct sk_buff *dequeue_skb(struct Qdisc *q)
 {
 	struct sk_buff *skb;
 
-	if ((skb = dev_queue->gso_skb))
-		dev_queue->gso_skb = NULL;
+	if ((skb = q->gso_skb))
+		q->gso_skb = NULL;
 	else
 		skb = q->dequeue(q);
 
@@ -155,9 +154,8 @@ static inline int qdisc_restart(struct netdev_queue *txq)
 	struct sk_buff *skb;
 
 	/* Dequeue packet */
-	if (unlikely((skb = dequeue_skb(txq, q)) == NULL))
+	if (unlikely((skb = dequeue_skb(q)) == NULL))
 		return 0;
-
 
 	/* And release queue */
 	spin_unlock(&txq->lock);
@@ -643,8 +641,8 @@ static void dev_deactivate_queue(struct net_device *dev,
 				 void *_qdisc_default)
 {
 	struct Qdisc *qdisc_default = _qdisc_default;
+	struct sk_buff *skb = NULL;
 	struct Qdisc *qdisc;
-	struct sk_buff *skb;
 
 	spin_lock_bh(&dev_queue->lock);
 
@@ -652,9 +650,10 @@ static void dev_deactivate_queue(struct net_device *dev,
 	if (qdisc) {
 		dev_queue->qdisc = qdisc_default;
 		qdisc_reset(qdisc);
+
+		skb = qdisc->gso_skb;
+		qdisc->gso_skb = NULL;
 	}
-	skb = dev_queue->gso_skb;
-	dev_queue->gso_skb = NULL;
 
 	spin_unlock_bh(&dev_queue->lock);
 
