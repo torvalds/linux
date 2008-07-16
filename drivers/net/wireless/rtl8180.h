@@ -24,20 +24,6 @@
 #define ANAPARAM_PWR1_SHIFT	20
 #define ANAPARAM_PWR1_MASK	(0x7F << ANAPARAM_PWR1_SHIFT)
 
-enum rtl8180_tx_desc_flags {
-	RTL8180_TX_DESC_FLAG_NO_ENC	= (1 << 15),
-	RTL8180_TX_DESC_FLAG_TX_OK	= (1 << 15),
-	RTL8180_TX_DESC_FLAG_SPLCP	= (1 << 16),
-	RTL8180_TX_DESC_FLAG_RX_UNDER	= (1 << 16),
-	RTL8180_TX_DESC_FLAG_MOREFRAG	= (1 << 17),
-	RTL8180_TX_DESC_FLAG_CTS	= (1 << 18),
-	RTL8180_TX_DESC_FLAG_RTS	= (1 << 23),
-	RTL8180_TX_DESC_FLAG_LS		= (1 << 28),
-	RTL8180_TX_DESC_FLAG_FS		= (1 << 29),
-	RTL8180_TX_DESC_FLAG_DMA	= (1 << 30),
-	RTL8180_TX_DESC_FLAG_OWN	= (1 << 31)
-};
-
 struct rtl8180_tx_desc {
 	__le32 flags;
 	__le16 rts_duration;
@@ -51,23 +37,6 @@ struct rtl8180_tx_desc {
 	u8 flags2;
 	u32 reserved[2];
 } __attribute__ ((packed));
-
-enum rtl8180_rx_desc_flags {
-	RTL8180_RX_DESC_FLAG_ICV_ERR	= (1 << 12),
-	RTL8180_RX_DESC_FLAG_CRC32_ERR	= (1 << 13),
-	RTL8180_RX_DESC_FLAG_PM		= (1 << 14),
-	RTL8180_RX_DESC_FLAG_RX_ERR	= (1 << 15),
-	RTL8180_RX_DESC_FLAG_BCAST	= (1 << 16),
-	RTL8180_RX_DESC_FLAG_PAM	= (1 << 17),
-	RTL8180_RX_DESC_FLAG_MCAST	= (1 << 18),
-	RTL8180_RX_DESC_FLAG_SPLCP	= (1 << 25),
-	RTL8180_RX_DESC_FLAG_FOF	= (1 << 26),
-	RTL8180_RX_DESC_FLAG_DMA_FAIL	= (1 << 27),
-	RTL8180_RX_DESC_FLAG_LS		= (1 << 28),
-	RTL8180_RX_DESC_FLAG_FS		= (1 << 29),
-	RTL8180_RX_DESC_FLAG_EOR	= (1 << 30),
-	RTL8180_RX_DESC_FLAG_OWN	= (1 << 31)
-};
 
 struct rtl8180_rx_desc {
 	__le32 flags;

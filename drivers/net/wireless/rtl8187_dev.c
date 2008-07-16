@@ -187,18 +187,18 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	}
 
 	flags = skb->len;
-	flags |= RTL8187_TX_FLAG_NO_ENCRYPT;
+	flags |= RTL818X_TX_DESC_FLAG_NO_ENC;
 
 	flags |= ieee80211_get_tx_rate(dev, info)->hw_value << 24;
 	if (ieee80211_has_morefrags(((struct ieee80211_hdr *)skb->data)->frame_control))
-		flags |= RTL8187_TX_FLAG_MORE_FRAG;
+		flags |= RTL818X_TX_DESC_FLAG_MOREFRAG;
 	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
-		flags |= RTL8187_TX_FLAG_RTS;
+		flags |= RTL818X_TX_DESC_FLAG_RTS;
 		flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
 		rts_dur = ieee80211_rts_duration(dev, priv->vif,
 						 skb->len, info);
 	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
-		flags |= RTL8187_TX_FLAG_CTS;
+		flags |= RTL818X_TX_DESC_FLAG_CTS;
 		flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
 	}
 
@@ -354,7 +354,7 @@ static void rtl8187_rx_cb(struct urb *urb)
 	rx_status.freq = dev->conf.channel->center_freq;
 	rx_status.band = dev->conf.channel->band;
 	rx_status.flag |= RX_FLAG_TSFT;
-	if (flags & (1 << 13))
+	if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 	ieee80211_rx_irqsafe(dev, skb, &rx_status);
 
