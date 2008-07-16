@@ -282,17 +282,18 @@ static int __init qd_testreg(int port)
 	return (readreg != QD_TESTVAL);
 }
 
-static void __init qd6500_port_init_devs(ide_hwif_t *hwif)
+static void __init qd6500_init_dev(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	u8 base = (hwif->config_data & 0xff00) >> 8;
 	u8 config = QD_CONFIG(hwif);
 
-	hwif->drives[0].drive_data = QD6500_DEF_DATA;
-	hwif->drives[1].drive_data = QD6500_DEF_DATA;
+	drive->drive_data = QD6500_DEF_DATA;
 }
 
-static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
+static void __init qd6580_init_dev(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	u16 t1, t2;
 	u8 base = (hwif->config_data & 0xff00) >> 8;
 	u8 config = QD_CONFIG(hwif);
@@ -303,18 +304,17 @@ static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
 	} else
 		t2 = t1 = hwif->channel ? QD6580_DEF_DATA2 : QD6580_DEF_DATA;
 
-	hwif->drives[0].drive_data = t1;
-	hwif->drives[1].drive_data = t2;
+	drive->drive_data = drive->select.b.unit ? t2 : t1;
 }
 
 static const struct ide_port_ops qd6500_port_ops = {
-	.port_init_devs		= qd6500_port_init_devs,
+	.init_dev		= qd6500_init_dev,
 	.set_pio_mode		= qd6500_set_pio_mode,
 	.selectproc		= qd65xx_select,
 };
 
 static const struct ide_port_ops qd6580_port_ops = {
-	.port_init_devs		= qd6580_port_init_devs,
+	.init_dev		= qd6580_init_dev,
 	.set_pio_mode		= qd6580_set_pio_mode,
 	.selectproc		= qd65xx_select,
 };

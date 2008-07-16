@@ -11,16 +11,14 @@ static int probe_4drives;
 module_param_named(probe, probe_4drives, bool, 0);
 MODULE_PARM_DESC(probe, "probe for generic IDE chipset with 4 drives/port");
 
-static void ide_4drives_port_init_devs(ide_hwif_t *hwif)
+static void ide_4drives_init_dev(ide_drive_t *drive)
 {
-	if (hwif->channel) {
-		hwif->drives[0].select.all ^= 0x20;
-		hwif->drives[1].select.all ^= 0x20;
-	}
+	if (drive->hwif->channel)
+		drive->select.all ^= 0x20;
 }
 
 static const struct ide_port_ops ide_4drives_port_ops = {
-	.port_init_devs		= ide_4drives_port_init_devs,
+	.init_dev		= ide_4drives_init_dev,
 };
 
 static const struct ide_port_info ide_4drives_port_info = {

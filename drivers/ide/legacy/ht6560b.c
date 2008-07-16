@@ -310,16 +310,16 @@ static void ht6560b_set_pio_mode(ide_drive_t *drive, const u8 pio)
 #endif
 }
 
-static void __init ht6560b_port_init_devs(ide_hwif_t *hwif)
+static void __init ht6560b_init_dev(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	/* Setting default configurations for drives. */
 	int t = (HT_CONFIG_DEFAULT << 8) | HT_TIMING_DEFAULT;
 
 	if (hwif->channel)
 		t |= (HT_SECONDARY_IF << 8);
 
-	hwif->drives[0].drive_data = t;
-	hwif->drives[1].drive_data = t;
+	drive->drive_data = t;
 }
 
 static int probe_ht6560b;
@@ -328,7 +328,7 @@ module_param_named(probe, probe_ht6560b, bool, 0);
 MODULE_PARM_DESC(probe, "probe for HT6560B chipset");
 
 static const struct ide_port_ops ht6560b_port_ops = {
-	.port_init_devs		= ht6560b_port_init_devs,
+	.init_dev		= ht6560b_init_dev,
 	.set_pio_mode		= ht6560b_set_pio_mode,
 	.selectproc		= ht6560b_selectproc,
 };

@@ -1320,10 +1320,10 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 			drive->unmask = 1;
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
 			drive->no_unmask = 1;
-	}
 
-	if (port_ops && port_ops->port_init_devs)
-		port_ops->port_init_devs(hwif);
+		if (port_ops && port_ops->init_dev)
+			port_ops->init_dev(drive);
+	}
 }
 
 static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
