@@ -1149,7 +1149,7 @@ static int inval_cache_and_wait_for_operation(
 	struct cfi_private *cfi = map->fldrv_priv;
 	map_word status, status_OK = CMD(0x80);
 	int chip_state = chip->state;
-	unsigned int timeo, sleep_time;
+	unsigned int timeo, sleep_time, reset_timeo;
 
 	spin_unlock(chip->mutex);
 	if (inval_len)
@@ -1160,6 +1160,7 @@ static int inval_cache_and_wait_for_operation(
 	timeo = chip_op_time * 8;
 	if (!timeo)
 		timeo = 500000;
+	reset_timeo = timeo;
 	sleep_time = chip_op_time / 2;
 
 	for (;;) {
@@ -1200,6 +1201,12 @@ static int inval_cache_and_wait_for_operation(
 			schedule();
 			remove_wait_queue(&chip->wq, &wait);
 			spin_lock(chip->mutex);
+		}
+		if (chip->erase_suspended || chip->write_suspended)  {
+			/* Suspend has occured while sleep: reset timeout */
+			timeo = reset_timeo;
+			chip->erase_suspended = 0;
+			chip->write_suspended = 0;
 		}
 	}
 
