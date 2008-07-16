@@ -93,7 +93,7 @@ static void clps711xuart_enable_ms(struct uart_port *port)
 static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	unsigned int status, ch, flg;
 
 	status = clps_readl(SYSFLG(port));

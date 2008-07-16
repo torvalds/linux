@@ -932,7 +932,7 @@ static int mpsc_make_ready(struct mpsc_port_info *pi)
 static int mpsc_rx_intr(struct mpsc_port_info *pi)
 {
 	struct mpsc_rx_desc *rxre;
-	struct tty_struct *tty = pi->port.info->tty;
+	struct tty_struct *tty = pi->port.info->port.tty;
 	u32	cmdstat, bytes_in, i;
 	int	rc = 0;
 	u8	*bp;

@@ -325,7 +325,7 @@ static void m32r_sio_enable_ms(struct uart_port *port)
 
 static void receive_chars(struct uart_sio_port *up, int *status)
 {
-	struct tty_struct *tty = up->port.info->tty;
+	struct tty_struct *tty = up->port.info->port.tty;
 	unsigned char ch;
 	unsigned char flag;
 	int max_count = 256;

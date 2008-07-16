@@ -117,7 +117,7 @@ static void pl010_enable_ms(struct uart_port *port)
 
 static void pl010_rx_chars(struct uart_amba_port *uap)
 {
-	struct tty_struct *tty = uap->port.info->tty;
+	struct tty_struct *tty = uap->port.info->port.tty;
 	unsigned int status, ch, flag, rsr, max_count = 256;
 
 	status = readb(uap->port.membase + UART01x_FR);

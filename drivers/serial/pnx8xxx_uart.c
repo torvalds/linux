@@ -181,7 +181,7 @@ static void pnx8xxx_enable_ms(struct uart_port *port)
 
 static void pnx8xxx_rx_chars(struct pnx8xxx_port *sport)
 {
-	struct tty_struct *tty = sport->port.info->tty;
+	struct tty_struct *tty = sport->port.info->port.tty;
 	unsigned int status, ch, flg;
 
 	status = FIFO_TO_SM(serial_in(sport, PNX8XXX_FIFO)) |
