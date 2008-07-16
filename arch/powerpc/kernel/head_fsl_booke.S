@@ -579,13 +579,19 @@ interrupt_base:
 
 	FIND_PTE
 	andc.	r13,r13,r11		/* Check permission */
-	bne	2f			/* Bail if permission mismach */
 
 #ifdef CONFIG_PTE_64BIT
-	lwz	r13, 0(r12)
+#ifdef CONFIG_SMP
+	subf	r10,r11,r12		/* create false data dep */
+	lwzx	r13,r11,r10		/* Get upper pte bits */
+#else
+	lwz	r13,0(r12)		/* Get upper pte bits */
+#endif
 #endif
 
-	 /* Jump to common tlb load */
+	bne	2f			/* Bail if permission/valid mismach */
+
+	/* Jump to common tlb load */
 	b	finish_tlb_load
 2:
 	/* The bailout.  Restore registers to pre-exception conditions
@@ -640,10 +646,20 @@ interrupt_base:
 
 	FIND_PTE
 	andc.	r13,r13,r11		/* Check permission */
+
+#ifdef CONFIG_PTE_64BIT
+#ifdef CONFIG_SMP
+	subf	r10,r11,r12		/* create false data dep */
+	lwzx	r13,r11,r10		/* Get upper pte bits */
+#else
+	lwz	r13,0(r12)		/* Get upper pte bits */
+#endif
+#endif
+
 	bne	2f			/* Bail if permission mismach */
 
 #ifdef CONFIG_PTE_64BIT
-	lwz	r13, 0(r12)
+	lwz	r13,0(r12)
 #endif
 
 	/* Jump to common TLB load point */
@@ -702,7 +718,7 @@ interrupt_base:
 /*
  * Both the instruction and data TLB miss get to this
  * point to load the TLB.
- *	r10 - EA of fault
+ *	r10 - available to use
  *	r11 - TLB (info from Linux PTE)
  *	r12 - available to use
  *	r13 - upper bits of PTE (if PTE_64BIT) or available to use
