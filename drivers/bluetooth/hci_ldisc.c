@@ -282,8 +282,8 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	/* FIXME: why is this needed. Note don't use ldisc_ref here as the
 	   open path is before the ldisc is referencable */
 
-	if (tty->ldisc.flush_buffer)
-		tty->ldisc.flush_buffer(tty);
+	if (tty->ldisc.ops->flush_buffer)
+		tty->ldisc.ops->flush_buffer(tty);
 	tty_driver_flush_buffer(tty);
 
 	return 0;
@@ -514,7 +514,7 @@ static unsigned int hci_uart_tty_poll(struct tty_struct *tty,
 
 static int __init hci_uart_init(void)
 {
-	static struct tty_ldisc hci_uart_ldisc;
+	static struct tty_ldisc_ops hci_uart_ldisc;
 	int err;
 
 	BT_INFO("HCI UART driver ver %s", VERSION);

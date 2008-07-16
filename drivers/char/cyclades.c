@@ -5246,7 +5246,8 @@ cyclades_get_proc_info(char *buf, char **start, off_t offset, int length,
 					HZ, info->idle_stats.recv_bytes,
 					(cur_jifs - info->idle_stats.recv_idle)/
 					HZ, info->idle_stats.overruns,
-					(long)info->tty->ldisc.num);
+					/* FIXME: double check locking */
+					(long)info->tty->ldisc.ops->num);
 			else
 				size = sprintf(buf + len, "%3d %8lu %10lu %8lu "
 					"%10lu %8lu %9lu %6ld\n",

@@ -185,6 +185,7 @@ struct tty_struct {
 	struct tty_driver *driver;
 	const struct tty_operations *ops;
 	int index;
+	/* The ldisc objects are protected by tty_ldisc_lock at the moment */
 	struct tty_ldisc ldisc;
 	struct mutex termios_mutex;
 	spinlock_t ctrl_lock;
@@ -289,7 +290,7 @@ extern void tty_wait_until_sent(struct tty_struct * tty, long timeout);
 extern int tty_check_change(struct tty_struct * tty);
 extern void stop_tty(struct tty_struct * tty);
 extern void start_tty(struct tty_struct * tty);
-extern int tty_register_ldisc(int disc, struct tty_ldisc *new_ldisc);
+extern int tty_register_ldisc(int disc, struct tty_ldisc_ops *new_ldisc);
 extern int tty_unregister_ldisc(int disc);
 extern int tty_register_driver(struct tty_driver *driver);
 extern int tty_unregister_driver(struct tty_driver *driver);
@@ -330,9 +331,7 @@ extern int tty_termios_hw_change(struct ktermios *a, struct ktermios *b);
 extern struct tty_ldisc *tty_ldisc_ref(struct tty_struct *);
 extern void tty_ldisc_deref(struct tty_ldisc *);
 extern struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *);
-
-extern struct tty_ldisc *tty_ldisc_get(int);
-extern void tty_ldisc_put(int);
+extern const struct file_operations tty_ldiscs_proc_fops;
 
 extern void tty_wakeup(struct tty_struct *tty);
 extern void tty_ldisc_flush(struct tty_struct *tty);
@@ -354,7 +353,7 @@ extern int tty_write_lock(struct tty_struct *tty, int ndelay);
 
 
 /* n_tty.c */
-extern struct tty_ldisc tty_ldisc_N_TTY;
+extern struct tty_ldisc_ops tty_ldisc_N_TTY;
 
 /* tty_audit.c */
 #ifdef CONFIG_AUDIT

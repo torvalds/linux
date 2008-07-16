@@ -969,7 +969,7 @@ out:
 	mkiss_put(ax);
 }
 
-static struct tty_ldisc ax_ldisc = {
+static struct tty_ldisc_ops ax_ldisc = {
 	.owner		= THIS_MODULE,
 	.magic		= TTY_LDISC_MAGIC,
 	.name		= "mkiss",

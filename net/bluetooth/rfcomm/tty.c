@@ -617,14 +617,7 @@ static void rfcomm_tty_wakeup(unsigned long arg)
 		return;
 
 	BT_DBG("dev %p tty %p", dev, tty);
-
-	if (test_bit(TTY_DO_WRITE_WAKEUP, &tty->flags) && tty->ldisc.write_wakeup)
-		(tty->ldisc.write_wakeup)(tty);
-
-	wake_up_interruptible(&tty->write_wait);
-#ifdef SERIAL_HAVE_POLL_WAIT
-	wake_up_interruptible(&tty->poll_wait);
-#endif
+	tty_wakeup(tty);
 }
 
 static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
@@ -1005,9 +998,7 @@ static void rfcomm_tty_flush_buffer(struct tty_struct *tty)
 		return;
 
 	skb_queue_purge(&dev->dlc->tx_queue);
-
-	if (test_bit(TTY_DO_WRITE_WAKEUP, &tty->flags) && tty->ldisc.write_wakeup)
-		tty->ldisc.write_wakeup(tty);
+	tty_wakeup(tty);
 }
 
 static void rfcomm_tty_send_xchar(struct tty_struct *tty, char ch)
