@@ -698,5 +698,9 @@ acpi_ex_resolve_operands(u16 opcode,
 		}
 	}
 
+	ACPI_DUMP_OPERANDS(walk_state->operands,
+			   acpi_ps_get_opcode_name(opcode),
+			   walk_state->num_operands);
+
 	return_ACPI_STATUS(status);
 }

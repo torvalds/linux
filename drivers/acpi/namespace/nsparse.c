@@ -63,13 +63,13 @@ ACPI_MODULE_NAME("nsparse")
  *
  ******************************************************************************/
 acpi_status
-acpi_ns_one_complete_parse(acpi_native_uint pass_number,
-			   acpi_native_uint table_index,
-			   struct acpi_namespace_node * start_node)
+acpi_ns_one_complete_parse(u32 pass_number,
+			   u32 table_index,
+			   struct acpi_namespace_node *start_node)
 {
 	union acpi_parse_object *parse_root;
 	acpi_status status;
-	acpi_native_uint aml_length;
+       u32 aml_length;
 	u8 *aml_start;
 	struct acpi_walk_state *walk_state;
 	struct acpi_table_header *table;
@@ -112,8 +112,8 @@ acpi_ns_one_complete_parse(acpi_native_uint pass_number,
 		aml_start = (u8 *) table + sizeof(struct acpi_table_header);
 		aml_length = table->length - sizeof(struct acpi_table_header);
 		status = acpi_ds_init_aml_walk(walk_state, parse_root, NULL,
-					       aml_start, (u32) aml_length,
-					       NULL, (u8) pass_number);
+					       aml_start, aml_length, NULL,
+					       (u8) pass_number);
 	}
 
 	if (ACPI_FAILURE(status)) {
@@ -158,8 +158,7 @@ acpi_ns_one_complete_parse(acpi_native_uint pass_number,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_parse_table(acpi_native_uint table_index,
-		    struct acpi_namespace_node *start_node)
+acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 {
 	acpi_status status;
 
