@@ -11,6 +11,23 @@ static int probe_4drives;
 module_param_named(probe, probe_4drives, bool, 0);
 MODULE_PARM_DESC(probe, "probe for generic IDE chipset with 4 drives/port");
 
+static void ide_4drives_port_init_devs(ide_hwif_t *hwif)
+{
+	if (hwif->channel) {
+		hwif->drives[0].select.all ^= 0x20;
+		hwif->drives[1].select.all ^= 0x20;
+	}
+}
+
+static const struct ide_port_ops ide_4drives_port_ops = {
+	.port_init_devs		= ide_4drives_port_init_devs,
+};
+
+static const struct ide_port_info ide_4drives_port_info = {
+	.port_ops		= &ide_4drives_port_ops,
+	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_NO_DMA,
+};
+
 static int __init ide_4drives_init(void)
 {
 	ide_hwif_t *hwif, *mate;
@@ -49,18 +66,10 @@ static int __init ide_4drives_init(void)
 	mate = ide_find_port();
 	if (mate) {
 		ide_init_port_hw(mate, &hw);
-		mate->drives[0].select.all ^= 0x20;
-		mate->drives[1].select.all ^= 0x20;
 		idx[1] = mate->index;
-
-		if (hwif) {
-			hwif->mate = mate;
-			mate->mate = hwif;
-			hwif->serialized = mate->serialized = 1;
-		}
 	}
 
-	ide_device_add(idx, NULL);
+	ide_device_add(idx, &ide_4drives_port_info);
 
 	return 0;
 }
