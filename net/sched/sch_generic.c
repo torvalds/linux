@@ -72,16 +72,14 @@ static inline int qdisc_qlen(struct Qdisc *q)
 	return q->q.qlen;
 }
 
-static inline int dev_requeue_skb(struct sk_buff *skb,
-				  struct netdev_queue *dev_queue,
-				  struct Qdisc *q)
+static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 {
 	if (unlikely(skb->next))
 		q->gso_skb = skb;
 	else
 		q->ops->requeue(skb, q);
 
-	netif_schedule_queue(dev_queue);
+	__netif_schedule(q);
 	return 0;
 }
 
@@ -121,7 +119,7 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
 		 * some time.
 		 */
 		__get_cpu_var(netdev_rx_stat).cpu_collision++;
-		ret = dev_requeue_skb(skb, dev_queue, q);
+		ret = dev_requeue_skb(skb, q);
 	}
 
 	return ret;
@@ -146,9 +144,9 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
  *				>0 - queue is not empty.
  *
  */
-static inline int qdisc_restart(struct netdev_queue *txq,
-				struct Qdisc *q)
+static inline int qdisc_restart(struct Qdisc *q)
 {
+	struct netdev_queue *txq;
 	int ret = NETDEV_TX_BUSY;
 	struct net_device *dev;
 	spinlock_t *root_lock;
@@ -163,7 +161,8 @@ static inline int qdisc_restart(struct netdev_queue *txq,
 	/* And release qdisc */
 	spin_unlock(root_lock);
 
-	dev = txq->dev;
+	dev = qdisc_dev(q);
+	txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
 	if (!netif_subqueue_stopped(dev, skb))
@@ -189,29 +188,28 @@ static inline int qdisc_restart(struct netdev_queue *txq,
 			printk(KERN_WARNING "BUG %s code %d qlen %d\n",
 			       dev->name, ret, q->q.qlen);
 
-		ret = dev_requeue_skb(skb, txq, q);
+		ret = dev_requeue_skb(skb, q);
 		break;
 	}
+
+	if (ret && netif_tx_queue_stopped(txq))
+		ret = 0;
 
 	return ret;
 }
 
-void __qdisc_run(struct netdev_queue *txq)
+void __qdisc_run(struct Qdisc *q)
 {
 	unsigned long start_time = jiffies;
-	struct Qdisc *q = txq->qdisc;
 
-	while (qdisc_restart(txq, q)) {
-		if (netif_tx_queue_stopped(txq))
-			break;
-
+	while (qdisc_restart(q)) {
 		/*
 		 * Postpone processing if
 		 * 1. another process needs the CPU;
 		 * 2. we've been doing it for too long.
 		 */
 		if (need_resched() || jiffies != start_time) {
-			netif_schedule_queue(txq);
+			__netif_schedule(q);
 			break;
 		}
 	}

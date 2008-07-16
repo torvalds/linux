@@ -1323,18 +1323,18 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 }
 
 
-void __netif_schedule(struct netdev_queue *txq)
+void __netif_schedule(struct Qdisc *q)
 {
-	struct net_device *dev = txq->dev;
+	BUG_ON(q == &noop_qdisc);
 
-	if (!test_and_set_bit(__LINK_STATE_SCHED, &dev->state)) {
+	if (!test_and_set_bit(__QDISC_STATE_SCHED, &q->state)) {
 		struct softnet_data *sd;
 		unsigned long flags;
 
 		local_irq_save(flags);
 		sd = &__get_cpu_var(softnet_data);
-		txq->next_sched = sd->output_queue;
-		sd->output_queue = txq;
+		q->next_sched = sd->output_queue;
+		sd->output_queue = q;
 		raise_softirq_irqoff(NET_TX_SOFTIRQ);
 		local_irq_restore(flags);
 	}
@@ -1771,37 +1771,23 @@ gso:
 	rcu_read_lock_bh();
 
 	txq = dev_pick_tx(dev, skb);
-	spin_lock_prefetch(&txq->lock);
-
-	/* Updates of qdisc are serialized by queue->lock.
-	 * The struct Qdisc which is pointed to by qdisc is now a
-	 * rcu structure - it may be accessed without acquiring
-	 * a lock (but the structure may be stale.) The freeing of the
-	 * qdisc will be deferred until it's known that there are no
-	 * more references to it.
-	 *
-	 * If the qdisc has an enqueue function, we still need to
-	 * hold the queue->lock before calling it, since queue->lock
-	 * also serializes access to the device queue.
-	 */
-
 	q = rcu_dereference(txq->qdisc);
+
 #ifdef CONFIG_NET_CLS_ACT
 	skb->tc_verd = SET_TC_AT(skb->tc_verd,AT_EGRESS);
 #endif
 	if (q->enqueue) {
-		/* Grab device queue */
-		spin_lock(&txq->lock);
-		q = txq->qdisc;
-		if (q->enqueue) {
-			rc = q->enqueue(skb, q);
-			qdisc_run(txq);
-			spin_unlock(&txq->lock);
+		spinlock_t *root_lock = qdisc_root_lock(q);
 
-			rc = rc == NET_XMIT_BYPASS ? NET_XMIT_SUCCESS : rc;
-			goto out;
-		}
-		spin_unlock(&txq->lock);
+		spin_lock(root_lock);
+
+		rc = q->enqueue(skb, q);
+		qdisc_run(q);
+
+		spin_unlock(root_lock);
+
+		rc = rc == NET_XMIT_BYPASS ? NET_XMIT_SUCCESS : rc;
+		goto out;
 	}
 
 	/* The device has no queue. Common case for software devices:
@@ -1974,7 +1960,7 @@ static void net_tx_action(struct softirq_action *h)
 	}
 
 	if (sd->output_queue) {
-		struct netdev_queue *head;
+		struct Qdisc *head;
 
 		local_irq_disable();
 		head = sd->output_queue;
@@ -1982,18 +1968,20 @@ static void net_tx_action(struct softirq_action *h)
 		local_irq_enable();
 
 		while (head) {
-			struct netdev_queue *txq = head;
-			struct net_device *dev = txq->dev;
+			struct Qdisc *q = head;
+			spinlock_t *root_lock;
+
 			head = head->next_sched;
 
 			smp_mb__before_clear_bit();
-			clear_bit(__LINK_STATE_SCHED, &dev->state);
+			clear_bit(__QDISC_STATE_SCHED, &q->state);
 
-			if (spin_trylock(&txq->lock)) {
-				qdisc_run(txq);
-				spin_unlock(&txq->lock);
+			root_lock = qdisc_root_lock(q);
+			if (spin_trylock(root_lock)) {
+				qdisc_run(q);
+				spin_unlock(root_lock);
 			} else {
-				netif_schedule_queue(txq);
+				__netif_schedule(q);
 			}
 		}
 	}
@@ -4459,7 +4447,7 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 			    void *ocpu)
 {
 	struct sk_buff **list_skb;
-	struct netdev_queue **list_net;
+	struct Qdisc **list_net;
 	struct sk_buff *skb;
 	unsigned int cpu, oldcpu = (unsigned long)ocpu;
 	struct softnet_data *sd, *oldsd;

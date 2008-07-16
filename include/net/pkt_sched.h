@@ -84,15 +84,12 @@ extern struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 		struct nlattr *tab);
 extern void qdisc_put_rtab(struct qdisc_rate_table *tab);
 
-extern void __qdisc_run(struct netdev_queue *txq);
+extern void __qdisc_run(struct Qdisc *q);
 
-static inline void qdisc_run(struct netdev_queue *txq)
+static inline void qdisc_run(struct Qdisc *q)
 {
-	struct Qdisc *q = txq->qdisc;
-
-	if (!netif_tx_queue_stopped(txq) &&
-	    !test_and_set_bit(__QDISC_STATE_RUNNING, &q->state))
-		__qdisc_run(txq);
+	if (!test_and_set_bit(__QDISC_STATE_RUNNING, &q->state))
+		__qdisc_run(q);
 }
 
 extern int tc_classify_compat(struct sk_buff *skb, struct tcf_proto *tp,

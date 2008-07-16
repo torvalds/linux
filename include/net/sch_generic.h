@@ -26,6 +26,7 @@ struct qdisc_rate_table
 enum qdisc_state_t
 {
 	__QDISC_STATE_RUNNING,
+	__QDISC_STATE_SCHED,
 };
 
 struct Qdisc
@@ -45,6 +46,7 @@ struct Qdisc
 	struct sk_buff		*gso_skb;
 	struct sk_buff_head	q;
 	struct netdev_queue	*dev_queue;
+	struct Qdisc		*next_sched;
 	struct list_head	list;
 
 	struct gnet_stats_basic	bstats;

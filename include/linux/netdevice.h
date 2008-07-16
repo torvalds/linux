@@ -275,7 +275,6 @@ enum netdev_state_t
 {
 	__LINK_STATE_START,
 	__LINK_STATE_PRESENT,
-	__LINK_STATE_SCHED,
 	__LINK_STATE_NOCARRIER,
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
@@ -452,7 +451,6 @@ struct netdev_queue {
 	int			xmit_lock_owner;
 	struct Qdisc		*qdisc_sleeping;
 	struct list_head	qdisc_list;
-	struct netdev_queue	*next_sched;
 } ____cacheline_aligned_in_smp;
 
 /*
@@ -969,7 +967,7 @@ static inline int unregister_gifconf(unsigned int family)
  */
 struct softnet_data
 {
-	struct netdev_queue	*output_queue;
+	struct Qdisc		*output_queue;
 	struct sk_buff_head	input_pkt_queue;
 	struct list_head	poll_list;
 	struct sk_buff		*completion_queue;
@@ -984,12 +982,12 @@ DECLARE_PER_CPU(struct softnet_data,softnet_data);
 
 #define HAVE_NETIF_QUEUE
 
-extern void __netif_schedule(struct netdev_queue *txq);
+extern void __netif_schedule(struct Qdisc *q);
 
 static inline void netif_schedule_queue(struct netdev_queue *txq)
 {
 	if (!test_bit(__QUEUE_STATE_XOFF, &txq->state))
-		__netif_schedule(txq);
+		__netif_schedule(txq->qdisc);
 }
 
 static inline void netif_tx_schedule_all(struct net_device *dev)
@@ -1042,7 +1040,7 @@ static inline void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 	}
 #endif
 	if (test_and_clear_bit(__QUEUE_STATE_XOFF, &dev_queue->state))
-		__netif_schedule(dev_queue);
+		__netif_schedule(dev_queue->qdisc);
 }
 
 static inline void netif_wake_queue(struct net_device *dev)
@@ -1186,7 +1184,7 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 		return;
 #endif
 	if (test_and_clear_bit(__QUEUE_STATE_XOFF, &txq->state))
-		__netif_schedule(txq);
+		__netif_schedule(txq->qdisc);
 }
 
 /**
