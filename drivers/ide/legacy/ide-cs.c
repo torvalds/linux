@@ -154,6 +154,11 @@ static const struct ide_port_ops idecs_port_ops = {
 	.quirkproc		= ide_undecoded_slave,
 };
 
+static const struct ide_port_info idecs_port_info = {
+	.port_ops		= &idecs_port_ops,
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
 static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
 				unsigned long irq, struct pcmcia_device *handle)
 {
@@ -188,11 +193,10 @@ static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
     i = hwif->index;
 
     ide_init_port_hw(hwif, &hw);
-    hwif->port_ops = &idecs_port_ops;
 
     idx[0] = i;
 
-    ide_device_add(idx, NULL);
+    ide_device_add(idx, &idecs_port_info);
 
     if (hwif->present)
 	return hwif;
