@@ -89,7 +89,7 @@ ide_ioport_desc_t ioport_dsc[MAX_HWIFS] = {
 #endif	/* IDE0_BASE_OFFSET */
 };
 
-ide_pio_timings_t ide_pio_clocks[6];
+struct ide_timing ide_pio_clocks[6];
 int hold_time[6] =  {30, 20, 15, 10, 10, 10 };   /* PIO Mode 5 with IORDY (nonstandard) */
 
 /*
@@ -200,30 +200,23 @@ static int __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 		/* Compute clock cycles for PIO timings */
 		for (i=0; i<6; ++i) {
 			bd_t	*binfo = (bd_t *)__res;
+			struct ide_timing *t, *n;
 
 			hold_time[i]   =
 				PCMCIA_MK_CLKS (hold_time[i],
 						binfo->bi_busfreq);
-			ide_pio_clocks[i].setup_time  =
-				PCMCIA_MK_CLKS (ide_pio_timings[i].setup_time,
-						binfo->bi_busfreq);
-			ide_pio_clocks[i].active_time =
-				PCMCIA_MK_CLKS (ide_pio_timings[i].active_time,
-						binfo->bi_busfreq);
-			ide_pio_clocks[i].cycle_time  =
-				PCMCIA_MK_CLKS (ide_pio_timings[i].cycle_time,
-						binfo->bi_busfreq);
+
+			t = ide_timing_find_mode(XFER_PIO_0 + i);
+			n = &ide_pio_clocks[i];
+
+			n->setup  = PCMCIA_MK_CLKS(t->setup,  binfo->bi_busfreq);
+			n->active = PCMCIA_MK_CLKS(t->active, binfo->bi_busfreq);
+			n->cycle  = PCMCIA_MK_CLKS(t->cycle,  binfo->bi_busfreq);
 #if 0
 			printk ("PIO mode %d timings: %d/%d/%d => %d/%d/%d\n",
 				i,
-				ide_pio_clocks[i].setup_time,
-				ide_pio_clocks[i].active_time,
-				ide_pio_clocks[i].hold_time,
-				ide_pio_clocks[i].cycle_time,
-				ide_pio_timings[i].setup_time,
-				ide_pio_timings[i].active_time,
-				ide_pio_timings[i].hold_time,
-				ide_pio_timings[i].cycle_time);
+				t->setup, t->active, t->cycle,
+				n->setup, n->active, n->cycle);
 #endif
 		}
 	}
@@ -408,8 +401,8 @@ static void m8xx_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	mask = ~(PCMCIA_SHT(0xFF) | PCMCIA_SST(0xFF) | PCMCIA_SL(0xFF));
 
 	timing  = PCMCIA_SHT(hold_time[pio]  )
-		| PCMCIA_SST(ide_pio_clocks[pio].setup_time )
-		| PCMCIA_SL (ide_pio_clocks[pio].active_time)
+		| PCMCIA_SST(ide_pio_clocks[pio].setup)
+		| PCMCIA_SL (ide_pio_clocks[pio].active)
 		;
 
 #if 1
