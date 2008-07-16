@@ -2591,7 +2591,6 @@ static ide_driver_t idetape_driver = {
 	.do_request		= idetape_do_request,
 	.end_request		= idetape_end_request,
 	.error			= __ide_error,
-	.abort			= __ide_abort,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idetape_proc,
 #endif

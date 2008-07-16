@@ -985,7 +985,6 @@ static ide_driver_t idedisk_driver = {
 	.do_request		= ide_do_rw_disk,
 	.end_request		= ide_end_request,
 	.error			= __ide_error,
-	.abort			= __ide_abort,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idedisk_proc,
 #endif

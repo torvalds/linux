@@ -558,12 +558,9 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int i;
 
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR "%s: too many IDE interfaces, "
-				"no room in table\n", SCC_PATA_NAME);
+	hwif = ide_find_port_slot(d);
+	if (hwif == NULL)
 		return -ENOMEM;
-	}
 
 	memset(&hw, 0, sizeof(hw));
 	for (i = 0; i <= 8; i++)
@@ -572,7 +569,6 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 	hw.dev = &dev->dev;
 	hw.chipset = ide_pci;
 	ide_init_port_hw(hwif, &hw);
-	hwif->dev = &dev->dev;
 
 	idx[0] = hwif->index;
 
