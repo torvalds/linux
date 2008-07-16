@@ -111,7 +111,6 @@ static int __init falconide_init(void)
 		u8 index = hwif->index;
 		u8 idx[4] = { index, 0xff, 0xff, 0xff };
 
-		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
 
 		/* Atari has a byte-swapped IDE interface */

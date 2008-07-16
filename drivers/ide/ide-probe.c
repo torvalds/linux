@@ -1473,22 +1473,26 @@ ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
 		for (; i < MAX_HWIFS; i++) {
 			hwif = &ide_hwifs[i];
 			if (hwif->chipset == ide_unknown)
-				return hwif;
+				goto out_found;
 		}
 	} else {
 		for (i = 2; i < MAX_HWIFS; i++) {
 			hwif = &ide_hwifs[i];
 			if (hwif->chipset == ide_unknown)
-				return hwif;
+				goto out_found;
 		}
 		for (i = 0; i < 2 && i < MAX_HWIFS; i++) {
 			hwif = &ide_hwifs[i];
 			if (hwif->chipset == ide_unknown)
-				return hwif;
+				goto out_found;
 		}
 	}
 
 	return NULL;
+
+out_found:
+	ide_init_port_data(hwif, i);
+	return hwif;
 }
 EXPORT_SYMBOL_GPL(ide_find_port_slot);
 

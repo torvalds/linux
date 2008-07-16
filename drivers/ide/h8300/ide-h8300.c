@@ -199,7 +199,6 @@ static int __init h8300_ide_init(void)
 	}
 
 	index = hwif->index;
-	ide_init_port_data(hwif, index);
 	ide_init_port_hw(hwif, &hw);
 	hwif_setup(hwif);
 	hwif->host_flags = IDE_HFLAG_NO_IO_32BIT;
