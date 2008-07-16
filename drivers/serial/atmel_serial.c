@@ -662,14 +662,14 @@ static void atmel_rx_from_ring(struct uart_port *port)
 	 * uart_start(), which takes the lock.
 	 */
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(port->info->tty);
+	tty_flip_buffer_push(port->info->port.tty);
 	spin_lock(&port->lock);
 }
 
 static void atmel_rx_from_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	struct atmel_dma_buffer *pdc;
 	int rx_idx = atmel_port->pdc_rx_idx;
 	unsigned int head;
@@ -794,7 +794,7 @@ static void atmel_tasklet_func(unsigned long data)
 static int atmel_startup(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	int retval;
 
 	/*
