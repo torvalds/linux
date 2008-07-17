@@ -40,6 +40,7 @@
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/err.h>
 
 #include <asm/atomic.h>
 

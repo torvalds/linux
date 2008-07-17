@@ -1094,7 +1094,7 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	kfree(name);
 	if (ret) {
 		/*
-		 * If item == NULL, then link_obj() was never called.
+		 * If ret != 0, then link_obj() was never called.
 		 * There are no extra references to clean up.
 		 */
 		goto out_put;
