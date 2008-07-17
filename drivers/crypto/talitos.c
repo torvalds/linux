@@ -1022,7 +1022,7 @@ static struct ipsec_esp_edesc *ipsec_esp_edesc_alloc(struct aead_request *areq,
 		dst_nents = src_nents;
 	} else {
 		dst_nents = sg_count(areq->dst, areq->cryptlen + ctx->authsize);
-		dst_nents = (dst_nents == 1) ? 0 : src_nents;
+		dst_nents = (dst_nents == 1) ? 0 : dst_nents;
 	}
 
 	/*
