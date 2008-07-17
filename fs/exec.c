@@ -118,7 +118,7 @@ asmlinkage long sys_uselib(const char __user * library)
 	if (!S_ISREG(nd.path.dentry->d_inode->i_mode))
 		goto exit;
 
-	error = vfs_permission(&nd, MAY_READ | MAY_EXEC);
+	error = vfs_permission(&nd, MAY_READ | MAY_EXEC | MAY_OPEN);
 	if (error)
 		goto exit;
 
@@ -666,7 +666,7 @@ struct file *open_exec(const char *name)
 		struct inode *inode = nd.path.dentry->d_inode;
 		file = ERR_PTR(-EACCES);
 		if (S_ISREG(inode->i_mode)) {
-			int err = vfs_permission(&nd, MAY_EXEC);
+			int err = vfs_permission(&nd, MAY_EXEC | MAY_OPEN);
 			file = ERR_PTR(err);
 			if (!err) {
 				file = nameidata_to_filp(&nd,

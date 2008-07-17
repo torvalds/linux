@@ -263,12 +263,7 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 
 	/* Ordinary permission routines do not understand MAY_APPEND. */
 	if (inode->i_op && inode->i_op->permission) {
-		int extra = 0;
-		if (nd) {
-			if (nd->flags & LOOKUP_OPEN)
-				extra |= MAY_OPEN;
-		}
-		retval = inode->i_op->permission(inode, mask | extra);
+		retval = inode->i_op->permission(inode, mask);
 		if (!retval) {
 			/*
 			 * Exec permission on a regular file is denied if none
@@ -292,7 +287,7 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 		return retval;
 
 	return security_inode_permission(inode,
-			mask & (MAY_READ|MAY_WRITE|MAY_EXEC), nd);
+			mask & (MAY_READ|MAY_WRITE|MAY_EXEC));
 }
 
 /**
@@ -492,7 +487,7 @@ static int exec_permission_lite(struct inode *inode,
 
 	return -EACCES;
 ok:
-	return security_inode_permission(inode, MAY_EXEC, nd);
+	return security_inode_permission(inode, MAY_EXEC);
 }
 
 /*
@@ -1692,7 +1687,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	int will_write;
 	int flag = open_to_namei_flags(open_flag);
 
-	acc_mode = ACC_MODE(flag);
+	acc_mode = MAY_OPEN | ACC_MODE(flag);
 
 	/* O_TRUNC implies we need access checks for write permissions */
 	if (flag & O_TRUNC)
