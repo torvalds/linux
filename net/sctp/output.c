@@ -50,6 +50,7 @@
 #include <linux/init.h>
 #include <net/inet_ecn.h>
 #include <net/icmp.h>
+#include <net/net_namespace.h>
 
 #ifndef TEST_FRAME
 #include <net/tcp.h>
@@ -595,7 +596,7 @@ out:
 	return err;
 no_route:
 	kfree_skb(nskb);
-	IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
+	IP_INC_STATS_BH(&init_net, IPSTATS_MIB_OUTNOROUTES);
 
 	/* FIXME: Returning the 'err' will effect all the associations
 	 * associated with a socket, although only one of the paths of the

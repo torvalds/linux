@@ -199,8 +199,8 @@ static void ip_expire(unsigned long arg)
 
 	ipq_kill(qp);
 
-	IP_INC_STATS_BH(IPSTATS_MIB_REASMTIMEOUT);
-	IP_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMTIMEOUT);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 
 	if ((qp->q.last_in & INET_FRAG_FIRST_IN) && qp->q.fragments != NULL) {
 		struct sk_buff *head = qp->q.fragments;
@@ -261,7 +261,10 @@ static inline int ip_frag_too_far(struct ipq *qp)
 	rc = qp->q.fragments && (end - start) > max;
 
 	if (rc) {
-		IP_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);
+		struct net *net;
+
+		net = container_of(qp->q.net, struct net, ipv4.frags);
+		IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 	}
 
 	return rc;
@@ -545,7 +548,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	iph = ip_hdr(head);
 	iph->frag_off = 0;
 	iph->tot_len = htons(len);
-	IP_INC_STATS_BH(IPSTATS_MIB_REASMOKS);
+	IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_REASMOKS);
 	qp->q.fragments = NULL;
 	return 0;
 
@@ -560,7 +563,7 @@ out_oversize:
 			"Oversized IP packet from " NIPQUAD_FMT ".\n",
 			NIPQUAD(qp->saddr));
 out_fail:
-	IP_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);
+	IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_REASMFAILS);
 	return err;
 }
 
@@ -571,7 +574,7 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 	struct net *net;
 
 	net = skb->dev ? dev_net(skb->dev) : dev_net(skb->dst->dev);
-	IP_INC_STATS_BH(IPSTATS_MIB_REASMREQDS);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMREQDS);
 
 	/* Start by cleaning up the memory. */
 	if (atomic_read(&net->ipv4.frags.mem) > net->ipv4.frags.high_thresh)
@@ -590,7 +593,7 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 		return ret;
 	}
 
-	IP_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 	kfree_skb(skb);
 	return -ENOMEM;
 }

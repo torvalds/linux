@@ -465,7 +465,7 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 
 	security_skb_classify_flow(skb, &fl);
 	if (ip_route_output_flow(net, &rt, &fl, sk, 0)) {
-		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
+		IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}
 
