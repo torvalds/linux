@@ -374,7 +374,7 @@ static inline void __qdisc_reset_queue(struct Qdisc *sch,
 	 * We do not know the backlog in bytes of this list, it
 	 * is up to the caller to correct it
 	 */
-	skb_queue_purge(list);
+	__skb_queue_purge(list);
 }
 
 static inline void qdisc_reset_queue(struct Qdisc *sch)
