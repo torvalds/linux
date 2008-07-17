@@ -287,9 +287,7 @@ struct igb_adapter {
 	int bars;
 	int need_ioport;
 
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	struct igb_ring *multi_tx_table[IGB_MAX_TX_QUEUES];
-#endif /* CONFIG_NETDEVICES_MULTIQUEUE */
 #ifdef CONFIG_IGB_LRO
 	unsigned int lro_max_aggr;
 	unsigned int lro_aggregated;
