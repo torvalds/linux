@@ -12,6 +12,7 @@
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
 #include <linux/uio_driver.h>
+#include <asm/clock.h>
 
 static struct resource iic0_resources[] = {
 	[0] = {
@@ -138,8 +139,22 @@ static struct platform_device *sh7343_devices[] __initdata = {
 
 static int __init sh7343_devices_setup(void)
 {
+	clk_always_enable("mstp031"); /* TLB */
+	clk_always_enable("mstp030"); /* IC */
+	clk_always_enable("mstp029"); /* OC */
+	clk_always_enable("mstp028"); /* URAM */
+	clk_always_enable("mstp026"); /* XYMEM */
+	clk_always_enable("mstp023"); /* INTC3 */
+	clk_always_enable("mstp022"); /* INTC */
+	clk_always_enable("mstp020"); /* SuperHyway */
+	clk_always_enable("mstp109"); /* I2C0 */
+	clk_always_enable("mstp108"); /* I2C1 */
+	clk_always_enable("mstp202"); /* VEU */
+	clk_always_enable("mstp201"); /* VPU */
+
 	platform_resource_setup_memory(&vpu_device, "vpu", 1 << 20);
 	platform_resource_setup_memory(&veu_device, "veu", 2 << 20);
+
 	return platform_add_devices(sh7343_devices,
 				    ARRAY_SIZE(sh7343_devices));
 }

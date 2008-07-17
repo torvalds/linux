@@ -114,10 +114,6 @@ static void __init sh7343se_setup(char **cmdline_p)
 {
 	ctrl_outw(0xf900, FPGA_OUT);	/* FPGA */
 
-	ctrl_outl(0x00001001, MSTPCR0);
-	ctrl_outl(0x00000000, MSTPCR1);
-	ctrl_outl(0xffffbfC0, MSTPCR2);	/* LCDC, BEU, CEU, VEU, KEYSC */
-
 	ctrl_outw(0x0002, PORT_PECR);	/* PORT E 1 = IRQ5 */
 	ctrl_outw(0x0020, PORT_PSELD);
 
