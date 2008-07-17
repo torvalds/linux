@@ -975,7 +975,7 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	ireq->rmt_port = tcp_hdr(skb)->source;
 }
 
-extern void tcp_enter_memory_pressure(void);
+extern void tcp_enter_memory_pressure(struct sock *sk);
 
 static inline int keepalive_intvl_when(const struct tcp_sock *tp)
 {

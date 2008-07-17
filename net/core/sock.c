@@ -1442,7 +1442,7 @@ int __sk_mem_schedule(struct sock *sk, int size, int kind)
 	/* Under pressure. */
 	if (allocated > prot->sysctl_mem[1])
 		if (prot->enter_memory_pressure)
-			prot->enter_memory_pressure();
+			prot->enter_memory_pressure(sk);
 
 	/* Over hard limit. */
 	if (allocated > prot->sysctl_mem[2])

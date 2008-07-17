@@ -451,7 +451,7 @@ static void dn_destruct(struct sock *sk)
 
 static int dn_memory_pressure;
 
-static void dn_enter_memory_pressure(void)
+static void dn_enter_memory_pressure(struct sock *sk)
 {
 	if (!dn_memory_pressure) {
 		dn_memory_pressure = 1;

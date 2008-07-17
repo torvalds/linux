@@ -116,7 +116,7 @@ static int sctp_memory_pressure;
 static atomic_t sctp_memory_allocated;
 static atomic_t sctp_sockets_allocated;
 
-static void sctp_enter_memory_pressure(void)
+static void sctp_enter_memory_pressure(struct sock *sk)
 {
 	sctp_memory_pressure = 1;
 }
