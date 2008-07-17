@@ -1792,8 +1792,6 @@ static void e1000_vlan_rx_register(struct net_device *netdev,
 		if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
 			/* enable VLAN receive filtering */
 			rctl = er32(RCTL);
-			if (!(netdev->flags & IFF_PROMISC))
-				rctl |= E1000_RCTL_VFE;
 			rctl &= ~E1000_RCTL_CFIEN;
 			ew32(RCTL, rctl);
 			e1000_update_mng_vlan(adapter);
@@ -1805,10 +1803,6 @@ static void e1000_vlan_rx_register(struct net_device *netdev,
 		ew32(CTRL, ctrl);
 
 		if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
-			/* disable VLAN filtering */
-			rctl = er32(RCTL);
-			rctl &= ~E1000_RCTL_VFE;
-			ew32(RCTL, rctl);
 			if (adapter->mng_vlan_id !=
 			    (u16)E1000_MNG_VLAN_NONE) {
 				e1000_vlan_rx_kill_vid(netdev,
@@ -2239,7 +2233,7 @@ static void e1000_set_multi(struct net_device *netdev)
 		} else {
 			rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
 		}
-		if (adapter->vlgrp && adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
+		if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
 			rctl |= E1000_RCTL_VFE;
 	}
 

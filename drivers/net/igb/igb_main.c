@@ -2277,8 +2277,7 @@ static void igb_set_multi(struct net_device *netdev)
 			rctl &= ~E1000_RCTL_UPE;
 		} else
 			rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
-		if (adapter->vlgrp)
-			rctl |= E1000_RCTL_VFE;
+		rctl |= E1000_RCTL_VFE;
 	}
 	wr32(E1000_RCTL, rctl);
 
@@ -4224,8 +4223,6 @@ static void igb_vlan_rx_register(struct net_device *netdev,
 
 		/* enable VLAN receive filtering */
 		rctl = rd32(E1000_RCTL);
-		if (!(netdev->flags & IFF_PROMISC))
-			rctl |= E1000_RCTL_VFE;
 		rctl &= ~E1000_RCTL_CFIEN;
 		wr32(E1000_RCTL, rctl);
 		igb_update_mng_vlan(adapter);
@@ -4237,10 +4234,6 @@ static void igb_vlan_rx_register(struct net_device *netdev,
 		ctrl &= ~E1000_CTRL_VME;
 		wr32(E1000_CTRL, ctrl);
 
-		/* disable VLAN filtering */
-		rctl = rd32(E1000_RCTL);
-		rctl &= ~E1000_RCTL_VFE;
-		wr32(E1000_RCTL, rctl);
 		if (adapter->mng_vlan_id != (u16)IGB_MNG_VLAN_NONE) {
 			igb_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
 			adapter->mng_vlan_id = IGB_MNG_VLAN_NONE;
