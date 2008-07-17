@@ -930,6 +930,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 				buff = neigh->arp_queue.next;
 				__skb_unlink(buff, &neigh->arp_queue);
 				kfree_skb(buff);
+				NEIGH_CACHE_STAT_INC(neigh->tbl, unres_discards);
 			}
 			__skb_queue_tail(&neigh->arp_queue, skb);
 		}
@@ -2462,12 +2463,12 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 	struct neigh_statistics *st = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs\n");
+		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards\n");
 		return 0;
 	}
 
 	seq_printf(seq, "%08x  %08lx %08lx %08lx  %08lx %08lx  %08lx  "
-			"%08lx %08lx  %08lx %08lx\n",
+			"%08lx %08lx  %08lx %08lx %08lx\n",
 		   atomic_read(&tbl->entries),
 
 		   st->allocs,
@@ -2483,7 +2484,8 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 		   st->rcv_probes_ucast,
 
 		   st->periodic_gc_runs,
-		   st->forced_gc_runs
+		   st->forced_gc_runs,
+		   st->unres_discards
 		   );
 
 	return 0;
