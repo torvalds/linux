@@ -139,7 +139,8 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	if (IS_ERR(block)) {
 		DEV_MESSAGE(KERN_WARNING, device, "%s",
 			    "could not allocate dasd block structure");
-		kfree(device->private);
+		device->private = NULL;
+		kfree(private);
 		return PTR_ERR(block);
 	}
 	device->block = block;
@@ -152,6 +153,10 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 		DEV_MESSAGE(KERN_WARNING, device,
 			    "Read device characteristics returned error %d",
 			    rc);
+		device->block = NULL;
+		dasd_free_block(block);
+		device->private = NULL;
+		kfree(private);
 		return rc;
 	}
 
