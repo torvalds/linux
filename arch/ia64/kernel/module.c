@@ -321,7 +321,8 @@ module_alloc (unsigned long size)
 void
 module_free (struct module *mod, void *module_region)
 {
-	if (mod->arch.init_unw_table && module_region == mod->module_init) {
+	if (mod && mod->arch.init_unw_table &&
+	    module_region == mod->module_init) {
 		unw_remove_unwind_table(mod->arch.init_unw_table);
 		mod->arch.init_unw_table = NULL;
 	}
