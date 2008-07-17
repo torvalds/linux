@@ -306,6 +306,7 @@ u32 cx18_av_read4(struct cx18 *cx, u16 addr);
 int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned mask, u8 value);
 int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 mask, u32 value);
 int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg);
+void cx18_av_std_setup(struct cx18 *cx);
 
 /* ----------------------------------------------------------------------- */
 /* cx18_av-firmware.c                                                      */
@@ -318,7 +319,6 @@ void cx18_av_audio_set_path(struct cx18 *cx);
 
 /* ----------------------------------------------------------------------- */
 /* cx18_av-vbi.c                                                           */
-void cx18_av_vbi_setup(struct cx18 *cx);
 int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg);
 
 #endif
