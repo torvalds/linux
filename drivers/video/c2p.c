@@ -227,5 +227,6 @@ void c2p(u8 *dst, const u8 *src, u32 dx, u32 dy, u32 width, u32 height,
 	dst += dst_nextline;
     }
 }
+EXPORT_SYMBOL_GPL(c2p);
 
 MODULE_LICENSE("GPL");
