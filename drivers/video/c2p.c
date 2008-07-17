@@ -12,6 +12,7 @@
  *  for more details.
  */
 
+#include <linux/module.h>
 #include <linux/string.h>
 #include "c2p.h"
 
@@ -227,3 +228,4 @@ void c2p(u8 *dst, const u8 *src, u32 dx, u32 dy, u32 width, u32 height,
     }
 }
 
+MODULE_LICENSE("GPL");
