@@ -96,7 +96,7 @@ int __init get_memcfg_numaq(void)
 void __init numaq_tsc_disable(void)
 {
 	if (!found_numaq)
-		return -1;
+		return;
 
 	if (num_online_nodes() > 1) {
 		printk(KERN_DEBUG "NUMAQ: disabling TSC\n");

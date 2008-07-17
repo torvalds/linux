@@ -60,7 +60,7 @@ static void reserve_resources_of_dev(struct pnp_dev *dev)
 	int i;
 
 	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_IO, i)); i++) {
-		if (res->flags & IORESOURCE_UNSET)
+		if (res->flags & IORESOURCE_DISABLED)
 			continue;
 		if (res->start == 0)
 			continue;	/* disabled */
@@ -81,7 +81,7 @@ static void reserve_resources_of_dev(struct pnp_dev *dev)
 	}
 
 	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_MEM, i)); i++) {
-		if (res->flags & (IORESOURCE_UNSET | IORESOURCE_DISABLED))
+		if (res->flags & IORESOURCE_DISABLED)
 			continue;
 
 		reserve_range(dev, res->start, res->end, 0);

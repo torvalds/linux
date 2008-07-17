@@ -11,9 +11,11 @@
 
 EXTRA_CFLAGS				+= -Idrivers/ide
 
-ide-core-y += ide.o ide-io.o ide-iops.o ide-lib.o ide-probe.o ide-taskfile.o
+ide-core-y += ide.o ide-io.o ide-iops.o ide-lib.o ide-probe.o ide-taskfile.o \
+	      ide-pio-blacklist.o
 
 # core IDE code
+ide-core-$(CONFIG_IDE_TIMINGS)		+= ide-timings.o
 ide-core-$(CONFIG_IDE_ATAPI)		+= ide-atapi.o
 ide-core-$(CONFIG_BLK_DEV_IDEPCI)	+= setup-pci.o
 ide-core-$(CONFIG_BLK_DEV_IDEDMA)	+= ide-dma.o
@@ -59,9 +61,3 @@ ifeq ($(CONFIG_BLK_DEV_PLATFORM), y)
 endif
 
 obj-$(CONFIG_BLK_DEV_IDE)		+= arm/ mips/
-
-# old hd driver must be last
-ifeq ($(CONFIG_BLK_DEV_HD), y)
-	hd-core-y += legacy/hd.o
-	obj-y += hd-core.o
-endif

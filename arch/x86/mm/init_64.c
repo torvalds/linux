@@ -644,7 +644,7 @@ static unsigned long __init kernel_physical_mapping_init(unsigned long start,
 		unsigned long pud_phys;
 		pud_t *pud;
 
-		next = start + PGDIR_SIZE;
+		next = (start + PGDIR_SIZE) & PGDIR_MASK;
 		if (next > end)
 			next = end;
 

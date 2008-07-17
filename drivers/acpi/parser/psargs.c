@@ -76,7 +76,7 @@ acpi_ps_get_next_package_length(struct acpi_parse_state *parser_state)
 {
 	u8 *aml = parser_state->aml;
 	u32 package_length = 0;
-	acpi_native_uint byte_count;
+	u32 byte_count;
 	u8 byte_zero_mask = 0x3F;	/* Default [0:5] */
 
 	ACPI_FUNCTION_TRACE(ps_get_next_package_length);
@@ -86,7 +86,7 @@ acpi_ps_get_next_package_length(struct acpi_parse_state *parser_state)
 	 * used to encode the package length, either 0,1,2, or 3
 	 */
 	byte_count = (aml[0] >> 6);
-	parser_state->aml += (byte_count + 1);
+	parser_state->aml += ((acpi_size) byte_count + 1);
 
 	/* Get bytes 3, 2, 1 as needed */
 

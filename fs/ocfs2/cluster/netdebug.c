@@ -146,8 +146,10 @@ static int nst_seq_show(struct seq_file *seq, void *v)
 			   nst->st_task->comm, nst->st_node,
 			   nst->st_sc, nst->st_id, nst->st_msg_type,
 			   nst->st_msg_key,
-			   nst->st_sock_time.tv_sec, nst->st_sock_time.tv_usec,
-			   nst->st_send_time.tv_sec, nst->st_send_time.tv_usec,
+			   nst->st_sock_time.tv_sec,
+			   (unsigned long)nst->st_sock_time.tv_usec,
+			   nst->st_send_time.tv_sec,
+			   (unsigned long)nst->st_send_time.tv_usec,
 			   nst->st_status_time.tv_sec,
 			   nst->st_status_time.tv_usec);
 	}
@@ -274,7 +276,7 @@ static void *sc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	return sc; /* unused, just needs to be null when done */
 }
 
-#define TV_SEC_USEC(TV) TV.tv_sec, TV.tv_usec
+#define TV_SEC_USEC(TV) TV.tv_sec, (unsigned long)TV.tv_usec
 
 static int sc_seq_show(struct seq_file *seq, void *v)
 {

@@ -101,4 +101,6 @@ void chsc_chp_online(struct chp_id chpid);
 void chsc_chp_offline(struct chp_id chpid);
 int chsc_get_channel_measurement_chars(struct channel_path *chp);
 
+int chsc_error_from_response(int response);
+
 #endif

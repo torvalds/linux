@@ -21,8 +21,6 @@
 #include <linux/init.h>
 #include <linux/ide.h>
 
-#include "ide-timing.h"
-
 enum {
 	AMD_IDE_CONFIG		= 0x41,
 	AMD_CABLE_DETECT	= 0x42,

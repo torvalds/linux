@@ -52,8 +52,6 @@
 #include <linux/init.h>
 #include <linux/ide.h>
 
-#include "ide-timing.h"
-
 /* registers layout and init values are chipset family dependant */
 
 #define ATA_16		0x01
@@ -616,7 +614,6 @@ MODULE_LICENSE("GPL");
 /*
  * TODO:
  *	- CLEANUP
- *	- Use drivers/ide/ide-timing.h !
  *	- More checks in the config registers (force values instead of
  *	  relying on the BIOS setting them correctly).
  *	- Further optimisations ?

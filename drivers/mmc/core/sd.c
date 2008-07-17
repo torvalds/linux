@@ -326,7 +326,7 @@ static struct device_type sd_type = {
 /*
  * Handle the detection and initialisation of a card.
  *
- * In the case of a resume, "curcard" will contain the card
+ * In the case of a resume, "oldcard" will contain the card
  * we're trying to reinitialise.
  */
 static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
@@ -494,13 +494,13 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	 * Check if read-only switch is active.
 	 */
 	if (!oldcard) {
-		if (!host->ops->get_ro) {
+		if (!host->ops->get_ro || host->ops->get_ro(host) < 0) {
 			printk(KERN_WARNING "%s: host does not "
 				"support reading read-only "
 				"switch. assuming write-enable.\n",
 				mmc_hostname(host));
 		} else {
-			if (host->ops->get_ro(host))
+			if (host->ops->get_ro(host) > 0)
 				mmc_card_set_readonly(card);
 		}
 	}

@@ -108,7 +108,6 @@ static inline long TEMP_FROM_REG(u16 temp)
  */
 
 struct lm80_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
@@ -132,10 +131,12 @@ struct lm80_data {
  * Functions declaration
  */
 
-static int lm80_attach_adapter(struct i2c_adapter *adapter);
-static int lm80_detect(struct i2c_adapter *adapter, int address, int kind);
+static int lm80_probe(struct i2c_client *client,
+		      const struct i2c_device_id *id);
+static int lm80_detect(struct i2c_client *client, int kind,
+		       struct i2c_board_info *info);
 static void lm80_init_client(struct i2c_client *client);
-static int lm80_detach_client(struct i2c_client *client);
+static int lm80_remove(struct i2c_client *client);
 static struct lm80_data *lm80_update_device(struct device *dev);
 static int lm80_read_value(struct i2c_client *client, u8 reg);
 static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value);
@@ -144,12 +145,22 @@ static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value);
  * Driver data (common to all clients)
  */
 
+static const struct i2c_device_id lm80_id[] = {
+	{ "lm80", lm80 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, lm80_id);
+
 static struct i2c_driver lm80_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm80",
 	},
-	.attach_adapter	= lm80_attach_adapter,
-	.detach_client	= lm80_detach_client,
+	.probe		= lm80_probe,
+	.remove		= lm80_remove,
+	.id_table	= lm80_id,
+	.detect		= lm80_detect,
+	.address_data	= &addr_data,
 };
 
 /*
@@ -383,13 +394,6 @@ static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 13);
  * Real code
  */
 
-static int lm80_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, lm80_detect);
-}
-
 static struct attribute *lm80_attributes[] = {
 	&sensor_dev_attr_in0_min.dev_attr.attr,
 	&sensor_dev_attr_in1_min.dev_attr.attr,
@@ -442,53 +446,46 @@ static const struct attribute_group lm80_group = {
 	.attrs = lm80_attributes,
 };
 
-static int lm80_detect(struct i2c_adapter *adapter, int address, int kind)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int lm80_detect(struct i2c_client *client, int kind,
+		       struct i2c_board_info *info)
 {
+	struct i2c_adapter *adapter = client->adapter;
 	int i, cur;
-	struct i2c_client *client;
-	struct lm80_data *data;
-	int err = 0;
-	const char *name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		goto exit;
-
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet.
-	   But it allows us to access lm80_{read,write}_value. */
-	if (!(data = kzalloc(sizeof(struct lm80_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	client = &data->client;
-	i2c_set_clientdata(client, data);
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &lm80_driver;
+		return -ENODEV;
 
 	/* Now, we do the remaining detection. It is lousy. */
 	if (lm80_read_value(client, LM80_REG_ALARM2) & 0xc0)
-		goto error_free;
+		return -ENODEV;
 	for (i = 0x2a; i <= 0x3d; i++) {
 		cur = i2c_smbus_read_byte_data(client, i);
 		if ((i2c_smbus_read_byte_data(client, i + 0x40) != cur)
 		 || (i2c_smbus_read_byte_data(client, i + 0x80) != cur)
 		 || (i2c_smbus_read_byte_data(client, i + 0xc0) != cur))
-		    goto error_free;
+		    return -ENODEV;
 	}
 
-	/* Determine the chip type - only one kind supported! */
-	kind = lm80;
-	name = "lm80";
+	strlcpy(info->type, "lm80", I2C_NAME_SIZE);
 
-	/* Fill in the remaining client fields */
-	strlcpy(client->name, name, I2C_NAME_SIZE);
+	return 0;
+}
+
+static int lm80_probe(struct i2c_client *client,
+		      const struct i2c_device_id *id)
+{
+	struct lm80_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct lm80_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
-
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(client)))
-		goto error_free;
 
 	/* Initialize the LM80 chip */
 	lm80_init_client(client);
@@ -499,7 +496,7 @@ static int lm80_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Register sysfs hooks */
 	if ((err = sysfs_create_group(&client->dev.kobj, &lm80_group)))
-		goto error_detach;
+		goto error_free;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -511,23 +508,18 @@ static int lm80_detect(struct i2c_adapter *adapter, int address, int kind)
 
 error_remove:
 	sysfs_remove_group(&client->dev.kobj, &lm80_group);
-error_detach:
-	i2c_detach_client(client);
 error_free:
 	kfree(data);
 exit:
 	return err;
 }
 
-static int lm80_detach_client(struct i2c_client *client)
+static int lm80_remove(struct i2c_client *client)
 {
 	struct lm80_data *data = i2c_get_clientdata(client);
-	int err;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm80_group);
-	if ((err = i2c_detach_client(client)))
-		return err;
 
 	kfree(data);
 	return 0;
