@@ -233,6 +233,24 @@ sd_show_allow_restart(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, 40, "%d\n", sdkp->device->allow_restart);
 }
 
+static ssize_t
+sd_show_protection_type(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+
+	return snprintf(buf, 20, "%u\n", sdkp->protection_type);
+}
+
+static ssize_t
+sd_show_app_tag_own(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+
+	return snprintf(buf, 20, "%u\n", sdkp->ATO);
+}
+
 static struct device_attribute sd_disk_attrs[] = {
 	__ATTR(cache_type, S_IRUGO|S_IWUSR, sd_show_cache_type,
 	       sd_store_cache_type),
@@ -241,6 +259,8 @@ static struct device_attribute sd_disk_attrs[] = {
 	       sd_store_allow_restart),
 	__ATTR(manage_start_stop, S_IRUGO|S_IWUSR, sd_show_manage_start_stop,
 	       sd_store_manage_start_stop),
+	__ATTR(protection_type, S_IRUGO, sd_show_protection_type, NULL),
+	__ATTR(app_tag_own, S_IRUGO, sd_show_app_tag_own, NULL),
 	__ATTR_NULL,
 };
 
@@ -1164,6 +1184,49 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 	}
 }
 
+
+/*
+ * Determine whether disk supports Data Integrity Field.
+ */
+void sd_read_protection_type(struct scsi_disk *sdkp, unsigned char *buffer)
+{
+	struct scsi_device *sdp = sdkp->device;
+	u8 type;
+
+	if (scsi_device_protection(sdp) == 0 || (buffer[12] & 1) == 0)
+		type = 0;
+	else
+		type = ((buffer[12] >> 1) & 7) + 1; /* P_TYPE 0 = Type 1 */
+
+	switch (type) {
+	case SD_DIF_TYPE0_PROTECTION:
+		sdkp->protection_type = 0;
+		break;
+
+	case SD_DIF_TYPE1_PROTECTION:
+	case SD_DIF_TYPE3_PROTECTION:
+		sdkp->protection_type = type;
+		break;
+
+	case SD_DIF_TYPE2_PROTECTION:
+		sd_printk(KERN_ERR, sdkp, "formatted with DIF Type 2 "	\
+			  "protection which is currently unsupported. "	\
+			  "Disabling disk!\n");
+		goto disable;
+
+	default:
+		sd_printk(KERN_ERR, sdkp, "formatted with unknown "	\
+			  "protection type %d. Disabling disk!\n", type);
+		goto disable;
+	}
+
+	return;
+
+disable:
+	sdkp->protection_type = 0;
+	sdkp->capacity = 0;
+}
+
 /*
  * read disk capacity
  */
@@ -1173,7 +1236,8 @@ sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer)
 	unsigned char cmd[16];
 	int the_result, retries;
 	int sector_size = 0;
-	int longrc = 0;
+	/* Force READ CAPACITY(16) when PROTECT=1 */
+	int longrc = scsi_device_protection(sdkp->device) ? 1 : 0;
 	struct scsi_sense_hdr sshdr;
 	int sense_valid = 0;
 	struct scsi_device *sdp = sdkp->device;
@@ -1185,8 +1249,8 @@ repeat:
 			memset((void *) cmd, 0, 16);
 			cmd[0] = SERVICE_ACTION_IN;
 			cmd[1] = SAI_READ_CAPACITY_16;
-			cmd[13] = 12;
-			memset((void *) buffer, 0, 12);
+			cmd[13] = 13;
+			memset((void *) buffer, 0, 13);
 		} else {
 			cmd[0] = READ_CAPACITY;
 			memset((void *) &cmd[1], 0, 9);
@@ -1194,7 +1258,7 @@ repeat:
 		}
 		
 		the_result = scsi_execute_req(sdp, cmd, DMA_FROM_DEVICE,
-					      buffer, longrc ? 12 : 8, &sshdr,
+					      buffer, longrc ? 13 : 8, &sshdr,
 					      SD_TIMEOUT, SD_MAX_RETRIES);
 
 		if (media_not_present(sdkp, &sshdr))
@@ -1269,6 +1333,8 @@ repeat:
 			
 		sector_size = (buffer[8] << 24) |
 			(buffer[9] << 16) | (buffer[10] << 8) | buffer[11];
+
+		sd_read_protection_type(sdkp, buffer);
 	}	
 
 	/* Some devices return the total number of sectors, not the
@@ -1530,6 +1596,52 @@ defaults:
 	sdkp->DPOFUA = 0;
 }
 
+/*
+ * The ATO bit indicates whether the DIF application tag is available
+ * for use by the operating system.
+ */
+void sd_read_app_tag_own(struct scsi_disk *sdkp, unsigned char *buffer)
+{
+	int res, offset;
+	struct scsi_device *sdp = sdkp->device;
+	struct scsi_mode_data data;
+	struct scsi_sense_hdr sshdr;
+
+	if (sdp->type != TYPE_DISK)
+		return;
+
+	if (sdkp->protection_type == 0)
+		return;
+
+	res = scsi_mode_sense(sdp, 1, 0x0a, buffer, 36, SD_TIMEOUT,
+			      SD_MAX_RETRIES, &data, &sshdr);
+
+	if (!scsi_status_is_good(res) || !data.header_length ||
+	    data.length < 6) {
+		sd_printk(KERN_WARNING, sdkp,
+			  "getting Control mode page failed, assume no ATO\n");
+
+		if (scsi_sense_valid(&sshdr))
+			sd_print_sense_hdr(sdkp, &sshdr);
+
+		return;
+	}
+
+	offset = data.header_length + data.block_descriptor_length;
+
+	if ((buffer[offset] & 0x3f) != 0x0a) {
+		sd_printk(KERN_ERR, sdkp, "ATO Got wrong page\n");
+		return;
+	}
+
+	if ((buffer[offset + 5] & 0x80) == 0)
+		return;
+
+	sdkp->ATO = 1;
+
+	return;
+}
+
 /**
  *	sd_revalidate_disk - called the first time a new disk is seen,
  *	performs disk spin up, read_capacity, etc.
@@ -1566,6 +1678,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	sdkp->write_prot = 0;
 	sdkp->WCE = 0;
 	sdkp->RCD = 0;
+	sdkp->ATO = 0;
 
 	sd_spinup_disk(sdkp);
 
@@ -1577,6 +1690,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 		sd_read_capacity(sdkp, buffer);
 		sd_read_write_protect_flag(sdkp, buffer);
 		sd_read_cache_type(sdkp, buffer);
+		sd_read_app_tag_own(sdkp, buffer);
 	}
 
 	/*

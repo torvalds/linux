@@ -41,7 +41,9 @@ struct scsi_disk {
 	u32		index;
 	u8		media_present;
 	u8		write_prot;
+	u8		protection_type;/* Data Integrity Field */
 	unsigned	previous_state : 1;
+	unsigned	ATO : 1;	/* state of disk ATO bit */
 	unsigned	WCE : 1;	/* state of disk WCE bit */
 	unsigned	RCD : 1;	/* state of disk RCD bit, unused */
 	unsigned	DPOFUA : 1;	/* state of disk DPOFUA bit */
@@ -58,5 +60,26 @@ static inline struct scsi_disk *scsi_disk(struct gendisk *disk)
 	sdev_printk(prefix, (sdsk)->device, "[%s] " fmt,		\
 		    (sdsk)->disk->disk_name, ##a) :			\
 	sdev_printk(prefix, (sdsk)->device, fmt, ##a)
+
+/*
+ * A DIF-capable target device can be formatted with different
+ * protection schemes.  Currently 0 through 3 are defined:
+ *
+ * Type 0 is regular (unprotected) I/O
+ *
+ * Type 1 defines the contents of the guard and reference tags
+ *
+ * Type 2 defines the contents of the guard and reference tags and
+ * uses 32-byte commands to seed the latter
+ *
+ * Type 3 defines the contents of the guard tag only
+ */
+
+enum sd_dif_target_protection_types {
+	SD_DIF_TYPE0_PROTECTION = 0x0,
+	SD_DIF_TYPE1_PROTECTION = 0x1,
+	SD_DIF_TYPE2_PROTECTION = 0x2,
+	SD_DIF_TYPE3_PROTECTION = 0x3,
+};
 
 #endif /* _SCSI_DISK_H */
