@@ -1629,6 +1629,7 @@ static int __devinit snd_ensoniq_1371_mixer(struct ensoniq *ensoniq,
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = ensoniq;
 	ac97.private_free = snd_ensoniq_mixer_free_ac97;
+	ac97.pci = ensoniq->pci;
 	ac97.scaps = AC97_SCAP_AUDIO;
 	if ((err = snd_ac97_mixer(pbus, &ac97, &ensoniq->u.es1371.ac97)) < 0)
 		return err;
