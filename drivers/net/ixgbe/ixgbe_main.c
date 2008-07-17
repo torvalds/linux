@@ -1574,7 +1574,9 @@ static void ixgbe_vlan_rx_register(struct net_device *netdev,
 	if (grp) {
 		/* enable VLAN tag insert/strip */
 		ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
-		ctrl |= IXGBE_VLNCTRL_VME | IXGBE_VLNCTRL_VFE;
+		ctrl |= IXGBE_VLNCTRL_VME;
+		if (!(netdev->flags & IFF_PROMISC))
+			ctrl |= IXGBE_VLNCTRL_VFE;
 		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
 	}
@@ -1645,11 +1647,16 @@ static void ixgbe_set_multi(struct net_device *netdev)
 
 	if (netdev->flags & IFF_PROMISC) {
 		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
-	} else if (netdev->flags & IFF_ALLMULTI) {
-		fctrl |= IXGBE_FCTRL_MPE;
-		fctrl &= ~IXGBE_FCTRL_UPE;
+		fctrl &= ~IXGBE_VLNCTRL_VFE;
 	} else {
-		fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+		if (netdev->flags & IFF_ALLMULTI) {
+			fctrl |= IXGBE_FCTRL_MPE;
+			fctrl &= ~IXGBE_FCTRL_UPE;
+		} else {
+			fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+		}
+		if (adapter->vlgrp)
+			fctrl |= IXGBE_VLNCTRL_VFE;
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);

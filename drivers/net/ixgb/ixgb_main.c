@@ -1053,11 +1053,16 @@ ixgb_set_multi(struct net_device *netdev)
 
 	if (netdev->flags & IFF_PROMISC) {
 		rctl |= (IXGB_RCTL_UPE | IXGB_RCTL_MPE);
-	} else if (netdev->flags & IFF_ALLMULTI) {
-		rctl |= IXGB_RCTL_MPE;
-		rctl &= ~IXGB_RCTL_UPE;
+		rctl &= ~IXGB_RCTL_VFE;
 	} else {
-		rctl &= ~(IXGB_RCTL_UPE | IXGB_RCTL_MPE);
+		if (netdev->flags & IFF_ALLMULTI) {
+			rctl |= IXGB_RCTL_MPE;
+			rctl &= ~IXGB_RCTL_UPE;
+		} else {
+			rctl &= ~(IXGB_RCTL_UPE | IXGB_RCTL_MPE);
+		}
+		if (adapter->vlgrp)
+			rctl |= IXGB_RCTL_VFE;
 	}
 
 	if (netdev->mc_count > IXGB_MAX_NUM_MULTICAST_ADDRESSES) {
@@ -2104,7 +2109,8 @@ ixgb_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 		/* enable VLAN receive filtering */
 
 		rctl = IXGB_READ_REG(&adapter->hw, RCTL);
-		rctl |= IXGB_RCTL_VFE;
+		if (!(netdev->flags & IFF_PROMISC))
+			rctl |= IXGB_RCTL_VFE;
 		rctl &= ~IXGB_RCTL_CFIEN;
 		IXGB_WRITE_REG(&adapter->hw, RCTL, rctl);
 	} else {

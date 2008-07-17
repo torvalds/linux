@@ -2268,14 +2268,18 @@ static void igb_set_multi(struct net_device *netdev)
 
 	rctl = rd32(E1000_RCTL);
 
-	if (netdev->flags & IFF_PROMISC)
+	if (netdev->flags & IFF_PROMISC) {
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-	else if (netdev->flags & IFF_ALLMULTI) {
-		rctl |= E1000_RCTL_MPE;
-		rctl &= ~E1000_RCTL_UPE;
-	} else
-		rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
-
+		rctl &= ~E1000_RCTL_VFE;
+	} else {
+		if (netdev->flags & IFF_ALLMULTI) {
+			rctl |= E1000_RCTL_MPE;
+			rctl &= ~E1000_RCTL_UPE;
+		} else
+			rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
+		if (adapter->vlgrp)
+			rctl |= E1000_RCTL_VFE;
+	}
 	wr32(E1000_RCTL, rctl);
 
 	if (!netdev->mc_count) {
@@ -4220,7 +4224,8 @@ static void igb_vlan_rx_register(struct net_device *netdev,
 
 		/* enable VLAN receive filtering */
 		rctl = rd32(E1000_RCTL);
-		rctl |= E1000_RCTL_VFE;
+		if (!(netdev->flags & IFF_PROMISC))
+			rctl |= E1000_RCTL_VFE;
 		rctl &= ~E1000_RCTL_CFIEN;
 		wr32(E1000_RCTL, rctl);
 		igb_update_mng_vlan(adapter);
