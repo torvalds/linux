@@ -251,7 +251,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	end_of_last_block = start_pos + num_bytes - 1;
 
 	lock_extent(io_tree, start_pos, end_of_last_block, GFP_NOFS);
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_join_transaction(root, 1);
 	if (!trans) {
 		err = -ENOMEM;
 		goto out_unlock;

@@ -513,6 +513,7 @@ struct btrfs_fs_info {
 	u64 alloc_start;
 	struct btrfs_transaction *running_transaction;
 	wait_queue_head_t transaction_throttle;
+	wait_queue_head_t transaction_wait;
 	struct btrfs_super_block super_copy;
 	struct btrfs_super_block super_for_commit;
 	struct block_device *__bdev;

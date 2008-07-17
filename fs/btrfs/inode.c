@@ -116,7 +116,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	int ret = 0;
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_join_transaction(root, 1);
 	BUG_ON(!trans);
 	btrfs_set_trans_block_group(trans, inode);
 
@@ -502,7 +502,7 @@ int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 		return 0;
 	}
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_join_transaction(root, 1);
 
 	ordered_extent = btrfs_lookup_ordered_extent(inode, start);
 	BUG_ON(!ordered_extent);
@@ -1812,7 +1812,7 @@ int btrfs_write_inode(struct inode *inode, int wait)
 	int ret = 0;
 
 	if (wait) {
-		trans = btrfs_start_transaction(root, 1);
+		trans = btrfs_join_transaction(root, 1);
 		btrfs_set_trans_block_group(trans, inode);
 		ret = btrfs_commit_transaction(trans, root);
 	}
@@ -1830,7 +1830,7 @@ void btrfs_dirty_inode(struct inode *inode)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_join_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, inode);
 	btrfs_update_inode(trans, root, inode);
 	btrfs_end_transaction(trans, root);
@@ -2395,7 +2395,7 @@ again:
 				free_extent_map(em);
 				em = NULL;
 				btrfs_release_path(root, path);
-				trans = btrfs_start_transaction(root, 1);
+				trans = btrfs_join_transaction(root, 1);
 				goto again;
 			}
 			write_extent_buffer(leaf, map + pg_offset, ptr,
