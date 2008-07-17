@@ -135,7 +135,7 @@ static const u8 hw_addrs[] = {
 static const char * const hw_devicenames[] = {
 	"cx25840",
 	"saa7115",
-	"saa7127",
+	"saa7127_auto",	/* saa7127 or saa7129 */
 	"msp3400",
 	"tuner",
 	"wm8775",
