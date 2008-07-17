@@ -104,8 +104,6 @@ prom_query_input_device()
 				return PROMDEV_ITTYB;
 		}
 		return PROMDEV_I_UNK;
-	case PROM_AP1000:
-		return PROMDEV_I_UNK;
 	};
 }
 #endif
@@ -166,8 +164,6 @@ prom_query_output_device()
 			};
 		}
 		break;
-	case PROM_AP1000:
-		return PROMDEV_I_UNK;
 	};
 	return PROMDEV_O_UNK;
 }

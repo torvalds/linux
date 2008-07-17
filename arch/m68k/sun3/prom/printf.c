@@ -37,10 +37,6 @@ prom_printf(char *fmt, ...)
 
 	bptr = ppbuf;
 
-#ifdef CONFIG_AP1000
-        ap_write(1,bptr,strlen(bptr));
-#else
-
 #ifdef CONFIG_KGDB
 	if (kgdb_initialized) {
 		printk("kgdb_initialized = %d\n", kgdb_initialized);
@@ -53,7 +49,6 @@ prom_printf(char *fmt, ...)
 
 		prom_putchar(ch);
 	}
-#endif
 #endif
 	va_end(args);
 	return;
