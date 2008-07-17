@@ -3110,7 +3110,7 @@ int __init atafb_init(void)
 	printk("atafb_init: start\n");
 
 	if (!MACH_IS_ATARI)
-		return -ENXIO;
+		return -ENODEV;
 
 	do {
 #ifdef ATAFB_EXT
