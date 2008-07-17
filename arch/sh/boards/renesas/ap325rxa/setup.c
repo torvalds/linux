@@ -97,20 +97,8 @@ static int __init ap325rxa_devices_setup(void)
 }
 device_initcall(ap325rxa_devices_setup);
 
-#define MSTPCR0		(0xA4150030)
-#define MSTPCR1		(0xA4150034)
-#define MSTPCR2		(0xA4150038)
-
 static void __init ap325rxa_setup(char **cmdline_p)
 {
-	/* enable VEU0 + VEU1 */
-	ctrl_outl(ctrl_inl(MSTPCR2) & ~0x00000044, MSTPCR2);	/* bit 2 + 6 */
-
-	/* enable MERAM */
-	ctrl_outl(ctrl_inl(MSTPCR0) & ~0x00000001, MSTPCR0);	/* bit 0 */
-
-	/* I2C */
-	ctrl_outl(ctrl_inl(MSTPCR1) & ~0x00000200, MSTPCR1);
 }
 
 static struct sh_machine_vector mv_ap325rxa __initmv = {

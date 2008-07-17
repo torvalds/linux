@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/serial_sci.h>
 #include <linux/uio_driver.h>
+#include <asm/clock.h>
 #include <asm/mmzone.h>
 
 static struct uio_info vpu_platform_data = {
@@ -230,9 +231,24 @@ static struct platform_device *sh7723_devices[] __initdata = {
 
 static int __init sh7723_devices_setup(void)
 {
+	clk_always_enable("mstp031"); /* TLB */
+	clk_always_enable("mstp030"); /* IC */
+	clk_always_enable("mstp029"); /* OC */
+	clk_always_enable("mstp024"); /* FPU */
+	clk_always_enable("mstp022"); /* INTC */
+	clk_always_enable("mstp020"); /* SuperHyway */
+	clk_always_enable("mstp000"); /* MERAM */
+	clk_always_enable("mstp109"); /* I2C */
+	clk_always_enable("mstp108"); /* RTC */
+	clk_always_enable("mstp211"); /* USB */
+	clk_always_enable("mstp206"); /* VEU2H1 */
+	clk_always_enable("mstp202"); /* VEU2H0 */
+	clk_always_enable("mstp201"); /* VPU */
+
 	platform_resource_setup_memory(&vpu_device, "vpu", 2 << 20);
 	platform_resource_setup_memory(&veu0_device, "veu0", 2 << 20);
 	platform_resource_setup_memory(&veu1_device, "veu1", 2 << 20);
+
 	return platform_add_devices(sh7723_devices,
 				    ARRAY_SIZE(sh7723_devices));
 }
