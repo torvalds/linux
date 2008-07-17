@@ -65,6 +65,7 @@ extern unsigned long machine_flags;
 
 #define MACHINE_FLAG_VM		(1UL << 0)
 #define MACHINE_FLAG_IEEE	(1UL << 1)
+#define MACHINE_FLAG_P390	(1UL << 2)
 #define MACHINE_FLAG_CSP	(1UL << 3)
 #define MACHINE_FLAG_MVPG	(1UL << 4)
 #define MACHINE_FLAG_DIAG44	(1UL << 5)
@@ -77,7 +78,6 @@ extern unsigned long machine_flags;
 
 #define MACHINE_IS_VM		(machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(machine_flags & MACHINE_FLAG_KVM)
-#define MACHINE_IS_P390		(machine_flags & MACHINE_FLAG_P390)
 #define MACHINE_HAS_DIAG9C	(machine_flags & MACHINE_FLAG_DIAG9C)
 
 #ifndef __s390x__
