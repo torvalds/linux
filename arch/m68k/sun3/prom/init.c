@@ -1,4 +1,4 @@
-/* $Id: init.c,v 1.9 1996/12/18 06:46:55 tridge Exp $
+/*
  * init.c:  Initialize internal variables used by the PROM
  *          library functions.
  *

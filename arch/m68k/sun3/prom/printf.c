@@ -1,4 +1,4 @@
-/* $Id: printf.c,v 1.5 1996/04/04 16:31:07 tridge Exp $
+/*
  * printf.c:  Internal prom library printf facility.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)

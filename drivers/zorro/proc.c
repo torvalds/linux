@@ -1,6 +1,4 @@
 /*
- *	$Id: proc.c,v 1.1.2.1 1998/06/07 23:21:01 geert Exp $
- *
  *	Procfs interface for the Zorro bus.
  *
  *	Copyright (C) 1998-2003 Geert Uytterhoeven
