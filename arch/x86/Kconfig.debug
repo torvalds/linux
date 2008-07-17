@@ -5,10 +5,11 @@ config TRACE_IRQFLAGS_SUPPORT
 
 source "lib/Kconfig.debug"
 
-config NONPROMISC_DEVMEM
-	bool "Filter access to /dev/mem"
+config PROMISC_DEVMEM
+	bool "Allow unlimited access to /dev/mem"
+	default y
 	help
-	  If this option is left off, you allow userspace access to all
+	  If this option is left on, you allow userspace (root) access to all
 	  of memory, including kernel and userspace memory. Accidental
 	  access to this is obviously disastrous, but specific access can
 	  be used by people debugging the kernel.
