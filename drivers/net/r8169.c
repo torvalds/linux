@@ -3032,13 +3032,7 @@ static void rtl_set_rx_mode(struct net_device *dev)
 	tmp = rtl8169_rx_config | rx_mode |
 	      (RTL_R32(RxConfig) & rtl_chip_info[tp->chipset].RxConfigMask);
 
-	if ((tp->mac_version == RTL_GIGA_MAC_VER_11) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_12) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_13) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_14) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_15) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_16) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_17)) {
+	if (tp->mac_version > RTL_GIGA_MAC_VER_06) {
 		u32 data = mc_filter[0];
 
 		mc_filter[0] = swab32(mc_filter[1]);
