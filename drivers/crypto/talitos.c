@@ -99,6 +99,9 @@ struct talitos_private {
 	/* next channel to be assigned next incoming descriptor */
 	atomic_t last_chan;
 
+	/* per-channel number of requests pending in channel h/w fifo */
+	atomic_t *submit_count;
+
 	/* per-channel request fifo */
 	struct talitos_request **fifo;
 
@@ -263,14 +266,14 @@ static int talitos_submit(struct device *dev, struct talitos_desc *desc,
 
 	spin_lock_irqsave(&priv->head_lock[ch], flags);
 
-	head = priv->head[ch];
-	request = &priv->fifo[ch][head];
-
-	if (request->desc) {
-		/* request queue is full */
+	if (!atomic_inc_not_zero(&priv->submit_count[ch])) {
+		/* h/w fifo is full */
 		spin_unlock_irqrestore(&priv->head_lock[ch], flags);
 		return -EAGAIN;
 	}
+
+	head = priv->head[ch];
+	request = &priv->fifo[ch][head];
 
 	/* map descriptor and save caller data */
 	request->dma_desc = dma_map_single(dev, desc, sizeof(*desc),
@@ -335,6 +338,9 @@ static void flush_channel(struct device *dev, int ch, int error, int reset_ch)
 		priv->tail[ch] = (tail + 1) & (priv->fifo_len - 1);
 
 		spin_unlock_irqrestore(&priv->tail_lock[ch], flags);
+
+		atomic_dec(&priv->submit_count[ch]);
+
 		saved_req.callback(dev, saved_req.desc, saved_req.context,
 				   status);
 		/* channel may resume processing in single desc error case */
@@ -1337,6 +1343,7 @@ static int __devexit talitos_remove(struct of_device *ofdev)
 	if (hw_supports(dev, DESC_HDR_SEL0_RNG))
 		talitos_unregister_rng(dev);
 
+	kfree(priv->submit_count);
 	kfree(priv->tail);
 	kfree(priv->head);
 
@@ -1500,6 +1507,16 @@ static int talitos_probe(struct of_device *ofdev,
 			goto err_out;
 		}
 	}
+
+	priv->submit_count = kmalloc(sizeof(int) * priv->num_channels,
+				     GFP_KERNEL);
+	if (!priv->submit_count) {
+		dev_err(dev, "failed to allocate fifo submit count space\n");
+		err = -ENOMEM;
+		goto err_out;
+	}
+	for (i = 0; i < priv->num_channels; i++)
+		atomic_set(&priv->submit_count[i], -priv->chfifo_len);
 
 	priv->head = kzalloc(sizeof(int) * priv->num_channels, GFP_KERNEL);
 	priv->tail = kzalloc(sizeof(int) * priv->num_channels, GFP_KERNEL);
