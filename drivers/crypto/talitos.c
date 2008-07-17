@@ -1466,9 +1466,6 @@ static int talitos_probe(struct of_device *ofdev,
 		goto err_out;
 	}
 
-	of_node_put(np);
-	np = NULL;
-
 	priv->head_lock = kmalloc(sizeof(spinlock_t) * priv->num_channels,
 				  GFP_KERNEL);
 	priv->tail_lock = kmalloc(sizeof(spinlock_t) * priv->num_channels,
@@ -1559,8 +1556,6 @@ static int talitos_probe(struct of_device *ofdev,
 
 err_out:
 	talitos_remove(ofdev);
-	if (np)
-		of_node_put(np);
 
 	return err;
 }
