@@ -30,6 +30,7 @@ struct clk {
 
 	unsigned long		rate;
 	unsigned long		flags;
+	unsigned long		arch_flags;
 };
 
 #define CLK_ALWAYS_ENABLED	(1 << 0)
