@@ -480,7 +480,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->rx_opt.mss_clamp = req->mss;
 		TCP_ECN_openreq_child(newtp, req);
 
-		TCP_INC_STATS_BH(TCP_MIB_PASSIVEOPENS);
+		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 	}
 	return newsk;
 }
@@ -630,7 +630,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 		 *	   "fourth, check the SYN bit"
 		 */
 		if (flg & (TCP_FLAG_RST|TCP_FLAG_SYN)) {
-			TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
+			TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_ATTEMPTFAILS);
 			goto embryonic_reset;
 		}
 
