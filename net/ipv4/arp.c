@@ -421,8 +421,9 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 	struct rtable *rt;
 	int flag = 0;
 	/*unsigned long now; */
+	struct net *net = dev_net(dev);
 
-	if (ip_route_output_key(dev_net(dev), &rt, &fl) < 0)
+	if (ip_route_output_key(net, &rt, &fl) < 0)
 		return 1;
 	if (rt->u.dst.dev != dev) {
 		NET_INC_STATS_BH(LINUX_MIB_ARPFILTER);
