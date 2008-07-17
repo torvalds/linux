@@ -578,18 +578,6 @@ config MAC_HID
 	depends on INPUT_ADBHID
 	default y
 
-config ADB_KEYBOARD
-	bool "Support for ADB keyboard (old driver)"
-	depends on MAC && !INPUT_ADBHID
-	help
-	  This option allows you to use an ADB keyboard attached to your
-	  machine. Note that this disables any other (ie. PS/2) keyboard
-	  support, even if your machine is physically capable of using both at
-	  the same time.
-
-	  If you use an ADB keyboard (4 pin connector), say Y here.
-	  If you use a PS/2 keyboard (6 pin connector), say N here.
-
 config HPDCA
 	tristate "HP DCA serial support"
 	depends on DIO && SERIAL_8250
