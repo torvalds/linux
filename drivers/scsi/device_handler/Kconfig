@@ -30,3 +30,11 @@ config SCSI_DH_EMC
 	depends on SCSI_DH
 	help
 	If you have a EMC CLARiiON select y. Otherwise, say N.
+
+config SCSI_DH_ALUA
+	tristate "SPC-3 ALUA Device Handler (EXPERIMENTAL)"
+	depends on SCSI_DH && EXPERIMENTAL
+	help
+	  SCSI Device handler for generic SPC-3 Asymmetric Logical Unit
+	  Access (ALUA).
+
