@@ -187,8 +187,10 @@ static void ip_evictor(struct net *net)
 static void ip_expire(unsigned long arg)
 {
 	struct ipq *qp;
+	struct net *net;
 
 	qp = container_of((struct inet_frag_queue *) arg, struct ipq, q);
+	net = container_of(qp->q.net, struct net, ipv4.frags);
 
 	spin_lock(&qp->q.lock);
 
@@ -202,9 +204,7 @@ static void ip_expire(unsigned long arg)
 
 	if ((qp->q.last_in & INET_FRAG_FIRST_IN) && qp->q.fragments != NULL) {
 		struct sk_buff *head = qp->q.fragments;
-		struct net *net;
 
-		net = container_of(qp->q.net, struct net, ipv4.frags);
 		/* Send an ICMP "Fragment Reassembly Timeout" message. */
 		if ((head->dev = dev_get_by_index(net, qp->iif)) != NULL) {
 			icmp_send(head, ICMP_TIME_EXCEEDED, ICMP_EXC_FRAGTIME, 0);
@@ -570,9 +570,9 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 	struct ipq *qp;
 	struct net *net;
 
+	net = skb->dev ? dev_net(skb->dev) : dev_net(skb->dst->dev);
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMREQDS);
 
-	net = skb->dev ? dev_net(skb->dev) : dev_net(skb->dst->dev);
 	/* Start by cleaning up the memory. */
 	if (atomic_read(&net->ipv4.frags.mem) > net->ipv4.frags.high_thresh)
 		ip_evictor(net);
