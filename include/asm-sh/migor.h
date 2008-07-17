@@ -16,10 +16,6 @@
 #include <asm/addrspace.h>
 
 /* GPIO */
-#define MSTPCR0 0xa4150030
-#define MSTPCR1 0xa4150034
-#define MSTPCR2 0xa4150038
-
 #define PORT_PACR 0xa4050100
 #define PORT_PDCR 0xa4050106
 #define PORT_PECR 0xa4050108

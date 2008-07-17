@@ -15,6 +15,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/i2c.h>
 #include <linux/smc91x.h>
+#include <asm/clock.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
@@ -217,6 +218,8 @@ static struct i2c_board_info __initdata migor_i2c_devices[] = {
 
 static int __init migor_devices_setup(void)
 {
+	clk_always_enable("mstp214"); /* KEYSC */
+
 	i2c_register_board_info(0, migor_i2c_devices,
 				ARRAY_SIZE(migor_i2c_devices));
  
@@ -235,15 +238,11 @@ static void __init migor_setup(char **cmdline_p)
 	ctrl_outw(ctrl_inw(PORT_PSELA) & ~0x4100, PORT_PSELA);
 	ctrl_outw(ctrl_inw(PORT_HIZCRA) & ~0x4000, PORT_HIZCRA);
 	ctrl_outw(ctrl_inw(PORT_HIZCRC) & ~0xc000, PORT_HIZCRC);
-	ctrl_outl(ctrl_inl(MSTPCR2) & ~0x00004000, MSTPCR2);
 
 	/* NAND Flash */
 	ctrl_outw(ctrl_inw(PORT_PXCR) & 0x0fff, PORT_PXCR);
 	ctrl_outl((ctrl_inl(BSC_CS6ABCR) & ~0x00000600) | 0x00000200,
 		  BSC_CS6ABCR);
-
-	/* I2C */
-	ctrl_outl(ctrl_inl(MSTPCR1) & ~0x00000200, MSTPCR1);
 
 	/* Touch Panel - Enable IRQ6 */
 	ctrl_outw(ctrl_inw(PORT_PZCR) & ~0xc, PORT_PZCR);

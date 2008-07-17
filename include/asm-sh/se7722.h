@@ -55,10 +55,6 @@
 
 #define PA_LAN		(PA_AREA6_IO + 0)		/* SMC LAN91C111 */
 /* GPIO */
-#define MSTPCR0         0xA4150030UL
-#define MSTPCR1         0xA4150034UL
-#define MSTPCR2         0xA4150038UL
-
 #define FPGA_IN         0xb1840000UL
 #define FPGA_OUT        0xb1840004UL
 
