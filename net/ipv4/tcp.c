@@ -1475,7 +1475,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			/* __ Restore normal policy in scheduler __ */
 
 			if ((chunk = len - tp->ucopy.len) != 0) {
-				NET_ADD_STATS_USER(LINUX_MIB_TCPDIRECTCOPYFROMBACKLOG, chunk);
+				NET_ADD_STATS_USER(sock_net(sk), LINUX_MIB_TCPDIRECTCOPYFROMBACKLOG, chunk);
 				len -= chunk;
 				copied += chunk;
 			}
@@ -1486,7 +1486,7 @@ do_prequeue:
 				tcp_prequeue_process(sk);
 
 				if ((chunk = len - tp->ucopy.len) != 0) {
-					NET_ADD_STATS_USER(LINUX_MIB_TCPDIRECTCOPYFROMPREQUEUE, chunk);
+					NET_ADD_STATS_USER(sock_net(sk), LINUX_MIB_TCPDIRECTCOPYFROMPREQUEUE, chunk);
 					len -= chunk;
 					copied += chunk;
 				}
@@ -1601,7 +1601,7 @@ skip_copy:
 			tcp_prequeue_process(sk);
 
 			if (copied > 0 && (chunk = len - tp->ucopy.len) != 0) {
-				NET_ADD_STATS_USER(LINUX_MIB_TCPDIRECTCOPYFROMPREQUEUE, chunk);
+				NET_ADD_STATS_USER(sock_net(sk), LINUX_MIB_TCPDIRECTCOPYFROMPREQUEUE, chunk);
 				len -= chunk;
 				copied += chunk;
 			}
