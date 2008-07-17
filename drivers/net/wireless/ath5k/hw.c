@@ -2387,6 +2387,7 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 		break;
 
 	case IEEE80211_IF_TYPE_AP:
+	case IEEE80211_IF_TYPE_MESH_POINT:
 		pcu_reg |= AR5K_STA_ID1_AP | AR5K_STA_ID1_RTS_DEF_ANTENNA |
 			(ah->ah_version == AR5K_AR5210 ?
 				AR5K_STA_ID1_NO_PSPOLL : 0);
