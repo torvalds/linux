@@ -108,85 +108,63 @@ done:
 	return ret;
 }
 
-static const struct {
-	char *vendor;
-	char *model;
-} hp_sw_dh_data_list[] = {
+const struct scsi_dh_devlist hp_sw_dh_data_list[] = {
 	{"COMPAQ", "MSA"},
 	{"HP", "HSV"},
 	{"DEC", "HSG80"},
 	{NULL, NULL},
 };
 
-static int hp_sw_bus_notify(struct notifier_block *, unsigned long, void *);
+static int hp_sw_bus_attach(struct scsi_device *sdev);
+static void hp_sw_bus_detach(struct scsi_device *sdev);
 
 static struct scsi_device_handler hp_sw_dh = {
 	.name		= HP_SW_NAME,
 	.module		= THIS_MODULE,
-	.nb.notifier_call = hp_sw_bus_notify,
+	.devlist	= hp_sw_dh_data_list,
+	.attach		= hp_sw_bus_attach,
+	.detach		= hp_sw_bus_detach,
 	.activate	= hp_sw_activate,
 };
 
-static int hp_sw_bus_notify(struct notifier_block *nb,
-			    unsigned long action, void *data)
+static int hp_sw_bus_attach(struct scsi_device *sdev)
 {
-	struct device *dev = data;
-	struct scsi_device *sdev;
 	struct scsi_dh_data *scsi_dh_data;
-	int i, found = 0;
 	unsigned long flags;
 
-	if (!scsi_is_sdev_device(dev))
+	scsi_dh_data = kzalloc(sizeof(struct scsi_device_handler *)
+			       + sizeof(struct hp_sw_dh_data) , GFP_KERNEL);
+	if (!scsi_dh_data) {
+		sdev_printk(KERN_ERR, sdev, "Attach Failed %s.\n",
+			    HP_SW_NAME);
 		return 0;
-
-	sdev = to_scsi_device(dev);
-
-	if (action == BUS_NOTIFY_ADD_DEVICE) {
-		for (i = 0; hp_sw_dh_data_list[i].vendor; i++) {
-			if (!strncmp(sdev->vendor, hp_sw_dh_data_list[i].vendor,
-				     strlen(hp_sw_dh_data_list[i].vendor)) &&
-			    !strncmp(sdev->model, hp_sw_dh_data_list[i].model,
-				     strlen(hp_sw_dh_data_list[i].model))) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found)
-			goto out;
-
-		scsi_dh_data = kzalloc(sizeof(struct scsi_device_handler *)
-				+ sizeof(struct hp_sw_dh_data) , GFP_KERNEL);
-		if (!scsi_dh_data) {
-			sdev_printk(KERN_ERR, sdev, "Attach Failed %s.\n",
-				    HP_SW_NAME);
-			goto out;
-		}
-
-		scsi_dh_data->scsi_dh = &hp_sw_dh;
-		spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-		sdev->scsi_dh_data = scsi_dh_data;
-		spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
-		try_module_get(THIS_MODULE);
-
-		sdev_printk(KERN_NOTICE, sdev, "Attached %s.\n", HP_SW_NAME);
-	} else if (action == BUS_NOTIFY_DEL_DEVICE) {
-		if (sdev->scsi_dh_data == NULL ||
-				sdev->scsi_dh_data->scsi_dh != &hp_sw_dh)
-			goto out;
-
-		spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-		scsi_dh_data = sdev->scsi_dh_data;
-		sdev->scsi_dh_data = NULL;
-		spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
-		module_put(THIS_MODULE);
-
-		sdev_printk(KERN_NOTICE, sdev, "Dettached %s.\n", HP_SW_NAME);
-
-		kfree(scsi_dh_data);
 	}
 
-out:
+	scsi_dh_data->scsi_dh = &hp_sw_dh;
+	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
+	sdev->scsi_dh_data = scsi_dh_data;
+	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
+	try_module_get(THIS_MODULE);
+
+	sdev_printk(KERN_NOTICE, sdev, "Attached %s.\n", HP_SW_NAME);
+
 	return 0;
+}
+
+static void hp_sw_bus_detach( struct scsi_device *sdev )
+{
+	struct scsi_dh_data *scsi_dh_data;
+	unsigned long flags;
+
+	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
+	scsi_dh_data = sdev->scsi_dh_data;
+	sdev->scsi_dh_data = NULL;
+	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
+	module_put(THIS_MODULE);
+
+	sdev_printk(KERN_NOTICE, sdev, "Detached %s\n", HP_SW_NAME);
+
+	kfree(scsi_dh_data);
 }
 
 static int __init hp_sw_init(void)

@@ -569,10 +569,7 @@ static int rdac_check_sense(struct scsi_device *sdev,
 	return SCSI_RETURN_NOT_HANDLED;
 }
 
-static const struct {
-	char *vendor;
-	char *model;
-} rdac_dev_list[] = {
+const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"IBM", "1722"},
 	{"IBM", "1724"},
 	{"IBM", "1726"},
@@ -590,88 +587,68 @@ static const struct {
 	{NULL, NULL},
 };
 
-static int rdac_bus_notify(struct notifier_block *, unsigned long, void *);
+static int rdac_bus_attach(struct scsi_device *sdev);
+static void rdac_bus_detach(struct scsi_device *sdev);
 
 static struct scsi_device_handler rdac_dh = {
 	.name = RDAC_NAME,
 	.module = THIS_MODULE,
-	.nb.notifier_call = rdac_bus_notify,
+	.devlist = rdac_dev_list,
 	.prep_fn = rdac_prep_fn,
 	.check_sense = rdac_check_sense,
+	.attach = rdac_bus_attach,
+	.detach = rdac_bus_detach,
 	.activate = rdac_activate,
 };
 
-/*
- * TODO: need some interface so we can set trespass values
- */
-static int rdac_bus_notify(struct notifier_block *nb,
-			    unsigned long action, void *data)
+static int rdac_bus_attach(struct scsi_device *sdev)
 {
-	struct device *dev = data;
-	struct scsi_device *sdev;
 	struct scsi_dh_data *scsi_dh_data;
 	struct rdac_dh_data *h;
-	int i, found = 0;
 	unsigned long flags;
 
-	if (!scsi_is_sdev_device(dev))
+	scsi_dh_data = kzalloc(sizeof(struct scsi_device_handler *)
+			       + sizeof(*h) , GFP_KERNEL);
+	if (!scsi_dh_data) {
+		sdev_printk(KERN_ERR, sdev, "Attach failed %s.\n",
+			    RDAC_NAME);
 		return 0;
-
-	sdev = to_scsi_device(dev);
-
-	if (action == BUS_NOTIFY_ADD_DEVICE) {
-		for (i = 0; rdac_dev_list[i].vendor; i++) {
-			if (!strncmp(sdev->vendor, rdac_dev_list[i].vendor,
-				     strlen(rdac_dev_list[i].vendor)) &&
-			    !strncmp(sdev->model, rdac_dev_list[i].model,
-				     strlen(rdac_dev_list[i].model))) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found)
-			goto out;
-
-		scsi_dh_data = kzalloc(sizeof(struct scsi_device_handler *)
-				+ sizeof(*h) , GFP_KERNEL);
-		if (!scsi_dh_data) {
-			sdev_printk(KERN_ERR, sdev, "Attach failed %s.\n",
-				    RDAC_NAME);
-			goto out;
-		}
-
-		scsi_dh_data->scsi_dh = &rdac_dh;
-		h = (struct rdac_dh_data *) scsi_dh_data->buf;
-		h->lun = UNINITIALIZED_LUN;
-		h->state = RDAC_STATE_ACTIVE;
-		spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-		sdev->scsi_dh_data = scsi_dh_data;
-		spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
-		try_module_get(THIS_MODULE);
-
-		sdev_printk(KERN_NOTICE, sdev, "Attached %s.\n", RDAC_NAME);
-
-	} else if (action == BUS_NOTIFY_DEL_DEVICE) {
-		if (sdev->scsi_dh_data == NULL ||
-				sdev->scsi_dh_data->scsi_dh != &rdac_dh)
-			goto out;
-
-		spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-		scsi_dh_data = sdev->scsi_dh_data;
-		sdev->scsi_dh_data = NULL;
-		spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
-
-		h = (struct rdac_dh_data *) scsi_dh_data->buf;
-		if (h->ctlr)
-			kref_put(&h->ctlr->kref, release_controller);
-		kfree(scsi_dh_data);
-		module_put(THIS_MODULE);
-		sdev_printk(KERN_NOTICE, sdev, "Dettached %s.\n", RDAC_NAME);
 	}
 
-out:
+	scsi_dh_data->scsi_dh = &rdac_dh;
+	h = (struct rdac_dh_data *) scsi_dh_data->buf;
+	h->lun = UNINITIALIZED_LUN;
+	h->state = RDAC_STATE_ACTIVE;
+	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
+	sdev->scsi_dh_data = scsi_dh_data;
+	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
+	try_module_get(THIS_MODULE);
+
+	sdev_printk(KERN_NOTICE, sdev, "Attached %s\n", RDAC_NAME);
+
 	return 0;
 }
+
+static void rdac_bus_detach( struct scsi_device *sdev )
+{
+	struct scsi_dh_data *scsi_dh_data;
+	struct rdac_dh_data *h;
+	unsigned long flags;
+
+	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
+	scsi_dh_data = sdev->scsi_dh_data;
+	sdev->scsi_dh_data = NULL;
+	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
+
+	h = (struct rdac_dh_data *) scsi_dh_data->buf;
+	if (h->ctlr)
+		kref_put(&h->ctlr->kref, release_controller);
+	kfree(scsi_dh_data);
+	module_put(THIS_MODULE);
+	sdev_printk(KERN_NOTICE, sdev, "Detached %s\n", RDAC_NAME);
+}
+
+
 
 static int __init rdac_init(void)
 {

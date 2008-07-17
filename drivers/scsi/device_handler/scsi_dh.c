@@ -33,7 +33,7 @@ static struct scsi_device_handler *get_device_handler(const char *name)
 
 	spin_lock(&list_lock);
 	list_for_each_entry(tmp, &scsi_dh_list, list) {
-		if (!strcmp(tmp->name, name)) {
+		if (!strncmp(tmp->name, name, strlen(tmp->name))) {
 			found = tmp;
 			break;
 		}
@@ -42,11 +42,147 @@ static struct scsi_device_handler *get_device_handler(const char *name)
 	return found;
 }
 
+static int device_handler_match(struct scsi_device_handler *tmp,
+				struct scsi_device *sdev)
+{
+	int i;
+
+	for(i = 0; tmp->devlist[i].vendor; i++) {
+		if (!strncmp(sdev->vendor, tmp->devlist[i].vendor,
+			     strlen(tmp->devlist[i].vendor)) &&
+		    !strncmp(sdev->model, tmp->devlist[i].model,
+			     strlen(tmp->devlist[i].model))) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * scsi_dh_handler_attach - Attach a device handler to a device
+ * @sdev - SCSI device the device handler should attach to
+ * @scsi_dh - The device handler to attach
+ */
+static int scsi_dh_handler_attach(struct scsi_device *sdev,
+				  struct scsi_device_handler *scsi_dh)
+{
+	int err = 0;
+
+	if (sdev->scsi_dh_data) {
+		if (sdev->scsi_dh_data->scsi_dh != scsi_dh)
+			err = -EBUSY;
+	} else if (scsi_dh->attach)
+		err = scsi_dh->attach(sdev);
+
+	return err;
+}
+
+/*
+ * scsi_dh_handler_detach - Detach a device handler from a device
+ * @sdev - SCSI device the device handler should be detached from
+ * @scsi_dh - Device handler to be detached
+ *
+ * Detach from a device handler. If a device handler is specified,
+ * only detach if the currently attached handler is equal to it.
+ */
+static void scsi_dh_handler_detach(struct scsi_device *sdev,
+				   struct scsi_device_handler *scsi_dh)
+{
+	if (!sdev->scsi_dh_data)
+		return;
+
+	if (scsi_dh && scsi_dh != sdev->scsi_dh_data->scsi_dh)
+		return;
+
+	if (!scsi_dh)
+		scsi_dh = sdev->scsi_dh_data->scsi_dh;
+
+	if (scsi_dh && scsi_dh->detach)
+		scsi_dh->detach(sdev);
+}
+
+/*
+ * scsi_dh_notifier - notifier chain callback
+ */
+static int scsi_dh_notifier(struct notifier_block *nb,
+			    unsigned long action, void *data)
+{
+	struct device *dev = data;
+	struct scsi_device *sdev;
+	int err = 0;
+	struct scsi_device_handler *tmp, *devinfo = NULL;
+
+	if (!scsi_is_sdev_device(dev))
+		return 0;
+
+	sdev = to_scsi_device(dev);
+
+	spin_lock(&list_lock);
+	list_for_each_entry(tmp, &scsi_dh_list, list) {
+		if (device_handler_match(tmp, sdev)) {
+			devinfo = tmp;
+			break;
+		}
+	}
+	spin_unlock(&list_lock);
+
+	if (!devinfo)
+		goto out;
+
+	if (action == BUS_NOTIFY_ADD_DEVICE) {
+		err = scsi_dh_handler_attach(sdev, devinfo);
+	} else if (action == BUS_NOTIFY_DEL_DEVICE) {
+		scsi_dh_handler_detach(sdev, NULL);
+	}
+out:
+	return err;
+}
+
+/*
+ * scsi_dh_notifier_add - Callback for scsi_register_device_handler
+ */
 static int scsi_dh_notifier_add(struct device *dev, void *data)
 {
 	struct scsi_device_handler *scsi_dh = data;
+	struct scsi_device *sdev;
 
-	scsi_dh->nb.notifier_call(&scsi_dh->nb, BUS_NOTIFY_ADD_DEVICE, dev);
+	if (!scsi_is_sdev_device(dev))
+		return 0;
+
+	if (!get_device(dev))
+		return 0;
+
+	sdev = to_scsi_device(dev);
+
+	if (device_handler_match(scsi_dh, sdev))
+		scsi_dh_handler_attach(sdev, scsi_dh);
+
+	put_device(dev);
+
+	return 0;
+}
+
+/*
+ * scsi_dh_notifier_remove - Callback for scsi_unregister_device_handler
+ */
+static int scsi_dh_notifier_remove(struct device *dev, void *data)
+{
+	struct scsi_device_handler *scsi_dh = data;
+	struct scsi_device *sdev;
+
+	if (!scsi_is_sdev_device(dev))
+		return 0;
+
+	if (!get_device(dev))
+		return 0;
+
+	sdev = to_scsi_device(dev);
+
+	scsi_dh_handler_detach(sdev, scsi_dh);
+
+	put_device(dev);
+
 	return 0;
 }
 
@@ -59,32 +195,18 @@ static int scsi_dh_notifier_add(struct device *dev, void *data)
  */
 int scsi_register_device_handler(struct scsi_device_handler *scsi_dh)
 {
-	int ret = -EBUSY;
-	struct scsi_device_handler *tmp;
+	if (get_device_handler(scsi_dh->name))
+		return -EBUSY;
 
-	tmp = get_device_handler(scsi_dh->name);
-	if (tmp)
-		goto done;
-
-	ret = bus_register_notifier(&scsi_bus_type, &scsi_dh->nb);
-
-	bus_for_each_dev(&scsi_bus_type, NULL, scsi_dh, scsi_dh_notifier_add);
 	spin_lock(&list_lock);
 	list_add(&scsi_dh->list, &scsi_dh_list);
 	spin_unlock(&list_lock);
+	bus_for_each_dev(&scsi_bus_type, NULL, scsi_dh, scsi_dh_notifier_add);
+	printk(KERN_INFO "%s: device handler registered\n", scsi_dh->name);
 
-done:
-	return ret;
+	return SCSI_DH_OK;
 }
 EXPORT_SYMBOL_GPL(scsi_register_device_handler);
-
-static int scsi_dh_notifier_remove(struct device *dev, void *data)
-{
-	struct scsi_device_handler *scsi_dh = data;
-
-	scsi_dh->nb.notifier_call(&scsi_dh->nb, BUS_NOTIFY_DEL_DEVICE, dev);
-	return 0;
-}
 
 /*
  * scsi_unregister_device_handler - register a device handler personality
@@ -95,23 +217,18 @@ static int scsi_dh_notifier_remove(struct device *dev, void *data)
  */
 int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh)
 {
-	int ret = -ENODEV;
-	struct scsi_device_handler *tmp;
-
-	tmp = get_device_handler(scsi_dh->name);
-	if (!tmp)
-		goto done;
-
-	ret = bus_unregister_notifier(&scsi_bus_type, &scsi_dh->nb);
+	if (!get_device_handler(scsi_dh->name))
+		return -ENODEV;
 
 	bus_for_each_dev(&scsi_bus_type, NULL, scsi_dh,
-					scsi_dh_notifier_remove);
+			 scsi_dh_notifier_remove);
+
 	spin_lock(&list_lock);
 	list_del(&scsi_dh->list);
 	spin_unlock(&list_lock);
+	printk(KERN_INFO "%s: device handler unregistered\n", scsi_dh->name);
 
-done:
-	return ret;
+	return SCSI_DH_OK;
 }
 EXPORT_SYMBOL_GPL(scsi_unregister_device_handler);
 
@@ -156,6 +273,27 @@ int scsi_dh_handler_exist(const char *name)
 	return (get_device_handler(name) != NULL);
 }
 EXPORT_SYMBOL_GPL(scsi_dh_handler_exist);
+
+static struct notifier_block scsi_dh_nb = {
+	.notifier_call = scsi_dh_notifier
+};
+
+static int __init scsi_dh_init(void)
+{
+	int r;
+
+	r = bus_register_notifier(&scsi_bus_type, &scsi_dh_nb);
+
+	return r;
+}
+
+static void __exit scsi_dh_exit(void)
+{
+	bus_unregister_notifier(&scsi_bus_type, &scsi_dh_nb);
+}
+
+module_init(scsi_dh_init);
+module_exit(scsi_dh_exit);
 
 MODULE_DESCRIPTION("SCSI device handler");
 MODULE_AUTHOR("Chandra Seetharaman <sekharan@us.ibm.com>");
