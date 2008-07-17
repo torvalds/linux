@@ -149,7 +149,7 @@ geodewdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		.identity =             WATCHDOG_NAME,
         };
 
-	switch(cmd) {
+	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident,
 				    sizeof(ident)) ? -EFAULT : 0;

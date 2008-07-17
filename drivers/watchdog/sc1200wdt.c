@@ -196,7 +196,6 @@ static long sc1200wdt_ioctl(struct file *file, unsigned int cmd,
 	};
 
 	switch (cmd) {
-
 	case WDIOC_GETSUPPORT:
 		if (copy_to_user(argp, &ident, sizeof ident))
 			return -EFAULT;

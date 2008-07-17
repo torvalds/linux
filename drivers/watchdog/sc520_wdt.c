@@ -290,8 +290,7 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		.identity = "SC520",
 	};
 
-	switch (cmd)
-	{
+	switch (cmd) {
 	default:
 		return -ENOTTY;
 	case WDIOC_GETSUPPORT:

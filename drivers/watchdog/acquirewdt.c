@@ -169,7 +169,7 @@ static long acq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return 0;
 
 	case WDIOC_GETTIMEOUT:
-	  return put_user(WATCHDOG_HEARTBEAT, p);
+		return put_user(WATCHDOG_HEARTBEAT, p);
 
 	case WDIOC_SETOPTIONS:
 	{

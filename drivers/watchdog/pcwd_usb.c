@@ -382,77 +382,77 @@ static long usb_pcwd_ioctl(struct file *file, unsigned int cmd,
 	};
 
 	switch (cmd) {
-		case WDIOC_GETSUPPORT:
-			return copy_to_user(argp, &ident,
-				sizeof (ident)) ? -EFAULT : 0;
+	case WDIOC_GETSUPPORT:
+		return copy_to_user(argp, &ident,
+			sizeof (ident)) ? -EFAULT : 0;
 
-		case WDIOC_GETSTATUS:
-		case WDIOC_GETBOOTSTATUS:
-			return put_user(0, p);
+	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
+		return put_user(0, p);
 
-		case WDIOC_GETTEMP:
-		{
-			int temperature;
+	case WDIOC_GETTEMP:
+	{
+		int temperature;
 
-			if (usb_pcwd_get_temperature(usb_pcwd_device, &temperature))
-				return -EFAULT;
+		if (usb_pcwd_get_temperature(usb_pcwd_device, &temperature))
+			return -EFAULT;
 
-			return put_user(temperature, p);
+		return put_user(temperature, p);
+	}
+
+	case WDIOC_KEEPALIVE:
+		usb_pcwd_keepalive(usb_pcwd_device);
+		return 0;
+
+	case WDIOC_SETOPTIONS:
+	{
+		int new_options, retval = -EINVAL;
+
+		if (get_user (new_options, p))
+			return -EFAULT;
+
+		if (new_options & WDIOS_DISABLECARD) {
+			usb_pcwd_stop(usb_pcwd_device);
+			retval = 0;
 		}
 
-		case WDIOC_KEEPALIVE:
-			usb_pcwd_keepalive(usb_pcwd_device);
-			return 0;
-
-		case WDIOC_SETOPTIONS:
-		{
-			int new_options, retval = -EINVAL;
-
-			if (get_user (new_options, p))
-				return -EFAULT;
-
-			if (new_options & WDIOS_DISABLECARD) {
-				usb_pcwd_stop(usb_pcwd_device);
-				retval = 0;
-			}
-
-			if (new_options & WDIOS_ENABLECARD) {
-				usb_pcwd_start(usb_pcwd_device);
-				retval = 0;
-			}
-
-			return retval;
+		if (new_options & WDIOS_ENABLECARD) {
+			usb_pcwd_start(usb_pcwd_device);
+			retval = 0;
 		}
 
-		case WDIOC_SETTIMEOUT:
-		{
-			int new_heartbeat;
+		return retval;
+	}
 
-			if (get_user(new_heartbeat, p))
-				return -EFAULT;
+	case WDIOC_SETTIMEOUT:
+	{
+		int new_heartbeat;
 
-			if (usb_pcwd_set_heartbeat(usb_pcwd_device, new_heartbeat))
-			    return -EINVAL;
+		if (get_user(new_heartbeat, p))
+			return -EFAULT;
 
-			usb_pcwd_keepalive(usb_pcwd_device);
-			/* Fall */
-		}
+		if (usb_pcwd_set_heartbeat(usb_pcwd_device, new_heartbeat))
+		    return -EINVAL;
 
-		case WDIOC_GETTIMEOUT:
-			return put_user(heartbeat, p);
+		usb_pcwd_keepalive(usb_pcwd_device);
+		/* Fall */
+	}
 
-		case WDIOC_GETTIMELEFT:
-		{
-			int time_left;
+	case WDIOC_GETTIMEOUT:
+		return put_user(heartbeat, p);
 
-			if (usb_pcwd_get_timeleft(usb_pcwd_device, &time_left))
-				return -EFAULT;
+	case WDIOC_GETTIMELEFT:
+	{
+		int time_left;
 
-			return put_user(time_left, p);
-		}
+		if (usb_pcwd_get_timeleft(usb_pcwd_device, &time_left))
+			return -EFAULT;
 
-		default:
-			return -ENOTTY;
+		return put_user(time_left, p);
+	}
+
+	default:
+		return -ENOTTY;
 	}
 }
 
