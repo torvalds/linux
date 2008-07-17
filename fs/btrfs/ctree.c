@@ -3206,7 +3206,8 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 			free_extent_buffer(next);
 		}
 
-		if (level == 1 && path->locks[1] && path->reada)
+		if (level == 1 && (path->locks[1] || path->skip_locking) &&
+		    path->reada)
 			reada_for_search(root, path, level, slot, 0);
 
 		next = read_node_slot(root, c, slot);
