@@ -63,8 +63,6 @@ static inline int dvma_map_cpu(unsigned long kaddr, unsigned long vaddr,
 	return 0;
 }
 
-extern unsigned long dvma_page(unsigned long kaddr, unsigned long vaddr);
-
 #else /* Sun3x */
 
 /* sun3x dvma page support */

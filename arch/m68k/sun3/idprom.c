@@ -25,7 +25,7 @@ static struct idprom idprom_buffer;
  * of the Sparc CPU and have a meaningful IDPROM machtype value that we
  * know about.  See asm-sparc/machines.h for empirical constants.
  */
-struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES] = {
+static struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES] = {
 /* First, Sun3's */
     { .name = "Sun 3/160 Series",	.id_machtype = (SM_SUN3 | SM_3_160) },
     { .name = "Sun 3/50",		.id_machtype = (SM_SUN3 | SM_3_50) },

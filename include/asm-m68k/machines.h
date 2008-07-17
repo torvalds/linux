@@ -21,8 +21,6 @@ struct Sun_Machine_Models {
 //#define NUM_SUN_MACHINES   23
 #define NUM_SUN_MACHINES  8
 
-extern struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES];
-
 /* The machine type in the idprom area looks like this:
  *
  * ---------------
