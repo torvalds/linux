@@ -55,13 +55,27 @@
 
 #define NR_IOSAPICS			256
 
-static inline unsigned int __iosapic_read(char __iomem *iosapic, unsigned int reg)
+#ifdef CONFIG_PARAVIRT_GUEST
+#include <asm/paravirt.h>
+#else
+#define iosapic_pcat_compat_init	ia64_native_iosapic_pcat_compat_init
+#define __iosapic_read			__ia64_native_iosapic_read
+#define __iosapic_write			__ia64_native_iosapic_write
+#define iosapic_get_irq_chip		ia64_native_iosapic_get_irq_chip
+#endif
+
+extern void __init ia64_native_iosapic_pcat_compat_init(void);
+extern struct irq_chip *ia64_native_iosapic_get_irq_chip(unsigned long trigger);
+
+static inline unsigned int
+__ia64_native_iosapic_read(char __iomem *iosapic, unsigned int reg)
 {
 	writel(reg, iosapic + IOSAPIC_REG_SELECT);
 	return readl(iosapic + IOSAPIC_WINDOW);
 }
 
-static inline void __iosapic_write(char __iomem *iosapic, unsigned int reg, u32 val)
+static inline void
+__ia64_native_iosapic_write(char __iomem *iosapic, unsigned int reg, u32 val)
 {
 	writel(reg, iosapic + IOSAPIC_REG_SELECT);
 	writel(val, iosapic + IOSAPIC_WINDOW);
