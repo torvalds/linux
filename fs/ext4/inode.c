@@ -980,6 +980,67 @@ out:
 	return err;
 }
 
+/*
+ * Calculate the number of metadata blocks need to reserve
+ * to allocate @blocks for non extent file based file
+ */
+static int ext4_indirect_calc_metadata_amount(struct inode *inode, int blocks)
+{
+	int icap = EXT4_ADDR_PER_BLOCK(inode->i_sb);
+	int ind_blks, dind_blks, tind_blks;
+
+	/* number of new indirect blocks needed */
+	ind_blks = (blocks + icap - 1) / icap;
+
+	dind_blks = (ind_blks + icap - 1) / icap;
+
+	tind_blks = 1;
+
+	return ind_blks + dind_blks + tind_blks;
+}
+
+/*
+ * Calculate the number of metadata blocks need to reserve
+ * to allocate given number of blocks
+ */
+static int ext4_calc_metadata_amount(struct inode *inode, int blocks)
+{
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
+		return ext4_ext_calc_metadata_amount(inode, blocks);
+
+	return ext4_indirect_calc_metadata_amount(inode, blocks);
+}
+
+static void ext4_da_update_reserve_space(struct inode *inode, int used)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	int total, mdb, mdb_free;
+
+	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
+	/* recalculate the number of metablocks still need to be reserved */
+	total = EXT4_I(inode)->i_reserved_data_blocks - used;
+	mdb = ext4_calc_metadata_amount(inode, total);
+
+	/* figure out how many metablocks to release */
+	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
+	mdb_free = EXT4_I(inode)->i_reserved_meta_blocks - mdb;
+
+	/* Account for allocated meta_blocks */
+	mdb_free -= EXT4_I(inode)->i_allocated_meta_blocks;
+
+	/* update fs free blocks counter for truncate case */
+	percpu_counter_add(&sbi->s_freeblocks_counter, mdb_free);
+
+	/* update per-inode reservations */
+	BUG_ON(used  > EXT4_I(inode)->i_reserved_data_blocks);
+	EXT4_I(inode)->i_reserved_data_blocks -= used;
+
+	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
+	EXT4_I(inode)->i_reserved_meta_blocks = mdb;
+	EXT4_I(inode)->i_allocated_meta_blocks = 0;
+	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+}
+
 /* Maximum number of blocks we map for direct IO at once. */
 #define DIO_MAX_BLOCKS 4096
 /*
@@ -1097,7 +1158,7 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 		 * which were deferred till now
 		 */
 		if ((retval > 0) && buffer_delay(bh))
-			ext4_da_release_space(inode, retval, 0);
+			ext4_da_update_reserve_space(inode, retval);
 	}
 
 	up_write((&EXT4_I(inode)->i_data_sem));
@@ -1465,36 +1526,6 @@ static int ext4_journalled_write_end(struct file *file,
 
 	return ret ? ret : copied;
 }
-/*
- * Calculate the number of metadata blocks need to reserve
- * to allocate @blocks for non extent file based file
- */
-static int ext4_indirect_calc_metadata_amount(struct inode *inode, int blocks)
-{
-	int icap = EXT4_ADDR_PER_BLOCK(inode->i_sb);
-	int ind_blks, dind_blks, tind_blks;
-
-	/* number of new indirect blocks needed */
-	ind_blks = (blocks + icap - 1) / icap;
-
-	dind_blks = (ind_blks + icap - 1) / icap;
-
-	tind_blks = 1;
-
-	return ind_blks + dind_blks + tind_blks;
-}
-
-/*
- * Calculate the number of metadata blocks need to reserve
- * to allocate given number of blocks
- */
-static int ext4_calc_metadata_amount(struct inode *inode, int blocks)
-{
-	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
-		return ext4_ext_calc_metadata_amount(inode, blocks);
-
-	return ext4_indirect_calc_metadata_amount(inode, blocks);
-}
 
 static int ext4_da_reserve_space(struct inode *inode, int nrblocks)
 {
@@ -1518,7 +1549,6 @@ static int ext4_da_reserve_space(struct inode *inode, int nrblocks)
 		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 		return -ENOSPC;
 	}
-
 	/* reduce fs free blocks counter */
 	percpu_counter_sub(&sbi->s_freeblocks_counter, total);
 
@@ -1529,22 +1559,19 @@ static int ext4_da_reserve_space(struct inode *inode, int nrblocks)
 	return 0;       /* success */
 }
 
-void ext4_da_release_space(struct inode *inode, int used, int to_free)
+static void ext4_da_release_space(struct inode *inode, int to_free)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	int total, mdb, mdb_free, release;
 
 	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 	/* recalculate the number of metablocks still need to be reserved */
-	total = EXT4_I(inode)->i_reserved_data_blocks - used - to_free;
+	total = EXT4_I(inode)->i_reserved_data_blocks - to_free;
 	mdb = ext4_calc_metadata_amount(inode, total);
 
 	/* figure out how many metablocks to release */
 	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
 	mdb_free = EXT4_I(inode)->i_reserved_meta_blocks - mdb;
-
-	/* Account for allocated meta_blocks */
-	mdb_free -= EXT4_I(inode)->i_allocated_meta_blocks;
 
 	release = to_free + mdb_free;
 
@@ -1552,12 +1579,11 @@ void ext4_da_release_space(struct inode *inode, int used, int to_free)
 	percpu_counter_add(&sbi->s_freeblocks_counter, release);
 
 	/* update per-inode reservations */
-	BUG_ON(used + to_free > EXT4_I(inode)->i_reserved_data_blocks);
-	EXT4_I(inode)->i_reserved_data_blocks -= (used + to_free);
+	BUG_ON(to_free > EXT4_I(inode)->i_reserved_data_blocks);
+	EXT4_I(inode)->i_reserved_data_blocks -= to_free;
 
 	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
 	EXT4_I(inode)->i_reserved_meta_blocks = mdb;
-	EXT4_I(inode)->i_allocated_meta_blocks = 0;
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 }
 
@@ -1579,7 +1605,7 @@ static void ext4_da_page_release_reservation(struct page *page,
 		}
 		curr_off = next_off;
 	} while ((bh = bh->b_this_page) != head);
-	ext4_da_release_space(page->mapping->host, 0, to_release);
+	ext4_da_release_space(page->mapping->host, to_release);
 }
 
 /*
