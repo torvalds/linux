@@ -375,7 +375,7 @@ video_device_create_file(struct video_device *vfd,
 {
 	int ret = device_create_file(&vfd->class_dev, attr);
 	if (ret < 0)
-		printk(KERN_WARNING "%s error: %d\n", __FUNCTION__, ret);
+		printk(KERN_WARNING "%s error: %d\n", __func__, ret);
 	return ret;
 }
 static inline void

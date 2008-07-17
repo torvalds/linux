@@ -392,6 +392,12 @@ static ssize_t show_name(struct device *cd,
 	return sprintf(buf, "%.*s\n", (int)sizeof(vfd->name), vfd->name);
 }
 
+static struct device_attribute video_device_attrs[] = {
+	__ATTR(name, S_IRUGO, show_name, NULL),
+	__ATTR(index, S_IRUGO, show_index, NULL),
+	__ATTR_NULL
+};
+
 struct video_device *video_device_alloc(void)
 {
 	struct video_device *vfd;
@@ -419,12 +425,6 @@ static void video_release(struct device *cd)
 #endif
 	vfd->release(vfd);
 }
-
-static struct device_attribute video_device_attrs[] = {
-	__ATTR(name, S_IRUGO, show_name, NULL),
-	__ATTR(index, S_IRUGO, show_index, NULL),
-	__ATTR_NULL
-};
 
 static struct class video_class = {
 	.name    = VIDEO_NAME,
@@ -2173,8 +2173,7 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 
 	ret = get_index(vfd, index);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: get_index failed\n",
-		       __func__);
+		printk(KERN_ERR "%s: get_index failed\n", __func__);
 		goto fail_minor;
 	}
 
@@ -2185,15 +2184,14 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 
 	/* sysfs class */
 	memset(&vfd->class_dev, 0x00, sizeof(vfd->class_dev));
-	if (vfd->dev)
-		vfd->class_dev.parent = vfd->dev;
 	vfd->class_dev.class       = &video_class;
 	vfd->class_dev.devt        = MKDEV(VIDEO_MAJOR, vfd->minor);
+	if (vfd->dev)
+		vfd->class_dev.parent = vfd->dev;
 	sprintf(vfd->class_dev.bus_id, "%s%d", name_base, i - base);
 	ret = device_register(&vfd->class_dev);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: device_register failed\n",
-		       __func__);
+		printk(KERN_ERR "%s: device_register failed\n", __func__);
 		goto fail_minor;
 	}
 
