@@ -443,7 +443,6 @@ enum netdev_queue_state_t
 };
 
 struct netdev_queue {
-	spinlock_t		lock;
 	struct net_device	*dev;
 	struct Qdisc		*qdisc;
 	unsigned long		state;

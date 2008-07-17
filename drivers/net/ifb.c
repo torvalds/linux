@@ -35,7 +35,6 @@
 #include <linux/moduleparam.h>
 #include <net/pkt_sched.h>
 #include <net/net_namespace.h>
-#include <linux/lockdep.h>
 
 #define TX_TIMEOUT  (2*HZ)
 
@@ -228,22 +227,6 @@ static struct rtnl_link_ops ifb_link_ops __read_mostly = {
 module_param(numifbs, int, 0);
 MODULE_PARM_DESC(numifbs, "Number of ifb devices");
 
-/*
- * dev_ifb's TX queue lock is usually taken after dev->rx_queue.lock,
- * reversely to e.g. qdisc_lock_tree(). It should be safe until
- * ifb doesn't take dev's TX queue lock with dev_ifb->rx_queue.lock.
- * But lockdep should know that ifb has different locks from dev.
- */
-static struct lock_class_key ifb_tx_queue_lock_key;
-static struct lock_class_key ifb_rx_queue_lock_key;
-
-static void set_tx_lockdep_key(struct net_device *dev,
-			       struct netdev_queue *txq,
-			       void *_unused)
-{
-	lockdep_set_class(&txq->lock, &ifb_tx_queue_lock_key);
-}
-
 static int __init ifb_init_one(int index)
 {
 	struct net_device *dev_ifb;
@@ -263,9 +246,6 @@ static int __init ifb_init_one(int index)
 	err = register_netdevice(dev_ifb);
 	if (err < 0)
 		goto err;
-
-	netdev_for_each_tx_queue(dev_ifb, set_tx_lockdep_key, NULL);
-	lockdep_set_class(&dev_ifb->rx_queue.lock, &ifb_rx_queue_lock_key);
 
 	return 0;
 

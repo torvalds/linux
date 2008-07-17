@@ -2080,10 +2080,12 @@ static int ing_filter(struct sk_buff *skb)
 
 	rxq = &dev->rx_queue;
 
-	spin_lock(&rxq->lock);
-	if ((q = rxq->qdisc) != NULL)
+	q = rxq->qdisc;
+	if (q) {
+		spin_lock(qdisc_lock(q));
 		result = q->enqueue(skb, q);
-	spin_unlock(&rxq->lock);
+		spin_unlock(qdisc_lock(q));
+	}
 
 	return result;
 }
@@ -4173,7 +4175,6 @@ static void netdev_init_one_queue(struct net_device *dev,
 				  struct netdev_queue *queue,
 				  void *_unused)
 {
-	spin_lock_init(&queue->lock);
 	queue->dev = dev;
 }
 

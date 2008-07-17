@@ -237,12 +237,14 @@ void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
 		ieee80211_requeue(local, agg_queue);
 	} else {
 		struct netdev_queue *txq;
+		spinlock_t *root_lock;
 
 		txq = netdev_get_tx_queue(local->mdev, agg_queue);
+		root_lock = qdisc_root_lock(txq->qdisc);
 
-		spin_lock_bh(&txq->lock);
+		spin_lock_bh(root_lock);
 		qdisc_reset(txq->qdisc);
-		spin_unlock_bh(&txq->lock);
+		spin_unlock_bh(root_lock);
 	}
 }
 
@@ -250,6 +252,7 @@ void ieee80211_requeue(struct ieee80211_local *local, int queue)
 {
 	struct netdev_queue *txq = netdev_get_tx_queue(local->mdev, queue);
 	struct sk_buff_head list;
+	spinlock_t *root_lock;
 	struct Qdisc *qdisc;
 	u32 len;
 
@@ -261,14 +264,15 @@ void ieee80211_requeue(struct ieee80211_local *local, int queue)
 
 	skb_queue_head_init(&list);
 
-	spin_lock(&txq->lock);
+	root_lock = qdisc_root_lock(qdisc);
+	spin_lock(root_lock);
 	for (len = qdisc->q.qlen; len > 0; len--) {
 		struct sk_buff *skb = qdisc->dequeue(qdisc);
 
 		if (skb)
 			__skb_queue_tail(&list, skb);
 	}
-	spin_unlock(&txq->lock);
+	spin_unlock(root_lock);
 
 	for (len = list.qlen; len > 0; len--) {
 		struct sk_buff *skb = __skb_dequeue(&list);
@@ -280,12 +284,13 @@ void ieee80211_requeue(struct ieee80211_local *local, int queue)
 
 		txq = netdev_get_tx_queue(local->mdev, new_queue);
 
-		spin_lock(&txq->lock);
 
 		qdisc = rcu_dereference(txq->qdisc);
-		qdisc->enqueue(skb, qdisc);
+		root_lock = qdisc_root_lock(qdisc);
 
-		spin_unlock(&txq->lock);
+		spin_lock(root_lock);
+		qdisc->enqueue(skb, qdisc);
+		spin_unlock(root_lock);
 	}
 
 out_unlock:
