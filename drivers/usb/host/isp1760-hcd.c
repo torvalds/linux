@@ -1615,8 +1615,7 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		return -EPIPE;
 	}
 
-	isp1760_prepare_enqueue(priv, urb, &qtd_list, mem_flags, pe);
-	return 0;
+	return isp1760_prepare_enqueue(priv, urb, &qtd_list, mem_flags, pe);
 }
 
 static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
