@@ -1331,21 +1331,30 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 	return ret;
 }
 
+static void s3cmci_shutdown(struct platform_device *pdev)
+{
+	struct mmc_host	*mmc = platform_get_drvdata(pdev);
+	struct s3cmci_host *host = mmc_priv(mmc);
+
+	if (host->irq_cd >= 0)
+		free_irq(host->irq_cd, host);
+
+	mmc_remove_host(mmc);
+	clk_disable(host->clk);
+}
+
 static int __devexit s3cmci_remove(struct platform_device *pdev)
 {
 	struct mmc_host		*mmc  = platform_get_drvdata(pdev);
 	struct s3cmci_host	*host = mmc_priv(mmc);
 
-	mmc_remove_host(mmc);
+	s3cmci_shutdown(pdev);
 
-	clk_disable(host->clk);
 	clk_put(host->clk);
 
 	tasklet_disable(&host->pio_tasklet);
 	s3c2410_dma_free(S3CMCI_DMA, &s3cmci_dma_client);
 
-	if (host->irq_cd >= 0)
-		free_irq(host->irq_cd, host);
 	free_irq(host->irq, host);
 
 	iounmap(host->base);
@@ -1397,6 +1406,7 @@ static struct platform_driver s3cmci_2410_driver = {
 	.driver.owner	= THIS_MODULE,
 	.probe		= s3cmci_2410_probe,
 	.remove		= __devexit_p(s3cmci_remove),
+	.shutdown	= s3cmci_shutdown,
 	.suspend	= s3cmci_suspend,
 	.resume		= s3cmci_resume,
 };
@@ -1406,6 +1416,7 @@ static struct platform_driver s3cmci_2412_driver = {
 	.driver.owner	= THIS_MODULE,
 	.probe		= s3cmci_2412_probe,
 	.remove		= __devexit_p(s3cmci_remove),
+	.shutdown	= s3cmci_shutdown,
 	.suspend	= s3cmci_suspend,
 	.resume		= s3cmci_resume,
 };
@@ -1415,6 +1426,7 @@ static struct platform_driver s3cmci_2440_driver = {
 	.driver.owner	= THIS_MODULE,
 	.probe		= s3cmci_2440_probe,
 	.remove		= __devexit_p(s3cmci_remove),
+	.shutdown	= s3cmci_shutdown,
 	.suspend	= s3cmci_suspend,
 	.resume		= s3cmci_resume,
 };
