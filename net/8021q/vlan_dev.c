@@ -570,16 +570,18 @@ static void vlan_dev_set_rx_mode(struct net_device *vlan_dev)
  */
 static struct lock_class_key vlan_netdev_xmit_lock_key;
 
-static void vlan_dev_set_lockdep_one(struct netdev_queue *txq,
-				     int subclass)
+static void vlan_dev_set_lockdep_one(struct net_device *dev,
+				     struct netdev_queue *txq,
+				     void *_subclass)
 {
 	lockdep_set_class_and_subclass(&txq->_xmit_lock,
-				       &vlan_netdev_xmit_lock_key, subclass);
+				       &vlan_netdev_xmit_lock_key,
+				       *(int *)_subclass);
 }
 
 static void vlan_dev_set_lockdep_class(struct net_device *dev, int subclass)
 {
-	vlan_dev_set_lockdep_one(&dev->tx_queue, subclass);
+	netdev_for_each_tx_queue(dev, vlan_dev_set_lockdep_one, &subclass);
 }
 
 static const struct header_ops vlan_header_ops = {

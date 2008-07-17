@@ -111,7 +111,7 @@ teql_dequeue(struct Qdisc* sch)
 	struct sk_buff *skb;
 
 	skb = __skb_dequeue(&dat->q);
-	dat_queue = &dat->m->dev->tx_queue;
+	dat_queue = netdev_get_tx_queue(dat->m->dev, 0);
 	if (skb == NULL) {
 		struct net_device *m = qdisc_dev(dat_queue->qdisc);
 		if (m) {
@@ -155,10 +155,13 @@ teql_destroy(struct Qdisc* sch)
 				if (q == master->slaves) {
 					master->slaves = NEXT_SLAVE(q);
 					if (q == master->slaves) {
+						struct netdev_queue *txq;
+
+						txq = netdev_get_tx_queue(master->dev, 0);
 						master->slaves = NULL;
-						spin_lock_bh(&master->dev->tx_queue.lock);
-						qdisc_reset(master->dev->tx_queue.qdisc);
-						spin_unlock_bh(&master->dev->tx_queue.lock);
+						spin_lock_bh(&txq->lock);
+						qdisc_reset(txq->qdisc);
+						spin_unlock_bh(&txq->lock);
 					}
 				}
 				skb_queue_purge(&dat->q);
@@ -218,7 +221,8 @@ static int teql_qdisc_init(struct Qdisc *sch, struct nlattr *opt)
 static int
 __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res, struct net_device *dev)
 {
-	struct teql_sched_data *q = qdisc_priv(dev->tx_queue.qdisc);
+	struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, 0);
+	struct teql_sched_data *q = qdisc_priv(dev_queue->qdisc);
 	struct neighbour *mn = skb->dst->neighbour;
 	struct neighbour *n = q->ncache;
 
@@ -254,7 +258,8 @@ __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res, struct net_device *
 static inline int teql_resolve(struct sk_buff *skb,
 			       struct sk_buff *skb_res, struct net_device *dev)
 {
-	if (dev->tx_queue.qdisc == &noop_qdisc)
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
+	if (txq->qdisc == &noop_qdisc)
 		return -ENODEV;
 
 	if (dev->header_ops == NULL ||
@@ -285,8 +290,10 @@ restart:
 
 	do {
 		struct net_device *slave = qdisc_dev(q);
+		struct netdev_queue *slave_txq;
 
-		if (slave->tx_queue.qdisc_sleeping != q)
+		slave_txq = netdev_get_tx_queue(slave, 0);
+		if (slave_txq->qdisc_sleeping != q)
 			continue;
 		if (netif_queue_stopped(slave) ||
 		    __netif_subqueue_stopped(slave, subq) ||

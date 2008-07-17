@@ -5042,7 +5042,9 @@ static int bond_check_params(struct bond_params *params)
 
 static struct lock_class_key bonding_netdev_xmit_lock_key;
 
-static void bond_set_lockdep_class_one(struct netdev_queue *txq)
+static void bond_set_lockdep_class_one(struct net_device *dev,
+				       struct netdev_queue *txq,
+				       void *_unused)
 {
 	lockdep_set_class(&txq->_xmit_lock,
 			  &bonding_netdev_xmit_lock_key);
@@ -5050,7 +5052,7 @@ static void bond_set_lockdep_class_one(struct netdev_queue *txq)
 
 static void bond_set_lockdep_class(struct net_device *dev)
 {
-	bond_set_lockdep_class_one(&dev->tx_queue);
+	netdev_for_each_tx_queue(dev, bond_set_lockdep_class_one, NULL);
 }
 
 /* Create a new bond based on the specified name and bonding parameters.

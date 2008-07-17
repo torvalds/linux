@@ -574,7 +574,7 @@ static struct Qdisc_ops wme_qdisc_ops __read_mostly =
 
 void ieee80211_install_qdisc(struct net_device *dev)
 {
-	struct netdev_queue *txq = &dev->tx_queue;
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
 	struct Qdisc *qdisc;
 
 	qdisc = qdisc_create_dflt(dev, txq,
@@ -596,7 +596,7 @@ void ieee80211_install_qdisc(struct net_device *dev)
 
 int ieee80211_qdisc_installed(struct net_device *dev)
 {
-	struct netdev_queue *txq = &dev->tx_queue;
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
 
 	return txq->qdisc_sleeping->ops == &wme_qdisc_ops;
 }
@@ -617,7 +617,7 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 			struct sta_info *sta, u16 tid)
 {
 	int i;
-	struct netdev_queue *txq = &local->mdev->tx_queue;
+	struct netdev_queue *txq = netdev_get_tx_queue(local->mdev, 0);
 	struct ieee80211_sched_data *q =
 			qdisc_priv(txq->qdisc_sleeping);
 	DECLARE_MAC_BUF(mac);
@@ -652,14 +652,14 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 }
 
 /**
- * the caller needs to hold local->mdev->tx_queue.lock
+ * the caller needs to hold netdev_get_tx_queue(local->mdev, X)->lock
  */
 void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
 				   struct sta_info *sta, u16 tid,
 				   u8 requeue)
 {
 	struct ieee80211_hw *hw = &local->hw;
-	struct netdev_queue *txq = &local->mdev->tx_queue;
+	struct netdev_queue *txq = netdev_get_tx_queue(local->mdev, 0);
 	struct ieee80211_sched_data *q =
 		qdisc_priv(txq->qdisc_sleeping);
 	int agg_queue = sta->tid_to_tx_q[tid];
@@ -676,7 +676,7 @@ void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
 
 void ieee80211_requeue(struct ieee80211_local *local, int queue)
 {
-	struct netdev_queue *txq = &local->mdev->tx_queue;
+	struct netdev_queue *txq = netdev_get_tx_queue(local->mdev, 0);
 	struct Qdisc *root_qd = txq->qdisc_sleeping;
 	struct ieee80211_sched_data *q = qdisc_priv(root_qd);
 	struct Qdisc *qdisc = q->queues[queue];

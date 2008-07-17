@@ -183,13 +183,25 @@ EXPORT_SYMBOL(unregister_qdisc);
    (root qdisc, all its children, children of children etc.)
  */
 
-struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
+static struct Qdisc *__qdisc_lookup(struct netdev_queue *dev_queue, u32 handle)
 {
-	struct netdev_queue *dev_queue = &dev->tx_queue;
 	struct Qdisc *q;
 
 	list_for_each_entry(q, &dev_queue->qdisc_list, list) {
 		if (q->handle == handle)
+			return q;
+	}
+	return NULL;
+}
+
+struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+		struct Qdisc *q = __qdisc_lookup(txq, handle);
+		if (q)
 			return q;
 	}
 	return NULL;
@@ -462,7 +474,7 @@ dev_graft_qdisc(struct net_device *dev, struct Qdisc *qdisc)
 		}
 
 	} else {
-		dev_queue = &dev->tx_queue;
+		dev_queue = netdev_get_tx_queue(dev, 0);
 		oqdisc = dev_queue->qdisc_sleeping;
 
 		/* Prune old scheduler */
@@ -742,7 +754,8 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 				q = dev->rx_queue.qdisc;
 			}
 		} else {
-			struct netdev_queue *dev_queue = &dev->tx_queue;
+			struct netdev_queue *dev_queue;
+			dev_queue = netdev_get_tx_queue(dev, 0);
 			q = dev_queue->qdisc_sleeping;
 		}
 		if (!q)
@@ -817,7 +830,8 @@ replay:
 				q = dev->rx_queue.qdisc;
 			}
 		} else {
-			struct netdev_queue *dev_queue = &dev->tx_queue;
+			struct netdev_queue *dev_queue;
+			dev_queue = netdev_get_tx_queue(dev, 0);
 			q = dev_queue->qdisc_sleeping;
 		}
 
@@ -899,7 +913,7 @@ create_n_graft:
 				 tcm->tcm_parent, tcm->tcm_parent,
 				 tca, &err);
 	else
-		q = qdisc_create(dev, &dev->tx_queue,
+		q = qdisc_create(dev, netdev_get_tx_queue(dev, 0),
 				 tcm->tcm_parent, tcm->tcm_handle,
 				 tca, &err);
 	if (q == NULL) {
@@ -1025,7 +1039,7 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 		if (idx > s_idx)
 			s_q_idx = 0;
 		q_idx = 0;
-		dev_queue = &dev->tx_queue;
+		dev_queue = netdev_get_tx_queue(dev, 0);
 		list_for_each_entry(q, &dev_queue->qdisc_list, list) {
 			if (q_idx < s_q_idx) {
 				q_idx++;
@@ -1098,7 +1112,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 
 	/* Step 1. Determine qdisc handle X:0 */
 
-	dev_queue = &dev->tx_queue;
+	dev_queue = netdev_get_tx_queue(dev, 0);
 	if (pid != TC_H_ROOT) {
 		u32 qid1 = TC_H_MAJ(pid);
 
@@ -1275,7 +1289,7 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	s_t = cb->args[0];
 	t = 0;
 
-	dev_queue = &dev->tx_queue;
+	dev_queue = netdev_get_tx_queue(dev, 0);
 	list_for_each_entry(q, &dev_queue->qdisc_list, list) {
 		if (t < s_t || !q->ops->cl_ops ||
 		    (tcm->tcm_parent &&

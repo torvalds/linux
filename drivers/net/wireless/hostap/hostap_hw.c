@@ -3102,7 +3102,9 @@ static void prism2_clear_set_tim_queue(local_info_t *local)
  */
 static struct lock_class_key hostap_netdev_xmit_lock_key;
 
-static void prism2_set_lockdep_class_one(struct netdev_queue *txq)
+static void prism2_set_lockdep_class_one(struct net_device *dev,
+					 struct netdev_queue *txq,
+					 void *_unused)
 {
 	lockdep_set_class(&txq->_xmit_lock,
 			  &hostap_netdev_xmit_lock_key);
@@ -3110,7 +3112,7 @@ static void prism2_set_lockdep_class_one(struct netdev_queue *txq)
 
 static void prism2_set_lockdep_class(struct net_device *dev)
 {
-	prism2_set_lockdep_class_one(&dev->tx_queue);
+	netdev_for_each_tx_queue(dev, prism2_set_lockdep_class_one, NULL);
 }
 
 static struct net_device *

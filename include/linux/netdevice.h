@@ -463,7 +463,7 @@ struct netdev_queue {
 	struct Qdisc		*qdisc_sleeping;
 	struct list_head	qdisc_list;
 	struct netdev_queue	*next_sched;
-};
+} ____cacheline_aligned_in_smp;
 
 /*
  *	The DEVICE structure.
@@ -641,7 +641,9 @@ struct net_device
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 
 	struct netdev_queue	rx_queue;
-	struct netdev_queue	tx_queue ____cacheline_aligned_in_smp;
+
+	struct netdev_queue	*_tx ____cacheline_aligned_in_smp;
+	unsigned int		num_tx_queues;
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 
 /*
@@ -763,6 +765,25 @@ struct net_device
 
 #define	NETDEV_ALIGN		32
 #define	NETDEV_ALIGN_CONST	(NETDEV_ALIGN - 1)
+
+static inline
+struct netdev_queue *netdev_get_tx_queue(const struct net_device *dev,
+					 unsigned int index)
+{
+	return &dev->_tx[index];
+}
+
+static inline void netdev_for_each_tx_queue(struct net_device *dev,
+					    void (*f)(struct net_device *,
+						      struct netdev_queue *,
+						      void *),
+					    void *arg)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++)
+		f(dev, &dev->_tx[i], arg);
+}
 
 /*
  * Net namespace inlines
@@ -977,7 +998,7 @@ static inline void netif_schedule_queue(struct netdev_queue *txq)
 
 static inline void netif_schedule(struct net_device *dev)
 {
-	netif_schedule_queue(&dev->tx_queue);
+	netif_schedule_queue(netdev_get_tx_queue(dev, 0));
 }
 
 /**
@@ -993,7 +1014,7 @@ static inline void netif_tx_start_queue(struct netdev_queue *dev_queue)
 
 static inline void netif_start_queue(struct net_device *dev)
 {
-	netif_tx_start_queue(&dev->tx_queue);
+	netif_tx_start_queue(netdev_get_tx_queue(dev, 0));
 }
 
 /**
@@ -1017,7 +1038,7 @@ static inline void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 
 static inline void netif_wake_queue(struct net_device *dev)
 {
-	netif_tx_wake_queue(&dev->tx_queue);
+	netif_tx_wake_queue(netdev_get_tx_queue(dev, 0));
 }
 
 /**
@@ -1034,7 +1055,7 @@ static inline void netif_tx_stop_queue(struct netdev_queue *dev_queue)
 
 static inline void netif_stop_queue(struct net_device *dev)
 {
-	netif_tx_stop_queue(&dev->tx_queue);
+	netif_tx_stop_queue(netdev_get_tx_queue(dev, 0));
 }
 
 /**
@@ -1050,7 +1071,7 @@ static inline int netif_tx_queue_stopped(const struct netdev_queue *dev_queue)
 
 static inline int netif_queue_stopped(const struct net_device *dev)
 {
-	return netif_tx_queue_stopped(&dev->tx_queue);
+	return netif_tx_queue_stopped(netdev_get_tx_queue(dev, 0));
 }
 
 /**
@@ -1134,7 +1155,7 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 #endif
 	if (test_and_clear_bit(__QUEUE_STATE_XOFF,
 			       &dev->egress_subqueue[queue_index].state))
-		__netif_schedule(&dev->tx_queue);
+		__netif_schedule(netdev_get_tx_queue(dev, 0));
 }
 
 /**
@@ -1430,18 +1451,19 @@ static inline void __netif_tx_lock(struct netdev_queue *txq, int cpu)
 
 static inline void netif_tx_lock(struct net_device *dev)
 {
-	__netif_tx_lock(&dev->tx_queue, smp_processor_id());
-}
+	int cpu = smp_processor_id();
+	unsigned int i;
 
-static inline void __netif_tx_lock_bh(struct netdev_queue *txq)
-{
-	spin_lock_bh(&txq->_xmit_lock);
-	txq->xmit_lock_owner = smp_processor_id();
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+		__netif_tx_lock(txq, cpu);
+	}
 }
 
 static inline void netif_tx_lock_bh(struct net_device *dev)
 {
-	__netif_tx_lock_bh(&dev->tx_queue);
+	local_bh_disable();
+	netif_tx_lock(dev);
 }
 
 static inline int __netif_tx_trylock(struct netdev_queue *txq)
@@ -1454,7 +1476,7 @@ static inline int __netif_tx_trylock(struct netdev_queue *txq)
 
 static inline int netif_tx_trylock(struct net_device *dev)
 {
-	return __netif_tx_trylock(&dev->tx_queue);
+	return __netif_tx_trylock(netdev_get_tx_queue(dev, 0));
 }
 
 static inline void __netif_tx_unlock(struct netdev_queue *txq)
@@ -1465,18 +1487,19 @@ static inline void __netif_tx_unlock(struct netdev_queue *txq)
 
 static inline void netif_tx_unlock(struct net_device *dev)
 {
-	__netif_tx_unlock(&dev->tx_queue);
-}
+	unsigned int i;
 
-static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
-{
-	txq->xmit_lock_owner = -1;
-	spin_unlock_bh(&txq->_xmit_lock);
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+		__netif_tx_unlock(txq);
+	}
+
 }
 
 static inline void netif_tx_unlock_bh(struct net_device *dev)
 {
-	__netif_tx_unlock_bh(&dev->tx_queue);
+	netif_tx_unlock(dev);
+	local_bh_enable();
 }
 
 #define HARD_TX_LOCK(dev, txq, cpu) {			\

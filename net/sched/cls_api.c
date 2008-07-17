@@ -166,7 +166,7 @@ replay:
 
 	/* Find qdisc */
 	if (!parent) {
-		struct netdev_queue *dev_queue = &dev->tx_queue;
+		struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, 0);
 		q = dev_queue->qdisc_sleeping;
 		parent = q->handle;
 	} else {
@@ -410,7 +410,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	if ((dev = dev_get_by_index(&init_net, tcm->tcm_ifindex)) == NULL)
 		return skb->len;
 
-	dev_queue = &dev->tx_queue;
+	dev_queue = netdev_get_tx_queue(dev, 0);
 	if (!tcm->tcm_parent)
 		q = dev_queue->qdisc_sleeping;
 	else

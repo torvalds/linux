@@ -1666,6 +1666,12 @@ out_kfree_skb:
  *          --BLG
  */
 
+static struct netdev_queue *dev_pick_tx(struct net_device *dev,
+					struct sk_buff *skb)
+{
+	return netdev_get_tx_queue(dev, 0);
+}
+
 int dev_queue_xmit(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
@@ -1702,7 +1708,7 @@ int dev_queue_xmit(struct sk_buff *skb)
 	}
 
 gso:
-	txq = &dev->tx_queue;
+	txq = dev_pick_tx(dev, skb);
 	spin_lock_prefetch(&txq->lock);
 
 	/* Disable soft irqs for various locks below. Also
@@ -3788,8 +3794,9 @@ static void rollback_registered(struct net_device *dev)
 	dev_put(dev);
 }
 
-static void __netdev_init_queue_locks_one(struct netdev_queue *dev_queue,
-					  struct net_device *dev)
+static void __netdev_init_queue_locks_one(struct net_device *dev,
+					  struct netdev_queue *dev_queue,
+					  void *_unused)
 {
 	spin_lock_init(&dev_queue->_xmit_lock);
 	netdev_set_lockdep_class(&dev_queue->_xmit_lock, dev->type);
@@ -3798,8 +3805,8 @@ static void __netdev_init_queue_locks_one(struct netdev_queue *dev_queue,
 
 static void netdev_init_queue_locks(struct net_device *dev)
 {
-	__netdev_init_queue_locks_one(&dev->tx_queue, dev);
-	__netdev_init_queue_locks_one(&dev->rx_queue, dev);
+	netdev_for_each_tx_queue(dev, __netdev_init_queue_locks_one, NULL);
+	__netdev_init_queue_locks_one(dev, &dev->rx_queue, NULL);
 }
 
 /**
@@ -4119,7 +4126,8 @@ static struct net_device_stats *internal_stats(struct net_device *dev)
 }
 
 static void netdev_init_one_queue(struct net_device *dev,
-				  struct netdev_queue *queue)
+				  struct netdev_queue *queue,
+				  void *_unused)
 {
 	spin_lock_init(&queue->lock);
 	queue->dev = dev;
@@ -4127,8 +4135,8 @@ static void netdev_init_one_queue(struct net_device *dev,
 
 static void netdev_init_queues(struct net_device *dev)
 {
-	netdev_init_one_queue(dev, &dev->rx_queue);
-	netdev_init_one_queue(dev, &dev->tx_queue);
+	netdev_init_one_queue(dev, &dev->rx_queue, NULL);
+	netdev_for_each_tx_queue(dev, netdev_init_one_queue, NULL);
 }
 
 /**
@@ -4145,9 +4153,10 @@ static void netdev_init_queues(struct net_device *dev)
 struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		void (*setup)(struct net_device *), unsigned int queue_count)
 {
-	void *p;
+	struct netdev_queue *tx;
 	struct net_device *dev;
 	int alloc_size;
+	void *p;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
@@ -4167,10 +4176,21 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		return NULL;
 	}
 
+	tx = kzalloc(sizeof(struct netdev_queue) * queue_count, GFP_KERNEL);
+	if (!tx) {
+		printk(KERN_ERR "alloc_netdev: Unable to allocate "
+		       "tx qdiscs.\n");
+		kfree(p);
+		return NULL;
+	}
+
 	dev = (struct net_device *)
 		(((long)p + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST);
 	dev->padded = (char *)dev - (char *)p;
 	dev_net_set(dev, &init_net);
+
+	dev->_tx = tx;
+	dev->num_tx_queues = queue_count;
 
 	if (sizeof_priv) {
 		dev->priv = ((char *)dev +
@@ -4204,6 +4224,8 @@ EXPORT_SYMBOL(alloc_netdev_mq);
 void free_netdev(struct net_device *dev)
 {
 	release_net(dev_net(dev));
+
+	kfree(dev->_tx);
 
 	/*  Compatibility with error handling in drivers */
 	if (dev->reg_state == NETREG_UNINITIALIZED) {

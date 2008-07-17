@@ -285,7 +285,9 @@ static struct lock_class_key macvlan_netdev_xmit_lock_key;
 #define MACVLAN_STATE_MASK \
 	((1<<__LINK_STATE_NOCARRIER) | (1<<__LINK_STATE_DORMANT))
 
-static void macvlan_set_lockdep_class_one(struct netdev_queue *txq)
+static void macvlan_set_lockdep_class_one(struct net_device *dev,
+					  struct netdev_queue *txq,
+					  void *_unused)
 {
 	lockdep_set_class(&txq->_xmit_lock,
 			  &macvlan_netdev_xmit_lock_key);
@@ -293,7 +295,7 @@ static void macvlan_set_lockdep_class_one(struct netdev_queue *txq)
 
 static void macvlan_set_lockdep_class(struct net_device *dev)
 {
-	macvlan_set_lockdep_class_one(&dev->tx_queue);
+	netdev_for_each_tx_queue(dev, macvlan_set_lockdep_class_one, NULL);
 }
 
 static int macvlan_init(struct net_device *dev)

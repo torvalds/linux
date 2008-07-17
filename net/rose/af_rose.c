@@ -75,14 +75,16 @@ ax25_address rose_callsign;
  */
 static struct lock_class_key rose_netdev_xmit_lock_key;
 
-static void rose_set_lockdep_one(struct netdev_queue *txq)
+static void rose_set_lockdep_one(struct net_device *dev,
+				 struct netdev_queue *txq,
+				 void *_unused)
 {
 	lockdep_set_class(&txq->_xmit_lock, &rose_netdev_xmit_lock_key);
 }
 
 static void rose_set_lockdep_key(struct net_device *dev)
 {
-	rose_set_lockdep_one(&dev->tx_queue);
+	netdev_for_each_tx_queue(dev, rose_set_lockdep_one, NULL);
 }
 
 /*

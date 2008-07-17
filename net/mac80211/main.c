@@ -621,7 +621,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 
 	/* ensure that TX flow won't interrupt us
 	 * until the end of the call to requeue function */
-	txq = &local->mdev->tx_queue;
+	txq = netdev_get_tx_queue(local->mdev, 0);
 	spin_lock_bh(&txq->lock);
 
 	/* create a new queue for this aggregation */
@@ -862,7 +862,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 
 	/* avoid ordering issues: we are the only one that can modify
 	 * the content of the qdiscs */
-	txq = &local->mdev->tx_queue;
+	txq = netdev_get_tx_queue(local->mdev, 0);
 	spin_lock_bh(&txq->lock);
 	/* remove the queue for this aggregation */
 	ieee80211_ht_agg_queue_remove(local, sta, tid, 1);

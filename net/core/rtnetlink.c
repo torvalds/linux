@@ -636,7 +636,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	if (dev->master)
 		NLA_PUT_U32(skb, IFLA_MASTER, dev->master->ifindex);
 
-	txq = &dev->tx_queue;
+	txq = netdev_get_tx_queue(dev, 0);
 	if (txq->qdisc_sleeping)
 		NLA_PUT_STRING(skb, IFLA_QDISC, txq->qdisc_sleeping->ops->id);
 
