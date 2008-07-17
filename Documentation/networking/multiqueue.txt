@@ -24,15 +24,4 @@ netif_{start|stop|wake}_subqueue() functions to manage each queue while the
 device is still operational.  netdev->queue_lock is still used when the device
 comes online or when it's completely shut down (unregister_netdev(), etc.).
 
-Finally, the base driver should indicate that it is a multiqueue device.  The
-feature flag NETIF_F_MULTI_QUEUE should be added to the netdev->features
-bitmap on device initialization.  Below is an example from e1000:
-
-#ifdef CONFIG_E1000_MQ
-	if ( (adapter->hw.mac.type == e1000_82571) ||
-	     (adapter->hw.mac.type == e1000_82572) ||
-	     (adapter->hw.mac.type == e1000_80003es2lan))
-		netdev->features |= NETIF_F_MULTI_QUEUE;
-#endif
-
 Author: Peter P. Waskiewicz Jr. <peter.p.waskiewicz.jr@intel.com>

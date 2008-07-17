@@ -533,7 +533,6 @@ struct net_device
 #define NETIF_F_LLTX		4096	/* LockLess TX - deprecated. Please */
 					/* do not use LLTX in new drivers */
 #define NETIF_F_NETNS_LOCAL	8192	/* Does not change network namespaces */
-#define NETIF_F_MULTI_QUEUE	16384	/* Has multiple TX/RX queues */
 #define NETIF_F_LRO		32768	/* large receive offload */
 
 	/* Segmentation offload features */
@@ -1163,11 +1162,10 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
  *	@dev: network device
  *
  * Check if device has multiple transmit queues
- * Always falls if NETDEVICE_MULTIQUEUE is not configured
  */
 static inline int netif_is_multiqueue(const struct net_device *dev)
 {
-	return (!!(NETIF_F_MULTI_QUEUE & dev->features));
+	return (dev->num_tx_queues > 1);
 }
 
 /* Use this variant when it is known for sure that it

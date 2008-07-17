@@ -1678,9 +1678,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (!mdev)
 		goto fail_mdev_alloc;
 
-	if (ieee80211_num_queues(hw) > 1)
-		mdev->features |= NETIF_F_MULTI_QUEUE;
-
 	mwdev = netdev_priv(mdev);
 	mdev->ieee80211_ptr = mwdev;
 	mwdev->wiphy = local->hw.wiphy;

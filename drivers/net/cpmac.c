@@ -1165,7 +1165,6 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	dev->set_multicast_list = cpmac_set_multicast_list;
 	dev->tx_timeout         = cpmac_tx_timeout;
 	dev->ethtool_ops        = &cpmac_ethtool_ops;
-	dev->features |= NETIF_F_MULTI_QUEUE;
 
 	netif_napi_add(dev, &priv->napi, cpmac_poll, 64);
 
