@@ -349,7 +349,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	if (rc) {
 		DEV_MESSAGE(KERN_WARNING, device, "failed to retrieve device "
 			    "information (rc=%d)", rc);
-		rc = -ENOTSUPP;
+		rc = -EOPNOTSUPP;
 		goto out;
 	}
 
@@ -364,7 +364,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	default:
 		DEV_MESSAGE(KERN_WARNING, device, "unsupported device class "
 			    "(class=%d)", private->rdc_data.vdev_class);
-		rc = -ENOTSUPP;
+		rc = -EOPNOTSUPP;
 		goto out;
 	}
 
