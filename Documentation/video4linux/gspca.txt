@@ -46,6 +46,7 @@ sonixj		045e:00f5	MicroSoft VX3000
 sonixj		045e:00f7	MicroSoft VX1000
 ov519		045e:028c	Micro$oft xbox cam
 spca508		0461:0815	Micro Innovation IC200
+sunplus		0461:0821	Fujifilm MV-1
 zc3xx		0461:0a00	MicroInnovation WebCam320
 spca500		046d:0890	Logitech QuickCam traveler
 vc032x		046d:0892	Logitech Orbicam
@@ -169,6 +170,7 @@ sunplus		08ca:2024	Aiptek DV3500 Mpeg4
 sunplus		08ca:2028	Aiptek PocketCam4M
 sunplus		08ca:2040	Aiptek PocketDV4100M
 sunplus		08ca:2042	Aiptek PocketDV5100
+sunplus		08ca:2050	Medion MD 41437
 sunplus		08ca:2060	Aiptek PocketDV5300
 tv8532		0923:010f	ICM532 cams
 mars		093a:050f	Mars-Semi Pc-Camera

@@ -1008,6 +1008,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			break;
 		case 0x2040:
 		case 0x2042:
+		case 0x2050:
 		case 0x2060:
 			sd->bridge = BRIDGE_SPCA536;
 			break;
@@ -1636,6 +1637,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x08ca, 0x2028), DVNM("Aiptek PocketCam4M")},
 	{USB_DEVICE(0x08ca, 0x2040), DVNM("Aiptek PocketDV4100M")},
 	{USB_DEVICE(0x08ca, 0x2042), DVNM("Aiptek PocketDV5100")},
+	{USB_DEVICE(0x08ca, 0x2050), DVNM("Medion MD 41437")},
 	{USB_DEVICE(0x08ca, 0x2060), DVNM("Aiptek PocketDV5300")},
 	{USB_DEVICE(0x0d64, 0x0303), DVNM("Sunplus FashionCam DXG")},
 	{}
