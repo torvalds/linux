@@ -1363,7 +1363,7 @@ static int __init init_ipv4_mibs(void)
 			  sizeof(struct udp_mib)) < 0)
 		goto err_udplite_mib;
 
-	tcp_mib_init();
+	tcp_mib_init(&init_net);
 
 	return 0;
 

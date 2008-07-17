@@ -1024,7 +1024,7 @@ static inline int tcp_paws_check(const struct tcp_options_received *rx_opt, int 
 
 #define TCP_CHECK_TIMER(sk) do { } while (0)
 
-static inline void tcp_mib_init(void)
+static inline void tcp_mib_init(struct net *net)
 {
 	/* See RFC 2012 */
 	TCP_ADD_STATS_USER(TCP_MIB_RTOALGORITHM, 1);
