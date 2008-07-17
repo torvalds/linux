@@ -51,6 +51,8 @@ unsigned long amiga_chipset;
 EXPORT_SYMBOL(amiga_chipset);
 
 unsigned char amiga_vblank;
+EXPORT_SYMBOL(amiga_vblank);
+
 unsigned char amiga_psfreq;
 
 struct amiga_hw_present amiga_hw_present;
