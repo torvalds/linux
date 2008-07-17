@@ -848,7 +848,7 @@ static int sg_to_link_tbl(struct scatterlist *sg, int sg_count,
 
 	/* adjust (decrease) last one (or two) entry's len to cryptlen */
 	link_tbl_ptr--;
-	while (link_tbl_ptr->len <= (-cryptlen)) {
+	while (be16_to_cpu(link_tbl_ptr->len) <= (-cryptlen)) {
 		/* Empty this entry, and move to previous one */
 		cryptlen += be16_to_cpu(link_tbl_ptr->len);
 		link_tbl_ptr->len = 0;
