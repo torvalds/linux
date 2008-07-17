@@ -32,6 +32,7 @@ enum {
 	 */
 	SCSI_DH_DEV_FAILED,	/* generic device error */
 	SCSI_DH_DEV_TEMP_BUSY,
+	SCSI_DH_DEV_UNSUPP,	/* device handler not supported */
 	SCSI_DH_DEVICE_MAX,	/* max device blkerr definition */
 
 	/*
