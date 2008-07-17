@@ -9,6 +9,7 @@
 #include <linux/bootmem.h>
 #include <linux/dmi.h>
 #include <linux/cpumask.h>
+#include <asm/segment.h>
 
 #include "realmode/wakeup.h"
 #include "sleep.h"
@@ -22,15 +23,6 @@ static unsigned long acpi_realmode;
 #ifdef CONFIG_64BIT
 static char temp_stack[10240];
 #endif
-
-/* XXX: this macro should move to asm-x86/segment.h and be shared with the
-   boot code... */
-#define GDT_ENTRY(flags, base, limit)		\
-	(((u64)(base & 0xff000000) << 32) |	\
-	 ((u64)flags << 40) |			\
-	 ((u64)(limit & 0x00ff0000) << 32) |	\
-	 ((u64)(base & 0x00ffffff) << 16) |	\
-	 ((u64)(limit & 0x0000ffff)))
 
 /**
  * acpi_save_state_mem - save kernel state
