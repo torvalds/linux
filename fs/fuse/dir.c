@@ -962,7 +962,7 @@ static int fuse_permission(struct inode *inode, int mask)
 		   exist.  So if permissions are revoked this won't be
 		   noticed immediately, only after the attribute
 		   timeout has expired */
-	} else if (mask & (MAY_ACCESS | MAY_CHDIR)) {
+	} else if (mask & MAY_ACCESS) {
 		err = fuse_access(inode, mask);
 	} else if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode)) {
 		if (!(inode->i_mode & S_IXUGO)) {

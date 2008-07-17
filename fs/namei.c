@@ -265,8 +265,6 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 	if (inode->i_op && inode->i_op->permission) {
 		int extra = 0;
 		if (nd) {
-			if (nd->flags & LOOKUP_ACCESS)
-				extra |= MAY_ACCESS;
 			if (nd->flags & LOOKUP_OPEN)
 				extra |= MAY_OPEN;
 		}

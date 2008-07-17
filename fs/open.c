@@ -457,11 +457,11 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 			old_cap = cap_set_effective(current->cap_permitted);
 	}
 
-	res = __user_walk_fd(dfd, filename, LOOKUP_FOLLOW|LOOKUP_ACCESS, &nd);
+	res = __user_walk_fd(dfd, filename, LOOKUP_FOLLOW, &nd);
 	if (res)
 		goto out;
 
-	res = vfs_permission(&nd, mode);
+	res = vfs_permission(&nd, mode | MAY_ACCESS);
 	/* SuS v2 requires we report a read only fs too */
 	if(res || !(mode & S_IWOTH) ||
 	   special_file(nd.path.dentry->d_inode->i_mode))
@@ -505,7 +505,7 @@ asmlinkage long sys_chdir(const char __user * filename)
 	if (error)
 		goto out;
 
-	error = vfs_permission(&nd, MAY_EXEC | MAY_CHDIR);
+	error = vfs_permission(&nd, MAY_EXEC | MAY_ACCESS);
 	if (error)
 		goto dput_and_out;
 
@@ -534,7 +534,7 @@ asmlinkage long sys_fchdir(unsigned int fd)
 	if (!S_ISDIR(inode->i_mode))
 		goto out_putf;
 
-	error = file_permission(file, MAY_EXEC);
+	error = file_permission(file, MAY_EXEC | MAY_ACCESS);
 	if (!error)
 		set_fs_pwd(current->fs, &file->f_path);
 out_putf:
@@ -552,7 +552,7 @@ asmlinkage long sys_chroot(const char __user * filename)
 	if (error)
 		goto out;
 
-	error = vfs_permission(&nd, MAY_EXEC);
+	error = vfs_permission(&nd, MAY_EXEC | MAY_ACCESS);
 	if (error)
 		goto dput_and_out;
 

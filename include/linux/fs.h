@@ -61,8 +61,7 @@ extern int dir_notify_enable;
 #define MAY_READ 4
 #define MAY_APPEND 8
 #define MAY_ACCESS 16
-#define MAY_CHDIR 32
-#define MAY_OPEN 64
+#define MAY_OPEN 32
 
 #define FMODE_READ 1
 #define FMODE_WRITE 2
