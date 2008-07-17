@@ -2,23 +2,16 @@
 # Makefile for some libs needed in the kernel.
 #
 
+ifdef CONFIG_FTRACE
+ORIG_CFLAGS := $(KBUILD_CFLAGS)
+KBUILD_CFLAGS = $(subst -pg,,$(ORIG_CFLAGS))
+endif
+
 lib-y := ctype.o string.o vsprintf.o cmdline.o \
 	 rbtree.o radix-tree.o dump_stack.o \
 	 idr.o int_sqrt.o extable.o prio_tree.o \
 	 sha1.o irq_regs.o reciprocal_div.o argv_split.o \
 	 proportions.o prio_heap.o ratelimit.o
-
-ifdef CONFIG_FTRACE
-# Do not profile string.o, since it may be used in early boot or vdso
-CFLAGS_REMOVE_string.o = -pg
-# Also do not profile any debug utilities
-CFLAGS_REMOVE_spinlock_debug.o = -pg
-CFLAGS_REMOVE_list_debug.o = -pg
-CFLAGS_REMOVE_debugobjects.o = -pg
-CFLAGS_REMOVE_find_next_bit.o = -pg
-CFLAGS_REMOVE_cpumask.o = -pg
-CFLAGS_REMOVE_bitmap.o = -pg
-endif
 
 lib-$(CONFIG_MMU) += ioremap.o
 lib-$(CONFIG_SMP) += cpumask.o
