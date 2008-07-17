@@ -438,7 +438,7 @@ static struct config_group *make_cluster(struct config_group *g,
 	kfree(gps);
 	kfree(sps);
 	kfree(cms);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 static void drop_cluster(struct config_group *g, struct config_item *i)
@@ -495,7 +495,7 @@ static struct config_group *make_space(struct config_group *g, const char *name)
 	kfree(sp);
 	kfree(gps);
 	kfree(nds);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 static void drop_space(struct config_group *g, struct config_item *i)
@@ -528,7 +528,7 @@ static struct config_item *make_comm(struct config_group *g, const char *name)
 
 	cm = kzalloc(sizeof(struct comm), GFP_KERNEL);
 	if (!cm)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	config_item_init_type_name(&cm->item, name, &comm_type);
 	cm->nodeid = -1;
@@ -561,7 +561,7 @@ static struct config_item *make_node(struct config_group *g, const char *name)
 
 	nd = kzalloc(sizeof(struct node), GFP_KERNEL);
 	if (!nd)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	config_item_init_type_name(&nd->item, name, &node_type);
 	nd->nodeid = -1;

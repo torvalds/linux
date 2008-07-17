@@ -1493,24 +1493,18 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 							  const char *name)
 {
 	struct o2hb_region *reg = NULL;
-	struct config_item *ret = NULL;
 
 	reg = kzalloc(sizeof(struct o2hb_region), GFP_KERNEL);
 	if (reg == NULL)
-		goto out; /* ENOMEM */
+		return ERR_PTR(-ENOMEM);
 
 	config_item_init_type_name(&reg->hr_item, name, &o2hb_region_type);
-
-	ret = &reg->hr_item;
 
 	spin_lock(&o2hb_live_lock);
 	list_add_tail(&reg->hr_all_item, &o2hb_all_regions);
 	spin_unlock(&o2hb_live_lock);
-out:
-	if (ret == NULL)
-		kfree(reg);
 
-	return ret;
+	return &reg->hr_item;
 }
 
 static void o2hb_heartbeat_group_drop_item(struct config_group *group,

@@ -598,7 +598,7 @@ static struct config_item *make_netconsole_target(struct config_group *group,
 	nt = kzalloc(sizeof(*nt), GFP_KERNEL);
 	if (!nt) {
 		printk(KERN_ERR "netconsole: failed to allocate memory\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	nt->np.name = "netconsole";
