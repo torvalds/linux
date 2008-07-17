@@ -3333,6 +3333,11 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		set_state_private(block_group_cache, found_key.objectid,
 				  (unsigned long)cache);
 
+		/* hack for now */
+		if (cache->flags & BTRFS_BLOCK_GROUP_METADATA) {
+			cache_block_group(root->fs_info->extent_root,
+					  cache);
+		}
 		if (key.objectid >=
 		    btrfs_super_total_bytes(&info->super_copy))
 			break;
