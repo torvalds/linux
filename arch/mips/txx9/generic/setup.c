@@ -94,6 +94,22 @@ void clk_put(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_put);
 
+/* GPIO support */
+
+#ifdef CONFIG_GENERIC_GPIO
+int gpio_to_irq(unsigned gpio)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL(gpio_to_irq);
+
+int irq_to_gpio(unsigned irq)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL(irq_to_gpio);
+#endif
+
 extern struct txx9_board_vec jmr3927_vec;
 extern struct txx9_board_vec rbtx4927_vec;
 extern struct txx9_board_vec rbtx4937_vec;
@@ -126,15 +142,19 @@ void __init prom_init(void)
 #endif
 #ifdef CONFIG_CPU_TX49XX
 	switch (TX4938_REV_PCODE()) {
+#ifdef CONFIG_TOSHIBA_RBTX4927
 	case 0x4927:
 		txx9_board_vec = &rbtx4927_vec;
 		break;
 	case 0x4937:
 		txx9_board_vec = &rbtx4937_vec;
 		break;
+#endif
+#ifdef CONFIG_TOSHIBA_RBTX4938
 	case 0x4938:
 		txx9_board_vec = &rbtx4938_vec;
 		break;
+#endif
 	}
 #endif
 

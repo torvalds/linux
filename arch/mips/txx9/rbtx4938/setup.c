@@ -457,7 +457,7 @@ static void __init rbtx4938_mem_setup(void)
 	rbtx4938_fpga_resource.start = CPHYSADDR(RBTX4938_FPGA_REG_ADDR);
 	rbtx4938_fpga_resource.end = CPHYSADDR(RBTX4938_FPGA_REG_ADDR) + 0xffff;
 	rbtx4938_fpga_resource.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-	if (request_resource(&iomem_resource, &rbtx4938_fpga_resource))
+	if (request_resource(&txx9_ce_res[2], &rbtx4938_fpga_resource))
 		printk("request resource for fpga failed\n");
 
 	_machine_restart = rbtx4938_machine_restart;
@@ -486,18 +486,6 @@ static int __init rbtx4938_ne_init(void)
 		platform_device_register_simple("ne", -1,
 						res, ARRAY_SIZE(res));
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
-}
-
-/* GPIO support */
-
-int gpio_to_irq(unsigned gpio)
-{
-	return -EINVAL;
-}
-
-int irq_to_gpio(unsigned irq)
-{
-	return -EINVAL;
 }
 
 static DEFINE_SPINLOCK(rbtx4938_spi_gpio_lock);
