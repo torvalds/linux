@@ -291,22 +291,9 @@ static const __u8 ov7630_sensor_init[][8] = {
 	{0xa0, 0x21, 0x76, 0x02, 0xbd, 0x06, 0xf6, 0x16},
 	{0xa0, 0x21, 0x00, 0x10, 0xbd, 0x06, 0xf6, 0x15},	/* gain */
 };
-static const __u8 ov7630_sensor_init_3[][5][8] = {
-    {	{0xa0, 0x21, 0x10, 0x36, 0xbd, 0x06, 0xf6, 0x16},      /* exposure */
-	{0xa0, 0x21, 0x76, 0x03, 0xbd, 0x06, 0xf6, 0x16},
-	{0xa0, 0x21, 0x11, 0x01, 0xbd, 0x06, 0xf6, 0x16},
-	{0xa0, 0x21, 0x00, 0x10, 0xbd, 0x06, 0xf6, 0x15},	/* gain */
-	{0xb0, 0x21, 0x2a, 0xa0, 0x1c, 0x06, 0xf6, 0x1d},
-    },
-    {	{0xa0, 0x21, 0x10, 0x83, 0xbd, 0x06, 0xf6, 0x16},      /* exposure */
-	{0xa0, 0x21, 0x76, 0x00, 0xbd, 0x06, 0xf6, 0x16},
-	{0xa0, 0x21, 0x11, 0x00, 0xbd, 0x06, 0xf6, 0x16},
-	{0xa0, 0x21, 0x00, 0x10, 0xbd, 0x06, 0xf6, 0x15},	/* gain */
-/*	{0xb0, 0x21, 0x2a, 0xc0, 0x3c, 0x06, 0xf6, 0x1d},
-		* a0 1c,a0 1f,c0 3c frame rate ?line interval from ov6630 */
-/*	{0xb0, 0x21, 0x2a, 0xa0, 0x1f, 0x06, 0xf6, 0x1d},	 * from win */
-	{0xb0, 0x21, 0x2a, 0x80, 0x60, 0x06, 0xf6, 0x1d},
-    }
+static const __u8 ov7630_sensor_init_3[][8] = {
+	{0xa0, 0x21, 0x2a, 0xa0, 0x00, 0x00, 0x00, 0x10},
+	{0xa0, 0x21, 0x2a, 0x80, 0x00, 0x00, 0x00, 0x10},
 };
 
 static const __u8 initPas106[] = {
@@ -693,6 +680,15 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		i2c[1] = sd->sensor_addr;
 		i2c[3] = reg10;
 		i2c[4] |= reg11 - 1;
+		if (sd->sensor == SENSOR_OV7630_3) {
+			__u8 reg76 = reg10 & 0x03;
+			__u8 i2c_reg76[] = {0xa0, 0x21, 0x76, 0x00,
+					    0x00, 0x00, 0x00, 0x10};
+			reg10 >>= 2;
+			i2c_reg76[3] = reg76;
+			if (i2c_w(gspca_dev, i2c_reg76) < 0)
+				PDEBUG(D_ERR, "i2c error exposure");
+		}
 		if (i2c_w(gspca_dev, i2c) < 0)
 			PDEBUG(D_ERR, "i2c error exposure");
 		break;
@@ -705,12 +701,13 @@ static void setfreq(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->sensor) {
-	case SENSOR_OV6650: {
+	case SENSOR_OV6650:
+	case SENSOR_OV7630_3: {
 		/* Framerate adjust register for artificial light 50 hz flicker
 		   compensation, identical to ov6630 0x2b register, see ov6630
 		   datasheet.
 		   0x4f -> (30 fps -> 25 fps), 0x00 -> no adjustment */
-		__u8 i2c[] = {0xa0, 0x60, 0x2b, 0x00, 0x00, 0x00, 0x00, 0x10};
+		__u8 i2c[] = {0xa0, 0x00, 0x2b, 0x00, 0x00, 0x00, 0x00, 0x10};
 		switch (sd->freq) {
 		default:
 /*		case 0:			 * no filter*/
@@ -718,9 +715,10 @@ static void setfreq(struct gspca_dev *gspca_dev)
 			i2c[3] = 0;
 			break;
 		case 1:			/* 50 hz */
-			i2c[3] = 0x4f;
+			i2c[3] = (sd->sensor == SENSOR_OV6650)? 0x4f:0x8a;
 			break;
 		}
+		i2c[1] = sd->sensor_addr;
 		if (i2c_w(gspca_dev, i2c) < 0)
 			PDEBUG(D_ERR, "i2c error setfreq");
 		break;
@@ -804,7 +802,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor_addr = 0x21;
 			sd->fr_h_sz = 18;	/* size of frame header */
 			sd->sensor_has_gain = 1;
-			sd->sd_desc.nctrls = 4;
+			sd->sd_desc.nctrls = 5;
 			sd->sd_desc.dq_callback = do_autogain;
 			sd->autogain = 0;
 			break;
@@ -982,8 +980,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		i2c_w_vector(gspca_dev, ov7630_sensor_init_com,
 				sizeof ov7630_sensor_init_com);
 		msleep(200);
-		i2c_w_vector(gspca_dev, ov7630_sensor_init_3[mode],
-				sizeof ov7630_sensor_init_3[mode]);
+		i2c_w(gspca_dev, ov7630_sensor_init_3[mode]);
 		break;
 	case SENSOR_PAS106:
 		pas106_i2cinit(gspca_dev);
