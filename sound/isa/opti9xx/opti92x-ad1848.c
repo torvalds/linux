@@ -688,7 +688,7 @@ static void snd_card_opti9xx_free(struct snd_card *card)
 	if (chip) {
 #ifdef OPTi93X
 		struct snd_cs4231 *codec = chip->codec;
-		if (codec->irq > 0) {
+		if (codec && codec->irq > 0) {
 			disable_irq(codec->irq);
 			free_irq(codec->irq, codec);
 		}
