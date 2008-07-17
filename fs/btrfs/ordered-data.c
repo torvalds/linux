@@ -22,48 +22,30 @@
 #include "ctree.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
+#include "extent_io.h"
 
-struct tree_entry {
-	u64 root_objectid;
-	u64 objectid;
-	struct inode *inode;
-	struct rb_node rb_node;
-};
 
-/*
- * returns > 0 if entry passed (root, objectid) is > entry,
- * < 0 if (root, objectid) < entry and zero if they are equal
- */
-static int comp_entry(struct tree_entry *entry, u64 root_objectid,
-		      u64 objectid)
+static u64 entry_end(struct btrfs_ordered_extent *entry)
 {
-	if (root_objectid < entry->root_objectid)
-		return -1;
-	if (root_objectid > entry->root_objectid)
-		return 1;
-	if (objectid < entry->objectid)
-		return -1;
-	if (objectid > entry->objectid)
-		return 1;
-	return 0;
+	if (entry->file_offset + entry->len < entry->file_offset)
+		return (u64)-1;
+	return entry->file_offset + entry->len;
 }
 
-static struct rb_node *tree_insert(struct rb_root *root, u64 root_objectid,
-				   u64 objectid, struct rb_node *node)
+static struct rb_node *tree_insert(struct rb_root *root, u64 file_offset,
+				   struct rb_node *node)
 {
 	struct rb_node ** p = &root->rb_node;
 	struct rb_node * parent = NULL;
-	struct tree_entry *entry;
-	int comp;
+	struct btrfs_ordered_extent *entry;
 
 	while(*p) {
 		parent = *p;
-		entry = rb_entry(parent, struct tree_entry, rb_node);
+		entry = rb_entry(parent, struct btrfs_ordered_extent, rb_node);
 
-		comp = comp_entry(entry, root_objectid, objectid);
-		if (comp < 0)
+		if (file_offset < entry->file_offset)
 			p = &(*p)->rb_left;
-		else if (comp > 0)
+		else if (file_offset >= entry_end(entry))
 			p = &(*p)->rb_right;
 		else
 			return parent;
@@ -74,24 +56,23 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 root_objectid,
 	return NULL;
 }
 
-static struct rb_node *__tree_search(struct rb_root *root, u64 root_objectid,
-				     u64 objectid, struct rb_node **prev_ret)
+static struct rb_node *__tree_search(struct rb_root *root, u64 file_offset,
+				     struct rb_node **prev_ret)
 {
 	struct rb_node * n = root->rb_node;
 	struct rb_node *prev = NULL;
-	struct tree_entry *entry;
-	struct tree_entry *prev_entry = NULL;
-	int comp;
+	struct rb_node *test;
+	struct btrfs_ordered_extent *entry;
+	struct btrfs_ordered_extent *prev_entry = NULL;
 
 	while(n) {
-		entry = rb_entry(n, struct tree_entry, rb_node);
+		entry = rb_entry(n, struct btrfs_ordered_extent, rb_node);
 		prev = n;
 		prev_entry = entry;
-		comp = comp_entry(entry, root_objectid, objectid);
 
-		if (comp < 0)
+		if (file_offset < entry->file_offset)
 			n = n->rb_left;
-		else if (comp > 0)
+		else if (file_offset >= entry_end(entry))
 			n = n->rb_right;
 		else
 			return n;
@@ -99,195 +80,329 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 root_objectid,
 	if (!prev_ret)
 		return NULL;
 
-	while(prev && comp_entry(prev_entry, root_objectid, objectid) >= 0) {
-		prev = rb_next(prev);
-		prev_entry = rb_entry(prev, struct tree_entry, rb_node);
+	while(prev && file_offset >= entry_end(prev_entry)) {
+		test = rb_next(prev);
+		if (!test)
+			break;
+		prev_entry = rb_entry(test, struct btrfs_ordered_extent,
+				      rb_node);
+		if (file_offset < entry_end(prev_entry))
+			break;
+
+		prev = test;
+	}
+	if (prev)
+		prev_entry = rb_entry(prev, struct btrfs_ordered_extent,
+				      rb_node);
+	while(prev && file_offset < entry_end(prev_entry)) {
+		test = rb_prev(prev);
+		if (!test)
+			break;
+		prev_entry = rb_entry(test, struct btrfs_ordered_extent,
+				      rb_node);
+		prev = test;
 	}
 	*prev_ret = prev;
 	return NULL;
 }
 
-static inline struct rb_node *tree_search(struct rb_root *root,
-					  u64 root_objectid, u64 objectid)
+static int offset_in_entry(struct btrfs_ordered_extent *entry, u64 file_offset)
 {
+	if (file_offset < entry->file_offset ||
+	    entry->file_offset + entry->len <= file_offset)
+		return 0;
+	return 1;
+}
+
+static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
+					  u64 file_offset)
+{
+	struct rb_root *root = &tree->tree;
 	struct rb_node *prev;
 	struct rb_node *ret;
-	ret = __tree_search(root, root_objectid, objectid, &prev);
+	struct btrfs_ordered_extent *entry;
+
+	if (tree->last) {
+		entry = rb_entry(tree->last, struct btrfs_ordered_extent,
+				 rb_node);
+		if (offset_in_entry(entry, file_offset))
+			return tree->last;
+	}
+	ret = __tree_search(root, file_offset, &prev);
 	if (!ret)
-		return prev;
+		ret = prev;
+	if (ret)
+		tree->last = ret;
 	return ret;
 }
 
-int btrfs_add_ordered_inode(struct inode *inode)
+int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
+			     u64 start, u64 len)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 root_objectid = root->root_key.objectid;
-	u64 transid = root->fs_info->running_transaction->transid;
-	struct tree_entry *entry;
-	struct rb_node *node;
 	struct btrfs_ordered_inode_tree *tree;
+	struct rb_node *node;
+	struct btrfs_ordered_extent *entry;
 
-	if (transid <= BTRFS_I(inode)->ordered_trans)
-		return 0;
-
-	tree = &root->fs_info->running_transaction->ordered_inode_tree;
-
-	read_lock(&tree->lock);
-	node = __tree_search(&tree->tree, root_objectid, inode->i_ino, NULL);
-	read_unlock(&tree->lock);
-	if (node) {
-		return 0;
-	}
-
-	entry = kmalloc(sizeof(*entry), GFP_NOFS);
+	tree = &BTRFS_I(inode)->ordered_tree;
+	entry = kzalloc(sizeof(*entry), GFP_NOFS);
 	if (!entry)
 		return -ENOMEM;
 
-	write_lock(&tree->lock);
-	entry->objectid = inode->i_ino;
-	entry->root_objectid = root_objectid;
+	mutex_lock(&tree->mutex);
+	entry->file_offset = file_offset;
+	entry->start = start;
+	entry->len = len;
 	entry->inode = inode;
+	/* one ref for the tree */
+	atomic_set(&entry->refs, 1);
+	init_waitqueue_head(&entry->wait);
+	INIT_LIST_HEAD(&entry->list);
 
-	node = tree_insert(&tree->tree, root_objectid,
-			   inode->i_ino, &entry->rb_node);
+	node = tree_insert(&tree->tree, file_offset,
+			   &entry->rb_node);
+	if (node) {
+		entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+		atomic_inc(&entry->refs);
+	}
+	set_extent_ordered(&BTRFS_I(inode)->io_tree, file_offset,
+			   entry_end(entry) - 1, GFP_NOFS);
 
-	BTRFS_I(inode)->ordered_trans = transid;
-	if (!node)
-		igrab(inode);
+	set_bit(BTRFS_ORDERED_START, &entry->flags);
+	mutex_unlock(&tree->mutex);
+	BUG_ON(node);
+	return 0;
+}
 
-	write_unlock(&tree->lock);
+int btrfs_add_ordered_sum(struct inode *inode, struct btrfs_ordered_sum *sum)
+{
+	struct btrfs_ordered_inode_tree *tree;
+	struct rb_node *node;
+	struct btrfs_ordered_extent *entry;
 
-	if (node)
+	tree = &BTRFS_I(inode)->ordered_tree;
+	mutex_lock(&tree->mutex);
+	node = tree_search(tree, sum->file_offset);
+	if (!node) {
+search_fail:
+printk("add ordered sum failed to find a node for inode %lu offset %Lu\n", inode->i_ino, sum->file_offset);
+		node = rb_first(&tree->tree);
+		while(node) {
+			entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+			printk("entry %Lu %Lu %Lu\n", entry->file_offset, entry->file_offset + entry->len, entry->start);
+			node = rb_next(node);
+		}
+		BUG();
+	}
+	BUG_ON(!node);
+
+	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+	if (!offset_in_entry(entry, sum->file_offset)) {
+		goto search_fail;
+	}
+
+	list_add_tail(&sum->list, &entry->list);
+	mutex_unlock(&tree->mutex);
+	return 0;
+}
+
+int btrfs_dec_test_ordered_pending(struct inode *inode,
+				   u64 file_offset, u64 io_size)
+{
+	struct btrfs_ordered_inode_tree *tree;
+	struct rb_node *node;
+	struct btrfs_ordered_extent *entry;
+	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	int ret;
+
+	tree = &BTRFS_I(inode)->ordered_tree;
+	mutex_lock(&tree->mutex);
+	clear_extent_ordered(io_tree, file_offset, file_offset + io_size - 1,
+			     GFP_NOFS);
+	node = tree_search(tree, file_offset);
+	if (!node) {
+		ret = 1;
+		goto out;
+	}
+
+	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+	if (!offset_in_entry(entry, file_offset)) {
+		ret = 1;
+		goto out;
+	}
+
+	ret = test_range_bit(io_tree, entry->file_offset,
+			     entry->file_offset + entry->len - 1,
+			     EXTENT_ORDERED, 0);
+	if (!test_bit(BTRFS_ORDERED_START, &entry->flags)) {
+printk("inode %lu not ready yet for extent %Lu %Lu\n", inode->i_ino, entry->file_offset, entry_end(entry));
+	}
+	if (ret == 0)
+		ret = test_and_set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
+out:
+	mutex_unlock(&tree->mutex);
+	return ret == 0;
+}
+
+int btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
+{
+	if (atomic_dec_and_test(&entry->refs))
 		kfree(entry);
 	return 0;
 }
 
-int btrfs_find_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
-				   u64 *root_objectid, u64 *objectid,
-				   struct inode **inode)
+int btrfs_remove_ordered_extent(struct inode *inode,
+				struct btrfs_ordered_extent *entry)
 {
-	struct tree_entry *entry;
+	struct btrfs_ordered_inode_tree *tree;
 	struct rb_node *node;
 
-	write_lock(&tree->lock);
-	node = tree_search(&tree->tree, *root_objectid, *objectid);
-	if (!node) {
-		write_unlock(&tree->lock);
-		return 0;
-	}
-	entry = rb_entry(node, struct tree_entry, rb_node);
-
-	while(comp_entry(entry, *root_objectid, *objectid) >= 0) {
-		node = rb_next(node);
-		if (!node)
-			break;
-		entry = rb_entry(node, struct tree_entry, rb_node);
-	}
-	if (!node) {
-		write_unlock(&tree->lock);
-		return 0;
-	}
-
-	*root_objectid = entry->root_objectid;
-	*inode = entry->inode;
-	atomic_inc(&entry->inode->i_count);
-	*objectid = entry->objectid;
-	write_unlock(&tree->lock);
-	return 1;
-}
-
-int btrfs_find_del_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
-				       u64 *root_objectid, u64 *objectid,
-				       struct inode **inode)
-{
-	struct tree_entry *entry;
-	struct rb_node *node;
-
-	write_lock(&tree->lock);
-	node = tree_search(&tree->tree, *root_objectid, *objectid);
-	if (!node) {
-		write_unlock(&tree->lock);
-		return 0;
-	}
-
-	entry = rb_entry(node, struct tree_entry, rb_node);
-	while(comp_entry(entry, *root_objectid, *objectid) >= 0) {
-		node = rb_next(node);
-		if (!node)
-			break;
-		entry = rb_entry(node, struct tree_entry, rb_node);
-	}
-	if (!node) {
-		write_unlock(&tree->lock);
-		return 0;
-	}
-
-	*root_objectid = entry->root_objectid;
-	*objectid = entry->objectid;
-	*inode = entry->inode;
-	atomic_inc(&entry->inode->i_count);
+	tree = &BTRFS_I(inode)->ordered_tree;
+	mutex_lock(&tree->mutex);
+	node = &entry->rb_node;
 	rb_erase(node, &tree->tree);
-	write_unlock(&tree->lock);
-	kfree(entry);
-	return 1;
-}
-
-static void __btrfs_del_ordered_inode(struct btrfs_ordered_inode_tree *tree,
-				     struct inode *inode,
-				     u64 root_objectid, u64 objectid)
-{
-	struct tree_entry *entry;
-	struct rb_node *node;
-	struct rb_node *prev;
-
-	write_lock(&tree->lock);
-	node = __tree_search(&tree->tree, root_objectid, objectid, &prev);
-	if (!node) {
-		write_unlock(&tree->lock);
-		return;
-	}
-	rb_erase(node, &tree->tree);
-	BTRFS_I(inode)->ordered_trans = 0;
-	write_unlock(&tree->lock);
-	atomic_dec(&inode->i_count);
-	entry = rb_entry(node, struct tree_entry, rb_node);
-	kfree(entry);
-	return;
-}
-
-void btrfs_del_ordered_inode(struct inode *inode, int force)
-{
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 root_objectid = root->root_key.objectid;
-
-	if (!BTRFS_I(inode)->ordered_trans) {
-		return;
-	}
-
-	if (!force && (mapping_tagged(inode->i_mapping, PAGECACHE_TAG_DIRTY) ||
-	    mapping_tagged(inode->i_mapping, PAGECACHE_TAG_WRITEBACK)))
-		return;
-
-	spin_lock(&root->fs_info->new_trans_lock);
-	if (root->fs_info->running_transaction) {
-		struct btrfs_ordered_inode_tree *tree;
-		tree = &root->fs_info->running_transaction->ordered_inode_tree;
-		 __btrfs_del_ordered_inode(tree, inode, root_objectid,
-						inode->i_ino);
-	}
-	spin_unlock(&root->fs_info->new_trans_lock);
-}
-
-int btrfs_ordered_throttle(struct btrfs_root *root, struct inode *inode)
-{
-	struct btrfs_transaction *cur = root->fs_info->running_transaction;
-	while(cur == root->fs_info->running_transaction &&
-	      atomic_read(&BTRFS_I(inode)->ordered_writeback)) {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,18)
-		congestion_wait(WRITE, HZ/20);
-#else
-		blk_congestion_wait(WRITE, HZ/20);
-#endif
-	}
+	tree->last = NULL;
+	set_bit(BTRFS_ORDERED_COMPLETE, &entry->flags);
+	mutex_unlock(&tree->mutex);
+	wake_up(&entry->wait);
 	return 0;
+}
+
+void btrfs_wait_ordered_extent(struct inode *inode,
+			       struct btrfs_ordered_extent *entry)
+{
+	u64 start = entry->file_offset;
+	u64 end = start + entry->len - 1;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
+	do_sync_file_range(file, start, end, SYNC_FILE_RANGE_WRITE);
+#else
+	do_sync_mapping_range(inode->i_mapping, start, end,
+			      SYNC_FILE_RANGE_WRITE);
+#endif
+	wait_event(entry->wait,
+		   test_bit(BTRFS_ORDERED_COMPLETE, &entry->flags));
+}
+
+static void btrfs_start_ordered_extent(struct inode *inode,
+			       struct btrfs_ordered_extent *entry, int wait)
+{
+	u64 start = entry->file_offset;
+	u64 end = start + entry->len - 1;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
+	do_sync_file_range(file, start, end, SYNC_FILE_RANGE_WRITE);
+#else
+	do_sync_mapping_range(inode->i_mapping, start, end,
+			      SYNC_FILE_RANGE_WRITE);
+#endif
+	if (wait)
+		wait_event(entry->wait, test_bit(BTRFS_ORDERED_COMPLETE,
+						 &entry->flags));
+}
+
+void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
+{
+	u64 end;
+	struct btrfs_ordered_extent *ordered;
+	int found;
+	int should_wait = 0;
+
+again:
+	if (start + len < start)
+		end = (u64)-1;
+	else
+		end = start + len - 1;
+	found = 0;
+	while(1) {
+		ordered = btrfs_lookup_first_ordered_extent(inode, end);
+		if (!ordered) {
+			break;
+		}
+		if (ordered->file_offset >= start + len) {
+			btrfs_put_ordered_extent(ordered);
+			break;
+		}
+		if (ordered->file_offset + ordered->len < start) {
+			btrfs_put_ordered_extent(ordered);
+			break;
+		}
+		btrfs_start_ordered_extent(inode, ordered, should_wait);
+		found++;
+		end = ordered->file_offset;
+		btrfs_put_ordered_extent(ordered);
+		if (end == 0)
+			break;
+		end--;
+	}
+	if (should_wait && found) {
+		should_wait = 0;
+		goto again;
+	}
+}
+
+int btrfs_add_ordered_pending(struct inode *inode,
+			      struct btrfs_ordered_extent *ordered,
+			      u64 start, u64 len)
+{
+	WARN_ON(1);
+	return 0;
+#if 0
+	int ret;
+	struct btrfs_ordered_inode_tree *tree;
+	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+
+	tree = &BTRFS_I(inode)->ordered_tree;
+	mutex_lock(&tree->mutex);
+	if (test_bit(BTRFS_ORDERED_IO_DONE, &ordered->flags)) {
+		ret = -EAGAIN;
+		goto out;
+	}
+	set_extent_ordered(io_tree, start, start + len - 1, GFP_NOFS);
+	ret = 0;
+out:
+	mutex_unlock(&tree->mutex);
+	return ret;
+#endif
+}
+
+struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct inode *inode,
+							 u64 file_offset)
+{
+	struct btrfs_ordered_inode_tree *tree;
+	struct rb_node *node;
+	struct btrfs_ordered_extent *entry = NULL;
+
+	tree = &BTRFS_I(inode)->ordered_tree;
+	mutex_lock(&tree->mutex);
+	node = tree_search(tree, file_offset);
+	if (!node)
+		goto out;
+
+	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+	if (!offset_in_entry(entry, file_offset))
+		entry = NULL;
+	if (entry)
+		atomic_inc(&entry->refs);
+out:
+	mutex_unlock(&tree->mutex);
+	return entry;
+}
+
+struct btrfs_ordered_extent *
+btrfs_lookup_first_ordered_extent(struct inode * inode, u64 file_offset)
+{
+	struct btrfs_ordered_inode_tree *tree;
+	struct rb_node *node;
+	struct btrfs_ordered_extent *entry = NULL;
+
+	tree = &BTRFS_I(inode)->ordered_tree;
+	mutex_lock(&tree->mutex);
+	node = tree_search(tree, file_offset);
+	if (!node)
+		goto out;
+
+	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+	atomic_inc(&entry->refs);
+out:
+	mutex_unlock(&tree->mutex);
+	return entry;
 }

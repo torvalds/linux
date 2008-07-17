@@ -34,7 +34,6 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
-#include "ordered-data.h"
 #include "ioctl.h"
 #include "print-tree.h"
 #include "compat.h"
@@ -273,7 +272,9 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		u64 mask = root->sectorsize - 1;
 		last_pos_in_file = (isize + mask) & ~mask;
 		hole_size = (start_pos - last_pos_in_file + mask) & ~mask;
-		if (last_pos_in_file < start_pos) {
+		if (hole_size > 0) {
+			btrfs_wait_ordered_range(inode, last_pos_in_file,
+						 last_pos_in_file + hole_size);
 			err = btrfs_drop_extents(trans, root, inode,
 						 last_pos_in_file,
 						 last_pos_in_file + hole_size,
@@ -303,19 +304,17 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	    inline_size > root->fs_info->max_inline ||
 	    (inline_size & (root->sectorsize -1)) == 0 ||
 	    inline_size >= BTRFS_MAX_INLINE_DATA_SIZE(root)) {
-		u64 last_end;
-
+		/* check for reserved extents on each page, we don't want
+		 * to reset the delalloc bit on things that already have
+		 * extents reserved.
+		 */
+		set_extent_delalloc(io_tree, start_pos,
+				    end_of_last_block, GFP_NOFS);
 		for (i = 0; i < num_pages; i++) {
 			struct page *p = pages[i];
 			SetPageUptodate(p);
 			set_page_dirty(p);
 		}
-		last_end = (u64)(pages[num_pages -1]->index) <<
-				PAGE_CACHE_SHIFT;
-		last_end += PAGE_CACHE_SIZE - 1;
-		set_extent_delalloc(io_tree, start_pos, end_of_last_block,
-				 GFP_NOFS);
-		btrfs_add_ordered_inode(inode);
 	} else {
 		u64 aligned_end;
 		/* step one, delete the existing extents in this range */
@@ -350,10 +349,13 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 	struct extent_map *split = NULL;
 	struct extent_map *split2 = NULL;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct extent_map *tmp;
 	u64 len = end - start + 1;
+	u64 next_start;
 	int ret;
 	int testend = 1;
 
+	WARN_ON(end < start);
 	if (end == (u64)-1) {
 		len = (u64)-1;
 		testend = 0;
@@ -370,6 +372,8 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 			spin_unlock(&em_tree->lock);
 			break;
 		}
+		tmp = rb_entry(&em->rb_node, struct extent_map, rb_node);
+		next_start = tmp->start;
 		remove_extent_mapping(em_tree, em);
 
 		if (em->block_start < EXTENT_MAP_LAST_BYTE &&
@@ -778,36 +782,57 @@ static int prepare_pages(struct btrfs_root *root, struct file *file,
 	struct inode *inode = fdentry(file)->d_inode;
 	int err = 0;
 	u64 start_pos;
+	u64 last_pos;
 
 	start_pos = pos & ~((u64)root->sectorsize - 1);
+	last_pos = ((u64)index + num_pages) << PAGE_CACHE_SHIFT;
 
 	memset(pages, 0, num_pages * sizeof(struct page *));
-
+again:
 	for (i = 0; i < num_pages; i++) {
 		pages[i] = grab_cache_page(inode->i_mapping, index + i);
 		if (!pages[i]) {
 			err = -ENOMEM;
 			BUG_ON(1);
 		}
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-		ClearPageDirty(pages[i]);
-#else
-		cancel_dirty_page(pages[i], PAGE_CACHE_SIZE);
-#endif
 		wait_on_page_writeback(pages[i]);
-		set_page_extent_mapped(pages[i]);
-		WARN_ON(!PageLocked(pages[i]));
 	}
 	if (start_pos < inode->i_size) {
-		u64 last_pos;
-		last_pos = ((u64)index + num_pages) << PAGE_CACHE_SHIFT;
+		struct btrfs_ordered_extent *ordered;
 		lock_extent(&BTRFS_I(inode)->io_tree,
 			    start_pos, last_pos - 1, GFP_NOFS);
+		ordered = btrfs_lookup_first_ordered_extent(inode, last_pos -1);
+		if (ordered &&
+		    ordered->file_offset + ordered->len > start_pos &&
+		    ordered->file_offset < last_pos) {
+			btrfs_put_ordered_extent(ordered);
+			unlock_extent(&BTRFS_I(inode)->io_tree,
+				      start_pos, last_pos - 1, GFP_NOFS);
+			for (i = 0; i < num_pages; i++) {
+				unlock_page(pages[i]);
+				page_cache_release(pages[i]);
+			}
+			btrfs_wait_ordered_range(inode, start_pos,
+						 last_pos - start_pos);
+			goto again;
+		}
+		if (ordered)
+			btrfs_put_ordered_extent(ordered);
+
 		clear_extent_bits(&BTRFS_I(inode)->io_tree, start_pos,
 				  last_pos - 1, EXTENT_DIRTY | EXTENT_DELALLOC,
 				  GFP_NOFS);
 		unlock_extent(&BTRFS_I(inode)->io_tree,
 			      start_pos, last_pos - 1, GFP_NOFS);
+	}
+	for (i = 0; i < num_pages; i++) {
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+		ClearPageDirty(pages[i]);
+#else
+		cancel_dirty_page(pages[i], PAGE_CACHE_SIZE);
+#endif
+		set_page_extent_mapped(pages[i]);
+		WARN_ON(!PageLocked(pages[i]));
 	}
 	return 0;
 }
@@ -969,13 +994,11 @@ out_nolock:
 		     (start_pos + num_written - 1) >> PAGE_CACHE_SHIFT);
 	}
 	current->backing_dev_info = NULL;
-	btrfs_ordered_throttle(root, inode);
 	return num_written ? num_written : err;
 }
 
 int btrfs_release_file(struct inode * inode, struct file * filp)
 {
-	btrfs_del_ordered_inode(inode, 0);
 	if (filp->private_data)
 		btrfs_ioctl_trans_end(filp);
 	return 0;

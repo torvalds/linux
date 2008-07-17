@@ -793,6 +793,13 @@ int set_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 }
 EXPORT_SYMBOL(set_extent_dirty);
 
+int set_extent_ordered(struct extent_io_tree *tree, u64 start, u64 end,
+		       gfp_t mask)
+{
+	return set_extent_bit(tree, start, end, EXTENT_ORDERED, 0, NULL, mask);
+}
+EXPORT_SYMBOL(set_extent_ordered);
+
 int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		    int bits, gfp_t mask)
 {
@@ -812,8 +819,8 @@ int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
 		     gfp_t mask)
 {
 	return set_extent_bit(tree, start, end,
-			      EXTENT_DELALLOC | EXTENT_DIRTY, 0, NULL,
-			      mask);
+			      EXTENT_DELALLOC | EXTENT_DIRTY,
+			      0, NULL, mask);
 }
 EXPORT_SYMBOL(set_extent_delalloc);
 
@@ -824,6 +831,13 @@ int clear_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 				EXTENT_DIRTY | EXTENT_DELALLOC, 0, 0, mask);
 }
 EXPORT_SYMBOL(clear_extent_dirty);
+
+int clear_extent_ordered(struct extent_io_tree *tree, u64 start, u64 end,
+			 gfp_t mask)
+{
+	return clear_extent_bit(tree, start, end, EXTENT_ORDERED, 1, 0, mask);
+}
+EXPORT_SYMBOL(clear_extent_ordered);
 
 int set_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
 		     gfp_t mask)
@@ -1395,10 +1409,9 @@ static int end_bio_extent_writepage(struct bio *bio,
 
 		if (--bvec >= bio->bi_io_vec)
 			prefetchw(&bvec->bv_page->flags);
-
 		if (tree->ops && tree->ops->writepage_end_io_hook) {
 			ret = tree->ops->writepage_end_io_hook(page, start,
-						       end, state);
+						       end, state, uptodate);
 			if (ret)
 				uptodate = 0;
 		}
@@ -1868,9 +1881,14 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 			unlock_extent(tree, cur, end, GFP_NOFS);
 			break;
 		}
-
 		extent_offset = cur - em->start;
+		if (extent_map_end(em) <= cur) {
+printk("bad mapping em [%Lu %Lu] cur %Lu\n", em->start, extent_map_end(em), cur);
+		}
 		BUG_ON(extent_map_end(em) <= cur);
+		if (end < cur) {
+printk("2bad mapping end %Lu cur %Lu\n", end, cur);
+		}
 		BUG_ON(end < cur);
 
 		iosize = min(extent_map_end(em) - cur, end - cur + 1);
@@ -1976,6 +1994,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	u64 last_byte = i_size_read(inode);
 	u64 block_start;
 	u64 iosize;
+	u64 unlock_start;
 	sector_t sector;
 	struct extent_map *em;
 	struct block_device *bdev;
@@ -1987,7 +2006,6 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	unsigned long end_index = i_size >> PAGE_CACHE_SHIFT;
 	u64 nr_delalloc;
 	u64 delalloc_end;
-
 
 	WARN_ON(!PageLocked(page));
 	page_offset = i_size & (PAGE_CACHE_SIZE - 1);
@@ -2030,6 +2048,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		delalloc_start = delalloc_end + 1;
 	}
 	lock_extent(tree, start, page_end, GFP_NOFS);
+	unlock_start = start;
 
 	end = page_end;
 	if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0)) {
@@ -2038,6 +2057,11 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 
 	if (last_byte <= start) {
 		clear_extent_dirty(tree, start, page_end, GFP_NOFS);
+		unlock_extent(tree, start, page_end, GFP_NOFS);
+		if (tree->ops && tree->ops->writepage_end_io_hook)
+			tree->ops->writepage_end_io_hook(page, start,
+							 page_end, NULL, 1);
+		unlock_start = page_end + 1;
 		goto done;
 	}
 
@@ -2047,6 +2071,11 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	while (cur <= end) {
 		if (cur >= last_byte) {
 			clear_extent_dirty(tree, cur, page_end, GFP_NOFS);
+			unlock_extent(tree, unlock_start, page_end, GFP_NOFS);
+			if (tree->ops && tree->ops->writepage_end_io_hook)
+				tree->ops->writepage_end_io_hook(page, cur,
+							 page_end, NULL, 1);
+			unlock_start = page_end + 1;
 			break;
 		}
 		em = epd->get_extent(inode, page, page_offset, cur,
@@ -2071,8 +2100,16 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		    block_start == EXTENT_MAP_INLINE) {
 			clear_extent_dirty(tree, cur,
 					   cur + iosize - 1, GFP_NOFS);
+
+			unlock_extent(tree, unlock_start, cur + iosize -1,
+				      GFP_NOFS);
+			if (tree->ops && tree->ops->writepage_end_io_hook)
+				tree->ops->writepage_end_io_hook(page, cur,
+							 cur + iosize - 1,
+							 NULL, 1);
 			cur = cur + iosize;
 			page_offset += iosize;
+			unlock_start = cur;
 			continue;
 		}
 
@@ -2119,7 +2156,8 @@ done:
 		set_page_writeback(page);
 		end_page_writeback(page);
 	}
-	unlock_extent(tree, start, page_end, GFP_NOFS);
+	if (unlock_start <= page_end)
+		unlock_extent(tree, unlock_start, page_end, GFP_NOFS);
 	unlock_page(page);
 	return 0;
 }

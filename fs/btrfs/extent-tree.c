@@ -1895,36 +1895,17 @@ error:
 	return ret;
 }
 
-/*
- * finds a free extent and does all the dirty work required for allocation
- * returns the key for the extent through ins, and a tree buffer for
- * the first block of the extent through buf.
- *
- * returns 0 if everything worked, non-zero otherwise.
- */
-int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *root,
-		       u64 num_bytes, u64 min_alloc_size,
-		       u64 root_objectid, u64 ref_generation,
-		       u64 owner, u64 owner_offset,
-		       u64 empty_size, u64 hint_byte,
-		       u64 search_end, struct btrfs_key *ins, u64 data)
+static int __btrfs_reserve_extent(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  u64 num_bytes, u64 min_alloc_size,
+				  u64 empty_size, u64 hint_byte,
+				  u64 search_end, struct btrfs_key *ins,
+				  u64 data)
 {
 	int ret;
-	int pending_ret;
-	u64 super_used;
-	u64 root_used;
 	u64 search_start = 0;
 	u64 alloc_profile;
-	u32 sizes[2];
 	struct btrfs_fs_info *info = root->fs_info;
-	struct btrfs_root *extent_root = info->extent_root;
-	struct btrfs_extent_item *extent_item;
-	struct btrfs_extent_ref *ref;
-	struct btrfs_path *path;
-	struct btrfs_key keys[2];
-
-	maybe_lock_mutex(root);
 
 	if (data) {
 		alloc_profile = info->avail_data_alloc_bits &
@@ -1974,11 +1955,48 @@ again:
 	}
 	if (ret) {
 		printk("allocation failed flags %Lu\n", data);
-	}
-	if (ret) {
 		BUG();
-		goto out;
 	}
+	clear_extent_dirty(&root->fs_info->free_space_cache,
+			   ins->objectid, ins->objectid + ins->offset - 1,
+			   GFP_NOFS);
+	return 0;
+}
+
+int btrfs_reserve_extent(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  u64 num_bytes, u64 min_alloc_size,
+				  u64 empty_size, u64 hint_byte,
+				  u64 search_end, struct btrfs_key *ins,
+				  u64 data)
+{
+	int ret;
+	maybe_lock_mutex(root);
+	ret = __btrfs_reserve_extent(trans, root, num_bytes, min_alloc_size,
+				     empty_size, hint_byte, search_end, ins,
+				     data);
+	maybe_unlock_mutex(root);
+	return ret;
+}
+
+static int __btrfs_alloc_reserved_extent(struct btrfs_trans_handle *trans,
+					 struct btrfs_root *root,
+					 u64 root_objectid, u64 ref_generation,
+					 u64 owner, u64 owner_offset,
+					 struct btrfs_key *ins)
+{
+	int ret;
+	int pending_ret;
+	u64 super_used;
+	u64 root_used;
+	u64 num_bytes = ins->offset;
+	u32 sizes[2];
+	struct btrfs_fs_info *info = root->fs_info;
+	struct btrfs_root *extent_root = info->extent_root;
+	struct btrfs_extent_item *extent_item;
+	struct btrfs_extent_ref *ref;
+	struct btrfs_path *path;
+	struct btrfs_key keys[2];
 
 	/* block accounting for super block */
 	spin_lock_irq(&info->delalloc_lock);
@@ -1990,20 +2008,12 @@ again:
 	root_used = btrfs_root_used(&root->root_item);
 	btrfs_set_root_used(&root->root_item, root_used + num_bytes);
 
-	clear_extent_dirty(&root->fs_info->free_space_cache,
-			   ins->objectid, ins->objectid + ins->offset - 1,
-			   GFP_NOFS);
-
 	if (root == extent_root) {
 		set_extent_bits(&root->fs_info->extent_ins, ins->objectid,
 				ins->objectid + ins->offset - 1,
 				EXTENT_LOCKED, GFP_NOFS);
 		goto update_block;
 	}
-
-	WARN_ON(trans->alloc_exclude_nr);
-	trans->alloc_exclude_start = ins->objectid;
-	trans->alloc_exclude_nr = ins->offset;
 
 	memcpy(&keys[0], ins, sizeof(*ins));
 	keys[1].offset = hash_extent_ref(root_objectid, ref_generation,
@@ -2054,6 +2064,51 @@ update_block:
 		BUG();
 	}
 out:
+	return ret;
+}
+
+int btrfs_alloc_reserved_extent(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				u64 root_objectid, u64 ref_generation,
+				u64 owner, u64 owner_offset,
+				struct btrfs_key *ins)
+{
+	int ret;
+	maybe_lock_mutex(root);
+	ret = __btrfs_alloc_reserved_extent(trans, root, root_objectid,
+					    ref_generation, owner,
+					    owner_offset, ins);
+	maybe_unlock_mutex(root);
+	return ret;
+}
+/*
+ * finds a free extent and does all the dirty work required for allocation
+ * returns the key for the extent through ins, and a tree buffer for
+ * the first block of the extent through buf.
+ *
+ * returns 0 if everything worked, non-zero otherwise.
+ */
+int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root,
+		       u64 num_bytes, u64 min_alloc_size,
+		       u64 root_objectid, u64 ref_generation,
+		       u64 owner, u64 owner_offset,
+		       u64 empty_size, u64 hint_byte,
+		       u64 search_end, struct btrfs_key *ins, u64 data)
+{
+	int ret;
+
+	maybe_lock_mutex(root);
+
+	ret = __btrfs_reserve_extent(trans, root, num_bytes,
+				     min_alloc_size, empty_size, hint_byte,
+				     search_end, ins, data);
+	BUG_ON(ret);
+	ret = __btrfs_alloc_reserved_extent(trans, root, root_objectid,
+					    ref_generation, owner,
+					    owner_offset, ins);
+	BUG_ON(ret);
+
 	maybe_unlock_mutex(root);
 	return ret;
 }
@@ -2288,8 +2343,8 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 			mutex_lock(&root->fs_info->alloc_mutex);
 
 			/* we've dropped the lock, double check */
-			ret = drop_snap_lookup_refcount(root, bytenr,
-						blocksize, &refs);
+			ret = lookup_extent_ref(NULL, root, bytenr, blocksize,
+						&refs);
 			BUG_ON(ret);
 			if (refs != 1) {
 				parent = path->nodes[*level];
@@ -2584,7 +2639,6 @@ out_unlock:
 	kfree(ra);
 	trans = btrfs_start_transaction(BTRFS_I(inode)->root, 1);
 	if (trans) {
-		btrfs_add_ordered_inode(inode);
 		btrfs_end_transaction(trans, BTRFS_I(inode)->root);
 		mark_inode_dirty(inode);
 	}

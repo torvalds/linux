@@ -21,6 +21,7 @@
 
 #include "extent_map.h"
 #include "extent_io.h"
+#include "ordered-data.h"
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -32,9 +33,8 @@ struct btrfs_inode {
 	struct extent_io_tree io_failure_tree;
 	struct mutex csum_mutex;
 	struct inode vfs_inode;
-	atomic_t ordered_writeback;
+	struct btrfs_ordered_inode_tree ordered_tree;
 
-	u64 ordered_trans;
 	/*
 	 * transid of the trans_handle that last modified this inode
 	 */

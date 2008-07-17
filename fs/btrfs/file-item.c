@@ -135,26 +135,37 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 }
 
 int btrfs_csum_one_bio(struct btrfs_root *root,
-		       struct bio *bio, char **sums_ret)
+		       struct bio *bio, struct btrfs_ordered_sum **sums_ret)
 {
-	u32 *sums;
+	struct btrfs_ordered_sum *sums;
+	struct btrfs_sector_sum *sector_sum;
 	char *data;
 	struct bio_vec *bvec = bio->bi_io_vec;
 	int bio_index = 0;
 
-	sums = kmalloc(bio->bi_vcnt * BTRFS_CRC32_SIZE, GFP_NOFS);
+	WARN_ON(bio->bi_vcnt <= 0);
+	sums = kzalloc(btrfs_ordered_sum_size(root, bio->bi_size), GFP_NOFS);
 	if (!sums)
 		return -ENOMEM;
-	*sums_ret = (char *)sums;
+	*sums_ret = sums;
+	sector_sum = &sums->sums;
+	sums->file_offset = page_offset(bvec->bv_page);
+	sums->len = bio->bi_size;
+	INIT_LIST_HEAD(&sums->list);
 
 	while(bio_index < bio->bi_vcnt) {
 		data = kmap_atomic(bvec->bv_page, KM_USER0);
-		*sums = ~(u32)0;
-		*sums = btrfs_csum_data(root, data + bvec->bv_offset,
-					*sums, bvec->bv_len);
+		sector_sum->sum = ~(u32)0;
+		sector_sum->sum = btrfs_csum_data(root,
+						  data + bvec->bv_offset,
+						  sector_sum->sum,
+						  bvec->bv_len);
 		kunmap_atomic(data, KM_USER0);
-		btrfs_csum_final(*sums, (char *)sums);
-		sums++;
+		btrfs_csum_final(sector_sum->sum,
+				 (char *)&sector_sum->sum);
+		sector_sum->offset = page_offset(bvec->bv_page) +
+			bvec->bv_offset;
+		sector_sum++;
 		bio_index++;
 		bvec++;
 	}
@@ -163,7 +174,7 @@ int btrfs_csum_one_bio(struct btrfs_root *root,
 
 int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct inode *inode,
-			   struct bio *bio, char *sums)
+			   struct btrfs_ordered_sum *sums)
 {
 	u64 objectid = inode->i_ino;
 	u64 offset;
@@ -171,17 +182,16 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 	struct btrfs_key file_key;
 	struct btrfs_key found_key;
 	u64 next_offset;
+	u64 total_bytes = 0;
 	int found_next;
 	struct btrfs_path *path;
 	struct btrfs_csum_item *item;
 	struct btrfs_csum_item *item_end;
 	struct extent_buffer *leaf = NULL;
 	u64 csum_offset;
-	u32 *sums32 = (u32 *)sums;
+	struct btrfs_sector_sum *sector_sum;
 	u32 nritems;
 	u32 ins_size;
-	int bio_index = 0;
-	struct bio_vec *bvec = bio->bi_io_vec;
 	char *eb_map;
 	char *eb_token;
 	unsigned long map_len;
@@ -189,10 +199,11 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
+	sector_sum = &sums->sums;
 again:
 	next_offset = (u64)-1;
 	found_next = 0;
-	offset = page_offset(bvec->bv_page) + bvec->bv_offset;
+	offset = sector_sum->offset;
 	file_key.objectid = objectid;
 	file_key.offset = offset;
 	btrfs_set_key_type(&file_key, BTRFS_CSUM_ITEM_KEY);
@@ -303,7 +314,7 @@ found:
 	item_end = (struct btrfs_csum_item *)((unsigned char *)item_end +
 				      btrfs_item_size_nr(leaf, path->slots[0]));
 	eb_token = NULL;
-next_bvec:
+next_sector:
 
 	if (!eb_token ||
 	   (unsigned long)item  + BTRFS_CRC32_SIZE >= map_start + map_len) {
@@ -321,21 +332,20 @@ next_bvec:
 	}
 	if (eb_token) {
 		memcpy(eb_token + ((unsigned long)item & (PAGE_CACHE_SIZE - 1)),
-		       sums32, BTRFS_CRC32_SIZE);
+		       &sector_sum->sum, BTRFS_CRC32_SIZE);
 	} else {
-		write_extent_buffer(leaf, sums32, (unsigned long)item,
-				    BTRFS_CRC32_SIZE);
+		write_extent_buffer(leaf, &sector_sum->sum,
+				    (unsigned long)item, BTRFS_CRC32_SIZE);
 	}
-	bio_index++;
-	bvec++;
-	sums32++;
-	if (bio_index < bio->bi_vcnt) {
+	total_bytes += root->sectorsize;
+	sector_sum++;
+	if (total_bytes < sums->len) {
 		item = (struct btrfs_csum_item *)((char *)item +
 						  BTRFS_CRC32_SIZE);
 		if (item < item_end && offset + PAGE_CACHE_SIZE ==
-		    page_offset(bvec->bv_page)) {
-			offset = page_offset(bvec->bv_page);
-			goto next_bvec;
+		    sector_sum->offset) {
+			    offset = sector_sum->offset;
+			goto next_sector;
 		}
 	}
 	if (eb_token) {
@@ -343,7 +353,7 @@ next_bvec:
 		eb_token = NULL;
 	}
 	btrfs_mark_buffer_dirty(path->nodes[0]);
-	if (bio_index < bio->bi_vcnt) {
+	if (total_bytes < sums->len) {
 		btrfs_release_path(root, path);
 		goto again;
 	}

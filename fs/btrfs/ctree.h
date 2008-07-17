@@ -25,6 +25,7 @@
 #include <linux/fs.h>
 #include <linux/completion.h>
 #include <linux/backing-dev.h>
+#include <linux/wait.h>
 #include <asm/kmap_types.h>
 #include "bit-radix.h"
 #include "extent_io.h"
@@ -37,6 +38,7 @@ extern struct kmem_cache *btrfs_trans_handle_cachep;
 extern struct kmem_cache *btrfs_transaction_cachep;
 extern struct kmem_cache *btrfs_bit_radix_cachep;
 extern struct kmem_cache *btrfs_path_cachep;
+struct btrfs_ordered_sum;
 
 #define BTRFS_MAGIC "_B5RfS_M"
 
@@ -510,6 +512,7 @@ struct btrfs_fs_info {
 	u64 max_inline;
 	u64 alloc_start;
 	struct btrfs_transaction *running_transaction;
+	wait_queue_head_t transaction_throttle;
 	struct btrfs_super_block super_copy;
 	struct btrfs_super_block super_for_commit;
 	struct block_device *__bdev;
@@ -541,6 +544,7 @@ struct btrfs_fs_info {
 	 */
 	struct btrfs_workers workers;
 	struct btrfs_workers endio_workers;
+	struct btrfs_workers endio_write_workers;
 	struct btrfs_workers submit_workers;
 	struct task_struct *transaction_kthread;
 	struct task_struct *cleaner_kthread;
@@ -1384,6 +1388,17 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       u64 owner, u64 owner_offset,
 		       u64 empty_size, u64 hint_byte,
 		       u64 search_end, struct btrfs_key *ins, u64 data);
+int btrfs_alloc_reserved_extent(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				u64 root_objectid, u64 ref_generation,
+				u64 owner, u64 owner_offset,
+				struct btrfs_key *ins);
+int btrfs_reserve_extent(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  u64 num_bytes, u64 min_alloc_size,
+				  u64 empty_size, u64 hint_byte,
+				  u64 search_end, struct btrfs_key *ins,
+				  u64 data);
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct extent_buffer *buf);
 int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
@@ -1556,9 +1571,9 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     u64 bytenr, int mod);
 int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct inode *inode,
-			   struct bio *bio, char *sums);
+			   struct btrfs_ordered_sum *sums);
 int btrfs_csum_one_bio(struct btrfs_root *root,
-		       struct bio *bio, char **sums_ret);
+		       struct bio *bio, struct btrfs_ordered_sum **sums_ret);
 struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root,
 					  struct btrfs_path *path,

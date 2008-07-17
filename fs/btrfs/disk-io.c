@@ -407,7 +407,11 @@ static int end_workqueue_bio(struct bio *bio,
 	end_io_wq->error = err;
 	end_io_wq->work.func = end_workqueue_fn;
 	end_io_wq->work.flags = 0;
-	btrfs_queue_worker(&fs_info->endio_workers, &end_io_wq->work);
+	if (bio->bi_rw & (1 << BIO_RW))
+		btrfs_queue_worker(&fs_info->endio_write_workers,
+				   &end_io_wq->work);
+	else
+		btrfs_queue_worker(&fs_info->endio_workers, &end_io_wq->work);
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
 	return 0;
@@ -1286,6 +1290,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->transaction_kthread_mutex);
 	mutex_init(&fs_info->cleaner_mutex);
 	mutex_init(&fs_info->volume_mutex);
+	init_waitqueue_head(&fs_info->transaction_throttle);
 
 #if 0
 	ret = add_hasher(fs_info, "crc32c");
@@ -1325,9 +1330,13 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_init_workers(&fs_info->workers, fs_info->thread_pool_size);
 	btrfs_init_workers(&fs_info->submit_workers, fs_info->thread_pool_size);
 	btrfs_init_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
+	btrfs_init_workers(&fs_info->endio_write_workers,
+			   fs_info->thread_pool_size);
 	btrfs_start_workers(&fs_info->workers, 1);
 	btrfs_start_workers(&fs_info->submit_workers, 1);
 	btrfs_start_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
+	btrfs_start_workers(&fs_info->endio_write_workers,
+			    fs_info->thread_pool_size);
 
 	err = -EINVAL;
 	if (btrfs_super_num_devices(disk_super) > fs_devices->open_devices) {
@@ -1447,6 +1456,7 @@ fail_sb_buffer:
 	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
+	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->submit_workers);
 fail_iput:
 	iput(fs_info->btree_inode);
@@ -1702,6 +1712,7 @@ int close_ctree(struct btrfs_root *root)
 
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
+	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->submit_workers);
 
 	iput(fs_info->btree_inode);

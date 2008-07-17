@@ -206,10 +206,11 @@ int add_extent_mapping(struct extent_map_tree *tree,
 	struct extent_map *merge = NULL;
 	struct rb_node *rb;
 
+	BUG_ON(spin_trylock(&tree->lock));
 	rb = tree_insert(&tree->map, em->start, &em->rb_node);
 	if (rb) {
-		merge = rb_entry(rb, struct extent_map, rb_node);
 		ret = -EEXIST;
+		free_extent_map(merge);
 		goto out;
 	}
 	atomic_inc(&em->refs);
@@ -268,6 +269,7 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 	struct rb_node *next = NULL;
 	u64 end = range_end(start, len);
 
+	BUG_ON(spin_trylock(&tree->lock));
 	em = tree->last;
 	if (em && end > em->start && start < extent_map_end(em))
 		goto found;
@@ -318,6 +320,7 @@ int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 {
 	int ret = 0;
 
+	BUG_ON(spin_trylock(&tree->lock));
 	rb_erase(&em->rb_node, &tree->map);
 	em->in_tree = 0;
 	if (tree->last == em)

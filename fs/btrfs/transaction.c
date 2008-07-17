@@ -67,7 +67,6 @@ static noinline int join_transaction(struct btrfs_root *root)
 		cur_trans->start_time = get_seconds();
 		INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
-		btrfs_ordered_inode_tree_init(&cur_trans->ordered_inode_tree);
 		extent_io_tree_init(&cur_trans->dirty_pages,
 				     root->fs_info->btree_inode->i_mapping,
 				     GFP_NOFS);
@@ -158,10 +157,12 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		wake_up(&cur_trans->writer_wait);
 
 	if (cur_trans->in_commit && throttle) {
-		int ret;
+		DEFINE_WAIT(wait);
 		mutex_unlock(&root->fs_info->trans_mutex);
-		ret = wait_for_commit(root, cur_trans);
-		BUG_ON(ret);
+		prepare_to_wait(&root->fs_info->transaction_throttle, &wait,
+				TASK_UNINTERRUPTIBLE);
+		schedule();
+		finish_wait(&root->fs_info->transaction_throttle, &wait);
 		mutex_lock(&root->fs_info->trans_mutex);
 	}
 
@@ -486,58 +487,6 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 	return ret;
 }
 
-int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root)
-{
-	struct btrfs_transaction *cur_trans = trans->transaction;
-	struct inode *inode;
-	u64 root_objectid = 0;
-	u64 objectid = 0;
-	int ret;
-
-	atomic_inc(&root->fs_info->throttles);
-	while(1) {
-		ret = btrfs_find_first_ordered_inode(
-				&cur_trans->ordered_inode_tree,
-				&root_objectid, &objectid, &inode);
-		if (!ret)
-			break;
-
-		mutex_unlock(&root->fs_info->trans_mutex);
-
-		if (S_ISREG(inode->i_mode)) {
-			atomic_inc(&BTRFS_I(inode)->ordered_writeback);
-			filemap_fdatawrite(inode->i_mapping);
-			atomic_dec(&BTRFS_I(inode)->ordered_writeback);
-		}
-		iput(inode);
-
-		mutex_lock(&root->fs_info->trans_mutex);
-	}
-	while(1) {
-		root_objectid = 0;
-		objectid = 0;
-		ret = btrfs_find_del_first_ordered_inode(
-				&cur_trans->ordered_inode_tree,
-				&root_objectid, &objectid, &inode);
-		if (!ret)
-			break;
-		mutex_unlock(&root->fs_info->trans_mutex);
-
-		if (S_ISREG(inode->i_mode)) {
-			atomic_inc(&BTRFS_I(inode)->ordered_writeback);
-			filemap_write_and_wait(inode->i_mapping);
-			atomic_dec(&BTRFS_I(inode)->ordered_writeback);
-		}
-		atomic_dec(&inode->i_count);
-		iput(inode);
-
-		mutex_lock(&root->fs_info->trans_mutex);
-	}
-	atomic_dec(&root->fs_info->throttles);
-	return 0;
-}
-
 static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 				   struct btrfs_fs_info *fs_info,
 				   struct btrfs_pending_snapshot *pending)
@@ -666,6 +615,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	extent_io_tree_init(pinned_copy,
 			     root->fs_info->btree_inode->i_mapping, GFP_NOFS);
 
+printk("commit trans %Lu\n", trans->transid);
 	trans->transaction->in_commit = 1;
 	cur_trans = trans->transaction;
 	if (cur_trans->list.prev != &root->fs_info->trans_list) {
@@ -699,8 +649,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 		mutex_lock(&root->fs_info->trans_mutex);
 		finish_wait(&cur_trans->writer_wait, &wait);
-		ret = btrfs_write_ordered_inodes(trans, root);
-
 	} while (cur_trans->num_writers > 1 ||
 		 (cur_trans->num_joined != joined));
 
@@ -736,6 +684,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_copy_pinned(root, pinned_copy);
 
+	wake_up(&root->fs_info->transaction_throttle);
+
 	mutex_unlock(&root->fs_info->trans_mutex);
 	ret = btrfs_write_and_wait_transaction(trans, root);
 	BUG_ON(ret);
@@ -758,6 +708,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		list_splice_init(&dirty_fs_roots, &root->fs_info->dead_roots);
 
 	mutex_unlock(&root->fs_info->trans_mutex);
+printk("done commit trans %Lu\n", trans->transid);
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 
 	if (root->fs_info->closing) {

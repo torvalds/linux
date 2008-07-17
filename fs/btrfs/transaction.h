@@ -19,7 +19,6 @@
 #ifndef __BTRFS_TRANSACTION__
 #define __BTRFS_TRANSACTION__
 #include "btrfs_inode.h"
-#include "ordered-data.h"
 
 struct btrfs_transaction {
 	u64 transid;
@@ -31,7 +30,6 @@ struct btrfs_transaction {
 	struct list_head list;
 	struct extent_io_tree dirty_pages;
 	unsigned long start_time;
-	struct btrfs_ordered_inode_tree ordered_inode_tree;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
 	struct list_head pending_snapshots;
@@ -88,8 +86,6 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly);
 int btrfs_clean_old_snapshots(struct btrfs_root *root);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root);
-int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root);
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root);
 #endif
