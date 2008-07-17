@@ -741,7 +741,7 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 
 	max_level = acpi_video_init_brightness(device);
 
-	if (device->cap._BCL && device->cap._BCM && device->cap._BQC && max_level > 0){
+	if (device->cap._BCL && device->cap._BCM && max_level > 0) {
 		int result;
 		static int count = 0;
 		char *name;
@@ -753,7 +753,17 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->backlight = backlight_device_register(name,
 			NULL, device, &acpi_backlight_ops);
 		device->backlight->props.max_brightness = device->brightness->count-3;
-		device->backlight->props.brightness = acpi_video_get_brightness(device->backlight);
+		/*
+		 * If there exists the _BQC object, the _BQC object will be
+		 * called to get the current backlight brightness. Otherwise
+		 * the brightness will be set to the maximum.
+		 */
+		if (device->cap._BQC)
+			device->backlight->props.brightness =
+				acpi_video_get_brightness(device->backlight);
+		else
+			device->backlight->props.brightness =
+				device->backlight->props.max_brightness;
 		backlight_update_status(device->backlight);
 		kfree(name);
 
