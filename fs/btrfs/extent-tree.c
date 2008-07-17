@@ -1671,6 +1671,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	ret = __free_extent(trans, root, bytenr, num_bytes, root_objectid,
 			    ref_generation, owner_objectid, owner_offset,
 			    pin, pin == 0);
+
+	finish_current_insert(trans, root->fs_info->extent_root);
 	pending_ret = del_pending_extents(trans, root->fs_info->extent_root);
 	return ret ? ret : pending_ret;
 }

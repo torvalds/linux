@@ -32,6 +32,7 @@ struct btrfs_inode {
 	struct extent_io_tree io_tree;
 	struct extent_io_tree io_failure_tree;
 	struct mutex csum_mutex;
+	struct mutex extent_mutex;
 	struct inode vfs_inode;
 	struct btrfs_ordered_inode_tree ordered_tree;
 

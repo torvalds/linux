@@ -242,6 +242,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	u64 end_of_last_block;
 	u64 end_pos = pos + write_bytes;
 	u64 inline_size;
+	int did_inline = 0;
 	loff_t isize = i_size_read(inode);
 
 	start_pos = pos & ~((u64)root->sectorsize - 1);
@@ -275,6 +276,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		if (hole_size > 0) {
 			btrfs_wait_ordered_range(inode, last_pos_in_file,
 						 last_pos_in_file + hole_size);
+			mutex_lock(&BTRFS_I(inode)->extent_mutex);
 			err = btrfs_drop_extents(trans, root, inode,
 						 last_pos_in_file,
 						 last_pos_in_file + hole_size,
@@ -289,6 +291,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 						       0, 0, hole_size, 0);
 			btrfs_drop_extent_cache(inode, last_pos_in_file,
 					last_pos_in_file + hole_size -1);
+			mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 			btrfs_check_file(root, inode);
 		}
 		if (err)
@@ -321,6 +324,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		/* step one, delete the existing extents in this range */
 		aligned_end = (pos + write_bytes + root->sectorsize - 1) &
 			~((u64)root->sectorsize - 1);
+		mutex_lock(&BTRFS_I(inode)->extent_mutex);
 		err = btrfs_drop_extents(trans, root, inode, start_pos,
 					 aligned_end, aligned_end, &hint_byte);
 		if (err)
@@ -332,9 +336,13 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 					   inline_size, pages, 0, num_pages);
 		btrfs_drop_extent_cache(inode, start_pos, aligned_end - 1);
 		BUG_ON(err);
+		mutex_unlock(&BTRFS_I(inode)->extent_mutex);
+		did_inline = 1;
 	}
 	if (end_pos > isize) {
 		i_size_write(inode, end_pos);
+		if (did_inline)
+			BTRFS_I(inode)->disk_i_size = end_pos;
 		btrfs_update_inode(trans, root, inode);
 	}
 failed:
