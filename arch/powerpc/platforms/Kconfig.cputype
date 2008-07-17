@@ -86,9 +86,6 @@ config TUNE_CELL
 	  machines. When building a kernel that is supposed to run only
 	  on Cell, you should also select the POWER4_ONLY option.
 
-config 6xx
-	bool
-
 # this is temp to handle compat with arch=ppc
 config 8xx
 	bool
