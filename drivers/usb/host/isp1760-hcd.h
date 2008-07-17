@@ -54,6 +54,8 @@ void deinit_kmem_cache(void);
 #define BUFFER_MAP		0x7
 
 #define HC_MEMORY_REG		0x33c
+#define ISP_BANK(x)		((x) << 16)
+
 #define HC_PORT1_CTRL		0x374
 #define PORT1_POWER		(3 << 3)
 #define PORT1_INIT1		(1 << 7)
