@@ -563,11 +563,15 @@ static void __qdisc_destroy(struct rcu_head *head)
 
 void qdisc_destroy(struct Qdisc *qdisc)
 {
+	struct net_device *dev = qdisc_dev(qdisc);
+
 	if (qdisc->flags & TCQ_F_BUILTIN ||
 	    !atomic_dec_and_test(&qdisc->refcnt))
 		return;
 
+	spin_lock_bh(&dev->qdisc_list_lock);
 	list_del(&qdisc->list);
+	spin_unlock_bh(&dev->qdisc_list_lock);
 
 	call_rcu(&qdisc->q_rcu, __qdisc_destroy);
 }
@@ -599,7 +603,9 @@ static void attach_one_default_qdisc(struct net_device *dev,
 			printk(KERN_INFO "%s: activation failed\n", dev->name);
 			return;
 		}
-		list_add_tail(&qdisc->list, &dev_queue->qdisc_list);
+		spin_lock_bh(&dev->qdisc_list_lock);
+		list_add_tail(&qdisc->list, &dev->qdisc_list);
+		spin_unlock_bh(&dev->qdisc_list_lock);
 	} else {
 		qdisc =  &noqueue_qdisc;
 	}
@@ -738,7 +744,6 @@ static void dev_init_scheduler_queue(struct net_device *dev,
 
 	dev_queue->qdisc = qdisc;
 	dev_queue->qdisc_sleeping = qdisc;
-	INIT_LIST_HEAD(&dev_queue->qdisc_list);
 }
 
 void dev_init_scheduler(struct net_device *dev)

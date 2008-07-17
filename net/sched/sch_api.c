@@ -183,25 +183,12 @@ EXPORT_SYMBOL(unregister_qdisc);
    (root qdisc, all its children, children of children etc.)
  */
 
-static struct Qdisc *__qdisc_lookup(struct netdev_queue *dev_queue, u32 handle)
+struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 {
 	struct Qdisc *q;
 
-	list_for_each_entry(q, &dev_queue->qdisc_list, list) {
+	list_for_each_entry(q, &dev->qdisc_list, list) {
 		if (q->handle == handle)
-			return q;
-	}
-	return NULL;
-}
-
-struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
-{
-	unsigned int i;
-
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		struct Qdisc *q = __qdisc_lookup(txq, handle);
-		if (q)
 			return q;
 	}
 	return NULL;
@@ -645,9 +632,9 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				goto err_out3;
 			}
 		}
-		qdisc_lock_tree(dev);
-		list_add_tail(&sch->list, &dev_queue->qdisc_list);
-		qdisc_unlock_tree(dev);
+		spin_lock_bh(&dev->qdisc_list_lock);
+		list_add_tail(&sch->list, &dev->qdisc_list);
+		spin_unlock_bh(&dev->qdisc_list_lock);
 
 		return sch;
 	}
@@ -1032,14 +1019,12 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	read_lock(&dev_base_lock);
 	idx = 0;
 	for_each_netdev(&init_net, dev) {
-		struct netdev_queue *dev_queue;
 		if (idx < s_idx)
 			goto cont;
 		if (idx > s_idx)
 			s_q_idx = 0;
 		q_idx = 0;
-		dev_queue = netdev_get_tx_queue(dev, 0);
-		list_for_each_entry(q, &dev_queue->qdisc_list, list) {
+		list_for_each_entry(q, &dev->qdisc_list, list) {
 			if (q_idx < s_q_idx) {
 				q_idx++;
 				continue;
@@ -1269,7 +1254,6 @@ static int qdisc_class_dump(struct Qdisc *q, unsigned long cl, struct qdisc_walk
 static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
-	struct netdev_queue *dev_queue;
 	int t;
 	int s_t;
 	struct net_device *dev;
@@ -1288,8 +1272,7 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	s_t = cb->args[0];
 	t = 0;
 
-	dev_queue = netdev_get_tx_queue(dev, 0);
-	list_for_each_entry(q, &dev_queue->qdisc_list, list) {
+	list_for_each_entry(q, &dev->qdisc_list, list) {
 		if (t < s_t || !q->ops->cl_ops ||
 		    (tcm->tcm_parent &&
 		     TC_H_MAJ(tcm->tcm_parent) != q->handle)) {
