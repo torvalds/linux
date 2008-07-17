@@ -385,7 +385,7 @@ error_fault:
 	err = -EFAULT;
 	kfree_skb(skb);
 error:
-	IP_INC_STATS(IPSTATS_MIB_OUTDISCARDS);
+	IP_INC_STATS(net, IPSTATS_MIB_OUTDISCARDS);
 	return err;
 }
 
