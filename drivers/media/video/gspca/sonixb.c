@@ -238,8 +238,15 @@ static const __u8 ov6650_sensor_init[][8] =
 	{0xd0, 0x60, 0x26, 0x01, 0x14, 0xd8, 0xa4, 0x10}, /* format out? */
 	{0xd0, 0x60, 0x26, 0x01, 0x14, 0xd8, 0xa4, 0x10},
 	{0xa0, 0x60, 0x30, 0x3d, 0x0A, 0xd8, 0xa4, 0x10},
-	/* Disable autobright ? */
-	{0xb0, 0x60, 0x60, 0x66, 0x68, 0xd8, 0xa4, 0x10},
+	/* Enable rgb brightness control */
+	{0xa0, 0x60, 0x61, 0x08, 0x00, 0x00, 0x00, 0x10},
+	/* HDG: Note windows uses the line below, which sets both register 0x60
+	   and 0x61 I believe these registers of the ov6650 are identical as
+	   those of the ov7630, because if this is true the windows settings
+	   add a bit additional red gain and a lot additional blue gain, which
+	   matches my findings that the windows settings make blue much too
+	   blue and red a little too red.
+	{0xb0, 0x60, 0x60, 0x66, 0x68, 0xd8, 0xa4, 0x10}, */
 	/* Some more unknown stuff */
 	{0xa0, 0x60, 0x68, 0x04, 0x68, 0xd8, 0xa4, 0x10},
 	{0xd0, 0x60, 0x17, 0x24, 0xd6, 0x04, 0x94, 0x10}, /* Clipreg */
@@ -655,7 +662,8 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		   tline * 4 * reg10, which explains why the reg10max we've
 		   found experimentally for the ov6650 is exactly half that of
 		   the ov6645. The ov7630 datasheet says the max is 0x41. */
-		const int reg10_max = (sd->sensor == SENSOR_OV6650)? 0x4d:0x41;
+		const int reg10_max = (sd->sensor == SENSOR_OV6650)
+				? 0x4d : 0x41;
 
 		reg11 = (60 * sd->exposure + 999) / 1000;
 		if (reg11 < 1)
@@ -715,7 +723,8 @@ static void setfreq(struct gspca_dev *gspca_dev)
 			i2c[3] = 0;
 			break;
 		case 1:			/* 50 hz */
-			i2c[3] = (sd->sensor == SENSOR_OV6650)? 0x4f:0x8a;
+			i2c[3] = (sd->sensor == SENSOR_OV6650)
+					? 0x4f : 0x8a;
 			break;
 		}
 		i2c[1] = sd->sensor_addr;
@@ -787,7 +796,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor = SENSOR_OV6650;
 			sd->sensor_has_gain = 1;
 			sd->sensor_addr = 0x60;
-			sd->sd_desc.nctrls = 4;
+			sd->sd_desc.nctrls = 5;
 			sd->sd_desc.dq_callback = do_autogain;
 			sif = 1;
 			break;
