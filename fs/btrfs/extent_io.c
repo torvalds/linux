@@ -2050,6 +2050,16 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	lock_extent(tree, start, page_end, GFP_NOFS);
 	unlock_start = start;
 
+	if (tree->ops && tree->ops->writepage_start_hook) {
+		ret = tree->ops->writepage_start_hook(page, start, page_end);
+		if (ret == -EAGAIN) {
+			unlock_extent(tree, start, page_end, GFP_NOFS);
+			redirty_page_for_writepage(wbc, page);
+			unlock_page(page);
+			return 0;
+		}
+	}
+
 	end = page_end;
 	if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0)) {
 		printk("found delalloc bits after lock_extent\n");

@@ -30,6 +30,7 @@ typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
 				       struct bio *bio, int mirror_num);
 struct extent_io_ops {
 	int (*fill_delalloc)(struct inode *inode, u64 start, u64 end);
+	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
 	int (*writepage_io_hook)(struct page *page, u64 start, u64 end);
 	extent_submit_bio_hook_t *submit_bio_hook;
 	int (*merge_bio_hook)(struct page *page, unsigned long offset,

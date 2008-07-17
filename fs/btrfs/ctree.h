@@ -546,6 +546,12 @@ struct btrfs_fs_info {
 	struct btrfs_workers endio_workers;
 	struct btrfs_workers endio_write_workers;
 	struct btrfs_workers submit_workers;
+	/*
+	 * fixup workers take dirty pages that didn't properly go through
+	 * the cow mechanism and make them safe to write.  It happens
+	 * for the sys_munmap function call path
+	 */
+	struct btrfs_workers fixup_workers;
 	struct task_struct *transaction_kthread;
 	struct task_struct *cleaner_kthread;
 	int thread_pool_size;

@@ -313,6 +313,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		for (i = 0; i < num_pages; i++) {
 			struct page *p = pages[i];
 			SetPageUptodate(p);
+			ClearPageChecked(p);
 			set_page_dirty(p);
 		}
 	} else {

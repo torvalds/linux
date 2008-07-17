@@ -403,6 +403,87 @@ static int add_pending_csums(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+struct btrfs_writepage_fixup {
+	struct page *page;
+	struct btrfs_work work;
+};
+
+/* see btrfs_writepage_start_hook for details on why this is required */
+void btrfs_writepage_fixup_worker(struct btrfs_work *work)
+{
+	struct btrfs_writepage_fixup *fixup;
+	struct btrfs_ordered_extent *ordered;
+	struct page *page;
+	struct inode *inode;
+	u64 page_start;
+	u64 page_end;
+
+	fixup = container_of(work, struct btrfs_writepage_fixup, work);
+	page = fixup->page;
+
+	lock_page(page);
+	if (!page->mapping || !PageDirty(page) || !PageChecked(page)) {
+		ClearPageChecked(page);
+		goto out_page;
+	}
+
+	inode = page->mapping->host;
+	page_start = page_offset(page);
+	page_end = page_offset(page) + PAGE_CACHE_SIZE - 1;
+
+	lock_extent(&BTRFS_I(inode)->io_tree, page_start, page_end, GFP_NOFS);
+	ordered = btrfs_lookup_ordered_extent(inode, page_start);
+	if (ordered)
+		goto out;
+
+	set_extent_delalloc(&BTRFS_I(inode)->io_tree, page_start, page_end,
+			    GFP_NOFS);
+	ClearPageChecked(page);
+out:
+	unlock_extent(&BTRFS_I(inode)->io_tree, page_start, page_end, GFP_NOFS);
+out_page:
+	unlock_page(page);
+	page_cache_release(page);
+}
+
+/*
+ * There are a few paths in the higher layers of the kernel that directly
+ * set the page dirty bit without asking the filesystem if it is a
+ * good idea.  This causes problems because we want to make sure COW
+ * properly happens and the data=ordered rules are followed.
+ *
+ * In our case any range that doesn't have the EXTENT_ORDERED bit set
+ * hasn't been properly setup for IO.  We kick off an async process
+ * to fix it up.  The async helper will wait for ordered extents, set
+ * the delalloc bit and make it safe to write the page.
+ */
+int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
+{
+	struct inode *inode = page->mapping->host;
+	struct btrfs_writepage_fixup *fixup;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret;
+
+	ret = test_range_bit(&BTRFS_I(inode)->io_tree, start, end,
+			     EXTENT_ORDERED, 0);
+	if (ret)
+		return 0;
+
+	if (PageChecked(page))
+		return -EAGAIN;
+
+	fixup = kzalloc(sizeof(*fixup), GFP_NOFS);
+	if (!fixup)
+		return -EAGAIN;
+printk("queueing worker to fixup page %lu %Lu\n", inode->i_ino, page_offset(page));
+	SetPageChecked(page);
+	page_cache_get(page);
+	fixup->work.func = btrfs_writepage_fixup_worker;
+	fixup->page = page;
+	btrfs_queue_worker(&root->fs_info->fixup_workers, &fixup->work);
+	return -EAGAIN;
+}
+
 int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 				struct extent_state *state, int uptodate)
 {
@@ -1263,6 +1344,7 @@ again:
 		flush_dcache_page(page);
 		kunmap(page);
 	}
+	ClearPageChecked(page);
 	set_page_dirty(page);
 	unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 
@@ -2658,6 +2740,7 @@ again:
 		flush_dcache_page(page);
 		kunmap(page);
 	}
+	ClearPageChecked(page);
 	set_page_dirty(page);
 	unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 
@@ -3039,15 +3122,6 @@ out_fail:
 
 static int btrfs_set_page_dirty(struct page *page)
 {
-	struct inode *inode = page->mapping->host;
-	u64 page_start = page_offset(page);
-	u64 page_end = page_start + PAGE_CACHE_SIZE - 1;
-
-	if (!test_range_bit(&BTRFS_I(inode)->io_tree, page_start, page_end,
-			    EXTENT_DELALLOC, 0)) {
-printk("inode %lu page %Lu not delalloc\n", inode->i_ino, page_offset(page));
-WARN_ON(1);
-	}
 	return __set_page_dirty_nobuffers(page);
 }
 
@@ -3098,6 +3172,7 @@ static struct extent_io_ops btrfs_extent_io_ops = {
 	.readpage_io_hook = btrfs_readpage_io_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
 	.writepage_end_io_hook = btrfs_writepage_end_io_hook,
+	.writepage_start_hook = btrfs_writepage_start_hook,
 	.readpage_io_failed_hook = btrfs_io_failed_hook,
 	.set_bit_hook = btrfs_set_bit_hook,
 	.clear_bit_hook = btrfs_clear_bit_hook,
