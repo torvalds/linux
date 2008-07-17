@@ -26,6 +26,7 @@
 
 #include <asm/bootinfo.h>
 #include <asm/setup.h>
+#include <asm/fpu.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
@@ -38,6 +39,11 @@
 #endif
 #ifdef CONFIG_SUN3X
 #include <asm/dvma.h>
+#endif
+
+#if !FPSTATESIZE || !NR_IRQS
+#warning No CPU/platform type selected, your kernel will not work!
+#warning Are you building an allnoconfig kernel?
 #endif
 
 unsigned long m68k_machtype;
