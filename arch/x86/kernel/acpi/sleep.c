@@ -158,6 +158,8 @@ static int __init acpi_sleep_setup(char *str)
 			acpi_realmode_flags |= 2;
 		if (strncmp(str, "s3_beep", 7) == 0)
 			acpi_realmode_flags |= 4;
+		if (strncmp(str, "old_ordering", 12) == 0)
+			acpi_old_suspend_ordering();
 		str = strchr(str, ',');
 		if (str != NULL)
 			str += strspn(str, ", \t");

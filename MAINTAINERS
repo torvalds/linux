@@ -248,7 +248,7 @@ S:	Supported
 ACPI PCI HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 ACPI THERMAL DRIVER
@@ -1145,21 +1145,21 @@ COMPACTPCI HOTPLUG CORE
 P:	Scott Murray
 M:	scottm@somanetworks.com
 M:	scott@spiteful.org
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 COMPACTPCI HOTPLUG ZIATECH ZT5550 DRIVER
 P:	Scott Murray
 M:	scottm@somanetworks.com
 M:	scott@spiteful.org
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 COMPACTPCI HOTPLUG GENERIC DRIVER
 P:	Scott Murray
 M:	scottm@somanetworks.com
 M:	scott@spiteful.org
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 COMPAL LAPTOP SUPPORT
@@ -3219,7 +3219,7 @@ S:	Supported
 PCIE HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 PCMCIA SUBSYSTEM
@@ -3865,7 +3865,7 @@ S:	Maintained
 SHPC HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE DRIVER

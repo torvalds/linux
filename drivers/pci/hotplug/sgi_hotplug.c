@@ -197,13 +197,15 @@ static int sn_hp_slot_private_alloc(struct hotplug_slot *bss_hotplug_slot,
 static struct hotplug_slot * sn_hp_destroy(void)
 {
 	struct slot *slot;
+	struct pci_slot *pci_slot;
 	struct hotplug_slot *bss_hotplug_slot = NULL;
 
 	list_for_each_entry(slot, &sn_hp_list, hp_list) {
 		bss_hotplug_slot = slot->hotplug_slot;
+		pci_slot = bss_hotplug_slot->pci_slot;
 		list_del(&((struct slot *)bss_hotplug_slot->private)->
 			 hp_list);
-		sysfs_remove_file(&bss_hotplug_slot->kobj,
+		sysfs_remove_file(&pci_slot->kobj,
 				  &sn_slot_path_attr.attr);
 		break;
 	}
@@ -614,6 +616,7 @@ static void sn_release_slot(struct hotplug_slot *bss_hotplug_slot)
 static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 {
 	int device;
+	struct pci_slot *pci_slot;
 	struct hotplug_slot *bss_hotplug_slot;
 	int rc = 0;
 
@@ -650,11 +653,12 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 		bss_hotplug_slot->ops = &sn_hotplug_slot_ops;
 		bss_hotplug_slot->release = &sn_release_slot;
 
-		rc = pci_hp_register(bss_hotplug_slot);
+		rc = pci_hp_register(bss_hotplug_slot, pci_bus, device);
 		if (rc)
 			goto register_err;
 
-		rc = sysfs_create_file(&bss_hotplug_slot->kobj,
+		pci_slot = bss_hotplug_slot->pci_slot;
+		rc = sysfs_create_file(&pci_slot->kobj,
 				       &sn_slot_path_attr.attr);
 		if (rc)
 			goto register_err;
@@ -664,7 +668,7 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 
 register_err:
 	dev_dbg(&pci_bus->self->dev, "bus failed to register with err = %d\n",
-	        rc);
+		rc);
 
 alloc_err:
 	if (rc == -ENOMEM)
