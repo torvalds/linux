@@ -91,4 +91,5 @@ int btrfs_add_ordered_pending(struct inode *inode,
 			      u64 start, u64 len);
 int btrfs_ordered_update_i_size(struct inode *inode,
 				struct btrfs_ordered_extent *ordered);
+int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum);
 #endif

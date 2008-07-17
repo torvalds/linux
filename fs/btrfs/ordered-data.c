@@ -245,8 +245,18 @@ out:
 
 int btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 {
-	if (atomic_dec_and_test(&entry->refs))
+	struct list_head *cur;
+	struct btrfs_ordered_sum *sum;
+
+	if (atomic_dec_and_test(&entry->refs)) {
+		while(!list_empty(&entry->list)) {
+			cur = entry->list.next;
+			sum = list_entry(cur, struct btrfs_ordered_sum, list);
+			list_del(&sum->list);
+			kfree(sum);
+		}
 		kfree(entry);
+	}
 	return 0;
 }
 
@@ -444,8 +454,9 @@ int btrfs_ordered_update_i_size(struct inode *inode,
 	 * if we find an ordered extent then we can't update disk i_size
 	 * yet
 	 */
+	node = &ordered->rb_node;
 	while(1) {
-		node = rb_prev(&ordered->rb_node);
+		node = rb_prev(node);
 		if (!node)
 			break;
 		test = rb_entry(node, struct btrfs_ordered_extent, rb_node);
@@ -495,3 +506,36 @@ out:
 	mutex_unlock(&tree->mutex);
 	return 0;
 }
+
+int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum)
+{
+	struct btrfs_ordered_sum *ordered_sum;
+	struct btrfs_sector_sum *sector_sums;
+	struct btrfs_ordered_extent *ordered;
+	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
+	struct list_head *cur;
+	int ret = 1;
+	int index;
+
+	ordered = btrfs_lookup_ordered_extent(inode, offset);
+	if (!ordered)
+		return 1;
+
+	mutex_lock(&tree->mutex);
+	list_for_each_prev(cur, &ordered->list) {
+		ordered_sum = list_entry(cur, struct btrfs_ordered_sum, list);
+		if (offset >= ordered_sum->file_offset &&
+		    offset < ordered_sum->file_offset + ordered_sum->len) {
+			index = (offset - ordered_sum->file_offset) /
+				BTRFS_I(inode)->root->sectorsize;;
+			sector_sums = &ordered_sum->sums;
+			*sum = sector_sums[index].sum;
+			ret = 0;
+			goto out;
+		}
+	}
+out:
+	mutex_unlock(&tree->mutex);
+	return ret;
+}
+

@@ -382,7 +382,7 @@ mapit:
 	return btrfs_map_bio(root, rw, bio, mirror_num, 0);
 }
 
-static int add_pending_csums(struct btrfs_trans_handle *trans,
+static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 			     struct inode *inode, u64 file_offset,
 			     struct list_head *list)
 {
@@ -390,15 +390,12 @@ static int add_pending_csums(struct btrfs_trans_handle *trans,
 	struct btrfs_ordered_sum *sum;
 
 	btrfs_set_trans_block_group(trans, inode);
-	while(!list_empty(list)) {
-		cur = list->next;
+	list_for_each(cur, list) {
 		sum = list_entry(cur, struct btrfs_ordered_sum, list);
 		mutex_lock(&BTRFS_I(inode)->csum_mutex);
 		btrfs_csum_file_blocks(trans, BTRFS_I(inode)->root,
 				       inode, sum);
 		mutex_unlock(&BTRFS_I(inode)->csum_mutex);
-		list_del(&sum->list);
-		kfree(sum);
 	}
 	return 0;
 }
@@ -498,9 +495,8 @@ int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 	int ret;
 
 	ret = btrfs_dec_test_ordered_pending(inode, start, end - start + 1);
-	if (!ret) {
+	if (!ret)
 		return 0;
-	}
 
 	trans = btrfs_join_transaction(root, 1);
 
@@ -571,6 +567,18 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 	path = btrfs_alloc_path();
 	item = btrfs_lookup_csum(NULL, root, path, inode->i_ino, start, 0);
 	if (IS_ERR(item)) {
+		/*
+		 * It is possible there is an ordered extent that has
+		 * not yet finished for this range in the file.  If so,
+		 * that extent will have a csum cached, and it will insert
+		 * the sum after all the blocks in the extent are fully
+		 * on disk.  So, look for an ordered extent and use the
+		 * sum if found.
+		 */
+		ret = btrfs_find_ordered_sum(inode, start, &csum);
+		if (ret == 0)
+			goto found;
+
 		ret = PTR_ERR(item);
 		/* a csum that isn't present is a preallocated region. */
 		if (ret == -ENOENT || ret == -EFBIG)
@@ -582,6 +590,7 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 	}
 	read_extent_buffer(path->nodes[0], &csum, (unsigned long)item,
 			   BTRFS_CRC32_SIZE);
+found:
 	set_state_private(io_tree, start, csum);
 out:
 	if (path)
@@ -888,7 +897,7 @@ static void fill_inode_item(struct extent_buffer *leaf,
 				    BTRFS_I(inode)->block_group->key.objectid);
 }
 
-int btrfs_update_inode(struct btrfs_trans_handle *trans,
+int noinline btrfs_update_inode(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct inode *inode)
 {
@@ -1567,6 +1576,7 @@ static int btrfs_init_locked_inode(struct inode *inode, void *p)
 			     inode->i_mapping, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 			     inode->i_mapping, GFP_NOFS);
+	btrfs_ordered_inode_tree_init(&BTRFS_I(inode)->ordered_tree);
 	mutex_init(&BTRFS_I(inode)->csum_mutex);
 	return 0;
 }
@@ -1868,6 +1878,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 			     inode->i_mapping, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 			     inode->i_mapping, GFP_NOFS);
+	btrfs_ordered_inode_tree_init(&BTRFS_I(inode)->ordered_tree);
 	mutex_init(&BTRFS_I(inode)->csum_mutex);
 	BTRFS_I(inode)->delalloc_bytes = 0;
 	BTRFS_I(inode)->disk_i_size = 0;
@@ -2097,6 +2108,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		BTRFS_I(inode)->delalloc_bytes = 0;
 		BTRFS_I(inode)->disk_i_size = 0;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
+		btrfs_ordered_inode_tree_init(&BTRFS_I(inode)->ordered_tree);
 	}
 	dir->i_sb->s_dirt = 1;
 	btrfs_update_inode_block_group(trans, inode);
@@ -2618,14 +2630,6 @@ static int __btrfs_releasepage(struct page *page, gfp_t gfp_flags)
 
 static int btrfs_releasepage(struct page *page, gfp_t gfp_flags)
 {
-	struct btrfs_ordered_extent *ordered;
-
-	ordered = btrfs_lookup_ordered_extent(page->mapping->host,
-					      page_offset(page));
-	if (ordered) {
-		btrfs_put_ordered_extent(ordered);
-		return 0;
-	}
 	return __btrfs_releasepage(page, gfp_flags);
 }
 
@@ -3078,6 +3082,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		BTRFS_I(inode)->delalloc_bytes = 0;
 		BTRFS_I(inode)->disk_i_size = 0;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
+		btrfs_ordered_inode_tree_init(&BTRFS_I(inode)->ordered_tree);
 	}
 	dir->i_sb->s_dirt = 1;
 	btrfs_update_inode_block_group(trans, inode);
