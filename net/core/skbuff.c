@@ -1332,7 +1332,7 @@ static inline int __splice_segment(struct page *page, unsigned int poff,
  * Map linear and fragment data from the skb to spd. It reports failure if the
  * pipe is full or if we already spliced the requested length.
  */
-int __skb_splice_bits(struct sk_buff *skb, unsigned int *offset,
+static int __skb_splice_bits(struct sk_buff *skb, unsigned int *offset,
 		      unsigned int *len,
 		      struct splice_pipe_desc *spd)
 {
