@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 8)
+static const char version[] = "2.1.8";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SN9C102 USB Camera Driver");

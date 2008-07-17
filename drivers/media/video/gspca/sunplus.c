@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 8)
+static const char version[] = "2.1.8";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA5xx USB Camera Driver");
@@ -827,6 +827,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /*			break; */
 /*		} */
 		break;
+	case 0x0461:		/* MicroInnovation */
+/*		switch (product) { */
+/*		case 0x0821: */
+			sd->bridge = BRIDGE_SPCA533;
+/*			break; */
+/*		} */
+		break;
 	case 0x046d:		/* Logitech Labtec */
 		switch (product) {
 		case 0x0905:
@@ -1579,6 +1586,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4012), DVNM("PC-Cam350")},
 	{USB_DEVICE(0x041e, 0x4013), DVNM("Creative Pccam750")},
 	{USB_DEVICE(0x0458, 0x7006), DVNM("Genius Dsc 1.3 Smart")},
+	{USB_DEVICE(0x0461, 0x0821), DVNM("Fujifilm MV-1")},
 	{USB_DEVICE(0x046d, 0x0905), DVNM("Logitech ClickSmart 820")},
 	{USB_DEVICE(0x046d, 0x0960), DVNM("Logitech ClickSmart 420")},
 	{USB_DEVICE(0x0471, 0x0322), DVNM("Philips DMVC1300K")},
