@@ -65,7 +65,7 @@ static struct scsi_host_sg_pool scsi_sg_pools[] = {
 };
 #undef SP
 
-static struct kmem_cache *scsi_sdb_cache;
+struct kmem_cache *scsi_sdb_cache;
 
 static void scsi_run_queue(struct request_queue *q);
 
@@ -787,6 +787,9 @@ void scsi_release_buffers(struct scsi_cmnd *cmd)
 		kmem_cache_free(scsi_sdb_cache, bidi_sdb);
 		cmd->request->next_rq->special = NULL;
 	}
+
+	if (scsi_prot_sg_count(cmd))
+		scsi_free_sgtable(cmd->prot_sdb);
 }
 EXPORT_SYMBOL(scsi_release_buffers);
 
@@ -1070,6 +1073,26 @@ int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 								    GFP_ATOMIC);
 		if (error)
 			goto err_exit;
+	}
+
+	if (blk_integrity_rq(cmd->request)) {
+		struct scsi_data_buffer *prot_sdb = cmd->prot_sdb;
+		int ivecs, count;
+
+		BUG_ON(prot_sdb == NULL);
+		ivecs = blk_rq_count_integrity_sg(cmd->request);
+
+		if (scsi_alloc_sgtable(prot_sdb, ivecs, gfp_mask)) {
+			error = BLKPREP_DEFER;
+			goto err_exit;
+		}
+
+		count = blk_rq_map_integrity_sg(cmd->request,
+						prot_sdb->table.sgl);
+		BUG_ON(unlikely(count > ivecs));
+
+		cmd->prot_sdb = prot_sdb;
+		cmd->prot_sdb->table.nents = count;
 	}
 
 	return BLKPREP_OK ;

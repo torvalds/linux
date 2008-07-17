@@ -90,6 +90,8 @@ struct scsi_cmnd {
 
 	/* These elements define the operation we ultimately want to perform */
 	struct scsi_data_buffer sdb;
+	struct scsi_data_buffer *prot_sdb;
+
 	unsigned underflow;	/* Return error if less than
 				   this amount is transferred */
 
@@ -273,5 +275,23 @@ static inline sector_t scsi_get_lba(struct scsi_cmnd *scmd)
 {
 	return scmd->request->sector;
 }
+
+static inline unsigned scsi_prot_sg_count(struct scsi_cmnd *cmd)
+{
+	return cmd->prot_sdb ? cmd->prot_sdb->table.nents : 0;
+}
+
+static inline struct scatterlist *scsi_prot_sglist(struct scsi_cmnd *cmd)
+{
+	return cmd->prot_sdb ? cmd->prot_sdb->table.sgl : NULL;
+}
+
+static inline struct scsi_data_buffer *scsi_prot(struct scsi_cmnd *cmd)
+{
+	return cmd->prot_sdb;
+}
+
+#define scsi_for_each_prot_sg(cmd, sg, nseg, __i)		\
+	for_each_sg(scsi_prot_sglist(cmd), sg, nseg, __i)
 
 #endif /* _SCSI_SCSI_CMND_H */

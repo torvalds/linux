@@ -197,8 +197,40 @@ static void
 scsi_pool_free_command(struct scsi_host_cmd_pool *pool,
 			 struct scsi_cmnd *cmd)
 {
+	if (cmd->prot_sdb)
+		kmem_cache_free(scsi_sdb_cache, cmd->prot_sdb);
+
 	kmem_cache_free(pool->sense_slab, cmd->sense_buffer);
 	kmem_cache_free(pool->cmd_slab, cmd);
+}
+
+/**
+ * scsi_host_alloc_command - internal function to allocate command
+ * @shost:	SCSI host whose pool to allocate from
+ * @gfp_mask:	mask for the allocation
+ *
+ * Returns a fully allocated command with sense buffer and protection
+ * data buffer (where applicable) or NULL on failure
+ */
+static struct scsi_cmnd *
+scsi_host_alloc_command(struct Scsi_Host *shost, gfp_t gfp_mask)
+{
+	struct scsi_cmnd *cmd;
+
+	cmd = scsi_pool_alloc_command(shost->cmd_pool, gfp_mask);
+	if (!cmd)
+		return NULL;
+
+	if (scsi_host_get_prot(shost) >= SHOST_DIX_TYPE0_PROTECTION) {
+		cmd->prot_sdb = kmem_cache_zalloc(scsi_sdb_cache, gfp_mask);
+
+		if (!cmd->prot_sdb) {
+			scsi_pool_free_command(shost->cmd_pool, cmd);
+			return NULL;
+		}
+	}
+
+	return cmd;
 }
 
 /**
@@ -214,7 +246,7 @@ struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 	struct scsi_cmnd *cmd;
 	unsigned char *buf;
 
-	cmd = scsi_pool_alloc_command(shost->cmd_pool, gfp_mask);
+	cmd = scsi_host_alloc_command(shost, gfp_mask);
 
 	if (unlikely(!cmd)) {
 		unsigned long flags;
@@ -457,7 +489,7 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 	/*
 	 * Get one backup command for this host.
 	 */
-	cmd = scsi_pool_alloc_command(shost->cmd_pool, gfp_mask);
+	cmd = scsi_host_alloc_command(shost, gfp_mask);
 	if (!cmd) {
 		scsi_put_host_cmd_pool(gfp_mask);
 		shost->cmd_pool = NULL;
