@@ -74,17 +74,15 @@ static void zfcp_qdio_zero_sbals(struct qdio_buffer *sbal[], int first, int cnt)
 	}
 }
 
-static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int status,
-			      unsigned int qdio_err, unsigned int siga_err,
-			      unsigned int queue_no, int first, int count,
+static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
+			      int queue_no, int first, int count,
 			      unsigned long parm)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) parm;
 	struct zfcp_qdio_queue *queue = &adapter->req_q;
 
-	if (unlikely(status & QDIO_STATUS_LOOK_FOR_ERROR)) {
-		zfcp_hba_dbf_event_qdio(adapter, status, qdio_err, siga_err,
-					first, count);
+	if (unlikely(qdio_err)) {
+		zfcp_hba_dbf_event_qdio(adapter, qdio_err, first, count);
 		zfcp_qdio_handler_error(adapter, 140);
 		return;
 	}
@@ -129,8 +127,7 @@ static void zfcp_qdio_resp_put_back(struct zfcp_adapter *adapter, int processed)
 
 	count = atomic_read(&queue->count) + processed;
 
-	retval = do_QDIO(cdev, QDIO_FLAG_SYNC_INPUT | QDIO_FLAG_UNDER_INTERRUPT,
-			 0, start, count, NULL);
+	retval = do_QDIO(cdev, QDIO_FLAG_SYNC_INPUT, 0, start, count);
 
 	if (unlikely(retval)) {
 		atomic_set(&queue->count, count);
@@ -142,9 +139,8 @@ static void zfcp_qdio_resp_put_back(struct zfcp_adapter *adapter, int processed)
 	}
 }
 
-static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int status,
-			       unsigned int qdio_err, unsigned int siga_err,
-			       unsigned int queue_no, int first, int count,
+static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
+			       int queue_no, int first, int count,
 			       unsigned long parm)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) parm;
@@ -152,9 +148,8 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int status,
 	volatile struct qdio_buffer_element *sbale;
 	int sbal_idx, sbale_idx, sbal_no;
 
-	if (unlikely(status & QDIO_STATUS_LOOK_FOR_ERROR)) {
-		zfcp_hba_dbf_event_qdio(adapter, status, qdio_err, siga_err,
-					first, count);
+	if (unlikely(qdio_err)) {
+		zfcp_hba_dbf_event_qdio(adapter, qdio_err, first, count);
 		zfcp_qdio_handler_error(adapter, 147);
 		return;
 	}
@@ -362,7 +357,7 @@ int zfcp_qdio_send(struct zfcp_fsf_req *fsf_req)
 	}
 
 	retval = do_QDIO(adapter->ccw_device, QDIO_FLAG_SYNC_OUTPUT, 0, first,
-			 count, NULL);
+			 count);
 	if (unlikely(retval)) {
 		zfcp_qdio_zero_sbals(req_q->sbal, first, count);
 		return retval;
@@ -400,10 +395,6 @@ int zfcp_qdio_allocate(struct zfcp_adapter *adapter)
 	init_data->qib_param_field = NULL;
 	init_data->input_slib_elements = NULL;
 	init_data->output_slib_elements = NULL;
-	init_data->min_input_threshold = 1;
-	init_data->max_input_threshold = 5000;
-	init_data->min_output_threshold = 1;
-	init_data->max_output_threshold = 1000;
 	init_data->no_input_qs = 1;
 	init_data->no_output_qs = 1;
 	init_data->input_handler = zfcp_qdio_int_resp;
@@ -436,9 +427,7 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
 	spin_unlock(&req_q->lock);
 
-	while (qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR)
-			== -EINPROGRESS)
-		ssleep(1);
+	qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR);
 
 	/* cleanup used outbound sbals */
 	count = atomic_read(&req_q->count);
@@ -473,7 +462,7 @@ int zfcp_qdio_open(struct zfcp_adapter *adapter)
 		return -EIO;
 	}
 
-	if (qdio_activate(adapter->ccw_device, 0)) {
+	if (qdio_activate(adapter->ccw_device)) {
 		dev_err(&adapter->ccw_device->dev,
 			 "Activate of QDIO queues failed.\n");
 		goto failed_qdio;
@@ -487,7 +476,7 @@ int zfcp_qdio_open(struct zfcp_adapter *adapter)
 	}
 
 	if (do_QDIO(adapter->ccw_device, QDIO_FLAG_SYNC_INPUT, 0, 0,
-		     QDIO_MAX_BUFFERS_PER_Q, NULL)) {
+		     QDIO_MAX_BUFFERS_PER_Q)) {
 		dev_err(&adapter->ccw_device->dev,
 			 "Init of QDIO response queue failed.\n");
 		goto failed_qdio;
@@ -501,9 +490,6 @@ int zfcp_qdio_open(struct zfcp_adapter *adapter)
 	return 0;
 
 failed_qdio:
-	while (qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR)
-			== -EINPROGRESS)
-		ssleep(1);
-
+	qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR);
 	return -EIO;
 }

@@ -297,15 +297,13 @@ void zfcp_hba_dbf_event_fsf_unsol(const char *tag, struct zfcp_adapter *adapter,
 /**
  * zfcp_hba_dbf_event_qdio - trace event for QDIO related failure
  * @adapter: adapter affected by this QDIO related event
- * @status: as passed by qdio module
  * @qdio_error: as passed by qdio module
- * @siga_error: as passed by qdio module
  * @sbal_index: first buffer with error condition, as passed by qdio module
  * @sbal_count: number of buffers affected, as passed by qdio module
  */
-void zfcp_hba_dbf_event_qdio(struct zfcp_adapter *adapter, unsigned int status,
-			     unsigned int qdio_error, unsigned int siga_error,
-			     int sbal_index, int sbal_count)
+void zfcp_hba_dbf_event_qdio(struct zfcp_adapter *adapter,
+			     unsigned int qdio_error, int sbal_index,
+			     int sbal_count)
 {
 	struct zfcp_hba_dbf_record *r = &adapter->hba_dbf_buf;
 	unsigned long flags;
@@ -313,9 +311,7 @@ void zfcp_hba_dbf_event_qdio(struct zfcp_adapter *adapter, unsigned int status,
 	spin_lock_irqsave(&adapter->hba_dbf_lock, flags);
 	memset(r, 0, sizeof(*r));
 	strncpy(r->tag, "qdio", ZFCP_DBF_TAG_SIZE);
-	r->u.qdio.status = status;
 	r->u.qdio.qdio_error = qdio_error;
-	r->u.qdio.siga_error = siga_error;
 	r->u.qdio.sbal_index = sbal_index;
 	r->u.qdio.sbal_count = sbal_count;
 	debug_event(adapter->hba_dbf, 0, r, sizeof(*r));
@@ -398,9 +394,7 @@ static void zfcp_hba_dbf_view_status(char **p,
 
 static void zfcp_hba_dbf_view_qdio(char **p, struct zfcp_hba_dbf_record_qdio *r)
 {
-	zfcp_dbf_out(p, "status", "0x%08x", r->status);
 	zfcp_dbf_out(p, "qdio_error", "0x%08x", r->qdio_error);
-	zfcp_dbf_out(p, "siga_error", "0x%08x", r->siga_error);
 	zfcp_dbf_out(p, "sbal_index", "0x%02x", r->sbal_index);
 	zfcp_dbf_out(p, "sbal_count", "0x%02x", r->sbal_count);
 }
