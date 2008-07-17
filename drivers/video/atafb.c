@@ -3230,6 +3230,9 @@ int __init atafb_init(void)
 		return -EINVAL;
 	}
 
+	fb_videomode_to_modelist(atafb_modedb, NUM_TOTAL_MODES,
+				 &fb_info.modelist);
+
 	atafb_set_disp(&fb_info);
 
 	fb_alloc_cmap(&(fb_info.cmap), 1 << fb_info.var.bits_per_pixel, 0);
