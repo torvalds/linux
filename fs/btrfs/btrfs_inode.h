@@ -40,11 +40,20 @@ struct btrfs_inode {
 	 */
 	u64 last_trans;
 	u64 delalloc_bytes;
+	u64 disk_i_size;
 	u32 flags;
 };
+
 static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
 {
 	return container_of(inode, struct btrfs_inode, vfs_inode);
 }
+
+static inline void btrfs_i_size_write(struct inode *inode, u64 size)
+{
+	inode->i_size = size;
+	BTRFS_I(inode)->disk_i_size = size;
+}
+
 
 #endif

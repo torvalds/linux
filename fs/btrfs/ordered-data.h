@@ -89,4 +89,6 @@ btrfs_lookup_first_ordered_extent(struct inode * inode, u64 file_offset);
 int btrfs_add_ordered_pending(struct inode *inode,
 			      struct btrfs_ordered_extent *ordered,
 			      u64 start, u64 len);
+int btrfs_ordered_update_i_size(struct inode *inode,
+				struct btrfs_ordered_extent *ordered);
 #endif

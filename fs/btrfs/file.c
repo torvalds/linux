@@ -338,7 +338,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		btrfs_update_inode(trans, root, inode);
 	}
 failed:
-	err = btrfs_end_transaction(trans, root);
+	err = btrfs_end_transaction_throttle(trans, root);
 out_unlock:
 	unlock_extent(io_tree, start_pos, end_of_last_block, GFP_NOFS);
 	return err;

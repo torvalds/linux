@@ -406,3 +406,92 @@ out:
 	mutex_unlock(&tree->mutex);
 	return entry;
 }
+
+int btrfs_ordered_update_i_size(struct inode *inode,
+				struct btrfs_ordered_extent *ordered)
+{
+	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
+	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	u64 disk_i_size;
+	u64 new_i_size;
+	u64 i_size_test;
+	struct rb_node *node;
+	struct btrfs_ordered_extent *test;
+
+	mutex_lock(&tree->mutex);
+	disk_i_size = BTRFS_I(inode)->disk_i_size;
+
+	/*
+	 * if the disk i_size is already at the inode->i_size, or
+	 * this ordered extent is inside the disk i_size, we're done
+	 */
+	if (disk_i_size >= inode->i_size ||
+	    ordered->file_offset + ordered->len <= disk_i_size) {
+		goto out;
+	}
+
+	/*
+	 * we can't update the disk_isize if there are delalloc bytes
+	 * between disk_i_size and  this ordered extent
+	 */
+	if (test_range_bit(io_tree, disk_i_size,
+			   ordered->file_offset + ordered->len - 1,
+			   EXTENT_DELALLOC, 0)) {
+		goto out;
+	}
+	/*
+	 * walk backward from this ordered extent to disk_i_size.
+	 * if we find an ordered extent then we can't update disk i_size
+	 * yet
+	 */
+	while(1) {
+		node = rb_prev(&ordered->rb_node);
+		if (!node)
+			break;
+		test = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+		if (test->file_offset + test->len <= disk_i_size)
+			break;
+		if (test->file_offset >= inode->i_size)
+			break;
+		if (test->file_offset >= disk_i_size)
+			goto out;
+	}
+	new_i_size = min_t(u64, entry_end(ordered), i_size_read(inode));
+
+	/*
+	 * at this point, we know we can safely update i_size to at least
+	 * the offset from this ordered extent.  But, we need to
+	 * walk forward and see if ios from higher up in the file have
+	 * finished.
+	 */
+	node = rb_next(&ordered->rb_node);
+	i_size_test = 0;
+	if (node) {
+		/*
+		 * do we have an area where IO might have finished
+		 * between our ordered extent and the next one.
+		 */
+		test = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+		if (test->file_offset > entry_end(ordered)) {
+			i_size_test = test->file_offset - 1;
+		}
+	} else {
+		i_size_test = i_size_read(inode);
+	}
+
+	/*
+	 * i_size_test is the end of a region after this ordered
+	 * extent where there are no ordered extents.  As long as there
+	 * are no delalloc bytes in this area, it is safe to update
+	 * disk_i_size to the end of the region.
+	 */
+	if (i_size_test > entry_end(ordered) &&
+	    !test_range_bit(io_tree, entry_end(ordered), i_size_test,
+			   EXTENT_DELALLOC, 0)) {
+		new_i_size = min_t(u64, i_size_test, i_size_read(inode));
+	}
+	BTRFS_I(inode)->disk_i_size = new_i_size;
+out:
+	mutex_unlock(&tree->mutex);
+	return 0;
+}
