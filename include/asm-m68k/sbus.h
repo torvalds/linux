@@ -12,8 +12,6 @@ struct sbus_dev {
 	} reg_addrs[1];
 };
 
-#define ARCH_SUN4  0
-
 /* sbus IO functions stolen from include/asm-sparc/io.h for the serial driver */
 /* No SBUS on the Sun3, kludge -- sam */
 
