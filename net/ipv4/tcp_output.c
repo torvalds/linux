@@ -1995,7 +1995,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 						mib_idx = LINUX_MIB_TCPFASTRETRANS;
 					else
 						mib_idx = LINUX_MIB_TCPSLOWSTARTRETRANS;
-					NET_INC_STATS_BH(mib_idx);
+					NET_INC_STATS_BH(sock_net(sk), mib_idx);
 
 					if (skb == tcp_write_queue_head(sk))
 						inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
@@ -2065,7 +2065,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 						  inet_csk(sk)->icsk_rto,
 						  TCP_RTO_MAX);
 
-		NET_INC_STATS_BH(LINUX_MIB_TCPFORWARDRETRANS);
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFORWARDRETRANS);
 	}
 }
 
