@@ -1062,12 +1062,6 @@ struct task_struct {
 #endif
 
 	struct list_head tasks;
-	/*
-	 * ptrace_list/ptrace_children forms the list of my children
-	 * that were stolen by a ptracer.
-	 */
-	struct list_head ptrace_children;
-	struct list_head ptrace_list;
 
 	struct mm_struct *mm, *active_mm;
 
@@ -1089,17 +1083,24 @@ struct task_struct {
 	/* 
 	 * pointers to (original) parent process, youngest child, younger sibling,
 	 * older sibling, respectively.  (p->father can be replaced with 
-	 * p->parent->pid)
+	 * p->real_parent->pid)
 	 */
-	struct task_struct *real_parent; /* real parent process (when being debugged) */
-	struct task_struct *parent;	/* parent process */
+	struct task_struct *real_parent; /* real parent process */
+	struct task_struct *parent; /* recipient of SIGCHLD, wait4() reports */
 	/*
-	 * children/sibling forms the list of my children plus the
-	 * tasks I'm ptracing.
+	 * children/sibling forms the list of my natural children
 	 */
 	struct list_head children;	/* list of my children */
 	struct list_head sibling;	/* linkage in my parent's children list */
 	struct task_struct *group_leader;	/* threadgroup leader */
+
+	/*
+	 * ptraced is the list of tasks this task is using ptrace on.
+	 * This includes both natural children and PTRACE_ATTACH targets.
+	 * p->ptrace_entry is p's link on the p->parent->ptraced list.
+	 */
+	struct list_head ptraced;
+	struct list_head ptrace_entry;
 
 	/* PID/PID hash table linkage. */
 	struct pid_link pids[PIDTYPE_MAX];
@@ -1875,9 +1876,6 @@ extern void wait_task_inactive(struct task_struct * p);
 #else
 #define wait_task_inactive(p)	do { } while (0)
 #endif
-
-#define remove_parent(p)	list_del_init(&(p)->sibling)
-#define add_parent(p)		list_add_tail(&(p)->sibling,&(p)->parent->children)
 
 #define next_task(p)	list_entry(rcu_dereference((p)->tasks.next), struct task_struct, tasks)
 
