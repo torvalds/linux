@@ -121,6 +121,9 @@ struct inter_packet_info {
 typedef void (packet_enqueue)(struct usb_hcd *hcd, struct isp1760_qh *qh,
 		struct isp1760_qtd *qtd);
 
+#define isp1760_dbg(priv, fmt, args...) \
+	dev_dbg(priv_to_hcd(priv)->self.controller, fmt, ##args)
+
 #define isp1760_info(priv, fmt, args...) \
 	dev_info(priv_to_hcd(priv)->self.controller, fmt, ##args)
 

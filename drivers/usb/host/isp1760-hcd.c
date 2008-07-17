@@ -1128,11 +1128,11 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 		} else if (usb_pipebulk(urb->pipe) && (length < qtd->length)) {
 			/* short BULK received */
 
-			printk(KERN_ERR "short bulk, %d instead %zu\n", length,
-					qtd->length);
 			if (urb->transfer_flags & URB_SHORT_NOT_OK) {
 				urb->status = -EREMOTEIO;
-				printk(KERN_ERR "not okey\n");
+				isp1760_dbg(priv, "short bulk, %d instead %zu "
+					"with URB_SHORT_NOT_OK flag.\n",
+					length, qtd->length);
 			}
 
 			if (urb->status == -EINPROGRESS)
