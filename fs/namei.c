@@ -460,8 +460,7 @@ static struct dentry * cached_lookup(struct dentry * parent, struct qstr * name,
  * short-cut DAC fails, then call permission() to do more
  * complete permission check.
  */
-static int exec_permission_lite(struct inode *inode,
-				       struct nameidata *nd)
+static int exec_permission_lite(struct inode *inode)
 {
 	umode_t	mode = inode->i_mode;
 
@@ -884,7 +883,7 @@ static int __link_path_walk(const char *name, struct nameidata *nd)
 		unsigned int c;
 
 		nd->flags |= LOOKUP_CONTINUE;
-		err = exec_permission_lite(inode, nd);
+		err = exec_permission_lite(inode);
 		if (err == -EAGAIN)
 			err = vfs_permission(nd, MAY_EXEC);
  		if (err)
