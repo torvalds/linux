@@ -2023,9 +2023,13 @@ EXPORT_SYMBOL(video_ioctl2);
 static int get_index(struct video_device *vdev, int num)
 {
 	u32 used = 0;
+	const unsigned max_index = sizeof(used) * 8 - 1;
 	int i;
 
-	if (num >= 32) {
+	/* Currently a single v4l driver instance cannot create more than
+	   32 devices.
+	   Increase to u64 or an array of u32 if more are needed. */
+	if (num > max_index) {
 		printk(KERN_ERR "videodev: %s num is too large\n", __func__);
 		return -EINVAL;
 	}
@@ -2045,7 +2049,7 @@ static int get_index(struct video_device *vdev, int num)
 	}
 
 	i = ffz(used);
-	return i >= 32 ? -ENFILE : i;
+	return i > max_index ? -ENFILE : i;
 }
 
 static const struct file_operations video_fops;
