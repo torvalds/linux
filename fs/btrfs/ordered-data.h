@@ -19,12 +19,19 @@
 #ifndef __BTRFS_ORDERED_DATA__
 #define __BTRFS_ORDERED_DATA__
 
+/* one of these per inode */
 struct btrfs_ordered_inode_tree {
 	struct mutex mutex;
 	struct rb_root tree;
 	struct rb_node *last;
 };
 
+/*
+ * these are used to collect checksums done just before bios submission.
+ * They are attached via a list into the ordered extent, and
+ * checksum items are inserted into the tree after all the blocks in
+ * the ordered extent are on disk
+ */
 struct btrfs_sector_sum {
 	u64 offset;
 	u32 sum;
@@ -34,27 +41,56 @@ struct btrfs_ordered_sum {
 	u64 file_offset;
 	u64 len;
 	struct list_head list;
+	/* last field is a variable length array of btrfs_sector_sums */
 	struct btrfs_sector_sum sums;
 };
 
-/* bits for the flags field */
+/*
+ * bits for the flags field:
+ *
+ * BTRFS_ORDERED_IO_DONE is set when all of the blocks are written.
+ * It is used to make sure metadata is inserted into the tree only once
+ * per extent.
+ *
+ * BTRFS_ORDERED_COMPLETE is set when the extent is removed from the
+ * rbtree, just before waking any waiters.  It is used to indicate the
+ * IO is done and any metadata is inserted into the tree.
+ */
 #define BTRFS_ORDERED_IO_DONE 0 /* set when all the pages are written */
+
 #define BTRFS_ORDERED_COMPLETE 1 /* set when removed from the tree */
-#define BTRFS_ORDERED_START 2 /* set when tree setup */
 
 struct btrfs_ordered_extent {
+	/* logical offset in the file */
 	u64 file_offset;
+
+	/* disk byte number */
 	u64 start;
+
+	/* length of the extent in bytes */
 	u64 len;
+
+	/* flags (described above) */
 	unsigned long flags;
+
+	/* reference count */
 	atomic_t refs;
+
+	/* list of checksums for insertion when the extent io is done */
 	struct list_head list;
-	struct inode *inode;
+
+	/* used to wait for the BTRFS_ORDERED_COMPLETE bit */
 	wait_queue_head_t wait;
+
+	/* our friendly rbtree entry */
 	struct rb_node rb_node;
 };
 
 
+/*
+ * calculates the total size you need to allocate for an ordered sum
+ * structure spanning 'bytes' in the file
+ */
 static inline int btrfs_ordered_sum_size(struct btrfs_root *root, u64 bytes)
 {
 	unsigned long num_sectors = (bytes + root->sectorsize - 1) /
@@ -81,14 +117,11 @@ int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 int btrfs_add_ordered_sum(struct inode *inode, struct btrfs_ordered_sum *sum);
 struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct inode *inode,
 							 u64 file_offset);
-void btrfs_wait_ordered_extent(struct inode *inode,
-			       struct btrfs_ordered_extent *entry);
+void btrfs_start_ordered_extent(struct inode *inode,
+				struct btrfs_ordered_extent *entry, int wait);
 void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len);
 struct btrfs_ordered_extent *
 btrfs_lookup_first_ordered_extent(struct inode * inode, u64 file_offset);
-int btrfs_add_ordered_pending(struct inode *inode,
-			      struct btrfs_ordered_extent *ordered,
-			      u64 start, u64 len);
 int btrfs_ordered_update_i_size(struct inode *inode,
 				struct btrfs_ordered_extent *ordered);
 int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum);

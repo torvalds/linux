@@ -1343,7 +1343,7 @@ again:
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 		unlock_page(page);
 		page_cache_release(page);
-		btrfs_wait_ordered_extent(inode, ordered);
+		btrfs_start_ordered_extent(inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}
@@ -2660,6 +2660,10 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 	ordered = btrfs_lookup_ordered_extent(page->mapping->host,
 					   page_offset(page));
 	if (ordered) {
+		/*
+		 * IO on this page will never be started, so we need
+		 * to account for any ordered extents now
+		 */
 		clear_extent_bit(tree, page_start, page_end,
 				 EXTENT_DIRTY | EXTENT_DELALLOC |
 				 EXTENT_LOCKED, 1, 0, GFP_NOFS);
@@ -2732,11 +2736,15 @@ again:
 	lock_extent(io_tree, page_start, page_end, GFP_NOFS);
 	set_page_extent_mapped(page);
 
+	/*
+	 * we can't set the delalloc bits if there are pending ordered
+	 * extents.  Drop our locks and wait for them to finish
+	 */
 	ordered = btrfs_lookup_ordered_extent(inode, page_start);
 	if (ordered) {
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 		unlock_page(page);
-		btrfs_wait_ordered_extent(inode, ordered);
+		btrfs_start_ordered_extent(inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}
