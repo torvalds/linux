@@ -373,6 +373,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	struct scsi_cmnd *SCpnt;
 	struct scsi_device *sdp = q->queuedata;
 	struct gendisk *disk = rq->rq_disk;
+	struct scsi_disk *sdkp;
 	sector_t block = rq->sector;
 	unsigned int this_count = rq->nr_sectors;
 	unsigned int timeout = sdp->timeout;
@@ -389,6 +390,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	if (ret != BLKPREP_OK)
 		goto out;
 	SCpnt = rq->special;
+	sdkp = scsi_disk(disk);
 
 	/* from here on until we're complete, any goto out
 	 * is used for a killable error condition */
@@ -478,6 +480,11 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 		}
 		SCpnt->cmnd[0] = WRITE_6;
 		SCpnt->sc_data_direction = DMA_TO_DEVICE;
+
+		if (blk_integrity_rq(rq) &&
+		    sd_dif_prepare(rq, block, sdp->sector_size) == -EIO)
+			goto out;
+
 	} else if (rq_data_dir(rq) == READ) {
 		SCpnt->cmnd[0] = READ_6;
 		SCpnt->sc_data_direction = DMA_FROM_DEVICE;
@@ -492,8 +499,12 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 					"writing" : "reading", this_count,
 					rq->nr_sectors));
 
-	SCpnt->cmnd[1] = 0;
-	
+	/* Set RDPROTECT/WRPROTECT if disk is formatted with DIF */
+	if (scsi_host_dif_capable(sdp->host, sdkp->protection_type))
+		SCpnt->cmnd[1] = 1 << 5;
+	else
+		SCpnt->cmnd[1] = 0;
+
 	if (block > 0xffffffff) {
 		SCpnt->cmnd[0] += READ_16 - READ_6;
 		SCpnt->cmnd[1] |= blk_fua_rq(rq) ? 0x8 : 0;
@@ -511,6 +522,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 		SCpnt->cmnd[13] = (unsigned char) this_count & 0xff;
 		SCpnt->cmnd[14] = SCpnt->cmnd[15] = 0;
 	} else if ((this_count > 0xff) || (block > 0x1fffff) ||
+		   scsi_device_protection(SCpnt->device) ||
 		   SCpnt->device->use_10_for_rw) {
 		if (this_count > 0xffff)
 			this_count = 0xffff;
@@ -544,6 +556,10 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 		SCpnt->cmnd[5] = 0;
 	}
 	SCpnt->sdb.length = this_count * sdp->sector_size;
+
+	/* If DIF or DIX is enabled, tell HBA how to handle request */
+	if (sdkp->protection_type || scsi_prot_sg_count(SCpnt))
+		sd_dif_op(SCpnt, sdkp->protection_type, scsi_prot_sg_count(SCpnt));
 
 	/*
 	 * We shouldn't disconnect in the middle of a sector, so with a dumb
@@ -939,6 +955,48 @@ static struct block_device_operations sd_fops = {
 	.revalidate_disk	= sd_revalidate_disk,
 };
 
+static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
+{
+	u64 start_lba = scmd->request->sector;
+	u64 end_lba = scmd->request->sector + (scsi_bufflen(scmd) / 512);
+	u64 bad_lba;
+	int info_valid;
+
+	if (!blk_fs_request(scmd->request))
+		return 0;
+
+	info_valid = scsi_get_sense_info_fld(scmd->sense_buffer,
+					     SCSI_SENSE_BUFFERSIZE,
+					     &bad_lba);
+	if (!info_valid)
+		return 0;
+
+	if (scsi_bufflen(scmd) <= scmd->device->sector_size)
+		return 0;
+
+	if (scmd->device->sector_size < 512) {
+		/* only legitimate sector_size here is 256 */
+		start_lba <<= 1;
+		end_lba <<= 1;
+	} else {
+		/* be careful ... don't want any overflows */
+		u64 factor = scmd->device->sector_size / 512;
+		do_div(start_lba, factor);
+		do_div(end_lba, factor);
+	}
+
+	/* The bad lba was reported incorrectly, we have no idea where
+	 * the error is.
+	 */
+	if (bad_lba < start_lba  || bad_lba >= end_lba)
+		return 0;
+
+	/* This computation should always be done in terms of
+	 * the resolution of the device's medium.
+	 */
+	return (bad_lba - start_lba) * scmd->device->sector_size;
+}
+
 /**
  *	sd_done - bottom half handler: called when the lower level
  *	driver has completed (successfully or otherwise) a scsi command.
@@ -949,15 +1007,10 @@ static struct block_device_operations sd_fops = {
 static int sd_done(struct scsi_cmnd *SCpnt)
 {
 	int result = SCpnt->result;
-	unsigned int xfer_size = scsi_bufflen(SCpnt);
- 	unsigned int good_bytes = result ? 0 : xfer_size;
- 	u64 start_lba = SCpnt->request->sector;
-	u64 end_lba = SCpnt->request->sector + (xfer_size / 512);
- 	u64 bad_lba;
+	unsigned int good_bytes = result ? 0 : scsi_bufflen(SCpnt);
 	struct scsi_sense_hdr sshdr;
 	int sense_valid = 0;
 	int sense_deferred = 0;
-	int info_valid;
 
 	if (result) {
 		sense_valid = scsi_command_normalize_sense(SCpnt, &sshdr);
@@ -982,36 +1035,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	switch (sshdr.sense_key) {
 	case HARDWARE_ERROR:
 	case MEDIUM_ERROR:
-		if (!blk_fs_request(SCpnt->request))
-			goto out;
-		info_valid = scsi_get_sense_info_fld(SCpnt->sense_buffer,
-						     SCSI_SENSE_BUFFERSIZE,
-						     &bad_lba);
-		if (!info_valid)
-			goto out;
-		if (xfer_size <= SCpnt->device->sector_size)
-			goto out;
-		if (SCpnt->device->sector_size < 512) {
-			/* only legitimate sector_size here is 256 */
-			start_lba <<= 1;
-			end_lba <<= 1;
-		} else {
-			/* be careful ... don't want any overflows */
-			u64 factor = SCpnt->device->sector_size / 512;
-			do_div(start_lba, factor);
-			do_div(end_lba, factor);
-		}
-
-		if (bad_lba < start_lba  || bad_lba >= end_lba)
-			/* the bad lba was reported incorrectly, we have
-			 * no idea where the error is
-			 */
-			goto out;
-
-		/* This computation should always be done in terms of
-		 * the resolution of the device's medium.
-		 */
-		good_bytes = (bad_lba - start_lba)*SCpnt->device->sector_size;
+		good_bytes = sd_completed_bytes(SCpnt);
 		break;
 	case RECOVERED_ERROR:
 	case NO_SENSE:
@@ -1021,10 +1045,23 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 		scsi_print_sense("sd", SCpnt);
 		SCpnt->result = 0;
 		memset(SCpnt->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
-		good_bytes = xfer_size;
+		good_bytes = scsi_bufflen(SCpnt);
+		break;
+	case ABORTED_COMMAND:
+		if (sshdr.asc == 0x10) { /* DIF: Disk detected corruption */
+			scsi_print_result(SCpnt);
+			scsi_print_sense("sd", SCpnt);
+			good_bytes = sd_completed_bytes(SCpnt);
+		}
 		break;
 	case ILLEGAL_REQUEST:
-		if (SCpnt->device->use_10_for_rw &&
+		if (sshdr.asc == 0x10) { /* DIX: HBA detected corruption */
+			scsi_print_result(SCpnt);
+			scsi_print_sense("sd", SCpnt);
+			good_bytes = sd_completed_bytes(SCpnt);
+		}
+		if (!scsi_device_protection(SCpnt->device) &&
+		    SCpnt->device->use_10_for_rw &&
 		    (SCpnt->cmnd[0] == READ_10 ||
 		     SCpnt->cmnd[0] == WRITE_10))
 			SCpnt->device->use_10_for_rw = 0;
@@ -1037,6 +1074,9 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 		break;
 	}
  out:
+	if (rq_data_dir(SCpnt->request) == READ && scsi_prot_sg_count(SCpnt))
+		sd_dif_complete(SCpnt, good_bytes);
+
 	return good_bytes;
 }
 
@@ -1826,6 +1866,7 @@ static int sd_probe(struct device *dev)
 
 	dev_set_drvdata(dev, sdkp);
 	add_disk(gd);
+	sd_dif_config_host(sdkp);
 
 	sd_printk(KERN_NOTICE, sdkp, "Attached SCSI %sdisk\n",
 		  sdp->removable ? "removable " : "");
