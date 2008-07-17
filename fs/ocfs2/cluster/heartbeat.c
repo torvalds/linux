@@ -1489,28 +1489,25 @@ static struct o2hb_heartbeat_group *to_o2hb_heartbeat_group(struct config_group 
 		: NULL;
 }
 
-static int o2hb_heartbeat_group_make_item(struct config_group *group,
-					  const char *name,
-					  struct config_item **new_item)
+static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *group,
+							  const char *name)
 {
 	struct o2hb_region *reg = NULL;
-	int ret = 0;
+	struct config_item *ret = NULL;
 
 	reg = kzalloc(sizeof(struct o2hb_region), GFP_KERNEL);
-	if (reg == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (reg == NULL)
+		goto out; /* ENOMEM */
 
 	config_item_init_type_name(&reg->hr_item, name, &o2hb_region_type);
 
-	*new_item = &reg->hr_item;
+	ret = &reg->hr_item;
 
 	spin_lock(&o2hb_live_lock);
 	list_add_tail(&reg->hr_all_item, &o2hb_all_regions);
 	spin_unlock(&o2hb_live_lock);
 out:
-	if (ret)
+	if (ret == NULL)
 		kfree(reg);
 
 	return ret;

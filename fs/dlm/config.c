@@ -41,20 +41,16 @@ struct comm;
 struct nodes;
 struct node;
 
-static int make_cluster(struct config_group *, const char *,
-			struct config_group **);
+static struct config_group *make_cluster(struct config_group *, const char *);
 static void drop_cluster(struct config_group *, struct config_item *);
 static void release_cluster(struct config_item *);
-static int make_space(struct config_group *, const char *,
-		      struct config_group **);
+static struct config_group *make_space(struct config_group *, const char *);
 static void drop_space(struct config_group *, struct config_item *);
 static void release_space(struct config_item *);
-static int make_comm(struct config_group *, const char *,
-		     struct config_item **);
+static struct config_item *make_comm(struct config_group *, const char *);
 static void drop_comm(struct config_group *, struct config_item *);
 static void release_comm(struct config_item *);
-static int make_node(struct config_group *, const char *,
-		     struct config_item **);
+static struct config_item *make_node(struct config_group *, const char *);
 static void drop_node(struct config_group *, struct config_item *);
 static void release_node(struct config_item *);
 
@@ -396,8 +392,8 @@ static struct node *to_node(struct config_item *i)
 	return i ? container_of(i, struct node, item) : NULL;
 }
 
-static int make_cluster(struct config_group *g, const char *name,
-			struct config_group **new_g)
+static struct config_group *make_cluster(struct config_group *g,
+					 const char *name)
 {
 	struct cluster *cl = NULL;
 	struct spaces *sps = NULL;
@@ -435,15 +431,14 @@ static int make_cluster(struct config_group *g, const char *name,
 
 	space_list = &sps->ss_group;
 	comm_list = &cms->cs_group;
-	*new_g = &cl->group;
-	return 0;
+	return &cl->group;
 
  fail:
 	kfree(cl);
 	kfree(gps);
 	kfree(sps);
 	kfree(cms);
-	return -ENOMEM;
+	return NULL;
 }
 
 static void drop_cluster(struct config_group *g, struct config_item *i)
@@ -471,8 +466,7 @@ static void release_cluster(struct config_item *i)
 	kfree(cl);
 }
 
-static int make_space(struct config_group *g, const char *name,
-		      struct config_group **new_g)
+static struct config_group *make_space(struct config_group *g, const char *name)
 {
 	struct space *sp = NULL;
 	struct nodes *nds = NULL;
@@ -495,14 +489,13 @@ static int make_space(struct config_group *g, const char *name,
 	INIT_LIST_HEAD(&sp->members);
 	mutex_init(&sp->members_lock);
 	sp->members_count = 0;
-	*new_g = &sp->group;
-	return 0;
+	return &sp->group;
 
  fail:
 	kfree(sp);
 	kfree(gps);
 	kfree(nds);
-	return -ENOMEM;
+	return NULL;
 }
 
 static void drop_space(struct config_group *g, struct config_item *i)
@@ -529,21 +522,19 @@ static void release_space(struct config_item *i)
 	kfree(sp);
 }
 
-static int make_comm(struct config_group *g, const char *name,
-		     struct config_item **new_i)
+static struct config_item *make_comm(struct config_group *g, const char *name)
 {
 	struct comm *cm;
 
 	cm = kzalloc(sizeof(struct comm), GFP_KERNEL);
 	if (!cm)
-		return -ENOMEM;
+		return NULL;
 
 	config_item_init_type_name(&cm->item, name, &comm_type);
 	cm->nodeid = -1;
 	cm->local = 0;
 	cm->addr_count = 0;
-	*new_i = &cm->item;
-	return 0;
+	return &cm->item;
 }
 
 static void drop_comm(struct config_group *g, struct config_item *i)
@@ -563,15 +554,14 @@ static void release_comm(struct config_item *i)
 	kfree(cm);
 }
 
-static int make_node(struct config_group *g, const char *name,
-		     struct config_item **new_i)
+static struct config_item *make_node(struct config_group *g, const char *name)
 {
 	struct space *sp = to_space(g->cg_item.ci_parent);
 	struct node *nd;
 
 	nd = kzalloc(sizeof(struct node), GFP_KERNEL);
 	if (!nd)
-		return -ENOMEM;
+		return NULL;
 
 	config_item_init_type_name(&nd->item, name, &node_type);
 	nd->nodeid = -1;
@@ -583,8 +573,7 @@ static int make_node(struct config_group *g, const char *name,
 	sp->members_count++;
 	mutex_unlock(&sp->members_lock);
 
-	*new_i = &nd->item;
-	return 0;
+	return &nd->item;
 }
 
 static void drop_node(struct config_group *g, struct config_item *i)

@@ -1073,24 +1073,25 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	group = NULL;
 	item = NULL;
 	if (type->ct_group_ops->make_group) {
-		ret = type->ct_group_ops->make_group(to_config_group(parent_item), name, &group);
-		if (!ret) {
+		group = type->ct_group_ops->make_group(to_config_group(parent_item), name);
+		if (group) {
 			link_group(to_config_group(parent_item), group);
 			item = &group->cg_item;
 		}
 	} else {
-		ret = type->ct_group_ops->make_item(to_config_group(parent_item), name, &item);
-		if (!ret)
+		item = type->ct_group_ops->make_item(to_config_group(parent_item), name);
+		if (item)
 			link_obj(parent_item, item);
 	}
 	mutex_unlock(&subsys->su_mutex);
 
 	kfree(name);
-	if (ret) {
+	if (!item) {
 		/*
-		 * If ret != 0, then link_obj() was never called.
+		 * If item == NULL, then link_obj() was never called.
 		 * There are no extra references to clean up.
 		 */
+		ret = -ENOMEM;
 		goto out_put;
 	}
 
