@@ -158,4 +158,4 @@ static int __init zorro_proc_init(void)
 	return 0;
 }
 
-__initcall(zorro_proc_init);
+device_initcall(zorro_proc_init);
