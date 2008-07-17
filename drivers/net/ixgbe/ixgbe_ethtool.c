@@ -252,16 +252,10 @@ static int ixgbe_set_tso(struct net_device *netdev, u32 data)
 		netdev->features |= NETIF_F_TSO;
 		netdev->features |= NETIF_F_TSO6;
 	} else {
-		struct ixgbe_adapter *adapter = netdev_priv(netdev);
-		int i;
-		netif_stop_queue(netdev);
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			netif_stop_subqueue(netdev, i);
+		netif_tx_stop_all_queues(netdev);
 		netdev->features &= ~NETIF_F_TSO;
 		netdev->features &= ~NETIF_F_TSO6;
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			netif_start_subqueue(netdev, i);
-		netif_start_queue(netdev);
+		netif_tx_start_all_queues(netdev);
 	}
 	return 0;
 }

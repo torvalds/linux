@@ -166,7 +166,7 @@ static inline int qdisc_restart(struct netdev_queue *txq)
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
 	if (!netif_subqueue_stopped(dev, skb))
-		ret = dev_hard_start_xmit(skb, dev);
+		ret = dev_hard_start_xmit(skb, dev, txq);
 	HARD_TX_UNLOCK(dev, txq);
 
 	spin_lock(&txq->lock);
@@ -198,11 +198,10 @@ static inline int qdisc_restart(struct netdev_queue *txq)
 
 void __qdisc_run(struct netdev_queue *txq)
 {
-	struct net_device *dev = txq->dev;
 	unsigned long start_time = jiffies;
 
 	while (qdisc_restart(txq)) {
-		if (netif_queue_stopped(dev))
+		if (netif_tx_queue_stopped(txq))
 			break;
 
 		/*

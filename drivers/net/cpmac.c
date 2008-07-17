@@ -544,7 +544,7 @@ fatal_error:
 
 	spin_unlock(&priv->rx_lock);
 	netif_rx_complete(priv->dev, napi);
-	netif_stop_queue(priv->dev);
+	netif_tx_stop_all_queues(priv->dev);
 	napi_disable(&priv->napi);
 
 	atomic_inc(&priv->reset_pending);
@@ -750,9 +750,7 @@ static void cpmac_hw_error(struct work_struct *work)
 	barrier();
 	atomic_dec(&priv->reset_pending);
 
-	for (i = 0; i < CPMAC_QUEUES; i++)
-		netif_wake_subqueue(priv->dev, i);
-	netif_wake_queue(priv->dev);
+	netif_tx_wake_all_queues(priv->dev);
 	cpmac_write(priv->regs, CPMAC_MAC_INT_ENABLE, 3);
 }
 
@@ -781,7 +779,7 @@ static void cpmac_check_status(struct net_device *dev)
 				     dev->name, tx_code, tx_channel, macstatus);
 		}
 
-		netif_stop_queue(dev);
+		netif_tx_stop_all_queues(dev);
 		cpmac_hw_stop(dev);
 		if (schedule_work(&priv->reset_work))
 			atomic_inc(&priv->reset_pending);
@@ -842,9 +840,7 @@ static void cpmac_tx_timeout(struct net_device *dev)
 	barrier();
 	atomic_dec(&priv->reset_pending);
 
-	netif_wake_queue(priv->dev);
-	for (i = 0; i < CPMAC_QUEUES; i++)
-		netif_wake_subqueue(dev, i);
+	netif_tx_wake_all_queues(priv->dev);
 }
 
 static int cpmac_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -935,7 +931,7 @@ static void cpmac_adjust_link(struct net_device *dev)
 
 	spin_lock(&priv->lock);
 	if (priv->phy->link) {
-		netif_start_queue(dev);
+		netif_tx_start_all_queues(dev);
 		if (priv->phy->duplex != priv->oldduplex) {
 			new_state = 1;
 			priv->oldduplex = priv->phy->duplex;
@@ -949,10 +945,10 @@ static void cpmac_adjust_link(struct net_device *dev)
 		if (!priv->oldlink) {
 			new_state = 1;
 			priv->oldlink = 1;
-			netif_schedule(dev);
+			netif_tx_schedule_all(dev);
 		}
 	} else if (priv->oldlink) {
-		netif_stop_queue(dev);
+		netif_tx_stop_all_queues(dev);
 		new_state = 1;
 		priv->oldlink = 0;
 		priv->oldspeed = 0;
@@ -1072,7 +1068,7 @@ static int cpmac_stop(struct net_device *dev)
 	struct cpmac_priv *priv = netdev_priv(dev);
 	struct resource *mem;
 
-	netif_stop_queue(dev);
+	netif_tx_stop_all_queues(dev);
 
 	cancel_work_sync(&priv->reset_work);
 	napi_disable(&priv->napi);

@@ -1598,7 +1598,8 @@ static int dev_gso_segment(struct sk_buff *skb)
 	return 0;
 }
 
-int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
+			struct netdev_queue *txq)
 {
 	if (likely(!skb->next)) {
 		if (!list_empty(&ptype_all))
@@ -1627,9 +1628,7 @@ gso:
 			skb->next = nskb;
 			return rc;
 		}
-		if (unlikely((netif_queue_stopped(dev) ||
-			     netif_subqueue_stopped(dev, skb)) &&
-			     skb->next))
+		if (unlikely(netif_tx_queue_stopped(txq) && skb->next))
 			return NETDEV_TX_BUSY;
 	} while (skb->next);
 
@@ -1669,7 +1668,10 @@ out_kfree_skb:
 static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 					struct sk_buff *skb)
 {
-	return netdev_get_tx_queue(dev, 0);
+	u16 queue_index = 0;
+
+	skb_set_queue_mapping(skb, queue_index);
+	return netdev_get_tx_queue(dev, queue_index);
 }
 
 int dev_queue_xmit(struct sk_buff *skb)
@@ -1737,8 +1739,6 @@ gso:
 		spin_lock(&txq->lock);
 		q = txq->qdisc;
 		if (q->enqueue) {
-			/* reset queue_mapping to zero */
-			skb_set_queue_mapping(skb, 0);
 			rc = q->enqueue(skb, q);
 			qdisc_run(txq);
 			spin_unlock(&txq->lock);
@@ -1768,10 +1768,9 @@ gso:
 
 			HARD_TX_LOCK(dev, txq, cpu);
 
-			if (!netif_queue_stopped(dev) &&
-			    !netif_subqueue_stopped(dev, skb)) {
+			if (!netif_tx_queue_stopped(txq)) {
 				rc = 0;
-				if (!dev_hard_start_xmit(skb, dev)) {
+				if (!dev_hard_start_xmit(skb, dev, txq)) {
 					HARD_TX_UNLOCK(dev, txq);
 					goto out;
 				}
@@ -4160,8 +4159,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
-	alloc_size = sizeof(struct net_device) +
-		     sizeof(struct net_device_subqueue) * (queue_count - 1);
+	alloc_size = sizeof(struct net_device);
 	if (sizeof_priv) {
 		/* ensure 32-byte alignment of private area */
 		alloc_size = (alloc_size + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST;
@@ -4191,16 +4189,14 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	dev->_tx = tx;
 	dev->num_tx_queues = queue_count;
+	dev->real_num_tx_queues = queue_count;
 
 	if (sizeof_priv) {
 		dev->priv = ((char *)dev +
-			     ((sizeof(struct net_device) +
-			       (sizeof(struct net_device_subqueue) *
-				(queue_count - 1)) + NETDEV_ALIGN_CONST)
+			     ((sizeof(struct net_device) + NETDEV_ALIGN_CONST)
 			      & ~NETDEV_ALIGN_CONST));
 	}
 
-	dev->egress_subqueue_count = queue_count;
 	dev->gso_max_size = GSO_MAX_SIZE;
 
 	netdev_init_queues(dev);

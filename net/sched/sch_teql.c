@@ -295,8 +295,7 @@ restart:
 		slave_txq = netdev_get_tx_queue(slave, 0);
 		if (slave_txq->qdisc_sleeping != q)
 			continue;
-		if (netif_queue_stopped(slave) ||
-		    __netif_subqueue_stopped(slave, subq) ||
+		if (__netif_subqueue_stopped(slave, subq) ||
 		    !netif_running(slave)) {
 			busy = 1;
 			continue;
@@ -305,8 +304,7 @@ restart:
 		switch (teql_resolve(skb, skb_res, slave)) {
 		case 0:
 			if (netif_tx_trylock(slave)) {
-				if (!netif_queue_stopped(slave) &&
-				    !__netif_subqueue_stopped(slave, subq) &&
+				if (!__netif_subqueue_stopped(slave, subq) &&
 				    slave->hard_start_xmit(skb, slave) == 0) {
 					netif_tx_unlock(slave);
 					master->slaves = NEXT_SLAVE(q);

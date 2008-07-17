@@ -545,63 +545,53 @@ static struct pci_driver s2io_driver = {
 /* netqueue manipulation helper functions */
 static inline void s2io_stop_all_tx_queue(struct s2io_nic *sp)
 {
-	int i;
-	if (sp->config.multiq) {
-		for (i = 0; i < sp->config.tx_fifo_num; i++)
-			netif_stop_subqueue(sp->dev, i);
-	} else {
+	if (!sp->config.multiq) {
+		int i;
+
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_STOP;
-		netif_stop_queue(sp->dev);
 	}
+	netif_tx_stop_all_queues(sp->dev);
 }
 
 static inline void s2io_stop_tx_queue(struct s2io_nic *sp, int fifo_no)
 {
-	if (sp->config.multiq)
-		netif_stop_subqueue(sp->dev, fifo_no);
-	else {
+	if (!sp->config.multiq)
 		sp->mac_control.fifos[fifo_no].queue_state =
 			FIFO_QUEUE_STOP;
-		netif_stop_queue(sp->dev);
-	}
+
+	netif_tx_stop_all_queues(sp->dev);
 }
 
 static inline void s2io_start_all_tx_queue(struct s2io_nic *sp)
 {
-	int i;
-	if (sp->config.multiq) {
-		for (i = 0; i < sp->config.tx_fifo_num; i++)
-			netif_start_subqueue(sp->dev, i);
-	} else {
+	if (!sp->config.multiq) {
+		int i;
+
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_START;
-		netif_start_queue(sp->dev);
 	}
+	netif_tx_start_all_queues(sp->dev);
 }
 
 static inline void s2io_start_tx_queue(struct s2io_nic *sp, int fifo_no)
 {
-	if (sp->config.multiq)
-		netif_start_subqueue(sp->dev, fifo_no);
-	else {
+	if (!sp->config.multiq)
 		sp->mac_control.fifos[fifo_no].queue_state =
 			FIFO_QUEUE_START;
-		netif_start_queue(sp->dev);
-	}
+
+	netif_tx_start_all_queues(sp->dev);
 }
 
 static inline void s2io_wake_all_tx_queue(struct s2io_nic *sp)
 {
-	int i;
-	if (sp->config.multiq) {
-		for (i = 0; i < sp->config.tx_fifo_num; i++)
-			netif_wake_subqueue(sp->dev, i);
-	} else {
+	if (!sp->config.multiq) {
+		int i;
+
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_START;
-		netif_wake_queue(sp->dev);
 	}
+	netif_tx_wake_all_queues(sp->dev);
 }
 
 static inline void s2io_wake_tx_queue(
@@ -8691,5 +8681,5 @@ static void s2io_io_resume(struct pci_dev *pdev)
 	}
 
 	netif_device_attach(netdev);
-	netif_wake_queue(netdev);
+	netif_tx_wake_all_queues(netdev);
 }

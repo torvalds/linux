@@ -2013,7 +2013,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	del_timer_sync(&adapter->watchdog_timer);
 
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	if (!pci_channel_offline(adapter->pdev))
 		ixgbe_reset(adapter);
@@ -2359,7 +2359,7 @@ try_msi:
 
 out:
 	/* Notify the stack of the (possibly) reduced Tx Queue count. */
-	adapter->netdev->egress_subqueue_count = adapter->num_tx_queues;
+	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
 
 	return err;
 }
@@ -2896,7 +2896,6 @@ static void ixgbe_watchdog(unsigned long data)
 	struct net_device *netdev = adapter->netdev;
 	bool link_up;
 	u32 link_speed = 0;
-	int i;
 
 	adapter->hw.mac.ops.check_link(&adapter->hw, &(link_speed), &link_up);
 
@@ -2917,9 +2916,7 @@ static void ixgbe_watchdog(unsigned long data)
 				 (FLOW_TX ? "TX" : "None"))));
 
 			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
-			for (i = 0; i < adapter->num_tx_queues; i++)
-				netif_wake_subqueue(netdev, i);
+			netif_tx_wake_all_queues(netdev);
 		} else {
 			/* Force detection of hung controller */
 			adapter->detect_tx_hung = true;
@@ -2928,7 +2925,7 @@ static void ixgbe_watchdog(unsigned long data)
 		if (netif_carrier_ok(netdev)) {
 			DPRINTK(LINK, INFO, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
+			netif_tx_stop_all_queues(netdev);
 		}
 	}
 
@@ -3631,9 +3628,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	ixgbe_start_hw(hw);
 
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		netif_stop_subqueue(netdev, i);
+	netif_tx_stop_all_queues(netdev);
 
 	ixgbe_napi_add_all(adapter);
 

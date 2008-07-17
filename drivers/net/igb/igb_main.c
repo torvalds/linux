@@ -533,7 +533,7 @@ msi_only:
 		adapter->flags |= IGB_FLAG_HAS_MSI;
 
 	/* Notify the stack of the (possibly) reduced Tx Queue count. */
-	adapter->netdev->egress_subqueue_count = adapter->num_tx_queues;
+	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
 	return;
 }
 
@@ -821,9 +821,7 @@ void igb_down(struct igb_adapter *adapter)
 	wr32(E1000_RCTL, rctl & ~E1000_RCTL_EN);
 	/* flush and sleep below */
 
-	netif_stop_queue(netdev);
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		netif_stop_subqueue(netdev, i);
+	netif_tx_stop_all_queues(netdev);
 
 	/* disable transmits in the hardware */
 	tctl = rd32(E1000_TCTL);
@@ -1266,9 +1264,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	/* tell the stack to leave us alone until igb_open() is called */
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		netif_stop_subqueue(netdev, i);
+	netif_tx_stop_all_queues(netdev);
 
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
@@ -2315,7 +2311,6 @@ static void igb_watchdog_task(struct work_struct *work)
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 	u32 link;
 	s32 ret_val;
-	int i;
 
 	if ((netif_carrier_ok(netdev)) &&
 	    (rd32(E1000_STATUS) & E1000_STATUS_LU))
@@ -2371,9 +2366,7 @@ static void igb_watchdog_task(struct work_struct *work)
 			}
 
 			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
-			for (i = 0; i < adapter->num_tx_queues; i++)
-				netif_wake_subqueue(netdev, i);
+			netif_tx_wake_all_queues(netdev);
 
 			if (!test_bit(__IGB_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
@@ -2385,9 +2378,7 @@ static void igb_watchdog_task(struct work_struct *work)
 			adapter->link_duplex = 0;
 			dev_info(&adapter->pdev->dev, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
-			for (i = 0; i < adapter->num_tx_queues; i++)
-				netif_stop_subqueue(netdev, i);
+			netif_tx_stop_all_queues(netdev);
 			if (!test_bit(__IGB_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
