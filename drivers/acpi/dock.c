@@ -920,9 +920,6 @@ static int __init dock_init(void)
 	if (acpi_disabled)
 		return 0;
 
-	if (acpi_disabled)
-		return 0;
-
 	/* look for a dock station */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX, find_dock, &num, NULL);
