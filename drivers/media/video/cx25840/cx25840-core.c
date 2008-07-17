@@ -1204,6 +1204,8 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 
 		switch (qc->id) {
 			case V4L2_CID_AUDIO_VOLUME:
+				return v4l2_ctrl_query_fill(qc, 0, 65535,
+					65535 / 100, state->default_volume);
 			case V4L2_CID_AUDIO_MUTE:
 			case V4L2_CID_AUDIO_BALANCE:
 			case V4L2_CID_AUDIO_BASS:
@@ -1411,6 +1413,8 @@ static int cx25840_probe(struct i2c_client *client,
 	state->pvr150_workaround = 0;
 	state->audmode = V4L2_TUNER_MODE_LANG1;
 	state->unmute_volume = -1;
+	state->default_volume = 228 - cx25840_read(client, 0x8d4);
+	state->default_volume = ((state->default_volume / 2) + 23) << 9;
 	state->vbi_line_offset = 8;
 	state->id = id;
 	state->rev = device_id;

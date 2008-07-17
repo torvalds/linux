@@ -80,6 +80,7 @@ static void log_video_status(struct cx18 *cx);
 
 static void cx18_av_initialize(struct cx18 *cx)
 {
+	struct cx18_av_state *state = &cx->av_state;
 	u32 v;
 
 	cx18_av_loadfw(cx);
@@ -159,6 +160,8 @@ static void cx18_av_initialize(struct cx18 *cx)
 /*      	CxDevWrReg(CXADEC_SRC_COMB_CFG, 0x6628021F); */
 /*    } */
 	cx18_av_write4(cx, CXADEC_SRC_COMB_CFG, 0x6628021F);
+	state->default_volume = 228 - cx18_av_read(cx, 0x8d4);
+	state->default_volume = ((state->default_volume / 2) + 23) << 9;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -559,6 +562,8 @@ int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg)
 
 		switch (qc->id) {
 		case V4L2_CID_AUDIO_VOLUME:
+			return v4l2_ctrl_query_fill(qc, 0, 65535,
+				65535 / 100, state->default_volume);
 		case V4L2_CID_AUDIO_MUTE:
 		case V4L2_CID_AUDIO_BALANCE:
 		case V4L2_CID_AUDIO_BASS:

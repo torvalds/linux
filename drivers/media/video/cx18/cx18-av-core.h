@@ -79,6 +79,7 @@ struct cx18_av_state {
 	u32 audclk_freq;
 	int audmode;
 	int vbi_line_offset;
+	int default_volume;
 	u32 id;
 	u32 rev;
 	int is_initialized;

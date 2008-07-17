@@ -44,6 +44,7 @@ struct cx25840_state {
 	u32 audclk_freq;
 	int audmode;
 	int unmute_volume; /* -1 if not muted */
+	int default_volume;
 	int vbi_line_offset;
 	u32 id;
 	u32 rev;
