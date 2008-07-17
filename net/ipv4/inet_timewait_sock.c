@@ -160,6 +160,9 @@ rescan:
 		__inet_twsk_del_dead_node(tw);
 		spin_unlock(&twdr->death_lock);
 		__inet_twsk_kill(tw, twdr->hashinfo);
+#ifdef CONFIG_NET_NS
+		NET_INC_STATS_BH(twsk_net(tw), LINUX_MIB_TIMEWAITED);
+#endif
 		inet_twsk_put(tw);
 		killed++;
 		spin_lock(&twdr->death_lock);
@@ -178,8 +181,9 @@ rescan:
 	}
 
 	twdr->tw_count -= killed;
-	NET_ADD_STATS_BH(LINUX_MIB_TIMEWAITED, killed);
-
+#ifndef CONFIG_NET_NS
+	NET_ADD_STATS_BH(&init_net, LINUX_MIB_TIMEWAITED, killed);
+#endif
 	return ret;
 }
 
@@ -372,6 +376,9 @@ void inet_twdr_twcal_tick(unsigned long data)
 						       &twdr->twcal_row[slot]) {
 				__inet_twsk_del_dead_node(tw);
 				__inet_twsk_kill(tw, twdr->hashinfo);
+#ifdef CONFIG_NET_NS
+				NET_INC_STATS_BH(twsk_net(tw), LINUX_MIB_TIMEWAITKILLED);
+#endif
 				inet_twsk_put(tw);
 				killed++;
 			}
@@ -395,7 +402,9 @@ void inet_twdr_twcal_tick(unsigned long data)
 out:
 	if ((twdr->tw_count -= killed) == 0)
 		del_timer(&twdr->tw_timer);
-	NET_ADD_STATS_BH(LINUX_MIB_TIMEWAITKILLED, killed);
+#ifndef CONFIG_NET_NS
+	NET_ADD_STATS_BH(&init_net, LINUX_MIB_TIMEWAITKILLED, killed);
+#endif
 	spin_unlock(&twdr->death_lock);
 }
 
