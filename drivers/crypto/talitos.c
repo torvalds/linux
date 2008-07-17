@@ -1015,6 +1015,8 @@ static struct ipsec_esp_edesc *ipsec_esp_edesc_alloc(struct aead_request *areq,
 	struct talitos_ctx *ctx = crypto_aead_ctx(authenc);
 	struct ipsec_esp_edesc *edesc;
 	int src_nents, dst_nents, alloc_len, dma_len;
+	gfp_t flags = areq->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL :
+		      GFP_ATOMIC;
 
 	if (areq->cryptlen + ctx->authsize > TALITOS_MAX_DATA_LEN) {
 		dev_err(ctx->dev, "cryptlen exceeds h/w max limit\n");
@@ -1046,7 +1048,7 @@ static struct ipsec_esp_edesc *ipsec_esp_edesc_alloc(struct aead_request *areq,
 		alloc_len += icv_stashing ? ctx->authsize : 0;
 	}
 
-	edesc = kmalloc(alloc_len, GFP_DMA);
+	edesc = kmalloc(alloc_len, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(ctx->dev, "could not allocate edescriptor\n");
 		return ERR_PTR(-ENOMEM);
@@ -1508,7 +1510,7 @@ static int talitos_probe(struct of_device *ofdev,
 		}
 	}
 
-	priv->submit_count = kmalloc(sizeof(int) * priv->num_channels,
+	priv->submit_count = kmalloc(sizeof(atomic_t) * priv->num_channels,
 				     GFP_KERNEL);
 	if (!priv->submit_count) {
 		dev_err(dev, "failed to allocate fifo submit count space\n");
