@@ -950,9 +950,14 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				 * 6-byte command.
 				 */
 				scsi_requeue_command(q, cmd);
-				return;
-			} else {
+			} else if (sshdr.asc == 0x10) /* DIX */
+				scsi_end_request(cmd, -EIO, this_count, 0);
+			else
 				scsi_end_request(cmd, -EIO, this_count, 1);
+			return;
+		case ABORTED_COMMAND:
+			if (sshdr.asc == 0x10) { /* DIF */
+				scsi_end_request(cmd, -EIO, this_count, 0);
 				return;
 			}
 			break;
