@@ -1,7 +1,7 @@
 /*
  * arch/sh/kernel/cpu/sh4a/clock-sh7722.c
  *
- * SH7722 & SH7366 support for the clock framework
+ * SH7343, SH7722, SH7723 & SH7366 support for the clock framework
  *
  * Copyright (c) 2006-2007 Nomad Global Solutions Inc
  * Based on code for sh7343 by Paul Mundt
@@ -413,6 +413,30 @@ static struct clk_ops sh7722_frqcr_clk_ops = {
  *
  */
 
+#ifndef CONFIG_CPU_SUBTYPE_SH7343
+
+static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
+{
+	unsigned long r;
+	int div;
+
+	r = ctrl_inl(clk->arch_flags);
+	div = sh7722_find_divisors(clk->parent->rate, rate);
+	if (div < 0)
+		return div;
+	r = (r & ~0xF) | div;
+	ctrl_outl(r, clk->arch_flags);
+	return 0;
+}
+
+static void sh7722_siu_recalc(struct clk *clk)
+{
+	unsigned long r;
+
+	r = ctrl_inl(clk->arch_flags);
+	clk->rate = clk->parent->rate * 2 / divisors2[r & 0xF];
+}
+
 static int sh7722_siu_start_stop(struct clk *clk, int enable)
 {
 	unsigned long r;
@@ -434,6 +458,15 @@ static void sh7722_siu_disable(struct clk *clk)
 {
 	sh7722_siu_start_stop(clk, 0);
 }
+
+static struct clk_ops sh7722_siu_clk_ops = {
+	.recalc = sh7722_siu_recalc,
+	.set_rate = sh7722_siu_set_rate,
+	.enable = sh7722_siu_enable,
+	.disable = sh7722_siu_disable,
+};
+
+#endif /* CONFIG_CPU_SUBTYPE_SH7343 */
 
 static void sh7722_video_enable(struct clk *clk)
 {
@@ -471,35 +504,6 @@ static void sh7722_video_recalc(struct clk *clk)
 	clk->rate = clk->parent->rate / ((r & 0x3F) + 1);
 }
 
-static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
-{
-	unsigned long r;
-	int div;
-
-	r = ctrl_inl(clk->arch_flags);
-	div = sh7722_find_divisors(clk->parent->rate, rate);
-	if (div < 0)
-		return div;
-	r = (r & ~0xF) | div;
-	ctrl_outl(r, clk->arch_flags);
-	return 0;
-}
-
-static void sh7722_siu_recalc(struct clk *clk)
-{
-	unsigned long r;
-
-	r = ctrl_inl(clk->arch_flags);
-	clk->rate = clk->parent->rate * 2 / divisors2[r & 0xF];
-}
-
-static struct clk_ops sh7722_siu_clk_ops = {
-	.recalc = sh7722_siu_recalc,
-	.set_rate = sh7722_siu_set_rate,
-	.enable = sh7722_siu_enable,
-	.disable = sh7722_siu_disable,
-};
-
 static struct clk_ops sh7722_video_clk_ops = {
 	.recalc = sh7722_video_recalc,
 	.set_rate = sh7722_video_set_rate,
@@ -529,6 +533,9 @@ static struct clk sh7722_sdram_clock = {
 	.ops = &sh7722_frqcr_clk_ops,
 };
 
+
+#ifndef CONFIG_CPU_SUBTYPE_SH7343
+
 /*
  * these three clocks - SIU A, SIU B, IrDA - share the same clk_ops
  * methods of clk_ops determine which register they should access by
@@ -553,6 +560,7 @@ static struct clk sh7722_irda_clock = {
 	.ops = &sh7722_siu_clk_ops,
 };
 #endif
+#endif /* CONFIG_CPU_SUBTYPE_SH7343 */
 
 static struct clk sh7722_video_clock = {
 	.name = "video_clk",
@@ -673,10 +681,12 @@ static struct clk *sh7722_clocks[] = {
 	&sh7722_sh_clock,
 	&sh7722_peripheral_clock,
 	&sh7722_sdram_clock,
+#ifndef CONFIG_CPU_SUBTYPE_SH7343
 	&sh7722_siu_a_clock,
 	&sh7722_siu_b_clock,
 #if defined(CONFIG_CPU_SUBTYPE_SH7722)
 	&sh7722_irda_clock,
+#endif
 #endif
 	&sh7722_video_clock,
 };
