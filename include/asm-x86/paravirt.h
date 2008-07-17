@@ -1401,7 +1401,7 @@ static inline int __raw_spin_is_contended(struct raw_spinlock *lock)
 
 static __always_inline void __raw_spin_lock(struct raw_spinlock *lock)
 {
-	return PVOP_VCALL1(pv_lock_ops.spin_lock, lock);
+	PVOP_VCALL1(pv_lock_ops.spin_lock, lock);
 }
 
 static __always_inline int __raw_spin_trylock(struct raw_spinlock *lock)
@@ -1411,7 +1411,7 @@ static __always_inline int __raw_spin_trylock(struct raw_spinlock *lock)
 
 static __always_inline void __raw_spin_unlock(struct raw_spinlock *lock)
 {
-	return PVOP_VCALL1(pv_lock_ops.spin_unlock, lock);
+	PVOP_VCALL1(pv_lock_ops.spin_unlock, lock);
 }
 
 #endif
