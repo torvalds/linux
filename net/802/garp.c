@@ -323,7 +323,10 @@ static void garp_attr_event(struct garp_applicant *app,
 	case GARP_ACTION_NONE:
 		break;
 	case GARP_ACTION_S_JOIN_IN:
-		garp_pdu_append_attr(app, attr, GARP_JOIN_IN);
+		/* When appending the attribute fails, don't update state in
+		 * order to retry on next TRANSMIT_PDU event. */
+		if (garp_pdu_append_attr(app, attr, GARP_JOIN_IN) < 0)
+			return;
 		break;
 	case GARP_ACTION_S_LEAVE_EMPTY:
 		garp_pdu_append_attr(app, attr, GARP_LEAVE_EMPTY);
