@@ -333,15 +333,6 @@ config APNE
 	  To compile this driver as a module, choose M here: the module
 	  will be called apne.
 
-config APOLLO_ELPLUS
-	tristate "Apollo 3c505 support"
-	depends on APOLLO
-	help
-	  Say Y or M here if your Apollo has a 3Com 3c505 ISA Ethernet card.
-	  If you don't have one made for Apollos, you can use one from a PC,
-	  except that your Apollo won't be able to boot from it (because the
-	  code in the ROM will be for a PC).
-
 config MAC8390
 	bool "Macintosh NS 8390 based ethernet cards"
 	depends on MAC
