@@ -523,24 +523,6 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 				continue;
 			}
 
-			/* programmable gain/attenuation */
-			if (w->id == snd_soc_dapm_pga) {
-				int on;
-				in = is_connected_input_ep(w);
-				dapm_clear_walk(w->codec);
-				out = is_connected_output_ep(w);
-				dapm_clear_walk(w->codec);
-				w->power = on = (out != 0 && in != 0) ? 1 : 0;
-
-				if (!on)
-					dapm_set_pga(w, on); /* lower volume to reduce pops */
-				dapm_update_bits(w);
-				if (on)
-					dapm_set_pga(w, on); /* restore volume from zero */
-
-				continue;
-			}
-
 			/* pre and post event widgets */
 			if (w->id == snd_soc_dapm_pre) {
 				if (!w->event)
@@ -611,7 +593,15 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 					return ret;
 			}
 
+			/* Lower PGA volume to reduce pops */
+			if (w->id == snd_soc_dapm_pga && !power)
+				dapm_set_pga(w, power);
+
 			dapm_update_bits(w);
+
+			/* Raise PGA volume to reduce pops */
+			if (w->id == snd_soc_dapm_pga && power)
+				dapm_set_pga(w, power);
 
 			/* power up post event */
 			if (power && w->event &&
