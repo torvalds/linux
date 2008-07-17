@@ -15,6 +15,9 @@ CFLAGS_REMOVE_string.o = -pg
 CFLAGS_REMOVE_spinlock_debug.o = -pg
 CFLAGS_REMOVE_list_debug.o = -pg
 CFLAGS_REMOVE_debugobjects.o = -pg
+CFLAGS_REMOVE_find_next_bit.o = -pg
+CFLAGS_REMOVE_cpumask.o = -pg
+CFLAGS_REMOVE_bitmap.o = -pg
 endif
 
 lib-$(CONFIG_MMU) += ioremap.o
