@@ -1557,7 +1557,7 @@ static int saa7115_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id saa7115_id[] = {
-	{ "saa711x", 1 }, /* autodetect */
+	{ "saa7115_auto", 1 }, /* autodetect */
 	{ "saa7111", 0 },
 	{ "saa7113", 0 },
 	{ "saa7114", 0 },
