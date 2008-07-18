@@ -1399,13 +1399,7 @@ static __net_initdata struct pernet_operations ipv4_mib_ops = {
 
 static int __init init_ipv4_mibs(void)
 {
-	if (register_pernet_subsys(&ipv4_mib_ops))
-		goto err_net;
-
-	return 0;
-
-err_net:
-	return -ENOMEM;
+	return register_pernet_subsys(&ipv4_mib_ops);
 }
 
 static int ipv4_proc_init(void);
