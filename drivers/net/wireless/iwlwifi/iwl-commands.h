@@ -2324,7 +2324,7 @@ struct iwl4965_beacon_notif {
 /*
  * REPLY_TX_BEACON = 0x91 (command, has simple generic response)
  */
-struct iwl4965_tx_beacon_cmd {
+struct iwl_tx_beacon_cmd {
 	struct iwl_tx_cmd tx;
 	__le16 tim_idx;
 	u8 tim_size;

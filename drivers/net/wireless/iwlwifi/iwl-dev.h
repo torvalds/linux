@@ -219,7 +219,7 @@ enum iwl_pwr_src {
 struct iwl_frame {
 	union {
 		struct ieee80211_hdr frame;
-		struct iwl4965_tx_beacon_cmd beacon;
+		struct iwl_tx_beacon_cmd beacon;
 		u8 raw[IEEE80211_FRAME_LEN];
 		u8 cmd[360];
 	} u;
@@ -286,7 +286,6 @@ struct iwl_cmd {
 		struct iwl_powertable_cmd powertable;
 		struct iwl_qosparam_cmd qosparam;
 		struct iwl_tx_cmd tx;
-		struct iwl4965_tx_beacon_cmd tx_beacon;
 		struct iwl4965_rxon_assoc_cmd rxon_assoc;
 		struct iwl_rem_sta_cmd rm_sta;
 		u8 *indirect;

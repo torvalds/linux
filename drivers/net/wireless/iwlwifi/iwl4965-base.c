@@ -444,11 +444,10 @@ static void iwl_free_frame(struct iwl_priv *priv, struct iwl_frame *frame)
 	list_add(&frame->list, &priv->free_frames);
 }
 
-unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
-				struct ieee80211_hdr *hdr,
-				const u8 *dest, int left)
+static unsigned int iwl_fill_beacon_frame(struct iwl_priv *priv,
+					  struct ieee80211_hdr *hdr,
+					  const u8 *dest, int left)
 {
-
 	if (!iwl_is_associated(priv) || !priv->ibss_beacon ||
 	    ((priv->iw_mode != IEEE80211_IF_TYPE_IBSS) &&
 	     (priv->iw_mode != IEEE80211_IF_TYPE_AP)))
@@ -487,6 +486,38 @@ static u8 iwl4965_rate_get_lowest_plcp(struct iwl_priv *priv)
 		return IWL_RATE_6M_PLCP;
 }
 
+unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
+				       struct iwl_frame *frame, u8 rate)
+{
+	struct iwl_tx_beacon_cmd *tx_beacon_cmd;
+	unsigned int frame_size;
+
+	tx_beacon_cmd = &frame->u.beacon;
+	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
+
+	tx_beacon_cmd->tx.sta_id = priv->hw_params.bcast_sta_id;
+	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
+
+	frame_size = iwl_fill_beacon_frame(priv, tx_beacon_cmd->frame,
+				iwl_bcast_addr,
+				sizeof(frame->u) - sizeof(*tx_beacon_cmd));
+
+	BUG_ON(frame_size > MAX_MPDU_SIZE);
+	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
+
+	if ((rate == IWL_RATE_1M_PLCP) || (rate >= IWL_RATE_2M_PLCP))
+		tx_beacon_cmd->tx.rate_n_flags =
+			iwl_hw_set_rate_n_flags(rate, RATE_MCS_CCK_MSK);
+	else
+		tx_beacon_cmd->tx.rate_n_flags =
+			iwl_hw_set_rate_n_flags(rate, 0);
+
+	tx_beacon_cmd->tx.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK |
+				     TX_CMD_FLG_TSF_MSK |
+				     TX_CMD_FLG_STA_RATE_MSK;
+
+	return sizeof(*tx_beacon_cmd) + frame_size;
+}
 static int iwl4965_send_beacon_cmd(struct iwl_priv *priv)
 {
 	struct iwl_frame *frame;
