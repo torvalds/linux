@@ -144,6 +144,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 		em->len = ins.offset;
 		em->block_start = ins.objectid;
 		em->bdev = root->fs_info->fs_devices->latest_bdev;
+		set_bit(EXTENT_FLAG_PINNED, &em->flags);
 		while(1) {
 			spin_lock(&em_tree->lock);
 			ret = add_extent_mapping(em_tree, em);
@@ -483,6 +484,8 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_ordered_extent *ordered_extent;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct extent_map *em;
 	u64 alloc_hint = 0;
 	struct list_head list;
 	struct btrfs_key ins;
@@ -524,6 +527,17 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 				       ordered_extent->len,
 				       ordered_extent->len, 0);
 	BUG_ON(ret);
+
+
+	spin_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, ordered_extent->file_offset,
+			       ordered_extent->len);
+	if (em) {
+		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+		free_extent_map(em);
+	}
+	spin_unlock(&em_tree->lock);
+
 	btrfs_drop_extent_cache(inode, ordered_extent->file_offset,
 				ordered_extent->file_offset +
 				ordered_extent->len - 1);
@@ -538,6 +552,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 
 	btrfs_ordered_update_i_size(inode, ordered_extent);
 	btrfs_remove_ordered_extent(inode, ordered_extent);
+
 	/* once for us */
 	btrfs_put_ordered_extent(ordered_extent);
 	/* once for the tree */

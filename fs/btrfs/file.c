@@ -358,9 +358,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 	struct extent_map *split = NULL;
 	struct extent_map *split2 = NULL;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
-	struct extent_map *tmp;
 	u64 len = end - start + 1;
-	u64 next_start;
 	int ret;
 	int testend = 1;
 
@@ -381,8 +379,16 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 			spin_unlock(&em_tree->lock);
 			break;
 		}
-		tmp = rb_entry(&em->rb_node, struct extent_map, rb_node);
-		next_start = tmp->start;
+		if (test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
+			start = em->start + em->len;
+			free_extent_map(em);
+			spin_unlock(&em_tree->lock);
+			if (start < end) {
+				len = end - start + 1;
+				continue;
+			}
+			break;
+		}
 		remove_extent_mapping(em_tree, em);
 
 		if (em->block_start < EXTENT_MAP_LAST_BYTE &&

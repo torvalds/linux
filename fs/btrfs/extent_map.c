@@ -173,6 +173,9 @@ static inline struct rb_node *tree_search(struct rb_root *root, u64 offset)
 
 static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 {
+	if (test_bit(EXTENT_FLAG_PINNED, &prev->flags))
+		return 0;
+
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
 	    prev->bdev == next->bdev &&
@@ -320,6 +323,7 @@ int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 {
 	int ret = 0;
 
+	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
 	BUG_ON(spin_trylock(&tree->lock));
 	rb_erase(&em->rb_node, &tree->map);
 	em->in_tree = 0;

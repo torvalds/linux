@@ -8,6 +8,9 @@
 #define EXTENT_MAP_INLINE (u64)-2
 #define EXTENT_MAP_DELALLOC (u64)-1
 
+/* bits for the flags field */
+#define EXTENT_FLAG_PINNED 0 /* this entry not yet on disk, don't free it */
+
 struct extent_map {
 	struct rb_node rb_node;
 

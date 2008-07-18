@@ -2000,7 +2000,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	struct block_device *bdev;
 	int ret;
 	int nr = 0;
-	size_t page_offset = 0;
+	size_t pg_offset = 0;
 	size_t blocksize;
 	loff_t i_size = i_size_read(inode);
 	unsigned long end_index = i_size >> PAGE_CACHE_SHIFT;
@@ -2008,9 +2008,9 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	u64 delalloc_end;
 
 	WARN_ON(!PageLocked(page));
-	page_offset = i_size & (PAGE_CACHE_SIZE - 1);
+	pg_offset = i_size & (PAGE_CACHE_SIZE - 1);
 	if (page->index > end_index ||
-	   (page->index == end_index && !page_offset)) {
+	   (page->index == end_index && !pg_offset)) {
 		page->mapping->a_ops->invalidatepage(page, 0);
 		unlock_page(page);
 		return 0;
@@ -2020,12 +2020,12 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		char *userpage;
 
 		userpage = kmap_atomic(page, KM_USER0);
-		memset(userpage + page_offset, 0,
-		       PAGE_CACHE_SIZE - page_offset);
+		memset(userpage + pg_offset, 0,
+		       PAGE_CACHE_SIZE - pg_offset);
 		kunmap_atomic(userpage, KM_USER0);
 		flush_dcache_page(page);
 	}
-	page_offset = 0;
+	pg_offset = 0;
 
 	set_page_extent_mapped(page);
 
@@ -2088,7 +2088,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			unlock_start = page_end + 1;
 			break;
 		}
-		em = epd->get_extent(inode, page, page_offset, cur,
+		em = epd->get_extent(inode, page, pg_offset, cur,
 				     end - cur + 1, 1);
 		if (IS_ERR(em) || !em) {
 			SetPageError(page);
@@ -2113,12 +2113,13 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 
 			unlock_extent(tree, unlock_start, cur + iosize -1,
 				      GFP_NOFS);
+
 			if (tree->ops && tree->ops->writepage_end_io_hook)
 				tree->ops->writepage_end_io_hook(page, cur,
 							 cur + iosize - 1,
 							 NULL, 1);
 			cur = cur + iosize;
-			page_offset += iosize;
+			pg_offset += iosize;
 			unlock_start = cur;
 			continue;
 		}
@@ -2127,7 +2128,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		if (0 && !test_range_bit(tree, cur, cur + iosize - 1,
 				   EXTENT_DIRTY, 0)) {
 			cur = cur + iosize;
-			page_offset += iosize;
+			pg_offset += iosize;
 			continue;
 		}
 		clear_extent_dirty(tree, cur, cur + iosize - 1, GFP_NOFS);
@@ -2141,6 +2142,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			SetPageError(page);
 		} else {
 			unsigned long max_nr = end_index + 1;
+
 			set_range_writeback(tree, cur, cur + iosize - 1);
 			if (!PageWriteback(page)) {
 				printk("warning page %lu not writeback, "
@@ -2150,14 +2152,14 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			}
 
 			ret = submit_extent_page(WRITE, tree, page, sector,
-						 iosize, page_offset, bdev,
+						 iosize, pg_offset, bdev,
 						 &epd->bio, max_nr,
 						 end_bio_extent_writepage, 0);
 			if (ret)
 				SetPageError(page);
 		}
 		cur = cur + iosize;
-		page_offset += iosize;
+		pg_offset += iosize;
 		nr++;
 	}
 done:
@@ -2579,7 +2581,8 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 				spin_unlock(&map->lock);
 				break;
 			}
-			if (em->start != start) {
+			if (test_bit(EXTENT_FLAG_PINNED, &em->flags) ||
+			    em->start != start) {
 				spin_unlock(&map->lock);
 				free_extent_map(em);
 				break;

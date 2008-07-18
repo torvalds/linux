@@ -192,7 +192,6 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 				 (char *)&sector_sum->sum);
 		sector_sum->offset = page_offset(bvec->bv_page) +
 			bvec->bv_offset;
-
 		sector_sum++;
 		bio_index++;
 		total_bytes += bvec->bv_len;
@@ -201,9 +200,6 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 	}
 	btrfs_add_ordered_sum(inode, ordered, sums);
 	btrfs_put_ordered_extent(ordered);
-	if (total_bytes != bio->bi_size) {
-printk("warning, total bytes %lu bio size %u\n", total_bytes, bio->bi_size);
-	}
 	return 0;
 }
 
@@ -372,6 +368,7 @@ next_sector:
 		write_extent_buffer(leaf, &sector_sum->sum,
 				    (unsigned long)item, BTRFS_CRC32_SIZE);
 	}
+
 	total_bytes += root->sectorsize;
 	sector_sum++;
 	if (total_bytes < sums->len) {
