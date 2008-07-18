@@ -3687,15 +3687,6 @@ static ssize_t show_temperature(struct device *d,
 
 static DEVICE_ATTR(temperature, S_IRUGO, show_temperature, NULL);
 
-static ssize_t show_rs_window(struct device *d,
-			      struct device_attribute *attr,
-			      char *buf)
-{
-	struct iwl_priv *priv = d->driver_data;
-	return iwl4965_fill_rs_info(priv->hw, buf, IWL_AP_ID);
-}
-static DEVICE_ATTR(rs_window, S_IRUGO, show_rs_window, NULL);
-
 static ssize_t show_tx_power(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
@@ -4118,7 +4109,6 @@ static struct attribute *iwl4965_sysfs_entries[] = {
 #endif
 	&dev_attr_power_level.attr,
 	&dev_attr_retry_rate.attr,
-	&dev_attr_rs_window.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,

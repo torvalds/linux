@@ -287,15 +287,6 @@ static inline u8 iwl4965_get_prev_ieee_rate(u8 rate_index)
 }
 
 /**
- * iwl4965_fill_rs_info - Fill an output text buffer with the rate representation
- *
- * NOTE:  This is provided as a quick mechanism for a user to visualize
- * the performance of the rate control algorithm and is not meant to be
- * parsed software.
- */
-extern int iwl4965_fill_rs_info(struct ieee80211_hw *, char *buf, u8 sta_id);
-
-/**
  * iwl4965_rate_control_register - Register the rate control algorithm callbacks
  *
  * Since the rate control algorithm is hardware specific, there is no need
