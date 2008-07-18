@@ -450,7 +450,16 @@ iop_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 static void iop_chan_start_null_memcpy(struct iop_adma_chan *iop_chan);
 static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan);
 
-/* returns the number of allocated descriptors */
+/**
+ * iop_adma_alloc_chan_resources -  returns the number of allocated descriptors
+ * @chan - allocate descriptor resources for this channel
+ * @client - current client requesting the channel be ready for requests
+ *
+ * Note: We keep the slots for 1 operation on iop_chan->chain at all times.  To
+ * avoid deadlock, via async_xor, num_descs_in_pool must at a minimum be
+ * greater than 2x the number slots needed to satisfy a device->max_xor
+ * request.
+ * */
 static int iop_adma_alloc_chan_resources(struct dma_chan *chan,
 					 struct dma_client *client)
 {
