@@ -542,7 +542,6 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	info->prefix_node = device_node;
 	info->pathname = METHOD_NAME__INI;
 	info->parameters = NULL;
-	info->parameter_type = ACPI_PARAM_ARGS;
 	info->flags = ACPI_IGNORE_RETURN_VALUE;
 
 	/*

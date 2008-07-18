@@ -39,6 +39,8 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+static ide_hwif_t ide_hwifs[MAX_HWIFS]; /* master data repository */
+
 /**
  *	generic_id		-	add a generic drive id
  *	@drive:	drive to make an ID block for
@@ -1318,10 +1320,10 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 			drive->unmask = 1;
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
 			drive->no_unmask = 1;
-	}
 
-	if (port_ops && port_ops->port_init_devs)
-		port_ops->port_init_devs(hwif);
+		if (port_ops && port_ops->init_dev)
+			port_ops->init_dev(drive);
+	}
 }
 
 static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
@@ -1473,22 +1475,29 @@ ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
 		for (; i < MAX_HWIFS; i++) {
 			hwif = &ide_hwifs[i];
 			if (hwif->chipset == ide_unknown)
-				return hwif;
+				goto out_found;
 		}
 	} else {
 		for (i = 2; i < MAX_HWIFS; i++) {
 			hwif = &ide_hwifs[i];
 			if (hwif->chipset == ide_unknown)
-				return hwif;
+				goto out_found;
 		}
 		for (i = 0; i < 2 && i < MAX_HWIFS; i++) {
 			hwif = &ide_hwifs[i];
 			if (hwif->chipset == ide_unknown)
-				return hwif;
+				goto out_found;
 		}
 	}
 
+	printk(KERN_ERR "%s: no free slot for interface\n",
+			d ? d->name : "ide");
+
 	return NULL;
+
+out_found:
+	ide_init_port_data(hwif, i);
+	return hwif;
 }
 EXPORT_SYMBOL_GPL(ide_find_port_slot);
 

@@ -258,19 +258,6 @@ idescsi_atapi_error(ide_drive_t *drive, struct request *rq, u8 stat, u8 err)
 	return ide_stopped;
 }
 
-static ide_startstop_t
-idescsi_atapi_abort(ide_drive_t *drive, struct request *rq)
-{
-	debug_log("%s called for %lu\n", __func__,
-		((struct ide_atapi_pc *) rq->special)->scsi_cmd->serial_number);
-
-	rq->errors |= ERROR_MAX;
-
-	idescsi_end_request(drive, 0, 0);
-
-	return ide_stopped;
-}
-
 static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 {
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
@@ -524,7 +511,6 @@ static ide_driver_t idescsi_driver = {
 	.do_request		= idescsi_do_request,
 	.end_request		= idescsi_end_request,
 	.error                  = idescsi_atapi_error,
-	.abort                  = idescsi_atapi_abort,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idescsi_proc,
 #endif

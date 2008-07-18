@@ -65,10 +65,9 @@ ACPI_MODULE_NAME("tbfind")
  ******************************************************************************/
 acpi_status
 acpi_tb_find_table(char *signature,
-		   char *oem_id,
-		   char *oem_table_id, acpi_native_uint * table_index)
+		   char *oem_id, char *oem_table_id, u32 *table_index)
 {
-	acpi_native_uint i;
+	u32 i;
 	acpi_status status;
 	struct acpi_table_header header;
 

@@ -77,7 +77,11 @@ struct i2c_board_info;
 struct platform_device *at32_add_device_twi(unsigned int id,
 					    struct i2c_board_info *b,
 					    unsigned int n);
-struct platform_device *at32_add_device_mci(unsigned int id);
+
+struct mci_platform_data;
+struct platform_device *
+at32_add_device_mci(unsigned int id, struct mci_platform_data *data);
+
 struct platform_device *at32_add_device_ac97c(unsigned int id);
 struct platform_device *at32_add_device_abdac(unsigned int id);
 struct platform_device *at32_add_device_psif(unsigned int id);
