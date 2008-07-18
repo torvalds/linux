@@ -11,7 +11,6 @@
  *		2 of the License, or (at your option) any later version.
  */
 #include "udp_impl.h"
-DEFINE_SNMP_STAT(struct udp_mib, udplite_statistics)	__read_mostly;
 
 struct hlist_head 	udplite_hash[UDP_HTABLE_SIZE];
 

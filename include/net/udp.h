@@ -151,17 +151,16 @@ extern int 	udp_lib_setsockopt(struct sock *sk, int level, int optname,
 DECLARE_SNMP_STAT(struct udp_mib, udp_stats_in6);
 
 /* UDP-Lite does not have a standardized MIB yet, so we inherit from UDP */
-DECLARE_SNMP_STAT(struct udp_mib, udplite_statistics);
 DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
 
 /*
  * 	SNMP statistics for UDP and UDP-Lite
  */
 #define UDP_INC_STATS_USER(net, field, is_udplite)	      do { \
-	if (is_udplite) SNMP_INC_STATS_USER(udplite_statistics, field);       \
+	if (is_udplite) SNMP_INC_STATS_USER((net)->mib.udplite_statistics, field);       \
 	else		SNMP_INC_STATS_USER((net)->mib.udp_statistics, field);  }  while(0)
 #define UDP_INC_STATS_BH(net, field, is_udplite) 	      do { \
-	if (is_udplite) SNMP_INC_STATS_BH(udplite_statistics, field);         \
+	if (is_udplite) SNMP_INC_STATS_BH((net)->mib.udplite_statistics, field);         \
 	else		SNMP_INC_STATS_BH((net)->mib.udp_statistics, field);    }  while(0)
 
 #define UDP6_INC_STATS_BH(net, field, is_udplite) 	    do { (void)net;  \
