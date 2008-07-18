@@ -7,6 +7,8 @@
 
 #include <linux/scatterlist.h>
 
+#include <asm-generic/dma-coherent.h>
+
 /*
  * DMA-consistent mapping functions.  These allocate/free a region of
  * uncached, unwrite-buffered mapped memory space for use with DMA
