@@ -108,9 +108,6 @@
  *	Snmp MIB for the UDP layer
  */
 
-DEFINE_SNMP_STAT(struct udp_mib, udp_statistics) __read_mostly;
-EXPORT_SYMBOL(udp_statistics);
-
 DEFINE_SNMP_STAT(struct udp_mib, udp_stats_in6) __read_mostly;
 EXPORT_SYMBOL(udp_stats_in6);
 
