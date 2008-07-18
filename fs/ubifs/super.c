@@ -1122,8 +1122,8 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_infos;
 
-	ubifs_msg("mounted UBI device %d, volume %d", c->vi.ubi_num,
-		  c->vi.vol_id);
+	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"",
+		  c->vi.ubi_num, c->vi.vol_id, c->vi.name);
 	if (mounted_read_only)
 		ubifs_msg("mounted read-only");
 	x = (long long)c->main_lebs * c->leb_size;
