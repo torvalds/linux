@@ -746,14 +746,6 @@ xfs_mountfs_check_barriers(xfs_mount_t *mp)
 		return;
 	}
 
-	if (mp->m_ddev_targp->bt_bdev->bd_disk->queue->ordered ==
-					QUEUE_ORDERED_NONE) {
-		xfs_fs_cmn_err(CE_NOTE, mp,
-		  "Disabling barriers, not supported by the underlying device");
-		mp->m_flags &= ~XFS_MOUNT_BARRIER;
-		return;
-	}
-
 	if (xfs_readonly_buftarg(mp->m_ddev_targp)) {
 		xfs_fs_cmn_err(CE_NOTE, mp,
 		  "Disabling barriers, underlying device is readonly");
