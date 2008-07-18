@@ -82,7 +82,7 @@
 
 /* default power management (not Tx power) table values */
 /* for tim  0-10 */
-static struct iwl_power_vec_entry range_0[IWL_POWER_AC] = {
+static struct iwl_power_vec_entry range_0[IWL_POWER_MAX] = {
 	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 2, 2, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(1, 2, 2, 2, 0xFF)}, 0},
@@ -93,7 +93,7 @@ static struct iwl_power_vec_entry range_0[IWL_POWER_AC] = {
 
 
 /* for tim = 3-10 */
-static struct iwl_power_vec_entry range_1[IWL_POWER_AC] = {
+static struct iwl_power_vec_entry range_1[IWL_POWER_MAX] = {
 	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 4)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(1, 2, 3, 4, 7)}, 0},
@@ -103,7 +103,7 @@ static struct iwl_power_vec_entry range_1[IWL_POWER_AC] = {
 };
 
 /* for tim > 11 */
-static struct iwl_power_vec_entry range_2[IWL_POWER_AC] = {
+static struct iwl_power_vec_entry range_2[IWL_POWER_MAX] = {
 	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(2, 4, 6, 7, 0xFF)}, 0},
@@ -124,7 +124,7 @@ static int iwl_set_power(struct iwl_priv *priv, void *cmd)
  */
 static u16 iwl_get_auto_power_mode(struct iwl_priv *priv)
 {
-	u16 mode = priv->power_data.user_power_setting;
+	u16 mode;
 
 	switch (priv->power_data.user_power_setting) {
 	case IWL_POWER_AUTO:
@@ -136,11 +136,15 @@ static u16 iwl_get_auto_power_mode(struct iwl_priv *priv)
 		else
 			mode = IWL_POWER_ON_AC_DISASSOC;
 		break;
+	/* FIXME: remove battery and ac from here */
 	case IWL_POWER_BATTERY:
 		mode = IWL_POWER_INDEX_3;
 		break;
 	case IWL_POWER_AC:
 		mode = IWL_POWER_MODE_CAM;
+		break;
+	default:
+		mode = priv->power_data.user_power_setting;
 		break;
 	}
 	return mode;
@@ -151,7 +155,7 @@ static int iwl_power_init_handle(struct iwl_priv *priv)
 {
 	int ret = 0, i;
 	struct iwl_power_mgr *pow_data;
-	int size = sizeof(struct iwl_power_vec_entry) * IWL_POWER_AC;
+	int size = sizeof(struct iwl_power_vec_entry) * IWL_POWER_MAX;
 	u16 pci_pm;
 
 	IWL_DEBUG_POWER("Initialize power \n");
@@ -173,7 +177,7 @@ static int iwl_power_init_handle(struct iwl_priv *priv)
 
 		IWL_DEBUG_POWER("adjust power command flags\n");
 
-		for (i = 0; i < IWL_POWER_AC; i++) {
+		for (i = 0; i < IWL_POWER_MAX; i++) {
 			cmd = &pow_data->pwr_range_0[i].cmd;
 
 			if (pci_pm & 0x1)
@@ -265,17 +269,18 @@ int iwl_power_update_mode(struct iwl_priv *priv, u8 refresh)
 	* else user level */
 
 	switch (setting->system_power_setting) {
-	case IWL_POWER_AUTO:
+	case IWL_POWER_SYS_AUTO:
 		final_mode = iwl_get_auto_power_mode(priv);
 		break;
-	case IWL_POWER_BATTERY:
+	case IWL_POWER_SYS_BATTERY:
 		final_mode = IWL_POWER_INDEX_3;
 		break;
-	case IWL_POWER_AC:
+	case IWL_POWER_SYS_AC:
 		final_mode = IWL_POWER_MODE_CAM;
 		break;
 	default:
-		final_mode = setting->system_power_setting;
+		final_mode = IWL_POWER_INDEX_3;
+		WARN_ON(1);
 	}
 
 	if (setting->critical_power_setting > final_mode)
@@ -394,7 +399,7 @@ void iwl_power_initialize(struct iwl_priv *priv)
 	iwl_power_init_handle(priv);
 	priv->power_data.user_power_setting = IWL_POWER_AUTO;
 	priv->power_data.power_disabled = 0;
-	priv->power_data.system_power_setting = IWL_POWER_AUTO;
+	priv->power_data.system_power_setting = IWL_POWER_SYS_AUTO;
 	priv->power_data.is_battery_active = 0;
 	priv->power_data.power_disabled = 0;
 	priv->power_data.critical_power_setting = 0;
