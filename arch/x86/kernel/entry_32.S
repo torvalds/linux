@@ -1024,6 +1024,7 @@ ENDPROC(kernel_thread_helper)
 ENTRY(xen_sysenter_target)
 	RING0_INT_FRAME
 	addl $5*4, %esp		/* remove xen-provided frame */
+	CFI_ADJUST_CFA_OFFSET -5*4
 	jmp sysenter_past_esp
 	CFI_ENDPROC
 
