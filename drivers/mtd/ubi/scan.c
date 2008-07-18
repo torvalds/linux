@@ -246,46 +246,21 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 	struct ubi_vid_hdr *vh = NULL;
 	unsigned long long sqnum2 = be64_to_cpu(vid_hdr->sqnum);
 
-	if (seb->sqnum == 0 && sqnum2 == 0) {
-		long long abs;
-		long long v1 = seb->leb_ver, v2 = be32_to_cpu(vid_hdr->leb_ver);
-
+	if (sqnum2 == seb->sqnum) {
 		/*
-		 * UBI constantly increases the logical eraseblock version
-		 * number and it can overflow. Thus, we have to bear in mind
-		 * that versions that are close to %0xFFFFFFFF are less then
-		 * versions that are close to %0.
-		 *
-		 * The UBI WL sub-system guarantees that the number of pending
-		 * tasks is not greater then %0x7FFFFFFF. So, if the difference
-		 * between any two versions is greater or equivalent to
-		 * %0x7FFFFFFF, there was an overflow and the logical
-		 * eraseblock with lower version is actually newer then the one
-		 * with higher version.
-		 *
-		 * FIXME: but this is anyway obsolete and will be removed at
-		 * some point.
+		 * This must be a really ancient UBI image which has been
+		 * created before sequence numbers support has been added. At
+		 * that times we used 32-bit LEB versions stored in logical
+		 * eraseblocks. That was before UBI got into mainline. We do not
+		 * support these images anymore. Well, those images will work
+		 * still work, but only if no unclean reboots happened.
 		 */
-		dbg_bld("using old crappy leb_ver stuff");
+		ubi_err("unsupported on-flash UBI format\n");
+		return -EINVAL;
+	}
 
-		if (v1 == v2) {
-			ubi_err("PEB %d and PEB %d have the same version %lld",
-				seb->pnum, pnum, v1);
-			return -EINVAL;
-		}
-
-		abs = v1 - v2;
-		if (abs < 0)
-			abs = -abs;
-
-		if (abs < 0x7FFFFFFF)
-			/* Non-overflow situation */
-			second_is_newer = (v2 > v1);
-		else
-			second_is_newer = (v2 < v1);
-	} else
-		/* Obviously the LEB with lower sequence counter is older */
-		second_is_newer = sqnum2 > seb->sqnum;
+	/* Obviously the LEB with lower sequence counter is older */
+	second_is_newer = !!(sqnum2 > seb->sqnum);
 
 	/*
 	 * Now we know which copy is newer. If the copy flag of the PEB with
@@ -293,7 +268,7 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 	 * check data CRC. For the second PEB we already have the VID header,
 	 * for the first one - we'll need to re-read it from flash.
 	 *
-	 * FIXME: this may be optimized so that we wouldn't read twice.
+	 * Note: this may be optimized so that we wouldn't read twice.
 	 */
 
 	if (second_is_newer) {
@@ -399,7 +374,6 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 		      int bitflips)
 {
 	int err, vol_id, lnum;
-	uint32_t leb_ver;
 	unsigned long long sqnum;
 	struct ubi_scan_volume *sv;
 	struct ubi_scan_leb *seb;
@@ -408,10 +382,9 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 	vol_id = be32_to_cpu(vid_hdr->vol_id);
 	lnum = be32_to_cpu(vid_hdr->lnum);
 	sqnum = be64_to_cpu(vid_hdr->sqnum);
-	leb_ver = be32_to_cpu(vid_hdr->leb_ver);
 
-	dbg_bld("PEB %d, LEB %d:%d, EC %d, sqnum %llu, ver %u, bitflips %d",
-		pnum, vol_id, lnum, ec, sqnum, leb_ver, bitflips);
+	dbg_bld("PEB %d, LEB %d:%d, EC %d, sqnum %llu, bitflips %d",
+		pnum, vol_id, lnum, ec, sqnum, bitflips);
 
 	sv = add_volume(si, vol_id, pnum, vid_hdr);
 	if (IS_ERR(sv) < 0)
@@ -444,25 +417,20 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 		 */
 
 		dbg_bld("this LEB already exists: PEB %d, sqnum %llu, "
-			"LEB ver %u, EC %d", seb->pnum, seb->sqnum,
-			seb->leb_ver, seb->ec);
-
-		/*
-		 * Make sure that the logical eraseblocks have different
-		 * versions. Otherwise the image is bad.
-		 */
-		if (seb->leb_ver == leb_ver && leb_ver != 0) {
-			ubi_err("two LEBs with same version %u", leb_ver);
-			ubi_dbg_dump_seb(seb, 0);
-			ubi_dbg_dump_vid_hdr(vid_hdr);
-			return -EINVAL;
-		}
+			"EC %d", seb->pnum, seb->sqnum, seb->ec);
 
 		/*
 		 * Make sure that the logical eraseblocks have different
 		 * sequence numbers. Otherwise the image is bad.
 		 *
-		 * FIXME: remove 'sqnum != 0' check when leb_ver is removed.
+		 * However, if the sequence number is zero, we assume it must
+		 * be an ancient UBI image from the era when UBI did not have
+		 * sequence numbers. We still can attach these images, unless
+		 * there is a need to distinguish between old and new
+		 * eraseblocks, in which case we'll refuse the image in
+		 * 'compare_lebs()'. In other words, we attach old clean
+		 * images, but refuse attaching old images with duplicated
+		 * logical eraseblocks because there was an unclean reboot.
 		 */
 		if (seb->sqnum == sqnum && sqnum != 0) {
 			ubi_err("two LEBs with same sequence number %llu",
@@ -502,7 +470,6 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 			seb->pnum = pnum;
 			seb->scrub = ((cmp_res & 2) || bitflips);
 			seb->sqnum = sqnum;
-			seb->leb_ver = leb_ver;
 
 			if (sv->highest_lnum == lnum)
 				sv->last_data_size =
@@ -539,7 +506,6 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 	seb->lnum = lnum;
 	seb->sqnum = sqnum;
 	seb->scrub = bitflips;
-	seb->leb_ver = leb_ver;
 
 	if (sv->highest_lnum <= lnum) {
 		sv->highest_lnum = lnum;
@@ -1261,11 +1227,6 @@ static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 
 			if (sv->data_pad != be32_to_cpu(vidh->data_pad)) {
 				ubi_err("bad data_pad %d", sv->data_pad);
-				goto bad_vid_hdr;
-			}
-
-			if (seb->leb_ver != be32_to_cpu(vidh->leb_ver)) {
-				ubi_err("bad leb_ver %u", seb->leb_ver);
 				goto bad_vid_hdr;
 			}
 		}

@@ -34,7 +34,6 @@
  * @u: unions RB-tree or @list links
  * @u.rb: link in the per-volume RB-tree of &struct ubi_scan_leb objects
  * @u.list: link in one of the eraseblock lists
- * @leb_ver: logical eraseblock version (obsolete)
  *
  * One object of this type is allocated for each physical eraseblock during
  * scanning.
@@ -49,7 +48,6 @@ struct ubi_scan_leb {
 		struct rb_node rb;
 		struct list_head list;
 	} u;
-	uint32_t leb_ver;
 };
 
 /**

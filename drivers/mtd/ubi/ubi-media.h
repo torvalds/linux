@@ -168,16 +168,15 @@ struct ubi_ec_hdr {
  *          %UBI_COMPAT_IGNORE, %UBI_COMPAT_PRESERVE, or %UBI_COMPAT_REJECT)
  * @vol_id: ID of this volume
  * @lnum: logical eraseblock number
- * @leb_ver: version of this logical eraseblock (IMPORTANT: obsolete, to be
- *           removed, kept only for not breaking older UBI users)
+ * @padding1: reserved for future, zeroes
  * @data_size: how many bytes of data this logical eraseblock contains
  * @used_ebs: total number of used logical eraseblocks in this volume
  * @data_pad: how many bytes at the end of this physical eraseblock are not
  *            used
  * @data_crc: CRC checksum of the data stored in this logical eraseblock
- * @padding1: reserved for future, zeroes
- * @sqnum: sequence number
  * @padding2: reserved for future, zeroes
+ * @sqnum: sequence number
+ * @padding3: reserved for future, zeroes
  * @hdr_crc: volume identifier header CRC checksum
  *
  * The @sqnum is the value of the global sequence counter at the time when this
@@ -224,10 +223,6 @@ struct ubi_ec_hdr {
  * picked. If it is set, the data CRC of the copy (P1) is examined. If the CRC
  * checksum is correct, this physical eraseblock is selected (P1). Otherwise
  * the older one (P) is selected.
- *
- * Note, there is an obsolete @leb_ver field which was used instead of @sqnum
- * in the past. But it is not used anymore and we keep it in order to be able
- * to deal with old UBI images. It will be removed at some point.
  *
  * There are 2 sorts of volumes in UBI: user volumes and internal volumes.
  * Internal volumes are not seen from outside and are used for various internal
@@ -278,14 +273,14 @@ struct ubi_vid_hdr {
 	__u8    compat;
 	__be32  vol_id;
 	__be32  lnum;
-	__be32  leb_ver; /* obsolete, to be removed, don't use */
+	__u8    padding1[4];
 	__be32  data_size;
 	__be32  used_ebs;
 	__be32  data_pad;
 	__be32  data_crc;
-	__u8    padding1[4];
+	__u8    padding2[4];
 	__be64  sqnum;
-	__u8    padding2[12];
+	__u8    padding3[12];
 	__be32  hdr_crc;
 } __attribute__ ((packed));
 

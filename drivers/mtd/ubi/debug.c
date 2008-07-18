@@ -65,7 +65,6 @@ void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 	printk(KERN_DEBUG "\tcompat    %d\n",   (int)vid_hdr->compat);
 	printk(KERN_DEBUG "\tvol_id    %d\n",   be32_to_cpu(vid_hdr->vol_id));
 	printk(KERN_DEBUG "\tlnum      %d\n",   be32_to_cpu(vid_hdr->lnum));
-	printk(KERN_DEBUG "\tleb_ver   %u\n",   be32_to_cpu(vid_hdr->leb_ver));
 	printk(KERN_DEBUG "\tdata_size %d\n",   be32_to_cpu(vid_hdr->data_size));
 	printk(KERN_DEBUG "\tused_ebs  %d\n",   be32_to_cpu(vid_hdr->used_ebs));
 	printk(KERN_DEBUG "\tdata_pad  %d\n",   be32_to_cpu(vid_hdr->data_pad));
@@ -172,7 +171,6 @@ void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type)
 		printk(KERN_DEBUG "\tlnum     %d\n", seb->lnum);
 		printk(KERN_DEBUG "\tscrub    %d\n", seb->scrub);
 		printk(KERN_DEBUG "\tsqnum    %llu\n", seb->sqnum);
-		printk(KERN_DEBUG "\tleb_ver  %u\n", seb->leb_ver);
 	}
 }
 
