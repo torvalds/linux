@@ -30,6 +30,24 @@
 #include <linux/raid/xor.h>
 #include <linux/async_tx.h>
 
+/**
+ * async_tx_quiesce - ensure tx is complete and freeable upon return
+ * @tx - transaction to quiesce
+ */
+static void async_tx_quiesce(struct dma_async_tx_descriptor **tx)
+{
+	if (*tx) {
+		/* if ack is already set then we cannot be sure
+		 * we are referring to the correct operation
+		 */
+		BUG_ON(async_tx_test_ack(*tx));
+		if (dma_wait_for_async_tx(*tx) == DMA_ERROR)
+			panic("DMA_ERROR waiting for transaction\n");
+		async_tx_ack(*tx);
+		*tx = NULL;
+       }
+}
+
 /* do_async_xor - dma map the pages and perform the xor with an engine.
  * 	This routine is marked __always_inline so it can be compiled away
  * 	when CONFIG_DMA_ENGINE=n
@@ -85,15 +103,17 @@ do_async_xor(struct dma_chan *chan, struct page *dest, struct page **src_list,
 		tx = dma->device_prep_dma_xor(chan, dma_dest, &dma_src[src_off],
 					      xor_src_cnt, len, dma_flags);
 
-		if (unlikely(!tx && depend_tx))
-			dma_wait_for_async_tx(depend_tx);
+		if (unlikely(!tx))
+			async_tx_quiesce(&depend_tx);
 
 		/* spin wait for the preceeding transactions to complete */
-		while (unlikely(!tx))
+		while (unlikely(!tx)) {
+			dma_async_issue_pending(chan);
 			tx = dma->device_prep_dma_xor(chan, dma_dest,
 						      &dma_src[src_off],
 						      xor_src_cnt, len,
 						      dma_flags);
+		}
 
 		async_tx_submit(chan, tx, async_flags, depend_tx, _cb_fn,
 				_cb_param);
@@ -267,11 +287,11 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 		tx = device->device_prep_dma_zero_sum(chan, dma_src, src_cnt,
 						      len, result,
 						      dma_prep_flags);
-		if (!tx) {
-			if (depend_tx)
-				dma_wait_for_async_tx(depend_tx);
+		if (unlikely(!tx)) {
+			async_tx_quiesce(&depend_tx);
 
 			while (!tx)
+				dma_async_issue_pending(chan);
 				tx = device->device_prep_dma_zero_sum(chan,
 					dma_src, src_cnt, len, result,
 					dma_prep_flags);
