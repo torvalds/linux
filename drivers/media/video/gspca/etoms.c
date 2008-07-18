@@ -292,7 +292,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 static int i2c_w(struct gspca_dev *gspca_dev,
 		 __u8 reg,
 		 const __u8 *buffer,
-		 __u16 len, __u8 mode)
+		 int len, __u8 mode)
 {
 	/* buffer should be [D0..D7] */
 	__u8 ptchcount;
