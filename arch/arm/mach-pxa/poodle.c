@@ -20,6 +20,7 @@
 #include <linux/fb.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -208,19 +209,51 @@ static int poodle_mci_init(struct device *dev, irq_handler_t poodle_detect_int, 
 	/* setup GPIO for PXA25x MMC controller	*/
 	pxa_gpio_mode(GPIO6_MMCCLK_MD);
 	pxa_gpio_mode(GPIO8_MMCCS0_MD);
-	pxa_gpio_mode(POODLE_GPIO_nSD_DETECT | GPIO_IN);
-	pxa_gpio_mode(POODLE_GPIO_nSD_WP | GPIO_IN);
-	pxa_gpio_mode(POODLE_GPIO_SD_PWR | GPIO_OUT);
-	pxa_gpio_mode(POODLE_GPIO_SD_PWR1 | GPIO_OUT);
+
+	err = gpio_request(POODLE_GPIO_nSD_DETECT, "nSD_DETECT");
+	if (err)
+		goto err_out;
+
+	err = gpio_request(POODLE_GPIO_nSD_WP, "nSD_WP");
+	if (err)
+		goto err_free_1;
+
+	err = gpio_request(POODLE_GPIO_SD_PWR, "SD_PWR");
+	if (err)
+		goto err_free_2;
+
+	err = gpio_request(POODLE_GPIO_SD_PWR1, "SD_PWR1");
+	if (err)
+		goto err_free_3;
+
+	gpio_direction_input(POODLE_GPIO_nSD_DETECT);
+	gpio_direction_input(POODLE_GPIO_nSD_WP);
+
+	gpio_direction_output(POODLE_GPIO_SD_PWR, 0);
+	gpio_direction_output(POODLE_GPIO_SD_PWR1, 0);
 
 	poodle_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
 	err = request_irq(POODLE_IRQ_GPIO_nSD_DETECT, poodle_detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
-	if (err)
-		printk(KERN_ERR "poodle_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
+	if (err) {
+		pr_err("%s: MMC/SD: can't request MMC card detect IRQ\n",
+				__func__);
+		goto err_free_4;
+	}
 
+	return 0;
+
+err_free_4:
+	gpio_free(POODLE_GPIO_SD_PWR1);
+err_free_3:
+	gpio_free(POODLE_GPIO_SD_PWR);
+err_free_2:
+	gpio_free(POODLE_GPIO_nSD_WP);
+err_free_1:
+	gpio_free(POODLE_GPIO_nSD_DETECT);
+err_out:
 	return err;
 }
 
@@ -228,18 +261,19 @@ static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
-	if (( 1 << vdd) & p_d->ocr_mask) {
-		GPSR(POODLE_GPIO_SD_PWR) = GPIO_bit(POODLE_GPIO_SD_PWR);
+	if ((1 << vdd) & p_d->ocr_mask) {
+		gpio_set_value(POODLE_GPIO_SD_PWR, 1);
 		mdelay(2);
-		GPSR(POODLE_GPIO_SD_PWR1) = GPIO_bit(POODLE_GPIO_SD_PWR1);
+		gpio_set_value(POODLE_GPIO_SD_PWR1, 1);
 	} else {
-		GPCR(POODLE_GPIO_SD_PWR1) = GPIO_bit(POODLE_GPIO_SD_PWR1);
-		GPCR(POODLE_GPIO_SD_PWR) = GPIO_bit(POODLE_GPIO_SD_PWR);
+		gpio_set_value(POODLE_GPIO_SD_PWR1, 0);
+		gpio_set_value(POODLE_GPIO_SD_PWR, 0);
 	}
 }
 
 static int poodle_mci_get_ro(struct device *dev)
 {
+	return !!gpio_get_value(POODLE_GPIO_nSD_WP);
 	return GPLR(POODLE_GPIO_nSD_WP) & GPIO_bit(POODLE_GPIO_nSD_WP);
 }
 
@@ -247,6 +281,10 @@ static int poodle_mci_get_ro(struct device *dev)
 static void poodle_mci_exit(struct device *dev, void *data)
 {
 	free_irq(POODLE_IRQ_GPIO_nSD_DETECT, data);
+	gpio_free(POODLE_GPIO_SD_PWR1);
+	gpio_free(POODLE_GPIO_SD_PWR);
+	gpio_free(POODLE_GPIO_nSD_WP);
+	gpio_free(POODLE_GPIO_nSD_DETECT);
 }
 
 static struct pxamci_platform_data poodle_mci_platform_data = {
@@ -263,17 +301,32 @@ static struct pxamci_platform_data poodle_mci_platform_data = {
  */
 static void poodle_irda_transceiver_mode(struct device *dev, int mode)
 {
-	if (mode & IR_OFF) {
-		GPSR(POODLE_GPIO_IR_ON) = GPIO_bit(POODLE_GPIO_IR_ON);
-	} else {
-		GPCR(POODLE_GPIO_IR_ON) = GPIO_bit(POODLE_GPIO_IR_ON);
-	}
+	gpio_set_value(POODLE_GPIO_IR_ON, mode & IR_OFF);
 	pxa2xx_transceiver_mode(dev, mode);
 }
 
+static int poodle_irda_startup(struct device *dev)
+{
+	int err;
+
+	err = gpio_request(POODLE_GPIO_IR_ON, "IR_ON");
+	if (err)
+		return err;
+
+	gpio_direction_output(POODLE_GPIO_IR_ON, 1);
+	return 0;
+}
+
+static void poodle_irda_shutdown(struct device *dev)
+{
+	gpio_free(POODLE_GPIO_IR_ON);
+}
+
 static struct pxaficp_platform_data poodle_ficp_platform_data = {
-	.transceiver_cap  = IR_SIRMODE | IR_OFF,
-	.transceiver_mode = poodle_irda_transceiver_mode,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
+	.transceiver_mode	= poodle_irda_transceiver_mode,
+	.startup		= poodle_irda_startup,
+	.shutdown		= poodle_irda_shutdown,
 };
 
 
