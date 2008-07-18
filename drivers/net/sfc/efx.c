@@ -19,6 +19,7 @@
 #include <linux/in.h>
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
+#include <linux/topology.h>
 #include "net_driver.h"
 #include "gmii.h"
 #include "ethtool.h"
@@ -832,7 +833,23 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 	if (efx->interrupt_mode == EFX_INT_MODE_MSIX) {
 		BUG_ON(!pci_find_capability(efx->pci_dev, PCI_CAP_ID_MSIX));
 
-		efx->rss_queues = rss_cpus ? rss_cpus : num_online_cpus();
+		if (rss_cpus == 0) {
+			cpumask_t core_mask;
+			int cpu;
+
+			cpus_clear(core_mask);
+			efx->rss_queues = 0;
+			for_each_online_cpu(cpu) {
+				if (!cpu_isset(cpu, core_mask)) {
+					++efx->rss_queues;
+					cpus_or(core_mask, core_mask,
+						topology_core_siblings(cpu));
+				}
+			}
+		} else {
+			efx->rss_queues = rss_cpus;
+		}
+
 		efx->rss_queues = min(efx->rss_queues, max_channel + 1);
 		efx->rss_queues = min(efx->rss_queues, EFX_MAX_CHANNELS);
 
