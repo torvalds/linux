@@ -260,7 +260,7 @@ static inline int iop_chan_memset_slot_count(size_t len, int *slots_per_op)
 static inline int iop3xx_aau_xor_slot_count(size_t len, int src_cnt,
 					int *slots_per_op)
 {
-	static const int slot_count_table[] = { 0,
+	static const char slot_count_table[] = {
 						1, 1, 1, 1, /* 01 - 04 */
 						2, 2, 2, 2, /* 05 - 08 */
 						4, 4, 4, 4, /* 09 - 12 */
@@ -270,7 +270,7 @@ static inline int iop3xx_aau_xor_slot_count(size_t len, int src_cnt,
 						8, 8, 8, 8, /* 25 - 28 */
 						8, 8, 8, 8, /* 29 - 32 */
 					      };
-	*slots_per_op = slot_count_table[src_cnt];
+	*slots_per_op = slot_count_table[src_cnt - 1];
 	return *slots_per_op;
 }
 
