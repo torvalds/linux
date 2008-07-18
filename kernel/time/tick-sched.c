@@ -195,7 +195,7 @@ u64 get_cpu_idle_time_us(int cpu, u64 *last_update_time)
  * Called either from the idle loop or from irq_exit() when an idle period was
  * just interrupted by an interrupt which did not cause a reschedule.
  */
-void tick_nohz_stop_sched_tick(void)
+void tick_nohz_stop_sched_tick(int inidle)
 {
 	unsigned long seq, last_jiffies, next_jiffies, delta_jiffies, flags;
 	struct tick_sched *ts;
@@ -223,6 +223,11 @@ void tick_nohz_stop_sched_tick(void)
 
 	if (unlikely(ts->nohz_mode == NOHZ_MODE_INACTIVE))
 		goto end;
+
+	if (!inidle && !ts->inidle)
+		goto end;
+
+	ts->inidle = 1;
 
 	if (need_resched())
 		goto end;
@@ -372,10 +377,13 @@ void tick_nohz_restart_sched_tick(void)
 	local_irq_disable();
 	tick_nohz_stop_idle(cpu);
 
-	if (!ts->tick_stopped) {
+	if (!ts->inidle || !ts->tick_stopped) {
+		ts->inidle = 0;
 		local_irq_enable();
 		return;
 	}
+
+	ts->inidle = 0;
 
 	rcu_exit_nohz();
 
