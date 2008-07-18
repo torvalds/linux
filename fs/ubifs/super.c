@@ -299,7 +299,7 @@ static int ubifs_write_inode(struct inode *inode, int wait)
 		return 0;
 	}
 
-	dbg_gen("inode %lu", inode->i_ino);
+	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
 	err = ubifs_jnl_write_inode(c, inode, 0);
 	if (err)
 		ubifs_err("can't write inode %lu, error %d", inode->i_ino, err);
@@ -323,9 +323,10 @@ static void ubifs_delete_inode(struct inode *inode)
 		 */
 		goto out;
 
-	dbg_gen("inode %lu", inode->i_ino);
+	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
 	ubifs_assert(!atomic_read(&inode->i_count));
 	ubifs_assert(inode->i_nlink == 0);
+	ubifs_assert(!ubifs_inode(inode)->dirty);
 
 	truncate_inode_pages(&inode->i_data, 0);
 	if (is_bad_inode(inode))
@@ -1469,6 +1470,7 @@ static void ubifs_put_super(struct super_block *sb)
 	 */
 	ubifs_assert(atomic_long_read(&c->dirty_pg_cnt) == 0);
 	ubifs_assert(c->budg_idx_growth == 0);
+	ubifs_assert(c->budg_dd_growth == 0);
 	ubifs_assert(c->budg_data_growth == 0);
 
 	/*

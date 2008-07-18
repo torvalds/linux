@@ -941,7 +941,8 @@ int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = dentry->d_inode;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
-	dbg_gen("ino %lu, ia_valid %#x", inode->i_ino, attr->ia_valid);
+	dbg_gen("ino %lu, mode %#x, ia_valid %#x",
+		inode->i_ino, inode->i_mode, attr->ia_valid);
 	err = inode_change_ok(inode, attr);
 	if (err)
 		return err;
