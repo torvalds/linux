@@ -58,6 +58,8 @@ enum {
 #if defined(CONFIG_SCSI_DH) || defined(CONFIG_SCSI_DH_MODULE)
 extern int scsi_dh_activate(struct request_queue *);
 extern int scsi_dh_handler_exist(const char *);
+extern int scsi_dh_attach(struct request_queue *, const char *);
+extern void scsi_dh_detach(struct request_queue *);
 #else
 static inline int scsi_dh_activate(struct request_queue *req)
 {
@@ -66,5 +68,13 @@ static inline int scsi_dh_activate(struct request_queue *req)
 static inline int scsi_dh_handler_exist(const char *name)
 {
 	return 0;
+}
+static inline int scsi_dh_attach(struct request_queue *req, const char *name)
+{
+	return SCSI_DH_NOSYS;
+}
+static inline void scsi_dh_detach(struct request_queue *q)
+{
+	return;
 }
 #endif

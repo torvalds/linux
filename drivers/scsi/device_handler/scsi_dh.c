@@ -369,6 +369,70 @@ int scsi_dh_handler_exist(const char *name)
 }
 EXPORT_SYMBOL_GPL(scsi_dh_handler_exist);
 
+/*
+ * scsi_dh_handler_attach - Attach device handler
+ * @sdev - sdev the handler should be attached to
+ * @name - name of the handler to attach
+ */
+int scsi_dh_attach(struct request_queue *q, const char *name)
+{
+	unsigned long flags;
+	struct scsi_device *sdev;
+	struct scsi_device_handler *scsi_dh;
+	int err = 0;
+
+	scsi_dh = get_device_handler(name);
+	if (!scsi_dh)
+		return -EINVAL;
+
+	spin_lock_irqsave(q->queue_lock, flags);
+	sdev = q->queuedata;
+	if (!sdev || !get_device(&sdev->sdev_gendev))
+		err = -ENODEV;
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	if (!err) {
+		err = scsi_dh_handler_attach(sdev, scsi_dh);
+
+		put_device(&sdev->sdev_gendev);
+	}
+	return err;
+}
+EXPORT_SYMBOL_GPL(scsi_dh_attach);
+
+/*
+ * scsi_dh_handler_detach - Detach device handler
+ * @sdev - sdev the handler should be detached from
+ *
+ * This function will detach the device handler only
+ * if the sdev is not part of the internal list, ie
+ * if it has been attached manually.
+ */
+void scsi_dh_detach(struct request_queue *q)
+{
+	unsigned long flags;
+	struct scsi_device *sdev;
+	struct scsi_device_handler *scsi_dh = NULL;
+
+	spin_lock_irqsave(q->queue_lock, flags);
+	sdev = q->queuedata;
+	if (!sdev || !get_device(&sdev->sdev_gendev))
+		sdev = NULL;
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	if (!sdev)
+		return;
+
+	if (sdev->scsi_dh_data) {
+		/* if sdev is not on internal list, detach */
+		scsi_dh = sdev->scsi_dh_data->scsi_dh;
+		if (!device_handler_match(scsi_dh, sdev))
+			scsi_dh_handler_detach(sdev, scsi_dh);
+	}
+	put_device(&sdev->sdev_gendev);
+}
+EXPORT_SYMBOL_GPL(scsi_dh_detach);
+
 static struct notifier_block scsi_dh_nb = {
 	.notifier_call = scsi_dh_notifier
 };
