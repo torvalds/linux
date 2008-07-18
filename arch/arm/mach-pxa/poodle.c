@@ -304,8 +304,7 @@ static struct pxafb_mode_info poodle_fb_mode = {
 static struct pxafb_mach_info poodle_fb_info = {
 	.modes		= &poodle_fb_mode,
 	.num_modes	= 1,
-	.lccr0		= LCCR0_Act | LCCR0_Sngl | LCCR0_Color,
-	.lccr3		= 0,
+	.lcd_conn	= LCD_COLOR_TFT_16BPP,
 };
 
 static struct platform_device *devices[] __initdata = {
