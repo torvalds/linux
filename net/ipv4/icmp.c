@@ -111,11 +111,6 @@ struct icmp_bxm {
 	unsigned char  optbuf[40];
 };
 
-/*
- *	Statistics
- */
-DEFINE_SNMP_STAT(struct icmpmsg_mib, icmpmsg_statistics) __read_mostly;
-
 /* An array of errno for error messages from dest unreach. */
 /* RFC 1122: 3.2.2.1 States that NET_UNREACH, HOST_UNREACH and SR_FAILED MUST be considered 'transient errs'. */
 

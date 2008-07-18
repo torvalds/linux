@@ -270,7 +270,7 @@ static void icmpmsg_put(struct seq_file *seq)
 	count = 0;
 	for (i = 0; i < ICMPMSG_MIB_MAX; i++) {
 
-		if (snmp_fold_field((void **) icmpmsg_statistics, i))
+		if (snmp_fold_field((void **) init_net.mib.icmpmsg_statistics, i))
 			out[count++] = i;
 		if (count < PERLINE)
 			continue;
@@ -282,7 +282,7 @@ static void icmpmsg_put(struct seq_file *seq)
 		seq_printf(seq, "\nIcmpMsg: ");
 		for (j = 0; j < PERLINE; ++j)
 			seq_printf(seq, " %lu",
-				snmp_fold_field((void **) icmpmsg_statistics,
+				snmp_fold_field((void **) init_net.mib.icmpmsg_statistics,
 				out[j]));
 		seq_putc(seq, '\n');
 	}
@@ -294,7 +294,7 @@ static void icmpmsg_put(struct seq_file *seq)
 		seq_printf(seq, "\nIcmpMsg:");
 		for (j = 0; j < count; ++j)
 			seq_printf(seq, " %lu", snmp_fold_field((void **)
-				icmpmsg_statistics, out[j]));
+				init_net.mib.icmpmsg_statistics, out[j]));
 	}
 
 #undef PERLINE
@@ -315,14 +315,14 @@ static void icmp_put(struct seq_file *seq)
 		snmp_fold_field((void **) init_net.mib.icmp_statistics, ICMP_MIB_INERRORS));
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			snmp_fold_field((void **) icmpmsg_statistics,
+			snmp_fold_field((void **) init_net.mib.icmpmsg_statistics,
 				icmpmibmap[i].index));
 	seq_printf(seq, " %lu %lu",
 		snmp_fold_field((void **) init_net.mib.icmp_statistics, ICMP_MIB_OUTMSGS),
 		snmp_fold_field((void **) init_net.mib.icmp_statistics, ICMP_MIB_OUTERRORS));
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			snmp_fold_field((void **) icmpmsg_statistics,
+			snmp_fold_field((void **) init_net.mib.icmpmsg_statistics,
 				icmpmibmap[i].index | 0x100));
 }
 
