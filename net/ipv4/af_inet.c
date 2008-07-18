@@ -110,6 +110,7 @@
 #include <net/ipip.h>
 #include <net/inet_common.h>
 #include <net/xfrm.h>
+#include <net/net_namespace.h>
 #ifdef CONFIG_IP_MROUTE
 #include <linux/mroute.h>
 #endif
@@ -1339,6 +1340,20 @@ static struct net_protocol icmp_protocol = {
 	.netns_ok =	1,
 };
 
+static __net_init int ipv4_mib_init_net(struct net *net)
+{
+	return 0;
+}
+
+static __net_exit void ipv4_mib_exit_net(struct net *net)
+{
+}
+
+static __net_initdata struct pernet_operations ipv4_mib_ops = {
+	.init = ipv4_mib_init_net,
+	.exit = ipv4_mib_exit_net,
+};
+
 static int __init init_ipv4_mibs(void)
 {
 	if (snmp_mib_init((void **)net_statistics,
@@ -1365,8 +1380,13 @@ static int __init init_ipv4_mibs(void)
 
 	tcp_mib_init(&init_net);
 
+	if (register_pernet_subsys(&ipv4_mib_ops))
+		goto err_net;
+
 	return 0;
 
+err_net:
+	snmp_mib_free((void **)udplite_statistics);
 err_udplite_mib:
 	snmp_mib_free((void **)udp_statistics);
 err_udp_mib:
