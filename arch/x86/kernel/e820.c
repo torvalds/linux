@@ -877,7 +877,8 @@ void __init early_res_to_bootmem(u64 start, u64 end)
 	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++)
 		count++;
 
-	printk(KERN_INFO "(%d early reservations) ==> bootmem\n", count);
+	printk(KERN_INFO "(%d early reservations) ==> bootmem [%010llx - %010llx]\n",
+			 count, start, end);
 	for (i = 0; i < count; i++) {
 		struct early_res *r = &early_res[i];
 		printk(KERN_INFO "  #%d [%010llx - %010llx] %16s", i,
