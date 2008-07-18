@@ -24,7 +24,7 @@ SECTIONS
 
 	. = ALIGN(16);
 	.text		: {
-		*(.text .stub .text.* .gnu.linkonce.t.*)
+		*(.text .stub .text.* .gnu.linkonce.t.* __ftr_alt_*)
 		*(.sfpr .glink)
 	}						:text
 	PROVIDE(__etext = .);
@@ -35,6 +35,9 @@ SECTIONS
 	__ftr_fixup	: { *(__ftr_fixup) }
 
 	. = ALIGN(8);
+	__lwsync_fixup	: { *(__lwsync_fixup) }
+
+	. = ALIGN(8);
 	__fw_ftr_fixup	: { *(__fw_ftr_fixup) }
 
 	/*
@@ -43,15 +46,15 @@ SECTIONS
 	.rodata		: { *(.rodata .rodata.* .gnu.linkonce.r.*) }
 	.rodata1	: { *(.rodata1) }
 
+	.dynamic	: { *(.dynamic) }		:text	:dynamic
+
 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
 	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
 	.gcc_except_table : { *(.gcc_except_table) }
+	.rela.dyn ALIGN(8) : { *(.rela.dyn) }
 
 	.opd ALIGN(8)	: { KEEP (*(.opd)) }
 	.got ALIGN(8)	: { *(.got .toc) }
-	.rela.dyn ALIGN(8) : { *(.rela.dyn) }
-
-	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
 	_end = .;
 	PROVIDE(end = .);

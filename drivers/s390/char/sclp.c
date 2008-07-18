@@ -506,6 +506,8 @@ sclp_state_change_cb(struct evbuf_header *evbuf)
 	if (scbuf->validity_sclp_send_mask)
 		sclp_send_mask = scbuf->sclp_send_mask;
 	spin_unlock_irqrestore(&sclp_lock, flags);
+	if (scbuf->validity_sclp_active_facility_mask)
+		sclp_facilities = scbuf->sclp_active_facility_mask;
 	sclp_dispatch_state_change();
 }
 
@@ -782,11 +784,9 @@ sclp_check_handler(__u16 code)
 	/* Is this the interrupt we are waiting for? */
 	if (finished_sccb == 0)
 		return;
-	if (finished_sccb != (u32) (addr_t) sclp_init_sccb) {
-		printk(KERN_WARNING SCLP_HEADER "unsolicited interrupt "
-		       "for buffer at 0x%x\n", finished_sccb);
-		return;
-	}
+	if (finished_sccb != (u32) (addr_t) sclp_init_sccb)
+		panic("sclp: unsolicited interrupt for buffer at 0x%x\n",
+		      finished_sccb);
 	spin_lock(&sclp_lock);
 	if (sclp_running_state == sclp_running_state_running) {
 		sclp_init_req.status = SCLP_REQ_DONE;
@@ -883,8 +883,6 @@ sclp_init(void)
 	unsigned long flags;
 	int rc;
 
-	if (!MACHINE_HAS_SCLP)
-		return -ENODEV;
 	spin_lock_irqsave(&sclp_lock, flags);
 	/* Check for previous or running initialization */
 	if (sclp_init_state != sclp_init_state_uninitialized) {

@@ -150,7 +150,7 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 
-#include <asm/mach-visws/cobalt.h>
+#include <asm/visws/cobalt.h>
 
 #include "sound_config.h"
 

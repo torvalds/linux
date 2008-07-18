@@ -36,8 +36,8 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/fsl_devices.h>
+#include <linux/of_platform.h>
 
-#include <asm/of_platform.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>

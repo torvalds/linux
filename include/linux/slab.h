@@ -1,7 +1,7 @@
 /*
  * Written by Mark Hemment, 1996 (markhe@nextd.demon.co.uk).
  *
- * (C) SGI 2006, Christoph Lameter <clameter@sgi.com>
+ * (C) SGI 2006, Christoph Lameter
  * 	Cleaned up and restructured to ease the addition of alternative
  * 	implementations of SLAB allocators.
  */

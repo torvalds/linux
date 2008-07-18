@@ -154,7 +154,7 @@ static void omap2_clk_fixed_disable(struct clk *clk)
  * Uses the current prcm set to tell if a rate is valid.
  * You can go slower, but not faster within a given rate set.
  */
-static u32 omap2_dpll_round_rate(unsigned long target_rate)
+long omap2_dpllcore_round_rate(unsigned long target_rate)
 {
 	u32 high, low, core_clk_src;
 
@@ -183,14 +183,14 @@ static u32 omap2_dpll_round_rate(unsigned long target_rate)
 
 }
 
-static void omap2_dpll_recalc(struct clk *clk)
+static void omap2_dpllcore_recalc(struct clk *clk)
 {
 	clk->rate = omap2_get_dpll_rate_24xx(clk);
 
 	propagate_rate(clk);
 }
 
-static int omap2_reprogram_dpll(struct clk *clk, unsigned long rate)
+static int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate)
 {
 	u32 cur_rate, low, mult, div, valid_rate, done_rate;
 	u32 bypass = 0;
@@ -209,7 +209,7 @@ static int omap2_reprogram_dpll(struct clk *clk, unsigned long rate)
 	} else if ((rate == (cur_rate * 2)) && (mult == 1)) {
 		omap2_reprogram_sdrc(CORE_CLK_SRC_DPLL_X2, 1);
 	} else if (rate != cur_rate) {
-		valid_rate = omap2_dpll_round_rate(rate);
+		valid_rate = omap2_dpllcore_round_rate(rate);
 		if (valid_rate != rate)
 			goto dpll_exit;
 
@@ -256,7 +256,7 @@ static int omap2_reprogram_dpll(struct clk *clk, unsigned long rate)
 		omap2_init_memory_params(omap2_dll_force_needed());
 		omap2_reprogram_sdrc(done_rate, 0);
 	}
-	omap2_dpll_recalc(&dpll_ck);
+	omap2_dpllcore_recalc(&dpll_ck);
 	ret = 0;
 
 dpll_exit:
@@ -383,7 +383,7 @@ static int omap2_select_table_rate(struct clk *clk, unsigned long rate)
 
 		local_irq_restore(flags);
 	}
-	omap2_dpll_recalc(&dpll_ck);
+	omap2_dpllcore_recalc(&dpll_ck);
 
 	return 0;
 }

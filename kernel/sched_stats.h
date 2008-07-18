@@ -118,12 +118,22 @@ rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 	if (rq)
 		rq->rq_sched_info.cpu_time += delta;
 }
+
+static inline void
+rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
+{
+	if (rq)
+		rq->rq_sched_info.run_delay += delta;
+}
 # define schedstat_inc(rq, field)	do { (rq)->field++; } while (0)
 # define schedstat_add(rq, field, amt)	do { (rq)->field += (amt); } while (0)
 # define schedstat_set(var, val)	do { var = (val); } while (0)
 #else /* !CONFIG_SCHEDSTATS */
 static inline void
 rq_sched_info_arrive(struct rq *rq, unsigned long long delta)
+{}
+static inline void
+rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
 {}
 static inline void
 rq_sched_info_depart(struct rq *rq, unsigned long long delta)
@@ -134,6 +144,11 @@ rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 #endif
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
+static inline void sched_info_reset_dequeued(struct task_struct *t)
+{
+	t->sched_info.last_queued = 0;
+}
+
 /*
  * Called when a process is dequeued from the active array and given
  * the cpu.  We should note that with the exception of interactive
@@ -143,15 +158,22 @@ rq_sched_info_depart(struct rq *rq, unsigned long long delta)
  * active queue, thus delaying tasks in the expired queue from running;
  * see scheduler_tick()).
  *
- * This function is only called from sched_info_arrive(), rather than
- * dequeue_task(). Even though a task may be queued and dequeued multiple
- * times as it is shuffled about, we're really interested in knowing how
- * long it was from the *first* time it was queued to the time that it
- * finally hit a cpu.
+ * Though we are interested in knowing how long it was from the *first* time a
+ * task was queued to the time that it finally hit a cpu, we call this routine
+ * from dequeue_task() to account for possible rq->clock skew across cpus. The
+ * delta taken on each cpu would annul the skew.
  */
 static inline void sched_info_dequeued(struct task_struct *t)
 {
-	t->sched_info.last_queued = 0;
+	unsigned long long now = task_rq(t)->clock, delta = 0;
+
+	if (unlikely(sched_info_on()))
+		if (t->sched_info.last_queued)
+			delta = now - t->sched_info.last_queued;
+	sched_info_reset_dequeued(t);
+	t->sched_info.run_delay += delta;
+
+	rq_sched_info_dequeued(task_rq(t), delta);
 }
 
 /*
@@ -165,7 +187,7 @@ static void sched_info_arrive(struct task_struct *t)
 
 	if (t->sched_info.last_queued)
 		delta = now - t->sched_info.last_queued;
-	sched_info_dequeued(t);
+	sched_info_reset_dequeued(t);
 	t->sched_info.run_delay += delta;
 	t->sched_info.last_arrival = now;
 	t->sched_info.pcount++;
@@ -242,7 +264,9 @@ sched_info_switch(struct task_struct *prev, struct task_struct *next)
 		__sched_info_switch(prev, next);
 }
 #else
-#define sched_info_queued(t)		do { } while (0)
-#define sched_info_switch(t, next)	do { } while (0)
+#define sched_info_queued(t)			do { } while (0)
+#define sched_info_reset_dequeued(t)	do { } while (0)
+#define sched_info_dequeued(t)			do { } while (0)
+#define sched_info_switch(t, next)		do { } while (0)
 #endif /* CONFIG_SCHEDSTATS || CONFIG_TASK_DELAY_ACCT */
 

@@ -226,6 +226,10 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 
 	if (cpu_has_bts)
 		ds_init_intel(c);
+
+#ifdef CONFIG_X86_NUMAQ
+	numaq_tsc_disable();
+#endif
 }
 
 static unsigned int __cpuinit intel_size_cache(struct cpuinfo_x86 *c, unsigned int size)

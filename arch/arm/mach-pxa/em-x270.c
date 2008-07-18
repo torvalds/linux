@@ -24,6 +24,8 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
+#include <asm/arch/pxa27x-udc.h>
+#include <asm/arch/audio.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/mmc.h>
@@ -70,12 +72,6 @@ static struct platform_device em_x270_dm9k = {
 	.dev		= {
 		.platform_data = &em_x270_dm9k_platdata,
 	}
-};
-
-/* audio device */
-static struct platform_device em_x270_audio = {
-	.name		= "pxa2xx-ac97",
-	.id		= -1,
 };
 
 /* WM9712 touchscreen controller. Hopefully the driver will make it to
@@ -217,7 +213,6 @@ static struct platform_device em_x270_nand = {
 /* platform devices */
 static struct platform_device *platform_devices[] __initdata = {
 	&em_x270_dm9k,
-	&em_x270_audio,
 	&em_x270_ts,
 	&em_x270_rtc,
 	&em_x270_nand,
@@ -325,6 +320,7 @@ static void __init em_x270_init(void)
 
 	/* register EM-X270 platform devices */
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	pxa_set_ac97_info(NULL);
 
 	/* set MCI and OHCI platform parameters */
 	pxa_set_mci_info(&em_x270_mci_platform_data);

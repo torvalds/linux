@@ -66,6 +66,7 @@ static int harddog_open(struct inode *inode, struct file *file)
 	int err = -EBUSY;
 	char *sock = NULL;
 
+	lock_kernel();
 	spin_lock(&lock);
 	if(timer_alive)
 		goto err;
@@ -82,9 +83,11 @@ static int harddog_open(struct inode *inode, struct file *file)
 
 	timer_alive = 1;
 	spin_unlock(&lock);
+	unlock_kernel();
 	return nonseekable_open(inode, file);
 err:
 	spin_unlock(&lock);
+	unlock_kernel();
 	return err;
 }
 

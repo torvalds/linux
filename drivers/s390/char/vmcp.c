@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/smp_lock.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
 #include <asm/uaccess.h>
@@ -39,11 +40,14 @@ static int vmcp_open(struct inode *inode, struct file *file)
 	session = kmalloc(sizeof(*session), GFP_KERNEL);
 	if (!session)
 		return -ENOMEM;
+
+	lock_kernel();
 	session->bufsize = PAGE_SIZE;
 	session->response = NULL;
 	session->resp_size = 0;
 	mutex_init(&session->mutex);
 	file->private_data = session;
+	unlock_kernel();
 	return nonseekable_open(inode, file);
 }
 
@@ -61,30 +65,24 @@ static int vmcp_release(struct inode *inode, struct file *file)
 static ssize_t
 vmcp_read(struct file *file, char __user *buff, size_t count, loff_t *ppos)
 {
-	size_t tocopy;
+	ssize_t ret;
+	size_t size;
 	struct vmcp_session *session;
 
-	session = (struct vmcp_session *)file->private_data;
+	session = file->private_data;
 	if (mutex_lock_interruptible(&session->mutex))
 		return -ERESTARTSYS;
 	if (!session->response) {
 		mutex_unlock(&session->mutex);
 		return 0;
 	}
-	if (*ppos > session->resp_size) {
-		mutex_unlock(&session->mutex);
-		return 0;
-	}
-	tocopy = min(session->resp_size - (size_t) (*ppos), count);
-	tocopy = min(tocopy, session->bufsize - (size_t) (*ppos));
+	size = min_t(size_t, session->resp_size, session->bufsize);
+	ret = simple_read_from_buffer(buff, count, ppos,
+					session->response, size);
 
-	if (copy_to_user(buff, session->response + (*ppos), tocopy)) {
-		mutex_unlock(&session->mutex);
-		return -EFAULT;
-	}
 	mutex_unlock(&session->mutex);
-	*ppos += tocopy;
-	return tocopy;
+
+	return ret;
 }
 
 static ssize_t
@@ -198,27 +196,23 @@ static int __init vmcp_init(void)
 		PRINT_WARN("z/VM CP interface is only available under z/VM\n");
 		return -ENODEV;
 	}
+
 	vmcp_debug = debug_register("vmcp", 1, 1, 240);
-	if (!vmcp_debug) {
-		PRINT_ERR("z/VM CP interface not loaded. Could not register "
-			   "debug feature\n");
+	if (!vmcp_debug)
 		return -ENOMEM;
-	}
+
 	ret = debug_register_view(vmcp_debug, &debug_hex_ascii_view);
 	if (ret) {
-		PRINT_ERR("z/VM CP interface not loaded. Could not register "
-			  "debug feature view. Error code: %d\n", ret);
 		debug_unregister(vmcp_debug);
 		return ret;
 	}
+
 	ret = misc_register(&vmcp_dev);
 	if (ret) {
-		PRINT_ERR("z/VM CP interface not loaded. Could not register "
-			   "misc device. Error code: %d\n", ret);
 		debug_unregister(vmcp_debug);
 		return ret;
 	}
-	PRINT_INFO("z/VM CP interface loaded\n");
+
 	return 0;
 }
 
@@ -226,7 +220,6 @@ static void __exit vmcp_exit(void)
 {
 	misc_deregister(&vmcp_dev);
 	debug_unregister(vmcp_debug);
-	PRINT_INFO("z/VM CP interface unloaded.\n");
 }
 
 module_init(vmcp_init);

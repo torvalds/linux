@@ -36,6 +36,7 @@ EXPORT_SYMBOL(walk_stackframe);
 #ifdef CONFIG_STACKTRACE
 struct stack_trace_data {
 	struct stack_trace *trace;
+	unsigned int no_sched_functions;
 	unsigned int skip;
 };
 
@@ -43,27 +44,53 @@ static int save_trace(struct stackframe *frame, void *d)
 {
 	struct stack_trace_data *data = d;
 	struct stack_trace *trace = data->trace;
+	unsigned long addr = frame->lr;
 
+	if (data->no_sched_functions && in_sched_functions(addr))
+		return 0;
 	if (data->skip) {
 		data->skip--;
 		return 0;
 	}
 
-	trace->entries[trace->nr_entries++] = frame->lr;
+	trace->entries[trace->nr_entries++] = addr;
 
 	return trace->nr_entries >= trace->max_entries;
 }
 
-void save_stack_trace(struct stack_trace *trace)
+void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
 	struct stack_trace_data data;
 	unsigned long fp, base;
 
 	data.trace = trace;
 	data.skip = trace->skip;
-	base = (unsigned long)task_stack_page(current);
-	asm("mov %0, fp" : "=r" (fp));
+	base = (unsigned long)task_stack_page(tsk);
+
+	if (tsk != current) {
+#ifdef CONFIG_SMP
+		/*
+		 * What guarantees do we have here that 'tsk'
+		 * is not running on another CPU?
+		 */
+		BUG();
+#else
+		data.no_sched_functions = 1;
+		fp = thread_saved_fp(tsk);
+#endif
+	} else {
+		data.no_sched_functions = 0;
+		asm("mov %0, fp" : "=r" (fp));
+	}
 
 	walk_stackframe(fp, base, base + THREAD_SIZE, save_trace, &data);
+	if (trace->nr_entries < trace->max_entries)
+		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
+
+void save_stack_trace(struct stack_trace *trace)
+{
+	save_stack_trace_tsk(current, trace);
+}
+EXPORT_SYMBOL_GPL(save_stack_trace);
 #endif

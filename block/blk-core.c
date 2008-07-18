@@ -143,6 +143,10 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 
 		bio->bi_size -= nbytes;
 		bio->bi_sector += (nbytes >> 9);
+
+		if (bio_integrity(bio))
+			bio_integrity_advance(bio, nbytes);
+
 		if (bio->bi_size == 0)
 			bio_endio(bio, error);
 	} else {
@@ -201,8 +205,7 @@ void blk_plug_device(struct request_queue *q)
 	if (blk_queue_stopped(q))
 		return;
 
-	if (!test_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags)) {
-		__set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags);
+	if (!queue_flag_test_and_set(QUEUE_FLAG_PLUGGED, q)) {
 		mod_timer(&q->unplug_timer, jiffies + q->unplug_delay);
 		blk_add_trace_generic(q, NULL, 0, BLK_TA_PLUG);
 	}
@@ -217,10 +220,9 @@ int blk_remove_plug(struct request_queue *q)
 {
 	WARN_ON(!irqs_disabled());
 
-	if (!test_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags))
+	if (!queue_flag_test_and_clear(QUEUE_FLAG_PLUGGED, q))
 		return 0;
 
-	queue_flag_clear(QUEUE_FLAG_PLUGGED, q);
 	del_timer(&q->unplug_timer);
 	return 1;
 }
@@ -324,8 +326,7 @@ void blk_start_queue(struct request_queue *q)
 	 * one level of recursion is ok and is much faster than kicking
 	 * the unplug handling
 	 */
-	if (!test_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
-		queue_flag_set(QUEUE_FLAG_REENTER, q);
+	if (!queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
 		q->request_fn(q);
 		queue_flag_clear(QUEUE_FLAG_REENTER, q);
 	} else {
@@ -390,8 +391,7 @@ void __blk_run_queue(struct request_queue *q)
 	 * handling reinvoke the handler shortly if we already got there.
 	 */
 	if (!elv_queue_empty(q)) {
-		if (!test_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
-			queue_flag_set(QUEUE_FLAG_REENTER, q);
+		if (!queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
 			q->request_fn(q);
 			queue_flag_clear(QUEUE_FLAG_REENTER, q);
 		} else {
@@ -1042,15 +1042,9 @@ void blk_put_request(struct request *req)
 	unsigned long flags;
 	struct request_queue *q = req->q;
 
-	/*
-	 * Gee, IDE calls in w/ NULL q.  Fix IDE and remove the
-	 * following if (q) test.
-	 */
-	if (q) {
-		spin_lock_irqsave(q->queue_lock, flags);
-		__blk_put_request(q, req);
-		spin_unlock_irqrestore(q->queue_lock, flags);
-	}
+	spin_lock_irqsave(q->queue_lock, flags);
+	__blk_put_request(q, req);
+	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_put_request);
 
@@ -1380,6 +1374,9 @@ end_io:
 		 * of partition p to block n+start(p) of the disk.
 		 */
 		blk_partition_remap(bio);
+
+		if (bio_integrity_enabled(bio) && bio_integrity_prep(bio))
+			goto end_io;
 
 		if (old_sector != -1)
 			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector,
@@ -2045,7 +2042,7 @@ int __init blk_dev_init(void)
 	for_each_possible_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
 
-	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq, NULL);
+	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq);
 	register_hotcpu_notifier(&blk_cpu_notifier);
 
 	return 0;

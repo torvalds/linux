@@ -59,11 +59,6 @@ __u32 voyager_quad_processors = 0;
  * activity count.  Finally exported by i386_ksyms.c */
 static int voyager_extended_cpus = 1;
 
-/* Have we found an SMP box - used by time.c to do the profiling
-   interrupt for timeslicing; do not set to 1 until the per CPU timer
-   interrupt is active */
-int smp_found_config = 0;
-
 /* Used for the invalidate map that's also checked in the spinlock */
 static volatile unsigned long smp_invalidate_needed;
 
@@ -955,94 +950,24 @@ static void smp_stop_cpu_function(void *dummy)
 		halt();
 }
 
-static DEFINE_SPINLOCK(call_lock);
-
-struct call_data_struct {
-	void (*func) (void *info);
-	void *info;
-	volatile unsigned long started;
-	volatile unsigned long finished;
-	int wait;
-};
-
-static struct call_data_struct *call_data;
-
 /* execute a thread on a new CPU.  The function to be called must be
  * previously set up.  This is used to schedule a function for
  * execution on all CPUs - set up the function then broadcast a
  * function_interrupt CPI to come here on each CPU */
 static void smp_call_function_interrupt(void)
 {
-	void (*func) (void *info) = call_data->func;
-	void *info = call_data->info;
-	/* must take copy of wait because call_data may be replaced
-	 * unless the function is waiting for us to finish */
-	int wait = call_data->wait;
-	__u8 cpu = smp_processor_id();
-
-	/*
-	 * Notify initiating CPU that I've grabbed the data and am
-	 * about to execute the function
-	 */
-	mb();
-	if (!test_and_clear_bit(cpu, &call_data->started)) {
-		/* If the bit wasn't set, this could be a replay */
-		printk(KERN_WARNING "VOYAGER SMP: CPU %d received call funtion"
-		       " with no call pending\n", cpu);
-		return;
-	}
-	/*
-	 * At this point the info structure may be out of scope unless wait==1
-	 */
 	irq_enter();
-	(*func) (info);
+	generic_smp_call_function_interrupt();
 	__get_cpu_var(irq_stat).irq_call_count++;
 	irq_exit();
-	if (wait) {
-		mb();
-		clear_bit(cpu, &call_data->finished);
-	}
 }
 
-static int
-voyager_smp_call_function_mask(cpumask_t cpumask,
-			       void (*func) (void *info), void *info, int wait)
+static void smp_call_function_single_interrupt(void)
 {
-	struct call_data_struct data;
-	u32 mask = cpus_addr(cpumask)[0];
-
-	mask &= ~(1 << smp_processor_id());
-
-	if (!mask)
-		return 0;
-
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
-
-	data.func = func;
-	data.info = info;
-	data.started = mask;
-	data.wait = wait;
-	if (wait)
-		data.finished = mask;
-
-	spin_lock(&call_lock);
-	call_data = &data;
-	wmb();
-	/* Send a message to all other CPUs and wait for them to respond */
-	send_CPI(mask, VIC_CALL_FUNCTION_CPI);
-
-	/* Wait for response */
-	while (data.started)
-		barrier();
-
-	if (wait)
-		while (data.finished)
-			barrier();
-
-	spin_unlock(&call_lock);
-
-	return 0;
+	irq_enter();
+	generic_smp_call_function_single_interrupt();
+	__get_cpu_var(irq_stat).irq_call_count++;
+	irq_exit();
 }
 
 /* Sorry about the name.  In an APIC based system, the APICs
@@ -1099,6 +1024,12 @@ void smp_qic_call_function_interrupt(struct pt_regs *regs)
 	smp_call_function_interrupt();
 }
 
+void smp_qic_call_function_single_interrupt(struct pt_regs *regs)
+{
+	ack_QIC_CPI(QIC_CALL_FUNCTION_SINGLE_CPI);
+	smp_call_function_single_interrupt();
+}
+
 void smp_vic_cpi_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
@@ -1119,6 +1050,8 @@ void smp_vic_cpi_interrupt(struct pt_regs *regs)
 		smp_enable_irq_interrupt();
 	if (test_and_clear_bit(VIC_CALL_FUNCTION_CPI, &vic_cpi_mailbox[cpu]))
 		smp_call_function_interrupt();
+	if (test_and_clear_bit(VIC_CALL_FUNCTION_SINGLE_CPI, &vic_cpi_mailbox[cpu]))
+		smp_call_function_single_interrupt();
 	set_irq_regs(old_regs);
 }
 
@@ -1134,16 +1067,7 @@ static void do_flush_tlb_all(void *info)
 /* flush the TLB of every active CPU in the system */
 void flush_tlb_all(void)
 {
-	on_each_cpu(do_flush_tlb_all, 0, 1, 1);
-}
-
-/* used to set up the trampoline for other CPUs when the memory manager
- * is sorted out */
-void __init smp_alloc_memory(void)
-{
-	trampoline_base = alloc_bootmem_low_pages(PAGE_SIZE);
-	if (__pa(trampoline_base) >= 0x93000)
-		BUG();
+	on_each_cpu(do_flush_tlb_all, 0, 1);
 }
 
 /* send a reschedule CPI to one CPU by physical CPU number*/
@@ -1175,7 +1099,7 @@ int safe_smp_processor_id(void)
 /* broadcast a halt to all other CPUs */
 static void voyager_smp_send_stop(void)
 {
-	smp_call_function(smp_stop_cpu_function, NULL, 1, 1);
+	smp_call_function(smp_stop_cpu_function, NULL, 1);
 }
 
 /* this function is triggered in time.c when a clock tick fires
@@ -1862,5 +1786,7 @@ struct smp_ops smp_ops = {
 
 	.smp_send_stop = voyager_smp_send_stop,
 	.smp_send_reschedule = voyager_smp_send_reschedule,
-	.smp_call_function_mask = voyager_smp_call_function_mask,
+
+	.send_call_func_ipi = native_send_call_func_ipi,
+	.send_call_func_single_ipi = native_send_call_func_single_ipi,
 };

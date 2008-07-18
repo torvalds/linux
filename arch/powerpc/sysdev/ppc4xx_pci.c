@@ -75,6 +75,11 @@ static void fixup_ppc4xx_pci_bridge(struct pci_dev *dev)
 	    !of_device_is_compatible(hose->dn, "ibm,plb-pci"))
 		return;
 
+	if (of_device_is_compatible(hose->dn, "ibm,plb440epx-pci") ||
+		of_device_is_compatible(hose->dn, "ibm,plb440grx-pci")) {
+		hose->indirect_type |= PPC_INDIRECT_TYPE_BROKEN_MRM;
+	}
+
 	/* Hide the PCI host BARs from the kernel as their content doesn't
 	 * fit well in the resource management
 	 */
@@ -1634,6 +1639,15 @@ static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
 	}
 	port = &ppc4xx_pciex_ports[portno];
 	port->index = portno;
+
+	/*
+	 * Check if device is enabled
+	 */
+	if (!of_device_is_available(np)) {
+		printk(KERN_INFO "PCIE%d: Port disabled via device-tree\n", port->index);
+		return;
+	}
+
 	port->node = of_node_get(np);
 	pval = of_get_property(np, "sdr-base", NULL);
 	if (pval == NULL) {

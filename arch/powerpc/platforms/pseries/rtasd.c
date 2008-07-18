@@ -32,7 +32,7 @@
 
 static DEFINE_SPINLOCK(rtasd_log_lock);
 
-DECLARE_WAIT_QUEUE_HEAD(rtas_log_wait);
+static DECLARE_WAIT_QUEUE_HEAD(rtas_log_wait);
 
 static char *rtas_log_buf;
 static unsigned long rtas_log_start;
@@ -329,7 +329,7 @@ static unsigned int rtas_log_poll(struct file *file, poll_table * wait)
 	return 0;
 }
 
-const struct file_operations proc_rtas_log_operations = {
+static const struct file_operations proc_rtas_log_operations = {
 	.read =		rtas_log_read,
 	.poll =		rtas_log_poll,
 	.open =		rtas_log_open,

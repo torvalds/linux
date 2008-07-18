@@ -8,7 +8,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/cache.h>
-#include <linux/interrupt.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
 

@@ -20,6 +20,7 @@
 
 #include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/mfp-pxa2xx.h>
 
 #include "generic.h"

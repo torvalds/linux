@@ -194,7 +194,7 @@ void stop_this_cpu(void* dummy)
 /* Other calls */
 void smp_send_stop(void)
 {
-	smp_call_function(stop_this_cpu, NULL, 1, 0);
+	smp_call_function(stop_this_cpu, NULL, 0);
 }
 
 int setup_profiling_timer(unsigned int multiplier)
@@ -316,8 +316,7 @@ int send_ipi(int vector, int wait, cpumask_t cpu_mask)
  * You must not call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.
  */
-int smp_call_function(void (*func)(void *info), void *info,
-		      int nonatomic, int wait)
+int smp_call_function(void (*func)(void *info), void *info, int wait)
 {
 	cpumask_t cpu_mask = CPU_MASK_ALL;
 	struct call_data_struct data;

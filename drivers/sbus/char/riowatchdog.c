@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
+#include <linux/smp_lock.h>
 
 #include <asm/io.h>
 #include <asm/ebus.h>
@@ -116,6 +117,7 @@ static void riowd_starttimer(void)
 
 static int riowd_open(struct inode *inode, struct file *filp)
 {
+	cycle_kernel_lock();
 	nonseekable_open(inode, filp);
 	return 0;
 }

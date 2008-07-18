@@ -129,7 +129,7 @@ config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
 	depends on SPARSEMEM || X86_64_ACPI_NUMA
 	depends on HOTPLUG && !HIBERNATION && ARCH_ENABLE_MEMORY_HOTPLUG
-	depends on (IA64 || X86 || PPC64 || SUPERH)
+	depends on (IA64 || X86 || PPC64 || SUPERH || S390)
 
 comment "Memory hotplug is currently incompatible with Software Suspend"
 	depends on SPARSEMEM && HOTPLUG && HIBERNATION
@@ -199,7 +199,7 @@ config BOUNCE
 config NR_QUICK
 	int
 	depends on QUICKLIST
-	default "2" if SUPERH
+	default "2" if SUPERH || AVR32
 	default "1"
 
 config VIRT_TO_BUS

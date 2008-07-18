@@ -61,6 +61,13 @@ mace_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	/* ack possible master abort */
 	mace->pci.error &= ~MACEPCI_ERROR_MASTER_ABORT;
 	mace->pci.control = control;
+	/*
+	 * someone forgot to set the ultra bit for the onboard
+	 * scsi chips; we fake it here
+	 */
+	if (bus->number == 0 && reg == 0x40 && size == 4 &&
+	    (devfn == (1 << 3) || devfn == (2 << 3)))
+		*val |= 0x1000;
 
 	DPRINTK("read%d: reg=%08x,val=%02x\n", size * 8, reg, *val);
 

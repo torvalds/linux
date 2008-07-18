@@ -42,6 +42,8 @@
 #include <linux/serial.h>
 #include <linux/ioctl.h>
 #include <linux/wait.h>
+#include <linux/firmware.h>
+#include <linux/ihex.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
@@ -55,26 +57,6 @@
 #define DRIVER_VERSION "v2.7"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com> and David Iacovelli"
 #define DRIVER_DESC "Edgeport USB Serial Driver"
-
-/* First, the latest boot code - for first generation edgeports */
-#define IMAGE_ARRAY_NAME	BootCodeImage_GEN1
-#define IMAGE_VERSION_NAME	BootCodeImageVersion_GEN1
-#include "io_fw_boot.h"		/* the bootloader firmware to download to a device, if it needs it */
-
-/* for second generation edgeports */
-#define IMAGE_ARRAY_NAME	BootCodeImage_GEN2
-#define IMAGE_VERSION_NAME	BootCodeImageVersion_GEN2
-#include "io_fw_boot2.h"	/* the bootloader firmware to download to a device, if it needs it */
-
-/* Then finally the main run-time operational code - for first generation edgeports */
-#define IMAGE_ARRAY_NAME	OperationalCodeImage_GEN1
-#define IMAGE_VERSION_NAME	OperationalCodeImageVersion_GEN1
-#include "io_fw_down.h"		/* Define array OperationalCodeImage[] */
-
-/* for second generation edgeports */
-#define IMAGE_ARRAY_NAME	OperationalCodeImage_GEN2
-#define IMAGE_VERSION_NAME	OperationalCodeImageVersion_GEN2
-#include "io_fw_down2.h"	/* Define array OperationalCodeImage[] */
 
 #define MAX_NAME_LEN		64
 
@@ -256,9 +238,9 @@ static int  send_cmd_write_uart_register	(struct edgeport_port *edge_port, __u8 
 static int  write_cmd_usb		(struct edgeport_port *edge_port, unsigned char *buffer, int writeLength);
 static void send_more_port_data		(struct edgeport_serial *edge_serial, struct edgeport_port *edge_port);
 
-static int  sram_write			(struct usb_serial *serial, __u16 extAddr, __u16 addr, __u16 length, __u8 *data);
+static int  sram_write			(struct usb_serial *serial, __u16 extAddr, __u16 addr, __u16 length, const __u8 *data);
 static int  rom_read			(struct usb_serial *serial, __u16 extAddr, __u16 addr, __u16 length, __u8 *data);
-static int  rom_write			(struct usb_serial *serial, __u16 extAddr, __u16 addr, __u16 length, __u8 *data);
+static int  rom_write			(struct usb_serial *serial, __u16 extAddr, __u16 addr, __u16 length, const __u8 *data);
 static void get_manufacturing_desc	(struct edgeport_serial *edge_serial);
 static void get_boot_desc		(struct edgeport_serial *edge_serial);
 static void load_application_firmware	(struct edgeport_serial *edge_serial);
@@ -283,36 +265,40 @@ static void update_edgeport_E2PROM (struct edgeport_serial *edge_serial)
 {
 	__u32 BootCurVer;
 	__u32 BootNewVer;
-	__u8 BootMajorVersion;                  
-	__u8 BootMinorVersion;                  
-	__le16 BootBuildNumber;
-	__u8 *BootImage;      
-	__u32 BootSize;
-	struct edge_firmware_image_record *record;
-	unsigned char *firmware;
+	__u8 BootMajorVersion;
+	__u8 BootMinorVersion;
+	__u16 BootBuildNumber;
+	__u32 Bootaddr;
+	const struct ihex_binrec *rec;
+	const struct firmware *fw;
+	const char *fw_name;
 	int response;
-
 
 	switch (edge_serial->product_info.iDownloadFile) {
 		case EDGE_DOWNLOAD_FILE_I930:
-			BootMajorVersion	= BootCodeImageVersion_GEN1.MajorVersion;
-			BootMinorVersion	= BootCodeImageVersion_GEN1.MinorVersion;
-			BootBuildNumber		= cpu_to_le16(BootCodeImageVersion_GEN1.BuildNumber);
-			BootImage		= &BootCodeImage_GEN1[0];
-			BootSize		= sizeof( BootCodeImage_GEN1 );
+			fw_name	= "edgeport/boot.fw";
 			break;
 
 		case EDGE_DOWNLOAD_FILE_80251:
-			BootMajorVersion	= BootCodeImageVersion_GEN2.MajorVersion;
-			BootMinorVersion	= BootCodeImageVersion_GEN2.MinorVersion;
-			BootBuildNumber		= cpu_to_le16(BootCodeImageVersion_GEN2.BuildNumber);
-			BootImage		= &BootCodeImage_GEN2[0];
-			BootSize		= sizeof( BootCodeImage_GEN2 );
+			fw_name	= "edgeport/boot2.fw";
 			break;
 
 		default:
 			return;
 	}
+
+	response = request_ihex_firmware(&fw, fw_name,
+					 &edge_serial->serial->dev->dev);
+	if (response) {
+		printk(KERN_ERR "Failed to load image \"%s\" err %d\n",
+		       fw_name, response);
+		return;
+	}
+
+	rec = (const struct ihex_binrec *)fw->data;
+	BootMajorVersion = rec->data[0];
+	BootMinorVersion = rec->data[1];
+	BootBuildNumber = (rec->data[2] << 8) | rec->data[3];
 
 	// Check Boot Image Version
 	BootCurVer = (edge_serial->boot_descriptor.MajorVersion << 24) +
@@ -321,7 +307,7 @@ static void update_edgeport_E2PROM (struct edgeport_serial *edge_serial)
 
 	BootNewVer = (BootMajorVersion << 24) +
 		     (BootMinorVersion << 16) +
-		      le16_to_cpu(BootBuildNumber);
+		      BootBuildNumber;
 
 	dbg("Current Boot Image version %d.%d.%d",
 	    edge_serial->boot_descriptor.MajorVersion,
@@ -334,30 +320,30 @@ static void update_edgeport_E2PROM (struct edgeport_serial *edge_serial)
 		    edge_serial->boot_descriptor.MajorVersion,
 		    edge_serial->boot_descriptor.MinorVersion,
 		    le16_to_cpu(edge_serial->boot_descriptor.BuildNumber),
-		    BootMajorVersion,
-		    BootMinorVersion,
-		    le16_to_cpu(BootBuildNumber));
-
+		    BootMajorVersion, BootMinorVersion, BootBuildNumber);
 
 		dbg("Downloading new Boot Image");
 
-		firmware = BootImage;
-
-		for (;;) {
-			record = (struct edge_firmware_image_record *)firmware;
-			response = rom_write (edge_serial->serial, le16_to_cpu(record->ExtAddr), le16_to_cpu(record->Addr), le16_to_cpu(record->Len), &record->Data[0]);
+		for (rec = ihex_next_binrec(rec); rec;
+		     rec = ihex_next_binrec(rec)) {
+			Bootaddr = be32_to_cpu(rec->addr);
+			response = rom_write(edge_serial->serial,
+					     Bootaddr >> 16,
+					     Bootaddr & 0xFFFF,
+					     be16_to_cpu(rec->len),
+					     &rec->data[0]);
 			if (response < 0) {
-				dev_err(&edge_serial->serial->dev->dev, "rom_write failed (%x, %x, %d)\n", le16_to_cpu(record->ExtAddr), le16_to_cpu(record->Addr), le16_to_cpu(record->Len));
-				break;
-			}
-			firmware += sizeof (struct edge_firmware_image_record) + le16_to_cpu(record->Len);
-			if (firmware >= &BootImage[BootSize]) {
+				dev_err(&edge_serial->serial->dev->dev,
+					"rom_write failed (%x, %x, %d)\n",
+					Bootaddr >> 16, Bootaddr & 0xFFFF,
+					be16_to_cpu(rec->len));
 				break;
 			}
 		}
 	} else {
 		dbg("Boot Image -- already up to date");
 	}
+	release_firmware(fw);
 }
 
 
@@ -447,9 +433,6 @@ static void dump_product_info(struct edgeport_product_info *product_info)
 	dbg("  BootMajorVersion      %d.%d.%d", product_info->BootMajorVersion,
 	    product_info->BootMinorVersion,
 	    le16_to_cpu(product_info->BootBuildNumber));
-	dbg("  FirmwareMajorVersion  %d.%d.%d", product_info->FirmwareMajorVersion,
-	    product_info->FirmwareMinorVersion,
-	    le16_to_cpu(product_info->FirmwareBuildNumber));
 	dbg("  ManufactureDescDate   %d/%d/%d", product_info->ManufactureDescDate[0],
 	    product_info->ManufactureDescDate[1],
 	    product_info->ManufactureDescDate[2]+1900);
@@ -480,14 +463,8 @@ static void get_product_info(struct edgeport_serial *edge_serial)
 
 	// check if this is 2nd generation hardware
 	if (le16_to_cpu(edge_serial->serial->dev->descriptor.idProduct) & ION_DEVICE_ID_80251_NETCHIP) {
-		product_info->FirmwareMajorVersion	= OperationalCodeImageVersion_GEN2.MajorVersion;
-		product_info->FirmwareMinorVersion	= OperationalCodeImageVersion_GEN2.MinorVersion;
-		product_info->FirmwareBuildNumber	= cpu_to_le16(OperationalCodeImageVersion_GEN2.BuildNumber);
 		product_info->iDownloadFile		= EDGE_DOWNLOAD_FILE_80251;
 	} else {
-		product_info->FirmwareMajorVersion	= OperationalCodeImageVersion_GEN1.MajorVersion;
-		product_info->FirmwareMinorVersion	= OperationalCodeImageVersion_GEN1.MinorVersion;
-		product_info->FirmwareBuildNumber	= cpu_to_le16(OperationalCodeImageVersion_GEN1.BuildNumber);
 		product_info->iDownloadFile		= EDGE_DOWNLOAD_FILE_I930;
 	}
 
@@ -2130,7 +2107,7 @@ static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData, __u8 l
  *	If successful returns the number of bytes written, otherwise it returns
  *	a negative error number of the problem.
  ****************************************************************************/
-static int sram_write (struct usb_serial *serial, __u16 extAddr, __u16 addr, __u16 length, __u8 *data)
+static int sram_write(struct usb_serial *serial, __u16 extAddr, __u16 addr, __u16 length, const __u8 *data)
 {
 	int result;
 	__u16 current_length;
@@ -2175,7 +2152,7 @@ static int sram_write (struct usb_serial *serial, __u16 extAddr, __u16 addr, __u
  *	If successful returns the number of bytes written, otherwise it returns
  *	a negative error number of the problem.
  ****************************************************************************/
-static int rom_write (struct usb_serial *serial, __u16 extAddr, __u16 addr, __u16 length, __u8 *data)
+static int rom_write(struct usb_serial *serial, __u16 extAddr, __u16 addr, __u16 length, const __u8 *data)
 {
 	int result;
 	__u16 current_length;
@@ -2761,32 +2738,23 @@ static void get_boot_desc (struct edgeport_serial *edge_serial)
  ****************************************************************************/
 static void load_application_firmware (struct edgeport_serial *edge_serial)
 {
-	struct edge_firmware_image_record *record;
-	unsigned char *firmware;
-	unsigned char *FirmwareImage;
-	int ImageSize;
+	const struct ihex_binrec *rec;
+	const struct firmware *fw;
+	const char *fw_name;
+	const char *fw_info;
 	int response;
-
+	__u32 Operaddr;
+	__u16 build;
 
 	switch (edge_serial->product_info.iDownloadFile) {
 		case EDGE_DOWNLOAD_FILE_I930:
-			dbg("downloading firmware version (930) %d.%d.%d", 
-			    OperationalCodeImageVersion_GEN1.MajorVersion, 
-			    OperationalCodeImageVersion_GEN1.MinorVersion, 
-			    OperationalCodeImageVersion_GEN1.BuildNumber);
-			firmware = &OperationalCodeImage_GEN1[0];
-			FirmwareImage = &OperationalCodeImage_GEN1[0];
-			ImageSize = sizeof(OperationalCodeImage_GEN1);
+			fw_info = "downloading firmware version (930)";
+			fw_name	= "edgeport/down.fw";
 			break;
 
 		case EDGE_DOWNLOAD_FILE_80251:
-			dbg("downloading firmware version (80251) %d.%d.%d", 
-			    OperationalCodeImageVersion_GEN2.MajorVersion, 
-			    OperationalCodeImageVersion_GEN2.MinorVersion, 
-			    OperationalCodeImageVersion_GEN2.BuildNumber);
-			firmware = &OperationalCodeImage_GEN2[0];
-			FirmwareImage = &OperationalCodeImage_GEN2[0];
-			ImageSize = sizeof(OperationalCodeImage_GEN2);
+			fw_info = "downloading firmware version (80251)";
+			fw_name	= "edgeport/down2.fw";
 			break;
 
 		case EDGE_DOWNLOAD_FILE_NONE:
@@ -2797,16 +2765,36 @@ static void load_application_firmware (struct edgeport_serial *edge_serial)
 			return;
 	}
 
+	response = request_ihex_firmware(&fw, fw_name,
+				    &edge_serial->serial->dev->dev);
+	if (response) {
+		printk(KERN_ERR "Failed to load image \"%s\" err %d\n",
+		       fw_name, response);
+		return;
+	}
 
-	for (;;) {
-		record = (struct edge_firmware_image_record *)firmware;
-		response = sram_write (edge_serial->serial, le16_to_cpu(record->ExtAddr), le16_to_cpu(record->Addr), le16_to_cpu(record->Len), &record->Data[0]);
+	rec = (const struct ihex_binrec *)fw->data;
+	build = (rec->data[2] << 8) | rec->data[3];
+
+	dbg("%s %d.%d.%d", fw_info, rec->data[0], rec->data[1], build);
+
+	edge_serial->product_info.FirmwareMajorVersion = fw->data[0];
+	edge_serial->product_info.FirmwareMinorVersion = fw->data[1];
+	edge_serial->product_info.FirmwareBuildNumber = cpu_to_le16(build);
+
+	for (rec = ihex_next_binrec(rec); rec;
+	     rec = ihex_next_binrec(rec)) {
+		Operaddr = be32_to_cpu(rec->addr);
+		response = sram_write(edge_serial->serial,
+				     Operaddr >> 16,
+				     Operaddr & 0xFFFF,
+				     be16_to_cpu(rec->len),
+				     &rec->data[0]);
 		if (response < 0) {
-			dev_err(&edge_serial->serial->dev->dev, "sram_write failed (%x, %x, %d)\n", le16_to_cpu(record->ExtAddr), le16_to_cpu(record->Addr), le16_to_cpu(record->Len));
-			break;
-		}
-		firmware += sizeof (struct edge_firmware_image_record) + le16_to_cpu(record->Len);
-		if (firmware >= &FirmwareImage[ImageSize]) {
+			dev_err(&edge_serial->serial->dev->dev,
+				"sram_write failed (%x, %x, %d)\n",
+				Operaddr >> 16, Operaddr & 0xFFFF,
+				be16_to_cpu(rec->len));
 			break;
 		}
 	}
@@ -2817,6 +2805,7 @@ static void load_application_firmware (struct edgeport_serial *edge_serial)
 				    USB_REQUEST_ION_EXEC_DL_CODE, 
 				    0x40, 0x4000, 0x0001, NULL, 0, 3000);
 
+	release_firmware(fw);
 	return;
 }
 
@@ -2903,6 +2892,10 @@ static int edge_startup (struct usb_serial *serial)
 //		dbg("set_configuration 1");
 //		usb_set_configuration (dev, 1);
 	}
+	dbg("  FirmwareMajorVersion  %d.%d.%d",
+	    edge_serial->product_info.FirmwareMajorVersion,
+	    edge_serial->product_info.FirmwareMinorVersion,
+	    le16_to_cpu(edge_serial->product_info.FirmwareBuildNumber));
 
 	/* we set up the pointers to the endpoints in the edge_open function, 
 	 * as the structures aren't created yet. */
@@ -3115,6 +3108,10 @@ module_exit(edgeport_exit);
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("edgeport/boot.fw");
+MODULE_FIRMWARE("edgeport/boot2.fw");
+MODULE_FIRMWARE("edgeport/down.fw");
+MODULE_FIRMWARE("edgeport/down2.fw");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");

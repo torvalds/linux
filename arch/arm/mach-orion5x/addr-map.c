@@ -70,6 +70,7 @@
 
 
 struct mbus_dram_target_info orion5x_mbus_dram_info;
+static int __initdata win_alloc_count;
 
 static int __init orion5x_cpu_win_can_remap(int win)
 {
@@ -87,16 +88,22 @@ static int __init orion5x_cpu_win_can_remap(int win)
 static void __init setup_cpu_win(int win, u32 base, u32 size,
 				 u8 target, u8 attr, int remap)
 {
-	orion5x_write(CPU_WIN_BASE(win), base & 0xffff0000);
-	orion5x_write(CPU_WIN_CTRL(win),
-		((size - 1) & 0xffff0000) | (attr << 8) | (target << 4) | 1);
+	if (win >= 8) {
+		printk(KERN_ERR "setup_cpu_win: trying to allocate "
+				"window %d\n", win);
+		return;
+	}
+
+	writel(base & 0xffff0000, CPU_WIN_BASE(win));
+	writel(((size - 1) & 0xffff0000) | (attr << 8) | (target << 4) | 1,
+		CPU_WIN_CTRL(win));
 
 	if (orion5x_cpu_win_can_remap(win)) {
 		if (remap < 0)
 			remap = base;
 
-		orion5x_write(CPU_WIN_REMAP_LO(win), remap & 0xffff0000);
-		orion5x_write(CPU_WIN_REMAP_HI(win), 0);
+		writel(remap & 0xffff0000, CPU_WIN_REMAP_LO(win));
+		writel(0, CPU_WIN_REMAP_HI(win));
 	}
 }
 
@@ -109,11 +116,11 @@ void __init orion5x_setup_cpu_mbus_bridge(void)
 	 * First, disable and clear windows.
 	 */
 	for (i = 0; i < 8; i++) {
-		orion5x_write(CPU_WIN_BASE(i), 0);
-		orion5x_write(CPU_WIN_CTRL(i), 0);
+		writel(0, CPU_WIN_BASE(i));
+		writel(0, CPU_WIN_CTRL(i));
 		if (orion5x_cpu_win_can_remap(i)) {
-			orion5x_write(CPU_WIN_REMAP_LO(i), 0);
-			orion5x_write(CPU_WIN_REMAP_HI(i), 0);
+			writel(0, CPU_WIN_REMAP_LO(i));
+			writel(0, CPU_WIN_REMAP_HI(i));
 		}
 	}
 
@@ -128,6 +135,7 @@ void __init orion5x_setup_cpu_mbus_bridge(void)
 		TARGET_PCIE, ATTR_PCIE_MEM, -1);
 	setup_cpu_win(3, ORION5X_PCI_MEM_PHYS_BASE, ORION5X_PCI_MEM_SIZE,
 		TARGET_PCI, ATTR_PCI_MEM, -1);
+	win_alloc_count = 4;
 
 	/*
 	 * Setup MBUS dram target info.
@@ -147,8 +155,8 @@ void __init orion5x_setup_cpu_mbus_bridge(void)
 			w = &orion5x_mbus_dram_info.cs[cs++];
 			w->cs_index = i;
 			w->mbus_attr = 0xf & ~(1 << i);
-			w->base = base & 0xff000000;
-			w->size = (size | 0x00ffffff) + 1;
+			w->base = base & 0xffff0000;
+			w->size = (size | 0x0000ffff) + 1;
 		}
 	}
 	orion5x_mbus_dram_info.num_cs = cs;
@@ -156,25 +164,30 @@ void __init orion5x_setup_cpu_mbus_bridge(void)
 
 void __init orion5x_setup_dev_boot_win(u32 base, u32 size)
 {
-	setup_cpu_win(4, base, size, TARGET_DEV_BUS, ATTR_DEV_BOOT, -1);
+	setup_cpu_win(win_alloc_count++, base, size,
+		      TARGET_DEV_BUS, ATTR_DEV_BOOT, -1);
 }
 
 void __init orion5x_setup_dev0_win(u32 base, u32 size)
 {
-	setup_cpu_win(5, base, size, TARGET_DEV_BUS, ATTR_DEV_CS0, -1);
+	setup_cpu_win(win_alloc_count++, base, size,
+		      TARGET_DEV_BUS, ATTR_DEV_CS0, -1);
 }
 
 void __init orion5x_setup_dev1_win(u32 base, u32 size)
 {
-	setup_cpu_win(6, base, size, TARGET_DEV_BUS, ATTR_DEV_CS1, -1);
+	setup_cpu_win(win_alloc_count++, base, size,
+		      TARGET_DEV_BUS, ATTR_DEV_CS1, -1);
 }
 
 void __init orion5x_setup_dev2_win(u32 base, u32 size)
 {
-	setup_cpu_win(7, base, size, TARGET_DEV_BUS, ATTR_DEV_CS2, -1);
+	setup_cpu_win(win_alloc_count++, base, size,
+		      TARGET_DEV_BUS, ATTR_DEV_CS2, -1);
 }
 
 void __init orion5x_setup_pcie_wa_win(u32 base, u32 size)
 {
-	setup_cpu_win(7, base, size, TARGET_PCIE, ATTR_PCIE_WA, -1);
+	setup_cpu_win(win_alloc_count++, base, size,
+		      TARGET_PCIE, ATTR_PCIE_WA, -1);
 }

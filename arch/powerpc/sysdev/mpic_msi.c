@@ -16,6 +16,7 @@
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
 
+#include <sysdev/mpic.h>
 
 static void __mpic_msi_reserve_hwirq(struct mpic *mpic, irq_hw_number_t hwirq)
 {

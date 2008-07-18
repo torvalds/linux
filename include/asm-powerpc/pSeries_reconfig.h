@@ -9,8 +9,10 @@
  * added or removed on pSeries systems.
  */
 
-#define PSERIES_RECONFIG_ADD    0x0001
-#define PSERIES_RECONFIG_REMOVE 0x0002
+#define PSERIES_RECONFIG_ADD		0x0001
+#define PSERIES_RECONFIG_REMOVE		0x0002
+#define PSERIES_DRCONF_MEM_ADD		0x0003
+#define PSERIES_DRCONF_MEM_REMOVE	0x0004
 
 #ifdef CONFIG_PPC_PSERIES
 extern int pSeries_reconfig_notifier_register(struct notifier_block *);

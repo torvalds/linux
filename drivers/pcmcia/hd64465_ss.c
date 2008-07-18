@@ -1,6 +1,4 @@
 /*
- * $Id: hd64465_ss.c,v 1.7 2003/07/06 14:42:50 lethal Exp $
- *
  * Device driver for the PCMCIA controller module of the
  * Hitachi HD64465 handheld companion chip.
  *
@@ -48,7 +46,6 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ss.h>
-#include <pcmcia/bulkmem.h>
 #include "cs_internal.h"
 
 #define MODNAME "hd64465_ss"

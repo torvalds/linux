@@ -63,7 +63,8 @@ int cap_settime(struct timespec *ts, struct timezone *tz)
 	return 0;
 }
 
-int cap_ptrace (struct task_struct *parent, struct task_struct *child)
+int cap_ptrace (struct task_struct *parent, struct task_struct *child,
+		unsigned int mode)
 {
 	/* Derived from arch/i386/kernel/ptrace.c:sys_ptrace. */
 	if (!cap_issubset(child->cap_permitted, parent->cap_permitted) &&
@@ -103,10 +104,16 @@ static inline int cap_inh_is_capped(void)
 	return (cap_capable(current, CAP_SETPCAP) != 0);
 }
 
+static inline int cap_limit_ptraced_target(void) { return 1; }
+
 #else /* ie., ndef CONFIG_SECURITY_FILE_CAPABILITIES */
 
 static inline int cap_block_setpcap(struct task_struct *t) { return 0; }
 static inline int cap_inh_is_capped(void) { return 1; }
+static inline int cap_limit_ptraced_target(void)
+{
+	return !capable(CAP_SETPCAP);
+}
 
 #endif /* def CONFIG_SECURITY_FILE_CAPABILITIES */
 
@@ -342,9 +349,10 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 				bprm->e_uid = current->uid;
 				bprm->e_gid = current->gid;
 			}
-			if (!capable (CAP_SETPCAP)) {
-				new_permitted = cap_intersect (new_permitted,
-							current->cap_permitted);
+			if (cap_limit_ptraced_target()) {
+				new_permitted =
+					cap_intersect(new_permitted,
+						      current->cap_permitted);
 			}
 		}
 	}

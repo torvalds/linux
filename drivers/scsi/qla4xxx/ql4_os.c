@@ -113,9 +113,6 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |
 				  ISCSI_HOST_IPADDRESS |
 				  ISCSI_HOST_INITIATOR_NAME,
-	.sessiondata_size	= sizeof(struct ddb_entry),
-	.host_template		= &qla4xxx_driver_template,
-
 	.tgt_dscvr		= qla4xxx_tgt_dscvr,
 	.get_conn_param		= qla4xxx_conn_get_param,
 	.get_session_param	= qla4xxx_sess_get_param,
@@ -275,7 +272,7 @@ int qla4xxx_add_sess(struct ddb_entry *ddb_entry)
 		return err;
 	}
 
-	ddb_entry->conn = iscsi_create_conn(ddb_entry->sess, 0);
+	ddb_entry->conn = iscsi_create_conn(ddb_entry->sess, 0, 0);
 	if (!ddb_entry->conn) {
 		iscsi_remove_session(ddb_entry->sess);
 		DEBUG2(printk(KERN_ERR "Could not add connection.\n"));
@@ -292,7 +289,8 @@ struct ddb_entry *qla4xxx_alloc_sess(struct scsi_qla_host *ha)
 	struct ddb_entry *ddb_entry;
 	struct iscsi_cls_session *sess;
 
-	sess = iscsi_alloc_session(ha->host, &qla4xxx_iscsi_transport);
+	sess = iscsi_alloc_session(ha->host, &qla4xxx_iscsi_transport,
+				   sizeof(struct ddb_entry));
 	if (!sess)
 		return NULL;
 

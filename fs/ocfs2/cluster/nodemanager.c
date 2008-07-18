@@ -644,27 +644,32 @@ out:
 	return ret;
 }
 
-static struct config_item *o2nm_node_group_make_item(struct config_group *group,
-						     const char *name)
+static int o2nm_node_group_make_item(struct config_group *group,
+				     const char *name,
+				     struct config_item **new_item)
 {
 	struct o2nm_node *node = NULL;
-	struct config_item *ret = NULL;
+	int ret = 0;
 
-	if (strlen(name) > O2NM_MAX_NAME_LEN)
-		goto out; /* ENAMETOOLONG */
+	if (strlen(name) > O2NM_MAX_NAME_LEN) {
+		ret = -ENAMETOOLONG;
+		goto out;
+	}
 
 	node = kzalloc(sizeof(struct o2nm_node), GFP_KERNEL);
-	if (node == NULL)
-		goto out; /* ENOMEM */
+	if (node == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	strcpy(node->nd_name, name); /* use item.ci_namebuf instead? */
 	config_item_init_type_name(&node->nd_item, name, &o2nm_node_type);
 	spin_lock_init(&node->nd_lock);
 
-	ret = &node->nd_item;
+	*new_item = &node->nd_item;
 
 out:
-	if (ret == NULL)
+	if (ret)
 		kfree(node);
 
 	return ret;
@@ -751,25 +756,31 @@ static struct o2nm_cluster_group *to_o2nm_cluster_group(struct config_group *gro
 }
 #endif
 
-static struct config_group *o2nm_cluster_group_make_group(struct config_group *group,
-							  const char *name)
+static int o2nm_cluster_group_make_group(struct config_group *group,
+					 const char *name,
+					 struct config_group **new_group)
 {
 	struct o2nm_cluster *cluster = NULL;
 	struct o2nm_node_group *ns = NULL;
-	struct config_group *o2hb_group = NULL, *ret = NULL;
+	struct config_group *o2hb_group = NULL;
 	void *defs = NULL;
+	int ret = 0;
 
 	/* this runs under the parent dir's i_mutex; there can be only
 	 * one caller in here at a time */
-	if (o2nm_single_cluster)
-		goto out; /* ENOSPC */
+	if (o2nm_single_cluster) {
+		ret = -ENOSPC;
+		goto out;
+	}
 
 	cluster = kzalloc(sizeof(struct o2nm_cluster), GFP_KERNEL);
 	ns = kzalloc(sizeof(struct o2nm_node_group), GFP_KERNEL);
 	defs = kcalloc(3, sizeof(struct config_group *), GFP_KERNEL);
 	o2hb_group = o2hb_alloc_hb_set();
-	if (cluster == NULL || ns == NULL || o2hb_group == NULL || defs == NULL)
+	if (cluster == NULL || ns == NULL || o2hb_group == NULL || defs == NULL) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	config_group_init_type_name(&cluster->cl_group, name,
 				    &o2nm_cluster_type);
@@ -786,11 +797,11 @@ static struct config_group *o2nm_cluster_group_make_group(struct config_group *g
 	cluster->cl_idle_timeout_ms    = O2NET_IDLE_TIMEOUT_MS_DEFAULT;
 	cluster->cl_keepalive_delay_ms = O2NET_KEEPALIVE_DELAY_MS_DEFAULT;
 
-	ret = &cluster->cl_group;
+	*new_group = &cluster->cl_group;
 	o2nm_single_cluster = cluster;
 
 out:
-	if (ret == NULL) {
+	if (ret) {
 		kfree(cluster);
 		kfree(ns);
 		o2hb_free_hb_set(o2hb_group);

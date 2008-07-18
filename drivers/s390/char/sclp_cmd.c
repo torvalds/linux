@@ -11,6 +11,9 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/mmzone.h>
+#include <linux/memory.h>
 #include <asm/chpid.h>
 #include <asm/sclp.h>
 #include "sclp.h"
@@ -43,6 +46,8 @@ static int __initdata early_read_info_sccb_valid;
 
 u64 sclp_facilities;
 static u8 sclp_fac84;
+static unsigned long long rzm;
+static unsigned long long rnmax;
 
 static int __init sclp_cmd_sync_early(sclp_cmdw_t cmd, void *sccb)
 {
@@ -62,7 +67,7 @@ out:
 	return rc;
 }
 
-void __init sclp_read_info_early(void)
+static void __init sclp_read_info_early(void)
 {
 	int rc;
 	int i;
@@ -92,34 +97,33 @@ void __init sclp_read_info_early(void)
 
 void __init sclp_facilities_detect(void)
 {
-	if (!early_read_info_sccb_valid)
-		return;
-	sclp_facilities = early_read_info_sccb.facilities;
-	sclp_fac84 = early_read_info_sccb.fac84;
-}
-
-unsigned long long __init sclp_memory_detect(void)
-{
-	unsigned long long memsize;
 	struct read_info_sccb *sccb;
 
+	sclp_read_info_early();
 	if (!early_read_info_sccb_valid)
-		return 0;
+		return;
+
 	sccb = &early_read_info_sccb;
-	if (sccb->rnsize)
-		memsize = sccb->rnsize << 20;
-	else
-		memsize = sccb->rnsize2 << 20;
-	if (sccb->rnmax)
-		memsize *= sccb->rnmax;
-	else
-		memsize *= sccb->rnmax2;
-	return memsize;
+	sclp_facilities = sccb->facilities;
+	sclp_fac84 = sccb->fac84;
+	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
+	rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
+	rzm <<= 20;
+}
+
+unsigned long long sclp_get_rnmax(void)
+{
+	return rnmax;
+}
+
+unsigned long long sclp_get_rzm(void)
+{
+	return rzm;
 }
 
 /*
- * This function will be called after sclp_memory_detect(), which gets called
- * early from early.c code. Therefore the sccb should have valid contents.
+ * This function will be called after sclp_facilities_detect(), which gets
+ * called from early.c code. Therefore the sccb should have valid contents.
  */
 void __init sclp_get_ipl_info(struct sclp_ipl_info *info)
 {
@@ -277,6 +281,305 @@ int sclp_cpu_deconfigure(u8 cpu)
 {
 	return do_cpu_configure(SCLP_CMDW_DECONFIGURE_CPU | cpu << 8);
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+
+static DEFINE_MUTEX(sclp_mem_mutex);
+static LIST_HEAD(sclp_mem_list);
+static u8 sclp_max_storage_id;
+static unsigned long sclp_storage_ids[256 / BITS_PER_LONG];
+
+struct memory_increment {
+	struct list_head list;
+	u16 rn;
+	int standby;
+	int usecount;
+};
+
+struct assign_storage_sccb {
+	struct sccb_header header;
+	u16 rn;
+} __packed;
+
+static unsigned long long rn2addr(u16 rn)
+{
+	return (unsigned long long) (rn - 1) * rzm;
+}
+
+static int do_assign_storage(sclp_cmdw_t cmd, u16 rn)
+{
+	struct assign_storage_sccb *sccb;
+	int rc;
+
+	sccb = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!sccb)
+		return -ENOMEM;
+	sccb->header.length = PAGE_SIZE;
+	sccb->rn = rn;
+	rc = do_sync_request(cmd, sccb);
+	if (rc)
+		goto out;
+	switch (sccb->header.response_code) {
+	case 0x0020:
+	case 0x0120:
+		break;
+	default:
+		rc = -EIO;
+		break;
+	}
+out:
+	free_page((unsigned long) sccb);
+	return rc;
+}
+
+static int sclp_assign_storage(u16 rn)
+{
+	return do_assign_storage(0x000d0001, rn);
+}
+
+static int sclp_unassign_storage(u16 rn)
+{
+	return do_assign_storage(0x000c0001, rn);
+}
+
+struct attach_storage_sccb {
+	struct sccb_header header;
+	u16 :16;
+	u16 assigned;
+	u32 :32;
+	u32 entries[0];
+} __packed;
+
+static int sclp_attach_storage(u8 id)
+{
+	struct attach_storage_sccb *sccb;
+	int rc;
+	int i;
+
+	sccb = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!sccb)
+		return -ENOMEM;
+	sccb->header.length = PAGE_SIZE;
+	rc = do_sync_request(0x00080001 | id << 8, sccb);
+	if (rc)
+		goto out;
+	switch (sccb->header.response_code) {
+	case 0x0020:
+		set_bit(id, sclp_storage_ids);
+		for (i = 0; i < sccb->assigned; i++)
+			sclp_unassign_storage(sccb->entries[i] >> 16);
+		break;
+	default:
+		rc = -EIO;
+		break;
+	}
+out:
+	free_page((unsigned long) sccb);
+	return rc;
+}
+
+static int sclp_mem_change_state(unsigned long start, unsigned long size,
+				 int online)
+{
+	struct memory_increment *incr;
+	unsigned long long istart;
+	int rc = 0;
+
+	list_for_each_entry(incr, &sclp_mem_list, list) {
+		istart = rn2addr(incr->rn);
+		if (start + size - 1 < istart)
+			break;
+		if (start > istart + rzm - 1)
+			continue;
+		if (online) {
+			if (incr->usecount++)
+				continue;
+			/*
+			 * Don't break the loop if one assign fails. Loop may
+			 * be walked again on CANCEL and we can't save
+			 * information if state changed before or not.
+			 * So continue and increase usecount for all increments.
+			 */
+			rc |= sclp_assign_storage(incr->rn);
+		} else {
+			if (--incr->usecount)
+				continue;
+			sclp_unassign_storage(incr->rn);
+		}
+	}
+	return rc ? -EIO : 0;
+}
+
+static int sclp_mem_notifier(struct notifier_block *nb,
+			     unsigned long action, void *data)
+{
+	unsigned long start, size;
+	struct memory_notify *arg;
+	unsigned char id;
+	int rc = 0;
+
+	arg = data;
+	start = arg->start_pfn << PAGE_SHIFT;
+	size = arg->nr_pages << PAGE_SHIFT;
+	mutex_lock(&sclp_mem_mutex);
+	for (id = 0; id <= sclp_max_storage_id; id++)
+		if (!test_bit(id, sclp_storage_ids))
+			sclp_attach_storage(id);
+	switch (action) {
+	case MEM_ONLINE:
+		break;
+	case MEM_GOING_ONLINE:
+		rc = sclp_mem_change_state(start, size, 1);
+		break;
+	case MEM_CANCEL_ONLINE:
+		sclp_mem_change_state(start, size, 0);
+		break;
+	default:
+		rc = -EINVAL;
+		break;
+	}
+	mutex_unlock(&sclp_mem_mutex);
+	return rc ? NOTIFY_BAD : NOTIFY_OK;
+}
+
+static struct notifier_block sclp_mem_nb = {
+	.notifier_call = sclp_mem_notifier,
+};
+
+static void __init add_memory_merged(u16 rn)
+{
+	static u16 first_rn, num;
+	unsigned long long start, size;
+
+	if (rn && first_rn && (first_rn + num == rn)) {
+		num++;
+		return;
+	}
+	if (!first_rn)
+		goto skip_add;
+	start = rn2addr(first_rn);
+	size = (unsigned long long ) num * rzm;
+	if (start >= VMEM_MAX_PHYS)
+		goto skip_add;
+	if (start + size > VMEM_MAX_PHYS)
+		size = VMEM_MAX_PHYS - start;
+	add_memory(0, start, size);
+skip_add:
+	first_rn = rn;
+	num = 1;
+}
+
+static void __init sclp_add_standby_memory(void)
+{
+	struct memory_increment *incr;
+
+	list_for_each_entry(incr, &sclp_mem_list, list)
+		if (incr->standby)
+			add_memory_merged(incr->rn);
+	add_memory_merged(0);
+}
+
+static void __init insert_increment(u16 rn, int standby, int assigned)
+{
+	struct memory_increment *incr, *new_incr;
+	struct list_head *prev;
+	u16 last_rn;
+
+	new_incr = kzalloc(sizeof(*new_incr), GFP_KERNEL);
+	if (!new_incr)
+		return;
+	new_incr->rn = rn;
+	new_incr->standby = standby;
+	last_rn = 0;
+	prev = &sclp_mem_list;
+	list_for_each_entry(incr, &sclp_mem_list, list) {
+		if (assigned && incr->rn > rn)
+			break;
+		if (!assigned && incr->rn - last_rn > 1)
+			break;
+		last_rn = incr->rn;
+		prev = &incr->list;
+	}
+	if (!assigned)
+		new_incr->rn = last_rn + 1;
+	if (new_incr->rn > rnmax) {
+		kfree(new_incr);
+		return;
+	}
+	list_add(&new_incr->list, prev);
+}
+
+struct read_storage_sccb {
+	struct sccb_header header;
+	u16 max_id;
+	u16 assigned;
+	u16 standby;
+	u16 :16;
+	u32 entries[0];
+} __packed;
+
+static int __init sclp_detect_standby_memory(void)
+{
+	struct read_storage_sccb *sccb;
+	int i, id, assigned, rc;
+
+	if (!early_read_info_sccb_valid)
+		return 0;
+	if ((sclp_facilities & 0xe00000000000ULL) != 0xe00000000000ULL)
+		return 0;
+	rc = -ENOMEM;
+	sccb = (void *) __get_free_page(GFP_KERNEL | GFP_DMA);
+	if (!sccb)
+		goto out;
+	assigned = 0;
+	for (id = 0; id <= sclp_max_storage_id; id++) {
+		memset(sccb, 0, PAGE_SIZE);
+		sccb->header.length = PAGE_SIZE;
+		rc = do_sync_request(0x00040001 | id << 8, sccb);
+		if (rc)
+			goto out;
+		switch (sccb->header.response_code) {
+		case 0x0010:
+			set_bit(id, sclp_storage_ids);
+			for (i = 0; i < sccb->assigned; i++) {
+				if (!sccb->entries[i])
+					continue;
+				assigned++;
+				insert_increment(sccb->entries[i] >> 16, 0, 1);
+			}
+			break;
+		case 0x0310:
+			break;
+		case 0x0410:
+			for (i = 0; i < sccb->assigned; i++) {
+				if (!sccb->entries[i])
+					continue;
+				assigned++;
+				insert_increment(sccb->entries[i] >> 16, 1, 1);
+			}
+			break;
+		default:
+			rc = -EIO;
+			break;
+		}
+		if (!rc)
+			sclp_max_storage_id = sccb->max_id;
+	}
+	if (rc || list_empty(&sclp_mem_list))
+		goto out;
+	for (i = 1; i <= rnmax - assigned; i++)
+		insert_increment(0, 1, 0);
+	rc = register_memory_notifier(&sclp_mem_nb);
+	if (rc)
+		goto out;
+	sclp_add_standby_memory();
+out:
+	free_page((unsigned long) sccb);
+	return rc;
+}
+__initcall(sclp_detect_standby_memory);
+
+#endif /* CONFIG_MEMORY_HOTPLUG */
 
 /*
  * Channel path configuration related functions.

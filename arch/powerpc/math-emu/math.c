@@ -230,14 +230,14 @@ do_mathemu(struct pt_regs *regs)
 	case LFD:
 		idx = (insn >> 16) & 0x1f;
 		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
 		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
 		lfd(op0, op1, op2, op3);
 		break;
 	case LFDU:
 		idx = (insn >> 16) & 0x1f;
 		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
 		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
 		lfd(op0, op1, op2, op3);
 		regs->gpr[idx] = (unsigned long)op1;
@@ -245,21 +245,21 @@ do_mathemu(struct pt_regs *regs)
 	case STFD:
 		idx = (insn >> 16) & 0x1f;
 		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
 		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
 		stfd(op0, op1, op2, op3);
 		break;
 	case STFDU:
 		idx = (insn >> 16) & 0x1f;
 		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
 		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
 		stfd(op0, op1, op2, op3);
 		regs->gpr[idx] = (unsigned long)op1;
 		break;
 	case OP63:
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
-		op1 = (void *)&current->thread.fpr[(insn >> 11) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
+		op1 = (void *)&current->thread.TS_FPR((insn >> 11) & 0x1f);
 		fmr(op0, op1, op2, op3);
 		break;
 	default:
@@ -356,28 +356,28 @@ do_mathemu(struct pt_regs *regs)
 
 	switch (type) {
 	case AB:
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
-		op1 = (void *)&current->thread.fpr[(insn >> 16) & 0x1f];
-		op2 = (void *)&current->thread.fpr[(insn >> 11) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
+		op1 = (void *)&current->thread.TS_FPR((insn >> 16) & 0x1f);
+		op2 = (void *)&current->thread.TS_FPR((insn >> 11) & 0x1f);
 		break;
 
 	case AC:
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
-		op1 = (void *)&current->thread.fpr[(insn >> 16) & 0x1f];
-		op2 = (void *)&current->thread.fpr[(insn >>  6) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
+		op1 = (void *)&current->thread.TS_FPR((insn >> 16) & 0x1f);
+		op2 = (void *)&current->thread.TS_FPR((insn >>  6) & 0x1f);
 		break;
 
 	case ABC:
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
-		op1 = (void *)&current->thread.fpr[(insn >> 16) & 0x1f];
-		op2 = (void *)&current->thread.fpr[(insn >> 11) & 0x1f];
-		op3 = (void *)&current->thread.fpr[(insn >>  6) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
+		op1 = (void *)&current->thread.TS_FPR((insn >> 16) & 0x1f);
+		op2 = (void *)&current->thread.TS_FPR((insn >> 11) & 0x1f);
+		op3 = (void *)&current->thread.TS_FPR((insn >>  6) & 0x1f);
 		break;
 
 	case D:
 		idx = (insn >> 16) & 0x1f;
 		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
 		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
 		break;
 
@@ -387,27 +387,27 @@ do_mathemu(struct pt_regs *regs)
 			goto illegal;
 
 		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
 		op1 = (void *)(regs->gpr[idx] + sdisp);
 		break;
 
 	case X:
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
 		break;
 
 	case XA:
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
-		op1 = (void *)&current->thread.fpr[(insn >> 16) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
+		op1 = (void *)&current->thread.TS_FPR((insn >> 16) & 0x1f);
 		break;
 
 	case XB:
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
-		op1 = (void *)&current->thread.fpr[(insn >> 11) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
+		op1 = (void *)&current->thread.TS_FPR((insn >> 11) & 0x1f);
 		break;
 
 	case XE:
 		idx = (insn >> 16) & 0x1f;
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
 		if (!idx) {
 			if (((insn >> 1) & 0x3ff) == STFIWX)
 				op1 = (void *)(regs->gpr[(insn >> 11) & 0x1f]);
@@ -421,7 +421,7 @@ do_mathemu(struct pt_regs *regs)
 
 	case XEU:
 		idx = (insn >> 16) & 0x1f;
-		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
+		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
 		op1 = (void *)((idx ? regs->gpr[idx] : 0)
 				+ regs->gpr[(insn >> 11) & 0x1f]);
 		break;
@@ -429,8 +429,8 @@ do_mathemu(struct pt_regs *regs)
 	case XCR:
 		op0 = (void *)&regs->ccr;
 		op1 = (void *)((insn >> 23) & 0x7);
-		op2 = (void *)&current->thread.fpr[(insn >> 16) & 0x1f];
-		op3 = (void *)&current->thread.fpr[(insn >> 11) & 0x1f];
+		op2 = (void *)&current->thread.TS_FPR((insn >> 16) & 0x1f);
+		op3 = (void *)&current->thread.TS_FPR((insn >> 11) & 0x1f);
 		break;
 
 	case XCRL:
@@ -450,7 +450,7 @@ do_mathemu(struct pt_regs *regs)
 
 	case XFLB:
 		op0 = (void *)((insn >> 17) & 0xff);
-		op1 = (void *)&current->thread.fpr[(insn >> 11) & 0x1f];
+		op1 = (void *)&current->thread.TS_FPR((insn >> 11) & 0x1f);
 		break;
 
 	default:

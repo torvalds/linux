@@ -24,6 +24,7 @@
 #include <asm/arch/mux.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/menelaus.h>
+#include <asm/arch/mcbsp.h>
 
 #if	defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
 
@@ -142,6 +143,53 @@ static void omap_init_kp(void)
 }
 #else
 static inline void omap_init_kp(void) {}
+#endif
+
+/*-------------------------------------------------------------------------*/
+#if defined(CONFIG_OMAP_MCBSP) || defined(CONFIG_OMAP_MCBSP_MODULE)
+
+static struct platform_device **omap_mcbsp_devices;
+
+void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
+					int size)
+{
+	int i;
+
+	if (size > OMAP_MAX_MCBSP_COUNT) {
+		printk(KERN_WARNING "Registered too many McBSPs platform_data."
+			" Using maximum (%d) available.\n",
+			OMAP_MAX_MCBSP_COUNT);
+		size = OMAP_MAX_MCBSP_COUNT;
+	}
+
+	omap_mcbsp_devices = kzalloc(size * sizeof(struct platform_device *),
+				     GFP_KERNEL);
+	if (!omap_mcbsp_devices) {
+		printk(KERN_ERR "Could not register McBSP devices\n");
+		return;
+	}
+
+	for (i = 0; i < size; i++) {
+		struct platform_device *new_mcbsp;
+		int ret;
+
+		new_mcbsp = platform_device_alloc("omap-mcbsp", i + 1);
+		if (!new_mcbsp)
+			continue;
+		new_mcbsp->dev.platform_data = &config[i];
+		ret = platform_device_add(new_mcbsp);
+		if (ret) {
+			platform_device_put(new_mcbsp);
+			continue;
+		}
+		omap_mcbsp_devices[i] = new_mcbsp;
+	}
+}
+
+#else
+void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
+					int size)
+{  }
 #endif
 
 /*-------------------------------------------------------------------------*/

@@ -33,10 +33,11 @@
 #include "iwch.h"
 #include "iwch_cm.h"
 #include "cxio_hal.h"
+#include "cxio_resource.h"
 
 #define NO_SUPPORT -1
 
-static int iwch_build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
+static int build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
 				u8 * flit_cnt)
 {
 	int i;
@@ -44,59 +45,44 @@ static int iwch_build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
 
 	switch (wr->opcode) {
 	case IB_WR_SEND:
-	case IB_WR_SEND_WITH_IMM:
 		if (wr->send_flags & IB_SEND_SOLICITED)
 			wqe->send.rdmaop = T3_SEND_WITH_SE;
 		else
 			wqe->send.rdmaop = T3_SEND;
 		wqe->send.rem_stag = 0;
 		break;
-#if 0				/* Not currently supported */
-	case TYPE_SEND_INVALIDATE:
-	case TYPE_SEND_INVALIDATE_IMMEDIATE:
-		wqe->send.rdmaop = T3_SEND_WITH_INV;
-		wqe->send.rem_stag = cpu_to_be32(wr->wr.rdma.rkey);
+	case IB_WR_SEND_WITH_INV:
+		if (wr->send_flags & IB_SEND_SOLICITED)
+			wqe->send.rdmaop = T3_SEND_WITH_SE_INV;
+		else
+			wqe->send.rdmaop = T3_SEND_WITH_INV;
+		wqe->send.rem_stag = cpu_to_be32(wr->ex.invalidate_rkey);
 		break;
-	case TYPE_SEND_SE_INVALIDATE:
-		wqe->send.rdmaop = T3_SEND_WITH_SE_INV;
-		wqe->send.rem_stag = cpu_to_be32(wr->wr.rdma.rkey);
-		break;
-#endif
 	default:
-		break;
+		return -EINVAL;
 	}
 	if (wr->num_sge > T3_MAX_SGE)
 		return -EINVAL;
 	wqe->send.reserved[0] = 0;
 	wqe->send.reserved[1] = 0;
 	wqe->send.reserved[2] = 0;
-	if (wr->opcode == IB_WR_SEND_WITH_IMM) {
-		plen = 4;
-		wqe->send.sgl[0].stag = wr->ex.imm_data;
-		wqe->send.sgl[0].len = __constant_cpu_to_be32(0);
-		wqe->send.num_sgle = __constant_cpu_to_be32(0);
-		*flit_cnt = 5;
-	} else {
-		plen = 0;
-		for (i = 0; i < wr->num_sge; i++) {
-			if ((plen + wr->sg_list[i].length) < plen) {
-				return -EMSGSIZE;
-			}
-			plen += wr->sg_list[i].length;
-			wqe->send.sgl[i].stag =
-			    cpu_to_be32(wr->sg_list[i].lkey);
-			wqe->send.sgl[i].len =
-			    cpu_to_be32(wr->sg_list[i].length);
-			wqe->send.sgl[i].to = cpu_to_be64(wr->sg_list[i].addr);
-		}
-		wqe->send.num_sgle = cpu_to_be32(wr->num_sge);
-		*flit_cnt = 4 + ((wr->num_sge) << 1);
+	plen = 0;
+	for (i = 0; i < wr->num_sge; i++) {
+		if ((plen + wr->sg_list[i].length) < plen)
+			return -EMSGSIZE;
+
+		plen += wr->sg_list[i].length;
+		wqe->send.sgl[i].stag = cpu_to_be32(wr->sg_list[i].lkey);
+		wqe->send.sgl[i].len = cpu_to_be32(wr->sg_list[i].length);
+		wqe->send.sgl[i].to = cpu_to_be64(wr->sg_list[i].addr);
 	}
+	wqe->send.num_sgle = cpu_to_be32(wr->num_sge);
+	*flit_cnt = 4 + ((wr->num_sge) << 1);
 	wqe->send.plen = cpu_to_be32(plen);
 	return 0;
 }
 
-static int iwch_build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
+static int build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
 				 u8 *flit_cnt)
 {
 	int i;
@@ -137,21 +123,75 @@ static int iwch_build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int iwch_build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
+static int build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
 				u8 *flit_cnt)
 {
 	if (wr->num_sge > 1)
 		return -EINVAL;
 	wqe->read.rdmaop = T3_READ_REQ;
+	if (wr->opcode == IB_WR_RDMA_READ_WITH_INV)
+		wqe->read.local_inv = 1;
+	else
+		wqe->read.local_inv = 0;
 	wqe->read.reserved[0] = 0;
 	wqe->read.reserved[1] = 0;
-	wqe->read.reserved[2] = 0;
 	wqe->read.rem_stag = cpu_to_be32(wr->wr.rdma.rkey);
 	wqe->read.rem_to = cpu_to_be64(wr->wr.rdma.remote_addr);
 	wqe->read.local_stag = cpu_to_be32(wr->sg_list[0].lkey);
 	wqe->read.local_len = cpu_to_be32(wr->sg_list[0].length);
 	wqe->read.local_to = cpu_to_be64(wr->sg_list[0].addr);
 	*flit_cnt = sizeof(struct t3_rdma_read_wr) >> 3;
+	return 0;
+}
+
+static int build_fastreg(union t3_wr *wqe, struct ib_send_wr *wr,
+				u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
+{
+	int i;
+	__be64 *p;
+
+	if (wr->wr.fast_reg.page_list_len > T3_MAX_FASTREG_DEPTH)
+		return -EINVAL;
+	*wr_cnt = 1;
+	wqe->fastreg.stag = cpu_to_be32(wr->wr.fast_reg.rkey);
+	wqe->fastreg.len = cpu_to_be32(wr->wr.fast_reg.length);
+	wqe->fastreg.va_base_hi = cpu_to_be32(wr->wr.fast_reg.iova_start >> 32);
+	wqe->fastreg.va_base_lo_fbo =
+				cpu_to_be32(wr->wr.fast_reg.iova_start & 0xffffffff);
+	wqe->fastreg.page_type_perms = cpu_to_be32(
+		V_FR_PAGE_COUNT(wr->wr.fast_reg.page_list_len) |
+		V_FR_PAGE_SIZE(wr->wr.fast_reg.page_shift-12) |
+		V_FR_TYPE(TPT_VATO) |
+		V_FR_PERMS(iwch_ib_to_tpt_access(wr->wr.fast_reg.access_flags)));
+	p = &wqe->fastreg.pbl_addrs[0];
+	for (i = 0; i < wr->wr.fast_reg.page_list_len; i++, p++) {
+
+		/* If we need a 2nd WR, then set it up */
+		if (i == T3_MAX_FASTREG_FRAG) {
+			*wr_cnt = 2;
+			wqe = (union t3_wr *)(wq->queue +
+				Q_PTR2IDX((wq->wptr+1), wq->size_log2));
+			build_fw_riwrh((void *)wqe, T3_WR_FASTREG, 0,
+			       Q_GENBIT(wq->wptr + 1, wq->size_log2),
+			       0, 1 + wr->wr.fast_reg.page_list_len - T3_MAX_FASTREG_FRAG,
+			       T3_EOP);
+
+			p = &wqe->pbl_frag.pbl_addrs[0];
+		}
+		*p = cpu_to_be64((u64)wr->wr.fast_reg.page_list->page_list[i]);
+	}
+	*flit_cnt = 5 + wr->wr.fast_reg.page_list_len;
+	if (*flit_cnt > 15)
+		*flit_cnt = 15;
+	return 0;
+}
+
+static int build_inv_stag(union t3_wr *wqe, struct ib_send_wr *wr,
+				u8 *flit_cnt)
+{
+	wqe->local_inv.stag = cpu_to_be32(wr->ex.invalidate_rkey);
+	wqe->local_inv.reserved = 0;
+	*flit_cnt = sizeof(struct t3_local_inv_wr) >> 3;
 	return 0;
 }
 
@@ -205,23 +245,106 @@ static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 	return 0;
 }
 
-static int iwch_build_rdma_recv(struct iwch_dev *rhp, union t3_wr *wqe,
+static int build_rdma_recv(struct iwch_qp *qhp, union t3_wr *wqe,
 				struct ib_recv_wr *wr)
 {
-	int i;
-	if (wr->num_sge > T3_MAX_SGE)
-		return -EINVAL;
+	int i, err = 0;
+	u32 pbl_addr[T3_MAX_SGE];
+	u8 page_size[T3_MAX_SGE];
+
+	err = iwch_sgl2pbl_map(qhp->rhp, wr->sg_list, wr->num_sge, pbl_addr,
+			       page_size);
+	if (err)
+		return err;
+	wqe->recv.pagesz[0] = page_size[0];
+	wqe->recv.pagesz[1] = page_size[1];
+	wqe->recv.pagesz[2] = page_size[2];
+	wqe->recv.pagesz[3] = page_size[3];
 	wqe->recv.num_sgle = cpu_to_be32(wr->num_sge);
 	for (i = 0; i < wr->num_sge; i++) {
 		wqe->recv.sgl[i].stag = cpu_to_be32(wr->sg_list[i].lkey);
 		wqe->recv.sgl[i].len = cpu_to_be32(wr->sg_list[i].length);
-		wqe->recv.sgl[i].to = cpu_to_be64(wr->sg_list[i].addr);
+
+		/* to in the WQE == the offset into the page */
+		wqe->recv.sgl[i].to = cpu_to_be64(((u32) wr->sg_list[i].addr) %
+				(1UL << (12 + page_size[i])));
+
+		/* pbl_addr is the adapters address in the PBL */
+		wqe->recv.pbl_addr[i] = cpu_to_be32(pbl_addr[i]);
 	}
 	for (; i < T3_MAX_SGE; i++) {
 		wqe->recv.sgl[i].stag = 0;
 		wqe->recv.sgl[i].len = 0;
 		wqe->recv.sgl[i].to = 0;
+		wqe->recv.pbl_addr[i] = 0;
 	}
+	qhp->wq.rq[Q_PTR2IDX(qhp->wq.rq_wptr,
+			     qhp->wq.rq_size_log2)].wr_id = wr->wr_id;
+	qhp->wq.rq[Q_PTR2IDX(qhp->wq.rq_wptr,
+			     qhp->wq.rq_size_log2)].pbl_addr = 0;
+	return 0;
+}
+
+static int build_zero_stag_recv(struct iwch_qp *qhp, union t3_wr *wqe,
+				struct ib_recv_wr *wr)
+{
+	int i;
+	u32 pbl_addr;
+	u32 pbl_offset;
+
+
+	/*
+	 * The T3 HW requires the PBL in the HW recv descriptor to reference
+	 * a PBL entry.  So we allocate the max needed PBL memory here and pass
+	 * it to the uP in the recv WR.  The uP will build the PBL and setup
+	 * the HW recv descriptor.
+	 */
+	pbl_addr = cxio_hal_pblpool_alloc(&qhp->rhp->rdev, T3_STAG0_PBL_SIZE);
+	if (!pbl_addr)
+		return -ENOMEM;
+
+	/*
+	 * Compute the 8B aligned offset.
+	 */
+	pbl_offset = (pbl_addr - qhp->rhp->rdev.rnic_info.pbl_base) >> 3;
+
+	wqe->recv.num_sgle = cpu_to_be32(wr->num_sge);
+
+	for (i = 0; i < wr->num_sge; i++) {
+
+		/*
+		 * Use a 128MB page size. This and an imposed 128MB
+		 * sge length limit allows us to require only a 2-entry HW
+		 * PBL for each SGE.  This restriction is acceptable since
+		 * since it is not possible to allocate 128MB of contiguous
+		 * DMA coherent memory!
+		 */
+		if (wr->sg_list[i].length > T3_STAG0_MAX_PBE_LEN)
+			return -EINVAL;
+		wqe->recv.pagesz[i] = T3_STAG0_PAGE_SHIFT;
+
+		/*
+		 * T3 restricts a recv to all zero-stag or all non-zero-stag.
+		 */
+		if (wr->sg_list[i].lkey != 0)
+			return -EINVAL;
+		wqe->recv.sgl[i].stag = 0;
+		wqe->recv.sgl[i].len = cpu_to_be32(wr->sg_list[i].length);
+		wqe->recv.sgl[i].to = cpu_to_be64(wr->sg_list[i].addr);
+		wqe->recv.pbl_addr[i] = cpu_to_be32(pbl_offset);
+		pbl_offset += 2;
+	}
+	for (; i < T3_MAX_SGE; i++) {
+		wqe->recv.pagesz[i] = 0;
+		wqe->recv.sgl[i].stag = 0;
+		wqe->recv.sgl[i].len = 0;
+		wqe->recv.sgl[i].to = 0;
+		wqe->recv.pbl_addr[i] = 0;
+	}
+	qhp->wq.rq[Q_PTR2IDX(qhp->wq.rq_wptr,
+			     qhp->wq.rq_size_log2)].wr_id = wr->wr_id;
+	qhp->wq.rq[Q_PTR2IDX(qhp->wq.rq_wptr,
+			     qhp->wq.rq_size_log2)].pbl_addr = pbl_addr;
 	return 0;
 }
 
@@ -238,6 +361,7 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	u32 num_wrs;
 	unsigned long flag;
 	struct t3_swsq *sqp;
+	int wr_cnt = 1;
 
 	qhp = to_iwch_qp(ibqp);
 	spin_lock_irqsave(&qhp->lock, flag);
@@ -262,32 +386,44 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		t3_wr_flags = 0;
 		if (wr->send_flags & IB_SEND_SOLICITED)
 			t3_wr_flags |= T3_SOLICITED_EVENT_FLAG;
-		if (wr->send_flags & IB_SEND_FENCE)
-			t3_wr_flags |= T3_READ_FENCE_FLAG;
 		if (wr->send_flags & IB_SEND_SIGNALED)
 			t3_wr_flags |= T3_COMPLETION_FLAG;
 		sqp = qhp->wq.sq +
 		      Q_PTR2IDX(qhp->wq.sq_wptr, qhp->wq.sq_size_log2);
 		switch (wr->opcode) {
 		case IB_WR_SEND:
-		case IB_WR_SEND_WITH_IMM:
+		case IB_WR_SEND_WITH_INV:
+			if (wr->send_flags & IB_SEND_FENCE)
+				t3_wr_flags |= T3_READ_FENCE_FLAG;
 			t3_wr_opcode = T3_WR_SEND;
-			err = iwch_build_rdma_send(wqe, wr, &t3_wr_flit_cnt);
+			err = build_rdma_send(wqe, wr, &t3_wr_flit_cnt);
 			break;
 		case IB_WR_RDMA_WRITE:
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			t3_wr_opcode = T3_WR_WRITE;
-			err = iwch_build_rdma_write(wqe, wr, &t3_wr_flit_cnt);
+			err = build_rdma_write(wqe, wr, &t3_wr_flit_cnt);
 			break;
 		case IB_WR_RDMA_READ:
+		case IB_WR_RDMA_READ_WITH_INV:
 			t3_wr_opcode = T3_WR_READ;
 			t3_wr_flags = 0; /* T3 reads are always signaled */
-			err = iwch_build_rdma_read(wqe, wr, &t3_wr_flit_cnt);
+			err = build_rdma_read(wqe, wr, &t3_wr_flit_cnt);
 			if (err)
 				break;
 			sqp->read_len = wqe->read.local_len;
 			if (!qhp->wq.oldest_read)
 				qhp->wq.oldest_read = sqp;
+			break;
+		case IB_WR_FAST_REG_MR:
+			t3_wr_opcode = T3_WR_FASTREG;
+			err = build_fastreg(wqe, wr, &t3_wr_flit_cnt,
+						 &wr_cnt, &qhp->wq);
+			break;
+		case IB_WR_LOCAL_INV:
+			if (wr->send_flags & IB_SEND_FENCE)
+				t3_wr_flags |= T3_LOCAL_FENCE_FLAG;
+			t3_wr_opcode = T3_WR_INV_STAG;
+			err = build_inv_stag(wqe, wr, &t3_wr_flit_cnt);
 			break;
 		default:
 			PDBG("%s post of type=%d TBD!\n", __func__,
@@ -307,14 +443,15 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 		build_fw_riwrh((void *) wqe, t3_wr_opcode, t3_wr_flags,
 			       Q_GENBIT(qhp->wq.wptr, qhp->wq.size_log2),
-			       0, t3_wr_flit_cnt);
+			       0, t3_wr_flit_cnt,
+			       (wr_cnt == 1) ? T3_SOPEOP : T3_SOP);
 		PDBG("%s cookie 0x%llx wq idx 0x%x swsq idx %ld opcode %d\n",
 		     __func__, (unsigned long long) wr->wr_id, idx,
 		     Q_PTR2IDX(qhp->wq.sq_wptr, qhp->wq.sq_size_log2),
 		     sqp->opcode);
 		wr = wr->next;
 		num_wrs--;
-		++(qhp->wq.wptr);
+		qhp->wq.wptr += wr_cnt;
 		++(qhp->wq.sq_wptr);
 	}
 	spin_unlock_irqrestore(&qhp->lock, flag);
@@ -345,21 +482,27 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		return -EINVAL;
 	}
 	while (wr) {
+		if (wr->num_sge > T3_MAX_SGE) {
+			err = -EINVAL;
+			*bad_wr = wr;
+			break;
+		}
 		idx = Q_PTR2IDX(qhp->wq.wptr, qhp->wq.size_log2);
 		wqe = (union t3_wr *) (qhp->wq.queue + idx);
 		if (num_wrs)
-			err = iwch_build_rdma_recv(qhp->rhp, wqe, wr);
+			if (wr->sg_list[0].lkey)
+				err = build_rdma_recv(qhp, wqe, wr);
+			else
+				err = build_zero_stag_recv(qhp, wqe, wr);
 		else
 			err = -ENOMEM;
 		if (err) {
 			*bad_wr = wr;
 			break;
 		}
-		qhp->wq.rq[Q_PTR2IDX(qhp->wq.rq_wptr, qhp->wq.rq_size_log2)] =
-			wr->wr_id;
 		build_fw_riwrh((void *) wqe, T3_WR_RCV, T3_COMPLETION_FLAG,
 			       Q_GENBIT(qhp->wq.wptr, qhp->wq.size_log2),
-			       0, sizeof(struct t3_receive_wr) >> 3);
+			       0, sizeof(struct t3_receive_wr) >> 3, T3_SOPEOP);
 		PDBG("%s cookie 0x%llx idx 0x%x rq_wptr 0x%x rw_rptr 0x%x "
 		     "wqe %p \n", __func__, (unsigned long long) wr->wr_id,
 		     idx, qhp->wq.rq_wptr, qhp->wq.rq_rptr, wqe);
@@ -419,10 +562,10 @@ int iwch_bind_mw(struct ib_qp *qp,
 	sgl.lkey = mw_bind->mr->lkey;
 	sgl.length = mw_bind->length;
 	wqe->bind.reserved = 0;
-	wqe->bind.type = T3_VA_BASED_TO;
+	wqe->bind.type = TPT_VATO;
 
 	/* TBD: check perms */
-	wqe->bind.perms = iwch_ib_to_mwbind_access(mw_bind->mw_access_flags);
+	wqe->bind.perms = iwch_ib_to_tpt_access(mw_bind->mw_access_flags);
 	wqe->bind.mr_stag = cpu_to_be32(mw_bind->mr->lkey);
 	wqe->bind.mw_stag = cpu_to_be32(mw->rkey);
 	wqe->bind.mw_len = cpu_to_be32(mw_bind->length);
@@ -430,7 +573,7 @@ int iwch_bind_mw(struct ib_qp *qp,
 	err = iwch_sgl2pbl_map(rhp, &sgl, 1, &pbl_addr, &page_size);
 	if (err) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-	        return err;
+		return err;
 	}
 	wqe->send.wrid.id0.hi = qhp->wq.sq_wptr;
 	sqp = qhp->wq.sq + Q_PTR2IDX(qhp->wq.sq_wptr, qhp->wq.sq_size_log2);
@@ -441,10 +584,9 @@ int iwch_bind_mw(struct ib_qp *qp,
 	sqp->signaled = (mw_bind->send_flags & IB_SEND_SIGNALED);
 	wqe->bind.mr_pbl_addr = cpu_to_be32(pbl_addr);
 	wqe->bind.mr_pagesz = page_size;
-	wqe->flit[T3_SQ_COOKIE_FLIT] = mw_bind->wr_id;
 	build_fw_riwrh((void *)wqe, T3_WR_BIND, t3_wr_flags,
 		       Q_GENBIT(qhp->wq.wptr, qhp->wq.size_log2), 0,
-			        sizeof(struct t3_bind_mw_wr) >> 3);
+		       sizeof(struct t3_bind_mw_wr) >> 3, T3_SOPEOP);
 	++(qhp->wq.wptr);
 	++(qhp->wq.sq_wptr);
 	spin_unlock_irqrestore(&qhp->lock, flag);
@@ -758,7 +900,8 @@ static int rdma_init(struct iwch_dev *rhp, struct iwch_qp *qhp,
 	init_attr.qp_dma_size = (1UL << qhp->wq.size_log2);
 	init_attr.rqe_count = iwch_rqes_posted(qhp);
 	init_attr.flags = qhp->attr.mpa_attr.initiator ? MPA_INITIATOR : 0;
-	init_attr.flags |= capable(CAP_NET_BIND_SERVICE) ? PRIV_QP : 0;
+	if (!qhp->ibqp.uobject)
+		init_attr.flags |= PRIV_QP;
 	if (peer2peer) {
 		init_attr.rtr_type = RTR_READ;
 		if (init_attr.ord == 0 && qhp->attr.mpa_attr.initiator)

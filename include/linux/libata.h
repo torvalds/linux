@@ -27,6 +27,7 @@
 #define __LINUX_LIBATA_H__
 
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
@@ -115,7 +116,7 @@ enum {
 	/* tag ATA_MAX_QUEUE - 1 is reserved for internal commands */
 	ATA_MAX_QUEUE		= 32,
 	ATA_TAG_INTERNAL	= ATA_MAX_QUEUE - 1,
-	ATA_SHORT_PAUSE		= (HZ >> 6) + 1,
+	ATA_SHORT_PAUSE		= 16,
 
 	ATAPI_MAX_DRAIN		= 16 << 10,
 
@@ -168,6 +169,7 @@ enum {
 	ATA_LFLAG_ASSUME_CLASS	= ATA_LFLAG_ASSUME_ATA | ATA_LFLAG_ASSUME_SEMB,
 	ATA_LFLAG_NO_RETRY	= (1 << 5), /* don't retry this link */
 	ATA_LFLAG_DISABLED	= (1 << 6), /* link is disabled */
+	ATA_LFLAG_SW_ACTIVITY	= (1 << 7), /* keep activity stats */
 
 	/* struct ata_port flags */
 	ATA_FLAG_SLAVE_POSS	= (1 << 0), /* host supports slave dev */
@@ -190,6 +192,10 @@ enum {
 	ATA_FLAG_AN		= (1 << 18), /* controller supports AN */
 	ATA_FLAG_PMP		= (1 << 19), /* controller supports PMP */
 	ATA_FLAG_IPM		= (1 << 20), /* driver can handle IPM */
+	ATA_FLAG_EM		= (1 << 21), /* driver supports enclosure
+					      * management */
+	ATA_FLAG_SW_ACTIVITY	= (1 << 22), /* driver supports sw activity
+					      * led */
 
 	/* The following flag belongs to ap->pflags but is kept in
 	 * ap->flags because it's referenced in many LLDs and will be
@@ -234,17 +240,16 @@ enum {
 	/* bits 24:31 of host->flags are reserved for LLD specific flags */
 
 	/* various lengths of time */
-	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
-	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* heuristic */
-	ATA_TMOUT_INTERNAL	= 30 * HZ,
-	ATA_TMOUT_INTERNAL_QUICK = 5 * HZ,
+	ATA_TMOUT_BOOT		= 30000,	/* heuristic */
+	ATA_TMOUT_BOOT_QUICK	=  7000,	/* heuristic */
+	ATA_TMOUT_INTERNAL_QUICK = 5000,
 
 	/* FIXME: GoVault needs 2s but we can't afford that without
 	 * parallel probing.  800ms is enough for iVDR disk
 	 * HHD424020F7SV00.  Increase to 2secs when parallel probing
 	 * is in place.
 	 */
-	ATA_TMOUT_FF_WAIT	= 4 * HZ / 5,
+	ATA_TMOUT_FF_WAIT	=  800,
 
 	/* Spec mandates to wait for ">= 2ms" before checking status
 	 * after reset.  We wait 150ms, because that was the magic
@@ -256,14 +261,14 @@ enum {
 	 *
 	 * Old drivers/ide uses the 2mS rule and then waits for ready.
 	 */
-	ATA_WAIT_AFTER_RESET_MSECS = 150,
+	ATA_WAIT_AFTER_RESET	=  150,
 
 	/* If PMP is supported, we have to do follow-up SRST.  As some
 	 * PMPs don't send D2H Reg FIS after hardreset, LLDs are
 	 * advised to wait only for the following duration before
 	 * doing SRST.
 	 */
-	ATA_TMOUT_PMP_SRST_WAIT	= 1 * HZ,
+	ATA_TMOUT_PMP_SRST_WAIT	= 1000,
 
 	/* ATA bus states */
 	BUS_UNKNOWN		= 0,
@@ -339,6 +344,11 @@ enum {
 	ATA_EH_PMP_LINK_TRIES	= 3,
 
 	SATA_PMP_RW_TIMEOUT	= 3000,		/* PMP read/write timeout */
+
+	/* This should match the actual table size of
+	 * ata_eh_cmd_timeout_table in libata-eh.c.
+	 */
+	ATA_EH_CMD_TIMEOUT_TABLE_SIZE = 5,
 
 	/* Horkage types. May be set by libata or controller on drives
 	   (some horkage may be drive/controller pair dependant */
@@ -441,6 +451,15 @@ enum link_pm {
 	MEDIUM_POWER,
 };
 extern struct device_attribute dev_attr_link_power_management_policy;
+extern struct device_attribute dev_attr_em_message_type;
+extern struct device_attribute dev_attr_em_message;
+extern struct device_attribute dev_attr_sw_activity;
+
+enum sw_activity {
+	OFF,
+	BLINK_ON,
+	BLINK_OFF,
+};
 
 #ifdef CONFIG_ATA_SFF
 struct ata_ioports {
@@ -597,10 +616,14 @@ struct ata_eh_info {
 struct ata_eh_context {
 	struct ata_eh_info	i;
 	int			tries[ATA_MAX_DEVICES];
+	int			cmd_timeout_idx[ATA_MAX_DEVICES]
+					       [ATA_EH_CMD_TIMEOUT_TABLE_SIZE];
 	unsigned int		classes[ATA_MAX_DEVICES];
 	unsigned int		did_probe_mask;
 	unsigned int		saved_ncq_enabled;
 	u8			saved_xfer_mode[ATA_MAX_DEVICES];
+	/* timestamp for the last reset attempt or success */
+	unsigned long		last_reset;
 };
 
 struct ata_acpi_drive
@@ -692,6 +715,7 @@ struct ata_port {
 	struct timer_list	fastdrain_timer;
 	unsigned long		fastdrain_cnt;
 
+	int			em_message_type;
 	void			*private_data;
 
 #ifdef CONFIG_ATA_ACPI
@@ -783,6 +807,12 @@ struct ata_port_operations {
 	u8   (*bmdma_status)(struct ata_port *ap);
 #endif /* CONFIG_ATA_SFF */
 
+	ssize_t (*em_show)(struct ata_port *ap, char *buf);
+	ssize_t (*em_store)(struct ata_port *ap, const char *message,
+			    size_t size);
+	ssize_t (*sw_activity_show)(struct ata_device *dev, char *buf);
+	ssize_t (*sw_activity_store)(struct ata_device *dev,
+				     enum sw_activity val);
 	/*
 	 * Obsolete
 	 */
@@ -895,8 +925,7 @@ extern void ata_host_resume(struct ata_host *host);
 #endif
 extern int ata_ratelimit(void);
 extern u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
-			     unsigned long interval_msec,
-			     unsigned long timeout_msec);
+			     unsigned long interval, unsigned long timeout);
 extern int atapi_cmd_type(u8 opcode);
 extern void ata_tf_to_fis(const struct ata_taskfile *tf,
 			  u8 pmp, int is_cmd, u8 *fis);
@@ -1387,6 +1416,12 @@ static inline int ata_check_ready(u8 status)
 		return -ENODEV;
 
 	return 0;
+}
+
+static inline unsigned long ata_deadline(unsigned long from_jiffies,
+					 unsigned long timeout_msecs)
+{
+	return from_jiffies + msecs_to_jiffies(timeout_msecs);
 }
 
 

@@ -138,6 +138,41 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 			return_ACPI_STATUS(AE_NULL_OBJECT);
 		}
 
+		/*
+		 * Calculate the number of arguments being passed to the method
+		 */
+
+		info->param_count = 0;
+		if (info->parameters) {
+			while (info->parameters[info->param_count])
+				info->param_count++;
+		}
+
+		/* Error if too few arguments were passed in */
+
+		if (info->param_count < info->obj_desc->method.param_count) {
+			ACPI_ERROR((AE_INFO,
+				    "Insufficient arguments - "
+				    "method [%4.4s] needs %d, found %d",
+				    acpi_ut_get_node_name(info->resolved_node),
+				    info->obj_desc->method.param_count,
+				    info->param_count));
+			return_ACPI_STATUS(AE_MISSING_ARGUMENTS);
+		}
+
+		/* Just a warning if too many arguments */
+
+		else if (info->param_count >
+				info->obj_desc->method.param_count) {
+			ACPI_WARNING((AE_INFO,
+				      "Excess arguments - "
+				      "method [%4.4s] needs %d, found %d",
+				      acpi_ut_get_node_name(info->
+							    resolved_node),
+				      info->obj_desc->method.param_count,
+				      info->param_count));
+		}
+
 		ACPI_DUMP_PATHNAME(info->resolved_node, "Execute Method:",
 				   ACPI_LV_INFO, _COMPONENT);
 
