@@ -546,9 +546,6 @@ extern void	xfs_qmops_put(struct xfs_mount *);
 
 extern struct xfs_dmops xfs_dmcore_xfs;
 
-extern int	xfs_init(void);
-extern void	xfs_cleanup(void);
-
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_MOUNT_H__ */

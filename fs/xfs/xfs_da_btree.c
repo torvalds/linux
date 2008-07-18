@@ -2240,7 +2240,7 @@ xfs_da_state_free(xfs_da_state_t *state)
 
 #ifdef XFS_DABUF_DEBUG
 xfs_dabuf_t	*xfs_dabuf_global_list;
-spinlock_t	xfs_dabuf_global_lock;
+static DEFINE_SPINLOCK(xfs_dabuf_global_lock);
 #endif
 
 /*

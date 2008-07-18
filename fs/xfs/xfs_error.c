@@ -66,14 +66,6 @@ int	xfs_etest[XFS_NUM_INJECT_ERROR];
 int64_t	xfs_etest_fsid[XFS_NUM_INJECT_ERROR];
 char *	xfs_etest_fsname[XFS_NUM_INJECT_ERROR];
 
-void
-xfs_error_test_init(void)
-{
-	memset(xfs_etest, 0, sizeof(xfs_etest));
-	memset(xfs_etest_fsid, 0, sizeof(xfs_etest_fsid));
-	memset(xfs_etest_fsname, 0, sizeof(xfs_etest_fsname));
-}
-
 int
 xfs_error_test(int error_tag, int *fsidp, char *expression,
 	       int line, char *file, unsigned long randfactor)
