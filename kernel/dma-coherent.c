@@ -105,8 +105,7 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 			*dma_handle = mem->device_base + (page << PAGE_SHIFT);
 			*ret = mem->virt_base + (page << PAGE_SHIFT);
 			memset(*ret, 0, size);
-		}
-		if (mem->flags & DMA_MEMORY_EXCLUSIVE)
+		} else if (mem->flags & DMA_MEMORY_EXCLUSIVE)
 			*ret = NULL;
 	}
 	return (mem != NULL);
