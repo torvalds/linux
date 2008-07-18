@@ -473,7 +473,6 @@ static int (*create_arch_files)(struct super_block * sb, struct dentry * root);
 
 static int setup_ibs_files(struct super_block * sb, struct dentry * root)
 {
-	char buf[12];
 	struct dentry *dir;
 	int ret = 0;
 
@@ -495,22 +494,22 @@ static int setup_ibs_files(struct super_block * sb, struct dentry * root)
 	ibs_config.max_cnt_op = 250000;
 	ibs_config.op_enabled = 0;
 	ibs_config.dispatched_ops = 1;
-	snprintf(buf,  sizeof(buf), "ibs_fetch");
-	dir = oprofilefs_mkdir(sb, root, buf);
+
+	dir = oprofilefs_mkdir(sb, root, "ibs_fetch");
+	oprofilefs_create_ulong(sb, dir, "enable",
+				&ibs_config.fetch_enabled);
+	oprofilefs_create_ulong(sb, dir, "max_count",
+				&ibs_config.max_cnt_fetch);
 	oprofilefs_create_ulong(sb, dir, "rand_enable",
 				&ibs_config.rand_en);
+
+	dir = oprofilefs_mkdir(sb, root, "ibs_uops");
 	oprofilefs_create_ulong(sb, dir, "enable",
-		&ibs_config.fetch_enabled);
+				&ibs_config.op_enabled);
 	oprofilefs_create_ulong(sb, dir, "max_count",
-		&ibs_config.max_cnt_fetch);
-	snprintf(buf,  sizeof(buf), "ibs_uops");
-	dir = oprofilefs_mkdir(sb, root, buf);
-	oprofilefs_create_ulong(sb, dir, "enable",
-		&ibs_config.op_enabled);
-	oprofilefs_create_ulong(sb, dir, "max_count",
-		&ibs_config.max_cnt_op);
+				&ibs_config.max_cnt_op);
 	oprofilefs_create_ulong(sb, dir, "dispatched_ops",
-		&ibs_config.dispatched_ops);
+				&ibs_config.dispatched_ops);
 
 	return 0;
 }
