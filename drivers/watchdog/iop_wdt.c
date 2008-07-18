@@ -153,15 +153,6 @@ static long iop_wdt_ioctl(struct file *file,
 		ret = put_user(boot_status, argp);
 		break;
 
-	case WDIOC_GETTIMEOUT:
-		ret = put_user(iop_watchdog_timeout(), argp);
-		break;
-
-	case WDIOC_KEEPALIVE:
-		wdt_enable();
-		ret = 0;
-		break;
-
 	case WDIOC_SETOPTIONS:
 		if (get_user(options, (int *)arg))
 			return -EFAULT;
@@ -180,6 +171,15 @@ static long iop_wdt_ioctl(struct file *file,
 			wdt_enable();
 			ret = 0;
 		}
+		break;
+
+	case WDIOC_KEEPALIVE:
+		wdt_enable();
+		ret = 0;
+		break;
+
+	case WDIOC_GETTIMEOUT:
+		ret = put_user(iop_watchdog_timeout(), argp);
 		break;
 	}
 	return ret;

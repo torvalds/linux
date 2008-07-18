@@ -208,6 +208,10 @@ static long mixcomwd_ioctl(struct file *file,
 	};
 
 	switch (cmd) {
+	case WDIOC_GETSUPPORT:
+		if (copy_to_user(argp, &ident, sizeof(ident)))
+			return -EFAULT;
+		break;
 	case WDIOC_GETSTATUS:
 		status = mixcomwd_opened;
 		if (!nowayout)
@@ -215,10 +219,6 @@ static long mixcomwd_ioctl(struct file *file,
 		return put_user(status, p);
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
-	case WDIOC_GETSUPPORT:
-		if (copy_to_user(argp, &ident, sizeof(ident)))
-			return -EFAULT;
-		break;
 	case WDIOC_KEEPALIVE:
 		mixcomwd_ping();
 		break;

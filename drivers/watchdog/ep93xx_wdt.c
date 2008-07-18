@@ -155,14 +155,14 @@ static long ep93xx_wdt_ioctl(struct file *file,
 		ret = put_user(boot_status, (int __user *)arg);
 		break;
 
-	case WDIOC_GETTIMEOUT:
-		/* actually, it is 0.250 seconds.... */
-		ret = put_user(1, (int __user *)arg);
-		break;
-
 	case WDIOC_KEEPALIVE:
 		wdt_keepalive();
 		ret = 0;
+		break;
+
+	case WDIOC_GETTIMEOUT:
+		/* actually, it is 0.250 seconds.... */
+		ret = put_user(1, (int __user *)arg);
 		break;
 	}
 	return ret;

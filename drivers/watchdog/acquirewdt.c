@@ -164,13 +164,6 @@ static long acq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
 
-	case WDIOC_KEEPALIVE:
-		acq_keepalive();
-		return 0;
-
-	case WDIOC_GETTIMEOUT:
-		return put_user(WATCHDOG_HEARTBEAT, p);
-
 	case WDIOC_SETOPTIONS:
 	{
 		if (get_user(options, p))
@@ -185,6 +178,13 @@ static long acq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		return retval;
 	}
+	case WDIOC_KEEPALIVE:
+		acq_keepalive();
+		return 0;
+
+	case WDIOC_GETTIMEOUT:
+		return put_user(WATCHDOG_HEARTBEAT, p);
+
 	default:
 		return -ENOTTY;
 	}

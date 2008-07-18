@@ -612,9 +612,6 @@ static long pcwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	};
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
-
 	case WDIOC_GETSUPPORT:
 		if (copy_to_user(argp, &ident, sizeof(ident)))
 			return -EFAULT;
@@ -669,6 +666,9 @@ static long pcwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, argp);
+
+	default:
+		return -ENOTTY;
 	}
 
 	return 0;

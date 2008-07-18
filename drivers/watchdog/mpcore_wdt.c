@@ -243,6 +243,12 @@ static long mpcore_wdt_ioctl(struct file *file, unsigned int cmd,
 		ret = 0;
 		break;
 
+	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
+		uarg.i = 0;
+		ret = 0;
+		break;
+
 	case WDIOC_SETOPTIONS:
 		ret = -EINVAL;
 		if (uarg.i & WDIOS_DISABLECARD) {
@@ -253,12 +259,6 @@ static long mpcore_wdt_ioctl(struct file *file, unsigned int cmd,
 			mpcore_wdt_start(wdt);
 			ret = 0;
 		}
-		break;
-
-	case WDIOC_GETSTATUS:
-	case WDIOC_GETBOOTSTATUS:
-		uarg.i = 0;
-		ret = 0;
 		break;
 
 	case WDIOC_KEEPALIVE:

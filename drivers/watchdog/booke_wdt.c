@@ -99,6 +99,15 @@ static long booke_wdt_ioctl(struct file *file,
 		tmp = mfspr(SPRN_TSR) & TSR_WRS(3);
 		/* returns 1 if last reset was caused by the WDT */
 		return (tmp ? 1 : 0);
+	case WDIOC_SETOPTIONS:
+		if (get_user(tmp, p))
+			return -EINVAL;
+		if (tmp == WDIOS_ENABLECARD) {
+			booke_wdt_ping();
+			break;
+		} else
+			return -EINVAL;
+		return 0;
 	case WDIOC_KEEPALIVE:
 		booke_wdt_ping();
 		return 0;
@@ -110,15 +119,6 @@ static long booke_wdt_ioctl(struct file *file,
 		return 0;
 	case WDIOC_GETTIMEOUT:
 		return put_user(booke_wdt_period, p);
-	case WDIOC_SETOPTIONS:
-		if (get_user(tmp, p))
-			return -EINVAL;
-		if (tmp == WDIOS_ENABLECARD) {
-			booke_wdt_ping();
-			break;
-		} else
-			return -EINVAL;
-		return 0;
 	default:
 		return -ENOTTY;
 	}

@@ -142,8 +142,6 @@ static long txx9wdt_ioctl(struct file *file, unsigned int cmd,
 	};
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
@@ -163,6 +161,8 @@ static long txx9wdt_ioctl(struct file *file, unsigned int cmd,
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
+	default:
+		return -ENOTTY;
 	}
 }
 

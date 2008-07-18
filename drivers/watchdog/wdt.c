@@ -373,8 +373,6 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #endif /* CONFIG_WDT_501 */
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
@@ -394,6 +392,8 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
+	default:
+		return -ENOTTY;
 	}
 }
 

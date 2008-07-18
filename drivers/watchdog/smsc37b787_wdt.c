@@ -451,6 +451,23 @@ static long wb_smsc_wdt_ioctl(struct file *file,
 		return put_user(wb_smsc_wdt_status(), uarg.i);
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, uarg.i);
+	case WDIOC_SETOPTIONS:
+	{
+		int options, retval = -EINVAL;
+
+		if (get_user(options, uarg.i))
+			return -EFAULT;
+
+		if (options & WDIOS_DISABLECARD) {
+			wb_smsc_wdt_disable();
+			retval = 0;
+		}
+		if (options & WDIOS_ENABLECARD) {
+			wb_smsc_wdt_enable();
+			retval = 0;
+		}
+		return retval;
+	}
 	case WDIOC_KEEPALIVE:
 		wb_smsc_wdt_reset_timer();
 		return 0;
@@ -470,23 +487,6 @@ static long wb_smsc_wdt_ioctl(struct file *file,
 		if (unit == UNIT_MINUTE)
 			  new_timeout *= 60;
 		return put_user(new_timeout, uarg.i);
-	case WDIOC_SETOPTIONS:
-	{
-		int options, retval = -EINVAL;
-
-		if (get_user(options, uarg.i))
-			return -EFAULT;
-
-		if (options & WDIOS_DISABLECARD) {
-			wb_smsc_wdt_disable();
-			retval = 0;
-		}
-		if (options & WDIOS_ENABLECARD) {
-			wb_smsc_wdt_enable();
-			retval = 0;
-		}
-		return retval;
-	}
 	default:
 		return -ENOTTY;
 	}

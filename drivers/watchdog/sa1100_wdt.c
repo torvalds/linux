@@ -107,6 +107,11 @@ static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
 		ret = put_user(boot_status, p);
 		break;
 
+	case WDIOC_KEEPALIVE:
+		OSMR3 = OSCR + pre_margin;
+		ret = 0;
+		break;
+
 	case WDIOC_SETTIMEOUT:
 		ret = get_user(time, p);
 		if (ret)
@@ -123,11 +128,6 @@ static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
 
 	case WDIOC_GETTIMEOUT:
 		ret = put_user(pre_margin / OSCR_FREQ, p);
-		break;
-
-	case WDIOC_KEEPALIVE:
-		OSMR3 = OSCR + pre_margin;
-		ret = 0;
 		break;
 	}
 	return ret;

@@ -532,10 +532,6 @@ static long iTCO_wdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
 
-	case WDIOC_KEEPALIVE:
-		iTCO_wdt_keepalive();
-		return 0;
-
 	case WDIOC_SETOPTIONS:
 	{
 		if (get_user(new_options, p))
@@ -552,6 +548,10 @@ static long iTCO_wdt_ioctl(struct file *file, unsigned int cmd,
 		}
 		return retval;
 	}
+	case WDIOC_KEEPALIVE:
+		iTCO_wdt_keepalive();
+		return 0;
+
 	case WDIOC_SETTIMEOUT:
 	{
 		if (get_user(new_heartbeat, p))

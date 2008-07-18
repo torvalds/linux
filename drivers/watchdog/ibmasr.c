@@ -287,16 +287,6 @@ static long asr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
-	case WDIOC_KEEPALIVE:
-		asr_toggle();
-		return 0;
-	/*
-	 * The hardware has a fixed timeout value, so no WDIOC_SETTIMEOUT
-	 * and WDIOC_GETTIMEOUT always returns 256.
-	 */
-	case WDIOC_GETTIMEOUT:
-		heartbeat = 256;
-		return put_user(heartbeat, p);
 	case WDIOC_SETOPTIONS:
 	{
 		int new_options, retval = -EINVAL;
@@ -313,6 +303,16 @@ static long asr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		return retval;
 	}
+	case WDIOC_KEEPALIVE:
+		asr_toggle();
+		return 0;
+	/*
+	 * The hardware has a fixed timeout value, so no WDIOC_SETTIMEOUT
+	 * and WDIOC_GETTIMEOUT always returns 256.
+	 */
+	case WDIOC_GETTIMEOUT:
+		heartbeat = 256;
+		return put_user(heartbeat, p);
 	default:
 		return -ENOTTY;
 	}

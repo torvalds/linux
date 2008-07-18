@@ -120,11 +120,6 @@ static long epx_c3_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, argp);
-	case WDIOC_KEEPALIVE:
-		epx_c3_pet();
-		return 0;
-	case WDIOC_GETTIMEOUT:
-		return put_user(WATCHDOG_TIMEOUT, argp);
 	case WDIOC_SETOPTIONS:
 		if (get_user(options, argp))
 			return -EFAULT;
@@ -140,6 +135,11 @@ static long epx_c3_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		return retval;
+	case WDIOC_KEEPALIVE:
+		epx_c3_pet();
+		return 0;
+	case WDIOC_GETTIMEOUT:
+		return put_user(WATCHDOG_TIMEOUT, argp);
 	default:
 		return -ENOTTY;
 	}

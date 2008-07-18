@@ -195,9 +195,6 @@ static long ali_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
-	case WDIOC_KEEPALIVE:
-		ali_keepalive();
-		return 0;
 	case WDIOC_SETOPTIONS:
 	{
 		int new_options, retval = -EINVAL;
@@ -214,6 +211,9 @@ static long ali_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		return retval;
 	}
+	case WDIOC_KEEPALIVE:
+		ali_keepalive();
+		return 0;
 	case WDIOC_SETTIMEOUT:
 	{
 		int new_timeout;

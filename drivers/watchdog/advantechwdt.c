@@ -152,19 +152,6 @@ static long advwdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
 
-	case WDIOC_KEEPALIVE:
-		advwdt_ping();
-		break;
-
-	case WDIOC_SETTIMEOUT:
-		if (get_user(new_timeout, p))
-			return -EFAULT;
-		if (advwdt_set_heartbeat(new_timeout))
-			return -EINVAL;
-		advwdt_ping();
-		/* Fall */
-	case WDIOC_GETTIMEOUT:
-		return put_user(timeout, p);
 	case WDIOC_SETOPTIONS:
 	{
 		int options, retval = -EINVAL;
@@ -181,6 +168,19 @@ static long advwdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		return retval;
 	}
+	case WDIOC_KEEPALIVE:
+		advwdt_ping();
+		break;
+
+	case WDIOC_SETTIMEOUT:
+		if (get_user(new_timeout, p))
+			return -EFAULT;
+		if (advwdt_set_heartbeat(new_timeout))
+			return -EINVAL;
+		advwdt_ping();
+		/* Fall */
+	case WDIOC_GETTIMEOUT:
+		return put_user(timeout, p);
 	default:
 		return -ENOTTY;
 	}

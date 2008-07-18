@@ -426,6 +426,21 @@ static long pc87413_ioctl(struct file *file, unsigned int cmd,
 		return put_user(pc87413_status(), uarg.i);
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, uarg.i);
+	case WDIOC_SETOPTIONS:
+	{
+		int options, retval = -EINVAL;
+		if (get_user(options, uarg.i))
+			return -EFAULT;
+		if (options & WDIOS_DISABLECARD) {
+			pc87413_disable();
+			retval = 0;
+		}
+		if (options & WDIOS_ENABLECARD) {
+			pc87413_enable();
+			retval = 0;
+		}
+		return retval;
+	}
 	case WDIOC_KEEPALIVE:
 		pc87413_refresh();
 #ifdef DEBUG
@@ -445,21 +460,6 @@ static long pc87413_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETTIMEOUT:
 		new_timeout = timeout * 60;
 		return put_user(new_timeout, uarg.i);
-	case WDIOC_SETOPTIONS:
-	{
-		int options, retval = -EINVAL;
-		if (get_user(options, uarg.i))
-			return -EFAULT;
-		if (options & WDIOS_DISABLECARD) {
-			pc87413_disable();
-			retval = 0;
-		}
-		if (options & WDIOS_ENABLECARD) {
-			pc87413_enable();
-			retval = 0;
-		}
-		return retval;
-	}
 	default:
 		return -ENOTTY;
 	}

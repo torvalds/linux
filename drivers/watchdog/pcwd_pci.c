@@ -494,10 +494,6 @@ static long pcipcwd_ioctl(struct file *file, unsigned int cmd,
 		return put_user(temperature, p);
 	}
 
-	case WDIOC_KEEPALIVE:
-		pcipcwd_keepalive();
-		return 0;
-
 	case WDIOC_SETOPTIONS:
 	{
 		int new_options, retval = -EINVAL;
@@ -524,6 +520,10 @@ static long pcipcwd_ioctl(struct file *file, unsigned int cmd,
 
 		return retval;
 	}
+
+	case WDIOC_KEEPALIVE:
+		pcipcwd_keepalive();
+		return 0;
 
 	case WDIOC_SETTIMEOUT:
 	{

@@ -206,8 +206,6 @@ static long softdog_ioctl(struct file *file, unsigned int cmd,
 		.identity =		"Software Watchdog",
 	};
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
@@ -225,6 +223,8 @@ static long softdog_ioctl(struct file *file, unsigned int cmd,
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
 		return put_user(soft_margin, p);
+	default:
+		return -ENOTTY;
 	}
 }
 

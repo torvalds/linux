@@ -251,8 +251,6 @@ static long ar7_wdt_ioctl(struct file *file,
 	int new_margin;
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		if (copy_to_user((struct watchdog_info *)arg, &ident,
 				sizeof(ident)))
@@ -281,6 +279,8 @@ static long ar7_wdt_ioctl(struct file *file,
 		if (put_user(margin, (int *)arg))
 			return -EFAULT;
 		return 0;
+	default:
+		return -ENOTTY;
 	}
 }
 

@@ -194,6 +194,11 @@ static long pnx4008_wdt_ioctl(struct inode *inode, struct file *file,
 		ret = put_user(boot_status, (int *)arg);
 		break;
 
+	case WDIOC_KEEPALIVE:
+		wdt_enable();
+		ret = 0;
+		break;
+
 	case WDIOC_SETTIMEOUT:
 		ret = get_user(time, (int *)arg);
 		if (ret)
@@ -210,11 +215,6 @@ static long pnx4008_wdt_ioctl(struct inode *inode, struct file *file,
 
 	case WDIOC_GETTIMEOUT:
 		ret = put_user(heartbeat, (int *)arg);
-		break;
-
-	case WDIOC_KEEPALIVE:
-		wdt_enable();
-		ret = 0;
 		break;
 	}
 	return ret;

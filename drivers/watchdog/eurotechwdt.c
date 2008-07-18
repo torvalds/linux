@@ -249,15 +249,28 @@ static long eurwdt_ioctl(struct file *file,
 	int options, retval = -EINVAL;
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
-
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
+
+	case WDIOC_SETOPTIONS:
+		if (get_user(options, p))
+			return -EFAULT;
+		spin_lock(&eurwdt_lock);
+		if (options & WDIOS_DISABLECARD) {
+			eurwdt_disable_timer();
+			retval = 0;
+		}
+		if (options & WDIOS_ENABLECARD) {
+			eurwdt_activate_timer();
+			eurwdt_ping();
+			retval = 0;
+		}
+		spin_unlock(&eurwdt_lock);
+		return retval;
 
 	case WDIOC_KEEPALIVE:
 		spin_lock(&eurwdt_lock);
@@ -282,21 +295,8 @@ static long eurwdt_ioctl(struct file *file,
 	case WDIOC_GETTIMEOUT:
 		return put_user(eurwdt_timeout, p);
 
-	case WDIOC_SETOPTIONS:
-		if (get_user(options, p))
-			return -EFAULT;
-		spin_lock(&eurwdt_lock);
-		if (options & WDIOS_DISABLECARD) {
-			eurwdt_disable_timer();
-			retval = 0;
-		}
-		if (options & WDIOS_ENABLECARD) {
-			eurwdt_activate_timer();
-			eurwdt_ping();
-			retval = 0;
-		}
-		spin_unlock(&eurwdt_lock);
-		return retval;
+	default:
+		return -ENOTTY;
 	}
 }
 

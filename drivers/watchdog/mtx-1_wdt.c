@@ -148,16 +148,13 @@ static long mtx1_wdt_ioctl(struct file *file, unsigned int cmd,
 	};
 
 	switch (cmd) {
-	case WDIOC_KEEPALIVE:
-		mtx1_wdt_reset();
+	case WDIOC_GETSUPPORT:
+		if (copy_to_user(argp, &ident, sizeof(ident)))
+			return -EFAULT;
 		break;
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		put_user(0, p);
-		break;
-	case WDIOC_GETSUPPORT:
-		if (copy_to_user(argp, &ident, sizeof(ident)))
-			return -EFAULT;
 		break;
 	case WDIOC_SETOPTIONS:
 		if (get_user(value, p))
@@ -169,6 +166,9 @@ static long mtx1_wdt_ioctl(struct file *file, unsigned int cmd,
 		else
 			return -EINVAL;
 		return 0;
+	case WDIOC_KEEPALIVE:
+		mtx1_wdt_reset();
+		break;
 	default:
 		return -ENOTTY;
 	}

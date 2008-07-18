@@ -254,16 +254,11 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	};
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
-	case WDIOC_KEEPALIVE:
-		wdt_keepalive();
-		return 0;
 	case WDIOC_SETOPTIONS:
 	{
 		int new_options, retval = -EINVAL;
@@ -283,6 +278,9 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		return retval;
 	}
+	case WDIOC_KEEPALIVE:
+		wdt_keepalive();
+		return 0;
 	case WDIOC_SETTIMEOUT:
 	{
 		int new_timeout;
@@ -300,6 +298,8 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
+	default:
+		return -ENOTTY;
 	}
 }
 

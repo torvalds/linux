@@ -168,8 +168,6 @@ static long scx200_wdt_ioctl(struct file *file, unsigned int cmd,
 	int new_margin;
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		if (copy_to_user(argp, &ident, sizeof(ident)))
 			return -EFAULT;
@@ -194,6 +192,8 @@ static long scx200_wdt_ioctl(struct file *file, unsigned int cmd,
 		if (put_user(margin, p))
 			return -EFAULT;
 		return 0;
+	default:
+		return -ENOTTY;
 	}
 }
 

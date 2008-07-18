@@ -365,9 +365,6 @@ static long wdt977_ioctl(struct file *file, unsigned int cmd,
 	uarg.i = (int __user *)arg;
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
-
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(uarg.ident, &ident,
 			sizeof(ident)) ? -EFAULT : 0;
@@ -378,10 +375,6 @@ static long wdt977_ioctl(struct file *file, unsigned int cmd,
 
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, uarg.i);
-
-	case WDIOC_KEEPALIVE:
-		wdt977_keepalive();
-		return 0;
 
 	case WDIOC_SETOPTIONS:
 		if (get_user(new_options, uarg.i))
@@ -399,6 +392,10 @@ static long wdt977_ioctl(struct file *file, unsigned int cmd,
 
 		return retval;
 
+	case WDIOC_KEEPALIVE:
+		wdt977_keepalive();
+		return 0;
+
 	case WDIOC_SETTIMEOUT:
 		if (get_user(new_timeout, uarg.i))
 			return -EFAULT;
@@ -411,6 +408,9 @@ static long wdt977_ioctl(struct file *file, unsigned int cmd,
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, uarg.i);
+
+	default:
+		return -ENOTTY;
 
 	}
 }

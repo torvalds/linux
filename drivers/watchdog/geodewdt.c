@@ -159,22 +159,6 @@ geodewdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
 
-	case WDIOC_KEEPALIVE:
-		geodewdt_ping();
-		return 0;
-
-	case WDIOC_SETTIMEOUT:
-		if (get_user(interval, p))
-			return -EFAULT;
-
-		if (geodewdt_set_heartbeat(interval))
-			return -EINVAL;
-
-/* Fall through */
-
-	case WDIOC_GETTIMEOUT:
-		return put_user(timeout, p);
-
 	case WDIOC_SETOPTIONS:
 	{
 		int options, ret = -EINVAL;
@@ -194,6 +178,20 @@ geodewdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 		return ret;
 	}
+	case WDIOC_KEEPALIVE:
+		geodewdt_ping();
+		return 0;
+
+	case WDIOC_SETTIMEOUT:
+		if (get_user(interval, p))
+			return -EFAULT;
+
+		if (geodewdt_set_heartbeat(interval))
+			return -EINVAL;
+	/* Fall through */
+	case WDIOC_GETTIMEOUT:
+		return put_user(timeout, p);
+
 	default:
 		return -ENOTTY;
 	}

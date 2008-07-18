@@ -161,23 +161,9 @@ static long ks8695_wdt_ioctl(struct file *file, unsigned int cmd,
 	int new_value;
 
 	switch (cmd) {
-	case WDIOC_KEEPALIVE:
-		ks8695_wdt_reload();	/* pat the watchdog */
-		return 0;
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ks8695_wdt_info,
 					sizeof(ks8695_wdt_info)) ? -EFAULT : 0;
-	case WDIOC_SETTIMEOUT:
-		if (get_user(new_value, p))
-			return -EFAULT;
-		if (ks8695_wdt_settimeout(new_value))
-			return -EINVAL;
-		/* Enable new time value */
-		ks8695_wdt_start();
-		/* Return current value */
-		return put_user(wdt_time, p);
-	case WDIOC_GETTIMEOUT:
-		return put_user(wdt_time, p);
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
@@ -189,6 +175,20 @@ static long ks8695_wdt_ioctl(struct file *file, unsigned int cmd,
 		if (new_value & WDIOS_ENABLECARD)
 			ks8695_wdt_start();
 		return 0;
+	case WDIOC_KEEPALIVE:
+		ks8695_wdt_reload();	/* pat the watchdog */
+		return 0;
+	case WDIOC_SETTIMEOUT:
+		if (get_user(new_value, p))
+			return -EFAULT;
+		if (ks8695_wdt_settimeout(new_value))
+			return -EINVAL;
+		/* Enable new time value */
+		ks8695_wdt_start();
+		/* Return current value */
+		return put_user(wdt_time, p);
+	case WDIOC_GETTIMEOUT:
+		return put_user(wdt_time, p);
 	default:
 		return -ENOTTY;
 	}

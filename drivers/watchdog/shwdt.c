@@ -351,20 +351,6 @@ static long sh_wdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, (int *)arg);
-	case WDIOC_KEEPALIVE:
-		sh_wdt_keepalive();
-		return 0;
-	case WDIOC_SETTIMEOUT:
-		if (get_user(new_heartbeat, (int *)arg))
-			return -EFAULT;
-
-		if (sh_wdt_set_heartbeat(new_heartbeat))
-			return -EINVAL;
-
-		sh_wdt_keepalive();
-		/* Fall */
-	case WDIOC_GETTIMEOUT:
-		return put_user(heartbeat, (int *)arg);
 	case WDIOC_SETOPTIONS:
 		if (get_user(options, (int *)arg))
 			return -EFAULT;
@@ -380,6 +366,20 @@ static long sh_wdt_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		return retval;
+	case WDIOC_KEEPALIVE:
+		sh_wdt_keepalive();
+		return 0;
+	case WDIOC_SETTIMEOUT:
+		if (get_user(new_heartbeat, (int *)arg))
+			return -EFAULT;
+
+		if (sh_wdt_set_heartbeat(new_heartbeat))
+			return -EINVAL;
+
+		sh_wdt_keepalive();
+		/* Fall */
+	case WDIOC_GETTIMEOUT:
+		return put_user(heartbeat, (int *)arg);
 	default:
 		return -ENOTTY;
 	}

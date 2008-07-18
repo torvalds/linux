@@ -159,13 +159,13 @@ static long davinci_wdt_ioctl(struct file *file,
 		ret = put_user(0, (int *)arg);
 		break;
 
-	case WDIOC_GETTIMEOUT:
-		ret = put_user(heartbeat, (int *)arg);
-		break;
-
 	case WDIOC_KEEPALIVE:
 		wdt_service();
 		ret = 0;
+		break;
+
+	case WDIOC_GETTIMEOUT:
+		ret = put_user(heartbeat, (int *)arg);
 		break;
 	}
 	return ret;

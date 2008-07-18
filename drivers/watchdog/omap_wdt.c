@@ -197,8 +197,6 @@ static long omap_wdt_ioctl(struct file *file, unsigned int cmd,
 	};
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		return copy_to_user((struct watchdog_info __user *)arg, &ident,
 				sizeof(ident));
@@ -231,6 +229,8 @@ static long omap_wdt_ioctl(struct file *file, unsigned int cmd,
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
 		return put_user(timer_margin, (int __user *)arg);
+	default:
+		return -ENOTTY;
 	}
 }
 

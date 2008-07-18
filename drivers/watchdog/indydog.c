@@ -128,11 +128,6 @@ static long indydog_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, (int *)arg);
-	case WDIOC_KEEPALIVE:
-		indydog_ping();
-		return 0;
-	case WDIOC_GETTIMEOUT:
-		return put_user(WATCHDOG_TIMEOUT, (int *)arg);
 	case WDIOC_SETOPTIONS:
 	{
 		if (get_user(options, (int *)arg))
@@ -147,6 +142,11 @@ static long indydog_ioctl(struct file *file, unsigned int cmd,
 		}
 		return retval;
 	}
+	case WDIOC_KEEPALIVE:
+		indydog_ping();
+		return 0;
+	case WDIOC_GETTIMEOUT:
+		return put_user(WATCHDOG_TIMEOUT, (int *)arg);
 	default:
 		return -ENOTTY;
 	}

@@ -160,8 +160,9 @@ static long cpu5wdt_ioctl(struct file *file, unsigned int cmd,
 	};
 
 	switch (cmd) {
-	case WDIOC_KEEPALIVE:
-		cpu5wdt_reset();
+	case WDIOC_GETSUPPORT:
+		if (copy_to_user(argp, &ident, sizeof(ident)))
+			return -EFAULT;
 		break;
 	case WDIOC_GETSTATUS:
 		value = inb(port + CPU5WDT_STATUS_REG);
@@ -169,10 +170,6 @@ static long cpu5wdt_ioctl(struct file *file, unsigned int cmd,
 		return put_user(value, p);
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
-	case WDIOC_GETSUPPORT:
-		if (copy_to_user(argp, &ident, sizeof(ident)))
-			return -EFAULT;
-		break;
 	case WDIOC_SETOPTIONS:
 		if (get_user(value, p))
 			return -EFAULT;
@@ -180,6 +177,9 @@ static long cpu5wdt_ioctl(struct file *file, unsigned int cmd,
 			cpu5wdt_start();
 		if (value & WDIOS_DISABLECARD)
 			cpu5wdt_stop();
+		break;
+	case WDIOC_KEEPALIVE:
+		cpu5wdt_reset();
 		break;
 	default:
 		return -ENOTTY;

@@ -280,10 +280,6 @@ static long esb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(triggered, p);
 
-	case WDIOC_KEEPALIVE:
-		esb_timer_keepalive();
-		return 0;
-
 	case WDIOC_SETOPTIONS:
 	{
 		if (get_user(new_options, p))
@@ -301,6 +297,10 @@ static long esb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		return retval;
 	}
+	case WDIOC_KEEPALIVE:
+		esb_timer_keepalive();
+		return 0;
+
 	case WDIOC_SETTIMEOUT:
 	{
 		if (get_user(new_heartbeat, p))

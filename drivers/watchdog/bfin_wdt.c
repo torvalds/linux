@@ -265,20 +265,6 @@ static long bfin_wdt_ioctl(struct file *file,
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(!!(_bfin_swrst & SWRST_RESET_WDOG), p);
-	case WDIOC_KEEPALIVE:
-		bfin_wdt_keepalive();
-		return 0;
-	case WDIOC_SETTIMEOUT: {
-		int new_timeout;
-
-		if (get_user(new_timeout, p))
-			return -EFAULT;
-		if (bfin_wdt_set_timeout(new_timeout))
-			return -EINVAL;
-	}
-	/* Fall */
-	case WDIOC_GETTIMEOUT:
-		return put_user(timeout, p);
 	case WDIOC_SETOPTIONS: {
 		unsigned long flags;
 		int options, ret = -EINVAL;
@@ -298,6 +284,20 @@ static long bfin_wdt_ioctl(struct file *file,
 		spin_unlock_irqrestore(&bfin_wdt_spinlock, flags);
 		return ret;
 	}
+	case WDIOC_KEEPALIVE:
+		bfin_wdt_keepalive();
+		return 0;
+	case WDIOC_SETTIMEOUT: {
+		int new_timeout;
+
+		if (get_user(new_timeout, p))
+			return -EFAULT;
+		if (bfin_wdt_set_timeout(new_timeout))
+			return -EINVAL;
+	}
+	/* Fall */
+	case WDIOC_GETTIMEOUT:
+		return put_user(timeout, p);
 	default:
 		return -ENOTTY;
 	}

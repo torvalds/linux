@@ -182,6 +182,11 @@ static long sbwdog_ioctl(struct file *file, unsigned int cmd,
 		ret = put_user(0, p);
 		break;
 
+	case WDIOC_KEEPALIVE:
+		sbwdog_pet(user_dog);
+		ret = 0;
+		break;
+
 	case WDIOC_SETTIMEOUT:
 		ret = get_user(time, p);
 		if (ret)
@@ -202,11 +207,6 @@ static long sbwdog_ioctl(struct file *file, unsigned int cmd,
 		 * which is 1*8 before the config register
 		 */
 		ret = put_user(__raw_readq(user_dog - 8) / 1000000, p);
-		break;
-
-	case WDIOC_KEEPALIVE:
-		sbwdog_pet(user_dog);
-		ret = 0;
 		break;
 	}
 	return ret;

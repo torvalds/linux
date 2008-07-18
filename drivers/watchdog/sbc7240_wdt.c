@@ -177,39 +177,41 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, (int __user *)arg);
+	case WDIOC_SETOPTIONS:
+	{
+		int options;
+		int retval = -EINVAL;
+
+		if (get_user(options, (int __user *)arg))
+			return -EFAULT;
+
+		if (options & WDIOS_DISABLECARD) {
+			wdt_disable();
+			retval = 0;
+		}
+
+		if (options & WDIOS_ENABLECARD) {
+			wdt_enable();
+			retval = 0;
+		}
+
+		return retval;
+	}
 	case WDIOC_KEEPALIVE:
 		wdt_keepalive();
 		return 0;
-	case WDIOC_SETOPTIONS:{
-			int options;
-			int retval = -EINVAL;
+	case WDIOC_SETTIMEOUT:
+	{
+		int new_timeout;
 
-			if (get_user(options, (int __user *)arg))
-				return -EFAULT;
+		if (get_user(new_timeout, (int __user *)arg))
+			return -EFAULT;
 
-			if (options & WDIOS_DISABLECARD) {
-				wdt_disable();
-				retval = 0;
-			}
+		if (wdt_set_timeout(new_timeout))
+			return -EINVAL;
 
-			if (options & WDIOS_ENABLECARD) {
-				wdt_enable();
-				retval = 0;
-			}
-
-			return retval;
-		}
-	case WDIOC_SETTIMEOUT:{
-			int new_timeout;
-
-			if (get_user(new_timeout, (int __user *)arg))
-				return -EFAULT;
-
-			if (wdt_set_timeout(new_timeout))
-				return -EINVAL;
-
-			/* Fall through */
-		}
+		/* Fall through */
+	}
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, (int __user *)arg);
 	default:

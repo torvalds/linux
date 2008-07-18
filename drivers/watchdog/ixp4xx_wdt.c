@@ -117,6 +117,11 @@ static long ixp4xx_wdt_ioctl(struct file *file, unsigned int cmd,
 		ret = put_user(boot_status, (int *)arg);
 		break;
 
+	case WDIOC_KEEPALIVE:
+		wdt_enable();
+		ret = 0;
+		break;
+
 	case WDIOC_SETTIMEOUT:
 		ret = get_user(time, (int *)arg);
 		if (ret)
@@ -133,11 +138,6 @@ static long ixp4xx_wdt_ioctl(struct file *file, unsigned int cmd,
 
 	case WDIOC_GETTIMEOUT:
 		ret = put_user(heartbeat, (int *)arg);
-		break;
-
-	case WDIOC_KEEPALIVE:
-		wdt_enable();
-		ret = 0;
 		break;
 	}
 	return ret;

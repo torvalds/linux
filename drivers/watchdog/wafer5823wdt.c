@@ -145,22 +145,6 @@ static long wafwdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
 
-	case WDIOC_KEEPALIVE:
-		wafwdt_ping();
-		break;
-
-	case WDIOC_SETTIMEOUT:
-		if (get_user(new_timeout, p))
-			return -EFAULT;
-		if ((new_timeout < 1) || (new_timeout > 255))
-			return -EINVAL;
-		timeout = new_timeout;
-		wafwdt_stop();
-		wafwdt_start();
-		/* Fall */
-	case WDIOC_GETTIMEOUT:
-		return put_user(timeout, p);
-
 	case WDIOC_SETOPTIONS:
 	{
 		int options, retval = -EINVAL;
@@ -180,6 +164,22 @@ static long wafwdt_ioctl(struct file *file, unsigned int cmd,
 
 		return retval;
 	}
+
+	case WDIOC_KEEPALIVE:
+		wafwdt_ping();
+		break;
+
+	case WDIOC_SETTIMEOUT:
+		if (get_user(new_timeout, p))
+			return -EFAULT;
+		if ((new_timeout < 1) || (new_timeout > 255))
+			return -EINVAL;
+		timeout = new_timeout;
+		wafwdt_stop();
+		wafwdt_start();
+		/* Fall */
+	case WDIOC_GETTIMEOUT:
+		return put_user(timeout, p);
 
 	default:
 		return -ENOTTY;

@@ -221,26 +221,9 @@ static long at32_wdt_ioctl(struct file *file,
 	int __user *p = argp;
 
 	switch (cmd) {
-	case WDIOC_KEEPALIVE:
-		at32_wdt_pat();
-		ret = 0;
-		break;
 	case WDIOC_GETSUPPORT:
 		ret = copy_to_user(argp, &at32_wdt_info,
 				sizeof(at32_wdt_info)) ? -EFAULT : 0;
-		break;
-	case WDIOC_SETTIMEOUT:
-		ret = get_user(time, p);
-		if (ret)
-			break;
-		ret = at32_wdt_settimeout(time);
-		if (ret)
-			break;
-		/* Enable new time value */
-		at32_wdt_start();
-		/* fall through */
-	case WDIOC_GETTIMEOUT:
-		ret = put_user(wdt->timeout, p);
 		break;
 	case WDIOC_GETSTATUS:
 		ret = put_user(0, p);
@@ -257,6 +240,23 @@ static long at32_wdt_ioctl(struct file *file,
 		if (time & WDIOS_ENABLECARD)
 			at32_wdt_start();
 		ret = 0;
+		break;
+	case WDIOC_KEEPALIVE:
+		at32_wdt_pat();
+		ret = 0;
+		break;
+	case WDIOC_SETTIMEOUT:
+		ret = get_user(time, p);
+		if (ret)
+			break;
+		ret = at32_wdt_settimeout(time);
+		if (ret)
+			break;
+		/* Enable new time value */
+		at32_wdt_start();
+		/* fall through */
+	case WDIOC_GETTIMEOUT:
+		ret = put_user(wdt->timeout, p);
 		break;
 	}
 
