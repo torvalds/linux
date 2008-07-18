@@ -771,6 +771,13 @@ config PROFILING
 	  Say Y here to enable the extended profiling support mechanisms used
 	  by profilers such as OProfile.
 
+config TRACEPOINTS
+	bool "Activate tracepoints"
+	default y
+	help
+	  Place an empty function call at each tracepoint site. Can be
+	  dynamically changed for a probe function.
+
 config MARKERS
 	bool "Activate markers"
 	help
