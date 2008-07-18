@@ -590,14 +590,9 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 	 * Give the other CPU some time to accept the IPI.
 	 */
 	udelay(200);
-	/*
-	 * Due to the Pentium erratum 3AP.
-	 */
 	maxlvt = lapic_get_maxlvt();
-	if (maxlvt > 3) {
-		apic_read_around(APIC_SPIV);
+	if (maxlvt > 3)			/* Due to the Pentium erratum 3AP.  */
 		apic_write(APIC_ESR, 0);
-	}
 	accept_status = (apic_read(APIC_ESR) & 0xEF);
 	Dprintk("NMI sent.\n");
 
@@ -623,12 +618,14 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		return send_status;
 	}
 
+	maxlvt = lapic_get_maxlvt();
+
 	/*
 	 * Be paranoid about clearing APIC errors.
 	 */
 	if (APIC_INTEGRATED(apic_version[phys_apicid])) {
-		apic_read_around(APIC_SPIV);
-		apic_write(APIC_ESR, 0);
+		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
+			apic_write(APIC_ESR, 0);
 		apic_read(APIC_ESR);
 	}
 
@@ -683,12 +680,10 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	 */
 	Dprintk("#startup loops: %d.\n", num_starts);
 
-	maxlvt = lapic_get_maxlvt();
-
 	for (j = 1; j <= num_starts; j++) {
 		Dprintk("Sending STARTUP #%d.\n", j);
-		apic_read_around(APIC_SPIV);
-		apic_write(APIC_ESR, 0);
+		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
+			apic_write(APIC_ESR, 0);
 		apic_read(APIC_ESR);
 		Dprintk("After apic_write.\n");
 
@@ -716,13 +711,8 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		 * Give the other CPU some time to accept the IPI.
 		 */
 		udelay(200);
-		/*
-		 * Due to the Pentium erratum 3AP.
-		 */
-		if (maxlvt > 3) {
-			apic_read_around(APIC_SPIV);
+		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
-		}
 		accept_status = (apic_read(APIC_ESR) & 0xEF);
 		if (send_status || accept_status)
 			break;

@@ -906,7 +906,6 @@ static inline int __init activate_vmi(void)
 #ifdef CONFIG_X86_LOCAL_APIC
        para_fill(apic_ops->read, APICRead);
        para_fill(apic_ops->write, APICWrite);
-       para_fill(apic_ops->write_atomic, APICWrite);
 #endif
 
 	/*

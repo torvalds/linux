@@ -816,7 +816,6 @@ static u32 lguest_apic_safe_wait_icr_idle(void)
 static struct apic_ops lguest_basic_apic_ops = {
 	.read = lguest_apic_read,
 	.write = lguest_apic_write,
-	.write_atomic = lguest_apic_write,
 	.icr_read = lguest_apic_icr_read,
 	.icr_write = lguest_apic_icr_write,
 	.wait_icr_idle = lguest_apic_wait_icr_idle,

@@ -583,7 +583,6 @@ static u32 xen_safe_apic_wait_icr_idle(void)
 static struct apic_ops xen_basic_apic_ops = {
 	.read = xen_apic_read,
 	.write = xen_apic_write,
-	.write_atomic = xen_apic_write,
 	.icr_read = xen_apic_icr_read,
 	.icr_write = xen_apic_icr_write,
 	.wait_icr_idle = xen_apic_wait_icr_idle,
