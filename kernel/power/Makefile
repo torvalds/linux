@@ -12,5 +12,6 @@ obj-$(CONFIG_WAKELOCK)		+= wakelock.o
 obj-$(CONFIG_USER_WAKELOCK)	+= userwakelock.o
 obj-$(CONFIG_EARLYSUSPEND)	+= earlysuspend.o
 obj-$(CONFIG_CONSOLE_EARLYSUSPEND)	+= consoleearlysuspend.o
+obj-$(CONFIG_FB_EARLYSUSPEND)	+= fbearlysuspend.o
 
 obj-$(CONFIG_MAGIC_SYSRQ)	+= poweroff.o

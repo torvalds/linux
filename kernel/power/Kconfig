@@ -61,6 +61,7 @@ config EARLYSUSPEND
 
 choice
 	prompt "User-space screen access"
+	default FB_EARLYSUSPEND if !FRAMEBUFFER_CONSOLE
 	default CONSOLE_EARLYSUSPEND
 	depends on HAS_EARLYSUSPEND
 
@@ -74,6 +75,14 @@ choice
 		  Register early suspend handler to perform a console switch to
 		  when user-space should stop drawing to the screen and a switch
 		  back when it should resume.
+
+	config FB_EARLYSUSPEND
+		bool "Sysfs interface"
+		depends on HAS_EARLYSUSPEND
+		---help---
+		  Register early suspend handler that notifies and waits for
+		  user-space through sysfs when user-space should stop drawing
+		  to the screen and notifies user-space when it should resume.
 endchoice
 
 config HIBERNATE_CALLBACKS
