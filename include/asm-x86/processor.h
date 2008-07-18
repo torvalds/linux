@@ -722,8 +722,6 @@ static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
 
 extern void mwait_idle_with_hints(unsigned long eax, unsigned long ecx);
 
-extern int			force_mwait;
-
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
 
 extern unsigned long		boot_option_idle_override;

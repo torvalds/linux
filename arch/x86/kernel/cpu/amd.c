@@ -24,8 +24,6 @@
 extern void vide(void);
 __asm__(".align 4\nvide: ret");
 
-int force_mwait __cpuinitdata;
-
 static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 {
 	if (cpuid_eax(0x80000000) >= 0x80000007) {
