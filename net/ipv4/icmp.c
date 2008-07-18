@@ -114,7 +114,6 @@ struct icmp_bxm {
 /*
  *	Statistics
  */
-DEFINE_SNMP_STAT(struct icmp_mib, icmp_statistics) __read_mostly;
 DEFINE_SNMP_STAT(struct icmpmsg_mib, icmpmsg_statistics) __read_mostly;
 
 /* An array of errno for error messages from dest unreach. */
@@ -1213,5 +1212,4 @@ int __init icmp_init(void)
 
 EXPORT_SYMBOL(icmp_err_convert);
 EXPORT_SYMBOL(icmp_send);
-EXPORT_SYMBOL(icmp_statistics);
 EXPORT_SYMBOL(xrlim_allow);

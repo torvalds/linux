@@ -9,6 +9,7 @@ struct netns_mib {
 	DEFINE_SNMP_STAT(struct linux_mib, net_statistics);
 	DEFINE_SNMP_STAT(struct udp_mib, udp_statistics);
 	DEFINE_SNMP_STAT(struct udp_mib, udplite_statistics);
+	DEFINE_SNMP_STAT(struct icmp_mib, icmp_statistics);
 };
 
 #endif

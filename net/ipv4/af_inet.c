@@ -1355,10 +1355,15 @@ static __net_init int ipv4_mib_init_net(struct net *net)
 	if (snmp_mib_init((void **)net->mib.udplite_statistics,
 			  sizeof(struct udp_mib)) < 0)
 		goto err_udplite_mib;
+	if (snmp_mib_init((void **)net->mib.icmp_statistics,
+			  sizeof(struct icmp_mib)) < 0)
+		goto err_icmp_mib;
 
 	tcp_mib_init(net);
 	return 0;
 
+err_icmp_mib:
+	snmp_mib_free((void **)net->mib.udplite_statistics);
 err_udplite_mib:
 	snmp_mib_free((void **)net->mib.udp_statistics);
 err_udp_mib:
@@ -1373,6 +1378,7 @@ err_tcp_mib:
 
 static __net_exit void ipv4_mib_exit_net(struct net *net)
 {
+	snmp_mib_free((void **)net->mib.icmp_statistics);
 	snmp_mib_free((void **)net->mib.udplite_statistics);
 	snmp_mib_free((void **)net->mib.udp_statistics);
 	snmp_mib_free((void **)net->mib.net_statistics);
@@ -1387,9 +1393,6 @@ static __net_initdata struct pernet_operations ipv4_mib_ops = {
 
 static int __init init_ipv4_mibs(void)
 {
-	if (snmp_mib_init((void **)icmp_statistics,
-			  sizeof(struct icmp_mib)) < 0)
-		goto err_icmp_mib;
 	if (snmp_mib_init((void **)icmpmsg_statistics,
 			  sizeof(struct icmpmsg_mib)) < 0)
 		goto err_icmpmsg_mib;
@@ -1402,8 +1405,6 @@ static int __init init_ipv4_mibs(void)
 err_net:
 	snmp_mib_free((void **)icmpmsg_statistics);
 err_icmpmsg_mib:
-	snmp_mib_free((void **)icmp_statistics);
-err_icmp_mib:
 	return -ENOMEM;
 }
 
