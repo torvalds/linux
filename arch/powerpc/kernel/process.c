@@ -53,6 +53,7 @@ extern unsigned long _get_SP(void);
 #ifndef CONFIG_SMP
 struct task_struct *last_task_used_math = NULL;
 struct task_struct *last_task_used_altivec = NULL;
+struct task_struct *last_task_used_vsx = NULL;
 struct task_struct *last_task_used_spe = NULL;
 #endif
 
@@ -104,17 +105,6 @@ void enable_kernel_fp(void)
 }
 EXPORT_SYMBOL(enable_kernel_fp);
 
-int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
-{
-	if (!tsk->thread.regs)
-		return 0;
-	flush_fp_to_thread(current);
-
-	memcpy(fpregs, &tsk->thread.fpr[0], sizeof(*fpregs));
-
-	return 1;
-}
-
 #ifdef CONFIG_ALTIVEC
 void enable_kernel_altivec(void)
 {
@@ -148,36 +138,48 @@ void flush_altivec_to_thread(struct task_struct *tsk)
 		preempt_enable();
 	}
 }
-
-int dump_task_altivec(struct task_struct *tsk, elf_vrregset_t *vrregs)
-{
-	/* ELF_NVRREG includes the VSCR and VRSAVE which we need to save
-	 * separately, see below */
-	const int nregs = ELF_NVRREG - 2;
-	elf_vrreg_t *reg;
-	u32 *dest;
-
-	if (tsk == current)
-		flush_altivec_to_thread(tsk);
-
-	reg = (elf_vrreg_t *)vrregs;
-
-	/* copy the 32 vr registers */
-	memcpy(reg, &tsk->thread.vr[0], nregs * sizeof(*reg));
-	reg += nregs;
-
-	/* copy the vscr */
-	memcpy(reg, &tsk->thread.vscr, sizeof(*reg));
-	reg++;
-
-	/* vrsave is stored in the high 32bit slot of the final 128bits */
-	memset(reg, 0, sizeof(*reg));
-	dest = (u32 *)reg;
-	*dest = tsk->thread.vrsave;
-
-	return 1;
-}
 #endif /* CONFIG_ALTIVEC */
+
+#ifdef CONFIG_VSX
+#if 0
+/* not currently used, but some crazy RAID module might want to later */
+void enable_kernel_vsx(void)
+{
+	WARN_ON(preemptible());
+
+#ifdef CONFIG_SMP
+	if (current->thread.regs && (current->thread.regs->msr & MSR_VSX))
+		giveup_vsx(current);
+	else
+		giveup_vsx(NULL);	/* just enable vsx for kernel - force */
+#else
+	giveup_vsx(last_task_used_vsx);
+#endif /* CONFIG_SMP */
+}
+EXPORT_SYMBOL(enable_kernel_vsx);
+#endif
+
+void giveup_vsx(struct task_struct *tsk)
+{
+	giveup_fpu(tsk);
+	giveup_altivec(tsk);
+	__giveup_vsx(tsk);
+}
+
+void flush_vsx_to_thread(struct task_struct *tsk)
+{
+	if (tsk->thread.regs) {
+		preempt_disable();
+		if (tsk->thread.regs->msr & MSR_VSX) {
+#ifdef CONFIG_SMP
+			BUG_ON(tsk != current);
+#endif
+			giveup_vsx(tsk);
+		}
+		preempt_enable();
+	}
+}
+#endif /* CONFIG_VSX */
 
 #ifdef CONFIG_SPE
 
@@ -209,14 +211,6 @@ void flush_spe_to_thread(struct task_struct *tsk)
 		preempt_enable();
 	}
 }
-
-int dump_spe(struct pt_regs *regs, elf_vrregset_t *evrregs)
-{
-	flush_spe_to_thread(current);
-	/* We copy u32 evr[32] + u64 acc + u32 spefscr -> 35 */
-	memcpy(evrregs, &current->thread.evr[0], sizeof(u32) * 35);
-	return 1;
-}
 #endif /* CONFIG_SPE */
 
 #ifndef CONFIG_SMP
@@ -233,6 +227,10 @@ void discard_lazy_cpu_state(void)
 	if (last_task_used_altivec == current)
 		last_task_used_altivec = NULL;
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_VSX
+	if (last_task_used_vsx == current)
+		last_task_used_vsx = NULL;
+#endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 	if (last_task_used_spe == current)
 		last_task_used_spe = NULL;
@@ -297,6 +295,11 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	if (prev->thread.regs && (prev->thread.regs->msr & MSR_VEC))
 		giveup_altivec(prev);
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_VSX
+	if (prev->thread.regs && (prev->thread.regs->msr & MSR_VSX))
+		/* VMX and FPU registers are already save here */
+		__giveup_vsx(prev);
+#endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 	/*
 	 * If the previous thread used spe in the last quantum
@@ -317,6 +320,10 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	if (new->thread.regs && last_task_used_altivec == new)
 		new->thread.regs->msr |= MSR_VEC;
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_VSX
+	if (new->thread.regs && last_task_used_vsx == new)
+		new->thread.regs->msr |= MSR_VSX;
+#endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 	/* Avoid the trap.  On smp this this never happens since
 	 * we don't set last_task_used_spe
@@ -417,6 +424,8 @@ static struct regbit {
 	{MSR_EE,	"EE"},
 	{MSR_PR,	"PR"},
 	{MSR_FP,	"FP"},
+	{MSR_VEC,	"VEC"},
+	{MSR_VSX,	"VSX"},
 	{MSR_ME,	"ME"},
 	{MSR_IR,	"IR"},
 	{MSR_DR,	"DR"},
@@ -484,10 +493,8 @@ void show_regs(struct pt_regs * regs)
 	 * Lookup NIP late so we have the best change of getting the
 	 * above info out without failing
 	 */
-	printk("NIP ["REG"] ", regs->nip);
-	print_symbol("%s\n", regs->nip);
-	printk("LR ["REG"] ", regs->link);
-	print_symbol("%s\n", regs->link);
+	printk("NIP ["REG"] %pS\n", regs->nip, (void *)regs->nip);
+	printk("LR ["REG"] %pS\n", regs->link, (void *)regs->link);
 #endif
 	show_stack(current, (unsigned long *) regs->gpr[1]);
 	if (!user_mode(regs))
@@ -534,6 +541,7 @@ void prepare_to_copy(struct task_struct *tsk)
 {
 	flush_fp_to_thread(current);
 	flush_altivec_to_thread(current);
+	flush_vsx_to_thread(current);
 	flush_spe_to_thread(current);
 }
 
@@ -689,6 +697,9 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 #endif
 
 	discard_lazy_cpu_state();
+#ifdef CONFIG_VSX
+	current->thread.used_vsr = 0;
+#endif
 	memset(current->thread.fpr, 0, sizeof(current->thread.fpr));
 	current->thread.fpscr.val = 0;
 #ifdef CONFIG_ALTIVEC
@@ -971,8 +982,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		newsp = stack[0];
 		ip = stack[STACK_FRAME_LR_SAVE];
 		if (!firstframe || ip != lr) {
-			printk("["REG"] ["REG"] ", sp, ip);
-			print_symbol("%s", ip);
+			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
 			if (firstframe)
 				printk(" (unreliable)");
 			printk("\n");
@@ -987,10 +997,9 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		    && stack[STACK_FRAME_MARKER] == STACK_FRAME_REGS_MARKER) {
 			struct pt_regs *regs = (struct pt_regs *)
 				(sp + STACK_FRAME_OVERHEAD);
-			printk("--- Exception: %lx", regs->trap);
-			print_symbol(" at %s\n", regs->nip);
 			lr = regs->link;
-			print_symbol("    LR = %s\n", lr);
+			printk("--- Exception: %lx at %pS\n    LR = %pS\n",
+			       regs->trap, (void *)regs->nip, (void *)lr);
 			firstframe = 1;
 		}
 

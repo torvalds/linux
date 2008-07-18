@@ -288,11 +288,11 @@ acpi_ex_convert_to_ascii(acpi_integer integer,
 			 u16 base, u8 * string, u8 data_width)
 {
 	acpi_integer digit;
-	acpi_native_uint i;
-	acpi_native_uint j;
-	acpi_native_uint k = 0;
-	acpi_native_uint hex_length;
-	acpi_native_uint decimal_length;
+	u32 i;
+	u32 j;
+	u32 k = 0;
+	u32 hex_length;
+	u32 decimal_length;
 	u32 remainder;
 	u8 supress_zeros;
 
@@ -348,7 +348,7 @@ acpi_ex_convert_to_ascii(acpi_integer integer,
 
 		/* hex_length: 2 ascii hex chars per data byte */
 
-		hex_length = (acpi_native_uint) ACPI_MUL_2(data_width);
+		hex_length = ACPI_MUL_2(data_width);
 		for (i = 0, j = (hex_length - 1); i < hex_length; i++, j--) {
 
 			/* Get one hex digit, most significant digits first */

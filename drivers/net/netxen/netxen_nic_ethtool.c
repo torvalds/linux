@@ -369,7 +369,7 @@ netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 		for (i = 3; niu_registers[mode].reg[i - 3] != -1; i++) {
 			/* GB: port specific registers */
 			if (mode == 0 && i >= 19)
-				window = physical_port[adapter->portnum] *
+				window = adapter->physical_port *
 					NETXEN_NIC_PORT_WINDOW;
 
 			NETXEN_NIC_LOCKED_READ_REG(niu_registers[mode].
@@ -527,7 +527,7 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	__u32 val;
-	int port = physical_port[adapter->portnum];
+	int port = adapter->physical_port;
 
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
 		if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
@@ -573,7 +573,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	__u32 val;
-	int port = physical_port[adapter->portnum];
+	int port = adapter->physical_port;
 	/* read mode */
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
 		if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))

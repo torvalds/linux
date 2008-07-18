@@ -7,6 +7,7 @@
 #include <linux/hdreg.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/smp_lock.h>
 #include "aoe.h"
 
 enum {
@@ -174,12 +175,16 @@ aoechr_open(struct inode *inode, struct file *filp)
 {
 	int n, i;
 
+	lock_kernel();
 	n = iminor(inode);
 	filp->private_data = (void *) (unsigned long) n;
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
-		if (chardevs[i].minor == n)
+		if (chardevs[i].minor == n) {
+			unlock_kernel();
 			return 0;
+		}
+	unlock_kernel();
 	return -EINVAL;
 }
 

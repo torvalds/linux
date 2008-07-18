@@ -443,7 +443,7 @@ mpc52xx_bcom_probe(struct of_device *op, const struct of_device_id *match)
 
 	/* Done ! */
 	printk(KERN_INFO "DMA: MPC52xx BestComm engine @%08lx ok !\n",
-		bcom_eng->regs_base);
+		(long)bcom_eng->regs_base);
 
 	return 0;
 

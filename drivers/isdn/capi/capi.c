@@ -20,6 +20,7 @@
 #include <linux/signal.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
+#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
@@ -983,13 +984,17 @@ capi_ioctl(struct inode *inode, struct file *file,
 static int
 capi_open(struct inode *inode, struct file *file)
 {
+	int ret;
+	
+	lock_kernel();
 	if (file->private_data)
-		return -EEXIST;
-
-	if ((file->private_data = capidev_alloc()) == NULL)
-		return -ENOMEM;
-
-	return nonseekable_open(inode, file);
+		ret = -EEXIST;
+	else if ((file->private_data = capidev_alloc()) == NULL)
+		ret = -ENOMEM;
+	else
+		ret = nonseekable_open(inode, file);
+	unlock_kernel();
+	return ret;
 }
 
 static int

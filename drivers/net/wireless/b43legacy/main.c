@@ -2378,8 +2378,10 @@ static int b43legacy_op_tx(struct ieee80211_hw *hw,
 	} else
 		err = b43legacy_dma_tx(dev, skb, ctl);
 out:
-	if (unlikely(err))
-		return NETDEV_TX_BUSY;
+	if (unlikely(err)) {
+		/* Drop the packet. */
+		dev_kfree_skb_any(skb);
+	}
 	return NETDEV_TX_OK;
 }
 
@@ -3039,7 +3041,6 @@ static void b43legacy_set_pretbtt(struct b43legacy_wldev *dev)
 /* Locking: wl->mutex */
 static void b43legacy_wireless_core_exit(struct b43legacy_wldev *dev)
 {
-	struct b43legacy_wl *wl = dev->wl;
 	struct b43legacy_phy *phy = &dev->phy;
 	u32 macctl;
 
@@ -3053,12 +3054,6 @@ static void b43legacy_wireless_core_exit(struct b43legacy_wldev *dev)
 	macctl &= ~B43legacy_MACCTL_PSM_RUN;
 	macctl |= B43legacy_MACCTL_PSM_JMP0;
 	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, macctl);
-
-	mutex_unlock(&wl->mutex);
-	/* Must unlock as it would otherwise deadlock. No races here.
-	 * Cancel possibly pending workqueues. */
-	cancel_work_sync(&dev->restart_work);
-	mutex_lock(&wl->mutex);
 
 	b43legacy_leds_exit(dev);
 	b43legacy_rng_exit(dev->wl);
@@ -3486,6 +3481,8 @@ static void b43legacy_chip_reset(struct work_struct *work)
 		}
 	}
 out:
+	if (err)
+		wl->current_dev = NULL; /* Failed to init the dev. */
 	mutex_unlock(&wl->mutex);
 	if (err)
 		b43legacyerr(wl, "Controller restart FAILED\n");
@@ -3618,9 +3615,11 @@ static void b43legacy_one_core_detach(struct ssb_device *dev)
 	struct b43legacy_wldev *wldev;
 	struct b43legacy_wl *wl;
 
+	/* Do not cancel ieee80211-workqueue based work here.
+	 * See comment in b43legacy_remove(). */
+
 	wldev = ssb_get_drvdata(dev);
 	wl = wldev->wl;
-	cancel_work_sync(&wldev->restart_work);
 	b43legacy_debugfs_remove_device(wldev);
 	b43legacy_wireless_core_detach(wldev);
 	list_del(&wldev->list);
@@ -3788,6 +3787,10 @@ static void b43legacy_remove(struct ssb_device *dev)
 {
 	struct b43legacy_wl *wl = ssb_get_devtypedata(dev);
 	struct b43legacy_wldev *wldev = ssb_get_drvdata(dev);
+
+	/* We must cancel any work here before unregistering from ieee80211,
+	 * as the ieee80211 unreg will destroy the workqueue. */
+	cancel_work_sync(&wldev->restart_work);
 
 	B43legacy_WARN_ON(!wl);
 	if (wl->current_dev == wldev)

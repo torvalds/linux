@@ -39,9 +39,6 @@
 
 #include "do_timer.h"
 
-unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
-EXPORT_SYMBOL(cpu_khz);
-
 int timer_ack;
 
 unsigned long profile_pc(struct pt_regs *regs)
@@ -84,8 +81,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	if (timer_ack) {
 		/*
 		 * Subtle, when I/O APICs are used we have to ack timer IRQ
-		 * manually to reset the IRR bit for do_slow_gettimeoffset().
-		 * This will also deassert NMI lines for the watchdog if run
+		 * manually to deassert NMI lines for the watchdog if run
 		 * on an 82489DX-based system.
 		 */
 		spin_lock(&i8259A_lock);

@@ -326,7 +326,7 @@ static void camelot_pcm_free(struct snd_pcm *pcm)
 }
 
 static int camelot_pcm_new(struct snd_card *card,
-			   struct snd_soc_codec_dai *dai,
+			   struct snd_soc_dai *dai,
 			   struct snd_pcm *pcm)
 {
 	/* dont use SNDRV_DMA_TYPE_DEV, since it will oops the SH kernel

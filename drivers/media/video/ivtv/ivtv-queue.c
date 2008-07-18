@@ -193,7 +193,7 @@ void ivtv_flush_queues(struct ivtv_stream *s)
 int ivtv_stream_alloc(struct ivtv_stream *s)
 {
 	struct ivtv *itv = s->itv;
-	int SGsize = sizeof(struct ivtv_sg_element) * s->buffers;
+	int SGsize = sizeof(struct ivtv_sg_host_element) * s->buffers;
 	int i;
 
 	if (s->buffers == 0)

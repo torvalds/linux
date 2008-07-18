@@ -97,37 +97,22 @@ static __init inline int srat_disabled(void)
 	return numa_off || acpi_numa < 0;
 }
 
-/*
- * A lot of BIOS fill in 10 (= no distance) everywhere. This messes
- * up the NUMA heuristics which wants the local node to have a smaller
- * distance than the others.
- * Do some quick checks here and only use the SLIT if it passes.
- */
-static __init int slit_valid(struct acpi_table_slit *slit)
-{
-	int i, j;
-	int d = slit->locality_count;
-	for (i = 0; i < d; i++) {
-		for (j = 0; j < d; j++)  {
-			u8 val = slit->entry[d*i + j];
-			if (i == j) {
-				if (val != LOCAL_DISTANCE)
-					return 0;
-			} else if (val <= LOCAL_DISTANCE)
-				return 0;
-		}
-	}
-	return 1;
-}
-
 /* Callback for SLIT parsing */
 void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 {
-	if (!slit_valid(slit)) {
-		printk(KERN_INFO "ACPI: SLIT table looks invalid. Not used.\n");
-		return;
-	}
-	acpi_slit = slit;
+	unsigned length;
+	unsigned long phys;
+
+	length = slit->header.length;
+	phys = find_e820_area(0, max_pfn_mapped<<PAGE_SHIFT, length,
+		 PAGE_SIZE);
+
+	if (phys == -1L)
+		panic(" Can not save slit!\n");
+
+	acpi_slit = __va(phys);
+	memcpy(acpi_slit, slit, length);
+	reserve_early(phys, phys + length, "ACPI SLIT");
 }
 
 /* Callback for Proximity Domain -> LAPIC mapping */
@@ -326,7 +311,7 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 			pxmram = 0;
 	}
 
-	e820ram = end_pfn - absent_pages_in_range(0, end_pfn);
+	e820ram = max_pfn - absent_pages_in_range(0, max_pfn);
 	/* We seem to lose 3 pages somewhere. Allow a bit of slack. */
 	if ((long)(e820ram - pxmram) >= 1*1024*1024) {
 		printk(KERN_ERR
@@ -403,7 +388,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		if (node == NUMA_NO_NODE)
 			continue;
 		if (!node_isset(node, node_possible_map))
-			numa_set_node(i, NUMA_NO_NODE);
+			numa_clear_node(i);
 	}
 	numa_init_array();
 	return 0;
@@ -522,6 +507,7 @@ int __node_distance(int a, int b)
 
 EXPORT_SYMBOL(__node_distance);
 
+#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) || defined(CONFIG_ACPI_HOTPLUG_MEMORY)
 int memory_add_physaddr_to_nid(u64 start)
 {
 	int i, ret = 0;
@@ -533,4 +519,4 @@ int memory_add_physaddr_to_nid(u64 start)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
-
+#endif

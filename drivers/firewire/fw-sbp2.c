@@ -86,6 +86,11 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
  * - delay inquiry
  *   Wait extra SBP2_INQUIRY_DELAY seconds after login before SCSI inquiry.
  *
+ * - power condition
+ *   Set the power condition field in the START STOP UNIT commands sent by
+ *   sd_mod on suspend, resume, and shutdown (if manage_start_stop is on).
+ *   Some disks need this to spin down or to resume properly.
+ *
  * - override internal blacklist
  *   Instead of adding to the built-in blacklist, use only the workarounds
  *   specified in the module load parameter.
@@ -97,6 +102,7 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
 #define SBP2_WORKAROUND_FIX_CAPACITY	0x8
 #define SBP2_WORKAROUND_DELAY_INQUIRY	0x10
 #define SBP2_INQUIRY_DELAY		12
+#define SBP2_WORKAROUND_POWER_CONDITION	0x20
 #define SBP2_WORKAROUND_OVERRIDE	0x100
 
 static int sbp2_param_workarounds;
@@ -107,6 +113,8 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", skip mode page 8 = "   __stringify(SBP2_WORKAROUND_MODE_SENSE_8)
 	", fix capacity = "       __stringify(SBP2_WORKAROUND_FIX_CAPACITY)
 	", delay inquiry = "      __stringify(SBP2_WORKAROUND_DELAY_INQUIRY)
+	", set power condition in start stop unit = "
+				  __stringify(SBP2_WORKAROUND_POWER_CONDITION)
 	", override internal blacklist = " __stringify(SBP2_WORKAROUND_OVERRIDE)
 	", or a combination)");
 
@@ -310,17 +318,24 @@ static const struct {
 		.firmware_revision	= 0x002800,
 		.model			= 0x001010,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36 |
-					  SBP2_WORKAROUND_MODE_SENSE_8,
+					  SBP2_WORKAROUND_MODE_SENSE_8 |
+					  SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* DViCO Momobay FX-3A with TSB42AA9A bridge */ {
 		.firmware_revision	= 0x002800,
 		.model			= 0x000000,
-		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY,
+		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY |
+					  SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,
 		.model			= ~0,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36,
+	},
+	/* PL-3507 bridge with Prolific firmware */ {
+		.firmware_revision	= 0x012800,
+		.model			= ~0,
+		.workarounds		= SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Symbios bridge */ {
 		.firmware_revision	= 0xa0b800,
@@ -1051,7 +1066,8 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
 			break;
 
 		case SBP2_CSR_LOGICAL_UNIT_DIRECTORY:
-			if (sbp2_scan_logical_unit_dir(tgt, ci.p + value) < 0)
+			/* Adjust for the increment in the iterator */
+			if (sbp2_scan_logical_unit_dir(tgt, ci.p - 1 + value) < 0)
 				return -ENOMEM;
 			break;
 		}
@@ -1529,6 +1545,9 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 
 	sdev->use_10_for_rw = 1;
 
+	if (sbp2_param_exclusive_login)
+		sdev->manage_start_stop = 1;
+
 	if (sdev->type == TYPE_ROM)
 		sdev->use_10_for_ms = 1;
 
@@ -1538,6 +1557,9 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_FIX_CAPACITY)
 		sdev->fix_capacity = 1;
+
+	if (lu->tgt->workarounds & SBP2_WORKAROUND_POWER_CONDITION)
+		sdev->start_stop_pwr_cond = 1;
 
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
 		blk_queue_max_sectors(sdev->request_queue, 128 * 1024 / 512);

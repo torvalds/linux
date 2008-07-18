@@ -139,7 +139,7 @@ static int l_show(struct seq_file *m, void *v)
 
 	list_for_each_entry(entry, &class->locks_after, entry) {
 		if (entry->distance == 1) {
-			seq_printf(m, " -> [%p] ", entry->class);
+			seq_printf(m, " -> [%p] ", entry->class->key);
 			print_name(m, entry->class);
 			seq_puts(m, "\n");
 		}
@@ -177,6 +177,95 @@ static const struct file_operations proc_lockdep_operations = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
+
+#ifdef CONFIG_PROVE_LOCKING
+static void *lc_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct lock_chain *chain;
+
+	(*pos)++;
+
+	if (v == SEQ_START_TOKEN)
+		chain = m->private;
+	else {
+		chain = v;
+
+		if (*pos < nr_lock_chains)
+			chain = lock_chains + *pos;
+		else
+			chain = NULL;
+	}
+
+	return chain;
+}
+
+static void *lc_start(struct seq_file *m, loff_t *pos)
+{
+	if (*pos == 0)
+		return SEQ_START_TOKEN;
+
+	if (*pos < nr_lock_chains)
+		return lock_chains + *pos;
+
+	return NULL;
+}
+
+static void lc_stop(struct seq_file *m, void *v)
+{
+}
+
+static int lc_show(struct seq_file *m, void *v)
+{
+	struct lock_chain *chain = v;
+	struct lock_class *class;
+	int i;
+
+	if (v == SEQ_START_TOKEN) {
+		seq_printf(m, "all lock chains:\n");
+		return 0;
+	}
+
+	seq_printf(m, "irq_context: %d\n", chain->irq_context);
+
+	for (i = 0; i < chain->depth; i++) {
+		class = lock_chain_get_class(chain, i);
+		seq_printf(m, "[%p] ", class->key);
+		print_name(m, class);
+		seq_puts(m, "\n");
+	}
+	seq_puts(m, "\n");
+
+	return 0;
+}
+
+static const struct seq_operations lockdep_chains_ops = {
+	.start	= lc_start,
+	.next	= lc_next,
+	.stop	= lc_stop,
+	.show	= lc_show,
+};
+
+static int lockdep_chains_open(struct inode *inode, struct file *file)
+{
+	int res = seq_open(file, &lockdep_chains_ops);
+	if (!res) {
+		struct seq_file *m = file->private_data;
+
+		if (nr_lock_chains)
+			m->private = lock_chains;
+		else
+			m->private = NULL;
+	}
+	return res;
+}
+
+static const struct file_operations proc_lockdep_chains_operations = {
+	.open		= lockdep_chains_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+#endif /* CONFIG_PROVE_LOCKING */
 
 static void lockdep_stats_debug_show(struct seq_file *m)
 {
@@ -294,6 +383,8 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 #ifdef CONFIG_PROVE_LOCKING
 	seq_printf(m, " dependency chains:             %11lu [max: %lu]\n",
 			nr_lock_chains, MAX_LOCKDEP_CHAINS);
+	seq_printf(m, " dependency chain hlocks:       %11d [max: %lu]\n",
+			nr_chain_hlocks, MAX_LOCKDEP_CHAIN_HLOCKS);
 #endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -661,6 +752,10 @@ static const struct file_operations proc_lock_stat_operations = {
 static int __init lockdep_proc_init(void)
 {
 	proc_create("lockdep", S_IRUSR, NULL, &proc_lockdep_operations);
+#ifdef CONFIG_PROVE_LOCKING
+	proc_create("lockdep_chains", S_IRUSR, NULL,
+		    &proc_lockdep_chains_operations);
+#endif
 	proc_create("lockdep_stats", S_IRUSR, NULL,
 		    &proc_lockdep_stats_operations);
 

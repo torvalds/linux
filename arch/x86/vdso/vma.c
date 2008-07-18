@@ -16,7 +16,7 @@
 #include "vextern.h"		/* Just for VMAGIC.  */
 #undef VEXTERN
 
-int vdso_enabled = 1;
+unsigned int __read_mostly vdso_enabled = 1;
 
 extern char vdso_start[], vdso_end[];
 extern unsigned short vdso_sync_cpuid;

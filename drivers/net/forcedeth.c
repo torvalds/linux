@@ -3273,6 +3273,20 @@ static void nv_link_irq(struct net_device *dev)
 	dprintk(KERN_DEBUG "%s: link change notification done.\n", dev->name);
 }
 
+static void nv_msi_workaround(struct fe_priv *np)
+{
+
+	/* Need to toggle the msi irq mask within the ethernet device,
+	 * otherwise, future interrupts will not be detected.
+	 */
+	if (np->msi_flags & NV_MSI_ENABLED) {
+		u8 __iomem *base = np->base;
+
+		writel(0, base + NvRegMSIIrqMask);
+		writel(NVREG_MSI_VECTOR_0_ENABLED, base + NvRegMSIIrqMask);
+	}
+}
+
 static irqreturn_t nv_nic_irq(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
@@ -3294,6 +3308,8 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
+
+		nv_msi_workaround(np);
 
 		spin_lock(&np->lock);
 		nv_tx_done(dev);
@@ -3409,6 +3425,8 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
+
+		nv_msi_workaround(np);
 
 		spin_lock(&np->lock);
 		nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
@@ -3749,6 +3767,8 @@ static irqreturn_t nv_nic_irq_test(int foo, void *data)
 	dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 	if (!(events & NVREG_IRQ_TIMER))
 		return IRQ_RETVAL(0);
+
+	nv_msi_workaround(np);
 
 	spin_lock(&np->lock);
 	np->intr_test = 1;
@@ -4174,12 +4194,23 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 	netif_carrier_off(dev);
 	if (netif_running(dev)) {
+		unsigned long flags;
+
 		nv_disable_irq(dev);
 		netif_tx_lock_bh(dev);
-		spin_lock(&np->lock);
+		/* with plain spinlock lockdep complains */
+		spin_lock_irqsave(&np->lock, flags);
 		/* stop engines */
+		/* FIXME:
+		 * this can take some time, and interrupts are disabled
+		 * due to spin_lock_irqsave, but let's hope no daemon
+		 * is going to change the settings very often...
+		 * Worst case:
+		 * NV_RXSTOP_DELAY1MAX + NV_TXSTOP_DELAY1MAX
+		 * + some minor delays, which is up to a second approximately
+		 */
 		nv_stop_rxtx(dev);
-		spin_unlock(&np->lock);
+		spin_unlock_irqrestore(&np->lock, flags);
 		netif_tx_unlock_bh(dev);
 	}
 

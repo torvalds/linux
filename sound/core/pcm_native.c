@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/pm_qos_params.h>
 #include <linux/uio.h>
@@ -3249,14 +3250,17 @@ static int snd_pcm_fasync(int fd, struct file * file, int on)
 	struct snd_pcm_file * pcm_file;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
-	int err;
+	int err = -ENXIO;
 
+	lock_kernel();
 	pcm_file = file->private_data;
 	substream = pcm_file->substream;
-	snd_assert(substream != NULL, return -ENXIO);
+	snd_assert(substream != NULL, goto out);
 	runtime = substream->runtime;
 
 	err = fasync_helper(fd, file, on, &runtime->fasync);
+out:
+	unlock_kernel();
 	if (err < 0)
 		return err;
 	return 0;

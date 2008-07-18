@@ -49,6 +49,7 @@ static struct usb_device_id p54u_table[] __devinitdata = {
 	{USB_DEVICE(0x5041, 0x2235)},	/* Linksys WUSB54G Portable */
 
 	/* Version 2 devices (3887) */
+	{USB_DEVICE(0x0471, 0x1230)},   /* Philips CPWUA054/00 */
 	{USB_DEVICE(0x050d, 0x7050)},	/* Belkin F5D7050 ver 1000 */
 	{USB_DEVICE(0x0572, 0x2000)},	/* Cohiba Proto board */
 	{USB_DEVICE(0x0572, 0x2002)},	/* Cohiba Proto board */
@@ -375,7 +376,8 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 	const struct firmware *fw_entry = NULL;
 	int err, alen;
 	u8 carry = 0;
-	u8 *buf, *tmp, *data;
+	u8 *buf, *tmp;
+	const u8 *data;
 	unsigned int left, remains, block_size;
 	struct x2_header *hdr;
 	unsigned long timeout;
@@ -522,7 +524,7 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 	void *buf;
 	__le32 reg;
 	unsigned int remains, offset;
-	u8 *data;
+	const u8 *data;
 
 	buf = kmalloc(512, GFP_KERNEL);
 	if (!buf) {

@@ -1,11 +1,16 @@
 # ALSA PCMCIA drivers
 
-menu "PCMCIA devices"
-	depends on SND!=n && PCMCIA
+menuconfig SND_PCMCIA
+	bool "PCMCIA sound devices"
+	depends on PCMCIA
+	default y
+	help
+	  Support for sound devices connected via the PCMCIA bus.
+
+if SND_PCMCIA && PCMCIA
 
 config SND_VXPOCKET
 	tristate "Digigram VXpocket"
-	depends on SND && PCMCIA
 	select SND_VX_LIB
 	help
 	  Say Y here to include support for Digigram VXpocket and
@@ -16,7 +21,6 @@ config SND_VXPOCKET
 
 config SND_PDAUDIOCF
 	tristate "Sound Core PDAudioCF"
-	depends on SND && PCMCIA
 	select SND_PCM
 	help
 	  Say Y here to include support for Sound Core PDAudioCF
@@ -25,4 +29,5 @@ config SND_PDAUDIOCF
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-pdaudiocf.
 
-endmenu
+endif	# SND_PCMCIA
+

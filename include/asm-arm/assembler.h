@@ -56,6 +56,21 @@
 #endif
 
 /*
+ * This can be used to enable code to cacheline align the destination
+ * pointer when bulk writing to memory.  Experiments on StrongARM and
+ * XScale didn't show this a worthwhile thing to do when the cache is not
+ * set to write-allocate (this would need further testing on XScale when WA
+ * is used).
+ *
+ * On Feroceon there is much to gain however, regardless of cache mode.
+ */
+#ifdef CONFIG_CPU_FEROCEON
+#define CALGN(code...) code
+#else
+#define CALGN(code...)
+#endif
+
+/*
  * Enable and disable interrupts
  */
 #if __LINUX_ARM_ARCH__ >= 6

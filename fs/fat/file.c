@@ -11,7 +11,6 @@
 #include <linux/mount.h>
 #include <linux/time.h>
 #include <linux/msdos_fs.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
@@ -242,9 +241,7 @@ void fat_truncate(struct inode *inode)
 
 	nr_clusters = (inode->i_size + (cluster_size - 1)) >> sbi->cluster_bits;
 
-	lock_kernel();
 	fat_free(inode, nr_clusters);
-	unlock_kernel();
 	fat_flush_inodes(inode->i_sb, inode, NULL);
 }
 
@@ -257,25 +254,33 @@ int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 }
 EXPORT_SYMBOL_GPL(fat_getattr);
 
-static int fat_check_mode(const struct msdos_sb_info *sbi, struct inode *inode,
-			  mode_t mode)
+static int fat_sanitize_mode(const struct msdos_sb_info *sbi,
+			     struct inode *inode, umode_t *mode_ptr)
 {
-	mode_t mask, req = mode & ~S_IFMT;
+	mode_t mask, perm;
 
-	if (S_ISREG(mode))
+	/*
+	 * Note, the basic check is already done by a caller of
+	 * (attr->ia_mode & ~MSDOS_VALID_MODE)
+	 */
+
+	if (S_ISREG(inode->i_mode))
 		mask = sbi->options.fs_fmask;
 	else
 		mask = sbi->options.fs_dmask;
+
+	perm = *mode_ptr & ~(S_IFMT | mask);
 
 	/*
 	 * Of the r and x bits, all (subject to umask) must be present. Of the
 	 * w bits, either all (subject to umask) or none must be present.
 	 */
-	req &= ~mask;
-	if ((req & (S_IRUGO | S_IXUGO)) != (inode->i_mode & (S_IRUGO|S_IXUGO)))
+	if ((perm & (S_IRUGO | S_IXUGO)) != (inode->i_mode & (S_IRUGO|S_IXUGO)))
 		return -EPERM;
-	if ((req & S_IWUGO) && ((req & S_IWUGO) != (S_IWUGO & ~mask)))
+	if ((perm & S_IWUGO) && ((perm & S_IWUGO) != (S_IWUGO & ~mask)))
 		return -EPERM;
+
+	*mode_ptr &= S_IFMT | perm;
 
 	return 0;
 }
@@ -299,10 +304,8 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
 	struct inode *inode = dentry->d_inode;
-	int mask, error = 0;
+	int error = 0;
 	unsigned int ia_valid;
-
-	lock_kernel();
 
 	/*
 	 * Expand the file. Since inode_setattr() updates ->i_size
@@ -332,12 +335,13 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 			error = 0;
 		goto out;
 	}
+
 	if (((attr->ia_valid & ATTR_UID) &&
 	     (attr->ia_uid != sbi->options.fs_uid)) ||
 	    ((attr->ia_valid & ATTR_GID) &&
 	     (attr->ia_gid != sbi->options.fs_gid)) ||
 	    ((attr->ia_valid & ATTR_MODE) &&
-	     fat_check_mode(sbi, inode, attr->ia_mode) < 0))
+	     (attr->ia_mode & ~MSDOS_VALID_MODE)))
 		error = -EPERM;
 
 	if (error) {
@@ -346,17 +350,17 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 		goto out;
 	}
 
-	error = inode_setattr(inode, attr);
-	if (error)
-		goto out;
+	/*
+	 * We don't return -EPERM here. Yes, strange, but this is too
+	 * old behavior.
+	 */
+	if (attr->ia_valid & ATTR_MODE) {
+		if (fat_sanitize_mode(sbi, inode, &attr->ia_mode) < 0)
+			attr->ia_valid &= ~ATTR_MODE;
+	}
 
-	if (S_ISDIR(inode->i_mode))
-		mask = sbi->options.fs_dmask;
-	else
-		mask = sbi->options.fs_fmask;
-	inode->i_mode &= S_IFMT | (S_IRWXUGO & ~mask);
+	error = inode_setattr(inode, attr);
 out:
-	unlock_kernel();
 	return error;
 }
 EXPORT_SYMBOL_GPL(fat_setattr);

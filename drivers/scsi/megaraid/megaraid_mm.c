@@ -15,6 +15,7 @@
  * Common management module
  */
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include "megaraid_mm.h"
 
 
@@ -96,6 +97,7 @@ mraid_mm_open(struct inode *inode, struct file *filep)
 	 */
 	if (!capable(CAP_SYS_ADMIN)) return (-EACCES);
 
+	cycle_kernel_lock();
 	return 0;
 }
 

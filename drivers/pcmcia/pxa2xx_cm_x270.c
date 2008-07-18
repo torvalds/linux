@@ -18,6 +18,7 @@
 
 #include <pcmcia/ss.h>
 #include <asm/hardware.h>
+#include <asm/mach-types.h>
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
@@ -130,7 +131,7 @@ static void cmx270_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
 }
 
 
-static struct pcmcia_low_level cmx270_pcmcia_ops = {
+static struct pcmcia_low_level cmx270_pcmcia_ops __initdata = {
 	.owner			= THIS_MODULE,
 	.hw_init		= cmx270_pcmcia_hw_init,
 	.hw_shutdown		= cmx270_pcmcia_shutdown,
@@ -147,15 +148,21 @@ static int __init cmx270_pcmcia_init(void)
 {
 	int ret;
 
+	if (!machine_is_armcore())
+		return -ENODEV;
+
 	cmx270_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 
 	if (!cmx270_pcmcia_device)
 		return -ENOMEM;
 
-	cmx270_pcmcia_device->dev.platform_data = &cmx270_pcmcia_ops;
+	ret = platform_device_add_data(cmx270_pcmcia_device, &cmx270_pcmcia_ops,
+				       sizeof(cmx270_pcmcia_ops));
 
-	printk(KERN_INFO "Registering cm-x270 PCMCIA interface.\n");
-	ret = platform_device_add(cmx270_pcmcia_device);
+	if (ret == 0) {
+		printk(KERN_INFO "Registering cm-x270 PCMCIA interface.\n");
+		ret = platform_device_add(cmx270_pcmcia_device);
+	}
 
 	if (ret)
 		platform_device_put(cmx270_pcmcia_device);

@@ -1,0 +1,32 @@
+* I2C
+
+Required properties :
+
+ - device_type : Should be "i2c"
+ - reg : Offset and length of the register set for the device
+
+Recommended properties :
+
+ - compatible : Should be "fsl-i2c" for parts compatible with
+   Freescale I2C specifications.
+ - interrupts : <a b> where a is the interrupt number and b is a
+   field that represents an encoding of the sense and level
+   information for the interrupt.  This should be encoded based on
+   the information in section 2) depending on the type of interrupt
+   controller you have.
+ - interrupt-parent : the phandle for the interrupt controller that
+   services interrupts for this device.
+ - dfsrr : boolean; if defined, indicates that this I2C device has
+   a digital filter sampling rate register
+ - fsl5200-clocking : boolean; if defined, indicated that this device
+   uses the FSL 5200 clocking mechanism.
+
+Example :
+	i2c@3000 {
+		interrupt-parent = <40000>;
+		interrupts = <1b 3>;
+		reg = <3000 18>;
+		device_type = "i2c";
+		compatible  = "fsl-i2c";
+		dfsrr;
+	};

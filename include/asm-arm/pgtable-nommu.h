@@ -16,7 +16,6 @@
 #include <linux/slab.h>
 #include <asm/processor.h>
 #include <asm/page.h>
-#include <asm/io.h>
 
 /*
  * Trivial page table functions.

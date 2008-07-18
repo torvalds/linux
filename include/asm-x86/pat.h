@@ -1,14 +1,13 @@
-
 #ifndef _ASM_PAT_H
-#define _ASM_PAT_H 1
+#define _ASM_PAT_H
 
 #include <linux/types.h>
 
 #ifdef CONFIG_X86_PAT
-extern int pat_wc_enabled;
+extern int pat_enabled;
 extern void validate_pat_support(struct cpuinfo_x86 *c);
 #else
-static const int pat_wc_enabled = 0;
+static const int pat_enabled;
 static inline void validate_pat_support(struct cpuinfo_x86 *c) { }
 #endif
 
@@ -21,4 +20,3 @@ extern int free_memtype(u64 start, u64 end);
 extern void pat_disable(char *reason);
 
 #endif
-

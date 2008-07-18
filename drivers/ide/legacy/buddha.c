@@ -138,6 +138,8 @@ static void __init buddha_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	hw->irq = IRQ_AMIGA_PORTS;
 	hw->ack_intr = ack_intr;
+
+	hw->chipset = ide_generic;
 }
 
     /*
@@ -225,7 +227,6 @@ fail_base2:
 			if (hwif) {
 				u8 index = hwif->index;
 
-				ide_init_port_data(hwif, index);
 				ide_init_port_hw(hwif, &hw);
 
 				idx[i] = index;

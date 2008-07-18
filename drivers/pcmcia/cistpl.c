@@ -30,7 +30,6 @@
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
-#include <pcmcia/bulkmem.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
@@ -1439,10 +1438,11 @@ EXPORT_SYMBOL(pccard_read_tuple);
     
 ======================================================================*/
 
-int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, cisinfo_t *info)
+int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned int *info)
 {
     tuple_t *tuple;
     cisparse_t *p;
+    unsigned int count = 0;
     int ret, reserved, dev_ok = 0, ident_ok = 0;
 
     if (!s)
@@ -1457,7 +1457,7 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, cisinfo_
 	return CS_OUT_OF_RESOURCE;
     }
 
-    info->Chains = reserved = 0;
+    count = reserved = 0;
     tuple->DesiredTuple = RETURN_FIRST_TUPLE;
     tuple->Attributes = TUPLE_RETURN_COMMON;
     ret = pccard_get_first_tuple(s, function, tuple);
@@ -1482,7 +1482,7 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, cisinfo_
     if (!dev_ok && !ident_ok)
 	goto done;
 
-    for (info->Chains = 1; info->Chains < MAX_TUPLES; info->Chains++) {
+    for (count = 1; count < MAX_TUPLES; count++) {
 	ret = pccard_get_next_tuple(s, function, tuple);
 	if (ret != CS_SUCCESS) break;
 	if (((tuple->TupleCode > 0x23) && (tuple->TupleCode < 0x40)) ||
@@ -1490,11 +1490,13 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, cisinfo_
 	    ((tuple->TupleCode > 0x90) && (tuple->TupleCode < 0xff)))
 	    reserved++;
     }
-    if ((info->Chains == MAX_TUPLES) || (reserved > 5) ||
-	((!dev_ok || !ident_ok) && (info->Chains > 10)))
-	info->Chains = 0;
+    if ((count == MAX_TUPLES) || (reserved > 5) ||
+	((!dev_ok || !ident_ok) && (count > 10)))
+	count = 0;
 
 done:
+    if (info)
+	    *info = count;
     kfree(tuple);
     kfree(p);
     return CS_SUCCESS;

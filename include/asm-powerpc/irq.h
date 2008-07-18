@@ -619,6 +619,19 @@ struct pt_regs;
 
 #define __ARCH_HAS_DO_SOFTIRQ
 
+#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+/*
+ * Per-cpu stacks for handling critical, debug and machine check
+ * level interrupts.
+ */
+extern struct thread_info *critirq_ctx[NR_CPUS];
+extern struct thread_info *dbgirq_ctx[NR_CPUS];
+extern struct thread_info *mcheckirq_ctx[NR_CPUS];
+extern void exc_lvl_ctx_init(void);
+#else
+#define exc_lvl_ctx_init()
+#endif
+
 #ifdef CONFIG_IRQSTACKS
 /*
  * Per-cpu stacks for handling hard and soft interrupts.

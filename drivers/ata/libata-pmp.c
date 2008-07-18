@@ -322,9 +322,12 @@ static void sata_pmp_quirks(struct ata_port *ap)
 	if (vendor == 0x1095 && devid == 0x3726) {
 		/* sil3726 quirks */
 		ata_port_for_each_link(link, ap) {
-			/* class code report is unreliable */
+			/* Class code report is unreliable and SRST
+			 * times out under certain configurations.
+			 */
 			if (link->pmp < 5)
-				link->flags |= ATA_LFLAG_ASSUME_ATA;
+				link->flags |= ATA_LFLAG_NO_SRST |
+					       ATA_LFLAG_ASSUME_ATA;
 
 			/* port 5 is for SEMB device and it doesn't like SRST */
 			if (link->pmp == 5)
@@ -724,19 +727,12 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 		}
 
 		if (tries) {
-			int sleep = ehc->i.flags & ATA_EHI_DID_RESET;
-
 			/* consecutive revalidation failures? speed down */
 			if (reval_failed)
 				sata_down_spd_limit(link);
 			else
 				reval_failed = 1;
 
-			ata_dev_printk(dev, KERN_WARNING,
-				       "retrying reset%s\n",
-				       sleep ? " in 5 secs" : "");
-			if (sleep)
-				ssleep(5);
 			ehc->i.action |= ATA_EH_RESET;
 			goto retry;
 		} else {
@@ -782,7 +778,8 @@ static int sata_pmp_eh_handle_disabled_links(struct ata_port *ap)
 		 * SError.N working.
 		 */
 		sata_link_hardreset(link, sata_deb_timing_normal,
-				jiffies + ATA_TMOUT_INTERNAL_QUICK, NULL, NULL);
+				ata_deadline(jiffies, ATA_TMOUT_INTERNAL_QUICK),
+				NULL, NULL);
 
 		/* unconditionally clear SError.N */
 		rc = sata_scr_write(link, SCR_ERROR, SERR_PHYRDY_CHG);
@@ -987,10 +984,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 		goto retry;
 
 	if (--pmp_tries) {
-		ata_port_printk(ap, KERN_WARNING,
-				"failed to recover PMP, retrying in 5 secs\n");
 		pmp_ehc->i.action |= ATA_EH_RESET;
-		ssleep(5);
 		goto retry;
 	}
 

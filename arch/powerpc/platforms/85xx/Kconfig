@@ -34,8 +34,15 @@ config MPC85xx_MDS
 	bool "Freescale MPC85xx MDS"
 	select DEFAULT_UIMAGE
 	select QUICC_ENGINE
+	select PHYLIB
 	help
 	  This option enables support for the MPC85xx MDS board
+
+config MPC8536_DS
+	bool "Freescale MPC8536 DS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC8536 DS board
 
 config MPC85xx_DS
 	bool "Freescale MPC85xx DS"
@@ -73,6 +80,14 @@ config TQM8541
 	select DEFAULT_UIMAGE
 	select TQM85xx
 	select CPM2
+
+config TQM8548
+	bool "TQ Components TQM8548"
+	help
+	  This option enables support for the TQ Components TQM8548 board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	select TQM85xx
 
 config TQM8555
 	bool "TQ Components TQM8555"

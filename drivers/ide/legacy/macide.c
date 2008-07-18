@@ -78,6 +78,8 @@ static void __init macide_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	hw->irq = irq;
 	hw->ack_intr = ack_intr;
+
+	hw->chipset = ide_generic;
 }
 
 static const char *mac_ide_name[] =
@@ -128,7 +130,6 @@ static int __init macide_init(void)
 		u8 index = hwif->index;
 		u8 idx[4] = { index, 0xff, 0xff, 0xff };
 
-		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
 
 		ide_device_add(idx, NULL);

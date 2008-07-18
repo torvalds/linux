@@ -30,8 +30,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: sysfs.c 1349 2004-12-16 21:09:43Z roland $
  */
 
 #include "core_priv.h"
@@ -665,6 +663,120 @@ static struct class ib_class = {
 	.dev_uevent = ib_device_uevent,
 };
 
+/* Show a given an attribute in the statistics group */
+static ssize_t show_protocol_stat(const struct device *device,
+			    struct device_attribute *attr, char *buf,
+			    unsigned offset)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+	union rdma_protocol_stats stats;
+	ssize_t ret;
+
+	ret = dev->get_protocol_stats(dev, &stats);
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%llu\n",
+		       (unsigned long long) ((u64 *) &stats)[offset]);
+}
+
+/* generate a read-only iwarp statistics attribute */
+#define IW_STATS_ENTRY(name)						\
+static ssize_t show_##name(struct device *device,			\
+			   struct device_attribute *attr, char *buf)	\
+{									\
+	return show_protocol_stat(device, attr, buf,			\
+				  offsetof(struct iw_protocol_stats, name) / \
+				  sizeof (u64));			\
+}									\
+static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
+
+IW_STATS_ENTRY(ipInReceives);
+IW_STATS_ENTRY(ipInHdrErrors);
+IW_STATS_ENTRY(ipInTooBigErrors);
+IW_STATS_ENTRY(ipInNoRoutes);
+IW_STATS_ENTRY(ipInAddrErrors);
+IW_STATS_ENTRY(ipInUnknownProtos);
+IW_STATS_ENTRY(ipInTruncatedPkts);
+IW_STATS_ENTRY(ipInDiscards);
+IW_STATS_ENTRY(ipInDelivers);
+IW_STATS_ENTRY(ipOutForwDatagrams);
+IW_STATS_ENTRY(ipOutRequests);
+IW_STATS_ENTRY(ipOutDiscards);
+IW_STATS_ENTRY(ipOutNoRoutes);
+IW_STATS_ENTRY(ipReasmTimeout);
+IW_STATS_ENTRY(ipReasmReqds);
+IW_STATS_ENTRY(ipReasmOKs);
+IW_STATS_ENTRY(ipReasmFails);
+IW_STATS_ENTRY(ipFragOKs);
+IW_STATS_ENTRY(ipFragFails);
+IW_STATS_ENTRY(ipFragCreates);
+IW_STATS_ENTRY(ipInMcastPkts);
+IW_STATS_ENTRY(ipOutMcastPkts);
+IW_STATS_ENTRY(ipInBcastPkts);
+IW_STATS_ENTRY(ipOutBcastPkts);
+IW_STATS_ENTRY(tcpRtoAlgorithm);
+IW_STATS_ENTRY(tcpRtoMin);
+IW_STATS_ENTRY(tcpRtoMax);
+IW_STATS_ENTRY(tcpMaxConn);
+IW_STATS_ENTRY(tcpActiveOpens);
+IW_STATS_ENTRY(tcpPassiveOpens);
+IW_STATS_ENTRY(tcpAttemptFails);
+IW_STATS_ENTRY(tcpEstabResets);
+IW_STATS_ENTRY(tcpCurrEstab);
+IW_STATS_ENTRY(tcpInSegs);
+IW_STATS_ENTRY(tcpOutSegs);
+IW_STATS_ENTRY(tcpRetransSegs);
+IW_STATS_ENTRY(tcpInErrs);
+IW_STATS_ENTRY(tcpOutRsts);
+
+static struct attribute *iw_proto_stats_attrs[] = {
+	&dev_attr_ipInReceives.attr,
+	&dev_attr_ipInHdrErrors.attr,
+	&dev_attr_ipInTooBigErrors.attr,
+	&dev_attr_ipInNoRoutes.attr,
+	&dev_attr_ipInAddrErrors.attr,
+	&dev_attr_ipInUnknownProtos.attr,
+	&dev_attr_ipInTruncatedPkts.attr,
+	&dev_attr_ipInDiscards.attr,
+	&dev_attr_ipInDelivers.attr,
+	&dev_attr_ipOutForwDatagrams.attr,
+	&dev_attr_ipOutRequests.attr,
+	&dev_attr_ipOutDiscards.attr,
+	&dev_attr_ipOutNoRoutes.attr,
+	&dev_attr_ipReasmTimeout.attr,
+	&dev_attr_ipReasmReqds.attr,
+	&dev_attr_ipReasmOKs.attr,
+	&dev_attr_ipReasmFails.attr,
+	&dev_attr_ipFragOKs.attr,
+	&dev_attr_ipFragFails.attr,
+	&dev_attr_ipFragCreates.attr,
+	&dev_attr_ipInMcastPkts.attr,
+	&dev_attr_ipOutMcastPkts.attr,
+	&dev_attr_ipInBcastPkts.attr,
+	&dev_attr_ipOutBcastPkts.attr,
+	&dev_attr_tcpRtoAlgorithm.attr,
+	&dev_attr_tcpRtoMin.attr,
+	&dev_attr_tcpRtoMax.attr,
+	&dev_attr_tcpMaxConn.attr,
+	&dev_attr_tcpActiveOpens.attr,
+	&dev_attr_tcpPassiveOpens.attr,
+	&dev_attr_tcpAttemptFails.attr,
+	&dev_attr_tcpEstabResets.attr,
+	&dev_attr_tcpCurrEstab.attr,
+	&dev_attr_tcpInSegs.attr,
+	&dev_attr_tcpOutSegs.attr,
+	&dev_attr_tcpRetransSegs.attr,
+	&dev_attr_tcpInErrs.attr,
+	&dev_attr_tcpOutRsts.attr,
+	NULL
+};
+
+static struct attribute_group iw_stats_group = {
+	.name	= "proto_stats",
+	.attrs	= iw_proto_stats_attrs,
+};
+
 int ib_device_register_sysfs(struct ib_device *device)
 {
 	struct device *class_dev = &device->dev;
@@ -705,6 +817,12 @@ int ib_device_register_sysfs(struct ib_device *device)
 			if (ret)
 				goto err_put;
 		}
+	}
+
+	if (device->node_type == RDMA_NODE_RNIC && device->get_protocol_stats) {
+		ret = sysfs_create_group(&class_dev->kobj, &iw_stats_group);
+		if (ret)
+			goto err_put;
 	}
 
 	return 0;

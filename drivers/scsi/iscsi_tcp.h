@@ -103,11 +103,6 @@ struct iscsi_data_task {
 	char			hdrext[ISCSI_DIGEST_SIZE];/* Header-Digest */
 };
 
-struct iscsi_tcp_mgmt_task {
-	struct iscsi_hdr	hdr;
-	char			hdrext[ISCSI_DIGEST_SIZE]; /* Header-Digest */
-};
-
 struct iscsi_r2t_info {
 	__be32			ttt;		/* copied from R2T */
 	__be32			exp_statsn;	/* copied from R2T */
@@ -119,7 +114,7 @@ struct iscsi_r2t_info {
 	struct iscsi_data_task	dtask;		/* Data-Out header buf */
 };
 
-struct iscsi_tcp_cmd_task {
+struct iscsi_tcp_task {
 	struct iscsi_hdr_buff {
 		struct iscsi_cmd	cmd_hdr;
 		char			hdrextbuf[ISCSI_MAX_AHS_SIZE +

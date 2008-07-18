@@ -24,9 +24,12 @@ static DEFINE_SPINLOCK(gpio_lock);
 static unsigned long gpio_valid[BITS_TO_LONGS(GPIO_MAX)];
 static const char *gpio_label[GPIO_MAX];  /* non null for allocated GPIOs */
 
-void __init orion5x_gpio_set_valid_pins(u32 pins)
+void __init orion5x_gpio_set_valid(unsigned pin, int valid)
 {
-	gpio_valid[0] = pins;
+	if (valid)
+		__set_bit(pin, gpio_valid);
+	else
+		__clear_bit(pin, gpio_valid);
 }
 
 /*
@@ -93,10 +96,10 @@ int gpio_get_value(unsigned pin)
 {
 	int val, mask = 1 << pin;
 
-	if (orion5x_read(GPIO_IO_CONF) & mask)
-		val = orion5x_read(GPIO_DATA_IN) ^ orion5x_read(GPIO_IN_POL);
+	if (readl(GPIO_IO_CONF) & mask)
+		val = readl(GPIO_DATA_IN) ^ readl(GPIO_IN_POL);
 	else
-		val = orion5x_read(GPIO_OUT);
+		val = readl(GPIO_OUT);
 
 	return val & mask;
 }
@@ -188,39 +191,39 @@ void gpio_display(void)
 			printk("GPIO, free\n");
 		} else {
 			printk("GPIO, used by %s, ", gpio_label[i]);
-			if (orion5x_read(GPIO_IO_CONF) & (1 << i)) {
+			if (readl(GPIO_IO_CONF) & (1 << i)) {
 				printk("input, active %s, level %s, edge %s\n",
-				((orion5x_read(GPIO_IN_POL) >> i) & 1) ? "low" : "high",
-				((orion5x_read(GPIO_LEVEL_MASK) >> i) & 1) ? "enabled" : "masked",
-				((orion5x_read(GPIO_EDGE_MASK) >> i) & 1) ? "enabled" : "masked");
+				((readl(GPIO_IN_POL) >> i) & 1) ? "low" : "high",
+				((readl(GPIO_LEVEL_MASK) >> i) & 1) ? "enabled" : "masked",
+				((readl(GPIO_EDGE_MASK) >> i) & 1) ? "enabled" : "masked");
 			} else {
-				printk("output, val=%d\n", (orion5x_read(GPIO_OUT) >> i) & 1);
+				printk("output, val=%d\n", (readl(GPIO_OUT) >> i) & 1);
 			}
 		}
 	}
 
 	printk(KERN_DEBUG "MPP_0_7_CTRL (0x%08x) = 0x%08x\n",
-				MPP_0_7_CTRL, orion5x_read(MPP_0_7_CTRL));
+				MPP_0_7_CTRL, readl(MPP_0_7_CTRL));
 	printk(KERN_DEBUG "MPP_8_15_CTRL (0x%08x) = 0x%08x\n",
-				MPP_8_15_CTRL, orion5x_read(MPP_8_15_CTRL));
+				MPP_8_15_CTRL, readl(MPP_8_15_CTRL));
 	printk(KERN_DEBUG "MPP_16_19_CTRL (0x%08x) = 0x%08x\n",
-				MPP_16_19_CTRL, orion5x_read(MPP_16_19_CTRL));
+				MPP_16_19_CTRL, readl(MPP_16_19_CTRL));
 	printk(KERN_DEBUG "MPP_DEV_CTRL (0x%08x) = 0x%08x\n",
-				MPP_DEV_CTRL, orion5x_read(MPP_DEV_CTRL));
+				MPP_DEV_CTRL, readl(MPP_DEV_CTRL));
 	printk(KERN_DEBUG "GPIO_OUT (0x%08x) = 0x%08x\n",
-				GPIO_OUT, orion5x_read(GPIO_OUT));
+				GPIO_OUT, readl(GPIO_OUT));
 	printk(KERN_DEBUG "GPIO_IO_CONF (0x%08x) = 0x%08x\n",
-				GPIO_IO_CONF, orion5x_read(GPIO_IO_CONF));
+				GPIO_IO_CONF, readl(GPIO_IO_CONF));
 	printk(KERN_DEBUG "GPIO_BLINK_EN (0x%08x) = 0x%08x\n",
-				GPIO_BLINK_EN, orion5x_read(GPIO_BLINK_EN));
+				GPIO_BLINK_EN, readl(GPIO_BLINK_EN));
 	printk(KERN_DEBUG "GPIO_IN_POL (0x%08x) = 0x%08x\n",
-				GPIO_IN_POL, orion5x_read(GPIO_IN_POL));
+				GPIO_IN_POL, readl(GPIO_IN_POL));
 	printk(KERN_DEBUG "GPIO_DATA_IN (0x%08x) = 0x%08x\n",
-				GPIO_DATA_IN, orion5x_read(GPIO_DATA_IN));
+				GPIO_DATA_IN, readl(GPIO_DATA_IN));
 	printk(KERN_DEBUG "GPIO_LEVEL_MASK (0x%08x) = 0x%08x\n",
-				GPIO_LEVEL_MASK, orion5x_read(GPIO_LEVEL_MASK));
+				GPIO_LEVEL_MASK, readl(GPIO_LEVEL_MASK));
 	printk(KERN_DEBUG "GPIO_EDGE_CAUSE (0x%08x) = 0x%08x\n",
-				GPIO_EDGE_CAUSE, orion5x_read(GPIO_EDGE_CAUSE));
+				GPIO_EDGE_CAUSE, readl(GPIO_EDGE_CAUSE));
 	printk(KERN_DEBUG "GPIO_EDGE_MASK (0x%08x) = 0x%08x\n",
-				GPIO_EDGE_MASK, orion5x_read(GPIO_EDGE_MASK));
+				GPIO_EDGE_MASK, readl(GPIO_EDGE_MASK));
 }

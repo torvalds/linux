@@ -1,0 +1,24 @@
+* SPI (Serial Peripheral Interface)
+
+Required properties:
+- cell-index : SPI controller index.
+- compatible : should be "fsl,spi".
+- mode : the SPI operation mode, it can be "cpu" or "cpu-qe".
+- reg : Offset and length of the register set for the device
+- interrupts : <a b> where a is the interrupt number and b is a
+  field that represents an encoding of the sense and level
+  information for the interrupt.  This should be encoded based on
+  the information in section 2) depending on the type of interrupt
+  controller you have.
+- interrupt-parent : the phandle for the interrupt controller that
+  services interrupts for this device.
+
+Example:
+	spi@4c0 {
+		cell-index = <0>;
+		compatible = "fsl,spi";
+		reg = <4c0 40>;
+		interrupts = <82 0>;
+		interrupt-parent = <700>;
+		mode = "cpu";
+	};

@@ -3,7 +3,7 @@
  *      For use with LSI PCI chip/adapter(s)
  *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2007 LSI Corporation
+ *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -447,6 +447,7 @@ static int mptspi_target_alloc(struct scsi_target *starget)
 	spi_max_offset(starget) = ioc->spi_data.maxSyncOffset;
 
 	spi_offset(starget) = 0;
+	spi_period(starget) = 0xFF;
 	mptspi_write_width(starget, 0);
 
 	return 0;
@@ -1266,13 +1267,18 @@ mptspi_dv_renegotiate(struct _MPT_SCSI_HOST *hd)
 static int
 mptspi_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 {
-	struct _MPT_SCSI_HOST *hd = shost_priv(ioc->sh);
 	int rc;
 
 	rc = mptscsih_ioc_reset(ioc, reset_phase);
 
-	if (reset_phase == MPT_IOC_POST_RESET)
+	/* only try to do a renegotiation if we're properly set up
+	 * if we get an ioc fault on bringup, ioc->sh will be NULL */
+	if (reset_phase == MPT_IOC_POST_RESET &&
+	    ioc->sh) {
+		struct _MPT_SCSI_HOST *hd = shost_priv(ioc->sh);
+
 		mptspi_dv_renegotiate(hd);
+	}
 
 	return rc;
 }

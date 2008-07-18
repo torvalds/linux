@@ -160,10 +160,13 @@ static void rt_set_mode(enum clock_event_mode mode,
 
 int rt_timer_irq;
 
+static DEFINE_PER_CPU(struct clock_event_device, hub_rt_clockevent);
+static DEFINE_PER_CPU(char [11], hub_rt_name);
+
 static irqreturn_t hub_rt_counter_handler(int irq, void *dev_id)
 {
-	struct clock_event_device *cd = dev_id;
 	unsigned int cpu = smp_processor_id();
+	struct clock_event_device *cd = &per_cpu(hub_rt_clockevent, cpu);
 	int slice = cputoslice(cpu);
 
 	/*
@@ -192,10 +195,7 @@ struct irqaction hub_rt_irqaction = {
 #define NSEC_PER_CYCLE		800
 #define CYCLES_PER_SEC		(NSEC_PER_SEC / NSEC_PER_CYCLE)
 
-static DEFINE_PER_CPU(struct clock_event_device, hub_rt_clockevent);
-static DEFINE_PER_CPU(char [11], hub_rt_name);
-
-static void __cpuinit hub_rt_clock_event_init(void)
+void __cpuinit hub_rt_clock_event_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd = &per_cpu(hub_rt_clockevent, cpu);
@@ -203,17 +203,16 @@ static void __cpuinit hub_rt_clock_event_init(void)
 	int irq = rt_timer_irq;
 
 	sprintf(name, "hub-rt %d", cpu);
-	cd->name		= "HUB-RT",
-	cd->features		= CLOCK_EVT_FEAT_ONESHOT,
+	cd->name		= name;
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
 	clockevent_set_clock(cd, CYCLES_PER_SEC);
 	cd->max_delta_ns        = clockevent_delta2ns(0xfffffffffffff, cd);
 	cd->min_delta_ns        = clockevent_delta2ns(0x300, cd);
-	cd->rating		= 200,
-	cd->irq			= irq,
-	cd->cpumask		= cpumask_of_cpu(cpu),
-	cd->rating		= 300,
-	cd->set_next_event	= rt_next_event,
-	cd->set_mode		= rt_set_mode,
+	cd->rating		= 200;
+	cd->irq			= irq;
+	cd->cpumask		= cpumask_of_cpu(cpu);
+	cd->set_next_event	= rt_next_event;
+	cd->set_mode		= rt_set_mode;
 	clockevents_register_device(cd);
 }
 
@@ -261,6 +260,7 @@ void __init plat_time_init(void)
 {
 	hub_rt_clocksource_init();
 	hub_rt_clock_event_global_init();
+	hub_rt_clock_event_init();
 }
 
 void __cpuinit cpu_time_init(void)
@@ -281,7 +281,6 @@ void __cpuinit cpu_time_init(void)
 
 	printk("CPU %d clock is %dMHz.\n", smp_processor_id(), cpu->cpu_speed);
 
-	hub_rt_clock_event_init();
 	set_c0_status(SRB_TIMOCLK);
 }
 

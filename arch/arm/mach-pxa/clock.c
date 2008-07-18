@@ -12,7 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 
-#include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
 #include <asm/hardware.h>
 
@@ -46,6 +46,9 @@ struct clk *clk_get(struct device *dev, const char *id)
 	if (p)
 		clk = p;
 	mutex_unlock(&clocks_mutex);
+
+	if (!IS_ERR(clk) && clk->ops == NULL)
+		clk = clk->other;
 
 	return clk;
 }

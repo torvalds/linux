@@ -29,9 +29,9 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
+#include <linux/of_platform.h>
 
 #include <pcmcia/ss.h>
-#include <asm/of_platform.h>
 
 static const char driver_name[] = "electra-cf";
 
@@ -352,6 +352,7 @@ static struct of_device_id electra_cf_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, electra_cf_match);
 
 static struct of_platform_driver electra_cf_driver = {
 	.name	   = (char *)driver_name,

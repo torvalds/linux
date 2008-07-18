@@ -6,7 +6,7 @@
  *	KN04-CA) and DECsystem 5900/260 (KN05) R4k CPU card MB ASIC
  *	definitions.
  *
- *	Copyright (C) 2002, 2003, 2005  Maciej W. Rozycki
+ *	Copyright (C) 2002, 2003, 2005, 2008  Maciej W. Rozycki
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -54,11 +54,11 @@
  */
 #define KN4K_MB_INT_TC		(1<<0)		/* TURBOchannel? */
 #define KN4K_MB_INT_RTC		(1<<1)		/* RTC? */
-#define KN4K_MB_INT_MT		(1<<3)		/* ??? */
+#define KN4K_MB_INT_MT		(1<<3)		/* I/O ASIC cascade */
 
 /*
  * Bits for the MB control & status register.
- * Set to 0x00bf8001 on my system by the ROM.
+ * Set to 0x00bf8001 for KN05 and to 0x003f8000 for KN04 by the firmware.
  */
 #define KN4K_MB_CSR_PF		(1<<0)		/* PreFetching enable? */
 #define KN4K_MB_CSR_F		(1<<1)		/* ??? */
@@ -69,7 +69,8 @@
 #define KN4K_MB_CSR_IM		(1<<13)		/* ??? */
 #define KN4K_MB_CSR_NC		(1<<14)		/* ??? */
 #define KN4K_MB_CSR_EE		(1<<15)		/* (bus) Exception Enable? */
-#define KN4K_MB_CSR_MSK		(0x1f<<16)	/* ??? */
+#define KN4K_MB_CSR_MSK		(0x1f<<16)	/* CPU Int[4:0] mask */
 #define KN4K_MB_CSR_FW		(1<<21)		/* ??? */
+#define KN4K_MB_CSR_W		(1<<31)		/* ??? */
 
 #endif /* __ASM_MIPS_DEC_KN05_H */

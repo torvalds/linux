@@ -180,8 +180,21 @@ config CPU_ARM925T
 # ARM926T
 config CPU_ARM926T
 	bool "Support ARM926T processor"
-	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX || MACH_REALVIEW_EB || ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412 || ARCH_AT91SAM9260 || ARCH_AT91SAM9261 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9 || ARCH_NS9XXX || ARCH_DAVINCI
-	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX || ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412 || ARCH_AT91SAM9260 || ARCH_AT91SAM9261 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9 || ARCH_NS9XXX || ARCH_DAVINCI
+	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || \
+		MACH_VERSATILE_AB || ARCH_OMAP730 || \
+		ARCH_OMAP16XX || MACH_REALVIEW_EB || \
+		ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412 || \
+		ARCH_AT91SAM9260 || ARCH_AT91SAM9261 || \
+		ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || \
+		ARCH_AT91SAM9G20 || ARCH_AT91CAP9 || \
+		ARCH_NS9XXX || ARCH_DAVINCI
+	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || \
+		ARCH_OMAP730 || ARCH_OMAP16XX || \
+		ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412 || \
+		ARCH_AT91SAM9260 || ARCH_AT91SAM9261 || \
+		ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || \
+		ARCH_AT91SAM9G20 || ARCH_AT91CAP9 || \
+		ARCH_NS9XXX || ARCH_DAVINCI || ARCH_MX2
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
 	select CPU_PABRT_NOIFAR
@@ -365,7 +378,7 @@ config CPU_XSC3
 # Feroceon
 config CPU_FEROCEON
 	bool
-	depends on ARCH_ORION5X
+	depends on ARCH_ORION5X || ARCH_LOKI || ARCH_KIRKWOOD || ARCH_MV78XX0
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
@@ -373,7 +386,7 @@ config CPU_FEROCEON
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_FEROCEON if MMU
-	select CPU_TLB_V4WBI if MMU
+	select CPU_TLB_FEROCEON if MMU
 
 config CPU_FEROCEON_OLD_ID
 	bool "Accept early Feroceon cores with an ARM926 ID"
@@ -551,6 +564,11 @@ config CPU_TLB_V4WBI
 	  ARM Architecture Version 4 TLB with writeback cache and invalidate
 	  instruction cache entry.
 
+config CPU_TLB_FEROCEON
+	bool
+	help
+	  Feroceon TLB (v4wbi with non-outer-cachable page table walks).
+
 config CPU_TLB_V6
 	bool
 
@@ -708,6 +726,14 @@ config NEEDS_SYSCALL_FOR_CMPXCHG
 config OUTER_CACHE
 	bool
 	default n
+
+config CACHE_FEROCEON_L2
+	bool "Enable the Feroceon L2 cache controller"
+	depends on ARCH_KIRKWOOD || ARCH_MV78XX0
+	default y
+	select OUTER_CACHE
+	help
+	  This option enables the Feroceon L2 cache controller.
 
 config CACHE_L2X0
 	bool "Enable the L2x0 outer cache controller"

@@ -933,3 +933,13 @@ u64 hipz_h_error_data(const struct ipz_adapter_handle adapter_handle,
 				       r_cb,
 				       0, 0, 0, 0);
 }
+
+u64 hipz_h_eoi(int irq)
+{
+	unsigned long xirr;
+
+	iosync();
+	xirr = (0xffULL << 24) | irq;
+
+	return plpar_hcall_norets(H_EOI, xirr);
+}

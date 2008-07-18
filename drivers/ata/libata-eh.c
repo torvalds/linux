@@ -66,15 +66,19 @@ enum {
 	ATA_ECAT_DUBIOUS_TOUT_HSM	= 6,
 	ATA_ECAT_DUBIOUS_UNK_DEV	= 7,
 	ATA_ECAT_NR			= 8,
-};
 
-/* Waiting in ->prereset can never be reliable.  It's sometimes nice
- * to wait there but it can't be depended upon; otherwise, we wouldn't
- * be resetting.  Just give it enough time for most drives to spin up.
- */
-enum {
-	ATA_EH_PRERESET_TIMEOUT		= 10 * HZ,
-	ATA_EH_FASTDRAIN_INTERVAL	= 3 * HZ,
+	ATA_EH_CMD_DFL_TIMEOUT		=  5000,
+
+	/* always put at least this amount of time between resets */
+	ATA_EH_RESET_COOL_DOWN		=  5000,
+
+	/* Waiting in ->prereset can never be reliable.  It's
+	 * sometimes nice to wait there but it can't be depended upon;
+	 * otherwise, we wouldn't be resetting.  Just give it enough
+	 * time for most drives to spin up.
+	 */
+	ATA_EH_PRERESET_TIMEOUT		= 10000,
+	ATA_EH_FASTDRAIN_INTERVAL	=  3000,
 };
 
 /* The following table determines how we sequence resets.  Each entry
@@ -84,12 +88,59 @@ enum {
  * are mostly for error handling, hotplug and retarded devices.
  */
 static const unsigned long ata_eh_reset_timeouts[] = {
-	10 * HZ,	/* most drives spin up by 10sec */
-	10 * HZ,	/* > 99% working drives spin up before 20sec */
-	35 * HZ,	/* give > 30 secs of idleness for retarded devices */
-	5 * HZ,		/* and sweet one last chance */
-	/* > 1 min has elapsed, give up */
+	10000,	/* most drives spin up by 10sec */
+	10000,	/* > 99% working drives spin up before 20sec */
+	35000,	/* give > 30 secs of idleness for retarded devices */
+	 5000,	/* and sweet one last chance */
+	ULONG_MAX, /* > 1 min has elapsed, give up */
 };
+
+static const unsigned long ata_eh_identify_timeouts[] = {
+	 5000,	/* covers > 99% of successes and not too boring on failures */
+	10000,  /* combined time till here is enough even for media access */
+	30000,	/* for true idiots */
+	ULONG_MAX,
+};
+
+static const unsigned long ata_eh_other_timeouts[] = {
+	 5000,	/* same rationale as identify timeout */
+	10000,	/* ditto */
+	/* but no merciful 30sec for other commands, it just isn't worth it */
+	ULONG_MAX,
+};
+
+struct ata_eh_cmd_timeout_ent {
+	const u8		*commands;
+	const unsigned long	*timeouts;
+};
+
+/* The following table determines timeouts to use for EH internal
+ * commands.  Each table entry is a command class and matches the
+ * commands the entry applies to and the timeout table to use.
+ *
+ * On the retry after a command timed out, the next timeout value from
+ * the table is used.  If the table doesn't contain further entries,
+ * the last value is used.
+ *
+ * ehc->cmd_timeout_idx keeps track of which timeout to use per
+ * command class, so if SET_FEATURES times out on the first try, the
+ * next try will use the second timeout value only for that class.
+ */
+#define CMDS(cmds...)	(const u8 []){ cmds, 0 }
+static const struct ata_eh_cmd_timeout_ent
+ata_eh_cmd_timeout_table[ATA_EH_CMD_TIMEOUT_TABLE_SIZE] = {
+	{ .commands = CMDS(ATA_CMD_ID_ATA, ATA_CMD_ID_ATAPI),
+	  .timeouts = ata_eh_identify_timeouts, },
+	{ .commands = CMDS(ATA_CMD_READ_NATIVE_MAX, ATA_CMD_READ_NATIVE_MAX_EXT),
+	  .timeouts = ata_eh_other_timeouts, },
+	{ .commands = CMDS(ATA_CMD_SET_MAX, ATA_CMD_SET_MAX_EXT),
+	  .timeouts = ata_eh_other_timeouts, },
+	{ .commands = CMDS(ATA_CMD_SET_FEATURES),
+	  .timeouts = ata_eh_other_timeouts, },
+	{ .commands = CMDS(ATA_CMD_INIT_DEV_PARAMS),
+	  .timeouts = ata_eh_other_timeouts, },
+};
+#undef CMDS
 
 static void __ata_port_freeze(struct ata_port *ap);
 #ifdef CONFIG_PM
@@ -235,6 +286,73 @@ void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
 }
 
 #endif /* CONFIG_PCI */
+
+static int ata_lookup_timeout_table(u8 cmd)
+{
+	int i;
+
+	for (i = 0; i < ATA_EH_CMD_TIMEOUT_TABLE_SIZE; i++) {
+		const u8 *cur;
+
+		for (cur = ata_eh_cmd_timeout_table[i].commands; *cur; cur++)
+			if (*cur == cmd)
+				return i;
+	}
+
+	return -1;
+}
+
+/**
+ *	ata_internal_cmd_timeout - determine timeout for an internal command
+ *	@dev: target device
+ *	@cmd: internal command to be issued
+ *
+ *	Determine timeout for internal command @cmd for @dev.
+ *
+ *	LOCKING:
+ *	EH context.
+ *
+ *	RETURNS:
+ *	Determined timeout.
+ */
+unsigned long ata_internal_cmd_timeout(struct ata_device *dev, u8 cmd)
+{
+	struct ata_eh_context *ehc = &dev->link->eh_context;
+	int ent = ata_lookup_timeout_table(cmd);
+	int idx;
+
+	if (ent < 0)
+		return ATA_EH_CMD_DFL_TIMEOUT;
+
+	idx = ehc->cmd_timeout_idx[dev->devno][ent];
+	return ata_eh_cmd_timeout_table[ent].timeouts[idx];
+}
+
+/**
+ *	ata_internal_cmd_timed_out - notification for internal command timeout
+ *	@dev: target device
+ *	@cmd: internal command which timed out
+ *
+ *	Notify EH that internal command @cmd for @dev timed out.  This
+ *	function should be called only for commands whose timeouts are
+ *	determined using ata_internal_cmd_timeout().
+ *
+ *	LOCKING:
+ *	EH context.
+ */
+void ata_internal_cmd_timed_out(struct ata_device *dev, u8 cmd)
+{
+	struct ata_eh_context *ehc = &dev->link->eh_context;
+	int ent = ata_lookup_timeout_table(cmd);
+	int idx;
+
+	if (ent < 0)
+		return;
+
+	idx = ehc->cmd_timeout_idx[dev->devno][ent];
+	if (ata_eh_cmd_timeout_table[ent].timeouts[idx + 1] != ULONG_MAX)
+		ehc->cmd_timeout_idx[dev->devno][ent]++;
+}
 
 static void ata_ering_record(struct ata_ering *ering, unsigned int eflags,
 			     unsigned int err_mask)
@@ -486,6 +604,9 @@ void ata_scsi_error(struct Scsi_Host *host)
 				if (ata_ncq_enabled(dev))
 					ehc->saved_ncq_enabled |= 1 << devno;
 			}
+
+			/* set last reset timestamp to some time in the past */
+			ehc->last_reset = jiffies - 60 * HZ;
 		}
 
 		ap->pflags |= ATA_PFLAG_EH_IN_PROGRESS;
@@ -641,7 +762,7 @@ void ata_eh_fastdrain_timerfn(unsigned long arg)
 		/* some qcs have finished, give it another chance */
 		ap->fastdrain_cnt = cnt;
 		ap->fastdrain_timer.expires =
-			jiffies + ATA_EH_FASTDRAIN_INTERVAL;
+			ata_deadline(jiffies, ATA_EH_FASTDRAIN_INTERVAL);
 		add_timer(&ap->fastdrain_timer);
 	}
 
@@ -681,7 +802,8 @@ static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
 
 	/* activate fast drain */
 	ap->fastdrain_cnt = cnt;
-	ap->fastdrain_timer.expires = jiffies + ATA_EH_FASTDRAIN_INTERVAL;
+	ap->fastdrain_timer.expires =
+		ata_deadline(jiffies, ATA_EH_FASTDRAIN_INTERVAL);
 	add_timer(&ap->fastdrain_timer);
 }
 
@@ -1238,6 +1360,7 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
  *	atapi_eh_request_sense - perform ATAPI REQUEST_SENSE
  *	@dev: device to perform REQUEST_SENSE to
  *	@sense_buf: result sense data buffer (SCSI_SENSE_BUFFERSIZE bytes long)
+ *	@dfl_sense_key: default sense key to use
  *
  *	Perform ATAPI REQUEST_SENSE after the device reported CHECK
  *	SENSE.  This function is EH helper.
@@ -1248,13 +1371,13 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
  *	RETURNS:
  *	0 on success, AC_ERR_* mask on failure
  */
-static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
+static unsigned int atapi_eh_request_sense(struct ata_device *dev,
+					   u8 *sense_buf, u8 dfl_sense_key)
 {
-	struct ata_device *dev = qc->dev;
-	unsigned char *sense_buf = qc->scsicmd->sense_buffer;
+	u8 cdb[ATAPI_CDB_LEN] =
+		{ REQUEST_SENSE, 0, 0, 0, SCSI_SENSE_BUFFERSIZE, 0 };
 	struct ata_port *ap = dev->link->ap;
 	struct ata_taskfile tf;
-	u8 cdb[ATAPI_CDB_LEN];
 
 	DPRINTK("ATAPI request sense\n");
 
@@ -1265,14 +1388,10 @@ static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
 	 * for the case where they are -not- overwritten
 	 */
 	sense_buf[0] = 0x70;
-	sense_buf[2] = qc->result_tf.feature >> 4;
+	sense_buf[2] = dfl_sense_key;
 
 	/* some devices time out if garbage left in tf */
 	ata_tf_init(dev, &tf);
-
-	memset(cdb, 0, ATAPI_CDB_LEN);
-	cdb[0] = REQUEST_SENSE;
-	cdb[4] = SCSI_SENSE_BUFFERSIZE;
 
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.command = ATA_CMD_PACKET;
@@ -1445,7 +1564,9 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 
 	case ATA_DEV_ATAPI:
 		if (!(qc->ap->pflags & ATA_PFLAG_FROZEN)) {
-			tmp = atapi_eh_request_sense(qc);
+			tmp = atapi_eh_request_sense(qc->dev,
+						qc->scsicmd->sense_buffer,
+						qc->result_tf.feature >> 4);
 			if (!tmp) {
 				/* ATA_QCFLAG_SENSE_VALID is used to
 				 * tell atapi_qc_complete() that sense
@@ -2071,13 +2192,12 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		 ata_prereset_fn_t prereset, ata_reset_fn_t softreset,
 		 ata_reset_fn_t hardreset, ata_postreset_fn_t postreset)
 {
-	const int max_tries = ARRAY_SIZE(ata_eh_reset_timeouts);
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned int *classes = ehc->classes;
 	unsigned int lflags = link->flags;
 	int verbose = !(ehc->i.flags & ATA_EHI_QUIET);
-	int try = 0;
+	int max_tries = 0, try = 0;
 	struct ata_device *dev;
 	unsigned long deadline, now;
 	ata_reset_fn_t reset;
@@ -2088,11 +2208,20 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	/*
 	 * Prepare to reset
 	 */
+	while (ata_eh_reset_timeouts[max_tries] != ULONG_MAX)
+		max_tries++;
+
+	now = jiffies;
+	deadline = ata_deadline(ehc->last_reset, ATA_EH_RESET_COOL_DOWN);
+	if (time_before(now, deadline))
+		schedule_timeout_uninterruptible(deadline - now);
+
 	spin_lock_irqsave(ap->lock, flags);
 	ap->pflags |= ATA_PFLAG_RESETTING;
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	ata_eh_about_to_do(link, NULL, ATA_EH_RESET);
+	ehc->last_reset = jiffies;
 
 	ata_link_for_each_dev(dev, link) {
 		/* If we issue an SRST then an ATA drive (not ATAPI)
@@ -2125,7 +2254,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	}
 
 	if (prereset) {
-		rc = prereset(link, jiffies + ATA_EH_PRERESET_TIMEOUT);
+		rc = prereset(link,
+			      ata_deadline(jiffies, ATA_EH_PRERESET_TIMEOUT));
 		if (rc) {
 			if (rc == -ENOENT) {
 				ata_link_printk(link, KERN_DEBUG,
@@ -2157,10 +2287,11 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	/*
 	 * Perform reset
 	 */
+	ehc->last_reset = jiffies;
 	if (ata_is_host_link(link))
 		ata_eh_freeze_port(ap);
 
-	deadline = jiffies + ata_eh_reset_timeouts[try++];
+	deadline = ata_deadline(jiffies, ata_eh_reset_timeouts[try++]);
 
 	if (reset) {
 		if (verbose)
@@ -2277,6 +2408,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 
 	/* reset successful, schedule revalidation */
 	ata_eh_done(link, NULL, ATA_EH_RESET);
+	ehc->last_reset = jiffies;
 	ehc->i.action |= ATA_EH_REVALIDATE;
 
 	rc = 0;
@@ -2303,9 +2435,9 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	if (time_before(now, deadline)) {
 		unsigned long delta = deadline - now;
 
-		ata_link_printk(link, KERN_WARNING, "reset failed "
-				"(errno=%d), retrying in %u secs\n",
-				rc, (jiffies_to_msecs(delta) + 999) / 1000);
+		ata_link_printk(link, KERN_WARNING,
+			"reset failed (errno=%d), retrying in %u secs\n",
+			rc, DIV_ROUND_UP(jiffies_to_msecs(delta), 1000));
 
 		while (delta)
 			delta = schedule_timeout_uninterruptible(delta);
@@ -2583,8 +2715,11 @@ static int ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 			ata_eh_detach_dev(dev);
 
 		/* schedule probe if necessary */
-		if (ata_eh_schedule_probe(dev))
+		if (ata_eh_schedule_probe(dev)) {
 			ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
+			memset(ehc->cmd_timeout_idx[dev->devno], 0,
+			       sizeof(ehc->cmd_timeout_idx[dev->devno]));
+		}
 
 		return 1;
 	} else {
@@ -2622,7 +2757,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 {
 	struct ata_link *link;
 	struct ata_device *dev;
-	int nr_failed_devs, nr_disabled_devs;
+	int nr_failed_devs;
 	int rc;
 	unsigned long flags;
 
@@ -2665,7 +2800,6 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
  retry:
 	rc = 0;
 	nr_failed_devs = 0;
-	nr_disabled_devs = 0;
 
 	/* if UNLOADING, finish immediately */
 	if (ap->pflags & ATA_PFLAG_UNLOADING)
@@ -2732,8 +2866,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 
 dev_fail:
 		nr_failed_devs++;
-		if (ata_eh_handle_dev_fail(dev, rc))
-			nr_disabled_devs++;
+		ata_eh_handle_dev_fail(dev, rc);
 
 		if (ap->pflags & ATA_PFLAG_FROZEN) {
 			/* PMP reset requires working host port.
@@ -2745,18 +2878,8 @@ dev_fail:
 		}
 	}
 
-	if (nr_failed_devs) {
-		if (nr_failed_devs != nr_disabled_devs) {
-			ata_port_printk(ap, KERN_WARNING, "failed to recover "
-					"some devices, retrying in 5 secs\n");
-			ssleep(5);
-		} else {
-			/* no device left to recover, repeat fast */
-			msleep(500);
-		}
-
+	if (nr_failed_devs)
 		goto retry;
-	}
 
  out:
 	if (rc && r_failed_link)

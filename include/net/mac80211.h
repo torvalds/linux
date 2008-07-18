@@ -595,6 +595,15 @@ enum ieee80211_key_alg {
 	ALG_CCMP,
 };
 
+/**
+ * enum ieee80211_key_len - key length
+ * @WEP40: WEP 5 byte long key
+ * @WEP104: WEP 13 byte long key
+ */
+enum ieee80211_key_len {
+	LEN_WEP40 = 5,
+	LEN_WEP104 = 13,
+};
 
 /**
  * enum ieee80211_key_flags - key flags

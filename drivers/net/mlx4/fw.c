@@ -101,6 +101,34 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u32 flags)
 			mlx4_dbg(dev, "    %s\n", fname[i]);
 }
 
+int mlx4_MOD_STAT_CFG(struct mlx4_dev *dev, struct mlx4_mod_stat_cfg *cfg)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	u32 *inbox;
+	int err = 0;
+
+#define MOD_STAT_CFG_IN_SIZE		0x100
+
+#define MOD_STAT_CFG_PG_SZ_M_OFFSET	0x002
+#define MOD_STAT_CFG_PG_SZ_OFFSET	0x003
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	inbox = mailbox->buf;
+
+	memset(inbox, 0, MOD_STAT_CFG_IN_SIZE);
+
+	MLX4_PUT(inbox, cfg->log_pg_sz, MOD_STAT_CFG_PG_SZ_OFFSET);
+	MLX4_PUT(inbox, cfg->log_pg_sz_m, MOD_STAT_CFG_PG_SZ_M_OFFSET);
+
+	err = mlx4_cmd(dev, mailbox->dma, 0, 0, MLX4_CMD_MOD_STAT_CFG,
+			MLX4_CMD_TIME_CLASS_A);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+
 int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 {
 	struct mlx4_cmd_mailbox *mailbox;

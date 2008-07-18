@@ -795,6 +795,7 @@ static void nlmsvc_grant_callback(struct rpc_task *task, void *data)
 
 	dprintk("lockd: GRANT_MSG RPC callback\n");
 
+	lock_kernel();
 	/* if the block is not on a list at this point then it has
 	 * been invalidated. Don't try to requeue it.
 	 *
@@ -804,7 +805,7 @@ static void nlmsvc_grant_callback(struct rpc_task *task, void *data)
 	 * for nlm_blocked?
 	 */
 	if (list_empty(&block->b_list))
-		return;
+		goto out;
 
 	/* Technically, we should down the file semaphore here. Since we
 	 * move the block towards the head of the queue only, no harm
@@ -818,13 +819,17 @@ static void nlmsvc_grant_callback(struct rpc_task *task, void *data)
 	}
 	nlmsvc_insert_block(block, timeout);
 	svc_wake_up(block->b_daemon);
+out:
+	unlock_kernel();
 }
 
 static void nlmsvc_grant_release(void *data)
 {
 	struct nlm_rqst		*call = data;
 
+	lock_kernel();
 	nlmsvc_release_block(call->a_block);
+	unlock_kernel();
 }
 
 static const struct rpc_call_ops nlmsvc_grant_ops = {

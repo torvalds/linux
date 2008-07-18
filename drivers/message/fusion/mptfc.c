@@ -3,7 +3,7 @@
  *      For use with LSI PCI chip/adapter(s)
  *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2007 LSI Corporation
+ *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -1237,8 +1237,6 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	sh->max_id = ioc->pfacts->MaxDevices;
 	sh->max_lun = max_lun;
-
-	sh->this_id = ioc->pfacts[0].PortSCSIID;
 
 	/* Required entry.
 	 */

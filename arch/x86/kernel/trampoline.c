@@ -2,7 +2,7 @@
 
 #include <asm/trampoline.h>
 
-/* ready for x86_64, no harm for x86, since it will overwrite after alloc */
+/* ready for x86_64 and x86 */
 unsigned char *trampoline_base = __va(TRAMPOLINE_BASE);
 
 /*

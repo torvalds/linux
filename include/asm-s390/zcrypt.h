@@ -29,7 +29,7 @@
 
 #define ZCRYPT_VERSION 2
 #define ZCRYPT_RELEASE 1
-#define ZCRYPT_VARIANT 0
+#define ZCRYPT_VARIANT 1
 
 #include <linux/ioctl.h>
 #include <linux/compiler.h>

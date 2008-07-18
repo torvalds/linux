@@ -4,13 +4,13 @@ Kernel driver pcf8574
 Supported chips:
   * Philips PCF8574
     Prefix: 'pcf8574'
-    Addresses scanned: I2C 0x20 - 0x27
+    Addresses scanned: none
     Datasheet: Publicly available at the Philips Semiconductors website
                http://www.semiconductors.philips.com/pip/PCF8574P.html
 
  * Philips PCF8574A
     Prefix: 'pcf8574a'
-    Addresses scanned: I2C 0x38 - 0x3f
+    Addresses scanned: none
     Datasheet: Publicly available at the Philips Semiconductors website
                http://www.semiconductors.philips.com/pip/PCF8574P.html
 
@@ -38,12 +38,10 @@ For more informations see the datasheet.
 Accessing PCF8574(A) via /sys interface
 -------------------------------------
 
-! Be careful !
 The PCF8574(A) is plainly impossible to detect ! Stupid chip.
-So every chip with address in the interval [20..27] and [38..3f] are
-detected as PCF8574(A). If you have other chips in this address
-range, the workaround is to load this module after the one
-for your others chips.
+So, you have to pass the I2C bus and address of the installed PCF857A
+and PCF8574A devices explicitly to the driver at load time via the
+force=... parameter.
 
 On detection (i.e. insmod, modprobe et al.), directories are being
 created for each detected PCF8574(A):

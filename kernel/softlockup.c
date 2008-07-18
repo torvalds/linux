@@ -49,11 +49,16 @@ static unsigned long get_timestamp(int this_cpu)
 	return cpu_clock(this_cpu) >> 30LL;  /* 2^30 ~= 10^9 */
 }
 
-void touch_softlockup_watchdog(void)
+static void __touch_softlockup_watchdog(void)
 {
 	int this_cpu = raw_smp_processor_id();
 
 	__raw_get_cpu_var(touch_timestamp) = get_timestamp(this_cpu);
+}
+
+void touch_softlockup_watchdog(void)
+{
+	__raw_get_cpu_var(touch_timestamp) = 0;
 }
 EXPORT_SYMBOL(touch_softlockup_watchdog);
 
@@ -80,7 +85,7 @@ void softlockup_tick(void)
 	unsigned long now;
 
 	if (touch_timestamp == 0) {
-		touch_softlockup_watchdog();
+		__touch_softlockup_watchdog();
 		return;
 	}
 
@@ -95,7 +100,7 @@ void softlockup_tick(void)
 
 	/* do not print during early bootup: */
 	if (unlikely(system_state != SYSTEM_RUNNING)) {
-		touch_softlockup_watchdog();
+		__touch_softlockup_watchdog();
 		return;
 	}
 
@@ -115,6 +120,7 @@ void softlockup_tick(void)
 	printk(KERN_ERR "BUG: soft lockup - CPU#%d stuck for %lus! [%s:%d]\n",
 			this_cpu, now - touch_timestamp,
 			current->comm, task_pid_nr(current));
+	print_modules();
 	if (regs)
 		show_regs(regs);
 	else
@@ -214,7 +220,7 @@ static int watchdog(void *__bind_cpu)
 	sched_setscheduler(current, SCHED_FIFO, &param);
 
 	/* initialize timestamp */
-	touch_softlockup_watchdog();
+	__touch_softlockup_watchdog();
 
 	set_current_state(TASK_INTERRUPTIBLE);
 	/*
@@ -223,7 +229,7 @@ static int watchdog(void *__bind_cpu)
 	 * debug-printout triggers in softlockup_tick().
 	 */
 	while (!kthread_should_stop()) {
-		touch_softlockup_watchdog();
+		__touch_softlockup_watchdog();
 		schedule();
 
 		if (kthread_should_stop())

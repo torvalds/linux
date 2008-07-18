@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.3.2-1.287"
+#define MYRI10GE_VERSION_STR "1.3.99-1.347"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -529,6 +529,7 @@ static int myri10ge_load_hotplug_firmware(struct myri10ge_priv *mgp, u32 * size)
 	unsigned crc, reread_crc;
 	const struct firmware *fw;
 	struct device *dev = &mgp->pdev->dev;
+	unsigned char *fw_readback;
 	struct mcp_gen_header *hdr;
 	size_t hdr_offset;
 	int status;
@@ -571,9 +572,15 @@ static int myri10ge_load_hotplug_firmware(struct myri10ge_priv *mgp, u32 * size)
 		mb();
 		readb(mgp->sram);
 	}
+	fw_readback = vmalloc(fw->size);
+	if (!fw_readback) {
+		status = -ENOMEM;
+		goto abort_with_fw;
+	}
 	/* corruption checking is good for parity recovery and buggy chipset */
-	memcpy_fromio(fw->data, mgp->sram + MYRI10GE_FW_OFFSET, fw->size);
-	reread_crc = crc32(~0, fw->data, fw->size);
+	memcpy_fromio(fw_readback, mgp->sram + MYRI10GE_FW_OFFSET, fw->size);
+	reread_crc = crc32(~0, fw_readback, fw->size);
+	vfree(fw_readback);
 	if (crc != reread_crc) {
 		dev_err(dev, "CRC failed(fw-len=%u), got 0x%x (expect 0x%x)\n",
 			(unsigned)fw->size, reread_crc, crc);

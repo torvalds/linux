@@ -2,6 +2,11 @@ Version 1.53
 ------------
 DFS support added (Microsoft Distributed File System client support needed
 for referrals which enable a hierarchical name space among servers).
+Disable temporary caching of mode bits to servers which do not support
+storing of mode (e.g. Windows servers, when client mounts without cifsacl
+mount option) and add new "dynperm" mount option to enable temporary caching
+of mode (enable old behavior).  Fix hang on mount caused when server crashes
+tcp session during negotiate protocol.
 
 Version 1.52
 ------------

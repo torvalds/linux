@@ -24,6 +24,8 @@ There are three different groups of fields in the struct taskstats:
 
 4) Per-task and per-thread context switch count statistics
 
+5) Time accounting for SMT machines
+
 Future extension should add fields to the end of the taskstats struct, and
 should not change the relative position of each field within the struct.
 
@@ -164,4 +166,8 @@ struct taskstats {
 	__u64	nvcsw;			/* Context voluntary switch counter */
 	__u64	nivcsw;			/* Context involuntary switch counter */
 
+5) Time accounting for SMT machines
+	__u64	ac_utimescaled;		/* utime scaled on frequency etc */
+	__u64	ac_stimescaled;		/* stime scaled on frequency etc */
+	__u64	cpu_scaled_run_real_total; /* scaled cpu_run_real_total */
 }

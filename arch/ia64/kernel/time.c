@@ -117,6 +117,7 @@ void account_system_vtime(struct task_struct *tsk)
 
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(account_system_vtime);
 
 /*
  * Called from the timer interrupt handler to charge accumulated user time

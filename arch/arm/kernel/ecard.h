@@ -54,3 +54,16 @@ struct ex_chunk_dir {
 #define c_len(x)	((x)->r_len[0]|((x)->r_len[1]<<8)|((x)->r_len[2]<<16))
 #define c_start(x)	((x)->r_start)
 };
+
+typedef enum ecard_type {		/* Cards address space		*/
+	ECARD_IOC,
+	ECARD_MEMC,
+	ECARD_EASI
+} card_type_t;
+
+typedef enum {				/* Speed for ECARD_IOC space	*/
+	ECARD_SLOW	 = 0,
+	ECARD_MEDIUM	 = 1,
+	ECARD_FAST	 = 2,
+	ECARD_SYNC	 = 3
+} card_speed_t;

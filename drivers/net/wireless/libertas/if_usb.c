@@ -293,7 +293,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 static int if_usb_send_fw_pkt(struct if_usb_card *cardp)
 {
 	struct fwdata *fwdata = cardp->ep_out_buf;
-	uint8_t *firmware = cardp->fw->data;
+	const uint8_t *firmware = cardp->fw->data;
 
 	/* If we got a CRC failure on the last block, back
 	   up and retry it */
@@ -746,7 +746,7 @@ static int if_usb_issue_boot_command(struct if_usb_card *cardp, int ivalue)
  *         len               image length
  *  @return     0 or -1
  */
-static int check_fwfile_format(uint8_t *data, uint32_t totlen)
+static int check_fwfile_format(const uint8_t *data, uint32_t totlen)
 {
 	uint32_t bincmd, exit;
 	uint32_t blksize, offset, len;
@@ -925,6 +925,7 @@ static struct usb_driver if_usb_driver = {
 	.id_table = if_usb_table,
 	.suspend = if_usb_suspend,
 	.resume = if_usb_resume,
+	.reset_resume = if_usb_resume,
 };
 
 static int __init if_usb_init_module(void)
