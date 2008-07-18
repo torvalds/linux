@@ -2765,6 +2765,8 @@ static int ixgbe_open(struct net_device *netdev)
 	if (err)
 		goto err_up;
 
+	netif_tx_start_all_queues(netdev);
+
 	return 0;
 
 err_up:

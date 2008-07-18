@@ -2513,7 +2513,7 @@ void e1000e_down(struct e1000_adapter *adapter)
 	ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	/* flush and sleep below */
 
-	netif_stop_queue(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	/* disable transmits in the hardware */
 	tctl = er32(TCTL);
@@ -2662,6 +2662,8 @@ static int e1000_open(struct net_device *netdev)
 	napi_enable(&adapter->napi);
 
 	e1000_irq_enable(adapter);
+
+	netif_tx_start_all_queues(netdev);
 
 	/* fire a link status change interrupt to start the watchdog */
 	ew32(ICS, E1000_ICS_LSC);
@@ -3118,7 +3120,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 			ew32(TCTL, tctl);
 
 			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
+			netif_tx_wake_all_queues(netdev);
 
 			if (!test_bit(__E1000_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
@@ -3130,7 +3132,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 			adapter->link_duplex = 0;
 			ndev_info(netdev, "Link is Down\n");
 			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
+			netif_tx_stop_all_queues(netdev);
 			if (!test_bit(__E1000_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
@@ -4504,7 +4506,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* tell the stack to leave us alone until e1000_open() is called */
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);

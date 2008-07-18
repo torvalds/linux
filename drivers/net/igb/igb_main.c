@@ -1493,6 +1493,8 @@ static int igb_open(struct net_device *netdev)
 
 	igb_irq_enable(adapter);
 
+	netif_tx_start_all_queues(netdev);
+
 	/* Fire a link status change interrupt to start the watchdog. */
 	wr32(E1000_ICS, E1000_ICS_LSC);
 
