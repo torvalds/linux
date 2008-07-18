@@ -72,6 +72,7 @@ static unsigned short normal_i2c[] = {
 	I2C_ADDR_TDA7432 >> 1,
 	I2C_CLIENT_END,
 };
+
 I2C_CLIENT_INSMOD;
 
 /* Structure of address and subaddresses for the tda7432 */

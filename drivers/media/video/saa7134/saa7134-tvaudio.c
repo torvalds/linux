@@ -477,7 +477,6 @@ static int tvaudio_thread(void *data)
 	unsigned int i, audio, nscan;
 	int max1,max2,carrier,rx,mode,lastmode,default_carrier;
 
-
 	set_freezable();
 
 	for (;;) {
@@ -774,7 +773,6 @@ static int tvaudio_thread_ddep(void *data)
 {
 	struct saa7134_dev *dev = data;
 	u32 value, norms;
-
 
 	set_freezable();
 	for (;;) {

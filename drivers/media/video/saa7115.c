@@ -67,7 +67,6 @@ static unsigned short normal_i2c[] = {
 		0x42 >> 1, 0x40 >> 1,	/* SAA7114, SAA7115 and SAA7118 */
 		I2C_CLIENT_END };
 
-
 I2C_CLIENT_INSMOD;
 
 struct saa711x_state {
@@ -1577,4 +1576,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.legacy_class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
 	.id_table = saa7115_id,
 };
-

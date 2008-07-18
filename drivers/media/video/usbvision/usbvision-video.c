@@ -179,7 +179,6 @@ MODULE_ALIAS(DRIVER_ALIAS);
 /*   /sys/bus/usb/drivers/USBVision Video Grabber                            */
 /*****************************************************************************/
 
-
 #define YES_NO(x) ((x) ? "Yes" : "No")
 
 static inline struct usb_usbvision *cd_to_usbvision(struct device *cd)
@@ -370,7 +369,6 @@ static void usbvision_remove_sysfs(struct video_device *vdev)
 	}
 }
 
-
 /*
  * usbvision_open()
  *
@@ -387,7 +385,6 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 	int errCode = 0;
 
 	PDEBUG(DBG_IO, "open");
-
 
 	usbvision_reset_powerOffTimer(usbvision);
 
@@ -442,9 +439,6 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 		mutex_unlock(&usbvision->lock);
 	}
 
-	if (errCode) {
-	}
-
 	/* prepare queues */
 	usbvision_empty_framequeues(usbvision);
 
@@ -495,8 +489,6 @@ static int usbvision_v4l2_close(struct inode *inode, struct file *file)
 	}
 
 	PDEBUG(DBG_IO, "success");
-
-
 	return 0;
 }
 
@@ -1346,9 +1338,7 @@ static int usbvision_radio_close(struct inode *inode, struct file *file)
 		usbvision_release(usbvision);
 	}
 
-
 	PDEBUG(DBG_IO, "success");
-
 	return errCode;
 }
 
@@ -1360,7 +1350,6 @@ static int usbvision_vbi_open(struct inode *inode, struct file *file)
 {
 	/* TODO */
 	return -ENODEV;
-
 }
 
 static int usbvision_vbi_close(struct inode *inode, struct file *file)
@@ -1899,7 +1888,6 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	}
 
 	PDEBUG(DBG_PROBE, "success");
-
 }
 
 static struct usb_driver usbvision_driver = {

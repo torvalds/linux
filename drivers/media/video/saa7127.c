@@ -753,4 +753,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.remove = saa7127_remove,
 	.id_table = saa7127_id,
 };
-

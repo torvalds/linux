@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/crc32.h>
 
-
 #define MPEG_VIDEO_TARGET_BITRATE_MAX  27000
 #define MPEG_VIDEO_MAX_BITRATE_MAX     27000
 #define MPEG_TOTAL_TARGET_BITRATE_MAX  27000
@@ -21,6 +20,7 @@
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = {0x20, I2C_CLIENT_END};
+
 I2C_CLIENT_INSMOD;
 
 MODULE_DESCRIPTION("device driver for saa6752hs MPEG2 encoder");
@@ -707,7 +707,6 @@ static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
 	i2c_attach_client(&h->client);
 
 	v4l_info(&h->client,"saa6752hs: chip found @ 0x%x\n", addr<<1);
-
 	return 0;
 }
 

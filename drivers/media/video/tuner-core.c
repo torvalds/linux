@@ -1298,7 +1298,6 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.id_table = tuner_id,
 };
 
-
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
  * ---------------------------------------------------------------------------

@@ -39,7 +39,6 @@
 #include <linux/scatterlist.h>
 #include <asm/io.h>
 #include <media/v4l2-common.h>
-
 #include <linux/device.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/tveeprom.h>
@@ -263,11 +262,9 @@ extern struct videobuf_queue_ops bttv_vbi_qops;
 /* ---------------------------------------------------------- */
 /* bttv-gpio.c */
 
-
 extern struct bus_type bttv_sub_bus_type;
 int bttv_sub_add_device(struct bttv_core *core, char *name);
 int bttv_sub_del_devices(struct bttv_core *core);
-
 
 /* ---------------------------------------------------------- */
 /* bttv-driver.c                                              */

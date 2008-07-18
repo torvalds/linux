@@ -190,7 +190,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR;
 }
 
-
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm usbvision_algo = {
@@ -514,11 +513,7 @@ static struct i2c_adapter i2c_adap_template = {
 	.id                = I2C_HW_B_BT848, /* FIXME */
 	.client_register   = attach_inform,
 	.client_unregister = detach_inform,
-#ifdef I2C_ADAP_CLASS_TV_ANALOG
-	.class             = I2C_ADAP_CLASS_TV_ANALOG,
-#else
 	.class		   = I2C_CLASS_TV_ANALOG,
-#endif
 };
 
 static struct i2c_client i2c_client_template = {

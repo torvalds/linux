@@ -205,3 +205,4 @@ int uvc_status_resume(struct uvc_device *dev)
 
 	return usb_submit_urb(dev->int_urb, GFP_NOIO);
 }
+

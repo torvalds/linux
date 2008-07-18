@@ -299,7 +299,6 @@ extern int bttv_write_gpio(unsigned int card,
 /* ---------------------------------------------------------- */
 /* sysfs/driver-moded based gpio access interface             */
 
-
 struct bttv_sub_device {
 	struct device    dev;
 	struct bttv_core *core;

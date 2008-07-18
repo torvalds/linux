@@ -327,4 +327,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.remove = wm8739_remove,
 	.id_table = wm8739_id,
 };
-

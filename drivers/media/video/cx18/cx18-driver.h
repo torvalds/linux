@@ -230,9 +230,7 @@ struct cx18_dvb {
 	struct dvb_net dvbnet;
 	int enabled;
 	int feeding;
-
 	struct mutex feedlock;
-
 };
 
 struct cx18;	 /* forward reference */

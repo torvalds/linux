@@ -1103,3 +1103,4 @@ struct file_operations uvc_fops = {
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,
 };
+

@@ -635,7 +635,6 @@ struct ivtv {
 	spinlock_t lock;                /* lock access to this struct */
 	struct mutex serialize_lock;    /* mutex used to serialize open/close/start/stop/ioctl operations */
 
-
 	/* Streams */
 	int stream_buf_size[IVTV_MAX_STREAMS];          /* stream buffer size */
 	struct ivtv_stream streams[IVTV_MAX_STREAMS]; 	/* stream data */

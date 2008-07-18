@@ -39,10 +39,6 @@
 #define GETSCL_BIT      0x0004
 #define GETSDL_BIT      0x0008
 
-#ifndef I2C_ADAP_CLASS_TV_ANALOG
-#define I2C_ADAP_CLASS_TV_ANALOG I2C_CLASS_TV_ANALOG
-#endif
-
 #define CX18_CS5345_I2C_ADDR		0x4c
 
 /* This array should match the CX18_HW_ defines */

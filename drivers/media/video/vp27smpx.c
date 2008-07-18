@@ -166,4 +166,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.remove = vp27smpx_remove,
 	.id_table = vp27smpx_id,
 };
-

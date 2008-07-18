@@ -30,7 +30,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 
-
 #include <media/i2c-addr.h>
 
 static int debug; /* insmod parameter */
@@ -42,6 +41,7 @@ static unsigned short normal_i2c[] =  {
     I2C_ADDR_TDA9875 >> 1,
     I2C_CLIENT_END
 };
+
 I2C_CLIENT_INSMOD;
 
 /* This is a superset of the TDA9875 */

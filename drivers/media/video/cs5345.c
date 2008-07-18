@@ -173,4 +173,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.probe = cs5345_probe,
 	.id_table = cs5345_id,
 };
-

@@ -150,7 +150,6 @@ void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
 
-
 static void request_module_async(struct work_struct *work){
 	struct saa7134_dev* dev = container_of(work, struct saa7134_dev, request_module_wk);
 	if (card_is_empress(dev))

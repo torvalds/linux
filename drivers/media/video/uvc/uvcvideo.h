@@ -796,3 +796,4 @@ void uvc_video_decode_isight(struct urb *urb, struct uvc_video_device *video,
 #endif /* __KERNEL__ */
 
 #endif
+

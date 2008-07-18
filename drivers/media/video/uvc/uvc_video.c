@@ -964,3 +964,4 @@ int uvc_video_enable(struct uvc_video_device *video, int enable)
 
 	return uvc_init_video(video, GFP_KERNEL);
 }
+

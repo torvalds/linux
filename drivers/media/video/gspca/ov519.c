@@ -2186,3 +2186,4 @@ module_exit(sd_mod_exit);
 
 module_param(frame_rate, int, 0644);
 MODULE_PARM_DESC(frame_rate, "Frame rate (5, 10, 15, 20 or 30 fps)");
+
