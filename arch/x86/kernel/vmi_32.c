@@ -676,50 +676,6 @@ static inline int __init probe_vmi_rom(void)
 	return 0;
 }
 
-#ifdef CONFIG_X86_LOCAL_APIC
-static u32 vmi_apic_read(u32 reg)
-{
-	return 0;
-}
-
-static void vmi_apic_write(u32 reg, u32 val)
-{
-	/* Warn to see if there's any stray references */
-	WARN_ON(1);
-}
-
-static u64 vmi_apic_icr_read(void)
-{
-	return 0;
-}
-
-static void vmi_apic_icr_write(u32 low, u32 id)
-{
-	/* Warn to see if there's any stray references */
-	WARN_ON(1);
-}
-
-static void vmi_apic_wait_icr_idle(void)
-{
-	return;
-}
-
-static u32 vmi_safe_apic_wait_icr_idle(void)
-{
-	return 0;
-}
-
-static struct apic_ops vmi_basic_apic_ops = {
-        .read = vmi_apic_read,
-        .write = vmi_apic_write,
-        .write_atomic = vmi_apic_write,
-        .icr_read = vmi_apic_icr_read,
-        .icr_write = vmi_apic_icr_write,
-        .wait_icr_idle = vmi_apic_wait_icr_idle,
-        .safe_wait_icr_idle = vmi_safe_apic_wait_icr_idle,
-};
-#endif
-
 /*
  * VMI setup common to all processors
  */
@@ -948,10 +904,9 @@ static inline int __init activate_vmi(void)
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
-	para_fill(vmi_basic_apic_ops.read, APICRead);
-	para_fill(vmi_basic_apic_ops.write, APICWrite);
-	para_fill(vmi_basic_apic_ops.write_atomic, APICWrite);
-	apic_ops = &vmi_basic_apic_ops;
+       para_fill(apic_ops->read, APICRead);
+       para_fill(apic_ops->write, APICWrite);
+       para_fill(apic_ops->write_atomic, APICWrite);
 #endif
 
 	/*
