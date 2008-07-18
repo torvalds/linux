@@ -66,6 +66,7 @@
 #include <linux/writeback.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/parser.h>
 
 static struct quotactl_ops xfs_quotactl_operations;
 static struct super_operations xfs_super_operations;
@@ -146,6 +147,23 @@ xfs_args_allocate(
 #define MNTOPT_DMAPI	"dmapi"		/* DMI enabled (DMAPI / XDSM) */
 #define MNTOPT_XDSM	"xdsm"		/* DMI enabled (DMAPI / XDSM) */
 #define MNTOPT_DMI	"dmi"		/* DMI enabled (DMAPI / XDSM) */
+
+/*
+ * Table driven mount option parser.
+ *
+ * Currently only used for remount, but it will be used for mount
+ * in the future, too.
+ */
+enum {
+	Opt_barrier, Opt_nobarrier, Opt_err
+};
+
+static match_table_t tokens = {
+	{Opt_barrier, "barrier"},
+	{Opt_nobarrier, "nobarrier"},
+	{Opt_err, NULL}
+};
+
 
 STATIC unsigned long
 suffix_strtoul(char *s, char **endp, unsigned int base)
@@ -1364,36 +1382,54 @@ xfs_fs_remount(
 	char			*options)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
-	struct xfs_mount_args	*args;
-	int			error;
+	substring_t		args[MAX_OPT_ARGS];
+	char			*p;
 
-	args = xfs_args_allocate(sb, 0);
-	if (!args)
-		return -ENOMEM;
+	while ((p = strsep(&options, ",")) != NULL) {
+		int token;
 
-	error = xfs_parseargs(mp, options, args, 1);
-	if (error)
-		goto out_free_args;
+		if (!*p)
+			continue;
 
-	if (!(*flags & MS_RDONLY)) {			/* rw/ro -> rw */
-		if (mp->m_flags & XFS_MOUNT_RDONLY)
-		mp->m_flags &= ~XFS_MOUNT_RDONLY;
-		if (args->flags & XFSMNT_BARRIER) {
+		token = match_token(p, tokens, args);
+		switch (token) {
+		case Opt_barrier:
 			mp->m_flags |= XFS_MOUNT_BARRIER;
-			xfs_mountfs_check_barriers(mp);
-		} else {
+
+			/*
+			 * Test if barriers are actually working if we can,
+			 * else delay this check until the filesystem is
+			 * marked writeable.
+			 */
+			if (!(mp->m_flags & XFS_MOUNT_RDONLY))
+				xfs_mountfs_check_barriers(mp);
+			break;
+		case Opt_nobarrier:
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
+			break;
+		default:
+			printk(KERN_INFO
+	"XFS: mount option \"%s\" not supported for remount\n", p);
+			return -EINVAL;
 		}
-	} else if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {	/* rw -> ro */
+	}
+
+	/* rw/ro -> rw */
+	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !(*flags & MS_RDONLY)) {
+		mp->m_flags &= ~XFS_MOUNT_RDONLY;
+		if (mp->m_flags & XFS_MOUNT_BARRIER)
+			xfs_mountfs_check_barriers(mp);
+	}
+
+	/* rw -> ro */
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & MS_RDONLY)) {
 		xfs_filestream_flush(mp);
 		xfs_sync(mp, SYNC_DATA_QUIESCE);
 		xfs_attr_quiesce(mp);
 		mp->m_flags |= XFS_MOUNT_RDONLY;
 	}
 
- out_free_args:
-	kfree(args);
-	return -error;
+	return 0;
 }
 
 /*
