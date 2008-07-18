@@ -395,7 +395,7 @@ static int handle_global_purge(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		if (kvm->vcpus[i]->cpu != -1) {
 			call_data.vcpu = kvm->vcpus[i];
 			smp_call_function_single(kvm->vcpus[i]->cpu,
-					vcpu_global_purge, &call_data, 0, 1);
+					vcpu_global_purge, &call_data, 1);
 		} else
 			printk(KERN_WARNING"kvm: Uninit vcpu received ipi!\n");
 
@@ -1693,7 +1693,7 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 		wake_up_interruptible(&vcpu->wq);
 
 	if (vcpu->guest_mode)
-		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0, 0);
+		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0);
 }
 
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 trig)

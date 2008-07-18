@@ -10,6 +10,7 @@ struct subchannel_id {
 	__u32 sch_no : 16;
 } __attribute__ ((packed, aligned(4)));
 
+#ifdef __KERNEL__
 
 /* Helper function for sane state of pre-allocated subchannel_id. */
 static inline void
@@ -24,5 +25,7 @@ schid_equal(struct subchannel_id *schid1, struct subchannel_id *schid2)
 {
 	return !memcmp(schid1, schid2, sizeof(struct subchannel_id));
 }
+
+#endif /* __KERNEL__ */
 
 #endif /* ASM_SCHID_H */

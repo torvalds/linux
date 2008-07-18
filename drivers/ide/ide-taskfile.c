@@ -8,28 +8,18 @@
  *  The big the bad and the ugly.
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/major.h>
 #include <linux/errno.h>
-#include <linux/genhd.h>
-#include <linux/blkpg.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
-#include <linux/bitops.h>
 #include <linux/scatterlist.h>
 
-#include <asm/byteorder.h>
-#include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -60,25 +50,6 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 	args.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	args.data_phase	= TASKFILE_IN;
 	return ide_raw_taskfile(drive, &args, buf, 1);
-}
-
-static int inline task_dma_ok(ide_task_t *task)
-{
-	if (blk_fs_request(task->rq) || (task->tf_flags & IDE_TFLAG_FLAGGED))
-		return 1;
-
-	switch (task->tf.command) {
-		case WIN_WRITEDMA_ONCE:
-		case WIN_WRITEDMA:
-		case WIN_WRITEDMA_EXT:
-		case WIN_READDMA_ONCE:
-		case WIN_READDMA:
-		case WIN_READDMA_EXT:
-		case WIN_IDENTIFY_DMA:
-			return 1;
-	}
-
-	return 0;
 }
 
 static ide_startstop_t task_no_data_intr(ide_drive_t *);
@@ -139,8 +110,7 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 				    WAIT_WORSTCASE, NULL);
 		return ide_started;
 	default:
-		if (task_dma_ok(task) == 0 || drive->using_dma == 0 ||
-		    dma_ops->dma_setup(drive))
+		if (drive->using_dma == 0 || dma_ops->dma_setup(drive))
 			return ide_stopped;
 		dma_ops->dma_exec_cmd(drive, tf->command);
 		dma_ops->dma_start(drive);
@@ -183,7 +153,6 @@ static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 	if (stat & (ERR_STAT|DRQ_STAT))
 		return ide_error(drive, "set_geometry_intr", stat);
 
-	BUG_ON(HWGROUP(drive)->handler != NULL);
 	ide_set_handler(drive, &set_geometry_intr, WAIT_WORSTCASE, NULL);
 	return ide_started;
 }

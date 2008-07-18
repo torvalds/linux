@@ -23,20 +23,20 @@ static int pcie_port_probe_service(struct device *dev)
 {
 	struct pcie_device *pciedev;
 	struct pcie_port_service_driver *driver;
-	int status = -ENODEV;
+	int status;
 
 	if (!dev || !dev->driver)
-		return status;
+		return -ENODEV;
 
  	driver = to_service_driver(dev->driver);
 	if (!driver || !driver->probe)
-		return status;
+		return -ENODEV;
 
 	pciedev = to_pcie_device(dev);
 	status = driver->probe(pciedev, driver->id_table);
 	if (!status) {
-		printk(KERN_DEBUG "Load service driver %s on pcie device %s\n",
-			driver->name, dev->bus_id);
+		dev_printk(KERN_DEBUG, dev, "service driver %s loaded\n",
+			driver->name);
 		get_device(dev);
 	}
 	return status;
@@ -53,8 +53,8 @@ static int pcie_port_remove_service(struct device *dev)
 	pciedev = to_pcie_device(dev);
  	driver = to_service_driver(dev->driver);
 	if (driver && driver->remove) { 
-		printk(KERN_DEBUG "Unload service driver %s on pcie device %s\n",
-			driver->name, dev->bus_id);
+		dev_printk(KERN_DEBUG, dev, "unloading service driver %s\n",
+			driver->name);
 		driver->remove(pciedev);
 		put_device(dev);
 	}
@@ -103,7 +103,7 @@ static int pcie_port_resume_service(struct device *dev)
  */
 static void release_pcie_device(struct device *dev)
 {
-	printk(KERN_DEBUG "Free Port Service[%s]\n", dev->bus_id);
+	dev_printk(KERN_DEBUG, dev, "free port service\n");
 	kfree(to_pcie_device(dev));			
 }
 
@@ -150,7 +150,7 @@ static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 	if (pos) {
 		struct msix_entry msix_entries[PCIE_PORT_DEVICE_MAXSERVICES] = 
 			{{0, 0}, {0, 1}, {0, 2}, {0, 3}};
-		printk("%s Found MSIX capability\n", __func__);
+		dev_info(&dev->dev, "found MSI-X capability\n");
 		status = pci_enable_msix(dev, msix_entries, nvec);
 		if (!status) {
 			int j = 0;
@@ -165,7 +165,7 @@ static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 	if (status) {
 		pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 		if (pos) {
-			printk("%s Found MSI capability\n", __func__);
+			dev_info(&dev->dev, "found MSI capability\n");
 			status = pci_enable_msi(dev);
 			if (!status) {
 				interrupt_mode = PCIE_PORT_MSI_MODE;
@@ -252,7 +252,7 @@ static struct pcie_device* alloc_pcie_device(struct pci_dev *parent,
 		return NULL;
 
 	pcie_device_init(parent, device, port_type, service_type, irq,irq_mode);
-	printk(KERN_DEBUG "Allocate Port Service[%s]\n", device->device.bus_id);
+	dev_printk(KERN_DEBUG, &device->device, "allocate port service\n");
 	return device;
 }
 

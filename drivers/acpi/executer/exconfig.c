@@ -53,7 +53,7 @@ ACPI_MODULE_NAME("exconfig")
 
 /* Local prototypes */
 static acpi_status
-acpi_ex_add_table(acpi_native_uint table_index,
+acpi_ex_add_table(u32 table_index,
 		  struct acpi_namespace_node *parent_node,
 		  union acpi_operand_object **ddb_handle);
 
@@ -73,7 +73,7 @@ acpi_ex_add_table(acpi_native_uint table_index,
  ******************************************************************************/
 
 static acpi_status
-acpi_ex_add_table(acpi_native_uint table_index,
+acpi_ex_add_table(u32 table_index,
 		  struct acpi_namespace_node *parent_node,
 		  union acpi_operand_object **ddb_handle)
 {
@@ -96,7 +96,8 @@ acpi_ex_add_table(acpi_native_uint table_index,
 
 	/* Install the new table into the local data structures */
 
-	obj_desc->reference.object = ACPI_CAST_PTR(void, table_index);
+	obj_desc->reference.object = ACPI_CAST_PTR(void,
+			(unsigned long)table_index);
 
 	/* Add the table to the namespace */
 
@@ -128,12 +129,12 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 {
 	acpi_status status;
 	union acpi_operand_object **operand = &walk_state->operands[0];
-	acpi_native_uint table_index;
 	struct acpi_namespace_node *parent_node;
 	struct acpi_namespace_node *start_node;
 	struct acpi_namespace_node *parameter_node = NULL;
 	union acpi_operand_object *ddb_handle;
 	struct acpi_table_header *table;
+	u32 table_index;
 
 	ACPI_FUNCTION_TRACE(ex_load_table_op);
 
@@ -280,7 +281,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 {
 	union acpi_operand_object *ddb_handle;
 	struct acpi_table_desc table_desc;
-	acpi_native_uint table_index;
+	u32 table_index;
 	acpi_status status;
 	u32 length;
 
@@ -437,7 +438,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 {
 	acpi_status status = AE_OK;
 	union acpi_operand_object *table_desc = ddb_handle;
-	acpi_native_uint table_index;
+	u32 table_index;
 	struct acpi_table_header *table;
 
 	ACPI_FUNCTION_TRACE(ex_unload_table);
@@ -454,9 +455,9 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Get the table index from the ddb_handle */
+	/* Get the table index from the ddb_handle (acpi_size for 64-bit case) */
 
-	table_index = (acpi_native_uint) table_desc->reference.object;
+	table_index = (u32) (acpi_size) table_desc->reference.object;
 
 	/* Invoke table handler if present */
 

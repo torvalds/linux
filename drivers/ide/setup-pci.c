@@ -6,19 +6,15 @@
  *  May be copied or modified under the terms of the GNU General Public License
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/init.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/ide.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 
 /**
  *	ide_setup_pci_baseregs	-	place a PCI IDE controller native
@@ -319,24 +315,21 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 
 		ctl  = pci_resource_start(dev, 2*port+1);
 		base = pci_resource_start(dev, 2*port);
-		if ((ctl && !base) || (base && !ctl)) {
-			printk(KERN_ERR "%s: inconsistent baseregs (BIOS) "
-				"for port %d, skipping\n", d->name, port);
-			return NULL;
-		}
-	}
-	if (!ctl) {
+	} else {
 		/* Use default values */
 		ctl = port ? 0x374 : 0x3f4;
 		base = port ? 0x170 : 0x1f0;
 	}
 
-	hwif = ide_find_port_slot(d);
-	if (hwif == NULL) {
-		printk(KERN_ERR "%s: too many IDE interfaces, no room in "
-				"table\n", d->name);
+	if (!base || !ctl) {
+		printk(KERN_ERR "%s: bad PCI BARs for port %d, skipping\n",
+				d->name, port);
 		return NULL;
 	}
+
+	hwif = ide_find_port_slot(d);
+	if (hwif == NULL)
+		return NULL;
 
 	memset(&hw, 0, sizeof(hw));
 	hw.irq = irq;
@@ -345,8 +338,6 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 	ide_std_init_ports(&hw, base, ctl | 2);
 
 	ide_init_port_hw(hwif, &hw);
-
-	hwif->dev = &dev->dev;
 
 	return hwif;
 }
