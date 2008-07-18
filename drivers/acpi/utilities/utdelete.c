@@ -442,7 +442,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 	union acpi_generic_state *state_list = NULL;
 	union acpi_operand_object *next_object = NULL;
 	union acpi_generic_state *state;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE_PTR(ut_update_object_reference, object);
 

@@ -351,10 +351,7 @@ static void ide_floppy_callback(ide_drive_t *drive)
 
 static void idefloppy_init_pc(struct ide_atapi_pc *pc)
 {
-	memset(pc->c, 0, 12);
-	pc->retries = 0;
-	pc->flags = 0;
-	pc->req_xfer = 0;
+	memset(pc, 0, sizeof(*pc));
 	pc->buf = pc->pc_buf;
 	pc->buf_size = IDEFLOPPY_PC_BUFFER_SIZE;
 	pc->callback = ide_floppy_callback;
@@ -561,12 +558,6 @@ static void idefloppy_create_start_stop_cmd(struct ide_atapi_pc *pc, int start)
 	pc->c[4] = start;
 }
 
-static void idefloppy_create_test_unit_ready_cmd(struct ide_atapi_pc *pc)
-{
-	idefloppy_init_pc(pc);
-	pc->c[0] = GPCMD_TEST_UNIT_READY;
-}
-
 static void idefloppy_create_rw_cmd(idefloppy_floppy_t *floppy,
 				    struct ide_atapi_pc *pc, struct request *rq,
 				    unsigned long sector)
@@ -711,10 +702,10 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
 	set_disk_ro(floppy->disk, floppy->wp);
 	page = &pc.buf[8];
 
-	transfer_rate = be16_to_cpu(*(u16 *)&pc.buf[8 + 2]);
-	sector_size   = be16_to_cpu(*(u16 *)&pc.buf[8 + 6]);
-	cyls          = be16_to_cpu(*(u16 *)&pc.buf[8 + 8]);
-	rpm           = be16_to_cpu(*(u16 *)&pc.buf[8 + 28]);
+	transfer_rate = be16_to_cpup((__be16 *)&pc.buf[8 + 2]);
+	sector_size   = be16_to_cpup((__be16 *)&pc.buf[8 + 6]);
+	cyls          = be16_to_cpup((__be16 *)&pc.buf[8 + 8]);
+	rpm           = be16_to_cpup((__be16 *)&pc.buf[8 + 28]);
 	heads         = pc.buf[8 + 4];
 	sectors       = pc.buf[8 + 5];
 
@@ -789,8 +780,8 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	for (i = 0; i < desc_cnt; i++) {
 		unsigned int desc_start = 4 + i*8;
 
-		blocks = be32_to_cpu(*(u32 *)&pc.buf[desc_start]);
-		length = be16_to_cpu(*(u16 *)&pc.buf[desc_start + 6]);
+		blocks = be32_to_cpup((__be32 *)&pc.buf[desc_start]);
+		length = be16_to_cpup((__be16 *)&pc.buf[desc_start + 6]);
 
 		debug_log("Descriptor %d: %dkB, %d blocks, %d sector size\n",
 				i, blocks * length / 1024, blocks, length);
@@ -911,8 +902,8 @@ static int ide_floppy_get_format_capacities(ide_drive_t *drive, int __user *arg)
 		if (u_index >= u_array_size)
 			break;	/* User-supplied buffer too small */
 
-		blocks = be32_to_cpu(*(u32 *)&pc.buf[desc_start]);
-		length = be16_to_cpu(*(u16 *)&pc.buf[desc_start + 6]);
+		blocks = be32_to_cpup((__be32 *)&pc.buf[desc_start]);
+		length = be16_to_cpup((__be16 *)&pc.buf[desc_start + 6]);
 
 		if (put_user(blocks, argp))
 			return(-EFAULT);
@@ -1138,7 +1129,6 @@ static ide_driver_t idefloppy_driver = {
 	.do_request		= idefloppy_do_request,
 	.end_request		= idefloppy_end_request,
 	.error			= __ide_error,
-	.abort			= __ide_abort,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idefloppy_proc,
 #endif
@@ -1166,7 +1156,9 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 		floppy->flags &= ~IDEFLOPPY_FLAG_FORMAT_IN_PROGRESS;
 		/* Just in case */
 
-		idefloppy_create_test_unit_ready_cmd(&pc);
+		idefloppy_init_pc(&pc);
+		pc.c[0] = GPCMD_TEST_UNIT_READY;
+
 		if (idefloppy_queue_pc_tail(drive, &pc)) {
 			idefloppy_create_start_stop_cmd(&pc, 1);
 			(void) idefloppy_queue_pc_tail(drive, &pc);

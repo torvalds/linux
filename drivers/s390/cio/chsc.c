@@ -27,7 +27,13 @@
 
 static void *sei_page;
 
-static int chsc_error_from_response(int response)
+/**
+ * chsc_error_from_response() - convert a chsc response to an error
+ * @response: chsc response code
+ *
+ * Returns an appropriate Linux error code for @response.
+ */
+int chsc_error_from_response(int response)
 {
 	switch (response) {
 	case 0x0001:
@@ -45,6 +51,7 @@ static int chsc_error_from_response(int response)
 		return -EIO;
 	}
 }
+EXPORT_SYMBOL_GPL(chsc_error_from_response);
 
 struct chsc_ssd_area {
 	struct chsc_header request;

@@ -73,7 +73,7 @@ acpi_ns_dump_one_device(acpi_handle obj_handle,
 
 void acpi_ns_print_pathname(u32 num_segments, char *pathname)
 {
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_NAME(ns_print_pathname);
 
@@ -515,12 +515,12 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 			if (obj_type > ACPI_TYPE_LOCAL_MAX) {
 				acpi_os_printf
-				    ("(Ptr to ACPI Object type %X [UNKNOWN])\n",
+				    ("(Pointer to ACPI Object type %.2X [UNKNOWN])\n",
 				     obj_type);
 				bytes_to_dump = 32;
 			} else {
 				acpi_os_printf
-				    ("(Ptr to ACPI Object type %X [%s])\n",
+				    ("(Pointer to ACPI Object type %.2X [%s])\n",
 				     obj_type, acpi_ut_get_type_name(obj_type));
 				bytes_to_dump =
 				    sizeof(union acpi_operand_object);

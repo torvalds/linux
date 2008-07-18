@@ -133,6 +133,7 @@ static int calc_clk(int time, int bus_speed)
  */
 static void compute_clocks(u8 pio, pio_clocks_t *p_pclk)
 {
+	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
 	int clk1, clk2;
 	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 
@@ -141,15 +142,13 @@ static void compute_clocks(u8 pio, pio_clocks_t *p_pclk)
 	 */
 
 	/* let's calc the address setup time clocks */
-	p_pclk->address_time = (u8)calc_clk(ide_pio_timings[pio].setup_time, bus_speed);
+	p_pclk->address_time = (u8)calc_clk(t->setup, bus_speed);
 
 	/* let's calc the active and recovery time clocks */
-	clk1 = calc_clk(ide_pio_timings[pio].active_time, bus_speed);
+	clk1 = calc_clk(t->active, bus_speed);
 
 	/* calc recovery timing */
-	clk2 =	ide_pio_timings[pio].cycle_time -
-		ide_pio_timings[pio].active_time -
-		ide_pio_timings[pio].setup_time;
+	clk2 = t->cycle - t->active - t->setup;
 
 	clk2 = calc_clk(clk2, bus_speed);
 

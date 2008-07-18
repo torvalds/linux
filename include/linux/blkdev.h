@@ -985,6 +985,9 @@ static inline int bdev_integrity_enabled(struct block_device *bdev, int rw)
 
 static inline int blk_integrity_rq(struct request *rq)
 {
+	if (rq->bio == NULL)
+		return 0;
+
 	return bio_integrity(rq->bio);
 }
 

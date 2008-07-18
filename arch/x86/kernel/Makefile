@@ -8,8 +8,7 @@ CPPFLAGS_vmlinux.lds += -U$(UTS_MACHINE)
 
 ifdef CONFIG_FTRACE
 # Do not profile debug and lowlevel utilities
-CFLAGS_REMOVE_tsc_64.o = -pg
-CFLAGS_REMOVE_tsc_32.o = -pg
+CFLAGS_REMOVE_tsc.o = -pg
 CFLAGS_REMOVE_rtc.o = -pg
 CFLAGS_REMOVE_paravirt.o = -pg
 endif

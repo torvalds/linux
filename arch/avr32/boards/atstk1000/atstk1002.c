@@ -234,6 +234,9 @@ static int __init atstk1002_init(void)
 #ifdef CONFIG_BOARD_ATSTK100X_SPI1
 	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));
 #endif
+#ifndef CONFIG_BOARD_ATSTK1002_SW2_CUSTOM
+	at32_add_device_mci(0, NULL);
+#endif
 #ifdef CONFIG_BOARD_ATSTK1002_SW5_CUSTOM
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
 #else

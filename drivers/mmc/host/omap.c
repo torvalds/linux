@@ -1317,7 +1317,7 @@ static int __init mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 
 	host->slots[id] = slot;
 
-	mmc->caps = MMC_CAP_MULTIWRITE;
+	mmc->caps = 0;
 	if (host->pdata->conf.wire4)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 

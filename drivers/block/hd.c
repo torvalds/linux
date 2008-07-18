@@ -37,7 +37,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
-#include <linux/mc146818rtc.h> /* CMOS defines */
 #include <linux/init.h>
 #include <linux/blkpg.h>
 #include <linux/hdreg.h>
@@ -812,4 +811,4 @@ static int __init parse_hd_setup(char *line)
 }
 __setup("hd=", parse_hd_setup);
 
-module_init(hd_init);
+late_initcall(hd_init);

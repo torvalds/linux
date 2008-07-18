@@ -131,10 +131,15 @@ static int hp_sw_bus_notify(struct notifier_block *nb,
 			    unsigned long action, void *data)
 {
 	struct device *dev = data;
-	struct scsi_device *sdev = to_scsi_device(dev);
+	struct scsi_device *sdev;
 	struct scsi_dh_data *scsi_dh_data;
 	int i, found = 0;
 	unsigned long flags;
+
+	if (!scsi_is_sdev_device(dev))
+		return 0;
+
+	sdev = to_scsi_device(dev);
 
 	if (action == BUS_NOTIFY_ADD_DEVICE) {
 		for (i = 0; hp_sw_dh_data_list[i].vendor; i++) {
