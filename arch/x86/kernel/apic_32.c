@@ -174,8 +174,8 @@ u32 safe_xapic_wait_icr_idle(void)
 
 void xapic_icr_write(u32 low, u32 id)
 {
-	apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(id));
-	apic_write_around(APIC_ICR, low);
+	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(id));
+	apic_write(APIC_ICR, low);
 }
 
 u64 xapic_icr_read(void)
@@ -191,7 +191,6 @@ u64 xapic_icr_read(void)
 static struct apic_ops xapic_ops = {
 	.read = native_apic_mem_read,
 	.write = native_apic_mem_write,
-	.write_atomic = native_apic_mem_write_atomic,
 	.icr_read = xapic_icr_read,
 	.icr_write = xapic_icr_write,
 	.wait_icr_idle = xapic_wait_icr_idle,

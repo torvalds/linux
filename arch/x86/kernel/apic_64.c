@@ -167,7 +167,6 @@ u64 xapic_icr_read(void)
 static struct apic_ops xapic_ops = {
 	.read = native_apic_mem_read,
 	.write = native_apic_mem_write,
-	.write_atomic = native_apic_mem_write_atomic,
 	.icr_read = xapic_icr_read,
 	.icr_write = xapic_icr_write,
 	.wait_icr_idle = xapic_wait_icr_idle,
@@ -206,7 +205,6 @@ u64 x2apic_icr_read(void)
 static struct apic_ops x2apic_ops = {
 	.read = native_apic_msr_read,
 	.write = native_apic_msr_write,
-	.write_atomic = native_apic_msr_write,
 	.icr_read = x2apic_icr_read,
 	.icr_write = x2apic_icr_write,
 	.wait_icr_idle = x2apic_wait_icr_idle,
