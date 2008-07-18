@@ -55,7 +55,7 @@ static void __booke_wdt_ping(void *data)
 
 static void booke_wdt_ping(void)
 {
-	on_each_cpu(__booke_wdt_ping, NULL, 0, 0);
+	on_each_cpu(__booke_wdt_ping, NULL, 0);
 }
 
 static void __booke_wdt_enable(void *data)
@@ -131,7 +131,7 @@ static int booke_wdt_open(struct inode *inode, struct file *file)
 	spin_lock(&booke_wdt_lock);
 	if (booke_wdt_enabled == 0) {
 		booke_wdt_enabled = 1;
-		on_each_cpu(__booke_wdt_enable, NULL, 0, 0);
+		on_each_cpu(__booke_wdt_enable, NULL, 0);
 		printk(KERN_INFO "PowerPC Book-E Watchdog Timer Enabled "
 				"(wdt_period=%d)\n", booke_wdt_period);
 	}
@@ -177,7 +177,7 @@ static int __init booke_wdt_init(void)
 	if (booke_wdt_enabled == 1) {
 		printk(KERN_INFO "PowerPC Book-E Watchdog Timer Enabled "
 				"(wdt_period=%d)\n", booke_wdt_period);
-		on_each_cpu(__booke_wdt_enable, NULL, 0, 0);
+		on_each_cpu(__booke_wdt_enable, NULL, 0);
 	}
 	spin_unlock(&booke_wdt_lock);
 

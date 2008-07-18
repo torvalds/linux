@@ -36,26 +36,15 @@ static inline void hpet_writel(unsigned long d, unsigned long a)
 }
 
 #ifdef CONFIG_X86_64
-
 #include <asm/pgtable.h>
-
-static inline void hpet_set_mapping(void)
-{
-	set_fixmap_nocache(FIX_HPET_BASE, hpet_address);
-	__set_fixmap(VSYSCALL_HPET, hpet_address, PAGE_KERNEL_VSYSCALL_NOCACHE);
-	hpet_virt_address = (void __iomem *)fix_to_virt(FIX_HPET_BASE);
-}
-
-static inline void hpet_clear_mapping(void)
-{
-	hpet_virt_address = NULL;
-}
-
-#else
+#endif
 
 static inline void hpet_set_mapping(void)
 {
 	hpet_virt_address = ioremap_nocache(hpet_address, HPET_MMAP_SIZE);
+#ifdef CONFIG_X86_64
+	__set_fixmap(VSYSCALL_HPET, hpet_address, PAGE_KERNEL_VSYSCALL_NOCACHE);
+#endif
 }
 
 static inline void hpet_clear_mapping(void)
@@ -63,7 +52,6 @@ static inline void hpet_clear_mapping(void)
 	iounmap(hpet_virt_address);
 	hpet_virt_address = NULL;
 }
-#endif
 
 /*
  * HPET command line enable / disable

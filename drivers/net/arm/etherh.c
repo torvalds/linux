@@ -647,7 +647,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	struct ei_device *ei_local;
 	struct net_device *dev;
 	struct etherh_priv *eh;
-	int i, ret;
+	int ret;
 	DECLARE_MAC_BUF(mac);
 
 	etherh_banner();

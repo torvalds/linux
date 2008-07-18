@@ -19,6 +19,7 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -53,6 +54,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
+	lock_kernel();
 	mutex_lock(&raw_mutex);
 
 	/*
@@ -79,6 +81,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 			bdev->bd_inode->i_mapping;
 	filp->private_data = bdev;
 	mutex_unlock(&raw_mutex);
+	unlock_kernel();
 	return 0;
 
 out2:

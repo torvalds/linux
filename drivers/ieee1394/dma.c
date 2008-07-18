@@ -274,7 +274,7 @@ int dma_region_mmap(struct dma_region *dma, struct file *file,
 	vma->vm_ops = &dma_region_vm_ops;
 	vma->vm_private_data = dma;
 	vma->vm_file = file;
-	vma->vm_flags |= VM_RESERVED;
+	vma->vm_flags |= VM_RESERVED | VM_ALWAYSDUMP;
 
 	return 0;
 }

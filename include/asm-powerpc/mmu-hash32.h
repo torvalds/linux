@@ -28,24 +28,18 @@
 #define BPP_RW	0x02		/* Read/write */
 
 #ifndef __ASSEMBLY__
+/* Contort a phys_addr_t into the right format/bits for a BAT */
+#ifdef CONFIG_PHYS_64BIT
+#define BAT_PHYS_ADDR(x) ((u32)((x & 0x00000000fffe0000ULL) | \
+				((x & 0x0000000e00000000ULL) >> 24) | \
+				((x & 0x0000000100000000ULL) >> 30)))
+#else
+#define BAT_PHYS_ADDR(x) (x)
+#endif
+
 struct ppc_bat {
-	struct {
-		unsigned long bepi:15;	/* Effective page index (virtual address) */
-		unsigned long :4;	/* Unused */
-		unsigned long bl:11;	/* Block size mask */
-		unsigned long vs:1;	/* Supervisor valid */
-		unsigned long vp:1;	/* User valid */
-	} batu; 		/* Upper register */
-	struct {
-		unsigned long brpn:15;	/* Real page index (physical address) */
-		unsigned long :10;	/* Unused */
-		unsigned long w:1;	/* Write-thru cache */
-		unsigned long i:1;	/* Cache inhibit */
-		unsigned long m:1;	/* Memory coherence */
-		unsigned long g:1;	/* Guarded (MBZ in IBAT) */
-		unsigned long :1;	/* Unused */
-		unsigned long pp:2;	/* Page access protections */
-	} batl;			/* Lower register */
+	u32 batu;
+	u32 batl;
 };
 #endif /* !__ASSEMBLY__ */
 

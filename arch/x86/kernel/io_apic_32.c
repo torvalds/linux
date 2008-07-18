@@ -59,13 +59,6 @@ static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 static DEFINE_SPINLOCK(ioapic_lock);
 static DEFINE_SPINLOCK(vector_lock);
 
-static bool mask_ioapic_irq_2 __initdata;
-
-void __init force_mask_ioapic_irq_2(void)
-{
-	mask_ioapic_irq_2 = true;
-}
-
 int timer_through_8259 __initdata;
 
 /*
@@ -1576,7 +1569,7 @@ void /*__init*/ print_local_APIC(void *dummy)
 
 void print_all_local_APICs(void)
 {
-	on_each_cpu(print_local_APIC, NULL, 1, 1);
+	on_each_cpu(print_local_APIC, NULL, 1);
 }
 
 void /*__init*/ print_PIC(void)
@@ -2185,9 +2178,6 @@ static inline void __init check_timer(void)
 
 	printk(KERN_INFO "..TIMER: vector=0x%02X apic1=%d pin1=%d apic2=%d pin2=%d\n",
 		vector, apic1, pin1, apic2, pin2);
-
-	if (mask_ioapic_irq_2)
-		mask_IO_APIC_irq(2);
 
 	/*
 	 * Some BIOS writers are clueless and report the ExtINTA

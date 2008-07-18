@@ -38,6 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
+#include <linux/cdrom.h>
 #include <linux/module.h>
 
 #include <xen/xenbus.h>
@@ -150,6 +151,40 @@ static int blkif_getgeo(struct block_device *bd, struct hd_geometry *hg)
 	hg->cylinders = cylinders;
 	if ((sector_t)(hg->cylinders + 1) * hg->heads * hg->sectors < nsect)
 		hg->cylinders = 0xffff;
+	return 0;
+}
+
+int blkif_ioctl(struct inode *inode, struct file *filep,
+		unsigned command, unsigned long argument)
+{
+	struct blkfront_info *info =
+		inode->i_bdev->bd_disk->private_data;
+	int i;
+
+	dev_dbg(&info->xbdev->dev, "command: 0x%x, argument: 0x%lx\n",
+		command, (long)argument);
+
+	switch (command) {
+	case CDROMMULTISESSION:
+		dev_dbg(&info->xbdev->dev, "FIXME: support multisession CDs later\n");
+		for (i = 0; i < sizeof(struct cdrom_multisession); i++)
+			if (put_user(0, (char __user *)(argument + i)))
+				return -EFAULT;
+		return 0;
+
+	case CDROM_GET_CAPABILITY: {
+		struct gendisk *gd = info->gd;
+		if (gd->flags & GENHD_FL_CD)
+			return 0;
+		return -EINVAL;
+	}
+
+	default:
+		/*printk(KERN_ALERT "ioctl %08x not supported by Xen blkdev\n",
+		  command);*/
+		return -EINVAL; /* same return as native Linux */
+	}
+
 	return 0;
 }
 
@@ -323,6 +358,9 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 
 	/* Make sure buffer addresses are sector-aligned. */
 	blk_queue_dma_alignment(rq, 511);
+
+	/* Make sure we don't use bounce buffers. */
+	blk_queue_bounce_limit(rq, BLK_BOUNCE_ANY);
 
 	gd->queue = rq;
 
@@ -546,7 +584,7 @@ static int setup_blkring(struct xenbus_device *dev,
 
 	info->ring_ref = GRANT_INVALID_REF;
 
-	sring = (struct blkif_sring *)__get_free_page(GFP_KERNEL);
+	sring = (struct blkif_sring *)__get_free_page(GFP_NOIO | __GFP_HIGH);
 	if (!sring) {
 		xenbus_dev_fatal(dev, -ENOMEM, "allocating shared ring");
 		return -ENOMEM;
@@ -703,7 +741,8 @@ static int blkif_recover(struct blkfront_info *info)
 	int j;
 
 	/* Stage 1: Make a safe copy of the shadow state. */
-	copy = kmalloc(sizeof(info->shadow), GFP_KERNEL);
+	copy = kmalloc(sizeof(info->shadow),
+		       GFP_NOIO | __GFP_REPEAT | __GFP_HIGH);
 	if (!copy)
 		return -ENOMEM;
 	memcpy(copy, info->shadow, sizeof(info->shadow));
@@ -959,7 +998,7 @@ static int blkif_release(struct inode *inode, struct file *filep)
 		struct xenbus_device *dev = info->xbdev;
 		enum xenbus_state state = xenbus_read_driver_state(dev->otherend);
 
-		if (state == XenbusStateClosing)
+		if (state == XenbusStateClosing && info->is_ready)
 			blkfront_closing(dev);
 	}
 	return 0;
@@ -971,6 +1010,7 @@ static struct block_device_operations xlvbd_block_fops =
 	.open = blkif_open,
 	.release = blkif_release,
 	.getgeo = blkif_getgeo,
+	.ioctl = blkif_ioctl,
 };
 
 
@@ -1006,7 +1046,7 @@ static int __init xlblk_init(void)
 module_init(xlblk_init);
 
 
-static void xlblk_exit(void)
+static void __exit xlblk_exit(void)
 {
 	return xenbus_unregister_driver(&blkfront);
 }

@@ -49,8 +49,8 @@ ACPI_MODULE_NAME("tbutils")
 
 /* Local prototypes */
 static acpi_physical_address
-acpi_tb_get_root_table_entry(u8 * table_entry,
-			     acpi_native_uint table_entry_size);
+acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_check_xsdt
@@ -238,7 +238,7 @@ acpi_status acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length)
  *
  ******************************************************************************/
 
-u8 acpi_tb_checksum(u8 * buffer, acpi_native_uint length)
+u8 acpi_tb_checksum(u8 *buffer, u32 length)
 {
 	u8 sum = 0;
 	u8 *end = buffer + length;
@@ -268,7 +268,7 @@ u8 acpi_tb_checksum(u8 * buffer, acpi_native_uint length)
 
 void
 acpi_tb_install_table(acpi_physical_address address,
-		      u8 flags, char *signature, acpi_native_uint table_index)
+		      u8 flags, char *signature, u32 table_index)
 {
 	struct acpi_table_header *table;
 
@@ -336,8 +336,7 @@ acpi_tb_install_table(acpi_physical_address address,
  ******************************************************************************/
 
 static acpi_physical_address
-acpi_tb_get_root_table_entry(u8 * table_entry,
-			     acpi_native_uint table_entry_size)
+acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
 {
 	u64 address64;
 
@@ -395,8 +394,8 @@ acpi_status __init
 acpi_tb_parse_root_table(acpi_physical_address rsdp_address, u8 flags)
 {
 	struct acpi_table_rsdp *rsdp;
-	acpi_native_uint table_entry_size;
-	acpi_native_uint i;
+	u32 table_entry_size;
+	u32 i;
 	u32 table_count;
 	struct acpi_table_header *table;
 	acpi_physical_address address;

@@ -329,7 +329,7 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 
 	mlog(0, "Trying to extend transaction by %d blocks\n", nblocks);
 
-#ifdef OCFS2_DEBUG_FS
+#ifdef CONFIG_OCFS2_DEBUG_FS
 	status = 1;
 #else
 	status = journal_extend(handle, nblocks);

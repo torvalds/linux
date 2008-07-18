@@ -684,6 +684,11 @@ void __init setup_arch(char **cmdline_p)
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 	}
 
+#ifdef CONFIG_PCI
+	if (pci_early_dump_regs)
+		early_dump_pci_devices();
+#endif
+
 	finish_e820_parsing();
 
 #ifdef CONFIG_X86_32
@@ -849,6 +854,14 @@ void __init setup_arch(char **cmdline_p)
 	prefill_possible_map();
 #ifdef CONFIG_X86_64
 	init_cpu_to_node();
+#endif
+
+#ifdef CONFIG_X86_NUMAQ
+	/*
+	 * need to check online nodes num, call it
+	 * here before time_init/tsc_init
+	 */
+	numaq_tsc_disable();
 #endif
 
 	init_apic_mappings();

@@ -258,13 +258,6 @@ config MTD_ALCHEMY
 	help
 	  Flash memory access on AMD Alchemy Pb/Db/RDK Reference Boards
 
-config MTD_MTX1
-	tristate "4G Systems MTX-1 Flash device"
-	depends on MIPS_MTX1 && MTD_CFI
-	help
-	  Flash memory access on 4G Systems MTX-1 Board. If you have one of
-	  these boards and would like to use the flash chips on it, say 'Y'.
-
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
 	depends on X86 && MTD_CONCAT && MTD_PARTITIONS && MTD_CFI_INTELEXT

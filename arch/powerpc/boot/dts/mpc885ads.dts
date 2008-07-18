@@ -215,6 +215,17 @@
 				fsl,cpm-command = <0x80>;
 				linux,network-index = <2>;
 			};
+
+			i2c@860 {
+				compatible = "fsl,mpc885-i2c",
+					     "fsl,cpm1-i2c";
+				reg = <0x860 0x20 0x3c80 0x30>;
+				interrupts = <16>;
+				interrupt-parent = <&CPM_PIC>;
+				fsl,cpm-command = <0x10>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 	};
 

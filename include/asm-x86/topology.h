@@ -82,7 +82,7 @@ DECLARE_EARLY_PER_CPU(int, x86_cpu_to_node_map);
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 extern int cpu_to_node(int cpu);
 extern int early_cpu_to_node(int cpu);
-extern cpumask_t *_node_to_cpumask_ptr(int node);
+extern const cpumask_t *_node_to_cpumask_ptr(int node);
 extern cpumask_t node_to_cpumask(int node);
 
 #else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
@@ -103,7 +103,7 @@ static inline int early_cpu_to_node(int cpu)
 }
 
 /* Returns a pointer to the cpumask of CPUs on Node 'node'. */
-static inline cpumask_t *_node_to_cpumask_ptr(int node)
+static inline const cpumask_t *_node_to_cpumask_ptr(int node)
 {
 	return &node_to_cpumask_map[node];
 }
@@ -118,7 +118,7 @@ static inline cpumask_t node_to_cpumask(int node)
 
 /* Replace default node_to_cpumask_ptr with optimized version */
 #define node_to_cpumask_ptr(v, node)		\
-		cpumask_t *v = _node_to_cpumask_ptr(node)
+		const cpumask_t *v = _node_to_cpumask_ptr(node)
 
 #define node_to_cpumask_ptr_next(v, node)	\
 			   v = _node_to_cpumask_ptr(node)
@@ -186,7 +186,7 @@ extern int __node_distance(int, int);
 #define	cpu_to_node(cpu)	0
 #define	early_cpu_to_node(cpu)	0
 
-static inline cpumask_t *_node_to_cpumask_ptr(int node)
+static inline const cpumask_t *_node_to_cpumask_ptr(int node)
 {
 	return &cpu_online_map;
 }
@@ -201,7 +201,7 @@ static inline int node_to_first_cpu(int node)
 
 /* Replace default node_to_cpumask_ptr with optimized version */
 #define node_to_cpumask_ptr(v, node)		\
-		cpumask_t *v = _node_to_cpumask_ptr(node)
+		const cpumask_t *v = _node_to_cpumask_ptr(node)
 
 #define node_to_cpumask_ptr_next(v, node)	\
 			   v = _node_to_cpumask_ptr(node)

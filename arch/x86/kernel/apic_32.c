@@ -1374,6 +1374,10 @@ void __init smp_intr_init(void)
 
 	/* IPI for generic function call */
 	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
+
+	/* IPI for single call function */
+	set_intr_gate(CALL_FUNCTION_SINGLE_VECTOR,
+				call_function_single_interrupt);
 }
 #endif
 

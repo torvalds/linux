@@ -137,38 +137,6 @@ int of_gpio_simple_xlate(struct of_gpio_chip *of_gc, struct device_node *np,
 }
 EXPORT_SYMBOL(of_gpio_simple_xlate);
 
-/* Should be sufficient for now, later we'll use dynamic bases. */
-#if defined(CONFIG_PPC32) || defined(CONFIG_SPARC32)
-#define GPIOS_PER_CHIP 32
-#else
-#define GPIOS_PER_CHIP 64
-#endif
-
-static int of_get_gpiochip_base(struct device_node *np)
-{
-	struct device_node *gc = NULL;
-	int gpiochip_base = 0;
-
-	while ((gc = of_find_all_nodes(gc))) {
-		if (!of_get_property(gc, "gpio-controller", NULL))
-			continue;
-
-		if (gc != np) {
-			gpiochip_base += GPIOS_PER_CHIP;
-			continue;
-		}
-
-		of_node_put(gc);
-
-		if (gpiochip_base >= ARCH_NR_GPIOS)
-			return -ENOSPC;
-
-		return gpiochip_base;
-	}
-
-	return -ENOENT;
-}
-
 /**
  * of_mm_gpiochip_add - Add memory mapped GPIO chip (bank)
  * @np:		device node of the GPIO chip
@@ -205,11 +173,7 @@ int of_mm_gpiochip_add(struct device_node *np,
 	if (!mm_gc->regs)
 		goto err1;
 
-	gc->base = of_get_gpiochip_base(np);
-	if (gc->base < 0) {
-		ret = gc->base;
-		goto err1;
-	}
+	gc->base = -1;
 
 	if (!of_gc->xlate)
 		of_gc->xlate = of_gpio_simple_xlate;

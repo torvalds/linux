@@ -1243,7 +1243,9 @@ static const struct smp_ops xen_smp_ops __initdata = {
 
 	.smp_send_stop = xen_smp_send_stop,
 	.smp_send_reschedule = xen_smp_send_reschedule,
-	.smp_call_function_mask = xen_smp_call_function_mask,
+
+	.send_call_func_ipi = xen_smp_send_call_function_ipi,
+	.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi,
 };
 #endif	/* CONFIG_SMP */
 

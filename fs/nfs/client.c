@@ -431,14 +431,14 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 {
 	to->to_initval = timeo * HZ / 10;
 	to->to_retries = retrans;
-	if (!to->to_retries)
-		to->to_retries = 2;
 
 	switch (proto) {
 	case XPRT_TRANSPORT_TCP:
 	case XPRT_TRANSPORT_RDMA:
+		if (to->to_retries == 0)
+			to->to_retries = NFS_DEF_TCP_RETRANS;
 		if (to->to_initval == 0)
-			to->to_initval = 60 * HZ;
+			to->to_initval = NFS_DEF_TCP_TIMEO * HZ / 10;
 		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
 			to->to_initval = NFS_MAX_TCP_TIMEOUT;
 		to->to_increment = to->to_initval;
@@ -450,14 +450,17 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 		to->to_exponential = 0;
 		break;
 	case XPRT_TRANSPORT_UDP:
-	default:
+		if (to->to_retries == 0)
+			to->to_retries = NFS_DEF_UDP_RETRANS;
 		if (!to->to_initval)
-			to->to_initval = 11 * HZ / 10;
+			to->to_initval = NFS_DEF_UDP_TIMEO * HZ / 10;
 		if (to->to_initval > NFS_MAX_UDP_TIMEOUT)
 			to->to_initval = NFS_MAX_UDP_TIMEOUT;
 		to->to_maxval = NFS_MAX_UDP_TIMEOUT;
 		to->to_exponential = 1;
 		break;
+	default:
+		BUG();
 	}
 }
 

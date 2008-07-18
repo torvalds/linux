@@ -644,7 +644,7 @@ static unsigned long __init kernel_physical_mapping_init(unsigned long start,
 		unsigned long pud_phys;
 		pud_t *pud;
 
-		next = start + PGDIR_SIZE;
+		next = (start + PGDIR_SIZE) & PGDIR_MASK;
 		if (next > end)
 			next = end;
 
@@ -762,6 +762,20 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	start_pfn = end_pfn;
 	end_pfn = end>>PAGE_SHIFT;
 	nr_range = save_mr(mr, nr_range, start_pfn, end_pfn, 0);
+
+	/* try to merge same page size and continuous */
+	for (i = 0; nr_range > 1 && i < nr_range - 1; i++) {
+		unsigned long old_start;
+		if (mr[i].end != mr[i+1].start ||
+		    mr[i].page_size_mask != mr[i+1].page_size_mask)
+			continue;
+		/* move it */
+		old_start = mr[i].start;
+		memmove(&mr[i], &mr[i+1],
+			 (nr_range - 1 - i) * sizeof (struct map_range));
+		mr[i].start = old_start;
+		nr_range--;
+	}
 
 	for (i = 0; i < nr_range; i++)
 		printk(KERN_DEBUG " %010lx - %010lx page %s\n",
@@ -977,6 +991,13 @@ EXPORT_SYMBOL_GPL(rodata_test_data);
 void mark_rodata_ro(void)
 {
 	unsigned long start = PFN_ALIGN(_stext), end = PFN_ALIGN(__end_rodata);
+	unsigned long rodata_start =
+		((unsigned long)__start_rodata + PAGE_SIZE - 1) & PAGE_MASK;
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+	/* Dynamic tracing modifies the kernel text section */
+	start = rodata_start;
+#endif
 
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
 	       (end - start) >> 10);
@@ -986,8 +1007,7 @@ void mark_rodata_ro(void)
 	 * The rodata section (but not the kernel text!) should also be
 	 * not-executable.
 	 */
-	start = ((unsigned long)__start_rodata + PAGE_SIZE - 1) & PAGE_MASK;
-	set_memory_nx(start, (end - start) >> PAGE_SHIFT);
+	set_memory_nx(rodata_start, (end - rodata_start) >> PAGE_SHIFT);
 
 	rodata_test();
 

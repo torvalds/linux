@@ -1049,11 +1049,6 @@ u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
 #endif
 
 /*
- * Last pfn which the user wants to use.
- */
-unsigned long __initdata end_user_pfn = MAX_ARCH_PFN;
-
-/*
  * Find the highest page frame number we have available
  */
 static unsigned long __init e820_end_pfn(unsigned long limit_pfn, unsigned type)
@@ -1085,8 +1080,6 @@ static unsigned long __init e820_end_pfn(unsigned long limit_pfn, unsigned type)
 
 	if (last_pfn > max_arch_pfn)
 		last_pfn = max_arch_pfn;
-	if (last_pfn > end_user_pfn)
-		last_pfn = end_user_pfn;
 
 	printk(KERN_INFO "last_pfn = %#lx max_arch_pfn = %#lx\n",
 			 last_pfn, max_arch_pfn);
@@ -1130,12 +1123,6 @@ int __init e820_find_active_region(const struct e820entry *ei,
 		*ei_startpfn = start_pfn;
 	if (*ei_endpfn > last_pfn)
 		*ei_endpfn = last_pfn;
-
-	/* Obey end_user_pfn to save on memmap */
-	if (*ei_startpfn >= end_user_pfn)
-		return 0;
-	if (*ei_endpfn > end_user_pfn)
-		*ei_endpfn = end_user_pfn;
 
 	return 1;
 }
@@ -1201,7 +1188,6 @@ static int __init parse_memopt(char *p)
 
 	userdef = 1;
 	mem_size = memparse(p, &p);
-	end_user_pfn = mem_size>>PAGE_SHIFT;
 	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
 
 	return 0;
@@ -1245,10 +1231,9 @@ static int __init parse_memmap_opt(char *p)
 	} else if (*p == '$') {
 		start_at = memparse(p+1, &p);
 		e820_add_region(start_at, mem_size, E820_RESERVED);
-	} else {
-		end_user_pfn = (mem_size >> PAGE_SHIFT);
+	} else
 		e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
-	}
+
 	return *p == '\0' ? 0 : -EINVAL;
 }
 early_param("memmap", parse_memmap_opt);

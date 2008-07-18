@@ -42,8 +42,8 @@ Count (8 bits): A data byte containing the length of a block operation.
 [..]: Data sent by I2C device, as opposed to data sent by the host adapter.
 
 
-SMBus Quick Command:  i2c_smbus_write_quick()
-=============================================
+SMBus Quick Command
+===================
 
 This sends a single bit to the device, at the place of the Rd/Wr bit.
 

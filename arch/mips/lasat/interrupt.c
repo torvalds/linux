@@ -22,8 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
-#include <asm/bootinfo.h>
 #include <asm/irq_cpu.h>
+#include <asm/lasat/lasat.h>
 #include <asm/lasat/lasatint.h>
 
 #include <irq.h>
@@ -112,23 +112,18 @@ void __init arch_init_irq(void)
 {
 	int i;
 
-	switch (mips_machtype) {
-	case MACH_LASAT_100:
-		lasat_int_status = (void *)LASAT_INT_STATUS_REG_100;
-		lasat_int_mask = (void *)LASAT_INT_MASK_REG_100;
-		lasat_int_mask_shift = LASATINT_MASK_SHIFT_100;
-		get_int_status = get_int_status_100;
-		*lasat_int_mask = 0;
-		break;
-	case MACH_LASAT_200:
+	if (IS_LASAT_200()) {
 		lasat_int_status = (void *)LASAT_INT_STATUS_REG_200;
 		lasat_int_mask = (void *)LASAT_INT_MASK_REG_200;
 		lasat_int_mask_shift = LASATINT_MASK_SHIFT_200;
 		get_int_status = get_int_status_200;
 		*lasat_int_mask &= 0xffff;
-		break;
-	default:
-		panic("arch_init_irq: mips_machtype incorrect");
+	} else {
+		lasat_int_status = (void *)LASAT_INT_STATUS_REG_100;
+		lasat_int_mask = (void *)LASAT_INT_MASK_REG_100;
+		lasat_int_mask_shift = LASATINT_MASK_SHIFT_100;
+		get_int_status = get_int_status_100;
+		*lasat_int_mask = 0;
 	}
 
 	mips_cpu_irq_init();

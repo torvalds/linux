@@ -189,8 +189,8 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			    struct acpi_gpe_block_info *gpe_block)
 {
 	struct acpi_gpe_event_info *gpe_event_info;
-	acpi_native_uint i;
-	acpi_native_uint j;
+	u32 i;
+	u32 j;
 
 	ACPI_FUNCTION_TRACE(ev_delete_gpe_handlers);
 
@@ -203,7 +203,8 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 		for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
 			gpe_event_info =
 			    &gpe_block->
-			    event_info[(i * ACPI_GPE_REGISTER_WIDTH) + j];
+			    event_info[((acpi_size) i *
+					ACPI_GPE_REGISTER_WIDTH) + j];
 
 			if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
 			    ACPI_GPE_DISPATCH_HANDLER) {
@@ -744,8 +745,8 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 	struct acpi_gpe_event_info *gpe_event_info = NULL;
 	struct acpi_gpe_event_info *this_event;
 	struct acpi_gpe_register_info *this_register;
-	acpi_native_uint i;
-	acpi_native_uint j;
+	u32 i;
+	u32 j;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ev_create_gpe_info_blocks);
@@ -983,8 +984,8 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 	struct acpi_gpe_walk_info gpe_info;
 	u32 wake_gpe_count;
 	u32 gpe_enabled_count;
-	acpi_native_uint i;
-	acpi_native_uint j;
+	u32 i;
+	u32 j;
 
 	ACPI_FUNCTION_TRACE(ev_initialize_gpe_block);
 
@@ -1033,7 +1034,8 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 
 			gpe_event_info =
 			    &gpe_block->
-			    event_info[(i * ACPI_GPE_REGISTER_WIDTH) + j];
+			    event_info[((acpi_size) i *
+					ACPI_GPE_REGISTER_WIDTH) + j];
 
 			if (((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
 			     ACPI_GPE_DISPATCH_METHOD)

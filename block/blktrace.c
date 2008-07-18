@@ -244,6 +244,7 @@ err:
 static void blk_trace_cleanup(struct blk_trace *bt)
 {
 	relay_close(bt->rchan);
+	debugfs_remove(bt->msg_file);
 	debugfs_remove(bt->dropped_file);
 	blk_remove_tree(bt->dir);
 	free_percpu(bt->sequence);
@@ -289,6 +290,44 @@ static const struct file_operations blk_dropped_fops = {
 	.owner =	THIS_MODULE,
 	.open =		blk_dropped_open,
 	.read =		blk_dropped_read,
+};
+
+static int blk_msg_open(struct inode *inode, struct file *filp)
+{
+	filp->private_data = inode->i_private;
+
+	return 0;
+}
+
+static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
+				size_t count, loff_t *ppos)
+{
+	char *msg;
+	struct blk_trace *bt;
+
+	if (count > BLK_TN_MAX_MSG)
+		return -EINVAL;
+
+	msg = kmalloc(count, GFP_KERNEL);
+	if (msg == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(msg, buffer, count)) {
+		kfree(msg);
+		return -EFAULT;
+	}
+
+	bt = filp->private_data;
+	__trace_note_message(bt, "%s", msg);
+	kfree(msg);
+
+	return count;
+}
+
+static const struct file_operations blk_msg_fops = {
+	.owner =	THIS_MODULE,
+	.open =		blk_msg_open,
+	.write =	blk_msg_write,
 };
 
 /*
@@ -380,6 +419,10 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!bt->dropped_file)
 		goto err;
 
+	bt->msg_file = debugfs_create_file("msg", 0222, dir, bt, &blk_msg_fops);
+	if (!bt->msg_file)
+		goto err;
+
 	bt->rchan = relay_open("trace", dir, buts->buf_size,
 				buts->buf_nr, &blk_relay_callbacks, bt);
 	if (!bt->rchan)
@@ -409,6 +452,8 @@ err:
 	if (dir)
 		blk_remove_tree(dir);
 	if (bt) {
+		if (bt->msg_file)
+			debugfs_remove(bt->msg_file);
 		if (bt->dropped_file)
 			debugfs_remove(bt->dropped_file);
 		free_percpu(bt->sequence);

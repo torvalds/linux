@@ -141,7 +141,7 @@ static void cpa_flush_all(unsigned long cache)
 {
 	BUG_ON(irqs_disabled());
 
-	on_each_cpu(__cpa_flush_all, (void *) cache, 1, 1);
+	on_each_cpu(__cpa_flush_all, (void *) cache, 1);
 }
 
 static void __cpa_flush_range(void *arg)
@@ -162,7 +162,7 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 	BUG_ON(irqs_disabled());
 	WARN_ON(PAGE_ALIGN(start) != start);
 
-	on_each_cpu(__cpa_flush_range, NULL, 1, 1);
+	on_each_cpu(__cpa_flush_range, NULL, 1);
 
 	if (!cache)
 		return;
@@ -262,6 +262,7 @@ pte_t *lookup_address(unsigned long address, unsigned int *level)
 
 	return pte_offset_kernel(pmd, address);
 }
+EXPORT_SYMBOL_GPL(lookup_address);
 
 /*
  * Set the new pmd in all the pgds we know about:
@@ -658,11 +659,11 @@ static int cpa_process_alias(struct cpa_data *cpa)
 	struct cpa_data alias_cpa;
 	int ret = 0;
 
-	if (cpa->pfn > max_pfn_mapped)
+	if (cpa->pfn >= max_pfn_mapped)
 		return 0;
 
 #ifdef CONFIG_X86_64
-	if (cpa->pfn > max_low_pfn_mapped && cpa->pfn < (1UL<<(32-PAGE_SHIFT)))
+	if (cpa->pfn >= max_low_pfn_mapped && cpa->pfn < (1UL<<(32-PAGE_SHIFT)))
 		return 0;
 #endif
 	/*

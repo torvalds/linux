@@ -30,10 +30,10 @@ static int _rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h, int safe)
 
 	rv.msr_no = msr_no;
 	if (safe) {
-		smp_call_function_single(cpu, __rdmsr_safe_on_cpu, &rv, 0, 1);
+		smp_call_function_single(cpu, __rdmsr_safe_on_cpu, &rv, 1);
 		err = rv.err;
 	} else {
-		smp_call_function_single(cpu, __rdmsr_on_cpu, &rv, 0, 1);
+		smp_call_function_single(cpu, __rdmsr_on_cpu, &rv, 1);
 	}
 	*l = rv.l;
 	*h = rv.h;
@@ -64,10 +64,10 @@ static int _wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h, int safe)
 	rv.l = l;
 	rv.h = h;
 	if (safe) {
-		smp_call_function_single(cpu, __wrmsr_safe_on_cpu, &rv, 0, 1);
+		smp_call_function_single(cpu, __wrmsr_safe_on_cpu, &rv, 1);
 		err = rv.err;
 	} else {
-		smp_call_function_single(cpu, __wrmsr_on_cpu, &rv, 0, 1);
+		smp_call_function_single(cpu, __wrmsr_on_cpu, &rv, 1);
 	}
 
 	return err;

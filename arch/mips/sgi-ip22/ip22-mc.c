@@ -208,4 +208,30 @@ void __init sgimc_init(void)
 void __init prom_meminit(void) {}
 void __init prom_free_prom_memory(void)
 {
+#ifdef CONFIG_SGI_IP28
+	u32 mconfig1;
+	unsigned long flags;
+	spinlock_t lock;
+
+	/*
+	 * because ARCS accesses memory uncached we wait until ARCS
+	 * isn't needed any longer, before we switch from slow to
+	 * normal mode
+	 */
+	spin_lock_irqsave(&lock, flags);
+	mconfig1 = sgimc->mconfig1;
+	/* map ECC register */
+	sgimc->mconfig1 = (mconfig1 & 0xffff0000) | 0x2060;
+	iob();
+	/* switch to normal mode */
+	*(unsigned long *)PHYS_TO_XKSEG_UNCACHED(0x60000000) = 0;
+	iob();
+	/* reduce WR_COL */
+	sgimc->cmacc = (sgimc->cmacc & ~0xf) | 4;
+	iob();
+	/* restore old config */
+	sgimc->mconfig1 = mconfig1;
+	iob();
+	spin_unlock_irqrestore(&lock, flags);
+#endif
 }

@@ -67,6 +67,8 @@
 		*(.rodata1)						\
 	}								\
 									\
+	BUG_TABLE							\
+									\
 	/* PCI quirks */						\
 	.pci_fixup        : AT(ADDR(.pci_fixup) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__start_pci_fixups_early) = .;		\
@@ -84,6 +86,19 @@
 		VMLINUX_SYMBOL(__start_pci_fixups_resume) = .;		\
 		*(.pci_fixup_resume)					\
 		VMLINUX_SYMBOL(__end_pci_fixups_resume) = .;		\
+		VMLINUX_SYMBOL(__start_pci_fixups_resume_early) = .;	\
+		*(.pci_fixup_resume_early)				\
+		VMLINUX_SYMBOL(__end_pci_fixups_resume_early) = .;	\
+		VMLINUX_SYMBOL(__start_pci_fixups_suspend) = .;		\
+		*(.pci_fixup_suspend)					\
+		VMLINUX_SYMBOL(__end_pci_fixups_suspend) = .;		\
+	}								\
+									\
+	/* Built-in firmware blobs */					\
+	.builtin_fw        : AT(ADDR(.builtin_fw) - LOAD_OFFSET) {	\
+		VMLINUX_SYMBOL(__start_builtin_fw) = .;			\
+		*(.builtin_fw)						\
+		VMLINUX_SYMBOL(__end_builtin_fw) = .;			\
 	}								\
 									\
 	/* RapidIO route ops */						\
@@ -312,6 +327,7 @@
 		.stab.indexstr 0 : { *(.stab.indexstr) }		\
 		.comment 0 : { *(.comment) }
 
+#ifdef CONFIG_GENERIC_BUG
 #define BUG_TABLE							\
 	. = ALIGN(8);							\
 	__bug_table : AT(ADDR(__bug_table) - LOAD_OFFSET) {		\
@@ -319,6 +335,9 @@
 		*(__bug_table)						\
 		__stop___bug_table = .;					\
 	}
+#else
+#define BUG_TABLE
+#endif
 
 #ifdef CONFIG_PM_TRACE
 #define TRACEDATA							\

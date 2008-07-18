@@ -376,7 +376,8 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 	const struct firmware *fw_entry = NULL;
 	int err, alen;
 	u8 carry = 0;
-	u8 *buf, *tmp, *data;
+	u8 *buf, *tmp;
+	const u8 *data;
 	unsigned int left, remains, block_size;
 	struct x2_header *hdr;
 	unsigned long timeout;
@@ -523,7 +524,7 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 	void *buf;
 	__le32 reg;
 	unsigned int remains, offset;
-	u8 *data;
+	const u8 *data;
 
 	buf = kmalloc(512, GFP_KERNEL);
 	if (!buf) {

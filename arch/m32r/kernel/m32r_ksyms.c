@@ -43,9 +43,6 @@ EXPORT_SYMBOL(dcache_dummy);
 #endif
 EXPORT_SYMBOL(cpu_data);
 
-/* Global SMP stuff */
-EXPORT_SYMBOL(smp_call_function);
-
 /* TLB flushing */
 EXPORT_SYMBOL(smp_flush_tlb_page);
 #endif

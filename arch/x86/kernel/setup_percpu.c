@@ -343,23 +343,23 @@ static const cpumask_t cpu_mask_none;
 /*
  * Returns a pointer to the bitmask of CPUs on Node 'node'.
  */
-cpumask_t *_node_to_cpumask_ptr(int node)
+const cpumask_t *_node_to_cpumask_ptr(int node)
 {
 	if (node_to_cpumask_map == NULL) {
 		printk(KERN_WARNING
 			"_node_to_cpumask_ptr(%d): no node_to_cpumask_map!\n",
 			node);
 		dump_stack();
-		return &cpu_online_map;
+		return (const cpumask_t *)&cpu_online_map;
 	}
 	if (node >= nr_node_ids) {
 		printk(KERN_WARNING
 			"_node_to_cpumask_ptr(%d): node > nr_node_ids(%d)\n",
 			node, nr_node_ids);
 		dump_stack();
-		return (cpumask_t *)&cpu_mask_none;
+		return &cpu_mask_none;
 	}
-	return (cpumask_t *)&node_to_cpumask_map[node];
+	return &node_to_cpumask_map[node];
 }
 EXPORT_SYMBOL(_node_to_cpumask_ptr);
 

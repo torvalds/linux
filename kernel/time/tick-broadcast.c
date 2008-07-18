@@ -268,7 +268,7 @@ void tick_broadcast_on_off(unsigned long reason, int *oncpu)
 		       "offline CPU #%d\n", *oncpu);
 	else
 		smp_call_function_single(*oncpu, tick_do_broadcast_on_off,
-					 &reason, 1, 1);
+					 &reason, 1);
 }
 
 /*

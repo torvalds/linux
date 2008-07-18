@@ -41,8 +41,6 @@
 #define DBG(x...)
 #endif
 
-extern void GregorianDay(struct rtc_time * tm);
-
 static int maple_rtc_addr;
 
 static int maple_clock_read(int addr)

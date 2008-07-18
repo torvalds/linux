@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2440/mach-osiris.c
  *
- * Copyright (c) 2005 Simtec Electronics
+ * Copyright (c) 2005,2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -19,6 +19,7 @@
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/clk.h>
+#include <linux/i2c.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -322,6 +323,15 @@ static struct sys_device osiris_pm_sysdev = {
 	.cls		= &osiris_pm_sysclass,
 };
 
+/* I2C devices fitted. */
+
+static struct i2c_board_info osiris_i2c_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("tps65011", 0x48),
+		.irq	= IRQ_EINT20,
+	},
+};
+
 /* Standard Osiris devices */
 
 static struct platform_device *osiris_devices[] __initdata = {
@@ -387,6 +397,9 @@ static void __init osiris_init(void)
 {
 	sysdev_class_register(&osiris_pm_sysclass);
 	sysdev_register(&osiris_pm_sysdev);
+
+	i2c_register_board_info(0, osiris_i2c_devs,
+				ARRAY_SIZE(osiris_i2c_devs));
 
 	platform_add_devices(osiris_devices, ARRAY_SIZE(osiris_devices));
 };

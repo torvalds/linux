@@ -17,6 +17,8 @@
 
 #ifdef CONFIG_SMP
 
+cpumask_t irq_default_affinity = CPU_MASK_ALL;
+
 /**
  *	synchronize_irq - wait for pending IRQ handlers (on other CPUs)
  *	@irq: interrupt number to wait for
@@ -101,6 +103,27 @@ int irq_set_affinity(unsigned int irq, cpumask_t cpumask)
 #endif
 	return 0;
 }
+
+#ifndef CONFIG_AUTO_IRQ_AFFINITY
+/*
+ * Generic version of the affinity autoselector.
+ */
+int irq_select_affinity(unsigned int irq)
+{
+	cpumask_t mask;
+
+	if (!irq_can_set_affinity(irq))
+		return 0;
+
+	cpus_and(mask, cpu_online_map, irq_default_affinity);
+
+	irq_desc[irq].affinity = mask;
+	irq_desc[irq].chip->set_affinity(irq, mask);
+
+	set_balance_irq_affinity(irq, mask);
+	return 0;
+}
+#endif
 
 #endif
 
@@ -361,7 +384,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 
 		/* Setup the type (level, edge polarity) if configured: */
 		if (new->flags & IRQF_TRIGGER_MASK) {
-			if (desc->chip && desc->chip->set_type)
+			if (desc->chip->set_type)
 				desc->chip->set_type(irq,
 						new->flags & IRQF_TRIGGER_MASK);
 			else
@@ -371,8 +394,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 				 */
 				printk(KERN_WARNING "No IRQF_TRIGGER set_type "
 				       "function for IRQ %d (%s)\n", irq,
-				       desc->chip ? desc->chip->name :
-				       "unknown");
+				       desc->chip->name);
 		} else
 			compat_irq_chip_set_default_handler(desc);
 
@@ -389,6 +411,9 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		} else
 			/* Undo nested disables: */
 			desc->depth = 1;
+
+		/* Set default affinity mask once everything is setup */
+		irq_select_affinity(irq);
 	}
 	/* Reset broken irq detection when installing new handler */
 	desc->irq_count = 0;
@@ -577,8 +602,6 @@ int request_irq(unsigned int irq, irq_handler_t handler,
 	action->name = devname;
 	action->next = NULL;
 	action->dev_id = dev_id;
-
-	select_smp_affinity(irq);
 
 #ifdef CONFIG_DEBUG_SHIRQ
 	if (irqflags & IRQF_SHARED) {

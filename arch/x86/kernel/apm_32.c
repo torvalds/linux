@@ -204,6 +204,7 @@
 #include <linux/module.h>
 
 #include <linux/poll.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/timer.h>
@@ -1212,9 +1213,9 @@ static int suspend(int vetoable)
 	if (err != APM_SUCCESS)
 		apm_error("suspend", err);
 	err = (err == APM_SUCCESS) ? 0 : -EIO;
-	device_power_up();
+	device_power_up(PMSG_RESUME);
 	local_irq_enable();
-	device_resume();
+	device_resume(PMSG_RESUME);
 	queue_event(APM_NORMAL_RESUME, NULL);
 	spin_lock(&user_list_lock);
 	for (as = user_list; as != NULL; as = as->next) {
@@ -1239,7 +1240,7 @@ static void standby(void)
 		apm_error("standby", err);
 
 	local_irq_disable();
-	device_power_up();
+	device_power_up(PMSG_RESUME);
 	local_irq_enable();
 }
 
@@ -1325,7 +1326,7 @@ static void check_events(void)
 			ignore_bounce = 1;
 			if ((event != APM_NORMAL_RESUME)
 			    || (ignore_normal_resume == 0)) {
-				device_resume();
+				device_resume(PMSG_RESUME);
 				queue_event(event, NULL);
 			}
 			ignore_normal_resume = 0;
@@ -1549,10 +1550,12 @@ static int do_open(struct inode *inode, struct file *filp)
 {
 	struct apm_user *as;
 
+	lock_kernel();
 	as = kmalloc(sizeof(*as), GFP_KERNEL);
 	if (as == NULL) {
 		printk(KERN_ERR "apm: cannot allocate struct of size %d bytes\n",
 		       sizeof(*as));
+		       unlock_kernel();
 		return -ENOMEM;
 	}
 	as->magic = APM_BIOS_MAGIC;
@@ -1574,6 +1577,7 @@ static int do_open(struct inode *inode, struct file *filp)
 	user_list = as;
 	spin_unlock(&user_list_lock);
 	filp->private_data = as;
+	unlock_kernel();
 	return 0;
 }
 

@@ -59,6 +59,7 @@ struct kprobe_ctlblk {
 };
 
 void arch_remove_kprobe(struct kprobe *);
+void kretprobe_trampoline(void);
 
 int kprobe_trap_handler(struct pt_regs *regs, unsigned int instr);
 int kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr);

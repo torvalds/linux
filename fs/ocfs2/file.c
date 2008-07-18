@@ -2202,7 +2202,7 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 
 	ret = generic_file_aio_read(iocb, iov, nr_segs, iocb->ki_pos);
 	if (ret == -EINVAL)
-		mlog(ML_ERROR, "generic_file_aio_read returned -EINVAL\n");
+		mlog(0, "generic_file_aio_read returned -EINVAL\n");
 
 	/* buffered aio wouldn't have proper lock coverage today */
 	BUG_ON(ret == -EIOCBQUEUED && !(filp->f_flags & O_DIRECT));

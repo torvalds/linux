@@ -1,0 +1,32 @@
+##
+## Au1200/Au1550 PSC + DBDMA
+##
+config SND_SOC_AU1XPSC
+	tristate "SoC Audio for Au1200/Au1250/Au1550"
+	depends on SOC_AU1200 || SOC_AU1550
+	help
+	  This option enables support for the Programmable Serial
+	  Controllers in AC97 and I2S mode, and the Descriptor-Based DMA
+	  Controller (DBDMA) as found on the Au1200/Au1250/Au1550 SoC.
+
+config SND_SOC_AU1XPSC_I2S
+	tristate
+
+config SND_SOC_AU1XPSC_AC97
+	tristate
+	select AC97_BUS
+	select SND_AC97_CODEC
+	select SND_SOC_AC97_BUS
+
+
+##
+## Boards
+##
+config SND_SOC_SAMPLE_PSC_AC97
+	tristate "Sample Au12x0/Au1550 PSC AC97 sound machine"
+	depends on SND_SOC_AU1XPSC
+	select SND_SOC_AU1XPSC_AC97
+	select SND_SOC_AC97_CODEC
+	help
+	  This is a sample AC97 sound machine for use in Au12x0/Au1550
+	  based systems which have audio on PSC1 (e.g. Db1200 demoboard).

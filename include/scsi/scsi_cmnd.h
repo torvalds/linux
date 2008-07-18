@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
-#include <linux/blkdev.h>
 
 struct Scsi_Host;
 struct scsi_device;

@@ -24,6 +24,7 @@
  * see Documentation/dvb/README.dvb-usb for more information
  */
 #include <media/tuner.h>
+#include <linux/vmalloc.h>
 
 #include "cxusb.h"
 
@@ -700,12 +701,26 @@ static int bluebird_patch_dvico_firmware_download(struct usb_device *udev,
 
 		if (fw->data[idoff] == (USB_VID_DVICO & 0xff) &&
 		    fw->data[idoff + 1] == USB_VID_DVICO >> 8) {
-			fw->data[idoff + 2] =
+			struct firmware new_fw;
+			u8 *new_fw_data = vmalloc(fw->size);
+			int ret;
+
+			if (!new_fw_data)
+				return -ENOMEM;
+
+			memcpy(new_fw_data, fw->data, fw->size);
+			new_fw.size = fw->size;
+			new_fw.data = new_fw_data;
+
+			new_fw_data[idoff + 2] =
 				le16_to_cpu(udev->descriptor.idProduct) + 1;
-			fw->data[idoff + 3] =
+			new_fw_data[idoff + 3] =
 				le16_to_cpu(udev->descriptor.idProduct) >> 8;
 
-			return usb_cypress_load_firmware(udev, fw, CYPRESS_FX2);
+			ret = usb_cypress_load_firmware(udev, &new_fw,
+							CYPRESS_FX2);
+			vfree(new_fw_data);
+			return ret;
 		}
 	}
 
