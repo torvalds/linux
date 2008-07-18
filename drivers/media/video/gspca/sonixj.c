@@ -361,6 +361,7 @@ static const __u8 mo4000_sensor_init[][8] = {
 };
 static const __u8 ov7660_sensor_init[][8] = {
 	{0xa1, 0x21, 0x12, 0x80, 0x00, 0x00, 0x00, 0x10}, /* reset SCCB */
+/*		(delay 20ms) */
 	{0xa1, 0x21, 0x12, 0x05, 0x00, 0x00, 0x00, 0x10},
 						/* Outformat ?? rawRGB */
 	{0xa1, 0x21, 0x13, 0xb8, 0x00, 0x00, 0x00, 0x10}, /* init COM8 */
@@ -539,13 +540,31 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			value, 0,
 			gspca_dev->usb_buf, len,
 			500);
+	PDEBUG(D_USBI, "reg_r [%02x] -> %02x", value, gspca_dev->usb_buf[0]);
 }
 
+static void reg_w1(struct gspca_dev *gspca_dev,
+		   __u16 value,
+		   __u8 data)
+{
+	PDEBUG(D_USBO, "reg_w1 [%02x] = %02x", value, data);
+	gspca_dev->usb_buf[0] = data;
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0x08,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			value,
+			0,
+			gspca_dev->usb_buf, 1,
+			500);
+}
 static void reg_w(struct gspca_dev *gspca_dev,
 			  __u16 value,
 			  const __u8 *buffer,
 			  int len)
 {
+	PDEBUG(D_USBO, "reg_w [%02x] = %02x %02x ..",
+		value, buffer[0], buffer[1]);
 	if (len <= sizeof gspca_dev->usb_buf) {
 		memcpy(gspca_dev->usb_buf, buffer, len);
 		usb_control_msg(gspca_dev->dev,
@@ -571,31 +590,42 @@ static void reg_w(struct gspca_dev *gspca_dev,
 	}
 }
 
-/* I2C write 2 bytes */
-static void i2c_w2(struct gspca_dev *gspca_dev,
-		   const __u8 *buffer)
+/* I2C write 1 byte */
+static void i2c_w1(struct gspca_dev *gspca_dev, __u8 reg, __u8 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 mode[8];
 
-	/* is i2c ready */
-	mode[0] = 0x81 | (2 << 4);
-	mode[1] = sd->i2c_base;
-	mode[2] = buffer[0];
-	mode[3] = buffer[1];
-	mode[4] = 0;
-	mode[5] = 0;
-	mode[6] = 0;
-	mode[7] = 0x10;
-	reg_w(gspca_dev, 0x08, mode, 8);
+	PDEBUG(D_USBO, "i2c_w2 [%02x] = %02x", reg, val);
+	gspca_dev->usb_buf[0] = 0x81 | (2 << 4);	/* = a1 */
+	gspca_dev->usb_buf[1] = sd->i2c_base;
+	gspca_dev->usb_buf[2] = reg;
+	gspca_dev->usb_buf[3] = val;
+	gspca_dev->usb_buf[4] = 0;
+	gspca_dev->usb_buf[5] = 0;
+	gspca_dev->usb_buf[6] = 0;
+	gspca_dev->usb_buf[7] = 0x10;
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0x08,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			0x08,			/* value = i2c */
+			0,
+			gspca_dev->usb_buf, 8,
+			500);
 }
 
 /* I2C write 8 bytes */
 static void i2c_w8(struct gspca_dev *gspca_dev,
 		   const __u8 *buffer)
 {
-	reg_w(gspca_dev, 0x08, buffer, 8);
-	msleep(1);
+	memcpy(gspca_dev->usb_buf, buffer, 8);
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0x08,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			0x08, 0,		/* value, index */
+			gspca_dev->usb_buf, 8,
+			500);
 }
 
 /* read 5 bytes in gspca_dev->usb_buf */
@@ -613,24 +643,21 @@ static void i2c_r5(struct gspca_dev *gspca_dev, __u8 reg)
 	mode[6] = 0;
 	mode[7] = 0x10;
 	i2c_w8(gspca_dev, mode);
+	msleep(2);
 	mode[0] = 0x81 | (5 << 4) | 0x02;
 	mode[2] = 0;
 	i2c_w8(gspca_dev, mode);
+	msleep(2);
 	reg_r(gspca_dev, 0x0a, 5);
 }
 
 static int probesensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 reg02;
-	static const __u8 datasend[] = { 2, 0 };
-	/* reg val1 val2 val3 val4 */
 
-	i2c_w2(gspca_dev, datasend);
-/* should write 0xa1 0x11 0x02 0x00 0x00 0x00 0x00 the 0x10 is add by i2cw */
+	i2c_w1(gspca_dev, 0x02, 0);			/* sensor wakeup */
 	msleep(10);
-	reg02 = 0x66;
-	reg_w(gspca_dev, 0x02, &reg02, 1);		/* Gpio on */
+	reg_w1(gspca_dev, 0x02, 0x66);			/* Gpio on */
 	msleep(10);
 	i2c_r5(gspca_dev, 0);				/* read sensor id */
 	if (gspca_dev->usb_buf[0] == 0x02
@@ -642,7 +669,7 @@ static int probesensor(struct gspca_dev *gspca_dev)
 		sd->sensor = SENSOR_HV7131R;
 		return SENSOR_HV7131R;
 	}
-	PDEBUG(D_PROBE, "Find Sensor %d %d %d",
+	PDEBUG(D_PROBE, "Find Sensor 0x%02x 0x%02x 0x%02x",
 		gspca_dev->usb_buf[0], gspca_dev->usb_buf[1],
 		gspca_dev->usb_buf[2]);
 	PDEBUG(D_PROBE, "Sensor sn9c102P Not found");
@@ -653,8 +680,6 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 			  const __u8 *sn9c1xx)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 data;
-	__u8 regF1;
 	const __u8 *reg9a;
 	static const __u8 reg9a_def[] =
 		{0x08, 0x40, 0x20, 0x10, 0x00, 0x04};
@@ -663,15 +688,13 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 	static const __u8 reg9a_sn9c325[] =
 		{0x0a, 0x40, 0x38, 0x30, 0x00, 0x20};
 
-
-	regF1 = 0x00;
-	reg_w(gspca_dev, 0xf1, &regF1, 1);
-	reg_w(gspca_dev, 0x01, &sn9c1xx[0], 1); /*fixme:jfm was [1] en v1*/
+	reg_w1(gspca_dev, 0xf1, 0x00);
+	reg_w1(gspca_dev, 0x01, sn9c1xx[0]);	/*fixme:jfm was [1] en v1*/
 
 	/* configure gpio */
 	reg_w(gspca_dev, 0x01, &sn9c1xx[1], 2);
 	reg_w(gspca_dev, 0x08, &sn9c1xx[8], 2);
-	reg_w(gspca_dev, 0x17, &sn9c1xx[0x17], 5);	/* jfm was 3 */
+	reg_w(gspca_dev, 0x17, &sn9c1xx[0x17], 5);	/* jfm len was 3 */
 	switch (sd->bridge) {
 	case BRIDGE_SN9C325:
 		reg9a = reg9a_sn9c325;
@@ -685,35 +708,25 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 	}
 	reg_w(gspca_dev, 0x9a, reg9a, 6);
 
-	data = 0x60;				/*fixme:jfm 60 00 00 (3) */
-	reg_w(gspca_dev, 0xd4, &data, 1);
+	reg_w1(gspca_dev, 0xd4, 0x60);	/*fixme:jfm 60 00 00 (3) ? */
 
 	reg_w(gspca_dev, 0x03, &sn9c1xx[3], 0x0f);
 
 	switch (sd->bridge) {
 	case BRIDGE_SN9C120:			/* from win trace */
-		data = 0x61;
-		reg_w(gspca_dev, 0x01, &data, 1);
-		data = 0x20;
-		reg_w(gspca_dev, 0x17, &data, 1);
-		data = 0x60;
-		reg_w(gspca_dev, 0x01, &data, 1);
+		reg_w1(gspca_dev, 0x01, 0x61);
+		reg_w1(gspca_dev, 0x17, 0x20);
+		reg_w1(gspca_dev, 0x01, 0x60);
 		break;
 	case BRIDGE_SN9C325:
-		data = 0x43;
-		reg_w(gspca_dev, 0x01, &data, 1);
-		data = 0xae;
-		reg_w(gspca_dev, 0x17, &data, 1);
-		data = 0x42;
-		reg_w(gspca_dev, 0x01, &data, 1);
+		reg_w1(gspca_dev, 0x01, 0x43);
+		reg_w1(gspca_dev, 0x17, 0xae);
+		reg_w1(gspca_dev, 0x01, 0x42);
 		break;
 	default:
-		data = 0x43;
-		reg_w(gspca_dev, 0x01, &data, 1);
-		data = 0x61;
-		reg_w(gspca_dev, 0x17, &data, 1);
-		data = 0x42;
-		reg_w(gspca_dev, 0x01, &data, 1);
+		reg_w1(gspca_dev, 0x01, 0x43);
+		reg_w1(gspca_dev, 0x17, 0x61);
+		reg_w1(gspca_dev, 0x01, 0x42);
 	}
 
 	if (sd->sensor == SENSOR_HV7131R) {
@@ -770,6 +783,9 @@ static void ov7660_InitSensor(struct gspca_dev *gspca_dev)
 {
 	int i = 0;
 
+	i2c_w8(gspca_dev, ov7660_sensor_init[i]);	/* reset SCCB */
+	i++;
+	msleep(20);
 	while (ov7660_sensor_init[i][0]) {
 		i2c_w8(gspca_dev, ov7660_sensor_init[i]);
 		i++;
@@ -782,13 +798,11 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u16 vendor;
 	__u16 product;
 
-	vendor = id->idVendor;
 	product = id->idProduct;
 	sd->sensor = -1;
-	switch (vendor) {
+	switch (id->idVendor) {
 	case 0x0458:				/* Genius */
 /*		switch (product) {
 		case 0x7025: */
@@ -960,7 +974,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 	if (sd->sensor < 0) {
 		PDEBUG(D_ERR, "Invalid vendor/product %04x:%04x",
-			vendor, product);
+			id->idVendor, product);
 		return -EINVAL;
 	}
 
@@ -983,33 +997,25 @@ static int sd_open(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 /*	const __u8 *sn9c1xx; */
-	__u8 regF1;
 	__u8 regGpio[] = { 0x29, 0x74 };
+	__u8 regF1;
 
 	/* setup a selector by bridge */
-	regF1 = 0x01;
-	reg_w(gspca_dev, 0xf1, &regF1, 1);
+	reg_w1(gspca_dev, 0xf1, 0x01);
 	reg_r(gspca_dev, 0x00, 1);		/* -> regF1 = 0x00 */
-	regF1 = gspca_dev->usb_buf[0];
-	reg_w(gspca_dev, 0xf1, &regF1, 1);
+	reg_w1(gspca_dev, 0xf1, gspca_dev->usb_buf[0]);
 	reg_r(gspca_dev, 0x00, 1);
 	regF1 = gspca_dev->usb_buf[0];
 	switch (sd->bridge) {
 	case BRIDGE_SN9C102P:
 		if (regF1 != 0x11)
 			return -ENODEV;
-		reg_w(gspca_dev, 0x02, &regGpio[1], 1);
+		reg_w1(gspca_dev, 0x02, regGpio[1]);
 		break;
 	case BRIDGE_SN9C105:
 		if (regF1 != 0x11)
 			return -ENODEV;
 		reg_w(gspca_dev, 0x02, regGpio, 2);
-		break;
-	case BRIDGE_SN9C110:
-		if (regF1 != 0x12)
-			return -ENODEV;
-		regGpio[1] = 0x62;
-		reg_w(gspca_dev, 0x02, &regGpio[1], 1);
 		break;
 	case BRIDGE_SN9C120:
 		if (regF1 != 0x12)
@@ -1018,16 +1024,15 @@ static int sd_open(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x02, regGpio, 2);
 		break;
 	default:
+/*	case BRIDGE_SN9C110: */
 /*	case BRIDGE_SN9C325: */
 		if (regF1 != 0x12)
 			return -ENODEV;
-		regGpio[1] = 0x62;
-		reg_w(gspca_dev, 0x02, &regGpio[1], 1);
+		reg_w1(gspca_dev, 0x02, 0x62);
 		break;
 	}
 
-	regF1 = 0x01;
-	reg_w(gspca_dev, 0xf1, &regF1, 1);
+	reg_w1(gspca_dev, 0xf1, 0x01);
 
 	return 0;
 }
@@ -1123,7 +1128,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	}
 
 	k2 = sd->brightness >> 10;
-	reg_w(gspca_dev, 0x96, &k2, 1);
+	reg_w1(gspca_dev, 0x96, k2);
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
@@ -1152,7 +1157,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 		data = (colour + 32) & 0x7f;	/* blue */
 	else
 		data = (-colour + 32) & 0x7f;	/* red */
-	reg_w(gspca_dev, 0x05, &data, 1);
+	reg_w1(gspca_dev, 0x05, data);
 }
 
 /* -- start the camera -- */
@@ -1165,7 +1170,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	__u8 reg17;
 	const __u8 *sn9c1xx;
 	int mode;
-	static const __u8 DC29[] = { 0x6a, 0x50, 0x00, 0x00, 0x50, 0x3c };
 	static const __u8 C0[] = { 0x2d, 0x2d, 0x3a, 0x05, 0x04, 0x3f };
 	static const __u8 CA[] = { 0x28, 0xd8, 0x14, 0xec };
 	static const __u8 CA_sn9c120[] =
@@ -1179,21 +1183,20 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 /*fixme:jfm this sequence should appear at end of sd_start */
 /* with
-	data = 0x44;
-	reg_w(gspca_dev, 0x01, &data, 1); */
-	reg_w(gspca_dev, 0x15, &sn9c1xx[0x15], 1);
-	reg_w(gspca_dev, 0x16, &sn9c1xx[0x16], 1);
-	reg_w(gspca_dev, 0x12, &sn9c1xx[0x12], 1);
-	reg_w(gspca_dev, 0x13, &sn9c1xx[0x13], 1);
-	reg_w(gspca_dev, 0x18, &sn9c1xx[0x18], 1);
-	reg_w(gspca_dev, 0xd2, &DC29[0], 1);
-	reg_w(gspca_dev, 0xd3, &DC29[1], 1);
-	reg_w(gspca_dev, 0xc6, &DC29[2], 1);
-	reg_w(gspca_dev, 0xc7, &DC29[3], 1);
-	reg_w(gspca_dev, 0xc8, &DC29[4], 1);
-	reg_w(gspca_dev, 0xc9, &DC29[5], 1);
+	reg_w1(gspca_dev, 0x01, 0x44); */
+	reg_w1(gspca_dev, 0x15, sn9c1xx[0x15]);
+	reg_w1(gspca_dev, 0x16, sn9c1xx[0x16]);
+	reg_w1(gspca_dev, 0x12, sn9c1xx[0x12]);
+	reg_w1(gspca_dev, 0x13, sn9c1xx[0x13]);
+	reg_w1(gspca_dev, 0x18, sn9c1xx[0x18]);
+	reg_w1(gspca_dev, 0xd2, 0x6a);		/* DC29 */
+	reg_w1(gspca_dev, 0xd3, 0x50);
+	reg_w1(gspca_dev, 0xc6, 0x00);
+	reg_w1(gspca_dev, 0xc7, 0x00);
+	reg_w1(gspca_dev, 0xc8, 0x50);
+	reg_w1(gspca_dev, 0xc9, 0x3c);
 /*fixme:jfm end of ending sequence */
-	reg_w(gspca_dev, 0x18, &sn9c1xx[0x18], 1);
+	reg_w1(gspca_dev, 0x18, sn9c1xx[0x18]);
 	switch (sd->bridge) {
 	case BRIDGE_SN9C325:
 		data = 0xae;
@@ -1205,11 +1208,11 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		data = 0x60;
 		break;
 	}
-	reg_w(gspca_dev, 0x17, &data, 1);
-	reg_w(gspca_dev, 0x05, &sn9c1xx[5], 1);
-	reg_w(gspca_dev, 0x07, &sn9c1xx[7], 1);
-	reg_w(gspca_dev, 0x06, &sn9c1xx[6], 1);
-	reg_w(gspca_dev, 0x14, &sn9c1xx[0x14], 1);
+	reg_w1(gspca_dev, 0x17, data);
+	reg_w1(gspca_dev, 0x05, sn9c1xx[5]);
+	reg_w1(gspca_dev, 0x07, sn9c1xx[7]);
+	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);
+	reg_w1(gspca_dev, 0x14, sn9c1xx[0x14]);
 	switch (sd->bridge) {
 	case BRIDGE_SN9C325:
 		reg_w(gspca_dev, 0x20, regsn20_sn9c325,
@@ -1217,10 +1220,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		for (i = 0; i < 8; i++)
 			reg_w(gspca_dev, 0x84, reg84_sn9c325,
 					sizeof reg84_sn9c325);
-		data = 0x0a;
-		reg_w(gspca_dev, 0x9a, &data, 1);
-		data = 0x60;
-		reg_w(gspca_dev, 0x99, &data, 1);
+		reg_w1(gspca_dev, 0x9a, 0x0a);
+		reg_w1(gspca_dev, 0x99, 0x60);
 		break;
 	case BRIDGE_SN9C120:
 		reg_w(gspca_dev, 0x20, regsn20_sn9c120,
@@ -1233,39 +1234,30 @@ static void sd_start(struct gspca_dev *gspca_dev)
 					sizeof reg84_sn9c120_2);
 		reg_w(gspca_dev, 0x84, reg84_sn9c120_3,
 				sizeof reg84_sn9c120_3);
-		data = 0x05;
-		reg_w(gspca_dev, 0x9a, &data, 1);
-		data = 0x5b;
-		reg_w(gspca_dev, 0x99, &data, 1);
+		reg_w1(gspca_dev, 0x9a, 0x05);
+		reg_w1(gspca_dev, 0x99, 0x5b);
 		break;
 	default:
 		reg_w(gspca_dev, 0x20, regsn20, sizeof regsn20);
 		for (i = 0; i < 8; i++)
 			reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
-		data = 0x08;
-		reg_w(gspca_dev, 0x9a, &data, 1);
-		data = 0x59;
-		reg_w(gspca_dev, 0x99, &data, 1);
+		reg_w1(gspca_dev, 0x9a, 0x08);
+		reg_w1(gspca_dev, 0x99, 0x59);
 		break;
 	}
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
-	reg1 = 0x02;
+	if (mode)
+		reg1 = 0x46;	/* 320 clk 48Mhz */
+	else
+		reg1 = 0x06;	/* 640 clk 24Mz */
 	reg17 = 0x61;
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
 		hv7131R_InitSensor(gspca_dev);
-		if (mode)
-			reg1 = 0x46;	/* 320 clk 48Mhz */
-		else
-			reg1 = 0x06;	/* 640 clk 24Mz */
 		break;
 	case SENSOR_MI0360:
 		mi0360_InitSensor(gspca_dev);
-		if (mode)
-			reg1 = 0x46;	/* 320 clk 48Mhz */
-		else
-			reg1 = 0x06;	/* 640 clk 24Mz */
 		break;
 	case SENSOR_MO4000:
 		mo4000_InitSensor(gspca_dev);
@@ -1274,13 +1266,13 @@ static void sd_start(struct gspca_dev *gspca_dev)
 			reg1 = 0x06;	/* clk 24Mz */
 		} else {
 			reg17 = 0x22;	/* 640 MCKSIZE */
-			reg1 = 0x06;	/* 640 clk 24Mz */
+/*			reg1 = 0x06;	 * 640 clk 24Mz (done) */
 		}
 		break;
 	case SENSOR_OV7648:
+		ov7648_InitSensor(gspca_dev);
 		reg17 = 0xa2;
 		reg1 = 0x44;
-		ov7648_InitSensor(gspca_dev);
 /*		if (mode)
 			;		 * 320x2...
 		else
@@ -1292,7 +1284,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		if (mode) {
 /*			reg17 = 0x21;	 * 320 */
 /*			reg1 = 0x44; */
-			reg1 = 0x46;
+/*			reg1 = 0x46;	(done) */
 		} else {
 			reg17 = 0xa2;	/* 640 */
 			reg1 = 0x40;
@@ -1321,16 +1313,16 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 	/* here change size mode 0 -> VGA; 1 -> CIF */
 	data = 0x40 | sn9c1xx[0x18] | (mode << 4);
-	reg_w(gspca_dev, 0x18, &data, 1);
+	reg_w1(gspca_dev, 0x18, data);
 
 	reg_w(gspca_dev, 0x100, qtable4, 0x40);
 	reg_w(gspca_dev, 0x140, qtable4 + 0x40, 0x40);
 
 	data = sn9c1xx[0x18] | (mode << 4);
-	reg_w(gspca_dev, 0x18, &data, 1);
+	reg_w1(gspca_dev, 0x18, data);
 
-	reg_w(gspca_dev, 0x17, &reg17, 1);
-	reg_w(gspca_dev, 0x01, &reg1, 1);
+	reg_w1(gspca_dev, 0x17, reg17);
+	reg_w1(gspca_dev, 0x01, reg1);
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
 }
@@ -1342,7 +1334,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		{ 0xa1, 0x11, 0x02, 0x09, 0x00, 0x00, 0x00, 0x10 };
 	static const __u8 stopmi0360[] =
 		{ 0xb1, 0x5d, 0x07, 0x00, 0x00, 0x00, 0x00, 0x10 };
-	__u8 regF1;
 	__u8 data;
 	const __u8 *sn9c1xx;
 
@@ -1366,12 +1357,11 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		break;
 	}
 	sn9c1xx = sn_tb[(int) sd->sensor];
-	reg_w(gspca_dev, 0x01, &sn9c1xx[1], 1);
-	reg_w(gspca_dev, 0x17, &sn9c1xx[0x17], 1);
-	reg_w(gspca_dev, 0x01, &sn9c1xx[1], 1);
-	reg_w(gspca_dev, 0x01, &data, 1);
-	regF1 = 0x01;
-	reg_w(gspca_dev, 0xf1, &regF1, 1);
+	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
+	reg_w1(gspca_dev, 0x17, sn9c1xx[0x17]);
+	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
+	reg_w1(gspca_dev, 0x01, data);
+	reg_w1(gspca_dev, 0xf1, 0x01);
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
