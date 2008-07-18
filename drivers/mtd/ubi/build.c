@@ -159,8 +159,7 @@ void ubi_put_device(struct ubi_device *ubi)
 }
 
 /**
- * ubi_get_by_major - get UBI device description object by character device
- *                    major number.
+ * ubi_get_by_major - get UBI device by character device major number.
  * @major: major number
  *
  * This function is similar to 'ubi_get_device()', but it searches the device
@@ -727,7 +726,7 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
 
 /**
  * ubi_attach_mtd_dev - attach an MTD device.
- * @mtd_dev: MTD device description object
+ * @mtd: MTD device description object
  * @ubi_num: number to assign to the new UBI device
  * @vid_hdr_offset: VID header offset
  *
@@ -1095,8 +1094,7 @@ static void __exit ubi_exit(void)
 module_exit(ubi_exit);
 
 /**
- * bytes_str_to_int - convert a string representing number of bytes to an
- * integer.
+ * bytes_str_to_int - convert a number of bytes string into an integer.
  * @str: the string to convert
  *
  * This function returns positive resulting integer in case of success and a

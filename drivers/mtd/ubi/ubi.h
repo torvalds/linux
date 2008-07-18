@@ -313,6 +313,7 @@ struct ubi_wl_entry;
  *           @move_to, @move_to_put @erase_pending, @wl_scheduled, and @works
  *           fields
  * @move_mutex: serializes eraseblock moves
+ * @work_sem: sycnhronizes the WL worker with use tasks
  * @wl_scheduled: non-zero if the wear-leveling was scheduled
  * @lookuptbl: a table to quickly find a &struct ubi_wl_entry object for any
  *             physical eraseblock

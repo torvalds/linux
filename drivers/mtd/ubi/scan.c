@@ -93,8 +93,7 @@ static int add_to_list(struct ubi_scan_info *si, int pnum, int ec,
 }
 
 /**
- * validate_vid_hdr - check that volume identifier header is correct and
- * consistent.
+ * validate_vid_hdr - check volume identifier header.
  * @vid_hdr: the volume identifier header to check
  * @sv: information about the volume this logical eraseblock belongs to
  * @pnum: physical eraseblock number the VID header came from
@@ -380,8 +379,7 @@ out_free_vidh:
 }
 
 /**
- * ubi_scan_add_used - add information about a physical eraseblock to the
- * scanning information.
+ * ubi_scan_add_used - add physical eraseblock to the scanning information.
  * @ubi: UBI device description object
  * @si: scanning information
  * @pnum: the physical eraseblock number
@@ -555,8 +553,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 }
 
 /**
- * ubi_scan_find_sv - find information about a particular volume in the
- * scanning information.
+ * ubi_scan_find_sv - find volume in the scanning information.
  * @si: scanning information
  * @vol_id: the requested volume ID
  *
@@ -585,8 +582,7 @@ struct ubi_scan_volume *ubi_scan_find_sv(const struct ubi_scan_info *si,
 }
 
 /**
- * ubi_scan_find_seb - find information about a particular logical
- * eraseblock in the volume scanning information.
+ * ubi_scan_find_seb - find LEB in the volume scanning information.
  * @sv: a pointer to the volume scanning information
  * @lnum: the requested logical eraseblock
  *
@@ -744,8 +740,7 @@ struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 }
 
 /**
- * process_eb - read UBI headers, check them and add corresponding data
- * to the scanning information.
+ * process_eb - read, check UBI headers, and add them to scanning information.
  * @ubi: UBI device description object
  * @si: scanning information
  * @pnum: the physical eraseblock number
@@ -1083,8 +1078,7 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
 
 /**
- * paranoid_check_si - check if the scanning information is correct and
- * consistent.
+ * paranoid_check_si - check the scanning information.
  * @ubi: UBI device description object
  * @si: scanning information
  *

@@ -268,6 +268,7 @@ static int write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 
 /**
  * ubi_more_update_data - write more update data.
+ * @ubi: UBI device description object
  * @vol: volume description object
  * @buf: write data (user-space memory buffer)
  * @count: how much bytes to write
@@ -385,6 +386,7 @@ int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
 
 /**
  * ubi_more_leb_change_data - accept more data for atomic LEB change.
+ * @ubi: UBI device description object
  * @vol: volume description object
  * @buf: write data (user-space memory buffer)
  * @count: how much bytes to write

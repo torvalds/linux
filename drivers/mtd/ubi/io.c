@@ -1101,8 +1101,7 @@ fail:
 }
 
 /**
- * paranoid_check_peb_ec_hdr - check that the erase counter header of a
- * physical eraseblock is in-place and is all right.
+ * paranoid_check_peb_ec_hdr - check erase counter header.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  *
@@ -1180,8 +1179,7 @@ fail:
 }
 
 /**
- * paranoid_check_peb_vid_hdr - check that the volume identifier header of a
- * physical eraseblock is in-place and is all right.
+ * paranoid_check_peb_vid_hdr - check volume identifier header.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  *

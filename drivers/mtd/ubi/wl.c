@@ -632,8 +632,7 @@ out_free:
 }
 
 /**
- * check_protection_over - check if it is time to stop protecting some
- * physical eraseblocks.
+ * check_protection_over - check if it is time to stop protecting some PEBs.
  * @ubi: UBI device description object
  *
  * This function is called after each erase operation, when the absolute erase
@@ -1601,8 +1600,7 @@ void ubi_wl_close(struct ubi_device *ubi)
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
 
 /**
- * paranoid_check_ec - make sure that the erase counter of a physical eraseblock
- * is correct.
+ * paranoid_check_ec - make sure that the erase counter of a PEB is correct.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  * @ec: the erase counter to check
@@ -1643,13 +1641,12 @@ out_free:
 }
 
 /**
- * paranoid_check_in_wl_tree - make sure that a wear-leveling entry is present
- * in a WL RB-tree.
+ * paranoid_check_in_wl_tree - check that wear-leveling entry is in WL RB-tree.
  * @e: the wear-leveling entry to check
  * @root: the root of the tree
  *
- * This function returns zero if @e is in the @root RB-tree and %1 if it
- * is not.
+ * This function returns zero if @e is in the @root RB-tree and %1 if it is
+ * not.
  */
 static int paranoid_check_in_wl_tree(struct ubi_wl_entry *e,
 				     struct rb_root *root)

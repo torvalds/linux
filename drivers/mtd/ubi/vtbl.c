@@ -117,7 +117,7 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 /**
  * ubi_vtbl_rename_volumes - rename UBI volumes in the volume table.
  * @ubi: UBI device description object
- * @renam_list: list of &struct ubi_rename_entry objects
+ * @rename_list: list of &struct ubi_rename_entry objects
  *
  * This function re-names multiple volumes specified in @req in the volume
  * table. Returns zero in case of success and a negative error code in case of
@@ -166,8 +166,7 @@ int ubi_vtbl_rename_volumes(struct ubi_device *ubi,
 }
 
 /**
- * vtbl_check - check if volume table is not corrupted and contains sensible
- *              data.
+ * vtbl_check - check if volume table is not corrupted and sensible.
  * @ubi: UBI device description object
  * @vtbl: volume table
  *
@@ -780,8 +779,7 @@ static int check_scanning_info(const struct ubi_device *ubi,
 }
 
 /**
- * ubi_read_volume_table - read volume table.
- * information.
+ * ubi_read_volume_table - read the volume table.
  * @ubi: UBI device description object
  * @si: scanning information
  *

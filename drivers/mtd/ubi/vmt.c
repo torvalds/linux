@@ -608,7 +608,7 @@ out_free:
 /**
  * ubi_rename_volumes - re-name UBI volumes.
  * @ubi: UBI device description object
- * @renam_list: list of &struct ubi_rename_entry objects
+ * @rename_list: list of &struct ubi_rename_entry objects
  *
  * This function re-names or removes volumes specified in the re-name list.
  * Returns zero in case of success and a negative error code in case of
