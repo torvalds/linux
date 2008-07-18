@@ -511,8 +511,8 @@ struct rt2x00lib_ops {
 	 */
 	int (*probe_hw) (struct rt2x00_dev *rt2x00dev);
 	char *(*get_firmware_name) (struct rt2x00_dev *rt2x00dev);
-	u16 (*get_firmware_crc) (void *data, const size_t len);
-	int (*load_firmware) (struct rt2x00_dev *rt2x00dev, void *data,
+	u16 (*get_firmware_crc) (const void *data, const size_t len);
+	int (*load_firmware) (struct rt2x00_dev *rt2x00dev, const void *data,
 			      const size_t len);
 
 	/*
@@ -821,6 +821,7 @@ struct rt2x00_dev {
 	/*
 	 * Scheduled work.
 	 */
+	struct workqueue_struct *workqueue;
 	struct work_struct intf_work;
 	struct work_struct filter_work;
 

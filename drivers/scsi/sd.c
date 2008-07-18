@@ -58,8 +58,8 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsicam.h>
-#include <scsi/sd.h>
 
+#include "sd.h"
 #include "scsi_logging.h"
 
 MODULE_AUTHOR("Eric Youngdale");
@@ -293,11 +293,6 @@ static int sd_major(int major_idx)
 		BUG();
 		return 0;	/* shut up gcc */
 	}
-}
-
-static inline struct scsi_disk *scsi_disk(struct gendisk *disk)
-{
-	return container_of(disk->private_data, struct scsi_disk, driver);
 }
 
 static struct scsi_disk *__scsi_disk_get(struct gendisk *disk)
@@ -1124,6 +1119,8 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 				cmd[1] = 1;	/* Return immediately */
 				memset((void *) &cmd[2], 0, 8);
 				cmd[4] = 1;	/* Start spin cycle */
+				if (sdkp->device->start_stop_pwr_cond)
+					cmd[4] |= 1 << 4;
 				scsi_execute_req(sdkp->device, cmd, DMA_NONE,
 						 NULL, 0, &sshdr,
 						 SD_TIMEOUT, SD_MAX_RETRIES);
@@ -1789,6 +1786,9 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 
 	if (start)
 		cmd[4] |= 1;	/* START */
+
+	if (sdp->start_stop_pwr_cond)
+		cmd[4] |= start ? 1 << 4 : 3 << 4;	/* Active or Standby */
 
 	if (!scsi_device_online(sdp))
 		return -ENODEV;

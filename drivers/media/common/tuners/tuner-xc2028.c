@@ -254,7 +254,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 {
 	struct xc2028_data    *priv = fe->tuner_priv;
 	const struct firmware *fw   = NULL;
-	unsigned char         *p, *endp;
+	const unsigned char   *p, *endp;
 	int                   rc = 0;
 	int		      n, n_array;
 	char		      name[33];

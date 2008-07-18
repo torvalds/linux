@@ -433,7 +433,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		int chroma = vid_input & 0xf00;
 
 		if ((vid_input & ~0xff0) ||
-		    luma < CX25840_SVIDEO_LUMA1 || luma > CX25840_SVIDEO_LUMA4 ||
+		    luma < CX25840_SVIDEO_LUMA1 || luma > CX25840_SVIDEO_LUMA8 ||
 		    chroma < CX25840_SVIDEO_CHROMA4 || chroma > CX25840_SVIDEO_CHROMA8) {
 			v4l_err(client, "0x%04x is not a valid video input!\n",
 				vid_input);

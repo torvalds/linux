@@ -24,3 +24,7 @@ obj-$(CONFIG_SMP)	+= locks.o
 endif
 
 obj-$(CONFIG_PPC_LIB_RHEAP) += rheap.o
+
+obj-y			+= code-patching.o
+obj-y			+= feature-fixups.o
+obj-$(CONFIG_FTR_FIXUP_SELFTEST) += feature-fixups-test.o

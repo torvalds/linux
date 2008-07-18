@@ -42,8 +42,6 @@ extern unsigned long __bus_to_virt(unsigned long);
 
 #endif
 
-#if defined(CONFIG_ARCH_FOOTBRIDGE)
-
 /* Task size and page offset at 3GB */
 #define TASK_SIZE		UL(0xbf000000)
 #define PAGE_OFFSET		UL(0xc0000000)
@@ -52,23 +50,6 @@ extern unsigned long __bus_to_virt(unsigned long);
  * Cache flushing area.
  */
 #define FLUSH_BASE		0xf9000000
-
-#elif defined(CONFIG_ARCH_CO285)
-
-/* Task size and page offset at 1.5GB */
-#define TASK_SIZE		UL(0x5f000000)
-#define PAGE_OFFSET		UL(0x60000000)
-
-/*
- * Cache flushing area.
- */
-#define FLUSH_BASE		0x7e000000
-
-#else
-
-#error "Undefined footbridge architecture"
-
-#endif
 
 /*
  * Physical DRAM offset.

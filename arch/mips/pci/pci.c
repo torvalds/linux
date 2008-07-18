@@ -29,8 +29,7 @@ unsigned int pci_probe = PCI_ASSIGN_ALL_BUSSES;
  * The PCI controller list.
  */
 
-struct pci_controller *hose_head, **hose_tail = &hose_head;
-struct pci_controller *pci_isa_hose;
+static struct pci_controller *hose_head, **hose_tail = &hose_head;
 
 unsigned long PCIBIOS_MIN_IO	= 0x0000;
 unsigned long PCIBIOS_MIN_MEM	= 0;

@@ -375,15 +375,6 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 
 /*****************************************************************************/
 
-void pcibios_update_resource(struct pci_dev *dev, struct resource *root, struct resource *r, int resource)
-{
-	printk(KERN_WARNING "%s(%d): no support for changing PCI resources...\n",
-		__FILE__, __LINE__);
-}
-
-
-/*****************************************************************************/
-
 /*
  *	Local routines to interrcept the standard I/O and vector handling
  *	code. Don't include this 'till now - initialization code above needs

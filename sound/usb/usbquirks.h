@@ -210,6 +210,11 @@ YAMAHA_DEVICE(0x1042, NULL),
 YAMAHA_DEVICE(0x1043, NULL),
 YAMAHA_DEVICE(0x1044, NULL),
 YAMAHA_DEVICE(0x1045, NULL),
+YAMAHA_INTERFACE(0x104e, 0, NULL),
+YAMAHA_DEVICE(0x104f, NULL),
+YAMAHA_DEVICE(0x1050, NULL),
+YAMAHA_DEVICE(0x1051, NULL),
+YAMAHA_DEVICE(0x1052, NULL),
 YAMAHA_DEVICE(0x2000, "DGP-7"),
 YAMAHA_DEVICE(0x2001, "DGP-5"),
 YAMAHA_DEVICE(0x2002, NULL),
@@ -1378,6 +1383,39 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+
+{
+	/* Roland SonicCell */
+	USB_DEVICE(0x0582, 0x00c2),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Roland",
+		.product_name = "SonicCell",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0001,
+					.in_cables  = 0x0001
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+
 
 /* Guillemot devices */
 {

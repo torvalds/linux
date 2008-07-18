@@ -42,7 +42,7 @@ static struct addr_marker address_markers[] = {
 	{ 0, "User Space" },
 #ifdef CONFIG_X86_64
 	{ 0x8000000000000000UL, "Kernel Space" },
-	{ 0xffff810000000000UL, "Low Kernel Mapping" },
+	{ PAGE_OFFSET,		"Low Kernel Mapping" },
 	{ VMALLOC_START,        "vmalloc() Area" },
 	{ VMEMMAP_START,        "Vmemmap" },
 	{ __START_KERNEL_map,   "High Kernel Mapping" },

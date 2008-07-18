@@ -61,6 +61,7 @@ extern void map_devmem(unsigned long pfn, unsigned long size,
 extern void unmap_devmem(unsigned long pfn, unsigned long size,
 			 pgprot_t vma_prot);
 
+extern unsigned long max_low_pfn_mapped;
 extern unsigned long max_pfn_mapped;
 
 struct page;
@@ -164,6 +165,7 @@ static inline pteval_t native_pte_val(pte_t pte)
 #endif
 
 #define pte_val(x)	native_pte_val(x)
+#define pte_flags(x)	native_pte_val(x)
 #define __pte(x)	native_make_pte(x)
 
 #endif	/* CONFIG_PARAVIRT */

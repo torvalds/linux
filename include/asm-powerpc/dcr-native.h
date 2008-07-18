@@ -26,14 +26,18 @@
 
 typedef struct {
 	unsigned int base;
-} dcr_host_t;
+} dcr_host_native_t;
 
-#define DCR_MAP_OK(host)	(1)
+static inline bool dcr_map_ok_native(dcr_host_native_t host)
+{
+	return 1;
+}
 
-#define dcr_map(dev, dcr_n, dcr_c)	((dcr_host_t){ .base = (dcr_n) })
-#define dcr_unmap(host, dcr_c)		do {} while (0)
-#define dcr_read(host, dcr_n)		mfdcr(dcr_n + host.base)
-#define dcr_write(host, dcr_n, value)	mtdcr(dcr_n + host.base, value)
+#define dcr_map_native(dev, dcr_n, dcr_c) \
+	((dcr_host_native_t){ .base = (dcr_n) })
+#define dcr_unmap_native(host, dcr_c)		do {} while (0)
+#define dcr_read_native(host, dcr_n)		mfdcr(dcr_n + host.base)
+#define dcr_write_native(host, dcr_n, value)	mtdcr(dcr_n + host.base, value)
 
 /* Device Control Registers */
 void __mtdcr(int reg, unsigned int val);

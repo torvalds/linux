@@ -113,6 +113,9 @@
 typedef s390_fp_regs elf_fpregset_t;
 typedef s390_regs elf_gregset_t;
 
+typedef s390_fp_regs compat_elf_fpregset_t;
+typedef s390_compat_regs compat_elf_gregset_t;
+
 #include <linux/sched.h>	/* for task_struct */
 #include <asm/system.h>		/* for save_access_regs */
 #include <asm/mmu_context.h>
@@ -123,6 +126,10 @@ typedef s390_regs elf_gregset_t;
 #define elf_check_arch(x) \
 	(((x)->e_machine == EM_S390 || (x)->e_machine == EM_S390_OLD) \
          && (x)->e_ident[EI_CLASS] == ELF_CLASS) 
+#define compat_elf_check_arch(x) \
+	(((x)->e_machine == EM_S390 || (x)->e_machine == EM_S390_OLD) \
+	 && (x)->e_ident[EI_CLASS] == ELF_CLASS)
+#define compat_start_thread	start_thread31
 
 /* For SVR4/S390 the function pointer to be registered with `atexit` is
    passed in R14. */
@@ -131,6 +138,7 @@ typedef s390_regs elf_gregset_t;
 		_r->gprs[14] = 0; \
 	} while (0)
 
+#define CORE_DUMP_USE_REGSET
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
@@ -139,44 +147,6 @@ typedef s390_regs elf_gregset_t;
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.  */
 #define ELF_ET_DYN_BASE		(STACK_TOP / 3 * 2)
-
-/* Wow, the "main" arch needs arch dependent functions too.. :) */
-
-/* regs is struct pt_regs, pr_reg is elf_gregset_t (which is
-   now struct_user_regs, they are different) */
-
-static inline int dump_regs(struct pt_regs *ptregs, elf_gregset_t *regs)
-{
-	memcpy(&regs->psw, &ptregs->psw, sizeof(regs->psw)+sizeof(regs->gprs));
-	save_access_regs(regs->acrs);
-	regs->orig_gpr2 = ptregs->orig_gpr2;
-	return 1;
-}
-
-#define ELF_CORE_COPY_REGS(pr_reg, regs) dump_regs(regs, &pr_reg);
-
-static inline int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
-{
-	struct pt_regs *ptregs = task_pt_regs(tsk);
-	memcpy(&regs->psw, &ptregs->psw, sizeof(regs->psw)+sizeof(regs->gprs));
-	memcpy(regs->acrs, tsk->thread.acrs, sizeof(regs->acrs));
-	regs->orig_gpr2 = ptregs->orig_gpr2;
-	return 1;
-}
-
-#define ELF_CORE_COPY_TASK_REGS(tsk, regs) dump_task_regs(tsk, regs)
-
-static inline int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
-{
-	if (tsk == current)
-		save_fp_regs(fpregs);
-	else
-		memcpy(fpregs, &tsk->thread.fp_regs, sizeof(elf_fpregset_t));
-	return 1;
-}
-
-#define ELF_CORE_COPY_FPREGS(tsk, fpregs) dump_task_fpu(tsk, fpregs)
-
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports. */
@@ -204,7 +174,10 @@ do {							\
 		set_personality(PER_SVR4);		\
 	else if (current->personality != PER_LINUX32)	\
 		set_personality(PER_LINUX);		\
-	clear_thread_flag(TIF_31BIT);			\
+	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)	\
+		set_thread_flag(TIF_31BIT);		\
+	else						\
+		clear_thread_flag(TIF_31BIT);		\
 } while (0)
 #endif /* __s390x__ */
 

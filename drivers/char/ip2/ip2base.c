@@ -21,10 +21,9 @@
 #endif
 
 #include "ip2types.h"		
-#include "fip_firm.h"		// the meat
 
 int
-ip2_loadmain(int *, int  *, unsigned char *, int ); // ref into ip2main.c
+ip2_loadmain(int *, int *); // ref into ip2main.c
 
 /* Note: Add compiled in defaults to these arrays, not to the structure
 	in ip2.h any longer.  That structure WILL get overridden
@@ -52,7 +51,7 @@ static int __init ip2_init(void)
 		irq[0] = irq[1] = irq[2] = irq[3] = 0;
 	}
 
-	return ip2_loadmain(io,irq,(unsigned char *)fip_firm,sizeof(fip_firm));
+	return ip2_loadmain(io, irq);
 }
 module_init(ip2_init);
 

@@ -1670,6 +1670,7 @@ struct snd_emu_chip_details {
 	unsigned char spi_dac;      /* SPI interface for DAC */
 	unsigned char i2c_adc;      /* I2C interface for ADC */
 	unsigned char adc_1361t;    /* Use Philips 1361T ADC */
+	unsigned char invert_shared_spdif; /* analog/digital switch inverted */
 	const char *driver;
 	const char *name;
 	const char *id;		/* for backward compatibility - can be NULL if not needed */

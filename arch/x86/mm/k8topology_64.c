@@ -57,18 +57,22 @@ static __init void early_get_boot_cpu_id(void)
 	/*
 	 * Find possible boot-time SMP configuration:
 	 */
+#ifdef CONFIG_X86_MPPARSE
 	early_find_smp_config();
+#endif
 #ifdef CONFIG_ACPI
 	/*
 	 * Read APIC information from ACPI tables.
 	 */
 	early_acpi_boot_init();
 #endif
+#ifdef CONFIG_X86_MPPARSE
 	/*
 	 * get boot-time SMP configuration:
 	 */
 	if (smp_found_config)
 		early_get_smp_config();
+#endif
 	early_init_lapic_mapping();
 }
 
@@ -139,8 +143,8 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 		limit |= (1<<24)-1;
 		limit++;
 
-		if (limit > end_pfn << PAGE_SHIFT)
-			limit = end_pfn << PAGE_SHIFT;
+		if (limit > max_pfn << PAGE_SHIFT)
+			limit = max_pfn << PAGE_SHIFT;
 		if (limit <= base)
 			continue;
 

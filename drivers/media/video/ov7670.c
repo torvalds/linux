@@ -406,8 +406,10 @@ static int ov7670_read(struct i2c_client *c, unsigned char reg,
 	int ret;
 
 	ret = i2c_smbus_read_byte_data(c, reg);
-	if (ret >= 0)
+	if (ret >= 0) {
 		*value = (unsigned char) ret;
+		ret = 0;
+	}
 	return ret;
 }
 

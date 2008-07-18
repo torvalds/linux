@@ -2,7 +2,7 @@
  *  drivers/s390/cio/cio.c
  *   S/390 common I/O routines -- low level i/o calls
  *
- *    Copyright (C) IBM Corp. 1999,2006
+ *    Copyright IBM Corp. 1999,2008
  *    Author(s): Ingo Adlung (adlung@de.ibm.com)
  *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Arnd Bergmann (arndb@de.ibm.com)
@@ -24,7 +24,9 @@
 #include <asm/ipl.h>
 #include <asm/chpid.h>
 #include <asm/airq.h>
+#include <asm/isc.h>
 #include <asm/cpu.h>
+#include <asm/fcx.h>
 #include "cio.h"
 #include "css.h"
 #include "chsc.h"
@@ -72,7 +74,6 @@ out_unregister:
 		debug_unregister(cio_debug_trace_id);
 	if (cio_debug_crw_id)
 		debug_unregister(cio_debug_crw_id);
-	printk(KERN_WARNING"cio: could not initialize debugging\n");
 	return -1;
 }
 
@@ -128,7 +129,7 @@ cio_tpi(void)
 	local_bh_disable();
 	irq_enter ();
 	spin_lock(sch->lock);
-	memcpy (&sch->schib.scsw, &irb->scsw, sizeof (struct scsw));
+	memcpy(&sch->schib.scsw, &irb->scsw, sizeof(union scsw));
 	if (sch->driver && sch->driver->irq)
 		sch->driver->irq(sch);
 	spin_unlock(sch->lock);
@@ -167,30 +168,30 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 {
 	char dbf_txt[15];
 	int ccode;
-	struct orb *orb;
+	union orb *orb;
 
 	CIO_TRACE_EVENT(4, "stIO");
 	CIO_TRACE_EVENT(4, sch->dev.bus_id);
 
 	orb = &to_io_private(sch)->orb;
 	/* sch is always under 2G. */
-	orb->intparm = (u32)(addr_t)sch;
-	orb->fmt = 1;
+	orb->cmd.intparm = (u32)(addr_t)sch;
+	orb->cmd.fmt = 1;
 
-	orb->pfch = sch->options.prefetch == 0;
-	orb->spnd = sch->options.suspend;
-	orb->ssic = sch->options.suspend && sch->options.inter;
-	orb->lpm = (lpm != 0) ? lpm : sch->lpm;
+	orb->cmd.pfch = sch->options.prefetch == 0;
+	orb->cmd.spnd = sch->options.suspend;
+	orb->cmd.ssic = sch->options.suspend && sch->options.inter;
+	orb->cmd.lpm = (lpm != 0) ? lpm : sch->lpm;
 #ifdef CONFIG_64BIT
 	/*
 	 * for 64 bit we always support 64 bit IDAWs with 4k page size only
 	 */
-	orb->c64 = 1;
-	orb->i2k = 0;
+	orb->cmd.c64 = 1;
+	orb->cmd.i2k = 0;
 #endif
-	orb->key = key >> 4;
+	orb->cmd.key = key >> 4;
 	/* issue "Start Subchannel" */
-	orb->cpa = (__u32) __pa(cpa);
+	orb->cmd.cpa = (__u32) __pa(cpa);
 	ccode = ssch(sch->schid, orb);
 
 	/* process condition code */
@@ -202,7 +203,7 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 		/*
 		 * initialize device status information
 		 */
-		sch->schib.scsw.actl |= SCSW_ACTL_START_PEND;
+		sch->schib.scsw.cmd.actl |= SCSW_ACTL_START_PEND;
 		return 0;
 	case 1:		/* status pending */
 	case 2:		/* busy */
@@ -237,7 +238,7 @@ cio_resume (struct subchannel *sch)
 
 	switch (ccode) {
 	case 0:
-		sch->schib.scsw.actl |= SCSW_ACTL_RESUME_PEND;
+		sch->schib.scsw.cmd.actl |= SCSW_ACTL_RESUME_PEND;
 		return 0;
 	case 1:
 		return -EBUSY;
@@ -277,7 +278,7 @@ cio_halt(struct subchannel *sch)
 
 	switch (ccode) {
 	case 0:
-		sch->schib.scsw.actl |= SCSW_ACTL_HALT_PEND;
+		sch->schib.scsw.cmd.actl |= SCSW_ACTL_HALT_PEND;
 		return 0;
 	case 1:		/* status pending */
 	case 2:		/* busy */
@@ -312,7 +313,7 @@ cio_clear(struct subchannel *sch)
 
 	switch (ccode) {
 	case 0:
-		sch->schib.scsw.actl |= SCSW_ACTL_CLEAR_PEND;
+		sch->schib.scsw.cmd.actl |= SCSW_ACTL_CLEAR_PEND;
 		return 0;
 	default:		/* device not operational */
 		return -ENODEV;
@@ -387,8 +388,10 @@ cio_modify (struct subchannel *sch)
 	return ret;
 }
 
-/*
- * Enable subchannel.
+/**
+ * cio_enable_subchannel - enable a subchannel.
+ * @sch: subchannel to be enabled
+ * @intparm: interruption parameter to set
  */
 int cio_enable_subchannel(struct subchannel *sch, u32 intparm)
 {
@@ -434,12 +437,13 @@ int cio_enable_subchannel(struct subchannel *sch, u32 intparm)
 	CIO_TRACE_EVENT (2, dbf_txt);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cio_enable_subchannel);
 
-/*
- * Disable subchannel.
+/**
+ * cio_disable_subchannel - disable a subchannel.
+ * @sch: subchannel to disable
  */
-int
-cio_disable_subchannel (struct subchannel *sch)
+int cio_disable_subchannel(struct subchannel *sch)
 {
 	char dbf_txt[15];
 	int ccode;
@@ -455,7 +459,7 @@ cio_disable_subchannel (struct subchannel *sch)
 	if (ccode == 3)		/* Not operational. */
 		return -ENODEV;
 
-	if (sch->schib.scsw.actl != 0)
+	if (scsw_actl(&sch->schib.scsw) != 0)
 		/*
 		 * the disable function must not be called while there are
 		 *  requests pending for completion !
@@ -484,6 +488,7 @@ cio_disable_subchannel (struct subchannel *sch)
 	CIO_TRACE_EVENT (2, dbf_txt);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cio_disable_subchannel);
 
 int cio_create_sch_lock(struct subchannel *sch)
 {
@@ -494,27 +499,61 @@ int cio_create_sch_lock(struct subchannel *sch)
 	return 0;
 }
 
-/*
- * cio_validate_subchannel()
+static int cio_check_devno_blacklisted(struct subchannel *sch)
+{
+	if (is_blacklisted(sch->schid.ssid, sch->schib.pmcw.dev)) {
+		/*
+		 * This device must not be known to Linux. So we simply
+		 * say that there is no device and return ENODEV.
+		 */
+		CIO_MSG_EVENT(6, "Blacklisted device detected "
+			      "at devno %04X, subchannel set %x\n",
+			      sch->schib.pmcw.dev, sch->schid.ssid);
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static int cio_validate_io_subchannel(struct subchannel *sch)
+{
+	/* Initialization for io subchannels. */
+	if (!css_sch_is_valid(&sch->schib))
+		return -ENODEV;
+
+	/* Devno is valid. */
+	return cio_check_devno_blacklisted(sch);
+}
+
+static int cio_validate_msg_subchannel(struct subchannel *sch)
+{
+	/* Initialization for message subchannels. */
+	if (!css_sch_is_valid(&sch->schib))
+		return -ENODEV;
+
+	/* Devno is valid. */
+	return cio_check_devno_blacklisted(sch);
+}
+
+/**
+ * cio_validate_subchannel - basic validation of subchannel
+ * @sch: subchannel structure to be filled out
+ * @schid: subchannel id
  *
  * Find out subchannel type and initialize struct subchannel.
  * Return codes:
- *   SUBCHANNEL_TYPE_IO for a normal io subchannel
- *   SUBCHANNEL_TYPE_CHSC for a chsc subchannel
- *   SUBCHANNEL_TYPE_MESSAGE for a messaging subchannel
- *   SUBCHANNEL_TYPE_ADM for a adm(?) subchannel
+ *   0 on success
  *   -ENXIO for non-defined subchannels
- *   -ENODEV for subchannels with invalid device number or blacklisted devices
+ *   -ENODEV for invalid subchannels or blacklisted devices
+ *   -EIO for subchannels in an invalid subchannel set
  */
-int
-cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
+int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 {
 	char dbf_txt[15];
 	int ccode;
 	int err;
 
-	sprintf (dbf_txt, "valsch%x", schid.sch_no);
-	CIO_TRACE_EVENT (4, dbf_txt);
+	sprintf(dbf_txt, "valsch%x", schid.sch_no);
+	CIO_TRACE_EVENT(4, dbf_txt);
 
 	/* Nuke all fields. */
 	memset(sch, 0, sizeof(struct subchannel));
@@ -546,67 +585,21 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	/* Copy subchannel type from path management control word. */
 	sch->st = sch->schib.pmcw.st;
 
-	/*
-	 * ... just being curious we check for non I/O subchannels
-	 */
-	if (sch->st != 0) {
-		CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports "
-			      "non-I/O subchannel type %04X\n",
-			      sch->schid.ssid, sch->schid.sch_no, sch->st);
-		/* We stop here for non-io subchannels. */
-		err = sch->st;
+	switch (sch->st) {
+	case SUBCHANNEL_TYPE_IO:
+		err = cio_validate_io_subchannel(sch);
+		break;
+	case SUBCHANNEL_TYPE_MSG:
+		err = cio_validate_msg_subchannel(sch);
+		break;
+	default:
+		err = 0;
+	}
+	if (err)
 		goto out;
-	}
 
-	/* Initialization for io subchannels. */
-	if (!css_sch_is_valid(&sch->schib)) {
-		err = -ENODEV;
-		goto out;
-	}
-
-	/* Devno is valid. */
-	if (is_blacklisted (sch->schid.ssid, sch->schib.pmcw.dev)) {
-		/*
-		 * This device must not be known to Linux. So we simply
-		 * say that there is no device and return ENODEV.
-		 */
-		CIO_MSG_EVENT(6, "Blacklisted device detected "
-			      "at devno %04X, subchannel set %x\n",
-			      sch->schib.pmcw.dev, sch->schid.ssid);
-		err = -ENODEV;
-		goto out;
-	}
-	if (cio_is_console(sch->schid)) {
-		sch->opm = 0xff;
-		sch->isc = 1;
-	} else {
-		sch->opm = chp_get_sch_opm(sch);
-		sch->isc = 3;
-	}
-	sch->lpm = sch->schib.pmcw.pam & sch->opm;
-
-	CIO_MSG_EVENT(6, "Detected device %04x on subchannel 0.%x.%04X "
-		      "- PIM = %02X, PAM = %02X, POM = %02X\n",
-		      sch->schib.pmcw.dev, sch->schid.ssid,
-		      sch->schid.sch_no, sch->schib.pmcw.pim,
-		      sch->schib.pmcw.pam, sch->schib.pmcw.pom);
-
-	/*
-	 * We now have to initially ...
-	 *  ... enable "concurrent sense"
-	 *  ... enable "multipath mode" if more than one
-	 *	  CHPID is available. This is done regardless
-	 *	  whether multiple paths are available for us.
-	 */
-	sch->schib.pmcw.csense = 1;	/* concurrent sense */
-	sch->schib.pmcw.ena = 0;
-	if ((sch->lpm & (sch->lpm - 1)) != 0)
-		sch->schib.pmcw.mp = 1;	/* multipath mode */
-	/* clean up possible residual cmf stuff */
-	sch->schib.pmcw.mme = 0;
-	sch->schib.pmcw.mbfc = 0;
-	sch->schib.pmcw.mbi = 0;
-	sch->schib.mba = 0;
+	CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports subchannel type %04X\n",
+		      sch->schid.ssid, sch->schid.sch_no, sch->st);
 	return 0;
 out:
 	if (!cio_is_console(schid))
@@ -647,7 +640,7 @@ do_IRQ (struct pt_regs *regs)
 		 */
 		if (tpi_info->adapter_IO == 1 &&
 		    tpi_info->int_type == IO_INTERRUPT_TYPE) {
-			do_adapter_IO();
+			do_adapter_IO(tpi_info->isc);
 			continue;
 		}
 		sch = (struct subchannel *)(unsigned long)tpi_info->intparm;
@@ -706,9 +699,9 @@ void wait_cons_dev(void)
 	if (!console_subchannel_in_use)
 		return;
 
-	/* disable all but isc 1 (console device) */
+	/* disable all but the console isc */
 	__ctl_store (save_cr6, 6, 6);
-	cr6 = 0x40000000;
+	cr6 = 1UL << (31 - CONSOLE_ISC);
 	__ctl_load (cr6, 6, 6);
 
 	do {
@@ -716,7 +709,7 @@ void wait_cons_dev(void)
 		if (!cio_tpi())
 			cpu_relax();
 		spin_lock(console_subchannel.lock);
-	} while (console_subchannel.schib.scsw.actl != 0);
+	} while (console_subchannel.schib.scsw.cmd.actl != 0);
 	/*
 	 * restore previous isc value
 	 */
@@ -761,7 +754,6 @@ cio_get_console_sch_no(void)
 		/* unlike in 2.4, we cannot autoprobe here, since
 		 * the channel subsystem is not fully initialized.
 		 * With some luck, the HWC console can take over */
-		printk(KERN_WARNING "cio: No ccw console found!\n");
 		return -1;
 	}
 	return console_irq;
@@ -778,6 +770,7 @@ cio_probe_console(void)
 	sch_no = cio_get_console_sch_no();
 	if (sch_no == -1) {
 		console_subchannel_in_use = 0;
+		printk(KERN_WARNING "cio: No ccw console found!\n");
 		return ERR_PTR(-ENODEV);
 	}
 	memset(&console_subchannel, 0, sizeof(struct subchannel));
@@ -790,15 +783,15 @@ cio_probe_console(void)
 	}
 
 	/*
-	 * enable console I/O-interrupt subclass 1
+	 * enable console I/O-interrupt subclass
 	 */
-	ctl_set_bit(6, 30);
-	console_subchannel.isc = 1;
-	console_subchannel.schib.pmcw.isc = 1;
+	isc_register(CONSOLE_ISC);
+	console_subchannel.schib.pmcw.isc = CONSOLE_ISC;
 	console_subchannel.schib.pmcw.intparm =
 		(u32)(addr_t)&console_subchannel;
 	ret = cio_modify(&console_subchannel);
 	if (ret) {
+		isc_unregister(CONSOLE_ISC);
 		console_subchannel_in_use = 0;
 		return ERR_PTR(ret);
 	}
@@ -810,7 +803,7 @@ cio_release_console(void)
 {
 	console_subchannel.schib.pmcw.intparm = 0;
 	cio_modify(&console_subchannel);
-	ctl_clear_bit(6, 24);
+	isc_unregister(CONSOLE_ISC);
 	console_subchannel_in_use = 0;
 }
 
@@ -864,7 +857,7 @@ static void udelay_reset(unsigned long usecs)
 }
 
 static int
-__clear_subchannel_easy(struct subchannel_id schid)
+__clear_io_subchannel_easy(struct subchannel_id schid)
 {
 	int retry;
 
@@ -881,6 +874,12 @@ __clear_subchannel_easy(struct subchannel_id schid)
 		udelay_reset(100);
 	}
 	return -EBUSY;
+}
+
+static void __clear_chsc_subchannel_easy(void)
+{
+	/* It seems we can only wait for a bit here :/ */
+	udelay_reset(100);
 }
 
 static int pgm_check_occured;
@@ -921,11 +920,22 @@ static int __shutdown_subchannel_easy(struct subchannel_id schid, void *data)
 	case -ENODEV:
 		break;
 	default: /* -EBUSY */
-		if (__clear_subchannel_easy(schid))
-			break; /* give up... */
+		switch (schib.pmcw.st) {
+		case SUBCHANNEL_TYPE_IO:
+			if (__clear_io_subchannel_easy(schid))
+				goto out; /* give up... */
+			break;
+		case SUBCHANNEL_TYPE_CHSC:
+			__clear_chsc_subchannel_easy();
+			break;
+		default:
+			/* No default clear strategy */
+			break;
+		}
 		stsch(schid, &schib);
 		__disable_subchannel_easy(schid, &schib);
 	}
+out:
 	return 0;
 }
 
@@ -1067,4 +1077,62 @@ int __init cio_get_iplinfo(struct cio_iplinfo *iplinfo)
 	iplinfo->devno = schib.pmcw.dev;
 	iplinfo->is_qdio = schib.pmcw.qf;
 	return 0;
+}
+
+/**
+ * cio_tm_start_key - perform start function
+ * @sch: subchannel on which to perform the start function
+ * @tcw: transport-command word to be started
+ * @lpm: mask of paths to use
+ * @key: storage key to use for storage access
+ *
+ * Start the tcw on the given subchannel. Return zero on success, non-zero
+ * otherwise.
+ */
+int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key)
+{
+	int cc;
+	union orb *orb = &to_io_private(sch)->orb;
+
+	memset(orb, 0, sizeof(union orb));
+	orb->tm.intparm = (u32) (addr_t) sch;
+	orb->tm.key = key >> 4;
+	orb->tm.b = 1;
+	orb->tm.lpm = lpm ? lpm : sch->lpm;
+	orb->tm.tcw = (u32) (addr_t) tcw;
+	cc = ssch(sch->schid, orb);
+	switch (cc) {
+	case 0:
+		return 0;
+	case 1:
+	case 2:
+		return -EBUSY;
+	default:
+		return cio_start_handle_notoper(sch, lpm);
+	}
+}
+
+/**
+ * cio_tm_intrg - perform interrogate function
+ * @sch - subchannel on which to perform the interrogate function
+ *
+ * If the specified subchannel is running in transport-mode, perform the
+ * interrogate function. Return zero on success, non-zero otherwie.
+ */
+int cio_tm_intrg(struct subchannel *sch)
+{
+	int cc;
+
+	if (!to_io_private(sch)->orb.tm.b)
+		return -EINVAL;
+	cc = xsch(sch->schid);
+	switch (cc) {
+	case 0:
+	case 2:
+		return 0;
+	case 1:
+		return -EBUSY;
+	default:
+		return -ENODEV;
+	}
 }

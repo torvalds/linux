@@ -436,7 +436,7 @@ int __lockfunc _spin_trylock_bh(spinlock_t *lock)
 }
 EXPORT_SYMBOL(_spin_trylock_bh);
 
-int in_lock_functions(unsigned long addr)
+notrace int in_lock_functions(unsigned long addr)
 {
 	/* Linker adds these: start and end of __lockfunc functions */
 	extern char __lock_text_start[], __lock_text_end[];

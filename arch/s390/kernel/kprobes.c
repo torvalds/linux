@@ -41,10 +41,8 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	if (is_prohibited_opcode((kprobe_opcode_t *) p->addr))
 		return -EINVAL;
 
-	if ((unsigned long)p->addr & 0x01) {
-		printk("Attempt to register kprobe at an unaligned address\n");
+	if ((unsigned long)p->addr & 0x01)
 		return -EINVAL;
-		}
 
 	/* Use the get_insn_slot() facility for correctness */
 	if (!(p->ainsn.insn = get_insn_slot()))

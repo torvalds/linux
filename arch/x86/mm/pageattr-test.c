@@ -1,8 +1,8 @@
 /*
  * self test for change_page_attr.
  *
- * Clears the global bit on random pages in the direct mapping, then reverts
- * and compares page tables forwards and afterwards.
+ * Clears the a test pte bit on random pages in the direct mapping,
+ * then reverts and compares page tables forwards and afterwards.
  */
 #include <linux/bootmem.h>
 #include <linux/kthread.h>
@@ -31,6 +31,13 @@ enum {
 #endif
 	GPS			= (1<<30)
 };
+
+#define PAGE_TESTBIT	__pgprot(_PAGE_UNUSED1)
+
+static int pte_testbit(pte_t pte)
+{
+	return pte_flags(pte) & _PAGE_UNUSED1;
+}
 
 struct split_state {
 	long lpg, gpg, spg, exec;
@@ -165,15 +172,14 @@ static int pageattr_test(void)
 			continue;
 		}
 
-		err = change_page_attr_clear(addr[i], len[i],
-					       __pgprot(_PAGE_GLOBAL));
+		err = change_page_attr_set(addr[i], len[i], PAGE_TESTBIT);
 		if (err < 0) {
 			printk(KERN_ERR "CPA %d failed %d\n", i, err);
 			failed++;
 		}
 
 		pte = lookup_address(addr[i], &level);
-		if (!pte || pte_global(*pte) || pte_huge(*pte)) {
+		if (!pte || !pte_testbit(*pte) || pte_huge(*pte)) {
 			printk(KERN_ERR "CPA %lx: bad pte %Lx\n", addr[i],
 				pte ? (u64)pte_val(*pte) : 0ULL);
 			failed++;
@@ -198,14 +204,13 @@ static int pageattr_test(void)
 			failed++;
 			continue;
 		}
-		err = change_page_attr_set(addr[i], len[i],
-					     __pgprot(_PAGE_GLOBAL));
+		err = change_page_attr_clear(addr[i], len[i], PAGE_TESTBIT);
 		if (err < 0) {
 			printk(KERN_ERR "CPA reverting failed: %d\n", err);
 			failed++;
 		}
 		pte = lookup_address(addr[i], &level);
-		if (!pte || !pte_global(*pte)) {
+		if (!pte || pte_testbit(*pte)) {
 			printk(KERN_ERR "CPA %lx: bad pte after revert %Lx\n",
 				addr[i], pte ? (u64)pte_val(*pte) : 0ULL);
 			failed++;

@@ -901,7 +901,7 @@ static inline int ocfs2_sprintf_system_inode_name(char *buf, int len,
          * list has a copy per slot.
          */
 	if (type <= OCFS2_LAST_GLOBAL_SYSTEM_INODE)
-		chars = snprintf(buf, len,
+		chars = snprintf(buf, len, "%s",
 				 ocfs2_system_inodes[type].si_name);
 	else
 		chars = snprintf(buf, len,

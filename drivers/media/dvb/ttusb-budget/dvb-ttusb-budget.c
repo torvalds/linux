@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
+#include <linux/firmware.h>
 
 #include "dvb_frontend.h"
 #include "dmxdev.h"
@@ -285,12 +286,18 @@ static int master_xfer(struct i2c_adapter* adapter, struct i2c_msg *msg, int num
 	return i;
 }
 
-#include "dvb-ttusb-dspbootcode.h"
-
 static int ttusb_boot_dsp(struct ttusb *ttusb)
 {
+	const struct firmware *fw;
 	int i, err;
 	u8 b[40];
+
+	err = request_firmware(&fw, "ttusb-budget/dspbootcode.bin",
+			       &ttusb->dev->dev);
+	if (err) {
+		printk(KERN_ERR "ttusb-budget: failed to request firmware\n");
+		return err;
+	}
 
 	/* BootBlock */
 	b[0] = 0xaa;
@@ -299,8 +306,8 @@ static int ttusb_boot_dsp(struct ttusb *ttusb)
 
 	/* upload dsp code in 32 byte steps (36 didn't work for me ...) */
 	/* 32 is max packet size, no messages should be splitted. */
-	for (i = 0; i < sizeof(dsp_bootcode); i += 28) {
-		memcpy(&b[4], &dsp_bootcode[i], 28);
+	for (i = 0; i < fw->size; i += 28) {
+		memcpy(&b[4], &fw->data[i], 28);
 
 		b[1] = ++ttusb->c;
 
@@ -1820,3 +1827,4 @@ module_exit(ttusb_exit);
 MODULE_AUTHOR("Holger Waechtler <holger@convergence.de>");
 MODULE_DESCRIPTION("TTUSB DVB Driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("ttusb-budget/dspbootcode.bin");

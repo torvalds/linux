@@ -1151,7 +1151,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			 * be processed until returning to user space.
 			 */
 			if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))
-				return -ENOMEM;
+				return i ? i : -ENOMEM;
 
 			if (write)
 				foll_flags |= FOLL_WRITE;
@@ -1697,8 +1697,19 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct page *dirty_page = NULL;
 
 	old_page = vm_normal_page(vma, address, orig_pte);
-	if (!old_page)
+	if (!old_page) {
+		/*
+		 * VM_MIXEDMAP !pfn_valid() case
+		 *
+		 * We should not cow pages in a shared writeable mapping.
+		 * Just mark the pages writable as we can't do any dirty
+		 * accounting on raw pfn maps.
+		 */
+		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+				     (VM_WRITE|VM_SHARED))
+			goto reuse;
 		goto gotten;
+	}
 
 	/*
 	 * Take out anonymous pages first, anonymous shared vmas are
@@ -1751,6 +1762,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	if (reuse) {
+reuse:
 		flush_cache_page(vma, address, pte_pfn(orig_pte));
 		entry = pte_mkyoung(orig_pte);
 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);

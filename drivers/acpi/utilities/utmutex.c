@@ -218,7 +218,7 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 		 * the mutex ordering rule.  This indicates a coding error somewhere in
 		 * the ACPI subsystem code.
 		 */
-		for (i = mutex_id; i < ACPI_MAX_MUTEX; i++) {
+		for (i = mutex_id; i < ACPI_NUM_MUTEX; i++) {
 			if (acpi_gbl_mutex_info[i].thread_id == this_thread_id) {
 				if (i == mutex_id) {
 					ACPI_ERROR((AE_INFO,
@@ -315,7 +315,7 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 		 * ordering rule.  This indicates a coding error somewhere in
 		 * the ACPI subsystem code.
 		 */
-		for (i = mutex_id; i < ACPI_MAX_MUTEX; i++) {
+		for (i = mutex_id; i < ACPI_NUM_MUTEX; i++) {
 			if (acpi_gbl_mutex_info[i].thread_id == this_thread_id) {
 				if (i == mutex_id) {
 					continue;

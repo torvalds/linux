@@ -18,22 +18,16 @@ HAS_BIARCH	:= $(call cc-option-yn, -m32)
 CROSS32_COMPILE ?=
 
 CROSS32CC		:= $(CROSS32_COMPILE)gcc
-CROSS32AS		:= $(CROSS32_COMPILE)as
-CROSS32LD		:= $(CROSS32_COMPILE)ld
 CROSS32AR		:= $(CROSS32_COMPILE)ar
-CROSS32OBJCOPY		:= $(CROSS32_COMPILE)objcopy
 
 ifeq ($(HAS_BIARCH),y)
 ifeq ($(CROSS32_COMPILE),)
 CROSS32CC	:= $(CC) -m32
-CROSS32AS	:= $(AS) -a32
-CROSS32LD	:= $(LD) -m elf32ppc
-CROSS32OBJCOPY	:= $(OBJCOPY)
 CROSS32AR	:= GNUTARGET=elf32-powerpc $(AR)
 endif
 endif
 
-export CROSS32CC CROSS32AS CROSS32LD CROSS32AR CROSS32OBJCOPY
+export CROSS32CC CROSS32AR
 
 ifeq ($(CROSS_COMPILE),)
 KBUILD_DEFCONFIG := $(shell uname -m)_defconfig
@@ -169,12 +163,25 @@ bootwrapper_install %.dtb:
 	$(Q)$(MAKE) ARCH=ppc64 $(build)=$(boot) $(patsubst %,$(boot)/%,$@)
 
 define archhelp
-  @echo '* zImage          - Compressed kernel image (arch/$(ARCH)/boot/zImage.*)'
+  @echo '* zImage          - Build default images selected by kernel config'
+  @echo '  zImage.*        - Compressed kernel image (arch/$(ARCH)/boot/zImage.*)'
+  @echo '  uImage          - U-Boot native image format'
+  @echo '  cuImage.<dt>    - Backwards compatible U-Boot image for older'
+  @echo '                    versions which do not support device trees'
+  @echo '  dtbImage.<dt>   - zImage with an embedded device tree blob'
+  @echo '  simpleImage.<dt> - Firmware independent image.'
+  @echo '  treeImage.<dt>  - Support for older IBM 4xx firmware (not U-Boot)'
   @echo '  install         - Install kernel using'
   @echo '                    (your) ~/bin/installkernel or'
   @echo '                    (distribution) /sbin/installkernel or'
   @echo '                    install to $$(INSTALL_PATH) and run lilo'
   @echo '  *_defconfig     - Select default config from arch/$(ARCH)/configs'
+  @echo ''
+  @echo '  Targets with <dt> embed a device tree blob inside the image'
+  @echo '  These targets support board with firmware that does not'
+  @echo '  support passing a device tree directly.  Replace <dt> with the'
+  @echo '  name of a dts file from the arch/$(ARCH)/boot/dts/ directory'
+  @echo '  (minus the .dts extension).'
 endef
 
 install:

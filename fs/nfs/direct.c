@@ -890,7 +890,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, const struct iovec *iov,
 	count = iov_length(iov, nr_segs);
 	nfs_add_stats(mapping->host, NFSIOS_DIRECTREADBYTES, count);
 
-	dprintk("nfs: direct read(%s/%s, %zd@%Ld)\n",
+	dfprintk(FILE, "NFS: direct read(%s/%s, %zd@%Ld)\n",
 		file->f_path.dentry->d_parent->d_name.name,
 		file->f_path.dentry->d_name.name,
 		count, (long long) pos);
@@ -947,7 +947,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	count = iov_length(iov, nr_segs);
 	nfs_add_stats(mapping->host, NFSIOS_DIRECTWRITTENBYTES, count);
 
-	dfprintk(VFS, "nfs: direct write(%s/%s, %zd@%Ld)\n",
+	dfprintk(FILE, "NFS: direct write(%s/%s, %zd@%Ld)\n",
 		file->f_path.dentry->d_parent->d_name.name,
 		file->f_path.dentry->d_name.name,
 		count, (long long) pos);

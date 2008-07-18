@@ -8,7 +8,7 @@
  * USB Bus Glue for Samsung S3C2410
  *
  * Written by Christopher Hoover <ch@hpl.hp.com>
- * Based on fragments of previous driver by Rusell King et al.
+ * Based on fragments of previous driver by Russell King et al.
  *
  * Modified for S3C2410 from ohci-sa1111.c, ohci-omap.c and ohci-lh7a40.c
  *	by Ben Dooks, <ben@simtec.co.uk>
@@ -466,6 +466,7 @@ static const struct hc_driver ohci_s3c2410_hc_driver = {
 	 */
 	.hub_status_data =	ohci_s3c2410_hub_status_data,
 	.hub_control =		ohci_s3c2410_hub_control,
+	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,

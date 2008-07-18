@@ -86,8 +86,8 @@ extern void hpet_unregister_irq_handler(rtc_irq_handler handler);
 #else /* CONFIG_HPET_TIMER */
 
 static inline int hpet_enable(void) { return 0; }
-static inline unsigned long hpet_readl(unsigned long a) { return 0; }
 static inline int is_hpet_enabled(void) { return 0; }
+#define hpet_readl(a) 0
 
 #endif
 #endif /* ASM_X86_HPET_H */

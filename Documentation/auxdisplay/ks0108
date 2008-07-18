@@ -3,7 +3,7 @@
 	==========================================
 
 License:		GPLv2
-Author & Maintainer:	Miguel Ojeda Sandonis <maxextreme@gmail.com>
+Author & Maintainer:	Miguel Ojeda Sandonis
 Date:			2006-10-27
 
 
@@ -21,7 +21,7 @@ Date:			2006-10-27
 1. DRIVER INFORMATION
 ---------------------
 
-This driver support the ks0108 LCD controller.
+This driver supports the ks0108 LCD controller.
 
 
 ---------------------

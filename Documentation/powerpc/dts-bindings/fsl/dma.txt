@@ -1,0 +1,127 @@
+* Freescale 83xx DMA Controller
+
+Freescale PowerPC 83xx have on chip general purpose DMA controllers.
+
+Required properties:
+
+- compatible        : compatible list, contains 2 entries, first is
+		 "fsl,CHIP-dma", where CHIP is the processor
+		 (mpc8349, mpc8360, etc.) and the second is
+		 "fsl,elo-dma"
+- reg               : <registers mapping for DMA general status reg>
+- ranges		: Should be defined as specified in 1) to describe the
+		  DMA controller channels.
+- cell-index        : controller index.  0 for controller @ 0x8100
+- interrupts        : <interrupt mapping for DMA IRQ>
+- interrupt-parent  : optional, if needed for interrupt mapping
+
+
+- DMA channel nodes:
+        - compatible        : compatible list, contains 2 entries, first is
+			 "fsl,CHIP-dma-channel", where CHIP is the processor
+			 (mpc8349, mpc8350, etc.) and the second is
+			 "fsl,elo-dma-channel"
+        - reg               : <registers mapping for channel>
+        - cell-index        : dma channel index starts at 0.
+
+Optional properties:
+        - interrupts        : <interrupt mapping for DMA channel IRQ>
+			  (on 83xx this is expected to be identical to
+			   the interrupts property of the parent node)
+        - interrupt-parent  : optional, if needed for interrupt mapping
+
+Example:
+	dma@82a8 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8349-dma", "fsl,elo-dma";
+		reg = <82a8 4>;
+		ranges = <0 8100 1a4>;
+		interrupt-parent = <&ipic>;
+		interrupts = <47 8>;
+		cell-index = <0>;
+		dma-channel@0 {
+			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
+			cell-index = <0>;
+			reg = <0 80>;
+		};
+		dma-channel@80 {
+			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
+			cell-index = <1>;
+			reg = <80 80>;
+		};
+		dma-channel@100 {
+			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
+			cell-index = <2>;
+			reg = <100 80>;
+		};
+		dma-channel@180 {
+			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
+			cell-index = <3>;
+			reg = <180 80>;
+		};
+	};
+
+* Freescale 85xx/86xx DMA Controller
+
+Freescale PowerPC 85xx/86xx have on chip general purpose DMA controllers.
+
+Required properties:
+
+- compatible        : compatible list, contains 2 entries, first is
+		 "fsl,CHIP-dma", where CHIP is the processor
+		 (mpc8540, mpc8540, etc.) and the second is
+		 "fsl,eloplus-dma"
+- reg               : <registers mapping for DMA general status reg>
+- cell-index        : controller index.  0 for controller @ 0x21000,
+                                         1 for controller @ 0xc000
+- ranges		: Should be defined as specified in 1) to describe the
+		  DMA controller channels.
+
+- DMA channel nodes:
+        - compatible        : compatible list, contains 2 entries, first is
+			 "fsl,CHIP-dma-channel", where CHIP is the processor
+			 (mpc8540, mpc8560, etc.) and the second is
+			 "fsl,eloplus-dma-channel"
+        - cell-index        : dma channel index starts at 0.
+        - reg               : <registers mapping for channel>
+        - interrupts        : <interrupt mapping for DMA channel IRQ>
+        - interrupt-parent  : optional, if needed for interrupt mapping
+
+Example:
+	dma@21300 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8540-dma", "fsl,eloplus-dma";
+		reg = <21300 4>;
+		ranges = <0 21100 200>;
+		cell-index = <0>;
+		dma-channel@0 {
+			compatible = "fsl,mpc8540-dma-channel", "fsl,eloplus-dma-channel";
+			reg = <0 80>;
+			cell-index = <0>;
+			interrupt-parent = <&mpic>;
+			interrupts = <14 2>;
+		};
+		dma-channel@80 {
+			compatible = "fsl,mpc8540-dma-channel", "fsl,eloplus-dma-channel";
+			reg = <80 80>;
+			cell-index = <1>;
+			interrupt-parent = <&mpic>;
+			interrupts = <15 2>;
+		};
+		dma-channel@100 {
+			compatible = "fsl,mpc8540-dma-channel", "fsl,eloplus-dma-channel";
+			reg = <100 80>;
+			cell-index = <2>;
+			interrupt-parent = <&mpic>;
+			interrupts = <16 2>;
+		};
+		dma-channel@180 {
+			compatible = "fsl,mpc8540-dma-channel", "fsl,eloplus-dma-channel";
+			reg = <180 80>;
+			cell-index = <3>;
+			interrupt-parent = <&mpic>;
+			interrupts = <17 2>;
+		};
+	};

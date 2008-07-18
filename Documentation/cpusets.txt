@@ -154,13 +154,15 @@ browsing and modifying the cpusets presently known to the kernel.  No
 new system calls are added for cpusets - all support for querying and
 modifying cpusets is via this cpuset file system.
 
-The /proc/<pid>/status file for each task has two added lines,
+The /proc/<pid>/status file for each task has four added lines,
 displaying the tasks cpus_allowed (on which CPUs it may be scheduled)
 and mems_allowed (on which Memory Nodes it may obtain memory),
-in the format seen in the following example:
+in the two formats seen in the following example:
 
   Cpus_allowed:   ffffffff,ffffffff,ffffffff,ffffffff
+  Cpus_allowed_list:      0-127
   Mems_allowed:   ffffffff,ffffffff
+  Mems_allowed_list:      0-63
 
 Each cpuset is represented by a directory in the cgroup file system
 containing (on top of the standard cgroup files) the following
@@ -543,6 +545,9 @@ otherwise initial value -1 that indicates the cpuset has no request.
    3  : search cpus in a node [= system wide on non-NUMA system]
  ( 4  : search nodes in a chunk of node [on NUMA system] )
  ( 5  : search system wide [on NUMA system] )
+
+The system default is architecture dependent.  The system default
+can be changed using the relax_domain_level= boot parameter.
 
 This file is per-cpuset and affect the sched domain where the cpuset
 belongs to.  Therefore if the flag 'sched_load_balance' of a cpuset

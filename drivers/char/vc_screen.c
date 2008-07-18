@@ -34,6 +34,7 @@
 #include <linux/kbd_kern.h>
 #include <linux/console.h>
 #include <linux/device.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
@@ -460,9 +461,13 @@ static int
 vcs_open(struct inode *inode, struct file *filp)
 {
 	unsigned int currcons = iminor(inode) & 127;
+	int ret = 0;
+	
+	lock_kernel();
 	if(currcons && !vc_cons_allocated(currcons-1))
-		return -ENXIO;
-	return 0;
+		ret = -ENXIO;
+	unlock_kernel();
+	return ret;
 }
 
 static const struct file_operations vcs_fops = {

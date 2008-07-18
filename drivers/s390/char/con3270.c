@@ -411,15 +411,15 @@ static int
 con3270_irq(struct con3270 *cp, struct raw3270_request *rq, struct irb *irb)
 {
 	/* Handle ATTN. Schedule tasklet to read aid. */
-	if (irb->scsw.dstat & DEV_STAT_ATTENTION)
+	if (irb->scsw.cmd.dstat & DEV_STAT_ATTENTION)
 		con3270_issue_read(cp);
 
 	if (rq) {
-		if (irb->scsw.dstat & DEV_STAT_UNIT_CHECK)
+		if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK)
 			rq->rc = -EIO;
 		else
 			/* Normal end. Copy residual count. */
-			rq->rescnt = irb->scsw.count;
+			rq->rescnt = irb->scsw.cmd.count;
 	}
 	return RAW3270_IO_DONE;
 }

@@ -52,6 +52,10 @@ of each iteration.  Unfortunately, chaotic relaxation requires highly
 structured data, such as the matrices used in scientific programs, and
 is thus inapplicable to most data structures in operating-system kernels.
 
+In 1992, Henry (now Alexia) Massalin completed a dissertation advising
+parallel programmers to defer processing when feasible to simplify
+synchronization.  RCU makes extremely heavy use of this advice.
+
 In 1993, Jacobson [Jacobson93] verbally described what is perhaps the
 simplest deferred-free technique: simply waiting a fixed amount of time
 before freeing blocks awaiting deferred free.  Jacobson did not describe
@@ -138,6 +142,13 @@ blocking in read-side critical sections appeared [PaulEMcKenney2006c],
 Robert Olsson described an RCU-protected trie-hash combination
 [RobertOlsson2006a].
 
+2007 saw the journal version of the award-winning RCU paper from 2006
+[ThomasEHart2007a], as well as a paper demonstrating use of Promela
+and Spin to mechanically verify an optimization to Oleg Nesterov's
+QRCU [PaulEMcKenney2007QRCUspin], a design document describing
+preemptible RCU [PaulEMcKenney2007PreemptibleRCU], and the three-part
+LWN "What is RCU?" series [PaulEMcKenney2007WhatIsRCUFundamentally,
+PaulEMcKenney2008WhatIsRCUUsage, and PaulEMcKenney2008WhatIsRCUAPI].
 
 Bibtex Entries
 
@@ -200,6 +211,20 @@ Bibtex Entries
 ,title="Concurrent Programming, Principles, and Practices"
 ,Publisher="Benjamin Cummins"
 ,Year="1991"
+}
+
+@phdthesis{HMassalinPhD
+,author="H. Massalin"
+,title="Synthesis: An Efficient Implementation of Fundamental Operating
+System Services"
+,school="Columbia University"
+,address="New York, NY"
+,year="1992"
+,annotation="
+	Mondo optimizing compiler.
+	Wait-free stuff.
+	Good advice: defer work to avoid synchronization.
+"
 }
 
 @unpublished{Jacobson93
@@ -635,3 +660,86 @@ Revised:
 "
 }
 
+@unpublished{PaulEMcKenney2007PreemptibleRCU
+,Author="Paul E. McKenney"
+,Title="The design of preemptible read-copy-update"
+,month="October"
+,day="8"
+,year="2007"
+,note="Available:
+\url{http://lwn.net/Articles/253651/}
+[Viewed October 25, 2007]"
+,annotation="
+	LWN article describing the design of preemptible RCU.
+"
+}
+
+########################################################################
+#
+#	"What is RCU?" LWN series.
+#
+
+@unpublished{PaulEMcKenney2007WhatIsRCUFundamentally
+,Author="Paul E. McKenney and Jonathan Walpole"
+,Title="What is {RCU}, Fundamentally?"
+,month="December"
+,day="17"
+,year="2007"
+,note="Available:
+\url{http://lwn.net/Articles/262464/}
+[Viewed December 27, 2007]"
+,annotation="
+	Lays out the three basic components of RCU: (1) publish-subscribe,
+	(2) wait for pre-existing readers to complete, and (2) maintain
+	multiple versions.
+"
+}
+
+@unpublished{PaulEMcKenney2008WhatIsRCUUsage
+,Author="Paul E. McKenney"
+,Title="What is {RCU}? Part 2: Usage"
+,month="January"
+,day="4"
+,year="2008"
+,note="Available:
+\url{http://lwn.net/Articles/263130/}
+[Viewed January 4, 2008]"
+,annotation="
+	Lays out six uses of RCU:
+	1. RCU is a Reader-Writer Lock Replacement
+	2. RCU is a Restricted Reference-Counting Mechanism
+	3. RCU is a Bulk Reference-Counting Mechanism
+	4. RCU is a Poor Man's Garbage Collector
+	5. RCU is a Way of Providing Existence Guarantees
+	6. RCU is a Way of Waiting for Things to Finish 
+"
+}
+
+@unpublished{PaulEMcKenney2008WhatIsRCUAPI
+,Author="Paul E. McKenney"
+,Title="{RCU} part 3: the {RCU} {API}"
+,month="January"
+,day="17"
+,year="2008"
+,note="Available:
+\url{http://lwn.net/Articles/264090/}
+[Viewed January 10, 2008]"
+,annotation="
+	Gives an overview of the Linux-kernel RCU API and a brief annotated RCU
+	bibliography.
+"
+}
+
+@article{DinakarGuniguntala2008IBMSysJ
+,author="D. Guniguntala and P. E. McKenney and J. Triplett and J. Walpole"
+,title="The read-copy-update mechanism for supporting real-time applications on shared-memory multiprocessor systems with {Linux}"
+,Year="2008"
+,Month="April"
+,journal="IBM Systems Journal"
+,volume="47"
+,number="2"
+,pages="@@-@@"
+,annotation="
+	RCU, realtime RCU, sleepable RCU, performance.
+"
+}

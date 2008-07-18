@@ -138,14 +138,20 @@ objflags=-S
 tmp=$tmpdir/zImage.$$.o
 ksection=.kernel:vmlinux.strip
 isection=.kernel:initrd
+link_address='0x400000'
 
 case "$platform" in
-pmac|pseries|chrp)
+pseries)
+    platformo=$object/of.o
+    link_address='0x4000000'
+    ;;
+pmac|chrp)
     platformo=$object/of.o
     ;;
 coff)
     platformo=$object/of.o
     lds=$object/zImage.coff.lds
+    link_address='0x500000'
     ;;
 miboot|uboot)
     # miboot and U-boot want just the bare bits, not an ELF binary
@@ -171,13 +177,13 @@ cuboot*)
     *-mpc824*)
         platformo=$object/cuboot-824x.o
         ;;
-    *-mpc83*)
+    *-mpc83*|*-asp834x*)
         platformo=$object/cuboot-83xx.o
         ;;
     *-tqm8541|*-mpc8560*|*-tqm8560|*-tqm8555|*-ksi8560*)
         platformo=$object/cuboot-85xx-cpm2.o
         ;;
-    *-mpc85*|*-tqm8540|*-sbc85*)
+    *-mpc85*|*-tqm85*|*-sbc85*)
         platformo=$object/cuboot-85xx.o
         ;;
     esac
@@ -190,6 +196,7 @@ ps3)
     objflags="-O binary --set-section-flags=.bss=contents,alloc,load,data"
     ksection=.kernel:vmlinux.bin
     isection=.kernel:initrd
+    link_address=''
     ;;
 ep88xc|ep405|ep8248e)
     platformo="$object/fixed-head.o $object/$platform.o"
@@ -200,7 +207,19 @@ adder875-redboot)
     binary=y
     ;;
 simpleboot-virtex405-*)
-    platformo="$object/virtex405-head.o $object/simpleboot.o"
+    platformo="$object/virtex405-head.o $object/simpleboot.o $object/virtex.o"
+    binary=y
+    ;;
+simpleboot-virtex440-*)
+    platformo="$object/simpleboot.o $object/virtex.o"
+    binary=y
+    ;;
+simpleboot-*)
+    platformo="$object/simpleboot.o"
+    binary=y
+    ;;
+asp834x-redboot)
+    platformo="$object/fixed-head.o $object/redboot-83xx.o"
     binary=y
     ;;
 esac
@@ -268,7 +287,10 @@ if [ -n "$dtb" ]; then
 fi
 
 if [ "$platform" != "miboot" ]; then
-    ${CROSS}ld -m elf32ppc -T $lds -o "$ofile" \
+    if [ -n "$link_address" ] ; then
+        text_start="-Ttext $link_address --defsym _start=$link_address"
+    fi
+    ${CROSS}ld -m elf32ppc -T $lds $text_start -o "$ofile" \
 	$platformo $tmp $object/wrapper.a
     rm $tmp
 fi

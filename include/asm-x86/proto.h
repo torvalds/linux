@@ -14,8 +14,6 @@ extern void ia32_syscall(void);
 extern void ia32_cstar_target(void);
 extern void ia32_sysenter_target(void);
 
-extern void reserve_bootmem_generic(unsigned long phys, unsigned len);
-
 extern void syscall32_cpu_init(void);
 
 extern void check_efer(void);

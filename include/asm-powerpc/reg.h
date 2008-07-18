@@ -30,6 +30,7 @@
 #define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */
 #define MSR_HV_LG 	60              /* Hypervisor state */
 #define MSR_VEC_LG	25	        /* Enable AltiVec */
+#define MSR_VSX_LG	23		/* Enable VSX */
 #define MSR_POW_LG	18		/* Enable Power Management */
 #define MSR_WE_LG	18		/* Wait State Enable */
 #define MSR_TGPR_LG	17		/* TLB Update registers in use */
@@ -71,6 +72,7 @@
 #endif
 
 #define MSR_VEC		__MASK(MSR_VEC_LG)	/* Enable AltiVec */
+#define MSR_VSX		__MASK(MSR_VSX_LG)	/* Enable VSX */
 #define MSR_POW		__MASK(MSR_POW_LG)	/* Enable Power Management */
 #define MSR_WE		__MASK(MSR_WE_LG)	/* Wait State Enable */
 #define MSR_TGPR	__MASK(MSR_TGPR_LG)	/* TLB Update registers in use */
@@ -240,7 +242,7 @@
 #define HID0_DAPUEN	(1<<8)		/* Debug APU enable */
 #define HID0_SGE	(1<<7)		/* Store Gathering Enable */
 #define HID0_SIED	(1<<7)		/* Serial Instr. Execution [Disable] */
-#define HID0_DFCA	(1<<6)		/* Data Cache Flush Assist */
+#define HID0_DCFA	(1<<6)		/* Data Cache Flush Assist */
 #define HID0_LRSTK	(1<<4)		/* Link register stack - 745x */
 #define HID0_BTIC	(1<<5)		/* Branch Target Instr Cache Enable */
 #define HID0_ABE	(1<<3)		/* Address Broadcast Enable */
@@ -732,6 +734,8 @@
 				"	.llong %1\n"			\
 				"	.llong 97b-98b\n"		\
 				"	.llong 99b-98b\n"		\
+				"	.llong 0\n"			\
+				"	.llong 0\n"			\
 				".previous"				\
 			: "=r" (rval) : "i" (CPU_FTR_CELL_TB_BUG)); rval;})
 #else
