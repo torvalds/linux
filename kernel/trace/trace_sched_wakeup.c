@@ -15,7 +15,7 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
-#include <linux/marker.h>
+#include <trace/sched.h>
 
 #include "trace.h"
 
@@ -112,17 +112,17 @@ static int report_latency(cycle_t delta)
 }
 
 static void notrace
-wakeup_sched_switch(void *private, void *rq, struct task_struct *prev,
+probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	struct task_struct *next)
 {
 	unsigned long latency = 0, t0 = 0, t1 = 0;
-	struct trace_array **ptr = private;
-	struct trace_array *tr = *ptr;
 	struct trace_array_cpu *data;
 	cycle_t T0, T1, delta;
 	unsigned long flags;
 	long disabled;
 	int cpu;
+
+	tracing_record_cmdline(prev);
 
 	if (unlikely(!tracer_enabled))
 		return;
@@ -140,11 +140,11 @@ wakeup_sched_switch(void *private, void *rq, struct task_struct *prev,
 		return;
 
 	/* The task we are waiting for is waking up */
-	data = tr->data[wakeup_cpu];
+	data = wakeup_trace->data[wakeup_cpu];
 
 	/* disable local data, not wakeup_cpu data */
 	cpu = raw_smp_processor_id();
-	disabled = atomic_inc_return(&tr->data[cpu]->disabled);
+	disabled = atomic_inc_return(&wakeup_trace->data[cpu]->disabled);
 	if (likely(disabled != 1))
 		goto out;
 
@@ -155,7 +155,7 @@ wakeup_sched_switch(void *private, void *rq, struct task_struct *prev,
 	if (unlikely(!tracer_enabled || next != wakeup_task))
 		goto out_unlock;
 
-	trace_function(tr, data, CALLER_ADDR1, CALLER_ADDR2, flags);
+	trace_function(wakeup_trace, data, CALLER_ADDR1, CALLER_ADDR2, flags);
 
 	/*
 	 * usecs conversion is slow so we try to delay the conversion
@@ -174,39 +174,14 @@ wakeup_sched_switch(void *private, void *rq, struct task_struct *prev,
 	t0 = nsecs_to_usecs(T0);
 	t1 = nsecs_to_usecs(T1);
 
-	update_max_tr(tr, wakeup_task, wakeup_cpu);
+	update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu);
 
 out_unlock:
-	__wakeup_reset(tr);
+	__wakeup_reset(wakeup_trace);
 	__raw_spin_unlock(&wakeup_lock);
 	local_irq_restore(flags);
 out:
-	atomic_dec(&tr->data[cpu]->disabled);
-}
-
-static notrace void
-sched_switch_callback(void *probe_data, void *call_data,
-		      const char *format, va_list *args)
-{
-	struct task_struct *prev;
-	struct task_struct *next;
-	struct rq *__rq;
-
-	/* skip prev_pid %d next_pid %d prev_state %ld */
-	(void)va_arg(*args, int);
-	(void)va_arg(*args, int);
-	(void)va_arg(*args, long);
-	__rq = va_arg(*args, typeof(__rq));
-	prev = va_arg(*args, typeof(prev));
-	next = va_arg(*args, typeof(next));
-
-	tracing_record_cmdline(prev);
-
-	/*
-	 * If tracer_switch_func only points to the local
-	 * switch func, it still needs the ptr passed to it.
-	 */
-	wakeup_sched_switch(probe_data, __rq, prev, next);
+	atomic_dec(&wakeup_trace->data[cpu]->disabled);
 }
 
 static void __wakeup_reset(struct trace_array *tr)
@@ -240,19 +215,24 @@ static void wakeup_reset(struct trace_array *tr)
 }
 
 static void
-wakeup_check_start(struct trace_array *tr, struct task_struct *p,
-		   struct task_struct *curr)
+probe_wakeup(struct rq *rq, struct task_struct *p)
 {
 	int cpu = smp_processor_id();
 	unsigned long flags;
 	long disabled;
 
-	if (likely(!rt_task(p)) ||
-			p->prio >= wakeup_prio ||
-			p->prio >= curr->prio)
+	if (likely(!tracer_enabled))
 		return;
 
-	disabled = atomic_inc_return(&tr->data[cpu]->disabled);
+	tracing_record_cmdline(p);
+	tracing_record_cmdline(current);
+
+	if (likely(!rt_task(p)) ||
+			p->prio >= wakeup_prio ||
+			p->prio >= current->prio)
+		return;
+
+	disabled = atomic_inc_return(&wakeup_trace->data[cpu]->disabled);
 	if (unlikely(disabled != 1))
 		goto out;
 
@@ -264,7 +244,7 @@ wakeup_check_start(struct trace_array *tr, struct task_struct *p,
 		goto out_locked;
 
 	/* reset the trace */
-	__wakeup_reset(tr);
+	__wakeup_reset(wakeup_trace);
 
 	wakeup_cpu = task_cpu(p);
 	wakeup_prio = p->prio;
@@ -274,74 +254,37 @@ wakeup_check_start(struct trace_array *tr, struct task_struct *p,
 
 	local_save_flags(flags);
 
-	tr->data[wakeup_cpu]->preempt_timestamp = ftrace_now(cpu);
-	trace_function(tr, tr->data[wakeup_cpu],
+	wakeup_trace->data[wakeup_cpu]->preempt_timestamp = ftrace_now(cpu);
+	trace_function(wakeup_trace, wakeup_trace->data[wakeup_cpu],
 		       CALLER_ADDR1, CALLER_ADDR2, flags);
 
 out_locked:
 	__raw_spin_unlock(&wakeup_lock);
 out:
-	atomic_dec(&tr->data[cpu]->disabled);
-}
-
-static notrace void
-wake_up_callback(void *probe_data, void *call_data,
-		 const char *format, va_list *args)
-{
-	struct trace_array **ptr = probe_data;
-	struct trace_array *tr = *ptr;
-	struct task_struct *curr;
-	struct task_struct *task;
-	struct rq *__rq;
-
-	if (likely(!tracer_enabled))
-		return;
-
-	/* Skip pid %d state %ld */
-	(void)va_arg(*args, int);
-	(void)va_arg(*args, long);
-	/* now get the meat: "rq %p task %p rq->curr %p" */
-	__rq = va_arg(*args, typeof(__rq));
-	task = va_arg(*args, typeof(task));
-	curr = va_arg(*args, typeof(curr));
-
-	tracing_record_cmdline(task);
-	tracing_record_cmdline(curr);
-
-	wakeup_check_start(tr, task, curr);
+	atomic_dec(&wakeup_trace->data[cpu]->disabled);
 }
 
 static void start_wakeup_tracer(struct trace_array *tr)
 {
 	int ret;
 
-	ret = marker_probe_register("kernel_sched_wakeup",
-			"pid %d state %ld ## rq %p task %p rq->curr %p",
-			wake_up_callback,
-			&wakeup_trace);
+	ret = register_trace_sched_wakeup(probe_wakeup);
 	if (ret) {
-		pr_info("wakeup trace: Couldn't add marker"
+		pr_info("wakeup trace: Couldn't activate tracepoint"
 			" probe to kernel_sched_wakeup\n");
 		return;
 	}
 
-	ret = marker_probe_register("kernel_sched_wakeup_new",
-			"pid %d state %ld ## rq %p task %p rq->curr %p",
-			wake_up_callback,
-			&wakeup_trace);
+	ret = register_trace_sched_wakeup_new(probe_wakeup);
 	if (ret) {
-		pr_info("wakeup trace: Couldn't add marker"
+		pr_info("wakeup trace: Couldn't activate tracepoint"
 			" probe to kernel_sched_wakeup_new\n");
 		goto fail_deprobe;
 	}
 
-	ret = marker_probe_register("kernel_sched_schedule",
-		"prev_pid %d next_pid %d prev_state %ld "
-		"## rq %p prev %p next %p",
-		sched_switch_callback,
-		&wakeup_trace);
+	ret = register_trace_sched_switch(probe_wakeup_sched_switch);
 	if (ret) {
-		pr_info("sched trace: Couldn't add marker"
+		pr_info("sched trace: Couldn't activate tracepoint"
 			" probe to kernel_sched_schedule\n");
 		goto fail_deprobe_wake_new;
 	}
@@ -363,28 +306,18 @@ static void start_wakeup_tracer(struct trace_array *tr)
 
 	return;
 fail_deprobe_wake_new:
-	marker_probe_unregister("kernel_sched_wakeup_new",
-				wake_up_callback,
-				&wakeup_trace);
+	unregister_trace_sched_wakeup_new(probe_wakeup);
 fail_deprobe:
-	marker_probe_unregister("kernel_sched_wakeup",
-				wake_up_callback,
-				&wakeup_trace);
+	unregister_trace_sched_wakeup(probe_wakeup);
 }
 
 static void stop_wakeup_tracer(struct trace_array *tr)
 {
 	tracer_enabled = 0;
 	unregister_ftrace_function(&trace_ops);
-	marker_probe_unregister("kernel_sched_schedule",
-				sched_switch_callback,
-				&wakeup_trace);
-	marker_probe_unregister("kernel_sched_wakeup_new",
-				wake_up_callback,
-				&wakeup_trace);
-	marker_probe_unregister("kernel_sched_wakeup",
-				wake_up_callback,
-				&wakeup_trace);
+	unregister_trace_sched_switch(probe_wakeup_sched_switch);
+	unregister_trace_sched_wakeup_new(probe_wakeup);
+	unregister_trace_sched_wakeup(probe_wakeup);
 }
 
 static void wakeup_tracer_init(struct trace_array *tr)
