@@ -1740,9 +1740,9 @@ xfs_bmap_add_extent_unwritten_real(
 				r[1].br_state)))
 				goto done;
 			/* new left extent - oldext */
-			PREV.br_blockcount =
-				new->br_startoff - PREV.br_startoff;
 			cur->bc_rec.b = PREV;
+			cur->bc_rec.b.br_blockcount =
+				new->br_startoff - PREV.br_startoff;
 			if ((error = xfs_bmbt_insert(cur, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
