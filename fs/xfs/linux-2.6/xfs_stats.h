@@ -146,11 +146,12 @@ extern void xfs_cleanup_procfs(void);
 
 static inline int xfs_init_procfs(void)
 {
-	return 0
-};
+	return 0;
+}
+
 static inline void xfs_cleanup_procfs(void)
 {
-};
+}
 
 #endif	/* !CONFIG_PROC_FS */
 
