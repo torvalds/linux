@@ -115,8 +115,6 @@
 #include <linux/mroute.h>
 #endif
 
-DEFINE_SNMP_STAT(struct linux_mib, net_statistics) __read_mostly;
-
 extern void ip_mc_drop_socket(struct sock *sk);
 
 /* The inetsw table contains everything that inet_create needs to
@@ -1348,10 +1346,15 @@ static __net_init int ipv4_mib_init_net(struct net *net)
 	if (snmp_mib_init((void **)net->mib.ip_statistics,
 			  sizeof(struct ipstats_mib)) < 0)
 		goto err_ip_mib;
+	if (snmp_mib_init((void **)net->mib.net_statistics,
+			  sizeof(struct linux_mib)) < 0)
+		goto err_net_mib;
 
 	tcp_mib_init(net);
 	return 0;
 
+err_net_mib:
+	snmp_mib_free((void **)net->mib.ip_statistics);
 err_ip_mib:
 	snmp_mib_free((void **)net->mib.tcp_statistics);
 err_tcp_mib:
@@ -1360,6 +1363,7 @@ err_tcp_mib:
 
 static __net_exit void ipv4_mib_exit_net(struct net *net)
 {
+	snmp_mib_free((void **)net->mib.net_statistics);
 	snmp_mib_free((void **)net->mib.ip_statistics);
 	snmp_mib_free((void **)net->mib.tcp_statistics);
 }
@@ -1371,9 +1375,6 @@ static __net_initdata struct pernet_operations ipv4_mib_ops = {
 
 static int __init init_ipv4_mibs(void)
 {
-	if (snmp_mib_init((void **)net_statistics,
-			  sizeof(struct linux_mib)) < 0)
-		goto err_net_mib;
 	if (snmp_mib_init((void **)icmp_statistics,
 			  sizeof(struct icmp_mib)) < 0)
 		goto err_icmp_mib;
@@ -1401,8 +1402,6 @@ err_udp_mib:
 err_icmpmsg_mib:
 	snmp_mib_free((void **)icmp_statistics);
 err_icmp_mib:
-	snmp_mib_free((void **)net_statistics);
-err_net_mib:
 	return -ENOMEM;
 }
 
@@ -1582,5 +1581,4 @@ EXPORT_SYMBOL(inet_sock_destruct);
 EXPORT_SYMBOL(inet_stream_connect);
 EXPORT_SYMBOL(inet_stream_ops);
 EXPORT_SYMBOL(inet_unregister_protosw);
-EXPORT_SYMBOL(net_statistics);
 EXPORT_SYMBOL(sysctl_ip_nonlocal_bind);
