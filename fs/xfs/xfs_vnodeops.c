@@ -94,7 +94,6 @@ xfs_setattr(
 	uid_t			uid=0, iuid=0;
 	gid_t			gid=0, igid=0;
 	int			timeflags = 0;
-	xfs_prid_t		projid=0, iprojid=0;
 	struct xfs_dquot	*udqp, *gdqp, *olddquot1, *olddquot2;
 	int			file_owner;
 	int			need_iolock = 1;
@@ -139,8 +138,7 @@ xfs_setattr(
 	 * If the IDs do change before we take the ilock, we're covered
 	 * because the i_*dquot fields will get updated anyway.
 	 */
-	if (XFS_IS_QUOTA_ON(mp) &&
-	    (mask & (XFS_AT_UID|XFS_AT_GID|XFS_AT_PROJID))) {
+	if (XFS_IS_QUOTA_ON(mp) && (mask & (XFS_AT_UID|XFS_AT_GID))) {
 		uint	qflags = 0;
 
 		if ((mask & XFS_AT_UID) && XFS_IS_UQUOTA_ON(mp)) {
@@ -155,12 +153,7 @@ xfs_setattr(
 		}  else {
 			gid = ip->i_d.di_gid;
 		}
-		if ((mask & XFS_AT_PROJID) && XFS_IS_PQUOTA_ON(mp)) {
-			projid = vap->va_projid;
-			qflags |= XFS_QMOPT_PQUOTA;
-		}  else {
-			projid = ip->i_d.di_projid;
-		}
+
 		/*
 		 * We take a reference when we initialize udqp and gdqp,
 		 * so it is important that we never blindly double trip on
@@ -168,8 +161,8 @@ xfs_setattr(
 		 */
 		ASSERT(udqp == NULL);
 		ASSERT(gdqp == NULL);
-		code = XFS_QM_DQVOPALLOC(mp, ip, uid, gid, projid, qflags,
-					 &udqp, &gdqp);
+		code = XFS_QM_DQVOPALLOC(mp, ip, uid, gid, ip->i_d.di_projid,
+					 qflags, &udqp, &gdqp);
 		if (code)
 			return code;
 	}
@@ -219,9 +212,7 @@ xfs_setattr(
 	 * Only the owner or users with CAP_FOWNER
 	 * capability may do these things.
 	 */
-	if (mask &
-	    (XFS_AT_MODE|XFS_AT_XFLAGS|XFS_AT_EXTSIZE|XFS_AT_UID|
-	     XFS_AT_GID|XFS_AT_PROJID)) {
+	if (mask & (XFS_AT_MODE|XFS_AT_UID|XFS_AT_GID)) {
 		/*
 		 * CAP_FOWNER overrides the following restrictions:
 		 *
@@ -270,7 +261,7 @@ xfs_setattr(
 	 * and can change the group id only to a group of which he
 	 * or she is a member.
 	 */
-	if (mask & (XFS_AT_UID|XFS_AT_GID|XFS_AT_PROJID)) {
+	if (mask & (XFS_AT_UID|XFS_AT_GID)) {
 		/*
 		 * These IDs could have changed since we last looked at them.
 		 * But, we're assured that if the ownership did change
@@ -278,12 +269,9 @@ xfs_setattr(
 		 * would have changed also.
 		 */
 		iuid = ip->i_d.di_uid;
-		iprojid = ip->i_d.di_projid;
 		igid = ip->i_d.di_gid;
 		gid = (mask & XFS_AT_GID) ? vap->va_gid : igid;
 		uid = (mask & XFS_AT_UID) ? vap->va_uid : iuid;
-		projid = (mask & XFS_AT_PROJID) ? (xfs_prid_t)vap->va_projid :
-			 iprojid;
 
 		/*
 		 * CAP_CHOWN overrides the following restrictions:
@@ -303,11 +291,10 @@ xfs_setattr(
 			goto error_return;
 		}
 		/*
-		 * Do a quota reservation only if uid/projid/gid is actually
+		 * Do a quota reservation only if uid/gid is actually
 		 * going to change.
 		 */
 		if ((XFS_IS_UQUOTA_ON(mp) && iuid != uid) ||
-		    (XFS_IS_PQUOTA_ON(mp) && iprojid != projid) ||
 		    (XFS_IS_GQUOTA_ON(mp) && igid != gid)) {
 			ASSERT(tp);
 			code = XFS_QM_DQVOPCHOWNRESV(mp, tp, ip, udqp, gdqp,
@@ -357,78 +344,6 @@ xfs_setattr(
 				code = XFS_ERROR(EPERM);
 				goto error_return;
 			}
-		}
-	}
-
-	/*
-	 * Change extent size or realtime flag.
-	 */
-	if (mask & (XFS_AT_EXTSIZE|XFS_AT_XFLAGS)) {
-		/*
-		 * Can't change extent size if any extents are allocated.
-		 */
-		if (ip->i_d.di_nextents && (mask & XFS_AT_EXTSIZE) &&
-		    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) !=
-		     vap->va_extsize) ) {
-			code = XFS_ERROR(EINVAL);	/* EFBIG? */
-			goto error_return;
-		}
-
-		/*
-		 * Can't change realtime flag if any extents are allocated.
-		 */
-		if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
-		    (mask & XFS_AT_XFLAGS) &&
-		    (XFS_IS_REALTIME_INODE(ip)) !=
-		    (vap->va_xflags & XFS_XFLAG_REALTIME)) {
-			code = XFS_ERROR(EINVAL);	/* EFBIG? */
-			goto error_return;
-		}
-		/*
-		 * Extent size must be a multiple of the appropriate block
-		 * size, if set at all.
-		 */
-		if ((mask & XFS_AT_EXTSIZE) && vap->va_extsize != 0) {
-			xfs_extlen_t	size;
-
-			if (XFS_IS_REALTIME_INODE(ip) ||
-			    ((mask & XFS_AT_XFLAGS) &&
-			    (vap->va_xflags & XFS_XFLAG_REALTIME))) {
-				size = mp->m_sb.sb_rextsize <<
-				       mp->m_sb.sb_blocklog;
-			} else {
-				size = mp->m_sb.sb_blocksize;
-			}
-			if (vap->va_extsize % size) {
-				code = XFS_ERROR(EINVAL);
-				goto error_return;
-			}
-		}
-		/*
-		 * If realtime flag is set then must have realtime data.
-		 */
-		if ((mask & XFS_AT_XFLAGS) &&
-		    (vap->va_xflags & XFS_XFLAG_REALTIME)) {
-			if ((mp->m_sb.sb_rblocks == 0) ||
-			    (mp->m_sb.sb_rextsize == 0) ||
-			    (ip->i_d.di_extsize % mp->m_sb.sb_rextsize)) {
-				code = XFS_ERROR(EINVAL);
-				goto error_return;
-			}
-		}
-
-		/*
-		 * Can't modify an immutable/append-only file unless
-		 * we have appropriate permission.
-		 */
-		if ((mask & XFS_AT_XFLAGS) &&
-		    (ip->i_d.di_flags &
-				(XFS_DIFLAG_IMMUTABLE|XFS_DIFLAG_APPEND) ||
-		     (vap->va_xflags &
-				(XFS_XFLAG_IMMUTABLE | XFS_XFLAG_APPEND))) &&
-		    !capable(CAP_LINUX_IMMUTABLE)) {
-			code = XFS_ERROR(EPERM);
-			goto error_return;
 		}
 	}
 
@@ -568,7 +483,7 @@ xfs_setattr(
 	 * and can change the group id only to a group of which he
 	 * or she is a member.
 	 */
-	if (mask & (XFS_AT_UID|XFS_AT_GID|XFS_AT_PROJID)) {
+	if (mask & (XFS_AT_UID|XFS_AT_GID)) {
 		/*
 		 * CAP_FSETID overrides the following restrictions:
 		 *
@@ -603,23 +518,6 @@ xfs_setattr(
 			}
 			ip->i_d.di_gid = gid;
 		}
-		if (iprojid != projid) {
-			if (XFS_IS_PQUOTA_ON(mp)) {
-				ASSERT(!XFS_IS_GQUOTA_ON(mp));
-				ASSERT(mask & XFS_AT_PROJID);
-				ASSERT(gdqp);
-				olddquot2 = XFS_QM_DQVOPCHOWN(mp, tp, ip,
-							&ip->i_gdquot, gdqp);
-			}
-			ip->i_d.di_projid = projid;
-			/*
-			 * We may have to rev the inode as well as
-			 * the superblock version number since projids didn't
-			 * exist before DINODE_VERSION_2 and SB_VERSION_NLINK.
-			 */
-			if (ip->i_d.di_version == XFS_DINODE_VERSION_1)
-				xfs_bump_ino_vers2(tp, ip);
-		}
 
 		xfs_trans_log_inode (tp, ip, XFS_ILOG_CORE);
 		timeflags |= XFS_ICHGTIME_CHG;
@@ -644,57 +542,6 @@ xfs_setattr(
 		}
 		if (tp && (flags & ATTR_UTIME))
 			xfs_trans_log_inode (tp, ip, XFS_ILOG_CORE);
-	}
-
-	/*
-	 * Change XFS-added attributes.
-	 */
-	if (mask & (XFS_AT_EXTSIZE|XFS_AT_XFLAGS)) {
-		if (mask & XFS_AT_EXTSIZE) {
-			/*
-			 * Converting bytes to fs blocks.
-			 */
-			ip->i_d.di_extsize = vap->va_extsize >>
-				mp->m_sb.sb_blocklog;
-		}
-		if (mask & XFS_AT_XFLAGS) {
-			uint	di_flags;
-
-			/* can't set PREALLOC this way, just preserve it */
-			di_flags = (ip->i_d.di_flags & XFS_DIFLAG_PREALLOC);
-			if (vap->va_xflags & XFS_XFLAG_IMMUTABLE)
-				di_flags |= XFS_DIFLAG_IMMUTABLE;
-			if (vap->va_xflags & XFS_XFLAG_APPEND)
-				di_flags |= XFS_DIFLAG_APPEND;
-			if (vap->va_xflags & XFS_XFLAG_SYNC)
-				di_flags |= XFS_DIFLAG_SYNC;
-			if (vap->va_xflags & XFS_XFLAG_NOATIME)
-				di_flags |= XFS_DIFLAG_NOATIME;
-			if (vap->va_xflags & XFS_XFLAG_NODUMP)
-				di_flags |= XFS_DIFLAG_NODUMP;
-			if (vap->va_xflags & XFS_XFLAG_PROJINHERIT)
-				di_flags |= XFS_DIFLAG_PROJINHERIT;
-			if (vap->va_xflags & XFS_XFLAG_NODEFRAG)
-				di_flags |= XFS_DIFLAG_NODEFRAG;
-			if (vap->va_xflags & XFS_XFLAG_FILESTREAM)
-				di_flags |= XFS_DIFLAG_FILESTREAM;
-			if ((ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
-				if (vap->va_xflags & XFS_XFLAG_RTINHERIT)
-					di_flags |= XFS_DIFLAG_RTINHERIT;
-				if (vap->va_xflags & XFS_XFLAG_NOSYMLINKS)
-					di_flags |= XFS_DIFLAG_NOSYMLINKS;
-				if (vap->va_xflags & XFS_XFLAG_EXTSZINHERIT)
-					di_flags |= XFS_DIFLAG_EXTSZINHERIT;
-			} else if ((ip->i_d.di_mode & S_IFMT) == S_IFREG) {
-				if (vap->va_xflags & XFS_XFLAG_REALTIME)
-					di_flags |= XFS_DIFLAG_REALTIME;
-				if (vap->va_xflags & XFS_XFLAG_EXTSIZE)
-					di_flags |= XFS_DIFLAG_EXTSIZE;
-			}
-			ip->i_d.di_flags = di_flags;
-		}
-		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-		timeflags |= XFS_ICHGTIME_CHG;
 	}
 
 	/*
