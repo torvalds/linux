@@ -294,7 +294,7 @@ dma_channel_add_remove(struct dma_client *client,
 	case DMA_RESOURCE_REMOVED:
 		found = 0;
 		spin_lock_irqsave(&async_tx_lock, flags);
-		list_for_each_entry_rcu(ref, &async_tx_master_list, node)
+		list_for_each_entry(ref, &async_tx_master_list, node)
 			if (ref->chan == chan) {
 				/* permit backing devices to go away */
 				dma_chan_put(ref->chan);
