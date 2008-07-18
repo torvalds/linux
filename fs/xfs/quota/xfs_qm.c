@@ -445,11 +445,11 @@ xfs_qm_unmount_quotas(
 		}
 	}
 	if (uqp) {
-		 XFS_PURGE_INODE(uqp);
+		 IRELE(uqp);
 		 mp->m_quotainfo->qi_uquotaip = NULL;
 	}
 	if (gqp) {
-		XFS_PURGE_INODE(gqp);
+		IRELE(gqp);
 		mp->m_quotainfo->qi_gquotaip = NULL;
 	}
 out:
@@ -1240,11 +1240,11 @@ xfs_qm_destroy_quotainfo(
 	xfs_qm_list_destroy(&qi->qi_dqlist);
 
 	if (qi->qi_uquotaip) {
-		XFS_PURGE_INODE(qi->qi_uquotaip);
+		IRELE(qi->qi_uquotaip);
 		qi->qi_uquotaip = NULL; /* paranoia */
 	}
 	if (qi->qi_gquotaip) {
-		XFS_PURGE_INODE(qi->qi_gquotaip);
+		IRELE(qi->qi_gquotaip);
 		qi->qi_gquotaip = NULL;
 	}
 	mutex_destroy(&qi->qi_quotaofflock);
@@ -1394,7 +1394,7 @@ xfs_qm_qino_alloc(
 	 * locked exclusively and joined to the transaction already.
 	 */
 	ASSERT(xfs_isilocked(*ip, XFS_ILOCK_EXCL));
-	VN_HOLD(XFS_ITOV((*ip)));
+	IHOLD(*ip);
 
 	/*
 	 * Make the changes in the superblock, and log those too.

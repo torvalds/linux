@@ -362,11 +362,11 @@ xfs_qm_scall_quotaoff(
 	 * if we don't need them anymore.
 	 */
 	if ((dqtype & XFS_QMOPT_UQUOTA) && XFS_QI_UQIP(mp)) {
-		XFS_PURGE_INODE(XFS_QI_UQIP(mp));
+		IRELE(XFS_QI_UQIP(mp));
 		XFS_QI_UQIP(mp) = NULL;
 	}
 	if ((dqtype & (XFS_QMOPT_GQUOTA|XFS_QMOPT_PQUOTA)) && XFS_QI_GQIP(mp)) {
-		XFS_PURGE_INODE(XFS_QI_GQIP(mp));
+		IRELE(XFS_QI_GQIP(mp));
 		XFS_QI_GQIP(mp) = NULL;
 	}
 out_error:
