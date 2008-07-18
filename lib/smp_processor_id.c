@@ -23,7 +23,7 @@ notrace unsigned int debug_smp_processor_id(void)
 	 * Kernel threads bound to a single CPU can safely use
 	 * smp_processor_id():
 	 */
-	cpumask_of_cpu_ptr_next(this_mask, cpu);
+	cpumask_of_cpu_ptr_next(this_mask, this_cpu);
 
 	if (cpus_equal(current->cpus_allowed, *this_mask))
 		goto out;
