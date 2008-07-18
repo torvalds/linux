@@ -30,24 +30,6 @@
 #include <linux/raid/xor.h>
 #include <linux/async_tx.h>
 
-/**
- * async_tx_quiesce - ensure tx is complete and freeable upon return
- * @tx - transaction to quiesce
- */
-static void async_tx_quiesce(struct dma_async_tx_descriptor **tx)
-{
-	if (*tx) {
-		/* if ack is already set then we cannot be sure
-		 * we are referring to the correct operation
-		 */
-		BUG_ON(async_tx_test_ack(*tx));
-		if (dma_wait_for_async_tx(*tx) == DMA_ERROR)
-			panic("DMA_ERROR waiting for transaction\n");
-		async_tx_ack(*tx);
-		*tx = NULL;
-       }
-}
-
 /* do_async_xor - dma map the pages and perform the xor with an engine.
  * 	This routine is marked __always_inline so it can be compiled away
  * 	when CONFIG_DMA_ENGINE=n
@@ -219,15 +201,7 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 		}
 
 		/* wait for any prerequisite operations */
-		if (depend_tx) {
-			/* if ack is already set then we cannot be sure
-			 * we are referring to the correct operation
-			 */
-			BUG_ON(async_tx_test_ack(depend_tx));
-			if (dma_wait_for_async_tx(depend_tx) == DMA_ERROR)
-				panic("%s: DMA_ERROR waiting for depend_tx\n",
-					__func__);
-		}
+		async_tx_quiesce(&depend_tx);
 
 		do_sync_xor(dest, src_list, offset, src_cnt, len,
 			    flags, depend_tx, cb_fn, cb_param);
@@ -309,16 +283,9 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 		tx = async_xor(dest, src_list, offset, src_cnt, len, xor_flags,
 			depend_tx, NULL, NULL);
 
-		if (tx) {
-			if (dma_wait_for_async_tx(tx) == DMA_ERROR)
-				panic("%s: DMA_ERROR waiting for tx\n",
-					__func__);
-			async_tx_ack(tx);
-		}
+		async_tx_quiesce(&tx);
 
 		*result = page_is_zero(dest, offset, len) ? 0 : 1;
-
-		tx = NULL;
 
 		async_tx_sync_epilog(flags, depend_tx, cb_fn, cb_param);
 	}
