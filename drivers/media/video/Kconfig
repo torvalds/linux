@@ -36,13 +36,9 @@ config VIDEOBUF_DVB
 config VIDEO_BTCX
 	tristate
 
-config VIDEO_IR_I2C
-	tristate
-
 config VIDEO_IR
 	tristate
 	depends on INPUT
-	select VIDEO_IR_I2C if I2C
 
 config VIDEO_TVEEPROM
 	tristate
@@ -85,6 +81,19 @@ config VIDEO_HELPER_CHIPS_AUTO
 
 	  Unselect this only if you know exactly what you are doing, since
 	  it may break support on some boards.
+
+	  In doubt, say Y.
+
+config VIDEO_IR_I2C
+	tristate "I2C module for IR" if !VIDEO_HELPER_CHIPS_AUTO
+	depends on I2C && VIDEO_IR
+	default y
+	---help---
+	  Most boards have an IR chip directly connected via GPIO. However,
+	  some video boards have the IR connected via I2C bus.
+
+	  If your board doesn't have an I2C IR chip, you may disable this
+	  option.
 
 	  In doubt, say Y.
 
