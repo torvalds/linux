@@ -65,7 +65,7 @@
  * NOTE: DRV_NAME is defined in iwlwifi.h for use by iwl-debug.h and printk
  */
 
-#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link 4965AGN driver for Linux"
+#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for Linux"
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define VD "d"
@@ -3345,6 +3345,39 @@ static int iwl4965_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	return 0;
 }
 
+static int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
+			     enum ieee80211_ampdu_mlme_action action,
+			     const u8 *addr, u16 tid, u16 *ssn)
+{
+	struct iwl_priv *priv = hw->priv;
+	DECLARE_MAC_BUF(mac);
+
+	IWL_DEBUG_HT("A-MPDU action on addr %s tid %d\n",
+		     print_mac(mac, addr), tid);
+
+	if (!(priv->cfg->sku & IWL_SKU_N))
+		return -EACCES;
+
+	switch (action) {
+	case IEEE80211_AMPDU_RX_START:
+		IWL_DEBUG_HT("start Rx\n");
+		return iwl_rx_agg_start(priv, addr, tid, *ssn);
+	case IEEE80211_AMPDU_RX_STOP:
+		IWL_DEBUG_HT("stop Rx\n");
+		return iwl_rx_agg_stop(priv, addr, tid);
+	case IEEE80211_AMPDU_TX_START:
+		IWL_DEBUG_HT("start Tx\n");
+		return iwl_tx_agg_start(priv, addr, tid, ssn);
+	case IEEE80211_AMPDU_TX_STOP:
+		IWL_DEBUG_HT("stop Tx\n");
+		return iwl_tx_agg_stop(priv, addr, tid);
+	default:
+		IWL_DEBUG_HT("unknown\n");
+		return -EINVAL;
+		break;
+	}
+	return 0;
+}
 static int iwl4965_mac_get_tx_stats(struct ieee80211_hw *hw,
 				struct ieee80211_tx_queue_stats *stats)
 {

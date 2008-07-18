@@ -643,10 +643,6 @@ struct iwl_priv;
  * Forward declare iwl-4965.c functions for iwl-base.c
  */
 extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
-
-int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
-				    enum ieee80211_ampdu_mlme_action action,
-				    const u8 *addr, u16 tid, u16 *ssn);
 int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
 					u8 tid, int txq_id);
 
