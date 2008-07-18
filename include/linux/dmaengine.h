@@ -375,16 +375,14 @@ dma_cookie_t dma_async_memcpy_pg_to_pg(struct dma_chan *chan,
 void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 	struct dma_chan *chan);
 
-static inline void
-async_tx_ack(struct dma_async_tx_descriptor *tx)
+static inline void async_tx_ack(struct dma_async_tx_descriptor *tx)
 {
 	tx->flags |= DMA_CTRL_ACK;
 }
 
-static inline int
-async_tx_test_ack(struct dma_async_tx_descriptor *tx)
+static inline bool async_tx_test_ack(struct dma_async_tx_descriptor *tx)
 {
-	return tx->flags & DMA_CTRL_ACK;
+	return (tx->flags & DMA_CTRL_ACK) == DMA_CTRL_ACK;
 }
 
 #define first_dma_cap(mask) __first_dma_cap(&(mask))
