@@ -7,10 +7,6 @@
 #define PAGE_SHIFT   13
 #elif defined(CONFIG_SPARC64_PAGE_SIZE_64KB)
 #define PAGE_SHIFT   16
-#elif defined(CONFIG_SPARC64_PAGE_SIZE_512KB)
-#define PAGE_SHIFT   19
-#elif defined(CONFIG_SPARC64_PAGE_SIZE_4MB)
-#define PAGE_SHIFT   22
 #else
 #error No page size specified in kernel configuration
 #endif

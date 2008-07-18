@@ -96,12 +96,6 @@ void flush_tsb_user(struct mmu_gather *mp)
 #elif defined(CONFIG_SPARC64_PAGE_SIZE_64KB)
 #define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_64K
 #define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_64K
-#elif defined(CONFIG_SPARC64_PAGE_SIZE_512KB)
-#define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_512K
-#define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_512K
-#elif defined(CONFIG_SPARC64_PAGE_SIZE_4MB)
-#define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_4MB
-#define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_4MB
 #else
 #error Broken base page size setting...
 #endif

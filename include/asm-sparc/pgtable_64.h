@@ -161,12 +161,6 @@
 #elif PAGE_SHIFT == 16
 #define _PAGE_SZBITS_4U	_PAGE_SZ64K_4U
 #define _PAGE_SZBITS_4V	_PAGE_SZ64K_4V
-#elif PAGE_SHIFT == 19
-#define _PAGE_SZBITS_4U	_PAGE_SZ512K_4U
-#define _PAGE_SZBITS_4V	_PAGE_SZ512K_4V
-#elif PAGE_SHIFT == 22
-#define _PAGE_SZBITS_4U	_PAGE_SZ4MB_4U
-#define _PAGE_SZBITS_4V	_PAGE_SZ4MB_4V
 #else
 #error Wrong PAGE_SHIFT specified
 #endif
