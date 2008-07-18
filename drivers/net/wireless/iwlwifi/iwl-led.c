@@ -161,8 +161,28 @@ int iwl4965_led_off(struct iwl_priv *priv, int led_id)
 /* Set led register off */
 static int iwl4965_led_off_reg(struct iwl_priv *priv, int led_id)
 {
-	IWL_DEBUG_LED("radio off\n");
+	IWL_DEBUG_LED("LED Reg off\n");
 	iwl_write32(priv, CSR_LED_REG, CSR_LED_REG_TRUN_OFF);
+	return 0;
+}
+
+/*
+ * Set led register in case of disassociation according to rfkill state
+ */
+static int iwl_led_associate(struct iwl_priv *priv, int led_id)
+{
+	IWL_DEBUG_LED("Associated\n");
+	priv->allow_blinking = 1;
+	return iwl4965_led_on_reg(priv, led_id);
+}
+static int iwl_led_disassociate(struct iwl_priv *priv, int led_id)
+{
+	priv->allow_blinking = 0;
+	if (iwl_is_rfkill(priv))
+		iwl4965_led_off_reg(priv, led_id);
+	else
+		iwl4965_led_on_reg(priv, led_id);
+
 	return 0;
 }
 
@@ -199,16 +219,10 @@ static void iwl_led_brightness_set(struct led_classdev *led_cdev,
 			led_type_str[led->type], brightness);
 	switch (brightness) {
 	case LED_FULL:
-		if (led->type == IWL_LED_TRG_ASSOC)
-			priv->allow_blinking = 1;
-
 		if (led->led_on)
 			led->led_on(priv, IWL_LED_LINK);
 		break;
 	case LED_OFF:
-		if (led->type == IWL_LED_TRG_ASSOC)
-			priv->allow_blinking = 0;
-
 		if (led->led_off)
 			led->led_off(priv, IWL_LED_LINK);
 		break;
@@ -284,12 +298,6 @@ static int iwl_get_blink_rate(struct iwl_priv *priv)
 	return i;
 }
 
-static inline int is_rf_kill(struct iwl_priv *priv)
-{
-	return test_bit(STATUS_RF_KILL_HW, &priv->status) ||
-		test_bit(STATUS_RF_KILL_SW, &priv->status);
-}
-
 /*
  * this function called from handler. Since setting Led command can
  * happen very frequent we postpone led command to be called from
@@ -303,7 +311,7 @@ void iwl_leds_background(struct iwl_priv *priv)
 		priv->last_blink_time = 0;
 		return;
 	}
-	if (is_rf_kill(priv)) {
+	if (iwl_is_rfkill(priv)) {
 		priv->last_blink_time = 0;
 		return;
 	}
@@ -366,8 +374,8 @@ int iwl_leds_register(struct iwl_priv *priv)
 				   IWL_LED_TRG_ASSOC, 0, name, trigger);
 
 	/* for assoc always turn led on */
-	priv->led[IWL_LED_TRG_ASSOC].led_on = iwl4965_led_on_reg;
-	priv->led[IWL_LED_TRG_ASSOC].led_off = iwl4965_led_on_reg;
+	priv->led[IWL_LED_TRG_ASSOC].led_on = iwl_led_associate;
+	priv->led[IWL_LED_TRG_ASSOC].led_off = iwl_led_disassociate;
 	priv->led[IWL_LED_TRG_ASSOC].led_pattern = NULL;
 
 	if (ret)
