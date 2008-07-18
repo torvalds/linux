@@ -906,7 +906,7 @@ retry:
 	}
 
 	if (vol->eba_tbl[lnum] >= 0) {
-		err = ubi_wl_put_peb(ubi, vol->eba_tbl[lnum], 1);
+		err = ubi_wl_put_peb(ubi, vol->eba_tbl[lnum], 0);
 		if (err)
 			goto out_leb_unlock;
 	}
