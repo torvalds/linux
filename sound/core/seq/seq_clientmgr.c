@@ -148,7 +148,7 @@ struct snd_seq_client *snd_seq_client_use_ptr(int clientid)
 		return NULL;
 	}
 	spin_unlock_irqrestore(&clients_lock, flags);
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	if (!in_interrupt()) {
 		static char client_requested[SNDRV_SEQ_GLOBAL_CLIENTS];
 		static char card_requested[SNDRV_CARDS];

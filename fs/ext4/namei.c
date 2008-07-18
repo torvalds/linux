@@ -183,6 +183,16 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 			     struct inode *inode);
 
 /*
+ * p is at least 6 bytes before the end of page
+ */
+static inline struct ext4_dir_entry_2 *
+ext4_next_entry(struct ext4_dir_entry_2 *p)
+{
+	return (struct ext4_dir_entry_2 *)((char *)p +
+		ext4_rec_len_from_disk(p->rec_len));
+}
+
+/*
  * Future: use high four bits of block for coalesce-on-delete flags
  * Mask them off for now.
  */
@@ -231,13 +241,13 @@ static inline unsigned dx_root_limit (struct inode *dir, unsigned infosize)
 {
 	unsigned entry_space = dir->i_sb->s_blocksize - EXT4_DIR_REC_LEN(1) -
 		EXT4_DIR_REC_LEN(2) - infosize;
-	return 0? 20: entry_space / sizeof(struct dx_entry);
+	return entry_space / sizeof(struct dx_entry);
 }
 
 static inline unsigned dx_node_limit (struct inode *dir)
 {
 	unsigned entry_space = dir->i_sb->s_blocksize - EXT4_DIR_REC_LEN(0);
-	return 0? 22: entry_space / sizeof(struct dx_entry);
+	return entry_space / sizeof(struct dx_entry);
 }
 
 /*
@@ -552,15 +562,6 @@ static int ext4_htree_next_block(struct inode *dir, __u32 hash,
 	return 1;
 }
 
-
-/*
- * p is at least 6 bytes before the end of page
- */
-static inline struct ext4_dir_entry_2 *ext4_next_entry(struct ext4_dir_entry_2 *p)
-{
-	return (struct ext4_dir_entry_2 *)((char *)p +
-		ext4_rec_len_from_disk(p->rec_len));
-}
 
 /*
  * This function fills a red-black tree with information from a
@@ -993,19 +994,21 @@ static struct buffer_head * ext4_dx_find_entry(struct dentry *dentry,
 		de = (struct ext4_dir_entry_2 *) bh->b_data;
 		top = (struct ext4_dir_entry_2 *) ((char *) de + sb->s_blocksize -
 				       EXT4_DIR_REC_LEN(0));
-		for (; de < top; de = ext4_next_entry(de))
-		if (ext4_match (namelen, name, de)) {
-			if (!ext4_check_dir_entry("ext4_find_entry",
-						  dir, de, bh,
-				  (block<<EXT4_BLOCK_SIZE_BITS(sb))
-					  +((char *)de - bh->b_data))) {
-				brelse (bh);
+		for (; de < top; de = ext4_next_entry(de)) {
+			int off = (block << EXT4_BLOCK_SIZE_BITS(sb))
+				  + ((char *) de - bh->b_data);
+
+			if (!ext4_check_dir_entry(__func__, dir, de, bh, off)) {
+				brelse(bh);
 				*err = ERR_BAD_DX_DIR;
 				goto errout;
 			}
-			*res_dir = de;
-			dx_release (frames);
-			return bh;
+
+			if (ext4_match(namelen, name, de)) {
+				*res_dir = de;
+				dx_release(frames);
+				return bh;
+			}
 		}
 		brelse (bh);
 		/* Check to see if we should continue to search */

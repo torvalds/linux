@@ -74,50 +74,41 @@ exception_vectors:
 	.align	2
 	bral	do_dtlb_modified
 
-	/*
-	 * r0 :	PGD/PT/PTE
-	 * r1 : Offending address
-	 * r2 : Scratch register
-	 * r3 : Cause (5, 12 or 13)
-	 */
 #define	tlbmiss_save	pushm	r0-r3
 #define tlbmiss_restore	popm	r0-r3
 
-	.section .tlbx.ex.text,"ax",@progbits
+	.org	0x50
 	.global	itlb_miss
 itlb_miss:
 	tlbmiss_save
 	rjmp	tlb_miss_common
 
-	.section .tlbr.ex.text,"ax",@progbits
+	.org	0x60
 dtlb_miss_read:
 	tlbmiss_save
 	rjmp	tlb_miss_common
 
-	.section .tlbw.ex.text,"ax",@progbits
+	.org	0x70
 dtlb_miss_write:
 	tlbmiss_save
 
 	.global	tlb_miss_common
+	.align	2
 tlb_miss_common:
 	mfsr	r0, SYSREG_TLBEAR
 	mfsr	r1, SYSREG_PTBR
 
-	/* Is it the vmalloc space? */
-	bld	r0, 31
-	brcs	handle_vmalloc_miss
-
-	/* First level lookup */
+	/*
+	 * First level lookup: The PGD contains virtual pointers to
+	 * the second-level page tables, but they may be NULL if not
+	 * present.
+	 */
 pgtbl_lookup:
 	lsr	r2, r0, PGDIR_SHIFT
 	ld.w	r3, r1[r2 << 2]
 	bfextu	r1, r0, PAGE_SHIFT, PGDIR_SHIFT - PAGE_SHIFT
-	bld	r3, _PAGE_BIT_PRESENT
-	brcc	page_table_not_present
-
-	/* Translate to virtual address in P1. */
-	andl	r3, 0xf000
-	sbr	r3, 31
+	cp.w	r3, 0
+	breq	page_table_not_present
 
 	/* Second level lookup */
 	ld.w	r2, r3[r1 << 2]
@@ -148,16 +139,55 @@ pgtbl_lookup:
 	tlbmiss_restore
 	rete
 
-handle_vmalloc_miss:
-	/* Simply do the lookup in init's page table */
+	/* The slow path of the TLB miss handler */
+	.align	2
+page_table_not_present:
+	/* Do we need to synchronize with swapper_pg_dir? */
+	bld	r0, 31
+	brcs	sync_with_swapper_pg_dir
+
+page_not_present:
+	tlbmiss_restore
+	sub	sp, 4
+	stmts	--sp, r0-lr
+	rcall	save_full_context_ex
+	mfsr	r12, SYSREG_ECR
+	mov	r11, sp
+	rcall	do_page_fault
+	rjmp	ret_from_exception
+
+	.align	2
+sync_with_swapper_pg_dir:
+	/*
+	 * If swapper_pg_dir contains a non-NULL second-level page
+	 * table pointer, copy it into the current PGD. If not, we
+	 * must handle it as a full-blown page fault.
+	 *
+	 * Jumping back to pgtbl_lookup causes an unnecessary lookup,
+	 * but it is guaranteed to be a cache hit, it won't happen
+	 * very often, and we absolutely do not want to sacrifice any
+	 * performance in the fast path in order to improve this.
+	 */
 	mov	r1, lo(swapper_pg_dir)
 	orh	r1, hi(swapper_pg_dir)
+	ld.w	r3, r1[r2 << 2]
+	cp.w	r3, 0
+	breq	page_not_present
+	mfsr	r1, SYSREG_PTBR
+	st.w	r1[r2 << 2], r3
 	rjmp	pgtbl_lookup
+
+	/*
+	 * We currently have two bytes left at this point until we
+	 * crash into the system call handler...
+	 *
+	 * Don't worry, the assembler will let us know.
+	 */
 
 
 	/* ---                    System Call                    --- */
 
-	.section .scall.text,"ax",@progbits
+	.org	0x100
 system_call:
 #ifdef CONFIG_PREEMPT
 	mask_interrupts
@@ -265,18 +295,6 @@ syscall_exit_work:
 3:	bld	r1, TIF_BREAKPOINT
 	brcc	syscall_exit_cont
 	rjmp	enter_monitor_mode
-
-	/* The slow path of the TLB miss handler */
-page_table_not_present:
-page_not_present:
-	tlbmiss_restore
-	sub	sp, 4
-	stmts	--sp, r0-lr
-	rcall	save_full_context_ex
-	mfsr	r12, SYSREG_ECR
-	mov	r11, sp
-	rcall	do_page_fault
-	rjmp	ret_from_exception
 
 	/* This function expects to find offending PC in SYSREG_RAR_EX */
 	.type	save_full_context_ex, @function

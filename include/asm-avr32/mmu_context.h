@@ -13,7 +13,6 @@
 #define __ASM_AVR32_MMU_CONTEXT_H
 
 #include <asm/tlbflush.h>
-#include <asm/pgalloc.h>
 #include <asm/sysreg.h>
 #include <asm-generic/mm_hooks.h>
 

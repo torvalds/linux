@@ -43,7 +43,7 @@
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("C-Media CMI8788 driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_SUPPORTED_DEVICE("{{C-Media,CMI8788}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
@@ -80,6 +80,7 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 
 struct generic_data {
 	u8 ak4396_ctl2;
+	u16 saved_wm8785_registers[2];
 };
 
 static void ak4396_write(struct oxygen *chip, unsigned int codec,
@@ -99,20 +100,35 @@ static void ak4396_write(struct oxygen *chip, unsigned int codec,
 
 static void wm8785_write(struct oxygen *chip, u8 reg, unsigned int value)
 {
+	struct generic_data *data = chip->model_data;
+
 	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
 			 OXYGEN_SPI_DATA_LENGTH_2 |
 			 OXYGEN_SPI_CLOCK_160 |
 			 (3 << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_LO,
 			 (reg << 9) | value);
+	if (reg < ARRAY_SIZE(data->saved_wm8785_registers))
+		data->saved_wm8785_registers[reg] = value;
 }
 
-static void ak4396_init(struct oxygen *chip)
+static void update_ak4396_volume(struct oxygen *chip)
+{
+	unsigned int i;
+
+	for (i = 0; i < 4; ++i) {
+		ak4396_write(chip, i,
+			     AK4396_LCH_ATT, chip->dac_volume[i * 2]);
+		ak4396_write(chip, i,
+			     AK4396_RCH_ATT, chip->dac_volume[i * 2 + 1]);
+	}
+}
+
+static void ak4396_registers_init(struct oxygen *chip)
 {
 	struct generic_data *data = chip->model_data;
 	unsigned int i;
 
-	data->ak4396_ctl2 = AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	for (i = 0; i < 4; ++i) {
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
@@ -120,9 +136,16 @@ static void ak4396_init(struct oxygen *chip)
 			     AK4396_CONTROL_2, data->ak4396_ctl2);
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_3, AK4396_PCM);
-		ak4396_write(chip, i, AK4396_LCH_ATT, 0);
-		ak4396_write(chip, i, AK4396_RCH_ATT, 0);
 	}
+	update_ak4396_volume(chip);
+}
+
+static void ak4396_init(struct oxygen *chip)
+{
+	struct generic_data *data = chip->model_data;
+
+	data->ak4396_ctl2 = AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
+	ak4396_registers_init(chip);
 	snd_component_add(chip->card, "AK4396");
 }
 
@@ -133,12 +156,23 @@ static void ak5385_init(struct oxygen *chip)
 	snd_component_add(chip->card, "AK5385");
 }
 
+static void wm8785_registers_init(struct oxygen *chip)
+{
+	struct generic_data *data = chip->model_data;
+
+	wm8785_write(chip, WM8785_R7, 0);
+	wm8785_write(chip, WM8785_R0, data->saved_wm8785_registers[0]);
+	wm8785_write(chip, WM8785_R1, data->saved_wm8785_registers[1]);
+}
+
 static void wm8785_init(struct oxygen *chip)
 {
-	wm8785_write(chip, WM8785_R7, 0);
-	wm8785_write(chip, WM8785_R0, WM8785_MCR_SLAVE |
-		     WM8785_OSR_SINGLE | WM8785_FORMAT_LJUST);
-	wm8785_write(chip, WM8785_R1, WM8785_WL_24);
+	struct generic_data *data = chip->model_data;
+
+	data->saved_wm8785_registers[0] = WM8785_MCR_SLAVE |
+		WM8785_OSR_SINGLE | WM8785_FORMAT_LJUST;
+	data->saved_wm8785_registers[1] = WM8785_WL_24;
+	wm8785_registers_init(chip);
 	snd_component_add(chip->card, "WM8785");
 }
 
@@ -156,6 +190,12 @@ static void meridian_init(struct oxygen *chip)
 
 static void generic_cleanup(struct oxygen *chip)
 {
+}
+
+static void generic_resume(struct oxygen *chip)
+{
+	ak4396_registers_init(chip);
+	wm8785_registers_init(chip);
 }
 
 static void set_ak4396_params(struct oxygen *chip,
@@ -180,18 +220,6 @@ static void set_ak4396_params(struct oxygen *chip,
 			     AK4396_CONTROL_2, value);
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
-	}
-}
-
-static void update_ak4396_volume(struct oxygen *chip)
-{
-	unsigned int i;
-
-	for (i = 0; i < 4; ++i) {
-		ak4396_write(chip, i,
-			     AK4396_LCH_ATT, chip->dac_volume[i * 2]);
-		ak4396_write(chip, i,
-			     AK4396_RCH_ATT, chip->dac_volume[i * 2 + 1]);
 	}
 }
 
@@ -256,6 +284,7 @@ static const struct oxygen_model model_generic = {
 	.owner = THIS_MODULE,
 	.init = generic_init,
 	.cleanup = generic_cleanup,
+	.resume = generic_resume,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_wm8785_params,
 	.update_dac_volume = update_ak4396_volume,
@@ -283,6 +312,7 @@ static const struct oxygen_model model_meridian = {
 	.owner = THIS_MODULE,
 	.init = meridian_init,
 	.cleanup = generic_cleanup,
+	.resume = ak4396_registers_init,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_ak5385_params,
 	.update_dac_volume = update_ak4396_volume,
@@ -331,6 +361,10 @@ static struct pci_driver oxygen_driver = {
 	.id_table = oxygen_ids,
 	.probe = generic_oxygen_probe,
 	.remove = __devexit_p(oxygen_pci_remove),
+#ifdef CONFIG_PM
+	.suspend = oxygen_pci_suspend,
+	.resume = oxygen_pci_resume,
+#endif
 };
 
 static int __init alsa_card_oxygen_init(void)

@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/ioport.h>
 #include <linux/capability.h>
 #include <linux/fcntl.h>
@@ -127,11 +128,14 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 static int rtc_open(struct inode *inode, struct file *file)
 {
+	lock_kernel();
 	if( !atomic_dec_and_test(&rtc_ready) )
 	{
 		atomic_inc( &rtc_ready );
+		unlock_kernel();
 		return -EBUSY;
 	}
+	unlock_kernel();
 
 	return 0;
 }

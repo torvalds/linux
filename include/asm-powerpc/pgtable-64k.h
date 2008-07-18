@@ -75,6 +75,20 @@ static inline struct subpage_prot_table *pgd_subpage_prot(pgd_t *pgd)
 #define _PAGE_COMBO	0x10000000 /* this is a combo 4k page */
 #define _PAGE_4K_PFN	0x20000000 /* PFN is for a single 4k page */
 
+/* For 64K page, we don't have a separate _PAGE_HASHPTE bit. Instead,
+ * we set that to be the whole sub-bits mask. The C code will only
+ * test this, so a multi-bit mask will work. For combo pages, this
+ * is equivalent as effectively, the old _PAGE_HASHPTE was an OR of
+ * all the sub bits. For real 64k pages, we now have the assembly set
+ * _PAGE_HPTE_SUB0 in addition to setting the HIDX bits which overlap
+ * that mask. This is fine as long as the HIDX bits are never set on
+ * a PTE that isn't hashed, which is the case today.
+ *
+ * A little nit is for the huge page C code, which does the hashing
+ * in C, we need to provide which bit to use.
+ */
+#define _PAGE_HASHPTE	_PAGE_HPTE_SUB
+
 /* Note the full page bits must be in the same location as for normal
  * 4k pages as the same asssembly will be used to insert 64K pages
  * wether the kernel has CONFIG_PPC_64K_PAGES or not
@@ -83,8 +97,7 @@ static inline struct subpage_prot_table *pgd_subpage_prot(pgd_t *pgd)
 #define _PAGE_F_GIX     0x00007000 /* full page: hidx bits */
 
 /* PTE flags to conserve for HPTE identification */
-#define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_HASHPTE | _PAGE_HPTE_SUB |\
-                         _PAGE_COMBO)
+#define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_HASHPTE | _PAGE_COMBO)
 
 /* Shift to put page number into pte.
  *

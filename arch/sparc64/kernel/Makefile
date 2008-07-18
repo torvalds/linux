@@ -14,6 +14,7 @@ obj-y		:= process.o setup.o cpu.o idprom.o \
 		   power.o sbus.o sparc64_ksyms.o chmc.o \
 		   visemul.o prom.o of_device.o hvapi.o sstate.o mdesc.o
 
+obj-$(CONFIG_DYNAMIC_FTRACE) += ftrace.o
 obj-$(CONFIG_STACKTRACE) += stacktrace.o
 obj-$(CONFIG_PCI)	 += ebus.o pci_common.o \
 			    pci_psycho.o pci_sabre.o pci_schizo.o \

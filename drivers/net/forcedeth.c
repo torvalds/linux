@@ -4194,12 +4194,23 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 	netif_carrier_off(dev);
 	if (netif_running(dev)) {
+		unsigned long flags;
+
 		nv_disable_irq(dev);
 		netif_tx_lock_bh(dev);
-		spin_lock(&np->lock);
+		/* with plain spinlock lockdep complains */
+		spin_lock_irqsave(&np->lock, flags);
 		/* stop engines */
+		/* FIXME:
+		 * this can take some time, and interrupts are disabled
+		 * due to spin_lock_irqsave, but let's hope no daemon
+		 * is going to change the settings very often...
+		 * Worst case:
+		 * NV_RXSTOP_DELAY1MAX + NV_TXSTOP_DELAY1MAX
+		 * + some minor delays, which is up to a second approximately
+		 */
 		nv_stop_rxtx(dev);
-		spin_unlock(&np->lock);
+		spin_unlock_irqrestore(&np->lock, flags);
 		netif_tx_unlock_bh(dev);
 	}
 

@@ -112,11 +112,29 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 #else /* CONFIG_ALTIVEC */
 	err |= __put_user(0, &sc->v_regs);
 #endif /* CONFIG_ALTIVEC */
+	flush_fp_to_thread(current);
+	/* copy fpr regs and fpscr */
+	err |= copy_fpr_to_user(&sc->fp_regs, current);
+#ifdef CONFIG_VSX
+	/*
+	 * Copy VSX low doubleword to local buffer for formatting,
+	 * then out to userspace.  Update v_regs to point after the
+	 * VMX data.
+	 */
+	if (current->thread.used_vsr) {
+		__giveup_vsx(current);
+		v_regs += ELF_NVRREG;
+		err |= copy_vsx_to_user(v_regs, current);
+		/* set MSR_VSX in the MSR value in the frame to
+		 * indicate that sc->vs_reg) contains valid data.
+		 */
+		msr |= MSR_VSX;
+	}
+#endif /* CONFIG_VSX */
 	err |= __put_user(&sc->gp_regs, &sc->regs);
 	WARN_ON(!FULL_REGS(regs));
 	err |= __copy_to_user(&sc->gp_regs, regs, GP_REGS_SIZE);
 	err |= __put_user(msr, &sc->gp_regs[PT_MSR]);
-	err |= __copy_to_user(&sc->fp_regs, &current->thread.fpr, FP_REGS_SIZE);
 	err |= __put_user(signr, &sc->signal);
 	err |= __put_user(handler, &sc->handler);
 	if (set != NULL)
@@ -137,29 +155,32 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 #endif
 	unsigned long err = 0;
 	unsigned long save_r13 = 0;
-	elf_greg_t *gregs = (elf_greg_t *)regs;
 	unsigned long msr;
+#ifdef CONFIG_VSX
 	int i;
+#endif
 
 	/* If this is not a signal return, we preserve the TLS in r13 */
 	if (!sig)
 		save_r13 = regs->gpr[13];
 
-	/* copy everything before MSR */
-	err |= __copy_from_user(regs, &sc->gp_regs,
-				PT_MSR*sizeof(unsigned long));
-
+	/* copy the GPRs */
+	err |= __copy_from_user(regs->gpr, sc->gp_regs, sizeof(regs->gpr));
+	err |= __get_user(regs->nip, &sc->gp_regs[PT_NIP]);
 	/* get MSR separately, transfer the LE bit if doing signal return */
 	err |= __get_user(msr, &sc->gp_regs[PT_MSR]);
 	if (sig)
 		regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
-
+	err |= __get_user(regs->orig_gpr3, &sc->gp_regs[PT_ORIG_R3]);
+	err |= __get_user(regs->ctr, &sc->gp_regs[PT_CTR]);
+	err |= __get_user(regs->link, &sc->gp_regs[PT_LNK]);
+	err |= __get_user(regs->xer, &sc->gp_regs[PT_XER]);
+	err |= __get_user(regs->ccr, &sc->gp_regs[PT_CCR]);
 	/* skip SOFTE */
-	for (i = PT_MSR+1; i <= PT_RESULT; i++) {
-		if (i == PT_SOFTE)
-			continue;
-		err |= __get_user(gregs[i], &sc->gp_regs[i]);
-	}
+	err |= __get_user(regs->trap, &sc->gp_regs[PT_TRAP]);
+	err |= __get_user(regs->dar, &sc->gp_regs[PT_DAR]);
+	err |= __get_user(regs->dsisr, &sc->gp_regs[PT_DSISR]);
+	err |= __get_user(regs->result, &sc->gp_regs[PT_RESULT]);
 
 	if (!sig)
 		regs->gpr[13] = save_r13;
@@ -180,9 +201,7 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	 * This has to be done before copying stuff into current->thread.fpr/vr
 	 * for the reasons explained in the previous comment.
 	 */
-	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC);
-
-	err |= __copy_from_user(&current->thread.fpr, &sc->fp_regs, FP_REGS_SIZE);
+	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC | MSR_VSX);
 
 #ifdef CONFIG_ALTIVEC
 	err |= __get_user(v_regs, &sc->v_regs);
@@ -202,7 +221,23 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	else
 		current->thread.vrsave = 0;
 #endif /* CONFIG_ALTIVEC */
+	/* restore floating point */
+	err |= copy_fpr_from_user(current, &sc->fp_regs);
+#ifdef CONFIG_VSX
+	/*
+	 * Get additional VSX data. Update v_regs to point after the
+	 * VMX data.  Copy VSX low doubleword from userspace to local
+	 * buffer for formatting, then into the taskstruct.
+	 */
+	v_regs += ELF_NVRREG;
+	if ((msr & MSR_VSX) != 0)
+		err |= copy_vsx_from_user(current, v_regs);
+	else
+		for (i = 0; i < 32 ; i++)
+			current->thread.fpr[i][TS_VSRLOWOFFSET] = 0;
 
+#else
+#endif
 	return err;
 }
 
@@ -233,6 +268,13 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 }
 
 /*
+ * Userspace code may pass a ucontext which doesn't include VSX added
+ * at the end.  We need to check for this case.
+ */
+#define UCONTEXTSIZEWITHOUTVSX \
+		(sizeof(struct ucontext) - 32*sizeof(long))
+
+/*
  * Handle {get,set,swap}_context operations
  */
 int sys_swapcontext(struct ucontext __user *old_ctx,
@@ -241,13 +283,34 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 {
 	unsigned char tmp;
 	sigset_t set;
+	unsigned long new_msr = 0;
 
-	/* Context size is for future use. Right now, we only make sure
-	 * we are passed something we understand
+	if (new_ctx &&
+	    __get_user(new_msr, &new_ctx->uc_mcontext.gp_regs[PT_MSR]))
+		return -EFAULT;
+	/*
+	 * Check that the context is not smaller than the original
+	 * size (with VMX but without VSX)
 	 */
-	if (ctx_size < sizeof(struct ucontext))
+	if (ctx_size < UCONTEXTSIZEWITHOUTVSX)
 		return -EINVAL;
-
+	/*
+	 * If the new context state sets the MSR VSX bits but
+	 * it doesn't provide VSX state.
+	 */
+	if ((ctx_size < sizeof(struct ucontext)) &&
+	    (new_msr & MSR_VSX))
+		return -EINVAL;
+#ifdef CONFIG_VSX
+	/*
+	 * If userspace doesn't provide enough room for VSX data,
+	 * but current thread has used VSX, we don't have anywhere
+	 * to store the full context back into.
+	 */
+	if ((ctx_size < sizeof(struct ucontext)) &&
+	    (current->thread.used_vsr && old_ctx))
+		return -EINVAL;
+#endif
 	if (old_ctx != NULL) {
 		if (!access_ok(VERIFY_WRITE, old_ctx, sizeof(*old_ctx))
 		    || setup_sigcontext(&old_ctx->uc_mcontext, regs, 0, NULL, 0)

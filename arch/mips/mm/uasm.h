@@ -103,8 +103,6 @@ struct uasm_label {
 void __cpuinit uasm_build_label(struct uasm_label **lab, u32 *addr, int lid);
 #ifdef CONFIG_64BIT
 int uasm_in_compat_space_p(long addr);
-int uasm_rel_highest(long val);
-int uasm_rel_higher(long val);
 #endif
 int uasm_rel_hi(long val);
 int uasm_rel_lo(long val);

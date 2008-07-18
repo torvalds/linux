@@ -812,7 +812,7 @@ static inline void __run_timers(struct tvec_base *base)
 	spin_unlock_irq(&base->lock);
 }
 
-#if defined(CONFIG_NO_IDLE_HZ) || defined(CONFIG_NO_HZ)
+#ifdef CONFIG_NO_HZ
 /*
  * Find out when the next timer event is due to happen. This
  * is used on S/390 to stop all activity when a cpus is idle.
@@ -947,14 +947,6 @@ unsigned long get_next_timer_interrupt(unsigned long now)
 
 	return cmp_next_hrtimer_event(now, expires);
 }
-
-#ifdef CONFIG_NO_IDLE_HZ
-unsigned long next_timer_interrupt(void)
-{
-	return get_next_timer_interrupt(jiffies);
-}
-#endif
-
 #endif
 
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
@@ -1502,7 +1494,7 @@ void __init init_timers(void)
 
 	BUG_ON(err == NOTIFY_BAD);
 	register_cpu_notifier(&timers_nb);
-	open_softirq(TIMER_SOFTIRQ, run_timer_softirq, NULL);
+	open_softirq(TIMER_SOFTIRQ, run_timer_softirq);
 }
 
 /**

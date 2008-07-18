@@ -120,6 +120,7 @@ struct mcontext32 {
 	elf_fpregset_t		mc_fregs;
 	unsigned int		mc_pad[2];
 	elf_vrregset_t32	mc_vregs __attribute__((__aligned__(16)));
+	elf_vsrreghalf_t32      mc_vsregs __attribute__((__aligned__(16)));
 };
 
 struct ucontext32 { 

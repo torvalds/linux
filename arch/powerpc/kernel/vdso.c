@@ -142,7 +142,7 @@ static void dump_one_vdso_page(struct page *pg, struct page *upg)
 	printk("kpg: %p (c:%d,f:%08lx)", __va(page_to_pfn(pg) << PAGE_SHIFT),
 	       page_count(pg),
 	       pg->flags);
-	if (upg/* && pg != upg*/) {
+	if (upg && !IS_ERR(upg) /* && pg != upg*/) {
 		printk(" upg: %p (c:%d,f:%08lx)", __va(page_to_pfn(upg)
 						       << PAGE_SHIFT),
 		       page_count(upg),
@@ -571,6 +571,11 @@ static __init int vdso_fixup_features(struct lib32_elfinfo *v32,
 	if (start64)
 		do_feature_fixups(powerpc_firmware_features,
 				  start64, start64 + size64);
+
+	start64 = find_section64(v64->hdr, "__lwsync_fixup", &size64);
+	if (start64)
+		do_lwsync_fixups(cur_cpu_spec->cpu_features,
+				 start64, start64 + size64);
 #endif /* CONFIG_PPC64 */
 
 	start32 = find_section32(v32->hdr, "__ftr_fixup", &size32);
@@ -584,6 +589,11 @@ static __init int vdso_fixup_features(struct lib32_elfinfo *v32,
 		do_feature_fixups(powerpc_firmware_features,
 				  start32, start32 + size32);
 #endif /* CONFIG_PPC64 */
+
+	start32 = find_section32(v32->hdr, "__lwsync_fixup", &size32);
+	if (start32)
+		do_lwsync_fixups(cur_cpu_spec->cpu_features,
+				 start32, start32 + size32);
 
 	return 0;
 }

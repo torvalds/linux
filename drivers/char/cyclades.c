@@ -4668,7 +4668,7 @@ static inline int __devinit cyc_isfwstr(const char *str, unsigned int size)
 	return 0;
 }
 
-static inline void __devinit cyz_fpga_copy(void __iomem *fpga, u8 *data,
+static inline void __devinit cyz_fpga_copy(void __iomem *fpga, const u8 *data,
 		unsigned int size)
 {
 	for (; size > 0; size--) {
@@ -4701,10 +4701,10 @@ static int __devinit __cyz_load_fw(const struct firmware *fw,
 		const char *name, const u32 mailbox, void __iomem *base,
 		void __iomem *fpga)
 {
-	void *ptr = fw->data;
-	struct zfile_header *h = ptr;
-	struct zfile_config *c, *cs;
-	struct zfile_block *b, *bs;
+	const void *ptr = fw->data;
+	const struct zfile_header *h = ptr;
+	const struct zfile_config *c, *cs;
+	const struct zfile_block *b, *bs;
 	unsigned int a, tmp, len = fw->size;
 #define BAD_FW KERN_ERR "Bad firmware: "
 	if (len < sizeof(*h)) {

@@ -28,7 +28,6 @@
 #include <asm/prom.h>
 #include <mm/mmu_decl.h>
 #include <asm/udbg.h>
-#include <asm/i8259.h>
 
 #include <asm/mpic.h>
 
@@ -44,67 +43,6 @@
 #else
 #define DBG(fmt...) do { } while(0)
 #endif
-
-#ifdef CONFIG_PCI
-static void mpc86xx_8259_cascade(unsigned int irq, struct irq_desc *desc)
-{
-	unsigned int cascade_irq = i8259_irq();
-	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq);
-	desc->chip->eoi(irq);
-}
-#endif	/* CONFIG_PCI */
-
-static void __init
-mpc86xx_hpcn_init_irq(void)
-{
-	struct mpic *mpic1;
-	struct device_node *np;
-	struct resource res;
-#ifdef CONFIG_PCI
-	struct device_node *cascade_node = NULL;
-	int cascade_irq;
-#endif
-
-	/* Determine PIC address. */
-	np = of_find_node_by_type(NULL, "open-pic");
-	if (np == NULL)
-		return;
-	of_address_to_resource(np, 0, &res);
-
-	/* Alloc mpic structure and per isu has 16 INT entries. */
-	mpic1 = mpic_alloc(np, res.start,
-			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
-			0, 256, " MPIC     ");
-	BUG_ON(mpic1 == NULL);
-
-	mpic_init(mpic1);
-
-#ifdef CONFIG_PCI
-	/* Initialize i8259 controller */
-	for_each_node_by_type(np, "interrupt-controller")
-		if (of_device_is_compatible(np, "chrp,iic")) {
-			cascade_node = np;
-			break;
-		}
-	if (cascade_node == NULL) {
-		printk(KERN_DEBUG "mpc86xxhpcn: no ISA interrupt controller\n");
-		return;
-	}
-
-	cascade_irq = irq_of_parse_and_map(cascade_node, 0);
-	if (cascade_irq == NO_IRQ) {
-		printk(KERN_ERR "mpc86xxhpcn: failed to map cascade interrupt");
-		return;
-	}
-	DBG("mpc86xxhpcn: cascade mapped to irq %d\n", cascade_irq);
-
-	i8259_init(cascade_node, 0);
-	of_node_put(cascade_node);
-
-	set_irq_chained_handler(cascade_irq, mpc86xx_8259_cascade);
-#endif
-}
 
 #ifdef CONFIG_PCI
 extern int uses_fsl_uli_m1575;
@@ -237,7 +175,7 @@ define_machine(mpc86xx_hpcn) {
 	.name			= "MPC86xx HPCN",
 	.probe			= mpc86xx_hpcn_probe,
 	.setup_arch		= mpc86xx_hpcn_setup_arch,
-	.init_IRQ		= mpc86xx_hpcn_init_irq,
+	.init_IRQ		= mpc86xx_init_irq,
 	.show_cpuinfo		= mpc86xx_hpcn_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
 	.restart		= fsl_rstcr_restart,

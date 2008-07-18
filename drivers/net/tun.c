@@ -48,6 +48,7 @@
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
@@ -313,6 +314,21 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case TUN_TUN_DEV:
+		if (tun->flags & TUN_NO_PI) {
+			switch (skb->data[0] & 0xf0) {
+			case 0x40:
+				pi.proto = htons(ETH_P_IP);
+				break;
+			case 0x60:
+				pi.proto = htons(ETH_P_IPV6);
+				break;
+			default:
+				tun->dev->stats.rx_dropped++;
+				kfree_skb(skb);
+				return -EINVAL;
+			}
+		}
+
 		skb_reset_mac_header(skb);
 		skb->protocol = pi.proto;
 		skb->dev = tun->dev;
@@ -587,6 +603,12 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	tun->attached = 1;
 	get_net(dev_net(tun->dev));
 
+	/* Make sure persistent devices do not get stuck in
+	 * xoff state.
+	 */
+	if (netif_running(tun->dev))
+		netif_wake_queue(tun->dev);
+
 	strcpy(ifr->ifr_name, tun->dev->name);
 	return 0;
 
@@ -781,22 +803,26 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 
 	DBG(KERN_INFO "%s: tun_chr_fasync %d\n", tun->dev->name, on);
 
+	lock_kernel();
 	if ((ret = fasync_helper(fd, file, on, &tun->fasync)) < 0)
-		return ret;
+		goto out;
 
 	if (on) {
 		ret = __f_setown(file, task_pid(current), PIDTYPE_PID, 0);
 		if (ret)
-			return ret;
+			goto out;
 		tun->flags |= TUN_FASYNC;
 	} else
 		tun->flags &= ~TUN_FASYNC;
-
-	return 0;
+	ret = 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int tun_chr_open(struct inode *inode, struct file * file)
 {
+	cycle_kernel_lock();
 	DBG1(KERN_INFO "tunX: tun_chr_open\n");
 	file->private_data = NULL;
 	return 0;

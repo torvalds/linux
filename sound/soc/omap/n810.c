@@ -30,15 +30,15 @@
 
 #include <asm/mach-types.h>
 #include <asm/arch/hardware.h>
-#include <asm/arch/gpio.h>
+#include <linux/gpio.h>
 #include <asm/arch/mcbsp.h>
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
 #include "../codecs/tlv320aic3x.h"
 
-#define RX44_HEADSET_AMP_GPIO	10
-#define RX44_SPEAKER_AMP_GPIO	101
+#define N810_HEADSET_AMP_GPIO	10
+#define N810_SPEAKER_AMP_GPIO	101
 
 static struct clk *sys_clkout2;
 static struct clk *sys_clkout2_src;
@@ -46,13 +46,26 @@ static struct clk *func96m_clk;
 
 static int n810_spk_func;
 static int n810_jack_func;
+static int n810_dmic_func;
 
 static void n810_ext_control(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_set_endpoint(codec, "Ext Spk", n810_spk_func);
-	snd_soc_dapm_set_endpoint(codec, "Headphone Jack", n810_jack_func);
+	if (n810_spk_func)
+		snd_soc_dapm_enable_pin(codec, "Ext Spk");
+	else
+		snd_soc_dapm_disable_pin(codec, "Ext Spk");
 
-	snd_soc_dapm_sync_endpoints(codec);
+	if (n810_jack_func)
+		snd_soc_dapm_enable_pin(codec, "Headphone Jack");
+	else
+		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
+
+	if (n810_dmic_func)
+		snd_soc_dapm_enable_pin(codec, "DMic");
+	else
+		snd_soc_dapm_disable_pin(codec, "DMic");
+
+	snd_soc_dapm_sync(codec);
 }
 
 static int n810_startup(struct snd_pcm_substream *substream)
@@ -73,12 +86,12 @@ static int n810_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	int err;
 
 	/* Set codec DAI configuration */
-	err = codec_dai->dai_ops.set_fmt(codec_dai,
+	err = snd_soc_dai_set_fmt(codec_dai,
 					 SND_SOC_DAIFMT_I2S |
 					 SND_SOC_DAIFMT_NB_NF |
 					 SND_SOC_DAIFMT_CBM_CFM);
@@ -86,7 +99,7 @@ static int n810_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	/* Set cpu DAI configuration */
-	err = cpu_dai->dai_ops.set_fmt(cpu_dai,
+	err = snd_soc_dai_set_fmt(cpu_dai,
 				       SND_SOC_DAIFMT_I2S |
 				       SND_SOC_DAIFMT_NB_NF |
 				       SND_SOC_DAIFMT_CBM_CFM);
@@ -94,7 +107,7 @@ static int n810_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	/* Set the codec system clock for DAC and ADC */
-	err = codec_dai->dai_ops.set_sysclk(codec_dai, 0, 12000000,
+	err = snd_soc_dai_set_sysclk(codec_dai, 0, 12000000,
 					    SND_SOC_CLOCK_IN);
 
 	return err;
@@ -150,13 +163,35 @@ static int n810_set_jack(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int n810_get_input(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = n810_dmic_func;
+
+	return 0;
+}
+
+static int n810_set_input(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+
+	if (n810_dmic_func == ucontrol->value.integer.value[0])
+		return 0;
+
+	n810_dmic_func = ucontrol->value.integer.value[0];
+	n810_ext_control(codec);
+
+	return 1;
+}
+
 static int n810_spk_event(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *k, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
-		omap_set_gpio_dataout(RX44_SPEAKER_AMP_GPIO, 1);
+		gpio_set_value(N810_SPEAKER_AMP_GPIO, 1);
 	else
-		omap_set_gpio_dataout(RX44_SPEAKER_AMP_GPIO, 0);
+		gpio_set_value(N810_SPEAKER_AMP_GPIO, 0);
 
 	return 0;
 }
@@ -165,9 +200,9 @@ static int n810_jack_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *k, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
-		omap_set_gpio_dataout(RX44_HEADSET_AMP_GPIO, 1);
+		gpio_set_value(N810_HEADSET_AMP_GPIO, 1);
 	else
-		omap_set_gpio_dataout(RX44_HEADSET_AMP_GPIO, 0);
+		gpio_set_value(N810_HEADSET_AMP_GPIO, 0);
 
 	return 0;
 }
@@ -175,21 +210,27 @@ static int n810_jack_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget aic33_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk", n810_spk_event),
 	SND_SOC_DAPM_HP("Headphone Jack", n810_jack_event),
+	SND_SOC_DAPM_MIC("DMic", NULL),
 };
 
-static const char *audio_map[][3] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 	{"Headphone Jack", NULL, "HPLOUT"},
 	{"Headphone Jack", NULL, "HPROUT"},
 
 	{"Ext Spk", NULL, "LLOUT"},
 	{"Ext Spk", NULL, "RLOUT"},
+
+	{"DMic Rate 64", NULL, "Mic Bias 2V"},
+	{"Mic Bias 2V", NULL, "DMic"},
 };
 
 static const char *spk_function[] = {"Off", "On"};
 static const char *jack_function[] = {"Off", "Headphone"};
+static const char *input_function[] = {"ADC", "Digital Mic"};
 static const struct soc_enum n810_enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(spk_function), spk_function),
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(jack_function), jack_function),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(input_function), input_function),
 };
 
 static const struct snd_kcontrol_new aic33_n810_controls[] = {
@@ -197,6 +238,8 @@ static const struct snd_kcontrol_new aic33_n810_controls[] = {
 		     n810_get_spk, n810_set_spk),
 	SOC_ENUM_EXT("Jack Function", n810_enum[1],
 		     n810_get_jack, n810_set_jack),
+	SOC_ENUM_EXT("Input Select",  n810_enum[2],
+		     n810_get_input, n810_set_input),
 };
 
 static int n810_aic33_init(struct snd_soc_codec *codec)
@@ -204,9 +247,9 @@ static int n810_aic33_init(struct snd_soc_codec *codec)
 	int i, err;
 
 	/* Not connected */
-	snd_soc_dapm_set_endpoint(codec, "MONO_LOUT", 0);
-	snd_soc_dapm_set_endpoint(codec, "HPLCOM", 0);
-	snd_soc_dapm_set_endpoint(codec, "HPRCOM", 0);
+	snd_soc_dapm_disable_pin(codec, "MONO_LOUT");
+	snd_soc_dapm_disable_pin(codec, "HPLCOM");
+	snd_soc_dapm_disable_pin(codec, "HPRCOM");
 
 	/* Add N810 specific controls */
 	for (i = 0; i < ARRAY_SIZE(aic33_n810_controls); i++) {
@@ -217,15 +260,13 @@ static int n810_aic33_init(struct snd_soc_codec *codec)
 	}
 
 	/* Add N810 specific widgets */
-	for (i = 0; i < ARRAY_SIZE(aic33_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &aic33_dapm_widgets[i]);
+	snd_soc_dapm_new_controls(codec, aic33_dapm_widgets,
+				  ARRAY_SIZE(aic33_dapm_widgets));
 
 	/* Set up N810 specific audio path audio_map */
-	for (i = 0; i < ARRAY_SIZE(audio_map); i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-			audio_map[i][1], audio_map[i][2]);
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 
 	return 0;
 }
@@ -250,6 +291,8 @@ static struct snd_soc_machine snd_soc_machine_n810 = {
 /* Audio private data */
 static struct aic3x_setup_data n810_aic33_setup = {
 	.i2c_address = 0x18,
+	.gpio_func[0] = AIC3X_GPIO1_FUNC_DISABLED,
+	.gpio_func[1] = AIC3X_GPIO2_FUNC_DIGITAL_MIC_INPUT,
 };
 
 /* Audio subsystem */
@@ -267,7 +310,7 @@ static int __init n810_soc_init(void)
 	int err;
 	struct device *dev;
 
-	if (!machine_is_nokia_n810())
+	if (!(machine_is_nokia_n810() || machine_is_nokia_n810_wimax()))
 		return -ENODEV;
 
 	n810_snd_device = platform_device_alloc("soc-audio", -1);
@@ -305,12 +348,12 @@ static int __init n810_soc_init(void)
 	clk_set_parent(sys_clkout2_src, func96m_clk);
 	clk_set_rate(sys_clkout2, 12000000);
 
-	if (omap_request_gpio(RX44_HEADSET_AMP_GPIO) < 0)
+	if (gpio_request(N810_HEADSET_AMP_GPIO, "hs_amp") < 0)
 		BUG();
-	if (omap_request_gpio(RX44_SPEAKER_AMP_GPIO) < 0)
+	if (gpio_request(N810_SPEAKER_AMP_GPIO, "spk_amp") < 0)
 		BUG();
-	omap_set_gpio_direction(RX44_HEADSET_AMP_GPIO, 0);
-	omap_set_gpio_direction(RX44_SPEAKER_AMP_GPIO, 0);
+	gpio_direction_output(N810_HEADSET_AMP_GPIO, 0);
+	gpio_direction_output(N810_SPEAKER_AMP_GPIO, 0);
 
 	return 0;
 err2:
@@ -325,6 +368,9 @@ err1:
 
 static void __exit n810_soc_exit(void)
 {
+	gpio_free(N810_SPEAKER_AMP_GPIO);
+	gpio_free(N810_HEADSET_AMP_GPIO);
+
 	platform_device_unregister(n810_snd_device);
 }
 

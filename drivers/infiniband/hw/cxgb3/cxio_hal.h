@@ -45,15 +45,17 @@
 #define T3_CTRL_QP_SIZE_LOG2  8
 #define T3_CTRL_CQ_ID    0
 
-/* TBD */
 #define T3_MAX_NUM_RI (1<<15)
 #define T3_MAX_NUM_QP (1<<15)
 #define T3_MAX_NUM_CQ (1<<15)
 #define T3_MAX_NUM_PD (1<<15)
 #define T3_MAX_PBL_SIZE 256
 #define T3_MAX_RQ_SIZE 1024
+#define T3_MAX_QP_DEPTH (T3_MAX_RQ_SIZE-1)
+#define T3_MAX_CQ_DEPTH 8192
 #define T3_MAX_NUM_STAG (1<<15)
 #define T3_MAX_MR_SIZE 0x100000000ULL
+#define T3_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 
 #define T3_STAG_UNSET 0xffffffff
 
@@ -165,6 +167,7 @@ int cxio_reregister_phys_mem(struct cxio_rdev *rdev, u32 * stag, u32 pdid,
 int cxio_dereg_mem(struct cxio_rdev *rdev, u32 stag, u32 pbl_size,
 		   u32 pbl_addr);
 int cxio_allocate_window(struct cxio_rdev *rdev, u32 * stag, u32 pdid);
+int cxio_allocate_stag(struct cxio_rdev *rdev, u32 *stag, u32 pdid, u32 pbl_size, u32 pbl_addr);
 int cxio_deallocate_window(struct cxio_rdev *rdev, u32 stag);
 int cxio_rdma_init(struct cxio_rdev *rdev, struct t3_rdma_init_attr *attr);
 void cxio_register_ev_cb(cxio_hal_ev_callback_func_t ev_cb);

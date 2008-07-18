@@ -14,23 +14,11 @@ config GFS2_FS
 	  GFS is perfect consistency -- changes made to the filesystem on one
 	  machine show up immediately on all other machines in the cluster.
 
-	  To use the GFS2 filesystem, you will need to enable one or more of
-	  the below locking modules. Documentation and utilities for GFS2 can
+	  To use the GFS2 filesystem in a cluster, you will need to enable
+	  the locking module below. Documentation and utilities for GFS2 can
 	  be found here: http://sources.redhat.com/cluster
 
-config GFS2_FS_LOCKING_NOLOCK
-	tristate "GFS2 \"nolock\" locking module"
-	depends on GFS2_FS
-	help
-	  Single node locking module for GFS2.
-
-	  Use this module if you want to use GFS2 on a single node without
-	  its clustering features. You can still take advantage of the
-	  large file support, and upgrade to running a full cluster later on
-	  if required.
-
-	  If you will only be using GFS2 in cluster mode, you do not need this
-	  module.
+	  The "nolock" lock module is now built in to GFS2 by default.
 
 config GFS2_FS_LOCKING_DLM
 	tristate "GFS2 DLM locking module"

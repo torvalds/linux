@@ -49,6 +49,7 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
 #include <linux/kernel.h>	/* for printk */
 #include <linux/sched.h>
 #include <linux/reboot.h>
+#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 
@@ -1727,10 +1728,12 @@ static int adpt_open(struct inode *inode, struct file *file)
 	int minor;
 	adpt_hba* pHba;
 
+	lock_kernel();
 	//TODO check for root access
 	//
 	minor = iminor(inode);
 	if (minor >= hba_count) {
+		unlock_kernel();
 		return -ENXIO;
 	}
 	mutex_lock(&adpt_configuration_lock);
@@ -1741,6 +1744,7 @@ static int adpt_open(struct inode *inode, struct file *file)
 	}
 	if (pHba == NULL) {
 		mutex_unlock(&adpt_configuration_lock);
+		unlock_kernel();
 		return -ENXIO;
 	}
 
@@ -1751,6 +1755,7 @@ static int adpt_open(struct inode *inode, struct file *file)
 
 	pHba->in_use = 1;
 	mutex_unlock(&adpt_configuration_lock);
+	unlock_kernel();
 
 	return 0;
 }

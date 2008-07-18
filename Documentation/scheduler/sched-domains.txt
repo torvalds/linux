@@ -61,10 +61,7 @@ builder by #define'ing ARCH_HASH_SCHED_DOMAIN, and exporting your
 arch_init_sched_domains function. This function will attach domains to all
 CPUs using cpu_attach_domain.
 
-Implementors should change the line
-#undef SCHED_DOMAIN_DEBUG
-to
-#define SCHED_DOMAIN_DEBUG
-in kernel/sched.c as this enables an error checking parse of the sched domains
+The sched-domains debugging infrastructure can be enabled by enabling
+CONFIG_SCHED_DEBUG. This enables an error checking parse of the sched domains
 which should catch most possible errors (described above). It also prints out
 the domain structure in a visual format.

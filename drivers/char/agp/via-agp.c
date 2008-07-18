@@ -389,11 +389,20 @@ static struct agp_device_ids via_agp_device_ids[] __devinitdata =
 		.device_id  = PCI_DEVICE_ID_VIA_VT3324,
 		.chipset_name   = "CX700",
 	},
-	/* VT3336 */
+	/* VT3336 - this is a chipset for AMD Athlon/K8 CPU. Due to K8's unique
+	 * architecture, the AGP resource and behavior are different from
+	 * the traditional AGP which resides only in chipset. AGP is used
+	 * by 3D driver which wasn't available for the VT3336 and VT3364
+	 * generation until now.  Unfortunately, by testing, VT3364 works
+	 * but VT3336 doesn't. - explaination from via, just leave this as
+	 * as a placeholder to avoid future patches adding it back in.
+	 */
+#if 0
 	{
 		.device_id  = PCI_DEVICE_ID_VIA_VT3336,
 		.chipset_name   = "VT3336",
 	},
+#endif
 	/* P4M890 */
 	{
 		.device_id  = PCI_DEVICE_ID_VIA_P4M890,
@@ -546,8 +555,8 @@ static const struct pci_device_id agp_via_pci_table[] = {
 	ID(PCI_DEVICE_ID_VIA_3296_0),
 	ID(PCI_DEVICE_ID_VIA_P4M800CE),
 	ID(PCI_DEVICE_ID_VIA_VT3324),
-	ID(PCI_DEVICE_ID_VIA_VT3336),
 	ID(PCI_DEVICE_ID_VIA_P4M890),
+	ID(PCI_DEVICE_ID_VIA_VT3364),
 	{ }
 };
 

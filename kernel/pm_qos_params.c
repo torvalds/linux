@@ -29,6 +29,7 @@
 
 #include <linux/pm_qos_params.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -358,15 +359,19 @@ static int pm_qos_power_open(struct inode *inode, struct file *filp)
 	int ret;
 	long pm_qos_class;
 
+	lock_kernel();
 	pm_qos_class = find_pm_qos_object_by_minor(iminor(inode));
 	if (pm_qos_class >= 0) {
 		filp->private_data = (void *)pm_qos_class;
 		sprintf(name, "process_%d", current->pid);
 		ret = pm_qos_add_requirement(pm_qos_class, name,
 					PM_QOS_DEFAULT_VALUE);
-		if (ret >= 0)
+		if (ret >= 0) {
+			unlock_kernel();
 			return 0;
+		}
 	}
+	unlock_kernel();
 
 	return -EPERM;
 }

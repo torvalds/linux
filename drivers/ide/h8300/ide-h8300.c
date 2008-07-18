@@ -8,6 +8,8 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
+#define DRV_NAME "ide-h8300"
+
 #define bswap(d) \
 ({					\
 	u16 r;				\
@@ -51,8 +53,6 @@ static void h8300_tf_load(ide_drive_t *drive, ide_task_t *task)
 
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		HIHI = 0xFF;
-
-	ide_set_irq(drive, 1);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DATA)
 		mm_outw((tf->hob_data << 8) | tf->data, io_ports->data_addr);
@@ -98,7 +98,7 @@ static void h8300_tf_read(ide_drive_t *drive, ide_task_t *task)
 	}
 
 	/* be sure we're looking at the low order bits */
-	outb(drive->ctl & ~0x80, io_ports->ctl_addr);
+	outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = inb(io_ports->nsect_addr);
@@ -112,7 +112,7 @@ static void h8300_tf_read(ide_drive_t *drive, ide_task_t *task)
 		tf->device = inb(io_ports->device_addr);
 
 	if (task->tf_flags & IDE_TFLAG_LBA48) {
-		outb(drive->ctl | 0x80, io_ports->ctl_addr);
+		outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
 
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
 			tf->hob_feature = inb(io_ports->feature_addr);
@@ -178,12 +178,18 @@ static inline void hwif_setup(ide_hwif_t *hwif)
 	hwif->output_data = h8300_output_data;
 }
 
+static const struct ide_port_info h8300_port_info = {
+	.host_flags		= IDE_HFLAG_NO_IO_32BIT | IDE_HFLAG_NO_DMA,
+};
+
 static int __init h8300_ide_init(void)
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
 	int index;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+
+	printk(KERN_INFO DRV_NAME ": H8/300 generic IDE interface\n");
 
 	if (!request_region(CONFIG_H8300_IDE_BASE, H8300_IDE_GAP*8, "ide-h8300"))
 		goto out_busy;
@@ -194,22 +200,17 @@ static int __init h8300_ide_init(void)
 
 	hw_setup(&hw);
 
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR "ide-h8300: IDE I/F register failed\n");
+	hwif = ide_find_port_slot(&h8300_port_info);
+	if (hwif == NULL)
 		return -ENOENT;
-	}
 
 	index = hwif->index;
-	ide_init_port_data(hwif, index);
 	ide_init_port_hw(hwif, &hw);
 	hwif_setup(hwif);
-	hwif->host_flags = IDE_HFLAG_NO_IO_32BIT;
-	printk(KERN_INFO "ide%d: H8/300 generic IDE interface\n", index);
 
 	idx[0] = index;
 
-	ide_device_add(idx, NULL);
+	ide_device_add(idx, &h8300_port_info);
 
 	return 0;
 

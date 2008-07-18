@@ -95,6 +95,13 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 			}
 		}
 
+		if (alg == ALG_WEP &&
+			key_len != LEN_WEP40 && key_len != LEN_WEP104) {
+			ieee80211_key_free(key);
+			err = -EINVAL;
+			goto out_unlock;
+		}
+
 		ieee80211_key_link(key, sdata, sta);
 
 		if (set_tx_key || (!sta && !sdata->default_key && key))
@@ -496,7 +503,8 @@ static int ieee80211_ioctl_giwap(struct net_device *dev,
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
 	    sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
-		if (sdata->u.sta.state == IEEE80211_ASSOCIATED) {
+		if (sdata->u.sta.state == IEEE80211_ASSOCIATED ||
+		    sdata->u.sta.state == IEEE80211_IBSS_JOINED) {
 			ap_addr->sa_family = ARPHRD_ETHER;
 			memcpy(&ap_addr->sa_data, sdata->u.sta.bssid, ETH_ALEN);
 			return 0;

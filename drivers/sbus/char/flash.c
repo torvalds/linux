@@ -127,9 +127,13 @@ flash_read(struct file * file, char __user * buf,
 static int
 flash_open(struct inode *inode, struct file *file)
 {
-	if (test_and_set_bit(0, (void *)&flash.busy) != 0)
+	lock_kernel();
+	if (test_and_set_bit(0, (void *)&flash.busy) != 0) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 
+	unlock_kernel();
 	return 0;
 }
 

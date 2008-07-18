@@ -390,6 +390,10 @@ If you have several tasks to attach, you have to do it one after another:
 	...
 # /bin/echo PIDn > tasks
 
+You can attach the current shell task by echoing 0:
+
+# echo 0 > tasks
+
 3. Kernel API
 =============
 

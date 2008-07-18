@@ -69,6 +69,58 @@ int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 and_mask,
 			     or_value);
 }
 
+int cx18_av_write_no_acfg(struct cx18 *cx, u16 addr, u8 value, int no_acfg_mask)
+{
+	int retval;
+	u32 saved_reg[8] = {0};
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_AFE) {
+		saved_reg[0] = cx18_av_read4(cx, CXADEC_CHIP_CTRL);
+		saved_reg[1] = cx18_av_read4(cx, CXADEC_AFE_CTRL);
+	}
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_PLL) {
+		saved_reg[2] = cx18_av_read4(cx, CXADEC_PLL_CTRL1);
+		saved_reg[3] = cx18_av_read4(cx, CXADEC_VID_PLL_FRAC);
+	}
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_VID) {
+		saved_reg[4] = cx18_av_read4(cx, CXADEC_HORIZ_TIM_CTRL);
+		saved_reg[5] = cx18_av_read4(cx, CXADEC_VERT_TIM_CTRL);
+		saved_reg[6] = cx18_av_read4(cx, CXADEC_SRC_COMB_CFG);
+		saved_reg[7] = cx18_av_read4(cx, CXADEC_CHROMA_VBIOFF_CFG);
+	}
+
+	retval = cx18_av_write(cx, addr, value);
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_AFE) {
+		cx18_av_write4(cx, CXADEC_CHIP_CTRL, saved_reg[0]);
+		cx18_av_write4(cx, CXADEC_AFE_CTRL,  saved_reg[1]);
+	}
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_PLL) {
+		cx18_av_write4(cx, CXADEC_PLL_CTRL1,    saved_reg[2]);
+		cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, saved_reg[3]);
+	}
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_VID) {
+		cx18_av_write4(cx, CXADEC_HORIZ_TIM_CTRL,    saved_reg[4]);
+		cx18_av_write4(cx, CXADEC_VERT_TIM_CTRL,     saved_reg[5]);
+		cx18_av_write4(cx, CXADEC_SRC_COMB_CFG,      saved_reg[6]);
+		cx18_av_write4(cx, CXADEC_CHROMA_VBIOFF_CFG, saved_reg[7]);
+	}
+
+	return retval;
+}
+
+int cx18_av_and_or_no_acfg(struct cx18 *cx, u16 addr, unsigned and_mask,
+			   u8 or_value, int no_acfg_mask)
+{
+	return cx18_av_write_no_acfg(cx, addr,
+				     (cx18_av_read(cx, addr) & and_mask) |
+				     or_value, no_acfg_mask);
+}
+
 /* ----------------------------------------------------------------------- */
 
 static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
@@ -170,13 +222,15 @@ static void input_change(struct cx18 *cx)
 
 	/* Follow step 8c and 8d of section 3.16 in the cx18_av datasheet */
 	if (std & V4L2_STD_SECAM)
-		cx18_av_write(cx, 0x402, 0);
+		cx18_av_write_no_acfg(cx, 0x402, 0, CXADEC_NO_ACFG_ALL);
 	else {
-		cx18_av_write(cx, 0x402, 0x04);
+		cx18_av_write_no_acfg(cx, 0x402, 0x04, CXADEC_NO_ACFG_ALL);
 		cx18_av_write(cx, 0x49f, (std & V4L2_STD_NTSC) ? 0x14 : 0x11);
 	}
-	cx18_av_and_or(cx, 0x401, ~0x60, 0);
-	cx18_av_and_or(cx, 0x401, ~0x60, 0x60);
+	cx18_av_and_or_no_acfg(cx, 0x401, ~0x60, 0,
+				CXADEC_NO_ACFG_PLL | CXADEC_NO_ACFG_VID);
+	cx18_av_and_or_no_acfg(cx, 0x401, ~0x60, 0x60,
+				CXADEC_NO_ACFG_PLL | CXADEC_NO_ACFG_VID);
 
 	if (std & V4L2_STD_525_60) {
 		if (std == V4L2_STD_NTSC_M_JP) {
@@ -228,7 +282,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 		if ((vid_input & ~0xff0) ||
 		    luma < CX18_AV_SVIDEO_LUMA1 ||
-		    luma > CX18_AV_SVIDEO_LUMA4 ||
+		    luma > CX18_AV_SVIDEO_LUMA8 ||
 		    chroma < CX18_AV_SVIDEO_CHROMA4 ||
 		    chroma > CX18_AV_SVIDEO_CHROMA8) {
 			CX18_ERR("0x%04x is not a valid video input!\n",
@@ -262,7 +316,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 	cx18_av_write(cx, 0x103, reg);
 	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
-	cx18_av_and_or(cx, 0x401, ~0x6, is_composite ? 0 : 0x02);
+	cx18_av_and_or_no_acfg(cx, 0x401, ~0x6, is_composite ? 0 : 0x02,
+				CXADEC_NO_ACFG_PLL | CXADEC_NO_ACFG_VID);
 	/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
 	cx18_av_and_or(cx, 0x102, ~0x2, (reg & 0x80) == 0 ? 2 : 0);
 	/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2 and CH3 */
@@ -318,12 +373,12 @@ static int set_v4lstd(struct cx18 *cx)
 	   This happens for example with the Yuan MPC622. */
 	if (fmt >= 4 && fmt < 8) {
 		/* Set format to NTSC-M */
-		cx18_av_and_or(cx, 0x400, ~0xf, 1);
+		cx18_av_and_or_no_acfg(cx, 0x400, ~0xf, 1, CXADEC_NO_ACFG_AFE);
 		/* Turn off LCOMB */
 		cx18_av_and_or(cx, 0x47b, ~6, 0);
 	}
-	cx18_av_and_or(cx, 0x400, ~0xf, fmt);
-	cx18_av_and_or(cx, 0x403, ~0x3, pal_m);
+	cx18_av_and_or_no_acfg(cx, 0x400, ~0xf, fmt, CXADEC_NO_ACFG_AFE);
+	cx18_av_and_or_no_acfg(cx, 0x403, ~0x3, pal_m, CXADEC_NO_ACFG_ALL);
 	cx18_av_vbi_setup(cx);
 	input_change(cx);
 	return 0;

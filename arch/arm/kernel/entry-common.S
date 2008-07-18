@@ -9,6 +9,7 @@
  */
 
 #include <asm/unistd.h>
+#include <asm/ftrace.h>
 #include <asm/arch/entry-macro.S>
 
 #include "entry-header.S"
@@ -98,6 +99,56 @@ ENTRY(ret_from_fork)
 #include "calls.S"
 #undef CALL
 #define CALL(x) .long x
+
+#ifdef CONFIG_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE
+ENTRY(mcount)
+	stmdb sp!, {r0-r3, lr}
+	mov r0, lr
+	sub r0, r0, #MCOUNT_INSN_SIZE
+
+	.globl mcount_call
+mcount_call:
+	bl ftrace_stub
+	ldmia sp!, {r0-r3, pc}
+
+ENTRY(ftrace_caller)
+	stmdb sp!, {r0-r3, lr}
+	ldr r1, [fp, #-4]
+	mov r0, lr
+	sub r0, r0, #MCOUNT_INSN_SIZE
+
+	.globl ftrace_call
+ftrace_call:
+	bl ftrace_stub
+	ldmia sp!, {r0-r3, pc}
+
+#else
+
+ENTRY(mcount)
+	stmdb sp!, {r0-r3, lr}
+	ldr r0, =ftrace_trace_function
+	ldr r2, [r0]
+	adr r0, ftrace_stub
+	cmp r0, r2
+	bne trace
+	ldmia sp!, {r0-r3, pc}
+
+trace:
+	ldr r1, [fp, #-4]
+	mov r0, lr
+	sub r0, r0, #MCOUNT_INSN_SIZE
+	mov lr, pc
+	mov pc, r2
+	ldmia sp!, {r0-r3, pc}
+
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+	.globl ftrace_stub
+ftrace_stub:
+	mov pc, lr
+
+#endif /* CONFIG_FTRACE */
 
 /*=============================================================================
  * SWI handler

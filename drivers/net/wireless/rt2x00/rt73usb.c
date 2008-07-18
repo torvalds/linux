@@ -134,11 +134,8 @@ static void rt73usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt73usb_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY)) {
-		ERROR(rt2x00dev, "PHY_CSR3 register busy. Write failed.\n");
-		mutex_unlock(&rt2x00dev->usb_cache_mutex);
-		return;
-	}
+	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY))
+		goto exit_fail;
 
 	/*
 	 * Write the data into the BBP.
@@ -151,6 +148,13 @@ static void rt73usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 
 	rt73usb_register_write_lock(rt2x00dev, PHY_CSR3, reg);
 	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+
+	ERROR(rt2x00dev, "PHY_CSR3 register busy. Write failed.\n");
 }
 
 static void rt73usb_bbp_read(struct rt2x00_dev *rt2x00dev,
@@ -164,11 +168,8 @@ static void rt73usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt73usb_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY)) {
-		ERROR(rt2x00dev, "PHY_CSR3 register busy. Read failed.\n");
-		mutex_unlock(&rt2x00dev->usb_cache_mutex);
-		return;
-	}
+	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY))
+		goto exit_fail;
 
 	/*
 	 * Write the request into the BBP.
@@ -184,14 +185,19 @@ static void rt73usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt73usb_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY)) {
-		ERROR(rt2x00dev, "PHY_CSR3 register busy. Read failed.\n");
-		*value = 0xff;
-		return;
-	}
+	if (rt2x00_get_field32(reg, PHY_CSR3_BUSY))
+		goto exit_fail;
 
 	*value = rt2x00_get_field32(reg, PHY_CSR3_VALUE);
 	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+
+	ERROR(rt2x00dev, "PHY_CSR3 register busy. Read failed.\n");
+	*value = 0xff;
 }
 
 static void rt73usb_rf_write(struct rt2x00_dev *rt2x00dev,
@@ -850,7 +856,7 @@ static char *rt73usb_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 	return FIRMWARE_RT2571;
 }
 
-static u16 rt73usb_get_firmware_crc(void *data, const size_t len)
+static u16 rt73usb_get_firmware_crc(const void *data, const size_t len)
 {
 	u16 crc;
 
@@ -867,13 +873,13 @@ static u16 rt73usb_get_firmware_crc(void *data, const size_t len)
 	return crc;
 }
 
-static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, void *data,
+static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 				 const size_t len)
 {
 	unsigned int i;
 	int status;
 	u32 reg;
-	char *ptr = data;
+	const char *ptr = data;
 	char *cache;
 	int buflen;
 	int timeout;
@@ -999,6 +1005,15 @@ static int rt73usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, TXRX_CSR8_ACK_CTS_48MBS, 42);
 	rt2x00_set_field32(&reg, TXRX_CSR8_ACK_CTS_54MBS, 42);
 	rt73usb_register_write(rt2x00dev, TXRX_CSR8, reg);
+
+	rt73usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_INTERVAL, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TIMESTAMP_COMPENSATE, 0);
+	rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 
 	rt73usb_register_write(rt2x00dev, TXRX_CSR15, 0x0000000f);
 
@@ -2131,6 +2146,7 @@ static struct usb_device_id rt73usb_device_table[] = {
 	/* D-Link */
 	{ USB_DEVICE(0x07d1, 0x3c03), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x07d1, 0x3c04), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x07d1, 0x3c06), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x07d1, 0x3c07), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Gemtek */
 	{ USB_DEVICE(0x15a9, 0x0004), USB_DEVICE_DATA(&rt73usb_ops) },

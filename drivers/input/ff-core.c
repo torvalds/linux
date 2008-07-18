@@ -28,6 +28,7 @@
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 
 /*
  * Check that the effect_id is a valid effect and whether the user
@@ -166,8 +167,10 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 	if (ret)
 		goto out;
 
+	spin_lock_irq(&dev->event_lock);
 	ff->effects[id] = *effect;
 	ff->effect_owners[id] = file;
+	spin_unlock_irq(&dev->event_lock);
 
  out:
 	mutex_unlock(&ff->mutex);
@@ -189,15 +192,21 @@ static int erase_effect(struct input_dev *dev, int effect_id,
 	if (error)
 		return error;
 
+	spin_lock_irq(&dev->event_lock);
 	ff->playback(dev, effect_id, 0);
+	ff->effect_owners[effect_id] = NULL;
+	spin_unlock_irq(&dev->event_lock);
 
 	if (ff->erase) {
 		error = ff->erase(dev, effect_id);
-		if (error)
-			return error;
-	}
+		if (error) {
+			spin_lock_irq(&dev->event_lock);
+			ff->effect_owners[effect_id] = file;
+			spin_unlock_irq(&dev->event_lock);
 
-	ff->effect_owners[effect_id] = NULL;
+			return error;
+		}
+	}
 
 	return 0;
 }
@@ -263,8 +272,6 @@ int input_ff_event(struct input_dev *dev, unsigned int type,
 	if (type != EV_FF)
 		return 0;
 
-	mutex_lock(&ff->mutex);
-
 	switch (code) {
 	case FF_GAIN:
 		if (!test_bit(FF_GAIN, dev->ffbit) || value > 0xffff)
@@ -286,7 +293,6 @@ int input_ff_event(struct input_dev *dev, unsigned int type,
 		break;
 	}
 
-	mutex_unlock(&ff->mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(input_ff_event);

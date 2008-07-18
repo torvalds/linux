@@ -1077,8 +1077,6 @@ static inline void rx_off(struct scc_priv *priv)
 
 static void start_timer(struct scc_priv *priv, int t, int r15)
 {
-	unsigned long flags;
-
 	outb(priv->tmr_mode, priv->tmr_ctrl);
 	if (t == 0) {
 		tm_isr(priv);

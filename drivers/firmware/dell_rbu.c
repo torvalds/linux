@@ -220,7 +220,7 @@ out_noalloc:
 	return retval;
 }
 
-static int packetize_data(void *data, size_t length)
+static int packetize_data(const u8 *data, size_t length)
 {
 	int rc = 0;
 	int done = 0;

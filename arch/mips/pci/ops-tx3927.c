@@ -8,7 +8,7 @@
  *
  * Based on arch/mips/ddb5xxx/ddb5477/pci_ops.c
  *
- *     Define the pci_ops for JMR3927.
+ *     Define the pci_ops for TX3927.
  *
  * Much of the code is derived from the original DDB5074 port by
  * Geert Uytterhoeven <geert@sonycom.com>
@@ -39,7 +39,7 @@
 #include <linux/init.h>
 
 #include <asm/addrspace.h>
-#include <asm/jmr3927/jmr3927.h>
+#include <asm/txx9/tx3927.h>
 
 static inline int mkaddr(unsigned char bus, unsigned char dev_fn,
 	unsigned char where)
@@ -68,7 +68,7 @@ static inline int check_abort(void)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int jmr3927_pci_read_config(struct pci_bus *bus, unsigned int devfn,
+static int tx3927_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	int where, int size, u32 * val)
 {
 	int ret;
@@ -94,7 +94,7 @@ static int jmr3927_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	return check_abort();
 }
 
-static int jmr3927_pci_write_config(struct pci_bus *bus, unsigned int devfn,
+static int tx3927_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	int where, int size, u32 val)
 {
 	int ret;
@@ -125,7 +125,80 @@ static int jmr3927_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	return check_abort();
 }
 
-struct pci_ops jmr3927_pci_ops = {
-	jmr3927_pci_read_config,
-	jmr3927_pci_write_config,
+static struct pci_ops tx3927_pci_ops = {
+	.read = tx3927_pci_read_config,
+	.write = tx3927_pci_write_config,
 };
+
+void __init tx3927_pcic_setup(struct pci_controller *channel,
+			      unsigned long sdram_size, int extarb)
+{
+	unsigned long flags;
+	unsigned long io_base =
+		channel->io_resource->start + mips_io_port_base - IO_BASE;
+	unsigned long io_size =
+		channel->io_resource->end - channel->io_resource->start;
+	unsigned long io_pciaddr =
+		channel->io_resource->start - channel->io_offset;
+	unsigned long mem_base =
+		channel->mem_resource->start;
+	unsigned long mem_size =
+		channel->mem_resource->end - channel->mem_resource->start;
+	unsigned long mem_pciaddr =
+		channel->mem_resource->start - channel->mem_offset;
+
+	printk(KERN_INFO "TX3927 PCIC -- DID:%04x VID:%04x RID:%02x Arbiter:%s",
+	       tx3927_pcicptr->did, tx3927_pcicptr->vid,
+	       tx3927_pcicptr->rid,
+	       extarb ? "External" : "Internal");
+	channel->pci_ops = &tx3927_pci_ops;
+
+	local_irq_save(flags);
+	/* Disable External PCI Config. Access */
+	tx3927_pcicptr->lbc = TX3927_PCIC_LBC_EPCAD;
+#ifdef __BIG_ENDIAN
+	tx3927_pcicptr->lbc |= TX3927_PCIC_LBC_IBSE |
+		TX3927_PCIC_LBC_TIBSE |
+		TX3927_PCIC_LBC_TMFBSE | TX3927_PCIC_LBC_MSDSE;
+#endif
+	/* LB->PCI mappings */
+	tx3927_pcicptr->iomas = ~(io_size - 1);
+	tx3927_pcicptr->ilbioma = io_base;
+	tx3927_pcicptr->ipbioma = io_pciaddr;
+	tx3927_pcicptr->mmas = ~(mem_size - 1);
+	tx3927_pcicptr->ilbmma = mem_base;
+	tx3927_pcicptr->ipbmma = mem_pciaddr;
+	/* PCI->LB mappings */
+	tx3927_pcicptr->iobas = 0xffffffff;
+	tx3927_pcicptr->ioba = 0;
+	tx3927_pcicptr->tlbioma = 0;
+	tx3927_pcicptr->mbas = ~(sdram_size - 1);
+	tx3927_pcicptr->mba = 0;
+	tx3927_pcicptr->tlbmma = 0;
+	/* Enable Direct mapping Address Space Decoder */
+	tx3927_pcicptr->lbc |= TX3927_PCIC_LBC_ILMDE | TX3927_PCIC_LBC_ILIDE;
+
+	/* Clear All Local Bus Status */
+	tx3927_pcicptr->lbstat = TX3927_PCIC_LBIM_ALL;
+	/* Enable All Local Bus Interrupts */
+	tx3927_pcicptr->lbim = TX3927_PCIC_LBIM_ALL;
+	/* Clear All PCI Status Error */
+	tx3927_pcicptr->pcistat = TX3927_PCIC_PCISTATIM_ALL;
+	/* Enable All PCI Status Error Interrupts */
+	tx3927_pcicptr->pcistatim = TX3927_PCIC_PCISTATIM_ALL;
+
+	/* PCIC Int => IRC IRQ10 */
+	tx3927_pcicptr->il = TX3927_IR_PCI;
+	/* Target Control (per errata) */
+	tx3927_pcicptr->tc = TX3927_PCIC_TC_OF8E | TX3927_PCIC_TC_IF8E;
+
+	/* Enable Bus Arbiter */
+	if (!extarb)
+		tx3927_pcicptr->pbapmc = TX3927_PCIC_PBAPMC_PBAEN;
+
+	tx3927_pcicptr->pcicmd = PCI_COMMAND_MASTER |
+		PCI_COMMAND_MEMORY |
+		PCI_COMMAND_IO |
+		PCI_COMMAND_PARITY | PCI_COMMAND_SERR;
+	local_irq_restore(flags);
+}

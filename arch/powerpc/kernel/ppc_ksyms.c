@@ -8,7 +8,6 @@
 #include <linux/screen_info.h>
 #include <linux/vt_kern.h>
 #include <linux/nvram.h>
-#include <linux/console.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -43,6 +42,7 @@
 #include <asm/div64.h>
 #include <asm/signal.h>
 #include <asm/dcr.h>
+#include <asm/ftrace.h>
 
 #ifdef CONFIG_PPC32
 extern void transfer_to_handler(void);
@@ -66,6 +66,10 @@ EXPORT_SYMBOL(alignment_exception);
 EXPORT_SYMBOL(program_check_exception);
 EXPORT_SYMBOL(single_step_exception);
 EXPORT_SYMBOL(sys_sigreturn);
+#endif
+
+#ifdef CONFIG_FTRACE
+EXPORT_SYMBOL(_mcount);
 #endif
 
 EXPORT_SYMBOL(strcpy);
@@ -103,6 +107,9 @@ EXPORT_SYMBOL(giveup_fpu);
 #ifdef CONFIG_ALTIVEC
 EXPORT_SYMBOL(giveup_altivec);
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_VSX
+EXPORT_SYMBOL(giveup_vsx);
+#endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 EXPORT_SYMBOL(giveup_spe);
 #endif /* CONFIG_SPE */
@@ -160,7 +167,6 @@ EXPORT_SYMBOL(screen_info);
 EXPORT_SYMBOL(timer_interrupt);
 EXPORT_SYMBOL(irq_desc);
 EXPORT_SYMBOL(tb_ticks_per_jiffy);
-EXPORT_SYMBOL(console_drivers);
 EXPORT_SYMBOL(cacheable_memcpy);
 #endif
 

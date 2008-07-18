@@ -18,6 +18,7 @@ struct orion_nand_data {
 	u8 ale;		/* address line number connected to ALE */
 	u8 cle;		/* address line number connected to CLE */
 	u8 width;	/* buswidth */
+	u8 chip_delay;
 };
 
 

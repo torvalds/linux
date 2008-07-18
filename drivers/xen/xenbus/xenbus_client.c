@@ -117,7 +117,7 @@ int xenbus_watch_pathfmt(struct xenbus_device *dev,
 	char *path;
 
 	va_start(ap, pathfmt);
-	path = kvasprintf(GFP_KERNEL, pathfmt, ap);
+	path = kvasprintf(GFP_NOIO | __GFP_HIGH, pathfmt, ap);
 	va_end(ap);
 
 	if (!path) {
