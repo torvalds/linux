@@ -40,31 +40,7 @@
 
 static int fc_queue_work(struct Scsi_Host *, struct work_struct *);
 static void fc_vport_sched_delete(struct work_struct *work);
-
-/*
- * This is a temporary carrier for creating a vport. It will eventually
- * be replaced  by a real message definition for sgio or netlink.
- *
- * fc_vport_identifiers: This set of data contains all elements
- * to uniquely identify and instantiate a FC virtual port.
- *
- * Notes:
- *   symbolic_name: The driver is to append the symbolic_name string data
- *      to the symbolic_node_name data that it generates by default.
- *      the resulting combination should then be registered with the switch.
- *      It is expected that things like Xen may stuff a VM title into
- *      this field.
- */
-struct fc_vport_identifiers {
-	u64 node_name;
-	u64 port_name;
-	u32 roles;
-	bool disable;
-	enum fc_port_type vport_type;	/* only FC_PORTTYPE_NPIV allowed */
-	char symbolic_name[FC_VPORT_SYMBOLIC_NAMELEN];
-};
-
-static int fc_vport_create(struct Scsi_Host *shost, int channel,
+static int fc_vport_setup(struct Scsi_Host *shost, int channel,
 	struct device *pdev, struct fc_vport_identifiers  *ids,
 	struct fc_vport **vport);
 
@@ -1760,7 +1736,7 @@ store_fc_host_vport_create(struct device *dev, struct device_attribute *attr,
 	vid.disable = false;		/* always enabled */
 
 	/* we only allow support on Channel 0 !!! */
-	stat = fc_vport_create(shost, 0, &shost->shost_gendev, &vid, &vport);
+	stat = fc_vport_setup(shost, 0, &shost->shost_gendev, &vid, &vport);
 	return stat ? stat : count;
 }
 static FC_DEVICE_ATTR(host, vport_create, S_IWUSR, NULL,
@@ -3103,7 +3079,7 @@ fc_scsi_scan_rport(struct work_struct *work)
 
 
 /**
- * fc_vport_create - allocates and creates a FC virtual port.
+ * fc_vport_setup - allocates and creates a FC virtual port.
  * @shost:	scsi host the virtual port is connected to.
  * @channel:	Channel on shost port connected to.
  * @pdev:	parent device for vport
@@ -3118,7 +3094,7 @@ fc_scsi_scan_rport(struct work_struct *work)
  *	This routine assumes no locks are held on entry.
  */
 static int
-fc_vport_create(struct Scsi_Host *shost, int channel, struct device *pdev,
+fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	struct fc_vport_identifiers  *ids, struct fc_vport **ret_vport)
 {
 	struct fc_host_attrs *fc_host = shost_to_fc_host(shost);
@@ -3231,6 +3207,28 @@ delete_vport:
 	return error;
 }
 
+/**
+ * fc_vport_create - Admin App or LLDD requests creation of a vport
+ * @shost:	scsi host the virtual port is connected to.
+ * @channel:	channel on shost port connected to.
+ * @ids:	The world wide names, FC4 port roles, etc for
+ *              the virtual port.
+ *
+ * Notes:
+ *	This routine assumes no locks are held on entry.
+ */
+struct fc_vport *
+fc_vport_create(struct Scsi_Host *shost, int channel,
+	struct fc_vport_identifiers *ids)
+{
+	int stat;
+	struct fc_vport *vport;
+
+	stat = fc_vport_setup(shost, channel, &shost->shost_gendev,
+		 ids, &vport);
+	return stat ? NULL : vport;
+}
+EXPORT_SYMBOL(fc_vport_create);
 
 /**
  * fc_vport_terminate - Admin App or LLDD requests termination of a vport
