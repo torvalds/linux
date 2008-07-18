@@ -9,8 +9,7 @@
 #include <asm/calgary.h>
 #include <asm/amd_iommu.h>
 
-int forbid_dac __read_mostly;
-EXPORT_SYMBOL(forbid_dac);
+static int forbid_dac __read_mostly;
 
 const struct dma_mapping_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
