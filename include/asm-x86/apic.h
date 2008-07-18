@@ -12,7 +12,7 @@
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
-#define Dprintk(x...)
+#define Dprintk printk
 
 /*
  * Debugging macros
