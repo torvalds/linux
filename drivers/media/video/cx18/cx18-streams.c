@@ -311,8 +311,10 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 
 	/* Teardown all streams */
 	for (type = 0; type < CX18_MAX_STREAMS; type++) {
-		if (cx->streams[type].dvb.enabled)
+		if (cx->streams[type].dvb.enabled) {
 			cx18_dvb_unregister(&cx->streams[type]);
+			cx->streams[type].dvb.enabled = false;
+		}
 
 		vdev = cx->streams[type].v4l2dev;
 

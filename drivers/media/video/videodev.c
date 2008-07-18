@@ -2023,7 +2023,7 @@ EXPORT_SYMBOL(video_ioctl2);
 static int get_index(struct video_device *vdev, int num)
 {
 	u32 used = 0;
-	const unsigned max_index = sizeof(used) * 8 - 1;
+	const int max_index = sizeof(used) * 8 - 1;
 	int i;
 
 	/* Currently a single v4l driver instance cannot create more than
@@ -2145,14 +2145,15 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	vfd->minor=i;
 
 	ret = get_index(vfd, index);
+	vfd->index = ret;
+
+	mutex_unlock(&videodev_lock);
+
 	if (ret < 0) {
 		printk(KERN_ERR "%s: get_index failed\n", __func__);
 		goto fail_minor;
 	}
 
-	vfd->index = ret;
-
-	mutex_unlock(&videodev_lock);
 	mutex_init(&vfd->lock);
 
 	/* sysfs class */
