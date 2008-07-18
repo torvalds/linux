@@ -1,5 +1,5 @@
 /*
- * linux/arch/mips/tx4927/common/tx4927_prom.c
+ * linux/arch/mips/txx9/generic/mem_tx4927.c
  *
  * common tx4927 memory interface
  *
@@ -32,8 +32,9 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/io.h>
+#include <asm/txx9/tx4927.h>
 
-static unsigned int __init tx4927_process_sdccr(unsigned long addr)
+static unsigned int __init tx4927_process_sdccr(u64 __iomem *addr)
 {
 	u64 val;
 	unsigned int sdccr_ce;
@@ -45,97 +46,32 @@ static unsigned int __init tx4927_process_sdccr(unsigned long addr)
 	unsigned int rs = 0;
 	unsigned int cs = 0;
 	unsigned int mw = 0;
-	unsigned int msize = 0;
 
-	val = __raw_readq((void __iomem *)addr);
+	val = __raw_readq(addr);
 
 	/* MVMCP -- need #defs for these bits masks */
 	sdccr_ce = ((val & (1 << 10)) >> 10);
 	sdccr_bs = ((val & (1 << 8)) >> 8);
 	sdccr_rs = ((val & (3 << 5)) >> 5);
-	sdccr_cs = ((val & (3 << 2)) >> 2);
+	sdccr_cs = ((val & (7 << 2)) >> 2);
 	sdccr_mw = ((val & (1 << 0)) >> 0);
 
 	if (sdccr_ce) {
-		switch (sdccr_bs) {
-		case 0:{
-				bs = 2;
-				break;
-			}
-		case 1:{
-				bs = 4;
-				break;
-			}
-		}
-		switch (sdccr_rs) {
-		case 0:{
-				rs = 2048;
-				break;
-			}
-		case 1:{
-				rs = 4096;
-				break;
-			}
-		case 2:{
-				rs = 8192;
-				break;
-			}
-		case 3:{
-				rs = 0;
-				break;
-			}
-		}
-		switch (sdccr_cs) {
-		case 0:{
-				cs = 256;
-				break;
-			}
-		case 1:{
-				cs = 512;
-				break;
-			}
-		case 2:{
-				cs = 1024;
-				break;
-			}
-		case 3:{
-				cs = 2048;
-				break;
-			}
-		}
-		switch (sdccr_mw) {
-		case 0:{
-				mw = 8;
-				break;
-			}	/* 8 bytes = 64 bits */
-		case 1:{
-				mw = 4;
-				break;
-			}	/* 4 bytes = 32 bits */
-		}
+		bs = 2 << sdccr_bs;
+		rs = 2048 << sdccr_rs;
+		cs = 256 << sdccr_cs;
+		mw = 8 >> sdccr_mw;
 	}
 
-	/*            bytes per chip     MB per chip      num chips */
-	msize = (((rs * cs * mw) / (1024 * 1024)) * bs);
-
-	return (msize);
+	return rs * cs * mw * bs;
 }
-
 
 unsigned int __init tx4927_get_mem_size(void)
 {
-	unsigned int c0;
-	unsigned int c1;
-	unsigned int c2;
-	unsigned int c3;
-	unsigned int total;
+	unsigned int total = 0;
+	int i;
 
-	/* MVMCP -- need #defs for these registers */
-	c0 = tx4927_process_sdccr(0xff1f8000);
-	c1 = tx4927_process_sdccr(0xff1f8008);
-	c2 = tx4927_process_sdccr(0xff1f8010);
-	c3 = tx4927_process_sdccr(0xff1f8018);
-	total = c0 + c1 + c2 + c3;
-
-	return (total);
+	for (i = 0; i < ARRAY_SIZE(tx4927_sdramcptr->cr); i++)
+		total += tx4927_process_sdccr(&tx4927_sdramcptr->cr[i]);
+	return total;
 }

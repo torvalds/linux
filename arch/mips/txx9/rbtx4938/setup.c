@@ -310,7 +310,7 @@ void __init tx4938_board_setup(void)
 
 	printk(KERN_INFO "%s SDRAMC --", txx9_pcode_str);
 	for (i = 0; i < 4; i++) {
-		unsigned long long cr = tx4938_sdramcptr->cr[i];
+		u64 cr = TX4938_SDRAMC_CR(i);
 		unsigned long ram_base, ram_size;
 		if (!((unsigned long)cr & 0x00000400))
 			continue;	/* disabled */
@@ -318,20 +318,21 @@ void __init tx4938_board_setup(void)
 		ram_size = ((unsigned long)(cr >> 33) + 1) << 21;
 		if (ram_base >= 0x20000000)
 			continue;	/* high memory (ignore) */
-		printk(" CR%d:%016Lx", i, cr);
+		printk(KERN_CONT " CR%d:%016llx", i, cr);
 		tx4938_sdram_resource[i].name = "SDRAM";
 		tx4938_sdram_resource[i].start = ram_base;
 		tx4938_sdram_resource[i].end = ram_base + ram_size - 1;
 		tx4938_sdram_resource[i].flags = IORESOURCE_MEM;
 		request_resource(&iomem_resource, &tx4938_sdram_resource[i]);
 	}
-	printk(" TR:%09Lx\n", tx4938_sdramcptr->tr);
+	printk(KERN_CONT " TR:%09llx\n", ____raw_readq(&tx4938_sdramcptr->tr));
 
 	/* SRAM */
-	if (tx4938_sramcptr->cr & 1) {
+	if (____raw_readq(&tx4938_sramcptr->cr) & 1) {
 		unsigned int size = 0x800;
 		unsigned long base =
-			(tx4938_sramcptr->cr >> (39-11)) & ~(size - 1);
+			(____raw_readq(&tx4938_sramcptr->cr) >> (39-11))
+			& ~(size - 1);
 		tx4938_sram_resource.name = "SRAM";
 		tx4938_sram_resource.start = base;
 		tx4938_sram_resource.end = base + size - 1;
