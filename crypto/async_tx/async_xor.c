@@ -121,7 +121,6 @@ do_async_xor(struct dma_chan *chan, struct page *dest, struct page **src_list,
 static void
 do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	    int src_cnt, size_t len, enum async_tx_flags flags,
-	    struct dma_async_tx_descriptor *depend_tx,
 	    dma_async_tx_callback cb_fn, void *cb_param)
 {
 	int i;
@@ -150,7 +149,7 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
 		src_off += xor_src_cnt;
 	}
 
-	async_tx_sync_epilog(flags, depend_tx, cb_fn, cb_param);
+	async_tx_sync_epilog(cb_fn, cb_param);
 }
 
 /**
@@ -204,7 +203,7 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 		async_tx_quiesce(&depend_tx);
 
 		do_sync_xor(dest, src_list, offset, src_cnt, len,
-			    flags, depend_tx, cb_fn, cb_param);
+			    flags, cb_fn, cb_param);
 
 		return NULL;
 	}
@@ -287,7 +286,7 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 
 		*result = page_is_zero(dest, offset, len) ? 0 : 1;
 
-		async_tx_sync_epilog(flags, depend_tx, cb_fn, cb_param);
+		async_tx_sync_epilog(cb_fn, cb_param);
 	}
 
 	return tx;

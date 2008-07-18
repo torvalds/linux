@@ -76,7 +76,7 @@ async_memset(struct page *dest, int val, unsigned int offset,
 
 		memset(dest_buf, val, len);
 
-		async_tx_sync_epilog(flags, depend_tx, cb_fn, cb_param);
+		async_tx_sync_epilog(cb_fn, cb_param);
 	}
 
 	return tx;

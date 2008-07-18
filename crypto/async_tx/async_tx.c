@@ -609,7 +609,7 @@ async_trigger_callback(enum async_tx_flags flags,
 		/* wait for any prerequisite operations */
 		async_tx_quiesce(&depend_tx);
 
-		async_tx_sync_epilog(flags, depend_tx, cb_fn, cb_param);
+		async_tx_sync_epilog(cb_fn, cb_param);
 	}
 
 	return tx;
