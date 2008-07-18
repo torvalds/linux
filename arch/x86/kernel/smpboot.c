@@ -1311,7 +1311,7 @@ static void __ref remove_cpu_from_maps(int cpu)
 	cpu_clear(cpu, cpu_callout_map);
 	cpu_clear(cpu, cpu_callin_map);
 	/* was set by cpu_init() */
-	clear_bit(cpu, (unsigned long *)&cpu_initialized);
+	cpu_clear(cpu, cpu_initialized);
 	numa_remove_cpu(cpu);
 }
 
