@@ -188,14 +188,14 @@ enum {
  * it will be 512 in case of a 2KiB page NAND flash with 4 512-byte sub-pages.
  *
  * But in rare cases, if this optimizes things, the VID header may be placed to
- * a different offset. For example, the boot-loader might do things faster if the
- * VID header sits at the end of the first 2KiB NAND page with 4 sub-pages. As
- * the boot-loader would not normally need to read EC headers (unless it needs
- * UBI in RW mode), it might be faster to calculate ECC. This is weird example,
- * but it real-life example. So, in this example, @vid_hdr_offer would be
- * 2KiB-64 bytes = 1984. Note, that this position is not even 512-bytes
- * aligned, which is OK, as UBI is clever enough to realize this is 4th sub-page
- * of the first page and add needed padding.
+ * a different offset. For example, the boot-loader might do things faster if
+ * the VID header sits at the end of the first 2KiB NAND page with 4 sub-pages.
+ * As the boot-loader would not normally need to read EC headers (unless it
+ * needs UBI in RW mode), it might be faster to calculate ECC. This is weird
+ * example, but it real-life example. So, in this example, @vid_hdr_offer would
+ * be 2KiB-64 bytes = 1984. Note, that this position is not even 512-bytes
+ * aligned, which is OK, as UBI is clever enough to realize this is 4th
+ * sub-page of the first page and add needed padding.
  */
 struct ubi_attach_req {
 	int32_t ubi_num;

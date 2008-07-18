@@ -189,9 +189,7 @@ static struct ubi_ltree_entry *ltree_add_entry(struct ubi_device *ubi,
 	le->users += 1;
 	spin_unlock(&ubi->ltree_lock);
 
-	if (le_free)
-		kfree(le_free);
-
+	kfree(le_free);
 	return le;
 }
 
@@ -503,9 +501,8 @@ static int recover_peb(struct ubi_device *ubi, int pnum, int vol_id, int lnum,
 	struct ubi_vid_hdr *vid_hdr;
 
 	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
-	if (!vid_hdr) {
+	if (!vid_hdr)
 		return -ENOMEM;
-	}
 
 	mutex_lock(&ubi->buf_mutex);
 

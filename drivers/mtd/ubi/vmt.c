@@ -253,7 +253,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 			goto out_unlock;
 		}
 
-        /* Calculate how many eraseblocks are requested */
+	/* Calculate how many eraseblocks are requested */
 	vol->usable_leb_size = ubi->leb_size - ubi->leb_size % req->alignment;
 	bytes = req->bytes;
 	if (do_div(bytes, vol->usable_leb_size))
@@ -858,7 +858,7 @@ static int paranoid_check_volume(struct ubi_device *ubi, int vol_id)
 
 	if (alignment != vol->alignment || data_pad != vol->data_pad ||
 	    upd_marker != vol->upd_marker || vol_type != vol->vol_type ||
-	    name_len!= vol->name_len || strncmp(name, vol->name, name_len)) {
+	    name_len != vol->name_len || strncmp(name, vol->name, name_len)) {
 		ubi_err("volume info is different");
 		goto fail;
 	}

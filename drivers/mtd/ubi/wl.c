@@ -475,52 +475,47 @@ retry:
 	}
 
 	switch (dtype) {
-		case UBI_LONGTERM:
-			/*
-			 * For long term data we pick a physical eraseblock
-			 * with high erase counter. But the highest erase
-			 * counter we can pick is bounded by the the lowest
-			 * erase counter plus %WL_FREE_MAX_DIFF.
-			 */
-			e = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
-			protect = LT_PROTECTION;
-			break;
-		case UBI_UNKNOWN:
-			/*
-			 * For unknown data we pick a physical eraseblock with
-			 * medium erase counter. But we by no means can pick a
-			 * physical eraseblock with erase counter greater or
-			 * equivalent than the lowest erase counter plus
-			 * %WL_FREE_MAX_DIFF.
-			 */
-			first = rb_entry(rb_first(&ubi->free),
-					 struct ubi_wl_entry, rb);
-			last = rb_entry(rb_last(&ubi->free),
-					struct ubi_wl_entry, rb);
+	case UBI_LONGTERM:
+		/*
+		 * For long term data we pick a physical eraseblock with high
+		 * erase counter. But the highest erase counter we can pick is
+		 * bounded by the the lowest erase counter plus
+		 * %WL_FREE_MAX_DIFF.
+		 */
+		e = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
+		protect = LT_PROTECTION;
+		break;
+	case UBI_UNKNOWN:
+		/*
+		 * For unknown data we pick a physical eraseblock with medium
+		 * erase counter. But we by no means can pick a physical
+		 * eraseblock with erase counter greater or equivalent than the
+		 * lowest erase counter plus %WL_FREE_MAX_DIFF.
+		 */
+		first = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry, rb);
+		last = rb_entry(rb_last(&ubi->free), struct ubi_wl_entry, rb);
 
-			if (last->ec - first->ec < WL_FREE_MAX_DIFF)
-				e = rb_entry(ubi->free.rb_node,
-						struct ubi_wl_entry, rb);
-			else {
-				medium_ec = (first->ec + WL_FREE_MAX_DIFF)/2;
-				e = find_wl_entry(&ubi->free, medium_ec);
-			}
-			protect = U_PROTECTION;
-			break;
-		case UBI_SHORTTERM:
-			/*
-			 * For short term data we pick a physical eraseblock
-			 * with the lowest erase counter as we expect it will
-			 * be erased soon.
-			 */
-			e = rb_entry(rb_first(&ubi->free),
-				     struct ubi_wl_entry, rb);
-			protect = ST_PROTECTION;
-			break;
-		default:
-			protect = 0;
-			e = NULL;
-			BUG();
+		if (last->ec - first->ec < WL_FREE_MAX_DIFF)
+			e = rb_entry(ubi->free.rb_node,
+					struct ubi_wl_entry, rb);
+		else {
+			medium_ec = (first->ec + WL_FREE_MAX_DIFF)/2;
+			e = find_wl_entry(&ubi->free, medium_ec);
+		}
+		protect = U_PROTECTION;
+		break;
+	case UBI_SHORTTERM:
+		/*
+		 * For short term data we pick a physical eraseblock with the
+		 * lowest erase counter as we expect it will be erased soon.
+		 */
+		e = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry, rb);
+		protect = ST_PROTECTION;
+		break;
+	default:
+		protect = 0;
+		e = NULL;
+		BUG();
 	}
 
 	/*
@@ -584,7 +579,8 @@ found:
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-static int sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e, int torture)
+static int sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
+		      int torture)
 {
 	int err;
 	struct ubi_ec_hdr *ec_hdr;
@@ -1060,8 +1056,8 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 		spin_unlock(&ubi->wl_lock);
 
 		/*
-		 * One more erase operation has happened, take care about protected
-		 * physical eraseblocks.
+		 * One more erase operation has happened, take care about
+		 * protected physical eraseblocks.
 		 */
 		check_protection_over(ubi);
 

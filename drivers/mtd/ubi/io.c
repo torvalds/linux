@@ -167,8 +167,8 @@ retry:
 		}
 
 		if (read != len && retries++ < UBI_IO_RETRIES) {
-			dbg_io("error %d while reading %d bytes from PEB %d:%d, "
-			       "read only %zd bytes, retry",
+			dbg_io("error %d while reading %d bytes from PEB %d:%d,"
+			       " read only %zd bytes, retry",
 			       err, len, pnum, offset, read);
 			yield();
 			goto retry;
@@ -705,8 +705,8 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 
 	if (hdr_crc != crc) {
 		if (verbose) {
-			ubi_warn("bad EC header CRC at PEB %d, calculated %#08x,"
-				 " read %#08x", pnum, crc, hdr_crc);
+			ubi_warn("bad EC header CRC at PEB %d, calculated "
+				 "%#08x, read %#08x", pnum, crc, hdr_crc);
 			ubi_dbg_dump_ec_hdr(ec_hdr);
 		}
 		return UBI_IO_BAD_EC_HDR;

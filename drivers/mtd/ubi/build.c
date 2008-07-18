@@ -51,14 +51,13 @@
  * @name: MTD device name or number string
  * @vid_hdr_offs: VID header offset
  */
-struct mtd_dev_param
-{
+struct mtd_dev_param {
 	char name[MTD_PARAM_LEN_MAX];
 	int vid_hdr_offs;
 };
 
 /* Numbers of elements set in the @mtd_dev_param array */
-static int mtd_devs = 0;
+static int mtd_devs;
 
 /* MTD devices specification parameters */
 static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
@@ -781,7 +780,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 			if (!ubi_devices[ubi_num])
 				break;
 		if (ubi_num == UBI_MAX_DEVICES) {
-			dbg_err("only %d UBI devices may be created", UBI_MAX_DEVICES);
+			dbg_err("only %d UBI devices may be created",
+				UBI_MAX_DEVICES);
 			return -ENFILE;
 		}
 	} else {

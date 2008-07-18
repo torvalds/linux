@@ -39,9 +39,9 @@
 #include <linux/stat.h>
 #include <linux/ioctl.h>
 #include <linux/capability.h>
+#include <linux/uaccess.h>
 #include <linux/smp_lock.h>
 #include <mtd/ubi-user.h>
-#include <asm/uaccess.h>
 #include <asm/div64.h>
 #include "ubi.h"
 
@@ -352,7 +352,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 }
 
 #else
-#define vol_cdev_direct_write(file, buf, count, offp) -EPERM
+#define vol_cdev_direct_write(file, buf, count, offp) (-EPERM)
 #endif /* CONFIG_MTD_UBI_DEBUG_USERSPACE_IO */
 
 static ssize_t vol_cdev_write(struct file *file, const char __user *buf,

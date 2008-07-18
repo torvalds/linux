@@ -461,7 +461,8 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 	if (!leb_corrupted[0]) {
 		/* LEB 0 is OK */
 		if (leb[1])
-			leb_corrupted[1] = memcmp(leb[0], leb[1], ubi->vtbl_size);
+			leb_corrupted[1] = memcmp(leb[0], leb[1],
+						  ubi->vtbl_size);
 		if (leb_corrupted[1]) {
 			ubi_warn("volume table copy #2 is corrupted");
 			err = create_vtbl(ubi, si, 1, leb[0]);
@@ -859,11 +860,10 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si)
 
 out_free:
 	vfree(ubi->vtbl);
-	for (i = 0; i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++)
-		if (ubi->volumes[i]) {
-			kfree(ubi->volumes[i]);
-			ubi->volumes[i] = NULL;
-		}
+	for (i = 0; i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
+		kfree(ubi->volumes[i]);
+		ubi->volumes[i] = NULL;
+	}
 	return err;
 }
 

@@ -248,7 +248,8 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 	unsigned long long sqnum2 = be64_to_cpu(vid_hdr->sqnum);
 
 	if (seb->sqnum == 0 && sqnum2 == 0) {
-		long long abs, v1 = seb->leb_ver, v2 = be32_to_cpu(vid_hdr->leb_ver);
+		long long abs;
+		long long v1 = seb->leb_ver, v2 = be32_to_cpu(vid_hdr->leb_ver);
 
 		/*
 		 * UBI constantly increases the logical eraseblock version
@@ -752,7 +753,8 @@ struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
  * This function returns a zero if the physical eraseblock was successfully
  * handled and a negative error code in case of failure.
  */
-static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum)
+static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
+		      int pnum)
 {
 	long long uninitialized_var(ec);
 	int err, bitflips = 0, vol_id, ec_corr = 0;
@@ -1301,8 +1303,7 @@ static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 		if (err < 0) {
 			kfree(buf);
 			return err;
-		}
-		else if (err)
+		} else if (err)
 			buf[pnum] = 1;
 	}
 

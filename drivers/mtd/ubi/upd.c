@@ -39,7 +39,7 @@
  */
 
 #include <linux/err.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/div64.h>
 #include "ubi.h"
 
@@ -246,7 +246,8 @@ static int write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 			return 0;
 		}
 
-		err = ubi_eba_write_leb(ubi, vol, lnum, buf, 0, len, UBI_UNKNOWN);
+		err = ubi_eba_write_leb(ubi, vol, lnum, buf, 0, len,
+					UBI_UNKNOWN);
 	} else {
 		/*
 		 * When writing static volume, and this is the last logical
@@ -418,7 +419,8 @@ int ubi_more_leb_change_data(struct ubi_device *ubi, struct ubi_volume *vol,
 	if (vol->upd_received == vol->upd_bytes) {
 		int len = ALIGN((int)vol->upd_bytes, ubi->min_io_size);
 
-		memset(vol->upd_buf + vol->upd_bytes, 0xFF, len - vol->upd_bytes);
+		memset(vol->upd_buf + vol->upd_bytes, 0xFF,
+		       len - vol->upd_bytes);
 		len = ubi_calc_data_len(ubi, vol->upd_buf, len);
 		err = ubi_eba_atomic_leb_change(ubi, vol, vol->ch_lnum,
 						vol->upd_buf, len, UBI_UNKNOWN);
