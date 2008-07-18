@@ -134,26 +134,53 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-int btrfs_csum_one_bio(struct btrfs_root *root,
-		       struct bio *bio, struct btrfs_ordered_sum **sums_ret)
+int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
+		       struct bio *bio)
 {
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_sector_sum *sector_sum;
+	struct btrfs_ordered_extent *ordered;
 	char *data;
 	struct bio_vec *bvec = bio->bi_io_vec;
 	int bio_index = 0;
+	unsigned long total_bytes = 0;
+	unsigned long this_sum_bytes = 0;
+	u64 offset;
 
 	WARN_ON(bio->bi_vcnt <= 0);
 	sums = kzalloc(btrfs_ordered_sum_size(root, bio->bi_size), GFP_NOFS);
 	if (!sums)
 		return -ENOMEM;
-	*sums_ret = sums;
+
 	sector_sum = &sums->sums;
-	sums->file_offset = page_offset(bvec->bv_page);
+	sums->file_offset = page_offset(bvec->bv_page) + bvec->bv_offset;
 	sums->len = bio->bi_size;
 	INIT_LIST_HEAD(&sums->list);
+	ordered = btrfs_lookup_ordered_extent(inode, sums->file_offset);
+	BUG_ON(!ordered);
 
 	while(bio_index < bio->bi_vcnt) {
+		offset = page_offset(bvec->bv_page) + bvec->bv_offset;
+		if (offset >= ordered->file_offset + ordered->len) {
+			unsigned long bytes_left;
+			sums->len = this_sum_bytes;
+			this_sum_bytes = 0;
+			btrfs_add_ordered_sum(inode, ordered, sums);
+			btrfs_put_ordered_extent(ordered);
+
+			bytes_left = bio->bi_size - total_bytes;
+
+			sums = kzalloc(btrfs_ordered_sum_size(root, bytes_left),
+				       GFP_NOFS);
+			BUG_ON(!sums);
+			sector_sum = &sums->sums;
+			sums->len = bytes_left;
+			sums->file_offset = offset;
+			ordered = btrfs_lookup_ordered_extent(inode,
+						      sums->file_offset);
+			BUG_ON(!ordered);
+		}
+
 		data = kmap_atomic(bvec->bv_page, KM_USER0);
 		sector_sum->sum = ~(u32)0;
 		sector_sum->sum = btrfs_csum_data(root,
@@ -165,9 +192,17 @@ int btrfs_csum_one_bio(struct btrfs_root *root,
 				 (char *)&sector_sum->sum);
 		sector_sum->offset = page_offset(bvec->bv_page) +
 			bvec->bv_offset;
+
 		sector_sum++;
 		bio_index++;
+		total_bytes += bvec->bv_len;
+		this_sum_bytes += bvec->bv_len;
 		bvec++;
+	}
+	btrfs_add_ordered_sum(inode, ordered, sums);
+	btrfs_put_ordered_extent(ordered);
+	if (total_bytes != bio->bi_size) {
+printk("warning, total bytes %lu bio size %u\n", total_bytes, bio->bi_size);
 	}
 	return 0;
 }

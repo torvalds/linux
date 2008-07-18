@@ -186,22 +186,17 @@ int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 
 /*
  * Add a struct btrfs_ordered_sum into the list of checksums to be inserted
- * when an ordered extent is finished.
+ * when an ordered extent is finished.  If the list covers more than one
+ * ordered extent, it is split across multiples.
  */
-int btrfs_add_ordered_sum(struct inode *inode, struct btrfs_ordered_sum *sum)
+int btrfs_add_ordered_sum(struct inode *inode,
+			  struct btrfs_ordered_extent *entry,
+			  struct btrfs_ordered_sum *sum)
 {
 	struct btrfs_ordered_inode_tree *tree;
-	struct rb_node *node;
-	struct btrfs_ordered_extent *entry;
 
 	tree = &BTRFS_I(inode)->ordered_tree;
 	mutex_lock(&tree->mutex);
-	node = tree_search(tree, sum->file_offset);
-	BUG_ON(!node);
-
-	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
-	BUG_ON(!offset_in_entry(entry, sum->file_offset));
-
 	list_add_tail(&sum->list, &entry->list);
 	mutex_unlock(&tree->mutex);
 	return 0;
@@ -524,8 +519,10 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum)
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
 	struct list_head *cur;
+	unsigned long num_sectors;
+	unsigned long i;
+	u32 sectorsize = BTRFS_I(inode)->root->sectorsize;
 	int ret = 1;
-	int index;
 
 	ordered = btrfs_lookup_ordered_extent(inode, offset);
 	if (!ordered)
@@ -534,14 +531,17 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum)
 	mutex_lock(&tree->mutex);
 	list_for_each_prev(cur, &ordered->list) {
 		ordered_sum = list_entry(cur, struct btrfs_ordered_sum, list);
-		if (offset >= ordered_sum->file_offset &&
-		    offset < ordered_sum->file_offset + ordered_sum->len) {
-			index = (offset - ordered_sum->file_offset) /
-				BTRFS_I(inode)->root->sectorsize;;
+		if (offset >= ordered_sum->file_offset) {
+			num_sectors = ordered_sum->len / sectorsize;
 			sector_sums = &ordered_sum->sums;
-			*sum = sector_sums[index].sum;
-			ret = 0;
-			goto out;
+			for (i = 0; i < num_sectors; i++) {
+				if (sector_sums[i].offset == offset) {
+printk("find ordered sum inode %lu offset %Lu\n", inode->i_ino, offset);
+					*sum = sector_sums[i].sum;
+					ret = 0;
+					goto out;
+				}
+			}
 		}
 	}
 out:

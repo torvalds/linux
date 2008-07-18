@@ -351,12 +351,8 @@ int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
-	struct btrfs_ordered_sum *sums;
 
-	ret = btrfs_csum_one_bio(root, bio, &sums);
-	BUG_ON(ret);
-
-	ret = btrfs_add_ordered_sum(inode, sums);
+	ret = btrfs_csum_one_bio(root, inode, bio);
 	BUG_ON(ret);
 
 	return btrfs_map_bio(root, rw, bio, mirror_num, 1);

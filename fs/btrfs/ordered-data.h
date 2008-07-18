@@ -39,7 +39,11 @@ struct btrfs_sector_sum {
 
 struct btrfs_ordered_sum {
 	u64 file_offset;
-	u64 len;
+	/*
+	 * this is the length in bytes covered by the sums array below.
+	 * But, the sums array may not be contiguous in the file.
+	 */
+	unsigned long len;
 	struct list_head list;
 	/* last field is a variable length array of btrfs_sector_sums */
 	struct btrfs_sector_sum sums;
@@ -95,6 +99,7 @@ static inline int btrfs_ordered_sum_size(struct btrfs_root *root, u64 bytes)
 {
 	unsigned long num_sectors = (bytes + root->sectorsize - 1) /
 		root->sectorsize;
+	num_sectors++;
 	return sizeof(struct btrfs_ordered_sum) +
 		num_sectors * sizeof(struct btrfs_sector_sum);
 }
@@ -114,7 +119,9 @@ int btrfs_dec_test_ordered_pending(struct inode *inode,
 				       u64 file_offset, u64 io_size);
 int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 			     u64 start, u64 len);
-int btrfs_add_ordered_sum(struct inode *inode, struct btrfs_ordered_sum *sum);
+int btrfs_add_ordered_sum(struct inode *inode,
+			  struct btrfs_ordered_extent *entry,
+			  struct btrfs_ordered_sum *sum);
 struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct inode *inode,
 							 u64 file_offset);
 void btrfs_start_ordered_extent(struct inode *inode,
