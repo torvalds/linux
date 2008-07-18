@@ -5,6 +5,7 @@
 #include <linux/scatterlist.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>
+#include <asm-generic/dma-coherent.h>
 
 extern struct bus_type pci_bus_type;
 
