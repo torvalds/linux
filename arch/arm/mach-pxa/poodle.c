@@ -34,7 +34,7 @@
 
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/pxa2xx-gpio.h>
+#include <mach/mfp-pxa25x.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/i2c.h>
@@ -51,6 +51,88 @@
 #include "generic.h"
 #include "devices.h"
 #include "sharpsl.h"
+
+static unsigned long poodle_pin_config[] __initdata = {
+	/* I/O */
+	GPIO79_nCS_3,
+	GPIO80_nCS_4,
+	GPIO18_RDY,
+
+	/* Clock */
+	GPIO12_32KHz,
+
+	/* SSP1 */
+	GPIO23_SSP1_SCLK,
+	GPIO24_SSP1_SFRM,
+	GPIO25_SSP1_TXD,
+	GPIO26_SSP1_RXD,
+
+	/* I2S */
+	GPIO28_I2S_BITCLK_OUT,
+	GPIO29_I2S_SDATA_IN,
+	GPIO30_I2S_SDATA_OUT,
+	GPIO31_I2S_SYNC,
+	GPIO32_I2S_SYSCLK,
+
+	/* Infra-Red */
+	GPIO47_FICP_TXD,
+	GPIO46_FICP_RXD,
+
+	/* FFUART */
+	GPIO40_FFUART_DTR,
+	GPIO41_FFUART_RTS,
+	GPIO39_FFUART_TXD,
+	GPIO37_FFUART_DSR,
+	GPIO34_FFUART_RXD,
+	GPIO35_FFUART_CTS,
+
+	/* LCD */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
+	GPIO77_LCD_ACBIAS,
+
+	/* PC Card */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO52_nPCE_1,
+	GPIO53_nPCE_2,
+	GPIO54_nPSKTSEL,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
+
+	/* MMC */
+	GPIO6_MMC_CLK,
+	GPIO8_MMC_CS0,
+
+	/* GPIO */
+	GPIO9_GPIO,	/* POODLE_GPIO_nSD_DETECT */
+	GPIO7_GPIO,	/* POODLE_GPIO_nSD_WP */
+	GPIO3_GPIO,	/* POODLE_GPIO_SD_PWR */
+	GPIO33_GPIO,	/* POODLE_GPIO_SD_PWR1 */
+
+	GPIO20_GPIO,	/* POODLE_GPIO_USB_PULLUP */
+	GPIO22_GPIO,	/* POODLE_GPIO_IR_ON */
+};
 
 static struct resource poodle_scoop_resources[] = {
 	[0] = {
@@ -75,27 +157,6 @@ struct platform_device poodle_scoop_device = {
 	.resource	= poodle_scoop_resources,
 };
 
-static void poodle_pcmcia_init(void)
-{
-	/* Setup default state of GPIO outputs
-	   before we enable them as outputs. */
-	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
-		GPIO_bit(GPIO49_nPWE) | GPIO_bit(GPIO50_nPIOR) |
-		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO52_nPCE_1) |
-		GPIO_bit(GPIO53_nPCE_2);
-
-	pxa_gpio_mode(GPIO48_nPOE_MD);
-	pxa_gpio_mode(GPIO49_nPWE_MD);
-	pxa_gpio_mode(GPIO50_nPIOR_MD);
-	pxa_gpio_mode(GPIO51_nPIOW_MD);
-	pxa_gpio_mode(GPIO55_nPREG_MD);
-	pxa_gpio_mode(GPIO56_nPWAIT_MD);
-	pxa_gpio_mode(GPIO57_nIOIS16_MD);
-	pxa_gpio_mode(GPIO52_nPCE_1_MD);
-	pxa_gpio_mode(GPIO53_nPCE_2_MD);
-	pxa_gpio_mode(GPIO54_pSKTSEL_MD);
-}
-
 static struct scoop_pcmcia_dev poodle_pcmcia_scoop[] = {
 {
 	.dev        = &poodle_scoop_device.dev,
@@ -108,7 +169,6 @@ static struct scoop_pcmcia_dev poodle_pcmcia_scoop[] = {
 static struct scoop_pcmcia_config poodle_pcmcia_config = {
 	.devs         = &poodle_pcmcia_scoop[0],
 	.num_devs     = 1,
-	.pcmcia_init  = poodle_pcmcia_init,
 };
 
 EXPORT_SYMBOL(poodle_scoop_device);
@@ -205,10 +265,6 @@ static struct pxamci_platform_data poodle_mci_platform_data;
 static int poodle_mci_init(struct device *dev, irq_handler_t poodle_detect_int, void *data)
 {
 	int err;
-
-	/* setup GPIO for PXA25x MMC controller	*/
-	pxa_gpio_mode(GPIO6_MMCCLK_MD);
-	pxa_gpio_mode(GPIO8_MMCCS0_MD);
 
 	err = gpio_request(POODLE_GPIO_nSD_DETECT, "nSD_DETECT");
 	if (err)
@@ -384,42 +440,9 @@ static void __init poodle_init(void)
 	pm_power_off = poodle_poweroff;
 	arm_pm_restart = poodle_restart;
 
-	/* setup sleep mode values */
-	PWER  = 0x00000002;
-	PFER  = 0x00000000;
-	PRER  = 0x00000002;
-	PGSR0 = 0x00008000;
-	PGSR1 = 0x003F0202;
-	PGSR2 = 0x0001C000;
 	PCFR |= PCFR_OPDE;
 
-	/* cpu initialize */
-	/* Pgsr Register */
-  	PGSR0 = 0x0146dd80;
-  	PGSR1 = 0x03bf0890;
-  	PGSR2 = 0x0001c000;
-
-	/* Alternate Register */
-  	GAFR0_L = 0x01001000;
-  	GAFR0_U = 0x591a8010;
-  	GAFR1_L = 0x900a8451;
-  	GAFR1_U = 0xaaa5aaaa;
-  	GAFR2_L = 0x8aaaaaaa;
-  	GAFR2_U = 0x00000002;
-
-	/* Direction Register */
-  	GPDR0 = 0xd3f0904c;
-  	GPDR1 = 0xfcffb7d3;
-  	GPDR2 = 0x0001ffff;
-
-	/* Output Register */
-  	GPCR0 = 0x00000000;
-  	GPCR1 = 0x00000000;
-  	GPCR2 = 0x00000000;
-
-  	GPSR0 = 0x00400000;
-  	GPSR1 = 0x00000000;
-        GPSR2 = 0x00000000;
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(poodle_pin_config));
 
 	platform_scoop_config = &poodle_pcmcia_config;
 	corgi_ssp_set_machinfo(&poodle_ssp_machinfo);
@@ -430,8 +453,6 @@ static void __init poodle_init(void)
 
 	set_pxa_fb_parent(&poodle_locomo_device.dev);
 	set_pxa_fb_info(&poodle_fb_info);
-	pxa_gpio_mode(POODLE_GPIO_USB_PULLUP | GPIO_OUT);
-	pxa_gpio_mode(POODLE_GPIO_IR_ON | GPIO_OUT);
 	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
