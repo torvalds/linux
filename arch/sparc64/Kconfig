@@ -16,6 +16,7 @@ config SPARC64
 	select HAVE_IDE
 	select HAVE_LMB
 	select HAVE_ARCH_KGDB
+	select USE_GENERIC_SMP_HELPERS if SMP
 
 config GENERIC_TIME
 	bool

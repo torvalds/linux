@@ -688,6 +688,11 @@ xcall_call_function:
 	wr		%g0, (1 << PIL_SMP_CALL_FUNC), %set_softint
 	retry
 
+	.globl		xcall_call_function_single
+xcall_call_function_single:
+	wr		%g0, (1 << PIL_SMP_CALL_FUNC_SNGL), %set_softint
+	retry
+
 	.globl		xcall_receive_signal
 xcall_receive_signal:
 	wr		%g0, (1 << PIL_SMP_RECEIVE_SIGNAL), %set_softint
