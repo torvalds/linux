@@ -280,21 +280,9 @@ static struct pxaficp_platform_data poodle_ficp_platform_data = {
 /*
  * USB Device Controller
  */
-static void poodle_udc_command(int cmd)
-{
-	switch(cmd)	{
-	case PXA2XX_UDC_CMD_CONNECT:
-		GPSR(POODLE_GPIO_USB_PULLUP) = GPIO_bit(POODLE_GPIO_USB_PULLUP);
-		break;
-	case PXA2XX_UDC_CMD_DISCONNECT:
-		GPCR(POODLE_GPIO_USB_PULLUP) = GPIO_bit(POODLE_GPIO_USB_PULLUP);
-		break;
-	}
-}
-
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	/* no connect GPIO; poodle can't tell connection status */
-	.udc_command		= poodle_udc_command,
+	.gpio_pullup	= POODLE_GPIO_USB_PULLUP,
 };
 
 
