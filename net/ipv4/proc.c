@@ -342,7 +342,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, " %s", snmp4_ipstats_list[i].name);
 
 	seq_printf(seq, "\nIp: %d %d",
-		   IPV4_DEVCONF_ALL(&init_net, FORWARDING) ? 1 : 2,
+		   IPV4_DEVCONF_ALL(net, FORWARDING) ? 1 : 2,
 		   sysctl_ip_default_ttl);
 
 	for (i = 0; snmp4_ipstats_list[i].name != NULL; i++)
