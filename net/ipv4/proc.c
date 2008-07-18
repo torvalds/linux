@@ -508,7 +508,7 @@ static const struct file_operations netstat_seq_fops = {
 static __net_init int ip_proc_init_net(struct net *net)
 {
 	if (!proc_net_fops_create(net, "sockstat", S_IRUGO, &sockstat_seq_fops))
-		return -ENOMEM;
+		goto out_sockstat;
 	if (!proc_net_fops_create(net, "netstat", S_IRUGO, &netstat_seq_fops))
 		goto out_netstat;
 	if (!proc_net_fops_create(net, "snmp", S_IRUGO, &snmp_seq_fops))
@@ -520,6 +520,7 @@ out_snmp:
 	proc_net_remove(net, "netstat");
 out_netstat:
 	proc_net_remove(net, "sockstat");
+out_sockstat:
 	return -ENOMEM;
 }
 
@@ -537,16 +538,6 @@ static __net_initdata struct pernet_operations ip_proc_ops = {
 
 int __init ip_misc_proc_init(void)
 {
-	int rc = 0;
-
-	if (register_pernet_subsys(&ip_proc_ops))
-		goto out_pernet;
-
-out:
-	return rc;
-
-out_pernet:
-	rc = -ENOMEM;
-	goto out;
+	return register_pernet_subsys(&ip_proc_ops);
 }
 
