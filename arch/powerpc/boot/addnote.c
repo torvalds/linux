@@ -25,7 +25,7 @@ char arch[] = "PowerPC";
 #define N_DESCR	6
 unsigned int descr[N_DESCR] = {
 	0xffffffff,		/* real-mode = true */
-	0x00c00000,		/* real-base, i.e. where we expect OF to be */
+	0x02000000,		/* real-base, i.e. where we expect OF to be */
 	0xffffffff,		/* real-size */
 	0xffffffff,		/* virt-base */
 	0xffffffff,		/* virt-size */

@@ -344,7 +344,7 @@ config X86_F00F_BUG
 
 config X86_WP_WORKS_OK
 	def_bool y
-	depends on X86_32 && !M386
+	depends on !M386
 
 config X86_INVLPG
 	def_bool y

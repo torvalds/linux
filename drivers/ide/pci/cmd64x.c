@@ -69,7 +69,7 @@ static u8 quantize_timing(int timing, int quant)
 static void program_cycle_times (ide_drive_t *drive, int cycle_time, int active_time)
 {
 	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
-	int clock_time = 1000 / (ide_pci_clk ? ide_pci_clk : system_bus_clock());
+	int clock_time = 1000 / (ide_pci_clk ? ide_pci_clk : 33);
 	u8  cycle_count, active_count, recovery_count, drwtim;
 	static const u8 recovery_values[] =
 		{15, 15, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0};
@@ -116,6 +116,7 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	struct ide_timing *t	= ide_timing_find_mode(XFER_PIO_0 + pio);
 	unsigned int cycle_time;
 	u8 setup_count, arttim = 0;
 
@@ -124,11 +125,10 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 
 	cycle_time = ide_pio_cycle_time(drive, pio);
 
-	program_cycle_times(drive, cycle_time,
-			    ide_pio_timings[pio].active_time);
+	program_cycle_times(drive, cycle_time, t->active);
 
-	setup_count = quantize_timing(ide_pio_timings[pio].setup_time,
-			1000 / (ide_pci_clk ? ide_pci_clk : system_bus_clock()));
+	setup_count = quantize_timing(t->setup,
+			1000 / (ide_pci_clk ? ide_pci_clk : 33));
 
 	/*
 	 * The primary channel has individual address setup timing registers

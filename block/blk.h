@@ -51,4 +51,12 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 	return q->nr_congestion_off;
 }
 
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+
+#define rq_for_each_integrity_segment(bvl, _rq, _iter)		\
+	__rq_for_each_bio(_iter.bio, _rq)			\
+		bip_for_each_vec(bvl, _iter.bio->bi_integrity, _iter.i)
+
+#endif /* BLK_DEV_INTEGRITY */
+
 #endif

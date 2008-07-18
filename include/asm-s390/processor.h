@@ -143,11 +143,19 @@ struct stack_frame {
 /*
  * Do necessary setup to start up a new thread.
  */
-#define start_thread(regs, new_psw, new_stackp) do {            \
+#define start_thread(regs, new_psw, new_stackp) do {		\
 	set_fs(USER_DS);					\
 	regs->psw.mask	= psw_user_bits;			\
-        regs->psw.addr  = new_psw | PSW_ADDR_AMODE;             \
-        regs->gprs[15]  = new_stackp ;                          \
+	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;		\
+	regs->gprs[15]	= new_stackp;				\
+} while (0)
+
+#define start_thread31(regs, new_psw, new_stackp) do {		\
+	set_fs(USER_DS);					\
+	regs->psw.mask	= psw_user32_bits;			\
+	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;		\
+	regs->gprs[15]	= new_stackp;				\
+	crst_table_downgrade(current->mm, 1UL << 31);		\
 } while (0)
 
 /* Forward declaration, a strange C thing */
@@ -327,16 +335,6 @@ extern void s390_base_ext_handler(void);
 extern void (*s390_base_mcck_handler_fn)(void);
 extern void (*s390_base_pgm_handler_fn)(void);
 extern void (*s390_base_ext_handler_fn)(void);
-
-/*
- * CPU idle notifier chain.
- */
-#define S390_CPU_IDLE		0
-#define S390_CPU_NOT_IDLE	1
-
-struct notifier_block;
-int register_idle_notifier(struct notifier_block *nb);
-int unregister_idle_notifier(struct notifier_block *nb);
 
 #define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
 

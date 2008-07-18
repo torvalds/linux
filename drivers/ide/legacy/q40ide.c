@@ -142,7 +142,6 @@ static int __init q40ide_init(void)
 
 	hwif = ide_find_port();
 	if (hwif) {
-		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
 
 		/* Q40 has a byte-swapped IDE interface */

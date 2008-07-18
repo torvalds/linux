@@ -203,20 +203,11 @@ static struct page *vdso32_pages[1];
 
 #ifdef CONFIG_X86_64
 
-static int use_sysenter __read_mostly = -1;
-
-#define	vdso32_sysenter()	(use_sysenter > 0)
+#define	vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SYSENTER32))
 
 /* May not be __init: called during resume */
 void syscall32_cpu_init(void)
 {
-	if (use_sysenter < 0) {
-		if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-			use_sysenter = 1;
-		if (boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR)
-			use_sysenter = 1;
-	}
-
 	/* Load these always in case some future AMD CPU supports
 	   SYSENTER from compat mode too. */
 	checking_wrmsrl(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);

@@ -8,6 +8,7 @@
  * Copyright (C) 2007-2008 Silicon Graphics, Inc. All rights reserved.
  */
 
+#include <linux/kernel.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/string.h>
@@ -20,6 +21,7 @@
 #include <asm/smp.h>
 #include <asm/ipi.h>
 #include <asm/genapic.h>
+#include <asm/pgtable.h>
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
 
@@ -208,13 +210,78 @@ static __init void get_lowmem_redirect(unsigned long *base, unsigned long *size)
 	BUG();
 }
 
+static __init void map_low_mmrs(void)
+{
+	init_extra_mapping_uc(UV_GLOBAL_MMR32_BASE, UV_GLOBAL_MMR32_SIZE);
+	init_extra_mapping_uc(UV_LOCAL_MMR_BASE, UV_LOCAL_MMR_SIZE);
+}
+
+enum map_type {map_wb, map_uc};
+
+static void map_high(char *id, unsigned long base, int shift, enum map_type map_type)
+{
+	unsigned long bytes, paddr;
+
+	paddr = base << shift;
+	bytes = (1UL << shift);
+	printk(KERN_INFO "UV: Map %s_HI 0x%lx - 0x%lx\n", id, paddr,
+	       					paddr + bytes);
+	if (map_type == map_uc)
+		init_extra_mapping_uc(paddr, bytes);
+	else
+		init_extra_mapping_wb(paddr, bytes);
+
+}
+static __init void map_gru_high(int max_pnode)
+{
+	union uvh_rh_gam_gru_overlay_config_mmr_u gru;
+	int shift = UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR_BASE_SHFT;
+
+	gru.v = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR);
+	if (gru.s.enable)
+		map_high("GRU", gru.s.base, shift, map_wb);
+}
+
+static __init void map_config_high(int max_pnode)
+{
+	union uvh_rh_gam_cfg_overlay_config_mmr_u cfg;
+	int shift = UVH_RH_GAM_CFG_OVERLAY_CONFIG_MMR_BASE_SHFT;
+
+	cfg.v = uv_read_local_mmr(UVH_RH_GAM_CFG_OVERLAY_CONFIG_MMR);
+	if (cfg.s.enable)
+		map_high("CONFIG", cfg.s.base, shift, map_uc);
+}
+
+static __init void map_mmr_high(int max_pnode)
+{
+	union uvh_rh_gam_mmr_overlay_config_mmr_u mmr;
+	int shift = UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR_BASE_SHFT;
+
+	mmr.v = uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR);
+	if (mmr.s.enable)
+		map_high("MMR", mmr.s.base, shift, map_uc);
+}
+
+static __init void map_mmioh_high(int max_pnode)
+{
+	union uvh_rh_gam_mmioh_overlay_config_mmr_u mmioh;
+	int shift = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_BASE_SHFT;
+
+	mmioh.v = uv_read_local_mmr(UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR);
+	if (mmioh.s.enable)
+		map_high("MMIOH", mmioh.s.base, shift, map_uc);
+}
+
 static __init void uv_system_init(void)
 {
 	union uvh_si_addr_map_config_u m_n_config;
 	union uvh_node_id_u node_id;
 	unsigned long gnode_upper, lowmem_redir_base, lowmem_redir_size;
 	int bytes, nid, cpu, lcpu, pnode, blade, i, j, m_val, n_val;
+	int max_pnode = 0;
 	unsigned long mmr_base, present;
+
+	map_low_mmrs();
 
 	m_n_config.v = uv_read_local_mmr(UVH_SI_ADDR_MAP_CONFIG);
 	m_val = m_n_config.s.m_skt;
@@ -281,12 +348,18 @@ static __init void uv_system_init(void)
 		uv_cpu_hub_info(cpu)->coherency_domain_number = 0;/* ZZZ */
 		uv_node_to_blade[nid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
+		max_pnode = max(pnode, max_pnode);
 
-		printk(KERN_DEBUG "UV cpu %d, apicid 0x%x, pnode %d, nid %d, "
+		printk(KERN_DEBUG "UV: cpu %d, apicid 0x%x, pnode %d, nid %d, "
 			"lcpu %d, blade %d\n",
 			cpu, per_cpu(x86_cpu_to_apicid, cpu), pnode, nid,
 			lcpu, blade);
 	}
+
+	map_gru_high(max_pnode);
+	map_mmr_high(max_pnode);
+	map_config_high(max_pnode);
+	map_mmioh_high(max_pnode);
 }
 
 /*

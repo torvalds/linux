@@ -197,8 +197,8 @@ unsigned long long xen_sched_clock(void)
 }
 
 
-/* Get the CPU speed from Xen */
-unsigned long xen_cpu_khz(void)
+/* Get the TSC speed from Xen */
+unsigned long xen_tsc_khz(void)
 {
 	u64 xen_khz = 1000000ULL << 32;
 	const struct pvclock_vcpu_time_info *info =

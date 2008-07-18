@@ -33,8 +33,8 @@
 #include <linux/netdevice.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
+#include <linux/of_platform.h>
 
-#include <asm/of_platform.h>
 #include <asm/io.h>
 #include <asm/dcr.h>
 
@@ -235,6 +235,10 @@ struct emac_instance {
 	u32				fifo_entry_size;
 	u32				mal_burst_size; /* move to MAL ? */
 
+	/* IAHT and GAHT filter parameterization */
+	u32				xaht_slots_shift;
+	u32				xaht_width_shift;
+
 	/* Descriptor management
 	 */
 	struct mal_descriptor		*tx_desc;
@@ -309,6 +313,10 @@ struct emac_instance {
  * Set if we need phy clock workaround for 440ep or 440gr
  */
 #define EMAC_FTR_440EP_PHY_CLK_FIX	0x00000100
+/*
+ * The 405EX and 460EX contain the EMAC4SYNC core
+ */
+#define EMAC_FTR_EMAC4SYNC		0x00000200
 
 
 /* Right now, we don't quite handle the always/possible masks on the
@@ -320,7 +328,8 @@ enum {
 
 	EMAC_FTRS_POSSIBLE	=
 #ifdef CONFIG_IBM_NEW_EMAC_EMAC4
-	    EMAC_FTR_EMAC4 | EMAC_FTR_HAS_NEW_STACR |
+	    EMAC_FTR_EMAC4	| EMAC_FTR_EMAC4SYNC	|
+	    EMAC_FTR_HAS_NEW_STACR	|
 	    EMAC_FTR_STACR_OC_INVERT | EMAC_FTR_440GX_PHY_CLK_FIX |
 #endif
 #ifdef CONFIG_IBM_NEW_EMAC_TAH
@@ -342,6 +351,71 @@ static inline int emac_has_feature(struct emac_instance *dev,
 	       (EMAC_FTRS_POSSIBLE & dev->features & feature);
 }
 
+/*
+ * Various instances of the EMAC core have varying 1) number of
+ * address match slots, 2) width of the registers for handling address
+ * match slots, 3) number of registers for handling address match
+ * slots and 4) base offset for those registers.
+ *
+ * These macros and inlines handle these differences based on
+ * parameters supplied by the device structure which are, in turn,
+ * initialized based on the "compatible" entry in the device tree.
+ */
+
+#define	EMAC4_XAHT_SLOTS_SHIFT		6
+#define	EMAC4_XAHT_WIDTH_SHIFT		4
+
+#define	EMAC4SYNC_XAHT_SLOTS_SHIFT	8
+#define	EMAC4SYNC_XAHT_WIDTH_SHIFT	5
+
+#define	EMAC_XAHT_SLOTS(dev)         	(1 << (dev)->xaht_slots_shift)
+#define	EMAC_XAHT_WIDTH(dev)         	(1 << (dev)->xaht_width_shift)
+#define	EMAC_XAHT_REGS(dev)          	(1 << ((dev)->xaht_slots_shift - \
+					       (dev)->xaht_width_shift))
+
+#define	EMAC_XAHT_CRC_TO_SLOT(dev, crc)			\
+	((EMAC_XAHT_SLOTS(dev) - 1) -			\
+	 ((crc) >> ((sizeof (u32) * BITS_PER_BYTE) -	\
+		    (dev)->xaht_slots_shift)))
+
+#define	EMAC_XAHT_SLOT_TO_REG(dev, slot)		\
+	((slot) >> (dev)->xaht_width_shift)
+
+#define	EMAC_XAHT_SLOT_TO_MASK(dev, slot)		\
+	((u32)(1 << (EMAC_XAHT_WIDTH(dev) - 1)) >>	\
+	 ((slot) & (u32)(EMAC_XAHT_WIDTH(dev) - 1)))
+
+static inline u32 *emac_xaht_base(struct emac_instance *dev)
+{
+	struct emac_regs __iomem *p = dev->emacp;
+	int offset;
+
+	/* The first IAHT entry always is the base of the block of
+	 * IAHT and GAHT registers.
+	 */
+	if (emac_has_feature(dev, EMAC_FTR_EMAC4SYNC))
+		offset = offsetof(struct emac_regs, u1.emac4sync.iaht1);
+	else
+		offset = offsetof(struct emac_regs, u0.emac4.iaht1);
+
+	return ((u32 *)((ptrdiff_t)p + offset));
+}
+
+static inline u32 *emac_gaht_base(struct emac_instance *dev)
+{
+	/* GAHT registers always come after an identical number of
+	 * IAHT registers.
+	 */
+	return (emac_xaht_base(dev) + EMAC_XAHT_REGS(dev));
+}
+
+static inline u32 *emac_iaht_base(struct emac_instance *dev)
+{
+	/* IAHT registers always come before an identical number of
+	 * GAHT registers.
+	 */
+	return (emac_xaht_base(dev));
+}
 
 /* Ethtool get_regs complex data.
  * We want to get not just EMAC registers, but also MAL, ZMII, RGMII, TAH
@@ -365,5 +439,12 @@ struct emac_ethtool_regs_subhdr {
 	u32 version;
 	u32 index;
 };
+
+#define EMAC_ETHTOOL_REGS_VER		0
+#define EMAC_ETHTOOL_REGS_SIZE(dev) 	((dev)->rsrc_regs.end - \
+					 (dev)->rsrc_regs.start + 1)
+#define EMAC4_ETHTOOL_REGS_VER      	1
+#define EMAC4_ETHTOOL_REGS_SIZE(dev)	((dev)->rsrc_regs.end -	\
+					 (dev)->rsrc_regs.start + 1)
 
 #endif /* __IBM_NEWEMAC_CORE_H */

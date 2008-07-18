@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/rcupdate.h>
 #include <linux/kallsyms.h>
@@ -363,7 +364,7 @@ static void mcheck_check_cpu(void *info)
 
 static void mcheck_timer(struct work_struct *work)
 {
-	on_each_cpu(mcheck_check_cpu, NULL, 1, 1);
+	on_each_cpu(mcheck_check_cpu, NULL, 1);
 
 	/*
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
@@ -532,10 +533,12 @@ static int open_exclu;	/* already open exclusive? */
 
 static int mce_open(struct inode *inode, struct file *file)
 {
+	lock_kernel();
 	spin_lock(&mce_state_lock);
 
 	if (open_exclu || (open_count && (file->f_flags & O_EXCL))) {
 		spin_unlock(&mce_state_lock);
+		unlock_kernel();
 		return -EBUSY;
 	}
 
@@ -544,6 +547,7 @@ static int mce_open(struct inode *inode, struct file *file)
 	open_count++;
 
 	spin_unlock(&mce_state_lock);
+	unlock_kernel();
 
 	return nonseekable_open(inode, file);
 }
@@ -617,7 +621,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	 * Collect entries that were still getting written before the
 	 * synchronize.
 	 */
-	on_each_cpu(collect_tscs, cpu_tsc, 1, 1);
+	on_each_cpu(collect_tscs, cpu_tsc, 1);
 	for (i = next; i < MCE_LOG_LEN; i++) {
 		if (mcelog.entry[i].finished &&
 		    mcelog.entry[i].tsc < cpu_tsc[mcelog.entry[i].cpu]) {
@@ -742,7 +746,7 @@ static void mce_restart(void)
 	if (next_interval)
 		cancel_delayed_work(&mcheck_work);
 	/* Timer race is harmless here */
-	on_each_cpu(mce_init, NULL, 1, 1);
+	on_each_cpu(mce_init, NULL, 1);
 	next_interval = check_interval * HZ;
 	if (next_interval)
 		schedule_delayed_work(&mcheck_work,

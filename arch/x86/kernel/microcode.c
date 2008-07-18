@@ -76,6 +76,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -423,6 +424,7 @@ out:
 
 static int microcode_open (struct inode *unused1, struct file *unused2)
 {
+	cycle_kernel_lock();
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
 }
 
@@ -489,7 +491,7 @@ MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 #define microcode_dev_exit() do { } while(0)
 #endif
 
-static long get_next_ucode_from_buffer(void **mc, void *buf,
+static long get_next_ucode_from_buffer(void **mc, const u8 *buf,
 	unsigned long size, long offset)
 {
 	microcode_header_t *mc_header;
@@ -523,7 +525,7 @@ static int cpu_request_microcode(int cpu)
 	char name[30];
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	const struct firmware *firmware;
-	void *buf;
+	const u8 *buf;
 	unsigned long size;
 	long offset = 0;
 	int error;

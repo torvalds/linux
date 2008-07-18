@@ -82,6 +82,11 @@ int pic_mode;
 /* Have we found an MP table */
 int smp_found_config;
 
+static struct resource lapic_resource = {
+	.name = "Local APIC",
+	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
+};
+
 static unsigned int calibration_result;
 
 static int lapic_next_event(unsigned long delta,
@@ -969,7 +974,7 @@ void __cpuinit setup_local_APIC(void)
 	 * Double-check whether this APIC is really registered.
 	 */
 	if (!apic_id_registered())
-		BUG();
+		WARN_ON_ONCE(1);
 
 	/*
 	 * Intel recommends to set DFR, LDR and TPR before enabling
@@ -1335,6 +1340,10 @@ void __init smp_intr_init(void)
 
 	/* IPI for generic function call */
 	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
+
+	/* IPI for single call function */
+	set_intr_gate(CALL_FUNCTION_SINGLE_VECTOR,
+				call_function_single_interrupt);
 }
 #endif
 
@@ -1720,3 +1729,21 @@ static int __init apic_set_verbosity(char *str)
 }
 __setup("apic=", apic_set_verbosity);
 
+static int __init lapic_insert_resource(void)
+{
+	if (!apic_phys)
+		return -1;
+
+	/* Put local APIC into the resource map. */
+	lapic_resource.start = apic_phys;
+	lapic_resource.end = lapic_resource.start + PAGE_SIZE - 1;
+	insert_resource(&iomem_resource, &lapic_resource);
+
+	return 0;
+}
+
+/*
+ * need call insert after e820_reserve_resources()
+ * that is using request_resource
+ */
+late_initcall(lapic_insert_resource);

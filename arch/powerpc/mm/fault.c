@@ -306,7 +306,8 @@ good_area:
 					flush_dcache_icache_page(page);
 					set_bit(PG_arch_1, &page->flags);
 				}
-				pte_update(ptep, 0, _PAGE_HWEXEC);
+				pte_update(ptep, 0, _PAGE_HWEXEC |
+					   _PAGE_ACCESSED);
 				_tlbie(address, mm->context.id);
 				pte_unmap_unlock(ptep, ptl);
 				up_read(&mm->mmap_sem);

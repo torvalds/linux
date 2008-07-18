@@ -155,12 +155,12 @@ static int rtas_pci_write_config(struct pci_bus *bus,
 	return PCIBIOS_DEVICE_NOT_FOUND;
 }
 
-struct pci_ops rtas_pci_ops = {
+static struct pci_ops rtas_pci_ops = {
 	.read = rtas_pci_read_config,
 	.write = rtas_pci_write_config,
 };
 
-int is_python(struct device_node *dev)
+static int is_python(struct device_node *dev)
 {
 	const char *model = of_get_property(dev, "model", NULL);
 

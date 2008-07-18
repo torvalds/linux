@@ -1,0 +1,341 @@
+             **********
+             * WHENCE *
+             **********
+
+This file attempts to document the origin and licensing information,
+if known, for each piece of firmware distributed for use with the Linux
+kernel.
+
+--------------------------------------------------------------------------
+
+Driver: korg1212 -- Korg 1212 IO audio device
+
+File: korg/k1212.dsp
+
+Licence: Unknown
+
+Found in alsa-firmware package in hex form; no licensing information.
+
+--------------------------------------------------------------------------
+
+Driver: maestro3 -- ESS Allegro Maestro3 audio device
+
+File: ess/maestro3_assp_kernel.fw
+File: ess/maestro3_assp_minisrc.fw
+
+Licence: Unknown
+
+Found in alsa-firmware package in hex form with a comment claiming to
+be GPLv2+, but without source -- and with another comment saying "ESS
+drops binary dsp code images on our heads, but we don't get to see
+specs on the dsp."
+
+--------------------------------------------------------------------------
+
+Driver: ymfpci -- Yamaha YMF724/740/744/754 audio devices
+
+File: yamaha/ds1_ctrl.fw
+File: yamaha/ds1_dsp.fw
+File: yamaha/ds1e_ctrl.fw
+
+Licence: Unknown
+
+Found alsa-firmware package in hex form, with the following comment:
+   Copyright (c) 1997-1999 Yamaha Corporation. All Rights Reserved.
+
+--------------------------------------------------------------------------
+
+Driver: smctr -- SMC ISA/MCA Token Ring adapter
+
+File: tr_smctr.bin
+Info: MCT.BIN v6.3C1 03/01/95
+
+Original licence info:
+
+ * This firmware is licensed to you strictly for use in conjunction
+ * with the use of SMC TokenRing adapters. There is no waranty
+ * expressed or implied about its fitness for any purpose.
+
+--------------------------------------------------------------------------
+
+Driver: kaweth -- USB KLSI KL5USB101-based Ethernet device
+
+File: kaweth/new_code.bin
+File: kaweth/new_code_fix.bin
+File: kaweth/trigger_code.bin
+File: kaweth/trigger_code_fix.bin
+
+Licence: Unknown
+
+Found in hex form in the kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ttusb-budget -- Technotrend/Hauppauge Nova-USB devices
+
+File: ttusb-budget/dspbootcode.bin
+
+Licence: Unknown
+
+Found in hex form in the kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: keyspan -- USB Keyspan USA-xxx serial device
+
+File: keyspan/mpr.fw
+File: keyspan/usa18x.fw
+File: keyspan/usa19.fw
+File: keyspan/usa19qi.fw
+File: keyspan/usa19qw.fw
+File: keyspan/usa19w.fw
+File: keyspan/usa28.fw
+File: keyspan/usa28xa.fw
+File: keyspan/usa28xb.fw
+File: keyspan/usa28x.fw
+File: keyspan/usa49w.fw
+File: keyspan/usa49wlc.fw
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+Original licence information:
+
+		Copyright (C) 1999-2001
+		Keyspan, A division of InnoSys Incorporated ("Keyspan")
+
+	as an unpublished work. This notice does not imply unrestricted or
+	public access to the source code from which this firmware image is
+	derived.  Except as noted below this firmware image may not be
+	reproduced, used, sold or transferred to any third party without
+	Keyspan's prior written consent.  All Rights Reserved.
+
+	Permission is hereby granted for the distribution of this firmware
+	image as part of a Linux or other Open Source operating system kernel
+	in text or binary form as required.
+
+	This firmware may not be modified and may only be used with
+	Keyspan hardware.  Distribution and/or Modification of the
+	keyspan.c driver which includes this firmware, in whole or in
+	part, requires the inclusion of this statement."
+
+--------------------------------------------------------------------------
+
+Driver: keyspan_pda -- USB Keyspan PDA single-port serial device
+
+File: keyspan_pda/keyspan_pda.fw
+Source: keyspan_pda/keyspan_pda.S
+
+File: keyspan_pda/xircom_pgs.fw
+Source: keyspan_pda/xircom_pgs.S
+
+Licence: GPLv2+
+
+Compiled from original 8051 source into Intel HEX, used in our binary ihex form.
+
+--------------------------------------------------------------------------
+
+Driver: emi26 -- EMI 2|6 USB Audio interface
+
+File: emi26/bitstream.fw
+Info: VERSION=1.1.1.131 DATE=2001dec06
+
+File: emi26/firmware.fw
+Info: VERSION=1.0.2.916 DATE=12.02.2002
+
+File: emi26/loader.fw
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+Original licence information:
+/*
+ * This firmware is for the Emagic EMI 2|6 Audio Interface
+ *
+ * The firmware contained herein is Copyright (c) 1999-2002 Emagic
+ * as an unpublished work. This notice does not imply unrestricted
+ * or public access to this firmware which is a trade secret of Emagic,
+ * and which may not be reproduced, used, sold or transferred to
+ * any third party without Emagic's written consent. All Rights Reserved.
+ *
+ * Permission is hereby granted for the distribution of this firmware
+ * image as part of a Linux or other Open Source operating system kernel
+ * in text or binary form as required.
+ *
+ * This firmware may not be modified and may only be used with the
+ * Emagic EMI 2|6 Audio Interface. Distribution and/or Modification of
+ * any driver which includes this firmware, in whole or in part,
+ * requires the inclusion of this statement.
+ */
+
+--------------------------------------------------------------------------
+
+Driver: emi62 -- EMI 6|2m USB Audio interface
+
+File: emi62/bitstream.fw
+Info: VERSION=1.0.0.191 DATE= 2002oct28
+
+File: emi62/loader.fw
+Source: EMILOAD.HEX
+Info: VERSION=1.0.2.002 DATE=10.01.2002
+
+File: emi62/midi.fw
+Source: EMI62MFW.HEX
+Info: VERSION=1.04.062 DATE=16.10.2002
+
+File: emi62/spdif.fw
+Source: EMI62SFW.HEX
+Info: VERSION=1.04.062 DATE=16.10.2002
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+Original licence information: None
+
+--------------------------------------------------------------------------
+
+Driver: tu_usb_3410_5052 -- USB TI 3410/5052 serial device
+
+File: ti_3410.fw
+Info: firmware 9/10/04 FW3410_Special_StartWdogOnStartPort
+
+File: ti_5052.fw
+Info: firmware 9/18/04
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+	 Copyright (C) 2004 Texas Instruments
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: whiteheat -- USB ConnectTech WhiteHEAT serial device
+
+File: whiteheat.fw
+Version: 4.06
+
+File: whiteheat_loader.fw
+File: whiteheat_loader_debug.fw
+
+Licence: Allegedly GPLv2, but no source visible. Marked:
+	 Copyright (C) 2000-2002  ConnectTech Inc
+
+Debug loader claims the following behaviour:
+	Port 1 LED flashes when the vend_ax program is running
+	Port 2 LED flashes when any SETUP command arrives
+	Port 3 LED flashes when any valid VENDOR request occurs
+	Port 4 LED flashes when the EXTERNAL RAM DOWNLOAD request occurs
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+--------------------------------------------------------------------------
+
+Driver: ip2 -- Computone IntelliPort Plus serial device
+
+File: intelliport2.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: CPiA2 -- cameras based on Vision's CPiA2
+
+File: cpia2/stv0672_vp4.bin
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+	Copyright (C) 2001 STMicroelectronics, Inc.
+	Contact:  steve.miller@st.com
+	Description: This file contains patch data for the CPiA2 (stv0672) VP4.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: DABUSB -- Digital Audio Broadcasting (DAB) Receiver for USB and Linux
+
+File: dabusb/firmware.fw
+File: dabusb/bitstream.bin
+
+Licence: Distributable
+
+ * Copyright (C) 1999 BayCom GmbH
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that redistributions of source
+ * code retain the above copyright notice and this comment without
+ * modification.
+
+--------------------------------------------------------------------------
+
+Driver: USB_VICAM -- USB 3com HomeConnect (aka vicam)
+
+File: vicam/firmware.fw
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: USB_SERIAL_EDGEPORT - USB Inside Out Edgeport Serial Driver
+
+File: edgeport/boot.fw
+File: edgeport/boot2.fw
+File: edgeport/down.fw
+File: edgeport/down2.fw
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+//**************************************************************
+//* Edgeport/4 Binary Image
+//* Generated by HEX2C v1.06
+//* Copyright (C) 1998 Inside Out Networks, All rights reserved.
+//**************************************************************
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: USB_SERIAL_EDGEPORT_TI - USB Inside Out Edgeport Serial Driver
+(TI Devices)
+
+File: edgeport/down3.bin
+
+Licence:
+//**************************************************************
+//* Edgeport Binary Image (for TI based products)
+//* Generated by TIBin2C v2.00 (watchport)
+//* Copyright (C) 2001 Inside Out Networks, All rights reserved.
+//**************************************************************
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ATARI_DSP56K - Atari DSP56k support
+
+File: dsp56k/bootstrap.bin
+Source: dsp56k/bootstrap.asm
+
+Licence: GPLv2 or later
+
+DSP56001 assembler, possibly buildable with a56 from 
+http://www.zdomain.com/a56.html
+
+--------------------------------------------------------------------------
+
+Driver: SND_SB16_CSP - Sound Blaster 16/AWE CSP support
+
+File: sb16/mulaw_main.csp
+File: sb16/alaw_main.csp
+File: sb16/ima_adpcm_init.csp
+File: sb16/ima_adpcm_playback.csp
+File: sb16/ima_adpcm_capture.csp
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+/*
+ *  Copyright (c) 1994 Creative Technology Ltd.
+ *  Microcode files for SB16 Advanced Signal Processor
+ */
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------

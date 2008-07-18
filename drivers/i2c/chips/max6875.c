@@ -53,25 +53,12 @@ I2C_CLIENT_INSMOD_1(max6875);
 
 /* Each client has this additional data */
 struct max6875_data {
-	struct i2c_client	client;
+	struct i2c_client	*fake_client;
 	struct mutex		update_lock;
 
 	u32			valid;
 	u8			data[USER_EEPROM_SIZE];
 	unsigned long		last_updated[USER_EEPROM_SLICES];
-};
-
-static int max6875_attach_adapter(struct i2c_adapter *adapter);
-static int max6875_detect(struct i2c_adapter *adapter, int address, int kind);
-static int max6875_detach_client(struct i2c_client *client);
-
-/* This is the driver that will be inserted */
-static struct i2c_driver max6875_driver = {
-	.driver = {
-		.name	= "max6875",
-	},
-	.attach_adapter	= max6875_attach_adapter,
-	.detach_client	= max6875_detach_client,
 };
 
 static void max6875_update_slice(struct i2c_client *client, int slice)
@@ -159,97 +146,86 @@ static struct bin_attribute user_eeprom_attr = {
 	.read = max6875_read,
 };
 
-static int max6875_attach_adapter(struct i2c_adapter *adapter)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int max6875_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info)
 {
-	return i2c_probe(adapter, &addr_data, max6875_detect);
-}
-
-/* This function is called by i2c_probe */
-static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
-{
-	struct i2c_client *real_client;
-	struct i2c_client *fake_client;
-	struct max6875_data *data;
-	int err = 0;
+	struct i2c_adapter *adapter = client->adapter;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WRITE_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_BYTE))
-		return 0;
+		return -ENODEV;
 
 	/* Only check even addresses */
-	if (address & 1)
-		return 0;
+	if (client->addr & 1)
+		return -ENODEV;
+
+	strlcpy(info->type, "max6875", I2C_NAME_SIZE);
+
+	return 0;
+}
+
+static int max6875_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct max6875_data *data;
+	int err;
 
 	if (!(data = kzalloc(sizeof(struct max6875_data), GFP_KERNEL)))
 		return -ENOMEM;
 
 	/* A fake client is created on the odd address */
-	if (!(fake_client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL))) {
+	data->fake_client = i2c_new_dummy(client->adapter, client->addr + 1);
+	if (!data->fake_client) {
 		err = -ENOMEM;
-		goto exit_kfree1;
+		goto exit_kfree;
 	}
 
 	/* Init real i2c_client */
-	real_client = &data->client;
-	i2c_set_clientdata(real_client, data);
-	real_client->addr = address;
-	real_client->adapter = adapter;
-	real_client->driver = &max6875_driver;
-	real_client->flags = 0;
-	strlcpy(real_client->name, "max6875", I2C_NAME_SIZE);
+	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
 
-	/* Init fake client data */
-	i2c_set_clientdata(fake_client, NULL);
-	fake_client->addr = address | 1;
-	fake_client->adapter = adapter;
-	fake_client->driver = &max6875_driver;
-	fake_client->flags = 0;
-	strlcpy(fake_client->name, "max6875 subclient", I2C_NAME_SIZE);
-
-	if ((err = i2c_attach_client(real_client)) != 0)
-		goto exit_kfree2;
-
-	if ((err = i2c_attach_client(fake_client)) != 0)
-		goto exit_detach1;
-
-	err = sysfs_create_bin_file(&real_client->dev.kobj, &user_eeprom_attr);
+	err = sysfs_create_bin_file(&client->dev.kobj, &user_eeprom_attr);
 	if (err)
-		goto exit_detach2;
+		goto exit_remove_fake;
 
 	return 0;
 
-exit_detach2:
-	i2c_detach_client(fake_client);
-exit_detach1:
-	i2c_detach_client(real_client);
-exit_kfree2:
-	kfree(fake_client);
-exit_kfree1:
+exit_remove_fake:
+	i2c_unregister_device(data->fake_client);
+exit_kfree:
 	kfree(data);
 	return err;
 }
 
-/* Will be called for both the real client and the fake client */
-static int max6875_detach_client(struct i2c_client *client)
+static int max6875_remove(struct i2c_client *client)
 {
-	int err;
 	struct max6875_data *data = i2c_get_clientdata(client);
 
-	/* data is NULL for the fake client */
-	if (data)
-		sysfs_remove_bin_file(&client->dev.kobj, &user_eeprom_attr);
+	i2c_unregister_device(data->fake_client);
 
-	err = i2c_detach_client(client);
-	if (err)
-		return err;
+	sysfs_remove_bin_file(&client->dev.kobj, &user_eeprom_attr);
+	kfree(data);
 
-	if (data)		/* real client */
-		kfree(data);
-	else			/* fake client */
-		kfree(client);
 	return 0;
 }
+
+static const struct i2c_device_id max6875_id[] = {
+	{ "max6875", 0 },
+	{ }
+};
+
+static struct i2c_driver max6875_driver = {
+	.driver = {
+		.name	= "max6875",
+	},
+	.probe		= max6875_probe,
+	.remove		= max6875_remove,
+	.id_table	= max6875_id,
+
+	.detect		= max6875_detect,
+	.address_data	= &addr_data,
+};
 
 static int __init max6875_init(void)
 {

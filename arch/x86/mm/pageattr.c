@@ -141,7 +141,7 @@ static void cpa_flush_all(unsigned long cache)
 {
 	BUG_ON(irqs_disabled());
 
-	on_each_cpu(__cpa_flush_all, (void *) cache, 1, 1);
+	on_each_cpu(__cpa_flush_all, (void *) cache, 1);
 }
 
 static void __cpa_flush_range(void *arg)
@@ -162,7 +162,7 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 	BUG_ON(irqs_disabled());
 	WARN_ON(PAGE_ALIGN(start) != start);
 
-	on_each_cpu(__cpa_flush_range, NULL, 1, 1);
+	on_each_cpu(__cpa_flush_range, NULL, 1);
 
 	if (!cache)
 		return;
@@ -262,6 +262,7 @@ pte_t *lookup_address(unsigned long address, unsigned int *level)
 
 	return pte_offset_kernel(pmd, address);
 }
+EXPORT_SYMBOL_GPL(lookup_address);
 
 /*
  * Set the new pmd in all the pgds we know about:
@@ -536,8 +537,14 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 		set_pte(&pbase[i], pfn_pte(pfn, ref_prot));
 
 	if (address >= (unsigned long)__va(0) &&
+		address < (unsigned long)__va(max_low_pfn_mapped << PAGE_SHIFT))
+		split_page_count(level);
+
+#ifdef CONFIG_X86_64
+	if (address >= (unsigned long)__va(1UL<<32) &&
 		address < (unsigned long)__va(max_pfn_mapped << PAGE_SHIFT))
 		split_page_count(level);
+#endif
 
 	/*
 	 * Install the new, split up pagetable. Important details here:
@@ -652,15 +659,24 @@ static int cpa_process_alias(struct cpa_data *cpa)
 	struct cpa_data alias_cpa;
 	int ret = 0;
 
-	if (cpa->pfn > max_pfn_mapped)
+	if (cpa->pfn >= max_pfn_mapped)
 		return 0;
 
+#ifdef CONFIG_X86_64
+	if (cpa->pfn >= max_low_pfn_mapped && cpa->pfn < (1UL<<(32-PAGE_SHIFT)))
+		return 0;
+#endif
 	/*
 	 * No need to redo, when the primary call touched the direct
 	 * mapping already:
 	 */
-	if (!within(cpa->vaddr, PAGE_OFFSET,
-		    PAGE_OFFSET + (max_pfn_mapped << PAGE_SHIFT))) {
+	if (!(within(cpa->vaddr, PAGE_OFFSET,
+		    PAGE_OFFSET + (max_low_pfn_mapped << PAGE_SHIFT))
+#ifdef CONFIG_X86_64
+		|| within(cpa->vaddr, PAGE_OFFSET + (1UL<<32),
+		    PAGE_OFFSET + (max_pfn_mapped << PAGE_SHIFT))
+#endif
+	)) {
 
 		alias_cpa = *cpa;
 		alias_cpa.vaddr = (unsigned long) __va(cpa->pfn << PAGE_SHIFT);

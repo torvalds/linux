@@ -12,6 +12,8 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
 	    (c->x86 == 0x6 && c->x86_model >= 0x0e))
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
+
+	set_cpu_cap(c, X86_FEATURE_SYSENTER32);
 }
 
 /*
@@ -52,9 +54,6 @@ static void __cpuinit srat_detect_node(void)
 
 static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
-	/* Cache sizes */
-	unsigned n;
-
 	init_intel_cacheinfo(c);
 	if (c->cpuid_level > 9) {
 		unsigned eax = cpuid_eax(10);
@@ -75,13 +74,6 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 
 	if (cpu_has_bts)
 		ds_init_intel(c);
-
-	n = c->extended_cpuid_level;
-	if (n >= 0x80000008) {
-		unsigned eax = cpuid_eax(0x80000008);
-		c->x86_virt_bits = (eax >> 8) & 0xff;
-		c->x86_phys_bits = eax & 0xff;
-	}
 
 	if (c->x86 == 15)
 		c->x86_cache_alignment = c->x86_clflush_size * 2;

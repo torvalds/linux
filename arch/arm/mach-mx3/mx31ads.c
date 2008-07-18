@@ -26,9 +26,11 @@
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <asm/arch/common.h>
+#include <asm/arch/board-mx31ads.h>
 
 /*!
  * @file mx31ads.c
@@ -126,6 +128,16 @@ static void __init mxc_board_init(void)
 	mxc_init_extuart();
 }
 
+static void __init mx31ads_timer_init(void)
+{
+	mxc_clocks_init(26000000);
+	mxc_timer_init("ipg_clk.0");
+}
+
+struct sys_timer mx31ads_timer = {
+	.init	= mx31ads_timer_init,
+};
+
 /*
  * The following uses standard kernel macros defined in arch.h in order to
  * initialize __mach_desc_MX31ADS data structure.
@@ -138,5 +150,5 @@ MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	.map_io         = mx31ads_map_io,
 	.init_irq       = mxc_init_irq,
 	.init_machine   = mxc_board_init,
-	.timer          = &mxc_timer,
+	.timer          = &mx31ads_timer,
 MACHINE_END

@@ -13,15 +13,9 @@
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
- * 2007-11-13 Added GCM tests
- * 2007-11-13 Added AEAD support
- * 2007-11-06 Added SHA-224 and SHA-224-HMAC tests
- * 2006-12-07 Added SHA384 HMAC and SHA512 HMAC tests
- * 2004-08-09 Added cipher speed tests (Reyk Floeter <reyk@vantronix.net>)
- * 2003-09-14 Rewritten by Kartikey Mahendra Bhatt
- *
  */
 
+#include <crypto/hash.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -30,7 +24,6 @@
 #include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <linux/crypto.h>
-#include <linux/highmem.h>
 #include <linux/moduleparam.h>
 #include <linux/jiffies.h>
 #include <linux/timex.h>
@@ -38,7 +31,7 @@
 #include "tcrypt.h"
 
 /*
- * Need to kmalloc() memory for testing kmap().
+ * Need to kmalloc() memory for testing.
  */
 #define TVMEMSIZE	16384
 #define XBUFSIZE	32768
@@ -46,7 +39,7 @@
 /*
  * Indexes into the xbuf to simulate cross-page access.
  */
-#define IDX1		37
+#define IDX1		32
 #define IDX2		32400
 #define IDX3		1
 #define IDX4		8193
@@ -83,7 +76,8 @@ static char *check[] = {
 	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	"camellia", "seed", "salsa20", "lzo", "cts", NULL
+	"camellia", "seed", "salsa20", "rmd128", "rmd160", "rmd256", "rmd320",
+	"lzo", "cts", NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
@@ -110,22 +104,30 @@ static void test_hash(char *algo, struct hash_testvec *template,
 	unsigned int i, j, k, temp;
 	struct scatterlist sg[8];
 	char result[64];
-	struct crypto_hash *tfm;
-	struct hash_desc desc;
+	struct crypto_ahash *tfm;
+	struct ahash_request *req;
+	struct tcrypt_result tresult;
 	int ret;
 	void *hash_buff;
 
 	printk("\ntesting %s\n", algo);
 
-	tfm = crypto_alloc_hash(algo, 0, CRYPTO_ALG_ASYNC);
+	init_completion(&tresult.completion);
+
+	tfm = crypto_alloc_ahash(algo, 0, 0);
 	if (IS_ERR(tfm)) {
 		printk("failed to load transform for %s: %ld\n", algo,
 		       PTR_ERR(tfm));
 		return;
 	}
 
-	desc.tfm = tfm;
-	desc.flags = 0;
+	req = ahash_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		printk(KERN_ERR "failed to allocate request for %s\n", algo);
+		goto out_noreq;
+	}
+	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				   tcrypt_complete, &tresult);
 
 	for (i = 0; i < tcount; i++) {
 		printk("test %u:\n", i + 1);
@@ -139,8 +141,9 @@ static void test_hash(char *algo, struct hash_testvec *template,
 		sg_init_one(&sg[0], hash_buff, template[i].psize);
 
 		if (template[i].ksize) {
-			ret = crypto_hash_setkey(tfm, template[i].key,
-						 template[i].ksize);
+			crypto_ahash_clear_flags(tfm, ~0);
+			ret = crypto_ahash_setkey(tfm, template[i].key,
+						  template[i].ksize);
 			if (ret) {
 				printk("setkey() failed ret=%d\n", ret);
 				kfree(hash_buff);
@@ -148,17 +151,30 @@ static void test_hash(char *algo, struct hash_testvec *template,
 			}
 		}
 
-		ret = crypto_hash_digest(&desc, sg, template[i].psize, result);
-		if (ret) {
+		ahash_request_set_crypt(req, sg, result, template[i].psize);
+		ret = crypto_ahash_digest(req);
+		switch (ret) {
+		case 0:
+			break;
+		case -EINPROGRESS:
+		case -EBUSY:
+			ret = wait_for_completion_interruptible(
+				&tresult.completion);
+			if (!ret && !(ret = tresult.err)) {
+				INIT_COMPLETION(tresult.completion);
+				break;
+			}
+			/* fall through */
+		default:
 			printk("digest () failed ret=%d\n", ret);
 			kfree(hash_buff);
 			goto out;
 		}
 
-		hexdump(result, crypto_hash_digestsize(tfm));
+		hexdump(result, crypto_ahash_digestsize(tfm));
 		printk("%s\n",
 		       memcmp(result, template[i].digest,
-			      crypto_hash_digestsize(tfm)) ?
+			      crypto_ahash_digestsize(tfm)) ?
 		       "fail" : "pass");
 		kfree(hash_buff);
 	}
@@ -187,8 +203,9 @@ static void test_hash(char *algo, struct hash_testvec *template,
 			}
 
 			if (template[i].ksize) {
-				ret = crypto_hash_setkey(tfm, template[i].key,
-							 template[i].ksize);
+				crypto_ahash_clear_flags(tfm, ~0);
+				ret = crypto_ahash_setkey(tfm, template[i].key,
+							  template[i].ksize);
 
 				if (ret) {
 					printk("setkey() failed ret=%d\n", ret);
@@ -196,29 +213,44 @@ static void test_hash(char *algo, struct hash_testvec *template,
 				}
 			}
 
-			ret = crypto_hash_digest(&desc, sg, template[i].psize,
-						 result);
-			if (ret) {
+			ahash_request_set_crypt(req, sg, result,
+						template[i].psize);
+			ret = crypto_ahash_digest(req);
+			switch (ret) {
+			case 0:
+				break;
+			case -EINPROGRESS:
+			case -EBUSY:
+				ret = wait_for_completion_interruptible(
+					&tresult.completion);
+				if (!ret && !(ret = tresult.err)) {
+					INIT_COMPLETION(tresult.completion);
+					break;
+				}
+				/* fall through */
+			default:
 				printk("digest () failed ret=%d\n", ret);
 				goto out;
 			}
 
-			hexdump(result, crypto_hash_digestsize(tfm));
+			hexdump(result, crypto_ahash_digestsize(tfm));
 			printk("%s\n",
 			       memcmp(result, template[i].digest,
-				      crypto_hash_digestsize(tfm)) ?
+				      crypto_ahash_digestsize(tfm)) ?
 			       "fail" : "pass");
 		}
 	}
 
 out:
-	crypto_free_hash(tfm);
+	ahash_request_free(req);
+out_noreq:
+	crypto_free_ahash(tfm);
 }
 
 static void test_aead(char *algo, int enc, struct aead_testvec *template,
 		      unsigned int tcount)
 {
-	unsigned int ret, i, j, k, temp;
+	unsigned int ret, i, j, k, n, temp;
 	char *q;
 	struct crypto_aead *tfm;
 	char *key;
@@ -344,13 +376,12 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 				goto next_one;
 			}
 
-			q = kmap(sg_page(&sg[0])) + sg[0].offset;
+			q = input;
 			hexdump(q, template[i].rlen);
 
 			printk(KERN_INFO "enc/dec: %s\n",
 			       memcmp(q, template[i].result,
 				      template[i].rlen) ? "fail" : "pass");
-			kunmap(sg_page(&sg[0]));
 next_one:
 			if (!template[i].key)
 				kfree(key);
@@ -360,7 +391,6 @@ next_one:
 	}
 
 	printk(KERN_INFO "\ntesting %s %s across pages (chunking)\n", algo, e);
-	memset(xbuf, 0, XBUFSIZE);
 	memset(axbuf, 0, XBUFSIZE);
 
 	for (i = 0, j = 0; i < tcount; i++) {
@@ -388,6 +418,7 @@ next_one:
 					goto out;
 			}
 
+			memset(xbuf, 0, XBUFSIZE);
 			sg_init_table(sg, template[i].np);
 			for (k = 0, temp = 0; k < template[i].np; k++) {
 				memcpy(&xbuf[IDX[k]],
@@ -450,7 +481,7 @@ next_one:
 
 			for (k = 0, temp = 0; k < template[i].np; k++) {
 				printk(KERN_INFO "page %u\n", k);
-				q = kmap(sg_page(&sg[k])) + sg[k].offset;
+				q = &axbuf[IDX[k]];
 				hexdump(q, template[i].tap[k]);
 				printk(KERN_INFO "%s\n",
 				       memcmp(q, template[i].result + temp,
@@ -459,8 +490,15 @@ next_one:
 					       0 : authsize)) ?
 				       "fail" : "pass");
 
+				for (n = 0; q[template[i].tap[k] + n]; n++)
+					;
+				if (n) {
+					printk("Result buffer corruption %u "
+					       "bytes:\n", n);
+					hexdump(&q[template[i].tap[k]], n);
+				}
+
 				temp += template[i].tap[k];
-				kunmap(sg_page(&sg[k]));
 			}
 		}
 	}
@@ -473,7 +511,7 @@ out:
 static void test_cipher(char *algo, int enc,
 			struct cipher_testvec *template, unsigned int tcount)
 {
-	unsigned int ret, i, j, k, temp;
+	unsigned int ret, i, j, k, n, temp;
 	char *q;
 	struct crypto_ablkcipher *tfm;
 	struct ablkcipher_request *req;
@@ -569,19 +607,17 @@ static void test_cipher(char *algo, int enc,
 				goto out;
 			}
 
-			q = kmap(sg_page(&sg[0])) + sg[0].offset;
+			q = data;
 			hexdump(q, template[i].rlen);
 
 			printk("%s\n",
 			       memcmp(q, template[i].result,
 				      template[i].rlen) ? "fail" : "pass");
-			kunmap(sg_page(&sg[0]));
 		}
 		kfree(data);
 	}
 
 	printk("\ntesting %s %s across pages (chunking)\n", algo, e);
-	memset(xbuf, 0, XBUFSIZE);
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
@@ -596,6 +632,7 @@ static void test_cipher(char *algo, int enc,
 			printk("test %u (%d bit key):\n",
 			j, template[i].klen * 8);
 
+			memset(xbuf, 0, XBUFSIZE);
 			crypto_ablkcipher_clear_flags(tfm, ~0);
 			if (template[i].wk)
 				crypto_ablkcipher_set_flags(
@@ -649,14 +686,21 @@ static void test_cipher(char *algo, int enc,
 			temp = 0;
 			for (k = 0; k < template[i].np; k++) {
 				printk("page %u\n", k);
-				q = kmap(sg_page(&sg[k])) + sg[k].offset;
+				q = &xbuf[IDX[k]];
 				hexdump(q, template[i].tap[k]);
 				printk("%s\n",
 					memcmp(q, template[i].result + temp,
 						template[i].tap[k]) ? "fail" :
 					"pass");
+
+				for (n = 0; q[template[i].tap[k] + n]; n++)
+					;
+				if (n) {
+					printk("Result buffer corruption %u "
+					       "bytes:\n", n);
+					hexdump(&q[template[i].tap[k]], n);
+				}
 				temp += template[i].tap[k];
-				kunmap(sg_page(&sg[k]));
 			}
 		}
 	}
@@ -1172,6 +1216,14 @@ static void do_test(void)
 		test_cipher("ecb(des3_ede)", DECRYPT, des3_ede_dec_tv_template,
 			    DES3_EDE_DEC_TEST_VECTORS);
 
+		test_cipher("cbc(des3_ede)", ENCRYPT,
+			    des3_ede_cbc_enc_tv_template,
+			    DES3_EDE_CBC_ENC_TEST_VECTORS);
+
+		test_cipher("cbc(des3_ede)", DECRYPT,
+			    des3_ede_cbc_dec_tv_template,
+			    DES3_EDE_CBC_DEC_TEST_VECTORS);
+
 		test_hash("md4", md4_tv_template, MD4_TEST_VECTORS);
 
 		test_hash("sha224", sha224_tv_template, SHA224_TEST_VECTORS);
@@ -1382,6 +1434,14 @@ static void do_test(void)
 			    DES3_EDE_ENC_TEST_VECTORS);
 		test_cipher("ecb(des3_ede)", DECRYPT, des3_ede_dec_tv_template,
 			    DES3_EDE_DEC_TEST_VECTORS);
+
+		test_cipher("cbc(des3_ede)", ENCRYPT,
+			    des3_ede_cbc_enc_tv_template,
+			    DES3_EDE_CBC_ENC_TEST_VECTORS);
+
+		test_cipher("cbc(des3_ede)", DECRYPT,
+			    des3_ede_cbc_dec_tv_template,
+			    DES3_EDE_CBC_DEC_TEST_VECTORS);
 		break;
 
 	case 5:
@@ -1550,7 +1610,7 @@ static void do_test(void)
 	case 29:
 		test_hash("tgr128", tgr128_tv_template, TGR128_TEST_VECTORS);
 		break;
-		
+
 	case 30:
 		test_cipher("ecb(xeta)", ENCRYPT, xeta_enc_tv_template,
 			    XETA_ENC_TEST_VECTORS);
@@ -1615,6 +1675,22 @@ static void do_test(void)
 			    CTS_MODE_DEC_TEST_VECTORS);
 		break;
 
+        case 39:
+		test_hash("rmd128", rmd128_tv_template, RMD128_TEST_VECTORS);
+		break;
+
+        case 40:
+		test_hash("rmd160", rmd160_tv_template, RMD160_TEST_VECTORS);
+		break;
+
+	case 41:
+		test_hash("rmd256", rmd256_tv_template, RMD256_TEST_VECTORS);
+		break;
+
+	case 42:
+		test_hash("rmd320", rmd320_tv_template, RMD320_TEST_VECTORS);
+		break;
+
 	case 100:
 		test_hash("hmac(md5)", hmac_md5_tv_template,
 			  HMAC_MD5_TEST_VECTORS);
@@ -1648,6 +1724,16 @@ static void do_test(void)
 	case 106:
 		test_hash("xcbc(aes)", aes_xcbc128_tv_template,
 			  XCBC_AES_TEST_VECTORS);
+		break;
+
+	case 107:
+		test_hash("hmac(rmd128)", hmac_rmd128_tv_template,
+			  HMAC_RMD128_TEST_VECTORS);
+		break;
+
+	case 108:
+		test_hash("hmac(rmd160)", hmac_rmd160_tv_template,
+			  HMAC_RMD160_TEST_VECTORS);
 		break;
 
 	case 200:
@@ -1786,6 +1872,22 @@ static void do_test(void)
 
 	case 313:
 		test_hash_speed("sha224", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 314:
+		test_hash_speed("rmd128", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 315:
+		test_hash_speed("rmd160", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 316:
+		test_hash_speed("rmd256", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 317:
+		test_hash_speed("rmd320", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 
 	case 399:

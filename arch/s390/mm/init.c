@@ -202,3 +202,22 @@ void free_initrd_mem(unsigned long start, unsigned long end)
         }
 }
 #endif
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+int arch_add_memory(int nid, u64 start, u64 size)
+{
+	struct pglist_data *pgdat;
+	struct zone *zone;
+	int rc;
+
+	pgdat = NODE_DATA(nid);
+	zone = pgdat->node_zones + ZONE_NORMAL;
+	rc = vmem_add_mapping(start, size);
+	if (rc)
+		return rc;
+	rc = __add_pages(zone, PFN_DOWN(start), PFN_DOWN(size));
+	if (rc)
+		vmem_remove_mapping(start, size);
+	return rc;
+}
+#endif /* CONFIG_MEMORY_HOTPLUG */

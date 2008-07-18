@@ -223,7 +223,7 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	return bus;
 }
 
-static int __init pci_acpi_init(void)
+int __init pci_acpi_init(void)
 {
 	struct pci_dev *dev = NULL;
 
@@ -257,4 +257,3 @@ static int __init pci_acpi_init(void)
 
 	return 0;
 }
-subsys_initcall(pci_acpi_init);

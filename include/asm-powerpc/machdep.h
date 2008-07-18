@@ -262,6 +262,7 @@ struct machdep_calls {
 #endif
 };
 
+extern void e500_idle(void);
 extern void power4_idle(void);
 extern void power4_cpu_offline_powersave(void);
 extern void ppc6xx_idle(void);

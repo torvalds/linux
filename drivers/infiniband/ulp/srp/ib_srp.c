@@ -28,8 +28,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: ib_srp.c 3932 2005-11-01 17:19:29Z roland $
  */
 
 #include <linux/module.h>
@@ -48,8 +46,6 @@
 #include <scsi/scsi_dbg.h>
 #include <scsi/srp.h>
 #include <scsi/scsi_transport_srp.h>
-
-#include <rdma/ib_cache.h>
 
 #include "ib_srp.h"
 
@@ -183,10 +179,10 @@ static int srp_init_qp(struct srp_target_port *target,
 	if (!attr)
 		return -ENOMEM;
 
-	ret = ib_find_cached_pkey(target->srp_host->srp_dev->dev,
-				  target->srp_host->port,
-				  be16_to_cpu(target->path.pkey),
-				  &attr->pkey_index);
+	ret = ib_find_pkey(target->srp_host->srp_dev->dev,
+			   target->srp_host->port,
+			   be16_to_cpu(target->path.pkey),
+			   &attr->pkey_index);
 	if (ret)
 		goto out;
 
@@ -1883,8 +1879,7 @@ static ssize_t srp_create_target(struct device *dev,
 	if (ret)
 		goto err;
 
-	ib_get_cached_gid(host->srp_dev->dev, host->port, 0,
-			  &target->path.sgid);
+	ib_query_gid(host->srp_dev->dev, host->port, 0, &target->path.sgid);
 
 	shost_printk(KERN_DEBUG, target->scsi_host, PFX
 		     "new target: id_ext %016llx ioc_guid %016llx pkey %04x "

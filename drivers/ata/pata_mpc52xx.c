@@ -16,10 +16,10 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/libata.h>
+#include <linux/of_platform.h>
 
 #include <asm/types.h>
 #include <asm/prom.h>
-#include <asm/of_platform.h>
 #include <asm/mpc52xx.h>
 
 

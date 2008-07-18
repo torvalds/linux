@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/pfn.h>
 #include <linux/suspend.h>
+#include <linux/firmware-map.h>
 
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -27,7 +28,22 @@
 #include <asm/setup.h>
 #include <asm/trampoline.h>
 
+/*
+ * The e820 map is the map that gets modified e.g. with command line parameters
+ * and that is also registered with modifications in the kernel resource tree
+ * with the iomem_resource as parent.
+ *
+ * The e820_saved is directly saved after the BIOS-provided memory map is
+ * copied. It doesn't get modified afterwards. It's registered for the
+ * /sys/firmware/memmap interface.
+ *
+ * That memory map is not modified and is used as base for kexec. The kexec'd
+ * kernel should get the same memory map as the firmware provides. Then the
+ * user can e.g. boot the original kernel with mem=1G while still booting the
+ * next kernel with full memory.
+ */
 struct e820map e820;
+struct e820map e820_saved;
 
 /* For PCI or other memory-mapped resources */
 unsigned long pci_mem_start = 0xaeedbabe;
@@ -398,8 +414,9 @@ static int __init append_e820_map(struct e820entry *biosmap, int nr_map)
 	return __append_e820_map(biosmap, nr_map);
 }
 
-u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
-				unsigned new_type)
+static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
+					u64 size, unsigned old_type,
+					unsigned new_type)
 {
 	int i;
 	u64 real_updated_size = 0;
@@ -410,7 +427,7 @@ u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
 		size = ULLONG_MAX - start;
 
 	for (i = 0; i < e820.nr_map; i++) {
-		struct e820entry *ei = &e820.map[i];
+		struct e820entry *ei = &e820x->map[i];
 		u64 final_start, final_end;
 		if (ei->type != old_type)
 			continue;
@@ -436,6 +453,19 @@ u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
 		ei->addr = final_end;
 	}
 	return real_updated_size;
+}
+
+u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
+			     unsigned new_type)
+{
+	return e820_update_range_map(&e820, start, size, old_type, new_type);
+}
+
+static u64 __init e820_update_range_saved(u64 start, u64 size,
+					  unsigned old_type, unsigned new_type)
+{
+	return e820_update_range_map(&e820_saved, start, size, old_type,
+				     new_type);
 }
 
 /* make e820 not cover the range */
@@ -486,6 +516,15 @@ void __init update_e820(void)
 	e820.nr_map = nr_map;
 	printk(KERN_INFO "modified physical RAM map:\n");
 	e820_print_map("modified");
+}
+static void __init update_e820_saved(void)
+{
+	int nr_map;
+
+	nr_map = e820_saved.nr_map;
+	if (sanitize_e820_map(e820_saved.map, ARRAY_SIZE(e820_saved.map), &nr_map))
+		return;
+	e820_saved.nr_map = nr_map;
 }
 #define MAX_GAP_END 0x100000000ull
 /*
@@ -991,8 +1030,10 @@ u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
 
 	addr = round_down(start + size - sizet, align);
 	e820_update_range(addr, sizet, E820_RAM, E820_RESERVED);
+	e820_update_range_saved(addr, sizet, E820_RAM, E820_RESERVED);
 	printk(KERN_INFO "update e820 for early_reserve_e820\n");
 	update_e820();
+	update_e820_saved();
 
 	return addr;
 }
@@ -1008,30 +1049,51 @@ u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
 #endif
 
 /*
- * Last pfn which the user wants to use.
- */
-unsigned long __initdata end_user_pfn = MAX_ARCH_PFN;
-
-/*
  * Find the highest page frame number we have available
  */
-unsigned long __init e820_end_of_ram(void)
+static unsigned long __init e820_end_pfn(unsigned long limit_pfn, unsigned type)
 {
-	unsigned long last_pfn;
+	int i;
+	unsigned long last_pfn = 0;
 	unsigned long max_arch_pfn = MAX_ARCH_PFN;
 
-	last_pfn = find_max_pfn_with_active_regions();
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		unsigned long start_pfn;
+		unsigned long end_pfn;
+
+		if (ei->type != type)
+			continue;
+
+		start_pfn = ei->addr >> PAGE_SHIFT;
+		end_pfn = (ei->addr + ei->size) >> PAGE_SHIFT;
+
+		if (start_pfn >= limit_pfn)
+			continue;
+		if (end_pfn > limit_pfn) {
+			last_pfn = limit_pfn;
+			break;
+		}
+		if (end_pfn > last_pfn)
+			last_pfn = end_pfn;
+	}
 
 	if (last_pfn > max_arch_pfn)
 		last_pfn = max_arch_pfn;
-	if (last_pfn > end_user_pfn)
-		last_pfn = end_user_pfn;
 
 	printk(KERN_INFO "last_pfn = %#lx max_arch_pfn = %#lx\n",
 			 last_pfn, max_arch_pfn);
 	return last_pfn;
 }
+unsigned long __init e820_end_of_ram_pfn(void)
+{
+	return e820_end_pfn(MAX_ARCH_PFN, E820_RAM);
+}
 
+unsigned long __init e820_end_of_low_ram_pfn(void)
+{
+	return e820_end_pfn(1UL<<(32 - PAGE_SHIFT), E820_RAM);
+}
 /*
  * Finds an active region in the address range from start_pfn to last_pfn and
  * returns its range in ei_startpfn and ei_endpfn for the e820 entry.
@@ -1061,12 +1123,6 @@ int __init e820_find_active_region(const struct e820entry *ei,
 		*ei_startpfn = start_pfn;
 	if (*ei_endpfn > last_pfn)
 		*ei_endpfn = last_pfn;
-
-	/* Obey end_user_pfn to save on memmap */
-	if (*ei_startpfn >= end_user_pfn)
-		return 0;
-	if (*ei_endpfn > end_user_pfn)
-		*ei_endpfn = end_user_pfn;
 
 	return 1;
 }
@@ -1113,6 +1169,8 @@ static void early_panic(char *msg)
 	panic(msg);
 }
 
+static int userdef __initdata;
+
 /* "mem=nopentium" disables the 4MB page tables. */
 static int __init parse_memopt(char *p)
 {
@@ -1128,21 +1186,21 @@ static int __init parse_memopt(char *p)
 	}
 #endif
 
+	userdef = 1;
 	mem_size = memparse(p, &p);
-	end_user_pfn = mem_size>>PAGE_SHIFT;
-	e820_update_range(mem_size, ULLONG_MAX - mem_size,
-		E820_RAM, E820_RESERVED);
+	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
 
 	return 0;
 }
 early_param("mem", parse_memopt);
 
-static int userdef __initdata;
-
 static int __init parse_memmap_opt(char *p)
 {
 	char *oldp;
 	u64 start_at, mem_size;
+
+	if (!p)
+		return -EINVAL;
 
 	if (!strcmp(p, "exactmap")) {
 #ifdef CONFIG_CRASH_DUMP
@@ -1151,9 +1209,7 @@ static int __init parse_memmap_opt(char *p)
 		 * the real mem size before original memory map is
 		 * reset.
 		 */
-		e820_register_active_regions(0, 0, -1UL);
-		saved_max_pfn = e820_end_of_ram();
-		remove_all_active_ranges();
+		saved_max_pfn = e820_end_of_ram_pfn();
 #endif
 		e820.nr_map = 0;
 		userdef = 1;
@@ -1175,11 +1231,9 @@ static int __init parse_memmap_opt(char *p)
 	} else if (*p == '$') {
 		start_at = memparse(p+1, &p);
 		e820_add_region(start_at, mem_size, E820_RESERVED);
-	} else {
-		end_user_pfn = (mem_size >> PAGE_SHIFT);
-		e820_update_range(mem_size, ULLONG_MAX - mem_size,
-			E820_RAM, E820_RESERVED);
-	}
+	} else
+		e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
+
 	return *p == '\0' ? 0 : -EINVAL;
 }
 early_param("memmap", parse_memmap_opt);
@@ -1198,6 +1252,17 @@ void __init finish_e820_parsing(void)
 	}
 }
 
+static inline const char *e820_type_to_string(int e820_type)
+{
+	switch (e820_type) {
+	case E820_RESERVED_KERN:
+	case E820_RAM:	return "System RAM";
+	case E820_ACPI:	return "ACPI Tables";
+	case E820_NVS:	return "ACPI Non-volatile Storage";
+	default:	return "reserved";
+	}
+}
+
 /*
  * Mark e820 reserved areas as busy for the resource manager.
  */
@@ -1209,13 +1274,6 @@ void __init e820_reserve_resources(void)
 
 	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
 	for (i = 0; i < e820.nr_map; i++) {
-		switch (e820.map[i].type) {
-		case E820_RESERVED_KERN:
-		case E820_RAM:	res->name = "System RAM"; break;
-		case E820_ACPI:	res->name = "ACPI Tables"; break;
-		case E820_NVS:	res->name = "ACPI Non-volatile Storage"; break;
-		default:	res->name = "reserved";
-		}
 		end = e820.map[i].addr + e820.map[i].size - 1;
 #ifndef CONFIG_RESOURCES_64BIT
 		if (end > 0x100000000ULL) {
@@ -1223,6 +1281,7 @@ void __init e820_reserve_resources(void)
 			continue;
 		}
 #endif
+		res->name = e820_type_to_string(e820.map[i].type);
 		res->start = e820.map[i].addr;
 		res->end = end;
 
@@ -1230,7 +1289,19 @@ void __init e820_reserve_resources(void)
 		insert_resource(&iomem_resource, res);
 		res++;
 	}
+
+	for (i = 0; i < e820_saved.nr_map; i++) {
+		struct e820entry *entry = &e820_saved.map[i];
+		firmware_map_add_early(entry->addr,
+			entry->addr + entry->size - 1,
+			e820_type_to_string(entry->type));
+	}
 }
+
+/*
+ * Non-standard memory setup can be specified via this quirk:
+ */
+char * (*arch_memory_setup_quirk)(void);
 
 char *__init default_machine_specific_memory_setup(void)
 {
@@ -1272,6 +1343,12 @@ char *__init default_machine_specific_memory_setup(void)
 
 char *__init __attribute__((weak)) machine_specific_memory_setup(void)
 {
+	if (arch_memory_setup_quirk) {
+		char *who = arch_memory_setup_quirk();
+
+		if (who)
+			return who;
+	}
 	return default_machine_specific_memory_setup();
 }
 
@@ -1283,8 +1360,12 @@ char * __init __attribute__((weak)) memory_setup(void)
 
 void __init setup_memory_map(void)
 {
+	char *who;
+
+	who = memory_setup();
+	memcpy(&e820_saved, &e820, sizeof(struct e820map));
 	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
-	e820_print_map(memory_setup());
+	e820_print_map(who);
 }
 
 #ifdef CONFIG_X86_64

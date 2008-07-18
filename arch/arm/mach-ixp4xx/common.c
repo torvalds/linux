@@ -326,11 +326,11 @@ static struct resource ixp4xx_udc_resources[] = {
 };
 
 /*
- * USB device controller. The IXP4xx uses the same controller as PXA2XX,
+ * USB device controller. The IXP4xx uses the same controller as PXA25X,
  * so we just use the same device.
  */
 static struct platform_device ixp4xx_udc_device = {
-	.name           = "pxa2xx-udc",
+	.name           = "pxa25x-udc",
 	.id             = -1,
 	.num_resources  = 2,
 	.resource       = ixp4xx_udc_resources,

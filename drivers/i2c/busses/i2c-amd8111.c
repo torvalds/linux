@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 MODULE_LICENSE("GPL");
@@ -77,7 +78,7 @@ static unsigned int amd_ec_wait_write(struct amd_smbus *smbus)
 	if (!timeout) {
 		dev_warn(&smbus->dev->dev,
 			 "Timeout while waiting for IBF to clear\n");
-		return -1;
+		return -ETIMEDOUT;
 	}
 
 	return 0;
@@ -93,7 +94,7 @@ static unsigned int amd_ec_wait_read(struct amd_smbus *smbus)
 	if (!timeout) {
 		dev_warn(&smbus->dev->dev,
 			 "Timeout while waiting for OBF to set\n");
-		return -1;
+		return -ETIMEDOUT;
 	}
 
 	return 0;
@@ -102,16 +103,21 @@ static unsigned int amd_ec_wait_read(struct amd_smbus *smbus)
 static unsigned int amd_ec_read(struct amd_smbus *smbus, unsigned char address,
 		unsigned char *data)
 {
-	if (amd_ec_wait_write(smbus))
-		return -1;
+	int status;
+
+	status = amd_ec_wait_write(smbus);
+	if (status)
+		return status;
 	outb(AMD_EC_CMD_RD, smbus->base + AMD_EC_CMD);
 
-	if (amd_ec_wait_write(smbus))
-		return -1;
+	status = amd_ec_wait_write(smbus);
+	if (status)
+		return status;
 	outb(address, smbus->base + AMD_EC_DATA);
 
-	if (amd_ec_wait_read(smbus))
-		return -1;
+	status = amd_ec_wait_read(smbus);
+	if (status)
+		return status;
 	*data = inb(smbus->base + AMD_EC_DATA);
 
 	return 0;
@@ -120,16 +126,21 @@ static unsigned int amd_ec_read(struct amd_smbus *smbus, unsigned char address,
 static unsigned int amd_ec_write(struct amd_smbus *smbus, unsigned char address,
 		unsigned char data)
 {
-	if (amd_ec_wait_write(smbus))
-		return -1;
+	int status;
+
+	status = amd_ec_wait_write(smbus);
+	if (status)
+		return status;
 	outb(AMD_EC_CMD_WR, smbus->base + AMD_EC_CMD);
 
-	if (amd_ec_wait_write(smbus))
-		return -1;
+	status = amd_ec_wait_write(smbus);
+	if (status)
+		return status;
 	outb(address, smbus->base + AMD_EC_DATA);
 
-	if (amd_ec_wait_write(smbus))
-		return -1;
+	status = amd_ec_wait_write(smbus);
+	if (status)
+		return status;
 	outb(data, smbus->base + AMD_EC_DATA);
 
 	return 0;
@@ -267,12 +278,17 @@ static s32 amd8111_access(struct i2c_adapter * adap, u16 addr,
 
 		default:
 			dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
-			return -1;
+			return -EOPNOTSUPP;
 	}
 
 	amd_ec_write(smbus, AMD_SMB_ADDR, addr << 1);
 	amd_ec_write(smbus, AMD_SMB_PRTCL, protocol);
 
+	/* FIXME this discards status from ec_read(); so temp[0] will
+	 * hold stack garbage ... the rest of this routine will act
+	 * nonsensically.  Ignored ec_write() status might explain
+	 * some such failures...
+	 */
 	amd_ec_read(smbus, AMD_SMB_STS, temp + 0);
 
 	if (~temp[0] & AMD_SMB_STS_DONE) {
@@ -286,7 +302,7 @@ static s32 amd8111_access(struct i2c_adapter * adap, u16 addr,
 	}
 
 	if ((~temp[0] & AMD_SMB_STS_DONE) || (temp[0] & AMD_SMB_STS_STATUS))
-		return -1;
+		return -EIO;
 
 	if (read_write == I2C_SMBUS_WRITE)
 		return 0;
@@ -359,6 +375,10 @@ static int __devinit amd8111_probe(struct pci_dev *dev,
 	smbus->base = pci_resource_start(dev, 0);
 	smbus->size = pci_resource_len(dev, 0);
 
+	error = acpi_check_resource_conflict(&dev->resource[0]);
+	if (error)
+		goto out_kfree;
+
 	if (!request_region(smbus->base, smbus->size, amd8111_driver.name)) {
 		error = -EBUSY;
 		goto out_kfree;
@@ -368,7 +388,7 @@ static int __devinit amd8111_probe(struct pci_dev *dev,
 	snprintf(smbus->adapter.name, sizeof(smbus->adapter.name),
 		"SMBus2 AMD8111 adapter at %04x", smbus->base);
 	smbus->adapter.id = I2C_HW_SMBUS_AMD8111;
-	smbus->adapter.class = I2C_CLASS_HWMON;
+	smbus->adapter.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
 

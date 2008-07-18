@@ -29,9 +29,9 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
+#include <linux/of_platform.h>
 
 #include <pcmcia/ss.h>
-#include <asm/of_platform.h>
 
 static const char driver_name[] = "electra-cf";
 

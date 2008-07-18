@@ -196,7 +196,7 @@ tape_34xx_erp_retry(struct tape_request *request)
 static int
 tape_34xx_unsolicited_irq(struct tape_device *device, struct irb *irb)
 {
-	if (irb->scsw.dstat == 0x85 /* READY */) {
+	if (irb->scsw.cmd.dstat == 0x85) { /* READY */
 		/* A medium was inserted in the drive. */
 		DBF_EVENT(6, "xuud med\n");
 		tape_34xx_delete_sbid_from(device, 0);
@@ -844,22 +844,22 @@ tape_34xx_irq(struct tape_device *device, struct tape_request *request,
 	if (request == NULL)
 		return tape_34xx_unsolicited_irq(device, irb);
 
-	if ((irb->scsw.dstat & DEV_STAT_UNIT_EXCEP) &&
-	    (irb->scsw.dstat & DEV_STAT_DEV_END) &&
+	if ((irb->scsw.cmd.dstat & DEV_STAT_UNIT_EXCEP) &&
+	    (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) &&
 	    (request->op == TO_WRI)) {
 		/* Write at end of volume */
 		PRINT_INFO("End of volume\n"); /* XXX */
 		return tape_34xx_erp_failed(request, -ENOSPC);
 	}
 
-	if (irb->scsw.dstat & DEV_STAT_UNIT_CHECK)
+	if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK)
 		return tape_34xx_unit_check(device, request, irb);
 
-	if (irb->scsw.dstat & DEV_STAT_DEV_END) {
+	if (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) {
 		/*
 		 * A unit exception occurs on skipping over a tapemark block.
 		 */
-		if (irb->scsw.dstat & DEV_STAT_UNIT_EXCEP) {
+		if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_EXCEP) {
 			if (request->op == TO_BSB || request->op == TO_FSB)
 				request->rescnt++;
 			else

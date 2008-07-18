@@ -160,7 +160,7 @@ extern void native_load_gs_index(unsigned);
  * Save a segment register away
  */
 #define savesegment(seg, value)				\
-	asm("mov %%" #seg ",%0":"=rm" (value) : : "memory")
+	asm("mov %%" #seg ",%0":"=r" (value) : : "memory")
 
 static inline unsigned long get_limit(unsigned long segment)
 {

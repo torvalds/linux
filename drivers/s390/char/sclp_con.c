@@ -14,13 +14,12 @@
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/bootmem.h>
+#include <linux/termios.h>
 #include <linux/err.h>
 
 #include "sclp.h"
 #include "sclp_rw.h"
 #include "sclp_tty.h"
-
-#define SCLP_CON_PRINT_HEADER "sclp console driver: "
 
 #define sclp_console_major 4		/* TTYAUX_MAJOR */
 #define sclp_console_minor 64
@@ -222,8 +221,6 @@ sclp_console_init(void)
 	INIT_LIST_HEAD(&sclp_con_pages);
 	for (i = 0; i < MAX_CONSOLE_PAGES; i++) {
 		page = alloc_bootmem_low_pages(PAGE_SIZE);
-		if (page == NULL)
-			return -ENOMEM;
 		list_add_tail((struct list_head *) page, &sclp_con_pages);
 	}
 	INIT_LIST_HEAD(&sclp_con_outqueue);

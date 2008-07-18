@@ -32,6 +32,7 @@
 
 
 /* Chip-specific module offsets */
+#define OMAP24XX_GR_MOD					OCP_MOD
 #define OMAP24XX_DSP_MOD				0x800
 
 #define OMAP2430_MDM_MOD				0xc00

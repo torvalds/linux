@@ -45,10 +45,10 @@ static void __init csb637_map_io(void)
 	/* Initialize processor: 3.6864 MHz crystal */
 	at91rm9200_initialize(3686400, AT91RM9200_BGA);
 
-	/* DBGU on ttyS0 */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
-	/* make console=ttyS0 the default */
+	/* make console=ttyS0 (ie, DBGU) the default */
 	at91_set_serial_console(0);
 }
 

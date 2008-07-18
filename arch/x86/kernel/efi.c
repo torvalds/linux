@@ -473,7 +473,7 @@ void __init efi_enter_virtual_mode(void)
 		size = md->num_pages << EFI_PAGE_SHIFT;
 		end = md->phys_addr + size;
 
-		if (PFN_UP(end) <= max_pfn_mapped)
+		if (PFN_UP(end) <= max_low_pfn_mapped)
 			va = __va(md->phys_addr);
 		else
 			va = efi_ioremap(md->phys_addr, size);

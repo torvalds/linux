@@ -14,8 +14,8 @@
 #include <linux/i2c.h>
 #include <linux/hwmon-sysfs.h>
 
-/* Addresses to scan */
-static unsigned short normal_i2c[] = {0x74, 0x75, 0x76, 0x77, I2C_CLIENT_END};
+/* Addresses to scan: none, device is not autodetected */
+static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_1(pca9539);
@@ -30,23 +30,6 @@ enum pca9539_cmd
 	PCA9539_INVERT_1	= 5,
 	PCA9539_DIRECTION_0	= 6,
 	PCA9539_DIRECTION_1	= 7,
-};
-
-static int pca9539_attach_adapter(struct i2c_adapter *adapter);
-static int pca9539_detect(struct i2c_adapter *adapter, int address, int kind);
-static int pca9539_detach_client(struct i2c_client *client);
-
-/* This is the driver that will be inserted */
-static struct i2c_driver pca9539_driver = {
-	.driver = {
-		.name	= "pca9539",
-	},
-	.attach_adapter	= pca9539_attach_adapter,
-	.detach_client	= pca9539_detach_client,
-};
-
-struct pca9539_data {
-	struct i2c_client client;
 };
 
 /* following are the sysfs callback functions */
@@ -105,77 +88,50 @@ static struct attribute_group pca9539_defattr_group = {
 	.attrs = pca9539_attributes,
 };
 
-static int pca9539_attach_adapter(struct i2c_adapter *adapter)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int pca9539_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info)
 {
-	return i2c_probe(adapter, &addr_data, pca9539_detect);
-}
-
-/* This function is called by i2c_probe */
-static int pca9539_detect(struct i2c_adapter *adapter, int address, int kind)
-{
-	struct i2c_client *new_client;
-	struct pca9539_data *data;
-	int err = 0;
+	struct i2c_adapter *adapter = client->adapter;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		goto exit;
+		return -ENODEV;
 
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet. */
-	if (!(data = kzalloc(sizeof(struct pca9539_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &pca9539_driver;
-	new_client->flags = 0;
-
-	if (kind < 0) {
-		/* Detection: the pca9539 only has 8 registers (0-7).
-		   A read of 7 should succeed, but a read of 8 should fail. */
-		if ((i2c_smbus_read_byte_data(new_client, 7) < 0) ||
-		    (i2c_smbus_read_byte_data(new_client, 8) >= 0))
-			goto exit_kfree;
-	}
-
-	strlcpy(new_client->name, "pca9539", I2C_NAME_SIZE);
-
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
-		goto exit_kfree;
-
-	/* Register sysfs hooks */
-	err = sysfs_create_group(&new_client->dev.kobj,
-				 &pca9539_defattr_group);
-	if (err)
-		goto exit_detach;
+	strlcpy(info->type, "pca9539", I2C_NAME_SIZE);
 
 	return 0;
-
-exit_detach:
-	i2c_detach_client(new_client);
-exit_kfree:
-	kfree(data);
-exit:
-	return err;
 }
 
-static int pca9539_detach_client(struct i2c_client *client)
+static int pca9539_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
-	int err;
+	/* Register sysfs hooks */
+	return sysfs_create_group(&client->dev.kobj,
+				  &pca9539_defattr_group);
+}
 
+static int pca9539_remove(struct i2c_client *client)
+{
 	sysfs_remove_group(&client->dev.kobj, &pca9539_defattr_group);
-
-	if ((err = i2c_detach_client(client)))
-		return err;
-
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
+
+static const struct i2c_device_id pca9539_id[] = {
+	{ "pca9539", 0 },
+	{ }
+};
+
+static struct i2c_driver pca9539_driver = {
+	.driver = {
+		.name	= "pca9539",
+	},
+	.probe		= pca9539_probe,
+	.remove		= pca9539_remove,
+	.id_table	= pca9539_id,
+
+	.detect		= pca9539_detect,
+	.address_data	= &addr_data,
+};
 
 static int __init pca9539_init(void)
 {

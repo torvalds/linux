@@ -49,6 +49,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kthread.h>
+#include <linux/seq_file.h>
 #include "jfs_incore.h"
 #include "jfs_inode.h"
 #include "jfs_filsys.h"
@@ -3009,11 +3010,8 @@ int jfs_sync(void *arg)
 }
 
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_JFS_DEBUG)
-int jfs_txanchor_read(char *buffer, char **start, off_t offset, int length,
-		      int *eof, void *data)
+static int jfs_txanchor_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
-	off_t begin;
 	char *freewait;
 	char *freelockwait;
 	char *lowlockwait;
@@ -3025,7 +3023,7 @@ int jfs_txanchor_read(char *buffer, char **start, off_t offset, int length,
 	lowlockwait =
 	    waitqueue_active(&TxAnchor.lowlockwait) ? "active" : "empty";
 
-	len += sprintf(buffer,
+	seq_printf(m,
 		       "JFS TxAnchor\n"
 		       "============\n"
 		       "freetid = %d\n"
@@ -3044,31 +3042,27 @@ int jfs_txanchor_read(char *buffer, char **start, off_t offset, int length,
 		       TxAnchor.tlocksInUse,
 		       jfs_tlocks_low,
 		       list_empty(&TxAnchor.unlock_queue) ? "" : "not ");
-
-	begin = offset;
-	*start = buffer + begin;
-	len -= begin;
-
-	if (len > length)
-		len = length;
-	else
-		*eof = 1;
-
-	if (len < 0)
-		len = 0;
-
-	return len;
+	return 0;
 }
+
+static int jfs_txanchor_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jfs_txanchor_proc_show, NULL);
+}
+
+const struct file_operations jfs_txanchor_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= jfs_txanchor_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 #endif
 
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_JFS_STATISTICS)
-int jfs_txstats_read(char *buffer, char **start, off_t offset, int length,
-		     int *eof, void *data)
+static int jfs_txstats_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
-	off_t begin;
-
-	len += sprintf(buffer,
+	seq_printf(m,
 		       "JFS TxStats\n"
 		       "===========\n"
 		       "calls to txBegin = %d\n"
@@ -3089,19 +3083,19 @@ int jfs_txstats_read(char *buffer, char **start, off_t offset, int length,
 		       TxStat.txBeginAnon_lockslow,
 		       TxStat.txLockAlloc,
 		       TxStat.txLockAlloc_freelock);
-
-	begin = offset;
-	*start = buffer + begin;
-	len -= begin;
-
-	if (len > length)
-		len = length;
-	else
-		*eof = 1;
-
-	if (len < 0)
-		len = 0;
-
-	return len;
+	return 0;
 }
+
+static int jfs_txstats_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jfs_txstats_proc_show, NULL);
+}
+
+const struct file_operations jfs_txstats_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= jfs_txstats_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 #endif

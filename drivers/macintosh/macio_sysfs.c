@@ -44,12 +44,21 @@ static ssize_t modalias_show (struct device *dev, struct device_attribute *attr,
 	struct of_device *ofdev = to_of_device(dev);
 	int len;
 
-	len = of_device_get_modalias(ofdev, buf, PAGE_SIZE);
+	len = of_device_get_modalias(ofdev, buf, PAGE_SIZE - 2);
 
 	buf[len] = '\n';
 	buf[len+1] = 0;
 
 	return len+1;
+}
+
+static ssize_t devspec_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct of_device *ofdev;
+
+	ofdev = to_of_device(dev);
+	return sprintf(buf, "%s\n", ofdev->node->full_name);
 }
 
 macio_config_of_attr (name, "%s\n");
@@ -60,5 +69,6 @@ struct device_attribute macio_dev_attrs[] = {
 	__ATTR_RO(type),
 	__ATTR_RO(compatible),
 	__ATTR_RO(modalias),
+	__ATTR_RO(devspec),
 	__ATTR_NULL
 };

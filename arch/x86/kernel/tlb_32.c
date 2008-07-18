@@ -238,6 +238,6 @@ static void do_flush_tlb_all(void *info)
 
 void flush_tlb_all(void)
 {
-	on_each_cpu(do_flush_tlb_all, NULL, 1, 1);
+	on_each_cpu(do_flush_tlb_all, NULL, 1);
 }
 

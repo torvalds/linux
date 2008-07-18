@@ -50,6 +50,7 @@
 
 unsigned int __VMALLOC_RESERVE = 128 << 20;
 
+unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
@@ -1034,6 +1035,8 @@ void mark_rodata_ro(void)
 	unsigned long start = PFN_ALIGN(_text);
 	unsigned long size = PFN_ALIGN(_etext) - start;
 
+#ifndef CONFIG_DYNAMIC_FTRACE
+	/* Dynamic tracing modifies the kernel text section */
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
 	printk(KERN_INFO "Write protecting the kernel text: %luk\n",
 		size >> 10);
@@ -1046,6 +1049,8 @@ void mark_rodata_ro(void)
 	printk(KERN_INFO "Testing CPA: write protecting again\n");
 	set_pages_ro(virt_to_page(start), size>>PAGE_SHIFT);
 #endif
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
 	start += size;
 	size = (unsigned long)__end_rodata - start;
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);

@@ -37,6 +37,7 @@
 #include <asm/pgtable.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
+#include <asm/genapic.h>
 #include <asm/io.h>
 #include <asm/mpspec.h>
 #include <asm/smp.h>
@@ -83,8 +84,6 @@ int acpi_lapic;
 int acpi_ioapic;
 int acpi_strict;
 
-static int disable_irq0_through_ioapic __initdata;
-
 u8 acpi_sci_flags __initdata;
 int acpi_sci_override_gsi __initdata;
 int acpi_skip_timer_override __initdata;
@@ -108,21 +107,6 @@ static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
  */
 enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_PIC;
 
-#ifdef	CONFIG_X86_64
-
-/* rely on all ACPI tables being in the direct mapping */
-char *__init __acpi_map_table(unsigned long phys_addr, unsigned long size)
-{
-	if (!phys_addr || !size)
-		return NULL;
-
-	if (phys_addr+size <= (max_pfn_mapped << PAGE_SHIFT) + PAGE_SIZE)
-		return __va(phys_addr);
-
-	return NULL;
-}
-
-#else
 
 /*
  * Temporarily use the virtual area starting from FIX_IO_APIC_BASE_END,
@@ -141,11 +125,15 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 	unsigned long base, offset, mapped_size;
 	int idx;
 
-	if (phys + size < 8 * 1024 * 1024)
+	if (!phys || !size)
+		return NULL;
+
+	if (phys+size <= (max_low_pfn_mapped << PAGE_SHIFT))
 		return __va(phys);
 
 	offset = phys & (PAGE_SIZE - 1);
 	mapped_size = PAGE_SIZE - offset;
+	clear_fixmap(FIX_ACPI_END);
 	set_fixmap(FIX_ACPI_END, phys);
 	base = fix_to_virt(FIX_ACPI_END);
 
@@ -157,13 +145,13 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 		if (--idx < FIX_ACPI_BEGIN)
 			return NULL;	/* cannot handle this */
 		phys += PAGE_SIZE;
+		clear_fixmap(idx);
 		set_fixmap(idx, phys);
 		mapped_size += PAGE_SIZE;
 	}
 
 	return ((unsigned char *)base + offset);
 }
-#endif
 
 #ifdef CONFIG_PCI_MMCONFIG
 /* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
@@ -992,10 +980,6 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	int pin;
 	struct mp_config_intsrc mp_irq;
 
-	/* Skip the 8254 timer interrupt (IRQ 0) if requested.  */
-	if (bus_irq == 0 && disable_irq0_through_ioapic)
-		return;
-
 	/*
 	 * Convert 'gsi' to 'ioapic.pin'.
 	 */
@@ -1061,10 +1045,6 @@ void __init mp_config_acpi_legacy_irqs(void)
 	 */
 	for (i = 0; i < 16; i++) {
 		int idx;
-
-		/* Skip the 8254 timer interrupt (IRQ 0) if requested.  */
-		if (i == 0 && disable_irq0_through_ioapic)
-			continue;
 
 		for (idx = 0; idx < mp_irq_entries; idx++) {
 			struct mp_config_intsrc *irq = mp_irqs + idx;
@@ -1373,8 +1353,6 @@ static void __init acpi_process_madt(void)
 	return;
 }
 
-#ifdef __i386__
-
 static int __init disable_acpi_irq(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
@@ -1425,13 +1403,12 @@ static int __init force_acpi_ht(const struct dmi_system_id *d)
 }
 
 /*
- * Don't register any I/O APIC entries for the 8254 timer IRQ.
+ * Force ignoring BIOS IRQ0 pin2 override
  */
-static int __init
-dmi_disable_irq0_through_ioapic(const struct dmi_system_id *d)
+static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
 {
-	pr_notice("%s detected: disabling IRQ 0 through I/O APIC\n", d->ident);
-	disable_irq0_through_ioapic = 1;
+	pr_notice("%s detected: Ignoring BIOS IRQ0 pin2 override\n", d->ident);
+	acpi_skip_timer_override = 1;
 	return 0;
 }
 
@@ -1609,11 +1586,11 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 * is enabled.  This input is incorrectly designated the
 	 * ISA IRQ 0 via an interrupt source override even though
 	 * it is wired to the output of the master 8259A and INTIN0
-	 * is not connected at all.  Abandon any attempts to route
-	 * IRQ 0 through the I/O APIC therefore.
+	 * is not connected at all.  Force ignoring BIOS IRQ0 pin2
+	 * override in that cases.
 	 */
 	{
-	 .callback = dmi_disable_irq0_through_ioapic,
+	 .callback = dmi_ignore_irq0_timer_override,
 	 .ident = "HP NX6125 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1621,7 +1598,7 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 		     },
 	 },
 	{
-	 .callback = dmi_disable_irq0_through_ioapic,
+	 .callback = dmi_ignore_irq0_timer_override,
 	 .ident = "HP NX6325 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1630,8 +1607,6 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 },
 	{}
 };
-
-#endif				/* __i386__ */
 
 /*
  * acpi_boot_table_init() and acpi_boot_init()
@@ -1660,9 +1635,7 @@ int __init acpi_boot_table_init(void)
 {
 	int error;
 
-#ifdef __i386__
 	dmi_check_system(acpi_dmi_table);
-#endif
 
 	/*
 	 * If acpi_disabled, bail out

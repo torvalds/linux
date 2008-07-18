@@ -394,11 +394,10 @@ static void __init parse_setup_data(void)
 	}
 }
 
-static void __init reserve_setup_data(void)
+static void __init e820_reserve_setup_data(void)
 {
 	struct setup_data *data;
 	u64 pa_data;
-	char buf[32];
 	int found = 0;
 
 	if (boot_params.hdr.version < 0x0209)
@@ -406,8 +405,6 @@ static void __init reserve_setup_data(void)
 	pa_data = boot_params.hdr.setup_data;
 	while (pa_data) {
 		data = early_ioremap(pa_data, sizeof(*data));
-		sprintf(buf, "setup data %x", data->type);
-		reserve_early(pa_data, pa_data+sizeof(*data)+data->len, buf);
 		e820_update_range(pa_data, sizeof(*data)+data->len,
 			 E820_RAM, E820_RESERVED_KERN);
 		found = 1;
@@ -418,8 +415,27 @@ static void __init reserve_setup_data(void)
 		return;
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+	memcpy(&e820_saved, &e820, sizeof(struct e820map));
 	printk(KERN_INFO "extended physical RAM map:\n");
 	e820_print_map("reserve setup_data");
+}
+
+static void __init reserve_early_setup_data(void)
+{
+	struct setup_data *data;
+	u64 pa_data;
+	char buf[32];
+
+	if (boot_params.hdr.version < 0x0209)
+		return;
+	pa_data = boot_params.hdr.setup_data;
+	while (pa_data) {
+		data = early_ioremap(pa_data, sizeof(*data));
+		sprintf(buf, "setup data %x", data->type);
+		reserve_early(pa_data, pa_data+sizeof(*data)+data->len, buf);
+		pa_data = data->next;
+		early_iounmap(data, sizeof(*data));
+	}
 }
 
 /*
@@ -580,6 +596,7 @@ void __init setup_arch(char **cmdline_p)
 {
 #ifdef CONFIG_X86_32
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
+	visws_early_detect();
 	pre_setup_arch_hook();
 	early_cpu_init();
 #else
@@ -626,6 +643,8 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_memory_map();
 	parse_setup_data();
+	/* update the e820_saved too */
+	e820_reserve_setup_data();
 
 	copy_edd();
 
@@ -656,7 +675,7 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	/* after early param, so could get panic from serial */
-	reserve_setup_data();
+	reserve_early_setup_data();
 
 	if (acpi_mps_check()) {
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -664,6 +683,11 @@ void __init setup_arch(char **cmdline_p)
 #endif
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 	}
+
+#ifdef CONFIG_PCI
+	if (pci_early_dump_regs)
+		early_dump_pci_devices();
+#endif
 
 	finish_e820_parsing();
 
@@ -691,22 +715,18 @@ void __init setup_arch(char **cmdline_p)
 	early_gart_iommu_check();
 #endif
 
-	e820_register_active_regions(0, 0, -1UL);
 	/*
 	 * partially used pages are not usable - thus
 	 * we are rounding upwards:
 	 */
-	max_pfn = e820_end_of_ram();
+	max_pfn = e820_end_of_ram_pfn();
 
 	/* preallocate 4k for mptable mpc */
 	early_reserve_e820_mpc_new();
 	/* update e820 for memory not covered by WB MTRRs */
 	mtrr_bp_init();
-	if (mtrr_trim_uncached_memory(max_pfn)) {
-		remove_all_active_ranges();
-		e820_register_active_regions(0, 0, -1UL);
-		max_pfn = e820_end_of_ram();
-	}
+	if (mtrr_trim_uncached_memory(max_pfn))
+		max_pfn = e820_end_of_ram_pfn();
 
 #ifdef CONFIG_X86_32
 	/* max_low_pfn get updated here */
@@ -718,12 +738,26 @@ void __init setup_arch(char **cmdline_p)
 
 	/* How many end-of-memory variables you have, grandma! */
 	/* need this before calling reserve_initrd */
-	max_low_pfn = max_pfn;
+	if (max_pfn > (1UL<<(32 - PAGE_SHIFT)))
+		max_low_pfn = e820_end_of_low_ram_pfn();
+	else
+		max_low_pfn = max_pfn;
+
 	high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
 #endif
 
 	/* max_pfn_mapped is updated here */
-	max_pfn_mapped = init_memory_mapping(0, (max_low_pfn << PAGE_SHIFT));
+	max_low_pfn_mapped = init_memory_mapping(0, max_low_pfn<<PAGE_SHIFT);
+	max_pfn_mapped = max_low_pfn_mapped;
+
+#ifdef CONFIG_X86_64
+	if (max_pfn > max_low_pfn) {
+		max_pfn_mapped = init_memory_mapping(1UL<<32,
+						     max_pfn<<PAGE_SHIFT);
+		/* can we preseve max_low_pfn ?*/
+		max_low_pfn = max_pfn;
+	}
+#endif
 
 	/*
 	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
@@ -748,9 +782,6 @@ void __init setup_arch(char **cmdline_p)
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */
 	acpi_boot_table_init();
-
-	/* Remove active ranges so rediscovery with NUMA-awareness happens */
-	remove_all_active_ranges();
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
@@ -821,6 +852,14 @@ void __init setup_arch(char **cmdline_p)
 	prefill_possible_map();
 #ifdef CONFIG_X86_64
 	init_cpu_to_node();
+#endif
+
+#ifdef CONFIG_X86_NUMAQ
+	/*
+	 * need to check online nodes num, call it
+	 * here before time_init/tsc_init
+	 */
+	numaq_tsc_disable();
 #endif
 
 	init_apic_mappings();

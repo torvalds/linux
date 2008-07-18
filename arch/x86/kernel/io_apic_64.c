@@ -1160,7 +1160,7 @@ void __apicdebuginit print_local_APIC(void * dummy)
 
 void print_all_local_APICs (void)
 {
-	on_each_cpu(print_local_APIC, NULL, 1, 1);
+	on_each_cpu(print_local_APIC, NULL, 1);
 }
 
 void __apicdebuginit print_PIC(void)
@@ -1554,7 +1554,7 @@ static inline void init_IO_APIC_traps(void)
 	}
 }
 
-static void enable_lapic_irq (unsigned int irq)
+static void unmask_lapic_irq(unsigned int irq)
 {
 	unsigned long v;
 
@@ -1562,7 +1562,7 @@ static void enable_lapic_irq (unsigned int irq)
 	apic_write(APIC_LVT0, v & ~APIC_LVT_MASKED);
 }
 
-static void disable_lapic_irq (unsigned int irq)
+static void mask_lapic_irq(unsigned int irq)
 {
 	unsigned long v;
 
@@ -1575,18 +1575,19 @@ static void ack_lapic_irq (unsigned int irq)
 	ack_APIC_irq();
 }
 
-static void end_lapic_irq (unsigned int i) { /* nothing */ }
-
-static struct hw_interrupt_type lapic_irq_type __read_mostly = {
-	.name = "local-APIC",
-	.typename = "local-APIC-edge",
-	.startup = NULL, /* startup_irq() not used for IRQ0 */
-	.shutdown = NULL, /* shutdown_irq() not used for IRQ0 */
-	.enable = enable_lapic_irq,
-	.disable = disable_lapic_irq,
-	.ack = ack_lapic_irq,
-	.end = end_lapic_irq,
+static struct irq_chip lapic_chip __read_mostly = {
+	.name		= "local-APIC",
+	.mask		= mask_lapic_irq,
+	.unmask		= unmask_lapic_irq,
+	.ack		= ack_lapic_irq,
 };
+
+static void lapic_register_intr(int irq)
+{
+	irq_desc[irq].status &= ~IRQ_LEVEL;
+	set_irq_chip_and_handler_name(irq, &lapic_chip, handle_edge_irq,
+				      "edge");
+}
 
 static void __init setup_nmi(void)
 {
@@ -1714,11 +1715,6 @@ static inline void __init check_timer(void)
 		apic2 = apic1;
 	}
 
-	replace_pin_at_irq(0, 0, 0, apic1, pin1);
-	apic1 = 0;
-	pin1 = 0;
-	setup_timer_IRQ0_pin(apic1, pin1, cfg->vector);
-
 	if (pin1 != -1) {
 		/*
 		 * Ok, does IRQ0 through the IOAPIC work?
@@ -1779,7 +1775,7 @@ static inline void __init check_timer(void)
 
 	apic_printk(APIC_VERBOSE, KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
-	irq_desc[0].chip = &lapic_irq_type;
+	lapic_register_intr(0);
 	apic_write(APIC_LVT0, APIC_DM_FIXED | cfg->vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 
@@ -1817,11 +1813,21 @@ static int __init notimercheck(char *s)
 __setup("no_timer_check", notimercheck);
 
 /*
- *
- * IRQs that are handled by the PIC in the MPS IOAPIC case.
- * - IRQ2 is the cascade IRQ, and cannot be a io-apic IRQ.
- *   Linux doesn't really care, as it's not actually used
- *   for any interrupt handling anyway.
+ * Traditionally ISA IRQ2 is the cascade IRQ, and is not available
+ * to devices.  However there may be an I/O APIC pin available for
+ * this interrupt regardless.  The pin may be left unconnected, but
+ * typically it will be reused as an ExtINT cascade interrupt for
+ * the master 8259A.  In the MPS case such a pin will normally be
+ * reported as an ExtINT interrupt in the MP table.  With ACPI
+ * there is no provision for ExtINT interrupts, and in the absence
+ * of an override it would be treated as an ordinary ISA I/O APIC
+ * interrupt, that is edge-triggered and unmasked by default.  We
+ * used to do this, but it caused problems on some systems because
+ * of the NMI watchdog and sometimes IRQ0 of the 8254 timer using
+ * the same ExtINT cascade interrupt to drive the local APIC of the
+ * bootstrap processor.  Therefore we refrain from routing IRQ2 to
+ * the I/O APIC in all cases now.  No actual device should request
+ * it anyway.  --macro
  */
 #define PIC_IRQS	(1<<2)
 
@@ -1832,10 +1838,7 @@ void __init setup_IO_APIC(void)
 	 * calling enable_IO_APIC() is moved to setup_local_APIC for BP
 	 */
 
-	if (acpi_ioapic)
-		io_apic_irqs = ~0;	/* all IRQs go through IOAPIC */
-	else
-		io_apic_irqs = ~PIC_IRQS;
+	io_apic_irqs = ~PIC_IRQS;
 
 	apic_printk(APIC_VERBOSE, "ENABLING IO-APIC IRQs\n");
 

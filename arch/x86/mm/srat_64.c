@@ -100,7 +100,19 @@ static __init inline int srat_disabled(void)
 /* Callback for SLIT parsing */
 void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 {
-	acpi_slit = slit;
+	unsigned length;
+	unsigned long phys;
+
+	length = slit->header.length;
+	phys = find_e820_area(0, max_pfn_mapped<<PAGE_SHIFT, length,
+		 PAGE_SIZE);
+
+	if (phys == -1L)
+		panic(" Can not save slit!\n");
+
+	acpi_slit = __va(phys);
+	memcpy(acpi_slit, slit, length);
+	reserve_early(phys, phys + length, "ACPI SLIT");
 }
 
 /* Callback for Proximity Domain -> LAPIC mapping */

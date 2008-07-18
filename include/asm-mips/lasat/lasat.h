@@ -240,6 +240,8 @@ static inline void lasat_ndelay(unsigned int ns)
 	__delay(ns / lasat_ndelay_divider);
 }
 
+#define IS_LASAT_200()     (current_cpu_data.cputype == CPU_R5000)
+
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
 #define LASAT_SERVICEMODE_MAGIC_1     0xdeadbeef
