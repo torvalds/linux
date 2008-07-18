@@ -145,12 +145,6 @@
 #include <linux/netlink.h>
 
 /*
- *	SNMP management statistics
- */
-
-DEFINE_SNMP_STAT(struct ipstats_mib, ip_statistics) __read_mostly;
-
-/*
  *	Process Router Attention IP option
  */
 int ip_call_ra_chain(struct sk_buff *skb)
@@ -447,5 +441,3 @@ drop:
 out:
 	return NET_RX_DROP;
 }
-
-EXPORT_SYMBOL(ip_statistics);
