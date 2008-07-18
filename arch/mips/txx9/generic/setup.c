@@ -30,6 +30,7 @@ struct resource txx9_ce_res[8];
 static char txx9_ce_res_name[8][4];	/* "CEn" */
 
 /* pcode, internal register */
+unsigned int txx9_pcode;
 char txx9_pcode_str[8];
 static struct resource txx9_reg_res = {
 	.name = txx9_pcode_str,
@@ -59,15 +60,16 @@ unsigned int txx9_master_clock;
 unsigned int txx9_cpu_clock;
 unsigned int txx9_gbus_clock;
 
+int txx9_ccfg_toeon __initdata = 1;
 
 /* Minimum CLK support */
 
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	if (!strcmp(id, "spi-baseclk"))
-		return (struct clk *)(txx9_gbus_clock / 2 / 4);
+		return (struct clk *)((unsigned long)txx9_gbus_clock / 2 / 4);
 	if (!strcmp(id, "imbus_clk"))
-		return (struct clk *)(txx9_gbus_clock / 2);
+		return (struct clk *)((unsigned long)txx9_gbus_clock / 2);
 	return ERR_PTR(-ENOENT);
 }
 EXPORT_SYMBOL(clk_get);
@@ -123,6 +125,12 @@ void __init prom_init_cmdline(void)
 	int argc = (int)fw_arg0;
 	char **argv = (char **)fw_arg1;
 	int i;			/* Always ignore the "-c" at argv[0] */
+#ifdef CONFIG_64BIT
+	char *fixed_argv[32];
+	for (i = 0; i < argc; i++)
+		fixed_argv[i] = (char *)(long)(*((__s32 *)argv + i));
+	argv = fixed_argv;
+#endif
 
 	/* ignore all built-in args if any f/w args given */
 	if (argc > 1)
@@ -180,6 +188,10 @@ char * __init prom_getcmdline(void)
 /* wrappers */
 void __init plat_mem_setup(void)
 {
+	ioport_resource.start = 0;
+	ioport_resource.end = ~0UL;	/* no limit */
+	iomem_resource.start = 0;
+	iomem_resource.end = ~0UL;	/* no limit */
 	txx9_board_vec->mem_setup();
 }
 

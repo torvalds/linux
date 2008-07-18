@@ -46,14 +46,21 @@
 #define TX4927_IRC_REG		(TX4927_REG_BASE + 0xf600)
 #define TX4927_NR_TMR	3
 #define TX4927_TMR_REG(ch)	(TX4927_REG_BASE + 0xf000 + (ch) * 0x100)
+#define TX4927_NR_SIO	2
+#define TX4927_SIO_REG(ch)	(TX4927_REG_BASE + 0xf300 + (ch) * 0x100)
+#define TX4927_PIO_REG		(TX4927_REG_BASE + 0xf500)
 
 #define TX4927_IR_INT(n)	(2 + (n))
 #define TX4927_IR_SIO(n)	(8 + (n))
 #define TX4927_IR_PCIC		16
+#define TX4927_NUM_IR_TMR	3
+#define TX4927_IR_TMR(n)	(17 + (n))
 #define TX4927_IR_PCIERR	22
 #define TX4927_NUM_IR	32
 
 #define TX4927_IRC_INT	2	/* IP[2] in Status register */
+
+#define TX4927_NUM_PIO	16
 
 struct tx4927_sdramc_reg {
 	u64 cr[4];
@@ -175,6 +182,10 @@ struct tx4927_ccfg_reg {
 		((struct tx4927_ccfg_reg __iomem *)TX4927_CCFG_REG)
 #define tx4927_ebuscptr \
 		((struct tx4927_ebusc_reg __iomem *)TX4927_EBUSC_REG)
+#define tx4927_pioptr		((struct txx9_pio_reg __iomem *)TX4927_PIO_REG)
+
+#define TX4927_REV_PCODE()	\
+	((__u32)__raw_readq(&tx4927_ccfgptr->crir) >> 16)
 
 #define TX4927_SDRAMC_CR(ch)	__raw_readq(&tx4927_sdramcptr->cr[(ch)])
 #define TX4927_SDRAMC_BA(ch)	((TX4927_SDRAMC_CR(ch) >> 49) << 21)
@@ -232,6 +243,10 @@ static inline void tx4927_ccfg_change(__u64 change, __u64 new)
 }
 
 unsigned int tx4927_get_mem_size(void);
+void tx4927_wdr_init(void);
+void tx4927_setup(void);
+void tx4927_time_init(unsigned int tmrnr);
+void tx4927_setup_serial(void);
 int tx4927_report_pciclk(void);
 int tx4927_pciclk66_setup(void);
 void tx4927_irq_init(void);

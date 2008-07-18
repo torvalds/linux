@@ -90,6 +90,8 @@ struct tx4938_ccfg_reg {
 
 #define TX4938_IRC_INT	2	/* IP[2] in Status register */
 
+#define TX4938_NUM_PIO	16
+
 /*
  * CCFG
  */
@@ -274,6 +276,10 @@ struct tx4938_ccfg_reg {
 #define TX4938_EBUSC_SIZE(ch)	TX4927_EBUSC_SIZE(ch)
 
 #define tx4938_get_mem_size() tx4927_get_mem_size()
+void tx4938_wdr_init(void);
+void tx4938_setup(void);
+void tx4938_time_init(unsigned int tmrnr);
+void tx4938_setup_serial(void);
 int tx4938_report_pciclk(void);
 void tx4938_report_pci1clk(void);
 int tx4938_pciclk66_setup(void);
