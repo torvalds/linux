@@ -424,18 +424,24 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 	}
 	if (master->numeraseregions > 1) {
 		/* Deal with variable erase size stuff */
-		int i;
+		int i, max = master->numeraseregions;
+		u32 end = slave->offset + slave->mtd.size;
 		struct mtd_erase_region_info *regions = master->eraseregions;
 
-		/* Find the first erase regions which is part of this partition. */
-		for (i = 0; i < master->numeraseregions && regions[i].offset <= slave->offset; i++)
+		/* Find the first erase regions which is part of this
+		 * partition. */
+		for (i = 0; i < max && regions[i].offset <= slave->offset; i++)
 			;
+		/* The loop searched for the region _behind_ the first one */
+		i--;
 
-		for (i--; i < master->numeraseregions && regions[i].offset < slave->offset + slave->mtd.size; i++) {
+		/* Pick biggest erasesize */
+		for (; i < max && regions[i].offset < end; i++) {
 			if (slave->mtd.erasesize < regions[i].erasesize) {
 				slave->mtd.erasesize = regions[i].erasesize;
 			}
 		}
+		BUG_ON(slave->mtd.erasesize == 0);
 	} else {
 		/* Single erase size */
 		slave->mtd.erasesize = master->erasesize;
