@@ -16,6 +16,7 @@
 
 #include <asm/processor.h>
 #include <asm/smp.h>
+#include <asm/k8.h>
 
 #define LVL_1_INST	1
 #define LVL_1_DATA	2
@@ -130,6 +131,7 @@ struct _cpuid4_info {
 	union _cpuid4_leaf_ebx ebx;
 	union _cpuid4_leaf_ecx ecx;
 	unsigned long size;
+	unsigned long can_disable;
 	cpumask_t shared_cpu_map;	/* future?: only cpus/node is needed */
 };
 
@@ -251,6 +253,13 @@ static void __cpuinit amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 		(ebx->split.ways_of_associativity + 1) - 1;
 }
 
+static void __cpuinit amd_check_l3_disable(int index, struct _cpuid4_info *this_leaf)
+{
+	if (index < 3)
+		return;
+	this_leaf->can_disable = 1;	
+}
+
 static int __cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
 {
 	union _cpuid4_leaf_eax 	eax;
@@ -258,9 +267,12 @@ static int __cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_le
 	union _cpuid4_leaf_ecx 	ecx;
 	unsigned		edx;
 
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
 		amd_cpuid4(index, &eax, &ebx, &ecx);
-	else
+		if (boot_cpu_data.x86 >= 0x10)
+			amd_check_l3_disable(index, this_leaf);
+			
+	} else
 		cpuid_count(4, index, &eax.full, &ebx.full, &ecx.full,  &edx);
 	if (eax.split.type == CACHE_TYPE_NULL)
 		return -EIO; /* better error ? */
@@ -637,6 +649,61 @@ static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf) {
 	}
 }
 
+#define to_object(k) container_of(k, struct _index_kobject, kobj)
+#define to_attr(a) container_of(a, struct _cache_attr, attr)
+
+static ssize_t show_cache_disable(struct _cpuid4_info *this_leaf, char *buf)
+{
+	struct pci_dev *dev;
+	if (this_leaf->can_disable) {
+		int i;
+		ssize_t ret = 0;
+		int node = cpu_to_node(first_cpu(this_leaf->shared_cpu_map));
+		dev = k8_northbridges[node];
+
+		for (i = 0; i < 2; i++) {
+			unsigned int reg;
+			pci_read_config_dword(dev, 0x1BC + i * 4, &reg);
+			ret += sprintf(buf, "%sEntry: %d\n", buf, i);
+			ret += sprintf(buf, "%sReads:  %s\tNew Entries: %s\n",  
+				buf,
+				reg & 0x80000000 ? "Disabled" : "Allowed",
+				reg & 0x40000000 ? "Disabled" : "Allowed");
+			ret += sprintf(buf, "%sSubCache: %x\tIndex: %x\n", buf,
+				(reg & 0x30000) >> 16, reg & 0xfff);
+
+		}
+		return ret;
+	}
+	return sprintf(buf, "Feature not enabled\n");
+}
+
+static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf, const char *buf, size_t count)
+{
+	struct pci_dev *dev;
+	if (this_leaf->can_disable) {
+		/* write the MSR value */
+		unsigned int ret;
+		unsigned int index, val;
+		int node = cpu_to_node(first_cpu(this_leaf->shared_cpu_map));
+		dev = k8_northbridges[node];
+
+		if (strlen(buf) > 15)
+			return -EINVAL;
+		ret = sscanf(buf, "%x %x", &index, &val);
+		if (ret != 2)
+			return -EINVAL;
+		if (index > 1)
+			return -EINVAL;
+		val |= 0xc0000000;
+		pci_write_config_dword(dev, 0x1BC + index * 4, val & ~0x40000000);
+		wbinvd();
+		pci_write_config_dword(dev, 0x1BC + index * 4, val);
+		return 1;
+	}
+	return 0;
+}
+
 struct _cache_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct _cpuid4_info *, char *);
@@ -657,6 +724,8 @@ define_one_ro(size);
 define_one_ro(shared_cpu_map);
 define_one_ro(shared_cpu_list);
 
+static struct _cache_attr cache_disable = __ATTR(cache_disable, 0644, show_cache_disable, store_cache_disable);
+
 static struct attribute * default_attrs[] = {
 	&type.attr,
 	&level.attr,
@@ -667,11 +736,9 @@ static struct attribute * default_attrs[] = {
 	&size.attr,
 	&shared_cpu_map.attr,
 	&shared_cpu_list.attr,
+	&cache_disable.attr,
 	NULL
 };
-
-#define to_object(k) container_of(k, struct _index_kobject, kobj)
-#define to_attr(a) container_of(a, struct _cache_attr, attr)
 
 static ssize_t show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
@@ -689,7 +756,15 @@ static ssize_t show(struct kobject * kobj, struct attribute * attr, char * buf)
 static ssize_t store(struct kobject * kobj, struct attribute * attr,
 		     const char * buf, size_t count)
 {
-	return 0;
+	struct _cache_attr *fattr = to_attr(attr);
+	struct _index_kobject *this_leaf = to_object(kobj);
+	ssize_t ret;
+
+        ret = fattr->store ?
+                fattr->store(CPUID4_INFO_IDX(this_leaf->cpu, this_leaf->index),
+                        buf, count) :
+		0;
+	return ret;
 }
 
 static struct sysfs_ops sysfs_ops = {
