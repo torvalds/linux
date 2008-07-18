@@ -373,8 +373,8 @@ retry:
 	if (!retry++)
 		goto retry;
 
-	/* try to free some slots if the allocation fails */
-	tasklet_schedule(&iop_chan->irq_tasklet);
+	/* perform direct reclaim if the allocation fails */
+	__iop_adma_slot_cleanup(iop_chan);
 
 	return NULL;
 }
