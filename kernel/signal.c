@@ -27,6 +27,7 @@
 #include <linux/freezer.h>
 #include <linux/pid_namespace.h>
 #include <linux/nsproxy.h>
+#include <trace/sched.h>
 
 #include <asm/param.h>
 #include <asm/uaccess.h>
@@ -802,6 +803,8 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 {
 	struct sigpending *pending;
 	struct sigqueue *q;
+
+	trace_sched_signal_send(sig, t);
 
 	assert_spin_locked(&t->sighand->siglock);
 	if (!prepare_signal(sig, t))
