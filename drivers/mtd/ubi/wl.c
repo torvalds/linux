@@ -873,6 +873,10 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	}
 
 	ubi_free_vid_hdr(ubi, vid_hdr);
+	if (scrubbing && !protect)
+		ubi_msg("scrubbed PEB %d, data moved to PEB %d",
+			e1->pnum, e2->pnum);
+
 	spin_lock(&ubi->wl_lock);
 	if (protect)
 		prot_tree_add(ubi, e1, pe, protect);
@@ -1231,7 +1235,7 @@ int ubi_wl_scrub_peb(struct ubi_device *ubi, int pnum)
 {
 	struct ubi_wl_entry *e;
 
-	ubi_msg("schedule PEB %d for scrubbing", pnum);
+	dbg_msg("schedule PEB %d for scrubbing", pnum);
 
 retry:
 	spin_lock(&ubi->wl_lock);
