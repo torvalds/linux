@@ -688,9 +688,9 @@ xfs_ioc_space(
 		return -XFS_ERROR(EFAULT);
 
 	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
-		attr_flags |= ATTR_NONBLOCK;
+		attr_flags |= XFS_ATTR_NONBLOCK;
 	if (ioflags & IO_INVIS)
-		attr_flags |= ATTR_DMI;
+		attr_flags |= XFS_ATTR_DMI;
 
 	error = xfs_change_file_space(ip, cmd, &bf, filp->f_pos,
 					      NULL, attr_flags);

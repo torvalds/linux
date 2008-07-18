@@ -648,54 +648,20 @@ xfs_vn_getattr(
 STATIC int
 xfs_vn_setattr(
 	struct dentry	*dentry,
-	struct iattr	*attr)
+	struct iattr	*iattr)
 {
 	struct inode	*inode = dentry->d_inode;
-	unsigned int	ia_valid = attr->ia_valid;
-	bhv_vattr_t	vattr = { 0 };
-	int		flags = 0;
 	int		error;
 
-	if (ia_valid & ATTR_UID) {
-		vattr.va_mask |= XFS_AT_UID;
-		vattr.va_uid = attr->ia_uid;
-	}
-	if (ia_valid & ATTR_GID) {
-		vattr.va_mask |= XFS_AT_GID;
-		vattr.va_gid = attr->ia_gid;
-	}
-	if (ia_valid & ATTR_SIZE) {
-		vattr.va_mask |= XFS_AT_SIZE;
-		vattr.va_size = attr->ia_size;
-	}
-	if (ia_valid & ATTR_ATIME) {
-		vattr.va_mask |= XFS_AT_ATIME;
-		vattr.va_atime = attr->ia_atime;
-		inode->i_atime = attr->ia_atime;
-	}
-	if (ia_valid & ATTR_MTIME) {
-		vattr.va_mask |= XFS_AT_MTIME;
-		vattr.va_mtime = attr->ia_mtime;
-	}
-	if (ia_valid & ATTR_CTIME) {
-		vattr.va_mask |= XFS_AT_CTIME;
-		vattr.va_ctime = attr->ia_ctime;
-	}
-	if (ia_valid & ATTR_MODE) {
-		vattr.va_mask |= XFS_AT_MODE;
-		vattr.va_mode = attr->ia_mode;
+	if (iattr->ia_valid & ATTR_ATIME)
+		inode->i_atime = iattr->ia_atime;
+
+	if (iattr->ia_valid & ATTR_MODE) {
 		if (!in_group_p(inode->i_gid) && !capable(CAP_FSETID))
 			inode->i_mode &= ~S_ISGID;
 	}
 
-	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET))
-		flags |= ATTR_UTIME;
-#ifdef ATTR_NO_BLOCK
-	if ((ia_valid & ATTR_NO_BLOCK))
-		flags |= ATTR_NONBLOCK;
-#endif
-
-	error = xfs_setattr(XFS_I(inode), &vattr, flags, NULL);
+	error = xfs_setattr(XFS_I(inode), iattr, 0, NULL);
 	if (likely(!error))
 		vn_revalidate(vn_from_inode(inode));
 	return -error;
@@ -739,18 +705,18 @@ xfs_vn_fallocate(
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 	error = xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
-						0, NULL, ATTR_NOLOCK);
+				      0, NULL, XFS_ATTR_NOLOCK);
 	if (!error && !(mode & FALLOC_FL_KEEP_SIZE) &&
 	    offset + len > i_size_read(inode))
 		new_size = offset + len;
 
 	/* Change file size if needed */
 	if (new_size) {
-		bhv_vattr_t	va;
+		struct iattr iattr;
 
-		va.va_mask = XFS_AT_SIZE;
-		va.va_size = new_size;
-		error = xfs_setattr(ip, &va, ATTR_NOLOCK, NULL);
+		iattr.ia_valid = ATTR_SIZE;
+		iattr.ia_size = new_size;
+		error = xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK, NULL);
 	}
 
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);

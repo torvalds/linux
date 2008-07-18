@@ -2,9 +2,9 @@
 #define _XFS_VNODEOPS_H 1
 
 struct attrlist_cursor_kern;
-struct bhv_vattr;
 struct cred;
 struct file;
+struct iattr;
 struct inode;
 struct iovec;
 struct kiocb;
@@ -15,8 +15,12 @@ struct xfs_iomap;
 
 
 int xfs_open(struct xfs_inode *ip);
-int xfs_setattr(struct xfs_inode *ip, struct bhv_vattr *vap, int flags,
+int xfs_setattr(struct xfs_inode *ip, struct iattr *vap, int flags,
 		struct cred *credp);
+#define	XFS_ATTR_DMI		0x01	/* invocation from a DMI function */
+#define	XFS_ATTR_NONBLOCK	0x02	/* return EAGAIN if operation would block */
+#define XFS_ATTR_NOLOCK		0x04	/* Don't grab any conflicting locks */
+
 int xfs_readlink(struct xfs_inode *ip, char *link);
 int xfs_fsync(struct xfs_inode *ip);
 int xfs_release(struct xfs_inode *ip);
