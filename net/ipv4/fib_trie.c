@@ -2251,18 +2251,7 @@ static int fib_triestat_seq_show(struct seq_file *seq, void *v)
 
 static int fib_triestat_seq_open(struct inode *inode, struct file *file)
 {
-	int err;
-	struct net *net;
-
-	net = get_proc_net(inode);
-	if (net == NULL)
-		return -ENXIO;
-	err = single_open(file, fib_triestat_seq_show, net);
-	if (err < 0) {
-		put_net(net);
-		return err;
-	}
-	return 0;
+	return single_open_net(inode, file, fib_triestat_seq_show);
 }
 
 static int fib_triestat_seq_release(struct inode *ino, struct file *f)

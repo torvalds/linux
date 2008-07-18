@@ -71,24 +71,7 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 
 static int sockstat_seq_open(struct inode *inode, struct file *file)
 {
-	int err;
-	struct net *net;
-
-	err = -ENXIO;
-	net = get_proc_net(inode);
-	if (net == NULL)
-		goto err_net;
-
-	err = single_open(file, sockstat_seq_show, net);
-	if (err < 0)
-		goto err_open;
-
-	return 0;
-
-err_open:
-	put_net(net);
-err_net:
-	return err;
+	return single_open_net(inode, file, sockstat_seq_show);
 }
 
 static int sockstat_seq_release(struct inode *inode, struct file *file)
@@ -397,24 +380,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 
 static int snmp_seq_open(struct inode *inode, struct file *file)
 {
-	int err;
-	struct net *net;
-
-	err = -ENXIO;
-	net = get_proc_net(inode);
-	if (net == NULL)
-		goto err_net;
-
-	err = single_open(file, snmp_seq_show, net);
-	if (err < 0)
-		goto err_open;
-
-	return 0;
-
-err_open:
-	put_net(net);
-err_net:
-	return err;
+	return single_open_net(inode, file, snmp_seq_show);
 }
 
 static int snmp_seq_release(struct inode *inode, struct file *file)
@@ -469,24 +435,7 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 
 static int netstat_seq_open(struct inode *inode, struct file *file)
 {
-	int err;
-	struct net *net;
-
-	err = -ENXIO;
-	net = get_proc_net(inode);
-	if (net == NULL)
-		goto err_net;
-
-	err = single_open(file, netstat_seq_show, net);
-	if (err < 0)
-		goto err_open;
-
-	return 0;
-
-err_open:
-	put_net(net);
-err_net:
-	return err;
+	return single_open_net(inode, file, netstat_seq_show);
 }
 
 static int netstat_seq_release(struct inode *inode, struct file *file)
