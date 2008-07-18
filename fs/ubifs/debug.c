@@ -2208,16 +2208,17 @@ int dbg_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 		  int offset, int len, int dtype)
 {
-	int err;
+	int err, failing;
 
 	if (in_failure_mode(desc))
 		return -EIO;
-	if (do_fail(desc, lnum, 1))
+	failing = do_fail(desc, lnum, 1);
+	if (failing)
 		cut_data(buf, len);
 	err = ubi_leb_write(desc, lnum, buf, offset, len, dtype);
 	if (err)
 		return err;
-	if (in_failure_mode(desc))
+	if (failing)
 		return -EIO;
 	return 0;
 }
