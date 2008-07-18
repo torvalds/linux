@@ -33,6 +33,7 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_patch.h"
+#include "hda_beep.h"
 
 #define NUM_CONTROL_ALLOC	32
 #define STAC_PWR_EVENT		0x20
@@ -164,6 +165,8 @@ struct sigmatel_spec {
 	unsigned int num_dmuxes;
 	hda_nid_t dig_in_nid;
 	hda_nid_t mono_nid;
+	hda_nid_t anabeep_nid;
+	hda_nid_t digbeep_nid;
 
 	/* pin widgets */
 	hda_nid_t *pin_nids;
@@ -690,6 +693,8 @@ static struct hda_verb d965_core_init[] = {
 static struct hda_verb stac927x_core_init[] = {
 	/* set master volume and direct control */	
 	{ 0x24, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
+	/* enable analog pc beep path */
+	{ 0x01, AC_VERB_SET_DIGI_CONVERT_2, 1 << 5},
 	{}
 };
 
@@ -829,8 +834,11 @@ static struct snd_kcontrol_new stac92hd71bxx_analog_mixer[] = {
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x1, 0x1d, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Mux Volume", 0x1, 0x1b, 0x0, HDA_OUTPUT),
 
+	/* analog pc-beep replaced with digital beep support */
+	/*
 	HDA_CODEC_VOLUME("PC Beep Volume", 0x17, 0x2, HDA_INPUT),
 	HDA_CODEC_MUTE("PC Beep Switch", 0x17, 0x2, HDA_INPUT),
+	*/
 
 	HDA_CODEC_MUTE("Analog Loopback 1", 0x17, 0x3, HDA_INPUT),
 	HDA_CODEC_MUTE("Analog Loopback 2", 0x17, 0x4, HDA_INPUT),
@@ -2609,6 +2617,34 @@ static int stac92xx_auto_create_mono_output_ctls(struct hda_codec *codec)
 				"Mono Mux", spec->mono_nid);
 }
 
+/* create PC beep volume controls */
+static int stac92xx_auto_create_beep_ctls(struct hda_codec *codec,
+						hda_nid_t nid)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	u32 caps = query_amp_caps(codec, nid, HDA_OUTPUT);
+	int err;
+
+	/* check for mute support for the the amp */
+	if ((caps & AC_AMPCAP_MUTE) >> AC_AMPCAP_MUTE_SHIFT) {
+		err = stac92xx_add_control(spec, STAC_CTL_WIDGET_MUTE,
+			"PC Beep Playback Switch",
+			HDA_COMPOSE_AMP_VAL(nid, 1, 0, HDA_OUTPUT));
+			if (err < 0)
+				return err;
+	}
+
+	/* check to see if there is volume support for the amp */
+	if ((caps & AC_AMPCAP_NUM_STEPS) >> AC_AMPCAP_NUM_STEPS_SHIFT) {
+		err = stac92xx_add_control(spec, STAC_CTL_WIDGET_VOL,
+			"PC Beep Playback Volume",
+			HDA_COMPOSE_AMP_VAL(nid, 1, 0, HDA_OUTPUT));
+			if (err < 0)
+				return err;
+	}
+	return 0;
+}
+
 /* labels for dmic mux inputs */
 static const char *stac92xx_dmic_labels[5] = {
 	"Analog Inputs", "Digital Mic 1", "Digital Mic 2",
@@ -2843,6 +2879,28 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 
 	if (err < 0)
 		return err;
+
+	/* setup analog beep controls */
+	if (spec->anabeep_nid > 0) {
+		err = stac92xx_auto_create_beep_ctls(codec,
+			spec->anabeep_nid);
+		if (err < 0)
+			return err;
+	}
+
+	/* setup digital beep controls and input device */
+#ifdef CONFIG_SND_HDA_INPUT_BEEP
+	if (spec->digbeep_nid > 0) {
+		hda_nid_t nid = spec->digbeep_nid;
+
+		err = stac92xx_auto_create_beep_ctls(codec, nid);
+		if (err < 0)
+			return err;
+		err = snd_hda_attach_beep_device(codec, nid);
+		if (err < 0)
+			return err;
+	}
+#endif
 
 	if (hp_speaker_swap == 1) {
 		/* Restore the hp_outs and line_outs */
@@ -3158,6 +3216,7 @@ static void stac92xx_free(struct hda_codec *codec)
 		kfree(spec->bios_pin_configs);
 
 	kfree(spec);
+	snd_hda_detach_beep_device(codec);
 }
 
 static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
@@ -3546,6 +3605,7 @@ again:
 	spec->aloopback_mask = 0x01;
 	spec->aloopback_shift = 8;
 
+	spec->digbeep_nid = 0x1c;
 	spec->mux_nids = stac92hd73xx_mux_nids;
 	spec->adc_nids = stac92hd73xx_adc_nids;
 	spec->dmic_nids = stac92hd73xx_dmic_nids;
@@ -3680,6 +3740,7 @@ again:
 	spec->gpio_dir = 0x01;
 	spec->gpio_data = 0x01;
 
+	spec->digbeep_nid = 0x26;
 	spec->mux_nids = stac92hd71bxx_mux_nids;
 	spec->adc_nids = stac92hd71bxx_adc_nids;
 	spec->dmic_nids = stac92hd71bxx_dmic_nids;
@@ -3854,6 +3915,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		stac92xx_set_config_regs(codec);
 	}
 
+	spec->digbeep_nid = 0x23;
 	spec->adc_nids = stac927x_adc_nids;
 	spec->num_adcs = ARRAY_SIZE(stac927x_adc_nids);
 	spec->mux_nids = stac927x_mux_nids;
@@ -3974,6 +4036,7 @@ static int patch_stac9205(struct hda_codec *codec)
 		stac92xx_set_config_regs(codec);
 	}
 
+	spec->digbeep_nid = 0x23;
 	spec->adc_nids = stac9205_adc_nids;
 	spec->num_adcs = ARRAY_SIZE(stac9205_adc_nids);
 	spec->mux_nids = stac9205_mux_nids;

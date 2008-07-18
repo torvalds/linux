@@ -517,6 +517,14 @@ config SND_HDA_HWDEP
 	  This interface can be used for out-of-band communication
 	  with codecs for debugging purposes.
 
+config SND_HDA_INPUT_BEEP
+	bool "Support digital beep via input layer"
+	depends on SND_HDA_INTEL
+	depends on INPUT=y || INPUT=SND_HDA_INTEL
+	help
+	  Say Y here to build a digital beep interface for HD-audio
+	  driver. This interface is used to generate digital beeps.
+
 config SND_HDA_CODEC_REALTEK
 	bool "Build Realtek HD-audio codec support"
 	depends on SND_HDA_INTEL

@@ -449,6 +449,7 @@ enum {
  */
 
 struct hda_bus;
+struct hda_beep;
 struct hda_codec;
 struct hda_pcm;
 struct hda_pcm_stream;
@@ -633,6 +634,9 @@ struct hda_codec {
 
 	/* codec specific info */
 	void *spec;
+
+	/* beep device */
+	struct hda_beep *beep;
 
 	/* widget capabilities cache */
 	unsigned int num_nodes;
