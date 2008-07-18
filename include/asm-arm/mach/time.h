@@ -41,29 +41,7 @@ struct sys_timer {
 #ifndef CONFIG_GENERIC_TIME
 	unsigned long		(*offset)(void);
 #endif
-
-#ifdef CONFIG_NO_IDLE_HZ
-	struct dyn_tick_timer	*dyn_tick;
-#endif
 };
-
-#ifdef CONFIG_NO_IDLE_HZ
-
-#define DYN_TICK_ENABLED	(1 << 1)
-
-struct dyn_tick_timer {
-	spinlock_t	lock;
-	unsigned int	state;			/* Current state */
-	int		(*enable)(void);	/* Enables dynamic tick */
-	int		(*disable)(void);	/* Disables dynamic tick */
-	void		(*reprogram)(unsigned long); /* Reprograms the timer */
-	int		(*handler)(int, void *);
-};
-
-void timer_dyn_reprogram(void);
-#else
-#define timer_dyn_reprogram()	do { } while (0)
-#endif
 
 extern struct sys_timer *system_timer;
 extern void timer_tick(void);

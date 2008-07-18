@@ -944,15 +944,8 @@ static int qeth_l3_deregister_addr_entry(struct qeth_card *card,
 	else
 		rc = qeth_l3_send_setdelip(card, addr, IPA_CMD_DELIP,
 					addr->del_flags);
-	if (rc) {
+	if (rc)
 		QETH_DBF_TEXT(TRACE, 2, "failed");
-		/* TODO: re-activate this warning as soon as we have a
-		 * clean mirco code
-		qeth_ipaddr_to_string(addr->proto, (u8 *)&addr->u, buf);
-		PRINT_WARN("Could not deregister IP address %s (rc=%x)\n",
-			   buf, rc);
-		*/
-	}
 
 	return rc;
 }
@@ -2946,8 +2939,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 }
 
 static void qeth_l3_qdio_input_handler(struct ccw_device *ccwdev,
-		unsigned int status, unsigned int qdio_err,
-		unsigned int siga_err, unsigned int queue, int first_element,
+		unsigned int qdio_err, unsigned int queue, int first_element,
 		int count, unsigned long card_ptr)
 {
 	struct net_device *net_dev;
@@ -2962,23 +2954,21 @@ static void qeth_l3_qdio_input_handler(struct ccw_device *ccwdev,
 		card->perf_stats.inbound_cnt++;
 		card->perf_stats.inbound_start_time = qeth_get_micros();
 	}
-	if (status & QDIO_STATUS_LOOK_FOR_ERROR) {
-		if (status & QDIO_STATUS_ACTIVATE_CHECK_CONDITION) {
-			QETH_DBF_TEXT(TRACE, 1, "qdinchk");
-			QETH_DBF_TEXT_(TRACE, 1, "%s", CARD_BUS_ID(card));
-			QETH_DBF_TEXT_(TRACE, 1, "%04X%04X",
-					first_element, count);
-			QETH_DBF_TEXT_(TRACE, 1, "%04X%04X", queue, status);
-			qeth_schedule_recovery(card);
-			return;
-		}
+	if (qdio_err & QDIO_ERROR_ACTIVATE_CHECK_CONDITION) {
+		QETH_DBF_TEXT(TRACE, 1, "qdinchk");
+		QETH_DBF_TEXT_(TRACE, 1, "%s", CARD_BUS_ID(card));
+		QETH_DBF_TEXT_(TRACE, 1, "%04X%04X",
+				first_element, count);
+		QETH_DBF_TEXT_(TRACE, 1, "%04X", queue);
+		qeth_schedule_recovery(card);
+		return;
 	}
 	for (i = first_element; i < (first_element + count); ++i) {
 		index = i % QDIO_MAX_BUFFERS_PER_Q;
 		buffer = &card->qdio.in_q->bufs[index];
-		if (!((status & QDIO_STATUS_LOOK_FOR_ERROR) &&
+		if (!(qdio_err &&
 		      qeth_check_qdio_errors(buffer->buffer,
-					     qdio_err, siga_err, "qinerr")))
+					     qdio_err, "qinerr")))
 			qeth_l3_process_inbound_buffer(card, buffer, index);
 		/* clear buffer and give back to hardware */
 		qeth_put_buffer_pool_entry(card, buffer->pool_entry);

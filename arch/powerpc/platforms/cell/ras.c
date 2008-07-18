@@ -17,6 +17,7 @@
 #include <asm/reg.h>
 #include <asm/io.h>
 #include <asm/prom.h>
+#include <asm/kexec.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/cell-regs.h>
@@ -226,6 +227,11 @@ static int cbe_ptcal_notify_reboot(struct notifier_block *nb,
 	return cbe_ptcal_disable();
 }
 
+static void cbe_ptcal_crash_shutdown(void)
+{
+	cbe_ptcal_disable();
+}
+
 static struct notifier_block cbe_ptcal_reboot_notifier = {
 	.notifier_call = cbe_ptcal_notify_reboot
 };
@@ -241,12 +247,20 @@ int __init cbe_ptcal_init(void)
 		return -ENODEV;
 
 	ret = register_reboot_notifier(&cbe_ptcal_reboot_notifier);
-	if (ret) {
-		printk(KERN_ERR "Can't disable PTCAL, so not enabling\n");
-		return ret;
-	}
+	if (ret)
+		goto out1;
+
+	ret = crash_shutdown_register(&cbe_ptcal_crash_shutdown);
+	if (ret)
+		goto out2;
 
 	return cbe_ptcal_enable();
+
+out2:
+	unregister_reboot_notifier(&cbe_ptcal_reboot_notifier);
+out1:
+	printk(KERN_ERR "Can't disable PTCAL, so not enabling\n");
+	return ret;
 }
 
 arch_initcall(cbe_ptcal_init);

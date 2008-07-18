@@ -344,7 +344,7 @@ void hugetlb_prefault_arch_hook(struct mm_struct *mm)
 			 * also executing in this address space.
 			 */
 			mm->context.sparc64_ctx_val = ctx;
-			on_each_cpu(context_reload, mm, 0, 0);
+			on_each_cpu(context_reload, mm, 0);
 		}
 		spin_unlock(&ctx_alloc_lock);
 	}

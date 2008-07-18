@@ -69,7 +69,7 @@ struct or51211_state {
 	u32 current_frequency;
 };
 
-static int i2c_writebytes (struct or51211_state* state, u8 reg, u8 *buf,
+static int i2c_writebytes (struct or51211_state* state, u8 reg, const u8 *buf,
 			   int len)
 {
 	int err;
@@ -77,7 +77,7 @@ static int i2c_writebytes (struct or51211_state* state, u8 reg, u8 *buf,
 	msg.addr	= reg;
 	msg.flags	= 0;
 	msg.len		= len;
-	msg.buf		= buf;
+	msg.buf		= (u8 *)buf;
 
 	if ((err = i2c_transfer (state->i2c, &msg, 1)) != 1) {
 		printk(KERN_WARNING "or51211: i2c_writebytes error "

@@ -60,7 +60,8 @@
 #ifndef node_to_cpumask_ptr
 
 #define	node_to_cpumask_ptr(v, node) 					\
-		cpumask_t _##v = node_to_cpumask(node), *v = &_##v
+		cpumask_t _##v = node_to_cpumask(node);			\
+		const cpumask_t *v = &_##v
 
 #define node_to_cpumask_ptr_next(v, node)				\
 			  _##v = node_to_cpumask(node)

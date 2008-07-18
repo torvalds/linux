@@ -649,6 +649,14 @@ config HVCS
 	  which will also be compiled when this driver is built as a
 	  module.
 
+config IBM_BSR
+	tristate "IBM POWER Barrier Synchronization Register support"
+	depends on PPC_PSERIES
+	help
+	  This devices exposes a hardware mechanism for fast synchronization
+	  of threads across a large system which avoids bouncing a cacheline
+	  between several cores on a system
+
 source "drivers/char/ipmi/Kconfig"
 
 config DS1620

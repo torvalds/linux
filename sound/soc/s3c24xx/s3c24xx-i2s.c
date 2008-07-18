@@ -12,11 +12,6 @@
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
- *
- *
- *  Revision history
- *    11th Dec 2006   Merged with Simtec driver
- *    10th Nov 2006   Initial version.
  */
 
 #include <linux/init.h>
@@ -180,7 +175,7 @@ static void s3c24xx_snd_rxctrl(int on)
 static int s3c24xx_snd_lrsync(void)
 {
 	u32 iiscon;
-	unsigned long timeout = jiffies + msecs_to_jiffies(5);
+	int timeout = 50; /* 5ms */
 
 	DBG("Entered %s\n", __func__);
 
@@ -189,8 +184,9 @@ static int s3c24xx_snd_lrsync(void)
 		if (iiscon & S3C2410_IISCON_LRINDEX)
 			break;
 
-		if (time_after(jiffies, timeout))
+		if (!timeout--)
 			return -ETIMEDOUT;
+		udelay(100);
 	}
 
 	return 0;
@@ -209,7 +205,7 @@ static inline int s3c24xx_snd_is_clkmaster(void)
 /*
  * Set S3C24xx I2S DAI format
  */
-static int s3c24xx_i2s_set_fmt(struct snd_soc_cpu_dai *cpu_dai,
+static int s3c24xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
 	u32 iismod;
@@ -317,7 +313,7 @@ exit_err:
 /*
  * Set S3C24xx Clock source
  */
-static int s3c24xx_i2s_set_sysclk(struct snd_soc_cpu_dai *cpu_dai,
+static int s3c24xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 	int clk_id, unsigned int freq, int dir)
 {
 	u32 iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
@@ -343,7 +339,7 @@ static int s3c24xx_i2s_set_sysclk(struct snd_soc_cpu_dai *cpu_dai,
 /*
  * Set S3C24xx Clock dividers
  */
-static int s3c24xx_i2s_set_clkdiv(struct snd_soc_cpu_dai *cpu_dai,
+static int s3c24xx_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	int div_id, int div)
 {
 	u32 reg;
@@ -381,7 +377,8 @@ u32 s3c24xx_i2s_get_clockrate(void)
 }
 EXPORT_SYMBOL_GPL(s3c24xx_i2s_get_clockrate);
 
-static int s3c24xx_i2s_probe(struct platform_device *pdev)
+static int s3c24xx_i2s_probe(struct platform_device *pdev,
+			     struct snd_soc_dai *dai)
 {
 	DBG("Entered %s\n", __func__);
 
@@ -414,7 +411,7 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 static int s3c24xx_i2s_suspend(struct platform_device *pdev,
-		struct snd_soc_cpu_dai *cpu_dai)
+		struct snd_soc_dai *cpu_dai)
 {
 	DBG("Entered %s\n", __func__);
 
@@ -429,7 +426,7 @@ static int s3c24xx_i2s_suspend(struct platform_device *pdev,
 }
 
 static int s3c24xx_i2s_resume(struct platform_device *pdev,
-		struct snd_soc_cpu_dai *cpu_dai)
+		struct snd_soc_dai *cpu_dai)
 {
 	DBG("Entered %s\n", __func__);
 	clk_enable(s3c24xx_i2s.iis_clk);
@@ -452,7 +449,7 @@ static int s3c24xx_i2s_resume(struct platform_device *pdev,
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
 	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
-struct snd_soc_cpu_dai s3c24xx_i2s_dai = {
+struct snd_soc_dai s3c24xx_i2s_dai = {
 	.name = "s3c24xx-i2s",
 	.id = 0,
 	.type = SND_SOC_DAI_I2S,

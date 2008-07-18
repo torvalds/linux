@@ -42,7 +42,7 @@ void acpi_enable_wakeup_device_prep(u8 sleep_state)
 			continue;
 
 		spin_unlock(&acpi_device_lock);
-		acpi_enable_wakeup_device_power(dev);
+		acpi_enable_wakeup_device_power(dev, sleep_state);
 		spin_lock(&acpi_device_lock);
 	}
 	spin_unlock(&acpi_device_lock);
@@ -66,13 +66,15 @@ void acpi_enable_wakeup_device(u8 sleep_state)
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
 		struct acpi_device *dev =
 			container_of(node, struct acpi_device, wakeup_list);
+
 		if (!dev->wakeup.flags.valid)
 			continue;
+
 		/* If users want to disable run-wake GPE,
 		 * we only disable it for wake and leave it for runtime
 		 */
-		if (!dev->wakeup.state.enabled ||
-		    sleep_state > (u32) dev->wakeup.sleep_state) {
+		if ((!dev->wakeup.state.enabled && !dev->wakeup.flags.prepared)
+		    || sleep_state > (u32) dev->wakeup.sleep_state) {
 			if (dev->wakeup.flags.run_wake) {
 				spin_unlock(&acpi_device_lock);
 				/* set_gpe_type will disable GPE, leave it like that */
@@ -110,8 +112,9 @@ void acpi_disable_wakeup_device(u8 sleep_state)
 
 		if (!dev->wakeup.flags.valid)
 			continue;
-		if (!dev->wakeup.state.enabled ||
-		    sleep_state > (u32) dev->wakeup.sleep_state) {
+
+		if ((!dev->wakeup.state.enabled && !dev->wakeup.flags.prepared)
+		    || sleep_state > (u32) dev->wakeup.sleep_state) {
 			if (dev->wakeup.flags.run_wake) {
 				spin_unlock(&acpi_device_lock);
 				acpi_set_gpe_type(dev->wakeup.gpe_device,

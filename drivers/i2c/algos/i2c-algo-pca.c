@@ -182,7 +182,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 	}
 	if (state != 0xf8) {
 		dev_dbg(&i2c_adap->dev, "bus is not idle. status is %#04x\n", state);
-		return -EIO;
+		return -EAGAIN;
 	}
 
 	DEB1("{{{ XFER %d messages\n", num);

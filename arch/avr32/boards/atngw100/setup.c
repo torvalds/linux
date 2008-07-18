@@ -9,6 +9,8 @@
  */
 #include <linux/clk.h>
 #include <linux/etherdevice.h>
+#include <linux/irq.h>
+#include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -17,6 +19,7 @@
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
 
+#include <asm/atmel-mci.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 
@@ -24,6 +27,13 @@
 #include <asm/arch/board.h>
 #include <asm/arch/init.h>
 #include <asm/arch/portmux.h>
+
+/* Oscillator frequencies. These are board-specific */
+unsigned long at32_board_osc_rates[3] = {
+	[0] = 32768,	/* 32.768 kHz on RTC osc */
+	[1] = 20000000,	/* 20 MHz on osc0 */
+	[2] = 12000000,	/* 12 MHz on osc1 */
+};
 
 /* Initialized by bootloader-specific startup code. */
 struct tag *bootloader_tags __initdata;
@@ -40,6 +50,11 @@ static struct spi_board_info spi0_board_info[] __initdata = {
 		.max_speed_hz	= 10000000,
 		.chip_select	= 0,
 	},
+};
+
+static struct mci_platform_data __initdata mci0_data = {
+	.detect_pin	= GPIO_PIN_PC(25),
+	.wp_pin		= GPIO_PIN_PE(0),
 };
 
 /*
@@ -140,6 +155,10 @@ static struct platform_device i2c_gpio_device = {
 	},
 };
 
+static struct i2c_board_info __initdata i2c_info[] = {
+	/* NOTE:  original ATtiny24 firmware is at address 0x0b */
+};
+
 static int __init atngw100_init(void)
 {
 	unsigned	i;
@@ -157,6 +176,7 @@ static int __init atngw100_init(void)
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
 
 	at32_add_device_spi(0, spi0_board_info, ARRAY_SIZE(spi0_board_info));
+	at32_add_device_mci(0, &mci0_data);
 	at32_add_device_usba(0, NULL);
 
 	for (i = 0; i < ARRAY_SIZE(ngw_leds); i++) {
@@ -165,12 +185,28 @@ static int __init atngw100_init(void)
 	}
 	platform_device_register(&ngw_gpio_leds);
 
+	/* all these i2c/smbus pins should have external pullups for
+	 * open-drain sharing among all I2C devices.  SDA and SCL do;
+	 * PB28/EXTINT3 doesn't; it should be SMBALERT# (for PMBus),
+	 * but it's not available off-board.
+	 */
+	at32_select_periph(GPIO_PIN_PB(28), 0, AT32_GPIOF_PULLUP);
 	at32_select_gpio(i2c_gpio_data.sda_pin,
 		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 	at32_select_gpio(i2c_gpio_data.scl_pin,
 		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 	platform_device_register(&i2c_gpio_device);
+	i2c_register_board_info(0, i2c_info, ARRAY_SIZE(i2c_info));
 
 	return 0;
 }
 postcore_initcall(atngw100_init);
+
+static int __init atngw100_arch_init(void)
+{
+	/* set_irq_type() after the arch_initcall for EIC has run, and
+	 * before the I2C subsystem could try using this IRQ.
+	 */
+	return set_irq_type(AT32_EXTINT(3), IRQ_TYPE_EDGE_FALLING);
+}
+arch_initcall(atngw100_arch_init);

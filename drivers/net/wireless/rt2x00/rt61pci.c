@@ -926,7 +926,7 @@ static char *rt61pci_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 	return fw_name;
 }
 
-static u16 rt61pci_get_firmware_crc(void *data, const size_t len)
+static u16 rt61pci_get_firmware_crc(const void *data, const size_t len)
 {
 	u16 crc;
 
@@ -943,7 +943,7 @@ static u16 rt61pci_get_firmware_crc(void *data, const size_t len)
 	return crc;
 }
 
-static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev, void *data,
+static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 				 const size_t len)
 {
 	int i;

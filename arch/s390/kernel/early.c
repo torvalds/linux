@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/pfn.h>
 #include <linux/uaccess.h>
+#include <asm/ebcdic.h>
 #include <asm/ipl.h>
 #include <asm/lowcore.h>
 #include <asm/processor.h>
@@ -26,12 +27,40 @@
 /*
  * Create a Kernel NSS if the SAVESYS= parameter is defined
  */
-#define DEFSYS_CMD_SIZE		96
+#define DEFSYS_CMD_SIZE		128
 #define SAVESYS_CMD_SIZE	32
 
 char kernel_nss_name[NSS_NAME_SIZE + 1];
 
+static void __init setup_boot_command_line(void);
+
+
 #ifdef CONFIG_SHARED_KERNEL
+int __init savesys_ipl_nss(char *cmd, const int cmdlen);
+
+asm(
+	"	.section .init.text,\"ax\",@progbits\n"
+	"	.align	4\n"
+	"	.type	savesys_ipl_nss, @function\n"
+	"savesys_ipl_nss:\n"
+#ifdef CONFIG_64BIT
+	"	stmg	6,15,48(15)\n"
+	"	lgr	14,3\n"
+	"	sam31\n"
+	"	diag	2,14,0x8\n"
+	"	sam64\n"
+	"	lgr	2,14\n"
+	"	lmg	6,15,48(15)\n"
+#else
+	"	stm	6,15,24(15)\n"
+	"	lr	14,3\n"
+	"	diag	2,14,0x8\n"
+	"	lr	2,14\n"
+	"	lm	6,15,24(15)\n"
+#endif
+	"	br	14\n"
+	"	.size	savesys_ipl_nss, .-savesys_ipl_nss\n");
+
 static noinline __init void create_kernel_nss(void)
 {
 	unsigned int i, stext_pfn, eshared_pfn, end_pfn, min_size;
@@ -39,6 +68,7 @@ static noinline __init void create_kernel_nss(void)
 	unsigned int sinitrd_pfn, einitrd_pfn;
 #endif
 	int response;
+	size_t len;
 	char *savesys_ptr;
 	char upper_command_line[COMMAND_LINE_SIZE];
 	char defsys_cmd[DEFSYS_CMD_SIZE];
@@ -49,8 +79,8 @@ static noinline __init void create_kernel_nss(void)
 		return;
 
 	/* Convert COMMAND_LINE to upper case */
-	for (i = 0; i < strlen(COMMAND_LINE); i++)
-		upper_command_line[i] = toupper(COMMAND_LINE[i]);
+	for (i = 0; i < strlen(boot_command_line); i++)
+		upper_command_line[i] = toupper(boot_command_line[i]);
 
 	savesys_ptr = strstr(upper_command_line, "SAVESYS=");
 
@@ -83,7 +113,8 @@ static noinline __init void create_kernel_nss(void)
 	}
 #endif
 
-	sprintf(defsys_cmd, "%s EW MINSIZE=%.7iK", defsys_cmd, min_size);
+	sprintf(defsys_cmd, "%s EW MINSIZE=%.7iK PARMREGS=0-13",
+		defsys_cmd, min_size);
 	sprintf(savesys_cmd, "SAVESYS %s \n IPL %s",
 		kernel_nss_name, kernel_nss_name);
 
@@ -94,12 +125,23 @@ static noinline __init void create_kernel_nss(void)
 		return;
 	}
 
-	__cpcmd(savesys_cmd, NULL, 0, &response);
+	len = strlen(savesys_cmd);
+	ASCEBC(savesys_cmd, len);
+	response = savesys_ipl_nss(savesys_cmd, len);
 
-	if (response != strlen(savesys_cmd)) {
+	/* On success: response is equal to the command size,
+	 *	       max SAVESYS_CMD_SIZE
+	 * On error: response contains the numeric portion of cp error message.
+	 *	     for SAVESYS it will be >= 263
+	 */
+	if (response > SAVESYS_CMD_SIZE) {
 		kernel_nss_name[0] = '\0';
 		return;
 	}
+
+	/* re-setup boot command line with new ipl vm parms */
+	ipl_update_parameters();
+	setup_boot_command_line();
 
 	ipl_flags = IPL_NSS_VALID;
 }
@@ -141,107 +183,9 @@ static noinline __init void detect_machine_type(void)
 	if (cpuinfo->cpu_id.version == 0xff)
 		machine_flags |= MACHINE_FLAG_VM;
 
-	/* Running on a P/390 ? */
-	if (cpuinfo->cpu_id.machine == 0x7490)
-		machine_flags |= MACHINE_FLAG_P390;
-
 	/* Running under KVM ? */
 	if (cpuinfo->cpu_id.version == 0xfe)
 		machine_flags |= MACHINE_FLAG_KVM;
-}
-
-#ifdef CONFIG_64BIT
-static noinline __init int memory_fast_detect(void)
-{
-	unsigned long val0 = 0;
-	unsigned long val1 = 0xc;
-	int ret = -ENOSYS;
-
-	if (ipl_flags & IPL_NSS_VALID)
-		return -ENOSYS;
-
-	asm volatile(
-		"	diag	%1,%2,0x260\n"
-		"0:	lhi	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "+d" (ret), "+d" (val0), "+d" (val1) : : "cc");
-
-	if (ret || val0 != val1)
-		return -ENOSYS;
-
-	memory_chunk[0].size = val0 + 1;
-	return 0;
-}
-#else
-static inline int memory_fast_detect(void)
-{
-	return -ENOSYS;
-}
-#endif
-
-static inline __init unsigned long __tprot(unsigned long addr)
-{
-	int cc = -1;
-
-	asm volatile(
-		"	tprot	0(%1),0\n"
-		"0:	ipm	%0\n"
-		"	srl	%0,28\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "+d" (cc) : "a" (addr) : "cc");
-	return (unsigned long)cc;
-}
-
-/* Checking memory in 128KB increments. */
-#define CHUNK_INCR	(1UL << 17)
-#define ADDR2G		(1UL << 31)
-
-static noinline __init void find_memory_chunks(unsigned long memsize)
-{
-	unsigned long addr = 0, old_addr = 0;
-	unsigned long old_cc = CHUNK_READ_WRITE;
-	unsigned long cc;
-	int chunk = 0;
-
-	while (chunk < MEMORY_CHUNKS) {
-		cc = __tprot(addr);
-		while (cc == old_cc) {
-			addr += CHUNK_INCR;
-			if (memsize && addr >= memsize)
-				break;
-#ifndef CONFIG_64BIT
-			if (addr == ADDR2G)
-				break;
-#endif
-			cc = __tprot(addr);
-		}
-
-		if (old_addr != addr &&
-		    (old_cc == CHUNK_READ_WRITE || old_cc == CHUNK_READ_ONLY)) {
-			memory_chunk[chunk].addr = old_addr;
-			memory_chunk[chunk].size = addr - old_addr;
-			memory_chunk[chunk].type = old_cc;
-			chunk++;
-		}
-
-		old_addr = addr;
-		old_cc = cc;
-
-#ifndef CONFIG_64BIT
-		if (addr == ADDR2G)
-			break;
-#endif
-		/*
-		 * Finish memory detection at the first hole
-		 * if storage size is unknown.
-		 */
-		if (cc == -1UL && !memsize)
-			break;
-		if (memsize && addr >= memsize)
-			break;
-	}
 }
 
 static __init void early_pgm_check_handler(void)
@@ -380,23 +324,61 @@ static __init void detect_machine_facilities(void)
 #endif
 }
 
+static __init void rescue_initrd(void)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	/*
+	 * Move the initrd right behind the bss section in case it starts
+	 * within the bss section. So we don't overwrite it when the bss
+	 * section gets cleared.
+	 */
+	if (!INITRD_START || !INITRD_SIZE)
+		return;
+	if (INITRD_START >= (unsigned long) __bss_stop)
+		return;
+	memmove(__bss_stop, (void *) INITRD_START, INITRD_SIZE);
+	INITRD_START = (unsigned long) __bss_stop;
+#endif
+}
+
+/* Set up boot command line */
+static void __init setup_boot_command_line(void)
+{
+	char *parm = NULL;
+
+	/* copy arch command line */
+	strlcpy(boot_command_line, COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
+	boot_command_line[ARCH_COMMAND_LINE_SIZE - 1] = 0;
+
+	/* append IPL PARM data to the boot command line */
+	if (MACHINE_IS_VM) {
+		parm = boot_command_line + strlen(boot_command_line);
+		*parm++ = ' ';
+		get_ipl_vmparm(parm);
+		if (parm[0] == '=')
+			memmove(boot_command_line, parm + 1, strlen(parm));
+	}
+}
+
+
 /*
  * Save ipl parameters, clear bss memory, initialize storage keys
  * and create a kernel NSS at startup if the SAVESYS= parm is defined
  */
 void __init startup_init(void)
 {
-	unsigned long long memsize;
-
 	ipl_save_parameters();
+	rescue_initrd();
 	clear_bss_section();
 	init_kernel_storage_key();
 	lockdep_init();
 	lockdep_off();
-	detect_machine_type();
-	create_kernel_nss();
 	sort_main_extable();
 	setup_lowcore_early();
+	detect_machine_type();
+	ipl_update_parameters();
+	setup_boot_command_line();
+	create_kernel_nss();
 	detect_mvpg();
 	detect_ieee();
 	detect_csp();
@@ -404,18 +386,7 @@ void __init startup_init(void)
 	detect_diag44();
 	detect_machine_facilities();
 	setup_hpage();
-	sclp_read_info_early();
 	sclp_facilities_detect();
-	memsize = sclp_memory_detect();
-#ifndef CONFIG_64BIT
-	/*
-	 * Can't deal with more than 2G in 31 bit addressing mode, so
-	 * limit the value in order to avoid strange side effects.
-	 */
-	if (memsize > ADDR2G)
-		memsize = ADDR2G;
-#endif
-	if (memory_fast_detect() < 0)
-		find_memory_chunks((unsigned long) memsize);
+	detect_memory_layout(memory_chunk);
 	lockdep_on();
 }

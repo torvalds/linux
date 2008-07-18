@@ -13,6 +13,8 @@
 #define MAX_PHYSADDR_BITS       44
 #define MAX_PHYSMEM_BITS        44
 
+#endif /* CONFIG_SPARSEMEM */
+
 #ifdef CONFIG_MEMORY_HOTPLUG
 extern void create_section_mapping(unsigned long start, unsigned long end);
 extern int remove_section_mapping(unsigned long start, unsigned long end);
@@ -25,8 +27,6 @@ static inline int hot_add_scn_to_nid(unsigned long scn_addr)
 }
 #endif /* CONFIG_NUMA */
 #endif /* CONFIG_MEMORY_HOTPLUG */
-
-#endif /* CONFIG_SPARSEMEM */
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SPARSEMEM_H */

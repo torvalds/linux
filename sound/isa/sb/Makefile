@@ -34,5 +34,3 @@ ifeq ($(CONFIG_SND_SB16_CSP),y)
   obj-$(CONFIG_SND_SBAWE) += snd-sb16-csp.o
 endif
 obj-$(call sequencer,$(CONFIG_SND_SBAWE)) += snd-emu8000-synth.o
-
-obj-m := $(sort $(obj-m))

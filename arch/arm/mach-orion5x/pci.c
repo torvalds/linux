@@ -152,6 +152,8 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	if (dev == MV88F5181_DEV_ID || dev == MV88F5182_DEV_ID) {
 		printk(KERN_NOTICE "Applying Orion-1/Orion-NAS PCIe config "
 				   "read transaction workaround\n");
+		orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
+					  ORION5X_PCIE_WA_SIZE);
 		pcie_ops.read = pcie_rd_conf_wa;
 	}
 
@@ -240,13 +242,13 @@ static int __init pcie_setup(struct pci_sys_data *sys)
  * PCI Address Decode Windows registers
  */
 #define PCI_BAR_SIZE_DDR_CS(n)	(((n) == 0) ? ORION5X_PCI_REG(0xc08) : \
-				((n) == 1) ? ORION5X_PCI_REG(0xd08) :  \
-				((n) == 2) ? ORION5X_PCI_REG(0xc0c) :  \
-				((n) == 3) ? ORION5X_PCI_REG(0xd0c) : 0)
-#define PCI_BAR_REMAP_DDR_CS(n)	(((n) ==0) ? ORION5X_PCI_REG(0xc48) :  \
-				((n) == 1) ? ORION5X_PCI_REG(0xd48) :  \
-				((n) == 2) ? ORION5X_PCI_REG(0xc4c) :  \
-				((n) == 3) ? ORION5X_PCI_REG(0xd4c) : 0)
+				 ((n) == 1) ? ORION5X_PCI_REG(0xd08) : \
+				 ((n) == 2) ? ORION5X_PCI_REG(0xc0c) : \
+				 ((n) == 3) ? ORION5X_PCI_REG(0xd0c) : 0)
+#define PCI_BAR_REMAP_DDR_CS(n)	(((n) == 0) ? ORION5X_PCI_REG(0xc48) : \
+				 ((n) == 1) ? ORION5X_PCI_REG(0xd48) : \
+				 ((n) == 2) ? ORION5X_PCI_REG(0xc4c) : \
+				 ((n) == 3) ? ORION5X_PCI_REG(0xd4c) : 0)
 #define PCI_BAR_ENABLE		ORION5X_PCI_REG(0xc3c)
 #define PCI_ADDR_DECODE_CTRL	ORION5X_PCI_REG(0xd3c)
 
@@ -264,9 +266,11 @@ static int __init pcie_setup(struct pci_sys_data *sys)
  */
 static DEFINE_SPINLOCK(orion5x_pci_lock);
 
+static int orion5x_pci_cardbus_mode;
+
 static int orion5x_pci_local_bus_nr(void)
 {
-	u32 conf = orion5x_read(PCI_P2P_CONF);
+	u32 conf = readl(PCI_P2P_CONF);
 	return((conf & PCI_P2P_BUS_MASK) >> PCI_P2P_BUS_OFFS);
 }
 
@@ -276,11 +280,11 @@ static int orion5x_pci_hw_rd_conf(int bus, int dev, u32 func,
 	unsigned long flags;
 	spin_lock_irqsave(&orion5x_pci_lock, flags);
 
-	orion5x_write(PCI_CONF_ADDR, PCI_CONF_BUS(bus) |
-			PCI_CONF_DEV(dev) | PCI_CONF_REG(where) |
-			PCI_CONF_FUNC(func) | PCI_CONF_ADDR_EN);
+	writel(PCI_CONF_BUS(bus) |
+		PCI_CONF_DEV(dev) | PCI_CONF_REG(where) |
+		PCI_CONF_FUNC(func) | PCI_CONF_ADDR_EN, PCI_CONF_ADDR);
 
-	*val = orion5x_read(PCI_CONF_DATA);
+	*val = readl(PCI_CONF_DATA);
 
 	if (size == 1)
 		*val = (*val >> (8*(where & 0x3))) & 0xff;
@@ -300,9 +304,9 @@ static int orion5x_pci_hw_wr_conf(int bus, int dev, u32 func,
 
 	spin_lock_irqsave(&orion5x_pci_lock, flags);
 
-	orion5x_write(PCI_CONF_ADDR, PCI_CONF_BUS(bus) |
-			PCI_CONF_DEV(dev) | PCI_CONF_REG(where) |
-			PCI_CONF_FUNC(func) | PCI_CONF_ADDR_EN);
+	writel(PCI_CONF_BUS(bus) |
+		PCI_CONF_DEV(dev) | PCI_CONF_REG(where) |
+		PCI_CONF_FUNC(func) | PCI_CONF_ADDR_EN, PCI_CONF_ADDR);
 
 	if (size == 4) {
 		__raw_writel(val, PCI_CONF_DATA);
@@ -319,14 +323,30 @@ static int orion5x_pci_hw_wr_conf(int bus, int dev, u32 func,
 	return ret;
 }
 
+static int orion5x_pci_valid_config(int bus, u32 devfn)
+{
+	if (bus == orion5x_pci_local_bus_nr()) {
+		/*
+		 * Don't go out for local device
+		 */
+		if (PCI_SLOT(devfn) == 0 && PCI_FUNC(devfn) != 0)
+			return 0;
+
+		/*
+		 * When the PCI signals are directly connected to a
+		 * Cardbus slot, ignore all but device IDs 0 and 1.
+		 */
+		if (orion5x_pci_cardbus_mode && PCI_SLOT(devfn) > 1)
+			return 0;
+	}
+
+	return 1;
+}
+
 static int orion5x_pci_rd_conf(struct pci_bus *bus, u32 devfn,
 				int where, int size, u32 *val)
 {
-	/*
-	 * Don't go out for local device
-	 */
-	if (bus->number == orion5x_pci_local_bus_nr() &&
-	    PCI_SLOT(devfn) == 0 && PCI_FUNC(devfn) != 0) {
+	if (!orion5x_pci_valid_config(bus->number, devfn)) {
 		*val = 0xffffffff;
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
@@ -338,8 +358,7 @@ static int orion5x_pci_rd_conf(struct pci_bus *bus, u32 devfn,
 static int orion5x_pci_wr_conf(struct pci_bus *bus, u32 devfn,
 				int where, int size, u32 val)
 {
-	if (bus->number == orion5x_pci_local_bus_nr() &&
-	    PCI_SLOT(devfn) == 0 && PCI_FUNC(devfn) != 0)
+	if (!orion5x_pci_valid_config(bus->number, devfn))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	return orion5x_pci_hw_wr_conf(bus->number, PCI_SLOT(devfn),
@@ -353,9 +372,9 @@ static struct pci_ops pci_ops = {
 
 static void __init orion5x_pci_set_bus_nr(int nr)
 {
-	u32 p2p = orion5x_read(PCI_P2P_CONF);
+	u32 p2p = readl(PCI_P2P_CONF);
 
-	if (orion5x_read(PCI_MODE) & PCI_MODE_PCIX) {
+	if (readl(PCI_MODE) & PCI_MODE_PCIX) {
 		/*
 		 * PCI-X mode
 		 */
@@ -372,7 +391,7 @@ static void __init orion5x_pci_set_bus_nr(int nr)
 		 */
 		p2p &= ~PCI_P2P_BUS_MASK;
 		p2p |= (nr << PCI_P2P_BUS_OFFS);
-		orion5x_write(PCI_P2P_CONF, p2p);
+		writel(p2p, PCI_P2P_CONF);
 	}
 }
 
@@ -399,7 +418,7 @@ static void __init orion5x_setup_pci_wins(struct mbus_dram_target_info *dram)
 	 * First, disable windows.
 	 */
 	win_enable = 0xffffffff;
-	orion5x_write(PCI_BAR_ENABLE, win_enable);
+	writel(win_enable, PCI_BAR_ENABLE);
 
 	/*
 	 * Setup windows for DDR banks.
@@ -425,10 +444,10 @@ static void __init orion5x_setup_pci_wins(struct mbus_dram_target_info *dram)
 		 */
 		reg = PCI_CONF_REG_BAR_HI_CS(cs->cs_index);
 		orion5x_pci_hw_wr_conf(bus, 0, func, reg, 4, 0);
-		orion5x_write(PCI_BAR_SIZE_DDR_CS(cs->cs_index),
-				(cs->size - 1) & 0xfffff000);
-		orion5x_write(PCI_BAR_REMAP_DDR_CS(cs->cs_index),
-				cs->base & 0xfffff000);
+		writel((cs->size - 1) & 0xfffff000,
+			PCI_BAR_SIZE_DDR_CS(cs->cs_index));
+		writel(cs->base & 0xfffff000,
+			PCI_BAR_REMAP_DDR_CS(cs->cs_index));
 
 		/*
 		 * Enable decode window for this chip select.
@@ -439,7 +458,7 @@ static void __init orion5x_setup_pci_wins(struct mbus_dram_target_info *dram)
 	/*
 	 * Re-enable decode windows.
 	 */
-	orion5x_write(PCI_BAR_ENABLE, win_enable);
+	writel(win_enable, PCI_BAR_ENABLE);
 
 	/*
 	 * Disable automatic update of address remaping when writing to BARs.
@@ -521,6 +540,11 @@ static void __devinit rc_pci_fixup(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL, PCI_ANY_ID, rc_pci_fixup);
+
+void __init orion5x_pci_set_cardbus_mode(void)
+{
+	orion5x_pci_cardbus_mode = 1;
+}
 
 int __init orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys)
 {

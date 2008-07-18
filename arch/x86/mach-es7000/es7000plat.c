@@ -52,6 +52,8 @@ static struct mip_reg		*host_reg;
 static int 			mip_port;
 static unsigned long		mip_addr, host_addr;
 
+int es7000_plat;
+
 /*
  * GSI override for ES7000 platforms.
  */
@@ -174,53 +176,6 @@ find_unisys_acpi_oem_table(unsigned long *oem_addr)
 	return -1;
 }
 #endif
-
-/*
- * This file also gets compiled if CONFIG_X86_GENERICARCH is set. Generic
- * arch already has got following function definitions (asm-generic/es7000.c)
- * hence no need to define these for that case.
- */
-#ifndef CONFIG_X86_GENERICARCH
-void es7000_sw_apic(void);
-void __init enable_apic_mode(void)
-{
-	es7000_sw_apic();
-	return;
-}
-
-__init int mps_oem_check(struct mp_config_table *mpc, char *oem,
-		char *productid)
-{
-	if (mpc->mpc_oemptr) {
-		struct mp_config_oemtable *oem_table =
-			(struct mp_config_oemtable *)mpc->mpc_oemptr;
-		if (!strncmp(oem, "UNISYS", 6))
-			return parse_unisys_oem((char *)oem_table);
-	}
-	return 0;
-}
-#ifdef CONFIG_ACPI
-/* Hook from generic ACPI tables.c */
-int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
-{
-	unsigned long oem_addr;
-	if (!find_unisys_acpi_oem_table(&oem_addr)) {
-		if (es7000_check_dsdt())
-			return parse_unisys_oem((char *)oem_addr);
-		else {
-			setup_unisys();
-			return 1;
-		}
-	}
-	return 0;
-}
-#else
-int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
-{
-	return 0;
-}
-#endif
-#endif /* COFIG_X86_GENERICARCH */
 
 static void
 es7000_spin(int n)

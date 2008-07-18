@@ -27,20 +27,26 @@ typedef struct {
 	void __iomem *token;
 	unsigned int stride;
 	unsigned int base;
-} dcr_host_t;
+} dcr_host_mmio_t;
 
-#define DCR_MAP_OK(host)	((host).token != NULL)
+static inline bool dcr_map_ok_mmio(dcr_host_mmio_t host)
+{
+	return host.token != NULL;
+}
 
-extern dcr_host_t dcr_map(struct device_node *dev, unsigned int dcr_n,
-			  unsigned int dcr_c);
-extern void dcr_unmap(dcr_host_t host, unsigned int dcr_c);
+extern dcr_host_mmio_t dcr_map_mmio(struct device_node *dev,
+				    unsigned int dcr_n,
+				    unsigned int dcr_c);
+extern void dcr_unmap_mmio(dcr_host_mmio_t host, unsigned int dcr_c);
 
-static inline u32 dcr_read(dcr_host_t host, unsigned int dcr_n)
+static inline u32 dcr_read_mmio(dcr_host_mmio_t host, unsigned int dcr_n)
 {
 	return in_be32(host.token + ((host.base + dcr_n) * host.stride));
 }
 
-static inline void dcr_write(dcr_host_t host, unsigned int dcr_n, u32 value)
+static inline void dcr_write_mmio(dcr_host_mmio_t host,
+				  unsigned int dcr_n,
+				  u32 value)
 {
 	out_be32(host.token + ((host.base + dcr_n) * host.stride), value);
 }

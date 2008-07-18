@@ -227,7 +227,6 @@ fail_base2:
 			if (hwif) {
 				u8 index = hwif->index;
 
-				ide_init_port_data(hwif, index);
 				ide_init_port_hw(hwif, &hw);
 
 				idx[i] = index;

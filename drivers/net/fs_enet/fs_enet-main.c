@@ -44,7 +44,7 @@
 
 #ifdef CONFIG_PPC_CPM_NEW_BINDING
 #include <linux/of_gpio.h>
-#include <asm/of_platform.h>
+#include <linux/of_platform.h>
 #endif
 
 #include "fs_enet.h"

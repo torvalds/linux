@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/poll.h>
+#include <linux/smp_lock.h>
 #include <linux/wait.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -448,23 +449,30 @@ static int cm4040_open(struct inode *inode, struct file *filp)
 	struct reader_dev *dev;
 	struct pcmcia_device *link;
 	int minor = iminor(inode);
+	int ret;
 
 	if (minor >= CM_MAX_DEV)
 		return -ENODEV;
 
+	lock_kernel();
 	link = dev_table[minor];
-	if (link == NULL || !pcmcia_dev_present(link))
-		return -ENODEV;
+	if (link == NULL || !pcmcia_dev_present(link)) {
+		ret = -ENODEV;
+		goto out;
+	}
 
-	if (link->open)
-		return -EBUSY;
+	if (link->open) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	dev = link->priv;
 	filp->private_data = dev;
 
 	if (filp->f_flags & O_NONBLOCK) {
 		DEBUGP(4, dev, "filep->f_flags O_NONBLOCK set\n");
-		return -EAGAIN;
+		ret = -EAGAIN;
+		goto out;
 	}
 
 	link->open = 1;
@@ -473,7 +481,10 @@ static int cm4040_open(struct inode *inode, struct file *filp)
 	mod_timer(&dev->poll_timer, jiffies + POLL_PERIOD);
 
 	DEBUGP(2, dev, "<- cm4040_open (successfully)\n");
-	return nonseekable_open(inode, filp);
+	ret = nonseekable_open(inode, filp);
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int cm4040_close(struct inode *inode, struct file *filp)

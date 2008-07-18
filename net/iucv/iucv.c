@@ -480,7 +480,7 @@ static void iucv_setmask_mp(void)
 		if (cpu_isset(cpu, iucv_buffer_cpumask) &&
 		    !cpu_isset(cpu, iucv_irq_cpumask))
 			smp_call_function_single(cpu, iucv_allow_cpu,
-						 NULL, 0, 1);
+						 NULL, 1);
 	put_online_cpus();
 }
 
@@ -498,7 +498,7 @@ static void iucv_setmask_up(void)
 	cpumask = iucv_irq_cpumask;
 	cpu_clear(first_cpu(iucv_irq_cpumask), cpumask);
 	for_each_cpu_mask(cpu, cpumask)
-		smp_call_function_single(cpu, iucv_block_cpu, NULL, 0, 1);
+		smp_call_function_single(cpu, iucv_block_cpu, NULL, 1);
 }
 
 /**
@@ -523,7 +523,12 @@ static int iucv_enable(void)
 	rc = -EIO;
 	get_online_cpus();
 	for_each_online_cpu(cpu)
+<<<<<<< HEAD:net/iucv/iucv.c
 		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 0, 1);
+=======
+		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
+	preempt_enable();
+>>>>>>> 5b664cb235e97afbf34db9c4d77f08ebd725335e:net/iucv/iucv.c
 	if (cpus_empty(iucv_buffer_cpumask))
 		/* No cpu could declare an iucv buffer. */
 		goto out_path;
@@ -546,9 +551,13 @@ out:
  */
 static void iucv_disable(void)
 {
+<<<<<<< HEAD:net/iucv/iucv.c
 	get_online_cpus();
 	on_each_cpu(iucv_retrieve_cpu, NULL, 0, 1);
 	put_online_cpus();
+=======
+	on_each_cpu(iucv_retrieve_cpu, NULL, 1);
+>>>>>>> 5b664cb235e97afbf34db9c4d77f08ebd725335e:net/iucv/iucv.c
 	kfree(iucv_path_table);
 }
 
@@ -586,7 +595,7 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 	case CPU_ONLINE_FROZEN:
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
-		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 0, 1);
+		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
@@ -595,10 +604,10 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 		if (cpus_empty(cpumask))
 			/* Can't offline last IUCV enabled cpu. */
 			return NOTIFY_BAD;
-		smp_call_function_single(cpu, iucv_retrieve_cpu, NULL, 0, 1);
+		smp_call_function_single(cpu, iucv_retrieve_cpu, NULL, 1);
 		if (cpus_empty(iucv_irq_cpumask))
 			smp_call_function_single(first_cpu(iucv_buffer_cpumask),
-						 iucv_allow_cpu, NULL, 0, 1);
+						 iucv_allow_cpu, NULL, 1);
 		break;
 	}
 	return NOTIFY_OK;
@@ -658,7 +667,7 @@ static void iucv_cleanup_queue(void)
 	 * pending interrupts force them to the work queue by calling
 	 * an empty function on all cpus.
 	 */
-	smp_call_function(__iucv_cleanup_queue, NULL, 0, 1);
+	smp_call_function(__iucv_cleanup_queue, NULL, 1);
 	spin_lock_irq(&iucv_queue_lock);
 	list_for_each_entry_safe(p, n, &iucv_task_queue, list) {
 		/* Remove stale work items from the task queue. */
@@ -1565,16 +1574,11 @@ static void iucv_external_interrupt(u16 code)
 
 	p = iucv_irq_data[smp_processor_id()];
 	if (p->ippathid >= iucv_max_pathid) {
-		printk(KERN_WARNING "iucv_do_int: Got interrupt with "
-		       "pathid %d > max_connections (%ld)\n",
-		       p->ippathid, iucv_max_pathid - 1);
+		WARN_ON(p->ippathid >= iucv_max_pathid);
 		iucv_sever_pathid(p->ippathid, iucv_error_no_listener);
 		return;
 	}
-	if (p->iptype  < 0x01 || p->iptype > 0x09) {
-		printk(KERN_ERR "iucv_do_int: unknown iucv interrupt\n");
-		return;
-	}
+	BUG_ON(p->iptype  < 0x01 || p->iptype > 0x09);
 	work = kmalloc(sizeof(struct iucv_irq_list), GFP_ATOMIC);
 	if (!work) {
 		printk(KERN_WARNING "iucv_external_interrupt: out of memory\n");

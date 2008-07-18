@@ -11,6 +11,10 @@
 
 #include <asm/ecard.h>
 
+static struct const ide_port_info rapide_port_info = {
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
+};
+
 static void rapide_setup_ports(hw_regs_t *hw, void __iomem *base,
 			       void __iomem *ctrl, unsigned int sz, int irq)
 {
@@ -44,25 +48,26 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto release;
 	}
 
+	memset(&hw, 0, sizeof(hw));
+	rapide_setup_ports(&hw, base, base + 0x818, 1 << 6, ec->irq);
+	hw.chipset = ide_generic;
+	hw.dev = &ec->dev;
+
 	hwif = ide_find_port();
-	if (hwif) {
-		memset(&hw, 0, sizeof(hw));
-		rapide_setup_ports(&hw, base, base + 0x818, 1 << 6, ec->irq);
-		hw.chipset = ide_generic;
-		hw.dev = &ec->dev;
-
-		ide_init_port_hw(hwif, &hw);
-
-		hwif->host_flags = IDE_HFLAG_MMIO;
-		default_hwif_mmiops(hwif);
-
-		idx[0] = hwif->index;
-
-		ide_device_add(idx, NULL);
-
-		ecard_set_drvdata(ec, hwif);
-		goto out;
+	if (hwif == NULL) {
+		ret = -ENOENT;
+		goto release;
 	}
+
+	ide_init_port_hw(hwif, &hw);
+	default_hwif_mmiops(hwif);
+
+	idx[0] = hwif->index;
+
+	ide_device_add(idx, &rapide_port_info);
+
+	ecard_set_drvdata(ec, hwif);
+	goto out;
 
  release:
 	ecard_release_resources(ec);

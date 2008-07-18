@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/i2c.h>
 #include <linux/rtc.h>
@@ -655,12 +656,16 @@ static int wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 static int wdt_open(struct inode *inode, struct file *file)
 {
 	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR) {
-		if (test_and_set_bit(0, &wdt_is_open))
+		lock_kernel();
+		if (test_and_set_bit(0, &wdt_is_open)) {
+			unlock_kernel();
 			return -EBUSY;
+		}
 		/*
 		 *	Activate
 		 */
 		wdt_is_open = 1;
+		unlock_kernel();
 		return 0;
 	}
 	return -ENODEV;

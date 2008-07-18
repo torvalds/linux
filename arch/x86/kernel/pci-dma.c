@@ -7,6 +7,7 @@
 #include <asm/dma.h>
 #include <asm/gart.h>
 #include <asm/calgary.h>
+#include <asm/amd_iommu.h>
 
 int forbid_dac __read_mostly;
 EXPORT_SYMBOL(forbid_dac);
@@ -74,13 +75,17 @@ early_param("dma32_size", parse_dma32_size_opt);
 void __init dma32_reserve_bootmem(void)
 {
 	unsigned long size, align;
-	if (end_pfn <= MAX_DMA32_PFN)
+	if (max_pfn <= MAX_DMA32_PFN)
 		return;
 
+	/*
+	 * check aperture_64.c allocate_aperture() for reason about
+	 * using 512M as goal
+	 */
 	align = 64ULL<<20;
 	size = round_up(dma32_bootmem_size, align);
 	dma32_bootmem_ptr = __alloc_bootmem_nopanic(size, align,
-				 __pa(MAX_DMA_ADDRESS));
+				 512ULL<<20);
 	if (dma32_bootmem_ptr)
 		dma32_bootmem_size = size;
 	else
@@ -88,17 +93,14 @@ void __init dma32_reserve_bootmem(void)
 }
 static void __init dma32_free_bootmem(void)
 {
-	int node;
 
-	if (end_pfn <= MAX_DMA32_PFN)
+	if (max_pfn <= MAX_DMA32_PFN)
 		return;
 
 	if (!dma32_bootmem_ptr)
 		return;
 
-	for_each_online_node(node)
-		free_bootmem_node(NODE_DATA(node), __pa(dma32_bootmem_ptr),
-				  dma32_bootmem_size);
+	free_bootmem(__pa(dma32_bootmem_ptr), dma32_bootmem_size);
 
 	dma32_bootmem_ptr = NULL;
 	dma32_bootmem_size = 0;
@@ -121,6 +123,8 @@ void __init pci_iommu_alloc(void)
 #endif
 
 	detect_intel_iommu();
+
+	amd_iommu_detect();
 
 #ifdef CONFIG_SWIOTLB
 	pci_swiotlb_init();
@@ -357,7 +361,7 @@ int dma_supported(struct device *dev, u64 mask)
 EXPORT_SYMBOL(dma_supported);
 
 /* Allocate DMA memory on node near device */
-noinline struct page *
+static noinline struct page *
 dma_alloc_pages(struct device *dev, gfp_t gfp, unsigned order)
 {
 	int node;
@@ -501,6 +505,8 @@ static int __init pci_iommu_init(void)
 #endif
 
 	intel_iommu_init();
+
+	amd_iommu_init();
 
 #ifdef CONFIG_GART_IOMMU
 	gart_iommu_init();

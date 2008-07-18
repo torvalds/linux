@@ -136,7 +136,7 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 #define set_base(ldt, base) _set_base(((char *)&(ldt)) , (base))
 #define set_limit(ldt, limit) _set_limit(((char *)&(ldt)) , ((limit)-1))
 
-extern void load_gs_index(unsigned);
+extern void native_load_gs_index(unsigned);
 
 /*
  * Load a segment. Fall back on loading the zero
@@ -153,14 +153,14 @@ extern void load_gs_index(unsigned);
 		     "jmp 2b\n"			\
 		     ".previous\n"		\
 		     _ASM_EXTABLE(1b,3b)	\
-		     : :"r" (value), "r" (0))
+		     : :"r" (value), "r" (0) : "memory")
 
 
 /*
  * Save a segment register away
  */
 #define savesegment(seg, value)				\
-	asm volatile("mov %%" #seg ",%0":"=rm" (value))
+	asm("mov %%" #seg ",%0":"=r" (value) : : "memory")
 
 static inline unsigned long get_limit(unsigned long segment)
 {
@@ -282,6 +282,7 @@ static inline void native_wbinvd(void)
 #ifdef CONFIG_X86_64
 #define read_cr8()	(native_read_cr8())
 #define write_cr8(x)	(native_write_cr8(x))
+#define load_gs_index   native_load_gs_index
 #endif
 
 /* Clear the 'TS' bit */
@@ -289,7 +290,7 @@ static inline void native_wbinvd(void)
 
 #endif/* CONFIG_PARAVIRT */
 
-#define stts() write_cr0(8 | read_cr0())
+#define stts() write_cr0(read_cr0() | X86_CR0_TS)
 
 #endif /* __KERNEL__ */
 
@@ -303,7 +304,6 @@ static inline void clflush(volatile void *__p)
 void disable_hlt(void);
 void enable_hlt(void);
 
-extern int es7000_plat;
 void cpu_idle_wait(void);
 
 extern unsigned long arch_align_stack(unsigned long sp);

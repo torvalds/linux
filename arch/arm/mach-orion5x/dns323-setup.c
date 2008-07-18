@@ -27,6 +27,7 @@
 #include <asm/mach/pci.h>
 #include <asm/arch/orion5x.h>
 #include "common.h"
+#include "mpp.h"
 
 #define DNS323_GPIO_LED_RIGHT_AMBER	1
 #define DNS323_GPIO_LED_LEFT_AMBER	2
@@ -51,8 +52,6 @@ static int __init dns323_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	irq = orion5x_pci_map_irq(dev, slot, pin);
 	if (irq != -1)
 		return irq;
-
-	pr_err("%s: requested mapping for unknown device\n", __func__);
 
 	return -1;
 }
@@ -81,7 +80,6 @@ subsys_initcall(dns323_pci_init);
 
 static struct mv643xx_eth_platform_data dns323_eth_data = {
 	.phy_addr = 8,
-	.force_phy_addr = 1,
 };
 
 /****************************************************************************
@@ -119,7 +117,7 @@ static struct mtd_partition dns323_partitions[] = {
 		.name	= "u-boot",
 		.size	= 0x00030000,
 		.offset	= 0x007d0000,
-	}
+	},
 };
 
 static struct physmap_flash_data dns323_nor_flash_data = {
@@ -137,7 +135,9 @@ static struct resource dns323_nor_flash_resource = {
 static struct platform_device dns323_nor_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
-	.dev		= { .platform_data = &dns323_nor_flash_data, },
+	.dev		= {
+		.platform_data	= &dns323_nor_flash_data,
+	},
 	.resource	= &dns323_nor_flash_resource,
 	.num_resources	= 1,
 };
@@ -170,7 +170,9 @@ static struct gpio_led_platform_data dns323_led_data = {
 static struct platform_device dns323_gpio_leds = {
 	.name		= "leds-gpio",
 	.id		= -1,
-	.dev		= { .platform_data = &dns323_led_data, },
+	.dev		= {
+		.platform_data	= &dns323_led_data,
+	},
 };
 
 /****************************************************************************
@@ -183,35 +185,53 @@ static struct gpio_keys_button dns323_buttons[] = {
 		.gpio		= DNS323_GPIO_KEY_RESET,
 		.desc		= "Reset Button",
 		.active_low	= 1,
-	},
-	{
+	}, {
 		.code		= KEY_POWER,
 		.gpio		= DNS323_GPIO_KEY_POWER,
 		.desc		= "Power Button",
 		.active_low	= 1,
-	}
+	},
 };
 
 static struct gpio_keys_platform_data dns323_button_data = {
 	.buttons	= dns323_buttons,
-	.nbuttons       = ARRAY_SIZE(dns323_buttons),
+	.nbuttons	= ARRAY_SIZE(dns323_buttons),
 };
 
 static struct platform_device dns323_button_device = {
 	.name		= "gpio-keys",
 	.id		= -1,
 	.num_resources	= 0,
-	.dev		= { .platform_data  = &dns323_button_data, },
+	.dev		= {
+		.platform_data	= &dns323_button_data,
+	},
 };
 
 /****************************************************************************
  * General Setup
  */
-
-static struct platform_device *dns323_plat_devices[] __initdata = {
-	&dns323_nor_flash,
-	&dns323_gpio_leds,
-	&dns323_button_device,
+static struct orion5x_mpp_mode dns323_mpp_modes[] __initdata = {
+	{  0, MPP_PCIE_RST_OUTn },
+	{  1, MPP_GPIO },		/* right amber LED (sata ch0) */
+	{  2, MPP_GPIO },		/* left amber LED (sata ch1) */
+	{  3, MPP_UNUSED },
+	{  4, MPP_GPIO },		/* power button LED */
+	{  5, MPP_GPIO },		/* power button LED */
+	{  6, MPP_GPIO },		/* GMT G751-2f overtemp */
+	{  7, MPP_GPIO },		/* M41T80 nIRQ/OUT/SQW */
+	{  8, MPP_GPIO },		/* triggers power off */
+	{  9, MPP_GPIO },		/* power button switch */
+	{ 10, MPP_GPIO },		/* reset button switch */
+	{ 11, MPP_UNUSED },
+	{ 12, MPP_UNUSED },
+	{ 13, MPP_UNUSED },
+	{ 14, MPP_UNUSED },
+	{ 15, MPP_UNUSED },
+	{ 16, MPP_UNUSED },
+	{ 17, MPP_UNUSED },
+	{ 18, MPP_UNUSED },
+	{ 19, MPP_UNUSED },
+	{ -1 },
 };
 
 /*
@@ -225,17 +245,15 @@ static struct platform_device *dns323_plat_devices[] __initdata = {
 static struct i2c_board_info __initdata dns323_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("g760a", 0x3e),
-	},
 #if 0
 	/* this entry requires the new-style driver model lm75 driver,
 	 * for the meantime "insmod lm75.ko force_lm75=0,0x48" is needed */
-	{
+	}, {
 		I2C_BOARD_INFO("g751", 0x48),
-	},
 #endif
-	{
+	}, {
 		I2C_BOARD_INFO("m41t80", 0x68),
-	}
+	},
 };
 
 /* DNS-323 specific power off method */
@@ -250,62 +268,35 @@ static void __init dns323_init(void)
 	/* Setup basic Orion functions. Need to be called early. */
 	orion5x_init();
 
+	orion5x_mpp_conf(dns323_mpp_modes);
+	writel(0, MPP_DEV_CTRL);		/* DEV_D[31:16] */
+
+	/*
+	 * Configure peripherals.
+	 */
+	orion5x_ehci0_init();
+	orion5x_eth_init(&dns323_eth_data);
+	orion5x_i2c_init();
+	orion5x_uart0_init();
+
 	/* setup flash mapping
 	 * CS3 holds a 8 MB Spansion S29GL064M90TFIR4
 	 */
 	orion5x_setup_dev_boot_win(DNS323_NOR_BOOT_BASE, DNS323_NOR_BOOT_SIZE);
+	platform_device_register(&dns323_nor_flash);
 
-	/* DNS-323 has a Marvell 88X7042 SATA controller attached via PCIe
-	 *
-	 * Open a special address decode windows for the PCIe WA.
-	 */
-	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
-				ORION5X_PCIE_WA_SIZE);
+	platform_device_register(&dns323_gpio_leds);
 
-	/* set MPP to 0 as D-Link's 2.6.12.6 kernel did */
-	orion5x_write(MPP_0_7_CTRL, 0);
-	orion5x_write(MPP_8_15_CTRL, 0);
-	orion5x_write(MPP_16_19_CTRL, 0);
-	orion5x_write(MPP_DEV_CTRL, 0);
-
-	/* Define used GPIO pins
-
-	  GPIO Map:
-
-	  |  0 |     | PEX_RST_OUT (not controlled by GPIO)
-	  |  1 | Out | right amber LED (= sata ch0 LED)  (low-active)
-	  |  2 | Out | left  amber LED (= sata ch1 LED)  (low-active)
-	  |  3 | Out | //unknown//
-	  |  4 | Out | power button LED (low-active, together with pin #5)
-	  |  5 | Out | power button LED (low-active, together with pin #4)
-	  |  6 | In  | GMT G751-2f overtemp. shutdown signal (low-active)
-	  |  7 | In  | M41T80 nIRQ/OUT/SQW signal
-	  |  8 | Out | triggers power off (high-active)
-	  |  9 | In  | power button switch (low-active)
-	  | 10 | In  | reset button switch (low-active)
-	  | 11 | Out | //unknown//
-	  | 12 | Out | //unknown//
-	  | 13 | Out | //unknown//
-	  | 14 | Out | //unknown//
-	  | 15 | Out | //unknown//
-	*/
-	orion5x_gpio_set_valid_pins(0x07f6);
-
-	/* register dns323 specific power-off method */
-	if ((gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0)
-	    || (gpio_direction_output(DNS323_GPIO_POWER_OFF, 0) != 0))
-		pr_err("DNS323: failed to setup power-off GPIO\n");
-
-	pm_power_off = dns323_power_off;
-
-	/* register flash and other platform devices */
-	platform_add_devices(dns323_plat_devices,
-			     ARRAY_SIZE(dns323_plat_devices));
+	platform_device_register(&dns323_button_device);
 
 	i2c_register_board_info(0, dns323_i2c_devices,
 				ARRAY_SIZE(dns323_i2c_devices));
 
-	orion5x_eth_init(&dns323_eth_data);
+	/* register dns323 specific power-off method */
+	if (gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0 ||
+	    gpio_direction_output(DNS323_GPIO_POWER_OFF, 0) != 0)
+		pr_err("DNS323: failed to setup power-off GPIO\n");
+	pm_power_off = dns323_power_off;
 }
 
 /* Warning: D-Link uses a wrong mach-type (=526) in their bootloader */

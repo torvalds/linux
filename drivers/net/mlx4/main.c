@@ -485,6 +485,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 	struct mlx4_priv	  *priv = mlx4_priv(dev);
 	struct mlx4_adapter	   adapter;
 	struct mlx4_dev_cap	   dev_cap;
+	struct mlx4_mod_stat_cfg   mlx4_cfg;
 	struct mlx4_profile	   profile;
 	struct mlx4_init_hca_param init_hca;
 	u64 icm_size;
@@ -501,6 +502,12 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		mlx4_err(dev, "Failed to start FW, aborting.\n");
 		return err;
 	}
+
+	mlx4_cfg.log_pg_sz_m = 1;
+	mlx4_cfg.log_pg_sz = 0;
+	err = mlx4_MOD_STAT_CFG(dev, &mlx4_cfg);
+	if (err)
+		mlx4_warn(dev, "Failed to override log_pg_sz parameter\n");
 
 	err = mlx4_dev_cap(dev, &dev_cap);
 	if (err) {

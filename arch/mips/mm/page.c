@@ -235,13 +235,12 @@ static void __cpuinit set_prefetch_parameters(void)
 	}
 	/*
 	 * Too much unrolling will overflow the available space in
-	 * clear_space_array / copy_page_array. 8 words sounds generous,
-	 * but a R4000 with 128 byte L2 line length can exceed even that.
+	 * clear_space_array / copy_page_array.
 	 */
-	half_clear_loop_size = min(8 * clear_word_size,
+	half_clear_loop_size = min(16 * clear_word_size,
 				   max(cache_line_size >> 1,
 				       4 * clear_word_size));
-	half_copy_loop_size = min(8 * copy_word_size,
+	half_copy_loop_size = min(16 * copy_word_size,
 				  max(cache_line_size >> 1,
 				      4 * copy_word_size));
 }
@@ -263,21 +262,23 @@ static inline void __cpuinit build_clear_pref(u32 **buf, int off)
 	if (pref_bias_clear_store) {
 		uasm_i_pref(buf, pref_dst_mode, pref_bias_clear_store + off,
 			    A0);
-	} else if (cpu_has_cache_cdex_s) {
-		uasm_i_cache(buf, Create_Dirty_Excl_SD, off, A0);
-	} else if (cpu_has_cache_cdex_p) {
-		if (R4600_V1_HIT_CACHEOP_WAR && cpu_is_r4600_v1_x()) {
-			uasm_i_nop(buf);
-			uasm_i_nop(buf);
-			uasm_i_nop(buf);
-			uasm_i_nop(buf);
+	} else if (cache_line_size == (half_clear_loop_size << 1)) {
+		if (cpu_has_cache_cdex_s) {
+			uasm_i_cache(buf, Create_Dirty_Excl_SD, off, A0);
+		} else if (cpu_has_cache_cdex_p) {
+			if (R4600_V1_HIT_CACHEOP_WAR && cpu_is_r4600_v1_x()) {
+				uasm_i_nop(buf);
+				uasm_i_nop(buf);
+				uasm_i_nop(buf);
+				uasm_i_nop(buf);
+			}
+
+			if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
+				uasm_i_lw(buf, ZERO, ZERO, AT);
+
+			uasm_i_cache(buf, Create_Dirty_Excl_D, off, A0);
 		}
-
-		if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
-			uasm_i_lw(buf, ZERO, ZERO, AT);
-
-		uasm_i_cache(buf, Create_Dirty_Excl_D, off, A0);
-	}
+		}
 }
 
 void __cpuinit build_clear_page(void)
@@ -403,20 +404,22 @@ static inline void build_copy_store_pref(u32 **buf, int off)
 	if (pref_bias_copy_store) {
 		uasm_i_pref(buf, pref_dst_mode, pref_bias_copy_store + off,
 			    A0);
-	} else if (cpu_has_cache_cdex_s) {
-		uasm_i_cache(buf, Create_Dirty_Excl_SD, off, A0);
-	} else if (cpu_has_cache_cdex_p) {
-		if (R4600_V1_HIT_CACHEOP_WAR && cpu_is_r4600_v1_x()) {
-			uasm_i_nop(buf);
-			uasm_i_nop(buf);
-			uasm_i_nop(buf);
-			uasm_i_nop(buf);
+	} else if (cache_line_size == (half_copy_loop_size << 1)) {
+		if (cpu_has_cache_cdex_s) {
+			uasm_i_cache(buf, Create_Dirty_Excl_SD, off, A0);
+		} else if (cpu_has_cache_cdex_p) {
+			if (R4600_V1_HIT_CACHEOP_WAR && cpu_is_r4600_v1_x()) {
+				uasm_i_nop(buf);
+				uasm_i_nop(buf);
+				uasm_i_nop(buf);
+				uasm_i_nop(buf);
+			}
+
+			if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
+				uasm_i_lw(buf, ZERO, ZERO, AT);
+
+			uasm_i_cache(buf, Create_Dirty_Excl_D, off, A0);
 		}
-
-		if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
-			uasm_i_lw(buf, ZERO, ZERO, AT);
-
-		uasm_i_cache(buf, Create_Dirty_Excl_D, off, A0);
 	}
 }
 

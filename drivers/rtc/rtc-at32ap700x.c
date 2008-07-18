@@ -265,6 +265,7 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, rtc);
+	device_init_wakeup(&pdev->dev, 1);
 
 	dev_info(&pdev->dev, "Atmel RTC for AT32AP700x at %08lx irq %ld\n",
 			(unsigned long)rtc->regs, rtc->irq);
@@ -283,6 +284,8 @@ out:
 static int __exit at32_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_at32ap700x *rtc = platform_get_drvdata(pdev);
+
+	device_init_wakeup(&pdev->dev, 0);
 
 	free_irq(rtc->irq, rtc);
 	iounmap(rtc->regs);

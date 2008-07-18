@@ -21,86 +21,6 @@
 #include "cs_internal.h"
 
 
-#ifdef CONFIG_PCMCIA_IOCTL
-
-#ifdef CONFIG_PCMCIA_PROBE
-
-static int adjust_irq(struct pcmcia_socket *s, adjust_t *adj)
-{
-	int irq;
-	u32 mask;
-
-	irq = adj->resource.irq.IRQ;
-	if ((irq < 0) || (irq > 15))
-		return CS_BAD_IRQ;
-
-	if (adj->Action != REMOVE_MANAGED_RESOURCE)
-		return 0;
-
-	mask = 1 << irq;
-
-	if (!(s->irq_mask & mask))
-		return 0;
-
-	s->irq_mask &= ~mask;
-
-	return 0;
-}
-
-#else
-
-static inline int adjust_irq(struct pcmcia_socket *s, adjust_t *adj) {
-	return CS_SUCCESS;
-}
-
-#endif
-
-
-int pcmcia_adjust_resource_info(adjust_t *adj)
-{
-	struct pcmcia_socket *s;
-	int ret = CS_UNSUPPORTED_FUNCTION;
-	unsigned long flags;
-
-	down_read(&pcmcia_socket_list_rwsem);
-	list_for_each_entry(s, &pcmcia_socket_list, socket_list) {
-
-		if (adj->Resource == RES_IRQ)
-			ret = adjust_irq(s, adj);
-
-		else if (s->resource_ops->adjust_resource) {
-
-			/* you can't use the old interface if the new
-			 * one was used before */
-			spin_lock_irqsave(&s->lock, flags);
-			if ((s->resource_setup_new) &&
-			    !(s->resource_setup_old)) {
-				spin_unlock_irqrestore(&s->lock, flags);
-				continue;
-			} else if (!(s->resource_setup_old))
-				s->resource_setup_old = 1;
-			spin_unlock_irqrestore(&s->lock, flags);
-
-			ret = s->resource_ops->adjust_resource(s, adj);
-			if (!ret) {
-				/* as there's no way we know this is the
-				 * last call to adjust_resource_info, we
-				 * always need to assume this is the latest
-				 * one... */
-				spin_lock_irqsave(&s->lock, flags);
-				s->resource_setup_done = 1;
-				spin_unlock_irqrestore(&s->lock, flags);
-			}
-		}
-	}
-	up_read(&pcmcia_socket_list_rwsem);
-
-	return (ret);
-}
-EXPORT_SYMBOL(pcmcia_adjust_resource_info);
-
-#endif
-
 int pcmcia_validate_mem(struct pcmcia_socket *s)
 {
 	if (s->resource_ops->validate_mem)
@@ -164,7 +84,8 @@ struct pccard_resource_ops pccard_static_ops = {
 	.adjust_io_region = NULL,
 	.find_io = NULL,
 	.find_mem = NULL,
-	.adjust_resource = NULL,
+	.add_io = NULL,
+	.add_mem = NULL,
 	.init = static_init,
 	.exit = NULL,
 };
@@ -264,7 +185,8 @@ struct pccard_resource_ops pccard_iodyn_ops = {
 	.adjust_io_region = iodyn_adjust_io_region,
 	.find_io = iodyn_find_io_region,
 	.find_mem = NULL,
-	.adjust_resource = NULL,
+	.add_io = NULL,
+	.add_mem = NULL,
 	.init = static_init,
 	.exit = NULL,
 };

@@ -314,6 +314,12 @@ static int cxgb_rdma_ctl(struct adapter *adapter, unsigned int req, void *data)
 		spin_unlock_irq(&adapter->sge.reg_lock);
 		break;
 	}
+	case RDMA_GET_MIB: {
+		spin_lock(&adapter->stats_lock);
+		t3_tp_get_mib_stats(adapter, (struct tp_mib_stats *)data);
+		spin_unlock(&adapter->stats_lock);
+		break;
+	}
 	default:
 		ret = -EOPNOTSUPP;
 	}
@@ -392,6 +398,7 @@ static int cxgb_offload_ctl(struct t3cdev *tdev, unsigned int req, void *data)
 	case RDMA_CQ_DISABLE:
 	case RDMA_CTRL_QP_SETUP:
 	case RDMA_GET_MEM:
+	case RDMA_GET_MIB:
 		if (!offload_running(adapter))
 			return -EAGAIN;
 		return cxgb_rdma_ctl(adapter, req, data);

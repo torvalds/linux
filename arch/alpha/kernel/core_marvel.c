@@ -660,9 +660,9 @@ __marvel_rtc_io(u8 b, unsigned long addr, int write)
 
 #ifdef CONFIG_SMP
 		if (smp_processor_id() != boot_cpuid)
-			smp_call_function_on_cpu(__marvel_access_rtc,
-						 &rtc_access, 1, 1,
-						 cpumask_of_cpu(boot_cpuid));
+			smp_call_function_single(boot_cpuid,
+						 __marvel_access_rtc,
+						 &rtc_access, 1);
 		else
 			__marvel_access_rtc(&rtc_access);
 #else

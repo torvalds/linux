@@ -120,6 +120,26 @@
  */
 #define XEN_ELFNOTE_BSD_SYMTAB    11
 
+/*
+ * The lowest address the hypervisor hole can begin at (numeric).
+ *
+ * This must not be set higher than HYPERVISOR_VIRT_START. Its presence
+ * also indicates to the hypervisor that the kernel can deal with the
+ * hole starting at a higher address.
+ */
+#define XEN_ELFNOTE_HV_START_LOW  12
+
+/*
+ * List of maddr_t-sized mask/value pairs describing how to recognize
+ * (non-present) L1 page table entries carrying valid MFNs (numeric).
+ */
+#define XEN_ELFNOTE_L1_MFN_VALID  13
+
+/*
+ * Whether or not the guest supports cooperative suspend cancellation.
+ */
+#define XEN_ELFNOTE_SUSPEND_CANCEL 14
+
 #endif /* __XEN_PUBLIC_ELFNOTE_H__ */
 
 /*
