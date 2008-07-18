@@ -2254,19 +2254,12 @@ static int fib_triestat_seq_open(struct inode *inode, struct file *file)
 	return single_open_net(inode, file, fib_triestat_seq_show);
 }
 
-static int fib_triestat_seq_release(struct inode *ino, struct file *f)
-{
-	struct seq_file *seq = f->private_data;
-	put_net(seq->private);
-	return single_release(ino, f);
-}
-
 static const struct file_operations fib_triestat_fops = {
 	.owner	= THIS_MODULE,
 	.open	= fib_triestat_seq_open,
 	.read	= seq_read,
 	.llseek	= seq_lseek,
-	.release = fib_triestat_seq_release,
+	.release = single_release_net,
 };
 
 static struct node *fib_trie_get_idx(struct seq_file *seq, loff_t pos)

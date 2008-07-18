@@ -186,20 +186,12 @@ static int sockstat6_seq_open(struct inode *inode, struct file *file)
 	return single_open_net(inode, file, sockstat6_seq_show);
 }
 
-static int sockstat6_seq_release(struct inode *inode, struct file *file)
-{
-	struct net *net = ((struct seq_file *)file->private_data)->private;
-
-	put_net(net);
-	return single_release(inode, file);
-}
-
 static const struct file_operations sockstat6_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = sockstat6_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = sockstat6_seq_release,
+	.release = single_release_net,
 };
 
 static int snmp6_seq_open(struct inode *inode, struct file *file)

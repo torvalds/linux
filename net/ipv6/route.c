@@ -2419,20 +2419,12 @@ static int ipv6_route_open(struct inode *inode, struct file *file)
 	return single_open_net(inode, file, ipv6_route_show);
 }
 
-static int ipv6_route_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct net *net = seq->private;
-	put_net(net);
-	return single_release(inode, file);
-}
-
 static const struct file_operations ipv6_route_proc_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ipv6_route_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= ipv6_route_release,
+	.release	= single_release_net,
 };
 
 static int rt6_stats_seq_show(struct seq_file *seq, void *v)
@@ -2455,20 +2447,12 @@ static int rt6_stats_seq_open(struct inode *inode, struct file *file)
 	return single_open_net(inode, file, rt6_stats_seq_show);
 }
 
-static int rt6_stats_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct net *net = (struct net *)seq->private;
-	put_net(net);
-	return single_release(inode, file);
-}
-
 static const struct file_operations rt6_stats_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = rt6_stats_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = rt6_stats_seq_release,
+	.release = single_release_net,
 };
 #endif	/* CONFIG_PROC_FS */
 

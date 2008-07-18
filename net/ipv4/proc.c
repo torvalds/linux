@@ -74,20 +74,12 @@ static int sockstat_seq_open(struct inode *inode, struct file *file)
 	return single_open_net(inode, file, sockstat_seq_show);
 }
 
-static int sockstat_seq_release(struct inode *inode, struct file *file)
-{
-	struct net *net = ((struct seq_file *)file->private_data)->private;
-
-	put_net(net);
-	return single_release(inode, file);
-}
-
 static const struct file_operations sockstat_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = sockstat_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = sockstat_seq_release,
+	.release = single_release_net,
 };
 
 /* snmp items */
@@ -383,20 +375,12 @@ static int snmp_seq_open(struct inode *inode, struct file *file)
 	return single_open_net(inode, file, snmp_seq_show);
 }
 
-static int snmp_seq_release(struct inode *inode, struct file *file)
-{
-	struct net *net = ((struct seq_file *)file->private_data)->private;
-
-	put_net(net);
-	return single_release(inode, file);
-}
-
 static const struct file_operations snmp_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = snmp_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = snmp_seq_release,
+	.release = single_release_net,
 };
 
 
@@ -438,20 +422,12 @@ static int netstat_seq_open(struct inode *inode, struct file *file)
 	return single_open_net(inode, file, netstat_seq_show);
 }
 
-static int netstat_seq_release(struct inode *inode, struct file *file)
-{
-	struct net *net = ((struct seq_file *)file->private_data)->private;
-
-	put_net(net);
-	return single_release(inode, file);
-}
-
 static const struct file_operations netstat_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = netstat_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = netstat_seq_release,
+	.release = single_release_net,
 };
 
 static __net_init int ip_proc_init_net(struct net *net)
