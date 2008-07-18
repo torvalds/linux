@@ -411,11 +411,12 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 
 	/* let's do some sanity checks */
 	if (slave->offset >= master->size) {
-			/* let's register it anyway to preserve ordering */
+		/* let's register it anyway to preserve ordering */
 		slave->offset = 0;
 		slave->mtd.size = 0;
 		printk(KERN_ERR"mtd: partition \"%s\" is out of reach -- disabled\n",
 			part->name);
+		goto out_register;
 	}
 	if (slave->offset + slave->mtd.size > master->size) {
 		slave->mtd.size = master->size - slave->offset;
@@ -475,6 +476,7 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 		}
 	}
 
+out_register:
 	if (part->mtdp) {
 		/* store the object pointer (caller may or may not register it*/
 		*part->mtdp = &slave->mtd;
