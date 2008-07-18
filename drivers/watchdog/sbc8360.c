@@ -231,6 +231,13 @@ static void sbc8360_ping(void)
 	outb(wd_margin, SBC8360_BASETIME);
 }
 
+/* stop watchdog */
+static void sbc8360_stop(void)
+{
+	/* De-activate the watchdog */
+	outb(0, SBC8360_ENABLE);
+}
+
 /* Userspace pings kernel driver, or requests clean close */
 static ssize_t sbc8360_write(struct file *file, const char __user *buf,
 			     size_t count, loff_t *ppos)
@@ -271,7 +278,7 @@ static int sbc8360_open(struct inode *inode, struct file *file)
 static int sbc8360_close(struct inode *inode, struct file *file)
 {
 	if (expect_close == 42)
-		outb(0, SBC8360_ENABLE);
+		sbc8360_stop();
 	else
 		printk(KERN_CRIT PFX
 			"SBC8360 device closed unexpectedly.  SBC8360 will not stop!\n");
@@ -288,10 +295,9 @@ static int sbc8360_close(struct inode *inode, struct file *file)
 static int sbc8360_notify_sys(struct notifier_block *this, unsigned long code,
 			      void *unused)
 {
-	if (code == SYS_DOWN || code == SYS_HALT) {
-		/* Disable the SBC8360 Watchdog */
-		outb(0, SBC8360_ENABLE);
-	}
+	if (code == SYS_DOWN || code == SYS_HALT)
+		sbc8360_stop();	/* Disable the SBC8360 Watchdog */
+
 	return NOTIFY_DONE;
 }
 
