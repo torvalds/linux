@@ -1228,9 +1228,9 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 				bitmap = bitmap << sh;
 				sh = 0;
 			}
-			bitmap |= (1 << sh);
-			IWL_DEBUG_TX_REPLY("start=%d bitmap=0x%x\n",
-					   start, (u32)(bitmap & 0xFFFFFFFF));
+			bitmap |= 1ULL << sh;
+			IWL_DEBUG_TX_REPLY("start=%d bitmap=0x%llx\n",
+					   start, (unsigned long long)bitmap);
 		}
 
 		agg->bitmap = bitmap;

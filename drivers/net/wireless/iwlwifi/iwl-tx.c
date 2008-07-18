@@ -1391,7 +1391,7 @@ static int iwl_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	/* For each frame attempted in aggregation,
 	 * update driver's record of tx frame's status. */
 	for (i = 0; i < agg->frame_count ; i++) {
-		ack = bitmap & (1 << i);
+		ack = bitmap & (1ULL << i);
 		successes += !!ack;
 		IWL_DEBUG_TX_REPLY("%s ON i=%d idx=%d raw=%d\n",
 			ack? "ACK":"NACK", i, (agg->start_idx + i) & 0xff,
