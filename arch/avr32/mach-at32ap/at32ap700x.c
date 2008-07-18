@@ -1284,7 +1284,6 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 {
 	struct mci_platform_data	_data;
 	struct platform_device		*pdev;
-	struct dw_dma_slave		*dws;
 
 	if (id != 0)
 		return NULL;
@@ -1300,6 +1299,8 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 	if (!data) {
 		data = &_data;
 		memset(data, 0, sizeof(struct mci_platform_data));
+		data->detect_pin = GPIO_PIN_NONE;
+		data->wp_pin = GPIO_PIN_NONE;
 	}
 
 	if (platform_device_add_data(pdev, data,
@@ -1313,12 +1314,10 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 	select_peripheral(PA(14), PERIPH_A, 0);	/* DATA2 */
 	select_peripheral(PA(15), PERIPH_A, 0);	/* DATA3 */
 
-	if (data) {
-		if (data->detect_pin != GPIO_PIN_NONE)
-			at32_select_gpio(data->detect_pin, 0);
-		if (data->wp_pin != GPIO_PIN_NONE)
-			at32_select_gpio(data->wp_pin, 0);
-	}
+	if (data->detect_pin != GPIO_PIN_NONE)
+		at32_select_gpio(data->detect_pin, 0);
+	if (data->wp_pin != GPIO_PIN_NONE)
+		at32_select_gpio(data->wp_pin, 0);
 
 	atmel_mci0_pclk.dev = &pdev->dev;
 
