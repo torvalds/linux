@@ -4,6 +4,7 @@
 #include <net/snmp.h>
 
 struct netns_mib {
+	DEFINE_SNMP_STAT(struct tcp_mib, tcp_statistics);
 };
 
 #endif

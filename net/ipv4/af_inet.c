@@ -1342,11 +1342,20 @@ static struct net_protocol icmp_protocol = {
 
 static __net_init int ipv4_mib_init_net(struct net *net)
 {
+	if (snmp_mib_init((void **)net->mib.tcp_statistics,
+			  sizeof(struct tcp_mib)) < 0)
+		goto err_tcp_mib;
+
+	tcp_mib_init(net);
 	return 0;
+
+err_tcp_mib:
+	return -ENOMEM;
 }
 
 static __net_exit void ipv4_mib_exit_net(struct net *net)
 {
+	snmp_mib_free((void **)net->mib.tcp_statistics);
 }
 
 static __net_initdata struct pernet_operations ipv4_mib_ops = {
@@ -1368,17 +1377,12 @@ static int __init init_ipv4_mibs(void)
 	if (snmp_mib_init((void **)icmpmsg_statistics,
 			  sizeof(struct icmpmsg_mib)) < 0)
 		goto err_icmpmsg_mib;
-	if (snmp_mib_init((void **)tcp_statistics,
-			  sizeof(struct tcp_mib)) < 0)
-		goto err_tcp_mib;
 	if (snmp_mib_init((void **)udp_statistics,
 			  sizeof(struct udp_mib)) < 0)
 		goto err_udp_mib;
 	if (snmp_mib_init((void **)udplite_statistics,
 			  sizeof(struct udp_mib)) < 0)
 		goto err_udplite_mib;
-
-	tcp_mib_init(&init_net);
 
 	if (register_pernet_subsys(&ipv4_mib_ops))
 		goto err_net;
@@ -1390,8 +1394,6 @@ err_net:
 err_udplite_mib:
 	snmp_mib_free((void **)udp_statistics);
 err_udp_mib:
-	snmp_mib_free((void **)tcp_statistics);
-err_tcp_mib:
 	snmp_mib_free((void **)icmpmsg_statistics);
 err_icmpmsg_mib:
 	snmp_mib_free((void **)icmp_statistics);

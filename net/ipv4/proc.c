@@ -359,11 +359,11 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		/* MaxConn field is signed, RFC 2012 */
 		if (snmp4_tcp_list[i].entry == TCP_MIB_MAXCONN)
 			seq_printf(seq, " %ld",
-				   snmp_fold_field((void **)tcp_statistics,
+				   snmp_fold_field((void **)init_net.mib.tcp_statistics,
 						   snmp4_tcp_list[i].entry));
 		else
 			seq_printf(seq, " %lu",
-				   snmp_fold_field((void **)tcp_statistics,
+				   snmp_fold_field((void **)init_net.mib.tcp_statistics,
 						   snmp4_tcp_list[i].entry));
 	}
 
