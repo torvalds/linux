@@ -1,7 +1,8 @@
-#ifndef _ASM_SPARC_MODULE_H
-#define _ASM_SPARC_MODULE_H
-struct mod_arch_specific { };
-#define Elf_Shdr Elf32_Shdr
-#define Elf_Sym Elf32_Sym
-#define Elf_Ehdr Elf32_Ehdr
-#endif /* _ASM_SPARC_MODULE_H */
+#ifndef ___ASM_SPARC_MODULE_H
+#define ___ASM_SPARC_MODULE_H
+#if defined(__sparc__) && defined(__arch64__)
+#include <asm-sparc/module_64.h>
+#else
+#include <asm-sparc/module_32.h>
+#endif
+#endif
