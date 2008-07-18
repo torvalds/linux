@@ -19,7 +19,9 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <asm/bootinfo.h>
+#include <asm/time.h>
 #include <asm/txx9/generic.h>
 #ifdef CONFIG_CPU_TX49XX
 #include <asm/txx9/tx4938.h>
