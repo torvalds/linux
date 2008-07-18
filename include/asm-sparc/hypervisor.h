@@ -2920,8 +2920,12 @@ extern unsigned long sun4v_ncs_request(unsigned long request,
 #define HV_GRP_LDOM			0x0101
 #define HV_GRP_SVC_CHAN			0x0102
 #define HV_GRP_NCS			0x0103
+#define HV_GRP_RNG			0x0104
 #define HV_GRP_NIAG_PERF		0x0200
 #define HV_GRP_FIRE_PERF		0x0201
+#define HV_GRP_N2_CPU			0x0202
+#define HV_GRP_NIU			0x0204
+#define HV_GRP_VF_CPU			0x0205
 #define HV_GRP_DIAG			0x0300
 
 #ifndef __ASSEMBLY__

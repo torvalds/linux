@@ -34,8 +34,12 @@ static struct api_info api_table[] = {
 	{ .group = HV_GRP_LDOM,					},
 	{ .group = HV_GRP_SVC_CHAN,	.flags = FLAG_PRE_API	},
 	{ .group = HV_GRP_NCS,		.flags = FLAG_PRE_API	},
+	{ .group = HV_GRP_RNG,					},
 	{ .group = HV_GRP_NIAG_PERF,	.flags = FLAG_PRE_API	},
 	{ .group = HV_GRP_FIRE_PERF,				},
+	{ .group = HV_GRP_N2_CPU,				},
+	{ .group = HV_GRP_NIU,					},
+	{ .group = HV_GRP_VF_CPU,				},
 	{ .group = HV_GRP_DIAG,		.flags = FLAG_PRE_API	},
 };
 
