@@ -49,7 +49,7 @@ MODULE_DEVICE_TABLE(usb, zd1201_table);
 static int zd1201_fw_upload(struct usb_device *dev, int apfw)
 {
 	const struct firmware *fw_entry;
-	char *data;
+	const char *data;
 	unsigned long len;
 	int err;
 	unsigned char ret;

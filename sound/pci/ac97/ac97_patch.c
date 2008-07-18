@@ -669,6 +669,7 @@ AC97_SINGLE("Mic 1 Volume", AC97_MIC, 8, 31, 1),
 AC97_SINGLE("Mic 2 Volume", AC97_MIC, 0, 31, 1),
 AC97_SINGLE("Mic 20dB Boost Switch", AC97_MIC, 7, 1, 0),
 
+AC97_SINGLE("Master Left Inv Switch", AC97_MASTER, 6, 1, 0),
 AC97_SINGLE("Master ZC Switch", AC97_MASTER, 7, 1, 0),
 AC97_SINGLE("Headphone ZC Switch", AC97_HEADPHONE, 7, 1, 0),
 AC97_SINGLE("Mono ZC Switch", AC97_MASTER_MONO, 7, 1, 0),
@@ -3352,8 +3353,66 @@ AC97_SINGLE("Downmix LFE and Center to Front", 0x5a, 12, 1, 0),
 AC97_SINGLE("Downmix Surround to Front", 0x5a, 11, 1, 0),
 };
 
+static const char *slave_vols_vt1616[] = {
+	"Front Playback Volume",
+	"Surround Playback Volume",
+	"Center Playback Volume",
+	"LFE Playback Volume",
+	NULL
+};
+
+static const char *slave_sws_vt1616[] = {
+	"Front Playback Switch",
+	"Surround Playback Switch",
+	"Center Playback Switch",
+	"LFE Playback Switch",
+	NULL
+};
+
+/* find a mixer control element with the given name */
+static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
+						    const char *name)
+{
+	struct snd_ctl_elem_id id;
+	memset(&id, 0, sizeof(id));
+	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	strcpy(id.name, name);
+	return snd_ctl_find_id(ac97->bus->card, &id);
+}
+
+/* create a virtual master control and add slaves */
+int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
+			 const unsigned int *tlv, const char **slaves)
+{
+	struct snd_kcontrol *kctl;
+	const char **s;
+	int err;
+
+	kctl = snd_ctl_make_virtual_master(name, tlv);
+	if (!kctl)
+		return -ENOMEM;
+	err = snd_ctl_add(ac97->bus->card, kctl);
+	if (err < 0)
+		return err;
+
+	for (s = slaves; *s; s++) {
+		struct snd_kcontrol *sctl;
+
+		sctl = snd_ac97_find_mixer_ctl(ac97, *s);
+		if (!sctl) {
+			snd_printdd("Cannot find slave %s, skipped\n", *s);
+			continue;
+		}
+		err = snd_ctl_add_slave(kctl, sctl);
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
 static int patch_vt1616_specific(struct snd_ac97 * ac97)
 {
+	struct snd_kcontrol *kctl;
 	int err;
 
 	if (snd_ac97_try_bit(ac97, 0x5a, 9))
@@ -3361,6 +3420,24 @@ static int patch_vt1616_specific(struct snd_ac97 * ac97)
 			return err;
 	if ((err = patch_build_controls(ac97, &snd_ac97_controls_vt1616[1], ARRAY_SIZE(snd_ac97_controls_vt1616) - 1)) < 0)
 		return err;
+
+	/* There is already a misnamed master switch.  Rename it.  */
+	kctl = snd_ac97_find_mixer_ctl(ac97, "Master Playback Volume");
+	if (!kctl)
+		return -EINVAL;
+
+	snd_ac97_rename_vol_ctl(ac97, "Master Playback", "Front Playback");
+
+	err = snd_ac97_add_vmaster(ac97, "Master Playback Volume",
+				   kctl->tlv.p, slave_vols_vt1616);
+	if (err < 0)
+		return err;
+
+	err = snd_ac97_add_vmaster(ac97, "Master Playback Switch",
+				   NULL, slave_sws_vt1616);
+	if (err < 0)
+		return err;
+
 	return 0;
 }
 
@@ -3633,7 +3710,7 @@ static int patch_ucb1400(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_ucb1400_ops;
 	/* enable headphone driver and smart low power mode by default */
-	snd_ac97_write(ac97, 0x6a, 0x0050);
-	snd_ac97_write(ac97, 0x6c, 0x0030);
+	snd_ac97_write_cache(ac97, 0x6a, 0x0050);
+	snd_ac97_write_cache(ac97, 0x6c, 0x0030);
 	return 0;
 }

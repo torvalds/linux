@@ -84,11 +84,9 @@
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
+#include <linux/firmware.h>
 
 #include "ti_usb_3410_5052.h"
-#include "ti_fw_3410.h"		/* firmware image for 3410 */
-#include "ti_fw_5052.h"		/* firmware image for 5052 */
-
 
 /* Defines */
 
@@ -194,8 +192,8 @@ static int ti_command_in_sync(struct ti_device *tdev, __u8 command,
 static int ti_write_byte(struct ti_device *tdev, unsigned long addr,
 	__u8 mask, __u8 byte);
 
-static int ti_download_firmware(struct ti_device *tdev,
-	unsigned char *firmware, unsigned int firmware_size);
+static int ti_download_firmware(struct ti_device *tdev, char *fw_name);
+
 
 /* circular buffer */
 static struct circ_buf *ti_buf_alloc(void);
@@ -320,6 +318,9 @@ MODULE_DESCRIPTION(TI_DRIVER_DESC);
 MODULE_VERSION(TI_DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
+MODULE_FIRMWARE("ti_3410.fw");
+MODULE_FIRMWARE("ti_5052.fw");
+
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable debugging, 0=no, 1=yes");
 
@@ -431,11 +432,9 @@ static int ti_startup(struct usb_serial *serial)
 	if (dev->descriptor.bNumConfigurations == 1) {
 
 		if (tdev->td_is_3410)
-			status = ti_download_firmware(tdev, ti_fw_3410,
-				sizeof(ti_fw_3410));
+			status = ti_download_firmware(tdev, "ti_3410.fw");
 		else
-			status = ti_download_firmware(tdev, ti_fw_5052,
-				sizeof(ti_fw_5052));
+			status = ti_download_firmware(tdev, "ti_5052.fw");
 		if (status)
 			goto free_tdev;
 
@@ -1658,8 +1657,9 @@ static int ti_write_byte(struct ti_device *tdev, unsigned long addr,
 
 
 static int ti_download_firmware(struct ti_device *tdev,
-	unsigned char *firmware, unsigned int firmware_size)
+				char *fw_name)
 {
+	const struct firmware *fw;
 	int status = 0;
 	int buffer_size;
 	int pos;
@@ -1672,16 +1672,29 @@ static int ti_download_firmware(struct ti_device *tdev,
 	unsigned int pipe = usb_sndbulkpipe(dev,
 		tdev->td_serial->port[0]->bulk_out_endpointAddress);
 
-
 	buffer_size = TI_FIRMWARE_BUF_SIZE + sizeof(struct ti_firmware_header);
+
+	if (request_firmware(&fw, fw_name, &dev->dev)) {
+		dev_err(&dev->dev, "%s - failed to load firmware \"%s\"\n",
+			__func__, fw_name);
+		return -ENOENT;
+	}
+	if (fw->size > buffer_size) {
+		dev_err(&dev->dev, "%s - firmware \"%s\" is too large\n",
+			__func__, fw_name);
+		release_firmware(fw);
+		return -EINVAL;
+	}
+
 	buffer = kmalloc(buffer_size, GFP_KERNEL);
 	if (!buffer) {
 		dev_err(&dev->dev, "%s - out of memory\n", __func__);
+		release_firmware(fw);
 		return -ENOMEM;
 	}
 
-	memcpy(buffer, firmware, firmware_size);
-	memset(buffer+firmware_size, 0xff, buffer_size-firmware_size);
+	memcpy(buffer, fw->data, fw->size);
+	memset(buffer+fw->size, 0xff, buffer_size-fw->size);
 
 	for(pos = sizeof(struct ti_firmware_header); pos < buffer_size; pos++)
 		cs = (__u8)(cs + buffer[pos]);
@@ -1699,6 +1712,7 @@ static int ti_download_firmware(struct ti_device *tdev,
 	}
 
 	kfree(buffer);
+	release_firmware(fw);
 
 	if (status) {
 		dev_err(&dev->dev, "%s - error downloading firmware, %d\n", __func__, status);

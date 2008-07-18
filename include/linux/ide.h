@@ -139,6 +139,12 @@ struct ide_io_ports {
 #define WAIT_MIN_SLEEP	(2*HZ/100)	/* 20msec - minimum sleep time */
 
 /*
+ * Op codes for special requests to be handled by ide_special_rq().
+ * Values should be in the range of 0x20 to 0x3f.
+ */
+#define REQ_DRIVE_RESET		0x20
+
+/*
  * Check for an interrupt and acknowledge the interrupt status
  */
 struct hwif_s;
@@ -171,7 +177,7 @@ typedef struct hw_regs_s {
 	int		irq;			/* our irq number */
 	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	hwif_chipset_t  chipset;
-	struct device	*dev;
+	struct device	*dev, *parent;
 } hw_regs_t;
 
 void ide_init_port_data(struct hwif_s *, unsigned int);
@@ -187,6 +193,21 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 		hw->io_ports_array[i] = io_addr++;
 
 	hw->io_ports.ctl_addr = ctl_addr;
+}
+
+/* for IDE PCI controllers in legacy mode, temporary */
+static inline int __ide_default_irq(unsigned long base)
+{
+	switch (base) {
+#ifdef CONFIG_IA64
+	case 0x1f0: return isa_irq_to_vector(14);
+	case 0x170: return isa_irq_to_vector(15);
+#else
+	case 0x1f0: return 14;
+	case 0x170: return 15;
+#endif
+	}
+	return 0;
 }
 
 #include <asm/ide.h>
@@ -349,7 +370,6 @@ typedef struct ide_drive_s {
         u8	wcache;		/* status of write cache */
 	u8	acoustic;	/* acoustic management */
 	u8	media;		/* disk, cdrom, tape, floppy, ... */
-	u8	ctl;		/* "normal" value for Control register */
 	u8	ready_stat;	/* min status value for drive ready */
 	u8	mult_count;	/* current multiple sector setting */
 	u8	mult_req;	/* requested multiple sector setting */
@@ -391,8 +411,8 @@ typedef struct ide_drive_s {
 struct ide_port_info;
 
 struct ide_port_ops {
-	/* host specific initialization of devices on a port */
-	void	(*port_init_devs)(struct hwif_s *);
+	/* host specific initialization of a device */
+	void	(*init_dev)(ide_drive_t *);
 	/* routine to program host for PIO mode */
 	void	(*set_pio_mode)(ide_drive_t *, const u8);
 	/* routine to program host for DMA mode */
@@ -478,7 +498,7 @@ typedef struct hwif_s {
 	void (*ide_dma_clear_irq)(ide_drive_t *drive);
 
 	void (*OUTB)(u8 addr, unsigned long port);
-	void (*OUTBSYNC)(ide_drive_t *drive, u8 addr, unsigned long port);
+	void (*OUTBSYNC)(struct hwif_s *hwif, u8 addr, unsigned long port);
 
 	u8  (*INB)(unsigned long port);
 
@@ -517,7 +537,6 @@ typedef struct hwif_s {
 	unsigned	serialized : 1;	/* serialized all channel operation */
 	unsigned	sharing_irq: 1;	/* 1 = sharing irq with another hwif */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
-	unsigned	mmio       : 1; /* host uses MMIO */
 
 	struct device		gendev;
 	struct device		*portdev;
@@ -552,8 +571,6 @@ typedef struct hwgroup_s {
 	unsigned int sleeping	: 1;
 		/* BOOL: polling active & poll_timeout field valid */
 	unsigned int polling	: 1;
-	 	/* BOOL: in a polling reset situation. Must not trigger another reset yet */
-	unsigned int resetting  : 1;
 
 		/* current drive */
 	ide_drive_t *drive;
@@ -589,12 +606,13 @@ enum {
 	PC_FLAG_SUPPRESS_ERROR		= (1 << 1),
 	PC_FLAG_WAIT_FOR_DSC		= (1 << 2),
 	PC_FLAG_DMA_OK			= (1 << 3),
-	PC_FLAG_DMA_RECOMMENDED		= (1 << 4),
-	PC_FLAG_DMA_IN_PROGRESS		= (1 << 5),
-	PC_FLAG_DMA_ERROR		= (1 << 6),
-	PC_FLAG_WRITING			= (1 << 7),
+	PC_FLAG_DMA_IN_PROGRESS		= (1 << 4),
+	PC_FLAG_DMA_ERROR		= (1 << 5),
+	PC_FLAG_WRITING			= (1 << 6),
 	/* command timed out */
-	PC_FLAG_TIMEDOUT		= (1 << 8),
+	PC_FLAG_TIMEDOUT		= (1 << 7),
+	PC_FLAG_ZIP_DRIVE		= (1 << 8),
+	PC_FLAG_DRQ_INTERRUPT		= (1 << 9),
 };
 
 struct ide_atapi_pc {
@@ -627,8 +645,8 @@ struct ide_atapi_pc {
 	 * to change/removal later.
 	 */
 	u8 pc_buf[256];
-	void (*idefloppy_callback) (ide_drive_t *);
-	ide_startstop_t (*idetape_callback) (ide_drive_t *);
+
+	void (*callback)(ide_drive_t *);
 
 	/* idetape only */
 	struct idetape_bh *bh;
@@ -772,7 +790,6 @@ struct ide_driver_s {
 	ide_startstop_t	(*do_request)(ide_drive_t *, struct request *, sector_t);
 	int		(*end_request)(ide_drive_t *, int, int);
 	ide_startstop_t	(*error)(ide_drive_t *, struct request *rq, u8, u8);
-	ide_startstop_t	(*abort)(ide_drive_t *, struct request *rq);
 	struct device_driver	gen_driver;
 	int		(*probe)(ide_drive_t *);
 	void		(*remove)(ide_drive_t *);
@@ -786,22 +803,6 @@ struct ide_driver_s {
 #define to_ide_driver(drv) container_of(drv, ide_driver_t, gen_driver)
 
 int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsigned, unsigned long);
-
-/*
- * ide_hwifs[] is the master data structure used to keep track
- * of just about everything in ide.c.  Whenever possible, routines
- * should be using pointers to a drive (ide_drive_t *) or
- * pointers to a hwif (ide_hwif_t *), rather than indexing this
- * structure directly (the allocation/layout may change!).
- *
- */
-#ifndef _IDE_C
-extern	ide_hwif_t	ide_hwifs[];		/* master data repository */
-#endif
-extern int ide_noacpi;
-extern int ide_acpigtf;
-extern int ide_acpionboot;
-extern int noautodma;
 
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
@@ -830,10 +831,6 @@ ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
 
 ide_startstop_t ide_error (ide_drive_t *drive, const char *msg, byte stat);
 
-ide_startstop_t __ide_abort(ide_drive_t *, struct request *);
-
-extern ide_startstop_t ide_abort(ide_drive_t *, const char *);
-
 extern void ide_fix_driveid(struct hd_driveid *);
 
 extern void ide_fixstring(u8 *, const int, const int);
@@ -842,25 +839,12 @@ int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
 
 extern ide_startstop_t ide_do_reset (ide_drive_t *);
 
-extern void ide_init_drive_cmd (struct request *rq);
-
-/*
- * "action" parameter type for ide_do_drive_cmd() below.
- */
-typedef enum {
-	ide_wait,	/* insert rq at end of list, and wait for it */
-	ide_preempt,	/* insert rq in front of current request */
-	ide_head_wait,	/* insert rq in front of current request and wait for it */
-	ide_end		/* insert rq at end of list, but don't wait for it */
-} ide_action_t;
-
-extern int ide_do_drive_cmd(ide_drive_t *, struct request *, ide_action_t);
+extern void ide_do_drive_cmd(ide_drive_t *, struct request *);
 
 extern void ide_end_drive_cmd(ide_drive_t *, u8, u8);
 
 enum {
 	IDE_TFLAG_LBA48			= (1 << 0),
-	IDE_TFLAG_NO_SELECT_MASK	= (1 << 1),
 	IDE_TFLAG_FLAGGED		= (1 << 2),
 	IDE_TFLAG_OUT_DATA		= (1 << 3),
 	IDE_TFLAG_OUT_HOB_FEATURE	= (1 << 4),
@@ -965,10 +949,22 @@ typedef struct ide_task_s {
 void ide_tf_dump(const char *, struct ide_taskfile *);
 
 extern void SELECT_DRIVE(ide_drive_t *);
+void SELECT_MASK(ide_drive_t *, int);
 
 extern int drive_is_ready(ide_drive_t *);
 
 void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
+
+ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
+	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
+	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
+	void (*retry_pc)(ide_drive_t *), void (*dsc_handle)(ide_drive_t *),
+	void (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned int,
+			   int));
+ide_startstop_t ide_transfer_pc(ide_drive_t *, struct ide_atapi_pc *,
+				ide_handler_t *, unsigned int, ide_expiry_t *);
+ide_startstop_t ide_issue_pc(ide_drive_t *, struct ide_atapi_pc *,
+			     ide_handler_t *, unsigned int, ide_expiry_t *);
 
 ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 
@@ -980,8 +976,6 @@ int ide_no_data_taskfile(ide_drive_t *, ide_task_t *);
 int ide_taskfile_ioctl(ide_drive_t *, unsigned int, unsigned long);
 int ide_cmd_ioctl(ide_drive_t *, unsigned int, unsigned long);
 int ide_task_ioctl(ide_drive_t *, unsigned int, unsigned long);
-
-extern int system_bus_clock(void);
 
 extern int ide_driveid_update(ide_drive_t *);
 extern int ide_config_drive_speed(ide_drive_t *, u8);
@@ -1264,16 +1258,43 @@ static inline int ide_dev_is_sata(struct hd_driveid *id)
 u64 ide_get_lba_addr(struct ide_taskfile *, int);
 u8 ide_dump_status(ide_drive_t *, const char *, u8);
 
-typedef struct ide_pio_timings_s {
-	int	setup_time;	/* Address setup (ns) minimum */
-	int	active_time;	/* Active pulse (ns) minimum */
-	int	cycle_time;	/* Cycle time (ns) minimum = */
-				/* active + recovery (+ setup for some chips) */
-} ide_pio_timings_t;
+struct ide_timing {
+	u8  mode;
+	u8  setup;	/* t1 */
+	u16 act8b;	/* t2 for 8-bit io */
+	u16 rec8b;	/* t2i for 8-bit io */
+	u16 cyc8b;	/* t0 for 8-bit io */
+	u16 active;	/* t2 or tD */
+	u16 recover;	/* t2i or tK */
+	u16 cycle;	/* t0 */
+	u16 udma;	/* t2CYCTYP/2 */
+};
 
-unsigned int ide_pio_cycle_time(ide_drive_t *, u8);
+enum {
+	IDE_TIMING_SETUP	= (1 << 0),
+	IDE_TIMING_ACT8B	= (1 << 1),
+	IDE_TIMING_REC8B	= (1 << 2),
+	IDE_TIMING_CYC8B	= (1 << 3),
+	IDE_TIMING_8BIT		= IDE_TIMING_ACT8B | IDE_TIMING_REC8B |
+				  IDE_TIMING_CYC8B,
+	IDE_TIMING_ACTIVE	= (1 << 4),
+	IDE_TIMING_RECOVER	= (1 << 5),
+	IDE_TIMING_CYCLE	= (1 << 6),
+	IDE_TIMING_UDMA		= (1 << 7),
+	IDE_TIMING_ALL		= IDE_TIMING_SETUP | IDE_TIMING_8BIT |
+				  IDE_TIMING_ACTIVE | IDE_TIMING_RECOVER |
+				  IDE_TIMING_CYCLE | IDE_TIMING_UDMA,
+};
+
+struct ide_timing *ide_timing_find_mode(u8);
+u16 ide_pio_cycle_time(ide_drive_t *, u8);
+void ide_timing_merge(struct ide_timing *, struct ide_timing *,
+		      struct ide_timing *, unsigned int);
+int ide_timing_compute(ide_drive_t *, u8, struct ide_timing *, int, int);
+
+int ide_scan_pio_blacklist(char *);
+
 u8 ide_get_best_pio_mode(ide_drive_t *, u8, u8);
-extern const ide_pio_timings_t ide_pio_timings[6];
 
 int ide_set_pio_mode(ide_drive_t *, u8);
 int ide_set_dma_mode(ide_drive_t *, u8);
@@ -1334,7 +1355,8 @@ static inline void ide_set_irq(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	hwif->OUTB(drive->ctl | (on ? 0 : 2), hwif->io_ports.ctl_addr);
+	hwif->OUTBSYNC(hwif, ATA_DEVCTL_OBS | (on ? 0 : 2),
+		       hwif->io_ports.ctl_addr);
 }
 
 static inline u8 ide_read_status(ide_drive_t *drive)

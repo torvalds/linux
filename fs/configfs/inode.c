@@ -247,7 +247,9 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 		if (!sd->s_element)
 			continue;
 		if (!strcmp(configfs_get_name(sd), name)) {
+			spin_lock(&configfs_dirent_lock);
 			list_del_init(&sd->s_sibling);
+			spin_unlock(&configfs_dirent_lock);
 			configfs_drop_dentry(sd, dir);
 			configfs_put(sd);
 			break;

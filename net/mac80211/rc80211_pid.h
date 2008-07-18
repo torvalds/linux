@@ -141,7 +141,6 @@ struct rc_pid_events_file_info {
  *	rate behaviour values (lower means we should trust more what we learnt
  *	about behaviour of rates, higher means we should trust more the natural
  *	ordering of rates)
- * @fast_start: if Y, push high rates right after initialization
  */
 struct rc_pid_debugfs_entries {
 	struct dentry *dir;
@@ -154,7 +153,6 @@ struct rc_pid_debugfs_entries {
 	struct dentry *sharpen_factor;
 	struct dentry *sharpen_duration;
 	struct dentry *norm_offset;
-	struct dentry *fast_start;
 };
 
 void rate_control_pid_event_tx_status(struct rc_pid_event_buffer *buf,
@@ -266,9 +264,6 @@ struct rc_pid_info {
 
 	/* Normalization offset. */
 	unsigned int norm_offset;
-
-	/* Fast starst parameter. */
-	unsigned int fast_start;
 
 	/* Rates information. */
 	struct rc_pid_rateinfo *rinfo;

@@ -14,7 +14,6 @@
 #include "orion5x.h"
 
 #define IO_SPACE_LIMIT		0xffffffff
-#define IO_SPACE_REMAP		ORION5X_PCI_SYS_IO_BASE
 
 static inline void __iomem *
 __arch_ioremap(unsigned long paddr, size_t size, unsigned int mtype)
@@ -53,15 +52,12 @@ static inline void __iomem *__io(unsigned long addr)
 /*****************************************************************************
  * Helpers to access Orion registers
  ****************************************************************************/
-#define orion5x_read(r)		__raw_readl(r)
-#define orion5x_write(r, val)	__raw_writel(val, r)
-
 /*
  * These are not preempt-safe.  Locks, if needed, must be taken
  * care of by the caller.
  */
-#define orion5x_setbits(r, mask)	orion5x_write((r), orion5x_read(r) | (mask))
-#define orion5x_clrbits(r, mask)	orion5x_write((r), orion5x_read(r) & ~(mask))
+#define orion5x_setbits(r, mask)	writel(readl(r) | (mask), (r))
+#define orion5x_clrbits(r, mask)	writel(readl(r) & ~(mask), (r))
 
 
 #endif

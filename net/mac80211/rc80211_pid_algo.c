@@ -398,13 +398,25 @@ static void *rate_control_pid_alloc(struct ieee80211_local *local)
 		return NULL;
 	}
 
+	pinfo->target = RC_PID_TARGET_PF;
+	pinfo->sampling_period = RC_PID_INTERVAL;
+	pinfo->coeff_p = RC_PID_COEFF_P;
+	pinfo->coeff_i = RC_PID_COEFF_I;
+	pinfo->coeff_d = RC_PID_COEFF_D;
+	pinfo->smoothing_shift = RC_PID_SMOOTHING_SHIFT;
+	pinfo->sharpen_factor = RC_PID_SHARPENING_FACTOR;
+	pinfo->sharpen_duration = RC_PID_SHARPENING_DURATION;
+	pinfo->norm_offset = RC_PID_NORM_OFFSET;
+	pinfo->rinfo = rinfo;
+	pinfo->oldrate = 0;
+
 	/* Sort the rates. This is optimized for the most common case (i.e.
 	 * almost-sorted CCK+OFDM rates). Kind of bubble-sort with reversed
 	 * mapping too. */
 	for (i = 0; i < sband->n_bitrates; i++) {
 		rinfo[i].index = i;
 		rinfo[i].rev_index = i;
-		if (pinfo->fast_start)
+		if (RC_PID_FAST_START)
 			rinfo[i].diff = 0;
 		else
 			rinfo[i].diff = i * pinfo->norm_offset;
@@ -424,19 +436,6 @@ static void *rate_control_pid_alloc(struct ieee80211_local *local)
 		if (!s)
 			break;
 	}
-
-	pinfo->target = RC_PID_TARGET_PF;
-	pinfo->sampling_period = RC_PID_INTERVAL;
-	pinfo->coeff_p = RC_PID_COEFF_P;
-	pinfo->coeff_i = RC_PID_COEFF_I;
-	pinfo->coeff_d = RC_PID_COEFF_D;
-	pinfo->smoothing_shift = RC_PID_SMOOTHING_SHIFT;
-	pinfo->sharpen_factor = RC_PID_SHARPENING_FACTOR;
-	pinfo->sharpen_duration = RC_PID_SHARPENING_DURATION;
-	pinfo->norm_offset = RC_PID_NORM_OFFSET;
-	pinfo->fast_start = RC_PID_FAST_START;
-	pinfo->rinfo = rinfo;
-	pinfo->oldrate = 0;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	de = &pinfo->dentries;
@@ -465,9 +464,6 @@ static void *rate_control_pid_alloc(struct ieee80211_local *local)
 	de->norm_offset = debugfs_create_u32("norm_offset",
 					     S_IRUSR | S_IWUSR, de->dir,
 					     &pinfo->norm_offset);
-	de->fast_start = debugfs_create_bool("fast_start",
-					     S_IRUSR | S_IWUSR, de->dir,
-					     &pinfo->fast_start);
 #endif
 
 	return pinfo;
@@ -479,7 +475,6 @@ static void rate_control_pid_free(void *priv)
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct rc_pid_debugfs_entries *de = &pinfo->dentries;
 
-	debugfs_remove(de->fast_start);
 	debugfs_remove(de->norm_offset);
 	debugfs_remove(de->sharpen_duration);
 	debugfs_remove(de->sharpen_factor);

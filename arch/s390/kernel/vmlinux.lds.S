@@ -40,7 +40,6 @@ SECTIONS
 	_etext = .;		/* End of text section */
 
 	NOTES :text :note
-	BUG_TABLE :text
 
 	RODATA
 

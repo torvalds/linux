@@ -145,7 +145,9 @@ static int cxio_hal_clear_qp_ctx(struct cxio_rdev *rdev_p, u32 qpid)
 	}
 	wqe = (struct t3_modify_qp_wr *) skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof(*wqe));
-	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD, 3, 0, qpid, 7);
+	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD,
+		       T3_COMPLETION_FLAG | T3_NOTIFY_FLAG, 0, qpid, 7,
+		       T3_SOPEOP);
 	wqe->flags = cpu_to_be32(MODQP_WRITE_EC);
 	sge_cmd = qpid << 8 | 3;
 	wqe->sge_cmd = cpu_to_be64(sge_cmd);
@@ -276,7 +278,7 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
 	if (!wq->qpid)
 		return -ENOMEM;
 
-	wq->rq = kzalloc(depth * sizeof(u64), GFP_KERNEL);
+	wq->rq = kzalloc(depth * sizeof(struct t3_swrq), GFP_KERNEL);
 	if (!wq->rq)
 		goto err1;
 
@@ -300,6 +302,7 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
 	if (!kernel_domain)
 		wq->udb = (u64)rdev_p->rnic_info.udbell_physbase +
 					(wq->qpid << rdev_p->qpshift);
+	wq->rdev = rdev_p;
 	PDBG("%s qpid 0x%x doorbell 0x%p udb 0x%llx\n", __func__,
 	     wq->qpid, wq->doorbell, (unsigned long long) wq->udb);
 	return 0;
@@ -558,7 +561,7 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 	wqe = (struct t3_modify_qp_wr *) skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof(*wqe));
 	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD, 0, 0,
-		       T3_CTL_QP_TID, 7);
+		       T3_CTL_QP_TID, 7, T3_SOPEOP);
 	wqe->flags = cpu_to_be32(MODQP_WRITE_EC);
 	sge_cmd = (3ULL << 56) | FW_RI_SGEEC_START << 8 | 3;
 	wqe->sge_cmd = cpu_to_be64(sge_cmd);
@@ -674,7 +677,7 @@ static int cxio_hal_ctrl_qp_write_mem(struct cxio_rdev *rdev_p, u32 addr,
 		build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_BP, flag,
 			       Q_GENBIT(rdev_p->ctrl_qp.wptr,
 					T3_CTRL_QP_SIZE_LOG2), T3_CTRL_QP_ID,
-			       wr_len);
+			       wr_len, T3_SOPEOP);
 		if (flag == T3_COMPLETION_FLAG)
 			ring_doorbell(rdev_p->ctrl_qp.doorbell, T3_CTRL_QP_ID);
 		len -= 96;
@@ -814,6 +817,13 @@ int cxio_deallocate_window(struct cxio_rdev *rdev_p, u32 stag)
 {
 	return __cxio_tpt_op(rdev_p, 1, &stag, 0, 0, 0, 0, 0, 0ULL, 0, 0,
 			     0, 0);
+}
+
+int cxio_allocate_stag(struct cxio_rdev *rdev_p, u32 *stag, u32 pdid, u32 pbl_size, u32 pbl_addr)
+{
+	*stag = T3_STAG_UNSET;
+	return __cxio_tpt_op(rdev_p, 0, stag, 0, pdid, TPT_NON_SHARED_MR,
+			     0, 0, 0ULL, 0, 0, pbl_size, pbl_addr);
 }
 
 int cxio_rdma_init(struct cxio_rdev *rdev_p, struct t3_rdma_init_attr *attr)
@@ -1257,13 +1267,16 @@ proc_cqe:
 		wq->sq_rptr = CQE_WRID_SQ_WPTR(*hw_cqe);
 		PDBG("%s completing sq idx %ld\n", __func__,
 		     Q_PTR2IDX(wq->sq_rptr, wq->sq_size_log2));
-		*cookie = (wq->sq +
-			   Q_PTR2IDX(wq->sq_rptr, wq->sq_size_log2))->wr_id;
+		*cookie = wq->sq[Q_PTR2IDX(wq->sq_rptr, wq->sq_size_log2)].wr_id;
 		wq->sq_rptr++;
 	} else {
 		PDBG("%s completing rq idx %ld\n", __func__,
 		     Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2));
-		*cookie = *(wq->rq + Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2));
+		*cookie = wq->rq[Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2)].wr_id;
+		if (wq->rq[Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2)].pbl_addr)
+			cxio_hal_pblpool_free(wq->rdev,
+				wq->rq[Q_PTR2IDX(wq->rq_rptr,
+				wq->rq_size_log2)].pbl_addr, T3_STAG0_PBL_SIZE);
 		wq->rq_rptr++;
 	}
 

@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <asm/unaligned.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -264,10 +265,7 @@ int snd_cs8427_create(struct snd_i2c_bus *bus,
 		goto __fail;
 	}
 	/* write default channel status bytes */
-	buf[0] = ((unsigned char)(SNDRV_PCM_DEFAULT_CON_SPDIF >> 0));
-	buf[1] = ((unsigned char)(SNDRV_PCM_DEFAULT_CON_SPDIF >> 8));
-	buf[2] = ((unsigned char)(SNDRV_PCM_DEFAULT_CON_SPDIF >> 16));
-	buf[3] = ((unsigned char)(SNDRV_PCM_DEFAULT_CON_SPDIF >> 24));
+	put_unaligned_le32(SNDRV_PCM_DEFAULT_CON_SPDIF, buf);
 	memset(buf + 4, 0, 24 - 4);
 	if (snd_cs8427_send_corudata(device, 0, buf, 24) < 0)
 		goto __fail;

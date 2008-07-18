@@ -39,6 +39,7 @@
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/cache.h>
 #include "head_booke.h"
 
 /* As with the other PowerPC ports, it is expected that when code
@@ -304,7 +305,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	SET_IVOR(13, DataTLBError);
 	SET_IVOR(14, InstructionTLBError);
 	SET_IVOR(15, DebugDebug);
-#if defined(CONFIG_E500)
+#if defined(CONFIG_E500) && !defined(CONFIG_PPC_E500MC)
 	SET_IVOR(15, DebugCrit);
 #endif
 	SET_IVOR(32, SPEUnavailable);
@@ -312,6 +313,9 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	SET_IVOR(34, SPEFloatingPointRound);
 #ifndef CONFIG_E200
 	SET_IVOR(35, PerformanceMonitor);
+#endif
+#ifdef CONFIG_PPC_E500MC
+	SET_IVOR(36, Doorbell);
 #endif
 
 	/* Establish the interrupt vector base */
@@ -750,10 +754,13 @@ interrupt_base:
 	/* Performance Monitor */
 	EXCEPTION(0x2060, PerformanceMonitor, performance_monitor_exception, EXC_XFER_STD)
 
+#ifdef CONFIG_PPC_E500MC
+	EXCEPTION(0x2070, Doorbell, unknown_exception, EXC_XFER_EE)
+#endif
 
 	/* Debug Interrupt */
 	DEBUG_DEBUG_EXCEPTION
-#if defined(CONFIG_E500)
+#if defined(CONFIG_E500) && !defined(CONFIG_PPC_E500MC)
 	DEBUG_CRIT_EXCEPTION
 #endif
 
@@ -1065,6 +1072,52 @@ _GLOBAL(set_context)
 	isync			/* Force context change */
 	blr
 
+_GLOBAL(flush_dcache_L1)
+	mfspr	r3,SPRN_L1CFG0
+
+	rlwinm	r5,r3,9,3	/* Extract cache block size */
+	twlgti	r5,1		/* Only 32 and 64 byte cache blocks
+				 * are currently defined.
+				 */
+	li	r4,32
+	subfic	r6,r5,2		/* r6 = log2(1KiB / cache block size) -
+				 *      log2(number of ways)
+				 */
+	slw	r5,r4,r5	/* r5 = cache block size */
+
+	rlwinm	r7,r3,0,0xff	/* Extract number of KiB in the cache */
+	mulli	r7,r7,13	/* An 8-way cache will require 13
+				 * loads per set.
+				 */
+	slw	r7,r7,r6
+
+	/* save off HID0 and set DCFA */
+	mfspr	r8,SPRN_HID0
+	ori	r9,r8,HID0_DCFA@l
+	mtspr	SPRN_HID0,r9
+	isync
+
+	lis	r4,KERNELBASE@h
+	mtctr	r7
+
+1:	lwz	r3,0(r4)	/* Load... */
+	add	r4,r4,r5
+	bdnz	1b
+
+	msync
+	lis	r4,KERNELBASE@h
+	mtctr	r7
+
+1:	dcbf	0,r4		/* ...and flush. */
+	add	r4,r4,r5
+	bdnz	1b
+	
+	/* restore HID0 */
+	mtspr	SPRN_HID0,r8
+	isync
+
+	blr
+
 /*
  * We put a few things here that have to be page-aligned. This stuff
  * goes at the beginning of the data segment, which is page-aligned.
@@ -1079,15 +1132,6 @@ empty_zero_page:
 	.globl	swapper_pg_dir
 swapper_pg_dir:
 	.space	PGD_TABLE_SIZE
-
-/* Reserved 4k for the critical exception stack & 4k for the machine
- * check stack per CPU for kernel mode exceptions */
-	.section .bss
-	.align 12
-exception_stack_bottom:
-	.space	BOOKE_EXCEPTION_STACK_SIZE * NR_CPUS
-	.globl	exception_stack_top
-exception_stack_top:
 
 /*
  * Room for two PTE pointers, usually the kernel and current user pointers

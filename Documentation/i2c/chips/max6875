@@ -49,7 +49,7 @@ $ modprobe max6875 force=0,0x50
 
 The MAX6874/MAX6875 ignores address bit 0, so this driver attaches to multiple
 addresses.  For example, for address 0x50, it also reserves 0x51.
-The even-address instance is called 'max6875', the odd one is 'max6875 subclient'.
+The even-address instance is called 'max6875', the odd one is 'dummy'.
 
 
 Programming the chip using i2c-dev

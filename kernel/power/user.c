@@ -23,6 +23,7 @@
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -69,16 +70,22 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	struct snapshot_data *data;
 	int error;
 
-	if (!atomic_add_unless(&snapshot_device_available, -1, 0))
-		return -EBUSY;
+	mutex_lock(&pm_mutex);
+
+	if (!atomic_add_unless(&snapshot_device_available, -1, 0)) {
+		error = -EBUSY;
+		goto Unlock;
+	}
 
 	if ((filp->f_flags & O_ACCMODE) == O_RDWR) {
 		atomic_inc(&snapshot_device_available);
-		return -ENOSYS;
+		error = -ENOSYS;
+		goto Unlock;
 	}
 	if(create_basic_memory_bitmaps()) {
 		atomic_inc(&snapshot_device_available);
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto Unlock;
 	}
 	nonseekable_open(inode, filp);
 	data = &snapshot_state;
@@ -98,33 +105,36 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 		if (error)
 			pm_notifier_call_chain(PM_POST_HIBERNATION);
 	}
-	if (error) {
+	if (error)
 		atomic_inc(&snapshot_device_available);
-		return error;
-	}
 	data->frozen = 0;
 	data->ready = 0;
 	data->platform_support = 0;
 
-	return 0;
+ Unlock:
+	mutex_unlock(&pm_mutex);
+
+	return error;
 }
 
 static int snapshot_release(struct inode *inode, struct file *filp)
 {
 	struct snapshot_data *data;
 
+	mutex_lock(&pm_mutex);
+
 	swsusp_free();
 	free_basic_memory_bitmaps();
 	data = filp->private_data;
 	free_all_swap_pages(data->swap);
-	if (data->frozen) {
-		mutex_lock(&pm_mutex);
+	if (data->frozen)
 		thaw_processes();
-		mutex_unlock(&pm_mutex);
-	}
 	pm_notifier_call_chain(data->mode == O_WRONLY ?
 			PM_POST_HIBERNATION : PM_POST_RESTORE);
 	atomic_inc(&snapshot_device_available);
+
+	mutex_unlock(&pm_mutex);
+
 	return 0;
 }
 
@@ -134,9 +144,13 @@ static ssize_t snapshot_read(struct file *filp, char __user *buf,
 	struct snapshot_data *data;
 	ssize_t res;
 
+	mutex_lock(&pm_mutex);
+
 	data = filp->private_data;
-	if (!data->ready)
-		return -ENODATA;
+	if (!data->ready) {
+		res = -ENODATA;
+		goto Unlock;
+	}
 	res = snapshot_read_next(&data->handle, count);
 	if (res > 0) {
 		if (copy_to_user(buf, data_of(data->handle), res))
@@ -144,6 +158,10 @@ static ssize_t snapshot_read(struct file *filp, char __user *buf,
 		else
 			*offp = data->handle.offset;
 	}
+
+ Unlock:
+	mutex_unlock(&pm_mutex);
+
 	return res;
 }
 
@@ -153,6 +171,8 @@ static ssize_t snapshot_write(struct file *filp, const char __user *buf,
 	struct snapshot_data *data;
 	ssize_t res;
 
+	mutex_lock(&pm_mutex);
+
 	data = filp->private_data;
 	res = snapshot_write_next(&data->handle, count);
 	if (res > 0) {
@@ -161,11 +181,14 @@ static ssize_t snapshot_write(struct file *filp, const char __user *buf,
 		else
 			*offp = data->handle.offset;
 	}
+
+	mutex_unlock(&pm_mutex);
+
 	return res;
 }
 
-static int snapshot_ioctl(struct inode *inode, struct file *filp,
-                          unsigned int cmd, unsigned long arg)
+static long snapshot_ioctl(struct file *filp, unsigned int cmd,
+							unsigned long arg)
 {
 	int error = 0;
 	struct snapshot_data *data;
@@ -179,6 +202,9 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
+	if (!mutex_trylock(&pm_mutex))
+		return -EBUSY;
+
 	data = filp->private_data;
 
 	switch (cmd) {
@@ -186,7 +212,6 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 	case SNAPSHOT_FREEZE:
 		if (data->frozen)
 			break;
-		mutex_lock(&pm_mutex);
 		printk("Syncing filesystems ... ");
 		sys_sync();
 		printk("done.\n");
@@ -194,7 +219,6 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		error = freeze_processes();
 		if (error)
 			thaw_processes();
-		mutex_unlock(&pm_mutex);
 		if (!error)
 			data->frozen = 1;
 		break;
@@ -202,9 +226,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 	case SNAPSHOT_UNFREEZE:
 		if (!data->frozen || data->ready)
 			break;
-		mutex_lock(&pm_mutex);
 		thaw_processes();
-		mutex_unlock(&pm_mutex);
 		data->frozen = 0;
 		break;
 
@@ -307,16 +329,11 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -EPERM;
 			break;
 		}
-		if (!mutex_trylock(&pm_mutex)) {
-			error = -EBUSY;
-			break;
-		}
 		/*
 		 * Tasks are frozen and the notifiers have been called with
 		 * PM_HIBERNATION_PREPARE
 		 */
 		error = suspend_devices_and_enter(PM_SUSPEND_MEM);
-		mutex_unlock(&pm_mutex);
 		break;
 
 	case SNAPSHOT_PLATFORM_SUPPORT:
@@ -390,6 +407,8 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 
 	}
 
+	mutex_unlock(&pm_mutex);
+
 	return error;
 }
 
@@ -399,7 +418,7 @@ static const struct file_operations snapshot_fops = {
 	.read = snapshot_read,
 	.write = snapshot_write,
 	.llseek = no_llseek,
-	.ioctl = snapshot_ioctl,
+	.unlocked_ioctl = snapshot_ioctl,
 };
 
 static struct miscdevice snapshot_device = {

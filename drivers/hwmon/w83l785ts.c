@@ -81,10 +81,11 @@ I2C_CLIENT_INSMOD_1(w83l785ts);
  * Functions declaration
  */
 
-static int w83l785ts_attach_adapter(struct i2c_adapter *adapter);
-static int w83l785ts_detect(struct i2c_adapter *adapter, int address,
-	int kind);
-static int w83l785ts_detach_client(struct i2c_client *client);
+static int w83l785ts_probe(struct i2c_client *client,
+			   const struct i2c_device_id *id);
+static int w83l785ts_detect(struct i2c_client *client, int kind,
+			    struct i2c_board_info *info);
+static int w83l785ts_remove(struct i2c_client *client);
 static u8 w83l785ts_read_value(struct i2c_client *client, u8 reg, u8 defval);
 static struct w83l785ts_data *w83l785ts_update_device(struct device *dev);
 
@@ -92,12 +93,22 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev);
  * Driver data (common to all clients)
  */
  
+static const struct i2c_device_id w83l785ts_id[] = {
+	{ "w83l785ts", w83l785ts },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, w83l785ts_id);
+
 static struct i2c_driver w83l785ts_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "w83l785ts",
 	},
-	.attach_adapter	= w83l785ts_attach_adapter,
-	.detach_client	= w83l785ts_detach_client,
+	.probe		= w83l785ts_probe,
+	.remove		= w83l785ts_remove,
+	.id_table	= w83l785ts_id,
+	.detect		= w83l785ts_detect,
+	.address_data	= &addr_data,
 };
 
 /*
@@ -105,7 +116,6 @@ static struct i2c_driver w83l785ts_driver = {
  */
 
 struct w83l785ts_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
@@ -135,40 +145,14 @@ static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 1);
  * Real code
  */
 
-static int w83l785ts_attach_adapter(struct i2c_adapter *adapter)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int w83l785ts_detect(struct i2c_client *new_client, int kind,
+			    struct i2c_board_info *info)
 {
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, w83l785ts_detect);
-}
-
-/*
- * The following function does more than just detection. If detection
- * succeeds, it also registers the new chip.
- */
-static int w83l785ts_detect(struct i2c_adapter *adapter, int address, int kind)
-{
-	struct i2c_client *new_client;
-	struct w83l785ts_data *data;
-	int err = 0;
-
+	struct i2c_adapter *adapter = new_client->adapter;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		goto exit;
-
-	if (!(data = kzalloc(sizeof(struct w83l785ts_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	/* The common I2C client data is placed right before the
-	 * W83L785TS-specific data. */
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &w83l785ts_driver;
-	new_client->flags = 0;
+		return -ENODEV;
 
 	/*
 	 * Now we do the remaining detection. A negative kind means that
@@ -188,8 +172,8 @@ static int w83l785ts_detect(struct i2c_adapter *adapter, int address, int kind)
 		      W83L785TS_REG_TYPE, 0) & 0xFC) != 0x00)) {
 			dev_dbg(&adapter->dev,
 				"W83L785TS-S detection failed at 0x%02x.\n",
-				address);
-			goto exit_free;
+				new_client->addr);
+			return -ENODEV;
 		}
 	}
 
@@ -214,21 +198,33 @@ static int w83l785ts_detect(struct i2c_adapter *adapter, int address, int kind)
 			dev_info(&adapter->dev,
 				 "Unsupported chip (man_id=0x%04X, "
 				 "chip_id=0x%02X).\n", man_id, chip_id);
-			goto exit_free;
+			return -ENODEV;
 		}
 	}
 
-	/* We can fill in the remaining client fields. */
-	strlcpy(new_client->name, "w83l785ts", I2C_NAME_SIZE);
+	strlcpy(info->type, "w83l785ts", I2C_NAME_SIZE);
+
+	return 0;
+}
+
+static int w83l785ts_probe(struct i2c_client *new_client,
+			   const struct i2c_device_id *id)
+{
+	struct w83l785ts_data *data;
+	int err = 0;
+
+	data = kzalloc(sizeof(struct w83l785ts_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(new_client, data);
 	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	/* Default values in case the first read fails (unlikely). */
 	data->temp[1] = data->temp[0] = 0;
-
-	/* Tell the I2C layer a new client has arrived. */
-	if ((err = i2c_attach_client(new_client))) 
-		goto exit_free;
 
 	/*
 	 * Initialize the W83L785TS chip
@@ -259,25 +255,20 @@ exit_remove:
 			   &sensor_dev_attr_temp1_input.dev_attr);
 	device_remove_file(&new_client->dev,
 			   &sensor_dev_attr_temp1_max.dev_attr);
-	i2c_detach_client(new_client);
-exit_free:
 	kfree(data);
 exit:
 	return err;
 }
 
-static int w83l785ts_detach_client(struct i2c_client *client)
+static int w83l785ts_remove(struct i2c_client *client)
 {
 	struct w83l785ts_data *data = i2c_get_clientdata(client);
-	int err;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	device_remove_file(&client->dev,
 			   &sensor_dev_attr_temp1_input.dev_attr);
 	device_remove_file(&client->dev,
 			   &sensor_dev_attr_temp1_max.dev_attr);
-	if ((err = i2c_detach_client(client)))
-		return err;
 
 	kfree(data);
 	return 0;
@@ -286,6 +277,18 @@ static int w83l785ts_detach_client(struct i2c_client *client)
 static u8 w83l785ts_read_value(struct i2c_client *client, u8 reg, u8 defval)
 {
 	int value, i;
+	struct device *dev;
+	const char *prefix;
+
+	/* We might be called during detection, at which point the client
+	   isn't yet fully initialized, so we can't use dev_dbg on it */
+	if (i2c_get_clientdata(client)) {
+		dev = &client->dev;
+		prefix = "";
+	} else {
+		dev = &client->adapter->dev;
+		prefix = "w83l785ts: ";
+	}
 
 	/* Frequent read errors have been reported on Asus boards, so we
 	 * retry on read errors. If it still fails (unlikely), return the
@@ -293,15 +296,15 @@ static u8 w83l785ts_read_value(struct i2c_client *client, u8 reg, u8 defval)
 	for (i = 1; i <= MAX_RETRIES; i++) {
 		value = i2c_smbus_read_byte_data(client, reg);
 		if (value >= 0) {
-			dev_dbg(&client->dev, "Read 0x%02x from register "
-				"0x%02x.\n", value, reg);
+			dev_dbg(dev, "%sRead 0x%02x from register 0x%02x.\n",
+				prefix, value, reg);
 			return value;
 		}
-		dev_dbg(&client->dev, "Read failed, will retry in %d.\n", i);
+		dev_dbg(dev, "%sRead failed, will retry in %d.\n", prefix, i);
 		msleep(i);
 	}
 
-	dev_err(&client->dev, "Couldn't read value from register 0x%02x.\n",
+	dev_err(dev, "%sCouldn't read value from register 0x%02x.\n", prefix,
 		reg);
 	return defval;
 }

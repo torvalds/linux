@@ -37,12 +37,16 @@ enum cx18_av_video_input {
 	CX18_AV_COMPOSITE7,
 	CX18_AV_COMPOSITE8,
 
-	/* S-Video inputs consist of one luma input (In1-In4) ORed with one
+	/* S-Video inputs consist of one luma input (In1-In8) ORed with one
 	   chroma input (In5-In8) */
 	CX18_AV_SVIDEO_LUMA1 = 0x10,
 	CX18_AV_SVIDEO_LUMA2 = 0x20,
 	CX18_AV_SVIDEO_LUMA3 = 0x30,
 	CX18_AV_SVIDEO_LUMA4 = 0x40,
+	CX18_AV_SVIDEO_LUMA5 = 0x50,
+	CX18_AV_SVIDEO_LUMA6 = 0x60,
+	CX18_AV_SVIDEO_LUMA7 = 0x70,
+	CX18_AV_SVIDEO_LUMA8 = 0x80,
 	CX18_AV_SVIDEO_CHROMA4 = 0x400,
 	CX18_AV_SVIDEO_CHROMA5 = 0x500,
 	CX18_AV_SVIDEO_CHROMA6 = 0x600,
@@ -291,14 +295,24 @@ struct cx18_av_state {
 #define CXADEC_SELECT_AUDIO_STANDARD_FM    0xF9  /* FM radio */
 #define CXADEC_SELECT_AUDIO_STANDARD_AUTO  0xFF  /* Auto detect */
 
+/* Flags on what to preserve on write to 0x400-0x403 with cx18_av_.*_no_acfg()*/
+#define CXADEC_NO_ACFG_AFE	0x01 /* Preserve 0x100-0x107 */
+#define CXADEC_NO_ACFG_PLL	0x02 /* Preserve 0x108-0x10f */
+#define CXADEC_NO_ACFG_VID	0x04 /* Preserve 0x470-0x47f */
+#define CXADEC_NO_ACFG_ALL	0x07
+
 /* ----------------------------------------------------------------------- */
 /* cx18_av-core.c 							   */
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value);
 int cx18_av_write4(struct cx18 *cx, u16 addr, u32 value);
+int cx18_av_write_no_acfg(struct cx18 *cx, u16 addr, u8 value,
+				int no_acfg_mask);
 u8 cx18_av_read(struct cx18 *cx, u16 addr);
 u32 cx18_av_read4(struct cx18 *cx, u16 addr);
 int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned mask, u8 value);
 int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 mask, u32 value);
+int cx18_av_and_or_no_acfg(struct cx18 *cx, u16 addr, unsigned mask, u8 value,
+				int no_acfg_mask);
 int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg);
 
 /* ----------------------------------------------------------------------- */

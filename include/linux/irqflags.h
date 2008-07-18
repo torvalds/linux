@@ -12,10 +12,10 @@
 #define _LINUX_TRACE_IRQFLAGS_H
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-  extern void trace_hardirqs_on(void);
-  extern void trace_hardirqs_off(void);
   extern void trace_softirqs_on(unsigned long ip);
   extern void trace_softirqs_off(unsigned long ip);
+  extern void trace_hardirqs_on(void);
+  extern void trace_hardirqs_off(void);
 # define trace_hardirq_context(p)	((p)->hardirq_context)
 # define trace_softirq_context(p)	((p)->softirq_context)
 # define trace_hardirqs_enabled(p)	((p)->hardirqs_enabled)
@@ -39,6 +39,15 @@
 # define trace_softirq_enter()		do { } while (0)
 # define trace_softirq_exit()		do { } while (0)
 # define INIT_TRACE_IRQFLAGS
+#endif
+
+#if defined(CONFIG_IRQSOFF_TRACER) || \
+	defined(CONFIG_PREEMPT_TRACER)
+ extern void stop_critical_timings(void);
+ extern void start_critical_timings(void);
+#else
+# define stop_critical_timings() do { } while (0)
+# define start_critical_timings() do { } while (0)
 #endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT

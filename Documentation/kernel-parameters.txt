@@ -147,10 +147,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			default: 0
 
 	acpi_sleep=	[HW,ACPI] Sleep options
-			Format: { s3_bios, s3_mode, s3_beep }
+			Format: { s3_bios, s3_mode, s3_beep, old_ordering }
 			See Documentation/power/video.txt for s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
 			as soon as the kernel's real-mode entry point is called.
+			old_ordering causes the ACPI 1.0 ordering of the _PTS
+			control method, wrt putting devices into low power
+			states, to be enforced (the ACPI 2.0 ordering of _PTS is
+			used by default).
 
 	acpi_sci=	[HW,ACPI] ACPI System Control Interrupt trigger mode
 			Format: { level | edge | high | low }
@@ -306,7 +310,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			when initialising the APIC and IO-APIC components.
 
 	apm=		[APM] Advanced Power Management
-			See header of arch/i386/kernel/apm.c.
+			See header of arch/x86/kernel/apm_32.c.
 
 	arcrimi=	[HW,NET] ARCnet - "RIM I" (entirely mem-mapped) cards
 			Format: <io>,<irq>,<nodeID>
@@ -571,6 +575,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	debug_objects	[KNL] Enable object debugging
 
+	debugpat	[X86] Enable PAT debugging
+
 	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.
@@ -609,6 +615,29 @@ and is between 256 and 4096 characters. It is defined in the file
 	digiepca=	[HW,SERIAL]
 			See drivers/char/README.epca and
 			Documentation/digiepca.txt.
+
+	disable_mtrr_cleanup [X86]
+	enable_mtrr_cleanup [X86]
+			The kernel tries to adjust MTRR layout from continuous
+			to discrete, to make X server driver able to add WB
+			entry later. This parameter enables/disables that.
+
+	mtrr_chunk_size=nn[KMG] [X86]
+			used for mtrr cleanup. It is largest continous chunk
+			that could hold holes aka. UC entries.
+
+	mtrr_gran_size=nn[KMG] [X86]
+			Used for mtrr cleanup. It is granularity of mtrr block.
+			Default is 1.
+			Large value could prevent small alignment from
+			using up MTRRs.
+
+	mtrr_spare_reg_nr=n [X86]
+			Format: <integer>
+			Range: 0,7 : spare reg number
+			Default : 1
+			Used for mtrr cleanup. It is spare mtrr entries number.
+			Set to 2 or more if your graphical card needs more.
 
 	disable_mtrr_trim [X86, Intel and AMD only]
 			By default the kernel will trim any uncacheable
@@ -649,7 +678,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	elanfreq=	[X86-32]
 			See comment before function elanfreq_setup() in
-			arch/i386/kernel/cpu/cpufreq/elanfreq.c.
+			arch/x86/kernel/cpu/cpufreq/elanfreq.c.
 
 	elevator=	[IOSCHED]
 			Format: {"anticipatory" | "cfq" | "deadline" | "noop"}
@@ -733,9 +762,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	hd=		[EIDE] (E)IDE hard drive subsystem geometry
 			Format: <cyl>,<head>,<sect>
 
-	hd?=		[HW] (E)IDE subsystem
-	hd?lun=		See Documentation/ide/ide.txt.
-
 	highmem=nn[KMG]	[KNL,BOOT] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
 			highmem otherwise. This also works to reduce highmem
@@ -796,7 +822,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/ide/ide.txt.
 
 	idle=		[X86]
-			Format: idle=poll or idle=mwait
+			Format: idle=poll or idle=mwait, idle=halt, idle=nomwait
 			Poll forces a polling idle loop that can slightly improves the performance
 			of waking up a idle CPU, but will use a lot of power and make the system
 			run hot. Not recommended.
@@ -804,6 +830,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			to not use it because it doesn't save as much power as a normal idle
 			loop use the MONITOR/MWAIT idle loop anyways. Performance should be the same
 			as idle=poll.
+			idle=halt. Halt is forced to be used for CPU idle.
+			In such case C2/C3 won't be used again.
+			idle=nomwait. Disable mwait for CPU C-states
 
 	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
 			Claim all unknown PCI IDE storage controllers.
@@ -1219,6 +1248,11 @@ and is between 256 and 4096 characters. It is defined in the file
 	mtdparts=	[MTD]
 			See drivers/mtd/cmdlinepart.c.
 
+	mtdset=		[ARM]
+			ARM/S3C2412 JIVE boot control
+
+			See arch/arm/mach-s3c2412/mach-jive.c
+
 	mtouchusb.raw_coordinates=
 			[HW] Make the MicroTouch USB driver use raw coordinates
 			('y', default) or cooked coordinates ('n')
@@ -1507,6 +1541,9 @@ and is between 256 and 4096 characters. It is defined in the file
 				Use with caution as certain devices share
 				address decoders between ROMs and other
 				resources.
+		norom		[X86-32,X86_64] Do not assign address space to
+				expansion ROMs that do not already have
+				BIOS assigned address ranges.
 		irqmask=0xMMMM	[X86-32] Set a bit mask of IRQs allowed to be
 				assigned automatically to PCI devices. You can
 				make the kernel exclude IRQs of your ISA cards
@@ -1581,6 +1618,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	plip=		[PPT,NET] Parallel port network link
 			Format: { parport<nr> | timid | 0 }
 			See also Documentation/parport.txt.
+
+	pmtmr=		[X86] Manual setup of pmtmr I/O Port. 
+			Override pmtimer IOPort with a hex value.
+			e.g. pmtmr=0x508
 
 	pnpacpi=	[ACPI]
 			{ off }
@@ -1689,6 +1730,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	reboot=		[BUGS=X86-32,BUGS=ARM,BUGS=IA-64] Rebooting mode
 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
 			See arch/*/kernel/reboot.c or arch/*/kernel/process.c			
+
+	relax_domain_level=
+			[KNL, SMP] Set scheduler's default relax_domain_level.
+			See Documentation/cpusets.txt.
 
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 
@@ -2122,6 +2167,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
+
+	add_efi_memmap	[EFI; x86-32,X86-64] Include EFI memory map in
+			kernel's map of available physical RAM.
 
 	vdso=		[X86-32,SH,x86-64]
 			vdso=2: enable compat VDSO (default with COMPAT_VDSO)

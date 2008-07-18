@@ -1,10 +1,12 @@
 #ifndef __ARCH_ORION5X_COMMON_H
 #define __ARCH_ORION5X_COMMON_H
 
+struct mv643xx_eth_platform_data;
+struct mv_sata_platform_data;
+
 /*
  * Basic Orion init functions used early by machine-setup.
  */
-
 void orion5x_map_io(void);
 void orion5x_init_irq(void);
 void orion5x_init(void);
@@ -23,15 +25,22 @@ void orion5x_setup_dev1_win(u32 base, u32 size);
 void orion5x_setup_dev2_win(u32 base, u32 size);
 void orion5x_setup_pcie_wa_win(u32 base, u32 size);
 
-/*
- * Shared code used internally by other Orion core functions.
- * (/mach-orion/pci.c)
- */
+void orion5x_ehci0_init(void);
+void orion5x_ehci1_init(void);
+void orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data);
+void orion5x_i2c_init(void);
+void orion5x_sata_init(struct mv_sata_platform_data *sata_data);
+void orion5x_uart0_init(void);
+void orion5x_uart1_init(void);
 
-struct pci_sys_data;
+/*
+ * PCIe/PCI functions.
+ */
 struct pci_bus;
+struct pci_sys_data;
 
 void orion5x_pcie_id(u32 *dev, u32 *rev);
+void orion5x_pci_set_cardbus_mode(void);
 int orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys);
 struct pci_bus *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
 int orion5x_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin);
@@ -40,25 +49,8 @@ int orion5x_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin);
  * Valid GPIO pins according to MPP setup, used by machine-setup.
  * (/mach-orion/gpio.c).
  */
-
-void orion5x_gpio_set_valid_pins(u32 pins);
+void orion5x_gpio_set_valid(unsigned pin, int valid);
 void gpio_display(void);	/* debug */
-
-/*
- * Pull in Orion Ethernet platform_data, used by machine-setup
- */
-
-struct mv643xx_eth_platform_data;
-
-void orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data);
-
-/*
- * Orion Sata platform_data, used by machine-setup
- */
-
-struct mv_sata_platform_data;
-
-void orion5x_sata_init(struct mv_sata_platform_data *sata_data);
 
 struct machine_desc;
 struct meminfo;

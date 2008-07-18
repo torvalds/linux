@@ -156,11 +156,8 @@ static int __init smsg_init(void)
 	if (rc != 0)
 		goto out;
 	rc = iucv_register(&smsg_handler, 1);
-	if (rc) {
-		printk(KERN_ERR "SMSGIUCV: failed to register to iucv");
-		rc = -EIO;	/* better errno ? */
+	if (rc)
 		goto out_driver;
-	}
 	smsg_path = iucv_path_alloc(255, 0, GFP_KERNEL);
 	if (!smsg_path) {
 		rc = -ENOMEM;
@@ -168,11 +165,8 @@ static int __init smsg_init(void)
 	}
 	rc = iucv_path_connect(smsg_path, &smsg_handler, "*MSG    ",
 			       NULL, NULL, NULL);
-	if (rc) {
-		printk(KERN_ERR "SMSGIUCV: failed to connect to *MSG");
-		rc = -EIO;	/* better errno ? */
+	if (rc)
 		goto out_free;
-	}
 	cpcmd("SET SMSG IUCV", NULL, 0, NULL);
 	return 0;
 

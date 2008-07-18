@@ -731,7 +731,7 @@ static const struct file_operations validate_flash_operations = {
 	.release	= validate_flash_release,
 };
 
-int __init rtas_flash_init(void)
+static int __init rtas_flash_init(void)
 {
 	int rc;
 
@@ -817,7 +817,7 @@ cleanup:
 	return rc;
 }
 
-void __exit rtas_flash_cleanup(void)
+static void __exit rtas_flash_cleanup(void)
 {
 	rtas_flash_term_hook = NULL;
 

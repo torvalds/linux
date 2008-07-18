@@ -533,10 +533,10 @@ static void prism2_detach(struct pcmcia_device *link)
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 #define CFG_CHECK2(fn, retf) \
-do { int ret = (retf); \
-if (ret != 0) { \
-	PDEBUG(DEBUG_EXTRA, "CardServices(" #fn ") returned %d\n", ret); \
-	cs_error(link, fn, ret); \
+do { int _ret = (retf); \
+if (_ret != 0) { \
+	PDEBUG(DEBUG_EXTRA, "CardServices(" #fn ") returned %d\n", _ret); \
+	cs_error(link, fn, _ret); \
 	goto next_entry; \
 } \
 } while (0)
@@ -777,8 +777,10 @@ static int hostap_cs_suspend(struct pcmcia_device *link)
 	int dev_open = 0;
 	struct hostap_interface *iface = NULL;
 
-	if (dev)
-		iface = netdev_priv(dev);
+	if (!dev)
+		return -ENODEV;
+
+	iface = netdev_priv(dev);
 
 	PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_SUSPEND\n", dev_info);
 	if (iface && iface->local)
@@ -798,8 +800,10 @@ static int hostap_cs_resume(struct pcmcia_device *link)
 	int dev_open = 0;
 	struct hostap_interface *iface = NULL;
 
-	if (dev)
-		iface = netdev_priv(dev);
+	if (!dev)
+		return -ENODEV;
+
+	iface = netdev_priv(dev);
 
 	PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_RESUME\n", dev_info);
 

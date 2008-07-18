@@ -1607,7 +1607,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 		 * Much of the time, this could just work regardless.
 		 * So for now, just log the incident, and allow the attempt.
 		 */
-		if (limit_warnings && (qc->nbytes / qc->sect_size) > 1) {
+		if (limit_warnings > 0 && (qc->nbytes / qc->sect_size) > 1) {
 			--limit_warnings;
 			ata_link_printk(qc->dev->link, KERN_WARNING, DRV_NAME
 					": attempting PIO w/multiple DRQ: "

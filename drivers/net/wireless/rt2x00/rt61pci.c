@@ -915,7 +915,7 @@ static char *rt61pci_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 	return fw_name;
 }
 
-static u16 rt61pci_get_firmware_crc(void *data, const size_t len)
+static u16 rt61pci_get_firmware_crc(const void *data, const size_t len)
 {
 	u16 crc;
 
@@ -932,7 +932,7 @@ static u16 rt61pci_get_firmware_crc(void *data, const size_t len)
 	return crc;
 }
 
-static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev, void *data,
+static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 				 const size_t len)
 {
 	int i;
@@ -1200,6 +1200,15 @@ static int rt61pci_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, TXRX_CSR8_ACK_CTS_48MBS, 42);
 	rt2x00_set_field32(&reg, TXRX_CSR8_ACK_CTS_54MBS, 42);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR8, reg);
+
+	rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_INTERVAL, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TIMESTAMP_COMPENSATE, 0);
+	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR15, 0x0000000f);
 

@@ -1,0 +1,13 @@
+if ARCH_MV78XX0
+
+menu "Marvell MV78xx0 Implementations"
+
+config MACH_DB78X00_BP
+	bool "Marvell DB-78x00-BP Development Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell DB-78x00-BP Development Board.
+
+endmenu
+
+endif

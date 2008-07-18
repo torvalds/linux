@@ -16,7 +16,7 @@
 #define __MAX_CSSID 0
 
 /**
- * struct scsw - subchannel status word
+ * struct cmd_scsw - command-mode subchannel status word
  * @key: subchannel key
  * @sctl: suspend control
  * @eswf: esw format
@@ -38,7 +38,7 @@
  * @cstat: subchannel status
  * @count: residual count
  */
-struct scsw {
+struct cmd_scsw {
 	__u32 key  : 4;
 	__u32 sctl : 1;
 	__u32 eswf : 1;
@@ -60,6 +60,114 @@ struct scsw {
 	__u32 cstat : 8;
 	__u32 count : 16;
 } __attribute__ ((packed));
+
+/**
+ * struct tm_scsw - transport-mode subchannel status word
+ * @key: subchannel key
+ * @eswf: esw format
+ * @cc: deferred condition code
+ * @fmt: format
+ * @x: IRB-format control
+ * @q: interrogate-complete
+ * @ectl: extended control
+ * @pno: path not operational
+ * @fctl: function control
+ * @actl: activity control
+ * @stctl: status control
+ * @tcw: TCW address
+ * @dstat: device status
+ * @cstat: subchannel status
+ * @fcxs: FCX status
+ * @schxs: subchannel-extended status
+ */
+struct tm_scsw {
+	u32 key:4;
+	u32 :1;
+	u32 eswf:1;
+	u32 cc:2;
+	u32 fmt:3;
+	u32 x:1;
+	u32 q:1;
+	u32 :1;
+	u32 ectl:1;
+	u32 pno:1;
+	u32 :1;
+	u32 fctl:3;
+	u32 actl:7;
+	u32 stctl:5;
+	u32 tcw;
+	u32 dstat:8;
+	u32 cstat:8;
+	u32 fcxs:8;
+	u32 schxs:8;
+} __attribute__ ((packed));
+
+/**
+ * union scsw - subchannel status word
+ * @cmd: command-mode SCSW
+ * @tm: transport-mode SCSW
+ */
+union scsw {
+	struct cmd_scsw cmd;
+	struct tm_scsw tm;
+} __attribute__ ((packed));
+
+int scsw_is_tm(union scsw *scsw);
+u32 scsw_key(union scsw *scsw);
+u32 scsw_eswf(union scsw *scsw);
+u32 scsw_cc(union scsw *scsw);
+u32 scsw_ectl(union scsw *scsw);
+u32 scsw_pno(union scsw *scsw);
+u32 scsw_fctl(union scsw *scsw);
+u32 scsw_actl(union scsw *scsw);
+u32 scsw_stctl(union scsw *scsw);
+u32 scsw_dstat(union scsw *scsw);
+u32 scsw_cstat(union scsw *scsw);
+int scsw_is_solicited(union scsw *scsw);
+int scsw_is_valid_key(union scsw *scsw);
+int scsw_is_valid_eswf(union scsw *scsw);
+int scsw_is_valid_cc(union scsw *scsw);
+int scsw_is_valid_ectl(union scsw *scsw);
+int scsw_is_valid_pno(union scsw *scsw);
+int scsw_is_valid_fctl(union scsw *scsw);
+int scsw_is_valid_actl(union scsw *scsw);
+int scsw_is_valid_stctl(union scsw *scsw);
+int scsw_is_valid_dstat(union scsw *scsw);
+int scsw_is_valid_cstat(union scsw *scsw);
+int scsw_cmd_is_valid_key(union scsw *scsw);
+int scsw_cmd_is_valid_sctl(union scsw *scsw);
+int scsw_cmd_is_valid_eswf(union scsw *scsw);
+int scsw_cmd_is_valid_cc(union scsw *scsw);
+int scsw_cmd_is_valid_fmt(union scsw *scsw);
+int scsw_cmd_is_valid_pfch(union scsw *scsw);
+int scsw_cmd_is_valid_isic(union scsw *scsw);
+int scsw_cmd_is_valid_alcc(union scsw *scsw);
+int scsw_cmd_is_valid_ssi(union scsw *scsw);
+int scsw_cmd_is_valid_zcc(union scsw *scsw);
+int scsw_cmd_is_valid_ectl(union scsw *scsw);
+int scsw_cmd_is_valid_pno(union scsw *scsw);
+int scsw_cmd_is_valid_fctl(union scsw *scsw);
+int scsw_cmd_is_valid_actl(union scsw *scsw);
+int scsw_cmd_is_valid_stctl(union scsw *scsw);
+int scsw_cmd_is_valid_dstat(union scsw *scsw);
+int scsw_cmd_is_valid_cstat(union scsw *scsw);
+int scsw_cmd_is_solicited(union scsw *scsw);
+int scsw_tm_is_valid_key(union scsw *scsw);
+int scsw_tm_is_valid_eswf(union scsw *scsw);
+int scsw_tm_is_valid_cc(union scsw *scsw);
+int scsw_tm_is_valid_fmt(union scsw *scsw);
+int scsw_tm_is_valid_x(union scsw *scsw);
+int scsw_tm_is_valid_q(union scsw *scsw);
+int scsw_tm_is_valid_ectl(union scsw *scsw);
+int scsw_tm_is_valid_pno(union scsw *scsw);
+int scsw_tm_is_valid_fctl(union scsw *scsw);
+int scsw_tm_is_valid_actl(union scsw *scsw);
+int scsw_tm_is_valid_stctl(union scsw *scsw);
+int scsw_tm_is_valid_dstat(union scsw *scsw);
+int scsw_tm_is_valid_cstat(union scsw *scsw);
+int scsw_tm_is_valid_fcxs(union scsw *scsw);
+int scsw_tm_is_valid_schxs(union scsw *scsw);
+int scsw_tm_is_solicited(union scsw *scsw);
 
 #define SCSW_FCTL_CLEAR_FUNC	 0x1
 #define SCSW_FCTL_HALT_FUNC	 0x2
@@ -303,7 +411,7 @@ struct esw3 {
  * if applicable).
  */
 struct irb {
-	struct scsw scsw;
+	union scsw scsw;
 	union {
 		struct esw0 esw0;
 		struct esw1 esw1;

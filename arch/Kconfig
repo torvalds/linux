@@ -39,3 +39,6 @@ config HAVE_KRETPROBES
 
 config HAVE_DMA_ATTRS
 	def_bool n
+
+config USE_GENERIC_SMP_HELPERS
+	def_bool n

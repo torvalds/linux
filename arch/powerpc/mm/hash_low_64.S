@@ -388,7 +388,7 @@ _GLOBAL(__hash_page_4K)
 	 */
 	rlwinm	r30,r4,32-9+7,31-7,31-7	/* _PAGE_RW -> _PAGE_DIRTY */
 	or	r30,r30,r31
-	ori	r30,r30,_PAGE_BUSY | _PAGE_ACCESSED | _PAGE_HASHPTE
+	ori	r30,r30,_PAGE_BUSY | _PAGE_ACCESSED
 	oris	r30,r30,_PAGE_COMBO@h
 	/* Write the linux PTE atomically (setting busy) */
 	stdcx.	r30,0,r6
@@ -468,7 +468,7 @@ END_FTR_SECTION(CPU_FTR_NOEXECUTE|CPU_FTR_COHERENT_ICACHE, CPU_FTR_NOEXECUTE)
 	 * go to out-of-line code to try to modify the HPTE. We look for
 	 * the bit at (1 >> (index + 32))
 	 */
-	andi.	r0,r31,_PAGE_HASHPTE
+	rldicl.	r0,r31,64-12,48
 	li	r26,0			/* Default hidx */
 	beq	htab_insert_pte
 
@@ -726,11 +726,11 @@ BEGIN_FTR_SECTION
 	bne-	ht64_bail_ok
 END_FTR_SECTION_IFCLR(CPU_FTR_CI_LARGE_PAGE)
 	/* Prepare new PTE value (turn access RW into DIRTY, then
-	 * add BUSY,HASHPTE and ACCESSED)
+	 * add BUSY and ACCESSED)
 	 */
 	rlwinm	r30,r4,32-9+7,31-7,31-7	/* _PAGE_RW -> _PAGE_DIRTY */
 	or	r30,r30,r31
-	ori	r30,r30,_PAGE_BUSY | _PAGE_ACCESSED | _PAGE_HASHPTE
+	ori	r30,r30,_PAGE_BUSY | _PAGE_ACCESSED
 	/* Write the linux PTE atomically (setting busy) */
 	stdcx.	r30,0,r6
 	bne-	1b
@@ -798,18 +798,21 @@ END_FTR_SECTION(CPU_FTR_NOEXECUTE|CPU_FTR_COHERENT_ICACHE, CPU_FTR_NOEXECUTE)
 	/* Check if we may already be in the hashtable, in this case, we
 	 * go to out-of-line code to try to modify the HPTE
 	 */
-	andi.	r0,r31,_PAGE_HASHPTE
+	rldicl.	r0,r31,64-12,48
 	bne	ht64_modify_pte
 
 ht64_insert_pte:
 	/* Clear hpte bits in new pte (we also clear BUSY btw) and
-	 * add _PAGE_HASHPTE
+	 * add _PAGE_HPTE_SUB0
 	 */
 	lis	r0,_PAGE_HPTEFLAGS@h
 	ori	r0,r0,_PAGE_HPTEFLAGS@l
 	andc	r30,r30,r0
+#ifdef CONFIG_PPC_64K_PAGES
+	oris	r30,r30,_PAGE_HPTE_SUB0@h
+#else
 	ori	r30,r30,_PAGE_HASHPTE
-
+#endif
 	/* Phyical address in r5 */
 	rldicl	r5,r31,64-PTE_RPN_SHIFT,PTE_RPN_SHIFT
 	sldi	r5,r5,PAGE_SHIFT

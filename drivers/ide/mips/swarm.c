@@ -61,6 +61,11 @@ static struct resource swarm_ide_resource = {
 
 static struct platform_device *swarm_ide_dev;
 
+static const struct ide_port_info swarm_port_info = {
+	.name			= DRV_NAME,
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
+};
+
 /*
  * swarm_ide_probe - if the board header indicates the existence of
  * Generic Bus IDE, allocate a HWIF for it.
@@ -76,12 +81,6 @@ static int __devinit swarm_ide_probe(struct device *dev)
 
 	if (!SIBYTE_HAVE_IDE)
 		return -ENODEV;
-
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR DRV_NAME ": no free slot for interface\n");
-		return -ENOMEM;
-	}
 
 	base = ioremap(A_IO_EXT_BASE, 0x800);
 	offset = __raw_readq(base + R_IO_EXT_REG(R_IO_EXT_START_ADDR, IDE_CS));
@@ -109,10 +108,6 @@ static int __devinit swarm_ide_probe(struct device *dev)
 
 	base = ioremap(offset, size);
 
-	/* Setup MMIO ops.  */
-	hwif->host_flags = IDE_HFLAG_MMIO;
-	default_hwif_mmiops(hwif);
-
 	for (i = 0; i <= 7; i++)
 		hw.io_ports_array[i] =
 				(unsigned long)(base + ((0x1f0 + i) << 5));
@@ -121,15 +116,26 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	hw.irq = K_INT_GB_IDE;
 	hw.chipset = ide_generic;
 
+	hwif = ide_find_port_slot(&swarm_port_info);
+	if (hwif == NULL)
+		goto err;
+
 	ide_init_port_hw(hwif, &hw);
+
+	/* Setup MMIO ops. */
+	default_hwif_mmiops(hwif);
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx, NULL);
+	ide_device_add(idx, &swarm_port_info);
 
 	dev_set_drvdata(dev, hwif);
 
 	return 0;
+err:
+	release_resource(&swarm_ide_resource);
+	iounmap(base);
+	return -ENOMEM;
 }
 
 static struct device_driver swarm_ide_driver = {

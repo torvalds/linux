@@ -112,7 +112,7 @@ static long beat_lpar_hpte_insert(unsigned long hpte_group,
 	if (!(vflags & HPTE_V_BOLTED))
 		DBG_LOW(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
 
-	if (rflags & (_PAGE_GUARDED|_PAGE_NO_CACHE))
+	if (rflags & _PAGE_NO_CACHE)
 		hpte_r &= ~_PAGE_COHERENT;
 
 	spin_lock(&beat_htab_lock);
@@ -334,7 +334,7 @@ static long beat_lpar_hpte_insert_v3(unsigned long hpte_group,
 	if (!(vflags & HPTE_V_BOLTED))
 		DBG_LOW(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
 
-	if (rflags & (_PAGE_GUARDED|_PAGE_NO_CACHE))
+	if (rflags & _PAGE_NO_CACHE)
 		hpte_r &= ~_PAGE_COHERENT;
 
 	/* insert into not-volted entry */

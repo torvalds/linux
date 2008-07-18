@@ -38,6 +38,8 @@ static inline cycles_t get_cycles(void)
 		"	.long 0\n"
 		"	.long 97b-98b\n"
 		"	.long 99b-98b\n"
+		"	.long 0\n"
+		"	.long 0\n"
 		".previous"
 		: "=r" (ret) : "i" (CPU_FTR_601));
 	return ret;
