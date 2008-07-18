@@ -727,8 +727,7 @@ static int ubifs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	struct ubifs_inode *dir_ui = ubifs_inode(dir);
 	struct ubifs_info *c = dir->i_sb->s_fs_info;
 	int err, sz_change = CALC_DENT_SIZE(dentry->d_name.len);
-	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
-					.dirtied_ino_d = 1 };
+	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1 };
 
 	/*
 	 * Budget request settings: new inode, new direntry and changing parent

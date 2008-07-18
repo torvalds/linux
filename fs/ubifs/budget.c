@@ -686,9 +686,10 @@ void ubifs_convert_page_budget(struct ubifs_info *c)
 void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
 				      struct ubifs_inode *ui)
 {
-	struct ubifs_budget_req req = {.dd_growth = c->inode_budget,
-				       .dirtied_ino_d = ui->data_len};
+	struct ubifs_budget_req req;
 
+	memset(&req, 0, sizeof(struct ubifs_budget_req));
+	req.dd_growth = c->inode_budget + ui->data_len;
 	ubifs_release_budget(c, &req);
 }
 
