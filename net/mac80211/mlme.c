@@ -551,6 +551,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 			/* set timing information */
 			sdata->bss_conf.beacon_int = bss->beacon_int;
 			sdata->bss_conf.timestamp = bss->timestamp;
+			sdata->bss_conf.dtim_period = bss->dtim_period;
 
 			changed |= ieee80211_handle_bss_capability(sdata, bss);
 
@@ -2687,6 +2688,16 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 
 	bss->beacon_int = le16_to_cpu(mgmt->u.beacon.beacon_int);
 	bss->capability = le16_to_cpu(mgmt->u.beacon.capab_info);
+
+	if (elems->tim) {
+		struct ieee80211_tim_ie *tim_ie =
+			(struct ieee80211_tim_ie *)elems->tim;
+		bss->dtim_period = tim_ie->dtim_period;
+	}
+
+	/* set default value for buggy APs */
+	if (!elems->tim || bss->dtim_period == 0)
+		bss->dtim_period = 1;
 
 	bss->supp_rates_len = 0;
 	if (elems->supp_rates) {
