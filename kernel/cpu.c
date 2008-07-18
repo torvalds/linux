@@ -299,6 +299,7 @@ int __ref cpu_down(unsigned int cpu)
 	cpu_maps_update_done();
 	return err;
 }
+EXPORT_SYMBOL(cpu_down);
 #endif /*CONFIG_HOTPLUG_CPU*/
 
 /* Requires cpu_add_remove_lock to be held */

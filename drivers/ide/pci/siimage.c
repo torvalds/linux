@@ -421,8 +421,7 @@ static int sil_sata_reset_poll(ide_drive_t *drive)
 		if ((sata_stat & 0x03) != 0x03) {
 			printk(KERN_WARNING "%s: reset phy dead, status=0x%08x\n",
 					    hwif->name, sata_stat);
-			HWGROUP(drive)->polling = 0;
-			return ide_started;
+			return -ENXIO;
 		}
 	}
 

@@ -3,7 +3,7 @@
  *      For use with LSI PCI chip/adapter(s)
  *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2007 LSI Corporation
+ *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -447,6 +447,7 @@ static int mptspi_target_alloc(struct scsi_target *starget)
 	spi_max_offset(starget) = ioc->spi_data.maxSyncOffset;
 
 	spi_offset(starget) = 0;
+	spi_period(starget) = 0xFF;
 	mptspi_write_width(starget, 0);
 
 	return 0;

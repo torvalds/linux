@@ -50,29 +50,16 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/genhd.h>
-#include <linux/blkpg.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/completion.h>
-#include <linux/reboot.h>
-#include <linux/cdrom.h>
-#include <linux/seq_file.h>
 #include <linux/device.h>
-#include <linux/bitops.h>
-
-#include <asm/byteorder.h>
-#include <asm/irq.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
 
 
 /* default maximum number of failures */
@@ -90,8 +77,6 @@ DEFINE_MUTEX(ide_cfg_mtx);
 
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
 EXPORT_SYMBOL(ide_lock);
-
-ide_hwif_t ide_hwifs[MAX_HWIFS];	/* master data repository */
 
 static void ide_port_init_devices_data(ide_hwif_t *);
 
@@ -121,7 +106,6 @@ void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 
 	ide_port_init_devices_data(hwif);
 }
-EXPORT_SYMBOL_GPL(ide_init_port_data);
 
 static void ide_port_init_devices_data(ide_hwif_t *hwif)
 {
@@ -147,18 +131,6 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 
 		INIT_LIST_HEAD(&drive->list);
 		init_completion(&drive->gendev_rel_comp);
-	}
-}
-
-static void __init init_ide_data (void)
-{
-	unsigned int index;
-
-	/* Initialise all interface structures */
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		ide_hwif_t *hwif = &ide_hwifs[index];
-
-		ide_init_port_data(hwif, index);
 	}
 }
 
@@ -312,7 +284,8 @@ void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 	memcpy(&hwif->io_ports, &hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
 	hwif->chipset = hw->chipset;
-	hwif->gendev.parent = hw->dev;
+	hwif->dev = hw->dev;
+	hwif->gendev.parent = hw->parent ? hw->parent : hw->dev;
 	hwif->ack_intr = hw->ack_intr;
 }
 EXPORT_SYMBOL_GPL(ide_init_port_hw);
@@ -556,6 +529,22 @@ static int generic_ide_resume(struct device *dev)
 	return err;
 }
 
+static int generic_drive_reset(ide_drive_t *drive)
+{
+	struct request *rq;
+	int ret = 0;
+
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd_len = 1;
+	rq->cmd[0] = REQ_DRIVE_RESET;
+	rq->cmd_flags |= REQ_SOFTBARRIER;
+	if (blk_execute_rq(drive->queue, NULL, rq, 1))
+		ret = rq->errors;
+	blk_put_request(rq);
+	return ret;
+}
+
 int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device *bdev,
 			unsigned int cmd, unsigned long arg)
 {
@@ -630,33 +619,8 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
 
-			/*
-			 *	Abort the current command on the
-			 *	group if there is one, taking
-			 *	care not to allow anything else
-			 *	to be queued and to die on the
-			 *	spot if we miss one somehow
-			 */
+			return generic_drive_reset(drive);
 
-			spin_lock_irqsave(&ide_lock, flags);
-
-			if (HWGROUP(drive)->resetting) {
-				spin_unlock_irqrestore(&ide_lock, flags);
-				return -EBUSY;
-			}
-
-			ide_abort(drive, "drive reset");
-
-			BUG_ON(HWGROUP(drive)->handler);
-
-			/* Ensure nothing gets queued after we
-			   drop the lock. Reset will clear the busy */
-
-			HWGROUP(drive)->busy = 1;
-			spin_unlock_irqrestore(&ide_lock, flags);
-			(void) ide_do_reset(drive);
-
-			return 0;
 		case HDIO_GET_BUSSTATE:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
@@ -1020,8 +984,6 @@ static int __init ide_init(void)
 		ret = PTR_ERR(ide_port_class);
 		goto out_port_class;
 	}
-
-	init_ide_data();
 
 	proc_ide_create();
 

@@ -216,8 +216,8 @@ W:	http://code.google.com/p/aceracpi
 S:	Maintained
 
 ACPI
-P:	Len Brown
-M:	len.brown@intel.com
+P:	Andi Kleen
+M:	ak@linux.intel.com
 M:	lenb@kernel.org
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
@@ -239,8 +239,8 @@ W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 
 ACPI FAN DRIVER
-P:	Len Brown
-M:	len.brown@intel.com
+P:	Zhang Rui
+M:	rui.zhang@intel.com
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
@@ -248,18 +248,18 @@ S:	Supported
 ACPI PCI HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 ACPI THERMAL DRIVER
-P:	Len Brown
-M:	len.brown@intel.com
+P:	Zhang Rui
+M:	rui.zhang@intel.com
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 
 ACPI VIDEO DRIVER
-P:	Rui Zhang
+P:	Zhang Rui
 M:	rui.zhang@intel.com
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
@@ -348,7 +348,9 @@ W:	http://www.linux-usb.org/SpeedTouch/
 S:	Maintained
 
 ALCHEMY AU1XX0 MMC DRIVER
-S:	Orphan
+P:	Manuel Lauss
+M:	manuel.lauss@gmail.com
+S:	Maintained
 
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
@@ -1143,22 +1145,27 @@ COMPACTPCI HOTPLUG CORE
 P:	Scott Murray
 M:	scottm@somanetworks.com
 M:	scott@spiteful.org
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 COMPACTPCI HOTPLUG ZIATECH ZT5550 DRIVER
 P:	Scott Murray
 M:	scottm@somanetworks.com
 M:	scott@spiteful.org
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 COMPACTPCI HOTPLUG GENERIC DRIVER
 P:	Scott Murray
 M:	scottm@somanetworks.com
 M:	scott@spiteful.org
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
+
+COMPAL LAPTOP SUPPORT
+P:	Cezary Jackiewicz
+M:	cezary.jackiewicz@gmail.com
+S:	Maintained
 
 COMPUTONE INTELLIPORT MULTIPORT CARD
 P:	Michael H. Warfield
@@ -1787,6 +1794,12 @@ P:	David Howells
 M:	dhowells@redhat.com
 S:	Maintained
 
+FUJITSU LAPTOP EXTRAS
+P:	Jonathan Woithe
+M:	jwoithe@physics.adelaide.edu.au
+L:	linux-acpi@vger.kernel.org
+S:	Maintained
+
 FUSE: FILESYSTEM IN USERSPACE
 P:	Miklos Szeredi
 M:	miklos@szeredi.hu
@@ -2325,6 +2338,16 @@ L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/doc/jffs2.html
 S:	Maintained
 
+UBI FILE SYSTEM (UBIFS)
+P:	Artem Bityutskiy
+M:	dedekind@infradead.org
+P:	Adrian Hunter
+M:	ext-adrian.hunter@nokia.com
+L:	linux-mtd@lists.infradead.org
+T:	git git://git.infradead.org/~dedekind/ubifs-2.6.git
+W:	http://www.linux-mtd.infradead.org/doc/ubifs.html
+S:	Maintained
+
 JFS FILESYSTEM
 P:	Dave Kleikamp
 M:	shaggy@austin.ibm.com
@@ -2521,13 +2544,11 @@ W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
-LINUX FOR POWERPC EMBEDDED MPC52XX
+LINUX FOR POWERPC EMBEDDED MPC5XXX
 P:	Sylvain Munaut
 M:	tnt@246tNt.com
 P:	Grant Likely
 M:	grant.likely@secretlab.ca
-W:	http://www.246tNt.com/mpc52xx/
-W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
@@ -3198,7 +3219,7 @@ S:	Supported
 PCIE HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 PCMCIA SUBSYSTEM
@@ -3540,6 +3561,13 @@ L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 
+S3C24XX SD/MMC Driver
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+
 SAA7146 VIDEO4LINUX-2 DRIVER
 P:	Michael Hunold
 M:	michael@mihu.de
@@ -3610,6 +3638,12 @@ S:	Maintained
 SCx200 HRT CLOCKSOURCE DRIVER
 P:	Jim Cromie
 M:	jim.cromie@gmail.com
+S:	Maintained
+
+SDRICOH_CS MMC/SD HOST CONTROLLER INTERFACE DRIVER
+P:	Sascha Sommer
+M:	saschasommer@freenet.de
+L:	sdricohcs-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 SECURITY CONTACT
@@ -3831,7 +3865,7 @@ S:	Maintained
 SHPC HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
-L:	pcihpd-discuss@lists.sourceforge.net
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE DRIVER

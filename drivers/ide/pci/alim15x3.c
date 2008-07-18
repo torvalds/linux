@@ -69,7 +69,8 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	int s_time, a_time, c_time;
+	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
+	int s_time = t->setup, a_time = t->active, c_time = t->cycle;
 	u8 s_clc, a_clc, r_clc;
 	unsigned long flags;
 	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
@@ -78,13 +79,10 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	u8 cd_dma_fifo = 0;
 	int unit = drive->select.b.unit & 1;
 
-	s_time = ide_pio_timings[pio].setup_time;
-	a_time = ide_pio_timings[pio].active_time;
 	if ((s_clc = (s_time * bus_speed + 999) / 1000) >= 8)
 		s_clc = 0;
 	if ((a_clc = (a_time * bus_speed + 999) / 1000) >= 8)
 		a_clc = 0;
-	c_time = ide_pio_timings[pio].cycle_time;
 
 	if (!(r_clc = (c_time * bus_speed + 999) / 1000 - a_clc - s_clc)) {
 		r_clc = 1;

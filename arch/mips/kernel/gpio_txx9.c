@@ -47,23 +47,25 @@ static void txx9_gpio_set(struct gpio_chip *chip, unsigned int offset,
 
 static int txx9_gpio_dir_in(struct gpio_chip *chip, unsigned int offset)
 {
-	spin_lock_irq(&txx9_gpio_lock);
+	unsigned long flags;
+	spin_lock_irqsave(&txx9_gpio_lock, flags);
 	__raw_writel(__raw_readl(&txx9_pioptr->dir) & ~(1 << offset),
 		     &txx9_pioptr->dir);
 	mmiowb();
-	spin_unlock_irq(&txx9_gpio_lock);
+	spin_unlock_irqrestore(&txx9_gpio_lock, flags);
 	return 0;
 }
 
 static int txx9_gpio_dir_out(struct gpio_chip *chip, unsigned int offset,
 			     int value)
 {
-	spin_lock_irq(&txx9_gpio_lock);
+	unsigned long flags;
+	spin_lock_irqsave(&txx9_gpio_lock, flags);
 	txx9_gpio_set_raw(offset, value);
 	__raw_writel(__raw_readl(&txx9_pioptr->dir) | (1 << offset),
 		     &txx9_pioptr->dir);
 	mmiowb();
-	spin_unlock_irq(&txx9_gpio_lock);
+	spin_unlock_irqrestore(&txx9_gpio_lock, flags);
 	return 0;
 }
 

@@ -58,8 +58,8 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsicam.h>
-#include <scsi/sd.h>
 
+#include "sd.h"
 #include "scsi_logging.h"
 
 MODULE_AUTHOR("Eric Youngdale");
@@ -293,11 +293,6 @@ static int sd_major(int major_idx)
 		BUG();
 		return 0;	/* shut up gcc */
 	}
-}
-
-static inline struct scsi_disk *scsi_disk(struct gendisk *disk)
-{
-	return container_of(disk->private_data, struct scsi_disk, driver);
 }
 
 static struct scsi_disk *__scsi_disk_get(struct gendisk *disk)

@@ -1439,7 +1439,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		DEBUGP(4, dev, "CMM_ABSENT flag set\n");
 		goto out;
 	}
-	rc = EINVAL;
+	rc = -EINVAL;
 
 	if (_IOC_TYPE(cmd) != CM_IOC_MAGIC) {
 		DEBUGP(4, dev, "ioctype mismatch\n");

@@ -95,33 +95,60 @@ extern resource_size_t isa_mem_base;
 #define IO_SET_SYNC_FLAG()
 #endif
 
-#define DEF_MMIO_IN(name, type, insn)					\
-static inline type name(const volatile type __iomem *addr)		\
+/* gcc 4.0 and older doesn't have 'Z' constraint */
+#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ == 0)
+#define DEF_MMIO_IN_LE(name, size, insn)				\
+static inline u##size name(const volatile u##size __iomem *addr)	\
 {									\
-	type ret;							\
-	__asm__ __volatile__("sync;" insn ";twi 0,%0,0;isync"		\
+	u##size ret;							\
+	__asm__ __volatile__("sync;"#insn" %0,0,%1;twi 0,%0,0;isync"	\
 		: "=r" (ret) : "r" (addr), "m" (*addr) : "memory");	\
 	return ret;							\
 }
 
-#define DEF_MMIO_OUT(name, type, insn)					\
-static inline void name(volatile type __iomem *addr, type val)		\
+#define DEF_MMIO_OUT_LE(name, size, insn) 				\
+static inline void name(volatile u##size __iomem *addr, u##size val)	\
 {									\
-	__asm__ __volatile__("sync;" insn				\
+	__asm__ __volatile__("sync;"#insn" %1,0,%2"			\
 		: "=m" (*addr) : "r" (val), "r" (addr) : "memory");	\
 	IO_SET_SYNC_FLAG();						\
 }
+#else /* newer gcc */
+#define DEF_MMIO_IN_LE(name, size, insn)				\
+static inline u##size name(const volatile u##size __iomem *addr)	\
+{									\
+	u##size ret;							\
+	__asm__ __volatile__("sync;"#insn" %0,%y1;twi 0,%0,0;isync"	\
+		: "=r" (ret) : "Z" (*addr) : "memory");			\
+	return ret;							\
+}
 
+#define DEF_MMIO_OUT_LE(name, size, insn) 				\
+static inline void name(volatile u##size __iomem *addr, u##size val)	\
+{									\
+	__asm__ __volatile__("sync;"#insn" %1,%y0"			\
+		: "=Z" (*addr) : "r" (val) : "memory");			\
+	IO_SET_SYNC_FLAG();						\
+}
+#endif
 
-#define DEF_MMIO_IN_BE(name, size, insn) \
-	DEF_MMIO_IN(name, u##size, __stringify(insn)"%U2%X2 %0,%2")
-#define DEF_MMIO_IN_LE(name, size, insn) \
-	DEF_MMIO_IN(name, u##size, __stringify(insn)" %0,0,%1")
+#define DEF_MMIO_IN_BE(name, size, insn)				\
+static inline u##size name(const volatile u##size __iomem *addr)	\
+{									\
+	u##size ret;							\
+	__asm__ __volatile__("sync;"#insn"%U1%X1 %0,%1;twi 0,%0,0;isync"\
+		: "=r" (ret) : "m" (*addr) : "memory");			\
+	return ret;							\
+}
 
-#define DEF_MMIO_OUT_BE(name, size, insn) \
-	DEF_MMIO_OUT(name, u##size, __stringify(insn)"%U0%X0 %1,%0")
-#define DEF_MMIO_OUT_LE(name, size, insn) \
-	DEF_MMIO_OUT(name, u##size, __stringify(insn)" %1,0,%2")
+#define DEF_MMIO_OUT_BE(name, size, insn)				\
+static inline void name(volatile u##size __iomem *addr, u##size val)	\
+{									\
+	__asm__ __volatile__("sync;"#insn"%U0%X0 %1,%0"			\
+		: "=m" (*addr) : "r" (val) : "memory");			\
+	IO_SET_SYNC_FLAG();						\
+}
+
 
 DEF_MMIO_IN_BE(in_8,     8, lbz);
 DEF_MMIO_IN_BE(in_be16, 16, lhz);
@@ -745,7 +772,7 @@ static inline void * bus_to_virt(unsigned long address)
 #define clrsetbits_le32(addr, clear, set) clrsetbits(le32, addr, clear, set)
 
 #define clrsetbits_be16(addr, clear, set) clrsetbits(be16, addr, clear, set)
-#define clrsetbits_le16(addr, clear, set) clrsetbits(le32, addr, clear, set)
+#define clrsetbits_le16(addr, clear, set) clrsetbits(le16, addr, clear, set)
 
 #define clrsetbits_8(addr, clear, set) clrsetbits(8, addr, clear, set)
 

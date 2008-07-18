@@ -336,6 +336,15 @@ config ACPI_EC
 	  the battery and thermal drivers.  If you are compiling for a 
 	  mobile system, say Y.
 
+config ACPI_PCI_SLOT
+	tristate "PCI slot detection driver"
+	default n
+	help
+	  This driver will attempt to discover all PCI slots in your system,
+	  and creates entries in /sys/bus/pci/slots/. This feature can
+	  help you correlate PCI bus addresses with the physical geography
+	  of your slots. If you are unsure, say N.
+
 config ACPI_POWER
 	bool
 	default y

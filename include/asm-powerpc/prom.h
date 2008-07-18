@@ -212,8 +212,16 @@ extern u64 of_translate_dma_address(struct device_node *dev,
  */
 extern const u32 *of_get_address(struct device_node *dev, int index,
 			   u64 *size, unsigned int *flags);
+#ifdef CONFIG_PCI
 extern const u32 *of_get_pci_address(struct device_node *dev, int bar_no,
 			       u64 *size, unsigned int *flags);
+#else
+static inline const u32 *of_get_pci_address(struct device_node *dev,
+		int bar_no, u64 *size, unsigned int *flags)
+{
+	return NULL;
+}
+#endif /* CONFIG_PCI */
 
 /* Get an address as a resource. Note that if your address is
  * a PIO address, the conversion will fail if the physical address
@@ -223,8 +231,16 @@ extern const u32 *of_get_pci_address(struct device_node *dev, int bar_no,
  */
 extern int of_address_to_resource(struct device_node *dev, int index,
 				  struct resource *r);
+#ifdef CONFIG_PCI
 extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 				      struct resource *r);
+#else
+static inline int of_pci_address_to_resource(struct device_node *dev, int bar,
+		struct resource *r)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_PCI */
 
 /* Parse the ibm,dma-window property of an OF node into the busno, phys and
  * size parameters.

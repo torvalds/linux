@@ -139,6 +139,12 @@ struct ide_io_ports {
 #define WAIT_MIN_SLEEP	(2*HZ/100)	/* 20msec - minimum sleep time */
 
 /*
+ * Op codes for special requests to be handled by ide_special_rq().
+ * Values should be in the range of 0x20 to 0x3f.
+ */
+#define REQ_DRIVE_RESET		0x20
+
+/*
  * Check for an interrupt and acknowledge the interrupt status
  */
 struct hwif_s;
@@ -171,7 +177,7 @@ typedef struct hw_regs_s {
 	int		irq;			/* our irq number */
 	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	hwif_chipset_t  chipset;
-	struct device	*dev;
+	struct device	*dev, *parent;
 } hw_regs_t;
 
 void ide_init_port_data(struct hwif_s *, unsigned int);
@@ -405,8 +411,8 @@ typedef struct ide_drive_s {
 struct ide_port_info;
 
 struct ide_port_ops {
-	/* host specific initialization of devices on a port */
-	void	(*port_init_devs)(struct hwif_s *);
+	/* host specific initialization of a device */
+	void	(*init_dev)(ide_drive_t *);
 	/* routine to program host for PIO mode */
 	void	(*set_pio_mode)(ide_drive_t *, const u8);
 	/* routine to program host for DMA mode */
@@ -565,8 +571,6 @@ typedef struct hwgroup_s {
 	unsigned int sleeping	: 1;
 		/* BOOL: polling active & poll_timeout field valid */
 	unsigned int polling	: 1;
-	 	/* BOOL: in a polling reset situation. Must not trigger another reset yet */
-	unsigned int resetting  : 1;
 
 		/* current drive */
 	ide_drive_t *drive;
@@ -786,7 +790,6 @@ struct ide_driver_s {
 	ide_startstop_t	(*do_request)(ide_drive_t *, struct request *, sector_t);
 	int		(*end_request)(ide_drive_t *, int, int);
 	ide_startstop_t	(*error)(ide_drive_t *, struct request *rq, u8, u8);
-	ide_startstop_t	(*abort)(ide_drive_t *, struct request *rq);
 	struct device_driver	gen_driver;
 	int		(*probe)(ide_drive_t *);
 	void		(*remove)(ide_drive_t *);
@@ -800,18 +803,6 @@ struct ide_driver_s {
 #define to_ide_driver(drv) container_of(drv, ide_driver_t, gen_driver)
 
 int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsigned, unsigned long);
-
-/*
- * ide_hwifs[] is the master data structure used to keep track
- * of just about everything in ide.c.  Whenever possible, routines
- * should be using pointers to a drive (ide_drive_t *) or
- * pointers to a hwif (ide_hwif_t *), rather than indexing this
- * structure directly (the allocation/layout may change!).
- *
- */
-#ifndef _IDE_C
-extern	ide_hwif_t	ide_hwifs[];		/* master data repository */
-#endif
 
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
@@ -839,10 +830,6 @@ void ide_pad_transfer(ide_drive_t *, int, int);
 ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
 
 ide_startstop_t ide_error (ide_drive_t *drive, const char *msg, byte stat);
-
-ide_startstop_t __ide_abort(ide_drive_t *, struct request *);
-
-extern ide_startstop_t ide_abort(ide_drive_t *, const char *);
 
 extern void ide_fix_driveid(struct hd_driveid *);
 
@@ -1271,16 +1258,43 @@ static inline int ide_dev_is_sata(struct hd_driveid *id)
 u64 ide_get_lba_addr(struct ide_taskfile *, int);
 u8 ide_dump_status(ide_drive_t *, const char *, u8);
 
-typedef struct ide_pio_timings_s {
-	int	setup_time;	/* Address setup (ns) minimum */
-	int	active_time;	/* Active pulse (ns) minimum */
-	int	cycle_time;	/* Cycle time (ns) minimum = */
-				/* active + recovery (+ setup for some chips) */
-} ide_pio_timings_t;
+struct ide_timing {
+	u8  mode;
+	u8  setup;	/* t1 */
+	u16 act8b;	/* t2 for 8-bit io */
+	u16 rec8b;	/* t2i for 8-bit io */
+	u16 cyc8b;	/* t0 for 8-bit io */
+	u16 active;	/* t2 or tD */
+	u16 recover;	/* t2i or tK */
+	u16 cycle;	/* t0 */
+	u16 udma;	/* t2CYCTYP/2 */
+};
 
-unsigned int ide_pio_cycle_time(ide_drive_t *, u8);
+enum {
+	IDE_TIMING_SETUP	= (1 << 0),
+	IDE_TIMING_ACT8B	= (1 << 1),
+	IDE_TIMING_REC8B	= (1 << 2),
+	IDE_TIMING_CYC8B	= (1 << 3),
+	IDE_TIMING_8BIT		= IDE_TIMING_ACT8B | IDE_TIMING_REC8B |
+				  IDE_TIMING_CYC8B,
+	IDE_TIMING_ACTIVE	= (1 << 4),
+	IDE_TIMING_RECOVER	= (1 << 5),
+	IDE_TIMING_CYCLE	= (1 << 6),
+	IDE_TIMING_UDMA		= (1 << 7),
+	IDE_TIMING_ALL		= IDE_TIMING_SETUP | IDE_TIMING_8BIT |
+				  IDE_TIMING_ACTIVE | IDE_TIMING_RECOVER |
+				  IDE_TIMING_CYCLE | IDE_TIMING_UDMA,
+};
+
+struct ide_timing *ide_timing_find_mode(u8);
+u16 ide_pio_cycle_time(ide_drive_t *, u8);
+void ide_timing_merge(struct ide_timing *, struct ide_timing *,
+		      struct ide_timing *, unsigned int);
+int ide_timing_compute(ide_drive_t *, u8, struct ide_timing *, int, int);
+
+int ide_scan_pio_blacklist(char *);
+
 u8 ide_get_best_pio_mode(ide_drive_t *, u8, u8);
-extern const ide_pio_timings_t ide_pio_timings[6];
 
 int ide_set_pio_mode(ide_drive_t *, u8);
 int ide_set_dma_mode(ide_drive_t *, u8);

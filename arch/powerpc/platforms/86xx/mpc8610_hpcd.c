@@ -39,6 +39,8 @@
 #include <sysdev/fsl_pci.h>
 #include <sysdev/fsl_soc.h>
 
+#include "mpc86xx.h"
+
 static unsigned char *pixis_bdcfg0, *pixis_arch;
 
 static struct of_device_id __initdata mpc8610_ids[] = {
@@ -55,27 +57,6 @@ static int __init mpc8610_declare_of_platform_devices(void)
 	return 0;
 }
 machine_device_initcall(mpc86xx_hpcd, mpc8610_declare_of_platform_devices);
-
-static void __init mpc86xx_hpcd_init_irq(void)
-{
-	struct mpic *mpic1;
-	struct device_node *np;
-	struct resource res;
-
-	/* Determine PIC address. */
-	np = of_find_node_by_type(NULL, "open-pic");
-	if (np == NULL)
-		return;
-	of_address_to_resource(np, 0, &res);
-
-	/* Alloc mpic structure and per isu has 16 INT entries. */
-	mpic1 = mpic_alloc(np, res.start,
-			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
-			0, 256, " MPIC     ");
-	BUG_ON(mpic1 == NULL);
-
-	mpic_init(mpic1);
-}
 
 #ifdef CONFIG_PCI
 static void __devinit quirk_uli1575(struct pci_dev *dev)
@@ -404,7 +385,7 @@ define_machine(mpc86xx_hpcd) {
 	.name			= "MPC86xx HPCD",
 	.probe			= mpc86xx_hpcd_probe,
 	.setup_arch		= mpc86xx_hpcd_setup_arch,
-	.init_IRQ		= mpc86xx_hpcd_init_irq,
+	.init_IRQ		= mpc86xx_init_irq,
 	.get_irq		= mpic_get_irq,
 	.restart		= fsl_rstcr_restart,
 	.time_init		= mpc86xx_time_init,

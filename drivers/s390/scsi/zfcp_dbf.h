@@ -38,7 +38,7 @@ struct zfcp_rec_dbf_record_thread {
 	u32 total;
 	u32 ready;
 	u32 running;
-} __attribute__ ((packed));
+};
 
 struct zfcp_rec_dbf_record_target {
 	u64 ref;
@@ -47,7 +47,7 @@ struct zfcp_rec_dbf_record_target {
 	u64 wwpn;
 	u64 fcp_lun;
 	u32 erp_count;
-} __attribute__ ((packed));
+};
 
 struct zfcp_rec_dbf_record_trigger {
 	u8 want;
@@ -59,14 +59,14 @@ struct zfcp_rec_dbf_record_trigger {
 	u64 action;
 	u64 wwpn;
 	u64 fcp_lun;
-} __attribute__ ((packed));
+};
 
 struct zfcp_rec_dbf_record_action {
 	u32 status;
 	u32 step;
 	u64 action;
 	u64 fsf_req;
-} __attribute__ ((packed));
+};
 
 struct zfcp_rec_dbf_record {
 	u8 id;
@@ -77,7 +77,7 @@ struct zfcp_rec_dbf_record {
 		struct zfcp_rec_dbf_record_target target;
 		struct zfcp_rec_dbf_record_trigger trigger;
 	} u;
-} __attribute__ ((packed));
+};
 
 enum {
 	ZFCP_REC_DBF_ID_ACTION,
@@ -97,8 +97,8 @@ struct zfcp_hba_dbf_record_response {
 	u8 fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
 	u32 fsf_req_status;
 	u8 sbal_first;
-	u8 sbal_curr;
 	u8 sbal_last;
+	u8 sbal_response;
 	u8 pool;
 	u64 erp_action;
 	union {
@@ -139,9 +139,7 @@ struct zfcp_hba_dbf_record_status {
 } __attribute__ ((packed));
 
 struct zfcp_hba_dbf_record_qdio {
-	u32 status;
 	u32 qdio_error;
-	u32 siga_error;
 	u8 sbal_index;
 	u8 sbal_count;
 } __attribute__ ((packed));

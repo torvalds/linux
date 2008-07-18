@@ -273,13 +273,13 @@ static inline struct simple_children *to_simple_children(struct config_item *ite
 	return item ? container_of(to_config_group(item), struct simple_children, group) : NULL;
 }
 
-static struct config_item *simple_children_make_item(struct config_group *group, const char *name)
+static int simple_children_make_item(struct config_group *group, const char *name, struct config_item **new_item)
 {
 	struct simple_child *simple_child;
 
 	simple_child = kzalloc(sizeof(struct simple_child), GFP_KERNEL);
 	if (!simple_child)
-		return NULL;
+		return -ENOMEM;
 
 
 	config_item_init_type_name(&simple_child->item, name,
@@ -287,7 +287,8 @@ static struct config_item *simple_children_make_item(struct config_group *group,
 
 	simple_child->storeme = 0;
 
-	return &simple_child->item;
+	*new_item = &simple_child->item;
+	return 0;
 }
 
 static struct configfs_attribute simple_children_attr_description = {
@@ -359,20 +360,21 @@ static struct configfs_subsystem simple_children_subsys = {
  * children of its own.
  */
 
-static struct config_group *group_children_make_group(struct config_group *group, const char *name)
+static int group_children_make_group(struct config_group *group, const char *name, struct config_group **new_group)
 {
 	struct simple_children *simple_children;
 
 	simple_children = kzalloc(sizeof(struct simple_children),
 				  GFP_KERNEL);
 	if (!simple_children)
-		return NULL;
+		return -ENOMEM;
 
 
 	config_group_init_type_name(&simple_children->group, name,
 				    &simple_children_type);
 
-	return &simple_children->group;
+	*new_group = &simple_children->group;
+	return 0;
 }
 
 static struct configfs_attribute group_children_attr_description = {

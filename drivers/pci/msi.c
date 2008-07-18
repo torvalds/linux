@@ -70,12 +70,10 @@ arch_teardown_msi_irqs(struct pci_dev *dev)
 	}
 }
 
-static void msi_set_enable(struct pci_dev *dev, int enable)
+static void __msi_set_enable(struct pci_dev *dev, int pos, int enable)
 {
-	int pos;
 	u16 control;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	if (pos) {
 		pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
 		control &= ~PCI_MSI_FLAGS_ENABLE;
@@ -83,6 +81,11 @@ static void msi_set_enable(struct pci_dev *dev, int enable)
 			control |= PCI_MSI_FLAGS_ENABLE;
 		pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
 	}
+}
+
+static void msi_set_enable(struct pci_dev *dev, int enable)
+{
+	__msi_set_enable(dev, pci_find_capability(dev, PCI_CAP_ID_MSI), enable);
 }
 
 static void msix_set_enable(struct pci_dev *dev, int enable)
@@ -141,7 +144,8 @@ static void msi_set_mask_bits(unsigned int irq, u32 mask, u32 flag)
 			mask_bits |= flag & mask;
 			pci_write_config_dword(entry->dev, pos, mask_bits);
 		} else {
-			msi_set_enable(entry->dev, !flag);
+			__msi_set_enable(entry->dev, entry->msi_attrib.pos,
+					 !flag);
 		}
 		break;
 	case PCI_CAP_ID_MSIX:
@@ -561,9 +565,8 @@ int pci_enable_msi(struct pci_dev* dev)
 
 	/* Check whether driver already requested for MSI-X irqs */
 	if (dev->msix_enabled) {
-		printk(KERN_INFO "PCI: %s: Can't enable MSI.  "
-			"Device already has MSI-X enabled\n",
-			pci_name(dev));
+		dev_info(&dev->dev, "can't enable MSI "
+			 "(MSI-X already enabled)\n");
 		return -EINVAL;
 	}
 	status = msi_capability_init(dev);
@@ -686,9 +689,8 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 
 	/* Check whether driver already requested for MSI irq */
    	if (dev->msi_enabled) {
-		printk(KERN_INFO "PCI: %s: Can't enable MSI-X.  "
-		       "Device already has an MSI irq assigned\n",
-		       pci_name(dev));
+		dev_info(&dev->dev, "can't enable MSI-X "
+		       "(MSI IRQ already assigned)\n");
 		return -EINVAL;
 	}
 	status = msix_capability_init(dev, entries, nvec);

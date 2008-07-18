@@ -35,8 +35,6 @@
 #include <asm/processor.h>
 #endif
 
-#include "ide-timing.h"
-
 #define VIA_IDE_ENABLE		0x40
 #define VIA_IDE_CONFIG		0x41
 #define VIA_FIFO_CONFIG		0x43

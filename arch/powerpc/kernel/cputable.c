@@ -37,6 +37,7 @@ extern void __setup_cpu_440gx(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_440grx(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_440spe(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_460ex(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_460gt(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_603(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_604(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_750(unsigned long offset, struct cpu_spec* spec);
@@ -52,6 +53,8 @@ extern void __setup_cpu_ppc970MP(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_pa6t(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_pa6t(void);
 extern void __restore_cpu_ppc970(void);
+extern void __setup_cpu_power7(unsigned long offset, struct cpu_spec* spec);
+extern void __restore_cpu_power7(void);
 #endif /* CONFIG_PPC64 */
 
 /* This table only contains "desktop" CPUs, it need to be filled with embedded
@@ -67,7 +70,12 @@ extern void __restore_cpu_ppc970(void);
 				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP)
 #define COMMON_USER_POWER6	(COMMON_USER_PPC64 | PPC_FEATURE_ARCH_2_05 |\
 				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | \
-				 PPC_FEATURE_TRUE_LE)
+				 PPC_FEATURE_TRUE_LE | \
+				 PPC_FEATURE_PSERIES_PERFMON_COMPAT)
+#define COMMON_USER_POWER7	(COMMON_USER_PPC64 | PPC_FEATURE_ARCH_2_06 |\
+				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | \
+				 PPC_FEATURE_TRUE_LE | \
+				 PPC_FEATURE_PSERIES_PERFMON_COMPAT)
 #define COMMON_USER_PA6T	(COMMON_USER_PPC64 | PPC_FEATURE_PA6T |\
 				 PPC_FEATURE_TRUE_LE | \
 				 PPC_FEATURE_HAS_ALTIVEC_COMP)
@@ -379,6 +387,37 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.machine_check		= machine_check_generic,
 		.platform		= "power6",
+	},
+	{	/* 2.06-compliant processor, i.e. Power7 "architected" mode */
+		.pvr_mask		= 0xffffffff,
+		.pvr_value		= 0x0f000003,
+		.cpu_name		= "POWER7 (architected)",
+		.cpu_features		= CPU_FTRS_POWER7,
+		.cpu_user_features	= COMMON_USER_POWER7,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.machine_check		= machine_check_generic,
+		.platform		= "power7",
+	},
+	{	/* Power7 */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x003f0000,
+		.cpu_name		= "POWER7 (raw)",
+		.cpu_features		= CPU_FTRS_POWER7,
+		.cpu_user_features	= COMMON_USER_POWER7,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
+		.pmc_type		= PPC_PMC_IBM,
+		.cpu_setup		= __setup_cpu_power7,
+		.cpu_restore		= __restore_cpu_power7,
+		.oprofile_cpu_type	= "ppc64/power7",
+		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.oprofile_mmcra_sihv	= POWER6_MMCRA_SIHV,
+		.oprofile_mmcra_sipr	= POWER6_MMCRA_SIPR,
+		.oprofile_mmcra_clear	= POWER6_MMCRA_THRM |
+			POWER6_MMCRA_OTHER,
+		.platform		= "power7",
 	},
 	{	/* Cell Broadband Engine */
 		.pvr_mask		= 0xffff0000,
@@ -1410,6 +1449,16 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_440A,
 		.platform		= "ppc440",
 	},
+	{ /* 440 in Xilinx Virtex-5 FXT */
+		.pvr_mask		= 0xfffffff0,
+		.pvr_value		= 0x7ff21910,
+		.cpu_name		= "440 in Virtex-5 FXT",
+		.cpu_features		= CPU_FTRS_44X,
+		.cpu_user_features	= COMMON_USER_BOOKE,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.platform		= "ppc440",
+	},
 	{ /* 460EX */
 		.pvr_mask		= 0xffff0002,
 		.pvr_value		= 0x13020002,
@@ -1427,9 +1476,10 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_value		= 0x13020000,
 		.cpu_name		= "460GT",
 		.cpu_features		= CPU_FTRS_44X,
-		.cpu_user_features	= COMMON_USER_BOOKE,
+		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_460gt,
 		.machine_check		= machine_check_440A,
 		.platform		= "ppc440",
 	},
@@ -1491,7 +1541,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80200000,
 		.cpu_name		= "e500",
-		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
 		.cpu_features		= CPU_FTRS_E500,
 		.cpu_user_features	= COMMON_USER_BOOKE |
 			PPC_FEATURE_HAS_SPE_COMP |
@@ -1508,7 +1557,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80210000,
 		.cpu_name		= "e500v2",
-		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
 		.cpu_features		= CPU_FTRS_E500_2,
 		.cpu_user_features	= COMMON_USER_BOOKE |
 			PPC_FEATURE_HAS_SPE_COMP |
@@ -1521,6 +1569,20 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
 		.machine_check		= machine_check_e500,
 		.platform		= "ppc8548",
+	},
+	{	/* e500mc */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x80230000,
+		.cpu_name		= "e500mc",
+		.cpu_features		= CPU_FTRS_E500MC,
+		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
+		.icache_bsize		= 64,
+		.dcache_bsize		= 64,
+		.num_pmcs		= 4,
+		.oprofile_cpu_type	= "ppc/e500", /* xxx - galak, e500mc? */
+		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
+		.machine_check		= machine_check_e500,
+		.platform		= "ppce500mc",
 	},
 	{	/* default match */
 		.pvr_mask		= 0x00000000,
@@ -1586,39 +1648,4 @@ struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 		}
 	BUG();
 	return NULL;
-}
-
-void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
-{
-	struct fixup_entry {
-		unsigned long	mask;
-		unsigned long	value;
-		long		start_off;
-		long		end_off;
-	} *fcur, *fend;
-
-	fcur = fixup_start;
-	fend = fixup_end;
-
-	for (; fcur < fend; fcur++) {
-		unsigned int *pstart, *pend, *p;
-
-		if ((value & fcur->mask) == fcur->value)
-			continue;
-
-		/* These PTRRELOCs will disappear once the new scheme for
-		 * modules and vdso is implemented
-		 */
-		pstart = ((unsigned int *)fcur) + (fcur->start_off / 4);
-		pend = ((unsigned int *)fcur) + (fcur->end_off / 4);
-
-		for (p = pstart; p < pend; p++) {
-			*p = 0x60000000u;
-			asm volatile ("dcbst 0, %0" : : "r" (p));
-		}
-		asm volatile ("sync" : : : "memory");
-		for (p = pstart; p < pend; p++)
-			asm volatile ("icbi 0,%0" : : "r" (p));
-		asm volatile ("sync; isync" : : : "memory");
-	}
 }
