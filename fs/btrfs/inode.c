@@ -477,10 +477,8 @@ printk("queueing worker to fixup page %lu %Lu\n", inode->i_ino, page_offset(page
 	return -EAGAIN;
 }
 
-int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
-				struct extent_state *state, int uptodate)
+static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 {
-	struct inode *inode = page->mapping->host;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_ordered_extent *ordered_extent;
@@ -548,6 +546,12 @@ int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 	btrfs_update_inode(trans, root, inode);
 	btrfs_end_transaction(trans, root);
 	return 0;
+}
+
+int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
+				struct extent_state *state, int uptodate)
+{
+	return btrfs_finish_ordered_io(page->mapping->host, start, end);
 }
 
 int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
@@ -2663,8 +2667,8 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 		clear_extent_bit(tree, page_start, page_end,
 				 EXTENT_DIRTY | EXTENT_DELALLOC |
 				 EXTENT_LOCKED, 1, 0, GFP_NOFS);
-		btrfs_writepage_end_io_hook(page, page_start,
-					    page_end, NULL, 1);
+		btrfs_finish_ordered_io(page->mapping->host,
+					page_start, page_end);
 		btrfs_put_ordered_extent(ordered);
 		lock_extent(tree, page_start, page_end, GFP_NOFS);
 	}

@@ -2542,7 +2542,8 @@ int try_release_extent_state(struct extent_map_tree *map,
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	int ret = 1;
 
-	if (test_range_bit(tree, start, end, EXTENT_IOBITS, 0))
+	if (test_range_bit(tree, start, end,
+			   EXTENT_IOBITS | EXTENT_ORDERED, 0))
 		ret = 0;
 	else {
 		if ((mask & GFP_NOFS) == GFP_NOFS)
