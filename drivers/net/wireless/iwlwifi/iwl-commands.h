@@ -1993,7 +1993,7 @@ struct iwl4965_spectrum_notification {
  *****************************************************************************/
 
 /**
- * struct iwl4965_powertable_cmd - Power Table Command
+ * struct iwl_powertable_cmd - Power Table Command
  * @flags: See below:
  *
  * POWER_TABLE_CMD = 0x77 (command, has simple generic response)
@@ -2027,7 +2027,7 @@ struct iwl4965_spectrum_notification {
 #define IWL_POWER_PCI_PM_MSK			__constant_cpu_to_le16(1 << 3)
 #define IWL_POWER_FAST_PD			__constant_cpu_to_le16(1 << 4)
 
-struct iwl4965_powertable_cmd {
+struct iwl_powertable_cmd {
 	__le16 flags;
 	u8 keep_alive_seconds;
 	u8 debug_flags;

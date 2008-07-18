@@ -875,18 +875,6 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	return 0;
 }
 
-/* set card power command */
-static int iwl4965_set_power(struct iwl_priv *priv,
-		      void *cmd)
-{
-	int ret = 0;
-
-	ret = iwl_send_cmd_pdu_async(priv, POWER_TABLE_CMD,
-				    sizeof(struct iwl4965_powertable_cmd),
-				    cmd, NULL);
-	return ret;
-}
-
 static s32 iwl4965_math_div_round(s32 num, s32 denom, s32 *res)
 {
 	s32 sign = 1;
@@ -2440,7 +2428,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.check_version = iwl4965_eeprom_check_version,
 		.query_addr = iwlcore_eeprom_query_addr,
 	},
-	.set_power = iwl4965_set_power,
 	.send_tx_power	= iwl4965_send_tx_power,
 	.update_chain_flags = iwl4965_update_chain_flags,
 	.temperature = iwl4965_temperature_calib,

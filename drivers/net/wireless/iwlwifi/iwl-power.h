@@ -46,7 +46,7 @@ struct iwl_priv;
 /* Power management (not Tx power) structures */
 
 struct iwl_power_vec_entry {
-	struct iwl4965_powertable_cmd cmd;
+	struct iwl_powertable_cmd cmd;
 	u8 no_dtim;
 };
 

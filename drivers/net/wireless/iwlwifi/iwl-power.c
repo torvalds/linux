@@ -112,6 +112,13 @@ static struct iwl_power_vec_entry range_2[IWL_POWER_AC] = {
 	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(4, 7, 10, 10, 0xFF)}, 0}
 };
 
+/* set card power command */
+static int iwl_set_power(struct iwl_priv *priv, void *cmd)
+{
+	return iwl_send_cmd_pdu_async(priv, POWER_TABLE_CMD,
+				      sizeof(struct iwl_powertable_cmd),
+				      cmd, NULL);
+}
 /* decide the right power level according to association status
  * and battery status
  */
@@ -162,7 +169,7 @@ static int iwl_power_init_handle(struct iwl_priv *priv)
 	if (ret != 0)
 		return 0;
 	else {
-		struct iwl4965_powertable_cmd *cmd;
+		struct iwl_powertable_cmd *cmd;
 
 		IWL_DEBUG_POWER("adjust power command flags\n");
 
@@ -180,7 +187,7 @@ static int iwl_power_init_handle(struct iwl_priv *priv)
 
 /* adjust power command according to dtim period and power level*/
 static int iwl_update_power_command(struct iwl_priv *priv,
-				    struct iwl4965_powertable_cmd *cmd,
+				    struct iwl_powertable_cmd *cmd,
 				    u16 mode)
 {
 	int ret = 0, i;
@@ -204,7 +211,7 @@ static int iwl_update_power_command(struct iwl_priv *priv,
 		range = &pow_data->pwr_range_2[0];
 
 	period = pow_data->dtim_period;
-	memcpy(cmd, &range[mode].cmd, sizeof(struct iwl4965_powertable_cmd));
+	memcpy(cmd, &range[mode].cmd, sizeof(struct iwl_powertable_cmd));
 
 	if (period == 0) {
 		period = 1;
@@ -280,7 +287,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, u8 refresh)
 
 	if (!iwl_is_rfkill(priv) && !setting->power_disabled &&
 	    ((setting->power_mode != final_mode) || refresh)) {
-		struct iwl4965_powertable_cmd cmd;
+		struct iwl_powertable_cmd cmd;
 
 		if (final_mode != IWL_POWER_MODE_CAM)
 			set_bit(STATUS_POWER_PMI, &priv->status);
@@ -291,8 +298,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, u8 refresh)
 		if (final_mode == IWL_POWER_INDEX_5)
 			cmd.flags |= IWL_POWER_FAST_PD;
 
-		if (priv->cfg->ops->lib->set_power)
-			ret = priv->cfg->ops->lib->set_power(priv, &cmd);
+		ret = iwl_set_power(priv, &cmd);
 
 		if (final_mode == IWL_POWER_MODE_CAM)
 			clear_bit(STATUS_POWER_PMI, &priv->status);

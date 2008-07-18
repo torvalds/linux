@@ -283,7 +283,7 @@ struct iwl_cmd {
 		u32 val32;
 		struct iwl4965_bt_cmd bt;
 		struct iwl4965_rxon_time_cmd rxon_time;
-		struct iwl4965_powertable_cmd powertable;
+		struct iwl_powertable_cmd powertable;
 		struct iwl_qosparam_cmd qosparam;
 		struct iwl_tx_cmd tx;
 		struct iwl4965_tx_beacon_cmd tx_beacon;
@@ -590,6 +590,7 @@ extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					const u8 *dest, int left);
 extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
 int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
+extern int iwl4965_set_power(struct iwl_priv *priv, void *cmd);
 
 extern const u8 iwl_bcast_addr[ETH_ALEN];
 
