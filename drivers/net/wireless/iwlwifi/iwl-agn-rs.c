@@ -42,7 +42,7 @@
 #include "iwl-core.h"
 #include "iwl-helpers.h"
 
-#define RS_NAME "iwl-4965-rs"
+#define RS_NAME "iwl-agn-rs"
 
 #define NUM_TRY_BEFORE_ANT_TOGGLE 1
 #define IWL_NUMBER_TRY      1
@@ -77,9 +77,9 @@ static const u8 ant_toggle_lookup[] = {
 };
 
 /**
- * struct iwl4965_rate_scale_data -- tx success history for one rate
+ * struct iwl_rate_scale_data -- tx success history for one rate
  */
-struct iwl4965_rate_scale_data {
+struct iwl_rate_scale_data {
 	u64 data;		/* bitmap of successful frames */
 	s32 success_counter;	/* number of frames successful */
 	s32 success_ratio;	/* per-cent * 128  */
@@ -89,12 +89,12 @@ struct iwl4965_rate_scale_data {
 };
 
 /**
- * struct iwl4965_scale_tbl_info -- tx params and success history for all rates
+ * struct iwl_scale_tbl_info -- tx params and success history for all rates
  *
- * There are two of these in struct iwl4965_lq_sta,
+ * There are two of these in struct iwl_lq_sta,
  * one for "active", and one for "search".
  */
-struct iwl4965_scale_tbl_info {
+struct iwl_scale_tbl_info {
 	enum iwl_table_type lq_type;
 	u8 ant_type;
 	u8 is_SGI;	/* 1 = short guard interval */
@@ -103,10 +103,10 @@ struct iwl4965_scale_tbl_info {
 	u8 action;	/* change modulation; IWL_[LEGACY/SISO/MIMO]_SWITCH_* */
 	s32 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
 	u32 current_rate;  /* rate_n_flags, uCode API format */
-	struct iwl4965_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
+	struct iwl_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
 };
 
-struct iwl4965_traffic_load {
+struct iwl_traffic_load {
 	unsigned long time_stamp;	/* age of the oldest statistics */
 	u32 packet_count[TID_QUEUE_MAX_SIZE];   /* packet count in this time
 						 * slice */
@@ -118,11 +118,11 @@ struct iwl4965_traffic_load {
 };
 
 /**
- * struct iwl4965_lq_sta -- driver's rate scaling private structure
+ * struct iwl_lq_sta -- driver's rate scaling private structure
  *
  * Pointer to this gets passed back and forth between driver and mac80211.
  */
-struct iwl4965_lq_sta {
+struct iwl_lq_sta {
 	u8 active_tbl;		/* index of active table, range 0-1 */
 	u8 enable_counter;	/* indicates HT mode */
 	u8 stay_in_tbl;		/* 1: disallow, 0: allow search for new mode */
@@ -153,8 +153,8 @@ struct iwl4965_lq_sta {
 	u16 active_rate_basic;
 
 	struct iwl_link_quality_cmd lq;
-	struct iwl4965_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
-	struct iwl4965_traffic_load load[TID_MAX_LOAD_COUNT];
+	struct iwl_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
+	struct iwl_traffic_load load[TID_MAX_LOAD_COUNT];
 	u8 tx_agg_tid_en;
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
@@ -170,16 +170,15 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 				   struct ieee80211_hdr *hdr,
 				   struct sta_info *sta);
 static void rs_fill_link_cmd(const struct iwl_priv *priv,
-			     struct iwl4965_lq_sta *lq_sta,
-			     u32 rate_n_flags);
+			     struct iwl_lq_sta *lq_sta, u32 rate_n_flags);
 
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-static void rs_dbgfs_set_mcs(struct iwl4965_lq_sta *lq_sta,
-					u32 *rate_n_flags, int index);
+static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
+			     u32 *rate_n_flags, int index);
 #else
-static void rs_dbgfs_set_mcs(struct iwl4965_lq_sta *lq_sta,
-					u32 *rate_n_flags, int index)
+static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
+			     u32 *rate_n_flags, int index)
 {}
 #endif
 
@@ -234,7 +233,7 @@ static inline u8 rs_extract_rate(u32 rate_n_flags)
 	return (u8)(rate_n_flags & 0xFF);
 }
 
-static void rs_rate_scale_clear_window(struct iwl4965_rate_scale_data *window)
+static void rs_rate_scale_clear_window(struct iwl_rate_scale_data *window)
 {
 	window->data = 0;
 	window->success_counter = 0;
@@ -253,7 +252,7 @@ static inline u8 rs_is_valid_ant(u8 valid_antenna, u8 ant_type)
  *	removes the old data from the statistics. All data that is older than
  *	TID_MAX_TIME_DIFF, will be deleted.
  */
-static void rs_tl_rm_old_stats(struct iwl4965_traffic_load *tl, u32 curr_time)
+static void rs_tl_rm_old_stats(struct iwl_traffic_load *tl, u32 curr_time)
 {
 	/* The oldest age we want to keep */
 	u32 oldest_time = curr_time - TID_MAX_TIME_DIFF;
@@ -274,13 +273,13 @@ static void rs_tl_rm_old_stats(struct iwl4965_traffic_load *tl, u32 curr_time)
  *	increment traffic load value for tid and also remove
  *	any old values if passed the certain time period
  */
-static u8 rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
+static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 			   struct ieee80211_hdr *hdr)
 {
 	u32 curr_time = jiffies_to_msecs(jiffies);
 	u32 time_diff;
 	s32 index;
-	struct iwl4965_traffic_load *tl = NULL;
+	struct iwl_traffic_load *tl = NULL;
 	__le16 fc = hdr->frame_control;
 	u8 tid;
 
@@ -325,12 +324,12 @@ static u8 rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
 /*
 	get the traffic load value for tid
 */
-static u32 rs_tl_get_load(struct iwl4965_lq_sta *lq_data, u8 tid)
+static u32 rs_tl_get_load(struct iwl_lq_sta *lq_data, u8 tid)
 {
 	u32 curr_time = jiffies_to_msecs(jiffies);
 	u32 time_diff;
 	s32 index;
-	struct iwl4965_traffic_load *tl = NULL;
+	struct iwl_traffic_load *tl = NULL;
 
 	if (tid >= TID_MAX_LOAD_COUNT)
 		return 0;
@@ -354,8 +353,8 @@ static u32 rs_tl_get_load(struct iwl4965_lq_sta *lq_data, u8 tid)
 }
 
 static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
-				struct iwl4965_lq_sta *lq_data, u8 tid,
-				struct sta_info *sta)
+				      struct iwl_lq_sta *lq_data, u8 tid,
+				      struct sta_info *sta)
 {
 	unsigned long state;
 	DECLARE_MAC_BUF(mac);
@@ -373,8 +372,8 @@ static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 }
 
 static void rs_tl_turn_on_agg(struct iwl_priv *priv, u8 tid,
-				struct iwl4965_lq_sta *lq_data,
-				struct sta_info *sta)
+			      struct iwl_lq_sta *lq_data,
+			      struct sta_info *sta)
 {
 	if ((tid < TID_MAX_LOAD_COUNT))
 		rs_tl_turn_on_agg_for_tid(priv, lq_data, tid, sta);
@@ -397,11 +396,11 @@ static inline int get_num_of_ant_from_rate(u32 rate_n_flags)
  * at this rate.  window->data contains the bitmask of successful
  * packets.
  */
-static int rs_collect_tx_data(struct iwl4965_rate_scale_data *windows,
+static int rs_collect_tx_data(struct iwl_rate_scale_data *windows,
 			      int scale_index, s32 tpt, int retries,
 			      int successes)
 {
-	struct iwl4965_rate_scale_data *window = NULL;
+	struct iwl_rate_scale_data *window = NULL;
 	static const u64 mask = (((u64)1) << (IWL_RATE_MAX_WINDOW - 1));
 	s32 fail_count;
 
@@ -473,7 +472,7 @@ static int rs_collect_tx_data(struct iwl4965_rate_scale_data *windows,
  * Fill uCode API rate_n_flags field, based on "search" or "active" table.
  */
 /* FIXME:RS:remove this function and put the flags statically in the table */
-static u32 rate_n_flags_from_tbl(struct iwl4965_scale_tbl_info *tbl,
+static u32 rate_n_flags_from_tbl(struct iwl_scale_tbl_info *tbl,
 				       int index, u8 use_green)
 {
 	u32 rate_n_flags = 0;
@@ -530,7 +529,7 @@ static u32 rate_n_flags_from_tbl(struct iwl4965_scale_tbl_info *tbl,
  */
 static int rs_get_tbl_info_from_mcs(const u32 rate_n_flags,
 				    enum ieee80211_band band,
-				    struct iwl4965_scale_tbl_info *tbl,
+				    struct iwl_scale_tbl_info *tbl,
 				    int *rate_idx)
 {
 	u32 ant_msk = (rate_n_flags & RATE_MCS_ANT_ABC_MSK);
@@ -591,7 +590,7 @@ static int rs_get_tbl_info_from_mcs(const u32 rate_n_flags,
 /* switch to another antenna/antennas and return 1 */
 /* if no other valid antenna found, return 0 */
 static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
-			      struct iwl4965_scale_tbl_info *tbl)
+			     struct iwl_scale_tbl_info *tbl)
 {
 	u8 new_ant_type;
 
@@ -638,9 +637,9 @@ static inline u8 rs_use_green(struct iwl_priv *priv, struct ieee80211_conf *conf
  * basic available rates.
  *
  */
-static u16 rs_get_supported_rates(struct iwl4965_lq_sta *lq_sta,
-				   struct ieee80211_hdr *hdr,
-				   enum iwl_table_type rate_type)
+static u16 rs_get_supported_rates(struct iwl_lq_sta *lq_sta,
+				  struct ieee80211_hdr *hdr,
+				  enum iwl_table_type rate_type)
 {
 	if (hdr && is_multicast_ether_addr(hdr->addr1) &&
 	    lq_sta->active_rate_basic)
@@ -714,9 +713,9 @@ static u16 rs_get_adjacent_rate(struct iwl_priv *priv, u8 index, u16 rate_mask,
 	return (high << 8) | low;
 }
 
-static u32 rs_get_lower_rate(struct iwl4965_lq_sta *lq_sta,
-			     struct iwl4965_scale_tbl_info *tbl, u8 scale_index,
-			     u8 ht_possible)
+static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
+			     struct iwl_scale_tbl_info *tbl,
+			     u8 scale_index, u8 ht_possible)
 {
 	s32 low;
 	u16 rate_mask;
@@ -780,7 +779,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	int status;
 	u8 retries;
 	int rs_index, index = 0;
-	struct iwl4965_lq_sta *lq_sta;
+	struct iwl_lq_sta *lq_sta;
 	struct iwl_link_quality_cmd *table;
 	struct sta_info *sta;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -788,11 +787,11 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hw *hw = local_to_hw(local);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct iwl4965_rate_scale_data *window = NULL;
-	struct iwl4965_rate_scale_data *search_win = NULL;
+	struct iwl_rate_scale_data *window = NULL;
+	struct iwl_rate_scale_data *search_win = NULL;
 	u32 tx_rate;
-	struct iwl4965_scale_tbl_info tbl_type;
-	struct iwl4965_scale_tbl_info *curr_tbl, *search_tbl;
+	struct iwl_scale_tbl_info tbl_type;
+	struct iwl_scale_tbl_info *curr_tbl, *search_tbl;
 	u8 active_index = 0;
 	__le16 fc = hdr->frame_control;
 	s32 tpt = 0;
@@ -820,7 +819,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 		goto out;
 
 
-	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
+	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
 
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
 	    !lq_sta->ibss_sta_added)
@@ -831,10 +830,8 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 
 	curr_tbl = &(lq_sta->lq_info[active_index]);
 	search_tbl = &(lq_sta->lq_info[(1 - active_index)]);
-	window = (struct iwl4965_rate_scale_data *)
-	    &(curr_tbl->win[0]);
-	search_win = (struct iwl4965_rate_scale_data *)
-	    &(search_tbl->win[0]);
+	window = (struct iwl_rate_scale_data *)&(curr_tbl->win[0]);
+	search_win = (struct iwl_rate_scale_data *)&(search_tbl->win[0]);
 
 	/*
 	 * Ignore this Tx frame response if its initial rate doesn't match
@@ -983,7 +980,7 @@ out:
  * searching for a new mode.
  */
 static void rs_set_stay_in_table(struct iwl_priv *priv, u8 is_legacy,
-				 struct iwl4965_lq_sta *lq_sta)
+				 struct iwl_lq_sta *lq_sta)
 {
 	IWL_DEBUG_RATE("we are staying in the same table\n");
 	lq_sta->stay_in_tbl = 1;	/* only place this gets set */
@@ -1004,8 +1001,8 @@ static void rs_set_stay_in_table(struct iwl_priv *priv, u8 is_legacy,
 /*
  * Find correct throughput table for given mode of modulation
  */
-static void rs_set_expected_tpt_table(struct iwl4965_lq_sta *lq_sta,
-				      struct iwl4965_scale_tbl_info *tbl)
+static void rs_set_expected_tpt_table(struct iwl_lq_sta *lq_sta,
+				      struct iwl_scale_tbl_info *tbl)
 {
 	if (is_legacy(tbl->lq_type)) {
 		if (!is_a_band(tbl->lq_type))
@@ -1050,12 +1047,12 @@ static void rs_set_expected_tpt_table(struct iwl4965_lq_sta *lq_sta,
  * bit rate will typically need to increase, but not if performance was bad.
  */
 static s32 rs_get_best_rate(struct iwl_priv *priv,
-			    struct iwl4965_lq_sta *lq_sta,
-			    struct iwl4965_scale_tbl_info *tbl,	/* "search" */
+			    struct iwl_lq_sta *lq_sta,
+			    struct iwl_scale_tbl_info *tbl,	/* "search" */
 			    u16 rate_mask, s8 index)
 {
 	/* "active" values */
-	struct iwl4965_scale_tbl_info *active_tbl =
+	struct iwl_scale_tbl_info *active_tbl =
 	    &(lq_sta->lq_info[lq_sta->active_tbl]);
 	s32 active_sr = active_tbl->win[index].success_ratio;
 	s32 active_tpt = active_tbl->expected_tpt[index];
@@ -1143,10 +1140,10 @@ static s32 rs_get_best_rate(struct iwl_priv *priv,
  * Set up search table for MIMO
  */
 static int rs_switch_to_mimo2(struct iwl_priv *priv,
-			     struct iwl4965_lq_sta *lq_sta,
+			     struct iwl_lq_sta *lq_sta,
 			     struct ieee80211_conf *conf,
 			     struct sta_info *sta,
-			     struct iwl4965_scale_tbl_info *tbl, int index)
+			     struct iwl_scale_tbl_info *tbl, int index)
 {
 	u16 rate_mask;
 	s32 rate;
@@ -1210,10 +1207,10 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
  * Set up search table for SISO
  */
 static int rs_switch_to_siso(struct iwl_priv *priv,
-			     struct iwl4965_lq_sta *lq_sta,
+			     struct iwl_lq_sta *lq_sta,
 			     struct ieee80211_conf *conf,
 			     struct sta_info *sta,
-			     struct iwl4965_scale_tbl_info *tbl, int index)
+			     struct iwl_scale_tbl_info *tbl, int index)
 {
 	u16 rate_mask;
 	u8 is_green = lq_sta->is_green;
@@ -1270,18 +1267,17 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
  * Try to switch to new modulation mode from legacy
  */
 static int rs_move_legacy_other(struct iwl_priv *priv,
-				struct iwl4965_lq_sta *lq_sta,
+				struct iwl_lq_sta *lq_sta,
 				struct ieee80211_conf *conf,
 				struct sta_info *sta,
 				int index)
 {
-	struct iwl4965_scale_tbl_info *tbl =
-	    &(lq_sta->lq_info[lq_sta->active_tbl]);
-	struct iwl4965_scale_tbl_info *search_tbl =
-	    &(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
-	struct iwl4965_rate_scale_data *window = &(tbl->win[index]);
-	u32 sz = (sizeof(struct iwl4965_scale_tbl_info) -
-		  (sizeof(struct iwl4965_rate_scale_data) * IWL_RATE_COUNT));
+	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
+	struct iwl_scale_tbl_info *search_tbl =
+				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
+	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
+		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
 	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
 	int ret = 0;
@@ -1360,19 +1356,17 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
  * Try to switch to new modulation mode from SISO
  */
 static int rs_move_siso_to_other(struct iwl_priv *priv,
-				 struct iwl4965_lq_sta *lq_sta,
+				 struct iwl_lq_sta *lq_sta,
 				 struct ieee80211_conf *conf,
-				 struct sta_info *sta,
-				 int index)
+				 struct sta_info *sta, int index)
 {
 	u8 is_green = lq_sta->is_green;
-	struct iwl4965_scale_tbl_info *tbl =
-	    &(lq_sta->lq_info[lq_sta->active_tbl]);
-	struct iwl4965_scale_tbl_info *search_tbl =
-	    &(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
-	struct iwl4965_rate_scale_data *window = &(tbl->win[index]);
-	u32 sz = (sizeof(struct iwl4965_scale_tbl_info) -
-		  (sizeof(struct iwl4965_rate_scale_data) * IWL_RATE_COUNT));
+	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
+	struct iwl_scale_tbl_info *search_tbl =
+				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
+	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
+		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
 	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
 	int ret;
@@ -1455,18 +1449,16 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
  * Try to switch to new modulation mode from MIMO
  */
 static int rs_move_mimo_to_other(struct iwl_priv *priv,
-				 struct iwl4965_lq_sta *lq_sta,
+				 struct iwl_lq_sta *lq_sta,
 				 struct ieee80211_conf *conf,
-				 struct sta_info *sta,
-				 int index)
+				 struct sta_info *sta, int index)
 {
 	s8 is_green = lq_sta->is_green;
-	struct iwl4965_scale_tbl_info *tbl =
-	    &(lq_sta->lq_info[lq_sta->active_tbl]);
-	struct iwl4965_scale_tbl_info *search_tbl =
-	    &(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
-	u32 sz = (sizeof(struct iwl4965_scale_tbl_info) -
-		  (sizeof(struct iwl4965_rate_scale_data) * IWL_RATE_COUNT));
+	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
+	struct iwl_scale_tbl_info *search_tbl =
+				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
+	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
+		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
 	/*u8 valid_tx_ant = priv->hw_params.valid_tx_ant;*/
 	int ret;
@@ -1552,9 +1544,9 @@ static int rs_move_mimo_to_other(struct iwl_priv *priv,
  * 2) # times calling this function
  * 3) elapsed time in this mode (not used, for now)
  */
-static void rs_stay_in_table(struct iwl4965_lq_sta *lq_sta)
+static void rs_stay_in_table(struct iwl_lq_sta *lq_sta)
 {
-	struct iwl4965_scale_tbl_info *tbl;
+	struct iwl_scale_tbl_info *tbl;
 	int i;
 	int active_tbl;
 	int flush_interval_passed = 0;
@@ -1642,7 +1634,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	int high = IWL_RATE_INVALID;
 	int index;
 	int i;
-	struct iwl4965_rate_scale_data *window = NULL;
+	struct iwl_rate_scale_data *window = NULL;
 	int current_tpt = IWL_INVALID_VALUE;
 	int low_tpt = IWL_INVALID_VALUE;
 	int high_tpt = IWL_INVALID_VALUE;
@@ -1651,8 +1643,8 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	__le16 fc;
 	u16 rate_mask;
 	u8 update_lq = 0;
-	struct iwl4965_lq_sta *lq_sta;
-	struct iwl4965_scale_tbl_info *tbl, *tbl1;
+	struct iwl_lq_sta *lq_sta;
+	struct iwl_scale_tbl_info *tbl, *tbl1;
 	u16 rate_scale_index_msk = 0;
 	u32 rate;
 	u8 is_green = 0;
@@ -1675,7 +1667,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	if (!sta || !sta->rate_ctrl_priv)
 		return;
 
-	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
+	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
 
 	tid = rs_tl_add_packet(lq_sta, hdr);
 
@@ -2030,8 +2022,8 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 			     struct ieee80211_conf *conf,
 			     struct sta_info *sta)
 {
-	struct iwl4965_lq_sta *lq_sta;
-	struct iwl4965_scale_tbl_info *tbl;
+	struct iwl_lq_sta *lq_sta;
+	struct iwl_scale_tbl_info *tbl;
 	int rate_idx;
 	int i;
 	u32 rate;
@@ -2042,7 +2034,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	if (!sta || !sta->rate_ctrl_priv)
 		goto out;
 
-	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
+	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
 	i = sta->last_txrate_idx;
 
 	if ((lq_sta->lq.sta_id == 0xff) &&
@@ -2096,7 +2088,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	struct sta_info *sta;
 	__le16 fc;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
-	struct iwl4965_lq_sta *lq_sta;
+	struct iwl_lq_sta *lq_sta;
 
 	IWL_DEBUG_RATE_LIMIT("rate scale calculate new rate for skb\n");
 
@@ -2113,7 +2105,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 		goto out;
 	}
 
-	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
+	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
 	i = sta->last_txrate_idx;
 
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
@@ -2149,14 +2141,14 @@ out:
 
 static void *rs_alloc_sta(void *priv_rate, gfp_t gfp)
 {
-	struct iwl4965_lq_sta *lq_sta;
+	struct iwl_lq_sta *lq_sta;
 	struct iwl_priv *priv;
 	int i, j;
 
 	priv = (struct iwl_priv *)priv_rate;
 	IWL_DEBUG_RATE("create station rate scale window\n");
 
-	lq_sta = kzalloc(sizeof(struct iwl4965_lq_sta), gfp);
+	lq_sta = kzalloc(sizeof(struct iwl_lq_sta), gfp);
 
 	if (lq_sta == NULL)
 		return NULL;
@@ -2178,7 +2170,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	struct ieee80211_conf *conf = &local->hw.conf;
 	struct ieee80211_supported_band *sband;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
-	struct iwl4965_lq_sta *lq_sta = priv_sta;
+	struct iwl_lq_sta *lq_sta = priv_sta;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
@@ -2271,10 +2263,9 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 }
 
 static void rs_fill_link_cmd(const struct iwl_priv *priv,
-			     struct iwl4965_lq_sta *lq_sta,
-			     u32 new_rate)
+			     struct iwl_lq_sta *lq_sta, u32 new_rate)
 {
-	struct iwl4965_scale_tbl_info tbl_type;
+	struct iwl_scale_tbl_info tbl_type;
 	int index = 0;
 	int rate_idx;
 	int repeat_rate = 0;
@@ -2413,7 +2404,7 @@ static void rs_clear(void *priv_rate)
 
 static void rs_free_sta(void *priv_rate, void *priv_sta)
 {
-	struct iwl4965_lq_sta *lq_sta = priv_sta;
+	struct iwl_lq_sta *lq_sta = priv_sta;
 	struct iwl_priv *priv;
 
 	priv = (struct iwl_priv *)priv_rate;
@@ -2429,8 +2420,8 @@ static int open_file_generic(struct inode *inode, struct file *file)
 	file->private_data = inode->i_private;
 	return 0;
 }
-static void rs_dbgfs_set_mcs(struct iwl4965_lq_sta *lq_sta,
-				u32 *rate_n_flags, int index)
+static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
+			     u32 *rate_n_flags, int index)
 {
 	struct iwl_priv *priv;
 
@@ -2453,7 +2444,7 @@ static void rs_dbgfs_set_mcs(struct iwl4965_lq_sta *lq_sta,
 static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 			const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct iwl4965_lq_sta *lq_sta = file->private_data;
+	struct iwl_lq_sta *lq_sta = file->private_data;
 	struct iwl_priv *priv;
 	char buf[64];
 	int buf_size;
@@ -2493,7 +2484,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	int desc = 0;
 	int i = 0;
 
-	struct iwl4965_lq_sta *lq_sta = file->private_data;
+	struct iwl_lq_sta *lq_sta = file->private_data;
 
 	desc += sprintf(buff+desc, "sta_id %d\n", lq_sta->lq.sta_id);
 	desc += sprintf(buff+desc, "failed=%d success=%d rate=0%X\n",
@@ -2541,7 +2532,7 @@ static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
 	int desc = 0;
 	int i, j;
 
-	struct iwl4965_lq_sta *lq_sta = file->private_data;
+	struct iwl_lq_sta *lq_sta = file->private_data;
 	for (i = 0; i < LQ_SIZE; i++) {
 		desc += sprintf(buff+desc, "%s type=%d SGI=%d FAT=%d DUP=%d\n"
 				"rate=0x%X\n",
@@ -2570,7 +2561,7 @@ static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 static void rs_add_debugfs(void *priv, void *priv_sta,
 					struct dentry *dir)
 {
-	struct iwl4965_lq_sta *lq_sta = priv_sta;
+	struct iwl_lq_sta *lq_sta = priv_sta;
 	lq_sta->rs_sta_dbgfs_scale_table_file =
 		debugfs_create_file("rate_scale_table", 0600, dir,
 				lq_sta, &rs_sta_dbgfs_scale_table_ops);
@@ -2585,7 +2576,7 @@ static void rs_add_debugfs(void *priv, void *priv_sta,
 
 static void rs_remove_debugfs(void *priv, void *priv_sta)
 {
-	struct iwl4965_lq_sta *lq_sta = priv_sta;
+	struct iwl_lq_sta *lq_sta = priv_sta;
 	debugfs_remove(lq_sta->rs_sta_dbgfs_scale_table_file);
 	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
 	debugfs_remove(lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file);
@@ -2613,7 +2604,7 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct iwl_priv *priv = hw->priv;
-	struct iwl4965_lq_sta *lq_sta;
+	struct iwl_lq_sta *lq_sta;
 	struct sta_info *sta;
 	int cnt = 0, i;
 	u32 samples = 0, success = 0, good = 0;
@@ -2701,12 +2692,12 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 	return cnt;
 }
 
-int iwl4965_rate_control_register(void)
+int iwlagn_rate_control_register(void)
 {
 	return ieee80211_rate_control_register(&rs_ops);
 }
 
-void iwl4965_rate_control_unregister(void)
+void iwlagn_rate_control_unregister(void)
 {
 	ieee80211_rate_control_unregister(&rs_ops);
 }

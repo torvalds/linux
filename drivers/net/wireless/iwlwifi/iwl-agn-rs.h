@@ -24,8 +24,8 @@
  *
  *****************************************************************************/
 
-#ifndef __iwl_4965_rs_h__
-#define __iwl_4965_rs_h__
+#ifndef __iwl_agn_rs_h__
+#define __iwl_agn_rs_h__
 
 #include "iwl-dev.h"
 
@@ -88,7 +88,7 @@ enum {
 #define	IWL_RATE_5M_MASK   (1 << IWL_RATE_5M_INDEX)
 #define	IWL_RATE_11M_MASK  (1 << IWL_RATE_11M_INDEX)
 
-/* 4965 uCode API values for legacy bit rates, both OFDM and CCK */
+/* uCode API values for legacy bit rates, both OFDM and CCK */
 enum {
 	IWL_RATE_6M_PLCP  = 13,
 	IWL_RATE_9M_PLCP  = 15,
@@ -107,7 +107,7 @@ enum {
 	/*FIXME:RS:add IWL_RATE_LEGACY_INVM_PLCP = 0,*/
 };
 
-/* 4965 uCode API values for OFDM high-throughput (HT) bit rates */
+/* uCode API values for OFDM high-throughput (HT) bit rates */
 enum {
 	IWL_RATE_SISO_6M_PLCP = 0,
 	IWL_RATE_SISO_12M_PLCP = 1,
@@ -305,7 +305,7 @@ extern int iwl4965_fill_rs_info(struct ieee80211_hw *, char *buf, u8 sta_id);
  * ieee80211_register_hw
  *
  */
-extern int iwl4965_rate_control_register(void);
+extern int iwlagn_rate_control_register(void);
 
 /**
  * iwl4965_rate_control_unregister - Unregister the rate control callbacks
@@ -313,6 +313,6 @@ extern int iwl4965_rate_control_register(void);
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.
  */
-extern void iwl4965_rate_control_unregister(void);
+extern void iwlagn_rate_control_unregister(void);
 
-#endif
+#endif /* __iwl_agn__rs__ */

@@ -839,7 +839,7 @@ EXPORT_SYMBOL(iwl_send_lq_cmd);
  * for automatic fallback during transmission.
  *
  * NOTE: This sets up a default set of values.  These will be replaced later
- *       if the driver's iwl-4965-rs rate scaling algorithm is used, instead of
+ *       if the driver's iwl-agn-rs rate scaling algorithm is used, instead of
  *       rc80211_simple.
  *
  * NOTE: Run REPLY_ADD_STA command to set up station table entry, before

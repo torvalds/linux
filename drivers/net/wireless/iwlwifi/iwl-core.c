@@ -815,7 +815,7 @@ int iwl_setup_mac(struct iwl_priv *priv)
 {
 	int ret;
 	struct ieee80211_hw *hw = priv->hw;
-	hw->rate_control_algorithm = "iwl-4965-rs";
+	hw->rate_control_algorithm = "iwl-agn-rs";
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |

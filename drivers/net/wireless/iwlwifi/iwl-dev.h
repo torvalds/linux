@@ -45,6 +45,7 @@
 #include "iwl-debug.h"
 #include "iwl-led.h"
 #include "iwl-power.h"
+#include "iwl-agn-rs.h"
 
 /* configuration for the iwl4965 */
 extern struct iwl_cfg iwl4965_agn_cfg;
@@ -191,7 +192,6 @@ struct iwl4965_clip_group {
 	const s8 clip_powers[IWL_MAX_RATES];
 };
 
-#include "iwl-4965-rs.h"
 
 #define IWL_TX_FIFO_AC0	0
 #define IWL_TX_FIFO_AC1	1
