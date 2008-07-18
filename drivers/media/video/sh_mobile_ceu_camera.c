@@ -142,7 +142,7 @@ static void free_buffer(struct videobuf_queue *vq,
 {
 	struct soc_camera_device *icd = vq->priv_data;
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
 		&buf->vb, buf->vb.baddr, buf->vb.bsize);
 
 	if (in_interrupt())
@@ -179,7 +179,7 @@ static int sh_mobile_ceu_videobuf_prepare(struct videobuf_queue *vq,
 
 	buf = container_of(vb, struct sh_mobile_ceu_buffer, vb);
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	/* Added list head initialization on alloc */
@@ -232,7 +232,7 @@ static void sh_mobile_ceu_videobuf_queue(struct videobuf_queue *vq,
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	unsigned long flags;
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	vb->state = VIDEOBUF_ACTIVE;
