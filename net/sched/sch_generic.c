@@ -340,12 +340,19 @@ static struct Qdisc_ops noqueue_qdisc_ops __read_mostly = {
 	.owner		=	THIS_MODULE,
 };
 
+static struct Qdisc noqueue_qdisc;
+static struct netdev_queue noqueue_netdev_queue = {
+	.qdisc		=	&noqueue_qdisc,
+};
+
 static struct Qdisc noqueue_qdisc = {
 	.enqueue	=	NULL,
 	.dequeue	=	noop_dequeue,
 	.flags		=	TCQ_F_BUILTIN,
 	.ops		=	&noqueue_qdisc_ops,
 	.list		=	LIST_HEAD_INIT(noqueue_qdisc.list),
+	.q.lock		=	__SPIN_LOCK_UNLOCKED(noqueue_qdisc.q.lock),
+	.dev_queue	=	&noqueue_netdev_queue,
 };
 
 
