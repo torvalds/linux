@@ -224,6 +224,12 @@ struct tcp_options_received {
 	u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
 };
 
+/* This is the max number of SACKS that we'll generate and process. It's safe
+ * to increse this, although since:
+ *   size = TCPOLEN_SACK_BASE_ALIGNED (4) + n * TCPOLEN_SACK_PERBLOCK (8)
+ * only four options will fit in a standard TCP header */
+#define TCP_NUM_SACKS 4
+
 struct tcp_request_sock {
 	struct inet_request_sock 	req;
 #ifdef CONFIG_TCP_MD5SIG

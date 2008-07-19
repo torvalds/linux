@@ -1423,10 +1423,10 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 	unsigned char *ptr = (skb_transport_header(ack_skb) +
 			      TCP_SKB_CB(ack_skb)->sacked);
 	struct tcp_sack_block_wire *sp_wire = (struct tcp_sack_block_wire *)(ptr+2);
-	struct tcp_sack_block sp[4];
+	struct tcp_sack_block sp[TCP_NUM_SACKS];
 	struct tcp_sack_block *cache;
 	struct sk_buff *skb;
-	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE) >> 3;
+	int num_sacks = min(TCP_NUM_SACKS, (ptr[1] - TCPOLEN_SACK_BASE) >> 3);
 	int used_sacks;
 	int reord = tp->packets_out;
 	int flag = 0;
@@ -3735,8 +3735,7 @@ static void tcp_dsack_set(struct sock *sk, u32 seq, u32 end_seq)
 		tp->rx_opt.dsack = 1;
 		tp->duplicate_sack[0].start_seq = seq;
 		tp->duplicate_sack[0].end_seq = end_seq;
-		tp->rx_opt.eff_sacks = min(tp->rx_opt.num_sacks + 1,
-					   4 - tp->rx_opt.tstamp_ok);
+		tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks + 1;
 	}
 }
 
@@ -3791,9 +3790,8 @@ static void tcp_sack_maybe_coalesce(struct tcp_sock *tp)
 			 * Decrease num_sacks.
 			 */
 			tp->rx_opt.num_sacks--;
-			tp->rx_opt.eff_sacks = min(tp->rx_opt.num_sacks +
-						   tp->rx_opt.dsack,
-						   4 - tp->rx_opt.tstamp_ok);
+			tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks +
+					       tp->rx_opt.dsack;
 			for (i = this_sack; i < tp->rx_opt.num_sacks; i++)
 				sp[i] = sp[i + 1];
 			continue;
@@ -3843,7 +3841,7 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 	 *
 	 * If the sack array is full, forget about the last one.
 	 */
-	if (this_sack >= 4) {
+	if (this_sack >= TCP_NUM_SACKS) {
 		this_sack--;
 		tp->rx_opt.num_sacks--;
 		sp--;
@@ -3856,8 +3854,7 @@ new_sack:
 	sp->start_seq = seq;
 	sp->end_seq = end_seq;
 	tp->rx_opt.num_sacks++;
-	tp->rx_opt.eff_sacks = min(tp->rx_opt.num_sacks + tp->rx_opt.dsack,
-				   4 - tp->rx_opt.tstamp_ok);
+	tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks + tp->rx_opt.dsack;
 }
 
 /* RCV.NXT advances, some SACKs should be eaten. */
@@ -3894,9 +3891,8 @@ static void tcp_sack_remove(struct tcp_sock *tp)
 	}
 	if (num_sacks != tp->rx_opt.num_sacks) {
 		tp->rx_opt.num_sacks = num_sacks;
-		tp->rx_opt.eff_sacks = min(tp->rx_opt.num_sacks +
-					   tp->rx_opt.dsack,
-					   4 - tp->rx_opt.tstamp_ok);
+		tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks +
+				       tp->rx_opt.dsack;
 	}
 }
 
@@ -3975,8 +3971,7 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 
 	if (tp->rx_opt.dsack) {
 		tp->rx_opt.dsack = 0;
-		tp->rx_opt.eff_sacks = min_t(unsigned int, tp->rx_opt.num_sacks,
-					     4 - tp->rx_opt.tstamp_ok);
+		tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks;
 	}
 
 	/*  Queue data for delivery to the user.
