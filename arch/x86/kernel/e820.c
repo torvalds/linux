@@ -1367,24 +1367,3 @@ void __init setup_memory_map(void)
 	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
 	e820_print_map(who);
 }
-
-#ifdef CONFIG_X86_64
-int __init arch_get_ram_range(int slot, u64 *addr, u64 *size)
-{
-	int i;
-
-	if (slot < 0 || slot >= e820.nr_map)
-		return -1;
-	for (i = slot; i < e820.nr_map; i++) {
-		if (e820.map[i].type != E820_RAM)
-			continue;
-		break;
-	}
-	if (i == e820.nr_map || e820.map[i].addr > (max_pfn << PAGE_SHIFT))
-		return -1;
-	*addr = e820.map[i].addr;
-	*size = min_t(u64, e820.map[i].size + e820.map[i].addr,
-		max_pfn << PAGE_SHIFT) - *addr;
-	return i + 1;
-}
-#endif
