@@ -3184,6 +3184,10 @@ static void seg_desct_to_kvm_desct(struct desc_struct *seg_desc, u16 selector,
 	kvm_desct->base |= seg_desc->base2 << 24;
 	kvm_desct->limit = seg_desc->limit0;
 	kvm_desct->limit |= seg_desc->limit << 16;
+	if (seg_desc->g) {
+		kvm_desct->limit <<= 12;
+		kvm_desct->limit |= 0xfff;
+	}
 	kvm_desct->selector = selector;
 	kvm_desct->type = seg_desc->type;
 	kvm_desct->present = seg_desc->p;
