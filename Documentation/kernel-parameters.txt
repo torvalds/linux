@@ -2158,6 +2158,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			Note that genuine overcurrent events won't be
 			reported either.
 
+	unknown_nmi_panic
+			[X86-32,X86-64]
+			Set unknown_nmi_panic=1 early on boot.
+
 	usbcore.autosuspend=
 			[USB] The autosuspend time delay (in seconds) used
 			for newly-detected USB devices (default 2).  This
