@@ -75,16 +75,36 @@
  * CPU_MASK_NONE			Initializer - no bits set
  * unsigned long *cpus_addr(mask)	Array of unsigned long's in mask
  *
+ * CPUMASK_ALLOC kmalloc's a structure that is a composite of many cpumask_t
+ * variables, and CPUMASK_PTR provides pointers to each field.
+ *
+ * The structure should be defined something like this:
+ * struct my_cpumasks {
+ *	cpumask_t mask1;
+ *	cpumask_t mask2;
+ * };
+ *
+ * Usage is then:
+ *	CPUMASK_ALLOC(my_cpumasks);
+ *	CPUMASK_PTR(mask1, my_cpumasks);
+ *	CPUMASK_PTR(mask2, my_cpumasks);
+ *
+ *	--- DO NOT reference cpumask_t pointers until this check ---
+ *	if (my_cpumasks == NULL)
+ *		"kmalloc failed"...
+ *
+ * References are now pointers to the cpumask_t variables (*mask1, ...)
+ *
  *if NR_CPUS > BITS_PER_LONG
  *   CPUMASK_ALLOC(m)			Declares and allocates struct m *m =
- *					   (struct m *)kmalloc(sizeof(*m), ...)
- *   CPUMASK_FREE(m)			Macro for kfree(v)
+ *						kmalloc(sizeof(*m), GFP_KERNEL)
+ *   CPUMASK_FREE(m)			Macro for kfree(m)
  *else
  *   CPUMASK_ALLOC(m)			Declares struct m _m, *m = &_m
  *   CPUMASK_FREE(m)			Nop
  *endif
- *   CPUMASK_VAR(v, m)			Declares cpumask_t *v =
- *						m + offset(struct m, v)
+ *   CPUMASK_PTR(v, m)			Declares cpumask_t *v = &(m->v)
+ * ------------------------------------------------------------------------
  *
  * int cpumask_scnprintf(buf, len, mask) Format cpumask for printing
  * int cpumask_parse_user(ubuf, ulen, mask)	Parse ascii string as cpumask
@@ -326,11 +346,10 @@ extern cpumask_t cpu_mask_all;
 #define	CPUMASK_ALLOC(m)	struct m *m = kmalloc(sizeof(*m), GFP_KERNEL)
 #define	CPUMASK_FREE(m)		kfree(m)
 #else
-#define	CPUMASK_ALLOC(m)	struct allmasks _m, *m = &_m
+#define	CPUMASK_ALLOC(m)	struct m _m, *m = &_m
 #define	CPUMASK_FREE(m)
 #endif
-#define	CPUMASK_VAR(v, m) 	cpumask_t *v = (cpumask_t *)		\
-				((unsigned long)(m) + offsetof(struct m, v))
+#define	CPUMASK_PTR(v, m) 	cpumask_t *v = &(m->v)
 
 #define cpumask_scnprintf(buf, len, src) \
 			__cpumask_scnprintf((buf), (len), &(src), NR_CPUS)
