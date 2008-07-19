@@ -1892,8 +1892,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 		req = req->dl_next;
 		while (1) {
 			while (req) {
-				if (req->rsk_ops->family == st->family &&
-				    net_eq(sock_net(req->sk), net)) {
+				if (req->rsk_ops->family == st->family) {
 					cur = req;
 					goto out;
 				}
