@@ -45,6 +45,7 @@ struct sockaddr_ll
 #define PACKET_ORIGDEV			9
 #define PACKET_VERSION			10
 #define PACKET_HDRLEN			11
+#define PACKET_RESERVE			12
 
 struct tpacket_stats
 {

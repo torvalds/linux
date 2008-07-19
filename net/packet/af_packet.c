@@ -188,6 +188,7 @@ struct packet_sock {
 	unsigned int		pg_vec_len;
 	enum tpacket_versions	tp_version;
 	unsigned int		tp_hdrlen;
+	unsigned int		tp_reserve;
 #endif
 };
 
@@ -635,11 +636,13 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 		snaplen = res;
 
 	if (sk->sk_type == SOCK_DGRAM) {
-		macoff = netoff = TPACKET_ALIGN(po->tp_hdrlen) + 16;
+		macoff = netoff = TPACKET_ALIGN(po->tp_hdrlen) + 16 +
+				  po->tp_reserve;
 	} else {
 		unsigned maclen = skb_network_offset(skb);
 		netoff = TPACKET_ALIGN(po->tp_hdrlen +
-				       (maclen < 16 ? 16 : maclen));
+				       (maclen < 16 ? 16 : maclen)) +
+			po->tp_reserve;
 		macoff = netoff - maclen;
 	}
 
@@ -1448,6 +1451,19 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 			return -EINVAL;
 		}
 	}
+	case PACKET_RESERVE:
+	{
+		unsigned int val;
+
+		if (optlen != sizeof(val))
+			return -EINVAL;
+		if (po->pg_vec)
+			return -EBUSY;
+		if (copy_from_user(&val, optval, sizeof(val)))
+			return -EFAULT;
+		po->tp_reserve = val;
+		return 0;
+	}
 #endif
 	case PACKET_AUXDATA:
 	{
@@ -1545,6 +1561,12 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		default:
 			return -EINVAL;
 		}
+		data = &val;
+		break;
+	case PACKET_RESERVE:
+		if (len > sizeof(unsigned int))
+			len = sizeof(unsigned int);
+		val = po->tp_reserve;
 		data = &val;
 		break;
 #endif
@@ -1790,7 +1812,8 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 			return -EINVAL;
 		if (unlikely(req->tp_block_size & (PAGE_SIZE - 1)))
 			return -EINVAL;
-		if (unlikely(req->tp_frame_size < po->tp_hdrlen))
+		if (unlikely(req->tp_frame_size < po->tp_hdrlen +
+						  po->tp_reserve))
 			return -EINVAL;
 		if (unlikely(req->tp_frame_size & (TPACKET_ALIGNMENT - 1)))
 			return -EINVAL;
