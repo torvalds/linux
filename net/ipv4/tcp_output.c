@@ -540,8 +540,10 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	 * room for it.
 	 */
 	md5 = tp->af_specific->md5_lookup(sk, sk);
-	if (md5)
+	if (md5) {
 		tcp_header_size += TCPOLEN_MD5SIG_ALIGNED;
+		sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
+	}
 #endif
 
 	skb_push(skb, tcp_header_size);
@@ -602,10 +604,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	/* Calculate the MD5 hash, as we have all we need now */
 	if (md5) {
 		tp->af_specific->calc_md5_hash(md5_hash_location,
-					       md5,
-					       sk, NULL, NULL,
-					       tcp_hdr(skb),
-					       skb->len);
+					       md5, sk, NULL, skb);
 	}
 #endif
 
@@ -2264,10 +2263,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	/* Okay, we have all we need - do the md5 hash if needed */
 	if (md5) {
 		tp->af_specific->calc_md5_hash(md5_hash_location,
-					       md5,
-					       NULL, dst, req,
-					       tcp_hdr(skb),
-					       skb->len);
+					       md5, NULL, req, skb);
 	}
 #endif
 
