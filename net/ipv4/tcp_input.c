@@ -602,7 +602,7 @@ static u32 tcp_rto_min(struct sock *sk)
 	u32 rto_min = TCP_RTO_MIN;
 
 	if (dst && dst_metric_locked(dst, RTAX_RTO_MIN))
-		rto_min = dst_metric(dst, RTAX_RTO_MIN);
+		rto_min = dst_metric_rtt(dst, RTAX_RTO_MIN);
 	return rto_min;
 }
 
@@ -729,6 +729,7 @@ void tcp_update_metrics(struct sock *sk)
 	if (dst && (dst->flags & DST_HOST)) {
 		const struct inet_connection_sock *icsk = inet_csk(sk);
 		int m;
+		unsigned long rtt;
 
 		if (icsk->icsk_backoff || !tp->srtt) {
 			/* This session failed to estimate rtt. Why?
@@ -740,7 +741,8 @@ void tcp_update_metrics(struct sock *sk)
 			return;
 		}
 
-		m = dst_metric(dst, RTAX_RTT) - tp->srtt;
+		rtt = dst_metric_rtt(dst, RTAX_RTT);
+		m = rtt - tp->srtt;
 
 		/* If newly calculated rtt larger than stored one,
 		 * store new one. Otherwise, use EWMA. Remember,
@@ -748,12 +750,13 @@ void tcp_update_metrics(struct sock *sk)
 		 */
 		if (!(dst_metric_locked(dst, RTAX_RTT))) {
 			if (m <= 0)
-				dst->metrics[RTAX_RTT - 1] = tp->srtt;
+				set_dst_metric_rtt(dst, RTAX_RTT, tp->srtt);
 			else
-				dst->metrics[RTAX_RTT - 1] -= (m >> 3);
+				set_dst_metric_rtt(dst, RTAX_RTT, rtt - (m >> 3));
 		}
 
 		if (!(dst_metric_locked(dst, RTAX_RTTVAR))) {
+			unsigned long var;
 			if (m < 0)
 				m = -m;
 
@@ -762,11 +765,13 @@ void tcp_update_metrics(struct sock *sk)
 			if (m < tp->mdev)
 				m = tp->mdev;
 
-			if (m >= dst_metric(dst, RTAX_RTTVAR))
-				dst->metrics[RTAX_RTTVAR - 1] = m;
+			var = dst_metric_rtt(dst, RTAX_RTTVAR);
+			if (m >= var)
+				var = m;
 			else
-				dst->metrics[RTAX_RTTVAR-1] -=
-					(dst_metric(dst, RTAX_RTTVAR) - m)>>2;
+				var -= (var - m) >> 2;
+
+			set_dst_metric_rtt(dst, RTAX_RTTVAR, var);
 		}
 
 		if (tp->snd_ssthresh >= 0xFFFF) {
@@ -897,7 +902,7 @@ static void tcp_init_metrics(struct sock *sk)
 	if (dst_metric(dst, RTAX_RTT) == 0)
 		goto reset;
 
-	if (!tp->srtt && dst_metric(dst, RTAX_RTT) < (TCP_TIMEOUT_INIT << 3))
+	if (!tp->srtt && dst_metric_rtt(dst, RTAX_RTT) < (TCP_TIMEOUT_INIT << 3))
 		goto reset;
 
 	/* Initial rtt is determined from SYN,SYN-ACK.
@@ -914,12 +919,12 @@ static void tcp_init_metrics(struct sock *sk)
 	 * to low value, and then abruptly stops to do it and starts to delay
 	 * ACKs, wait for troubles.
 	 */
-	if (dst_metric(dst, RTAX_RTT) > tp->srtt) {
-		tp->srtt = dst_metric(dst, RTAX_RTT);
+	if (dst_metric_rtt(dst, RTAX_RTT) > tp->srtt) {
+		tp->srtt = dst_metric_rtt(dst, RTAX_RTT);
 		tp->rtt_seq = tp->snd_nxt;
 	}
-	if (dst_metric(dst, RTAX_RTTVAR) > tp->mdev) {
-		tp->mdev = dst_metric(dst, RTAX_RTTVAR);
+	if (dst_metric_rtt(dst, RTAX_RTTVAR) > tp->mdev) {
+		tp->mdev = dst_metric_rtt(dst, RTAX_RTTVAR);
 		tp->mdev_max = tp->rttvar = max(tp->mdev, tcp_rto_min(sk));
 	}
 	tcp_set_rto(sk);
