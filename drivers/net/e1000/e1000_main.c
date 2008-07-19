@@ -1472,6 +1472,8 @@ e1000_open(struct net_device *netdev)
 
 	e1000_irq_enable(adapter);
 
+	netif_start_queue(netdev);
+
 	/* fire a link status change interrupt to start the watchdog */
 	E1000_WRITE_REG(&adapter->hw, ICS, E1000_ICS_LSC);
 
