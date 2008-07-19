@@ -160,7 +160,7 @@ static void *c_start(struct seq_file *m, loff_t *pos)
 {
 	if (*pos == 0)	/* just in case, cpu 0 is not the first */
 		*pos = first_cpu(cpu_online_map);
-	if ((*pos) < NR_CPUS && cpu_online(*pos))
+	if ((*pos) < nr_cpu_ids && cpu_online(*pos))
 		return &cpu_data(*pos);
 	return NULL;
 }
