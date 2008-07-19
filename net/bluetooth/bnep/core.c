@@ -503,6 +503,11 @@ static int bnep_session(void *arg)
 	/* Delete network device */
 	unregister_netdev(dev);
 
+	/* Wakeup user-space polling for socket errors */
+	s->sock->sk->sk_err = EUNATCH;
+
+	wake_up_interruptible(s->sock->sk->sk_sleep);
+
 	/* Release the socket */
 	fput(s->sock->file);
 
