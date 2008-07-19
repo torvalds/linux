@@ -6509,6 +6509,9 @@ struct l2_fhdr {
 #define RX_CID		0
 #define RX_RSS_CID	4
 #define RX_MAX_RSS_RINGS	7
+#define RX_MAX_RINGS		(RX_MAX_RSS_RINGS + 1)
+#define TX_MAX_TSS_RINGS	7
+#define TX_MAX_RINGS		(TX_MAX_TSS_RINGS + 1)
 
 #define MB_TX_CID_ADDR	MB_GET_CID_ADDR(TX_CID)
 #define MB_RX_CID_ADDR	MB_GET_CID_ADDR(RX_CID)
