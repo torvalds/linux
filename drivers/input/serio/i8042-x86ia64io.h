@@ -70,6 +70,15 @@ static inline void i8042_write_command(int val)
 static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 	{
 		/* AUX LOOP command does not raise AUX IRQ */
+		.ident = "Arima-Rioworks HDAMB",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "RIOWORKS"),
+			DMI_MATCH(DMI_BOARD_NAME, "HDAMB"),
+			DMI_MATCH(DMI_BOARD_VERSION, "Rev E"),
+		},
+	},
+	{
+		/* AUX LOOP command does not raise AUX IRQ */
 		.ident = "ASUS P65UP5",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
