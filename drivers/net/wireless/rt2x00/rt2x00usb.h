@@ -71,7 +71,6 @@
  * Cache size
  */
 #define CSR_CACHE_SIZE			64
-#define CSR_CACHE_SIZE_FIRMWARE		64
 
 /*
  * USB request types.
