@@ -3663,11 +3663,21 @@ static int ieee80211_sta_find_ibss(struct net_device *dev,
 		       "%s\n", print_mac(mac, bssid),
 		       print_mac(mac2, ifsta->bssid));
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
-	if (found && memcmp(ifsta->bssid, bssid, ETH_ALEN) != 0 &&
-	    (bss = ieee80211_rx_bss_get(dev, bssid,
-					local->hw.conf.channel->center_freq,
-					ifsta->ssid, ifsta->ssid_len))) {
+
+	if (found && memcmp(ifsta->bssid, bssid, ETH_ALEN) != 0) {
 		int ret;
+		int search_freq;
+
+		if (ifsta->flags & IEEE80211_STA_AUTO_CHANNEL_SEL)
+			search_freq = bss->freq;
+		else
+			search_freq = local->hw.conf.channel->center_freq;
+
+		bss = ieee80211_rx_bss_get(dev, bssid, search_freq,
+					   ifsta->ssid, ifsta->ssid_len);
+		if (!bss)
+			goto dont_join;
+
 		printk(KERN_DEBUG "%s: Selected IBSS BSSID %s"
 		       " based on configured SSID\n",
 		       dev->name, print_mac(mac, bssid));
@@ -3675,6 +3685,8 @@ static int ieee80211_sta_find_ibss(struct net_device *dev,
 		ieee80211_rx_bss_put(local, bss);
 		return ret;
 	}
+
+dont_join:
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "   did not try to join ibss\n");
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
