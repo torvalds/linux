@@ -1,5 +1,5 @@
 /*
- *  SGI O2 Volume Button interface driver
+ *  SGI Volume Button interface driver
  *
  *  Copyright (C) 2008  Thomas Bogendoerfer <tsbogend@alpha.franken.de>
  *
@@ -23,35 +23,57 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
+#ifdef CONFIG_SGI_IP22
+#include <asm/sgi/ioc.h>
+
+static inline u8 button_status(void)
+{
+	u8 status;
+
+	status = readb(&sgioc->panel) ^ 0xa0;
+	return ((status & 0x80) >> 6) | ((status & 0x20) >> 5);
+}
+#endif
+
+#ifdef CONFIG_SGI_IP32
 #include <asm/ip32/mace.h>
+
+static inline u8 button_status(void)
+{
+	u64 status;
+
+	status = readq(&mace->perif.audio.control);
+	writeq(status & ~(3U << 23), &mace->perif.audio.control);
+
+	return (status >> 23) & 3;
+}
+#endif
 
 #define BUTTONS_POLL_INTERVAL	30	/* msec */
 #define BUTTONS_COUNT_THRESHOLD	3
 
-static const unsigned short sgio2_map[] = {
-	KEY_VOLUMEUP,
-	KEY_VOLUMEDOWN
+static const unsigned short sgi_map[] = {
+	KEY_VOLUMEDOWN,
+	KEY_VOLUMEUP
 };
 
 struct buttons_dev {
 	struct input_polled_dev *poll_dev;
-	unsigned short keymap[ARRAY_SIZE(sgio2_map)];
-	int count[ARRAY_SIZE(sgio2_map)];
-	void __iomem *reg;
+	unsigned short keymap[ARRAY_SIZE(sgi_map)];
+	int count[ARRAY_SIZE(sgi_map)];
 };
 
 static void handle_buttons(struct input_polled_dev *dev)
 {
 	struct buttons_dev *bdev = dev->private;
 	struct input_dev *input = dev->input;
-	u64 status;
+	u8 status;
 	int i;
 
-	status = (readq(&mace->perif.audio.control) >> 23) & 3;
+	status = button_status();
 
 	for (i = 0; i < ARRAY_SIZE(bdev->keymap); i++) {
 		if (status & (1U << i)) {
-			writeq(status & ~(1U << i), &mace->perif.audio.control);
 			if (++bdev->count[i] == BUTTONS_COUNT_THRESHOLD) {
 				input_event(input, EV_MSC, MSC_SCAN, i);
 				input_report_key(input, bdev->keymap[i], 1);
@@ -68,7 +90,7 @@ static void handle_buttons(struct input_polled_dev *dev)
 	}
 }
 
-static int __devinit sgio2_buttons_probe(struct platform_device *pdev)
+static int __devinit sgi_buttons_probe(struct platform_device *pdev)
 {
 	struct buttons_dev *bdev;
 	struct input_polled_dev *poll_dev;
@@ -82,15 +104,15 @@ static int __devinit sgio2_buttons_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
-	memcpy(bdev->keymap, sgio2_map, sizeof(bdev->keymap));
+	memcpy(bdev->keymap, sgi_map, sizeof(bdev->keymap));
 
 	poll_dev->private = bdev;
 	poll_dev->poll = handle_buttons;
 	poll_dev->poll_interval = BUTTONS_POLL_INTERVAL;
 
 	input = poll_dev->input;
-	input->name = "SGI O2 buttons";
-	input->phys = "sgio2/input0";
+	input->name = "SGI buttons";
+	input->phys = "sgi/input0";
 	input->id.bustype = BUS_HOST;
 	input->dev.parent = &pdev->dev;
 
@@ -100,7 +122,7 @@ static int __devinit sgio2_buttons_probe(struct platform_device *pdev)
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
 	__set_bit(EV_KEY, input->evbit);
-	for (i = 0; i < ARRAY_SIZE(sgio2_map); i++)
+	for (i = 0; i < ARRAY_SIZE(sgi_map); i++)
 		__set_bit(bdev->keymap[i], input->keybit);
 	__clear_bit(KEY_RESERVED, input->keybit);
 
@@ -120,7 +142,7 @@ static int __devinit sgio2_buttons_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int __devexit sgio2_buttons_remove(struct platform_device *pdev)
+static int __devexit sgi_buttons_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct buttons_dev *bdev = dev_get_drvdata(dev);
@@ -133,24 +155,24 @@ static int __devexit sgio2_buttons_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver sgio2_buttons_driver = {
-	.probe	= sgio2_buttons_probe,
-	.remove	= __devexit_p(sgio2_buttons_remove),
+static struct platform_driver sgi_buttons_driver = {
+	.probe	= sgi_buttons_probe,
+	.remove	= __devexit_p(sgi_buttons_remove),
 	.driver	= {
-		.name	= "sgio2btns",
+		.name	= "sgibtns",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init sgio2_buttons_init(void)
+static int __init sgi_buttons_init(void)
 {
-	return platform_driver_register(&sgio2_buttons_driver);
+	return platform_driver_register(&sgi_buttons_driver);
 }
 
-static void __exit sgio2_buttons_exit(void)
+static void __exit sgi_buttons_exit(void)
 {
-	platform_driver_unregister(&sgio2_buttons_driver);
+	platform_driver_unregister(&sgi_buttons_driver);
 }
 
-module_init(sgio2_buttons_init);
-module_exit(sgio2_buttons_exit);
+module_init(sgi_buttons_init);
+module_exit(sgi_buttons_exit);
