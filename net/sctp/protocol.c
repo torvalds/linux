@@ -64,8 +64,11 @@
 
 /* Global data structures. */
 struct sctp_globals sctp_globals __read_mostly;
-struct proc_dir_entry	*proc_net_sctp;
 DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics) __read_mostly;
+
+#ifdef CONFIG_PROC_FS
+struct proc_dir_entry	*proc_net_sctp;
+#endif
 
 struct idr sctp_assocs_id;
 DEFINE_SPINLOCK(sctp_assocs_id_lock);
@@ -97,6 +100,7 @@ struct sock *sctp_get_ctl_sock(void)
 /* Set up the proc fs entry for the SCTP protocol. */
 static __init int sctp_proc_init(void)
 {
+#ifdef CONFIG_PROC_FS
 	if (!proc_net_sctp) {
 		struct proc_dir_entry *ent;
 		ent = proc_mkdir("sctp", init_net.proc_net);
@@ -131,6 +135,9 @@ out_snmp_proc_init:
 	}
 out_nomem:
 	return -ENOMEM;
+#else
+	return 0;
+#endif /* CONFIG_PROC_FS */
 }
 
 /* Clean up the proc fs entry for the SCTP protocol.
@@ -139,6 +146,7 @@ out_nomem:
  */
 static void sctp_proc_exit(void)
 {
+#ifdef CONFIG_PROC_FS
 	sctp_snmp_proc_exit();
 	sctp_eps_proc_exit();
 	sctp_assocs_proc_exit();
@@ -148,6 +156,7 @@ static void sctp_proc_exit(void)
 		proc_net_sctp = NULL;
 		remove_proc_entry("sctp", init_net.proc_net);
 	}
+#endif
 }
 
 /* Private helper to extract ipv4 address and stash them in
