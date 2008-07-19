@@ -185,11 +185,20 @@ EXPORT_SYMBOL(unregister_qdisc);
 
 struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 {
-	struct Qdisc *q;
+	unsigned int i;
 
-	list_for_each_entry(q, &dev->qdisc_list, list) {
-		if (q->handle == handle)
-			return q;
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+		struct Qdisc *q, *txq_root = txq->qdisc;
+
+		if (!(txq_root->flags & TCQ_F_BUILTIN) &&
+		    txq_root->handle == handle)
+			return txq_root;
+
+		list_for_each_entry(q, &txq_root->list, list) {
+			if (q->handle == handle)
+				return q;
+		}
 	}
 	return NULL;
 }
@@ -676,9 +685,8 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				goto err_out3;
 			}
 		}
-		spin_lock_bh(&dev->qdisc_list_lock);
-		list_add_tail(&sch->list, &dev->qdisc_list);
-		spin_unlock_bh(&dev->qdisc_list_lock);
+		if (parent)
+			list_add_tail(&sch->list, &dev_queue->qdisc->list);
 
 		return sch;
 	}
@@ -1037,13 +1045,57 @@ err_out:
 	return -EINVAL;
 }
 
+static bool tc_qdisc_dump_ignore(struct Qdisc *q)
+{
+	return (q->flags & TCQ_F_BUILTIN) ? true : false;
+}
+
+static int tc_dump_qdisc_root(struct Qdisc *root, struct sk_buff *skb,
+			      struct netlink_callback *cb,
+			      int *q_idx_p, int s_q_idx)
+{
+	int ret = 0, q_idx = *q_idx_p;
+	struct Qdisc *q;
+
+	if (!root)
+		return 0;
+
+	q = root;
+	if (q_idx < s_q_idx) {
+		q_idx++;
+	} else {
+		if (!tc_qdisc_dump_ignore(q) &&
+		    tc_fill_qdisc(skb, q, q->parent, NETLINK_CB(cb->skb).pid,
+				  cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWQDISC) <= 0)
+			goto done;
+		q_idx++;
+	}
+	list_for_each_entry(q, &root->list, list) {
+		if (q_idx < s_q_idx) {
+			q_idx++;
+			continue;
+		}
+		if (!tc_qdisc_dump_ignore(q) && 
+		    tc_fill_qdisc(skb, q, q->parent, NETLINK_CB(cb->skb).pid,
+				  cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWQDISC) <= 0)
+			goto done;
+		q_idx++;
+	}
+
+out:
+	*q_idx_p = q_idx;
+	return ret;
+done:
+	ret = -1;
+	goto out;
+}
+
 static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
 	int idx, q_idx;
 	int s_idx, s_q_idx;
 	struct net_device *dev;
-	struct Qdisc *q;
 
 	if (net != &init_net)
 		return 0;
@@ -1053,21 +1105,22 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	read_lock(&dev_base_lock);
 	idx = 0;
 	for_each_netdev(&init_net, dev) {
+		struct netdev_queue *dev_queue;
+
 		if (idx < s_idx)
 			goto cont;
 		if (idx > s_idx)
 			s_q_idx = 0;
 		q_idx = 0;
-		list_for_each_entry(q, &dev->qdisc_list, list) {
-			if (q_idx < s_q_idx) {
-				q_idx++;
-				continue;
-			}
-			if (tc_fill_qdisc(skb, q, q->parent, NETLINK_CB(cb->skb).pid,
-					  cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWQDISC) <= 0)
-				goto done;
-			q_idx++;
-		}
+
+		dev_queue = netdev_get_tx_queue(dev, 0);
+		if (tc_dump_qdisc_root(dev_queue->qdisc, skb, cb, &q_idx, s_q_idx) < 0)
+			goto done;
+
+		dev_queue = &dev->rx_queue;
+		if (tc_dump_qdisc_root(dev_queue->qdisc, skb, cb, &q_idx, s_q_idx) < 0)
+			goto done;
+
 cont:
 		idx++;
 	}
@@ -1285,15 +1338,62 @@ static int qdisc_class_dump(struct Qdisc *q, unsigned long cl, struct qdisc_walk
 			      a->cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWTCLASS);
 }
 
+static int tc_dump_tclass_qdisc(struct Qdisc *q, struct sk_buff *skb,
+				struct tcmsg *tcm, struct netlink_callback *cb,
+				int *t_p, int s_t)
+{
+	struct qdisc_dump_args arg;
+
+	if (tc_qdisc_dump_ignore(q) ||
+	    *t_p < s_t || !q->ops->cl_ops ||
+	    (tcm->tcm_parent &&
+	     TC_H_MAJ(tcm->tcm_parent) != q->handle)) {
+		(*t_p)++;
+		return 0;
+	}
+	if (*t_p > s_t)
+		memset(&cb->args[1], 0, sizeof(cb->args)-sizeof(cb->args[0]));
+	arg.w.fn = qdisc_class_dump;
+	arg.skb = skb;
+	arg.cb = cb;
+	arg.w.stop  = 0;
+	arg.w.skip = cb->args[1];
+	arg.w.count = 0;
+	q->ops->cl_ops->walk(q, &arg.w);
+	cb->args[1] = arg.w.count;
+	if (arg.w.stop)
+		return -1;
+	(*t_p)++;
+	return 0;
+}
+
+static int tc_dump_tclass_root(struct Qdisc *root, struct sk_buff *skb,
+			       struct tcmsg *tcm, struct netlink_callback *cb,
+			       int *t_p, int s_t)
+{
+	struct Qdisc *q;
+
+	if (!root)
+		return 0;
+
+	if (tc_dump_tclass_qdisc(root, skb, tcm, cb, t_p, s_t) < 0)
+		return -1;
+
+	list_for_each_entry(q, &root->list, list) {
+		if (tc_dump_tclass_qdisc(q, skb, tcm, cb, t_p, s_t) < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
 static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = sock_net(skb->sk);
-	int t;
-	int s_t;
-	struct net_device *dev;
-	struct Qdisc *q;
 	struct tcmsg *tcm = (struct tcmsg*)NLMSG_DATA(cb->nlh);
-	struct qdisc_dump_args arg;
+	struct net *net = sock_net(skb->sk);
+	struct netdev_queue *dev_queue;
+	struct net_device *dev;
+	int t, s_t;
 
 	if (net != &init_net)
 		return 0;
@@ -1306,28 +1406,15 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	s_t = cb->args[0];
 	t = 0;
 
-	list_for_each_entry(q, &dev->qdisc_list, list) {
-		if (t < s_t || !q->ops->cl_ops ||
-		    (tcm->tcm_parent &&
-		     TC_H_MAJ(tcm->tcm_parent) != q->handle)) {
-			t++;
-			continue;
-		}
-		if (t > s_t)
-			memset(&cb->args[1], 0, sizeof(cb->args)-sizeof(cb->args[0]));
-		arg.w.fn = qdisc_class_dump;
-		arg.skb = skb;
-		arg.cb = cb;
-		arg.w.stop  = 0;
-		arg.w.skip = cb->args[1];
-		arg.w.count = 0;
-		q->ops->cl_ops->walk(q, &arg.w);
-		cb->args[1] = arg.w.count;
-		if (arg.w.stop)
-			break;
-		t++;
-	}
+	dev_queue = netdev_get_tx_queue(dev, 0);
+	if (tc_dump_tclass_root(dev_queue->qdisc, skb, tcm, cb, &t, s_t) < 0)
+		goto done;
 
+	dev_queue = &dev->rx_queue;
+	if (tc_dump_tclass_root(dev_queue->qdisc, skb, tcm, cb, &t, s_t) < 0)
+		goto done;
+
+done:
 	cb->args[0] = t;
 
 	dev_put(dev);

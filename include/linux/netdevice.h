@@ -636,8 +636,6 @@ struct net_device
 	unsigned int		real_num_tx_queues;
 
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
-	spinlock_t		qdisc_list_lock;
-	struct list_head	qdisc_list;
 
 /*
  * One part is mostly used on xmit path (device)
