@@ -574,6 +574,10 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
+static struct x86_quirks default_x86_quirks __initdata;
+
+struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
+
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures

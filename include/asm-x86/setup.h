@@ -19,13 +19,17 @@ static inline int is_visws_box(void) { return 0; }
 /*
  * Any setup quirks to be performed?
  */
-extern int (*arch_time_init_quirk)(void);
-extern int (*arch_pre_intr_init_quirk)(void);
-extern int (*arch_intr_init_quirk)(void);
-extern int (*arch_trap_init_quirk)(void);
-extern char * (*arch_memory_setup_quirk)(void);
-extern int (*mach_get_smp_config_quirk)(unsigned int early);
-extern int (*mach_find_smp_config_quirk)(unsigned int reserve);
+struct x86_quirks {
+	int (*arch_time_init)(void);
+	int (*arch_pre_intr_init)(void);
+	int (*arch_intr_init)(void);
+	int (*arch_trap_init)(void);
+	char * (*arch_memory_setup)(void);
+	int (*mach_get_smp_config)(unsigned int early);
+	int (*mach_find_smp_config)(unsigned int reserve);
+};
+
+extern struct x86_quirks *x86_quirks;
 
 #ifndef CONFIG_PARAVIRT
 #define paravirt_post_allocator_init()	do {} while (0)
