@@ -101,6 +101,11 @@ SECTIONS
 #if !L1_DATA_B_LENGTH
 		*(.l1.data.B)
 #endif
+#ifndef L2_LENGTH
+		. = ALIGN(32);
+		*(.data_l2.cacheline_aligned)
+		*(.l2.data)
+#endif
 
 		DATA_DATA
 		*(.data.*)
@@ -182,13 +187,12 @@ SECTIONS
 		*(.l1.data)
 		__edata_l1 = .;
 
-		. = ALIGN(4);
-		__sbss_l1 = .;
-		*(.l1.bss)
-
 		. = ALIGN(32);
 		*(.data_l1.cacheline_aligned)
 
+		. = ALIGN(4);
+		__sbss_l1 = .;
+		*(.l1.bss)
 		. = ALIGN(4);
 		__ebss_l1 = .;
 	}
@@ -203,10 +207,36 @@ SECTIONS
 		. = ALIGN(4);
 		__sbss_b_l1 = .;
 		*(.l1.bss.B)
-
 		. = ALIGN(4);
 		__ebss_b_l1 = .;
 	}
+
+#ifdef L2_LENGTH
+	__l2_lma_start = .;
+
+	.text_data_l2 L2_START : AT(LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1))
+	{
+		. = ALIGN(4);
+		__stext_l2 = .;
+		*(.l1.text)
+		. = ALIGN(4);
+		__etext_l2 = .;
+
+		. = ALIGN(4);
+		__sdata_l2 = .;
+		*(.l1.data)
+		__edata_l2 = .;
+
+		. = ALIGN(32);
+		*(.data_l2.cacheline_aligned)
+
+		. = ALIGN(4);
+		__sbss_l2 = .;
+		*(.l1.bss)
+		. = ALIGN(4);
+		__ebss_l2 = .;
+	}
+#endif
 
 	/* Force trailing alignment of our init section so that when we
 	 * free our init memory, we don't leave behind a partial page.
