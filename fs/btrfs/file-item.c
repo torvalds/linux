@@ -161,7 +161,8 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 
 	while(bio_index < bio->bi_vcnt) {
 		offset = page_offset(bvec->bv_page) + bvec->bv_offset;
-		if (offset >= ordered->file_offset + ordered->len) {
+		if (offset >= ordered->file_offset + ordered->len ||
+		    offset < ordered->file_offset) {
 			unsigned long bytes_left;
 			sums->len = this_sum_bytes;
 			this_sum_bytes = 0;

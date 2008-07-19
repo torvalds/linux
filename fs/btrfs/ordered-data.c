@@ -324,22 +324,37 @@ void btrfs_start_ordered_extent(struct inode *inode,
 void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 {
 	u64 end;
+	u64 orig_end;
+	u64 wait_end;
 	struct btrfs_ordered_extent *ordered;
-	int found;
-	int should_wait = 0;
+	u64 mask = BTRFS_I(inode)->root->sectorsize - 1;
 
-again:
-	if (start + len < start)
-		end = (u64)-1;
-	else
-		end = start + len - 1;
-	found = 0;
+	if (start + len < start) {
+		wait_end = (inode->i_size + mask) & ~mask;
+		orig_end = (u64)-1;
+	} else {
+		orig_end = start + len - 1;
+		wait_end = orig_end;
+	}
+
+	/* start IO across the range first to instantiate any delalloc
+	 * extents
+	 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
+	do_sync_file_range(file, start, wait_end, SYNC_FILE_RANGE_WRITE);
+#else
+	do_sync_mapping_range(inode->i_mapping, start, wait_end,
+			      SYNC_FILE_RANGE_WRITE);
+#endif
+	end = orig_end;
+	wait_on_extent_writeback(&BTRFS_I(inode)->io_tree, start, orig_end);
+
 	while(1) {
 		ordered = btrfs_lookup_first_ordered_extent(inode, end);
 		if (!ordered) {
 			break;
 		}
-		if (ordered->file_offset >= start + len) {
+		if (ordered->file_offset > orig_end) {
 			btrfs_put_ordered_extent(ordered);
 			break;
 		}
@@ -347,20 +362,14 @@ again:
 			btrfs_put_ordered_extent(ordered);
 			break;
 		}
-		btrfs_start_ordered_extent(inode, ordered, should_wait);
-		found++;
+		btrfs_start_ordered_extent(inode, ordered, 1);
 		end = ordered->file_offset;
 		btrfs_put_ordered_extent(ordered);
-		if (end == 0)
+		if (end == 0 || end == start)
 			break;
 		end--;
 	}
-	if (should_wait && found) {
-		should_wait = 0;
-		goto again;
-	}
 }
-
 
 /*
  * find an ordered extent corresponding to file_offset.  return NULL if

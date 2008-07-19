@@ -128,7 +128,9 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 		goto out;
 
 	BUG_ON(num_bytes > btrfs_super_total_bytes(&root->fs_info->super_copy));
+	mutex_lock(&BTRFS_I(inode)->extent_mutex);
 	btrfs_drop_extent_cache(inode, start, start + num_bytes - 1);
+	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
 	while(num_bytes > 0) {
 		cur_alloc_size = min(num_bytes, root->fs_info->max_extent);
@@ -144,6 +146,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 		em->len = ins.offset;
 		em->block_start = ins.objectid;
 		em->bdev = root->fs_info->fs_devices->latest_bdev;
+		mutex_lock(&BTRFS_I(inode)->extent_mutex);
 		set_bit(EXTENT_FLAG_PINNED, &em->flags);
 		while(1) {
 			spin_lock(&em_tree->lock);
@@ -156,6 +159,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 			btrfs_drop_extent_cache(inode, start,
 						start + ins.offset - 1);
 		}
+		mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
 		cur_alloc_size = ins.offset;
 		ret = btrfs_add_ordered_extent(inode, start, ins.objectid,
@@ -487,6 +491,8 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_map *em;
 	u64 alloc_hint = 0;
+	u64 clear_start;
+	u64 clear_end;
 	struct list_head list;
 	struct btrfs_key ins;
 	int ret;
@@ -509,12 +515,14 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	ins.objectid = ordered_extent->start;
 	ins.offset = ordered_extent->len;
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
+
 	ret = btrfs_alloc_reserved_extent(trans, root, root->root_key.objectid,
 					  trans->transid, inode->i_ino,
 					  ordered_extent->file_offset, &ins);
 	BUG_ON(ret);
 
 	mutex_lock(&BTRFS_I(inode)->extent_mutex);
+
 	ret = btrfs_drop_extents(trans, root, inode,
 				 ordered_extent->file_offset,
 				 ordered_extent->file_offset +
@@ -528,13 +536,19 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 				       ordered_extent->len, 0);
 	BUG_ON(ret);
 
-
 	spin_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, ordered_extent->file_offset,
-			       ordered_extent->len);
-	if (em) {
-		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
-		free_extent_map(em);
+	clear_start = ordered_extent->file_offset;
+	clear_end = ordered_extent->file_offset + ordered_extent->len;
+	while(clear_start < clear_end) {
+		em = lookup_extent_mapping(em_tree, clear_start,
+					   clear_end - clear_start);
+		if (em) {
+			clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+			clear_start = em->start + em->len;
+			free_extent_map(em);
+		} else {
+			break;
+		}
 	}
 	spin_unlock(&em_tree->lock);
 
