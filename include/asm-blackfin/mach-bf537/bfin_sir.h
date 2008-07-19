@@ -118,16 +118,25 @@ static inline void SIR_UART_CLEAR_LSR(struct bfin_sir_port *port)
 
 #define DRIVER_NAME "bfin_sir"
 
-static void bfin_sir_hw_init(void)
+static int bfin_sir_hw_init(void)
 {
+	int ret = -ENODEV;
 #ifdef CONFIG_BFIN_SIR0
-	peripheral_request(P_UART0_TX, DRIVER_NAME);
-	peripheral_request(P_UART0_RX, DRIVER_NAME);
+	ret = peripheral_request(P_UART0_TX, DRIVER_NAME);
+	if (ret)
+		return ret;
+	ret = peripheral_request(P_UART0_RX, DRIVER_NAME);
+	if (ret)
+		return ret;
 #endif
 
 #ifdef CONFIG_BFIN_SIR1
-	peripheral_request(P_UART1_TX, DRIVER_NAME);
-	peripheral_request(P_UART1_RX, DRIVER_NAME);
+	ret = peripheral_request(P_UART1_TX, DRIVER_NAME);
+	if (ret)
+		return ret;
+	ret = peripheral_request(P_UART1_RX, DRIVER_NAME);
+	if (ret)
+		return ret;
 #endif
-	SSYNC();
+	return ret;
 }
