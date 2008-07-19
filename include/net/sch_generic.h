@@ -56,6 +56,8 @@ struct Qdisc
 	int			(*reshape_fail)(struct sk_buff *skb,
 					struct Qdisc *q);
 
+	void			*u32_node;
+
 	/* This field is deprecated, but it is still used by CBQ
 	 * and it will live until better solution will be invented.
 	 */

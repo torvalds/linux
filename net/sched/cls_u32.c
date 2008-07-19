@@ -75,7 +75,6 @@ struct tc_u_hnode
 
 struct tc_u_common
 {
-	struct tc_u_common	*next;
 	struct tc_u_hnode	*hlist;
 	struct Qdisc		*q;
 	int			refcnt;
@@ -86,8 +85,6 @@ static const struct tcf_ext_map u32_ext_map = {
 	.action = TCA_U32_ACT,
 	.police = TCA_U32_POLICE
 };
-
-static struct tc_u_common *u32_list;
 
 static __inline__ unsigned u32_hash_fold(__be32 key, struct tc_u32_sel *sel, u8 fshift)
 {
@@ -287,9 +284,7 @@ static int u32_init(struct tcf_proto *tp)
 	struct tc_u_hnode *root_ht;
 	struct tc_u_common *tp_c;
 
-	for (tp_c = u32_list; tp_c; tp_c = tp_c->next)
-		if (tp_c->q == tp->q)
-			break;
+	tp_c = tp->q->u32_node;
 
 	root_ht = kzalloc(sizeof(*root_ht), GFP_KERNEL);
 	if (root_ht == NULL)
@@ -307,8 +302,7 @@ static int u32_init(struct tcf_proto *tp)
 			return -ENOBUFS;
 		}
 		tp_c->q = tp->q;
-		tp_c->next = u32_list;
-		u32_list = tp_c;
+		tp->q->u32_node = tp_c;
 	}
 
 	tp_c->refcnt++;
@@ -402,14 +396,8 @@ static void u32_destroy(struct tcf_proto *tp)
 
 	if (--tp_c->refcnt == 0) {
 		struct tc_u_hnode *ht;
-		struct tc_u_common **tp_cp;
 
-		for (tp_cp = &u32_list; *tp_cp; tp_cp = &(*tp_cp)->next) {
-			if (*tp_cp == tp_c) {
-				*tp_cp = tp_c->next;
-				break;
-			}
-		}
+		tp->q->u32_node = NULL;
 
 		for (ht = tp_c->hlist; ht; ht = ht->next) {
 			ht->refcnt--;
