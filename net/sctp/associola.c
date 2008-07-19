@@ -653,6 +653,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 
 	SCTP_DEBUG_PRINTK("sctp_assoc_add_peer:association %p PMTU set to "
 			  "%d\n", asoc, asoc->pathmtu);
+	peer->pmtu_pending = 0;
 
 	asoc->frag_point = sctp_frag_point(sp, asoc->pathmtu);
 
