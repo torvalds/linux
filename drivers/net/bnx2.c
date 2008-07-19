@@ -294,7 +294,6 @@ bnx2_ctx_wr(struct bnx2 *bp, u32 cid_addr, u32 offset, u32 val)
 		REG_WR(bp, BNX2_CTX_CTX_CTRL,
 		       offset | BNX2_CTX_CTX_CTRL_WRITE_REQ);
 		for (i = 0; i < 5; i++) {
-			u32 val;
 			val = REG_RD(bp, BNX2_CTX_CTX_CTRL);
 			if ((val & BNX2_CTX_CTX_CTRL_WRITE_REQ) == 0)
 				break;
@@ -7458,7 +7457,6 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	reg &= BNX2_CONDITION_MFW_RUN_MASK;
 	if (reg != BNX2_CONDITION_MFW_RUN_UNKNOWN &&
 	    reg != BNX2_CONDITION_MFW_RUN_NONE) {
-		int i;
 		u32 addr = bnx2_shmem_rd(bp, BNX2_MFW_VER_PTR);
 
 		bp->fw_version[j++] = ' ';
