@@ -1157,7 +1157,7 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 static void rawv6_close(struct sock *sk, long timeout)
 {
 	if (inet_sk(sk)->num == IPPROTO_RAW)
-		ip6_ra_control(sk, -1, NULL);
+		ip6_ra_control(sk, -1);
 	ip6mr_sk_done(sk);
 	sk_common_release(sk);
 }

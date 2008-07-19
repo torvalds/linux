@@ -227,9 +227,7 @@ static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 		atomic_dec(&fl->users);
 }
 
-extern int 			ip6_ra_control(struct sock *sk, int sel,
-					       void (*destructor)(struct sock *));
-
+extern int 			ip6_ra_control(struct sock *sk, int sel);
 
 extern int			ipv6_parse_hopopts(struct sk_buff *skb);
 

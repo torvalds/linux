@@ -59,7 +59,7 @@ DEFINE_SNMP_STAT(struct ipstats_mib, ipv6_statistics) __read_mostly;
 struct ip6_ra_chain *ip6_ra_chain;
 DEFINE_RWLOCK(ip6_ra_lock);
 
-int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
+int ip6_ra_control(struct sock *sk, int sel)
 {
 	struct ip6_ra_chain *ra, *new_ra, **rap;
 
@@ -81,8 +81,6 @@ int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 			*rap = ra->next;
 			write_unlock_bh(&ip6_ra_lock);
 
-			if (ra->destructor)
-				ra->destructor(sk);
 			sock_put(sk);
 			kfree(ra);
 			return 0;
@@ -94,7 +92,6 @@ int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 	}
 	new_ra->sk = sk;
 	new_ra->sel = sel;
-	new_ra->destructor = destructor;
 	new_ra->next = ra;
 	*rap = new_ra;
 	sock_hold(sk);
@@ -632,7 +629,7 @@ done:
 	case IPV6_ROUTER_ALERT:
 		if (optlen < sizeof(int))
 			goto e_inval;
-		retv = ip6_ra_control(sk, val, NULL);
+		retv = ip6_ra_control(sk, val);
 		break;
 	case IPV6_MTU_DISCOVER:
 		if (optlen < sizeof(int))
