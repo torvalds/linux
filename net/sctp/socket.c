@@ -308,9 +308,16 @@ static struct sctp_af *sctp_sockaddr_af(struct sctp_sock *opt,
 	if (len < sizeof (struct sockaddr))
 		return NULL;
 
-	/* Does this PF support this AF? */
-	if (!opt->pf->af_supported(addr->sa.sa_family, opt))
-		return NULL;
+	/* V4 mapped address are really of AF_INET family */
+	if (addr->sa.sa_family == AF_INET6 &&
+	    ipv6_addr_v4mapped(&addr->v6.sin6_addr)) {
+		if (!opt->pf->af_supported(AF_INET, opt))
+			return NULL;
+	} else {
+		/* Does this PF support this AF? */
+		if (!opt->pf->af_supported(addr->sa.sa_family, opt))
+			return NULL;
+	}
 
 	/* If we get this far, af is valid. */
 	af = sctp_get_af_specific(addr->sa.sa_family);
@@ -4395,6 +4402,11 @@ static int sctp_getsockopt_local_addrs_num_old(struct sock *sk, int len,
 				    (AF_INET6 == addr->a.sa.sa_family))
 					continue;
 
+				if ((PF_INET6 == sk->sk_family) &&
+				    inet_v6_ipv6only(sk) &&
+				    (AF_INET == addr->a.sa.sa_family))
+					continue;
+
 				cnt++;
 			}
 			rcu_read_unlock();
@@ -4435,6 +4447,10 @@ static int sctp_copy_laddrs_old(struct sock *sk, __u16 port,
 		if ((PF_INET == sk->sk_family) &&
 		    (AF_INET6 == addr->a.sa.sa_family))
 			continue;
+		if ((PF_INET6 == sk->sk_family) &&
+		    inet_v6_ipv6only(sk) &&
+		    (AF_INET == addr->a.sa.sa_family))
+			continue;
 		memcpy(&temp, &addr->a, sizeof(temp));
 		if (!temp.v4.sin_port)
 			temp.v4.sin_port = htons(port);
@@ -4469,6 +4485,10 @@ static int sctp_copy_laddrs(struct sock *sk, __u16 port, void *to,
 
 		if ((PF_INET == sk->sk_family) &&
 		    (AF_INET6 == addr->a.sa.sa_family))
+			continue;
+		if ((PF_INET6 == sk->sk_family) &&
+		    inet_v6_ipv6only(sk) &&
+		    (AF_INET == addr->a.sa.sa_family))
 			continue;
 		memcpy(&temp, &addr->a, sizeof(temp));
 		if (!temp.v4.sin_port)
@@ -5568,8 +5588,8 @@ pp_found:
 			    sk2->sk_state != SCTP_SS_LISTENING)
 				continue;
 
-			if (sctp_bind_addr_match(&ep2->base.bind_addr, addr,
-						 sctp_sk(sk))) {
+			if (sctp_bind_addr_conflict(&ep2->base.bind_addr, addr,
+						 sctp_sk(sk2), sctp_sk(sk))) {
 				ret = (long)sk2;
 				goto fail_unlock;
 			}
