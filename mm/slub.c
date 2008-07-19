@@ -492,7 +492,7 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 	if (p > addr + 16)
 		print_section("Bytes b4", p - 16, 16);
 
-	print_section("Object", p, min(s->objsize, 128));
+	print_section("Object", p, min_t(unsigned long, s->objsize, PAGE_SIZE));
 
 	if (s->flags & SLAB_RED_ZONE)
 		print_section("Redzone", p + s->objsize,
