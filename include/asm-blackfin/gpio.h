@@ -376,8 +376,12 @@ struct gpio_port_t {
 #endif
 
 #ifdef CONFIG_PM
-unsigned int bfin_pm_setup(void);
-void bfin_pm_restore(void);
+
+unsigned int bfin_pm_standby_setup(void);
+void bfin_pm_standby_restore(void);
+
+void bfin_gpio_pm_hibernate_restore(void);
+void bfin_gpio_pm_hibernate_suspend(void);
 
 #ifndef CONFIG_BF54x
 #define PM_WAKE_RISING	0x1
@@ -392,17 +396,8 @@ void gpio_pm_wakeup_free(unsigned gpio);
 
 struct gpio_port_s {
 	unsigned short data;
-	unsigned short data_clear;
-	unsigned short data_set;
-	unsigned short toggle;
 	unsigned short maska;
-	unsigned short maska_clear;
-	unsigned short maska_set;
-	unsigned short maska_toggle;
 	unsigned short maskb;
-	unsigned short maskb_clear;
-	unsigned short maskb_set;
-	unsigned short maskb_toggle;
 	unsigned short dir;
 	unsigned short polar;
 	unsigned short edge;
@@ -411,10 +406,10 @@ struct gpio_port_s {
 
 	unsigned short fer;
 	unsigned short reserved;
+	unsigned short mux;
 };
 #endif /*CONFIG_BF54x*/
 #endif /*CONFIG_PM*/
-
 /***********************************************************
 *
 * FUNCTIONS: Blackfin GPIO Driver

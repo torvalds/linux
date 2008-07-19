@@ -880,7 +880,7 @@ config ARCH_SUSPEND_POSSIBLE
 	depends on !SMP
 
 choice
-	prompt "Default Power Saving Mode"
+	prompt "Standby Power Saving Mode"
 	depends on PM
 	default PM_BFIN_SLEEP_DEEPER
 config  PM_BFIN_SLEEP_DEEPER
@@ -899,6 +899,8 @@ config  PM_BFIN_SLEEP_DEEPER
 	  normal during Sleep Deeper, due to the reduced SCLK frequency.
 	  When in the sleep mode, system DMA access to L1 memory is not supported.
 
+	  If unsure, select "Sleep Deeper".
+
 config  PM_BFIN_SLEEP
 	bool "Sleep"
 	help
@@ -906,15 +908,17 @@ config  PM_BFIN_SLEEP
 	  dissipation by disabling the clock to the processor core (CCLK).
 	  The PLL and system clock (SCLK), however, continue to operate in
 	  this mode. Typically an external event or RTC activity will wake
-	  up the processor. When in the sleep mode,
-	  system DMA access to L1 memory is not supported.
+	  up the processor. When in the sleep mode, system DMA access to L1
+	  memory is not supported.
+
+	  If unsure, select "Sleep Deeper".
 endchoice
 
 config PM_WAKEUP_BY_GPIO
-	bool "Cause Wakeup Event by GPIO"
+	bool "Allow Wakeup from Standby by GPIO"
 
 config PM_WAKEUP_GPIO_NUMBER
-	int "Wakeup GPIO number"
+	int "GPIO number"
 	range 0 47
 	depends on PM_WAKEUP_BY_GPIO
 	default 2 if BFIN537_STAMP
@@ -934,6 +938,58 @@ config  PM_WAKEUP_GPIO_POLAR_EDGE_R
 config  PM_WAKEUP_GPIO_POLAR_EDGE_B
 	bool "Both EDGE"
 endchoice
+
+comment "Possible Suspend Mem / Hibernate Wake-Up Sources"
+	depends on PM
+
+config PM_BFIN_WAKE_RTC
+	bool "Allow Wake-Up from RESET and on-chip RTC"
+	depends on PM
+	default n
+	help
+	  Enable RTC Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_PH6
+	bool "Allow Wake-Up from on-chip PHY or PH6 GP"
+	depends on PM && (BF52x || BF534 || BF536 || BF537)
+	default n
+	help
+	  Enable PHY and PH6 GP Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_CAN
+	bool "Allow Wake-Up from on-chip CAN0/1"
+	depends on PM && (BF54x || BF534 || BF536 || BF537)
+	default n
+	help
+	  Enable CAN0/1 Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_GP
+	bool "Allow Wake-Up from GPIOs"
+	depends on PM && BF54x
+	default n
+	help
+	  Enable General-Purpose Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_USB
+	bool "Allow Wake-Up from on-chip USB"
+	depends on PM && (BF54x || BF52x)
+	default n
+	help
+	  Enable USB Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_KEYPAD
+	bool "Allow Wake-Up from on-chip Keypad"
+	depends on PM && BF54x
+	default n
+	help
+	  Enable Keypad Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_ROTARY
+	bool "Allow Wake-Up from on-chip Rotary"
+	depends on PM && BF54x
+	default n
+	help
+	  Enable Rotary Wake-Up (Voltage Regulator Power-Up)
 
 endmenu
 
