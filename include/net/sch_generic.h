@@ -306,6 +306,11 @@ static inline bool qdisc_tx_is_noop(const struct net_device *dev)
 	return true;
 }
 
+static inline unsigned int qdisc_pkt_len(struct sk_buff *skb)
+{
+	return skb->len;
+}
+
 static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	return sch->enqueue(skb, sch);
@@ -320,8 +325,8 @@ static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 				       struct sk_buff_head *list)
 {
 	__skb_queue_tail(list, skb);
-	sch->qstats.backlog += skb->len;
-	sch->bstats.bytes += skb->len;
+	sch->qstats.backlog += qdisc_pkt_len(skb);
+	sch->bstats.bytes += qdisc_pkt_len(skb);
 	sch->bstats.packets++;
 
 	return NET_XMIT_SUCCESS;
@@ -338,7 +343,7 @@ static inline struct sk_buff *__qdisc_dequeue_head(struct Qdisc *sch,
 	struct sk_buff *skb = __skb_dequeue(list);
 
 	if (likely(skb != NULL))
-		sch->qstats.backlog -= skb->len;
+		sch->qstats.backlog -= qdisc_pkt_len(skb);
 
 	return skb;
 }
@@ -354,7 +359,7 @@ static inline struct sk_buff *__qdisc_dequeue_tail(struct Qdisc *sch,
 	struct sk_buff *skb = __skb_dequeue_tail(list);
 
 	if (likely(skb != NULL))
-		sch->qstats.backlog -= skb->len;
+		sch->qstats.backlog -= qdisc_pkt_len(skb);
 
 	return skb;
 }
@@ -368,7 +373,7 @@ static inline int __qdisc_requeue(struct sk_buff *skb, struct Qdisc *sch,
 				  struct sk_buff_head *list)
 {
 	__skb_queue_head(list, skb);
-	sch->qstats.backlog += skb->len;
+	sch->qstats.backlog += qdisc_pkt_len(skb);
 	sch->qstats.requeues++;
 
 	return NET_XMIT_SUCCESS;
@@ -401,7 +406,7 @@ static inline unsigned int __qdisc_queue_drop(struct Qdisc *sch,
 	struct sk_buff *skb = __qdisc_dequeue_tail(sch, list);
 
 	if (likely(skb != NULL)) {
-		unsigned int len = skb->len;
+		unsigned int len = qdisc_pkt_len(skb);
 		kfree_skb(skb);
 		return len;
 	}

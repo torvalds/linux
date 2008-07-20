@@ -123,7 +123,7 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	int ret;
 
-	if (skb->len > q->max_size) {
+	if (qdisc_pkt_len(skb) > q->max_size) {
 		sch->qstats.drops++;
 #ifdef CONFIG_NET_CLS_ACT
 		if (sch->reshape_fail == NULL || sch->reshape_fail(skb, sch))
@@ -140,7 +140,7 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	}
 
 	sch->q.qlen++;
-	sch->bstats.bytes += skb->len;
+	sch->bstats.bytes += qdisc_pkt_len(skb);
 	sch->bstats.packets++;
 	return 0;
 }
@@ -181,7 +181,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 		psched_time_t now;
 		long toks;
 		long ptoks = 0;
-		unsigned int len = skb->len;
+		unsigned int len = qdisc_pkt_len(skb);
 
 		now = psched_get_time();
 		toks = psched_tdiff_bounded(now, q->t_c, q->buffer);

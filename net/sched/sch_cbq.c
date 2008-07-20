@@ -370,7 +370,6 @@ static int
 cbq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
-	int len = skb->len;
 	int uninitialized_var(ret);
 	struct cbq_class *cl = cbq_classify(skb, sch, &ret);
 
@@ -391,7 +390,7 @@ cbq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (ret == NET_XMIT_SUCCESS) {
 		sch->q.qlen++;
 		sch->bstats.packets++;
-		sch->bstats.bytes+=len;
+		sch->bstats.bytes += qdisc_pkt_len(skb);
 		cbq_mark_toplevel(q, cl);
 		if (!cl->next_alive)
 			cbq_activate_class(cl);
@@ -658,7 +657,6 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 #ifdef CONFIG_NET_CLS_ACT
 static int cbq_reshape_fail(struct sk_buff *skb, struct Qdisc *child)
 {
-	int len = skb->len;
 	struct Qdisc *sch = child->__parent;
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl = q->rx_class;
@@ -675,7 +673,7 @@ static int cbq_reshape_fail(struct sk_buff *skb, struct Qdisc *child)
 		if (qdisc_enqueue(skb, cl->q) == 0) {
 			sch->q.qlen++;
 			sch->bstats.packets++;
-			sch->bstats.bytes+=len;
+			sch->bstats.bytes += qdisc_pkt_len(skb);
 			if (!cl->next_alive)
 				cbq_activate_class(cl);
 			return 0;
@@ -881,7 +879,7 @@ cbq_dequeue_prio(struct Qdisc *sch, int prio)
 			if (skb == NULL)
 				goto skip_class;
 
-			cl->deficit -= skb->len;
+			cl->deficit -= qdisc_pkt_len(skb);
 			q->tx_class = cl;
 			q->tx_borrowed = borrow;
 			if (borrow != cl) {
@@ -889,11 +887,11 @@ cbq_dequeue_prio(struct Qdisc *sch, int prio)
 				borrow->xstats.borrows++;
 				cl->xstats.borrows++;
 #else
-				borrow->xstats.borrows += skb->len;
-				cl->xstats.borrows += skb->len;
+				borrow->xstats.borrows += qdisc_pkt_len(skb);
+				cl->xstats.borrows += qdisc_pkt_len(skb);
 #endif
 			}
-			q->tx_len = skb->len;
+			q->tx_len = qdisc_pkt_len(skb);
 
 			if (cl->deficit <= 0) {
 				q->active[prio] = cl;

@@ -579,13 +579,13 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	} else {
 		cl->bstats.packets +=
 			skb_is_gso(skb)?skb_shinfo(skb)->gso_segs:1;
-		cl->bstats.bytes += skb->len;
+		cl->bstats.bytes += qdisc_pkt_len(skb);
 		htb_activate(q, cl);
 	}
 
 	sch->q.qlen++;
 	sch->bstats.packets += skb_is_gso(skb)?skb_shinfo(skb)->gso_segs:1;
-	sch->bstats.bytes += skb->len;
+	sch->bstats.bytes += qdisc_pkt_len(skb);
 	return NET_XMIT_SUCCESS;
 }
 
@@ -642,7 +642,7 @@ static int htb_requeue(struct sk_buff *skb, struct Qdisc *sch)
 static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 			     int level, struct sk_buff *skb)
 {
-	int bytes = skb->len;
+	int bytes = qdisc_pkt_len(skb);
 	long toks, diff;
 	enum htb_cmode old_mode;
 
@@ -855,7 +855,8 @@ next:
 	} while (cl != start);
 
 	if (likely(skb != NULL)) {
-		if ((cl->un.leaf.deficit[level] -= skb->len) < 0) {
+		cl->un.leaf.deficit[level] -= qdisc_pkt_len(skb);
+		if (cl->un.leaf.deficit[level] < 0) {
 			cl->un.leaf.deficit[level] += cl->un.leaf.quantum;
 			htb_next_rb_node((level ? cl->parent->un.inner.ptr : q->
 					  ptr[0]) + prio);

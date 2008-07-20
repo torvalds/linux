@@ -895,7 +895,7 @@ qdisc_peek_len(struct Qdisc *sch)
 			printk("qdisc_peek_len: non work-conserving qdisc ?\n");
 		return 0;
 	}
-	len = skb->len;
+	len = qdisc_pkt_len(skb);
 	if (unlikely(sch->ops->requeue(skb, sch) != NET_XMIT_SUCCESS)) {
 		if (net_ratelimit())
 			printk("qdisc_peek_len: failed to requeue\n");
@@ -1574,7 +1574,6 @@ static int
 hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct hfsc_class *cl;
-	unsigned int len;
 	int err;
 
 	cl = hfsc_classify(skb, sch, &err);
@@ -1585,7 +1584,6 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return err;
 	}
 
-	len = skb->len;
 	err = qdisc_enqueue(skb, cl->qdisc);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
 		cl->qstats.drops++;
@@ -1594,12 +1592,12 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	if (cl->qdisc->q.qlen == 1)
-		set_active(cl, len);
+		set_active(cl, qdisc_pkt_len(skb));
 
 	cl->bstats.packets++;
-	cl->bstats.bytes += len;
+	cl->bstats.bytes += qdisc_pkt_len(skb);
 	sch->bstats.packets++;
-	sch->bstats.bytes += len;
+	sch->bstats.bytes += qdisc_pkt_len(skb);
 	sch->q.qlen++;
 
 	return NET_XMIT_SUCCESS;
@@ -1649,9 +1647,9 @@ hfsc_dequeue(struct Qdisc *sch)
 		return NULL;
 	}
 
-	update_vf(cl, skb->len, cur_time);
+	update_vf(cl, qdisc_pkt_len(skb), cur_time);
 	if (realtime)
-		cl->cl_cumul += skb->len;
+		cl->cl_cumul += qdisc_pkt_len(skb);
 
 	if (cl->qdisc->q.qlen != 0) {
 		if (cl->cl_flags & HFSC_RSC) {
