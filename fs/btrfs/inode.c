@@ -1840,6 +1840,33 @@ struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
 	return inode;
 }
 
+/* Get an inode object given its location and corresponding root.
+ * Returns in *is_new if the inode was read from disk
+ */
+struct inode *btrfs_iget(struct super_block *s, struct btrfs_key *location,
+			 struct btrfs_root *root, int *is_new)
+{
+	struct inode *inode;
+
+	inode = btrfs_iget_locked(s, location->objectid, root);
+	if (!inode)
+		return ERR_PTR(-EACCES);
+
+	if (inode->i_state & I_NEW) {
+		BTRFS_I(inode)->root = root;
+		memcpy(&BTRFS_I(inode)->location, location, sizeof(*location));
+		btrfs_read_locked_inode(inode);
+		unlock_new_inode(inode);
+		if (is_new)
+			*is_new = 1;
+	} else {
+		if (is_new)
+			*is_new = 0;
+	}
+
+	return inode;
+}
+
 static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 				   struct nameidata *nd)
 {
@@ -1848,7 +1875,7 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct btrfs_root *root = bi->root;
 	struct btrfs_root *sub_root = root;
 	struct btrfs_key location;
-	int ret, do_orphan = 0;
+	int ret, new, do_orphan = 0;
 
 	if (dentry->d_name.len > BTRFS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -1866,23 +1893,15 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 			return ERR_PTR(ret);
 		if (ret > 0)
 			return ERR_PTR(-ENOENT);
+		inode = btrfs_iget(dir->i_sb, &location, sub_root, &new);
+		if (IS_ERR(inode))
+			return ERR_CAST(inode);
 
-		inode = btrfs_iget_locked(dir->i_sb, location.objectid,
-					  sub_root);
-		if (!inode)
-			return ERR_PTR(-EACCES);
-		if (inode->i_state & I_NEW) {
-			/* the inode and parent dir are two different roots */
-			if (sub_root != root) {
-				igrab(inode);
-				sub_root->inode = inode;
-				do_orphan = 1;
-			}
-			BTRFS_I(inode)->root = sub_root;
-			memcpy(&BTRFS_I(inode)->location, &location,
-			       sizeof(location));
-			btrfs_read_locked_inode(inode);
-			unlock_new_inode(inode);
+		/* the inode and parent dir are two different roots */
+		if (new && root != sub_root) {
+			igrab(inode);
+			sub_root->inode = inode;
+			do_orphan = 1;
 		}
 	}
 
