@@ -28,12 +28,6 @@
 
 #include <media/v4l2-dev.h>
 
-/* v4l debugging and diagnostics */
-
-/* Debug bitmask flags to be used on V4L2 */
-#define V4L2_DEBUG_IOCTL     0x01
-#define V4L2_DEBUG_IOCTL_ARG 0x02
-
 /* Common printk constucts for v4l-i2c drivers. These macros create a unique
    prefix consisting of the driver name, the adapter number and the i2c
    address. */
@@ -59,22 +53,6 @@
 	do { 								     \
 		if (debug >= (level))					     \
 			v4l_client_printk(KERN_DEBUG, client, fmt , ## arg); \
-	} while (0)
-
-
-/* Use this macro for non-I2C drivers. Pass the driver name as the first arg. */
-#define v4l_print_ioctl(name, cmd)  		 \
-	do {  					 \
-		printk(KERN_DEBUG "%s: ", name); \
-		v4l_printk_ioctl(cmd);		 \
-	} while (0)
-
-/* Use this macro in I2C drivers where 'client' is the struct i2c_client
-   pointer */
-#define v4l_i2c_print_ioctl(client, cmd) 		   \
-	do {      					   \
-		v4l_client_printk(KERN_DEBUG, client, ""); \
-		v4l_printk_ioctl(cmd);			   \
 	} while (0)
 
 /* ------------------------------------------------------------------------- */

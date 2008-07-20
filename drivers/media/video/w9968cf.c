@@ -42,6 +42,7 @@
 #include <asm/page.h>
 #include <asm/uaccess.h>
 #include <linux/page-flags.h>
+#include <media/v4l2-ioctl.h>
 
 #include "w9968cf.h"
 #include "w9968cf_decoder.h"

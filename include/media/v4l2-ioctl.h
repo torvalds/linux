@@ -20,6 +20,27 @@
 #include <linux/videodev2.h>
 #endif
 
+/* v4l debugging and diagnostics */
+
+/* Debug bitmask flags to be used on V4L2 */
+#define V4L2_DEBUG_IOCTL     0x01
+#define V4L2_DEBUG_IOCTL_ARG 0x02
+
+/* Use this macro for non-I2C drivers. Pass the driver name as the first arg. */
+#define v4l_print_ioctl(name, cmd)  		 \
+	do {  					 \
+		printk(KERN_DEBUG "%s: ", name); \
+		v4l_printk_ioctl(cmd);		 \
+	} while (0)
+
+/* Use this macro in I2C drivers where 'client' is the struct i2c_client
+   pointer */
+#define v4l_i2c_print_ioctl(client, cmd) 		   \
+	do {      					   \
+		v4l_client_printk(KERN_DEBUG, client, ""); \
+		v4l_printk_ioctl(cmd);			   \
+	} while (0)
+
 /*  Video standard functions  */
 extern const char *v4l2_norm_to_name(v4l2_std_id id);
 extern int v4l2_video_std_construct(struct v4l2_standard *vs,
