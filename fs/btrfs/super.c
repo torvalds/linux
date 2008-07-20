@@ -46,6 +46,7 @@
 #include "xattr.h"
 #include "volumes.h"
 #include "version.h"
+#include "export.h"
 
 #define BTRFS_SUPER_MAGIC 0x9123683E
 
@@ -303,6 +304,7 @@ static int btrfs_fill_super(struct super_block * sb,
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_magic = BTRFS_SUPER_MAGIC;
 	sb->s_op = &btrfs_super_ops;
+	sb->s_export_op = &btrfs_export_ops;
 	sb->s_xattr = btrfs_xattr_handlers;
 	sb->s_time_gran = 1;
 	sb->s_flags |= MS_POSIXACL;

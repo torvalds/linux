@@ -5,6 +5,23 @@
 #define trylock_page(page) (!TestSetPageLocked(page))
 #endif
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,27)
+static inline struct dentry *d_obtain_alias(struct inode *inode)
+{
+	struct dentry *d;
+
+	if (!inode)
+		return NULL;
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	d = d_alloc_anon(inode);
+	if (!d)
+		iput(inode);
+	return d;
+}
+#endif
+
 /*
  * Even if AppArmor isn't enabled, it still has different prototypes.
  * Add more distro/version pairs here to declare which has AppArmor applied.
