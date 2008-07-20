@@ -139,6 +139,8 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 	for (c = 0; c < 2; c++) {
 
 		cur_reg = regs[c];
+
+		/* Save previous value */
 		init_val = ath5k_hw_reg_read(ah, cur_reg);
 
 		for (i = 0; i < 256; i++) {
@@ -170,6 +172,10 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 			var_pattern = 0x003b080f;
 			ath5k_hw_reg_write(ah, var_pattern, cur_reg);
 		}
+
+		/* Restore previous value */
+		ath5k_hw_reg_write(ah, init_val, cur_reg);
+
 	}
 
 	return 0;
