@@ -1898,9 +1898,6 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 	data = data0 = data1 = data2 = 0;
 	c = channel->center_freq;
 
-	/*
-	 * Set the channel on the RF5112 or newer
-	 */
 	if (c < 4800) {
 		if (!((c - 2224) % 5)) {
 			data0 = ((2 * (c - 704)) - 3040) / 10;
@@ -1912,7 +1909,7 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 			return -EINVAL;
 
 		data0 = ath5k_hw_bitswap((data0 << 2) & 0xff, 8);
-	} else {
+	} else if ((c - (c % 5)) != 2 || c > 5435) {
 		if (!(c % 20) && c >= 5120) {
 			data0 = ath5k_hw_bitswap(((c - 4800) / 20 << 2), 8);
 			data2 = ath5k_hw_bitswap(3, 2);
@@ -1924,9 +1921,51 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 			data2 = ath5k_hw_bitswap(1, 2);
 		} else
 			return -EINVAL;
+	} else {
+		data0 = ath5k_hw_bitswap((10 * (c - 2) - 4800) / 25 + 1, 8);
+		data2 = ath5k_hw_bitswap(0, 2);
 	}
 
 	data = (data0 << 4) | (data1 << 1) | (data2 << 2) | 0x1001;
+
+	ath5k_hw_reg_write(ah, data & 0xff, AR5K_RF_BUFFER);
+	ath5k_hw_reg_write(ah, (data >> 8) & 0x7f, AR5K_RF_BUFFER_CONTROL_5);
+
+	return 0;
+}
+
+/*
+ * Set the channel on the RF2425
+ */
+static int ath5k_hw_rf2425_channel(struct ath5k_hw *ah,
+		struct ieee80211_channel *channel)
+{
+	u32 data, data0, data2;
+	u16 c;
+
+	data = data0 = data2 = 0;
+	c = channel->center_freq;
+
+	if (c < 4800) {
+		data0 = ath5k_hw_bitswap((c - 2272), 8);
+		data2 = 0;
+	/* ? 5GHz ? */
+	} else if ((c - (c % 5)) != 2 || c > 5435) {
+		if (!(c % 20) && c < 5120)
+			data0 = ath5k_hw_bitswap(((c - 4800) / 20 << 2), 8);
+		else if (!(c % 10))
+			data0 = ath5k_hw_bitswap(((c - 4800) / 10 << 1), 8);
+		else if (!(c % 5))
+			data0 = ath5k_hw_bitswap((c - 4800) / 5, 8);
+		else
+			return -EINVAL;
+		data2 = ath5k_hw_bitswap(1, 2);
+	} else {
+		data0 = ath5k_hw_bitswap((10 * (c - 2) - 4800) / 25 + 1, 8);
+		data2 = ath5k_hw_bitswap(0, 2);
+	}
+
+	data = (data0 << 4) | data2 << 2 | 0x1001;
 
 	ath5k_hw_reg_write(ah, data & 0xff, AR5K_RF_BUFFER);
 	ath5k_hw_reg_write(ah, (data >> 8) & 0x7f, AR5K_RF_BUFFER_CONTROL_5);
@@ -1963,6 +2002,9 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 	case AR5K_RF5111:
 		ret = ath5k_hw_rf5111_channel(ah, channel);
 		break;
+	case AR5K_RF2425:
+		ret = ath5k_hw_rf2425_channel(ah, channel);
+		break;
 	default:
 		ret = ath5k_hw_rf5112_channel(ah, channel);
 		break;
@@ -1970,6 +2012,15 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 
 	if (ret)
 		return ret;
+
+	/* Set JAPAN setting for channel 14 */
+	if (channel->center_freq == 2484) {
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_CCKTXCTL,
+				AR5K_PHY_CCKTXCTL_JAPAN);
+	} else {
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_CCKTXCTL,
+				AR5K_PHY_CCKTXCTL_WORLD);
+	}
 
 	ah->ah_current_channel.center_freq = channel->center_freq;
 	ah->ah_current_channel.hw_value = channel->hw_value;
