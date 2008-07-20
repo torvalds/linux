@@ -668,7 +668,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 	struct sctp_sockaddr_entry *temp;
 	int found = 0;
 
-	if (dev_net(ifa->ifa_dev->dev) != &init_net)
+	if (!net_eq(dev_net(ifa->ifa_dev->dev), &init_net))
 		return NOTIFY_DONE;
 
 	switch (ev) {
