@@ -505,7 +505,9 @@ void inc_rt_tasks(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 	rt_rq->rt_nr_running++;
 #if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
 	if (rt_se_prio(rt_se) < rt_rq->highest_prio) {
+#ifdef CONFIG_SMP
 		struct rq *rq = rq_of_rt_rq(rt_rq);
+#endif
 
 		rt_rq->highest_prio = rt_se_prio(rt_se);
 #ifdef CONFIG_SMP

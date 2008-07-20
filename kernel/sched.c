@@ -571,8 +571,10 @@ struct rq {
 #endif
 
 #ifdef CONFIG_SCHED_HRTICK
-	unsigned long hrtick_flags;
-	ktime_t hrtick_expire;
+#ifdef CONFIG_SMP
+	int hrtick_csd_pending;
+	struct call_single_data hrtick_csd;
+#endif
 	struct hrtimer hrtick_timer;
 #endif
 
@@ -983,13 +985,6 @@ static struct rq *this_rq_lock(void)
 	return rq;
 }
 
-static void __resched_task(struct task_struct *p, int tif_bit);
-
-static inline void resched_task(struct task_struct *p)
-{
-	__resched_task(p, TIF_NEED_RESCHED);
-}
-
 #ifdef CONFIG_SCHED_HRTICK
 /*
  * Use HR-timers to deliver accurate preemption points.
@@ -1001,25 +996,6 @@ static inline void resched_task(struct task_struct *p)
  * When we get rescheduled we reprogram the hrtick_timer outside of the
  * rq->lock.
  */
-static inline void resched_hrt(struct task_struct *p)
-{
-	__resched_task(p, TIF_HRTICK_RESCHED);
-}
-
-static inline void resched_rq(struct rq *rq)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rq->lock, flags);
-	resched_task(rq->curr);
-	spin_unlock_irqrestore(&rq->lock, flags);
-}
-
-enum {
-	HRTICK_SET,		/* re-programm hrtick_timer */
-	HRTICK_RESET,		/* not a new slice */
-	HRTICK_BLOCK,		/* stop hrtick operations */
-};
 
 /*
  * Use hrtick when:
@@ -1030,70 +1006,15 @@ static inline int hrtick_enabled(struct rq *rq)
 {
 	if (!sched_feat(HRTICK))
 		return 0;
-	if (unlikely(test_bit(HRTICK_BLOCK, &rq->hrtick_flags)))
+	if (!cpu_online(cpu_of(rq)))
 		return 0;
 	return hrtimer_is_hres_active(&rq->hrtick_timer);
-}
-
-/*
- * Called to set the hrtick timer state.
- *
- * called with rq->lock held and irqs disabled
- */
-static void hrtick_start(struct rq *rq, u64 delay, int reset)
-{
-	assert_spin_locked(&rq->lock);
-
-	/*
-	 * preempt at: now + delay
-	 */
-	rq->hrtick_expire =
-		ktime_add_ns(rq->hrtick_timer.base->get_time(), delay);
-	/*
-	 * indicate we need to program the timer
-	 */
-	__set_bit(HRTICK_SET, &rq->hrtick_flags);
-	if (reset)
-		__set_bit(HRTICK_RESET, &rq->hrtick_flags);
-
-	/*
-	 * New slices are called from the schedule path and don't need a
-	 * forced reschedule.
-	 */
-	if (reset)
-		resched_hrt(rq->curr);
 }
 
 static void hrtick_clear(struct rq *rq)
 {
 	if (hrtimer_active(&rq->hrtick_timer))
 		hrtimer_cancel(&rq->hrtick_timer);
-}
-
-/*
- * Update the timer from the possible pending state.
- */
-static void hrtick_set(struct rq *rq)
-{
-	ktime_t time;
-	int set, reset;
-	unsigned long flags;
-
-	WARN_ON_ONCE(cpu_of(rq) != smp_processor_id());
-
-	spin_lock_irqsave(&rq->lock, flags);
-	set = __test_and_clear_bit(HRTICK_SET, &rq->hrtick_flags);
-	reset = __test_and_clear_bit(HRTICK_RESET, &rq->hrtick_flags);
-	time = rq->hrtick_expire;
-	clear_thread_flag(TIF_HRTICK_RESCHED);
-	spin_unlock_irqrestore(&rq->lock, flags);
-
-	if (set) {
-		hrtimer_start(&rq->hrtick_timer, time, HRTIMER_MODE_ABS);
-		if (reset && !hrtimer_active(&rq->hrtick_timer))
-			resched_rq(rq);
-	} else
-		hrtick_clear(rq);
 }
 
 /*
@@ -1115,27 +1036,37 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
 }
 
 #ifdef CONFIG_SMP
-static void hotplug_hrtick_disable(int cpu)
+/*
+ * called from hardirq (IPI) context
+ */
+static void __hrtick_start(void *arg)
 {
-	struct rq *rq = cpu_rq(cpu);
-	unsigned long flags;
+	struct rq *rq = arg;
 
-	spin_lock_irqsave(&rq->lock, flags);
-	rq->hrtick_flags = 0;
-	__set_bit(HRTICK_BLOCK, &rq->hrtick_flags);
-	spin_unlock_irqrestore(&rq->lock, flags);
-
-	hrtick_clear(rq);
+	spin_lock(&rq->lock);
+	hrtimer_restart(&rq->hrtick_timer);
+	rq->hrtick_csd_pending = 0;
+	spin_unlock(&rq->lock);
 }
 
-static void hotplug_hrtick_enable(int cpu)
+/*
+ * Called to set the hrtick timer state.
+ *
+ * called with rq->lock held and irqs disabled
+ */
+static void hrtick_start(struct rq *rq, u64 delay)
 {
-	struct rq *rq = cpu_rq(cpu);
-	unsigned long flags;
+	struct hrtimer *timer = &rq->hrtick_timer;
+	ktime_t time = ktime_add_ns(timer->base->get_time(), delay);
 
-	spin_lock_irqsave(&rq->lock, flags);
-	__clear_bit(HRTICK_BLOCK, &rq->hrtick_flags);
-	spin_unlock_irqrestore(&rq->lock, flags);
+	timer->expires = time;
+
+	if (rq == this_rq()) {
+		hrtimer_restart(timer);
+	} else if (!rq->hrtick_csd_pending) {
+		__smp_call_function_single(cpu_of(rq), &rq->hrtick_csd);
+		rq->hrtick_csd_pending = 1;
+	}
 }
 
 static int
@@ -1150,16 +1081,7 @@ hotplug_hrtick(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	case CPU_DOWN_PREPARE_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		hotplug_hrtick_disable(cpu);
-		return NOTIFY_OK;
-
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-	case CPU_DOWN_FAILED:
-	case CPU_DOWN_FAILED_FROZEN:
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		hotplug_hrtick_enable(cpu);
+		hrtick_clear(cpu_rq(cpu));
 		return NOTIFY_OK;
 	}
 
@@ -1170,43 +1092,42 @@ static void init_hrtick(void)
 {
 	hotcpu_notifier(hotplug_hrtick, 0);
 }
+#else
+/*
+ * Called to set the hrtick timer state.
+ *
+ * called with rq->lock held and irqs disabled
+ */
+static void hrtick_start(struct rq *rq, u64 delay)
+{
+	hrtimer_start(&rq->hrtick_timer, ns_to_ktime(delay), HRTIMER_MODE_REL);
+}
+
+static void init_hrtick(void)
+{
+}
 #endif /* CONFIG_SMP */
 
 static void init_rq_hrtick(struct rq *rq)
 {
-	rq->hrtick_flags = 0;
+#ifdef CONFIG_SMP
+	rq->hrtick_csd_pending = 0;
+
+	rq->hrtick_csd.flags = 0;
+	rq->hrtick_csd.func = __hrtick_start;
+	rq->hrtick_csd.info = rq;
+#endif
+
 	hrtimer_init(&rq->hrtick_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	rq->hrtick_timer.function = hrtick;
 	rq->hrtick_timer.cb_mode = HRTIMER_CB_IRQSAFE_NO_SOFTIRQ;
-}
-
-void hrtick_resched(void)
-{
-	struct rq *rq;
-	unsigned long flags;
-
-	if (!test_thread_flag(TIF_HRTICK_RESCHED))
-		return;
-
-	local_irq_save(flags);
-	rq = cpu_rq(smp_processor_id());
-	hrtick_set(rq);
-	local_irq_restore(flags);
 }
 #else
 static inline void hrtick_clear(struct rq *rq)
 {
 }
 
-static inline void hrtick_set(struct rq *rq)
-{
-}
-
 static inline void init_rq_hrtick(struct rq *rq)
-{
-}
-
-void hrtick_resched(void)
 {
 }
 
@@ -1228,16 +1149,16 @@ static inline void init_hrtick(void)
 #define tsk_is_polling(t) test_tsk_thread_flag(t, TIF_POLLING_NRFLAG)
 #endif
 
-static void __resched_task(struct task_struct *p, int tif_bit)
+static void resched_task(struct task_struct *p)
 {
 	int cpu;
 
 	assert_spin_locked(&task_rq(p)->lock);
 
-	if (unlikely(test_tsk_thread_flag(p, tif_bit)))
+	if (unlikely(test_tsk_thread_flag(p, TIF_NEED_RESCHED)))
 		return;
 
-	set_tsk_thread_flag(p, tif_bit);
+	set_tsk_thread_flag(p, TIF_NEED_RESCHED);
 
 	cpu = task_cpu(p);
 	if (cpu == smp_processor_id())
@@ -1303,10 +1224,10 @@ void wake_up_idle_cpu(int cpu)
 #endif /* CONFIG_NO_HZ */
 
 #else /* !CONFIG_SMP */
-static void __resched_task(struct task_struct *p, int tif_bit)
+static void resched_task(struct task_struct *p)
 {
 	assert_spin_locked(&task_rq(p)->lock);
-	set_tsk_thread_flag(p, tif_bit);
+	set_tsk_need_resched(p);
 }
 #endif /* CONFIG_SMP */
 
@@ -4395,7 +4316,7 @@ asmlinkage void __sched schedule(void)
 	struct task_struct *prev, *next;
 	unsigned long *switch_count;
 	struct rq *rq;
-	int cpu, hrtick = sched_feat(HRTICK);
+	int cpu;
 
 need_resched:
 	preempt_disable();
@@ -4410,7 +4331,7 @@ need_resched_nonpreemptible:
 
 	schedule_debug(prev);
 
-	if (hrtick)
+	if (sched_feat(HRTICK))
 		hrtick_clear(rq);
 
 	/*
@@ -4456,9 +4377,6 @@ need_resched_nonpreemptible:
 		rq = cpu_rq(cpu);
 	} else
 		spin_unlock_irq(&rq->lock);
-
-	if (hrtick)
-		hrtick_set(rq);
 
 	if (unlikely(reacquire_kernel_lock(current) < 0))
 		goto need_resched_nonpreemptible;
