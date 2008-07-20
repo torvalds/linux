@@ -96,7 +96,6 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	enum data_queue_qid qid = skb_get_queue_mapping(skb);
-	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
 	struct data_queue *queue;
 	u16 frame_control;
 
@@ -150,18 +149,6 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			ieee80211_stop_queue(rt2x00dev->hw, qid);
 			return NETDEV_TX_BUSY;
 		}
-	}
-
-	/*
-	 * XXX: This is as wrong as the old mac80211 code was,
-	 *	due to beacons not getting sequence numbers assigned
-	 *	properly.
-	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		if (tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
-			intf->seqno += 0x10;
-		ieee80211hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		ieee80211hdr->seq_ctrl |= cpu_to_le16(intf->seqno);
 	}
 
 	if (rt2x00queue_write_tx_frame(queue, skb)) {

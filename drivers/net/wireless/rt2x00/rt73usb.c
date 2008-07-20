@@ -1281,7 +1281,8 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W1_CWMIN, txdesc->cw_min);
 	rt2x00_set_field32(&word, TXD_W1_CWMAX, txdesc->cw_max);
 	rt2x00_set_field32(&word, TXD_W1_IV_OFFSET, IEEE80211_HEADER);
-	rt2x00_set_field32(&word, TXD_W1_HW_SEQUENCE, 1);
+	rt2x00_set_field32(&word, TXD_W1_HW_SEQUENCE,
+			   test_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags));
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
