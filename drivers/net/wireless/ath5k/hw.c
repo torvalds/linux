@@ -1079,6 +1079,19 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 	}
 
 	/*
+	 * Perform ADC test (?)
+	 */
+	data = ath5k_hw_reg_read(ah, AR5K_PHY_TST1);
+	ath5k_hw_reg_write(ah, AR5K_PHY_TST1_TXHOLD, AR5K_PHY_TST1);
+	for (i = 0; i <= 20; i++) {
+		if (!(ath5k_hw_reg_read(ah, AR5K_PHY_ADC_TEST) & 0x10))
+			break;
+		udelay(200);
+	}
+	ath5k_hw_reg_write(ah, data, AR5K_PHY_TST1);
+	data = 0;
+
+	/*
 	 * Enable calibration and wait until completion
 	 */
 	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
