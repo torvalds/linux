@@ -267,9 +267,16 @@ __setup("md=", md_setup);
 void __init md_run_setup(void)
 {
 	create_dev("/dev/md0", MKDEV(MD_MAJOR, 0));
+
 	if (raid_noautodetect)
 		printk(KERN_INFO "md: Skipping autodetection of RAID arrays. (raid=noautodetect)\n");
 	else {
+		/* 
+		 * Since we don't want to detect and use half a raid array, we need to
+		 * wait for the known devices to complete their probing
+		 */
+		while (driver_probe_done() != 0)
+			msleep(100);
 		int fd = sys_open("/dev/md0", 0, 0);
 		if (fd >= 0) {
 			sys_ioctl(fd, RAID_AUTORUN, raid_autopart);
