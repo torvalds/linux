@@ -383,8 +383,8 @@ void iwl_reset_qos(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_reset_qos);
 
-#define MAX_BIT_RATE_40_MHZ 0x96; /* 150 Mbps */
-#define MAX_BIT_RATE_20_MHZ 0x48; /* 72 Mbps */
+#define MAX_BIT_RATE_40_MHZ 0x96 /* 150 Mbps */
+#define MAX_BIT_RATE_20_MHZ 0x48 /* 72 Mbps */
 static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 			      struct ieee80211_ht_info *ht_info,
 			      enum ieee80211_band band)

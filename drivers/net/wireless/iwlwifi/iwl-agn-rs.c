@@ -245,7 +245,7 @@ static void rs_rate_scale_clear_window(struct iwl_rate_scale_data *window)
 
 static inline u8 rs_is_valid_ant(u8 valid_antenna, u8 ant_type)
 {
-	return ((ant_type & valid_antenna) == ant_type);
+	return (ant_type & valid_antenna) == ant_type;
 }
 
 /*
@@ -384,9 +384,9 @@ static void rs_tl_turn_on_agg(struct iwl_priv *priv, u8 tid,
 
 static inline int get_num_of_ant_from_rate(u32 rate_n_flags)
 {
-	return (!!(rate_n_flags & RATE_MCS_ANT_A_MSK) +
-		!!(rate_n_flags & RATE_MCS_ANT_B_MSK) +
-		!!(rate_n_flags & RATE_MCS_ANT_C_MSK));
+	return !!(rate_n_flags & RATE_MCS_ANT_A_MSK) +
+	       !!(rate_n_flags & RATE_MCS_ANT_B_MSK) +
+	       !!(rate_n_flags & RATE_MCS_ANT_C_MSK);
 }
 
 /**
@@ -620,9 +620,9 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 #if 0
 static inline u8 rs_use_green(struct iwl_priv *priv, struct ieee80211_conf *conf)
 {
-	return ((conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) &&
+	return (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) &&
 		priv->current_ht_config.is_green_field &&
-		!priv->current_ht_config.non_GF_STA_present);
+		!priv->current_ht_config.non_GF_STA_present;
 }
 #endif
 static inline u8 rs_use_green(struct iwl_priv *priv, struct ieee80211_conf *conf)
@@ -2157,7 +2157,7 @@ static void *rs_alloc_sta(void *priv_rate, gfp_t gfp)
 
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < IWL_RATE_COUNT; i++)
-			rs_rate_scale_clear_window(&(lq_sta->lq_info[j].win[i]));
+			rs_rate_scale_clear_window(&lq_sta->lq_info[j].win[i]);
 
 	return lq_sta;
 }
@@ -2179,7 +2179,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	sta->txrate_idx = 3;
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < IWL_RATE_COUNT; i++)
-			rs_rate_scale_clear_window(&(lq_sta->lq_info[j].win[i]));
+			rs_rate_scale_clear_window(&lq_sta->lq_info[j].win[i]);
 
 	IWL_DEBUG_RATE("LQ: *** rate scale global init ***\n");
 	/* TODO: what is a good starting rate for STA? About middle? Maybe not

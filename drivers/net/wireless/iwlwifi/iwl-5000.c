@@ -1131,7 +1131,7 @@ static void iwl5000_txq_set_sched(struct iwl_priv *priv, u32 mask)
 
 static inline u32 iwl5000_get_scd_ssn(struct iwl5000_tx_resp *tx_resp)
 {
-	return le32_to_cpup((__le32*)&tx_resp->status +
+	return le32_to_cpup((__le32 *)&tx_resp->status +
 			    tx_resp->frame_count) & MAX_SN;
 }
 

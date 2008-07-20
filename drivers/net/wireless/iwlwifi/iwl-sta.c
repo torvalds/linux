@@ -823,7 +823,7 @@ int iwl_send_lq_cmd(struct iwl_priv *priv,
 	if (lq->sta_id == 0xFF)
 		lq->sta_id = IWL_AP_ID;
 
-	iwl_dump_lq_cmd(priv,lq);
+	iwl_dump_lq_cmd(priv, lq);
 
 	if (iwl_is_associated(priv) && priv->assoc_station_added)
 		return  iwl_send_cmd(priv, &cmd);

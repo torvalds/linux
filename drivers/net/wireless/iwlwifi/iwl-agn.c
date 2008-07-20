@@ -2476,7 +2476,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	unsigned long flags;
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
-		IWL_ERROR("%s Should not be called in AP mode\n", __FUNCTION__);
+		IWL_ERROR("%s Should not be called in AP mode\n", __func__);
 		return;
 	}
 
@@ -2552,7 +2552,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 
 	default:
 		IWL_ERROR("%s Should not be called in %d mode\n",
-				__FUNCTION__, priv->iw_mode);
+			  __func__, priv->iw_mode);
 		break;
 	}
 
@@ -3794,7 +3794,7 @@ static ssize_t show_measurement(struct device *d,
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	struct iwl4965_spectrum_notification measure_report;
 	u32 size = sizeof(measure_report), len = 0, ofs = 0;
-	u8 *data = (u8 *) & measure_report;
+	u8 *data = (u8 *)&measure_report;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -3934,7 +3934,7 @@ static ssize_t show_power_level(struct device *d,
 	p += sprintf(p, "\tMODE:%s", (mode < IWL_POWER_AUTO)?"fixed":"auto");
 	p += sprintf(p, "\tINDEX:%d", level);
 	p += sprintf(p, "\n");
-	return (p - buf + 1);
+	return p - buf + 1;
 }
 
 static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,
@@ -4009,7 +4009,7 @@ static ssize_t show_statistics(struct device *d,
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	u32 size = sizeof(struct iwl_notif_statistics);
 	u32 len = 0, ofs = 0;
-	u8 *data = (u8 *) & priv->statistics;
+	u8 *data = (u8 *)&priv->statistics;
 	int rc = 0;
 
 	if (!iwl_is_alive(priv))

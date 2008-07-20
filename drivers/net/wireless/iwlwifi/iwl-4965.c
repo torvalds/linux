@@ -1515,11 +1515,11 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 					  c, atten_value, power_index,
 					tx_power.s.radio_tx_gain[c],
 					tx_power.s.dsp_predis_atten[c]);
-		}/* for each chain */
+		} /* for each chain */
 
 		tx_power_tbl->power_tbl[i].dw = cpu_to_le32(tx_power.dw);
 
-	}/* for each rate */
+	} /* for each rate */
 
 	return 0;
 }
