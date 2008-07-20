@@ -621,25 +621,15 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 	return retval;
 }
 
-static void
-complete_agent_reset_write(struct fw_card *card, int rcode,
-			   void *payload, size_t length, void *done)
-{
-	complete(done);
-}
-
 static void sbp2_agent_reset(struct sbp2_logical_unit *lu)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
-	DECLARE_COMPLETION_ONSTACK(done);
-	struct fw_transaction t;
-	static u32 z;
+	__be32 d = 0;
 
-	fw_send_request(device->card, &t, TCODE_WRITE_QUADLET_REQUEST,
-			lu->tgt->node_id, lu->generation, device->max_speed,
-			lu->command_block_agent_address + SBP2_AGENT_RESET,
-			&z, sizeof(z), complete_agent_reset_write, &done);
-	wait_for_completion(&done);
+	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
+			   lu->tgt->node_id, lu->generation, device->max_speed,
+			   lu->command_block_agent_address + SBP2_AGENT_RESET,
+			   &d, sizeof(d));
 }
 
 static void
@@ -653,7 +643,7 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct fw_transaction *t;
-	static u32 z;
+	static __be32 d;
 
 	t = kmalloc(sizeof(*t), GFP_ATOMIC);
 	if (t == NULL)
@@ -662,7 +652,7 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 	fw_send_request(device->card, t, TCODE_WRITE_QUADLET_REQUEST,
 			lu->tgt->node_id, lu->generation, device->max_speed,
 			lu->command_block_agent_address + SBP2_AGENT_RESET,
-			&z, sizeof(z), complete_agent_reset_write_no_wait, t);
+			&d, sizeof(d), complete_agent_reset_write_no_wait, t);
 }
 
 static void sbp2_set_generation(struct sbp2_logical_unit *lu, int generation)
@@ -823,13 +813,6 @@ static void sbp2_target_put(struct sbp2_target *tgt)
 	kref_put(&tgt->kref, sbp2_release_target);
 }
 
-static void
-complete_set_busy_timeout(struct fw_card *card, int rcode,
-			  void *payload, size_t length, void *done)
-{
-	complete(done);
-}
-
 /*
  * Write retransmit retry values into the BUSY_TIMEOUT register.
  * - The single-phase retry protocol is supported by all SBP-2 devices, but the
@@ -849,17 +832,12 @@ complete_set_busy_timeout(struct fw_card *card, int rcode,
 static void sbp2_set_busy_timeout(struct sbp2_logical_unit *lu)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
-	DECLARE_COMPLETION_ONSTACK(done);
-	struct fw_transaction t;
-	static __be32 busy_timeout;
+	__be32 d = cpu_to_be32(SBP2_CYCLE_LIMIT | SBP2_RETRY_LIMIT);
 
-	busy_timeout = cpu_to_be32(SBP2_CYCLE_LIMIT | SBP2_RETRY_LIMIT);
-
-	fw_send_request(device->card, &t, TCODE_WRITE_QUADLET_REQUEST,
-			lu->tgt->node_id, lu->generation, device->max_speed,
-			CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT, &busy_timeout,
-			sizeof(busy_timeout), complete_set_busy_timeout, &done);
-	wait_for_completion(&done);
+	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
+			   lu->tgt->node_id, lu->generation, device->max_speed,
+			   CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT,
+			   &d, sizeof(d));
 }
 
 static void sbp2_reconnect(struct work_struct *work);
