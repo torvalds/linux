@@ -11,10 +11,8 @@ iwl3945-objs		:= iwl3945-base.o iwl-3945.o iwl-3945-rs.o
 iwl3945-$(CONFIG_IWL3945_LEDS) += iwl-3945-led.o
 
 obj-$(CONFIG_IWL4965)	+= iwl4965.o
-iwl4965-objs		:= iwl4965-base.o iwl-4965.o iwl-agn-rs.o
+iwl4965-objs		:= iwl-agn.o iwl-4965.o iwl-agn-rs.o
 
-ifeq ($(CONFIG_IWL5000),y)
-	iwl4965-objs += iwl-5000.o
-endif
+iwl4965-$(CONFIG_IWL5000) += iwl-5000.o
 
 
