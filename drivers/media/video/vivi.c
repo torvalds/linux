@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
 #include <linux/freezer.h>

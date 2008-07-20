@@ -37,6 +37,7 @@
 #include <asm/uaccess.h>	/* copy to/from user              */
 #include <linux/videodev2.h>	/* kernel radio structs           */
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
 #define RADIO_VERSION KERNEL_VERSION(0,0,2)

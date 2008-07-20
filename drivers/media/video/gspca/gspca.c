@@ -32,6 +32,7 @@
 #include <asm/page.h>
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
+#include <media/v4l2-ioctl.h>
 
 #include "gspca.h"
 

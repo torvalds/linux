@@ -49,6 +49,7 @@
 #include <linux/version.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/vmalloc.h>
 #include <linux/usb.h>
 

@@ -71,6 +71,7 @@
 
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include "videocodec.h"
 
 #include <asm/byteorder.h>

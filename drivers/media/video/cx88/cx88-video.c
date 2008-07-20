@@ -39,6 +39,7 @@
 
 #include "cx88.h"
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 /* Include V4L1 specific functions. Should be removed soon */

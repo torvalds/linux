@@ -39,43 +39,6 @@
 #define VFL_TYPE_RADIO		2
 #define VFL_TYPE_VTX		3
 
-/*  Video standard functions  */
-extern const char *v4l2_norm_to_name(v4l2_std_id id);
-extern int v4l2_video_std_construct(struct v4l2_standard *vs,
-				    int id, const char *name);
-/* Prints the ioctl in a human-readable format */
-extern void v4l_printk_ioctl(unsigned int cmd);
-
-/* prority handling */
-struct v4l2_prio_state {
-	atomic_t prios[4];
-};
-int v4l2_prio_init(struct v4l2_prio_state *global);
-int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
-		     enum v4l2_priority new);
-int v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local);
-int v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority *local);
-enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global);
-int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority *local);
-
-/* names for fancy debug output */
-extern const char *v4l2_field_names[];
-extern const char *v4l2_type_names[];
-
-/*  Compatibility layer interface  --  v4l1-compat module */
-typedef int (*v4l2_kioctl)(struct inode *inode, struct file *file,
-			   unsigned int cmd, void *arg);
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-int v4l_compat_translate_ioctl(struct inode *inode, struct file *file,
-			       int cmd, void *arg, v4l2_kioctl driver_ioctl);
-#else
-#define v4l_compat_translate_ioctl(inode,file,cmd,arg,ioctl) -EINVAL
-#endif
-
-/* 32 Bits compatibility layer for 64 bits processors */
-extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
-				unsigned long arg);
-
 /*
  * Newer version of video_device, handled by videodev2.c
  * 	This version moves redundant code from video device code to
@@ -352,19 +315,11 @@ extern int video_register_device(struct video_device *vfd, int type, int nr);
 int video_register_device_index(struct video_device *vfd, int type, int nr,
 					int index);
 void video_unregister_device(struct video_device *);
-extern int video_ioctl2(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg);
 
 /* helper functions to alloc / release struct video_device, the
    later can be used for video_device->release() */
 struct video_device *video_device_alloc(void);
 void video_device_release(struct video_device *vfd);
-
-/* Include support for obsoleted stuff */
-extern int video_usercopy(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg,
-			  int (*func)(struct inode *inode, struct file *file,
-				      unsigned int cmd, void *arg));
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 #include <linux/mm.h>

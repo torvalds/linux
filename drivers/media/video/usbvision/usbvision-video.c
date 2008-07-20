@@ -65,6 +65,7 @@
 
 #include <media/saa7115.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/tuner.h>
 #include <media/audiochip.h>
 

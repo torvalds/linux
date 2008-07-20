@@ -48,6 +48,7 @@
 #include <linux/i2c.h>
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/i2c-addr.h>
 
 #ifndef VIDEO_AUDIO_BALANCE

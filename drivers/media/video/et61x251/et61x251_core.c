@@ -34,6 +34,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/page-flags.h>
+#include <media/v4l2-ioctl.h>
 #include <asm/byteorder.h>
 #include <asm/page.h>
 #include <asm/uaccess.h>
