@@ -847,7 +847,22 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 			else
 				ath5k_hw_reg_write(ah, 0x00000000, 0x994c);
 
-			ath5k_hw_reg_write(ah, 0x000009b5, 0xa228);
+			/* Some bits are disabled here, we know nothing about
+			 * register 0xa228 yet, most of the times this ends up
+			 * with a value 0x9b5 -haven't seen any dump with
+			 * a different value- */
+			/* Got this from decompiling binary HAL */
+			data = ath5k_hw_reg_read(ah, 0xa228);
+			data &= 0xfffffdff;
+			ath5k_hw_reg_write(ah, data, 0xa228);
+
+			data = ath5k_hw_reg_read(ah, 0xa228);
+			data &= 0xfffe03ff;
+			ath5k_hw_reg_write(ah, data, 0xa228);
+			data = 0;
+
+			/* Just write 0x9b5 ? */
+			/* ath5k_hw_reg_write(ah, 0x000009b5, 0xa228); */
 			ath5k_hw_reg_write(ah, 0x0000000f, AR5K_SEQ_MASK);
 			ath5k_hw_reg_write(ah, 0x00000000, 0xa254);
 			ath5k_hw_reg_write(ah, 0x0000000e, AR5K_PHY_SCAL);
@@ -864,6 +879,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 			else
 				data = 0xffb80d20;
 			ath5k_hw_reg_write(ah, data, AR5K_PHY_FRAME_CTL);
+			data = 0;
 		}
 
 		/*
@@ -883,7 +899,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 
 		/*
 		 * Write RF registers
-		 * TODO:Does this work on 5211 (5111) ?
 		 */
 		ret = ath5k_hw_rfregs(ah, channel, mode);
 		if (ret)
@@ -1048,7 +1063,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 	ath5k_hw_reg_write(ah, AR5K_PHY_ACT_ENABLE, AR5K_PHY_ACT);
 
 	/*
-	 * 5111/5112 Specific
+	 * On 5211+ read activation -> rx delay
+	 * and use it.
 	 */
 	if (ah->ah_version != AR5K_AR5210) {
 		data = ath5k_hw_reg_read(ah, AR5K_PHY_RX_DELAY) &
@@ -1056,7 +1072,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		data = (channel->hw_value & CHANNEL_CCK) ?
 			((data << 2) / 22) : (data / 10);
 
-		udelay(100 + data);
+		udelay(100 + (2 * data));
+		data = 0;
 	} else {
 		mdelay(1);
 	}
@@ -1139,6 +1156,12 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		ath5k_hw_reg_write(ah, AR5K_PHY_SCLOCK_32MHZ, AR5K_PHY_SCLOCK);
 		ath5k_hw_reg_write(ah, AR5K_PHY_SDELAY_32MHZ, AR5K_PHY_SDELAY);
 		ath5k_hw_reg_write(ah, ah->ah_phy_spending, AR5K_PHY_SPENDING);
+
+		data = ath5k_hw_reg_read(ah, AR5K_USEC_5211) & 0xffffc07f ;
+		data |= (ah->ah_phy_spending == AR5K_PHY_SPENDING_18) ?
+						0x00000f80 : 0x00001380 ;
+		ath5k_hw_reg_write(ah, data, AR5K_USEC_5211);
+		data = 0;
 	}
 
 	if (ah->ah_version == AR5K_AR5212) {
