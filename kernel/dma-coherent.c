@@ -92,6 +92,21 @@ void *dma_mark_declared_memory_occupied(struct device *dev,
 }
 EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
 
+/**
+ * Try to allocate memory from the per-device coherent area.
+ *
+ * @dev:	device from which we allocate memory
+ * @size:	size of requested memory area
+ * @dma_handle:	This will be filled with the correct dma handle
+ * @ret:	This pointer will be filled with the virtual address
+ * 		to allocated area.
+ *
+ * This function should be only called from per-arch %dma_alloc_coherent()
+ * to support allocation from per-device coherent memory pools.
+ *
+ * Returns 0 if dma_alloc_coherent should continue with allocating from
+ * generic memory areas, or !0 if dma_alloc_coherent should return %ret.
+ */
 int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 				       dma_addr_t *dma_handle, void **ret)
 {
@@ -111,6 +126,19 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 	return (mem != NULL);
 }
 
+/**
+ * Try to free the memory allocated from per-device coherent memory pool.
+ * @dev:	device from which the memory was allocated
+ * @order:	the order of pages allocated
+ * @vaddr:	virtual address of allocated pages
+ *
+ * This checks whether the memory was allocated from the per-device
+ * coherent memory pool and if so, releases that memory.
+ *
+ * Returns 1 if we correctly released the memory, or 0 if
+ * %dma_release_coherent() should proceed with releasing memory from
+ * generic pools.
+ */
 int dma_release_from_coherent(struct device *dev, int order, void *vaddr)
 {
 	struct dma_coherent_mem *mem = dev ? dev->dma_mem : NULL;
