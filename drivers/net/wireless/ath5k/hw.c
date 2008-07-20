@@ -293,67 +293,42 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	/* Identify the radio chip*/
 	if (ah->ah_version == AR5K_AR5210) {
 		ah->ah_radio = AR5K_RF5110;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112) {
-		ah->ah_radio = AR5K_RF5111;
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5111;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC0) {
-
-		ah->ah_radio = AR5K_RF5112;
-
-		if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112A) {
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
-		} else {
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-		}
-
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
-		ah->ah_radio = AR5K_RF2413;
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC2) {
-		ah->ah_radio = AR5K_RF5413;
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5133) {
-
-		/* AR5424 */
-		if (srev >= AR5K_SREV_VER_AR5424) {
-			ah->ah_radio = AR5K_RF5413;
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5424;
-		/* AR2424 */
-		} else {
-			ah->ah_radio = AR5K_RF2413; /* For testing */
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-		}
-
 	/*
-	 * Register returns 0x4 for radio revision
+	 * Register returns 0x0/0x04 for radio revision
 	 * so ath5k_hw_radio_revision doesn't parse the value
 	 * correctly. For now we are based on mac's srev to
 	 * identify RF2425 radio.
 	 */
 	} else if (srev == AR5K_SREV_VER_AR2425) {
 		ah->ah_radio = AR5K_RF2425;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2425;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112) {
+		ah->ah_radio = AR5K_RF5111;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5111;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC0) {
+		ah->ah_radio = AR5K_RF5112;
 		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
+		ah->ah_radio = AR5K_RF2413;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2413;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC2) {
+		ah->ah_radio = AR5K_RF5413;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5413;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5133) {
+		/* AR5424 */
+		if (srev >= AR5K_SREV_VER_AR5424) {
+			ah->ah_radio = AR5K_RF5413;
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5413;
+		/* AR2424 */
+		} else {
+			ah->ah_radio = AR5K_RF2413; /* For testing */
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2413;
+		}
 	}
-
 	ah->ah_phy = AR5K_PHY(0);
 
 	/*
-	 * Identify AR5212-based PCI-E cards
-	 * And write some initial settings.
-	 *
-	 * (doing a "strings" on ndis driver
-	 * -ar5211.sys- reveals the following
-	 * pci-e related functions:
-	 *
-	 * pcieClockReq
-	 * pcieRxErrNotify
-	 * pcieL1SKPEnable
-	 * pcieAspm
-	 * pcieDisableAspmOnRfWake
-	 * pciePowerSaveEnable
-	 *
-	 * I guess these point to ClockReq but
-	 * i'm not sure.)
+	 * Write PCI-E power save settings
 	 */
 	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
 		ath5k_hw_reg_write(ah, 0x9248fc00, 0x4080);
@@ -375,10 +350,15 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	if (ret)
 		goto err_free;
 
+	/* Write AR5K_PCICFG_UNK on 2112B and later chips */
+	if (ah->ah_radio_5ghz_revision > AR5K_SREV_RAD_2112B ||
+	srev > AR5K_SREV_VER_AR2413) {
+		ath5k_hw_reg_write(ah, AR5K_PCICFG_UNK, AR5K_PCICFG);
+	}
+
 	/*
 	 * Get card capabilities, values, ...
 	 */
-
 	ret = ath5k_eeprom_init(ah);
 	if (ret) {
 		ATH5K_ERR(sc, "unable to init EEPROM\n");
