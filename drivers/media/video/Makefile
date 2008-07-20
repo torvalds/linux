@@ -10,6 +10,8 @@ msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
 stkwebcam-objs	:=	stk-webcam.o stk-sensor.o
 
+videodev-objs	:=	v4l2-dev.o v4l2-ioctl.o
+
 obj-$(CONFIG_VIDEO_DEV) += videodev.o compat_ioctl32.o v4l2-int-device.o
 
 obj-$(CONFIG_VIDEO_V4L2_COMMON) += v4l2-common.o
