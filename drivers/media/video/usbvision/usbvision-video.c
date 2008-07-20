@@ -184,7 +184,7 @@ MODULE_ALIAS(DRIVER_ALIAS);
 static inline struct usb_usbvision *cd_to_usbvision(struct device *cd)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	return video_get_drvdata(vdev);
 }
 
@@ -199,7 +199,7 @@ static ssize_t show_model(struct device *cd,
 			  struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       usbvision_device_data[usbvision->DevModel].ModelString);
@@ -210,7 +210,7 @@ static ssize_t show_hue(struct device *cd,
 			struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_HUE;
@@ -225,7 +225,7 @@ static ssize_t show_contrast(struct device *cd,
 			     struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_CONTRAST;
@@ -240,7 +240,7 @@ static ssize_t show_brightness(struct device *cd,
 			       struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_BRIGHTNESS;
@@ -255,7 +255,7 @@ static ssize_t show_saturation(struct device *cd,
 			       struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_SATURATION;
@@ -270,7 +270,7 @@ static ssize_t show_streaming(struct device *cd,
 			      struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       YES_NO(usbvision->streaming==Stream_On?1:0));
@@ -281,7 +281,7 @@ static ssize_t show_compression(struct device *cd,
 				struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       YES_NO(usbvision->isocMode==ISOC_MODE_COMPRESS));
@@ -292,7 +292,7 @@ static ssize_t show_device_bridge(struct device *cd,
 				  struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->bridgeType);
 }
@@ -304,40 +304,31 @@ static void usbvision_create_sysfs(struct video_device *vdev)
 	if (!vdev)
 		return;
 	do {
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_version);
+		res = device_create_file(&vdev->dev, &dev_attr_version);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_model);
+		res = device_create_file(&vdev->dev, &dev_attr_model);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_hue);
+		res = device_create_file(&vdev->dev, &dev_attr_hue);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_contrast);
+		res = device_create_file(&vdev->dev, &dev_attr_contrast);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_brightness);
+		res = device_create_file(&vdev->dev, &dev_attr_brightness);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_saturation);
+		res = device_create_file(&vdev->dev, &dev_attr_saturation);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_streaming);
+		res = device_create_file(&vdev->dev, &dev_attr_streaming);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_compression);
+		res = device_create_file(&vdev->dev, &dev_attr_compression);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_bridge);
+		res = device_create_file(&vdev->dev, &dev_attr_bridge);
 		if (res>=0)
 			return;
 	} while (0);
@@ -348,24 +339,15 @@ static void usbvision_create_sysfs(struct video_device *vdev)
 static void usbvision_remove_sysfs(struct video_device *vdev)
 {
 	if (vdev) {
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_version);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_model);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_hue);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_contrast);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_brightness);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_saturation);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_streaming);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_compression);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_bridge);
+		device_remove_file(&vdev->dev, &dev_attr_version);
+		device_remove_file(&vdev->dev, &dev_attr_model);
+		device_remove_file(&vdev->dev, &dev_attr_hue);
+		device_remove_file(&vdev->dev, &dev_attr_contrast);
+		device_remove_file(&vdev->dev, &dev_attr_brightness);
+		device_remove_file(&vdev->dev, &dev_attr_saturation);
+		device_remove_file(&vdev->dev, &dev_attr_streaming);
+		device_remove_file(&vdev->dev, &dev_attr_compression);
+		device_remove_file(&vdev->dev, &dev_attr_bridge);
 	}
 }
 

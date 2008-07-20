@@ -88,18 +88,18 @@ struct video_device
 	const struct file_operations *fops;
 
 	/* sysfs */
-	struct device class_dev;	/* v4l device */
+	struct device dev;		/* v4l device */
 	struct device *parent;		/* device parent */
 
 	/* device info */
 	char name[32];
-	int type;       /* v4l1 */
-	int type2;      /* v4l2 */
+	int type;       		/* v4l1 */
+	int type2;      		/* v4l2 */
 	int minor;
 	/* attribute to diferentiate multiple indexs on one physical device */
 	int index;
 
-	int debug;	/* Activates debug level*/
+	int debug;			/* Activates debug level*/
 
 	/* Video standard vars */
 	v4l2_std_id tvnorms;		/* Supported tv norms */
@@ -345,7 +345,7 @@ void *priv;
 };
 
 /* Class-dev to video-device */
-#define to_video_device(cd) container_of(cd, struct video_device, class_dev)
+#define to_video_device(cd) container_of(cd, struct video_device, dev)
 
 /* Version 2 functions */
 extern int video_register_device(struct video_device *vfd, int type, int nr);
@@ -373,7 +373,7 @@ static inline int __must_check
 video_device_create_file(struct video_device *vfd,
 			 struct device_attribute *attr)
 {
-	int ret = device_create_file(&vfd->class_dev, attr);
+	int ret = device_create_file(&vfd->dev, attr);
 	if (ret < 0)
 		printk(KERN_WARNING "%s error: %d\n", __func__, ret);
 	return ret;
@@ -382,7 +382,7 @@ static inline void
 video_device_remove_file(struct video_device *vfd,
 			 struct device_attribute *attr)
 {
-	device_remove_file(&vfd->class_dev, attr);
+	device_remove_file(&vfd->dev, attr);
 }
 
 #endif /* CONFIG_VIDEO_V4L1_COMPAT */

@@ -985,7 +985,7 @@ static DEVICE_ATTR(i2c_val, S_IRUGO | S_IWUSR,
 
 static int et61x251_create_sysfs(struct et61x251_device* cam)
 {
-	struct device *classdev = &(cam->v4ldev->class_dev);
+	struct device *classdev = &(cam->v4ldev->dev);
 	int err = 0;
 
 	if ((err = device_create_file(classdev, &dev_attr_reg)))

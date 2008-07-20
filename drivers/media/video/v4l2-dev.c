@@ -41,16 +41,14 @@
 static ssize_t show_index(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
-	struct video_device *vfd = container_of(cd, struct video_device,
-						class_dev);
+	struct video_device *vfd = container_of(cd, struct video_device, dev);
 	return sprintf(buf, "%i\n", vfd->index);
 }
 
 static ssize_t show_name(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
-	struct video_device *vfd = container_of(cd, struct video_device,
-						class_dev);
+	struct video_device *vfd = container_of(cd, struct video_device, dev);
 	return sprintf(buf, "%.*s\n", (int)sizeof(vfd->name), vfd->name);
 }
 
@@ -77,8 +75,7 @@ EXPORT_SYMBOL(video_device_release);
 
 static void video_release(struct device *cd)
 {
-	struct video_device *vfd = container_of(cd, struct video_device,
-								class_dev);
+	struct video_device *vfd = container_of(cd, struct video_device, dev);
 
 #if 1
 	/* needed until all drivers are fixed */
@@ -320,13 +317,13 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	mutex_init(&vfd->lock);
 
 	/* sysfs class */
-	memset(&vfd->class_dev, 0x00, sizeof(vfd->class_dev));
-	vfd->class_dev.class = &video_class;
-	vfd->class_dev.devt = MKDEV(VIDEO_MAJOR, vfd->minor);
+	memset(&vfd->dev, 0x00, sizeof(vfd->dev));
+	vfd->dev.class = &video_class;
+	vfd->dev.devt = MKDEV(VIDEO_MAJOR, vfd->minor);
 	if (vfd->parent)
-		vfd->class_dev.parent = vfd->parent;
-	sprintf(vfd->class_dev.bus_id, "%s%d", name_base, i - base);
-	ret = device_register(&vfd->class_dev);
+		vfd->dev.parent = vfd->parent;
+	sprintf(vfd->dev.bus_id, "%s%d", name_base, i - base);
+	ret = device_register(&vfd->dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: device_register failed\n", __func__);
 		goto fail_minor;
@@ -365,7 +362,7 @@ void video_unregister_device(struct video_device *vfd)
 		panic("videodev: bad unregister");
 
 	video_device[vfd->minor] = NULL;
-	device_unregister(&vfd->class_dev);
+	device_unregister(&vfd->dev);
 	mutex_unlock(&videodev_lock);
 }
 EXPORT_SYMBOL(video_unregister_device);

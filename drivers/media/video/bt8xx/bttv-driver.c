@@ -163,7 +163,7 @@ MODULE_LICENSE("GPL");
 static ssize_t show_card(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
-	struct video_device *vfd = container_of(cd, struct video_device, class_dev);
+	struct video_device *vfd = container_of(cd, struct video_device, dev);
 	struct bttv *btv = dev_get_drvdata(vfd->parent);
 	return sprintf(buf, "%d\n", btv ? btv->c.type : UNSET);
 }
@@ -4244,7 +4244,7 @@ static int __devinit bttv_register_video(struct bttv *btv)
 		goto err;
 	printk(KERN_INFO "bttv%d: registered device video%d\n",
 	       btv->c.nr,btv->video_dev->minor & 0x1f);
-	if (device_create_file(&btv->video_dev->class_dev,
+	if (device_create_file(&btv->video_dev->dev,
 				     &dev_attr_card)<0) {
 		printk(KERN_ERR "bttv%d: device_create_file 'card' "
 		       "failed\n", btv->c.nr);
