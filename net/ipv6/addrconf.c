@@ -1863,6 +1863,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 		struct inet6_ifaddr * ifp;
 		struct in6_addr addr;
 		int create = 0, update_lft = 0;
+		struct net *net = dev_net(dev);
 
 		if (pinfo->prefix_len == 64) {
 			memcpy(&addr, &pinfo->prefix, 8);
@@ -1881,7 +1882,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 
 ok:
 
-		ifp = ipv6_get_ifaddr(dev_net(dev), &addr, dev, 1);
+		ifp = ipv6_get_ifaddr(net, &addr, dev, 1);
 
 		if (ifp == NULL && valid_lft) {
 			int max_addresses = in6_dev->cnf.max_addresses;
@@ -1889,7 +1890,7 @@ ok:
 
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
 			if (in6_dev->cnf.optimistic_dad &&
-			    !ipv6_devconf.forwarding)
+			    !net->ipv6.devconf_all->forwarding)
 				addr_flags = IFA_F_OPTIMISTIC;
 #endif
 
@@ -2314,11 +2315,12 @@ static void init_loopback(struct net_device *dev)
 static void addrconf_add_linklocal(struct inet6_dev *idev, struct in6_addr *addr)
 {
 	struct inet6_ifaddr * ifp;
+	struct net *net = dev_net(idev->dev);
 	u32 addr_flags = IFA_F_PERMANENT;
 
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
 	if (idev->cnf.optimistic_dad &&
-	    !ipv6_devconf.forwarding)
+	    !net->ipv6.devconf_all->forwarding)
 		addr_flags |= IFA_F_OPTIMISTIC;
 #endif
 

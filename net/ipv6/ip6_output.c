@@ -411,7 +411,7 @@ int ip6_forward(struct sk_buff *skb)
 	struct inet6_skb_parm *opt = IP6CB(skb);
 	struct net *net = dev_net(dst->dev);
 
-	if (ipv6_devconf.forwarding == 0)
+	if (net->ipv6.devconf_all->forwarding == 0)
 		goto error;
 
 	if (skb_warn_if_lro(skb))
@@ -458,7 +458,7 @@ int ip6_forward(struct sk_buff *skb)
 	}
 
 	/* XXX: idev->cnf.proxy_ndp? */
-	if (ipv6_devconf.proxy_ndp &&
+	if (net->ipv6.devconf_all->proxy_ndp &&
 	    pneigh_lookup(&nd_tbl, net, &hdr->daddr, skb->dev, 0)) {
 		int proxied = ip6_forward_proxy_check(skb);
 		if (proxied > 0)

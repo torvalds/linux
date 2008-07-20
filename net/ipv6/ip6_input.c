@@ -249,7 +249,7 @@ int ip6_mc_input(struct sk_buff *skb)
 	/*
 	 *      IPv6 multicast router mode is now supported ;)
 	 */
-	if (ipv6_devconf.mc_forwarding &&
+	if (dev_net(skb->dev)->ipv6.devconf_all->mc_forwarding &&
 	    likely(!(IP6CB(skb)->flags & IP6SKB_FORWARDED))) {
 		/*
 		 * Okay, we try to forward - split and duplicate

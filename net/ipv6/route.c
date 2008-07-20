@@ -676,7 +676,7 @@ static struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 	int strict = 0;
 	int attempts = 3;
 	int err;
-	int reachable = ipv6_devconf.forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
+	int reachable = net->ipv6.devconf_all->forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
 
@@ -1058,7 +1058,7 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 			hoplimit = idev->cnf.hop_limit;
 			in6_dev_put(idev);
 		} else
-			hoplimit = ipv6_devconf.hop_limit;
+			hoplimit = dev_net(dev)->ipv6.devconf_all->hop_limit;
 	}
 	return hoplimit;
 }

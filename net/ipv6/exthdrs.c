@@ -319,7 +319,7 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 	int n, i;
 	struct ipv6_rt_hdr *hdr;
 	struct rt0_hdr *rthdr;
-	int accept_source_route = ipv6_devconf.accept_source_route;
+	int accept_source_route = dev_net(skb->dev)->ipv6.devconf_all->accept_source_route;
 
 	idev = in6_dev_get(skb->dev);
 	if (idev) {

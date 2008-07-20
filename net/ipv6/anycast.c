@@ -60,7 +60,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 	struct inet6_dev *idev;
 	struct ipv6_ac_socklist *pac;
 	struct net *net = sock_net(sk);
-	int	ishost = !ipv6_devconf.forwarding;
+	int	ishost = !net->ipv6.devconf_all->forwarding;
 	int	err = 0;
 
 	if (!capable(CAP_NET_ADMIN))
