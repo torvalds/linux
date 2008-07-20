@@ -239,7 +239,7 @@ int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto err;
-	key[len] = 0;
+	key[len] = '\0';
 	if (hashtab_insert(h, key, booldatum))
 		goto err;
 

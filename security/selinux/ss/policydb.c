@@ -932,7 +932,7 @@ static int perm_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	rc = hashtab_insert(h, key, perdatum);
 	if (rc)
@@ -979,7 +979,7 @@ static int common_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	for (i = 0; i < nel; i++) {
 		rc = perm_read(p, comdatum->permissions.table, fp);
@@ -1117,7 +1117,7 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	if (len2) {
 		cladatum->comkey = kmalloc(len2 + 1, GFP_KERNEL);
@@ -1128,7 +1128,7 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 		rc = next_entry(cladatum->comkey, fp, len2);
 		if (rc < 0)
 			goto bad;
-		cladatum->comkey[len2] = 0;
+		cladatum->comkey[len2] = '\0';
 
 		cladatum->comdatum = hashtab_search(p->p_commons.table,
 						    cladatum->comkey);
@@ -1201,7 +1201,7 @@ static int role_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	rc = ebitmap_read(&role->dominates, fp);
 	if (rc)
@@ -1262,7 +1262,7 @@ static int type_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	rc = hashtab_insert(h, key, typdatum);
 	if (rc)
@@ -1334,7 +1334,7 @@ static int user_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	rc = ebitmap_read(&usrdatum->roles, fp);
 	if (rc)
@@ -1388,7 +1388,7 @@ static int sens_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	levdatum->level = kmalloc(sizeof(struct mls_level), GFP_ATOMIC);
 	if (!levdatum->level) {
@@ -1440,7 +1440,7 @@ static int cat_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	rc = hashtab_insert(h, key, catdatum);
 	if (rc)
@@ -1523,7 +1523,7 @@ int policydb_read(struct policydb *p, void *fp)
 		kfree(policydb_str);
 		goto bad;
 	}
-	policydb_str[len] = 0;
+	policydb_str[len] = '\0';
 	if (strcmp(policydb_str, POLICYDB_STRING)) {
 		printk(KERN_ERR "SELinux:  policydb string %s does not match "
 		       "my string %s\n", policydb_str, POLICYDB_STRING);
