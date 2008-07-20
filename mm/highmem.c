@@ -40,6 +40,7 @@
 #ifdef CONFIG_HIGHMEM
 
 unsigned long totalhigh_pages __read_mostly;
+EXPORT_SYMBOL(totalhigh_pages);
 
 unsigned int nr_free_highpages (void)
 {
