@@ -84,6 +84,12 @@ void __init numaq_tsc_disable(void)
 	}
 }
 
+static int __init numaq_pre_time_init(void)
+{
+	numaq_tsc_disable();
+	return 0;
+}
+
 int found_numaq;
 /*
  * Have to match translation table entries to main table entries by counter
@@ -224,6 +230,7 @@ static void __init smp_read_mpc_oem(struct mp_config_oemtable *oemtable,
 }
 
 static struct x86_quirks numaq_x86_quirks __initdata = {
+	.arch_pre_time_init	= numaq_pre_time_init,
 	.arch_time_init		= NULL,
 	.arch_pre_intr_init	= NULL,
 	.arch_memory_setup	= NULL,

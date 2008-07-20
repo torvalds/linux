@@ -103,6 +103,16 @@ static struct irqaction irq0  = {
 };
 
 /**
+ * pre_time_init_hook - do any specific initialisations before.
+ *
+ **/
+void __init pre_time_init_hook(void)
+{
+	if (x86_quirks->arch_pre_time_init)
+		x86_quirks->arch_pre_time_init();
+}
+
+/**
  * time_init_hook - do any specific initialisations for the system timer.
  *
  * Description:

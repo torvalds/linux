@@ -23,6 +23,7 @@ struct mpc_config_processor;
 struct mpc_config_bus;
 struct mp_config_oemtable;
 struct x86_quirks {
+	int (*arch_pre_time_init)(void);
 	int (*arch_time_init)(void);
 	int (*arch_pre_intr_init)(void);
 	int (*arch_intr_init)(void);
