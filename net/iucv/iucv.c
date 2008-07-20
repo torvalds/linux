@@ -523,12 +523,8 @@ static int iucv_enable(void)
 	rc = -EIO;
 	get_online_cpus();
 	for_each_online_cpu(cpu)
-<<<<<<< HEAD:net/iucv/iucv.c
-		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 0, 1);
-=======
 		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
 	preempt_enable();
->>>>>>> 5b664cb235e97afbf34db9c4d77f08ebd725335e:net/iucv/iucv.c
 	if (cpus_empty(iucv_buffer_cpumask))
 		/* No cpu could declare an iucv buffer. */
 		goto out_path;
@@ -551,13 +547,7 @@ out:
  */
 static void iucv_disable(void)
 {
-<<<<<<< HEAD:net/iucv/iucv.c
-	get_online_cpus();
-	on_each_cpu(iucv_retrieve_cpu, NULL, 0, 1);
-	put_online_cpus();
-=======
 	on_each_cpu(iucv_retrieve_cpu, NULL, 1);
->>>>>>> 5b664cb235e97afbf34db9c4d77f08ebd725335e:net/iucv/iucv.c
 	kfree(iucv_path_table);
 }
 
