@@ -1092,26 +1092,25 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 	data = 0;
 
 	/*
-	 * Enable calibration and wait until completion
+	 * Start automatic gain calibration
+	 *
+	 * During AGC calibration RX path is re-routed to
+	 * a signal detector so we don't receive anything.
+	 *
+	 * This method is used to calibrate some static offsets
+	 * used together with on-the fly I/Q calibration (the
+	 * one performed via ath5k_hw_phy_calibrate), that doesn't
+	 * interrupt rx path.
+	 *
+	 * If we are in a noisy environment AGC calibration may time
+	 * out.
 	 */
 	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
 				AR5K_PHY_AGCCTL_CAL);
 
-	if (ath5k_hw_register_timeout(ah, AR5K_PHY_AGCCTL,
-			AR5K_PHY_AGCCTL_CAL, 0, false)) {
-		ATH5K_ERR(ah->ah_sc, "calibration timeout (%uMHz)\n",
-			channel->center_freq);
-		return -EAGAIN;
-	}
-
-	ret = ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
-	if (ret)
-		return ret;
-
+	/* At the same time start I/Q calibration for QAM constellation
+	 * -no need for CCK- */
 	ah->ah_calibration = false;
-
-	/* A and G modes can use QAM modulation which requires enabling
-	 * I and Q calibration. Don't bother in B mode. */
 	if (!(mode == AR5K_MODE_11B)) {
 		ah->ah_calibration = true;
 		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ,
@@ -1119,6 +1118,30 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ,
 				AR5K_PHY_IQ_RUN);
 	}
+
+	/* Wait for gain calibration to finish (we check for I/Q calibration
+	 * during ath5k_phy_calibrate) */
+	if (ath5k_hw_register_timeout(ah, AR5K_PHY_AGCCTL,
+			AR5K_PHY_AGCCTL_CAL, 0, false)) {
+		ATH5K_ERR(ah->ah_sc, "gain calibration timeout (%uMHz)\n",
+			channel->center_freq);
+		return -EAGAIN;
+	}
+
+	/*
+	 * Start noise floor calibration
+	 *
+	 * If we run NF calibration before AGC, it always times out.
+	 * Binary HAL starts NF and AGC calibration at the same time
+	 * and only waits for AGC to finish. I believe that's wrong because
+	 * during NF calibration, rx path is also routed to a detector, so if
+	 * it doesn't finish we won't have RX.
+	 *
+	 * XXX: Find an interval that's OK for all cards...
+	 */
+	ret = ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
+	if (ret)
+		return ret;
 
 	/*
 	 * Reset queues and start beacon timers at the end of the reset routine
@@ -1247,7 +1270,7 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 		bool set_chip, u16 sleep_duration)
 {
 	unsigned int i;
-	u32 staid;
+	u32 staid, data;
 
 	ATH5K_TRACE(ah->ah_sc);
 	staid = ath5k_hw_reg_read(ah, AR5K_STA_ID1);
@@ -1259,7 +1282,8 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 	case AR5K_PM_NETWORK_SLEEP:
 		if (set_chip)
 			ath5k_hw_reg_write(ah,
-				AR5K_SLEEP_CTL_SLE | sleep_duration,
+				AR5K_SLEEP_CTL_SLE_ALLOW |
+				sleep_duration,
 				AR5K_SLEEP_CTL);
 
 		staid |= AR5K_STA_ID1_PWR_SV;
@@ -1274,13 +1298,24 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 		break;
 
 	case AR5K_PM_AWAKE:
+
+		staid &= ~AR5K_STA_ID1_PWR_SV;
+
 		if (!set_chip)
 			goto commit;
 
-		ath5k_hw_reg_write(ah, AR5K_SLEEP_CTL_SLE_WAKE,
-				AR5K_SLEEP_CTL);
+		/* Preserve sleep duration */
+		data = ath5k_hw_reg_read(ah, AR5K_SLEEP_CTL);
+		if( data & 0xffc00000 ){
+			data = 0;
+		} else {
+			data = data & 0xfffcffff;
+		}
 
-		for (i = 5000; i > 0; i--) {
+		ath5k_hw_reg_write(ah, data, AR5K_SLEEP_CTL);
+		udelay(15);
+
+		for (i = 50; i > 0; i--) {
 			/* Check if the chip did wake up */
 			if ((ath5k_hw_reg_read(ah, AR5K_PCICFG) &
 					AR5K_PCICFG_SPWR_DN) == 0)
@@ -1288,15 +1323,13 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 
 			/* Wait a bit and retry */
 			udelay(200);
-			ath5k_hw_reg_write(ah, AR5K_SLEEP_CTL_SLE_WAKE,
-				AR5K_SLEEP_CTL);
+			ath5k_hw_reg_write(ah, data, AR5K_SLEEP_CTL);
 		}
 
 		/* Fail if the chip didn't wake up */
 		if (i <= 0)
 			return -EIO;
 
-		staid &= ~AR5K_STA_ID1_PWR_SV;
 		break;
 
 	default:
@@ -1325,6 +1358,7 @@ void ath5k_hw_start_rx(struct ath5k_hw *ah)
 {
 	ATH5K_TRACE(ah->ah_sc);
 	ath5k_hw_reg_write(ah, AR5K_CR_RXE, AR5K_CR);
+	ath5k_hw_reg_read(ah, AR5K_CR);
 }
 
 /*
@@ -1411,6 +1445,7 @@ int ath5k_hw_tx_start(struct ath5k_hw *ah, unsigned int queue)
 		}
 		/* Start queue */
 		ath5k_hw_reg_write(ah, tx_queue, AR5K_CR);
+		ath5k_hw_reg_read(ah, AR5K_CR);
 	} else {
 		/* Return if queue is disabled */
 		if (AR5K_REG_READ_Q(ah, AR5K_QCU_TXD, queue))
@@ -1708,6 +1743,7 @@ enum ath5k_int ath5k_hw_set_intr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 	 * (they will be re-enabled afterwards).
 	 */
 	ath5k_hw_reg_write(ah, AR5K_IER_DISABLE, AR5K_IER);
+	ath5k_hw_reg_read(ah, AR5K_IER);
 
 	old_mask = ah->ah_imr;
 
@@ -3511,7 +3547,7 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 			if (tq->tqi_flags & AR5K_TXQ_FLAG_RDYTIME_EXP_POLICY_ENABLE)
 				AR5K_REG_ENABLE_BITS(ah,
 					AR5K_QUEUE_MISC(queue),
-					AR5K_QCU_MISC_TXE);
+					AR5K_QCU_MISC_RDY_VEOL_POLICY);
 		}
 
 		if (tq->tqi_flags & AR5K_TXQ_FLAG_BACKOFF_DISABLE)
