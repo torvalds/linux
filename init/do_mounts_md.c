@@ -275,7 +275,9 @@ void __init md_run_setup(void)
 		 * Since we don't want to detect and use half a raid array, we need to
 		 * wait for the known devices to complete their probing
 		 */
-		while (driver_probe_done() != 0)
+		printk(KERN_INFO "md: Waiting for all devices to be available before autodetect\n");
+		printk(KERN_INFO "md: If you don't use raid, use raid=noautodetect\n");
+		while (driver_probe_done() < 0)
 			msleep(100);
 		int fd = sys_open("/dev/md0", 0, 0);
 		if (fd >= 0) {
