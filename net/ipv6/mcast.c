@@ -367,10 +367,6 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	int pmclocked = 0;
 	int err;
 
-	if (pgsr->gsr_group.ss_family != AF_INET6 ||
-	    pgsr->gsr_source.ss_family != AF_INET6)
-		return -EINVAL;
-
 	source = &((struct sockaddr_in6 *)&pgsr->gsr_source)->sin6_addr;
 	group = &((struct sockaddr_in6 *)&pgsr->gsr_group)->sin6_addr;
 
