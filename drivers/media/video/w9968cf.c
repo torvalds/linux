@@ -3555,7 +3555,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	cam->v4ldev->minor = video_nr[dev_nr];
 	cam->v4ldev->release = video_device_release;
 	video_set_drvdata(cam->v4ldev, cam);
-	cam->v4ldev->dev = &cam->dev;
+	cam->v4ldev->parent = &cam->dev;
 
 	err = video_register_device(cam->v4ldev, VFL_TYPE_GRABBER,
 				    video_nr[dev_nr]);

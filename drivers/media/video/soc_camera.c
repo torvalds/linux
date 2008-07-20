@@ -193,7 +193,7 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 	mutex_lock(&video_lock);
 
 	vdev = video_devdata(file);
-	icd = container_of(vdev->dev, struct soc_camera_device, dev);
+	icd = container_of(vdev->parent, struct soc_camera_device, dev);
 	ici = to_soc_camera_host(icd->dev.parent);
 
 	if (!try_module_get(icd->ops->owner)) {
@@ -258,7 +258,7 @@ static int soc_camera_close(struct inode *inode, struct file *file)
 
 	vfree(icf);
 
-	dev_dbg(vdev->dev, "camera device close\n");
+	dev_dbg(vdev->parent, "camera device close\n");
 
 	return 0;
 }
@@ -271,7 +271,7 @@ static ssize_t soc_camera_read(struct file *file, char __user *buf,
 	struct video_device *vdev = icd->vdev;
 	int err = -EINVAL;
 
-	dev_err(vdev->dev, "camera device read not implemented\n");
+	dev_err(vdev->parent, "camera device read not implemented\n");
 
 	return err;
 }
@@ -877,7 +877,7 @@ int soc_camera_video_start(struct soc_camera_device *icd)
 
 	strlcpy(vdev->name, ici->drv_name, sizeof(vdev->name));
 	/* Maybe better &ici->dev */
-	vdev->dev		= &icd->dev;
+	vdev->parent		= &icd->dev;
 	vdev->type		= VID_TYPE_CAPTURE;
 	vdev->current_norm	= V4L2_STD_UNKNOWN;
 	vdev->fops		= &soc_camera_fops;
@@ -915,7 +915,7 @@ int soc_camera_video_start(struct soc_camera_device *icd)
 
 	err = video_register_device(vdev, VFL_TYPE_GRABBER, vdev->minor);
 	if (err < 0) {
-		dev_err(vdev->dev, "video_register_device failed\n");
+		dev_err(vdev->parent, "video_register_device failed\n");
 		goto evidregd;
 	}
 	icd->vdev = vdev;

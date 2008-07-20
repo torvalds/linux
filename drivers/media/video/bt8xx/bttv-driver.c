@@ -164,7 +164,7 @@ static ssize_t show_card(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
 	struct video_device *vfd = container_of(cd, struct video_device, class_dev);
-	struct bttv *btv = dev_get_drvdata(vfd->dev);
+	struct bttv *btv = dev_get_drvdata(vfd->parent);
 	return sprintf(buf, "%d\n", btv ? btv->c.type : UNSET);
 }
 static DEVICE_ATTR(card, S_IRUGO, show_card, NULL);
@@ -4185,7 +4185,7 @@ static struct video_device *vdev_init(struct bttv *btv,
 		return NULL;
 	*vfd = *template;
 	vfd->minor   = -1;
-	vfd->dev     = &btv->c.pci->dev;
+	vfd->parent  = &btv->c.pci->dev;
 	vfd->release = video_device_release;
 	vfd->type    = type;
 	vfd->debug   = bttv_debug;

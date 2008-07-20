@@ -1369,7 +1369,7 @@ static int stk_register_video_device(struct stk_camera *dev)
 
 	dev->vdev = stk_v4l_data;
 	dev->vdev.debug = debug;
-	dev->vdev.dev = &dev->interface->dev;
+	dev->vdev.parent = &dev->interface->dev;
 	dev->vdev.priv = dev;
 	err = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (err)

@@ -1458,7 +1458,7 @@ static int uvc_register_video(struct uvc_device *dev)
 	 * unregistered before the reference is released, so we don't need to
 	 * get another one.
 	 */
-	vdev->dev = &dev->intf->dev;
+	vdev->parent = &dev->intf->dev;
 	vdev->type = 0;
 	vdev->type2 = 0;
 	vdev->minor = -1;

@@ -798,7 +798,7 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 		return NULL;
 	*vfd = *template;
 	vfd->minor   = -1;
-	vfd->dev     = &dev->pci->dev;
+	vfd->parent  = &dev->pci->dev;
 	vfd->release = video_device_release;
 	vfd->debug   = video_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",

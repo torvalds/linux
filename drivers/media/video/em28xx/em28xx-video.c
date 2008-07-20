@@ -1892,7 +1892,7 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 		return NULL;
 	*vfd = *template;
 	vfd->minor   = -1;
-	vfd->dev = &dev->udev->dev;
+	vfd->parent = &dev->udev->dev;
 	vfd->release = video_device_release;
 	vfd->type = type;
 	vfd->debug = video_debug;

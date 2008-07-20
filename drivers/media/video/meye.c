@@ -1801,7 +1801,7 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	}
 
 	memcpy(meye.video_dev, &meye_template, sizeof(meye_template));
-	meye.video_dev->dev = &meye.mchip_dev->dev;
+	meye.video_dev->parent = &meye.mchip_dev->dev;
 
 	if ((ret = sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERA, 1))) {
 		printk(KERN_ERR "meye: unable to power on the camera\n");

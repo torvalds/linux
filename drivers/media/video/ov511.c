@@ -5833,7 +5833,7 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		goto error;
 
 	memcpy(ov->vdev, &vdev_template, sizeof(*ov->vdev));
-	ov->vdev->dev = &intf->dev;
+	ov->vdev->parent = &intf->dev;
 	video_set_drvdata(ov->vdev, ov);
 
 	for (i = 0; i < OV511_MAX_UNIT_VIDEO; i++) {

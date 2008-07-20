@@ -1706,7 +1706,7 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		/* register 4 video devices */
 		dev->vdev[i] = video_device_alloc();
 		memcpy(dev->vdev[i], &template, sizeof(struct video_device));
-		dev->vdev[i]->dev = &dev->interface->dev;
+		dev->vdev[i]->parent = &dev->interface->dev;
 		if (video_nr == -1)
 			ret = video_register_device(dev->vdev[i],
 						    VFL_TYPE_GRABBER,

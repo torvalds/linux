@@ -1506,7 +1506,7 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 	}
 	*vdev = *vdev_template;
 //	vdev->minor   = -1;
-	vdev->dev     = &usb_dev->dev;
+	vdev->parent  = &usb_dev->dev;
 	snprintf(vdev->name, sizeof(vdev->name), "%s", name);
 	video_set_drvdata(vdev, usbvision);
 	return vdev;

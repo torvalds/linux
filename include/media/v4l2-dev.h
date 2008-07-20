@@ -89,7 +89,7 @@ struct video_device
 
 	/* sysfs */
 	struct device class_dev;	/* v4l device */
-	struct device *dev;		/* device parent */
+	struct device *parent;		/* device parent */
 
 	/* device info */
 	char name[32];

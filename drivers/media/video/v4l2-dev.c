@@ -201,7 +201,7 @@ static int get_index(struct video_device *vdev, int num)
 	for (i = 0; i < VIDEO_NUM_DEVICES; i++) {
 		if (video_device[i] != NULL &&
 		    video_device[i] != vdev &&
-		    video_device[i]->dev == vdev->dev) {
+		    video_device[i]->parent == vdev->parent) {
 			used |= 1 << video_device[i]->index;
 		}
 	}
@@ -323,8 +323,8 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	memset(&vfd->class_dev, 0x00, sizeof(vfd->class_dev));
 	vfd->class_dev.class = &video_class;
 	vfd->class_dev.devt = MKDEV(VIDEO_MAJOR, vfd->minor);
-	if (vfd->dev)
-		vfd->class_dev.parent = vfd->dev;
+	if (vfd->parent)
+		vfd->class_dev.parent = vfd->parent;
 	sprintf(vfd->class_dev.bus_id, "%s%d", name_base, i - base);
 	ret = device_register(&vfd->class_dev);
 	if (ret < 0) {

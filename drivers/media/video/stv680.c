@@ -1454,7 +1454,7 @@ static int stv680_probe (struct usb_interface *intf, const struct usb_device_id 
 		goto error;
 	}
 	memcpy(stv680->vdev, &stv680_template, sizeof(stv680_template));
-	stv680->vdev->dev = &intf->dev;
+	stv680->vdev->parent = &intf->dev;
 	video_set_drvdata(stv680->vdev, stv680);
 
 	memcpy (stv680->vdev->name, stv680->camera_name, strlen (stv680->camera_name));

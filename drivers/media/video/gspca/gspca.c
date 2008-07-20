@@ -1740,7 +1740,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 
 	/* init video stuff */
 	memcpy(&gspca_dev->vdev, &gspca_template, sizeof gspca_template);
-	gspca_dev->vdev.dev = &dev->dev;
+	gspca_dev->vdev.parent = &dev->dev;
 	memcpy(&gspca_dev->fops, &dev_fops, sizeof gspca_dev->fops);
 	gspca_dev->vdev.fops = &gspca_dev->fops;
 	gspca_dev->fops.owner = module;		/* module protection */
