@@ -83,6 +83,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				  (struct ieee80211_rts *)(skb->data));
 
 	if (rt2x00queue_write_tx_frame(queue, skb)) {
+		dev_kfree_skb_any(skb);
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
 		return NETDEV_TX_BUSY;
 	}
