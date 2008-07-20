@@ -286,6 +286,129 @@ void qdisc_put_rtab(struct qdisc_rate_table *tab)
 }
 EXPORT_SYMBOL(qdisc_put_rtab);
 
+static LIST_HEAD(qdisc_stab_list);
+static DEFINE_SPINLOCK(qdisc_stab_lock);
+
+static const struct nla_policy stab_policy[TCA_STAB_MAX + 1] = {
+	[TCA_STAB_BASE]	= { .len = sizeof(struct tc_sizespec) },
+	[TCA_STAB_DATA] = { .type = NLA_BINARY },
+};
+
+static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
+{
+	struct nlattr *tb[TCA_STAB_MAX + 1];
+	struct qdisc_size_table *stab;
+	struct tc_sizespec *s;
+	unsigned int tsize = 0;
+	u16 *tab = NULL;
+	int err;
+
+	err = nla_parse_nested(tb, TCA_STAB_MAX, opt, stab_policy);
+	if (err < 0)
+		return ERR_PTR(err);
+	if (!tb[TCA_STAB_BASE])
+		return ERR_PTR(-EINVAL);
+
+	s = nla_data(tb[TCA_STAB_BASE]);
+
+	if (s->tsize > 0) {
+		if (!tb[TCA_STAB_DATA])
+			return ERR_PTR(-EINVAL);
+		tab = nla_data(tb[TCA_STAB_DATA]);
+		tsize = nla_len(tb[TCA_STAB_DATA]) / sizeof(u16);
+	}
+
+	if (!s || tsize != s->tsize || (!tab && tsize > 0))
+		return ERR_PTR(-EINVAL);
+
+	spin_lock(&qdisc_stab_lock);
+
+	list_for_each_entry(stab, &qdisc_stab_list, list) {
+		if (memcmp(&stab->szopts, s, sizeof(*s)))
+			continue;
+		if (tsize > 0 && memcmp(stab->data, tab, tsize * sizeof(u16)))
+			continue;
+		stab->refcnt++;
+		spin_unlock(&qdisc_stab_lock);
+		return stab;
+	}
+
+	spin_unlock(&qdisc_stab_lock);
+
+	stab = kmalloc(sizeof(*stab) + tsize * sizeof(u16), GFP_KERNEL);
+	if (!stab)
+		return ERR_PTR(-ENOMEM);
+
+	stab->refcnt = 1;
+	stab->szopts = *s;
+	if (tsize > 0)
+		memcpy(stab->data, tab, tsize * sizeof(u16));
+
+	spin_lock(&qdisc_stab_lock);
+	list_add_tail(&stab->list, &qdisc_stab_list);
+	spin_unlock(&qdisc_stab_lock);
+
+	return stab;
+}
+
+void qdisc_put_stab(struct qdisc_size_table *tab)
+{
+	if (!tab)
+		return;
+
+	spin_lock(&qdisc_stab_lock);
+
+	if (--tab->refcnt == 0) {
+		list_del(&tab->list);
+		kfree(tab);
+	}
+
+	spin_unlock(&qdisc_stab_lock);
+}
+EXPORT_SYMBOL(qdisc_put_stab);
+
+static int qdisc_dump_stab(struct sk_buff *skb, struct qdisc_size_table *stab)
+{
+	struct nlattr *nest;
+
+	nest = nla_nest_start(skb, TCA_STAB);
+	NLA_PUT(skb, TCA_STAB_BASE, sizeof(stab->szopts), &stab->szopts);
+	nla_nest_end(skb, nest);
+
+	return skb->len;
+
+nla_put_failure:
+	return -1;
+}
+
+void qdisc_calculate_pkt_len(struct sk_buff *skb, struct qdisc_size_table *stab)
+{
+	int pkt_len, slot;
+
+	pkt_len = skb->len + stab->szopts.overhead;
+	if (unlikely(!stab->szopts.tsize))
+		goto out;
+
+	slot = pkt_len + stab->szopts.cell_align;
+	if (unlikely(slot < 0))
+		slot = 0;
+
+	slot >>= stab->szopts.cell_log;
+	if (likely(slot < stab->szopts.tsize))
+		pkt_len = stab->data[slot];
+	else
+		pkt_len = stab->data[stab->szopts.tsize - 1] *
+				(slot / stab->szopts.tsize) +
+				stab->data[slot % stab->szopts.tsize];
+
+	pkt_len <<= stab->szopts.size_log;
+out:
+	if (unlikely(pkt_len < 1))
+		pkt_len = 1;
+	qdisc_skb_cb(skb)->pkt_len = pkt_len;
+}
+EXPORT_SYMBOL(qdisc_calculate_pkt_len);
+
 static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 {
 	struct qdisc_watchdog *wd = container_of(timer, struct qdisc_watchdog,
@@ -613,6 +736,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 	struct nlattr *kind = tca[TCA_KIND];
 	struct Qdisc *sch;
 	struct Qdisc_ops *ops;
+	struct qdisc_size_table *stab;
 
 	ops = qdisc_lookup_ops(kind);
 #ifdef CONFIG_KMOD
@@ -670,6 +794,14 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 	sch->handle = handle;
 
 	if (!ops->init || (err = ops->init(sch, tca[TCA_OPTIONS])) == 0) {
+		if (tca[TCA_STAB]) {
+			stab = qdisc_get_stab(tca[TCA_STAB]);
+			if (IS_ERR(stab)) {
+				err = PTR_ERR(stab);
+				goto err_out3;
+			}
+			sch->stab = stab;
+		}
 		if (tca[TCA_RATE]) {
 			err = gen_new_estimator(&sch->bstats, &sch->rate_est,
 						qdisc_root_lock(sch),
@@ -691,6 +823,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 		return sch;
 	}
 err_out3:
+	qdisc_put_stab(sch->stab);
 	dev_put(dev);
 	kfree((char *) sch - sch->padded);
 err_out2:
@@ -702,15 +835,26 @@ err_out:
 
 static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
 {
-	if (tca[TCA_OPTIONS]) {
-		int err;
+	struct qdisc_size_table *stab = NULL;
+	int err = 0;
 
+	if (tca[TCA_OPTIONS]) {
 		if (sch->ops->change == NULL)
 			return -EINVAL;
 		err = sch->ops->change(sch, tca[TCA_OPTIONS]);
 		if (err)
 			return err;
 	}
+
+	if (tca[TCA_STAB]) {
+		stab = qdisc_get_stab(tca[TCA_STAB]);
+		if (IS_ERR(stab))
+			return PTR_ERR(stab);
+	}
+
+	qdisc_put_stab(sch->stab);
+	sch->stab = stab;
+
 	if (tca[TCA_RATE])
 		gen_replace_estimator(&sch->bstats, &sch->rate_est,
 				      qdisc_root_lock(sch), tca[TCA_RATE]);
@@ -993,6 +1137,9 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	if (q->ops->dump && q->ops->dump(q, skb) < 0)
 		goto nla_put_failure;
 	q->qstats.qlen = q->q.qlen;
+
+	if (q->stab && qdisc_dump_stab(skb, q->stab) < 0)
+		goto nla_put_failure;
 
 	if (gnet_stats_start_copy_compat(skb, TCA_STATS2, TCA_STATS,
 					 TCA_XSTATS, qdisc_root_lock(q), &d) < 0)

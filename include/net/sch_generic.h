@@ -29,6 +29,13 @@ enum qdisc_state_t
 	__QDISC_STATE_SCHED,
 };
 
+struct qdisc_size_table {
+	struct list_head	list;
+	struct tc_sizespec	szopts;
+	int			refcnt;
+	u16			data[];
+};
+
 struct Qdisc
 {
 	int 			(*enqueue)(struct sk_buff *skb, struct Qdisc *dev);
@@ -39,6 +46,7 @@ struct Qdisc
 #define TCQ_F_INGRESS	4
 	int			padded;
 	struct Qdisc_ops	*ops;
+	struct qdisc_size_table	*stab;
 	u32			handle;
 	u32			parent;
 	atomic_t		refcnt;
@@ -165,6 +173,16 @@ struct tcf_proto
 	struct tcf_proto_ops	*ops;
 };
 
+struct qdisc_skb_cb {
+	unsigned int		pkt_len;
+	char			data[];
+};
+
+static inline struct qdisc_skb_cb *qdisc_skb_cb(struct sk_buff *skb)
+{
+	return (struct qdisc_skb_cb *)skb->cb;
+}
+
 static inline spinlock_t *qdisc_lock(struct Qdisc *qdisc)
 {
 	return &qdisc->q.lock;
@@ -257,6 +275,8 @@ extern struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 extern struct Qdisc *qdisc_create_dflt(struct net_device *dev,
 				       struct netdev_queue *dev_queue,
 				       struct Qdisc_ops *ops, u32 parentid);
+extern void qdisc_calculate_pkt_len(struct sk_buff *skb,
+				   struct qdisc_size_table *stab);
 extern void tcf_destroy(struct tcf_proto *tp);
 extern void tcf_destroy_chain(struct tcf_proto **fl);
 
@@ -308,16 +328,19 @@ static inline bool qdisc_tx_is_noop(const struct net_device *dev)
 
 static inline unsigned int qdisc_pkt_len(struct sk_buff *skb)
 {
-	return skb->len;
+	return qdisc_skb_cb(skb)->pkt_len;
 }
 
 static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
+	if (sch->stab)
+		qdisc_calculate_pkt_len(skb, sch->stab);
 	return sch->enqueue(skb, sch);
 }
 
 static inline int qdisc_enqueue_root(struct sk_buff *skb, struct Qdisc *sch)
 {
+	qdisc_skb_cb(skb)->pkt_len = skb->len;
 	return qdisc_enqueue(skb, sch);
 }
 

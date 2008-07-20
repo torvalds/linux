@@ -84,8 +84,9 @@ struct netem_skb_cb {
 
 static inline struct netem_skb_cb *netem_skb_cb(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct netem_skb_cb));
-	return (struct netem_skb_cb *)skb->cb;
+	BUILD_BUG_ON(sizeof(skb->cb) <
+		sizeof(struct qdisc_skb_cb) + sizeof(struct netem_skb_cb));
+	return (struct netem_skb_cb *)qdisc_skb_cb(skb)->data;
 }
 
 /* init_crandom - initialize correlated random number generator

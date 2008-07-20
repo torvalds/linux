@@ -469,6 +469,7 @@ static void __qdisc_destroy(struct rcu_head *head)
 	struct Qdisc *qdisc = container_of(head, struct Qdisc, q_rcu);
 	const struct Qdisc_ops  *ops = qdisc->ops;
 
+	qdisc_put_stab(qdisc->stab);
 	gen_kill_estimator(&qdisc->bstats, &qdisc->rate_est);
 	if (ops->reset)
 		ops->reset(qdisc);
