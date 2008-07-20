@@ -6,6 +6,7 @@
  * Documentation/DMA-API.txt for documentation.
  */
 
+#include <linux/kmemcheck.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-debug.h>
 #include <linux/dma-attrs.h>
@@ -60,6 +61,7 @@ dma_map_single(struct device *hwdev, void *ptr, size_t size,
 	dma_addr_t addr;
 
 	BUG_ON(!valid_dma_direction(dir));
+	kmemcheck_mark_initialized(ptr, size);
 	addr = ops->map_page(hwdev, virt_to_page(ptr),
 			     (unsigned long)ptr & ~PAGE_MASK, size,
 			     dir, NULL);
