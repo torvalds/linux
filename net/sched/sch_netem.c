@@ -82,6 +82,12 @@ struct netem_skb_cb {
 	psched_time_t	time_to_send;
 };
 
+static inline struct netem_skb_cb *netem_skb_cb(struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct netem_skb_cb));
+	return (struct netem_skb_cb *)skb->cb;
+}
+
 /* init_crandom - initialize correlated random number generator
  * Use entropy source for initial seed.
  */
@@ -184,7 +190,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		u32 dupsave = q->duplicate; /* prevent duplicating a dup... */
 		q->duplicate = 0;
 
-		rootq->enqueue(skb2, rootq);
+		qdisc_enqueue_root(skb2, rootq);
 		q->duplicate = dupsave;
 	}
 
@@ -205,7 +211,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		skb->data[net_random() % skb_headlen(skb)] ^= 1<<(net_random() % 8);
 	}
 
-	cb = (struct netem_skb_cb *)skb->cb;
+	cb = netem_skb_cb(skb);
 	if (q->gap == 0 		/* not doing reordering */
 	    || q->counter < q->gap 	/* inside last reordering gap */
 	    || q->reorder < get_crandom(&q->reorder_cor)) {
@@ -218,7 +224,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		now = psched_get_time();
 		cb->time_to_send = now + delay;
 		++q->counter;
-		ret = q->qdisc->enqueue(skb, q->qdisc);
+		ret = qdisc_enqueue(skb, q->qdisc);
 	} else {
 		/*
 		 * Do re-ordering by putting one out of N packets at the front
@@ -277,8 +283,7 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 
 	skb = q->qdisc->dequeue(q->qdisc);
 	if (skb) {
-		const struct netem_skb_cb *cb
-			= (const struct netem_skb_cb *)skb->cb;
+		const struct netem_skb_cb *cb = netem_skb_cb(skb);
 		psched_time_t now = psched_get_time();
 
 		/* if more time remaining? */
@@ -457,7 +462,7 @@ static int tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
 	struct sk_buff_head *list = &sch->q;
-	psched_time_t tnext = ((struct netem_skb_cb *)nskb->cb)->time_to_send;
+	psched_time_t tnext = netem_skb_cb(nskb)->time_to_send;
 	struct sk_buff *skb;
 
 	if (likely(skb_queue_len(list) < q->limit)) {
@@ -468,8 +473,7 @@ static int tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 		}
 
 		skb_queue_reverse_walk(list, skb) {
-			const struct netem_skb_cb *cb
-				= (const struct netem_skb_cb *)skb->cb;
+			const struct netem_skb_cb *cb = netem_skb_cb(skb);
 
 			if (tnext >= cb->time_to_send)
 				break;

@@ -92,7 +92,7 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 			break;
 	}
 
-	ret = child->enqueue(skb, child);
+	ret = qdisc_enqueue(skb, child);
 	if (likely(ret == NET_XMIT_SUCCESS)) {
 		sch->bstats.bytes += skb->len;
 		sch->bstats.packets++;

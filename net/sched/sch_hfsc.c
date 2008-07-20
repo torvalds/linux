@@ -1586,7 +1586,7 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	len = skb->len;
-	err = cl->qdisc->enqueue(skb, cl->qdisc);
+	err = qdisc_enqueue(skb, cl->qdisc);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
 		cl->qstats.drops++;
 		sch->qstats.drops++;

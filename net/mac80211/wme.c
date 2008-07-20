@@ -289,7 +289,7 @@ void ieee80211_requeue(struct ieee80211_local *local, int queue)
 		root_lock = qdisc_root_lock(qdisc);
 
 		spin_lock(root_lock);
-		qdisc->enqueue(skb, qdisc);
+		qdisc_enqueue_root(skb, qdisc);
 		spin_unlock(root_lock);
 	}
 

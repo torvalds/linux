@@ -429,7 +429,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 #endif
 	}
 
-	ret = flow->q->enqueue(skb, flow->q);
+	ret = qdisc_enqueue(skb, flow->q);
 	if (ret != 0) {
 drop: __maybe_unused
 		sch->qstats.drops++;

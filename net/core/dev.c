@@ -1781,7 +1781,7 @@ gso:
 
 		spin_lock(root_lock);
 
-		rc = q->enqueue(skb, q);
+		rc = qdisc_enqueue_root(skb, q);
 		qdisc_run(q);
 
 		spin_unlock(root_lock);
@@ -2083,7 +2083,7 @@ static int ing_filter(struct sk_buff *skb)
 	q = rxq->qdisc;
 	if (q) {
 		spin_lock(qdisc_lock(q));
-		result = q->enqueue(skb, q);
+		result = qdisc_enqueue_root(skb, q);
 		spin_unlock(qdisc_lock(q));
 	}
 

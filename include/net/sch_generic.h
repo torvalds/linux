@@ -306,6 +306,16 @@ static inline bool qdisc_tx_is_noop(const struct net_device *dev)
 	return true;
 }
 
+static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+{
+	return sch->enqueue(skb, sch);
+}
+
+static inline int qdisc_enqueue_root(struct sk_buff *skb, struct Qdisc *sch)
+{
+	return qdisc_enqueue(skb, sch);
+}
+
 static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 				       struct sk_buff_head *list)
 {
