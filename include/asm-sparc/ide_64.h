@@ -35,17 +35,6 @@
 #define __ide_mm_outsw	__ide_outsw
 #define __ide_mm_outsl	__ide_outsl
 
-static inline unsigned int inw_be(void __iomem *addr)
-{
-	unsigned int ret;
-
-	__asm__ __volatile__("lduha [%1] %2, %0"
-			     : "=r" (ret)
-			     : "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
-
-	return ret;
-}
-
 static inline void __ide_insw(void __iomem *port, void *dst, u32 count)
 {
 #ifdef DCACHE_ALIASING_POSSIBLE
@@ -55,32 +44,25 @@ static inline void __ide_insw(void __iomem *port, void *dst, u32 count)
 	u32 *pi;
 
 	if(((u64)ps) & 0x2) {
-		*ps++ = inw_be(port);
+		*ps++ = __raw_readw(port);
 		count--;
 	}
 	pi = (u32 *)ps;
 	while(count >= 2) {
 		u32 w;
 
-		w  = inw_be(port) << 16;
-		w |= inw_be(port);
+		w  = __raw_readw(port) << 16;
+		w |= __raw_readw(port);
 		*pi++ = w;
 		count -= 2;
 	}
 	ps = (u16 *)pi;
 	if(count)
-		*ps++ = inw_be(port);
+		*ps++ = __raw_readw(port);
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 	__flush_dcache_range((unsigned long)dst, end);
 #endif
-}
-
-static inline void outw_be(unsigned short w, void __iomem *addr)
-{
-	__asm__ __volatile__("stha %r0, [%1] %2"
-			     : /* no outputs */
-			     : "Jr" (w), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
 static inline void __ide_outsw(void __iomem *port, void *src, u32 count)
@@ -92,7 +74,7 @@ static inline void __ide_outsw(void __iomem *port, void *src, u32 count)
 	const u32 *pi;
 
 	if(((u64)src) & 0x2) {
-		outw_be(*ps++, port);
+		__raw_writew(*ps++, port);
 		count--;
 	}
 	pi = (const u32 *)ps;
@@ -100,13 +82,13 @@ static inline void __ide_outsw(void __iomem *port, void *src, u32 count)
 		u32 w;
 
 		w = *pi++;
-		outw_be((w >> 16), port);
-		outw_be(w, port);
+		__raw_writew((w >> 16), port);
+		__raw_writew(w, port);
 		count -= 2;
 	}
 	ps = (const u16 *)pi;
 	if(count)
-		outw_be(*ps, port);
+		__raw_writew(*ps, port);
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 	__flush_dcache_range((unsigned long)src, end);
