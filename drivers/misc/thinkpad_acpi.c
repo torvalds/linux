@@ -2167,9 +2167,10 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		printk(TPACPI_INFO
 			"radio switch found; radios are %s\n",
 			enabled(status, 0));
+	}
+	if (tp_features.hotkey_wlsw)
 		res = add_to_attr_set(hotkey_dev_attributes,
 				&dev_attr_hotkey_radio_sw.attr);
-	}
 
 	/* For X41t, X60t, X61t Tablets... */
 	if (!res && acpi_evalf(hkey_handle, &status, "MHKG", "qd")) {
@@ -2646,18 +2647,19 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.bluetooth),
 		status);
 
+	if (tp_features.bluetooth &&
+	    !(status & TP_ACPI_BLUETOOTH_HWPRESENT)) {
+		/* no bluetooth hardware present in system */
+		tp_features.bluetooth = 0;
+		dbg_printk(TPACPI_DBG_INIT,
+			   "bluetooth hardware not installed\n");
+	}
+
 	if (tp_features.bluetooth) {
-		if (!(status & TP_ACPI_BLUETOOTH_HWPRESENT)) {
-			/* no bluetooth hardware present in system */
-			tp_features.bluetooth = 0;
-			dbg_printk(TPACPI_DBG_INIT,
-				   "bluetooth hardware not installed\n");
-		} else {
-			res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
-					&bluetooth_attr_group);
-			if (res)
-				return res;
-		}
+		res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+				&bluetooth_attr_group);
+		if (res)
+			return res;
 	}
 
 	return (tp_features.bluetooth)? 0 : 1;
@@ -2818,18 +2820,19 @@ static int __init wan_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.wan),
 		status);
 
+	if (tp_features.wan &&
+	    !(status & TP_ACPI_WANCARD_HWPRESENT)) {
+		/* no wan hardware present in system */
+		tp_features.wan = 0;
+		dbg_printk(TPACPI_DBG_INIT,
+			   "wan hardware not installed\n");
+	}
+
 	if (tp_features.wan) {
-		if (!(status & TP_ACPI_WANCARD_HWPRESENT)) {
-			/* no wan hardware present in system */
-			tp_features.wan = 0;
-			dbg_printk(TPACPI_DBG_INIT,
-				   "wan hardware not installed\n");
-		} else {
-			res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
-					&wan_attr_group);
-			if (res)
-				return res;
-		}
+		res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+				&wan_attr_group);
+		if (res)
+			return res;
 	}
 
 	return (tp_features.wan)? 0 : 1;
