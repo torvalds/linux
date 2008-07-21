@@ -140,6 +140,8 @@ DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
 #define current_cpu_data	boot_cpu_data
 #endif
 
+extern const struct seq_operations cpuinfo_op;
+
 static inline int hlt_works(int cpu)
 {
 #ifdef CONFIG_X86_32
