@@ -625,8 +625,10 @@ static struct priority_group *parse_priority_group(struct arg_set *as,
 		struct pgpath *pgpath;
 		struct arg_set path_args;
 
-		if (as->argc < nr_params)
+		if (as->argc < nr_params) {
+			ti->error = "not enough path parameters";
 			goto bad;
+		}
 
 		path_args.argc = nr_params;
 		path_args.argv = as->argv;
