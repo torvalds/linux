@@ -2143,8 +2143,9 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 				if (test_bit(AllReserved, &rdev2->flags) ||
 				    (rdev->bdev == rdev2->bdev &&
 				     rdev != rdev2 &&
-				     overlaps(rdev->data_offset, rdev->size,
-					    rdev2->data_offset, rdev2->size))) {
+				     overlaps(rdev->data_offset, rdev->size * 2,
+					      rdev2->data_offset,
+					      rdev2->size * 2))) {
 					overlap = 1;
 					break;
 				}
