@@ -37,8 +37,8 @@ static DEFINE_SPINLOCK(_minor_lock);
 struct dm_io {
 	struct mapped_device *md;
 	int error;
-	struct bio *bio;
 	atomic_t io_count;
+	struct bio *bio;
 	unsigned long start_time;
 };
 
