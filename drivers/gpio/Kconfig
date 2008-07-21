@@ -69,6 +69,12 @@ config GPIO_PCF857X
 
 comment "SPI GPIO expanders:"
 
+config GPIO_MAX7301
+	tristate "Maxim MAX7301 GPIO expander"
+	depends on SPI_MASTER
+	help
+	  gpio driver for Maxim MAX7301 SPI GPIO expander.
+
 config GPIO_MCP23S08
 	tristate "Microchip MCP23S08 I/O expander"
 	depends on SPI_MASTER
