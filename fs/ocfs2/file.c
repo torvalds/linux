@@ -2237,7 +2237,58 @@ const struct inode_operations ocfs2_special_file_iops = {
 	.permission	= ocfs2_permission,
 };
 
+/*
+ * Other than ->lock, keep ocfs2_fops and ocfs2_dops in sync with
+ * ocfs2_fops_no_plocks and ocfs2_dops_no_plocks!
+ */
 const struct file_operations ocfs2_fops = {
+	.llseek		= generic_file_llseek,
+	.read		= do_sync_read,
+	.write		= do_sync_write,
+	.mmap		= ocfs2_mmap,
+	.fsync		= ocfs2_sync_file,
+	.release	= ocfs2_file_release,
+	.open		= ocfs2_file_open,
+	.aio_read	= ocfs2_file_aio_read,
+	.aio_write	= ocfs2_file_aio_write,
+	.unlocked_ioctl	= ocfs2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = ocfs2_compat_ioctl,
+#endif
+	.lock		= ocfs2_lock,
+	.flock		= ocfs2_flock,
+	.splice_read	= ocfs2_file_splice_read,
+	.splice_write	= ocfs2_file_splice_write,
+};
+
+const struct file_operations ocfs2_dops = {
+	.llseek		= generic_file_llseek,
+	.read		= generic_read_dir,
+	.readdir	= ocfs2_readdir,
+	.fsync		= ocfs2_sync_file,
+	.release	= ocfs2_dir_release,
+	.open		= ocfs2_dir_open,
+	.unlocked_ioctl	= ocfs2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = ocfs2_compat_ioctl,
+#endif
+	.lock		= ocfs2_lock,
+	.flock		= ocfs2_flock,
+};
+
+/*
+ * POSIX-lockless variants of our file_operations.
+ *
+ * These will be used if the underlying cluster stack does not support
+ * posix file locking, if the user passes the "localflocks" mount
+ * option, or if we have a local-only fs.
+ *
+ * ocfs2_flock is in here because all stacks handle UNIX file locks,
+ * so we still want it in the case of no stack support for
+ * plocks. Internally, it will do the right thing when asked to ignore
+ * the cluster.
+ */
+const struct file_operations ocfs2_fops_no_plocks = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
@@ -2256,7 +2307,7 @@ const struct file_operations ocfs2_fops = {
 	.splice_write	= ocfs2_file_splice_write,
 };
 
-const struct file_operations ocfs2_dops = {
+const struct file_operations ocfs2_dops_no_plocks = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= ocfs2_readdir,

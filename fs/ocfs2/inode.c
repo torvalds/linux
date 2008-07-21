@@ -219,12 +219,17 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	struct super_block *sb;
 	struct ocfs2_super *osb;
 	int status = -EINVAL;
+	int use_plocks = 1;
 
 	mlog_entry("(0x%p, size:%llu)\n", inode,
 		   (unsigned long long)le64_to_cpu(fe->i_size));
 
 	sb = inode->i_sb;
 	osb = OCFS2_SB(sb);
+
+	if ((osb->s_mount_opt & OCFS2_MOUNT_LOCALFLOCKS) ||
+	    ocfs2_mount_local(osb) || !ocfs2_stack_supports_plocks())
+		use_plocks = 0;
 
 	/* this means that read_inode cannot create a superblock inode
 	 * today.  change if needed. */
@@ -295,13 +300,19 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 
 	switch (inode->i_mode & S_IFMT) {
 	    case S_IFREG:
-		    inode->i_fop = &ocfs2_fops;
+		    if (use_plocks)
+			    inode->i_fop = &ocfs2_fops;
+		    else
+			    inode->i_fop = &ocfs2_fops_no_plocks;
 		    inode->i_op = &ocfs2_file_iops;
 		    i_size_write(inode, le64_to_cpu(fe->i_size));
 		    break;
 	    case S_IFDIR:
 		    inode->i_op = &ocfs2_dir_iops;
-		    inode->i_fop = &ocfs2_dops;
+		    if (use_plocks)
+			    inode->i_fop = &ocfs2_dops;
+		    else
+			    inode->i_fop = &ocfs2_dops_no_plocks;
 		    i_size_write(inode, le64_to_cpu(fe->i_size));
 		    break;
 	    case S_IFLNK:

@@ -28,6 +28,8 @@
 
 extern const struct file_operations ocfs2_fops;
 extern const struct file_operations ocfs2_dops;
+extern const struct file_operations ocfs2_fops_no_plocks;
+extern const struct file_operations ocfs2_dops_no_plocks;
 extern const struct inode_operations ocfs2_file_iops;
 extern const struct inode_operations ocfs2_special_file_iops;
 struct ocfs2_alloc_context;
