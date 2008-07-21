@@ -81,7 +81,7 @@ static inline int multi_timer_check(int apic, int irq)
 
 static inline int apicid_to_node(int logical_apicid)
 {
-	return (0);
+	return apicid_2_node[hard_smp_processor_id()];
 }
 
 static inline int cpu_present_to_apicid(int mps_cpu)

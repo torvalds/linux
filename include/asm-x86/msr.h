@@ -18,7 +18,7 @@ static inline unsigned long long native_read_tscp(unsigned int *aux)
 	unsigned long low, high;
 	asm volatile(".byte 0x0f,0x01,0xf9"
 		     : "=a" (low), "=d" (high), "=c" (*aux));
-	return low | ((u64)high >> 32);
+	return low | ((u64)high << 32);
 }
 
 /*
@@ -66,7 +66,7 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 static inline void native_write_msr(unsigned int msr,
 				    unsigned low, unsigned high)
 {
-	asm volatile("wrmsr" : : "c" (msr), "a"(low), "d" (high));
+	asm volatile("wrmsr" : : "c" (msr), "a"(low), "d" (high) : "memory");
 }
 
 static inline int native_write_msr_safe(unsigned int msr,
@@ -81,7 +81,8 @@ static inline int native_write_msr_safe(unsigned int msr,
 		     _ASM_EXTABLE(2b, 3b)
 		     : "=a" (err)
 		     : "c" (msr), "0" (low), "d" (high),
-		     "i" (-EFAULT));
+		       "i" (-EFAULT)
+		     : "memory");
 	return err;
 }
 

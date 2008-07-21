@@ -304,6 +304,14 @@ static int do_ap_entry(const char *filename,
 	return 1;
 }
 
+/* looks like: "css:tN" */
+static int do_css_entry(const char *filename,
+			struct css_device_id *id, char *alias)
+{
+	sprintf(alias, "css:t%01X", id->type);
+	return 1;
+}
+
 /* Looks like: "serio:tyNprNidNexN" */
 static int do_serio_entry(const char *filename,
 			  struct serio_device_id *id, char *alias)
@@ -680,6 +688,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct ap_device_id), "ap",
 			 do_ap_entry, mod);
+	else if (sym_is(symname, "__mod_css_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct css_device_id), "css",
+			 do_css_entry, mod);
 	else if (sym_is(symname, "__mod_serio_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct serio_device_id), "serio",

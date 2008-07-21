@@ -1,6 +1,3 @@
-/*
- * $Id: io.h,v 1.30 2001/12/21 01:23:21 davem Exp $
- */
 #ifndef __SPARC_IO_H
 #define __SPARC_IO_H
 

@@ -38,7 +38,7 @@
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-
+#include <asm/arch/pxa2xx-regs.h> /* FIXME: for PSSR */
 #include <asm/arch/udc.h>
 
 #include "pxa27x_udc.h"
@@ -1526,7 +1526,8 @@ static void udc_disable(struct pxa_udc *udc)
 
 	ep0_idle(udc);
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
-	udc->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
+	if (udc->mach->udc_command)
+		udc->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
 }
 
 /**
@@ -2359,18 +2360,19 @@ static int pxa_udc_resume(struct platform_device *_dev)
 	 * Software must configure the USB OTG pad, UDC, and UHC
 	 * to the state they were in before entering sleep mode.
 	 */
-	PSSR |= PSSR_OTGPH;
+	if (cpu_is_pxa27x())
+		PSSR |= PSSR_OTGPH;
 
 	return 0;
 }
 #endif
 
 /* work with hotplug and coldplug */
-MODULE_ALIAS("platform:pxa2xx-udc");
+MODULE_ALIAS("platform:pxa27x-udc");
 
 static struct platform_driver udc_driver = {
 	.driver		= {
-		.name	= "pxa2xx-udc",
+		.name	= "pxa27x-udc",
 		.owner	= THIS_MODULE,
 	},
 	.remove		= __exit_p(pxa_udc_remove),

@@ -432,6 +432,7 @@ static int crypt_convert(struct crypt_config *cc,
 		case 0:
 			atomic_dec(&ctx->pending);
 			ctx->sector++;
+			cond_resched();
 			continue;
 
 		/* error */

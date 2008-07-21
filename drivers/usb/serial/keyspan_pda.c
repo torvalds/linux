@@ -76,17 +76,13 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/firmware.h>
+#include <linux/ihex.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
 static int debug;
-
-struct ezusb_hex_record {
-	__u16 address;
-	__u8 data_size;
-	__u8 data[16];
-};
 
 /* make a simple define to handle if we are compiling keyspan_pda or xircom support */
 #if defined(CONFIG_USB_SERIAL_KEYSPAN_PDA) || defined(CONFIG_USB_SERIAL_KEYSPAN_PDA_MODULE)
@@ -98,14 +94,6 @@ struct ezusb_hex_record {
 	#define XIRCOM
 #else
 	#undef XIRCOM
-#endif
-
-#ifdef KEYSPAN
-#include "keyspan_pda_fw.h"
-#endif
-
-#ifdef XIRCOM
-#include "xircom_pgs_fw.h"
 #endif
 
 /*
@@ -722,38 +710,47 @@ static void keyspan_pda_close(struct usb_serial_port *port, struct file *filp)
 static int keyspan_pda_fake_startup (struct usb_serial *serial)
 {
 	int response;
-	const struct ezusb_hex_record *record = NULL;
+	const char *fw_name;
+	const struct ihex_binrec *record;
+	const struct firmware *fw;
 
 	/* download the firmware here ... */
 	response = ezusb_set_reset(serial, 1);
 
+	if (0) { ; }
 #ifdef KEYSPAN
-	if (le16_to_cpu(serial->dev->descriptor.idVendor) == KEYSPAN_VENDOR_ID)
-		record = &keyspan_pda_firmware[0];
+	else if (le16_to_cpu(serial->dev->descriptor.idVendor) == KEYSPAN_VENDOR_ID)
+		fw_name = "keyspan_pda/keyspan_pda.fw";
 #endif
 #ifdef XIRCOM
-	if ((le16_to_cpu(serial->dev->descriptor.idVendor) == XIRCOM_VENDOR_ID) ||
-	    (le16_to_cpu(serial->dev->descriptor.idVendor) == ENTREGRA_VENDOR_ID))
-		record = &xircom_pgs_firmware[0];
+	else if ((le16_to_cpu(serial->dev->descriptor.idVendor) == XIRCOM_VENDOR_ID) ||
+		 (le16_to_cpu(serial->dev->descriptor.idVendor) == ENTREGRA_VENDOR_ID))
+		fw_name = "keyspan_pda/xircom_pgs.fw";
 #endif
-	if (record == NULL) {
+	else {
 		err("%s: unknown vendor, aborting.", __func__);
 		return -ENODEV;
 	}
+	if (request_ihex_firmware(&fw, fw_name, &serial->dev->dev)) {
+		err("failed to load firmware \"%s\"\n", fw_name);
+		return -ENOENT;
+	}
+	record = (const struct ihex_binrec *)fw->data;
 
-	while(record->address != 0xffff) {
-		response = ezusb_writememory(serial, record->address,
+	while (record) {
+		response = ezusb_writememory(serial, be32_to_cpu(record->addr),
 					     (unsigned char *)record->data,
-					     record->data_size, 0xa0);
+					     be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
 			err("ezusb_writememory failed for Keyspan PDA "
 			    "firmware (%d %04X %p %d)",
-			    response, 
-			    record->address, record->data, record->data_size);
+			    response, be32_to_cpu(record->addr),
+			    record->data, be16_to_cpu(record->len));
 			break;
 		}
-		record++;
+		record = ihex_next_binrec(record);
 	}
+	release_firmware(fw);
 	/* bring device out of reset. Renumeration will occur in a moment
 	   and the new device will bind to the real driver */
 	response = ezusb_set_reset(serial, 0);

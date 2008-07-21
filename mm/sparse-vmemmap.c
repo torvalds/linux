@@ -1,7 +1,7 @@
 /*
  * Virtual Memory Map support
  *
- * (C) 2007 sgi. Christoph Lameter <clameter@sgi.com>.
+ * (C) 2007 sgi. Christoph Lameter.
  *
  * Virtual memory maps allow VM primitives pfn_to_page, page_to_pfn,
  * virt_to_page, page_address() to be implemented as a base offset

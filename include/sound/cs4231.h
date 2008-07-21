@@ -58,6 +58,7 @@
 /* compatible, but clones */
 #define CS4231_HW_INTERWAVE     0x1000	/* InterWave chip */
 #define CS4231_HW_OPL3SA2       0x1101	/* OPL3-SA2 chip, similar to cs4231 */
+#define CS4231_HW_OPTI93X 	0x1102	/* Opti 930/931/933 */
 
 /* defines for codec.hwshare */
 #define CS4231_HWSHARE_IRQ	(1<<0)
@@ -119,6 +120,8 @@ void snd_cs4236_ext_out(struct snd_cs4231 *chip, unsigned char reg, unsigned cha
 unsigned char snd_cs4236_ext_in(struct snd_cs4231 *chip, unsigned char reg);
 void snd_cs4231_mce_up(struct snd_cs4231 *chip);
 void snd_cs4231_mce_down(struct snd_cs4231 *chip);
+
+void snd_cs4231_overrange(struct snd_cs4231 *chip);
 
 irqreturn_t snd_cs4231_interrupt(int irq, void *dev_id);
 

@@ -176,9 +176,9 @@ HYPERVISOR_fpu_taskswitch(int set)
 }
 
 static inline int
-HYPERVISOR_sched_op(int cmd, unsigned long arg)
+HYPERVISOR_sched_op(int cmd, void *arg)
 {
-	return _hypercall2(int, sched_op, cmd, arg);
+	return _hypercall2(int, sched_op_new, cmd, arg);
 }
 
 static inline long
@@ -312,6 +312,13 @@ static inline int
 HYPERVISOR_nmi_op(unsigned long op, unsigned long arg)
 {
 	return _hypercall2(int, nmi_op, op, arg);
+}
+
+static inline void
+MULTI_fpu_taskswitch(struct multicall_entry *mcl, int set)
+{
+	mcl->op = __HYPERVISOR_fpu_taskswitch;
+	mcl->args[0] = set;
 }
 
 static inline void

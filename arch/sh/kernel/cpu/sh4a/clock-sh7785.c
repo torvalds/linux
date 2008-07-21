@@ -26,7 +26,7 @@ static int pfc_divisors[] = { 1, 1, 1, 1, 1, 1, 1, 18,
 
 static void master_clk_init(struct clk *clk)
 {
-	clk->rate *= 36;
+	clk->rate *= pfc_divisors[ctrl_inl(FRQMR1) & 0x000f];
 }
 
 static struct clk_ops sh7785_master_clk_ops = {

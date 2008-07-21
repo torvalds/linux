@@ -725,25 +725,21 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	struct resource res;
 	u32 temp = 0, ret;
 
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret)
+		return NULL;
+
 	ipic = alloc_bootmem(sizeof(struct ipic));
 	if (ipic == NULL)
 		return NULL;
 
 	memset(ipic, 0, sizeof(struct ipic));
 
-	ipic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
+	ipic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
 				       NR_IPIC_INTS,
 				       &ipic_host_ops, 0);
-	if (ipic->irqhost == NULL) {
-		of_node_put(node);
+	if (ipic->irqhost == NULL)
 		return NULL;
-	}
-
-	ret = of_address_to_resource(node, 0, &res);
-	if (ret) {
-		of_node_put(node);
-		return NULL;
-	}
 
 	ipic->regs = ioremap(res.start, res.end - res.start + 1);
 

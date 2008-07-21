@@ -1,7 +1,7 @@
 /* pci-dma-nommu.c: Dynamic DMA mapping support for the FRV
  *
  * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
- * Written by David Woodhouse (dwmw2@redhat.com)
+ * Written by David Woodhouse (dwmw2@infradead.org)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

@@ -28,8 +28,8 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/workqueue.h>
+#include <linux/of_platform.h>
 
-#include <asm/of_platform.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -237,7 +237,7 @@ static struct sk_buff *get_new_skb(struct ucc_geth_private *ugeth,
 	skb->dev = ugeth->dev;
 
 	out_be32(&((struct qe_bd __iomem *)bd)->buf,
-		      dma_map_single(NULL,
+		      dma_map_single(&ugeth->dev->dev,
 				     skb->data,
 				     ugeth->ug_info->uf_info.max_rx_buf_length +
 				     UCC_GETH_RX_DATA_BUF_ALIGNMENT,
@@ -1588,7 +1588,7 @@ static void adjust_link(struct net_device *dev)
 		if (!ugeth->oldlink) {
 			new_state = 1;
 			ugeth->oldlink = 1;
-			netif_schedule(dev);
+			netif_tx_schedule_all(dev);
 		}
 	} else if (ugeth->oldlink) {
 			new_state = 1;
@@ -2158,7 +2158,7 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 			continue;
 		for (j = 0; j < ugeth->ug_info->bdRingLenTx[i]; j++) {
 			if (ugeth->tx_skbuff[i][j]) {
-				dma_unmap_single(NULL,
+				dma_unmap_single(&ugeth->dev->dev,
 						 in_be32(&((struct qe_bd __iomem *)bd)->buf),
 						 (in_be32((u32 __iomem *)bd) &
 						  BD_LENGTH_MASK),
@@ -2186,7 +2186,7 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 			bd = ugeth->p_rx_bd_ring[i];
 			for (j = 0; j < ugeth->ug_info->bdRingLenRx[i]; j++) {
 				if (ugeth->rx_skbuff[i][j]) {
-					dma_unmap_single(NULL,
+					dma_unmap_single(&ugeth->dev->dev,
 						in_be32(&((struct qe_bd __iomem *)bd)->buf),
 						ugeth->ug_info->
 						uf_info.max_rx_buf_length +
@@ -3372,7 +3372,7 @@ static void ucc_geth_timeout(struct net_device *dev)
 		ucc_geth_startup(ugeth);
 	}
 
-	netif_schedule(dev);
+	netif_tx_schedule_all(dev);
 }
 
 /* This is called by the kernel when a frame is ready for transmission. */
@@ -3406,7 +3406,8 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* set up the buffer descriptor */
 	out_be32(&((struct qe_bd __iomem *)bd)->buf,
-		      dma_map_single(NULL, skb->data, skb->len, DMA_TO_DEVICE));
+		      dma_map_single(&ugeth->dev->dev, skb->data,
+			      skb->len, DMA_TO_DEVICE));
 
 	/* printk(KERN_DEBUG"skb->data is 0x%x\n",skb->data); */
 
@@ -3499,11 +3500,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 
 			dev->stats.rx_bytes += length;
 			/* Send the packet up the stack */
-#ifdef CONFIG_UGETH_NAPI
 			netif_receive_skb(skb);
-#else
-			netif_rx(skb);
-#endif				/* CONFIG_UGETH_NAPI */
 		}
 
 		ugeth->dev->last_rx = jiffies;
@@ -3579,7 +3576,6 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 	return 0;
 }
 
-#ifdef CONFIG_UGETH_NAPI
 static int ucc_geth_poll(struct napi_struct *napi, int budget)
 {
 	struct ucc_geth_private *ugeth = container_of(napi, struct ucc_geth_private, napi);
@@ -3606,7 +3602,6 @@ static int ucc_geth_poll(struct napi_struct *napi, int budget)
 
 	return howmany;
 }
-#endif				/* CONFIG_UGETH_NAPI */
 
 static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 {
@@ -3616,9 +3611,6 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 	struct ucc_geth_info *ug_info;
 	register u32 ucce;
 	register u32 uccm;
-#ifndef CONFIG_UGETH_NAPI
-	register u32 rx_mask;
-#endif
 	register u32 tx_mask;
 	u8 i;
 
@@ -3635,21 +3627,11 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 
 	/* check for receive events that require processing */
 	if (ucce & UCCE_RX_EVENTS) {
-#ifdef CONFIG_UGETH_NAPI
 		if (netif_rx_schedule_prep(dev, &ugeth->napi)) {
 			uccm &= ~UCCE_RX_EVENTS;
 			out_be32(uccf->p_uccm, uccm);
 			__netif_rx_schedule(dev, &ugeth->napi);
 		}
-#else
-		rx_mask = UCCE_RXBF_SINGLE_MASK;
-		for (i = 0; i < ug_info->numQueuesRx; i++) {
-			if (ucce & rx_mask)
-				ucc_geth_rx(ugeth, i, (int)ugeth->ug_info->bdRingLenRx[i]);
-			ucce &= ~rx_mask;
-			rx_mask <<= 1;
-		}
-#endif /* CONFIG_UGETH_NAPI */
 	}
 
 	/* Tx event processing */
@@ -3719,9 +3701,8 @@ static int ucc_geth_open(struct net_device *dev)
 		return err;
 	}
 
-#ifdef CONFIG_UGETH_NAPI
 	napi_enable(&ugeth->napi);
-#endif
+
 	err = ucc_geth_startup(ugeth);
 	if (err) {
 		if (netif_msg_ifup(ugeth))
@@ -3782,9 +3763,8 @@ static int ucc_geth_open(struct net_device *dev)
 	return err;
 
 out_err:
-#ifdef CONFIG_UGETH_NAPI
 	napi_disable(&ugeth->napi);
-#endif
+
 	return err;
 }
 
@@ -3795,9 +3775,7 @@ static int ucc_geth_close(struct net_device *dev)
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
 
-#ifdef CONFIG_UGETH_NAPI
 	napi_disable(&ugeth->napi);
-#endif
 
 	ucc_geth_stop(ugeth);
 
@@ -4049,9 +4027,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	dev->hard_start_xmit = ucc_geth_start_xmit;
 	dev->tx_timeout = ucc_geth_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#ifdef CONFIG_UGETH_NAPI
 	netif_napi_add(dev, &ugeth->napi, ucc_geth_poll, UCC_GETH_DEV_WEIGHT);
-#endif				/* CONFIG_UGETH_NAPI */
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = ucc_netpoll;
 #endif

@@ -305,7 +305,7 @@ should not be manipulated by any other user.
 
 A kset keeps its children in a standard kernel linked list.  Kobjects point
 back to their containing kset via their kset field. In almost all cases,
-the kobjects belonging to a ket have that kset (or, strictly, its embedded
+the kobjects belonging to a kset have that kset (or, strictly, its embedded
 kobject) in their parent.
 
 As a kset contains a kobject within it, it should always be dynamically

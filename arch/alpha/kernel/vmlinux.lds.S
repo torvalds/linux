@@ -25,6 +25,13 @@ SECTIONS
 	} :kernel
 	_etext = .;	/* End of text section */
 
+	NOTES :kernel :note
+	.dummy : {
+		*(.dummy)
+	} :kernel
+
+	RODATA
+
 	/* Exception table */
 	. = ALIGN(16);
 	__ex_table : {
@@ -32,13 +39,6 @@ SECTIONS
 		*(__ex_table)
 		__stop___ex_table = .;
 	}
-
-	NOTES :kernel :note
-	.dummy : {
-		*(.dummy)
-	} :kernel
-
-	RODATA
 
 	/* Will be freed after init */
 	. = ALIGN(PAGE_SIZE);

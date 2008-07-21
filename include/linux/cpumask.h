@@ -353,6 +353,10 @@ static inline void __cpus_fold(cpumask_t *dstp, const cpumask_t *origp,
 	for ((cpu) = 0; (cpu) < 1; (cpu)++, (void)mask)
 #endif /* NR_CPUS */
 
+#define next_cpu_nr(n, src)		next_cpu(n, src)
+#define cpus_weight_nr(cpumask)		cpus_weight(cpumask)
+#define for_each_cpu_mask_nr(cpu, mask)	for_each_cpu_mask(cpu, mask)
+
 /*
  * The following particular system cpumasks and operations manage
  * possible, present and online cpus.  Each of them is a fixed size

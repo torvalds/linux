@@ -347,7 +347,7 @@ e1000_set_tso(struct net_device *netdev, u32 data)
 	else
 		netdev->features &= ~NETIF_F_TSO;
 
-	if (data)
+	if (data && (adapter->hw.mac_type > e1000_82547_rev_2))
 		netdev->features |= NETIF_F_TSO6;
 	else
 		netdev->features &= ~NETIF_F_TSO6;

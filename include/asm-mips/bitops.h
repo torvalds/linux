@@ -428,7 +428,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		"2:	b	1b					\n"
 		"	.previous					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
-		: "ri" (bit), "m" (*m)
+		: "ir" (bit), "m" (*m)
 		: "memory");
 #endif
 	} else if (cpu_has_llsc) {

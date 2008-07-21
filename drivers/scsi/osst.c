@@ -50,6 +50,7 @@ static const char * osst_version = "0.99.4";
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/dma.h>
 #include <asm/system.h>
@@ -4359,7 +4360,7 @@ os_bypass:
 
 
 /* Open the device */
-static int os_scsi_tape_open(struct inode * inode, struct file * filp)
+static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 {
 	unsigned short	      flags;
 	int		      i, b_size, new_session = 0, retval = 0;
@@ -4724,6 +4725,18 @@ err_out:
 
 	return retval;
 }
+
+/* BKL pushdown: spaghetti avoidance wrapper */
+static int os_scsi_tape_open(struct inode * inode, struct file * filp)
+{
+	int ret;
+
+	lock_kernel();
+	ret = __os_scsi_tape_open(inode, filp);
+	unlock_kernel();
+	return ret;
+}
+
 
 
 /* Flush the tape buffer before close */
@@ -5695,13 +5708,12 @@ static int osst_sysfs_add(dev_t dev, struct device *device, struct osst_tape * S
 	struct device *osst_member;
 	int err;
 
-	osst_member = device_create(osst_sysfs_class, device, dev, "%s", name);
+	osst_member = device_create_drvdata(osst_sysfs_class, device, dev, STp, "%s", name);
 	if (IS_ERR(osst_member)) {
 		printk(KERN_WARNING "osst :W: Unable to add sysfs class member %s\n", name);
 		return PTR_ERR(osst_member);
 	}
 
-	dev_set_drvdata(osst_member, STp);
 	err = device_create_file(osst_member, &dev_attr_ADR_rev);
 	if (err)
 		goto err_out;

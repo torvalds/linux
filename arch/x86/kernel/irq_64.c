@@ -135,6 +135,7 @@ skip:
 			seq_printf(p, "%10u ", cpu_pda(j)->irq_tlb_count);
 		seq_printf(p, "  TLB shootdowns\n");
 #endif
+#ifdef CONFIG_X86_MCE
 		seq_printf(p, "TRM: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", cpu_pda(j)->irq_thermal_count);
@@ -143,6 +144,7 @@ skip:
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", cpu_pda(j)->irq_threshold_count);
 		seq_printf(p, "  Threshold APIC interrupts\n");
+#endif
 		seq_printf(p, "SPU: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", cpu_pda(j)->irq_spurious_count);
@@ -150,6 +152,32 @@ skip:
 		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
 	}
 	return 0;
+}
+
+/*
+ * /proc/stat helpers
+ */
+u64 arch_irq_stat_cpu(unsigned int cpu)
+{
+	u64 sum = cpu_pda(cpu)->__nmi_count;
+
+	sum += cpu_pda(cpu)->apic_timer_irqs;
+#ifdef CONFIG_SMP
+	sum += cpu_pda(cpu)->irq_resched_count;
+	sum += cpu_pda(cpu)->irq_call_count;
+	sum += cpu_pda(cpu)->irq_tlb_count;
+#endif
+#ifdef CONFIG_X86_MCE
+	sum += cpu_pda(cpu)->irq_thermal_count;
+	sum += cpu_pda(cpu)->irq_threshold_count;
+#endif
+	sum += cpu_pda(cpu)->irq_spurious_count;
+	return sum;
+}
+
+u64 arch_irq_stat(void)
+{
+	return atomic_read(&irq_err_count);
 }
 
 /*

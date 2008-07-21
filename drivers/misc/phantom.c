@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/cdev.h>
 #include <linux/phantom.h>
+#include <linux/smp_lock.h>
 
 #include <asm/atomic.h>
 #include <asm/io.h>
@@ -212,13 +213,17 @@ static int phantom_open(struct inode *inode, struct file *file)
 	struct phantom_device *dev = container_of(inode->i_cdev,
 			struct phantom_device, cdev);
 
+	lock_kernel();
 	nonseekable_open(inode, file);
 
-	if (mutex_lock_interruptible(&dev->open_lock))
+	if (mutex_lock_interruptible(&dev->open_lock)) {
+		unlock_kernel();
 		return -ERESTARTSYS;
+	}
 
 	if (dev->opened) {
 		mutex_unlock(&dev->open_lock);
+		unlock_kernel();
 		return -EINVAL;
 	}
 
@@ -229,7 +234,7 @@ static int phantom_open(struct inode *inode, struct file *file)
 	atomic_set(&dev->counter, 0);
 	dev->opened++;
 	mutex_unlock(&dev->open_lock);
-
+	unlock_kernel();
 	return 0;
 }
 

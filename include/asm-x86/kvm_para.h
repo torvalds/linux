@@ -48,24 +48,6 @@ struct kvm_mmu_op_release_pt {
 #ifdef __KERNEL__
 #include <asm/processor.h>
 
-/* xen binary-compatible interface. See xen headers for details */
-struct kvm_vcpu_time_info {
-	uint32_t version;
-	uint32_t pad0;
-	uint64_t tsc_timestamp;
-	uint64_t system_time;
-	uint32_t tsc_to_system_mul;
-	int8_t   tsc_shift;
-	int8_t	 pad[3];
-} __attribute__((__packed__)); /* 32 bytes */
-
-struct kvm_wall_clock {
-	uint32_t wc_version;
-	uint32_t wc_sec;
-	uint32_t wc_nsec;
-} __attribute__((__packed__));
-
-
 extern void kvmclock_init(void);
 
 
@@ -89,7 +71,8 @@ static inline long kvm_hypercall0(unsigned int nr)
 	long ret;
 	asm volatile(KVM_HYPERCALL
 		     : "=a"(ret)
-		     : "a"(nr));
+		     : "a"(nr)
+		     : "memory");
 	return ret;
 }
 
@@ -98,7 +81,8 @@ static inline long kvm_hypercall1(unsigned int nr, unsigned long p1)
 	long ret;
 	asm volatile(KVM_HYPERCALL
 		     : "=a"(ret)
-		     : "a"(nr), "b"(p1));
+		     : "a"(nr), "b"(p1)
+		     : "memory");
 	return ret;
 }
 
@@ -108,7 +92,8 @@ static inline long kvm_hypercall2(unsigned int nr, unsigned long p1,
 	long ret;
 	asm volatile(KVM_HYPERCALL
 		     : "=a"(ret)
-		     : "a"(nr), "b"(p1), "c"(p2));
+		     : "a"(nr), "b"(p1), "c"(p2)
+		     : "memory");
 	return ret;
 }
 
@@ -118,7 +103,8 @@ static inline long kvm_hypercall3(unsigned int nr, unsigned long p1,
 	long ret;
 	asm volatile(KVM_HYPERCALL
 		     : "=a"(ret)
-		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3));
+		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3)
+		     : "memory");
 	return ret;
 }
 
@@ -129,7 +115,8 @@ static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
 	long ret;
 	asm volatile(KVM_HYPERCALL
 		     : "=a"(ret)
-		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3), "S"(p4));
+		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3), "S"(p4)
+		     : "memory");
 	return ret;
 }
 

@@ -2,7 +2,7 @@
  * File: include/asm-blackfin/mach-bf537/anomaly.h
  * Bugs: Enter bugs at http://blackfin.uclinux.org/
  *
- * Copyright (C) 2004-2007 Analog Devices Inc.
+ * Copyright (C) 2004-2008 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */
 
@@ -132,8 +132,8 @@
 #define ANOMALY_05000322 (1)
 /* Ethernet MAC MDIO Reads Do Not Meet IEEE Specification */
 #define ANOMALY_05000341 (__SILICON_REVISION__ >= 3)
-/* New Feature: UART Remains Enabled after UART Boot (Not Available on Older Silicon) */
-#define ANOMALY_05000350 (__SILICON_REVISION__ < 3)
+/* New Feature: UART Remains Enabled after UART Boot */
+#define ANOMALY_05000350 (__SILICON_REVISION__ >= 3)
 /* Regulator Programming Blocked when Hibernate Wakeup Source Remains Active */
 #define ANOMALY_05000355 (1)
 /* Serial Port (SPORT) Multichannel Transmit Failure when Channel 0 Is Disabled */
@@ -145,11 +145,9 @@
 /* Possible RETS Register Corruption when Subroutine Is under 5 Cycles in Duration */
 #define ANOMALY_05000371 (1)
 /* SSYNC Stalls Processor when Executed from Non-Cacheable Memory */
-#define ANOMALY_05000402 (__SILICON_REVISION__ >= 3)
+#define ANOMALY_05000402 (__SILICON_REVISION__ >= 5)
 /* Level-Sensitive External GPIO Wakeups May Cause Indefinite Stall */
 #define ANOMALY_05000403 (1)
-
-
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000125 (0)

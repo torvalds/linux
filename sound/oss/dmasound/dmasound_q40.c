@@ -611,7 +611,7 @@ static MACHINE machQ40 = {
 /*** Config & Setup **********************************************************/
 
 
-int __init dmasound_q40_init(void)
+static int __init dmasound_q40_init(void)
 {
 	if (MACH_IS_Q40) {
 	    dmasound.mach = machQ40;

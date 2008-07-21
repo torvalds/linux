@@ -31,8 +31,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: user_mad.c 5596 2006-03-03 01:00:07Z sean.hefty $
  */
 
 #include <linux/module.h>
@@ -777,6 +775,19 @@ static long ib_umad_compat_ioctl(struct file *filp, unsigned int cmd,
 }
 #endif
 
+/*
+ * ib_umad_open() does not need the BKL:
+ *
+ *  - umad_port[] accesses are protected by port_lock, the
+ *    ib_umad_port structures are properly reference counted, and
+ *    everything else is purely local to the file being created, so
+ *    races against other open calls are not a problem;
+ *  - the ioctl method does not affect any global state outside of the
+ *    file structure being operated on;
+ *  - the port is added to umad_port[] as the last part of module
+ *    initialization so the open method will either immediately run
+ *    -ENXIO, or all required initialization will be done.
+ */
 static int ib_umad_open(struct inode *inode, struct file *filp)
 {
 	struct ib_umad_port *port;
@@ -1005,8 +1016,9 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (cdev_add(port->cdev, base_dev + port->dev_num, 1))
 		goto err_cdev;
 
-	port->dev = device_create(umad_class, device->dma_device,
-				  port->cdev->dev, "umad%d", port->dev_num);
+	port->dev = device_create_drvdata(umad_class, device->dma_device,
+					  port->cdev->dev, port,
+					  "umad%d", port->dev_num);
 	if (IS_ERR(port->dev))
 		goto err_cdev;
 
@@ -1024,14 +1036,11 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (cdev_add(port->sm_cdev, base_dev + port->dev_num + IB_UMAD_MAX_PORTS, 1))
 		goto err_sm_cdev;
 
-	port->sm_dev = device_create(umad_class, device->dma_device,
-				     port->sm_cdev->dev,
-				     "issm%d", port->dev_num);
+	port->sm_dev = device_create_drvdata(umad_class, device->dma_device,
+					     port->sm_cdev->dev, port,
+					     "issm%d", port->dev_num);
 	if (IS_ERR(port->sm_dev))
 		goto err_sm_cdev;
-
-	dev_set_drvdata(port->dev,    port);
-	dev_set_drvdata(port->sm_dev, port);
 
 	if (device_create_file(port->sm_dev, &dev_attr_ibdev))
 		goto err_sm_dev;

@@ -442,15 +442,17 @@ unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
 	return init_bootmem_core(pgdat, freepfn, startpfn, endpfn);
 }
 
-void __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 				 unsigned long size, int flags)
 {
 	int ret;
 
 	ret = can_reserve_bootmem_core(pgdat->bdata, physaddr, size, flags);
 	if (ret < 0)
-		return;
+		return -ENOMEM;
 	reserve_bootmem_core(pgdat->bdata, physaddr, size, flags);
+
+	return 0;
 }
 
 void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,

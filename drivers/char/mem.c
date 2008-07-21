@@ -26,6 +26,7 @@
 #include <linux/bootmem.h>
 #include <linux/splice.h>
 #include <linux/pfn.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -889,6 +890,9 @@ static const struct file_operations kmsg_fops = {
 
 static int memory_open(struct inode * inode, struct file * filp)
 {
+	int ret = 0;
+
+	lock_kernel();
 	switch (iminor(inode)) {
 		case 1:
 			filp->f_op = &mem_fops;
@@ -932,11 +936,13 @@ static int memory_open(struct inode * inode, struct file * filp)
 			break;
 #endif
 		default:
+			unlock_kernel();
 			return -ENXIO;
 	}
 	if (filp->f_op && filp->f_op->open)
-		return filp->f_op->open(inode,filp);
-	return 0;
+		ret = filp->f_op->open(inode,filp);
+	unlock_kernel();
+	return ret;
 }
 
 static const struct file_operations memory_fops = {

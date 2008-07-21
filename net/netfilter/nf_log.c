@@ -92,10 +92,6 @@ void nf_log_packet(int pf,
 		vsnprintf(prefix, sizeof(prefix), fmt, args);
 		va_end(args);
 		logger->logfn(pf, hooknum, skb, in, out, loginfo, prefix);
-	} else if (net_ratelimit()) {
-		printk(KERN_WARNING "nf_log_packet: can\'t log since "
-		       "no backend logging module loaded in! Please either "
-		       "load one, or disable logging explicitly\n");
 	}
 	rcu_read_unlock();
 }

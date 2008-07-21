@@ -26,7 +26,7 @@ static int ixp4xx_ehci_init(struct usb_hcd *hcd)
 		+ HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
-	ehci->is_tdi_rh_tt = 1;
+	hcd->has_tt = 1;
 	ehci_reset(ehci);
 
 	retval = ehci_init(hcd);
@@ -58,6 +58,8 @@ static const struct hc_driver ixp4xx_ehci_hc_driver = {
 	.bus_suspend		= ehci_bus_suspend,
 	.bus_resume		= ehci_bus_resume,
 #endif
+	.relinquish_port	= ehci_relinquish_port,
+	.port_handed_over	= ehci_port_handed_over,
 };
 
 static int ixp4xx_ehci_probe(struct platform_device *pdev)

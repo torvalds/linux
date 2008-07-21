@@ -166,7 +166,9 @@ void arch_update_cpu_topology(void);
 	.busy_idx		= 3,			\
 	.idle_idx		= 3,			\
 	.flags			= SD_LOAD_BALANCE	\
-				| SD_SERIALIZE,	\
+				| SD_BALANCE_NEWIDLE	\
+				| SD_WAKE_AFFINE	\
+				| SD_SERIALIZE,		\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 64,			\
 }
@@ -176,5 +178,18 @@ void arch_update_cpu_topology(void);
 #error Please define an appropriate SD_NODE_INIT in include/asm/topology.h!!!
 #endif
 #endif /* CONFIG_NUMA */
+
+#ifndef topology_physical_package_id
+#define topology_physical_package_id(cpu)	((void)(cpu), -1)
+#endif
+#ifndef topology_core_id
+#define topology_core_id(cpu)			((void)(cpu), 0)
+#endif
+#ifndef topology_thread_siblings
+#define topology_thread_siblings(cpu)		cpumask_of_cpu(cpu)
+#endif
+#ifndef topology_core_siblings
+#define topology_core_siblings(cpu)		cpumask_of_cpu(cpu)
+#endif
 
 #endif /* _LINUX_TOPOLOGY_H */

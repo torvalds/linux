@@ -46,17 +46,24 @@ static char *slots[SNDRV_CARDS];
 module_param_array(slots, charp, NULL, 0444);
 MODULE_PARM_DESC(slots, "Module names assigned to the slots.");
 
-/* return non-zero if the given index is already reserved for another
+/* return non-zero if the given index is reserved for the given
  * module via slots option
  */
-static int module_slot_mismatch(struct module *module, int idx)
+static int module_slot_match(struct module *module, int idx)
 {
+	int match = 1;
 #ifdef MODULE
-	char *s1, *s2;
+	const char *s1, *s2;
+
 	if (!module || !module->name || !slots[idx])
 		return 0;
-	s1 = slots[idx];
-	s2 = module->name;
+
+	s1 = module->name;
+	s2 = slots[idx];
+	if (*s2 == '!') {
+		match = 0; /* negative match */
+		s2++;
+	}
 	/* compare module name strings
 	 * hyphens are handled as equivalent with underscore
 	 */
@@ -68,12 +75,12 @@ static int module_slot_mismatch(struct module *module, int idx)
 		if (c2 == '-')
 			c2 = '_';
 		if (c1 != c2)
-			return 1;
+			return !match;
 		if (!c1)
 			break;
 	}
-#endif
-	return 0;
+#endif /* MODULE */
+	return match;
 }
 
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
@@ -129,7 +136,7 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 			 struct module *module, int extra_size)
 {
 	struct snd_card *card;
-	int err;
+	int err, idx2;
 
 	if (extra_size < 0)
 		extra_size = 0;
@@ -144,35 +151,41 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 	err = 0;
 	mutex_lock(&snd_card_mutex);
 	if (idx < 0) {
-		int idx2;
 		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
 			/* idx == -1 == 0xffff means: take any free slot */
 			if (~snd_cards_lock & idx & 1<<idx2) {
-				if (module_slot_mismatch(module, idx2))
-					continue;
-				idx = idx2;
-				if (idx >= snd_ecards_limit)
-					snd_ecards_limit = idx + 1;
-				break;
+				if (module_slot_match(module, idx2)) {
+					idx = idx2;
+					break;
+				}
 			}
-	} else {
-		 if (idx < snd_ecards_limit) {
-			if (snd_cards_lock & (1 << idx))
-				err = -EBUSY;	/* invalid */
-		} else {
-			if (idx < SNDRV_CARDS)
-				snd_ecards_limit = idx + 1; /* increase the limit */
-			else
-				err = -ENODEV;
-		}
 	}
-	if (idx < 0 || err < 0) {
+	if (idx < 0) {
+		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
+			/* idx == -1 == 0xffff means: take any free slot */
+			if (~snd_cards_lock & idx & 1<<idx2) {
+				if (!slots[idx2] || !*slots[idx2]) {
+					idx = idx2;
+					break;
+				}
+			}
+	}
+	if (idx < 0)
+		err = -ENODEV;
+	else if (idx < snd_ecards_limit) {
+		if (snd_cards_lock & (1 << idx))
+			err = -EBUSY;	/* invalid */
+	} else if (idx >= SNDRV_CARDS)
+		err = -ENODEV;
+	if (err < 0) {
 		mutex_unlock(&snd_card_mutex);
 		snd_printk(KERN_ERR "cannot find the slot for index %d (range 0-%i), error: %d\n",
 			 idx, snd_ecards_limit - 1, err);
 		goto __error;
 	}
 	snd_cards_lock |= 1 << idx;		/* lock it */
+	if (idx >= snd_ecards_limit)
+		snd_ecards_limit = idx + 1; /* increase the limit */
 	mutex_unlock(&snd_card_mutex);
 	card->number = idx;
 	card->module = module;

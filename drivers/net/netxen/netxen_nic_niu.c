@@ -94,7 +94,7 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
 	long timeout = 0;
 	long result = 0;
 	long restore = 0;
-	long phy = physical_port[adapter->portnum];
+	long phy = adapter->physical_port;
 	__u32 address;
 	__u32 command;
 	__u32 status;
@@ -190,7 +190,7 @@ int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter, long reg,
 	long timeout = 0;
 	long result = 0;
 	long restore = 0;
-	long phy = physical_port[adapter->portnum];
+	long phy = adapter->physical_port;
 	__u32 address;
 	__u32 command;
 	__u32 status;
@@ -456,7 +456,7 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 
 int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
 {
-	u32 portnum = physical_port[adapter->portnum];
+	u32 portnum = adapter->physical_port;
 
 	netxen_crb_writelit_adapter(adapter,
 		NETXEN_NIU_XGE_CONFIG_1+(0x10000*portnum), 0x1447);
@@ -573,7 +573,7 @@ static int netxen_niu_macaddr_get(struct netxen_adapter *adapter,
 {
 	u32 stationhigh;
 	u32 stationlow;
-	int phy = physical_port[adapter->portnum];
+	int phy = adapter->physical_port;
 	u8 val[8];
 
 	if (addr == NULL)
@@ -604,7 +604,7 @@ int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
 {
 	u8 temp[4];
 	u32 val;
-	int phy = physical_port[adapter->portnum];
+	int phy = adapter->physical_port;
 	unsigned char mac_addr[6];
 	int i;
 	DECLARE_MAC_BUF(mac);
@@ -724,7 +724,7 @@ int netxen_niu_enable_gbe_port(struct netxen_adapter *adapter,
 int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter)
 {
 	__u32 mac_cfg0;
-	u32 port = physical_port[adapter->portnum];
+	u32 port = adapter->physical_port;
 
 	if (port > NETXEN_NIU_MAX_GBE_PORTS)
 		return -EINVAL;
@@ -740,7 +740,7 @@ int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter)
 int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 {
 	__u32 mac_cfg;
-	u32 port = physical_port[adapter->portnum];
+	u32 port = adapter->physical_port;
 
 	if (port > NETXEN_NIU_MAX_XG_PORTS)
 		return -EINVAL;
@@ -757,7 +757,7 @@ int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
 				    netxen_niu_prom_mode_t mode)
 {
 	__u32 reg;
-	u32 port = physical_port[adapter->portnum];
+	u32 port = adapter->physical_port;
 
 	if (port > NETXEN_NIU_MAX_GBE_PORTS)
 		return -EINVAL;
@@ -814,7 +814,7 @@ int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
 int netxen_niu_xg_macaddr_set(struct netxen_adapter *adapter,
 			      netxen_ethernet_macaddr_t addr)
 {
-	int phy = physical_port[adapter->portnum];
+	int phy = adapter->physical_port;
 	u8 temp[4];
 	u32 val;
 
@@ -867,7 +867,7 @@ int netxen_niu_xg_macaddr_set(struct netxen_adapter *adapter,
 int netxen_niu_xg_macaddr_get(struct netxen_adapter *adapter,
 			      netxen_ethernet_macaddr_t * addr)
 {
-	int phy = physical_port[adapter->portnum];
+	int phy = adapter->physical_port;
 	u32 stationhigh;
 	u32 stationlow;
 	u8 val[8];
@@ -896,7 +896,7 @@ int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
 				       netxen_niu_prom_mode_t mode)
 {
 	__u32 reg;
-	u32 port = physical_port[adapter->portnum];
+	u32 port = adapter->physical_port;
 
 	if (port > NETXEN_NIU_MAX_XG_PORTS)
 		return -EINVAL;

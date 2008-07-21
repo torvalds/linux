@@ -2788,7 +2788,7 @@ static int ocfs2_merge_rec_right(struct inode *inode,
 	BUG_ON(index >= le16_to_cpu(el->l_next_free_rec));
 	left_rec = &el->l_recs[index];
 
-	if (index == le16_to_cpu(el->l_next_free_rec - 1) &&
+	if (index == le16_to_cpu(el->l_next_free_rec) - 1 &&
 	    le16_to_cpu(el->l_next_free_rec) == le16_to_cpu(el->l_count)) {
 		/* we meet with a cross extent block merge. */
 		ret = ocfs2_get_right_path(inode, left_path, &right_path);
@@ -2802,7 +2802,7 @@ static int ocfs2_merge_rec_right(struct inode *inode,
 		BUG_ON(next_free <= 0);
 		right_rec = &right_el->l_recs[0];
 		if (ocfs2_is_empty_extent(right_rec)) {
-			BUG_ON(le16_to_cpu(next_free) <= 1);
+			BUG_ON(next_free <= 1);
 			right_rec = &right_el->l_recs[1];
 		}
 

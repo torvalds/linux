@@ -122,12 +122,12 @@ enum nl80211_commands {
 	NL80211_CMD_NEW_STATION,
 	NL80211_CMD_DEL_STATION,
 
-	/* add commands here */
-
 	NL80211_CMD_GET_MPATH,
 	NL80211_CMD_SET_MPATH,
 	NL80211_CMD_NEW_MPATH,
 	NL80211_CMD_DEL_MPATH,
+
+	/* add commands here */
 
 	/* used to define NL80211_CMD_MAX below */
 	__NL80211_CMD_AFTER_LAST,
@@ -230,18 +230,21 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_MNTR_FLAGS,
 
-	/* add attributes here, update the policy in nl80211.c */
-
 	NL80211_ATTR_MESH_ID,
 	NL80211_ATTR_STA_PLINK_ACTION,
 	NL80211_ATTR_MPATH_NEXT_HOP,
 	NL80211_ATTR_MPATH_INFO,
 
+	/* add attributes here, update the policy in nl80211.c */
+
 	__NL80211_ATTR_AFTER_LAST,
 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
 };
 
-#define NL80211_MAX_SUPP_RATES	32
+#define NL80211_MAX_SUPP_RATES			32
+#define NL80211_TKIP_DATA_OFFSET_ENCR_KEY	0
+#define NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY	16
+#define NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY	24
 
 /**
  * enum nl80211_iftype - (virtual) interface types

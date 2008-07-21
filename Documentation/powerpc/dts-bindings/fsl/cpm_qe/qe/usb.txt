@@ -1,0 +1,22 @@
+* USB (Universal Serial Bus Controller)
+
+Required properties:
+- compatible : could be "qe_udc" or "fhci-hcd".
+- mode : the could be "host" or "slave".
+- reg : Offset and length of the register set for the device
+- interrupts : <a b> where a is the interrupt number and b is a
+  field that represents an encoding of the sense and level
+  information for the interrupt.  This should be encoded based on
+  the information in section 2) depending on the type of interrupt
+  controller you have.
+- interrupt-parent : the phandle for the interrupt controller that
+  services interrupts for this device.
+
+Example(slave):
+	usb@6c0 {
+		compatible = "qe_udc";
+		reg = <6c0 40>;
+		interrupts = <8b 0>;
+		interrupt-parent = <700>;
+		mode = "slave";
+	};

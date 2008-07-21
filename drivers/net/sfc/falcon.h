@@ -23,7 +23,10 @@ enum falcon_revision {
 	FALCON_REV_B0 = 2,
 };
 
-#define FALCON_REV(efx) ((efx)->pci_dev->revision)
+static inline int falcon_rev(struct efx_nic *efx)
+{
+	return efx->pci_dev->revision;
+}
 
 extern struct efx_nic_type falcon_a_nic_type;
 extern struct efx_nic_type falcon_b_nic_type;

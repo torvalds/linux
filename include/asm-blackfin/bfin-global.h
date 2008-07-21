@@ -37,7 +37,9 @@
 #include <linux/linkage.h>
 #include <linux/types.h>
 
-#if defined(CONFIG_DMA_UNCACHED_2M)
+#if defined(CONFIG_DMA_UNCACHED_4M)
+# define DMA_UNCACHED_REGION (4 * 1024 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_2M)
 # define DMA_UNCACHED_REGION (2 * 1024 * 1024)
 #elif defined(CONFIG_DMA_UNCACHED_1M)
 # define DMA_UNCACHED_REGION (1024 * 1024)
@@ -102,13 +104,6 @@ extern int sram_free(const void*);
 #define L1_DATA_SRAM		0x00000006
 extern void *sram_alloc_with_lsl(size_t, unsigned long);
 extern int sram_free_with_lsl(const void*);
-
-extern void led_on(int);
-extern void led_off(int);
-extern void led_toggle(int);
-extern void led_disp_num(int);
-extern void led_toggle_num(int);
-extern void init_leds(void);
 
 extern const char bfin_board_name[];
 extern unsigned long wall_jiffies;

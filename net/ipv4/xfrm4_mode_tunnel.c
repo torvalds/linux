@@ -52,7 +52,7 @@ static int xfrm4_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 		IP_ECN_clear(top_iph);
 
 	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
-			    0 : XFRM_MODE_SKB_CB(skb)->frag_off;
+		0 : (XFRM_MODE_SKB_CB(skb)->frag_off & htons(IP_DF));
 	ip_select_ident(top_iph, dst->child, NULL);
 
 	top_iph->ttl = dst_metric(dst->child, RTAX_HOPLIMIT);

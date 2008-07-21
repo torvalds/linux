@@ -256,6 +256,17 @@ config RTC_DRV_S35390A
 	  This driver can also be built as a module. If so the module
 	  will be called rtc-s35390a.
 
+config RTC_DRV_FM3130
+	tristate "Ramtron FM3130"
+	help
+	  If you say Y here you will get support for the
+	  Ramtron FM3130 RTC chips.
+	  Ramtron FM3130 is a chip with two separate devices inside,
+	  RTC clock and FRAM. This driver provides only RTC functionality.
+
+	  This driver can also be built as a module. If so the module
+	  will be called rtc-fm3130.
+
 endif # I2C
 
 comment "SPI RTC drivers"
@@ -458,6 +469,16 @@ config RTC_DRV_VR41XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-vr41xx.
 
+config RTC_DRV_PL030
+	tristate "ARM AMBA PL030 RTC"
+	depends on ARM_AMBA
+	help
+	  If you say Y here you will get access to ARM AMBA
+	  PrimeCell PL030 RTC found on certain ARM SOCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-pl030.
+
 config RTC_DRV_PL031
 	tristate "ARM AMBA PL031 RTC"
 	depends on ARM_AMBA
@@ -484,12 +505,13 @@ config RTC_DRV_AT91RM9200
 	  this is powered by the backup power supply.
 
 config RTC_DRV_AT91SAM9
-	tristate "AT91SAM9x"
+	tristate "AT91SAM9x/AT91CAP9"
 	depends on ARCH_AT91 && !(ARCH_AT91RM9200 || ARCH_AT91X40)
 	help
-	  RTC driver for the Atmel AT91SAM9x internal RTT (Real Time Timer).
-	  These timers are powered by the backup power supply (such as a
-	  small coin cell battery), but do not need to be used as RTCs.
+	  RTC driver for the Atmel AT91SAM9x and AT91CAP9 internal RTT
+	  (Real Time Timer). These timers are powered by the backup power
+	  supply (such as a small coin cell battery), but do not need to
+	  be used as RTCs.
 
 	  (On AT91SAM9rl chips you probably want to use the dedicated RTC
 	  module and leave the RTT available for other uses.)
@@ -533,5 +555,13 @@ config RTC_DRV_RS5C313
 	depends on SH_LANDISK
 	help
 	  If you say yes here you get support for the Ricoh RS5C313 RTC chips.
+
+config RTC_DRV_PPC
+       tristate "PowerPC machine dependent RTC support"
+       depends on PPC_MERGE
+       help
+	 The PowerPC kernel has machine-specific functions for accessing
+	 the RTC. This exposes that functionality through the generic RTC
+	 class.
 
 endif # RTC_CLASS

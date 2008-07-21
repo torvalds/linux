@@ -203,21 +203,6 @@ void netxen_initialize_adapter_sw(struct netxen_adapter *adapter)
 	}
 }
 
-void netxen_initialize_adapter_hw(struct netxen_adapter *adapter)
-{
-	int ports = 0;
-	struct netxen_board_info *board_info = &(adapter->ahw.boardcfg);
-
-	if (netxen_nic_get_board_info(adapter) != 0)
-		printk("%s: Error getting board config info.\n",
-		       netxen_nic_driver_name);
-	get_brd_port_by_type(board_info->board_type, &ports);
-	if (ports == 0)
-		printk(KERN_ERR "%s: Unknown board type\n",
-		       netxen_nic_driver_name);
-	adapter->ahw.max_ports = ports;
-}
-
 void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 {
 	switch (adapter->ahw.board_type) {
@@ -765,18 +750,13 @@ int netxen_flash_unlock(struct netxen_adapter *adapter)
 
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 {
-	int addr, val, status;
+	int addr, val;
 	int n, i;
 	int init_delay = 0;
 	struct crb_addr_pair *buf;
 	u32 off;
 
 	/* resetall */
-	status = netxen_nic_get_board_info(adapter);
-	if (status)
-		printk("%s: netxen_pinit_from_rom: Error getting board info\n",
-		       netxen_nic_driver_name);
-
 	netxen_crb_writelit_adapter(adapter, NETXEN_ROMUSB_GLB_SW_RESET,
 				    NETXEN_ROMBUS_RESET);
 
@@ -860,10 +840,10 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 				netxen_nic_pci_change_crbwindow(adapter, 1);
 			}
 			if (init_delay == 1) {
-				msleep(2000);
+				msleep(1000);
 				init_delay = 0;
 			}
-			msleep(20);
+			msleep(1);
 		}
 		kfree(buf);
 
@@ -938,12 +918,28 @@ int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
 
 void netxen_free_adapter_offload(struct netxen_adapter *adapter)
 {
+	int i;
+
 	if (adapter->dummy_dma.addr) {
-		pci_free_consistent(adapter->ahw.pdev,
+		i = 100;
+		do {
+			if (dma_watchdog_shutdown_request(adapter) == 1)
+				break;
+			msleep(50);
+			if (dma_watchdog_shutdown_poll_result(adapter) == 1)
+				break;
+		} while (--i);
+
+		if (i) {
+			pci_free_consistent(adapter->ahw.pdev,
 				    NETXEN_HOST_DUMMY_DMA_SIZE,
 				    adapter->dummy_dma.addr,
 				    adapter->dummy_dma.phys_addr);
-		adapter->dummy_dma.addr = NULL;
+			adapter->dummy_dma.addr = NULL;
+		} else {
+			printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
+					adapter->netdev->name);
+		}
 	}
 }
 

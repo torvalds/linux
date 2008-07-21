@@ -6,8 +6,6 @@
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *	Alexey Kuznetsov	<kuznet@ms2.inr.ac.ru>
  *
- *	$Id: sit.c,v 1.53 2001/09/25 05:09:53 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
@@ -222,15 +220,18 @@ __ipip6_tunnel_locate_prl(struct ip_tunnel *t, __be32 addr)
 
 }
 
-static int ipip6_tunnel_get_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
+static int ipip6_tunnel_get_prl(struct ip_tunnel *t,
+				struct ip_tunnel_prl __user *a)
 {
-	struct ip_tunnel_prl *kp;
+	struct ip_tunnel_prl kprl, *kp;
 	struct ip_tunnel_prl_entry *prl;
 	unsigned int cmax, c = 0, ca, len;
 	int ret = 0;
 
-	cmax = a->datalen / sizeof(*a);
-	if (cmax > 1 && a->addr != htonl(INADDR_ANY))
+	if (copy_from_user(&kprl, a, sizeof(kprl)))
+		return -EFAULT;
+	cmax = kprl.datalen / sizeof(kprl);
+	if (cmax > 1 && kprl.addr != htonl(INADDR_ANY))
 		cmax = 1;
 
 	/* For simple GET or for root users,
@@ -261,26 +262,25 @@ static int ipip6_tunnel_get_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 	for (prl = t->prl; prl; prl = prl->next) {
 		if (c > cmax)
 			break;
-		if (a->addr != htonl(INADDR_ANY) && prl->addr != a->addr)
+		if (kprl.addr != htonl(INADDR_ANY) && prl->addr != kprl.addr)
 			continue;
 		kp[c].addr = prl->addr;
 		kp[c].flags = prl->flags;
 		c++;
-		if (a->addr != htonl(INADDR_ANY))
+		if (kprl.addr != htonl(INADDR_ANY))
 			break;
 	}
 out:
 	read_unlock(&ipip6_lock);
 
 	len = sizeof(*kp) * c;
-	ret = len ? copy_to_user(a->data, kp, len) : 0;
+	ret = 0;
+	if ((len && copy_to_user(a + 1, kp, len)) || put_user(len, &a->datalen))
+		ret = -EFAULT;
 
 	kfree(kp);
-	if (ret)
-		return -EFAULT;
 
-	a->datalen = len;
-	return 0;
+	return ret;
 }
 
 static int
@@ -403,9 +403,8 @@ static void ipip6_tunnel_uninit(struct net_device *dev)
 
 static int ipip6_err(struct sk_buff *skb, u32 info)
 {
-#ifndef I_WISH_WORLD_WERE_PERFECT
 
-/* It is not :-( All the routers (except for Linux) return only
+/* All the routers (except for Linux) return only
    8 bytes of packet payload. It means, that precise relaying of
    ICMP in the real Internet is absolutely infeasible.
  */
@@ -462,92 +461,6 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 out:
 	read_unlock(&ipip6_lock);
 	return err;
-#else
-	struct iphdr *iph = (struct iphdr*)dp;
-	int hlen = iph->ihl<<2;
-	struct ipv6hdr *iph6;
-	const int type = icmp_hdr(skb)->type;
-	const int code = icmp_hdr(skb)->code;
-	int rel_type = 0;
-	int rel_code = 0;
-	int rel_info = 0;
-	struct sk_buff *skb2;
-	struct rt6_info *rt6i;
-
-	if (len < hlen + sizeof(struct ipv6hdr))
-		return;
-	iph6 = (struct ipv6hdr*)(dp + hlen);
-
-	switch (type) {
-	default:
-		return;
-	case ICMP_PARAMETERPROB:
-		if (icmp_hdr(skb)->un.gateway < hlen)
-			return;
-
-		/* So... This guy found something strange INSIDE encapsulated
-		   packet. Well, he is fool, but what can we do ?
-		 */
-		rel_type = ICMPV6_PARAMPROB;
-		rel_info = icmp_hdr(skb)->un.gateway - hlen;
-		break;
-
-	case ICMP_DEST_UNREACH:
-		switch (code) {
-		case ICMP_SR_FAILED:
-		case ICMP_PORT_UNREACH:
-			/* Impossible event. */
-			return;
-		case ICMP_FRAG_NEEDED:
-			/* Too complicated case ... */
-			return;
-		default:
-			/* All others are translated to HOST_UNREACH.
-			   rfc2003 contains "deep thoughts" about NET_UNREACH,
-			   I believe, it is just ether pollution. --ANK
-			 */
-			rel_type = ICMPV6_DEST_UNREACH;
-			rel_code = ICMPV6_ADDR_UNREACH;
-			break;
-		}
-		break;
-	case ICMP_TIME_EXCEEDED:
-		if (code != ICMP_EXC_TTL)
-			return;
-		rel_type = ICMPV6_TIME_EXCEED;
-		rel_code = ICMPV6_EXC_HOPLIMIT;
-		break;
-	}
-
-	/* Prepare fake skb to feed it to icmpv6_send */
-	skb2 = skb_clone(skb, GFP_ATOMIC);
-	if (skb2 == NULL)
-		return 0;
-	dst_release(skb2->dst);
-	skb2->dst = NULL;
-	skb_pull(skb2, skb->data - (u8*)iph6);
-	skb_reset_network_header(skb2);
-
-	/* Try to guess incoming interface */
-	rt6i = rt6_lookup(dev_net(skb->dev), &iph6->saddr, NULL, NULL, 0);
-	if (rt6i && rt6i->rt6i_dev) {
-		skb2->dev = rt6i->rt6i_dev;
-
-		rt6i = rt6_lookup(dev_net(skb->dev),
-				&iph6->daddr, &iph6->saddr, NULL, 0);
-
-		if (rt6i && rt6i->rt6i_dev && rt6i->rt6i_dev->type == ARPHRD_SIT) {
-			struct ip_tunnel *t = netdev_priv(rt6i->rt6i_dev);
-			if (rel_type == ICMPV6_TIME_EXCEED && t->parms.iph.ttl) {
-				rel_type = ICMPV6_DEST_UNREACH;
-				rel_code = ICMPV6_ADDR_UNREACH;
-			}
-			icmpv6_send(skb2, rel_type, rel_code, rel_info, skb2->dev);
-		}
-	}
-	kfree_skb(skb2);
-	return 0;
-#endif
 }
 
 static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
@@ -578,13 +491,13 @@ static int ipip6_rcv(struct sk_buff *skb)
 
 		if ((tunnel->dev->priv_flags & IFF_ISATAP) &&
 		    !isatap_chksrc(skb, iph, tunnel)) {
-			tunnel->stat.rx_errors++;
+			tunnel->dev->stats.rx_errors++;
 			read_unlock(&ipip6_lock);
 			kfree_skb(skb);
 			return 0;
 		}
-		tunnel->stat.rx_packets++;
-		tunnel->stat.rx_bytes += skb->len;
+		tunnel->dev->stats.rx_packets++;
+		tunnel->dev->stats.rx_bytes += skb->len;
 		skb->dev = tunnel->dev;
 		dst_release(skb->dst);
 		skb->dst = NULL;
@@ -624,7 +537,7 @@ static inline __be32 try_6to4(struct in6_addr *v6dst)
 static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	struct net_device_stats *stats = &tunnel->stat;
+	struct net_device_stats *stats = &tunnel->dev->stats;
 	struct iphdr  *tiph = &tunnel->parms.iph;
 	struct ipv6hdr *iph6 = ipv6_hdr(skb);
 	u8     tos = tunnel->parms.iph.tos;
@@ -638,7 +551,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	int addr_type;
 
 	if (tunnel->recursion++) {
-		tunnel->stat.collisions++;
+		stats->collisions++;
 		goto tx_error;
 	}
 
@@ -705,20 +618,20 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 				    .oif = tunnel->parms.link,
 				    .proto = IPPROTO_IPV6 };
 		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			tunnel->stat.tx_carrier_errors++;
+			stats->tx_carrier_errors++;
 			goto tx_error_icmp;
 		}
 	}
 	if (rt->rt_type != RTN_UNICAST) {
 		ip_rt_put(rt);
-		tunnel->stat.tx_carrier_errors++;
+		stats->tx_carrier_errors++;
 		goto tx_error_icmp;
 	}
 	tdev = rt->u.dst.dev;
 
 	if (tdev == dev) {
 		ip_rt_put(rt);
-		tunnel->stat.collisions++;
+		stats->collisions++;
 		goto tx_error;
 	}
 
@@ -728,7 +641,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		mtu = skb->dst ? dst_mtu(skb->dst) : dev->mtu;
 
 	if (mtu < 68) {
-		tunnel->stat.collisions++;
+		stats->collisions++;
 		ip_rt_put(rt);
 		goto tx_error;
 	}
@@ -960,11 +873,20 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 
 	case SIOCGETPRL:
+		err = -EINVAL;
+		if (dev == sitn->fb_tunnel_dev)
+			goto done;
+		err = -ENOENT;
+		if (!(t = netdev_priv(dev)))
+			goto done;
+		err = ipip6_tunnel_get_prl(t, ifr->ifr_ifru.ifru_data);
+		break;
+
 	case SIOCADDPRL:
 	case SIOCDELPRL:
 	case SIOCCHGPRL:
 		err = -EPERM;
-		if (cmd != SIOCGETPRL && !capable(CAP_NET_ADMIN))
+		if (!capable(CAP_NET_ADMIN))
 			goto done;
 		err = -EINVAL;
 		if (dev == sitn->fb_tunnel_dev)
@@ -977,12 +899,6 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 			goto done;
 
 		switch (cmd) {
-		case SIOCGETPRL:
-			err = ipip6_tunnel_get_prl(t, &prl);
-			if (!err && copy_to_user(ifr->ifr_ifru.ifru_data,
-						 &prl, sizeof(prl)))
-				err = -EFAULT;
-			break;
 		case SIOCDELPRL:
 			err = ipip6_tunnel_del_prl(t, &prl);
 			break;
@@ -991,8 +907,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 			err = ipip6_tunnel_add_prl(t, &prl, cmd == SIOCCHGPRL);
 			break;
 		}
-		if (cmd != SIOCGETPRL)
-			netdev_state_change(dev);
+		netdev_state_change(dev);
 		break;
 
 	default:
@@ -1001,11 +916,6 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 
 done:
 	return err;
-}
-
-static struct net_device_stats *ipip6_tunnel_get_stats(struct net_device *dev)
-{
-	return &(((struct ip_tunnel*)netdev_priv(dev))->stat);
 }
 
 static int ipip6_tunnel_change_mtu(struct net_device *dev, int new_mtu)
@@ -1021,7 +931,6 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 	dev->uninit		= ipip6_tunnel_uninit;
 	dev->destructor 	= free_netdev;
 	dev->hard_start_xmit	= ipip6_tunnel_xmit;
-	dev->get_stats		= ipip6_tunnel_get_stats;
 	dev->do_ioctl		= ipip6_tunnel_ioctl;
 	dev->change_mtu		= ipip6_tunnel_change_mtu;
 

@@ -179,7 +179,6 @@ MODULE_ALIAS(DRIVER_ALIAS);
 /*   /sys/bus/usb/drivers/USBVision Video Grabber                            */
 /*****************************************************************************/
 
-
 #define YES_NO(x) ((x) ? "Yes" : "No")
 
 static inline struct usb_usbvision *cd_to_usbvision(struct device *cd)
@@ -370,7 +369,6 @@ static void usbvision_remove_sysfs(struct video_device *vdev)
 	}
 }
 
-
 /*
  * usbvision_open()
  *
@@ -387,7 +385,6 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 	int errCode = 0;
 
 	PDEBUG(DBG_IO, "open");
-
 
 	usbvision_reset_powerOffTimer(usbvision);
 
@@ -442,9 +439,6 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 		mutex_unlock(&usbvision->lock);
 	}
 
-	if (errCode) {
-	}
-
 	/* prepare queues */
 	usbvision_empty_framequeues(usbvision);
 
@@ -495,8 +489,6 @@ static int usbvision_v4l2_close(struct inode *inode, struct file *file)
 	}
 
 	PDEBUG(DBG_IO, "success");
-
-
 	return 0;
 }
 
@@ -998,7 +990,7 @@ static int vidioc_streamoff(struct file *file,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 					struct v4l2_fmtdesc *vfd)
 {
 	if(vfd->index>=USBVISION_SUPPORTED_PALETTES-1) {
@@ -1012,7 +1004,7 @@ static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap (struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
 					struct v4l2_format *vf)
 {
 	struct video_device *dev = video_devdata(file);
@@ -1030,7 +1022,7 @@ static int vidioc_g_fmt_cap (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap (struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
 			       struct v4l2_format *vf)
 {
 	struct video_device *dev = video_devdata(file);
@@ -1060,7 +1052,7 @@ static int vidioc_try_fmt_cap (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_fmt_cap(struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			       struct v4l2_format *vf)
 {
 	struct video_device *dev = video_devdata(file);
@@ -1068,7 +1060,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 		(struct usb_usbvision *) video_get_drvdata(dev);
 	int ret;
 
-	if( 0 != (ret=vidioc_try_fmt_cap (file, priv, vf)) ) {
+	if( 0 != (ret=vidioc_try_fmt_vid_cap (file, priv, vf)) ) {
 		return ret;
 	}
 
@@ -1346,9 +1338,7 @@ static int usbvision_radio_close(struct inode *inode, struct file *file)
 		usbvision_release(usbvision);
 	}
 
-
 	PDEBUG(DBG_IO, "success");
-
 	return errCode;
 }
 
@@ -1360,7 +1350,6 @@ static int usbvision_vbi_open(struct inode *inode, struct file *file)
 {
 	/* TODO */
 	return -ENODEV;
-
 }
 
 static int usbvision_vbi_close(struct inode *inode, struct file *file)
@@ -1407,10 +1396,10 @@ static struct video_device usbvision_video_template = {
 	.release	= video_device_release,
 	.minor		= -1,
 	.vidioc_querycap      = vidioc_querycap,
-	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap     = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap   = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap     = vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
 	.vidioc_reqbufs       = vidioc_reqbufs,
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
@@ -1899,7 +1888,6 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	}
 
 	PDEBUG(DBG_PROBE, "success");
-
 }
 
 static struct usb_driver usbvision_driver = {

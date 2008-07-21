@@ -39,7 +39,6 @@
 #include <asm/io.h>
 #include <asm/arch/i2c.h>
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
 
 struct pxa_i2c {
 	spinlock_t		lock;
@@ -945,32 +944,6 @@ static const struct i2c_algorithm i2c_pxa_pio_algorithm = {
 	.functionality	= i2c_pxa_functionality,
 };
 
-static void i2c_pxa_enable(struct platform_device *dev)
-{
-	if (cpu_is_pxa27x()) {
-		switch (dev->id) {
-		case 0:
-			pxa_gpio_mode(GPIO117_I2CSCL_MD);
-			pxa_gpio_mode(GPIO118_I2CSDA_MD);
-			break;
-		case 1:
-			local_irq_disable();
-			PCFR |= PCFR_PI2CEN;
-			local_irq_enable();
-			break;
-		}
-	}
-}
-
-static void i2c_pxa_disable(struct platform_device *dev)
-{
-	if (cpu_is_pxa27x() && dev->id == 1) {
-		local_irq_disable();
-		PCFR &= ~PCFR_PI2CEN;
-		local_irq_enable();
-	}
-}
-
 #define res_len(r)		((r)->end - (r)->start + 1)
 static int i2c_pxa_probe(struct platform_device *dev)
 {
@@ -1036,7 +1009,6 @@ static int i2c_pxa_probe(struct platform_device *dev)
 #endif
 
 	clk_enable(i2c->clk);
-	i2c_pxa_enable(dev);
 
 	if (plat) {
 		i2c->adap.class = plat->class;
@@ -1080,7 +1052,6 @@ eadapt:
 		free_irq(irq, i2c);
 ereqirq:
 	clk_disable(i2c->clk);
-	i2c_pxa_disable(dev);
 	iounmap(i2c->reg_base);
 eremap:
 	clk_put(i2c->clk);
@@ -1103,7 +1074,6 @@ static int __exit i2c_pxa_remove(struct platform_device *dev)
 
 	clk_disable(i2c->clk);
 	clk_put(i2c->clk);
-	i2c_pxa_disable(dev);
 
 	iounmap(i2c->reg_base);
 	release_mem_region(i2c->iobase, i2c->iosize);
@@ -1134,5 +1104,5 @@ static void __exit i2c_adap_pxa_exit(void)
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:pxa2xx-i2c");
 
-module_init(i2c_adap_pxa_init);
+subsys_initcall(i2c_adap_pxa_init);
 module_exit(i2c_adap_pxa_exit);

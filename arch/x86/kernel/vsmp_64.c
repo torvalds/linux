@@ -15,9 +15,12 @@
 #include <linux/init.h>
 #include <linux/pci_ids.h>
 #include <linux/pci_regs.h>
+
+#include <asm/apic.h>
 #include <asm/pci-direct.h>
 #include <asm/io.h>
 #include <asm/paravirt.h>
+#include <asm/setup.h>
 
 #if defined CONFIG_PCI && defined CONFIG_PARAVIRT
 /*

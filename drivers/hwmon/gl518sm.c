@@ -114,7 +114,6 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 
 /* Each client has this additional data */
 struct gl518_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	enum chips type;
 
@@ -138,21 +137,33 @@ struct gl518_data {
 	u8 beep_enable;		/* Boolean */
 };
 
-static int gl518_attach_adapter(struct i2c_adapter *adapter);
-static int gl518_detect(struct i2c_adapter *adapter, int address, int kind);
+static int gl518_probe(struct i2c_client *client,
+		       const struct i2c_device_id *id);
+static int gl518_detect(struct i2c_client *client, int kind,
+			struct i2c_board_info *info);
 static void gl518_init_client(struct i2c_client *client);
-static int gl518_detach_client(struct i2c_client *client);
+static int gl518_remove(struct i2c_client *client);
 static int gl518_read_value(struct i2c_client *client, u8 reg);
 static int gl518_write_value(struct i2c_client *client, u8 reg, u16 value);
 static struct gl518_data *gl518_update_device(struct device *dev);
 
+static const struct i2c_device_id gl518_id[] = {
+	{ "gl518sm", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, gl518_id);
+
 /* This is the driver that will be inserted */
 static struct i2c_driver gl518_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "gl518sm",
 	},
-	.attach_adapter	= gl518_attach_adapter,
-	.detach_client	= gl518_detach_client,
+	.probe		= gl518_probe,
+	.remove		= gl518_remove,
+	.id_table	= gl518_id,
+	.detect		= gl518_detect,
+	.address_data	= &addr_data,
 };
 
 /*
@@ -472,46 +483,23 @@ static const struct attribute_group gl518_group_r80 = {
  * Real code
  */
 
-static int gl518_attach_adapter(struct i2c_adapter *adapter)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int gl518_detect(struct i2c_client *client, int kind,
+			struct i2c_board_info *info)
 {
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, gl518_detect);
-}
-
-static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
-{
+	struct i2c_adapter *adapter = client->adapter;
 	int i;
-	struct i2c_client *client;
-	struct gl518_data *data;
-	int err = 0;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
-		goto exit;
-
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet.
-	   But it allows us to access gl518_{read,write}_value. */
-
-	if (!(data = kzalloc(sizeof(struct gl518_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	client = &data->client;
-	i2c_set_clientdata(client, data);
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &gl518_driver;
+		return -ENODEV;
 
 	/* Now, we do the remaining detection. */
 
 	if (kind < 0) {
 		if ((gl518_read_value(client, GL518_REG_CHIP_ID) != 0x80)
 		 || (gl518_read_value(client, GL518_REG_CONF) & 0x80))
-			goto exit_free;
+			return -ENODEV;
 	}
 
 	/* Determine the chip type. */
@@ -526,19 +514,32 @@ static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 				dev_info(&adapter->dev,
 				    "Ignoring 'force' parameter for unknown "
 				    "chip at adapter %d, address 0x%02x\n",
-				    i2c_adapter_id(adapter), address);
-			goto exit_free;
+				    i2c_adapter_id(adapter), client->addr);
+			return -ENODEV;
 		}
 	}
 
-	/* Fill in the remaining client fields */
-	strlcpy(client->name, "gl518sm", I2C_NAME_SIZE);
-	data->type = kind;
-	mutex_init(&data->update_lock);
+	strlcpy(info->type, "gl518sm", I2C_NAME_SIZE);
 
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(client)))
-		goto exit_free;
+	return 0;
+}
+
+static int gl518_probe(struct i2c_client *client,
+		       const struct i2c_device_id *id)
+{
+	struct gl518_data *data;
+	int err, revision;
+
+	data = kzalloc(sizeof(struct gl518_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(client, data);
+	revision = gl518_read_value(client, GL518_REG_REVISION);
+	data->type = revision == 0x80 ? gl518sm_r80 : gl518sm_r00;
+	mutex_init(&data->update_lock);
 
 	/* Initialize the GL518SM chip */
 	data->alarm_mask = 0xff;
@@ -546,7 +547,7 @@ static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Register sysfs hooks */
 	if ((err = sysfs_create_group(&client->dev.kobj, &gl518_group)))
-		goto exit_detach;
+		goto exit_free;
 	if (data->type == gl518sm_r80)
 		if ((err = sysfs_create_group(&client->dev.kobj,
 					      &gl518_group_r80)))
@@ -564,8 +565,6 @@ exit_remove_files:
 	sysfs_remove_group(&client->dev.kobj, &gl518_group);
 	if (data->type == gl518sm_r80)
 		sysfs_remove_group(&client->dev.kobj, &gl518_group_r80);
-exit_detach:
-	i2c_detach_client(client);
 exit_free:
 	kfree(data);
 exit:
@@ -591,18 +590,14 @@ static void gl518_init_client(struct i2c_client *client)
 	gl518_write_value(client, GL518_REG_CONF, 0x40 | regvalue);
 }
 
-static int gl518_detach_client(struct i2c_client *client)
+static int gl518_remove(struct i2c_client *client)
 {
 	struct gl518_data *data = i2c_get_clientdata(client);
-	int err;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &gl518_group);
 	if (data->type == gl518sm_r80)
 		sysfs_remove_group(&client->dev.kobj, &gl518_group_r80);
-
-	if ((err = i2c_detach_client(client)))
-		return err;
 
 	kfree(data);
 	return 0;

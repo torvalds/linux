@@ -192,15 +192,6 @@ extern int pxa_gpio_get_value(unsigned gpio);
 extern void pxa_gpio_set_value(unsigned gpio, int value);
 
 /*
- * Routine to enable or disable CKEN
- */
-static inline void __deprecated pxa_set_cken(int clock, int enable)
-{
-	extern void __pxa_set_cken(int clock, int enable);
-	__pxa_set_cken(clock, enable);
-}
-
-/*
  * return current memory and LCD clock frequency in units of 10kHz
  */
 extern unsigned int get_memclk_frequency_10khz(void);

@@ -84,6 +84,7 @@ static char *board_desc[] =
 struct channel 
 {
 	long   magic;
+	struct tty_port port;
 	unsigned char boardnum;
 	unsigned char channelnum;
 	unsigned char omodem;         /* FEP output modem status     */
@@ -117,10 +118,7 @@ struct channel
 	unsigned short rxbufhead;
 	unsigned short rxbufsize;
 	int    close_delay;
-	int    count;
-	int    blocked_open;
 	unsigned long  event;
-	int    asyncflags;
 	uint   dev;
 	unsigned long  statusflags;
 	unsigned long  c_iflag;
@@ -132,9 +130,6 @@ struct channel
 	struct board_info           *board;
 	struct board_chan	    __iomem *brdchan;
 	struct digi_struct          digiext;
-	struct tty_struct           *tty;
-	wait_queue_head_t           open_wait;
-	wait_queue_head_t           close_wait;
 	struct work_struct          tqueue;
 	struct global_data 	    __iomem *mailbox;
 };

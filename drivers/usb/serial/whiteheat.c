@@ -81,7 +81,8 @@
 #include <linux/serial_reg.h>
 #include <linux/serial.h>
 #include <linux/usb/serial.h>
-#include "whiteheat_fw.h"		/* firmware for the ConnectTech WhiteHEAT device */
+#include <linux/firmware.h>
+#include <linux/ihex.h>
 #include "whiteheat.h"			/* WhiteHEAT specific commands */
 
 static int debug;
@@ -279,37 +280,52 @@ static int firm_report_tx_done(struct usb_serial_port *port);
 */
 static int whiteheat_firmware_download (struct usb_serial *serial, const struct usb_device_id *id)
 {
-	int response;
-	const struct whiteheat_hex_record *record;
-	
+	int response, ret = -ENOENT;
+	const struct firmware *loader_fw = NULL, *firmware_fw = NULL;
+	const struct ihex_binrec *record;
+
 	dbg("%s", __func__);
-	
+
+	if (request_ihex_firmware(&firmware_fw, "whiteheat.fw",
+				  &serial->dev->dev)) {
+		err("%s - request \"whiteheat.fw\" failed", __func__);
+		goto out;
+	}
+	if (request_ihex_firmware(&loader_fw, "whiteheat_loader.fw",
+			     &serial->dev->dev)) {
+		err("%s - request \"whiteheat_loader.fw\" failed", __func__);
+		goto out;
+	}
+	ret = 0;
 	response = ezusb_set_reset (serial, 1);
 
-	record = &whiteheat_loader[0];
-	while (record->address != 0xffff) {
-		response = ezusb_writememory (serial, record->address, 
-				(unsigned char *)record->data, record->data_size, 0xa0);
+	record = (const struct ihex_binrec *)loader_fw->data;
+	while (record) {
+		response = ezusb_writememory (serial, be32_to_cpu(record->addr),
+					      (unsigned char *)record->data,
+					      be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
 			err("%s - ezusb_writememory failed for loader (%d %04X %p %d)",
-				__func__, response, record->address, record->data, record->data_size);
+			    __func__, response, be32_to_cpu(record->addr),
+			    record->data, be16_to_cpu(record->len));
 			break;
 		}
-		++record;
+		record = ihex_next_binrec(record);
 	}
 
 	response = ezusb_set_reset (serial, 0);
 
-	record = &whiteheat_firmware[0];
-	while (record->address < 0x1b40) {
-		++record;
-	}
-	while (record->address != 0xffff) {
-		response = ezusb_writememory (serial, record->address, 
-				(unsigned char *)record->data, record->data_size, 0xa3);
+	record = (const struct ihex_binrec *)firmware_fw->data;
+	while (record && be32_to_cpu(record->addr) < 0x1b40)
+		record = ihex_next_binrec(record);
+	while (record) {
+		response = ezusb_writememory (serial, be32_to_cpu(record->addr),
+					      (unsigned char *)record->data,
+					      be16_to_cpu(record->len), 0xa3);
 		if (response < 0) {
 			err("%s - ezusb_writememory failed for first firmware step (%d %04X %p %d)", 
-				__func__, response, record->address, record->data, record->data_size);
+			    __func__, response, be32_to_cpu(record->addr),
+			    record->data, be16_to_cpu(record->len));
 			break;
 		}
 		++record;
@@ -317,21 +333,25 @@ static int whiteheat_firmware_download (struct usb_serial *serial, const struct 
 	
 	response = ezusb_set_reset (serial, 1);
 
-	record = &whiteheat_firmware[0];
-	while (record->address < 0x1b40) {
-		response = ezusb_writememory (serial, record->address, 
-				(unsigned char *)record->data, record->data_size, 0xa0);
+	record = (const struct ihex_binrec *)firmware_fw->data;
+	while (record && be32_to_cpu(record->addr) < 0x1b40) {
+		response = ezusb_writememory (serial, be32_to_cpu(record->addr),
+					      (unsigned char *)record->data,
+					      be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
 			err("%s - ezusb_writememory failed for second firmware step (%d %04X %p %d)", 
-				__func__, response, record->address, record->data, record->data_size);
+			    __func__, response, be32_to_cpu(record->addr),
+			    record->data, be16_to_cpu(record->len));
 			break;
 		}
 		++record;
 	}
-
+	ret = 0;
 	response = ezusb_set_reset (serial, 0);
-
-	return 0;
+ out:
+	release_firmware(loader_fw);
+	release_firmware(firmware_fw);
+	return ret;
 }
 
 
@@ -1502,6 +1522,9 @@ module_exit(whiteheat_exit);
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE("whiteheat.fw");
+MODULE_FIRMWARE("whiteheat_loader.fw");
 
 module_param(urb_pool_size, int, 0);
 MODULE_PARM_DESC(urb_pool_size, "Number of urbs to use for buffering");

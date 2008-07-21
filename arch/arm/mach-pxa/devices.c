@@ -10,11 +10,14 @@
 #include <asm/arch/mmc.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/i2c.h>
+#include <asm/arch/mfp-pxa27x.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pxa27x_keypad.h>
 #include <asm/arch/camera.h>
+#include <asm/arch/audio.h>
 
 #include "devices.h"
+#include "generic.h"
 
 void __init pxa_register_device(struct platform_device *dev, void *data)
 {
@@ -91,8 +94,19 @@ static struct resource pxa2xx_udc_resources[] = {
 
 static u64 udc_dma_mask = ~(u32)0;
 
-struct platform_device pxa_device_udc = {
-	.name		= "pxa2xx-udc",
+struct platform_device pxa25x_device_udc = {
+	.name		= "pxa25x-udc",
+	.id		= -1,
+	.resource	= pxa2xx_udc_resources,
+	.num_resources	= ARRAY_SIZE(pxa2xx_udc_resources),
+	.dev		=  {
+		.platform_data	= &pxa_udc_info,
+		.dma_mask	= &udc_dma_mask,
+	}
+};
+
+struct platform_device pxa27x_device_udc = {
+	.name		= "pxa27x-udc",
 	.id		= -1,
 	.resource	= pxa2xx_udc_resources,
 	.num_resources	= ARRAY_SIZE(pxa2xx_udc_resources),
@@ -233,8 +247,15 @@ struct platform_device pxa_device_i2c = {
 	.num_resources	= ARRAY_SIZE(pxai2c_resources),
 };
 
+static unsigned long pxa27x_i2c_mfp_cfg[] = {
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
+};
+
 void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 {
+	if (cpu_is_pxa27x())
+		pxa2xx_mfp_config(ARRAY_AND_SIZE(pxa27x_i2c_mfp_cfg));
 	pxa_register_device(&pxa_device_i2c, info);
 }
 
@@ -278,7 +299,68 @@ struct platform_device pxa_device_rtc = {
 	.id		= -1,
 };
 
+static struct resource pxa_ac97_resources[] = {
+	[0] = {
+		.start  = 0x40500000,
+		.end	= 0x40500000 + 0xfff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_AC97,
+		.end    = IRQ_AC97,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static u64 pxa_ac97_dmamask = 0xffffffffUL;
+
+struct platform_device pxa_device_ac97 = {
+	.name           = "pxa2xx-ac97",
+	.id             = -1,
+	.dev            = {
+		.dma_mask = &pxa_ac97_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.num_resources  = ARRAY_SIZE(pxa_ac97_resources),
+	.resource       = pxa_ac97_resources,
+};
+
+void __init pxa_set_ac97_info(pxa2xx_audio_ops_t *ops)
+{
+	pxa_register_device(&pxa_device_ac97, ops);
+}
+
 #ifdef CONFIG_PXA25x
+
+static struct resource pxa25x_resource_pwm0[] = {
+	[0] = {
+		.start	= 0x40b00000,
+		.end	= 0x40b0000f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa25x_device_pwm0 = {
+	.name		= "pxa25x-pwm",
+	.id		= 0,
+	.resource	= pxa25x_resource_pwm0,
+	.num_resources	= ARRAY_SIZE(pxa25x_resource_pwm0),
+};
+
+static struct resource pxa25x_resource_pwm1[] = {
+	[0] = {
+		.start	= 0x40c00000,
+		.end	= 0x40c0000f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa25x_device_pwm1 = {
+	.name		= "pxa25x-pwm",
+	.id		= 1,
+	.resource	= pxa25x_resource_pwm1,
+	.num_resources	= ARRAY_SIZE(pxa25x_resource_pwm1),
+};
 
 static u64 pxa25x_ssp_dma_mask = DMA_BIT_MASK(32);
 
@@ -566,6 +648,36 @@ struct platform_device pxa27x_device_ssp3 = {
 	},
 	.resource	= pxa27x_resource_ssp3,
 	.num_resources	= ARRAY_SIZE(pxa27x_resource_ssp3),
+};
+
+static struct resource pxa27x_resource_pwm0[] = {
+	[0] = {
+		.start	= 0x40b00000,
+		.end	= 0x40b0001f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa27x_device_pwm0 = {
+	.name		= "pxa27x-pwm",
+	.id		= 0,
+	.resource	= pxa27x_resource_pwm0,
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_pwm0),
+};
+
+static struct resource pxa27x_resource_pwm1[] = {
+	[0] = {
+		.start	= 0x40c00000,
+		.end	= 0x40c0001f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa27x_device_pwm1 = {
+	.name		= "pxa27x-pwm",
+	.id		= 1,
+	.resource	= pxa27x_resource_pwm1,
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_pwm1),
 };
 
 static struct resource pxa27x_resource_camera[] = {

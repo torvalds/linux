@@ -339,9 +339,9 @@ static int serverworks_insert_memory(struct agp_memory *mem,
 		j++;
 	}
 
-	if (mem->is_flushed == FALSE) {
+	if (!mem->is_flushed) {
 		global_cache_flush();
-		mem->is_flushed = TRUE;
+		mem->is_flushed = true;
 	}
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
@@ -412,7 +412,7 @@ static void serverworks_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 			       bridge->capndx + PCI_AGP_COMMAND,
 			       command);
 
-	agp_device_command(command, 0);
+	agp_device_command(command, false);
 }
 
 static const struct agp_bridge_driver sworks_driver = {

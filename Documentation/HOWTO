@@ -377,7 +377,7 @@ Bug Reporting
 bugzilla.kernel.org is where the Linux kernel developers track kernel
 bugs.  Users are encouraged to report all bugs that they find in this
 tool.  For details on how to use the kernel bugzilla, please see:
-	http://test.kernel.org/bugzilla/faq.html
+	http://bugzilla.kernel.org/page.cgi?id=faq.html
 
 The file REPORTING-BUGS in the main kernel source directory has a good
 template for how to report a possible kernel bug, and details what kind

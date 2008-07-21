@@ -116,8 +116,6 @@ static void kvmppc_44x_shadow_release(struct kvm_vcpu *vcpu,
 	struct tlbe *stlbe = &vcpu->arch.shadow_tlb[index];
 	struct page *page = vcpu->arch.shadow_pages[index];
 
-	kunmap(vcpu->arch.shadow_pages[index]);
-
 	if (get_tlb_v(stlbe)) {
 		if (kvmppc_44x_tlbe_is_writable(stlbe))
 			kvm_release_page_dirty(page);
@@ -144,18 +142,19 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 	stlbe = &vcpu->arch.shadow_tlb[victim];
 
 	/* Get reference to new page. */
-	down_write(&current->mm->mmap_sem);
+	down_read(&current->mm->mmap_sem);
 	new_page = gfn_to_page(vcpu->kvm, gfn);
 	if (is_error_page(new_page)) {
-		printk(KERN_ERR "Couldn't get guest page!\n");
+		printk(KERN_ERR "Couldn't get guest page for gfn %lx!\n", gfn);
 		kvm_release_page_clean(new_page);
+		up_read(&current->mm->mmap_sem);
 		return;
 	}
 	hpaddr = page_to_phys(new_page);
 
 	/* Drop reference to old page. */
 	kvmppc_44x_shadow_release(vcpu, victim);
-	up_write(&current->mm->mmap_sem);
+	up_read(&current->mm->mmap_sem);
 
 	vcpu->arch.shadow_pages[victim] = new_page;
 

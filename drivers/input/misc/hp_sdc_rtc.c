@@ -35,6 +35,7 @@
 
 #include <linux/hp_sdc.h>
 #include <linux/errno.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -408,6 +409,7 @@ static unsigned int hp_sdc_rtc_poll(struct file *file, poll_table *wait)
 
 static int hp_sdc_rtc_open(struct inode *inode, struct file *file)
 {
+	cycle_kernel_lock();
         return 0;
 }
 
@@ -690,6 +692,11 @@ static struct miscdevice hp_sdc_rtc_dev = {
 static int __init hp_sdc_rtc_init(void)
 {
 	int ret;
+
+#ifdef __mc68000__
+	if (!MACH_IS_HP300)
+		return -ENODEV;
+#endif
 
 	init_MUTEX(&i8042tregs);
 

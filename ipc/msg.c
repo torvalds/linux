@@ -98,20 +98,15 @@ void recompute_msgmni(struct ipc_namespace *ns)
 
 	if (allowed < MSGMNI) {
 		ns->msg_ctlmni = MSGMNI;
-		goto out_callback;
+		return;
 	}
 
 	if (allowed > IPCMNI / nb_ns) {
 		ns->msg_ctlmni = IPCMNI / nb_ns;
-		goto out_callback;
+		return;
 	}
 
 	ns->msg_ctlmni = allowed;
-
-out_callback:
-
-	printk(KERN_INFO "msgmni has been set to %d for ipc namespace %p\n",
-		ns->msg_ctlmni, ns);
 }
 
 void msg_init_ns(struct ipc_namespace *ns)
@@ -136,6 +131,10 @@ void msg_exit_ns(struct ipc_namespace *ns)
 void __init msg_init(void)
 {
 	msg_init_ns(&init_ipc_ns);
+
+	printk(KERN_INFO "msgmni has been set to %d\n",
+		init_ipc_ns.msg_ctlmni);
+
 	ipc_init_proc_interface("sysvipc/msg",
 				"       key      msqid perms      cbytes       qnum lspid lrpid   uid   gid  cuid  cgid      stime      rtime      ctime\n",
 				IPC_MSG_IDS, sysvipc_msg_proc_show);

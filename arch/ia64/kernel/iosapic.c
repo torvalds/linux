@@ -558,8 +558,6 @@ static struct iosapic_rte_info * __init_refok iosapic_alloc_rte (void)
 	if (!iosapic_kmalloc_ok && list_empty(&free_rte_list)) {
 		rte = alloc_bootmem(sizeof(struct iosapic_rte_info) *
 				    NR_PREALLOCATE_RTE_ENTRIES);
-		if (!rte)
-			return NULL;
 		for (i = 0; i < NR_PREALLOCATE_RTE_ENTRIES; i++, rte++)
 			list_add(&rte->rte_list, &free_rte_list);
 	}

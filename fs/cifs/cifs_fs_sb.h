@@ -30,6 +30,7 @@
 #define CIFS_MOUNT_CIFS_ACL     0x200 /* send ACL requests to non-POSIX srv   */
 #define CIFS_MOUNT_OVERR_UID    0x400 /* override uid returned from server    */
 #define CIFS_MOUNT_OVERR_GID    0x800 /* override gid returned from server    */
+#define CIFS_MOUNT_DYNPERM	0x1000 /* allow in-memory only mode setting */
 
 struct cifs_sb_info {
 	struct cifsTconInfo *tcon;	/* primary mount */

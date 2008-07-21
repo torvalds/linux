@@ -81,8 +81,6 @@
  * 0.5 doesn't work.
  */
 
-#define OPTI621_DEBUG		/* define for debug messages */
-
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -92,28 +90,6 @@
 
 #include <asm/io.h>
 
-//#define OPTI621_MAX_PIO 3
-/* In fact, I do not have any PIO 4 drive
- * (address: 25 ns, data: 70 ns, recovery: 35 ns),
- * but OPTi 82C621 is programmable and it can do (minimal values):
- * on 40MHz PCI bus (pulse 25 ns):
- *  address: 25 ns, data: 25 ns, recovery: 50 ns;
- * on 20MHz PCI bus (pulse 50 ns):
- *  address: 50 ns, data: 50 ns, recovery: 100 ns.
- */
-
-/* #define READ_PREFETCH 0 */
-/* Uncomment for disable read prefetch.
- * There is some readprefetch capatibility in hdparm,
- * but when I type hdparm -P 1 /dev/hda, I got errors
- * and till reset drive is inaccessible.
- * This (hw) read prefetch is safe on my drive.
- */
-
-#ifndef READ_PREFETCH
-#define READ_PREFETCH 0x40 /* read prefetch is enabled */
-#endif /* else read prefetch is disabled */
-
 #define READ_REG 0	/* index of Read cycle timing register */
 #define WRITE_REG 1	/* index of Write cycle timing register */
 #define CNTRL_REG 3	/* index of Control register */
@@ -122,50 +98,7 @@
 
 static int reg_base;
 
-#define PIO_NOT_EXIST 254
-#define PIO_DONT_KNOW 255
-
 static DEFINE_SPINLOCK(opti621_lock);
-
-/* there are stored pio numbers from other calls of opti621_set_pio_mode */
-static void compute_pios(ide_drive_t *drive, const u8 pio)
-/* Store values into drive->drive_data
- *	second_contr - 0 for primary controller, 1 for secondary
- *	slave_drive - 0 -> pio is for master, 1 -> pio is for slave
- *	pio - PIO mode for selected drive (for other we don't know)
- */
-{
-	int d;
-	ide_hwif_t *hwif = HWIF(drive);
-
-	drive->drive_data = pio;
-
-	for (d = 0; d < 2; ++d) {
-		drive = &hwif->drives[d];
-		if (drive->present) {
-			if (drive->drive_data == PIO_DONT_KNOW)
-				drive->drive_data = ide_get_best_pio_mode(drive, 255, 3);
-#ifdef OPTI621_DEBUG
-			printk("%s: Selected PIO mode %d\n",
-				drive->name, drive->drive_data);
-#endif
-		} else {
-			drive->drive_data = PIO_NOT_EXIST;
-		}
-	}
-}
-
-static int cmpt_clk(int time, int bus_speed)
-/* Returns (rounded up) time in clocks for time in ns,
- * with bus_speed in MHz.
- * Example: bus_speed = 40 MHz, time = 80 ns
- * 1000/40 = 25 ns (clk value),
- * 80/25 = 3.2, rounded up to 4 (I hope ;-)).
- * Use idebus=xx to select right frequency.
- */
-{
-	return ((time*bus_speed+999)/1000);
-}
 
 /* Write value to register reg, base of register
  * is at reg_base (0x1f0 primary, 0x170 secondary,
@@ -199,83 +132,29 @@ static u8 read_reg(int reg)
 	return ret;
 }
 
-typedef struct pio_clocks_s {
-	int	address_time;	/* Address setup (clocks) */
-	int	data_time;	/* Active/data pulse (clocks) */
-	int	recovery_time;	/* Recovery time (clocks) */
-} pio_clocks_t;
-
-static void compute_clocks(int pio, pio_clocks_t *clks)
-{
-	if (pio != PIO_NOT_EXIST) {
-		int adr_setup, data_pls;
-		int bus_speed = ide_pci_clk ? ide_pci_clk : system_bus_clock();
-
-		adr_setup = ide_pio_timings[pio].setup_time;
-		data_pls = ide_pio_timings[pio].active_time;
-		clks->address_time = cmpt_clk(adr_setup, bus_speed);
-		clks->data_time = cmpt_clk(data_pls, bus_speed);
-		clks->recovery_time = cmpt_clk(ide_pio_timings[pio].cycle_time
-			- adr_setup-data_pls, bus_speed);
-		if (clks->address_time < 1)
-			clks->address_time = 1;
-		if (clks->address_time > 4)
-			clks->address_time = 4;
-		if (clks->data_time < 1)
-			clks->data_time = 1;
-		if (clks->data_time > 16)
-			clks->data_time = 16;
-		if (clks->recovery_time < 2)
-			clks->recovery_time = 2;
-		if (clks->recovery_time > 17)
-			clks->recovery_time = 17;
-	} else {
-		clks->address_time = 1;
-		clks->data_time = 1;
-		clks->recovery_time = 2;
-		/* minimal values */
-	}
-}
-
 static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	/* primary and secondary drives share some registers,
-	 * so we have to program both drives
-	 */
+	ide_hwif_t *hwif = drive->hwif;
+	ide_drive_t *pair = ide_get_paired_drive(drive);
 	unsigned long flags;
-	u8 pio1 = 0, pio2 = 0;
-	pio_clocks_t first, second;
-	int ax, drdy;
-	u8 cycle1, cycle2, misc;
-	ide_hwif_t *hwif = HWIF(drive);
+	u8 tim, misc, addr_pio = pio, clk;
 
-	/* sets drive->drive_data for both drives */
-	compute_pios(drive, pio);
-	pio1 = hwif->drives[0].drive_data;
-	pio2 = hwif->drives[1].drive_data;
+	/* DRDY is default 2 (by OPTi Databook) */
+	static const u8 addr_timings[2][5] = {
+		{ 0x20, 0x10, 0x00, 0x00, 0x00 },	/* 33 MHz */
+		{ 0x10, 0x10, 0x00, 0x00, 0x00 },	/* 25 MHz */
+	};
+	static const u8 data_rec_timings[2][5] = {
+		{ 0x5b, 0x45, 0x32, 0x21, 0x20 },	/* 33 MHz */
+		{ 0x48, 0x34, 0x21, 0x10, 0x10 }	/* 25 MHz */
+	};
 
-	compute_clocks(pio1, &first);
-	compute_clocks(pio2, &second);
+	drive->drive_data = XFER_PIO_0 + pio;
 
-	/* ax = max(a1,a2) */
-	ax = (first.address_time < second.address_time) ? second.address_time : first.address_time;
-
-	drdy = 2; /* DRDY is default 2 (by OPTi Databook) */
-
-	cycle1 = ((first.data_time-1)<<4)  | (first.recovery_time-2);
-	cycle2 = ((second.data_time-1)<<4) | (second.recovery_time-2);
-	misc = READ_PREFETCH | ((ax-1)<<4) | ((drdy-2)<<1);
-
-#ifdef OPTI621_DEBUG
-	printk("%s: master: address: %d, data: %d, "
-		"recovery: %d, drdy: %d [clk]\n",
-		hwif->name, ax, first.data_time,
-		first.recovery_time, drdy);
-	printk("%s: slave:  address: %d, data: %d, "
-		"recovery: %d, drdy: %d [clk]\n",
-		hwif->name, ax, second.data_time,
-		second.recovery_time, drdy);
-#endif
+	if (pair->present) {
+		if (pair->drive_data && pair->drive_data < drive->drive_data)
+			addr_pio = pair->drive_data - XFER_PIO_0;
+	}
 
 	spin_lock_irqsave(&opti621_lock, flags);
 
@@ -289,24 +168,21 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	(void)inb(reg_base + CNTRL_REG);
 	/* if reads 0xc0, no interface exist? */
 	read_reg(CNTRL_REG);
-	/* read version, probably 0 */
-	read_reg(STRAP_REG);
 
-	/* program primary drive */
-	/* select Index-0 for Register-A */
-	write_reg(0, MISC_REG);
-	/* set read cycle timings */
-	write_reg(cycle1, READ_REG);
-	/* set write cycle timings */
-	write_reg(cycle1, WRITE_REG);
+	/* check CLK speed */
+	clk = read_reg(STRAP_REG) & 1;
 
-	/* program secondary drive */
-	/* select Index-1 for Register-B */
-	write_reg(1, MISC_REG);
+	printk(KERN_INFO "%s: CLK = %d MHz\n", hwif->name, clk ? 25 : 33);
+
+	tim  = data_rec_timings[clk][pio];
+	misc = addr_timings[clk][addr_pio];
+
+	/* select Index-0/1 for Register-A/B */
+	write_reg(drive->select.b.unit, MISC_REG);
 	/* set read cycle timings */
-	write_reg(cycle2, READ_REG);
+	write_reg(tim, READ_REG);
 	/* set write cycle timings */
-	write_reg(cycle2, WRITE_REG);
+	write_reg(tim, WRITE_REG);
 
 	/* use Register-A for drive 0 */
 	/* use Register-B for drive 1 */
@@ -319,45 +195,26 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	spin_unlock_irqrestore(&opti621_lock, flags);
 }
 
-static void __devinit opti621_port_init_devs(ide_hwif_t *hwif)
-{
-	hwif->drives[0].drive_data = PIO_DONT_KNOW;
-	hwif->drives[1].drive_data = PIO_DONT_KNOW;
-}
-
 static const struct ide_port_ops opti621_port_ops = {
-	.port_init_devs		= opti621_port_init_devs,
 	.set_pio_mode		= opti621_set_pio_mode,
 };
 
-static const struct ide_port_info opti621_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "OPTI621",
-		.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
-		.port_ops	= &opti621_port_ops,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-		.pio_mask	= ATA_PIO3,
-		.swdma_mask	= ATA_SWDMA2,
-		.mwdma_mask	= ATA_MWDMA2,
-	}, {	/* 1 */
-		.name		= "OPTI621X",
-		.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
-		.port_ops	= &opti621_port_ops,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-		.pio_mask	= ATA_PIO3,
-		.swdma_mask	= ATA_SWDMA2,
-		.mwdma_mask	= ATA_MWDMA2,
-	}
+static const struct ide_port_info opti621_chipset __devinitdata = {
+	.name		= "OPTI621/X",
+	.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
+	.port_ops	= &opti621_port_ops,
+	.host_flags	= IDE_HFLAG_NO_DMA,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit opti621_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &opti621_chipsets[id->driver_data]);
+	return ide_setup_pci_device(dev, &opti621_chipset);
 }
 
 static const struct pci_device_id opti621_pci_tbl[] = {
 	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C621), 0 },
-	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C825), 1 },
+	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C825), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, opti621_pci_tbl);

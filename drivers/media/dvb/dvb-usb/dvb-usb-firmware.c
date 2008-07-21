@@ -127,7 +127,7 @@ int dvb_usb_get_hexline(const struct firmware *fw, struct hexline *hx,
 	if ((*pos + hx->len + 4) >= fw->size)
 		return -EINVAL;
 
-	hx->addr = le16_to_cpu( *((u16 *) &b[1]) );
+	hx->addr = b[1] | (b[2] << 8);
 	hx->type = b[3];
 
 	if (hx->type == 0x04) {

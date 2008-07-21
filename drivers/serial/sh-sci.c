@@ -184,15 +184,15 @@ static void put_string(struct sci_port *sci_port, const char *buffer, int count)
 			int h, l;
 
 			c = *p++;
-			h = highhex(c);
-			l = lowhex(c);
+			h = hex_asc_hi(c);
+			l = hex_asc_lo(c);
 			put_char(port, h);
 			put_char(port, l);
 			checksum += h + l;
 		}
 		put_char(port, '#');
-		put_char(port, highhex(checksum));
-		put_char(port, lowhex(checksum));
+		put_char(port, hex_asc_hi(checksum));
+		put_char(port, hex_asc_lo(checksum));
 	    } while  (get_char(port) != '+');
 	} else
 #endif /* CONFIG_SH_STANDARD_BIOS || CONFIG_SH_KGDB */
@@ -521,7 +521,7 @@ static void sci_transmit_chars(struct uart_port *port)
 static inline void sci_receive_chars(struct uart_port *port)
 {
 	struct sci_port *sci_port = (struct sci_port *)port;
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	int i, count, copied = 0;
 	unsigned short status;
 	unsigned char flag;
@@ -642,7 +642,7 @@ static inline int sci_handle_errors(struct uart_port *port)
 {
 	int copied = 0;
 	unsigned short status = sci_in(port, SCxSR);
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 
 	if (status & SCxSR_ORER(port)) {
 		/* overrun error */
@@ -692,7 +692,7 @@ static inline int sci_handle_breaks(struct uart_port *port)
 {
 	int copied = 0;
 	unsigned short status = sci_in(port, SCxSR);
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	struct sci_port *s = &sci_ports[port->line];
 
 	if (uart_handle_break(port))
@@ -762,7 +762,7 @@ static irqreturn_t sci_er_interrupt(int irq, void *ptr)
 	} else {
 #if defined(SCIF_ORER)
 		if((sci_in(port, SCLSR) & SCIF_ORER) != 0) {
-			struct tty_struct *tty = port->info->tty;
+			struct tty_struct *tty = port->info->port.tty;
 
 			sci_out(port, SCLSR, 0);
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);

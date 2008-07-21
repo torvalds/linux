@@ -179,16 +179,28 @@ config FUJITSU_LAPTOP
         tristate "Fujitsu Laptop Extras"
         depends on X86
         depends on ACPI
+	depends on INPUT
         depends on BACKLIGHT_CLASS_DEVICE
         ---help---
 	  This is a driver for laptops built by Fujitsu:
 
 	    * P2xxx/P5xxx/S6xxx/S7xxx series Lifebooks
 	    * Possibly other Fujitsu laptop models
+	    * Tested with S6410 and S7020
 
-	  It adds support for LCD brightness control.
+	  It adds support for LCD brightness control and some hotkeys.
 
 	  If you have a Fujitsu laptop, say Y or M here.
+
+config FUJITSU_LAPTOP_DEBUG
+	bool "Verbose debug mode for Fujitsu Laptop Extras"
+	depends on FUJITSU_LAPTOP
+	default n
+	---help---
+	  Enables extra debug output from the fujitsu extras driver, at the
+	  expense of a slight increase in driver size.
+
+	  If you are not sure, say N here.
 
 config TC1100_WMI
 	tristate "HP Compaq TC1100 Tablet WMI Extras (EXPERIMENTAL)"
@@ -218,6 +230,23 @@ config MSI_LAPTOP
 	  <http://0pointer.de/lennart/tchibo.html>.
 
 	  If you have an MSI S270 laptop, say Y or M here.
+
+config COMPAL_LAPTOP
+	tristate "Compal Laptop Extras"
+	depends on X86
+	depends on ACPI_EC
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This is a driver for laptops built by Compal:
+
+	  Compal FL90/IFL90
+	  Compal FL91/IFL91
+	  Compal FL92/JFL92
+	  Compal FT00/IFT00
+
+	  It adds support for Bluetooth, WLAN and LCD brightness control.
+
+	  If you have an Compal FL9x/IFL9x/FT00 laptop, say Y or M here.
 
 config SONY_LAPTOP
 	tristate "Sony Laptop Extras"

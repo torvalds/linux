@@ -10,8 +10,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/blackfin.h>
 #include <asm/gptimers.h>
 

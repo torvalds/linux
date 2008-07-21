@@ -32,6 +32,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 #include "dvbdev.h"
 
 static int dvbdev_debug;
@@ -74,6 +75,7 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 {
 	struct dvb_device *dvbdev;
 
+	lock_kernel();
 	dvbdev = dvbdev_find_device (iminor(inode));
 
 	if (dvbdev && dvbdev->fops) {
@@ -90,8 +92,10 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 			file->f_op = fops_get(old_fops);
 		}
 		fops_put(old_fops);
+		unlock_kernel();
 		return err;
 	}
+	unlock_kernel();
 	return -ENODEV;
 }
 

@@ -2261,7 +2261,7 @@ int __init amifb_init(void)
 	amifb_setup(option);
 #endif
 	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(AMI_VIDEO))
-		return -ENXIO;
+		return -ENODEV;
 
 	/*
 	 * We request all registers starting from bplpt[0]
@@ -2333,7 +2333,7 @@ default_chipset:
 			strcat(fb_info.fix.id, "Unknown");
 			goto default_chipset;
 #else /* CONFIG_FB_AMIGA_OCS */
-			err = -ENXIO;
+			err = -ENODEV;
 			goto amifb_error;
 #endif /* CONFIG_FB_AMIGA_OCS */
 			break;
@@ -2382,6 +2382,9 @@ default_chipset:
 		err = -EINVAL;
 		goto amifb_error;
 	}
+
+	fb_videomode_to_modelist(ami_modedb, NUM_TOTAL_MODES,
+				 &fb_info.modelist);
 
 	round_down_bpp = 0;
 	chipptr = chipalloc(fb_info.fix.smem_len+

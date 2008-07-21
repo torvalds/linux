@@ -759,7 +759,7 @@ struct sock *netlink_getsockbyfilp(struct file *filp)
  * 0: continue
  * 1: repeat lookup - reference dropped while waiting for socket memory.
  */
-int netlink_attachskb(struct sock *sk, struct sk_buff *skb, int nonblock,
+int netlink_attachskb(struct sock *sk, struct sk_buff *skb,
 		      long *timeo, struct sock *ssk)
 {
 	struct netlink_sock *nlk;
@@ -886,13 +886,13 @@ retry:
 		return netlink_unicast_kernel(sk, skb);
 
 	if (sk_filter(sk, skb)) {
-		int err = skb->len;
+		err = skb->len;
 		kfree_skb(skb);
 		sock_put(sk);
 		return err;
 	}
 
-	err = netlink_attachskb(sk, skb, nonblock, &timeo, ssk);
+	err = netlink_attachskb(sk, skb, &timeo, ssk);
 	if (err == 1)
 		goto retry;
 	if (err)

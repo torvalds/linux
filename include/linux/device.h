@@ -68,6 +68,8 @@ struct bus_type {
 	int (*resume_early)(struct device *dev);
 	int (*resume)(struct device *dev);
 
+	struct pm_ext_ops *pm;
+
 	struct bus_type_private *p;
 };
 
@@ -130,6 +132,8 @@ struct device_driver {
 	int (*suspend) (struct device *dev, pm_message_t state);
 	int (*resume) (struct device *dev);
 	struct attribute_group **groups;
+
+	struct pm_ops *pm;
 
 	struct driver_private *p;
 };
@@ -197,6 +201,8 @@ struct class {
 
 	int (*suspend)(struct device *dev, pm_message_t state);
 	int (*resume)(struct device *dev);
+
+	struct pm_ops *pm;
 };
 
 extern int __must_check class_register(struct class *class);
@@ -248,8 +254,11 @@ struct device_type {
 	struct attribute_group **groups;
 	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
 	void (*release)(struct device *dev);
+
 	int (*suspend)(struct device *dev, pm_message_t state);
 	int (*resume)(struct device *dev);
+
+	struct pm_ops *pm;
 };
 
 /* interface for exporting device attributes */
@@ -385,6 +394,9 @@ static inline const char *dev_name(struct device *dev)
 	return dev->bus_id;
 }
 
+extern int dev_set_name(struct device *dev, const char *name, ...)
+			__attribute__((format(printf, 2, 3)));
+
 #ifdef CONFIG_NUMA
 static inline int dev_to_node(struct device *dev)
 {
@@ -449,9 +461,21 @@ extern int __must_check device_reprobe(struct device *dev);
 /*
  * Easy functions for dynamically creating devices on the fly
  */
+extern struct device *device_create_vargs(struct class *cls,
+					  struct device *parent,
+					  dev_t devt,
+					  void *drvdata,
+					  const char *fmt,
+					  va_list vargs);
 extern struct device *device_create(struct class *cls, struct device *parent,
 				    dev_t devt, const char *fmt, ...)
 				    __attribute__((format(printf, 4, 5)));
+extern struct device *device_create_drvdata(struct class *cls,
+					    struct device *parent,
+					    dev_t devt,
+					    void *drvdata,
+					    const char *fmt, ...)
+				    __attribute__((format(printf, 5, 6)));
 extern void device_destroy(struct class *cls, dev_t devt);
 
 /*

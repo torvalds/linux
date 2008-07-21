@@ -31,7 +31,7 @@ static int psw_interrupts_disabled(struct kvm_vcpu *vcpu)
 }
 
 static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
-				      struct interrupt_info *inti)
+				      struct kvm_s390_interrupt_info *inti)
 {
 	switch (inti->type) {
 	case KVM_S390_INT_EMERGENCY:
@@ -91,7 +91,7 @@ static void __set_cpuflag(struct kvm_vcpu *vcpu, u32 flag)
 }
 
 static void __set_intercept_indicator(struct kvm_vcpu *vcpu,
-				      struct interrupt_info *inti)
+				      struct kvm_s390_interrupt_info *inti)
 {
 	switch (inti->type) {
 	case KVM_S390_INT_EMERGENCY:
@@ -111,7 +111,7 @@ static void __set_intercept_indicator(struct kvm_vcpu *vcpu,
 }
 
 static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
-				   struct interrupt_info *inti)
+				   struct kvm_s390_interrupt_info *inti)
 {
 	const unsigned short table[] = { 2, 4, 4, 6 };
 	int rc, exception = 0;
@@ -290,9 +290,9 @@ static int __try_deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
 
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 {
-	struct local_interrupt *li = &vcpu->arch.local_int;
-	struct float_interrupt *fi = vcpu->arch.local_int.float_int;
-	struct interrupt_info  *inti;
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	struct kvm_s390_float_interrupt *fi = vcpu->arch.local_int.float_int;
+	struct kvm_s390_interrupt_info  *inti;
 	int rc = 0;
 
 	if (atomic_read(&li->active)) {
@@ -339,6 +339,11 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 	if (kvm_cpu_has_interrupt(vcpu))
 		return 0;
 
+	__set_cpu_idle(vcpu);
+	spin_lock_bh(&vcpu->arch.local_int.lock);
+	vcpu->arch.local_int.timer_due = 0;
+	spin_unlock_bh(&vcpu->arch.local_int.lock);
+
 	if (psw_interrupts_disabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "disabled wait");
 		__unset_cpu_idle(vcpu);
@@ -366,8 +371,6 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 no_timer:
 	spin_lock_bh(&vcpu->arch.local_int.float_int->lock);
 	spin_lock_bh(&vcpu->arch.local_int.lock);
-	__set_cpu_idle(vcpu);
-	vcpu->arch.local_int.timer_due = 0;
 	add_wait_queue(&vcpu->arch.local_int.wq, &wait);
 	while (list_empty(&vcpu->arch.local_int.list) &&
 		list_empty(&vcpu->arch.local_int.float_int->list) &&
@@ -405,9 +408,9 @@ void kvm_s390_idle_wakeup(unsigned long data)
 
 void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 {
-	struct local_interrupt *li = &vcpu->arch.local_int;
-	struct float_interrupt *fi = vcpu->arch.local_int.float_int;
-	struct interrupt_info  *n, *inti = NULL;
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	struct kvm_s390_float_interrupt *fi = vcpu->arch.local_int.float_int;
+	struct kvm_s390_interrupt_info  *n, *inti = NULL;
 	int deliver;
 
 	__reset_intercept_indicators(vcpu);
@@ -462,8 +465,8 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 
 int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 {
-	struct local_interrupt *li = &vcpu->arch.local_int;
-	struct interrupt_info *inti;
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	struct kvm_s390_interrupt_info *inti;
 
 	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
 	if (!inti)
@@ -484,9 +487,9 @@ int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 int kvm_s390_inject_vm(struct kvm *kvm,
 		       struct kvm_s390_interrupt *s390int)
 {
-	struct local_interrupt *li;
-	struct float_interrupt *fi;
-	struct interrupt_info *inti;
+	struct kvm_s390_local_interrupt *li;
+	struct kvm_s390_float_interrupt *fi;
+	struct kvm_s390_interrupt_info *inti;
 	int sigcpu;
 
 	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
@@ -541,8 +544,8 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 			 struct kvm_s390_interrupt *s390int)
 {
-	struct local_interrupt *li;
-	struct interrupt_info *inti;
+	struct kvm_s390_local_interrupt *li;
+	struct kvm_s390_interrupt_info *inti;
 
 	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
 	if (!inti)

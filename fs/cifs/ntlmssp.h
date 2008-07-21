@@ -64,7 +64,7 @@ typedef struct _SECURITY_BUFFER {
 } __attribute__((packed)) SECURITY_BUFFER;
 
 typedef struct _NEGOTIATE_MESSAGE {
-	__u8 Signature[sizeof (NTLMSSP_SIGNATURE)];
+	__u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
 	__le32 MessageType;     /* 1 */
 	__le32 NegotiateFlags;
 	SECURITY_BUFFER DomainName;	/* RFC 1001 style and ASCII */
@@ -74,7 +74,7 @@ typedef struct _NEGOTIATE_MESSAGE {
 } __attribute__((packed)) NEGOTIATE_MESSAGE, *PNEGOTIATE_MESSAGE;
 
 typedef struct _CHALLENGE_MESSAGE {
-	__u8 Signature[sizeof (NTLMSSP_SIGNATURE)];
+	__u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
 	__le32 MessageType;   /* 2 */
 	SECURITY_BUFFER TargetName;
 	__le32 NegotiateFlags;

@@ -43,7 +43,8 @@
 #include <asm/uaccess.h>
 
 #ifdef CONFIG_PPC_CPM_NEW_BINDING
-#include <asm/of_platform.h>
+#include <linux/of_gpio.h>
+#include <linux/of_platform.h>
 #endif
 
 #include "fs_enet.h"
@@ -737,7 +738,7 @@ static void generic_adjust_link(struct  net_device *dev)
 		if (!fep->oldlink) {
 			new_state = 1;
 			fep->oldlink = 1;
-			netif_schedule(dev);
+			netif_tx_schedule_all(dev);
 			netif_carrier_on(dev);
 			netif_start_queue(dev);
 		}
@@ -1093,7 +1094,7 @@ err:
 		if (registered)
 			unregister_netdev(ndev);
 
-		if (fep != NULL) {
+		if (fep && fep->ops) {
 			(*fep->ops->free_bd)(ndev);
 			(*fep->ops->cleanup_data)(ndev);
 		}
@@ -1172,8 +1173,7 @@ static int __devinit find_phy(struct device_node *np,
                               struct fs_platform_info *fpi)
 {
 	struct device_node *phynode, *mdionode;
-	struct resource res;
-	int ret = 0, len;
+	int ret = 0, len, bus_id;
 	const u32 *data;
 
 	data  = of_get_property(np, "fixed-link", NULL);
@@ -1190,19 +1190,28 @@ static int __devinit find_phy(struct device_node *np,
 	if (!phynode)
 		return -EINVAL;
 
-	mdionode = of_get_parent(phynode);
-	if (!mdionode)
-		goto out_put_phy;
-
-	ret = of_address_to_resource(mdionode, 0, &res);
-	if (ret)
-		goto out_put_mdio;
-
 	data = of_get_property(phynode, "reg", &len);
-	if (!data || len != 4)
-		goto out_put_mdio;
+	if (!data || len != 4) {
+		ret = -EINVAL;
+		goto out_put_phy;
+	}
 
-	snprintf(fpi->bus_id, 16, "%x:%02x", res.start, *data);
+	mdionode = of_get_parent(phynode);
+	if (!mdionode) {
+		ret = -EINVAL;
+		goto out_put_phy;
+	}
+
+	bus_id = of_get_gpio(mdionode, 0);
+	if (bus_id < 0) {
+		struct resource res;
+		ret = of_address_to_resource(mdionode, 0, &res);
+		if (ret)
+			goto out_put_mdio;
+		bus_id = res.start;
+	}
+
+	snprintf(fpi->bus_id, 16, "%x:%02x", bus_id, *data);
 
 out_put_mdio:
 	of_node_put(mdionode);

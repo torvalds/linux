@@ -1,4 +1,4 @@
-/* $Id: sbus.h,v 1.22 2000/02/18 13:50:50 davem Exp $
+/*
  * sbus.h:  Defines for the Sun SBus.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)

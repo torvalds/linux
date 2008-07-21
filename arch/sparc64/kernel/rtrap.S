@@ -1,4 +1,4 @@
-/* $Id: rtrap.S,v 1.61 2002/02/09 19:49:31 davem Exp $
+/*
  * rtrap.S: Preparing for return from trap on Sparc V9.
  *
  * Copyright (C) 1997,1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
@@ -363,6 +363,7 @@ kern_rtt:	rdpr			%canrestore, %g1
 		brz,pn			%g1, kern_rtt_fill
 		 nop
 kern_rtt_restore:
+		stw			%g0, [%sp + PTREGS_OFF + PT_V9_MAGIC]
 		restore
 		retry
 

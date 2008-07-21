@@ -821,10 +821,10 @@ static int __devinit iop_adma_memcpy_self_test(struct iop_adma_device *device)
 
 	dev_dbg(device->common.dev, "%s\n", __func__);
 
-	src = kzalloc(sizeof(u8) * IOP_ADMA_TEST_SIZE, GFP_KERNEL);
+	src = kmalloc(IOP_ADMA_TEST_SIZE, GFP_KERNEL);
 	if (!src)
 		return -ENOMEM;
-	dest = kzalloc(sizeof(u8) * IOP_ADMA_TEST_SIZE, GFP_KERNEL);
+	dest = kzalloc(IOP_ADMA_TEST_SIZE, GFP_KERNEL);
 	if (!dest) {
 		kfree(src);
 		return -ENOMEM;
@@ -833,8 +833,6 @@ static int __devinit iop_adma_memcpy_self_test(struct iop_adma_device *device)
 	/* Fill in src buffer */
 	for (i = 0; i < IOP_ADMA_TEST_SIZE; i++)
 		((u8 *) src)[i] = (u8)i;
-
-	memset(dest, 0, IOP_ADMA_TEST_SIZE);
 
 	/* Start copy, using first DMA channel */
 	dma_chan = container_of(device->common.channels.next,

@@ -14,6 +14,7 @@
 u32 orion_pcie_dev_id(void __iomem *base);
 u32 orion_pcie_rev(void __iomem *base);
 int orion_pcie_link_up(void __iomem *base);
+int orion_pcie_x4_mode(void __iomem *base);
 int orion_pcie_get_local_bus_nr(void __iomem *base);
 void orion_pcie_set_local_bus_nr(void __iomem *base, int nr);
 void orion_pcie_setup(void __iomem *base,

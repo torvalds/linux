@@ -297,12 +297,17 @@ static int uio_open(struct inode *inode, struct file *filep)
 	struct uio_listener *listener;
 	int ret = 0;
 
+	lock_kernel();
 	idev = idr_find(&uio_idr, iminor(inode));
-	if (!idev)
-		return -ENODEV;
+	if (!idev) {
+		ret = -ENODEV;
+		goto out;
+	}
 
-	if (!try_module_get(idev->owner))
-		return -ENODEV;
+	if (!try_module_get(idev->owner)) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	listener = kmalloc(sizeof(*listener), GFP_KERNEL);
 	if (!listener) {
@@ -319,7 +324,7 @@ static int uio_open(struct inode *inode, struct file *filep)
 		if (ret)
 			goto err_infoopen;
 	}
-
+	unlock_kernel();
 	return 0;
 
 err_infoopen:
@@ -329,6 +334,8 @@ err_alloc_listener:
 
 	module_put(idev->owner);
 
+out:
+	unlock_kernel();
 	return ret;
 }
 
@@ -649,15 +656,14 @@ int __uio_register_device(struct module *owner,
 	if (ret)
 		goto err_get_minor;
 
-	idev->dev = device_create(uio_class->class, parent,
-				  MKDEV(uio_major, idev->minor),
-				  "uio%d", idev->minor);
+	idev->dev = device_create_drvdata(uio_class->class, parent,
+					  MKDEV(uio_major, idev->minor), idev,
+					  "uio%d", idev->minor);
 	if (IS_ERR(idev->dev)) {
 		printk(KERN_ERR "UIO: device register failed\n");
 		ret = PTR_ERR(idev->dev);
 		goto err_device_create;
 	}
-	dev_set_drvdata(idev->dev, idev);
 
 	ret = uio_dev_add_attributes(idev);
 	if (ret)

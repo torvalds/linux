@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
@@ -211,8 +212,10 @@ uctrl_ioctl(struct inode *inode, struct file *file,
 static int
 uctrl_open(struct inode *inode, struct file *file)
 {
+	lock_kernel();
 	uctrl_get_event_status();
 	uctrl_get_external_status();
+	unlock_kernel();
 	return 0;
 }
 

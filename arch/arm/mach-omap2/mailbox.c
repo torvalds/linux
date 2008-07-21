@@ -70,6 +70,9 @@ struct omap_mbox2_priv {
 
 static struct clk *mbox_ick_handle;
 
+static void omap2_mbox_enable_irq(struct omap_mbox *mbox,
+				  omap_mbox_type_t irq);
+
 static inline unsigned int mbox_read_reg(unsigned int reg)
 {
 	return __raw_readl(mbox_base + reg);
@@ -81,7 +84,7 @@ static inline void mbox_write_reg(unsigned int val, unsigned int reg)
 }
 
 /* Mailbox H/W preparations */
-static inline int omap2_mbox_startup(struct omap_mbox *mbox)
+static int omap2_mbox_startup(struct omap_mbox *mbox)
 {
 	unsigned int l;
 
@@ -97,38 +100,40 @@ static inline int omap2_mbox_startup(struct omap_mbox *mbox)
 	l |= 0x00000011;
 	mbox_write_reg(l, MAILBOX_SYSCONFIG);
 
+	omap2_mbox_enable_irq(mbox, IRQ_RX);
+
 	return 0;
 }
 
-static inline void omap2_mbox_shutdown(struct omap_mbox *mbox)
+static void omap2_mbox_shutdown(struct omap_mbox *mbox)
 {
 	clk_disable(mbox_ick_handle);
 	clk_put(mbox_ick_handle);
 }
 
 /* Mailbox FIFO handle functions */
-static inline mbox_msg_t omap2_mbox_fifo_read(struct omap_mbox *mbox)
+static mbox_msg_t omap2_mbox_fifo_read(struct omap_mbox *mbox)
 {
 	struct omap_mbox2_fifo *fifo =
 		&((struct omap_mbox2_priv *)mbox->priv)->rx_fifo;
 	return (mbox_msg_t) mbox_read_reg(fifo->msg);
 }
 
-static inline void omap2_mbox_fifo_write(struct omap_mbox *mbox, mbox_msg_t msg)
+static void omap2_mbox_fifo_write(struct omap_mbox *mbox, mbox_msg_t msg)
 {
 	struct omap_mbox2_fifo *fifo =
 		&((struct omap_mbox2_priv *)mbox->priv)->tx_fifo;
 	mbox_write_reg(msg, fifo->msg);
 }
 
-static inline int omap2_mbox_fifo_empty(struct omap_mbox *mbox)
+static int omap2_mbox_fifo_empty(struct omap_mbox *mbox)
 {
 	struct omap_mbox2_fifo *fifo =
 		&((struct omap_mbox2_priv *)mbox->priv)->rx_fifo;
 	return (mbox_read_reg(fifo->msg_stat) == 0);
 }
 
-static inline int omap2_mbox_fifo_full(struct omap_mbox *mbox)
+static int omap2_mbox_fifo_full(struct omap_mbox *mbox)
 {
 	struct omap_mbox2_fifo *fifo =
 		&((struct omap_mbox2_priv *)mbox->priv)->tx_fifo;
@@ -136,7 +141,7 @@ static inline int omap2_mbox_fifo_full(struct omap_mbox *mbox)
 }
 
 /* Mailbox IRQ handle functions */
-static inline void omap2_mbox_enable_irq(struct omap_mbox *mbox,
+static void omap2_mbox_enable_irq(struct omap_mbox *mbox,
 		omap_mbox_type_t irq)
 {
 	struct omap_mbox2_priv *p = (struct omap_mbox2_priv *)mbox->priv;
@@ -147,7 +152,7 @@ static inline void omap2_mbox_enable_irq(struct omap_mbox *mbox,
 	mbox_write_reg(l, p->irqenable);
 }
 
-static inline void omap2_mbox_disable_irq(struct omap_mbox *mbox,
+static void omap2_mbox_disable_irq(struct omap_mbox *mbox,
 		omap_mbox_type_t irq)
 {
 	struct omap_mbox2_priv *p = (struct omap_mbox2_priv *)mbox->priv;
@@ -158,7 +163,7 @@ static inline void omap2_mbox_disable_irq(struct omap_mbox *mbox,
 	mbox_write_reg(l, p->irqenable);
 }
 
-static inline void omap2_mbox_ack_irq(struct omap_mbox *mbox,
+static void omap2_mbox_ack_irq(struct omap_mbox *mbox,
 		omap_mbox_type_t irq)
 {
 	struct omap_mbox2_priv *p = (struct omap_mbox2_priv *)mbox->priv;
@@ -167,7 +172,7 @@ static inline void omap2_mbox_ack_irq(struct omap_mbox *mbox,
 	mbox_write_reg(bit, p->irqstatus);
 }
 
-static inline int omap2_mbox_is_irq(struct omap_mbox *mbox,
+static int omap2_mbox_is_irq(struct omap_mbox *mbox,
 		omap_mbox_type_t irq)
 {
 	struct omap_mbox2_priv *p = (struct omap_mbox2_priv *)mbox->priv;

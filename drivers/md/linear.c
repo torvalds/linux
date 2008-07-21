@@ -50,17 +50,19 @@ static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 /**
  *	linear_mergeable_bvec -- tell bio layer if two requests can be merged
  *	@q: request queue
- *	@bio: the buffer head that's been built up so far
+ *	@bvm: properties of new bio
  *	@biovec: the request that could be merged to it.
  *
  *	Return amount of bytes we can take at this offset
  */
-static int linear_mergeable_bvec(struct request_queue *q, struct bio *bio, struct bio_vec *biovec)
+static int linear_mergeable_bvec(struct request_queue *q,
+				 struct bvec_merge_data *bvm,
+				 struct bio_vec *biovec)
 {
 	mddev_t *mddev = q->queuedata;
 	dev_info_t *dev0;
-	unsigned long maxsectors, bio_sectors = bio->bi_size >> 9;
-	sector_t sector = bio->bi_sector + get_start_sect(bio->bi_bdev);
+	unsigned long maxsectors, bio_sectors = bvm->bi_size >> 9;
+	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 
 	dev0 = which_dev(mddev, sector);
 	maxsectors = (dev0->size << 1) - (sector - (dev0->offset<<1));

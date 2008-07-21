@@ -19,14 +19,15 @@
 #ifndef __fw_transaction_h
 #define __fw_transaction_h
 
+#include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/timer.h>
-#include <linux/interrupt.h>
-#include <linux/list.h>
-#include <linux/fs.h>
 #include <linux/dma-mapping.h>
 #include <linux/firewire-constants.h>
-#include <asm/atomic.h>
+#include <linux/kref.h>
+#include <linux/list.h>
+#include <linux/spinlock_types.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
 
 #define TCODE_IS_READ_REQUEST(tcode)	(((tcode) & ~1) == 4)
 #define TCODE_IS_BLOCK_PACKET(tcode)	(((tcode) &  1) != 0)
@@ -79,6 +80,9 @@
 #define CSR_TOPOLOGY_MAP_END		0x1400
 #define CSR_SPEED_MAP			0x2000
 #define CSR_SPEED_MAP_END		0x3000
+
+#define BROADCAST_CHANNEL_INITIAL	(1 << 31 | 31)
+#define BROADCAST_CHANNEL_VALID		(1 << 30)
 
 #define fw_notify(s, args...) printk(KERN_NOTICE KBUILD_MODNAME ": " s, ## args)
 #define fw_error(s, args...) printk(KERN_ERR KBUILD_MODNAME ": " s, ## args)
@@ -216,7 +220,8 @@ extern struct bus_type fw_bus_type;
 struct fw_card {
 	const struct fw_card_driver *driver;
 	struct device *device;
-	atomic_t device_count;
+	struct kref kref;
+	struct completion done;
 
 	int node_id;
 	int generation;
@@ -236,6 +241,7 @@ struct fw_card {
 	 */
 	int self_id_count;
 	u32 topology_map[252 + 3];
+	u32 broadcast_channel;
 
 	spinlock_t lock; /* Take this lock when handling the lists in
 			  * this struct. */
@@ -255,6 +261,20 @@ struct fw_card {
 	int bm_retries;
 	int bm_generation;
 };
+
+static inline struct fw_card *fw_card_get(struct fw_card *card)
+{
+	kref_get(&card->kref);
+
+	return card;
+}
+
+void fw_card_release(struct kref *kref);
+
+static inline void fw_card_put(struct fw_card *card)
+{
+	kref_put(&card->kref, fw_card_release);
+}
 
 /*
  * The iso packet format allows for an immediate header/payload part
@@ -348,8 +368,6 @@ int
 fw_iso_context_stop(struct fw_iso_context *ctx);
 
 struct fw_card_driver {
-	const char *name;
-
 	/*
 	 * Enable the given card with the given initial config rom.
 	 * This function is expected to activate the card, and either

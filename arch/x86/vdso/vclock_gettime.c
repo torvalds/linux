@@ -23,7 +23,7 @@
 
 #define gtod vdso_vsyscall_gtod_data
 
-static long vdso_fallback_gettime(long clock, struct timespec *ts)
+notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 {
 	long ret;
 	asm("syscall" : "=a" (ret) :
@@ -31,7 +31,7 @@ static long vdso_fallback_gettime(long clock, struct timespec *ts)
 	return ret;
 }
 
-static inline long vgetns(void)
+notrace static inline long vgetns(void)
 {
 	long v;
 	cycles_t (*vread)(void);
@@ -40,7 +40,7 @@ static inline long vgetns(void)
 	return (v * gtod->clock.mult) >> gtod->clock.shift;
 }
 
-static noinline int do_realtime(struct timespec *ts)
+notrace static noinline int do_realtime(struct timespec *ts)
 {
 	unsigned long seq, ns;
 	do {
@@ -54,7 +54,8 @@ static noinline int do_realtime(struct timespec *ts)
 }
 
 /* Copy of the version in kernel/time.c which we cannot directly access */
-static void vset_normalized_timespec(struct timespec *ts, long sec, long nsec)
+notrace static void
+vset_normalized_timespec(struct timespec *ts, long sec, long nsec)
 {
 	while (nsec >= NSEC_PER_SEC) {
 		nsec -= NSEC_PER_SEC;
@@ -68,7 +69,7 @@ static void vset_normalized_timespec(struct timespec *ts, long sec, long nsec)
 	ts->tv_nsec = nsec;
 }
 
-static noinline int do_monotonic(struct timespec *ts)
+notrace static noinline int do_monotonic(struct timespec *ts)
 {
 	unsigned long seq, ns, secs;
 	do {
@@ -82,7 +83,7 @@ static noinline int do_monotonic(struct timespec *ts)
 	return 0;
 }
 
-int __vdso_clock_gettime(clockid_t clock, struct timespec *ts)
+notrace int __vdso_clock_gettime(clockid_t clock, struct timespec *ts)
 {
 	if (likely(gtod->sysctl_enabled && gtod->clock.vread))
 		switch (clock) {
@@ -96,7 +97,7 @@ int __vdso_clock_gettime(clockid_t clock, struct timespec *ts)
 int clock_gettime(clockid_t, struct timespec *)
 	__attribute__((weak, alias("__vdso_clock_gettime")));
 
-int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
+notrace int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
 	long ret;
 	if (likely(gtod->sysctl_enabled && gtod->clock.vread)) {
@@ -106,9 +107,9 @@ int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 		do_realtime((struct timespec *)tv);
 		tv->tv_usec /= 1000;
 		if (unlikely(tz != NULL)) {
-			/* This relies on gcc inlining the memcpy. We'll notice
-			   if it ever fails to do so. */
-			memcpy(tz, &gtod->sys_tz, sizeof(struct timezone));
+			/* Avoid memcpy. Some old compilers fail to inline it */
+			tz->tz_minuteswest = gtod->sys_tz.tz_minuteswest;
+			tz->tz_dsttime = gtod->sys_tz.tz_dsttime;
 		}
 		return 0;
 	}

@@ -379,7 +379,7 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 		struct plock_xop *xop;
 		xop = (struct plock_xop *)op;
 		if (xop->callback)
-			count = dlm_plock_callback(op);
+			dlm_plock_callback(op);
 		else
 			wake_up(&recv_wq);
 	} else

@@ -13,9 +13,11 @@
 #include <asm/vdso.h>
 #include <asm/e820.h>
 #include <asm/setup.h>
+#include <asm/acpi.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
+#include <xen/page.h>
 #include <xen/interface/callback.h>
 #include <xen/interface/physdev.h>
 #include <xen/features.h>
@@ -27,8 +29,6 @@
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 
-unsigned long *phys_to_machine_mapping;
-EXPORT_SYMBOL(phys_to_machine_mapping);
 
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
@@ -38,9 +38,31 @@ char * __init xen_memory_setup(void)
 {
 	unsigned long max_pfn = xen_start_info->nr_pages;
 
+	max_pfn = min(MAX_DOMAIN_PAGES, max_pfn);
+
 	e820.nr_map = 0;
-	add_memory_region(0, LOWMEMSIZE(), E820_RAM);
-	add_memory_region(HIGH_MEMORY, PFN_PHYS(max_pfn)-HIGH_MEMORY, E820_RAM);
+
+	e820_add_region(0, PFN_PHYS(max_pfn), E820_RAM);
+
+	/*
+	 * Even though this is normal, usable memory under Xen, reserve
+	 * ISA memory anyway because too many things think they can poke
+	 * about in there.
+	 */
+	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
+			E820_RESERVED);
+
+	/*
+	 * Reserve Xen bits:
+	 *  - mfn_list
+	 *  - xen_start_info
+	 * See comment above "struct start_info" in <xen/interface/xen.h>
+	 */
+	e820_add_region(__pa(xen_start_info->mfn_list),
+			xen_start_info->pt_base - xen_start_info->mfn_list,
+			E820_RESERVED);
+
+	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
 	return "Xen";
 }

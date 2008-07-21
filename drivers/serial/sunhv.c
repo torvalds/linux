@@ -185,7 +185,7 @@ static struct tty_struct *receive_chars(struct uart_port *port)
 	struct tty_struct *tty = NULL;
 
 	if (port->info != NULL)		/* Unopened serial console */
-		tty = port->info->tty;
+		tty = port->info->port.tty;
 
 	if (sunhv_ops->receive_chars(port, tty))
 		sun_do_break();
@@ -499,7 +499,6 @@ static void sunhv_console_write_bychar(struct console *con, const char *s, unsig
 	} else
 		spin_lock(&port->lock);
 
-	spin_lock_irqsave(&port->lock, flags);
 	for (i = 0; i < n; i++) {
 		if (*s == '\n')
 			sunhv_console_putchar(port, '\r');

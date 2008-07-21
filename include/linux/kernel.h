@@ -46,6 +46,9 @@ extern const char linux_proc_banner[];
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define roundup(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
 
+#define _RET_IP_		(unsigned long)__builtin_return_address(0)
+#define _THIS_IP_  ({ __label__ __here; __here: (unsigned long)&&__here; })
+
 #ifdef CONFIG_LBD
 # include <asm/div64.h>
 # define sector_div(a, b) do_div(a, b)
@@ -184,9 +187,6 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	__attribute__ ((format (printf, 1, 0)));
 asmlinkage int printk(const char * fmt, ...)
 	__attribute__ ((format (printf, 1, 2))) __cold;
-extern int log_buf_get_len(void);
-extern int log_buf_read(int idx);
-extern int log_buf_copy(char *dest, int idx, int len);
 
 extern int printk_ratelimit_jiffies;
 extern int printk_ratelimit_burst;
@@ -202,9 +202,6 @@ static inline int vprintk(const char *s, va_list args) { return 0; }
 static inline int printk(const char *s, ...)
 	__attribute__ ((format (printf, 1, 2)));
 static inline int __cold printk(const char *s, ...) { return 0; }
-static inline int log_buf_get_len(void) { return 0; }
-static inline int log_buf_read(int idx) { return 0; }
-static inline int log_buf_copy(char *dest, int idx, int len) { return 0; }
 static inline int printk_ratelimit(void) { return 0; }
 static inline int __printk_ratelimit(int ratelimit_jiffies, \
 				     int ratelimit_burst) { return 0; }
@@ -213,7 +210,7 @@ static inline bool printk_timed_ratelimit(unsigned long *caller_jiffies, \
 		{ return false; }
 #endif
 
-extern void __attribute__((format(printf, 1, 2)))
+extern void asmlinkage __attribute__((format(printf, 1, 2)))
 	early_printk(const char *fmt, ...);
 
 unsigned long int_sqrt(unsigned long);

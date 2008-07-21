@@ -8,6 +8,9 @@
 
 #else
 
+#include <linux/types.h>
+#include <linux/errno.h>
+
 /*
  * Some platforms don't support the GPIO programming interface.
  *

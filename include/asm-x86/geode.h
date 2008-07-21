@@ -112,8 +112,8 @@ extern int geode_get_dev_base(unsigned int dev);
 #define VSA_VR_UNLOCK		0xFC53	/* unlock virtual register */
 #define VSA_VR_SIGNATURE	0x0003
 #define VSA_VR_MEM_SIZE		0x0200
-#define VSA_SIG			0x4132	/* signature is ascii 'VSA2' */
-
+#define AMD_VSA_SIG		0x4132	/* signature is ascii 'VSA2' */
+#define GSW_VSA_SIG		0x534d  /* General Software signature */
 /* GPIO */
 
 #define GPIO_OUTPUT_VAL		0x00

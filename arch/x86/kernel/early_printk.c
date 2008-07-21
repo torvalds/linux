@@ -196,7 +196,7 @@ static struct console simnow_console = {
 static struct console *early_console = &early_vga_console;
 static int early_console_initialized;
 
-void early_printk(const char *fmt, ...)
+asmlinkage void early_printk(const char *fmt, ...)
 {
 	char buf[512];
 	int n;

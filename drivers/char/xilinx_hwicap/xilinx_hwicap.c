@@ -85,6 +85,7 @@
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 #include <linux/sysctl.h>
 #include <linux/version.h>
 #include <linux/fs.h>
@@ -504,11 +505,12 @@ static int hwicap_open(struct inode *inode, struct file *file)
 	struct hwicap_drvdata *drvdata;
 	int status;
 
+	lock_kernel();
 	drvdata = container_of(inode->i_cdev, struct hwicap_drvdata, cdev);
 
 	status = mutex_lock_interruptible(&drvdata->sem);
 	if (status)
-		return status;
+		goto out;
 
 	if (drvdata->is_open) {
 		status = -EBUSY;
@@ -528,6 +530,8 @@ static int hwicap_open(struct inode *inode, struct file *file)
 
  error:
 	mutex_unlock(&drvdata->sem);
+ out:
+	unlock_kernel();
 	return status;
 }
 

@@ -34,7 +34,7 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x10 */
 	cx18_av_write(cx, 0x127, 0x50);
 
-	if (state->aud_input != CX18_AV_AUDIO_SERIAL) {
+	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
 		switch (freq) {
 		case 32000:
 			/* VID_PLL and AUX_PLL */
@@ -148,7 +148,7 @@ void cx18_av_audio_set_path(struct cx18 *cx)
 	/* Mute everything to prevent the PFFT! */
 	cx18_av_write(cx, 0x8d3, 0x1f);
 
-	if (state->aud_input == CX18_AV_AUDIO_SERIAL) {
+	if (state->aud_input <= CX18_AV_AUDIO_SERIAL2) {
 		/* Set Path1 to Serial Audio Input */
 		cx18_av_write4(cx, 0x8d0, 0x01011012);
 
@@ -165,7 +165,7 @@ void cx18_av_audio_set_path(struct cx18 *cx)
 	/* deassert soft reset */
 	cx18_av_and_or(cx, 0x810, ~0x1, 0x00);
 
-	if (state->aud_input != CX18_AV_AUDIO_SERIAL) {
+	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
 		/* When the microcontroller detects the
 		 * audio format, it will unmute the lines */
 		cx18_av_and_or(cx, 0x803, ~0x10, 0x10);
@@ -271,7 +271,7 @@ static void set_mute(struct cx18 *cx, int mute)
 {
 	struct cx18_av_state *state = &cx->av_state;
 
-	if (state->aud_input != CX18_AV_AUDIO_SERIAL) {
+	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
 		/* Must turn off microcontroller in order to mute sound.
 		 * Not sure if this is the best method, but it does work.
 		 * If the microcontroller is running, then it will undo any
@@ -298,14 +298,14 @@ int cx18_av_audio(struct cx18 *cx, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		if (state->aud_input != CX18_AV_AUDIO_SERIAL) {
+		if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
 			cx18_av_and_or(cx, 0x803, ~0x10, 0);
 			cx18_av_write(cx, 0x8d3, 0x1f);
 		}
 		cx18_av_and_or(cx, 0x810, ~0x1, 1);
 		retval = set_audclk_freq(cx, *(u32 *)arg);
 		cx18_av_and_or(cx, 0x810, ~0x1, 0);
-		if (state->aud_input != CX18_AV_AUDIO_SERIAL)
+		if (state->aud_input > CX18_AV_AUDIO_SERIAL2)
 			cx18_av_and_or(cx, 0x803, ~0x10, 0x10);
 		return retval;
 

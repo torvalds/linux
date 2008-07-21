@@ -1939,7 +1939,7 @@ static int __devinit
 wavefront_download_firmware (snd_wavefront_t *dev, char *path)
 
 {
-	unsigned char *buf;
+	const unsigned char *buf;
 	int len, err;
 	int section_cnt_downloaded = 0;
 	const struct firmware *firmware;

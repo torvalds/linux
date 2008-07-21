@@ -159,7 +159,8 @@ static void mmio_access(struct kvm_vcpu *vcpu, u64 src_pa, u64 *dest,
 
 	if (p->u.ioreq.state == STATE_IORESP_READY) {
 		if (dir == IOREQ_READ)
-			*dest = p->u.ioreq.data;
+			/* it's necessary to ensure zero extending */
+			*dest = p->u.ioreq.data & (~0UL >> (64-(s*8)));
 	} else
 		panic_vm(vcpu);
 out:

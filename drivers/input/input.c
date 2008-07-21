@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
+#include <linux/smp_lock.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
@@ -1588,13 +1589,17 @@ EXPORT_SYMBOL(input_unregister_handle);
 
 static int input_open_file(struct inode *inode, struct file *file)
 {
-	struct input_handler *handler = input_table[iminor(inode) >> 5];
+	struct input_handler *handler;
 	const struct file_operations *old_fops, *new_fops = NULL;
 	int err;
 
+	lock_kernel();
 	/* No load-on-demand here? */
-	if (!handler || !(new_fops = fops_get(handler->fops)))
-		return -ENODEV;
+	handler = input_table[iminor(inode) >> 5];
+	if (!handler || !(new_fops = fops_get(handler->fops))) {
+		err = -ENODEV;
+		goto out;
+	}
 
 	/*
 	 * That's _really_ odd. Usually NULL ->open means "nothing special",
@@ -1602,7 +1607,8 @@ static int input_open_file(struct inode *inode, struct file *file)
 	 */
 	if (!new_fops->open) {
 		fops_put(new_fops);
-		return -ENODEV;
+		err = -ENODEV;
+		goto out;
 	}
 	old_fops = file->f_op;
 	file->f_op = new_fops;
@@ -1614,6 +1620,8 @@ static int input_open_file(struct inode *inode, struct file *file)
 		file->f_op = fops_get(old_fops);
 	}
 	fops_put(old_fops);
+out:
+	unlock_kernel();
 	return err;
 }
 

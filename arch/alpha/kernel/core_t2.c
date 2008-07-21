@@ -74,6 +74,8 @@
 # define DBG(args)
 #endif
 
+DEFINE_SPINLOCK(t2_hae_lock);
+
 static volatile unsigned int t2_mcheck_any_expected;
 static volatile unsigned int t2_mcheck_last_taken;
 

@@ -145,7 +145,7 @@ static void netxen_nic_isr_other(struct netxen_adapter *adapter)
 
 	/* verify the offset */
 	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
-	val = val >> physical_port[adapter->portnum];
+	val = val >> adapter->physical_port;
 	if (val == adapter->ahw.qg_linksup)
 		return;
 
@@ -199,7 +199,7 @@ void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 
 	/* WINDOW = 1 */
 	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
-	val >>= (physical_port[adapter->portnum] * 8);
+	val >>= (adapter->physical_port * 8);
 	val &= 0xff;
 
 	if (adapter->ahw.xg_linkup == 1 && val != XG_LINK_UP) {

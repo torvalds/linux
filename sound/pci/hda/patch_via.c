@@ -447,6 +447,23 @@ static struct hda_pcm_stream vt1708_pcm_analog_playback = {
 	},
 };
 
+static struct hda_pcm_stream vt1708_pcm_analog_s16_playback = {
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 8,
+	.nid = 0x10, /* NID to query formats and rates */
+	/* We got noisy outputs on the right channel on VT1708 when
+	 * 24bit samples are used.  Until any workaround is found,
+	 * disable the 24bit format, so far.
+	 */
+	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.ops = {
+		.open = via_playback_pcm_open,
+		.prepare = via_playback_pcm_prepare,
+		.cleanup = via_playback_pcm_cleanup
+	},
+};
+
 static struct hda_pcm_stream vt1708_pcm_analog_capture = {
 	.substreams = 2,
 	.channels_min = 2,
@@ -899,6 +916,9 @@ static int patch_vt1708(struct hda_codec *codec)
 	
 	spec->stream_name_analog = "VT1708 Analog";
 	spec->stream_analog_playback = &vt1708_pcm_analog_playback;
+	/* disable 32bit format on VT1708 */
+	if (codec->vendor_id == 0x11061708)
+		spec->stream_analog_playback = &vt1708_pcm_analog_s16_playback;
 	spec->stream_analog_capture = &vt1708_pcm_analog_capture;
 
 	spec->stream_name_digital = "VT1708 Digital";

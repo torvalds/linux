@@ -2448,7 +2448,7 @@ pix_format_set_size     (struct v4l2_pix_format *       f,
 	}
 }
 
-static int bttv_g_fmt_cap(struct file *file, void *priv,
+static int bttv_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct bttv_fh *fh  = priv;
@@ -2461,7 +2461,7 @@ static int bttv_g_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int bttv_g_fmt_overlay(struct file *file, void *priv,
+static int bttv_g_fmt_vid_overlay(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct bttv_fh *fh  = priv;
@@ -2472,7 +2472,7 @@ static int bttv_g_fmt_overlay(struct file *file, void *priv,
 	return 0;
 }
 
-static int bttv_try_fmt_cap(struct file *file, void *priv,
+static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	const struct bttv_format *fmt;
@@ -2532,7 +2532,7 @@ static int bttv_try_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int bttv_try_fmt_overlay(struct file *file, void *priv,
+static int bttv_try_fmt_vid_overlay(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct bttv_fh *fh = priv;
@@ -2542,7 +2542,7 @@ static int bttv_try_fmt_overlay(struct file *file, void *priv,
 			/* adjust_crop */ 0);
 }
 
-static int bttv_s_fmt_cap(struct file *file, void *priv,
+static int bttv_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	int retval;
@@ -2556,7 +2556,7 @@ static int bttv_s_fmt_cap(struct file *file, void *priv,
 	if (0 != retval)
 		return retval;
 
-	retval = bttv_try_fmt_cap(file, priv, f);
+	retval = bttv_try_fmt_vid_cap(file, priv, f);
 	if (0 != retval)
 		return retval;
 
@@ -2591,7 +2591,7 @@ static int bttv_s_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int bttv_s_fmt_overlay(struct file *file, void *priv,
+static int bttv_s_fmt_vid_overlay(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct bttv_fh *fh = priv;
@@ -2613,7 +2613,7 @@ static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 	struct bttv_fh *fh = priv;
 
 	mutex_lock(&fh->cap.vb_lock);
-	retval = videobuf_mmap_setup(&fh->cap, gbuffers, gbufsize,
+	retval = __videobuf_mmap_setup(&fh->cap, gbuffers, gbufsize,
 				     V4L2_MEMORY_MMAP);
 	if (retval < 0) {
 		mutex_unlock(&fh->cap.vb_lock);
@@ -2661,7 +2661,7 @@ static int bttv_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int bttv_enum_fmt_vbi(struct file *file, void  *priv,
+static int bttv_enum_fmt_vbi_cap(struct file *file, void  *priv,
 				struct v4l2_fmtdesc *f)
 {
 	if (0 != f->index)
@@ -2692,7 +2692,7 @@ static int bttv_enum_fmt_cap_ovr(struct v4l2_fmtdesc *f)
 	return i;
 }
 
-static int bttv_enum_fmt_cap(struct file *file, void  *priv,
+static int bttv_enum_fmt_vid_cap(struct file *file, void  *priv,
 				struct v4l2_fmtdesc *f)
 {
 	int rc = bttv_enum_fmt_cap_ovr(f);
@@ -2703,7 +2703,7 @@ static int bttv_enum_fmt_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int bttv_enum_fmt_overlay(struct file *file, void  *priv,
+static int bttv_enum_fmt_vid_overlay(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	int rc;
@@ -3362,18 +3362,18 @@ static struct video_device bttv_video_template =
 	.fops     = &bttv_fops,
 	.minor    = -1,
 	.vidioc_querycap                = bttv_querycap,
-	.vidioc_enum_fmt_cap            = bttv_enum_fmt_cap,
-	.vidioc_g_fmt_cap               = bttv_g_fmt_cap,
-	.vidioc_try_fmt_cap             = bttv_try_fmt_cap,
-	.vidioc_s_fmt_cap               = bttv_s_fmt_cap,
-	.vidioc_enum_fmt_overlay        = bttv_enum_fmt_overlay,
-	.vidioc_g_fmt_overlay           = bttv_g_fmt_overlay,
-	.vidioc_try_fmt_overlay         = bttv_try_fmt_overlay,
-	.vidioc_s_fmt_overlay           = bttv_s_fmt_overlay,
-	.vidioc_enum_fmt_vbi            = bttv_enum_fmt_vbi,
-	.vidioc_g_fmt_vbi               = bttv_g_fmt_vbi,
-	.vidioc_try_fmt_vbi             = bttv_try_fmt_vbi,
-	.vidioc_s_fmt_vbi               = bttv_s_fmt_vbi,
+	.vidioc_enum_fmt_vid_cap        = bttv_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap           = bttv_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap         = bttv_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap           = bttv_s_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_overlay    = bttv_enum_fmt_vid_overlay,
+	.vidioc_g_fmt_vid_overlay       = bttv_g_fmt_vid_overlay,
+	.vidioc_try_fmt_vid_overlay     = bttv_try_fmt_vid_overlay,
+	.vidioc_s_fmt_vid_overlay       = bttv_s_fmt_vid_overlay,
+	.vidioc_enum_fmt_vbi_cap        = bttv_enum_fmt_vbi_cap,
+	.vidioc_g_fmt_vbi_cap           = bttv_g_fmt_vbi_cap,
+	.vidioc_try_fmt_vbi_cap         = bttv_try_fmt_vbi_cap,
+	.vidioc_s_fmt_vbi_cap           = bttv_s_fmt_vbi_cap,
 	.vidioc_g_audio                 = bttv_g_audio,
 	.vidioc_s_audio                 = bttv_s_audio,
 	.vidioc_cropcap                 = bttv_cropcap,
@@ -3705,7 +3705,7 @@ static void bttv_risc_disasm(struct bttv *btv,
 	for (i = 0; i < (risc->size >> 2); i += n) {
 		printk("%s:   0x%lx: ", btv->c.name,
 		       (unsigned long)(risc->dma + (i<<2)));
-		n = bttv_risc_decode(risc->cpu[i]);
+		n = bttv_risc_decode(le32_to_cpu(risc->cpu[i]));
 		for (j = 1; j < n; j++)
 			printk("%s:   0x%lx: 0x%08x [ arg #%d ]\n",
 			       btv->c.name, (unsigned long)(risc->dma + ((i+j)<<2)),
@@ -3774,8 +3774,8 @@ static void bttv_irq_debug_low_latency(struct bttv *btv, u32 rc)
 	printk("bttv%d: irq: skipped frame [main=%lx,o_vbi=%lx,o_field=%lx,rc=%lx]\n",
 	       btv->c.nr,
 	       (unsigned long)btv->main.dma,
-	       (unsigned long)btv->main.cpu[RISC_SLOT_O_VBI+1],
-	       (unsigned long)btv->main.cpu[RISC_SLOT_O_FIELD+1],
+	       (unsigned long)le32_to_cpu(btv->main.cpu[RISC_SLOT_O_VBI+1]),
+	       (unsigned long)le32_to_cpu(btv->main.cpu[RISC_SLOT_O_FIELD+1]),
 	       (unsigned long)rc);
 
 	if (0 == (btread(BT848_DSTATUS) & BT848_DSTATUS_HLOC)) {
@@ -4188,6 +4188,7 @@ static struct video_device *vdev_init(struct bttv *btv,
 	vfd->dev     = &btv->c.pci->dev;
 	vfd->release = video_device_release;
 	vfd->type    = type;
+	vfd->debug   = bttv_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "BT%d%s %s (%s)",
 		 btv->id, (btv->id==848 && btv->revision==0x12) ? "A" : "",
 		 type_name, bttv_tvcards[btv->c.type].name);

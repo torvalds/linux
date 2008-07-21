@@ -245,7 +245,7 @@ static unsigned int __init longrun_determine_freqs(unsigned int *low_freq,
 	if ((ecx > 95) || (ecx == 0) || (eax < ebx))
 		return -EIO;
 
-	edx = (eax - ebx) / (100 - ecx);
+	edx = ((eax - ebx) * 100) / (100 - ecx);
 	*low_freq = edx * 1000; /* back to kHz */
 
 	dprintk("low frequency is %u kHz\n", *low_freq);

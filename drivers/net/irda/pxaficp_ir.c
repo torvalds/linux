@@ -13,16 +13,8 @@
  *
  */
 #include <linux/module.h>
-#include <linux/types.h>
-#include <linux/init.h>
-#include <linux/errno.h>
 #include <linux/netdevice.h>
-#include <linux/slab.h>
-#include <linux/rtnetlink.h>
-#include <linux/interrupt.h>
-#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
 #include <linux/clk.h>
 
 #include <net/irda/irda.h>
@@ -30,17 +22,9 @@
 #include <net/irda/wrapper.h>
 #include <net/irda/irda_device.h>
 
-#include <asm/irq.h>
 #include <asm/dma.h>
-#include <asm/delay.h>
-#include <asm/hardware.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-
-#ifdef CONFIG_MACH_MAINSTONE
-#include <asm/arch/mainstone.h>
-#endif
 
 #define IrSR_RXPL_NEG_IS_ZERO (1<<4)
 #define IrSR_RXPL_POS_IS_ZERO 0x0
@@ -163,10 +147,6 @@ static int pxa_irda_set_speed(struct pxa_irda *si, int speed)
 			/* set board transceiver to SIR mode */
 			si->pdata->transceiver_mode(si->dev, IR_SIRMODE);
 
-			/* configure GPIO46/47 */
-			pxa_gpio_mode(GPIO46_STRXD_MD);
-			pxa_gpio_mode(GPIO47_STTXD_MD);
-
 			/* enable the STUART clock */
 			pxa_irda_enable_sirclk(si);
 		}
@@ -200,10 +180,6 @@ static int pxa_irda_set_speed(struct pxa_irda *si, int speed)
 
 		/* set board transceiver to FIR mode */
 		si->pdata->transceiver_mode(si->dev, IR_FIRMODE);
-
-		/* configure GPIO46/47 */
-		pxa_gpio_mode(GPIO46_ICPRXD_MD);
-		pxa_gpio_mode(GPIO47_ICPTXD_MD);
 
 		/* enable the FICP clock */
 		pxa_irda_enable_firclk(si);

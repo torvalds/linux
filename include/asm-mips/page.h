@@ -34,6 +34,9 @@
 #include <linux/pfn.h>
 #include <asm/io.h>
 
+extern void build_clear_page(void);
+extern void build_copy_page(void);
+
 /*
  * It's normally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.

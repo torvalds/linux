@@ -750,7 +750,7 @@ struct proc_fs_info {
 	const char *str;
 };
 
-static void show_sb_opts(struct seq_file *m, struct super_block *sb)
+static int show_sb_opts(struct seq_file *m, struct super_block *sb)
 {
 	static const struct proc_fs_info fs_info[] = {
 		{ MS_SYNCHRONOUS, ",sync" },
@@ -764,6 +764,8 @@ static void show_sb_opts(struct seq_file *m, struct super_block *sb)
 		if (sb->s_flags & fs_infop->flag)
 			seq_puts(m, fs_infop->str);
 	}
+
+	return security_sb_show_options(m, sb);
 }
 
 static void show_mnt_opts(struct seq_file *m, struct vfsmount *mnt)
@@ -806,11 +808,14 @@ static int show_vfsmnt(struct seq_file *m, void *v)
 	seq_putc(m, ' ');
 	show_type(m, mnt->mnt_sb);
 	seq_puts(m, __mnt_is_readonly(mnt) ? " ro" : " rw");
-	show_sb_opts(m, mnt->mnt_sb);
+	err = show_sb_opts(m, mnt->mnt_sb);
+	if (err)
+		goto out;
 	show_mnt_opts(m, mnt);
 	if (mnt->mnt_sb->s_op->show_options)
 		err = mnt->mnt_sb->s_op->show_options(m, mnt);
 	seq_puts(m, " 0 0\n");
+out:
 	return err;
 }
 
@@ -865,10 +870,13 @@ static int show_mountinfo(struct seq_file *m, void *v)
 	seq_putc(m, ' ');
 	mangle(m, mnt->mnt_devname ? mnt->mnt_devname : "none");
 	seq_puts(m, sb->s_flags & MS_RDONLY ? " ro" : " rw");
-	show_sb_opts(m, sb);
+	err = show_sb_opts(m, sb);
+	if (err)
+		goto out;
 	if (sb->s_op->show_options)
 		err = sb->s_op->show_options(m, mnt);
 	seq_putc(m, '\n');
+out:
 	return err;
 }
 

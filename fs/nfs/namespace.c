@@ -106,7 +106,7 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	dprintk("--> nfs_follow_mountpoint()\n");
 
 	BUG_ON(IS_ROOT(dentry));
-	dprintk("%s: enter\n", __FUNCTION__);
+	dprintk("%s: enter\n", __func__);
 	dput(nd->path.dentry);
 	nd->path.dentry = dget(dentry);
 
@@ -137,13 +137,12 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 			goto out_follow;
 		goto out_err;
 	}
-	mntput(nd->path.mnt);
-	dput(nd->path.dentry);
+	path_put(&nd->path);
 	nd->path.mnt = mnt;
 	nd->path.dentry = dget(mnt->mnt_root);
 	schedule_delayed_work(&nfs_automount_task, nfs_mountpoint_expiry_timeout);
 out:
-	dprintk("%s: done, returned %d\n", __FUNCTION__, err);
+	dprintk("%s: done, returned %d\n", __func__, err);
 
 	dprintk("<-- nfs_follow_mountpoint() = %d\n", err);
 	return ERR_PTR(err);
@@ -230,7 +229,7 @@ static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
 
 	dprintk("--> nfs_do_submount()\n");
 
-	dprintk("%s: submounting on %s/%s\n", __FUNCTION__,
+	dprintk("%s: submounting on %s/%s\n", __func__,
 			dentry->d_parent->d_name.name,
 			dentry->d_name.name);
 	if (page == NULL)
@@ -243,7 +242,7 @@ static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
 free_page:
 	free_page((unsigned long)page);
 out:
-	dprintk("%s: done\n", __FUNCTION__);
+	dprintk("%s: done\n", __func__);
 
 	dprintk("<-- nfs_do_submount() = %p\n", mnt);
 	return mnt;

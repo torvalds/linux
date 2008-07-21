@@ -64,20 +64,15 @@ void ax25_frames_acked(ax25_cb *ax25, unsigned short nr)
 
 void ax25_requeue_frames(ax25_cb *ax25)
 {
-	struct sk_buff *skb, *skb_prev = NULL;
+	struct sk_buff *skb;
 
 	/*
 	 * Requeue all the un-ack-ed frames on the output queue to be picked
 	 * up by ax25_kick called from the timer. This arrangement handles the
 	 * possibility of an empty output queue.
 	 */
-	while ((skb = skb_dequeue(&ax25->ack_queue)) != NULL) {
-		if (skb_prev == NULL)
-			skb_queue_head(&ax25->write_queue, skb);
-		else
-			skb_append(skb_prev, skb, &ax25->write_queue);
-		skb_prev = skb;
-	}
+	while ((skb = skb_dequeue_tail(&ax25->ack_queue)) != NULL)
+		skb_queue_head(&ax25->write_queue, skb);
 }
 
 /*

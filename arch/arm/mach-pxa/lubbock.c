@@ -43,6 +43,7 @@
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/mfp-pxa25x.h>
+#include <asm/arch/audio.h>
 #include <asm/arch/lubbock.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/irda.h>
@@ -194,11 +195,6 @@ static int lubbock_udc_is_connected(void)
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	.udc_is_connected	= lubbock_udc_is_connected,
 	// no D+ pullup; lubbock can't connect/disconnect in software
-};
-
-static struct platform_device lub_audio_device = {
-	.name		= "pxa2xx-ac97",
-	.id		= -1,
 };
 
 static struct resource sa1111_resources[] = {
@@ -368,7 +364,6 @@ static struct platform_device lubbock_flash_device[2] = {
 
 static struct platform_device *devices[] __initdata = {
 	&sa1111_device,
-	&lub_audio_device,
 	&smc91x_device,
 	&lubbock_flash_device[0],
 	&lubbock_flash_device[1],
@@ -494,6 +489,7 @@ static void __init lubbock_init(void)
 	set_pxa_fb_info(&sharp_lm8v31);
 	pxa_set_mci_info(&lubbock_mci_platform_data);
 	pxa_set_ficp_info(&lubbock_ficp_platform_data);
+	pxa_set_ac97_info(NULL);
 
 	lubbock_flash_data[0].width = lubbock_flash_data[1].width =
 		(BOOT_DEF & 1) ? 2 : 4;

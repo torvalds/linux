@@ -172,30 +172,22 @@ postcore_initcall(bdi_class_init);
 int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, ...)
 {
-	char *name;
 	va_list args;
 	int ret = 0;
 	struct device *dev;
 
 	va_start(args, fmt);
-	name = kvasprintf(GFP_KERNEL, fmt, args);
+	dev = device_create_vargs(bdi_class, parent, MKDEV(0, 0), bdi, fmt, args);
 	va_end(args);
-
-	if (!name)
-		return -ENOMEM;
-
-	dev = device_create(bdi_class, parent, MKDEV(0, 0), name);
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
 		goto exit;
 	}
 
 	bdi->dev = dev;
-	dev_set_drvdata(bdi->dev, bdi);
-	bdi_debug_register(bdi, name);
+	bdi_debug_register(bdi, dev_name(dev));
 
 exit:
-	kfree(name);
 	return ret;
 }
 EXPORT_SYMBOL(bdi_register);

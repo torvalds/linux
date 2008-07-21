@@ -930,6 +930,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 				buff = neigh->arp_queue.next;
 				__skb_unlink(buff, &neigh->arp_queue);
 				kfree_skb(buff);
+				NEIGH_CACHE_STAT_INC(neigh->tbl, unres_discards);
 			}
 			__skb_queue_tail(&neigh->arp_queue, skb);
 		}
@@ -1714,7 +1715,8 @@ static int neightbl_fill_parms(struct sk_buff *skb, struct neigh_parms *parms)
 	return nla_nest_end(skb, nest);
 
 nla_put_failure:
-	return nla_nest_cancel(skb, nest);
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
 }
 
 static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
@@ -2057,9 +2059,9 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 		goto nla_put_failure;
 	}
 
-	ci.ndm_used	 = now - neigh->used;
-	ci.ndm_confirmed = now - neigh->confirmed;
-	ci.ndm_updated	 = now - neigh->updated;
+	ci.ndm_used	 = jiffies_to_clock_t(now - neigh->used);
+	ci.ndm_confirmed = jiffies_to_clock_t(now - neigh->confirmed);
+	ci.ndm_updated	 = jiffies_to_clock_t(now - neigh->updated);
 	ci.ndm_refcnt	 = atomic_read(&neigh->refcnt) - 1;
 	read_unlock_bh(&neigh->lock);
 
@@ -2461,12 +2463,12 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 	struct neigh_statistics *st = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs\n");
+		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards\n");
 		return 0;
 	}
 
 	seq_printf(seq, "%08x  %08lx %08lx %08lx  %08lx %08lx  %08lx  "
-			"%08lx %08lx  %08lx %08lx\n",
+			"%08lx %08lx  %08lx %08lx %08lx\n",
 		   atomic_read(&tbl->entries),
 
 		   st->allocs,
@@ -2482,7 +2484,8 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 		   st->rcv_probes_ucast,
 
 		   st->periodic_gc_runs,
-		   st->forced_gc_runs
+		   st->forced_gc_runs,
+		   st->unres_discards
 		   );
 
 	return 0;

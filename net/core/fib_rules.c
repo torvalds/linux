@@ -69,7 +69,7 @@ static void rules_ops_put(struct fib_rules_ops *ops)
 static void flush_route_cache(struct fib_rules_ops *ops)
 {
 	if (ops->flush_cache)
-		ops->flush_cache();
+		ops->flush_cache(ops);
 }
 
 int fib_rules_register(struct fib_rules_ops *ops)
@@ -226,7 +226,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	ops = lookup_rules_ops(net, frh->family);
 	if (ops == NULL) {
-		err = EAFNOSUPPORT;
+		err = -EAFNOSUPPORT;
 		goto errout;
 	}
 
@@ -365,7 +365,7 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	ops = lookup_rules_ops(net, frh->family);
 	if (ops == NULL) {
-		err = EAFNOSUPPORT;
+		err = -EAFNOSUPPORT;
 		goto errout;
 	}
 

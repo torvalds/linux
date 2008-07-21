@@ -86,14 +86,17 @@ static unsigned int rx_refill_limit = 95;
  */
 #define EFX_RXD_HEAD_ROOM 2
 
-/* Macros for zero-order pages (potentially) containing multiple RX buffers */
-#define RX_DATA_OFFSET(_data)				\
-	(((unsigned long) (_data)) & (PAGE_SIZE-1))
-#define RX_BUF_OFFSET(_rx_buf)				\
-	RX_DATA_OFFSET((_rx_buf)->data)
-
-#define RX_PAGE_SIZE(_efx)				\
-	(PAGE_SIZE * (1u << (_efx)->rx_buffer_order))
+static inline unsigned int efx_rx_buf_offset(struct efx_rx_buffer *buf)
+{
+	/* Offset is always within one page, so we don't need to consider
+	 * the page order.
+	 */
+	return (__force unsigned long) buf->data & (PAGE_SIZE - 1);
+}
+static inline unsigned int efx_rx_buf_size(struct efx_nic *efx)
+{
+	return PAGE_SIZE << efx->rx_buffer_order;
+}
 
 
 /**************************************************************************
@@ -106,7 +109,7 @@ static unsigned int rx_refill_limit = 95;
 static int efx_lro_get_skb_hdr(struct sk_buff *skb, void **ip_hdr,
 			       void **tcpudp_hdr, u64 *hdr_flags, void *priv)
 {
-	struct efx_channel *channel = (struct efx_channel *)priv;
+	struct efx_channel *channel = priv;
 	struct iphdr *iph;
 	struct tcphdr *th;
 
@@ -131,12 +134,12 @@ static int efx_get_frag_hdr(struct skb_frag_struct *frag, void **mac_hdr,
 			    void **ip_hdr, void **tcpudp_hdr, u64 *hdr_flags,
 			    void *priv)
 {
-	struct efx_channel *channel = (struct efx_channel *)priv;
+	struct efx_channel *channel = priv;
 	struct ethhdr *eh;
 	struct iphdr *iph;
 
 	/* We support EtherII and VLAN encapsulated IPv4 */
-	eh = (struct ethhdr *)(page_address(frag->page) + frag->page_offset);
+	eh = page_address(frag->page) + frag->page_offset;
 	*mac_hdr = eh;
 
 	if (eh->h_proto == htons(ETH_P_IP)) {
@@ -269,7 +272,7 @@ static inline int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
 			return -ENOMEM;
 
 		dma_addr = pci_map_page(efx->pci_dev, rx_buf->page,
-					0, RX_PAGE_SIZE(efx),
+					0, efx_rx_buf_size(efx),
 					PCI_DMA_FROMDEVICE);
 
 		if (unlikely(pci_dma_mapping_error(dma_addr))) {
@@ -280,14 +283,14 @@ static inline int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
 
 		rx_queue->buf_page = rx_buf->page;
 		rx_queue->buf_dma_addr = dma_addr;
-		rx_queue->buf_data = ((char *) page_address(rx_buf->page) +
+		rx_queue->buf_data = (page_address(rx_buf->page) +
 				      EFX_PAGE_IP_ALIGN);
 	}
 
-	offset = RX_DATA_OFFSET(rx_queue->buf_data);
 	rx_buf->len = bytes;
-	rx_buf->dma_addr = rx_queue->buf_dma_addr + offset;
 	rx_buf->data = rx_queue->buf_data;
+	offset = efx_rx_buf_offset(rx_buf);
+	rx_buf->dma_addr = rx_queue->buf_dma_addr + offset;
 
 	/* Try to pack multiple buffers per page */
 	if (efx->rx_buffer_order == 0) {
@@ -295,7 +298,7 @@ static inline int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
 		rx_queue->buf_data += ((bytes + 0x1ff) & ~0x1ff);
 		offset += ((bytes + 0x1ff) & ~0x1ff);
 
-		space = RX_PAGE_SIZE(efx) - offset;
+		space = efx_rx_buf_size(efx) - offset;
 		if (space >= bytes) {
 			/* Refs dropped on kernel releasing each skb */
 			get_page(rx_queue->buf_page);
@@ -344,7 +347,8 @@ static inline void efx_unmap_rx_buffer(struct efx_nic *efx,
 		EFX_BUG_ON_PARANOID(rx_buf->skb);
 		if (rx_buf->unmap_addr) {
 			pci_unmap_page(efx->pci_dev, rx_buf->unmap_addr,
-				       RX_PAGE_SIZE(efx), PCI_DMA_FROMDEVICE);
+				       efx_rx_buf_size(efx),
+				       PCI_DMA_FROMDEVICE);
 			rx_buf->unmap_addr = 0;
 		}
 	} else if (likely(rx_buf->skb)) {
@@ -400,9 +404,10 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 		return 0;
 
 	/* Record minimum fill level */
-	if (unlikely(fill_level < rx_queue->min_fill))
+	if (unlikely(fill_level < rx_queue->min_fill)) {
 		if (fill_level)
 			rx_queue->min_fill = fill_level;
+	}
 
 	/* Acquire RX add lock.  If this lock is contended, then a fast
 	 * fill must already be in progress (e.g. in the refill
@@ -552,7 +557,7 @@ static inline void efx_rx_packet_lro(struct efx_channel *channel,
 		struct skb_frag_struct frags;
 
 		frags.page = rx_buf->page;
-		frags.page_offset = RX_BUF_OFFSET(rx_buf);
+		frags.page_offset = efx_rx_buf_offset(rx_buf);
 		frags.size = rx_buf->len;
 
 		lro_receive_frags(lro_mgr, &frags, rx_buf->len,
@@ -597,7 +602,7 @@ static inline struct sk_buff *efx_rx_mk_skb(struct efx_rx_buffer *rx_buf,
 	if (unlikely(rx_buf->len > hdr_len)) {
 		struct skb_frag_struct *frag = skb_shinfo(skb)->frags;
 		frag->page = rx_buf->page;
-		frag->page_offset = RX_BUF_OFFSET(rx_buf) + hdr_len;
+		frag->page_offset = efx_rx_buf_offset(rx_buf) + hdr_len;
 		frag->size = skb->len - hdr_len;
 		skb_shinfo(skb)->nr_frags = 1;
 		skb->data_len = frag->size;
@@ -851,7 +856,8 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 	/* For a page that is part-way through splitting into RX buffers */
 	if (rx_queue->buf_page != NULL) {
 		pci_unmap_page(rx_queue->efx->pci_dev, rx_queue->buf_dma_addr,
-			       RX_PAGE_SIZE(rx_queue->efx), PCI_DMA_FROMDEVICE);
+			       efx_rx_buf_size(rx_queue->efx),
+			       PCI_DMA_FROMDEVICE);
 		__free_pages(rx_queue->buf_page,
 			     rx_queue->efx->rx_buffer_order);
 		rx_queue->buf_page = NULL;

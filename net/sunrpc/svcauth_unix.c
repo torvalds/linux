@@ -278,7 +278,7 @@ static int ip_map_show(struct seq_file *m,
 		dom = im->m_client->h.name;
 
 	if (ipv6_addr_v4mapped(&addr)) {
-		seq_printf(m, "%s" NIPQUAD_FMT "%s\n",
+		seq_printf(m, "%s " NIPQUAD_FMT " %s\n",
 			im->m_class,
 			ntohl(addr.s6_addr32[3]) >> 24 & 0xff,
 			ntohl(addr.s6_addr32[3]) >> 16 & 0xff,
@@ -286,7 +286,7 @@ static int ip_map_show(struct seq_file *m,
 			ntohl(addr.s6_addr32[3]) >>  0 & 0xff,
 			dom);
 	} else {
-		seq_printf(m, "%s" NIP6_FMT "%s\n",
+		seq_printf(m, "%s " NIP6_FMT " %s\n",
 			im->m_class, NIP6(addr), dom);
 	}
 	return 0;

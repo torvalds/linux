@@ -1253,7 +1253,7 @@ static int vidioc_g_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap(struct file *file, void *fh,
+static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh,
 				struct v4l2_fmtdesc *f)
 {
 	if (f->index > 1)
@@ -1283,7 +1283,7 @@ static int vidioc_enum_fmt_cap(struct file *file, void *fh,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap(struct file *file, void *fh,
+static int vidioc_try_fmt_vid_cap(struct file *file, void *fh,
 				struct v4l2_format *f)
 {
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1316,7 +1316,8 @@ static int vidioc_try_fmt_cap(struct file *file, void *fh,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap(struct file *file, void *fh, struct v4l2_format *f)
+static int vidioc_g_fmt_vid_cap(struct file *file, void *fh,
+				    struct v4l2_format *f)
 {
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1346,7 +1347,8 @@ static int vidioc_g_fmt_cap(struct file *file, void *fh, struct v4l2_format *f)
 	return 0;
 }
 
-static int vidioc_s_fmt_cap(struct file *file, void *fh, struct v4l2_format *f)
+static int vidioc_s_fmt_vid_cap(struct file *file, void *fh,
+				    struct v4l2_format *f)
 {
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1709,10 +1711,10 @@ static struct video_device meye_template = {
 	.vidioc_queryctrl	= vidioc_queryctrl,
 	.vidioc_s_ctrl		= vidioc_s_ctrl,
 	.vidioc_g_ctrl		= vidioc_g_ctrl,
-	.vidioc_enum_fmt_cap	= vidioc_enum_fmt_cap,
-	.vidioc_try_fmt_cap	= vidioc_try_fmt_cap,
-	.vidioc_g_fmt_cap	= vidioc_g_fmt_cap,
-	.vidioc_s_fmt_cap	= vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap	= vidioc_try_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap	= vidioc_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap	= vidioc_s_fmt_vid_cap,
 	.vidioc_reqbufs		= vidioc_reqbufs,
 	.vidioc_querybuf	= vidioc_querybuf,
 	.vidioc_qbuf		= vidioc_qbuf,

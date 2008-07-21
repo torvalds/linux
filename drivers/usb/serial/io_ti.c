@@ -37,6 +37,7 @@
 #include <linux/mutex.h>
 #include <linux/serial.h>
 #include <linux/ioctl.h>
+#include <linux/firmware.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
@@ -51,13 +52,6 @@
 #define DRIVER_VERSION "v0.7mode043006"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com> and David Iacovelli"
 #define DRIVER_DESC "Edgeport USB Serial Driver"
-
-
-/* firmware image code */
-#define IMAGE_VERSION_NAME	PagableOperationalCodeImageVersion
-#define IMAGE_ARRAY_NAME	PagableOperationalCodeImage
-#define IMAGE_SIZE		PagableOperationalCodeSize
-#include "io_fw_down3.h"	/* Define array OperationalCodeImage[] */
 
 #define EPROM_PAGE_SIZE		64
 
@@ -231,7 +225,9 @@ static struct usb_driver io_driver = {
 };
 
 
-static struct EDGE_FIRMWARE_VERSION_INFO OperationalCodeImageVersion;
+static unsigned char OperationalMajorVersion;
+static unsigned char OperationalMinorVersion;
+static unsigned short OperationalBuildNumber;
 
 static int debug;
 
@@ -885,10 +881,13 @@ static int BuildI2CFirmwareHeader (__u8 *header, struct device *dev)
 	__u8 *buffer;
 	int buffer_size;
 	int i;
+	int err;
 	__u8 cs = 0;
 	struct ti_i2c_desc *i2c_header;
 	struct ti_i2c_image_header *img_header;
 	struct ti_i2c_firmware_rec *firmware_rec;
+	const struct firmware *fw;
+	const char *fw_name = "edgeport/down3.bin";
 
 	// In order to update the I2C firmware we must change the type 2 record to type 0xF2.
 	// This will force the UMP to come up in Boot Mode.  Then while in boot mode, the driver 
@@ -909,18 +908,33 @@ static int BuildI2CFirmwareHeader (__u8 *header, struct device *dev)
 	// Set entire image of 0xffs
 	memset (buffer, 0xff, buffer_size);
 
+	err = request_firmware(&fw, fw_name, dev);
+	if (err) {
+		printk(KERN_ERR "Failed to load image \"%s\" err %d\n",
+		       fw_name, err);
+		kfree(buffer);
+		return err;
+	}
+
+	/* Save Download Version Number */
+	OperationalMajorVersion = fw->data[0];
+	OperationalMinorVersion = fw->data[1];
+	OperationalBuildNumber = fw->data[2] | (fw->data[3] << 8);
+
 	// Copy version number into firmware record
 	firmware_rec = (struct ti_i2c_firmware_rec *)buffer;
 
-	firmware_rec->Ver_Major	= OperationalCodeImageVersion.MajorVersion;
-	firmware_rec->Ver_Minor	= OperationalCodeImageVersion.MinorVersion;
+	firmware_rec->Ver_Major	= OperationalMajorVersion;
+	firmware_rec->Ver_Minor	= OperationalMinorVersion;
 
 	// Pointer to fw_down memory image
-	img_header = (struct ti_i2c_image_header *)&PagableOperationalCodeImage[0];
+	img_header = (struct ti_i2c_image_header *)&fw->data[4];
 
 	memcpy (buffer + sizeof(struct ti_i2c_firmware_rec),
-		&PagableOperationalCodeImage[sizeof(struct ti_i2c_image_header)],
+		&fw->data[4 + sizeof(struct ti_i2c_image_header)],
 		le16_to_cpu(img_header->Length));
+
+	release_firmware(fw);
 
 	for (i=0; i < buffer_size; i++) {
 		cs = (__u8)(cs + buffer[i]);
@@ -935,8 +949,8 @@ static int BuildI2CFirmwareHeader (__u8 *header, struct device *dev)
 	i2c_header->Type	= I2C_DESC_TYPE_FIRMWARE_BLANK;
 	i2c_header->Size	= (__u16)buffer_size;
 	i2c_header->CheckSum	= cs;
-	firmware_rec->Ver_Major	= OperationalCodeImageVersion.MajorVersion;
-	firmware_rec->Ver_Minor	= OperationalCodeImageVersion.MinorVersion;
+	firmware_rec->Ver_Major	= OperationalMajorVersion;
+	firmware_rec->Ver_Minor	= OperationalMinorVersion;
 
 	return 0;
 }
@@ -1075,11 +1089,6 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 		// Otherwise we will remain in configuring mode
 		serial->product_info.TiMode = TI_MODE_CONFIGURING;
 
-	// Save Download Version Number
-	OperationalCodeImageVersion.MajorVersion = PagableOperationalCodeImageVersion.MajorVersion;
-	OperationalCodeImageVersion.MinorVersion = PagableOperationalCodeImageVersion.MinorVersion;
-	OperationalCodeImageVersion.BuildNumber	 = PagableOperationalCodeImageVersion.BuildNumber;
-
 	/********************************************************************/
 	/* Download Mode */
 	/********************************************************************/
@@ -1154,15 +1163,15 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 			// Check version number of download with current version in I2c
 			download_cur_ver = (firmware_version->Ver_Major << 8) + 
 					   (firmware_version->Ver_Minor);
-			download_new_ver = (OperationalCodeImageVersion.MajorVersion << 8) +
-					   (OperationalCodeImageVersion.MinorVersion);
+			download_new_ver = (OperationalMajorVersion << 8) +
+					   (OperationalMinorVersion);
 
 			dbg ("%s - >>>Firmware Versions Device %d.%d  Driver %d.%d",
 			     __func__,
 			     firmware_version->Ver_Major,
 			     firmware_version->Ver_Minor,
-			     OperationalCodeImageVersion.MajorVersion,
-			     OperationalCodeImageVersion.MinorVersion);
+			     OperationalMajorVersion,
+			     OperationalMinorVersion);
 
 			// Check if we have an old version in the I2C and update if necessary
 			if (download_cur_ver != download_new_ver) {
@@ -1170,8 +1179,8 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 				     __func__,
 				     firmware_version->Ver_Major,
 				     firmware_version->Ver_Minor,
-				     OperationalCodeImageVersion.MajorVersion,
-				     OperationalCodeImageVersion.MinorVersion);
+				     OperationalMajorVersion,
+				     OperationalMinorVersion);
 
 				// In order to update the I2C firmware we must change the type 2 record to type 0xF2.
 				// This will force the UMP to come up in Boot Mode.  Then while in boot mode, the driver 
@@ -1377,6 +1386,9 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 		__u8 cs = 0;
 		__u8 *buffer;
 		int buffer_size;
+		int err;
+		const struct firmware *fw;
+		const char *fw_name = "edgeport/down3.bin";
 
 		/* Validate Hardware version number
 		 * Read Manufacturing Descriptor from TI Based Edgeport
@@ -1425,7 +1437,15 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 		// Initialize the buffer to 0xff (pad the buffer)
 		memset (buffer, 0xff, buffer_size);
 
-		memcpy (buffer, &PagableOperationalCodeImage[0], PagableOperationalCodeSize);
+		err = request_firmware(&fw, fw_name, dev);
+		if (err) {
+			printk(KERN_ERR "Failed to load image \"%s\" err %d\n",
+			       fw_name, err);
+			kfree(buffer);
+			return err;
+		}
+		memcpy(buffer, &fw->data[4], fw->size - 4);
+		release_firmware(fw);
 
 		for(i = sizeof(struct ti_i2c_image_header); i < buffer_size; i++) {
 			cs = (__u8)(cs + buffer[i]);
@@ -3119,6 +3139,7 @@ module_exit(edgeport_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("edgeport/down3.bin");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");

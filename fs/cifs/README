@@ -483,6 +483,11 @@ A partial list of the supported mount options follows:
  sign           Must use packet signing (helps avoid unwanted data modification
 		by intermediate systems in the route).  Note that signing
 		does not work with lanman or plaintext authentication.
+ seal           Must seal (encrypt) all data on this mounted share before
+		sending on the network.  Requires support for Unix Extensions.
+		Note that this differs from the sign mount option in that it
+		causes encryption of data sent over this mounted share but other
+		shares mounted to the same server are unaffected.
  sec            Security mode.  Allowed values are:
 			none	attempt to connection as a null user (no name)
 			krb5    Use Kerberos version 5 authentication

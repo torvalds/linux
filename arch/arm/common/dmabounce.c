@@ -650,7 +650,8 @@ EXPORT_SYMBOL(dma_map_sg);
 EXPORT_SYMBOL(dma_unmap_sg);
 EXPORT_SYMBOL(dma_sync_single_for_cpu);
 EXPORT_SYMBOL(dma_sync_single_for_device);
-EXPORT_SYMBOL(dma_sync_sg);
+EXPORT_SYMBOL(dma_sync_sg_for_cpu);
+EXPORT_SYMBOL(dma_sync_sg_for_device);
 EXPORT_SYMBOL(dmabounce_register_dev);
 EXPORT_SYMBOL(dmabounce_unregister_dev);
 

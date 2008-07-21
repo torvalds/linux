@@ -812,6 +812,7 @@ int rtas_set_slot_reset(struct pci_dn *pdn)
 static inline void __restore_bars (struct pci_dn *pdn)
 {
 	int i;
+	u32 cmd;
 
 	if (NULL==pdn->phb) return;
 	for (i=4; i<10; i++) {
@@ -832,6 +833,19 @@ static inline void __restore_bars (struct pci_dn *pdn)
 
 	/* max latency, min grant, interrupt pin and line */
 	rtas_write_config(pdn, 15*4, 4, pdn->config_space[15]);
+
+	/* Restore PERR & SERR bits, some devices require it,
+	   don't touch the other command bits */
+	rtas_read_config(pdn, PCI_COMMAND, 4, &cmd);
+	if (pdn->config_space[1] & PCI_COMMAND_PARITY)
+		cmd |= PCI_COMMAND_PARITY;
+	else
+		cmd &= ~PCI_COMMAND_PARITY;
+	if (pdn->config_space[1] & PCI_COMMAND_SERR)
+		cmd |= PCI_COMMAND_SERR;
+	else
+		cmd &= ~PCI_COMMAND_SERR;
+	rtas_write_config(pdn, PCI_COMMAND, 4, cmd);
 }
 
 /**

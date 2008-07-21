@@ -3,7 +3,7 @@
  *
  */
 
-#ifndef __ASM_RTLX_H
+#ifndef __ASM_RTLX_H_
 #define __ASM_RTLX_H_
 
 #include <irq.h>

@@ -159,6 +159,15 @@ struct ap_device_id {
 
 #define AP_DEVICE_ID_MATCH_DEVICE_TYPE		0x01
 
+/* s390 css bus devices (subchannels) */
+struct css_device_id {
+	__u8 match_flags;
+	__u8 type; /* subchannel type */
+	__u16 pad2;
+	__u32 pad3;
+	kernel_ulong_t driver_data;
+};
+
 #define ACPI_ID_LEN	16 /* only 9 bytes needed here, 16 bytes are used */
 			   /* to workaround crosscompile issues */
 
@@ -375,7 +384,8 @@ struct virtio_device_id {
 
 struct i2c_device_id {
 	char name[I2C_NAME_SIZE];
-	kernel_ulong_t driver_data;	/* Data private to the driver */
+	kernel_ulong_t driver_data	/* Data private to the driver */
+			__attribute__((aligned(sizeof(kernel_ulong_t))));
 };
 
 

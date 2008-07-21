@@ -1437,9 +1437,9 @@ static void ql_phy_start_neg_ex(struct ql3_adapter *qdev)
 	reg &= ~PHY_GIG_ALL_PARAMS;
 
 	if(portConfiguration & PORT_CONFIG_1000MB_SPEED) {
-		if(portConfiguration & PORT_CONFIG_FULL_DUPLEX_ENABLED) 
+		if(portConfiguration & PORT_CONFIG_FULL_DUPLEX_ENABLED)
 			reg |= PHY_GIG_ADV_1000F;
-		else 
+		else
 			reg |= PHY_GIG_ADV_1000H;
 	}
 
@@ -3701,7 +3701,9 @@ static int ql_cycle_adapter(struct ql3_adapter *qdev, int reset)
 		printk(KERN_ERR PFX
 				"%s: Driver up/down cycle failed, "
 				"closing device\n",qdev->ndev->name);
+		rtnl_lock();
 		dev_close(qdev->ndev);
+		rtnl_unlock();
 		return -1;
 	}
 	return 0;

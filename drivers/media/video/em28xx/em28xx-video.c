@@ -683,7 +683,7 @@ static void get_scale(struct em28xx *dev,
 	IOCTL vidioc handling
    ------------------------------------------------------------------*/
 
-static int vidioc_g_fmt_cap(struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh  = priv;
@@ -706,7 +706,7 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap(struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh    = priv;
@@ -766,7 +766,7 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_fmt_cap(struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh  = priv;
@@ -777,7 +777,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	vidioc_try_fmt_cap(file, priv, f);
+	vidioc_try_fmt_vid_cap(file, priv, f);
 
 	mutex_lock(&dev->lock);
 
@@ -826,7 +826,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 	/* Adjusts width/height, if needed */
 	f.fmt.pix.width = dev->width;
 	f.fmt.pix.height = dev->height;
-	vidioc_try_fmt_cap(file, priv, &f);
+	vidioc_try_fmt_vid_cap(file, priv, &f);
 
 	mutex_lock(&dev->lock);
 
@@ -1166,13 +1166,13 @@ static int vidioc_g_register(struct file *file, void *priv,
 
 		reg->val = ret;
 	} else {
-		u64 val = 0;
+		__le64 val = 0;
 		ret = em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
 						   reg->reg, (char *)&val, 2);
 		if (ret < 0)
 			return ret;
 
-		reg->val = cpu_to_le64((__u64)val);
+		reg->val = le64_to_cpu(val);
 	}
 
 	return 0;
@@ -1183,9 +1183,9 @@ static int vidioc_s_register(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	u64 buf;
+	__le64 buf;
 
-	buf = le64_to_cpu((__u64)reg->val);
+	buf = cpu_to_le64(reg->val);
 
 	return em28xx_write_regs(dev, reg->reg, (char *)&buf,
 				 em28xx_reg_len(reg->reg));
@@ -1277,7 +1277,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *fmtd)
 {
 	if (fmtd->index != 0)
@@ -1292,7 +1292,7 @@ static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
 }
 
 /* Sliced VBI ioctls */
-static int vidioc_g_fmt_vbi_capture(struct file *file, void *priv,
+static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh  = priv;
@@ -1316,7 +1316,7 @@ static int vidioc_g_fmt_vbi_capture(struct file *file, void *priv,
 	return rc;
 }
 
-static int vidioc_try_set_vbi_capture(struct file *file, void *priv,
+static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh  = priv;
@@ -1590,6 +1590,8 @@ static void em28xx_release_resources(struct em28xx *dev)
 				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN,
 				dev->vbi_dev->minor-MINOR_VFL_TYPE_VBI_MIN);
 	list_del(&dev->devlist);
+	if (dev->sbutton_input_dev)
+		em28xx_deregister_snapshot_button(dev);
 	if (dev->radio_dev) {
 		if (-1 != dev->radio_dev->minor)
 			video_unregister_device(dev->radio_dev);
@@ -1776,17 +1778,17 @@ static const struct video_device em28xx_video_template = {
 
 	.minor                      = -1,
 	.vidioc_querycap            = vidioc_querycap,
-	.vidioc_enum_fmt_cap        = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap           = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap         = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap           = vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap    = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap       = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap     = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap       = vidioc_s_fmt_vid_cap,
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
 	.vidioc_cropcap             = vidioc_cropcap,
 
-	.vidioc_g_fmt_vbi_capture   = vidioc_g_fmt_vbi_capture,
-	.vidioc_try_fmt_vbi_capture = vidioc_try_set_vbi_capture,
-	.vidioc_s_fmt_vbi_capture   = vidioc_try_set_vbi_capture,
+	.vidioc_g_fmt_sliced_vbi_cap   = vidioc_g_fmt_sliced_vbi_cap,
+	.vidioc_try_fmt_sliced_vbi_cap = vidioc_try_set_sliced_vbi_cap,
+	.vidioc_s_fmt_sliced_vbi_cap   = vidioc_try_set_sliced_vbi_cap,
 
 	.vidioc_reqbufs             = vidioc_reqbufs,
 	.vidioc_querybuf            = vidioc_querybuf,
@@ -1848,32 +1850,28 @@ static DEFINE_MUTEX(em28xx_extension_devlist_lock);
 
 int em28xx_register_extension(struct em28xx_ops *ops)
 {
-	struct em28xx *h, *dev = NULL;
-
-	list_for_each_entry(h, &em28xx_devlist, devlist)
-		dev = h;
+	struct em28xx *dev = NULL;
 
 	mutex_lock(&em28xx_extension_devlist_lock);
 	list_add_tail(&ops->next, &em28xx_extension_devlist);
-	if (dev)
-		ops->init(dev);
-
+	list_for_each_entry(dev, &em28xx_devlist, devlist) {
+		if (dev)
+			ops->init(dev);
+	}
 	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
 	mutex_unlock(&em28xx_extension_devlist_lock);
-
 	return 0;
 }
 EXPORT_SYMBOL(em28xx_register_extension);
 
 void em28xx_unregister_extension(struct em28xx_ops *ops)
 {
-	struct em28xx *h, *dev = NULL;
+	struct em28xx *dev = NULL;
 
-	list_for_each_entry(h, &em28xx_devlist, devlist)
-		dev = h;
-
-	if (dev)
-		ops->fini(dev);
+	list_for_each_entry(dev, &em28xx_devlist, devlist) {
+		if (dev)
+			ops->fini(dev);
+	}
 
 	mutex_lock(&em28xx_extension_devlist_lock);
 	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);

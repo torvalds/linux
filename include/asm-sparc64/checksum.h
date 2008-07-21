@@ -1,4 +1,3 @@
-/* $Id: checksum.h,v 1.19 2002/02/09 19:49:31 davem Exp $ */
 #ifndef __SPARC64_CHECKSUM_H
 #define __SPARC64_CHECKSUM_H
 

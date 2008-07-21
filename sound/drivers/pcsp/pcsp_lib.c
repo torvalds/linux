@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <sound/pcm.h>
-#include <linux/interrupt.h>
 #include <asm/io.h>
 #include "pcsp.h"
 
@@ -18,36 +17,12 @@ module_param(nforce_wa, bool, 0444);
 MODULE_PARM_DESC(nforce_wa, "Apply NForce chipset workaround "
 		"(expect bad sound)");
 
-static void pcsp_start_timer(unsigned long dummy)
-{
-	hrtimer_start(&pcsp_chip.timer, ktime_set(0, 0), HRTIMER_MODE_REL);
-}
-
-/*
- * We need the hrtimer_start as a tasklet to avoid
- * the nasty locking problem. :(
- * The problem:
- * - The timer handler is called with the cpu_base->lock
- *   already held by hrtimer code.
- * - snd_pcm_period_elapsed() takes the
- *   substream->self_group.lock.
- * So far so good.
- * But the snd_pcsp_trigger() is called with the
- * substream->self_group.lock held, and it calls
- * hrtimer_start(), which takes the cpu_base->lock.
- * You see the problem. We have the code pathes
- * which take two locks in a reverse order. This
- * can deadlock and the lock validator complains.
- * The only solution I could find was to move the
- * hrtimer_start() into a tasklet. -stsp
- */
-static DECLARE_TASKLET(pcsp_start_timer_tasklet, pcsp_start_timer, 0);
+#define DMIX_WANTS_S16	1
 
 enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 {
-	unsigned long flags;
 	unsigned char timer_cnt, val;
-	int periods_elapsed;
+	int fmt_size, periods_elapsed;
 	u64 ns;
 	size_t period_bytes, buffer_bytes;
 	struct snd_pcm_substream *substream;
@@ -64,9 +39,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 		return HRTIMER_RESTART;
 	}
 
-	/* hrtimer calls us from both hardirq and softirq contexts,
-	 * so irqsave :( */
-	spin_lock_irqsave(&chip->substream_lock, flags);
+	spin_lock_irq(&chip->substream_lock);
 	/* Takashi Iwai says regarding this extra lock:
 
 	If the irq handler handles some data on the DMA buffer, it should
@@ -92,8 +65,11 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 		goto exit_nr_unlock2;
 
 	runtime = substream->runtime;
-	/* assume it is u8 mono */
-	val = runtime->dma_area[chip->playback_ptr];
+	fmt_size = snd_pcm_format_physical_width(runtime->format) >> 3;
+	/* assume it is mono! */
+	val = runtime->dma_area[chip->playback_ptr + fmt_size - 1];
+	if (snd_pcm_format_signed(runtime->format))
+		val ^= 0x80;
 	timer_cnt = val * CUR_DIV() / 256;
 
 	if (timer_cnt && chip->enable) {
@@ -111,12 +87,14 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 
 	period_bytes = snd_pcm_lib_period_bytes(substream);
 	buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
-	chip->playback_ptr += PCSP_INDEX_INC();
+	chip->playback_ptr += PCSP_INDEX_INC() * fmt_size;
 	periods_elapsed = chip->playback_ptr - chip->period_ptr;
 	if (periods_elapsed < 0) {
-		printk(KERN_WARNING "PCSP: playback_ptr inconsistent "
+#if PCSP_DEBUG
+		printk(KERN_INFO "PCSP: buffer_bytes mod period_bytes != 0 ? "
 			"(%zi %zi %zi)\n",
 			chip->playback_ptr, period_bytes, buffer_bytes);
+#endif
 		periods_elapsed += buffer_bytes;
 	}
 	periods_elapsed /= period_bytes;
@@ -132,7 +110,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 		chip->period_ptr %= buffer_bytes;
 	}
 
-	spin_unlock_irqrestore(&chip->substream_lock, flags);
+	spin_unlock_irq(&chip->substream_lock);
 
 	if (!atomic_read(&chip->timer_active))
 		return HRTIMER_NORESTART;
@@ -146,7 +124,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 exit_nr_unlock2:
 	snd_pcm_stream_unlock(substream);
 exit_nr_unlock1:
-	spin_unlock_irqrestore(&chip->substream_lock, flags);
+	spin_unlock_irq(&chip->substream_lock);
 	return HRTIMER_NORESTART;
 }
 
@@ -167,7 +145,7 @@ static void pcsp_start_playing(struct snd_pcsp *chip)
 	atomic_set(&chip->timer_active, 1);
 	chip->thalf = 0;
 
-	tasklet_schedule(&pcsp_start_timer_tasklet);
+	hrtimer_start(&pcsp_chip.timer, ktime_set(0, 0), HRTIMER_MODE_REL);
 }
 
 static void pcsp_stop_playing(struct snd_pcsp *chip)
@@ -270,7 +248,11 @@ static struct snd_pcm_hardware snd_pcsp_playback = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_HALF_DUPLEX |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID),
-	.formats = SNDRV_PCM_FMTBIT_U8,
+	.formats = (SNDRV_PCM_FMTBIT_U8
+#if DMIX_WANTS_S16
+		    | SNDRV_PCM_FMTBIT_S16_LE
+#endif
+	    ),
 	.rates = SNDRV_PCM_RATE_KNOT,
 	.rate_min = PCSP_DEFAULT_SRATE,
 	.rate_max = PCSP_DEFAULT_SRATE,

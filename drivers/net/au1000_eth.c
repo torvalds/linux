@@ -912,7 +912,7 @@ au1000_adjust_link(struct net_device *dev)
 		// link state changed
 
 		if (phydev->link) // link went up
-			netif_schedule(dev);
+			netif_tx_schedule_all(dev);
 		else { // link went down
 			aup->old_speed = 0;
 			aup->old_duplex = -1;
@@ -1239,12 +1239,7 @@ static int au1000_rx(struct net_device *dev)
  */
 static irqreturn_t au1000_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
-
-	if (dev == NULL) {
-		printk(KERN_ERR "%s: isr: null dev ptr\n", dev->name);
-		return IRQ_RETVAL(1);
-	}
+	struct net_device *dev = dev_id;
 
 	/* Handle RX interrupts first to minimize chance of overrun */
 

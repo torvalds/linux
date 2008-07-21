@@ -291,9 +291,9 @@ int cx23885_sram_channel_setup(struct cx23885_dev *dev,
 		lines = 6;
 	BUG_ON(lines < 2);
 
-	cx_write(8 + 0, cpu_to_le32(RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC) );
-	cx_write(8 + 4, cpu_to_le32(8) );
-	cx_write(8 + 8, cpu_to_le32(0) );
+	cx_write(8 + 0, RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC);
+	cx_write(8 + 4, 8);
+	cx_write(8 + 8, 0);
 
 	/* write CDT */
 	for (i = 0; i < lines; i++) {
@@ -408,11 +408,11 @@ static void cx23885_risc_disasm(struct cx23885_tsport *port,
 	       dev->name, risc->cpu, (unsigned long)risc->dma);
 	for (i = 0; i < (risc->size >> 2); i += n) {
 		printk("%s:   %04d: ", dev->name, i);
-		n = cx23885_risc_decode(risc->cpu[i]);
+		n = cx23885_risc_decode(le32_to_cpu(risc->cpu[i]));
 		for (j = 1; j < n; j++)
 			printk("%s:   %04d: 0x%08x [ arg #%d ]\n",
 			       dev->name, i + j, risc->cpu[i + j], j);
-		if (risc->cpu[i] == RISC_JUMP)
+		if (risc->cpu[i] == cpu_to_le32(RISC_JUMP))
 			break;
 	}
 }
@@ -823,7 +823,7 @@ static void cx23885_dev_unregister(struct cx23885_dev *dev)
 	iounmap(dev->lmmio);
 }
 
-static u32* cx23885_risc_field(u32 *rp, struct scatterlist *sglist,
+static __le32* cx23885_risc_field(__le32 *rp, struct scatterlist *sglist,
 			       unsigned int offset, u32 sync_line,
 			       unsigned int bpl, unsigned int padding,
 			       unsigned int lines)
@@ -883,7 +883,7 @@ int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 			unsigned int padding, unsigned int lines)
 {
 	u32 instructions, fields;
-	u32 *rp;
+	__le32 *rp;
 	int rc;
 
 	fields = 0;
@@ -924,7 +924,7 @@ static int cx23885_risc_databuffer(struct pci_dev *pci,
 				   unsigned int lines)
 {
 	u32 instructions;
-	u32 *rp;
+	__le32 *rp;
 	int rc;
 
 	/* estimate risc mem: worst case is one write per page border +
@@ -951,7 +951,7 @@ static int cx23885_risc_databuffer(struct pci_dev *pci,
 int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 				u32 reg, u32 mask, u32 value)
 {
-	u32 *rp;
+	__le32 *rp;
 	int rc;
 
 	if ((rc = btcx_riscmem_alloc(pci, risc, 4*16)) < 0)

@@ -38,6 +38,7 @@
 #include <linux/vmalloc.h>
 #include <linux/elf.h>
 #include <linux/seq_file.h>
+#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/moduleloader.h>
 #include <linux/interrupt.h>
@@ -1050,17 +1051,20 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	enum vpe_state state;
 	struct vpe_notifications *not;
 	struct vpe *v;
-	int ret;
+	int ret, err = 0;
 
+	lock_kernel();
 	if (minor != iminor(inode)) {
 		/* assume only 1 device at the moment. */
 		printk(KERN_WARNING "VPE loader: only vpe1 is supported\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto out;
 	}
 
 	if ((v = get_vpe(tclimit)) == NULL) {
 		printk(KERN_WARNING "VPE loader: unable to get vpe\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto out;
 	}
 
 	state = xchg(&v->state, VPE_STATE_INUSE);
@@ -1100,6 +1104,8 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	v->shared_ptr = NULL;
 	v->__start = 0;
 
+out:
+	unlock_kernel();
 	return 0;
 }
 

@@ -90,3 +90,5 @@ static void __exit arthur_exit(void)
 
 module_init(arthur_init);
 module_exit(arthur_exit);
+
+MODULE_LICENSE("GPL");

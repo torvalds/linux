@@ -148,11 +148,8 @@ static void scc_ide_outb(u8 addr, unsigned long port)
 	out_be32((void*)port, addr);
 }
 
-static void
-scc_ide_outbsync(ide_drive_t * drive, u8 addr, unsigned long port)
+static void scc_ide_outbsync(ide_hwif_t *hwif, u8 addr, unsigned long port)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-
 	out_be32((void*)port, addr);
 	eieio();
 	in_be32((void*)(hwif->dma_base + 0x01c));
@@ -561,12 +558,9 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int i;
 
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR "%s: too many IDE interfaces, "
-				"no room in table\n", SCC_PATA_NAME);
+	hwif = ide_find_port_slot(d);
+	if (hwif == NULL)
 		return -ENOMEM;
-	}
 
 	memset(&hw, 0, sizeof(hw));
 	for (i = 0; i <= 8; i++)
@@ -575,7 +569,6 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 	hw.dev = &dev->dev;
 	hw.chipset = ide_pci;
 	ide_init_port_hw(hwif, &hw);
-	hwif->dev = &dev->dev;
 
 	idx[0] = hwif->index;
 
@@ -662,8 +655,6 @@ static void scc_tf_load(ide_drive_t *drive, ide_task_t *task)
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	ide_set_irq(drive, 1);
-
 	if (task->tf_flags & IDE_TFLAG_OUT_DATA)
 		out_be32((void *)io_ports->data_addr,
 			 (tf->hob_data << 8) | tf->data);
@@ -708,7 +699,7 @@ static void scc_tf_read(ide_drive_t *drive, ide_task_t *task)
 	}
 
 	/* be sure we're looking at the low order bits */
-	scc_ide_outb(drive->ctl & ~0x80, io_ports->ctl_addr);
+	scc_ide_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = scc_ide_inb(io_ports->nsect_addr);
@@ -722,7 +713,7 @@ static void scc_tf_read(ide_drive_t *drive, ide_task_t *task)
 		tf->device = scc_ide_inb(io_ports->device_addr);
 
 	if (task->tf_flags & IDE_TFLAG_LBA48) {
-		scc_ide_outb(drive->ctl | 0x80, io_ports->ctl_addr);
+		scc_ide_outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
 
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
 			tf->hob_feature = scc_ide_inb(io_ports->feature_addr);
@@ -795,7 +786,6 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 
 	hwif->dma_base = dma_base;
 	hwif->config_data = ports->ctl;
-	hwif->mmio = 1;
 }
 
 /**

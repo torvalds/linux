@@ -105,6 +105,8 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/firmware.h>
+#include <linux/ihex.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
@@ -1339,13 +1341,13 @@ static void keyspan_close(struct usb_serial_port *port, struct file *filp)
 	port->tty = NULL;
 }
 
-
 	/* download the firmware to a pre-renumeration device */
 static int keyspan_fake_startup (struct usb_serial *serial)
 {
 	int 				response;
-	const struct ezusb_hex_record 	*record;
+	const struct ihex_binrec 	*record;
 	char				*fw_name;
+	const struct firmware		*fw;
 
 	dbg("Keyspan startup version %04x product %04x",
 	    le16_to_cpu(serial->dev->descriptor.bcdDevice),
@@ -1359,72 +1361,60 @@ static int keyspan_fake_startup (struct usb_serial *serial)
 		/* Select firmware image on the basis of idProduct */
 	switch (le16_to_cpu(serial->dev->descriptor.idProduct)) {
 	case keyspan_usa28_pre_product_id:
-		record = &keyspan_usa28_firmware[0];
-		fw_name = "USA28";
+		fw_name = "keyspan/usa28.fw";
 		break;
 
 	case keyspan_usa28x_pre_product_id:
-		record = &keyspan_usa28x_firmware[0];
-		fw_name = "USA28X";
+		fw_name = "keyspan/usa28x.fw";
 		break;
 
 	case keyspan_usa28xa_pre_product_id:
-		record = &keyspan_usa28xa_firmware[0];
-		fw_name = "USA28XA";
+		fw_name = "keyspan/usa28xa.fw";
 		break;
 
 	case keyspan_usa28xb_pre_product_id:
-		record = &keyspan_usa28xb_firmware[0];
-		fw_name = "USA28XB";
+		fw_name = "keyspan/usa28xb.fw";
 		break;
 
 	case keyspan_usa19_pre_product_id:
-		record = &keyspan_usa19_firmware[0];
-		fw_name = "USA19";
+		fw_name = "keyspan/usa19.fw";
 		break;
 			     
 	case keyspan_usa19qi_pre_product_id:
-		record = &keyspan_usa19qi_firmware[0];
-		fw_name = "USA19QI";
+		fw_name = "keyspan/usa19qi.fw";
 		break;
 			     
 	case keyspan_mpr_pre_product_id:
-		record = &keyspan_mpr_firmware[0];
-		fw_name = "MPR";
+		fw_name = "keyspan/mpr.fw";
 		break;
 
 	case keyspan_usa19qw_pre_product_id:
-		record = &keyspan_usa19qw_firmware[0];
-		fw_name = "USA19QI";
+		fw_name = "keyspan/usa19qw.fw";
 		break;
 			     
 	case keyspan_usa18x_pre_product_id:
-		record = &keyspan_usa18x_firmware[0];
-		fw_name = "USA18X";
+		fw_name = "keyspan/usa18x.fw";
 		break;
 			     
 	case keyspan_usa19w_pre_product_id:
-		record = &keyspan_usa19w_firmware[0];
-		fw_name = "USA19W";
+		fw_name = "keyspan/usa19w.fw";
 		break;
 		
 	case keyspan_usa49w_pre_product_id:
-		record = &keyspan_usa49w_firmware[0];
-		fw_name = "USA49W";
+		fw_name = "keyspan/usa49w.fw";
 		break;
 
 	case keyspan_usa49wlc_pre_product_id:
-		record = &keyspan_usa49wlc_firmware[0];
-		fw_name = "USA49WLC";
+		fw_name = "keyspan/usa49wlc.fw";
 		break;
 
 	default:
-		record = NULL;
-		fw_name = "Unknown";
-		break;
+		dev_err(&serial->dev->dev, "Unknown product ID (%04x)\n",
+			le16_to_cpu(serial->dev->descriptor.idProduct));
+		return 1;
 	}
 
-	if (record == NULL) {
+	if (request_ihex_firmware(&fw, fw_name, &serial->dev->dev)) {
 		dev_err(&serial->dev->dev, "Required keyspan firmware image (%s) unavailable.\n", fw_name);
 		return(1);
 	}
@@ -1434,19 +1424,22 @@ static int keyspan_fake_startup (struct usb_serial *serial)
 		/* download the firmware image */
 	response = ezusb_set_reset(serial, 1);
 
-	while(record->address != 0xffff) {
-		response = ezusb_writememory(serial, record->address,
+	record = (const struct ihex_binrec *)fw->data;
+
+	while (record) {
+		response = ezusb_writememory(serial, be32_to_cpu(record->addr),
 					     (unsigned char *)record->data,
-					     record->data_size, 0xa0);
+					     be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
 			dev_err(&serial->dev->dev, "ezusb_writememory failed for Keyspan"
 				"firmware (%d %04X %p %d)\n",
-				response, 
-				record->address, record->data, record->data_size);
+				response, be32_to_cpu(record->addr),
+				record->data, be16_to_cpu(record->len));
 			break;
 		}
-		record++;
+		record = ihex_next_binrec(record);
 	}
+	release_firmware(fw);
 		/* bring device out of reset. Renumeration will occur in a
 		   moment and the new device will bind to the real driver */
 	response = ezusb_set_reset(serial, 0);
@@ -2755,6 +2748,19 @@ static void keyspan_shutdown (struct usb_serial *serial)
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE("keyspan/usa28.fw");
+MODULE_FIRMWARE("keyspan/usa28x.fw");
+MODULE_FIRMWARE("keyspan/usa28xa.fw");
+MODULE_FIRMWARE("keyspan/usa28xb.fw");
+MODULE_FIRMWARE("keyspan/usa19.fw");
+MODULE_FIRMWARE("keyspan/usa19qi.fw");
+MODULE_FIRMWARE("keyspan/mpr.fw");
+MODULE_FIRMWARE("keyspan/usa19qw.fw");
+MODULE_FIRMWARE("keyspan/usa18x.fw");
+MODULE_FIRMWARE("keyspan/usa19w.fw");
+MODULE_FIRMWARE("keyspan/usa49w.fw");
+MODULE_FIRMWARE("keyspan/usa49wlc.fw");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");

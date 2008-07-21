@@ -353,6 +353,8 @@ struct mpic
 #define MPIC_ENABLE_MCK			0x00000200
 /* Disable bias among target selection, spread interrupts evenly */
 #define MPIC_NO_BIAS			0x00000400
+/* Ignore NIRQS as reported by FRR */
+#define MPIC_BROKEN_FRR_NIRQS		0x00000800
 
 /* MPIC HW modification ID */
 #define MPIC_REGSET_MASK		0xf0000000
@@ -428,12 +430,11 @@ extern void mpic_init(struct mpic *mpic);
  */
 
 
-/* Change/Read the priority of an interrupt. Default is 8 for irqs and
+/* Change the priority of an interrupt. Default is 8 for irqs and
  * 10 for IPIs. You can call this on both IPIs and IRQ numbers, but the
  * IPI number is then the offset'ed (linux irq number mapped to the IPI)
  */
 extern void mpic_irq_set_priority(unsigned int irq, unsigned int pri);
-extern unsigned int mpic_irq_get_priority(unsigned int irq);
 
 /* Setup a non-boot CPU */
 extern void mpic_setup_this_cpu(void);

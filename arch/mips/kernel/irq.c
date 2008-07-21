@@ -44,8 +44,6 @@ again:
 	return irq;
 }
 
-EXPORT_SYMBOL_GPL(allocate_irqno);
-
 /*
  * Allocate the 16 legacy interrupts for i8259 devices.  This happens early
  * in the kernel initialization so treating allocation failure as BUG() is
@@ -65,8 +63,6 @@ void free_irqno(unsigned int irq)
 	clear_bit(irq, irq_map);
 	smp_mb__after_clear_bit();
 }
-
-EXPORT_SYMBOL_GPL(free_irqno);
 
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.

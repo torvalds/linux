@@ -5,7 +5,7 @@
  *
  * Author: Li Yang <leoli@freescale.com>
  *
- * Limitation: 
+ * Limitation:
  * Can only get/set setttings of the first queue.
  * Need to re-open the interface manually after changing some paramters.
  *
@@ -73,6 +73,7 @@ static char tx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
 	"tx-frames-ok",
 	"tx-excessive-differ-frames",
 	"tx-256-511-frames",
+	"tx-512-1023-frames",
 	"tx-1024-1518-frames",
 	"tx-jumbo-frames",
 };
@@ -159,7 +160,7 @@ uec_set_pauseparam(struct net_device *netdev,
 
 	ugeth->ug_info->receiveFlowControl = pause->rx_pause;
 	ugeth->ug_info->transmitFlowControl = pause->tx_pause;
-	
+
 	if (ugeth->phydev->autoneg) {
 		if (netif_running(netdev)) {
 			/* FIXME: automatically restart */
@@ -308,7 +309,7 @@ static void uec_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 		buf += UEC_TX_FW_STATS_LEN * ETH_GSTRING_LEN;
 	}
 	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_RX)
-		memcpy(buf, tx_fw_stat_gstrings, UEC_RX_FW_STATS_LEN *
+		memcpy(buf, rx_fw_stat_gstrings, UEC_RX_FW_STATS_LEN *
 			       	ETH_GSTRING_LEN);
 }
 

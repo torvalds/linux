@@ -137,7 +137,7 @@ __u32 cookie_v6_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 		;
 	*mssp = msstab[mssind] + 1;
 
-	NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESSENT);
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESSENT);
 
 	return secure_tcp_syn_cookie(&iph->saddr, &iph->daddr, th->source,
 				     th->dest, ntohl(th->seq),
@@ -177,11 +177,11 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 
 	if (time_after(jiffies, tp->last_synq_overflow + TCP_TIMEOUT_INIT) ||
 		(mss = cookie_check(skb, cookie)) == 0) {
-		NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESFAILED);
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESFAILED);
 		goto out;
 	}
 
-	NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESRECV);
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESRECV);
 
 	/* check for timestamp cookie support */
 	memset(&tcp_opt, 0, sizeof(tcp_opt));
@@ -198,7 +198,6 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	ireq = inet_rsk(req);
 	ireq6 = inet6_rsk(req);
 	treq = tcp_rsk(req);
-	ireq6->pktopts = NULL;
 
 	if (security_inet_conn_request(sk, skb, req)) {
 		reqsk_free(req);

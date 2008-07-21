@@ -104,8 +104,8 @@ static u32 nxp_pci_io_base;
 static u32 iolength;
 static u32 pci_mem_phy0;
 static u32 length;
-static u8 *chip_addr;
-static u8 *iobase;
+static u8 __iomem *chip_addr;
+static u8 __iomem *iobase;
 
 static int __devinit isp1761_pci_probe(struct pci_dev *dev,
 		const struct pci_device_id *id)

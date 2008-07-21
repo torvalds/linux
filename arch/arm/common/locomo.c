@@ -321,11 +321,42 @@ static void locomo_gpio_unmask_irq(unsigned int irq)
 	locomo_writel(r, mapbase + LOCOMO_GIE);
 }
 
+static int GPIO_IRQ_rising_edge;
+static int GPIO_IRQ_falling_edge;
+
+static int locomo_gpio_type(unsigned int irq, unsigned int type)
+{
+	unsigned int mask;
+	void __iomem *mapbase = get_irq_chip_data(irq);
+
+	mask = 1 << (irq - LOCOMO_IRQ_GPIO_START);
+
+	if (type == IRQT_PROBE) {
+		if ((GPIO_IRQ_rising_edge | GPIO_IRQ_falling_edge) & mask)
+			return 0;
+		type = __IRQT_RISEDGE | __IRQT_FALEDGE;
+	}
+
+	if (type & __IRQT_RISEDGE)
+		GPIO_IRQ_rising_edge |= mask;
+	else
+		GPIO_IRQ_rising_edge &= ~mask;
+	if (type & __IRQT_FALEDGE)
+		GPIO_IRQ_falling_edge |= mask;
+	else
+		GPIO_IRQ_falling_edge &= ~mask;
+	locomo_writel(GPIO_IRQ_rising_edge, mapbase + LOCOMO_GRIE);
+	locomo_writel(GPIO_IRQ_falling_edge, mapbase + LOCOMO_GFIE);
+
+	return 0;
+}
+
 static struct irq_chip locomo_gpio_chip = {
-	.name	= "LOCOMO-gpio",
-	.ack	= locomo_gpio_ack_irq,
-	.mask	= locomo_gpio_mask_irq,
-	.unmask	= locomo_gpio_unmask_irq,
+	.name	  = "LOCOMO-gpio",
+	.ack	  = locomo_gpio_ack_irq,
+	.mask	  = locomo_gpio_mask_irq,
+	.unmask	  = locomo_gpio_unmask_irq,
+	.set_type = locomo_gpio_type,
 };
 
 static void locomo_lt_handler(unsigned int irq, struct irq_desc *desc)
@@ -450,22 +481,18 @@ static void locomo_setup_irq(struct locomo *lchip)
 	set_irq_chip(IRQ_LOCOMO_KEY_BASE, &locomo_chip);
 	set_irq_chip_data(IRQ_LOCOMO_KEY_BASE, irqbase);
 	set_irq_chained_handler(IRQ_LOCOMO_KEY_BASE, locomo_key_handler);
-	set_irq_flags(IRQ_LOCOMO_KEY_BASE, IRQF_VALID | IRQF_PROBE);
 
 	set_irq_chip(IRQ_LOCOMO_GPIO_BASE, &locomo_chip);
 	set_irq_chip_data(IRQ_LOCOMO_GPIO_BASE, irqbase);
 	set_irq_chained_handler(IRQ_LOCOMO_GPIO_BASE, locomo_gpio_handler);
-	set_irq_flags(IRQ_LOCOMO_GPIO_BASE, IRQF_VALID | IRQF_PROBE);
 
 	set_irq_chip(IRQ_LOCOMO_LT_BASE, &locomo_chip);
 	set_irq_chip_data(IRQ_LOCOMO_LT_BASE, irqbase);
 	set_irq_chained_handler(IRQ_LOCOMO_LT_BASE, locomo_lt_handler);
-	set_irq_flags(IRQ_LOCOMO_LT_BASE, IRQF_VALID | IRQF_PROBE);
 
 	set_irq_chip(IRQ_LOCOMO_SPI_BASE, &locomo_chip);
 	set_irq_chip_data(IRQ_LOCOMO_SPI_BASE, irqbase);
 	set_irq_chained_handler(IRQ_LOCOMO_SPI_BASE, locomo_spi_handler);
-	set_irq_flags(IRQ_LOCOMO_SPI_BASE, IRQF_VALID | IRQF_PROBE);
 
 	/* install handlers for IRQ_LOCOMO_KEY_BASE generated interrupts */
 	set_irq_chip(LOCOMO_IRQ_KEY_START, &locomo_key_chip);
@@ -488,7 +515,7 @@ static void locomo_setup_irq(struct locomo *lchip)
 	set_irq_flags(LOCOMO_IRQ_LT_START, IRQF_VALID | IRQF_PROBE);
 
 	/* install handlers for IRQ_LOCOMO_SPI_BASE generated interrupts */
-	for (irq = LOCOMO_IRQ_SPI_START; irq < LOCOMO_IRQ_SPI_START + 3; irq++) {
+	for (irq = LOCOMO_IRQ_SPI_START; irq < LOCOMO_IRQ_SPI_START + 4; irq++) {
 		set_irq_chip(irq, &locomo_spi_chip);
 		set_irq_chip_data(irq, irqbase);
 		set_irq_handler(irq, handle_edge_irq);
@@ -574,20 +601,20 @@ static int locomo_suspend(struct platform_device *dev, pm_message_t state)
 
 	save->LCM_GPO     = locomo_readl(lchip->base + LOCOMO_GPO);	/* GPIO */
 	locomo_writel(0x00, lchip->base + LOCOMO_GPO);
-	save->LCM_SPICT   = locomo_readl(lchip->base + LOCOMO_SPICT);	/* SPI */
+	save->LCM_SPICT   = locomo_readl(lchip->base + LOCOMO_SPI + LOCOMO_SPICT);	/* SPI */
 	locomo_writel(0x40, lchip->base + LOCOMO_SPICT);
 	save->LCM_GPE     = locomo_readl(lchip->base + LOCOMO_GPE);	/* GPIO */
 	locomo_writel(0x00, lchip->base + LOCOMO_GPE);
 	save->LCM_ASD     = locomo_readl(lchip->base + LOCOMO_ASD);	/* ADSTART */
 	locomo_writel(0x00, lchip->base + LOCOMO_ASD);
-	save->LCM_SPIMD   = locomo_readl(lchip->base + LOCOMO_SPIMD);	/* SPI */
-	locomo_writel(0x3C14, lchip->base + LOCOMO_SPIMD);
+	save->LCM_SPIMD   = locomo_readl(lchip->base + LOCOMO_SPI + LOCOMO_SPIMD);	/* SPI */
+	locomo_writel(0x3C14, lchip->base + LOCOMO_SPI + LOCOMO_SPIMD);
 
 	locomo_writel(0x00, lchip->base + LOCOMO_PAIF);
 	locomo_writel(0x00, lchip->base + LOCOMO_DAC);
 	locomo_writel(0x00, lchip->base + LOCOMO_BACKLIGHT + LOCOMO_TC);
 
-	if ( (locomo_readl(lchip->base + LOCOMO_LED + LOCOMO_LPT0) & 0x88) && (locomo_readl(lchip->base + LOCOMO_LED + LOCOMO_LPT1) & 0x88) )
+	if ((locomo_readl(lchip->base + LOCOMO_LED + LOCOMO_LPT0) & 0x88) && (locomo_readl(lchip->base + LOCOMO_LED + LOCOMO_LPT1) & 0x88))
 		locomo_writel(0x00, lchip->base + LOCOMO_C32K); 	/* CLK32 off */
 	else
 		/* 18MHz already enabled, so no wait */
@@ -616,10 +643,10 @@ static int locomo_resume(struct platform_device *dev)
 	spin_lock_irqsave(&lchip->lock, flags);
 
 	locomo_writel(save->LCM_GPO, lchip->base + LOCOMO_GPO);
-	locomo_writel(save->LCM_SPICT, lchip->base + LOCOMO_SPICT);
+	locomo_writel(save->LCM_SPICT, lchip->base + LOCOMO_SPI + LOCOMO_SPICT);
 	locomo_writel(save->LCM_GPE, lchip->base + LOCOMO_GPE);
 	locomo_writel(save->LCM_ASD, lchip->base + LOCOMO_ASD);
-	locomo_writel(save->LCM_SPIMD, lchip->base + LOCOMO_SPIMD);
+	locomo_writel(save->LCM_SPIMD, lchip->base + LOCOMO_SPI + LOCOMO_SPIMD);
 
 	locomo_writel(0x00, lchip->base + LOCOMO_C32K);
 	locomo_writel(0x90, lchip->base + LOCOMO_TADC);
@@ -688,9 +715,9 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 
 	/* GPIO */
 	locomo_writel(0, lchip->base + LOCOMO_GPO);
-	locomo_writel( (LOCOMO_GPIO(2) | LOCOMO_GPIO(3) | LOCOMO_GPIO(13) | LOCOMO_GPIO(14))
+	locomo_writel((LOCOMO_GPIO(1) | LOCOMO_GPIO(2) | LOCOMO_GPIO(13) | LOCOMO_GPIO(14))
 			, lchip->base + LOCOMO_GPE);
-	locomo_writel( (LOCOMO_GPIO(2) | LOCOMO_GPIO(3) | LOCOMO_GPIO(13) | LOCOMO_GPIO(14))
+	locomo_writel((LOCOMO_GPIO(1) | LOCOMO_GPIO(2) | LOCOMO_GPIO(13) | LOCOMO_GPIO(14))
 			, lchip->base + LOCOMO_GPD);
 	locomo_writel(0, lchip->base + LOCOMO_GIE);
 
@@ -833,7 +860,10 @@ void locomo_gpio_set_dir(struct device *dev, unsigned int bits, unsigned int dir
 	spin_lock_irqsave(&lchip->lock, flags);
 
 	r = locomo_readl(lchip->base + LOCOMO_GPD);
-	r &= ~bits;
+	if (dir)
+		r |= bits;
+	else
+		r &= ~bits;
 	locomo_writel(r, lchip->base + LOCOMO_GPD);
 
 	r = locomo_readl(lchip->base + LOCOMO_GPE);

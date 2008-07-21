@@ -75,7 +75,11 @@ static inline int cifs_convert_flags(unsigned int flags)
 		return (GENERIC_READ | GENERIC_WRITE);
 	}
 
-	return 0x20197;
+	return (READ_CONTROL | FILE_WRITE_ATTRIBUTES | FILE_READ_ATTRIBUTES |
+		FILE_WRITE_EA | FILE_APPEND_DATA | FILE_WRITE_DATA |
+		FILE_READ_DATA);
+
+
 }
 
 static inline int cifs_get_disposition(unsigned int flags)
@@ -542,7 +546,6 @@ int cifs_close(struct inode *inode, struct file *file)
 			msleep(timeout);
 			timeout *= 8;
 		}
-		kfree(pSMBFile->search_resume_name);
 		kfree(file->private_data);
 		file->private_data = NULL;
 	} else
@@ -600,12 +603,6 @@ int cifs_closedir(struct inode *inode, struct file *file)
 				cifs_small_buf_release(ptmp);
 			else
 				cifs_buf_release(ptmp);
-		}
-		ptmp = pCFileStruct->search_resume_name;
-		if (ptmp) {
-			cFYI(1, ("closedir free resume name"));
-			pCFileStruct->search_resume_name = NULL;
-			kfree(ptmp);
 		}
 		kfree(file->private_data);
 		file->private_data = NULL;

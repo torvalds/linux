@@ -313,9 +313,8 @@ static void ipgre_tunnel_uninit(struct net_device *dev)
 
 static void ipgre_err(struct sk_buff *skb, u32 info)
 {
-#ifndef I_WISH_WORLD_WERE_PERFECT
 
-/* It is not :-( All the routers (except for Linux) return only
+/* All the routers (except for Linux) return only
    8 bytes of packet payload. It means, that precise relaying of
    ICMP in the real Internet is absolutely infeasible.
 
@@ -398,149 +397,6 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 out:
 	read_unlock(&ipgre_lock);
 	return;
-#else
-	struct iphdr *iph = (struct iphdr*)dp;
-	struct iphdr *eiph;
-	__be16	     *p = (__be16*)(dp+(iph->ihl<<2));
-	const int type = icmp_hdr(skb)->type;
-	const int code = icmp_hdr(skb)->code;
-	int rel_type = 0;
-	int rel_code = 0;
-	__be32 rel_info = 0;
-	__u32 n = 0;
-	__be16 flags;
-	int grehlen = (iph->ihl<<2) + 4;
-	struct sk_buff *skb2;
-	struct flowi fl;
-	struct rtable *rt;
-
-	if (p[1] != htons(ETH_P_IP))
-		return;
-
-	flags = p[0];
-	if (flags&(GRE_CSUM|GRE_KEY|GRE_SEQ|GRE_ROUTING|GRE_VERSION)) {
-		if (flags&(GRE_VERSION|GRE_ROUTING))
-			return;
-		if (flags&GRE_CSUM)
-			grehlen += 4;
-		if (flags&GRE_KEY)
-			grehlen += 4;
-		if (flags&GRE_SEQ)
-			grehlen += 4;
-	}
-	if (len < grehlen + sizeof(struct iphdr))
-		return;
-	eiph = (struct iphdr*)(dp + grehlen);
-
-	switch (type) {
-	default:
-		return;
-	case ICMP_PARAMETERPROB:
-		n = ntohl(icmp_hdr(skb)->un.gateway) >> 24;
-		if (n < (iph->ihl<<2))
-			return;
-
-		/* So... This guy found something strange INSIDE encapsulated
-		   packet. Well, he is fool, but what can we do ?
-		 */
-		rel_type = ICMP_PARAMETERPROB;
-		n -= grehlen;
-		rel_info = htonl(n << 24);
-		break;
-
-	case ICMP_DEST_UNREACH:
-		switch (code) {
-		case ICMP_SR_FAILED:
-		case ICMP_PORT_UNREACH:
-			/* Impossible event. */
-			return;
-		case ICMP_FRAG_NEEDED:
-			/* And it is the only really necessary thing :-) */
-			n = ntohs(icmp_hdr(skb)->un.frag.mtu);
-			if (n < grehlen+68)
-				return;
-			n -= grehlen;
-			/* BSD 4.2 MORE DOES NOT EXIST IN NATURE. */
-			if (n > ntohs(eiph->tot_len))
-				return;
-			rel_info = htonl(n);
-			break;
-		default:
-			/* All others are translated to HOST_UNREACH.
-			   rfc2003 contains "deep thoughts" about NET_UNREACH,
-			   I believe, it is just ether pollution. --ANK
-			 */
-			rel_type = ICMP_DEST_UNREACH;
-			rel_code = ICMP_HOST_UNREACH;
-			break;
-		}
-		break;
-	case ICMP_TIME_EXCEEDED:
-		if (code != ICMP_EXC_TTL)
-			return;
-		break;
-	}
-
-	/* Prepare fake skb to feed it to icmp_send */
-	skb2 = skb_clone(skb, GFP_ATOMIC);
-	if (skb2 == NULL)
-		return;
-	dst_release(skb2->dst);
-	skb2->dst = NULL;
-	skb_pull(skb2, skb->data - (u8*)eiph);
-	skb_reset_network_header(skb2);
-
-	/* Try to guess incoming interface */
-	memset(&fl, 0, sizeof(fl));
-	fl.fl4_dst = eiph->saddr;
-	fl.fl4_tos = RT_TOS(eiph->tos);
-	fl.proto = IPPROTO_GRE;
-	if (ip_route_output_key(dev_net(skb->dev), &rt, &fl)) {
-		kfree_skb(skb2);
-		return;
-	}
-	skb2->dev = rt->u.dst.dev;
-
-	/* route "incoming" packet */
-	if (rt->rt_flags&RTCF_LOCAL) {
-		ip_rt_put(rt);
-		rt = NULL;
-		fl.fl4_dst = eiph->daddr;
-		fl.fl4_src = eiph->saddr;
-		fl.fl4_tos = eiph->tos;
-		if (ip_route_output_key(dev_net(skb->dev), &rt, &fl) ||
-		    rt->u.dst.dev->type != ARPHRD_IPGRE) {
-			ip_rt_put(rt);
-			kfree_skb(skb2);
-			return;
-		}
-	} else {
-		ip_rt_put(rt);
-		if (ip_route_input(skb2, eiph->daddr, eiph->saddr, eiph->tos, skb2->dev) ||
-		    skb2->dst->dev->type != ARPHRD_IPGRE) {
-			kfree_skb(skb2);
-			return;
-		}
-	}
-
-	/* change mtu on this route */
-	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
-		if (n > dst_mtu(skb2->dst)) {
-			kfree_skb(skb2);
-			return;
-		}
-		skb2->dst->ops->update_pmtu(skb2->dst, n);
-	} else if (type == ICMP_TIME_EXCEEDED) {
-		struct ip_tunnel *t = netdev_priv(skb2->dev);
-		if (t->parms.iph.ttl) {
-			rel_type = ICMP_DEST_UNREACH;
-			rel_code = ICMP_HOST_UNREACH;
-		}
-	}
-
-	icmp_send(skb2, rel_type, rel_code, rel_info);
-	kfree_skb(skb2);
-#endif
 }
 
 static inline void ipgre_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
@@ -617,6 +473,8 @@ static int ipgre_rcv(struct sk_buff *skb)
 	read_lock(&ipgre_lock);
 	if ((tunnel = ipgre_tunnel_lookup(dev_net(skb->dev),
 					iph->saddr, iph->daddr, key)) != NULL) {
+		struct net_device_stats *stats = &tunnel->dev->stats;
+
 		secpath_reset(skb);
 
 		skb->protocol = *(__be16*)(h + 2);
@@ -641,28 +499,28 @@ static int ipgre_rcv(struct sk_buff *skb)
 			/* Looped back packet, drop it! */
 			if (skb->rtable->fl.iif == 0)
 				goto drop;
-			tunnel->stat.multicast++;
+			stats->multicast++;
 			skb->pkt_type = PACKET_BROADCAST;
 		}
 #endif
 
 		if (((flags&GRE_CSUM) && csum) ||
 		    (!(flags&GRE_CSUM) && tunnel->parms.i_flags&GRE_CSUM)) {
-			tunnel->stat.rx_crc_errors++;
-			tunnel->stat.rx_errors++;
+			stats->rx_crc_errors++;
+			stats->rx_errors++;
 			goto drop;
 		}
 		if (tunnel->parms.i_flags&GRE_SEQ) {
 			if (!(flags&GRE_SEQ) ||
 			    (tunnel->i_seqno && (s32)(seqno - tunnel->i_seqno) < 0)) {
-				tunnel->stat.rx_fifo_errors++;
-				tunnel->stat.rx_errors++;
+				stats->rx_fifo_errors++;
+				stats->rx_errors++;
 				goto drop;
 			}
 			tunnel->i_seqno = seqno + 1;
 		}
-		tunnel->stat.rx_packets++;
-		tunnel->stat.rx_bytes += skb->len;
+		stats->rx_packets++;
+		stats->rx_bytes += skb->len;
 		skb->dev = tunnel->dev;
 		dst_release(skb->dst);
 		skb->dst = NULL;
@@ -684,7 +542,7 @@ drop_nolock:
 static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	struct net_device_stats *stats = &tunnel->stat;
+	struct net_device_stats *stats = &tunnel->dev->stats;
 	struct iphdr  *old_iph = ip_hdr(skb);
 	struct iphdr  *tiph;
 	u8     tos;
@@ -698,7 +556,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	int    mtu;
 
 	if (tunnel->recursion++) {
-		tunnel->stat.collisions++;
+		stats->collisions++;
 		goto tx_error;
 	}
 
@@ -714,7 +572,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* NBMA tunnel */
 
 		if (skb->dst == NULL) {
-			tunnel->stat.tx_fifo_errors++;
+			stats->tx_fifo_errors++;
 			goto tx_error;
 		}
 
@@ -765,7 +623,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 						.tos = RT_TOS(tos) } },
 				    .proto = IPPROTO_GRE };
 		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			tunnel->stat.tx_carrier_errors++;
+			stats->tx_carrier_errors++;
 			goto tx_error;
 		}
 	}
@@ -773,7 +631,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (tdev == dev) {
 		ip_rt_put(rt);
-		tunnel->stat.collisions++;
+		stats->collisions++;
 		goto tx_error;
 	}
 
@@ -1098,11 +956,6 @@ done:
 	return err;
 }
 
-static struct net_device_stats *ipgre_tunnel_get_stats(struct net_device *dev)
-{
-	return &(((struct ip_tunnel*)netdev_priv(dev))->stat);
-}
-
 static int ipgre_tunnel_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
@@ -1228,7 +1081,6 @@ static void ipgre_tunnel_setup(struct net_device *dev)
 	dev->uninit		= ipgre_tunnel_uninit;
 	dev->destructor 	= free_netdev;
 	dev->hard_start_xmit	= ipgre_tunnel_xmit;
-	dev->get_stats		= ipgre_tunnel_get_stats;
 	dev->do_ioctl		= ipgre_tunnel_ioctl;
 	dev->change_mtu		= ipgre_tunnel_change_mtu;
 

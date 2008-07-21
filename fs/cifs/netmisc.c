@@ -141,11 +141,11 @@ cifs_inet_pton(const int address_family, const char *cp, void *dst)
 	int ret = 0;
 
 	/* calculate length by finding first slash or NULL */
-	if (address_family == AF_INET) {
+	if (address_family == AF_INET)
 		ret = in4_pton(cp, -1 /* len */, dst, '\\', NULL);
-	} else if (address_family == AF_INET6) {
+	else if (address_family == AF_INET6)
 		ret = in6_pton(cp, -1 /* len */, dst , '\\', NULL);
-	}
+
 	cFYI(DBG2, ("address conversion returned %d for %s", ret, cp));
 	if (ret > 0)
 		ret = 1;

@@ -192,14 +192,21 @@ EXPORT_SYMBOL(inet_frag_evictor);
 
 static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 		struct inet_frag_queue *qp_in, struct inet_frags *f,
-		unsigned int hash, void *arg)
+		void *arg)
 {
 	struct inet_frag_queue *qp;
 #ifdef CONFIG_SMP
 	struct hlist_node *n;
 #endif
+	unsigned int hash;
 
 	write_lock(&f->lock);
+	/*
+	 * While we stayed w/o the lock other CPU could update
+	 * the rnd seed, so we need to re-calculate the hash
+	 * chain. Fortunatelly the qp_in can be used to get one.
+	 */
+	hash = f->hashfn(qp_in);
 #ifdef CONFIG_SMP
 	/* With SMP race we have to recheck hash table, because
 	 * such entry could be created on other cpu, while we
@@ -247,7 +254,7 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 }
 
 static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
-		struct inet_frags *f, void *arg, unsigned int hash)
+		struct inet_frags *f, void *arg)
 {
 	struct inet_frag_queue *q;
 
@@ -255,7 +262,7 @@ static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
 	if (q == NULL)
 		return NULL;
 
-	return inet_frag_intern(nf, q, f, hash, arg);
+	return inet_frag_intern(nf, q, f, arg);
 }
 
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
@@ -264,7 +271,6 @@ struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 	struct inet_frag_queue *q;
 	struct hlist_node *n;
 
-	read_lock(&f->lock);
 	hlist_for_each_entry(q, n, &f->hash[hash], list) {
 		if (q->net == nf && f->match(q, key)) {
 			atomic_inc(&q->refcnt);
@@ -274,6 +280,6 @@ struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 	}
 	read_unlock(&f->lock);
 
-	return inet_frag_create(nf, f, key, hash);
+	return inet_frag_create(nf, f, key);
 }
 EXPORT_SYMBOL(inet_frag_find);

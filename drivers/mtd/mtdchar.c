@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/compatmac.h>
@@ -86,6 +87,7 @@ static int mtd_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
 	int devnum = minor >> 1;
+	int ret = 0;
 	struct mtd_info *mtd;
 	struct mtd_file_info *mfi;
 
@@ -98,31 +100,39 @@ static int mtd_open(struct inode *inode, struct file *file)
 	if ((file->f_mode & 2) && (minor & 1))
 		return -EACCES;
 
+	lock_kernel();
 	mtd = get_mtd_device(NULL, devnum);
 
-	if (IS_ERR(mtd))
-		return PTR_ERR(mtd);
+	if (IS_ERR(mtd)) {
+		ret = PTR_ERR(mtd);
+		goto out;
+	}
 
 	if (MTD_ABSENT == mtd->type) {
 		put_mtd_device(mtd);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out;
 	}
 
 	/* You can't open it RW if it's not a writeable device */
 	if ((file->f_mode & 2) && !(mtd->flags & MTD_WRITEABLE)) {
 		put_mtd_device(mtd);
-		return -EACCES;
+		ret = -EACCES;
+		goto out;
 	}
 
 	mfi = kzalloc(sizeof(*mfi), GFP_KERNEL);
 	if (!mfi) {
 		put_mtd_device(mtd);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 	mfi->mtd = mtd;
 	file->private_data = mfi;
 
-	return 0;
+out:
+	unlock_kernel();
+	return ret;
 } /* mtd_open */
 
 /*====================================================================*/

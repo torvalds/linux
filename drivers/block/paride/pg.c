@@ -162,6 +162,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/pg.h>
 #include <linux/device.h>
 #include <linux/sched.h>	/* current, TASK_* */
+#include <linux/smp_lock.h>
 #include <linux/jiffies.h>
 
 #include <asm/uaccess.h>
@@ -515,12 +516,18 @@ static int pg_open(struct inode *inode, struct file *file)
 {
 	int unit = iminor(inode) & 0x7f;
 	struct pg *dev = &devices[unit];
+	int ret = 0;
 
-	if ((unit >= PG_UNITS) || (!dev->present))
-		return -ENODEV;
+	lock_kernel();
+	if ((unit >= PG_UNITS) || (!dev->present)) {
+		ret = -ENODEV;
+		goto out;
+	}
 
-	if (test_and_set_bit(0, &dev->access))
-		return -EBUSY;
+	if (test_and_set_bit(0, &dev->access)) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	if (dev->busy) {
 		pg_reset(dev);
@@ -533,12 +540,15 @@ static int pg_open(struct inode *inode, struct file *file)
 	if (dev->bufptr == NULL) {
 		clear_bit(0, &dev->access);
 		printk("%s: buffer allocation failed\n", dev->name);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	file->private_data = dev;
 
-	return 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int pg_release(struct inode *inode, struct file *file)

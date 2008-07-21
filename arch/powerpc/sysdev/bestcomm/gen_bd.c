@@ -20,6 +20,7 @@
 #include <asm/io.h>
 
 #include <asm/mpc52xx.h>
+#include <asm/mpc52xx_psc.h>
 
 #include "bestcomm.h"
 #include "bestcomm_priv.h"
@@ -252,6 +253,100 @@ bcom_gen_bd_tx_release(struct bcom_task *tsk)
 	bcom_task_free(tsk);
 }
 EXPORT_SYMBOL_GPL(bcom_gen_bd_tx_release);
+
+/* ---------------------------------------------------------------------
+ * PSC support code
+ */
+
+/**
+ * bcom_psc_parameters - Bestcomm initialization value table for PSC devices
+ *
+ * This structure is only used internally.  It is a lookup table for PSC
+ * specific parameters to bestcomm tasks.
+ */
+static struct bcom_psc_params {
+	int rx_initiator;
+	int rx_ipr;
+	int tx_initiator;
+	int tx_ipr;
+} bcom_psc_params[] = {
+	[0] = {
+		.rx_initiator = BCOM_INITIATOR_PSC1_RX,
+		.rx_ipr = BCOM_IPR_PSC1_RX,
+		.tx_initiator = BCOM_INITIATOR_PSC1_TX,
+		.tx_ipr = BCOM_IPR_PSC1_TX,
+	},
+	[1] = {
+		.rx_initiator = BCOM_INITIATOR_PSC2_RX,
+		.rx_ipr = BCOM_IPR_PSC2_RX,
+		.tx_initiator = BCOM_INITIATOR_PSC2_TX,
+		.tx_ipr = BCOM_IPR_PSC2_TX,
+	},
+	[2] = {
+		.rx_initiator = BCOM_INITIATOR_PSC3_RX,
+		.rx_ipr = BCOM_IPR_PSC3_RX,
+		.tx_initiator = BCOM_INITIATOR_PSC3_TX,
+		.tx_ipr = BCOM_IPR_PSC3_TX,
+	},
+	[3] = {
+		.rx_initiator = BCOM_INITIATOR_PSC4_RX,
+		.rx_ipr = BCOM_IPR_PSC4_RX,
+		.tx_initiator = BCOM_INITIATOR_PSC4_TX,
+		.tx_ipr = BCOM_IPR_PSC4_TX,
+	},
+	[4] = {
+		.rx_initiator = BCOM_INITIATOR_PSC5_RX,
+		.rx_ipr = BCOM_IPR_PSC5_RX,
+		.tx_initiator = BCOM_INITIATOR_PSC5_TX,
+		.tx_ipr = BCOM_IPR_PSC5_TX,
+	},
+	[5] = {
+		.rx_initiator = BCOM_INITIATOR_PSC6_RX,
+		.rx_ipr = BCOM_IPR_PSC6_RX,
+		.tx_initiator = BCOM_INITIATOR_PSC6_TX,
+		.tx_ipr = BCOM_IPR_PSC6_TX,
+	},
+};
+
+/**
+ * bcom_psc_gen_bd_rx_init - Allocate a receive bcom_task for a PSC port
+ * @psc_num:	Number of the PSC to allocate a task for
+ * @queue_len:	number of buffer descriptors to allocate for the task
+ * @fifo:	physical address of FIFO register
+ * @maxbufsize:	Maximum receive data size in bytes.
+ *
+ * Allocate a bestcomm task structure for receiving data from a PSC.
+ */
+struct bcom_task * bcom_psc_gen_bd_rx_init(unsigned psc_num, int queue_len,
+					   phys_addr_t fifo, int maxbufsize)
+{
+	if (psc_num >= MPC52xx_PSC_MAXNUM)
+		return NULL;
+
+	return bcom_gen_bd_rx_init(queue_len, fifo,
+				   bcom_psc_params[psc_num].rx_initiator,
+				   bcom_psc_params[psc_num].rx_ipr,
+				   maxbufsize);
+}
+EXPORT_SYMBOL_GPL(bcom_psc_gen_bd_rx_init);
+
+/**
+ * bcom_psc_gen_bd_tx_init - Allocate a transmit bcom_task for a PSC port
+ * @psc_num:	Number of the PSC to allocate a task for
+ * @queue_len:	number of buffer descriptors to allocate for the task
+ * @fifo:	physical address of FIFO register
+ *
+ * Allocate a bestcomm task structure for transmitting data to a PSC.
+ */
+struct bcom_task *
+bcom_psc_gen_bd_tx_init(unsigned psc_num, int queue_len, phys_addr_t fifo)
+{
+	struct psc;
+	return bcom_gen_bd_tx_init(queue_len, fifo,
+				   bcom_psc_params[psc_num].tx_initiator,
+				   bcom_psc_params[psc_num].tx_ipr);
+}
+EXPORT_SYMBOL_GPL(bcom_psc_gen_bd_tx_init);
 
 
 MODULE_DESCRIPTION("BestComm General Buffer Descriptor tasks driver");

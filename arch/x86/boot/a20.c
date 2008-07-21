@@ -1,7 +1,7 @@
 /* -*- linux-c -*- ------------------------------------------------------- *
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
+ *   Copyright 2007-2008 rPath, Inc. - All Rights Reserved
  *
  *   This file is part of the Linux kernel, and is made available under
  *   the terms of the GNU General Public License version 2.
@@ -95,6 +95,9 @@ static void enable_a20_kbc(void)
 
 	outb(0xdf, 0x60);	/* A20 on */
 	empty_8042();
+
+	outb(0xff, 0x64);	/* Null command, but UHCI wants it */
+	empty_8042();
 }
 
 static void enable_a20_fast(void)
@@ -115,8 +118,6 @@ static void enable_a20_fast(void)
 
 int enable_a20(void)
 {
-	int loops = A20_ENABLE_LOOPS;
-
 #if defined(CONFIG_X86_ELAN)
 	/* Elan croaks if we try to touch the KBC */
 	enable_a20_fast();
@@ -128,6 +129,7 @@ int enable_a20(void)
 	enable_a20_kbc();
 	return 0;
 #else
+       int loops = A20_ENABLE_LOOPS;
 	while (loops--) {
 		/* First, check to see if A20 is already enabled
 		   (legacy free, etc.) */

@@ -135,9 +135,10 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	u64 rpn;
 	long l, limit;
 
-	if (npages == 1)
-		return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
-					   direction);
+	if (npages == 1) {
+		tce_build_pSeriesLP(tbl, tcenum, npages, uaddr, direction);
+		return;
+	}
 
 	tcep = __get_cpu_var(tce_page);
 
@@ -147,9 +148,11 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	if (!tcep) {
 		tcep = (u64 *)__get_free_page(GFP_ATOMIC);
 		/* If allocation fails, fall back to the loop implementation */
-		if (!tcep)
-			return tce_build_pSeriesLP(tbl, tcenum, npages,
-						   uaddr, direction);
+		if (!tcep) {
+			tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
+					    direction);
+			return;
+		}
 		__get_cpu_var(tce_page) = tcep;
 	}
 

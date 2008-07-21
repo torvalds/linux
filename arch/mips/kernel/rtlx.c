@@ -28,6 +28,7 @@
 #include <linux/vmalloc.h>
 #include <linux/elf.h>
 #include <linux/seq_file.h>
+#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/moduleloader.h>
 #include <linux/interrupt.h>
@@ -392,8 +393,12 @@ out:
 static int file_open(struct inode *inode, struct file *filp)
 {
 	int minor = iminor(inode);
+	int err;
 
-	return rtlx_open(minor, (filp->f_flags & O_NONBLOCK) ? 0 : 1);
+	lock_kernel();
+	err = rtlx_open(minor, (filp->f_flags & O_NONBLOCK) ? 0 : 1);
+	unlock_kernel();
+	return err;
 }
 
 static int file_release(struct inode *inode, struct file *filp)

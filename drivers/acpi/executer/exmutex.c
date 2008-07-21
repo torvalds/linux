@@ -326,7 +326,7 @@ acpi_status acpi_ex_release_mutex_object(union acpi_operand_object *obj_desc)
 
 	/* Clear mutex info */
 
-	obj_desc->mutex.thread_id = 0;
+	obj_desc->mutex.thread_id = NULL;
 	return_ACPI_STATUS(status);
 }
 
@@ -463,7 +463,7 @@ void acpi_ex_release_all_mutexes(struct acpi_thread_state *thread)
 		/* Mark mutex unowned */
 
 		obj_desc->mutex.owner_thread = NULL;
-		obj_desc->mutex.thread_id = 0;
+		obj_desc->mutex.thread_id = NULL;
 
 		/* Update Thread sync_level (Last mutex is the important one) */
 

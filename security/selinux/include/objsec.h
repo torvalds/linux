@@ -44,7 +44,6 @@ struct inode_security_struct {
 	u16 sclass;		/* security class of this object */
 	unsigned char initialized;	/* initialization flag */
 	struct mutex lock;
-	unsigned char inherit;	/* inherit SID from parent entry */
 };
 
 struct file_security_struct {

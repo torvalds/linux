@@ -105,7 +105,7 @@ int snd_seq_event_port_attach(int client, struct snd_seq_port_callback *pcbp,
 			      int cap, int type, int midi_channels, int midi_voices, char *portname);
 int snd_seq_event_port_detach(int client, int port);
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 void snd_seq_autoload_lock(void);
 void snd_seq_autoload_unlock(void);
 #else

@@ -13,7 +13,7 @@
 #define VT_BUF_HAVE_MEMSETW
 #define VT_BUF_HAVE_MEMCPYW
 
-extern inline void scr_writew(u16 val, volatile u16 *addr)
+static inline void scr_writew(u16 val, volatile u16 *addr)
 {
 	if (__is_ioaddr(addr))
 		__raw_writew(val, (volatile u16 __iomem *) addr);
@@ -21,7 +21,7 @@ extern inline void scr_writew(u16 val, volatile u16 *addr)
 		*addr = val;
 }
 
-extern inline u16 scr_readw(volatile const u16 *addr)
+static inline u16 scr_readw(volatile const u16 *addr)
 {
 	if (__is_ioaddr(addr))
 		return __raw_readw((volatile const u16 __iomem *) addr);
@@ -29,7 +29,7 @@ extern inline u16 scr_readw(volatile const u16 *addr)
 		return *addr;
 }
 
-extern inline void scr_memsetw(u16 *s, u16 c, unsigned int count)
+static inline void scr_memsetw(u16 *s, u16 c, unsigned int count)
 {
 	if (__is_ioaddr(s))
 		memsetw_io((u16 __iomem *) s, c, count);

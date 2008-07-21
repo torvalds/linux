@@ -10,6 +10,7 @@
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/mutex.h>
 
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>
@@ -1631,7 +1632,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* load the F/W, read paramaters, and init the H/W */
 	ha->instance = num_hosts;
 
-	init_MUTEX(&ha->vport_sem);
+	mutex_init(&ha->vport_lock);
 	init_completion(&ha->mbx_cmd_comp);
 	complete(&ha->mbx_cmd_comp);
 	init_completion(&ha->mbx_intr_comp);
@@ -2156,13 +2157,14 @@ static int
 qla2x00_post_work(struct scsi_qla_host *ha, struct qla_work_evt *e, int locked)
 {
 	unsigned long flags;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	if (!locked)
-		spin_lock_irqsave(&ha->hardware_lock, flags);
+		spin_lock_irqsave(&pha->hardware_lock, flags);
 	list_add_tail(&e->list, &ha->work_list);
 	qla2xxx_wake_dpc(ha);
 	if (!locked)
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+		spin_unlock_irqrestore(&pha->hardware_lock, flags);
 	return QLA_SUCCESS;
 }
 
@@ -2202,12 +2204,13 @@ static void
 qla2x00_do_work(struct scsi_qla_host *ha)
 {
 	struct qla_work_evt *e;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
-	spin_lock_irq(&ha->hardware_lock);
+	spin_lock_irq(&pha->hardware_lock);
 	while (!list_empty(&ha->work_list)) {
 		e = list_entry(ha->work_list.next, struct qla_work_evt, list);
 		list_del_init(&e->list);
-		spin_unlock_irq(&ha->hardware_lock);
+		spin_unlock_irq(&pha->hardware_lock);
 
 		switch (e->type) {
 		case QLA_EVT_AEN:
@@ -2221,9 +2224,9 @@ qla2x00_do_work(struct scsi_qla_host *ha)
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
 			kfree(e);
-		spin_lock_irq(&ha->hardware_lock);
+		spin_lock_irq(&pha->hardware_lock);
 	}
-	spin_unlock_irq(&ha->hardware_lock);
+	spin_unlock_irq(&pha->hardware_lock);
 }
 
 /**************************************************************************
@@ -2634,7 +2637,7 @@ qla2x00_timer(scsi_qla_host_t *ha)
 #define FW_FILE_ISP24XX	"ql2400_fw.bin"
 #define FW_FILE_ISP25XX	"ql2500_fw.bin"
 
-static DECLARE_MUTEX(qla_fw_lock);
+static DEFINE_MUTEX(qla_fw_lock);
 
 static struct fw_blob qla_fw_blobs[FW_BLOBS] = {
 	{ .name = FW_FILE_ISP21XX, .segs = { 0x1000, 0 }, },
@@ -2665,7 +2668,7 @@ qla2x00_request_firmware(scsi_qla_host_t *ha)
 		blob = &qla_fw_blobs[FW_ISP25XX];
 	}
 
-	down(&qla_fw_lock);
+	mutex_lock(&qla_fw_lock);
 	if (blob->fw)
 		goto out;
 
@@ -2678,7 +2681,7 @@ qla2x00_request_firmware(scsi_qla_host_t *ha)
 	}
 
 out:
-	up(&qla_fw_lock);
+	mutex_unlock(&qla_fw_lock);
 	return blob;
 }
 
@@ -2687,11 +2690,11 @@ qla2x00_release_firmware(void)
 {
 	int idx;
 
-	down(&qla_fw_lock);
+	mutex_lock(&qla_fw_lock);
 	for (idx = 0; idx < FW_BLOBS; idx++)
 		if (qla_fw_blobs[idx].fw)
 			release_firmware(qla_fw_blobs[idx].fw);
-	up(&qla_fw_lock);
+	mutex_unlock(&qla_fw_lock);
 }
 
 static pci_ers_result_t
@@ -2864,7 +2867,8 @@ qla2x00_module_init(void)
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "QLogic Fibre Channel HBA Driver\n");
+	printk(KERN_INFO "QLogic Fibre Channel HBA Driver: %s\n",
+	    qla2x00_version_str);
 	ret = pci_register_driver(&qla2xxx_pci_driver);
 	if (ret) {
 		kmem_cache_destroy(srb_cachep);

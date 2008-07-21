@@ -59,6 +59,11 @@ extern void iseries_handle_interrupts(void);
 		get_paca()->hard_enabled = 0;	\
 	} while(0)
 
+static inline int irqs_disabled_flags(unsigned long flags)
+{
+	return flags == 0;
+}
+
 #else
 
 #if defined(CONFIG_BOOKE)
@@ -112,6 +117,11 @@ static inline void local_irq_save_ptr(unsigned long *flags)
 
 #define hard_irq_enable()	local_irq_enable()
 #define hard_irq_disable()	local_irq_disable()
+
+static inline int irqs_disabled_flags(unsigned long flags)
+{
+	return (flags & MSR_EE) == 0;
+}
 
 #endif /* CONFIG_PPC64 */
 

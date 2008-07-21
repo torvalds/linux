@@ -32,12 +32,12 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 	scsi_qla_host_t *ha = vha->parent;
 
 	/* Find an empty slot and assign an vp_id */
-	down(&ha->vport_sem);
+	mutex_lock(&ha->vport_lock);
 	vp_id = find_first_zero_bit(ha->vp_idx_map, ha->max_npiv_vports + 1);
 	if (vp_id > ha->max_npiv_vports) {
 		DEBUG15(printk ("vp_id %d is bigger than max-supported %d.\n",
 		    vp_id, ha->max_npiv_vports));
-		up(&ha->vport_sem);
+		mutex_unlock(&ha->vport_lock);
 		return vp_id;
 	}
 
@@ -45,7 +45,7 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 	ha->num_vhosts++;
 	vha->vp_idx = vp_id;
 	list_add_tail(&vha->vp_list, &ha->vp_list);
-	up(&ha->vport_sem);
+	mutex_unlock(&ha->vport_lock);
 	return vp_id;
 }
 
@@ -55,12 +55,12 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	uint16_t vp_id;
 	scsi_qla_host_t *ha = vha->parent;
 
-	down(&ha->vport_sem);
+	mutex_lock(&ha->vport_lock);
 	vp_id = vha->vp_idx;
 	ha->num_vhosts--;
 	clear_bit(vp_id, ha->vp_idx_map);
 	list_del(&vha->vp_list);
-	up(&ha->vport_sem);
+	mutex_unlock(&ha->vport_lock);
 }
 
 static scsi_qla_host_t *
@@ -145,9 +145,9 @@ qla24xx_enable_vp(scsi_qla_host_t *vha)
 	}
 
 	/* Initialize the new vport unless it is a persistent port */
-	down(&ha->vport_sem);
+	mutex_lock(&ha->vport_lock);
 	ret = qla24xx_modify_vp_config(vha);
-	up(&ha->vport_sem);
+	mutex_unlock(&ha->vport_lock);
 
 	if (ret != QLA_SUCCESS) {
 		fc_vport_set_state(vha->fc_vport, FC_VPORT_FAILED);
@@ -406,6 +406,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	INIT_LIST_HEAD(&vha->list);
 	INIT_LIST_HEAD(&vha->fcports);
 	INIT_LIST_HEAD(&vha->vp_fcports);
+	INIT_LIST_HEAD(&vha->work_list);
 
 	vha->dpc_flags = 0L;
 	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
@@ -437,10 +438,10 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	vha->flags.init_done = 1;
 	num_hosts++;
 
-	down(&ha->vport_sem);
+	mutex_lock(&ha->vport_lock);
 	set_bit(vha->vp_idx, ha->vp_idx_map);
 	ha->cur_vport_count++;
-	up(&ha->vport_sem);
+	mutex_unlock(&ha->vport_lock);
 
 	return vha;
 

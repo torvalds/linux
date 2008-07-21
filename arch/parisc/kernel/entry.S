@@ -38,7 +38,6 @@
 #include <asm/thread_info.h>
 
 #include <linux/linkage.h>
-#include <linux/init.h>
 
 #ifdef CONFIG_64BIT
 	.level 2.0w
@@ -622,7 +621,7 @@
 	 * the static part of the kernel address space.
 	 */
 
-	__HEAD
+	.text
 
 	.align	PAGE_SIZE
 

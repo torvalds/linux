@@ -682,38 +682,26 @@ static int udf_vrs(struct super_block *sb, int silent)
 /*
  * Check whether there is an anchor block in the given block
  */
-static int udf_check_anchor_block(struct super_block *sb, sector_t block,
-					bool varconv)
+static int udf_check_anchor_block(struct super_block *sb, sector_t block)
 {
-	struct buffer_head *bh = NULL;
-	tag *t;
+	struct buffer_head *bh;
 	uint16_t ident;
-	uint32_t location;
 
-	if (varconv) {
-		if (udf_fixed_to_variable(block) >=
-		    sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits)
-			return 0;
-		bh = sb_bread(sb, udf_fixed_to_variable(block));
-	}
-	else
-		bh = sb_bread(sb, block);
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV) &&
+	    udf_fixed_to_variable(block) >=
+	    sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits)
+		return 0;
 
+	bh = udf_read_tagged(sb, block, block, &ident);
 	if (!bh)
 		return 0;
-
-	t = (tag *)bh->b_data;
-	ident = le16_to_cpu(t->tagIdent);
-	location = le32_to_cpu(t->tagLocation);
 	brelse(bh);
-	if (ident != TAG_IDENT_AVDP)
-		return 0;
-	return location == block;
+
+	return ident == TAG_IDENT_AVDP;
 }
 
 /* Search for an anchor volume descriptor pointer */
-static sector_t udf_scan_anchors(struct super_block *sb, bool varconv,
-					sector_t lastblock)
+static sector_t udf_scan_anchors(struct super_block *sb, sector_t lastblock)
 {
 	sector_t last[6];
 	int i;
@@ -739,7 +727,7 @@ static sector_t udf_scan_anchors(struct super_block *sb, bool varconv,
 				sb->s_blocksize_bits)
 			continue;
 
-		if (udf_check_anchor_block(sb, last[i], varconv)) {
+		if (udf_check_anchor_block(sb, last[i])) {
 			sbi->s_anchor[0] = last[i];
 			sbi->s_anchor[1] = last[i] - 256;
 			return last[i];
@@ -748,17 +736,17 @@ static sector_t udf_scan_anchors(struct super_block *sb, bool varconv,
 		if (last[i] < 256)
 			continue;
 
-		if (udf_check_anchor_block(sb, last[i] - 256, varconv)) {
+		if (udf_check_anchor_block(sb, last[i] - 256)) {
 			sbi->s_anchor[1] = last[i] - 256;
 			return last[i];
 		}
 	}
 
-	if (udf_check_anchor_block(sb, sbi->s_session + 256, varconv)) {
+	if (udf_check_anchor_block(sb, sbi->s_session + 256)) {
 		sbi->s_anchor[0] = sbi->s_session + 256;
 		return last[0];
 	}
-	if (udf_check_anchor_block(sb, sbi->s_session + 512, varconv)) {
+	if (udf_check_anchor_block(sb, sbi->s_session + 512)) {
 		sbi->s_anchor[0] = sbi->s_session + 512;
 		return last[0];
 	}
@@ -780,23 +768,24 @@ static void udf_find_anchor(struct super_block *sb)
 	int i;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
-	lastblock = udf_scan_anchors(sb, 0, sbi->s_last_block);
+	lastblock = udf_scan_anchors(sb, sbi->s_last_block);
 	if (lastblock)
 		goto check_anchor;
 
 	/* No anchor found? Try VARCONV conversion of block numbers */
+	UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
 	/* Firstly, we try to not convert number of the last block */
-	lastblock = udf_scan_anchors(sb, 1,
+	lastblock = udf_scan_anchors(sb,
 				udf_variable_to_fixed(sbi->s_last_block));
-	if (lastblock) {
-		UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
+	if (lastblock)
 		goto check_anchor;
-	}
 
 	/* Secondly, we try with converted number of the last block */
-	lastblock = udf_scan_anchors(sb, 1, sbi->s_last_block);
-	if (lastblock)
-		UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
+	lastblock = udf_scan_anchors(sb, sbi->s_last_block);
+	if (!lastblock) {
+		/* VARCONV didn't help. Clear it. */
+		UDF_CLEAR_FLAG(sb, UDF_FLAG_VARCONV);
+	}
 
 check_anchor:
 	/*

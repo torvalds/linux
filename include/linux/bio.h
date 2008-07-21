@@ -64,6 +64,7 @@ struct bio_vec {
 
 struct bio_set;
 struct bio;
+struct bio_integrity_payload;
 typedef void (bio_end_io_t) (struct bio *, int);
 typedef void (bio_destructor_t) (struct bio *);
 
@@ -112,6 +113,9 @@ struct bio {
 	atomic_t		bi_cnt;		/* pin count */
 
 	void			*bi_private;
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+	struct bio_integrity_payload *bi_integrity;  /* data integrity */
+#endif
 
 	bio_destructor_t	*bi_destructor;	/* destructor */
 };
@@ -271,6 +275,29 @@ static inline void *bio_data(struct bio *bio)
  */
 #define bio_get(bio)	atomic_inc(&(bio)->bi_cnt)
 
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+/*
+ * bio integrity payload
+ */
+struct bio_integrity_payload {
+	struct bio		*bip_bio;	/* parent bio */
+	struct bio_vec		*bip_vec;	/* integrity data vector */
+
+	sector_t		bip_sector;	/* virtual start sector */
+
+	void			*bip_buf;	/* generated integrity data */
+	bio_end_io_t		*bip_end_io;	/* saved I/O completion fn */
+
+	int			bip_error;	/* saved I/O error */
+	unsigned int		bip_size;
+
+	unsigned short		bip_pool;	/* pool the ivec came from */
+	unsigned short		bip_vcnt;	/* # of integrity bio_vecs */
+	unsigned short		bip_idx;	/* current bip_vec index */
+
+	struct work_struct	bip_work;	/* I/O completion */
+};
+#endif /* CONFIG_BLK_DEV_INTEGRITY */
 
 /*
  * A bio_pair is used when we need to split a bio.
@@ -283,10 +310,14 @@ static inline void *bio_data(struct bio *bio)
  *   in bio2.bi_private
  */
 struct bio_pair {
-	struct bio	bio1, bio2;
-	struct bio_vec	bv1, bv2;
-	atomic_t	cnt;
-	int		error;
+	struct bio			bio1, bio2;
+	struct bio_vec			bv1, bv2;
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+	struct bio_integrity_payload	bip1, bip2;
+	struct bio_vec			iv1, iv2;
+#endif
+	atomic_t			cnt;
+	int				error;
 };
 extern struct bio_pair *bio_split(struct bio *bi, mempool_t *pool,
 				  int first_sectors);
@@ -333,6 +364,39 @@ extern struct bio *bio_copy_user_iov(struct request_queue *, struct sg_iovec *,
 				     int, int);
 extern int bio_uncopy_user(struct bio *);
 void zero_fill_bio(struct bio *bio);
+extern struct bio_vec *bvec_alloc_bs(gfp_t, int, unsigned long *, struct bio_set *);
+extern unsigned int bvec_nr_vecs(unsigned short idx);
+
+/*
+ * bio_set is used to allow other portions of the IO system to
+ * allocate their own private memory pools for bio and iovec structures.
+ * These memory pools in turn all allocate from the bio_slab
+ * and the bvec_slabs[].
+ */
+#define BIO_POOL_SIZE 2
+#define BIOVEC_NR_POOLS 6
+
+struct bio_set {
+	mempool_t *bio_pool;
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+	mempool_t *bio_integrity_pool;
+#endif
+	mempool_t *bvec_pools[BIOVEC_NR_POOLS];
+};
+
+struct biovec_slab {
+	int nr_vecs;
+	char *name;
+	struct kmem_cache *slab;
+};
+
+extern struct bio_set *fs_bio_set;
+
+/*
+ * a small number of entries is fine, not going to be performance critical.
+ * basically we just need to survive
+ */
+#define BIO_SPLIT_ENTRIES 2
 
 #ifdef CONFIG_HIGHMEM
 /*
@@ -380,6 +444,64 @@ static inline char *__bio_kmap_irq(struct bio *bio, unsigned short idx,
 #define bio_kmap_irq(bio, flags) \
 	__bio_kmap_irq((bio), (bio)->bi_idx, (flags))
 #define bio_kunmap_irq(buf,flags)	__bio_kunmap_irq(buf, flags)
+
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+
+#define bip_vec_idx(bip, idx)	(&(bip->bip_vec[(idx)]))
+#define bip_vec(bip)		bip_vec_idx(bip, 0)
+
+#define __bip_for_each_vec(bvl, bip, i, start_idx)			\
+	for (bvl = bip_vec_idx((bip), (start_idx)), i = (start_idx);	\
+	     i < (bip)->bip_vcnt;					\
+	     bvl++, i++)
+
+#define bip_for_each_vec(bvl, bip, i)					\
+	__bip_for_each_vec(bvl, bip, i, (bip)->bip_idx)
+
+static inline int bio_integrity(struct bio *bio)
+{
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+	return bio->bi_integrity != NULL;
+#else
+	return 0;
+#endif
+}
+
+extern struct bio_integrity_payload *bio_integrity_alloc_bioset(struct bio *, gfp_t, unsigned int, struct bio_set *);
+extern struct bio_integrity_payload *bio_integrity_alloc(struct bio *, gfp_t, unsigned int);
+extern void bio_integrity_free(struct bio *, struct bio_set *);
+extern int bio_integrity_add_page(struct bio *, struct page *, unsigned int, unsigned int);
+extern int bio_integrity_enabled(struct bio *bio);
+extern int bio_integrity_set_tag(struct bio *, void *, unsigned int);
+extern int bio_integrity_get_tag(struct bio *, void *, unsigned int);
+extern int bio_integrity_prep(struct bio *);
+extern void bio_integrity_endio(struct bio *, int);
+extern void bio_integrity_advance(struct bio *, unsigned int);
+extern void bio_integrity_trim(struct bio *, unsigned int, unsigned int);
+extern void bio_integrity_split(struct bio *, struct bio_pair *, int);
+extern int bio_integrity_clone(struct bio *, struct bio *, struct bio_set *);
+extern int bioset_integrity_create(struct bio_set *, int);
+extern void bioset_integrity_free(struct bio_set *);
+extern void bio_integrity_init_slab(void);
+
+#else /* CONFIG_BLK_DEV_INTEGRITY */
+
+#define bio_integrity(a)		(0)
+#define bioset_integrity_create(a, b)	(0)
+#define bio_integrity_prep(a)		(0)
+#define bio_integrity_enabled(a)	(0)
+#define bio_integrity_clone(a, b, c)	(0)
+#define bioset_integrity_free(a)	do { } while (0)
+#define bio_integrity_free(a, b)	do { } while (0)
+#define bio_integrity_endio(a, b)	do { } while (0)
+#define bio_integrity_advance(a, b)	do { } while (0)
+#define bio_integrity_trim(a, b, c)	do { } while (0)
+#define bio_integrity_split(a, b, c)	do { } while (0)
+#define bio_integrity_set_tag(a, b, c)	do { } while (0)
+#define bio_integrity_get_tag(a, b, c)	do { } while (0)
+#define bio_integrity_init_slab(a)	do { } while (0)
+
+#endif /* CONFIG_BLK_DEV_INTEGRITY */
 
 #endif /* CONFIG_BLOCK */
 #endif /* __LINUX_BIO_H */

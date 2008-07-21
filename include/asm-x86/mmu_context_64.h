@@ -1,21 +1,7 @@
 #ifndef __X86_64_MMU_CONTEXT_H
 #define __X86_64_MMU_CONTEXT_H
 
-#include <asm/desc.h>
-#include <asm/atomic.h>
-#include <asm/pgalloc.h>
 #include <asm/pda.h>
-#include <asm/pgtable.h>
-#include <asm/tlbflush.h>
-#ifndef CONFIG_PARAVIRT
-#include <asm-generic/mm_hooks.h>
-#endif
-
-/*
- * possibly do the LDT unload here?
- */
-int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
-void destroy_context(struct mm_struct *mm);
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
@@ -64,9 +50,5 @@ do {						\
 	load_gs_index(0);			\
 	asm volatile("movl %0,%%fs"::"r"(0));	\
 } while (0)
-
-#define activate_mm(prev, next)			\
-	switch_mm((prev), (next), NULL)
-
 
 #endif

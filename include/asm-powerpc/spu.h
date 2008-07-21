@@ -131,7 +131,6 @@ struct spu {
 	u64 flags;
 	u64 class_0_pending;
 	u64 class_0_dar;
-	u64 class_0_dsisr;
 	u64 class_1_dar;
 	u64 class_1_dsisr;
 	size_t ls_size;
@@ -192,6 +191,7 @@ struct cbe_spu_info {
 	struct list_head spus;
 	int n_spus;
 	int nr_active;
+	atomic_t busy_spus;
 	atomic_t reserved_spus;
 };
 

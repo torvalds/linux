@@ -4,7 +4,7 @@
  * (C) 2001 by Jay Schulist <jschlst@samba.org>
  * (C) 2002-2006 by Harald Welte <laforge@gnumonks.org>
  * (C) 2003 by Patrick Mchardy <kaber@trash.net>
- * (C) 2005-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2005-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * Initial connection tracking via netlink development funded and
  * generally made possible by Network Robots, Inc. (www.networkrobots.com)
@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/rculist.h>
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/skbuff.h>
@@ -475,14 +476,14 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	if (ctnetlink_dump_id(skb, ct) < 0)
 		goto nla_put_failure;
 
+	if (ctnetlink_dump_status(skb, ct) < 0)
+		goto nla_put_failure;
+
 	if (events & IPCT_DESTROY) {
 		if (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
 		    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0)
 			goto nla_put_failure;
 	} else {
-		if (ctnetlink_dump_status(skb, ct) < 0)
-			goto nla_put_failure;
-
 		if (ctnetlink_dump_timeout(skb, ct) < 0)
 			goto nla_put_failure;
 
@@ -812,9 +813,8 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			return -ENOENT;
 		}
 	}
-	if (del_timer(&ct->timeout))
-		ct->timeout.function((unsigned long)ct);
 
+	nf_ct_kill(ct);
 	nf_ct_put(ct);
 
 	return 0;
@@ -891,20 +891,19 @@ ctnetlink_change_status(struct nf_conn *ct, struct nlattr *cda[])
 
 	if (d & (IPS_EXPECTED|IPS_CONFIRMED|IPS_DYING))
 		/* unchangeable */
-		return -EINVAL;
+		return -EBUSY;
 
 	if (d & IPS_SEEN_REPLY && !(status & IPS_SEEN_REPLY))
 		/* SEEN_REPLY bit can only be set */
-		return -EINVAL;
-
+		return -EBUSY;
 
 	if (d & IPS_ASSURED && !(status & IPS_ASSURED))
 		/* ASSURED bit can only be set */
-		return -EINVAL;
+		return -EBUSY;
 
 	if (cda[CTA_NAT_SRC] || cda[CTA_NAT_DST]) {
 #ifndef CONFIG_NF_NAT_NEEDED
-		return -EINVAL;
+		return -EOPNOTSUPP;
 #else
 		struct nf_nat_range range;
 
@@ -945,7 +944,7 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nlattr *cda[])
 
 	/* don't change helper of sibling connections */
 	if (ct->master)
-		return -EINVAL;
+		return -EBUSY;
 
 	err = ctnetlink_parse_help(cda[CTA_HELP], &helpname);
 	if (err < 0)
@@ -963,7 +962,7 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nlattr *cda[])
 
 	helper = __nf_conntrack_helper_find_byname(helpname);
 	if (helper == NULL)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (help) {
 		if (help->helper == helper)
@@ -1130,7 +1129,7 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 	struct nf_conn_help *help;
 	struct nf_conntrack_helper *helper;
 
-	ct = nf_conntrack_alloc(otuple, rtuple);
+	ct = nf_conntrack_alloc(otuple, rtuple, GFP_KERNEL);
 	if (ct == NULL || IS_ERR(ct))
 		return -ENOMEM;
 
@@ -1258,12 +1257,12 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	if (!(nlh->nlmsg_flags & NLM_F_EXCL)) {
 		/* we only allow nat config for new conntracks */
 		if (cda[CTA_NAT_SRC] || cda[CTA_NAT_DST]) {
-			err = -EINVAL;
+			err = -EOPNOTSUPP;
 			goto out_unlock;
 		}
 		/* can't link an existing conntrack to a master */
 		if (cda[CTA_TUPLE_MASTER]) {
-			err = -EINVAL;
+			err = -EOPNOTSUPP;
 			goto out_unlock;
 		}
 		err = ctnetlink_change_conntrack(nf_ct_tuplehash_to_ctrack(h),
@@ -1608,7 +1607,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 		h = __nf_conntrack_helper_find_byname(name);
 		if (!h) {
 			spin_unlock_bh(&nf_conntrack_lock);
-			return -EINVAL;
+			return -EOPNOTSUPP;
 		}
 		for (i = 0; i < nf_ct_expect_hsize; i++) {
 			hlist_for_each_entry_safe(exp, n, next,

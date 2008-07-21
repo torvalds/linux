@@ -292,6 +292,17 @@ void __init setup_arch(char **cmdline_p)
 
 	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
 
+	printk(KERN_NOTICE "Boot params:\n"
+			   "... MOUNT_ROOT_RDONLY - %08lx\n"
+			   "... RAMDISK_FLAGS     - %08lx\n"
+			   "... ORIG_ROOT_DEV     - %08lx\n"
+			   "... LOADER_TYPE       - %08lx\n"
+			   "... INITRD_START      - %08lx\n"
+			   "... INITRD_SIZE       - %08lx\n",
+			   MOUNT_ROOT_RDONLY, RAMDISK_FLAGS,
+			   ORIG_ROOT_DEV, LOADER_TYPE,
+			   INITRD_START, INITRD_SIZE);
+
 #ifdef CONFIG_BLK_DEV_RAM
 	rd_image_start = RAMDISK_FLAGS & RAMDISK_IMAGE_START_MASK;
 	rd_prompt = ((RAMDISK_FLAGS & RAMDISK_PROMPT_FLAG) != 0);

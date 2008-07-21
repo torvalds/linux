@@ -94,12 +94,35 @@ extern void			addrconf_join_solict(struct net_device *dev,
 extern void			addrconf_leave_solict(struct inet6_dev *idev,
 					struct in6_addr *addr);
 
+static inline unsigned long addrconf_timeout_fixup(u32 timeout,
+						    unsigned unit)
+{
+	if (timeout == 0xffffffff)
+		return ~0UL;
+
+	/*
+	 * Avoid arithmetic overflow.
+	 * Assuming unit is constant and non-zero, this "if" statement
+	 * will go away on 64bit archs.
+	 */
+	if (0xfffffffe > LONG_MAX / unit && timeout > LONG_MAX / unit)
+		return LONG_MAX / unit;
+
+	return timeout;
+}
+
+static inline int addrconf_finite_timeout(unsigned long timeout)
+{
+	return ~timeout;
+}
+
 /*
  *	IPv6 Address Label subsystem (addrlabel.c)
  */
 extern int			ipv6_addr_label_init(void);
 extern void			ipv6_addr_label_rtnl_register(void);
-extern u32			ipv6_addr_label(const struct in6_addr *addr,
+extern u32			ipv6_addr_label(struct net *net,
+						const struct in6_addr *addr,
 						int type, int ifindex);
 
 /*

@@ -254,36 +254,46 @@ void disable_noexec(struct mm_struct *mm, struct task_struct *tsk)
 int s390_enable_sie(void)
 {
 	struct task_struct *tsk = current;
-	struct mm_struct *mm;
-	int rc;
+	struct mm_struct *mm, *old_mm;
 
-	task_lock(tsk);
-
-	rc = 0;
+	/* Do we have pgstes? if yes, we are done */
 	if (tsk->mm->context.pgstes)
-		goto unlock;
+		return 0;
 
-	rc = -EINVAL;
+	/* lets check if we are allowed to replace the mm */
+	task_lock(tsk);
 	if (!tsk->mm || atomic_read(&tsk->mm->mm_users) > 1 ||
-	    tsk->mm != tsk->active_mm || tsk->mm->ioctx_list)
-		goto unlock;
+	    tsk->mm != tsk->active_mm || tsk->mm->ioctx_list) {
+		task_unlock(tsk);
+		return -EINVAL;
+	}
+	task_unlock(tsk);
 
-	tsk->mm->context.pgstes = 1;	/* dirty little tricks .. */
+	/* we copy the mm with pgstes enabled */
+	tsk->mm->context.pgstes = 1;
 	mm = dup_mm(tsk);
 	tsk->mm->context.pgstes = 0;
-
-	rc = -ENOMEM;
 	if (!mm)
-		goto unlock;
-	mmput(tsk->mm);
+		return -ENOMEM;
+
+	/* Now lets check again if somebody attached ptrace etc */
+	task_lock(tsk);
+	if (!tsk->mm || atomic_read(&tsk->mm->mm_users) > 1 ||
+	    tsk->mm != tsk->active_mm || tsk->mm->ioctx_list) {
+		mmput(mm);
+		task_unlock(tsk);
+		return -EINVAL;
+	}
+
+	/* ok, we are alone. No ptrace, no threads, etc. */
+	old_mm = tsk->mm;
 	tsk->mm = tsk->active_mm = mm;
 	preempt_disable();
 	update_mm(mm, tsk);
 	cpu_set(smp_processor_id(), mm->cpu_vm_mask);
 	preempt_enable();
-	rc = 0;
-unlock:
 	task_unlock(tsk);
-	return rc;
+	mmput(old_mm);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(s390_enable_sie);

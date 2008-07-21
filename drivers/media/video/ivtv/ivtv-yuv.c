@@ -1116,7 +1116,7 @@ void ivtv_yuv_setup_stream_frame(struct ivtv *itv)
 }
 
 /* Attempt to dma a frame from a user buffer */
-int ivtv_yuv_udma_stream_frame(struct ivtv *itv, void *src)
+int ivtv_yuv_udma_stream_frame(struct ivtv *itv, void __user *src)
 {
 	struct yuv_playback_info *yi = &itv->yuv_info;
 	struct ivtv_dma_frame dma_args;

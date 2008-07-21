@@ -346,7 +346,7 @@ static void scsi_target_dev_release(struct device *dev)
 	put_device(parent);
 }
 
-struct device_type scsi_target_type = {
+static struct device_type scsi_target_type = {
 	.name =		"scsi_target",
 	.release =	scsi_target_dev_release,
 };

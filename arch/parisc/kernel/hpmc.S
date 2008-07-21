@@ -47,7 +47,6 @@
 #include <asm/pdc.h>
 
 #include <linux/linkage.h>
-#include <linux/init.h>
 
 	/*
 	 * stack for os_hpmc, the HPMC handler.
@@ -77,7 +76,7 @@ ENTRY(hpmc_pim_data)
 	.block HPMC_PIM_DATA_SIZE
 END(hpmc_pim_data)
 
-	__HEAD
+	.text
 
 	.import intr_save, code
 ENTRY(os_hpmc)

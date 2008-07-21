@@ -57,6 +57,12 @@
 #define UART_SET_DLAB(uart)     /* MMRs not muxed on BF54x */
 #define UART_CLEAR_DLAB(uart)   /* MMRs not muxed on BF54x */
 
+#define UART_GET_CTS(x) (UART_GET_MSR(x) & CTS)
+#define UART_SET_RTS(x) (UART_PUT_MCR(x, UART_GET_MCR(x) | MRTS))
+#define UART_CLEAR_RTS(x) (UART_PUT_MCR(x, UART_GET_MCR(x) & ~MRTS))
+#define UART_ENABLE_INTS(x, v) UART_SET_IER(x, v)
+#define UART_DISABLE_INTS(x) UART_CLEAR_IER(x, 0xF)
+
 #if defined(CONFIG_BFIN_UART0_CTSRTS) || defined(CONFIG_BFIN_UART1_CTSRTS)
 # define CONFIG_SERIAL_BFIN_CTSRTS
 
@@ -93,7 +99,7 @@ struct bfin_serial_port {
 	struct work_struct	tx_dma_workqueue;
 #endif
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
-	struct work_struct 	cts_workqueue;
+	struct timer_list 	cts_timer;
 	int		cts_pin;
 	int 		rts_pin;
 #endif
@@ -181,7 +187,7 @@ static void bfin_serial_hw_init(struct bfin_serial_port *uart)
 
 #ifdef CONFIG_BFIN_UART1_CTSRTS
 	peripheral_request(P_UART1_RTS, DRIVER_NAME);
-	peripheral_request(P_UART1_CTS DRIVER_NAME);
+	peripheral_request(P_UART1_CTS, DRIVER_NAME);
 #endif
 #endif
 
@@ -196,7 +202,7 @@ static void bfin_serial_hw_init(struct bfin_serial_port *uart)
 
 #ifdef CONFIG_BFIN_UART3_CTSRTS
 	peripheral_request(P_UART3_RTS, DRIVER_NAME);
-	peripheral_request(P_UART3_CTS DRIVER_NAME);
+	peripheral_request(P_UART3_CTS, DRIVER_NAME);
 #endif
 #endif
 	SSYNC();

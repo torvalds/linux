@@ -79,7 +79,7 @@ struct ext4_ext_cache {
 };
 
 /*
- * third extended file system inode data in memory
+ * fourth extended file system inode data in memory
  */
 struct ext4_inode_info {
 	__le32	i_data[15];	/* unconverted */
@@ -150,6 +150,7 @@ struct ext4_inode_info {
 	 */
 	struct rw_semaphore i_data_sem;
 	struct inode vfs_inode;
+	struct jbd2_inode jinode;
 
 	unsigned long i_ext_generation;
 	struct ext4_ext_cache i_cached_extent;
@@ -162,6 +163,13 @@ struct ext4_inode_info {
 	/* mballoc */
 	struct list_head i_prealloc_list;
 	spinlock_t i_prealloc_lock;
+
+	/* allocation reservation info for delalloc */
+	unsigned long i_reserved_data_blocks;
+	unsigned long i_reserved_meta_blocks;
+	unsigned long i_allocated_meta_blocks;
+	unsigned short i_delalloc_reserved_flag;
+	spinlock_t i_block_reservation_lock;
 };
 
 #endif	/* _EXT4_I */

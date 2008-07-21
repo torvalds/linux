@@ -13,7 +13,7 @@
  *  Copyright (C) 2004, 2007 Freescale Semiconductor, Inc.
  *            (C) 2004 Intracom, S.A.
  *            (C) 2005-2006 MontaVista Software, Inc.
- * 		Vitaly Bordug <vbordug@ru.mvista.com>
+ *		Vitaly Bordug <vbordug@ru.mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,16 +42,13 @@
 #include <linux/bootmem.h>
 #include <linux/dma-mapping.h>
 #include <linux/fs_uart_pd.h>
+#include <linux/of_platform.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
 #include <asm/fs_pd.h>
 #include <asm/udbg.h>
-
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
-#include <linux/of_platform.h>
-#endif
 
 #if defined(CONFIG_SERIAL_CPM_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -71,59 +68,6 @@ static void cpm_uart_init_scc(struct uart_cpm_port *pinfo);
 static void cpm_uart_initbd(struct uart_cpm_port *pinfo);
 
 /**************************************************************/
-
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-/* Track which ports are configured as uarts */
-int cpm_uart_port_map[UART_NR];
-/* How many ports did we config as uarts */
-int cpm_uart_nr;
-
-/* Place-holder for board-specific stuff */
-struct platform_device* __attribute__ ((weak)) __init
-early_uart_get_pdev(int index)
-{
-	return NULL;
-}
-
-
-static void cpm_uart_count(void)
-{
-	cpm_uart_nr = 0;
-#ifdef CONFIG_SERIAL_CPM_SMC1
-	cpm_uart_port_map[cpm_uart_nr++] = UART_SMC1;
-#endif
-#ifdef CONFIG_SERIAL_CPM_SMC2
-	cpm_uart_port_map[cpm_uart_nr++] = UART_SMC2;
-#endif
-#ifdef CONFIG_SERIAL_CPM_SCC1
-	cpm_uart_port_map[cpm_uart_nr++] = UART_SCC1;
-#endif
-#ifdef CONFIG_SERIAL_CPM_SCC2
-	cpm_uart_port_map[cpm_uart_nr++] = UART_SCC2;
-#endif
-#ifdef CONFIG_SERIAL_CPM_SCC3
-	cpm_uart_port_map[cpm_uart_nr++] = UART_SCC3;
-#endif
-#ifdef CONFIG_SERIAL_CPM_SCC4
-	cpm_uart_port_map[cpm_uart_nr++] = UART_SCC4;
-#endif
-}
-
-/* Get UART number by its id */
-static int cpm_uart_id2nr(int id)
-{
-	int i;
-	if (id < UART_NR) {
-		for (i=0; i<UART_NR; i++) {
-			if (cpm_uart_port_map[i] == id)
-				return i;
-		}
-	}
-
-	/* not found or invalid argument */
-	return -1;
-}
-#endif
 
 /*
  * Check, if transmit buffers are processed
@@ -547,6 +491,11 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	}
 
 	/*
+	 * Update the timeout
+	 */
+	uart_update_timeout(port, termios->c_cflag, baud);
+
+	/*
 	 * Set up parity check flag
 	 */
 #define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
@@ -935,7 +884,6 @@ static struct uart_ops cpm_uart_pops = {
 	.verify_port	= cpm_uart_verify_port,
 };
 
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 struct uart_cpm_port cpm_uart_ports[UART_NR];
 
 static int cpm_uart_init_port(struct device_node *np,
@@ -995,6 +943,7 @@ static int cpm_uart_init_port(struct device_node *np,
 	pinfo->port.type = PORT_CPM;
 	pinfo->port.ops = &cpm_uart_pops,
 	pinfo->port.iotype = UPIO_MEM;
+	pinfo->port.fifosize = pinfo->tx_nrfifos * pinfo->tx_fifosize;
 	spin_lock_init(&pinfo->port.lock);
 
 	pinfo->port.irq = of_irq_to_resource(np, 0, NULL);
@@ -1012,153 +961,6 @@ out_mem:
 	return ret;
 }
 
-#else
-
-struct uart_cpm_port cpm_uart_ports[UART_NR] = {
-	[UART_SMC1] = {
-		.port = {
-			.irq		= SMC1_IRQ,
-			.ops		= &cpm_uart_pops,
-			.iotype		= UPIO_MEM,
-			.lock		= __SPIN_LOCK_UNLOCKED(cpm_uart_ports[UART_SMC1].port.lock),
-		},
-		.flags = FLAG_SMC,
-		.tx_nrfifos = TX_NUM_FIFO,
-		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO,
-		.rx_fifosize = RX_BUF_SIZE,
-		.set_lineif = smc1_lineif,
-	},
-	[UART_SMC2] = {
-		.port = {
-			.irq		= SMC2_IRQ,
-			.ops		= &cpm_uart_pops,
-			.iotype		= UPIO_MEM,
-			.lock		= __SPIN_LOCK_UNLOCKED(cpm_uart_ports[UART_SMC2].port.lock),
-		},
-		.flags = FLAG_SMC,
-		.tx_nrfifos = TX_NUM_FIFO,
-		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO,
-		.rx_fifosize = RX_BUF_SIZE,
-		.set_lineif = smc2_lineif,
-#ifdef CONFIG_SERIAL_CPM_ALT_SMC2
-		.is_portb = 1,
-#endif
-	},
-	[UART_SCC1] = {
-		.port = {
-			.irq		= SCC1_IRQ,
-			.ops		= &cpm_uart_pops,
-			.iotype		= UPIO_MEM,
-			.lock		= __SPIN_LOCK_UNLOCKED(cpm_uart_ports[UART_SCC1].port.lock),
-		},
-		.tx_nrfifos = TX_NUM_FIFO,
-		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO,
-		.rx_fifosize = RX_BUF_SIZE,
-		.set_lineif = scc1_lineif,
-		.wait_closing = SCC_WAIT_CLOSING,
-	},
-	[UART_SCC2] = {
-		.port = {
-			.irq		= SCC2_IRQ,
-			.ops		= &cpm_uart_pops,
-			.iotype		= UPIO_MEM,
-			.lock		= __SPIN_LOCK_UNLOCKED(cpm_uart_ports[UART_SCC2].port.lock),
-		},
-		.tx_nrfifos = TX_NUM_FIFO,
-		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO,
-		.rx_fifosize = RX_BUF_SIZE,
-		.set_lineif = scc2_lineif,
-		.wait_closing = SCC_WAIT_CLOSING,
-	},
-	[UART_SCC3] = {
-		.port = {
-			.irq		= SCC3_IRQ,
-			.ops		= &cpm_uart_pops,
-			.iotype		= UPIO_MEM,
-			.lock		= __SPIN_LOCK_UNLOCKED(cpm_uart_ports[UART_SCC3].port.lock),
-		},
-		.tx_nrfifos = TX_NUM_FIFO,
-		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO,
-		.rx_fifosize = RX_BUF_SIZE,
-		.set_lineif = scc3_lineif,
-		.wait_closing = SCC_WAIT_CLOSING,
-	},
-	[UART_SCC4] = {
-		.port = {
-			.irq		= SCC4_IRQ,
-			.ops		= &cpm_uart_pops,
-			.iotype		= UPIO_MEM,
-			.lock		= __SPIN_LOCK_UNLOCKED(cpm_uart_ports[UART_SCC4].port.lock),
-		},
-		.tx_nrfifos = TX_NUM_FIFO,
-		.tx_fifosize = TX_BUF_SIZE,
-		.rx_nrfifos = RX_NUM_FIFO,
-		.rx_fifosize = RX_BUF_SIZE,
-		.set_lineif = scc4_lineif,
-		.wait_closing = SCC_WAIT_CLOSING,
-	},
-};
-
-int cpm_uart_drv_get_platform_data(struct platform_device *pdev, int is_con)
-{
-	struct resource *r;
-	struct fs_uart_platform_info *pdata = pdev->dev.platform_data;
-	int idx;	/* It is UART_SMCx or UART_SCCx index */
-	struct uart_cpm_port *pinfo;
-	int line;
-	u32 mem, pram;
-
-        idx = pdata->fs_no = fs_uart_get_id(pdata);
-
-	line = cpm_uart_id2nr(idx);
-	if(line < 0) {
-		printk(KERN_ERR"%s(): port %d is not registered", __func__, idx);
-		return -EINVAL;
-	}
-
-	pinfo = (struct uart_cpm_port *) &cpm_uart_ports[idx];
-
-	pinfo->brg = pdata->brg;
-
-	if (!is_con) {
-		pinfo->port.line = line;
-		pinfo->port.flags = UPF_BOOT_AUTOCONF;
-	}
-
-	if (!(r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs")))
-		return -EINVAL;
-	mem = (u32)ioremap(r->start, r->end - r->start + 1);
-
-	if (!(r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pram")))
-		return -EINVAL;
-	pram = (u32)ioremap(r->start, r->end - r->start + 1);
-
-	if(idx > fsid_smc2_uart) {
-		pinfo->sccp = (scc_t *)mem;
-		pinfo->sccup = (scc_uart_t *)pram;
-	} else {
-		pinfo->smcp = (smc_t *)mem;
-		pinfo->smcup = (smc_uart_t *)pram;
-	}
-	pinfo->tx_nrfifos = pdata->tx_num_fifo;
-	pinfo->tx_fifosize = pdata->tx_buf_size;
-
-	pinfo->rx_nrfifos = pdata->rx_num_fifo;
-	pinfo->rx_fifosize = pdata->rx_buf_size;
-
-	pinfo->port.uartclk = pdata->uart_clk;
-	pinfo->port.mapbase = (unsigned long)mem;
-	pinfo->port.irq = platform_get_irq(pdev, 0);
-
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_SERIAL_CPM_CONSOLE
 /*
  *	Print a string to the serial port trying not to disturb
@@ -1169,15 +971,18 @@ int cpm_uart_drv_get_platform_data(struct platform_device *pdev, int is_con)
 static void cpm_uart_console_write(struct console *co, const char *s,
 				   u_int count)
 {
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 	struct uart_cpm_port *pinfo = &cpm_uart_ports[co->index];
-#else
-	struct uart_cpm_port *pinfo =
-	    &cpm_uart_ports[cpm_uart_port_map[co->index]];
-#endif
 	unsigned int i;
 	cbd_t __iomem *bdp, *bdbase;
 	unsigned char *cp;
+	unsigned long flags;
+	int nolock = oops_in_progress;
+
+	if (unlikely(nolock)) {
+		local_irq_save(flags);
+	} else {
+		spin_lock_irqsave(&pinfo->port.lock, flags);
+	}
 
 	/* Get the address of the host memory buffer.
 	 */
@@ -1239,6 +1044,12 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 		;
 
 	pinfo->tx_cur = bdp;
+
+	if (unlikely(nolock)) {
+		local_irq_restore(flags);
+	} else {
+		spin_unlock_irqrestore(&pinfo->port.lock, flags);
+	}
 }
 
 
@@ -1252,7 +1063,6 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	struct uart_cpm_port *pinfo;
 	struct uart_port *port;
 
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 	struct device_node *np = NULL;
 	int i = 0;
 
@@ -1283,35 +1093,6 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	of_node_put(np);
 	if (ret)
 		return ret;
-
-#else
-
-	struct fs_uart_platform_info *pdata;
-	struct platform_device* pdev = early_uart_get_pdev(co->index);
-
-	if (!pdev) {
-		pr_info("cpm_uart: console: compat mode\n");
-		/* compatibility - will be cleaned up */
-		cpm_uart_init_portdesc();
-	}
-
-	port =
-	    (struct uart_port *)&cpm_uart_ports[cpm_uart_port_map[co->index]];
-	pinfo = (struct uart_cpm_port *)port;
-	if (!pdev) {
-		if (pinfo->set_lineif)
-			pinfo->set_lineif(pinfo);
-	} else {
-		pdata = pdev->dev.platform_data;
-		if (pdata)
-			if (pdata->init_ioports)
-    	                	pdata->init_ioports(pdata);
-
-		cpm_uart_drv_get_platform_data(pdev, 1);
-	}
-
-	pinfo->flags |= FLAG_CONSOLE;
-#endif
 
 	if (options) {
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1386,7 +1167,6 @@ static struct uart_driver cpm_reg = {
 	.nr		= UART_NR,
 };
 
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 static int probe_index;
 
 static int __devinit cpm_uart_probe(struct of_device *ofdev,
@@ -1457,135 +1237,6 @@ static void __exit cpm_uart_exit(void)
 	of_unregister_platform_driver(&cpm_uart_driver);
 	uart_unregister_driver(&cpm_reg);
 }
-#else
-static int cpm_uart_drv_probe(struct device *dev)
-{
-	struct platform_device  *pdev = to_platform_device(dev);
-	struct fs_uart_platform_info *pdata;
-	int ret = -ENODEV;
-
-	if(!pdev) {
-		printk(KERN_ERR"CPM UART: platform data missing!\n");
-		return ret;
-	}
-
-	pdata = pdev->dev.platform_data;
-
-	if ((ret = cpm_uart_drv_get_platform_data(pdev, 0)))
-		return ret;
-
-	pr_debug("cpm_uart_drv_probe: Adding CPM UART %d\n", cpm_uart_id2nr(pdata->fs_no));
-
-	if (pdata->init_ioports)
-                pdata->init_ioports(pdata);
-
-	ret = uart_add_one_port(&cpm_reg, &cpm_uart_ports[pdata->fs_no].port);
-
-        return ret;
-}
-
-static int cpm_uart_drv_remove(struct device *dev)
-{
-	struct platform_device  *pdev = to_platform_device(dev);
-	struct fs_uart_platform_info *pdata = pdev->dev.platform_data;
-
-	pr_debug("cpm_uart_drv_remove: Removing CPM UART %d\n",
-			cpm_uart_id2nr(pdata->fs_no));
-
-        uart_remove_one_port(&cpm_reg, &cpm_uart_ports[pdata->fs_no].port);
-        return 0;
-}
-
-static struct device_driver cpm_smc_uart_driver = {
-        .name   = "fsl-cpm-smc:uart",
-        .bus    = &platform_bus_type,
-        .probe  = cpm_uart_drv_probe,
-        .remove = cpm_uart_drv_remove,
-};
-
-static struct device_driver cpm_scc_uart_driver = {
-        .name   = "fsl-cpm-scc:uart",
-        .bus    = &platform_bus_type,
-        .probe  = cpm_uart_drv_probe,
-        .remove = cpm_uart_drv_remove,
-};
-
-/*
-   This is supposed to match uart devices on platform bus,
-   */
-static int match_is_uart (struct device* dev, void* data)
-{
-	struct platform_device* pdev = container_of(dev, struct platform_device, dev);
-	int ret = 0;
-	/* this was setfunc as uart */
-	if(strstr(pdev->name,":uart")) {
-		ret = 1;
-	}
-	return ret;
-}
-
-
-static int cpm_uart_init(void) {
-
-	int ret;
-	int i;
-	struct device *dev;
-	printk(KERN_INFO "Serial: CPM driver $Revision: 0.02 $\n");
-
-	/* lookup the bus for uart devices */
-	dev = bus_find_device(&platform_bus_type, NULL, 0, match_is_uart);
-
-	/* There are devices on the bus - all should be OK  */
-	if (dev) {
-		cpm_uart_count();
-		cpm_reg.nr = cpm_uart_nr;
-
-		if (!(ret = uart_register_driver(&cpm_reg))) {
-			if ((ret = driver_register(&cpm_smc_uart_driver))) {
-				uart_unregister_driver(&cpm_reg);
-				return ret;
-			}
-			if ((ret = driver_register(&cpm_scc_uart_driver))) {
-				driver_unregister(&cpm_scc_uart_driver);
-				uart_unregister_driver(&cpm_reg);
-			}
-		}
-	} else {
-	/* No capable platform devices found - falling back to legacy mode */
-		pr_info("cpm_uart: WARNING: no UART devices found on platform bus!\n");
-		pr_info(
-		"cpm_uart: the driver will guess configuration, but this mode is no longer supported.\n");
-
-		/* Don't run this again, if the console driver did it already */
-		if (cpm_uart_nr == 0)
-			cpm_uart_init_portdesc();
-
-		cpm_reg.nr = cpm_uart_nr;
-		ret = uart_register_driver(&cpm_reg);
-
-		if (ret)
-			return ret;
-
-		for (i = 0; i < cpm_uart_nr; i++) {
-			int con = cpm_uart_port_map[i];
-			cpm_uart_ports[con].port.line = i;
-			cpm_uart_ports[con].port.flags = UPF_BOOT_AUTOCONF;
-			if (cpm_uart_ports[con].set_lineif)
-				cpm_uart_ports[con].set_lineif(&cpm_uart_ports[con]);
-			uart_add_one_port(&cpm_reg, &cpm_uart_ports[con].port);
-		}
-
-	}
-	return ret;
-}
-
-static void __exit cpm_uart_exit(void)
-{
-	driver_unregister(&cpm_scc_uart_driver);
-	driver_unregister(&cpm_smc_uart_driver);
-	uart_unregister_driver(&cpm_reg);
-}
-#endif
 
 module_init(cpm_uart_init);
 module_exit(cpm_uart_exit);

@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <asm/boot.h>
 #include <xen/interface/elfnote.h>
+#include <asm/xen/interface.h>
 
 	__INIT
 ENTRY(startup_xen)
@@ -17,7 +18,7 @@ ENTRY(startup_xen)
 
 	__FINIT
 
-.pushsection .bss.page_aligned
+.pushsection .text
 	.align PAGE_SIZE_asm
 ENTRY(hypercall_page)
 	.skip 0x1000
@@ -30,11 +31,11 @@ ENTRY(hypercall_page)
 	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          .long  startup_xen)
 	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, .long  hypercall_page)
 	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz "!writable_page_tables|pae_pgdir_above_4gb")
-#ifdef CONFIG_X86_PAE
 	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "yes")
-#else
-	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "no")
-#endif
 	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz "generic")
+	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,
+		.quad _PAGE_PRESENT; .quad _PAGE_PRESENT)
+	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long 1)
+	ELFNOTE(Xen, XEN_ELFNOTE_HV_START_LOW,   .long __HYPERVISOR_VIRT_START)
 
 #endif /*CONFIG_XEN */

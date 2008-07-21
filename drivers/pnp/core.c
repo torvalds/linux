@@ -99,14 +99,28 @@ static void pnp_free_ids(struct pnp_dev *dev)
 	}
 }
 
+void pnp_free_resource(struct pnp_resource *pnp_res)
+{
+	list_del(&pnp_res->list);
+	kfree(pnp_res);
+}
+
+void pnp_free_resources(struct pnp_dev *dev)
+{
+	struct pnp_resource *pnp_res, *tmp;
+
+	list_for_each_entry_safe(pnp_res, tmp, &dev->resources, list) {
+		pnp_free_resource(pnp_res);
+	}
+}
+
 static void pnp_release_device(struct device *dmdev)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 
-	pnp_free_option(dev->independent);
-	pnp_free_option(dev->dependent);
 	pnp_free_ids(dev);
-	kfree(dev->res);
+	pnp_free_resources(dev);
+	pnp_free_options(dev);
 	kfree(dev);
 }
 
@@ -119,12 +133,8 @@ struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id, char *pnpid
 	if (!dev)
 		return NULL;
 
-	dev->res = kzalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
-	if (!dev->res) {
-		kfree(dev);
-		return NULL;
-	}
-
+	INIT_LIST_HEAD(&dev->resources);
+	INIT_LIST_HEAD(&dev->options);
 	dev->protocol = protocol;
 	dev->number = id;
 	dev->dma_mask = DMA_24BIT_MASK;
@@ -140,7 +150,6 @@ struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id, char *pnpid
 
 	dev_id = pnp_add_id(dev, pnpid);
 	if (!dev_id) {
-		kfree(dev->res);
 		kfree(dev);
 		return NULL;
 	}

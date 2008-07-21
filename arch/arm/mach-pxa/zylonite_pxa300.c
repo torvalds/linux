@@ -50,6 +50,7 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	GPIO75_LCD_BIAS,
 	GPIO76_LCD_VSYNC,
 	GPIO127_LCD_CS_N,
+	GPIO20_PWM3_OUT,	/* backlight */
 
 	/* BTUART */
 	GPIO111_UART2_RTS,
@@ -199,9 +200,6 @@ void __init zylonite_pxa300_init(void)
 
 		/* detect LCD panel */
 		zylonite_detect_lcd_panel();
-
-		/* GPIO pin assignment */
-		gpio_backlight = mfp_to_gpio(MFP_PIN_GPIO20);
 
 		/* MMC card detect & write protect for controller 0 */
 		zylonite_mmc_slot[0].gpio_cd  = EXT_GPIO(0);

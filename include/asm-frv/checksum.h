@@ -75,7 +75,7 @@ __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	    : "=r" (sum), "=r" (iph), "=r" (ihl), "=r" (inc), "=&r"(tmp)
 	    : "0" (sum), "1" (iph), "2" (ihl), "3" (4),
 	    "m"(*(volatile struct { int _[100]; } *)iph)
-	    : "icc0", "icc1"
+	    : "icc0", "icc1", "memory"
 	    );
 
 	return (__force __sum16)~sum;

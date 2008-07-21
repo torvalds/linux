@@ -41,6 +41,7 @@
 #include <linux/pm_qos_params.h>
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
+#include <linux/cpuidle.h>
 
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
@@ -57,6 +58,7 @@
 
 #include <acpi/acpi_bus.h>
 #include <acpi/processor.h>
+#include <asm/processor.h>
 
 #define ACPI_PROCESSOR_COMPONENT        0x01000000
 #define ACPI_PROCESSOR_CLASS            "processor"
@@ -401,7 +403,7 @@ static void acpi_processor_idle(void)
 	 */
 	local_irq_disable();
 
-	pr = processors[smp_processor_id()];
+	pr = __get_cpu_var(processors);
 	if (!pr) {
 		local_irq_enable();
 		return;
@@ -955,6 +957,21 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 			} else {
 				continue;
 			}
+			if (cx.type == ACPI_STATE_C1 &&
+					(idle_halt || idle_nomwait)) {
+				/*
+				 * In most cases the C1 space_id obtained from
+				 * _CST object is FIXED_HARDWARE access mode.
+				 * But when the option of idle=halt is added,
+				 * the entry_method type should be changed from
+				 * CSTATE_FFH to CSTATE_HALT.
+				 * When the option of idle=nomwait is added,
+				 * the C1 entry_method type should be
+				 * CSTATE_HALT.
+				 */
+				cx.entry_method = ACPI_CSTATE_HALT;
+				snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI HLT");
+			}
 		} else {
 			snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI IOPORT 0x%x",
 				 cx.address);
@@ -1339,7 +1356,7 @@ static void smp_callback(void *v)
 static int acpi_processor_latency_notify(struct notifier_block *b,
 		unsigned long l, void *v)
 {
-	smp_call_function(smp_callback, NULL, 0, 1);
+	smp_call_function(smp_callback, NULL, 1);
 	return NOTIFY_OK;
 }
 
@@ -1431,7 +1448,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 	struct acpi_processor *pr;
 	struct acpi_processor_cx *cx = cpuidle_get_statedata(state);
 
-	pr = processors[smp_processor_id()];
+	pr = __get_cpu_var(processors);
 
 	if (unlikely(!pr))
 		return 0;
@@ -1471,7 +1488,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	u32 t1, t2;
 	int sleep_ticks = 0;
 
-	pr = processors[smp_processor_id()];
+	pr = __get_cpu_var(processors);
 
 	if (unlikely(!pr))
 		return 0;
@@ -1549,7 +1566,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	u32 t1, t2;
 	int sleep_ticks = 0;
 
-	pr = processors[smp_processor_id()];
+	pr = __get_cpu_var(processors);
 
 	if (unlikely(!pr))
 		return 0;
@@ -1669,6 +1686,7 @@ static int acpi_processor_setup_cpuidle(struct acpi_processor *pr)
 		return -EINVAL;
 	}
 
+	dev->cpu = pr->id;
 	for (i = 0; i < CPUIDLE_STATE_MAX; i++) {
 		dev->states[i].name[0] = '\0';
 		dev->states[i].desc[0] = '\0';
@@ -1738,7 +1756,7 @@ static int acpi_processor_setup_cpuidle(struct acpi_processor *pr)
 
 int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 {
-	int ret;
+	int ret = 0;
 
 	if (boot_option_idle_override)
 		return 0;
@@ -1756,8 +1774,10 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 	cpuidle_pause_and_lock();
 	cpuidle_disable_device(&pr->power.dev);
 	acpi_processor_get_power_info(pr);
-	acpi_processor_setup_cpuidle(pr);
-	ret = cpuidle_enable_device(&pr->power.dev);
+	if (pr->flags.power) {
+		acpi_processor_setup_cpuidle(pr);
+		ret = cpuidle_enable_device(&pr->power.dev);
+	}
 	cpuidle_resume_and_unlock();
 
 	return ret;
@@ -1777,6 +1797,15 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 		return 0;
 
 	if (!first_run) {
+		if (idle_halt) {
+			/*
+			 * When the boot option of "idle=halt" is added, halt
+			 * is used for CPU IDLE.
+			 * In such case C2/C3 is meaningless. So the max_cstate
+			 * is set to one.
+			 */
+			max_cstate = 1;
+		}
 		dmi_check_system(processor_power_dmi_table);
 		max_cstate = acpi_processor_cstate_check(max_cstate);
 		if (max_cstate < ACPI_C_STATES_MAX)
@@ -1813,7 +1842,6 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	if (pr->flags.power) {
 #ifdef CONFIG_CPU_IDLE
 		acpi_processor_setup_cpuidle(pr);
-		pr->power.dev.cpu = pr->id;
 		if (cpuidle_register_device(&pr->power.dev))
 			return -EIO;
 #endif
@@ -1850,8 +1878,7 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 		return 0;
 
 #ifdef CONFIG_CPU_IDLE
-	if (pr->flags.power)
-		cpuidle_unregister_device(&pr->power.dev);
+	cpuidle_unregister_device(&pr->power.dev);
 #endif
 	pr->flags.power_setup_done = 0;
 

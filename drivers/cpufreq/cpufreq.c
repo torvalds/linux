@@ -412,7 +412,7 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 				int ret;
 
 				mutex_unlock(&cpufreq_governor_mutex);
-				ret = request_module(name);
+				ret = request_module("%s", name);
 				mutex_lock(&cpufreq_governor_mutex);
 
 				if (ret == 0)
@@ -625,7 +625,7 @@ static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
 	unsigned int freq = 0;
 	unsigned int ret;
 
-	if (!policy->governor->store_setspeed)
+	if (!policy->governor || !policy->governor->store_setspeed)
 		return -EINVAL;
 
 	ret = sscanf(buf, "%u", &freq);
@@ -639,7 +639,7 @@ static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
 
 static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
 {
-	if (!policy->governor->show_setspeed)
+	if (!policy->governor || !policy->governor->show_setspeed)
 		return sprintf(buf, "<unsupported>\n");
 
 	return policy->governor->show_setspeed(policy, buf);
@@ -928,12 +928,12 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	policy->user_policy.policy = policy->policy;
 	policy->user_policy.governor = policy->governor;
 
-	unlock_policy_rwsem_write(cpu);
-
 	if (ret) {
 		dprintk("setting policy failed\n");
 		goto err_out_unregister;
 	}
+
+	unlock_policy_rwsem_write(cpu);
 
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
 	module_put(cpufreq_driver->owner);

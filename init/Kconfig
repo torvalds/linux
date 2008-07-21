@@ -13,6 +13,7 @@ config DEFCONFIG_LIST
 	default "/lib/modules/$UNAME_RELEASE/.config"
 	default "/etc/kernel-config"
 	default "/boot/config-$UNAME_RELEASE"
+	default "$ARCH_DEFCONFIG"
 	default "arch/$ARCH/defconfig"
 
 menu "General setup"

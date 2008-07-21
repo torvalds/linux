@@ -537,11 +537,18 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 	int err = 0;
 	u32 tmp;
 
-	might_sleep();
+	if (dev->bus->bustype != SSB_BUSTYPE_PCI) {
+		/* This SSB device is not on a PCI host-bus. So the IRQs are
+		 * not routed through the PCI core.
+		 * So we must not enable routing through the PCI core. */
+		goto out;
+	}
 
 	if (!pdev)
 		goto out;
 	bus = pdev->bus;
+
+	might_sleep_if(pdev->id.coreid != SSB_DEV_PCI);
 
 	/* Enable interrupts for this device. */
 	if (bus->host_pci &&

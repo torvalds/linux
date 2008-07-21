@@ -12,8 +12,7 @@
  * @context: optional parameter passed to setup() and teardown()
  *
  * In addition to the I2C_BOARD_INFO() state appropriate to each chip,
- * the i2c_board_info used with the pcf875x driver must provide the
- * chip "type" ("pcf8574", "pcf8574a", "pcf8575", "pcf8575c") and its
+ * the i2c_board_info used with the pcf875x driver must provide its
  * platform_data (pointer to one of these structures) with at least
  * the gpio_base value initialized.
  *

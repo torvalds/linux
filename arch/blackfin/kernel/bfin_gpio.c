@@ -1130,6 +1130,25 @@ void bfin_gpio_irq_prepare(unsigned gpio)
 
 #else
 
+int gpio_get_value(unsigned gpio)
+{
+	unsigned long flags;
+	int ret;
+
+	if (unlikely(get_gpio_edge(gpio))) {
+		local_irq_save(flags);
+		set_gpio_edge(gpio, 0);
+		ret = get_gpio_data(gpio);
+		set_gpio_edge(gpio, 1);
+		local_irq_restore(flags);
+
+		return ret;
+	} else
+		return get_gpio_data(gpio);
+}
+EXPORT_SYMBOL(gpio_get_value);
+
+
 int gpio_direction_input(unsigned gpio)
 {
 	unsigned long flags;

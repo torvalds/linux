@@ -92,6 +92,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/smp_lock.h>
 
 #undef COSA_SLOW_IO	/* for testing purposes only */
 
@@ -970,15 +971,21 @@ static int cosa_open(struct inode *inode, struct file *file)
 	struct channel_data *chan;
 	unsigned long flags;
 	int n;
+	int ret = 0;
 
+	lock_kernel();
 	if ((n=iminor(file->f_path.dentry->d_inode)>>CARD_MINOR_BITS)
-		>= nr_cards)
-		return -ENODEV;
+		>= nr_cards) {
+		ret = -ENODEV;
+		goto out;
+	}
 	cosa = cosa_cards+n;
 
 	if ((n=iminor(file->f_path.dentry->d_inode)
-		& ((1<<CARD_MINOR_BITS)-1)) >= cosa->nchannels)
-		return -ENODEV;
+		& ((1<<CARD_MINOR_BITS)-1)) >= cosa->nchannels) {
+		ret = -ENODEV;
+		goto out;
+	}
 	chan = cosa->chan + n;
 	
 	file->private_data = chan;
@@ -987,7 +994,8 @@ static int cosa_open(struct inode *inode, struct file *file)
 
 	if (chan->usage < 0) { /* in netdev mode */
 		spin_unlock_irqrestore(&cosa->lock, flags);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out;
 	}
 	cosa->usage++;
 	chan->usage++;
@@ -996,7 +1004,9 @@ static int cosa_open(struct inode *inode, struct file *file)
 	chan->setup_rx = chrdev_setup_rx;
 	chan->rx_done = chrdev_rx_done;
 	spin_unlock_irqrestore(&cosa->lock, flags);
-	return 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int cosa_release(struct inode *inode, struct file *file)

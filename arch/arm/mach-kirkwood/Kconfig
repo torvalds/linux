@@ -1,0 +1,25 @@
+if ARCH_KIRKWOOD
+
+menu "Marvell Kirkwood Implementations"
+
+config MACH_DB88F6281_BP
+	bool "Marvell DB-88F6281-BP Development Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell DB-88F6281-BP Development Board.
+
+config MACH_RD88F6192_NAS
+	bool "Marvell RD-88F6192-NAS Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell RD-88F6192-NAS Reference Board.
+
+config MACH_RD88F6281
+	bool "Marvell RD-88F6281 Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell RD-88F6281 Reference Board.
+
+endmenu
+
+endif

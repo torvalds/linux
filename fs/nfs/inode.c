@@ -57,8 +57,6 @@ static int enable_ino64 = NFS_64_BIT_INODE_NUMBERS_ENABLED;
 static void nfs_invalidate_inode(struct inode *);
 static int nfs_update_inode(struct inode *, struct nfs_fattr *);
 
-static void nfs_zap_acl_cache(struct inode *);
-
 static struct kmem_cache * nfs_inode_cachep;
 
 static inline unsigned long
@@ -167,7 +165,7 @@ void nfs_zap_mapping(struct inode *inode, struct address_space *mapping)
 	}
 }
 
-static void nfs_zap_acl_cache(struct inode *inode)
+void nfs_zap_acl_cache(struct inode *inode)
 {
 	void (*clear_acl_cache)(struct inode *);
 
@@ -347,7 +345,7 @@ out_no_inode:
 	goto out;
 }
 
-#define NFS_VALID_ATTRS (ATTR_MODE|ATTR_UID|ATTR_GID|ATTR_SIZE|ATTR_ATIME|ATTR_ATIME_SET|ATTR_MTIME|ATTR_MTIME_SET)
+#define NFS_VALID_ATTRS (ATTR_MODE|ATTR_UID|ATTR_GID|ATTR_SIZE|ATTR_ATIME|ATTR_ATIME_SET|ATTR_MTIME|ATTR_MTIME_SET|ATTR_FILE)
 
 int
 nfs_setattr(struct dentry *dentry, struct iattr *attr)
@@ -369,10 +367,9 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	/* Optimization: if the end result is no change, don't RPC */
 	attr->ia_valid &= NFS_VALID_ATTRS;
-	if (attr->ia_valid == 0)
+	if ((attr->ia_valid & ~ATTR_FILE) == 0)
 		return 0;
 
-	lock_kernel();
 	/* Write all dirty data */
 	if (S_ISREG(inode->i_mode)) {
 		filemap_write_and_wait(inode->i_mapping);
@@ -386,8 +383,63 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	error = NFS_PROTO(inode)->setattr(dentry, &fattr, attr);
 	if (error == 0)
 		nfs_refresh_inode(inode, &fattr);
-	unlock_kernel();
 	return error;
+}
+
+/**
+ * nfs_vmtruncate - unmap mappings "freed" by truncate() syscall
+ * @inode: inode of the file used
+ * @offset: file offset to start truncating
+ *
+ * This is a copy of the common vmtruncate, but with the locking
+ * corrected to take into account the fact that NFS requires
+ * inode->i_size to be updated under the inode->i_lock.
+ */
+static int nfs_vmtruncate(struct inode * inode, loff_t offset)
+{
+	if (i_size_read(inode) < offset) {
+		unsigned long limit;
+
+		limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
+		if (limit != RLIM_INFINITY && offset > limit)
+			goto out_sig;
+		if (offset > inode->i_sb->s_maxbytes)
+			goto out_big;
+		spin_lock(&inode->i_lock);
+		i_size_write(inode, offset);
+		spin_unlock(&inode->i_lock);
+	} else {
+		struct address_space *mapping = inode->i_mapping;
+
+		/*
+		 * truncation of in-use swapfiles is disallowed - it would
+		 * cause subsequent swapout to scribble on the now-freed
+		 * blocks.
+		 */
+		if (IS_SWAPFILE(inode))
+			return -ETXTBSY;
+		spin_lock(&inode->i_lock);
+		i_size_write(inode, offset);
+		spin_unlock(&inode->i_lock);
+
+		/*
+		 * unmap_mapping_range is called twice, first simply for
+		 * efficiency so that truncate_inode_pages does fewer
+		 * single-page unmaps.  However after this first call, and
+		 * before truncate_inode_pages finishes, it is possible for
+		 * private pages to be COWed, which remain after
+		 * truncate_inode_pages finishes, hence the second
+		 * unmap_mapping_range call must be made for correctness.
+		 */
+		unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
+		truncate_inode_pages(mapping, offset);
+		unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
+	}
+	return 0;
+out_sig:
+	send_sig(SIGXFSZ, current, 0);
+out_big:
+	return -EFBIG;
 }
 
 /**
@@ -416,8 +468,7 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr)
 	}
 	if ((attr->ia_valid & ATTR_SIZE) != 0) {
 		nfs_inc_stats(inode, NFSIOS_SETATTRTRUNC);
-		inode->i_size = attr->ia_size;
-		vmtruncate(inode, attr->ia_size);
+		nfs_vmtruncate(inode, attr->ia_size);
 	}
 }
 
@@ -541,8 +592,7 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int wait)
 	}
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
-	dput(ctx->path.dentry);
-	mntput(ctx->path.mnt);
+	path_put(&ctx->path);
 	kfree(ctx);
 }
 
@@ -648,7 +698,6 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		inode->i_sb->s_id, (long long)NFS_FILEID(inode));
 
 	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
-	lock_kernel();
 	if (is_bad_inode(inode))
  		goto out_nowait;
 	if (NFS_STALE(inode))
@@ -697,7 +746,6 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	nfs_wake_up_inode(inode);
 
  out_nowait:
-	unlock_kernel();
 	return status;
 }
 
@@ -707,6 +755,13 @@ int nfs_attribute_timeout(struct inode *inode)
 
 	if (nfs_have_delegation(inode, FMODE_READ))
 		return 0;
+	/*
+	 * Special case: if the attribute timeout is set to 0, then always
+	 * 		 treat the cache as having expired (unless holding
+	 * 		 a delegation).
+	 */
+	if (nfsi->attrtimeo == 0)
+		return 1;
 	return !time_in_range(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
 }
 
@@ -825,9 +880,9 @@ static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			if (S_ISDIR(inode->i_mode))
 				nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 		}
-		if (inode->i_size == nfs_size_to_loff_t(fattr->pre_size) &&
+		if (i_size_read(inode) == nfs_size_to_loff_t(fattr->pre_size) &&
 		    nfsi->npages == 0)
-			inode->i_size = nfs_size_to_loff_t(fattr->size);
+			i_size_write(inode, nfs_size_to_loff_t(fattr->size));
 	}
 }
 
@@ -968,7 +1023,7 @@ int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fa
 			(fattr->valid & NFS_ATTR_WCC) == 0) {
 		memcpy(&fattr->pre_ctime, &inode->i_ctime, sizeof(fattr->pre_ctime));
 		memcpy(&fattr->pre_mtime, &inode->i_mtime, sizeof(fattr->pre_mtime));
-		fattr->pre_size = inode->i_size;
+		fattr->pre_size = i_size_read(inode);
 		fattr->valid |= NFS_ATTR_WCC;
 	}
 	return nfs_post_op_update_inode(inode, fattr);
@@ -995,7 +1050,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	unsigned long now = jiffies;
 
 	dfprintk(VFS, "NFS: %s(%s/%ld ct=%d info=0x%x)\n",
-			__FUNCTION__, inode->i_sb->s_id, inode->i_ino,
+			__func__, inode->i_sb->s_id, inode->i_ino,
 			atomic_read(&inode->i_count), fattr->valid);
 
 	if (nfsi->fileid != fattr->fileid)
@@ -1053,7 +1108,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		/* Do we perhaps have any outstanding writes, or has
 		 * the file grown beyond our last write? */
 		if (nfsi->npages == 0 || new_isize > cur_isize) {
-			inode->i_size = new_isize;
+			i_size_write(inode, new_isize);
 			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
 		}
 		dprintk("NFS: isize change on server for file %s/%ld\n",
@@ -1119,7 +1174,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	 * Big trouble! The inode has become a different object.
 	 */
 	printk(KERN_DEBUG "%s: inode %ld mode changed, %07o to %07o\n",
-			__FUNCTION__, inode->i_ino, inode->i_mode, fattr->mode);
+			__func__, inode->i_ino, inode->i_mode, fattr->mode);
  out_err:
 	/*
 	 * No need to worry about unhashing the dentry, as the

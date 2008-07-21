@@ -969,6 +969,7 @@ static int pcnet_open(struct net_device *dev)
     int ret;
     pcnet_dev_t *info = PRIV(dev);
     struct pcmcia_device *link = info->p_dev;
+    unsigned int nic_base = dev->base_addr;
 
     DEBUG(2, "pcnet_open('%s')\n", dev->name);
 
@@ -976,6 +977,8 @@ static int pcnet_open(struct net_device *dev)
 	return -ENODEV;
 
     set_misc_reg(dev);
+
+    outb_p(0xFF, nic_base + EN0_ISR); /* Clear bogus intr. */
     ret = request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, dev_info, dev);
     if (ret)
 	    return ret;

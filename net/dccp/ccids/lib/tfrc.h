@@ -15,7 +15,7 @@
  *  (at your option) any later version.
  */
 #include <linux/types.h>
-#include <asm/div64.h>
+#include <linux/math64.h>
 #include "../../dccp.h"
 /* internal includes that this module exports: */
 #include "loss_interval.h"
@@ -29,21 +29,19 @@ extern int tfrc_debug;
 #endif
 
 /* integer-arithmetic divisions of type (a * 1000000)/b */
-static inline u64 scaled_div(u64 a, u32 b)
+static inline u64 scaled_div(u64 a, u64 b)
 {
 	BUG_ON(b==0);
-	a *= 1000000;
-	do_div(a, b);
-	return a;
+	return div64_u64(a * 1000000, b);
 }
 
-static inline u32 scaled_div32(u64 a, u32 b)
+static inline u32 scaled_div32(u64 a, u64 b)
 {
 	u64 result = scaled_div(a, b);
 
 	if (result > UINT_MAX) {
-		DCCP_CRIT("Overflow: a(%llu)/b(%u) > ~0U",
-			  (unsigned long long)a, b);
+		DCCP_CRIT("Overflow: %llu/%llu > UINT_MAX",
+			  (unsigned long long)a, (unsigned long long)b);
 		return UINT_MAX;
 	}
 	return result;
@@ -58,7 +56,14 @@ static inline u32 tfrc_ewma(const u32 avg, const u32 newval, const u8 weight)
 	return avg ? (weight * avg + (10 - weight) * newval) / 10 : newval;
 }
 
-extern u32 tfrc_calc_x(u16 s, u32 R, u32 p);
-extern u32 tfrc_calc_x_reverse_lookup(u32 fvalue);
+extern u32  tfrc_calc_x(u16 s, u32 R, u32 p);
+extern u32  tfrc_calc_x_reverse_lookup(u32 fvalue);
 
+extern int  tfrc_tx_packet_history_init(void);
+extern void tfrc_tx_packet_history_exit(void);
+extern int  tfrc_rx_packet_history_init(void);
+extern void tfrc_rx_packet_history_exit(void);
+
+extern int  tfrc_li_init(void);
+extern void tfrc_li_exit(void);
 #endif /* _TFRC_H_ */

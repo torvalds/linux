@@ -106,17 +106,6 @@ config NET_SCH_PRIO
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_prio.
 
-config NET_SCH_RR
-	tristate "Multi Band Round Robin Queuing (RR)"
-	select NET_SCH_PRIO
-	---help---
-	  Say Y here if you want to use an n-band round robin packet
-	  scheduler.
-
-	  The module uses sch_prio for its framework and is aliased as
-	  sch_rr, so it will load sch_prio, although it is referred
-	  to using sch_rr.
-
 config NET_SCH_RED
 	tristate "Random Early Detection (RED)"
 	---help---

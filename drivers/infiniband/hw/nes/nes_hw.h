@@ -1172,7 +1172,7 @@ struct nes_vnic {
 	u32    mcrq_qp_id;
 	struct nes_ucontext *mcrq_ucontext;
 	struct nes_cqp_request* (*get_cqp_request)(struct nes_device *nesdev);
-	void (*post_cqp_request)(struct nes_device*, struct nes_cqp_request *, int);
+	void (*post_cqp_request)(struct nes_device*, struct nes_cqp_request *);
 	int (*mcrq_mcast_filter)( struct nes_vnic* nesvnic, __u8* dmi_addr );
 	struct net_device_stats netstats;
 	/* used to put the netdev on the adapters logical port list */

@@ -644,6 +644,48 @@ static void hub_stop(struct usb_hub *hub)
 
 #ifdef CONFIG_PM
 
+/* Try to identify which devices need USB-PERSIST handling */
+static int persistent_device(struct usb_device *udev)
+{
+	int i;
+	int retval;
+	struct usb_host_config *actconfig;
+
+	/* Explicitly not marked persistent? */
+	if (!udev->persist_enabled)
+		return 0;
+
+	/* No active config? */
+	actconfig = udev->actconfig;
+	if (!actconfig)
+		return 0;
+
+	/* FIXME! We should check whether it's open here or not! */
+
+	/*
+	 * Check that all the interface drivers have a
+	 * 'reset_resume' entrypoint
+	 */
+	retval = 0;
+	for (i = 0; i < actconfig->desc.bNumInterfaces; i++) {
+		struct usb_interface *intf;
+		struct usb_driver *driver;
+
+		intf = actconfig->interface[i];
+		if (!intf->dev.driver)
+			continue;
+		driver = to_usb_driver(intf->dev.driver);
+		if (!driver->reset_resume)
+			return 0;
+		/*
+		 * We have at least one driver, and that one
+		 * has a reset_resume method.
+		 */
+		retval = 1;
+	}
+	return retval;
+}
+
 static void hub_restart(struct usb_hub *hub, int type)
 {
 	struct usb_device *hdev = hub->hdev;
@@ -671,26 +713,19 @@ static void hub_restart(struct usb_hub *hub, int type)
 		}
 
 		/* Was the power session lost while we were suspended? */
-		switch (type) {
-		case HUB_RESET_RESUME:
-			portstatus = 0;
-			portchange = USB_PORT_STAT_C_CONNECTION;
-			break;
+		status = hub_port_status(hub, port1, &portstatus, &portchange);
 
-		case HUB_RESET:
-		case HUB_RESUME:
-			status = hub_port_status(hub, port1,
-					&portstatus, &portchange);
-			break;
-		}
+		/* If the device is gone, khubd will handle it later */
+		if (status == 0 && !(portstatus & USB_PORT_STAT_CONNECTION))
+			continue;
 
 		/* For "USB_PERSIST"-enabled children we must
 		 * mark the child device for reset-resume and
 		 * turn off the various status changes to prevent
 		 * khubd from disconnecting it later.
 		 */
-		if (udev->persist_enabled && status == 0 &&
-				!(portstatus & USB_PORT_STAT_ENABLE)) {
+		if (status == 0 && !(portstatus & USB_PORT_STAT_ENABLE) &&
+				persistent_device(udev)) {
 			if (portchange & USB_PORT_STAT_C_ENABLE)
 				clear_port_feature(hub->hdev, port1,
 						USB_PORT_FEAT_C_ENABLE);
@@ -1326,6 +1361,12 @@ void usb_disconnect(struct usb_device **pdev)
 
 	usb_unlock_device(udev);
 
+	/* Remove the device-specific files from sysfs.  This must be
+	 * done with udev unlocked, because some of the attribute
+	 * routines try to acquire the device lock.
+	 */
+	usb_remove_sysfs_dev_files(udev);
+
 	/* Unregister the device.  The device driver is responsible
 	 * for removing the device files from usbfs and sysfs and for
 	 * de-configuring the device.
@@ -1540,6 +1581,9 @@ int usb_new_device(struct usb_device *udev)
 		dev_err(&udev->dev, "can't device_add, error %d\n", err);
 		goto fail;
 	}
+
+	/* put device-specific files into sysfs */
+	usb_create_sysfs_dev_files(udev);
 
 	/* Tell the world! */
 	announce_device(udev);
@@ -2029,6 +2073,8 @@ int usb_port_resume(struct usb_device *udev)
 	}
 
 	clear_bit(port1, hub->busy_bits);
+	if (!hub->hdev->parent && !hub->busy_bits[0])
+		usb_enable_root_hub_irq(hub->hdev->bus);
 
 	if (status == 0)
 		status = finish_port_resume(udev);
@@ -2744,7 +2790,11 @@ loop:
 		if ((status == -ENOTCONN) || (status == -ENOTSUPP))
 			break;
 	}
-	dev_err(hub_dev, "unable to enumerate USB device on port %d\n", port1);
+	if (hub->hdev->parent ||
+			!hcd->driver->port_handed_over ||
+			!(hcd->driver->port_handed_over)(hcd, port1))
+		dev_err(hub_dev, "unable to enumerate USB device on port %d\n",
+				port1);
  
 done:
 	hub_port_disable(hub, port1, 1);
@@ -2953,6 +3003,11 @@ static void hub_events(void)
 		}
 
 		hub->activating = 0;
+
+		/* If this is a root hub, tell the HCD it's okay to
+		 * re-enable port-change interrupts now. */
+		if (!hdev->parent && !hub->busy_bits[0])
+			usb_enable_root_hub_irq(hdev->bus);
 
 loop_autopm:
 		/* Allow autosuspend if we're not going to run again */
@@ -3179,6 +3234,8 @@ int usb_reset_device(struct usb_device *udev)
 			break;
 	}
 	clear_bit(port1, parent_hub->busy_bits);
+	if (!parent_hdev->parent && !parent_hub->busy_bits[0])
+		usb_enable_root_hub_irq(parent_hdev->bus);
 
 	if (ret < 0)
 		goto re_enumerate;

@@ -250,6 +250,9 @@ struct net_device * __init sun3lance_probe(int unit)
 	static int found;
 	int err = -ENODEV;
 
+	if (!MACH_IS_SUN3 && !MACH_IS_SUN3X)
+		return ERR_PTR(-ENODEV);
+
 	/* check that this machine has an onboard lance */
 	switch(idprom->id_machtype) {
 	case SM_SUN3|SM_3_50:

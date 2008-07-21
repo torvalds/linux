@@ -63,6 +63,7 @@ struct stv0299_state {
 	u32 symbol_rate;
 	fe_code_rate_t fec_inner;
 	int errmode;
+	u32 ucblocks;
 };
 
 #define STATUS_BER 0
@@ -501,8 +502,10 @@ static int stv0299_read_ber(struct dvb_frontend* fe, u32* ber)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 
-	if (state->errmode != STATUS_BER) return 0;
-	*ber = (stv0299_readreg (state, 0x1d) << 8) | stv0299_readreg (state, 0x1e);
+	if (state->errmode != STATUS_BER)
+		return -ENOSYS;
+
+	*ber = stv0299_readreg(state, 0x1e) | (stv0299_readreg(state, 0x1d) << 8);
 
 	return 0;
 }
@@ -540,8 +543,12 @@ static int stv0299_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 
-	if (state->errmode != STATUS_UCBLOCKS) *ucblocks = 0;
-	else *ucblocks = (stv0299_readreg (state, 0x1d) << 8) | stv0299_readreg (state, 0x1e);
+	if (state->errmode != STATUS_UCBLOCKS)
+		return -ENOSYS;
+
+	state->ucblocks += stv0299_readreg(state, 0x1e);
+	state->ucblocks += (stv0299_readreg(state, 0x1d) << 8);
+	*ucblocks = state->ucblocks;
 
 	return 0;
 }

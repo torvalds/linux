@@ -20,6 +20,7 @@
 #include <linux/signal.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
+#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
@@ -465,7 +466,7 @@ static int handle_recv_skb(struct capiminor *mp, struct sk_buff *skb)
 	ld = tty_ldisc_ref(mp->tty);
 	if (ld == NULL)
 		return -1;
-	if (ld->receive_buf == NULL) {
+	if (ld->ops->receive_buf == NULL) {
 #if defined(_DEBUG_DATAFLOW) || defined(_DEBUG_TTYFUNCS)
 		printk(KERN_DEBUG "capi: ldisc has no receive_buf function\n");
 #endif
@@ -500,7 +501,7 @@ static int handle_recv_skb(struct capiminor *mp, struct sk_buff *skb)
 	printk(KERN_DEBUG "capi: DATA_B3_RESP %u len=%d => ldisc\n",
 				datahandle, skb->len);
 #endif
-	ld->receive_buf(mp->tty, skb->data, NULL, skb->len);
+	ld->ops->receive_buf(mp->tty, skb->data, NULL, skb->len);
 	kfree_skb(skb);
 	tty_ldisc_deref(ld);
 	return 0;
@@ -983,13 +984,17 @@ capi_ioctl(struct inode *inode, struct file *file,
 static int
 capi_open(struct inode *inode, struct file *file)
 {
+	int ret;
+	
+	lock_kernel();
 	if (file->private_data)
-		return -EEXIST;
-
-	if ((file->private_data = capidev_alloc()) == NULL)
-		return -ENOMEM;
-
-	return nonseekable_open(inode, file);
+		ret = -EEXIST;
+	else if ((file->private_data = capidev_alloc()) == NULL)
+		ret = -ENOMEM;
+	else
+		ret = nonseekable_open(inode, file);
+	unlock_kernel();
+	return ret;
 }
 
 static int

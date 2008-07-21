@@ -55,4 +55,18 @@ static int __init pci_legacy_init(void)
 	return 0;
 }
 
-subsys_initcall(pci_legacy_init);
+int __init pci_subsys_init(void)
+{
+#ifdef CONFIG_ACPI
+	pci_acpi_init();
+#endif
+	pci_legacy_init();
+	pcibios_irq_init();
+#ifdef CONFIG_X86_NUMAQ
+	pci_numa_init();
+#endif
+	pcibios_init();
+
+	return 0;
+}
+subsys_initcall(pci_subsys_init);

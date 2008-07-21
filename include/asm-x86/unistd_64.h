@@ -290,7 +290,7 @@ __SYSCALL(__NR_rt_sigtimedwait, sys_rt_sigtimedwait)
 #define __NR_rt_sigqueueinfo			129
 __SYSCALL(__NR_rt_sigqueueinfo, sys_rt_sigqueueinfo)
 #define __NR_rt_sigsuspend			130
-__SYSCALL(__NR_rt_sigsuspend, stub_rt_sigsuspend)
+__SYSCALL(__NR_rt_sigsuspend, sys_rt_sigsuspend)
 #define __NR_sigaltstack			131
 __SYSCALL(__NR_sigaltstack, stub_sigaltstack)
 #define __NR_utime				132

@@ -148,7 +148,7 @@ acpi_fan_write_state(struct file *file, const char __user * buffer,
 	int result = 0;
 	struct seq_file *m = file->private_data;
 	struct acpi_device *device = m->private;
-	char state_string[12] = { '\0' };
+	char state_string[3] = { '\0' };
 
 	if (count > sizeof(state_string) - 1)
 		return -EINVAL;
@@ -157,6 +157,12 @@ acpi_fan_write_state(struct file *file, const char __user * buffer,
 		return -EFAULT;
 
 	state_string[count] = '\0';
+	if ((state_string[0] < '0') || (state_string[0] > '3'))
+		return -EINVAL;
+	if (state_string[1] == '\n')
+		state_string[1] = '\0';
+	if (state_string[1] != '\0')
+		return -EINVAL;
 
 	result = acpi_bus_set_power(device->handle,
 				    simple_strtoul(state_string, NULL, 0));

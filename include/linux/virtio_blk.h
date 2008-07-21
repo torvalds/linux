@@ -10,18 +10,19 @@
 #define VIRTIO_BLK_F_SIZE_MAX	1	/* Indicates maximum segment size */
 #define VIRTIO_BLK_F_SEG_MAX	2	/* Indicates maximum # of segments */
 #define VIRTIO_BLK_F_GEOMETRY	4	/* Legacy geometry available  */
+#define VIRTIO_BLK_F_RO		5	/* Disk is read-only */
 
 struct virtio_blk_config
 {
 	/* The capacity (in 512-byte sectors). */
-	__le64 capacity;
+	__u64 capacity;
 	/* The maximum segment size (if VIRTIO_BLK_F_SIZE_MAX) */
-	__le32 size_max;
+	__u32 size_max;
 	/* The maximum number of segments (if VIRTIO_BLK_F_SEG_MAX) */
-	__le32 seg_max;
+	__u32 seg_max;
 	/* geometry the device (if VIRTIO_BLK_F_GEOMETRY) */
 	struct virtio_blk_geometry {
-		__le16 cylinders;
+		__u16 cylinders;
 		__u8 heads;
 		__u8 sectors;
 	} geometry;

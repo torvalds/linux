@@ -35,7 +35,7 @@
  * register not being up-to-date with respect to the hardware
  * value.
  */
-static inline void __set_hae(unsigned long new_hae)
+extern inline void __set_hae(unsigned long new_hae)
 {
 	unsigned long flags;
 	local_irq_save(flags);
@@ -49,7 +49,7 @@ static inline void __set_hae(unsigned long new_hae)
 	local_irq_restore(flags);
 }
 
-static inline void set_hae(unsigned long new_hae)
+extern inline void set_hae(unsigned long new_hae)
 {
 	if (new_hae != alpha_mv.hae_cache)
 		__set_hae(new_hae);
@@ -176,7 +176,7 @@ REMAP2(u64, writeq, volatile)
 #undef REMAP1
 #undef REMAP2
 
-static inline void __iomem *generic_ioportmap(unsigned long a)
+extern inline void __iomem *generic_ioportmap(unsigned long a)
 {
 	return alpha_mv.mv_ioportmap(a);
 }

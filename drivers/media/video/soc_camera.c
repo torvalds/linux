@@ -26,6 +26,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
+#include <media/videobuf-core.h>
 #include <media/soc_camera.h>
 
 static LIST_HEAD(hosts);
@@ -44,7 +45,7 @@ format_by_fourcc(struct soc_camera_device *icd, unsigned int fourcc)
 	return NULL;
 }
 
-static int soc_camera_try_fmt_cap(struct file *file, void *priv,
+static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
 	struct soc_camera_file *icf = file->private_data;
@@ -182,7 +183,6 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 	struct soc_camera_device *icd;
 	struct soc_camera_host *ici;
 	struct soc_camera_file *icf;
-	spinlock_t *lock;
 	int ret;
 
 	icf = vmalloc(sizeof(*icf));
@@ -209,13 +209,6 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 	}
 
 	icf->icd = icd;
-
-	icf->lock = ici->ops->spinlock_alloc(icf);
-	if (!icf->lock) {
-		ret = -ENOMEM;
-		goto esla;
-	}
-
 	icd->use_count++;
 
 	/* Now we really have to activate the camera */
@@ -233,21 +226,12 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 	file->private_data = icf;
 	dev_dbg(&icd->dev, "camera device open\n");
 
-	/* We must pass NULL as dev pointer, then all pci_* dma operations
-	 * transform to normal dma_* ones. */
-	videobuf_queue_sg_init(&icf->vb_vidq, ici->vbq_ops, NULL, icf->lock,
-				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				ici->msize, icd);
+	ici->ops->init_videobuf(&icf->vb_vidq, icd);
 
 	return 0;
 
 	/* All errors are entered with the video_lock held */
 eiciadd:
-	lock = icf->lock;
-	icf->lock = NULL;
-	if (ici->ops->spinlock_free)
-		ici->ops->spinlock_free(lock);
-esla:
 	module_put(ici->ops->owner);
 emgi:
 	module_put(icd->ops->owner);
@@ -263,15 +247,11 @@ static int soc_camera_close(struct inode *inode, struct file *file)
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct video_device *vdev = icd->vdev;
-	spinlock_t *lock = icf->lock;
 
 	mutex_lock(&video_lock);
 	icd->use_count--;
 	if (!icd->use_count)
 		ici->ops->remove(icd);
-	icf->lock = NULL;
-	if (ici->ops->spinlock_free)
-		ici->ops->spinlock_free(lock);
 	module_put(icd->ops->owner);
 	module_put(ici->ops->owner);
 	mutex_unlock(&video_lock);
@@ -342,7 +322,7 @@ static struct file_operations soc_camera_fops = {
 };
 
 
-static int soc_camera_s_fmt_cap(struct file *file, void *priv,
+static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct soc_camera_file *icf = file->private_data;
@@ -362,7 +342,7 @@ static int soc_camera_s_fmt_cap(struct file *file, void *priv,
 	/* buswidth may be further adjusted by the ici */
 	icd->buswidth = data_fmt->depth;
 
-	ret = soc_camera_try_fmt_cap(file, icf, f);
+	ret = soc_camera_try_fmt_vid_cap(file, icf, f);
 	if (ret < 0)
 		return ret;
 
@@ -389,7 +369,7 @@ static int soc_camera_s_fmt_cap(struct file *file, void *priv,
 	return ici->ops->set_bus_param(icd, f->fmt.pix.pixelformat);
 }
 
-static int soc_camera_enum_fmt_cap(struct file *file, void  *priv,
+static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
 				   struct v4l2_fmtdesc *f)
 {
 	struct soc_camera_file *icf = file->private_data;
@@ -408,7 +388,7 @@ static int soc_camera_enum_fmt_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int soc_camera_g_fmt_cap(struct file *file, void *priv,
+static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct soc_camera_file *icf = file->private_data;
@@ -763,32 +743,8 @@ static struct device_driver ic_drv = {
 	.owner	= THIS_MODULE,
 };
 
-/*
- * Image capture host - this is a host device, not a bus device, so,
- * no bus reference, no probing.
- */
-static struct class soc_camera_host_class = {
-	.owner		= THIS_MODULE,
-	.name		= "camera_host",
-};
-
 static void dummy_release(struct device *dev)
 {
-}
-
-static spinlock_t *spinlock_alloc(struct soc_camera_file *icf)
-{
-	spinlock_t *lock = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
-
-	if (lock)
-		spin_lock_init(lock);
-
-	return lock;
-}
-
-static void spinlock_free(spinlock_t *lock)
-{
-	kfree(lock);
 }
 
 int soc_camera_host_register(struct soc_camera_host *ici)
@@ -796,12 +752,11 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	int ret;
 	struct soc_camera_host *ix;
 
-	if (!ici->vbq_ops || !ici->ops->add || !ici->ops->remove)
+	if (!ici->ops->init_videobuf || !ici->ops->add || !ici->ops->remove)
 		return -EINVAL;
 
 	/* Number might be equal to the platform device ID */
 	sprintf(ici->dev.bus_id, "camera_host%d", ici->nr);
-	ici->dev.class = &soc_camera_host_class;
 
 	mutex_lock(&list_lock);
 	list_for_each_entry(ix, &hosts, list) {
@@ -820,11 +775,6 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 
 	if (ret)
 		goto edevr;
-
-	if (!ici->ops->spinlock_alloc) {
-		ici->ops->spinlock_alloc = spinlock_alloc;
-		ici->ops->spinlock_free = spinlock_free;
-	}
 
 	scan_add_host(ici);
 
@@ -935,15 +885,15 @@ int soc_camera_video_start(struct soc_camera_device *icd)
 	vdev->minor		= -1;
 	vdev->tvnorms		= V4L2_STD_UNKNOWN,
 	vdev->vidioc_querycap	= soc_camera_querycap;
-	vdev->vidioc_g_fmt_cap	= soc_camera_g_fmt_cap;
-	vdev->vidioc_enum_fmt_cap = soc_camera_enum_fmt_cap;
-	vdev->vidioc_s_fmt_cap	= soc_camera_s_fmt_cap;
+	vdev->vidioc_g_fmt_vid_cap = soc_camera_g_fmt_vid_cap;
+	vdev->vidioc_enum_fmt_vid_cap = soc_camera_enum_fmt_vid_cap;
+	vdev->vidioc_s_fmt_vid_cap = soc_camera_s_fmt_vid_cap;
 	vdev->vidioc_enum_input	= soc_camera_enum_input;
 	vdev->vidioc_g_input	= soc_camera_g_input;
 	vdev->vidioc_s_input	= soc_camera_s_input;
 	vdev->vidioc_s_std	= soc_camera_s_std;
 	vdev->vidioc_reqbufs	= soc_camera_reqbufs;
-	vdev->vidioc_try_fmt_cap = soc_camera_try_fmt_cap;
+	vdev->vidioc_try_fmt_vid_cap = soc_camera_try_fmt_vid_cap;
 	vdev->vidioc_querybuf	= soc_camera_querybuf;
 	vdev->vidioc_qbuf	= soc_camera_qbuf;
 	vdev->vidioc_dqbuf	= soc_camera_dqbuf;
@@ -1003,14 +953,9 @@ static int __init soc_camera_init(void)
 	ret = driver_register(&ic_drv);
 	if (ret)
 		goto edrvr;
-	ret = class_register(&soc_camera_host_class);
-	if (ret)
-		goto eclr;
 
 	return 0;
 
-eclr:
-	driver_unregister(&ic_drv);
 edrvr:
 	bus_unregister(&soc_camera_bus_type);
 	return ret;
@@ -1018,7 +963,6 @@ edrvr:
 
 static void __exit soc_camera_exit(void)
 {
-	class_unregister(&soc_camera_host_class);
 	driver_unregister(&ic_drv);
 	bus_unregister(&soc_camera_bus_type);
 }

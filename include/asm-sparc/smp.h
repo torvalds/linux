@@ -72,7 +72,7 @@ static inline void xc5(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 			   unsigned long arg3, unsigned long arg4, unsigned long arg5)
 { smp_cross_call(func, arg1, arg2, arg3, arg4, arg5); }
 
-static inline int smp_call_function(void (*func)(void *info), void *info, int nonatomic, int wait)
+static inline int smp_call_function(void (*func)(void *info), void *info, int wait)
 {
 	xc1((smpfunc_t)func, (unsigned long)info);
 	return 0;

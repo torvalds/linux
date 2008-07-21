@@ -13,6 +13,7 @@
 
 #include <linux/i2c.h>
 #include <linux/of.h>
+#include <linux/of_i2c.h>
 #include <linux/module.h>
 
 struct i2c_driver_device {
@@ -21,7 +22,6 @@ struct i2c_driver_device {
 };
 
 static struct i2c_driver_device i2c_devices[] = {
-	{ "dallas,ds1374", "rtc-ds1374" },
 };
 
 static int of_find_i2c_driver(struct device_node *node,

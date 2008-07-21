@@ -1,28 +1,26 @@
-comment "An alternative FireWire stack is available with EXPERIMENTAL=y"
+comment "A new alternative FireWire stack is available with EXPERIMENTAL=y"
 	depends on EXPERIMENTAL=n
 
+comment "Enable only one of the two stacks, unless you know what you are doing"
+	depends on EXPERIMENTAL
+
 config FIREWIRE
-	tristate "IEEE 1394 (FireWire) support - alternative stack, EXPERIMENTAL"
+	tristate "New FireWire stack, EXPERIMENTAL"
 	depends on EXPERIMENTAL
 	select CRC_ITU_T
 	help
 	  This is the "Juju" FireWire stack, a new alternative implementation
 	  designed for robustness and simplicity.  You can build either this
-	  stack, or the classic stack (the ieee1394 driver, ohci1394 etc.)
-	  or both.  Please read http://wiki.linux1394.org/JujuMigration before
-	  you enable the new stack.
+	  stack, or the old stack (the ieee1394 driver, ohci1394 etc.) or both.
+	  Please read http://wiki.linux1394.org/JujuMigration before you
+	  enable the new stack.
 
 	  To compile this driver as a module, say M here: the module will be
 	  called firewire-core.  It functionally replaces ieee1394, raw1394,
 	  and video1394.
 
-          NOTE:
-
-	  You should only build ONE of the stacks, unless you REALLY know what
-	  you are doing.
-
 config FIREWIRE_OHCI
-	tristate "Support for OHCI FireWire host controllers"
+	tristate "OHCI-1394 controllers"
 	depends on PCI && FIREWIRE
 	help
 	  Enable this driver if you have a FireWire controller based
@@ -33,12 +31,12 @@ config FIREWIRE_OHCI
 	  called firewire-ohci.  It replaces ohci1394 of the classic IEEE 1394
 	  stack.
 
-          NOTE:
+	  NOTE:
 
-	  You should only build ohci1394 or firewire-ohci, but not both.
-	  If you nevertheless want to install both, you should configure them
-	  only as modules and blacklist the driver(s) which you don't want to
-	  have auto-loaded.  Add either
+	  You should only build either firewire-ohci or the old ohci1394 driver,
+	  but not both.  If you nevertheless want to install both, you should
+	  configure them only as modules and blacklist the driver(s) which you
+	  don't want to have auto-loaded.  Add either
 
 	      blacklist firewire-ohci
 	  or
@@ -60,7 +58,7 @@ config FIREWIRE_OHCI_DEBUG
 	default y
 
 config FIREWIRE_SBP2
-	tristate "Support for storage devices (SBP-2 protocol driver)"
+	tristate "Storage devices (SBP-2 protocol)"
 	depends on FIREWIRE && SCSI
 	help
 	  This option enables you to use SBP-2 devices connected to a

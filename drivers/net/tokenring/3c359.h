@@ -264,7 +264,7 @@ struct xl_private {
 	u16 asb;
 
 	u8 __iomem *xl_mmio;
-	char *xl_card_name;
+	const char *xl_card_name;
 	struct pci_dev *pdev ; 
 	
 	spinlock_t xl_lock ; 
@@ -272,8 +272,6 @@ struct xl_private {
 	volatile int srb_queued;    
 	struct wait_queue *srb_wait;
 	volatile int asb_queued;   
-
-	struct net_device_stats xl_stats ;
 
 	u16 mac_buffer ; 	
 	u16 xl_lan_status ;

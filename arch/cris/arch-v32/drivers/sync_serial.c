@@ -14,6 +14,7 @@
 #include <linux/major.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
 #include <linux/init.h>
@@ -429,23 +430,26 @@ static inline int sync_data_avail_to_end(struct sync_port *port)
 static int sync_serial_open(struct inode *inode, struct file *file)
 {
 	int dev = iminor(inode);
+	int ret = -EBUSY;
 	sync_port *port;
 	reg_dma_rw_cfg cfg = {.en = regk_dma_yes};
 	reg_dma_rw_intr_mask intr_mask = {.data = regk_dma_yes};
 
+	lock_kernel();
 	DEBUG(printk(KERN_DEBUG "Open sync serial port %d\n", dev));
 
 	if (dev < 0 || dev >= NBR_PORTS || !ports[dev].enabled)
 	{
 		DEBUG(printk(KERN_DEBUG "Invalid minor %d\n", dev));
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out;
 	}
 	port = &ports[dev];
 	/* Allow open this device twice (assuming one reader and one writer) */
 	if (port->busy == 2)
 	{
 		DEBUG(printk(KERN_DEBUG "Device is busy.. \n"));
-		return -EBUSY;
+		goto out;
 	}
 
 
@@ -459,7 +463,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 						"synchronous serial 0 dma tr",
 						&ports[0])) {
 					printk(KERN_CRIT "Can't allocate sync serial port 0 IRQ");
-					return -EBUSY;
+					goto out;
 				} else if (request_irq(DMA_IN_INTR_VECT,
 						rx_interrupt,
 						0,
@@ -467,7 +471,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 						&ports[0])) {
 					free_irq(DMA_OUT_INTR_VECT, &port[0]);
 					printk(KERN_CRIT "Can't allocate sync serial port 0 IRQ");
-					return -EBUSY;
+					goto out;
 				} else if (crisv32_request_dma(OUT_DMA_NBR,
 						"synchronous serial 0 dma tr",
 						DMA_VERBOSE_ON_ERROR,
@@ -476,7 +480,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 					free_irq(DMA_OUT_INTR_VECT, &port[0]);
 					free_irq(DMA_IN_INTR_VECT, &port[0]);
 					printk(KERN_CRIT "Can't allocate sync serial port 0 TX DMA channel");
-					return -EBUSY;
+					goto out;
 				} else if (crisv32_request_dma(IN_DMA_NBR,
 						"synchronous serial 0 dma rec",
 						DMA_VERBOSE_ON_ERROR,
@@ -486,7 +490,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 					free_irq(DMA_OUT_INTR_VECT, &port[0]);
 					free_irq(DMA_IN_INTR_VECT, &port[0]);
 					printk(KERN_CRIT "Can't allocate sync serial port 1 RX DMA channel");
-					return -EBUSY;
+					goto out;
 				}
 #endif
 			}
@@ -499,7 +503,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 						"synchronous serial 1 dma tr",
 						&ports[1])) {
 					printk(KERN_CRIT "Can't allocate sync serial port 1 IRQ");
-					return -EBUSY;
+					goto out;
 				} else if (request_irq(DMA7_INTR_VECT,
 						       rx_interrupt,
 						       0,
@@ -507,7 +511,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 						       &ports[1])) {
 					free_irq(DMA6_INTR_VECT, &ports[1]);
 					printk(KERN_CRIT "Can't allocate sync serial port 3 IRQ");
-					return -EBUSY;
+					goto out;
 				} else if (crisv32_request_dma(
 						SYNC_SER1_TX_DMA_NBR,
 						"synchronous serial 1 dma tr",
@@ -517,7 +521,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 					free_irq(DMA6_INTR_VECT, &ports[1]);
 					free_irq(DMA7_INTR_VECT, &ports[1]);
 					printk(KERN_CRIT "Can't allocate sync serial port 3 TX DMA channel");
-					return -EBUSY;
+					goto out;
 				} else if (crisv32_request_dma(
 						SYNC_SER1_RX_DMA_NBR,
 						"synchronous serial 3 dma rec",
@@ -528,7 +532,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 					free_irq(DMA6_INTR_VECT, &ports[1]);
 					free_irq(DMA7_INTR_VECT, &ports[1]);
 					printk(KERN_CRIT "Can't allocate sync serial port 3 RX DMA channel");
-					return -EBUSY;
+					goto out;
 				}
 #endif
 			}
@@ -554,7 +558,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 						"synchronous serial manual irq",
 						&ports[0])) {
 					printk("Can't allocate sync serial manual irq");
-					return -EBUSY;
+					goto out;
 				}
 			}
 #ifdef CONFIG_ETRAXFS
@@ -565,7 +569,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 						"synchronous serial manual irq",
 						&ports[1])) {
 					printk(KERN_CRIT "Can't allocate sync serial manual irq");
-					return -EBUSY;
+					goto out;
 				}
 			}
 #endif
@@ -578,7 +582,10 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 	} /* port->init_irqs */
 
 	port->busy++;
-	return 0;
+	ret = 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int sync_serial_release(struct inode *inode, struct file *file)

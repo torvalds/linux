@@ -21,8 +21,6 @@
 #ifndef __ASM_ARCH_IO_H
 #define __ASM_ARCH_IO_H
 
-#include <asm/io.h>
-
 #define IO_SPACE_LIMIT		0xFFFFFFFF
 
 #define __io(a)			((void __iomem *)(a))

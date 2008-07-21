@@ -77,8 +77,14 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 
 	/* Make sure we support the board model */
 	switch (tv.model) {
+	case 72000: /* WinTV-HVR950q (Retail, IR, ATSC/QAM */
 	case 72001: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and basic analog video */
+	case 72211: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
+	case 72221: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
+	case 72231: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
+	case 72241: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and basic analog video */
 	case 72301: /* WinTV-HVR850 (Retail, IR, ATSC and basic analog video */
+	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
 	default:
 		printk(KERN_WARNING "%s: warning: "
@@ -175,6 +181,18 @@ struct usb_device_id au0828_usb_id_table [] = {
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR850 },
 	{ USB_DEVICE(0x0fe9, 0xd620),
 		.driver_info = AU0828_BOARD_DVICO_FUSIONHDTV7 },
+	{ USB_DEVICE(0x2040, 0x7210),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x7217),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x721b),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x721f),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x7280),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x0fd9, 0x0008),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
 	{ },
 };
 

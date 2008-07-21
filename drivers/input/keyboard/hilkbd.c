@@ -217,6 +217,10 @@ hil_keyb_init(void)
 		return -ENOMEM;
 
 #if defined(CONFIG_HP300)
+	if (!MACH_IS_HP300) {
+		err = -ENODEV;
+		goto err1;
+	}
 	if (!hwreg_present((void *)(HILBASE + HIL_DATA))) {
 		printk(KERN_ERR "HIL: hardware register was not found\n");
 		err = -ENODEV;

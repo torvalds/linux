@@ -84,6 +84,7 @@
 #include <linux/pci.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -862,11 +863,13 @@ out:
 } /* End twa_chrdev_ioctl() */
 
 /* This function handles open for the character device */
+/* NOTE that this function will race with remove. */
 static int twa_chrdev_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor_number;
 	int retval = TW_IOCTL_ERROR_OS_ENODEV;
 
+	cycle_kernel_lock();
 	minor_number = iminor(inode);
 	if (minor_number >= twa_device_extension_count)
 		goto out;
@@ -1278,7 +1281,7 @@ static irqreturn_t twa_interrupt(int irq, void *dev_instance)
 			error = 0;
 			/* Check for command packet errors */
 			if (full_command_packet->command.newcommand.status != 0) {
-				if (tw_dev->srb[request_id] != 0) {
+				if (tw_dev->srb[request_id] != NULL) {
 					error = twa_fill_sense(tw_dev, request_id, 1, 1);
 				} else {
 					/* Skip ioctl error prints */
@@ -1290,7 +1293,7 @@ static irqreturn_t twa_interrupt(int irq, void *dev_instance)
 
 			/* Check for correct state */
 			if (tw_dev->state[request_id] != TW_S_POSTED) {
-				if (tw_dev->srb[request_id] != 0) {
+				if (tw_dev->srb[request_id] != NULL) {
 					TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1a, "Received a request id that wasn't posted");
 					TW_CLEAR_ALL_INTERRUPTS(tw_dev);
 					goto twa_interrupt_bail;
@@ -1298,7 +1301,7 @@ static irqreturn_t twa_interrupt(int irq, void *dev_instance)
 			}
 
 			/* Check for internal command completion */
-			if (tw_dev->srb[request_id] == 0) {
+			if (tw_dev->srb[request_id] == NULL) {
 				if (request_id != tw_dev->chrdev_request_id) {
 					if (twa_aen_complete(tw_dev, request_id))
 						TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1b, "Error completing AEN during attention interrupt");

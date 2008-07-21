@@ -1016,13 +1016,11 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	memset(mpic, 0, sizeof(struct mpic));
 	mpic->name = name;
 
-	mpic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
+	mpic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
 				       isu_size, &mpic_host_ops,
 				       flags & MPIC_LARGE_VECTORS ? 2048 : 256);
-	if (mpic->irqhost == NULL) {
-		of_node_put(node);
+	if (mpic->irqhost == NULL)
 		return NULL;
-	}
 
 	mpic->irqhost->host_data = mpic;
 	mpic->hc_irq = mpic_irq_chip;
@@ -1143,10 +1141,14 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	greg_feature = mpic_read(mpic->gregs, MPIC_INFO(GREG_FEATURE_0));
 	mpic->num_cpus = ((greg_feature & MPIC_GREG_FEATURE_LAST_CPU_MASK)
 			  >> MPIC_GREG_FEATURE_LAST_CPU_SHIFT) + 1;
-	if (isu_size == 0)
-		mpic->num_sources =
-			((greg_feature & MPIC_GREG_FEATURE_LAST_SRC_MASK)
-			 >> MPIC_GREG_FEATURE_LAST_SRC_SHIFT) + 1;
+	if (isu_size == 0) {
+		if (flags & MPIC_BROKEN_FRR_NIRQS)
+			mpic->num_sources = mpic->irq_count;
+		else
+			mpic->num_sources =
+				((greg_feature & MPIC_GREG_FEATURE_LAST_SRC_MASK)
+				 >> MPIC_GREG_FEATURE_LAST_SRC_SHIFT) + 1;
+	}
 
 	/* Map the per-CPU registers */
 	for (i = 0; i < mpic->num_cpus; i++) {
@@ -1331,6 +1333,9 @@ void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 	unsigned long flags;
 	u32 reg;
 
+	if (!mpic)
+		return;
+
 	spin_lock_irqsave(&mpic_lock, flags);
 	if (is_ipi) {
 		reg = mpic_ipi_read(src - mpic->ipi_vecs[0]) &
@@ -1344,23 +1349,6 @@ void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 			       reg | (pri << MPIC_VECPRI_PRIORITY_SHIFT));
 	}
 	spin_unlock_irqrestore(&mpic_lock, flags);
-}
-
-unsigned int mpic_irq_get_priority(unsigned int irq)
-{
-	unsigned int is_ipi;
-	struct mpic *mpic = mpic_find(irq, &is_ipi);
-	unsigned int src = mpic_irq_to_hw(irq);
-	unsigned long flags;
-	u32 reg;
-
-	spin_lock_irqsave(&mpic_lock, flags);
-	if (is_ipi)
-		reg = mpic_ipi_read(src = mpic->ipi_vecs[0]);
-	else
-		reg = mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI));
-	spin_unlock_irqrestore(&mpic_lock, flags);
-	return (reg & MPIC_VECPRI_PRIORITY_MASK) >> MPIC_VECPRI_PRIORITY_SHIFT;
 }
 
 void mpic_setup_this_cpu(void)
@@ -1508,7 +1496,7 @@ void mpic_request_ipis(void)
 	static char *ipi_names[] = {
 		"IPI0 (call function)",
 		"IPI1 (reschedule)",
-		"IPI2 (unused)",
+		"IPI2 (call function single)",
 		"IPI3 (debugger break)",
 	};
 	BUG_ON(mpic == NULL);

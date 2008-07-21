@@ -1236,8 +1236,8 @@ static void ctcm_irq_handler(struct ccw_device *cdev,
 	/* Check for unsolicited interrupts. */
 	if (cgdev == NULL) {
 		ctcm_pr_warn("ctcm: Got unsolicited irq: %s c-%02x d-%02x\n",
-			    cdev->dev.bus_id, irb->scsw.cstat,
-			    irb->scsw.dstat);
+			    cdev->dev.bus_id, irb->scsw.cmd.cstat,
+			    irb->scsw.cmd.dstat);
 		return;
 	}
 
@@ -1266,40 +1266,40 @@ static void ctcm_irq_handler(struct ccw_device *cdev,
 				"received c-%02x d-%02x\n",
 				dev->name,
 				ch->id,
-				irb->scsw.cstat,
-				irb->scsw.dstat);
+				irb->scsw.cmd.cstat,
+				irb->scsw.cmd.dstat);
 
 	/* Copy interruption response block. */
 	memcpy(ch->irb, irb, sizeof(struct irb));
 
 	/* Check for good subchannel return code, otherwise error message */
-	if (irb->scsw.cstat) {
+	if (irb->scsw.cmd.cstat) {
 		fsm_event(ch->fsm, CTC_EVENT_SC_UNKNOWN, ch);
 		ctcm_pr_warn("%s: subchannel check for dev: %s - %02x %02x\n",
-			    dev->name, ch->id, irb->scsw.cstat,
-			    irb->scsw.dstat);
+			    dev->name, ch->id, irb->scsw.cmd.cstat,
+			    irb->scsw.cmd.dstat);
 		return;
 	}
 
 	/* Check the reason-code of a unit check */
-	if (irb->scsw.dstat & DEV_STAT_UNIT_CHECK) {
+	if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) {
 		ccw_unit_check(ch, irb->ecw[0]);
 		return;
 	}
-	if (irb->scsw.dstat & DEV_STAT_BUSY) {
-		if (irb->scsw.dstat & DEV_STAT_ATTENTION)
+	if (irb->scsw.cmd.dstat & DEV_STAT_BUSY) {
+		if (irb->scsw.cmd.dstat & DEV_STAT_ATTENTION)
 			fsm_event(ch->fsm, CTC_EVENT_ATTNBUSY, ch);
 		else
 			fsm_event(ch->fsm, CTC_EVENT_BUSY, ch);
 		return;
 	}
-	if (irb->scsw.dstat & DEV_STAT_ATTENTION) {
+	if (irb->scsw.cmd.dstat & DEV_STAT_ATTENTION) {
 		fsm_event(ch->fsm, CTC_EVENT_ATTN, ch);
 		return;
 	}
-	if ((irb->scsw.stctl & SCSW_STCTL_SEC_STATUS) ||
-	    (irb->scsw.stctl == SCSW_STCTL_STATUS_PEND) ||
-	    (irb->scsw.stctl ==
+	if ((irb->scsw.cmd.stctl & SCSW_STCTL_SEC_STATUS) ||
+	    (irb->scsw.cmd.stctl == SCSW_STCTL_STATUS_PEND) ||
+	    (irb->scsw.cmd.stctl ==
 	     (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND)))
 		fsm_event(ch->fsm, CTC_EVENT_FINSTAT, ch);
 	else

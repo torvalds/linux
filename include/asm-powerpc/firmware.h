@@ -15,6 +15,7 @@
 #ifdef __KERNEL__
 
 #include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
 
 /* firmware feature bitmask values */
 #define FIRMWARE_MAX_FEATURES 63
@@ -124,18 +125,6 @@ extern void machine_check_fwnmi(void);
 extern int fwnmi_active;
 
 extern unsigned int __start___fw_ftr_fixup, __stop___fw_ftr_fixup;
-
-#else /* __ASSEMBLY__ */
-
-#define BEGIN_FW_FTR_SECTION_NESTED(label)	label:
-#define BEGIN_FW_FTR_SECTION			BEGIN_FW_FTR_SECTION_NESTED(97)
-#define END_FW_FTR_SECTION_NESTED(msk, val, label) \
-	MAKE_FTR_SECTION_ENTRY(msk, val, label, __fw_ftr_fixup)
-#define END_FW_FTR_SECTION(msk, val)		\
-	END_FW_FTR_SECTION_NESTED(msk, val, 97)
-
-#define END_FW_FTR_SECTION_IFSET(msk)	END_FW_FTR_SECTION((msk), (msk))
-#define END_FW_FTR_SECTION_IFCLR(msk)	END_FW_FTR_SECTION((msk), 0)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

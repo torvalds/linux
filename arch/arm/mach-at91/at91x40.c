@@ -16,14 +16,30 @@
 #include <asm/mach/arch.h>
 #include <asm/arch/at91x40.h>
 #include <asm/arch/at91_st.h>
+#include <asm/arch/timex.h>
 #include "generic.h"
 
 /*
- * This is used in the gpio code, stub locally.
+ * Export the clock functions for the AT91X40. Some external code common
+ * to all AT91 family parts relys on this, like the gpio and serial support.
  */
 int clk_enable(struct clk *clk)
 {
 	return 0;
+}
+
+void clk_disable(struct clk *clk)
+{
+}
+
+unsigned long clk_get_rate(struct clk *clk)
+{
+	return AT91X40_MASTER_CLOCK;
+}
+
+struct clk *clk_get(struct device *dev, const char *id)
+{
+	return NULL;
 }
 
 void __init at91x40_initialize(unsigned long main_clock)

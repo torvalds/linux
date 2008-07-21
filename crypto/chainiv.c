@@ -117,6 +117,7 @@ static int chainiv_init(struct crypto_tfm *tfm)
 static int async_chainiv_schedule_work(struct async_chainiv_ctx *ctx)
 {
 	int queued;
+	int err = ctx->err;
 
 	if (!ctx->queue.qlen) {
 		smp_mb__before_clear_bit();
@@ -131,7 +132,7 @@ static int async_chainiv_schedule_work(struct async_chainiv_ctx *ctx)
 	BUG_ON(!queued);
 
 out:
-	return ctx->err;
+	return err;
 }
 
 static int async_chainiv_postpone_request(struct skcipher_givcrypt_request *req)
@@ -227,6 +228,7 @@ static void async_chainiv_do_postponed(struct work_struct *work)
 						     postponed);
 	struct skcipher_givcrypt_request *req;
 	struct ablkcipher_request *subreq;
+	int err;
 
 	/* Only handle one request at a time to avoid hogging keventd. */
 	spin_lock_bh(&ctx->lock);
@@ -241,7 +243,11 @@ static void async_chainiv_do_postponed(struct work_struct *work)
 	subreq = skcipher_givcrypt_reqctx(req);
 	subreq->base.flags |= CRYPTO_TFM_REQ_MAY_SLEEP;
 
-	async_chainiv_givencrypt_tail(req);
+	err = async_chainiv_givencrypt_tail(req);
+
+	local_bh_disable();
+	skcipher_givcrypt_complete(req, err);
+	local_bh_enable();
 }
 
 static int async_chainiv_init(struct crypto_tfm *tfm)

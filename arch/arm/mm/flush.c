@@ -199,6 +199,8 @@ void flush_dcache_page(struct page *page)
 		__flush_dcache_page(mapping, page);
 		if (mapping && cache_is_vivt())
 			__flush_dcache_aliases(mapping, page);
+		else if (mapping)
+			__flush_icache_all();
 	}
 }
 EXPORT_SYMBOL(flush_dcache_page);

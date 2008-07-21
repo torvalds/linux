@@ -43,7 +43,7 @@
 #include <mach_ipi.h>
 #include <mach_apic.h>
 
-int disable_apic_timer __cpuinitdata;
+static int disable_apic_timer __cpuinitdata;
 static int apic_calibrate_pmtmr __initdata;
 int disable_apic;
 
@@ -55,6 +55,9 @@ EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
  * Debug level, exported for io_apic.c
  */
 int apic_verbosity;
+
+/* Have we found an MP table */
+int smp_found_config;
 
 static struct resource lapic_resource = {
 	.name = "Local APIC",
@@ -86,9 +89,6 @@ static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 static unsigned long apic_phys;
 
 unsigned long mp_lapic_addr;
-
-DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
-EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
 unsigned int __cpuinitdata maxcpus = NR_CPUS;
 /*
@@ -417,37 +417,13 @@ void __init setup_boot_APIC_clock(void)
 		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
 	else
 		printk(KERN_WARNING "APIC timer registered as dummy,"
-		       " due to nmi_watchdog=1!\n");
+			" due to nmi_watchdog=%d!\n", nmi_watchdog);
 
 	setup_APIC_timer();
 }
 
-/*
- * AMD C1E enabled CPUs have a real nasty problem: Some BIOSes set the
- * C1E flag only in the secondary CPU, so when we detect the wreckage
- * we already have enabled the boot CPU local apic timer. Check, if
- * disable_apic_timer is set and the DUMMY flag is cleared. If yes,
- * set the DUMMY flag again and force the broadcast mode in the
- * clockevents layer.
- */
-static void __cpuinit check_boot_apic_timer_broadcast(void)
-{
-	if (!disable_apic_timer ||
-	    (lapic_clockevent.features & CLOCK_EVT_FEAT_DUMMY))
-		return;
-
-	printk(KERN_INFO "AMD C1E detected late. Force timer broadcast.\n");
-	lapic_clockevent.features |= CLOCK_EVT_FEAT_DUMMY;
-
-	local_irq_enable();
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE,
-			   &boot_cpu_physical_apicid);
-	local_irq_disable();
-}
-
 void __cpuinit setup_secondary_APIC_clock(void)
 {
-	check_boot_apic_timer_broadcast();
 	setup_APIC_timer();
 }
 
@@ -534,7 +510,7 @@ int setup_profiling_timer(unsigned int multiplier)
  */
 void clear_local_APIC(void)
 {
-	int maxlvt = lapic_get_maxlvt();
+	int maxlvt;
 	u32 v;
 
 	/* APIC hasn't been mapped yet */
@@ -850,7 +826,6 @@ static void __cpuinit lapic_setup_esr(void)
 void __cpuinit end_local_APIC_setup(void)
 {
 	lapic_setup_esr();
-	nmi_watchdog_default();
 	setup_apic_nmi_watchdog(NULL);
 	apic_pm_activate();
 }
@@ -875,7 +850,7 @@ static int __init detect_init_APIC(void)
 
 void __init early_init_lapic_mapping(void)
 {
-	unsigned long apic_phys;
+	unsigned long phys_addr;
 
 	/*
 	 * If no local APIC can be found then go out
@@ -884,11 +859,11 @@ void __init early_init_lapic_mapping(void)
 	if (!smp_found_config)
 		return;
 
-	apic_phys = mp_lapic_addr;
+	phys_addr = mp_lapic_addr;
 
-	set_fixmap_nocache(FIX_APIC_BASE, apic_phys);
+	set_fixmap_nocache(FIX_APIC_BASE, phys_addr);
 	apic_printk(APIC_VERBOSE, "mapped APIC to %16lx (%16lx)\n",
-				 APIC_BASE, apic_phys);
+		    APIC_BASE, phys_addr);
 
 	/*
 	 * Fetch the APIC ID of the BSP in case we have a
@@ -942,7 +917,9 @@ int __init APIC_init_uniprocessor(void)
 
 	verify_local_APIC();
 
-	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
+	connect_bsp_APIC();
+
+	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_physical_apicid));
 
 	setup_local_APIC();
@@ -954,6 +931,8 @@ int __init APIC_init_uniprocessor(void)
 	if (!skip_ioapic_setup && nr_ioapics)
 		enable_IO_APIC();
 
+	if (!smp_found_config || skip_ioapic_setup || !nr_ioapics)
+		localise_nmi_watchdog();
 	end_local_APIC_setup();
 
 	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
@@ -1019,6 +998,14 @@ asmlinkage void smp_error_interrupt(void)
 	printk(KERN_DEBUG "APIC error on CPU%d: %02x(%02x)\n",
 		smp_processor_id(), v , v1);
 	irq_exit();
+}
+
+/**
+ *  * connect_bsp_APIC - attach the APIC to the interrupt system
+ *   */
+void __init connect_bsp_APIC(void)
+{
+	enable_apic_mode();
 }
 
 void disconnect_bsp_APIC(int virt_wire_setup)
@@ -1090,10 +1077,13 @@ void __cpuinit generic_processor_info(int apicid, int version)
 		 */
 		cpu = 0;
 	}
+	if (apicid > max_physical_apicid)
+		max_physical_apicid = apicid;
+
 	/* are we being called early in kernel startup? */
-	if (x86_cpu_to_apicid_early_ptr) {
-		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;
-		u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
+	if (early_per_cpu_ptr(x86_cpu_to_apicid)) {
+		u16 *cpu_to_apicid = early_per_cpu_ptr(x86_cpu_to_apicid);
+		u16 *bios_cpu_apicid = early_per_cpu_ptr(x86_bios_cpu_apicid);
 
 		cpu_to_apicid[cpu] = apicid;
 		bios_cpu_apicid[cpu] = apicid;
@@ -1269,7 +1259,7 @@ __cpuinit int apic_is_clustered_box(void)
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) && !is_vsmp_box())
 		return 0;
 
-	bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
+	bios_cpu_apicid = early_per_cpu_ptr(x86_bios_cpu_apicid);
 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
 
 	for (i = 0; i < NR_CPUS; i++) {

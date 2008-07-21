@@ -15,6 +15,7 @@ struct clk {
 	unsigned int		cken;
 	unsigned int		delay;
 	unsigned int		enabled;
+	struct clk		*other;
 };
 
 #define INIT_CKEN(_name, _cken, _rate, _delay, _dev)	\
@@ -33,6 +34,17 @@ struct clk {
 		.dev	= _dev,				\
 		.ops	= _ops,				\
 		.cken	= CKEN_##_cken,			\
+	}
+
+/*
+ * This is a placeholder to alias one clock device+name pair
+ * to another struct clk.
+ */
+#define INIT_CKOTHER(_name, _other, _dev)		\
+	{						\
+		.name	= _name,			\
+		.dev	= _dev,				\
+		.other	= _other,			\
 	}
 
 extern const struct clkops clk_cken_ops;

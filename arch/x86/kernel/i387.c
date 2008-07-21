@@ -56,6 +56,11 @@ void __cpuinit mxcsr_feature_mask_init(void)
 
 void __init init_thread_xstate(void)
 {
+	if (!HAVE_HWFP) {
+		xstate_size = sizeof(struct i387_soft_struct);
+		return;
+	}
+
 	if (cpu_has_fxsr)
 		xstate_size = sizeof(struct i387_fxsave_struct);
 #ifdef CONFIG_X86_32
@@ -94,7 +99,7 @@ void __cpuinit fpu_init(void)
 int init_fpu(struct task_struct *tsk)
 {
 	if (tsk_used_math(tsk)) {
-		if (tsk == current)
+		if (HAVE_HWFP && tsk == current)
 			unlazy_fpu(tsk);
 		return 0;
 	}
@@ -108,6 +113,15 @@ int init_fpu(struct task_struct *tsk)
 		if (!tsk->thread.xstate)
 			return -ENOMEM;
 	}
+
+#ifdef CONFIG_X86_32
+	if (!HAVE_HWFP) {
+		memset(tsk->thread.xstate, 0, xstate_size);
+		finit();
+		set_stopped_child_used_math(tsk);
+		return 0;
+	}
+#endif
 
 	if (cpu_has_fxsr) {
 		struct i387_fxsave_struct *fx = &tsk->thread.xstate->fxsave;
@@ -330,12 +344,12 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	if (!HAVE_HWFP)
-		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
-
 	ret = init_fpu(target);
 	if (ret)
 		return ret;
+
+	if (!HAVE_HWFP)
+		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
 
 	if (!cpu_has_fxsr) {
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
@@ -360,14 +374,14 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	if (!HAVE_HWFP)
-		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
-
 	ret = init_fpu(target);
 	if (ret)
 		return ret;
 
 	set_stopped_child_used_math(target);
+
+	if (!HAVE_HWFP)
+		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
 
 	if (!cpu_has_fxsr) {
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -474,18 +488,18 @@ static int restore_i387_fxsave(struct _fpstate_ia32 __user *buf)
 int restore_i387_ia32(struct _fpstate_ia32 __user *buf)
 {
 	int err;
+	struct task_struct *tsk = current;
 
-	if (HAVE_HWFP) {
-		struct task_struct *tsk = current;
-
+	if (HAVE_HWFP)
 		clear_fpu(tsk);
 
-		if (!used_math()) {
-			err = init_fpu(tsk);
-			if (err)
-				return err;
-		}
+	if (!used_math()) {
+		err = init_fpu(tsk);
+		if (err)
+			return err;
+	}
 
+	if (HAVE_HWFP) {
 		if (cpu_has_fxsr)
 			err = restore_i387_fxsave(buf);
 		else

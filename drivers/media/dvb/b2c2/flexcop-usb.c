@@ -379,7 +379,7 @@ static void flexcop_usb_transfer_exit(struct flexcop_usb *fc_usb)
 
 static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 {
-	u16 frame_size = fc_usb->uintf->cur_altsetting->endpoint[0].desc.wMaxPacketSize;
+	u16 frame_size = le16_to_cpu(fc_usb->uintf->cur_altsetting->endpoint[0].desc.wMaxPacketSize);
 	int bufsize = B2C2_USB_NUM_ISO_URB * B2C2_USB_FRAMES_PER_ISO * frame_size,i,j,ret;
 	int buffer_offset = 0;
 

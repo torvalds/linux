@@ -1,4 +1,4 @@
-/* $Id: utrap.h,v 1.1 1997/10/14 16:21:31 jj Exp $
+/*
  * include/asm-sparc64/utrap.h
  *
  * Copyright (C) 1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)

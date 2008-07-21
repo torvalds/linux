@@ -23,6 +23,7 @@
 #include <linux/sem.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
+#include <linux/iocontext.h>
 #include <linux/key.h>
 #include <linux/binfmts.h>
 #include <linux/mman.h>
@@ -660,136 +661,6 @@ static int copy_fs(unsigned long clone_flags, struct task_struct *tsk)
 	return 0;
 }
 
-static int count_open_files(struct fdtable *fdt)
-{
-	int size = fdt->max_fds;
-	int i;
-
-	/* Find the last open fd */
-	for (i = size/(8*sizeof(long)); i > 0; ) {
-		if (fdt->open_fds->fds_bits[--i])
-			break;
-	}
-	i = (i+1) * 8 * sizeof(long);
-	return i;
-}
-
-static struct files_struct *alloc_files(void)
-{
-	struct files_struct *newf;
-	struct fdtable *fdt;
-
-	newf = kmem_cache_alloc(files_cachep, GFP_KERNEL);
-	if (!newf)
-		goto out;
-
-	atomic_set(&newf->count, 1);
-
-	spin_lock_init(&newf->file_lock);
-	newf->next_fd = 0;
-	fdt = &newf->fdtab;
-	fdt->max_fds = NR_OPEN_DEFAULT;
-	fdt->close_on_exec = (fd_set *)&newf->close_on_exec_init;
-	fdt->open_fds = (fd_set *)&newf->open_fds_init;
-	fdt->fd = &newf->fd_array[0];
-	INIT_RCU_HEAD(&fdt->rcu);
-	fdt->next = NULL;
-	rcu_assign_pointer(newf->fdt, fdt);
-out:
-	return newf;
-}
-
-/*
- * Allocate a new files structure and copy contents from the
- * passed in files structure.
- * errorp will be valid only when the returned files_struct is NULL.
- */
-static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
-{
-	struct files_struct *newf;
-	struct file **old_fds, **new_fds;
-	int open_files, size, i;
-	struct fdtable *old_fdt, *new_fdt;
-
-	*errorp = -ENOMEM;
-	newf = alloc_files();
-	if (!newf)
-		goto out;
-
-	spin_lock(&oldf->file_lock);
-	old_fdt = files_fdtable(oldf);
-	new_fdt = files_fdtable(newf);
-	open_files = count_open_files(old_fdt);
-
-	/*
-	 * Check whether we need to allocate a larger fd array and fd set.
-	 * Note: we're not a clone task, so the open count won't change.
-	 */
-	if (open_files > new_fdt->max_fds) {
-		new_fdt->max_fds = 0;
-		spin_unlock(&oldf->file_lock);
-		spin_lock(&newf->file_lock);
-		*errorp = expand_files(newf, open_files-1);
-		spin_unlock(&newf->file_lock);
-		if (*errorp < 0)
-			goto out_release;
-		new_fdt = files_fdtable(newf);
-		/*
-		 * Reacquire the oldf lock and a pointer to its fd table
-		 * who knows it may have a new bigger fd table. We need
-		 * the latest pointer.
-		 */
-		spin_lock(&oldf->file_lock);
-		old_fdt = files_fdtable(oldf);
-	}
-
-	old_fds = old_fdt->fd;
-	new_fds = new_fdt->fd;
-
-	memcpy(new_fdt->open_fds->fds_bits,
-		old_fdt->open_fds->fds_bits, open_files/8);
-	memcpy(new_fdt->close_on_exec->fds_bits,
-		old_fdt->close_on_exec->fds_bits, open_files/8);
-
-	for (i = open_files; i != 0; i--) {
-		struct file *f = *old_fds++;
-		if (f) {
-			get_file(f);
-		} else {
-			/*
-			 * The fd may be claimed in the fd bitmap but not yet
-			 * instantiated in the files array if a sibling thread
-			 * is partway through open().  So make sure that this
-			 * fd is available to the new process.
-			 */
-			FD_CLR(open_files - i, new_fdt->open_fds);
-		}
-		rcu_assign_pointer(*new_fds++, f);
-	}
-	spin_unlock(&oldf->file_lock);
-
-	/* compute the remainder to be cleared */
-	size = (new_fdt->max_fds - open_files) * sizeof(struct file *);
-
-	/* This is long word aligned thus could use a optimized version */
-	memset(new_fds, 0, size);
-
-	if (new_fdt->max_fds > open_files) {
-		int left = (new_fdt->max_fds-open_files)/8;
-		int start = open_files / (8 * sizeof(unsigned long));
-
-		memset(&new_fdt->open_fds->fds_bits[start], 0, left);
-		memset(&new_fdt->close_on_exec->fds_bits[start], 0, left);
-	}
-
-	return newf;
-
-out_release:
-	kmem_cache_free(files_cachep, newf);
-out:
-	return NULL;
-}
-
 static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 {
 	struct files_struct *oldf, *newf;
@@ -1039,7 +910,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	rt_mutex_init_task(p);
 
-#ifdef CONFIG_TRACE_IRQFLAGS
+#ifdef CONFIG_PROVE_LOCKING
 	DEBUG_LOCKS_WARN_ON(!p->hardirqs_enabled);
 	DEBUG_LOCKS_WARN_ON(!p->softirqs_enabled);
 #endif
@@ -1254,8 +1125,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 */
 	p->group_leader = p;
 	INIT_LIST_HEAD(&p->thread_group);
-	INIT_LIST_HEAD(&p->ptrace_children);
-	INIT_LIST_HEAD(&p->ptrace_list);
+	INIT_LIST_HEAD(&p->ptrace_entry);
+	INIT_LIST_HEAD(&p->ptraced);
 
 	/* Now that the task is set up, run cgroup callbacks if
 	 * necessary. We need to run them before the task is visible
@@ -1327,7 +1198,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	}
 
 	if (likely(p->pid)) {
-		add_parent(p);
+		list_add_tail(&p->sibling, &p->real_parent->children);
 		if (unlikely(p->ptrace & PT_PTRACED))
 			__ptrace_link(p, current->parent);
 

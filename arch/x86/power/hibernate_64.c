@@ -83,7 +83,7 @@ static int set_up_temporary_mappings(void)
 
 	/* Set up the direct mapping from scratch */
 	start = (unsigned long)pfn_to_kaddr(0);
-	end = (unsigned long)pfn_to_kaddr(end_pfn);
+	end = (unsigned long)pfn_to_kaddr(max_pfn);
 
 	for (; start < end; start = next) {
 		pud_t *pud = (pud_t *)get_safe_page(GFP_ATOMIC);

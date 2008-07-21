@@ -5,8 +5,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
- *	$Id: route.c,v 1.56 2001/10/31 21:55:55 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
@@ -109,7 +107,7 @@ static struct dst_ops ip6_dst_ops_template = {
 	.negative_advice	=	ip6_negative_advice,
 	.link_failure		=	ip6_link_failure,
 	.update_pmtu		=	ip6_rt_update_pmtu,
-	.local_out		=	ip6_local_out,
+	.local_out		=	__ip6_local_out,
 	.entry_size		=	sizeof(struct rt6_info),
 	.entries		=	ATOMIC_INIT(0),
 };
@@ -230,7 +228,7 @@ static __inline__ int rt6_check_expired(const struct rt6_info *rt)
 static inline int rt6_need_strict(struct in6_addr *daddr)
 {
 	return (ipv6_addr_type(daddr) &
-		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL));
+		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK));
 }
 
 /*
@@ -239,21 +237,26 @@ static inline int rt6_need_strict(struct in6_addr *daddr)
 
 static inline struct rt6_info *rt6_device_match(struct net *net,
 						    struct rt6_info *rt,
+						    struct in6_addr *saddr,
 						    int oif,
-						    int strict)
+						    int flags)
 {
 	struct rt6_info *local = NULL;
 	struct rt6_info *sprt;
 
-	if (oif) {
-		for (sprt = rt; sprt; sprt = sprt->u.dst.rt6_next) {
-			struct net_device *dev = sprt->rt6i_dev;
+	if (!oif && ipv6_addr_any(saddr))
+		goto out;
+
+	for (sprt = rt; sprt; sprt = sprt->u.dst.rt6_next) {
+		struct net_device *dev = sprt->rt6i_dev;
+
+		if (oif) {
 			if (dev->ifindex == oif)
 				return sprt;
 			if (dev->flags & IFF_LOOPBACK) {
 				if (sprt->rt6i_idev == NULL ||
 				    sprt->rt6i_idev->dev->ifindex != oif) {
-					if (strict && oif)
+					if (flags & RT6_LOOKUP_F_IFACE && oif)
 						continue;
 					if (local && (!oif ||
 						      local->rt6i_idev->dev->ifindex == oif))
@@ -261,14 +264,21 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 				}
 				local = sprt;
 			}
+		} else {
+			if (ipv6_chk_addr(net, saddr, dev,
+					  flags & RT6_LOOKUP_F_IFACE))
+				return sprt;
 		}
+	}
 
+	if (oif) {
 		if (local)
 			return local;
 
-		if (strict)
+		if (flags & RT6_LOOKUP_F_IFACE)
 			return net->ipv6.ip6_null_entry;
 	}
+out:
 	return rt;
 }
 
@@ -446,7 +456,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	struct route_info *rinfo = (struct route_info *) opt;
 	struct in6_addr prefix_buf, *prefix;
 	unsigned int pref;
-	u32 lifetime;
+	unsigned long lifetime;
 	struct rt6_info *rt;
 
 	if (len < sizeof(struct route_info)) {
@@ -472,13 +482,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	if (pref == ICMPV6_ROUTER_PREF_INVALID)
 		pref = ICMPV6_ROUTER_PREF_MEDIUM;
 
-	lifetime = ntohl(rinfo->lifetime);
-	if (lifetime == 0xffffffff) {
-		/* infinity */
-	} else if (lifetime > 0x7fffffff/HZ) {
-		/* Avoid arithmetic overflow */
-		lifetime = 0x7fffffff/HZ - 1;
-	}
+	lifetime = addrconf_timeout_fixup(ntohl(rinfo->lifetime), HZ);
 
 	if (rinfo->length == 3)
 		prefix = (struct in6_addr *)rinfo->prefix;
@@ -506,7 +510,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 				 (rt->rt6i_flags & ~RTF_PREF_MASK) | RTF_PREF(pref);
 
 	if (rt) {
-		if (lifetime == 0xffffffff) {
+		if (!addrconf_finite_timeout(lifetime)) {
 			rt->rt6i_flags &= ~RTF_EXPIRES;
 		} else {
 			rt->rt6i_expires = jiffies + HZ * lifetime;
@@ -547,7 +551,7 @@ static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 	fn = fib6_lookup(&table->tb6_root, &fl->fl6_dst, &fl->fl6_src);
 restart:
 	rt = fn->leaf;
-	rt = rt6_device_match(net, rt, fl->oif, flags);
+	rt = rt6_device_match(net, rt, &fl->fl6_src, fl->oif, flags);
 	BACKTRACK(net, &fl->fl6_src);
 out:
 	dst_use(&rt->u.dst, jiffies);
@@ -672,7 +676,7 @@ static struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 	int strict = 0;
 	int attempts = 3;
 	int err;
-	int reachable = ipv6_devconf.forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
+	int reachable = net->ipv6.devconf_all->forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
 
@@ -1054,7 +1058,7 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 			hoplimit = idev->cnf.hop_limit;
 			in6_dev_put(idev);
 		} else
-			hoplimit = ipv6_devconf.hop_limit;
+			hoplimit = dev_net(dev)->ipv6.devconf_all->hop_limit;
 	}
 	return hoplimit;
 }
@@ -1106,7 +1110,9 @@ int ip6_route_add(struct fib6_config *cfg)
 	}
 
 	rt->u.dst.obsolete = -1;
-	rt->rt6i_expires = jiffies + clock_t_to_jiffies(cfg->fc_expires);
+	rt->rt6i_expires = (cfg->fc_flags & RTF_EXPIRES) ?
+				jiffies + clock_t_to_jiffies(cfg->fc_expires) :
+				0;
 
 	if (cfg->fc_protocol == RTPROT_UNSPEC)
 		cfg->fc_protocol = RTPROT_BOOT;
@@ -2200,7 +2206,13 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 
 	NLA_PUT_U32(skb, RTA_PRIORITY, rt->rt6i_metric);
 
-	expires = rt->rt6i_expires ? rt->rt6i_expires - jiffies : 0;
+	if (!(rt->rt6i_flags & RTF_EXPIRES))
+		expires = 0;
+	else if (rt->rt6i_expires - jiffies < INT_MAX)
+		expires = rt->rt6i_expires - jiffies;
+	else
+		expires = INT_MAX;
+
 	if (rtnl_put_cacheinfo(skb, &rt->u.dst, 0, 0, 0,
 			       expires, rt->u.dst.error) < 0)
 		goto nla_put_failure;
@@ -2404,26 +2416,7 @@ static int ipv6_route_show(struct seq_file *m, void *v)
 
 static int ipv6_route_open(struct inode *inode, struct file *file)
 {
-	int err;
-	struct net *net = get_proc_net(inode);
-	if (!net)
-		return -ENXIO;
-
-	err = single_open(file, ipv6_route_show, net);
-	if (err < 0) {
-		put_net(net);
-		return err;
-	}
-
-	return 0;
-}
-
-static int ipv6_route_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct net *net = seq->private;
-	put_net(net);
-	return single_release(inode, file);
+	return single_open_net(inode, file, ipv6_route_show);
 }
 
 static const struct file_operations ipv6_route_proc_fops = {
@@ -2431,7 +2424,7 @@ static const struct file_operations ipv6_route_proc_fops = {
 	.open		= ipv6_route_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= ipv6_route_release,
+	.release	= single_release_net,
 };
 
 static int rt6_stats_seq_show(struct seq_file *seq, void *v)
@@ -2451,26 +2444,7 @@ static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 
 static int rt6_stats_seq_open(struct inode *inode, struct file *file)
 {
-	int err;
-	struct net *net = get_proc_net(inode);
-	if (!net)
-		return -ENXIO;
-
-	err = single_open(file, rt6_stats_seq_show, net);
-	if (err < 0) {
-		put_net(net);
-		return err;
-	}
-
-	return 0;
-}
-
-static int rt6_stats_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct net *net = (struct net *)seq->private;
-	put_net(net);
-	return single_release(inode, file);
+	return single_open_net(inode, file, rt6_stats_seq_show);
 }
 
 static const struct file_operations rt6_stats_seq_fops = {
@@ -2478,7 +2452,7 @@ static const struct file_operations rt6_stats_seq_fops = {
 	.open	 = rt6_stats_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = rt6_stats_seq_release,
+	.release = single_release_net,
 };
 #endif	/* CONFIG_PROC_FS */
 

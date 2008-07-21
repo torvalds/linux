@@ -5787,7 +5787,7 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		struct sis_video_info *countvideo = card_list;
 		ivideo->cardnumber = 1;
-		while((countvideo = countvideo->next) != 0)
+		while((countvideo = countvideo->next) != NULL)
 			ivideo->cardnumber++;
 	}
 

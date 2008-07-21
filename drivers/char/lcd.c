@@ -20,6 +20,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/delay.h>
 
 #include <asm/io.h>
@@ -414,6 +415,8 @@ static int lcd_ioctl(struct inode *inode, struct file *file,
 
 static int lcd_open(struct inode *inode, struct file *file)
 {
+	cycle_kernel_lock();
+
 	if (!lcd_present)
 		return -ENXIO;
 	else

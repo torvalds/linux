@@ -567,12 +567,36 @@ struct nes_cqp_request *nes_get_cqp_request(struct nes_device *nesdev)
 	return cqp_request;
 }
 
+void nes_free_cqp_request(struct nes_device *nesdev,
+			  struct nes_cqp_request *cqp_request)
+{
+	unsigned long flags;
+
+	nes_debug(NES_DBG_CQP, "CQP request %p (opcode 0x%02X) freed.\n",
+		  cqp_request,
+		  le32_to_cpu(cqp_request->cqp_wqe.wqe_words[NES_CQP_WQE_OPCODE_IDX]) & 0x3f);
+
+	if (cqp_request->dynamic) {
+		kfree(cqp_request);
+	} else {
+		spin_lock_irqsave(&nesdev->cqp.lock, flags);
+		list_add_tail(&cqp_request->list, &nesdev->cqp_avail_reqs);
+		spin_unlock_irqrestore(&nesdev->cqp.lock, flags);
+	}
+}
+
+void nes_put_cqp_request(struct nes_device *nesdev,
+			 struct nes_cqp_request *cqp_request)
+{
+	if (atomic_dec_and_test(&cqp_request->refcount))
+		nes_free_cqp_request(nesdev, cqp_request);
+}
 
 /**
  * nes_post_cqp_request
  */
 void nes_post_cqp_request(struct nes_device *nesdev,
-		struct nes_cqp_request *cqp_request, int ring_doorbell)
+			  struct nes_cqp_request *cqp_request)
 {
 	struct nes_hw_cqp_wqe *cqp_wqe;
 	unsigned long flags;
@@ -600,10 +624,9 @@ void nes_post_cqp_request(struct nes_device *nesdev,
 				nesdev->cqp.sq_head, nesdev->cqp.sq_tail, nesdev->cqp.sq_size,
 				cqp_request->waiting, atomic_read(&cqp_request->refcount));
 		barrier();
-		if (ring_doorbell) {
-			/* Ring doorbell (1 WQEs) */
-			nes_write32(nesdev->regs+NES_WQE_ALLOC, 0x01800000 | nesdev->cqp.qp_id);
-		}
+
+		/* Ring doorbell (1 WQEs) */
+		nes_write32(nesdev->regs+NES_WQE_ALLOC, 0x01800000 | nesdev->cqp.qp_id);
 
 		barrier();
 	} else {

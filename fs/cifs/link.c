@@ -234,7 +234,6 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
-	char *tmp_path = NULL;
 	char *tmpbuffer;
 	int len;
 	__u16 fid;
@@ -295,45 +294,9 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 				cFYI(1, ("Error closing junction point "
 					 "(open for ioctl)"));
 			}
-			/* BB unwind this long, nested function, or remove BB */
-			if (rc == -EIO) {
-				/* Query if DFS Junction */
-				unsigned int num_referrals = 0;
-				struct dfs_info3_param *refs = NULL;
-				tmp_path =
-					kmalloc(MAX_TREE_SIZE + MAX_PATHCONF + 1,
-						GFP_KERNEL);
-				if (tmp_path) {
-					strncpy(tmp_path, pTcon->treeName,
-						MAX_TREE_SIZE);
-					strncat(tmp_path, full_path,
-						MAX_PATHCONF);
-					rc = get_dfs_path(xid, pTcon->ses,
-						tmp_path,
-						cifs_sb->local_nls,
-						&num_referrals, &refs,
-						cifs_sb->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-					cFYI(1, ("Get DFS for %s rc = %d ",
-						tmp_path, rc));
-					if ((num_referrals == 0) && (rc == 0))
-						rc = -EACCES;
-					else {
-						cFYI(1, ("num referral: %d",
-							num_referrals));
-						if (refs && refs->path_name) {
-							strncpy(tmpbuffer,
-								refs->path_name,
-								len-1);
-						}
-					}
-					kfree(refs);
-					kfree(tmp_path);
-}
-				/* BB add code like else decode referrals
-				then memcpy to tmpbuffer and free referrals
-				string array BB */
-			}
+			/* If it is a DFS junction earlier we would have gotten
+			   PATH_NOT_COVERED returned from server so we do
+			   not need to request the DFS info here */
 		}
 	}
 	/* BB Anything else to do to handle recursive links? */

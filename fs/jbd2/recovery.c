@@ -344,6 +344,7 @@ static int calc_chksums(journal_t *journal, struct buffer_head *bh,
 			*crc32_sum = crc32_be(*crc32_sum, (void *)obh->b_data,
 				     obh->b_size);
 		}
+		put_bh(obh);
 	}
 	return 0;
 }
@@ -610,9 +611,8 @@ static int do_one_pass(journal_t *journal,
 				chksum_err = chksum_seen = 0;
 
 				if (info->end_transaction) {
-					printk(KERN_ERR "JBD: Transaction %u "
-						"found to be corrupt.\n",
-						next_commit_ID - 1);
+					journal->j_failed_commit =
+						info->end_transaction;
 					brelse(bh);
 					break;
 				}
@@ -643,10 +643,8 @@ static int do_one_pass(journal_t *journal,
 
 					if (!JBD2_HAS_INCOMPAT_FEATURE(journal,
 					   JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)){
-						printk(KERN_ERR
-						       "JBD: Transaction %u "
-						       "found to be corrupt.\n",
-						       next_commit_ID);
+						journal->j_failed_commit =
+							next_commit_ID;
 						brelse(bh);
 						break;
 					}

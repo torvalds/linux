@@ -157,6 +157,9 @@ struct virtqueue
 
 	/* The routine to call when the Guest pings us. */
 	void (*handle_output)(int fd, struct virtqueue *me);
+
+	/* Outstanding buffers */
+	unsigned int inflight;
 };
 
 /* Remember the arguments to the program so we can "reboot" */
@@ -702,6 +705,7 @@ static unsigned get_vq_desc(struct virtqueue *vq,
 			errx(1, "Looped descriptor");
 	} while ((i = next_desc(vq, i)) != vq->vring.num);
 
+	vq->inflight++;
 	return head;
 }
 
@@ -719,6 +723,7 @@ static void add_used(struct virtqueue *vq, unsigned int head, int len)
 	/* Make sure buffer is written before we update index. */
 	wmb();
 	vq->vring.used->idx++;
+	vq->inflight--;
 }
 
 /* This actually sends the interrupt for this virtqueue */
@@ -726,8 +731,9 @@ static void trigger_irq(int fd, struct virtqueue *vq)
 {
 	unsigned long buf[] = { LHREQ_IRQ, vq->config.irq };
 
-	/* If they don't want an interrupt, don't send one. */
-	if (vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
+	/* If they don't want an interrupt, don't send one, unless empty. */
+	if ((vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
+	    && vq->inflight)
 		return;
 
 	/* Send the Guest an interrupt tell them we used something up. */
@@ -1107,6 +1113,7 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	vq->next = NULL;
 	vq->last_avail_idx = 0;
 	vq->dev = dev;
+	vq->inflight = 0;
 
 	/* Initialize the configuration. */
 	vq->config.num = num_descs;
@@ -1368,6 +1375,7 @@ static void setup_tun_net(const char *arg)
 
 	/* Tell Guest what MAC address to use. */
 	add_feature(dev, VIRTIO_NET_F_MAC);
+	add_feature(dev, VIRTIO_F_NOTIFY_ON_EMPTY);
 	set_config(dev, sizeof(conf), &conf);
 
 	/* We don't need the socket any more; setup is done. */

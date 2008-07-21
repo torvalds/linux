@@ -2974,6 +2974,7 @@ xfs_iflush_cluster(
 	xfs_mount_t		*mp = ip->i_mount;
 	xfs_perag_t		*pag = xfs_get_perag(mp, ip->i_ino);
 	unsigned long		first_index, mask;
+	unsigned long		inodes_per_cluster;
 	int			ilist_size;
 	xfs_inode_t		**ilist;
 	xfs_inode_t		*iq;
@@ -2985,8 +2986,9 @@ xfs_iflush_cluster(
 	ASSERT(pag->pagi_inodeok);
 	ASSERT(pag->pag_ici_init);
 
-	ilist_size = XFS_INODE_CLUSTER_SIZE(mp) * sizeof(xfs_inode_t *);
-	ilist = kmem_alloc(ilist_size, KM_MAYFAIL);
+	inodes_per_cluster = XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog;
+	ilist_size = inodes_per_cluster * sizeof(xfs_inode_t *);
+	ilist = kmem_alloc(ilist_size, KM_MAYFAIL|KM_NOFS);
 	if (!ilist)
 		return 0;
 
@@ -2995,8 +2997,7 @@ xfs_iflush_cluster(
 	read_lock(&pag->pag_ici_lock);
 	/* really need a gang lookup range call here */
 	nr_found = radix_tree_gang_lookup(&pag->pag_ici_root, (void**)ilist,
-					first_index,
-					XFS_INODE_CLUSTER_SIZE(mp));
+					first_index, inodes_per_cluster);
 	if (nr_found == 0)
 		goto out_free;
 

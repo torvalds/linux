@@ -1,8 +1,8 @@
 /* DVB USB compliant linux driver for GL861 USB2.0 devices.
  *
  *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
+ *	under the terms of the GNU General Public License as published by the
+ *	Free Software Foundation, version 2.
  *
  * see Documentation/dvb/README.dvb-usb for more information
  */
@@ -13,9 +13,9 @@
 
 /* debug */
 static int dvb_usb_gl861_debug;
-module_param_named(debug,dvb_usb_gl861_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
-
+module_param_named(debug, dvb_usb_gl861_debug, int, 0644);
+MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))."
+	DVB_USB_DEBUG_STATUS);
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static int gl861_i2c_msg(struct dvb_usb_device *d, u8 addr,
@@ -47,6 +47,8 @@ static int gl861_i2c_msg(struct dvb_usb_device *d, u8 addr,
 		return -EINVAL;
 	}
 
+	msleep(1); /* avoid I2C errors */
+
 	return usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), req, type,
 			       value, index, rbuf, rlen, 2000);
 }
@@ -68,7 +70,7 @@ static int gl861_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		/* write/read request */
 		if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
 			if (gl861_i2c_msg(d, msg[i].addr, msg[i].buf,
-					  msg[i].len, msg[i+1].buf, msg[i+1].len) < 0)
+				msg[i].len, msg[i+1].buf, msg[i+1].len) < 0)
 				break;
 			i++;
 		} else
@@ -92,16 +94,6 @@ static struct i2c_algorithm gl861_i2c_algo = {
 };
 
 /* Callbacks for DVB USB */
-static int gl861_identify_state(struct usb_device *udev,
-				struct dvb_usb_device_properties *props,
-				struct dvb_usb_device_description **desc,
-				int *cold)
-{
-	*cold = 0;
-
-	return 0;
-}
-
 static struct zl10353_config gl861_zl10353_config = {
 	.demod_address = 0x0f,
 	.no_tuner = 1,
@@ -110,12 +102,13 @@ static struct zl10353_config gl861_zl10353_config = {
 
 static int gl861_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	if ((adap->fe = dvb_attach(zl10353_attach, &gl861_zl10353_config,
-				   &adap->dev->i2c_adap)) != NULL) {
-		return 0;
-	}
 
-	return -EIO;
+	adap->fe = dvb_attach(zl10353_attach, &gl861_zl10353_config,
+		&adap->dev->i2c_adap);
+	if (adap->fe == NULL)
+		return -EIO;
+
+	return 0;
 }
 
 static struct qt1010_config gl861_qt1010_config = {
@@ -164,7 +157,7 @@ static struct usb_device_id gl861_table [] = {
 		{ USB_DEVICE(USB_VID_ALINK, USB_VID_ALINK_DTU) },
 		{ }		/* Terminating entry */
 };
-MODULE_DEVICE_TABLE (usb, gl861_table);
+MODULE_DEVICE_TABLE(usb, gl861_table);
 
 static struct dvb_usb_device_properties gl861_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
@@ -172,7 +165,6 @@ static struct dvb_usb_device_properties gl861_properties = {
 
 	.size_of_priv     = 0,
 
-	.identify_state   = gl861_identify_state,
 	.num_adapters = 1,
 	.adapter = {{
 
@@ -189,18 +181,20 @@ static struct dvb_usb_device_properties gl861_properties = {
 				}
 			}
 		},
-	}},
+	} },
 	.i2c_algo         = &gl861_i2c_algo,
 
 	.num_device_descs = 2,
 	.devices = {
-		{   "MSI Mega Sky 55801 DVB-T USB2.0",
-			{ &gl861_table[0], NULL },
-			{ NULL },
+		{
+			.name = "MSI Mega Sky 55801 DVB-T USB2.0",
+			.cold_ids = { NULL },
+			.warm_ids = { &gl861_table[0], NULL },
 		},
-		{   "A-LINK DTU DVB-T USB2.0",
-			{ &gl861_table[1], NULL },
-			{ NULL },
+		{
+			.name = "A-LINK DTU DVB-T USB2.0",
+			.cold_ids = { NULL },
+			.warm_ids = { &gl861_table[1], NULL },
 		},
 	}
 };
@@ -217,12 +211,11 @@ static int __init gl861_module_init(void)
 {
 	int ret;
 
-	if ((ret = usb_register(&gl861_driver))) {
+	ret = usb_register(&gl861_driver);
+	if (ret)
 		err("usb_register failed. Error number %d", ret);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static void __exit gl861_module_exit(void)
@@ -231,8 +224,8 @@ static void __exit gl861_module_exit(void)
 	usb_deregister(&gl861_driver);
 }
 
-module_init (gl861_module_init);
-module_exit (gl861_module_exit);
+module_init(gl861_module_init);
+module_exit(gl861_module_exit);
 
 MODULE_AUTHOR("Carl Lundqvist <comabug@gmail.com>");
 MODULE_DESCRIPTION("Driver MSI Mega Sky 580 DVB-T USB2.0 / GL861");
