@@ -336,3 +336,13 @@ When:	After the only user (hal) has seen a release with the patches
 Why:	Over 1K .text/.data size reduction, data is available in other
 	ways (ioctls)
 Who:	Johannes Berg <johannes@sipsolutions.net>
+
+---------------------------
+
+What: CONFIG_NF_CT_ACCT
+When: 2.6.29
+Why:  Accounting can now be enabled/disabled without kernel recompilation.
+      Currently used only to set a default value for a feature that is also
+      controlled by a kernel/module/sysfs/sysctl parameter.
+Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
+
