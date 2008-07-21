@@ -59,8 +59,6 @@
 #include "zoran_device.h"
 #include "zoran_procfs.h"
 
-#define I2C_NAME(x) (x)->name
-
 extern const struct zoran_format zoran_formats[];
 
 static int card[BUZ_MAX] = { -1, -1, -1, -1 };
@@ -360,14 +358,6 @@ i2cid_to_modulename (u16 i2c_id)
 	case I2C_DRIVERID_VPX3220:
 		name = "vpx3220";
 		break;
-/*	case I2C_DRIVERID_VPX3224:
-		name = "vpx3224";
-		break;
-	case I2C_DRIVERID_MSE3000:
-		name = "mse3000";
-		break;*/
-	default:
-		break;
 	}
 
 	return name;
@@ -387,8 +377,6 @@ codecid_to_modulename (u16 codecid)
 		break;
 	case CODEC_TYPE_ZR36016:
 		name = "zr36016";
-		break;
-	default:
 		break;
 	}
 
@@ -430,7 +418,6 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = DC10_old,
 		.name = "DC10(old)",
 		.i2c_decoder = I2C_DRIVERID_VPX3220,
-		/*.i2c_encoder = I2C_DRIVERID_MSE3000,*/
 		.video_codec = CODEC_TYPE_ZR36050,
 		.video_vfe = CODEC_TYPE_ZR36016,
 
@@ -809,7 +796,7 @@ clientunreg_unlock_and_return:
 	return res;
 }
 
-static struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
+static const struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 	.setsda = zoran_i2c_setsda,
 	.setscl = zoran_i2c_setscl,
 	.getsda = zoran_i2c_getsda,
@@ -818,24 +805,17 @@ static struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 	.timeout = 100,
 };
 
-static struct i2c_adapter zoran_i2c_adapter_template = {
-	.name = "zr36057",
-	.id = I2C_HW_B_ZR36067,
-	.algo = NULL,
-	.client_register = zoran_i2c_client_register,
-	.client_unregister = zoran_i2c_client_unregister,
-};
-
 static int
 zoran_register_i2c (struct zoran *zr)
 {
 	memcpy(&zr->i2c_algo, &zoran_i2c_bit_data_template,
 	       sizeof(struct i2c_algo_bit_data));
 	zr->i2c_algo.data = zr;
-	memcpy(&zr->i2c_adapter, &zoran_i2c_adapter_template,
-	       sizeof(struct i2c_adapter));
-	strncpy(I2C_NAME(&zr->i2c_adapter), ZR_DEVNAME(zr),
-		sizeof(I2C_NAME(&zr->i2c_adapter)) - 1);
+	zr->i2c_adapter.id = I2C_HW_B_ZR36067;
+	zr->i2c_adapter.client_register = zoran_i2c_client_register;
+	zr->i2c_adapter.client_unregister = zoran_i2c_client_unregister;
+	strlcpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
+		sizeof(zr->i2c_adapter.name));
 	i2c_set_adapdata(&zr->i2c_adapter, zr);
 	zr->i2c_adapter.algo_data = &zr->i2c_algo;
 	zr->i2c_adapter.dev.parent = &zr->pci_dev->dev;
@@ -1147,7 +1127,7 @@ zr36057_init (struct zoran *zr)
 		goto exit_free;
 	}
 	for (j = 0; j < BUZ_NUM_STAT_COM; j++) {
-		zr->stat_com[j] = 1;	/* mark as unavailable to zr36057 */
+		zr->stat_com[j] = cpu_to_le32(1); /* mark as unavailable to zr36057 */
 	}
 
 	/*

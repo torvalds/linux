@@ -72,7 +72,7 @@ int dev_mc_delete(struct net_device *dev, void *addr, int alen, int glbl)
 {
 	int err;
 
-	netif_tx_lock_bh(dev);
+	netif_addr_lock_bh(dev);
 	err = __dev_addr_delete(&dev->mc_list, &dev->mc_count,
 				addr, alen, glbl);
 	if (!err) {
@@ -83,7 +83,7 @@ int dev_mc_delete(struct net_device *dev, void *addr, int alen, int glbl)
 
 		__dev_set_rx_mode(dev);
 	}
-	netif_tx_unlock_bh(dev);
+	netif_addr_unlock_bh(dev);
 	return err;
 }
 
@@ -95,11 +95,11 @@ int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
 {
 	int err;
 
-	netif_tx_lock_bh(dev);
+	netif_addr_lock_bh(dev);
 	err = __dev_addr_add(&dev->mc_list, &dev->mc_count, addr, alen, glbl);
 	if (!err)
 		__dev_set_rx_mode(dev);
-	netif_tx_unlock_bh(dev);
+	netif_addr_unlock_bh(dev);
 	return err;
 }
 
@@ -119,12 +119,12 @@ int dev_mc_sync(struct net_device *to, struct net_device *from)
 {
 	int err = 0;
 
-	netif_tx_lock_bh(to);
+	netif_addr_lock_bh(to);
 	err = __dev_addr_sync(&to->mc_list, &to->mc_count,
 			      &from->mc_list, &from->mc_count);
 	if (!err)
 		__dev_set_rx_mode(to);
-	netif_tx_unlock_bh(to);
+	netif_addr_unlock_bh(to);
 
 	return err;
 }
@@ -143,15 +143,15 @@ EXPORT_SYMBOL(dev_mc_sync);
  */
 void dev_mc_unsync(struct net_device *to, struct net_device *from)
 {
-	netif_tx_lock_bh(from);
-	netif_tx_lock_bh(to);
+	netif_addr_lock_bh(from);
+	netif_addr_lock(to);
 
 	__dev_addr_unsync(&to->mc_list, &to->mc_count,
 			  &from->mc_list, &from->mc_count);
 	__dev_set_rx_mode(to);
 
-	netif_tx_unlock_bh(to);
-	netif_tx_unlock_bh(from);
+	netif_addr_unlock(to);
+	netif_addr_unlock_bh(from);
 }
 EXPORT_SYMBOL(dev_mc_unsync);
 
@@ -164,7 +164,7 @@ static int dev_mc_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		return 0;
 
-	netif_tx_lock_bh(dev);
+	netif_addr_lock_bh(dev);
 	for (m = dev->mc_list; m; m = m->next) {
 		int i;
 
@@ -176,7 +176,7 @@ static int dev_mc_seq_show(struct seq_file *seq, void *v)
 
 		seq_putc(seq, '\n');
 	}
-	netif_tx_unlock_bh(dev);
+	netif_addr_unlock_bh(dev);
 	return 0;
 }
 

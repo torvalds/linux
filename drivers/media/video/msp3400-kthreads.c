@@ -480,7 +480,6 @@ int msp3400c_thread(void *data)
 	struct msp3400c_carrier_detect *cd;
 	int count, max1, max2, val1, val2, val, i;
 
-
 	v4l_dbg(1, msp_debug, client, "msp3400 daemon started\n");
 	set_freezable();
 	for (;;) {

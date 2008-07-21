@@ -1,8 +1,6 @@
 /*
  * IPVS:        Destination Hashing scheduling module
  *
- * Version:     $Id: ip_vs_dh.c,v 1.5 2002/09/15 08:14:08 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@gnuchina.org>
  *
  *              Inspired by the consistent hashing scheduler patch from

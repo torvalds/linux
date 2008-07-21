@@ -237,8 +237,7 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 }
 
 static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
-				       struct sk_buff *skb,
-				       struct ieee80211_tx_status *status)
+				       struct sk_buff *skb)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -248,6 +247,7 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 	struct rc_pid_sta_info *spinfo;
 	unsigned long period;
 	struct ieee80211_supported_band *sband;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	rcu_read_lock();
 
@@ -259,35 +259,35 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 
 	/* Don't update the state if we're not controlling the rate. */
 	sdata = sta->sdata;
-	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1) {
-		sta->txrate_idx = sdata->bss->max_ratectrl_rateidx;
+	if (sdata->force_unicast_rateidx > -1) {
+		sta->txrate_idx = sdata->max_ratectrl_rateidx;
 		goto unlock;
 	}
 
 	/* Ignore all frames that were sent with a different rate than the rate
 	 * we currently advise mac80211 to use. */
-	if (status->control.tx_rate != &sband->bitrates[sta->txrate_idx])
+	if (info->tx_rate_idx != sta->txrate_idx)
 		goto unlock;
 
 	spinfo = sta->rate_ctrl_priv;
 	spinfo->tx_num_xmit++;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	rate_control_pid_event_tx_status(&spinfo->events, status);
+	rate_control_pid_event_tx_status(&spinfo->events, info);
 #endif
 
 	/* We count frames that totally failed to be transmitted as two bad
 	 * frames, those that made it out but had some retries as one good and
 	 * one bad frame. */
-	if (status->excessive_retries) {
+	if (info->status.excessive_retries) {
 		spinfo->tx_num_failed += 2;
 		spinfo->tx_num_xmit++;
-	} else if (status->retry_count) {
+	} else if (info->status.retry_count) {
 		spinfo->tx_num_failed++;
 		spinfo->tx_num_xmit++;
 	}
 
-	if (status->excessive_retries) {
+	if (info->status.excessive_retries) {
 		sta->tx_retry_failed++;
 		sta->tx_num_consecutive_failures++;
 		sta->tx_num_mpdu_fail++;
@@ -295,8 +295,8 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 		sta->tx_num_consecutive_failures = 0;
 		sta->tx_num_mpdu_ok++;
 	}
-	sta->tx_retry_count += status->retry_count;
-	sta->tx_num_mpdu_fail += status->retry_count;
+	sta->tx_retry_count += info->status.retry_count;
+	sta->tx_num_mpdu_fail += info->status.retry_count;
 
 	/* Update PID controller state. */
 	period = (HZ * pinfo->sampling_period + 500) / 1000;
@@ -330,15 +330,15 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 	fc = le16_to_cpu(hdr->frame_control);
 	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
 	    is_multicast_ether_addr(hdr->addr1) || !sta) {
-		sel->rate = rate_lowest(local, sband, sta);
+		sel->rate_idx = rate_lowest_index(local, sband, sta);
 		rcu_read_unlock();
 		return;
 	}
 
 	/* If a forced rate is in effect, select it. */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1)
-		sta->txrate_idx = sdata->bss->force_unicast_rateidx;
+	if (sdata->force_unicast_rateidx > -1)
+		sta->txrate_idx = sdata->force_unicast_rateidx;
 
 	rateidx = sta->txrate_idx;
 
@@ -349,7 +349,7 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 
 	rcu_read_unlock();
 
-	sel->rate = &sband->bitrates[rateidx];
+	sel->rate_idx = rateidx;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	rate_control_pid_event_tx_rate(
@@ -535,11 +535,6 @@ static struct rate_control_ops mac80211_rcpid = {
 #endif
 };
 
-MODULE_DESCRIPTION("PID controller based rate control algorithm");
-MODULE_AUTHOR("Stefano Brivio");
-MODULE_AUTHOR("Mattias Nissler");
-MODULE_LICENSE("GPL");
-
 int __init rc80211_pid_init(void)
 {
 	return ieee80211_rate_control_register(&mac80211_rcpid);
@@ -549,8 +544,3 @@ void rc80211_pid_exit(void)
 {
 	ieee80211_rate_control_unregister(&mac80211_rcpid);
 }
-
-#ifdef CONFIG_MAC80211_RC_PID_MODULE
-module_init(rc80211_pid_init);
-module_exit(rc80211_pid_exit);
-#endif

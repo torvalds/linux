@@ -142,7 +142,39 @@ static int ieee80211_ioctl_giwname(struct net_device *dev,
 				   struct iw_request_info *info,
 				   char *name, char *extra)
 {
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_supported_band *sband;
+	u8 is_ht = 0, is_a = 0, is_b = 0, is_g = 0;
+
+
+	sband = local->hw.wiphy->bands[IEEE80211_BAND_5GHZ];
+	if (sband) {
+		is_a = 1;
+		is_ht |= sband->ht_info.ht_supported;
+	}
+
+	sband = local->hw.wiphy->bands[IEEE80211_BAND_2GHZ];
+	if (sband) {
+		int i;
+		/* Check for mandatory rates */
+		for (i = 0; i < sband->n_bitrates; i++) {
+			if (sband->bitrates[i].bitrate == 10)
+				is_b = 1;
+			if (sband->bitrates[i].bitrate == 60)
+				is_g = 1;
+		}
+		is_ht |= sband->ht_info.ht_supported;
+	}
+
 	strcpy(name, "IEEE 802.11");
+	if (is_a)
+		strcat(name, "a");
+	if (is_b)
+		strcat(name, "b");
+	if (is_g)
+		strcat(name, "g");
+	if (is_ht)
+		strcat(name, "n");
 
 	return 0;
 }
@@ -176,14 +208,26 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 	range->num_encoding_sizes = 2;
 	range->max_encoding_tokens = NUM_DEFAULT_KEYS;
 
-	range->max_qual.qual = local->hw.max_signal;
-	range->max_qual.level = local->hw.max_rssi;
-	range->max_qual.noise = local->hw.max_noise;
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC ||
+	    local->hw.flags & IEEE80211_HW_SIGNAL_DB)
+		range->max_qual.level = local->hw.max_signal;
+	else if  (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+		range->max_qual.level = -110;
+	else
+		range->max_qual.level = 0;
+
+	if (local->hw.flags & IEEE80211_HW_NOISE_DBM)
+		range->max_qual.noise = -110;
+	else
+		range->max_qual.noise = 0;
+
+	range->max_qual.qual = 100;
 	range->max_qual.updated = local->wstats_flags;
 
-	range->avg_qual.qual = local->hw.max_signal/2;
-	range->avg_qual.level = 0;
-	range->avg_qual.noise = 0;
+	range->avg_qual.qual = 50;
+	/* not always true but better than nothing */
+	range->avg_qual.level = range->max_qual.level / 2;
+	range->avg_qual.noise = range->max_qual.noise / 2;
 	range->avg_qual.updated = local->wstats_flags;
 
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
@@ -252,15 +296,7 @@ static int ieee80211_ioctl_siwmode(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (type == sdata->vif.type)
-		return 0;
-	if (netif_running(dev))
-		return -EBUSY;
-
-	ieee80211_if_reinit(dev);
-	ieee80211_if_set_type(dev, type);
-
-	return 0;
+	return ieee80211_if_change_type(sdata, type);
 }
 
 
@@ -408,7 +444,7 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 		memset(sdata->u.ap.ssid + len, 0,
 		       IEEE80211_MAX_SSID_LEN - len);
 		sdata->u.ap.ssid_len = len;
-		return ieee80211_if_config(dev);
+		return ieee80211_if_config(sdata, IEEE80211_IFCC_SSID);
 	}
 	return -EOPNOTSUPP;
 }
@@ -562,7 +598,7 @@ static int ieee80211_ioctl_giwscan(struct net_device *dev,
 	if (local->sta_sw_scanning || local->sta_hw_scanning)
 		return -EAGAIN;
 
-	res = ieee80211_sta_scan_results(dev, extra, data->length);
+	res = ieee80211_sta_scan_results(dev, info, extra, data->length);
 	if (res >= 0) {
 		data->length = res;
 		return 0;
@@ -583,16 +619,14 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 	struct ieee80211_supported_band *sband;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (!sdata->bss)
-		return -ENODEV;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	/* target_rate = -1, rate->fixed = 0 means auto only, so use all rates
 	 * target_rate = X, rate->fixed = 1 means only rate X
 	 * target_rate = X, rate->fixed = 0 means all rates <= X */
-	sdata->bss->max_ratectrl_rateidx = -1;
-	sdata->bss->force_unicast_rateidx = -1;
+	sdata->max_ratectrl_rateidx = -1;
+	sdata->force_unicast_rateidx = -1;
 	if (rate->value < 0)
 		return 0;
 
@@ -601,9 +635,9 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 		int this_rate = brate->bitrate;
 
 		if (target_rate == this_rate) {
-			sdata->bss->max_ratectrl_rateidx = i;
+			sdata->max_ratectrl_rateidx = i;
 			if (rate->fixed)
-				sdata->bss->force_unicast_rateidx = i;
+				sdata->force_unicast_rateidx = i;
 			err = 0;
 			break;
 		}
@@ -716,6 +750,9 @@ static int ieee80211_ioctl_siwrts(struct net_device *dev,
 
 	if (rts->disabled)
 		local->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
+	else if (!rts->fixed)
+		/* if the rts value is not fixed, then take default */
+		local->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 	else if (rts->value < 0 || rts->value > IEEE80211_MAX_RTS_THRESHOLD)
 		return -EINVAL;
 	else
@@ -752,6 +789,8 @@ static int ieee80211_ioctl_siwfrag(struct net_device *dev,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
 	if (frag->disabled)
+		local->fragmentation_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
+	else if (!frag->fixed)
 		local->fragmentation_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
 	else if (frag->value < 256 ||
 		 frag->value > IEEE80211_MAX_FRAG_THRESHOLD)
@@ -944,6 +983,58 @@ static int ieee80211_ioctl_giwencode(struct net_device *dev,
 	erq->length = sdata->keys[idx]->conf.keylen;
 	erq->flags |= IW_ENCODE_ENABLED;
 
+	if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
+		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+		switch (ifsta->auth_alg) {
+		case WLAN_AUTH_OPEN:
+		case WLAN_AUTH_LEAP:
+			erq->flags |= IW_ENCODE_OPEN;
+			break;
+		case WLAN_AUTH_SHARED_KEY:
+			erq->flags |= IW_ENCODE_RESTRICTED;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int ieee80211_ioctl_siwpower(struct net_device *dev,
+				    struct iw_request_info *info,
+				    struct iw_param *wrq,
+				    char *extra)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_conf *conf = &local->hw.conf;
+
+	if (wrq->disabled) {
+		conf->flags &= ~IEEE80211_CONF_PS;
+		return ieee80211_hw_config(local);
+	}
+
+	switch (wrq->flags & IW_POWER_MODE) {
+	case IW_POWER_ON:       /* If not specified */
+	case IW_POWER_MODE:     /* If set all mask */
+	case IW_POWER_ALL_R:    /* If explicitely state all */
+		conf->flags |= IEEE80211_CONF_PS;
+		break;
+	default:                /* Otherwise we don't support it */
+		return -EINVAL;
+	}
+
+	return ieee80211_hw_config(local);
+}
+
+static int ieee80211_ioctl_giwpower(struct net_device *dev,
+				    struct iw_request_info *info,
+				    union iwreq_data *wrqu,
+				    char *extra)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_conf *conf = &local->hw.conf;
+
+	wrqu->power.disabled = !(conf->flags & IEEE80211_CONF_PS);
+
 	return 0;
 }
 
@@ -1015,8 +1106,8 @@ static struct iw_statistics *ieee80211_get_wireless_stats(struct net_device *dev
 		wstats->qual.noise = 0;
 		wstats->qual.updated = IW_QUAL_ALL_INVALID;
 	} else {
-		wstats->qual.level = sta->last_rssi;
-		wstats->qual.qual = sta->last_signal;
+		wstats->qual.level = sta->last_signal;
+		wstats->qual.qual = sta->last_qual;
 		wstats->qual.noise = sta->last_noise;
 		wstats->qual.updated = local->wstats_flags;
 	}
@@ -1149,8 +1240,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) ieee80211_ioctl_giwretry,		/* SIOCGIWRETRY */
 	(iw_handler) ieee80211_ioctl_siwencode,		/* SIOCSIWENCODE */
 	(iw_handler) ieee80211_ioctl_giwencode,		/* SIOCGIWENCODE */
-	(iw_handler) NULL,				/* SIOCSIWPOWER */
-	(iw_handler) NULL,				/* SIOCGIWPOWER */
+	(iw_handler) ieee80211_ioctl_siwpower,		/* SIOCSIWPOWER */
+	(iw_handler) ieee80211_ioctl_giwpower,		/* SIOCGIWPOWER */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) ieee80211_ioctl_siwgenie,		/* SIOCSIWGENIE */

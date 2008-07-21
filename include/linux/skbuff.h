@@ -246,6 +246,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@dma_cookie: a cookie to one of several possible DMA operations
  *		done by skb DMA functions
  *	@secmark: security marking
+ *	@vlan_tci: vlan tag control information
  */
 
 struct sk_buff {
@@ -305,9 +306,7 @@ struct sk_buff {
 #endif
 
 	int			iif;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	__u16			queue_mapping;
-#endif
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
 #ifdef CONFIG_NET_CLS_ACT
@@ -327,6 +326,8 @@ struct sk_buff {
 #endif
 
 	__u32			mark;
+
+	__u16			vlan_tci;
 
 	sk_buff_data_t		transport_header;
 	sk_buff_data_t		network_header;
@@ -1671,25 +1672,17 @@ static inline void skb_init_secmark(struct sk_buff *skb)
 
 static inline void skb_set_queue_mapping(struct sk_buff *skb, u16 queue_mapping)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	skb->queue_mapping = queue_mapping;
-#endif
 }
 
 static inline u16 skb_get_queue_mapping(struct sk_buff *skb)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	return skb->queue_mapping;
-#else
-	return 0;
-#endif
 }
 
 static inline void skb_copy_queue_mapping(struct sk_buff *to, const struct sk_buff *from)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	to->queue_mapping = from->queue_mapping;
-#endif
 }
 
 static inline int skb_is_gso(const struct sk_buff *skb)
@@ -1700,6 +1693,20 @@ static inline int skb_is_gso(const struct sk_buff *skb)
 static inline int skb_is_gso_v6(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6;
+}
+
+extern void __skb_warn_lro_forwarding(const struct sk_buff *skb);
+
+static inline bool skb_warn_if_lro(const struct sk_buff *skb)
+{
+	/* LRO sets gso_size but not gso_type, whereas if GSO is really
+	 * wanted then gso_type will be set. */
+	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	if (shinfo->gso_size != 0 && unlikely(shinfo->gso_type == 0)) {
+		__skb_warn_lro_forwarding(skb);
+		return true;
+	}
+	return false;
 }
 
 static inline void skb_forward_csum(struct sk_buff *skb)

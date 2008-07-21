@@ -1,6 +1,5 @@
 /*
  *
- *  $Id$
  *
  *  Copyright (C) 2007 Michael Krufky <mkrufky@linuxtv.org>
  *
