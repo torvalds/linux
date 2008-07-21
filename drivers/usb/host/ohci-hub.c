@@ -483,6 +483,13 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		length++;
 	}
 
+	/* Some broken controllers never turn off RHCS in the interrupt
+	 * status register.  For their sake we won't re-enable RHSC
+	 * interrupts if the flag is already set.
+	 */
+	if (ohci_readl(ohci, &ohci->regs->intrstatus) & OHCI_INTR_RHSC)
+		changed = 1;
+
 	/* look at each port */
 	for (i = 0; i < ohci->num_ports; i++) {
 		u32	status = roothub_portstatus (ohci, i);
