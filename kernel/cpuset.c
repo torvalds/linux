@@ -679,7 +679,9 @@ restart:
 				if (apn == b->pn) {
 					cpus_or(*dp, *dp, b->cpus_allowed);
 					b->pn = -1;
-					update_domain_attr(dattr, b);
+					if (dattr)
+						update_domain_attr(dattr
+								   + nslot, b);
 				}
 			}
 			nslot++;
