@@ -661,17 +661,17 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 
 static __inline__ void fib6_start_gc(struct net *net, struct rt6_info *rt)
 {
-	if (net->ipv6.ip6_fib_timer->expires == 0 &&
+	if (!timer_pending(net->ipv6.ip6_fib_timer) &&
 	    (rt->rt6i_flags & (RTF_EXPIRES|RTF_CACHE)))
-		mod_timer(net->ipv6.ip6_fib_timer, jiffies +
-			  net->ipv6.sysctl.ip6_rt_gc_interval);
+		mod_timer(net->ipv6.ip6_fib_timer,
+			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
 }
 
 void fib6_force_start_gc(struct net *net)
 {
-	if (net->ipv6.ip6_fib_timer->expires == 0)
-		mod_timer(net->ipv6.ip6_fib_timer, jiffies +
-			  net->ipv6.sysctl.ip6_rt_gc_interval);
+	if (!timer_pending(net->ipv6.ip6_fib_timer))
+		mod_timer(net->ipv6.ip6_fib_timer,
+			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
 }
 
 /*
