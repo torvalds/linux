@@ -12,6 +12,8 @@
 #include <linux/ioport.h>	/* for struct resource */
 
 extern struct resource txx9_ce_res[];
+#define TXX9_CE(n)	(unsigned long)(txx9_ce_res[(n)].start)
+extern unsigned int txx9_pcode;
 extern char txx9_pcode_str[8];
 void txx9_reg_res_init(unsigned int pcode, unsigned long base,
 		       unsigned long size);
@@ -19,6 +21,11 @@ void txx9_reg_res_init(unsigned int pcode, unsigned long base,
 extern unsigned int txx9_master_clock;
 extern unsigned int txx9_cpu_clock;
 extern unsigned int txx9_gbus_clock;
+#define TXX9_IMCLK	(txx9_gbus_clock / 2)
+
+extern int txx9_ccfg_toeon;
+struct uart_port;
+int early_serial_txx9_setup(struct uart_port *port);
 
 struct pci_dev;
 struct txx9_board_vec {

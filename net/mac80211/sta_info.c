@@ -135,6 +135,7 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
 /**
  * __sta_info_free - internal STA free helper
  *
+ * @local: pointer to the global information
  * @sta: STA info to free
  *
  * This function must undo everything done by sta_info_alloc()
@@ -202,14 +203,12 @@ void sta_info_destroy(struct sta_info *sta)
 		dev_kfree_skb_any(skb);
 
 	for (i = 0; i <  STA_TID_NUM; i++) {
-		spin_lock_bh(&sta->ampdu_mlme.ampdu_rx);
+		spin_lock_bh(&sta->lock);
 		if (sta->ampdu_mlme.tid_rx[i])
 		  del_timer_sync(&sta->ampdu_mlme.tid_rx[i]->session_timer);
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_rx);
-		spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
 		if (sta->ampdu_mlme.tid_tx[i])
 		  del_timer_sync(&sta->ampdu_mlme.tid_tx[i]->addba_resp_timer);
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_unlock_bh(&sta->lock);
 	}
 
 	__sta_info_free(local, sta);
@@ -236,6 +235,9 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return NULL;
 
+	spin_lock_init(&sta->lock);
+	spin_lock_init(&sta->flaglock);
+
 	memcpy(sta->addr, addr, ETH_ALEN);
 	sta->local = local;
 	sta->sdata = sdata;
@@ -249,15 +251,13 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 	}
 
-	spin_lock_init(&sta->ampdu_mlme.ampdu_rx);
-	spin_lock_init(&sta->ampdu_mlme.ampdu_tx);
 	for (i = 0; i < STA_TID_NUM; i++) {
 		/* timer_to_tid must be initialized with identity mapping to
 		 * enable session_timer's data differentiation. refer to
 		 * sta_rx_agg_session_timer_expired for useage */
 		sta->timer_to_tid[i] = i;
 		/* tid to tx queue: initialize according to HW (0 is valid) */
-		sta->tid_to_tx_q[i] = local->hw.queues;
+		sta->tid_to_tx_q[i] = ieee80211_num_queues(&local->hw);
 		/* rx */
 		sta->ampdu_mlme.tid_state_rx[i] = HT_AGG_STATE_IDLE;
 		sta->ampdu_mlme.tid_rx[i] = NULL;
@@ -276,7 +276,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 #ifdef CONFIG_MAC80211_MESH
 	sta->plink_state = PLINK_LISTEN;
-	spin_lock_init(&sta->plink_lock);
 	init_timer(&sta->plink_timer);
 #endif
 
@@ -321,7 +320,9 @@ int sta_info_insert(struct sta_info *sta)
 	/* notify driver */
 	if (local->ops->sta_notify) {
 		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
-			sdata = sdata->u.vlan.ap;
+			sdata = container_of(sdata->bss,
+					     struct ieee80211_sub_if_data,
+					     u.ap);
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
 				       STA_NOTIFY_ADD, sta->addr);
@@ -376,8 +377,10 @@ static inline void __bss_tim_clear(struct ieee80211_if_ap *bss, u16 aid)
 static void __sta_info_set_tim_bit(struct ieee80211_if_ap *bss,
 				   struct sta_info *sta)
 {
-	if (bss)
-		__bss_tim_set(bss, sta->aid);
+	BUG_ON(!bss);
+
+	__bss_tim_set(bss, sta->aid);
+
 	if (sta->local->ops->set_tim) {
 		sta->local->tim_in_locked_section = true;
 		sta->local->ops->set_tim(local_to_hw(sta->local), sta->aid, 1);
@@ -389,6 +392,8 @@ void sta_info_set_tim_bit(struct sta_info *sta)
 {
 	unsigned long flags;
 
+	BUG_ON(!sta->sdata->bss);
+
 	spin_lock_irqsave(&sta->local->sta_lock, flags);
 	__sta_info_set_tim_bit(sta->sdata->bss, sta);
 	spin_unlock_irqrestore(&sta->local->sta_lock, flags);
@@ -397,8 +402,10 @@ void sta_info_set_tim_bit(struct sta_info *sta)
 static void __sta_info_clear_tim_bit(struct ieee80211_if_ap *bss,
 				     struct sta_info *sta)
 {
-	if (bss)
-		__bss_tim_clear(bss, sta->aid);
+	BUG_ON(!bss);
+
+	__bss_tim_clear(bss, sta->aid);
+
 	if (sta->local->ops->set_tim) {
 		sta->local->tim_in_locked_section = true;
 		sta->local->ops->set_tim(local_to_hw(sta->local), sta->aid, 0);
@@ -409,6 +416,8 @@ static void __sta_info_clear_tim_bit(struct ieee80211_if_ap *bss,
 void sta_info_clear_tim_bit(struct sta_info *sta)
 {
 	unsigned long flags;
+
+	BUG_ON(!sta->sdata->bss);
 
 	spin_lock_irqsave(&sta->local->sta_lock, flags);
 	__sta_info_clear_tim_bit(sta->sdata->bss, sta);
@@ -437,10 +446,10 @@ void __sta_info_unlink(struct sta_info **sta)
 
 	list_del(&(*sta)->list);
 
-	if ((*sta)->flags & WLAN_STA_PS) {
-		(*sta)->flags &= ~WLAN_STA_PS;
-		if (sdata->bss)
-			atomic_dec(&sdata->bss->num_sta_ps);
+	if (test_and_clear_sta_flags(*sta, WLAN_STA_PS)) {
+		BUG_ON(!sdata->bss);
+
+		atomic_dec(&sdata->bss->num_sta_ps);
 		__sta_info_clear_tim_bit(sdata->bss, *sta);
 	}
 
@@ -448,7 +457,9 @@ void __sta_info_unlink(struct sta_info **sta)
 
 	if (local->ops->sta_notify) {
 		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
-			sdata = sdata->u.vlan.ap;
+			sdata = container_of(sdata->bss,
+					     struct ieee80211_sub_if_data,
+					     u.ap);
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
 				       STA_NOTIFY_REMOVE, (*sta)->addr);
@@ -515,20 +526,20 @@ static inline int sta_info_buffer_expired(struct ieee80211_local *local,
 					  struct sta_info *sta,
 					  struct sk_buff *skb)
 {
-	struct ieee80211_tx_packet_data *pkt_data;
+	struct ieee80211_tx_info *info;
 	int timeout;
 
 	if (!skb)
 		return 0;
 
-	pkt_data = (struct ieee80211_tx_packet_data *) skb->cb;
+	info = IEEE80211_SKB_CB(skb);
 
 	/* Timeout: (2 * listen_interval * beacon_int * 1024 / 1000000) sec */
 	timeout = (sta->listen_interval * local->hw.conf.beacon_int * 32 /
 		   15625) * HZ;
 	if (timeout < STA_TX_BUFFER_EXPIRE)
 		timeout = STA_TX_BUFFER_EXPIRE;
-	return time_after(jiffies, pkt_data->jiffies + timeout);
+	return time_after(jiffies, info->control.jiffies + timeout);
 }
 
 
@@ -557,8 +568,10 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 
 		sdata = sta->sdata;
 		local->total_ps_buffered--;
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "Buffered frame expired (STA "
 		       "%s)\n", print_mac(mac, sta->addr));
+#endif
 		dev_kfree_skb(skb);
 
 		if (skb_queue_empty(&sta->ps_tx_buf))

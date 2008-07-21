@@ -36,7 +36,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 	sctp_sctphdr_t *hdr;
 	unsigned int hdroff = iphdroff + iph->ihl*4;
 	__be32 oldip, newip;
-	u32 crc32;
+	__be32 crc32;
 
 	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
 		return false;
@@ -61,7 +61,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 		crc32 = sctp_update_cksum((u8 *)skb->data, skb_headlen(skb),
 					  crc32);
 	crc32 = sctp_end_cksum(crc32);
-	hdr->checksum = htonl(crc32);
+	hdr->checksum = crc32;
 
 	return true;
 }

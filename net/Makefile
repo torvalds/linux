@@ -42,7 +42,9 @@ obj-$(CONFIG_AF_RXRPC)		+= rxrpc/
 obj-$(CONFIG_ATM)		+= atm/
 obj-$(CONFIG_DECNET)		+= decnet/
 obj-$(CONFIG_ECONET)		+= econet/
-obj-$(CONFIG_VLAN_8021Q)	+= 8021q/
+ifneq ($(CONFIG_VLAN_8021Q),)
+obj-y				+= 8021q/
+endif
 obj-$(CONFIG_IP_DCCP)		+= dccp/
 obj-$(CONFIG_IP_SCTP)		+= sctp/
 obj-y				+= wireless/

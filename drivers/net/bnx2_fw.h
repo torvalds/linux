@@ -886,6 +886,23 @@ static struct fw_info bnx2_com_fw_06 = {
 	.rodata				= bnx2_COM_b06FwRodata,
 };
 
+/* Initialized Values for the Completion Processor. */
+static const struct cpu_reg cpu_reg_com = {
+	.mode = BNX2_COM_CPU_MODE,
+	.mode_value_halt = BNX2_COM_CPU_MODE_SOFT_HALT,
+	.mode_value_sstep = BNX2_COM_CPU_MODE_STEP_ENA,
+	.state = BNX2_COM_CPU_STATE,
+	.state_value_clear = 0xffffff,
+	.gpr0 = BNX2_COM_CPU_REG_FILE,
+	.evmask = BNX2_COM_CPU_EVENT_MASK,
+	.pc = BNX2_COM_CPU_PROGRAM_COUNTER,
+	.inst = BNX2_COM_CPU_INSTRUCTION,
+	.bp = BNX2_COM_CPU_HW_BREAKPOINT,
+	.spad_base = BNX2_COM_SCRATCH,
+	.mips_view_base = 0x8000000,
+};
+
+
 static u8 bnx2_CP_b06FwText[] = {
 	0x9d, 0xbc, 0x0d, 0x78, 0x13, 0xe7, 0x99, 0x2e, 0x7c, 0xcf, 0x48, 0xb2,
 	0x65, 0x5b, 0xb6, 0xc7, 0xb6, 0x0c, 0x22, 0x65, 0x41, 0x83, 0x47, 0x20,
@@ -2167,6 +2184,22 @@ static struct fw_info bnx2_cp_fw_06 = {
 	.rodata				= bnx2_CP_b06FwRodata,
 };
 
+/* Initialized Values the Command Processor. */
+static const struct cpu_reg cpu_reg_cp = {
+	.mode = BNX2_CP_CPU_MODE,
+	.mode_value_halt = BNX2_CP_CPU_MODE_SOFT_HALT,
+	.mode_value_sstep = BNX2_CP_CPU_MODE_STEP_ENA,
+	.state = BNX2_CP_CPU_STATE,
+	.state_value_clear = 0xffffff,
+	.gpr0 = BNX2_CP_CPU_REG_FILE,
+	.evmask = BNX2_CP_CPU_EVENT_MASK,
+	.pc = BNX2_CP_CPU_PROGRAM_COUNTER,
+	.inst = BNX2_CP_CPU_INSTRUCTION,
+	.bp = BNX2_CP_CPU_HW_BREAKPOINT,
+	.spad_base = BNX2_CP_SCRATCH,
+	.mips_view_base = 0x8000000,
+};
+
 static u8 bnx2_RXP_b06FwText[] = {
 	0xec, 0x5b, 0x5d, 0x70, 0x5c, 0xd7, 0x5d, 0xff, 0xdf, 0xb3, 0x2b, 0x69,
 	0x2d, 0x4b, 0xf2, 0x95, 0xbc, 0x71, 0x56, 0xa9, 0x92, 0xec, 0x5a, 0x57,
@@ -2946,6 +2979,22 @@ static struct fw_info bnx2_rxp_fw_06 = {
 	.rodata				= bnx2_RXP_b06FwRodata,
 };
 
+/* Initialized Values for the RX Processor. */
+static const struct cpu_reg cpu_reg_rxp = {
+	.mode = BNX2_RXP_CPU_MODE,
+	.mode_value_halt = BNX2_RXP_CPU_MODE_SOFT_HALT,
+	.mode_value_sstep = BNX2_RXP_CPU_MODE_STEP_ENA,
+	.state = BNX2_RXP_CPU_STATE,
+	.state_value_clear = 0xffffff,
+	.gpr0 = BNX2_RXP_CPU_REG_FILE,
+	.evmask = BNX2_RXP_CPU_EVENT_MASK,
+	.pc = BNX2_RXP_CPU_PROGRAM_COUNTER,
+	.inst = BNX2_RXP_CPU_INSTRUCTION,
+	.bp = BNX2_RXP_CPU_HW_BREAKPOINT,
+	.spad_base = BNX2_RXP_SCRATCH,
+	.mips_view_base = 0x8000000,
+};
+
 static u8 bnx2_rv2p_proc1[] = {
 	/* Date:        12/07/2007 15:02 */
 	0xd5, 0x56, 0x41, 0x6b, 0x13, 0x51, 0x10, 0x9e, 0xdd, 0x6c, 0xbb, 0xdb,
@@ -3649,6 +3698,22 @@ static struct fw_info bnx2_tpat_fw_06 = {
 	.rodata_len			= 0x0,
 	.rodata_index			= 0x0,
 	.rodata				= bnx2_TPAT_b06FwRodata,
+};
+
+/* Initialized Values for the TX Patch-up Processor. */
+static const struct cpu_reg cpu_reg_tpat = {
+	.mode = BNX2_TPAT_CPU_MODE,
+	.mode_value_halt = BNX2_TPAT_CPU_MODE_SOFT_HALT,
+	.mode_value_sstep = BNX2_TPAT_CPU_MODE_STEP_ENA,
+	.state = BNX2_TPAT_CPU_STATE,
+	.state_value_clear = 0xffffff,
+	.gpr0 = BNX2_TPAT_CPU_REG_FILE,
+	.evmask = BNX2_TPAT_CPU_EVENT_MASK,
+	.pc = BNX2_TPAT_CPU_PROGRAM_COUNTER,
+	.inst = BNX2_TPAT_CPU_INSTRUCTION,
+	.bp = BNX2_TPAT_CPU_HW_BREAKPOINT,
+	.spad_base = BNX2_TPAT_SCRATCH,
+	.mips_view_base = 0x8000000,
 };
 
 static u8 bnx2_TXP_b06FwText[] = {
@@ -4531,3 +4596,18 @@ static struct fw_info bnx2_txp_fw_06 = {
 	.rodata				= bnx2_TXP_b06FwRodata,
 };
 
+/* Initialized Values for the TX Processor. */
+static const struct cpu_reg cpu_reg_txp = {
+	.mode = BNX2_TXP_CPU_MODE,
+	.mode_value_halt = BNX2_TXP_CPU_MODE_SOFT_HALT,
+	.mode_value_sstep = BNX2_TXP_CPU_MODE_STEP_ENA,
+	.state = BNX2_TXP_CPU_STATE,
+	.state_value_clear = 0xffffff,
+	.gpr0 = BNX2_TXP_CPU_REG_FILE,
+	.evmask = BNX2_TXP_CPU_EVENT_MASK,
+	.pc = BNX2_TXP_CPU_PROGRAM_COUNTER,
+	.inst = BNX2_TXP_CPU_INSTRUCTION,
+	.bp = BNX2_TXP_CPU_HW_BREAKPOINT,
+	.spad_base = BNX2_TXP_SCRATCH,
+	.mips_view_base = 0x8000000,
+};

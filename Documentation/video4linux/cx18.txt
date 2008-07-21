@@ -1,36 +1,30 @@
 Some notes regarding the cx18 driver for the Conexant CX23418 MPEG
 encoder chip:
 
-1) The only hardware currently supported is the Hauppauge HVR-1600
-   card and the Compro VideoMate H900 (note that this card only
-   supports analog input, it has no digital tuner!).
+1) Currently supported are:
 
-2) Some people have problems getting the i2c bus to work. Cause unknown.
+	- Hauppauge HVR-1600
+	- Compro VideoMate H900
+	- Yuan MPC718
+	- Conexant Raptor PAL/SECAM devkit
+
+2) Some people have problems getting the i2c bus to work.
    The symptom is that the eeprom cannot be read and the card is
-   unusable.
+   unusable. This is probably fixed, but if you have problems
+   then post to the video4linux or ivtv-users mailinglist.
 
-3) The audio from the analog tuner is mono only. Probably caused by
-   incorrect audio register information in the datasheet. We are
-   waiting for updated information from Conexant.
+3) VBI (raw or sliced) has not yet been implemented.
 
-4) VBI (raw or sliced) has not yet been implemented.
+4) MPEG indexing is not yet implemented.
 
-5) MPEG indexing is not yet implemented.
-
-6) The driver is still a bit rough around the edges, this should
+5) The driver is still a bit rough around the edges, this should
    improve over time.
 
 
 Firmware:
 
-The firmware needs to be extracted from the Windows Hauppauge HVR-1600
-driver, available here:
+You can obtain the firmware files here:
 
-http://hauppauge.lightpath.net/software/install_cd/hauppauge_cd_3.4d1.zip
+http://dl.ivtvdriver.org/ivtv/firmware/cx18-firmware.tar.gz
 
-Unzip, then copy the following files to the firmware directory
-and rename them as follows:
-
-Drivers/Driver18/hcw18apu.rom -> v4l-cx23418-apu.fw
-Drivers/Driver18/hcw18enc.rom -> v4l-cx23418-cpu.fw
-Drivers/Driver18/hcw18mlC.rom -> v4l-cx23418-dig.fw
+Untar and copy the .fw files to your firmware directory.

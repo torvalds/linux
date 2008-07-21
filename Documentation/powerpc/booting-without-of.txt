@@ -41,12 +41,24 @@ Table of Contents
   VI - System-on-a-chip devices and nodes
     1) Defining child nodes of an SOC
     2) Representing devices without a current OF specification
-      a) PHY nodes
-      b) Interrupt controllers
-      c) CFI or JEDEC memory-mapped NOR flash
-      d) 4xx/Axon EMAC ethernet nodes
-      e) Xilinx IP cores
-      f) USB EHCI controllers
+      a) MDIO IO device
+      b) Gianfar-compatible ethernet nodes
+      c) PHY nodes
+      d) Interrupt controllers
+      e) I2C
+      f) Freescale SOC USB controllers
+      g) Freescale SOC SEC Security Engines
+      h) Board Control and Status (BCSR)
+      i) Freescale QUICC Engine module (QE)
+      j) CFI or JEDEC memory-mapped NOR flash
+      k) Global Utilities Block
+      l) Freescale Communications Processor Module
+      m) Chipselect/Local Bus
+      n) 4xx/Axon EMAC ethernet nodes
+      o) Xilinx IP cores
+      p) Freescale Synchronous Serial Interface
+	  q) USB EHCI controllers
+      r) MDIO on GPIOs
 
   VII - Marvell Discovery mv64[345]6x System Controller chips
     1) The /system-controller node
@@ -1814,6 +1826,60 @@ platforms are moved over to use the flattened-device-tree model.
 		   reg = <0 e0000300 90 0 e0000390 70>;
 		   big-endian;
 	   };
+
+    r) Freescale Display Interface Unit
+
+    The Freescale DIU is a LCD controller, with proper hardware, it can also
+    drive DVI monitors.
+
+    Required properties:
+    - compatible : should be "fsl-diu".
+    - reg : should contain at least address and length of the DIU register
+      set.
+    - Interrupts : one DIU interrupt should be describe here.
+
+    Example (MPC8610HPCD)
+	display@2c000 {
+		compatible = "fsl,diu";
+		reg = <0x2c000 100>;
+		interrupts = <72 2>;
+		interrupt-parent = <&mpic>;
+	};
+
+    s) Freescale on board FPGA
+
+    This is the memory-mapped registers for on board FPGA.
+
+    Required properities:
+    - compatible : should be "fsl,fpga-pixis".
+    - reg : should contain the address and the lenght of the FPPGA register
+      set.
+
+    Example (MPC8610HPCD)
+	board-control@e8000000 {
+		compatible = "fsl,fpga-pixis";
+		reg = <0xe8000000 32>;
+	};
+
+   r) MDIO on GPIOs
+
+   Currently defined compatibles:
+   - virtual,gpio-mdio
+
+   MDC and MDIO lines connected to GPIO controllers are listed in the
+   gpios property as described in section VIII.1 in the following order:
+
+   MDC, MDIO.
+
+   Example:
+
+	mdio {
+		compatible = "virtual,mdio-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpios = <&qe_pio_a 11
+			 &qe_pio_c 6>;
+	};
 
 VII - Marvell Discovery mv64[345]6x System Controller chips
 ===========================================================

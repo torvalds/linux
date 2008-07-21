@@ -1,4 +1,4 @@
-/* $Id: console.c,v 1.10 1996/12/18 06:46:54 tridge Exp $
+/*
  * console.c: Routines that deal with sending and receiving IO
  *            to/from the current console device using the PROM.
  *
@@ -104,8 +104,6 @@ prom_query_input_device()
 				return PROMDEV_ITTYB;
 		}
 		return PROMDEV_I_UNK;
-	case PROM_AP1000:
-		return PROMDEV_I_UNK;
 	};
 }
 #endif
@@ -166,8 +164,6 @@ prom_query_output_device()
 			};
 		}
 		break;
-	case PROM_AP1000:
-		return PROMDEV_I_UNK;
 	};
 	return PROMDEV_O_UNK;
 }

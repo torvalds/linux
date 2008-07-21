@@ -2420,7 +2420,8 @@ int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
 
 /* Translate our list of Access Points & Stations to a card independant
  * format that the Wireless Tools will understand - Jean II */
-int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
+int prism2_ap_translate_scan(struct net_device *dev,
+			     struct iw_request_info *info, char *buffer)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -2449,8 +2450,8 @@ int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
 		iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 		memcpy(iwe.u.ap_addr.sa_data, sta->addr, ETH_ALEN);
 		iwe.len = IW_EV_ADDR_LEN;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-						  IW_EV_ADDR_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_ADDR_LEN);
 
 		/* Use the mode to indicate if it's a station or
 		 * an Access Point */
@@ -2461,8 +2462,8 @@ int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
 		else
 			iwe.u.mode = IW_MODE_INFRA;
 		iwe.len = IW_EV_UINT_LEN;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-						  IW_EV_UINT_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_UINT_LEN);
 
 		/* Some quality */
 		memset(&iwe, 0, sizeof(iwe));
@@ -2477,8 +2478,8 @@ int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
 		iwe.u.qual.noise = HFA384X_LEVEL_TO_dBm(sta->last_rx_silence);
 		iwe.u.qual.updated = sta->last_rx_updated;
 		iwe.len = IW_EV_QUAL_LEN;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-						  IW_EV_QUAL_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_QUAL_LEN);
 
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 		if (sta->ap) {
@@ -2486,8 +2487,8 @@ int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
 			iwe.cmd = SIOCGIWESSID;
 			iwe.u.data.length = sta->u.ap.ssid_len;
 			iwe.u.data.flags = 1;
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
-							  &iwe,
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf, &iwe,
 							  sta->u.ap.ssid);
 
 			memset(&iwe, 0, sizeof(iwe));
@@ -2497,10 +2498,9 @@ int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
 					IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
 			else
 				iwe.u.data.flags = IW_ENCODE_DISABLED;
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
-							  &iwe,
-							  sta->u.ap.ssid
-							  /* 0 byte memcpy */);
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf, &iwe,
+							  sta->u.ap.ssid);
 
 			if (sta->u.ap.channel > 0 &&
 			    sta->u.ap.channel <= FREQ_COUNT) {
@@ -2510,7 +2510,7 @@ int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
 					* 100000;
 				iwe.u.freq.e = 1;
 				current_ev = iwe_stream_add_event(
-					current_ev, end_buf, &iwe,
+					info, current_ev, end_buf, &iwe,
 					IW_EV_FREQ_LEN);
 			}
 
@@ -2519,8 +2519,8 @@ int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
 			sprintf(buf, "beacon_interval=%d",
 				sta->listen_interval);
 			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
-							  &iwe, buf);
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf, &iwe, buf);
 		}
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 

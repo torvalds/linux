@@ -295,7 +295,9 @@ static void emac_rx_disable(struct emac_instance *dev)
 static inline void emac_netif_stop(struct emac_instance *dev)
 {
 	netif_tx_lock_bh(dev->ndev);
+	netif_addr_lock(dev->ndev);
 	dev->no_mcast = 1;
+	netif_addr_unlock(dev->ndev);
 	netif_tx_unlock_bh(dev->ndev);
 	dev->ndev->trans_start = jiffies;	/* prevent tx timeout */
 	mal_poll_disable(dev->mal, &dev->commac);
@@ -305,9 +307,11 @@ static inline void emac_netif_stop(struct emac_instance *dev)
 static inline void emac_netif_start(struct emac_instance *dev)
 {
 	netif_tx_lock_bh(dev->ndev);
+	netif_addr_lock(dev->ndev);
 	dev->no_mcast = 0;
 	if (dev->mcast_pending && netif_running(dev->ndev))
 		__emac_set_multicast_list(dev);
+	netif_addr_unlock(dev->ndev);
 	netif_tx_unlock_bh(dev->ndev);
 
 	netif_wake_queue(dev->ndev);

@@ -1,8 +1,6 @@
 /*
  *	Linux NET3:	IP/IP protocol decoder.
  *
- *	Version: $Id: ipip.c,v 1.50 2001/10/02 02:22:36 davem Exp $
- *
  *	Authors:
  *		Sam Lantinga (slouken@cs.ucdavis.edu)  02/01/95
  *
@@ -368,8 +366,8 @@ static int ipip_rcv(struct sk_buff *skb)
 		skb->protocol = htons(ETH_P_IP);
 		skb->pkt_type = PACKET_HOST;
 
-		tunnel->stat.rx_packets++;
-		tunnel->stat.rx_bytes += skb->len;
+		tunnel->dev->stats.rx_packets++;
+		tunnel->dev->stats.rx_bytes += skb->len;
 		skb->dev = tunnel->dev;
 		dst_release(skb->dst);
 		skb->dst = NULL;
@@ -392,7 +390,7 @@ static int ipip_rcv(struct sk_buff *skb)
 static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	struct net_device_stats *stats = &tunnel->stat;
+	struct net_device_stats *stats = &tunnel->dev->stats;
 	struct iphdr  *tiph = &tunnel->parms.iph;
 	u8     tos = tunnel->parms.iph.tos;
 	__be16 df = tiph->frag_off;
@@ -405,7 +403,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	int    mtu;
 
 	if (tunnel->recursion++) {
-		tunnel->stat.collisions++;
+		stats->collisions++;
 		goto tx_error;
 	}
 
@@ -418,7 +416,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!dst) {
 		/* NBMA tunnel */
 		if ((rt = skb->rtable) == NULL) {
-			tunnel->stat.tx_fifo_errors++;
+			stats->tx_fifo_errors++;
 			goto tx_error;
 		}
 		if ((dst = rt->rt_gateway) == 0)
@@ -433,7 +431,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 						.tos = RT_TOS(tos) } },
 				    .proto = IPPROTO_IPIP };
 		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			tunnel->stat.tx_carrier_errors++;
+			stats->tx_carrier_errors++;
 			goto tx_error_icmp;
 		}
 	}
@@ -441,7 +439,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (tdev == dev) {
 		ip_rt_put(rt);
-		tunnel->stat.collisions++;
+		stats->collisions++;
 		goto tx_error;
 	}
 
@@ -451,7 +449,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		mtu = skb->dst ? dst_mtu(skb->dst) : dev->mtu;
 
 	if (mtu < 68) {
-		tunnel->stat.collisions++;
+		stats->collisions++;
 		ip_rt_put(rt);
 		goto tx_error;
 	}
@@ -685,11 +683,6 @@ done:
 	return err;
 }
 
-static struct net_device_stats *ipip_tunnel_get_stats(struct net_device *dev)
-{
-	return &(((struct ip_tunnel*)netdev_priv(dev))->stat);
-}
-
 static int ipip_tunnel_change_mtu(struct net_device *dev, int new_mtu)
 {
 	if (new_mtu < 68 || new_mtu > 0xFFF8 - sizeof(struct iphdr))
@@ -702,7 +695,6 @@ static void ipip_tunnel_setup(struct net_device *dev)
 {
 	dev->uninit		= ipip_tunnel_uninit;
 	dev->hard_start_xmit	= ipip_tunnel_xmit;
-	dev->get_stats		= ipip_tunnel_get_stats;
 	dev->do_ioctl		= ipip_tunnel_ioctl;
 	dev->change_mtu		= ipip_tunnel_change_mtu;
 	dev->destructor		= free_netdev;

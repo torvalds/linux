@@ -1027,9 +1027,10 @@ EXPORT_SYMBOL(configfs_undepend_item);
 
 static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
-	int ret, module_got = 0;
-	struct config_group *group;
-	struct config_item *item;
+	int ret = 0;
+	int module_got = 0;
+	struct config_group *group = NULL;
+	struct config_item *item = NULL;
 	struct config_item *parent_item;
 	struct configfs_subsystem *subsys;
 	struct configfs_dirent *sd;
@@ -1070,25 +1071,30 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	snprintf(name, dentry->d_name.len + 1, "%s", dentry->d_name.name);
 
 	mutex_lock(&subsys->su_mutex);
-	group = NULL;
-	item = NULL;
 	if (type->ct_group_ops->make_group) {
-		ret = type->ct_group_ops->make_group(to_config_group(parent_item), name, &group);
-		if (!ret) {
+		group = type->ct_group_ops->make_group(to_config_group(parent_item), name);
+		if (!group)
+			group = ERR_PTR(-ENOMEM);
+		if (!IS_ERR(group)) {
 			link_group(to_config_group(parent_item), group);
 			item = &group->cg_item;
-		}
+		} else
+			ret = PTR_ERR(group);
 	} else {
-		ret = type->ct_group_ops->make_item(to_config_group(parent_item), name, &item);
-		if (!ret)
+		item = type->ct_group_ops->make_item(to_config_group(parent_item), name);
+		if (!item)
+			item = ERR_PTR(-ENOMEM);
+		if (!IS_ERR(item))
 			link_obj(parent_item, item);
+		else
+			ret = PTR_ERR(item);
 	}
 	mutex_unlock(&subsys->su_mutex);
 
 	kfree(name);
 	if (ret) {
 		/*
-		 * If ret != 0, then link_obj() was never called.
+		 * If item == NULL, then link_obj() was never called.
 		 * There are no extra references to clean up.
 		 */
 		goto out_put;

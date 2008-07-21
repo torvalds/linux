@@ -58,7 +58,7 @@ void tipc_net_route_msg(struct sk_buff *buf);
 struct node *tipc_net_select_remote_node(u32 addr, u32 ref);
 u32 tipc_net_select_router(u32 addr, u32 ref);
 
-int tipc_net_start(void);
+int tipc_net_start(u32 addr);
 void tipc_net_stop(void);
 
 #endif
