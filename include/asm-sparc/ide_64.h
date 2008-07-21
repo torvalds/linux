@@ -78,9 +78,9 @@ static inline void __ide_insw(void __iomem *port, void *dst, u32 count)
 
 static inline void outw_be(unsigned short w, void __iomem *addr)
 {
-	__asm__ __volatile__("stha %0, [%1] %2"
+	__asm__ __volatile__("stha %r0, [%1] %2"
 			     : /* no outputs */
-			     : "r" (w), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
+			     : "Jr" (w), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
 static inline void __ide_outsw(void __iomem *port, void *src, u32 count)
