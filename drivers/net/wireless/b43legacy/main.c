@@ -3845,10 +3845,10 @@ static int b43legacy_resume(struct ssb_device *dev)
 			goto out;
 		}
 	}
-	mutex_unlock(&wl->mutex);
 
 	b43legacydbg(wl, "Device resumed.\n");
 out:
+	mutex_unlock(&wl->mutex);
 	return err;
 }
 
