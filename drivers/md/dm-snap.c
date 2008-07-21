@@ -134,6 +134,27 @@ static void stop_tracking_chunk(struct dm_snapshot *s,
 	mempool_free(c, s->tracked_chunk_pool);
 }
 
+static int __chunk_is_tracked(struct dm_snapshot *s, chunk_t chunk)
+{
+	struct dm_snap_tracked_chunk *c;
+	struct hlist_node *hn;
+	int found = 0;
+
+	spin_lock_irq(&s->tracked_chunk_lock);
+
+	hlist_for_each_entry(c, hn,
+	    &s->tracked_chunk_hash[DM_TRACKED_CHUNK_HASH(chunk)], node) {
+		if (c->chunk == chunk) {
+			found = 1;
+			break;
+		}
+	}
+
+	spin_unlock_irq(&s->tracked_chunk_lock);
+
+	return found;
+}
+
 /*
  * One of these per registered origin, held in the snapshot_origins hash
  */
@@ -838,6 +859,13 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 		error = 1;
 		goto out;
 	}
+
+	/*
+	 * Check for conflicting reads. This is extremely improbable,
+	 * so yield() is sufficient and there is no need for a wait queue.
+	 */
+	while (__chunk_is_tracked(s, pe->e.old_chunk))
+		yield();
 
 	/*
 	 * Add a proper exception, and remove the
