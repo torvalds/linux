@@ -1536,7 +1536,6 @@ static int hdlcdev_attach(struct net_device *dev, unsigned short encoding,
 static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct slgt_info *info = dev_to_port(dev);
-	struct net_device_stats *stats = hdlc_stats(dev);
 	unsigned long flags;
 
 	DBGINFO(("%s hdlc_xmit\n", dev->name));
@@ -1549,8 +1548,8 @@ static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_load(info, skb->data, skb->len);
 
 	/* update network statistics */
-	stats->tx_packets++;
-	stats->tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	/* done with socket buffer, so free it */
 	dev_kfree_skb(skb);
@@ -1767,13 +1766,12 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static void hdlcdev_tx_timeout(struct net_device *dev)
 {
 	struct slgt_info *info = dev_to_port(dev);
-	struct net_device_stats *stats = hdlc_stats(dev);
 	unsigned long flags;
 
 	DBGINFO(("%s hdlcdev_tx_timeout\n", dev->name));
 
-	stats->tx_errors++;
-	stats->tx_aborted_errors++;
+	dev->stats.tx_errors++;
+	dev->stats.tx_aborted_errors++;
 
 	spin_lock_irqsave(&info->lock,flags);
 	tx_stop(info);
@@ -1806,26 +1804,25 @@ static void hdlcdev_rx(struct slgt_info *info, char *buf, int size)
 {
 	struct sk_buff *skb = dev_alloc_skb(size);
 	struct net_device *dev = info->netdev;
-	struct net_device_stats *stats = hdlc_stats(dev);
 
 	DBGINFO(("%s hdlcdev_rx\n", dev->name));
 
 	if (skb == NULL) {
 		DBGERR(("%s: can't alloc skb, drop packet\n", dev->name));
-		stats->rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 
-	memcpy(skb_put(skb, size),buf,size);
+	memcpy(skb_put(skb, size), buf, size);
 
-	skb->protocol = hdlc_type_trans(skb, info->netdev);
+	skb->protocol = hdlc_type_trans(skb, dev);
 
-	stats->rx_packets++;
-	stats->rx_bytes += size;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += size;
 
 	netif_rx(skb);
 
-	info->netdev->last_rx = jiffies;
+	dev->last_rx = jiffies;
 }
 
 /**
@@ -4568,9 +4565,8 @@ check_again:
 
 #if SYNCLINK_GENERIC_HDLC
 	if (framesize == 0) {
-		struct net_device_stats *stats = hdlc_stats(info->netdev);
-		stats->rx_errors++;
-		stats->rx_frame_errors++;
+		info->netdev->stats.rx_errors++;
+		info->netdev->stats.rx_frame_errors++;
 	}
 #endif
 

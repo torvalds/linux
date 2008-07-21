@@ -197,7 +197,7 @@ static void mpc52xx_fec_adjust_link(struct net_device *dev)
 		if (priv->link == PHY_DOWN) {
 			new_state = 1;
 			priv->link = phydev->link;
-			netif_schedule(dev);
+			netif_tx_schedule_all(dev);
 			netif_carrier_on(dev);
 			netif_start_queue(dev);
 		}

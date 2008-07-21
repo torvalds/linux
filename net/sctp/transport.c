@@ -100,6 +100,9 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	INIT_LIST_HEAD(&peer->send_ready);
 	INIT_LIST_HEAD(&peer->transports);
 
+	peer->T3_rtx_timer.expires = 0;
+	peer->hb_timer.expires = 0;
+
 	setup_timer(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event,
 			(unsigned long)peer);
 	setup_timer(&peer->hb_timer, sctp_generate_heartbeat_event,

@@ -696,8 +696,8 @@ static void efx_stop_port(struct efx_nic *efx)
 
 	/* Serialise against efx_set_multicast_list() */
 	if (efx_dev_registered(efx)) {
-		netif_tx_lock_bh(efx->net_dev);
-		netif_tx_unlock_bh(efx->net_dev);
+		netif_addr_lock_bh(efx->net_dev);
+		netif_addr_unlock_bh(efx->net_dev);
 	}
 }
 
@@ -1815,6 +1815,7 @@ static struct efx_board efx_dummy_board_info = {
 	.init    = efx_nic_dummy_op_int,
 	.init_leds = efx_port_dummy_op_int,
 	.set_fault_led = efx_port_dummy_op_blink,
+	.fini	= efx_port_dummy_op_void,
 };
 
 /**************************************************************************
@@ -1941,6 +1942,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	efx_fini_port(efx);
 
 	/* Shutdown the board, then the NIC and board state */
+	efx->board_info.fini(efx);
 	falcon_fini_interrupt(efx);
 
 	efx_fini_napi(efx);

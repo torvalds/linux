@@ -52,6 +52,8 @@
 #include <linux/inetdevice.h>
 #include <linux/seq_file.h>
 #include <linux/bootmem.h>
+#include <linux/highmem.h>
+#include <linux/swap.h>
 #include <net/net_namespace.h>
 #include <net/protocol.h>
 #include <net/ip.h>
@@ -64,8 +66,11 @@
 
 /* Global data structures. */
 struct sctp_globals sctp_globals __read_mostly;
-struct proc_dir_entry	*proc_net_sctp;
 DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics) __read_mostly;
+
+#ifdef CONFIG_PROC_FS
+struct proc_dir_entry	*proc_net_sctp;
+#endif
 
 struct idr sctp_assocs_id;
 DEFINE_SPINLOCK(sctp_assocs_id_lock);
@@ -97,6 +102,7 @@ struct sock *sctp_get_ctl_sock(void)
 /* Set up the proc fs entry for the SCTP protocol. */
 static __init int sctp_proc_init(void)
 {
+#ifdef CONFIG_PROC_FS
 	if (!proc_net_sctp) {
 		struct proc_dir_entry *ent;
 		ent = proc_mkdir("sctp", init_net.proc_net);
@@ -113,9 +119,13 @@ static __init int sctp_proc_init(void)
 		goto out_eps_proc_init;
 	if (sctp_assocs_proc_init())
 		goto out_assocs_proc_init;
+	if (sctp_remaddr_proc_init())
+		goto out_remaddr_proc_init;
 
 	return 0;
 
+out_remaddr_proc_init:
+	sctp_assocs_proc_exit();
 out_assocs_proc_init:
 	sctp_eps_proc_exit();
 out_eps_proc_init:
@@ -127,6 +137,9 @@ out_snmp_proc_init:
 	}
 out_nomem:
 	return -ENOMEM;
+#else
+	return 0;
+#endif /* CONFIG_PROC_FS */
 }
 
 /* Clean up the proc fs entry for the SCTP protocol.
@@ -135,14 +148,17 @@ out_nomem:
  */
 static void sctp_proc_exit(void)
 {
+#ifdef CONFIG_PROC_FS
 	sctp_snmp_proc_exit();
 	sctp_eps_proc_exit();
 	sctp_assocs_proc_exit();
+	sctp_remaddr_proc_exit();
 
 	if (proc_net_sctp) {
 		proc_net_sctp = NULL;
 		remove_proc_entry("sctp", init_net.proc_net);
 	}
+#endif
 }
 
 /* Private helper to extract ipv4 address and stash them in
@@ -367,6 +383,10 @@ static int sctp_v4_addr_valid(union sctp_addr *addr,
 			      struct sctp_sock *sp,
 			      const struct sk_buff *skb)
 {
+	/* IPv4 addresses not allowed */
+	if (sp && ipv6_only_sock(sctp_opt2sk(sp)))
+		return 0;
+
 	/* Is this a non-unicast address or a unusable SCTP address? */
 	if (IS_IPV4_UNUSABLE_ADDRESS(addr->v4.sin_addr.s_addr))
 		return 0;
@@ -388,6 +408,9 @@ static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
 	   ret != RTN_LOCAL &&
 	   !sp->inet.freebind &&
 	   !sysctl_ip_nonlocal_bind)
+		return 0;
+
+	if (ipv6_only_sock(sctp_opt2sk(sp)))
 		return 0;
 
 	return 1;
@@ -645,7 +668,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 	struct sctp_sockaddr_entry *temp;
 	int found = 0;
 
-	if (dev_net(ifa->ifa_dev->dev) != &init_net)
+	if (!net_eq(dev_net(ifa->ifa_dev->dev), &init_net))
 		return NOTIFY_DONE;
 
 	switch (ev) {
@@ -1059,6 +1082,7 @@ SCTP_STATIC __init int sctp_init(void)
 	int status = -EINVAL;
 	unsigned long goal;
 	unsigned long limit;
+	unsigned long nr_pages;
 	int max_share;
 	int order;
 
@@ -1154,8 +1178,9 @@ SCTP_STATIC __init int sctp_init(void)
 	 * Note this initalizes the data in sctpv6_prot too
 	 * Unabashedly stolen from tcp_init
 	 */
-	limit = min(num_physpages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
-	limit = (limit * (num_physpages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
+	nr_pages = totalram_pages - totalhigh_pages;
+	limit = min(nr_pages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
+	limit = (limit * (nr_pages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
 	limit = max(limit, 128UL);
 	sysctl_sctp_mem[0] = limit / 4 * 3;
 	sysctl_sctp_mem[1] = limit;
@@ -1165,7 +1190,7 @@ SCTP_STATIC __init int sctp_init(void)
 	limit = (sysctl_sctp_mem[1]) << (PAGE_SHIFT - 7);
 	max_share = min(4UL*1024*1024, limit);
 
-	sysctl_sctp_rmem[0] = PAGE_SIZE; /* give each asoc 1 page min */
+	sysctl_sctp_rmem[0] = SK_MEM_QUANTUM; /* give each asoc 1 page min */
 	sysctl_sctp_rmem[1] = (1500 *(sizeof(struct sk_buff) + 1));
 	sysctl_sctp_rmem[2] = max(sysctl_sctp_rmem[1], max_share);
 

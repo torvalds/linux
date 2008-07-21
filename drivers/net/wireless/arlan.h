@@ -330,7 +330,6 @@ struct TxParam
 #define TX_RING_SIZE 2
 /* Information that need to be kept for each board. */
 struct arlan_private {
-      struct net_device_stats stats;
       struct arlan_shmem __iomem * card;
       struct arlan_shmem * conf;
 

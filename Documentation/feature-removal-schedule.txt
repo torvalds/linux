@@ -308,9 +308,31 @@ Who:	Matthew Wilcox <willy@linux.intel.com>
 
 ---------------------------
 
+What:	SCTP_GET_PEER_ADDRS_NUM_OLD, SCTP_GET_PEER_ADDRS_OLD,
+	SCTP_GET_LOCAL_ADDRS_NUM_OLD, SCTP_GET_LOCAL_ADDRS_OLD
+When: 	June 2009
+Why:    A newer version of the options have been introduced in 2005 that
+	removes the limitions of the old API.  The sctp library has been
+        converted to use these new options at the same time.  Any user
+	space app that directly uses the old options should convert to using
+	the new options.
+Who:	Vlad Yasevich <vladislav.yasevich@hp.com>
+
+---------------------------
+
 What:	CONFIG_THERMAL_HWMON
 When:	January 2009
 Why:	This option was introduced just to allow older lm-sensors userspace
 	to keep working over the upgrade to 2.6.26. At the scheduled time of
 	removal fixed lm-sensors (2.x or 3.x) should be readily available.
 Who:	Rene Herman <rene.herman@gmail.com>
+
+---------------------------
+
+What:	Code that is now under CONFIG_WIRELESS_EXT_SYSFS
+	(in net/core/net-sysfs.c)
+When:	After the only user (hal) has seen a release with the patches
+	for enough time, probably some time in 2010.
+Why:	Over 1K .text/.data size reduction, data is available in other
+	ways (ioctls)
+Who:	Johannes Berg <johannes@sipsolutions.net>

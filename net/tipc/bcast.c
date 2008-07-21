@@ -276,7 +276,7 @@ static void bclink_send_nack(struct node *n_ptr)
 	if (buf) {
 		msg = buf_msg(buf);
 		msg_init(msg, BCAST_PROTOCOL, STATE_MSG,
-			 TIPC_OK, INT_H_SIZE, n_ptr->addr);
+			 INT_H_SIZE, n_ptr->addr);
 		msg_set_mc_netid(msg, tipc_net_id);
 		msg_set_bcast_ack(msg, mod(n_ptr->bclink.last_in));
 		msg_set_bcgap_after(msg, n_ptr->bclink.gap_after);
@@ -571,7 +571,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		assert(tipc_cltr_bcast_nodes.count != 0);
 		bcbuf_set_acks(buf, tipc_cltr_bcast_nodes.count);
 		msg = buf_msg(buf);
-		msg_set_non_seq(msg);
+		msg_set_non_seq(msg, 1);
 		msg_set_mc_netid(msg, tipc_net_id);
 	}
 
@@ -611,7 +611,7 @@ swap:
 		bcbearer->bpairs[bp_index].secondary = p;
 update:
 		if (bcbearer->remains_new.count == 0)
-			return TIPC_OK;
+			return 0;
 
 		bcbearer->remains = bcbearer->remains_new;
 	}
@@ -620,7 +620,7 @@ update:
 
 	bcbearer->bearer.publ.blocked = 1;
 	bcl->stats.bearer_congs++;
-	return ~TIPC_OK;
+	return 1;
 }
 
 /**
@@ -756,7 +756,7 @@ int tipc_bclink_reset_stats(void)
 	spin_lock_bh(&bc_lock);
 	memset(&bcl->stats, 0, sizeof(bcl->stats));
 	spin_unlock_bh(&bc_lock);
-	return TIPC_OK;
+	return 0;
 }
 
 int tipc_bclink_set_queue_limits(u32 limit)
@@ -769,7 +769,7 @@ int tipc_bclink_set_queue_limits(u32 limit)
 	spin_lock_bh(&bc_lock);
 	tipc_link_set_queue_limits(bcl, limit);
 	spin_unlock_bh(&bc_lock);
-	return TIPC_OK;
+	return 0;
 }
 
 int tipc_bclink_init(void)
@@ -810,7 +810,7 @@ int tipc_bclink_init(void)
 		tipc_printbuf_init(&bcl->print_buf, pb, BCLINK_LOG_BUF_SIZE);
 	}
 
-	return TIPC_OK;
+	return 0;
 }
 
 void tipc_bclink_stop(void)
