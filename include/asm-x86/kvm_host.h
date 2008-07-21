@@ -703,9 +703,11 @@ enum {
 						vcpu, 0, 0, 0, 0, 0, 0)
 
 #ifdef CONFIG_64BIT
-#define KVM_EX_ENTRY ".quad"
+# define KVM_EX_ENTRY ".quad"
+# define KVM_EX_PUSH "pushq"
 #else
-#define KVM_EX_ENTRY ".long"
+# define KVM_EX_ENTRY ".long"
+# define KVM_EX_PUSH "pushl"
 #endif
 
 /*
@@ -719,7 +721,7 @@ asmlinkage void kvm_handle_fault_on_reboot(void);
 	"666: " insn "\n\t" \
 	".pushsection .text.fixup, \"ax\" \n" \
 	"667: \n\t" \
-	"push $666b \n\t" \
+	KVM_EX_PUSH " $666b \n\t" \
 	"jmp kvm_handle_fault_on_reboot \n\t" \
 	".popsection \n\t" \
 	".pushsection __ex_table, \"a\" \n\t" \
