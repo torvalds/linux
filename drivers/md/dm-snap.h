@@ -161,6 +161,8 @@ struct dm_snapshot {
 	/* The last percentage we notified */
 	int last_percent;
 
+	mempool_t *pending_pool;
+
 	struct exception_table pending;
 	struct exception_table complete;
 

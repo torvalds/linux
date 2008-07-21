@@ -96,7 +96,6 @@ struct dm_snap_pending_exception {
  */
 static struct kmem_cache *exception_cache;
 static struct kmem_cache *pending_cache;
-static mempool_t *pending_pool;
 
 struct dm_snap_tracked_chunk {
 	struct hlist_node node;
@@ -364,14 +363,19 @@ static void free_exception(struct dm_snap_exception *e)
 	kmem_cache_free(exception_cache, e);
 }
 
-static struct dm_snap_pending_exception *alloc_pending_exception(void)
+static struct dm_snap_pending_exception *alloc_pending_exception(struct dm_snapshot *s)
 {
-	return mempool_alloc(pending_pool, GFP_NOIO);
+	struct dm_snap_pending_exception *pe = mempool_alloc(s->pending_pool,
+							     GFP_NOIO);
+
+	pe->snap = s;
+
+	return pe;
 }
 
 static void free_pending_exception(struct dm_snap_pending_exception *pe)
 {
-	mempool_free(pe, pending_pool);
+	mempool_free(pe, pe->snap->pending_pool);
 }
 
 static void insert_completed_exception(struct dm_snapshot *s,
@@ -627,12 +631,18 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad5;
 	}
 
+	s->pending_pool = mempool_create_slab_pool(MIN_IOS, pending_cache);
+	if (!s->pending_pool) {
+		ti->error = "Could not allocate mempool for pending exceptions";
+		goto bad6;
+	}
+
 	s->tracked_chunk_pool = mempool_create_slab_pool(MIN_IOS,
 							 tracked_chunk_cache);
 	if (!s->tracked_chunk_pool) {
 		ti->error = "Could not allocate tracked_chunk mempool for "
 			    "tracking reads";
-		goto bad6;
+		goto bad_tracked_chunk_pool;
 	}
 
 	for (i = 0; i < DM_TRACKED_CHUNK_HASH_SIZE; i++)
@@ -668,6 +678,9 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
  bad_load_and_register:
 	mempool_destroy(s->tracked_chunk_pool);
+
+ bad_tracked_chunk_pool:
+	mempool_destroy(s->pending_pool);
 
  bad6:
 	dm_kcopyd_client_destroy(s->kcopyd_client);
@@ -722,6 +735,8 @@ static void snapshot_dtr(struct dm_target *ti)
 	mempool_destroy(s->tracked_chunk_pool);
 
 	__free_exceptions(s);
+
+	mempool_destroy(s->pending_pool);
 
 	dm_put_device(ti, s->origin);
 	dm_put_device(ti, s->cow);
@@ -969,7 +984,7 @@ __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 	 * to hold the lock while we do this.
 	 */
 	up_write(&s->lock);
-	pe = alloc_pending_exception();
+	pe = alloc_pending_exception(s);
 	down_write(&s->lock);
 
 	if (!s->valid) {
@@ -989,7 +1004,6 @@ __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 	bio_list_init(&pe->snapshot_bios);
 	pe->primary_pe = NULL;
 	atomic_set(&pe->ref_count, 0);
-	pe->snap = s;
 	pe->started = 0;
 
 	if (s->store.prepare_exception(&s->store, &pe->e)) {
@@ -1418,24 +1432,15 @@ static int __init dm_snapshot_init(void)
 		goto bad5;
 	}
 
-	pending_pool = mempool_create_slab_pool(128, pending_cache);
-	if (!pending_pool) {
-		DMERR("Couldn't create pending pool.");
-		r = -ENOMEM;
-		goto bad_pending_pool;
-	}
-
 	ksnapd = create_singlethread_workqueue("ksnapd");
 	if (!ksnapd) {
 		DMERR("Failed to create ksnapd workqueue.");
 		r = -ENOMEM;
-		goto bad6;
+		goto bad_pending_pool;
 	}
 
 	return 0;
 
-      bad6:
-	mempool_destroy(pending_pool);
       bad_pending_pool:
 	kmem_cache_destroy(tracked_chunk_cache);
       bad5:
@@ -1466,7 +1471,6 @@ static void __exit dm_snapshot_exit(void)
 		DMERR("origin unregister failed %d", r);
 
 	exit_origin_hash();
-	mempool_destroy(pending_pool);
 	kmem_cache_destroy(pending_cache);
 	kmem_cache_destroy(exception_cache);
 	kmem_cache_destroy(tracked_chunk_cache);
