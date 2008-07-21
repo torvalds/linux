@@ -2588,6 +2588,10 @@ static int bluetooth_get_radiosw(void)
 	if (!tp_features.bluetooth)
 		return -ENODEV;
 
+	/* WLSW overrides bluetooth in firmware/hardware, reflect that */
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&status) && !status)
+		return 0;
+
 	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
 		return -EIO;
 
@@ -2600,6 +2604,12 @@ static int bluetooth_set_radiosw(int radio_on)
 
 	if (!tp_features.bluetooth)
 		return -ENODEV;
+
+	/* WLSW overrides bluetooth in firmware/hardware, but there is no
+	 * reason to risk weird behaviour. */
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&status) && !status
+	    && radio_on)
+		return -EPERM;
 
 	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
 		return -EIO;
@@ -2760,6 +2770,10 @@ static int wan_get_radiosw(void)
 	if (!tp_features.wan)
 		return -ENODEV;
 
+	/* WLSW overrides WWAN in firmware/hardware, reflect that */
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&status) && !status)
+		return 0;
+
 	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
 		return -EIO;
 
@@ -2772,6 +2786,12 @@ static int wan_set_radiosw(int radio_on)
 
 	if (!tp_features.wan)
 		return -ENODEV;
+
+	/* WLSW overrides bluetooth in firmware/hardware, but there is no
+	 * reason to risk weird behaviour. */
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&status) && !status
+	    && radio_on)
+		return -EPERM;
 
 	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
 		return -EIO;
