@@ -1206,7 +1206,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			         or
 			         memmap=0x10000$0x18690000
 
-	memtest=	[KNL,X86_64] Enable memtest
+	memtest=	[KNL,X86] Enable memtest
 			Format: <integer>
 			range: 0,4 : pattern number
 			default : 0 <disable>
@@ -2157,6 +2157,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			anything.  Set this parameter to avoid log spamming.
 			Note that genuine overcurrent events won't be
 			reported either.
+
+	unknown_nmi_panic
+			[X86-32,X86-64]
+			Set unknown_nmi_panic=1 early on boot.
 
 	usbcore.autosuspend=
 			[USB] The autosuspend time delay (in seconds) used

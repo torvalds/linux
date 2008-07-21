@@ -25,8 +25,16 @@ extern void gart_iommu_hole_init(void);
 static inline void early_gart_iommu_check(void)
 {
 }
-
+static inline void gart_iommu_init(void)
+{
+}
 static inline void gart_iommu_shutdown(void)
+{
+}
+static inline void gart_parse_options(char *options)
+{
+}
+static inline void gart_iommu_hole_init(void)
 {
 }
 #endif

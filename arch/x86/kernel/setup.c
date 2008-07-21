@@ -57,12 +57,8 @@
 #include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/delay.h>
-#include <linux/highmem.h>
 
 #include <linux/kallsyms.h>
-#include <linux/edd.h>
-#include <linux/iscsi_ibft.h>
-#include <linux/kexec.h>
 #include <linux/cpufreq.h>
 #include <linux/dma-mapping.h>
 #include <linux/ctype.h>
@@ -96,7 +92,7 @@
 #include <asm/smp.h>
 #include <asm/desc.h>
 #include <asm/dma.h>
-#include <asm/gart.h>
+#include <asm/iommu.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 
@@ -104,7 +100,6 @@
 #include <asm/paravirt.h>
 
 #include <asm/percpu.h>
-#include <asm/sections.h>
 #include <asm/topology.h>
 #include <asm/apicdef.h>
 #ifdef CONFIG_X86_64
@@ -579,6 +574,10 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
+static struct x86_quirks default_x86_quirks __initdata;
+
+struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
+
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
@@ -824,7 +823,10 @@ void __init setup_arch(char **cmdline_p)
 	vmi_init();
 #endif
 
+	paravirt_pagetable_setup_start(swapper_pg_dir);
 	paging_init();
+	paravirt_pagetable_setup_done(swapper_pg_dir);
+	paravirt_post_allocator_init();
 
 #ifdef CONFIG_X86_64
 	map_vsyscall();
@@ -852,14 +854,6 @@ void __init setup_arch(char **cmdline_p)
 	prefill_possible_map();
 #ifdef CONFIG_X86_64
 	init_cpu_to_node();
-#endif
-
-#ifdef CONFIG_X86_NUMAQ
-	/*
-	 * need to check online nodes num, call it
-	 * here before time_init/tsc_init
-	 */
-	numaq_tsc_disable();
 #endif
 
 	init_apic_mappings();

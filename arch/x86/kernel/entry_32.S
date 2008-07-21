@@ -332,7 +332,7 @@ sysenter_past_esp:
 	GET_THREAD_INFO(%ebp)
 
 	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
-	testw $(_TIF_SYSCALL_EMU|_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
+	testw $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%ebp)
 	jnz syscall_trace_entry
 	cmpl $(nr_syscalls), %eax
 	jae syscall_badsys
@@ -370,7 +370,7 @@ ENTRY(system_call)
 	GET_THREAD_INFO(%ebp)
 					# system call tracing in operation / emulation
 	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
-	testw $(_TIF_SYSCALL_EMU|_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
+	testw $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%ebp)
 	jnz syscall_trace_entry
 	cmpl $(nr_syscalls), %eax
 	jae syscall_badsys
@@ -383,10 +383,6 @@ syscall_exit:
 					# setting need_resched or sigpending
 					# between sampling and the iret
 	TRACE_IRQS_OFF
-	testl $X86_EFLAGS_TF,PT_EFLAGS(%esp)	# If tracing set singlestep flag on exit
-	jz no_singlestep
-	orl $_TIF_SINGLESTEP,TI_flags(%ebp)
-no_singlestep:
 	movl TI_flags(%ebp), %ecx
 	testw $_TIF_ALLWORK_MASK, %cx	# current->work
 	jne syscall_exit_work
@@ -514,12 +510,8 @@ END(work_pending)
 syscall_trace_entry:
 	movl $-ENOSYS,PT_EAX(%esp)
 	movl %esp, %eax
-	xorl %edx,%edx
-	call do_syscall_trace
-	cmpl $0, %eax
-	jne resume_userspace		# ret != 0 -> running under PTRACE_SYSEMU,
-					# so must skip actual syscall
-	movl PT_ORIG_EAX(%esp), %eax
+	call syscall_trace_enter
+	/* What it returned is what we'll actually use.  */
 	cmpl $(nr_syscalls), %eax
 	jnae syscall_call
 	jmp syscall_exit
@@ -528,14 +520,13 @@ END(syscall_trace_entry)
 	# perform syscall exit tracing
 	ALIGN
 syscall_exit_work:
-	testb $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP), %cl
+	testb $_TIF_WORK_SYSCALL_EXIT, %cl
 	jz work_pending
 	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_ANY)	# could let do_syscall_trace() call
+	ENABLE_INTERRUPTS(CLBR_ANY)	# could let syscall_trace_leave() call
 					# schedule() instead
 	movl %esp, %eax
-	movl $1, %edx
-	call do_syscall_trace
+	call syscall_trace_leave
 	jmp resume_userspace
 END(syscall_exit_work)
 	CFI_ENDPROC
@@ -1024,6 +1015,7 @@ ENDPROC(kernel_thread_helper)
 ENTRY(xen_sysenter_target)
 	RING0_INT_FRAME
 	addl $5*4, %esp		/* remove xen-provided frame */
+	CFI_ADJUST_CFA_OFFSET -5*4
 	jmp sysenter_past_esp
 	CFI_ENDPROC
 
