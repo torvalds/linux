@@ -3110,7 +3110,7 @@ int __init atafb_init(void)
 	printk("atafb_init: start\n");
 
 	if (!MACH_IS_ATARI)
-		return -ENXIO;
+		return -ENODEV;
 
 	do {
 #ifdef ATAFB_EXT
@@ -3229,6 +3229,9 @@ int __init atafb_init(void)
 			  fb_info.var.bits_per_pixel)) {
 		return -EINVAL;
 	}
+
+	fb_videomode_to_modelist(atafb_modedb, NUM_TOTAL_MODES,
+				 &fb_info.modelist);
 
 	atafb_set_disp(&fb_info);
 

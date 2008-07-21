@@ -25,10 +25,6 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-/*
- * $Id: core.c,v 1.20 2002/08/04 21:23:58 maxk Exp $
- */
-
 #include <linux/module.h>
 
 #include <linux/kernel.h>
@@ -506,6 +502,11 @@ static int bnep_session(void *arg)
 
 	/* Delete network device */
 	unregister_netdev(dev);
+
+	/* Wakeup user-space polling for socket errors */
+	s->sock->sk->sk_err = EUNATCH;
+
+	wake_up_interruptible(s->sock->sk->sk_sleep);
 
 	/* Release the socket */
 	fput(s->sock->file);

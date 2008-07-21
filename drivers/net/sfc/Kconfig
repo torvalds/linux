@@ -4,6 +4,8 @@ config SFC
 	select MII
 	select INET_LRO
 	select CRC32
+	select I2C
+	select I2C_ALGOBIT
 	help
 	  This driver supports 10-gigabit Ethernet cards based on
 	  the Solarflare Communications Solarstorm SFC4000 controller.

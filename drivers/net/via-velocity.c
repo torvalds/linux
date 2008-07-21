@@ -1102,61 +1102,41 @@ static int __devinit velocity_get_pci_info(struct velocity_info *vptr, struct pc
 
 static int velocity_init_rings(struct velocity_info *vptr)
 {
-	int i;
-	unsigned int psize;
-	unsigned int tsize;
+	struct velocity_opt *opt = &vptr->options;
+	const unsigned int rx_ring_size = opt->numrx * sizeof(struct rx_desc);
+	const unsigned int tx_ring_size = opt->numtx * sizeof(struct tx_desc);
+	struct pci_dev *pdev = vptr->pdev;
 	dma_addr_t pool_dma;
-	u8 *pool;
+	void *pool;
+	unsigned int i;
 
 	/*
-	 *	Allocate all RD/TD rings a single pool
-	 */
-
-	psize = vptr->options.numrx * sizeof(struct rx_desc) +
-		vptr->options.numtx * sizeof(struct tx_desc) * vptr->num_txq;
-
-	/*
+	 * Allocate all RD/TD rings a single pool.
+	 *
 	 * pci_alloc_consistent() fulfills the requirement for 64 bytes
 	 * alignment
 	 */
-	pool = pci_alloc_consistent(vptr->pdev, psize, &pool_dma);
-
-	if (pool == NULL) {
-		printk(KERN_ERR "%s : DMA memory allocation failed.\n",
-					vptr->dev->name);
+	pool = pci_alloc_consistent(pdev, tx_ring_size * vptr->num_txq +
+				    rx_ring_size, &pool_dma);
+	if (!pool) {
+		dev_err(&pdev->dev, "%s : DMA memory allocation failed.\n",
+			vptr->dev->name);
 		return -ENOMEM;
 	}
 
-	memset(pool, 0, psize);
-
-	vptr->rd_ring = (struct rx_desc *) pool;
-
+	vptr->rd_ring = pool;
 	vptr->rd_pool_dma = pool_dma;
 
-	tsize = vptr->options.numtx * PKT_BUF_SZ * vptr->num_txq;
-	vptr->tx_bufs = pci_alloc_consistent(vptr->pdev, tsize,
-						&vptr->tx_bufs_dma);
+	pool += rx_ring_size;
+	pool_dma += rx_ring_size;
 
-	if (vptr->tx_bufs == NULL) {
-		printk(KERN_ERR "%s: DMA memory allocation failed.\n",
-					vptr->dev->name);
-		pci_free_consistent(vptr->pdev, psize, pool, pool_dma);
-		return -ENOMEM;
-	}
-
-	memset(vptr->tx_bufs, 0, vptr->options.numtx * PKT_BUF_SZ * vptr->num_txq);
-
-	i = vptr->options.numrx * sizeof(struct rx_desc);
-	pool += i;
-	pool_dma += i;
 	for (i = 0; i < vptr->num_txq; i++) {
-		int offset = vptr->options.numtx * sizeof(struct tx_desc);
-
+		vptr->td_rings[i] = pool;
 		vptr->td_pool_dma[i] = pool_dma;
-		vptr->td_rings[i] = (struct tx_desc *) pool;
-		pool += offset;
-		pool_dma += offset;
+		pool += tx_ring_size;
+		pool_dma += tx_ring_size;
 	}
+
 	return 0;
 }
 
@@ -1169,19 +1149,13 @@ static int velocity_init_rings(struct velocity_info *vptr)
 
 static void velocity_free_rings(struct velocity_info *vptr)
 {
-	int size;
-
-	size = vptr->options.numrx * sizeof(struct rx_desc) +
-	       vptr->options.numtx * sizeof(struct tx_desc) * vptr->num_txq;
+	const int size = vptr->options.numrx * sizeof(struct rx_desc) +
+		vptr->options.numtx * sizeof(struct tx_desc) * vptr->num_txq;
 
 	pci_free_consistent(vptr->pdev, size, vptr->rd_ring, vptr->rd_pool_dma);
-
-	size = vptr->options.numtx * PKT_BUF_SZ * vptr->num_txq;
-
-	pci_free_consistent(vptr->pdev, size, vptr->tx_bufs, vptr->tx_bufs_dma);
 }
 
-static inline void velocity_give_many_rx_descs(struct velocity_info *vptr)
+static void velocity_give_many_rx_descs(struct velocity_info *vptr)
 {
 	struct mac_regs __iomem *regs = vptr->mac_regs;
 	int avail, dirty, unusable;
@@ -1208,7 +1182,7 @@ static inline void velocity_give_many_rx_descs(struct velocity_info *vptr)
 
 static int velocity_rx_refill(struct velocity_info *vptr)
 {
-	int dirty = vptr->rd_dirty, done = 0, ret = 0;
+	int dirty = vptr->rd_dirty, done = 0;
 
 	do {
 		struct rx_desc *rd = vptr->rd_ring + dirty;
@@ -1218,8 +1192,7 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 			break;
 
 		if (!vptr->rd_info[dirty].skb) {
-			ret = velocity_alloc_rx_buf(vptr, dirty);
-			if (ret < 0)
+			if (velocity_alloc_rx_buf(vptr, dirty) < 0)
 				break;
 		}
 		done++;
@@ -1229,10 +1202,14 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 	if (done) {
 		vptr->rd_dirty = dirty;
 		vptr->rd_filled += done;
-		velocity_give_many_rx_descs(vptr);
 	}
 
-	return ret;
+	return done;
+}
+
+static void velocity_set_rxbufsize(struct velocity_info *vptr, int mtu)
+{
+	vptr->rx_buf_sz = (mtu <= ETH_DATA_LEN) ? PKT_BUF_SZ : mtu + 32;
 }
 
 /**
@@ -1245,25 +1222,24 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 
 static int velocity_init_rd_ring(struct velocity_info *vptr)
 {
-	int ret;
-	int mtu = vptr->dev->mtu;
-
-	vptr->rx_buf_sz = (mtu <= ETH_DATA_LEN) ? PKT_BUF_SZ : mtu + 32;
+	int ret = -ENOMEM;
 
 	vptr->rd_info = kcalloc(vptr->options.numrx,
 				sizeof(struct velocity_rd_info), GFP_KERNEL);
 	if (!vptr->rd_info)
-		return -ENOMEM;
+		goto out;
 
 	vptr->rd_filled = vptr->rd_dirty = vptr->rd_curr = 0;
 
-	ret = velocity_rx_refill(vptr);
-	if (ret < 0) {
+	if (velocity_rx_refill(vptr) != vptr->options.numrx) {
 		VELOCITY_PRT(MSG_LEVEL_ERR, KERN_ERR
 			"%s: failed to allocate RX buffer.\n", vptr->dev->name);
 		velocity_free_rd_ring(vptr);
+		goto out;
 	}
 
+	ret = 0;
+out:
 	return ret;
 }
 
@@ -1313,10 +1289,8 @@ static void velocity_free_rd_ring(struct velocity_info *vptr)
 
 static int velocity_init_td_ring(struct velocity_info *vptr)
 {
-	int i, j;
 	dma_addr_t curr;
-	struct tx_desc *td;
-	struct velocity_td_info *td_info;
+	unsigned int j;
 
 	/* Init the TD ring entries */
 	for (j = 0; j < vptr->num_txq; j++) {
@@ -1331,14 +1305,6 @@ static int velocity_init_td_ring(struct velocity_info *vptr)
 			return -ENOMEM;
 		}
 
-		for (i = 0; i < vptr->options.numtx; i++, curr += sizeof(struct tx_desc)) {
-			td = &(vptr->td_rings[j][i]);
-			td_info = &(vptr->td_infos[j][i]);
-			td_info->buf = vptr->tx_bufs +
-				(j * vptr->options.numtx + i) * PKT_BUF_SZ;
-			td_info->buf_dma = vptr->tx_bufs_dma +
-				(j * vptr->options.numtx + i) * PKT_BUF_SZ;
-		}
 		vptr->td_tail[j] = vptr->td_curr[j] = vptr->td_used[j] = 0;
 	}
 	return 0;
@@ -1448,10 +1414,8 @@ static int velocity_rx_srv(struct velocity_info *vptr, int status)
 
 	vptr->rd_curr = rd_curr;
 
-	if (works > 0 && velocity_rx_refill(vptr) < 0) {
-		VELOCITY_PRT(MSG_LEVEL_ERR, KERN_ERR
-			"%s: rx buf allocation failure\n", vptr->dev->name);
-	}
+	if ((works > 0) && (velocity_rx_refill(vptr) > 0))
+		velocity_give_many_rx_descs(vptr);
 
 	VAR_USED(stats);
 	return works;
@@ -1495,24 +1459,18 @@ static inline void velocity_rx_csum(struct rx_desc *rd, struct sk_buff *skb)
  *	enough. This function returns a negative value if the received
  *	packet is too big or if memory is exhausted.
  */
-static inline int velocity_rx_copy(struct sk_buff **rx_skb, int pkt_size,
-				   struct velocity_info *vptr)
+static int velocity_rx_copy(struct sk_buff **rx_skb, int pkt_size,
+			    struct velocity_info *vptr)
 {
 	int ret = -1;
-
 	if (pkt_size < rx_copybreak) {
 		struct sk_buff *new_skb;
 
-		new_skb = dev_alloc_skb(pkt_size + 2);
+		new_skb = netdev_alloc_skb(vptr->dev, pkt_size + 2);
 		if (new_skb) {
-			new_skb->dev = vptr->dev;
 			new_skb->ip_summed = rx_skb[0]->ip_summed;
-
-			if (vptr->flags & VELOCITY_FLAGS_IP_ALIGN)
-				skb_reserve(new_skb, 2);
-
-			skb_copy_from_linear_data(rx_skb[0], new_skb->data,
-						  pkt_size);
+			skb_reserve(new_skb, 2);
+			skb_copy_from_linear_data(*rx_skb, new_skb->data, pkt_size);
 			*rx_skb = new_skb;
 			ret = 0;
 		}
@@ -1533,12 +1491,8 @@ static inline int velocity_rx_copy(struct sk_buff **rx_skb, int pkt_size,
 static inline void velocity_iph_realign(struct velocity_info *vptr,
 					struct sk_buff *skb, int pkt_size)
 {
-	/* FIXME - memmove ? */
 	if (vptr->flags & VELOCITY_FLAGS_IP_ALIGN) {
-		int i;
-
-		for (i = pkt_size; i >= 0; i--)
-			*(skb->data + i + 2) = *(skb->data + i);
+		memmove(skb->data + 2, skb->data, pkt_size);
 		skb_reserve(skb, 2);
 	}
 }
@@ -1629,7 +1583,7 @@ static int velocity_alloc_rx_buf(struct velocity_info *vptr, int idx)
 	struct rx_desc *rd = &(vptr->rd_ring[idx]);
 	struct velocity_rd_info *rd_info = &(vptr->rd_info[idx]);
 
-	rd_info->skb = dev_alloc_skb(vptr->rx_buf_sz + 64);
+	rd_info->skb = netdev_alloc_skb(vptr->dev, vptr->rx_buf_sz + 64);
 	if (rd_info->skb == NULL)
 		return -ENOMEM;
 
@@ -1638,7 +1592,6 @@ static int velocity_alloc_rx_buf(struct velocity_info *vptr, int idx)
 	 *	64byte alignment.
 	 */
 	skb_reserve(rd_info->skb, (unsigned long) rd_info->skb->data & 63);
-	rd_info->skb->dev = vptr->dev;
 	rd_info->skb_dma = pci_map_single(vptr->pdev, rd_info->skb->data, vptr->rx_buf_sz, PCI_DMA_FROMDEVICE);
 
 	/*
@@ -1878,7 +1831,7 @@ static void velocity_free_tx_buf(struct velocity_info *vptr, struct velocity_td_
 	/*
 	 *	Don't unmap the pre-allocated tx_bufs
 	 */
-	if (tdinfo->skb_dma && (tdinfo->skb_dma[0] != tdinfo->buf_dma)) {
+	if (tdinfo->skb_dma) {
 
 		for (i = 0; i < tdinfo->nskb_dma; i++) {
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
@@ -1909,6 +1862,8 @@ static int velocity_open(struct net_device *dev)
 	struct velocity_info *vptr = netdev_priv(dev);
 	int ret;
 
+	velocity_set_rxbufsize(vptr, dev->mtu);
+
 	ret = velocity_init_rings(vptr);
 	if (ret < 0)
 		goto out;
@@ -1923,6 +1878,8 @@ static int velocity_open(struct net_device *dev)
 
 	/* Ensure chip is running */
 	pci_set_power_state(vptr->pdev, PCI_D0);
+
+	velocity_give_many_rx_descs(vptr);
 
 	velocity_init_registers(vptr, VELOCITY_INIT_COLD);
 
@@ -1987,6 +1944,8 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 		velocity_free_rd_ring(vptr);
 
 		dev->mtu = new_mtu;
+
+		velocity_set_rxbufsize(vptr, new_mtu);
 
 		ret = velocity_init_rd_ring(vptr);
 		if (ret < 0)
@@ -2074,9 +2033,19 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct tx_desc *td_ptr;
 	struct velocity_td_info *tdinfo;
 	unsigned long flags;
-	int index;
 	int pktlen = skb->len;
-	__le16 len = cpu_to_le16(pktlen);
+	__le16 len;
+	int index;
+
+
+
+	if (skb->len < ETH_ZLEN) {
+		if (skb_padto(skb, ETH_ZLEN))
+			goto out;
+		pktlen = ETH_ZLEN;
+	}
+
+	len = cpu_to_le16(pktlen);
 
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
 	if (skb_shinfo(skb)->nr_frags > 6 && __skb_linearize(skb)) {
@@ -2094,23 +2063,6 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	td_ptr->tdesc1.TCR = TCR0_TIC;
 	td_ptr->td_buf[0].size &= ~TD_QUEUE;
 
-	/*
-	 *	Pad short frames.
-	 */
-	if (pktlen < ETH_ZLEN) {
-		/* Cannot occur until ZC support */
-		pktlen = ETH_ZLEN;
-		len = cpu_to_le16(ETH_ZLEN);
-		skb_copy_from_linear_data(skb, tdinfo->buf, skb->len);
-		memset(tdinfo->buf + skb->len, 0, ETH_ZLEN - skb->len);
-		tdinfo->skb = skb;
-		tdinfo->skb_dma[0] = tdinfo->buf_dma;
-		td_ptr->tdesc0.len = len;
-		td_ptr->td_buf[0].pa_low = cpu_to_le32(tdinfo->skb_dma[0]);
-		td_ptr->td_buf[0].pa_high = 0;
-		td_ptr->td_buf[0].size = len;	/* queue is 0 anyway */
-		tdinfo->nskb_dma = 1;
-	} else
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
 	if (skb_shinfo(skb)->nr_frags > 0) {
 		int nfrags = skb_shinfo(skb)->nr_frags;
@@ -2202,7 +2154,8 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&vptr->lock, flags);
-	return 0;
+out:
+	return NETDEV_TX_OK;
 }
 
 /**

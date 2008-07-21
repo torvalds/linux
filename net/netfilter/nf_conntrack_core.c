@@ -464,7 +464,8 @@ static noinline int early_drop(unsigned int hash)
 }
 
 struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
-				   const struct nf_conntrack_tuple *repl)
+				   const struct nf_conntrack_tuple *repl,
+				   gfp_t gfp)
 {
 	struct nf_conn *ct = NULL;
 
@@ -489,7 +490,7 @@ struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 		}
 	}
 
-	ct = kmem_cache_zalloc(nf_conntrack_cachep, GFP_ATOMIC);
+	ct = kmem_cache_zalloc(nf_conntrack_cachep, gfp);
 	if (ct == NULL) {
 		pr_debug("nf_conntrack_alloc: Can't alloc conntrack.\n");
 		atomic_dec(&nf_conntrack_count);
@@ -542,7 +543,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		return NULL;
 	}
 
-	ct = nf_conntrack_alloc(tuple, &repl_tuple);
+	ct = nf_conntrack_alloc(tuple, &repl_tuple, GFP_ATOMIC);
 	if (ct == NULL || IS_ERR(ct)) {
 		pr_debug("Can't allocate conntrack.\n");
 		return (struct nf_conntrack_tuple_hash *)ct;
@@ -846,6 +847,28 @@ acct:
 		nf_conntrack_event_cache(event, skb);
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
+
+bool __nf_ct_kill_acct(struct nf_conn *ct,
+		       enum ip_conntrack_info ctinfo,
+		       const struct sk_buff *skb,
+		       int do_acct)
+{
+#ifdef CONFIG_NF_CT_ACCT
+	if (do_acct) {
+		spin_lock_bh(&nf_conntrack_lock);
+		ct->counters[CTINFO2DIR(ctinfo)].packets++;
+		ct->counters[CTINFO2DIR(ctinfo)].bytes +=
+			skb->len - skb_network_offset(skb);
+		spin_unlock_bh(&nf_conntrack_lock);
+	}
+#endif
+	if (del_timer(&ct->timeout)) {
+		ct->timeout.function((unsigned long)ct);
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(__nf_ct_kill_acct);
 
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 

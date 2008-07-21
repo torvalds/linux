@@ -3,9 +3,6 @@
  *
  * Bruce Fields <bfields@umich.edu>
  * Copyright (c) 2002 The Regents of the Unviersity of Michigan
- *
- * $Id$
- *
  */
 
 #ifndef _LINUX_SUNRPC_SVCAUTH_GSS_H

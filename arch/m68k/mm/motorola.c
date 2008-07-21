@@ -285,7 +285,6 @@ void __init paging_init(void)
 	 * to a couple of allocated pages
 	 */
 	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
-	memset(empty_zero_page, 0, PAGE_SIZE);
 
 	/*
 	 * Set up SFC/DFC registers

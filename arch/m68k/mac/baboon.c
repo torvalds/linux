@@ -23,9 +23,7 @@
 /* #define DEBUG_IRQS */
 
 int baboon_present;
-volatile struct baboon *baboon;
-
-irqreturn_t baboon_irq(int, void *);
+static volatile struct baboon *baboon;
 
 #if 0
 extern int macide_ack_intr(struct ata_channel *);
@@ -50,20 +48,10 @@ void __init baboon_init(void)
 }
 
 /*
- * Register the Baboon interrupt dispatcher on nubus slot $C.
- */
-
-void __init baboon_register_interrupts(void)
-{
-	request_irq(IRQ_NUBUS_C, baboon_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
-		    "baboon", (void *) baboon);
-}
-
-/*
  * Baboon interrupt handler. This works a lot like a VIA.
  */
 
-irqreturn_t baboon_irq(int irq, void *dev_id)
+static irqreturn_t baboon_irq(int irq, void *dev_id)
 {
 	int irq_bit, irq_num;
 	unsigned char events;
@@ -93,6 +81,16 @@ irqreturn_t baboon_irq(int irq, void *dev_id)
 	baboon->mb_ifr &= ~events;
 #endif
 	return IRQ_HANDLED;
+}
+
+/*
+ * Register the Baboon interrupt dispatcher on nubus slot $C.
+ */
+
+void __init baboon_register_interrupts(void)
+{
+	request_irq(IRQ_NUBUS_C, baboon_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
+		    "baboon", (void *) baboon);
 }
 
 void baboon_irq_enable(int irq) {

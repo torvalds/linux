@@ -179,7 +179,6 @@ static int bt832_attach(struct i2c_adapter *adap, int addr, int kind)
 
 	v4l_info(&t->client,"chip found @ 0x%x\n", addr<<1);
 
-
 	if(! bt832_init(&t->client)) {
 		bt832_detach(&t->client);
 		return -1;
