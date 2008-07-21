@@ -553,11 +553,7 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	return 0;
 }
 
-static struct video_device gemtek_radio = {
-	.owner			= THIS_MODULE,
-	.name			= "GemTek Radio card",
-	.type			= VID_TYPE_TUNER,
-	.fops			= &gemtek_fops,
+static const struct v4l2_ioctl_ops gemtek_ioctl_ops = {
 	.vidioc_querycap	= vidioc_querycap,
 	.vidioc_g_tuner		= vidioc_g_tuner,
 	.vidioc_s_tuner		= vidioc_s_tuner,
@@ -570,6 +566,14 @@ static struct video_device gemtek_radio = {
 	.vidioc_queryctrl	= vidioc_queryctrl,
 	.vidioc_g_ctrl		= vidioc_g_ctrl,
 	.vidioc_s_ctrl		= vidioc_s_ctrl
+};
+
+static struct video_device gemtek_radio = {
+	.owner			= THIS_MODULE,
+	.name			= "GemTek Radio card",
+	.type			= VID_TYPE_TUNER,
+	.fops			= &gemtek_fops,
+	.ioctl_ops 		= &gemtek_ioctl_ops,
 };
 
 /*

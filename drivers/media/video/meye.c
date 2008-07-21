@@ -1698,13 +1698,7 @@ static const struct file_operations meye_fops = {
 	.llseek		= no_llseek,
 };
 
-static struct video_device meye_template = {
-	.owner		= THIS_MODULE,
-	.name		= "meye",
-	.type		= VID_TYPE_CAPTURE,
-	.fops		= &meye_fops,
-	.release	= video_device_release,
-	.minor		= -1,
+static const struct v4l2_ioctl_ops meye_ioctl_ops = {
 	.vidioc_querycap	= vidioc_querycap,
 	.vidioc_enum_input	= vidioc_enum_input,
 	.vidioc_g_input		= vidioc_g_input,
@@ -1723,6 +1717,16 @@ static struct video_device meye_template = {
 	.vidioc_streamon	= vidioc_streamon,
 	.vidioc_streamoff	= vidioc_streamoff,
 	.vidioc_default		= vidioc_default,
+};
+
+static struct video_device meye_template = {
+	.owner		= THIS_MODULE,
+	.name		= "meye",
+	.type		= VID_TYPE_CAPTURE,
+	.fops		= &meye_fops,
+	.ioctl_ops 	= &meye_ioctl_ops,
+	.release	= video_device_release,
+	.minor		= -1,
 };
 
 #ifdef CONFIG_PM

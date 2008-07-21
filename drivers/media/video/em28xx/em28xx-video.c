@@ -1764,20 +1764,7 @@ static const struct file_operations em28xx_v4l_fops = {
 	.compat_ioctl  = v4l_compat_ioctl32,
 };
 
-static const struct file_operations radio_fops = {
-	.owner         = THIS_MODULE,
-	.open          = em28xx_v4l2_open,
-	.release       = em28xx_v4l2_close,
-	.ioctl	       = video_ioctl2,
-	.compat_ioctl  = v4l_compat_ioctl32,
-	.llseek        = no_llseek,
-};
-
-static const struct video_device em28xx_video_template = {
-	.fops                       = &em28xx_v4l_fops,
-	.release                    = video_device_release,
-
-	.minor                      = -1,
+static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querycap            = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap    = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap       = vidioc_g_fmt_vid_cap,
@@ -1815,16 +1802,29 @@ static const struct video_device em28xx_video_template = {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf                = vidiocgmbuf,
 #endif
+};
+
+static const struct video_device em28xx_video_template = {
+	.fops                       = &em28xx_v4l_fops,
+	.release                    = video_device_release,
+	.ioctl_ops 		    = &video_ioctl_ops,
+
+	.minor                      = -1,
 
 	.tvnorms                    = V4L2_STD_ALL,
 	.current_norm               = V4L2_STD_PAL,
 };
 
-static struct video_device em28xx_radio_template = {
-	.name                 = "em28xx-radio",
-	.type                 = VID_TYPE_TUNER,
-	.fops                 = &radio_fops,
-	.minor                = -1,
+static const struct file_operations radio_fops = {
+	.owner         = THIS_MODULE,
+	.open          = em28xx_v4l2_open,
+	.release       = em28xx_v4l2_close,
+	.ioctl	       = video_ioctl2,
+	.compat_ioctl  = v4l_compat_ioctl32,
+	.llseek        = no_llseek,
+};
+
+static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_querycap      = radio_querycap,
 	.vidioc_g_tuner       = radio_g_tuner,
 	.vidioc_enum_input    = radio_enum_input,
@@ -1841,6 +1841,14 @@ static struct video_device em28xx_radio_template = {
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
+};
+
+static struct video_device em28xx_radio_template = {
+	.name                 = "em28xx-radio",
+	.type                 = VID_TYPE_TUNER,
+	.fops                 = &radio_fops,
+	.ioctl_ops 	      = &radio_ioctl_ops,
+	.minor                = -1,
 };
 
 /******************************** usb interface ******************************/

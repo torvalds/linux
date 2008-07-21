@@ -862,6 +862,35 @@ void soc_camera_device_unregister(struct soc_camera_device *icd)
 }
 EXPORT_SYMBOL(soc_camera_device_unregister);
 
+static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
+	.vidioc_querycap	 = soc_camera_querycap,
+	.vidioc_g_fmt_vid_cap    = soc_camera_g_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_cap = soc_camera_enum_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap    = soc_camera_s_fmt_vid_cap,
+	.vidioc_enum_input	 = soc_camera_enum_input,
+	.vidioc_g_input		 = soc_camera_g_input,
+	.vidioc_s_input		 = soc_camera_s_input,
+	.vidioc_s_std		 = soc_camera_s_std,
+	.vidioc_reqbufs		 = soc_camera_reqbufs,
+	.vidioc_try_fmt_vid_cap  = soc_camera_try_fmt_vid_cap,
+	.vidioc_querybuf	 = soc_camera_querybuf,
+	.vidioc_qbuf		 = soc_camera_qbuf,
+	.vidioc_dqbuf		 = soc_camera_dqbuf,
+	.vidioc_streamon	 = soc_camera_streamon,
+	.vidioc_streamoff	 = soc_camera_streamoff,
+	.vidioc_queryctrl	 = soc_camera_queryctrl,
+	.vidioc_g_ctrl		 = soc_camera_g_ctrl,
+	.vidioc_s_ctrl		 = soc_camera_s_ctrl,
+	.vidioc_cropcap		 = soc_camera_cropcap,
+	.vidioc_g_crop		 = soc_camera_g_crop,
+	.vidioc_s_crop		 = soc_camera_s_crop,
+	.vidioc_g_chip_ident     = soc_camera_g_chip_ident,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register	 = soc_camera_g_register,
+	.vidioc_s_register	 = soc_camera_s_register,
+#endif
+};
+
 int soc_camera_video_start(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
@@ -882,35 +911,10 @@ int soc_camera_video_start(struct soc_camera_device *icd)
 	vdev->type		= VID_TYPE_CAPTURE;
 	vdev->current_norm	= V4L2_STD_UNKNOWN;
 	vdev->fops		= &soc_camera_fops;
+	vdev->ioctl_ops		= &soc_camera_ioctl_ops;
 	vdev->release		= video_device_release;
 	vdev->minor		= -1;
 	vdev->tvnorms		= V4L2_STD_UNKNOWN,
-	vdev->vidioc_querycap	= soc_camera_querycap;
-	vdev->vidioc_g_fmt_vid_cap = soc_camera_g_fmt_vid_cap;
-	vdev->vidioc_enum_fmt_vid_cap = soc_camera_enum_fmt_vid_cap;
-	vdev->vidioc_s_fmt_vid_cap = soc_camera_s_fmt_vid_cap;
-	vdev->vidioc_enum_input	= soc_camera_enum_input;
-	vdev->vidioc_g_input	= soc_camera_g_input;
-	vdev->vidioc_s_input	= soc_camera_s_input;
-	vdev->vidioc_s_std	= soc_camera_s_std;
-	vdev->vidioc_reqbufs	= soc_camera_reqbufs;
-	vdev->vidioc_try_fmt_vid_cap = soc_camera_try_fmt_vid_cap;
-	vdev->vidioc_querybuf	= soc_camera_querybuf;
-	vdev->vidioc_qbuf	= soc_camera_qbuf;
-	vdev->vidioc_dqbuf	= soc_camera_dqbuf;
-	vdev->vidioc_streamon	= soc_camera_streamon;
-	vdev->vidioc_streamoff	= soc_camera_streamoff;
-	vdev->vidioc_queryctrl	= soc_camera_queryctrl;
-	vdev->vidioc_g_ctrl	= soc_camera_g_ctrl;
-	vdev->vidioc_s_ctrl	= soc_camera_s_ctrl;
-	vdev->vidioc_cropcap	= soc_camera_cropcap;
-	vdev->vidioc_g_crop	= soc_camera_g_crop;
-	vdev->vidioc_s_crop	= soc_camera_s_crop;
-	vdev->vidioc_g_chip_ident = soc_camera_g_chip_ident;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	vdev->vidioc_g_register	= soc_camera_g_register;
-	vdev->vidioc_s_register	= soc_camera_s_register;
-#endif
 
 	icd->current_fmt = &icd->formats[0];
 

@@ -3358,10 +3358,7 @@ static const struct file_operations bttv_fops =
 	.poll     = bttv_poll,
 };
 
-static struct video_device bttv_video_template =
-{
-	.fops     = &bttv_fops,
-	.minor    = -1,
+static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_querycap                = bttv_querycap,
 	.vidioc_enum_fmt_vid_cap        = bttv_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap           = bttv_g_fmt_vid_cap,
@@ -3412,8 +3409,14 @@ static struct video_device bttv_video_template =
 	.vidioc_g_register		= bttv_g_register,
 	.vidioc_s_register		= bttv_s_register,
 #endif
-	.tvnorms                        = BTTV_NORMS,
-	.current_norm                   = V4L2_STD_PAL,
+};
+
+static struct video_device bttv_video_template = {
+	.fops         = &bttv_fops,
+	.minor        = -1,
+	.ioctl_ops    = &bttv_ioctl_ops,
+	.tvnorms      = BTTV_NORMS,
+	.current_norm = V4L2_STD_PAL,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -3636,10 +3639,7 @@ static const struct file_operations radio_fops =
 	.poll     = radio_poll,
 };
 
-static struct video_device radio_template =
-{
-	.fops     = &radio_fops,
-	.minor    = -1,
+static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_querycap        = radio_querycap,
 	.vidioc_g_tuner         = radio_g_tuner,
 	.vidioc_enum_input      = radio_enum_input,
@@ -3654,6 +3654,12 @@ static struct video_device radio_template =
 	.vidioc_s_ctrl          = bttv_s_ctrl,
 	.vidioc_g_frequency     = bttv_g_frequency,
 	.vidioc_s_frequency     = bttv_s_frequency,
+};
+
+static struct video_device radio_template = {
+	.fops      = &radio_fops,
+	.minor     = -1,
+	.ioctl_ops = &radio_ioctl_ops,
 };
 
 /* ----------------------------------------------------------------------- */

@@ -1700,14 +1700,7 @@ static struct file_operations mpeg_fops = {
 	.llseek        = no_llseek,
 };
 
-static struct video_device cx23885_mpeg_template = {
-	.name          = "cx23885",
-	.type          = VID_TYPE_CAPTURE |
-				VID_TYPE_TUNER |
-				VID_TYPE_SCALES |
-				VID_TYPE_MPEG_ENCODER,
-	.fops          = &mpeg_fops,
-	.minor         = -1,
+static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_s_std		 = vidioc_s_std,
 	.vidioc_enum_input	 = vidioc_enum_input,
 	.vidioc_g_input		 = vidioc_g_input,
@@ -1734,6 +1727,17 @@ static struct video_device cx23885_mpeg_template = {
 	.vidioc_log_status	 = vidioc_log_status,
 	.vidioc_querymenu	 = vidioc_querymenu,
 	.vidioc_queryctrl	 = vidioc_queryctrl,
+};
+
+static struct video_device cx23885_mpeg_template = {
+	.name          = "cx23885",
+	.type          = VID_TYPE_CAPTURE |
+				VID_TYPE_TUNER |
+				VID_TYPE_SCALES |
+				VID_TYPE_MPEG_ENCODER,
+	.fops          = &mpeg_fops,
+	.ioctl_ops     = &mpeg_ioctl_ops,
+	.minor         = -1,
 };
 
 void cx23885_417_unregister(struct cx23885_dev *dev)

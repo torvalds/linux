@@ -1651,12 +1651,7 @@ static struct file_operations dev_fops = {
 	.poll	= dev_poll,
 };
 
-static struct video_device gspca_template = {
-	.name = "gspca main driver",
-	.type = VID_TYPE_CAPTURE,
-	.fops = &dev_fops,
-	.release = dev_release,		/* mandatory */
-	.minor = -1,
+static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_querycap	= vidioc_querycap,
 	.vidioc_dqbuf		= vidioc_dqbuf,
 	.vidioc_qbuf		= vidioc_qbuf,
@@ -1683,6 +1678,15 @@ static struct video_device gspca_template = {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif
+};
+
+static struct video_device gspca_template = {
+	.name = "gspca main driver",
+	.type = VID_TYPE_CAPTURE,
+	.fops = &dev_fops,
+	.ioctl_ops = &dev_ioctl_ops,
+	.release = dev_release,		/* mandatory */
+	.minor = -1,
 };
 
 /*

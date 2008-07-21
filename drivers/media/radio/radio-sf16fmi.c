@@ -295,12 +295,7 @@ static const struct file_operations fmi_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device fmi_radio=
-{
-	.owner		= THIS_MODULE,
-	.name		= "SF16FMx radio",
-	.type		= VID_TYPE_TUNER,
-	.fops           = &fmi_fops,
+static const struct v4l2_ioctl_ops fmi_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -313,6 +308,14 @@ static struct video_device fmi_radio=
 	.vidioc_queryctrl   = vidioc_queryctrl,
 	.vidioc_g_ctrl      = vidioc_g_ctrl,
 	.vidioc_s_ctrl      = vidioc_s_ctrl,
+};
+
+static struct video_device fmi_radio = {
+	.owner		= THIS_MODULE,
+	.name		= "SF16FMx radio",
+	.type		= VID_TYPE_TUNER,
+	.fops           = &fmi_fops,
+	.ioctl_ops 	= &fmi_ioctl_ops,
 };
 
 /* ladis: this is my card. does any other types exist? */

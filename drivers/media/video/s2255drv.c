@@ -1659,12 +1659,7 @@ static const struct file_operations s2255_fops_v4l = {
 	.llseek = no_llseek,
 };
 
-static struct video_device template = {
-	.name = "s2255v",
-	.type = VID_TYPE_CAPTURE,
-	.fops = &s2255_fops_v4l,
-	.minor = -1,
-	.release = video_device_release,
+static const struct v4l2_ioctl_ops s2255_ioctl_ops = {
 	.vidioc_querycap = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap = vidioc_g_fmt_vid_cap,
@@ -1686,6 +1681,15 @@ static struct video_device template = {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf = vidioc_cgmbuf,
 #endif
+};
+
+static struct video_device template = {
+	.name = "s2255v",
+	.type = VID_TYPE_CAPTURE,
+	.fops = &s2255_fops_v4l,
+	.ioctl_ops = &s2255_ioctl_ops,
+	.minor = -1,
+	.release = video_device_release,
 	.tvnorms = S2255_NORMS,
 	.current_norm = V4L2_STD_NTSC_M,
 };

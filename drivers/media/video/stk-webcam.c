@@ -1328,20 +1328,7 @@ static struct file_operations v4l_stk_fops = {
 	.llseek = no_llseek
 };
 
-static void stk_v4l_dev_release(struct video_device *vd)
-{
-}
-
-static struct video_device stk_v4l_data = {
-	.name = "stkwebcam",
-	.type = VFL_TYPE_GRABBER,
-	.type2 = VID_TYPE_CAPTURE,
-	.minor = -1,
-	.tvnorms = V4L2_STD_UNKNOWN,
-	.current_norm = V4L2_STD_UNKNOWN,
-	.fops = &v4l_stk_fops,
-	.release = stk_v4l_dev_release,
-
+static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {
 	.vidioc_querycap = stk_vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap = stk_vidioc_enum_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap = stk_vidioc_try_fmt_vid_cap,
@@ -1361,6 +1348,22 @@ static struct video_device stk_v4l_data = {
 	.vidioc_g_ctrl = stk_vidioc_g_ctrl,
 	.vidioc_s_ctrl = stk_vidioc_s_ctrl,
 	.vidioc_g_parm = stk_vidioc_g_parm,
+};
+
+static void stk_v4l_dev_release(struct video_device *vd)
+{
+}
+
+static struct video_device stk_v4l_data = {
+	.name = "stkwebcam",
+	.type = VFL_TYPE_GRABBER,
+	.type2 = VID_TYPE_CAPTURE,
+	.minor = -1,
+	.tvnorms = V4L2_STD_UNKNOWN,
+	.current_norm = V4L2_STD_UNKNOWN,
+	.fops = &v4l_stk_fops,
+	.ioctl_ops = &v4l_stk_ioctl_ops,
+	.release = stk_v4l_dev_release,
 };
 
 

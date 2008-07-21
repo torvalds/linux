@@ -1066,13 +1066,7 @@ static const struct file_operations vivi_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device vivi_template = {
-	.name		= "vivi",
-	.type		= VID_TYPE_CAPTURE,
-	.fops           = &vivi_fops,
-	.minor		= -1,
-	.release	= video_device_release,
-
+static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
@@ -1094,6 +1088,16 @@ static struct video_device vivi_template = {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif
+};
+
+static struct video_device vivi_template = {
+	.name		= "vivi",
+	.type		= VID_TYPE_CAPTURE,
+	.fops           = &vivi_fops,
+	.ioctl_ops 	= &vivi_ioctl_ops,
+	.minor		= -1,
+	.release	= video_device_release,
+
 	.tvnorms              = V4L2_STD_525_60,
 	.current_norm         = V4L2_STD_NTSC_M,
 };

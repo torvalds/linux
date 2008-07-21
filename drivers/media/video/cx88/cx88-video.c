@@ -1683,13 +1683,7 @@ static const struct file_operations video_fops =
 	.llseek        = no_llseek,
 };
 
-static struct video_device cx8800_vbi_template;
-static struct video_device cx8800_video_template =
-{
-	.name                 = "cx8800-video",
-	.type                 = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES,
-	.fops                 = &video_fops,
-	.minor                = -1,
+static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
@@ -1722,6 +1716,16 @@ static struct video_device cx8800_video_template =
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
+};
+
+static struct video_device cx8800_vbi_template;
+
+static struct video_device cx8800_video_template = {
+	.name                 = "cx8800-video",
+	.type                 = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES,
+	.fops                 = &video_fops,
+	.minor                = -1,
+	.ioctl_ops 	      = &video_ioctl_ops,
 	.tvnorms              = CX88_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
 };
@@ -1736,12 +1740,7 @@ static const struct file_operations radio_fops =
 	.llseek        = no_llseek,
 };
 
-static struct video_device cx8800_radio_template =
-{
-	.name                 = "cx8800-radio",
-	.type                 = VID_TYPE_TUNER,
-	.fops                 = &radio_fops,
-	.minor                = -1,
+static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_querycap      = radio_querycap,
 	.vidioc_g_tuner       = radio_g_tuner,
 	.vidioc_enum_input    = radio_enum_input,
@@ -1758,6 +1757,14 @@ static struct video_device cx8800_radio_template =
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
+};
+
+static struct video_device cx8800_radio_template = {
+	.name                 = "cx8800-radio",
+	.type                 = VID_TYPE_TUNER,
+	.fops                 = &radio_fops,
+	.minor                = -1,
+	.ioctl_ops 	      = &radio_ioctl_ops,
 };
 
 /* ----------------------------------------------------------- */

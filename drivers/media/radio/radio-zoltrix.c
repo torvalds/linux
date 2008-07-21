@@ -408,12 +408,7 @@ static const struct file_operations zoltrix_fops =
 	.llseek         = no_llseek,
 };
 
-static struct video_device zoltrix_radio =
-{
-	.owner		= THIS_MODULE,
-	.name		= "Zoltrix Radio Plus",
-	.type		= VID_TYPE_TUNER,
-	.fops           = &zoltrix_fops,
+static const struct v4l2_ioctl_ops zoltrix_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -426,6 +421,14 @@ static struct video_device zoltrix_radio =
 	.vidioc_queryctrl   = vidioc_queryctrl,
 	.vidioc_g_ctrl      = vidioc_g_ctrl,
 	.vidioc_s_ctrl      = vidioc_s_ctrl,
+};
+
+static struct video_device zoltrix_radio = {
+	.owner		= THIS_MODULE,
+	.name		= "Zoltrix Radio Plus",
+	.type		= VID_TYPE_TUNER,
+	.fops           = &zoltrix_fops,
+	.ioctl_ops 	= &zoltrix_ioctl_ops,
 };
 
 static int __init zoltrix_init(void)

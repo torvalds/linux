@@ -400,16 +400,7 @@ static const struct file_operations ts_fops =
 	.llseek   = no_llseek,
 };
 
-/* ----------------------------------------------------------- */
-
-static struct video_device saa7134_empress_template =
-{
-	.name          = "saa7134-empress",
-	.type          = 0 /* FIXME */,
-	.type2         = 0 /* FIXME */,
-	.fops          = &ts_fops,
-	.minor	       = -1,
-
+static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_querycap		= empress_querycap,
 	.vidioc_enum_fmt_vid_cap	= empress_enum_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= empress_s_fmt_vid_cap,
@@ -430,6 +421,17 @@ static struct video_device saa7134_empress_template =
 	.vidioc_querymenu		= empress_querymenu,
 	.vidioc_g_ctrl			= saa7134_g_ctrl,
 	.vidioc_s_ctrl			= saa7134_s_ctrl,
+};
+
+/* ----------------------------------------------------------- */
+
+static struct video_device saa7134_empress_template = {
+	.name          = "saa7134-empress",
+	.type          = 0 /* FIXME */,
+	.type2         = 0 /* FIXME */,
+	.fops          = &ts_fops,
+	.minor	       = -1,
+	.ioctl_ops     = &ts_ioctl_ops,
 
 	.tvnorms			= SAA7134_NORMS,
 	.current_norm			= V4L2_STD_PAL,

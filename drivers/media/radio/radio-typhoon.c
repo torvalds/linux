@@ -345,12 +345,7 @@ static const struct file_operations typhoon_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device typhoon_radio =
-{
-	.owner		= THIS_MODULE,
-	.name		= "Typhoon Radio",
-	.type		= VID_TYPE_TUNER,
-	.fops           = &typhoon_fops,
+static const struct v4l2_ioctl_ops typhoon_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -363,6 +358,14 @@ static struct video_device typhoon_radio =
 	.vidioc_queryctrl   = vidioc_queryctrl,
 	.vidioc_g_ctrl      = vidioc_g_ctrl,
 	.vidioc_s_ctrl      = vidioc_s_ctrl,
+};
+
+static struct video_device typhoon_radio = {
+	.owner		= THIS_MODULE,
+	.name		= "Typhoon Radio",
+	.type		= VID_TYPE_TUNER,
+	.fops           = &typhoon_fops,
+	.ioctl_ops 	= &typhoon_ioctl_ops,
 };
 
 #ifdef CONFIG_RADIO_TYPHOON_PROC_FS

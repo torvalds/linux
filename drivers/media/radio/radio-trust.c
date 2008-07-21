@@ -347,12 +347,7 @@ static const struct file_operations trust_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device trust_radio=
-{
-	.owner		= THIS_MODULE,
-	.name		= "Trust FM Radio",
-	.type		= VID_TYPE_TUNER,
-	.fops           = &trust_fops,
+static const struct v4l2_ioctl_ops trust_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -365,6 +360,14 @@ static struct video_device trust_radio=
 	.vidioc_s_audio     = vidioc_s_audio,
 	.vidioc_g_input     = vidioc_g_input,
 	.vidioc_s_input     = vidioc_s_input,
+};
+
+static struct video_device trust_radio = {
+	.owner		= THIS_MODULE,
+	.name		= "Trust FM Radio",
+	.type		= VID_TYPE_TUNER,
+	.fops           = &trust_fops,
+	.ioctl_ops 	= &trust_ioctl_ops,
 };
 
 static int __init trust_init(void)
