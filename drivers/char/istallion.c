@@ -598,7 +598,7 @@ static int	stli_parsebrd(struct stlconf *confp, char **argp);
 static int	stli_open(struct tty_struct *tty, struct file *filp);
 static void	stli_close(struct tty_struct *tty, struct file *filp);
 static int	stli_write(struct tty_struct *tty, const unsigned char *buf, int count);
-static void	stli_putchar(struct tty_struct *tty, unsigned char ch);
+static int	stli_putchar(struct tty_struct *tty, unsigned char ch);
 static void	stli_flushchars(struct tty_struct *tty);
 static int	stli_writeroom(struct tty_struct *tty);
 static int	stli_charsinbuffer(struct tty_struct *tty);
@@ -826,7 +826,7 @@ static int stli_open(struct tty_struct *tty, struct file *filp)
  */
 	portp->port.tty = tty;
 	tty->driver_data = portp;
-	portp->refcount++;
+	portp->port.count++;
 
 	wait_event_interruptible(portp->raw_wait,
 			!test_bit(ST_INITIALIZING, &portp->state));
@@ -888,9 +888,9 @@ static void stli_close(struct tty_struct *tty, struct file *filp)
 		spin_unlock_irqrestore(&stli_lock, flags);
 		return;
 	}
-	if ((tty->count == 1) && (portp->refcount != 1))
-		portp->refcount = 1;
-	if (portp->refcount-- > 1) {
+	if ((tty->count == 1) && (portp->port.count != 1))
+		portp->port.count = 1;
+	if (portp->port.count-- > 1) {
 		spin_unlock_irqrestore(&stli_lock, flags);
 		return;
 	}
@@ -925,8 +925,8 @@ static void stli_close(struct tty_struct *tty, struct file *filp)
 	clear_bit(ST_TXBUSY, &portp->state);
 	clear_bit(ST_RXSTOP, &portp->state);
 	set_bit(TTY_IO_ERROR, &tty->flags);
-	if (tty->ldisc.flush_buffer)
-		(tty->ldisc.flush_buffer)(tty);
+	if (tty->ldisc.ops->flush_buffer)
+		(tty->ldisc.ops->flush_buffer)(tty);
 	set_bit(ST_DOFLUSHRX, &portp->state);
 	stli_flushbuffer(tty);
 
@@ -1202,7 +1202,7 @@ static int stli_waitcarrier(struct stlibrd *brdp, struct stliport *portp, struct
 	spin_lock_irqsave(&stli_lock, flags);
 	portp->openwaitcnt++;
 	if (! tty_hung_up_p(filp))
-		portp->refcount--;
+		portp->port.count--;
 	spin_unlock_irqrestore(&stli_lock, flags);
 
 	for (;;) {
@@ -1231,7 +1231,7 @@ static int stli_waitcarrier(struct stlibrd *brdp, struct stliport *portp, struct
 
 	spin_lock_irqsave(&stli_lock, flags);
 	if (! tty_hung_up_p(filp))
-		portp->refcount++;
+		portp->port.count++;
 	portp->openwaitcnt--;
 	spin_unlock_irqrestore(&stli_lock, flags);
 
@@ -1333,7 +1333,7 @@ static int stli_write(struct tty_struct *tty, const unsigned char *buf, int coun
  *	first them do the new ports.
  */
 
-static void stli_putchar(struct tty_struct *tty, unsigned char ch)
+static int stli_putchar(struct tty_struct *tty, unsigned char ch)
 {
 	if (tty != stli_txcooktty) {
 		if (stli_txcooktty != NULL)
@@ -1342,6 +1342,7 @@ static void stli_putchar(struct tty_struct *tty, unsigned char ch)
 	}
 
 	stli_txcookbuf[stli_txcooksize++] = ch;
+	return 0;
 }
 
 /*****************************************************************************/
@@ -1660,7 +1661,6 @@ static int stli_ioctl(struct tty_struct *tty, struct file *file, unsigned int cm
 {
 	struct stliport *portp;
 	struct stlibrd *brdp;
-	unsigned int ival;
 	int rc;
 	void __user *argp = (void __user *)arg;
 
@@ -1857,7 +1857,7 @@ static void stli_hangup(struct tty_struct *tty)
 	set_bit(TTY_IO_ERROR, &tty->flags);
 	portp->port.tty = NULL;
 	portp->port.flags &= ~ASYNC_NORMAL_ACTIVE;
-	portp->refcount = 0;
+	portp->port.count = 0;
 	spin_unlock_irqrestore(&stli_lock, flags);
 
 	wake_up_interruptible(&portp->port.open_wait);
@@ -4246,7 +4246,7 @@ static int stli_portcmdstats(struct stliport *portp)
 	stli_comstats.panel = portp->panelnr;
 	stli_comstats.port = portp->portnr;
 	stli_comstats.state = portp->state;
-	stli_comstats.flags = portp->port.flag;
+	stli_comstats.flags = portp->port.flags;
 
 	spin_lock_irqsave(&brd_lock, flags);
 	if (portp->port.tty != NULL) {
