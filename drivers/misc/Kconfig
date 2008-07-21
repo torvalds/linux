@@ -279,6 +279,8 @@ config THINKPAD_ACPI
 	select INPUT
 	select NEW_LEDS
 	select LEDS_CLASS
+	select NET
+	select RFKILL
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
