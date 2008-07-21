@@ -59,7 +59,8 @@ static int vlan_validate(struct nlattr *tb[], struct nlattr *data[])
 	}
 	if (data[IFLA_VLAN_FLAGS]) {
 		flags = nla_data(data[IFLA_VLAN_FLAGS]);
-		if ((flags->flags & flags->mask) & ~VLAN_FLAG_REORDER_HDR)
+		if ((flags->flags & flags->mask) &
+		    ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP))
 			return -EINVAL;
 	}
 
@@ -75,7 +76,6 @@ static int vlan_validate(struct nlattr *tb[], struct nlattr *data[])
 static int vlan_changelink(struct net_device *dev,
 			   struct nlattr *tb[], struct nlattr *data[])
 {
-	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct ifla_vlan_flags *flags;
 	struct ifla_vlan_qos_mapping *m;
 	struct nlattr *attr;
@@ -83,8 +83,7 @@ static int vlan_changelink(struct net_device *dev,
 
 	if (data[IFLA_VLAN_FLAGS]) {
 		flags = nla_data(data[IFLA_VLAN_FLAGS]);
-		vlan->flags = (vlan->flags & ~flags->mask) |
-			      (flags->flags & flags->mask);
+		vlan_dev_change_flags(dev, flags->flags, flags->mask);
 	}
 	if (data[IFLA_VLAN_INGRESS_QOS]) {
 		nla_for_each_nested(attr, data[IFLA_VLAN_INGRESS_QOS], rem) {

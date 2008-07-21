@@ -49,14 +49,13 @@ enum led_type {
 };
 
 
-struct iwl4965_led {
+struct iwl_led {
 	struct iwl_priv *priv;
 	struct led_classdev led_dev;
 
 	int (*led_on) (struct iwl_priv *priv, int led_id);
 	int (*led_off) (struct iwl_priv *priv, int led_id);
-	int (*led_pattern) (struct iwl_priv *priv, int led_id,
-			    enum led_brightness brightness);
+	int (*led_pattern) (struct iwl_priv *priv, int led_id, unsigned int idx);
 
 	enum led_type type;
 	unsigned int registered;

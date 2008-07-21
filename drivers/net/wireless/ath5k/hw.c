@@ -31,14 +31,14 @@
 #include "base.h"
 #include "debug.h"
 
-/*Rate tables*/
+/* Rate tables */
 static const struct ath5k_rate_table ath5k_rt_11a = AR5K_RATES_11A;
 static const struct ath5k_rate_table ath5k_rt_11b = AR5K_RATES_11B;
 static const struct ath5k_rate_table ath5k_rt_11g = AR5K_RATES_11G;
 static const struct ath5k_rate_table ath5k_rt_turbo = AR5K_RATES_TURBO;
 static const struct ath5k_rate_table ath5k_rt_xr = AR5K_RATES_XR;
 
-/*Prototypes*/
+/* Prototypes */
 static int ath5k_hw_nic_reset(struct ath5k_hw *, u32);
 static int ath5k_hw_nic_wakeup(struct ath5k_hw *, int, bool);
 static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *, struct ath5k_desc *,

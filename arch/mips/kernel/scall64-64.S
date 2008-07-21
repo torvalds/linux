@@ -219,7 +219,7 @@ sys_call_table:
 	PTR	sys_readv
 	PTR	sys_writev
 	PTR	sys_access			/* 5020 */
-	PTR	sys_pipe
+	PTR	sysm_pipe
 	PTR	sys_select
 	PTR	sys_sched_yield
 	PTR	sys_mremap

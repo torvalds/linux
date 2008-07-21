@@ -13,7 +13,7 @@
 #define SOC_CAMERA_H
 
 #include <linux/videodev2.h>
-#include <media/videobuf-dma-sg.h>
+#include <media/videobuf-core.h>
 
 struct soc_camera_device {
 	struct list_head list;
@@ -48,15 +48,12 @@ struct soc_camera_device {
 struct soc_camera_file {
 	struct soc_camera_device *icd;
 	struct videobuf_queue vb_vidq;
-	spinlock_t *lock;
 };
 
 struct soc_camera_host {
 	struct list_head list;
 	struct device dev;
 	unsigned char nr;				/* Host number */
-	size_t msize;
-	struct videobuf_queue_ops *vbq_ops;
 	void *priv;
 	char *drv_name;
 	struct soc_camera_host_ops *ops;
@@ -69,13 +66,13 @@ struct soc_camera_host_ops {
 	int (*set_fmt_cap)(struct soc_camera_device *, __u32,
 			   struct v4l2_rect *);
 	int (*try_fmt_cap)(struct soc_camera_device *, struct v4l2_format *);
+	void (*init_videobuf)(struct videobuf_queue *,
+			      struct soc_camera_device *);
 	int (*reqbufs)(struct soc_camera_file *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
 	int (*try_bus_param)(struct soc_camera_device *, __u32);
 	int (*set_bus_param)(struct soc_camera_device *, __u32);
 	unsigned int (*poll)(struct file *, poll_table *);
-	spinlock_t* (*spinlock_alloc)(struct soc_camera_file *);
-	void (*spinlock_free)(spinlock_t *);
 };
 
 struct soc_camera_link {
@@ -156,11 +153,12 @@ static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
 #define SOCAM_DATAWIDTH_8		(1 << 6)
 #define SOCAM_DATAWIDTH_9		(1 << 7)
 #define SOCAM_DATAWIDTH_10		(1 << 8)
-#define SOCAM_PCLK_SAMPLE_RISING	(1 << 9)
-#define SOCAM_PCLK_SAMPLE_FALLING	(1 << 10)
+#define SOCAM_DATAWIDTH_16		(1 << 9)
+#define SOCAM_PCLK_SAMPLE_RISING	(1 << 10)
+#define SOCAM_PCLK_SAMPLE_FALLING	(1 << 11)
 
 #define SOCAM_DATAWIDTH_MASK (SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_9 | \
-			      SOCAM_DATAWIDTH_10)
+			      SOCAM_DATAWIDTH_10 | SOCAM_DATAWIDTH_16)
 
 static inline unsigned long soc_camera_bus_param_compatible(
 			unsigned long camera_flags, unsigned long bus_flags)

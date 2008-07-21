@@ -178,7 +178,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		       u8 * txhdr,
 		       const unsigned char *fragment_data,
 		       unsigned int fragment_len,
-		       const struct ieee80211_tx_control *txctl, u16 cookie);
+		       const struct ieee80211_tx_info *txctl, u16 cookie);
 
 /* Transmit Status */
 struct b43_txstatus {
@@ -294,7 +294,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr);
 
 void b43_handle_txstatus(struct b43_wldev *dev,
 			 const struct b43_txstatus *status);
-bool b43_fill_txstatus_report(struct ieee80211_tx_status *report,
+bool b43_fill_txstatus_report(struct ieee80211_tx_info *report,
 			      const struct b43_txstatus *status);
 
 void b43_tx_suspend(struct b43_wldev *dev);

@@ -73,12 +73,7 @@ static const int multicast_filter_limit = 32;
    There are no ill effects from too-large receive rings. */
 #define TX_RING_SIZE	16
 #define TX_QUEUE_LEN	10	/* Limit ring entries actually used. */
-#ifdef CONFIG_VIA_RHINE_NAPI
 #define RX_RING_SIZE	64
-#else
-#define RX_RING_SIZE	16
-#endif
-
 
 /* Operational parameters that usually are not changed. */
 
@@ -583,7 +578,6 @@ static void rhine_poll(struct net_device *dev)
 }
 #endif
 
-#ifdef CONFIG_VIA_RHINE_NAPI
 static int rhine_napipoll(struct napi_struct *napi, int budget)
 {
 	struct rhine_private *rp = container_of(napi, struct rhine_private, napi);
@@ -604,7 +598,6 @@ static int rhine_napipoll(struct napi_struct *napi, int budget)
 	}
 	return work_done;
 }
-#endif
 
 static void __devinit rhine_hw_init(struct net_device *dev, long pioaddr)
 {
@@ -784,9 +777,8 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = rhine_poll;
 #endif
-#ifdef CONFIG_VIA_RHINE_NAPI
 	netif_napi_add(dev, &rp->napi, rhine_napipoll, 64);
-#endif
+
 	if (rp->quirks & rqRhineI)
 		dev->features |= NETIF_F_SG|NETIF_F_HW_CSUM;
 
@@ -1056,9 +1048,7 @@ static void init_registers(struct net_device *dev)
 
 	rhine_set_rx_mode(dev);
 
-#ifdef CONFIG_VIA_RHINE_NAPI
 	napi_enable(&rp->napi);
-#endif
 
 	/* Enable interrupts by setting the interrupt mask. */
 	iowrite16(IntrRxDone | IntrRxErr | IntrRxEmpty| IntrRxOverflow |
@@ -1193,9 +1183,7 @@ static void rhine_tx_timeout(struct net_device *dev)
 	/* protect against concurrent rx interrupts */
 	disable_irq(rp->pdev->irq);
 
-#ifdef CONFIG_VIA_RHINE_NAPI
 	napi_disable(&rp->napi);
-#endif
 
 	spin_lock(&rp->lock);
 
@@ -1319,16 +1307,12 @@ static irqreturn_t rhine_interrupt(int irq, void *dev_instance)
 
 		if (intr_status & (IntrRxDone | IntrRxErr | IntrRxDropped |
 				   IntrRxWakeUp | IntrRxEmpty | IntrRxNoBuf)) {
-#ifdef CONFIG_VIA_RHINE_NAPI
 			iowrite16(IntrTxAborted |
 				  IntrTxDone | IntrTxError | IntrTxUnderrun |
 				  IntrPCIErr | IntrStatsMax | IntrLinkChange,
 				  ioaddr + IntrEnable);
 
 			netif_rx_schedule(dev, &rp->napi);
-#else
-			rhine_rx(dev, RX_RING_SIZE);
-#endif
 		}
 
 		if (intr_status & (IntrTxErrSummary | IntrTxDone)) {
@@ -1520,11 +1504,7 @@ static int rhine_rx(struct net_device *dev, int limit)
 						 PCI_DMA_FROMDEVICE);
 			}
 			skb->protocol = eth_type_trans(skb, dev);
-#ifdef CONFIG_VIA_RHINE_NAPI
 			netif_receive_skb(skb);
-#else
-			netif_rx(skb);
-#endif
 			dev->last_rx = jiffies;
 			rp->stats.rx_bytes += pkt_len;
 			rp->stats.rx_packets++;
@@ -1836,9 +1816,7 @@ static int rhine_close(struct net_device *dev)
 	spin_lock_irq(&rp->lock);
 
 	netif_stop_queue(dev);
-#ifdef CONFIG_VIA_RHINE_NAPI
 	napi_disable(&rp->napi);
-#endif
 
 	if (debug > 1)
 		printk(KERN_DEBUG "%s: Shutting down ethercard, "
@@ -1937,9 +1915,8 @@ static int rhine_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		return 0;
 
-#ifdef CONFIG_VIA_RHINE_NAPI
 	napi_disable(&rp->napi);
-#endif
+
 	netif_device_detach(dev);
 	pci_save_state(pdev);
 

@@ -113,7 +113,7 @@ static void kvm_setup_secondary_clock(void)
 #endif
 
 #ifdef CONFIG_SMP
-void __init kvm_smp_prepare_boot_cpu(void)
+static void __init kvm_smp_prepare_boot_cpu(void)
 {
 	WARN_ON(kvm_register_clock("primary cpu clock"));
 	native_smp_prepare_boot_cpu();

@@ -37,7 +37,7 @@
  36 -> UPMOST PURPLE TV                         [12ab:0800]
  37 -> Items MuchTV Plus / IT-005
  38 -> Terratec Cinergy 200 TV                  [153b:1152]
- 39 -> LifeView FlyTV Platinum Mini             [5168:0212,4e42:0212]
+ 39 -> LifeView FlyTV Platinum Mini             [5168:0212,4e42:0212,5169:1502]
  40 -> Compro VideoMate TV PVR/FM               [185b:c100]
  41 -> Compro VideoMate TV Gold+                [185b:c100]
  42 -> Sabrent SBT-TVFM (saa7130)
@@ -128,7 +128,7 @@
 127 -> Beholder BeholdTV 507 FM/RDS / BeholdTV 509 FM [0000:5071,0000:507B,5ace:5070,5ace:5090]
 128 -> Beholder BeholdTV Columbus TVFM          [0000:5201]
 129 -> Beholder BeholdTV 607 / BeholdTV 609     [5ace:6070,5ace:6071,5ace:6072,5ace:6073,5ace:6090,5ace:6091,5ace:6092,5ace:6093]
-130 -> Beholder BeholdTV M6 / BeholdTV M6 Extra [5ace:6190,5ace:6193,5ace:6191]
+130 -> Beholder BeholdTV M6                     [5ace:6190]
 131 -> Twinhan Hybrid DTV-DVB 3056 PCI          [1822:0022]
 132 -> Genius TVGO AM11MCE
 133 -> NXP Snake DVB-S reference design
@@ -141,3 +141,7 @@
 140 -> Avermedia DVB-S Pro A700                 [1461:a7a1]
 141 -> Avermedia DVB-S Hybrid+FM A700           [1461:a7a2]
 142 -> Beholder BeholdTV H6                     [5ace:6290]
+143 -> Beholder BeholdTV M63                    [5ace:6191]
+144 -> Beholder BeholdTV M6 Extra               [5ace:6193]
+145 -> AVerMedia MiniPCI DVB-T Hybrid M103      [1461:f636]
+146 -> ASUSTeK P7131 Analog

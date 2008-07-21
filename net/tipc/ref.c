@@ -123,7 +123,7 @@ int tipc_ref_table_init(u32 requested_size, u32 start)
 	tipc_ref_table.index_mask = actual_size - 1;
 	tipc_ref_table.start_mask = start & ~tipc_ref_table.index_mask;
 
-	return TIPC_OK;
+	return 0;
 }
 
 /**
@@ -142,9 +142,13 @@ void tipc_ref_table_stop(void)
 /**
  * tipc_ref_acquire - create reference to an object
  *
- * Return a unique reference value which can be translated back to the pointer
- * 'object' at a later time.  Also, pass back a pointer to the lock protecting
- * the object, but without locking it.
+ * Register an object pointer in reference table and lock the object.
+ * Returns a unique reference value that is used from then on to retrieve the
+ * object pointer, or to determine that the object has been deregistered.
+ *
+ * Note: The object is returned in the locked state so that the caller can
+ * register a partially initialized object, without running the risk that
+ * the object will be accessed before initialization is complete.
  */
 
 u32 tipc_ref_acquire(void *object, spinlock_t **lock)
@@ -178,13 +182,13 @@ u32 tipc_ref_acquire(void *object, spinlock_t **lock)
 		ref = (next_plus_upper & ~index_mask) + index;
 		entry->ref = ref;
 		entry->object = object;
-		spin_unlock_bh(&entry->lock);
 		*lock = &entry->lock;
 	}
 	else if (tipc_ref_table.init_point < tipc_ref_table.capacity) {
 		index = tipc_ref_table.init_point++;
 		entry = &(tipc_ref_table.entries[index]);
 		spin_lock_init(&entry->lock);
+		spin_lock_bh(&entry->lock);
 		ref = tipc_ref_table.start_mask + index;
 		entry->ref = ref;
 		entry->object = object;

@@ -1254,3 +1254,4 @@ void uvc_ctrl_init(void)
 	for (; mapping < mend; ++mapping)
 		uvc_ctrl_add_mapping(mapping);
 }
+

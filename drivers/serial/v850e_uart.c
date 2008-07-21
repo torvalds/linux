@@ -300,8 +300,8 @@ static irqreturn_t v850e_uart_rx_irq(int irq, void *data)
 
 	port->icount.rx++;
 
-	tty_insert_flip_char (port->info->tty, ch, ch_stat);
-	tty_schedule_flip (port->info->tty);
+	tty_insert_flip_char (port->info->port.tty, ch, ch_stat);
+	tty_schedule_flip (port->info->port.tty);
 
 	return IRQ_HANDLED;
 }
