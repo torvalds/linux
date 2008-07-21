@@ -314,8 +314,9 @@ static void ubifs_delete_inode(struct inode *inode)
 {
 	int err;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	struct ubifs_inode *ui = ubifs_inode(inode);
 
-	if (ubifs_inode(inode)->xattr)
+	if (ui->xattr)
 		/*
 		 * Extended attribute inode deletions are fully handled in
 		 * 'ubifs_removexattr()'. These inodes are special and have
@@ -326,13 +327,12 @@ static void ubifs_delete_inode(struct inode *inode)
 	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
 	ubifs_assert(!atomic_read(&inode->i_count));
 	ubifs_assert(inode->i_nlink == 0);
-	ubifs_assert(!ubifs_inode(inode)->dirty);
 
 	truncate_inode_pages(&inode->i_data, 0);
 	if (is_bad_inode(inode))
 		goto out;
 
-	ubifs_inode(inode)->ui_size = inode->i_size = 0;
+	ui->ui_size = inode->i_size = 0;
 	err = ubifs_jnl_write_inode(c, inode, 1);
 	if (err)
 		/*
@@ -341,6 +341,8 @@ static void ubifs_delete_inode(struct inode *inode)
 		 */
 		ubifs_err("can't write inode %lu, error %d", inode->i_ino, err);
 out:
+	if (ui->dirty)
+		ubifs_release_dirty_inode_budget(c, ui);
 	clear_inode(inode);
 }
 
