@@ -241,10 +241,10 @@ static struct page *read_sb_page(mddev_t *mddev, long offset, unsigned long inde
 static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 {
 	mdk_rdev_t *rdev;
-	struct list_head *tmp;
 	mddev_t *mddev = bitmap->mddev;
 
-	rdev_for_each(rdev, tmp, mddev)
+	rcu_read_lock();
+	rdev_for_each_rcu(rdev, mddev)
 		if (test_bit(In_sync, &rdev->flags)
 		    && !test_bit(Faulty, &rdev->flags)) {
 			int size = PAGE_SIZE;
@@ -260,11 +260,11 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 				    + (long)(page->index * (PAGE_SIZE/512))
 				    + size/512 > 0)
 					/* bitmap runs in to metadata */
-					return -EINVAL;
+					goto bad_alignment;
 				if (rdev->data_offset + mddev->size*2
 				    > rdev->sb_start + bitmap->offset)
 					/* data runs in to bitmap */
-					return -EINVAL;
+					goto bad_alignment;
 			} else if (rdev->sb_start < rdev->data_offset) {
 				/* METADATA BITMAP DATA */
 				if (rdev->sb_start
@@ -272,7 +272,7 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 				    + page->index*(PAGE_SIZE/512) + size/512
 				    > rdev->data_offset)
 					/* bitmap runs in to data */
-					return -EINVAL;
+					goto bad_alignment;
 			} else {
 				/* DATA METADATA BITMAP - no problems */
 			}
@@ -282,10 +282,15 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 				       size,
 				       page);
 		}
+	rcu_read_unlock();
 
 	if (wait)
 		md_super_wait(mddev);
 	return 0;
+
+ bad_alignment:
+	rcu_read_unlock();
+	return -EINVAL;
 }
 
 static void bitmap_file_kick(struct bitmap *bitmap);

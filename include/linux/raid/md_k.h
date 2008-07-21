@@ -339,6 +339,9 @@ static inline char * mdname (mddev_t * mddev)
 #define rdev_for_each(rdev, tmp, mddev)				\
 	rdev_for_each_list(rdev, tmp, (mddev)->disks)
 
+#define rdev_for_each_rcu(rdev, mddev)				\
+	list_for_each_entry_rcu(rdev, &((mddev)->disks), same_set)
+
 typedef struct mdk_thread_s {
 	void			(*run) (mddev_t *mddev);
 	mddev_t			*mddev;
