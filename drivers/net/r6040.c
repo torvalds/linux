@@ -1054,24 +1054,27 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err)
-		return err;
+		goto err_out;
 
 	/* this should always be supported */
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	if (err) {
 		printk(KERN_ERR DRV_NAME "32-bit PCI DMA addresses"
 				"not supported by the card\n");
-		return -ENODEV;
+		goto err_out;
 	}
-	if (pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
+	err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+	if (err) {
 		printk(KERN_ERR DRV_NAME "32-bit PCI DMA addresses"
 				"not supported by the card\n");
-		return -ENODEV;
+		goto err_out;
 	}
 
 	/* IO Size check */
 	if (pci_resource_len(pdev, 0) < io_size) {
-		printk(KERN_ERR "Insufficient PCI resources, aborting\n");
-		return -EIO;
+		printk(KERN_ERR DRV_NAME "Insufficient PCI resources, aborting\n");
+		err = -EIO;
+		goto err_out;
 	}
 
 	pioaddr = pci_resource_start(pdev, 0);	/* IO map base address */
@@ -1079,23 +1082,26 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 
 	dev = alloc_etherdev(sizeof(struct r6040_private));
 	if (!dev) {
-		printk(KERN_ERR "Failed to allocate etherdev\n");
-		return -ENOMEM;
+		printk(KERN_ERR DRV_NAME "Failed to allocate etherdev\n");
+		err = -ENOMEM;
+		goto err_out;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp = netdev_priv(dev);
 
-	if (pci_request_regions(pdev, DRV_NAME)) {
+	err = pci_request_regions(pdev, DRV_NAME);
+
+	if (err) {
 		printk(KERN_ERR DRV_NAME ": Failed to request PCI regions\n");
-		err = -ENODEV;
-		goto err_out_disable;
+		goto err_out_free_dev;
 	}
 
 	ioaddr = pci_iomap(pdev, bar, io_size);
 	if (!ioaddr) {
 		printk(KERN_ERR "ioremap failed for device %s\n",
 			pci_name(pdev));
-		return -EIO;
+		err = -EIO;
+		goto err_out_free_res;
 	}
 
 	/* Init system & device */
@@ -1147,17 +1153,17 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR DRV_NAME ": Failed to register net device\n");
-		goto err_out_res;
+		goto err_out_unmap;
 	}
 	return 0;
 
-err_out_res:
+err_out_unmap:
+	pci_iounmap(pdev, ioaddr);
+err_out_free_res:
 	pci_release_regions(pdev);
-err_out_disable:
-	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
+err_out_free_dev:
 	free_netdev(dev);
-
+err_out:
 	return err;
 }
 
