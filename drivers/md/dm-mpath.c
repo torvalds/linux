@@ -525,8 +525,10 @@ static int parse_path_selector(struct arg_set *as, struct priority_group *pg,
 	}
 
 	r = read_param(_params, shift(as), &ps_argc, &ti->error);
-	if (r)
+	if (r) {
+		dm_put_path_selector(pst);
 		return -EINVAL;
+	}
 
 	r = pst->create(&pg->ps, ps_argc, as->argv);
 	if (r) {
