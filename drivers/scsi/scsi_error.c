@@ -667,6 +667,7 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 	ses->sdb = scmd->sdb;
 	ses->next_rq = scmd->request->next_rq;
 	ses->result = scmd->result;
+	ses->underflow = scmd->underflow;
 	ses->prot_op = scmd->prot_op;
 
 	scmd->prot_op = SCSI_PROT_NORMAL;
@@ -727,6 +728,7 @@ void scsi_eh_restore_cmnd(struct scsi_cmnd* scmd, struct scsi_eh_save *ses)
 	scmd->sdb = ses->sdb;
 	scmd->request->next_rq = ses->next_rq;
 	scmd->result = ses->result;
+	scmd->underflow = ses->underflow;
 	scmd->prot_op = ses->prot_op;
 }
 EXPORT_SYMBOL(scsi_eh_restore_cmnd);

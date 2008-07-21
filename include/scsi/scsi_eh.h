@@ -74,6 +74,7 @@ struct scsi_eh_save {
 	/* saved state */
 	int result;
 	enum dma_data_direction data_direction;
+	unsigned underflow;
 	unsigned char cmd_len;
 	unsigned char prot_op;
 	unsigned char *cmnd;
