@@ -1352,6 +1352,24 @@ int user_path_at(int dfd, const char __user *name, unsigned flags,
 	return err;
 }
 
+static int user_path_parent(int dfd, const char __user *path,
+			struct nameidata *nd, char **name)
+{
+	char *s = getname(path);
+	int error;
+
+	if (IS_ERR(s))
+		return PTR_ERR(s);
+
+	error = do_path_lookup(dfd, s, LOOKUP_PARENT, nd);
+	if (error)
+		putname(s);
+	else
+		*name = s;
+
+	return error;
+}
+
 /*
  * It's inline, so penalty for filesystems that don't use sticky bit is
  * minimal.
@@ -1989,20 +2007,18 @@ static int may_mknod(mode_t mode)
 asmlinkage long sys_mknodat(int dfd, const char __user *filename, int mode,
 				unsigned dev)
 {
-	int error = 0;
-	char * tmp;
-	struct dentry * dentry;
+	int error;
+	char *tmp;
+	struct dentry *dentry;
 	struct nameidata nd;
 
 	if (S_ISDIR(mode))
 		return -EPERM;
-	tmp = getname(filename);
-	if (IS_ERR(tmp))
-		return PTR_ERR(tmp);
 
-	error = do_path_lookup(dfd, tmp, LOOKUP_PARENT, &nd);
+	error = user_path_parent(dfd, filename, &nd, &tmp);
 	if (error)
-		goto out;
+		return error;
+
 	dentry = lookup_create(&nd, 0);
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
@@ -2034,7 +2050,6 @@ out_dput:
 out_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 	path_put(&nd.path);
-out:
 	putname(tmp);
 
 	return error;
@@ -2074,14 +2089,10 @@ asmlinkage long sys_mkdirat(int dfd, const char __user *pathname, int mode)
 	struct dentry *dentry;
 	struct nameidata nd;
 
-	tmp = getname(pathname);
-	error = PTR_ERR(tmp);
-	if (IS_ERR(tmp))
+	error = user_path_parent(dfd, pathname, &nd, &tmp);
+	if (error)
 		goto out_err;
 
-	error = do_path_lookup(dfd, tmp, LOOKUP_PARENT, &nd);
-	if (error)
-		goto out;
 	dentry = lookup_create(&nd, 1);
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
@@ -2099,7 +2110,6 @@ out_dput:
 out_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 	path_put(&nd.path);
-out:
 	putname(tmp);
 out_err:
 	return error;
@@ -2177,13 +2187,9 @@ static long do_rmdir(int dfd, const char __user *pathname)
 	struct dentry *dentry;
 	struct nameidata nd;
 
-	name = getname(pathname);
-	if(IS_ERR(name))
-		return PTR_ERR(name);
-
-	error = do_path_lookup(dfd, name, LOOKUP_PARENT, &nd);
+	error = user_path_parent(dfd, pathname, &nd, &name);
 	if (error)
-		goto exit;
+		return error;
 
 	switch(nd.last_type) {
 		case LAST_DOTDOT:
@@ -2212,7 +2218,6 @@ exit2:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 exit1:
 	path_put(&nd.path);
-exit:
 	putname(name);
 	return error;
 }
@@ -2261,19 +2266,16 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
  */
 static long do_unlinkat(int dfd, const char __user *pathname)
 {
-	int error = 0;
-	char * name;
+	int error;
+	char *name;
 	struct dentry *dentry;
 	struct nameidata nd;
 	struct inode *inode = NULL;
 
-	name = getname(pathname);
-	if(IS_ERR(name))
-		return PTR_ERR(name);
-
-	error = do_path_lookup(dfd, name, LOOKUP_PARENT, &nd);
+	error = user_path_parent(dfd, pathname, &nd, &name);
 	if (error)
-		goto exit;
+		return error;
+
 	error = -EISDIR;
 	if (nd.last_type != LAST_NORM)
 		goto exit1;
@@ -2300,7 +2302,6 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 		iput(inode);	/* truncate the inode here */
 exit1:
 	path_put(&nd.path);
-exit:
 	putname(name);
 	return error;
 
@@ -2350,23 +2351,20 @@ int vfs_symlink(struct inode *dir, struct dentry *dentry, const char *oldname)
 asmlinkage long sys_symlinkat(const char __user *oldname,
 			      int newdfd, const char __user *newname)
 {
-	int error = 0;
-	char * from;
-	char * to;
+	int error;
+	char *from;
+	char *to;
 	struct dentry *dentry;
 	struct nameidata nd;
 
 	from = getname(oldname);
-	if(IS_ERR(from))
+	if (IS_ERR(from))
 		return PTR_ERR(from);
-	to = getname(newname);
-	error = PTR_ERR(to);
-	if (IS_ERR(to))
+
+	error = user_path_parent(newdfd, newname, &nd, &to);
+	if (error)
 		goto out_putname;
 
-	error = do_path_lookup(newdfd, to, LOOKUP_PARENT, &nd);
-	if (error)
-		goto out;
 	dentry = lookup_create(&nd, 0);
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
@@ -2382,7 +2380,6 @@ out_dput:
 out_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 	path_put(&nd.path);
-out:
 	putname(to);
 out_putname:
 	putname(from);
@@ -2449,21 +2446,18 @@ asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
 	struct nameidata nd;
 	struct path old_path;
 	int error;
-	char * to;
+	char *to;
 
 	if ((flags & ~AT_SYMLINK_FOLLOW) != 0)
 		return -EINVAL;
-
-	to = getname(newname);
-	if (IS_ERR(to))
-		return PTR_ERR(to);
 
 	error = user_path_at(olddfd, oldname,
 			     flags & AT_SYMLINK_FOLLOW ? LOOKUP_FOLLOW : 0,
 			     &old_path);
 	if (error)
-		goto exit;
-	error = do_path_lookup(newdfd, to, LOOKUP_PARENT, &nd);
+		return error;
+
+	error = user_path_parent(newdfd, newname, &nd, &to);
 	if (error)
 		goto out;
 	error = -EXDEV;
@@ -2484,10 +2478,9 @@ out_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 out_release:
 	path_put(&nd.path);
+	putname(to);
 out:
 	path_put(&old_path);
-exit:
-	putname(to);
 
 	return error;
 }
@@ -2643,20 +2636,22 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return error;
 }
 
-static int do_rename(int olddfd, const char *oldname,
-			int newdfd, const char *newname)
+asmlinkage long sys_renameat(int olddfd, const char __user *oldname,
+			     int newdfd, const char __user *newname)
 {
-	int error = 0;
-	struct dentry * old_dir, * new_dir;
-	struct dentry * old_dentry, *new_dentry;
-	struct dentry * trap;
+	struct dentry *old_dir, *new_dir;
+	struct dentry *old_dentry, *new_dentry;
+	struct dentry *trap;
 	struct nameidata oldnd, newnd;
+	char *from;
+	char *to;
+	int error;
 
-	error = do_path_lookup(olddfd, oldname, LOOKUP_PARENT, &oldnd);
+	error = user_path_parent(olddfd, oldname, &oldnd, &from);
 	if (error)
 		goto exit;
 
-	error = do_path_lookup(newdfd, newname, LOOKUP_PARENT, &newnd);
+	error = user_path_parent(newdfd, newname, &newnd, &to);
 	if (error)
 		goto exit1;
 
@@ -2718,29 +2713,11 @@ exit3:
 	unlock_rename(new_dir, old_dir);
 exit2:
 	path_put(&newnd.path);
+	putname(to);
 exit1:
 	path_put(&oldnd.path);
-exit:
-	return error;
-}
-
-asmlinkage long sys_renameat(int olddfd, const char __user *oldname,
-			     int newdfd, const char __user *newname)
-{
-	int error;
-	char * from;
-	char * to;
-
-	from = getname(oldname);
-	if(IS_ERR(from))
-		return PTR_ERR(from);
-	to = getname(newname);
-	error = PTR_ERR(to);
-	if (!IS_ERR(to)) {
-		error = do_rename(olddfd, from, newdfd, to);
-		putname(to);
-	}
 	putname(from);
+exit:
 	return error;
 }
 
