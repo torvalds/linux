@@ -981,7 +981,7 @@ static int stk_vidioc_s_ctrl(struct file *filp,
 }
 
 
-static int stk_vidioc_enum_fmt_cap(struct file *filp,
+static int stk_vidioc_enum_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_fmtdesc *fmtd)
 {
 	fmtd->flags = 0;
@@ -1025,7 +1025,7 @@ static struct stk_size {
 	{ .w = 176,  .h = 144,  .m = MODE_QCIF, },
 };
 
-static int stk_vidioc_g_fmt_cap(struct file *filp,
+static int stk_vidioc_g_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_format *f)
 {
 	struct v4l2_pix_format *pix_format = &f->fmt.pix;
@@ -1054,7 +1054,7 @@ static int stk_vidioc_g_fmt_cap(struct file *filp,
 	return 0;
 }
 
-static int stk_vidioc_try_fmt_cap(struct file *filp,
+static int stk_vidioc_try_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_format *fmtd)
 {
 	int i;
@@ -1131,7 +1131,7 @@ static int stk_setup_format(struct stk_camera *dev)
 	return stk_sensor_configure(dev);
 }
 
-static int stk_vidioc_s_fmt_cap(struct file *filp,
+static int stk_vidioc_s_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_format *fmtd)
 {
 	int ret;
@@ -1145,7 +1145,7 @@ static int stk_vidioc_s_fmt_cap(struct file *filp,
 		return -EBUSY;
 	if (dev->owner && dev->owner != filp)
 		return -EBUSY;
-	ret = stk_vidioc_try_fmt_cap(filp, priv, fmtd);
+	ret = stk_vidioc_try_fmt_vid_cap(filp, priv, fmtd);
 	if (ret)
 		return ret;
 	dev->owner = filp;
@@ -1342,10 +1342,10 @@ static struct video_device stk_v4l_data = {
 	.release = stk_v4l_dev_release,
 
 	.vidioc_querycap = stk_vidioc_querycap,
-	.vidioc_enum_fmt_cap = stk_vidioc_enum_fmt_cap,
-	.vidioc_try_fmt_cap = stk_vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap = stk_vidioc_s_fmt_cap,
-	.vidioc_g_fmt_cap = stk_vidioc_g_fmt_cap,
+	.vidioc_enum_fmt_vid_cap = stk_vidioc_enum_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap = stk_vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap = stk_vidioc_s_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap = stk_vidioc_g_fmt_vid_cap,
 	.vidioc_enum_input = stk_vidioc_enum_input,
 	.vidioc_s_input = stk_vidioc_s_input,
 	.vidioc_g_input = stk_vidioc_g_input,

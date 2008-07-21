@@ -49,7 +49,8 @@
 #define IVTV_CARD_AVER_PVR150PLUS    22 /* AVerMedia PVR-150 Plus */
 #define IVTV_CARD_AVER_EZMAKER       23 /* AVerMedia EZMaker PCI Deluxe */
 #define IVTV_CARD_AVER_M104          24 /* AverMedia M104 miniPCI card */
-#define IVTV_CARD_LAST 		     24
+#define IVTV_CARD_BUFFALO_MV5L       25 /* Buffalo PC-MV5L/PCI card */
+#define IVTV_CARD_LAST 		     25
 
 /* Variants of existing cards but with the same PCI IDs. The driver
    detects these based on other device information.
