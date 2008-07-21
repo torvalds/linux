@@ -273,6 +273,7 @@ static mddev_t * mddev_find(dev_t unit)
 	INIT_LIST_HEAD(&new->all_mddevs);
 	init_timer(&new->safemode_timer);
 	atomic_set(&new->active, 1);
+	atomic_set(&new->openers, 0);
 	spin_lock_init(&new->write_lock);
 	init_waitqueue_head(&new->sb_wait);
 	init_waitqueue_head(&new->recovery_wait);
@@ -2695,14 +2696,14 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 		break;
 	case clear:
 		/* stopping an active array */
-		if (atomic_read(&mddev->active) > 1)
+		if (atomic_read(&mddev->openers) > 0)
 			return -EBUSY;
 		err = do_md_stop(mddev, 0, 0);
 		break;
 	case inactive:
 		/* stopping an active array */
 		if (mddev->pers) {
-			if (atomic_read(&mddev->active) > 1)
+			if (atomic_read(&mddev->openers) > 0)
 				return -EBUSY;
 			err = do_md_stop(mddev, 2, 0);
 		} else
@@ -3816,7 +3817,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 	int err = 0;
 	struct gendisk *disk = mddev->gendisk;
 
-	if (atomic_read(&mddev->active) > 1 + is_open) {
+	if (atomic_read(&mddev->openers) > is_open) {
 		printk("md: %s still in use.\n",mdname(mddev));
 		return -EBUSY;
 	}
@@ -5014,6 +5015,7 @@ static int md_open(struct inode *inode, struct file *file)
 
 	err = 0;
 	mddev_get(mddev);
+	atomic_inc(&mddev->openers);
 	mddev_unlock(mddev);
 
 	check_disk_change(inode->i_bdev);
@@ -5026,6 +5028,7 @@ static int md_release(struct inode *inode, struct file * file)
  	mddev_t *mddev = inode->i_bdev->bd_disk->private_data;
 
 	BUG_ON(!mddev);
+	atomic_dec(&mddev->openers);
 	mddev_put(mddev);
 
 	return 0;

@@ -215,7 +215,8 @@ struct mddev_s
 
 	int				in_sync;	/* know to not need resync */
 	struct mutex			reconfig_mutex;
-	atomic_t			active;
+	atomic_t			active;		/* general refcount */
+	atomic_t			openers;	/* number of active opens */
 
 	int				changed;	/* true if we might need to reread partition info */
 	int				degraded;	/* whether md should consider
