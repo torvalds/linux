@@ -41,6 +41,7 @@ struct x86_quirks {
 };
 
 extern struct x86_quirks *x86_quirks;
+extern unsigned long saved_video_mode;
 
 #ifndef CONFIG_PARAVIRT
 #define paravirt_post_allocator_init()	do {} while (0)
