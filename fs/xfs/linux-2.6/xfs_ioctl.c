@@ -923,6 +923,30 @@ xfs_set_diflags(
 	ip->i_d.di_flags = di_flags;
 }
 
+STATIC void
+xfs_diflags_to_linux(
+	struct xfs_inode	*ip)
+{
+	struct inode		*inode = XFS_ITOV(ip);
+	unsigned int		xflags = xfs_ip2xflags(ip);
+
+	if (xflags & XFS_XFLAG_IMMUTABLE)
+		inode->i_flags |= S_IMMUTABLE;
+	else
+		inode->i_flags &= ~S_IMMUTABLE;
+	if (xflags & XFS_XFLAG_APPEND)
+		inode->i_flags |= S_APPEND;
+	else
+		inode->i_flags &= ~S_APPEND;
+	if (xflags & XFS_XFLAG_SYNC)
+		inode->i_flags |= S_SYNC;
+	else
+		inode->i_flags &= ~S_SYNC;
+	if (xflags & XFS_XFLAG_NOATIME)
+		inode->i_flags |= S_NOATIME;
+	else
+		inode->i_flags &= ~S_NOATIME;
+}
 
 #define FSX_PROJID	1
 #define FSX_EXTSIZE	2
@@ -1121,8 +1145,10 @@ xfs_ioctl_setattr(
 
 	if (mask & FSX_EXTSIZE)
 		ip->i_d.di_extsize = fa->fsx_extsize >> mp->m_sb.sb_blocklog;
-	if (mask & FSX_XFLAGS)
+	if (mask & FSX_XFLAGS) {
 		xfs_set_diflags(ip, fa->fsx_xflags);
+		xfs_diflags_to_linux(ip);
+	}
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	xfs_ichgtime(ip, XFS_ICHGTIME_CHG);
@@ -1160,7 +1186,6 @@ xfs_ioctl_setattr(
 				(mask & FSX_NONBLOCK) ? DM_FLAGS_NDELAY : 0);
 	}
 
-	vn_revalidate(XFS_ITOV(ip));	/* update flags */
 	return 0;
 
  error_return:

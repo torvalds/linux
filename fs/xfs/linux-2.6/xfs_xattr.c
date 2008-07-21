@@ -64,7 +64,7 @@ static int
 xfs_xattr_system_set(struct inode *inode, const char *name,
 		const void *value, size_t size, int flags)
 {
-	int error, acl;
+	int acl;
 
 	acl = xfs_decode_acl(name);
 	if (acl < 0)
@@ -75,10 +75,7 @@ xfs_xattr_system_set(struct inode *inode, const char *name,
 	if (!value)
 		return xfs_acl_vremove(inode, acl);
 
-	error = xfs_acl_vset(inode, (void *)value, size, acl);
-	if (!error)
-		vn_revalidate(inode);
-	return error;
+	return xfs_acl_vset(inode, (void *)value, size, acl);
 }
 
 static struct xattr_handler xfs_xattr_system_handler = {

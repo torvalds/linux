@@ -83,6 +83,7 @@ xfs_setattr(
 	cred_t			*credp)
 {
 	xfs_mount_t		*mp = ip->i_mount;
+	struct inode		*inode = XFS_ITOV(ip);
 	int			mask = iattr->ia_valid;
 	xfs_trans_t		*tp;
 	int			code;
@@ -446,6 +447,9 @@ xfs_setattr(
 		ip->i_d.di_mode &= S_IFMT;
 		ip->i_d.di_mode |= iattr->ia_mode & ~S_IFMT;
 
+		inode->i_mode &= S_IFMT;
+		inode->i_mode |= iattr->ia_mode & ~S_IFMT;
+
 		xfs_trans_log_inode (tp, ip, XFS_ILOG_CORE);
 		timeflags |= XFS_ICHGTIME_CHG;
 	}
@@ -481,6 +485,7 @@ xfs_setattr(
 							&ip->i_udquot, udqp);
 			}
 			ip->i_d.di_uid = uid;
+			inode->i_uid = uid;
 		}
 		if (igid != gid) {
 			if (XFS_IS_GQUOTA_ON(mp)) {
@@ -491,6 +496,7 @@ xfs_setattr(
 							&ip->i_gdquot, gdqp);
 			}
 			ip->i_d.di_gid = gid;
+			inode->i_gid = gid;
 		}
 
 		xfs_trans_log_inode (tp, ip, XFS_ILOG_CORE);
@@ -503,12 +509,14 @@ xfs_setattr(
 	 */
 	if (mask & (ATTR_ATIME|ATTR_MTIME)) {
 		if (mask & ATTR_ATIME) {
+			inode->i_atime = iattr->ia_atime;
 			ip->i_d.di_atime.t_sec = iattr->ia_atime.tv_sec;
 			ip->i_d.di_atime.t_nsec = iattr->ia_atime.tv_nsec;
 			ip->i_update_core = 1;
 			timeflags &= ~XFS_ICHGTIME_ACC;
 		}
 		if (mask & ATTR_MTIME) {
+			inode->i_mtime = iattr->ia_mtime;
 			ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
 			ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
 			timeflags &= ~XFS_ICHGTIME_MOD;
@@ -524,6 +532,7 @@ xfs_setattr(
 	 */
 
 	if ((flags & XFS_ATTR_DMI) && (mask & ATTR_CTIME)) {
+		inode->i_ctime = iattr->ia_ctime;
 		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
 		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
 		ip->i_update_core = 1;

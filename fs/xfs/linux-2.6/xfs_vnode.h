@@ -67,7 +67,6 @@ static inline struct inode *vn_to_inode(bhv_vnode_t *vnode)
 
 
 extern void	vn_init(void);
-extern int	vn_revalidate(bhv_vnode_t *);
 
 /*
  * Yeah, these don't take vnode anymore at all, all this should be

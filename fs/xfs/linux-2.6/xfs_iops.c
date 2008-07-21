@@ -650,21 +650,7 @@ xfs_vn_setattr(
 	struct dentry	*dentry,
 	struct iattr	*iattr)
 {
-	struct inode	*inode = dentry->d_inode;
-	int		error;
-
-	if (iattr->ia_valid & ATTR_ATIME)
-		inode->i_atime = iattr->ia_atime;
-
-	if (iattr->ia_valid & ATTR_MODE) {
-		if (!in_group_p(inode->i_gid) && !capable(CAP_FSETID))
-			inode->i_mode &= ~S_ISGID;
-	}
-
-	error = xfs_setattr(XFS_I(inode), iattr, 0, NULL);
-	if (likely(!error))
-		vn_revalidate(vn_from_inode(inode));
-	return -error;
+	return -xfs_setattr(XFS_I(dentry->d_inode), iattr, 0, NULL);
 }
 
 /*
