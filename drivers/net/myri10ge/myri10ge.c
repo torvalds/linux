@@ -3720,14 +3720,14 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (mgp->sram_size > mgp->board_span) {
 		dev_err(&pdev->dev, "board span %ld bytes too small\n",
 			mgp->board_span);
-		goto abort_with_wc;
+		goto abort_with_mtrr;
 	}
-	mgp->sram = ioremap(mgp->iomem_base, mgp->board_span);
+	mgp->sram = ioremap_wc(mgp->iomem_base, mgp->board_span);
 	if (mgp->sram == NULL) {
 		dev_err(&pdev->dev, "ioremap failed for %ld bytes at 0x%lx\n",
 			mgp->board_span, mgp->iomem_base);
 		status = -ENXIO;
-		goto abort_with_wc;
+		goto abort_with_mtrr;
 	}
 	memcpy_fromio(mgp->eeprom_strings,
 		      mgp->sram + mgp->sram_size - MYRI10GE_EEPROM_STRINGS_SIZE,
@@ -3828,7 +3828,7 @@ abort_with_firmware:
 abort_with_ioremap:
 	iounmap(mgp->sram);
 
-abort_with_wc:
+abort_with_mtrr:
 #ifdef CONFIG_MTRR
 	if (mgp->mtrr >= 0)
 		mtrr_del(mgp->mtrr, mgp->iomem_base, mgp->board_span);
