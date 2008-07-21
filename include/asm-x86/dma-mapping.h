@@ -57,6 +57,7 @@ struct dma_mapping_ops {
 };
 
 extern const struct dma_mapping_ops *dma_ops;
+extern const struct dma_mapping_ops nommu_dma_ops;
 
 static inline int dma_mapping_error(dma_addr_t dma_addr)
 {
