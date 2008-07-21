@@ -336,7 +336,7 @@ void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 		orig_end = start + len - 1;
 		wait_end = orig_end;
 	}
-
+again:
 	/* start IO across the range first to instantiate any delalloc
 	 * extents
 	 */
@@ -368,6 +368,14 @@ void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 		if (end == 0 || end == start)
 			break;
 		end--;
+	}
+	if (test_range_bit(&BTRFS_I(inode)->io_tree, start, orig_end,
+			   EXTENT_ORDERED | EXTENT_DELALLOC, 0)) {
+		printk("inode %lu still ordered or delalloc after wait "
+		       "%llu %llu\n", inode->i_ino,
+		       (unsigned long long)start,
+		       (unsigned long long)orig_end);
+		goto again;
 	}
 }
 
@@ -545,7 +553,6 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum)
 			sector_sums = &ordered_sum->sums;
 			for (i = 0; i < num_sectors; i++) {
 				if (sector_sums[i].offset == offset) {
-printk("find ordered sum inode %lu offset %Lu\n", inode->i_ino, offset);
 					*sum = sector_sums[i].sum;
 					ret = 0;
 					goto out;

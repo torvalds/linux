@@ -418,7 +418,7 @@ void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 
 	fixup = container_of(work, struct btrfs_writepage_fixup, work);
 	page = fixup->page;
-
+again:
 	lock_page(page);
 	if (!page->mapping || !PageDirty(page) || !PageChecked(page)) {
 		ClearPageChecked(page);
@@ -430,9 +430,21 @@ void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 	page_end = page_offset(page) + PAGE_CACHE_SIZE - 1;
 
 	lock_extent(&BTRFS_I(inode)->io_tree, page_start, page_end, GFP_NOFS);
-	ordered = btrfs_lookup_ordered_extent(inode, page_start);
-	if (ordered)
+
+	/* already ordered? We're done */
+	if (test_range_bit(&BTRFS_I(inode)->io_tree, page_start, page_end,
+			     EXTENT_ORDERED, 0)) {
 		goto out;
+	}
+
+	ordered = btrfs_lookup_ordered_extent(inode, page_start);
+	if (ordered) {
+		unlock_extent(&BTRFS_I(inode)->io_tree, page_start,
+			      page_end, GFP_NOFS);
+		unlock_page(page);
+		btrfs_start_ordered_extent(inode, ordered, 1);
+		goto again;
+	}
 
 	set_extent_delalloc(&BTRFS_I(inode)->io_tree, page_start, page_end,
 			    GFP_NOFS);
@@ -1465,11 +1477,11 @@ void btrfs_delete_inode(struct inode *inode)
 	unsigned long nr;
 	int ret;
 
-	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 	truncate_inode_pages(&inode->i_data, 0);
 	if (is_bad_inode(inode)) {
 		goto no_delete;
 	}
+	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 
 	btrfs_i_size_write(inode, 0);
 	trans = btrfs_start_transaction(root, 1);
@@ -2707,6 +2719,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 		 1, 1, GFP_NOFS);
 	__btrfs_releasepage(page, GFP_NOFS);
 
+	ClearPageChecked(page);
 	if (PagePrivate(page)) {
 		invalidate_extent_lru(tree, page_offset(page),
 				      PAGE_CACHE_SIZE);
@@ -2818,10 +2831,10 @@ static void btrfs_truncate(struct inode *inode)
 		return;
 
 	btrfs_truncate_page(inode->i_mapping, inode->i_size);
+	btrfs_wait_ordered_range(inode, inode->i_size & (~mask), (u64)-1);
 
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, inode);
-	btrfs_wait_ordered_range(inode, inode->i_size & (~mask), (u64)-1);
 	btrfs_i_size_write(inode, inode->i_size);
 
 	/* FIXME, add redo link to tree so we don't leak on crash */

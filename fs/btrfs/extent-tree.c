@@ -934,7 +934,6 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	if (!root->ref_cows)
 		return 0;
 
-	mutex_lock(&root->fs_info->alloc_mutex);
 	level = btrfs_header_level(buf);
 	nritems = btrfs_header_nritems(buf);
 	for (i = 0; i < nritems; i++) {
@@ -951,29 +950,36 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			disk_bytenr = btrfs_file_extent_disk_bytenr(buf, fi);
 			if (disk_bytenr == 0)
 				continue;
+
+			mutex_lock(&root->fs_info->alloc_mutex);
 			ret = __btrfs_inc_extent_ref(trans, root, disk_bytenr,
 				    btrfs_file_extent_disk_num_bytes(buf, fi),
 				    root->root_key.objectid, trans->transid,
 				    key.objectid, key.offset);
+			mutex_unlock(&root->fs_info->alloc_mutex);
 			if (ret) {
 				faili = i;
+				WARN_ON(1);
 				goto fail;
 			}
 		} else {
 			bytenr = btrfs_node_blockptr(buf, i);
 			btrfs_node_key_to_cpu(buf, &key, i);
+
+			mutex_lock(&root->fs_info->alloc_mutex);
 			ret = __btrfs_inc_extent_ref(trans, root, bytenr,
 					   btrfs_level_size(root, level - 1),
 					   root->root_key.objectid,
 					   trans->transid,
 					   level - 1, key.objectid);
+			mutex_unlock(&root->fs_info->alloc_mutex);
 			if (ret) {
 				faili = i;
+				WARN_ON(1);
 				goto fail;
 			}
 		}
 	}
-	mutex_unlock(&root->fs_info->alloc_mutex);
 	return 0;
 fail:
 	WARN_ON(1);
@@ -1004,7 +1010,6 @@ fail:
 		}
 	}
 #endif
-	mutex_unlock(&root->fs_info->alloc_mutex);
 	return ret;
 }
 
@@ -2180,6 +2185,8 @@ static int noinline drop_leaf_ref(struct btrfs_trans_handle *trans,
 	leaf_owner = btrfs_header_owner(leaf);
 	leaf_generation = btrfs_header_generation(leaf);
 
+	mutex_unlock(&root->fs_info->alloc_mutex);
+
 	for (i = 0; i < nritems; i++) {
 		u64 disk_bytenr;
 
@@ -2197,12 +2204,17 @@ static int noinline drop_leaf_ref(struct btrfs_trans_handle *trans,
 		disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
 		if (disk_bytenr == 0)
 			continue;
+
+		mutex_lock(&root->fs_info->alloc_mutex);
 		ret = __btrfs_free_extent(trans, root, disk_bytenr,
 				btrfs_file_extent_disk_num_bytes(leaf, fi),
 				leaf_owner, leaf_generation,
 				key.objectid, key.offset, 0);
+		mutex_unlock(&root->fs_info->alloc_mutex);
 		BUG_ON(ret);
 	}
+
+	mutex_lock(&root->fs_info->alloc_mutex);
 	return 0;
 }
 

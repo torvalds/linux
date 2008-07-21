@@ -75,6 +75,7 @@ static void btrfs_drop_pages(struct page **pages, size_t num_pages)
 	for (i = 0; i < num_pages; i++) {
 		if (!pages[i])
 			break;
+		ClearPageChecked(pages[i]);
 		unlock_page(pages[i]);
 		mark_page_accessed(pages[i]);
 		page_cache_release(pages[i]);
