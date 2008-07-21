@@ -93,7 +93,7 @@ static unsigned long alloc_iommu(struct device *dev, int size)
 
 	base_index = ALIGN(iommu_bus_base & dma_get_seg_boundary(dev),
 			   PAGE_SIZE) >> PAGE_SHIFT;
-	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
+	boundary_size = ALIGN((unsigned long long)dma_get_seg_boundary(dev) + 1,
 			      PAGE_SIZE) >> PAGE_SHIFT;
 
 	spin_lock_irqsave(&iommu_bitmap_lock, flags);
