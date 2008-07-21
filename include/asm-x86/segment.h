@@ -1,6 +1,15 @@
 #ifndef _ASM_X86_SEGMENT_H_
 #define _ASM_X86_SEGMENT_H_
 
+/* Constructor for a conventional segment GDT (or LDT) entry */
+/* This is a macro so it can be used in initializers */
+#define GDT_ENTRY(flags, base, limit)			\
+	((((base)  & 0xff000000ULL) << (56-24)) |	\
+	 (((flags) & 0x0000f0ffULL) << 40) |		\
+	 (((limit) & 0x000f0000ULL) << (48-16)) |	\
+	 (((base)  & 0x00ffffffULL) << 16) |		\
+	 (((limit) & 0x0000ffffULL)))
+
 /* Simple and small GDT entries for booting only */
 
 #define GDT_ENTRY_BOOT_CS	2

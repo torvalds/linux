@@ -1,5 +1,5 @@
 /*
- * numa.c - Low-level PCI access for NUMA-Q machines
+ * numaq_32.c - Low-level PCI access for NUMA-Q machines
  */
 
 #include <linux/pci.h>
@@ -151,7 +151,7 @@ static void __devinit pci_fixup_i450nx(struct pci_dev *d)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82451NX, pci_fixup_i450nx);
 
-int __init pci_numa_init(void)
+int __init pci_numaq_init(void)
 {
 	int quad;
 

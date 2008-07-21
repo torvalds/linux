@@ -66,12 +66,21 @@ static __cpuinit void cpu_bringup_and_idle(void)
 	int cpu = smp_processor_id();
 
 	cpu_init();
-	xen_enable_sysenter();
-
 	preempt_disable();
-	per_cpu(cpu_state, cpu) = CPU_ONLINE;
+
+	xen_enable_sysenter();
+	xen_enable_syscall();
+
+	cpu = smp_processor_id();
+	smp_store_cpu_info(cpu);
+	cpu_data(cpu).x86_max_cores = 1;
+	set_cpu_sibling_map(cpu);
 
 	xen_setup_cpu_clockevents();
+
+	cpu_set(cpu, cpu_online_map);
+	x86_write_percpu(cpu_state, CPU_ONLINE);
+	wmb();
 
 	/* We can take interrupts now: we're officially "up". */
 	local_irq_enable();
@@ -141,56 +150,37 @@ static int xen_smp_intr_init(unsigned int cpu)
 	return rc;
 }
 
-void __init xen_fill_possible_map(void)
+static void __init xen_fill_possible_map(void)
 {
 	int i, rc;
 
 	for (i = 0; i < NR_CPUS; i++) {
 		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
-		if (rc >= 0)
+		if (rc >= 0) {
+			num_processors++;
 			cpu_set(i, cpu_possible_map);
+		}
 	}
 }
 
-void __init xen_smp_prepare_boot_cpu(void)
+static void __init xen_smp_prepare_boot_cpu(void)
 {
-	int cpu;
-
 	BUG_ON(smp_processor_id() != 0);
 	native_smp_prepare_boot_cpu();
 
 	/* We've switched to the "real" per-cpu gdt, so make sure the
 	   old memory can be recycled */
-	make_lowmem_page_readwrite(&per_cpu__gdt_page);
-
-	for_each_possible_cpu(cpu) {
-		cpus_clear(per_cpu(cpu_sibling_map, cpu));
-		/*
-		 * cpu_core_map lives in a per cpu area that is cleared
-		 * when the per cpu array is allocated.
-		 *
-		 * cpus_clear(per_cpu(cpu_core_map, cpu));
-		 */
-	}
+	make_lowmem_page_readwrite(&per_cpu_var(gdt_page));
 
 	xen_setup_vcpu_info_placement();
 }
 
-void __init xen_smp_prepare_cpus(unsigned int max_cpus)
+static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned cpu;
 
-	for_each_possible_cpu(cpu) {
-		cpus_clear(per_cpu(cpu_sibling_map, cpu));
-		/*
-		 * cpu_core_ map will be zeroed when the per
-		 * cpu area is allocated.
-		 *
-		 * cpus_clear(per_cpu(cpu_core_map, cpu));
-		 */
-	}
-
 	smp_store_cpu_info(0);
+	cpu_data(0).x86_max_cores = 1;
 	set_cpu_sibling_map(0);
 
 	if (xen_smp_intr_init(0))
@@ -225,7 +215,7 @@ static __cpuinit int
 cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 {
 	struct vcpu_guest_context *ctxt;
-	struct gdt_page *gdt = &per_cpu(gdt_page, cpu);
+	struct desc_struct *gdt;
 
 	if (cpu_test_and_set(cpu, xen_cpu_initialized_map))
 		return 0;
@@ -234,12 +224,15 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	if (ctxt == NULL)
 		return -ENOMEM;
 
+	gdt = get_cpu_gdt_table(cpu);
+
 	ctxt->flags = VGCF_IN_KERNEL;
 	ctxt->user_regs.ds = __USER_DS;
 	ctxt->user_regs.es = __USER_DS;
-	ctxt->user_regs.fs = __KERNEL_PERCPU;
-	ctxt->user_regs.gs = 0;
 	ctxt->user_regs.ss = __KERNEL_DS;
+#ifdef CONFIG_X86_32
+	ctxt->user_regs.fs = __KERNEL_PERCPU;
+#endif
 	ctxt->user_regs.eip = (unsigned long)cpu_bringup_and_idle;
 	ctxt->user_regs.eflags = 0x1000; /* IOPL_RING1 */
 
@@ -249,11 +242,11 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 
 	ctxt->ldt_ents = 0;
 
-	BUG_ON((unsigned long)gdt->gdt & ~PAGE_MASK);
-	make_lowmem_page_readonly(gdt->gdt);
+	BUG_ON((unsigned long)gdt & ~PAGE_MASK);
+	make_lowmem_page_readonly(gdt);
 
-	ctxt->gdt_frames[0] = virt_to_mfn(gdt->gdt);
-	ctxt->gdt_ents      = ARRAY_SIZE(gdt->gdt);
+	ctxt->gdt_frames[0] = virt_to_mfn(gdt);
+	ctxt->gdt_ents      = GDT_ENTRIES;
 
 	ctxt->user_regs.cs = __KERNEL_CS;
 	ctxt->user_regs.esp = idle->thread.sp0 - sizeof(struct pt_regs);
@@ -261,9 +254,11 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->kernel_ss = __KERNEL_DS;
 	ctxt->kernel_sp = idle->thread.sp0;
 
+#ifdef CONFIG_X86_32
 	ctxt->event_callback_cs     = __KERNEL_CS;
-	ctxt->event_callback_eip    = (unsigned long)xen_hypervisor_callback;
 	ctxt->failsafe_callback_cs  = __KERNEL_CS;
+#endif
+	ctxt->event_callback_eip    = (unsigned long)xen_hypervisor_callback;
 	ctxt->failsafe_callback_eip = (unsigned long)xen_failsafe_callback;
 
 	per_cpu(xen_cr3, cpu) = __pa(swapper_pg_dir);
@@ -276,7 +271,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-int __cpuinit xen_cpu_up(unsigned int cpu)
+static int __cpuinit xen_cpu_up(unsigned int cpu)
 {
 	struct task_struct *idle = idle_task(cpu);
 	int rc;
@@ -287,10 +282,27 @@ int __cpuinit xen_cpu_up(unsigned int cpu)
 		return rc;
 #endif
 
+#ifdef CONFIG_X86_64
+	/* Allocate node local memory for AP pdas */
+	WARN_ON(cpu == 0);
+	if (cpu > 0) {
+		rc = get_local_pda(cpu);
+		if (rc)
+			return rc;
+	}
+#endif
+
+#ifdef CONFIG_X86_32
 	init_gdt(cpu);
 	per_cpu(current_task, cpu) = idle;
 	irq_ctx_init(cpu);
+#else
+	cpu_pda(cpu)->pcurrent = idle;
+	clear_tsk_thread_flag(idle, TIF_FORK);
+#endif
 	xen_setup_timer(cpu);
+
+	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 
 	/* make sure interrupts start blocked */
 	per_cpu(xen_vcpu, cpu)->evtchn_upcall_mask = 1;
@@ -306,20 +318,18 @@ int __cpuinit xen_cpu_up(unsigned int cpu)
 	if (rc)
 		return rc;
 
-	smp_store_cpu_info(cpu);
-	set_cpu_sibling_map(cpu);
-	/* This must be done before setting cpu_online_map */
-	wmb();
-
-	cpu_set(cpu, cpu_online_map);
-
 	rc = HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL);
 	BUG_ON(rc);
+
+	while(per_cpu(cpu_state, cpu) != CPU_ONLINE) {
+		HYPERVISOR_sched_op(SCHEDOP_yield, 0);
+		barrier();
+	}
 
 	return 0;
 }
 
-void xen_smp_cpus_done(unsigned int max_cpus)
+static void xen_smp_cpus_done(unsigned int max_cpus)
 {
 }
 
@@ -335,12 +345,12 @@ static void stop_self(void *v)
 	BUG();
 }
 
-void xen_smp_send_stop(void)
+static void xen_smp_send_stop(void)
 {
 	smp_call_function(stop_self, NULL, 0);
 }
 
-void xen_smp_send_reschedule(int cpu)
+static void xen_smp_send_reschedule(int cpu)
 {
 	xen_send_IPI_one(cpu, XEN_RESCHEDULE_VECTOR);
 }
@@ -355,7 +365,7 @@ static void xen_send_IPI_mask(cpumask_t mask, enum ipi_vector vector)
 		xen_send_IPI_one(cpu, vector);
 }
 
-void xen_smp_send_call_function_ipi(cpumask_t mask)
+static void xen_smp_send_call_function_ipi(cpumask_t mask)
 {
 	int cpu;
 
@@ -370,7 +380,7 @@ void xen_smp_send_call_function_ipi(cpumask_t mask)
 	}
 }
 
-void xen_smp_send_call_function_single_ipi(int cpu)
+static void xen_smp_send_call_function_single_ipi(int cpu)
 {
 	xen_send_IPI_mask(cpumask_of_cpu(cpu), XEN_CALL_FUNCTION_SINGLE_VECTOR);
 }
@@ -379,7 +389,11 @@ static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
 {
 	irq_enter();
 	generic_smp_call_function_interrupt();
+#ifdef CONFIG_X86_32
 	__get_cpu_var(irq_stat).irq_call_count++;
+#else
+	add_pda(irq_call_count, 1);
+#endif
 	irq_exit();
 
 	return IRQ_HANDLED;
@@ -389,8 +403,31 @@ static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id)
 {
 	irq_enter();
 	generic_smp_call_function_single_interrupt();
+#ifdef CONFIG_X86_32
 	__get_cpu_var(irq_stat).irq_call_count++;
+#else
+	add_pda(irq_call_count, 1);
+#endif
 	irq_exit();
 
 	return IRQ_HANDLED;
+}
+
+static const struct smp_ops xen_smp_ops __initdata = {
+	.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu,
+	.smp_prepare_cpus = xen_smp_prepare_cpus,
+	.cpu_up = xen_cpu_up,
+	.smp_cpus_done = xen_smp_cpus_done,
+
+	.smp_send_stop = xen_smp_send_stop,
+	.smp_send_reschedule = xen_smp_send_reschedule,
+
+	.send_call_func_ipi = xen_smp_send_call_function_ipi,
+	.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi,
+};
+
+void __init xen_smp_init(void)
+{
+	smp_ops = xen_smp_ops;
+	xen_fill_possible_map();
 }

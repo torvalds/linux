@@ -171,21 +171,6 @@ do {						\
  */
 #define update_mmu_cache(vma, address, pte) do { } while (0)
 
-extern void native_pagetable_setup_start(pgd_t *base);
-extern void native_pagetable_setup_done(pgd_t *base);
-
-#ifndef CONFIG_PARAVIRT
-static inline void __init paravirt_pagetable_setup_start(pgd_t *base)
-{
-	native_pagetable_setup_start(base);
-}
-
-static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
-{
-	native_pagetable_setup_done(base);
-}
-#endif	/* !CONFIG_PARAVIRT */
-
 #endif /* !__ASSEMBLY__ */
 
 /*

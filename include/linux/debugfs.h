@@ -26,6 +26,8 @@ struct debugfs_blob_wrapper {
 	unsigned long size;
 };
 
+extern struct dentry *arch_debugfs_dir;
+
 #if defined(CONFIG_DEBUG_FS)
 
 /* declared over in file.c */
