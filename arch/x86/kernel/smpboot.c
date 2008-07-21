@@ -216,7 +216,7 @@ static void __cpuinit smp_callin(void)
 		panic("%s: phys CPU#%d, CPU#%d already present??\n", __func__,
 					phys_id, cpuid);
 	}
-	Dprintk("CPU#%d (phys ID: %d) waiting for CALLOUT\n", cpuid, phys_id);
+	pr_debug("CPU#%d (phys ID: %d) waiting for CALLOUT\n", cpuid, phys_id);
 
 	/*
 	 * STARTUP IPIs are fragile beasts as they might sometimes
@@ -251,7 +251,7 @@ static void __cpuinit smp_callin(void)
 	 * boards)
 	 */
 
-	Dprintk("CALLIN, before setup_local_APIC().\n");
+	pr_debug("CALLIN, before setup_local_APIC().\n");
 	smp_callin_clear_local_apic();
 	setup_local_APIC();
 	end_local_APIC_setup();
@@ -266,7 +266,7 @@ static void __cpuinit smp_callin(void)
 	local_irq_enable();
 	calibrate_delay();
 	local_irq_disable();
-	Dprintk("Stack at about %p\n", &cpuid);
+	pr_debug("Stack at about %p\n", &cpuid);
 
 	/*
 	 * Save our processor parameters
@@ -513,7 +513,7 @@ static void impress_friends(void)
 	/*
 	 * Allow the user to impress friends.
 	 */
-	Dprintk("Before bogomips.\n");
+	pr_debug("Before bogomips.\n");
 	for_each_possible_cpu(cpu)
 		if (cpu_isset(cpu, cpu_callout_map))
 			bogosum += cpu_data(cpu).loops_per_jiffy;
@@ -523,7 +523,7 @@ static void impress_friends(void)
 		bogosum/(500000/HZ),
 		(bogosum/(5000/HZ))%100);
 
-	Dprintk("Before bogocount - setting activated=1.\n");
+	pr_debug("Before bogocount - setting activated=1.\n");
 }
 
 static inline void __inquire_remote_apic(int apicid)
@@ -585,7 +585,7 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 	/* Kick the second */
 	apic_write(APIC_ICR, APIC_DM_NMI | APIC_DEST_LOGICAL);
 
-	Dprintk("Waiting for send to finish...\n");
+	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
 
 	/*
@@ -596,7 +596,7 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 	if (maxlvt > 3)			/* Due to the Pentium erratum 3AP.  */
 		apic_write(APIC_ESR, 0);
 	accept_status = (apic_read(APIC_ESR) & 0xEF);
-	Dprintk("NMI sent.\n");
+	pr_debug("NMI sent.\n");
 
 	if (send_status)
 		printk(KERN_ERR "APIC never delivered???\n");
@@ -631,7 +631,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		apic_read(APIC_ESR);
 	}
 
-	Dprintk("Asserting INIT.\n");
+	pr_debug("Asserting INIT.\n");
 
 	/*
 	 * Turn INIT on target chip
@@ -644,12 +644,12 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	apic_write(APIC_ICR,
 		   APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT);
 
-	Dprintk("Waiting for send to finish...\n");
+	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
 
 	mdelay(10);
 
-	Dprintk("Deasserting INIT.\n");
+	pr_debug("Deasserting INIT.\n");
 
 	/* Target chip */
 	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
@@ -657,7 +657,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	/* Send IPI */
 	apic_write(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
 
-	Dprintk("Waiting for send to finish...\n");
+	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
 
 	mb();
@@ -684,14 +684,14 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	/*
 	 * Run STARTUP IPI loop.
 	 */
-	Dprintk("#startup loops: %d.\n", num_starts);
+	pr_debug("#startup loops: %d.\n", num_starts);
 
 	for (j = 1; j <= num_starts; j++) {
-		Dprintk("Sending STARTUP #%d.\n", j);
+		pr_debug("Sending STARTUP #%d.\n", j);
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
 		apic_read(APIC_ESR);
-		Dprintk("After apic_write.\n");
+		pr_debug("After apic_write.\n");
 
 		/*
 		 * STARTUP IPI
@@ -709,9 +709,9 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		 */
 		udelay(300);
 
-		Dprintk("Startup point 1.\n");
+		pr_debug("Startup point 1.\n");
 
-		Dprintk("Waiting for send to finish...\n");
+		pr_debug("Waiting for send to finish...\n");
 		send_status = safe_apic_wait_icr_idle();
 
 		/*
@@ -724,7 +724,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		if (send_status || accept_status)
 			break;
 	}
-	Dprintk("After Startup.\n");
+	pr_debug("After Startup.\n");
 
 	if (send_status)
 		printk(KERN_ERR "APIC never delivered???\n");
@@ -875,7 +875,7 @@ do_rest:
 
 	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
 
-		Dprintk("Setting warm reset code and vector.\n");
+		pr_debug("Setting warm reset code and vector.\n");
 
 		store_NMI_vector(&nmi_high, &nmi_low);
 
@@ -896,9 +896,9 @@ do_rest:
 		/*
 		 * allow APs to start initializing.
 		 */
-		Dprintk("Before Callout %d.\n", cpu);
+		pr_debug("Before Callout %d.\n", cpu);
 		cpu_set(cpu, cpu_callout_map);
-		Dprintk("After Callout %d.\n", cpu);
+		pr_debug("After Callout %d.\n", cpu);
 
 		/*
 		 * Wait 5s total for a response
@@ -911,10 +911,10 @@ do_rest:
 
 		if (cpu_isset(cpu, cpu_callin_map)) {
 			/* number CPUs logically, starting from 1 (BSP is 0) */
-			Dprintk("OK.\n");
+			pr_debug("OK.\n");
 			printk(KERN_INFO "CPU%d: ", cpu);
 			print_cpu_info(&cpu_data(cpu));
-			Dprintk("CPU has booted.\n");
+			pr_debug("CPU has booted.\n");
 		} else {
 			boot_error = 1;
 			if (*((volatile unsigned char *)trampoline_base)
@@ -959,7 +959,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 
 	WARN_ON(irqs_disabled());
 
-	Dprintk("++++++++++++++++++++=_---CPU UP  %u\n", cpu);
+	pr_debug("++++++++++++++++++++=_---CPU UP  %u\n", cpu);
 
 	if (apicid == BAD_APICID || apicid == boot_cpu_physical_apicid ||
 	    !physid_isset(apicid, phys_cpu_present_map)) {
@@ -971,7 +971,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	 * Already booted CPU?
 	 */
 	if (cpu_isset(cpu, cpu_callin_map)) {
-		Dprintk("do_boot_cpu %d Already started\n", cpu);
+		pr_debug("do_boot_cpu %d Already started\n", cpu);
 		return -ENOSYS;
 	}
 
@@ -998,7 +998,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	err = do_boot_cpu(apicid, cpu);
 #endif
 	if (err) {
-		Dprintk("do_boot_cpu failed %d\n", err);
+		pr_debug("do_boot_cpu failed %d\n", err);
 		return -EIO;
 	}
 
@@ -1202,7 +1202,7 @@ void __init native_smp_prepare_boot_cpu(void)
 
 void __init native_smp_cpus_done(unsigned int max_cpus)
 {
-	Dprintk("Boot done.\n");
+	pr_debug("Boot done.\n");
 
 	impress_friends();
 	smp_checks();
