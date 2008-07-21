@@ -1760,6 +1760,7 @@ static void scsi_finish_async_scan(struct async_scan_data *data)
 		printk("%s called twice for host %d", __FUNCTION__,
 				shost->host_no);
 		dump_stack();
+		mutex_unlock(&shost->scan_mutex);
 		return;
 	}
 
