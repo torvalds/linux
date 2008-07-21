@@ -4207,7 +4207,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 {
 	struct netdev_queue *tx;
 	struct net_device *dev;
-	int alloc_size;
+	size_t alloc_size;
 	void *p;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
@@ -4227,7 +4227,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		return NULL;
 	}
 
-	tx = kzalloc(sizeof(struct netdev_queue) * queue_count, GFP_KERNEL);
+	tx = kcalloc(queue_count, sizeof(struct netdev_queue), GFP_KERNEL);
 	if (!tx) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "tx qdiscs.\n");
