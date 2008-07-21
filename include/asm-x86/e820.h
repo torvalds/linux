@@ -64,6 +64,7 @@ struct e820map {
 extern struct e820map e820;
 extern struct e820map e820_saved;
 
+extern unsigned long pci_mem_start;
 extern int e820_any_mapped(u64 start, u64 end, unsigned type);
 extern int e820_all_mapped(u64 start, u64 end, unsigned type);
 extern void e820_add_region(u64 start, u64 size, int type);
