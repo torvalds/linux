@@ -2581,8 +2581,37 @@ enum {
 	TP_ACPI_BLUETOOTH_UNK		= 0x04,	/* unknown function */
 };
 
-static int bluetooth_get_radiosw(void);
-static int bluetooth_set_radiosw(int radio_on);
+static int bluetooth_get_radiosw(void)
+{
+	int status;
+
+	if (!tp_features.bluetooth)
+		return -ENODEV;
+
+	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
+		return -EIO;
+
+	return (status & TP_ACPI_BLUETOOTH_RADIOSSW) != 0;
+}
+
+static int bluetooth_set_radiosw(int radio_on)
+{
+	int status;
+
+	if (!tp_features.bluetooth)
+		return -ENODEV;
+
+	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
+		return -EIO;
+	if (radio_on)
+		status |= TP_ACPI_BLUETOOTH_RADIOSSW;
+	else
+		status &= ~TP_ACPI_BLUETOOTH_RADIOSSW;
+	if (!acpi_evalf(hkey_handle, NULL, "SBDC", "vd", status))
+		return -EIO;
+
+	return 0;
+}
 
 /* sysfs bluetooth enable ---------------------------------------------- */
 static ssize_t bluetooth_enable_show(struct device *dev,
@@ -2628,6 +2657,12 @@ static const struct attribute_group bluetooth_attr_group = {
 	.attrs = bluetooth_attributes,
 };
 
+static void bluetooth_exit(void)
+{
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+			&bluetooth_attr_group);
+}
+
 static int __init bluetooth_init(struct ibm_init_struct *iibm)
 {
 	int res;
@@ -2662,44 +2697,6 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 	}
 
 	return (tp_features.bluetooth)? 0 : 1;
-}
-
-static void bluetooth_exit(void)
-{
-	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
-			&bluetooth_attr_group);
-}
-
-static int bluetooth_get_radiosw(void)
-{
-	int status;
-
-	if (!tp_features.bluetooth)
-		return -ENODEV;
-
-	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
-		return -EIO;
-
-	return ((status & TP_ACPI_BLUETOOTH_RADIOSSW) != 0);
-}
-
-static int bluetooth_set_radiosw(int radio_on)
-{
-	int status;
-
-	if (!tp_features.bluetooth)
-		return -ENODEV;
-
-	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
-		return -EIO;
-	if (radio_on)
-		status |= TP_ACPI_BLUETOOTH_RADIOSSW;
-	else
-		status &= ~TP_ACPI_BLUETOOTH_RADIOSSW;
-	if (!acpi_evalf(hkey_handle, NULL, "SBDC", "vd", status))
-		return -EIO;
-
-	return 0;
 }
 
 /* procfs -------------------------------------------------------------- */
@@ -2756,8 +2753,37 @@ enum {
 	TP_ACPI_WANCARD_UNK		= 0x04,	/* unknown function */
 };
 
-static int wan_get_radiosw(void);
-static int wan_set_radiosw(int radio_on);
+static int wan_get_radiosw(void)
+{
+	int status;
+
+	if (!tp_features.wan)
+		return -ENODEV;
+
+	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
+		return -EIO;
+
+	return (status & TP_ACPI_WANCARD_RADIOSSW) != 0;
+}
+
+static int wan_set_radiosw(int radio_on)
+{
+	int status;
+
+	if (!tp_features.wan)
+		return -ENODEV;
+
+	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
+		return -EIO;
+	if (radio_on)
+		status |= TP_ACPI_WANCARD_RADIOSSW;
+	else
+		status &= ~TP_ACPI_WANCARD_RADIOSSW;
+	if (!acpi_evalf(hkey_handle, NULL, "SWAN", "vd", status))
+		return -EIO;
+
+	return 0;
+}
 
 /* sysfs wan enable ---------------------------------------------------- */
 static ssize_t wan_enable_show(struct device *dev,
@@ -2803,6 +2829,12 @@ static const struct attribute_group wan_attr_group = {
 	.attrs = wan_attributes,
 };
 
+static void wan_exit(void)
+{
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+		&wan_attr_group);
+}
+
 static int __init wan_init(struct ibm_init_struct *iibm)
 {
 	int res;
@@ -2835,44 +2867,6 @@ static int __init wan_init(struct ibm_init_struct *iibm)
 	}
 
 	return (tp_features.wan)? 0 : 1;
-}
-
-static void wan_exit(void)
-{
-	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
-		&wan_attr_group);
-}
-
-static int wan_get_radiosw(void)
-{
-	int status;
-
-	if (!tp_features.wan)
-		return -ENODEV;
-
-	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
-		return -EIO;
-
-	return ((status & TP_ACPI_WANCARD_RADIOSSW) != 0);
-}
-
-static int wan_set_radiosw(int radio_on)
-{
-	int status;
-
-	if (!tp_features.wan)
-		return -ENODEV;
-
-	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
-		return -EIO;
-	if (radio_on)
-		status |= TP_ACPI_WANCARD_RADIOSSW;
-	else
-		status &= ~TP_ACPI_WANCARD_RADIOSSW;
-	if (!acpi_evalf(hkey_handle, NULL, "SWAN", "vd", status))
-		return -EIO;
-
-	return 0;
 }
 
 /* procfs -------------------------------------------------------------- */
