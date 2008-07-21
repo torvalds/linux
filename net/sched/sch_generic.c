@@ -576,7 +576,6 @@ static void dev_deactivate_queue(struct net_device *dev,
 				 void *_qdisc_default)
 {
 	struct Qdisc *qdisc_default = _qdisc_default;
-	struct sk_buff *skb = NULL;
 	struct Qdisc *qdisc;
 
 	qdisc = dev_queue->qdisc;
@@ -588,8 +587,6 @@ static void dev_deactivate_queue(struct net_device *dev,
 
 		spin_unlock_bh(qdisc_lock(qdisc));
 	}
-
-	kfree_skb(skb);
 }
 
 static bool some_qdisc_is_running(struct net_device *dev, int lock)
