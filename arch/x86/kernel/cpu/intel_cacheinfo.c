@@ -253,14 +253,16 @@ static void __cpuinit amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 		(ebx->split.ways_of_associativity + 1) - 1;
 }
 
-static void __cpuinit amd_check_l3_disable(int index, struct _cpuid4_info *this_leaf)
+static void __cpuinit
+amd_check_l3_disable(int index, struct _cpuid4_info *this_leaf)
 {
 	if (index < 3)
 		return;
 	this_leaf->can_disable = 1;	
 }
 
-static int __cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
+static int
+__cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
 {
 	union _cpuid4_leaf_eax 	eax;
 	union _cpuid4_leaf_ebx 	ebx;
@@ -271,19 +273,20 @@ static int __cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_le
 		amd_cpuid4(index, &eax, &ebx, &ecx);
 		if (boot_cpu_data.x86 >= 0x10)
 			amd_check_l3_disable(index, this_leaf);
-			
-	} else
-		cpuid_count(4, index, &eax.full, &ebx.full, &ecx.full,  &edx);
+	} else {
+		cpuid_count(4, index, &eax.full, &ebx.full, &ecx.full, &edx);
+	}
+
 	if (eax.split.type == CACHE_TYPE_NULL)
 		return -EIO; /* better error ? */
 
 	this_leaf->eax = eax;
 	this_leaf->ebx = ebx;
 	this_leaf->ecx = ecx;
-	this_leaf->size = (ecx.split.number_of_sets + 1) *
-		(ebx.split.coherency_line_size + 1) *
-		(ebx.split.physical_line_partition + 1) *
-		(ebx.split.ways_of_associativity + 1);
+	this_leaf->size = (ecx.split.number_of_sets          + 1) *
+			  (ebx.split.coherency_line_size     + 1) *
+			  (ebx.split.physical_line_partition + 1) *
+			  (ebx.split.ways_of_associativity   + 1);
 	return 0;
 }
 
@@ -649,59 +652,63 @@ static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf) {
 	}
 }
 
-#define to_object(k) container_of(k, struct _index_kobject, kobj)
-#define to_attr(a) container_of(a, struct _cache_attr, attr)
+#define to_object(k)	container_of(k, struct _index_kobject, kobj)
+#define to_attr(a)	container_of(a, struct _cache_attr, attr)
 
 static ssize_t show_cache_disable(struct _cpuid4_info *this_leaf, char *buf)
 {
-	struct pci_dev *dev;
-	if (this_leaf->can_disable) {
-		int i;
-		ssize_t ret = 0;
-		int node = cpu_to_node(first_cpu(this_leaf->shared_cpu_map));
-		dev = k8_northbridges[node];
+	int node = cpu_to_node(first_cpu(this_leaf->shared_cpu_map));
+	struct pci_dev *dev = k8_northbridges[node];
+	ssize_t ret = 0;
+	int i;
 
-		for (i = 0; i < 2; i++) {
-			unsigned int reg;
-			pci_read_config_dword(dev, 0x1BC + i * 4, &reg);
-			ret += sprintf(buf, "%sEntry: %d\n", buf, i);
-			ret += sprintf(buf, "%sReads:  %s\tNew Entries: %s\n",  
-				buf,
-				reg & 0x80000000 ? "Disabled" : "Allowed",
-				reg & 0x40000000 ? "Disabled" : "Allowed");
-			ret += sprintf(buf, "%sSubCache: %x\tIndex: %x\n", buf,
-				(reg & 0x30000) >> 16, reg & 0xfff);
+	if (!this_leaf->can_disable)
+		return sprintf(buf, "Feature not enabled\n");
 
-		}
-		return ret;
+	for (i = 0; i < 2; i++) {
+		unsigned int reg;
+
+		pci_read_config_dword(dev, 0x1BC + i * 4, &reg);
+
+		ret += sprintf(buf, "%sEntry: %d\n", buf, i);
+		ret += sprintf(buf, "%sReads:  %s\tNew Entries: %s\n",  
+			buf,
+			reg & 0x80000000 ? "Disabled" : "Allowed",
+			reg & 0x40000000 ? "Disabled" : "Allowed");
+		ret += sprintf(buf, "%sSubCache: %x\tIndex: %x\n",
+			buf, (reg & 0x30000) >> 16, reg & 0xfff);
 	}
-	return sprintf(buf, "Feature not enabled\n");
+	return ret;
 }
 
-static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf, const char *buf, size_t count)
+static ssize_t
+store_cache_disable(struct _cpuid4_info *this_leaf, const char *buf,
+		    size_t count)
 {
-	struct pci_dev *dev;
-	if (this_leaf->can_disable) {
-		/* write the MSR value */
-		unsigned int ret;
-		unsigned int index, val;
-		int node = cpu_to_node(first_cpu(this_leaf->shared_cpu_map));
-		dev = k8_northbridges[node];
+	int node = cpu_to_node(first_cpu(this_leaf->shared_cpu_map));
+	struct pci_dev *dev = k8_northbridges[node];
+	unsigned int ret, index, val;
 
-		if (strlen(buf) > 15)
-			return -EINVAL;
-		ret = sscanf(buf, "%x %x", &index, &val);
-		if (ret != 2)
-			return -EINVAL;
-		if (index > 1)
-			return -EINVAL;
-		val |= 0xc0000000;
-		pci_write_config_dword(dev, 0x1BC + index * 4, val & ~0x40000000);
-		wbinvd();
-		pci_write_config_dword(dev, 0x1BC + index * 4, val);
-		return 1;
-	}
-	return 0;
+	if (!this_leaf->can_disable)
+		return 0;
+
+	/* write the MSR value */
+
+	if (strlen(buf) > 15)
+		return -EINVAL;
+
+	ret = sscanf(buf, "%x %x", &index, &val);
+	if (ret != 2)
+		return -EINVAL;
+	if (index > 1)
+		return -EINVAL;
+
+	val |= 0xc0000000;
+	pci_write_config_dword(dev, 0x1BC + index * 4, val & ~0x40000000);
+	wbinvd();
+	pci_write_config_dword(dev, 0x1BC + index * 4, val);
+
+	return 1;
 }
 
 struct _cache_attr {
