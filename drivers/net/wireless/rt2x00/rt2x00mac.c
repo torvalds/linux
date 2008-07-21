@@ -310,6 +310,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_remove_interface);
 int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	int force_reconfig;
 
 	/*
 	 * Mac80211 might be calling this function while we are trying
@@ -329,7 +330,17 @@ int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 			rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
 	}
 
-	rt2x00lib_config(rt2x00dev, conf, 0);
+	/*
+	 * When the DEVICE_DIRTY_CONFIG flag is set, the device has recently
+	 * been started and the configuration must be forced upon the hardware.
+	 * Otherwise registers will not be intialized correctly and could
+	 * result in non-working hardware because essential registers aren't
+	 * initialized.
+	 */
+	force_reconfig =
+	    __test_and_clear_bit(DEVICE_DIRTY_CONFIG, &rt2x00dev->flags);
+
+	rt2x00lib_config(rt2x00dev, conf, force_reconfig);
 
 	/*
 	 * Reenable RX only if the radio should be on.
