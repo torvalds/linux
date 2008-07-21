@@ -333,8 +333,10 @@ static inline unsigned int qdisc_pkt_len(struct sk_buff *skb)
 
 static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
+#ifdef CONFIG_NET_SCHED
 	if (sch->stab)
 		qdisc_calculate_pkt_len(skb, sch->stab);
+#endif
 	return sch->enqueue(skb, sch);
 }
 
