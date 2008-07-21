@@ -256,7 +256,7 @@ static int linear_run (mddev_t *mddev)
 	if (!conf)
 		return 1;
 	mddev->private = conf;
-	mddev->array_size = conf->array_size;
+	mddev->array_sectors = conf->array_size * 2;
 
 	blk_queue_merge_bvec(mddev->queue, linear_mergeable_bvec);
 	mddev->queue->unplug_fn = linear_unplug;
@@ -290,8 +290,8 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	newconf->prev = mddev_to_conf(mddev);
 	mddev->private = newconf;
 	mddev->raid_disks++;
-	mddev->array_size = newconf->array_size;
-	set_capacity(mddev->gendisk, mddev->array_size << 1);
+	mddev->array_sectors = newconf->array_size * 2;
+	set_capacity(mddev->gendisk, mddev->array_sectors);
 	return 0;
 }
 

@@ -2164,7 +2164,7 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_size = size << (conf->chunk_shift-1);
+	mddev->array_sectors = size << conf->chunk_shift;
 	mddev->resync_max_sectors = size << conf->chunk_shift;
 
 	mddev->queue->unplug_fn = raid10_unplug;

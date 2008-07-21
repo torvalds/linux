@@ -3540,7 +3540,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 			    j == raid6_next_disk(sh->pd_idx, sh->disks))
 				continue;
 			s = compute_blocknr(sh, j);
-			if (s < (mddev->array_size<<1)) {
+			if (s < mddev->array_sectors) {
 				skipped = 1;
 				continue;
 			}
@@ -4189,7 +4189,7 @@ static int run(mddev_t *mddev)
 	mddev->queue->backing_dev_info.congested_data = mddev;
 	mddev->queue->backing_dev_info.congested_fn = raid5_congested;
 
-	mddev->array_size =  mddev->size * (conf->previous_raid_disks -
+	mddev->array_sectors = 2 * mddev->size * (conf->previous_raid_disks -
 					    conf->max_degraded);
 
 	blk_queue_merge_bvec(mddev->queue, raid5_mergeable_bvec);
@@ -4413,8 +4413,9 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 	raid5_conf_t *conf = mddev_to_conf(mddev);
 
 	sectors &= ~((sector_t)mddev->chunk_size/512 - 1);
-	mddev->array_size = (sectors * (mddev->raid_disks-conf->max_degraded))>>1;
-	set_capacity(mddev->gendisk, mddev->array_size << 1);
+	mddev->array_sectors = sectors * (mddev->raid_disks
+					  - conf->max_degraded);
+	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
 	if (sectors/2  > mddev->size && mddev->recovery_cp == MaxSector) {
 		mddev->recovery_cp = mddev->size << 1;
@@ -4547,15 +4548,16 @@ static void end_reshape(raid5_conf_t *conf)
 	struct block_device *bdev;
 
 	if (!test_bit(MD_RECOVERY_INTR, &conf->mddev->recovery)) {
-		conf->mddev->array_size = conf->mddev->size *
+		conf->mddev->array_sectors = 2 * conf->mddev->size *
 			(conf->raid_disks - conf->max_degraded);
-		set_capacity(conf->mddev->gendisk, conf->mddev->array_size << 1);
+		set_capacity(conf->mddev->gendisk, conf->mddev->array_sectors);
 		conf->mddev->changed = 1;
 
 		bdev = bdget_disk(conf->mddev->gendisk, 0);
 		if (bdev) {
 			mutex_lock(&bdev->bd_inode->i_mutex);
-			i_size_write(bdev->bd_inode, (loff_t)conf->mddev->array_size << 10);
+			i_size_write(bdev->bd_inode,
+				     (loff_t)conf->mddev->array_sectors << 9);
 			mutex_unlock(&bdev->bd_inode->i_mutex);
 			bdput(bdev);
 		}

@@ -3704,7 +3704,7 @@ static int do_md_run(mddev_t * mddev)
 	if (mddev->flags)
 		md_update_sb(mddev, 0);
 
-	set_capacity(disk, mddev->array_size<<1);
+	set_capacity(disk, mddev->array_sectors);
 
 	/* If we call blk_queue_make_request here, it will
 	 * re-initialise max_sectors etc which may have been
@@ -3905,7 +3905,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 
 		export_array(mddev);
 
-		mddev->array_size = 0;
+		mddev->array_sectors = 0;
 		mddev->size = 0;
 		mddev->raid_disks = 0;
 		mddev->recovery_cp = 0;
@@ -4644,7 +4644,8 @@ static int update_size(mddev_t *mddev, sector_t num_sectors)
 		bdev = bdget_disk(mddev->gendisk, 0);
 		if (bdev) {
 			mutex_lock(&bdev->bd_inode->i_mutex);
-			i_size_write(bdev->bd_inode, (loff_t)mddev->array_size << 10);
+			i_size_write(bdev->bd_inode,
+				     (loff_t)mddev->array_sectors << 9);
 			mutex_unlock(&bdev->bd_inode->i_mutex);
 			bdput(bdev);
 		}
@@ -5391,10 +5392,11 @@ static int md_seq_show(struct seq_file *seq, void *v)
 		if (!list_empty(&mddev->disks)) {
 			if (mddev->pers)
 				seq_printf(seq, "\n      %llu blocks",
-					(unsigned long long)mddev->array_size);
+					   (unsigned long long)
+					   mddev->array_sectors / 2);
 			else
 				seq_printf(seq, "\n      %llu blocks",
-					(unsigned long long)size);
+					   (unsigned long long)size);
 		}
 		if (mddev->persistent) {
 			if (mddev->major_version != 0 ||
