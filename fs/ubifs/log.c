@@ -412,7 +412,7 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 		return -ENOMEM;
 
 	cs->ch.node_type = UBIFS_CS_NODE;
-	cs->cmt_no = cpu_to_le64(c->cmt_no + 1);
+	cs->cmt_no = cpu_to_le64(c->cmt_no);
 	ubifs_prepare_node(c, cs, UBIFS_CS_NODE_SZ, 0);
 
 	/*

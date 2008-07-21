@@ -865,7 +865,8 @@ struct ubifs_mount_opts {
  * @highest_inum: highest used inode number
  * @vfs_gen: VFS inode generation counter
  * @max_sqnum: current global sequence number
- * @cmt_no: commit number (last successfully completed commit)
+ * @cmt_no: commit number of the last successfully completed commit, protected
+ *          by @commit_sem
  * @cnt_lock: protects @highest_inum, @vfs_gen, and @max_sqnum counters
  * @fmt_version: UBIFS on-flash format version
  * @uuid: UUID from super block
