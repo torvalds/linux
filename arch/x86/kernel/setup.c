@@ -680,7 +680,7 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_LOCAL_APIC
 		disable_apic = 1;
 #endif
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
+		setup_clear_cpu_cap(X86_FEATURE_APIC);
 	}
 
 #ifdef CONFIG_PCI
