@@ -37,6 +37,7 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
+#include <net/netfilter/nf_conntrack_acct.h>
 #ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_protocol.h>
@@ -206,22 +207,26 @@ nla_put_failure:
 	return -1;
 }
 
-#ifdef CONFIG_NF_CT_ACCT
 static int
 ctnetlink_dump_counters(struct sk_buff *skb, const struct nf_conn *ct,
 			enum ip_conntrack_dir dir)
 {
 	enum ctattr_type type = dir ? CTA_COUNTERS_REPLY: CTA_COUNTERS_ORIG;
 	struct nlattr *nest_count;
+	const struct nf_conn_counter *acct;
+
+	acct = nf_conn_acct_find(ct);
+	if (!acct)
+		return 0;
 
 	nest_count = nla_nest_start(skb, type | NLA_F_NESTED);
 	if (!nest_count)
 		goto nla_put_failure;
 
-	NLA_PUT_BE32(skb, CTA_COUNTERS32_PACKETS,
-		     htonl(ct->counters[dir].packets));
-	NLA_PUT_BE32(skb, CTA_COUNTERS32_BYTES,
-		     htonl(ct->counters[dir].bytes));
+	NLA_PUT_BE64(skb, CTA_COUNTERS_PACKETS,
+		     cpu_to_be64(acct[dir].packets));
+	NLA_PUT_BE64(skb, CTA_COUNTERS_BYTES,
+		     cpu_to_be64(acct[dir].bytes));
 
 	nla_nest_end(skb, nest_count);
 
@@ -230,9 +235,6 @@ ctnetlink_dump_counters(struct sk_buff *skb, const struct nf_conn *ct,
 nla_put_failure:
 	return -1;
 }
-#else
-#define ctnetlink_dump_counters(a, b, c) (0)
-#endif
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
 static inline int
@@ -501,11 +503,6 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 			goto nla_put_failure;
 #endif
 
-		if (events & IPCT_COUNTER_FILLING &&
-		    (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
-		     ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0))
-			goto nla_put_failure;
-
 		if (events & IPCT_RELATED &&
 		    ctnetlink_dump_master(skb, ct) < 0)
 			goto nla_put_failure;
@@ -576,11 +573,15 @@ restart:
 				cb->args[1] = (unsigned long)ct;
 				goto out;
 			}
-#ifdef CONFIG_NF_CT_ACCT
+
 			if (NFNL_MSG_TYPE(cb->nlh->nlmsg_type) ==
-						IPCTNL_MSG_CT_GET_CTRZERO)
-				memset(&ct->counters, 0, sizeof(ct->counters));
-#endif
+						IPCTNL_MSG_CT_GET_CTRZERO) {
+				struct nf_conn_counter *acct;
+
+				acct = nf_conn_acct_find(ct);
+				if (acct)
+					memset(acct, 0, sizeof(struct nf_conn_counter[IP_CT_DIR_MAX]));
+			}
 		}
 		if (cb->args[1]) {
 			cb->args[1] = 0;
@@ -832,14 +833,9 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	u_int8_t u3 = nfmsg->nfgen_family;
 	int err = 0;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
-#ifndef CONFIG_NF_CT_ACCT
-		if (NFNL_MSG_TYPE(nlh->nlmsg_type) == IPCTNL_MSG_CT_GET_CTRZERO)
-			return -ENOTSUPP;
-#endif
+	if (nlh->nlmsg_flags & NLM_F_DUMP)
 		return netlink_dump_start(ctnl, skb, nlh, ctnetlink_dump_table,
 					  ctnetlink_done);
-	}
 
 	if (cda[CTA_TUPLE_ORIG])
 		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_ORIG, u3);
@@ -1151,6 +1147,8 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 		if (err < 0)
 			goto err;
 	}
+
+	nf_ct_acct_ext_add(ct, GFP_KERNEL);
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])

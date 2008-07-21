@@ -482,11 +482,11 @@ static int sctp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 
 	NLA_PUT_BE32(skb,
 		     CTA_PROTOINFO_SCTP_VTAG_ORIGINAL,
-		     htonl(ct->proto.sctp.vtag[IP_CT_DIR_ORIGINAL]));
+		     ct->proto.sctp.vtag[IP_CT_DIR_ORIGINAL]);
 
 	NLA_PUT_BE32(skb,
 		     CTA_PROTOINFO_SCTP_VTAG_REPLY,
-		     htonl(ct->proto.sctp.vtag[IP_CT_DIR_REPLY]));
+		     ct->proto.sctp.vtag[IP_CT_DIR_REPLY]);
 
 	read_unlock_bh(&sctp_lock);
 
@@ -530,9 +530,9 @@ static int nlattr_to_sctp(struct nlattr *cda[], struct nf_conn *ct)
 	write_lock_bh(&sctp_lock);
 	ct->proto.sctp.state = nla_get_u8(tb[CTA_PROTOINFO_SCTP_STATE]);
 	ct->proto.sctp.vtag[IP_CT_DIR_ORIGINAL] =
-		ntohl(nla_get_be32(tb[CTA_PROTOINFO_SCTP_VTAG_ORIGINAL]));
+		nla_get_be32(tb[CTA_PROTOINFO_SCTP_VTAG_ORIGINAL]);
 	ct->proto.sctp.vtag[IP_CT_DIR_REPLY] =
-		ntohl(nla_get_be32(tb[CTA_PROTOINFO_SCTP_VTAG_REPLY]));
+		nla_get_be32(tb[CTA_PROTOINFO_SCTP_VTAG_REPLY]);
 	write_unlock_bh(&sctp_lock);
 
 	return 0;

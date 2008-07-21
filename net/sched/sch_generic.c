@@ -356,44 +356,99 @@ static struct Qdisc noqueue_qdisc = {
 };
 
 
-static int fifo_fast_enqueue(struct sk_buff *skb, struct Qdisc* qdisc)
-{
-	struct sk_buff_head *list = &qdisc->q;
+static const u8 prio2band[TC_PRIO_MAX+1] =
+	{ 1, 2, 2, 2, 1, 2, 0, 0 , 1, 1, 1, 1, 1, 1, 1, 1 };
 
-	if (skb_queue_len(list) < qdisc_dev(qdisc)->tx_queue_len)
+/* 3-band FIFO queue: old style, but should be a bit faster than
+   generic prio+fifo combination.
+ */
+
+#define PFIFO_FAST_BANDS 3
+
+static inline struct sk_buff_head *prio2list(struct sk_buff *skb,
+					     struct Qdisc *qdisc)
+{
+	struct sk_buff_head *list = qdisc_priv(qdisc);
+	return list + prio2band[skb->priority & TC_PRIO_MAX];
+}
+
+static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc* qdisc)
+{
+	struct sk_buff_head *list = prio2list(skb, qdisc);
+
+	if (skb_queue_len(list) < qdisc_dev(qdisc)->tx_queue_len) {
+		qdisc->q.qlen++;
 		return __qdisc_enqueue_tail(skb, qdisc, list);
+	}
 
 	return qdisc_drop(skb, qdisc);
 }
 
-static struct sk_buff *fifo_fast_dequeue(struct Qdisc* qdisc)
+static struct sk_buff *pfifo_fast_dequeue(struct Qdisc* qdisc)
 {
-	struct sk_buff_head *list = &qdisc->q;
+	int prio;
+	struct sk_buff_head *list = qdisc_priv(qdisc);
 
-	if (!skb_queue_empty(list))
-		return __qdisc_dequeue_head(qdisc, list);
+	for (prio = 0; prio < PFIFO_FAST_BANDS; prio++) {
+		if (!skb_queue_empty(list + prio)) {
+			qdisc->q.qlen--;
+			return __qdisc_dequeue_head(qdisc, list + prio);
+		}
+	}
 
 	return NULL;
 }
 
-static int fifo_fast_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
+static int pfifo_fast_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
 {
-	return __qdisc_requeue(skb, qdisc, &qdisc->q);
+	qdisc->q.qlen++;
+	return __qdisc_requeue(skb, qdisc, prio2list(skb, qdisc));
 }
 
-static void fifo_fast_reset(struct Qdisc* qdisc)
+static void pfifo_fast_reset(struct Qdisc* qdisc)
 {
-	__qdisc_reset_queue(qdisc, &qdisc->q);
+	int prio;
+	struct sk_buff_head *list = qdisc_priv(qdisc);
+
+	for (prio = 0; prio < PFIFO_FAST_BANDS; prio++)
+		__qdisc_reset_queue(qdisc, list + prio);
+
 	qdisc->qstats.backlog = 0;
+	qdisc->q.qlen = 0;
 }
 
-static struct Qdisc_ops fifo_fast_ops __read_mostly = {
-	.id		=	"fifo_fast",
-	.priv_size	=	0,
-	.enqueue	=	fifo_fast_enqueue,
-	.dequeue	=	fifo_fast_dequeue,
-	.requeue	=	fifo_fast_requeue,
-	.reset		=	fifo_fast_reset,
+static int pfifo_fast_dump(struct Qdisc *qdisc, struct sk_buff *skb)
+{
+	struct tc_prio_qopt opt = { .bands = PFIFO_FAST_BANDS };
+
+	memcpy(&opt.priomap, prio2band, TC_PRIO_MAX+1);
+	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	return skb->len;
+
+nla_put_failure:
+	return -1;
+}
+
+static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt)
+{
+	int prio;
+	struct sk_buff_head *list = qdisc_priv(qdisc);
+
+	for (prio = 0; prio < PFIFO_FAST_BANDS; prio++)
+		skb_queue_head_init(list + prio);
+
+	return 0;
+}
+
+static struct Qdisc_ops pfifo_fast_ops __read_mostly = {
+	.id		=	"pfifo_fast",
+	.priv_size	=	PFIFO_FAST_BANDS * sizeof(struct sk_buff_head),
+	.enqueue	=	pfifo_fast_enqueue,
+	.dequeue	=	pfifo_fast_dequeue,
+	.requeue	=	pfifo_fast_requeue,
+	.init		=	pfifo_fast_init,
+	.reset		=	pfifo_fast_reset,
+	.dump		=	pfifo_fast_dump,
 	.owner		=	THIS_MODULE,
 };
 
@@ -522,7 +577,7 @@ static void attach_one_default_qdisc(struct net_device *dev,
 
 	if (dev->tx_queue_len) {
 		qdisc = qdisc_create_dflt(dev, dev_queue,
-					  &fifo_fast_ops, TC_H_ROOT);
+					  &pfifo_fast_ops, TC_H_ROOT);
 		if (!qdisc) {
 			printk(KERN_INFO "%s: activation failed\n", dev->name);
 			return;
@@ -550,9 +605,9 @@ void dev_activate(struct net_device *dev)
 	int need_watchdog;
 
 	/* No queueing discipline is attached to device;
-	 * create default one i.e. fifo_fast for devices,
-	 * which need queueing and noqueue_qdisc for
-	 * virtual interfaces.
+	   create default one i.e. pfifo_fast for devices,
+	   which need queueing and noqueue_qdisc for
+	   virtual interfaces
 	 */
 
 	if (dev_all_qdisc_sleeping_noop(dev))
@@ -576,7 +631,6 @@ static void dev_deactivate_queue(struct net_device *dev,
 				 void *_qdisc_default)
 {
 	struct Qdisc *qdisc_default = _qdisc_default;
-	struct sk_buff *skb = NULL;
 	struct Qdisc *qdisc;
 
 	qdisc = dev_queue->qdisc;
@@ -588,8 +642,6 @@ static void dev_deactivate_queue(struct net_device *dev,
 
 		spin_unlock_bh(qdisc_lock(qdisc));
 	}
-
-	kfree_skb(skb);
 }
 
 static bool some_qdisc_is_running(struct net_device *dev, int lock)
