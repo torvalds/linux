@@ -109,7 +109,7 @@ static unsigned long poodle_pin_config[] __initdata = {
 	GPIO74_LCD_FCLK,
 	GPIO75_LCD_LCLK,
 	GPIO76_LCD_PCLK,
-	GPIO77_LCD_ACBIAS,
+	GPIO77_LCD_BIAS,
 
 	/* PC Card */
 	GPIO48_nPOE,
