@@ -124,6 +124,8 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/in.h>
+#include <linux/jhash.h>
+#include <linux/random.h>
 
 #include "net-sysfs.h"
 
@@ -1668,34 +1670,37 @@ out_kfree_skb:
  *          --BLG
  */
 
+static u32 simple_tx_hashrnd;
+static int simple_tx_hashrnd_initialized = 0;
+
 static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 {
-	u32 *addr, *ports, hash, ihl;
+	u32 addr1, addr2, ports;
+	u32 hash, ihl;
 	u8 ip_proto;
-	int alen;
+
+	if (unlikely(!simple_tx_hashrnd_initialized)) {
+		get_random_bytes(&simple_tx_hashrnd, 4);
+		simple_tx_hashrnd_initialized = 1;
+	}
 
 	switch (skb->protocol) {
 	case __constant_htons(ETH_P_IP):
 		ip_proto = ip_hdr(skb)->protocol;
-		addr = &ip_hdr(skb)->saddr;
+		addr1 = ip_hdr(skb)->saddr;
+		addr2 = ip_hdr(skb)->daddr;
 		ihl = ip_hdr(skb)->ihl;
-		alen = 2;
 		break;
 	case __constant_htons(ETH_P_IPV6):
 		ip_proto = ipv6_hdr(skb)->nexthdr;
-		addr = &ipv6_hdr(skb)->saddr.s6_addr32[0];
+		addr1 = ipv6_hdr(skb)->saddr.s6_addr32[3];
+		addr2 = ipv6_hdr(skb)->daddr.s6_addr32[3];
 		ihl = (40 >> 2);
-		alen = 8;
 		break;
 	default:
 		return 0;
 	}
 
-	ports = (u32 *) (skb_network_header(skb) + (ihl * 4));
-
-	hash = 0;
-	while (alen--)
-		hash ^= *addr++;
 
 	switch (ip_proto) {
 	case IPPROTO_TCP:
@@ -1705,14 +1710,17 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 	case IPPROTO_AH:
 	case IPPROTO_SCTP:
 	case IPPROTO_UDPLITE:
-		hash ^= *ports;
+		ports = *((u32 *) (skb_network_header(skb) + (ihl * 4)));
 		break;
 
 	default:
+		ports = 0;
 		break;
 	}
 
-	return hash % dev->real_num_tx_queues;
+	hash = jhash_3words(addr1, addr2, ports, simple_tx_hashrnd);
+
+	return (u16) (((u64) hash * dev->real_num_tx_queues) >> 32);
 }
 
 static struct netdev_queue *dev_pick_tx(struct net_device *dev,
