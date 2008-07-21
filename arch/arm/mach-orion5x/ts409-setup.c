@@ -212,7 +212,7 @@ static struct platform_device ts409_leds = {
 
 static struct gpio_keys_button qnap_ts409_buttons[] = {
 	{
-		.code		= KEY_RESTART,
+		.code		= KEY_COPY,
 		.gpio		= QNAP_TS409_GPIO_KEY_MEDIA,
 		.desc		= "USB Copy Button",
 		.active_low	= 1,

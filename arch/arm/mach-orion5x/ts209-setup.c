@@ -207,12 +207,12 @@ static struct i2c_board_info __initdata qnap_ts209_i2c_rtc = {
 
 static struct gpio_keys_button qnap_ts209_buttons[] = {
 	{
-		.code		= KEY_RESTART,
+		.code		= KEY_COPY,
 		.gpio		= QNAP_TS209_GPIO_KEY_MEDIA,
 		.desc		= "USB Copy Button",
 		.active_low	= 1,
 	}, {
-		.code		= KEY_POWER,
+		.code		= KEY_RESTART,
 		.gpio		= QNAP_TS209_GPIO_KEY_RESET,
 		.desc		= "Reset Button",
 		.active_low	= 1,
