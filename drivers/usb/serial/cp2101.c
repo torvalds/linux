@@ -365,8 +365,8 @@ static void cp2101_close (struct usb_serial_port *port, struct file * filp)
 static void cp2101_get_termios (struct usb_serial_port *port)
 {
 	unsigned int cflag, modem_ctl[4];
-	int baud;
-	int bits;
+	unsigned int baud;
+	unsigned int bits;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -498,7 +498,7 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 		struct ktermios *old_termios)
 {
 	unsigned int cflag, old_cflag;
-	int baud=0, bits;
+	unsigned int baud = 0, bits;
 	unsigned int modem_ctl[4];
 
 	dbg("%s - port %d", __func__, port->number);
@@ -654,7 +654,7 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 static int cp2101_tiocmset (struct usb_serial_port *port, struct file *file,
 		unsigned int set, unsigned int clear)
 {
-	int control = 0;
+	unsigned int control = 0;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -683,7 +683,8 @@ static int cp2101_tiocmset (struct usb_serial_port *port, struct file *file,
 
 static int cp2101_tiocmget (struct usb_serial_port *port, struct file *file)
 {
-	int control, result;
+	unsigned int control;
+	int result;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -703,7 +704,7 @@ static int cp2101_tiocmget (struct usb_serial_port *port, struct file *file)
 
 static void cp2101_break_ctl (struct usb_serial_port *port, int break_state)
 {
-	int state;
+	unsigned int state;
 
 	dbg("%s - port %d", __func__, port->number);
 	if (break_state == 0)
