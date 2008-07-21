@@ -324,10 +324,6 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 		cpu_devs[c->x86_vendor]->c_early_init(c);
 
 	validate_pat_support(c);
-
-	/* early_param could clear that, but recall get it set again */
-	if (disable_apic)
-		clear_cpu_cap(c, X86_FEATURE_APIC);
 }
 
 /*

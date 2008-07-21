@@ -1214,9 +1214,6 @@ int apic_version[MAX_APICS];
 
 int __init APIC_init_uniprocessor(void)
 {
-	if (disable_apic)
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
-
 	if (!smp_found_config && !cpu_has_apic)
 		return -1;
 
@@ -1700,7 +1697,7 @@ early_param("lapic", parse_lapic);
 static int __init parse_nolapic(char *arg)
 {
 	disable_apic = 1;
-	clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
+	setup_clear_cpu_cap(X86_FEATURE_APIC);
 	return 0;
 }
 early_param("nolapic", parse_nolapic);
