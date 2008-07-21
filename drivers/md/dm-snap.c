@@ -40,6 +40,11 @@
  */
 #define SNAPSHOT_PAGES (((1UL << 20) >> PAGE_SHIFT) ? : 1)
 
+/*
+ * The size of the mempool used to track chunks in use.
+ */
+#define MIN_IOS 256
+
 static struct workqueue_struct *ksnapd;
 static void flush_queued_bios(struct work_struct *work);
 
@@ -92,6 +97,42 @@ struct dm_snap_pending_exception {
 static struct kmem_cache *exception_cache;
 static struct kmem_cache *pending_cache;
 static mempool_t *pending_pool;
+
+struct dm_snap_tracked_chunk {
+	struct hlist_node node;
+	chunk_t chunk;
+};
+
+static struct kmem_cache *tracked_chunk_cache;
+
+static struct dm_snap_tracked_chunk *track_chunk(struct dm_snapshot *s,
+						 chunk_t chunk)
+{
+	struct dm_snap_tracked_chunk *c = mempool_alloc(s->tracked_chunk_pool,
+							GFP_NOIO);
+	unsigned long flags;
+
+	c->chunk = chunk;
+
+	spin_lock_irqsave(&s->tracked_chunk_lock, flags);
+	hlist_add_head(&c->node,
+		       &s->tracked_chunk_hash[DM_TRACKED_CHUNK_HASH(chunk)]);
+	spin_unlock_irqrestore(&s->tracked_chunk_lock, flags);
+
+	return c;
+}
+
+static void stop_tracking_chunk(struct dm_snapshot *s,
+				struct dm_snap_tracked_chunk *c)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&s->tracked_chunk_lock, flags);
+	hlist_del(&c->node);
+	spin_unlock_irqrestore(&s->tracked_chunk_lock, flags);
+
+	mempool_free(c, s->tracked_chunk_pool);
+}
 
 /*
  * One of these per registered origin, held in the snapshot_origins hash
@@ -482,6 +523,7 @@ static int set_chunk_size(struct dm_snapshot *s, const char *chunk_size_arg,
 static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct dm_snapshot *s;
+	int i;
 	int r = -EINVAL;
 	char persistent;
 	char *origin_path;
@@ -564,11 +606,24 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad5;
 	}
 
+	s->tracked_chunk_pool = mempool_create_slab_pool(MIN_IOS,
+							 tracked_chunk_cache);
+	if (!s->tracked_chunk_pool) {
+		ti->error = "Could not allocate tracked_chunk mempool for "
+			    "tracking reads";
+		goto bad6;
+	}
+
+	for (i = 0; i < DM_TRACKED_CHUNK_HASH_SIZE; i++)
+		INIT_HLIST_HEAD(&s->tracked_chunk_hash[i]);
+
+	spin_lock_init(&s->tracked_chunk_lock);
+
 	/* Metadata must only be loaded into one table at once */
 	r = s->store.read_metadata(&s->store);
 	if (r < 0) {
 		ti->error = "Failed to read snapshot metadata";
-		goto bad6;
+		goto bad_load_and_register;
 	} else if (r > 0) {
 		s->valid = 0;
 		DMWARN("Snapshot is marked invalid.");
@@ -582,13 +637,16 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (register_snapshot(s)) {
 		r = -EINVAL;
 		ti->error = "Cannot register snapshot origin";
-		goto bad6;
+		goto bad_load_and_register;
 	}
 
 	ti->private = s;
 	ti->split_io = s->chunk_size;
 
 	return 0;
+
+ bad_load_and_register:
+	mempool_destroy(s->tracked_chunk_pool);
 
  bad6:
 	dm_kcopyd_client_destroy(s->kcopyd_client);
@@ -624,6 +682,9 @@ static void __free_exceptions(struct dm_snapshot *s)
 
 static void snapshot_dtr(struct dm_target *ti)
 {
+#ifdef CONFIG_DM_DEBUG
+	int i;
+#endif
 	struct dm_snapshot *s = ti->private;
 
 	flush_workqueue(ksnapd);
@@ -631,6 +692,13 @@ static void snapshot_dtr(struct dm_target *ti)
 	/* Prevent further origin writes from using this snapshot. */
 	/* After this returns there can be no new kcopyd jobs. */
 	unregister_snapshot(s);
+
+#ifdef CONFIG_DM_DEBUG
+	for (i = 0; i < DM_TRACKED_CHUNK_HASH_SIZE; i++)
+		BUG_ON(!hlist_empty(&s->tracked_chunk_hash[i]));
+#endif
+
+	mempool_destroy(s->tracked_chunk_pool);
 
 	__free_exceptions(s);
 
@@ -974,19 +1042,27 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 			start_copy(pe);
 			goto out;
 		}
-	} else
-		/*
-		 * FIXME: this read path scares me because we
-		 * always use the origin when we have a pending
-		 * exception.  However I can't think of a
-		 * situation where this is wrong - ejt.
-		 */
+	} else {
 		bio->bi_bdev = s->origin->bdev;
+		map_context->ptr = track_chunk(s, chunk);
+	}
 
  out_unlock:
 	up_write(&s->lock);
  out:
 	return r;
+}
+
+static int snapshot_end_io(struct dm_target *ti, struct bio *bio,
+			   int error, union map_info *map_context)
+{
+	struct dm_snapshot *s = ti->private;
+	struct dm_snap_tracked_chunk *c = map_context->ptr;
+
+	if (c)
+		stop_tracking_chunk(s, c);
+
+	return 0;
 }
 
 static void snapshot_resume(struct dm_target *ti)
@@ -1266,6 +1342,7 @@ static struct target_type snapshot_target = {
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
 	.map     = snapshot_map,
+	.end_io  = snapshot_end_io,
 	.resume  = snapshot_resume,
 	.status  = snapshot_status,
 };
@@ -1306,11 +1383,18 @@ static int __init dm_snapshot_init(void)
 		goto bad4;
 	}
 
+	tracked_chunk_cache = KMEM_CACHE(dm_snap_tracked_chunk, 0);
+	if (!tracked_chunk_cache) {
+		DMERR("Couldn't create cache to track chunks in use.");
+		r = -ENOMEM;
+		goto bad5;
+	}
+
 	pending_pool = mempool_create_slab_pool(128, pending_cache);
 	if (!pending_pool) {
 		DMERR("Couldn't create pending pool.");
 		r = -ENOMEM;
-		goto bad5;
+		goto bad_pending_pool;
 	}
 
 	ksnapd = create_singlethread_workqueue("ksnapd");
@@ -1324,6 +1408,8 @@ static int __init dm_snapshot_init(void)
 
       bad6:
 	mempool_destroy(pending_pool);
+      bad_pending_pool:
+	kmem_cache_destroy(tracked_chunk_cache);
       bad5:
 	kmem_cache_destroy(pending_cache);
       bad4:
@@ -1355,6 +1441,7 @@ static void __exit dm_snapshot_exit(void)
 	mempool_destroy(pending_pool);
 	kmem_cache_destroy(pending_cache);
 	kmem_cache_destroy(exception_cache);
+	kmem_cache_destroy(tracked_chunk_cache);
 }
 
 /* Module hooks */
