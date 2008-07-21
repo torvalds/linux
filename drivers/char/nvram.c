@@ -444,7 +444,7 @@ nvram_init(void)
 
 	/* First test whether the driver should init at all */
 	if (!CHECK_DRIVER_INIT())
-		return -ENXIO;
+		return -ENODEV;
 
 	ret = misc_register(&nvram_dev);
 	if (ret) {

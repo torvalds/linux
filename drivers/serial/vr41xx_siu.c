@@ -318,7 +318,7 @@ static inline void receive_chars(struct uart_port *port, uint8_t *status)
 	char flag;
 	int max_count = RX_MAX_COUNT;
 
-	tty = port->info->tty;
+	tty = port->info->port.tty;
 	lsr = *status;
 
 	do {

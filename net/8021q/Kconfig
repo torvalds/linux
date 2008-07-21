@@ -17,3 +17,13 @@ config VLAN_8021Q
 	  will be called 8021q.
 
 	  If unsure, say N.
+
+config VLAN_8021Q_GVRP
+	bool "GVRP (GARP VLAN Registration Protocol) support"
+	depends on VLAN_8021Q
+	select GARP
+	help
+	  Select this to enable GVRP end-system support. GVRP is used for
+	  automatic propagation of registered VLANs to switches.
+
+	  If unsure, say N.

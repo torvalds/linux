@@ -105,14 +105,6 @@ static void __init jmr3927_mem_setup(void)
 	_machine_halt = jmr3927_machine_halt;
 	pm_power_off = jmr3927_machine_power_off;
 
-	/*
-	 * IO/MEM resources.
-	 */
-	ioport_resource.start = 0;
-	ioport_resource.end = 0xffffffff;
-	iomem_resource.start = 0;
-	iomem_resource.end = 0xffffffff;
-
 	/* Reboot on panic */
 	panic_timeout = 180;
 

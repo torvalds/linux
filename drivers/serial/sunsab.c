@@ -118,7 +118,7 @@ receive_chars(struct uart_sunsab_port *up,
 	int i;
 
 	if (up->port.info != NULL)		/* Unopened serial console */
-		tty = up->port.info->tty;
+		tty = up->port.info->port.tty;
 
 	/* Read number of BYTES (Character + Status) available. */
 	if (stat->sreg.isr0 & SAB82532_ISR0_RPF) {
