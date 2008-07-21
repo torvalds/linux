@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/time.h>
+#include <linux/mca.h>
 
 #include <asm/i8253.h>
 #include <asm/hpet.h>
@@ -53,6 +54,13 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	add_pda(irq0_irqs, 1);
 
 	global_clock_event->event_handler(global_clock_event);
+
+#ifdef CONFIG_MCA
+	if (MCA_bus) {
+		u8 irq_v = inb_p(0x61);       /* read the current state */
+		outb_p(irq_v|0x80, 0x61);     /* reset the IRQ */
+	}
+#endif
 
 	return IRQ_HANDLED;
 }
