@@ -1161,7 +1161,6 @@ static const struct file_operations vdev_fops = {
 
 
 static struct video_device vdev_template = {
-	.owner      = THIS_MODULE,
 	.type       = VID_TYPE_CAPTURE | VID_TYPE_TUNER,
 	.type2      = (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VBI_CAPTURE
 		       | V4L2_CAP_TUNER | V4L2_CAP_AUDIO

@@ -952,7 +952,6 @@ static const struct file_operations usbvideo_fops = {
 	.llseek = no_llseek,
 };
 static const struct video_device usbvideo_template = {
-	.owner =      THIS_MODULE,
 	.type =       VID_TYPE_CAPTURE,
 	.fops =       &usbvideo_fops,
 };

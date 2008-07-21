@@ -1406,7 +1406,6 @@ static const struct v4l2_ioctl_ops usbvision_ioctl_ops = {
 };
 
 static struct video_device usbvision_video_template = {
-	.owner             = THIS_MODULE,
 	.type		= VID_TYPE_TUNER | VID_TYPE_CAPTURE,
 	.fops		= &usbvision_fops,
 	.ioctl_ops 	= &usbvision_ioctl_ops,
@@ -1445,7 +1444,6 @@ static const struct v4l2_ioctl_ops usbvision_radio_ioctl_ops = {
 };
 
 static struct video_device usbvision_radio_template = {
-	.owner             = THIS_MODULE,
 	.type		= VID_TYPE_TUNER,
 	.fops		= &usbvision_radio_fops,
 	.name           = "usbvision-radio",
@@ -1469,7 +1467,6 @@ static const struct file_operations usbvision_vbi_fops = {
 
 static struct video_device usbvision_vbi_template=
 {
-	.owner             = THIS_MODULE,
 	.type		= VID_TYPE_TUNER,
 	.fops		= &usbvision_vbi_fops,
 	.release	= video_device_release,

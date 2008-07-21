@@ -369,7 +369,6 @@ static const struct v4l2_ioctl_ops aztech_ioctl_ops = {
 };
 
 static struct video_device aztech_radio = {
-	.owner		    = THIS_MODULE,
 	.name		    = "Aztech radio",
 	.type		    = VID_TYPE_TUNER,
 	.fops               = &aztech_fops,

@@ -779,7 +779,6 @@ static const struct v4l2_ioctl_ops zr364xx_ioctl_ops = {
 };
 
 static struct video_device zr364xx_template = {
-	.owner = THIS_MODULE,
 	.name = DRIVER_DESC,
 	.type = VID_TYPE_CAPTURE,
 	.fops = &zr364xx_fops,

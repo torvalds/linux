@@ -427,7 +427,6 @@ static const struct v4l2_ioctl_ops fmr2_ioctl_ops = {
 };
 
 static struct video_device fmr2_radio = {
-	.owner		= THIS_MODULE,
 	.name		= "SF16FMR2 radio",
 	.type		= VID_TYPE_TUNER,
 	.fops		= &fmr2_fops,

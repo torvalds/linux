@@ -9,7 +9,6 @@
 #ifndef _V4L2_DEV_H
 #define _V4L2_DEV_H
 
-#define OBSOLETE_OWNER   1 /* to be removed soon */
 #define OBSOLETE_DEVDATA 1 /* to be removed soon */
 
 #include <linux/poll.h>
@@ -76,14 +75,12 @@ struct video_device
 	/* ioctl callbacks */
 	const struct v4l2_ioctl_ops *ioctl_ops;
 
-#ifdef OBSOLETE_OWNER /* to be removed soon */
-/* obsolete -- fops->owner is used instead */
-struct module *owner;
-/* dev->driver_data will be used instead some day.
-	* Use the video_{get|set}_drvdata() helper functions,
-	* so the switch over will be transparent for you.
-	* Or use {pci|usb}_{get|set}_drvdata() directly. */
-void *priv;
+#ifdef OBSOLETE_DEVDATA /* to be removed soon */
+	/* dev->driver_data will be used instead some day.
+	 * Use the video_{get|set}_drvdata() helper functions,
+	 * so the switch over will be transparent for you.
+	 * Or use {pci|usb}_{get|set}_drvdata() directly. */
+	void *priv;
 #endif
 
 	/* for videodev.c intenal usage -- please don't touch */
@@ -126,7 +123,7 @@ video_device_remove_file(struct video_device *vfd,
 
 #endif /* CONFIG_VIDEO_V4L1_COMPAT */
 
-#ifdef OBSOLETE_OWNER /* to be removed soon */
+#ifdef OBSOLETE_DEVDATA /* to be removed soon */
 /* helper functions to access driver private data. */
 static inline void *video_get_drvdata(struct video_device *dev)
 {
@@ -138,9 +135,6 @@ static inline void video_set_drvdata(struct video_device *dev, void *data)
 	dev->priv = data;
 }
 
-#endif
-
-#ifdef OBSOLETE_DEVDATA /* to be removed soon */
 /* Obsolete stuff - Still needed for radio devices and obsolete drivers */
 extern struct video_device* video_devdata(struct file*);
 extern int video_exclusive_open(struct inode *inode, struct file *file);

@@ -462,7 +462,6 @@ static const struct v4l2_ioctl_ops usb_dsbr100_ioctl_ops = {
 
 /* V4L2 interface */
 static struct video_device dsbr100_videodev_template = {
-	.owner		= THIS_MODULE,
 	.name		= "D-Link DSB-R 100",
 	.type		= VID_TYPE_TUNER,
 	.fops		= &usb_dsbr100_fops,

@@ -4666,7 +4666,6 @@ static const struct file_operations ov511_fops = {
 };
 
 static struct video_device vdev_template = {
-	.owner =	THIS_MODULE,
 	.name =		"OV511 USB Camera",
 	.type =		VID_TYPE_CAPTURE,
 	.fops =		&ov511_fops,

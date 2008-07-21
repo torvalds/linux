@@ -1720,7 +1720,6 @@ static const struct v4l2_ioctl_ops meye_ioctl_ops = {
 };
 
 static struct video_device meye_template = {
-	.owner		= THIS_MODULE,
 	.name		= "meye",
 	.type		= VID_TYPE_CAPTURE,
 	.fops		= &meye_fops,

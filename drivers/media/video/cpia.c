@@ -3799,7 +3799,6 @@ static const struct file_operations cpia_fops = {
 };
 
 static struct video_device cpia_template = {
-	.owner		= THIS_MODULE,
 	.name		= "CPiA Camera",
 	.type		= VID_TYPE_CAPTURE,
 	.fops           = &cpia_fops,

@@ -1611,7 +1611,6 @@ static struct video_device si470x_viddev_template = {
 	.name			= DRIVER_NAME,
 	.type			= VID_TYPE_TUNER,
 	.release		= video_device_release,
-	.owner			= THIS_MODULE,
 };
 
 

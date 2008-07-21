@@ -1401,7 +1401,6 @@ static const struct file_operations stv680_fops = {
 	.llseek =       no_llseek,
 };
 static struct video_device stv680_template = {
-	.owner =	THIS_MODULE,
 	.name =		"STV0680 USB camera",
 	.type =		VID_TYPE_CAPTURE,
 	.fops =         &stv680_fops,

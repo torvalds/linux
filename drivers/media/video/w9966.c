@@ -196,7 +196,6 @@ static const struct file_operations w9966_fops = {
 	.llseek         = no_llseek,
 };
 static struct video_device w9966_template = {
-	.owner		= THIS_MODULE,
 	.name           = W9966_DRIVERNAME,
 	.type           = VID_TYPE_CAPTURE | VID_TYPE_SCALES,
 	.fops           = &w9966_fops,

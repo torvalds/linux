@@ -424,7 +424,6 @@ static const struct v4l2_ioctl_ops zoltrix_ioctl_ops = {
 };
 
 static struct video_device zoltrix_radio = {
-	.owner		= THIS_MODULE,
 	.name		= "Zoltrix Radio Plus",
 	.type		= VID_TYPE_TUNER,
 	.fops           = &zoltrix_fops,

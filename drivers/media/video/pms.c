@@ -895,7 +895,6 @@ static const struct file_operations pms_fops = {
 
 static struct video_device pms_template=
 {
-	.owner		= THIS_MODULE,
 	.name		= "Mediavision PMS",
 	.type		= VID_TYPE_CAPTURE,
 	.fops           = &pms_fops,

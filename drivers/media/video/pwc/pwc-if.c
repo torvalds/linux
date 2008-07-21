@@ -165,7 +165,6 @@ static const struct file_operations pwc_fops = {
 	.llseek =       no_llseek,
 };
 static struct video_device pwc_template = {
-	.owner =	THIS_MODULE,
 	.name =		"Philips Webcam",	/* Filled in later */
 	.type =		VID_TYPE_CAPTURE,
 	.release =	video_device_release,
@@ -1769,7 +1768,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	memcpy(pdev->vdev, &pwc_template, sizeof(pwc_template));
 	pdev->vdev->parent = &(udev->dev);
 	strcpy(pdev->vdev->name, name);
-	pdev->vdev->owner = THIS_MODULE;
 	video_set_drvdata(pdev->vdev, pdev);
 
 	pdev->release = le16_to_cpu(udev->descriptor.bcdDevice);

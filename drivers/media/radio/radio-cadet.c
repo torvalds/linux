@@ -586,7 +586,6 @@ static const struct v4l2_ioctl_ops cadet_ioctl_ops = {
 };
 
 static struct video_device cadet_radio = {
-	.owner		= THIS_MODULE,
 	.name		= "Cadet radio",
 	.type		= VID_TYPE_TUNER,
 	.fops           = &cadet_fops,
