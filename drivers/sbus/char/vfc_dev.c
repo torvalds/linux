@@ -45,7 +45,7 @@
 #include <asm/vfc_ioctls.h>
 
 static const struct file_operations vfc_fops;
-struct vfc_dev **vfc_dev_lst;
+static struct vfc_dev **vfc_dev_lst;
 static char vfcstr[]="vfc";
 static unsigned char saa9051_init_array[VFC_SAA9051_NR] = {
 	0x00, 0x64, 0x72, 0x52,
@@ -54,18 +54,18 @@ static unsigned char saa9051_init_array[VFC_SAA9051_NR] = {
 	0x3e
 };
 
-void vfc_lock_device(struct vfc_dev *dev)
+static void vfc_lock_device(struct vfc_dev *dev)
 {
 	mutex_lock(&dev->device_lock_mtx);
 }
 
-void vfc_unlock_device(struct vfc_dev *dev)
+static void vfc_unlock_device(struct vfc_dev *dev)
 {
 	mutex_unlock(&dev->device_lock_mtx);
 }
 
 
-void vfc_captstat_reset(struct vfc_dev *dev) 
+static void vfc_captstat_reset(struct vfc_dev *dev)
 {
 	dev->control_reg |= VFC_CONTROL_CAPTRESET;
 	sbus_writel(dev->control_reg, &dev->regs->control);
@@ -75,7 +75,7 @@ void vfc_captstat_reset(struct vfc_dev *dev)
 	sbus_writel(dev->control_reg, &dev->regs->control);
 }
 
-void vfc_memptr_reset(struct vfc_dev *dev) 
+static void vfc_memptr_reset(struct vfc_dev *dev)
 {
 	dev->control_reg |= VFC_CONTROL_MEMPTR;
 	sbus_writel(dev->control_reg, &dev->regs->control);
@@ -85,7 +85,7 @@ void vfc_memptr_reset(struct vfc_dev *dev)
 	sbus_writel(dev->control_reg, &dev->regs->control);
 }
 
-int vfc_csr_init(struct vfc_dev *dev)
+static int vfc_csr_init(struct vfc_dev *dev)
 {
 	dev->control_reg = 0x80000000;
 	sbus_writel(dev->control_reg, &dev->regs->control);
@@ -107,7 +107,7 @@ int vfc_csr_init(struct vfc_dev *dev)
 	return 0;
 }
 
-int vfc_saa9051_init(struct vfc_dev *dev)
+static int vfc_saa9051_init(struct vfc_dev *dev)
 {
 	int i;
 
@@ -119,7 +119,7 @@ int vfc_saa9051_init(struct vfc_dev *dev)
 	return 0;
 }
 
-int init_vfc_hw(struct vfc_dev *dev) 
+static int init_vfc_hw(struct vfc_dev *dev)
 {
 	vfc_lock_device(dev);
 	vfc_csr_init(dev);
@@ -132,7 +132,7 @@ int init_vfc_hw(struct vfc_dev *dev)
 	return 0; 
 }
 
-int init_vfc_devstruct(struct vfc_dev *dev, int instance) 
+static int init_vfc_devstruct(struct vfc_dev *dev, int instance)
 {
 	dev->instance=instance;
 	mutex_init(&dev->device_lock_mtx);
@@ -141,7 +141,8 @@ int init_vfc_devstruct(struct vfc_dev *dev, int instance)
 	return 0;
 }
 
-int init_vfc_device(struct sbus_dev *sdev,struct vfc_dev *dev, int instance)
+static int init_vfc_device(struct sbus_dev *sdev,struct vfc_dev *dev,
+			   int instance)
 {
 	if(dev == NULL) {
 		printk(KERN_ERR "VFC: Bogus pointer passed\n");
@@ -168,7 +169,7 @@ int init_vfc_device(struct sbus_dev *sdev,struct vfc_dev *dev, int instance)
 }
 
 
-struct vfc_dev *vfc_get_dev_ptr(int instance) 
+static struct vfc_dev *vfc_get_dev_ptr(int instance)
 {
 	return vfc_dev_lst[instance];
 }
@@ -292,7 +293,7 @@ static int vfc_debug(struct vfc_dev *dev, int cmd, void __user *argp)
 	return 0;
 }
 
-int vfc_capture_start(struct vfc_dev *dev) 
+static int vfc_capture_start(struct vfc_dev *dev)
 {
 	vfc_captstat_reset(dev);
 	dev->control_reg = sbus_readl(&dev->regs->control);
@@ -314,7 +315,7 @@ int vfc_capture_start(struct vfc_dev *dev)
 	return 0;
 }
 
-int vfc_capture_poll(struct vfc_dev *dev) 
+static int vfc_capture_poll(struct vfc_dev *dev)
 {
 	int timeout = 1000;
 
@@ -390,8 +391,8 @@ static int vfc_set_control_ioctl(struct inode *inode, struct file *file,
 }
 
 
-int vfc_port_change_ioctl(struct inode *inode, struct file *file, 
-			  struct vfc_dev *dev, unsigned long arg) 
+static int vfc_port_change_ioctl(struct inode *inode, struct file *file,
+				 struct vfc_dev *dev, unsigned long arg)
 {
 	int ret = 0;
 	int cmd;
@@ -460,8 +461,8 @@ int vfc_port_change_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-int vfc_set_video_ioctl(struct inode *inode, struct file *file, 
-			struct vfc_dev *dev, unsigned long arg) 
+static int vfc_set_video_ioctl(struct inode *inode, struct file *file,
+			       struct vfc_dev *dev, unsigned long arg)
 {
 	int ret = 0;
 	int cmd;
@@ -511,8 +512,8 @@ int vfc_set_video_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-int vfc_get_video_ioctl(struct inode *inode, struct file *file, 
-			struct vfc_dev *dev, unsigned long arg) 
+static int vfc_get_video_ioctl(struct inode *inode, struct file *file,
+			       struct vfc_dev *dev, unsigned long arg)
 {
 	int ret = 0;
 	unsigned int status = NO_LOCK;

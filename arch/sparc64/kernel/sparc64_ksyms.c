@@ -108,8 +108,6 @@ EXPORT_SYMBOL(__read_unlock);
 EXPORT_SYMBOL(__write_lock);
 EXPORT_SYMBOL(__write_unlock);
 EXPORT_SYMBOL(__write_trylock);
-
-EXPORT_SYMBOL(smp_call_function);
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_MCOUNT
