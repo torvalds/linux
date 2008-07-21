@@ -36,7 +36,7 @@
 #include <linux/kernel.h>
 #include <net/ieee80211_radiotap.h>
 
-#define DRV_NAME        "iwl4965"
+#define DRV_NAME        "iwlagn"
 #include "iwl-rfkill.h"
 #include "iwl-eeprom.h"
 #include "iwl-4965-hw.h"
@@ -808,14 +808,11 @@ struct iwl_chain_noise_data {
 #define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
 
 
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
-
 enum {
 	MEASUREMENT_READY = (1 << 0),
 	MEASUREMENT_ACTIVE = (1 << 1),
 };
 
-#endif
 
 #define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
 
@@ -840,7 +837,7 @@ struct iwl_priv {
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 	/* spectrum measurement report caching */
 	struct iwl4965_spectrum_notification measure_report;
 	u8 measurement_status;

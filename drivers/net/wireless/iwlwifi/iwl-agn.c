@@ -73,7 +73,7 @@
 #define VD
 #endif
 
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 #define VS "s"
 #else
 #define VS
@@ -86,6 +86,7 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("iwl4965");
 
 /*************** STATION TABLE MANAGEMENT ****
  * mac80211 should be examined to determine if sta_info is duplicating
@@ -883,7 +884,7 @@ static void iwl4965_set_rate(struct iwl_priv *priv)
 		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
 }
 
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 
 #include "iwl-spectrum.h"
 
@@ -1087,7 +1088,7 @@ static void iwl4965_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 static void iwl4965_rx_spectrum_measure_notif(struct iwl_priv *priv,
 					  struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
@@ -3786,7 +3787,7 @@ static ssize_t store_filter_flags(struct device *d,
 static DEVICE_ATTR(filter_flags, S_IWUSR | S_IRUGO, show_filter_flags,
 		   store_filter_flags);
 
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 
 static ssize_t show_measurement(struct device *d,
 				struct device_attribute *attr, char *buf)
@@ -3857,7 +3858,7 @@ static ssize_t store_measurement(struct device *d,
 
 static DEVICE_ATTR(measurement, S_IRUSR | S_IWUSR,
 		   show_measurement, store_measurement);
-#endif /* CONFIG_IWL4965_SPECTRUM_MEASUREMENT */
+#endif /* CONFIG_IWLAGN_SPECTRUM_MEASUREMENT */
 
 static ssize_t store_retry_rate(struct device *d,
 				struct device_attribute *attr,
@@ -4105,7 +4106,7 @@ static struct attribute *iwl4965_sysfs_entries[] = {
 	&dev_attr_channels.attr,
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 	&dev_attr_measurement.attr,
 #endif
 	&dev_attr_power_level.attr,
@@ -4457,8 +4458,10 @@ static int iwl4965_pci_resume(struct pci_dev *pdev)
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 static struct pci_device_id iwl_hw_card_ids[] = {
+#ifdef CONFIG_IWL4965
 	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
 	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
+#endif /* CONFIG_IWL4965 */
 #ifdef CONFIG_IWL5000
 	{IWL_PCI_DEVICE(0x4232, 0x1205, iwl5100_bg_cfg)},
 	{IWL_PCI_DEVICE(0x4232, 0x1305, iwl5100_bg_cfg)},
