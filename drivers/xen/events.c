@@ -734,6 +734,33 @@ static void restore_cpu_ipis(unsigned int cpu)
 	}
 }
 
+/* Clear an irq's pending state, in preparation for polling on it */
+void xen_clear_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+
+	if (VALID_EVTCHN(evtchn))
+		clear_evtchn(evtchn);
+}
+
+/* Poll waiting for an irq to become pending.  In the usual case, the
+   irq will be disabled so it won't deliver an interrupt. */
+void xen_poll_irq(int irq)
+{
+	evtchn_port_t evtchn = evtchn_from_irq(irq);
+
+	if (VALID_EVTCHN(evtchn)) {
+		struct sched_poll poll;
+
+		poll.nr_ports = 1;
+		poll.timeout = 0;
+		poll.ports = &evtchn;
+
+		if (HYPERVISOR_sched_op(SCHEDOP_poll, &poll) != 0)
+			BUG();
+	}
+}
+
 void xen_irq_resume(void)
 {
 	unsigned int cpu, irq, evtchn;
