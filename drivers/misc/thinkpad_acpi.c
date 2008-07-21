@@ -1285,21 +1285,6 @@ static int hotkey_status_set(int status)
 	return 0;
 }
 
-static void tpacpi_input_send_radiosw(void)
-{
-	int wlsw;
-
-	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&wlsw)) {
-		mutex_lock(&tpacpi_inputdev_send_mutex);
-
-		input_report_switch(tpacpi_inputdev,
-				    SW_RFKILL_ALL, !!wlsw);
-		input_sync(tpacpi_inputdev);
-
-		mutex_unlock(&tpacpi_inputdev_send_mutex);
-	}
-}
-
 static void tpacpi_input_send_tabletsw(void)
 {
 	int state;
@@ -1921,6 +1906,22 @@ static struct attribute *hotkey_mask_attributes[] __initdata = {
 	&dev_attr_hotkey_wakeup_hotunplug_complete.attr,
 };
 
+static void tpacpi_send_radiosw_update(void)
+{
+	int wlsw;
+
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&wlsw)) {
+		mutex_lock(&tpacpi_inputdev_send_mutex);
+
+		input_report_switch(tpacpi_inputdev,
+				    SW_RFKILL_ALL, !!wlsw);
+		input_sync(tpacpi_inputdev);
+
+		mutex_unlock(&tpacpi_inputdev_send_mutex);
+	}
+	hotkey_radio_sw_notify_change();
+}
+
 static void hotkey_exit(void)
 {
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
@@ -2288,7 +2289,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	tpacpi_inputdev->close = &hotkey_inputdev_close;
 
 	hotkey_poll_setup_safe(1);
-	tpacpi_input_send_radiosw();
+	tpacpi_send_radiosw_update();
 	tpacpi_input_send_tabletsw();
 
 	return 0;
@@ -2420,8 +2421,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		case 7:
 			/* 0x7000-0x7FFF: misc */
 			if (tp_features.hotkey_wlsw && hkey == 0x7000) {
-				tpacpi_input_send_radiosw();
-				hotkey_radio_sw_notify_change();
+				tpacpi_send_radiosw_update();
 				send_acpi_ev = 0;
 				break;
 			}
@@ -2464,8 +2464,7 @@ static void hotkey_resume(void)
 		printk(TPACPI_ERR
 		       "error while trying to read hot key mask "
 		       "from firmware\n");
-	tpacpi_input_send_radiosw();
-	hotkey_radio_sw_notify_change();
+	tpacpi_send_radiosw_update();
 	hotkey_tablet_mode_notify_change();
 	hotkey_wakeup_reason_notify_change();
 	hotkey_wakeup_hotunplug_complete_notify_change();
