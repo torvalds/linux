@@ -862,7 +862,7 @@ static int platform_pm_restore_noirq(struct device *dev)
 
 #endif /* !CONFIG_HIBERNATION */
 
-struct pm_ext_ops platform_pm_ops = {
+static struct pm_ext_ops platform_pm_ops = {
 	.base = {
 		.prepare = platform_pm_prepare,
 		.complete = platform_pm_complete,
