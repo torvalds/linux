@@ -502,7 +502,6 @@ extern struct device *device_create(struct class *cls, struct device *parent,
 				    dev_t devt, void *drvdata,
 				    const char *fmt, ...)
 				    __attribute__((format(printf, 5, 6)));
-#define device_create_drvdata	device_create
 extern void device_destroy(struct class *cls, dev_t devt);
 
 /*
