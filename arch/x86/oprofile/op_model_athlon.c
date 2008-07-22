@@ -251,6 +251,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 						(unsigned int *)&ibs_op,
 						IBS_OP_BEGIN);
 			rdmsr(MSR_AMD64_IBSOPCTL, low, high);
+			high = 0;
 			low &= ~IBS_OP_LOW_VALID_BIT;
 			low |= IBS_OP_LOW_ENABLE;
 			wrmsr(MSR_AMD64_IBSOPCTL, low, high);
