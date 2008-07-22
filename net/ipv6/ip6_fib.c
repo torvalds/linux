@@ -1447,10 +1447,8 @@ void fib6_run_gc(unsigned long expires, struct net *net)
 		gc_args.timeout = expires ? (int)expires :
 			net->ipv6.sysctl.ip6_rt_gc_interval;
 	} else {
-		local_bh_disable();
-		if (!spin_trylock(&fib6_gc_lock)) {
+		if (!spin_trylock_bh(&fib6_gc_lock)) {
 			mod_timer(&net->ipv6.ip6_fib_timer, jiffies + HZ);
-			local_bh_enable();
 			return;
 		}
 		gc_args.timeout = net->ipv6.sysctl.ip6_rt_gc_interval;
