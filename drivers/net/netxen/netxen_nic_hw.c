@@ -609,33 +609,10 @@ void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw)
 	void __iomem *offset;
 	u32 tmp;
 	int count = 0;
+	uint8_t func = adapter->ahw.pci_func;
 
 	if (adapter->curr_window == wndw)
 		return;
-	switch(adapter->ahw.pci_func) {
-		case 0:
-			offset = PCI_OFFSET_SECOND_RANGE(adapter,
-					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW));
-			break;
-		case 1:
-			offset = PCI_OFFSET_SECOND_RANGE(adapter,
-					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW_F1));
-			break;
-		case 2:
-			offset = PCI_OFFSET_SECOND_RANGE(adapter,
-					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW_F2));
-			break;
-		case 3:
-			offset = PCI_OFFSET_SECOND_RANGE(adapter,
-					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW_F3));
-			break;
-		default:
-			printk(KERN_INFO "Changing the window for PCI function "
-					"%d\n",	adapter->ahw.pci_func);
-			offset = PCI_OFFSET_SECOND_RANGE(adapter,
-					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW));
-			break;
-	}
 	/*
 	 * Move the CRB window.
 	 * We need to write to the "direct access" region of PCI
@@ -644,6 +621,8 @@ void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw)
 	 * register address is received by PCI. The direct region bypasses
 	 * the CRB bus.
 	 */
+	offset = PCI_OFFSET_SECOND_RANGE(adapter,
+			NETXEN_PCIX_PH_REG(PCIE_CRB_WINDOW_REG(func)));
 
 	if (wndw & 0x1)
 		wndw = NETXEN_WINDOW_ONE;
@@ -857,9 +836,11 @@ static int netxen_pci_set_window_warning_count;
 static  unsigned long netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 						unsigned long long addr)
 {
+	void __iomem *offset;
 	static int ddr_mn_window = -1;
 	static int qdr_sn_window = -1;
 	int window;
+	uint8_t func = adapter->ahw.pci_func;
 
 	if (ADDR_IN_RANGE(addr, NETXEN_ADDR_DDR_NET, NETXEN_ADDR_DDR_NET_MAX)) {
 		/* DDR network side */
@@ -867,13 +848,11 @@ static  unsigned long netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 		window = (addr >> 25) & 0x3ff;
 		if (ddr_mn_window != window) {
 			ddr_mn_window = window;
-			writel(window, PCI_OFFSET_SECOND_RANGE(adapter,
-							       NETXEN_PCIX_PH_REG
-							       (PCIX_MN_WINDOW(adapter->ahw.pci_func))));
+			offset = PCI_OFFSET_SECOND_RANGE(adapter,
+				NETXEN_PCIX_PH_REG(PCIE_MN_WINDOW_REG(func)));
+			writel(window, offset);
 			/* MUST make sure window is set before we forge on... */
-			readl(PCI_OFFSET_SECOND_RANGE(adapter,
-						      NETXEN_PCIX_PH_REG
-						      (PCIX_MN_WINDOW(adapter->ahw.pci_func))));
+			readl(offset);
 		}
 		addr -= (window * NETXEN_WINDOW_ONE);
 		addr += NETXEN_PCI_DDR_NET;
@@ -885,20 +864,17 @@ static  unsigned long netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 		addr += NETXEN_PCI_OCM1;
 	} else
 	    if (ADDR_IN_RANGE
-		(addr, NETXEN_ADDR_QDR_NET, NETXEN_ADDR_QDR_NET_MAX)) {
+		(addr, NETXEN_ADDR_QDR_NET, NETXEN_ADDR_QDR_NET_MAX_P2)) {
 		/* QDR network side */
 		addr -= NETXEN_ADDR_QDR_NET;
 		window = (addr >> 22) & 0x3f;
 		if (qdr_sn_window != window) {
 			qdr_sn_window = window;
-			writel((window << 22),
-			       PCI_OFFSET_SECOND_RANGE(adapter,
-						       NETXEN_PCIX_PH_REG
-						       (PCIX_SN_WINDOW(adapter->ahw.pci_func))));
+			offset = PCI_OFFSET_SECOND_RANGE(adapter,
+				NETXEN_PCIX_PH_REG(PCIE_SN_WINDOW_REG(func)));
+			writel((window << 22), offset);
 			/* MUST make sure window is set before we forge on... */
-			readl(PCI_OFFSET_SECOND_RANGE(adapter,
-						      NETXEN_PCIX_PH_REG
-						      (PCIX_SN_WINDOW(adapter->ahw.pci_func))));
+			readl(offset);
 		}
 		addr -= (window * 0x400000);
 		addr += NETXEN_PCI_QDR_NET;
@@ -972,12 +948,25 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P2_SB31_10G_IMEZ:
 	case NETXEN_BRDTYPE_P2_SB31_10G_HMEZ:
 	case NETXEN_BRDTYPE_P2_SB31_10G_CX4:
+	case NETXEN_BRDTYPE_P3_HMEZ:
+	case NETXEN_BRDTYPE_P3_XG_LOM:
+	case NETXEN_BRDTYPE_P3_10G_CX4:
+	case NETXEN_BRDTYPE_P3_10G_CX4_LP:
+	case NETXEN_BRDTYPE_P3_IMEZ:
+	case NETXEN_BRDTYPE_P3_10G_SFP_PLUS:
+	case NETXEN_BRDTYPE_P3_10G_XFP:
+	case NETXEN_BRDTYPE_P3_10000_BASE_T:
+
 		adapter->ahw.board_type = NETXEN_NIC_XGBE;
 		break;
 	case NETXEN_BRDTYPE_P1_BD:
 	case NETXEN_BRDTYPE_P1_SB:
 	case NETXEN_BRDTYPE_P1_SMAX:
 	case NETXEN_BRDTYPE_P1_SOCK:
+	case NETXEN_BRDTYPE_P3_REF_QG:
+	case NETXEN_BRDTYPE_P3_4_GB:
+	case NETXEN_BRDTYPE_P3_4_GB_MM:
+
 		adapter->ahw.board_type = NETXEN_NIC_GBE;
 		break;
 	default:

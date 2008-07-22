@@ -42,8 +42,11 @@
 #define CRB_CMD_CONSUMER_OFFSET     NETXEN_NIC_REG(0x0c)
 #define CRB_PAUSE_ADDR_LO           NETXEN_NIC_REG(0x10)	/* C0 EPG BUG  */
 #define CRB_PAUSE_ADDR_HI           NETXEN_NIC_REG(0x14)
-#define CRB_HOST_CMD_ADDR_HI        NETXEN_NIC_REG(0x18)	/* host add:cmd ring */
-#define CRB_HOST_CMD_ADDR_LO        NETXEN_NIC_REG(0x1c)
+#define NX_CDRP_CRB_OFFSET          NETXEN_NIC_REG(0x18)
+#define NX_ARG1_CRB_OFFSET          NETXEN_NIC_REG(0x1c)
+#define NX_ARG2_CRB_OFFSET          NETXEN_NIC_REG(0x20)
+#define NX_ARG3_CRB_OFFSET          NETXEN_NIC_REG(0x24)
+#define NX_SIGN_CRB_OFFSET          NETXEN_NIC_REG(0x28)
 #define CRB_CMD_INTR_LOOP           NETXEN_NIC_REG(0x20)	/* 4 regs for perf */
 #define CRB_CMD_DMA_LOOP            NETXEN_NIC_REG(0x24)
 #define CRB_RCV_INTR_LOOP           NETXEN_NIC_REG(0x28)
@@ -97,6 +100,7 @@
 #define CRB_HOST_BUFFER_CONS        NETXEN_NIC_REG(0xf0)
 #define CRB_JUMBO_BUFFER_PROD       NETXEN_NIC_REG(0xf4)
 #define CRB_JUMBO_BUFFER_CONS       NETXEN_NIC_REG(0xf8)
+#define CRB_HOST_DUMMY_BUF          NETXEN_NIC_REG(0xfc)
 
 #define CRB_RCVPEG_STATE            NETXEN_NIC_REG(0x13c)
 #define CRB_CMD_PRODUCER_OFFSET_1   NETXEN_NIC_REG(0x1ac)

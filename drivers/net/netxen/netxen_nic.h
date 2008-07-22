@@ -111,6 +111,13 @@
 
 #define NX_P2_C0		0x24
 #define NX_P2_C1		0x25
+#define NX_P3_A0		0x30
+#define NX_P3_A2		0x30
+#define NX_P3_B0		0x40
+#define NX_P3_B1		0x41
+
+#define NX_IS_REVISION_P2(REVISION)     (REVISION <= NX_P2_C1)
+#define NX_IS_REVISION_P3(REVISION)     (REVISION >= NX_P3_A0)
 
 #define FIRST_PAGE_GROUP_START	0
 #define FIRST_PAGE_GROUP_END	0x100000
@@ -124,6 +131,15 @@
 #define FIRST_PAGE_GROUP_SIZE  FIRST_PAGE_GROUP_END - FIRST_PAGE_GROUP_START
 #define SECOND_PAGE_GROUP_SIZE SECOND_PAGE_GROUP_END - SECOND_PAGE_GROUP_START
 #define THIRD_PAGE_GROUP_SIZE  THIRD_PAGE_GROUP_END - THIRD_PAGE_GROUP_START
+
+#define P2_MAX_MTU                     (8000)
+#define P3_MAX_MTU                     (9600)
+#define NX_ETHERMTU                    1500
+#define NX_MAX_ETHERHDR                32 /* This contains some padding */
+
+#define NX_RX_NORMAL_BUF_MAX_LEN       (NX_MAX_ETHERHDR + NX_ETHERMTU)
+#define NX_P2_RX_JUMBO_BUF_MAX_LEN     (NX_MAX_ETHERHDR + P2_MAX_MTU)
+#define NX_P3_RX_JUMBO_BUF_MAX_LEN     (NX_MAX_ETHERHDR + P3_MAX_MTU)
 
 #define MAX_RX_BUFFER_LENGTH		1760
 #define MAX_RX_JUMBO_BUFFER_LENGTH 	8062
@@ -139,16 +155,16 @@
 #define MAX_RING_CTX 1
 
 /* Opcodes to be used with the commands */
-enum {
-	TX_ETHER_PKT = 0x01,
-/* The following opcodes are for IP checksum	*/
-	TX_TCP_PKT,
-	TX_UDP_PKT,
-	TX_IP_PKT,
-	TX_TCP_LSO,
-	TX_IPSEC,
-	TX_IPSEC_CMD
-};
+#define TX_ETHER_PKT	0x01
+#define TX_TCP_PKT	0x02
+#define TX_UDP_PKT	0x03
+#define TX_IP_PKT	0x04
+#define TX_TCP_LSO	0x05
+#define TX_TCP_LSO6	0x06
+#define TX_IPSEC	0x07
+#define TX_IPSEC_CMD	0x0a
+#define TX_TCPV6_PKT	0x0b
+#define TX_UDPV6_PKT	0x0c
 
 /* The following opcodes are for internal consumption. */
 #define NETXEN_CONTROL_OP	0x10
@@ -190,6 +206,7 @@ enum {
 #define MAX_RCV_DESCRIPTORS		16384
 #define MAX_CMD_DESCRIPTORS_HOST	(MAX_CMD_DESCRIPTORS / 4)
 #define MAX_RCV_DESCRIPTORS_1G		(MAX_RCV_DESCRIPTORS / 4)
+#define MAX_RCV_DESCRIPTORS_10G		8192
 #define MAX_JUMBO_RCV_DESCRIPTORS	1024
 #define MAX_LRO_RCV_DESCRIPTORS		64
 #define MAX_RCVSTATUS_DESCRIPTORS	MAX_RCV_DESCRIPTORS
@@ -461,7 +478,20 @@ typedef enum {
 
 	NETXEN_BRDTYPE_P2_SB31_10G_IMEZ = 0x000d,
 	NETXEN_BRDTYPE_P2_SB31_10G_HMEZ = 0x000e,
-	NETXEN_BRDTYPE_P2_SB31_10G_CX4 = 0x000f
+	NETXEN_BRDTYPE_P2_SB31_10G_CX4 = 0x000f,
+
+	NETXEN_BRDTYPE_P3_REF_QG = 0x0021,
+	NETXEN_BRDTYPE_P3_HMEZ = 0x0022,
+	NETXEN_BRDTYPE_P3_10G_CX4_LP = 0x0023,
+	NETXEN_BRDTYPE_P3_4_GB = 0x0024,
+	NETXEN_BRDTYPE_P3_IMEZ = 0x0025,
+	NETXEN_BRDTYPE_P3_10G_SFP_PLUS = 0x0026,
+	NETXEN_BRDTYPE_P3_10000_BASE_T = 0x0027,
+	NETXEN_BRDTYPE_P3_XG_LOM = 0x0028,
+	NETXEN_BRDTYPE_P3_4_GB_MM = 0x0029,
+	NETXEN_BRDTYPE_P3_10G_CX4 = 0x0031,
+	NETXEN_BRDTYPE_P3_10G_XFP = 0x0032
+
 } netxen_brdtype_t;
 
 typedef enum {
@@ -1049,7 +1079,7 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
  * NetXen Board information
  */
 
-#define NETXEN_MAX_SHORT_NAME 16
+#define NETXEN_MAX_SHORT_NAME 32
 struct netxen_brdinfo {
 	netxen_brdtype_t brdtype;	/* type of board */
 	long ports;		/* max no of physical ports */
@@ -1063,6 +1093,17 @@ static const struct netxen_brdinfo netxen_boards[] = {
 	{NETXEN_BRDTYPE_P2_SB31_10G, 1, "XGb XFP"},
 	{NETXEN_BRDTYPE_P2_SB35_4G, 4, "Quad Gb"},
 	{NETXEN_BRDTYPE_P2_SB31_2G, 2, "Dual Gb"},
+	{NETXEN_BRDTYPE_P3_REF_QG,  4, "Reference Quad Gig "},
+	{NETXEN_BRDTYPE_P3_HMEZ,    2, "Dual XGb HMEZ"},
+	{NETXEN_BRDTYPE_P3_10G_CX4_LP,   2, "Dual XGb CX4 LP"},
+	{NETXEN_BRDTYPE_P3_4_GB,    4, "Quad Gig LP"},
+	{NETXEN_BRDTYPE_P3_IMEZ,    2, "Dual XGb IMEZ"},
+	{NETXEN_BRDTYPE_P3_10G_SFP_PLUS, 2, "Dual XGb SFP+ LP"},
+	{NETXEN_BRDTYPE_P3_10000_BASE_T, 1, "XGB 10G BaseT LP"},
+	{NETXEN_BRDTYPE_P3_XG_LOM,  2, "Dual XGb LOM"},
+	{NETXEN_BRDTYPE_P3_4_GB_MM, 4, "Quad GB - March Madness"},
+	{NETXEN_BRDTYPE_P3_10G_CX4, 2, "Reference Dual CX4 Option"},
+	{NETXEN_BRDTYPE_P3_10G_XFP, 1, "Reference Single XFP Option"}
 };
 
 #define NUM_SUPPORTED_BOARDS ARRAY_SIZE(netxen_boards)

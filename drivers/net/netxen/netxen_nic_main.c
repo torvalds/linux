@@ -83,6 +83,7 @@ static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 	ENTRY(0x0005),
 	ENTRY(0x0024),
 	ENTRY(0x0025),
+	ENTRY(0x0100),
 	{0,}
 };
 
@@ -526,7 +527,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->crb_addr_cmd_consumer = crb_cmd_consumer[adapter->portnum];
 	netxen_nic_update_cmd_producer(adapter, 0);
 	netxen_nic_update_cmd_consumer(adapter, 0);
-	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_HOST_CMD_ADDR_LO));
 
 	if (netxen_is_flash_supported(adapter) == 0 &&
 	    netxen_get_flash_mac_addr(adapter, mac_addr) == 0)
@@ -1099,7 +1099,7 @@ netxen_handle_int(struct netxen_adapter *adapter)
 	napi_schedule(&adapter->napi);
 }
 
-irqreturn_t netxen_intr(int irq, void *data)
+static irqreturn_t netxen_intr(int irq, void *data)
 {
 	struct netxen_adapter *adapter = data;
 	u32 our_int = 0;
@@ -1120,7 +1120,7 @@ irqreturn_t netxen_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t netxen_msi_intr(int irq, void *data)
+static irqreturn_t netxen_msi_intr(int irq, void *data)
 {
 	struct netxen_adapter *adapter = data;
 

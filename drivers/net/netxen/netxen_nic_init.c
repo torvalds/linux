@@ -115,6 +115,8 @@ static void crb_addr_transform_setup(void)
 	crb_addr_transform(C2C1);
 	crb_addr_transform(C2C0);
 	crb_addr_transform(SMB);
+	crb_addr_transform(OCM0);
+	crb_addr_transform(I2C0);
 }
 
 int netxen_init_firmware(struct netxen_adapter *adapter)
@@ -743,7 +745,6 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 				    NETXEN_ROMBUS_RESET);
 
 	if (verbose) {
-		int val;
 		if (netxen_rom_fast_read(adapter, NETXEN_BOARDTYPE, &val) == 0)
 			printk("P2 ROM board type: 0x%08x\n", val);
 		else
