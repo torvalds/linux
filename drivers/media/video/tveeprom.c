@@ -485,7 +485,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			tvee->has_radio = eeprom_data[i+len-1];
 			/* old style tag, don't know how to detect
 			IR presence, mark as unknown. */
-			tvee->has_ir = -1;
+			tvee->has_ir = 0;
 			tvee->model =
 				eeprom_data[i+8] +
 				(eeprom_data[i+9] << 8);
@@ -605,7 +605,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 
 		case 0x0f:
 			/* tag 'IRInfo' */
-			tvee->has_ir = eeprom_data[i+1];
+			tvee->has_ir = 1 | (eeprom_data[i+1] << 1);
 			break;
 
 		/* case 0x10: tag 'VBIInfo' */
@@ -705,14 +705,14 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 		tveeprom_info("decoder processor is %s (idx %d)\n",
 			STRM(decoderIC, tvee->decoder_processor),
 			tvee->decoder_processor);
-	if (tvee->has_ir == -1)
-		tveeprom_info("has %sradio\n",
-				tvee->has_radio ? "" : "no ");
-	else
+	if (tvee->has_ir)
 		tveeprom_info("has %sradio, has %sIR receiver, has %sIR transmitter\n",
 				tvee->has_radio ? "" : "no ",
-				(tvee->has_ir & 1) ? "" : "no ",
-				(tvee->has_ir & 2) ? "" : "no ");
+				(tvee->has_ir & 2) ? "" : "no ",
+				(tvee->has_ir & 4) ? "" : "no ");
+	else
+		tveeprom_info("has %sradio\n",
+				tvee->has_radio ? "" : "no ");
 }
 EXPORT_SYMBOL(tveeprom_hauppauge_analog);
 
