@@ -957,7 +957,8 @@ out_err:
 	return rc;
 }
 
-void selinux_write_opts(struct seq_file *m, struct security_mnt_opts *opts)
+static void selinux_write_opts(struct seq_file *m,
+			       struct security_mnt_opts *opts)
 {
 	int i;
 	char *prefix;
