@@ -1024,8 +1024,7 @@ int bsg_register_queue(struct request_queue *q, struct device *parent,
 	bcd->release = release;
 	kref_init(&bcd->ref);
 	dev = MKDEV(bsg_major, bcd->minor);
-	class_dev = device_create_drvdata(bsg_class, parent, dev, NULL,
-					  "%s", devname);
+	class_dev = device_create(bsg_class, parent, dev, NULL, "%s", devname);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
 		goto put_dev;
