@@ -37,15 +37,18 @@
 /*
  * Function Prototypes
  */
-static int cp2101_open(struct usb_serial_port*, struct file*);
-static void cp2101_cleanup(struct usb_serial_port*);
-static void cp2101_close(struct usb_serial_port*, struct file*);
-static void cp2101_get_termios(struct usb_serial_port*);
-static void cp2101_set_termios(struct usb_serial_port*, struct ktermios*);
-static int cp2101_tiocmget (struct usb_serial_port *, struct file *);
-static int cp2101_tiocmset (struct usb_serial_port *, struct file *,
+static int cp2101_open(struct tty_struct *, struct usb_serial_port *,
+							struct file *);
+static void cp2101_cleanup(struct usb_serial_port *);
+static void cp2101_close(struct tty_struct *, struct usb_serial_port *,
+							struct file*);
+static void cp2101_get_termios(struct tty_struct *);
+static void cp2101_set_termios(struct tty_struct *, struct usb_serial_port *,
+							struct ktermios*);
+static int cp2101_tiocmget (struct tty_struct *, struct file *);
+static int cp2101_tiocmset (struct tty_struct *, struct file *,
 		unsigned int, unsigned int);
-static void cp2101_break_ctl(struct usb_serial_port*, int);
+static void cp2101_break_ctl(struct tty_struct *, int);
 static int cp2101_startup (struct usb_serial *);
 static void cp2101_shutdown(struct usb_serial*);
 
@@ -182,7 +185,7 @@ static struct usb_serial_driver cp2101_device = {
  * 'data' is a pointer to a pre-allocated array of integers large
  * enough to hold 'size' bytes (with 4 bytes to each integer)
  */
-static int cp2101_get_config(struct usb_serial_port* port, u8 request,
+static int cp2101_get_config(struct usb_serial_port *port, u8 request,
 		unsigned int *data, int size)
 {
 	struct usb_serial *serial = port->serial;
@@ -228,7 +231,7 @@ static int cp2101_get_config(struct usb_serial_port* port, u8 request,
  * Values less than 16 bits wide are sent directly
  * 'size' is specified in bytes.
  */
-static int cp2101_set_config(struct usb_serial_port* port, u8 request,
+static int cp2101_set_config(struct usb_serial_port *port, u8 request,
 		unsigned int *data, int size)
 {
 	struct usb_serial *serial = port->serial;
@@ -283,13 +286,14 @@ static int cp2101_set_config(struct usb_serial_port* port, u8 request,
  * Convenience function for calling cp2101_set_config on single data values
  * without requiring an integer pointer
  */
-static inline int cp2101_set_config_single(struct usb_serial_port* port,
+static inline int cp2101_set_config_single(struct usb_serial_port *port,
 		u8 request, unsigned int data)
 {
 	return cp2101_set_config(port, request, &data, 2);
 }
 
-static int cp2101_open (struct usb_serial_port *port, struct file *filp)
+static int cp2101_open (struct tty_struct *tty, struct usb_serial_port *port,
+				struct file *filp)
 {
 	struct usb_serial *serial = port->serial;
 	int result;
@@ -318,10 +322,10 @@ static int cp2101_open (struct usb_serial_port *port, struct file *filp)
 	}
 
 	/* Configure the termios structure */
-	cp2101_get_termios(port);
+	cp2101_get_termios(tty);
 
 	/* Set the DTR and RTS pins low */
-	cp2101_tiocmset(port, NULL, TIOCM_DTR | TIOCM_RTS, 0);
+	cp2101_tiocmset(tty, NULL, TIOCM_DTR | TIOCM_RTS, 0);
 
 	return 0;
 }
@@ -341,7 +345,8 @@ static void cp2101_cleanup (struct usb_serial_port *port)
 	}
 }
 
-static void cp2101_close (struct usb_serial_port *port, struct file * filp)
+static void cp2101_close(struct tty_struct *tty, struct usb_serial_port *port,
+					struct file * filp)
 {
 	dbg("%s - port %d", __func__, port->number);
 
@@ -362,18 +367,14 @@ static void cp2101_close (struct usb_serial_port *port, struct file * filp)
  * from the device, corrects any unsupported values, and configures the
  * termios structure to reflect the state of the device
  */
-static void cp2101_get_termios (struct usb_serial_port *port)
+static void cp2101_get_termios (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned int cflag, modem_ctl[4];
 	unsigned int baud;
 	unsigned int bits;
 
 	dbg("%s - port %d", __func__, port->number);
-
-	if (!port->tty || !port->tty->termios) {
-		dbg("%s - no tty structures", __func__);
-		return;
-	}
 
 	cp2101_get_config(port, CP2101_BAUDRATE, &baud, 2);
 	/* Convert to baudrate */
@@ -382,8 +383,8 @@ static void cp2101_get_termios (struct usb_serial_port *port)
 
 	dbg("%s - baud rate = %d", __func__, baud);
 
-	tty_encode_baud_rate(port->tty, baud, baud);
-	cflag = port->tty->termios->c_cflag;
+	tty_encode_baud_rate(tty, baud, baud);
+	cflag = tty->termios->c_cflag;
 
 	cp2101_get_config(port, CP2101_BITS, &bits, 2);
 	cflag &= ~CSIZE;
@@ -491,11 +492,11 @@ static void cp2101_get_termios (struct usb_serial_port *port)
 		cflag &= ~CRTSCTS;
 	}
 
-	port->tty->termios->c_cflag = cflag;
+	tty->termios->c_cflag = cflag;
 }
 
-static void cp2101_set_termios (struct usb_serial_port *port,
-		struct ktermios *old_termios)
+static void cp2101_set_termios (struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	unsigned int cflag, old_cflag;
 	unsigned int baud = 0, bits;
@@ -503,15 +504,13 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (!port->tty || !port->tty->termios) {
-		dbg("%s - no tty structures", __func__);
+	if (!tty)
 		return;
-	}
-	port->tty->termios->c_cflag &= ~CMSPAR;
 
-	cflag = port->tty->termios->c_cflag;
+	tty->termios->c_cflag &= ~CMSPAR;
+	cflag = tty->termios->c_cflag;
 	old_cflag = old_termios->c_cflag;
-	baud = tty_get_baud_rate(port->tty);
+	baud = tty_get_baud_rate(tty);
 
 	/* If the baud rate is to be updated*/
 	if (baud != tty_termios_baud_rate(old_termios)) {
@@ -554,7 +553,7 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 		}
 	}
 	/* Report back the resulting baud rate */
-	tty_encode_baud_rate(port->tty, baud, baud);
+	tty_encode_baud_rate(tty, baud, baud);
 
 	/* If the number of data bits is to be updated */
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
@@ -651,9 +650,10 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 
 }
 
-static int cp2101_tiocmset (struct usb_serial_port *port, struct file *file,
+static int cp2101_tiocmset (struct tty_struct *tty, struct file *file,
 		unsigned int set, unsigned int clear)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned int control = 0;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -681,8 +681,9 @@ static int cp2101_tiocmset (struct usb_serial_port *port, struct file *file,
 
 }
 
-static int cp2101_tiocmget (struct usb_serial_port *port, struct file *file)
+static int cp2101_tiocmget (struct tty_struct *tty, struct file *file)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned int control;
 	int result;
 
@@ -702,8 +703,9 @@ static int cp2101_tiocmget (struct usb_serial_port *port, struct file *file)
 	return result;
 }
 
-static void cp2101_break_ctl (struct usb_serial_port *port, int break_state)
+static void cp2101_break_ctl (struct tty_struct *tty, int break_state)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned int state;
 
 	dbg("%s - port %d", __func__, port->number);

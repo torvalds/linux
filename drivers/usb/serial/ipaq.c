@@ -74,19 +74,21 @@ static int connect_retries = KP_RETRIES;
 static int initial_wait;
 
 /* Function prototypes for an ipaq */
-static int  ipaq_open (struct usb_serial_port *port, struct file *filp);
-static void ipaq_close (struct usb_serial_port *port, struct file *filp);
-static int  ipaq_startup (struct usb_serial *serial);
-static void ipaq_shutdown (struct usb_serial *serial);
-static int ipaq_write(struct usb_serial_port *port, const unsigned char *buf,
-		       int count);
+static int  ipaq_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp);
+static void ipaq_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp);
+static int  ipaq_startup(struct usb_serial *serial);
+static void ipaq_shutdown(struct usb_serial *serial);
+static int ipaq_write(struct tty_struct *tty, struct usb_serial_port *port,
+			const unsigned char *buf, int count);
 static int ipaq_write_bulk(struct usb_serial_port *port, const unsigned char *buf,
-			   int count);
+			int count);
 static void ipaq_write_gather(struct usb_serial_port *port);
 static void ipaq_read_bulk_callback (struct urb *urb);
 static void ipaq_write_bulk_callback(struct urb *urb);
-static int ipaq_write_room(struct usb_serial_port *port);
-static int ipaq_chars_in_buffer(struct usb_serial_port *port);
+static int ipaq_write_room(struct tty_struct *tty);
+static int ipaq_chars_in_buffer(struct tty_struct *tty);
 static void ipaq_destroy_lists(struct usb_serial_port *port);
 
 
@@ -591,7 +593,8 @@ static spinlock_t	write_list_lock;
 static int		bytes_in;
 static int		bytes_out;
 
-static int ipaq_open(struct usb_serial_port *port, struct file *filp)
+static int ipaq_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct usb_serial	*serial = port->serial;
 	struct ipaq_private	*priv;
@@ -637,10 +640,12 @@ static int ipaq_open(struct usb_serial_port *port, struct file *filp)
 	 * discipline instead of queueing.
 	 */
 
-	port->tty->low_latency = 1;
-	port->tty->raw = 1;
-	port->tty->real_raw = 1;
-
+	if (tty) {
+		tty->low_latency = 1;
+		/* FIXME: These two are bogus */
+		tty->raw = 1;
+		tty->real_raw = 1;
+	}
 	/*
 	 * Lose the small buffers usbserial provides. Make larger ones.
 	 */
@@ -714,7 +719,8 @@ error:
 }
 
 
-static void ipaq_close(struct usb_serial_port *port, struct file *filp)
+static void ipaq_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct ipaq_private	*priv = usb_get_serial_port_data(port);
 
@@ -751,7 +757,7 @@ static void ipaq_read_bulk_callback(struct urb *urb)
 
 	usb_serial_debug_data(debug, &port->dev, __func__, urb->actual_length, data);
 
-	tty = port->tty;
+	tty = port->port.tty;
 	if (tty && urb->actual_length) {
 		tty_buffer_request_room(tty, urb->actual_length);
 		tty_insert_flip_string(tty, data, urb->actual_length);
@@ -770,8 +776,8 @@ static void ipaq_read_bulk_callback(struct urb *urb)
 	return;
 }
 
-static int ipaq_write(struct usb_serial_port *port, const unsigned char *buf,
-		       int count)
+static int ipaq_write(struct tty_struct *tty, struct usb_serial_port *port,
+			const unsigned char *buf, int count)
 {
 	const unsigned char	*current_position = buf;
 	int			bytes_sent = 0;
@@ -905,16 +911,18 @@ static void ipaq_write_bulk_callback(struct urb *urb)
 	usb_serial_port_softint(port);
 }
 
-static int ipaq_write_room(struct usb_serial_port *port)
+static int ipaq_write_room(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ipaq_private	*priv = usb_get_serial_port_data(port);
 
 	dbg("%s - freelen %d", __func__, priv->free_len);
 	return priv->free_len;
 }
 
-static int ipaq_chars_in_buffer(struct usb_serial_port *port)
+static int ipaq_chars_in_buffer(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ipaq_private	*priv = usb_get_serial_port_data(port);
 
 	dbg("%s - queuelen %d", __func__, priv->queue_len);

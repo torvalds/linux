@@ -31,7 +31,7 @@
  *	Moved MOD_DEC_USE_COUNT to end of empeg_close().
  * 
  * (12/03/2000) gb
- *	Added port->tty->ldisc.set_termios(port->tty, NULL) to empeg_open()
+ *	Added port->port.tty->ldisc.set_termios(port->port.tty, NULL) to empeg_open()
  *	This notifies the tty driver that the termios have changed.
  * 
  * (11/13/2000) gb
@@ -77,22 +77,18 @@ static int debug;
 #define EMPEG_PRODUCT_ID		0x0001
 
 /* function prototypes for an empeg-car player */
-static int  empeg_open			(struct usb_serial_port *port, struct file *filp);
-static void empeg_close			(struct usb_serial_port *port, struct file *filp);
-static int  empeg_write			(struct usb_serial_port *port,
+static int  empeg_open			(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static void empeg_close			(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static int  empeg_write			(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf,
 					int count);
-static int  empeg_write_room		(struct usb_serial_port *port);
-static int  empeg_chars_in_buffer	(struct usb_serial_port *port);
-static void empeg_throttle		(struct usb_serial_port *port);
-static void empeg_unthrottle		(struct usb_serial_port *port);
+static int  empeg_write_room		(struct tty_struct *tty);
+static int  empeg_chars_in_buffer	(struct tty_struct *tty);
+static void empeg_throttle		(struct tty_struct *tty);
+static void empeg_unthrottle		(struct tty_struct *tty);
 static int  empeg_startup		(struct usb_serial *serial);
 static void empeg_shutdown		(struct usb_serial *serial);
-static int  empeg_ioctl			(struct usb_serial_port *port,
-					struct file * file,
-					unsigned int cmd,
-					unsigned long arg);
-static void empeg_set_termios		(struct usb_serial_port *port, struct ktermios *old_termios);
+static void empeg_set_termios		(struct tty_struct *tty, struct usb_serial_port *port, struct ktermios *old_termios);
 static void empeg_write_bulk_callback	(struct urb *urb);
 static void empeg_read_bulk_callback	(struct urb *urb);
 
@@ -125,7 +121,6 @@ static struct usb_serial_driver empeg_device = {
 	.unthrottle =		empeg_unthrottle,
 	.attach =		empeg_startup,
 	.shutdown =		empeg_shutdown,
-	.ioctl =		empeg_ioctl,
 	.set_termios =		empeg_set_termios,
 	.write =		empeg_write,
 	.write_room =		empeg_write_room,
@@ -145,7 +140,8 @@ static int		bytes_out;
 /******************************************************************************
  * Empeg specific driver functions
  ******************************************************************************/
-static int empeg_open (struct usb_serial_port *port, struct file *filp)
+static int empeg_open(struct tty_struct *tty, struct usb_serial_port *port,
+				struct file *filp)
 {
 	struct usb_serial *serial = port->serial;
 	int result = 0;
@@ -153,7 +149,7 @@ static int empeg_open (struct usb_serial_port *port, struct file *filp)
 	dbg("%s - port %d", __func__, port->number);
 
 	/* Force default termio settings */
-	empeg_set_termios (port, NULL) ;
+	empeg_set_termios (tty, port, NULL) ;
 
 	bytes_in = 0;
 	bytes_out = 0;
@@ -178,7 +174,8 @@ static int empeg_open (struct usb_serial_port *port, struct file *filp)
 }
 
 
-static void empeg_close (struct usb_serial_port *port, struct file * filp)
+static void empeg_close(struct tty_struct *tty, struct usb_serial_port *port,
+				struct file * filp)
 {
 	dbg("%s - port %d", __func__, port->number);
 
@@ -189,7 +186,7 @@ static void empeg_close (struct usb_serial_port *port, struct file * filp)
 }
 
 
-static int empeg_write (struct usb_serial_port *port, const unsigned char *buf, int count)
+static int empeg_write(struct tty_struct *tty, struct usb_serial_port *port, const unsigned char *buf, int count)
 {
 	struct usb_serial *serial = port->serial;
 	struct urb *urb;
@@ -203,7 +200,6 @@ static int empeg_write (struct usb_serial_port *port, const unsigned char *buf, 
 	dbg("%s - port %d", __func__, port->number);
 
 	while (count > 0) {
-
 		/* try to find a free urb in our list of them */
 		urb = NULL;
 
@@ -262,15 +258,14 @@ static int empeg_write (struct usb_serial_port *port, const unsigned char *buf, 
 		bytes_out += transfer_size;
 
 	}
-
 exit:
 	return bytes_sent;
-
 } 
 
 
-static int empeg_write_room (struct usb_serial_port *port)
+static int empeg_write_room(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned long flags;
 	int i;
 	int room = 0;
@@ -278,25 +273,22 @@ static int empeg_write_room (struct usb_serial_port *port)
 	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave (&write_urb_pool_lock, flags);
-
 	/* tally up the number of bytes available */
 	for (i = 0; i < NUM_URBS; ++i) {
 		if (write_urb_pool[i]->status != -EINPROGRESS) {
 			room += URB_TRANSFER_BUFFER_SIZE;
 		}
 	} 
-
 	spin_unlock_irqrestore (&write_urb_pool_lock, flags);
-
 	dbg("%s - returns %d", __func__, room);
-
-	return (room);
+	return room;
 
 }
 
 
-static int empeg_chars_in_buffer (struct usb_serial_port *port)
+static int empeg_chars_in_buffer(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned long flags;
 	int i;
 	int chars = 0;
@@ -356,7 +348,7 @@ static void empeg_read_bulk_callback (struct urb *urb)
 
 	usb_serial_debug_data(debug, &port->dev, __func__, urb->actual_length, data);
 
-	tty = port->tty;
+	tty = port->port.tty;
 
 	if (urb->actual_length) {
 		tty_buffer_request_room(tty, urb->actual_length);
@@ -386,27 +378,24 @@ static void empeg_read_bulk_callback (struct urb *urb)
 }
 
 
-static void empeg_throttle (struct usb_serial_port *port)
+static void empeg_throttle(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	dbg("%s - port %d", __func__, port->number);
 	usb_kill_urb(port->read_urb);
 }
 
 
-static void empeg_unthrottle (struct usb_serial_port *port)
+static void empeg_unthrottle(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	int result;
-
 	dbg("%s - port %d", __func__, port->number);
 
 	port->read_urb->dev = port->serial->dev;
-
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-
 	if (result)
 		dev_err(&port->dev, "%s - failed submitting read urb, error %d\n", __func__, result);
-
-	return;
 }
 
 
@@ -436,17 +425,10 @@ static void empeg_shutdown (struct usb_serial *serial)
 }
 
 
-static int empeg_ioctl (struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg)
+static void empeg_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
 {
-	dbg("%s - port %d, cmd 0x%.4x", __func__, port->number, cmd);
-
-	return -ENOIOCTLCMD;
-}
-
-
-static void empeg_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
-{
-	struct ktermios *termios = port->tty->termios;
+	struct ktermios *termios = tty->termios;
 	dbg("%s - port %d", __func__, port->number);
 
 	/*
@@ -491,8 +473,8 @@ static void empeg_set_termios (struct usb_serial_port *port, struct ktermios *ol
 	 * this is bad as it opens up the possibility of dropping bytes
 	 * on the floor.  We don't want to drop bytes on the floor. :)
 	 */
-	port->tty->low_latency = 1;
-	tty_encode_baud_rate(port->tty, 115200, 115200);
+	tty->low_latency = 1;
+	tty_encode_baud_rate(tty, 115200, 115200);
 }
 
 

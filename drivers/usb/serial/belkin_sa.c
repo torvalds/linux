@@ -89,14 +89,13 @@ static int debug;
 /* function prototypes for a Belkin USB Serial Adapter F5U103 */
 static int  belkin_sa_startup		(struct usb_serial *serial);
 static void belkin_sa_shutdown		(struct usb_serial *serial);
-static int  belkin_sa_open		(struct usb_serial_port *port, struct file *filp);
-static void belkin_sa_close		(struct usb_serial_port *port, struct file *filp);
+static int  belkin_sa_open		(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static void belkin_sa_close		(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
 static void belkin_sa_read_int_callback (struct urb *urb);
-static void belkin_sa_set_termios	(struct usb_serial_port *port, struct ktermios * old);
-static int  belkin_sa_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-static void belkin_sa_break_ctl		(struct usb_serial_port *port, int break_state );
-static int  belkin_sa_tiocmget		(struct usb_serial_port *port, struct file *file);
-static int  belkin_sa_tiocmset		(struct usb_serial_port *port, struct file *file, unsigned int set, unsigned int clear);
+static void belkin_sa_set_termios	(struct tty_struct *tty, struct usb_serial_port *port, struct ktermios * old);
+static void belkin_sa_break_ctl		(struct tty_struct *tty, int break_state );
+static int  belkin_sa_tiocmget		(struct tty_struct *tty, struct file *file);
+static int  belkin_sa_tiocmset		(struct tty_struct *tty, struct file *file, unsigned int set, unsigned int clear);
 
 
 static struct usb_device_id id_table_combined [] = {
@@ -132,7 +131,6 @@ static struct usb_serial_driver belkin_device = {
 	.open =			belkin_sa_open,
 	.close =		belkin_sa_close,
 	.read_int_callback =	belkin_sa_read_int_callback,	/* How we get the status info */
-	.ioctl =		belkin_sa_ioctl,
 	.set_termios =		belkin_sa_set_termios,
 	.break_ctl =		belkin_sa_break_ctl,
 	.tiocmget =		belkin_sa_tiocmget,
@@ -190,7 +188,7 @@ static int belkin_sa_startup (struct usb_serial *serial)
 }
 
 
-static void belkin_sa_shutdown (struct usb_serial *serial)
+static void belkin_sa_shutdown(struct usb_serial *serial)
 {
 	struct belkin_sa_private *priv;
 	int i;
@@ -206,7 +204,7 @@ static void belkin_sa_shutdown (struct usb_serial *serial)
 }
 
 
-static int  belkin_sa_open (struct usb_serial_port *port, struct file *filp)
+static int  belkin_sa_open(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp)
 {
 	int retval = 0;
 
@@ -235,7 +233,8 @@ exit:
 } /* belkin_sa_open */
 
 
-static void belkin_sa_close (struct usb_serial_port *port, struct file *filp)
+static void belkin_sa_close (struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	dbg("%s port %d", __func__, port->number);
 
@@ -246,7 +245,7 @@ static void belkin_sa_close (struct usb_serial_port *port, struct file *filp)
 } /* belkin_sa_close */
 
 
-static void belkin_sa_read_int_callback (struct urb *urb)
+static void belkin_sa_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct belkin_sa_private *priv;
@@ -311,7 +310,7 @@ static void belkin_sa_read_int_callback (struct urb *urb)
 	 * to look in to this before committing any code.
 	 */
 	if (priv->last_lsr & BELKIN_SA_LSR_ERR) {
-		tty = port->tty;
+		tty = port->port.tty;
 		/* Overrun Error */
 		if (priv->last_lsr & BELKIN_SA_LSR_OE) {
 		}
@@ -334,7 +333,8 @@ exit:
 		     __func__, retval);
 }
 
-static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
+static void belkin_sa_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct belkin_sa_private *priv = usb_get_serial_port_data(port);
@@ -347,7 +347,7 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 	unsigned long control_state;
 	int bad_flow_control;
 	speed_t baud;
-	struct ktermios *termios = port->tty->termios;
+	struct ktermios *termios = tty->termios;
 	
 	iflag = termios->c_iflag;
 	cflag = termios->c_cflag;
@@ -377,7 +377,7 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 		}
 	}
 
-	baud = tty_get_baud_rate(port->tty);
+	baud = tty_get_baud_rate(tty);
 	if (baud) {
 		urb_value = BELKIN_SA_BAUD(baud);
 		/* Clip to maximum speed */
@@ -387,7 +387,7 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 		baud = BELKIN_SA_BAUD(urb_value);
 
 		/* Report the actual baud rate back to the caller */
-		tty_encode_baud_rate(port->tty, baud, baud);
+		tty_encode_baud_rate(tty, baud, baud);
 		if (BSA_USB_CMD(BELKIN_SA_SET_BAUDRATE_REQUEST, urb_value) < 0)
 			err("Set baudrate error");
 	} else {
@@ -463,8 +463,9 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 } /* belkin_sa_set_termios */
 
 
-static void belkin_sa_break_ctl( struct usb_serial_port *port, int break_state )
+static void belkin_sa_break_ctl(struct tty_struct *tty, int break_state)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 
 	if (BSA_USB_CMD(BELKIN_SA_SET_BREAK_REQUEST, break_state ? 1 : 0) < 0)
@@ -472,8 +473,9 @@ static void belkin_sa_break_ctl( struct usb_serial_port *port, int break_state )
 }
 
 
-static int belkin_sa_tiocmget (struct usb_serial_port *port, struct file *file)
+static int belkin_sa_tiocmget(struct tty_struct *tty, struct file *file)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct belkin_sa_private *priv = usb_get_serial_port_data(port);
 	unsigned long control_state;
 	unsigned long flags;
@@ -488,9 +490,10 @@ static int belkin_sa_tiocmget (struct usb_serial_port *port, struct file *file)
 }
 
 
-static int belkin_sa_tiocmset (struct usb_serial_port *port, struct file *file,
+static int belkin_sa_tiocmset(struct tty_struct *tty, struct file *file,
 			       unsigned int set, unsigned int clear)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 	struct belkin_sa_private *priv = usb_get_serial_port_data(port);
 	unsigned long control_state;
@@ -540,29 +543,7 @@ exit:
 }
 
 
-static int belkin_sa_ioctl (struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-	case TIOCMIWAIT:
-		/* wait for any of the 4 modem inputs (DCD,RI,DSR,CTS)*/
-		/* TODO */
-		return( 0 );
-
-	case TIOCGICOUNT:
-		/* return count of modemline transitions */
-		/* TODO */
-		return 0;
-
-	default:
-		dbg("belkin_sa_ioctl arg not supported - 0x%04x",cmd);
-		return(-ENOIOCTLCMD);
-		break;
-	}
-	return 0;
-} /* belkin_sa_ioctl */
-
-
-static int __init belkin_sa_init (void)
+static int __init belkin_sa_init(void)
 {
 	int retval;
 	retval = usb_serial_register(&belkin_device);
@@ -583,7 +564,7 @@ failed_usb_serial_register:
 static void __exit belkin_sa_exit (void)
 {
 	usb_deregister (&belkin_driver);
-	usb_serial_deregister (&belkin_device);
+	usb_serial_deregister(&belkin_device);
 }
 
 

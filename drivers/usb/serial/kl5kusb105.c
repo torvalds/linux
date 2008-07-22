@@ -74,29 +74,33 @@ static int debug;
  */
 static int  klsi_105_startup	         (struct usb_serial *serial);
 static void klsi_105_shutdown	         (struct usb_serial *serial);
-static int  klsi_105_open	         (struct usb_serial_port *port,
+static int  klsi_105_open	         (struct tty_struct *tty,
+					  struct usb_serial_port *port,
 					  struct file *filp);
-static void klsi_105_close	         (struct usb_serial_port *port,
+static void klsi_105_close	         (struct tty_struct *tty,
+					  struct usb_serial_port *port,
 					  struct file *filp);
-static int  klsi_105_write	         (struct usb_serial_port *port,
+static int  klsi_105_write	         (struct tty_struct *tty,
+					  struct usb_serial_port *port,
 					  const unsigned char *buf,
 					  int count);
 static void klsi_105_write_bulk_callback (struct urb *urb);
-static int  klsi_105_chars_in_buffer     (struct usb_serial_port *port);
-static int  klsi_105_write_room          (struct usb_serial_port *port);
+static int  klsi_105_chars_in_buffer     (struct tty_struct *tty);
+static int  klsi_105_write_room          (struct tty_struct *tty);
 
 static void klsi_105_read_bulk_callback  (struct urb *urb);
-static void klsi_105_set_termios         (struct usb_serial_port *port,
+static void klsi_105_set_termios         (struct tty_struct *tty,
+					  struct usb_serial_port *port,
 					  struct ktermios *old);
-static void klsi_105_throttle		 (struct usb_serial_port *port);
-static void klsi_105_unthrottle		 (struct usb_serial_port *port);
+static void klsi_105_throttle		 (struct tty_struct *tty);
+static void klsi_105_unthrottle		 (struct tty_struct *tty);
 /*
-static void klsi_105_break_ctl	         (struct usb_serial_port *port,
+static void klsi_105_break_ctl	         (struct tty_struct *tty,
 					  int break_state );
  */
-static int  klsi_105_tiocmget	         (struct usb_serial_port *port,
+static int  klsi_105_tiocmget	         (struct tty_struct *tty,
 					  struct file *file);
-static int  klsi_105_tiocmset	         (struct usb_serial_port *port,
+static int  klsi_105_tiocmset	         (struct tty_struct *tty,
 					  struct file *file, unsigned int set,
 					  unsigned int clear);
 
@@ -361,7 +365,8 @@ static void klsi_105_shutdown (struct usb_serial *serial)
 	}
 } /* klsi_105_shutdown */
 
-static int  klsi_105_open (struct usb_serial_port *port, struct file *filp)
+static int  klsi_105_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	int retval = 0;
@@ -375,7 +380,7 @@ static int  klsi_105_open (struct usb_serial_port *port, struct file *filp)
 
 	/* force low_latency on so that our tty_push actually forces
 	 * the data through
-	 * port->tty->low_latency = 1; */
+	 * tty->low_latency = 1; */
 
 	/* Do a defined restart:
 	 * Set up sane default baud rate and send the 'READ_ON'
@@ -393,12 +398,12 @@ static int  klsi_105_open (struct usb_serial_port *port, struct file *filp)
 	
 	/* set up termios structure */
 	spin_lock_irqsave (&priv->lock, flags);
-	priv->termios.c_iflag = port->tty->termios->c_iflag;
-	priv->termios.c_oflag = port->tty->termios->c_oflag;
-	priv->termios.c_cflag = port->tty->termios->c_cflag;
-	priv->termios.c_lflag = port->tty->termios->c_lflag;
+	priv->termios.c_iflag = tty->termios->c_iflag;
+	priv->termios.c_oflag = tty->termios->c_oflag;
+	priv->termios.c_cflag = tty->termios->c_cflag;
+	priv->termios.c_lflag = tty->termios->c_lflag;
 	for (i=0; i<NCCS; i++)
-		priv->termios.c_cc[i] = port->tty->termios->c_cc[i];
+		priv->termios.c_cc[i] = tty->termios->c_cc[i];
 	priv->cfg.pktlen   = cfg.pktlen;
 	priv->cfg.baudrate = cfg.baudrate;
 	priv->cfg.databits = cfg.databits;
@@ -452,7 +457,8 @@ exit:
 } /* klsi_105_open */
 
 
-static void klsi_105_close (struct usb_serial_port *port, struct file *filp)
+static void klsi_105_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	int rc;
@@ -493,8 +499,8 @@ static void klsi_105_close (struct usb_serial_port *port, struct file *filp)
 #define KLSI_105_DATA_OFFSET	2   /* in the bulk urb data block */
 
 
-static int klsi_105_write (struct usb_serial_port *port,
-			   const unsigned char *buf, int count)
+static int klsi_105_write(struct tty_struct *tty,
+	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	int result, size;
@@ -584,8 +590,9 @@ static void klsi_105_write_bulk_callback ( struct urb *urb)
 
 
 /* return number of characters currently in the writing process */
-static int klsi_105_chars_in_buffer (struct usb_serial_port *port)
+static int klsi_105_chars_in_buffer (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	int chars = 0;
 	int i;
 	unsigned long flags;
@@ -605,8 +612,9 @@ static int klsi_105_chars_in_buffer (struct usb_serial_port *port)
 	return (chars);
 }
 
-static int klsi_105_write_room (struct usb_serial_port *port)
+static int klsi_105_write_room (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned long flags;
 	int i;
 	int room = 0;
@@ -660,7 +668,7 @@ static void klsi_105_read_bulk_callback (struct urb *urb)
 	} else {
 		int bytes_sent = ((__u8 *) data)[0] +
 				 ((unsigned int) ((__u8 *) data)[1] << 8);
-		tty = port->tty;
+		tty = port->port.tty;
 		/* we should immediately resubmit the URB, before attempting
 		 * to pass the data on to the tty layer. But that needs locking
 		 * against re-entry an then mixed-up data because of
@@ -699,11 +707,11 @@ static void klsi_105_read_bulk_callback (struct urb *urb)
 } /* klsi_105_read_bulk_callback */
 
 
-static void klsi_105_set_termios (struct usb_serial_port *port,
+static void klsi_105_set_termios (struct tty_struct *tty,
+				  struct usb_serial_port *port,
 				  struct ktermios *old_termios)
 {
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty = port->tty;
 	unsigned int iflag = tty->termios->c_iflag;
 	unsigned int old_iflag = old_termios->c_iflag;
 	unsigned int cflag = tty->termios->c_cflag;
@@ -863,8 +871,9 @@ static void klsi_105_set_termios (struct usb_serial_port *port,
 
 
 #if 0
-static void mct_u232_break_ctl( struct usb_serial_port *port, int break_state )
+static void mct_u232_break_ctl( struct tty_struct *tty, int break_state )
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 	struct mct_u232_private *priv = (struct mct_u232_private *)port->private;
 	unsigned char lcr = priv->last_lcr;
@@ -878,8 +887,9 @@ static void mct_u232_break_ctl( struct usb_serial_port *port, int break_state )
 } /* mct_u232_break_ctl */
 #endif
 
-static int klsi_105_tiocmget (struct usb_serial_port *port, struct file *file)
+static int klsi_105_tiocmget (struct tty_struct *tty, struct file *file)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int rc;
@@ -900,7 +910,7 @@ static int klsi_105_tiocmget (struct usb_serial_port *port, struct file *file)
 	return (int)line_state;
 }
 
-static int klsi_105_tiocmset (struct usb_serial_port *port, struct file *file,
+static int klsi_105_tiocmset (struct tty_struct *tty, struct file *file,
 			      unsigned int set, unsigned int clear)
 {
 	int retval = -EINVAL;
@@ -929,14 +939,16 @@ static int klsi_105_tiocmset (struct usb_serial_port *port, struct file *file,
 	return retval;
 }
 
-static void klsi_105_throttle (struct usb_serial_port *port)
+static void klsi_105_throttle (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	dbg("%s - port %d", __func__, port->number);
 	usb_kill_urb(port->read_urb);
 }
 
-static void klsi_105_unthrottle (struct usb_serial_port *port)
+static void klsi_105_unthrottle (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	int result;
 
 	dbg("%s - port %d", __func__, port->number);

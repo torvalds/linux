@@ -229,8 +229,8 @@ static void safe_read_bulk_callback (struct urb *urb)
 			int actual_length = data[length - 2] >> 2;
 			if (actual_length <= (length - 2)) {
 				info ("%s - actual: %d", __func__, actual_length);
-				tty_insert_flip_string(port->tty, data, actual_length);
-				tty_flip_buffer_push (port->tty);
+				tty_insert_flip_string(port->port.tty, data, actual_length);
+				tty_flip_buffer_push (port->port.tty);
 			} else {
 				err ("%s - inconsistent lengths %d:%d", __func__,
 				     actual_length, length);
@@ -239,8 +239,8 @@ static void safe_read_bulk_callback (struct urb *urb)
 			err ("%s - bad CRC %x", __func__, fcs);
 		}
 	} else {
-		tty_insert_flip_string(port->tty, data, length);
-		tty_flip_buffer_push (port->tty);
+		tty_insert_flip_string(port->port.tty, data, length);
+		tty_flip_buffer_push (port->port.tty);
 	}
 
 	/* Continue trying to always read  */
@@ -255,7 +255,8 @@ static void safe_read_bulk_callback (struct urb *urb)
 	}
 }
 
-static int safe_write (struct usb_serial_port *port, const unsigned char *buf, int count)
+static int safe_write(struct tty_struct *tty, struct usb_serial_port *port,
+					const unsigned char *buf, int count)
 {
 	unsigned char *data;
 	int result;
@@ -349,8 +350,9 @@ static int safe_write (struct usb_serial_port *port, const unsigned char *buf, i
 	return (count);
 }
 
-static int safe_write_room (struct usb_serial_port *port)
+static int safe_write_room(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	int room = 0;		/* Default: no room */
 	unsigned long flags;
 

@@ -142,18 +142,18 @@ static int  whiteheat_firmware_attach	(struct usb_serial *serial);
 /* function prototypes for the Connect Tech WhiteHEAT serial converter */
 static int  whiteheat_attach		(struct usb_serial *serial);
 static void whiteheat_shutdown		(struct usb_serial *serial);
-static int  whiteheat_open		(struct usb_serial_port *port, struct file *filp);
-static void whiteheat_close		(struct usb_serial_port *port, struct file *filp);
-static int  whiteheat_write		(struct usb_serial_port *port, const unsigned char *buf, int count);
-static int  whiteheat_write_room	(struct usb_serial_port *port);
-static int  whiteheat_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-static void whiteheat_set_termios	(struct usb_serial_port *port, struct ktermios * old);
-static int  whiteheat_tiocmget		(struct usb_serial_port *port, struct file *file);
-static int  whiteheat_tiocmset		(struct usb_serial_port *port, struct file *file, unsigned int set, unsigned int clear);
-static void whiteheat_break_ctl		(struct usb_serial_port *port, int break_state);
-static int  whiteheat_chars_in_buffer	(struct usb_serial_port *port);
-static void whiteheat_throttle		(struct usb_serial_port *port);
-static void whiteheat_unthrottle	(struct usb_serial_port *port);
+static int  whiteheat_open		(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static void whiteheat_close		(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static int  whiteheat_write		(struct tty_struct *tty, struct usb_serial_port *port, const unsigned char *buf, int count);
+static int  whiteheat_write_room	(struct tty_struct *tty);
+static int  whiteheat_ioctl		(struct tty_struct *tty, struct file * file, unsigned int cmd, unsigned long arg);
+static void whiteheat_set_termios	(struct tty_struct *tty, struct usb_serial_port *port, struct ktermios * old);
+static int  whiteheat_tiocmget		(struct tty_struct *tty, struct file *file);
+static int  whiteheat_tiocmset		(struct tty_struct *tty, struct file *file, unsigned int set, unsigned int clear);
+static void whiteheat_break_ctl		(struct tty_struct *tty, int break_state);
+static int  whiteheat_chars_in_buffer	(struct tty_struct *tty);
+static void whiteheat_throttle		(struct tty_struct *tty);
+static void whiteheat_unthrottle	(struct tty_struct *tty);
 static void whiteheat_read_callback	(struct urb *urb);
 static void whiteheat_write_callback	(struct urb *urb);
 
@@ -246,7 +246,7 @@ static void rx_data_softint(struct work_struct *work);
 static int firm_send_command(struct usb_serial_port *port, __u8 command, __u8 *data, __u8 datasize);
 static int firm_open(struct usb_serial_port *port);
 static int firm_close(struct usb_serial_port *port);
-static int firm_setup_port(struct usb_serial_port *port);
+static int firm_setup_port(struct tty_struct *tty);
 static int firm_set_rts(struct usb_serial_port *port, __u8 onoff);
 static int firm_set_dtr(struct usb_serial_port *port, __u8 onoff);
 static int firm_set_break(struct usb_serial_port *port, __u8 onoff);
@@ -613,7 +613,8 @@ static void whiteheat_shutdown (struct usb_serial *serial)
 }
 
 
-static int whiteheat_open (struct usb_serial_port *port, struct file *filp)
+static int whiteheat_open (struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	int		retval = 0;
 	struct ktermios	old_term;
@@ -624,7 +625,8 @@ static int whiteheat_open (struct usb_serial_port *port, struct file *filp)
 	if (retval)
 		goto exit;
 
-	port->tty->low_latency = 1;
+	if (tty)
+		tty->low_latency = 1;
 
 	/* send an open port command */
 	retval = firm_open(port);
@@ -640,9 +642,11 @@ static int whiteheat_open (struct usb_serial_port *port, struct file *filp)
 		goto exit;
 	}
 
-	old_term.c_cflag = ~port->tty->termios->c_cflag;
-	old_term.c_iflag = ~port->tty->termios->c_iflag;
-	whiteheat_set_termios(port, &old_term);
+	if (tty) {
+		old_term.c_cflag = ~tty->termios->c_cflag;
+		old_term.c_iflag = ~tty->termios->c_iflag;
+		whiteheat_set_termios(tty, port, &old_term);
+	}
 
 	/* Work around HCD bugs */
 	usb_clear_halt(port->serial->dev, port->read_urb->pipe);
@@ -663,7 +667,8 @@ exit:
 }
 
 
-static void whiteheat_close(struct usb_serial_port *port, struct file * filp)
+static void whiteheat_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file * filp)
 {
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	struct whiteheat_urb_wrap *wrap;
@@ -681,7 +686,7 @@ static void whiteheat_close(struct usb_serial_port *port, struct file * filp)
 	}
 	mutex_unlock(&port->serial->disc_mutex);
 
-	port->tty->closing = 1;
+	tty->closing = 1;
 
 /*
  * Not currently in use; tty_wait_until_sent() calls
@@ -689,12 +694,12 @@ static void whiteheat_close(struct usb_serial_port *port, struct file * filp)
  * acquisition. This should be fixed at some point. Greg's been
  * notified.
 	if ((filp->f_flags & (O_NDELAY | O_NONBLOCK)) == 0) {
-		tty_wait_until_sent(port->tty, CLOSING_DELAY);
+		tty_wait_until_sent(tty, CLOSING_DELAY);
 	}
 */
 
-	tty_driver_flush_buffer(port->tty);
-	tty_ldisc_flush(port->tty);
+	tty_driver_flush_buffer(tty);
+	tty_ldisc_flush(tty);
 
 	firm_report_tx_done(port);
 
@@ -728,11 +733,12 @@ static void whiteheat_close(struct usb_serial_port *port, struct file * filp)
 
 	stop_command_port(port->serial);
 
-	port->tty->closing = 0;
+	tty->closing = 0;
 }
 
 
-static int whiteheat_write(struct usb_serial_port *port, const unsigned char *buf, int count)
+static int whiteheat_write(struct tty_struct *tty,
+	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
 	struct usb_serial *serial = port->serial;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
@@ -791,8 +797,9 @@ static int whiteheat_write(struct usb_serial_port *port, const unsigned char *bu
 }
 
 
-static int whiteheat_write_room(struct usb_serial_port *port)
+static int whiteheat_write_room(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	struct list_head *tmp;
 	int room = 0;
@@ -811,8 +818,9 @@ static int whiteheat_write_room(struct usb_serial_port *port)
 }
 
 
-static int whiteheat_tiocmget (struct usb_serial_port *port, struct file *file)
+static int whiteheat_tiocmget (struct tty_struct *tty, struct file *file)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	unsigned int modem_signals = 0;
 
@@ -828,9 +836,10 @@ static int whiteheat_tiocmget (struct usb_serial_port *port, struct file *file)
 }
 
 
-static int whiteheat_tiocmset (struct usb_serial_port *port, struct file *file,
+static int whiteheat_tiocmset (struct tty_struct *tty, struct file *file,
 			       unsigned int set, unsigned int clear)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 
 	dbg("%s - port %d", __func__, port->number);
@@ -851,8 +860,9 @@ static int whiteheat_tiocmset (struct usb_serial_port *port, struct file *file,
 }
 
 
-static int whiteheat_ioctl (struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg)
+static int whiteheat_ioctl (struct tty_struct *tty, struct file * file, unsigned int cmd, unsigned long arg)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct serial_struct serstruct;
 	void __user *user_arg = (void __user *)arg;
 
@@ -896,20 +906,21 @@ static int whiteheat_ioctl (struct usb_serial_port *port, struct file * file, un
 }
 
 
-static void whiteheat_set_termios(struct usb_serial_port *port, struct ktermios *old_termios)
+static void whiteheat_set_termios(struct tty_struct *tty, struct usb_serial_port *port, struct ktermios *old_termios)
 {
-	dbg("%s -port %d", __func__, port->number);
-	firm_setup_port(port);
+	firm_setup_port(tty);
 }
 
 
-static void whiteheat_break_ctl(struct usb_serial_port *port, int break_state) {
+static void whiteheat_break_ctl(struct tty_struct *tty, int break_state) {
+	struct usb_serial_port *port = tty->driver_data;
 	firm_set_break(port, break_state);
 }
 
 
-static int whiteheat_chars_in_buffer(struct usb_serial_port *port)
+static int whiteheat_chars_in_buffer(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	struct list_head *tmp;
 	struct whiteheat_urb_wrap *wrap;
@@ -930,8 +941,9 @@ static int whiteheat_chars_in_buffer(struct usb_serial_port *port)
 }
 
 
-static void whiteheat_throttle (struct usb_serial_port *port)
+static void whiteheat_throttle (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	unsigned long flags;
 
@@ -945,8 +957,9 @@ static void whiteheat_throttle (struct usb_serial_port *port)
 }
 
 
-static void whiteheat_unthrottle (struct usb_serial_port *port)
+static void whiteheat_unthrottle (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	int actually_throttled;
 	unsigned long flags;
@@ -1184,9 +1197,10 @@ static int firm_close(struct usb_serial_port *port) {
 }
 
 
-static int firm_setup_port(struct usb_serial_port *port) {
+static int firm_setup_port(struct tty_struct *tty) {
+	struct usb_serial_port *port = tty->driver_data;
 	struct whiteheat_port_settings port_settings;
-	unsigned int cflag = port->tty->termios->c_cflag;
+	unsigned int cflag = tty->termios->c_cflag;
 
 	port_settings.port = port->number + 1;
 
@@ -1235,22 +1249,22 @@ static int firm_setup_port(struct usb_serial_port *port) {
 	    (port_settings.hflow & WHITEHEAT_HFLOW_DTR) ? "DTR" : "");
 	
 	/* determine software flow control */
-	if (I_IXOFF(port->tty))
+	if (I_IXOFF(tty))
 		port_settings.sflow = WHITEHEAT_SFLOW_RXTX;
 	else
 		port_settings.sflow = WHITEHEAT_SFLOW_NONE;
 	dbg("%s - software flow control = %c", __func__, port_settings.sflow);
 	
-	port_settings.xon = START_CHAR(port->tty);
-	port_settings.xoff = STOP_CHAR(port->tty);
+	port_settings.xon = START_CHAR(tty);
+	port_settings.xoff = STOP_CHAR(tty);
 	dbg("%s - XON = %2x, XOFF = %2x", __func__, port_settings.xon, port_settings.xoff);
 
 	/* get the baud rate wanted */
-	port_settings.baud = tty_get_baud_rate(port->tty);
+	port_settings.baud = tty_get_baud_rate(tty);
 	dbg("%s - baud rate = %d", __func__, port_settings.baud);
 
 	/* fixme: should set validated settings */
-	tty_encode_baud_rate(port->tty, port_settings.baud, port_settings.baud);
+	tty_encode_baud_rate(tty, port_settings.baud, port_settings.baud);
 	/* handle any settings that aren't specified in the tty structure */
 	port_settings.lloop = 0;
 	
@@ -1426,7 +1440,7 @@ static void rx_data_softint(struct work_struct *work)
 	struct whiteheat_private *info =
 		container_of(work, struct whiteheat_private, rx_work);
 	struct usb_serial_port *port = info->port;
-	struct tty_struct *tty = port->tty;
+	struct tty_struct *tty = port->port.tty;
 	struct whiteheat_urb_wrap *wrap;
 	struct urb *urb;
 	unsigned long flags;

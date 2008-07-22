@@ -43,29 +43,23 @@
 #include <linux/usb/serial.h>
 
 /* Function prototypes */
-static int  option_open(struct usb_serial_port *port, struct file *filp);
-static void option_close(struct usb_serial_port *port, struct file *filp);
+static int  option_open(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static void option_close(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
 static int  option_startup(struct usb_serial *serial);
 static void option_shutdown(struct usb_serial *serial);
-static void option_rx_throttle(struct usb_serial_port *port);
-static void option_rx_unthrottle(struct usb_serial_port *port);
-static int  option_write_room(struct usb_serial_port *port);
+static int  option_write_room(struct tty_struct *tty);
 
 static void option_instat_callback(struct urb *urb);
 
-static int option_write(struct usb_serial_port *port,
+static int option_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
-
-static int  option_chars_in_buffer(struct usb_serial_port *port);
-static int  option_ioctl(struct usb_serial_port *port, struct file *file,
-			unsigned int cmd, unsigned long arg);
-static void option_set_termios(struct usb_serial_port *port,
-				struct ktermios *old);
-static void option_break_ctl(struct usb_serial_port *port, int break_state);
-static int  option_tiocmget(struct usb_serial_port *port, struct file *file);
-static int  option_tiocmset(struct usb_serial_port *port, struct file *file,
+static int  option_chars_in_buffer(struct tty_struct *tty);
+static void option_set_termios(struct tty_struct *tty,
+			struct usb_serial_port *port, struct ktermios *old);
+static int  option_tiocmget(struct tty_struct *tty, struct file *file);
+static int  option_tiocmset(struct tty_struct *tty, struct file *file,
 				unsigned int set, unsigned int clear);
-static int  option_send_setup(struct usb_serial_port *port);
+static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *port);
 
 /* Vendor and product IDs */
 #define OPTION_VENDOR_ID			0x0AF0
@@ -342,11 +336,7 @@ static struct usb_serial_driver option_1port_device = {
 	.write             = option_write,
 	.write_room        = option_write_room,
 	.chars_in_buffer   = option_chars_in_buffer,
-	.throttle          = option_rx_throttle,
-	.unthrottle        = option_rx_unthrottle,
-	.ioctl             = option_ioctl,
 	.set_termios       = option_set_termios,
-	.break_ctl         = option_break_ctl,
 	.tiocmget          = option_tiocmget,
 	.tiocmset          = option_tiocmset,
 	.attach            = option_startup,
@@ -417,33 +407,18 @@ static void __exit option_exit(void)
 module_init(option_init);
 module_exit(option_exit);
 
-static void option_rx_throttle(struct usb_serial_port *port)
-{
-	dbg("%s", __func__);
-}
-
-static void option_rx_unthrottle(struct usb_serial_port *port)
-{
-	dbg("%s", __func__);
-}
-
-static void option_break_ctl(struct usb_serial_port *port, int break_state)
-{
-	/* Unfortunately, I don't know how to send a break */
-	dbg("%s", __func__);
-}
-
-static void option_set_termios(struct usb_serial_port *port,
-			struct ktermios *old_termios)
+static void option_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	dbg("%s", __func__);
 	/* Doesn't support option setting */
-	tty_termios_copy_hw(port->tty->termios, old_termios);
-	option_send_setup(port);
+	tty_termios_copy_hw(tty->termios, old_termios);
+	option_send_setup(tty, port);
 }
 
-static int option_tiocmget(struct usb_serial_port *port, struct file *file)
+static int option_tiocmget(struct tty_struct *tty, struct file *file)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned int value;
 	struct option_port_private *portdata;
 
@@ -459,9 +434,10 @@ static int option_tiocmget(struct usb_serial_port *port, struct file *file)
 	return value;
 }
 
-static int option_tiocmset(struct usb_serial_port *port, struct file *file,
+static int option_tiocmset(struct tty_struct *tty, struct file *file,
 			unsigned int set, unsigned int clear)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct option_port_private *portdata;
 
 	portdata = usb_get_serial_port_data(port);
@@ -476,17 +452,11 @@ static int option_tiocmset(struct usb_serial_port *port, struct file *file,
 		portdata->rts_state = 0;
 	if (clear & TIOCM_DTR)
 		portdata->dtr_state = 0;
-	return option_send_setup(port);
-}
-
-static int option_ioctl(struct usb_serial_port *port, struct file *file,
-			unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
+	return option_send_setup(tty, port);
 }
 
 /* Write */
-static int option_write(struct usb_serial_port *port,
+static int option_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count)
 {
 	struct option_port_private *portdata;
@@ -562,7 +532,7 @@ static void option_indat_callback(struct urb *urb)
 		dbg("%s: nonzero status: %d on endpoint %02x.",
 		    __func__, status, endpoint);
 	} else {
-		tty = port->tty;
+		tty = port->port.tty;
 		if (urb->actual_length) {
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
@@ -572,7 +542,7 @@ static void option_indat_callback(struct urb *urb)
 		}
 
 		/* Resubmit urb so we continue receiving */
-		if (port->open_count && status != -ESHUTDOWN) {
+		if (port->port.count && status != -ESHUTDOWN) {
 			err = usb_submit_urb(urb, GFP_ATOMIC);
 			if (err)
 				printk(KERN_ERR "%s: resubmit read urb failed. "
@@ -638,9 +608,9 @@ static void option_instat_callback(struct urb *urb)
 			portdata->dsr_state = ((signals & 0x02) ? 1 : 0);
 			portdata->ri_state = ((signals & 0x08) ? 1 : 0);
 
-			if (port->tty && !C_CLOCAL(port->tty) &&
+			if (port->port.tty && !C_CLOCAL(port->port.tty) &&
 					old_dcd_state && !portdata->dcd_state)
-				tty_hangup(port->tty);
+				tty_hangup(port->port.tty);
 		} else {
 			dbg("%s: type %x req %x", __func__,
 				req_pkt->bRequestType,req_pkt->bRequest);
@@ -658,8 +628,9 @@ static void option_instat_callback(struct urb *urb)
 	}
 }
 
-static int option_write_room(struct usb_serial_port *port)
+static int option_write_room(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct option_port_private *portdata;
 	int i;
 	int data_len = 0;
@@ -678,8 +649,9 @@ static int option_write_room(struct usb_serial_port *port)
 	return data_len;
 }
 
-static int option_chars_in_buffer(struct usb_serial_port *port)
+static int option_chars_in_buffer(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct option_port_private *portdata;
 	int i;
 	int data_len = 0;
@@ -698,7 +670,8 @@ static int option_chars_in_buffer(struct usb_serial_port *port)
 	return data_len;
 }
 
-static int option_open(struct usb_serial_port *port, struct file *filp)
+static int option_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct option_port_private *portdata;
 	struct usb_serial *serial = port->serial;
@@ -748,14 +721,16 @@ static int option_open(struct usb_serial_port *port, struct file *filp)
 				usb_pipeout(urb->pipe), 0); */
 	}
 
-	port->tty->low_latency = 1;
+	if (tty)
+		tty->low_latency = 1;
 
-	option_send_setup(port);
+	option_send_setup(tty, port);
 
 	return (0);
 }
 
-static void option_close(struct usb_serial_port *port, struct file *filp)
+static void option_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	int i;
 	struct usb_serial *serial = port->serial;
@@ -770,7 +745,7 @@ static void option_close(struct usb_serial_port *port, struct file *filp)
 	if (serial->dev) {
 		mutex_lock(&serial->disc_mutex);
 		if (!serial->disconnected)
-			option_send_setup(port);
+			option_send_setup(tty, port);
 		mutex_unlock(&serial->disc_mutex);
 
 		/* Stop reading/writing urbs */
@@ -779,7 +754,7 @@ static void option_close(struct usb_serial_port *port, struct file *filp)
 		for (i = 0; i < N_OUT_URB; i++)
 			usb_kill_urb(portdata->out_urbs[i]);
 	}
-	port->tty = NULL;
+	port->port.tty = NULL;	/* FIXME */
 }
 
 /* Helper functions used by option_setup_urbs */
@@ -841,7 +816,8 @@ static void option_setup_urbs(struct usb_serial *serial)
  * This is exactly the same as SET_CONTROL_LINE_STATE from the PSTN
  * CDC.
 */
-static int option_send_setup(struct usb_serial_port *port)
+static int option_send_setup(struct tty_struct *tty,
+						struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct option_port_private *portdata;
@@ -850,7 +826,7 @@ static int option_send_setup(struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
-	if (port->tty) {
+	if (tty) {
 		int val = 0;
 		if (portdata->dtr_state)
 			val |= 0x01;
@@ -861,7 +837,6 @@ static int option_send_setup(struct usb_serial_port *port)
 				usb_rcvctrlpipe(serial->dev, 0),
 				0x22,0x21,val,ifNum,NULL,0,USB_CTRL_SET_TIMEOUT);
 	}
-
 	return 0;
 }
 

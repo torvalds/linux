@@ -179,7 +179,7 @@ static void ipw_read_bulk_callback(struct urb *urb)
 
 	usb_serial_debug_data(debug, &port->dev, __func__, urb->actual_length, data);
 
-	tty = port->tty;
+	tty = port->port.tty;
 	if (tty && urb->actual_length) {
 		tty_buffer_request_room(tty, urb->actual_length);
 		tty_insert_flip_string(tty, data, urb->actual_length);
@@ -199,7 +199,8 @@ static void ipw_read_bulk_callback(struct urb *urb)
 	return;
 }
 
-static int ipw_open(struct usb_serial_port *port, struct file *filp)
+static int ipw_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct usb_device *dev = port->serial->dev;
 	u8 buf_flow_static[16] = IPW_BYTES_FLOWINIT;
@@ -212,8 +213,8 @@ static int ipw_open(struct usb_serial_port *port, struct file *filp)
 	if (!buf_flow_init)
 		return -ENOMEM;
 
-	if (port->tty)
-		port->tty->low_latency = 1;
+	if (tty)
+		tty->low_latency = 1;
 
 	/* --1: Tell the modem to initialize (we think) From sniffs this is always the
 	 * first thing that gets sent to the modem during opening of the device */
@@ -301,7 +302,8 @@ static int ipw_open(struct usb_serial_port *port, struct file *filp)
 	return 0;
 }
 
-static void ipw_close(struct usb_serial_port *port, struct file * filp)
+static void ipw_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file * filp)
 {
 	struct usb_device *dev = port->serial->dev;
 	int result;
@@ -384,7 +386,8 @@ static void ipw_write_bulk_callback(struct urb *urb)
 	usb_serial_port_softint(port);
 }
 
-static int ipw_write(struct usb_serial_port *port, const unsigned char *buf, int count)
+static int ipw_write(struct tty_struct *tty, struct usb_serial_port *port,
+					const unsigned char *buf, int count)
 {
 	struct usb_device *dev = port->serial->dev;
 	int ret;

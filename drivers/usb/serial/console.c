@@ -145,12 +145,12 @@ static int usb_console_setup(struct console *co, char *options)
 	}
 
 	port = serial->port[0];
-	port->tty = NULL;
+	port->port.tty = NULL;
 
 	info->port = port;
 	 
-	++port->open_count;
-	if (port->open_count == 1) {
+	++port->port.count;
+	if (port->port.count == 1) {
 		if (serial->type->set_termios) {
 			/*
 			 * allocate a fake tty so the driver can initialize
@@ -171,15 +171,15 @@ static int usb_console_setup(struct console *co, char *options)
 			}
 			memset(&dummy, 0, sizeof(struct ktermios));
 			tty->termios = termios;
-			port->tty = tty;
+			port->port.tty = tty;
 		}
 
 		/* only call the device specific open if this 
 		 * is the first time the port is opened */
 		if (serial->type->open)
-			retval = serial->type->open(port, NULL);
+			retval = serial->type->open(NULL, port, NULL);
 		else
-			retval = usb_serial_generic_open(port, NULL);
+			retval = usb_serial_generic_open(NULL, port, NULL);
 
 		if (retval) {
 			err("could not open USB console port");
@@ -188,9 +188,9 @@ static int usb_console_setup(struct console *co, char *options)
 
 		if (serial->type->set_termios) {
 			termios->c_cflag = cflag;
-			serial->type->set_termios(port, &dummy);
+			serial->type->set_termios(NULL, port, &dummy);
 
-			port->tty = NULL;
+			port->port.tty = NULL;
 			kfree(termios);
 			kfree(tty);
 		}
@@ -203,11 +203,11 @@ out:
 	return retval;
 free_termios:
 	kfree(termios);
-	port->tty = NULL;
+	port->port.tty = NULL;
 free_tty:
 	kfree(tty);
 reset_open_count:
-	port->open_count = 0;
+	port->port.count = 0;
 goto out;
 }
 
@@ -227,7 +227,7 @@ static void usb_console_write(struct console *co, const char *buf, unsigned coun
 
 	dbg("%s - port %d, %d byte(s)", __func__, port->number, count);
 
-	if (!port->open_count) {
+	if (!port->port.count) {
 		dbg ("%s - port not opened", __func__);
 		return;
 	}
@@ -245,17 +245,17 @@ static void usb_console_write(struct console *co, const char *buf, unsigned coun
 		}
 		/* pass on to the driver specific version of this function if it is available */
 		if (serial->type->write)
-			retval = serial->type->write(port, buf, i);
+			retval = serial->type->write(NULL, port, buf, i);
 		else
-			retval = usb_serial_generic_write(port, buf, i);
+			retval = usb_serial_generic_write(NULL, port, buf, i);
 		dbg("%s - return value : %d", __func__, retval);
 		if (lf) {
 			/* append CR after LF */
 			unsigned char cr = 13;
 			if (serial->type->write)
-				retval = serial->type->write(port, &cr, 1);
+				retval = serial->type->write(NULL, port, &cr, 1);
 			else
-				retval = usb_serial_generic_write(port, &cr, 1);
+				retval = usb_serial_generic_write(NULL, port, &cr, 1);
 			dbg("%s - return value : %d", __func__, retval);
 		}
 		buf += i;
@@ -306,8 +306,8 @@ void usb_serial_console_exit (void)
 {
 	if (usbcons_info.port) {
 		unregister_console(&usbcons);
-		if (usbcons_info.port->open_count)
-			usbcons_info.port->open_count--;
+		if (usbcons_info.port->port.count)
+			usbcons_info.port->port.count--;
 		usbcons_info.port = NULL;
 	}
 }

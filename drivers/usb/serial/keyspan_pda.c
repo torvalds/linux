@@ -171,7 +171,7 @@ static void keyspan_pda_wakeup_write(struct work_struct *work)
 		container_of(work, struct keyspan_pda_private, wakeup_work);
 	struct usb_serial_port *port = priv->port;
 
-	tty_wakeup(port->tty);
+	tty_wakeup(port->port.tty);
 }
 
 static void keyspan_pda_request_unthrottle(struct work_struct *work)
@@ -203,7 +203,7 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 static void keyspan_pda_rx_interrupt (struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-       	struct tty_struct *tty = port->tty;
+       	struct tty_struct *tty = port->port.tty;
 	unsigned char *data = urb->transfer_buffer;
 	int i;
 	int retval;
@@ -266,7 +266,7 @@ exit:
 }
 
 
-static void keyspan_pda_rx_throttle (struct usb_serial_port *port)
+static void keyspan_pda_rx_throttle(struct tty_struct *tty)
 {
 	/* stop receiving characters. We just turn off the URB request, and
 	   let chars pile up in the device. If we're doing hardware
@@ -274,14 +274,15 @@ static void keyspan_pda_rx_throttle (struct usb_serial_port *port)
 	   fills up. If we're doing XON/XOFF, this would be a good time to
 	   send an XOFF, although it might make sense to foist that off
 	   upon the device too. */
-
+	struct usb_serial_port *port = tty->driver_data;
 	dbg("keyspan_pda_rx_throttle port %d", port->number);
 	usb_kill_urb(port->interrupt_in_urb);
 }
 
 
-static void keyspan_pda_rx_unthrottle (struct usb_serial_port *port)
+static void keyspan_pda_rx_unthrottle(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	/* just restart the receive interrupt URB */
 	dbg("keyspan_pda_rx_unthrottle port %d", port->number);
 	port->interrupt_in_urb->dev = port->serial->dev;
@@ -330,8 +331,9 @@ static speed_t keyspan_pda_setbaud (struct usb_serial *serial, speed_t baud)
 }
 
 
-static void keyspan_pda_break_ctl (struct usb_serial_port *port, int break_state)
+static void keyspan_pda_break_ctl(struct tty_struct *tty, int break_state)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 	int value;
 	int result;
@@ -354,8 +356,8 @@ static void keyspan_pda_break_ctl (struct usb_serial_port *port, int break_state
 }
 
 
-static void keyspan_pda_set_termios (struct usb_serial_port *port, 
-				     struct ktermios *old_termios)
+static void keyspan_pda_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	speed_t speed;
@@ -380,7 +382,7 @@ static void keyspan_pda_set_termios (struct usb_serial_port *port,
 
 	   For now, just do baud. */
 
-	speed = tty_get_baud_rate(port->tty);
+	speed = tty_get_baud_rate(tty);
 	speed = keyspan_pda_setbaud(serial, speed);
 
 	if (speed == 0) {
@@ -390,8 +392,8 @@ static void keyspan_pda_set_termios (struct usb_serial_port *port,
 	}
 	/* Only speed can change so copy the old h/w parameters
 	   then encode the new speed */
-	tty_termios_copy_hw(port->tty->termios, old_termios);
-	tty_encode_baud_rate(port->tty, speed, speed);
+	tty_termios_copy_hw(tty->termios, old_termios);
+	tty_encode_baud_rate(tty, speed, speed);
 }
 
 
@@ -425,8 +427,9 @@ static int keyspan_pda_set_modem_info(struct usb_serial *serial,
 	return rc;
 }
 
-static int keyspan_pda_tiocmget(struct usb_serial_port *port, struct file *file)
+static int keyspan_pda_tiocmget(struct tty_struct *tty, struct file *file)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 	int rc;
 	unsigned char status;
@@ -445,9 +448,10 @@ static int keyspan_pda_tiocmget(struct usb_serial_port *port, struct file *file)
 	return value;
 }
 
-static int keyspan_pda_tiocmset(struct usb_serial_port *port, struct file *file,
+static int keyspan_pda_tiocmset(struct tty_struct *tty, struct file *file,
 				unsigned int set, unsigned int clear)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 	int rc;
 	unsigned char status;
@@ -469,23 +473,8 @@ static int keyspan_pda_tiocmset(struct usb_serial_port *port, struct file *file,
 	return rc;
 }
 
-static int keyspan_pda_ioctl(struct usb_serial_port *port, struct file *file,
-			     unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-	case TIOCMIWAIT:
-		/* wait for any of the 4 modem inputs (DCD,RI,DSR,CTS)*/
-		/* TODO */
-	case TIOCGICOUNT:
-		/* return count of modemline transitions */
-		return 0; /* TODO */
-	}
-	
-	return -ENOIOCTLCMD;
-}
-
-static int keyspan_pda_write(struct usb_serial_port *port, 
-			     const unsigned char *buf, int count)
+static int keyspan_pda_write(struct tty_struct *tty,
+	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
 	struct usb_serial *serial = port->serial;
 	int request_unthrottle = 0;
@@ -607,22 +596,21 @@ static void keyspan_pda_write_bulk_callback (struct urb *urb)
 }
 
 
-static int keyspan_pda_write_room (struct usb_serial_port *port)
+static int keyspan_pda_write_room(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct keyspan_pda_private *priv;
-
 	priv = usb_get_serial_port_data(port);
-
 	/* used by n_tty.c for processing of tabs and such. Giving it our
 	   conservative guess is probably good enough, but needs testing by
 	   running a console through the device. */
-
 	return (priv->tx_room);
 }
 
 
-static int keyspan_pda_chars_in_buffer (struct usb_serial_port *port)
+static int keyspan_pda_chars_in_buffer(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct keyspan_pda_private *priv;
 	unsigned long flags;
 	int ret = 0;
@@ -640,7 +628,8 @@ static int keyspan_pda_chars_in_buffer (struct usb_serial_port *port)
 }
 
 
-static int keyspan_pda_open (struct usb_serial_port *port, struct file *filp)
+static int keyspan_pda_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct usb_serial *serial = port->serial;
 	unsigned char room;
@@ -672,7 +661,7 @@ static int keyspan_pda_open (struct usb_serial_port *port, struct file *filp)
 
 	/* the normal serial device seems to always turn on DTR and RTS here,
 	   so do the same */
-	if (port->tty->termios->c_cflag & CBAUD)
+	if (tty && (tty->termios->c_cflag & CBAUD))
 		keyspan_pda_set_modem_info(serial, (1<<7) | (1<<2) );
 	else
 		keyspan_pda_set_modem_info(serial, 0);
@@ -690,13 +679,14 @@ error:
 }
 
 
-static void keyspan_pda_close(struct usb_serial_port *port, struct file *filp)
+static void keyspan_pda_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct usb_serial *serial = port->serial;
 
 	if (serial->dev) {
 		/* the normal serial device seems to always shut off DTR and RTS now */
-		if (port->tty->termios->c_cflag & HUPCL)
+		if (tty->termios->c_cflag & HUPCL)
 			keyspan_pda_set_modem_info(serial, 0);
 
 		/* shutdown our bulk reads and writes */
@@ -832,7 +822,6 @@ static struct usb_serial_driver keyspan_pda_device = {
 	.chars_in_buffer =	keyspan_pda_chars_in_buffer,
 	.throttle =		keyspan_pda_rx_throttle,
 	.unthrottle =		keyspan_pda_rx_unthrottle,
-	.ioctl =		keyspan_pda_ioctl,
 	.set_termios =		keyspan_pda_set_termios,
 	.break_ctl =		keyspan_pda_break_ctl,
 	.tiocmget =		keyspan_pda_tiocmget,

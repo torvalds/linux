@@ -112,7 +112,8 @@ void usb_serial_generic_deregister (void)
 #endif
 }
 
-int usb_serial_generic_open (struct usb_serial_port *port, struct file *filp)
+int usb_serial_generic_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct usb_serial *serial = port->serial;
 	int result = 0;
@@ -123,8 +124,8 @@ int usb_serial_generic_open (struct usb_serial_port *port, struct file *filp)
 	/* force low_latency on so that our tty_push actually forces the data through, 
 	   otherwise it is scheduled, and with high data rates (like with OHCI) data
 	   can get lost. */
-	if (port->tty)
-		port->tty->low_latency = 1;
+	if (tty)
+		tty->low_latency = 1;
 
 	/* clear the throttle flags */
 	spin_lock_irqsave(&port->lock, flags);
@@ -152,7 +153,7 @@ int usb_serial_generic_open (struct usb_serial_port *port, struct file *filp)
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_open);
 
-static void generic_cleanup (struct usb_serial_port *port)
+static void generic_cleanup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 
@@ -182,7 +183,7 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 #endif
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
-		if (port->open_count && port->read_urb) {
+		if (port->port.count && port->read_urb) {
 			r = usb_submit_urb(port->read_urb, GFP_NOIO);
 			if (r < 0)
 				c++;
@@ -192,13 +193,15 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 	return c ? -EIO : 0;
 }
 
-void usb_serial_generic_close (struct usb_serial_port *port, struct file * filp)
+void usb_serial_generic_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file * filp)
 {
 	dbg("%s - port %d", __func__, port->number);
 	generic_cleanup (port);
 }
 
-int usb_serial_generic_write(struct usb_serial_port *port, const unsigned char *buf, int count)
+int usb_serial_generic_write(struct tty_struct *tty,
+	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
 	struct usb_serial *serial = port->serial;
 	int result;
@@ -255,8 +258,9 @@ int usb_serial_generic_write(struct usb_serial_port *port, const unsigned char *
 	return 0;
 }
 
-int usb_serial_generic_write_room (struct usb_serial_port *port)
+int usb_serial_generic_write_room (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 	int room = 0;
 
@@ -272,8 +276,9 @@ int usb_serial_generic_write_room (struct usb_serial_port *port)
 	return room;
 }
 
-int usb_serial_generic_chars_in_buffer (struct usb_serial_port *port)
+int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 	int chars = 0;
 
@@ -286,7 +291,7 @@ int usb_serial_generic_chars_in_buffer (struct usb_serial_port *port)
 	}
 
 	dbg("%s - returns %d", __func__, chars);
-	return (chars);
+	return chars;
 }
 
 
@@ -311,10 +316,10 @@ static void resubmit_read_urb(struct usb_serial_port *port, gfp_t mem_flags)
 }
 
 /* Push data to tty layer and resubmit the bulk read URB */
-static void flush_and_resubmit_read_urb (struct usb_serial_port *port)
+static void flush_and_resubmit_read_urb(struct usb_serial_port *port)
 {
 	struct urb *urb = port->read_urb;
-	struct tty_struct *tty = port->tty;
+	struct tty_struct *tty = port->port.tty;
 	int room;
 
 	/* Push data to tty */
@@ -329,7 +334,7 @@ static void flush_and_resubmit_read_urb (struct usb_serial_port *port)
 	resubmit_read_urb(port, GFP_ATOMIC);
 }
 
-void usb_serial_generic_read_bulk_callback (struct urb *urb)
+void usb_serial_generic_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
@@ -357,7 +362,7 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb)
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_read_bulk_callback);
 
-void usb_serial_generic_write_bulk_callback (struct urb *urb)
+void usb_serial_generic_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	int status = urb->status;
@@ -374,8 +379,9 @@ void usb_serial_generic_write_bulk_callback (struct urb *urb)
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_write_bulk_callback);
 
-void usb_serial_generic_throttle (struct usb_serial_port *port)
+void usb_serial_generic_throttle(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -387,8 +393,9 @@ void usb_serial_generic_throttle (struct usb_serial_port *port)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-void usb_serial_generic_unthrottle (struct usb_serial_port *port)
+void usb_serial_generic_unthrottle(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	int was_throttled;
 	unsigned long flags;
 

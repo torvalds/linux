@@ -35,17 +35,15 @@
 #define DRIVER_DESC "USB HandSpring Visor / Palm OS driver"
 
 /* function prototypes for a handspring visor */
-static int  visor_open		(struct usb_serial_port *port, struct file *filp);
-static void visor_close		(struct usb_serial_port *port, struct file *filp);
-static int  visor_write		(struct usb_serial_port *port, const unsigned char *buf, int count);
-static int  visor_write_room		(struct usb_serial_port *port);
-static int  visor_chars_in_buffer	(struct usb_serial_port *port);
-static void visor_throttle	(struct usb_serial_port *port);
-static void visor_unthrottle	(struct usb_serial_port *port);
+static int  visor_open		(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static void visor_close		(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static int  visor_write		(struct tty_struct *tty, struct usb_serial_port *port, const unsigned char *buf, int count);
+static int  visor_write_room	(struct tty_struct *tty);
+static void visor_throttle	(struct tty_struct *tty);
+static void visor_unthrottle	(struct tty_struct *tty);
 static int  visor_probe		(struct usb_serial *serial, const struct usb_device_id *id);
 static int  visor_calc_num_ports(struct usb_serial *serial);
 static void visor_shutdown	(struct usb_serial *serial);
-static int  visor_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
 static void visor_write_bulk_callback	(struct urb *urb);
 static void visor_read_bulk_callback	(struct urb *urb);
 static void visor_read_int_callback	(struct urb *urb);
@@ -198,10 +196,8 @@ static struct usb_serial_driver handspring_device = {
 	.probe =		visor_probe,
 	.calc_num_ports =	visor_calc_num_ports,
 	.shutdown =		visor_shutdown,
-	.ioctl =		visor_ioctl,
 	.write =		visor_write,
 	.write_room =		visor_write_room,
-	.chars_in_buffer =	visor_chars_in_buffer,
 	.write_bulk_callback =	visor_write_bulk_callback,
 	.read_bulk_callback =	visor_read_bulk_callback,
 	.read_int_callback =	visor_read_int_callback,
@@ -225,10 +221,8 @@ static struct usb_serial_driver clie_5_device = {
 	.probe =		visor_probe,
 	.calc_num_ports =	visor_calc_num_ports,
 	.shutdown =		visor_shutdown,
-	.ioctl =		visor_ioctl,
 	.write =		visor_write,
 	.write_room =		visor_write_room,
-	.chars_in_buffer =	visor_chars_in_buffer,
 	.write_bulk_callback =	visor_write_bulk_callback,
 	.read_bulk_callback =	visor_read_bulk_callback,
 	.read_int_callback =	visor_read_int_callback,
@@ -249,10 +243,8 @@ static struct usb_serial_driver clie_3_5_device = {
 	.throttle =		visor_throttle,
 	.unthrottle =		visor_unthrottle,
 	.attach =		clie_3_5_startup,
-	.ioctl =		visor_ioctl,
 	.write =		visor_write,
 	.write_room =		visor_write_room,
-	.chars_in_buffer =	visor_chars_in_buffer,
 	.write_bulk_callback =	visor_write_bulk_callback,
 	.read_bulk_callback =	visor_read_bulk_callback,
 };
@@ -274,7 +266,7 @@ static int stats;
 /******************************************************************************
  * Handspring Visor specific driver functions
  ******************************************************************************/
-static int visor_open (struct usb_serial_port *port, struct file *filp)
+static int visor_open (struct tty_struct *tty, struct usb_serial_port *port, struct file *filp)
 {
 	struct usb_serial *serial = port->serial;
 	struct visor_private *priv = usb_get_serial_port_data(port);
@@ -300,8 +292,8 @@ static int visor_open (struct usb_serial_port *port, struct file *filp)
 	 * through, otherwise it is scheduled, and with high data rates (like
 	 * with OHCI) data can get lost.
 	 */
-	if (port->tty)
-		port->tty->low_latency = 1;
+	if (tty)
+		tty->low_latency = 1;
 
 	/* Start reading from the device */
 	usb_fill_bulk_urb (port->read_urb, serial->dev,
@@ -329,7 +321,8 @@ exit:
 }
 
 
-static void visor_close (struct usb_serial_port *port, struct file * filp)
+static void visor_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file * filp)
 {
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	unsigned char *transfer_buffer;
@@ -361,7 +354,8 @@ static void visor_close (struct usb_serial_port *port, struct file * filp)
 }
 
 
-static int visor_write (struct usb_serial_port *port, const unsigned char *buf, int count)
+static int visor_write(struct tty_struct *tty, struct usb_serial_port *port,
+					const unsigned char *buf, int count)
 {
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
@@ -435,8 +429,9 @@ error_no_buffer:
 }
 
 
-static int visor_write_room (struct usb_serial_port *port)
+static int visor_write_room (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
@@ -457,22 +452,6 @@ static int visor_write_room (struct usb_serial_port *port)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 2048;
-}
-
-
-static int visor_chars_in_buffer (struct usb_serial_port *port)
-{
-	dbg("%s - port %d", __func__, port->number);
-
-	/* 
-	 * We can't really account for how much data we
-	 * have sent out, but hasn't made it through to the
-	 * device, so just tell the tty layer that everything
-	 * is flushed.
-	 *
-	 * FIXME: Should walk outstanding_urbs
-	 */
-	return 0;
 }
 
 
@@ -520,7 +499,7 @@ static void visor_read_bulk_callback (struct urb *urb)
 
 	usb_serial_debug_data(debug, &port->dev, __func__, urb->actual_length, data);
 
-	tty = port->tty;
+	tty = port->port.tty;
 	if (tty && urb->actual_length) {
 		available_room = tty_buffer_request_room(tty, urb->actual_length);
 		if (available_room) {
@@ -591,8 +570,9 @@ exit:
 			__func__, result);
 }
 
-static void visor_throttle (struct usb_serial_port *port)
+static void visor_throttle (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
@@ -603,8 +583,9 @@ static void visor_throttle (struct usb_serial_port *port)
 }
 
 
-static void visor_unthrottle (struct usb_serial_port *port)
+static void visor_unthrottle (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int result;
@@ -920,13 +901,6 @@ static void visor_shutdown (struct usb_serial *serial)
 			kfree(priv);
 		}
 	}
-}
-
-static int visor_ioctl (struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg)
-{
-	dbg("%s - port %d, cmd 0x%.4x", __func__, port->number, cmd);
-
-	return -ENOIOCTLCMD;
 }
 
 static int __init visor_init (void)

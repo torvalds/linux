@@ -682,21 +682,21 @@ static int  ftdi_sio_probe	(struct usb_serial *serial, const struct usb_device_i
 static void ftdi_shutdown		(struct usb_serial *serial);
 static int  ftdi_sio_port_probe	(struct usb_serial_port *port);
 static int  ftdi_sio_port_remove	(struct usb_serial_port *port);
-static int  ftdi_open			(struct usb_serial_port *port, struct file *filp);
-static void ftdi_close			(struct usb_serial_port *port, struct file *filp);
-static int  ftdi_write			(struct usb_serial_port *port, const unsigned char *buf, int count);
-static int  ftdi_write_room		(struct usb_serial_port *port);
-static int  ftdi_chars_in_buffer	(struct usb_serial_port *port);
+static int  ftdi_open			(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static void ftdi_close			(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static int  ftdi_write			(struct tty_struct *tty, struct usb_serial_port *port, const unsigned char *buf, int count);
+static int  ftdi_write_room		(struct tty_struct *tty);
+static int  ftdi_chars_in_buffer	(struct tty_struct *tty);
 static void ftdi_write_bulk_callback	(struct urb *urb);
 static void ftdi_read_bulk_callback	(struct urb *urb);
 static void ftdi_process_read		(struct work_struct *work);
-static void ftdi_set_termios		(struct usb_serial_port *port, struct ktermios * old);
-static int  ftdi_tiocmget               (struct usb_serial_port *port, struct file *file);
-static int  ftdi_tiocmset		(struct usb_serial_port *port, struct file * file, unsigned int set, unsigned int clear);
-static int  ftdi_ioctl			(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-static void ftdi_break_ctl		(struct usb_serial_port *port, int break_state );
-static void ftdi_throttle		(struct usb_serial_port *port);
-static void ftdi_unthrottle		(struct usb_serial_port *port);
+static void ftdi_set_termios		(struct tty_struct *tty, struct usb_serial_port *port, struct ktermios * old);
+static int  ftdi_tiocmget               (struct tty_struct *tty, struct file *file);
+static int  ftdi_tiocmset		(struct tty_struct *tty, struct file * file, unsigned int set, unsigned int clear);
+static int  ftdi_ioctl			(struct tty_struct *tty, struct file * file, unsigned int cmd, unsigned long arg);
+static void ftdi_break_ctl		(struct tty_struct *tty, int break_state );
+static void ftdi_throttle		(struct tty_struct *tty);
+static void ftdi_unthrottle		(struct tty_struct *tty);
 
 static unsigned short int ftdi_232am_baud_base_to_divisor (int baud, int base);
 static unsigned short int ftdi_232am_baud_to_divisor (int baud);
@@ -843,42 +843,7 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set, unsigned
 }
 
 
-static __u32 get_ftdi_divisor(struct usb_serial_port * port);
-
-
-static int change_speed(struct usb_serial_port *port)
-{
-	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	char *buf;
-        __u16 urb_value;
-	__u16 urb_index;
-	__u32 urb_index_value;
-	int rv;
-
-	buf = kmalloc(1, GFP_NOIO);
-	if (!buf)
-		return -ENOMEM;
-
-	urb_index_value = get_ftdi_divisor(port);
-	urb_value = (__u16)urb_index_value;
-	urb_index = (__u16)(urb_index_value >> 16);
-	if (priv->interface) {	/* FT2232C */
-		urb_index = (__u16)((urb_index << 8) | priv->interface);
-	}
-
-	rv = usb_control_msg(port->serial->dev,
-			    usb_sndctrlpipe(port->serial->dev, 0),
-			    FTDI_SIO_SET_BAUDRATE_REQUEST,
-			    FTDI_SIO_SET_BAUDRATE_REQUEST_TYPE,
-			    urb_value, urb_index,
-			    buf, 0, WDR_SHORT_TIMEOUT);
-
-	kfree(buf);
-	return rv;
-}
-
-
-static __u32 get_ftdi_divisor(struct usb_serial_port * port)
+static __u32 get_ftdi_divisor(struct tty_struct *tty, struct usb_serial_port *port)
 { /* get_ftdi_divisor */
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	__u32 div_value = 0;
@@ -910,7 +875,7 @@ static __u32 get_ftdi_divisor(struct usb_serial_port * port)
 
 	/* 1. Get the baud rate from the tty settings, this observes alt_speed hack */
 
-	baud = tty_get_baud_rate(port->tty);
+	baud = tty_get_baud_rate(tty);
 	dbg("%s - tty_get_baud_rate reports speed %d", __func__, baud);
 
 	/* 2. Observe async-compatible custom_divisor hack, update baudrate if needed */
@@ -976,9 +941,41 @@ static __u32 get_ftdi_divisor(struct usb_serial_port * port)
 			ftdi_chip_name[priv->chip_type]);
 	}
 
-	tty_encode_baud_rate(port->tty, baud, baud);
+	tty_encode_baud_rate(tty, baud, baud);
 	return(div_value);
 }
+
+static int change_speed(struct tty_struct *tty, struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	char *buf;
+        __u16 urb_value;
+	__u16 urb_index;
+	__u32 urb_index_value;
+	int rv;
+
+	buf = kmalloc(1, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
+
+	urb_index_value = get_ftdi_divisor(tty, port);
+	urb_value = (__u16)urb_index_value;
+	urb_index = (__u16)(urb_index_value >> 16);
+	if (priv->interface) {	/* FT2232C */
+		urb_index = (__u16)((urb_index << 8) | priv->interface);
+	}
+
+	rv = usb_control_msg(port->serial->dev,
+			    usb_sndctrlpipe(port->serial->dev, 0),
+			    FTDI_SIO_SET_BAUDRATE_REQUEST,
+			    FTDI_SIO_SET_BAUDRATE_REQUEST_TYPE,
+			    urb_value, urb_index,
+			    buf, 0, WDR_SHORT_TIMEOUT);
+
+	kfree(buf);
+	return rv;
+}
+
 
 
 static int get_serial_info(struct usb_serial_port * port, struct serial_struct __user * retinfo)
@@ -998,7 +995,8 @@ static int get_serial_info(struct usb_serial_port * port, struct serial_struct _
 } /* get_serial_info */
 
 
-static int set_serial_info(struct usb_serial_port * port, struct serial_struct __user * newinfo)
+static int set_serial_info(struct tty_struct *tty,
+	struct usb_serial_port * port, struct serial_struct __user * newinfo)
 { /* set_serial_info */
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct serial_struct new_serial;
@@ -1030,30 +1028,29 @@ static int set_serial_info(struct usb_serial_port * port, struct serial_struct _
 	               (new_serial.flags & ASYNC_FLAGS));
 	priv->custom_divisor = new_serial.custom_divisor;
 
-	port->tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 check_and_exit:
 	if ((old_priv.flags & ASYNC_SPD_MASK) !=
 	     (priv->flags & ASYNC_SPD_MASK)) {
 		if ((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-			port->tty->alt_speed = 57600;
+			tty->alt_speed = 57600;
 		else if ((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-			port->tty->alt_speed = 115200;
+			tty->alt_speed = 115200;
 		else if ((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-			port->tty->alt_speed = 230400;
+			tty->alt_speed = 230400;
 		else if ((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-			port->tty->alt_speed = 460800;
+			tty->alt_speed = 460800;
 		else
-			port->tty->alt_speed = 0;
+			tty->alt_speed = 0;
 	}
 	if (((old_priv.flags & ASYNC_SPD_MASK) !=
 	     (priv->flags & ASYNC_SPD_MASK)) ||
 	    (((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST) &&
 	     (old_priv.custom_divisor != priv->custom_divisor))) {
-		change_speed(port);
+		change_speed(tty, port);
 	}
-
-	return (0);
+	return 0;
 
 } /* set_serial_info */
 
@@ -1415,7 +1412,8 @@ static int ftdi_sio_port_remove(struct usb_serial_port *port)
 	return 0;
 }
 
-static int  ftdi_open (struct usb_serial_port *port, struct file *filp)
+static int ftdi_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 { /* ftdi_open */
 	struct usb_device *dev = port->serial->dev;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
@@ -1433,8 +1431,8 @@ static int  ftdi_open (struct usb_serial_port *port, struct file *filp)
 	priv->rx_bytes = 0;
 	spin_unlock_irqrestore(&priv->rx_lock, flags);
 
-	if (port->tty)
-		port->tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	if (tty)
+		tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	/* No error checking for this (will get errors later anyway) */
 	/* See ftdi_sio.h for description of what is reset */
@@ -1448,8 +1446,8 @@ static int  ftdi_open (struct usb_serial_port *port, struct file *filp)
 	   This is same behaviour as serial.c/rs_open() - Kuba */
 
 	/* ftdi_set_termios  will send usb control messages */
-	if (port->tty)
-		ftdi_set_termios(port, port->tty->termios);
+	if (tty)
+		ftdi_set_termios(tty, port, tty->termios);
 
 	/* FIXME: Flow control might be enabled, so it should be checked -
 	   we have no control of defaults! */
@@ -1485,9 +1483,10 @@ static int  ftdi_open (struct usb_serial_port *port, struct file *filp)
  *
  */
 
-static void ftdi_close (struct usb_serial_port *port, struct file *filp)
+static void ftdi_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 { /* ftdi_close */
-	unsigned int c_cflag = port->tty->termios->c_cflag;
+	unsigned int c_cflag = tty->termios->c_cflag;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	char buf[1];
 
@@ -1527,7 +1526,7 @@ static void ftdi_close (struct usb_serial_port *port, struct file *filp)
  *
  * The new devices do not require this byte
  */
-static int ftdi_write (struct usb_serial_port *port,
+static int ftdi_write(struct tty_struct *tty, struct usb_serial_port *port,
 			   const unsigned char *buf, int count)
 { /* ftdi_write */
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
@@ -1686,8 +1685,9 @@ static void ftdi_write_bulk_callback (struct urb *urb)
 } /* ftdi_write_bulk_callback */
 
 
-static int ftdi_write_room( struct usb_serial_port *port )
+static int ftdi_write_room(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	int room;
 	unsigned long flags;
@@ -1707,11 +1707,11 @@ static int ftdi_write_room( struct usb_serial_port *port )
 	}
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 	return room;
-} /* ftdi_write_room */
+}
 
-
-static int ftdi_chars_in_buffer (struct usb_serial_port *port)
-{ /* ftdi_chars_in_buffer */
+static int ftdi_chars_in_buffer(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	int buffered;
 	unsigned long flags;
@@ -1726,12 +1726,10 @@ static int ftdi_chars_in_buffer (struct usb_serial_port *port)
 		buffered = 0;
 	}
 	return buffered;
-} /* ftdi_chars_in_buffer */
+}
 
-
-
-static void ftdi_read_bulk_callback (struct urb *urb)
-{ /* ftdi_read_bulk_callback */
+static void ftdi_read_bulk_callback(struct urb *urb)
+{
 	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty;
 	struct ftdi_private *priv;
@@ -1747,10 +1745,10 @@ static void ftdi_read_bulk_callback (struct urb *urb)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (port->open_count <= 0)
+	if (port->port.count <= 0)
 		return;
 
-	tty = port->tty;
+	tty = port->port.tty;
 	if (!tty) {
 		dbg("%s - bad tty pointer - exiting",__func__);
 		return;
@@ -1803,10 +1801,10 @@ static void ftdi_process_read (struct work_struct *work)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (port->open_count <= 0)
+	if (port->port.count <= 0)
 		return;
 
-	tty = port->tty;
+	tty = port->port.tty;
 	if (!tty) {
 		dbg("%s - bad tty pointer - exiting",__func__);
 		return;
@@ -1954,7 +1952,7 @@ static void ftdi_process_read (struct work_struct *work)
 		}
 		spin_unlock_irqrestore(&priv->rx_lock, flags);
 		/* if the port is closed stop trying to read */
-		if (port->open_count > 0){
+		if (port->port.count > 0){
 			/* delay processing of remainder */
 			schedule_delayed_work(&priv->rx_work, 1);
 		} else {
@@ -1967,7 +1965,7 @@ static void ftdi_process_read (struct work_struct *work)
 	priv->rx_processed = 0;
 
 	/* if the port is closed stop trying to read */
-	if (port->open_count > 0){
+	if (port->port.count > 0){
 		/* Continue trying to always read  */
 		usb_fill_bulk_urb(port->read_urb, port->serial->dev,
 			      usb_rcvbulkpipe(port->serial->dev, port->bulk_in_endpointAddress),
@@ -1983,8 +1981,9 @@ static void ftdi_process_read (struct work_struct *work)
 } /* ftdi_process_read */
 
 
-static void ftdi_break_ctl( struct usb_serial_port *port, int break_state )
+static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	__u16 urb_value = 0;
 	char buf[1];
@@ -2018,11 +2017,12 @@ static void ftdi_break_ctl( struct usb_serial_port *port, int break_state )
  * WARNING: set_termios calls this with old_termios in kernel space
  */
 
-static void ftdi_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
+static void ftdi_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
 { /* ftdi_termios */
 	struct usb_device *dev = port->serial->dev;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct ktermios *termios = port->tty->termios;
+	struct ktermios *termios = tty->termios;
 	unsigned int cflag = termios->c_cflag;
 	__u16 urb_value; /* will hold the new flags */
 	char buf[1]; /* Perhaps I should dynamically alloc this? */
@@ -2037,7 +2037,7 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct ktermios *old
 	/* Force baud rate if this device requires it, unless it is set to B0. */
 	if (priv->force_baud && ((termios->c_cflag & CBAUD) != B0)) {
 		dbg("%s: forcing baud rate for this device", __func__);
-		tty_encode_baud_rate(port->tty, priv->force_baud,
+		tty_encode_baud_rate(tty, priv->force_baud,
 					priv->force_baud);
 	}
 
@@ -2104,7 +2104,7 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct ktermios *old
 		clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	} else {
 		/* set the baudrate determined before */
-		if (change_speed(port)) {
+		if (change_speed(tty, port)) {
 			err("%s urb failed to set baudrate", __func__);
 		}
 		/* Ensure RTS and DTR are raised when baudrate changed from 0 */
@@ -2168,11 +2168,11 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct ktermios *old
 
 	}
 	return;
-} /* ftdi_termios */
+}
 
-
-static int ftdi_tiocmget (struct usb_serial_port *port, struct file *file)
+static int ftdi_tiocmget(struct tty_struct *tty, struct file *file)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	unsigned char buf[2];
 	int ret;
@@ -2221,15 +2221,18 @@ static int ftdi_tiocmget (struct usb_serial_port *port, struct file *file)
 		priv->last_dtr_rts;
 }
 
-static int ftdi_tiocmset(struct usb_serial_port *port, struct file * file, unsigned int set, unsigned int clear)
+static int ftdi_tiocmset(struct tty_struct *tty, struct file * file,
+			unsigned int set, unsigned int clear)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	dbg("%s TIOCMSET", __func__);
 	return update_mctrl(port, set, clear);
 }
 
 
-static int ftdi_ioctl (struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg)
+static int ftdi_ioctl(struct tty_struct *tty, struct file * file, unsigned int cmd, unsigned long arg)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
 	dbg("%s cmd 0x%04x", __func__, cmd);
@@ -2241,7 +2244,7 @@ static int ftdi_ioctl (struct usb_serial_port *port, struct file * file, unsigne
 		return get_serial_info(port, (struct serial_struct __user *) arg);
 
 	case TIOCSSERIAL: /* sets serial port data */
-		return set_serial_info(port, (struct serial_struct __user *) arg);
+		return set_serial_info(tty, port, (struct serial_struct __user *) arg);
 
 	/*
 	 * Wait for any of the 4 modem inputs (DCD,RI,DSR,CTS) to change
@@ -2280,25 +2283,20 @@ static int ftdi_ioctl (struct usb_serial_port *port, struct file * file, unsigne
 				 */
 			}
 		}
-		return(0);
-		break;
+		return 0;
 	default:
 		break;
-
 	}
-
-
 	/* This is not necessarily an error - turns out the higher layers will do
 	 *  some ioctls itself (see comment above)
 	 */
 	dbg("%s arg not supported - it was 0x%04x - check /usr/include/asm/ioctls.h", __func__, cmd);
+	return -ENOIOCTLCMD;
+}
 
-	return(-ENOIOCTLCMD);
-} /* ftdi_ioctl */
-
-
-static void ftdi_throttle (struct usb_serial_port *port)
+static void ftdi_throttle(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
@@ -2310,8 +2308,9 @@ static void ftdi_throttle (struct usb_serial_port *port)
 }
 
 
-static void ftdi_unthrottle (struct usb_serial_port *port)
+static void ftdi_unthrottle(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	int actually_throttled;
 	unsigned long flags;

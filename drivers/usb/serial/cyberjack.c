@@ -57,15 +57,18 @@ static int debug;
 #define CYBERJACK_PRODUCT_ID	0x0100
 
 /* Function prototypes */
-static int cyberjack_startup (struct usb_serial *serial);
-static void cyberjack_shutdown (struct usb_serial *serial);
-static int  cyberjack_open (struct usb_serial_port *port, struct file *filp);
-static void cyberjack_close (struct usb_serial_port *port, struct file *filp);
-static int cyberjack_write (struct usb_serial_port *port, const unsigned char *buf, int count);
-static int cyberjack_write_room( struct usb_serial_port *port );
-static void cyberjack_read_int_callback (struct urb *urb);
-static void cyberjack_read_bulk_callback (struct urb *urb);
-static void cyberjack_write_bulk_callback (struct urb *urb);
+static int cyberjack_startup(struct usb_serial *serial);
+static void cyberjack_shutdown(struct usb_serial *serial);
+static int  cyberjack_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp);
+static void cyberjack_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp);
+static int cyberjack_write(struct tty_struct *tty,
+	struct usb_serial_port *port, const unsigned char *buf, int count);
+static int cyberjack_write_room( struct tty_struct *tty);
+static void cyberjack_read_int_callback(struct urb *urb);
+static void cyberjack_read_bulk_callback(struct urb *urb);
+static void cyberjack_write_bulk_callback(struct urb *urb);
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(CYBERJACK_VENDOR_ID, CYBERJACK_PRODUCT_ID) },
@@ -111,7 +114,7 @@ struct cyberjack_private {
 };
 
 /* do some startup allocations not currently performed by usb_serial_probe() */
-static int cyberjack_startup (struct usb_serial *serial)
+static int cyberjack_startup(struct usb_serial *serial)
 {
 	struct cyberjack_private *priv;
 	int i;
@@ -145,7 +148,7 @@ static int cyberjack_startup (struct usb_serial *serial)
 	return( 0 );
 }
 
-static void cyberjack_shutdown (struct usb_serial *serial)
+static void cyberjack_shutdown(struct usb_serial *serial)
 {
 	int i;
 	
@@ -159,7 +162,8 @@ static void cyberjack_shutdown (struct usb_serial *serial)
 	}
 }
 	
-static int  cyberjack_open (struct usb_serial_port *port, struct file *filp)
+static int  cyberjack_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct cyberjack_private *priv;
 	unsigned long flags;
@@ -174,7 +178,8 @@ static int  cyberjack_open (struct usb_serial_port *port, struct file *filp)
 	 * the data through, otherwise it is scheduled, and with high
 	 * data rates (like with OHCI) data can get lost.
 	 */
-	port->tty->low_latency = 1;
+	if (tty)
+		tty->low_latency = 1;
 
 	priv = usb_get_serial_port_data(port);
 	spin_lock_irqsave(&priv->lock, flags);
@@ -186,7 +191,8 @@ static int  cyberjack_open (struct usb_serial_port *port, struct file *filp)
 	return result;
 }
 
-static void cyberjack_close (struct usb_serial_port *port, struct file *filp)
+static void cyberjack_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	dbg("%s - port %d", __func__, port->number);
 
@@ -197,7 +203,8 @@ static void cyberjack_close (struct usb_serial_port *port, struct file *filp)
 	}
 }
 
-static int cyberjack_write (struct usb_serial_port *port, const unsigned char *buf, int count)
+static int cyberjack_write(struct tty_struct *tty,
+	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
 	struct usb_serial *serial = port->serial;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
@@ -292,13 +299,13 @@ static int cyberjack_write (struct usb_serial_port *port, const unsigned char *b
 	return (count);
 } 
 
-static int cyberjack_write_room( struct usb_serial_port *port )
+static int cyberjack_write_room(struct tty_struct *tty)
 {
 	/* FIXME: .... */
 	return CYBERJACK_LOCAL_BUF_SIZE;
 }
 
-static void cyberjack_read_int_callback( struct urb *urb )
+static void cyberjack_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
@@ -355,7 +362,7 @@ resubmit:
 	dbg("%s - usb_submit_urb(int urb)", __func__);
 }
 
-static void cyberjack_read_bulk_callback (struct urb *urb)
+static void cyberjack_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
@@ -374,7 +381,7 @@ static void cyberjack_read_bulk_callback (struct urb *urb)
 		return;
 	}
 
-	tty = port->tty;
+	tty = port->port.tty;
 	if (!tty) {
 		dbg("%s - ignoring since device not open\n", __func__);
 		return;
@@ -407,7 +414,7 @@ static void cyberjack_read_bulk_callback (struct urb *urb)
 	}
 }
 
-static void cyberjack_write_bulk_callback (struct urb *urb)
+static void cyberjack_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);

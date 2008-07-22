@@ -275,7 +275,7 @@ static inline int isAbortTrfCmnd(const unsigned char *buf)
 static void send_to_tty(struct usb_serial_port *port,
 			char *data, unsigned int actual_length)
 {
-	struct tty_struct *tty = port->tty;
+	struct tty_struct *tty = port->port.tty;
 
 	if (tty && actual_length) {
 
@@ -970,7 +970,8 @@ static int garmin_init_session(struct usb_serial_port *port)
 
 
 
-static int garmin_open (struct usb_serial_port *port, struct file *filp)
+static int garmin_open (struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	unsigned long flags;
 	int status = 0;
@@ -983,8 +984,8 @@ static int garmin_open (struct usb_serial_port *port, struct file *filp)
 	 * through, otherwise it is scheduled, and with high data rates (like
 	 * with OHCI) data can get lost.
 	 */
-	if (port->tty)
-		port->tty->low_latency = 1;
+	if (tty)
+		tty->low_latency = 1;
 
 	spin_lock_irqsave(&garmin_data_p->lock, flags);
 	garmin_data_p->mode  = initial_mode;
@@ -998,17 +999,16 @@ static int garmin_open (struct usb_serial_port *port, struct file *filp)
 	usb_kill_urb (port->write_urb);
 	usb_kill_urb (port->read_urb);
 
-	if (garmin_data_p->state == STATE_RESET) {
+	if (garmin_data_p->state == STATE_RESET)
 		status = garmin_init_session(port);
-	}
 
 	garmin_data_p->state = STATE_ACTIVE;
-
 	return status;
 }
 
 
-static void garmin_close (struct usb_serial_port *port, struct file * filp)
+static void garmin_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file * filp)
 {
 	struct usb_serial *serial = port->serial;
 	struct garmin_data * garmin_data_p = usb_get_serial_port_data(port);
@@ -1041,7 +1041,6 @@ static void garmin_close (struct usb_serial_port *port, struct file * filp)
 	}
 	mutex_unlock(&port->serial->disc_mutex);
 }
-
 
 static void garmin_write_bulk_callback (struct urb *urb)
 {
@@ -1145,10 +1144,8 @@ static int garmin_write_bulk (struct usb_serial_port *port,
 	return count;
 }
 
-
-
-static int garmin_write (struct usb_serial_port *port,
-			 const unsigned char *buf, int count)
+static int garmin_write (struct tty_struct *tty, struct usb_serial_port *port,
+					 const unsigned char *buf, int count)
 {
 	int pktid, pktsiz, len;
 	struct garmin_data * garmin_data_p = usb_get_serial_port_data(port);
@@ -1158,7 +1155,6 @@ static int garmin_write (struct usb_serial_port *port,
 
 	/* check for our private packets */
 	if (count >= GARMIN_PKTHDR_LENGTH) {
-
 		len = PRIVPKTSIZ;
 		if (count < len)
 			len = count;
@@ -1226,27 +1222,14 @@ static int garmin_write (struct usb_serial_port *port,
 }
 
 
-static int garmin_write_room (struct usb_serial_port *port)
+static int garmin_write_room(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	/*
 	 * Report back the bytes currently available in the output buffer.
 	 */
 	struct garmin_data * garmin_data_p = usb_get_serial_port_data(port);
 	return GPS_OUT_BUFSIZ-garmin_data_p->outsize;
-}
-
-
-static int garmin_chars_in_buffer (struct usb_serial_port *port)
-{
-	/*
-	 * Report back the number of bytes currently in our input buffer.
-	 * Will this lock up the driver - the buffer contains an incomplete
-	 * package which will not be written to the device until it
-	 * has been completed ?
-	 */
-	//struct garmin_data * garmin_data_p = usb_get_serial_port_data(port);
-	//return garmin_data_p->insize;
-	return 0;
 }
 
 
@@ -1468,10 +1451,11 @@ static int garmin_flush_queue(struct garmin_data * garmin_data_p)
 }
 
 
-static void garmin_throttle (struct usb_serial_port *port)
+static void garmin_throttle(struct tty_struct *tty)
 {
-	unsigned long flags;
+	struct usb_serial_port *port = tty->driver_data;
 	struct garmin_data * garmin_data_p = usb_get_serial_port_data(port);
+	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
 	/* set flag, data received will be put into a queue
@@ -1482,10 +1466,11 @@ static void garmin_throttle (struct usb_serial_port *port)
 }
 
 
-static void garmin_unthrottle (struct usb_serial_port *port)
+static void garmin_unthrottle (struct tty_struct *tty)
 {
-	unsigned long flags;
+	struct usb_serial_port *port = tty->driver_data;
 	struct garmin_data * garmin_data_p = usb_get_serial_port_data(port);
+	unsigned long flags;
 	int status;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -1507,8 +1492,6 @@ static void garmin_unthrottle (struct usb_serial_port *port)
 	}
 }
 
-
-
 /*
  * The timer is currently only used to send queued packets to
  * the tty in cases where the protocol provides no own handshaking
@@ -1526,7 +1509,7 @@ static void timeout_handler(unsigned long data)
 
 
 
-static int garmin_attach (struct usb_serial *serial)
+static int garmin_attach(struct usb_serial *serial)
 {
 	int status = 0;
 	struct usb_serial_port *port = serial->port[0];
@@ -1556,7 +1539,7 @@ static int garmin_attach (struct usb_serial *serial)
 }
 
 
-static void garmin_shutdown (struct usb_serial *serial)
+static void garmin_shutdown(struct usb_serial *serial)
 {
 	struct usb_serial_port *port = serial->port[0];
 	struct garmin_data * garmin_data_p = usb_get_serial_port_data(port);
@@ -1588,7 +1571,6 @@ static struct usb_serial_driver garmin_device = {
 	.shutdown            = garmin_shutdown,
 	.write               = garmin_write,
 	.write_room          = garmin_write_room,
-	.chars_in_buffer     = garmin_chars_in_buffer,
 	.write_bulk_callback = garmin_write_bulk_callback,
 	.read_bulk_callback  = garmin_read_bulk_callback,
 	.read_int_callback   = garmin_read_int_callback,

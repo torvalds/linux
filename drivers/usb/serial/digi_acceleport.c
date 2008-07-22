@@ -15,7 +15,7 @@
 *  Al Borchers (borchers@steinerpoint.com)
 * 
 * (12/03/2001) gkh
-*	switched to using port->open_count instead of private version.
+*	switched to using port->port.count instead of private version.
 *	Removed port->active
 *
 * (04/08/2001) gb
@@ -441,22 +441,23 @@ static int digi_set_modem_signals(struct usb_serial_port *port,
 	unsigned int modem_signals, int interruptible);
 static int digi_transmit_idle(struct usb_serial_port *port,
 	unsigned long timeout);
-static void digi_rx_throttle (struct usb_serial_port *port);
-static void digi_rx_unthrottle (struct usb_serial_port *port);
-static void digi_set_termios(struct usb_serial_port *port,
-	struct ktermios *old_termios);
-static void digi_break_ctl(struct usb_serial_port *port, int break_state);
-static int digi_ioctl(struct usb_serial_port *port, struct file *file,
-	unsigned int cmd, unsigned long arg);
-static int digi_tiocmget(struct usb_serial_port *port, struct file *file);
-static int digi_tiocmset(struct usb_serial_port *port, struct file *file,
+static void digi_rx_throttle (struct tty_struct *tty);
+static void digi_rx_unthrottle (struct tty_struct *tty);
+static void digi_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios);
+static void digi_break_ctl(struct tty_struct *tty, int break_state);
+static int digi_tiocmget(struct tty_struct *tty, struct file *file);
+static int digi_tiocmset(struct tty_struct *tty, struct file *file,
 	unsigned int set, unsigned int clear);
-static int digi_write(struct usb_serial_port *port, const unsigned char *buf, int count);
+static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
+	const unsigned char *buf, int count);
 static void digi_write_bulk_callback(struct urb *urb);
-static int digi_write_room(struct usb_serial_port *port);
-static int digi_chars_in_buffer(struct usb_serial_port *port);
-static int digi_open(struct usb_serial_port *port, struct file *filp);
-static void digi_close(struct usb_serial_port *port, struct file *filp);
+static int digi_write_room(struct tty_struct *tty);
+static int digi_chars_in_buffer(struct tty_struct *tty);
+static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
+	struct file *filp);
+static void digi_close(struct tty_struct *tty, struct usb_serial_port *port,
+	struct file *filp);
 static int digi_startup_device(struct usb_serial *serial);
 static int digi_startup(struct usb_serial *serial);
 static void digi_shutdown(struct usb_serial *serial);
@@ -516,7 +517,6 @@ static struct usb_serial_driver digi_acceleport_2_device = {
 	.chars_in_buffer =		digi_chars_in_buffer,
 	.throttle =			digi_rx_throttle,
 	.unthrottle =			digi_rx_unthrottle,
-	.ioctl =			digi_ioctl,
 	.set_termios =			digi_set_termios,
 	.break_ctl =			digi_break_ctl,
 	.tiocmget =			digi_tiocmget,
@@ -543,7 +543,6 @@ static struct usb_serial_driver digi_acceleport_4_device = {
 	.chars_in_buffer =		digi_chars_in_buffer,
 	.throttle =			digi_rx_throttle,
 	.unthrottle =			digi_rx_unthrottle,
-	.ioctl =			digi_ioctl,
 	.set_termios =			digi_set_termios,
 	.break_ctl =			digi_break_ctl,
 	.tiocmget =			digi_tiocmget,
@@ -604,7 +603,7 @@ static void digi_wakeup_write_lock(struct work_struct *work)
 
 static void digi_wakeup_write(struct usb_serial_port *port)
 {
-	tty_wakeup(port->tty);
+	tty_wakeup(port->port.tty);
 }
 
 
@@ -856,9 +855,10 @@ static int digi_transmit_idle(struct usb_serial_port *port,
 }
 
 
-static void digi_rx_throttle(struct usb_serial_port *port)
+static void digi_rx_throttle(struct tty_struct *tty)
 {
 	unsigned long flags;
+	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 
 
@@ -872,10 +872,11 @@ static void digi_rx_throttle(struct usb_serial_port *port)
 }
 
 
-static void digi_rx_unthrottle(struct usb_serial_port *port)
+static void digi_rx_unthrottle(struct tty_struct *tty)
 {
 	int ret = 0;
 	unsigned long flags;
+	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 
 	dbg("digi_rx_unthrottle: TOP: port=%d", priv->dp_port_num);
@@ -900,12 +901,10 @@ static void digi_rx_unthrottle(struct usb_serial_port *port)
 }
 
 
-static void digi_set_termios(struct usb_serial_port *port,
-					struct ktermios *old_termios)
+static void digi_set_termios(struct tty_struct *tty, 
+		struct usb_serial_port *port, struct ktermios *old_termios)
 {
-
 	struct digi_port *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty = port->tty;
 	unsigned int iflag = tty->termios->c_iflag;
 	unsigned int cflag = tty->termios->c_cflag;
 	unsigned int old_iflag = old_termios->c_iflag;
@@ -1088,8 +1087,9 @@ static void digi_set_termios(struct usb_serial_port *port,
 }
 
 
-static void digi_break_ctl(struct usb_serial_port *port, int break_state)
+static void digi_break_ctl(struct tty_struct *tty, int break_state)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned char buf[4];
 
 	buf[0] = DIGI_CMD_BREAK_CONTROL;
@@ -1100,8 +1100,9 @@ static void digi_break_ctl(struct usb_serial_port *port, int break_state)
 }
 
 
-static int digi_tiocmget(struct usb_serial_port *port, struct file *file)
+static int digi_tiocmget(struct tty_struct *tty, struct file *file)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	unsigned int val;
 	unsigned long flags;
@@ -1115,9 +1116,10 @@ static int digi_tiocmget(struct usb_serial_port *port, struct file *file)
 }
 
 
-static int digi_tiocmset(struct usb_serial_port *port, struct file *file,
+static int digi_tiocmset(struct tty_struct *tty, struct file *file,
 	unsigned int set, unsigned int clear)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	unsigned int val;
 	unsigned long flags;
@@ -1131,27 +1133,8 @@ static int digi_tiocmset(struct usb_serial_port *port, struct file *file,
 }
 
 
-static int digi_ioctl(struct usb_serial_port *port, struct file *file,
-	unsigned int cmd, unsigned long arg)
-{
-	struct digi_port *priv = usb_get_serial_port_data(port);
-	dbg("digi_ioctl: TOP: port=%d, cmd=0x%x", priv->dp_port_num, cmd);
-
-	switch (cmd) {
-	case TIOCMIWAIT:
-		/* wait for any of the 4 modem inputs (DCD,RI,DSR,CTS)*/
-		/* TODO */
-		return 0;
-	case TIOCGICOUNT:
-		/* return count of modemline transitions */
-		/* TODO */
-		return 0;
-	}
-	return -ENOIOCTLCMD;
-
-}
-
-static int digi_write(struct usb_serial_port *port, const unsigned char *buf, int count)
+static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
+					const unsigned char *buf, int count)
 {
 
 	int ret,data_len,new_len;
@@ -1261,7 +1244,7 @@ static void digi_write_bulk_callback(struct urb *urb)
 	/* try to send any buffered data on this port, if it is open */
 	spin_lock(&priv->dp_port_lock);
 	priv->dp_write_urb_in_use = 0;
-	if (port->open_count && port->write_urb->status != -EINPROGRESS
+	if (port->port.count && port->write_urb->status != -EINPROGRESS
 	    && priv->dp_out_buf_len > 0) {
 		*((unsigned char *)(port->write_urb->transfer_buffer))
 			= (unsigned char)DIGI_CMD_SEND_DATA;
@@ -1288,11 +1271,11 @@ static void digi_write_bulk_callback(struct urb *urb)
 			__func__, ret, priv->dp_port_num);
 }
 
-static int digi_write_room(struct usb_serial_port *port)
+static int digi_write_room(struct tty_struct *tty)
 {
-
-	int room;
+	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
+	int room;
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
@@ -1308,11 +1291,10 @@ static int digi_write_room(struct usb_serial_port *port)
 
 }
 
-static int digi_chars_in_buffer(struct usb_serial_port *port)
+static int digi_chars_in_buffer(struct tty_struct *tty)
 {
-
+	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
-
 
 	if (port->write_urb->status == -EINPROGRESS
 	    || priv->dp_write_urb_in_use) {
@@ -1329,7 +1311,8 @@ static int digi_chars_in_buffer(struct usb_serial_port *port)
 }
 
 
-static int digi_open(struct usb_serial_port *port, struct file *filp)
+static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
+				struct file *filp)
 {
 	int ret;
 	unsigned char buf[32];
@@ -1338,7 +1321,7 @@ static int digi_open(struct usb_serial_port *port, struct file *filp)
 	unsigned long flags = 0;
 
 	dbg("digi_open: TOP: port=%d, open_count=%d",
-		priv->dp_port_num, port->open_count);
+		priv->dp_port_num, port->port.count);
 
 	/* be sure the device is started up */
 	if (digi_startup_device(port->serial) != 0)
@@ -1380,9 +1363,11 @@ static int digi_open(struct usb_serial_port *port, struct file *filp)
 		dbg("digi_open: write oob failed, ret=%d", ret);
 
 	/* set termios settings */
-	not_termios.c_cflag = ~port->tty->termios->c_cflag;
-	not_termios.c_iflag = ~port->tty->termios->c_iflag;
-	digi_set_termios(port, &not_termios);
+	if (tty) {
+		not_termios.c_cflag = ~tty->termios->c_cflag;
+		not_termios.c_iflag = ~tty->termios->c_iflag;
+		digi_set_termios(tty, port, &not_termios);
+	}
 
 	/* set DTR and RTS */
 	digi_set_modem_signals(port, TIOCM_DTR|TIOCM_RTS, 1);
@@ -1391,16 +1376,16 @@ static int digi_open(struct usb_serial_port *port, struct file *filp)
 }
 
 
-static void digi_close(struct usb_serial_port *port, struct file *filp)
+static void digi_close(struct tty_struct *tty, struct usb_serial_port *port,
+				struct file *filp)
 {
 	DEFINE_WAIT(wait);
 	int ret;
 	unsigned char buf[32];
-	struct tty_struct *tty = port->tty;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 
 	dbg("digi_close: TOP: port=%d, open_count=%d",
-		priv->dp_port_num, port->open_count);
+		priv->dp_port_num, port->port.count);
 
 	mutex_lock(&port->serial->disc_mutex);
 	/* if disconnected, just clear flags */
@@ -1663,7 +1648,7 @@ static int digi_read_inb_callback(struct urb *urb)
 {
 
 	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty = port->tty;
+	struct tty_struct *tty = port->port.tty;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	int opcode = ((unsigned char *)urb->transfer_buffer)[0];
 	int len = ((unsigned char *)urb->transfer_buffer)[1];
@@ -1675,7 +1660,7 @@ static int digi_read_inb_callback(struct urb *urb)
 
 	/* do not process callbacks on closed ports */
 	/* but do continue the read chain */
-	if (port->open_count == 0)
+	if (port->port.count == 0)
 		return 0;
 
 	/* short/multiple packet check */
@@ -1785,17 +1770,17 @@ static int digi_read_oob_callback(struct urb *urb)
 			if (val & DIGI_READ_INPUT_SIGNALS_CTS) {
 				priv->dp_modem_signals |= TIOCM_CTS;
 				/* port must be open to use tty struct */
-				if (port->open_count
-					&& port->tty->termios->c_cflag & CRTSCTS) {
-					port->tty->hw_stopped = 0;
+				if (port->port.count
+					&& port->port.tty->termios->c_cflag & CRTSCTS) {
+					port->port.tty->hw_stopped = 0;
 					digi_wakeup_write(port);
 				}
 			} else {
 				priv->dp_modem_signals &= ~TIOCM_CTS;
 				/* port must be open to use tty struct */
-				if (port->open_count
-					&& port->tty->termios->c_cflag & CRTSCTS) {
-					port->tty->hw_stopped = 1;
+				if (port->port.count
+					&& port->port.tty->termios->c_cflag & CRTSCTS) {
+					port->port.tty->hw_stopped = 1;
 				}
 			}
 			if (val & DIGI_READ_INPUT_SIGNALS_DSR)
