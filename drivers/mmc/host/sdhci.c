@@ -689,7 +689,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 				WARN_ON(1);
 				host->flags &= ~SDHCI_USE_DMA;
 			} else {
-				WARN_ON(count != 1);
+				WARN_ON(sg_cnt != 1);
 				writel(sg_dma_address(data->sg),
 					host->ioaddr + SDHCI_DMA_ADDRESS);
 			}
