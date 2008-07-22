@@ -122,37 +122,37 @@ static int vfs_statfs64(struct dentry *dentry, struct statfs64 *buf)
 	return 0;
 }
 
-asmlinkage long sys_statfs(const char __user * path, struct statfs __user * buf)
+asmlinkage long sys_statfs(const char __user *pathname, struct statfs __user * buf)
 {
-	struct nameidata nd;
+	struct path path;
 	int error;
 
-	error = user_path_walk(path, &nd);
+	error = user_path(pathname, &path);
 	if (!error) {
 		struct statfs tmp;
-		error = vfs_statfs_native(nd.path.dentry, &tmp);
+		error = vfs_statfs_native(path.dentry, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
-		path_put(&nd.path);
+		path_put(&path);
 	}
 	return error;
 }
 
 
-asmlinkage long sys_statfs64(const char __user *path, size_t sz, struct statfs64 __user *buf)
+asmlinkage long sys_statfs64(const char __user *pathname, size_t sz, struct statfs64 __user *buf)
 {
-	struct nameidata nd;
+	struct path path;
 	long error;
 
 	if (sz != sizeof(*buf))
 		return -EINVAL;
-	error = user_path_walk(path, &nd);
+	error = user_path(pathname, &path);
 	if (!error) {
 		struct statfs64 tmp;
-		error = vfs_statfs64(nd.path.dentry, &tmp);
+		error = vfs_statfs64(path.dentry, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
-		path_put(&nd.path);
+		path_put(&path);
 	}
 	return error;
 }
@@ -223,20 +223,20 @@ int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 	return err;
 }
 
-static long do_sys_truncate(const char __user * path, loff_t length)
+static long do_sys_truncate(const char __user *pathname, loff_t length)
 {
-	struct nameidata nd;
-	struct inode * inode;
+	struct path path;
+	struct inode *inode;
 	int error;
 
 	error = -EINVAL;
 	if (length < 0)	/* sorry, but loff_t says... */
 		goto out;
 
-	error = user_path_walk(path, &nd);
+	error = user_path(pathname, &path);
 	if (error)
 		goto out;
-	inode = nd.path.dentry->d_inode;
+	inode = path.dentry->d_inode;
 
 	/* For directories it's -EISDIR, for other non-regulars - -EINVAL */
 	error = -EISDIR;
@@ -247,7 +247,7 @@ static long do_sys_truncate(const char __user * path, loff_t length)
 	if (!S_ISREG(inode->i_mode))
 		goto dput_and_out;
 
-	error = mnt_want_write(nd.path.mnt);
+	error = mnt_want_write(path.mnt);
 	if (error)
 		goto dput_and_out;
 
@@ -274,15 +274,15 @@ static long do_sys_truncate(const char __user * path, loff_t length)
 	error = locks_verify_truncate(inode, NULL, length);
 	if (!error) {
 		DQUOT_INIT(inode);
-		error = do_truncate(nd.path.dentry, length, 0, NULL);
+		error = do_truncate(path.dentry, length, 0, NULL);
 	}
 
 put_write_and_out:
 	put_write_access(inode);
 mnt_drop_write_and_out:
-	mnt_drop_write(nd.path.mnt);
+	mnt_drop_write(path.mnt);
 dput_and_out:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	return error;
 }
@@ -425,7 +425,7 @@ out:
  */
 asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 {
-	struct nameidata nd;
+	struct path path;
 	struct inode *inode;
 	int old_fsuid, old_fsgid;
 	kernel_cap_t uninitialized_var(old_cap);  /* !SECURE_NO_SETUID_FIXUP */
@@ -449,7 +449,7 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 		 * FIXME: There is a race here against sys_capset.  The
 		 * capabilities can change yet we will restore the old
 		 * value below.  We should hold task_capabilities_lock,
-		 * but we cannot because user_path_walk can sleep.
+		 * but we cannot because user_path_at can sleep.
 		 */
 #endif /* ndef CONFIG_SECURITY_FILE_CAPABILITIES */
 		if (current->uid)
@@ -458,11 +458,11 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 			old_cap = cap_set_effective(current->cap_permitted);
 	}
 
-	res = __user_walk_fd(dfd, filename, LOOKUP_FOLLOW, &nd);
+	res = user_path_at(dfd, filename, LOOKUP_FOLLOW, &path);
 	if (res)
 		goto out;
 
-	inode = nd.path.dentry->d_inode;
+	inode = path.dentry->d_inode;
 
 	if ((mode & MAY_EXEC) && S_ISREG(inode->i_mode)) {
 		/*
@@ -470,7 +470,7 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 		 * with the "noexec" flag.
 		 */
 		res = -EACCES;
-		if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
+		if (path.mnt->mnt_flags & MNT_NOEXEC)
 			goto out_path_release;
 	}
 
@@ -488,11 +488,11 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 	 * inherently racy and know that the fs may change
 	 * state before we even see this result.
 	 */
-	if (__mnt_is_readonly(nd.path.mnt))
+	if (__mnt_is_readonly(path.mnt))
 		res = -EROFS;
 
 out_path_release:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	current->fsuid = old_fsuid;
 	current->fsgid = old_fsgid;
@@ -510,21 +510,21 @@ asmlinkage long sys_access(const char __user *filename, int mode)
 
 asmlinkage long sys_chdir(const char __user * filename)
 {
-	struct nameidata nd;
+	struct path path;
 	int error;
 
-	error = __user_walk(filename, LOOKUP_FOLLOW|LOOKUP_DIRECTORY, &nd);
+	error = user_path_dir(filename, &path);
 	if (error)
 		goto out;
 
-	error = inode_permission(nd.path.dentry->d_inode, MAY_EXEC | MAY_ACCESS);
+	error = inode_permission(path.dentry->d_inode, MAY_EXEC | MAY_ACCESS);
 	if (error)
 		goto dput_and_out;
 
-	set_fs_pwd(current->fs, &nd.path);
+	set_fs_pwd(current->fs, &path);
 
 dput_and_out:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	return error;
 }
@@ -557,14 +557,14 @@ out:
 
 asmlinkage long sys_chroot(const char __user * filename)
 {
-	struct nameidata nd;
+	struct path path;
 	int error;
 
-	error = __user_walk(filename, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &nd);
+	error = user_path_dir(filename, &path);
 	if (error)
 		goto out;
 
-	error = inode_permission(nd.path.dentry->d_inode, MAY_EXEC | MAY_ACCESS);
+	error = inode_permission(path.dentry->d_inode, MAY_EXEC | MAY_ACCESS);
 	if (error)
 		goto dput_and_out;
 
@@ -572,10 +572,10 @@ asmlinkage long sys_chroot(const char __user * filename)
 	if (!capable(CAP_SYS_CHROOT))
 		goto dput_and_out;
 
-	set_fs_root(current->fs, &nd.path);
+	set_fs_root(current->fs, &path);
 	error = 0;
 dput_and_out:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	return error;
 }
@@ -617,17 +617,17 @@ out:
 asmlinkage long sys_fchmodat(int dfd, const char __user *filename,
 			     mode_t mode)
 {
-	struct nameidata nd;
-	struct inode * inode;
+	struct path path;
+	struct inode *inode;
 	int error;
 	struct iattr newattrs;
 
-	error = __user_walk_fd(dfd, filename, LOOKUP_FOLLOW, &nd);
+	error = user_path_at(dfd, filename, LOOKUP_FOLLOW, &path);
 	if (error)
 		goto out;
-	inode = nd.path.dentry->d_inode;
+	inode = path.dentry->d_inode;
 
-	error = mnt_want_write(nd.path.mnt);
+	error = mnt_want_write(path.mnt);
 	if (error)
 		goto dput_and_out;
 	mutex_lock(&inode->i_mutex);
@@ -635,11 +635,11 @@ asmlinkage long sys_fchmodat(int dfd, const char __user *filename,
 		mode = inode->i_mode;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
-	error = notify_change(nd.path.dentry, &newattrs);
+	error = notify_change(path.dentry, &newattrs);
 	mutex_unlock(&inode->i_mutex);
-	mnt_drop_write(nd.path.mnt);
+	mnt_drop_write(path.mnt);
 dput_and_out:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	return error;
 }
@@ -676,19 +676,19 @@ static int chown_common(struct dentry * dentry, uid_t user, gid_t group)
 
 asmlinkage long sys_chown(const char __user * filename, uid_t user, gid_t group)
 {
-	struct nameidata nd;
+	struct path path;
 	int error;
 
-	error = user_path_walk(filename, &nd);
+	error = user_path(filename, &path);
 	if (error)
 		goto out;
-	error = mnt_want_write(nd.path.mnt);
+	error = mnt_want_write(path.mnt);
 	if (error)
 		goto out_release;
-	error = chown_common(nd.path.dentry, user, group);
-	mnt_drop_write(nd.path.mnt);
+	error = chown_common(path.dentry, user, group);
+	mnt_drop_write(path.mnt);
 out_release:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	return error;
 }
@@ -696,7 +696,7 @@ out:
 asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
 			     gid_t group, int flag)
 {
-	struct nameidata nd;
+	struct path path;
 	int error = -EINVAL;
 	int follow;
 
@@ -704,35 +704,35 @@ asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
 		goto out;
 
 	follow = (flag & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
-	error = __user_walk_fd(dfd, filename, follow, &nd);
+	error = user_path_at(dfd, filename, follow, &path);
 	if (error)
 		goto out;
-	error = mnt_want_write(nd.path.mnt);
+	error = mnt_want_write(path.mnt);
 	if (error)
 		goto out_release;
-	error = chown_common(nd.path.dentry, user, group);
-	mnt_drop_write(nd.path.mnt);
+	error = chown_common(path.dentry, user, group);
+	mnt_drop_write(path.mnt);
 out_release:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	return error;
 }
 
 asmlinkage long sys_lchown(const char __user * filename, uid_t user, gid_t group)
 {
-	struct nameidata nd;
+	struct path path;
 	int error;
 
-	error = user_path_walk_link(filename, &nd);
+	error = user_lpath(filename, &path);
 	if (error)
 		goto out;
-	error = mnt_want_write(nd.path.mnt);
+	error = mnt_want_write(path.mnt);
 	if (error)
 		goto out_release;
-	error = chown_common(nd.path.dentry, user, group);
-	mnt_drop_write(nd.path.mnt);
+	error = chown_common(path.dentry, user, group);
+	mnt_drop_write(path.mnt);
 out_release:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	return error;
 }

@@ -1334,22 +1334,22 @@ struct dentry *lookup_one_noperm(const char *name, struct dentry *base)
 	return __lookup_hash(&this, base, NULL);
 }
 
-int __user_walk_fd(int dfd, const char __user *name, unsigned flags,
-			    struct nameidata *nd)
+int user_path_at(int dfd, const char __user *name, unsigned flags,
+		 struct path *path)
 {
+	struct nameidata nd;
 	char *tmp = getname(name);
 	int err = PTR_ERR(tmp);
-
 	if (!IS_ERR(tmp)) {
-		err = do_path_lookup(dfd, tmp, flags, nd);
+
+		BUG_ON(flags & LOOKUP_PARENT);
+
+		err = do_path_lookup(dfd, tmp, flags, &nd);
 		putname(tmp);
+		if (!err)
+			*path = nd.path;
 	}
 	return err;
-}
-
-int __user_walk(const char __user *name, unsigned flags, struct nameidata *nd)
-{
-	return __user_walk_fd(AT_FDCWD, name, flags, nd);
 }
 
 /*
@@ -2446,7 +2446,8 @@ asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
 			   int flags)
 {
 	struct dentry *new_dentry;
-	struct nameidata nd, old_nd;
+	struct nameidata nd;
+	struct path old_path;
 	int error;
 	char * to;
 
@@ -2457,16 +2458,16 @@ asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
 	if (IS_ERR(to))
 		return PTR_ERR(to);
 
-	error = __user_walk_fd(olddfd, oldname,
-			       flags & AT_SYMLINK_FOLLOW ? LOOKUP_FOLLOW : 0,
-			       &old_nd);
+	error = user_path_at(olddfd, oldname,
+			     flags & AT_SYMLINK_FOLLOW ? LOOKUP_FOLLOW : 0,
+			     &old_path);
 	if (error)
 		goto exit;
 	error = do_path_lookup(newdfd, to, LOOKUP_PARENT, &nd);
 	if (error)
 		goto out;
 	error = -EXDEV;
-	if (old_nd.path.mnt != nd.path.mnt)
+	if (old_path.mnt != nd.path.mnt)
 		goto out_release;
 	new_dentry = lookup_create(&nd, 0);
 	error = PTR_ERR(new_dentry);
@@ -2475,7 +2476,7 @@ asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
 	error = mnt_want_write(nd.path.mnt);
 	if (error)
 		goto out_dput;
-	error = vfs_link(old_nd.path.dentry, nd.path.dentry->d_inode, new_dentry);
+	error = vfs_link(old_path.dentry, nd.path.dentry->d_inode, new_dentry);
 	mnt_drop_write(nd.path.mnt);
 out_dput:
 	dput(new_dentry);
@@ -2484,7 +2485,7 @@ out_unlock:
 out_release:
 	path_put(&nd.path);
 out:
-	path_put(&old_nd.path);
+	path_put(&old_path);
 exit:
 	putname(to);
 
@@ -2877,8 +2878,7 @@ const struct inode_operations page_symlink_inode_operations = {
 	.put_link	= page_put_link,
 };
 
-EXPORT_SYMBOL(__user_walk);
-EXPORT_SYMBOL(__user_walk_fd);
+EXPORT_SYMBOL(user_path_at);
 EXPORT_SYMBOL(follow_down);
 EXPORT_SYMBOL(follow_up);
 EXPORT_SYMBOL(get_write_access); /* binfmt_aout */

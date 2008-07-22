@@ -152,18 +152,18 @@ long do_utimes(int dfd, char __user *filename, struct timespec *times, int flags
 		error = utimes_common(&file->f_path, times);
 		fput(file);
 	} else {
-		struct nameidata nd;
+		struct path path;
 		int lookup_flags = 0;
 
 		if (!(flags & AT_SYMLINK_NOFOLLOW))
 			lookup_flags |= LOOKUP_FOLLOW;
 
-		error = __user_walk_fd(dfd, filename, lookup_flags, &nd);
+		error = user_path_at(dfd, filename, lookup_flags, &path);
 		if (error)
 			goto out;
 
-		error = utimes_common(&nd.path, times);
-		path_put(&nd.path);
+		error = utimes_common(&path, times);
+		path_put(&path);
 	}
 
 out:

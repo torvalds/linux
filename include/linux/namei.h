@@ -54,12 +54,13 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_OPEN		(0x0100)
 #define LOOKUP_CREATE		(0x0200)
 
-extern int __user_walk(const char __user *, unsigned, struct nameidata *);
-extern int __user_walk_fd(int dfd, const char __user *, unsigned, struct nameidata *);
-#define user_path_walk(name,nd) \
-	__user_walk_fd(AT_FDCWD, name, LOOKUP_FOLLOW, nd)
-#define user_path_walk_link(name,nd) \
-	__user_walk_fd(AT_FDCWD, name, 0, nd)
+extern int user_path_at(int, const char __user *, unsigned, struct path *);
+
+#define user_path(name, path) user_path_at(AT_FDCWD, name, LOOKUP_FOLLOW, path)
+#define user_lpath(name, path) user_path_at(AT_FDCWD, name, 0, path)
+#define user_path_dir(name, path) \
+	user_path_at(AT_FDCWD, name, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, path)
+
 extern int path_lookup(const char *, unsigned, struct nameidata *);
 extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 			   const char *, unsigned int, struct nameidata *);
