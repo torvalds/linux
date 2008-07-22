@@ -186,7 +186,6 @@ static void pc_throttle(struct tty_struct *tty);
 static void pc_unthrottle(struct tty_struct *tty);
 static int pc_send_break(struct tty_struct *tty, int msec);
 static void setup_empty_event(struct tty_struct *tty, struct channel *ch);
-static void epca_setup(char *, int *);
 
 static int pc_write(struct tty_struct *, const unsigned char *, int);
 static int pc_init(void);
@@ -2513,7 +2512,8 @@ static void setup_empty_event(struct tty_struct *tty, struct channel *ch)
 	memoff(ch);
 }
 
-static void epca_setup(char *str, int *ints)
+#ifndef MODULE
+static void __init epca_setup(char *str, int *ints)
 {
 	struct board_info board;
 	int               index, loop, last;
@@ -2766,6 +2766,17 @@ static void epca_setup(char *str, int *ints)
 		board.numports, (int)board.port, (unsigned int) board.membase);
 	num_cards++;
 }
+
+static int __init epca_real_setup(char *str)
+{
+	int ints[11];
+
+	epca_setup(get_options(str, 11, ints), ints);
+	return 1;
+}
+
+__setup("digiepca", epca_real_setup);
+#endif
 
 enum epic_board_types {
 	brd_xr = 0,
