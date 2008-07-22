@@ -208,7 +208,7 @@ static inline unsigned int ringbuf_avail_data(struct ringbuf *pb)
 {
 	if (pb == NULL)
 		return 0;
-	return ((pb->buf_size + pb->buf_put - pb->buf_get) % pb->buf_size);
+	return (pb->buf_size + pb->buf_put - pb->buf_get) % pb->buf_size;
 }
 
 /* get the number of space in the pipo */
@@ -216,7 +216,7 @@ static inline unsigned int ringbuf_avail_space(struct ringbuf *pb)
 {
 	if (pb == NULL)
 		return 0;
-	return ((pb->buf_size + pb->buf_get - pb->buf_put - 1) % pb->buf_size);
+	return (pb->buf_size + pb->buf_get - pb->buf_put - 1) % pb->buf_size;
 }
 
 /* put count data into pipo */
