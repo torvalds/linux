@@ -1,5 +1,5 @@
 /*
- * @file op_model_athlon.c
+ * @file op_model_amd.c
  * athlon / K7 / K8 / Family 10h model-specific MSR operations
  *
  * @remark Copyright 2002-2008 OProfile authors
