@@ -151,22 +151,17 @@ static uint32_t msi_tgt_status[8] = {
 	ISR_INT_TARGET_STATUS_F6, ISR_INT_TARGET_STATUS_F7
 };
 
-static uint32_t sw_int_mask[4] = {
-	CRB_SW_INT_MASK_0, CRB_SW_INT_MASK_1,
-	CRB_SW_INT_MASK_2, CRB_SW_INT_MASK_3
-};
-
 static struct netxen_legacy_intr_set legacy_intr[] = NX_LEGACY_INTR_CONFIG;
 
 static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 {
 	u32 mask = 0x7ff;
 	int retries = 32;
-	int port = adapter->portnum;
 	int pci_fn = adapter->ahw.pci_func;
 
 	if (adapter->msi_mode != MSI_MODE_MULTIFUNC)
-		adapter->pci_write_normalize(adapter, sw_int_mask[port], 0);
+		adapter->pci_write_normalize(adapter,
+				adapter->crb_intr_mask, 0);
 
 	if (adapter->intr_scheme != -1 &&
 	    adapter->intr_scheme != INTR_SCHEME_PERPORT)
@@ -198,7 +193,6 @@ static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 static void netxen_nic_enable_int(struct netxen_adapter *adapter)
 {
 	u32 mask;
-	int port = adapter->portnum;
 
 	DPRINTK(1, INFO, "Entered ISR Enable \n");
 
@@ -219,7 +213,7 @@ static void netxen_nic_enable_int(struct netxen_adapter *adapter)
 		adapter->pci_write_immediate(adapter, ISR_INT_MASK, mask);
 	}
 
-	adapter->pci_write_normalize(adapter, sw_int_mask[port], 0x1);
+	adapter->pci_write_normalize(adapter, adapter->crb_intr_mask, 0x1);
 
 	if (!NETXEN_IS_MSI_FAMILY(adapter)) {
 		mask = 0xbff;
@@ -710,10 +704,13 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->status   &= ~NETXEN_NETDEV_STATUS;
 	adapter->rx_csum = 1;
 	adapter->mc_enabled = 0;
-	if (NX_IS_REVISION_P3(revision_id))
+	if (NX_IS_REVISION_P3(revision_id)) {
 		adapter->max_mc_count = 38;
-	else
+		adapter->max_rds_rings = 2;
+	} else {
 		adapter->max_mc_count = 16;
+		adapter->max_rds_rings = 3;
+	}
 
 	netdev->open		   = netxen_nic_open;
 	netdev->stop		   = netxen_nic_close;
@@ -1081,7 +1078,7 @@ static int netxen_nic_open(struct net_device *netdev)
 		netxen_nic_update_cmd_consumer(adapter, 0);
 
 		for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
-			for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++)
+			for (ring = 0; ring < adapter->max_rds_rings; ring++)
 				netxen_post_rx_buffers(adapter, ctx, ring);
 		}
 		if (NETXEN_IS_MSI_FAMILY(adapter))

@@ -84,7 +84,7 @@
 #define TX_RINGSIZE	\
 	(sizeof(struct netxen_cmd_buffer) * adapter->max_tx_desc_count)
 #define RCV_BUFFSIZE	\
-	(sizeof(struct netxen_rx_buffer) * rcv_desc->max_rx_desc_count)
+	(sizeof(struct netxen_rx_buffer) * rds_ring->max_rx_desc_count)
 #define find_diff_among(a,b,range) ((a)<(b)?((b)-(a)):((b)+(range)-(a)))
 
 #define NETXEN_NETDEV_STATUS		0x1
@@ -303,7 +303,7 @@ struct netxen_ring_ctx {
 #define netxen_set_cmd_desc_port(cmd_desc, var)	\
 	((cmd_desc)->port_ctxid |= ((var) & 0x0F))
 #define netxen_set_cmd_desc_ctxid(cmd_desc, var)	\
-	((cmd_desc)->port_ctxid |= ((var) & 0xF0))
+	((cmd_desc)->port_ctxid |= ((var) << 4 & 0xF0))
 
 #define netxen_set_cmd_desc_flags(cmd_desc, val)	\
 	(cmd_desc)->flags_opcode = ((cmd_desc)->flags_opcode & \
@@ -844,7 +844,7 @@ struct netxen_adapter_stats {
  * Rcv Descriptor Context. One such per Rcv Descriptor. There may
  * be one Rcv Descriptor for normal packets, one for jumbo and may be others.
  */
-struct netxen_rcv_desc_ctx {
+struct nx_host_rds_ring {
 	u32 flags;
 	u32 producer;
 	dma_addr_t phys_addr;
@@ -864,12 +864,269 @@ struct netxen_rcv_desc_ctx {
  * present elsewhere.
  */
 struct netxen_recv_context {
-	struct netxen_rcv_desc_ctx rcv_desc[NUM_RCV_DESC_RINGS];
+	u32 state;
+	u16 context_id;
+	u16 virt_port;
+
+	struct nx_host_rds_ring rds_rings[NUM_RCV_DESC_RINGS];
 	u32 status_rx_consumer;
 	u32 crb_sts_consumer;	/* reg offset */
 	dma_addr_t rcv_status_desc_phys_addr;
 	struct status_desc *rcv_status_desc_head;
 };
+
+/* New HW context creation */
+
+#define NX_OS_CRB_RETRY_COUNT	4000
+#define NX_CDRP_SIGNATURE_MAKE(pcifn, version) \
+	(((pcifn) & 0xff) | (((version) & 0xff) << 8) | (0xcafe << 16))
+
+#define NX_CDRP_CLEAR		0x00000000
+#define NX_CDRP_CMD_BIT		0x80000000
+
+/*
+ * All responses must have the NX_CDRP_CMD_BIT cleared
+ * in the crb NX_CDRP_CRB_OFFSET.
+ */
+#define NX_CDRP_FORM_RSP(rsp)	(rsp)
+#define NX_CDRP_IS_RSP(rsp)	(((rsp) & NX_CDRP_CMD_BIT) == 0)
+
+#define NX_CDRP_RSP_OK		0x00000001
+#define NX_CDRP_RSP_FAIL	0x00000002
+#define NX_CDRP_RSP_TIMEOUT	0x00000003
+
+/*
+ * All commands must have the NX_CDRP_CMD_BIT set in
+ * the crb NX_CDRP_CRB_OFFSET.
+ */
+#define NX_CDRP_FORM_CMD(cmd)	(NX_CDRP_CMD_BIT | (cmd))
+#define NX_CDRP_IS_CMD(cmd)	(((cmd) & NX_CDRP_CMD_BIT) != 0)
+
+#define NX_CDRP_CMD_SUBMIT_CAPABILITIES     0x00000001
+#define NX_CDRP_CMD_READ_MAX_RDS_PER_CTX    0x00000002
+#define NX_CDRP_CMD_READ_MAX_SDS_PER_CTX    0x00000003
+#define NX_CDRP_CMD_READ_MAX_RULES_PER_CTX  0x00000004
+#define NX_CDRP_CMD_READ_MAX_RX_CTX         0x00000005
+#define NX_CDRP_CMD_READ_MAX_TX_CTX         0x00000006
+#define NX_CDRP_CMD_CREATE_RX_CTX           0x00000007
+#define NX_CDRP_CMD_DESTROY_RX_CTX          0x00000008
+#define NX_CDRP_CMD_CREATE_TX_CTX           0x00000009
+#define NX_CDRP_CMD_DESTROY_TX_CTX          0x0000000a
+#define NX_CDRP_CMD_SETUP_STATISTICS        0x0000000e
+#define NX_CDRP_CMD_GET_STATISTICS          0x0000000f
+#define NX_CDRP_CMD_DELETE_STATISTICS       0x00000010
+#define NX_CDRP_CMD_SET_MTU                 0x00000012
+#define NX_CDRP_CMD_MAX                     0x00000013
+
+#define NX_RCODE_SUCCESS		0
+#define NX_RCODE_NO_HOST_MEM		1
+#define NX_RCODE_NO_HOST_RESOURCE	2
+#define NX_RCODE_NO_CARD_CRB		3
+#define NX_RCODE_NO_CARD_MEM		4
+#define NX_RCODE_NO_CARD_RESOURCE	5
+#define NX_RCODE_INVALID_ARGS		6
+#define NX_RCODE_INVALID_ACTION		7
+#define NX_RCODE_INVALID_STATE		8
+#define NX_RCODE_NOT_SUPPORTED		9
+#define NX_RCODE_NOT_PERMITTED		10
+#define NX_RCODE_NOT_READY		11
+#define NX_RCODE_DOES_NOT_EXIST		12
+#define NX_RCODE_ALREADY_EXISTS		13
+#define NX_RCODE_BAD_SIGNATURE		14
+#define NX_RCODE_CMD_NOT_IMPL		15
+#define NX_RCODE_CMD_INVALID		16
+#define NX_RCODE_TIMEOUT		17
+#define NX_RCODE_CMD_FAILED		18
+#define NX_RCODE_MAX_EXCEEDED		19
+#define NX_RCODE_MAX			20
+
+#define NX_DESTROY_CTX_RESET		0
+#define NX_DESTROY_CTX_D3_RESET		1
+#define NX_DESTROY_CTX_MAX		2
+
+/*
+ * Capabilities
+ */
+#define NX_CAP_BIT(class, bit)		(1 << bit)
+#define NX_CAP0_LEGACY_CONTEXT		NX_CAP_BIT(0, 0)
+#define NX_CAP0_MULTI_CONTEXT		NX_CAP_BIT(0, 1)
+#define NX_CAP0_LEGACY_MN		NX_CAP_BIT(0, 2)
+#define NX_CAP0_LEGACY_MS		NX_CAP_BIT(0, 3)
+#define NX_CAP0_CUT_THROUGH		NX_CAP_BIT(0, 4)
+#define NX_CAP0_LRO			NX_CAP_BIT(0, 5)
+#define NX_CAP0_LSO			NX_CAP_BIT(0, 6)
+#define NX_CAP0_JUMBO_CONTIGUOUS	NX_CAP_BIT(0, 7)
+#define NX_CAP0_LRO_CONTIGUOUS		NX_CAP_BIT(0, 8)
+
+/*
+ * Context state
+ */
+#define NX_HOST_CTX_STATE_FREED		0
+#define NX_HOST_CTX_STATE_ALLOCATED	1
+#define NX_HOST_CTX_STATE_ACTIVE	2
+#define NX_HOST_CTX_STATE_DISABLED	3
+#define NX_HOST_CTX_STATE_QUIESCED	4
+#define NX_HOST_CTX_STATE_MAX		5
+
+/*
+ * Rx context
+ */
+
+typedef struct {
+	u64 host_phys_addr;	/* Ring base addr */
+	u32 ring_size;		/* Ring entries */
+	u16 msi_index;
+	u16 rsvd;		/* Padding */
+} nx_hostrq_sds_ring_t;
+
+typedef struct {
+	u64 host_phys_addr;	/* Ring base addr */
+	u64 buff_size;		/* Packet buffer size */
+	u32 ring_size;		/* Ring entries */
+	u32 ring_kind;		/* Class of ring */
+} nx_hostrq_rds_ring_t;
+
+typedef struct {
+	u64 host_rsp_dma_addr;	/* Response dma'd here */
+	u32 capabilities[4];	/* Flag bit vector */
+	u32 host_int_crb_mode;	/* Interrupt crb usage */
+	u32 host_rds_crb_mode;	/* RDS crb usage */
+	/* These ring offsets are relative to data[0] below */
+	u32 rds_ring_offset;	/* Offset to RDS config */
+	u32 sds_ring_offset;	/* Offset to SDS config */
+	u16 num_rds_rings;	/* Count of RDS rings */
+	u16 num_sds_rings;	/* Count of SDS rings */
+	u16 rsvd1;		/* Padding */
+	u16 rsvd2;		/* Padding */
+	u8  reserved[128]; 	/* reserve space for future expansion*/
+	/* MUST BE 64-bit aligned.
+	   The following is packed:
+	   - N hostrq_rds_rings
+	   - N hostrq_sds_rings */
+	char data[0];
+} nx_hostrq_rx_ctx_t;
+
+typedef struct {
+	u32 host_producer_crb;	/* Crb to use */
+	u32 rsvd1;		/* Padding */
+} nx_cardrsp_rds_ring_t;
+
+typedef struct {
+	u32 host_consumer_crb;	/* Crb to use */
+	u32 interrupt_crb;	/* Crb to use */
+} nx_cardrsp_sds_ring_t;
+
+typedef struct {
+	/* These ring offsets are relative to data[0] below */
+	u32 rds_ring_offset;	/* Offset to RDS config */
+	u32 sds_ring_offset;	/* Offset to SDS config */
+	u32 host_ctx_state;	/* Starting State */
+	u32 num_fn_per_port;	/* How many PCI fn share the port */
+	u16 num_rds_rings;	/* Count of RDS rings */
+	u16 num_sds_rings;	/* Count of SDS rings */
+	u16 context_id;		/* Handle for context */
+	u8  phys_port;		/* Physical id of port */
+	u8  virt_port;		/* Virtual/Logical id of port */
+	u8  reserved[128];	/* save space for future expansion */
+	/*  MUST BE 64-bit aligned.
+	   The following is packed:
+	   - N cardrsp_rds_rings
+	   - N cardrs_sds_rings */
+	char data[0];
+} nx_cardrsp_rx_ctx_t;
+
+#define SIZEOF_HOSTRQ_RX(HOSTRQ_RX, rds_rings, sds_rings)	\
+	(sizeof(HOSTRQ_RX) + 					\
+	(rds_rings)*(sizeof(nx_hostrq_rds_ring_t)) +		\
+	(sds_rings)*(sizeof(nx_hostrq_sds_ring_t)))
+
+#define SIZEOF_CARDRSP_RX(CARDRSP_RX, rds_rings, sds_rings) 	\
+	(sizeof(CARDRSP_RX) + 					\
+	(rds_rings)*(sizeof(nx_cardrsp_rds_ring_t)) + 		\
+	(sds_rings)*(sizeof(nx_cardrsp_sds_ring_t)))
+
+/*
+ * Tx context
+ */
+
+typedef struct {
+	u64 host_phys_addr;	/* Ring base addr */
+	u32 ring_size;		/* Ring entries */
+	u32 rsvd;		/* Padding */
+} nx_hostrq_cds_ring_t;
+
+typedef struct {
+	u64 host_rsp_dma_addr;	/* Response dma'd here */
+	u64 cmd_cons_dma_addr;	/*  */
+	u64 dummy_dma_addr;	/*  */
+	u32 capabilities[4];	/* Flag bit vector */
+	u32 host_int_crb_mode;	/* Interrupt crb usage */
+	u32 rsvd1;		/* Padding */
+	u16 rsvd2;		/* Padding */
+	u16 interrupt_ctl;
+	u16 msi_index;
+	u16 rsvd3;		/* Padding */
+	nx_hostrq_cds_ring_t cds_ring;	/* Desc of cds ring */
+	u8  reserved[128];	/* future expansion */
+} nx_hostrq_tx_ctx_t;
+
+typedef struct {
+	u32 host_producer_crb;	/* Crb to use */
+	u32 interrupt_crb;	/* Crb to use */
+} nx_cardrsp_cds_ring_t;
+
+typedef struct {
+	u32 host_ctx_state;	/* Starting state */
+	u16 context_id;		/* Handle for context */
+	u8  phys_port;		/* Physical id of port */
+	u8  virt_port;		/* Virtual/Logical id of port */
+	nx_cardrsp_cds_ring_t cds_ring;	/* Card cds settings */
+	u8  reserved[128];	/* future expansion */
+} nx_cardrsp_tx_ctx_t;
+
+#define SIZEOF_HOSTRQ_TX(HOSTRQ_TX)	(sizeof(HOSTRQ_TX))
+#define SIZEOF_CARDRSP_TX(CARDRSP_TX)	(sizeof(CARDRSP_TX))
+
+/* CRB */
+
+#define NX_HOST_RDS_CRB_MODE_UNIQUE	0
+#define NX_HOST_RDS_CRB_MODE_SHARED	1
+#define NX_HOST_RDS_CRB_MODE_CUSTOM	2
+#define NX_HOST_RDS_CRB_MODE_MAX	3
+
+#define NX_HOST_INT_CRB_MODE_UNIQUE	0
+#define NX_HOST_INT_CRB_MODE_SHARED	1
+#define NX_HOST_INT_CRB_MODE_NORX	2
+#define NX_HOST_INT_CRB_MODE_NOTX	3
+#define NX_HOST_INT_CRB_MODE_NORXTX	4
+
+
+/* MAC */
+
+#define MC_COUNT_P2	16
+#define MC_COUNT_P3	38
+
+#define NETXEN_MAC_NOOP	0
+#define NETXEN_MAC_ADD	1
+#define NETXEN_MAC_DEL	2
+
+typedef struct nx_mac_list_s {
+	struct nx_mac_list_s *next;
+	uint8_t mac_addr[MAX_ADDR_LEN];
+} nx_mac_list_t;
+
+typedef struct {
+	u64 qhdr;
+	u64 req_hdr;
+	u64 words[6];
+} nic_request_t;
+
+typedef struct {
+	u8 op;
+	u8 tag;
+	u8 mac_addr[6];
+} nx_mac_req_t;
+
 
 #define NETXEN_NIC_MSI_ENABLED		0x02
 #define NETXEN_NIC_MSIX_ENABLED		0x04
@@ -899,11 +1156,13 @@ struct netxen_adapter {
 	int mtu;
 	int portnum;
 	u8 physical_port;
+	u16 tx_context_id;
 
 	uint8_t		mc_enabled;
 	uint8_t		max_mc_count;
 
 	struct netxen_legacy_intr_set legacy_intr;
+	u32	crb_intr_mask;
 
 	struct work_struct watchdog_task;
 	struct timer_list watchdog_timer;
@@ -925,6 +1184,8 @@ struct netxen_adapter {
 	u32 max_rx_desc_count;
 	u32 max_jumbo_rx_desc_count;
 	u32 max_lro_rx_desc_count;
+
+	int max_rds_rings;
 
 	u32 flags;
 	u32 irq;
@@ -1144,7 +1405,10 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx,
 int netxen_process_cmd_ring(struct netxen_adapter *adapter);
 u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctx, int max);
 void netxen_nic_set_multi(struct net_device *netdev);
+
+u32 nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, u32 mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
+
 int netxen_nic_set_mac(struct net_device *netdev, void *p);
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
 

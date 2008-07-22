@@ -158,21 +158,21 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 void netxen_release_rx_buffers(struct netxen_adapter *adapter)
 {
 	struct netxen_recv_context *recv_ctx;
-	struct netxen_rcv_desc_ctx *rcv_desc;
+	struct nx_host_rds_ring *rds_ring;
 	struct netxen_rx_buffer *rx_buf;
 	int i, ctxid, ring;
 
 	for (ctxid = 0; ctxid < MAX_RCV_CTX; ++ctxid) {
 		recv_ctx = &adapter->recv_ctx[ctxid];
-		for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++) {
-			rcv_desc = &recv_ctx->rcv_desc[ring];
-			for (i = 0; i < rcv_desc->max_rx_desc_count; ++i) {
-				rx_buf = &(rcv_desc->rx_buf_arr[i]);
+		for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+			rds_ring = &recv_ctx->rds_rings[ring];
+			for (i = 0; i < rds_ring->max_rx_desc_count; ++i) {
+				rx_buf = &(rds_ring->rx_buf_arr[i]);
 				if (rx_buf->state == NETXEN_BUFFER_FREE)
 					continue;
 				pci_unmap_single(adapter->pdev,
 						rx_buf->dma,
-						rcv_desc->dma_size,
+						rds_ring->dma_size,
 						PCI_DMA_FROMDEVICE);
 				if (rx_buf->skb != NULL)
 					dev_kfree_skb_any(rx_buf->skb);
@@ -216,16 +216,16 @@ void netxen_release_tx_buffers(struct netxen_adapter *adapter)
 void netxen_free_sw_resources(struct netxen_adapter *adapter)
 {
 	struct netxen_recv_context *recv_ctx;
-	struct netxen_rcv_desc_ctx *rcv_desc;
+	struct nx_host_rds_ring *rds_ring;
 	int ctx, ring;
 
 	for (ctx = 0; ctx < MAX_RCV_CTX; ctx++) {
 		recv_ctx = &adapter->recv_ctx[ctx];
-		for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++) {
-			rcv_desc = &recv_ctx->rcv_desc[ring];
-			if (rcv_desc->rx_buf_arr) {
-				vfree(rcv_desc->rx_buf_arr);
-				rcv_desc->rx_buf_arr = NULL;
+		for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+			rds_ring = &recv_ctx->rds_rings[ring];
+			if (rds_ring->rx_buf_arr) {
+				vfree(rds_ring->rx_buf_arr);
+				rds_ring->rx_buf_arr = NULL;
 			}
 		}
 	}
@@ -237,7 +237,7 @@ void netxen_free_sw_resources(struct netxen_adapter *adapter)
 int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 {
 	struct netxen_recv_context *recv_ctx;
-	struct netxen_rcv_desc_ctx *rcv_desc;
+	struct nx_host_rds_ring *rds_ring;
 	struct netxen_rx_buffer *rx_buf;
 	int ctx, ring, i, num_rx_bufs;
 
@@ -255,52 +255,52 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 
 	for (ctx = 0; ctx < MAX_RCV_CTX; ctx++) {
 		recv_ctx = &adapter->recv_ctx[ctx];
-		for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++) {
-			rcv_desc = &recv_ctx->rcv_desc[ring];
+		for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+			rds_ring = &recv_ctx->rds_rings[ring];
 			switch (RCV_DESC_TYPE(ring)) {
 			case RCV_DESC_NORMAL:
-				rcv_desc->max_rx_desc_count =
+				rds_ring->max_rx_desc_count =
 					adapter->max_rx_desc_count;
-				rcv_desc->flags = RCV_DESC_NORMAL;
-				rcv_desc->dma_size = RX_DMA_MAP_LEN;
-				rcv_desc->skb_size = MAX_RX_BUFFER_LENGTH;
+				rds_ring->flags = RCV_DESC_NORMAL;
+				rds_ring->dma_size = RX_DMA_MAP_LEN;
+				rds_ring->skb_size = MAX_RX_BUFFER_LENGTH;
 				break;
 
 			case RCV_DESC_JUMBO:
-				rcv_desc->max_rx_desc_count =
+				rds_ring->max_rx_desc_count =
 					adapter->max_jumbo_rx_desc_count;
-				rcv_desc->flags = RCV_DESC_JUMBO;
-				rcv_desc->dma_size = RX_JUMBO_DMA_MAP_LEN;
-				rcv_desc->skb_size =
+				rds_ring->flags = RCV_DESC_JUMBO;
+				rds_ring->dma_size = RX_JUMBO_DMA_MAP_LEN;
+				rds_ring->skb_size =
 					MAX_RX_JUMBO_BUFFER_LENGTH;
 				break;
 
 			case RCV_RING_LRO:
-				rcv_desc->max_rx_desc_count =
+				rds_ring->max_rx_desc_count =
 					adapter->max_lro_rx_desc_count;
-				rcv_desc->flags = RCV_DESC_LRO;
-				rcv_desc->dma_size = RX_LRO_DMA_MAP_LEN;
-				rcv_desc->skb_size = MAX_RX_LRO_BUFFER_LENGTH;
+				rds_ring->flags = RCV_DESC_LRO;
+				rds_ring->dma_size = RX_LRO_DMA_MAP_LEN;
+				rds_ring->skb_size = MAX_RX_LRO_BUFFER_LENGTH;
 				break;
 
 			}
-			rcv_desc->rx_buf_arr = (struct netxen_rx_buffer *)
+			rds_ring->rx_buf_arr = (struct netxen_rx_buffer *)
 				vmalloc(RCV_BUFFSIZE);
-			if (rcv_desc->rx_buf_arr == NULL) {
+			if (rds_ring->rx_buf_arr == NULL) {
 				printk(KERN_ERR "%s: Failed to allocate "
 					"rx buffer ring %d\n",
 					netdev->name, ring);
 				/* free whatever was already allocated */
 				goto err_out;
 			}
-			memset(rcv_desc->rx_buf_arr, 0, RCV_BUFFSIZE);
-			rcv_desc->begin_alloc = 0;
+			memset(rds_ring->rx_buf_arr, 0, RCV_BUFFSIZE);
+			rds_ring->begin_alloc = 0;
 			/*
 			 * Now go through all of them, set reference handles
 			 * and put them in the queues.
 			 */
-			num_rx_bufs = rcv_desc->max_rx_desc_count;
-			rx_buf = rcv_desc->rx_buf_arr;
+			num_rx_bufs = rds_ring->max_rx_desc_count;
+			rx_buf = rds_ring->rx_buf_arr;
 			for (i = 0; i < num_rx_bufs; i++) {
 				rx_buf->ref_handle = i;
 				rx_buf->state = NETXEN_BUFFER_FREE;
@@ -1154,7 +1154,7 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	struct sk_buff *skb;
 	u32 length = netxen_get_sts_totallength(sts_data);
 	u32 desc_ctx;
-	struct netxen_rcv_desc_ctx *rcv_desc;
+	struct nx_host_rds_ring *rds_ring;
 	int ret;
 
 	desc_ctx = netxen_get_sts_type(sts_data);
@@ -1164,13 +1164,13 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 		return;
 	}
 
-	rcv_desc = &recv_ctx->rcv_desc[desc_ctx];
-	if (unlikely(index > rcv_desc->max_rx_desc_count)) {
+	rds_ring = &recv_ctx->rds_rings[desc_ctx];
+	if (unlikely(index > rds_ring->max_rx_desc_count)) {
 		DPRINTK(ERR, "Got a buffer index:%x Max is %x\n",
-			index, rcv_desc->max_rx_desc_count);
+			index, rds_ring->max_rx_desc_count);
 		return;
 	}
-	buffer = &rcv_desc->rx_buf_arr[index];
+	buffer = &rds_ring->rx_buf_arr[index];
 	if (desc_ctx == RCV_DESC_LRO_CTXID) {
 		buffer->lro_current_frags++;
 		if (netxen_get_sts_desc_lro_last_frag(desc)) {
@@ -1191,7 +1191,7 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 		}
 	}
 
-	pci_unmap_single(pdev, buffer->dma, rcv_desc->dma_size,
+	pci_unmap_single(pdev, buffer->dma, rds_ring->dma_size,
 			 PCI_DMA_FROMDEVICE);
 
 	skb = (struct sk_buff *)buffer->skb;
@@ -1249,7 +1249,7 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 		consumer = (consumer + 1) & (adapter->max_rx_desc_count - 1);
 		count++;
 	}
-	for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++)
+	for (ring = 0; ring < adapter->max_rds_rings; ring++)
 		netxen_post_rx_buffers_nodb(adapter, ctxid, ring);
 
 	/* update the consumer index in phantom */
@@ -1340,7 +1340,7 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 	struct pci_dev *pdev = adapter->pdev;
 	struct sk_buff *skb;
 	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctx]);
-	struct netxen_rcv_desc_ctx *rcv_desc = NULL;
+	struct nx_host_rds_ring *rds_ring = NULL;
 	uint producer;
 	struct rcv_desc *pdesc;
 	struct netxen_rx_buffer *buffer;
@@ -1349,27 +1349,27 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 	netxen_ctx_msg msg = 0;
 	dma_addr_t dma;
 
-	rcv_desc = &recv_ctx->rcv_desc[ringid];
+	rds_ring = &recv_ctx->rds_rings[ringid];
 
-	producer = rcv_desc->producer;
-	index = rcv_desc->begin_alloc;
-	buffer = &rcv_desc->rx_buf_arr[index];
+	producer = rds_ring->producer;
+	index = rds_ring->begin_alloc;
+	buffer = &rds_ring->rx_buf_arr[index];
 	/* We can start writing rx descriptors into the phantom memory. */
 	while (buffer->state == NETXEN_BUFFER_FREE) {
-		skb = dev_alloc_skb(rcv_desc->skb_size);
+		skb = dev_alloc_skb(rds_ring->skb_size);
 		if (unlikely(!skb)) {
 			/*
 			 * TODO
 			 * We need to schedule the posting of buffers to the pegs.
 			 */
-			rcv_desc->begin_alloc = index;
+			rds_ring->begin_alloc = index;
 			DPRINTK(ERR, "netxen_post_rx_buffers: "
 				" allocated only %d buffers\n", count);
 			break;
 		}
 
 		count++;	/* now there should be no failure */
-		pdesc = &rcv_desc->desc_head[producer];
+		pdesc = &rds_ring->desc_head[producer];
 
 #if defined(XGB_DEBUG)
 		*(unsigned long *)(skb->head) = 0xc0debabe;
@@ -1382,7 +1382,7 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 		 * buffer after it has been filled  FSL  TBD TBD
 		 * skb->dev = netdev;
 		 */
-		dma = pci_map_single(pdev, skb->data, rcv_desc->dma_size,
+		dma = pci_map_single(pdev, skb->data, rds_ring->dma_size,
 				     PCI_DMA_FROMDEVICE);
 		pdesc->addr_buffer = cpu_to_le64(dma);
 		buffer->skb = skb;
@@ -1390,36 +1390,40 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 		buffer->dma = dma;
 		/* make a rcv descriptor  */
 		pdesc->reference_handle = cpu_to_le16(buffer->ref_handle);
-		pdesc->buffer_length = cpu_to_le32(rcv_desc->dma_size);
+		pdesc->buffer_length = cpu_to_le32(rds_ring->dma_size);
 		DPRINTK(INFO, "done writing descripter\n");
 		producer =
-		    get_next_index(producer, rcv_desc->max_rx_desc_count);
-		index = get_next_index(index, rcv_desc->max_rx_desc_count);
-		buffer = &rcv_desc->rx_buf_arr[index];
+		    get_next_index(producer, rds_ring->max_rx_desc_count);
+		index = get_next_index(index, rds_ring->max_rx_desc_count);
+		buffer = &rds_ring->rx_buf_arr[index];
 	}
 	/* if we did allocate buffers, then write the count to Phantom */
 	if (count) {
-		rcv_desc->begin_alloc = index;
-		rcv_desc->producer = producer;
+		rds_ring->begin_alloc = index;
+		rds_ring->producer = producer;
 			/* Window = 1 */
 		adapter->pci_write_normalize(adapter,
-				rcv_desc->crb_rcv_producer,
-				(producer-1) & (rcv_desc->max_rx_desc_count-1));
+				rds_ring->crb_rcv_producer,
+				(producer-1) & (rds_ring->max_rx_desc_count-1));
+
+		if (adapter->fw_major < 4) {
 			/*
 			 * Write a doorbell msg to tell phanmon of change in
 			 * receive ring producer
+			 * Only for firmware version < 4.0.0
 			 */
 			netxen_set_msg_peg_id(msg, NETXEN_RCV_PEG_DB_ID);
 			netxen_set_msg_privid(msg);
 			netxen_set_msg_count(msg,
 					     ((producer -
-					       1) & (rcv_desc->
+					       1) & (rds_ring->
 						     max_rx_desc_count - 1)));
 			netxen_set_msg_ctxid(msg, adapter->portnum);
 			netxen_set_msg_opcode(msg, NETXEN_RCV_PRODUCER(ringid));
 			writel(msg,
 			       DB_NORMALIZE(adapter,
 					    NETXEN_RCV_PRODUCER_OFFSET));
+		}
 	}
 }
 
@@ -1429,32 +1433,32 @@ static void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	struct sk_buff *skb;
 	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctx]);
-	struct netxen_rcv_desc_ctx *rcv_desc = NULL;
+	struct nx_host_rds_ring *rds_ring = NULL;
 	u32 producer;
 	struct rcv_desc *pdesc;
 	struct netxen_rx_buffer *buffer;
 	int count = 0;
 	int index = 0;
 
-	rcv_desc = &recv_ctx->rcv_desc[ringid];
+	rds_ring = &recv_ctx->rds_rings[ringid];
 
-	producer = rcv_desc->producer;
-	index = rcv_desc->begin_alloc;
-	buffer = &rcv_desc->rx_buf_arr[index];
+	producer = rds_ring->producer;
+	index = rds_ring->begin_alloc;
+	buffer = &rds_ring->rx_buf_arr[index];
 	/* We can start writing rx descriptors into the phantom memory. */
 	while (buffer->state == NETXEN_BUFFER_FREE) {
-		skb = dev_alloc_skb(rcv_desc->skb_size);
+		skb = dev_alloc_skb(rds_ring->skb_size);
 		if (unlikely(!skb)) {
 			/*
 			 * We need to schedule the posting of buffers to the pegs.
 			 */
-			rcv_desc->begin_alloc = index;
+			rds_ring->begin_alloc = index;
 			DPRINTK(ERR, "netxen_post_rx_buffers_nodb: "
 				" allocated only %d buffers\n", count);
 			break;
 		}
 		count++;	/* now there should be no failure */
-		pdesc = &rcv_desc->desc_head[producer];
+		pdesc = &rds_ring->desc_head[producer];
 		skb_reserve(skb, 2);
 		/*
 		 * This will be setup when we receive the
@@ -1464,27 +1468,27 @@ static void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 		buffer->skb = skb;
 		buffer->state = NETXEN_BUFFER_BUSY;
 		buffer->dma = pci_map_single(pdev, skb->data,
-					     rcv_desc->dma_size,
+					     rds_ring->dma_size,
 					     PCI_DMA_FROMDEVICE);
 
 		/* make a rcv descriptor  */
 		pdesc->reference_handle = cpu_to_le16(buffer->ref_handle);
-		pdesc->buffer_length = cpu_to_le32(rcv_desc->dma_size);
+		pdesc->buffer_length = cpu_to_le32(rds_ring->dma_size);
 		pdesc->addr_buffer = cpu_to_le64(buffer->dma);
 		producer =
-		    get_next_index(producer, rcv_desc->max_rx_desc_count);
-		index = get_next_index(index, rcv_desc->max_rx_desc_count);
-		buffer = &rcv_desc->rx_buf_arr[index];
+		    get_next_index(producer, rds_ring->max_rx_desc_count);
+		index = get_next_index(index, rds_ring->max_rx_desc_count);
+		buffer = &rds_ring->rx_buf_arr[index];
 	}
 
 	/* if we did allocate buffers, then write the count to Phantom */
 	if (count) {
-		rcv_desc->begin_alloc = index;
-		rcv_desc->producer = producer;
+		rds_ring->begin_alloc = index;
+		rds_ring->producer = producer;
 			/* Window = 1 */
 		adapter->pci_write_normalize(adapter,
-			rcv_desc->crb_rcv_producer,
-				(producer-1) & (rcv_desc->max_rx_desc_count-1));
+			rds_ring->crb_rcv_producer,
+				(producer-1) & (rds_ring->max_rx_desc_count-1));
 			wmb();
 	}
 }

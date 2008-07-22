@@ -161,8 +161,6 @@ struct netxen_recv_crb {
 	u32 crb_sts_consumer;
 };
 
-extern struct netxen_recv_crb recv_crb_registers[];
-
 /*
  * Temperature control.
  */
