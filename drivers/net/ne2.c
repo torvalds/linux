@@ -404,7 +404,7 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 
 	/* Read the 16 bytes of station address PROM.
 	   We must first initialize registers, similar to
-	   NS8390_init(eifdev, 0).
+	   NS8390p_init(eifdev, 0).
 	   We can't reliably read the SAPROM address without this.
 	   (I learned the hard way!). */
 	{
