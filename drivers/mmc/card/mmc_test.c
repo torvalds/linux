@@ -1256,6 +1256,8 @@ static int mmc_test_probe(struct mmc_card *card)
 	if (ret)
 		return ret;
 
+	dev_info(&card->dev, "Card claimed for testing.\n");
+
 	return 0;
 }
 
