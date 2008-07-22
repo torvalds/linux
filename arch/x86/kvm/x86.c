@@ -665,6 +665,18 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		pr_unimpl(vcpu, "%s: MSR_IA32_MCG_CTL 0x%llx, nop\n",
 			__func__, data);
 		break;
+	case MSR_IA32_DEBUGCTLMSR:
+		if (!data) {
+			/* We support the non-activated case already */
+			break;
+		} else if (data & ~(DEBUGCTLMSR_LBR | DEBUGCTLMSR_BTF)) {
+			/* Values other than LBR and BTF are vendor-specific,
+			   thus reserved and should throw a #GP */
+			return 1;
+		}
+		pr_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTLMSR 0x%llx, nop\n",
+			__func__, data);
+		break;
 	case MSR_IA32_UCODE_REV:
 	case MSR_IA32_UCODE_WRITE:
 		break;
@@ -757,6 +769,11 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_MC0_MISC+16:
 	case MSR_IA32_UCODE_REV:
 	case MSR_IA32_EBL_CR_POWERON:
+	case MSR_IA32_DEBUGCTLMSR:
+	case MSR_IA32_LASTBRANCHFROMIP:
+	case MSR_IA32_LASTBRANCHTOIP:
+	case MSR_IA32_LASTINTFROMIP:
+	case MSR_IA32_LASTINTTOIP:
 		data = 0;
 		break;
 	case MSR_MTRRcap:
