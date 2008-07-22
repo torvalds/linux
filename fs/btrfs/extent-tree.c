@@ -1451,7 +1451,7 @@ static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
 		struct extent_buffer *buf;
 		buf = btrfs_find_tree_block(root, bytenr, num_bytes);
 		if (buf) {
-			if (!btrfs_try_tree_lock(buf) &&
+			if (btrfs_try_tree_lock(buf) &&
 			    btrfs_buffer_uptodate(buf, 0)) {
 				u64 transid =
 				    root->fs_info->running_transaction->transid;
@@ -3345,11 +3345,6 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		set_state_private(block_group_cache, found_key.objectid,
 				  (unsigned long)cache);
 
-		/* hack for now */
-		if (cache->flags & BTRFS_BLOCK_GROUP_METADATA) {
-			cache_block_group(root->fs_info->extent_root,
-					  cache);
-		}
 		if (key.objectid >=
 		    btrfs_super_total_bytes(&info->super_copy))
 			break;

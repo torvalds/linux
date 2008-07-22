@@ -29,32 +29,31 @@ int btrfs_tree_lock(struct extent_buffer *eb)
 {
 	int i;
 
-	if (!TestSetPageLocked(eb->first_page))
+	if (mutex_trylock(&eb->mutex))
 		return 0;
 	for (i = 0; i < 512; i++) {
 		cpu_relax();
-		if (!TestSetPageLocked(eb->first_page))
+		if (mutex_trylock(&eb->mutex))
 			return 0;
 	}
 	cpu_relax();
-	lock_page(eb->first_page);
+	mutex_lock(&eb->mutex);
 	return 0;
 }
 
 int btrfs_try_tree_lock(struct extent_buffer *eb)
 {
-	return TestSetPageLocked(eb->first_page);
+	return mutex_trylock(&eb->mutex);
 }
 
 int btrfs_tree_unlock(struct extent_buffer *eb)
 {
-	WARN_ON(!PageLocked(eb->first_page));
-	unlock_page(eb->first_page);
+	mutex_unlock(&eb->mutex);
 	return 0;
 }
 
 int btrfs_tree_locked(struct extent_buffer *eb)
 {
-	return PageLocked(eb->first_page);
+	return mutex_is_locked(&eb->mutex);
 }
 

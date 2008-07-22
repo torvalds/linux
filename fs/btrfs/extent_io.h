@@ -90,6 +90,7 @@ struct extent_buffer {
 	int flags;
 	struct list_head leak_list;
 	struct rb_node rb_node;
+	struct mutex mutex;
 };
 
 struct extent_map_tree;
