@@ -640,9 +640,11 @@ static void kobil_set_termios(struct tty_struct *tty,
 
 	priv = usb_get_serial_port_data(port);
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
-			priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID)
+			priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
 		/* This device doesn't support ioctl calls */
+		*tty->termios = *old;
 		return;
+	}
 
 	speed = tty_get_baud_rate(tty);
 	switch (speed) {
@@ -704,7 +706,7 @@ static int kobil_ioctl(struct tty_struct *tty, struct file *file,
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
 			priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID)
 		/* This device doesn't support ioctl calls */
-		return 0;
+		return -ENOIOCTLCMD;
 
 	switch (cmd) {
 	case TCFLSH:
