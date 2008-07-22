@@ -288,7 +288,7 @@ config RISCOM8
 
 config SPECIALIX
 	tristate "Specialix IO8+ card support"
-	depends on SERIAL_NONSTANDARD && BROKEN
+	depends on SERIAL_NONSTANDARD
 	help
 	  This is a driver for the Specialix IO8+ multiport card (both the
 	  ISA and the PCI version) which gives you many serial ports. You

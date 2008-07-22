@@ -1818,13 +1818,15 @@ static int sx_tiocmset(struct tty_struct *tty, struct file *file,
 }
 
 
-static void sx_send_break(struct specialix_port *port,
-						unsigned long length)
+static int sx_send_break(struct tty_struct *tty, int length)
 {
+	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
 	struct specialix_board *bp = port_Board(port);
 	unsigned long flags;
 
 	func_enter();
+	if (length == 0 || length == -1)
+		return -EOPNOTSUPP;
 
 	spin_lock_irqsave(&port->lock, flags);
 	port->break_length = SPECIALIX_TPS / HZ * length;
@@ -1843,6 +1845,7 @@ static void sx_send_break(struct specialix_port *port,
 	sx_wait_CCR(bp);
 
 	func_exit();
+	return 0;
 }
 
 
@@ -1929,7 +1932,6 @@ static int sx_ioctl(struct tty_struct *tty, struct file *filp,
 				unsigned int cmd, unsigned long arg)
 {
 	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
-	int retval;
 	void __user *argp = (void __user *)arg;
 
 	func_enter();
@@ -1940,34 +1942,14 @@ static int sx_ioctl(struct tty_struct *tty, struct file *filp,
 	}
 
 	switch (cmd) {
-	case TCSBRK:	/* SVID version: non-zero arg --> no break */
-		retval = tty_check_change(tty);
-		if (retval) {
-			func_exit();
-			return retval;
-		}
-		tty_wait_until_sent(tty, 0);
-		if (!arg)
-			sx_send_break(port, HZ/4);	/* 1/4 second */
-		return 0;
-	case TCSBRKP:	/* support for POSIX tcsendbreak() */
-		retval = tty_check_change(tty);
-		if (retval) {
-			func_exit();
-			return retval;
-		}
-		tty_wait_until_sent(tty, 0);
-		sx_send_break(port, arg ? arg*(HZ/10) : HZ/4);
-		func_exit();
-		return 0;
 	case TIOCGSERIAL:
-		 func_exit();
+		func_exit();
 		return sx_get_serial_info(port, argp);
 	case TIOCSSERIAL:
-		 func_exit();
+		func_exit();
 		return sx_set_serial_info(port, argp);
 	default:
-		 func_exit();
+		func_exit();
 		return -ENOIOCTLCMD;
 	}
 	func_exit();
@@ -2190,6 +2172,7 @@ static const struct tty_operations sx_ops = {
 	.hangup = sx_hangup,
 	.tiocmget = sx_tiocmget,
 	.tiocmset = sx_tiocmset,
+	.break_ctl = sx_send_break,
 };
 
 static int sx_init_drivers(void)
@@ -2216,7 +2199,8 @@ static int sx_init_drivers(void)
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 	specialix_driver->init_termios.c_ispeed = 9600;
 	specialix_driver->init_termios.c_ospeed = 9600;
-	specialix_driver->flags = TTY_DRIVER_REAL_RAW;
+	specialix_driver->flags = TTY_DRIVER_REAL_RAW |
+						TTY_DRIVER_HARDWARE_BREAK;
 	tty_set_operations(specialix_driver, &sx_ops);
 
 	error = tty_register_driver(specialix_driver);
