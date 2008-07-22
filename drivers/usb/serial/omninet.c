@@ -206,8 +206,8 @@ static void omninet_read_bulk_callback(struct urb *urb)
 	unsigned char 		*data 	= urb->transfer_buffer;
 	struct omninet_header 	*header = (struct omninet_header *) &data[0];
 	int status = urb->status;
-	int i;
 	int result;
+	int i;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -229,9 +229,8 @@ static void omninet_read_bulk_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length && header->oh_len) {
-		for (i = 0; i < header->oh_len; i++)
-			 tty_insert_flip_char(port->port.tty,
-					data[OMNINET_DATAOFFSET + i], 0);
+		tty_insert_flip_string(port->port.tty,
+			data + OMNINET_DATAOFFSET, header->oh_len);
 		tty_flip_buffer_push(port->port.tty);
 	}
 
