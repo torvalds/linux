@@ -46,6 +46,10 @@ enum {
 extern void __buggy_use_of_MLX4_GET(void);
 extern void __buggy_use_of_MLX4_PUT(void);
 
+static int enable_qos;
+module_param(enable_qos, bool, 0444);
+MODULE_PARM_DESC(enable_qos, "Enable Quality of Service support in the HCA (default: off)");
+
 #define MLX4_GET(dest, source, offset)				      \
 	do {							      \
 		void *__p = (char *) (source) + (offset);	      \
@@ -736,6 +740,10 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	/* Enable IPoIB checksumming if we can: */
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_IPOIB_CSUM)
 		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 3);
+
+	/* Enable QoS support if module parameter set */
+	if (enable_qos)
+		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 2);
 
 	/* QPC/EEC/CQC/EQC/RDMARC attributes */
 
