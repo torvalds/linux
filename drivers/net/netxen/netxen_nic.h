@@ -799,6 +799,12 @@ struct netxen_hardware_context {
 	unsigned long first_page_group_start;
 	void __iomem *db_base;
 	unsigned long db_len;
+	unsigned long pci_len0;
+
+	int qdr_sn_window;
+	int ddr_mn_window;
+	unsigned long mn_win_crb;
+	unsigned long ms_win_crb;
 
 	u8 revision_id;
 	u16 board_type;
@@ -894,6 +900,8 @@ struct netxen_adapter {
 	struct work_struct  tx_timeout_task;
 
 	u32 curr_window;
+	u32 crb_win;
+	rwlock_t adapter_lock;
 
 	u32 cmd_producer;
 	__le32 *cmd_consumer;
@@ -947,6 +955,17 @@ struct netxen_adapter {
 	int (*init_port) (struct netxen_adapter *, int);
 	void (*init_niu) (struct netxen_adapter *);
 	int (*stop_port) (struct netxen_adapter *);
+
+	int (*hw_read_wx)(struct netxen_adapter *, ulong, void *, int);
+	int (*hw_write_wx)(struct netxen_adapter *, ulong, void *, int);
+	int (*pci_mem_read)(struct netxen_adapter *, u64, void *, int);
+	int (*pci_mem_write)(struct netxen_adapter *, u64, void *, int);
+	int (*pci_write_immediate)(struct netxen_adapter *, u64, u32);
+	u32 (*pci_read_immediate)(struct netxen_adapter *, u64);
+	void (*pci_write_normalize)(struct netxen_adapter *, u64, u32);
+	u32 (*pci_read_normalize)(struct netxen_adapter *, u64);
+	unsigned long (*pci_set_window)(struct netxen_adapter *,
+			unsigned long long);
 };				/* netxen_adapter structure */
 
 /*
@@ -1022,19 +1041,52 @@ int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
 int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu);
 int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu);
 void netxen_nic_init_niu_gb(struct netxen_adapter *adapter);
-void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw);
 void netxen_nic_reg_write(struct netxen_adapter *adapter, u64 off, u32 val);
 int netxen_nic_reg_read(struct netxen_adapter *adapter, u64 off);
 void netxen_nic_write_w0(struct netxen_adapter *adapter, u32 index, u32 value);
-void netxen_nic_read_w0(struct netxen_adapter *adapter, u32 index, u32 * value);
+void netxen_nic_read_w0(struct netxen_adapter *adapter, u32 index, u32 *value);
+void netxen_nic_write_w1(struct netxen_adapter *adapter, u32 index, u32 value);
+void netxen_nic_read_w1(struct netxen_adapter *adapter, u32 index, u32 *value);
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter);
-int netxen_nic_hw_read_wx(struct netxen_adapter *adapter, u64 off, void *data,
-			  int len);
-int netxen_nic_hw_write_wx(struct netxen_adapter *adapter, u64 off, void *data,
-			   int len);
+
+int netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter,
+		ulong off, void *data, int len);
+int netxen_nic_hw_write_wx_128M(struct netxen_adapter *adapter,
+		ulong off, void *data, int len);
+int netxen_nic_pci_mem_read_128M(struct netxen_adapter *adapter,
+		u64 off, void *data, int size);
+int netxen_nic_pci_mem_write_128M(struct netxen_adapter *adapter,
+		u64 off, void *data, int size);
+int netxen_nic_pci_write_immediate_128M(struct netxen_adapter *adapter,
+		u64 off, u32 data);
+u32 netxen_nic_pci_read_immediate_128M(struct netxen_adapter *adapter, u64 off);
+void netxen_nic_pci_write_normalize_128M(struct netxen_adapter *adapter,
+		u64 off, u32 data);
+u32 netxen_nic_pci_read_normalize_128M(struct netxen_adapter *adapter, u64 off);
+unsigned long netxen_nic_pci_set_window_128M(struct netxen_adapter *adapter,
+		unsigned long long addr);
+void netxen_nic_pci_change_crbwindow_128M(struct netxen_adapter *adapter,
+		u32 wndw);
+
+int netxen_nic_hw_read_wx_2M(struct netxen_adapter *adapter,
+		ulong off, void *data, int len);
+int netxen_nic_hw_write_wx_2M(struct netxen_adapter *adapter,
+		ulong off, void *data, int len);
+int netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
+		u64 off, void *data, int size);
+int netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
+		u64 off, void *data, int size);
 void netxen_crb_writelit_adapter(struct netxen_adapter *adapter,
 				 unsigned long off, int data);
+int netxen_nic_pci_write_immediate_2M(struct netxen_adapter *adapter,
+		u64 off, u32 data);
+u32 netxen_nic_pci_read_immediate_2M(struct netxen_adapter *adapter, u64 off);
+void netxen_nic_pci_write_normalize_2M(struct netxen_adapter *adapter,
+		u64 off, u32 data);
+u32 netxen_nic_pci_read_normalize_2M(struct netxen_adapter *adapter, u64 off);
+unsigned long netxen_nic_pci_set_window_2M(struct netxen_adapter *adapter,
+		unsigned long long addr);
 
 /* Functions from netxen_nic_init.c */
 void netxen_free_adapter_offload(struct netxen_adapter *adapter);
@@ -1129,7 +1181,7 @@ dma_watchdog_shutdown_request(struct netxen_adapter *adapter)
 	u32 ctrl;
 
 	/* check if already inactive */
-	if (netxen_nic_hw_read_wx(adapter,
+	if (adapter->hw_read_wx(adapter,
 	    NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), &ctrl, 4))
 		printk(KERN_ERR "failed to read dma watchdog status\n");
 
@@ -1149,7 +1201,7 @@ dma_watchdog_shutdown_poll_result(struct netxen_adapter *adapter)
 {
 	u32 ctrl;
 
-	if (netxen_nic_hw_read_wx(adapter,
+	if (adapter->hw_read_wx(adapter,
 	    NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), &ctrl, 4))
 		printk(KERN_ERR "failed to read dma watchdog status\n");
 
@@ -1161,7 +1213,7 @@ dma_watchdog_wakeup(struct netxen_adapter *adapter)
 {
 	u32 ctrl;
 
-	if (netxen_nic_hw_read_wx(adapter,
+	if (adapter->hw_read_wx(adapter,
 		NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), &ctrl, 4))
 		printk(KERN_ERR "failed to read dma watchdog status\n");
 

@@ -114,11 +114,12 @@ static uint32_t crb_cmd_producer[4] = {
 	CRB_CMD_PRODUCER_OFFSET_2, CRB_CMD_PRODUCER_OFFSET_3
 };
 
-static void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
-					   uint32_t crb_producer)
+static inline void
+netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
+		uint32_t crb_producer)
 {
-	writel(crb_producer, NETXEN_CRB_NORMALIZE(adapter,
-				adapter->crb_addr_cmd_producer));
+	adapter->pci_write_normalize(adapter,
+			adapter->crb_addr_cmd_producer, crb_producer);
 }
 
 static uint32_t crb_cmd_consumer[4] = {
@@ -126,11 +127,12 @@ static uint32_t crb_cmd_consumer[4] = {
 	CRB_CMD_CONSUMER_OFFSET_2, CRB_CMD_CONSUMER_OFFSET_3
 };
 
-static void netxen_nic_update_cmd_consumer(struct netxen_adapter *adapter,
-					   u32 crb_consumer)
+static inline void
+netxen_nic_update_cmd_consumer(struct netxen_adapter *adapter,
+		u32 crb_consumer)
 {
-	writel(crb_consumer, NETXEN_CRB_NORMALIZE(adapter,
-				adapter->crb_addr_cmd_consumer));
+	adapter->pci_write_normalize(adapter,
+			adapter->crb_addr_cmd_consumer, crb_consumer);
 }
 
 static uint32_t msi_tgt_status[4] = {
@@ -151,17 +153,18 @@ static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 	int pci_fn = adapter->ahw.pci_func;
 
 	if (adapter->msi_mode != MSI_MODE_MULTIFUNC)
-		writel(0x0, NETXEN_CRB_NORMALIZE(adapter, sw_int_mask[port]));
+		adapter->pci_write_normalize(adapter, sw_int_mask[port], 0);
 
 	if (adapter->intr_scheme != -1 &&
 	    adapter->intr_scheme != INTR_SCHEME_PERPORT)
-		writel(mask,PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK));
+		adapter->pci_write_immediate(adapter, ISR_INT_MASK, mask);
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
 		do {
-			writel(0xffffffff,
-			       PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_TARGET_STATUS));
-			mask = readl(pci_base_offset(adapter, ISR_INT_VECTOR));
+			adapter->pci_write_immediate(adapter,
+					ISR_INT_TARGET_STATUS, 0xffffffff);
+			mask = adapter->pci_read_immediate(adapter,
+					ISR_INT_VECTOR);
 			if (!(mask & 0x80))
 				break;
 			udelay(10);
@@ -173,8 +176,8 @@ static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 		}
 	} else {
 		if (adapter->msi_mode == MSI_MODE_MULTIFUNC) {
-			writel(0xffffffff, PCI_OFFSET_SECOND_RANGE(adapter,
-						msi_tgt_status[pci_fn]));
+			adapter->pci_write_immediate(adapter,
+					msi_tgt_status[pci_fn], 0xffffffff);
 		}
 	}
 }
@@ -200,19 +203,20 @@ static void netxen_nic_enable_int(struct netxen_adapter *adapter)
 			break;
 		}
 
-		writel(mask, PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK));
+		adapter->pci_write_immediate(adapter, ISR_INT_MASK, mask);
 	}
 
-	writel(0x1, NETXEN_CRB_NORMALIZE(adapter, sw_int_mask[port]));
+	adapter->pci_write_normalize(adapter, sw_int_mask[port], 0x1);
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
 		mask = 0xbff;
 		if (adapter->intr_scheme != -1 &&
 			adapter->intr_scheme != INTR_SCHEME_PERPORT) {
-			writel(0X0, NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+			adapter->pci_write_normalize(adapter,
+					CRB_INT_VECTOR, 0);
 		}
-		writel(mask,
-		       PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_TARGET_MASK));
+		adapter->pci_write_immediate(adapter,
+				ISR_INT_TARGET_MASK, mask);
 	}
 
 	DPRINTK(1, INFO, "Done with enable Int\n");
@@ -243,7 +247,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 
 	u8 __iomem *db_ptr = NULL;
-	unsigned long mem_base, mem_len, db_base, db_len;
+	unsigned long mem_base, mem_len, db_base, db_len, pci_len0;
 	int pci_using_dac, i = 0, err;
 	int ring;
 	struct netxen_recv_context *recv_ctx = NULL;
@@ -300,10 +304,24 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter = netdev->priv;
 
 	adapter->ahw.pci_func  = pci_func_id;
+	rwlock_init(&adapter->adapter_lock);
+	adapter->ahw.qdr_sn_window = -1;
+	adapter->ahw.ddr_mn_window = -1;
 
 	/* remap phys address */
 	mem_base = pci_resource_start(pdev, 0);	/* 0 is for BAR 0 */
 	mem_len = pci_resource_len(pdev, 0);
+	pci_len0 = 0;
+
+	adapter->hw_write_wx = netxen_nic_hw_write_wx_128M;
+	adapter->hw_read_wx = netxen_nic_hw_read_wx_128M;
+	adapter->pci_read_immediate = netxen_nic_pci_read_immediate_128M;
+	adapter->pci_write_immediate = netxen_nic_pci_write_immediate_128M;
+	adapter->pci_read_normalize = netxen_nic_pci_read_normalize_128M;
+	adapter->pci_write_normalize = netxen_nic_pci_write_normalize_128M;
+	adapter->pci_set_window = netxen_nic_pci_set_window_128M;
+	adapter->pci_mem_read = netxen_nic_pci_mem_read_128M;
+	adapter->pci_mem_write = netxen_nic_pci_mem_write_128M;
 
 	/* 128 Meg of memory */
 	if (mem_len == NETXEN_PCI_128MB_SIZE) {
@@ -320,21 +338,42 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			SECOND_PAGE_GROUP_START, THIRD_PAGE_GROUP_SIZE);
 		first_page_group_start = 0;
 		first_page_group_end   = 0;
+	} else if (mem_len == NETXEN_PCI_2MB_SIZE) {
+		adapter->hw_write_wx = netxen_nic_hw_write_wx_2M;
+		adapter->hw_read_wx = netxen_nic_hw_read_wx_2M;
+		adapter->pci_read_immediate = netxen_nic_pci_read_immediate_2M;
+		adapter->pci_write_immediate =
+			netxen_nic_pci_write_immediate_2M;
+		adapter->pci_read_normalize = netxen_nic_pci_read_normalize_2M;
+		adapter->pci_write_normalize =
+			netxen_nic_pci_write_normalize_2M;
+		adapter->pci_set_window = netxen_nic_pci_set_window_2M;
+		adapter->pci_mem_read = netxen_nic_pci_mem_read_2M;
+		adapter->pci_mem_write = netxen_nic_pci_mem_write_2M;
+
+		mem_ptr0 = ioremap(mem_base, mem_len);
+		pci_len0 = mem_len;
+		first_page_group_start = 0;
+		first_page_group_end   = 0;
+
+		adapter->ahw.ddr_mn_window = 0;
+		adapter->ahw.qdr_sn_window = 0;
+
+		adapter->ahw.mn_win_crb = 0x100000 + PCIX_MN_WINDOW +
+			(pci_func_id * 0x20);
+		adapter->ahw.ms_win_crb = 0x100000 + PCIX_SN_WINDOW;
+		if (pci_func_id < 4)
+			adapter->ahw.ms_win_crb += (pci_func_id * 0x20);
+		else
+			adapter->ahw.ms_win_crb +=
+					0xA0 + ((pci_func_id - 4) * 0x10);
 	} else {
 		err = -EIO;
 		goto err_out_free_netdev;
 	}
 
-	if ((!mem_ptr0 && mem_len == NETXEN_PCI_128MB_SIZE) ||
-			!mem_ptr1 || !mem_ptr2) {
-		DPRINTK(ERR,
-			"Cannot remap adapter memory aborting.:"
-			"0 -> %p, 1 -> %p, 2 -> %p\n",
-			mem_ptr0, mem_ptr1, mem_ptr2);
+	dev_info(&pdev->dev, "%dMB memory map\n", (int)(mem_len>>20));
 
-		err = -EIO;
-		goto err_out_iounmap;
-	}
 	db_base = pci_resource_start(pdev, 4);	/* doorbell is on bar 4 */
 	db_len = pci_resource_len(pdev, 4);
 
@@ -357,6 +396,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	DPRINTK(INFO, "doorbell ioremaped at %p\n", db_ptr);
 
 	adapter->ahw.pci_base0 = mem_ptr0;
+	adapter->ahw.pci_len0 = pci_len0;
 	adapter->ahw.first_page_group_start = first_page_group_start;
 	adapter->ahw.first_page_group_end   = first_page_group_end;
 	adapter->ahw.pci_base1 = mem_ptr1;
@@ -520,9 +560,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&adapter->watchdog_task, netxen_watchdog_task);
 	adapter->ahw.revision_id = pdev->revision;
 
-	/* make sure Window == 1 */
-	netxen_nic_pci_change_crbwindow(adapter, 1);
-
 	adapter->crb_addr_cmd_producer = crb_cmd_producer[adapter->portnum];
 	adapter->crb_addr_cmd_consumer = crb_cmd_consumer[adapter->portnum];
 	netxen_nic_update_cmd_producer(adapter, 0);
@@ -560,8 +597,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = netxen_initialize_adapter_offload(adapter);
 		if (err)
 			goto err_out_free_rx_buffer;
-		val = readl(NETXEN_CRB_NORMALIZE(adapter,
-					NETXEN_CAM_RAM(0x1fc)));
+		val = adapter->pci_read_normalize(adapter,
+				NETXEN_CAM_RAM(0x1fc));
 		if (val == 0x55555555) {
 		    /* This is the first boot after power up */
 		    netxen_nic_read_w0(adapter, NETXEN_PCIE_REG(0x4), &val);
@@ -573,20 +610,20 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					printk(KERN_ERR "%s: failed to set MSI bit in PCI-e reg\n",
 							netxen_nic_driver_name);
 			}
-		    val = readl(NETXEN_CRB_NORMALIZE(adapter,
-					NETXEN_ROMUSB_GLB_SW_RESET));
+		    val = adapter->pci_read_normalize(adapter,
+					NETXEN_ROMUSB_GLB_SW_RESET);
 		    printk(KERN_INFO"NetXen: read 0x%08x for reset reg.\n",val);
 		    if (val != 0x80000f) {
 			/* clear the register for future unloads/loads */
-				writel(0, NETXEN_CRB_NORMALIZE(adapter,
-							NETXEN_CAM_RAM(0x1fc)));
+				adapter->pci_write_normalize(adapter,
+						NETXEN_CAM_RAM(0x1fc), 0);
 				printk(KERN_ERR "ERROR in NetXen HW init sequence.\n");
 				err = -ENODEV;
 				goto err_out_free_dev;
 		    }
 		} else {
-			writel(0, NETXEN_CRB_NORMALIZE(adapter,
-						CRB_CMDPEG_STATE));
+			adapter->pci_write_normalize(adapter,
+						CRB_CMDPEG_STATE, 0);
 			netxen_pinit_from_rom(adapter, 0);
 			msleep(1);
 			netxen_load_firmware(adapter);
@@ -602,9 +639,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 
 		/* clear the register for future unloads/loads */
-		writel(0, NETXEN_CRB_NORMALIZE(adapter, NETXEN_CAM_RAM(0x1fc)));
+		adapter->pci_write_normalize(adapter, NETXEN_CAM_RAM(0x1fc), 0);
 		dev_info(&pdev->dev, "cmdpeg state: 0x%0x\n",
-			readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE)));
+			adapter->pci_read_normalize(adapter, CRB_CMDPEG_STATE));
 
 		/*
 		 * Tell the hardware our version number.
@@ -612,12 +649,11 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		i = (_NETXEN_NIC_LINUX_MAJOR << 16)
 			| ((_NETXEN_NIC_LINUX_MINOR << 8))
 			| (_NETXEN_NIC_LINUX_SUBVERSION);
-		writel(i, NETXEN_CRB_NORMALIZE(adapter, CRB_DRIVER_VERSION));
+		adapter->pci_write_normalize(adapter, CRB_DRIVER_VERSION, i);
 
 		/* Unlock the HW, prompting the boot sequence */
-		writel(1,
-			NETXEN_CRB_NORMALIZE(adapter,
-				NETXEN_ROMUSB_GLB_PEGTUNE_DONE));
+		adapter->pci_write_normalize(adapter,
+				NETXEN_ROMUSB_GLB_PEGTUNE_DONE, 1);
 		/* Handshake with the card before we register the devices. */
 		netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 	}
@@ -626,7 +662,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * See if the firmware gave us a virtual-physical port mapping.
 	 */
 	adapter->physical_port = adapter->portnum;
-	i = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_V2P(adapter->portnum)));
+	i = adapter->pci_read_normalize(adapter, CRB_V2P(adapter->portnum));
 	if (i != 0x55555555)
 		adapter->physical_port = i;
 
@@ -1104,15 +1140,15 @@ static irqreturn_t netxen_intr(int irq, void *data)
 	struct netxen_adapter *adapter = data;
 	u32 our_int = 0;
 
-	our_int = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+	our_int = adapter->pci_read_normalize(adapter, CRB_INT_VECTOR);
 	/* not our interrupt */
 	if ((our_int & (0x80 << adapter->portnum)) == 0)
 		return IRQ_NONE;
 
 	if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
 		/* claim interrupt */
-		writel(our_int & ~((u32)(0x80 << adapter->portnum)),
-			NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+		adapter->pci_write_normalize(adapter, CRB_INT_VECTOR,
+				our_int & ~((u32)(0x80 << adapter->portnum)));
 	}
 
 	netxen_handle_int(adapter);

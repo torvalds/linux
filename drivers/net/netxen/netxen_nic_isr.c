@@ -144,7 +144,7 @@ static void netxen_nic_isr_other(struct netxen_adapter *adapter)
 	u32 val, linkup, qg_linksup;
 
 	/* verify the offset */
-	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
+	val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
 	val = val >> adapter->physical_port;
 	if (val == adapter->ahw.qg_linksup)
 		return;
@@ -198,7 +198,7 @@ void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 	u32 val;
 
 	/* WINDOW = 1 */
-	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
+	val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
 	val >>= (adapter->physical_port * 8);
 	val &= 0xff;
 

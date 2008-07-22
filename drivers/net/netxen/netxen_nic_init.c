@@ -124,7 +124,7 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 	u32 state = 0, loops = 0, err = 0;
 
 	/* Window 1 call */
-	state = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
+	state = adapter->pci_read_normalize(adapter, CRB_CMDPEG_STATE);
 
 	if (state == PHAN_INITIALIZE_ACK)
 		return 0;
@@ -132,7 +132,7 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 	while (state != PHAN_INITIALIZE_COMPLETE && loops < 2000) {
 		udelay(100);
 		/* Window 1 call */
-		state = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
+		state = adapter->pci_read_normalize(adapter, CRB_CMDPEG_STATE);
 
 		loops++;
 	}
@@ -143,14 +143,14 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 		return err;
 	}
 	/* Window 1 call */
-	writel(INTR_SCHEME_PERPORT,
-	       NETXEN_CRB_NORMALIZE(adapter, CRB_NIC_CAPABILITIES_HOST));
-	writel(MSI_MODE_MULTIFUNC,
-	       NETXEN_CRB_NORMALIZE(adapter, CRB_NIC_MSI_MODE_HOST));
-	writel(MPORT_MULTI_FUNCTION_MODE,
-	       NETXEN_CRB_NORMALIZE(adapter, CRB_MPORT_MODE));
-	writel(PHAN_INITIALIZE_ACK,
-	       NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
+	adapter->pci_write_normalize(adapter,
+			CRB_NIC_CAPABILITIES_HOST, INTR_SCHEME_PERPORT);
+	adapter->pci_write_normalize(adapter,
+			CRB_NIC_MSI_MODE_HOST, MSI_MODE_MULTIFUNC);
+	adapter->pci_write_normalize(adapter,
+			CRB_MPORT_MODE, MPORT_MULTI_FUNCTION_MODE);
+	adapter->pci_write_normalize(adapter,
+			CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
 
 	return err;
 }
@@ -811,7 +811,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 				buf[i].data = NETXEN_NIC_XDMA_RESET;
 			}
 
-			netxen_nic_hw_write_wx(adapter, off, &buf[i].data, 4);
+			adapter->hw_write_wx(adapter, off, &buf[i].data, 4);
 
 			if (init_delay == 1) {
 				msleep(1000);
@@ -824,7 +824,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 		/* disable_peg_cache_all */
 
 		/* unreset_net_cache */
-		netxen_nic_hw_read_wx(adapter, NETXEN_ROMUSB_GLB_SW_RESET, &val,
+		adapter->hw_read_wx(adapter, NETXEN_ROMUSB_GLB_SW_RESET, &val,
 				      4);
 		netxen_crb_writelit_adapter(adapter, NETXEN_ROMUSB_GLB_SW_RESET,
 					    (val & 0xffffff0f));
@@ -884,8 +884,8 @@ int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
 	hi = (addr >> 32) & 0xffffffff;
 	lo = addr & 0xffffffff;
 
-	writel(hi, NETXEN_CRB_NORMALIZE(adapter, CRB_HOST_DUMMY_BUF_ADDR_HI));
-	writel(lo, NETXEN_CRB_NORMALIZE(adapter, CRB_HOST_DUMMY_BUF_ADDR_LO));
+	adapter->pci_write_normalize(adapter, CRB_HOST_DUMMY_BUF_ADDR_HI, hi);
+	adapter->pci_write_normalize(adapter, CRB_HOST_DUMMY_BUF_ADDR_LO, lo);
 
 	return 0;
 }
@@ -924,10 +924,10 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 
 	if (!pegtune_val) {
 		do {
-			val = readl(NETXEN_CRB_NORMALIZE
-				  (adapter, CRB_CMDPEG_STATE));
-			pegtune_val = readl(NETXEN_CRB_NORMALIZE
-				  (adapter, NETXEN_ROMUSB_GLB_PEGTUNE_DONE));
+			val = adapter->pci_read_normalize(adapter,
+					CRB_CMDPEG_STATE);
+			pegtune_val = adapter->pci_read_normalize(adapter,
+					NETXEN_ROMUSB_GLB_PEGTUNE_DONE);
 
 			if (val == PHAN_INITIALIZE_COMPLETE ||
 				val == PHAN_INITIALIZE_ACK)
@@ -951,7 +951,7 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 	uint32_t temp, temp_state, temp_val;
 	int rv = 0;
 
-	temp = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_TEMP_STATE));
+	temp = adapter->pci_read_normalize(adapter, CRB_TEMP_STATE);
 
 	temp_state = nx_get_temp_state(temp);
 	temp_val = nx_get_temp_val(temp);
@@ -1119,8 +1119,8 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 		recv_ctx->status_rx_consumer = consumer;
 
 		/* Window = 1 */
-		writel(consumer, NETXEN_CRB_NORMALIZE(adapter,
-					recv_ctx->crb_sts_consumer));
+		adapter->pci_write_normalize(adapter,
+				recv_ctx->crb_sts_consumer, consumer);
 	}
 
 	return count;
@@ -1264,9 +1264,9 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 		rcv_desc->begin_alloc = index;
 		rcv_desc->producer = producer;
 			/* Window = 1 */
-		writel((producer - 1) & (rcv_desc->max_rx_desc_count - 1),
-		       NETXEN_CRB_NORMALIZE(adapter,
-			       rcv_desc->crb_rcv_producer));
+		adapter->pci_write_normalize(adapter,
+				rcv_desc->crb_rcv_producer,
+				(producer-1) & (rcv_desc->max_rx_desc_count-1));
 			/*
 			 * Write a doorbell msg to tell phanmon of change in
 			 * receive ring producer
@@ -1344,9 +1344,9 @@ static void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 		rcv_desc->begin_alloc = index;
 		rcv_desc->producer = producer;
 			/* Window = 1 */
-		writel((producer - 1) & (rcv_desc->max_rx_desc_count - 1),
-		       NETXEN_CRB_NORMALIZE(adapter,
-			       rcv_desc->crb_rcv_producer));
+		adapter->pci_write_normalize(adapter,
+			rcv_desc->crb_rcv_producer,
+				(producer-1) & (rcv_desc->max_rx_desc_count-1));
 			wmb();
 	}
 }

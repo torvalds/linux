@@ -93,17 +93,21 @@ static void
 netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
+	unsigned long flags;
 	u32 fw_major = 0;
 	u32 fw_minor = 0;
 	u32 fw_build = 0;
 
 	strncpy(drvinfo->driver, netxen_nic_driver_name, 32);
 	strncpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID, 32);
-	fw_major = readl(NETXEN_CRB_NORMALIZE(adapter,
-					      NETXEN_FW_VERSION_MAJOR));
-	fw_minor = readl(NETXEN_CRB_NORMALIZE(adapter,
-					      NETXEN_FW_VERSION_MINOR));
-	fw_build = readl(NETXEN_CRB_NORMALIZE(adapter, NETXEN_FW_VERSION_SUB));
+	write_lock_irqsave(&adapter->adapter_lock, flags);
+	fw_major = adapter->pci_read_normalize(adapter,
+					NETXEN_FW_VERSION_MAJOR);
+	fw_minor = adapter->pci_read_normalize(adapter,
+					NETXEN_FW_VERSION_MINOR);
+	fw_build = adapter->pci_read_normalize(adapter,
+					NETXEN_FW_VERSION_SUB);
+	write_unlock_irqrestore(&adapter->adapter_lock, flags);
 	sprintf(drvinfo->fw_version, "%d.%d.%d", fw_major, fw_minor, fw_build);
 
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
@@ -361,19 +365,18 @@ netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	__u32 mode, *regs_buff = p;
-	void __iomem *addr;
 	int i, window;
 
 	memset(p, 0, NETXEN_NIC_REGS_LEN);
 	regs->version = (1 << 24) | (adapter->ahw.revision_id << 16) |
 	    (adapter->pdev)->device;
 	/* which mode */
-	NETXEN_NIC_LOCKED_READ_REG(NETXEN_NIU_MODE, &regs_buff[0]);
+	adapter->hw_read_wx(adapter, NETXEN_NIU_MODE, &regs_buff[0], 4);
 	mode = regs_buff[0];
 
 	/* Common registers to all the modes */
-	NETXEN_NIC_LOCKED_READ_REG(NETXEN_NIU_STRAP_VALUE_SAVE_HIGHER,
-				   &regs_buff[2]);
+	adapter->hw_read_wx(adapter,
+			NETXEN_NIU_STRAP_VALUE_SAVE_HIGHER, &regs_buff[2], 4);
 	/* GB/XGB Mode */
 	mode = (mode / 2) - 1;
 	window = 0;
@@ -384,9 +387,9 @@ netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 				window = adapter->physical_port *
 					NETXEN_NIC_PORT_WINDOW;
 
-			NETXEN_NIC_LOCKED_READ_REG(niu_registers[mode].
-						   reg[i - 3] + window,
-						   &regs_buff[i]);
+			adapter->hw_read_wx(adapter,
+				niu_registers[mode].reg[i - 3] + window,
+				&regs_buff[i], 4);
 		}
 
 	}
@@ -410,7 +413,7 @@ static u32 netxen_nic_test_link(struct net_device *dev)
 			return !val;
 		}
 	} else if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
-		val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
+		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
 		return (val == XG_LINK_UP) ? 0 : 1;
 	}
 	return -EIO;
@@ -668,7 +671,7 @@ static int netxen_nic_reg_test(struct net_device *dev)
 	data_written = (u32)0xa5a5a5a5;
 
 	netxen_nic_reg_write(adapter, CRB_SCRATCHPAD_TEST, data_written);
-	data_read = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_SCRATCHPAD_TEST));
+	data_read = adapter->pci_read_normalize(adapter, CRB_SCRATCHPAD_TEST);
 	if (data_written != data_read)
 		return 1;
 

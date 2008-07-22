@@ -82,19 +82,9 @@ struct netxen_adapter;
 
 #define NETXEN_PCI_MAPSIZE_BYTES  (NETXEN_PCI_MAPSIZE << 20)
 
-#define NETXEN_NIC_LOCKED_READ_REG(X, Y)	\
-	addr = pci_base_offset(adapter, X);	\
-	*(u32 *)Y = readl((void __iomem*) addr);
-
 struct netxen_port;
 void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
 void netxen_nic_flash_print(struct netxen_adapter *adapter);
-int netxen_nic_hw_write_wx(struct netxen_adapter *adapter, u64 off,
-			   void *data, int len);
-void netxen_crb_writelit_adapter(struct netxen_adapter *adapter,
-				 unsigned long off, int data);
-int netxen_nic_hw_read_wx(struct netxen_adapter *adapter, u64 off,
-			  void *data, int len);
 
 typedef u8 netxen_ethernet_macaddr_t[6];
 
@@ -502,5 +492,16 @@ int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port);
 int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter);
 
 int netxen_niu_disable_xg_port(struct netxen_adapter *adapter);
+
+typedef struct {
+	unsigned valid;
+	unsigned start_128M;
+	unsigned end_128M;
+	unsigned start_2M;
+} crb_128M_2M_sub_block_map_t;
+
+typedef struct {
+	crb_128M_2M_sub_block_map_t sub_block[16];
+} crb_128M_2M_block_map_t;
 
 #endif				/* __NETXEN_NIC_HW_H_ */
