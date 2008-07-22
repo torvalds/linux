@@ -446,13 +446,13 @@ static void clear_ibs_nmi(void)
 		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
 }
 
-static void setup_ibs_files(struct super_block *sb, struct dentry *root)
+static int setup_ibs_files(struct super_block * sb, struct dentry * root)
 {
 	char buf[12];
 	struct dentry *dir;
 
 	if (!ibs_allowed)
-		return;
+		return 0;
 
 	/* setup some reasonable defaults */
 	ibs_config.max_cnt_fetch = 250000;
@@ -476,6 +476,8 @@ static void setup_ibs_files(struct super_block *sb, struct dentry *root)
 		&ibs_config.max_cnt_op);
 	oprofilefs_create_ulong(sb, dir, "dispatched_ops",
 		&ibs_config.dispatched_ops);
+
+	return 0;
 }
 
 static int op_amd_init(struct oprofile_operations *ops)
