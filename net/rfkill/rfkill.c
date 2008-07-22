@@ -252,7 +252,12 @@ EXPORT_SYMBOL_GPL(rfkill_epo);
  * a notification by the firmware/hardware of the current *real*
  * state of the radio rfkill switch.
  *
- * It may not be called from an atomic context.
+ * Devices which are subject to external changes on their rfkill
+ * state (such as those caused by a hardware rfkill line) MUST
+ * have their driver arrange to call rfkill_force_state() as soon
+ * as possible after such a change.
+ *
+ * This function may not be called from an atomic context.
  */
 int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state)
 {
