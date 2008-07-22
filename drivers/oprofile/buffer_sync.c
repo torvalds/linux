@@ -268,6 +268,17 @@ lookup_dcookie(struct mm_struct *mm, unsigned long addr, off_t *offset)
 	return cookie;
 }
 
+static void increment_tail(struct oprofile_cpu_buffer *b)
+{
+	unsigned long new_tail = b->tail_pos + 1;
+
+	rmb();
+
+	if (new_tail < b->buffer_size)
+		b->tail_pos = new_tail;
+	else
+		b->tail_pos = 0;
+}
 
 static unsigned long last_cookie = INVALID_COOKIE;
 
@@ -414,19 +425,6 @@ static unsigned long get_slots(struct oprofile_cpu_buffer *b)
 		return head - tail;
 
 	return head + (b->buffer_size - tail);
-}
-
-
-static void increment_tail(struct oprofile_cpu_buffer *b)
-{
-	unsigned long new_tail = b->tail_pos + 1;
-
-	rmb();
-
-	if (new_tail < b->buffer_size)
-		b->tail_pos = new_tail;
-	else
-		b->tail_pos = 0;
 }
 
 
