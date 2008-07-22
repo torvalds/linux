@@ -201,8 +201,19 @@ static int physmap_flash_suspend(struct platform_device *dev, pm_message_t state
 	int i;
 
 	for (i = 0; i < MAX_RESOURCES && info->mtd[i]; i++)
-		if (info->mtd[i]->suspend)
-			ret |= info->mtd[i]->suspend(info->mtd[i]);
+		if (info->mtd[i]->suspend) {
+			ret = info->mtd[i]->suspend(info->mtd[i]);
+			if (ret)
+				goto fail;
+		}
+
+	return 0;
+fail:
+	for (--i; i >= 0; --i)
+		if (info->mtd[i]->suspend) {
+			BUG_ON(!info->mtd[i]->resume);
+			info->mtd[i]->resume(info->mtd[i]);
+		}
 
 	return ret;
 }
