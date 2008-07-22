@@ -251,7 +251,7 @@ static long do_sys_truncate(const char __user * path, loff_t length)
 	if (error)
 		goto dput_and_out;
 
-	error = vfs_permission(&nd, MAY_WRITE);
+	error = inode_permission(inode, MAY_WRITE);
 	if (error)
 		goto mnt_drop_write_and_out;
 
@@ -426,6 +426,7 @@ out:
 asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 {
 	struct nameidata nd;
+	struct inode *inode;
 	int old_fsuid, old_fsgid;
 	kernel_cap_t uninitialized_var(old_cap);  /* !SECURE_NO_SETUID_FIXUP */
 	int res;
@@ -461,7 +462,9 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 	if (res)
 		goto out;
 
-	if ((mode & MAY_EXEC) && S_ISREG(nd.path.dentry->d_inode->i_mode)) {
+	inode = nd.path.dentry->d_inode;
+
+	if ((mode & MAY_EXEC) && S_ISREG(inode->i_mode)) {
 		/*
 		 * MAY_EXEC on regular files is denied if the fs is mounted
 		 * with the "noexec" flag.
@@ -471,10 +474,9 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 			goto out_path_release;
 	}
 
-	res = vfs_permission(&nd, mode | MAY_ACCESS);
+	res = inode_permission(inode, mode | MAY_ACCESS);
 	/* SuS v2 requires we report a read only fs too */
-	if(res || !(mode & S_IWOTH) ||
-	   special_file(nd.path.dentry->d_inode->i_mode))
+	if (res || !(mode & S_IWOTH) || special_file(inode->i_mode))
 		goto out_path_release;
 	/*
 	 * This is a rare case where using __mnt_is_readonly()
@@ -515,7 +517,7 @@ asmlinkage long sys_chdir(const char __user * filename)
 	if (error)
 		goto out;
 
-	error = vfs_permission(&nd, MAY_EXEC | MAY_ACCESS);
+	error = inode_permission(nd.path.dentry->d_inode, MAY_EXEC | MAY_ACCESS);
 	if (error)
 		goto dput_and_out;
 
@@ -544,7 +546,7 @@ asmlinkage long sys_fchdir(unsigned int fd)
 	if (!S_ISDIR(inode->i_mode))
 		goto out_putf;
 
-	error = file_permission(file, MAY_EXEC | MAY_ACCESS);
+	error = inode_permission(inode, MAY_EXEC | MAY_ACCESS);
 	if (!error)
 		set_fs_pwd(current->fs, &file->f_path);
 out_putf:
@@ -562,7 +564,7 @@ asmlinkage long sys_chroot(const char __user * filename)
 	if (error)
 		goto out;
 
-	error = vfs_permission(&nd, MAY_EXEC | MAY_ACCESS);
+	error = inode_permission(nd.path.dentry->d_inode, MAY_EXEC | MAY_ACCESS);
 	if (error)
 		goto dput_and_out;
 
