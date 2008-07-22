@@ -757,7 +757,7 @@ failed_device_register:
 
 static void __exit sierra_exit(void)
 {
-	usb_deregister (&sierra_driver);
+	usb_deregister(&sierra_driver);
 	usb_serial_deregister(&sierra_device);
 }
 
