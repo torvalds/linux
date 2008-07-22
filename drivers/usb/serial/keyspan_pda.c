@@ -207,7 +207,6 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty = port->port.tty;
 	unsigned char *data = urb->transfer_buffer;
-	int i;
 	int retval;
 	int status = urb->status;
 	struct keyspan_pda_private *priv;
@@ -235,8 +234,8 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 	case 0:
 		/* rest of message is rx data */
 		if (urb->actual_length) {
-			for (i = 1; i < urb->actual_length ; ++i)
-				tty_insert_flip_char(tty, data[i], 0);
+			tty_insert_flip_string(tty, data + 1,
+						urb->actual_length - 1);
 			tty_flip_buffer_push(tty);
 		}
 		break;
