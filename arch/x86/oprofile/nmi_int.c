@@ -425,21 +425,21 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		default:
 			return -ENODEV;
 		case 6:
-			model = &op_athlon_spec;
+			model = &op_amd_spec;
 			cpu_type = "i386/athlon";
 			break;
 		case 0xf:
-			model = &op_athlon_spec;
+			model = &op_amd_spec;
 			/* Actually it could be i386/hammer too, but give
 			 user space an consistent name. */
 			cpu_type = "x86-64/hammer";
 			break;
 		case 0x10:
-			model = &op_athlon_spec;
+			model = &op_amd_spec;
 			cpu_type = "x86-64/family10";
 			break;
 		case 0x11:
-			model = &op_athlon_spec;
+			model = &op_amd_spec;
 			cpu_type = "x86-64/family11h";
 			break;
 		}

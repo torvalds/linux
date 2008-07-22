@@ -45,9 +45,9 @@
 
 static unsigned long reset_value[NUM_COUNTERS];
 
-/* functions for op_athlon_spec */
+/* functions for op_amd_spec */
 
-static void athlon_fill_in_addresses(struct op_msrs * const msrs)
+static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
 {
 	int i;
 
@@ -67,7 +67,7 @@ static void athlon_fill_in_addresses(struct op_msrs * const msrs)
 }
 
 
-static void athlon_setup_ctrs(struct op_msrs const * const msrs)
+static void op_amd_setup_ctrs(struct op_msrs const * const msrs)
 {
 	unsigned int low, high;
 	int i;
@@ -116,7 +116,7 @@ static void athlon_setup_ctrs(struct op_msrs const * const msrs)
 }
 
 
-static int athlon_check_ctrs(struct pt_regs * const regs,
+static int op_amd_check_ctrs(struct pt_regs * const regs,
 			     struct op_msrs const * const msrs)
 {
 	unsigned int low, high;
@@ -137,7 +137,7 @@ static int athlon_check_ctrs(struct pt_regs * const regs,
 }
 
 
-static void athlon_start(struct op_msrs const * const msrs)
+static void op_amd_start(struct op_msrs const * const msrs)
 {
 	unsigned int low, high;
 	int i;
@@ -151,7 +151,7 @@ static void athlon_start(struct op_msrs const * const msrs)
 }
 
 
-static void athlon_stop(struct op_msrs const * const msrs)
+static void op_amd_stop(struct op_msrs const * const msrs)
 {
 	unsigned int low, high;
 	int i;
@@ -167,7 +167,7 @@ static void athlon_stop(struct op_msrs const * const msrs)
 	}
 }
 
-static void athlon_shutdown(struct op_msrs const * const msrs)
+static void op_amd_shutdown(struct op_msrs const * const msrs)
 {
 	int i;
 
@@ -190,15 +190,15 @@ static void op_amd_exit(void)
 {
 }
 
-struct op_x86_model_spec const op_athlon_spec = {
+struct op_x86_model_spec const op_amd_spec = {
 	.init = op_amd_init,
 	.exit = op_amd_exit,
 	.num_counters = NUM_COUNTERS,
 	.num_controls = NUM_CONTROLS,
-	.fill_in_addresses = &athlon_fill_in_addresses,
-	.setup_ctrs = &athlon_setup_ctrs,
-	.check_ctrs = &athlon_check_ctrs,
-	.start = &athlon_start,
-	.stop = &athlon_stop,
-	.shutdown = &athlon_shutdown
+	.fill_in_addresses = &op_amd_fill_in_addresses,
+	.setup_ctrs = &op_amd_setup_ctrs,
+	.check_ctrs = &op_amd_check_ctrs,
+	.start = &op_amd_start,
+	.stop = &op_amd_stop,
+	.shutdown = &op_amd_shutdown
 };
