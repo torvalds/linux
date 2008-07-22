@@ -43,9 +43,6 @@ struct sd {
 	unsigned char autogain_ignore_frames;
 	unsigned char frames_to_drop;
 	unsigned char freq;		/* light freq filter setting */
-	unsigned char saturation;
-	unsigned char hue;
-	unsigned char contrast;
 
 	unsigned char fr_h_sz;		/* size of frame header */
 	char sensor;			/* Type of image sensor chip */
@@ -90,12 +87,6 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setsaturation(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getsaturation(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_sethue(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_gethue(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 	{
@@ -171,48 +162,6 @@ static struct ctrl sd_ctrls[] = {
 		},
 		.set = sd_setfreq,
 		.get = sd_getfreq,
-	},
-	{
-		{
-			.id      = V4L2_CID_SATURATION,
-			.type    = V4L2_CTRL_TYPE_INTEGER,
-			.name    = "Saturation",
-			.minimum = 0,
-			.maximum = 255,
-			.step    = 1,
-#define SATURATION_DEF 127
-			.default_value = SATURATION_DEF,
-		},
-		.set = sd_setsaturation,
-		.get = sd_getsaturation,
-	},
-	{
-		{
-			.id      = V4L2_CID_HUE,
-			.type    = V4L2_CTRL_TYPE_INTEGER,
-			.name    = "Hue",
-			.minimum = 0,
-			.maximum = 255,
-			.step    = 1,
-#define HUE_DEF 127
-			.default_value = HUE_DEF,
-		},
-		.set = sd_sethue,
-		.get = sd_gethue,
-	},
-	{
-		{
-			.id      = V4L2_CID_CONTRAST,
-			.type    = V4L2_CTRL_TYPE_INTEGER,
-			.name    = "Contrast",
-			.minimum = 0,
-			.maximum = 255,
-			.step    = 1,
-#define CONTRAST_DEF 127
-			.default_value = CONTRAST_DEF,
-		},
-		.set = sd_setcontrast,
-		.get = sd_getcontrast,
 	},
 };
 
@@ -779,66 +728,6 @@ static void setfreq(struct gspca_dev *gspca_dev)
 	}
 }
 
-static void setsaturation(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	switch (sd->sensor) {
-/*	case SENSOR_OV6650: */
-	case SENSOR_OV7630: {
-		__u8 i2c[] = {0xa0, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10};
-		i2c[1] = sd->sensor_addr;
-		i2c[3] = sd->saturation & 0xf0;
-		if (i2c_w(gspca_dev, i2c) < 0)
-			PDEBUG(D_ERR, "i2c error setsaturation");
-		else
-			PDEBUG(D_CONF, "saturation set to: %d",
-				(int)sd->saturation);
-		break;
-	    }
-	}
-}
-
-static void sethue(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	switch (sd->sensor) {
-/*	case SENSOR_OV6650: */
-	case SENSOR_OV7630: {
-		__u8 i2c[] = {0xa0, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x10};
-		i2c[1] = sd->sensor_addr;
-		i2c[3] = 0x20 | (sd->hue >> 3);
-		if (i2c_w(gspca_dev, i2c) < 0)
-			PDEBUG(D_ERR, "i2c error setsaturation");
-		else
-			PDEBUG(D_CONF, "hue set to: %d", (int)sd->hue);
-		break;
-	    }
-	}
-}
-
-static void setcontrast(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	switch (sd->sensor) {
-/*	case SENSOR_OV6650: */
-	case SENSOR_OV7630: {
-		__u8 i2c[] = {0xa0, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x10};
-		i2c[1] = sd->sensor_addr;
-		i2c[3] = 0x20 | (sd->contrast >> 3);
-		if (i2c_w(gspca_dev, i2c) < 0)
-			PDEBUG(D_ERR, "i2c error setcontrast");
-		else
-			PDEBUG(D_CONF, "contrast set to: %d",
-				(int)sd->contrast);
-		break;
-	    }
-	}
-}
-
-
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -950,9 +839,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->exposure = EXPOSURE_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->freq = FREQ_DEF;
-	sd->contrast = CONTRAST_DEF;
-	sd->saturation = SATURATION_DEF;
-	sd->hue = HUE_DEF;
 
 	if (product == 0x60b0) /* SN9C103 with OV7630 */
 		reg_w(gspca_dev, 0x01, probe_ov7630, sizeof probe_ov7630);
@@ -1125,9 +1011,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	setbrightness(gspca_dev);
 	setexposure(gspca_dev);
 	setfreq(gspca_dev);
-	setsaturation(gspca_dev);
-	sethue(gspca_dev);
-	setcontrast(gspca_dev);
 
 	sd->frames_to_drop = 0;
 	sd->autogain_ignore_frames = 0;
@@ -1311,60 +1194,6 @@ static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->freq;
-	return 0;
-}
-
-static int sd_setsaturation(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->saturation = val;
-	if (gspca_dev->streaming)
-		setsaturation(gspca_dev);
-	return 0;
-}
-
-static int sd_getsaturation(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->saturation;
-	return 0;
-}
-
-static int sd_sethue(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->hue = val;
-	if (gspca_dev->streaming)
-		sethue(gspca_dev);
-	return 0;
-}
-
-static int sd_gethue(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->hue;
-	return 0;
-}
-
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->contrast = val;
-	if (gspca_dev->streaming)
-		setcontrast(gspca_dev);
-	return 0;
-}
-
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->contrast;
 	return 0;
 }
 
