@@ -189,7 +189,6 @@ void snd_tea575x_init(struct snd_tea575x *tea)
 	}
 
 	memset(&tea->vd, 0, sizeof(tea->vd));
-	tea->vd.owner = tea->card->module;
 	strcpy(tea->vd.name, tea->tea5759 ? "TEA5759 radio" : "TEA5757 radio");
 	tea->vd.type = VID_TYPE_TUNER;
 	tea->vd.release = snd_tea575x_release;
