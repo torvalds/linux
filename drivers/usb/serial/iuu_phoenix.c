@@ -318,11 +318,10 @@ static int bulk_immediate(struct usb_serial_port *port, u8 *buf, u8 count)
 					 port->bulk_out_endpointAddress), buf,
 			 count, &actual, HZ * 1);
 
-	if (status != IUU_OPERATION_OK) {
+	if (status != IUU_OPERATION_OK)
 		dbg("%s - error = %2x", __func__, status);
-	} else {
+	else
 		dbg("%s - write OK !", __func__);
-	}
 	return status;
 }
 
@@ -342,12 +341,10 @@ static int read_immediate(struct usb_serial_port *port, u8 *buf, u8 count)
 					 port->bulk_in_endpointAddress), buf,
 			 count, &actual, HZ * 1);
 
-	if (status != IUU_OPERATION_OK) {
+	if (status != IUU_OPERATION_OK)
 		dbg("%s - error = %2x", __func__, status);
-	} else {
+	else
 		dbg("%s - read OK !", __func__);
-	}
-
 	return status;
 }
 
@@ -770,14 +767,14 @@ static int iuu_uart_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (priv->writelen > 0) {
 		/* buffer already filled but not commited */
 		spin_unlock_irqrestore(&priv->lock, flags);
-		return (0);
+		return 0;
 	}
 	/* fill the buffer */
 	memcpy(priv->writebuf, buf, count);
 	priv->writelen = count;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return (count);
+	return count;
 }
 
 static void read_rxcmd_callback(struct urb *urb)
