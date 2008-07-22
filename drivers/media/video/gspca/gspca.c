@@ -399,7 +399,7 @@ static struct usb_host_endpoint *alt_isoc(struct usb_host_interface *alt,
  * This routine may be called many times when the bandwidth is too small
  * (the bandwidth is checked on urb submit).
  */
-struct usb_host_endpoint *get_isoc_ep(struct gspca_dev *gspca_dev)
+static struct usb_host_endpoint *get_isoc_ep(struct gspca_dev *gspca_dev)
 {
 	struct usb_interface *intf;
 	struct usb_host_endpoint *ep;

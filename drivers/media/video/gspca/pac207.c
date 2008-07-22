@@ -27,9 +27,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
 MODULE_DESCRIPTION("Pixart PAC207");
 MODULE_LICENSE("GPL");
@@ -208,7 +205,7 @@ static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 }
 
 
-int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
+static int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int err;
@@ -223,8 +220,7 @@ int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
 	return err;
 }
 
-
-int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
+static int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int res;
@@ -609,7 +605,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)
