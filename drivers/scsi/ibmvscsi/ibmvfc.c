@@ -1136,7 +1136,7 @@ static void ibmvfc_set_login_info(struct ibmvfc_host *vhost)
 	login_info->max_cmds = max_requests + IBMVFC_NUM_INTERNAL_REQ;
 	login_info->capabilities = IBMVFC_CAN_MIGRATE;
 	login_info->async.va = vhost->async_crq.msg_token;
-	login_info->async.len = vhost->async_crq.size;
+	login_info->async.len = vhost->async_crq.size * sizeof(*vhost->async_crq.msgs);
 	strncpy(login_info->partition_name, vhost->partition_name, IBMVFC_MAX_NAME);
 	strncpy(login_info->device_name,
 		vhost->host->shost_gendev.bus_id, IBMVFC_MAX_NAME);
@@ -3348,6 +3348,7 @@ static void ibmvfc_tgt_add_rport(struct ibmvfc_target *tgt)
 		tgt_dbg(tgt, "rport add succeeded\n");
 		rport->maxframe_size = tgt->service_parms.common.bb_rcv_sz & 0x0fff;
 		rport->supported_classes = 0;
+		tgt->target_id = rport->scsi_target_id;
 		if (tgt->service_parms.class1_parms[0] & 0x80000000)
 			rport->supported_classes |= FC_COS_CLASS1;
 		if (tgt->service_parms.class2_parms[0] & 0x80000000)
