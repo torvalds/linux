@@ -123,7 +123,7 @@ static uint32_t crb_cmd_producer[4] = {
 	CRB_CMD_PRODUCER_OFFSET_2, CRB_CMD_PRODUCER_OFFSET_3
 };
 
-static inline void
+void
 netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 		uint32_t crb_producer)
 {
@@ -716,7 +716,10 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->stop		   = netxen_nic_close;
 	netdev->hard_start_xmit    = netxen_nic_xmit_frame;
 	netdev->get_stats	   = netxen_nic_get_stats;
-	netdev->set_multicast_list = netxen_nic_set_multi;
+	if (NX_IS_REVISION_P3(revision_id))
+		netdev->set_multicast_list = netxen_p3_nic_set_multi;
+	else
+		netdev->set_multicast_list = netxen_p2_nic_set_multi;
 	netdev->set_mac_address    = netxen_nic_set_mac;
 	netdev->change_mtu	   = netxen_nic_change_mtu;
 	netdev->tx_timeout	   = netxen_tx_timeout;
@@ -1100,7 +1103,7 @@ static int netxen_nic_open(struct net_device *netdev)
 
 	/* Done here again so that even if phantom sw overwrote it,
 	 * we set it */
-	err = adapter->init_port(adapter, adapter->portnum);
+	err = adapter->init_port(adapter, adapter->physical_port);
 	if (err) {
 		printk(KERN_ERR "%s: Failed to initialize port %d\n",
 				netxen_nic_driver_name, adapter->portnum);
@@ -1110,8 +1113,11 @@ static int netxen_nic_open(struct net_device *netdev)
 
 	netxen_nic_set_link_parameters(adapter);
 
-	netxen_nic_set_multi(netdev);
-	adapter->set_mtu(adapter, netdev->mtu);
+	netdev->set_multicast_list(netdev);
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		nx_fw_cmd_set_mtu(adapter, netdev->mtu);
+	else
+		adapter->set_mtu(adapter, netdev->mtu);
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
 
@@ -1379,12 +1385,21 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 
 	port = adapter->physical_port;
 
-	val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE)
+	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
+		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
 		linkup = (val >> port) & 1;
-	else {
-		val = (val >> port*8) & 0xff;
-		linkup = (val == XG_LINK_UP);
+	} else {
+		if (adapter->fw_major < 4) {
+			val = adapter->pci_read_normalize(adapter,
+					CRB_XG_STATE);
+			val = (val >> port*8) & 0xff;
+			linkup = (val == XG_LINK_UP);
+		} else {
+			val = adapter->pci_read_normalize(adapter,
+				CRB_XG_STATE_P3);
+			val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
+			linkup = (val == XG_LINK_UP_P3);
+		}
 	}
 
 	if (adapter->ahw.linkup && !linkup) {

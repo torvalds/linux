@@ -400,14 +400,16 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 {
 	int result = 0;
 	__u32 status;
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return 0;
+
 	if (adapter->disable_phy_interrupts)
 		adapter->disable_phy_interrupts(adapter);
 	mdelay(2);
 
-	if (0 ==
-	    netxen_niu_gbe_phy_read(adapter,
-				    NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-				    &status)) {
+	if (0 == netxen_niu_gbe_phy_read(adapter,
+			NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS, &status)) {
 		if (netxen_get_phy_link(status)) {
 			if (netxen_get_phy_speed(status) == 2) {
 				netxen_niu_gbe_set_gmii_mode(adapter, port, 1);
@@ -455,12 +457,12 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 
 int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
 {
-	u32 portnum = adapter->physical_port;
-
-	netxen_crb_writelit_adapter(adapter,
-		NETXEN_NIU_XGE_CONFIG_1+(0x10000*portnum), 0x1447);
-	netxen_crb_writelit_adapter(adapter,
-		NETXEN_NIU_XGE_CONFIG_0+(0x10000*portnum), 0x5);
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		netxen_crb_writelit_adapter(adapter,
+			NETXEN_NIU_XGE_CONFIG_1+(0x10000*port), 0x1447);
+		netxen_crb_writelit_adapter(adapter,
+			NETXEN_NIU_XGE_CONFIG_0+(0x10000*port), 0x5);
+	}
 
 	return 0;
 }

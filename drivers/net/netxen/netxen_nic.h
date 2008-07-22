@@ -1119,7 +1119,7 @@ typedef struct {
 	u64 qhdr;
 	u64 req_hdr;
 	u64 words[6];
-} nic_request_t;
+} nx_nic_req_t;
 
 typedef struct {
 	u8 op;
@@ -1127,6 +1127,7 @@ typedef struct {
 	u8 mac_addr[6];
 } nx_mac_req_t;
 
+#define MAX_PENDING_DESC_BLOCK_SIZE	64
 
 #define NETXEN_NIC_MSI_ENABLED		0x02
 #define NETXEN_NIC_MSIX_ENABLED		0x04
@@ -1152,7 +1153,6 @@ struct netxen_adapter {
 	int pci_using_dac;
 	struct napi_struct napi;
 	struct net_device_stats net_stats;
-	unsigned char mac_addr[ETH_ALEN];
 	int mtu;
 	int portnum;
 	u8 physical_port;
@@ -1160,6 +1160,7 @@ struct netxen_adapter {
 
 	uint8_t		mc_enabled;
 	uint8_t		max_mc_count;
+	nx_mac_list_t	*mac_list;
 
 	struct netxen_legacy_intr_set legacy_intr;
 	u32	crb_intr_mask;
@@ -1231,7 +1232,6 @@ struct netxen_adapter {
 	int (*phy_read) (struct netxen_adapter *, long reg, u32 *);
 	int (*phy_write) (struct netxen_adapter *, long reg, u32 val);
 	int (*init_port) (struct netxen_adapter *, int);
-	void (*init_niu) (struct netxen_adapter *);
 	int (*stop_port) (struct netxen_adapter *);
 
 	int (*hw_read_wx)(struct netxen_adapter *, ulong, void *, int);
@@ -1316,7 +1316,6 @@ int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
 /* Functions available from netxen_nic_hw.c */
 int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu);
 int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu);
-void netxen_nic_init_niu_gb(struct netxen_adapter *adapter);
 void netxen_nic_reg_write(struct netxen_adapter *adapter, u64 off, u32 val);
 int netxen_nic_reg_read(struct netxen_adapter *adapter, u64 off);
 void netxen_nic_write_w0(struct netxen_adapter *adapter, u32 index, u32 value);
@@ -1404,7 +1403,8 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx,
 			    u32 ringid);
 int netxen_process_cmd_ring(struct netxen_adapter *adapter);
 u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctx, int max);
-void netxen_nic_set_multi(struct net_device *netdev);
+void netxen_p2_nic_set_multi(struct net_device *netdev);
+void netxen_p3_nic_set_multi(struct net_device *netdev);
 
 u32 nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, u32 mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
@@ -1412,6 +1412,8 @@ int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
 int netxen_nic_set_mac(struct net_device *netdev, void *p);
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
 
+void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
+		uint32_t crb_producer);
 
 /*
  * NetXen Board information

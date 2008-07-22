@@ -314,8 +314,10 @@ int netxen_nic_set_mac(struct net_device *netdev, void *p)
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 
-	if (adapter->macaddr_set)
-		adapter->macaddr_set(adapter, addr->sa_data);
+	/* For P3, MAC addr is not set in NIU */
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		if (adapter->macaddr_set)
+			adapter->macaddr_set(adapter, addr->sa_data);
 
 	return 0;
 }
@@ -405,10 +407,7 @@ netxen_nic_set_mcast_addr(struct netxen_adapter *adapter,
 	return 0;
 }
 
-/*
- * netxen_nic_set_multi - Multicast
- */
-void netxen_nic_set_multi(struct net_device *netdev)
+void netxen_p2_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct dev_mc_list *mc_ptr;
@@ -456,24 +455,198 @@ void netxen_nic_set_multi(struct net_device *netdev)
 		netxen_nic_set_mcast_addr(adapter, index, null_addr);
 }
 
+static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
+		u8 *addr, nx_mac_list_t **add_list, nx_mac_list_t **del_list)
+{
+	nx_mac_list_t *cur, *prev;
+
+	/* if in del_list, move it to adapter->mac_list */
+	for (cur = *del_list, prev = NULL; cur;) {
+		if (memcmp(addr, cur->mac_addr, ETH_ALEN) == 0) {
+			if (prev == NULL)
+				*del_list = cur->next;
+			else
+				prev->next = cur->next;
+			cur->next = adapter->mac_list;
+			adapter->mac_list = cur;
+			return 0;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+
+	/* make sure to add each mac address only once */
+	for (cur = adapter->mac_list; cur; cur = cur->next) {
+		if (memcmp(addr, cur->mac_addr, ETH_ALEN) == 0)
+			return 0;
+	}
+	/* not in del_list, create new entry and add to add_list */
+	cur = kmalloc(sizeof(*cur), in_atomic()? GFP_ATOMIC : GFP_KERNEL);
+	if (cur == NULL) {
+		printk(KERN_ERR "%s: cannot allocate memory. MAC filtering may"
+				"not work properly from now.\n", __func__);
+		return -1;
+	}
+
+	memcpy(cur->mac_addr, addr, ETH_ALEN);
+	cur->next = *add_list;
+	*add_list = cur;
+	return 0;
+}
+
+static int
+netxen_send_cmd_descs(struct netxen_adapter *adapter,
+		struct cmd_desc_type0 *cmd_desc_arr, int nr_elements)
+{
+	uint32_t i, producer;
+	struct netxen_cmd_buffer *pbuf;
+	struct cmd_desc_type0 *cmd_desc;
+
+	if (nr_elements > MAX_PENDING_DESC_BLOCK_SIZE || nr_elements == 0) {
+		printk(KERN_WARNING "%s: Too many command descriptors in a "
+			      "request\n", __func__);
+		return -EINVAL;
+	}
+
+	i = 0;
+
+	producer = adapter->cmd_producer;
+	do {
+		cmd_desc = &cmd_desc_arr[i];
+
+		pbuf = &adapter->cmd_buf_arr[producer];
+		pbuf->mss = 0;
+		pbuf->total_length = 0;
+		pbuf->skb = NULL;
+		pbuf->cmd = 0;
+		pbuf->frag_count = 0;
+		pbuf->port = 0;
+
+		/* adapter->ahw.cmd_desc_head[producer] = *cmd_desc; */
+		memcpy(&adapter->ahw.cmd_desc_head[producer],
+			&cmd_desc_arr[i], sizeof(struct cmd_desc_type0));
+
+		producer = get_next_index(producer,
+				adapter->max_tx_desc_count);
+		i++;
+
+	} while (i != nr_elements);
+
+	adapter->cmd_producer = producer;
+
+	/* write producer index to start the xmit */
+
+	netxen_nic_update_cmd_producer(adapter, adapter->cmd_producer);
+
+	return 0;
+}
+
+#define NIC_REQUEST		0x14
+#define NETXEN_MAC_EVENT	0x1
+
+static int nx_p3_sre_macaddr_change(struct net_device *dev,
+		u8 *addr, unsigned op)
+{
+	struct netxen_adapter *adapter = (struct netxen_adapter *)dev->priv;
+	nx_nic_req_t req;
+	nx_mac_req_t mac_req;
+	int rv;
+
+	memset(&req, 0, sizeof(nx_nic_req_t));
+	req.qhdr |= (NIC_REQUEST << 23);
+	req.req_hdr |= NETXEN_MAC_EVENT;
+	req.req_hdr |= ((u64)adapter->portnum << 16);
+	mac_req.op = op;
+	memcpy(&mac_req.mac_addr, addr, 6);
+	req.words[0] = cpu_to_le64(*(u64 *)&mac_req);
+
+	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0) {
+		printk(KERN_ERR "ERROR. Could not send mac update\n");
+		return rv;
+	}
+
+	return 0;
+}
+
+void netxen_p3_nic_set_multi(struct net_device *netdev)
+{
+	struct netxen_adapter *adapter = netdev_priv(netdev);
+	nx_mac_list_t *cur, *next, *del_list, *add_list = NULL;
+	struct dev_mc_list *mc_ptr;
+	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
+	adapter->set_promisc(adapter, NETXEN_NIU_PROMISC_MODE);
+
+	/*
+	 * Programming mac addresses will automaticly enabling L2 filtering.
+	 * HW will replace timestamp with L2 conid when L2 filtering is
+	 * enabled. This causes problem for LSA. Do not enabling L2 filtering
+	 * until that problem is fixed.
+	 */
+	if ((netdev->flags & IFF_PROMISC) ||
+			(netdev->mc_count > adapter->max_mc_count))
+		return;
+
+	del_list = adapter->mac_list;
+	adapter->mac_list = NULL;
+
+	nx_p3_nic_add_mac(adapter, netdev->dev_addr, &add_list, &del_list);
+	if (netdev->mc_count > 0) {
+		nx_p3_nic_add_mac(adapter, bcast_addr, &add_list, &del_list);
+		for (mc_ptr = netdev->mc_list; mc_ptr;
+		     mc_ptr = mc_ptr->next) {
+			nx_p3_nic_add_mac(adapter, mc_ptr->dmi_addr,
+					  &add_list, &del_list);
+		}
+	}
+	for (cur = del_list; cur;) {
+		nx_p3_sre_macaddr_change(netdev, cur->mac_addr, NETXEN_MAC_DEL);
+		next = cur->next;
+		kfree(cur);
+		cur = next;
+	}
+	for (cur = add_list; cur;) {
+		nx_p3_sre_macaddr_change(netdev, cur->mac_addr, NETXEN_MAC_ADD);
+		next = cur->next;
+		cur->next = adapter->mac_list;
+		adapter->mac_list = cur;
+		cur = next;
+	}
+}
+
 /*
  * netxen_nic_change_mtu - Change the Maximum Transfer Unit
  * @returns 0 on success, negative on failure
  */
+
+#define MTU_FUDGE_FACTOR	100
+
 int netxen_nic_change_mtu(struct net_device *netdev, int mtu)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	int eff_mtu = mtu + NETXEN_ENET_HEADER_SIZE + NETXEN_ETH_FCS_SIZE;
+	int max_mtu;
 
-	if ((eff_mtu > NETXEN_MAX_MTU) || (eff_mtu < NETXEN_MIN_MTU)) {
-		printk(KERN_ERR "%s: %s %d is not supported.\n",
-		       netxen_nic_driver_name, netdev->name, mtu);
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		max_mtu = P3_MAX_MTU;
+	else
+		max_mtu = P2_MAX_MTU;
+
+	if (mtu > max_mtu) {
+		printk(KERN_ERR "%s: mtu > %d bytes unsupported\n",
+				netdev->name, max_mtu);
 		return -EINVAL;
 	}
 
 	if (adapter->set_mtu)
 		adapter->set_mtu(adapter, mtu);
 	netdev->mtu = mtu;
+
+	mtu += MTU_FUDGE_FACTOR;
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		nx_fw_cmd_set_mtu(adapter, mtu);
+	else if (adapter->set_mtu)
+		adapter->set_mtu(adapter, mtu);
 
 	return 0;
 }
@@ -1880,11 +2053,6 @@ int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
 		netxen_nic_write_w0(adapter, NETXEN_NIU_XG1_MAX_FRAME_SIZE,
 				new_mtu);
 	return 0;
-}
-
-void netxen_nic_init_niu_gb(struct netxen_adapter *adapter)
-{
-	netxen_niu_gbe_init_port(adapter, adapter->physical_port);
 }
 
 void

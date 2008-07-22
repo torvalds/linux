@@ -76,8 +76,8 @@
 #define CRB_RX_LRO_MID_TIMER        NETXEN_NIC_REG(0x88)
 #define CRB_DMA_MAX_RCV_BUFS        NETXEN_NIC_REG(0x8c)
 #define CRB_MAX_DMA_ENTRIES         NETXEN_NIC_REG(0x90)
-#define CRB_XG_STATE                NETXEN_NIC_REG(0x94)	/* XG Link status */
-#define CRB_AGENT_GO                NETXEN_NIC_REG(0x98)	/* NIC pkt gen agent */
+#define CRB_XG_STATE                NETXEN_NIC_REG(0x94) /* XG Link status */
+#define CRB_XG_STATE_P3             NETXEN_NIC_REG(0x98) /* XG PF Link status */
 #define CRB_AGENT_TX_SIZE           NETXEN_NIC_REG(0x9c)
 #define CRB_AGENT_TX_TYPE           NETXEN_NIC_REG(0xa0)
 #define CRB_AGENT_TX_ADDR           NETXEN_NIC_REG(0xa4)

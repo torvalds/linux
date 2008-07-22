@@ -329,7 +329,7 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 		adapter->set_promisc = netxen_niu_set_promiscuous_mode;
 		adapter->phy_read = netxen_niu_gbe_phy_read;
 		adapter->phy_write = netxen_niu_gbe_phy_write;
-		adapter->init_niu = netxen_nic_init_niu_gb;
+		adapter->init_port = netxen_niu_gbe_init_port;
 		adapter->stop_port = netxen_niu_disable_gbe_port;
 		break;
 
