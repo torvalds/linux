@@ -1089,7 +1089,7 @@ static inline pteval_t pte_flags(pte_t pte)
 				 pte.pte);
 
 #ifdef CONFIG_PARAVIRT_DEBUG
-	BUG_ON(ret & PTE_MASK);
+	BUG_ON(ret & PTE_PFN_MASK);
 #endif
 	return ret;
 }

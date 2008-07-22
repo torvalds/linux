@@ -18,8 +18,8 @@
    (ie, 32-bit PAE). */
 #define PHYSICAL_PAGE_MASK	(((signed long)PAGE_MASK) & __PHYSICAL_MASK)
 
-/* PTE_MASK extracts the PFN from a (pte|pmd|pud|pgd)val_t */
-#define PTE_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
+/* PTE_PFN_MASK extracts the PFN from a (pte|pmd|pud|pgd)val_t */
+#define PTE_PFN_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
 
 #define PMD_PAGE_SIZE		(_AC(1, UL) << PMD_SHIFT)
 #define PMD_PAGE_MASK		(~(PMD_PAGE_SIZE-1))
@@ -146,7 +146,7 @@ static inline pteval_t native_pte_val(pte_t pte)
 
 static inline pteval_t native_pte_flags(pte_t pte)
 {
-	return native_pte_val(pte) & ~PTE_MASK;
+	return native_pte_val(pte) & ~PTE_PFN_MASK;
 }
 
 #define pgprot_val(x)	((x).pgprot)
