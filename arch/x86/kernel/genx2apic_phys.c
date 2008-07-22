@@ -4,10 +4,30 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/dmar.h>
+
 #include <asm/smp.h>
 #include <asm/ipi.h>
 #include <asm/genapic.h>
 
+DEFINE_PER_CPU(int, x2apic_extra_bits);
+
+static int x2apic_phys;
+
+static int set_x2apic_phys_mode(char *arg)
+{
+	x2apic_phys = 1;
+	return 0;
+}
+early_param("x2apic_phys", set_x2apic_phys_mode);
+
+static int __init x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+	if (cpu_has_x2apic && intr_remapping_enabled && x2apic_phys)
+		return 1;
+
+	return 0;
+}
 
 /* Start with all IRQs pointing to boot CPU.  IRQ balancing will shift them. */
 
@@ -122,6 +142,7 @@ void init_x2apic_ldr(void)
 
 struct genapic apic_x2apic_phys = {
 	.name = "physical x2apic",
+	.acpi_madt_oem_check = x2apic_acpi_madt_oem_check,
 	.int_delivery_mode = dest_Fixed,
 	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
 	.target_cpus = x2apic_target_cpus,

@@ -4,11 +4,21 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/dmar.h>
+
 #include <asm/smp.h>
 #include <asm/ipi.h>
 #include <asm/genapic.h>
 
 DEFINE_PER_CPU(u32, x86_cpu_to_logical_apicid);
+
+static int __init x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+	if (cpu_has_x2apic && intr_remapping_enabled)
+		return 1;
+
+	return 0;
+}
 
 /* Start with all IRQs pointing to boot CPU.  IRQ balancing will shift them. */
 
@@ -135,6 +145,7 @@ static void init_x2apic_ldr(void)
 
 struct genapic apic_x2apic_cluster = {
 	.name = "cluster x2apic",
+	.acpi_madt_oem_check = x2apic_acpi_madt_oem_check,
 	.int_delivery_mode = dest_LowestPrio,
 	.int_dest_mode = (APIC_DEST_LOGICAL != 0),
 	.target_cpus = x2apic_target_cpus,

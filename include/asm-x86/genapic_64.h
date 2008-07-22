@@ -14,6 +14,7 @@
 
 struct genapic {
 	char *name;
+	int (*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
 	u32 int_delivery_mode;
 	u32 int_dest_mode;
 	int (*apic_id_registered)(void);
