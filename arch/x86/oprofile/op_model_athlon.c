@@ -382,7 +382,7 @@ static int pfm_amd64_setup_eilvt(void)
 	u32 value = 0;
 
 	/* per CPU setup */
-	on_each_cpu(apic_init_ibs_nmi_per_cpu, NULL, 0, 1);
+	on_each_cpu(apic_init_ibs_nmi_per_cpu, NULL, 1);
 
 	nodes = 0;
 	cpu_cfg = NULL;
@@ -443,7 +443,7 @@ static void setup_ibs(void)
 static void clear_ibs_nmi(void)
 {
 	if (ibs_allowed)
-		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1, 1);
+		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
 }
 
 static void setup_ibs_files(struct super_block *sb, struct dentry *root)
