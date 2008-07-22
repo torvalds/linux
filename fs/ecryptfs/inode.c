@@ -830,7 +830,7 @@ out:
 static int
 ecryptfs_permission(struct inode *inode, int mask)
 {
-	return permission(ecryptfs_inode_to_lower(inode), mask, NULL);
+	return inode_permission(ecryptfs_inode_to_lower(inode), mask);
 }
 
 /**

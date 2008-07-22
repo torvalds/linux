@@ -227,13 +227,9 @@ int generic_permission(struct inode *inode, int mask,
 	return -EACCES;
 }
 
-int permission(struct inode *inode, int mask, struct nameidata *nd)
+int inode_permission(struct inode *inode, int mask)
 {
 	int retval;
-	struct vfsmount *mnt = NULL;
-
-	if (nd)
-		mnt = nd->path.mnt;
 
 	if (mask & MAY_WRITE) {
 		umode_t mode = inode->i_mode;
@@ -293,7 +289,7 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
  */
 int vfs_permission(struct nameidata *nd, int mask)
 {
-	return permission(nd->path.dentry->d_inode, mask, nd);
+	return inode_permission(nd->path.dentry->d_inode, mask);
 }
 
 /**
@@ -310,7 +306,7 @@ int vfs_permission(struct nameidata *nd, int mask)
  */
 int file_permission(struct file *file, int mask)
 {
-	return permission(file->f_path.dentry->d_inode, mask, NULL);
+	return inode_permission(file->f_path.dentry->d_inode, mask);
 }
 
 /*
@@ -1262,7 +1258,7 @@ static struct dentry *lookup_hash(struct nameidata *nd)
 {
 	int err;
 
-	err = permission(nd->path.dentry->d_inode, MAY_EXEC, nd);
+	err = inode_permission(nd->path.dentry->d_inode, MAY_EXEC);
 	if (err)
 		return ERR_PTR(err);
 	return __lookup_hash(&nd->last, nd->path.dentry, nd);
@@ -1310,7 +1306,7 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 	if (err)
 		return ERR_PTR(err);
 
-	err = permission(base->d_inode, MAY_EXEC, NULL);
+	err = inode_permission(base->d_inode, MAY_EXEC);
 	if (err)
 		return ERR_PTR(err);
 	return __lookup_hash(&this, base, NULL);
@@ -1400,7 +1396,7 @@ static int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 	BUG_ON(victim->d_parent->d_inode != dir);
 	audit_inode_child(victim->d_name.name, victim, dir);
 
-	error = permission(dir,MAY_WRITE | MAY_EXEC, NULL);
+	error = inode_permission(dir, MAY_WRITE | MAY_EXEC);
 	if (error)
 		return error;
 	if (IS_APPEND(dir))
@@ -1437,7 +1433,7 @@ static inline int may_create(struct inode *dir, struct dentry *child,
 		return -EEXIST;
 	if (IS_DEADDIR(dir))
 		return -ENOENT;
-	return permission(dir,MAY_WRITE | MAY_EXEC, nd);
+	return inode_permission(dir, MAY_WRITE | MAY_EXEC);
 }
 
 /* 
@@ -2543,7 +2539,7 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 	 * we'll need to flip '..'.
 	 */
 	if (new_dir != old_dir) {
-		error = permission(old_dentry->d_inode, MAY_WRITE, NULL);
+		error = inode_permission(old_dentry->d_inode, MAY_WRITE);
 		if (error)
 			return error;
 	}
@@ -2897,7 +2893,7 @@ EXPORT_SYMBOL(page_symlink);
 EXPORT_SYMBOL(page_symlink_inode_operations);
 EXPORT_SYMBOL(path_lookup);
 EXPORT_SYMBOL(vfs_path_lookup);
-EXPORT_SYMBOL(permission);
+EXPORT_SYMBOL(inode_permission);
 EXPORT_SYMBOL(vfs_permission);
 EXPORT_SYMBOL(file_permission);
 EXPORT_SYMBOL(unlock_rename);

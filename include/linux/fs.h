@@ -1770,7 +1770,7 @@ extern int do_remount_sb(struct super_block *sb, int flags,
 extern sector_t bmap(struct inode *, sector_t);
 #endif
 extern int notify_change(struct dentry *, struct iattr *);
-extern int permission(struct inode *, int, struct nameidata *);
+extern int inode_permission(struct inode *, int);
 extern int generic_permission(struct inode *, int,
 		int (*check_acl)(struct inode *, int));
 

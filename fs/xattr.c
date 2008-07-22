@@ -63,7 +63,7 @@ xattr_permission(struct inode *inode, const char *name, int mask)
 			return -EPERM;
 	}
 
-	return permission(inode, mask, NULL);
+	return inode_permission(inode, mask);
 }
 
 int
