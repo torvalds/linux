@@ -193,8 +193,6 @@ struct inet6_dev
 	struct rcu_head		rcu;
 };
 
-extern struct ipv6_devconf ipv6_devconf;
-
 static inline void ipv6_eth_mc_map(struct in6_addr *addr, char *buf)
 {
 	/*
