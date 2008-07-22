@@ -201,7 +201,8 @@ static int physmap_flash_suspend(struct platform_device *dev, pm_message_t state
 	int i;
 
 	for (i = 0; i < MAX_RESOURCES && info->mtd[i]; i++)
-		ret |= info->mtd[i]->suspend(info->mtd[i]);
+		if (info->mtd[i]->suspend)
+			ret |= info->mtd[i]->suspend(info->mtd[i]);
 
 	return ret;
 }
@@ -212,7 +213,8 @@ static int physmap_flash_resume(struct platform_device *dev)
 	int i;
 
 	for (i = 0; i < MAX_RESOURCES && info->mtd[i]; i++)
-		info->mtd[i]->resume(info->mtd[i]);
+		if (info->mtd[i]->resume)
+			info->mtd[i]->resume(info->mtd[i]);
 
 	return 0;
 }
@@ -223,8 +225,9 @@ static void physmap_flash_shutdown(struct platform_device *dev)
 	int i;
 
 	for (i = 0; i < MAX_RESOURCES && info->mtd[i]; i++)
-		if (info->mtd[i]->suspend(info->mtd[i]) == 0)
-			info->mtd[i]->resume(info->mtd[i]);
+		if (info->mtd[i]->suspend && info->mtd[i]->resume)
+			if (info->mtd[i]->suspend(info->mtd[i]) == 0)
+				info->mtd[i]->resume(info->mtd[i]);
 }
 #else
 #define physmap_flash_suspend NULL
