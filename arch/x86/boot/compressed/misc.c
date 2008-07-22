@@ -16,7 +16,7 @@
  */
 #undef CONFIG_PARAVIRT
 #ifdef CONFIG_X86_32
-#define _ASM_DESC_H_ 1
+#define ASM_X86__DESC_H 1
 #endif
 
 #ifdef CONFIG_X86_64

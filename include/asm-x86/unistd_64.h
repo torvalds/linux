@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_64_UNISTD_H_
-#define _ASM_X86_64_UNISTD_H_
+#ifndef ASM_X86__UNISTD_64_H
+#define ASM_X86__UNISTD_64_H
 
 #ifndef __SYSCALL
 #define __SYSCALL(a, b)
@@ -676,4 +676,4 @@ __SYSCALL(__NR_timerfd_gettime, sys_timerfd_gettime)
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 #endif	/* __KERNEL__ */
 
-#endif /* _ASM_X86_64_UNISTD_H_ */
+#endif /* ASM_X86__UNISTD_64_H */
