@@ -219,7 +219,7 @@ struct mlx4_wqe_datagram_seg {
 	__be32			reservd[2];
 };
 
-struct mlx4_lso_seg {
+struct mlx4_wqe_lso_seg {
 	__be32			mss_hdr_size;
 	__be32			header[0];
 };
