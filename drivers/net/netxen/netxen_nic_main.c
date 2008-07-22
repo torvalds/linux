@@ -108,65 +108,29 @@ static struct workqueue_struct *netxen_workq;
 
 static void netxen_watchdog(unsigned long);
 
+static uint32_t crb_cmd_producer[4] = {
+	CRB_CMD_PRODUCER_OFFSET, CRB_CMD_PRODUCER_OFFSET_1,
+	CRB_CMD_PRODUCER_OFFSET_2, CRB_CMD_PRODUCER_OFFSET_3
+};
+
 static void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 					   uint32_t crb_producer)
 {
-	switch (adapter->portnum) {
-		case 0:
-			writel(crb_producer, NETXEN_CRB_NORMALIZE
-					(adapter, CRB_CMD_PRODUCER_OFFSET));
-			return;
-		case 1:
-			writel(crb_producer, NETXEN_CRB_NORMALIZE
-					(adapter, CRB_CMD_PRODUCER_OFFSET_1));
-			return;
-		case 2:
-			writel(crb_producer, NETXEN_CRB_NORMALIZE
-					(adapter, CRB_CMD_PRODUCER_OFFSET_2));
-			return;
-		case 3:
-			writel(crb_producer, NETXEN_CRB_NORMALIZE
-					(adapter, CRB_CMD_PRODUCER_OFFSET_3));
-			return;
-		default:
-			printk(KERN_WARNING "We tried to update "
-					"CRB_CMD_PRODUCER_OFFSET for invalid "
-					"PCI function id %d\n",
-					adapter->portnum);
-			return;
-	}
+	writel(crb_producer, NETXEN_CRB_NORMALIZE(adapter,
+				adapter->crb_addr_cmd_producer));
 }
+
+static uint32_t crb_cmd_consumer[4] = {
+	CRB_CMD_CONSUMER_OFFSET, CRB_CMD_CONSUMER_OFFSET_1,
+	CRB_CMD_CONSUMER_OFFSET_2, CRB_CMD_CONSUMER_OFFSET_3
+};
 
 static void netxen_nic_update_cmd_consumer(struct netxen_adapter *adapter,
 					   u32 crb_consumer)
 {
-	switch (adapter->portnum) {
-		case 0:
-			writel(crb_consumer, NETXEN_CRB_NORMALIZE
-				(adapter, CRB_CMD_CONSUMER_OFFSET));
-			return;
-		case 1:
-			writel(crb_consumer, NETXEN_CRB_NORMALIZE
-				(adapter, CRB_CMD_CONSUMER_OFFSET_1));
-			return;
-		case 2:
-			writel(crb_consumer, NETXEN_CRB_NORMALIZE
-				(adapter, CRB_CMD_CONSUMER_OFFSET_2));
-			return;
-		case 3:
-			writel(crb_consumer, NETXEN_CRB_NORMALIZE
-				(adapter, CRB_CMD_CONSUMER_OFFSET_3));
-			return;
-		default:
-			printk(KERN_WARNING "We tried to update "
-					"CRB_CMD_PRODUCER_OFFSET for invalid "
-					"PCI function id %d\n",
-					adapter->portnum);
-			return;
-	}
+	writel(crb_consumer, NETXEN_CRB_NORMALIZE(adapter,
+				adapter->crb_addr_cmd_consumer));
 }
-
-#define	ADAPTER_LIST_SIZE 12
 
 static uint32_t msi_tgt_status[4] = {
 	ISR_INT_TARGET_STATUS, ISR_INT_TARGET_STATUS_F1,
@@ -334,7 +298,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter = netdev->priv;
 
-	adapter->ahw.pdev = pdev;
 	adapter->ahw.pci_func  = pci_func_id;
 
 	/* remap phys address */
@@ -552,12 +515,13 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->watchdog_timer.function = &netxen_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 	INIT_WORK(&adapter->watchdog_task, netxen_watchdog_task);
-	adapter->ahw.pdev = pdev;
 	adapter->ahw.revision_id = pdev->revision;
 
 	/* make sure Window == 1 */
 	netxen_nic_pci_change_crbwindow(adapter, 1);
 
+	adapter->crb_addr_cmd_producer = crb_cmd_producer[adapter->portnum];
+	adapter->crb_addr_cmd_consumer = crb_cmd_consumer[adapter->portnum];
 	netxen_nic_update_cmd_producer(adapter, 0);
 	netxen_nic_update_cmd_consumer(adapter, 0);
 	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_HOST_CMD_ADDR_LO));
@@ -816,7 +780,7 @@ static int netxen_nic_open(struct net_device *netdev)
 			for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++)
 				netxen_post_rx_buffers(adapter, ctx, ring);
 		}
-		adapter->irq = adapter->ahw.pdev->irq;
+		adapter->irq = adapter->pdev->irq;
 		if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
 			handler = netxen_msi_intr;
 		else {
@@ -1220,10 +1184,6 @@ module_init(netxen_init_module);
 
 static void __exit netxen_exit_module(void)
 {
-	/*
-	 * Wait for some time to allow the dma to drain, if any.
-	 */
-	msleep(100);
 	pci_unregister_driver(&netxen_driver);
 	destroy_workqueue(netxen_workq);
 }

@@ -43,203 +43,61 @@ struct netxen_recv_crb recv_crb_registers[] = {
 	 * Instance 0.
 	 */
 	{
-	 /* rcv_desc_crb: */
-	 {
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x100),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x104),
-	   /* crb_gloablrcv_ring: */
-	   NETXEN_NIC_REG(0x108),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x10c),
-
-	   },
-	  /* Jumbo frames */
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x110),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x114),
-	   /* crb_gloablrcv_ring: */
-	   NETXEN_NIC_REG(0x118),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x11c),
-	   },
-	  /* LRO */
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x120),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x124),
-	   /* crb_gloablrcv_ring: */
-	   NETXEN_NIC_REG(0x128),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x12c),
-	   }
-	  },
-	 /* crb_rcvstatus_ring: */
-	 NETXEN_NIC_REG(0x130),
-	 /* crb_rcv_status_producer: */
-	 NETXEN_NIC_REG(0x134),
-	 /* crb_rcv_status_consumer: */
-	 NETXEN_NIC_REG(0x138),
-	 /* crb_rcvpeg_state: */
-	 NETXEN_NIC_REG(0x13c),
-	 /* crb_status_ring_size */
-	 NETXEN_NIC_REG(0x140),
-
-	 },
+		/* crb_rcv_producer: */
+		{
+			NETXEN_NIC_REG(0x100),
+			/* Jumbo frames */
+			NETXEN_NIC_REG(0x110),
+			/* LRO */
+			NETXEN_NIC_REG(0x120)
+		},
+		/* crb_sts_consumer: */
+		NETXEN_NIC_REG(0x138),
+	},
 	/*
 	 * Instance 1,
 	 */
 	{
-	 /* rcv_desc_crb: */
-	 {
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x144),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x148),
-	   /* crb_globalrcv_ring: */
-	   NETXEN_NIC_REG(0x14c),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x150),
-
-	   },
-	  /* Jumbo frames */
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x154),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x158),
-	   /* crb_globalrcv_ring: */
-	   NETXEN_NIC_REG(0x15c),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x160),
-	   },
-	  /* LRO */
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x164),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x168),
-	   /* crb_globalrcv_ring: */
-	   NETXEN_NIC_REG(0x16c),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x170),
-	   }
-
-	  },
-	 /* crb_rcvstatus_ring: */
-	 NETXEN_NIC_REG(0x174),
-	 /* crb_rcv_status_producer: */
-	 NETXEN_NIC_REG(0x178),
-	 /* crb_rcv_status_consumer: */
-	 NETXEN_NIC_REG(0x17c),
-	 /* crb_rcvpeg_state: */
-	 NETXEN_NIC_REG(0x180),
-	 /* crb_status_ring_size */
-	 NETXEN_NIC_REG(0x184),
-	 },
+		/* crb_rcv_producer: */
+		{
+			NETXEN_NIC_REG(0x144),
+			/* Jumbo frames */
+			NETXEN_NIC_REG(0x154),
+			/* LRO */
+			NETXEN_NIC_REG(0x164)
+		},
+		/* crb_sts_consumer: */
+		NETXEN_NIC_REG(0x17c),
+	},
 	/*
 	 * Instance 2,
 	 */
 	{
-	  {
-	    {
-	    /* crb_rcv_producer_offset: */
-	    NETXEN_NIC_REG(0x1d8),
-	    /* crb_rcv_consumer_offset: */
-	    NETXEN_NIC_REG(0x1dc),
-	    /* crb_gloablrcv_ring: */
-	    NETXEN_NIC_REG(0x1f0),
-	    /* crb_rcv_ring_size */
-	    NETXEN_NIC_REG(0x1f4),
-	    },
-	    /* Jumbo frames */
-	    {
-	    /* crb_rcv_producer_offset: */
-	    NETXEN_NIC_REG(0x1f8),
-	    /* crb_rcv_consumer_offset: */
-	    NETXEN_NIC_REG(0x1fc),
-	    /* crb_gloablrcv_ring: */
-	    NETXEN_NIC_REG(0x200),
-	    /* crb_rcv_ring_size */
-	    NETXEN_NIC_REG(0x204),
-	    },
-	    /* LRO */
-	    {
-	    /* crb_rcv_producer_offset: */
-	    NETXEN_NIC_REG(0x208),
-	    /* crb_rcv_consumer_offset: */
-	    NETXEN_NIC_REG(0x20c),
-	    /* crb_gloablrcv_ring: */
-	    NETXEN_NIC_REG(0x210),
-	    /* crb_rcv_ring_size */
-	    NETXEN_NIC_REG(0x214),
-	    }
-	  },
-	  /* crb_rcvstatus_ring: */
-	  NETXEN_NIC_REG(0x218),
-	  /* crb_rcv_status_producer: */
-	  NETXEN_NIC_REG(0x21c),
-	  /* crb_rcv_status_consumer: */
-	  NETXEN_NIC_REG(0x220),
-	  /* crb_rcvpeg_state: */
-	  NETXEN_NIC_REG(0x224),
-	  /* crb_status_ring_size */
-	  NETXEN_NIC_REG(0x228),
+		/* crb_rcv_producer: */
+		{
+			NETXEN_NIC_REG(0x1d8),
+			/* Jumbo frames */
+			NETXEN_NIC_REG(0x1f8),
+			/* LRO */
+			NETXEN_NIC_REG(0x208)
+		},
+		/* crb_sts_consumer: */
+		NETXEN_NIC_REG(0x220),
 	},
 	/*
 	 * Instance 3,
 	 */
 	{
-	  {
-	    {
-	    /* crb_rcv_producer_offset: */
-	    NETXEN_NIC_REG(0x22c),
-	    /* crb_rcv_consumer_offset: */
-	    NETXEN_NIC_REG(0x230),
-	    /* crb_gloablrcv_ring: */
-	    NETXEN_NIC_REG(0x234),
-	    /* crb_rcv_ring_size */
-	    NETXEN_NIC_REG(0x238),
-	    },
-	    /* Jumbo frames */
-	    {
-	    /* crb_rcv_producer_offset: */
-	    NETXEN_NIC_REG(0x23c),
-	    /* crb_rcv_consumer_offset: */
-	    NETXEN_NIC_REG(0x240),
-	    /* crb_gloablrcv_ring: */
-	    NETXEN_NIC_REG(0x244),
-	    /* crb_rcv_ring_size */
-	    NETXEN_NIC_REG(0x248),
-	    },
-	    /* LRO */
-	    {
-	    /* crb_rcv_producer_offset: */
-	    NETXEN_NIC_REG(0x24c),
-	    /* crb_rcv_consumer_offset: */
-	    NETXEN_NIC_REG(0x250),
-	    /* crb_gloablrcv_ring: */
-	    NETXEN_NIC_REG(0x254),
-	    /* crb_rcv_ring_size */
-	    NETXEN_NIC_REG(0x258),
-	    }
-	  },
-	  /* crb_rcvstatus_ring: */
-	  NETXEN_NIC_REG(0x25c),
-	  /* crb_rcv_status_producer: */
-	  NETXEN_NIC_REG(0x260),
-	  /* crb_rcv_status_consumer: */
-	  NETXEN_NIC_REG(0x264),
-	  /* crb_rcvpeg_state: */
-	  NETXEN_NIC_REG(0x268),
-	  /* crb_status_ring_size */
-	  NETXEN_NIC_REG(0x26c),
+		/* crb_rcv_producer: */
+		{
+			NETXEN_NIC_REG(0x22c),
+			/* Jumbo frames */
+			NETXEN_NIC_REG(0x23c),
+			/* LRO */
+			NETXEN_NIC_REG(0x24c)
+		},
+		/* crb_sts_consumer: */
+		NETXEN_NIC_REG(0x264),
 	},
 };
 
@@ -375,16 +233,12 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 		loops = 0;
 		state = 0;
 		/* Window 1 call */
-		state = readl(NETXEN_CRB_NORMALIZE(adapter,
-						   recv_crb_registers[ctx].
-						   crb_rcvpeg_state));
+		state = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_RCVPEG_STATE));
 		while (state != PHAN_PEG_RCV_INITIALIZED && loops < 20) {
 			msleep(1);
 			/* Window 1 call */
 			state = readl(NETXEN_CRB_NORMALIZE(adapter,
-							   recv_crb_registers
-							   [ctx].
-							   crb_rcvpeg_state));
+					CRB_RCVPEG_STATE));
 			loops++;
 		}
 		if (loops >= 20) {
@@ -399,11 +253,9 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	adapter->msi_mode = readl(
 		NETXEN_CRB_NORMALIZE(adapter, CRB_NIC_MSI_MODE_FW));
 
-	addr = netxen_alloc(adapter->ahw.pdev,
-			    sizeof(struct netxen_ring_ctx) +
-			    sizeof(uint32_t),
-			    (dma_addr_t *) & adapter->ctx_desc_phys_addr,
-			    &adapter->ctx_desc_pdev);
+	addr = pci_alloc_consistent(adapter->pdev,
+			    sizeof(struct netxen_ring_ctx) + sizeof(uint32_t),
+			    &adapter->ctx_desc_phys_addr);
 
 	if (addr == NULL) {
 		DPRINTK(ERR, "bad return from pci_alloc_consistent\n");
@@ -419,11 +271,10 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	adapter->cmd_consumer = (__le32 *) (((char *)addr) +
 					      sizeof(struct netxen_ring_ctx));
 
-	addr = netxen_alloc(adapter->ahw.pdev,
+	addr = pci_alloc_consistent(adapter->pdev,
 			    sizeof(struct cmd_desc_type0) *
 			    adapter->max_tx_desc_count,
-			    (dma_addr_t *) & hw->cmd_desc_phys_addr,
-			    &adapter->ahw.cmd_desc_pdev);
+			    &hw->cmd_desc_phys_addr);
 
 	if (addr == NULL) {
 		DPRINTK(ERR, "bad return from pci_alloc_consistent\n");
@@ -443,10 +294,9 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 
 		for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++) {
 			rcv_desc = &recv_ctx->rcv_desc[ring];
-			addr = netxen_alloc(adapter->ahw.pdev,
+			addr = pci_alloc_consistent(adapter->pdev,
 					    RCV_DESC_RINGSIZE,
-					    &rcv_desc->phys_addr,
-					    &rcv_desc->phys_pdev);
+					    &rcv_desc->phys_addr);
 			if (addr == NULL) {
 				DPRINTK(ERR, "bad return from "
 					"pci_alloc_consistent\n");
@@ -459,11 +309,13 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 			    cpu_to_le64(rcv_desc->phys_addr);
 			adapter->ctx_desc->rcv_ctx[ring].rcv_ring_size =
 			    cpu_to_le32(rcv_desc->max_rx_desc_count);
+			rcv_desc->crb_rcv_producer =
+				    recv_crb_registers[adapter->portnum].
+				    crb_rcv_producer[ring];
 		}
 
-		addr = netxen_alloc(adapter->ahw.pdev, STATUS_DESC_RINGSIZE,
-				    &recv_ctx->rcv_status_desc_phys_addr,
-				    &recv_ctx->rcv_status_desc_pdev);
+		addr = pci_alloc_consistent(adapter->pdev, STATUS_DESC_RINGSIZE,
+				    &recv_ctx->rcv_status_desc_phys_addr);
 		if (addr == NULL) {
 			DPRINTK(ERR, "bad return from"
 				" pci_alloc_consistent\n");
@@ -476,6 +328,8 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 		    cpu_to_le64(recv_ctx->rcv_status_desc_phys_addr);
 		adapter->ctx_desc->sts_ring_size =
 		    cpu_to_le32(adapter->max_rx_desc_count);
+		recv_ctx->crb_sts_consumer =
+			recv_crb_registers[adapter->portnum].crb_sts_consumer;
 
 	}
 	/* Window = 1 */
@@ -496,7 +350,7 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 	int ctx, ring;
 
 	if (adapter->ctx_desc != NULL) {
-		pci_free_consistent(adapter->ctx_desc_pdev,
+		pci_free_consistent(adapter->pdev,
 				    sizeof(struct netxen_ring_ctx) +
 				    sizeof(uint32_t),
 				    adapter->ctx_desc,
@@ -505,7 +359,7 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 	}
 
 	if (adapter->ahw.cmd_desc_head != NULL) {
-		pci_free_consistent(adapter->ahw.cmd_desc_pdev,
+		pci_free_consistent(adapter->pdev,
 				    sizeof(struct cmd_desc_type0) *
 				    adapter->max_tx_desc_count,
 				    adapter->ahw.cmd_desc_head,
@@ -519,7 +373,7 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 			rcv_desc = &recv_ctx->rcv_desc[ring];
 
 			if (rcv_desc->desc_head != NULL) {
-				pci_free_consistent(rcv_desc->phys_pdev,
+				pci_free_consistent(adapter->pdev,
 						    RCV_DESC_RINGSIZE,
 						    rcv_desc->desc_head,
 						    rcv_desc->phys_addr);
@@ -528,7 +382,7 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 		}
 
 		if (recv_ctx->rcv_status_desc_head != NULL) {
-			pci_free_consistent(recv_ctx->rcv_status_desc_pdev,
+			pci_free_consistent(adapter->pdev,
 					    STATUS_DESC_RINGSIZE,
 					    recv_ctx->rcv_status_desc_head,
 					    recv_ctx->

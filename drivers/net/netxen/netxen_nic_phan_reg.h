@@ -98,6 +98,7 @@
 #define CRB_JUMBO_BUFFER_PROD       NETXEN_NIC_REG(0xf4)
 #define CRB_JUMBO_BUFFER_CONS       NETXEN_NIC_REG(0xf8)
 
+#define CRB_RCVPEG_STATE            NETXEN_NIC_REG(0x13c)
 #define CRB_CMD_PRODUCER_OFFSET_1   NETXEN_NIC_REG(0x1ac)
 #define CRB_CMD_CONSUMER_OFFSET_1   NETXEN_NIC_REG(0x1b0)
 #define CRB_CMD_PRODUCER_OFFSET_2   NETXEN_NIC_REG(0x1b8)
@@ -147,25 +148,13 @@
 #define nx_get_temp_state(x)		((x) & 0xffff)
 #define nx_encode_temp(val, state)	(((val) << 16) | (state))
 
-/* CRB registers per Rcv Descriptor ring */
-struct netxen_rcv_desc_crb {
-	u32 crb_rcv_producer_offset __attribute__ ((aligned(512)));
-	u32 crb_rcv_consumer_offset;
-	u32 crb_globalrcv_ring;
-	u32 crb_rcv_ring_size;
-};
-
 /*
  * CRB registers used by the receive peg logic.
  */
 
 struct netxen_recv_crb {
-	struct netxen_rcv_desc_crb rcv_desc_crb[NUM_RCV_DESC_RINGS];
-	u32 crb_rcvstatus_ring;
-	u32 crb_rcv_status_producer;
-	u32 crb_rcv_status_consumer;
-	u32 crb_rcvpeg_state;
-	u32 crb_status_ring_size;
+	u32 crb_rcv_producer[NUM_RCV_DESC_RINGS];
+	u32 crb_sts_consumer;
 };
 
 extern struct netxen_recv_crb recv_crb_registers[];

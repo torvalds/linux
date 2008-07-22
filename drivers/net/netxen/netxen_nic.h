@@ -132,7 +132,6 @@
 #define RX_JUMBO_DMA_MAP_LEN	\
 	(MAX_RX_JUMBO_BUFFER_LENGTH - 2)
 #define RX_LRO_DMA_MAP_LEN		(MAX_RX_LRO_BUFFER_LENGTH - 2)
-#define NETXEN_ROM_ROUNDUP		0x80000000ULL
 
 /*
  * Maximum number of ring contexts
@@ -219,8 +218,6 @@ enum {
 #define MPORT_MULTI_FUNCTION_MODE 0x2222
 
 #include "netxen_nic_phan_reg.h"
-extern unsigned long long netxen_dma_mask;
-extern unsigned long last_schedule_time;
 
 /*
  * NetXen host-peg signal message structure
@@ -765,7 +762,6 @@ struct netxen_rx_buffer {
  * contains interrupt info as well shared hardware info.
  */
 struct netxen_hardware_context {
-	struct pci_dev *pdev;
 	void __iomem *pci_base0;
 	void __iomem *pci_base1;
 	void __iomem *pci_base2;
@@ -781,7 +777,6 @@ struct netxen_hardware_context {
 	u32 qg_linksup;
 	/* Address of cmd ring in Phantom */
 	struct cmd_desc_type0 *cmd_desc_head;
-	struct pci_dev *cmd_desc_pdev;
 	dma_addr_t cmd_desc_phys_addr;
 	struct netxen_adapter *adapter;
 	int pci_func;
@@ -816,9 +811,8 @@ struct netxen_adapter_stats {
 struct netxen_rcv_desc_ctx {
 	u32 flags;
 	u32 producer;
-	u32 rcv_pending;	/* Num of bufs posted in phantom */
 	dma_addr_t phys_addr;
-	struct pci_dev *phys_pdev;
+	u32 crb_rcv_producer;	/* reg offset */
 	struct rcv_desc *desc_head;	/* address of rx ring in Phantom */
 	u32 max_rx_desc_count;
 	u32 dma_size;
@@ -835,10 +829,9 @@ struct netxen_rcv_desc_ctx {
  */
 struct netxen_recv_context {
 	struct netxen_rcv_desc_ctx rcv_desc[NUM_RCV_DESC_RINGS];
-	u32 status_rx_producer;
 	u32 status_rx_consumer;
+	u32 crb_sts_consumer;	/* reg offset */
 	dma_addr_t rcv_status_desc_phys_addr;
-	struct pci_dev *rcv_status_desc_pdev;
 	struct status_desc *rcv_status_desc_head;
 };
 
@@ -854,7 +847,6 @@ struct netxen_dummy_dma {
 struct netxen_adapter {
 	struct netxen_hardware_context ahw;
 
-	struct netxen_adapter *master;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct napi_struct napi;
@@ -873,6 +865,8 @@ struct netxen_adapter {
 	u32 cmd_producer;
 	__le32 *cmd_consumer;
 	u32 last_cmd_consumer;
+	u32 crb_addr_cmd_producer;
+	u32 crb_addr_cmd_consumer;
 
 	u32 max_tx_desc_count;
 	u32 max_rx_desc_count;
@@ -886,14 +880,12 @@ struct netxen_adapter {
 
 	struct netxen_adapter_stats stats;
 
-	u16 portno;
 	u16 link_speed;
 	u16 link_duplex;
 	u16 state;
 	u16 link_autoneg;
 	int rx_csum;
 	int status;
-	spinlock_t stats_lock;
 
 	struct netxen_cmd_buffer *cmd_buf_arr;	/* Command buffers for xmit */
 
@@ -908,7 +900,6 @@ struct netxen_adapter {
 
 	/* Context interface shared between card and host */
 	struct netxen_ring_ctx *ctx_desc;
-	struct pci_dev *ctx_desc_pdev;
 	dma_addr_t ctx_desc_phys_addr;
 	int intr_scheme;
 	int msi_mode;
@@ -1034,8 +1025,6 @@ int netxen_rom_se(struct netxen_adapter *adapter, int addr);
 
 /* Functions from netxen_nic_isr.c */
 void netxen_initialize_adapter_sw(struct netxen_adapter *adapter);
-void *netxen_alloc(struct pci_dev *pdev, size_t sz, dma_addr_t * ptr,
-		   struct pci_dev **used_dev);
 void netxen_initialize_adapter_ops(struct netxen_adapter *adapter);
 int netxen_init_firmware(struct netxen_adapter *adapter);
 void netxen_free_hw_resources(struct netxen_adapter *adapter);

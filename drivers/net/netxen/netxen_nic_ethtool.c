@@ -427,6 +427,7 @@ netxen_nic_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	return 0;
 }
 
+#if 0
 static int
 netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 			u8 * bytes)
@@ -447,7 +448,6 @@ netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		}
 		printk(KERN_INFO "%s: flash unlocked. \n",
 			netxen_nic_driver_name);
-		last_schedule_time = jiffies;
 		ret = netxen_flash_erase_secondary(adapter);
 		if (ret != FLASH_SUCCESS) {
 			printk(KERN_ERR "%s: Flash erase failed.\n",
@@ -497,6 +497,7 @@ netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 
 	return netxen_rom_fast_write_words(adapter, offset, bytes, eeprom->len);
 }
+#endif /* 0 */
 
 static void
 netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
@@ -745,7 +746,9 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_eeprom_len = netxen_nic_get_eeprom_len,
 	.get_eeprom = netxen_nic_get_eeprom,
+#if 0
 	.set_eeprom = netxen_nic_set_eeprom,
+#endif
 	.get_ringparam = netxen_nic_get_ringparam,
 	.get_pauseparam = netxen_nic_get_pauseparam,
 	.set_pauseparam = netxen_nic_set_pauseparam,
