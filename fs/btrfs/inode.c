@@ -485,7 +485,7 @@ int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
 	fixup = kzalloc(sizeof(*fixup), GFP_NOFS);
 	if (!fixup)
 		return -EAGAIN;
-printk("queueing worker to fixup page %lu %Lu\n", inode->i_ino, page_offset(page));
+
 	SetPageChecked(page);
 	page_cache_get(page);
 	fixup->work.func = btrfs_writepage_fixup_worker;
@@ -502,11 +502,13 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_map *em;
+	struct extent_map *em_orig;
 	u64 alloc_hint = 0;
 	u64 clear_start;
 	u64 clear_end;
 	struct list_head list;
 	struct btrfs_key ins;
+	struct rb_node *rb;
 	int ret;
 
 	ret = btrfs_dec_test_ordered_pending(inode, start, end - start + 1);
@@ -535,6 +537,22 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 
 	mutex_lock(&BTRFS_I(inode)->extent_mutex);
 
+	spin_lock(&em_tree->lock);
+	clear_start = ordered_extent->file_offset;
+	clear_end = ordered_extent->file_offset + ordered_extent->len;
+	em = lookup_extent_mapping(em_tree, clear_start,
+				   ordered_extent->len);
+	em_orig = em;
+	while(em && clear_start < extent_map_end(em) && clear_end > em->start) {
+		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+		rb = rb_next(&em->rb_node);
+		if (!rb)
+			break;
+		em = rb_entry(rb, struct extent_map, rb_node);
+	}
+	free_extent_map(em_orig);
+	spin_unlock(&em_tree->lock);
+
 	ret = btrfs_drop_extents(trans, root, inode,
 				 ordered_extent->file_offset,
 				 ordered_extent->file_offset +
@@ -547,22 +565,6 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 				       ordered_extent->len,
 				       ordered_extent->len, 0);
 	BUG_ON(ret);
-
-	spin_lock(&em_tree->lock);
-	clear_start = ordered_extent->file_offset;
-	clear_end = ordered_extent->file_offset + ordered_extent->len;
-	while(clear_start < clear_end) {
-		em = lookup_extent_mapping(em_tree, clear_start,
-					   clear_end - clear_start);
-		if (em) {
-			clear_bit(EXTENT_FLAG_PINNED, &em->flags);
-			clear_start = em->start + em->len;
-			free_extent_map(em);
-		} else {
-			break;
-		}
-	}
-	spin_unlock(&em_tree->lock);
 
 	btrfs_drop_extent_cache(inode, ordered_extent->file_offset,
 				ordered_extent->file_offset +
@@ -2318,7 +2320,7 @@ struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 	u64 extent_end = 0;
 	u64 objectid = inode->i_ino;
 	u32 found_type;
-	struct btrfs_path *path;
+	struct btrfs_path *path = NULL;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_file_extent_item *item;
 	struct extent_buffer *leaf;
@@ -2327,9 +2329,6 @@ struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_trans_handle *trans = NULL;
-
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
 
 again:
 	spin_lock(&em_tree->lock);
@@ -2354,6 +2353,12 @@ again:
 	em->bdev = root->fs_info->fs_devices->latest_bdev;
 	em->start = EXTENT_MAP_HOLE;
 	em->len = (u64)-1;
+
+	if (!path) {
+		path = btrfs_alloc_path();
+		BUG_ON(!path);
+	}
+
 	ret = btrfs_lookup_file_extent(trans, root, path,
 				       objectid, start, trans != NULL);
 	if (ret < 0) {
@@ -2530,7 +2535,8 @@ insert:
 	}
 	spin_unlock(&em_tree->lock);
 out:
-	btrfs_free_path(path);
+	if (path)
+		btrfs_free_path(path);
 	if (trans) {
 		ret = btrfs_end_transaction(trans, root);
 		if (!err) {
@@ -2643,8 +2649,8 @@ static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 	return extent_write_full_page(tree, page, btrfs_get_extent, wbc);
 }
 
-static int btrfs_writepages(struct address_space *mapping,
-			    struct writeback_control *wbc)
+int btrfs_writepages(struct address_space *mapping,
+		     struct writeback_control *wbc)
 {
 	struct extent_io_tree *tree;
 	tree = &BTRFS_I(mapping->host)->io_tree;

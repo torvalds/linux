@@ -19,6 +19,8 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/writeback.h>
+#include <linux/pagevec.h>
 #include "ctree.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
@@ -307,12 +309,7 @@ void btrfs_start_ordered_extent(struct inode *inode,
 	 * start IO on any dirty ones so the wait doesn't stall waiting
 	 * for pdflush to find them
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
-	do_sync_file_range(file, start, end, SYNC_FILE_RANGE_WRITE);
-#else
-	do_sync_mapping_range(inode->i_mapping, start, end,
-			      SYNC_FILE_RANGE_WRITE);
-#endif
+	btrfs_fdatawrite_range(inode->i_mapping, start, end, WB_SYNC_NONE);
 	if (wait)
 		wait_event(entry->wait, test_bit(BTRFS_ORDERED_COMPLETE,
 						 &entry->flags));
@@ -327,28 +324,26 @@ void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 	u64 orig_end;
 	u64 wait_end;
 	struct btrfs_ordered_extent *ordered;
-	u64 mask = BTRFS_I(inode)->root->sectorsize - 1;
 
 	if (start + len < start) {
-		wait_end = (inode->i_size + mask) & ~mask;
-		orig_end = (u64)-1;
+		orig_end = INT_LIMIT(loff_t);
 	} else {
 		orig_end = start + len - 1;
-		wait_end = orig_end;
+		if (orig_end > INT_LIMIT(loff_t))
+			orig_end = INT_LIMIT(loff_t);
 	}
+	wait_end = orig_end;
 again:
 	/* start IO across the range first to instantiate any delalloc
 	 * extents
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
-	do_sync_file_range(file, start, wait_end, SYNC_FILE_RANGE_WRITE);
-#else
-	do_sync_mapping_range(inode->i_mapping, start, wait_end,
-			      SYNC_FILE_RANGE_WRITE);
-#endif
-	end = orig_end;
-	wait_on_extent_writeback(&BTRFS_I(inode)->io_tree, start, orig_end);
+	btrfs_fdatawrite_range(inode->i_mapping, start, orig_end, WB_SYNC_NONE);
 
+	btrfs_wait_on_page_writeback_range(inode->i_mapping,
+					   start >> PAGE_CACHE_SHIFT,
+					   orig_end >> PAGE_CACHE_SHIFT);
+
+	end = orig_end;
 	while(1) {
 		ordered = btrfs_lookup_first_ordered_extent(inode, end);
 		if (!ordered) {
@@ -565,3 +560,87 @@ out:
 	return ret;
 }
 
+
+/**
+ * taken from mm/filemap.c because it isn't exported
+ *
+ * __filemap_fdatawrite_range - start writeback on mapping dirty pages in range
+ * @mapping:	address space structure to write
+ * @start:	offset in bytes where the range starts
+ * @end:	offset in bytes where the range ends (inclusive)
+ * @sync_mode:	enable synchronous operation
+ *
+ * Start writeback against all of a mapping's dirty pages that lie
+ * within the byte offsets <start, end> inclusive.
+ *
+ * If sync_mode is WB_SYNC_ALL then this is a "data integrity" operation, as
+ * opposed to a regular memory cleansing writeback.  The difference between
+ * these two operations is that if a dirty page/buffer is encountered, it must
+ * be waited upon, and not just skipped over.
+ */
+int btrfs_fdatawrite_range(struct address_space *mapping, loff_t start,
+			   loff_t end, int sync_mode)
+{
+	struct writeback_control wbc = {
+		.sync_mode = sync_mode,
+		.nr_to_write = mapping->nrpages * 2,
+		.range_start = start,
+		.range_end = end,
+		.for_writepages = 1,
+	};
+	return btrfs_writepages(mapping, &wbc);
+}
+
+/**
+ * taken from mm/filemap.c because it isn't exported
+ *
+ * wait_on_page_writeback_range - wait for writeback to complete
+ * @mapping:	target address_space
+ * @start:	beginning page index
+ * @end:	ending page index
+ *
+ * Wait for writeback to complete against pages indexed by start->end
+ * inclusive
+ */
+int btrfs_wait_on_page_writeback_range(struct address_space *mapping,
+				       pgoff_t start, pgoff_t end)
+{
+	struct pagevec pvec;
+	int nr_pages;
+	int ret = 0;
+	pgoff_t index;
+
+	if (end < start)
+		return 0;
+
+	pagevec_init(&pvec, 0);
+	index = start;
+	while ((index <= end) &&
+			(nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
+			PAGECACHE_TAG_WRITEBACK,
+			min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1)) != 0) {
+		unsigned i;
+
+		for (i = 0; i < nr_pages; i++) {
+			struct page *page = pvec.pages[i];
+
+			/* until radix tree lookup accepts end_index */
+			if (page->index > end)
+				continue;
+
+			wait_on_page_writeback(page);
+			if (PageError(page))
+				ret = -EIO;
+		}
+		pagevec_release(&pvec);
+		cond_resched();
+	}
+
+	/* Check for outstanding write errors */
+	if (test_and_clear_bit(AS_ENOSPC, &mapping->flags))
+		ret = -ENOSPC;
+	if (test_and_clear_bit(AS_EIO, &mapping->flags))
+		ret = -EIO;
+
+	return ret;
+}

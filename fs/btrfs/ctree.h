@@ -1590,6 +1590,8 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);
 /* inode.c */
+int btrfs_writepages(struct address_space *mapping,
+		     struct writeback_control *wbc);
 int btrfs_create_subvol_root(struct btrfs_root *new_root,
 		struct btrfs_trans_handle *trans, u64 new_dirid,
 		struct btrfs_block_group_cache *block_group);

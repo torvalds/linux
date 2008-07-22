@@ -60,7 +60,6 @@ struct extent_io_tree {
 	spinlock_t lock;
 	spinlock_t buffer_lock;
 	struct extent_io_ops *ops;
-	struct extent_state *last;
 };
 
 struct extent_state {

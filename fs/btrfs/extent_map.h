@@ -26,7 +26,6 @@ struct extent_map {
 
 struct extent_map_tree {
 	struct rb_root map;
-	struct extent_map *last;
 	spinlock_t lock;
 };
 

@@ -42,7 +42,6 @@ void extent_map_exit(void)
 void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
 {
 	tree->map.rb_node = NULL;
-	tree->last = NULL;
 	spin_lock_init(&tree->lock);
 }
 EXPORT_SYMBOL(extent_map_tree_init);
@@ -239,7 +238,6 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		merge->in_tree = 0;
 		free_extent_map(merge);
 	}
-	tree->last = em;
 out:
 	return ret;
 }
@@ -273,10 +271,6 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 	u64 end = range_end(start, len);
 
 	BUG_ON(spin_trylock(&tree->lock));
-	em = tree->last;
-	if (em && end > em->start && start < extent_map_end(em))
-		goto found;
-
 	rb_node = __tree_search(&tree->map, start, &prev, &next);
 	if (!rb_node && prev) {
 		em = rb_entry(prev, struct extent_map, rb_node);
@@ -305,7 +299,6 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 
 found:
 	atomic_inc(&em->refs);
-	tree->last = em;
 out:
 	return em;
 }
@@ -327,8 +320,6 @@ int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 	BUG_ON(spin_trylock(&tree->lock));
 	rb_erase(&em->rb_node, &tree->map);
 	em->in_tree = 0;
-	if (tree->last == em)
-		tree->last = NULL;
 	return ret;
 }
 EXPORT_SYMBOL(remove_extent_mapping);

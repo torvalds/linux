@@ -649,7 +649,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	extent_io_tree_init(pinned_copy,
 			     root->fs_info->btree_inode->i_mapping, GFP_NOFS);
 
-printk("commit trans %Lu\n", trans->transid);
 	trans->transaction->in_commit = 1;
 	trans->transaction->blocked = 1;
 	cur_trans = trans->transaction;
@@ -745,7 +744,6 @@ printk("commit trans %Lu\n", trans->transid);
 		list_splice_init(&dirty_fs_roots, &root->fs_info->dead_roots);
 
 	mutex_unlock(&root->fs_info->trans_mutex);
-printk("done commit trans %Lu\n", trans->transid);
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 
 	if (root->fs_info->closing) {

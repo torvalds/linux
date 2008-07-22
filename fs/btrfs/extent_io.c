@@ -97,7 +97,6 @@ void extent_io_tree_init(struct extent_io_tree *tree,
 	spin_lock_init(&tree->lock);
 	spin_lock_init(&tree->buffer_lock);
 	tree->mapping = mapping;
-	tree->last = NULL;
 }
 EXPORT_SYMBOL(extent_io_tree_init);
 
@@ -173,12 +172,6 @@ static struct rb_node *__etree_search(struct extent_io_tree *tree, u64 offset,
 	struct tree_entry *entry;
 	struct tree_entry *prev_entry = NULL;
 
-	if (tree->last) {
-		struct extent_state *state;
-		state = tree->last;
-		if (state->start <= offset && offset <= state->end)
-			return &tree->last->rb_node;
-	}
 	while(n) {
 		entry = rb_entry(n, struct tree_entry, rb_node);
 		prev = n;
@@ -189,7 +182,6 @@ static struct rb_node *__etree_search(struct extent_io_tree *tree, u64 offset,
 		else if (offset > entry->end)
 			n = n->rb_right;
 		else {
-			tree->last = rb_entry(n, struct extent_state, rb_node);
 			return n;
 		}
 	}
@@ -223,10 +215,6 @@ static inline struct rb_node *tree_search(struct extent_io_tree *tree,
 
 	ret = __etree_search(tree, offset, &prev, NULL);
 	if (!ret) {
-		if (prev) {
-			tree->last = rb_entry(prev, struct extent_state,
-					      rb_node);
-		}
 		return prev;
 	}
 	return ret;
@@ -301,8 +289,6 @@ static int merge_state(struct extent_io_tree *tree,
 		    other->state == state->state) {
 			state->start = other->start;
 			other->tree = NULL;
-			if (tree->last == other)
-				tree->last = state;
 			rb_erase(&other->rb_node, &tree->state);
 			free_extent_state(other);
 		}
@@ -314,8 +300,6 @@ static int merge_state(struct extent_io_tree *tree,
 		    other->state == state->state) {
 			other->start = state->start;
 			state->tree = NULL;
-			if (tree->last == state)
-				tree->last = other;
 			rb_erase(&state->rb_node, &tree->state);
 			free_extent_state(state);
 		}
@@ -378,7 +362,6 @@ static int insert_state(struct extent_io_tree *tree,
 		return -EEXIST;
 	}
 	state->tree = tree;
-	tree->last = state;
 	merge_state(tree, state);
 	return 0;
 }
@@ -444,9 +427,6 @@ static int clear_state_bit(struct extent_io_tree *tree,
 	if (delete || state->state == 0) {
 		if (state->tree) {
 			clear_state_cb(tree, state, state->state);
-			if (tree->last == state) {
-				tree->last = extent_state_next(state);
-			}
 			rb_erase(&state->rb_node, &tree->state);
 			state->tree = NULL;
 			free_extent_state(state);
