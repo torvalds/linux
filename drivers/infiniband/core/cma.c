@@ -920,7 +920,10 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	struct rdma_cm_event event;
 	int ret = 0;
 
-	if (cma_disable_callback(id_priv, CMA_CONNECT))
+	if ((ib_event->event != IB_CM_TIMEWAIT_EXIT &&
+		cma_disable_callback(id_priv, CMA_CONNECT)) ||
+	    (ib_event->event == IB_CM_TIMEWAIT_EXIT &&
+		cma_disable_callback(id_priv, CMA_DISCONNECT)))
 		return 0;
 
 	memset(&event, 0, sizeof event);
@@ -956,6 +959,8 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		event.event = RDMA_CM_EVENT_DISCONNECTED;
 		break;
 	case IB_CM_TIMEWAIT_EXIT:
+		event.event = RDMA_CM_EVENT_TIMEWAIT_EXIT;
+		break;
 	case IB_CM_MRA_RECEIVED:
 		/* ignore event */
 		goto out;
