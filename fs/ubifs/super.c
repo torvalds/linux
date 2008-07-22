@@ -341,13 +341,15 @@ static void ubifs_delete_inode(struct inode *inode)
 		goto out;
 
 	ui->ui_size = inode->i_size = 0;
-	err = ubifs_jnl_write_inode(c, inode);
+	err = ubifs_jnl_delete_inode(c, inode);
 	if (err)
 		/*
 		 * Worst case we have a lost orphan inode wasting space, so a
 		 * simple error message is ok here.
 		 */
-		ubifs_err("can't write inode %lu, error %d", inode->i_ino, err);
+		ubifs_err("can't delete inode %lu, error %d",
+			  inode->i_ino, err);
+
 out:
 	if (ui->dirty)
 		ubifs_release_dirty_inode_budget(c, ui);

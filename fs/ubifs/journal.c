@@ -604,6 +604,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 			release_head(c, BASEHD);
 			goto out_finish;
 		}
+		ui->del_cmtno = c->cmt_no;
 	}
 
 	err = write_head(c, BASEHD, dent, len, &lnum, &dent_offs, sync);
@@ -821,6 +822,64 @@ out_free:
 }
 
 /**
+ * ubifs_jnl_write_inode - delete an inode.
+ * @c: UBIFS file-system description object
+ * @inode: inode to delete
+ *
+ * This function deletes inode @inode which includes removing it from orphans,
+ * deleting it from TNC and, in some cases, writing a deletion inode to the
+ * journal.
+ *
+ * When regular file inodes are unlinked or a directory inode is removed, the
+ * 'ubifs_jnl_update()' function write corresponding deletion inode and
+ * direntry to the media, and adds the inode to orphans. After this, when the
+ * last reference to this inode has been dropped, this function is called. In
+ * general, it has to write one more deletion inode to the media, because if
+ * a commit happened between 'ubifs_jnl_update()' and
+ * 'ubifs_jnl_delete_inode()', the deletion inode is not in the journal
+ * anymore, and in fact it might be not on the flash anymore, becouse it might
+ * have been garbage-collected already. And for optimization reasond UBIFS does
+ * not read the orphan area if it has been unmounted cleanly, so it would have
+ * no indication in the journal that there is a deleted inode which has to be
+ * removed from TNC.
+ *
+ * However, if there was no commit between 'ubifs_jnl_update()' and
+ * 'ubifs_jnl_delete_inode()', then there is no need to write the deletion
+ * inode to the media for the second time. And this is quite typical case.
+ *
+ * This function returns zero in case of success and a negative error code in
+ * case of failure.
+ */
+int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
+{
+	int err;
+	struct ubifs_inode *ui = ubifs_inode(inode);
+
+	ubifs_assert(inode->i_nlink == 0);
+
+	if (ui->del_cmtno != c->cmt_no)
+		/* A commit happened for sure */
+		return ubifs_jnl_write_inode(c, inode);
+
+	down_read(&c->commit_sem);
+	/*
+	 * Check commit number again, because the first test has been done
+	 * without @c->commit_sem, so a commit might have happened.
+	 */
+	if (ui->del_cmtno != c->cmt_no) {
+		up_read(&c->commit_sem);
+		return ubifs_jnl_write_inode(c, inode);
+	}
+
+	ubifs_delete_orphan(c, inode->i_ino);
+	err = ubifs_tnc_remove_ino(c, inode->i_ino);
+	if (err)
+		ubifs_ro_mode(c, err);
+	up_read(&c->commit_sem);
+	return err;
+}
+
+/**
  * ubifs_jnl_rename - rename a directory entry.
  * @c: UBIFS file-system description object
  * @old_dir: parent inode of directory entry to rename
@@ -928,6 +987,7 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 			release_head(c, BASEHD);
 			goto out_finish;
 		}
+		new_ui->del_cmtno = c->cmt_no;
 	}
 
 	err = write_head(c, BASEHD, dent, len, &lnum, &offs, sync);

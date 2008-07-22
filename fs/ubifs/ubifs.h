@@ -322,6 +322,8 @@ struct ubifs_gced_idx_leb {
  * struct ubifs_inode - UBIFS in-memory inode description.
  * @vfs_inode: VFS inode description object
  * @creat_sqnum: sequence number at time of creation
+ * @del_cmtno: commit number corresponding to the time the inode was deleted,
+ *             protected by @c->commit_sem;
  * @xattr_size: summarized size of all extended attributes in bytes
  * @xattr_cnt: count of extended attributes this inode has
  * @xattr_names: sum of lengths of all extended attribute names belonging to
@@ -372,7 +374,10 @@ struct ubifs_gced_idx_leb {
  */
 struct ubifs_inode {
 	struct inode vfs_inode;
-	unsigned long long creat_sqnum;
+	union {
+		unsigned long long creat_sqnum;
+		unsigned long long del_cmtno;
+	};
 	unsigned int xattr_size;
 	unsigned int xattr_cnt;
 	unsigned int xattr_names;
@@ -779,7 +784,7 @@ struct ubifs_compressor {
 /**
  * struct ubifs_budget_req - budget requirements of an operation.
  *
- * @fast: non-zero if the budgeting should try to aquire budget quickly and
+ * @fast: non-zero if the budgeting should try to acquire budget quickly and
  *        should not try to call write-back
  * @recalculate: non-zero if @idx_growth, @data_growth, and @dd_growth fields
  *               have to be re-calculated
@@ -860,7 +865,7 @@ struct ubifs_mount_opts {
  * struct ubifs_info - UBIFS file-system description data structure
  * (per-superblock).
  * @vfs_sb: VFS @struct super_block object
- * @bdi: backing device info object to make VFS happy and disable readahead
+ * @bdi: backing device info object to make VFS happy and disable read-ahead
  *
  * @highest_inum: highest used inode number
  * @vfs_gen: VFS inode generation counter
@@ -1402,6 +1407,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 			 const union ubifs_key *key, const void *buf, int len);
 int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode);
+int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode);
 int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		     const struct dentry *old_dentry,
 		     const struct inode *new_dir,
