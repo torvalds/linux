@@ -682,9 +682,9 @@ int __uio_register_device(struct module *owner,
 	if (ret)
 		goto err_get_minor;
 
-	idev->dev = device_create_drvdata(uio_class->class, parent,
-					  MKDEV(uio_major, idev->minor), idev,
-					  "uio%d", idev->minor);
+	idev->dev = device_create(uio_class->class, parent,
+				  MKDEV(uio_major, idev->minor), idev,
+				  "uio%d", idev->minor);
 	if (IS_ERR(idev->dev)) {
 		printk(KERN_ERR "UIO: device register failed\n");
 		ret = PTR_ERR(idev->dev);
