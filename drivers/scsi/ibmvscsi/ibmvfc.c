@@ -854,39 +854,41 @@ static void ibmvfc_retry_host_init(struct ibmvfc_host *vhost)
 }
 
 /**
- * __ibmvfc_find_target - Find the specified scsi_target (no locking)
+ * __ibmvfc_get_target - Find the specified scsi_target (no locking)
  * @starget:	scsi target struct
  *
  * Return value:
  *	ibmvfc_target struct / NULL if not found
  **/
-static struct ibmvfc_target *__ibmvfc_find_target(struct scsi_target *starget)
+static struct ibmvfc_target *__ibmvfc_get_target(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ibmvfc_host *vhost = shost_priv(shost);
 	struct ibmvfc_target *tgt;
 
 	list_for_each_entry(tgt, &vhost->targets, queue)
-		if (tgt->target_id == starget->id)
+		if (tgt->target_id == starget->id) {
+			kref_get(&tgt->kref);
 			return tgt;
+		}
 	return NULL;
 }
 
 /**
- * ibmvfc_find_target - Find the specified scsi_target
+ * ibmvfc_get_target - Find the specified scsi_target
  * @starget:	scsi target struct
  *
  * Return value:
  *	ibmvfc_target struct / NULL if not found
  **/
-static struct ibmvfc_target *ibmvfc_find_target(struct scsi_target *starget)
+static struct ibmvfc_target *ibmvfc_get_target(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct ibmvfc_target *tgt;
 	unsigned long flags;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	tgt = __ibmvfc_find_target(starget);
+	tgt = __ibmvfc_get_target(starget);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return tgt;
 }
@@ -991,6 +993,17 @@ static void ibmvfc_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
 }
 
 /**
+ * ibmvfc_release_tgt - Free memory allocated for a target
+ * @kref:		kref struct
+ *
+ **/
+static void ibmvfc_release_tgt(struct kref *kref)
+{
+	struct ibmvfc_target *tgt = container_of(kref, struct ibmvfc_target, kref);
+	kfree(tgt);
+}
+
+/**
  * ibmvfc_get_starget_node_name - Get SCSI target's node name
  * @starget:	scsi target struct
  *
@@ -999,8 +1012,10 @@ static void ibmvfc_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
  **/
 static void ibmvfc_get_starget_node_name(struct scsi_target *starget)
 {
-	struct ibmvfc_target *tgt = ibmvfc_find_target(starget);
+	struct ibmvfc_target *tgt = ibmvfc_get_target(starget);
 	fc_starget_port_name(starget) = tgt ? tgt->ids.node_name : 0;
+	if (tgt)
+		kref_put(&tgt->kref, ibmvfc_release_tgt);
 }
 
 /**
@@ -1012,8 +1027,10 @@ static void ibmvfc_get_starget_node_name(struct scsi_target *starget)
  **/
 static void ibmvfc_get_starget_port_name(struct scsi_target *starget)
 {
-	struct ibmvfc_target *tgt = ibmvfc_find_target(starget);
+	struct ibmvfc_target *tgt = ibmvfc_get_target(starget);
 	fc_starget_port_name(starget) = tgt ? tgt->ids.port_name : 0;
+	if (tgt)
+		kref_put(&tgt->kref, ibmvfc_release_tgt);
 }
 
 /**
@@ -1025,8 +1042,10 @@ static void ibmvfc_get_starget_port_name(struct scsi_target *starget)
  **/
 static void ibmvfc_get_starget_port_id(struct scsi_target *starget)
 {
-	struct ibmvfc_target *tgt = ibmvfc_find_target(starget);
+	struct ibmvfc_target *tgt = ibmvfc_get_target(starget);
 	fc_starget_port_id(starget) = tgt ? tgt->scsi_id : -1;
+	if (tgt)
+		kref_put(&tgt->kref, ibmvfc_release_tgt);
 }
 
 /**
@@ -2648,17 +2667,6 @@ static void ibmvfc_retry_tgt_init(struct ibmvfc_target *tgt,
 		wake_up(&tgt->vhost->work_wait_q);
 	} else
 		ibmvfc_init_tgt(tgt, job_step);
-}
-
-/**
- * ibmvfc_release_tgt - Free memory allocated for a target
- * @kref:		kref struct
- *
- **/
-static void ibmvfc_release_tgt(struct kref *kref)
-{
-	struct ibmvfc_target *tgt = container_of(kref, struct ibmvfc_target, kref);
-	kfree(tgt);
 }
 
 /**
