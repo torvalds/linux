@@ -4403,6 +4403,8 @@ static void msc_set_vcr(struct slgt_info *info)
 		break;
 	}
 
+	if (info->if_mode & MGSL_INTERFACE_MSB_FIRST)
+		val |= BIT4;
 	if (info->signals & SerialSignal_DTR)
 		val |= BIT3;
 	if (info->signals & SerialSignal_RTS)
