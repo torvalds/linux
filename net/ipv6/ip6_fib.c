@@ -1481,9 +1481,9 @@ static int fib6_net_init(struct net *net)
 	if (!net->ipv6.rt6_stats)
 		goto out_timer;
 
-	net->ipv6.fib_table_hash =
-		kzalloc(sizeof(*net->ipv6.fib_table_hash)*FIB_TABLE_HASHSZ,
-			GFP_KERNEL);
+	net->ipv6.fib_table_hash = kcalloc(FIB_TABLE_HASHSZ,
+					   sizeof(*net->ipv6.fib_table_hash),
+					   GFP_KERNEL);
 	if (!net->ipv6.fib_table_hash)
 		goto out_rt6_stats;
 
