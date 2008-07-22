@@ -2189,11 +2189,6 @@ static int pc_ioctl(struct tty_struct *tty, struct file *file,
 		bc = ch->brdchan;
 	else
 		return -EINVAL;
-	/*
-	 * For POSIX compliance we need to add more ioctls. See tty_ioctl.c in
-	 * /usr/src/linux/drivers/char for a good example. In particular think
-	 * about adding TCSETAF, TCSETAW, TCSETA, TCSETSF, TCSETSW, TCSETS.
-	 */
 	switch (cmd) {
 	case TCSBRK:	/* SVID version: non-zero arg --> no break */
 		retval = tty_check_change(tty);
