@@ -308,7 +308,7 @@ Protocol:	2.00+
 
 Field name:	start_sys
 Type:		read
-Offset/size:	0x20c/4
+Offset/size:	0x20c/2
 Protocol:	2.00+
 
   The load low segment (0x1000).  Obsolete.
