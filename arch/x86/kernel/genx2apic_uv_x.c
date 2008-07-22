@@ -26,6 +26,8 @@
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/bios.h>
 
+DEFINE_PER_CPU(int, x2apic_extra_bits);
+
 static enum uv_system_type uv_system_type;
 
 static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)

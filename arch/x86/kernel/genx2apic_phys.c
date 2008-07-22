@@ -10,8 +10,6 @@
 #include <asm/ipi.h>
 #include <asm/genapic.h>
 
-DEFINE_PER_CPU(int, x2apic_extra_bits);
-
 static int x2apic_phys;
 
 static int set_x2apic_phys_mode(char *arg)
