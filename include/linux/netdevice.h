@@ -996,17 +996,17 @@ static inline void netif_tx_schedule_all(struct net_device *dev)
 		netif_schedule_queue(netdev_get_tx_queue(dev, i));
 }
 
+static inline void netif_tx_start_queue(struct netdev_queue *dev_queue)
+{
+	clear_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
+}
+
 /**
  *	netif_start_queue - allow transmit
  *	@dev: network device
  *
  *	Allow upper layers to call the device hard_start_xmit routine.
  */
-static inline void netif_tx_start_queue(struct netdev_queue *dev_queue)
-{
-	clear_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
-}
-
 static inline void netif_start_queue(struct net_device *dev)
 {
 	netif_tx_start_queue(netdev_get_tx_queue(dev, 0));
@@ -1022,13 +1022,6 @@ static inline void netif_tx_start_all_queues(struct net_device *dev)
 	}
 }
 
-/**
- *	netif_wake_queue - restart transmit
- *	@dev: network device
- *
- *	Allow upper layers to call the device hard_start_xmit routine.
- *	Used for flow control when transmit resources are available.
- */
 static inline void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 {
 #ifdef CONFIG_NETPOLL_TRAP
@@ -1041,6 +1034,13 @@ static inline void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 		__netif_schedule(dev_queue->qdisc);
 }
 
+/**
+ *	netif_wake_queue - restart transmit
+ *	@dev: network device
+ *
+ *	Allow upper layers to call the device hard_start_xmit routine.
+ *	Used for flow control when transmit resources are available.
+ */
 static inline void netif_wake_queue(struct net_device *dev)
 {
 	netif_tx_wake_queue(netdev_get_tx_queue(dev, 0));
@@ -1056,6 +1056,11 @@ static inline void netif_tx_wake_all_queues(struct net_device *dev)
 	}
 }
 
+static inline void netif_tx_stop_queue(struct netdev_queue *dev_queue)
+{
+	set_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
+}
+
 /**
  *	netif_stop_queue - stop transmitted packets
  *	@dev: network device
@@ -1063,11 +1068,6 @@ static inline void netif_tx_wake_all_queues(struct net_device *dev)
  *	Stop upper layers calling the device hard_start_xmit routine.
  *	Used for flow control when transmit resources are unavailable.
  */
-static inline void netif_tx_stop_queue(struct netdev_queue *dev_queue)
-{
-	set_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
-}
-
 static inline void netif_stop_queue(struct net_device *dev)
 {
 	netif_tx_stop_queue(netdev_get_tx_queue(dev, 0));
@@ -1083,17 +1083,17 @@ static inline void netif_tx_stop_all_queues(struct net_device *dev)
 	}
 }
 
+static inline int netif_tx_queue_stopped(const struct netdev_queue *dev_queue)
+{
+	return test_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
+}
+
 /**
  *	netif_queue_stopped - test if transmit queue is flowblocked
  *	@dev: network device
  *
  *	Test if transmit queue on device is currently unable to send.
  */
-static inline int netif_tx_queue_stopped(const struct netdev_queue *dev_queue)
-{
-	return test_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
-}
-
 static inline int netif_queue_stopped(const struct net_device *dev)
 {
 	return netif_tx_queue_stopped(netdev_get_tx_queue(dev, 0));
@@ -1463,13 +1463,6 @@ static inline void netif_rx_complete(struct net_device *dev,
 	local_irq_restore(flags);
 }
 
-/**
- *	netif_tx_lock - grab network device transmit lock
- *	@dev: network device
- *	@cpu: cpu number of lock owner
- *
- * Get network device transmit lock
- */
 static inline void __netif_tx_lock(struct netdev_queue *txq, int cpu)
 {
 	spin_lock(&txq->_xmit_lock);
@@ -1482,6 +1475,13 @@ static inline void __netif_tx_lock_bh(struct netdev_queue *txq)
 	txq->xmit_lock_owner = smp_processor_id();
 }
 
+/**
+ *	netif_tx_lock - grab network device transmit lock
+ *	@dev: network device
+ *	@cpu: cpu number of lock owner
+ *
+ * Get network device transmit lock
+ */
 static inline void netif_tx_lock(struct net_device *dev)
 {
 	int cpu = smp_processor_id();
