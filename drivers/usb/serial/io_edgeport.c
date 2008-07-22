@@ -1404,15 +1404,15 @@ static int edge_write_room(struct tty_struct *tty)
 	dbg("%s", __func__);
 
 	if (edge_port == NULL)
-		return -ENODEV;
+		return 0;
 	if (edge_port->closePending)
-		return -ENODEV;
+		return 0;
 
 	dbg("%s - port %d", __func__, port->number);
 
 	if (!edge_port->open) {
 		dbg("%s - port not opened", __func__);
-		return -EINVAL;
+		return 0;
 	}
 
 	/* total of both buffers is still txCredit */
@@ -1444,13 +1444,13 @@ static int edge_chars_in_buffer(struct tty_struct *tty)
 	dbg("%s", __func__);
 
 	if (edge_port == NULL)
-		return -ENODEV;
+		return 0;
 	if (edge_port->closePending)
-		return -ENODEV;
+		return 0;
 
 	if (!edge_port->open) {
 		dbg("%s - port not opened", __func__);
-		return -EINVAL;
+		return 0;
 	}
 
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
