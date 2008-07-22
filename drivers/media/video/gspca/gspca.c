@@ -209,6 +209,8 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				   &frame->v4l2_buf.timestamp);
 		frame->v4l2_buf.sequence = ++gspca_dev->sequence;
 	} else if (gspca_dev->last_packet_type == DISCARD_PACKET) {
+		if (packet_type == LAST_PACKET)
+			gspca_dev->last_packet_type = packet_type;
 		return frame;
 	}
 
