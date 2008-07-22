@@ -161,8 +161,6 @@ hayes-esp.txt
 	- info on using the Hayes ESP serial driver.
 highuid.txt
 	- notes on the change from 16 bit to 32 bit user/group IDs.
-hpet.txt
-	- High Precision Event Timer Driver for Linux.
 timers/
 	- info on the timer related topics
 hw_random.txt
