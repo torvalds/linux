@@ -278,7 +278,7 @@ static void ubifs_destroy_inode(struct inode *inode)
  */
 static int ubifs_write_inode(struct inode *inode, int wait)
 {
-	int err;
+	int err = 0;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
@@ -299,10 +299,18 @@ static int ubifs_write_inode(struct inode *inode, int wait)
 		return 0;
 	}
 
-	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
-	err = ubifs_jnl_write_inode(c, inode, 0);
-	if (err)
-		ubifs_err("can't write inode %lu, error %d", inode->i_ino, err);
+	/*
+	 * As an optimization, do not write orphan inodes to the media just
+	 * because this is not needed.
+	 */
+	dbg_gen("inode %lu, mode %#x, nlink %u",
+		inode->i_ino, (int)inode->i_mode, inode->i_nlink);
+	if (inode->i_nlink) {
+		err = ubifs_jnl_write_inode(c, inode, 0);
+		if (err)
+			ubifs_err("can't write inode %lu, error %d",
+				  inode->i_ino, err);
+	}
 
 	ui->dirty = 0;
 	mutex_unlock(&ui->ui_mutex);
