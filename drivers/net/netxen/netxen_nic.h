@@ -801,6 +801,7 @@ struct netxen_hardware_context {
 	unsigned long db_len;
 	unsigned long pci_len0;
 
+	u8 cut_through;
 	int qdr_sn_window;
 	int ddr_mn_window;
 	unsigned long mn_win_crb;
@@ -871,9 +872,16 @@ struct netxen_recv_context {
 	struct status_desc *rcv_status_desc_head;
 };
 
-#define NETXEN_NIC_MSI_ENABLED 0x02
-#define NETXEN_DMA_MASK	0xfffffffe
-#define NETXEN_DB_MAPSIZE_BYTES    0x1000
+#define NETXEN_NIC_MSI_ENABLED		0x02
+#define NETXEN_NIC_MSIX_ENABLED		0x04
+#define NETXEN_IS_MSI_FAMILY(adapter) \
+	((adapter)->flags & (NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED))
+
+#define MSIX_ENTRIES_PER_ADAPTER	8
+#define NETXEN_MSIX_TBL_SPACE		8192
+#define NETXEN_PCI_REG_MSIX_TBL		0x44
+
+#define NETXEN_DB_MAPSIZE_BYTES    	0x1000
 
 struct netxen_dummy_dma {
 	void *addr;
@@ -885,6 +893,7 @@ struct netxen_adapter {
 
 	struct net_device *netdev;
 	struct pci_dev *pdev;
+	int pci_using_dac;
 	struct napi_struct napi;
 	struct net_device_stats net_stats;
 	unsigned char mac_addr[ETH_ALEN];
@@ -895,6 +904,8 @@ struct netxen_adapter {
 	uint8_t		mc_enabled;
 	uint8_t		max_mc_count;
 
+	struct netxen_legacy_intr_set legacy_intr;
+
 	struct work_struct watchdog_task;
 	struct timer_list watchdog_timer;
 	struct work_struct  tx_timeout_task;
@@ -902,6 +913,8 @@ struct netxen_adapter {
 	u32 curr_window;
 	u32 crb_win;
 	rwlock_t adapter_lock;
+
+	uint64_t dma_mask;
 
 	u32 cmd_producer;
 	__le32 *cmd_consumer;
@@ -918,6 +931,12 @@ struct netxen_adapter {
 	u32 irq;
 	int driver_mismatch;
 	u32 temp;
+
+	u32 fw_major;
+
+	u8 msix_supported;
+	u8 max_possible_rss_rings;
+	struct msix_entry msix_entries[MSIX_ENTRIES_PER_ADAPTER];
 
 	struct netxen_adapter_stats stats;
 
@@ -1092,8 +1111,10 @@ unsigned long netxen_nic_pci_set_window_2M(struct netxen_adapter *adapter,
 void netxen_free_adapter_offload(struct netxen_adapter *adapter);
 int netxen_initialize_adapter_offload(struct netxen_adapter *adapter);
 int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
+int netxen_receive_peg_ready(struct netxen_adapter *adapter);
 int netxen_load_firmware(struct netxen_adapter *adapter);
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose);
+
 int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp);
 int netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
 				u8 *bytes, size_t size);
@@ -1107,14 +1128,19 @@ void netxen_halt_pegs(struct netxen_adapter *adapter);
 
 int netxen_rom_se(struct netxen_adapter *adapter, int addr);
 
-/* Functions from netxen_nic_isr.c */
-void netxen_initialize_adapter_sw(struct netxen_adapter *adapter);
+int netxen_alloc_sw_resources(struct netxen_adapter *adapter);
+void netxen_free_sw_resources(struct netxen_adapter *adapter);
+
+int netxen_alloc_hw_resources(struct netxen_adapter *adapter);
+void netxen_free_hw_resources(struct netxen_adapter *adapter);
+
+void netxen_release_rx_buffers(struct netxen_adapter *adapter);
+void netxen_release_tx_buffers(struct netxen_adapter *adapter);
+
 void netxen_initialize_adapter_ops(struct netxen_adapter *adapter);
 int netxen_init_firmware(struct netxen_adapter *adapter);
-void netxen_free_hw_resources(struct netxen_adapter *adapter);
 void netxen_tso_check(struct netxen_adapter *adapter,
 		      struct cmd_desc_type0 *desc, struct sk_buff *skb);
-int netxen_nic_hw_resources(struct netxen_adapter *adapter);
 void netxen_nic_clear_stats(struct netxen_adapter *adapter);
 void netxen_watchdog_task(struct work_struct *work);
 void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx,

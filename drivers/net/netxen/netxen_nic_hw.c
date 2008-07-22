@@ -359,8 +359,6 @@ static u64 ctx_addr_sig_regs[][3] = {
 #define ADDR_IN_RANGE(addr, low, high)	\
 	(((addr) <= (high)) && ((addr) >= (low)))
 
-#define NETXEN_FLASH_BASE	(NETXEN_BOOTLD_START)
-#define NETXEN_PHANTOM_MEM_BASE	(NETXEN_FLASH_BASE)
 #define NETXEN_MAX_MTU		8000 + NETXEN_ENET_HEADER_SIZE + NETXEN_ETH_FCS_SIZE
 #define NETXEN_MIN_MTU		64
 #define NETXEN_ETH_FCS_SIZE     4
@@ -380,8 +378,6 @@ static u64 ctx_addr_sig_regs[][3] = {
 #define NETXEN_NIC_EPG_PAUSE_ADDR2     0x0100088866554433ULL
 
 #define NETXEN_NIC_WINDOW_MARGIN 0x100000
-
-void netxen_free_hw_resources(struct netxen_adapter *adapter);
 
 int netxen_nic_set_mac(struct net_device *netdev, void *p)
 {
@@ -564,41 +560,22 @@ int netxen_nic_change_mtu(struct net_device *netdev, int mtu)
  * check if the firmware has been downloaded and ready to run  and
  * setup the address for the descriptors in the adapter
  */
-int netxen_nic_hw_resources(struct netxen_adapter *adapter)
+int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 {
 	struct netxen_hardware_context *hw = &adapter->ahw;
 	u32 state = 0;
 	void *addr;
-	int loops = 0, err = 0;
+	int err = 0;
 	int ctx, ring;
 	struct netxen_recv_context *recv_ctx;
 	struct netxen_rcv_desc_ctx *rcv_desc;
 	int func_id = adapter->portnum;
 
-	DPRINTK(INFO, "crb_base: %lx %x", NETXEN_PCI_CRBSPACE,
-		PCI_OFFSET_SECOND_RANGE(adapter, NETXEN_PCI_CRBSPACE));
-	DPRINTK(INFO, "cam base: %lx %x", NETXEN_CRB_CAM,
-		pci_base_offset(adapter, NETXEN_CRB_CAM));
-	DPRINTK(INFO, "cam RAM: %lx %x", NETXEN_CAM_RAM_BASE,
-		pci_base_offset(adapter, NETXEN_CAM_RAM_BASE));
-
-
-	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
-		loops = 0;
-		state = 0;
-		do {
-			/* Window 1 call */
-			state = adapter->pci_read_normalize(adapter,
-					CRB_RCVPEG_STATE);
-			msleep(1);
-			loops++;
-		} while (state != PHAN_PEG_RCV_INITIALIZED && loops < 20);
-		if (loops >= 20) {
-			printk(KERN_ERR "Rcv Peg initialization not complete:"
-			       "%x.\n", state);
-			err = -EIO;
-			return err;
-		}
+	err = netxen_receive_peg_ready(adapter);
+	if (err) {
+		printk(KERN_ERR "Rcv Peg initialization not complete:%x.\n",
+				state);
+		return err;
 	}
 	adapter->intr_scheme = adapter->pci_read_normalize(adapter,
 			CRB_NIC_CAPABILITIES_FW);
@@ -992,10 +969,12 @@ int netxen_load_firmware(struct netxen_adapter *adapter)
 {
 	int i;
 	u32 data, size = 0;
-	u32 flashaddr = NETXEN_FLASH_BASE, memaddr = NETXEN_PHANTOM_MEM_BASE;
+	u32 flashaddr = NETXEN_BOOTLD_START, memaddr = NETXEN_BOOTLD_START;
 
-	size = NETXEN_FIRMWARE_LEN;
-	adapter->pci_write_normalize(adapter,
+	size = (NETXEN_IMAGE_START - NETXEN_BOOTLD_START)/4;
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		adapter->pci_write_normalize(adapter,
 				NETXEN_ROMUSB_GLB_CAS_RST, 1);
 
 	for (i = 0; i < size; i++) {
@@ -1007,12 +986,17 @@ int netxen_load_firmware(struct netxen_adapter *adapter)
 		memaddr += 4;
 		cond_resched();
 	}
-	udelay(100);
-	/* make sure Casper is powered on */
-	adapter->pci_write_normalize(adapter,
+	msleep(1);
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		adapter->pci_write_normalize(adapter,
+				NETXEN_ROMUSB_GLB_SW_RESET, 0x80001d);
+	else {
+		adapter->pci_write_normalize(adapter,
 				NETXEN_ROMUSB_GLB_CHIP_CLK_CTRL, 0x3fff);
-	adapter->pci_write_normalize(adapter,
+		adapter->pci_write_normalize(adapter,
 				NETXEN_ROMUSB_GLB_CAS_RST, 0);
+	}
 
 	return 0;
 }
@@ -2241,6 +2225,8 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 	adapter->hw_read_wx(adapter, NETXEN_FW_VERSION_MINOR, &fw_minor, 4);
 	adapter->hw_read_wx(adapter, NETXEN_FW_VERSION_SUB, &fw_build, 4);
 
+	adapter->fw_major = fw_major;
+
 	if (adapter->portnum == 0) {
 		get_brd_name_by_type(board_info->board_type, brd_name);
 
@@ -2261,17 +2247,6 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 		printk(KERN_ERR "%s: driver and firmware version mismatch\n",
 				adapter->netdev->name);
 		return;
-	}
-
-	switch (adapter->ahw.board_type) {
-	case NETXEN_NIC_GBE:
-		dev_info(&adapter->pdev->dev, "%s: GbE port initialized\n",
-				adapter->netdev->name);
-		break;
-	case NETXEN_NIC_XGBE:
-		dev_info(&adapter->pdev->dev, "%s: XGbE port initialized\n",
-				adapter->netdev->name);
-		break;
 	}
 }
 
