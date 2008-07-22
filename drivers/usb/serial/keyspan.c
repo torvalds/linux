@@ -577,7 +577,7 @@ static void	usa26_glocont_callback(struct urb *urb)
 
 static void usa28_indat_callback(struct urb *urb)
 {
-	int                     i, err;
+	int                     err;
 	struct usb_serial_port  *port;
 	struct tty_struct       *tty;
 	unsigned char           *data;
@@ -606,8 +606,7 @@ static void usa28_indat_callback(struct urb *urb)
 
 		tty = port->port.tty;
 		if (urb->actual_length) {
-			for (i = 0; i < urb->actual_length ; ++i)
-				tty_insert_flip_char(tty, data[i], 0);
+			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
 		}
 
@@ -833,8 +832,8 @@ static void	usa49_indat_callback(struct urb *urb)
 		/* 0x80 bit is error flag */
 		if ((data[0] & 0x80) == 0) {
 			/* no error on any byte */
-			for (i = 1; i < urb->actual_length ; ++i)
-				tty_insert_flip_char(tty, data[i], 0);
+			tty_insert_flip_string(tty, data + 1,
+						urb->actual_length - 1);
 		} else {
 			/* some bytes had errors, every byte has status */
 			for (i = 0; i + 1 < urb->actual_length; i += 2) {
@@ -973,10 +972,9 @@ static void usa90_indat_callback(struct urb *urb)
 		/* if current mode is DMA, looks like usa28 format
 		   otherwise looks like usa26 data format */
 
-		if (p_priv->baud > 57600) {
-			for (i = 0; i < urb->actual_length ; ++i)
-				tty_insert_flip_char(tty, data[i], 0);
-		} else {
+		if (p_priv->baud > 57600)
+			tty_insert_flip_string(tty, data, urb->actual_length);
+		else {
 			/* 0x80 bit is error flag */
 			if ((data[0] & 0x80) == 0) {
 				/* no errors on individual bytes, only
