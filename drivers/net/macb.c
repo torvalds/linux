@@ -164,9 +164,7 @@ static void macb_handle_link_change(struct net_device *dev)
 	}
 
 	if (phydev->link != bp->link) {
-		if (phydev->link)
-			netif_tx_schedule_all(dev);
-		else {
+		if (!phydev->link) {
 			bp->speed = 0;
 			bp->duplex = -1;
 		}
