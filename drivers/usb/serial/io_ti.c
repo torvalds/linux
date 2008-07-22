@@ -2419,7 +2419,7 @@ static void change_port_settings(struct tty_struct *tty,
 	return;
 }
 
-static void edge_set_termios(struct tty_struct *tty, 
+static void edge_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
