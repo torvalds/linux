@@ -47,6 +47,10 @@
 #define CTRL_SET_HOST_ONLY(val, h) (val |= ((h & 1) << 9))
 #define CTRL_SET_GUEST_ONLY(val, h) (val |= ((h & 1) << 8))
 
+static unsigned long reset_value[NUM_COUNTERS];
+
+#ifdef CONFIG_OPROFILE_IBS
+
 /* IbsFetchCtl bits/masks */
 #define IBS_FETCH_HIGH_VALID_BIT	(1UL << 17)	/* bit 49 */
 #define IBS_FETCH_HIGH_ENABLE		(1UL << 16)	/* bit 48 */
@@ -104,7 +108,6 @@ struct ibs_op_sample {
 */
 static void clear_ibs_nmi(void);
 
-static unsigned long reset_value[NUM_COUNTERS];
 static int ibs_allowed;	/* AMD Family10h and later */
 
 struct op_ibs_config {
@@ -117,6 +120,8 @@ struct op_ibs_config {
 };
 
 static struct op_ibs_config ibs_config;
+
+#endif
 
 /* functions for op_amd_spec */
 
@@ -187,6 +192,8 @@ static void op_amd_setup_ctrs(struct op_msrs const * const msrs)
 		}
 	}
 }
+
+#ifdef CONFIG_OPROFILE_IBS
 
 static inline int
 op_amd_handle_ibs(struct pt_regs * const regs,
@@ -261,6 +268,8 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 	return 1;
 }
 
+#endif
+
 static int op_amd_check_ctrs(struct pt_regs * const regs,
 			     struct op_msrs const * const msrs)
 {
@@ -277,7 +286,9 @@ static int op_amd_check_ctrs(struct pt_regs * const regs,
 		}
 	}
 
+#ifdef CONFIG_OPROFILE_IBS
 	op_amd_handle_ibs(regs, msrs);
+#endif
 
 	/* See op_model_ppro.c */
 	return 1;
@@ -294,6 +305,8 @@ static void op_amd_start(struct op_msrs const * const msrs)
 			CTRL_WRITE(low, high, msrs, i);
 		}
 	}
+
+#ifdef CONFIG_OPROFILE_IBS
 	if (ibs_allowed && ibs_config.fetch_enabled) {
 		low = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
 		high = IBS_FETCH_HIGH_ENABLE;
@@ -305,6 +318,7 @@ static void op_amd_start(struct op_msrs const * const msrs)
 		high = 0;
 		wrmsr(MSR_AMD64_IBSOPCTL, low, high);
 	}
+#endif
 }
 
 
@@ -323,6 +337,7 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 		CTRL_WRITE(low, high, msrs, i);
 	}
 
+#ifdef CONFIG_OPROFILE_IBS
 	if (ibs_allowed && ibs_config.fetch_enabled) {
 		low = 0;		/* clear max count and enable */
 		high = 0;
@@ -334,6 +349,7 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 		high = 0;
 		wrmsr(MSR_AMD64_IBSOPCTL, low, high);
 	}
+#endif
 }
 
 static void op_amd_shutdown(struct op_msrs const * const msrs)
@@ -350,16 +366,9 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 	}
 }
 
-#ifndef CONFIG_SMP
+#ifndef CONFIG_OPROFILE_IBS
 
 /* no IBS support */
-
-static void setup_ibs(void)
-{
-	ibs_allowed = 0;
-}
-
-static void clear_ibs_nmi(void) {}
 
 static int op_amd_init(struct oprofile_operations *ops)
 {
@@ -441,8 +450,12 @@ static void setup_ibs(void)
 	if (!ibs_allowed)
 		return;
 
-	if (pfm_amd64_setup_eilvt())
+	if (pfm_amd64_setup_eilvt()) {
 		ibs_allowed = 0;
+		return;
+	}
+
+	printk(KERN_INFO "oprofile: AMD IBS detected\n");
 }
 
 

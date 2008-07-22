@@ -328,6 +328,8 @@ static void add_trace_begin(void)
 	add_event_entry(TRACE_BEGIN_CODE);
 }
 
+#ifdef CONFIG_OPROFILE_IBS
+
 #define IBS_FETCH_CODE_SIZE	2
 #define IBS_OP_CODE_SIZE	5
 #define IBS_EIP(offset)				\
@@ -389,6 +391,8 @@ static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
 		add_event_entry(IBS_EVENT(cpu_buf->tail_pos));
 	}
 }
+
+#endif
 
 static void add_sample_entry(unsigned long offset, unsigned long event)
 {
@@ -586,6 +590,7 @@ void sync_buffer(int cpu)
 			} else if (s->event == CPU_TRACE_BEGIN) {
 				state = sb_bt_start;
 				add_trace_begin();
+#ifdef CONFIG_OPROFILE_IBS
 			} else if (s->event == IBS_FETCH_BEGIN) {
 				state = sb_bt_start;
 				add_ibs_begin(cpu_buf,
@@ -594,6 +599,7 @@ void sync_buffer(int cpu)
 				state = sb_bt_start;
 				add_ibs_begin(cpu_buf,
 					IBS_OP_CODE, in_kernel, mm);
+#endif
 			} else {
 				struct mm_struct *oldmm = mm;
 

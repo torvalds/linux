@@ -253,6 +253,8 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 	oprofile_add_ext_sample(pc, regs, event, is_kernel);
 }
 
+#ifdef CONFIG_OPROFILE_IBS
+
 #define MAX_IBS_SAMPLE_SIZE	14
 static int log_ibs_sample(struct oprofile_cpu_buffer *cpu_buf,
 	unsigned long pc, int is_kernel, unsigned  int *ibs, int ibs_code)
@@ -317,6 +319,8 @@ void oprofile_add_ibs_sample(struct pt_regs *const regs,
 	if (log_ibs_sample(cpu_buf, pc, is_kernel, ibs_sample, code))
 		oprofile_ops.backtrace(regs, backtrace_depth);
 }
+
+#endif
 
 void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event)
 {
