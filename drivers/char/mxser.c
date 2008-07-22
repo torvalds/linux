@@ -47,7 +47,7 @@
 
 #include "mxser.h"
 
-#define	MXSER_VERSION	"2.0.3"		/* 1.11 */
+#define	MXSER_VERSION	"2.0.4"		/* 1.12 */
 #define	MXSERMAJOR	 174
 #define	MXSERCUMAJOR	 175
 
@@ -71,12 +71,13 @@
 #define UART_MCR_AFE		0x20
 #define UART_LSR_SPECIAL	0x1E
 
+#define PCI_DEVICE_ID_POS104UL	0x1044
 #define PCI_DEVICE_ID_CB108	0x1080
+#define PCI_DEVICE_ID_CP102UF	0x1023
 #define PCI_DEVICE_ID_CB114	0x1142
 #define PCI_DEVICE_ID_CP114UL	0x1143
 #define PCI_DEVICE_ID_CB134I	0x1341
 #define PCI_DEVICE_ID_CP138U	0x1380
-#define PCI_DEVICE_ID_POS104UL	0x1044
 
 
 #define C168_ASIC_ID    1
@@ -142,7 +143,8 @@ static const struct mxser_cardinfo mxser_cards[] = {
 	{ "CB-134I series",	4, },
 	{ "CP-138U series",	8, },
 	{ "POS-104UL series",	4, },
-	{ "CP-114UL series",	4, }
+	{ "CP-114UL series",	4, },
+/*30*/	{ "CP-102UF series",	2, }
 };
 
 /* driver_data correspond to the lines in the structure above
@@ -172,6 +174,7 @@ static struct pci_device_id mxser_pcibrds[] = {
 	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_CP138U),	.driver_data = 27 },
 	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_POS104UL),	.driver_data = 28 },
 	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_CP114UL),	.driver_data = 29 },
+	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_CP102UF),	.driver_data = 30 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, mxser_pcibrds);
@@ -1414,7 +1417,6 @@ static int mxser_set_serial_info(struct mxser_port *info,
 		info->port.closing_wait = new_serial.closing_wait * HZ / 100;
 		info->port.tty->low_latency =
 				(info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
-		info->port.tty->low_latency = 0;
 		if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST &&
 				(new_serial.baud_base != info->baud_base ||
 				new_serial.custom_divisor !=
