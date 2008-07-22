@@ -43,8 +43,10 @@
 #include <linux/usb/serial.h>
 
 /* Function prototypes */
-static int  option_open(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
-static void option_close(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
+static int  option_open(struct tty_struct *tty, struct usb_serial_port *port,
+							struct file *filp);
+static void option_close(struct tty_struct *tty, struct usb_serial_port *port,
+							struct file *filp);
 static int  option_startup(struct usb_serial *serial);
 static void option_shutdown(struct usb_serial *serial);
 static int  option_write_room(struct tty_struct *tty);
@@ -393,15 +395,15 @@ static int __init option_init(void)
 	return 0;
 
 failed_driver_register:
-	usb_serial_deregister (&option_1port_device);
+	usb_serial_deregister(&option_1port_device);
 failed_1port_device_register:
 	return retval;
 }
 
 static void __exit option_exit(void)
 {
-	usb_deregister (&option_driver);
-	usb_serial_deregister (&option_1port_device);
+	usb_deregister(&option_driver);
+	usb_serial_deregister(&option_1port_device);
 }
 
 module_init(option_init);
@@ -471,7 +473,7 @@ static int option_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	i = 0;
 	left = count;
-	for (i=0; left > 0 && i < N_OUT_URB; i++) {
+	for (i = 0; left > 0 && i < N_OUT_URB; i++) {
 		todo = left;
 		if (todo > OUT_BUFLEN)
 			todo = OUT_BUFLEN;
@@ -492,7 +494,7 @@ static int option_write(struct tty_struct *tty, struct usb_serial_port *port,
 			usb_pipeendpoint(this_urb->pipe), i);
 
 		/* send the data */
-		memcpy (this_urb->transfer_buffer, buf, todo);
+		memcpy(this_urb->transfer_buffer, buf, todo);
 		this_urb->transfer_buffer_length = todo;
 
 		this_urb->dev = port->serial->dev;
@@ -583,7 +585,7 @@ static void option_instat_callback(struct urb *urb)
 	struct usb_serial *serial = port->serial;
 
 	dbg("%s", __func__);
-	dbg("%s: urb %p port %p has data %p", __func__,urb,port,portdata);
+	dbg("%s: urb %p port %p has data %p", __func__, urb, port, portdata);
 
 	if (status == 0) {
 		struct usb_ctrlrequest *req_pkt =
@@ -613,7 +615,7 @@ static void option_instat_callback(struct urb *urb)
 				tty_hangup(port->port.tty);
 		} else {
 			dbg("%s: type %x req %x", __func__,
-				req_pkt->bRequestType,req_pkt->bRequest);
+				req_pkt->bRequestType, req_pkt->bRequest);
 		}
 	} else
 		dbg("%s: error %d", __func__, status);
@@ -639,7 +641,7 @@ static int option_write_room(struct tty_struct *tty)
 	portdata = usb_get_serial_port_data(port);
 
 
-	for (i=0; i < N_OUT_URB; i++) {
+	for (i = 0; i < N_OUT_URB; i++) {
 		this_urb = portdata->out_urbs[i];
 		if (this_urb && !test_bit(i, &portdata->out_busy))
 			data_len += OUT_BUFLEN;
@@ -659,7 +661,7 @@ static int option_chars_in_buffer(struct tty_struct *tty)
 
 	portdata = usb_get_serial_port_data(port);
 
-	for (i=0; i < N_OUT_URB; i++) {
+	for (i = 0; i < N_OUT_URB; i++) {
 		this_urb = portdata->out_urbs[i];
 		/* FIXME: This locking is insufficient as this_urb may
 		   go unused during the test */
@@ -689,7 +691,7 @@ static int option_open(struct tty_struct *tty,
 	/* Reset low level data toggle and start reading from endpoints */
 	for (i = 0; i < N_IN_URB; i++) {
 		urb = portdata->in_urbs[i];
-		if (! urb)
+		if (!urb)
 			continue;
 		if (urb->dev != serial->dev) {
 			dbg("%s: dev %p != %p", __func__,
@@ -714,7 +716,7 @@ static int option_open(struct tty_struct *tty,
 	/* Reset low level data toggle on out endpoints */
 	for (i = 0; i < N_OUT_URB; i++) {
 		urb = portdata->out_urbs[i];
-		if (! urb)
+		if (!urb)
 			continue;
 		urb->dev = serial->dev;
 		/* usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
@@ -726,7 +728,7 @@ static int option_open(struct tty_struct *tty,
 
 	option_send_setup(tty, port);
 
-	return (0);
+	return 0;
 }
 
 static void option_close(struct tty_struct *tty,
@@ -784,7 +786,7 @@ static struct urb *option_setup_urb(struct usb_serial *serial, int endpoint,
 /* Setup urbs */
 static void option_setup_urbs(struct usb_serial *serial)
 {
-	int i,j;
+	int i, j;
 	struct usb_serial_port *port;
 	struct option_port_private *portdata;
 
@@ -794,18 +796,22 @@ static void option_setup_urbs(struct usb_serial *serial)
 		port = serial->port[i];
 		portdata = usb_get_serial_port_data(port);
 
-	/* Do indat endpoints first */
+		/* Do indat endpoints first */
 		for (j = 0; j < N_IN_URB; ++j) {
-			portdata->in_urbs[j] = option_setup_urb (serial,
-                  	port->bulk_in_endpointAddress, USB_DIR_IN, port,
-                  	portdata->in_buffer[j], IN_BUFLEN, option_indat_callback);
+			portdata->in_urbs[j] = option_setup_urb(serial,
+					port->bulk_in_endpointAddress,
+					USB_DIR_IN, port,
+					portdata->in_buffer[j],
+					IN_BUFLEN, option_indat_callback);
 		}
 
 		/* outdat endpoints */
 		for (j = 0; j < N_OUT_URB; ++j) {
-			portdata->out_urbs[j] = option_setup_urb (serial,
-                  	port->bulk_out_endpointAddress, USB_DIR_OUT, port,
-                  	portdata->out_buffer[j], OUT_BUFLEN, option_outdat_callback);
+			portdata->out_urbs[j] = option_setup_urb(serial,
+					port->bulk_out_endpointAddress,
+					USB_DIR_OUT, port,
+					portdata->out_buffer[j],
+					OUT_BUFLEN, option_outdat_callback);
 		}
 	}
 }
@@ -834,8 +840,8 @@ static int option_send_setup(struct tty_struct *tty,
 			val |= 0x02;
 
 		return usb_control_msg(serial->dev,
-				usb_rcvctrlpipe(serial->dev, 0),
-				0x22,0x21,val,ifNum,NULL,0,USB_CTRL_SET_TIMEOUT);
+			usb_rcvctrlpipe(serial->dev, 0),
+			0x22, 0x21, val, ifNum, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	}
 	return 0;
 }
@@ -856,7 +862,7 @@ static int option_startup(struct usb_serial *serial)
 		if (!portdata) {
 			dbg("%s: kmalloc for option_port_private (%d) failed!.",
 					__func__, i);
-			return (1);
+			return 1;
 		}
 
 		for (j = 0; j < N_IN_URB; j++) {
@@ -875,17 +881,15 @@ static int option_startup(struct usb_serial *serial)
 
 		usb_set_serial_port_data(port, portdata);
 
-		if (! port->interrupt_in_urb)
+		if (!port->interrupt_in_urb)
 			continue;
 		err = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		if (err)
 			dbg("%s: submit irq_in urb failed %d",
 				__func__, err);
 	}
-
 	option_setup_urbs(serial);
-
-	return (0);
+	return 0;
 
 bail_out_error2:
 	for (j = 0; j < N_OUT_URB; j++)
@@ -924,7 +928,8 @@ static void option_shutdown(struct usb_serial *serial)
 		for (j = 0; j < N_IN_URB; j++) {
 			if (portdata->in_urbs[j]) {
 				usb_free_urb(portdata->in_urbs[j]);
-				free_page((unsigned long)portdata->in_buffer[j]);
+				free_page((unsigned long)
+					portdata->in_buffer[j]);
 				portdata->in_urbs[j] = NULL;
 			}
 		}
