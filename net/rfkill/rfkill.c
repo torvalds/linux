@@ -130,7 +130,6 @@ static void update_rfkill_state(struct rfkill *rfkill)
 
 /**
  * rfkill_toggle_radio - wrapper for toggle_radio hook
- *
  * @rfkill: the rfkill struct to use
  * @force: calls toggle_radio even if cache says it is not needed,
  *	and also makes sure notifications of the state will be
@@ -141,8 +140,8 @@ static void update_rfkill_state(struct rfkill *rfkill)
  * calls and handling all the red tape such as issuing notifications
  * if the call is successful.
  *
- * Note that @force cannot override a (possibly cached) state of
- * RFKILL_STATE_HARD_BLOCKED.  Any device making use of
+ * Note that the @force parameter cannot override a (possibly cached)
+ * state of RFKILL_STATE_HARD_BLOCKED.  Any device making use of
  * RFKILL_STATE_HARD_BLOCKED implements either get_state() or
  * rfkill_force_state(), so the cache either is bypassed or valid.
  *
@@ -200,12 +199,12 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 
 /**
  * rfkill_switch_all - Toggle state of all switches of given type
- * @type: type of interfaces to be affeceted
+ * @type: type of interfaces to be affected
  * @state: the new state
  *
- * This function toggles state of all switches of given type unless
- * a specific switch is claimed by userspace in which case it is
- * left alone.
+ * This function toggles the state of all switches of given type,
+ * unless a specific switch is claimed by userspace (in which case,
+ * that switch is left alone).
  */
 void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 {
@@ -540,9 +539,10 @@ static void rfkill_remove_switch(struct rfkill *rfkill)
  * @type: type of the switch (RFKILL_TYPE_*)
  *
  * This function should be called by the network driver when it needs
- * rfkill structure. Once the structure is allocated the driver shoud
- * finish its initialization by setting name, private data, enable_radio
+ * rfkill structure.  Once the structure is allocated the driver should
+ * finish its initialization by setting the name, private data, enable_radio
  * and disable_radio methods and then register it with rfkill_register().
+ *
  * NOTE: If registration fails the structure shoudl be freed by calling
  * rfkill_free() otherwise rfkill_unregister() should be used.
  */
@@ -574,7 +574,7 @@ EXPORT_SYMBOL(rfkill_allocate);
  * rfkill_free - Mark rfkill structure for deletion
  * @rfkill: rfkill structure to be destroyed
  *
- * Decrements reference count of rfkill structure so it is destroyed.
+ * Decrements reference count of the rfkill structure so it is destroyed.
  * Note that rfkill_free() should _not_ be called after rfkill_unregister().
  */
 void rfkill_free(struct rfkill *rfkill)
