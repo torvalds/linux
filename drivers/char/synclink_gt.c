@@ -849,6 +849,7 @@ static int write(struct tty_struct *tty,
 	int ret = 0;
 	struct slgt_info *info = tty->driver_data;
 	unsigned long flags;
+	unsigned int bufs_needed;
 
 	if (sanity_check(info, tty->name, "write"))
 		goto cleanup;
@@ -865,25 +866,16 @@ static int write(struct tty_struct *tty,
 	if (!count)
 		goto cleanup;
 
-	if (info->params.mode == MGSL_MODE_RAW ||
-	    info->params.mode == MGSL_MODE_MONOSYNC ||
-	    info->params.mode == MGSL_MODE_BISYNC) {
-		unsigned int bufs_needed = (count/DMABUFSIZE);
-		unsigned int bufs_free = free_tbuf_count(info);
-		if (count % DMABUFSIZE)
-			++bufs_needed;
-		if (bufs_needed > bufs_free)
-			goto cleanup;
-	} else {
-		if (info->tx_active)
-			goto cleanup;
-		if (info->tx_count) {
-			/* send accumulated data from send_char() calls */
-			/* as frame and wait before accepting more data. */
-			tx_load(info, info->tx_buf, info->tx_count);
-			goto start;
-		}
+	if (!info->tx_active && info->tx_count) {
+		/* send accumulated data from send_char() */
+		tx_load(info, info->tx_buf, info->tx_count);
+		goto start;
 	}
+	bufs_needed = (count/DMABUFSIZE);
+	if (count % DMABUFSIZE)
+		++bufs_needed;
+	if (bufs_needed > free_tbuf_count(info))
+		goto cleanup;
 
 	ret = info->tx_count = count;
 	tx_load(info, buf, count);
@@ -3935,15 +3927,7 @@ static void tdma_start(struct slgt_info *info)
 
 	/* set 1st descriptor address */
 	wr_reg32(info, TDDAR, info->tbufs[info->tbuf_start].pdesc);
-	switch(info->params.mode) {
-	case MGSL_MODE_RAW:
-	case MGSL_MODE_MONOSYNC:
-	case MGSL_MODE_BISYNC:
-		wr_reg32(info, TDCSR, BIT2 + BIT0); /* IRQ + DMA enable */
-		break;
-	default:
-		wr_reg32(info, TDCSR, BIT0); /* DMA enable */
-	}
+	wr_reg32(info, TDCSR, BIT2 + BIT0); /* IRQ + DMA enable */
 }
 
 static void tx_stop(struct slgt_info *info)
