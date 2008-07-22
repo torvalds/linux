@@ -81,39 +81,11 @@ static int usb_console_setup(struct console *co, char *options)
 		if (*s)
 			doflow = (*s++ == 'r');
 	}
+	
+	/* Sane default */
+	if (baud == 0)
+		baud = 9600;
 
-	/* build a cflag setting */
-	switch (baud) {
-	case 1200:
-		cflag |= B1200;
-		break;
-	case 2400:
-		cflag |= B2400;
-		break;
-	case 4800:
-		cflag |= B4800;
-		break;
-	case 19200:
-		cflag |= B19200;
-		break;
-	case 38400:
-		cflag |= B38400;
-		break;
-	case 57600:
-		cflag |= B57600;
-		break;
-	case 115200:
-		cflag |= B115200;
-		break;
-	case 9600:
-	default:
-		cflag |= B9600;
-		/*
-		 * Set this to a sane value to prevent a divide error
-		 */
-		baud  = 9600;
-		break;
-	}
 	switch (bits) {
 	case 7:
 		cflag |= CS7;
@@ -188,6 +160,7 @@ static int usb_console_setup(struct console *co, char *options)
 
 		if (serial->type->set_termios) {
 			termios->c_cflag = cflag;
+			tty_termios_encode_baud_rate(termios, baud, baud);
 			serial->type->set_termios(NULL, port, &dummy);
 
 			port->port.tty = NULL;
