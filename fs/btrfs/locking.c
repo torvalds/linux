@@ -37,7 +37,7 @@ int btrfs_tree_lock(struct extent_buffer *eb)
 			return 0;
 	}
 	cpu_relax();
-	mutex_lock(&eb->mutex);
+	mutex_lock_nested(&eb->mutex, BTRFS_MAX_LEVEL - btrfs_header_level(eb));
 	return 0;
 }
 

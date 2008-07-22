@@ -42,7 +42,11 @@ struct btrfs_ordered_sum;
 
 #define BTRFS_MAGIC "_B5RfS_M"
 
-#define BTRFS_MAX_LEVEL 8
+#ifdef CONFIG_LOCKDEP
+# define BTRFS_MAX_LEVEL 7
+#else
+# define BTRFS_MAX_LEVEL 8
+#endif
 
 /* holds pointers to all of the tree roots */
 #define BTRFS_ROOT_TREE_OBJECTID 1ULL
