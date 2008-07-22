@@ -750,30 +750,25 @@ out_free:
  * ubifs_jnl_write_inode - flush inode to the journal.
  * @c: UBIFS file-system description object
  * @inode: inode to flush
- * @deletion: inode has been deleted
  *
  * This function writes inode @inode to the journal. If the inode is
  * synchronous, it also synchronizes the write-buffer. Returns zero in case of
  * success and a negative error code in case of failure.
  */
-int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode,
-			  int deletion)
+int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 {
-	int err, len, lnum, offs, sync = 0;
+	int err, lnum, offs;
 	struct ubifs_ino_node *ino;
 	struct ubifs_inode *ui = ubifs_inode(inode);
+	int sync = 0, len = UBIFS_INO_NODE_SZ, last_reference = !inode->i_nlink;
 
-	dbg_jnl("ino %lu%s", inode->i_ino,
-		deletion ? " (last reference)" : "");
-	if (deletion)
-		ubifs_assert(inode->i_nlink == 0);
+	dbg_jnl("ino %lu, nlink %u", inode->i_ino, inode->i_nlink);
 
-	len = UBIFS_INO_NODE_SZ;
 	/*
 	 * If the inode is being deleted, do not write the attached data. No
 	 * need to synchronize the write-buffer either.
 	 */
-	if (!deletion) {
+	if (!last_reference) {
 		len += ui->data_len;
 		sync = IS_SYNC(inode);
 	}
@@ -786,7 +781,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode,
 	if (err)
 		goto out_free;
 
-	pack_inode(c, ino, inode, 1, deletion);
+	pack_inode(c, ino, inode, 1, last_reference);
 	err = write_head(c, BASEHD, ino, len, &lnum, &offs, sync);
 	if (err)
 		goto out_release;
@@ -795,7 +790,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode,
 					  inode->i_ino);
 	release_head(c, BASEHD);
 
-	if (deletion) {
+	if (last_reference) {
 		err = ubifs_tnc_remove_ino(c, inode->i_ino);
 		if (err)
 			goto out_ro;
