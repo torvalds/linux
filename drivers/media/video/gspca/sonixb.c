@@ -195,8 +195,6 @@ static struct v4l2_pix_format sif_mode[] = {
 		.priv = 0},
 };
 
-static const __u8 probe_ov7630[] = {0x08, 0x44};
-
 static const __u8 initHv7131[] = {
 	0x46, 0x77, 0x00, 0x04, 0x00, 0x00, 0x00, 0x80, 0x11, 0x00, 0x00, 0x00,
 	0x00, 0x00,
@@ -825,11 +823,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (!sif) {
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
-		if (product == 0x60b0) { /* SN9C103 with OV7630 */
-			/* We only have 320x240 & 640x480 */
-			cam->cam_mode++;
-			cam->nmodes--;
-		}
 	} else {
 		cam->cam_mode = sif_mode;
 		cam->nmodes = ARRAY_SIZE(sif_mode);
@@ -839,9 +832,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->exposure = EXPOSURE_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->freq = FREQ_DEF;
-
-	if (product == 0x60b0) /* SN9C103 with OV7630 */
-		reg_w(gspca_dev, 0x01, probe_ov7630, sizeof probe_ov7630);
 
 	return 0;
 }
