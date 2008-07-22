@@ -2849,16 +2849,29 @@ static int tiocsetd(struct tty_struct *tty, int __user *p)
 
 static int send_break(struct tty_struct *tty, unsigned int duration)
 {
-	if (tty_write_lock(tty, 0) < 0)
-		return -EINTR;
-	tty->ops->break_ctl(tty, -1);
-	if (!signal_pending(current))
-		msleep_interruptible(duration);
-	tty->ops->break_ctl(tty, 0);
-	tty_write_unlock(tty);
-	if (signal_pending(current))
-		return -EINTR;
-	return 0;
+	int retval;
+
+	if (tty->ops->break_ctl == NULL)
+		return 0;
+
+	if (tty->driver->flags & TTY_DRIVER_HARDWARE_BREAK)
+		retval = tty->ops->break_ctl(tty, duration);
+	else {
+		/* Do the work ourselves */
+		if (tty_write_lock(tty, 0) < 0)
+			return -EINTR;
+		retval = tty->ops->break_ctl(tty, -1);
+		if (retval)
+			goto out;
+		if (!signal_pending(current))
+			msleep_interruptible(duration);
+		retval = tty->ops->break_ctl(tty, 0);
+out:
+		tty_write_unlock(tty);
+		if (signal_pending(current))
+			retval = -EINTR;
+	}
+	return retval;
 }
 
 /**
@@ -2949,36 +2962,6 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	    tty->driver->subtype == PTY_TYPE_MASTER)
 		real_tty = tty->link;
 
-	/*
-	 * Break handling by driver
-	 */
-
-	retval = -EINVAL;
-
-	if (!tty->ops->break_ctl) {
-		switch (cmd) {
-		case TIOCSBRK:
-		case TIOCCBRK:
-			if (tty->ops->ioctl)
-				retval = tty->ops->ioctl(tty, file, cmd, arg);
-			if (retval != -EINVAL && retval != -ENOIOCTLCMD)
-				printk(KERN_WARNING "tty: driver %s needs updating to use break_ctl\n", tty->driver->name);
-			return retval;
-
-		/* These two ioctl's always return success; even if */
-		/* the driver doesn't support them. */
-		case TCSBRK:
-		case TCSBRKP:
-			if (!tty->ops->ioctl)
-				return 0;
-			retval = tty->ops->ioctl(tty, file, cmd, arg);
-			if (retval != -EINVAL && retval != -ENOIOCTLCMD)
-				printk(KERN_WARNING "tty: driver %s needs updating to use break_ctl\n", tty->driver->name);
-			if (retval == -ENOIOCTLCMD)
-				retval = 0;
-			return retval;
-		}
-	}
 
 	/*
 	 * Factor out some common prep work
@@ -3000,6 +2983,9 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
+	/*
+	 *	Now do the stuff.
+	 */
 	switch (cmd) {
 	case TIOCSTI:
 		return tiocsti(tty, p);
@@ -3043,12 +3029,11 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	 */
 	case TIOCSBRK:	/* Turn break on, unconditionally */
 		if (tty->ops->break_ctl)
-			tty->ops->break_ctl(tty, -1);
+			return tty->ops->break_ctl(tty, -1);
 		return 0;
-
 	case TIOCCBRK:	/* Turn break off, unconditionally */
 		if (tty->ops->break_ctl)
-			tty->ops->break_ctl(tty, 0);
+			return tty->ops->break_ctl(tty, 0);
 		return 0;
 	case TCSBRK:   /* SVID version: non-zero arg --> no break */
 		/* non-zero arg means wait for all output data

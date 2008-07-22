@@ -934,7 +934,7 @@ uart_tiocmset(struct tty_struct *tty, struct file *file,
 	return ret;
 }
 
-static void uart_break_ctl(struct tty_struct *tty, int break_state)
+static int uart_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->port;
@@ -945,6 +945,7 @@ static void uart_break_ctl(struct tty_struct *tty, int break_state)
 		port->ops->break_ctl(port, break_state);
 
 	mutex_unlock(&state->mutex);
+	return 0;
 }
 
 static int uart_do_autoconfig(struct uart_state *state)

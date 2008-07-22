@@ -395,7 +395,7 @@ static void serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 		tty_termios_copy_hw(tty->termios, old);
 }
 
-static void serial_break(struct tty_struct *tty, int break_state)
+static int serial_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
@@ -409,6 +409,7 @@ static void serial_break(struct tty_struct *tty, int break_state)
 		port->serial->type->break_ctl(tty, break_state);
 		unlock_kernel();
 	}
+	return 0;
 }
 
 static int serial_read_proc(char *page, char **start, off_t off, int count,

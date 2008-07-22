@@ -2183,7 +2183,7 @@ static void mxser_hangup(struct tty_struct *tty)
 /*
  * mxser_rs_break() --- routine which turns the break handling on or off
  */
-static void mxser_rs_break(struct tty_struct *tty, int break_state)
+static int mxser_rs_break(struct tty_struct *tty, int break_state)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;
@@ -2196,6 +2196,7 @@ static void mxser_rs_break(struct tty_struct *tty, int break_state)
 		outb(inb(info->ioaddr + UART_LCR) & ~UART_LCR_SBC,
 			info->ioaddr + UART_LCR);
 	spin_unlock_irqrestore(&info->slock, flags);
+	return 0;
 }
 
 static void mxser_receive_chars(struct mxser_port *port, int *status)
