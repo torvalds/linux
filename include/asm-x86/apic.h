@@ -136,11 +136,7 @@ static inline void ack_APIC_irq(void)
 	 */
 
 	/* Docs say use 0 for future compatibility */
-#ifdef CONFIG_X86_32
 	apic_write(APIC_EOI, 0);
-#else
-	native_apic_mem_write(APIC_EOI, 0);
-#endif
 }
 
 extern int lapic_get_maxlvt(void);
