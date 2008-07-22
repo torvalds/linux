@@ -2914,6 +2914,139 @@ static void ibmvfc_tgt_implicit_logout(struct ibmvfc_target *tgt)
 }
 
 /**
+ * ibmvfc_adisc_needs_plogi - Does device need PLOGI?
+ * @mad:	ibmvfc passthru mad struct
+ * @tgt:	ibmvfc target struct
+ *
+ * Returns:
+ *	1 if PLOGI needed / 0 if PLOGI not needed
+ **/
+static int ibmvfc_adisc_needs_plogi(struct ibmvfc_passthru_mad *mad,
+				    struct ibmvfc_target *tgt)
+{
+	if (memcmp(&mad->fc_iu.response[2], &tgt->ids.port_name,
+		   sizeof(tgt->ids.port_name)))
+		return 1;
+	if (memcmp(&mad->fc_iu.response[4], &tgt->ids.node_name,
+		   sizeof(tgt->ids.node_name)))
+		return 1;
+	if (mad->fc_iu.response[6] != tgt->scsi_id)
+		return 1;
+	return 0;
+}
+
+/**
+ * ibmvfc_tgt_adisc_done - Completion handler for ADISC
+ * @evt:	ibmvfc event struct
+ *
+ **/
+static void ibmvfc_tgt_adisc_done(struct ibmvfc_event *evt)
+{
+	struct ibmvfc_target *tgt = evt->tgt;
+	struct ibmvfc_host *vhost = evt->vhost;
+	struct ibmvfc_passthru_mad *mad = &evt->xfer_iu->passthru;
+	u32 status = mad->common.status;
+	u8 fc_reason, fc_explain;
+
+	vhost->discovery_threads--;
+	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
+
+	switch (status) {
+	case IBMVFC_MAD_SUCCESS:
+		tgt_dbg(tgt, "ADISC succeeded\n");
+		if (ibmvfc_adisc_needs_plogi(mad, tgt))
+			tgt->need_login = 1;
+		break;
+	case IBMVFC_MAD_DRIVER_FAILED:
+		break;
+	case IBMVFC_MAD_FAILED:
+	default:
+		tgt->need_login = 1;
+		fc_reason = (mad->fc_iu.response[1] & 0x00ff0000) >> 16;
+		fc_explain = (mad->fc_iu.response[1] & 0x0000ff00) >> 8;
+		tgt_info(tgt, "ADISC failed: %s (%x:%x) %s (%x) %s (%x) rc=0x%02X\n",
+			 ibmvfc_get_cmd_error(mad->iu.status, mad->iu.error),
+			 mad->iu.status, mad->iu.error,
+			 ibmvfc_get_fc_type(fc_reason), fc_reason,
+			 ibmvfc_get_ls_explain(fc_explain), fc_explain, status);
+		break;
+	};
+
+	kref_put(&tgt->kref, ibmvfc_release_tgt);
+	ibmvfc_free_event(evt);
+	wake_up(&vhost->work_wait_q);
+}
+
+/**
+ * ibmvfc_init_passthru - Initialize an event struct for FC passthru
+ * @evt:		ibmvfc event struct
+ *
+ **/
+static void ibmvfc_init_passthru(struct ibmvfc_event *evt)
+{
+	struct ibmvfc_passthru_mad *mad = &evt->iu.passthru;
+
+	memset(mad, 0, sizeof(*mad));
+	mad->common.version = 1;
+	mad->common.opcode = IBMVFC_PASSTHRU;
+	mad->common.length = sizeof(*mad) - sizeof(mad->fc_iu) - sizeof(mad->iu);
+	mad->cmd_ioba.va = (u64)evt->crq.ioba +
+		offsetof(struct ibmvfc_passthru_mad, iu);
+	mad->cmd_ioba.len = sizeof(mad->iu);
+	mad->iu.cmd_len = sizeof(mad->fc_iu.payload);
+	mad->iu.rsp_len = sizeof(mad->fc_iu.response);
+	mad->iu.cmd.va = (u64)evt->crq.ioba +
+		offsetof(struct ibmvfc_passthru_mad, fc_iu) +
+		offsetof(struct ibmvfc_passthru_fc_iu, payload);
+	mad->iu.cmd.len = sizeof(mad->fc_iu.payload);
+	mad->iu.rsp.va = (u64)evt->crq.ioba +
+		offsetof(struct ibmvfc_passthru_mad, fc_iu) +
+		offsetof(struct ibmvfc_passthru_fc_iu, response);
+	mad->iu.rsp.len = sizeof(mad->fc_iu.response);
+}
+
+/**
+ * ibmvfc_tgt_adisc - Initiate an ADISC for specified target
+ * @tgt:		ibmvfc target struct
+ *
+ **/
+static void ibmvfc_tgt_adisc(struct ibmvfc_target *tgt)
+{
+	struct ibmvfc_passthru_mad *mad;
+	struct ibmvfc_host *vhost = tgt->vhost;
+	struct ibmvfc_event *evt;
+
+	if (vhost->discovery_threads >= disc_threads)
+		return;
+
+	kref_get(&tgt->kref);
+	evt = ibmvfc_get_event(vhost);
+	vhost->discovery_threads++;
+	ibmvfc_init_event(evt, ibmvfc_tgt_adisc_done, IBMVFC_MAD_FORMAT);
+	evt->tgt = tgt;
+
+	ibmvfc_init_passthru(evt);
+	mad = &evt->iu.passthru;
+	mad->iu.flags = IBMVFC_FC_ELS;
+	mad->iu.scsi_id = tgt->scsi_id;
+
+	mad->fc_iu.payload[0] = IBMVFC_ADISC;
+	memcpy(&mad->fc_iu.payload[2], &vhost->login_buf->resp.port_name,
+	       sizeof(vhost->login_buf->resp.port_name));
+	memcpy(&mad->fc_iu.payload[4], &vhost->login_buf->resp.node_name,
+	       sizeof(vhost->login_buf->resp.node_name));
+	mad->fc_iu.payload[6] = vhost->login_buf->resp.scsi_id & 0x00ffffff;
+
+	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_INIT_WAIT);
+	if (ibmvfc_send_event(evt, vhost, default_timeout)) {
+		vhost->discovery_threads--;
+		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
+		kref_put(&tgt->kref, ibmvfc_release_tgt);
+	} else
+		tgt_dbg(tgt, "Sent ADISC\n");
+}
+
+/**
  * ibmvfc_tgt_query_target_done - Completion handler for Query Target MAD
  * @evt:	ibmvfc event struct
  *
@@ -2933,6 +3066,8 @@ static void ibmvfc_tgt_query_target_done(struct ibmvfc_event *evt)
 		tgt->new_scsi_id = rsp->scsi_id;
 		if (rsp->scsi_id != tgt->scsi_id)
 			ibmvfc_init_tgt(tgt, ibmvfc_tgt_implicit_logout);
+		else
+			ibmvfc_init_tgt(tgt, ibmvfc_tgt_adisc);
 		break;
 	case IBMVFC_MAD_DRIVER_FAILED:
 		break;
