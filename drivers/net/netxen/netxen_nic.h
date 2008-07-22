@@ -63,10 +63,12 @@
 
 #include "netxen_nic_hw.h"
 
-#define _NETXEN_NIC_LINUX_MAJOR 3
-#define _NETXEN_NIC_LINUX_MINOR 4
-#define _NETXEN_NIC_LINUX_SUBVERSION 18
-#define NETXEN_NIC_LINUX_VERSIONID  "3.4.18"
+#define _NETXEN_NIC_LINUX_MAJOR 4
+#define _NETXEN_NIC_LINUX_MINOR 0
+#define _NETXEN_NIC_LINUX_SUBVERSION 0
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.0"
+
+#define NETXEN_VERSION_CODE(a, b, c)	(((a) << 16) + ((b) << 8) + (c))
 
 #define NETXEN_NUM_FLASH_SECTORS (64)
 #define NETXEN_FLASH_SECTOR_SIZE (64 * 1024)

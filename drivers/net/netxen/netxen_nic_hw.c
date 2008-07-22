@@ -2168,16 +2168,12 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 				fw_minor, fw_build);
 	}
 
-	if (fw_major != _NETXEN_NIC_LINUX_MAJOR) {
+	if (NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build) <
+			NETXEN_VERSION_CODE(3, 4, 216)) {
 		adapter->driver_mismatch = 1;
-	}
-	if (fw_minor != _NETXEN_NIC_LINUX_MINOR &&
-			fw_minor != (_NETXEN_NIC_LINUX_MINOR + 1)) {
-		adapter->driver_mismatch = 1;
-	}
-	if (adapter->driver_mismatch) {
-		printk(KERN_ERR "%s: driver and firmware version mismatch\n",
-				adapter->netdev->name);
+		printk(KERN_ERR "%s: firmware version %d.%d.%d unsupported\n",
+				netxen_nic_driver_name,
+				fw_major, fw_minor, fw_build);
 		return;
 	}
 }
