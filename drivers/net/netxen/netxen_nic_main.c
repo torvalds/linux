@@ -377,6 +377,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->portnum = pci_func_id;
 	adapter->status   &= ~NETXEN_NETDEV_STATUS;
 	adapter->rx_csum = 1;
+	adapter->max_mc_count = 16;
+	adapter->mc_enabled = 0;
 
 	netdev->open		   = netxen_nic_open;
 	netdev->stop		   = netxen_nic_close;
@@ -589,6 +591,14 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			msleep(1);
 			netxen_load_firmware(adapter);
 			netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
+
+			/* Initialize multicast addr pool owners */
+			val = 0x7654;
+			if (adapter->ahw.board_type == NETXEN_NIC_XGBE)
+				val |= 0x0f000000;
+			netxen_crb_writelit_adapter(adapter,
+					NETXEN_MAC_ADDR_CNTL_REG, val);
+
 		}
 
 		/* clear the register for future unloads/loads */

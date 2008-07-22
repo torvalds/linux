@@ -432,7 +432,8 @@ typedef enum {
 /* Promiscous mode options (GbE mode only) */
 typedef enum {
 	NETXEN_NIU_PROMISC_MODE = 0,
-	NETXEN_NIU_NON_PROMISC_MODE
+	NETXEN_NIU_NON_PROMISC_MODE,
+	NETXEN_NIU_ALLMULTI_MODE
 } netxen_niu_prom_mode_t;
 
 /*
@@ -477,42 +478,6 @@ typedef enum {
 
 #define netxen_xg_soft_reset(config_word)	\
 		((config_word) |= 1 << 4)
-
-/*
- * MAC Control Register
- *
- * Bit 0-1   : id_pool0
- * Bit 2     : enable_xtnd0
- * Bit 4-5   : id_pool1
- * Bit 6     : enable_xtnd1
- * Bit 8-9   : id_pool2
- * Bit 10    : enable_xtnd2
- * Bit 12-13 : id_pool3
- * Bit 14    : enable_xtnd3
- * Bit 24-25 : mode_select
- * Bit 28-31 : enable_pool
- */
-
-#define netxen_nic_mcr_set_id_pool0(config, val)	\
-		((config) |= ((val) &0x03))
-#define netxen_nic_mcr_set_enable_xtnd0(config)	\
-		((config) |= 1 << 3)
-#define netxen_nic_mcr_set_id_pool1(config, val)	\
-		((config) |= (((val) & 0x03) << 4))
-#define netxen_nic_mcr_set_enable_xtnd1(config)	\
-		((config) |= 1 << 6)
-#define netxen_nic_mcr_set_id_pool2(config, val)	\
-		((config) |= (((val) & 0x03) << 8))
-#define netxen_nic_mcr_set_enable_xtnd2(config)	\
-		((config) |= 1 << 10)
-#define netxen_nic_mcr_set_id_pool3(config, val)	\
-		((config) |= (((val) & 0x03) << 12))
-#define netxen_nic_mcr_set_enable_xtnd3(config)	\
-		((config) |= 1 << 14)
-#define netxen_nic_mcr_set_mode_select(config, val)	\
-		((config) |= (((val) & 0x03) << 24))
-#define netxen_nic_mcr_set_enable_pool(config, val)	\
-		((config) |= (((val) & 0x0f) << 28))
 
 /* Set promiscuous mode for a GbE interface */
 int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,

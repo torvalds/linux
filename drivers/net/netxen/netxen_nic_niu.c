@@ -909,6 +909,11 @@ int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
 	else
 		reg = (reg & ~0x2000UL);
 
+	if (mode == NETXEN_NIU_ALLMULTI_MODE)
+		reg = (reg | 0x1000UL);
+	else
+		reg = (reg & ~0x1000UL);
+
 	netxen_crb_writelit_adapter(adapter,
 		NETXEN_NIU_XGE_CONFIG_1 + (0x10000 * port), reg);
 

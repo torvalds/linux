@@ -856,6 +856,9 @@ struct netxen_adapter {
 	int portnum;
 	u8 physical_port;
 
+	uint8_t		mc_enabled;
+	uint8_t		max_mc_count;
+
 	struct work_struct watchdog_task;
 	struct timer_list watchdog_timer;
 	struct work_struct  tx_timeout_task;
@@ -909,7 +912,6 @@ struct netxen_adapter {
 	int (*macaddr_set) (struct netxen_adapter *, netxen_ethernet_macaddr_t);
 	int (*set_mtu) (struct netxen_adapter *, int);
 	int (*set_promisc) (struct netxen_adapter *, netxen_niu_prom_mode_t);
-	int (*unset_promisc) (struct netxen_adapter *, netxen_niu_prom_mode_t);
 	int (*phy_read) (struct netxen_adapter *, long reg, u32 *);
 	int (*phy_write) (struct netxen_adapter *, long reg, u32 val);
 	int (*init_port) (struct netxen_adapter *, int);

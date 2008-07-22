@@ -195,7 +195,6 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 		adapter->macaddr_set = netxen_niu_macaddr_set;
 		adapter->set_mtu = netxen_nic_set_mtu_gb;
 		adapter->set_promisc = netxen_niu_set_promiscuous_mode;
-		adapter->unset_promisc = netxen_niu_set_promiscuous_mode;
 		adapter->phy_read = netxen_niu_gbe_phy_read;
 		adapter->phy_write = netxen_niu_gbe_phy_write;
 		adapter->init_niu = netxen_nic_init_niu_gb;
@@ -212,7 +211,6 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 		adapter->set_mtu = netxen_nic_set_mtu_xgb;
 		adapter->init_port = netxen_niu_xg_init_port;
 		adapter->set_promisc = netxen_niu_xg_set_promiscuous_mode;
-		adapter->unset_promisc = netxen_niu_xg_set_promiscuous_mode;
 		adapter->stop_port = netxen_niu_disable_xg_port;
 		break;
 
