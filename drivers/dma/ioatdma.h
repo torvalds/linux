@@ -28,7 +28,7 @@
 #include <linux/cache.h>
 #include <linux/pci_ids.h>
 
-#define IOAT_DMA_VERSION  "2.04"
+#define IOAT_DMA_VERSION  "2.18"
 
 enum ioat_interrupt {
 	none = 0,
@@ -40,6 +40,7 @@ enum ioat_interrupt {
 
 #define IOAT_LOW_COMPLETION_MASK	0xffffffc0
 #define IOAT_DMA_DCA_ANY_CPU		~0
+#define IOAT_WATCHDOG_PERIOD		(2 * HZ)
 
 
 /**
@@ -62,6 +63,7 @@ struct ioatdma_device {
 	struct dma_device common;
 	u8 version;
 	enum ioat_interrupt irq_mode;
+	struct delayed_work work;
 	struct msix_entry msix_entries[4];
 	struct ioat_dma_chan *idx[4];
 };
@@ -75,6 +77,7 @@ struct ioat_dma_chan {
 
 	dma_cookie_t completed_cookie;
 	unsigned long last_completion;
+	unsigned long last_completion_time;
 
 	size_t xfercap;	/* XFERCAP register value expanded out */
 
@@ -82,6 +85,10 @@ struct ioat_dma_chan {
 	spinlock_t desc_lock;
 	struct list_head free_desc;
 	struct list_head used_desc;
+	unsigned long watchdog_completion;
+	int watchdog_tcp_cookie;
+	u32 watchdog_last_tcp_cookie;
+	struct delayed_work work;
 
 	int pending;
 	int dmacount;
@@ -98,6 +105,7 @@ struct ioat_dma_chan {
 			u32 high;
 		};
 	} *completion_virt;
+	unsigned long last_compl_desc_addr_hw;
 	struct tasklet_struct cleanup_task;
 };
 
