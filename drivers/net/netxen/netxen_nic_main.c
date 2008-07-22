@@ -58,10 +58,6 @@ static int use_msi = 1;
 
 static int use_msi_x = 1;
 
-#define NETXEN_NETDEV_WEIGHT 120
-#define NETXEN_ADAPTER_UP_MAGIC 777
-#define NETXEN_NIC_PEG_TUNE 0
-
 /* Local functions to NetXen NIC driver */
 static int __devinit netxen_nic_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent);
@@ -735,8 +731,10 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->features = NETIF_F_SG;
 	netdev->features |= NETIF_F_IP_CSUM;
 	netdev->features |= NETIF_F_TSO;
-	if (NX_IS_REVISION_P3(revision_id))
+	if (NX_IS_REVISION_P3(revision_id)) {
+		netdev->features |= NETIF_F_IPV6_CSUM;
 		netdev->features |= NETIF_F_TSO6;
+	}
 
 	if (adapter->pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -1164,6 +1162,31 @@ static int netxen_nic_close(struct net_device *netdev)
 	return 0;
 }
 
+void netxen_tso_check(struct netxen_adapter *adapter,
+		      struct cmd_desc_type0 *desc, struct sk_buff *skb)
+{
+	if (desc->mss) {
+		desc->total_hdr_length = (sizeof(struct ethhdr) +
+					  ip_hdrlen(skb) + tcp_hdrlen(skb));
+
+		if ((NX_IS_REVISION_P3(adapter->ahw.revision_id)) &&
+				(skb->protocol == htons(ETH_P_IPV6)))
+			netxen_set_cmd_desc_opcode(desc, TX_TCP_LSO6);
+		else
+			netxen_set_cmd_desc_opcode(desc, TX_TCP_LSO);
+
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (ip_hdr(skb)->protocol == IPPROTO_TCP)
+			netxen_set_cmd_desc_opcode(desc, TX_TCP_PKT);
+		else if (ip_hdr(skb)->protocol == IPPROTO_UDP)
+			netxen_set_cmd_desc_opcode(desc, TX_UDP_PKT);
+		else
+			return;
+	}
+	desc->tcp_hdr_offset = skb_transport_offset(skb);
+	desc->ip_hdr_offset = skb_network_offset(skb);
+}
+
 static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
@@ -1185,7 +1208,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	/* There 4 fragments per descriptor */
 	no_of_desc = (frag_count + 3) >> 2;
-	if (netdev->features & NETIF_F_TSO) {
+	if (netdev->features & (NETIF_F_TSO | NETIF_F_TSO6)) {
 		if (skb_shinfo(skb)->gso_size > 0) {
 
 			no_of_desc++;
@@ -1212,7 +1235,8 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	memset(hwdesc, 0, sizeof(struct cmd_desc_type0));
 	/* Take skb->data itself */
 	pbuf = &adapter->cmd_buf_arr[producer];
-	if ((netdev->features & NETIF_F_TSO) && skb_shinfo(skb)->gso_size > 0) {
+	if ((netdev->features & (NETIF_F_TSO | NETIF_F_TSO6)) &&
+			skb_shinfo(skb)->gso_size > 0) {
 		pbuf->mss = skb_shinfo(skb)->gso_size;
 		hwdesc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
 	} else {

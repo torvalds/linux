@@ -752,6 +752,117 @@ static int netxen_nic_set_rx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static u32 netxen_nic_get_tso(struct net_device *dev)
+{
+	struct netxen_adapter *adapter = netdev_priv(dev);
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return (dev->features & (NETIF_F_TSO | NETIF_F_TSO6)) != 0;
+
+	return (dev->features & NETIF_F_TSO) != 0;
+}
+
+static int netxen_nic_set_tso(struct net_device *dev, u32 data)
+{
+	if (data) {
+		struct netxen_adapter *adapter = netdev_priv(dev);
+
+		dev->features |= NETIF_F_TSO;
+		if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+			dev->features |= NETIF_F_TSO6;
+	} else
+		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+
+	return 0;
+}
+
+/*
+ * Set the coalescing parameters. Currently only normal is supported.
+ * If rx_coalesce_usecs == 0 or rx_max_coalesced_frames == 0 then set the
+ * firmware coalescing to default.
+ */
+static int netxen_set_intr_coalesce(struct net_device *netdev,
+			struct ethtool_coalesce *ethcoal)
+{
+	struct netxen_adapter *adapter = netdev_priv(netdev);
+
+	if (!NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return -EINVAL;
+
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		return -EINVAL;
+
+	/*
+	* Return Error if unsupported values or
+	* unsupported parameters are set.
+	*/
+	if (ethcoal->rx_coalesce_usecs > 0xffff ||
+		ethcoal->rx_max_coalesced_frames > 0xffff ||
+		ethcoal->tx_coalesce_usecs > 0xffff ||
+		ethcoal->tx_max_coalesced_frames > 0xffff ||
+		ethcoal->rx_coalesce_usecs_irq ||
+		ethcoal->rx_max_coalesced_frames_irq ||
+		ethcoal->tx_coalesce_usecs_irq ||
+		ethcoal->tx_max_coalesced_frames_irq ||
+		ethcoal->stats_block_coalesce_usecs ||
+		ethcoal->use_adaptive_rx_coalesce ||
+		ethcoal->use_adaptive_tx_coalesce ||
+		ethcoal->pkt_rate_low ||
+		ethcoal->rx_coalesce_usecs_low ||
+		ethcoal->rx_max_coalesced_frames_low ||
+		ethcoal->tx_coalesce_usecs_low ||
+		ethcoal->tx_max_coalesced_frames_low ||
+		ethcoal->pkt_rate_high ||
+		ethcoal->rx_coalesce_usecs_high ||
+		ethcoal->rx_max_coalesced_frames_high ||
+		ethcoal->tx_coalesce_usecs_high ||
+		ethcoal->tx_max_coalesced_frames_high)
+		return -EINVAL;
+
+	if (!ethcoal->rx_coalesce_usecs ||
+		!ethcoal->rx_max_coalesced_frames) {
+		adapter->coal.flags = NETXEN_NIC_INTR_DEFAULT;
+		adapter->coal.normal.data.rx_time_us =
+			NETXEN_DEFAULT_INTR_COALESCE_RX_TIME_US;
+		adapter->coal.normal.data.rx_packets =
+			NETXEN_DEFAULT_INTR_COALESCE_RX_PACKETS;
+	} else {
+		adapter->coal.flags = 0;
+		adapter->coal.normal.data.rx_time_us =
+		ethcoal->rx_coalesce_usecs;
+		adapter->coal.normal.data.rx_packets =
+		ethcoal->rx_max_coalesced_frames;
+	}
+	adapter->coal.normal.data.tx_time_us = ethcoal->tx_coalesce_usecs;
+	adapter->coal.normal.data.tx_packets =
+	ethcoal->tx_max_coalesced_frames;
+
+	netxen_config_intr_coalesce(adapter);
+
+	return 0;
+}
+
+static int netxen_get_intr_coalesce(struct net_device *netdev,
+			struct ethtool_coalesce *ethcoal)
+{
+	struct netxen_adapter *adapter = netdev_priv(netdev);
+
+	if (!NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return -EINVAL;
+
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		return -EINVAL;
+
+	ethcoal->rx_coalesce_usecs = adapter->coal.normal.data.rx_time_us;
+	ethcoal->tx_coalesce_usecs = adapter->coal.normal.data.tx_time_us;
+	ethcoal->rx_max_coalesced_frames =
+		adapter->coal.normal.data.rx_packets;
+	ethcoal->tx_max_coalesced_frames =
+		adapter->coal.normal.data.tx_packets;
+
+	return 0;
+}
+
 struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_settings = netxen_nic_get_settings,
 	.set_settings = netxen_nic_set_settings,
@@ -769,11 +880,14 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.set_pauseparam = netxen_nic_set_pauseparam,
 	.set_tx_csum = ethtool_op_set_tx_csum,
 	.set_sg = ethtool_op_set_sg,
-	.set_tso = ethtool_op_set_tso,
+	.get_tso = netxen_nic_get_tso,
+	.set_tso = netxen_nic_set_tso,
 	.self_test = netxen_nic_diag_test,
 	.get_strings = netxen_nic_get_strings,
 	.get_ethtool_stats = netxen_nic_get_ethtool_stats,
 	.get_sset_count = netxen_get_sset_count,
 	.get_rx_csum = netxen_nic_get_rx_csum,
 	.set_rx_csum = netxen_nic_set_rx_csum,
+	.get_coalesce = netxen_get_intr_coalesce,
+	.set_coalesce = netxen_set_intr_coalesce,
 };

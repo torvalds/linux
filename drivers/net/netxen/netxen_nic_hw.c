@@ -615,6 +615,33 @@ void netxen_p3_nic_set_multi(struct net_device *netdev)
 	}
 }
 
+#define	NETXEN_CONFIG_INTR_COALESCE	3
+
+/*
+ * Send the interrupt coalescing parameter set by ethtool to the card.
+ */
+int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
+{
+	nx_nic_req_t req;
+	int rv;
+
+	memset(&req, 0, sizeof(nx_nic_req_t));
+
+	req.qhdr |= (NIC_REQUEST << 23);
+	req.req_hdr |= NETXEN_CONFIG_INTR_COALESCE;
+	req.req_hdr |= ((u64)adapter->portnum << 16);
+
+	memcpy(&req.words[0], &adapter->coal, sizeof(adapter->coal));
+
+	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0) {
+		printk(KERN_ERR "ERROR. Could not send "
+			"interrupt coalescing parameters\n");
+	}
+
+	return rv;
+}
+
 /*
  * netxen_nic_change_mtu - Change the Maximum Transfer Unit
  * @returns 0 on success, negative on failure
@@ -649,26 +676,6 @@ int netxen_nic_change_mtu(struct net_device *netdev, int mtu)
 		adapter->set_mtu(adapter, mtu);
 
 	return 0;
-}
-
-void netxen_tso_check(struct netxen_adapter *adapter,
-		      struct cmd_desc_type0 *desc, struct sk_buff *skb)
-{
-	if (desc->mss) {
-		desc->total_hdr_length = (sizeof(struct ethhdr) +
-					  ip_hdrlen(skb) + tcp_hdrlen(skb));
-		netxen_set_cmd_desc_opcode(desc, TX_TCP_LSO);
-	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		if (ip_hdr(skb)->protocol == IPPROTO_TCP) {
-			netxen_set_cmd_desc_opcode(desc, TX_TCP_PKT);
-		} else if (ip_hdr(skb)->protocol == IPPROTO_UDP) {
-			netxen_set_cmd_desc_opcode(desc, TX_UDP_PKT);
-		} else {
-			return;
-		}
-	}
-	desc->tcp_hdr_offset = skb_transport_offset(skb);
-	desc->ip_hdr_offset = skb_network_offset(skb);
 }
 
 int netxen_is_flash_supported(struct netxen_adapter *adapter)

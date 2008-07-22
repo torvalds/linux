@@ -1133,6 +1133,40 @@ typedef struct nx_mac_list_s {
 	uint8_t mac_addr[MAX_ADDR_LEN];
 } nx_mac_list_t;
 
+/*
+ * Interrupt coalescing defaults. The defaults are for 1500 MTU. It is
+ * adjusted based on configured MTU.
+ */
+#define NETXEN_DEFAULT_INTR_COALESCE_RX_TIME_US	3
+#define NETXEN_DEFAULT_INTR_COALESCE_RX_PACKETS	256
+#define NETXEN_DEFAULT_INTR_COALESCE_TX_PACKETS	64
+#define NETXEN_DEFAULT_INTR_COALESCE_TX_TIME_US	4
+
+#define NETXEN_NIC_INTR_DEFAULT			0x04
+
+typedef union {
+	struct {
+		uint16_t	rx_packets;
+		uint16_t	rx_time_us;
+		uint16_t	tx_packets;
+		uint16_t	tx_time_us;
+	} data;
+	uint64_t		word;
+} nx_nic_intr_coalesce_data_t;
+
+typedef struct {
+	uint16_t			stats_time_us;
+	uint16_t			rate_sample_time;
+	uint16_t			flags;
+	uint16_t			rsvd_1;
+	uint32_t			low_threshold;
+	uint32_t			high_threshold;
+	nx_nic_intr_coalesce_data_t	normal;
+	nx_nic_intr_coalesce_data_t	low;
+	nx_nic_intr_coalesce_data_t	high;
+	nx_nic_intr_coalesce_data_t	irq;
+} nx_nic_intr_coalesce_t;
+
 typedef struct {
 	u64 qhdr;
 	u64 req_hdr;
@@ -1157,6 +1191,10 @@ typedef struct {
 #define NETXEN_PCI_REG_MSIX_TBL		0x44
 
 #define NETXEN_DB_MAPSIZE_BYTES    	0x1000
+
+#define NETXEN_NETDEV_WEIGHT 120
+#define NETXEN_ADAPTER_UP_MAGIC 777
+#define NETXEN_NIC_PEG_TUNE 0
 
 struct netxen_dummy_dma {
 	void *addr;
@@ -1236,6 +1274,7 @@ struct netxen_adapter {
 
 	int is_up;
 	struct netxen_dummy_dma dummy_dma;
+	nx_nic_intr_coalesce_t coal;
 
 	/* Context interface shared between card and host */
 	struct netxen_ring_ctx *ctx_desc;
@@ -1423,6 +1462,7 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter);
 u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctx, int max);
 void netxen_p2_nic_set_multi(struct net_device *netdev);
 void netxen_p3_nic_set_multi(struct net_device *netdev);
+int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
 
 u32 nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, u32 mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
