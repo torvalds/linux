@@ -140,6 +140,7 @@
 #define NX_RX_NORMAL_BUF_MAX_LEN       (NX_MAX_ETHERHDR + NX_ETHERMTU)
 #define NX_P2_RX_JUMBO_BUF_MAX_LEN     (NX_MAX_ETHERHDR + P2_MAX_MTU)
 #define NX_P3_RX_JUMBO_BUF_MAX_LEN     (NX_MAX_ETHERHDR + P3_MAX_MTU)
+#define NX_CT_DEFAULT_RX_BUF_LEN	2048
 
 #define MAX_RX_BUFFER_LENGTH		1760
 #define MAX_RX_JUMBO_BUFFER_LENGTH 	8062
@@ -391,8 +392,8 @@ struct rcv_desc {
 };
 
 /* opcode field in status_desc */
-#define RCV_NIC_PKT	(0xA)
-#define STATUS_NIC_PKT	((RCV_NIC_PKT) << 12)
+#define NETXEN_NIC_RXPKT_DESC  0x04
+#define NETXEN_OLD_RXPKT_DESC  0x3f
 
 /* for status field in status_desc */
 #define STATUS_NEED_CKSUM	(1)
@@ -424,6 +425,8 @@ struct rcv_desc {
 	(((sts_data) >> 28) & 0xFFFF)
 #define netxen_get_sts_prot(sts_data)	\
 	(((sts_data) >> 44) & 0x0F)
+#define netxen_get_sts_pkt_offset(sts_data)	\
+	(((sts_data) >> 48) & 0x1F)
 #define netxen_get_sts_opcode(sts_data)	\
 	(((sts_data) >> 58) & 0x03F)
 
@@ -438,17 +441,30 @@ struct rcv_desc {
 
 struct status_desc {
 	/* Bit pattern: 0-3 port, 4-7 status, 8-11 type, 12-27 total_length
-	   28-43 reference_handle, 44-47 protocol, 48-52 unused
+	   28-43 reference_handle, 44-47 protocol, 48-52 pkt_offset
 	   53-55 desc_cnt, 56-57 owner, 58-63 opcode
 	 */
 	__le64 status_desc_data;
-	__le32 hash_value;
-	u8 hash_type;
-	u8 msg_type;
-	u8 unused;
-	/* Bit pattern: 0-6 lro_count indicates frag sequence,
-	   7 last_frag indicates last frag */
-	u8 lro;
+	union {
+		struct {
+			__le32 hash_value;
+			u8 hash_type;
+			u8 msg_type;
+			u8 unused;
+			union {
+				/* Bit pattern: 0-6 lro_count indicates frag
+				 * sequence, 7 last_frag indicates last frag
+				 */
+				u8 lro;
+
+				/* chained buffers */
+				u8 nr_frags;
+			};
+		};
+		struct {
+			__le16 frag_handles[4];
+		};
+	};
 } __attribute__ ((aligned(16)));
 
 enum {
@@ -774,6 +790,7 @@ struct netxen_cmd_buffer {
 
 /* In rx_buffer, we do not need multiple fragments as is a single buffer */
 struct netxen_rx_buffer {
+	struct list_head list;
 	struct sk_buff *skb;
 	u64 dma;
 	u16 ref_handle;
@@ -854,6 +871,7 @@ struct nx_host_rds_ring {
 	u32 dma_size;
 	u32 skb_size;
 	struct netxen_rx_buffer *rx_buf_arr;	/* rx buffers for receive   */
+	struct list_head free_list;
 	int begin_alloc;
 };
 

@@ -844,16 +844,17 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* Handshake with the card before we register the devices. */
 		netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 
-		if (NX_IS_REVISION_P3(revision_id)) {
-			adapter->hw_read_wx(adapter,
-					NETXEN_MIU_MN_CONTROL, &val, 4);
-			adapter->ahw.cut_through = (val & 0x4) ? 1 : 0;
-			dev_info(&pdev->dev, "firmware running in %s mode\n",
-			adapter->ahw.cut_through ? "cut through" : "legacy");
-		}
 	}	/* first_driver */
 
 	netxen_nic_flash_print(adapter);
+
+	if (NX_IS_REVISION_P3(revision_id)) {
+		adapter->hw_read_wx(adapter,
+				NETXEN_MIU_MN_CONTROL, &val, 4);
+		adapter->ahw.cut_through = (val & 0x4) ? 1 : 0;
+		dev_info(&pdev->dev, "firmware running in %s mode\n",
+		adapter->ahw.cut_through ? "cut through" : "legacy");
+	}
 
 	/*
 	 * See if the firmware gave us a virtual-physical port mapping.

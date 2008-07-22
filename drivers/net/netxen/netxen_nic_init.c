@@ -262,17 +262,30 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 				rds_ring->max_rx_desc_count =
 					adapter->max_rx_desc_count;
 				rds_ring->flags = RCV_DESC_NORMAL;
-				rds_ring->dma_size = RX_DMA_MAP_LEN;
-				rds_ring->skb_size = MAX_RX_BUFFER_LENGTH;
+				if (adapter->ahw.cut_through) {
+					rds_ring->dma_size =
+						NX_CT_DEFAULT_RX_BUF_LEN;
+					rds_ring->skb_size =
+						NX_CT_DEFAULT_RX_BUF_LEN;
+				} else {
+					rds_ring->dma_size = RX_DMA_MAP_LEN;
+					rds_ring->skb_size =
+						MAX_RX_BUFFER_LENGTH;
+				}
 				break;
 
 			case RCV_DESC_JUMBO:
 				rds_ring->max_rx_desc_count =
 					adapter->max_jumbo_rx_desc_count;
 				rds_ring->flags = RCV_DESC_JUMBO;
-				rds_ring->dma_size = RX_JUMBO_DMA_MAP_LEN;
+				if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+					rds_ring->dma_size =
+						NX_P3_RX_JUMBO_BUF_MAX_LEN;
+				else
+					rds_ring->dma_size =
+						NX_P2_RX_JUMBO_BUF_MAX_LEN;
 				rds_ring->skb_size =
-					MAX_RX_JUMBO_BUFFER_LENGTH;
+					rds_ring->dma_size + NET_IP_ALIGN;
 				break;
 
 			case RCV_RING_LRO:
@@ -294,6 +307,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 				goto err_out;
 			}
 			memset(rds_ring->rx_buf_arr, 0, RCV_BUFFSIZE);
+			INIT_LIST_HEAD(&rds_ring->free_list);
 			rds_ring->begin_alloc = 0;
 			/*
 			 * Now go through all of them, set reference handles
@@ -302,6 +316,8 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 			num_rx_bufs = rds_ring->max_rx_desc_count;
 			rx_buf = rds_ring->rx_buf_arr;
 			for (i = 0; i < num_rx_bufs; i++) {
+				list_add_tail(&rx_buf->list,
+						&rds_ring->free_list);
 				rx_buf->ref_handle = i;
 				rx_buf->state = NETXEN_BUFFER_FREE;
 				rx_buf++;
@@ -1137,15 +1153,47 @@ int netxen_receive_peg_ready(struct netxen_adapter *adapter)
 	return 0;
 }
 
+static struct sk_buff *netxen_process_rxbuf(struct netxen_adapter *adapter,
+		struct nx_host_rds_ring *rds_ring, u16 index, u16 cksum)
+{
+	struct netxen_rx_buffer *buffer;
+	struct sk_buff *skb;
+
+	buffer = &rds_ring->rx_buf_arr[index];
+
+	pci_unmap_single(adapter->pdev, buffer->dma, rds_ring->dma_size,
+			PCI_DMA_FROMDEVICE);
+
+	skb = buffer->skb;
+	if (!skb)
+		goto no_skb;
+
+	if (likely(adapter->rx_csum && cksum == STATUS_CKSUM_OK)) {
+		adapter->stats.csummed++;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	} else
+		skb->ip_summed = CHECKSUM_NONE;
+
+	skb->dev = adapter->netdev;
+
+	buffer->skb = NULL;
+
+no_skb:
+	buffer->state = NETXEN_BUFFER_FREE;
+	buffer->lro_current_frags = 0;
+	buffer->lro_expected_frags = 0;
+	list_add_tail(&buffer->list, &rds_ring->free_list);
+	return skb;
+}
+
 /*
  * netxen_process_rcv() send the received packet to the protocol stack.
  * and if the number of receives exceeds RX_BUFFERS_REFILL, then we
  * invoke the routine to send more rx buffers to the Phantom...
  */
 static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
-			       struct status_desc *desc)
+		struct status_desc *desc, struct status_desc *frag_desc)
 {
-	struct pci_dev *pdev = adapter->pdev;
 	struct net_device *netdev = adapter->netdev;
 	u64 sts_data = le64_to_cpu(desc->status_desc_data);
 	int index = netxen_get_sts_refhandle(sts_data);
@@ -1154,8 +1202,8 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	struct sk_buff *skb;
 	u32 length = netxen_get_sts_totallength(sts_data);
 	u32 desc_ctx;
+	u16 pkt_offset = 0, cksum;
 	struct nx_host_rds_ring *rds_ring;
-	int ret;
 
 	desc_ctx = netxen_get_sts_type(sts_data);
 	if (unlikely(desc_ctx >= NUM_RCV_DESC_RINGS)) {
@@ -1191,41 +1239,52 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 		}
 	}
 
-	pci_unmap_single(pdev, buffer->dma, rds_ring->dma_size,
-			 PCI_DMA_FROMDEVICE);
+	cksum = netxen_get_sts_status(sts_data);
 
-	skb = (struct sk_buff *)buffer->skb;
+	skb = netxen_process_rxbuf(adapter, rds_ring, index, cksum);
+	if (!skb)
+		return;
 
-	if (likely(adapter->rx_csum &&
-			netxen_get_sts_status(sts_data) == STATUS_CKSUM_OK)) {
-		adapter->stats.csummed++;
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else
-		skb->ip_summed = CHECKSUM_NONE;
-
-	skb->dev = netdev;
 	if (desc_ctx == RCV_DESC_LRO_CTXID) {
 		/* True length was only available on the last pkt */
 		skb_put(skb, buffer->lro_length);
 	} else {
-		skb_put(skb, length);
+		if (length > rds_ring->skb_size)
+			skb_put(skb, rds_ring->skb_size);
+		else
+			skb_put(skb, length);
+
+		pkt_offset = netxen_get_sts_pkt_offset(sts_data);
+		if (pkt_offset)
+			skb_pull(skb, pkt_offset);
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	ret = netif_receive_skb(skb);
-	netdev->last_rx = jiffies;
-
 	/*
-	 * We just consumed one buffer so post a buffer.
+	 * rx buffer chaining is disabled, walk and free
+	 * any spurious rx buffer chain.
 	 */
-	buffer->skb = NULL;
-	buffer->state = NETXEN_BUFFER_FREE;
-	buffer->lro_current_frags = 0;
-	buffer->lro_expected_frags = 0;
+	if (frag_desc) {
+		u16 i, nr_frags = desc->nr_frags;
 
-	adapter->stats.no_rcv++;
-	adapter->stats.rxbytes += length;
+		dev_kfree_skb_any(skb);
+		for (i = 0; i < nr_frags; i++) {
+			index = frag_desc->frag_handles[i];
+			skb = netxen_process_rxbuf(adapter,
+					rds_ring, index, cksum);
+			if (skb)
+				dev_kfree_skb_any(skb);
+		}
+		adapter->stats.rxdropped++;
+	} else {
+
+		netif_receive_skb(skb);
+		netdev->last_rx = jiffies;
+
+		adapter->stats.no_rcv++;
+		adapter->stats.rxbytes += length;
+	}
 }
 
 /* Process Receive status ring */
@@ -1233,9 +1292,11 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 {
 	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctxid]);
 	struct status_desc *desc_head = recv_ctx->rcv_status_desc_head;
-	struct status_desc *desc;	/* used to read status desc here */
+	struct status_desc *desc, *frag_desc;
 	u32 consumer = recv_ctx->status_rx_consumer;
 	int count = 0, ring;
+	u64 sts_data;
+	u16 opcode;
 
 	while (count < max) {
 		desc = &desc_head[consumer];
@@ -1244,9 +1305,26 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 				netxen_get_sts_owner(desc));
 			break;
 		}
-		netxen_process_rcv(adapter, ctxid, desc);
+
+		sts_data = le64_to_cpu(desc->status_desc_data);
+		opcode = netxen_get_sts_opcode(sts_data);
+		frag_desc = NULL;
+		if (opcode == NETXEN_NIC_RXPKT_DESC) {
+			if (desc->nr_frags) {
+				consumer = get_next_index(consumer,
+						adapter->max_rx_desc_count);
+				frag_desc = &desc_head[consumer];
+				netxen_set_sts_owner(frag_desc,
+						STATUS_OWNER_PHANTOM);
+			}
+		}
+
+		netxen_process_rcv(adapter, ctxid, desc, frag_desc);
+
 		netxen_set_sts_owner(desc, STATUS_OWNER_PHANTOM);
-		consumer = (consumer + 1) & (adapter->max_rx_desc_count - 1);
+
+		consumer = get_next_index(consumer,
+				adapter->max_rx_desc_count);
 		count++;
 	}
 	for (ring = 0; ring < adapter->max_rds_rings; ring++)
@@ -1348,36 +1426,31 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 	int index = 0;
 	netxen_ctx_msg msg = 0;
 	dma_addr_t dma;
+	struct list_head *head;
 
 	rds_ring = &recv_ctx->rds_rings[ringid];
 
 	producer = rds_ring->producer;
 	index = rds_ring->begin_alloc;
-	buffer = &rds_ring->rx_buf_arr[index];
+	head = &rds_ring->free_list;
+
 	/* We can start writing rx descriptors into the phantom memory. */
-	while (buffer->state == NETXEN_BUFFER_FREE) {
+	while (!list_empty(head)) {
+
 		skb = dev_alloc_skb(rds_ring->skb_size);
 		if (unlikely(!skb)) {
-			/*
-			 * TODO
-			 * We need to schedule the posting of buffers to the pegs.
-			 */
 			rds_ring->begin_alloc = index;
-			DPRINTK(ERR, "netxen_post_rx_buffers: "
-				" allocated only %d buffers\n", count);
 			break;
 		}
+
+		buffer = list_entry(head->next, struct netxen_rx_buffer, list);
+		list_del(&buffer->list);
 
 		count++;	/* now there should be no failure */
 		pdesc = &rds_ring->desc_head[producer];
 
-#if defined(XGB_DEBUG)
-		*(unsigned long *)(skb->head) = 0xc0debabe;
-		if (skb_is_nonlinear(skb)) {
-			printk("Allocated SKB @%p is nonlinear\n");
-		}
-#endif
-		skb_reserve(skb, 2);
+		if (!adapter->ahw.cut_through)
+			skb_reserve(skb, 2);
 		/* This will be setup when we receive the
 		 * buffer after it has been filled  FSL  TBD TBD
 		 * skb->dev = netdev;
@@ -1395,7 +1468,6 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 		producer =
 		    get_next_index(producer, rds_ring->max_rx_desc_count);
 		index = get_next_index(index, rds_ring->max_rx_desc_count);
-		buffer = &rds_ring->rx_buf_arr[index];
 	}
 	/* if we did allocate buffers, then write the count to Phantom */
 	if (count) {
@@ -1439,32 +1511,29 @@ static void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 	struct netxen_rx_buffer *buffer;
 	int count = 0;
 	int index = 0;
+	struct list_head *head;
 
 	rds_ring = &recv_ctx->rds_rings[ringid];
 
 	producer = rds_ring->producer;
 	index = rds_ring->begin_alloc;
-	buffer = &rds_ring->rx_buf_arr[index];
+	head = &rds_ring->free_list;
 	/* We can start writing rx descriptors into the phantom memory. */
-	while (buffer->state == NETXEN_BUFFER_FREE) {
+	while (!list_empty(head)) {
+
 		skb = dev_alloc_skb(rds_ring->skb_size);
 		if (unlikely(!skb)) {
-			/*
-			 * We need to schedule the posting of buffers to the pegs.
-			 */
 			rds_ring->begin_alloc = index;
-			DPRINTK(ERR, "netxen_post_rx_buffers_nodb: "
-				" allocated only %d buffers\n", count);
 			break;
 		}
+
+		buffer = list_entry(head->next, struct netxen_rx_buffer, list);
+		list_del(&buffer->list);
+
 		count++;	/* now there should be no failure */
 		pdesc = &rds_ring->desc_head[producer];
-		skb_reserve(skb, 2);
-		/*
-		 * This will be setup when we receive the
-		 * buffer after it has been filled
-		 * skb->dev = netdev;
-		 */
+		if (!adapter->ahw.cut_through)
+			skb_reserve(skb, 2);
 		buffer->skb = skb;
 		buffer->state = NETXEN_BUFFER_BUSY;
 		buffer->dma = pci_map_single(pdev, skb->data,
