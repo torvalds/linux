@@ -39,7 +39,7 @@
    associated VBI streams are also automatically claimed.
    Possible error returns: -EBUSY if someone else has claimed
    the stream or 0 on success. */
-int ivtv_claim_stream(struct ivtv_open_id *id, int type)
+static int ivtv_claim_stream(struct ivtv_open_id *id, int type)
 {
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[type];
