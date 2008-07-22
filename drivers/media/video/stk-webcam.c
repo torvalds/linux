@@ -445,18 +445,19 @@ static void stk_isoc_handler(struct urb *urb)
 				fb->v4lbuf.bytesused = 0;
 				fill = fb->buffer;
 			} else if (fb->v4lbuf.bytesused == dev->frame_size) {
-				list_move_tail(dev->sio_avail.next,
-					&dev->sio_full);
-				wake_up(&dev->wait_frame);
-				if (list_empty(&dev->sio_avail)) {
-					(void) (printk_ratelimit() &&
-					STK_ERROR("No buffer available\n"));
-					goto resubmit;
+				if (list_is_singular(&dev->sio_avail)) {
+					/* Always reuse the last buffer */
+					fb->v4lbuf.bytesused = 0;
+					fill = fb->buffer;
+				} else {
+					list_move_tail(dev->sio_avail.next,
+						&dev->sio_full);
+					wake_up(&dev->wait_frame);
+					fb = list_first_entry(&dev->sio_avail,
+						struct stk_sio_buffer, list);
+					fb->v4lbuf.bytesused = 0;
+					fill = fb->buffer;
 				}
-				fb = list_first_entry(&dev->sio_avail,
-					struct stk_sio_buffer, list);
-				fb->v4lbuf.bytesused = 0;
-				fill = fb->buffer;
 			}
 		} else {
 			framelen -= 4;
