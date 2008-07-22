@@ -344,7 +344,7 @@ static pteval_t pte_mfn_to_pfn(pteval_t val)
 {
 	if (val & _PAGE_PRESENT) {
 		unsigned long mfn = (val & PTE_PFN_MASK) >> PAGE_SHIFT;
-		pteval_t flags = val & ~PTE_PFN_MASK;
+		pteval_t flags = val & PTE_FLAGS_MASK;
 		val = ((pteval_t)mfn_to_pfn(mfn) << PAGE_SHIFT) | flags;
 	}
 
@@ -355,7 +355,7 @@ static pteval_t pte_pfn_to_mfn(pteval_t val)
 {
 	if (val & _PAGE_PRESENT) {
 		unsigned long pfn = (val & PTE_PFN_MASK) >> PAGE_SHIFT;
-		pteval_t flags = val & ~PTE_PFN_MASK;
+		pteval_t flags = val & PTE_FLAGS_MASK;
 		val = ((pteval_t)pfn_to_mfn(pfn) << PAGE_SHIFT) | flags;
 	}
 
