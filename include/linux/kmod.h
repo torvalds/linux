@@ -25,15 +25,16 @@
 
 #define KMOD_PATH_LEN 256
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 /* modprobe exit status on success, -ve on error.  Return value
  * usually useless though. */
 extern int request_module(const char * name, ...) __attribute__ ((format (printf, 1, 2)));
+#define try_then_request_module(x, mod...) ((x) ?: (request_module(mod), (x)))
 #else
 static inline int request_module(const char * name, ...) { return -ENOSYS; }
+#define try_then_request_module(x, mod...) (x)
 #endif
 
-#define try_then_request_module(x, mod...) ((x) ?: (request_module(mod), (x)))
 
 struct key;
 struct file;
