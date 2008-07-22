@@ -23,9 +23,6 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("Syntek DV4000 (STK014) USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -576,7 +573,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	info("v%s registered", version);
+	info("registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

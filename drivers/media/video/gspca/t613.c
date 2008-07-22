@@ -1,12 +1,4 @@
 /*
- *Notes: * t613  + tas5130A
- *	* Focus to light do not balance well as in win.
- *	  Quality in win is not good, but its kinda better.
- *	 * Fix some "extraneous bytes", most of apps will show the image anyway
- *	 * Gamma table, is there, but its really doing something?
- *	 * 7~8 Fps, its ok, max on win its 10.
- *			Costantino Leandro
- *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,16 +14,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ *Notes: * t613  + tas5130A
+ *	* Focus to light do not balance well as in win.
+ *	  Quality in win is not good, but its kinda better.
+ *	 * Fix some "extraneous bytes", most of apps will show the image anyway
+ *	 * Gamma table, is there, but its really doing something?
+ *	 * 7~8 Fps, its ok, max on win its 10.
+ *			Costantino Leandro
  */
 
 #define MODULE_NAME "t613"
+
 #include "gspca.h"
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
 
 #define MAX_GAMMA 0x10		/* 0 to 15 */
 
-/* From LUVCVIEW */
 #define V4L2_CID_EFFECTS (V4L2_CID_PRIVATE_BASE + 3)
 
 MODULE_AUTHOR("Leandro Costantino <le_costantino@pixartargentina.com.ar>");
@@ -1025,7 +1023,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)
