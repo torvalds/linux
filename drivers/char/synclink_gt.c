@@ -2686,8 +2686,10 @@ static int rx_enable(struct slgt_info *info, int enable)
 	 */
 	rbuf_fill_level = ((unsigned int)enable) >> 16;
 	if (rbuf_fill_level) {
-		if ((rbuf_fill_level > DMABUFSIZE) || (rbuf_fill_level % 4))
+		if ((rbuf_fill_level > DMABUFSIZE) || (rbuf_fill_level % 4)) {
+			spin_unlock_irqrestore(&info->lock, flags);
 			return -EINVAL;
+		}
 		info->rbuf_fill_level = rbuf_fill_level;
 		rx_stop(info); /* restart receiver to use new fill level */
 	}
