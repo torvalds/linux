@@ -43,7 +43,8 @@
 #if defined(CONFIG_ARCH_LUBBOCK) ||\
     defined(CONFIG_MACH_MAINSTONE) ||\
     defined(CONFIG_MACH_ZYLONITE) ||\
-    defined(CONFIG_MACH_LITTLETON)
+    defined(CONFIG_MACH_LITTLETON) ||\
+    defined(CONFIG_ARCH_VIPER)
 
 #include <asm/mach-types.h>
 
