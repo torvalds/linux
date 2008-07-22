@@ -150,7 +150,7 @@ static void update_rfkill_state(struct rfkill *rfkill)
  * even if the radio is in RFKILL_STATE_HARD_BLOCKED state, so as to
  * give the driver a hint that it should double-BLOCK the transmitter.
  *
- * Caller must have aquired rfkill_mutex.
+ * Caller must have acquired rfkill->mutex.
  */
 static int rfkill_toggle_radio(struct rfkill *rfkill,
 				enum rfkill_state state,
@@ -216,8 +216,11 @@ void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 	rfkill_states[type] = state;
 
 	list_for_each_entry(rfkill, &rfkill_list, node) {
-		if ((!rfkill->user_claim) && (rfkill->type == type))
+		if ((!rfkill->user_claim) && (rfkill->type == type)) {
+			mutex_lock(&rfkill->mutex);
 			rfkill_toggle_radio(rfkill, state, 0);
+			mutex_unlock(&rfkill->mutex);
+		}
 	}
 
 	mutex_unlock(&rfkill_mutex);
@@ -228,7 +231,7 @@ EXPORT_SYMBOL(rfkill_switch_all);
  * rfkill_epo - emergency power off all transmitters
  *
  * This kicks all rfkill devices to RFKILL_STATE_SOFT_BLOCKED, ignoring
- * everything in its path but rfkill_mutex.
+ * everything in its path but rfkill_mutex and rfkill->mutex.
  */
 void rfkill_epo(void)
 {
@@ -236,7 +239,9 @@ void rfkill_epo(void)
 
 	mutex_lock(&rfkill_mutex);
 	list_for_each_entry(rfkill, &rfkill_list, node) {
+		mutex_lock(&rfkill->mutex);
 		rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
+		mutex_unlock(&rfkill->mutex);
 	}
 	mutex_unlock(&rfkill_mutex);
 }
@@ -372,6 +377,9 @@ static ssize_t rfkill_claim_store(struct device *dev,
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
+	if (rfkill->user_claim_unsupported)
+		return -EOPNOTSUPP;
+
 	/*
 	 * Take the global lock to make sure the kernel is not in
 	 * the middle of rfkill_switch_all
@@ -380,19 +388,17 @@ static ssize_t rfkill_claim_store(struct device *dev,
 	if (error)
 		return error;
 
-	if (rfkill->user_claim_unsupported) {
-		error = -EOPNOTSUPP;
-		goto out_unlock;
-	}
 	if (rfkill->user_claim != claim) {
-		if (!claim)
+		if (!claim) {
+			mutex_lock(&rfkill->mutex);
 			rfkill_toggle_radio(rfkill,
 					    rfkill_states[rfkill->type],
 					    0);
+			mutex_unlock(&rfkill->mutex);
+		}
 		rfkill->user_claim = claim;
 	}
 
-out_unlock:
 	mutex_unlock(&rfkill_mutex);
 
 	return error ? error : count;
@@ -521,8 +527,11 @@ static void rfkill_remove_switch(struct rfkill *rfkill)
 {
 	mutex_lock(&rfkill_mutex);
 	list_del_init(&rfkill->node);
-	rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
 	mutex_unlock(&rfkill_mutex);
+
+	mutex_lock(&rfkill->mutex);
+	rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
+	mutex_unlock(&rfkill->mutex);
 }
 
 /**
