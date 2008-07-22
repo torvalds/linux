@@ -85,7 +85,8 @@ static int iommu_table_iobmap_inited;
 
 static void iobmap_build(struct iommu_table *tbl, long index,
 			 long npages, unsigned long uaddr,
-			 enum dma_data_direction direction)
+			 enum dma_data_direction direction,
+			 struct dma_attrs *attrs)
 {
 	u32 *ip;
 	u32 rpn;
