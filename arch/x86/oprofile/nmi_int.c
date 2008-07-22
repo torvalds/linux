@@ -436,6 +436,10 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 			model = &op_athlon_spec;
 			cpu_type = "x86-64/family10";
 			break;
+		case 0x11:
+			model = &op_athlon_spec;
+			cpu_type = "x86-64/family11h";
+			break;
 		}
 		break;
 
