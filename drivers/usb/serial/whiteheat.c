@@ -671,11 +671,8 @@ static int whiteheat_open(struct tty_struct *tty,
 		goto exit;
 	}
 
-	if (tty) {
-		old_term.c_cflag = ~tty->termios->c_cflag;
-		old_term.c_iflag = ~tty->termios->c_iflag;
-		whiteheat_set_termios(tty, port, &old_term);
-	}
+	if (tty)
+		firm_setup_port(tty);
 
 	/* Work around HCD bugs */
 	usb_clear_halt(port->serial->dev, port->read_urb->pipe);
@@ -926,7 +923,6 @@ static int whiteheat_ioctl(struct tty_struct *tty, struct file *file,
 static void whiteheat_set_termios(struct tty_struct *tty,
 	struct usb_serial_port *port, struct ktermios *old_termios)
 {
-	/* FIXME */
 	firm_setup_port(tty);
 }
 
@@ -1322,7 +1318,7 @@ static int firm_set_dtr(struct usb_serial_port *port, __u8 onoff)
 
 	dtr_command.port = port->number - port->serial->minor + 1;
 	dtr_command.state = onoff;
-	return firm_send_command(port, WHITEHEAT_SET_RTS,
+	return firm_send_command(port, WHITEHEAT_SET_DTR,
 			(__u8 *)&dtr_command, sizeof(dtr_command));
 }
 
@@ -1333,7 +1329,7 @@ static int firm_set_break(struct usb_serial_port *port, __u8 onoff)
 
 	break_command.port = port->number - port->serial->minor + 1;
 	break_command.state = onoff;
-	return firm_send_command(port, WHITEHEAT_SET_RTS,
+	return firm_send_command(port, WHITEHEAT_SET_BREAK,
 			(__u8 *)&break_command, sizeof(break_command));
 }
 
