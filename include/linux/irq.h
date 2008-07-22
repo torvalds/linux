@@ -197,10 +197,6 @@ extern int setup_irq(unsigned int irq, struct irqaction *new);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 
-#ifndef handle_dynamic_tick
-# define handle_dynamic_tick(a)		do { } while (0)
-#endif
-
 #ifdef CONFIG_SMP
 
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
