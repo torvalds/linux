@@ -1464,27 +1464,6 @@ static int mxser_get_lsr_info(struct mxser_port *info,
 	return put_user(result, value);
 }
 
-/*
- * This routine sends a break character out the serial port.
- */
-static void mxser_send_break(struct mxser_port *info, int duration)
-{
-	unsigned long flags;
-
-	if (!info->ioaddr)
-		return;
-	set_current_state(TASK_INTERRUPTIBLE);
-	spin_lock_irqsave(&info->slock, flags);
-	outb(inb(info->ioaddr + UART_LCR) | UART_LCR_SBC,
-		info->ioaddr + UART_LCR);
-	spin_unlock_irqrestore(&info->slock, flags);
-	schedule_timeout(duration);
-	spin_lock_irqsave(&info->slock, flags);
-	outb(inb(info->ioaddr + UART_LCR) & ~UART_LCR_SBC,
-		info->ioaddr + UART_LCR);
-	spin_unlock_irqrestore(&info->slock, flags);
-}
-
 static int mxser_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	struct mxser_port *info = tty->driver_data;
@@ -1872,21 +1851,6 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		return -EIO;
 
 	switch (cmd) {
-	case TCSBRK:		/* SVID version: non-zero arg --> no break */
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-		tty_wait_until_sent(tty, 0);
-		if (!arg)
-			mxser_send_break(info, HZ / 4);	/* 1/4 second */
-		return 0;
-	case TCSBRKP:		/* support for POSIX tcsendbreak() */
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-		tty_wait_until_sent(tty, 0);
-		mxser_send_break(info, arg ? arg * (HZ / 10) : HZ / 4);
-		return 0;
 	case TIOCGSERIAL:
 		lock_kernel();
 		retval = mxser_get_serial_info(info, argp);
