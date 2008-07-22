@@ -461,6 +461,16 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 	if (res)
 		goto out;
 
+	if ((mode & MAY_EXEC) && S_ISREG(nd.path.dentry->d_inode->i_mode)) {
+		/*
+		 * MAY_EXEC on regular files is denied if the fs is mounted
+		 * with the "noexec" flag.
+		 */
+		res = -EACCES;
+		if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
+			goto out_path_release;
+	}
+
 	res = vfs_permission(&nd, mode | MAY_ACCESS);
 	/* SuS v2 requires we report a read only fs too */
 	if(res || !(mode & S_IWOTH) ||
