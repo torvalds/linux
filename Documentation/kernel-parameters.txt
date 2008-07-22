@@ -147,10 +147,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			default: 0
 
 	acpi_sleep=	[HW,ACPI] Sleep options
-			Format: { s3_bios, s3_mode, s3_beep }
+			Format: { s3_bios, s3_mode, s3_beep, old_ordering }
 			See Documentation/power/video.txt for s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
 			as soon as the kernel's real-mode entry point is called.
+			old_ordering causes the ACPI 1.0 ordering of the _PTS
+			control method, wrt putting devices into low power
+			states, to be enforced (the ACPI 2.0 ordering of _PTS is
+			used by default).
 
 	acpi_sci=	[HW,ACPI] ACPI System Control Interrupt trigger mode
 			Format: { level | edge | high | low }
@@ -1202,7 +1206,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			         or
 			         memmap=0x10000$0x18690000
 
-	memtest=	[KNL,X86_64] Enable memtest
+	memtest=	[KNL,X86] Enable memtest
 			Format: <integer>
 			range: 0,4 : pattern number
 			default : 0 <disable>
@@ -1274,6 +1278,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			something different and driver-specific.
 			This usage is only documented in each driver source
 			file if at all.
+
+	nf_conntrack.acct=
+			[NETFILTER] Enable connection tracking flow accounting
+			0 to disable accounting
+			1 to enable accounting
+			Default value depends on CONFIG_NF_CT_ACCT that is
+			going to be removed in 2.6.29.
 
 	nfsaddrs=	[NFS]
 			See Documentation/filesystems/nfsroot.txt.
@@ -1537,6 +1548,9 @@ and is between 256 and 4096 characters. It is defined in the file
 				Use with caution as certain devices share
 				address decoders between ROMs and other
 				resources.
+		norom		[X86-32,X86_64] Do not assign address space to
+				expansion ROMs that do not already have
+				BIOS assigned address ranges.
 		irqmask=0xMMMM	[X86-32] Set a bit mask of IRQs allowed to be
 				assigned automatically to PCI devices. You can
 				make the kernel exclude IRQs of your ISA cards
@@ -2150,6 +2164,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			anything.  Set this parameter to avoid log spamming.
 			Note that genuine overcurrent events won't be
 			reported either.
+
+	unknown_nmi_panic
+			[X86-32,X86-64]
+			Set unknown_nmi_panic=1 early on boot.
 
 	usbcore.autosuspend=
 			[USB] The autosuspend time delay (in seconds) used

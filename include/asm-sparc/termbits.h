@@ -5,7 +5,12 @@
 
 typedef unsigned char   cc_t;
 typedef unsigned int    speed_t;
+
+#if defined(__sparc__) && defined(__arch64__)
+typedef unsigned int    tcflag_t;
+#else
 typedef unsigned long   tcflag_t;
+#endif
 
 #define NCC 8
 struct termio {

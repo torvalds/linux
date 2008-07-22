@@ -1490,7 +1490,7 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned
 	    ((tuple->TupleCode > 0x90) && (tuple->TupleCode < 0xff)))
 	    reserved++;
     }
-    if ((count) || (reserved > 5) ||
+    if ((count == MAX_TUPLES) || (reserved > 5) ||
 	((!dev_ok || !ident_ok) && (count > 10)))
 	count = 0;
 

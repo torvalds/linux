@@ -59,6 +59,7 @@ struct e820map {
 	struct e820entry map[E820_X_MAX];
 };
 
+#ifdef __KERNEL__
 /* see comment in arch/x86/kernel/e820.c */
 extern struct e820map e820;
 extern struct e820map e820_saved;
@@ -89,6 +90,14 @@ static inline void e820_mark_nosave_regions(unsigned long limit_pfn)
 }
 #endif
 
+#ifdef CONFIG_MEMTEST
+extern void early_memtest(unsigned long start, unsigned long end);
+#else
+static inline void early_memtest(unsigned long start, unsigned long end)
+{
+}
+#endif
+
 extern unsigned long end_user_pfn;
 
 extern u64 find_e820_area(u64 start, u64 end, u64 size, u64 align);
@@ -115,7 +124,7 @@ extern void setup_memory_map(void);
 extern char *default_machine_specific_memory_setup(void);
 extern char *machine_specific_memory_setup(void);
 extern char *memory_setup(void);
-
+#endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 
 #define ISA_START_ADDRESS	0xa0000

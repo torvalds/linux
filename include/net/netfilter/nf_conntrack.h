@@ -88,7 +88,6 @@ struct nf_conn_help {
 	u8 expecting[NF_CT_MAX_EXPECT_CLASSES];
 };
 
-
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 
@@ -110,11 +109,6 @@ struct nf_conn
 
 	/* Timer function; drops refcnt when it goes off. */
 	struct timer_list timeout;
-
-#ifdef CONFIG_NF_CT_ACCT
-	/* Accounting Information (same cache line as other written members) */
-	struct ip_conntrack_counter counters[IP_CT_DIR_MAX];
-#endif
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	u_int32_t mark;
@@ -223,6 +217,25 @@ static inline void nf_ct_refresh(struct nf_conn *ct,
 	__nf_ct_refresh_acct(ct, 0, skb, extra_jiffies, 0);
 }
 
+extern bool __nf_ct_kill_acct(struct nf_conn *ct,
+			      enum ip_conntrack_info ctinfo,
+			      const struct sk_buff *skb,
+			      int do_acct);
+
+/* kill conntrack and do accounting */
+static inline bool nf_ct_kill_acct(struct nf_conn *ct,
+				   enum ip_conntrack_info ctinfo,
+				   const struct sk_buff *skb)
+{
+	return __nf_ct_kill_acct(ct, ctinfo, skb, 1);
+}
+
+/* kill conntrack without accounting */
+static inline bool nf_ct_kill(struct nf_conn *ct)
+{
+	return __nf_ct_kill_acct(ct, 0, NULL, 0);
+}
+
 /* These are for NAT.  Icky. */
 /* Update TCP window tracking data when NAT mangles the packet */
 extern void nf_conntrack_tcp_update(const struct sk_buff *skb,
@@ -239,7 +252,8 @@ nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data), void *data);
 extern void nf_conntrack_free(struct nf_conn *ct);
 extern struct nf_conn *
 nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
-		   const struct nf_conntrack_tuple *repl);
+		   const struct nf_conntrack_tuple *repl,
+		   gfp_t gfp);
 
 /* It's confirmed if it is, or has been in the hash table. */
 static inline int nf_ct_is_confirmed(struct nf_conn *ct)

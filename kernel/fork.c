@@ -1125,8 +1125,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 */
 	p->group_leader = p;
 	INIT_LIST_HEAD(&p->thread_group);
-	INIT_LIST_HEAD(&p->ptrace_children);
-	INIT_LIST_HEAD(&p->ptrace_list);
+	INIT_LIST_HEAD(&p->ptrace_entry);
+	INIT_LIST_HEAD(&p->ptraced);
 
 	/* Now that the task is set up, run cgroup callbacks if
 	 * necessary. We need to run them before the task is visible
@@ -1198,7 +1198,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	}
 
 	if (likely(p->pid)) {
-		add_parent(p);
+		list_add_tail(&p->sibling, &p->real_parent->children);
 		if (unlikely(p->ptrace & PT_PTRACED))
 			__ptrace_link(p, current->parent);
 

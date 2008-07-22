@@ -233,7 +233,7 @@ int pcf8563_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 
 		if (copy_to_user((struct rtc_time *) arg, &tm,
 				 sizeof tm)) {
-			spin_unlock(&rtc_lock);
+			mutex_unlock(&rtc_lock);
 			return -EFAULT;
 		}
 

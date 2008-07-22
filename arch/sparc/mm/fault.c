@@ -451,7 +451,7 @@ asmlinkage void do_sun4c_fault(struct pt_regs *regs, int text_fault, int write,
 }
 
 /* This always deals with user addresses. */
-inline void force_user_fault(unsigned long address, int write)
+static void force_user_fault(unsigned long address, int write)
 {
 	struct vm_area_struct *vma;
 	struct task_struct *tsk = current;

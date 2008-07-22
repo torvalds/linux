@@ -1,15 +1,8 @@
-/* irq.h: IRQ registers on the Sparc.
- *
- * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)
- */
-
-#ifndef _SPARC_IRQ_H
-#define _SPARC_IRQ_H
-
-#include <linux/interrupt.h>
-
-#define NR_IRQS    16
-
-#define irq_canonicalize(irq)	(irq)
-
+#ifndef ___ASM_SPARC_IRQ_H
+#define ___ASM_SPARC_IRQ_H
+#if defined(__sparc__) && defined(__arch64__)
+#include <asm-sparc/irq_64.h>
+#else
+#include <asm-sparc/irq_32.h>
+#endif
 #endif

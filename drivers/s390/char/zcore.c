@@ -29,6 +29,7 @@
 
 #define TO_USER		0
 #define TO_KERNEL	1
+#define CHUNK_INFO_SIZE	34 /* 2 16-byte char, each followed by blank */
 
 enum arch_id {
 	ARCH_S390	= 0,
@@ -51,6 +52,7 @@ static struct debug_info *zcore_dbf;
 static int hsa_available;
 static struct dentry *zcore_dir;
 static struct dentry *zcore_file;
+static struct dentry *zcore_memmap_file;
 
 /*
  * Copy memory from HSA to kernel or user memory (not reentrant):
@@ -476,6 +478,54 @@ static const struct file_operations zcore_fops = {
 	.release	= zcore_release,
 };
 
+static ssize_t zcore_memmap_read(struct file *filp, char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	return simple_read_from_buffer(buf, count, ppos, filp->private_data,
+				       MEMORY_CHUNKS * CHUNK_INFO_SIZE);
+}
+
+static int zcore_memmap_open(struct inode *inode, struct file *filp)
+{
+	int i;
+	char *buf;
+	struct mem_chunk *chunk_array;
+
+	chunk_array = kzalloc(MEMORY_CHUNKS * sizeof(struct mem_chunk),
+			      GFP_KERNEL);
+	if (!chunk_array)
+		return -ENOMEM;
+	detect_memory_layout(chunk_array);
+	buf = kzalloc(MEMORY_CHUNKS * CHUNK_INFO_SIZE, GFP_KERNEL);
+	if (!buf) {
+		kfree(chunk_array);
+		return -ENOMEM;
+	}
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		sprintf(buf + (i * CHUNK_INFO_SIZE), "%016llx %016llx ",
+			(unsigned long long) chunk_array[i].addr,
+			(unsigned long long) chunk_array[i].size);
+		if (chunk_array[i].size == 0)
+			break;
+	}
+	kfree(chunk_array);
+	filp->private_data = buf;
+	return 0;
+}
+
+static int zcore_memmap_release(struct inode *inode, struct file *filp)
+{
+	kfree(filp->private_data);
+	return 0;
+}
+
+static const struct file_operations zcore_memmap_fops = {
+	.owner		= THIS_MODULE,
+	.read		= zcore_memmap_read,
+	.open		= zcore_memmap_open,
+	.release	= zcore_memmap_release,
+};
+
 
 static void __init set_s390_lc_mask(union save_area *map)
 {
@@ -554,18 +604,44 @@ static int __init check_sdias(void)
 	return 0;
 }
 
-static void __init zcore_header_init(int arch, struct zcore_header *hdr)
+static int __init get_mem_size(unsigned long *mem)
 {
+	int i;
+	struct mem_chunk *chunk_array;
+
+	chunk_array = kzalloc(MEMORY_CHUNKS * sizeof(struct mem_chunk),
+			      GFP_KERNEL);
+	if (!chunk_array)
+		return -ENOMEM;
+	detect_memory_layout(chunk_array);
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		if (chunk_array[i].size == 0)
+			break;
+		*mem += chunk_array[i].size;
+	}
+	kfree(chunk_array);
+	return 0;
+}
+
+static int __init zcore_header_init(int arch, struct zcore_header *hdr)
+{
+	int rc;
+	unsigned long memory = 0;
+
 	if (arch == ARCH_S390X)
 		hdr->arch_id = DUMP_ARCH_S390X;
 	else
 		hdr->arch_id = DUMP_ARCH_S390;
-	hdr->mem_size = sys_info.mem_size;
-	hdr->rmem_size = sys_info.mem_size;
+	rc = get_mem_size(&memory);
+	if (rc)
+		return rc;
+	hdr->mem_size = memory;
+	hdr->rmem_size = memory;
 	hdr->mem_end = sys_info.mem_size;
-	hdr->num_pages = sys_info.mem_size / PAGE_SIZE;
+	hdr->num_pages = memory / PAGE_SIZE;
 	hdr->tod = get_clock();
 	get_cpu_id(&hdr->cpu_id);
+	return 0;
 }
 
 static int __init zcore_init(void)
@@ -608,7 +684,9 @@ static int __init zcore_init(void)
 	if (rc)
 		goto fail;
 
-	zcore_header_init(arch, &zcore_header);
+	rc = zcore_header_init(arch, &zcore_header);
+	if (rc)
+		goto fail;
 
 	zcore_dir = debugfs_create_dir("zcore" , NULL);
 	if (!zcore_dir) {
@@ -618,13 +696,22 @@ static int __init zcore_init(void)
 	zcore_file = debugfs_create_file("mem", S_IRUSR, zcore_dir, NULL,
 					 &zcore_fops);
 	if (!zcore_file) {
-		debugfs_remove(zcore_dir);
 		rc = -ENOMEM;
-		goto fail;
+		goto fail_dir;
+	}
+	zcore_memmap_file = debugfs_create_file("memmap", S_IRUSR, zcore_dir,
+						NULL, &zcore_memmap_fops);
+	if (!zcore_memmap_file) {
+		rc = -ENOMEM;
+		goto fail_file;
 	}
 	hsa_available = 1;
 	return 0;
 
+fail_file:
+	debugfs_remove(zcore_file);
+fail_dir:
+	debugfs_remove(zcore_dir);
 fail:
 	diag308(DIAG308_REL_HSA, NULL);
 	return rc;

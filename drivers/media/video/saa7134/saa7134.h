@@ -264,7 +264,10 @@ struct saa7134_format {
 #define SAA7134_BOARD_AVERMEDIA_A700_PRO    140
 #define SAA7134_BOARD_AVERMEDIA_A700_HYBRID 141
 #define SAA7134_BOARD_BEHOLD_H6      142
-
+#define SAA7134_BOARD_BEHOLD_M63      143
+#define SAA7134_BOARD_BEHOLD_M6_EXTRA    144
+#define SAA7134_BOARD_AVERMEDIA_M103    145
+#define SAA7134_BOARD_ASUSTeK_P7131_ANALOG 146
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -552,6 +555,7 @@ struct saa7134_dev {
 	struct saa7134_ts          ts;
 	struct saa7134_dmaqueue    ts_q;
 	struct saa7134_mpeg_ops    *mops;
+	struct i2c_client 	   *mpeg_i2c_client;
 
 	/* SAA7134_MPEG_EMPRESS only */
 	struct video_device        *empress_dev;

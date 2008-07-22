@@ -46,10 +46,10 @@ static inline void init_apic_ldr(void)
 {
 	unsigned long val;
 
-	apic_write_around(APIC_DFR, APIC_DFR_VALUE);
+	apic_write(APIC_DFR, APIC_DFR_VALUE);
 	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
 	val |= SET_APIC_LOGICAL_ID(1UL << smp_processor_id());
-	apic_write_around(APIC_LDR, val);
+	apic_write(APIC_LDR, val);
 }
 
 static inline int apic_id_registered(void)

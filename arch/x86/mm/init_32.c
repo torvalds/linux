@@ -844,6 +844,9 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		reserve_early(table_start << PAGE_SHIFT,
 				 table_end << PAGE_SHIFT, "PGTABLE");
 
+	if (!after_init_bootmem)
+		early_memtest(start, end);
+
 	return end >> PAGE_SHIFT;
 }
 
@@ -868,8 +871,6 @@ void __init paging_init(void)
 	 */
 	sparse_init();
 	zone_sizes_init();
-
-	paravirt_post_allocator_init();
 }
 
 /*

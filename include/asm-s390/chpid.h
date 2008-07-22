@@ -20,6 +20,9 @@ struct chp_id {
 	u8 id;
 } __attribute__((packed));
 
+#ifdef __KERNEL__
+#include <asm/cio.h>
+
 static inline void chp_id_init(struct chp_id *chpid)
 {
 	memset(chpid, 0, sizeof(struct chp_id));
@@ -39,9 +42,6 @@ static inline void chp_id_next(struct chp_id *chpid)
 		chpid->cssid++;
 	}
 }
-
-#ifdef __KERNEL__
-#include <asm/cio.h>
 
 static inline int chp_id_is_valid(struct chp_id *chpid)
 {

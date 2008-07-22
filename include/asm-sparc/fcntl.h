@@ -10,7 +10,11 @@
 #define O_EXCL		0x0800	/* not fcntl */
 #define O_SYNC		0x2000
 #define O_NONBLOCK	0x4000
+#if defined(__sparc__) && defined(__arch64__)
+#define O_NDELAY	0x0004
+#else
 #define O_NDELAY	(0x0004 | O_NONBLOCK)
+#endif
 #define O_NOCTTY	0x8000	/* not fcntl */
 #define O_LARGEFILE	0x40000
 #define O_DIRECT        0x100000 /* direct disk access hint */

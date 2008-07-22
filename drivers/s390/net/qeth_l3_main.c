@@ -2013,7 +2013,7 @@ static int qeth_l3_verify_vlan_dev(struct net_device *dev,
 		}
 	}
 
-	if (rc && !(netdev_priv(vlan_dev_info(dev)->real_dev) == (void *)card))
+	if (rc && !(netdev_priv(vlan_dev_real_dev(dev)) == (void *)card))
 		return 0;
 
 	return rc;
@@ -2049,7 +2049,7 @@ static struct qeth_card *qeth_l3_get_card_from_dev(struct net_device *dev)
 	if (rc == QETH_REAL_CARD)
 		card = netdev_priv(dev);
 	else if (rc == QETH_VLAN_CARD)
-		card = netdev_priv(vlan_dev_info(dev)->real_dev);
+		card = netdev_priv(vlan_dev_real_dev(dev));
 	if (card && card->options.layer2)
 		card = NULL;
 	QETH_DBF_TEXT_(TRACE, 4, "%d", rc);
@@ -2939,8 +2939,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 }
 
 static void qeth_l3_qdio_input_handler(struct ccw_device *ccwdev,
-		unsigned int status, unsigned int qdio_err,
-		unsigned int siga_err, unsigned int queue, int first_element,
+		unsigned int qdio_err, unsigned int queue, int first_element,
 		int count, unsigned long card_ptr)
 {
 	struct net_device *net_dev;
@@ -2955,23 +2954,21 @@ static void qeth_l3_qdio_input_handler(struct ccw_device *ccwdev,
 		card->perf_stats.inbound_cnt++;
 		card->perf_stats.inbound_start_time = qeth_get_micros();
 	}
-	if (status & QDIO_STATUS_LOOK_FOR_ERROR) {
-		if (status & QDIO_STATUS_ACTIVATE_CHECK_CONDITION) {
-			QETH_DBF_TEXT(TRACE, 1, "qdinchk");
-			QETH_DBF_TEXT_(TRACE, 1, "%s", CARD_BUS_ID(card));
-			QETH_DBF_TEXT_(TRACE, 1, "%04X%04X",
-					first_element, count);
-			QETH_DBF_TEXT_(TRACE, 1, "%04X%04X", queue, status);
-			qeth_schedule_recovery(card);
-			return;
-		}
+	if (qdio_err & QDIO_ERROR_ACTIVATE_CHECK_CONDITION) {
+		QETH_DBF_TEXT(TRACE, 1, "qdinchk");
+		QETH_DBF_TEXT_(TRACE, 1, "%s", CARD_BUS_ID(card));
+		QETH_DBF_TEXT_(TRACE, 1, "%04X%04X",
+				first_element, count);
+		QETH_DBF_TEXT_(TRACE, 1, "%04X", queue);
+		qeth_schedule_recovery(card);
+		return;
 	}
 	for (i = first_element; i < (first_element + count); ++i) {
 		index = i % QDIO_MAX_BUFFERS_PER_Q;
 		buffer = &card->qdio.in_q->bufs[index];
-		if (!((status & QDIO_STATUS_LOOK_FOR_ERROR) &&
+		if (!(qdio_err &&
 		      qeth_check_qdio_errors(buffer->buffer,
-					     qdio_err, siga_err, "qinerr")))
+					     qdio_err, "qinerr")))
 			qeth_l3_process_inbound_buffer(card, buffer, index);
 		/* clear buffer and give back to hardware */
 		qeth_put_buffer_pool_entry(card, buffer->pool_entry);

@@ -242,12 +242,12 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 	}
 
 	/* Sanity check, make sure the old bug is no longer happening */
-	if (uap->port.info == NULL || uap->port.info->tty == NULL) {
+	if (uap->port.info == NULL || uap->port.info->port.tty == NULL) {
 		WARN_ON(1);
 		(void)read_zsdata(uap);
 		return NULL;
 	}
-	tty = uap->port.info->tty;
+	tty = uap->port.info->port.tty;
 
 	while (1) {
 		error = 0;

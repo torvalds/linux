@@ -1,8 +1,6 @@
 /*
  * ip_vs_proto_ah.c:	AH IPSec load balancing support for IPVS
  *
- * Version:     $Id: ip_vs_proto_ah.c,v 1.1 2003/07/04 15:04:37 wensong Exp $
- *
  * Authors:	Julian Anastasov <ja@ssi.bg>, February 2002
  *		Wensong Zhang <wensong@linuxvirtualserver.org>
  *

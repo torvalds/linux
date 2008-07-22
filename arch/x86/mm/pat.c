@@ -12,6 +12,8 @@
 #include <linux/gfp.h>
 #include <linux/fs.h>
 #include <linux/bootmem.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 #include <asm/msr.h>
 #include <asm/tlbflush.h>
@@ -373,8 +375,8 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 	return vma_prot;
 }
 
-#ifdef CONFIG_NONPROMISC_DEVMEM
-/* This check is done in drivers/char/mem.c in case of NONPROMISC_DEVMEM*/
+#ifdef CONFIG_STRICT_DEVMEM
+/* This check is done in drivers/char/mem.c in case of STRICT_DEVMEM*/
 static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 {
 	return 1;
@@ -398,7 +400,7 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 	}
 	return 1;
 }
-#endif /* CONFIG_NONPROMISC_DEVMEM */
+#endif /* CONFIG_STRICT_DEVMEM */
 
 int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t *vma_prot)
@@ -489,3 +491,89 @@ void unmap_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 
 	free_memtype(addr, addr + size);
 }
+
+#if defined(CONFIG_DEBUG_FS)
+
+/* get Nth element of the linked list */
+static struct memtype *memtype_get_idx(loff_t pos)
+{
+	struct memtype *list_node, *print_entry;
+	int i = 1;
+
+	print_entry  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
+	if (!print_entry)
+		return NULL;
+
+	spin_lock(&memtype_lock);
+	list_for_each_entry(list_node, &memtype_list, nd) {
+		if (pos == i) {
+			*print_entry = *list_node;
+			spin_unlock(&memtype_lock);
+			return print_entry;
+		}
+		++i;
+	}
+	spin_unlock(&memtype_lock);
+	kfree(print_entry);
+	return NULL;
+}
+
+static void *memtype_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	if (*pos == 0) {
+		++*pos;
+		seq_printf(seq, "PAT memtype list:\n");
+	}
+
+	return memtype_get_idx(*pos);
+}
+
+static void *memtype_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	++*pos;
+	return memtype_get_idx(*pos);
+}
+
+static void memtype_seq_stop(struct seq_file *seq, void *v)
+{
+}
+
+static int memtype_seq_show(struct seq_file *seq, void *v)
+{
+	struct memtype *print_entry = (struct memtype *)v;
+
+	seq_printf(seq, "%s @ 0x%Lx-0x%Lx\n", cattr_name(print_entry->type),
+			print_entry->start, print_entry->end);
+	kfree(print_entry);
+	return 0;
+}
+
+static struct seq_operations memtype_seq_ops = {
+	.start = memtype_seq_start,
+	.next  = memtype_seq_next,
+	.stop  = memtype_seq_stop,
+	.show  = memtype_seq_show,
+};
+
+static int memtype_seq_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &memtype_seq_ops);
+}
+
+static const struct file_operations memtype_fops = {
+	.open    = memtype_seq_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release,
+};
+
+static int __init pat_memtype_list_init(void)
+{
+	debugfs_create_file("pat_memtype_list", S_IRUSR, arch_debugfs_dir,
+				NULL, &memtype_fops);
+	return 0;
+}
+
+late_initcall(pat_memtype_list_init);
+
+#endif /* CONFIG_DEBUG_FS */

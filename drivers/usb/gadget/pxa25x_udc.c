@@ -1818,7 +1818,7 @@ pxa25x_udc_irq(int irq, void *_dev)
 
 static void nop_release (struct device *dev)
 {
-	DMSG("%s %s\n", __func__, dev->bus_id);
+	DMSG("%s %s\n", __func__, dev_name(dev));
 }
 
 /* this uses load-time allocation and initialization (instead of

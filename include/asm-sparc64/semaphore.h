@@ -1,1 +1,1 @@
-#include <linux/semaphore.h>
+#include <asm-sparc/semaphore.h>

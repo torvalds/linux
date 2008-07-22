@@ -237,7 +237,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 
 EXPORT_SYMBOL_GPL(dccp_init_sock);
 
-int dccp_destroy_sock(struct sock *sk)
+void dccp_destroy_sock(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_minisock *dmsk = dccp_msk(sk);
@@ -268,8 +268,6 @@ int dccp_destroy_sock(struct sock *sk)
 
 	/* clean up feature negotiation state */
 	dccp_feat_clean(dmsk);
-
-	return 0;
 }
 
 EXPORT_SYMBOL_GPL(dccp_destroy_sock);

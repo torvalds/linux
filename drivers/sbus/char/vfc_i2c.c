@@ -114,7 +114,7 @@ int vfc_i2c_reset_bus(struct vfc_dev *dev)
 	return 0;
 }
 
-int vfc_i2c_wait_for_bus(struct vfc_dev *dev) 
+static int vfc_i2c_wait_for_bus(struct vfc_dev *dev)
 {
 	int timeout = 1000; 
 
@@ -126,7 +126,7 @@ int vfc_i2c_wait_for_bus(struct vfc_dev *dev)
 	return 0;
 }
 
-int vfc_i2c_wait_for_pin(struct vfc_dev *dev, int ack)
+static int vfc_i2c_wait_for_pin(struct vfc_dev *dev, int ack)
 {
 	int timeout = 1000; 
 	int s1;
@@ -144,7 +144,8 @@ int vfc_i2c_wait_for_pin(struct vfc_dev *dev, int ack)
 }
 
 #define SHIFT(a) ((a) << 24)
-int vfc_i2c_xmit_addr(struct vfc_dev *dev, unsigned char addr, char mode) 
+static int vfc_i2c_xmit_addr(struct vfc_dev *dev, unsigned char addr,
+			     char mode)
 { 
 	int ret, raddr;
 #if 1
@@ -195,7 +196,7 @@ int vfc_i2c_xmit_addr(struct vfc_dev *dev, unsigned char addr, char mode)
 	return 0;
 }
 
-int vfc_i2c_xmit_byte(struct vfc_dev *dev,unsigned char *byte) 
+static int vfc_i2c_xmit_byte(struct vfc_dev *dev,unsigned char *byte)
 {
 	int ret;
 	u32 val = SHIFT((unsigned int)*byte);
@@ -218,7 +219,8 @@ int vfc_i2c_xmit_byte(struct vfc_dev *dev,unsigned char *byte)
 	return ret;
 }
 
-int vfc_i2c_recv_byte(struct vfc_dev *dev, unsigned char *byte, int last) 
+static int vfc_i2c_recv_byte(struct vfc_dev *dev, unsigned char *byte,
+			     int last)
 {
 	int ret;
 

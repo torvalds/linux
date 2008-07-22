@@ -1165,7 +1165,7 @@ NETIF_RX_MUX(struct bdx_priv *priv, u32 rxd_val1, u16 rxd_vlan,
 					  GET_RXD_VLAN_ID(rxd_vlan))->name);
 		/* NAPI variant of receive functions */
 		vlan_hwaccel_receive_skb(skb, priv->vlgrp,
-					 GET_RXD_VLAN_ID(rxd_vlan));
+					 GET_RXD_VLAN_TCI(rxd_vlan));
 	} else {
 		netif_receive_skb(skb);
 	}

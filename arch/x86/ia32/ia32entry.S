@@ -37,6 +37,11 @@
 	movq	%rax,R8(%rsp)
 	.endm
 
+	/*
+	 * Reload arg registers from stack in case ptrace changed them.
+	 * We don't reload %eax because syscall_trace_enter() returned
+	 * the value it wants us to use in the table lookup.
+	 */
 	.macro LOAD_ARGS32 offset
 	movl \offset(%rsp),%r11d
 	movl \offset+8(%rsp),%r10d
@@ -46,7 +51,6 @@
 	movl \offset+48(%rsp),%edx
 	movl \offset+56(%rsp),%esi
 	movl \offset+64(%rsp),%edi
-	movl \offset+72(%rsp),%eax
 	.endm
 	
 	.macro CFI_STARTPROC32 simple
@@ -137,13 +141,12 @@ ENTRY(ia32_sysenter_target)
  	.previous	
 	GET_THREAD_INFO(%r10)
 	orl    $TS_COMPAT,TI_status(%r10)
-	testl  $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP), \
-		 TI_flags(%r10)
+	testl  $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%r10)
 	CFI_REMEMBER_STATE
 	jnz  sysenter_tracesys
-sysenter_do_call:	
 	cmpl	$(IA32_NR_syscalls-1),%eax
 	ja	ia32_badsys
+sysenter_do_call:
 	IA32_ARG_FIXUP 1
 	call	*ia32_sys_call_table(,%rax,8)
 	movq	%rax,RAX-ARGOFFSET(%rsp)
@@ -242,8 +245,7 @@ ENTRY(ia32_cstar_target)
 	.previous	
 	GET_THREAD_INFO(%r10)
 	orl   $TS_COMPAT,TI_status(%r10)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP), \
-		TI_flags(%r10)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%r10)
 	CFI_REMEMBER_STATE
 	jnz   cstar_tracesys
 cstar_do_call:	
@@ -321,6 +323,7 @@ ENTRY(ia32_syscall)
 	/*CFI_REL_OFFSET	rflags,EFLAGS-RIP*/
 	/*CFI_REL_OFFSET	cs,CS-RIP*/
 	CFI_REL_OFFSET	rip,RIP-RIP
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	SWAPGS
 	/*
 	 * No need to follow this irqs on/off section: the syscall
@@ -336,8 +339,7 @@ ENTRY(ia32_syscall)
 	SAVE_ARGS 0,0,1
 	GET_THREAD_INFO(%r10)
 	orl   $TS_COMPAT,TI_status(%r10)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP), \
-		TI_flags(%r10)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%r10)
 	jnz ia32_tracesys
 ia32_do_syscall:	
 	cmpl $(IA32_NR_syscalls-1),%eax

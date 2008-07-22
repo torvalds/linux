@@ -129,6 +129,7 @@ void __init hpet_time_init(void)
  */
 void __init time_init(void)
 {
+	pre_time_init_hook();
 	tsc_init();
 	late_time_init = choose_time_init();
 }

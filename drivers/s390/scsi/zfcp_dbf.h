@@ -139,9 +139,7 @@ struct zfcp_hba_dbf_record_status {
 } __attribute__ ((packed));
 
 struct zfcp_hba_dbf_record_qdio {
-	u32 status;
 	u32 qdio_error;
-	u32 siga_error;
 	u8 sbal_index;
 	u8 sbal_count;
 } __attribute__ ((packed));

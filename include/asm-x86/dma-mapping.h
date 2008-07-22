@@ -14,7 +14,6 @@ extern dma_addr_t bad_dma_address;
 extern int iommu_merge;
 extern struct device fallback_dev;
 extern int panic_on_overflow;
-extern int forbid_dac;
 extern int force_iommu;
 
 struct dma_mapping_ops {
