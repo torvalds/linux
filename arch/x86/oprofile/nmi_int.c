@@ -468,6 +468,14 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		return -ENODEV;
 	}
 
+	/* default values, can be overwritten by model */
+	ops->create_files = nmi_create_files;
+	ops->setup = nmi_setup;
+	ops->shutdown = nmi_shutdown;
+	ops->start = nmi_start;
+	ops->stop = nmi_stop;
+	ops->cpu_type = cpu_type;
+
 	if (model->init)
 		ret = model->init(ops);
 	if (ret)
@@ -475,12 +483,6 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 
 	init_sysfs();
 	using_nmi = 1;
-	ops->create_files = nmi_create_files;
-	ops->setup = nmi_setup;
-	ops->shutdown = nmi_shutdown;
-	ops->start = nmi_start;
-	ops->stop = nmi_stop;
-	ops->cpu_type = cpu_type;
 	printk(KERN_INFO "oprofile: using NMI interrupt.\n");
 	return 0;
 }

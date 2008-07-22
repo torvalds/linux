@@ -446,13 +446,25 @@ static void clear_ibs_nmi(void)
 		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
 }
 
+static int (*create_arch_files)(struct super_block * sb, struct dentry * root);
+
 static int setup_ibs_files(struct super_block * sb, struct dentry * root)
 {
 	char buf[12];
 	struct dentry *dir;
+	int ret = 0;
+
+	/* architecture specific files */
+	if (create_arch_files)
+		ret = create_arch_files(sb, root);
+
+	if (ret)
+		return ret;
 
 	if (!ibs_allowed)
-		return 0;
+		return ret;
+
+	/* model specific files */
 
 	/* setup some reasonable defaults */
 	ibs_config.max_cnt_fetch = 250000;
@@ -482,11 +494,15 @@ static int setup_ibs_files(struct super_block * sb, struct dentry * root)
 
 static int op_amd_init(struct oprofile_operations *ops)
 {
+	setup_ibs();
+	create_arch_files = ops->create_files;
+	ops->create_files = setup_ibs_files;
 	return 0;
 }
 
 static void op_amd_exit(void)
 {
+	clear_ibs_nmi();
 }
 
 struct op_x86_model_spec const op_amd_spec = {
