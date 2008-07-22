@@ -521,9 +521,10 @@ static void ibmvfc_set_host_action(struct ibmvfc_host *vhost,
 static void ibmvfc_reinit_host(struct ibmvfc_host *vhost)
 {
 	if (vhost->action == IBMVFC_HOST_ACTION_NONE) {
-		scsi_block_requests(vhost->host);
-		ibmvfc_set_host_state(vhost, IBMVFC_INITIALIZING);
-		ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_QUERY);
+		if (!ibmvfc_set_host_state(vhost, IBMVFC_INITIALIZING)) {
+			scsi_block_requests(vhost->host);
+			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_QUERY);
+		}
 	} else
 		vhost->reinit = 1;
 
@@ -3811,10 +3812,12 @@ static int ibmvfc_remove(struct vio_dev *vdev)
 
 	ENTER;
 	ibmvfc_remove_trace_file(&vhost->host->shost_dev.kobj, &ibmvfc_trace_attr);
+	ibmvfc_link_down(vhost, IBMVFC_HOST_OFFLINE);
+	ibmvfc_wait_while_resetting(vhost);
+	ibmvfc_release_crq_queue(vhost);
 	kthread_stop(vhost->work_thread);
 	fc_remove_host(vhost->host);
 	scsi_remove_host(vhost->host);
-	ibmvfc_release_crq_queue(vhost);
 
 	spin_lock_irqsave(vhost->host->host_lock, flags);
 	ibmvfc_purge_requests(vhost, DID_ERROR);
