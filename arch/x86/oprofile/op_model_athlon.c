@@ -195,27 +195,18 @@ static void op_amd_setup_ctrs(struct op_msrs const * const msrs)
 	}
 }
 
-
-static int op_amd_check_ctrs(struct pt_regs * const regs,
-			     struct op_msrs const * const msrs)
+static inline int
+op_amd_handle_ibs(struct pt_regs * const regs,
+		  struct op_msrs const * const msrs)
 {
 	unsigned int low, high;
-	int i;
 	struct ibs_fetch_sample ibs_fetch;
 	struct ibs_op_sample ibs_op;
 
-	for (i = 0 ; i < NUM_COUNTERS; ++i) {
-		if (!reset_value[i])
-			continue;
-		CTR_READ(low, high, msrs, i);
-		if (CTR_OVERFLOWED(low)) {
-			oprofile_add_sample(regs, i);
-			CTR_WRITE(reset_value[i], msrs, i);
-		}
-	}
+	if (!ibs_allowed)
+		return 1;
 
-	/*If AMD and IBS is available */
-	if (ibs_allowed && ibs_config.fetch_enabled) {
+	if (ibs_config.fetch_enabled) {
 		rdmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 		if (high & IBS_FETCH_VALID_BIT) {
 			ibs_fetch.ibs_fetch_ctl_high = high;
@@ -240,7 +231,7 @@ static int op_amd_check_ctrs(struct pt_regs * const regs,
 		}
 	}
 
-	if (ibs_allowed && ibs_config.op_enabled) {
+	if (ibs_config.op_enabled) {
 		rdmsr(MSR_AMD64_IBSOPCTL, low, high);
 		if (low & IBS_OP_VALID_BIT) {
 			rdmsr(MSR_AMD64_IBSOPRIP, low, high);
@@ -273,10 +264,30 @@ static int op_amd_check_ctrs(struct pt_regs * const regs,
 		}
 	}
 
-	/* See op_model_ppro.c */
 	return 1;
 }
 
+static int op_amd_check_ctrs(struct pt_regs * const regs,
+			     struct op_msrs const * const msrs)
+{
+	unsigned int low, high;
+	int i;
+
+	for (i = 0 ; i < NUM_COUNTERS; ++i) {
+		if (!reset_value[i])
+			continue;
+		CTR_READ(low, high, msrs, i);
+		if (CTR_OVERFLOWED(low)) {
+			oprofile_add_sample(regs, i);
+			CTR_WRITE(reset_value[i], msrs, i);
+		}
+	}
+
+	op_amd_handle_ibs(regs, msrs);
+
+	/* See op_model_ppro.c */
+	return 1;
+}
 
 static void op_amd_start(struct op_msrs const * const msrs)
 {
