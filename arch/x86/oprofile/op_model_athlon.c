@@ -1,14 +1,15 @@
 /*
- * @file op_model_athlon.h
+ * @file op_model_athlon.c
  * athlon / K7 / K8 / Family 10h model-specific MSR operations
  *
- * @remark Copyright 2002 OProfile authors
+ * @remark Copyright 2002-2008 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon
  * @author Philippe Elie
  * @author Graydon Hoare
- */
+ * @author Robert Richter <robert.richter@amd.com>
+*/
 
 #include <linux/oprofile.h>
 #include <asm/ptrace.h>
@@ -178,7 +179,18 @@ static void athlon_shutdown(struct op_msrs const * const msrs)
 	}
 }
 
+static int op_amd_init(struct oprofile_operations *ops)
+{
+	return 0;
+}
+
+static void op_amd_exit(void)
+{
+}
+
 struct op_x86_model_spec const op_athlon_spec = {
+	.init = op_amd_init,
+	.exit = op_amd_exit,
 	.num_counters = NUM_COUNTERS,
 	.num_controls = NUM_CONTROLS,
 	.fill_in_addresses = &athlon_fill_in_addresses,

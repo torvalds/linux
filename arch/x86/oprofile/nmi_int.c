@@ -1,10 +1,11 @@
 /**
  * @file nmi_int.c
  *
- * @remark Copyright 2002 OProfile authors
+ * @remark Copyright 2002-2008 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon <levon@movementarian.org>
+ * @author Robert Richter <robert.richter@amd.com>
  */
 
 #include <linux/init.h>
@@ -411,6 +412,7 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	__u8 vendor = boot_cpu_data.x86_vendor;
 	__u8 family = boot_cpu_data.x86;
 	char *cpu_type;
+	int ret = 0;
 
 	if (!cpu_has_apic)
 		return -ENODEV;
@@ -466,6 +468,11 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		return -ENODEV;
 	}
 
+	if (model->init)
+		ret = model->init(ops);
+	if (ret)
+		return ret;
+
 	init_sysfs();
 	using_nmi = 1;
 	ops->create_files = nmi_create_files;
@@ -482,4 +489,6 @@ void op_nmi_exit(void)
 {
 	if (using_nmi)
 		exit_sysfs();
+	if (model->exit)
+		model->exit();
 }
