@@ -13,10 +13,10 @@
 #include <linux/compiler.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
+#include <linux/pci.h>
 
 #include <asm/processor.h>
 #include <asm/smp.h>
-#include <asm/k8.h>
 
 #define LVL_1_INST	1
 #define LVL_1_DATA	2
@@ -133,6 +133,12 @@ struct _cpuid4_info {
 	unsigned long size;
 	unsigned long can_disable;
 	cpumask_t shared_cpu_map;	/* future?: only cpus/node is needed */
+};
+
+static struct pci_device_id k8_nb_id[] = {
+        { PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1103) },
+        { PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1203) },
+        {}
 };
 
 unsigned short			num_cache_leaves;
@@ -655,15 +661,38 @@ static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf) {
 #define to_object(k)	container_of(k, struct _index_kobject, kobj)
 #define to_attr(a)	container_of(a, struct _cache_attr, attr)
 
+static struct pci_dev *get_k8_northbridge(int node)
+{
+	struct pci_dev *dev = NULL;
+	int i;
+
+	for (i = 0; i <= node; i++) {
+		do {
+			dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
+			if (!dev)
+				break;
+		} while (!pci_match_id(&k8_nb_id[0], dev));
+		if (!dev)
+			break;
+	}
+	return dev;	
+}
+
 static ssize_t show_cache_disable(struct _cpuid4_info *this_leaf, char *buf)
 {
 	int node = cpu_to_node(first_cpu(this_leaf->shared_cpu_map));
-	struct pci_dev *dev = k8_northbridges[node];
+	struct pci_dev *dev = NULL;
 	ssize_t ret = 0;
 	int i;
 
 	if (!this_leaf->can_disable)
 		return sprintf(buf, "Feature not enabled\n");
+
+	dev = get_k8_northbridge(node);
+	if (!dev) {
+		printk(KERN_ERR "Attempting AMD northbridge operation on a system with no northbridge\n");
+		return -EINVAL;
+	}
 
 	for (i = 0; i < 2; i++) {
 		unsigned int reg;
@@ -686,13 +715,11 @@ store_cache_disable(struct _cpuid4_info *this_leaf, const char *buf,
 		    size_t count)
 {
 	int node = cpu_to_node(first_cpu(this_leaf->shared_cpu_map));
-	struct pci_dev *dev = k8_northbridges[node];
+	struct pci_dev *dev = NULL;
 	unsigned int ret, index, val;
 
 	if (!this_leaf->can_disable)
 		return 0;
-
-	/* write the MSR value */
 
 	if (strlen(buf) > 15)
 		return -EINVAL;
@@ -704,6 +731,12 @@ store_cache_disable(struct _cpuid4_info *this_leaf, const char *buf,
 		return -EINVAL;
 
 	val |= 0xc0000000;
+	dev = get_k8_northbridge(node);
+	if (!dev) {
+		printk(KERN_ERR "Attempting AMD northbridge operation on a system with no northbridge\n");
+		return -EINVAL;
+	}
+	
 	pci_write_config_dword(dev, 0x1BC + index * 4, val & ~0x40000000);
 	wbinvd();
 	pci_write_config_dword(dev, 0x1BC + index * 4, val);
