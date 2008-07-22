@@ -646,7 +646,6 @@ static int whiteheat_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp)
 {
 	int		retval = 0;
-	struct ktermios	old_term;
 
 	dbg("%s - port %d", __func__, port->number);
 
