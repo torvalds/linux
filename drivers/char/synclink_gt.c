@@ -214,6 +214,7 @@ struct slgt_desc
 	char *buf;          /* virtual  address of data buffer */
     	unsigned int pdesc; /* physical address of this descriptor */
 	dma_addr_t buf_dma_addr;
+	unsigned short buf_count;
 };
 
 #define set_desc_buffer(a,b) (a).pbuf = cpu_to_le32((unsigned int)(b))
@@ -466,6 +467,7 @@ static void tx_start(struct slgt_info *info);
 static void tx_stop(struct slgt_info *info);
 static void tx_set_idle(struct slgt_info *info);
 static unsigned int free_tbuf_count(struct slgt_info *info);
+static unsigned int tbuf_bytes(struct slgt_info *info);
 static void reset_tbufs(struct slgt_info *info);
 static void tdma_reset(struct slgt_info *info);
 static void tdma_start(struct slgt_info *info);
@@ -1388,10 +1390,12 @@ done:
 static int chars_in_buffer(struct tty_struct *tty)
 {
 	struct slgt_info *info = tty->driver_data;
+	int count;
 	if (sanity_check(info, tty->name, "chars_in_buffer"))
 		return 0;
-	DBGINFO(("%s chars_in_buffer()=%d\n", info->device_name, info->tx_count));
-	return info->tx_count;
+	count = tbuf_bytes(info);
+	DBGINFO(("%s chars_in_buffer()=%d\n", info->device_name, count));
+	return count;
 }
 
 /*
@@ -4671,6 +4675,56 @@ static unsigned int free_tbuf_count(struct slgt_info *info)
 }
 
 /*
+ * return number of bytes in unsent transmit DMA buffers
+ * and the serial controller tx FIFO
+ */
+static unsigned int tbuf_bytes(struct slgt_info *info)
+{
+	unsigned int total_count = 0;
+	unsigned int i = info->tbuf_current;
+	unsigned int reg_value;
+	unsigned int count;
+	unsigned int active_buf_count = 0;
+
+	/*
+	 * Add descriptor counts for all tx DMA buffers.
+	 * If count is zero (cleared by DMA controller after read),
+	 * the buffer is complete or is actively being read from.
+	 *
+	 * Record buf_count of last buffer with zero count starting
+	 * from current ring position. buf_count is mirror
+	 * copy of count and is not cleared by serial controller.
+	 * If DMA controller is active, that buffer is actively
+	 * being read so add to total.
+	 */
+	do {
+		count = desc_count(info->tbufs[i]);
+		if (count)
+			total_count += count;
+		else if (!total_count)
+			active_buf_count = info->tbufs[i].buf_count;
+		if (++i == info->tbuf_count)
+			i = 0;
+	} while (i != info->tbuf_current);
+
+	/* read tx DMA status register */
+	reg_value = rd_reg32(info, TDCSR);
+
+	/* if tx DMA active, last zero count buffer is in use */
+	if (reg_value & BIT0)
+		total_count += active_buf_count;
+
+	/* add tx FIFO count = reg_value[15..8] */
+	total_count += (reg_value >> 8) & 0xff;
+
+	/* if transmitter active add one byte for shift register */
+	if (info->tx_active)
+		total_count++;
+
+	return total_count;
+}
+
+/*
  * load transmit DMA buffer(s) with data
  */
 static void tx_load(struct slgt_info *info, const char *buf, unsigned int size)
@@ -4708,6 +4762,7 @@ static void tx_load(struct slgt_info *info, const char *buf, unsigned int size)
 			set_desc_eof(*d, 0);
 
 		set_desc_count(*d, count);
+		d->buf_count = count;
 	}
 
 	info->tbuf_current = i;
