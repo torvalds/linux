@@ -4134,7 +4134,7 @@ static void sync_mode(struct slgt_info *info)
 	 * 01      enable
 	 * 00      auto-CTS enable
 	 */
-	val = 0;
+	val = BIT2;
 
 	switch(info->params.mode) {
 	case MGSL_MODE_MONOSYNC: val |= BIT14 + BIT13; break;
