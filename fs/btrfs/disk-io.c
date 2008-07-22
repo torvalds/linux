@@ -381,7 +381,6 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 
 	end = min_t(u64, eb->len, PAGE_CACHE_SIZE);
 	end = eb->start + end - 1;
-	release_extent_buffer_tail_pages(eb);
 err:
 	free_extent_buffer(eb);
 out:
@@ -563,21 +562,21 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	struct extent_map_tree *map;
 	int ret;
 
-	if (page_count(page) > 3) {
-		/* once for page->private, once for the caller, once
-		 * once for the page cache
-		 */
-		return 0;
-	}
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
+
 	ret = try_release_extent_state(map, tree, page, gfp_flags);
+	if (!ret) {
+		return 0;
+	}
+
+	ret = try_release_extent_buffer(tree, page);
 	if (ret == 1) {
-		invalidate_extent_lru(tree, page_offset(page), PAGE_CACHE_SIZE);
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
 		page_cache_release(page);
 	}
+
 	return ret;
 }
 
@@ -588,7 +587,8 @@ static void btree_invalidatepage(struct page *page, unsigned long offset)
 	extent_invalidatepage(tree, page, offset);
 	btree_releasepage(page, GFP_NOFS);
 	if (PagePrivate(page)) {
-		invalidate_extent_lru(tree, page_offset(page), PAGE_CACHE_SIZE);
+		printk("warning page private not zero on page %Lu\n",
+		       page_offset(page));
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
 		page_cache_release(page);
@@ -1456,7 +1456,6 @@ fail_tree_root:
 	free_extent_buffer(tree_root->node);
 fail_sys_array:
 fail_sb_buffer:
-	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 	btrfs_stop_workers(&fs_info->fixup_workers);
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
@@ -1704,13 +1703,6 @@ int close_ctree(struct btrfs_root *root)
 	del_fs_roots(fs_info);
 
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
-
-	extent_io_tree_empty_lru(&fs_info->free_space_cache);
-	extent_io_tree_empty_lru(&fs_info->block_group_cache);
-	extent_io_tree_empty_lru(&fs_info->pinned_extents);
-	extent_io_tree_empty_lru(&fs_info->pending_del);
-	extent_io_tree_empty_lru(&fs_info->extent_ins);
-	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
 

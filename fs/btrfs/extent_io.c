@@ -91,28 +91,15 @@ void extent_io_tree_init(struct extent_io_tree *tree,
 			  struct address_space *mapping, gfp_t mask)
 {
 	tree->state.rb_node = NULL;
+	tree->buffer.rb_node = NULL;
 	tree->ops = NULL;
 	tree->dirty_bytes = 0;
 	spin_lock_init(&tree->lock);
-	spin_lock_init(&tree->lru_lock);
+	spin_lock_init(&tree->buffer_lock);
 	tree->mapping = mapping;
-	INIT_LIST_HEAD(&tree->buffer_lru);
-	tree->lru_size = 0;
 	tree->last = NULL;
 }
 EXPORT_SYMBOL(extent_io_tree_init);
-
-void extent_io_tree_empty_lru(struct extent_io_tree *tree)
-{
-	struct extent_buffer *eb;
-	while(!list_empty(&tree->buffer_lru)) {
-		eb = list_entry(tree->buffer_lru.next, struct extent_buffer,
-				lru);
-		list_del_init(&eb->lru);
-		free_extent_buffer(eb);
-	}
-}
-EXPORT_SYMBOL(extent_io_tree_empty_lru);
 
 struct extent_state *alloc_extent_state(gfp_t mask)
 {
@@ -243,6 +230,50 @@ static inline struct rb_node *tree_search(struct extent_io_tree *tree,
 		return prev;
 	}
 	return ret;
+}
+
+static struct extent_buffer *buffer_tree_insert(struct extent_io_tree *tree,
+					  u64 offset, struct rb_node *node)
+{
+	struct rb_root *root = &tree->buffer;
+	struct rb_node ** p = &root->rb_node;
+	struct rb_node * parent = NULL;
+	struct extent_buffer *eb;
+
+	while(*p) {
+		parent = *p;
+		eb = rb_entry(parent, struct extent_buffer, rb_node);
+
+		if (offset < eb->start)
+			p = &(*p)->rb_left;
+		else if (offset > eb->start)
+			p = &(*p)->rb_right;
+		else
+			return eb;
+	}
+
+	rb_link_node(node, parent, p);
+	rb_insert_color(node, root);
+	return NULL;
+}
+
+static struct extent_buffer *buffer_search(struct extent_io_tree *tree,
+					   u64 offset)
+{
+	struct rb_root *root = &tree->buffer;
+	struct rb_node * n = root->rb_node;
+	struct extent_buffer *eb;
+
+	while(n) {
+		eb = rb_entry(n, struct extent_buffer, rb_node);
+		if (offset < eb->start)
+			n = n->rb_left;
+		else if (offset > eb->start)
+			n = n->rb_right;
+		else
+			return eb;
+	}
+	return NULL;
 }
 
 /*
@@ -1817,9 +1848,8 @@ void set_page_extent_mapped(struct page *page)
 {
 	if (!PagePrivate(page)) {
 		SetPagePrivate(page);
-		WARN_ON(!page->mapping->a_ops->invalidatepage);
-		set_page_private(page, EXTENT_PAGE_PRIVATE);
 		page_cache_get(page);
+		set_page_private(page, EXTENT_PAGE_PRIVATE);
 	}
 }
 
@@ -2627,51 +2657,6 @@ out:
 	return sector;
 }
 
-static int add_lru(struct extent_io_tree *tree, struct extent_buffer *eb)
-{
-	if (list_empty(&eb->lru)) {
-		extent_buffer_get(eb);
-		list_add(&eb->lru, &tree->buffer_lru);
-		tree->lru_size++;
-		if (tree->lru_size >= BUFFER_LRU_MAX) {
-			struct extent_buffer *rm;
-			rm = list_entry(tree->buffer_lru.prev,
-					struct extent_buffer, lru);
-			tree->lru_size--;
-			list_del_init(&rm->lru);
-			free_extent_buffer(rm);
-		}
-	} else
-		list_move(&eb->lru, &tree->buffer_lru);
-	return 0;
-}
-static struct extent_buffer *find_lru(struct extent_io_tree *tree,
-				      u64 start, unsigned long len)
-{
-	struct list_head *lru = &tree->buffer_lru;
-	struct list_head *cur = lru->next;
-	struct extent_buffer *eb;
-
-	if (list_empty(lru))
-		return NULL;
-
-	do {
-		eb = list_entry(cur, struct extent_buffer, lru);
-		if (eb->start == start && eb->len == len) {
-			extent_buffer_get(eb);
-			return eb;
-		}
-		cur = cur->next;
-	} while (cur != lru);
-	return NULL;
-}
-
-static inline unsigned long num_extent_pages(u64 start, u64 len)
-{
-	return ((start + len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT) -
-		(start >> PAGE_CACHE_SHIFT);
-}
-
 static inline struct page *extent_buffer_page(struct extent_buffer *eb,
 					      unsigned long i)
 {
@@ -2688,44 +2673,10 @@ static inline struct page *extent_buffer_page(struct extent_buffer *eb,
 	return p;
 }
 
-int release_extent_buffer_tail_pages(struct extent_buffer *eb)
+static inline unsigned long num_extent_pages(u64 start, u64 len)
 {
-	unsigned long num_pages = num_extent_pages(eb->start, eb->len);
-	struct page *page;
-	unsigned long i;
-
-	if (num_pages == 1)
-		return 0;
-	for (i = 1; i < num_pages; i++) {
-		page = extent_buffer_page(eb, i);
-		page_cache_release(page);
-	}
-	return 0;
-}
-
-
-int invalidate_extent_lru(struct extent_io_tree *tree, u64 start,
-			  unsigned long len)
-{
-	struct list_head *lru = &tree->buffer_lru;
-	struct list_head *cur = lru->next;
-	struct extent_buffer *eb;
-	int found = 0;
-
-	spin_lock(&tree->lru_lock);
-	if (list_empty(lru))
-		goto out;
-
-	do {
-		eb = list_entry(cur, struct extent_buffer, lru);
-		if (eb->start <= start && eb->start + eb->len > start) {
-			eb->flags &= ~EXTENT_UPTODATE;
-		}
-		cur = cur->next;
-	} while (cur != lru);
-out:
-	spin_unlock(&tree->lru_lock);
-	return found;
+	return ((start + len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT) -
+		(start >> PAGE_CACHE_SHIFT);
 }
 
 static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
@@ -2736,15 +2687,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 	struct extent_buffer *eb = NULL;
 	unsigned long flags;
 
-	spin_lock(&tree->lru_lock);
-	eb = find_lru(tree, start, len);
-	spin_unlock(&tree->lru_lock);
-	if (eb) {
-		return eb;
-	}
-
 	eb = kmem_cache_zalloc(extent_buffer_cache, mask);
-	INIT_LIST_HEAD(&eb->lru);
 	eb->start = start;
 	eb->len = len;
 	spin_lock_irqsave(&leak_lock, flags);
@@ -2773,16 +2716,23 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	unsigned long i;
 	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	struct extent_buffer *eb;
+	struct extent_buffer *exists = NULL;
 	struct page *p;
 	struct address_space *mapping = tree->mapping;
 	int uptodate = 1;
 
+	spin_lock(&tree->buffer_lock);
+	eb = buffer_search(tree, start);
+	if (eb) {
+		atomic_inc(&eb->refs);
+		spin_unlock(&tree->buffer_lock);
+		return eb;
+	}
+	spin_unlock(&tree->buffer_lock);
+
 	eb = __alloc_extent_buffer(tree, start, len, mask);
 	if (!eb)
 		return NULL;
-
-	if (eb->flags & EXTENT_BUFFER_FILLED)
-		goto lru_add;
 
 	if (page0) {
 		eb->first_page = page0;
@@ -2800,7 +2750,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		p = find_or_create_page(mapping, index, mask | __GFP_HIGHMEM);
 		if (!p) {
 			WARN_ON(1);
-			goto fail;
+			goto free_eb;
 		}
 		set_page_extent_mapped(p);
 		mark_page_accessed(p);
@@ -2818,25 +2768,28 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		eb->flags |= EXTENT_UPTODATE;
 	eb->flags |= EXTENT_BUFFER_FILLED;
 
-lru_add:
-	spin_lock(&tree->lru_lock);
-	add_lru(tree, eb);
-	spin_unlock(&tree->lru_lock);
+	spin_lock(&tree->buffer_lock);
+	exists = buffer_tree_insert(tree, start, &eb->rb_node);
+	if (exists) {
+		/* add one reference for the caller */
+		atomic_inc(&exists->refs);
+		spin_unlock(&tree->buffer_lock);
+		goto free_eb;
+	}
+	spin_unlock(&tree->buffer_lock);
+
+	/* add one reference for the tree */
+	atomic_inc(&eb->refs);
 	return eb;
 
-fail:
-	spin_lock(&tree->lru_lock);
-	list_del_init(&eb->lru);
-	spin_unlock(&tree->lru_lock);
+free_eb:
 	if (!atomic_dec_and_test(&eb->refs))
-		return NULL;
-	for (index = 1; index < i; index++) {
+		return exists;
+	for (index = 1; index < i; index++)
 		page_cache_release(extent_buffer_page(eb, index));
-	}
-	if (i > 0)
-		page_cache_release(extent_buffer_page(eb, 0));
+	page_cache_release(extent_buffer_page(eb, 0));
 	__free_extent_buffer(eb);
-	return NULL;
+	return exists;
 }
 EXPORT_SYMBOL(alloc_extent_buffer);
 
@@ -2844,89 +2797,27 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 					 u64 start, unsigned long len,
 					  gfp_t mask)
 {
-	unsigned long num_pages = num_extent_pages(start, len);
-	unsigned long i;
-	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	struct extent_buffer *eb;
-	struct page *p;
-	struct address_space *mapping = tree->mapping;
-	int uptodate = 1;
 
-	eb = __alloc_extent_buffer(tree, start, len, mask);
-	if (!eb)
-		return NULL;
+	spin_lock(&tree->buffer_lock);
+	eb = buffer_search(tree, start);
+	if (eb)
+		atomic_inc(&eb->refs);
+	spin_unlock(&tree->buffer_lock);
 
-	if (eb->flags & EXTENT_BUFFER_FILLED)
-		goto lru_add;
-
-	for (i = 0; i < num_pages; i++, index++) {
-		p = find_get_page(mapping, index);
-		if (!p) {
-			goto fail;
-		}
-		if (TestSetPageLocked(p)) {
-			page_cache_release(p);
-			goto fail;
-		}
-
-		set_page_extent_mapped(p);
-		mark_page_accessed(p);
-
-		if (i == 0) {
-			eb->first_page = p;
-			set_page_extent_head(p, len);
-		} else {
-			set_page_private(p, EXTENT_PAGE_PRIVATE);
-		}
-
-		if (!PageUptodate(p))
-			uptodate = 0;
-		unlock_page(p);
-	}
-	if (uptodate)
-		eb->flags |= EXTENT_UPTODATE;
-	eb->flags |= EXTENT_BUFFER_FILLED;
-
-lru_add:
-	spin_lock(&tree->lru_lock);
-	add_lru(tree, eb);
-	spin_unlock(&tree->lru_lock);
 	return eb;
-fail:
-	spin_lock(&tree->lru_lock);
-	list_del_init(&eb->lru);
-	spin_unlock(&tree->lru_lock);
-	if (!atomic_dec_and_test(&eb->refs))
-		return NULL;
-	for (index = 1; index < i; index++) {
-		page_cache_release(extent_buffer_page(eb, index));
-	}
-	if (i > 0)
-		page_cache_release(extent_buffer_page(eb, 0));
-	__free_extent_buffer(eb);
-	return NULL;
 }
 EXPORT_SYMBOL(find_extent_buffer);
 
 void free_extent_buffer(struct extent_buffer *eb)
 {
-	unsigned long i;
-	unsigned long num_pages;
-
 	if (!eb)
 		return;
 
 	if (!atomic_dec_and_test(&eb->refs))
 		return;
 
-	WARN_ON(!list_empty(&eb->lru));
-	num_pages = num_extent_pages(eb->start, eb->len);
-
-	for (i = 1; i < num_pages; i++) {
-		page_cache_release(extent_buffer_page(eb, i));
-	}
-	page_cache_release(extent_buffer_page(eb, 0));
-	__free_extent_buffer(eb);
+	WARN_ON(1);
 }
 EXPORT_SYMBOL(free_extent_buffer);
 
@@ -3583,3 +3474,35 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	}
 }
 EXPORT_SYMBOL(memmove_extent_buffer);
+
+int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
+{
+	u64 start = page_offset(page);
+	struct extent_buffer *eb;
+	int ret = 1;
+	unsigned long i;
+	unsigned long num_pages;
+
+	spin_lock(&tree->buffer_lock);
+	eb = buffer_search(tree, start);
+	if (!eb)
+		goto out;
+
+	if (atomic_read(&eb->refs) > 1) {
+		ret = 0;
+		goto out;
+	}
+	/* at this point we can safely release the extent buffer */
+	num_pages = num_extent_pages(eb->start, eb->len);
+	for (i = 0; i < num_pages; i++) {
+		struct page *page = extent_buffer_page(eb, i);
+		page_cache_release(page);
+	}
+	rb_erase(&eb->rb_node, &tree->buffer);
+	__free_extent_buffer(eb);
+out:
+	spin_unlock(&tree->buffer_lock);
+	return ret;
+}
+EXPORT_SYMBOL(try_release_extent_buffer);
+

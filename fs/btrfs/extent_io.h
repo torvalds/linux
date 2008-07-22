@@ -54,13 +54,12 @@ struct extent_io_ops {
 
 struct extent_io_tree {
 	struct rb_root state;
+	struct rb_root buffer;
 	struct address_space *mapping;
 	u64 dirty_bytes;
 	spinlock_t lock;
+	spinlock_t buffer_lock;
 	struct extent_io_ops *ops;
-	spinlock_t lru_lock;
-	struct list_head buffer_lru;
-	int lru_size;
 	struct extent_state *last;
 };
 
@@ -87,10 +86,10 @@ struct extent_buffer {
 	unsigned long map_start;
 	unsigned long map_len;
 	struct page *first_page;
-	struct list_head lru;
 	atomic_t refs;
 	int flags;
 	struct list_head leak_list;
+	struct rb_node rb_node;
 };
 
 struct extent_map_tree;
@@ -112,10 +111,10 @@ typedef struct extent_map *(get_extent_t)(struct inode *inode,
 
 void extent_io_tree_init(struct extent_io_tree *tree,
 			  struct address_space *mapping, gfp_t mask);
-void extent_io_tree_empty_lru(struct extent_io_tree *tree);
 int try_release_extent_mapping(struct extent_map_tree *map,
 			       struct extent_io_tree *tree, struct page *page,
 			       gfp_t mask);
+int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page);
 int try_release_extent_state(struct extent_map_tree *map,
 			     struct extent_io_tree *tree, struct page *page,
 			     gfp_t mask);
@@ -241,8 +240,6 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long *map_start,
 		      unsigned long *map_len, int km);
 void unmap_extent_buffer(struct extent_buffer *eb, char *token, int km);
-int invalidate_extent_lru(struct extent_io_tree *tree, u64 start,
-			  unsigned long len);
 int release_extent_buffer_tail_pages(struct extent_buffer *eb);
 int extent_range_uptodate(struct extent_io_tree *tree,
 			  u64 start, u64 end);
