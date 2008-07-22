@@ -963,6 +963,9 @@ static void ibmvfc_get_host_port_state(struct Scsi_Host *shost)
 	case IBMVFC_HALTED:
 		fc_host_port_state(shost) = FC_PORTSTATE_BLOCKED;
 		break;
+	case IBMVFC_NO_CRQ:
+		fc_host_port_state(shost) = FC_PORTSTATE_UNKNOWN;
+		break;
 	default:
 		ibmvfc_log(vhost, 3, "Unknown port state: %d\n", vhost->state);
 		fc_host_port_state(shost) = FC_PORTSTATE_UNKNOWN;
@@ -1404,7 +1407,7 @@ static void ibmvfc_log_error(struct ibmvfc_event *evt)
 		err = cmd_status[index].name;
 	}
 
-	if (!logerr && (vhost->log_level <= IBMVFC_DEFAULT_LOG_LEVEL))
+	if (!logerr && (vhost->log_level <= (IBMVFC_DEFAULT_LOG_LEVEL + 1)))
 		return;
 
 	if (rsp->flags & FCP_RSP_LEN_VALID)
@@ -2054,7 +2057,7 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 {
 	const char *desc = ibmvfc_get_ae_desc(crq->event);
 
-	ibmvfc_log(vhost, 2, "%s event received\n", desc);
+	ibmvfc_log(vhost, 3, "%s event received\n", desc);
 
 	switch (crq->event) {
 	case IBMVFC_AE_LINK_UP:
