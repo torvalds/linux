@@ -2715,7 +2715,6 @@ size_t ksize(const void *object)
 	 */
 	return s->size;
 }
-EXPORT_SYMBOL(ksize);
 
 void kfree(const void *x)
 {
