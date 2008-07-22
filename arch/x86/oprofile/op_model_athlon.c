@@ -361,6 +361,26 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 	}
 }
 
+#ifndef CONFIG_SMP
+
+/* no IBS support */
+
+static void setup_ibs(void)
+{
+	ibs_allowed = 0;
+}
+
+static void clear_ibs_nmi(void) {}
+
+static int op_amd_init(struct oprofile_operations *ops)
+{
+	return 0;
+}
+
+static void op_amd_exit(void) {}
+
+#else
+
 static u8 ibs_eilvt_off;
 
 static inline void apic_init_ibs_nmi_per_cpu(void *arg)
@@ -504,6 +524,8 @@ static void op_amd_exit(void)
 {
 	clear_ibs_nmi();
 }
+
+#endif
 
 struct op_x86_model_spec const op_amd_spec = {
 	.init = op_amd_init,
