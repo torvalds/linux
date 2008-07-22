@@ -73,6 +73,11 @@
 /* MSR to set the IBS control register APIC LVT offset */
 #define IBS_LVT_OFFSET_PCI		0x1CC
 
+/* The function interface needs to be fixed, something like add
+   data. Should then be added to linux/oprofile.h. */
+extern void oprofile_add_ibs_sample(struct pt_regs *const regs,
+				    unsigned int * const ibs_sample, u8 code);
+
 struct ibs_fetch_sample {
 	/* MSRC001_1031 IBS Fetch Linear Address Register */
 	unsigned int ibs_fetch_lin_addr_low;
