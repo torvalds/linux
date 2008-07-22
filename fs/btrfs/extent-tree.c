@@ -937,6 +937,7 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	level = btrfs_header_level(buf);
 	nritems = btrfs_header_nritems(buf);
 	for (i = 0; i < nritems; i++) {
+		cond_resched();
 		if (level == 0) {
 			u64 disk_bytenr;
 			btrfs_item_key_to_cpu(buf, &key, i);
@@ -2189,6 +2190,7 @@ static int noinline drop_leaf_ref(struct btrfs_trans_handle *trans,
 
 	for (i = 0; i < nritems; i++) {
 		u64 disk_bytenr;
+		cond_resched();
 
 		btrfs_item_key_to_cpu(leaf, &key, i);
 		if (btrfs_key_type(&key) != BTRFS_EXTENT_DATA_KEY)
