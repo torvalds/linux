@@ -810,8 +810,7 @@ struct netxen_hardware_context {
 	u8 revision_id;
 	u16 board_type;
 	struct netxen_board_info boardcfg;
-	u32 xg_linkup;
-	u32 qg_linksup;
+	u32 linkup;
 	/* Address of cmd ring in Phantom */
 	struct cmd_desc_type0 *cmd_desc_head;
 	dma_addr_t cmd_desc_phys_addr;
@@ -965,7 +964,6 @@ struct netxen_adapter {
 	int msi_mode;
 	int (*enable_phy_interrupts) (struct netxen_adapter *);
 	int (*disable_phy_interrupts) (struct netxen_adapter *);
-	void (*handle_phy_intr) (struct netxen_adapter *);
 	int (*macaddr_set) (struct netxen_adapter *, netxen_ethernet_macaddr_t);
 	int (*set_mtu) (struct netxen_adapter *, int);
 	int (*set_promisc) (struct netxen_adapter *, netxen_niu_prom_mode_t);
@@ -1049,8 +1047,6 @@ int netxen_niu_xgbe_enable_phy_interrupts(struct netxen_adapter *adapter);
 int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter);
 int netxen_niu_xgbe_disable_phy_interrupts(struct netxen_adapter *adapter);
 int netxen_niu_gbe_disable_phy_interrupts(struct netxen_adapter *adapter);
-void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter);
-void netxen_nic_gbe_handle_phy_intr(struct netxen_adapter *adapter);
 int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
 			    __u32 * readval);
 int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,

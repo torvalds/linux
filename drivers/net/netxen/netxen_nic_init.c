@@ -324,7 +324,6 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 		    netxen_niu_gbe_enable_phy_interrupts;
 		adapter->disable_phy_interrupts =
 		    netxen_niu_gbe_disable_phy_interrupts;
-		adapter->handle_phy_intr = netxen_nic_gbe_handle_phy_intr;
 		adapter->macaddr_set = netxen_niu_macaddr_set;
 		adapter->set_mtu = netxen_nic_set_mtu_gb;
 		adapter->set_promisc = netxen_niu_set_promiscuous_mode;
@@ -339,7 +338,6 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 		    netxen_niu_xgbe_enable_phy_interrupts;
 		adapter->disable_phy_interrupts =
 		    netxen_niu_xgbe_disable_phy_interrupts;
-		adapter->handle_phy_intr = netxen_nic_xgbe_handle_phy_intr;
 		adapter->macaddr_set = netxen_niu_xg_macaddr_set;
 		adapter->set_mtu = netxen_nic_set_mtu_xgb;
 		adapter->init_port = netxen_niu_xg_init_port;
@@ -1137,60 +1135,6 @@ int netxen_receive_peg_ready(struct netxen_adapter *adapter)
 	}
 
 	return 0;
-}
-
-static int netxen_nic_check_temp(struct netxen_adapter *adapter)
-{
-	struct net_device *netdev = adapter->netdev;
-	uint32_t temp, temp_state, temp_val;
-	int rv = 0;
-
-	temp = adapter->pci_read_normalize(adapter, CRB_TEMP_STATE);
-
-	temp_state = nx_get_temp_state(temp);
-	temp_val = nx_get_temp_val(temp);
-
-	if (temp_state == NX_TEMP_PANIC) {
-		printk(KERN_ALERT
-		       "%s: Device temperature %d degrees C exceeds"
-		       " maximum allowed. Hardware has been shut down.\n",
-		       netxen_nic_driver_name, temp_val);
-
-		netif_carrier_off(netdev);
-		netif_stop_queue(netdev);
-		rv = 1;
-	} else if (temp_state == NX_TEMP_WARN) {
-		if (adapter->temp == NX_TEMP_NORMAL) {
-			printk(KERN_ALERT
-			       "%s: Device temperature %d degrees C "
-			       "exceeds operating range."
-			       " Immediate action needed.\n",
-			       netxen_nic_driver_name, temp_val);
-		}
-	} else {
-		if (adapter->temp == NX_TEMP_WARN) {
-			printk(KERN_INFO
-			       "%s: Device temperature is now %d degrees C"
-			       " in normal range.\n", netxen_nic_driver_name,
-			       temp_val);
-		}
-	}
-	adapter->temp = temp_state;
-	return rv;
-}
-
-void netxen_watchdog_task(struct work_struct *work)
-{
-	struct netxen_adapter *adapter =
-		container_of(work, struct netxen_adapter, watchdog_task);
-
-	if ((adapter->portnum  == 0) && netxen_nic_check_temp(adapter))
-		return;
-
-	if (adapter->handle_phy_intr)
-		adapter->handle_phy_intr(adapter);
-
-	mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
 }
 
 /*

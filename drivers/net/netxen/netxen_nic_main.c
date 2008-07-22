@@ -904,7 +904,7 @@ request_msi:
 		goto err_out_disable_msi;
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->ahw.xg_linkup = 0;
+	adapter->ahw.linkup = 0;
 	adapter->watchdog_timer.function = &netxen_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 	INIT_WORK(&adapter->watchdog_task, netxen_watchdog_task);
@@ -1335,11 +1335,98 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	return NETDEV_TX_OK;
 }
 
+static int netxen_nic_check_temp(struct netxen_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	uint32_t temp, temp_state, temp_val;
+	int rv = 0;
+
+	temp = adapter->pci_read_normalize(adapter, CRB_TEMP_STATE);
+
+	temp_state = nx_get_temp_state(temp);
+	temp_val = nx_get_temp_val(temp);
+
+	if (temp_state == NX_TEMP_PANIC) {
+		printk(KERN_ALERT
+		       "%s: Device temperature %d degrees C exceeds"
+		       " maximum allowed. Hardware has been shut down.\n",
+		       netxen_nic_driver_name, temp_val);
+
+		netif_carrier_off(netdev);
+		netif_stop_queue(netdev);
+		rv = 1;
+	} else if (temp_state == NX_TEMP_WARN) {
+		if (adapter->temp == NX_TEMP_NORMAL) {
+			printk(KERN_ALERT
+			       "%s: Device temperature %d degrees C "
+			       "exceeds operating range."
+			       " Immediate action needed.\n",
+			       netxen_nic_driver_name, temp_val);
+		}
+	} else {
+		if (adapter->temp == NX_TEMP_WARN) {
+			printk(KERN_INFO
+			       "%s: Device temperature is now %d degrees C"
+			       " in normal range.\n", netxen_nic_driver_name,
+			       temp_val);
+		}
+	}
+	adapter->temp = temp_state;
+	return rv;
+}
+
+static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	u32 val, port, linkup;
+
+	port = adapter->physical_port;
+
+	val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
+	if (adapter->ahw.board_type == NETXEN_NIC_GBE)
+		linkup = (val >> port) & 1;
+	else {
+		val = (val >> port*8) & 0xff;
+		linkup = (val == XG_LINK_UP);
+	}
+
+	if (adapter->ahw.linkup && !linkup) {
+		printk(KERN_INFO "%s: %s NIC Link is down\n",
+		       netxen_nic_driver_name, netdev->name);
+		adapter->ahw.linkup = 0;
+		if (netif_running(netdev)) {
+			netif_carrier_off(netdev);
+			netif_stop_queue(netdev);
+		}
+	} else if (!adapter->ahw.linkup && linkup) {
+		printk(KERN_INFO "%s: %s NIC Link is up\n",
+		       netxen_nic_driver_name, netdev->name);
+		adapter->ahw.linkup = 1;
+		if (netif_running(netdev)) {
+			netif_carrier_on(netdev);
+			netif_wake_queue(netdev);
+		}
+	}
+}
+
 static void netxen_watchdog(unsigned long v)
 {
 	struct netxen_adapter *adapter = (struct netxen_adapter *)v;
 
 	SCHEDULE_WORK(&adapter->watchdog_task);
+}
+
+void netxen_watchdog_task(struct work_struct *work)
+{
+	struct netxen_adapter *adapter =
+		container_of(work, struct netxen_adapter, watchdog_task);
+
+	if ((adapter->portnum  == 0) && netxen_nic_check_temp(adapter))
+		return;
+
+	netxen_nic_handle_phy_intr(adapter);
+
+	mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
 }
 
 static void netxen_tx_timeout(struct net_device *netdev)
@@ -1365,6 +1452,38 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 	napi_enable(&adapter->napi);
 	netxen_nic_enable_int(adapter);
 	netif_wake_queue(adapter->netdev);
+}
+
+/*
+ * netxen_nic_get_stats - Get System Network Statistics
+ * @netdev: network interface device structure
+ */
+struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
+{
+	struct netxen_adapter *adapter = netdev_priv(netdev);
+	struct net_device_stats *stats = &adapter->net_stats;
+
+	memset(stats, 0, sizeof(*stats));
+
+	/* total packets received   */
+	stats->rx_packets = adapter->stats.no_rcv;
+	/* total packets transmitted    */
+	stats->tx_packets = adapter->stats.xmitedframes +
+		adapter->stats.xmitfinished;
+	/* total bytes received     */
+	stats->rx_bytes = adapter->stats.rxbytes;
+	/* total bytes transmitted  */
+	stats->tx_bytes = adapter->stats.txbytes;
+	/* bad packets received     */
+	stats->rx_errors = adapter->stats.rcvdbadskb;
+	/* packet transmit problems */
+	stats->tx_errors = adapter->stats.nocmddescriptor;
+	/* no space in linux buffers    */
+	stats->rx_dropped = adapter->stats.rxdropped;
+	/* no space available in linux  */
+	stats->tx_dropped = adapter->stats.txdropped;
+
+	return stats;
 }
 
 static inline void
