@@ -209,7 +209,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	int i;
 	unsigned char ch;
 	u8 *cp;
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	cbd_t __iomem *bdp;
 	u16 status;
