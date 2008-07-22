@@ -152,11 +152,7 @@ reload_context (nv_mm_context_t context)
 #  endif
 #endif
 
-	ia64_set_rr(0x0000000000000000UL, rr0);
-	ia64_set_rr(0x2000000000000000UL, rr1);
-	ia64_set_rr(0x4000000000000000UL, rr2);
-	ia64_set_rr(0x6000000000000000UL, rr3);
-	ia64_set_rr(0x8000000000000000UL, rr4);
+	ia64_set_rr0_to_rr4(rr0, rr1, rr2, rr3, rr4);
 	ia64_srlz_i();			/* srlz.i implies srlz.d */
 }
 

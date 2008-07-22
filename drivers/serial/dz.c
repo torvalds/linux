@@ -197,7 +197,7 @@ static inline void dz_receive_chars(struct dz_mux *mux)
 	while ((status = dz_in(dport, DZ_RBUF)) & DZ_DVAL) {
 		dport = &mux->dport[LINE(status)];
 		uport = &dport->port;
-		tty = uport->info->tty;		/* point to the proper dev */
+		tty = uport->info->port.tty;	/* point to the proper dev */
 
 		ch = UCHAR(status);		/* grab the char */
 		flag = TTY_NORMAL;
@@ -249,7 +249,7 @@ static inline void dz_receive_chars(struct dz_mux *mux)
 	}
 	for (i = 0; i < DZ_NB_PORT; i++)
 		if (lines_rx[i])
-			tty_flip_buffer_push(mux->dport[i].port.info->tty);
+			tty_flip_buffer_push(mux->dport[i].port.info->port.tty);
 }
 
 /*

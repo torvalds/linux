@@ -426,11 +426,17 @@ static int dummy_write(struct tty_struct * tty,
 	return count;
 }
 
-static int
-dummy_write_room(struct tty_struct *tty)
+static int dummy_write_room(struct tty_struct *tty)
 {
 	return 8192;
 }
+
+static const struct tty_operations dummy_ops = {
+	.open = dummy_open,
+	.close = dummy_close,
+	.write = dummy_write,
+	.write_room = dummy_write_room,
+};
 
 void __init
 init_dummy_console(void)
@@ -444,14 +450,14 @@ init_dummy_console(void)
 	dummy_driver.type = TTY_DRIVER_TYPE_SERIAL;
 	dummy_driver.subtype = SERIAL_TYPE_NORMAL;
 	dummy_driver.init_termios = tty_std_termios;
+	/* Normally B9600 default... */
 	dummy_driver.init_termios.c_cflag =
-		B115200 | CS8 | CREAD | HUPCL | CLOCAL; /* is normally B9600 default... */
+		B115200 | CS8 | CREAD | HUPCL | CLOCAL;
 	dummy_driver.flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
+	dummy_driver.init_termios.c_ispeed = 115200;
+	dummy_driver.init_termios.c_ospeed = 115200;
 
-	dummy_driver.open = dummy_open;
-	dummy_driver.close = dummy_close;
-	dummy_driver.write = dummy_write;
-	dummy_driver.write_room = dummy_write_room;
+	dummy_driver.ops = &dummy_ops;
 	if (tty_register_driver(&dummy_driver))
 		panic("Couldn't register dummy serial driver\n");
 }

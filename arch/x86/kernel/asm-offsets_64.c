@@ -18,6 +18,8 @@
 #include <asm/ia32.h>
 #include <asm/bootparam.h>
 
+#include <xen/interface/xen.h>
+
 #define __NO_STUBS 1
 #undef __SYSCALL
 #undef _ASM_X86_64_UNISTD_H_
@@ -131,5 +133,14 @@ int main(void)
 	OFFSET(BP_loadflags, boot_params, hdr.loadflags);
 	OFFSET(BP_hardware_subarch, boot_params, hdr.hardware_subarch);
 	OFFSET(BP_version, boot_params, hdr.version);
+
+	BLANK();
+	DEFINE(PAGE_SIZE_asm, PAGE_SIZE);
+#ifdef CONFIG_XEN
+	BLANK();
+	OFFSET(XEN_vcpu_info_mask, vcpu_info, evtchn_upcall_mask);
+	OFFSET(XEN_vcpu_info_pending, vcpu_info, evtchn_upcall_pending);
+#undef ENTRY
+#endif
 	return 0;
 }

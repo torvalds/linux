@@ -828,9 +828,8 @@ printer_poll(struct file *fd, poll_table *wait)
 	return status;
 }
 
-static int
-printer_ioctl(struct inode *inode, struct file *fd, unsigned int code,
-		unsigned long arg)
+static long
+printer_ioctl(struct file *fd, unsigned int code, unsigned long arg)
 {
 	struct printer_dev	*dev = fd->private_data;
 	unsigned long		flags;
@@ -869,7 +868,7 @@ static struct file_operations printer_io_operations = {
 	.write =	printer_write,
 	.fsync =	printer_fsync,
 	.poll =		printer_poll,
-	.ioctl =	printer_ioctl,
+	.unlocked_ioctl = printer_ioctl,
 	.release =	printer_close
 };
 

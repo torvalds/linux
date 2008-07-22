@@ -62,7 +62,7 @@ $(obj)/%-syms.lds: $(obj)/%.so.dbg FORCE
 # Build multiple 32-bit vDSO images to choose from at boot time.
 #
 obj-$(VDSO32-y)			+= vdso32-syms.lds
-vdso32.so-$(CONFIG_X86_32)	+= int80
+vdso32.so-$(VDSO32-y)		+= int80
 vdso32.so-$(CONFIG_COMPAT)	+= syscall
 vdso32.so-$(VDSO32-y)		+= sysenter
 

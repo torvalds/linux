@@ -2383,6 +2383,9 @@ default_chipset:
 		goto amifb_error;
 	}
 
+	fb_videomode_to_modelist(ami_modedb, NUM_TOTAL_MODES,
+				 &fb_info.modelist);
+
 	round_down_bpp = 0;
 	chipptr = chipalloc(fb_info.fix.smem_len+
 	                    SPRITEMEMSIZE+

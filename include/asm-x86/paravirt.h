@@ -319,6 +319,15 @@ struct pv_mmu_ops {
 			   unsigned long phys, pgprot_t flags);
 };
 
+struct raw_spinlock;
+struct pv_lock_ops {
+	int (*spin_is_locked)(struct raw_spinlock *lock);
+	int (*spin_is_contended)(struct raw_spinlock *lock);
+	void (*spin_lock)(struct raw_spinlock *lock);
+	int (*spin_trylock)(struct raw_spinlock *lock);
+	void (*spin_unlock)(struct raw_spinlock *lock);
+};
+
 /* This contains all the paravirt structures: we get a convenient
  * number for each function using the offset which we use to indicate
  * what to patch. */
@@ -329,6 +338,7 @@ struct paravirt_patch_template {
 	struct pv_irq_ops pv_irq_ops;
 	struct pv_apic_ops pv_apic_ops;
 	struct pv_mmu_ops pv_mmu_ops;
+	struct pv_lock_ops pv_lock_ops;
 };
 
 extern struct pv_info pv_info;
@@ -338,6 +348,7 @@ extern struct pv_cpu_ops pv_cpu_ops;
 extern struct pv_irq_ops pv_irq_ops;
 extern struct pv_apic_ops pv_apic_ops;
 extern struct pv_mmu_ops pv_mmu_ops;
+extern struct pv_lock_ops pv_lock_ops;
 
 #define PARAVIRT_PATCH(x)					\
 	(offsetof(struct paravirt_patch_template, x) / sizeof(void *))
@@ -1349,6 +1360,37 @@ static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 void _paravirt_nop(void);
 #define paravirt_nop	((void *)_paravirt_nop)
 
+void paravirt_use_bytelocks(void);
+
+#ifdef CONFIG_SMP
+
+static inline int __raw_spin_is_locked(struct raw_spinlock *lock)
+{
+	return PVOP_CALL1(int, pv_lock_ops.spin_is_locked, lock);
+}
+
+static inline int __raw_spin_is_contended(struct raw_spinlock *lock)
+{
+	return PVOP_CALL1(int, pv_lock_ops.spin_is_contended, lock);
+}
+
+static __always_inline void __raw_spin_lock(struct raw_spinlock *lock)
+{
+	PVOP_VCALL1(pv_lock_ops.spin_lock, lock);
+}
+
+static __always_inline int __raw_spin_trylock(struct raw_spinlock *lock)
+{
+	return PVOP_CALL1(int, pv_lock_ops.spin_trylock, lock);
+}
+
+static __always_inline void __raw_spin_unlock(struct raw_spinlock *lock)
+{
+	PVOP_VCALL1(pv_lock_ops.spin_unlock, lock);
+}
+
+#endif
+
 /* These all sit in the .parainstructions section to tell us what to patch. */
 struct paravirt_patch_site {
 	u8 *instr; 		/* original instructions */
@@ -1371,8 +1413,8 @@ extern struct paravirt_patch_site __parainstructions[],
  * caller saved registers but the argument parameter */
 #define PV_SAVE_REGS "pushq %%rdi;"
 #define PV_RESTORE_REGS "popq %%rdi;"
-#define PV_EXTRA_CLOBBERS EXTRA_CLOBBERS, "rcx" , "rdx"
-#define PV_VEXTRA_CLOBBERS EXTRA_CLOBBERS, "rdi", "rcx" , "rdx"
+#define PV_EXTRA_CLOBBERS EXTRA_CLOBBERS, "rcx" , "rdx", "rsi"
+#define PV_VEXTRA_CLOBBERS EXTRA_CLOBBERS, "rdi", "rcx" , "rdx", "rsi"
 #define PV_FLAGS_ARG "D"
 #endif
 
@@ -1433,6 +1475,7 @@ static inline unsigned long __raw_local_irq_save(void)
 	return f;
 }
 
+
 /* Make sure as little as possible of this mess escapes. */
 #undef PARAVIRT_CALL
 #undef __PVOP_CALL
@@ -1464,8 +1507,26 @@ static inline unsigned long __raw_local_irq_save(void)
 
 
 #ifdef CONFIG_X86_64
-#define PV_SAVE_REGS   pushq %rax; pushq %rdi; pushq %rcx; pushq %rdx
-#define PV_RESTORE_REGS popq %rdx; popq %rcx; popq %rdi; popq %rax
+#define PV_SAVE_REGS				\
+	push %rax;				\
+	push %rcx;				\
+	push %rdx;				\
+	push %rsi;				\
+	push %rdi;				\
+	push %r8;				\
+	push %r9;				\
+	push %r10;				\
+	push %r11
+#define PV_RESTORE_REGS				\
+	pop %r11;				\
+	pop %r10;				\
+	pop %r9;				\
+	pop %r8;				\
+	pop %rdi;				\
+	pop %rsi;				\
+	pop %rdx;				\
+	pop %rcx;				\
+	pop %rax
 #define PARA_PATCH(struct, off)        ((PARAVIRT_PATCH_##struct + (off)) / 8)
 #define PARA_SITE(ptype, clobbers, ops) _PVSITE(ptype, clobbers, ops, .quad, 8)
 #define PARA_INDIRECT(addr)	*addr(%rip)

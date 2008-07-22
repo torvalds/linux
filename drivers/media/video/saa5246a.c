@@ -66,6 +66,7 @@ static struct video_device saa_template;	/* Declared near bottom */
 
 /* Addresses to scan */
 static unsigned short normal_i2c[]	 = { I2C_ADDRESS, I2C_CLIENT_END };
+
 I2C_CLIENT_INSMOD;
 
 static struct i2c_client client_template;

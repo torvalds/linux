@@ -608,9 +608,9 @@ static inline struct specialix_port * sx_get_port(struct specialix_board * bp,
 	dprintk (SX_DEBUG_CHAN, "channel: %d\n", channel);
 	if (channel < CD186x_NCH) {
 		port = &sx_port[board_No(bp) * SX_NPORT + channel];
-		dprintk (SX_DEBUG_CHAN, "port: %d %p flags: 0x%x\n",board_No(bp) * SX_NPORT + channel,  port, port->flags & ASYNC_INITIALIZED);
+		dprintk (SX_DEBUG_CHAN, "port: %d %p flags: 0x%lx\n",board_No(bp) * SX_NPORT + channel,  port, port->port.flags & ASYNC_INITIALIZED);
 
-		if (port->flags & ASYNC_INITIALIZED) {
+		if (port->port.flags & ASYNC_INITIALIZED) {
 			dprintk (SX_DEBUG_CHAN, "port: %d %p\n", channel, port);
 			func_exit();
 			return port;
@@ -637,7 +637,7 @@ static inline void sx_receive_exc(struct specialix_board * bp)
 		func_exit();
 		return;
 	}
-	tty = port->tty;
+	tty = port->port.tty;
 
 	status = sx_in(bp, CD186x_RCSR);
 
@@ -673,7 +673,7 @@ static inline void sx_receive_exc(struct specialix_board * bp)
 		dprintk(SX_DEBUG_RX, "sx%d: port %d: Handling break...\n",
 		       board_No(bp), port_No(port));
 		flag = TTY_BREAK;
-		if (port->flags & ASYNC_SAK)
+		if (port->port.flags & ASYNC_SAK)
 			do_SAK(tty);
 
 	} else if (status & RCSR_PE)
@@ -707,7 +707,7 @@ static inline void sx_receive(struct specialix_board * bp)
 		func_exit();
 		return;
 	}
-	tty = port->tty;
+	tty = port->port.tty;
 
 	count = sx_in(bp, CD186x_RDCR);
 	dprintk (SX_DEBUG_RX, "port: %p: count: %d\n", port, count);
@@ -734,7 +734,7 @@ static inline void sx_transmit(struct specialix_board * bp)
 		return;
 	}
 	dprintk (SX_DEBUG_TX, "port: %p\n", port);
-	tty = port->tty;
+	tty = port->port.tty;
 
 	if (port->IER & IER_TXEMPTY) {
 		/* FIFO drained */
@@ -811,7 +811,7 @@ static inline void sx_check_modem(struct specialix_board * bp)
 	if (!(port = sx_get_port(bp, "Modem")))
 		return;
 
-	tty = port->tty;
+	tty = port->port.tty;
 
 	mcr = sx_in(bp, CD186x_MCR);
 	printk ("mcr = %02x.\n", mcr);
@@ -821,7 +821,7 @@ static inline void sx_check_modem(struct specialix_board * bp)
 		msvr_cd = sx_in(bp, CD186x_MSVR) & MSVR_CD;
 		if (msvr_cd) {
 			dprintk (SX_DEBUG_SIGNALS, "Waking up guys in open.\n");
-			wake_up_interruptible(&port->open_wait);
+			wake_up_interruptible(&port->port.open_wait);
 		} else {
 			dprintk (SX_DEBUG_SIGNALS, "Sending HUP.\n");
 			tty_hangup(tty);
@@ -1030,7 +1030,7 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 
 	func_enter();
 
-	if (!(tty = port->tty) || !tty->termios) {
+	if (!(tty = port->port.tty) || !tty->termios) {
 		func_exit();
 		return;
 	}
@@ -1052,9 +1052,9 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 	baud = tty_get_baud_rate(tty);
 
 	if (baud == 38400) {
-		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
+		if ((port->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
 			baud = 57600;
-		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
+		if ((port->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
 			baud = 115200;
 	}
 
@@ -1244,7 +1244,7 @@ static int sx_setup_port(struct specialix_board *bp, struct specialix_port *port
 
 	func_enter();
 
-	if (port->flags & ASYNC_INITIALIZED) {
+	if (port->port.flags & ASYNC_INITIALIZED) {
 		func_exit();
 		return 0;
 	}
@@ -1268,12 +1268,12 @@ static int sx_setup_port(struct specialix_board *bp, struct specialix_port *port
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	if (port->tty)
-		clear_bit(TTY_IO_ERROR, &port->tty->flags);
+	if (port->port.tty)
+		clear_bit(TTY_IO_ERROR, &port->port.tty->flags);
 
 	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
 	sx_change_speed(bp, port);
-	port->flags |= ASYNC_INITIALIZED;
+	port->port.flags |= ASYNC_INITIALIZED;
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
@@ -1292,7 +1292,7 @@ static void sx_shutdown_port(struct specialix_board *bp, struct specialix_port *
 
 	func_enter();
 
-	if (!(port->flags & ASYNC_INITIALIZED)) {
+	if (!(port->port.flags & ASYNC_INITIALIZED)) {
 		func_exit();
 		return;
 	}
@@ -1315,7 +1315,7 @@ static void sx_shutdown_port(struct specialix_board *bp, struct specialix_port *
 	spin_lock_irqsave(&bp->lock, flags);
 	sx_out(bp, CD186x_CAR, port_No(port));
 
-	if (!(tty = port->tty) || C_HUPCL(tty)) {
+	if (!(tty = port->port.tty) || C_HUPCL(tty)) {
 		/* Drop DTR */
 		sx_out(bp, CD186x_MSVDTR, 0);
 	}
@@ -1330,7 +1330,7 @@ static void sx_shutdown_port(struct specialix_board *bp, struct specialix_port *
 	spin_unlock_irqrestore(&bp->lock, flags);
 	if (tty)
 		set_bit(TTY_IO_ERROR, &tty->flags);
-	port->flags &= ~ASYNC_INITIALIZED;
+	port->port.flags &= ~ASYNC_INITIALIZED;
 
 	if (!bp->count)
 		sx_shutdown_board(bp);
@@ -1354,9 +1354,9 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	 * If the device is in the middle of being closed, then block
 	 * until it's done, and then try again.
 	 */
-	if (tty_hung_up_p(filp) || port->flags & ASYNC_CLOSING) {
-		interruptible_sleep_on(&port->close_wait);
-		if (port->flags & ASYNC_HUP_NOTIFY) {
+	if (tty_hung_up_p(filp) || port->port.flags & ASYNC_CLOSING) {
+		interruptible_sleep_on(&port->port.close_wait);
+		if (port->port.flags & ASYNC_HUP_NOTIFY) {
 			func_exit();
 			return -EAGAIN;
 		} else {
@@ -1371,7 +1371,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	 */
 	if ((filp->f_flags & O_NONBLOCK) ||
 	    (tty->flags & (1 << TTY_IO_ERROR))) {
-		port->flags |= ASYNC_NORMAL_ACTIVE;
+		port->port.flags |= ASYNC_NORMAL_ACTIVE;
 		func_exit();
 		return 0;
 	}
@@ -1387,13 +1387,13 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	 * exit, either normal or abnormal.
 	 */
 	retval = 0;
-	add_wait_queue(&port->open_wait, &wait);
+	add_wait_queue(&port->port.open_wait, &wait);
 	spin_lock_irqsave(&port->lock, flags);
 	if (!tty_hung_up_p(filp)) {
-		port->count--;
+		port->port.count--;
 	}
 	spin_unlock_irqrestore(&port->lock, flags);
-	port->blocked_open++;
+	port->port.blocked_open++;
 	while (1) {
 		spin_lock_irqsave(&bp->lock, flags);
 		sx_out(bp, CD186x_CAR, port_No(port));
@@ -1410,14 +1410,14 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 		spin_unlock_irqrestore(&bp->lock, flags);
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) ||
-		    !(port->flags & ASYNC_INITIALIZED)) {
-			if (port->flags & ASYNC_HUP_NOTIFY)
+		    !(port->port.flags & ASYNC_INITIALIZED)) {
+			if (port->port.flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
 				retval = -ERESTARTSYS;
 			break;
 		}
-		if (!(port->flags & ASYNC_CLOSING) &&
+		if (!(port->port.flags & ASYNC_CLOSING) &&
 		    (do_clocal || CD))
 			break;
 		if (signal_pending(current)) {
@@ -1428,19 +1428,19 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	}
 
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&port->open_wait, &wait);
+	remove_wait_queue(&port->port.open_wait, &wait);
 	spin_lock_irqsave(&port->lock, flags);
 	if (!tty_hung_up_p(filp)) {
-		port->count++;
+		port->port.count++;
 	}
-	port->blocked_open--;
+	port->port.blocked_open--;
 	spin_unlock_irqrestore(&port->lock, flags);
 	if (retval) {
 		func_exit();
 		return retval;
 	}
 
-	port->flags |= ASYNC_NORMAL_ACTIVE;
+	port->port.flags |= ASYNC_NORMAL_ACTIVE;
 	func_exit();
 	return 0;
 }
@@ -1484,10 +1484,10 @@ static int sx_open(struct tty_struct * tty, struct file * filp)
 	}
 
 	spin_lock_irqsave(&bp->lock, flags);
-	port->count++;
+	port->port.count++;
 	bp->count++;
 	tty->driver_data = port;
-	port->tty = tty;
+	port->port.tty = tty;
 	spin_unlock_irqrestore(&bp->lock, flags);
 
 	if ((error = sx_setup_port(bp, port))) {
@@ -1547,15 +1547,15 @@ static void sx_close(struct tty_struct * tty, struct file * filp)
 	}
 
 	bp = port_Board(port);
-	if ((tty->count == 1) && (port->count != 1)) {
+	if ((tty->count == 1) && (port->port.count != 1)) {
 		printk(KERN_ERR "sx%d: sx_close: bad port count;"
 		       " tty->count is 1, port count is %d\n",
-		       board_No(bp), port->count);
-		port->count = 1;
+		       board_No(bp), port->port.count);
+		port->port.count = 1;
 	}
 
-	if (port->count > 1) {
-		port->count--;
+	if (port->port.count > 1) {
+		port->port.count--;
 		bp->count--;
 
 		spin_unlock_irqrestore(&port->lock, flags);
@@ -1563,7 +1563,7 @@ static void sx_close(struct tty_struct * tty, struct file * filp)
 		func_exit();
 		return;
 	}
-	port->flags |= ASYNC_CLOSING;
+	port->port.flags |= ASYNC_CLOSING;
 	/*
 	 * Now we wait for the transmit buffer to clear; and we notify
 	 * the line discipline to only process XON/XOFF characters.
@@ -1571,8 +1571,8 @@ static void sx_close(struct tty_struct * tty, struct file * filp)
 	tty->closing = 1;
 	spin_unlock_irqrestore(&port->lock, flags);
 	dprintk (SX_DEBUG_OPEN, "Closing\n");
-	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE) {
-		tty_wait_until_sent(tty, port->closing_wait);
+	if (port->port.closing_wait != ASYNC_CLOSING_WAIT_NONE) {
+		tty_wait_until_sent(tty, port->port.closing_wait);
 	}
 	/*
 	 * At this point we stop accepting input.  To do this, we
@@ -1582,7 +1582,7 @@ static void sx_close(struct tty_struct * tty, struct file * filp)
 	 */
 	dprintk (SX_DEBUG_OPEN, "Closed\n");
 	port->IER &= ~IER_RXD;
-	if (port->flags & ASYNC_INITIALIZED) {
+	if (port->port.flags & ASYNC_INITIALIZED) {
 		port->IER &= ~IER_TXRDY;
 		port->IER |= IER_TXEMPTY;
 		spin_lock_irqsave(&bp->lock, flags);
@@ -1611,10 +1611,10 @@ static void sx_close(struct tty_struct * tty, struct file * filp)
 		       board_No(bp), bp->count, tty->index);
 		bp->count = 0;
 	}
-	if (--port->count < 0) {
+	if (--port->port.count < 0) {
 		printk(KERN_ERR "sx%d: sx_close: bad port count for tty%d: %d\n",
-		       board_No(bp), port_No(port), port->count);
-		port->count = 0;
+		       board_No(bp), port_No(port), port->port.count);
+		port->port.count = 0;
 	}
 
 	sx_shutdown_port(bp, port);
@@ -1622,16 +1622,16 @@ static void sx_close(struct tty_struct * tty, struct file * filp)
 	tty_ldisc_flush(tty);
 	spin_lock_irqsave(&port->lock, flags);
 	tty->closing = 0;
-	port->tty = NULL;
+	port->port.tty = NULL;
 	spin_unlock_irqrestore(&port->lock, flags);
-	if (port->blocked_open) {
-		if (port->close_delay) {
-			msleep_interruptible(jiffies_to_msecs(port->close_delay));
+	if (port->port.blocked_open) {
+		if (port->port.close_delay) {
+			msleep_interruptible(jiffies_to_msecs(port->port.close_delay));
 		}
-		wake_up_interruptible(&port->open_wait);
+		wake_up_interruptible(&port->port.open_wait);
 	}
-	port->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&port->close_wait);
+	port->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
+	wake_up_interruptible(&port->port.close_wait);
 
 	func_exit();
 }
@@ -1815,7 +1815,7 @@ static int sx_tiocmget(struct tty_struct *tty, struct file *file)
 	dprintk (SX_DEBUG_INIT, "Got msvr[%d] = %02x, car = %d.\n",
 		port_No(port), status, sx_in (bp, CD186x_CAR));
 	dprintk (SX_DEBUG_INIT, "sx_port = %p, port = %p\n", sx_port, port);
-	if (SX_CRTSCTS(port->tty)) {
+	if (SX_CRTSCTS(port->port.tty)) {
 		result  = /*   (status & MSVR_RTS) ? */ TIOCM_DTR /* : 0) */
 		          |   ((status & MSVR_DTR) ? TIOCM_RTS : 0)
 		          |   ((status & MSVR_CD)  ? TIOCM_CAR : 0)
@@ -1857,7 +1857,7 @@ static int sx_tiocmset(struct tty_struct *tty, struct file *file,
    /*   if (set & TIOCM_DTR)
 		port->MSVR |= MSVR_DTR; */
 
-	if (SX_CRTSCTS(port->tty)) {
+	if (SX_CRTSCTS(port->port.tty)) {
 		if (set & TIOCM_RTS)
 			port->MSVR |= MSVR_DTR;
 	} else {
@@ -1869,7 +1869,7 @@ static int sx_tiocmset(struct tty_struct *tty, struct file *file,
 		port->MSVR &= ~MSVR_RTS; */
   /*    if (clear & TIOCM_DTR)
 		port->MSVR &= ~MSVR_DTR; */
-	if (SX_CRTSCTS(port->tty)) {
+	if (SX_CRTSCTS(port->port.tty)) {
 		if (clear & TIOCM_RTS)
 			port->MSVR &= ~MSVR_DTR;
 	} else {
@@ -1929,27 +1929,27 @@ static inline int sx_set_serial_info(struct specialix_port * port,
 
 	lock_kernel();
 
-	change_speed = ((port->flags & ASYNC_SPD_MASK) !=
+	change_speed = ((port->port.flags & ASYNC_SPD_MASK) !=
 			(tmp.flags & ASYNC_SPD_MASK));
 	change_speed |= (tmp.custom_divisor != port->custom_divisor);
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		if ((tmp.close_delay != port->close_delay) ||
-		    (tmp.closing_wait != port->closing_wait) ||
+		if ((tmp.close_delay != port->port.close_delay) ||
+		    (tmp.closing_wait != port->port.closing_wait) ||
 		    ((tmp.flags & ~ASYNC_USR_MASK) !=
-		     (port->flags & ~ASYNC_USR_MASK))) {
+		     (port->port.flags & ~ASYNC_USR_MASK))) {
 			func_exit();
 			unlock_kernel();
 			return -EPERM;
 		}
-		port->flags = ((port->flags & ~ASYNC_USR_MASK) |
+		port->port.flags = ((port->port.flags & ~ASYNC_USR_MASK) |
 		                  (tmp.flags & ASYNC_USR_MASK));
 		port->custom_divisor = tmp.custom_divisor;
 	} else {
-		port->flags = ((port->flags & ~ASYNC_FLAGS) |
+		port->port.flags = ((port->port.flags & ~ASYNC_FLAGS) |
 		                  (tmp.flags & ASYNC_FLAGS));
-		port->close_delay = tmp.close_delay;
-		port->closing_wait = tmp.closing_wait;
+		port->port.close_delay = tmp.close_delay;
+		port->port.closing_wait = tmp.closing_wait;
 		port->custom_divisor = tmp.custom_divisor;
 	}
 	if (change_speed) {
@@ -1975,10 +1975,10 @@ static inline int sx_get_serial_info(struct specialix_port * port,
 	tmp.line = port - sx_port;
 	tmp.port = bp->base;
 	tmp.irq  = bp->irq;
-	tmp.flags = port->flags;
+	tmp.flags = port->port.flags;
 	tmp.baud_base = (SX_OSCFREQ + CD186x_TPC/2) / CD186x_TPC;
-	tmp.close_delay = port->close_delay * HZ/100;
-	tmp.closing_wait = port->closing_wait * HZ/100;
+	tmp.close_delay = port->port.close_delay * HZ/100;
+	tmp.closing_wait = port->port.closing_wait * HZ/100;
 	tmp.custom_divisor =  port->custom_divisor;
 	tmp.xmit_fifo_size = CD186x_NFIFO;
 	unlock_kernel();
@@ -2199,17 +2199,17 @@ static void sx_hangup(struct tty_struct * tty)
 
 	sx_shutdown_port(bp, port);
 	spin_lock_irqsave(&port->lock, flags);
-	bp->count -= port->count;
+	bp->count -= port->port.count;
 	if (bp->count < 0) {
 		printk(KERN_ERR "sx%d: sx_hangup: bad board count: %d port: %d\n",
 			board_No(bp), bp->count, tty->index);
 		bp->count = 0;
 	}
-	port->count = 0;
-	port->flags &= ~ASYNC_NORMAL_ACTIVE;
-	port->tty = NULL;
+	port->port.count = 0;
+	port->port.flags &= ~ASYNC_NORMAL_ACTIVE;
+	port->port.tty = NULL;
 	spin_unlock_irqrestore(&port->lock, flags);
-	wake_up_interruptible(&port->open_wait);
+	wake_up_interruptible(&port->port.open_wait);
 
 	func_exit();
 }
@@ -2222,10 +2222,6 @@ static void sx_set_termios(struct tty_struct * tty, struct ktermios * old_termio
 	struct specialix_board  * bp;
 
 	if (sx_paranoia_check(port, tty->name, "sx_set_termios"))
-		return;
-
-	if (tty->termios->c_cflag == old_termios->c_cflag &&
-	    tty->termios->c_iflag == old_termios->c_iflag)
 		return;
 
 	bp = port_Board(port);
@@ -2297,10 +2293,7 @@ static int sx_init_drivers(void)
 	memset(sx_port, 0, sizeof(sx_port));
 	for (i = 0; i < SX_NPORT * SX_NBOARD; i++) {
 		sx_port[i].magic = SPECIALIX_MAGIC;
-		sx_port[i].close_delay = 50 * HZ/100;
-		sx_port[i].closing_wait = 3000 * HZ/100;
-		init_waitqueue_head(&sx_port[i].open_wait);
-		init_waitqueue_head(&sx_port[i].close_wait);
+		tty_port_init(&sx_port[i].port);
 		spin_lock_init(&sx_port[i].lock);
 	}
 

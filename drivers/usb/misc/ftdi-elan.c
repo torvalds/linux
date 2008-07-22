@@ -656,29 +656,6 @@ static int ftdi_elan_release(struct inode *inode, struct file *file)
 }
 
 
-#define FTDI_ELAN_IOC_MAGIC 0xA1
-#define FTDI_ELAN_IOCDEBUG _IOC(_IOC_WRITE, FTDI_ELAN_IOC_MAGIC, 1, 132)
-static int ftdi_elan_ioctl(struct inode *inode, struct file *file,
-        unsigned int cmd, unsigned long arg)
-{
-        switch (cmd) {
-        case FTDI_ELAN_IOCDEBUG:{
-                        char line[132];
-                        int size = strncpy_from_user(line,
-                                (const char __user *)arg, sizeof(line));
-                        if (size < 0) {
-                                return -EINVAL;
-                        } else {
-                                printk(KERN_ERR "TODO: ioctl %s\n", line);
-                                return 0;
-                        }
-                }
-        default:
-                return -EFAULT;
-        }
-}
-
-
 /*
 *
 * blocking bulk reads are used to get data from the device
@@ -1222,7 +1199,6 @@ error_1:
 static const struct file_operations ftdi_elan_fops = {
         .owner = THIS_MODULE,
         .llseek = no_llseek,
-        .ioctl = ftdi_elan_ioctl,
         .read = ftdi_elan_read,
         .write = ftdi_elan_write,
         .open = ftdi_elan_open,

@@ -448,6 +448,13 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 
 #ifdef CONFIG_SYSCTL
 
+static int __init setup_unknown_nmi_panic(char *str)
+{
+	unknown_nmi_panic = 1;
+	return 1;
+}
+__setup("unknown_nmi_panic", setup_unknown_nmi_panic);
+
 static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
 {
 	unsigned char reason = get_nmi_reason();

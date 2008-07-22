@@ -2,7 +2,7 @@
  * net/tipc/config.c: TIPC configuration management code
  *
  * Copyright (c) 2002-2006, Ericsson AB
- * Copyright (c) 2004-2006, Wind River Systems
+ * Copyright (c) 2004-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -293,7 +293,6 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (tipc_mode == TIPC_NET_MODE)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
-	tipc_own_addr = addr;
 
 	/*
 	 * Must release all spinlocks before calling start_net() because
@@ -306,7 +305,7 @@ static struct sk_buff *cfg_set_own_addr(void)
 	 */
 
 	spin_unlock_bh(&config_lock);
-	tipc_core_start_net();
+	tipc_core_start_net(addr);
 	spin_lock_bh(&config_lock);
 	return tipc_cfg_reply_none();
 }
@@ -529,7 +528,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 		break;
 #endif
 	case TIPC_CMD_SET_LOG_SIZE:
-		rep_tlv_buf = tipc_log_resize(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_log_resize_cmd(req_tlv_area, req_tlv_space);
 		break;
 	case TIPC_CMD_DUMP_LOG:
 		rep_tlv_buf = tipc_log_dump();
@@ -601,6 +600,10 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 		break;
 	case TIPC_CMD_GET_NETID:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_net_id);
+		break;
+	case TIPC_CMD_NOT_NET_ADMIN:
+		rep_tlv_buf =
+			tipc_cfg_reply_error_string(TIPC_CFG_NOT_NET_ADMIN);
 		break;
 	default:
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED

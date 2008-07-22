@@ -113,7 +113,7 @@ static int ssb_ohci_attach(struct ssb_device *dev)
 	ssb_device_enable(dev, flags);
 
 	hcd = usb_create_hcd(&ssb_ohci_hc_driver, dev->dev,
-			dev->dev->bus_id);
+			dev_name(dev->dev));
 	if (!hcd)
 		goto err_dev_disable;
 	ohcidev = hcd_to_ssb_ohci(hcd);

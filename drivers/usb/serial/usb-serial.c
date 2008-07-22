@@ -283,7 +283,10 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 	}
 
 	if (port->open_count == 0) {
-		usb_autopm_put_interface(port->serial->interface);
+		mutex_lock(&port->serial->disc_mutex);
+		if (!port->serial->disconnected)
+			usb_autopm_put_interface(port->serial->interface);
+		mutex_unlock(&port->serial->disc_mutex);
 		module_put(port->serial->type->driver.owner);
 	}
 
@@ -505,7 +508,7 @@ static void port_release(struct device *dev)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 
-	dbg ("%s - %s", __func__, dev->bus_id);
+	dbg ("%s - %s", __func__, dev_name(dev));
 	port_free(port);
 }
 
@@ -625,7 +628,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	struct usb_endpoint_descriptor *bulk_out_endpoint[MAX_NUM_PORTS];
 	struct usb_serial_driver *type = NULL;
 	int retval;
-	int minor;
+	unsigned int minor;
 	int buffer_size;
 	int i;
 	int num_interrupt_in = 0;
@@ -938,8 +941,8 @@ int usb_serial_probe(struct usb_interface *interface,
 		port->dev.bus = &usb_serial_bus_type;
 		port->dev.release = &port_release;
 
-		snprintf (&port->dev.bus_id[0], sizeof(port->dev.bus_id), "ttyUSB%d", port->number);
-		dbg ("%s - registering %s", __func__, port->dev.bus_id);
+		dev_set_name(&port->dev, "ttyUSB%d", port->number);
+		dbg ("%s - registering %s", __func__, dev_name(&port->dev));
 		retval = device_register(&port->dev);
 		if (retval)
 			dev_err(&port->dev, "Error registering port device, "

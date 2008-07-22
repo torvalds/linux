@@ -296,7 +296,7 @@ int usb_create_ep_files(struct device *parent,
 	retval = endpoint_get_minor(ep_dev);
 	if (retval) {
 		dev_err(parent, "can not allocate minor number for %s\n",
-			ep_dev->dev.bus_id);
+			dev_name(&ep_dev->dev));
 		goto error_register;
 	}
 
@@ -307,7 +307,7 @@ int usb_create_ep_files(struct device *parent,
 	ep_dev->dev.class = ep_class->class;
 	ep_dev->dev.parent = parent;
 	ep_dev->dev.release = ep_device_release;
-	snprintf(ep_dev->dev.bus_id, BUS_ID_SIZE, "usbdev%d.%d_ep%02x",
+	dev_set_name(&ep_dev->dev, "usbdev%d.%d_ep%02x",
 		 udev->bus->busnum, udev->devnum,
 		 endpoint->desc.bEndpointAddress);
 

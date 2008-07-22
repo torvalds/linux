@@ -39,7 +39,6 @@ MODULE_LICENSE("GPL");
 
 static unsigned short normal_i2c[] = { 0x34 >> 1, I2C_CLIENT_END };
 
-
 I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */

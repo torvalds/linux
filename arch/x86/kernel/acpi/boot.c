@@ -1021,7 +1021,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 	mp_bus_id_to_type[MP_ISA_BUS] = MP_BUS_ISA;
 #endif
 	set_bit(MP_ISA_BUS, mp_bus_not_pci);
-	Dprintk("Bus #%d is ISA\n", MP_ISA_BUS);
+	pr_debug("Bus #%d is ISA\n", MP_ISA_BUS);
 
 #ifdef CONFIG_X86_ES7000
 	/*
@@ -1127,8 +1127,8 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 		return gsi;
 	}
 	if (test_bit(ioapic_pin, mp_ioapic_routing[ioapic].pin_programmed)) {
-		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
-			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
+		pr_debug(KERN_DEBUG "Pin %d-%d already programmed\n",
+			 mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
 #ifdef CONFIG_X86_32
 		return (gsi < IRQ_COMPRESSION_START ? gsi : gsi_to_irq[gsi]);
 #else

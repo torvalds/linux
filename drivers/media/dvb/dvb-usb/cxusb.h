@@ -20,6 +20,9 @@
 #define CMD_STREAMING_ON  0x36
 #define CMD_STREAMING_OFF 0x37
 
+#define CMD_AVER_STREAM_ON  0x18
+#define CMD_AVER_STREAM_OFF 0x19
+
 #define CMD_GET_IR_CODE   0x47
 
 #define CMD_ANALOG        0x50

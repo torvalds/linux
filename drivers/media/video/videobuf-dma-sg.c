@@ -1,7 +1,7 @@
 /*
  * helper functions for SG DMA video4linux capture buffers
  *
- * The functions expect the hardware being able to scatter gatter
+ * The functions expect the hardware being able to scatter gather
  * (i.e. the buffers are not linear in physical memory, but fragmented
  * into PAGE_SIZE chunks).  They also assume the driver does not need
  * to touch the video data.
@@ -80,17 +80,15 @@ struct scatterlist*
 videobuf_pages_to_sg(struct page **pages, int nr_pages, int offset)
 {
 	struct scatterlist *sglist;
-	int i = 0;
+	int i;
 
 	if (NULL == pages[0])
 		return NULL;
-	sglist = kcalloc(nr_pages, sizeof(*sglist), GFP_KERNEL);
+	sglist = kmalloc(nr_pages * sizeof(*sglist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
 	sg_init_table(sglist, nr_pages);
 
-	if (NULL == pages[0])
-		goto nopage;
 	if (PageHighMem(pages[0]))
 		/* DMA to highmem pages might not work */
 		goto highmem;

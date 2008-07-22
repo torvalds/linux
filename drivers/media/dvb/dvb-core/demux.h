@@ -247,7 +247,7 @@ struct dmx_demux {
 	void* priv;                  /* Pointer to private data of the API client */
 	int (*open) (struct dmx_demux* demux);
 	int (*close) (struct dmx_demux* demux);
-	int (*write) (struct dmx_demux* demux, const char* buf, size_t count);
+	int (*write) (struct dmx_demux* demux, const char __user *buf, size_t count);
 	int (*allocate_ts_feed) (struct dmx_demux* demux,
 				 struct dmx_ts_feed** feed,
 				 dmx_ts_cb callback);

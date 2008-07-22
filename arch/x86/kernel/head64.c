@@ -39,6 +39,13 @@ static struct x8664_pda *__cpu_pda[NR_CPUS] __initdata;
 static struct x8664_pda *__cpu_pda[NR_CPUS] __read_mostly;
 #endif
 
+void __init x86_64_init_pda(void)
+{
+	_cpu_pda = __cpu_pda;
+	cpu_pda(0) = &_boot_cpu_pda;
+	pda_init(0);
+}
+
 static void __init zap_identity_mappings(void)
 {
 	pgd_t *pgd = pgd_offset_k(0UL);
@@ -102,9 +109,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	early_printk("Kernel alive\n");
 
-	_cpu_pda = __cpu_pda;
-	cpu_pda(0) = &_boot_cpu_pda;
-	pda_init(0);
+	x86_64_init_pda();
 
 	early_printk("Kernel really alive\n");
 
