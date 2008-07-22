@@ -533,11 +533,11 @@ static int __init init_mac80211_hwsim(void)
 		data = hw->priv;
 		data->hw = hw;
 
-		data->dev = device_create_drvdata(hwsim_class, NULL, 0, hw,
-						"hwsim%d", i);
+		data->dev = device_create(hwsim_class, NULL, 0, hw,
+					  "hwsim%d", i);
 		if (IS_ERR(data->dev)) {
 			printk(KERN_DEBUG
-			       "mac80211_hwsim: device_create_drvdata "
+			       "mac80211_hwsim: device_create "
 			       "failed (%ld)\n", PTR_ERR(data->dev));
 			err = -ENOMEM;
 			goto failed_drvdata;
