@@ -45,6 +45,8 @@
 
 static unsigned long reset_value[NUM_COUNTERS];
 
+/* functions for op_athlon_spec */
+
 static void athlon_fill_in_addresses(struct op_msrs * const msrs)
 {
 	int i;
