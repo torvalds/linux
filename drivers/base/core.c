@@ -1236,7 +1236,7 @@ error:
 EXPORT_SYMBOL_GPL(device_create_vargs);
 
 /**
- * device_create_drvdata - creates a device and registers it with sysfs
+ * device_create - creates a device and registers it with sysfs
  * @class: pointer to the struct class that this device should be registered to
  * @parent: pointer to the parent struct device of this new device, if any
  * @devt: the dev_t for the char device to be added
@@ -1257,11 +1257,8 @@ EXPORT_SYMBOL_GPL(device_create_vargs);
  * Note: the struct class passed to this function must have previously
  * been created with a call to class_create().
  */
-struct device *device_create_drvdata(struct class *class,
-				     struct device *parent,
-				     dev_t devt,
-				     void *drvdata,
-				     const char *fmt, ...)
+struct device *device_create(struct class *class, struct device *parent,
+			     dev_t devt, void *drvdata, const char *fmt, ...)
 {
 	va_list vargs;
 	struct device *dev;
@@ -1271,7 +1268,7 @@ struct device *device_create_drvdata(struct class *class,
 	va_end(vargs);
 	return dev;
 }
-EXPORT_SYMBOL_GPL(device_create_drvdata);
+EXPORT_SYMBOL_GPL(device_create);
 
 static int __match_devt(struct device *dev, void *data)
 {
