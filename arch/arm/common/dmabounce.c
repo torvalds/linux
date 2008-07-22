@@ -554,9 +554,8 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 
 	device_info = kmalloc(sizeof(struct dmabounce_device_info), GFP_ATOMIC);
 	if (!device_info) {
-		printk(KERN_ERR
-			"Could not allocated dmabounce_device_info for %s",
-			dev->bus_id);
+		dev_err(dev,
+			"Could not allocated dmabounce_device_info\n");
 		return -ENOMEM;
 	}
 
@@ -594,8 +593,7 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 
 	dev->archdata.dmabounce = device_info;
 
-	printk(KERN_INFO "dmabounce: registered device %s on %s bus\n",
-		dev->bus_id, dev->bus->name);
+	dev_info(dev, "dmabounce: registered device\n");
 
 	return 0;
 
@@ -614,16 +612,15 @@ dmabounce_unregister_dev(struct device *dev)
 	dev->archdata.dmabounce = NULL;
 
 	if (!device_info) {
-		printk(KERN_WARNING
-			"%s: Never registered with dmabounce but attempting" \
-			"to unregister!\n", dev->bus_id);
+		dev_warn(dev,
+			 "Never registered with dmabounce but attempting"
+			 "to unregister!\n");
 		return;
 	}
 
 	if (!list_empty(&device_info->safe_buffers)) {
-		printk(KERN_ERR
-			"%s: Removing from dmabounce with pending buffers!\n",
-			dev->bus_id);
+		dev_err(dev,
+			"Removing from dmabounce with pending buffers!\n");
 		BUG();
 	}
 
@@ -639,8 +636,7 @@ dmabounce_unregister_dev(struct device *dev)
 
 	kfree(device_info);
 
-	printk(KERN_INFO "dmabounce: device %s on %s bus unregistered\n",
-		dev->bus_id, dev->bus->name);
+	dev_info(dev, "dmabounce: device unregistered\n");
 }
 
 

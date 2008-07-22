@@ -813,7 +813,8 @@ static int lp_register(int nr, struct parport *port)
 	if (reset)
 		lp_reset(nr);
 
-	device_create(lp_class, port->dev, MKDEV(LP_MAJOR, nr), "lp%d", nr);
+	device_create_drvdata(lp_class, port->dev, MKDEV(LP_MAJOR, nr), NULL,
+			      "lp%d", nr);
 
 	printk(KERN_INFO "lp%d: using %s (%s).\n", nr, port->name, 
 	       (port->irq == PARPORT_IRQ_NONE)?"polling":"interrupt-driven");

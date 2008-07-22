@@ -14,7 +14,8 @@
 static DEFINE_PER_CPU(struct hv_mmu_statistics, mmu_stats) __attribute__((aligned(64)));
 
 #define SHOW_MMUSTAT_ULONG(NAME) \
-static ssize_t show_##NAME(struct sys_device *dev, char *buf) \
+static ssize_t show_##NAME(struct sys_device *dev, \
+			struct sysdev_attribute *attr, char *buf) \
 { \
 	struct hv_mmu_statistics *p = &per_cpu(mmu_stats, dev->id); \
 	return sprintf(buf, "%lu\n", p->NAME); \
@@ -135,13 +136,16 @@ static unsigned long write_mmustat_enable(unsigned long val)
 	return sun4v_mmustat_conf(ra, &orig_ra);
 }
 
-static ssize_t show_mmustat_enable(struct sys_device *s, char *buf)
+static ssize_t show_mmustat_enable(struct sys_device *s,
+				struct sysdev_attribute *attr, char *buf)
 {
 	unsigned long val = run_on_cpu(s->id, read_mmustat_enable, 0);
 	return sprintf(buf, "%lx\n", val);
 }
 
-static ssize_t store_mmustat_enable(struct sys_device *s, const char *buf, size_t count)
+static ssize_t store_mmustat_enable(struct sys_device *s,
+			struct sysdev_attribute *attr, const char *buf,
+			size_t count)
 {
 	unsigned long val, err;
 	int ret = sscanf(buf, "%ld", &val);
@@ -179,14 +183,16 @@ static void unregister_mmu_stats(struct sys_device *s)
 #endif
 
 #define SHOW_CPUDATA_ULONG_NAME(NAME, MEMBER) \
-static ssize_t show_##NAME(struct sys_device *dev, char *buf) \
+static ssize_t show_##NAME(struct sys_device *dev, \
+		struct sysdev_attribute *attr, char *buf) \
 { \
 	cpuinfo_sparc *c = &cpu_data(dev->id); \
 	return sprintf(buf, "%lu\n", c->MEMBER); \
 }
 
 #define SHOW_CPUDATA_UINT_NAME(NAME, MEMBER) \
-static ssize_t show_##NAME(struct sys_device *dev, char *buf) \
+static ssize_t show_##NAME(struct sys_device *dev, \
+		struct sysdev_attribute *attr, char *buf) \
 { \
 	cpuinfo_sparc *c = &cpu_data(dev->id); \
 	return sprintf(buf, "%u\n", c->MEMBER); \

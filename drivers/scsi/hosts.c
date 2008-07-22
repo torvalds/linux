@@ -232,8 +232,8 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 	}
 
 	if (shost->transportt->create_work_queue) {
-		snprintf(shost->work_q_name, KOBJ_NAME_LEN, "scsi_wq_%d",
-			shost->host_no);
+		snprintf(shost->work_q_name, sizeof(shost->work_q_name),
+			 "scsi_wq_%d", shost->host_no);
 		shost->work_q = create_singlethread_workqueue(
 					shost->work_q_name);
 		if (!shost->work_q) {
@@ -466,7 +466,8 @@ struct Scsi_Host *scsi_host_lookup(unsigned short hostnum)
 	struct device *cdev;
 	struct Scsi_Host *shost = ERR_PTR(-ENXIO);
 
-	cdev = class_find_device(&shost_class, &hostnum, __scsi_host_match);
+	cdev = class_find_device(&shost_class, NULL, &hostnum,
+				 __scsi_host_match);
 	if (cdev) {
 		shost = scsi_host_get(class_to_shost(cdev));
 		put_device(cdev);

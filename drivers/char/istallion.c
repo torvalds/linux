@@ -4599,8 +4599,9 @@ static int __init istallion_module_init(void)
 
 	istallion_class = class_create(THIS_MODULE, "staliomem");
 	for (i = 0; i < 4; i++)
-		device_create(istallion_class, NULL, MKDEV(STL_SIOMEMMAJOR, i),
-			      "staliomem%d", i);
+		device_create_drvdata(istallion_class, NULL,
+				      MKDEV(STL_SIOMEMMAJOR, i),
+				      NULL, "staliomem%d", i);
 
 	return 0;
 err_deinit:
