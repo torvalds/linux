@@ -1,4 +1,4 @@
-#/*
+/*
  * Kernel-based Virtual Machine driver for Linux
  *
  * This header defines architecture specific interfaces, x86 version
