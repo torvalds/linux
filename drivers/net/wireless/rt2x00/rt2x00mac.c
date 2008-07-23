@@ -37,6 +37,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_tx_info *rts_info;
 	struct sk_buff *skb;
 	int size;
+	int retval = 0;
 
 	if (tx_info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
 		size = sizeof(struct ieee80211_cts);
@@ -44,9 +45,9 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 		size = sizeof(struct ieee80211_rts);
 
 	skb = dev_alloc_skb(size + rt2x00dev->hw->extra_tx_headroom);
-	if (!skb) {
+	if (unlikely(!skb)) {
 		WARNING(rt2x00dev, "Failed to create RTS/CTS frame.\n");
-		return NETDEV_TX_BUSY;
+		return -ENOMEM;
 	}
 
 	skb_reserve(skb, rt2x00dev->hw->extra_tx_headroom);
@@ -82,13 +83,13 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				  frag_skb->data, size, tx_info,
 				  (struct ieee80211_rts *)(skb->data));
 
-	if (rt2x00queue_write_tx_frame(queue, skb)) {
+	retval = rt2x00queue_write_tx_frame(queue, skb);
+	if (retval) {
 		dev_kfree_skb_any(skb);
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
-		return NETDEV_TX_BUSY;
 	}
 
-	return NETDEV_TX_OK;
+	return retval;
 }
 
 int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -106,11 +107,8 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * Note that we can only stop the TX queues inside the TX path
 	 * due to possible race conditions in mac80211.
 	 */
-	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags)) {
-		ieee80211_stop_queues(hw);
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
-	}
+	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags))
+		goto exit_fail;
 
 	/*
 	 * Determine which queue to put packet on.
@@ -141,25 +139,24 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if ((tx_info->flags & (IEEE80211_TX_CTL_USE_RTS_CTS |
 			       IEEE80211_TX_CTL_USE_CTS_PROTECT)) &&
 	    !rt2x00dev->ops->hw->set_rts_threshold) {
-		if (rt2x00queue_available(queue) <= 1) {
-			ieee80211_stop_queue(rt2x00dev->hw, qid);
-			return NETDEV_TX_BUSY;
-		}
+		if (rt2x00queue_available(queue) <= 1)
+			goto exit_fail;
 
-		if (rt2x00mac_tx_rts_cts(rt2x00dev, queue, skb)) {
-			ieee80211_stop_queue(rt2x00dev->hw, qid);
-			return NETDEV_TX_BUSY;
-		}
+		if (rt2x00mac_tx_rts_cts(rt2x00dev, queue, skb))
+			goto exit_fail;
 	}
 
-	if (rt2x00queue_write_tx_frame(queue, skb)) {
-		ieee80211_stop_queue(rt2x00dev->hw, qid);
-		return NETDEV_TX_BUSY;
-	}
+	if (rt2x00queue_write_tx_frame(queue, skb))
+		goto exit_fail;
 
 	if (rt2x00queue_threshold(queue))
 		ieee80211_stop_queue(rt2x00dev->hw, qid);
 
+	return NETDEV_TX_OK;
+
+ exit_fail:
+	ieee80211_stop_queue(rt2x00dev->hw, qid);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_tx);
