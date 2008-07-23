@@ -413,7 +413,7 @@ void unxlate_dev_mem_ptr(unsigned long phys, void *addr)
 	return;
 }
 
-int __initdata early_ioremap_debug;
+static int __initdata early_ioremap_debug;
 
 static int __init early_ioremap_debug_setup(char *str)
 {
@@ -539,7 +539,7 @@ static inline void __init early_clear_fixmap(enum fixed_addresses idx)
 }
 
 
-int __initdata early_ioremap_nested;
+static int __initdata early_ioremap_nested;
 
 static int __init check_early_ioremap_leak(void)
 {
