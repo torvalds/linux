@@ -193,6 +193,7 @@ static void __init rbtx4938_mem_setup(void)
 
 #ifdef CONFIG_PCI
 	txx9_alloc_pci_controller(&txx9_primary_pcic, 0, 0, 0, 0);
+	txx9_board_pcibios_setup = tx4927_pcibios_setup;
 #else
 	set_io_port_base(RBTX4938_ETHER_BASE);
 #endif

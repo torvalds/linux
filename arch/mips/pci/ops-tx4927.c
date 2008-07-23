@@ -194,6 +194,28 @@ static struct {
 	.gbwc = 0xfe0,	/* 4064 GBUSCLK for CCFG.GTOT=0b11 */
 };
 
+char *__devinit tx4927_pcibios_setup(char *str)
+{
+	unsigned long val;
+
+	if (!strncmp(str, "trdyto=", 7)) {
+		if (strict_strtoul(str + 7, 0, &val) == 0)
+			tx4927_pci_opts.trdyto = val;
+		return NULL;
+	}
+	if (!strncmp(str, "retryto=", 8)) {
+		if (strict_strtoul(str + 8, 0, &val) == 0)
+			tx4927_pci_opts.retryto = val;
+		return NULL;
+	}
+	if (!strncmp(str, "gbwc=", 5)) {
+		if (strict_strtoul(str + 5, 0, &val) == 0)
+			tx4927_pci_opts.gbwc = val;
+		return NULL;
+	}
+	return str;
+}
+
 void __init tx4927_pcic_setup(struct tx4927_pcic_reg __iomem *pcicptr,
 			      struct pci_controller *channel, int extarb)
 {

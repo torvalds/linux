@@ -195,5 +195,6 @@ struct tx4927_pcic_reg __iomem *get_tx4927_pcicptr(
 void __init tx4927_pcic_setup(struct tx4927_pcic_reg __iomem *pcicptr,
 			      struct pci_controller *channel, int extarb);
 void tx4927_report_pcic_status(void);
+char *tx4927_pcibios_setup(char *str);
 
 #endif /* __ASM_TXX9_TX4927PCIC_H */

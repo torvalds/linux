@@ -23,6 +23,7 @@
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/txx9/generic.h>
+#include <asm/txx9/pci.h>
 #ifdef CONFIG_CPU_TX49XX
 #include <asm/txx9/tx4938.h>
 #endif
@@ -194,6 +195,9 @@ void __init plat_mem_setup(void)
 	ioport_resource.end = ~0UL;	/* no limit */
 	iomem_resource.start = 0;
 	iomem_resource.end = ~0UL;	/* no limit */
+#ifdef CONFIG_PCI
+	pcibios_plat_setup = txx9_pcibios_setup;
+#endif
 	txx9_board_vec->mem_setup();
 }
 

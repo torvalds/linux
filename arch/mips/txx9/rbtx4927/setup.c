@@ -238,6 +238,7 @@ static void __init rbtx4927_mem_setup(void)
 	txx9_alloc_pci_controller(&txx9_primary_pcic,
 				  RBTX4927_PCIMEM, RBTX4927_PCIMEM_SIZE,
 				  RBTX4927_PCIIO, RBTX4927_PCIIO_SIZE);
+	txx9_board_pcibios_setup = tx4927_pcibios_setup;
 #else
 	set_io_port_base(KSEG1 + RBTX4927_ISA_IO_OFFSET);
 #endif
