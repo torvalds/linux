@@ -193,8 +193,8 @@ struct tx4927_pcic_reg {
 
 struct tx4927_pcic_reg __iomem *get_tx4927_pcicptr(
 	struct pci_controller *channel);
-void __init tx4927_pcic_setup(struct tx4927_pcic_reg __iomem *pcicptr,
-			      struct pci_controller *channel, int extarb);
+void tx4927_pcic_setup(struct tx4927_pcic_reg __iomem *pcicptr,
+		       struct pci_controller *channel, int extarb);
 void tx4927_report_pcic_status(void);
 char *tx4927_pcibios_setup(char *str);
 void tx4927_dump_pcic_settings(void);

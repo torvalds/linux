@@ -15,8 +15,6 @@
 #include <asm/io.h>
 #include <asm/txx9/smsc_fdc37m81x.h>
 
-#define DEBUG
-
 /* Common Registers */
 #define SMSC_FDC37M81X_CONFIG_INDEX  0x00
 #define SMSC_FDC37M81X_CONFIG_DATA   0x01
@@ -55,7 +53,7 @@
 #define SMSC_FDC37M81X_CONFIG_EXIT   0xaa
 #define SMSC_FDC37M81X_CHIP_ID       0x4d
 
-static unsigned long g_smsc_fdc37m81x_base = 0;
+static unsigned long g_smsc_fdc37m81x_base;
 
 static inline unsigned char smsc_fdc37m81x_rd(unsigned char index)
 {
@@ -107,7 +105,8 @@ unsigned long __init smsc_fdc37m81x_init(unsigned long port)
 	u8 chip_id;
 
 	if (g_smsc_fdc37m81x_base)
-		printk("smsc_fdc37m81x_init() stepping on old base=0x%0*lx\n",
+		printk(KERN_WARNING "%s: stepping on old base=0x%0*lx\n",
+		       __func__,
 		       field, g_smsc_fdc37m81x_base);
 
 	g_smsc_fdc37m81x_base = port;
@@ -118,7 +117,7 @@ unsigned long __init smsc_fdc37m81x_init(unsigned long port)
 	if (chip_id == SMSC_FDC37M81X_CHIP_ID)
 		smsc_fdc37m81x_config_end();
 	else {
-		printk("smsc_fdc37m81x_init() unknow chip id 0x%02x\n",
+		printk(KERN_WARNING "%s: unknow chip id 0x%02x\n", __func__,
 		       chip_id);
 		g_smsc_fdc37m81x_base = 0;
 	}
@@ -127,22 +126,23 @@ unsigned long __init smsc_fdc37m81x_init(unsigned long port)
 }
 
 #ifdef DEBUG
-void smsc_fdc37m81x_config_dump_one(char *key, u8 dev, u8 reg)
+static void smsc_fdc37m81x_config_dump_one(const char *key, u8 dev, u8 reg)
 {
-	printk("%s: dev=0x%02x reg=0x%02x val=0x%02x\n", key, dev, reg,
+	printk(KERN_INFO "%s: dev=0x%02x reg=0x%02x val=0x%02x\n",
+	       key, dev, reg,
 	       smsc_fdc37m81x_rd(reg));
 }
 
 void smsc_fdc37m81x_config_dump(void)
 {
 	u8 orig;
-	char *fname = "smsc_fdc37m81x_config_dump()";
+	const char *fname = __func__;
 
 	smsc_fdc37m81x_config_beg();
 
 	orig = smsc_fdc37m81x_rd(SMSC_FDC37M81X_DNUM);
 
-	printk("%s: common\n", fname);
+	printk(KERN_INFO "%s: common\n", fname);
 	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
 				       SMSC_FDC37M81X_DNUM);
 	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
@@ -154,7 +154,7 @@ void smsc_fdc37m81x_config_dump(void)
 	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
 				       SMSC_FDC37M81X_PMGT);
 
-	printk("%s: keyboard\n", fname);
+	printk(KERN_INFO "%s: keyboard\n", fname);
 	smsc_dc37m81x_wr(SMSC_FDC37M81X_DNUM, SMSC_FDC37M81X_KBD);
 	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_KBD,
 				       SMSC_FDC37M81X_ACTIVE);

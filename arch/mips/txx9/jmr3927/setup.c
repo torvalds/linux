@@ -74,9 +74,6 @@ static void __init jmr3927_mem_setup(void)
 
 	_machine_restart = jmr3927_machine_restart;
 
-	/* Reboot on panic */
-	panic_timeout = 180;
-
 	/* cache setup */
 	{
 		unsigned int conf;
@@ -94,7 +91,8 @@ static void __init jmr3927_mem_setup(void)
 #endif
 
 		conf = read_c0_conf();
-		conf &= ~(TX39_CONF_ICE | TX39_CONF_DCE | TX39_CONF_WBON | TX39_CONF_CWFON);
+		conf &= ~(TX39_CONF_ICE | TX39_CONF_DCE |
+			  TX39_CONF_WBON | TX39_CONF_CWFON);
 		conf |= mips_ic_disable ? 0 : TX39_CONF_ICE;
 		conf |= mips_dc_disable ? 0 : TX39_CONF_DCE;
 		conf |= mips_config_wbon ? TX39_CONF_WBON : 0;
@@ -107,19 +105,11 @@ static void __init jmr3927_mem_setup(void)
 	/* initialize board */
 	jmr3927_board_init();
 
-	argptr = prom_getcmdline();
-	if ((argptr = strstr(argptr, "ip=")) == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " ip=bootp");
-	}
-
 	tx3927_setup_serial(1 << 1); /* ch1: noCTS */
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
 	argptr = prom_getcmdline();
-	if ((argptr = strstr(argptr, "console=")) == NULL) {
-		argptr = prom_getcmdline();
+	if (!strstr(argptr, "console="))
 		strcat(argptr, " console=ttyS1,115200");
-	}
 #endif
 }
 
@@ -199,16 +189,14 @@ static unsigned long jmr3927_swizzle_addr_b(unsigned long port)
 #endif
 }
 
-static int __init jmr3927_rtc_init(void)
+static void __init jmr3927_rtc_init(void)
 {
 	static struct resource __initdata res = {
 		.start	= JMR3927_IOC_NVRAMB_ADDR - IO_BASE,
 		.end	= JMR3927_IOC_NVRAMB_ADDR - IO_BASE + 0x800 - 1,
 		.flags	= IORESOURCE_MEM,
 	};
-	struct platform_device *dev;
-	dev = platform_device_register_simple("rtc-ds1742", -1, &res, 1);
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+	platform_device_register_simple("rtc-ds1742", -1, &res, 1);
 }
 
 static void __init jmr3927_device_init(void)

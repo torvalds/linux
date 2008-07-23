@@ -30,15 +30,11 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 
 #include <asm/io.h>
 #include <asm/mipsregs.h>
-#include <asm/system.h>
-
-#include <asm/processor.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/jmr3927.h>
 

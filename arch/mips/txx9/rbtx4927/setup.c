@@ -46,7 +46,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
-#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <asm/io.h>
@@ -189,9 +188,6 @@ static void __init rbtx4927_mem_setup(void)
 	u32 cp0_config;
 	char *argptr;
 
-	/* f/w leaves this on at startup */
-	clear_c0_status(ST0_ERL);
-
 	/* enable caches -- HCP5 does this, pmon does not */
 	cp0_config = read_c0_config();
 	cp0_config = cp0_config & ~(TX49_CONF_IC | TX49_CONF_DC);
@@ -218,24 +214,9 @@ static void __init rbtx4927_mem_setup(void)
 
 	tx4927_setup_serial();
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
-        argptr = prom_getcmdline();
-        if (strstr(argptr, "console=") == NULL) {
-                strcat(argptr, " console=ttyS0,38400");
-        }
-#endif
-
-#ifdef CONFIG_ROOT_NFS
-        argptr = prom_getcmdline();
-        if (strstr(argptr, "root=") == NULL) {
-                strcat(argptr, " root=/dev/nfs rw");
-        }
-#endif
-
-#ifdef CONFIG_IP_PNP
-        argptr = prom_getcmdline();
-        if (strstr(argptr, "ip=") == NULL) {
-                strcat(argptr, " ip=any");
-        }
+	argptr = prom_getcmdline();
+	if (!strstr(argptr, "console="))
+		strcat(argptr, " console=ttyS0,38400");
 #endif
 }
 
@@ -298,19 +279,17 @@ static void __init rbtx4927_time_init(void)
 	tx4927_time_init(0);
 }
 
-static int __init toshiba_rbtx4927_rtc_init(void)
+static void __init toshiba_rbtx4927_rtc_init(void)
 {
 	struct resource res = {
 		.start	= RBTX4927_BRAMRTC_BASE - IO_BASE,
 		.end	= RBTX4927_BRAMRTC_BASE - IO_BASE + 0x800 - 1,
 		.flags	= IORESOURCE_MEM,
 	};
-	struct platform_device *dev =
-		platform_device_register_simple("rtc-ds1742", -1, &res, 1);
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+	platform_device_register_simple("rtc-ds1742", -1, &res, 1);
 }
 
-static int __init rbtx4927_ne_init(void)
+static void __init rbtx4927_ne_init(void)
 {
 	struct resource res[] = {
 		{
@@ -322,10 +301,7 @@ static int __init rbtx4927_ne_init(void)
 			.flags	= IORESOURCE_IRQ,
 		}
 	};
-	struct platform_device *dev =
-		platform_device_register_simple("ne", -1,
-						res, ARRAY_SIZE(res));
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+	platform_device_register_simple("ne", -1, res, ARRAY_SIZE(res));
 }
 
 static void __init rbtx4927_device_init(void)

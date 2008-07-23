@@ -13,8 +13,6 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/console.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 
@@ -169,43 +167,27 @@ static void __init rbtx4938_mem_setup(void)
 
 	tx4938_setup_serial();
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
-        argptr = prom_getcmdline();
-        if (strstr(argptr, "console=") == NULL) {
-                strcat(argptr, " console=ttyS0,38400");
-        }
+	argptr = prom_getcmdline();
+	if (!strstr(argptr, "console="))
+		strcat(argptr, " console=ttyS0,38400");
 #endif
 
 #ifdef CONFIG_TOSHIBA_RBTX4938_MPLEX_PIO58_61
-	printk("PIOSEL: disabling both ata and nand selection\n");
-	local_irq_disable();
+	printk(KERN_INFO "PIOSEL: disabling both ata and nand selection\n");
 	txx9_clear64(&tx4938_ccfgptr->pcfg,
 		     TX4938_PCFG_NDF_SEL | TX4938_PCFG_ATA_SEL);
 #endif
 
 #ifdef CONFIG_TOSHIBA_RBTX4938_MPLEX_NAND
-	printk("PIOSEL: enabling nand selection\n");
+	printk(KERN_INFO "PIOSEL: enabling nand selection\n");
 	txx9_set64(&tx4938_ccfgptr->pcfg, TX4938_PCFG_NDF_SEL);
 	txx9_clear64(&tx4938_ccfgptr->pcfg, TX4938_PCFG_ATA_SEL);
 #endif
 
 #ifdef CONFIG_TOSHIBA_RBTX4938_MPLEX_ATA
-	printk("PIOSEL: enabling ata selection\n");
+	printk(KERN_INFO "PIOSEL: enabling ata selection\n");
 	txx9_set64(&tx4938_ccfgptr->pcfg, TX4938_PCFG_ATA_SEL);
 	txx9_clear64(&tx4938_ccfgptr->pcfg, TX4938_PCFG_NDF_SEL);
-#endif
-
-#ifdef CONFIG_IP_PNP
-	argptr = prom_getcmdline();
-	if (strstr(argptr, "ip=") == NULL) {
-		strcat(argptr, " ip=any");
-	}
-#endif
-
-
-#ifdef CONFIG_FB
-	{
-		conswitchp = &dummy_con;
-	}
 #endif
 
 	rbtx4938_spi_setup();
@@ -228,7 +210,7 @@ static void __init rbtx4938_mem_setup(void)
 	rbtx4938_fpga_resource.end = CPHYSADDR(RBTX4938_FPGA_REG_ADDR) + 0xffff;
 	rbtx4938_fpga_resource.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	if (request_resource(&txx9_ce_res[2], &rbtx4938_fpga_resource))
-		printk("request resource for fpga failed\n");
+		printk(KERN_ERR "request resource for fpga failed\n");
 
 	_machine_restart = rbtx4938_machine_restart;
 
@@ -238,7 +220,7 @@ static void __init rbtx4938_mem_setup(void)
 	       readb(rbtx4938_dipsw_addr), readb(rbtx4938_bdipsw_addr));
 }
 
-static int __init rbtx4938_ne_init(void)
+static void __init rbtx4938_ne_init(void)
 {
 	struct resource res[] = {
 		{
@@ -250,10 +232,7 @@ static int __init rbtx4938_ne_init(void)
 			.flags	= IORESOURCE_IRQ,
 		}
 	};
-	struct platform_device *dev =
-		platform_device_register_simple("ne", -1,
-						res, ARRAY_SIZE(res));
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+	platform_device_register_simple("ne", -1, res, ARRAY_SIZE(res));
 }
 
 static DEFINE_SPINLOCK(rbtx4938_spi_gpio_lock);

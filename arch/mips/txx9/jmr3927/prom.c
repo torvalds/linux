@@ -36,6 +36,7 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <asm/bootinfo.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/jmr3927.h>
@@ -56,20 +57,11 @@ prom_putchar(char c)
 	return;
 }
 
-void
-puts(const char *cp)
-{
-    while (*cp)
-	prom_putchar(*cp++);
-    prom_putchar('\r');
-    prom_putchar('\n');
-}
-
 void __init jmr3927_prom_init(void)
 {
 	/* CCFG */
 	if ((tx3927_ccfgptr->ccfg & TX3927_CCFG_TLBOFF) == 0)
-		puts("Warning: TX3927 TLB off\n");
+		printk(KERN_ERR "TX3927 TLB off\n");
 
 	prom_init_cmdline();
 	add_memory_region(0, JMR3927_SDRAM_SIZE, BOOT_MEM_RAM);

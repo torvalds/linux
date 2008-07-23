@@ -333,8 +333,8 @@ void tx3927_setup(void);
 void tx3927_time_init(unsigned int evt_tmrnr, unsigned int src_tmrnr);
 void tx3927_setup_serial(unsigned int cts_mask);
 struct pci_controller;
-void __init tx3927_pcic_setup(struct pci_controller *channel,
-			      unsigned long sdram_size, int extarb);
+void tx3927_pcic_setup(struct pci_controller *channel,
+		       unsigned long sdram_size, int extarb);
 void tx3927_setup_pcierr_irq(void);
 void tx3927_irq_init(void);
 
