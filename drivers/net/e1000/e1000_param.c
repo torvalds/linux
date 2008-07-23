@@ -213,10 +213,9 @@ struct e1000_option {
 	} arg;
 };
 
-static int __devinit
-e1000_validate_option(unsigned int *value,
-		      const struct e1000_option *opt,
-		      struct e1000_adapter *adapter)
+static int __devinit e1000_validate_option(unsigned int *value,
+					   const struct e1000_option *opt,
+					   struct e1000_adapter *adapter)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -278,8 +277,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter);
  * in a variable in the adapter structure.
  **/
 
-void __devinit
-e1000_check_options(struct e1000_adapter *adapter)
+void __devinit e1000_check_options(struct e1000_adapter *adapter)
 {
 	int bd = adapter->bd_number;
 	if (bd >= E1000_MAX_NIC) {
@@ -551,8 +549,7 @@ e1000_check_options(struct e1000_adapter *adapter)
  * Handles speed and duplex options on fiber adapters
  **/
 
-static void __devinit
-e1000_check_fiber_options(struct e1000_adapter *adapter)
+static void __devinit e1000_check_fiber_options(struct e1000_adapter *adapter)
 {
 	int bd = adapter->bd_number;
 	if (num_Speed > bd) {
@@ -579,8 +576,7 @@ e1000_check_fiber_options(struct e1000_adapter *adapter)
  * Handles speed and duplex options on copper adapters
  **/
 
-static void __devinit
-e1000_check_copper_options(struct e1000_adapter *adapter)
+static void __devinit e1000_check_copper_options(struct e1000_adapter *adapter)
 {
 	unsigned int speed, dplx, an;
 	int bd = adapter->bd_number;
