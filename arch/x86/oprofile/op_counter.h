@@ -10,13 +10,14 @@
 #ifndef OP_COUNTER_H
 #define OP_COUNTER_H
  
-#define OP_MAX_COUNTER 8
+#define OP_MAX_COUNTER 32
  
 /* Per-perfctr configuration as set via
  * oprofilefs.
  */
 struct op_counter_config {
         unsigned long count;
+		unsigned long save_count_low;
         unsigned long enabled;
         unsigned long event;
         unsigned long kernel;
