@@ -30,7 +30,6 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 	if (freq != 32000 && freq != 44100 && freq != 48000)
 		return -EINVAL;
 
-	/* common for all inputs and rates */
 	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x10 */
 	cx18_av_write(cx, 0x127, 0x50);
 
@@ -38,15 +37,20 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 		switch (freq) {
 		case 32000:
 			/* VID_PLL and AUX_PLL */
-			cx18_av_write4(cx, 0x108, 0x1006040f);
+			cx18_av_write4(cx, 0x108, 0x1408040f);
 
 			/* AUX_PLL_FRAC */
-			cx18_av_write4(cx, 0x110, 0x01bb39ee);
+			/* 0x8.9504318a * 28,636,363.636 / 0x14 = 32000 * 384 */
+			cx18_av_write4(cx, 0x110, 0x012a0863);
 
-			/* src3/4/6_ctl = 0x0801f77f */
+			/* src3/4/6_ctl */
+			/* 0x1.f77f = (4 * 15734.26) / 32000 */
 			cx18_av_write4(cx, 0x900, 0x0801f77f);
 			cx18_av_write4(cx, 0x904, 0x0801f77f);
 			cx18_av_write4(cx, 0x90c, 0x0801f77f);
+
+			/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x14 */
+			cx18_av_write(cx, 0x127, 0x54);
 			break;
 
 		case 44100:
@@ -54,9 +58,11 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x1009040f);
 
 			/* AUX_PLL_FRAC */
+			/* 0x9.7635eb * 28,636,363 / 0x10 = 44100 * 384 */
 			cx18_av_write4(cx, 0x110, 0x00ec6bd6);
 
-			/* src3/4/6_ctl = 0x08016d59 */
+			/* src3/4/6_ctl */
+			/* 0x1.6d59 = (4 * 15734.26) / 44100 */
 			cx18_av_write4(cx, 0x900, 0x08016d59);
 			cx18_av_write4(cx, 0x904, 0x08016d59);
 			cx18_av_write4(cx, 0x90c, 0x08016d59);
@@ -67,9 +73,11 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x100a040f);
 
 			/* AUX_PLL_FRAC */
+			/* 0xa.4c6b728 * 28,636,363 / 0x10 = 48000 * 384 */
 			cx18_av_write4(cx, 0x110, 0x0098d6e5);
 
-			/* src3/4/6_ctl = 0x08014faa */
+			/* src3/4/6_ctl */
+			/* 0x1.4faa = (4 * 15734.26) / 48000 */
 			cx18_av_write4(cx, 0x900, 0x08014faa);
 			cx18_av_write4(cx, 0x904, 0x08014faa);
 			cx18_av_write4(cx, 0x90c, 0x08014faa);
@@ -82,12 +90,15 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x1e08040f);
 
 			/* AUX_PLL_FRAC */
+			/* 0x8.9504348 * 28,636,363 / 0x1e = 32000 * 256 */
 			cx18_av_write4(cx, 0x110, 0x012a0869);
 
-			/* src1_ctl = 0x08010000 */
+			/* src1_ctl */
+			/* 0x1.0000 = 32000/32000 */
 			cx18_av_write4(cx, 0x8f8, 0x08010000);
 
-			/* src3/4/6_ctl = 0x08020000 */
+			/* src3/4/6_ctl */
+			/* 0x2.0000 = 2 * (32000/32000) */
 			cx18_av_write4(cx, 0x900, 0x08020000);
 			cx18_av_write4(cx, 0x904, 0x08020000);
 			cx18_av_write4(cx, 0x90c, 0x08020000);
@@ -101,12 +112,15 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x1809040f);
 
 			/* AUX_PLL_FRAC */
+			/* 0x9.76346B * 28,636,363 / 0x18 = 44100 * 256 */
 			cx18_av_write4(cx, 0x110, 0x00ec6bd6);
 
-			/* src1_ctl = 0x08010000 */
+			/* src1_ctl */
+			/* 0x1.60cd = 44100/32000 */
 			cx18_av_write4(cx, 0x8f8, 0x080160cd);
 
-			/* src3/4/6_ctl = 0x08020000 */
+			/* src3/4/6_ctl */
+			/* 0x1.7385 = 2 * (32000/44100) */
 			cx18_av_write4(cx, 0x900, 0x08017385);
 			cx18_av_write4(cx, 0x904, 0x08017385);
 			cx18_av_write4(cx, 0x90c, 0x08017385);
@@ -117,12 +131,15 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x180a040f);
 
 			/* AUX_PLL_FRAC */
+			/* 0xa.4c6b728 * 28,636,363 / 0x18 = 48000 * 256 */
 			cx18_av_write4(cx, 0x110, 0x0098d6e5);
 
-			/* src1_ctl = 0x08010000 */
+			/* src1_ctl */
+			/* 0x1.8000 = 48000/32000 */
 			cx18_av_write4(cx, 0x8f8, 0x08018000);
 
-			/* src3/4/6_ctl = 0x08020000 */
+			/* src3/4/6_ctl */
+			/* 0x1.5555 = 2 * (32000/48000) */
 			cx18_av_write4(cx, 0x900, 0x08015555);
 			cx18_av_write4(cx, 0x904, 0x08015555);
 			cx18_av_write4(cx, 0x90c, 0x08015555);
