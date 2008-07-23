@@ -1372,7 +1372,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->cam_mode = sif_mode;
 		cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
 	}
-	cam->dev_name = (char *) id->driver_info;
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
 	sd->colors = sd_ctrls[SD_COLOR].qctrl.default_value;

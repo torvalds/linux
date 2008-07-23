@@ -7153,7 +7153,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 /*fixme:test*/
 	gspca_dev->nbalt--;

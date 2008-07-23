@@ -1438,7 +1438,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x02;
 	if (sd->bridge == BRIDGE_VC0321) {
 		cam->cam_mode = vc0321_mode;

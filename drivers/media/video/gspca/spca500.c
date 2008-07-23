@@ -728,7 +728,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	}
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 	if (sd->subtype != LogitechClickSmart310) {
 		cam->cam_mode = vga_mode;

@@ -1541,7 +1541,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	PDEBUG(D_PROBE, "Window 1 average luminance: %d", data1);
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 	cam->cam_mode = sif_mode;
 	cam->nmodes = ARRAY_SIZE(sif_mode);

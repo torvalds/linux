@@ -617,7 +617,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /*		break; */
 	}
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 1;
 	if (sd->sensor == SENSOR_PAS106) {
 		cam->cam_mode = sif_mode;
