@@ -376,7 +376,10 @@ void ide_dma_host_set(ide_drive_t *drive, int on)
 	else
 		dma_stat &= ~(1 << (5 + unit));
 
-	hwif->OUTB(dma_stat, hwif->dma_status);
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		writeb(dma_stat, (void __iomem *)hwif->dma_status);
+	else
+		outb(dma_stat, hwif->dma_status);
 }
 
 EXPORT_SYMBOL_GPL(ide_dma_host_set);
@@ -449,6 +452,7 @@ int ide_dma_setup(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = HWGROUP(drive)->rq;
 	unsigned int reading;
+	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 dma_stat;
 
 	if (rq_data_dir(rq))
@@ -470,13 +474,20 @@ int ide_dma_setup(ide_drive_t *drive)
 		outl(hwif->dmatable_dma, hwif->dma_base + ATA_DMA_TABLE_OFS);
 
 	/* specify r/w */
-	hwif->OUTB(reading, hwif->dma_command);
+	if (mmio)
+		writeb(reading, (void __iomem *)hwif->dma_command);
+	else
+		outb(reading, hwif->dma_command);
 
 	/* read DMA status for INTR & ERROR flags */
 	dma_stat = hwif->read_sff_dma_status(hwif);
 
 	/* clear INTR & ERROR flags */
-	hwif->OUTB(dma_stat|6, hwif->dma_status);
+	if (mmio)
+		writeb(dma_stat | 6, (void __iomem *)hwif->dma_status);
+	else
+		outb(dma_stat | 6, hwif->dma_status);
+
 	drive->waiting_for_dma = 1;
 	return 0;
 }
@@ -492,16 +503,23 @@ EXPORT_SYMBOL_GPL(ide_dma_exec_cmd);
 
 void ide_dma_start(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	u8 dma_cmd		= hwif->INB(hwif->dma_command);
+	ide_hwif_t *hwif = drive->hwif;
+	u8 dma_cmd;
 
 	/* Note that this is done *after* the cmd has
 	 * been issued to the drive, as per the BM-IDE spec.
 	 * The Promise Ultra33 doesn't work correctly when
 	 * we do this part before issuing the drive cmd.
 	 */
-	/* start DMA */
-	hwif->OUTB(dma_cmd|1, hwif->dma_command);
+	if (hwif->host_flags & IDE_HFLAG_MMIO) {
+		dma_cmd = readb((void __iomem *)hwif->dma_command);
+		/* start DMA */
+		writeb(dma_cmd | 1, (void __iomem *)hwif->dma_command);
+	} else {
+		dma_cmd = inb(hwif->dma_command);
+		outb(dma_cmd | 1, hwif->dma_command);
+	}
+
 	hwif->dma = 1;
 	wmb();
 }
@@ -511,18 +529,31 @@ EXPORT_SYMBOL_GPL(ide_dma_start);
 /* returns 1 on error, 0 otherwise */
 int __ide_dma_end (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
+	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 dma_stat = 0, dma_cmd = 0;
 
 	drive->waiting_for_dma = 0;
-	/* get dma_command mode */
-	dma_cmd = hwif->INB(hwif->dma_command);
-	/* stop DMA */
-	hwif->OUTB(dma_cmd&~1, hwif->dma_command);
+
+	if (mmio) {
+		/* get DMA command mode */
+		dma_cmd = readb((void __iomem *)hwif->dma_command);
+		/* stop DMA */
+		writeb(dma_cmd & ~1, (void __iomem *)hwif->dma_command);
+	} else {
+		dma_cmd = inb(hwif->dma_command);
+		outb(dma_cmd & ~1, hwif->dma_command);
+	}
+
 	/* get DMA status */
 	dma_stat = hwif->read_sff_dma_status(hwif);
-	/* clear the INTR & ERROR bits */
-	hwif->OUTB(dma_stat|6, hwif->dma_status);
+
+	if (mmio)
+		/* clear the INTR & ERROR bits */
+		writeb(dma_stat | 6, (void __iomem *)hwif->dma_status);
+	else
+		outb(dma_stat | 6, hwif->dma_status);
+
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
