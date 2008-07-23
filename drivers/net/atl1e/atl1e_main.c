@@ -2073,7 +2073,6 @@ static int atl1e_close(struct net_device *netdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int atl1e_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -2207,6 +2206,7 @@ suspend_exit:
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int atl1e_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
