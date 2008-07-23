@@ -31,7 +31,10 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	debug_log("Enter %s - interrupt handler\n", __func__);
 
 	if (pc->flags & PC_FLAG_TIMEDOUT) {
-		pc->callback(drive);
+		if (drive->media == ide_floppy)
+			drive->pc_callback(drive);
+		else
+			pc->callback(drive);
 		return ide_stopped;
 	}
 
@@ -97,7 +100,10 @@ cmd_finished:
 			return ide_stopped;
 		}
 		/* Command finished - Call the callback function */
-		pc->callback(drive);
+		if (drive->media == ide_floppy)
+			drive->pc_callback(drive);
+		else
+			pc->callback(drive);
 		return ide_stopped;
 	}
 
