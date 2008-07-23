@@ -212,6 +212,8 @@ static int hidraw_release(struct inode * inode, struct file * file)
 			kfree(list->hidraw);
 	}
 
+	kfree(list);
+
 	return 0;
 }
 
