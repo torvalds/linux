@@ -792,9 +792,9 @@ int ide_driveid_update(ide_drive_t *drive)
 int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct ide_io_ports *io_ports = &hwif->io_ports;
 	int error = 0;
 	u8 stat;
+	ide_task_t task;
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (hwif->dma_ops)	/* check if host supports DMA */
@@ -828,9 +828,16 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	SELECT_MASK(drive, 0);
 	udelay(1);
 	hwif->set_irq(hwif, 0);
-	hwif->OUTB(SETFEATURES_XFER, io_ports->feature_addr);
-	hwif->OUTB(speed, io_ports->nsect_addr);
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT;
+	task.tf.feature = SETFEATURES_XFER;
+	task.tf.nsect   = speed;
+
+	hwif->tf_load(drive, &task);
+
 	hwif->exec_command(hwif, WIN_SETFEATURES);
+
 	if (drive->quirk_list == 2)
 		hwif->set_irq(hwif, 1);
 
