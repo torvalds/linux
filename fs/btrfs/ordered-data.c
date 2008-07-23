@@ -545,7 +545,7 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum)
 		ordered_sum = list_entry(cur, struct btrfs_ordered_sum, list);
 		if (offset >= ordered_sum->file_offset) {
 			num_sectors = ordered_sum->len / sectorsize;
-			sector_sums = &ordered_sum->sums;
+			sector_sums = ordered_sum->sums;
 			for (i = 0; i < num_sectors; i++) {
 				if (sector_sums[i].offset == offset) {
 					*sum = sector_sums[i].sum;

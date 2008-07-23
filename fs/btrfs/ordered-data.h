@@ -46,7 +46,7 @@ struct btrfs_ordered_sum {
 	unsigned long len;
 	struct list_head list;
 	/* last field is a variable length array of btrfs_sector_sums */
-	struct btrfs_sector_sum sums;
+	struct btrfs_sector_sum sums[];
 };
 
 /*

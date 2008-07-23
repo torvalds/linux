@@ -382,6 +382,9 @@ static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 			memcpy(dirty->root, root, sizeof(*root));
 			dirty->root->node = root->commit_root;
 			dirty->latest_root = root;
+			spin_lock_init(&dirty->root->node_lock);
+			mutex_init(&dirty->root->objectid_mutex);
+
 			root->commit_root = NULL;
 
 			root->root_key.offset = root->fs_info->generation;

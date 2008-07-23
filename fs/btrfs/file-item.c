@@ -152,7 +152,7 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 	if (!sums)
 		return -ENOMEM;
 
-	sector_sum = &sums->sums;
+	sector_sum = sums->sums;
 	sums->file_offset = page_offset(bvec->bv_page) + bvec->bv_offset;
 	sums->len = bio->bi_size;
 	INIT_LIST_HEAD(&sums->list);
@@ -174,7 +174,7 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 			sums = kzalloc(btrfs_ordered_sum_size(root, bytes_left),
 				       GFP_NOFS);
 			BUG_ON(!sums);
-			sector_sum = &sums->sums;
+			sector_sum = sums->sums;
 			sums->len = bytes_left;
 			sums->file_offset = offset;
 			ordered = btrfs_lookup_ordered_extent(inode,
@@ -193,12 +193,14 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 				 (char *)&sector_sum->sum);
 		sector_sum->offset = page_offset(bvec->bv_page) +
 			bvec->bv_offset;
+
 		sector_sum++;
 		bio_index++;
 		total_bytes += bvec->bv_len;
 		this_sum_bytes += bvec->bv_len;
 		bvec++;
 	}
+	this_sum_bytes = 0;
 	btrfs_add_ordered_sum(inode, ordered, sums);
 	btrfs_put_ordered_extent(ordered);
 	return 0;
@@ -231,7 +233,7 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	sector_sum = &sums->sums;
+	sector_sum = sums->sums;
 again:
 	next_offset = (u64)-1;
 	found_next = 0;

@@ -612,6 +612,7 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 		return 0;
 
 	path = btrfs_alloc_path();
+	mutex_lock(&BTRFS_I(inode)->csum_mutex);
 	item = btrfs_lookup_csum(NULL, root, path, inode->i_ino, start, 0);
 	if (IS_ERR(item)) {
 		/*
@@ -640,6 +641,7 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 found:
 	set_state_private(io_tree, start, csum);
 out:
+	mutex_unlock(&BTRFS_I(inode)->csum_mutex);
 	if (path)
 		btrfs_free_path(path);
 	return ret;
