@@ -6,7 +6,6 @@
  * This file is released under the GPLv2.
  * See the file COPYING for more details.
  *
- * Please do not call me directly, include linux/syscalls.h
  */
 
 #ifndef _ASM_X86_SYSCALLS_H
@@ -59,6 +58,10 @@ asmlinkage int sys_olduname(struct oldold_utsname __user *);
 /* kernel/tls.c */
 asmlinkage int sys_set_thread_area(struct user_desc __user *);
 asmlinkage int sys_get_thread_area(struct user_desc __user *);
+
+/* kernel/vm86_32.c */
+asmlinkage int sys_vm86old(struct pt_regs);
+asmlinkage int sys_vm86(struct pt_regs);
 
 #else /* CONFIG_X86_32 */
 
