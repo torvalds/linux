@@ -172,7 +172,7 @@ static void invalidate_tce_cache(struct cbe_iommu *iommu, unsigned long *pte,
 	}
 }
 
-static void tce_build_cell(struct iommu_table *tbl, long index, long npages,
+static int tce_build_cell(struct iommu_table *tbl, long index, long npages,
 		unsigned long uaddr, enum dma_data_direction direction,
 		struct dma_attrs *attrs)
 {
@@ -213,6 +213,7 @@ static void tce_build_cell(struct iommu_table *tbl, long index, long npages,
 
 	pr_debug("tce_build_cell(index=%lx,n=%lx,dir=%d,base_pte=%lx)\n",
 		 index, npages, direction, base_pte);
+	return 0;
 }
 
 static void tce_free_cell(struct iommu_table *tbl, long index, long npages)
