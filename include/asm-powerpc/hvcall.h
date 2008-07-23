@@ -210,7 +210,9 @@
 #define H_JOIN			0x298
 #define H_VASI_STATE            0x2A4
 #define H_ENABLE_CRQ		0x2B0
-#define MAX_HCALL_OPCODE	H_ENABLE_CRQ
+#define H_SET_MPP		0x2D0
+#define H_GET_MPP		0x2D4
+#define MAX_HCALL_OPCODE	H_GET_MPP
 
 #ifndef __ASSEMBLY__
 
@@ -270,6 +272,20 @@ struct hcall_stats {
 };
 #define HCALL_STAT_ARRAY_SIZE	((MAX_HCALL_OPCODE >> 2) + 1)
 
+struct hvcall_mpp_data {
+	unsigned long entitled_mem;
+	unsigned long mapped_mem;
+	unsigned short group_num;
+	unsigned short pool_num;
+	unsigned char mem_weight;
+	unsigned char unallocated_mem_weight;
+	unsigned long unallocated_entitlement;  /* value in bytes */
+	unsigned long pool_size;
+	signed long loan_request;
+	unsigned long backing_mem;
+};
+
+int h_get_mpp(struct hvcall_mpp_data *);
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_HVCALL_H */
