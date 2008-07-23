@@ -21,15 +21,16 @@ EXPORT_SYMBOL(cpu_sysdev_class);
 static DEFINE_PER_CPU(struct sys_device *, cpu_sys_devices);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static ssize_t show_online(struct sys_device *dev, char *buf)
+static ssize_t show_online(struct sys_device *dev, struct sysdev_attribute *attr,
+			   char *buf)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 
 	return sprintf(buf, "%u\n", !!cpu_online(cpu->sysdev.id));
 }
 
-static ssize_t __ref store_online(struct sys_device *dev, const char *buf,
-			    size_t count)
+static ssize_t __ref store_online(struct sys_device *dev, struct sysdev_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 	ssize_t ret;
@@ -80,7 +81,8 @@ static inline void register_cpu_control(struct cpu *cpu)
 #ifdef CONFIG_KEXEC
 #include <linux/kexec.h>
 
-static ssize_t show_crash_notes(struct sys_device *dev, char *buf)
+static ssize_t show_crash_notes(struct sys_device *dev, struct sysdev_attribute *attr,
+				char *buf)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 	ssize_t rc;

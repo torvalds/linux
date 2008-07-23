@@ -30,6 +30,7 @@
 #include <linux/errno.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spidev.h>
@@ -464,6 +465,7 @@ static int spidev_open(struct inode *inode, struct file *filp)
 	struct spidev_data	*spidev;
 	int			status = -ENXIO;
 
+	lock_kernel();
 	mutex_lock(&device_list_lock);
 
 	list_for_each_entry(spidev, &device_list, device_entry) {
@@ -489,6 +491,7 @@ static int spidev_open(struct inode *inode, struct file *filp)
 		pr_debug("spidev: nothing for minor %d\n", iminor(inode));
 
 	mutex_unlock(&device_list_lock);
+	unlock_kernel();
 	return status;
 }
 
@@ -573,7 +576,8 @@ static int spidev_probe(struct spi_device *spi)
 		struct device *dev;
 
 		spidev->devt = MKDEV(SPIDEV_MAJOR, minor);
-		dev = device_create(spidev_class, &spi->dev, spidev->devt,
+		dev = device_create_drvdata(spidev_class, &spi->dev,
+				spidev->devt, spidev,
 				"spidev%d.%d",
 				spi->master->bus_num, spi->chip_select);
 		status = IS_ERR(dev) ? PTR_ERR(dev) : 0;
@@ -583,7 +587,6 @@ static int spidev_probe(struct spi_device *spi)
 	}
 	if (status == 0) {
 		set_bit(minor, minors);
-		spi_set_drvdata(spi, spidev);
 		list_add(&spidev->device_entry, &device_list);
 	}
 	mutex_unlock(&device_list_lock);

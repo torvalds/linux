@@ -44,6 +44,10 @@ static void __devinit plat_ide_setup_ports(hw_regs_t *hw,
 	hw->chipset = ide_generic;
 }
 
+static const struct ide_port_info platform_ide_port_info = {
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
 static int __devinit plat_ide_probe(struct platform_device *pdev)
 {
 	struct resource *res_base, *res_alt, *res_irq;
@@ -54,6 +58,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	int ret = 0;
 	int mmio = 0;
 	hw_regs_t hw;
+	struct ide_port_info d = platform_ide_port_info;
 
 	pdata = pdev->dev.platform_data;
 
@@ -102,13 +107,13 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	ide_init_port_hw(hwif, &hw);
 
 	if (mmio) {
-		hwif->host_flags = IDE_HFLAG_MMIO;
+		d.host_flags |= IDE_HFLAG_MMIO;
 		default_hwif_mmiops(hwif);
 	}
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx, NULL);
+	ide_device_add(idx, &d);
 
 	platform_set_drvdata(pdev, hwif);
 

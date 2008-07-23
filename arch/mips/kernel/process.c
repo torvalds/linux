@@ -125,13 +125,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	*childregs = *regs;
 	childregs->regs[7] = 0;	/* Clear error flag */
 
-#if defined(CONFIG_BINFMT_IRIX)
-	if (current->personality != PER_LINUX) {
-		/* Under IRIX things are a little different. */
-		childregs->regs[3] = 1;
-		regs->regs[3] = 0;
-	}
-#endif
 	childregs->regs[2] = 0;	/* Child gets zero as return value */
 	regs->regs[2] = p->pid;
 

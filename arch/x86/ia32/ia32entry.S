@@ -37,6 +37,11 @@
 	movq	%rax,R8(%rsp)
 	.endm
 
+	/*
+	 * Reload arg registers from stack in case ptrace changed them.
+	 * We don't reload %eax because syscall_trace_enter() returned
+	 * the value it wants us to use in the table lookup.
+	 */
 	.macro LOAD_ARGS32 offset
 	movl \offset(%rsp),%r11d
 	movl \offset+8(%rsp),%r10d
@@ -46,7 +51,6 @@
 	movl \offset+48(%rsp),%edx
 	movl \offset+56(%rsp),%esi
 	movl \offset+64(%rsp),%edi
-	movl \offset+72(%rsp),%eax
 	.endm
 	
 	.macro CFI_STARTPROC32 simple
@@ -60,6 +64,19 @@
 	CFI_UNDEFINED	r14
 	CFI_UNDEFINED	r15
 	.endm
+
+#ifdef CONFIG_PARAVIRT
+ENTRY(native_usergs_sysret32)
+	swapgs
+	sysretl
+ENDPROC(native_usergs_sysret32)
+
+ENTRY(native_irq_enable_sysexit)
+	swapgs
+	sti
+	sysexit
+ENDPROC(native_irq_enable_sysexit)
+#endif
 
 /*
  * 32bit SYSENTER instruction entry.
@@ -85,14 +102,14 @@ ENTRY(ia32_sysenter_target)
 	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rsp,rbp
-	swapgs
+	SWAPGS_UNSAFE_STACK
 	movq	%gs:pda_kernelstack, %rsp
 	addq	$(PDA_STACKOFFSET),%rsp	
 	/*
 	 * No need to follow this irqs on/off section: the syscall
 	 * disabled irqs, here we enable it straight after entry:
 	 */
-	sti	
+	ENABLE_INTERRUPTS(CLBR_NONE)
  	movl	%ebp,%ebp		/* zero extension */
 	pushq	$__USER32_DS
 	CFI_ADJUST_CFA_OFFSET 8
@@ -103,7 +120,7 @@ ENTRY(ia32_sysenter_target)
 	pushfq
 	CFI_ADJUST_CFA_OFFSET 8
 	/*CFI_REL_OFFSET rflags,0*/
-	movl	8*3-THREAD_SIZE+threadinfo_sysenter_return(%rsp), %r10d
+	movl	8*3-THREAD_SIZE+TI_sysenter_return(%rsp), %r10d
 	CFI_REGISTER rip,r10
 	pushq	$__USER32_CS
 	CFI_ADJUST_CFA_OFFSET 8
@@ -123,22 +140,22 @@ ENTRY(ia32_sysenter_target)
  	.quad 1b,ia32_badarg
  	.previous	
 	GET_THREAD_INFO(%r10)
-	orl    $TS_COMPAT,threadinfo_status(%r10)
-	testl  $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
+	orl    $TS_COMPAT,TI_status(%r10)
+	testl  $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%r10)
 	CFI_REMEMBER_STATE
 	jnz  sysenter_tracesys
-sysenter_do_call:	
 	cmpl	$(IA32_NR_syscalls-1),%eax
 	ja	ia32_badsys
+sysenter_do_call:
 	IA32_ARG_FIXUP 1
 	call	*ia32_sys_call_table(,%rax,8)
 	movq	%rax,RAX-ARGOFFSET(%rsp)
 	GET_THREAD_INFO(%r10)
-	cli
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	testl	$_TIF_ALLWORK_MASK,threadinfo_flags(%r10)
+	testl	$_TIF_ALLWORK_MASK,TI_flags(%r10)
 	jnz	int_ret_from_sys_call
-	andl    $~TS_COMPAT,threadinfo_status(%r10)
+	andl    $~TS_COMPAT,TI_status(%r10)
 	/* clear IF, that popfq doesn't enable interrupts early */
 	andl  $~0x200,EFLAGS-R11(%rsp) 
 	movl	RIP-R11(%rsp),%edx		/* User %eip */
@@ -151,10 +168,7 @@ sysenter_do_call:
 	CFI_ADJUST_CFA_OFFSET -8
 	CFI_REGISTER rsp,rcx
 	TRACE_IRQS_ON
-	swapgs
-	sti		/* sti only takes effect after the next instruction */
-	/* sysexit */
-	.byte	0xf, 0x35
+	ENABLE_INTERRUPTS_SYSEXIT32
 
 sysenter_tracesys:
 	CFI_RESTORE_STATE
@@ -200,7 +214,7 @@ ENTRY(ia32_cstar_target)
 	CFI_DEF_CFA	rsp,PDA_STACKOFFSET
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
-	swapgs
+	SWAPGS_UNSAFE_STACK
 	movl	%esp,%r8d
 	CFI_REGISTER	rsp,r8
 	movq	%gs:pda_kernelstack,%rsp
@@ -208,7 +222,7 @@ ENTRY(ia32_cstar_target)
 	 * No need to follow this irqs on/off section: the syscall
 	 * disabled irqs and here we enable it straight after entry:
 	 */
-	sti
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	SAVE_ARGS 8,1,1
 	movl 	%eax,%eax	/* zero extension */
 	movq	%rax,ORIG_RAX-ARGOFFSET(%rsp)
@@ -230,8 +244,8 @@ ENTRY(ia32_cstar_target)
 	.quad 1b,ia32_badarg
 	.previous	
 	GET_THREAD_INFO(%r10)
-	orl   $TS_COMPAT,threadinfo_status(%r10)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
+	orl   $TS_COMPAT,TI_status(%r10)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%r10)
 	CFI_REMEMBER_STATE
 	jnz   cstar_tracesys
 cstar_do_call:	
@@ -241,11 +255,11 @@ cstar_do_call:
 	call *ia32_sys_call_table(,%rax,8)
 	movq %rax,RAX-ARGOFFSET(%rsp)
 	GET_THREAD_INFO(%r10)
-	cli
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	testl $_TIF_ALLWORK_MASK,threadinfo_flags(%r10)
+	testl $_TIF_ALLWORK_MASK,TI_flags(%r10)
 	jnz  int_ret_from_sys_call
-	andl $~TS_COMPAT,threadinfo_status(%r10)
+	andl $~TS_COMPAT,TI_status(%r10)
 	RESTORE_ARGS 1,-ARG_SKIP,1,1,1
 	movl RIP-ARGOFFSET(%rsp),%ecx
 	CFI_REGISTER rip,rcx
@@ -254,8 +268,7 @@ cstar_do_call:
 	TRACE_IRQS_ON
 	movl RSP-ARGOFFSET(%rsp),%esp
 	CFI_RESTORE rsp
-	swapgs
-	sysretl
+	USERGS_SYSRET32
 	
 cstar_tracesys:	
 	CFI_RESTORE_STATE
@@ -310,12 +323,13 @@ ENTRY(ia32_syscall)
 	/*CFI_REL_OFFSET	rflags,EFLAGS-RIP*/
 	/*CFI_REL_OFFSET	cs,CS-RIP*/
 	CFI_REL_OFFSET	rip,RIP-RIP
-	swapgs
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
+	SWAPGS
 	/*
 	 * No need to follow this irqs on/off section: the syscall
 	 * disabled irqs and here we enable it straight after entry:
 	 */
-	sti
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	movl %eax,%eax
 	pushq %rax
 	CFI_ADJUST_CFA_OFFSET 8
@@ -324,8 +338,8 @@ ENTRY(ia32_syscall)
 	   this could be a problem. */
 	SAVE_ARGS 0,0,1
 	GET_THREAD_INFO(%r10)
-	orl   $TS_COMPAT,threadinfo_status(%r10)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
+	orl   $TS_COMPAT,TI_status(%r10)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%r10)
 	jnz ia32_tracesys
 ia32_do_syscall:	
 	cmpl $(IA32_NR_syscalls-1),%eax
@@ -370,13 +384,11 @@ quiet_ni_syscall:
 	PTREGSCALL stub32_rt_sigreturn, sys32_rt_sigreturn, %rdi
 	PTREGSCALL stub32_sigreturn, sys32_sigreturn, %rdi
 	PTREGSCALL stub32_sigaltstack, sys32_sigaltstack, %rdx
-	PTREGSCALL stub32_sigsuspend, sys32_sigsuspend, %rcx
 	PTREGSCALL stub32_execve, sys32_execve, %rcx
 	PTREGSCALL stub32_fork, sys_fork, %rdi
 	PTREGSCALL stub32_clone, sys32_clone, %rdx
 	PTREGSCALL stub32_vfork, sys_vfork, %rdi
 	PTREGSCALL stub32_iopl, sys_iopl, %rsi
-	PTREGSCALL stub32_rt_sigsuspend, sys_rt_sigsuspend, %rdx
 
 ENTRY(ia32_ptregs_common)
 	popq %r11
@@ -476,7 +488,7 @@ ia32_sys_call_table:
 	.quad sys_ssetmask
 	.quad sys_setreuid16	/* 70 */
 	.quad sys_setregid16
-	.quad stub32_sigsuspend
+	.quad sys32_sigsuspend
 	.quad compat_sys_sigpending
 	.quad sys_sethostname
 	.quad compat_sys_setrlimit	/* 75 */
@@ -583,7 +595,7 @@ ia32_sys_call_table:
 	.quad sys32_rt_sigpending
 	.quad compat_sys_rt_sigtimedwait
 	.quad sys32_rt_sigqueueinfo
-	.quad stub32_rt_sigsuspend
+	.quad sys_rt_sigsuspend
 	.quad sys32_pread		/* 180 */
 	.quad sys32_pwrite
 	.quad sys_chown16

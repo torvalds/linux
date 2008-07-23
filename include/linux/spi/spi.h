@@ -733,7 +733,7 @@ struct spi_board_info {
 	 * controller_data goes to spi_device.controller_data,
 	 * irq is copied too
 	 */
-	char		modalias[KOBJ_NAME_LEN];
+	char		modalias[32];
 	const void	*platform_data;
 	void		*controller_data;
 	int		irq;

@@ -302,6 +302,7 @@ static int pcf8563_remove(struct i2c_client *client)
 
 static const struct i2c_device_id pcf8563_id[] = {
 	{ "pcf8563", 0 },
+	{ "rtc8564", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf8563_id);

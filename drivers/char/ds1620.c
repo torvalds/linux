@@ -8,6 +8,7 @@
 #include <linux/proc_fs.h>
 #include <linux/capability.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -208,6 +209,12 @@ static void ds1620_read_state(struct therm *therm)
 	therm->hi = cvt_9_to_int(ds1620_in(THERM_READ_TH, 9));
 }
 
+static int ds1620_open(struct inode *inode, struct file *file)
+{
+	cycle_kernel_lock();
+	return nonseekable_open(inode, file);
+}
+
 static ssize_t
 ds1620_read(struct file *file, char __user *buf, size_t count, loff_t *ptr)
 {
@@ -336,7 +343,7 @@ static struct proc_dir_entry *proc_therm_ds1620;
 
 static const struct file_operations ds1620_fops = {
 	.owner		= THIS_MODULE,
-	.open		= nonseekable_open,
+	.open		= ds1620_open,
 	.read		= ds1620_read,
 	.ioctl		= ds1620_ioctl,
 };

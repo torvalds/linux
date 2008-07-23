@@ -36,8 +36,8 @@ static void orion_irq_unmask(u32 irq)
 
 static struct irq_chip orion_irq_chip = {
 	.name		= "orion_irq",
-	.ack		= orion_irq_mask,
 	.mask		= orion_irq_mask,
+	.mask_ack	= orion_irq_mask,
 	.unmask		= orion_irq_unmask,
 };
 
@@ -59,6 +59,7 @@ void __init orion_irq_init(unsigned int irq_start, void __iomem *maskaddr)
 		set_irq_chip(irq, &orion_irq_chip);
 		set_irq_chip_data(irq, maskaddr);
 		set_irq_handler(irq, handle_level_irq);
+		irq_desc[irq].status |= IRQ_LEVEL;
 		set_irq_flags(irq, IRQF_VALID);
 	}
 }

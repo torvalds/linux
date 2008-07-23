@@ -1,6 +1,15 @@
 #ifndef _ASM_X86_SEGMENT_H_
 #define _ASM_X86_SEGMENT_H_
 
+/* Constructor for a conventional segment GDT (or LDT) entry */
+/* This is a macro so it can be used in initializers */
+#define GDT_ENTRY(flags, base, limit)			\
+	((((base)  & 0xff000000ULL) << (56-24)) |	\
+	 (((flags) & 0x0000f0ffULL) << 40) |		\
+	 (((limit) & 0x000f0000ULL) << (48-16)) |	\
+	 (((base)  & 0x00ffffffULL) << 16) |		\
+	 (((limit) & 0x0000ffffULL)))
+
 /* Simple and small GDT entries for booting only */
 
 #define GDT_ENTRY_BOOT_CS	2
@@ -61,18 +70,14 @@
 #define GDT_ENTRY_TLS_MAX 	(GDT_ENTRY_TLS_MIN + GDT_ENTRY_TLS_ENTRIES - 1)
 
 #define GDT_ENTRY_DEFAULT_USER_CS	14
-#define __USER_CS (GDT_ENTRY_DEFAULT_USER_CS * 8 + 3)
 
 #define GDT_ENTRY_DEFAULT_USER_DS	15
-#define __USER_DS (GDT_ENTRY_DEFAULT_USER_DS * 8 + 3)
 
 #define GDT_ENTRY_KERNEL_BASE	12
 
 #define GDT_ENTRY_KERNEL_CS		(GDT_ENTRY_KERNEL_BASE + 0)
-#define __KERNEL_CS (GDT_ENTRY_KERNEL_CS * 8)
 
 #define GDT_ENTRY_KERNEL_DS		(GDT_ENTRY_KERNEL_BASE + 1)
-#define __KERNEL_DS (GDT_ENTRY_KERNEL_DS * 8)
 
 #define GDT_ENTRY_TSS			(GDT_ENTRY_KERNEL_BASE + 4)
 #define GDT_ENTRY_LDT			(GDT_ENTRY_KERNEL_BASE + 5)
@@ -139,10 +144,11 @@
 #else
 #include <asm/cache.h>
 
-#define __KERNEL_CS	0x10
-#define __KERNEL_DS	0x18
+#define GDT_ENTRY_KERNEL32_CS 1
+#define GDT_ENTRY_KERNEL_CS 2
+#define GDT_ENTRY_KERNEL_DS 3
 
-#define __KERNEL32_CS   0x08
+#define __KERNEL32_CS   (GDT_ENTRY_KERNEL32_CS * 8)
 
 /*
  * we cannot use the same code segment descriptor for user and kernel
@@ -150,10 +156,10 @@
  * The segment offset needs to contain a RPL. Grr. -AK
  * GDT layout to get 64bit syscall right (sysret hardcodes gdt offsets)
  */
-
-#define __USER32_CS   0x23   /* 4*8+3 */
-#define __USER_DS     0x2b   /* 5*8+3 */
-#define __USER_CS     0x33   /* 6*8+3 */
+#define GDT_ENTRY_DEFAULT_USER32_CS 4
+#define GDT_ENTRY_DEFAULT_USER_DS 5
+#define GDT_ENTRY_DEFAULT_USER_CS 6
+#define __USER32_CS   (GDT_ENTRY_DEFAULT_USER32_CS * 8 + 3)
 #define __USER32_DS	__USER_DS
 
 #define GDT_ENTRY_TSS 8	/* needs two entries */
@@ -175,6 +181,10 @@
 
 #endif
 
+#define __KERNEL_CS	(GDT_ENTRY_KERNEL_CS * 8)
+#define __KERNEL_DS	(GDT_ENTRY_KERNEL_DS * 8)
+#define __USER_DS     (GDT_ENTRY_DEFAULT_USER_DS* 8 + 3)
+#define __USER_CS     (GDT_ENTRY_DEFAULT_USER_CS* 8 + 3)
 #ifndef CONFIG_PARAVIRT
 #define get_kernel_rpl()  0
 #endif

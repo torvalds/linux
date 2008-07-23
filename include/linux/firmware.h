@@ -1,17 +1,38 @@
 #ifndef _LINUX_FIRMWARE_H
 #define _LINUX_FIRMWARE_H
+
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/compiler.h>
+
 #define FIRMWARE_NAME_MAX 30 
 #define FW_ACTION_NOHOTPLUG 0
 #define FW_ACTION_HOTPLUG 1
 
 struct firmware {
 	size_t size;
-	u8 *data;
+	const u8 *data;
 };
 
 struct device;
+
+struct builtin_fw {
+	char *name;
+	void *data;
+	unsigned long size;
+};
+
+/* We have to play tricks here much like stringify() to get the
+   __COUNTER__ macro to be expanded as we want it */
+#define __fw_concat1(x, y) x##y
+#define __fw_concat(x, y) __fw_concat1(x, y)
+
+#define DECLARE_BUILTIN_FIRMWARE(name, blob)				     \
+	DECLARE_BUILTIN_FIRMWARE_SIZE(name, &(blob), sizeof(blob))
+
+#define DECLARE_BUILTIN_FIRMWARE_SIZE(name, blob, size)			     \
+	static const struct builtin_fw __fw_concat(__builtin_fw,__COUNTER__) \
+	__used __section(.builtin_fw) = { name, blob, size }
 
 #if defined(CONFIG_FW_LOADER) || (defined(CONFIG_FW_LOADER_MODULE) && defined(MODULE))
 int request_firmware(const struct firmware **fw, const char *name,

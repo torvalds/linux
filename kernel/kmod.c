@@ -42,7 +42,7 @@ extern int max_threads;
 
 static struct workqueue_struct *khelper_wq;
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 
 /*
 	modprobe_path is set via /proc/sys.

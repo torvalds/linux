@@ -20,8 +20,8 @@
 /* Boot-time LSM user choice */
 static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1];
 
-/* things that live in dummy.c */
-extern struct security_operations dummy_security_ops;
+/* things that live in capability.c */
+extern struct security_operations default_security_ops;
 extern void security_fixup_ops(struct security_operations *ops);
 
 struct security_operations *security_ops;	/* Initialized to NULL */
@@ -57,13 +57,8 @@ int __init security_init(void)
 {
 	printk(KERN_INFO "Security Framework initialized\n");
 
-	if (verify(&dummy_security_ops)) {
-		printk(KERN_ERR "%s could not verify "
-		       "dummy_security_ops structure.\n", __func__);
-		return -EIO;
-	}
-
-	security_ops = &dummy_security_ops;
+	security_fixup_ops(&default_security_ops);
+	security_ops = &default_security_ops;
 	do_security_initcalls();
 
 	return 0;
@@ -122,7 +117,7 @@ int register_security(struct security_operations *ops)
 		return -EINVAL;
 	}
 
-	if (security_ops != &dummy_security_ops)
+	if (security_ops != &default_security_ops)
 		return -EAGAIN;
 
 	security_ops = ops;
@@ -130,40 +125,12 @@ int register_security(struct security_operations *ops)
 	return 0;
 }
 
-/**
- * mod_reg_security - allows security modules to be "stacked"
- * @name: a pointer to a string with the name of the security_options to be registered
- * @ops: a pointer to the struct security_options that is to be registered
- *
- * This function allows security modules to be stacked if the currently loaded
- * security module allows this to happen.  It passes the @name and @ops to the
- * register_security function of the currently loaded security module.
- *
- * The return value depends on the currently loaded security module, with 0 as
- * success.
- */
-int mod_reg_security(const char *name, struct security_operations *ops)
-{
-	if (verify(ops)) {
-		printk(KERN_INFO "%s could not verify "
-		       "security operations.\n", __func__);
-		return -EINVAL;
-	}
-
-	if (ops == security_ops) {
-		printk(KERN_INFO "%s security operations "
-		       "already registered.\n", __func__);
-		return -EINVAL;
-	}
-
-	return security_ops->register_security(name, ops);
-}
-
 /* Security operations */
 
-int security_ptrace(struct task_struct *parent, struct task_struct *child)
+int security_ptrace(struct task_struct *parent, struct task_struct *child,
+		    unsigned int mode)
 {
-	return security_ops->ptrace(parent, child);
+	return security_ops->ptrace(parent, child, mode);
 }
 
 int security_capget(struct task_struct *target,
@@ -291,6 +258,11 @@ int security_sb_kern_mount(struct super_block *sb, void *data)
 	return security_ops->sb_kern_mount(sb, data);
 }
 
+int security_sb_show_options(struct seq_file *m, struct super_block *sb)
+{
+	return security_ops->sb_show_options(m, sb);
+}
+
 int security_sb_statfs(struct dentry *dentry)
 {
 	return security_ops->sb_statfs(dentry);
@@ -340,12 +312,6 @@ int security_sb_pivotroot(struct path *old_path, struct path *new_path)
 void security_sb_post_pivotroot(struct path *old_path, struct path *new_path)
 {
 	security_ops->sb_post_pivotroot(old_path, new_path);
-}
-
-int security_sb_get_mnt_opts(const struct super_block *sb,
-				struct security_mnt_opts *opts)
-{
-	return security_ops->sb_get_mnt_opts(sb, opts);
 }
 
 int security_sb_set_mnt_opts(struct super_block *sb,
@@ -894,7 +860,7 @@ EXPORT_SYMBOL(security_secctx_to_secid);
 
 void security_release_secctx(char *secdata, u32 seclen)
 {
-	return security_ops->release_secctx(secdata, seclen);
+	security_ops->release_secctx(secdata, seclen);
 }
 EXPORT_SYMBOL(security_release_secctx);
 
@@ -1011,12 +977,12 @@ int security_sk_alloc(struct sock *sk, int family, gfp_t priority)
 
 void security_sk_free(struct sock *sk)
 {
-	return security_ops->sk_free_security(sk);
+	security_ops->sk_free_security(sk);
 }
 
 void security_sk_clone(const struct sock *sk, struct sock *newsk)
 {
-	return security_ops->sk_clone_security(sk, newsk);
+	security_ops->sk_clone_security(sk, newsk);
 }
 
 void security_sk_classify_flow(struct sock *sk, struct flowi *fl)

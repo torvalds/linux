@@ -111,9 +111,9 @@ static int recv_subn_get_nodeinfo(struct ib_smp *smp,
 	nip->revision = cpu_to_be32((majrev << 16) | minrev);
 	nip->local_port_num = port;
 	vendor = dd->ipath_vendorid;
-	nip->vendor_id[0] = 0;
-	nip->vendor_id[1] = vendor >> 8;
-	nip->vendor_id[2] = vendor;
+	nip->vendor_id[0] = IPATH_SRC_OUI_1;
+	nip->vendor_id[1] = IPATH_SRC_OUI_2;
+	nip->vendor_id[2] = IPATH_SRC_OUI_3;
 
 	return reply(smp);
 }

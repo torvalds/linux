@@ -110,9 +110,9 @@ struct bios_file_header {
 };
 
 int asd_verify_flash_seg(struct asd_ha_struct *asd_ha,
-		void *src, u32 dest_offset, u32 bytes_to_verify);
+		const void *src, u32 dest_offset, u32 bytes_to_verify);
 int asd_write_flash_seg(struct asd_ha_struct *asd_ha,
-		void *src, u32 dest_offset, u32 bytes_to_write);
+		const void *src, u32 dest_offset, u32 bytes_to_write);
 int asd_chk_write_status(struct asd_ha_struct *asd_ha,
 		u32 sector_addr, u8 erase_flag);
 int asd_check_flash_type(struct asd_ha_struct *asd_ha);

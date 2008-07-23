@@ -499,7 +499,7 @@ rio_timer (unsigned long data)
 			entry = np->old_rx % RX_RING_SIZE;
 			/* Dropped packets don't need to re-allocate */
 			if (np->rx_skbuff[entry] == NULL) {
-				skb = dev_alloc_skb (np->rx_buf_sz);
+				skb = netdev_alloc_skb (dev, np->rx_buf_sz);
 				if (skb == NULL) {
 					np->rx_ring[entry].fraginfo = 0;
 					printk (KERN_INFO
@@ -570,7 +570,7 @@ alloc_list (struct net_device *dev)
 	/* Allocate the rx buffers */
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		/* Allocated fixed size of skbuff */
-		struct sk_buff *skb = dev_alloc_skb (np->rx_buf_sz);
+		struct sk_buff *skb = netdev_alloc_skb (dev, np->rx_buf_sz);
 		np->rx_skbuff[i] = skb;
 		if (skb == NULL) {
 			printk (KERN_ERR
@@ -867,7 +867,7 @@ receive_packet (struct net_device *dev)
 						  PCI_DMA_FROMDEVICE);
 				skb_put (skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
-			} else if ((skb = dev_alloc_skb (pkt_len + 2)) != NULL) {
+			} else if ((skb = netdev_alloc_skb(dev, pkt_len + 2))) {
 				pci_dma_sync_single_for_cpu(np->pdev,
 							    desc_to_dma(desc),
 							    np->rx_buf_sz,
@@ -904,7 +904,7 @@ receive_packet (struct net_device *dev)
 		struct sk_buff *skb;
 		/* Dropped packets don't need to re-allocate */
 		if (np->rx_skbuff[entry] == NULL) {
-			skb = dev_alloc_skb (np->rx_buf_sz);
+			skb = netdev_alloc_skb(dev, np->rx_buf_sz);
 			if (skb == NULL) {
 				np->rx_ring[entry].fraginfo = 0;
 				printk (KERN_INFO
@@ -1753,7 +1753,7 @@ rio_close (struct net_device *dev)
 
 	/* Stop Tx and Rx logics */
 	writel (TxDisable | RxDisable | StatsDisable, ioaddr + MACCtrl);
-	synchronize_irq (dev->irq);
+
 	free_irq (dev->irq, dev);
 	del_timer_sync (&np->timer);
 

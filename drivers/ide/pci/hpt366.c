@@ -759,8 +759,7 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 				enable_irq (hwif->irq);
 		}
 	} else
-		outb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
-		     hwif->io_ports.ctl_addr);
+		outb(ATA_DEVCTL_OBS | (mask ? 2 : 0), hwif->io_ports.ctl_addr);
 }
 
 /*

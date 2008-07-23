@@ -1,6 +1,8 @@
-#ifndef __ARCH_SPARC_PERCPU__
-#define __ARCH_SPARC_PERCPU__
-
-#include <asm-generic/percpu.h>
-
-#endif /* __ARCH_SPARC_PERCPU__ */
+#ifndef ___ASM_SPARC_PERCPU_H
+#define ___ASM_SPARC_PERCPU_H
+#if defined(__sparc__) && defined(__arch64__)
+#include <asm-sparc/percpu_64.h>
+#else
+#include <asm-sparc/percpu_32.h>
+#endif
+#endif

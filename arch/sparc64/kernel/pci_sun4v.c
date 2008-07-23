@@ -531,7 +531,7 @@ static void dma_4v_sync_sg_for_cpu(struct device *dev,
 	/* Nothing to do... */
 }
 
-const struct dma_ops sun4v_dma_ops = {
+static const struct dma_ops sun4v_dma_ops = {
 	.alloc_coherent			= dma_4v_alloc_coherent,
 	.free_coherent			= dma_4v_free_coherent,
 	.map_single			= dma_4v_map_single,

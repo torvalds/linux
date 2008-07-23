@@ -12,6 +12,7 @@
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
+#include <asm/fcx.h>
 
 /* structs from asm/cio.h */
 struct irb;
@@ -157,6 +158,17 @@ extern int ccw_device_start_timeout_key(struct ccw_device *, struct ccw1 *,
 extern int ccw_device_resume(struct ccw_device *);
 extern int ccw_device_halt(struct ccw_device *, unsigned long);
 extern int ccw_device_clear(struct ccw_device *, unsigned long);
+int ccw_device_tm_start_key(struct ccw_device *cdev, struct tcw *tcw,
+			    unsigned long intparm, u8 lpm, u8 key);
+int ccw_device_tm_start_key(struct ccw_device *, struct tcw *,
+			    unsigned long, u8, u8);
+int ccw_device_tm_start_timeout_key(struct ccw_device *, struct tcw *,
+			    unsigned long, u8, u8, int);
+int ccw_device_tm_start(struct ccw_device *, struct tcw *,
+			    unsigned long, u8);
+int ccw_device_tm_start_timeout(struct ccw_device *, struct tcw *,
+			    unsigned long, u8, int);
+int ccw_device_tm_intrg(struct ccw_device *cdev);
 
 extern int ccw_device_set_online(struct ccw_device *cdev);
 extern int ccw_device_set_offline(struct ccw_device *cdev);

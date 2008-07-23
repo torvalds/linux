@@ -36,9 +36,4 @@
 
 #define TWL4030_IRQNUM			INT_24XX_SYS_NIRQ
 
-/* TWL4030 Primary Interrupt Handler (PIH) interrupts */
-#define IH_TWL4030_BASE			IH_BOARD_BASE
-#define IH_TWL4030_END			(IH_TWL4030_BASE+8)
-#define NR_IRQS				(IH_TWL4030_END)
-
 #endif /* __ASM_ARCH_OMAP_2430SDP_H */

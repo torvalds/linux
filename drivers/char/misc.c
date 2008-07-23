@@ -49,6 +49,7 @@
 #include <linux/device.h>
 #include <linux/tty.h>
 #include <linux/kmod.h>
+#include <linux/smp_lock.h>
 
 /*
  * Head entry for the doubly linked miscdevice list
@@ -118,6 +119,7 @@ static int misc_open(struct inode * inode, struct file * file)
 	int err = -ENODEV;
 	const struct file_operations *old_fops, *new_fops = NULL;
 	
+	lock_kernel();
 	mutex_lock(&misc_mtx);
 	
 	list_for_each_entry(c, &misc_list, list) {
@@ -155,6 +157,7 @@ static int misc_open(struct inode * inode, struct file * file)
 	fops_put(old_fops);
 fail:
 	mutex_unlock(&misc_mtx);
+	unlock_kernel();
 	return err;
 }
 
@@ -214,8 +217,8 @@ int misc_register(struct miscdevice * misc)
 		misc_minors[misc->minor >> 3] |= 1 << (misc->minor & 7);
 	dev = MKDEV(MISC_MAJOR, misc->minor);
 
-	misc->this_device = device_create(misc_class, misc->parent, dev,
-					  "%s", misc->name);
+	misc->this_device = device_create_drvdata(misc_class, misc->parent,
+						  dev, NULL, "%s", misc->name);
 	if (IS_ERR(misc->this_device)) {
 		err = PTR_ERR(misc->this_device);
 		goto out;

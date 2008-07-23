@@ -132,6 +132,18 @@ struct ocfs2_lock_res {
 	wait_queue_head_t        l_event;
 
 	struct list_head         l_debug_list;
+
+#ifdef CONFIG_OCFS2_FS_STATS
+	unsigned long long	 l_lock_num_prmode; 	   /* PR acquires */
+	unsigned long long 	 l_lock_num_exmode; 	   /* EX acquires */
+	unsigned int		 l_lock_num_prmode_failed; /* Failed PR gets */
+	unsigned int		 l_lock_num_exmode_failed; /* Failed EX gets */
+	unsigned long long	 l_lock_total_prmode; 	   /* Tot wait for PR */
+	unsigned long long	 l_lock_total_exmode; 	   /* Tot wait for EX */
+	unsigned int		 l_lock_max_prmode; 	   /* Max wait for PR */
+	unsigned int		 l_lock_max_exmode; 	   /* Max wait for EX */
+	unsigned int		 l_lock_refresh;	   /* Disk refreshes */
+#endif
 };
 
 struct ocfs2_dlm_debug {

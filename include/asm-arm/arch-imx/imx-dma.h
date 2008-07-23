@@ -88,7 +88,7 @@ int imx_dma_request(imx_dmach_t dma_ch, const char *name);
 
 void imx_dma_free(imx_dmach_t dma_ch);
 
-int imx_dma_request_by_prio(imx_dmach_t *pdma_ch, const char *name, imx_dma_prio prio);
+imx_dmach_t imx_dma_request_by_prio(const char *name, imx_dma_prio prio);
 
 
 #endif	/* _ASM_ARCH_IMX_DMA_H */

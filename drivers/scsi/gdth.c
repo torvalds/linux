@@ -120,6 +120,7 @@
 #include <linux/timer.h>
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
+#include <linux/smp_lock.h>
 
 #ifdef GDTH_RTC
 #include <linux/mc146818rtc.h>
@@ -4019,10 +4020,12 @@ static int gdth_open(struct inode *inode, struct file *filep)
 {
     gdth_ha_str *ha;
 
+    lock_kernel();
     list_for_each_entry(ha, &gdth_instances, list) {
         if (!ha->sdev)
             ha->sdev = scsi_get_host_dev(ha->shost);
     }
+    unlock_kernel();
 
     TRACE(("gdth_open()\n"));
     return 0;

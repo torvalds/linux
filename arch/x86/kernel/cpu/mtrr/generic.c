@@ -37,7 +37,7 @@ static struct fixed_range_block fixed_range_blocks[] = {
 static unsigned long smp_changes_mask;
 static struct mtrr_state mtrr_state = {};
 static int mtrr_state_set;
-static u64 tom2;
+u64 mtrr_tom2;
 
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX "mtrr."
@@ -139,8 +139,8 @@ u8 mtrr_type_lookup(u64 start, u64 end)
 		}
 	}
 
-	if (tom2) {
-		if (start >= (1ULL<<32) && (end < tom2))
+	if (mtrr_tom2) {
+		if (start >= (1ULL<<32) && (end < mtrr_tom2))
 			return MTRR_TYPE_WRBACK;
 	}
 
@@ -156,6 +156,20 @@ get_mtrr_var_range(unsigned int index, struct mtrr_var_range *vr)
 {
 	rdmsr(MTRRphysBase_MSR(index), vr->base_lo, vr->base_hi);
 	rdmsr(MTRRphysMask_MSR(index), vr->mask_lo, vr->mask_hi);
+}
+
+/*  fill the MSR pair relating to a var range  */
+void fill_mtrr_var_range(unsigned int index,
+		u32 base_lo, u32 base_hi, u32 mask_lo, u32 mask_hi)
+{
+	struct mtrr_var_range *vr;
+
+	vr = mtrr_state.var_ranges;
+
+	vr[index].base_lo = base_lo;
+	vr[index].base_hi = base_hi;
+	vr[index].mask_lo = mask_lo;
+	vr[index].mask_hi = mask_hi;
 }
 
 static void
@@ -213,13 +227,13 @@ void __init get_mtrr_state(void)
 	mtrr_state.enabled = (lo & 0xc00) >> 10;
 
 	if (amd_special_default_mtrr()) {
-		unsigned lo, hi;
+		unsigned low, high;
 		/* TOP_MEM2 */
-		rdmsr(MSR_K8_TOP_MEM2, lo, hi);
-		tom2 = hi;
-		tom2 <<= 32;
-		tom2 |= lo;
-		tom2 &= 0xffffff8000000ULL;
+		rdmsr(MSR_K8_TOP_MEM2, low, high);
+		mtrr_tom2 = high;
+		mtrr_tom2 <<= 32;
+		mtrr_tom2 |= low;
+		mtrr_tom2 &= 0xffffff800000ULL;
 	}
 	if (mtrr_show) {
 		int high_width;
@@ -251,9 +265,9 @@ void __init get_mtrr_state(void)
 			else
 				printk(KERN_INFO "MTRR %u disabled\n", i);
 		}
-		if (tom2) {
+		if (mtrr_tom2) {
 			printk(KERN_INFO "TOM2: %016llx aka %lldM\n",
-					  tom2, tom2>>20);
+					  mtrr_tom2, mtrr_tom2>>20);
 		}
 	}
 	mtrr_state_set = 1;
@@ -328,7 +342,7 @@ static void set_fixed_range(int msr, bool *changed, unsigned int *msrwords)
 
 	if (lo != msrwords[0] || hi != msrwords[1]) {
 		if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
-		    boot_cpu_data.x86 == 15 &&
+		    (boot_cpu_data.x86 >= 0x0f && boot_cpu_data.x86 <= 0x11) &&
 		    ((msrwords[0] | msrwords[1]) & K8_MTRR_RDMEM_WRMEM_MASK))
 			k8_enable_fixed_iorrs();
 		mtrr_wrmsr(msr, msrwords[0], msrwords[1]);

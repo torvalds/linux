@@ -191,6 +191,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t23 = AverMedia PVR-150 Plus\n"
 		 "\t\t\t24 = AverMedia EZMaker PCI Deluxe\n"
 		 "\t\t\t25 = AverMedia M104 (not yet working)\n"
+		 "\t\t\t26 = Buffalo PC-MV5L/PCI\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: BGH, DK, I, M, N, Nc, 60");
@@ -1019,7 +1020,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	ivtv_cards[ivtv_cards_active] = itv;
 	itv->dev = dev;
 	itv->num = ivtv_cards_active++;
-	snprintf(itv->name, sizeof(itv->name) - 1, "ivtv%d", itv->num);
+	snprintf(itv->name, sizeof(itv->name), "ivtv%d", itv->num);
 	IVTV_INFO("Initializing card #%d\n", itv->num);
 
 	spin_unlock(&ivtv_cards_lock);
@@ -1127,6 +1128,12 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	/* if no tuner was found, then pick the first tuner in the card list */
 	if (itv->options.tuner == -1 && itv->card->tuners[0].std) {
 		itv->std = itv->card->tuners[0].std;
+		if (itv->std & V4L2_STD_PAL)
+			itv->std = V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
+		else if (itv->std & V4L2_STD_NTSC)
+			itv->std = V4L2_STD_NTSC_M;
+		else if (itv->std & V4L2_STD_SECAM)
+			itv->std = V4L2_STD_SECAM_L;
 		itv->options.tuner = itv->card->tuners[0].tuner;
 	}
 	if (itv->options.radio == -1)
@@ -1261,8 +1268,12 @@ err:
 int ivtv_init_on_first_open(struct ivtv *itv)
 {
 	struct v4l2_frequency vf;
+	/* Needed to call ioctls later */
+	struct ivtv_open_id fh;
 	int fw_retry_count = 3;
 	int video_input;
+
+	fh.itv = itv;
 
 	if (test_bit(IVTV_F_I_FAILED, &itv->i_flags))
 		return -ENXIO;
@@ -1311,18 +1322,18 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 
 	video_input = itv->active_input;
 	itv->active_input++;	/* Force update of input */
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_INPUT, &video_input);
+	ivtv_s_input(NULL, &fh, video_input);
 
 	/* Let the VIDIOC_S_STD ioctl do all the work, keeps the code
 	   in one place. */
 	itv->std++;		/* Force full standard initialization */
 	itv->std_out = itv->std;
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_FREQUENCY, &vf);
+	ivtv_s_frequency(NULL, &fh, &vf);
 
 	if (itv->card->v4l2_capabilities & V4L2_CAP_VIDEO_OUTPUT) {
 		ivtv_init_mpeg_decoder(itv);
 	}
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_STD, &itv->tuner_std);
+	ivtv_s_std(NULL, &fh, &itv->tuner_std);
 
 	/* On a cx23416 this seems to be able to enable DMA to the chip? */
 	if (!itv->has_cx23415)

@@ -17,6 +17,7 @@
 #include <linux/time.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -86,10 +87,10 @@ static struct clocksource clocksource_imx = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static int __init imx_clocksource_init(void)
+static int __init imx_clocksource_init(unsigned long rate)
 {
 	clocksource_imx.mult =
-		clocksource_hz2mult(imx_get_perclk1(), clocksource_imx.shift);
+		clocksource_hz2mult(rate, clocksource_imx.shift);
 	clocksource_register(&clocksource_imx);
 
 	return 0;
@@ -174,9 +175,9 @@ static struct clock_event_device clockevent_imx = {
 	.rating		= 200,
 };
 
-static int __init imx_clockevent_init(void)
+static int __init imx_clockevent_init(unsigned long rate)
 {
-	clockevent_imx.mult = div_sc(imx_get_perclk1(), NSEC_PER_SEC,
+	clockevent_imx.mult = div_sc(rate, NSEC_PER_SEC,
 					clockevent_imx.shift);
 	clockevent_imx.max_delta_ns =
 		clockevent_delta2ns(0xfffffffe, &clockevent_imx);
@@ -190,13 +191,23 @@ static int __init imx_clockevent_init(void)
 	return 0;
 }
 
+extern int imx_clocks_init(void);
 
 static void __init imx_timer_init(void)
 {
-	imx_timer_hardware_init();
-	imx_clocksource_init();
+	struct clk *clk;
+	unsigned long rate;
 
-	imx_clockevent_init();
+	imx_clocks_init();
+
+	clk = clk_get(NULL, "perclk1");
+	clk_enable(clk);
+	rate = clk_get_rate(clk);
+
+	imx_timer_hardware_init();
+	imx_clocksource_init(rate);
+
+	imx_clockevent_init(rate);
 
 	/*
 	 * Make irqs happen for the system timer

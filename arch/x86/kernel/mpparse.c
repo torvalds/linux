@@ -25,34 +25,15 @@
 #include <asm/proto.h>
 #include <asm/acpi.h>
 #include <asm/bios_ebda.h>
+#include <asm/e820.h>
+#include <asm/trampoline.h>
+#include <asm/setup.h>
 
 #include <mach_apic.h>
 #ifdef CONFIG_X86_32
 #include <mach_apicdef.h>
 #include <mach_mpparse.h>
 #endif
-
-/* Have we found an MP table */
-int smp_found_config;
-
-/*
- * Various Linux-internal data structures created from the
- * MP-table.
- */
-#if defined (CONFIG_MCA) || defined (CONFIG_EISA)
-int mp_bus_id_to_type[MAX_MP_BUSSES];
-#endif
-
-DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
-int mp_bus_id_to_pci_bus[MAX_MP_BUSSES] = {[0 ... MAX_MP_BUSSES - 1] = -1 };
-
-static int mp_current_pci_id;
-
-int pic_mode;
-
-/*
- * Intel MP BIOS table parsing routines:
- */
 
 /*
  * Checksum an MP configuration block.
@@ -68,18 +49,6 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 	return sum & 0xFF;
 }
 
-#ifdef CONFIG_X86_NUMAQ
-/*
- * Have to match translation table entries to main table entries by counter
- * hence the mpc_record variable .... can't see a less disgusting way of
- * doing this ....
- */
-
-static int mpc_record;
-static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY]
-    __cpuinitdata;
-#endif
-
 static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 {
 	int apicid;
@@ -89,11 +58,12 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 		disabled_cpus++;
 		return;
 	}
-#ifdef CONFIG_X86_NUMAQ
-	apicid = mpc_apic_id(m, translation_table[mpc_record]);
-#else
-	apicid = m->mpc_apicid;
-#endif
+
+	if (x86_quirks->mpc_apic_id)
+		apicid = x86_quirks->mpc_apic_id(m);
+	else
+		apicid = m->mpc_apicid;
+
 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
 		bootup_cpu = " (Bootup-CPU)";
 		boot_cpu_physical_apicid = m->mpc_apicid;
@@ -103,18 +73,17 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	generic_processor_info(apicid, m->mpc_apicver);
 }
 
+#ifdef CONFIG_X86_IO_APIC
 static void __init MP_bus_info(struct mpc_config_bus *m)
 {
 	char str[7];
-
 	memcpy(str, m->mpc_bustype, 6);
 	str[6] = 0;
 
-#ifdef CONFIG_X86_NUMAQ
-	mpc_oem_bus_info(m, str, translation_table[mpc_record]);
-#else
-	Dprintk("Bus #%d is %s\n", m->mpc_busid, str);
-#endif
+	if (x86_quirks->mpc_oem_bus_info)
+		x86_quirks->mpc_oem_bus_info(m, str);
+	else
+		printk(KERN_INFO "Bus #%d is %s\n", m->mpc_busid, str);
 
 #if MAX_MP_BUSSES < 256
 	if (m->mpc_busid >= MAX_MP_BUSSES) {
@@ -131,12 +100,10 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
 #endif
 	} else if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI) - 1) == 0) {
-#ifdef CONFIG_X86_NUMAQ
-		mpc_oem_pci_bus(m, translation_table[mpc_record]);
-#endif
+		if (x86_quirks->mpc_oem_pci_bus)
+			x86_quirks->mpc_oem_pci_bus(m);
+
 		clear_bit(m->mpc_busid, mp_bus_not_pci);
-		mp_bus_id_to_pci_bus[m->mpc_busid] = mp_current_pci_id;
-		mp_current_pci_id++;
 #if defined(CONFIG_EISA) || defined (CONFIG_MCA)
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
 	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA) - 1) == 0) {
@@ -147,6 +114,7 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 	} else
 		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
 }
+#endif
 
 #ifdef CONFIG_X86_IO_APIC
 
@@ -176,18 +144,89 @@ static void __init MP_ioapic_info(struct mpc_config_ioapic *m)
 	if (bad_ioapic(m->mpc_apicaddr))
 		return;
 
-	mp_ioapics[nr_ioapics] = *m;
+	mp_ioapics[nr_ioapics].mp_apicaddr = m->mpc_apicaddr;
+	mp_ioapics[nr_ioapics].mp_apicid = m->mpc_apicid;
+	mp_ioapics[nr_ioapics].mp_type = m->mpc_type;
+	mp_ioapics[nr_ioapics].mp_apicver = m->mpc_apicver;
+	mp_ioapics[nr_ioapics].mp_flags = m->mpc_flags;
 	nr_ioapics++;
 }
 
-static void __init MP_intsrc_info(struct mpc_config_intsrc *m)
+static void print_MP_intsrc_info(struct mpc_config_intsrc *m)
 {
-	mp_irqs[mp_irq_entries] = *m;
-	Dprintk("Int: type %d, pol %d, trig %d, bus %d,"
+	printk(KERN_CONT "Int: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
 		m->mpc_irqtype, m->mpc_irqflag & 3,
 		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbus,
 		m->mpc_srcbusirq, m->mpc_dstapic, m->mpc_dstirq);
+}
+
+static void __init print_mp_irq_info(struct mp_config_intsrc *mp_irq)
+{
+	printk(KERN_CONT "Int: type %d, pol %d, trig %d, bus %02x,"
+		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
+		mp_irq->mp_irqtype, mp_irq->mp_irqflag & 3,
+		(mp_irq->mp_irqflag >> 2) & 3, mp_irq->mp_srcbus,
+		mp_irq->mp_srcbusirq, mp_irq->mp_dstapic, mp_irq->mp_dstirq);
+}
+
+static void __init assign_to_mp_irq(struct mpc_config_intsrc *m,
+				    struct mp_config_intsrc *mp_irq)
+{
+	mp_irq->mp_dstapic = m->mpc_dstapic;
+	mp_irq->mp_type = m->mpc_type;
+	mp_irq->mp_irqtype = m->mpc_irqtype;
+	mp_irq->mp_irqflag = m->mpc_irqflag;
+	mp_irq->mp_srcbus = m->mpc_srcbus;
+	mp_irq->mp_srcbusirq = m->mpc_srcbusirq;
+	mp_irq->mp_dstirq = m->mpc_dstirq;
+}
+
+static void __init assign_to_mpc_intsrc(struct mp_config_intsrc *mp_irq,
+					struct mpc_config_intsrc *m)
+{
+	m->mpc_dstapic = mp_irq->mp_dstapic;
+	m->mpc_type = mp_irq->mp_type;
+	m->mpc_irqtype = mp_irq->mp_irqtype;
+	m->mpc_irqflag = mp_irq->mp_irqflag;
+	m->mpc_srcbus = mp_irq->mp_srcbus;
+	m->mpc_srcbusirq = mp_irq->mp_srcbusirq;
+	m->mpc_dstirq = mp_irq->mp_dstirq;
+}
+
+static int __init mp_irq_mpc_intsrc_cmp(struct mp_config_intsrc *mp_irq,
+					struct mpc_config_intsrc *m)
+{
+	if (mp_irq->mp_dstapic != m->mpc_dstapic)
+		return 1;
+	if (mp_irq->mp_type != m->mpc_type)
+		return 2;
+	if (mp_irq->mp_irqtype != m->mpc_irqtype)
+		return 3;
+	if (mp_irq->mp_irqflag != m->mpc_irqflag)
+		return 4;
+	if (mp_irq->mp_srcbus != m->mpc_srcbus)
+		return 5;
+	if (mp_irq->mp_srcbusirq != m->mpc_srcbusirq)
+		return 6;
+	if (mp_irq->mp_dstirq != m->mpc_dstirq)
+		return 7;
+
+	return 0;
+}
+
+static void __init MP_intsrc_info(struct mpc_config_intsrc *m)
+{
+	int i;
+
+	print_MP_intsrc_info(m);
+
+	for (i = 0; i < mp_irq_entries; i++) {
+		if (!mp_irq_mpc_intsrc_cmp(&mp_irqs[i], m))
+			return;
+	}
+
+	assign_to_mp_irq(m, &mp_irqs[mp_irq_entries]);
 	if (++mp_irq_entries == MAX_IRQ_SOURCES)
 		panic("Max # of irq sources exceeded!!\n");
 }
@@ -196,97 +235,20 @@ static void __init MP_intsrc_info(struct mpc_config_intsrc *m)
 
 static void __init MP_lintsrc_info(struct mpc_config_lintsrc *m)
 {
-	Dprintk("Lint: type %d, pol %d, trig %d, bus %d,"
+	printk(KERN_INFO "Lint: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC LINT %02x\n",
 		m->mpc_irqtype, m->mpc_irqflag & 3,
 		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbusid,
 		m->mpc_srcbusirq, m->mpc_destapic, m->mpc_destapiclint);
 }
 
-#ifdef CONFIG_X86_NUMAQ
-static void __init MP_translation_info(struct mpc_config_translation *m)
-{
-	printk(KERN_INFO
-	       "Translation: record %d, type %d, quad %d, global %d, local %d\n",
-	       mpc_record, m->trans_type, m->trans_quad, m->trans_global,
-	       m->trans_local);
-
-	if (mpc_record >= MAX_MPC_ENTRY)
-		printk(KERN_ERR "MAX_MPC_ENTRY exceeded!\n");
-	else
-		translation_table[mpc_record] = m;	/* stash this for later */
-	if (m->trans_quad < MAX_NUMNODES && !node_online(m->trans_quad))
-		node_set_online(m->trans_quad);
-}
-
-/*
- * Read/parse the MPC oem tables
- */
-
-static void __init smp_read_mpc_oem(struct mp_config_oemtable *oemtable,
-				    unsigned short oemsize)
-{
-	int count = sizeof(*oemtable);	/* the header size */
-	unsigned char *oemptr = ((unsigned char *)oemtable) + count;
-
-	mpc_record = 0;
-	printk(KERN_INFO "Found an OEM MPC table at %8p - parsing it ... \n",
-	       oemtable);
-	if (memcmp(oemtable->oem_signature, MPC_OEM_SIGNATURE, 4)) {
-		printk(KERN_WARNING
-		       "SMP mpc oemtable: bad signature [%c%c%c%c]!\n",
-		       oemtable->oem_signature[0], oemtable->oem_signature[1],
-		       oemtable->oem_signature[2], oemtable->oem_signature[3]);
-		return;
-	}
-	if (mpf_checksum((unsigned char *)oemtable, oemtable->oem_length)) {
-		printk(KERN_WARNING "SMP oem mptable: checksum error!\n");
-		return;
-	}
-	while (count < oemtable->oem_length) {
-		switch (*oemptr) {
-		case MP_TRANSLATION:
-			{
-				struct mpc_config_translation *m =
-				    (struct mpc_config_translation *)oemptr;
-				MP_translation_info(m);
-				oemptr += sizeof(*m);
-				count += sizeof(*m);
-				++mpc_record;
-				break;
-			}
-		default:
-			{
-				printk(KERN_WARNING
-				       "Unrecognised OEM table entry type! - %d\n",
-				       (int)*oemptr);
-				return;
-			}
-		}
-	}
-}
-
-static inline void mps_oem_check(struct mp_config_table *mpc, char *oem,
-				 char *productid)
-{
-	if (strncmp(oem, "IBM NUMA", 8))
-		printk("Warning!  May not be a NUMA-Q system!\n");
-	if (mpc->mpc_oemptr)
-		smp_read_mpc_oem((struct mp_config_oemtable *)mpc->mpc_oemptr,
-				 mpc->mpc_oemsize);
-}
-#endif /* CONFIG_X86_NUMAQ */
-
 /*
  * Read/parse the MPC
  */
 
-static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
+static int __init smp_check_mpc(struct mp_config_table *mpc, char *oem,
+				char *str)
 {
-	char str[16];
-	char oem[10];
-	int count = sizeof(*mpc);
-	unsigned char *mpt = ((unsigned char *)mpc) + count;
 
 	if (memcmp(mpc->mpc_signature, MPC_SIGNATURE, 4)) {
 		printk(KERN_ERR "MPTABLE: bad signature [%c%c%c%c]!\n",
@@ -309,19 +271,41 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 	}
 	memcpy(oem, mpc->mpc_oem, 8);
 	oem[8] = 0;
-	printk(KERN_INFO "MPTABLE: OEM ID: %s ", oem);
+	printk(KERN_INFO "MPTABLE: OEM ID: %s\n", oem);
 
 	memcpy(str, mpc->mpc_productid, 12);
 	str[12] = 0;
-	printk("Product ID: %s ", str);
 
-#ifdef CONFIG_X86_32
-	mps_oem_check(mpc, oem, str);
-#endif
-	printk(KERN_INFO "MPTABLE: Product ID: %s ", str);
+	printk(KERN_INFO "MPTABLE: Product ID: %s\n", str);
 
 	printk(KERN_INFO "MPTABLE: APIC at: 0x%X\n", mpc->mpc_lapic);
 
+	return 1;
+}
+
+static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
+{
+	char str[16];
+	char oem[10];
+
+	int count = sizeof(*mpc);
+	unsigned char *mpt = ((unsigned char *)mpc) + count;
+
+	if (!smp_check_mpc(mpc, oem, str))
+		return 0;
+
+#ifdef CONFIG_X86_32
+	/*
+	 * need to make sure summit and es7000's mps_oem_check is safe to be
+	 * called early via genericarch 's mps_oem_check
+	 */
+	if (early) {
+#ifdef CONFIG_X86_NUMAQ
+		numaq_mps_oem_check(mpc, oem, str);
+#endif
+	} else
+		mps_oem_check(mpc, oem, str);
+#endif
 	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)
 		mp_lapic_addr = mpc->mpc_lapic;
@@ -329,12 +313,17 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 	if (early)
 		return 1;
 
+	if (mpc->mpc_oemptr && x86_quirks->smp_read_mpc_oem) {
+		struct mp_config_oemtable *oem_table = (struct mp_config_oemtable *)(unsigned long)mpc->mpc_oemptr;
+		x86_quirks->smp_read_mpc_oem(oem_table, mpc->mpc_oemsize);
+	}
+
 	/*
 	 *      Now process the configuration blocks.
 	 */
-#ifdef CONFIG_X86_NUMAQ
-	mpc_record = 0;
-#endif
+	if (x86_quirks->mpc_record)
+		*x86_quirks->mpc_record = 0;
+
 	while (count < mpc->mpc_length) {
 		switch (*mpt) {
 		case MP_PROCESSOR:
@@ -352,7 +341,9 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 			{
 				struct mpc_config_bus *m =
 				    (struct mpc_config_bus *)mpt;
+#ifdef CONFIG_X86_IO_APIC
 				MP_bus_info(m);
+#endif
 				mpt += sizeof(*m);
 				count += sizeof(*m);
 				break;
@@ -398,10 +389,14 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 			count = mpc->mpc_length;
 			break;
 		}
-#ifdef CONFIG_X86_NUMAQ
-		++mpc_record;
-#endif
+		if (x86_quirks->mpc_record)
+			(*x86_quirks->mpc_record)++;
 	}
+
+#ifdef CONFIG_X86_GENERICARCH
+       generic_bigsmp_probe();
+#endif
+
 	setup_apic_routing();
 	if (!num_processors)
 		printk(KERN_ERR "MPTABLE: no processors registered!\n");
@@ -427,7 +422,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	intsrc.mpc_type = MP_INTSRC;
 	intsrc.mpc_irqflag = 0;	/* conforming */
 	intsrc.mpc_srcbus = 0;
-	intsrc.mpc_dstapic = mp_ioapics[0].mpc_apicid;
+	intsrc.mpc_dstapic = mp_ioapics[0].mp_apicid;
 
 	intsrc.mpc_irqtype = mp_INT;
 
@@ -488,40 +483,11 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	MP_intsrc_info(&intsrc);
 }
 
-#endif
 
-static inline void __init construct_default_ISA_mptable(int mpc_default_type)
+static void construct_ioapic_table(int mpc_default_type)
 {
-	struct mpc_config_processor processor;
-	struct mpc_config_bus bus;
-#ifdef CONFIG_X86_IO_APIC
 	struct mpc_config_ioapic ioapic;
-#endif
-	struct mpc_config_lintsrc lintsrc;
-	int linttypes[2] = { mp_ExtINT, mp_NMI };
-	int i;
-
-	/*
-	 * local APIC has default address
-	 */
-	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
-
-	/*
-	 * 2 CPUs, numbered 0 & 1.
-	 */
-	processor.mpc_type = MP_PROCESSOR;
-	/* Either an integrated APIC or a discrete 82489DX. */
-	processor.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
-	processor.mpc_cpuflag = CPU_ENABLED;
-	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) |
-	    (boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
-	processor.mpc_featureflag = boot_cpu_data.x86_capability[0];
-	processor.mpc_reserved[0] = 0;
-	processor.mpc_reserved[1] = 0;
-	for (i = 0; i < 2; i++) {
-		processor.mpc_apicid = i;
-		MP_processor_info(&processor);
-	}
+	struct mpc_config_bus bus;
 
 	bus.mpc_type = MP_BUS;
 	bus.mpc_busid = 0;
@@ -550,7 +516,6 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 		MP_bus_info(&bus);
 	}
 
-#ifdef CONFIG_X86_IO_APIC
 	ioapic.mpc_type = MP_IOAPIC;
 	ioapic.mpc_apicid = 2;
 	ioapic.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
@@ -562,7 +527,42 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	 * We set up most of the low 16 IO-APIC pins according to MPS rules.
 	 */
 	construct_default_ioirq_mptable(mpc_default_type);
+}
+#else
+static inline void construct_ioapic_table(int mpc_default_type) { }
 #endif
+
+static inline void __init construct_default_ISA_mptable(int mpc_default_type)
+{
+	struct mpc_config_processor processor;
+	struct mpc_config_lintsrc lintsrc;
+	int linttypes[2] = { mp_ExtINT, mp_NMI };
+	int i;
+
+	/*
+	 * local APIC has default address
+	 */
+	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
+
+	/*
+	 * 2 CPUs, numbered 0 & 1.
+	 */
+	processor.mpc_type = MP_PROCESSOR;
+	/* Either an integrated APIC or a discrete 82489DX. */
+	processor.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
+	processor.mpc_cpuflag = CPU_ENABLED;
+	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) |
+	    (boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
+	processor.mpc_featureflag = boot_cpu_data.x86_capability[0];
+	processor.mpc_reserved[0] = 0;
+	processor.mpc_reserved[1] = 0;
+	for (i = 0; i < 2; i++) {
+		processor.mpc_apicid = i;
+		MP_processor_info(&processor);
+	}
+
+	construct_ioapic_table(mpc_default_type);
+
 	lintsrc.mpc_type = MP_LINTSRC;
 	lintsrc.mpc_irqflag = 0;	/* conforming */
 	lintsrc.mpc_srcbusid = 0;
@@ -580,10 +580,14 @@ static struct intel_mp_floating *mpf_found;
 /*
  * Scan the memory blocks for an SMP configuration block.
  */
-static void __init __get_smp_config(unsigned early)
+static void __init __get_smp_config(unsigned int early)
 {
 	struct intel_mp_floating *mpf = mpf_found;
 
+	if (x86_quirks->mach_get_smp_config) {
+		if (x86_quirks->mach_get_smp_config(early))
+			return;
+	}
 	if (acpi_lapic && early)
 		return;
 	/*
@@ -600,7 +604,7 @@ static void __init __get_smp_config(unsigned early)
 
 	printk(KERN_INFO "Intel MultiProcessor Specification v1.%d\n",
 	       mpf->mpf_specification);
-#ifdef CONFIG_X86_32
+#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_32)
 	if (mpf->mpf_feature2 & (1 << 7)) {
 		printk(KERN_INFO "    IMCR and PIC compatibility mode.\n");
 		pic_mode = 1;
@@ -632,7 +636,9 @@ static void __init __get_smp_config(unsigned early)
 		 * override the defaults.
 		 */
 		if (!smp_read_mpc(phys_to_virt(mpf->mpf_physptr), early)) {
+#ifdef CONFIG_X86_LOCAL_APIC
 			smp_found_config = 0;
+#endif
 			printk(KERN_ERR
 			       "BIOS bug, MP table errors detected!...\n");
 			printk(KERN_ERR "... disabling SMP support. "
@@ -689,7 +695,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 	unsigned int *bp = phys_to_virt(base);
 	struct intel_mp_floating *mpf;
 
-	Dprintk("Scan SMP from %p for %ld bytes.\n", bp, length);
+	printk(KERN_DEBUG "Scan SMP from %p for %ld bytes.\n", bp, length);
 	BUILD_BUG_ON(sizeof(*mpf) != 16);
 
 	while (length > 0) {
@@ -699,15 +705,21 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 		    !mpf_checksum((unsigned char *)bp, 16) &&
 		    ((mpf->mpf_specification == 1)
 		     || (mpf->mpf_specification == 4))) {
-
+#ifdef CONFIG_X86_LOCAL_APIC
 			smp_found_config = 1;
+#endif
 			mpf_found = mpf;
-#ifdef CONFIG_X86_32
+
 			printk(KERN_INFO "found SMP MP-table at [%p] %08lx\n",
 			       mpf, virt_to_phys(mpf));
-			reserve_bootmem(virt_to_phys(mpf), PAGE_SIZE,
+
+			if (!reserve)
+				return 1;
+			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE,
 					BOOTMEM_DEFAULT);
 			if (mpf->mpf_physptr) {
+				unsigned long size = PAGE_SIZE;
+#ifdef CONFIG_X86_32
 				/*
 				 * We cannot access to MPC table to compute
 				 * table size yet, as only few megabytes from
@@ -717,24 +729,15 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 				 * PAGE_SIZE from mpg->mpf_physptr yields BUG()
 				 * in reserve_bootmem.
 				 */
-				unsigned long size = PAGE_SIZE;
 				unsigned long end = max_low_pfn * PAGE_SIZE;
 				if (mpf->mpf_physptr + size > end)
 					size = end - mpf->mpf_physptr;
-				reserve_bootmem(mpf->mpf_physptr, size,
+#endif
+				reserve_bootmem_generic(mpf->mpf_physptr, size,
 						BOOTMEM_DEFAULT);
 			}
 
-#else
-			if (!reserve)
-				return 1;
-
-			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE);
-			if (mpf->mpf_physptr)
-				reserve_bootmem_generic(mpf->mpf_physptr,
-							PAGE_SIZE);
-#endif
-		return 1;
+			return 1;
 		}
 		bp += 4;
 		length -= 16;
@@ -742,10 +745,14 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 	return 0;
 }
 
-static void __init __find_smp_config(unsigned reserve)
+static void __init __find_smp_config(unsigned int reserve)
 {
 	unsigned int address;
 
+	if (x86_quirks->mach_find_smp_config) {
+		if (x86_quirks->mach_find_smp_config(reserve))
+			return;
+	}
 	/*
 	 * FIXME: Linux assumes you have 640K of base ram..
 	 * this continues the error...
@@ -790,298 +797,294 @@ void __init find_smp_config(void)
 	__find_smp_config(1);
 }
 
-/* --------------------------------------------------------------------------
-                            ACPI-based MP Configuration
-   -------------------------------------------------------------------------- */
+#ifdef CONFIG_X86_IO_APIC
+static u8 __initdata irq_used[MAX_IRQ_SOURCES];
 
-/*
- * Keep this outside and initialized to 0, for !CONFIG_ACPI builds:
- */
-int es7000_plat;
-
-#ifdef CONFIG_ACPI
-
-#ifdef	CONFIG_X86_IO_APIC
-
-#define MP_ISA_BUS		0
-
-extern struct mp_ioapic_routing mp_ioapic_routing[MAX_IO_APICS];
-
-static int mp_find_ioapic(int gsi)
+static int  __init get_MP_intsrc_index(struct mpc_config_intsrc *m)
 {
-	int i = 0;
+	int i;
 
-	/* Find the IOAPIC that manages this GSI. */
-	for (i = 0; i < nr_ioapics; i++) {
-		if ((gsi >= mp_ioapic_routing[i].gsi_base)
-		    && (gsi <= mp_ioapic_routing[i].gsi_end))
-			return i;
+	if (m->mpc_irqtype != mp_INT)
+		return 0;
+
+	if (m->mpc_irqflag != 0x0f)
+		return 0;
+
+	/* not legacy */
+
+	for (i = 0; i < mp_irq_entries; i++) {
+		if (mp_irqs[i].mp_irqtype != mp_INT)
+			continue;
+
+		if (mp_irqs[i].mp_irqflag != 0x0f)
+			continue;
+
+		if (mp_irqs[i].mp_srcbus != m->mpc_srcbus)
+			continue;
+		if (mp_irqs[i].mp_srcbusirq != m->mpc_srcbusirq)
+			continue;
+		if (irq_used[i]) {
+			/* already claimed */
+			return -2;
+		}
+		irq_used[i] = 1;
+		return i;
 	}
 
-	printk(KERN_ERR "ERROR: Unable to locate IOAPIC for GSI %d\n", gsi);
+	/* not found */
 	return -1;
 }
 
-static u8 __init uniq_ioapic_id(u8 id)
-{
-#ifdef CONFIG_X86_32
-	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
-	    !APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
-		return io_apic_get_unique_id(nr_ioapics, id);
-	else
-		return id;
-#else
-	int i;
-	DECLARE_BITMAP(used, 256);
-	bitmap_zero(used, 256);
-	for (i = 0; i < nr_ioapics; i++) {
-		struct mpc_config_ioapic *ia = &mp_ioapics[i];
-		__set_bit(ia->mpc_apicid, used);
-	}
-	if (!test_bit(id, used))
-		return id;
-	return find_first_zero_bit(used, 256);
+#define SPARE_SLOT_NUM 20
+
+static struct mpc_config_intsrc __initdata *m_spare[SPARE_SLOT_NUM];
 #endif
-}
 
-void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
+static int  __init replace_intsrc_all(struct mp_config_table *mpc,
+					unsigned long mpc_new_phys,
+					unsigned long mpc_new_length)
 {
-	int idx = 0;
-
-	if (bad_ioapic(address))
-		return;
-
-	idx = nr_ioapics;
-
-	mp_ioapics[idx].mpc_type = MP_IOAPIC;
-	mp_ioapics[idx].mpc_flags = MPC_APIC_USABLE;
-	mp_ioapics[idx].mpc_apicaddr = address;
-
-	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
-	mp_ioapics[idx].mpc_apicid = uniq_ioapic_id(id);
-#ifdef CONFIG_X86_32
-	mp_ioapics[idx].mpc_apicver = io_apic_get_version(idx);
-#else
-	mp_ioapics[idx].mpc_apicver = 0;
-#endif
-	/*
-	 * Build basic GSI lookup table to facilitate gsi->io_apic lookups
-	 * and to prevent reprogramming of IOAPIC pins (PCI GSIs).
-	 */
-	mp_ioapic_routing[idx].apic_id = mp_ioapics[idx].mpc_apicid;
-	mp_ioapic_routing[idx].gsi_base = gsi_base;
-	mp_ioapic_routing[idx].gsi_end = gsi_base +
-	    io_apic_get_redir_entries(idx);
-
-	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, version %d, address 0x%x, "
-	       "GSI %d-%d\n", idx, mp_ioapics[idx].mpc_apicid,
-	       mp_ioapics[idx].mpc_apicver, mp_ioapics[idx].mpc_apicaddr,
-	       mp_ioapic_routing[idx].gsi_base, mp_ioapic_routing[idx].gsi_end);
-
-	nr_ioapics++;
-}
-
-void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
-{
-	struct mpc_config_intsrc intsrc;
-	int ioapic = -1;
-	int pin = -1;
-
-	/*
-	 * Convert 'gsi' to 'ioapic.pin'.
-	 */
-	ioapic = mp_find_ioapic(gsi);
-	if (ioapic < 0)
-		return;
-	pin = gsi - mp_ioapic_routing[ioapic].gsi_base;
-
-	/*
-	 * TBD: This check is for faulty timer entries, where the override
-	 *      erroneously sets the trigger to level, resulting in a HUGE
-	 *      increase of timer interrupts!
-	 */
-	if ((bus_irq == 0) && (trigger == 3))
-		trigger = 1;
-
-	intsrc.mpc_type = MP_INTSRC;
-	intsrc.mpc_irqtype = mp_INT;
-	intsrc.mpc_irqflag = (trigger << 2) | polarity;
-	intsrc.mpc_srcbus = MP_ISA_BUS;
-	intsrc.mpc_srcbusirq = bus_irq;	/* IRQ */
-	intsrc.mpc_dstapic = mp_ioapics[ioapic].mpc_apicid;	/* APIC ID */
-	intsrc.mpc_dstirq = pin;	/* INTIN# */
-
-	MP_intsrc_info(&intsrc);
-}
-
-void __init mp_config_acpi_legacy_irqs(void)
-{
-	struct mpc_config_intsrc intsrc;
-	int i = 0;
-	int ioapic = -1;
-
-#if defined (CONFIG_MCA) || defined (CONFIG_EISA)
-	/*
-	 * Fabricate the legacy ISA bus (bus #31).
-	 */
-	mp_bus_id_to_type[MP_ISA_BUS] = MP_BUS_ISA;
-#endif
-	set_bit(MP_ISA_BUS, mp_bus_not_pci);
-	Dprintk("Bus #%d is ISA\n", MP_ISA_BUS);
-
-	/*
-	 * Older generations of ES7000 have no legacy identity mappings
-	 */
-	if (es7000_plat == 1)
-		return;
-
-	/*
-	 * Locate the IOAPIC that manages the ISA IRQs (0-15).
-	 */
-	ioapic = mp_find_ioapic(0);
-	if (ioapic < 0)
-		return;
-
-	intsrc.mpc_type = MP_INTSRC;
-	intsrc.mpc_irqflag = 0;	/* Conforming */
-	intsrc.mpc_srcbus = MP_ISA_BUS;
 #ifdef CONFIG_X86_IO_APIC
-	intsrc.mpc_dstapic = mp_ioapics[ioapic].mpc_apicid;
+	int i;
+	int nr_m_spare = 0;
 #endif
-	/*
-	 * Use the default configuration for the IRQs 0-15.  Unless
-	 * overridden by (MADT) interrupt source override entries.
-	 */
-	for (i = 0; i < 16; i++) {
-		int idx;
 
-		for (idx = 0; idx < mp_irq_entries; idx++) {
-			struct mpc_config_intsrc *irq = mp_irqs + idx;
+	int count = sizeof(*mpc);
+	unsigned char *mpt = ((unsigned char *)mpc) + count;
 
-			/* Do we already have a mapping for this ISA IRQ? */
-			if (irq->mpc_srcbus == MP_ISA_BUS
-			    && irq->mpc_srcbusirq == i)
+	printk(KERN_INFO "mpc_length %x\n", mpc->mpc_length);
+	while (count < mpc->mpc_length) {
+		switch (*mpt) {
+		case MP_PROCESSOR:
+			{
+				struct mpc_config_processor *m =
+				    (struct mpc_config_processor *)mpt;
+				mpt += sizeof(*m);
+				count += sizeof(*m);
 				break;
-
-			/* Do we already have a mapping for this IOAPIC pin */
-			if ((irq->mpc_dstapic == intsrc.mpc_dstapic) &&
-			    (irq->mpc_dstirq == i))
+			}
+		case MP_BUS:
+			{
+				struct mpc_config_bus *m =
+				    (struct mpc_config_bus *)mpt;
+				mpt += sizeof(*m);
+				count += sizeof(*m);
 				break;
+			}
+		case MP_IOAPIC:
+			{
+				mpt += sizeof(struct mpc_config_ioapic);
+				count += sizeof(struct mpc_config_ioapic);
+				break;
+			}
+		case MP_INTSRC:
+			{
+#ifdef CONFIG_X86_IO_APIC
+				struct mpc_config_intsrc *m =
+				    (struct mpc_config_intsrc *)mpt;
+
+				printk(KERN_INFO "OLD ");
+				print_MP_intsrc_info(m);
+				i = get_MP_intsrc_index(m);
+				if (i > 0) {
+					assign_to_mpc_intsrc(&mp_irqs[i], m);
+					printk(KERN_INFO "NEW ");
+					print_mp_irq_info(&mp_irqs[i]);
+				} else if (!i) {
+					/* legacy, do nothing */
+				} else if (nr_m_spare < SPARE_SLOT_NUM) {
+					/*
+					 * not found (-1), or duplicated (-2)
+					 * are invalid entries,
+					 * we need to use the slot  later
+					 */
+					m_spare[nr_m_spare] = m;
+					nr_m_spare++;
+				}
+#endif
+				mpt += sizeof(struct mpc_config_intsrc);
+				count += sizeof(struct mpc_config_intsrc);
+				break;
+			}
+		case MP_LINTSRC:
+			{
+				struct mpc_config_lintsrc *m =
+				    (struct mpc_config_lintsrc *)mpt;
+				mpt += sizeof(*m);
+				count += sizeof(*m);
+				break;
+			}
+		default:
+			/* wrong mptable */
+			printk(KERN_ERR "Your mptable is wrong, contact your HW vendor!\n");
+			printk(KERN_ERR "type %x\n", *mpt);
+			print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_ADDRESS, 16,
+					1, mpc, mpc->mpc_length, 1);
+			goto out;
 		}
-
-		if (idx != mp_irq_entries) {
-			printk(KERN_DEBUG "ACPI: IRQ%d used by override.\n", i);
-			continue;	/* IRQ already used */
-		}
-
-		intsrc.mpc_irqtype = mp_INT;
-		intsrc.mpc_srcbusirq = i;	/* Identity mapped */
-		intsrc.mpc_dstirq = i;
-
-		MP_intsrc_info(&intsrc);
-	}
-}
-
-int mp_register_gsi(u32 gsi, int triggering, int polarity)
-{
-	int ioapic;
-	int ioapic_pin;
-#ifdef CONFIG_X86_32
-#define MAX_GSI_NUM	4096
-#define IRQ_COMPRESSION_START	64
-
-	static int pci_irq = IRQ_COMPRESSION_START;
-	/*
-	 * Mapping between Global System Interrupts, which
-	 * represent all possible interrupts, and IRQs
-	 * assigned to actual devices.
-	 */
-	static int gsi_to_irq[MAX_GSI_NUM];
-#else
-
-	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
-		return gsi;
-#endif
-
-	/* Don't set up the ACPI SCI because it's already set up */
-	if (acpi_gbl_FADT.sci_interrupt == gsi)
-		return gsi;
-
-	ioapic = mp_find_ioapic(gsi);
-	if (ioapic < 0) {
-		printk(KERN_WARNING "No IOAPIC for GSI %u\n", gsi);
-		return gsi;
 	}
 
-	ioapic_pin = gsi - mp_ioapic_routing[ioapic].gsi_base;
+#ifdef CONFIG_X86_IO_APIC
+	for (i = 0; i < mp_irq_entries; i++) {
+		if (irq_used[i])
+			continue;
 
-#ifdef CONFIG_X86_32
-	if (ioapic_renumber_irq)
-		gsi = ioapic_renumber_irq(ioapic, gsi);
-#endif
+		if (mp_irqs[i].mp_irqtype != mp_INT)
+			continue;
 
-	/*
-	 * Avoid pin reprogramming.  PRTs typically include entries
-	 * with redundant pin->gsi mappings (but unique PCI devices);
-	 * we only program the IOAPIC on the first.
-	 */
-	if (ioapic_pin > MP_MAX_IOAPIC_PIN) {
-		printk(KERN_ERR "Invalid reference to IOAPIC pin "
-		       "%d-%d\n", mp_ioapic_routing[ioapic].apic_id,
-		       ioapic_pin);
-		return gsi;
-	}
-	if (test_bit(ioapic_pin, mp_ioapic_routing[ioapic].pin_programmed)) {
-		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
-			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
-#ifdef CONFIG_X86_32
-		return (gsi < IRQ_COMPRESSION_START ? gsi : gsi_to_irq[gsi]);
-#else
-		return gsi;
-#endif
-	}
+		if (mp_irqs[i].mp_irqflag != 0x0f)
+			continue;
 
-	set_bit(ioapic_pin, mp_ioapic_routing[ioapic].pin_programmed);
-#ifdef CONFIG_X86_32
-	/*
-	 * For GSI >= 64, use IRQ compression
-	 */
-	if ((gsi >= IRQ_COMPRESSION_START)
-	    && (triggering == ACPI_LEVEL_SENSITIVE)) {
-		/*
-		 * For PCI devices assign IRQs in order, avoiding gaps
-		 * due to unused I/O APIC pins.
-		 */
-		int irq = gsi;
-		if (gsi < MAX_GSI_NUM) {
-			/*
-			 * Retain the VIA chipset work-around (gsi > 15), but
-			 * avoid a problem where the 8254 timer (IRQ0) is setup
-			 * via an override (so it's not on pin 0 of the ioapic),
-			 * and at the same time, the pin 0 interrupt is a PCI
-			 * type.  The gsi > 15 test could cause these two pins
-			 * to be shared as IRQ0, and they are not shareable.
-			 * So test for this condition, and if necessary, avoid
-			 * the pin collision.
-			 */
-			gsi = pci_irq++;
-			/*
-			 * Don't assign IRQ used by ACPI SCI
-			 */
-			if (gsi == acpi_gbl_FADT.sci_interrupt)
-				gsi = pci_irq++;
-			gsi_to_irq[irq] = gsi;
+		if (nr_m_spare > 0) {
+			printk(KERN_INFO "*NEW* found ");
+			nr_m_spare--;
+			assign_to_mpc_intsrc(&mp_irqs[i], m_spare[nr_m_spare]);
+			m_spare[nr_m_spare] = NULL;
 		} else {
-			printk(KERN_ERR "GSI %u is too high\n", gsi);
-			return gsi;
+			struct mpc_config_intsrc *m =
+			    (struct mpc_config_intsrc *)mpt;
+			count += sizeof(struct mpc_config_intsrc);
+			if (!mpc_new_phys) {
+				printk(KERN_INFO "No spare slots, try to append...take your risk, new mpc_length %x\n", count);
+			} else {
+				if (count <= mpc_new_length)
+					printk(KERN_INFO "No spare slots, try to append..., new mpc_length %x\n", count);
+				else {
+					printk(KERN_ERR "mpc_new_length %lx is too small\n", mpc_new_length);
+					goto out;
+				}
+			}
+			assign_to_mpc_intsrc(&mp_irqs[i], m);
+			mpc->mpc_length = count;
+			mpt += sizeof(struct mpc_config_intsrc);
 		}
+		print_mp_irq_info(&mp_irqs[i]);
 	}
 #endif
-	io_apic_set_pci_routing(ioapic, ioapic_pin, gsi,
-				triggering == ACPI_EDGE_SENSITIVE ? 0 : 1,
-				polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
-	return gsi;
+out:
+	/* update checksum */
+	mpc->mpc_checksum = 0;
+	mpc->mpc_checksum -= mpf_checksum((unsigned char *)mpc,
+					   mpc->mpc_length);
+
+	return 0;
 }
 
-#endif /* CONFIG_X86_IO_APIC */
-#endif /* CONFIG_ACPI */
+static int __initdata enable_update_mptable;
+
+static int __init update_mptable_setup(char *str)
+{
+	enable_update_mptable = 1;
+	return 0;
+}
+early_param("update_mptable", update_mptable_setup);
+
+static unsigned long __initdata mpc_new_phys;
+static unsigned long mpc_new_length __initdata = 4096;
+
+/* alloc_mptable or alloc_mptable=4k */
+static int __initdata alloc_mptable;
+static int __init parse_alloc_mptable_opt(char *p)
+{
+	enable_update_mptable = 1;
+	alloc_mptable = 1;
+	if (!p)
+		return 0;
+	mpc_new_length = memparse(p, &p);
+	return 0;
+}
+early_param("alloc_mptable", parse_alloc_mptable_opt);
+
+void __init early_reserve_e820_mpc_new(void)
+{
+	if (enable_update_mptable && alloc_mptable) {
+		u64 startt = 0;
+#ifdef CONFIG_X86_TRAMPOLINE
+		startt = TRAMPOLINE_BASE;
+#endif
+		mpc_new_phys = early_reserve_e820(startt, mpc_new_length, 4);
+	}
+}
+
+static int __init update_mp_table(void)
+{
+	char str[16];
+	char oem[10];
+	struct intel_mp_floating *mpf;
+	struct mp_config_table *mpc;
+	struct mp_config_table *mpc_new;
+
+	if (!enable_update_mptable)
+		return 0;
+
+	mpf = mpf_found;
+	if (!mpf)
+		return 0;
+
+	/*
+	 * Now see if we need to go further.
+	 */
+	if (mpf->mpf_feature1 != 0)
+		return 0;
+
+	if (!mpf->mpf_physptr)
+		return 0;
+
+	mpc = phys_to_virt(mpf->mpf_physptr);
+
+	if (!smp_check_mpc(mpc, oem, str))
+		return 0;
+
+	printk(KERN_INFO "mpf: %lx\n", virt_to_phys(mpf));
+	printk(KERN_INFO "mpf_physptr: %x\n", mpf->mpf_physptr);
+
+	if (mpc_new_phys && mpc->mpc_length > mpc_new_length) {
+		mpc_new_phys = 0;
+		printk(KERN_INFO "mpc_new_length is %ld, please use alloc_mptable=8k\n",
+			 mpc_new_length);
+	}
+
+	if (!mpc_new_phys) {
+		unsigned char old, new;
+		/* check if we can change the postion */
+		mpc->mpc_checksum = 0;
+		old = mpf_checksum((unsigned char *)mpc, mpc->mpc_length);
+		mpc->mpc_checksum = 0xff;
+		new = mpf_checksum((unsigned char *)mpc, mpc->mpc_length);
+		if (old == new) {
+			printk(KERN_INFO "mpc is readonly, please try alloc_mptable instead\n");
+			return 0;
+		}
+		printk(KERN_INFO "use in-positon replacing\n");
+	} else {
+		mpf->mpf_physptr = mpc_new_phys;
+		mpc_new = phys_to_virt(mpc_new_phys);
+		memcpy(mpc_new, mpc, mpc->mpc_length);
+		mpc = mpc_new;
+		/* check if we can modify that */
+		if (mpc_new_phys - mpf->mpf_physptr) {
+			struct intel_mp_floating *mpf_new;
+			/* steal 16 bytes from [0, 1k) */
+			printk(KERN_INFO "mpf new: %x\n", 0x400 - 16);
+			mpf_new = phys_to_virt(0x400 - 16);
+			memcpy(mpf_new, mpf, 16);
+			mpf = mpf_new;
+			mpf->mpf_physptr = mpc_new_phys;
+		}
+		mpf->mpf_checksum = 0;
+		mpf->mpf_checksum -= mpf_checksum((unsigned char *)mpf, 16);
+		printk(KERN_INFO "mpf_physptr new: %x\n", mpf->mpf_physptr);
+	}
+
+	/*
+	 * only replace the one with mp_INT and
+	 *	 MP_IRQ_TRIGGER_LEVEL|MP_IRQ_POLARITY_LOW,
+	 * already in mp_irqs , stored by ... and mp_config_acpi_gsi,
+	 * may need pci=routeirq for all coverage
+	 */
+	replace_intsrc_all(mpc, mpc_new_phys, mpc_new_length);
+
+	return 0;
+}
+
+late_initcall(update_mp_table);

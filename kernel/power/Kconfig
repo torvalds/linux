@@ -82,7 +82,7 @@ config PM_SLEEP_SMP
 
 config PM_SLEEP
 	bool
-	depends on SUSPEND || HIBERNATION
+	depends on SUSPEND || HIBERNATION || XEN_SAVE_RESTORE
 	default y
 
 config SUSPEND

@@ -12,8 +12,6 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- *  $Id: 8250.c,v 1.90 2002/07/28 10:03:27 rmk Exp $
- *
  * A note about mapbase / membase
  *
  *  mapbase is the physical address of the IO port.
@@ -1289,7 +1287,7 @@ static void serial8250_enable_ms(struct uart_port *port)
 static void
 receive_chars(struct uart_8250_port *up, unsigned int *status)
 {
-	struct tty_struct *tty = up->port.info->tty;
+	struct tty_struct *tty = up->port.info->port.tty;
 	unsigned char ch, lsr = *status;
 	int max_count = 256;
 	char flag;
@@ -1876,7 +1874,9 @@ static int serial8250_startup(struct uart_port *port)
 		 * the interrupt is enabled.  Delays are necessary to
 		 * allow register changes to become visible.
 		 */
-		spin_lock_irqsave(&up->port.lock, flags);
+		spin_lock(&up->port.lock);
+		if (up->port.flags & UPF_SHARE_IRQ)
+			disable_irq_nosync(up->port.irq);
 
 		wait_for_xmitr(up, UART_LSR_THRE);
 		serial_out_sync(up, UART_IER, UART_IER_THRI);
@@ -1888,7 +1888,9 @@ static int serial8250_startup(struct uart_port *port)
 		iir = serial_in(up, UART_IIR);
 		serial_out(up, UART_IER, 0);
 
-		spin_unlock_irqrestore(&up->port.lock, flags);
+		if (up->port.flags & UPF_SHARE_IRQ)
+			enable_irq(up->port.irq);
+		spin_unlock(&up->port.lock);
 
 		/*
 		 * If the interrupt is not reasserted, setup a timer to
@@ -2623,6 +2625,9 @@ static struct console serial8250_console = {
 
 static int __init serial8250_console_init(void)
 {
+	if (nr_uarts > UART_NR)
+		nr_uarts = UART_NR;
+
 	serial8250_isa_init_ports();
 	register_console(&serial8250_console);
 	return 0;
@@ -2931,7 +2936,7 @@ static int __init serial8250_init(void)
 	if (nr_uarts > UART_NR)
 		nr_uarts = UART_NR;
 
-	printk(KERN_INFO "Serial: 8250/16550 driver $Revision: 1.90 $ "
+	printk(KERN_INFO "Serial: 8250/16550 driver"
 		"%d ports, IRQ sharing %sabled\n", nr_uarts,
 		share_irqs ? "en" : "dis");
 
@@ -2992,7 +2997,7 @@ EXPORT_SYMBOL(serial8250_suspend_port);
 EXPORT_SYMBOL(serial8250_resume_port);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Generic 8250/16x50 serial driver $Revision: 1.90 $");
+MODULE_DESCRIPTION("Generic 8250/16x50 serial driver");
 
 module_param(share_irqs, uint, 0644);
 MODULE_PARM_DESC(share_irqs, "Share IRQs with other non-8250/16x50 devices"

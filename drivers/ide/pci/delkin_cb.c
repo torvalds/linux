@@ -93,7 +93,6 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 
 	i = hwif->index;
 
-	ide_init_port_data(hwif, i);
 	ide_init_port_hw(hwif, &hw);
 
 	idx[0] = i;

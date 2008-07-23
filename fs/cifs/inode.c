@@ -219,15 +219,15 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 	rc = CIFSSMBUnixQPathInfo(xid, pTcon, full_path, &find_data,
 				  cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc) {
-		if (rc == -EREMOTE && !is_dfs_referral) {
-			is_dfs_referral = true;
-			cFYI(DBG2, ("DFS ref"));
-			/* for DFS, server does not give us real inode data */
-			fill_fake_finddataunix(&find_data, sb);
-			rc = 0;
-		}
-	}
+	if (rc == -EREMOTE && !is_dfs_referral) {
+		is_dfs_referral = true;
+		cFYI(DBG2, ("DFS ref"));
+		/* for DFS, server does not give us real inode data */
+		fill_fake_finddataunix(&find_data, sb);
+		rc = 0;
+	} else if (rc)
+		goto cgiiu_exit;
+
 	num_of_bytes = le64_to_cpu(find_data.NumOfBytes);
 	end_of_file = le64_to_cpu(find_data.EndOfFile);
 
@@ -236,7 +236,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		*pinode = new_inode(sb);
 		if (*pinode == NULL) {
 			rc = -ENOMEM;
-		goto cgiiu_exit;
+			goto cgiiu_exit;
 		}
 		/* Is an i_ino of zero legal? */
 		/* note ino incremented to unique num in new_inode */

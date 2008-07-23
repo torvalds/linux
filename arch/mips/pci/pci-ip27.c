@@ -47,7 +47,6 @@ int __cpuinit bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 	static int num_bridges = 0;
 	bridge_t *bridge;
 	int slot;
-	extern int pci_probe_only;
 
 	pci_probe_only = 1;
 

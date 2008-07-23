@@ -1,5 +1,10 @@
 CFLAGS_bootx_init.o  		+= -fPIC
 
+ifdef CONFIG_FTRACE
+# Do not trace early boot code
+CFLAGS_REMOVE_bootx_init.o = -pg
+endif
+
 obj-y				+= pic.o setup.o time.o feature.o pci.o \
 				   sleep.o low_i2c.o cache.o pfunc_core.o \
 				   pfunc_base.o

@@ -26,13 +26,6 @@
 #define  MACH_UNKNOWN		0	/* whatever...			*/
 
 /*
- * Valid machtype values for group JAZZ
- */
-#define  MACH_ACER_PICA_61	0	/* Acer PICA-61 (PICA1)		*/
-#define  MACH_MIPS_MAGNUM_4000	1	/* Mips Magnum 4000 "RC4030"	*/
-#define  MACH_OLIVETTI_M700	2	/* Olivetti M700-10 (-15 ??)    */
-
-/*
  * Valid machtype for group DEC
  */
 #define  MACH_DSUNKNOWN		0
@@ -48,42 +41,6 @@
 #define  MACH_DS5900		10	/* DECsystem 5900		*/
 
 /*
- * Valid machtype for group SNI_RM
- */
-#define  MACH_SNI_RM200_PCI	0	/* RM200/RM300/RM400 PCI series */
-
-/*
- * Valid machtype for group SGI
- */
-#define  MACH_SGI_IP22		0	/* Indy, Indigo2, Challenge S	*/
-#define  MACH_SGI_IP27		1	/* Origin 200, Origin 2000, Onyx 2 */
-#define  MACH_SGI_IP28		2	/* Indigo2 Impact		*/
-#define  MACH_SGI_IP32		3	/* O2				*/
-#define  MACH_SGI_IP30		4	/* Octane, Octane2              */
-
-/*
- * Valid machtypes for group Toshiba
- */
-#define  MACH_PALLAS		0
-#define  MACH_TOPAS		1
-#define  MACH_JMR		2
-#define  MACH_TOSHIBA_JMR3927	3	/* JMR-TX3927 CPU/IO board */
-#define  MACH_TOSHIBA_RBTX4927	4
-#define  MACH_TOSHIBA_RBTX4937	5
-#define  MACH_TOSHIBA_RBTX4938	6
-
-/*
- * Valid machtype for group LASAT
- */
-#define  MACH_LASAT_100		0	/* Masquerade II/SP100/SP50/SP25 */
-#define  MACH_LASAT_200		1	/* Masquerade PRO/SP200 */
-
-/*
- * Valid machtype for group NEC EMMA2RH
- */
-#define  MACH_NEC_MARKEINS	0	/* NEC EMMA2RH Mark-eins	*/
-
-/*
  * Valid machtype for group PMC-MSP
  */
 #define MACH_MSP4200_EVAL       0	/* PMC-Sierra MSP4200 Evaluation */
@@ -93,6 +50,12 @@
 #define MACH_MSP7120_GW         4	/* PMC-Sierra MSP7120 Residential GW */
 #define MACH_MSP7120_FPGA       5	/* PMC-Sierra MSP7120 Emulation */
 #define MACH_MSP_OTHER        255	/* PMC-Sierra unknown board type */
+
+/*
+ * Valid machtype for group Mikrotik
+ */
+#define	MACH_MIKROTIK_RB532	0	/* Mikrotik RouterBoard 532 	*/
+#define MACH_MIKROTIK_RB532A	1	/* Mikrotik RouterBoard 532A 	*/
 
 #define CL_SIZE			COMMAND_LINE_SIZE
 

@@ -39,6 +39,7 @@
 #include <linux/stat.h>
 #include <linux/ioctl.h>
 #include <linux/capability.h>
+#include <linux/smp_lock.h>
 #include <mtd/ubi-user.h>
 #include <asm/uaccess.h>
 #include <asm/div64.h>
@@ -103,9 +104,12 @@ static int vol_cdev_open(struct inode *inode, struct file *file)
 	struct ubi_volume_desc *desc;
 	int vol_id = iminor(inode) - 1, mode, ubi_num;
 
+	lock_kernel();
 	ubi_num = ubi_major2num(imajor(inode));
-	if (ubi_num < 0)
+	if (ubi_num < 0) {
+		unlock_kernel();
 		return ubi_num;
+	}
 
 	if (file->f_mode & FMODE_WRITE)
 		mode = UBI_READWRITE;
@@ -115,6 +119,7 @@ static int vol_cdev_open(struct inode *inode, struct file *file)
 	dbg_msg("open volume %d, mode %d", vol_id, mode);
 
 	desc = ubi_open_volume(ubi_num, vol_id, mode);
+	unlock_kernel();
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 

@@ -90,7 +90,8 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->device_cap_flags    = IB_DEVICE_CHANGE_PHY_PORT |
 		IB_DEVICE_PORT_ACTIVE_EVENT		|
 		IB_DEVICE_SYS_IMAGE_GUID		|
-		IB_DEVICE_RC_RNR_NAK_GEN;
+		IB_DEVICE_RC_RNR_NAK_GEN		|
+		IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
 	if (dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_BAD_PKEY_CNTR)
 		props->device_cap_flags |= IB_DEVICE_BAD_PKEY_CNTR;
 	if (dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_BAD_QKEY_CNTR)
@@ -437,7 +438,9 @@ static int mlx4_ib_dealloc_pd(struct ib_pd *pd)
 static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	return mlx4_multicast_attach(to_mdev(ibqp->device)->dev,
-				     &to_mqp(ibqp)->mqp, gid->raw);
+				     &to_mqp(ibqp)->mqp, gid->raw,
+				     !!(to_mqp(ibqp)->flags &
+					MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK));
 }
 
 static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)

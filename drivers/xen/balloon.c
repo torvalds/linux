@@ -225,7 +225,7 @@ static int increase_reservation(unsigned long nr_pages)
 		page = balloon_next_page(page);
 	}
 
-	reservation.extent_start = (unsigned long)frame_list;
+	set_xen_guest_handle(reservation.extent_start, frame_list);
 	reservation.nr_extents   = nr_pages;
 	rc = HYPERVISOR_memory_op(
 		XENMEM_populate_physmap, &reservation);
@@ -321,7 +321,7 @@ static int decrease_reservation(unsigned long nr_pages)
 		balloon_append(pfn_to_page(pfn));
 	}
 
-	reservation.extent_start = (unsigned long)frame_list;
+	set_xen_guest_handle(reservation.extent_start, frame_list);
 	reservation.nr_extents   = nr_pages;
 	ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation, &reservation);
 	BUG_ON(ret != nr_pages);
@@ -368,7 +368,7 @@ static void balloon_process(struct work_struct *work)
 }
 
 /* Resets the Xen limit, sets new target, and kicks off processing. */
-void balloon_set_new_target(unsigned long target)
+static void balloon_set_new_target(unsigned long target)
 {
 	/* No need for lock. Not read-modify-write updates. */
 	balloon_stats.hard_limit   = ~0UL;
@@ -483,7 +483,7 @@ static int dealloc_pte_fn(
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};
-	reservation.extent_start = (unsigned long)&mfn;
+	set_xen_guest_handle(reservation.extent_start, &mfn);
 	set_pte_at(&init_mm, addr, pte, __pte_ma(0ull));
 	set_phys_to_machine(__pa(addr) >> PAGE_SHIFT, INVALID_P2M_ENTRY);
 	ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation, &reservation);
@@ -519,7 +519,7 @@ static struct page **alloc_empty_pages_and_pagevec(int nr_pages)
 				.extent_order = 0,
 				.domid        = DOMID_SELF
 			};
-			reservation.extent_start = (unsigned long)&gmfn;
+			set_xen_guest_handle(reservation.extent_start, &gmfn);
 			ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
 						   &reservation);
 			if (ret == 1)
@@ -610,6 +610,7 @@ static ssize_t show_target_kb(struct sys_device *dev, char *buf)
 }
 
 static ssize_t store_target_kb(struct sys_device *dev,
+			       struct sysdev_attribute *attr,
 			       const char *buf,
 			       size_t count)
 {

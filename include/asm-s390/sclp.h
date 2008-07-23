@@ -45,9 +45,9 @@ struct sclp_cpu_info {
 int sclp_get_cpu_info(struct sclp_cpu_info *info);
 int sclp_cpu_configure(u8 cpu);
 int sclp_cpu_deconfigure(u8 cpu);
-void sclp_read_info_early(void);
 void sclp_facilities_detect(void);
-unsigned long long sclp_memory_detect(void);
+unsigned long long sclp_get_rnmax(void);
+unsigned long long sclp_get_rzm(void);
 int sclp_sdias_blk_count(void);
 int sclp_sdias_copy(void *dest, int blk_num, int nr_blks);
 int sclp_chp_configure(struct chp_id chpid);

@@ -118,10 +118,10 @@ config USB_AMD5536UDC
 config USB_GADGET_ATMEL_USBA
 	boolean "Atmel USBA"
 	select USB_GADGET_DUALSPEED
-	depends on AVR32 || ARCH_AT91CAP9
+	depends on AVR32 || ARCH_AT91CAP9 || ARCH_AT91SAM9RL
 	help
 	  USBA is the integrated high-speed USB Device controller on
-	  the AT32AP700x and AT91CAP9 processors from Atmel.
+	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
 
 config USB_ATMEL_USBA
 	tristate
@@ -172,7 +172,7 @@ config USB_NET2280
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
-config USB_GADGET_PXA2XX
+config USB_GADGET_PXA25X
 	boolean "PXA 25x or IXP 4xx"
 	depends on (ARCH_PXA && PXA25x) || ARCH_IXP4XX
 	help
@@ -184,19 +184,19 @@ config USB_GADGET_PXA2XX
 	   zero (for control transfers).
 
 	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "pxa2xx_udc" and force all
+	   dynamically linked module called "pxa25x_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_PXA2XX
+config USB_PXA25X
 	tristate
-	depends on USB_GADGET_PXA2XX
+	depends on USB_GADGET_PXA25X
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
 # if there's only one gadget driver, using only two bulk endpoints,
 # don't waste memory for the other endpoints
-config USB_PXA2XX_SMALL
-	depends on USB_GADGET_PXA2XX
+config USB_PXA25X_SMALL
+	depends on USB_GADGET_PXA25X
 	bool
 	default n if USB_ETH_RNDIS
 	default y if USB_ZERO
@@ -585,6 +585,20 @@ config USB_G_PRINTER
 
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
+
+config USB_CDC_COMPOSITE
+	tristate "CDC Composite Device (Ethernet and ACM)"
+	depends on NET
+	help
+	  This driver provides two functions in one configuration:
+	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
+
+	  This driver requires four bulk and two interrupt endpoints,
+	  plus the ability to handle altsettings.  Not all peripheral
+	  controllers are that capable.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module.
 
 # put drivers that need isochronous transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.

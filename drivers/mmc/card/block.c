@@ -2,7 +2,7 @@
  * Block driver for media (i.e., flash cards)
  *
  * Copyright 2002 Hewlett-Packard Company
- * Copyright 2005-2007 Pierre Ossman
+ * Copyright 2005-2008 Pierre Ossman
  *
  * Use consistent with the GNU GPL is permitted,
  * provided that this copyright notice is
@@ -237,17 +237,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		if (brq.data.blocks > card->host->max_blk_count)
 			brq.data.blocks = card->host->max_blk_count;
 
-		/*
-		 * If the host doesn't support multiple block writes, force
-		 * block writes to single block. SD cards are excepted from
-		 * this rule as they support querying the number of
-		 * successfully written sectors.
-		 */
-		if (rq_data_dir(req) != READ &&
-		    !(card->host->caps & MMC_CAP_MULTIWRITE) &&
-		    !mmc_card_sd(card))
-			brq.data.blocks = 1;
-
 		if (brq.data.blocks > 1) {
 			/* SPI multiblock writes terminate using a special
 			 * token, not a STOP_TRANSMISSION request.
@@ -296,22 +285,24 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 		mmc_queue_bounce_post(mq);
 
+		/*
+		 * Check for errors here, but don't jump to cmd_err
+		 * until later as we need to wait for the card to leave
+		 * programming mode even when things go wrong.
+		 */
 		if (brq.cmd.error) {
 			printk(KERN_ERR "%s: error %d sending read/write command\n",
 			       req->rq_disk->disk_name, brq.cmd.error);
-			goto cmd_err;
 		}
 
 		if (brq.data.error) {
 			printk(KERN_ERR "%s: error %d transferring data\n",
 			       req->rq_disk->disk_name, brq.data.error);
-			goto cmd_err;
 		}
 
 		if (brq.stop.error) {
 			printk(KERN_ERR "%s: error %d sending stop command\n",
 			       req->rq_disk->disk_name, brq.stop.error);
-			goto cmd_err;
 		}
 
 		if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
@@ -344,6 +335,9 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 #endif
 		}
 
+		if (brq.cmd.error || brq.data.error || brq.stop.error)
+			goto cmd_err;
+
 		/*
 		 * A block was successfully transferred.
 		 */
@@ -362,30 +356,32 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
  	 * mark the known good sectors as ok.
  	 *
 	 * If the card is not SD, we can still ok written sectors
-	 * if the controller can do proper error reporting.
+	 * as reported by the controller (which might be less than
+	 * the real number of written sectors, but never more).
 	 *
 	 * For reads we just fail the entire chunk as that should
 	 * be safe in all cases.
 	 */
- 	if (rq_data_dir(req) != READ && mmc_card_sd(card)) {
-		u32 blocks;
-		unsigned int bytes;
+	if (rq_data_dir(req) != READ) {
+		if (mmc_card_sd(card)) {
+			u32 blocks;
+			unsigned int bytes;
 
-		blocks = mmc_sd_num_wr_blocks(card);
-		if (blocks != (u32)-1) {
-			if (card->csd.write_partial)
-				bytes = blocks << md->block_bits;
-			else
-				bytes = blocks << 9;
+			blocks = mmc_sd_num_wr_blocks(card);
+			if (blocks != (u32)-1) {
+				if (card->csd.write_partial)
+					bytes = blocks << md->block_bits;
+				else
+					bytes = blocks << 9;
+				spin_lock_irq(&md->lock);
+				ret = __blk_end_request(req, 0, bytes);
+				spin_unlock_irq(&md->lock);
+			}
+		} else {
 			spin_lock_irq(&md->lock);
-			ret = __blk_end_request(req, 0, bytes);
+			ret = __blk_end_request(req, 0, brq.data.bytes_xfered);
 			spin_unlock_irq(&md->lock);
 		}
-	} else if (rq_data_dir(req) != READ &&
-		   (card->host->caps & MMC_CAP_MULTIWRITE)) {
-		spin_lock_irq(&md->lock);
-		ret = __blk_end_request(req, 0, brq.data.bytes_xfered);
-		spin_unlock_irq(&md->lock);
 	}
 
 	mmc_release_host(card->host);

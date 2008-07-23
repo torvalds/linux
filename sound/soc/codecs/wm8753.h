@@ -120,7 +120,7 @@ struct wm8753_setup_data {
 #define WM8753_DAI_HIFI		0
 #define WM8753_DAI_VOICE		1
 
-extern struct snd_soc_codec_dai wm8753_dai[2];
+extern struct snd_soc_dai wm8753_dai[2];
 extern struct snd_soc_codec_device soc_codec_dev_wm8753;
 
 #endif

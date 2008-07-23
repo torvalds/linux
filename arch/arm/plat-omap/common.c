@@ -26,6 +26,7 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
+#include <asm/arch/common.h>
 #include <asm/arch/board.h>
 #include <asm/arch/control.h>
 #include <asm/arch/mux.h>
@@ -241,30 +242,70 @@ arch_initcall(omap_init_clocksource_32k);
 
 /* Global address base setup code */
 
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+
+static struct omap_globals *omap2_globals;
+
+static void __init __omap2_set_globals(void)
+{
+	omap2_set_globals_memory(omap2_globals);
+	omap2_set_globals_control(omap2_globals);
+	omap2_set_globals_prcm(omap2_globals);
+}
+
+#endif
+
 #if defined(CONFIG_ARCH_OMAP2420)
+
+static struct omap_globals omap242x_globals = {
+	.tap	= (__force void __iomem *)OMAP2_IO_ADDRESS(0x48014000),
+	.sdrc	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP2420_SDRC_BASE),
+	.sms	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP2420_SMS_BASE),
+	.ctrl	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP2420_CTRL_BASE),
+	.prm	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP2420_PRM_BASE),
+	.cm	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP2420_CM_BASE),
+};
+
 void __init omap2_set_globals_242x(void)
 {
-	omap2_sdrc_base = OMAP2420_SDRC_BASE;
-	omap2_sms_base = OMAP2420_SMS_BASE;
-	omap_ctrl_base_set(OMAP2420_CTRL_BASE);
+	omap2_globals = &omap242x_globals;
+	__omap2_set_globals();
 }
 #endif
 
 #if defined(CONFIG_ARCH_OMAP2430)
+
+static struct omap_globals omap243x_globals = {
+	.tap	= (__force void __iomem *)OMAP2_IO_ADDRESS(0x4900a000),
+	.sdrc	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP243X_SDRC_BASE),
+	.sms	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP243X_SMS_BASE),
+	.ctrl	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP243X_CTRL_BASE),
+	.prm	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP2430_PRM_BASE),
+	.cm	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP2430_CM_BASE),
+};
+
 void __init omap2_set_globals_243x(void)
 {
-	omap2_sdrc_base = OMAP243X_SDRC_BASE;
-	omap2_sms_base = OMAP243X_SMS_BASE;
-	omap_ctrl_base_set(OMAP243X_CTRL_BASE);
+	omap2_globals = &omap243x_globals;
+	__omap2_set_globals();
 }
 #endif
 
 #if defined(CONFIG_ARCH_OMAP3430)
+
+static struct omap_globals omap343x_globals = {
+	.tap	= (__force void __iomem *)OMAP2_IO_ADDRESS(0x4830A000),
+	.sdrc	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP343X_SDRC_BASE),
+	.sms	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP343X_SMS_BASE),
+	.ctrl	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP343X_CTRL_BASE),
+	.prm	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP3430_PRM_BASE),
+	.cm	= (__force void __iomem *)OMAP2_IO_ADDRESS(OMAP3430_CM_BASE),
+};
+
 void __init omap2_set_globals_343x(void)
 {
-	omap2_sdrc_base = OMAP343X_SDRC_BASE;
-	omap2_sms_base = OMAP343X_SMS_BASE;
-	omap_ctrl_base_set(OMAP343X_CTRL_BASE);
+	omap2_globals = &omap343x_globals;
+	__omap2_set_globals();
 }
 #endif
 

@@ -79,11 +79,13 @@ extern void iommu_free_table(struct iommu_table *tbl, const char *node_name);
 extern struct iommu_table *iommu_init_table(struct iommu_table * tbl,
 					    int nid);
 
-extern int iommu_map_sg(struct device *dev, struct scatterlist *sglist,
-			int nelems, unsigned long mask,
-			enum dma_data_direction direction);
+extern int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
+			struct scatterlist *sglist, int nelems,
+			unsigned long mask, enum dma_data_direction direction,
+			struct dma_attrs *attrs);
 extern void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
-			   int nelems, enum dma_data_direction direction);
+			   int nelems, enum dma_data_direction direction,
+			   struct dma_attrs *attrs);
 
 extern void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 				  size_t size, dma_addr_t *dma_handle,
@@ -92,9 +94,11 @@ extern void iommu_free_coherent(struct iommu_table *tbl, size_t size,
 				void *vaddr, dma_addr_t dma_handle);
 extern dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 				   void *vaddr, size_t size, unsigned long mask,
-				   enum dma_data_direction direction);
+				   enum dma_data_direction direction,
+				   struct dma_attrs *attrs);
 extern void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
-			       size_t size, enum dma_data_direction direction);
+			       size_t size, enum dma_data_direction direction,
+			       struct dma_attrs *attrs);
 
 extern void iommu_init_early_pSeries(void);
 extern void iommu_init_early_iSeries(void);

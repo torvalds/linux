@@ -11,13 +11,19 @@
  * - 2 miscellaneous 32-bit values
  */
 
+#if defined(__sparc__) && defined(__arch64__)
+# define PADDING(x)
+#else
+# define PADDING(x) unsigned int x;
+#endif
+
 struct shmid64_ds {
 	struct ipc64_perm	shm_perm;	/* operation perms */
-	unsigned int		__pad1;
+	PADDING(__pad1)
 	__kernel_time_t		shm_atime;	/* last attach time */
-	unsigned int		__pad2;
+	PADDING(__pad2)
 	__kernel_time_t		shm_dtime;	/* last detach time */
-	unsigned int		__pad3;
+	PADDING(__pad3)
 	__kernel_time_t		shm_ctime;	/* last change time */
 	size_t			shm_segsz;	/* size of segment (bytes) */
 	__kernel_pid_t		shm_cpid;	/* pid of creator */
@@ -38,5 +44,7 @@ struct shminfo64 {
 	unsigned long	__unused3;
 	unsigned long	__unused4;
 };
+
+#undef PADDING
 
 #endif /* _SPARC_SHMBUF_H */

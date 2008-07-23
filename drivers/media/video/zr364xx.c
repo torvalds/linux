@@ -521,7 +521,7 @@ static int zr364xx_vidioc_g_ctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static int zr364xx_vidioc_enum_fmt_cap(struct file *file,
+static int zr364xx_vidioc_enum_fmt_vid_cap(struct file *file,
 				       void *priv, struct v4l2_fmtdesc *f)
 {
 	if (f->index > 0)
@@ -537,7 +537,7 @@ static int zr364xx_vidioc_enum_fmt_cap(struct file *file,
 	return 0;
 }
 
-static int zr364xx_vidioc_try_fmt_cap(struct file *file, void *priv,
+static int zr364xx_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				      struct v4l2_format *f)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -564,7 +564,7 @@ static int zr364xx_vidioc_try_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int zr364xx_vidioc_g_fmt_cap(struct file *file, void *priv,
+static int zr364xx_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				    struct v4l2_format *f)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -589,7 +589,7 @@ static int zr364xx_vidioc_g_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int zr364xx_vidioc_s_fmt_cap(struct file *file, void *priv,
+static int zr364xx_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				    struct v4l2_format *f)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -770,10 +770,10 @@ static struct video_device zr364xx_template = {
 	.minor = -1,
 
 	.vidioc_querycap	= zr364xx_vidioc_querycap,
-	.vidioc_enum_fmt_cap	= zr364xx_vidioc_enum_fmt_cap,
-	.vidioc_try_fmt_cap	= zr364xx_vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap	= zr364xx_vidioc_s_fmt_cap,
-	.vidioc_g_fmt_cap	= zr364xx_vidioc_g_fmt_cap,
+	.vidioc_enum_fmt_vid_cap = zr364xx_vidioc_enum_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap	= zr364xx_vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap	= zr364xx_vidioc_s_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap	= zr364xx_vidioc_g_fmt_vid_cap,
 	.vidioc_enum_input	= zr364xx_vidioc_enum_input,
 	.vidioc_g_input		= zr364xx_vidioc_g_input,
 	.vidioc_s_input		= zr364xx_vidioc_s_input,

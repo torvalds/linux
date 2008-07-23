@@ -74,7 +74,7 @@ static void __noreturn cfe_linux_exit(void *arg)
 		if (!reboot_smp) {
 			/* Get CPU 0 to do the cfe_exit */
 			reboot_smp = 1;
-			smp_call_function(cfe_linux_exit, arg, 1, 0);
+			smp_call_function(cfe_linux_exit, arg, 0);
 		}
 	} else {
 		printk("Passing control back to CFE...\n");

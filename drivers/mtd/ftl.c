@@ -130,10 +130,6 @@ typedef struct partition_t {
     u_int16_t		DataUnits;
     u_int32_t		BlocksPerUnit;
     erase_unit_header_t	header;
-#if 0
-    region_info_t	region;
-    memory_handle_t	handle;
-#endif
 } partition_t;
 
 /* Partition state flags */

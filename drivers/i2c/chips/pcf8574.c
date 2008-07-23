@@ -1,6 +1,4 @@
 /*
-    pcf8574.c - Part of lm_sensors, Linux kernel modules for hardware
-             monitoring
     Copyright (c) 2000  Frodo Looijaard <frodol@dds.nl>, 
                         Philip Edelbrock <phil@netroedge.com>,
                         Dan Eaton <dan.eaton@rocketlogix.com>
@@ -40,36 +38,18 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
-/* Addresses to scan */
-static const unsigned short normal_i2c[] = {
-	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
-	0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
-	I2C_CLIENT_END
-};
+/* Addresses to scan: none, device can't be detected */
+static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_2(pcf8574, pcf8574a);
 
 /* Each client has this additional data */
 struct pcf8574_data {
-	struct i2c_client client;
-
 	int write;			/* Remember last written value */
 };
 
-static int pcf8574_attach_adapter(struct i2c_adapter *adapter);
-static int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind);
-static int pcf8574_detach_client(struct i2c_client *client);
 static void pcf8574_init_client(struct i2c_client *client);
-
-/* This is the driver that will be inserted */
-static struct i2c_driver pcf8574_driver = {
-	.driver = {
-		.name	= "pcf8574",
-	},
-	.attach_adapter	= pcf8574_attach_adapter,
-	.detach_client	= pcf8574_detach_client,
-};
 
 /* following are the sysfs callback functions */
 static ssize_t show_read(struct device *dev, struct device_attribute *attr, char *buf)
@@ -121,42 +101,22 @@ static const struct attribute_group pcf8574_attr_group = {
  * Real code
  */
 
-static int pcf8574_attach_adapter(struct i2c_adapter *adapter)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int pcf8574_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info)
 {
-	return i2c_probe(adapter, &addr_data, pcf8574_detect);
-}
-
-/* This function is called by i2c_probe */
-static int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
-{
-	struct i2c_client *new_client;
-	struct pcf8574_data *data;
-	int err = 0;
-	const char *client_name = "";
+	struct i2c_adapter *adapter = client->adapter;
+	const char *client_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
-		goto exit;
-
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet. */
-	if (!(data = kzalloc(sizeof(struct pcf8574_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &pcf8574_driver;
-	new_client->flags = 0;
+		return -ENODEV;
 
 	/* Now, we would do the remaining detection. But the PCF8574 is plainly
 	   impossible to detect! Stupid chip. */
 
 	/* Determine the chip type */
 	if (kind <= 0) {
-		if (address >= 0x38 && address <= 0x3f)
+		if (client->addr >= 0x38 && client->addr <= 0x3f)
 			kind = pcf8574a;
 		else
 			kind = pcf8574;
@@ -166,40 +126,43 @@ static int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
 		client_name = "pcf8574a";
 	else
 		client_name = "pcf8574";
+	strlcpy(info->type, client_name, I2C_NAME_SIZE);
 
-	/* Fill in the remaining client fields and put it into the global list */
-	strlcpy(new_client->name, client_name, I2C_NAME_SIZE);
+	return 0;
+}
 
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
-		goto exit_free;
-	
+static int pcf8574_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct pcf8574_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct pcf8574_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(client, data);
+
 	/* Initialize the PCF8574 chip */
-	pcf8574_init_client(new_client);
+	pcf8574_init_client(client);
 
 	/* Register sysfs hooks */
-	err = sysfs_create_group(&new_client->dev.kobj, &pcf8574_attr_group);
+	err = sysfs_create_group(&client->dev.kobj, &pcf8574_attr_group);
 	if (err)
-		goto exit_detach;
+		goto exit_free;
 	return 0;
 
-      exit_detach:
-	i2c_detach_client(new_client);
       exit_free:
 	kfree(data);
       exit:
 	return err;
 }
 
-static int pcf8574_detach_client(struct i2c_client *client)
+static int pcf8574_remove(struct i2c_client *client)
 {
-	int err;
-
 	sysfs_remove_group(&client->dev.kobj, &pcf8574_attr_group);
-
-	if ((err = i2c_detach_client(client)))
-		return err;
-
 	kfree(i2c_get_clientdata(client));
 	return 0;
 }
@@ -210,6 +173,24 @@ static void pcf8574_init_client(struct i2c_client *client)
 	struct pcf8574_data *data = i2c_get_clientdata(client);
 	data->write = -EAGAIN;
 }
+
+static const struct i2c_device_id pcf8574_id[] = {
+	{ "pcf8574", 0 },
+	{ "pcf8574a", 0 },
+	{ }
+};
+
+static struct i2c_driver pcf8574_driver = {
+	.driver = {
+		.name	= "pcf8574",
+	},
+	.probe		= pcf8574_probe,
+	.remove		= pcf8574_remove,
+	.id_table	= pcf8574_id,
+
+	.detect		= pcf8574_detect,
+	.address_data	= &addr_data,
+};
 
 static int __init pcf8574_init(void)
 {

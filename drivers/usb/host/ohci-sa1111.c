@@ -8,7 +8,7 @@
  * SA1111 Bus Glue
  *
  * Written by Christopher Hoover <ch@hpl.hp.com>
- * Based on fragments of previous driver by Rusell King et al.
+ * Based on fragments of previous driver by Russell King et al.
  *
  * This file is licenced under the GPL.
  */

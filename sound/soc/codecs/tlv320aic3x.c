@@ -29,7 +29,7 @@
  *  ---------------------------------------
  *
  *  Hence the machine layer should disable unsupported inputs/outputs by
- *  snd_soc_dapm_set_endpoint(codec, "MONO_LOUT", 0), etc.
+ *  snd_soc_dapm_disable_pin(codec, "MONO_LOUT"), etc.
  */
 
 #include <linux/module.h>
@@ -49,7 +49,7 @@
 #include "tlv320aic3x.h"
 
 #define AUDIO_NAME "aic3x"
-#define AIC3X_VERSION "0.1"
+#define AIC3X_VERSION "0.2"
 
 /* codec private data */
 struct aic3x_priv {
@@ -138,6 +138,20 @@ static int aic3x_write(struct snd_soc_codec *codec, unsigned int reg,
 		return -EIO;
 }
 
+/*
+ * read from the aic3x register space
+ */
+static int aic3x_read(struct snd_soc_codec *codec, unsigned int reg,
+		      u8 *value)
+{
+	*value = reg & 0xff;
+	if (codec->hw_read(codec->control_data, value, 1) != 1)
+		return -EIO;
+
+	aic3x_write_reg_cache(codec, reg, *value);
+	return 0;
+}
+
 #define SOC_DAPM_SINGLE_AIC3X(xname, reg, shift, mask, invert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_volsw, \
@@ -192,7 +206,7 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 		}
 
 		if (found)
-			snd_soc_dapm_sync_endpoints(widget->codec);
+			snd_soc_dapm_sync(widget->codec);
 	}
 
 	ret = snd_soc_update_bits(widget->codec, reg, val_mask, val);
@@ -209,6 +223,8 @@ static const char *aic3x_right_hpcom_mux[] =
     { "differential of HPROUT", "constant VCM", "single-ended",
       "differential of HPLCOM", "external feedback" };
 static const char *aic3x_linein_mode_mux[] = { "single-ended", "differential" };
+static const char *aic3x_adc_hpf[] =
+    { "Disabled", "0.0045xFs", "0.0125xFs", "0.025xFs" };
 
 #define LDAC_ENUM	0
 #define RDAC_ENUM	1
@@ -218,6 +234,7 @@ static const char *aic3x_linein_mode_mux[] = { "single-ended", "differential" };
 #define LINE1R_ENUM	5
 #define LINE2L_ENUM	6
 #define LINE2R_ENUM	7
+#define ADC_HPF_ENUM	8
 
 static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_SINGLE(DAC_LINE_MUX, 6, 3, aic3x_left_dac_mux),
@@ -228,6 +245,7 @@ static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_SINGLE(LINE1R_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE2L_2_LADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE2R_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
+	SOC_ENUM_DOUBLE(AIC3X_CODEC_DFILT_CTRL, 6, 4, 4, aic3x_adc_hpf),
 };
 
 static const struct snd_kcontrol_new aic3x_snd_controls[] = {
@@ -278,6 +296,8 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	/* Input */
 	SOC_DOUBLE_R("PGA Capture Volume", LADC_VOL, RADC_VOL, 0, 0x7f, 0),
 	SOC_DOUBLE_R("PGA Capture Switch", LADC_VOL, RADC_VOL, 7, 0x01, 1),
+
+	SOC_ENUM("ADC HPF Cut-off", aic3x_enum[ADC_HPF_ENUM]),
 };
 
 /* add non dapm controls */
@@ -441,11 +461,34 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("Right Line2R Mux", SND_SOC_NOPM, 0, 0,
 			 &aic3x_right_line2_mux_controls),
 
+	/*
+	 * Not a real mic bias widget but similar function. This is for dynamic
+	 * control of GPIO1 digital mic modulator clock output function when
+	 * using digital mic.
+	 */
+	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "GPIO1 dmic modclk",
+			 AIC3X_GPIO1_REG, 4, 0xf,
+			 AIC3X_GPIO1_FUNC_DIGITAL_MIC_MODCLK,
+			 AIC3X_GPIO1_FUNC_DISABLED),
+
+	/*
+	 * Also similar function like mic bias. Selects digital mic with
+	 * configurable oversampling rate instead of ADC converter.
+	 */
+	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "DMic Rate 128",
+			 AIC3X_ASD_INTF_CTRLA, 0, 3, 1, 0),
+	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "DMic Rate 64",
+			 AIC3X_ASD_INTF_CTRLA, 0, 3, 2, 0),
+	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "DMic Rate 32",
+			 AIC3X_ASD_INTF_CTRLA, 0, 3, 3, 0),
+
 	/* Mic Bias */
-	SND_SOC_DAPM_MICBIAS("Mic Bias 2V", MICBIAS_CTRL, 6, 0),
-	SND_SOC_DAPM_MICBIAS("Mic Bias 2.5V", MICBIAS_CTRL, 7, 0),
-	SND_SOC_DAPM_MICBIAS("Mic Bias AVDD", MICBIAS_CTRL, 6, 0),
-	SND_SOC_DAPM_MICBIAS("Mic Bias AVDD", MICBIAS_CTRL, 7, 0),
+	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "Mic Bias 2V",
+			 MICBIAS_CTRL, 6, 3, 1, 0),
+	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "Mic Bias 2.5V",
+			 MICBIAS_CTRL, 6, 3, 2, 0),
+	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "Mic Bias AVDD",
+			 MICBIAS_CTRL, 6, 3, 3, 0),
 
 	/* Left PGA to Left Output bypass */
 	SND_SOC_DAPM_MIXER("Left PGA Bypass Mixer", SND_SOC_NOPM, 0, 0,
@@ -483,7 +526,7 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINE2R"),
 };
 
-static const char *intercon[][3] = {
+static const struct snd_soc_dapm_route intercon[] = {
 	/* Left Output */
 	{"Left DAC Mux", "DAC_L1", "Left DAC"},
 	{"Left DAC Mux", "DAC_L2", "Left DAC"},
@@ -554,6 +597,7 @@ static const char *intercon[][3] = {
 	{"Left PGA Mixer", "Mic3L Switch", "MIC3L"},
 
 	{"Left ADC", NULL, "Left PGA Mixer"},
+	{"Left ADC", NULL, "GPIO1 dmic modclk"},
 
 	/* Right Input */
 	{"Right Line1R Mux", "single-ended", "LINE1R"},
@@ -567,6 +611,7 @@ static const char *intercon[][3] = {
 	{"Right PGA Mixer", "Mic3R Switch", "MIC3R"},
 
 	{"Right ADC", NULL, "Right PGA Mixer"},
+	{"Right ADC", NULL, "GPIO1 dmic modclk"},
 
 	/* Left PGA Bypass */
 	{"Left PGA Bypass Mixer", "Line Switch", "Left PGA Mixer"},
@@ -628,98 +673,24 @@ static const char *intercon[][3] = {
 	{"Mono Out", NULL, "Right Line2 Bypass Mixer"},
 	{"Right HP Out", NULL, "Right Line2 Bypass Mixer"},
 
-	/* terminator */
-	{NULL, NULL, NULL},
+	/*
+	 * Logical path between digital mic enable and GPIO1 modulator clock
+	 * output function
+	 */
+	{"GPIO1 dmic modclk", NULL, "DMic Rate 128"},
+	{"GPIO1 dmic modclk", NULL, "DMic Rate 64"},
+	{"GPIO1 dmic modclk", NULL, "DMic Rate 32"},
 };
 
 static int aic3x_add_widgets(struct snd_soc_codec *codec)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(aic3x_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &aic3x_dapm_widgets[i]);
+	snd_soc_dapm_new_controls(codec, aic3x_dapm_widgets,
+				  ARRAY_SIZE(aic3x_dapm_widgets));
 
 	/* set up audio path interconnects */
-	for (i = 0; intercon[i][0] != NULL; i++)
-		snd_soc_dapm_connect_input(codec, intercon[i][0],
-					   intercon[i][1], intercon[i][2]);
+	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
 
 	snd_soc_dapm_new_widgets(codec);
-	return 0;
-}
-
-struct aic3x_rate_divs {
-	u32 mclk;
-	u32 rate;
-	u32 fsref_reg;
-	u8 sr_reg:4;
-	u8 pllj_reg;
-	u16 plld_reg;
-};
-
-/* AIC3X codec mclk clock divider coefficients */
-static const struct aic3x_rate_divs aic3x_divs[] = {
-	/* 8k */
-	{12000000, 8000, 48000, 0xa, 16, 3840},
-	{19200000, 8000, 48000, 0xa, 10, 2400},
-	{22579200, 8000, 48000, 0xa, 8, 7075},
-	{33868800, 8000, 48000, 0xa, 5, 8049},
-	/* 11.025k */
-	{12000000, 11025, 44100, 0x6, 15, 528},
-	{19200000, 11025, 44100, 0x6, 9, 4080},
-	{22579200, 11025, 44100, 0x6, 8, 0},
-	{33868800, 11025, 44100, 0x6, 5, 3333},
-	/* 16k */
-	{12000000, 16000, 48000, 0x4, 16, 3840},
-	{19200000, 16000, 48000, 0x4, 10, 2400},
-	{22579200, 16000, 48000, 0x4, 8, 7075},
-	{33868800, 16000, 48000, 0x4, 5, 8049},
-	/* 22.05k */
-	{12000000, 22050, 44100, 0x2, 15, 528},
-	{19200000, 22050, 44100, 0x2, 9, 4080},
-	{22579200, 22050, 44100, 0x2, 8, 0},
-	{33868800, 22050, 44100, 0x2, 5, 3333},
-	/* 32k */
-	{12000000, 32000, 48000, 0x1, 16, 3840},
-	{19200000, 32000, 48000, 0x1, 10, 2400},
-	{22579200, 32000, 48000, 0x1, 8, 7075},
-	{33868800, 32000, 48000, 0x1, 5, 8049},
-	/* 44.1k */
-	{12000000, 44100, 44100, 0x0, 15, 528},
-	{19200000, 44100, 44100, 0x0, 9, 4080},
-	{22579200, 44100, 44100, 0x0, 8, 0},
-	{33868800, 44100, 44100, 0x0, 5, 3333},
-	/* 48k */
-	{12000000, 48000, 48000, 0x0, 16, 3840},
-	{19200000, 48000, 48000, 0x0, 10, 2400},
-	{22579200, 48000, 48000, 0x0, 8, 7075},
-	{33868800, 48000, 48000, 0x0, 5, 8049},
-	/* 64k */
-	{12000000, 64000, 96000, 0x1, 16, 3840},
-	{19200000, 64000, 96000, 0x1, 10, 2400},
-	{22579200, 64000, 96000, 0x1, 8, 7075},
-	{33868800, 64000, 96000, 0x1, 5, 8049},
-	/* 88.2k */
-	{12000000, 88200, 88200, 0x0, 15, 528},
-	{19200000, 88200, 88200, 0x0, 9, 4080},
-	{22579200, 88200, 88200, 0x0, 8, 0},
-	{33868800, 88200, 88200, 0x0, 5, 3333},
-	/* 96k */
-	{12000000, 96000, 96000, 0x0, 16, 3840},
-	{19200000, 96000, 96000, 0x0, 10, 2400},
-	{22579200, 96000, 96000, 0x0, 8, 7075},
-	{33868800, 96000, 96000, 0x0, 5, 8049},
-};
-
-static inline int aic3x_get_divs(int mclk, int rate)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(aic3x_divs); i++) {
-		if (aic3x_divs[i].rate == rate && aic3x_divs[i].mclk == mclk)
-			return i;
-	}
-
 	return 0;
 }
 
@@ -730,57 +701,9 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->codec;
 	struct aic3x_priv *aic3x = codec->private_data;
-	int i;
-	u8 data, pll_p, pll_r, pll_j;
-	u16 pll_d;
-
-	i = aic3x_get_divs(aic3x->sysclk, params_rate(params));
-
-	/* Route Left DAC to left channel input and
-	 * right DAC to right channel input */
-	data = (LDAC2LCH | RDAC2RCH);
-	switch (aic3x_divs[i].fsref_reg) {
-	case 44100:
-		data |= FSREF_44100;
-		break;
-	case 48000:
-		data |= FSREF_48000;
-		break;
-	case 88200:
-		data |= FSREF_44100 | DUAL_RATE_MODE;
-		break;
-	case 96000:
-		data |= FSREF_48000 | DUAL_RATE_MODE;
-		break;
-	}
-	aic3x_write(codec, AIC3X_CODEC_DATAPATH_REG, data);
-
-	/* codec sample rate select */
-	data = aic3x_divs[i].sr_reg;
-	data |= (data << 4);
-	aic3x_write(codec, AIC3X_SAMPLE_RATE_SEL_REG, data);
-
-	/* Use PLL for generation Fsref by equation:
-	 * Fsref = (MCLK * K * R)/(2048 * P);
-	 * Fix P = 2 and R = 1 and calculate K, if
-	 * K = J.D, i.e. J - an interger portion of K and D is the fractional
-	 * one with 4 digits of precision;
-	 * Example:
-	 * For MCLK = 22.5792 MHz and Fsref = 48kHz:
-	 * Select P = 2, R= 1, K = 8.7074, which results in J = 8, D = 7074
-	 */
-	pll_p = 2;
-	pll_r = 1;
-	pll_j = aic3x_divs[i].pllj_reg;
-	pll_d = aic3x_divs[i].plld_reg;
-
-	data = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
-	aic3x_write(codec, AIC3X_PLL_PROGA_REG, data | (pll_p << PLLP_SHIFT));
-	aic3x_write(codec, AIC3X_OVRF_STATUS_AND_PLLR_REG, pll_r << PLLR_SHIFT);
-	aic3x_write(codec, AIC3X_PLL_PROGB_REG, pll_j << PLLJ_SHIFT);
-	aic3x_write(codec, AIC3X_PLL_PROGC_REG, (pll_d >> 6) << PLLD_MSB_SHIFT);
-	aic3x_write(codec, AIC3X_PLL_PROGD_REG,
-		    (pll_d & 0x3F) << PLLD_LSB_SHIFT);
+	int codec_clk = 0, bypass_pll = 0, fsref, last_clk = 0;
+	u8 data, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
+	u16 pll_d = 1;
 
 	/* select data word length */
 	data =
@@ -800,10 +723,98 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	}
 	aic3x_write(codec, AIC3X_ASD_INTF_CTRLB, data);
 
+	/* Fsref can be 44100 or 48000 */
+	fsref = (params_rate(params) % 11025 == 0) ? 44100 : 48000;
+
+	/* Try to find a value for Q which allows us to bypass the PLL and
+	 * generate CODEC_CLK directly. */
+	for (pll_q = 2; pll_q < 18; pll_q++)
+		if (aic3x->sysclk / (128 * pll_q) == fsref) {
+			bypass_pll = 1;
+			break;
+		}
+
+	if (bypass_pll) {
+		pll_q &= 0xf;
+		aic3x_write(codec, AIC3X_PLL_PROGA_REG, pll_q << PLLQ_SHIFT);
+		aic3x_write(codec, AIC3X_GPIOB_REG, CODEC_CLKIN_CLKDIV);
+	} else
+		aic3x_write(codec, AIC3X_GPIOB_REG, CODEC_CLKIN_PLLDIV);
+
+	/* Route Left DAC to left channel input and
+	 * right DAC to right channel input */
+	data = (LDAC2LCH | RDAC2RCH);
+	data |= (fsref == 44100) ? FSREF_44100 : FSREF_48000;
+	if (params_rate(params) >= 64000)
+		data |= DUAL_RATE_MODE;
+	aic3x_write(codec, AIC3X_CODEC_DATAPATH_REG, data);
+
+	/* codec sample rate select */
+	data = (fsref * 20) / params_rate(params);
+	if (params_rate(params) < 64000)
+		data /= 2;
+	data /= 5;
+	data -= 2;
+	data |= (data << 4);
+	aic3x_write(codec, AIC3X_SAMPLE_RATE_SEL_REG, data);
+
+	if (bypass_pll)
+		return 0;
+
+	/* Use PLL
+	 * find an apropriate setup for j, d, r and p by iterating over
+	 * p and r - j and d are calculated for each fraction.
+	 * Up to 128 values are probed, the closest one wins the game.
+	 * The sysclk is divided by 1000 to prevent integer overflows.
+	 */
+	codec_clk = (2048 * fsref) / (aic3x->sysclk / 1000);
+
+	for (r = 1; r <= 16; r++)
+		for (p = 1; p <= 8; p++) {
+			int clk, tmp = (codec_clk * pll_r * 10) / pll_p;
+			u8 j = tmp / 10000;
+			u16 d = tmp % 10000;
+
+			if (j > 63)
+				continue;
+
+			if (d != 0 && aic3x->sysclk < 10000000)
+				continue;
+
+			/* This is actually 1000 * ((j + (d/10000)) * r) / p
+			 * The term had to be converted to get rid of the
+			 * division by 10000 */
+			clk = ((10000 * j * r) + (d * r)) / (10 * p);
+
+			/* check whether this values get closer than the best
+			 * ones we had before */
+			if (abs(codec_clk - clk) < abs(codec_clk - last_clk)) {
+				pll_j = j; pll_d = d; pll_r = r; pll_p = p;
+				last_clk = clk;
+			}
+
+			/* Early exit for exact matches */
+			if (clk == codec_clk)
+				break;
+		}
+
+	if (last_clk == 0) {
+		printk(KERN_ERR "%s(): unable to setup PLL\n", __func__);
+		return -EINVAL;
+	}
+
+	data = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
+	aic3x_write(codec, AIC3X_PLL_PROGA_REG, data | (pll_p << PLLP_SHIFT));
+	aic3x_write(codec, AIC3X_OVRF_STATUS_AND_PLLR_REG, pll_r << PLLR_SHIFT);
+	aic3x_write(codec, AIC3X_PLL_PROGB_REG, pll_j << PLLJ_SHIFT);
+	aic3x_write(codec, AIC3X_PLL_PROGC_REG, (pll_d >> 6) << PLLD_MSB_SHIFT);
+	aic3x_write(codec, AIC3X_PLL_PROGD_REG,
+		    (pll_d & 0x3F) << PLLD_LSB_SHIFT);
+
 	return 0;
 }
 
-static int aic3x_mute(struct snd_soc_codec_dai *dai, int mute)
+static int aic3x_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	u8 ldac_reg = aic3x_read_reg_cache(codec, LDAC_VOL) & ~MUTE_ON;
@@ -820,31 +831,25 @@ static int aic3x_mute(struct snd_soc_codec_dai *dai, int mute)
 	return 0;
 }
 
-static int aic3x_set_dai_sysclk(struct snd_soc_codec_dai *codec_dai,
+static int aic3x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct aic3x_priv *aic3x = codec->private_data;
 
-	switch (freq) {
-	case 12000000:
-	case 19200000:
-	case 22579200:
-	case 33868800:
-		aic3x->sysclk = freq;
-		return 0;
-	}
-
-	return -EINVAL;
+	aic3x->sysclk = freq;
+	return 0;
 }
 
-static int aic3x_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
+static int aic3x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			     unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct aic3x_priv *aic3x = codec->private_data;
-	u8 iface_areg = 0;
-	u8 iface_breg = 0;
+	u8 iface_areg, iface_breg;
+
+	iface_areg = aic3x_read_reg_cache(codec, AIC3X_ASD_INTF_CTRLA) & 0x3f;
+	iface_breg = aic3x_read_reg_cache(codec, AIC3X_ASD_INTF_CTRLB) & 0x3f;
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -883,13 +888,14 @@ static int aic3x_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
 	return 0;
 }
 
-static int aic3x_dapm_event(struct snd_soc_codec *codec, int event)
+static int aic3x_set_bias_level(struct snd_soc_codec *codec,
+				enum snd_soc_bias_level level)
 {
 	struct aic3x_priv *aic3x = codec->private_data;
 	u8 reg;
 
-	switch (event) {
-	case SNDRV_CTL_POWER_D0:
+	switch (level) {
+	case SND_SOC_BIAS_ON:
 		/* all power is driven by DAPM system */
 		if (aic3x->master) {
 			/* enable pll */
@@ -898,10 +904,9 @@ static int aic3x_dapm_event(struct snd_soc_codec *codec, int event)
 				    reg | PLL_ENABLE);
 		}
 		break;
-	case SNDRV_CTL_POWER_D1:
-	case SNDRV_CTL_POWER_D2:
+	case SND_SOC_BIAS_PREPARE:
 		break;
-	case SNDRV_CTL_POWER_D3hot:
+	case SND_SOC_BIAS_STANDBY:
 		/*
 		 * all power is driven by DAPM system,
 		 * so output power is safe if bypass was set
@@ -913,7 +918,7 @@ static int aic3x_dapm_event(struct snd_soc_codec *codec, int event)
 				    reg & ~PLL_ENABLE);
 		}
 		break;
-	case SNDRV_CTL_POWER_D3cold:
+	case SND_SOC_BIAS_OFF:
 		/* force all power off */
 		reg = aic3x_read_reg_cache(codec, LINE1L_2_LADC_CTRL);
 		aic3x_write(codec, LINE1L_2_LADC_CTRL, reg & ~LADC_PWR_ON);
@@ -949,16 +954,43 @@ static int aic3x_dapm_event(struct snd_soc_codec *codec, int event)
 		}
 		break;
 	}
-	codec->dapm_state = event;
+	codec->bias_level = level;
 
 	return 0;
 }
+
+void aic3x_set_gpio(struct snd_soc_codec *codec, int gpio, int state)
+{
+	u8 reg = gpio ? AIC3X_GPIO2_REG : AIC3X_GPIO1_REG;
+	u8 bit = gpio ? 3: 0;
+	u8 val = aic3x_read_reg_cache(codec, reg) & ~(1 << bit);
+	aic3x_write(codec, reg, val | (!!state << bit));
+}
+EXPORT_SYMBOL_GPL(aic3x_set_gpio);
+
+int aic3x_get_gpio(struct snd_soc_codec *codec, int gpio)
+{
+	u8 reg = gpio ? AIC3X_GPIO2_REG : AIC3X_GPIO1_REG;
+	u8 val, bit = gpio ? 2: 1;
+
+	aic3x_read(codec, reg, &val);
+	return (val >> bit) & 1;
+}
+EXPORT_SYMBOL_GPL(aic3x_get_gpio);
+
+int aic3x_headset_detected(struct snd_soc_codec *codec)
+{
+	u8 val;
+	aic3x_read(codec, AIC3X_RT_IRQ_FLAGS_REG, &val);
+	return (val >> 2) & 1;
+}
+EXPORT_SYMBOL_GPL(aic3x_headset_detected);
 
 #define AIC3X_RATES	SNDRV_PCM_RATE_8000_96000
 #define AIC3X_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-struct snd_soc_codec_dai aic3x_dai = {
+struct snd_soc_dai aic3x_dai = {
 	.name = "aic3x",
 	.playback = {
 		.stream_name = "Playback",
@@ -988,7 +1020,7 @@ static int aic3x_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->codec;
 
-	aic3x_dapm_event(codec, SNDRV_CTL_POWER_D3cold);
+	aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1008,7 +1040,7 @@ static int aic3x_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 
-	aic3x_dapm_event(codec, codec->suspend_dapm_state);
+	aic3x_set_bias_level(codec, codec->suspend_bias_level);
 
 	return 0;
 }
@@ -1020,16 +1052,17 @@ static int aic3x_resume(struct platform_device *pdev)
 static int aic3x_init(struct snd_soc_device *socdev)
 {
 	struct snd_soc_codec *codec = socdev->codec;
+	struct aic3x_setup_data *setup = socdev->codec_data;
 	int reg, ret = 0;
 
 	codec->name = "aic3x";
 	codec->owner = THIS_MODULE;
 	codec->read = aic3x_read_reg_cache;
 	codec->write = aic3x_write;
-	codec->dapm_event = aic3x_dapm_event;
+	codec->set_bias_level = aic3x_set_bias_level;
 	codec->dai = &aic3x_dai;
 	codec->num_dai = 1;
-	codec->reg_cache_size = sizeof(aic3x_reg);
+	codec->reg_cache_size = ARRAY_SIZE(aic3x_reg);
 	codec->reg_cache = kmemdup(aic3x_reg, sizeof(aic3x_reg), GFP_KERNEL);
 	if (codec->reg_cache == NULL)
 		return -ENOMEM;
@@ -1108,7 +1141,11 @@ static int aic3x_init(struct snd_soc_device *socdev)
 	aic3x_write(codec, LINE2R_2_MONOLOPM_VOL, DEFAULT_VOL);
 
 	/* off, with power on */
-	aic3x_dapm_event(codec, SNDRV_CTL_POWER_D3hot);
+	aic3x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	/* setup GPIO functions */
+	aic3x_write(codec, AIC3X_GPIO1_REG, (setup->gpio_func[0] & 0xf) << 4);
+	aic3x_write(codec, AIC3X_GPIO2_REG, (setup->gpio_func[1] & 0xf) << 4);
 
 	aic3x_add_controls(codec);
 	aic3x_add_widgets(codec);
@@ -1217,6 +1254,12 @@ static struct i2c_client client_template = {
 	.name = "AIC3X",
 	.driver = &aic3x_i2c_driver,
 };
+
+static int aic3x_i2c_read(struct i2c_client *client, u8 *value, int len)
+{
+	value[0] = i2c_smbus_read_byte_data(client, value[0]);
+	return (len == 1);
+}
 #endif
 
 static int aic3x_probe(struct platform_device *pdev)
@@ -1251,6 +1294,7 @@ static int aic3x_probe(struct platform_device *pdev)
 	if (setup->i2c_address) {
 		normal_i2c[0] = setup->i2c_address;
 		codec->hw_write = (hw_write_t) i2c_master_send;
+		codec->hw_read = (hw_read_t) aic3x_i2c_read;
 		ret = i2c_add_driver(&aic3x_i2c_driver);
 		if (ret != 0)
 			printk(KERN_ERR "can't add i2c driver");
@@ -1268,7 +1312,7 @@ static int aic3x_remove(struct platform_device *pdev)
 
 	/* power down chip */
 	if (codec->control_data)
-		aic3x_dapm_event(codec, SNDRV_CTL_POWER_D3);
+		aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);

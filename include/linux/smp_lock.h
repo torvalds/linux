@@ -27,11 +27,24 @@ static inline int reacquire_kernel_lock(struct task_struct *task)
 extern void __lockfunc lock_kernel(void)	__acquires(kernel_lock);
 extern void __lockfunc unlock_kernel(void)	__releases(kernel_lock);
 
+/*
+ * Various legacy drivers don't really need the BKL in a specific
+ * function, but they *do* need to know that the BKL became available.
+ * This function just avoids wrapping a bunch of lock/unlock pairs
+ * around code which doesn't really need it.
+ */
+static inline void cycle_kernel_lock(void)
+{
+	lock_kernel();
+	unlock_kernel();
+}
+
 #else
 
 #define lock_kernel()				do { } while(0)
 #define unlock_kernel()				do { } while(0)
 #define release_kernel_lock(task)		do { } while(0)
+#define cycle_kernel_lock()			do { } while(0)
 #define reacquire_kernel_lock(task)		0
 #define kernel_locked()				1
 

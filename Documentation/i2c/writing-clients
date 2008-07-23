@@ -44,6 +44,10 @@ static struct i2c_driver foo_driver = {
 	.id_table	= foo_ids,
 	.probe		= foo_probe,
 	.remove		= foo_remove,
+	/* if device autodetection is needed: */
+	.class		= I2C_CLASS_SOMETHING,
+	.detect		= foo_detect,
+	.address_data	= &addr_data,
 
 	/* else, driver uses "legacy" binding model: */
 	.attach_adapter	= foo_attach_adapter,
@@ -215,6 +219,31 @@ many times.
 The call to i2c_new_device() or i2c_new_probed_device() typically happens
 in the I2C bus driver. You may want to save the returned i2c_client
 reference for later use.
+
+
+Device Detection (Standard driver model)
+----------------------------------------
+
+Sometimes you do not know in advance which I2C devices are connected to
+a given I2C bus.  This is for example the case of hardware monitoring
+devices on a PC's SMBus.  In that case, you may want to let your driver
+detect supported devices automatically.  This is how the legacy model
+was working, and is now available as an extension to the standard
+driver model (so that we can finally get rid of the legacy model.)
+
+You simply have to define a detect callback which will attempt to
+identify supported devices (returning 0 for supported ones and -ENODEV
+for unsupported ones), a list of addresses to probe, and a device type
+(or class) so that only I2C buses which may have that type of device
+connected (and not otherwise enumerated) will be probed.  The i2c
+core will then call you back as needed and will instantiate a device
+for you for every successful detection.
+
+Note that this mechanism is purely optional and not suitable for all
+devices.  You need some reliable way to identify the supported devices
+(typically using device-specific, dedicated identification registers),
+otherwise misdetections are likely to occur and things can get wrong
+quickly.
 
 
 Device Deletion (Standard driver model)
@@ -569,7 +598,6 @@ SMBus communication
   in terms of it. Never use this function directly!
 
 
-  extern s32 i2c_smbus_write_quick(struct i2c_client * client, u8 value);
   extern s32 i2c_smbus_read_byte(struct i2c_client * client);
   extern s32 i2c_smbus_write_byte(struct i2c_client * client, u8 value);
   extern s32 i2c_smbus_read_byte_data(struct i2c_client * client, u8 command);
@@ -578,30 +606,31 @@ SMBus communication
   extern s32 i2c_smbus_read_word_data(struct i2c_client * client, u8 command);
   extern s32 i2c_smbus_write_word_data(struct i2c_client * client,
                                        u8 command, u16 value);
+  extern s32 i2c_smbus_read_block_data(struct i2c_client * client,
+                                       u8 command, u8 *values);
   extern s32 i2c_smbus_write_block_data(struct i2c_client * client,
                                         u8 command, u8 length,
                                         u8 *values);
   extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
                                            u8 command, u8 length, u8 *values);
-
-These ones were removed in Linux 2.6.10 because they had no users, but could
-be added back later if needed:
-
-  extern s32 i2c_smbus_read_block_data(struct i2c_client * client,
-                                       u8 command, u8 *values);
   extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client * client,
                                             u8 command, u8 length,
                                             u8 *values);
+
+These ones were removed from i2c-core because they had no users, but could
+be added back later if needed:
+
+  extern s32 i2c_smbus_write_quick(struct i2c_client * client, u8 value);
   extern s32 i2c_smbus_process_call(struct i2c_client * client,
                                     u8 command, u16 value);
   extern s32 i2c_smbus_block_process_call(struct i2c_client *client,
                                           u8 command, u8 length,
                                           u8 *values)
 
-All these transactions return -1 on failure. The 'write' transactions 
-return 0 on success; the 'read' transactions return the read value, except 
-for read_block, which returns the number of values read. The block buffers 
-need not be longer than 32 bytes.
+All these transactions return a negative errno value on failure. The 'write'
+transactions return 0 on success; the 'read' transactions return the read
+value, except for block transactions, which return the number of values
+read. The block buffers need not be longer than 32 bytes.
 
 You can read the file `smbus-protocol' for more information about the
 actual SMBus protocol.

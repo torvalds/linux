@@ -31,6 +31,7 @@
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
+#include <asm/arch/audio.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/mmc.h>
@@ -79,12 +80,6 @@ static struct platform_device cmx270_device_dm9k = {
 	.dev		= {
 		.platform_data = &cmx270_dm9k_platdata,
 	}
-};
-
-/* audio device */
-static struct platform_device cmx270_audio_device = {
-	.name		= "pxa2xx-ac97",
-	.id		= -1,
 };
 
 /* touchscreen controller */
@@ -219,7 +214,6 @@ static struct platform_device cmx270_ata = {
 /* platform devices */
 static struct platform_device *platform_devices[] __initdata = {
 	&cmx270_device_dm9k,
-	&cmx270_audio_device,
 	&cmx270_rtc_device,
 	&cmx270_2700G,
 	&cmx270_led_device,
@@ -594,6 +588,7 @@ static void __init cmx270_init(void)
 
 	/* register CM-X270 platform devices */
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	pxa_set_ac97_info(NULL);
 
 	/* set MCI and OHCI platform parameters */
 	pxa_set_mci_info(&cmx270_mci_platform_data);

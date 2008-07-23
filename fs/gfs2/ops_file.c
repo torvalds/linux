@@ -15,6 +15,7 @@
 #include <linux/uio.h>
 #include <linux/blkdev.h>
 #include <linux/mm.h>
+#include <linux/mount.h>
 #include <linux/fs.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/ext2_fs.h>
@@ -62,11 +63,11 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int origin)
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY,
 					   &i_gh);
 		if (!error) {
-			error = remote_llseek(file, offset, origin);
+			error = generic_file_llseek_unlocked(file, offset, origin);
 			gfs2_glock_dq_uninit(&i_gh);
 		}
 	} else
-		error = remote_llseek(file, offset, origin);
+		error = generic_file_llseek_unlocked(file, offset, origin);
 
 	return error;
 }
@@ -133,7 +134,6 @@ static const u32 fsflags_to_gfs2[32] = {
 	[7] = GFS2_DIF_NOATIME,
 	[12] = GFS2_DIF_EXHASH,
 	[14] = GFS2_DIF_INHERIT_JDATA,
-	[20] = GFS2_DIF_INHERIT_DIRECTIO,
 };
 
 static const u32 gfs2_to_fsflags[32] = {
@@ -142,7 +142,6 @@ static const u32 gfs2_to_fsflags[32] = {
 	[gfs2fl_AppendOnly] = FS_APPEND_FL,
 	[gfs2fl_NoAtime] = FS_NOATIME_FL,
 	[gfs2fl_ExHash] = FS_INDEX_FL,
-	[gfs2fl_InheritDirectio] = FS_DIRECTIO_FL,
 	[gfs2fl_InheritJdata] = FS_JOURNAL_DATA_FL,
 };
 
@@ -160,12 +159,8 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 		return error;
 
 	fsflags = fsflags_cvt(gfs2_to_fsflags, ip->i_di.di_flags);
-	if (!S_ISDIR(inode->i_mode)) {
-		if (ip->i_di.di_flags & GFS2_DIF_JDATA)
-			fsflags |= FS_JOURNAL_DATA_FL;
-		if (ip->i_di.di_flags & GFS2_DIF_DIRECTIO)
-			fsflags |= FS_DIRECTIO_FL;
-	}
+	if (!S_ISDIR(inode->i_mode) && ip->i_di.di_flags & GFS2_DIF_JDATA)
+		fsflags |= FS_JOURNAL_DATA_FL;
 	if (put_user(fsflags, ptr))
 		error = -EFAULT;
 
@@ -194,13 +189,11 @@ void gfs2_set_inode_flags(struct inode *inode)
 
 /* Flags that can be set by user space */
 #define GFS2_FLAGS_USER_SET (GFS2_DIF_JDATA|			\
-			     GFS2_DIF_DIRECTIO|			\
 			     GFS2_DIF_IMMUTABLE|		\
 			     GFS2_DIF_APPENDONLY|		\
 			     GFS2_DIF_NOATIME|			\
 			     GFS2_DIF_SYNC|			\
 			     GFS2_DIF_SYSTEM|			\
-			     GFS2_DIF_INHERIT_DIRECTIO|		\
 			     GFS2_DIF_INHERIT_JDATA)
 
 /**
@@ -220,9 +213,13 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	int error;
 	u32 new_flags, flags;
 
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+	error = mnt_want_write(filp->f_path.mnt);
 	if (error)
 		return error;
+
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+	if (error)
+		goto out_drop_write;
 
 	flags = ip->i_di.di_flags;
 	new_flags = (flags & ~mask) | (reqflags & mask);
@@ -242,7 +239,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	    !capable(CAP_LINUX_IMMUTABLE))
 		goto out;
 	if (!IS_IMMUTABLE(inode)) {
-		error = permission(inode, MAY_WRITE, NULL);
+		error = gfs2_permission(inode, MAY_WRITE);
 		if (error)
 			goto out;
 	}
@@ -272,6 +269,8 @@ out_trans_end:
 	gfs2_trans_end(sdp);
 out:
 	gfs2_glock_dq_uninit(&gh);
+out_drop_write:
+	mnt_drop_write(filp->f_path.mnt);
 	return error;
 }
 
@@ -285,8 +284,6 @@ static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 	if (!S_ISDIR(inode->i_mode)) {
 		if (gfsflags & GFS2_DIF_INHERIT_JDATA)
 			gfsflags ^= (GFS2_DIF_JDATA | GFS2_DIF_INHERIT_JDATA);
-		if (gfsflags & GFS2_DIF_INHERIT_DIRECTIO)
-			gfsflags ^= (GFS2_DIF_DIRECTIO | GFS2_DIF_INHERIT_DIRECTIO);
 		return do_gfs2_set_flags(filp, gfsflags, ~0);
 	}
 	return do_gfs2_set_flags(filp, gfsflags, ~GFS2_DIF_JDATA);
@@ -487,11 +484,6 @@ static int gfs2_open(struct inode *inode, struct file *file)
 			goto fail_gunlock;
 		}
 
-		/* Listen to the Direct I/O flag */
-
-		if (ip->i_di.di_flags & GFS2_DIF_DIRECTIO)
-			file->f_flags |= O_DIRECT;
-
 		gfs2_glock_dq_uninit(&i_gh);
 	}
 
@@ -669,8 +661,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	int error = 0;
 
 	state = (fl->fl_type == F_WRLCK) ? LM_ST_EXCLUSIVE : LM_ST_SHARED;
-	flags = (IS_SETLKW(cmd) ? 0 : LM_FLAG_TRY) | GL_EXACT | GL_NOCACHE 
-		| GL_FLOCK;
+	flags = (IS_SETLKW(cmd) ? 0 : LM_FLAG_TRY) | GL_EXACT | GL_NOCACHE;
 
 	mutex_lock(&fp->f_fl_mutex);
 
@@ -683,9 +674,8 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 		gfs2_glock_dq_wait(fl_gh);
 		gfs2_holder_reinit(state, flags, fl_gh);
 	} else {
-		error = gfs2_glock_get(GFS2_SB(&ip->i_inode),
-				      ip->i_no_addr, &gfs2_flock_glops,
-				      CREATE, &gl);
+		error = gfs2_glock_get(GFS2_SB(&ip->i_inode), ip->i_no_addr,
+				       &gfs2_flock_glops, CREATE, &gl);
 		if (error)
 			goto out;
 		gfs2_holder_init(gl, state, flags, fl_gh);

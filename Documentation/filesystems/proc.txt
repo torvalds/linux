@@ -380,28 +380,35 @@ i386 and x86_64 platforms support the new IRQ vector displays.
 Of some interest is the introduction of the /proc/irq directory to 2.4.
 It could be used to set IRQ to CPU affinity, this means that you can "hook" an
 IRQ to only one CPU, or to exclude a CPU of handling IRQs. The contents of the
-irq subdir is one subdir for each IRQ, and one file; prof_cpu_mask
+irq subdir is one subdir for each IRQ, and two files; default_smp_affinity and
+prof_cpu_mask.
 
 For example 
   > ls /proc/irq/
   0  10  12  14  16  18  2  4  6  8  prof_cpu_mask
-  1  11  13  15  17  19  3  5  7  9
+  1  11  13  15  17  19  3  5  7  9  default_smp_affinity
   > ls /proc/irq/0/
   smp_affinity
 
-The contents of the prof_cpu_mask file and each smp_affinity file for each IRQ
-is the same by default:
+smp_affinity is a bitmask, in which you can specify which CPUs can handle the
+IRQ, you can set it by doing:
 
-  > cat /proc/irq/0/smp_affinity 
+  > echo 1 > /proc/irq/10/smp_affinity
+
+This means that only the first CPU will handle the IRQ, but you can also echo
+5 which means that only the first and fourth CPU can handle the IRQ.
+
+The contents of each smp_affinity file is the same by default:
+
+  > cat /proc/irq/0/smp_affinity
   ffffffff
 
-It's a bitmask, in which you can specify which CPUs can handle the IRQ, you can
-set it by doing:
+The default_smp_affinity mask applies to all non-active IRQs, which are the
+IRQs which have not yet been allocated/activated, and hence which lack a
+/proc/irq/[0-9]* directory.
 
-  > echo 1 > /proc/irq/prof_cpu_mask
-
-This means that only the first CPU will handle the IRQ, but you can also echo 5
-which means that only the first and fourth CPU can handle the IRQ.
+prof_cpu_mask specifies which CPUs are to be profiled by the system wide
+profiler. Default value is ffffffff (all cpus).
 
 The way IRQs are routed is handled by the IO-APIC, and it's Round Robin
 between all the CPUs which are allowed to handle it. As usual the kernel has

@@ -21,7 +21,6 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
 
 #include "generic.h"
 

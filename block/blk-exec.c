@@ -18,7 +18,7 @@
  * @rq: request to complete
  * @error: end io status of the request
  */
-void blk_end_sync_rq(struct request *rq, int error)
+static void blk_end_sync_rq(struct request *rq, int error)
 {
 	struct completion *waiting = rq->end_io_data;
 
@@ -31,7 +31,6 @@ void blk_end_sync_rq(struct request *rq, int error)
 	 */
 	complete(waiting);
 }
-EXPORT_SYMBOL(blk_end_sync_rq);
 
 /**
  * blk_execute_rq_nowait - insert a request into queue for execution
@@ -58,6 +57,9 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 	spin_lock_irq(q->queue_lock);
 	__elv_add_request(q, rq, where, 1);
 	__generic_unplug_device(q);
+	/* the queue is stopped so it won't be plugged+unplugged */
+	if (blk_pm_resume_request(rq))
+		q->request_fn(q);
 	spin_unlock_irq(q->queue_lock);
 }
 EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);

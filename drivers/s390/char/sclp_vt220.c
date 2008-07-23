@@ -27,7 +27,6 @@
 #include <asm/uaccess.h>
 #include "sclp.h"
 
-#define SCLP_VT220_PRINT_HEADER 	"sclp vt220 tty driver: "
 #define SCLP_VT220_MAJOR		TTY_MAJOR
 #define SCLP_VT220_MINOR		65
 #define SCLP_VT220_DRIVER_NAME		"sclp_vt220"
@@ -82,8 +81,8 @@ static struct sclp_vt220_request *sclp_vt220_current_request;
 /* Number of characters in current request buffer */
 static int sclp_vt220_buffered_chars;
 
-/* Flag indicating whether this driver has already been initialized */
-static int sclp_vt220_initialized = 0;
+/* Counter controlling core driver initialization. */
+static int __initdata sclp_vt220_init_count;
 
 /* Flag indicating that sclp_vt220_current_request should really
  * have been already queued but wasn't because the SCLP was processing
@@ -609,10 +608,8 @@ sclp_vt220_flush_buffer(struct tty_struct *tty)
 	sclp_vt220_emit_current();
 }
 
-/*
- * Initialize all relevant components and register driver with system.
- */
-static void __init __sclp_vt220_cleanup(void)
+/* Release allocated pages. */
+static void __init __sclp_vt220_free_pages(void)
 {
 	struct list_head *page, *p;
 
@@ -623,21 +620,30 @@ static void __init __sclp_vt220_cleanup(void)
 		else
 			free_bootmem((unsigned long) page, PAGE_SIZE);
 	}
-	if (!list_empty(&sclp_vt220_register.list))
-		sclp_unregister(&sclp_vt220_register);
-	sclp_vt220_initialized = 0;
 }
 
-static int __init __sclp_vt220_init(void)
+/* Release memory and unregister from sclp core. Controlled by init counting -
+ * only the last invoker will actually perform these actions. */
+static void __init __sclp_vt220_cleanup(void)
+{
+	sclp_vt220_init_count--;
+	if (sclp_vt220_init_count != 0)
+		return;
+	sclp_unregister(&sclp_vt220_register);
+	__sclp_vt220_free_pages();
+}
+
+/* Allocate buffer pages and register with sclp core. Controlled by init
+ * counting - only the first invoker will actually perform these actions. */
+static int __init __sclp_vt220_init(int num_pages)
 {
 	void *page;
 	int i;
-	int num_pages;
 	int rc;
 
-	if (sclp_vt220_initialized)
+	sclp_vt220_init_count++;
+	if (sclp_vt220_init_count != 1)
 		return 0;
-	sclp_vt220_initialized = 1;
 	spin_lock_init(&sclp_vt220_lock);
 	INIT_LIST_HEAD(&sclp_vt220_empty);
 	INIT_LIST_HEAD(&sclp_vt220_outqueue);
@@ -649,24 +655,22 @@ static int __init __sclp_vt220_init(void)
 	sclp_vt220_flush_later = 0;
 
 	/* Allocate pages for output buffering */
-	num_pages = slab_is_available() ? MAX_KMEM_PAGES : MAX_CONSOLE_PAGES;
 	for (i = 0; i < num_pages; i++) {
 		if (slab_is_available())
 			page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		else
 			page = alloc_bootmem_low_pages(PAGE_SIZE);
 		if (!page) {
-			__sclp_vt220_cleanup();
-			return -ENOMEM;
+			rc = -ENOMEM;
+			goto out;
 		}
 		list_add_tail((struct list_head *) page, &sclp_vt220_empty);
 	}
 	rc = sclp_register(&sclp_vt220_register);
+out:
 	if (rc) {
-		printk(KERN_ERR SCLP_VT220_PRINT_HEADER
-		       "could not register vt220 - "
-		       "sclp_register returned %d\n", rc);
-		__sclp_vt220_cleanup();
+		__sclp_vt220_free_pages();
+		sclp_vt220_init_count--;
 	}
 	return rc;
 }
@@ -689,15 +693,13 @@ static int __init sclp_vt220_tty_init(void)
 {
 	struct tty_driver *driver;
 	int rc;
-	int cleanup;
 
 	/* Note: we're not testing for CONSOLE_IS_SCLP here to preserve
 	 * symmetry between VM and LPAR systems regarding ttyS1. */
 	driver = alloc_tty_driver(1);
 	if (!driver)
 		return -ENOMEM;
-	cleanup = !sclp_vt220_initialized;
-	rc = __sclp_vt220_init();
+	rc = __sclp_vt220_init(MAX_KMEM_PAGES);
 	if (rc)
 		goto out_driver;
 
@@ -713,18 +715,13 @@ static int __init sclp_vt220_tty_init(void)
 	tty_set_operations(driver, &sclp_vt220_ops);
 
 	rc = tty_register_driver(driver);
-	if (rc) {
-		printk(KERN_ERR SCLP_VT220_PRINT_HEADER
-		       "could not register tty - "
-		       "tty_register_driver returned %d\n", rc);
+	if (rc)
 		goto out_init;
-	}
 	sclp_vt220_driver = driver;
 	return 0;
 
 out_init:
-	if (cleanup)
-		__sclp_vt220_cleanup();
+	__sclp_vt220_cleanup();
 out_driver:
 	put_tty_driver(driver);
 	return rc;
@@ -773,10 +770,9 @@ sclp_vt220_con_init(void)
 {
 	int rc;
 
-	INIT_LIST_HEAD(&sclp_vt220_register.list);
 	if (!CONSOLE_IS_SCLP)
 		return 0;
-	rc = __sclp_vt220_init();
+	rc = __sclp_vt220_init(MAX_CONSOLE_PAGES);
 	if (rc)
 		return rc;
 	/* Attach linux console */

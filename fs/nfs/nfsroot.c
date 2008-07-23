@@ -1,6 +1,4 @@
 /*
- *  $Id: nfsroot.c,v 1.45 1998/03/07 10:44:46 mj Exp $
- *
  *  Copyright (C) 1995, 1996  Gero Kuhlmann <gero@gkminix.han.de>
  *
  *  Allow an NFS filesystem to be mounted as root. The way this works is:
@@ -297,10 +295,10 @@ static int __init root_nfs_name(char *name)
 	nfs_data.flags    = NFS_MOUNT_NONLM;	/* No lockd in nfs root yet */
 	nfs_data.rsize    = NFS_DEF_FILE_IO_SIZE;
 	nfs_data.wsize    = NFS_DEF_FILE_IO_SIZE;
-	nfs_data.acregmin = 3;
-	nfs_data.acregmax = 60;
-	nfs_data.acdirmin = 30;
-	nfs_data.acdirmax = 60;
+	nfs_data.acregmin = NFS_DEF_ACREGMIN;
+	nfs_data.acregmax = NFS_DEF_ACREGMAX;
+	nfs_data.acdirmin = NFS_DEF_ACDIRMIN;
+	nfs_data.acdirmax = NFS_DEF_ACDIRMAX;
 	strcpy(buf, NFS_ROOT);
 
 	/* Process options received from the remote server */

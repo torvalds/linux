@@ -182,6 +182,9 @@ struct lock_list {
  * We record lock dependency chains, so that we can cache them:
  */
 struct lock_chain {
+	u8				irq_context;
+	u8				depth;
+	u16				base;
 	struct list_head		entry;
 	u64				chain_key;
 };
@@ -274,14 +277,6 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
 #define lockdep_set_subclass(lock, sub)	\
 		lockdep_init_map(&(lock)->dep_map, #lock, \
 				 (lock)->dep_map.key, sub)
-
-/*
- * To initialize a lockdep_map statically use this macro.
- * Note that _name must not be NULL.
- */
-#define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
-	{ .name = (_name), .key = (void *)(_key), }
-
 
 /*
  * Acquire a lock.

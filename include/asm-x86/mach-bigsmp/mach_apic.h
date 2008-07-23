@@ -63,9 +63,9 @@ static inline void init_apic_ldr(void)
 	unsigned long val;
 	int cpu = smp_processor_id();
 
-	apic_write_around(APIC_DFR, APIC_DFR_VALUE);
+	apic_write(APIC_DFR, APIC_DFR_VALUE);
 	val = calculate_ldr(cpu);
-	apic_write_around(APIC_LDR, val);
+	apic_write(APIC_LDR, val);
 }
 
 static inline void setup_apic_routing(void)
@@ -81,7 +81,7 @@ static inline int multi_timer_check(int apic, int irq)
 
 static inline int apicid_to_node(int logical_apicid)
 {
-	return (0);
+	return apicid_2_node[hard_smp_processor_id()];
 }
 
 static inline int cpu_present_to_apicid(int mps_cpu)

@@ -1732,7 +1732,7 @@ isdn_open(struct inode *ino, struct file *filep)
 	int chidx;
 	int retval = -ENODEV;
 
-
+	lock_kernel();
 	if (minor == ISDN_MINOR_STATUS) {
 		infostruct *p;
 
@@ -1783,6 +1783,7 @@ isdn_open(struct inode *ino, struct file *filep)
 #endif
  out:
 	nonseekable_open(ino, filep);
+	unlock_kernel();
 	return retval;
 }
 
@@ -1977,8 +1978,10 @@ isdn_writebuf_stub(int drvidx, int chan, const u_char __user * buf, int len)
 	if (!skb)
 		return -ENOMEM;
 	skb_reserve(skb, hl);
-	if (copy_from_user(skb_put(skb, len), buf, len))
+	if (copy_from_user(skb_put(skb, len), buf, len)) {
+		dev_kfree_skb(skb);
 		return -EFAULT;
+	}
 	ret = dev->drv[drvidx]->interface->writebuf_skb(drvidx, chan, 1, skb);
 	if (ret <= 0)
 		dev_kfree_skb(skb);

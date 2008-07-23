@@ -1,7 +1,7 @@
-#ifndef _SPARC64_MSGBUF_H
-#define _SPARC64_MSGBUF_H
+#ifndef _SPARC_MSGBUF_H
+#define _SPARC_MSGBUF_H
 
-/* 
+/*
  * The msqid64_ds structure for sparc64 architecture.
  * Note extra padding because this structure is passed back and forth
  * between kernel and user space.
@@ -11,13 +11,20 @@
  * - 2 miscellaneous 32-bit values
  */
 
+#if defined(__sparc__) && defined(__arch64__)
+# define PADDING(x)
+#else
+# define PADDING(x) unsigned int x;
+#endif
+
+
 struct msqid64_ds {
 	struct ipc64_perm msg_perm;
-	unsigned int   __pad1;
+	PADDING(__pad1)
 	__kernel_time_t msg_stime;	/* last msgsnd time */
-	unsigned int   __pad2;
+	PADDING(__pad2)
 	__kernel_time_t msg_rtime;	/* last msgrcv time */
-	unsigned int   __pad3;
+	PADDING(__pad3)
 	__kernel_time_t msg_ctime;	/* last change time */
 	unsigned long  msg_cbytes;	/* current number of bytes on queue */
 	unsigned long  msg_qnum;	/* number of messages in queue */
@@ -27,5 +34,5 @@ struct msqid64_ds {
 	unsigned long  __unused1;
 	unsigned long  __unused2;
 };
-
-#endif /* _SPARC64_MSGBUF_H */
+#undef PADDING
+#endif /* _SPARC_MSGBUF_H */

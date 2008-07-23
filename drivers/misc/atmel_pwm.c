@@ -332,7 +332,7 @@ static int __init pwm_probe(struct platform_device *pdev)
 	p->base = ioremap(r->start, r->end - r->start + 1);
 	if (!p->base)
 		goto fail;
-	p->clk = clk_get(&pdev->dev, "mck");
+	p->clk = clk_get(&pdev->dev, "pwm_clk");
 	if (IS_ERR(p->clk)) {
 		status = PTR_ERR(p->clk);
 		p->clk = NULL;

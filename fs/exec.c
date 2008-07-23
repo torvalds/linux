@@ -610,7 +610,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	bprm->exec -= stack_shift;
 
 	down_write(&mm->mmap_sem);
-	vm_flags = vma->vm_flags;
+	vm_flags = VM_STACK_FLAGS;
 
 	/*
 	 * Adjust stack execute permissions; explicitly enable for

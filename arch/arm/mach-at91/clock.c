@@ -112,11 +112,33 @@ static void pmc_sys_mode(struct clk *clk, int is_on)
 		at91_sys_write(AT91_PMC_SCDR, clk->pmc_mask);
 }
 
+static void pmc_uckr_mode(struct clk *clk, int is_on)
+{
+	unsigned int uckr = at91_sys_read(AT91_CKGR_UCKR);
+
+	if (is_on) {
+		is_on = AT91_PMC_LOCKU;
+		at91_sys_write(AT91_CKGR_UCKR, uckr | clk->pmc_mask);
+	} else
+		at91_sys_write(AT91_CKGR_UCKR, uckr & ~(clk->pmc_mask));
+
+	do {
+		cpu_relax();
+	} while ((at91_sys_read(AT91_PMC_SR) & AT91_PMC_LOCKU) != is_on);
+}
+
 /* USB function clocks (PLLB must be 48 MHz) */
 static struct clk udpck = {
 	.name		= "udpck",
 	.parent		= &pllb,
 	.mode		= pmc_sys_mode,
+};
+static struct clk utmi_clk = {
+	.name		= "utmi_clk",
+	.parent		= &main_clk,
+	.pmc_mask	= AT91_PMC_UPLLEN,	/* in CKGR_UCKR */
+	.mode		= pmc_uckr_mode,
+	.type		= CLK_TYPE_PLL,
 };
 static struct clk uhpck = {
 	.name		= "uhpck",
@@ -361,7 +383,7 @@ static void __init init_programmable_clock(struct clk *clk)
 
 static int at91_clk_show(struct seq_file *s, void *unused)
 {
-	u32		scsr, pcsr, sr;
+	u32		scsr, pcsr, uckr = 0, sr;
 	struct clk	*clk;
 
 	seq_printf(s, "SCSR = %8x\n", scsr = at91_sys_read(AT91_PMC_SCSR));
@@ -369,7 +391,10 @@ static int at91_clk_show(struct seq_file *s, void *unused)
 	seq_printf(s, "MOR  = %8x\n", at91_sys_read(AT91_CKGR_MOR));
 	seq_printf(s, "MCFR = %8x\n", at91_sys_read(AT91_CKGR_MCFR));
 	seq_printf(s, "PLLA = %8x\n", at91_sys_read(AT91_CKGR_PLLAR));
-	seq_printf(s, "PLLB = %8x\n", at91_sys_read(AT91_CKGR_PLLBR));
+	if (!cpu_is_at91sam9rl())
+		seq_printf(s, "PLLB = %8x\n", at91_sys_read(AT91_CKGR_PLLBR));
+	if (cpu_is_at91cap9() || cpu_is_at91sam9rl())
+		seq_printf(s, "UCKR = %8x\n", uckr = at91_sys_read(AT91_CKGR_UCKR));
 	seq_printf(s, "MCKR = %8x\n", at91_sys_read(AT91_PMC_MCKR));
 	seq_printf(s, "SR   = %8x\n", sr = at91_sys_read(AT91_PMC_SR));
 
@@ -382,6 +407,8 @@ static int at91_clk_show(struct seq_file *s, void *unused)
 			state = (scsr & clk->pmc_mask) ? "on" : "off";
 		else if (clk->mode == pmc_periph_mode)
 			state = (pcsr & clk->pmc_mask) ? "on" : "off";
+		else if (clk->mode == pmc_uckr_mode)
+			state = (uckr & clk->pmc_mask) ? "on" : "off";
 		else if (clk->pmc_mask)
 			state = (sr & clk->pmc_mask) ? "on" : "off";
 		else if (clk == &clk32k || clk == &main_clk)
@@ -488,14 +515,19 @@ static unsigned __init at91_pll_calc(unsigned main_freq, unsigned out_freq)
 		/*
 		 * PLL input between 1MHz and 32MHz per spec, but lower
 		 * frequences seem necessary in some cases so allow 100K.
+		 * Warning: some newer products need 2MHz min.
 		 */
 		input = main_freq / i;
+		if (cpu_is_at91sam9g20() && input < 2000000)
+			continue;
 		if (input < 100000)
 			continue;
 		if (input > 32000000)
 			continue;
 
 		mul1 = out_freq / input;
+		if (cpu_is_at91sam9g20() && mul > 63)
+			continue;
 		if (mul1 > 2048)
 			continue;
 		if (mul1 < 2)
@@ -555,7 +587,8 @@ int __init at91_clock_init(unsigned long main_clock)
 
 	/* report if PLLA is more than mildly overclocked */
 	plla.rate_hz = at91_pll_rate(&plla, main_clock, at91_sys_read(AT91_CKGR_PLLAR));
-	if (plla.rate_hz > 209000000)
+	if ((!cpu_is_at91sam9g20() && plla.rate_hz > 209000000)
+	   || (cpu_is_at91sam9g20() && plla.rate_hz > 800000000))
 		pr_info("Clocks: PLLA overclocked, %ld MHz\n", plla.rate_hz / 1000000);
 
 	/*
@@ -570,7 +603,7 @@ int __init at91_clock_init(unsigned long main_clock)
 		uhpck.pmc_mask = AT91RM9200_PMC_UHP;
 		udpck.pmc_mask = AT91RM9200_PMC_UDP;
 		at91_sys_write(AT91_PMC_SCER, AT91RM9200_PMC_MCKUDP);
-	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263()) {
+	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263() || cpu_is_at91sam9g20()) {
 		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
 		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
 	} else if (cpu_is_at91cap9()) {
@@ -582,6 +615,17 @@ int __init at91_clock_init(unsigned long main_clock)
 	uhpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, at91_pllb_usb_init);
 
 	/*
+	 * USB HS clock init
+	 */
+	if (cpu_is_at91cap9() || cpu_is_at91sam9rl()) {
+		/*
+		 * multiplier is hard-wired to 40
+		 * (obtain the USB High Speed 480 MHz when input is 12 MHz)
+		 */
+		utmi_clk.rate_hz = 40 * utmi_clk.parent->rate_hz;
+	}
+
+	/*
 	 * MCK and CPU derive from one of those primary clocks.
 	 * For now, assume this parentage won't change.
 	 */
@@ -591,12 +635,20 @@ int __init at91_clock_init(unsigned long main_clock)
 	freq /= (1 << ((mckr & AT91_PMC_PRES) >> 2));				/* prescale */
 	if (cpu_is_at91rm9200())
 		mck.rate_hz = freq / (1 + ((mckr & AT91_PMC_MDIV) >> 8));	/* mdiv */
-	else
-		mck.rate_hz = freq / (1 << ((mckr & AT91_PMC_MDIV) >> 8));	/* mdiv */
+	else if (cpu_is_at91sam9g20()) {
+		mck.rate_hz = (mckr & AT91_PMC_MDIV) ?
+			freq / ((mckr & AT91_PMC_MDIV) >> 7) : freq;	/* mdiv ; (x >> 7) = ((x >> 8) * 2) */
+		if (mckr & AT91_PMC_PDIV)
+			freq /= 2;		/* processor clock division */
+	} else
+		mck.rate_hz = freq / (1 << ((mckr & AT91_PMC_MDIV) >> 8));      /* mdiv */
 
 	/* Register the PMC's standard clocks */
 	for (i = 0; i < ARRAY_SIZE(standard_pmc_clocks); i++)
 		list_add_tail(&standard_pmc_clocks[i]->node, &clocks);
+
+	if (cpu_is_at91cap9() || cpu_is_at91sam9rl())
+		list_add_tail(&utmi_clk.node, &clocks);
 
 	/* MCK and CPU clock are "always on" */
 	clk_enable(&mck);

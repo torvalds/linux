@@ -328,7 +328,7 @@ void nes_rem_ref(struct ib_qp *ibqp)
 		set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_WQE_ID_IDX, nesqp->hwqp.qp_id);
 		u64temp = (u64)nesqp->nesqp_context_pbase;
 		set_wqe_64bit_value(cqp_wqe->wqe_words, NES_CQP_QP_WQE_CONTEXT_LOW_IDX, u64temp);
-		nes_post_cqp_request(nesdev, cqp_request, NES_CQP_REQUEST_RING_DOORBELL);
+		nes_post_cqp_request(nesdev, cqp_request);
 	}
 }
 

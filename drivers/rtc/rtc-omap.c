@@ -22,7 +22,6 @@
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
-#include <asm/mach/time.h>
 
 
 /* The OMAP1 RTC is a year/month/day/hours/minutes/seconds BCD clock

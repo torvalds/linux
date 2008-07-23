@@ -246,6 +246,7 @@ struct v4l2_capability
 #define V4L2_CAP_SLICED_VBI_OUTPUT	0x00000080  /* Is a sliced VBI output device */
 #define V4L2_CAP_RDS_CAPTURE		0x00000100  /* RDS data capture */
 #define V4L2_CAP_VIDEO_OUTPUT_OVERLAY	0x00000200  /* Can do video output overlay */
+#define V4L2_CAP_HW_FREQ_SEEK		0x00000400  /* Can do hardware frequency seek  */
 
 #define V4L2_CAP_TUNER			0x00010000  /* has a tuner */
 #define V4L2_CAP_AUDIO			0x00020000  /* has audio support */
@@ -309,6 +310,7 @@ struct v4l2_pix_format
 
 /* see http://www.siliconimaging.com/RGB%20Bayer.htm */
 #define V4L2_PIX_FMT_SBGGR8  v4l2_fourcc('B','A','8','1') /*  8  BGBG.. GRGR.. */
+#define V4L2_PIX_FMT_SGBRG8  v4l2_fourcc('G','B','R','G') /*  8  GBGB.. RGRG.. */
 #define V4L2_PIX_FMT_SBGGR16 v4l2_fourcc('B','Y','R','2') /* 16  BGBG.. GRGR.. */
 
 /* compressed formats */
@@ -323,6 +325,9 @@ struct v4l2_pix_format
 #define V4L2_PIX_FMT_PWC1     v4l2_fourcc('P','W','C','1') /* pwc older webcam */
 #define V4L2_PIX_FMT_PWC2     v4l2_fourcc('P','W','C','2') /* pwc newer webcam */
 #define V4L2_PIX_FMT_ET61X251 v4l2_fourcc('E','6','2','5') /* ET61X251 compression */
+#define V4L2_PIX_FMT_SPCA501  v4l2_fourcc('S','5','0','1') /* YUYV per line */
+#define V4L2_PIX_FMT_SPCA561  v4l2_fourcc('S','5','6','1') /* compressed GBRG bayer */
+#define V4L2_PIX_FMT_PAC207   v4l2_fourcc('P','2','0','7') /* compressed BGGR bayer */
 
 /*
  *	F O R M A T   E N U M E R A T I O N
@@ -1156,6 +1161,14 @@ struct v4l2_frequency
 	__u32		      reserved[8];
 };
 
+struct v4l2_hw_freq_seek {
+	__u32		      tuner;
+	enum v4l2_tuner_type  type;
+	__u32		      seek_upward;
+	__u32		      wrap_around;
+	__u32		      reserved[8];
+};
+
 /*
  *	A U D I O
  */
@@ -1441,6 +1454,7 @@ struct v4l2_chip_ident {
 
 #define VIDIOC_G_CHIP_IDENT     _IOWR ('V', 81, struct v4l2_chip_ident)
 #endif
+#define VIDIOC_S_HW_FREQ_SEEK	_IOW  ('V', 82, struct v4l2_hw_freq_seek)
 
 #ifdef __OLD_VIDIOC_
 /* for compatibility, will go away some day */

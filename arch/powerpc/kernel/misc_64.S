@@ -506,6 +506,39 @@ _GLOBAL(giveup_altivec)
 
 #endif /* CONFIG_ALTIVEC */
 
+#ifdef CONFIG_VSX
+/*
+ * __giveup_vsx(tsk)
+ * Disable VSX for the task given as the argument.
+ * Does NOT save vsx registers.
+ * Enables the VSX for use in the kernel on return.
+ */
+_GLOBAL(__giveup_vsx)
+	mfmsr	r5
+	oris	r5,r5,MSR_VSX@h
+	mtmsrd	r5			/* enable use of VSX now */
+	isync
+
+	cmpdi	0,r3,0
+	beqlr-				/* if no previous owner, done */
+	addi	r3,r3,THREAD		/* want THREAD of task */
+	ld	r5,PT_REGS(r3)
+	cmpdi	0,r5,0
+	beq	1f
+	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	lis	r3,MSR_VSX@h
+	andc	r4,r4,r3		/* disable VSX for previous task */
+	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+1:
+#ifndef CONFIG_SMP
+	li	r5,0
+	ld	r4,last_task_used_vsx@got(r2)
+	std	r5,0(r4)
+#endif /* CONFIG_SMP */
+	blr
+
+#endif /* CONFIG_VSX */
+
 /* kexec_wait(phys_cpu)
  *
  * wait for the flag to change, indicating this kernel is going away but

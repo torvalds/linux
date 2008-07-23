@@ -401,7 +401,7 @@ void register_disk(struct gendisk *disk)
 	disk->dev.parent = disk->driverfs_dev;
 	disk->dev.devt = MKDEV(disk->major, disk->first_minor);
 
-	strlcpy(disk->dev.bus_id, disk->disk_name, KOBJ_NAME_LEN);
+	strlcpy(disk->dev.bus_id, disk->disk_name, BUS_ID_SIZE);
 	/* ewww... some of these buggers have / in the name... */
 	s = strchr(disk->dev.bus_id, '/');
 	if (s)

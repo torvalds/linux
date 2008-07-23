@@ -31,8 +31,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: ib_user_verbs.h 4019 2005-11-11 00:33:09Z sean.hefty $
  */
 
 #ifndef IB_USER_VERBS_H
@@ -291,7 +289,10 @@ struct ib_uverbs_wc {
 	__u32 opcode;
 	__u32 vendor_err;
 	__u32 byte_len;
-	__u32 imm_data;
+	union {
+		__u32 imm_data;
+		__u32 invalidate_rkey;
+	} ex;
 	__u32 qp_num;
 	__u32 src_qp;
 	__u32 wc_flags;

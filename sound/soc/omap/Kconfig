@@ -1,5 +1,3 @@
-menu "SoC Audio for the Texas Instruments OMAP"
-
 config SND_OMAP_SOC
 	tristate "SoC Audio for the Texas Instruments OMAP chips"
 	depends on ARCH_OMAP && SND_SOC
@@ -15,5 +13,3 @@ config SND_OMAP_SOC_N810
 	select SND_SOC_TLV320AIC3X
 	help
 	  Say Y if you want to add support for SoC audio on Nokia N810.
-
-endmenu

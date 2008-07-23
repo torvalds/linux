@@ -59,7 +59,7 @@ static DECLARE_DELAYED_WORK(mce_work, mce_work_fn);
 
 static void mce_work_fn(struct work_struct *work)
 {
-	on_each_cpu(mce_checkregs, NULL, 1, 1);
+	on_each_cpu(mce_checkregs, NULL, 1);
 	schedule_delayed_work(&mce_work, round_jiffies_relative(MCE_RATE));
 }
 

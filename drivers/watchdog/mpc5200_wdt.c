@@ -4,7 +4,7 @@
 #include <linux/watchdog.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
-#include <asm/of_platform.h>
+#include <linux/of_platform.h>
 #include <asm/uaccess.h>
 #include <asm/mpc52xx.h>
 

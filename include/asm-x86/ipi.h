@@ -20,6 +20,7 @@
 
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
+#include <asm/smp.h>
 
 /*
  * the following functions deal with sending IPIs between CPUs.

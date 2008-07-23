@@ -1,6 +1,6 @@
 config SND_DAVINCI_SOC
 	tristate "SoC Audio for the TI DAVINCI chip"
-	depends on ARCH_DAVINCI && SND_SOC
+	depends on ARCH_DAVINCI
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the DAVINCI AC97 or I2S interface. You will also need

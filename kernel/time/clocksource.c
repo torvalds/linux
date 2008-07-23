@@ -376,7 +376,8 @@ void clocksource_unregister(struct clocksource *cs)
  * Provides sysfs interface for listing current clocksource.
  */
 static ssize_t
-sysfs_show_current_clocksources(struct sys_device *dev, char *buf)
+sysfs_show_current_clocksources(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	ssize_t count = 0;
 
@@ -397,6 +398,7 @@ sysfs_show_current_clocksources(struct sys_device *dev, char *buf)
  * clocksource selction.
  */
 static ssize_t sysfs_override_clocksource(struct sys_device *dev,
+					  struct sysdev_attribute *attr,
 					  const char *buf, size_t count)
 {
 	struct clocksource *ovr = NULL;
@@ -449,7 +451,9 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
  * Provides sysfs interface for listing registered clocksources
  */
 static ssize_t
-sysfs_show_available_clocksources(struct sys_device *dev, char *buf)
+sysfs_show_available_clocksources(struct sys_device *dev,
+				  struct sysdev_attribute *attr,
+				  char *buf)
 {
 	struct clocksource *src;
 	ssize_t count = 0;

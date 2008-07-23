@@ -1326,20 +1326,27 @@ fb_open(struct inode *inode, struct file *file)
 
 	if (fbidx >= FB_MAX)
 		return -ENODEV;
+	lock_kernel();
 #ifdef CONFIG_KMOD
 	if (!(info = registered_fb[fbidx]))
 		try_to_load(fbidx);
 #endif /* CONFIG_KMOD */
-	if (!(info = registered_fb[fbidx]))
-		return -ENODEV;
-	if (!try_module_get(info->fbops->owner))
-		return -ENODEV;
+	if (!(info = registered_fb[fbidx])) {
+		res = -ENODEV;
+		goto out;
+	}
+	if (!try_module_get(info->fbops->owner)) {
+		res = -ENODEV;
+		goto out;
+	}
 	file->private_data = info;
 	if (info->fbops->fb_open) {
 		res = info->fbops->fb_open(info,1);
 		if (res)
 			module_put(info->fbops->owner);
 	}
+out:
+	unlock_kernel();
 	return res;
 }
 
@@ -1432,8 +1439,9 @@ register_framebuffer(struct fb_info *fb_info)
 			break;
 	fb_info->node = i;
 
-	fb_info->dev = device_create(fb_class, fb_info->device,
-				     MKDEV(FB_MAJOR, i), "fb%d", i);
+	fb_info->dev = device_create_drvdata(fb_class, fb_info->device,
+					     MKDEV(FB_MAJOR, i), NULL,
+					     "fb%d", i);
 	if (IS_ERR(fb_info->dev)) {
 		/* Not fatal */
 		printk(KERN_WARNING "Unable to create device for framebuffer %d; errno = %ld\n", i, PTR_ERR(fb_info->dev));

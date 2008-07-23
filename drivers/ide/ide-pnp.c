@@ -33,6 +33,8 @@ static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	ide_hwif_t *hwif;
 	unsigned long base, ctl;
 
+	printk(KERN_INFO DRV_NAME ": generic PnP IDE interface\n");
+
 	if (!(pnp_port_valid(dev, 0) && pnp_port_valid(dev, 1) && pnp_irq_valid(dev, 0)))
 		return -1;
 
@@ -62,10 +64,8 @@ static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 		u8 index = hwif->index;
 		u8 idx[4] = { index, 0xff, 0xff, 0xff };
 
-		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
 
-		printk(KERN_INFO "ide%d: generic PnP IDE interface\n", index);
 		pnp_set_drvdata(dev, hwif);
 
 		ide_device_add(idx, NULL);

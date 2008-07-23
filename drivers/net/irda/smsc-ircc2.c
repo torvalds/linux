@@ -1,5 +1,4 @@
 /*********************************************************************
- * $Id: smsc-ircc2.c,v 1.19.2.5 2002/10/27 11:34:26 dip Exp $
  *
  * Description:   Driver for the SMC Infrared Communications Controller
  * Status:        Experimental.

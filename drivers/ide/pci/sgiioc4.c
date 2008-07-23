@@ -111,7 +111,7 @@ sgiioc4_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
 static void
 sgiioc4_maskproc(ide_drive_t * drive, int mask)
 {
-	writeb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
+	writeb(ATA_DEVCTL_OBS | (mask ? 2 : 0),
 	       (void __iomem *)drive->hwif->io_ports.ctl_addr);
 }
 
@@ -369,8 +369,7 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 	hwif->sg_max_nents = IOC4_PRD_ENTRIES;
 
 	pad = pci_alloc_consistent(dev, IOC4_IDE_CACHELINE_SIZE,
-				   (dma_addr_t *) &(hwif->dma_status));
-
+				   (dma_addr_t *)&hwif->extra_base);
 	if (pad) {
 		ide_set_hwifdata(hwif, pad);
 		return 0;
@@ -439,7 +438,7 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 
 	/* Address of the Ending DMA */
 	memset(ide_get_hwifdata(hwif), 0, IOC4_IDE_CACHELINE_SIZE);
-	ending_dma_addr = cpu_to_le32(hwif->dma_status);
+	ending_dma_addr = cpu_to_le32(hwif->extra_base);
 	writel(ending_dma_addr, (void __iomem *)(dma_base + IOC4_DMA_END_ADDR * 4));
 
 	writel(dma_direction, (void __iomem *)ioc4_dma_addr);
@@ -569,6 +568,7 @@ static const struct ide_dma_ops sgiioc4_dma_ops = {
 };
 
 static const struct ide_port_info sgiioc4_port_info __devinitdata = {
+	.name			= DRV_NAME,
 	.chipset		= ide_pci,
 	.init_dma		= ide_dma_sgiioc4,
 	.port_ops		= &sgiioc4_port_ops,
@@ -588,13 +588,6 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	hw_regs_t hw;
 	struct ide_port_info d = sgiioc4_port_info;
 
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR "%s: too many IDE interfaces, no room in table\n",
-				DRV_NAME);
-		return -ENOMEM;
-	}
-
 	/*  Get the CmdBlk and CtrlBlk Base Registers */
 	bar0 = pci_resource_start(dev, 0);
 	virt_base = ioremap(bar0, pci_resource_len(dev, 0));
@@ -609,11 +602,11 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 
 	cmd_phys_base = bar0 + IOC4_CMD_OFFSET;
 	if (!request_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE,
-	    hwif->name)) {
+	    DRV_NAME)) {
 		printk(KERN_ERR
 			"%s : %s -- ERROR, Addresses "
 			"0x%p to 0x%p ALREADY in use\n",
-		       __func__, hwif->name, (void *) cmd_phys_base,
+		       __func__, DRV_NAME, (void *) cmd_phys_base,
 		       (void *) cmd_phys_base + IOC4_CMD_CTL_BLK_SIZE);
 		return -ENOMEM;
 	}
@@ -624,9 +617,12 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	hw.irq = dev->irq;
 	hw.chipset = ide_pci;
 	hw.dev = &dev->dev;
-	ide_init_port_hw(hwif, &hw);
 
-	hwif->dev = &dev->dev;
+	hwif = ide_find_port_slot(&d);
+	if (hwif == NULL)
+		goto err;
+
+	ide_init_port_hw(hwif, &hw);
 
 	/* The IOC4 uses MMIO rather than Port IO. */
 	default_hwif_mmiops(hwif);
@@ -642,6 +638,10 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 		return -EIO;
 
 	return 0;
+err:
+	release_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE);
+	iounmap(virt_base);
+	return -ENOMEM;
 }
 
 static unsigned int __devinit

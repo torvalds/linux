@@ -28,6 +28,7 @@
  */
 
 
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
@@ -272,6 +273,7 @@ efi_rtc_open(struct inode *inode, struct file *file)
 	 * We do accept multiple open files at the same time as we
 	 * synchronize on the per call operation.
 	 */
+	cycle_kernel_lock();
 	return 0;
 }
 

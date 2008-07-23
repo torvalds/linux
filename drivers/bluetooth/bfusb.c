@@ -566,7 +566,8 @@ static int bfusb_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg
 	return -ENOIOCTLCMD;
 }
 
-static int bfusb_load_firmware(struct bfusb_data *data, unsigned char *firmware, int count)
+static int bfusb_load_firmware(struct bfusb_data *data,
+			       const unsigned char *firmware, int count)
 {
 	unsigned char *buf;
 	int err, pipe, len, size, sent = 0;

@@ -1,0 +1,7 @@
+config STP
+	tristate
+	select LLC
+
+config GARP
+	tristate
+	select STP

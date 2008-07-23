@@ -129,23 +129,6 @@ out:
 	return error;
 }
 
-
-asmlinkage int sys_truncate64(const char __user *path, unsigned int high,
-			      unsigned int low)
-{
-	if ((int)high < 0)
-		return -EINVAL;
-	return sys_truncate(path, ((long) high << 32) | low);
-}
-
-asmlinkage int sys_ftruncate64(unsigned int fd, unsigned int high,
-			       unsigned int low)
-{
-	if ((int)high < 0)
-		return -EINVAL;
-	return sys_ftruncate(fd, ((long) high << 32) | low);
-}
-
 /*
  * sys_execve() executes a new program.
  */

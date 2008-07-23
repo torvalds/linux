@@ -234,7 +234,7 @@ static void pluto_reset_ts(struct pluto *pluto, int reenable)
 
 static void pluto_set_dma_addr(struct pluto *pluto)
 {
-	pluto_writereg(pluto, REG_PCAR, cpu_to_le32(pluto->dma_addr));
+	pluto_writereg(pluto, REG_PCAR, pluto->dma_addr);
 }
 
 static int __devinit pluto_dma_map(struct pluto *pluto)
