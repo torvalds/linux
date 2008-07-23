@@ -308,7 +308,7 @@ struct ide_acpi_drive_link;
 struct ide_acpi_hwif_link;
 #endif
 
-typedef struct ide_drive_s {
+struct ide_drive_s {
 	char		name[4];	/* drive name, such as "hda" */
         char            driver_req[10];	/* requests specific driver */
 
@@ -400,7 +400,12 @@ typedef struct ide_drive_s {
 	struct list_head list;
 	struct device	gendev;
 	struct completion gendev_rel_comp;	/* to deal with device release() */
-} ide_drive_t;
+
+	/* callback for packet commands */
+	void (*pc_callback)(struct ide_drive_s *);
+};
+
+typedef struct ide_drive_s ide_drive_t;
 
 #define to_ide_device(dev)container_of(dev, ide_drive_t, gendev)
 
