@@ -308,6 +308,64 @@ struct ide_acpi_drive_link;
 struct ide_acpi_hwif_link;
 #endif
 
+/* ATAPI device flags */
+enum {
+	IDE_AFLAG_DRQ_INTERRUPT		= (1 << 0),
+	IDE_AFLAG_MEDIA_CHANGED		= (1 << 1),
+
+	/* ide-cd */
+	/* Drive cannot lock the door. */
+	IDE_AFLAG_NO_DOORLOCK		= (1 << 2),
+	/* Drive cannot eject the disc. */
+	IDE_AFLAG_NO_EJECT		= (1 << 3),
+	/* Drive is a pre ATAPI 1.2 drive. */
+	IDE_AFLAG_PRE_ATAPI12		= (1 << 4),
+	/* TOC addresses are in BCD. */
+	IDE_AFLAG_TOCADDR_AS_BCD	= (1 << 5),
+	/* TOC track numbers are in BCD. */
+	IDE_AFLAG_TOCTRACKS_AS_BCD	= (1 << 6),
+	/*
+	 * Drive does not provide data in multiples of SECTOR_SIZE
+	 * when more than one interrupt is needed.
+	 */
+	IDE_AFLAG_LIMIT_NFRAMES		= (1 << 7),
+	/* Seeking in progress. */
+	IDE_AFLAG_SEEKING		= (1 << 8),
+	/* Saved TOC information is current. */
+	IDE_AFLAG_TOC_VALID		= (1 << 9),
+	/* We think that the drive door is locked. */
+	IDE_AFLAG_DOOR_LOCKED		= (1 << 10),
+	/* SET_CD_SPEED command is unsupported. */
+	IDE_AFLAG_NO_SPEED_SELECT	= (1 << 11),
+	IDE_AFLAG_VERTOS_300_SSD	= (1 << 12),
+	IDE_AFLAG_VERTOS_600_ESD	= (1 << 13),
+	IDE_AFLAG_SANYO_3CD		= (1 << 14),
+	IDE_AFLAG_FULL_CAPS_PAGE	= (1 << 15),
+	IDE_AFLAG_PLAY_AUDIO_OK		= (1 << 16),
+	IDE_AFLAG_LE_SPEED_FIELDS	= (1 << 17),
+
+	/* ide-floppy */
+	/* Format in progress */
+	IDE_AFLAG_FORMAT_IN_PROGRESS	= (1 << 18),
+	/* Avoid commands not supported in Clik drive */
+	IDE_AFLAG_CLIK_DRIVE		= (1 << 19),
+	/* Requires BH algorithm for packets */
+	IDE_AFLAG_ZIP_DRIVE		= (1 << 20),
+
+	/* ide-tape */
+	IDE_AFLAG_IGNORE_DSC		= (1 << 21),
+	/* 0 When the tape position is unknown */
+	IDE_AFLAG_ADDRESS_VALID		= (1 <<	22),
+	/* Device already opened */
+	IDE_AFLAG_BUSY			= (1 << 23),
+	/* Attempt to auto-detect the current user block size */
+	IDE_AFLAG_DETECT_BS		= (1 << 24),
+	/* Currently on a filemark */
+	IDE_AFLAG_FILEMARK		= (1 << 25),
+	/* 0 = no tape is loaded, so we don't rewind after ejecting */
+	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 26)
+};
+
 struct ide_drive_s {
 	char		name[4];	/* drive name, such as "hda" */
         char            driver_req[10];	/* requests specific driver */
@@ -403,6 +461,8 @@ struct ide_drive_s {
 
 	/* callback for packet commands */
 	void (*pc_callback)(struct ide_drive_s *);
+
+	unsigned long atapi_flags;
 };
 
 typedef struct ide_drive_s ide_drive_t;
