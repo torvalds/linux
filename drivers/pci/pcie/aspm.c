@@ -808,6 +808,11 @@ static int __init pcie_aspm_disable(char *str)
 
 __setup("pcie_noaspm", pcie_aspm_disable);
 
+void pcie_no_aspm(void)
+{
+	aspm_disabled = 1;
+}
+
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
 #include <linux/pci-acpi.h>
