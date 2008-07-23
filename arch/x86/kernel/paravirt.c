@@ -348,6 +348,10 @@ struct pv_cpu_ops pv_cpu_ops = {
 	.write_ldt_entry = native_write_ldt_entry,
 	.write_gdt_entry = native_write_gdt_entry,
 	.write_idt_entry = native_write_idt_entry,
+
+	.alloc_ldt = paravirt_nop,
+	.free_ldt = paravirt_nop,
+
 	.load_sp0 = native_load_sp0,
 
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)

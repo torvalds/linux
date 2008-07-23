@@ -325,6 +325,26 @@ static unsigned long xen_store_tr(void)
 	return 0;
 }
 
+static void xen_alloc_ldt(struct desc_struct *ldt, unsigned entries)
+{
+	unsigned pages = roundup(entries * LDT_ENTRY_SIZE, PAGE_SIZE);
+	void *v = ldt;
+	int i;
+
+	for(i = 0; i < pages; i += PAGE_SIZE)
+		make_lowmem_page_readonly(v + i);
+}
+
+static void xen_free_ldt(struct desc_struct *ldt, unsigned entries)
+{
+	unsigned pages = roundup(entries * LDT_ENTRY_SIZE, PAGE_SIZE);
+	void *v = ldt;
+	int i;
+
+	for(i = 0; i < pages; i += PAGE_SIZE)
+		make_lowmem_page_readwrite(v + i);
+}
+
 static void xen_set_ldt(const void *addr, unsigned entries)
 {
 	struct mmuext_op *op;
@@ -1219,6 +1239,9 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 #ifdef CONFIG_X86_64
 	.load_gs_index = xen_load_gs_index,
 #endif
+
+	.alloc_ldt = xen_alloc_ldt,
+	.free_ldt = xen_free_ldt,
 
 	.store_gdt = native_store_gdt,
 	.store_idt = native_store_idt,
