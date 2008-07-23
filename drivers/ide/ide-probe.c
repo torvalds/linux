@@ -290,9 +290,15 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	/* set features register for atapi
 	 * identify command to be sure of reply
 	 */
-	if ((cmd == WIN_PIDENTIFY))
-		/* disable dma & overlap */
-		hwif->OUTB(0, io_ports->feature_addr);
+	if (cmd == WIN_PIDENTIFY) {
+		ide_task_t task;
+
+		memset(&task, 0, sizeof(task));
+		/* disable DMA & overlap */
+		task.tf_flags = IDE_TFLAG_OUT_FEATURE;
+
+		drive->hwif->tf_load(drive, &task);
+	}
 
 	/* ask drive for ID */
 	hwif->exec_command(hwif, cmd);
