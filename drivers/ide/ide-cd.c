@@ -85,10 +85,8 @@ static void ide_cd_put(struct cdrom_info *cd)
 /* Mark that we've seen a media change and invalidate our internal buffers. */
 static void cdrom_saw_media_change(ide_drive_t *drive)
 {
-	struct cdrom_info *cd = drive->driver_data;
-
-	cd->cd_flags |= IDE_CD_FLAG_MEDIA_CHANGED;
-	cd->cd_flags &= ~IDE_CD_FLAG_TOC_VALID;
+	drive->atapi_flags |= IDE_AFLAG_MEDIA_CHANGED;
+	drive->atapi_flags &= ~IDE_AFLAG_TOC_VALID;
 }
 
 static int cdrom_log_sense(ide_drive_t *drive, struct request *rq,
@@ -529,7 +527,7 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL,
 			   xferlen, info->dma);
 
-	if (info->cd_flags & IDE_CD_FLAG_DRQ_INTERRUPT) {
+	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
 		/* waiting for CDB interrupt, not DMA yet. */
 		if (info->dma)
 			drive->waiting_for_dma = 0;
@@ -561,7 +559,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 	struct cdrom_info *info = drive->driver_data;
 	ide_startstop_t startstop;
 
-	if (info->cd_flags & IDE_CD_FLAG_DRQ_INTERRUPT) {
+	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
 		/*
 		 * Here we should have been called after receiving an interrupt
 		 * from the device.  DRQ should how be set.
@@ -648,20 +646,18 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
  */
 static int ide_cd_check_transfer_size(ide_drive_t *drive, int len)
 {
-	struct cdrom_info *cd = drive->driver_data;
-
 	if ((len % SECTOR_SIZE) == 0)
 		return 0;
 
 	printk(KERN_ERR "%s: %s: Bad transfer size %d\n",
 			drive->name, __func__, len);
 
-	if (cd->cd_flags & IDE_CD_FLAG_LIMIT_NFRAMES)
+	if (drive->atapi_flags & IDE_AFLAG_LIMIT_NFRAMES)
 		printk(KERN_ERR "  This drive is not supported by "
 				"this version of the driver\n");
 	else {
 		printk(KERN_ERR "  Trying to limit transfer sizes\n");
-		cd->cd_flags |= IDE_CD_FLAG_LIMIT_NFRAMES;
+		drive->atapi_flags |= IDE_AFLAG_LIMIT_NFRAMES;
 	}
 
 	return 1;
@@ -738,7 +734,7 @@ static ide_startstop_t cdrom_seek_intr(ide_drive_t *drive)
 	if (cdrom_decode_status(drive, 0, &stat))
 		return ide_stopped;
 
-	info->cd_flags |= IDE_CD_FLAG_SEEKING;
+	drive->atapi_flags |= IDE_AFLAG_SEEKING;
 
 	if (retry && time_after(jiffies, info->start_seek + IDECD_SEEK_TIMER)) {
 		if (--retry == 0)
@@ -1197,7 +1193,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 	int xferlen;
 
 	if (blk_fs_request(rq)) {
-		if (info->cd_flags & IDE_CD_FLAG_SEEKING) {
+		if (drive->atapi_flags & IDE_AFLAG_SEEKING) {
 			ide_hwif_t *hwif = drive->hwif;
 			unsigned long elapsed = jiffies - info->start_seek;
 			int stat = hwif->tp_ops->read_status(hwif);
@@ -1211,7 +1207,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 				printk(KERN_ERR "%s: DSC timeout\n",
 						drive->name);
 			}
-			info->cd_flags &= ~IDE_CD_FLAG_SEEKING;
+			drive->atapi_flags &= ~IDE_AFLAG_SEEKING;
 		}
 		if (rq_data_dir(rq) == READ &&
 		    IDE_LARGE_SEEK(info->last_block, block,
@@ -1369,7 +1365,7 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	 */
 	(void) cdrom_check_status(drive, sense);
 
-	if (info->cd_flags & IDE_CD_FLAG_TOC_VALID)
+	if (drive->atapi_flags & IDE_AFLAG_TOC_VALID)
 		return 0;
 
 	/* try to get the total cdrom capacity and sector size */
@@ -1391,7 +1387,7 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	if (stat)
 		return stat;
 
-	if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD) {
+	if (drive->atapi_flags & IDE_AFLAG_TOCTRACKS_AS_BCD) {
 		toc->hdr.first_track = BCD2BIN(toc->hdr.first_track);
 		toc->hdr.last_track  = BCD2BIN(toc->hdr.last_track);
 	}
@@ -1432,7 +1428,7 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 		if (stat)
 			return stat;
 
-		if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD) {
+		if (drive->atapi_flags & IDE_AFLAG_TOCTRACKS_AS_BCD) {
 			toc->hdr.first_track = (u8)BIN2BCD(CDROM_LEADOUT);
 			toc->hdr.last_track = (u8)BIN2BCD(CDROM_LEADOUT);
 		} else {
@@ -1446,14 +1442,14 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 
 	toc->hdr.toc_length = be16_to_cpu(toc->hdr.toc_length);
 
-	if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD) {
+	if (drive->atapi_flags & IDE_AFLAG_TOCTRACKS_AS_BCD) {
 		toc->hdr.first_track = BCD2BIN(toc->hdr.first_track);
 		toc->hdr.last_track  = BCD2BIN(toc->hdr.last_track);
 	}
 
 	for (i = 0; i <= ntracks; i++) {
-		if (info->cd_flags & IDE_CD_FLAG_TOCADDR_AS_BCD) {
-			if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD)
+		if (drive->atapi_flags & IDE_AFLAG_TOCADDR_AS_BCD) {
+			if (drive->atapi_flags & IDE_AFLAG_TOCTRACKS_AS_BCD)
 				toc->ent[i].track = BCD2BIN(toc->ent[i].track);
 			msf_from_bcd(&toc->ent[i].addr.msf);
 		}
@@ -1476,7 +1472,7 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 		toc->last_session_lba = msf_to_lba(0, 2, 0); /* 0m 2s 0f */
 	}
 
-	if (info->cd_flags & IDE_CD_FLAG_TOCADDR_AS_BCD) {
+	if (drive->atapi_flags & IDE_AFLAG_TOCADDR_AS_BCD) {
 		/* re-read multisession information using MSF format */
 		stat = cdrom_read_tocentry(drive, 0, 1, 1, (char *)&ms_tmp,
 					   sizeof(ms_tmp), sense);
@@ -1500,7 +1496,7 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	}
 
 	/* Remember that we've read this stuff. */
-	info->cd_flags |= IDE_CD_FLAG_TOC_VALID;
+	drive->atapi_flags |= IDE_AFLAG_TOC_VALID;
 
 	return 0;
 }
@@ -1512,7 +1508,7 @@ int ide_cdrom_get_capabilities(ide_drive_t *drive, u8 *buf)
 	struct packet_command cgc;
 	int stat, attempts = 3, size = ATAPI_CAPABILITIES_PAGE_SIZE;
 
-	if ((info->cd_flags & IDE_CD_FLAG_FULL_CAPS_PAGE) == 0)
+	if ((drive->atapi_flags & IDE_AFLAG_FULL_CAPS_PAGE) == 0)
 		size -= ATAPI_CAPABILITIES_PAGE_PAD_SIZE;
 
 	init_cdrom_command(&cgc, buf, size, CGC_DATA_UNKNOWN);
@@ -1533,7 +1529,7 @@ void ide_cdrom_update_speed(ide_drive_t *drive, u8 *buf)
 	curspeed = *(u16 *)&buf[8 + 14];
 	maxspeed = *(u16 *)&buf[8 +  8];
 
-	if (cd->cd_flags & IDE_CD_FLAG_LE_SPEED_FIELDS) {
+	if (drive->atapi_flags & IDE_AFLAG_LE_SPEED_FIELDS) {
 		curspeed = le16_to_cpu(curspeed);
 		maxspeed = le16_to_cpu(maxspeed);
 	} else {
@@ -1579,7 +1575,7 @@ static int ide_cdrom_register(ide_drive_t *drive, int nslots)
 	devinfo->handle = drive;
 	strcpy(devinfo->name, drive->name);
 
-	if (info->cd_flags & IDE_CD_FLAG_NO_SPEED_SELECT)
+	if (drive->atapi_flags & IDE_AFLAG_NO_SPEED_SELECT)
 		devinfo->mask |= CDC_SELECT_SPEED;
 
 	devinfo->disk = info->disk;
@@ -1605,8 +1601,8 @@ static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
 		return nslots;
 	}
 
-	if (cd->cd_flags & IDE_CD_FLAG_PRE_ATAPI12) {
-		cd->cd_flags &= ~IDE_CD_FLAG_NO_EJECT;
+	if (drive->atapi_flags & IDE_AFLAG_PRE_ATAPI12) {
+		drive->atapi_flags &= ~IDE_AFLAG_NO_EJECT;
 		cdi->mask &= ~CDC_PLAY_AUDIO;
 		return nslots;
 	}
@@ -1624,9 +1620,9 @@ static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
 		return 0;
 
 	if ((buf[8 + 6] & 0x01) == 0)
-		cd->cd_flags |= IDE_CD_FLAG_NO_DOORLOCK;
+		drive->atapi_flags |= IDE_AFLAG_NO_DOORLOCK;
 	if (buf[8 + 6] & 0x08)
-		cd->cd_flags &= ~IDE_CD_FLAG_NO_EJECT;
+		drive->atapi_flags &= ~IDE_AFLAG_NO_EJECT;
 	if (buf[8 + 3] & 0x01)
 		cdi->mask &= ~CDC_CD_R;
 	if (buf[8 + 3] & 0x02)
@@ -1637,7 +1633,7 @@ static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
 		cdi->mask &= ~(CDC_DVD_RAM | CDC_RAM);
 	if (buf[8 + 3] & 0x10)
 		cdi->mask &= ~CDC_DVD_R;
-	if ((buf[8 + 4] & 0x01) || (cd->cd_flags & IDE_CD_FLAG_PLAY_AUDIO_OK))
+	if ((buf[8 + 4] & 0x01) || (drive->atapi_flags & IDE_AFLAG_PLAY_AUDIO_OK))
 		cdi->mask &= ~CDC_PLAY_AUDIO;
 
 	mechtype = buf[8 + 6] >> 5;
@@ -1802,43 +1798,43 @@ static inline void ide_cdrom_add_settings(ide_drive_t *drive) { ; }
 
 static const struct cd_list_entry ide_cd_quirks_list[] = {
 	/* Limit transfer size per interrupt. */
-	{ "SAMSUNG CD-ROM SCR-2430", NULL,   IDE_CD_FLAG_LIMIT_NFRAMES	    },
-	{ "SAMSUNG CD-ROM SCR-2432", NULL,   IDE_CD_FLAG_LIMIT_NFRAMES	    },
+	{ "SAMSUNG CD-ROM SCR-2430", NULL,   IDE_AFLAG_LIMIT_NFRAMES	     },
+	{ "SAMSUNG CD-ROM SCR-2432", NULL,   IDE_AFLAG_LIMIT_NFRAMES	     },
 	/* SCR-3231 doesn't support the SET_CD_SPEED command. */
-	{ "SAMSUNG CD-ROM SCR-3231", NULL,   IDE_CD_FLAG_NO_SPEED_SELECT    },
+	{ "SAMSUNG CD-ROM SCR-3231", NULL,   IDE_AFLAG_NO_SPEED_SELECT	     },
 	/* Old NEC260 (not R) was released before ATAPI 1.2 spec. */
-	{ "NEC CD-ROM DRIVE:260",    "1.01", IDE_CD_FLAG_TOCADDR_AS_BCD |
-					     IDE_CD_FLAG_PRE_ATAPI12,	    },
+	{ "NEC CD-ROM DRIVE:260",    "1.01", IDE_AFLAG_TOCADDR_AS_BCD |
+					     IDE_AFLAG_PRE_ATAPI12,	     },
 	/* Vertos 300, some versions of this drive like to talk BCD. */
-	{ "V003S0DS",		     NULL,   IDE_CD_FLAG_VERTOS_300_SSD,    },
+	{ "V003S0DS",		     NULL,   IDE_AFLAG_VERTOS_300_SSD,	     },
 	/* Vertos 600 ESD. */
-	{ "V006E0DS",		     NULL,   IDE_CD_FLAG_VERTOS_600_ESD,    },
+	{ "V006E0DS",		     NULL,   IDE_AFLAG_VERTOS_600_ESD,	     },
 	/*
 	 * Sanyo 3 CD changer uses a non-standard command for CD changing
 	 * (by default standard ATAPI support for CD changers is used).
 	 */
-	{ "CD-ROM CDR-C3 G",	     NULL,   IDE_CD_FLAG_SANYO_3CD	    },
-	{ "CD-ROM CDR-C3G",	     NULL,   IDE_CD_FLAG_SANYO_3CD	    },
-	{ "CD-ROM CDR_C36",	     NULL,   IDE_CD_FLAG_SANYO_3CD	    },
+	{ "CD-ROM CDR-C3 G",	     NULL,   IDE_AFLAG_SANYO_3CD	     },
+	{ "CD-ROM CDR-C3G",	     NULL,   IDE_AFLAG_SANYO_3CD	     },
+	{ "CD-ROM CDR_C36",	     NULL,   IDE_AFLAG_SANYO_3CD	     },
 	/* Stingray 8X CD-ROM. */
-	{ "STINGRAY 8422 IDE 8X CD-ROM 7-27-95", NULL, IDE_CD_FLAG_PRE_ATAPI12},
+	{ "STINGRAY 8422 IDE 8X CD-ROM 7-27-95", NULL, IDE_AFLAG_PRE_ATAPI12 },
 	/*
 	 * ACER 50X CD-ROM and WPI 32X CD-ROM require the full spec length
 	 * mode sense page capabilities size, but older drives break.
 	 */
-	{ "ATAPI CD ROM DRIVE 50X MAX",	NULL,	IDE_CD_FLAG_FULL_CAPS_PAGE  },
-	{ "WPI CDS-32X",		NULL,	IDE_CD_FLAG_FULL_CAPS_PAGE  },
+	{ "ATAPI CD ROM DRIVE 50X MAX",	NULL,	IDE_AFLAG_FULL_CAPS_PAGE     },
+	{ "WPI CDS-32X",		NULL,	IDE_AFLAG_FULL_CAPS_PAGE     },
 	/* ACER/AOpen 24X CD-ROM has the speed fields byte-swapped. */
-	{ "",			     "241N", IDE_CD_FLAG_LE_SPEED_FIELDS    },
+	{ "",			     "241N", IDE_AFLAG_LE_SPEED_FIELDS       },
 	/*
 	 * Some drives used by Apple don't advertise audio play
 	 * but they do support reading TOC & audio datas.
 	 */
-	{ "MATSHITADVD-ROM SR-8187", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
-	{ "MATSHITADVD-ROM SR-8186", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
-	{ "MATSHITADVD-ROM SR-8176", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
-	{ "MATSHITADVD-ROM SR-8174", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
-	{ "Optiarc DVD RW AD-5200A", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK      },
+	{ "MATSHITADVD-ROM SR-8187", NULL,   IDE_AFLAG_PLAY_AUDIO_OK	     },
+	{ "MATSHITADVD-ROM SR-8186", NULL,   IDE_AFLAG_PLAY_AUDIO_OK	     },
+	{ "MATSHITADVD-ROM SR-8176", NULL,   IDE_AFLAG_PLAY_AUDIO_OK	     },
+	{ "MATSHITADVD-ROM SR-8174", NULL,   IDE_AFLAG_PLAY_AUDIO_OK	     },
+	{ "Optiarc DVD RW AD-5200A", NULL,   IDE_AFLAG_PLAY_AUDIO_OK	     },
 	{ NULL, NULL, 0 }
 };
 
@@ -1873,20 +1869,20 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 
 	drive->special.all	= 0;
 
-	cd->cd_flags = IDE_CD_FLAG_MEDIA_CHANGED | IDE_CD_FLAG_NO_EJECT |
+	drive->atapi_flags = IDE_AFLAG_MEDIA_CHANGED | IDE_AFLAG_NO_EJECT |
 		       ide_cd_flags(id);
 
 	if ((id->config & 0x0060) == 0x20)
-		cd->cd_flags |= IDE_CD_FLAG_DRQ_INTERRUPT;
+		drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
 
-	if ((cd->cd_flags & IDE_CD_FLAG_VERTOS_300_SSD) &&
+	if ((drive->atapi_flags & IDE_AFLAG_VERTOS_300_SSD) &&
 	    id->fw_rev[4] == '1' && id->fw_rev[6] <= '2')
-		cd->cd_flags |= (IDE_CD_FLAG_TOCTRACKS_AS_BCD |
-				 IDE_CD_FLAG_TOCADDR_AS_BCD);
-	else if ((cd->cd_flags & IDE_CD_FLAG_VERTOS_600_ESD) &&
+		drive->atapi_flags |= (IDE_AFLAG_TOCTRACKS_AS_BCD |
+				     IDE_AFLAG_TOCADDR_AS_BCD);
+	else if ((drive->atapi_flags & IDE_AFLAG_VERTOS_600_ESD) &&
 		 id->fw_rev[4] == '1' && id->fw_rev[6] <= '2')
-		cd->cd_flags |= IDE_CD_FLAG_TOCTRACKS_AS_BCD;
-	else if (cd->cd_flags & IDE_CD_FLAG_SANYO_3CD)
+		drive->atapi_flags |= IDE_AFLAG_TOCTRACKS_AS_BCD;
+	else if (drive->atapi_flags & IDE_AFLAG_SANYO_3CD)
 		/* 3 => use CD in slot 0 */
 		cdi->sanyo_slot = 3;
 
