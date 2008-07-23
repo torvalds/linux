@@ -268,7 +268,9 @@ static int iwl_get_blink_rate(struct iwl_priv *priv)
 	if (tpt < 0) /* wrapparound */
 		tpt = -tpt;
 
-	IWL_DEBUG_LED("tpt %lld current_tpt %lld\n", tpt, current_tpt);
+	IWL_DEBUG_LED("tpt %lld current_tpt %llu\n",
+		(long long)tpt,
+		(unsigned long long)current_tpt);
 	priv->led_tpt = current_tpt;
 
 	if (!priv->allow_blinking)
