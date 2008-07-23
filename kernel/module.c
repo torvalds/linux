@@ -70,6 +70,9 @@ static DECLARE_WAIT_QUEUE_HEAD(module_wq);
 
 static BLOCKING_NOTIFIER_HEAD(module_notify_list);
 
+/* Bounds of module allocation, for speeding __module_text_address */
+static unsigned long module_addr_min = -1UL, module_addr_max = 0;
+
 int register_module_notifier(struct notifier_block * nb)
 {
 	return blocking_notifier_chain_register(&module_notify_list, nb);
@@ -1779,6 +1782,20 @@ static inline void add_kallsyms(struct module *mod,
 }
 #endif /* CONFIG_KALLSYMS */
 
+static void *module_alloc_update_bounds(unsigned long size)
+{
+	void *ret = module_alloc(size);
+
+	if (ret) {
+		/* Update module bounds. */
+		if ((unsigned long)ret < module_addr_min)
+			module_addr_min = (unsigned long)ret;
+		if ((unsigned long)ret + size > module_addr_max)
+			module_addr_max = (unsigned long)ret + size;
+	}
+	return ret;
+}
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static struct module *load_module(void __user *umod,
@@ -1980,7 +1997,7 @@ static struct module *load_module(void __user *umod,
 	layout_sections(mod, hdr, sechdrs, secstrings);
 
 	/* Do the allocs. */
-	ptr = module_alloc(mod->core_size);
+	ptr = module_alloc_update_bounds(mod->core_size);
 	if (!ptr) {
 		err = -ENOMEM;
 		goto free_percpu;
@@ -1988,7 +2005,7 @@ static struct module *load_module(void __user *umod,
 	memset(ptr, 0, mod->core_size);
 	mod->module_core = ptr;
 
-	ptr = module_alloc(mod->init_size);
+	ptr = module_alloc_update_bounds(mod->init_size);
 	if (!ptr && mod->init_size) {
 		err = -ENOMEM;
 		goto free_core;
@@ -2644,6 +2661,9 @@ int is_module_address(unsigned long addr)
 struct module *__module_text_address(unsigned long addr)
 {
 	struct module *mod;
+
+	if (addr < module_addr_min || addr > module_addr_max)
+		return NULL;
 
 	list_for_each_entry(mod, &modules, list)
 		if (within(addr, mod->module_init, mod->init_text_size)
