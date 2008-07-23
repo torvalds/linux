@@ -687,7 +687,6 @@ enum {
 	PC_FLAG_WRITING			= (1 << 6),
 	/* command timed out */
 	PC_FLAG_TIMEDOUT		= (1 << 7),
-	PC_FLAG_DRQ_INTERRUPT		= (1 << 8),
 };
 
 struct ide_atapi_pc {

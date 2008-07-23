@@ -302,8 +302,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 			   bcount, dma);
 
 	/* Issue the packet command */
-	if ((pc->flags & PC_FLAG_DRQ_INTERRUPT) ||
-	    (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT)) {
+	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
 		ide_execute_command(drive, WIN_PACKETCMD, handler,
 				    timeout, NULL);
 		return ide_started;
