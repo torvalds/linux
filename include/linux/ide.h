@@ -662,8 +662,6 @@ struct ide_atapi_pc {
 	 */
 	u8 pc_buf[256];
 
-	void (*callback)(ide_drive_t *);
-
 	/* idetape only */
 	struct idetape_bh *bh;
 	char *b_data;
