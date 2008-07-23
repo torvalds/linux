@@ -183,16 +183,27 @@ cmd_finished:
 }
 EXPORT_SYMBOL_GPL(ide_pc_intr);
 
+static u8 ide_read_ireason(ide_drive_t *drive)
+{
+	ide_task_t task;
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_IN_NSECT;
+
+	drive->hwif->tf_read(drive, &task);
+
+	return task.tf.nsect & 3;
+}
+
 static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	int retries = 100;
 
 	while (retries-- && ((ireason & CD) == 0 || (ireason & IO))) {
 		printk(KERN_ERR "%s: (IO,CoD != (0,1) while issuing "
 				"a packet command, retrying\n", drive->name);
 		udelay(100);
-		ireason = hwif->INB(hwif->io_ports.nsect_addr);
+		ireason = ide_read_ireason(drive);
 		if (retries == 0) {
 			printk(KERN_ERR "%s: (IO,CoD != (0,1) while issuing "
 					"a packet command, ignoring\n",
@@ -219,7 +230,7 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		return startstop;
 	}
 
-	ireason = hwif->INB(hwif->io_ports.nsect_addr);
+	ireason = ide_read_ireason(drive);
 	if (drive->media == ide_tape && !drive->scsi)
 		ireason = ide_wait_ireason(drive, ireason);
 
