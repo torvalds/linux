@@ -206,7 +206,7 @@ static int pdc202xx_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long high_16	= hwif->extra_base - 16;
-	u8 dma_stat		= inb(hwif->dma_status);
+	u8 dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
 	u8 sc1d			= inb(high_16 + 0x001d);
 
 	if (hwif->channel) {
@@ -312,7 +312,6 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 
 #define IDE_HFLAGS_PDC202XX \
 	(IDE_HFLAG_ERROR_STOPS_FIFO | \
-	 IDE_HFLAG_ABUSE_SET_DMA_MODE | \
 	 IDE_HFLAG_OFF_BOARD)
 
 static const struct ide_port_ops pdc20246_port_ops = {

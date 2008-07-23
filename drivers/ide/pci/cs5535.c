@@ -171,8 +171,7 @@ static const struct ide_port_ops cs5535_port_ops = {
 static const struct ide_port_info cs5535_chipset __devinitdata = {
 	.name		= "CS5535",
 	.port_ops	= &cs5535_port_ops,
-	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE |
-			  IDE_HFLAG_ABUSE_SET_DMA_MODE,
+	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 	.udma_mask	= ATA_UDMA4,

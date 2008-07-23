@@ -28,29 +28,21 @@ MODULE_PARM_DESC(probe_mask, "probe mask for legacy ISA IDE ports");
 
 static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 {
-	ide_hwif_t *hwif;
 	unsigned int base, ctl;
-	int irq;
-	hw_regs_t hw;
-	u8 idx[] = { 0xff, 0xff, 0xff, 0xff };
+	int irq, rc;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	if (sscanf(buf, "%x:%x:%d", &base, &ctl, &irq) != 3)
 		return -EINVAL;
-
-	hwif = ide_find_port();
-	if (hwif == NULL)
-		return -ENOENT;
 
 	memset(&hw, 0, sizeof(hw));
 	ide_std_init_ports(&hw, base, ctl);
 	hw.irq = irq;
 	hw.chipset = ide_generic;
 
-	ide_init_port_hw(hwif, &hw);
-
-	idx[0] = hwif->index;
-
-	ide_device_add(idx, NULL);
+	rc = ide_host_add(NULL, hws, NULL);
+	if (rc)
+		return rc;
 
 	return n;
 };
@@ -90,18 +82,18 @@ static int __init ide_generic_sysfs_init(void)
 
 static int __init ide_generic_init(void)
 {
-	u8 idx[MAX_HWIFS];
-	int i;
+	hw_regs_t hw[MAX_HWIFS], *hws[MAX_HWIFS];
+	struct ide_host *host;
+	unsigned long io_addr;
+	int i, rc;
 
 	printk(KERN_INFO DRV_NAME ": please use \"probe_mask=0x3f\" module "
 			 "parameter for probing all legacy ISA IDE ports\n");
 
 	for (i = 0; i < MAX_HWIFS; i++) {
-		ide_hwif_t *hwif;
-		unsigned long io_addr = ide_default_io_base(i);
-		hw_regs_t hw;
+		io_addr = ide_default_io_base(i);
 
-		idx[i] = 0xff;
+		hws[i] = NULL;
 
 		if ((probe_mask & (1 << i)) && io_addr) {
 			if (!request_region(io_addr, 8, DRV_NAME)) {
@@ -119,33 +111,42 @@ static int __init ide_generic_init(void)
 				continue;
 			}
 
-			/*
-			 * Skip probing if the corresponding
-			 * slot is already occupied.
-			 */
-			hwif = ide_find_port();
-			if (hwif == NULL || hwif->index != i) {
-				idx[i] = 0xff;
-				continue;
-			}
+			memset(&hw[i], 0, sizeof(hw[i]));
+			ide_std_init_ports(&hw[i], io_addr, io_addr + 0x206);
+			hw[i].irq = ide_default_irq(io_addr);
+			hw[i].chipset = ide_generic;
 
-			memset(&hw, 0, sizeof(hw));
-			ide_std_init_ports(&hw, io_addr, io_addr + 0x206);
-			hw.irq = ide_default_irq(io_addr);
-			hw.chipset = ide_generic;
-			ide_init_port_hw(hwif, &hw);
-
-			idx[i] = i;
+			hws[i] = &hw[i];
 		}
 	}
 
-	ide_device_add_all(idx, NULL);
+	host = ide_host_alloc_all(NULL, hws);
+	if (host == NULL) {
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	rc = ide_host_register(host, NULL, hws);
+	if (rc)
+		goto err_free;
 
 	if (ide_generic_sysfs_init())
 		printk(KERN_ERR DRV_NAME ": failed to create ide_generic "
 					 "class\n");
 
 	return 0;
+err_free:
+	ide_host_free(host);
+err:
+	for (i = 0; i < MAX_HWIFS; i++) {
+		if (hws[i] == NULL)
+			continue;
+
+		io_addr = hws[i]->io_ports.data_addr;
+		release_region(io_addr + 0x206, 1);
+		release_region(io_addr, 8);
+	}
+	return rc;
 }
 
 module_init(ide_generic_init);
