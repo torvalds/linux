@@ -34,6 +34,7 @@
 #include <asm/time.h>
 #include <asm/prom.h>
 #include <asm/vdso_datapage.h>
+#include <asm/vio.h>
 
 #define MODULE_VERS "1.8"
 #define MODULE_NAME "lparcfg"
@@ -526,6 +527,15 @@ static ssize_t update_mpp(u64 *entitlement, u8 *weight)
 	u64 new_entitled;
 	u8 new_weight;
 	ssize_t rc;
+
+	if (entitlement) {
+		/* Check with vio to ensure the new memory entitlement
+		 * can be handled.
+		 */
+		rc = vio_cmo_entitlement_update(*entitlement);
+		if (rc)
+			return rc;
+	}
 
 	rc = h_get_mpp(&mpp_data);
 	if (rc)
