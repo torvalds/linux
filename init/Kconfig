@@ -856,8 +856,8 @@ config MODULE_UNLOAD
 	help
 	  Without this option you will not be able to unload any
 	  modules (note that some modules may not be unloadable
-	  anyway), which makes your kernel slightly smaller and
-	  simpler.  If unsure, say Y.
+	  anyway), which makes your kernel smaller, faster
+	  and simpler.  If unsure, say Y.
 
 config MODULE_FORCE_UNLOAD
 	bool "Forced module unloading"

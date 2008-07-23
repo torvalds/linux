@@ -257,6 +257,7 @@ struct module
 	const struct kernel_symbol *gpl_syms;
 	const unsigned long *gpl_crcs;
 
+#ifdef CONFIG_UNUSED_SYMBOLS
 	/* unused exported symbols. */
 	const struct kernel_symbol *unused_syms;
 	const unsigned long *unused_crcs;
@@ -266,6 +267,7 @@ struct module
 	unsigned int num_unused_gpl_syms;
 	const struct kernel_symbol *unused_gpl_syms;
 	const unsigned long *unused_gpl_crcs;
+#endif
 
 	/* symbols that will be GPL-only in the near future. */
 	const struct kernel_symbol *gpl_future_syms;

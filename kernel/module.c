@@ -134,17 +134,19 @@ extern const struct kernel_symbol __start___ksymtab_gpl[];
 extern const struct kernel_symbol __stop___ksymtab_gpl[];
 extern const struct kernel_symbol __start___ksymtab_gpl_future[];
 extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
-extern const struct kernel_symbol __start___ksymtab_unused[];
-extern const struct kernel_symbol __stop___ksymtab_unused[];
-extern const struct kernel_symbol __start___ksymtab_unused_gpl[];
-extern const struct kernel_symbol __stop___ksymtab_unused_gpl[];
 extern const struct kernel_symbol __start___ksymtab_gpl_future[];
 extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
 extern const unsigned long __start___kcrctab[];
 extern const unsigned long __start___kcrctab_gpl[];
 extern const unsigned long __start___kcrctab_gpl_future[];
+#ifdef CONFIG_UNUSED_SYMBOLS
+extern const struct kernel_symbol __start___ksymtab_unused[];
+extern const struct kernel_symbol __stop___ksymtab_unused[];
+extern const struct kernel_symbol __start___ksymtab_unused_gpl[];
+extern const struct kernel_symbol __stop___ksymtab_unused_gpl[];
 extern const unsigned long __start___kcrctab_unused[];
 extern const unsigned long __start___kcrctab_unused_gpl[];
+#endif
 
 #ifndef CONFIG_MODVERSIONS
 #define symversion(base, idx) NULL
@@ -198,12 +200,14 @@ static bool each_symbol(bool (*fn)(const struct symsearch *arr,
 		{ __start___ksymtab_gpl_future, __stop___ksymtab_gpl_future,
 		  __start___kcrctab_gpl_future,
 		  WILL_BE_GPL_ONLY, false },
+#ifdef CONFIG_UNUSED_SYMBOLS
 		{ __start___ksymtab_unused, __stop___ksymtab_unused,
 		  __start___kcrctab_unused,
 		  NOT_GPL_ONLY, true },
 		{ __start___ksymtab_unused_gpl, __stop___ksymtab_unused_gpl,
 		  __start___kcrctab_unused_gpl,
 		  GPL_ONLY, true },
+#endif
 	};
 
 	if (each_symbol_in_section(arr, ARRAY_SIZE(arr), NULL, fn, data))
@@ -220,6 +224,7 @@ static bool each_symbol(bool (*fn)(const struct symsearch *arr,
 			  mod->gpl_future_syms + mod->num_gpl_future_syms,
 			  mod->gpl_future_crcs,
 			  WILL_BE_GPL_ONLY, false },
+#ifdef CONFIG_UNUSED_SYMBOLS
 			{ mod->unused_syms,
 			  mod->unused_syms + mod->num_unused_syms,
 			  mod->unused_crcs,
@@ -228,6 +233,7 @@ static bool each_symbol(bool (*fn)(const struct symsearch *arr,
 			  mod->unused_gpl_syms + mod->num_unused_gpl_syms,
 			  mod->unused_gpl_crcs,
 			  GPL_ONLY, true },
+#endif
 		};
 
 		if (each_symbol_in_section(arr, ARRAY_SIZE(arr), mod, fn, data))
@@ -270,6 +276,7 @@ static bool find_symbol_in_section(const struct symsearch *syms,
 		}
 	}
 
+#ifdef CONFIG_UNUSED_SYMBOLS
 	if (syms->unused && fsa->warn) {
 		printk(KERN_WARNING "Symbol %s is marked as UNUSED, "
 		       "however this module is using it.\n", fsa->name);
@@ -281,6 +288,7 @@ static bool find_symbol_in_section(const struct symsearch *syms,
 		       "mailinglist together with submitting your code for "
 		       "inclusion.\n");
 	}
+#endif
 
 	fsa->owner = owner;
 	fsa->crc = symversion(syms->crcs, symnum);
@@ -1476,8 +1484,10 @@ static int verify_export_symbols(struct module *mod)
 		{ mod->syms, mod->num_syms },
 		{ mod->gpl_syms, mod->num_gpl_syms },
 		{ mod->gpl_future_syms, mod->num_gpl_future_syms },
+#ifdef CONFIG_UNUSED_SYMBOLS
 		{ mod->unused_syms, mod->num_unused_syms },
 		{ mod->unused_gpl_syms, mod->num_unused_gpl_syms },
+#endif
 	};
 
 	for (i = 0; i < ARRAY_SIZE(arr); i++) {
@@ -1795,10 +1805,12 @@ static struct module *load_module(void __user *umod,
 	unsigned int gplfutureindex;
 	unsigned int gplfuturecrcindex;
 	unsigned int unwindex = 0;
+#ifdef CONFIG_UNUSED_SYMBOLS
 	unsigned int unusedindex;
 	unsigned int unusedcrcindex;
 	unsigned int unusedgplindex;
 	unsigned int unusedgplcrcindex;
+#endif
 	unsigned int markersindex;
 	unsigned int markersstringsindex;
 	struct module *mod;
@@ -1881,13 +1893,15 @@ static struct module *load_module(void __user *umod,
 	exportindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab");
 	gplindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_gpl");
 	gplfutureindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_gpl_future");
-	unusedindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_unused");
-	unusedgplindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_unused_gpl");
 	crcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab");
 	gplcrcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab_gpl");
 	gplfuturecrcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab_gpl_future");
+#ifdef CONFIG_UNUSED_SYMBOLS
+	unusedindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_unused");
+	unusedgplindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_unused_gpl");
 	unusedcrcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab_unused");
 	unusedgplcrcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab_unused_gpl");
+#endif
 	setupindex = find_sec(hdr, sechdrs, secstrings, "__param");
 	exindex = find_sec(hdr, sechdrs, secstrings, "__ex_table");
 	obsparmindex = find_sec(hdr, sechdrs, secstrings, "__obsparm");
@@ -2049,14 +2063,15 @@ static struct module *load_module(void __user *umod,
 		mod->gpl_crcs = (void *)sechdrs[gplcrcindex].sh_addr;
 	mod->num_gpl_future_syms = sechdrs[gplfutureindex].sh_size /
 					sizeof(*mod->gpl_future_syms);
-	mod->num_unused_syms = sechdrs[unusedindex].sh_size /
-					sizeof(*mod->unused_syms);
-	mod->num_unused_gpl_syms = sechdrs[unusedgplindex].sh_size /
-					sizeof(*mod->unused_gpl_syms);
 	mod->gpl_future_syms = (void *)sechdrs[gplfutureindex].sh_addr;
 	if (gplfuturecrcindex)
 		mod->gpl_future_crcs = (void *)sechdrs[gplfuturecrcindex].sh_addr;
 
+#ifdef CONFIG_UNUSED_SYMBOLS
+	mod->num_unused_syms = sechdrs[unusedindex].sh_size /
+					sizeof(*mod->unused_syms);
+	mod->num_unused_gpl_syms = sechdrs[unusedgplindex].sh_size /
+					sizeof(*mod->unused_gpl_syms);
 	mod->unused_syms = (void *)sechdrs[unusedindex].sh_addr;
 	if (unusedcrcindex)
 		mod->unused_crcs = (void *)sechdrs[unusedcrcindex].sh_addr;
@@ -2064,13 +2079,17 @@ static struct module *load_module(void __user *umod,
 	if (unusedgplcrcindex)
 		mod->unused_gpl_crcs
 			= (void *)sechdrs[unusedgplcrcindex].sh_addr;
+#endif
 
 #ifdef CONFIG_MODVERSIONS
-	if ((mod->num_syms && !crcindex) ||
-	    (mod->num_gpl_syms && !gplcrcindex) ||
-	    (mod->num_gpl_future_syms && !gplfuturecrcindex) ||
-	    (mod->num_unused_syms && !unusedcrcindex) ||
-	    (mod->num_unused_gpl_syms && !unusedgplcrcindex)) {
+	if ((mod->num_syms && !crcindex)
+	    || (mod->num_gpl_syms && !gplcrcindex)
+	    || (mod->num_gpl_future_syms && !gplfuturecrcindex)
+#ifdef CONFIG_UNUSED_SYMBOLS
+	    || (mod->num_unused_syms && !unusedcrcindex)
+	    || (mod->num_unused_gpl_syms && !unusedgplcrcindex)
+#endif
+		) {
 		printk(KERN_WARNING "%s: No versions for exported symbols.\n", mod->name);
 		err = try_to_force_load(mod, "nocrc");
 		if (err)
