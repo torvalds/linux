@@ -48,6 +48,8 @@
 #include <asm/mediabay.h>
 #endif
 
+#define DRV_NAME "ide-pmac"
+
 #undef IDE_PMAC_DEBUG
 
 #define DMA_WAIT_TIMEOUT	50
@@ -984,6 +986,7 @@ static const struct ide_port_ops pmac_ide_port_ops = {
 static const struct ide_dma_ops pmac_dma_ops;
 
 static const struct ide_port_info pmac_port_info = {
+	.name			= DRV_NAME,
 	.init_dma		= pmac_ide_init_dma,
 	.chipset		= ide_pmac,
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
@@ -1002,11 +1005,11 @@ static const struct ide_port_info pmac_port_info = {
  * Setup, register & probe an IDE channel driven by this driver, this is
  * called by one of the 2 probe functions (macio or PCI).
  */
-static int __devinit
-pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
+static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 {
 	struct device_node *np = pmif->node;
 	const int *bidp;
+	ide_hwif_t *hwif;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	struct ide_port_info d = pmac_port_info;
 
@@ -1079,15 +1082,20 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 		msleep(jiffies_to_msecs(IDE_WAKEUP_DELAY));
 	}
 
+	printk(KERN_INFO DRV_NAME ": Found Apple %s controller (%s), "
+			 "bus ID %d%s, irq %d\n", model_name[pmif->kind],
+			 pmif->mdev ? "macio" : "PCI", pmif->aapl_bus_id,
+			 pmif->mediabay ? " (mediabay)" : "", hw->irq);
+
+	hwif = ide_find_port_slot(&d);
+	if (hwif == NULL)
+		return -ENOENT;
+
 	/* Setup MMIO ops */
 	default_hwif_mmiops(hwif);
        	hwif->OUTBSYNC = pmac_outbsync;
 
 	ide_init_port_hw(hwif, hw);
-
-	printk(KERN_INFO "ide%d: Found Apple %s controller, bus ID %d%s, irq %d\n",
-	       hwif->index, model_name[pmif->kind], pmif->aapl_bus_id,
-	       pmif->mediabay ? " (mediabay)" : "", hwif->irq);
 
 	idx[0] = hwif->index;
 
@@ -1114,7 +1122,6 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	void __iomem *base;
 	unsigned long regbase;
-	ide_hwif_t *hwif;
 	pmac_ide_hwif_t *pmif;
 	int irq, rc;
 	hw_regs_t hw;
@@ -1122,14 +1129,6 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	pmif = kzalloc(sizeof(*pmif), GFP_KERNEL);
 	if (pmif == NULL)
 		return -ENOMEM;
-
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR "ide-pmac: MacIO interface attach with no slot\n");
-		printk(KERN_ERR "          %s\n", mdev->ofdev.node->full_name);
-		rc = -ENODEV;
-		goto out_free_pmif;
-	}
 
 	if (macio_resource_count(mdev) == 0) {
 		printk(KERN_WARNING "ide-pmac: no address for %s\n",
@@ -1185,7 +1184,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	hw.dev = &mdev->bus->pdev->dev;
 	hw.parent = &mdev->ofdev.dev;
 
-	rc = pmac_ide_setup_device(pmif, hwif, &hw);
+	rc = pmac_ide_setup_device(pmif, &hw);
 	if (rc != 0) {
 		/* The inteface is released to the common IDE layer */
 		dev_set_drvdata(&mdev->ofdev.dev, NULL);
@@ -1244,7 +1243,6 @@ pmac_ide_macio_resume(struct macio_dev *mdev)
 static int __devinit
 pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	ide_hwif_t *hwif;
 	struct device_node *np;
 	pmac_ide_hwif_t *pmif;
 	void __iomem *base;
@@ -1261,14 +1259,6 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	pmif = kzalloc(sizeof(*pmif), GFP_KERNEL);
 	if (pmif == NULL)
 		return -ENOMEM;
-
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR "ide-pmac: PCI interface attach with no slot\n");
-		printk(KERN_ERR "          %s\n", np->full_name);
-		rc = -ENODEV;
-		goto out_free_pmif;
-	}
 
 	if (pci_enable_device(pdev)) {
 		printk(KERN_WARNING "ide-pmac: Can't enable PCI device for "
@@ -1306,7 +1296,7 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	hw.irq = pdev->irq;
 	hw.dev = &pdev->dev;
 
-	rc = pmac_ide_setup_device(pmif, hwif, &hw);
+	rc = pmac_ide_setup_device(pmif, &hw);
 	if (rc != 0) {
 		/* The inteface is released to the common IDE layer */
 		pci_set_drvdata(pdev, NULL);
