@@ -573,29 +573,27 @@ static ssize_t update_mpp(u64 *entitlement, u8 *weight)
 static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 			     size_t count, loff_t * off)
 {
-	char *kbuf;
+	int kbuf_sz = 64;
+	char kbuf[kbuf_sz];
 	char *tmp;
 	u64 new_entitled, *new_entitled_ptr = &new_entitled;
 	u8 new_weight, *new_weight_ptr = &new_weight;
-	ssize_t retval = -ENOMEM;
+	ssize_t retval;
 
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR) ||
 			firmware_has_feature(FW_FEATURE_ISERIES))
 		return -EINVAL;
 
-	kbuf = kmalloc(count, GFP_KERNEL);
-	if (!kbuf)
-		goto out;
+	if (count > kbuf_sz)
+		return -EINVAL;
 
-	retval = -EFAULT;
 	if (copy_from_user(kbuf, buf, count))
-		goto out;
+		return -EFAULT;
 
-	retval = -EINVAL;
 	kbuf[count - 1] = '\0';
 	tmp = strchr(kbuf, '=');
 	if (!tmp)
-		goto out;
+		return -EINVAL;
 
 	*tmp++ = '\0';
 
@@ -603,32 +601,32 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 		char *endp;
 		*new_entitled_ptr = (u64) simple_strtoul(tmp, &endp, 10);
 		if (endp == tmp)
-			goto out;
+			return -EINVAL;
 
 		retval = update_ppp(new_entitled_ptr, NULL);
 	} else if (!strcmp(kbuf, "capacity_weight")) {
 		char *endp;
 		*new_weight_ptr = (u8) simple_strtoul(tmp, &endp, 10);
 		if (endp == tmp)
-			goto out;
+			return -EINVAL;
 
 		retval = update_ppp(NULL, new_weight_ptr);
 	} else if (!strcmp(kbuf, "entitled_memory")) {
 		char *endp;
 		*new_entitled_ptr = (u64) simple_strtoul(tmp, &endp, 10);
 		if (endp == tmp)
-			goto out;
+			return -EINVAL;
 
 		retval = update_mpp(new_entitled_ptr, NULL);
 	} else if (!strcmp(kbuf, "entitled_memory_weight")) {
 		char *endp;
 		*new_weight_ptr = (u8) simple_strtoul(tmp, &endp, 10);
 		if (endp == tmp)
-			goto out;
+			return -EINVAL;
 
 		retval = update_mpp(NULL, new_weight_ptr);
 	} else
-		goto out;
+		return -EINVAL;
 
 	if (retval == H_SUCCESS || retval == H_CONSTRAINED) {
 		retval = count;
@@ -644,8 +642,6 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 		retval = -EIO;
 	}
 
-out:
-	kfree(kbuf);
 	return retval;
 }
 
