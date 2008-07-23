@@ -3809,10 +3809,8 @@ static void raid5d(mddev_t *mddev)
 
 		sh = __get_priority_stripe(conf);
 
-		if (!sh) {
-			async_tx_issue_pending_all();
+		if (!sh)
 			break;
-		}
 		spin_unlock_irq(&conf->device_lock);
 		
 		handled++;
@@ -3825,6 +3823,7 @@ static void raid5d(mddev_t *mddev)
 
 	spin_unlock_irq(&conf->device_lock);
 
+	async_tx_issue_pending_all();
 	unplug_slaves(mddev);
 
 	pr_debug("--- raid5d inactive\n");
