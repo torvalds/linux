@@ -5,13 +5,15 @@ config TRACE_IRQFLAGS_SUPPORT
 
 source "lib/Kconfig.debug"
 
-config NONPROMISC_DEVMEM
+config STRICT_DEVMEM
 	bool "Filter access to /dev/mem"
 	help
-	  If this option is left off, you allow userspace access to all
+	  If this option is disabled, you allow userspace (root) access to all
 	  of memory, including kernel and userspace memory. Accidental
 	  access to this is obviously disastrous, but specific access can
-	  be used by people debugging the kernel.
+	  be used by people debugging the kernel. Note that with PAT support
+	  enabled, even in this case there are restrictions on /dev/mem
+	  use due to the cache aliasing requirements.
 
 	  If this option is switched on, the /dev/mem file only allows
 	  userspace access to PCI space and the BIOS code and data regions.
@@ -287,7 +289,6 @@ config CPA_DEBUG
 
 config OPTIMIZE_INLINING
 	bool "Allow gcc to uninline functions marked 'inline'"
-	depends on BROKEN
 	help
 	  This option determines if the kernel forces gcc to inline the functions
 	  developers have marked 'inline'. Doing so takes away freedom from gcc to
@@ -297,6 +298,8 @@ config OPTIMIZE_INLINING
 	  this algorithm is so good that allowing gcc4 to make the decision can
 	  become the default in the future, until then this option is there to
 	  test gcc for this.
+
+	  If unsure, say N.
 
 endmenu
 

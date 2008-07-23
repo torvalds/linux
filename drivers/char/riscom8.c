@@ -1250,10 +1250,14 @@ static int rc_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static void rc_send_break(struct riscom_port *port, unsigned long length)
+static int rc_send_break(struct tty_struct *tty, int length)
 {
+	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
 	struct riscom_board *bp = port_Board(port);
 	unsigned long flags;
+
+	if (length == 0 || length == -1)
+		return -EOPNOTSUPP;
 
 	spin_lock_irqsave(&riscom_lock, flags);
 
@@ -1268,6 +1272,7 @@ static void rc_send_break(struct riscom_port *port, unsigned long length)
 	rc_wait_CCR(bp);
 
 	spin_unlock_irqrestore(&riscom_lock, flags);
+	return 0;
 }
 
 static int rc_set_serial_info(struct riscom_port *port,
@@ -1342,27 +1347,12 @@ static int rc_ioctl(struct tty_struct *tty, struct file *filp,
 {
 	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
 	void __user *argp = (void __user *)arg;
-	int retval = 0;
+	int retval;
 
 	if (rc_paranoia_check(port, tty->name, "rc_ioctl"))
 		return -ENODEV;
 
 	switch (cmd) {
-	case TCSBRK:	/* SVID version: non-zero arg --> no break */
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-		tty_wait_until_sent(tty, 0);
-		if (!arg)
-			rc_send_break(port, HZ/4);	/* 1/4 second */
-		break;
-	case TCSBRKP:	/* support for POSIX tcsendbreak() */
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-		tty_wait_until_sent(tty, 0);
-		rc_send_break(port, arg ? arg*(HZ/10) : HZ/4);
-		break;
 	case TIOCGSERIAL:
 		lock_kernel();
 		retval = rc_get_serial_info(port, argp);
@@ -1517,6 +1507,7 @@ static const struct tty_operations riscom_ops = {
 	.hangup = rc_hangup,
 	.tiocmget = rc_tiocmget,
 	.tiocmset = rc_tiocmset,
+	.break_ctl = rc_send_break,
 };
 
 static int __init rc_init_drivers(void)
@@ -1538,7 +1529,7 @@ static int __init rc_init_drivers(void)
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 	riscom_driver->init_termios.c_ispeed = 9600;
 	riscom_driver->init_termios.c_ospeed = 9600;
-	riscom_driver->flags = TTY_DRIVER_REAL_RAW;
+	riscom_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_HARDWARE_BREAK;
 	tty_set_operations(riscom_driver, &riscom_ops);
 	error = tty_register_driver(riscom_driver);
 	if (error != 0) {

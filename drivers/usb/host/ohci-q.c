@@ -159,9 +159,6 @@ static int ed_schedule (struct ohci_hcd *ohci, struct ed *ed)
 {
 	int	branch;
 
-	if (ohci_to_hcd(ohci)->state == HC_STATE_QUIESCING)
-		return -EAGAIN;
-
 	ed->state = ED_OPER;
 	ed->ed_prev = NULL;
 	ed->ed_next = NULL;

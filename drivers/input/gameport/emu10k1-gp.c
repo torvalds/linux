@@ -1,6 +1,4 @@
 /*
- * $Id: emu10k1-gp.c,v 1.8 2002/01/22 20:40:46 vojtech Exp $
- *
  *  Copyright (c) 2001 Vojtech Pavlik
  */
 

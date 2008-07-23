@@ -88,7 +88,7 @@ extern unsigned long pg0[];
 /* To avoid harmful races, pmd_none(x) should check only the lower when PAE */
 #define pmd_none(x)	(!(unsigned long)pmd_val((x)))
 #define pmd_present(x)	(pmd_val((x)) & _PAGE_PRESENT)
-#define pmd_bad(x) ((pmd_val(x) & (~PTE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
+#define pmd_bad(x) ((pmd_val(x) & (PTE_FLAGS_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 
 #define pages_to_mb(x) ((x) >> (20-PAGE_SHIFT))
 
@@ -139,7 +139,7 @@ static inline int pud_large(pud_t pud) { return 0; }
 #define pmd_page(pmd) (pfn_to_page(pmd_val((pmd)) >> PAGE_SHIFT))
 
 #define pmd_page_vaddr(pmd)					\
-	((unsigned long)__va(pmd_val((pmd)) & PTE_MASK))
+	((unsigned long)__va(pmd_val((pmd)) & PTE_PFN_MASK))
 
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address)					\
@@ -170,21 +170,6 @@ do {						\
  * tables contain all the necessary information.
  */
 #define update_mmu_cache(vma, address, pte) do { } while (0)
-
-extern void native_pagetable_setup_start(pgd_t *base);
-extern void native_pagetable_setup_done(pgd_t *base);
-
-#ifndef CONFIG_PARAVIRT
-static inline void __init paravirt_pagetable_setup_start(pgd_t *base)
-{
-	native_pagetable_setup_start(base);
-}
-
-static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
-{
-	native_pagetable_setup_done(base);
-}
-#endif	/* !CONFIG_PARAVIRT */
 
 #endif /* !__ASSEMBLY__ */
 

@@ -1588,7 +1588,6 @@ static void adjust_link(struct net_device *dev)
 		if (!ugeth->oldlink) {
 			new_state = 1;
 			ugeth->oldlink = 1;
-			netif_tx_schedule_all(dev);
 		}
 	} else if (ugeth->oldlink) {
 			new_state = 1;

@@ -576,7 +576,8 @@ static int spidev_probe(struct spi_device *spi)
 		struct device *dev;
 
 		spidev->devt = MKDEV(SPIDEV_MAJOR, minor);
-		dev = device_create(spidev_class, &spi->dev, spidev->devt,
+		dev = device_create_drvdata(spidev_class, &spi->dev,
+				spidev->devt, spidev,
 				"spidev%d.%d",
 				spi->master->bus_num, spi->chip_select);
 		status = IS_ERR(dev) ? PTR_ERR(dev) : 0;
@@ -586,7 +587,6 @@ static int spidev_probe(struct spi_device *spi)
 	}
 	if (status == 0) {
 		set_bit(minor, minors);
-		spi_set_drvdata(spi, spidev);
 		list_add(&spidev->device_entry, &device_list);
 	}
 	mutex_unlock(&device_list_lock);

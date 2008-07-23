@@ -7,15 +7,13 @@
 #include <linux/module.h>
 #include <linux/kgdb.h>
 #include <linux/topology.h>
-#include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
-#include <linux/module.h>
 #include <linux/percpu.h>
-#include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/msr.h>
 #include <asm/io.h>
+#include <asm/linkage.h>
 #include <asm/mmu_context.h>
 #include <asm/mtrr.h>
 #include <asm/mce.h>
@@ -305,7 +303,6 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 			c->x86_capability[2] = cpuid_edx(0x80860001);
 	}
 
-	c->extended_cpuid_level = cpuid_eax(0x80000000);
 	if (c->extended_cpuid_level >= 0x80000007)
 		c->x86_power = cpuid_edx(0x80000007);
 
@@ -316,18 +313,11 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 		c->x86_phys_bits = eax & 0xff;
 	}
 
-	/* Assume all 64-bit CPUs support 32-bit syscall */
-	set_cpu_cap(c, X86_FEATURE_SYSCALL32);
-
 	if (c->x86_vendor != X86_VENDOR_UNKNOWN &&
 	    cpu_devs[c->x86_vendor]->c_early_init)
 		cpu_devs[c->x86_vendor]->c_early_init(c);
 
 	validate_pat_support(c);
-
-	/* early_param could clear that, but recall get it set again */
-	if (disable_apic)
-		clear_cpu_cap(c, X86_FEATURE_APIC);
 }
 
 /*
@@ -517,8 +507,7 @@ void pda_init(int cpu)
 }
 
 char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ +
-			   DEBUG_STKSZ]
-__attribute__((section(".bss.page_aligned")));
+			   DEBUG_STKSZ] __page_aligned_bss;
 
 extern asmlinkage void ignore_sysret(void);
 

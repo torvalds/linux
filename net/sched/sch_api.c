@@ -447,7 +447,7 @@ void qdisc_watchdog_cancel(struct qdisc_watchdog *wd)
 }
 EXPORT_SYMBOL(qdisc_watchdog_cancel);
 
-struct hlist_head *qdisc_class_hash_alloc(unsigned int n)
+static struct hlist_head *qdisc_class_hash_alloc(unsigned int n)
 {
 	unsigned int size = n * sizeof(struct hlist_head), i;
 	struct hlist_head *h;

@@ -1872,7 +1872,7 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct aty128fb_par *par = info->par;
 	struct fb_var_screeninfo var;
-	char video_card[DEVICE_NAME_SIZE];
+	char video_card[50];
 	u8 chip_rev;
 	u32 dac;
 

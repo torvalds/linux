@@ -124,6 +124,8 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/in.h>
+#include <linux/jhash.h>
+#include <linux/random.h>
 
 #include "net-sysfs.h"
 
@@ -259,7 +261,7 @@ static RAW_NOTIFIER_HEAD(netdev_chain);
 
 DEFINE_PER_CPU(struct softnet_data, softnet_data);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_LOCKDEP
 /*
  * register_netdevice() inits txq->_xmit_lock and sets lockdep class
  * according to dev->type
@@ -299,6 +301,7 @@ static const char *netdev_lock_name[] =
 	 "_xmit_NONE"};
 
 static struct lock_class_key netdev_xmit_lock_key[ARRAY_SIZE(netdev_lock_type)];
+static struct lock_class_key netdev_addr_lock_key[ARRAY_SIZE(netdev_lock_type)];
 
 static inline unsigned short netdev_lock_pos(unsigned short dev_type)
 {
@@ -311,8 +314,8 @@ static inline unsigned short netdev_lock_pos(unsigned short dev_type)
 	return ARRAY_SIZE(netdev_lock_type) - 1;
 }
 
-static inline void netdev_set_lockdep_class(spinlock_t *lock,
-					    unsigned short dev_type)
+static inline void netdev_set_xmit_lockdep_class(spinlock_t *lock,
+						 unsigned short dev_type)
 {
 	int i;
 
@@ -320,9 +323,22 @@ static inline void netdev_set_lockdep_class(spinlock_t *lock,
 	lockdep_set_class_and_name(lock, &netdev_xmit_lock_key[i],
 				   netdev_lock_name[i]);
 }
+
+static inline void netdev_set_addr_lockdep_class(struct net_device *dev)
+{
+	int i;
+
+	i = netdev_lock_pos(dev->type);
+	lockdep_set_class_and_name(&dev->addr_list_lock,
+				   &netdev_addr_lock_key[i],
+				   netdev_lock_name[i]);
+}
 #else
-static inline void netdev_set_lockdep_class(spinlock_t *lock,
-					    unsigned short dev_type)
+static inline void netdev_set_xmit_lockdep_class(spinlock_t *lock,
+						 unsigned short dev_type)
+{
+}
+static inline void netdev_set_addr_lockdep_class(struct net_device *dev)
 {
 }
 #endif
@@ -1325,7 +1341,8 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 
 void __netif_schedule(struct Qdisc *q)
 {
-	BUG_ON(q == &noop_qdisc);
+	if (WARN_ON_ONCE(q == &noop_qdisc))
+		return;
 
 	if (!test_and_set_bit(__QDISC_STATE_SCHED, &q->state)) {
 		struct softnet_data *sd;
@@ -1642,6 +1659,73 @@ out_kfree_skb:
 	return 0;
 }
 
+static u32 simple_tx_hashrnd;
+static int simple_tx_hashrnd_initialized = 0;
+
+static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
+{
+	u32 addr1, addr2, ports;
+	u32 hash, ihl;
+	u8 ip_proto;
+
+	if (unlikely(!simple_tx_hashrnd_initialized)) {
+		get_random_bytes(&simple_tx_hashrnd, 4);
+		simple_tx_hashrnd_initialized = 1;
+	}
+
+	switch (skb->protocol) {
+	case __constant_htons(ETH_P_IP):
+		ip_proto = ip_hdr(skb)->protocol;
+		addr1 = ip_hdr(skb)->saddr;
+		addr2 = ip_hdr(skb)->daddr;
+		ihl = ip_hdr(skb)->ihl;
+		break;
+	case __constant_htons(ETH_P_IPV6):
+		ip_proto = ipv6_hdr(skb)->nexthdr;
+		addr1 = ipv6_hdr(skb)->saddr.s6_addr32[3];
+		addr2 = ipv6_hdr(skb)->daddr.s6_addr32[3];
+		ihl = (40 >> 2);
+		break;
+	default:
+		return 0;
+	}
+
+
+	switch (ip_proto) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+	case IPPROTO_DCCP:
+	case IPPROTO_ESP:
+	case IPPROTO_AH:
+	case IPPROTO_SCTP:
+	case IPPROTO_UDPLITE:
+		ports = *((u32 *) (skb_network_header(skb) + (ihl * 4)));
+		break;
+
+	default:
+		ports = 0;
+		break;
+	}
+
+	hash = jhash_3words(addr1, addr2, ports, simple_tx_hashrnd);
+
+	return (u16) (((u64) hash * dev->real_num_tx_queues) >> 32);
+}
+
+static struct netdev_queue *dev_pick_tx(struct net_device *dev,
+					struct sk_buff *skb)
+{
+	u16 queue_index = 0;
+
+	if (dev->select_queue)
+		queue_index = dev->select_queue(dev, skb);
+	else if (dev->real_num_tx_queues > 1)
+		queue_index = simple_tx_hash(dev, skb);
+
+	skb_set_queue_mapping(skb, queue_index);
+	return netdev_get_tx_queue(dev, queue_index);
+}
+
 /**
  *	dev_queue_xmit - transmit a buffer
  *	@skb: buffer to transmit
@@ -1667,68 +1751,6 @@ out_kfree_skb:
  *      the BH enable code must have IRQs enabled so that it will not deadlock.
  *          --BLG
  */
-
-static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
-{
-	u32 *addr, *ports, hash, ihl;
-	u8 ip_proto;
-	int alen;
-
-	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
-		ip_proto = ip_hdr(skb)->protocol;
-		addr = &ip_hdr(skb)->saddr;
-		ihl = ip_hdr(skb)->ihl;
-		alen = 2;
-		break;
-	case __constant_htons(ETH_P_IPV6):
-		ip_proto = ipv6_hdr(skb)->nexthdr;
-		addr = &ipv6_hdr(skb)->saddr.s6_addr32[0];
-		ihl = (40 >> 2);
-		alen = 8;
-		break;
-	default:
-		return 0;
-	}
-
-	ports = (u32 *) (skb_network_header(skb) + (ihl * 4));
-
-	hash = 0;
-	while (alen--)
-		hash ^= *addr++;
-
-	switch (ip_proto) {
-	case IPPROTO_TCP:
-	case IPPROTO_UDP:
-	case IPPROTO_DCCP:
-	case IPPROTO_ESP:
-	case IPPROTO_AH:
-	case IPPROTO_SCTP:
-	case IPPROTO_UDPLITE:
-		hash ^= *ports;
-		break;
-
-	default:
-		break;
-	}
-
-	return hash % dev->real_num_tx_queues;
-}
-
-static struct netdev_queue *dev_pick_tx(struct net_device *dev,
-					struct sk_buff *skb)
-{
-	u16 queue_index = 0;
-
-	if (dev->select_queue)
-		queue_index = dev->select_queue(dev, skb);
-	else if (dev->real_num_tx_queues > 1)
-		queue_index = simple_tx_hash(dev, skb);
-
-	skb_set_queue_mapping(skb, queue_index);
-	return netdev_get_tx_queue(dev, queue_index);
-}
-
 int dev_queue_xmit(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
@@ -3843,7 +3865,7 @@ static void __netdev_init_queue_locks_one(struct net_device *dev,
 					  void *_unused)
 {
 	spin_lock_init(&dev_queue->_xmit_lock);
-	netdev_set_lockdep_class(&dev_queue->_xmit_lock, dev->type);
+	netdev_set_xmit_lockdep_class(&dev_queue->_xmit_lock, dev->type);
 	dev_queue->xmit_lock_owner = -1;
 }
 
@@ -3888,6 +3910,7 @@ int register_netdevice(struct net_device *dev)
 	net = dev_net(dev);
 
 	spin_lock_init(&dev->addr_list_lock);
+	netdev_set_addr_lockdep_class(dev);
 	netdev_init_queue_locks(dev);
 
 	dev->iflink = -1;
@@ -4198,7 +4221,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 {
 	struct netdev_queue *tx;
 	struct net_device *dev;
-	int alloc_size;
+	size_t alloc_size;
 	void *p;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
@@ -4218,7 +4241,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		return NULL;
 	}
 
-	tx = kzalloc(sizeof(struct netdev_queue) * queue_count, GFP_KERNEL);
+	tx = kcalloc(queue_count, sizeof(struct netdev_queue), GFP_KERNEL);
 	if (!tx) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "tx qdiscs.\n");
@@ -4675,6 +4698,26 @@ err_idx:
 	kfree(net->dev_name_head);
 err_name:
 	return -ENOMEM;
+}
+
+char *netdev_drivername(struct net_device *dev, char *buffer, int len)
+{
+	struct device_driver *driver;
+	struct device *parent;
+
+	if (len <= 0 || !buffer)
+		return buffer;
+	buffer[0] = 0;
+
+	parent = dev->dev.parent;
+
+	if (!parent)
+		return buffer;
+
+	driver = parent->driver;
+	if (driver && driver->name)
+		strlcpy(buffer, driver->name, len);
+	return buffer;
 }
 
 static void __net_exit netdev_exit(struct net *net)

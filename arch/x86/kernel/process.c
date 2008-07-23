@@ -15,6 +15,7 @@ unsigned long idle_nomwait;
 EXPORT_SYMBOL(idle_nomwait);
 
 struct kmem_cache *task_xstate_cachep;
+static int force_mwait __cpuinitdata;
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
@@ -199,6 +200,7 @@ static void poll_idle(void)
  *
  * idle=mwait overrides this decision and forces the usage of mwait.
  */
+static int __cpuinitdata force_mwait;
 
 #define MWAIT_INFO			0x05
 #define MWAIT_ECX_EXTENDED_INFO		0x01
@@ -326,6 +328,9 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 
 static int __init idle_setup(char *str)
 {
+	if (!str)
+		return -EINVAL;
+
 	if (!strcmp(str, "poll")) {
 		printk("using polling idle threads.\n");
 		pm_idle = poll_idle;

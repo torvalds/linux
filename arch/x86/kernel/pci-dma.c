@@ -5,12 +5,11 @@
 
 #include <asm/proto.h>
 #include <asm/dma.h>
-#include <asm/gart.h>
+#include <asm/iommu.h>
 #include <asm/calgary.h>
 #include <asm/amd_iommu.h>
 
-int forbid_dac __read_mostly;
-EXPORT_SYMBOL(forbid_dac);
+static int forbid_dac __read_mostly;
 
 const struct dma_mapping_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
@@ -114,21 +113,15 @@ void __init pci_iommu_alloc(void)
 	 * The order of these functions is important for
 	 * fall-back/fail-over reasons
 	 */
-#ifdef CONFIG_GART_IOMMU
 	gart_iommu_hole_init();
-#endif
 
-#ifdef CONFIG_CALGARY_IOMMU
 	detect_calgary();
-#endif
 
 	detect_intel_iommu();
 
 	amd_iommu_detect();
 
-#ifdef CONFIG_SWIOTLB
 	pci_swiotlb_init();
-#endif
 }
 #endif
 
@@ -184,9 +177,7 @@ static __init int iommu_setup(char *p)
 			swiotlb = 1;
 #endif
 
-#ifdef CONFIG_GART_IOMMU
 		gart_parse_options(p);
-#endif
 
 #ifdef CONFIG_CALGARY_IOMMU
 		if (!strncmp(p, "calgary", 7))
@@ -323,8 +314,7 @@ int dma_supported(struct device *dev, u64 mask)
 {
 #ifdef CONFIG_PCI
 	if (mask > 0xffffffff && forbid_dac > 0) {
-		printk(KERN_INFO "PCI: Disallowing DAC for device %s\n",
-				 dev->bus_id);
+		dev_info(dev, "PCI: Disallowing DAC for device\n");
 		return 0;
 	}
 #endif
@@ -351,8 +341,7 @@ int dma_supported(struct device *dev, u64 mask)
 	   type. Normally this doesn't make any difference, but gives
 	   more gentle handling of IOMMU overflow. */
 	if (iommu_sac_force && (mask >= DMA_40BIT_MASK)) {
-		printk(KERN_INFO "%s: Force SAC with mask %Lx\n",
-				 dev->bus_id, mask);
+		dev_info(dev, "Force SAC with mask %Lx\n", mask);
 		return 0;
 	}
 
@@ -500,17 +489,13 @@ EXPORT_SYMBOL(dma_free_coherent);
 
 static int __init pci_iommu_init(void)
 {
-#ifdef CONFIG_CALGARY_IOMMU
 	calgary_iommu_init();
-#endif
 
 	intel_iommu_init();
 
 	amd_iommu_init();
 
-#ifdef CONFIG_GART_IOMMU
 	gart_iommu_init();
-#endif
 
 	no_iommu_init();
 	return 0;

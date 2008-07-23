@@ -1236,13 +1236,13 @@ static void rp_set_termios(struct tty_struct *tty,
 	}
 }
 
-static void rp_break(struct tty_struct *tty, int break_state)
+static int rp_break(struct tty_struct *tty, int break_state)
 {
 	struct r_port *info = (struct r_port *) tty->driver_data;
 	unsigned long flags;
 
 	if (rocket_paranoia_check(info, "rp_break"))
-		return;
+		return -EINVAL;
 
 	spin_lock_irqsave(&info->slock, flags);
 	if (break_state == -1)
@@ -1250,6 +1250,7 @@ static void rp_break(struct tty_struct *tty, int break_state)
 	else
 		sClrBreak(&info->channel);
 	spin_unlock_irqrestore(&info->slock, flags);
+	return 0;
 }
 
 /*

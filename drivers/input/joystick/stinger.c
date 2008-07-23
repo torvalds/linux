@@ -1,6 +1,4 @@
 /*
- * $Id: stinger.c,v 1.10 2002/01/22 20:29:31 vojtech Exp $
- *
  *  Copyright (c) 2000-2001 Vojtech Pavlik
  *  Copyright (c) 2000 Mark Fletcher
  */

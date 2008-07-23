@@ -653,7 +653,8 @@ static int reader_probe(struct pcmcia_device *link)
 		return ret;
 	}
 
-	device_create(cmx_class, NULL, MKDEV(major, i), "cmx%d", i);
+	device_create_drvdata(cmx_class, NULL, MKDEV(major, i), NULL,
+			      "cmx%d", i);
 
 	return 0;
 }

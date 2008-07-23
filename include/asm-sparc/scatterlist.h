@@ -1,26 +1,8 @@
-#ifndef _SPARC_SCATTERLIST_H
-#define _SPARC_SCATTERLIST_H
-
-#include <linux/types.h>
-
-struct scatterlist {
-#ifdef CONFIG_DEBUG_SG
-	unsigned long sg_magic;
+#ifndef ___ASM_SPARC_SCATTERLIST_H
+#define ___ASM_SPARC_SCATTERLIST_H
+#if defined(__sparc__) && defined(__arch64__)
+#include <asm-sparc/scatterlist_64.h>
+#else
+#include <asm-sparc/scatterlist_32.h>
 #endif
-	unsigned long page_link;
-	unsigned int offset;
-
-	unsigned int length;
-
-	__u32 dvma_address; /* A place to hang host-specific addresses at. */
-	__u32 dvma_length;
-};
-
-#define sg_dma_address(sg) ((sg)->dvma_address)
-#define sg_dma_len(sg)     ((sg)->dvma_length)
-
-#define ISA_DMA_THRESHOLD (~0UL)
-
-#define ARCH_HAS_SG_CHAIN
-
-#endif /* !(_SPARC_SCATTERLIST_H) */
+#endif

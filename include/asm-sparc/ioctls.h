@@ -22,7 +22,7 @@
 
 /* Note that all the ioctls that are not available in Linux have a 
  * double underscore on the front to: a) avoid some programs to
- * thing we support some ioctls under Linux (autoconfiguration stuff)
+ * think we support some ioctls under Linux (autoconfiguration stuff)
  */
 /* Little t */
 #define TIOCGETD	_IOR('t', 0, int)
@@ -110,7 +110,7 @@
 #define TIOCSERGETLSR   0x5459 /* Get line status register */
 #define TIOCSERGETMULTI 0x545A /* Get multiport config  */
 #define TIOCSERSETMULTI 0x545B /* Set multiport config */
-#define TIOCMIWAIT	0x545C /* Wait input */
+#define TIOCMIWAIT	0x545C /* Wait for change on serial input line(s) */
 #define TIOCGICOUNT	0x545D /* Read serial port inline interrupt counts */
 
 /* Kernel definitions */

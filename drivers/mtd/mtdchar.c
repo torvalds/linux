@@ -28,10 +28,13 @@ static void mtd_notify_add(struct mtd_info* mtd)
 	if (!mtd)
 		return;
 
-	device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2), "mtd%d", mtd->index);
+	device_create_drvdata(mtd_class, NULL,
+			      MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
+			      NULL, "mtd%d", mtd->index);
 
-	device_create(mtd_class, NULL,
-		      MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1), "mtd%dro", mtd->index);
+	device_create_drvdata(mtd_class, NULL,
+			      MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
+			      NULL, "mtd%dro", mtd->index);
 }
 
 static void mtd_notify_remove(struct mtd_info* mtd)

@@ -797,9 +797,9 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 	op->dev.parent = parent;
 	op->dev.bus = &of_platform_bus_type;
 	if (!parent)
-		strcpy(op->dev.bus_id, "root");
+		dev_set_name(&op->dev, "root");
 	else
-		sprintf(op->dev.bus_id, "%08x", dp->node);
+		dev_set_name(&op->dev, "%08x", dp->node);
 
 	if (of_device_register(op)) {
 		printk("%s: Could not register of device.\n",

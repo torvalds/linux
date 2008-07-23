@@ -374,12 +374,13 @@ copy:
 	return ret;
 }
 
-static void moxa_break_ctl(struct tty_struct *tty, int state)
+static int moxa_break_ctl(struct tty_struct *tty, int state)
 {
 	struct moxa_port *port = tty->driver_data;
 
 	moxafunc(port->tableAddr, state ? FC_SendBreak : FC_StopBreak,
 			Magic_code);
+	return 0;
 }
 
 static const struct tty_operations moxa_ops = {

@@ -88,7 +88,6 @@ struct nf_conn_help {
 	u8 expecting[NF_CT_MAX_EXPECT_CLASSES];
 };
 
-
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 
@@ -110,11 +109,6 @@ struct nf_conn
 
 	/* Timer function; drops refcnt when it goes off. */
 	struct timer_list timeout;
-
-#ifdef CONFIG_NF_CT_ACCT
-	/* Accounting Information (same cache line as other written members) */
-	struct ip_conntrack_counter counters[IP_CT_DIR_MAX];
-#endif
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	u_int32_t mark;

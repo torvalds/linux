@@ -1025,7 +1025,7 @@ static int stl_write(struct tty_struct *tty, const unsigned char *buf, int count
 
 /*****************************************************************************/
 
-static void stl_putchar(struct tty_struct *tty, unsigned char ch)
+static int stl_putchar(struct tty_struct *tty, unsigned char ch)
 {
 	struct stlport	*portp;
 	unsigned int	len;
@@ -1034,12 +1034,12 @@ static void stl_putchar(struct tty_struct *tty, unsigned char ch)
 	pr_debug("stl_putchar(tty=%p,ch=%x)\n", tty, ch);
 
 	if (tty == NULL)
-		return;
+		return -EINVAL;
 	portp = tty->driver_data;
 	if (portp == NULL)
-		return;
+		return -EINVAL;
 	if (portp->tx.buf == NULL)
-		return;
+		return -EINVAL;
 
 	head = portp->tx.head;
 	tail = portp->tx.tail;
@@ -1053,6 +1053,7 @@ static void stl_putchar(struct tty_struct *tty, unsigned char ch)
 			head = portp->tx.buf;
 	}	
 	portp->tx.head = head;
+	return 0;
 }
 
 /*****************************************************************************/
@@ -1460,19 +1461,20 @@ static void stl_hangup(struct tty_struct *tty)
 
 /*****************************************************************************/
 
-static void stl_breakctl(struct tty_struct *tty, int state)
+static int stl_breakctl(struct tty_struct *tty, int state)
 {
 	struct stlport	*portp;
 
 	pr_debug("stl_breakctl(tty=%p,state=%d)\n", tty, state);
 
 	if (tty == NULL)
-		return;
+		return -EINVAL;
 	portp = tty->driver_data;
 	if (portp == NULL)
-		return;
+		return -EINVAL;
 
 	stl_sendbreak(portp, ((state == -1) ? 1 : 2));
+	return 0;
 }
 
 /*****************************************************************************/
@@ -4753,8 +4755,8 @@ static int __init stallion_module_init(void)
 	if (IS_ERR(stallion_class))
 		printk("STALLION: failed to create class\n");
 	for (i = 0; i < 4; i++)
-		device_create(stallion_class, NULL, MKDEV(STL_SIOMEMMAJOR, i),
-			      "staliomem%d", i);
+		device_create_drvdata(stallion_class, NULL, MKDEV(STL_SIOMEMMAJOR, i),
+				      NULL, "staliomem%d", i);
 
 	return 0;
 err_unrtty:

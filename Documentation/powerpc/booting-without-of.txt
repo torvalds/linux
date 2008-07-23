@@ -89,9 +89,11 @@ Table of Contents
     3) OpenPIC Interrupt Controllers
     4) ISA Interrupt Controllers
 
-  VIII - Specifying GPIO information for devices
+  IX - Specifying GPIO information for devices
     1) gpios property
     2) gpio-controller nodes
+
+  X - Specifying device power management information (sleep property)
 
   Appendix A - Sample SOC node for MPC8540
 
@@ -2488,8 +2490,8 @@ encodings listed below:
 	2 =  high to low edge sensitive type enabled
 	3 =  low to high edge sensitive type enabled
 
-VIII - Specifying GPIO information for devices
-==============================================
+IX - Specifying GPIO information for devices
+============================================
 
 1) gpios property
 -----------------
@@ -2537,116 +2539,151 @@ Example of two SOC GPIO banks defined as gpio-controller nodes:
 		gpio-controller;
 	};
 
+X - Specifying Device Power Management Information (sleep property)
+===================================================================
+
+Devices on SOCs often have mechanisms for placing devices into low-power
+states that are decoupled from the devices' own register blocks.  Sometimes,
+this information is more complicated than a cell-index property can
+reasonably describe.  Thus, each device controlled in such a manner
+may contain a "sleep" property which describes these connections.
+
+The sleep property consists of one or more sleep resources, each of
+which consists of a phandle to a sleep controller, followed by a
+controller-specific sleep specifier of zero or more cells.
+
+The semantics of what type of low power modes are possible are defined
+by the sleep controller.  Some examples of the types of low power modes
+that may be supported are:
+
+ - Dynamic: The device may be disabled or enabled at any time.
+ - System Suspend: The device may request to be disabled or remain
+   awake during system suspend, but will not be disabled until then.
+ - Permanent: The device is disabled permanently (until the next hard
+   reset).
+
+Some devices may share a clock domain with each other, such that they should
+only be suspended when none of the devices are in use.  Where reasonable,
+such nodes should be placed on a virtual bus, where the bus has the sleep
+property.  If the clock domain is shared among devices that cannot be
+reasonably grouped in this manner, then create a virtual sleep controller
+(similar to an interrupt nexus, except that defining a standardized
+sleep-map should wait until its necessity is demonstrated).
+
 Appendix A - Sample SOC node for MPC8540
 ========================================
 
-Note that the #address-cells and #size-cells for the SoC node
-in this example have been explicitly listed; these are likely
-not necessary as they are usually the same as the root node.
-
-	soc8540@e0000000 {
+	soc@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
+		compatible = "fsl,mpc8540-ccsr", "simple-bus";
 		device_type = "soc";
-		ranges = <00000000 e0000000 00100000>
-		reg = <e0000000 00003000>;
+		ranges = <0x00000000 0xe0000000 0x00100000>
 		bus-frequency = <0>;
-
-		mdio@24520 {
-			reg = <24520 20>;
-			device_type = "mdio";
-			compatible = "gianfar";
-
-			ethernet-phy@0 {
-				linux,phandle = <2452000>
-				interrupt-parent = <40000>;
-				interrupts = <35 1>;
-				reg = <0>;
-				device_type = "ethernet-phy";
-			};
-
-			ethernet-phy@1 {
-				linux,phandle = <2452001>
-				interrupt-parent = <40000>;
-				interrupts = <35 1>;
-				reg = <1>;
-				device_type = "ethernet-phy";
-			};
-
-			ethernet-phy@3 {
-				linux,phandle = <2452002>
-				interrupt-parent = <40000>;
-				interrupts = <35 1>;
-				reg = <3>;
-				device_type = "ethernet-phy";
-			};
-
-		};
+		interrupt-parent = <&pic>;
 
 		ethernet@24000 {
-			#size-cells = <0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			device_type = "network";
 			model = "TSEC";
-			compatible = "gianfar";
-			reg = <24000 1000>;
-			mac-address = [ 00 E0 0C 00 73 00 ];
-			interrupts = <d 3 e 3 12 3>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452000>;
+			compatible = "gianfar", "simple-bus";
+			reg = <0x24000 0x1000>;
+			local-mac-address = [ 00 E0 0C 00 73 00 ];
+			interrupts = <29 2 30 2 34 2>;
+			phy-handle = <&phy0>;
+			sleep = <&pmc 00000080>;
+			ranges;
+
+			mdio@24520 {
+				reg = <0x24520 0x20>;
+				compatible = "fsl,gianfar-mdio";
+
+				phy0: ethernet-phy@0 {
+					interrupts = <5 1>;
+					reg = <0>;
+					device_type = "ethernet-phy";
+				};
+
+				phy1: ethernet-phy@1 {
+					interrupts = <5 1>;
+					reg = <1>;
+					device_type = "ethernet-phy";
+				};
+
+				phy3: ethernet-phy@3 {
+					interrupts = <7 1>;
+					reg = <3>;
+					device_type = "ethernet-phy";
+				};
+			};
 		};
 
 		ethernet@25000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
-			reg = <25000 1000>;
-			mac-address = [ 00 E0 0C 00 73 01 ];
-			interrupts = <13 3 14 3 18 3>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452001>;
+			reg = <0x25000 0x1000>;
+			local-mac-address = [ 00 E0 0C 00 73 01 ];
+			interrupts = <13 2 14 2 18 2>;
+			phy-handle = <&phy1>;
+			sleep = <&pmc 00000040>;
 		};
 
 		ethernet@26000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
 			device_type = "network";
 			model = "FEC";
 			compatible = "gianfar";
-			reg = <26000 1000>;
-			mac-address = [ 00 E0 0C 00 73 02 ];
-			interrupts = <19 3>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452002>;
+			reg = <0x26000 0x1000>;
+			local-mac-address = [ 00 E0 0C 00 73 02 ];
+			interrupts = <41 2>;
+			phy-handle = <&phy3>;
+			sleep = <&pmc 00000020>;
 		};
 
 		serial@4500 {
-			device_type = "serial";
-			compatible = "ns16550";
-			reg = <4500 100>;
-			clock-frequency = <0>;
-			interrupts = <1a 3>;
-			interrupt-parent = <40000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8540-duart", "simple-bus";
+			sleep = <&pmc 00000002>;
+			ranges;
+
+			serial@4500 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0x4500 0x100>;
+				clock-frequency = <0>;
+				interrupts = <42 2>;
+			};
+
+			serial@4600 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0x4600 0x100>;
+				clock-frequency = <0>;
+				interrupts = <42 2>;
+			};
 		};
 
-		pic@40000 {
-			linux,phandle = <40000>;
+		pic: pic@40000 {
 			interrupt-controller;
 			#address-cells = <0>;
-			reg = <40000 40000>;
+			#interrupt-cells = <2>;
+			reg = <0x40000 0x40000>;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
 		};
 
 		i2c@3000 {
-			interrupt-parent = <40000>;
-			interrupts = <1b 3>;
-			reg = <3000 18>;
-			device_type = "i2c";
+			interrupts = <43 2>;
+			reg = <0x3000 0x100>;
 			compatible  = "fsl-i2c";
 			dfsrr;
+			sleep = <&pmc 00000004>;
 		};
 
+		pmc: power@e0070 {
+			compatible = "fsl,mpc8540-pmc", "fsl,mpc8548-pmc";
+			reg = <0xe0070 0x20>;
+		};
 	};

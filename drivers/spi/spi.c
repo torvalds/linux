@@ -502,7 +502,7 @@ struct spi_master *spi_busnum_to_master(u16 bus_num)
 	struct device		*dev;
 	struct spi_master	*master = NULL;
 
-	dev = class_find_device(&spi_master_class, &bus_num,
+	dev = class_find_device(&spi_master_class, NULL, &bus_num,
 				__spi_master_match);
 	if (dev)
 		master = container_of(dev, struct spi_master, dev);

@@ -263,7 +263,7 @@ late_initcall(init_lapic_nmi_sysfs);
 
 static void __acpi_nmi_enable(void *__unused)
 {
-	apic_write_around(APIC_LVT0, APIC_DM_NMI);
+	apic_write(APIC_LVT0, APIC_DM_NMI);
 }
 
 /*
@@ -277,7 +277,7 @@ void acpi_nmi_enable(void)
 
 static void __acpi_nmi_disable(void *__unused)
 {
-	apic_write_around(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
 }
 
 /*
@@ -447,6 +447,13 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 }
 
 #ifdef CONFIG_SYSCTL
+
+static int __init setup_unknown_nmi_panic(char *str)
+{
+	unknown_nmi_panic = 1;
+	return 1;
+}
+__setup("unknown_nmi_panic", setup_unknown_nmi_panic);
 
 static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
 {

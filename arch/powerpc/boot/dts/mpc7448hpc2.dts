@@ -18,6 +18,16 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+
+		serial0 = &serial0;
+		serial1 = &serial1;
+
+		pci0 = &pci0;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells =<0>;
@@ -78,7 +88,7 @@
 
 		};
 
-		ethernet@6200 {
+		enet0: ethernet@6200 {
 			linux,network-index = <0>;
 			#size-cells = <0>;
 			device_type = "network";
@@ -91,7 +101,7 @@
 			phy-handle = <&phy8>;
 		};
 
-		ethernet@6600 {
+		enet1: ethernet@6600 {
 			linux,network-index = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -105,7 +115,7 @@
 			phy-handle = <&phy9>;
 		};
 
-		serial@7808 {
+		serial0: serial@7808 {
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <0x7808 0x200>;
@@ -114,7 +124,7 @@
 			interrupt-parent = <&mpic>;
 		};
 
-		serial@7c08 {
+		serial1: serial@7c08 {
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <0x7c08 0x200>;
@@ -131,7 +141,7 @@
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
 		};
-		pci@1000 {
+		pci0: pci@1000 {
 			compatible = "tsi108-pci";
 			device_type = "pci";
 			#interrupt-cells = <1>;
@@ -184,8 +194,4 @@
 			};
 		};
 	};
-	chosen {
-		linux,stdout-path = "/tsi108@c0000000/serial@7808";
-	};
-
 };

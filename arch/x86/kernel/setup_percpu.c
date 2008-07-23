@@ -227,8 +227,8 @@ static void __init setup_node_to_cpumask_map(void)
 	/* allocate the map */
 	map = alloc_bootmem_low(nr_node_ids * sizeof(cpumask_t));
 
-	Dprintk(KERN_DEBUG "Node to cpumask map at %p for %d nodes\n",
-		map, nr_node_ids);
+	pr_debug(KERN_DEBUG "Node to cpumask map at %p for %d nodes\n",
+		 map, nr_node_ids);
 
 	/* node_to_cpumask() will now work */
 	node_to_cpumask_map = map;
@@ -248,7 +248,7 @@ void __cpuinit numa_set_node(int cpu, int node)
 		per_cpu(x86_cpu_to_node_map, cpu) = node;
 
 	else
-		Dprintk(KERN_INFO "Setting node for non-present cpu %d\n", cpu);
+		pr_debug("Setting node for non-present cpu %d\n", cpu);
 }
 
 void __cpuinit numa_clear_node(int cpu)

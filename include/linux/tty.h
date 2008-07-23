@@ -317,8 +317,6 @@ extern void tty_wait_until_sent(struct tty_struct *tty, long timeout);
 extern int tty_check_change(struct tty_struct *tty);
 extern void stop_tty(struct tty_struct *tty);
 extern void start_tty(struct tty_struct *tty);
-extern int tty_register_ldisc(int disc, struct tty_ldisc_ops *new_ldisc);
-extern int tty_unregister_ldisc(int disc);
 extern int tty_register_driver(struct tty_driver *driver);
 extern int tty_unregister_driver(struct tty_driver *driver);
 extern struct device *tty_register_device(struct tty_driver *driver,
@@ -383,6 +381,15 @@ extern void tty_port_init(struct tty_port *port);
 extern int tty_port_alloc_xmit_buf(struct tty_port *port);
 extern void tty_port_free_xmit_buf(struct tty_port *port);
 
+extern int tty_register_ldisc(int disc, struct tty_ldisc_ops *new_ldisc);
+extern int tty_unregister_ldisc(int disc);
+extern int tty_set_ldisc(struct tty_struct *tty, int ldisc);
+extern int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty);
+extern void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty);
+extern void tty_ldisc_init(struct tty_struct *tty);
+extern void tty_ldisc_begin(void);
+/* This last one is just for the tty layer internals and shouldn't be used elsewhere */
+extern void tty_ldisc_enable(struct tty_struct *tty);
 
 
 /* n_tty.c */
