@@ -871,10 +871,11 @@ int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
 		return ubifs_jnl_write_inode(c, inode);
 	}
 
-	ubifs_delete_orphan(c, inode->i_ino);
 	err = ubifs_tnc_remove_ino(c, inode->i_ino);
 	if (err)
 		ubifs_ro_mode(c, err);
+	else
+		ubifs_delete_orphan(c, inode->i_ino);
 	up_read(&c->commit_sem);
 	return err;
 }
