@@ -188,14 +188,6 @@ static void scc_ide_outb(u8 addr, unsigned long port)
 	out_be32((void*)port, addr);
 }
 
-static void scc_ide_outbsync(ide_hwif_t *hwif, u8 addr, unsigned long port)
-{
-	out_be32((void*)port, addr);
-	eieio();
-	in_be32((void*)(hwif->dma_base + 0x01c));
-	eieio();
-}
-
 static void
 scc_ide_outsw(unsigned long port, void *addr, u32 count)
 {
@@ -828,10 +820,6 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 
 	hwif->input_data  = scc_input_data;
 	hwif->output_data = scc_output_data;
-
-	hwif->INB = scc_ide_inb;
-	hwif->OUTB = scc_ide_outb;
-	hwif->OUTBSYNC = scc_ide_outbsync;
 
 	hwif->dma_base = dma_base;
 	hwif->config_data = ports->ctl;

@@ -504,11 +504,6 @@ typedef struct hwif_s {
 
 	void (*ide_dma_clear_irq)(ide_drive_t *drive);
 
-	void (*OUTB)(u8 addr, unsigned long port);
-	void (*OUTBSYNC)(struct hwif_s *hwif, u8 addr, unsigned long port);
-
-	u8  (*INB)(unsigned long port);
-
 	/* dma physical region descriptor table (cpu view) */
 	unsigned int	*dmatable_cpu;
 	/* dma physical region descriptor table (dma view) */
@@ -1027,8 +1022,6 @@ static inline int ide_hwif_setup_dma(ide_hwif_t *hwif,
 }
 #endif
 
-extern void default_hwif_iops(ide_hwif_t *);
-extern void default_hwif_mmiops(ide_hwif_t *);
 extern void default_hwif_transport(ide_hwif_t *);
 
 typedef struct ide_pci_enablebit_s {

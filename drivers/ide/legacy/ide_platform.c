@@ -103,10 +103,8 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	plat_ide_setup_ports(&hw, base, alt_base, pdata, res_irq->start);
 	hw.dev = &pdev->dev;
 
-	if (mmio) {
+	if (mmio)
 		d.host_flags |= IDE_HFLAG_MMIO;
-		default_hwif_mmiops(hwif);
-	}
 
 	idx[0] = hwif->index;
 

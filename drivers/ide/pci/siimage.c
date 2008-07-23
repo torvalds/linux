@@ -601,7 +601,7 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 	 *	Fill in the basic hwif bits
 	 */
 	hwif->host_flags |= IDE_HFLAG_MMIO;
-	default_hwif_mmiops(hwif);
+
 	hwif->hwif_data	= addr;
 
 	/*

@@ -486,15 +486,6 @@ pmac_ide_do_update_timings(ide_drive_t *drive)
 		pmac_ide_selectproc(drive);
 }
 
-static void pmac_outbsync(ide_hwif_t *hwif, u8 value, unsigned long port)
-{
-	u32 tmp;
-	
-	writeb(value, (void __iomem *) port);
-	tmp = readl((void __iomem *)(hwif->io_ports.data_addr
-				     + IDE_TIMING_CONFIG));
-}
-
 static void pmac_exec_command(ide_hwif_t *hwif, u8 cmd)
 {
 	writeb(cmd, (void __iomem *)hwif->io_ports.command_addr);
@@ -1117,10 +1108,6 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 
 	hwif->exec_command = pmac_exec_command;
 	hwif->set_irq	   = pmac_set_irq;
-
-	/* Setup MMIO ops */
-	default_hwif_mmiops(hwif);
-       	hwif->OUTBSYNC = pmac_outbsync;
 
 	idx[0] = hwif->index;
 

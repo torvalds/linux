@@ -623,9 +623,6 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	if (hwif == NULL)
 		goto err;
 
-	/* The IOC4 uses MMIO rather than Port IO. */
-	default_hwif_mmiops(hwif);
-
 	/* Initializing chipset IRQ Registers */
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 

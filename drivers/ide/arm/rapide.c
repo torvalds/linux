@@ -59,8 +59,6 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto release;
 	}
 
-	default_hwif_mmiops(hwif);
-
 	idx[0] = hwif->index;
 
 	ide_device_add(idx, &rapide_port_info, hws);

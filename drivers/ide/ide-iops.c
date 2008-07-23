@@ -42,18 +42,6 @@ static void ide_outb (u8 val, unsigned long port)
 	outb(val, port);
 }
 
-static void ide_outbsync(ide_hwif_t *hwif, u8 addr, unsigned long port)
-{
-	outb(addr, port);
-}
-
-void default_hwif_iops (ide_hwif_t *hwif)
-{
-	hwif->OUTB	= ide_outb;
-	hwif->OUTBSYNC	= ide_outbsync;
-	hwif->INB	= ide_inb;
-}
-
 /*
  *	MMIO operations, typically used for SATA controllers
  */
@@ -67,22 +55,6 @@ static void ide_mm_outb (u8 value, unsigned long port)
 {
 	writeb(value, (void __iomem *) port);
 }
-
-static void ide_mm_outbsync(ide_hwif_t *hwif, u8 value, unsigned long port)
-{
-	writeb(value, (void __iomem *) port);
-}
-
-void default_hwif_mmiops (ide_hwif_t *hwif)
-{
-	hwif->OUTB	= ide_mm_outb;
-	/* Most systems will need to override OUTBSYNC, alas however
-	   this one is controller specific! */
-	hwif->OUTBSYNC	= ide_mm_outbsync;
-	hwif->INB	= ide_mm_inb;
-}
-
-EXPORT_SYMBOL(default_hwif_mmiops);
 
 void SELECT_DRIVE (ide_drive_t *drive)
 {

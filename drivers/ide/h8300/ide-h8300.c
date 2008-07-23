@@ -171,8 +171,6 @@ static inline void hw_setup(hw_regs_t *hw)
 
 static inline void hwif_setup(ide_hwif_t *hwif)
 {
-	default_hwif_iops(hwif);
-
 	hwif->tf_load = h8300_tf_load;
 	hwif->tf_read = h8300_tf_read;
 

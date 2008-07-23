@@ -469,8 +469,6 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 	if (!hwif)
 		return -ENODEV;
 
-	default_hwif_mmiops(hwif);
-
 	state->hwif[0] = hwif;
 
 	ecard_set_drvdata(ec, state);
@@ -547,14 +545,11 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 		return -ENODEV;
 
 	hwif->chipset = ide_acorn;
-	default_hwif_mmiops(hwif);
 
 	idx[0] = hwif->index;
 
 	mate = ide_find_port();
 	if (mate) {
-		default_hwif_mmiops(mate);
-
 		hws[1] = &hw[1];
 		idx[1] = mate->index;
 	}

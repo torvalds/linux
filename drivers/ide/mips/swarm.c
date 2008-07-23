@@ -120,9 +120,6 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	if (hwif == NULL)
 		goto err;
 
-	/* Setup MMIO ops. */
-	default_hwif_mmiops(hwif);
-
 	idx[0] = hwif->index;
 
 	ide_device_add(idx, &swarm_port_info, hws);

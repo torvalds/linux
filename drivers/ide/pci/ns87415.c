@@ -28,10 +28,6 @@
  */
 #include <asm/superio.h>
 
-static unsigned long superio_ide_status[2];
-static unsigned long superio_ide_select[2];
-static unsigned long superio_ide_dma_status[2];
-
 #define SUPERIO_IDE_MAX_RETRIES 25
 
 /* Because of a defect in Super I/O, all reads of the PCI DMA status 
@@ -40,27 +36,18 @@ static unsigned long superio_ide_dma_status[2];
  */
 static u8 superio_ide_inb (unsigned long port)
 {
-	if (port == superio_ide_status[0] ||
-	    port == superio_ide_status[1] ||
-	    port == superio_ide_select[0] ||
-	    port == superio_ide_select[1] ||
-	    port == superio_ide_dma_status[0] ||
-	    port == superio_ide_dma_status[1]) {
-		u8 tmp;
-		int retries = SUPERIO_IDE_MAX_RETRIES;
+	u8 tmp;
+	int retries = SUPERIO_IDE_MAX_RETRIES;
 
-		/* printk(" [ reading port 0x%x with retry ] ", port); */
+	/* printk(" [ reading port 0x%x with retry ] ", port); */
 
-		do {
-			tmp = inb(port);
-			if (tmp == 0)
-				udelay(50);
-		} while (tmp == 0 && retries-- > 0);
+	do {
+		tmp = inb(port);
+		if (tmp == 0)
+			udelay(50);
+	} while (tmp == 0 && retries-- > 0);
 
-		return tmp;
-	}
-
-	return inb(port);
+	return tmp;
 }
 
 static u8 superio_read_status(ide_hwif_t *hwif)
@@ -120,27 +107,20 @@ static void superio_tf_read(ide_drive_t *drive, ide_task_t *task)
 static void __devinit superio_ide_init_iops (struct hwif_s *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
-	u32 base, dmabase;
+	u32 dma_stat;
 	u8 port = hwif->channel, tmp;
 
-	base = pci_resource_start(pdev, port * 2) & ~3;
-	dmabase = pci_resource_start(pdev, 4) & ~3;
-
-	superio_ide_status[port] = base + 7;
-	superio_ide_select[port] = base + 6;
-	superio_ide_dma_status[port] = dmabase + (!port ? 2 : 0xa);
+	dma_stat = (pci_resource_start(pdev, 4) & ~3) + (!port ? 2 : 0xa);
 
 	/* Clear error/interrupt, enable dma */
-	tmp = superio_ide_inb(superio_ide_dma_status[port]);
-	outb(tmp | 0x66, superio_ide_dma_status[port]);
+	tmp = superio_ide_inb(dma_stat);
+	outb(tmp | 0x66, dma_stat);
 
 	hwif->read_status	  = superio_read_status;
 	hwif->read_sff_dma_status = superio_read_sff_dma_status;
 
 	hwif->tf_read = superio_tf_read;
 
-	/* We need to override inb to workaround a SuperIO errata */
-	hwif->INB = superio_ide_inb;
 }
 
 static void __devinit init_iops_ns87415(ide_hwif_t *hwif)

@@ -399,8 +399,6 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 
 	i = hwif->index;
 
-	default_hwif_mmiops(hwif);
-
 	idx[0] = i;
 
 	ide_device_add(idx, &palm_bk3710_port_info, hws);
