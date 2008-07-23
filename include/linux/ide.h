@@ -958,6 +958,7 @@ extern void SELECT_DRIVE(ide_drive_t *);
 void SELECT_MASK(ide_drive_t *, int);
 
 u8 ide_read_error(ide_drive_t *);
+void ide_read_bcount_and_ireason(ide_drive_t *, u16 *, u8 *);
 
 extern int drive_is_ready(ide_drive_t *);
 

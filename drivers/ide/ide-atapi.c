@@ -107,11 +107,9 @@ cmd_finished:
 		ide_dma_off(drive);
 		return ide_do_reset(drive);
 	}
-	/* Get the number of bytes to transfer on this interrupt. */
-	bcount = (hwif->INB(hwif->io_ports.lbah_addr) << 8) |
-		  hwif->INB(hwif->io_ports.lbam_addr);
 
-	ireason = hwif->INB(hwif->io_ports.nsect_addr);
+	/* Get the number of bytes to transfer on this interrupt. */
+	ide_read_bcount_and_ireason(drive, &bcount, &ireason);
 
 	if (ireason & CD) {
 		printk(KERN_ERR "%s: CoD != 0 in %s\n", drive->name, __func__);

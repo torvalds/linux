@@ -895,10 +895,11 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	struct request *rq = HWGROUP(drive)->rq;
 	xfer_func_t *xferfunc;
 	ide_expiry_t *expiry = NULL;
-	int dma_error = 0, dma, stat, ireason, len, thislen, uptodate = 0;
+	int dma_error = 0, dma, stat, thislen, uptodate = 0;
 	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0;
 	unsigned int timeout;
-	u8 lowcyl, highcyl;
+	u16 len;
+	u8 ireason;
 
 	/* check for errors */
 	dma = info->dma;
@@ -926,12 +927,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		goto end_request;
 	}
 
-	/* ok we fall to pio :/ */
-	ireason = hwif->INB(hwif->io_ports.nsect_addr) & 0x3;
-	lowcyl  = hwif->INB(hwif->io_ports.lbam_addr);
-	highcyl = hwif->INB(hwif->io_ports.lbah_addr);
-
-	len = lowcyl + (256 * highcyl);
+	ide_read_bcount_and_ireason(drive, &len, &ireason);
 
 	thislen = blk_fs_request(rq) ? len : rq->data_len;
 	if (thislen > len)
