@@ -345,7 +345,7 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
 	ide_task_t task;
 	int err;
 
-	if (arg < 0 || arg > 70)
+	if (arg < 0 || (arg > 1 && arg < XFER_PIO_0) || arg > XFER_UDMA_6)
 		return -EINVAL;
 
 	memset(&task, 0, sizeof(task));
