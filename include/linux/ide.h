@@ -489,7 +489,8 @@ typedef struct hwif_s {
 	const struct ide_port_ops	*port_ops;
 	const struct ide_dma_ops	*dma_ops;
 
-	u8 (*read_sff_dma_status)(struct hwif_s *);
+	void	(*exec_command)(struct hwif_s *, u8);
+	u8	(*read_sff_dma_status)(struct hwif_s *);
 
 	void (*tf_load)(ide_drive_t *, struct ide_task_s *);
 	void (*tf_read)(ide_drive_t *, struct ide_task_s *);

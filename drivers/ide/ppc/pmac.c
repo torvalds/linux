@@ -495,6 +495,13 @@ static void pmac_outbsync(ide_hwif_t *hwif, u8 value, unsigned long port)
 				     + IDE_TIMING_CONFIG));
 }
 
+static void pmac_exec_command(ide_hwif_t *hwif, u8 cmd)
+{
+	writeb(cmd, (void __iomem *)hwif->io_ports.command_addr);
+	(void)readl((void __iomem *)(hwif->io_ports.data_addr
+				     + IDE_TIMING_CONFIG));
+}
+
 /*
  * Old tuning functions (called on hdparm -p), sets up drive PIO timings
  */
@@ -1091,6 +1098,8 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 	hwif = ide_find_port_slot(&d);
 	if (hwif == NULL)
 		return -ENOENT;
+
+	hwif->exec_command = pmac_exec_command;
 
 	/* Setup MMIO ops */
 	default_hwif_mmiops(hwif);

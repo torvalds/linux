@@ -126,6 +126,14 @@ static u8 scc_ide_inb(unsigned long port)
 	return (u8)data;
 }
 
+static void scc_exec_command(ide_hwif_t *hwif, u8 cmd)
+{
+	out_be32((void *)hwif->io_ports.command_addr, cmd);
+	eieio();
+	in_be32((void *)(hwif->dma_base + 0x01c));
+	eieio();
+}
+
 static u8 scc_read_sff_dma_status(ide_hwif_t *hwif)
 {
 	return (u8)in_be32((void *)(hwif->dma_base + 4));
@@ -779,6 +787,7 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 
 	ide_set_hwifdata(hwif, ports);
 
+	hwif->exec_command	  = scc_exec_command;
 	hwif->read_sff_dma_status = scc_read_sff_dma_status;
 
 	hwif->tf_load = scc_tf_load;
