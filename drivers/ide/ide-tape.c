@@ -585,7 +585,6 @@ static void ide_tape_kfree_buffer(idetape_tape_t *tape)
 		bh = bh->b_reqnext;
 		kfree(prev_bh);
 	}
-	kfree(tape->merge_bh);
 }
 
 static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
