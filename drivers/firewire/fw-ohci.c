@@ -1765,6 +1765,28 @@ ohci_get_bus_time(struct fw_card *card)
 	return bus_time;
 }
 
+static void copy_iso_headers(struct iso_context *ctx, void *p)
+{
+	int i = ctx->header_length;
+
+	if (i + ctx->base.header_size > PAGE_SIZE)
+		return;
+
+	/*
+	 * The iso header is byteswapped to little endian by
+	 * the controller, but the remaining header quadlets
+	 * are big endian.  We want to present all the headers
+	 * as big endian, so we have to swap the first quadlet.
+	 */
+	if (ctx->base.header_size > 0)
+		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
+	if (ctx->base.header_size > 4)
+		*(u32 *) (ctx->header + i + 4) = __swab32(*(u32 *) p);
+	if (ctx->base.header_size > 8)
+		memcpy(ctx->header + i + 8, p + 8, ctx->base.header_size - 8);
+	ctx->header_length += ctx->base.header_size;
+}
+
 static int handle_ir_dualbuffer_packet(struct context *context,
 				       struct descriptor *d,
 				       struct descriptor *last)
@@ -1775,7 +1797,6 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	__le32 *ir_header;
 	size_t header_length;
 	void *p, *end;
-	int i;
 
 	if (db->first_res_count != 0 && db->second_res_count != 0) {
 		if (ctx->excess_bytes <= le16_to_cpu(db->second_req_count)) {
@@ -1788,25 +1809,14 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	header_length = le16_to_cpu(db->first_req_count) -
 		le16_to_cpu(db->first_res_count);
 
-	i = ctx->header_length;
 	p = db + 1;
 	end = p + header_length;
-	while (p < end && i + ctx->base.header_size <= PAGE_SIZE) {
-		/*
-		 * The iso header is byteswapped to little endian by
-		 * the controller, but the remaining header quadlets
-		 * are big endian.  We want to present all the headers
-		 * as big endian, so we have to swap the first
-		 * quadlet.
-		 */
-		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
-		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
-		i += ctx->base.header_size;
+	while (p < end) {
+		copy_iso_headers(ctx, p);
 		ctx->excess_bytes +=
 			(le32_to_cpu(*(__le32 *)(p + 4)) >> 16) & 0xffff;
-		p += ctx->base.header_size + 4;
+		p += max(ctx->base.header_size, (size_t)8);
 	}
-	ctx->header_length = i;
 
 	ctx->excess_bytes -= le16_to_cpu(db->second_req_count) -
 		le16_to_cpu(db->second_res_count);
@@ -1832,7 +1842,6 @@ static int handle_ir_packet_per_buffer(struct context *context,
 	struct descriptor *pd;
 	__le32 *ir_header;
 	void *p;
-	int i;
 
 	for (pd = d; pd <= last; pd++) {
 		if (pd->transfer_status)
@@ -1842,21 +1851,8 @@ static int handle_ir_packet_per_buffer(struct context *context,
 		/* Descriptor(s) not done yet, stop iteration */
 		return 0;
 
-	i   = ctx->header_length;
-	p   = last + 1;
-
-	if (ctx->base.header_size > 0 &&
-			i + ctx->base.header_size <= PAGE_SIZE) {
-		/*
-		 * The iso header is byteswapped to little endian by
-		 * the controller, but the remaining header quadlets
-		 * are big endian.  We want to present all the headers
-		 * as big endian, so we have to swap the first quadlet.
-		 */
-		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
-		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
-		ctx->header_length += ctx->base.header_size;
-	}
+	p = last + 1;
+	copy_iso_headers(ctx, p);
 
 	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS) {
 		ir_header = (__le32 *) p;
@@ -2151,11 +2147,11 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	z = 2;
 
 	/*
-	 * The OHCI controller puts the status word in the header
-	 * buffer too, so we need 4 extra bytes per packet.
+	 * The OHCI controller puts the isochronous header and trailer in the
+	 * buffer, so we need at least 8 bytes.
 	 */
 	packet_count = p->header_length / ctx->base.header_size;
-	header_size = packet_count * (ctx->base.header_size + 4);
+	header_size = packet_count * max(ctx->base.header_size, (size_t)8);
 
 	/* Get header size in number of descriptors. */
 	header_z = DIV_ROUND_UP(header_size, sizeof(*d));
@@ -2173,7 +2169,8 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		db = (struct db_descriptor *) d;
 		db->control = cpu_to_le16(DESCRIPTOR_STATUS |
 					  DESCRIPTOR_BRANCH_ALWAYS);
-		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
+		db->first_size =
+		    cpu_to_le16(max(ctx->base.header_size, (size_t)8));
 		if (p->skip && rest == p->payload_length) {
 			db->control |= cpu_to_le16(DESCRIPTOR_WAIT);
 			db->first_req_count = db->first_size;
@@ -2223,11 +2220,11 @@ ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
 	int page, offset, packet_count, header_size, payload_per_buffer;
 
 	/*
-	 * The OHCI controller puts the status word in the
-	 * buffer too, so we need 4 extra bytes per packet.
+	 * The OHCI controller puts the isochronous header and trailer in the
+	 * buffer, so we need at least 8 bytes.
 	 */
 	packet_count = p->header_length / ctx->base.header_size;
-	header_size  = ctx->base.header_size + 4;
+	header_size  = max(ctx->base.header_size, (size_t)8);
 
 	/* Get header size in number of descriptors. */
 	header_z = DIV_ROUND_UP(header_size, sizeof(*d));
