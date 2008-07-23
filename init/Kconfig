@@ -773,7 +773,6 @@ config PROFILING
 
 config TRACEPOINTS
 	bool "Activate tracepoints"
-	default y
 	help
 	  Place an empty function call at each tracepoint site. Can be
 	  dynamically changed for a probe function.
