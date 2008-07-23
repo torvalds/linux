@@ -45,6 +45,7 @@
 #include "print-tree.h"
 #include "xattr.h"
 #include "volumes.h"
+#include "version.h"
 
 #define BTRFS_SUPER_MAGIC 0x9123683E
 
@@ -605,6 +606,8 @@ static int __init init_btrfs_fs(void)
 	err = register_filesystem(&btrfs_fs_type);
 	if (err)
 		goto unregister_ioctl;
+
+	printk(KERN_INFO "%s loaded\n", BTRFS_BUILD_VERSION);
 	return 0;
 
 unregister_ioctl:

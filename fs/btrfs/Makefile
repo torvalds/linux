@@ -14,8 +14,12 @@ else
 # Normal Makefile
 
 KERNELDIR := /lib/modules/`uname -r`/build
-all:
+all: version
 	$(MAKE) -C $(KERNELDIR) M=`pwd` modules
+
+version:
+	bash version.sh
+
 modules_install:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` modules_install
 clean:
