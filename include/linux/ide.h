@@ -526,8 +526,6 @@ typedef struct hwif_s {
 	int		irq;		/* our irq number */
 
 	unsigned long	dma_base;	/* base addr for dma ports */
-	unsigned long	dma_command;	/* dma command register */
-	unsigned long	dma_status;	/* dma status register */
 
 	unsigned long	config_data;	/* for use by chipset-specific code */
 	unsigned long	select_data;	/* for use by chipset-specific code */

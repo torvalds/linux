@@ -106,9 +106,9 @@ void SELECT_MASK(ide_drive_t *drive, int mask)
 static u8 ide_read_sff_dma_status(ide_hwif_t *hwif)
 {
 	if (hwif->host_flags & IDE_HFLAG_MMIO)
-		return readb((void __iomem *)hwif->dma_status);
+		return readb((void __iomem *)(hwif->dma_base + ATA_DMA_STATUS));
 	else
-		return inb(hwif->dma_status);
+		return inb(hwif->dma_base + ATA_DMA_STATUS);
 }
 
 static void ide_tf_load(ide_drive_t *drive, ide_task_t *task)

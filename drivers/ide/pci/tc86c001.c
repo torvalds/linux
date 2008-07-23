@@ -63,7 +63,7 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 	ide_hwif_t *hwif	= HWIF(drive);
 	ide_expiry_t *expiry	= ide_get_hwifdata(hwif);
 	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
-	u8 dma_stat		= inb(hwif->dma_status);
+	u8 dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
 
 	/* Restore a higher level driver's expiry handler first. */
 	hwgroup->expiry	= expiry;
@@ -71,21 +71,24 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 	if ((dma_stat & 5) == 1) {	/* DMA active and no interrupt */
 		unsigned long sc_base	= hwif->config_data;
 		unsigned long twcr_port	= sc_base + (drive->dn ? 0x06 : 0x04);
-		u8 dma_cmd		= inb(hwif->dma_command);
+		u8 dma_cmd		= inb(hwif->dma_base + ATA_DMA_CMD);
 
 		printk(KERN_WARNING "%s: DMA interrupt possibly stuck, "
 		       "attempting recovery...\n", drive->name);
 
 		/* Stop DMA */
-		outb(dma_cmd & ~0x01, hwif->dma_command);
+		outb(dma_cmd & ~0x01, hwif->dma_base + ATA_DMA_CMD);
 
 		/* Setup the dummy DMA transfer */
 		outw(0, sc_base + 0x0a);	/* Sector Count */
 		outw(0, twcr_port);	/* Transfer Word Count 1 or 2 */
 
 		/* Start the dummy DMA transfer */
-		outb(0x00, hwif->dma_command); /* clear R_OR_WCTR for write */
-		outb(0x01, hwif->dma_command); /* set START_STOPBM */
+
+		/* clear R_OR_WCTR for write */
+		outb(0x00, hwif->dma_base + ATA_DMA_CMD);
+		/* set START_STOPBM */
+		outb(0x01, hwif->dma_base + ATA_DMA_CMD);
 
 		/*
 		 * If an interrupt was pending, it should come thru shortly.

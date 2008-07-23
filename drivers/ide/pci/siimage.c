@@ -334,7 +334,7 @@ static int siimage_io_dma_test_irq(ide_drive_t *drive)
 	unsigned long addr	= siimage_selreg(hwif, 1);
 
 	/* return 1 if INTR asserted */
-	if (hwif->INB(hwif->dma_status) & 4)
+	if (inb(hwif->dma_base + ATA_DMA_STATUS) & 4)
 		return 1;
 
 	/* return 1 if Device INTR asserted */
@@ -382,7 +382,7 @@ static int siimage_mmio_dma_test_irq(ide_drive_t *drive)
 	}
 
 	/* return 1 if INTR asserted */
-	if (readb((void __iomem *)hwif->dma_status) & 0x04)
+	if (readb((void __iomem *)(hwif->dma_base + ATA_DMA_STATUS)) & 4)
 		return 1;
 
 	/* return 1 if Device INTR asserted */
