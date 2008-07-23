@@ -249,27 +249,28 @@ struct module
 
 	/* Exported symbols */
 	const struct kernel_symbol *syms;
-	unsigned int num_syms;
 	const unsigned long *crcs;
+	unsigned int num_syms;
 
 	/* GPL-only exported symbols. */
-	const struct kernel_symbol *gpl_syms;
 	unsigned int num_gpl_syms;
+	const struct kernel_symbol *gpl_syms;
 	const unsigned long *gpl_crcs;
 
 	/* unused exported symbols. */
 	const struct kernel_symbol *unused_syms;
-	unsigned int num_unused_syms;
 	const unsigned long *unused_crcs;
+	unsigned int num_unused_syms;
+
 	/* GPL-only, unused exported symbols. */
-	const struct kernel_symbol *unused_gpl_syms;
 	unsigned int num_unused_gpl_syms;
+	const struct kernel_symbol *unused_gpl_syms;
 	const unsigned long *unused_gpl_crcs;
 
 	/* symbols that will be GPL-only in the near future. */
 	const struct kernel_symbol *gpl_future_syms;
-	unsigned int num_gpl_future_syms;
 	const unsigned long *gpl_future_crcs;
+	unsigned int num_gpl_future_syms;
 
 	/* Exception table */
 	unsigned int num_exentries;
@@ -300,23 +301,9 @@ struct module
 
 #ifdef CONFIG_GENERIC_BUG
 	/* Support for BUG */
+	unsigned num_bugs;
 	struct list_head bug_list;
 	struct bug_entry *bug_table;
-	unsigned num_bugs;
-#endif
-
-#ifdef CONFIG_MODULE_UNLOAD
-	/* Reference counts */
-	struct module_ref ref[NR_CPUS];
-
-	/* What modules depend on me? */
-	struct list_head modules_which_use_me;
-
-	/* Who is waiting for us to be unloaded */
-	struct task_struct *waiter;
-
-	/* Destruction function. */
-	void (*exit)(void);
 #endif
 
 #ifdef CONFIG_KALLSYMS
@@ -342,6 +329,21 @@ struct module
 	struct marker *markers;
 	unsigned int num_markers;
 #endif
+
+#ifdef CONFIG_MODULE_UNLOAD
+	/* What modules depend on me? */
+	struct list_head modules_which_use_me;
+
+	/* Who is waiting for us to be unloaded */
+	struct task_struct *waiter;
+
+	/* Destruction function. */
+	void (*exit)(void);
+
+	/* Reference counts */
+	struct module_ref ref[NR_CPUS];
+#endif
+
 };
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
