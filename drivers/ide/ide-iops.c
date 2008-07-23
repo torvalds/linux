@@ -88,11 +88,15 @@ void SELECT_DRIVE (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
+	ide_task_t task;
 
 	if (port_ops && port_ops->selectproc)
 		port_ops->selectproc(drive);
 
-	hwif->OUTB(drive->select.all, hwif->io_ports.device_addr);
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_OUT_DEVICE;
+
+	drive->hwif->tf_load(drive, &task);
 }
 
 void SELECT_MASK(ide_drive_t *drive, int mask)
