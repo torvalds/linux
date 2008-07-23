@@ -92,6 +92,11 @@
 #define H_EXACT			(1UL<<(63-24))	/* Use exact PTE or return H_PTEG_FULL */
 #define H_R_XLATE		(1UL<<(63-25))	/* include a valid logical page num in the pte if the valid bit is set */
 #define H_READ_4		(1UL<<(63-26))	/* Return 4 PTEs */
+#define H_PAGE_STATE_CHANGE	(1UL<<(63-28))
+#define H_PAGE_UNUSED		((1UL<<(63-29)) | (1UL<<(63-30)))
+#define H_PAGE_SET_UNUSED	(H_PAGE_STATE_CHANGE | H_PAGE_UNUSED)
+#define H_PAGE_SET_LOANED	(H_PAGE_SET_UNUSED | (1UL<<(63-31)))
+#define H_PAGE_SET_ACTIVE	H_PAGE_STATE_CHANGE
 #define H_AVPN			(1UL<<(63-32))	/* An avpn is provided as a sanity test */
 #define H_ANDCOND		(1UL<<(63-33))
 #define H_ICACHE_INVALIDATE	(1UL<<(63-40))	/* icbi, etc.  (ignored for IO pages) */
