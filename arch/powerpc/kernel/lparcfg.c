@@ -129,33 +129,6 @@ static int iseries_lparcfg_data(struct seq_file *m, void *v)
 /*
  * Methods used to fetch LPAR data when running on a pSeries platform.
  */
-static void log_plpar_hcall_return(unsigned long rc, char *tag)
-{
-	switch(rc) {
-	case 0:
-		return;
-	case H_HARDWARE:
-		printk(KERN_INFO "plpar-hcall (%s) "
-				"Hardware fault\n", tag);
-		return;
-	case H_FUNCTION:
-		printk(KERN_INFO "plpar-hcall (%s) "
-				"Function not allowed\n", tag);
-		return;
-	case H_AUTHORITY:
-		printk(KERN_INFO "plpar-hcall (%s) "
-				"Not authorized to this function\n", tag);
-		return;
-	case H_PARAMETER:
-		printk(KERN_INFO "plpar-hcall (%s) "
-				"Bad parameter(s)\n",tag);
-		return;
-	default:
-		printk(KERN_INFO "plpar-hcall (%s) "
-				"Unexpected rc(0x%lx)\n", tag, rc);
-	}
-}
-
 /*
  * H_GET_PPP hcall returns info in 4 parms.
  *  entitled_capacity,unallocated_capacity,
@@ -191,8 +164,6 @@ static unsigned int h_get_ppp(unsigned long *entitled,
 	*aggregation = retbuf[2];
 	*resource = retbuf[3];
 
-	log_plpar_hcall_return(rc, "H_GET_PPP");
-
 	return rc;
 }
 
@@ -205,9 +176,6 @@ static void h_pic(unsigned long *pool_idle_time, unsigned long *num_procs)
 
 	*pool_idle_time = retbuf[0];
 	*num_procs = retbuf[1];
-
-	if (rc != H_AUTHORITY)
-		log_plpar_hcall_return(rc, "H_PIC");
 }
 
 #define SPLPAR_CHARACTERISTICS_TOKEN 20
