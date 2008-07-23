@@ -730,6 +730,7 @@ static void idetape_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	rq->cmd_flags |= REQ_PREEMPT;
 	rq->buffer = (char *) pc;
 	rq->rq_disk = tape->disk;
+	memcpy(rq->cmd, pc->c, 12);
 	ide_do_drive_cmd(drive, rq);
 }
 
@@ -952,9 +953,12 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 }
 
 static void ide_tape_create_rw_cmd(idetape_tape_t *tape,
-		struct ide_atapi_pc *pc, unsigned int length,
-		struct idetape_bh *bh, u8 opcode)
+				   struct ide_atapi_pc *pc, struct request *rq,
+				   u8 opcode)
 {
+	struct idetape_bh *bh = (struct idetape_bh *)rq->special;
+	unsigned int length = rq->current_nr_sectors;
+
 	idetape_init_pc(pc);
 	put_unaligned(cpu_to_be32(length), (unsigned int *) &pc->c[1]);
 	pc->c[1] = 1;
@@ -974,6 +978,8 @@ static void ide_tape_create_rw_cmd(idetape_tape_t *tape,
 		pc->b_data = bh->b_data;
 		pc->b_count = atomic_read(&bh->b_count);
 	}
+
+	memcpy(rq->cmd, pc->c, 12);
 }
 
 static ide_startstop_t idetape_do_request(ide_drive_t *drive,
@@ -1051,16 +1057,12 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	}
 	if (rq->cmd[13] & REQ_IDETAPE_READ) {
 		pc = idetape_next_pc_storage(drive);
-		ide_tape_create_rw_cmd(tape, pc, rq->current_nr_sectors,
-					(struct idetape_bh *)rq->special,
-					READ_6);
+		ide_tape_create_rw_cmd(tape, pc, rq, READ_6);
 		goto out;
 	}
 	if (rq->cmd[13] & REQ_IDETAPE_WRITE) {
 		pc = idetape_next_pc_storage(drive);
-		ide_tape_create_rw_cmd(tape, pc, rq->current_nr_sectors,
-					 (struct idetape_bh *)rq->special,
-					 WRITE_6);
+		ide_tape_create_rw_cmd(tape, pc, rq, WRITE_6);
 		goto out;
 	}
 	if (rq->cmd[13] & REQ_IDETAPE_PC1) {
@@ -1283,6 +1285,7 @@ static int idetape_queue_pc_tail(ide_drive_t *drive, struct ide_atapi_pc *pc)
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd[13] = REQ_IDETAPE_PC1;
 	rq->buffer = (char *)pc;
+	memcpy(rq->cmd, pc->c, 12);
 	error = blk_execute_rq(drive->queue, tape->disk, rq, 0);
 	blk_put_request(rq);
 	return error;
