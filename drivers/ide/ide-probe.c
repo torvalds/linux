@@ -992,9 +992,13 @@ static void ide_port_setup_devices(ide_hwif_t *hwif)
 	mutex_unlock(&ide_cfg_mtx);
 }
 
+static ide_hwif_t *ide_ports[MAX_HWIFS];
+
 void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 {
 	ide_hwgroup_t *hwgroup = hwif->hwgroup;
+
+	ide_ports[hwif->index] = NULL;
 
 	spin_lock_irq(&ide_lock);
 	/*
@@ -1054,8 +1058,9 @@ static int init_irq (ide_hwif_t *hwif)
 	 * Group up with any other hwifs that share our irq(s).
 	 */
 	for (index = 0; index < MAX_HWIFS; index++) {
-		ide_hwif_t *h = &ide_hwifs[index];
-		if (h->hwgroup) {  /* scan only initialized hwif's */
+		ide_hwif_t *h = ide_ports[index];
+
+		if (h && h->hwgroup) {  /* scan only initialized ports */
 			if (hwif->irq == h->irq) {
 				hwif->sharing_irq = h->sharing_irq = 1;
 				if (hwif->chipset != ide_pci ||
@@ -1108,6 +1113,8 @@ static int init_irq (ide_hwif_t *hwif)
 		hwgroup->timer.function = &ide_timer_expiry;
 		hwgroup->timer.data = (unsigned long) hwgroup;
 	}
+
+	ide_ports[hwif->index] = hwif;
 
 	/*
 	 * Allocate the irq, if not already obtained for another hwif
