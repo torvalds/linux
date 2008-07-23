@@ -85,7 +85,7 @@ static void jmr3927_machine_power_off(void)
 static void __init jmr3927_time_init(void)
 {
 	txx9_clockevent_init(TX3927_TMR_REG(0),
-			     TXX9_IRQ_BASE + JMR3927_IRQ_IRC_TMR(0),
+			     JMR3927_IRQ_IRC_TMR(0),
 			     JMR3927_IMCLK);
 	txx9_clocksource_init(TX3927_TMR_REG(1), JMR3927_IMCLK);
 }
