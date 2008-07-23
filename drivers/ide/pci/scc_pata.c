@@ -126,6 +126,11 @@ static u8 scc_ide_inb(unsigned long port)
 	return (u8)data;
 }
 
+static u8 scc_read_sff_dma_status(ide_hwif_t *hwif)
+{
+	return (u8)in_be32((void *)hwif->dma_status);
+}
+
 static void scc_ide_insw(unsigned long port, void *addr, u32 count)
 {
 	u16 *ptr = (u16 *)addr;
@@ -772,6 +777,8 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 	unsigned long dma_base = ports->dma;
 
 	ide_set_hwifdata(hwif, ports);
+
+	hwif->read_sff_dma_status = scc_read_sff_dma_status;
 
 	hwif->tf_load = scc_tf_load;
 	hwif->tf_read = scc_tf_read;

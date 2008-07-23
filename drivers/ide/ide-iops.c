@@ -103,6 +103,14 @@ void SELECT_MASK(ide_drive_t *drive, int mask)
 		port_ops->maskproc(drive, mask);
 }
 
+static u8 ide_read_sff_dma_status(ide_hwif_t *hwif)
+{
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		return readb((void __iomem *)hwif->dma_status);
+	else
+		return inb(hwif->dma_status);
+}
+
 static void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -323,6 +331,8 @@ static void ata_output_data(ide_drive_t *drive, struct request *rq,
 
 void default_hwif_transport(ide_hwif_t *hwif)
 {
+	hwif->read_sff_dma_status = ide_read_sff_dma_status;
+
 	hwif->tf_load	  = ide_tf_load;
 	hwif->tf_read	  = ide_tf_read;
 

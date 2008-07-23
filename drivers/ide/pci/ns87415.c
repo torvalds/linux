@@ -63,6 +63,11 @@ static u8 superio_ide_inb (unsigned long port)
 	return inb(port);
 }
 
+static u8 superio_read_sff_dma_status(ide_hwif_t *hwif)
+{
+	return superio_ide_inb(hwif->dma_status);
+}
+
 static void superio_tf_read(ide_drive_t *drive, ide_task_t *task)
 {
 	struct ide_io_ports *io_ports = &drive->hwif->io_ports;
@@ -121,6 +126,8 @@ static void __devinit superio_ide_init_iops (struct hwif_s *hwif)
 	/* Clear error/interrupt, enable dma */
 	tmp = superio_ide_inb(superio_ide_dma_status[port]);
 	outb(tmp | 0x66, superio_ide_dma_status[port]);
+
+	hwif->read_sff_dma_status = superio_read_sff_dma_status;
 
 	hwif->tf_read = superio_tf_read;
 
@@ -200,13 +207,13 @@ static int ns87415_dma_end(ide_drive_t *drive)
 	u8 dma_stat = 0, dma_cmd = 0;
 
 	drive->waiting_for_dma = 0;
-	dma_stat = hwif->INB(hwif->dma_status);
+	dma_stat = hwif->read_sff_dma_status(hwif);
 	/* get dma command mode */
-	dma_cmd = hwif->INB(hwif->dma_command);
+	dma_cmd = inb(hwif->dma_command);
 	/* stop DMA */
 	outb(dma_cmd & ~1, hwif->dma_command);
 	/* from ERRATA: clear the INTR & ERROR bits */
-	dma_cmd = hwif->INB(hwif->dma_command);
+	dma_cmd = inb(hwif->dma_command);
 	outb(dma_cmd | 6, hwif->dma_command);
 	/* and free any DMA resources */
 	ide_destroy_dmatable(drive);

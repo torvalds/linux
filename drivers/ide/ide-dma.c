@@ -334,7 +334,7 @@ static int config_drive_for_dma (ide_drive_t *drive)
 static int dma_timer_expiry (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8 dma_stat		= hwif->INB(hwif->dma_status);
+	u8 dma_stat		= hwif->read_sff_dma_status(hwif);
 
 	printk(KERN_WARNING "%s: dma_timer_expiry: dma status == 0x%02x\n",
 		drive->name, dma_stat);
@@ -369,7 +369,7 @@ void ide_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 unit			= (drive->select.b.unit & 0x01);
-	u8 dma_stat		= hwif->INB(hwif->dma_status);
+	u8 dma_stat		= hwif->read_sff_dma_status(hwif);
 
 	if (on)
 		dma_stat |= (1 << (5 + unit));
@@ -472,8 +472,8 @@ int ide_dma_setup(ide_drive_t *drive)
 	/* specify r/w */
 	hwif->OUTB(reading, hwif->dma_command);
 
-	/* read dma_status for INTR & ERROR flags */
-	dma_stat = hwif->INB(hwif->dma_status);
+	/* read DMA status for INTR & ERROR flags */
+	dma_stat = hwif->read_sff_dma_status(hwif);
 
 	/* clear INTR & ERROR flags */
 	hwif->OUTB(dma_stat|6, hwif->dma_status);
@@ -520,7 +520,7 @@ int __ide_dma_end (ide_drive_t *drive)
 	/* stop DMA */
 	hwif->OUTB(dma_cmd&~1, hwif->dma_command);
 	/* get DMA status */
-	dma_stat = hwif->INB(hwif->dma_status);
+	dma_stat = hwif->read_sff_dma_status(hwif);
 	/* clear the INTR & ERROR bits */
 	hwif->OUTB(dma_stat|6, hwif->dma_status);
 	/* purge DMA mappings */
@@ -537,7 +537,7 @@ EXPORT_SYMBOL(__ide_dma_end);
 int ide_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8 dma_stat		= hwif->INB(hwif->dma_status);
+	u8 dma_stat		= hwif->read_sff_dma_status(hwif);
 
 	/* return 1 if INTR asserted */
 	if ((dma_stat & 4) == 4)
