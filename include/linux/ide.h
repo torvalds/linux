@@ -1008,6 +1008,7 @@ void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 int ide_pci_set_master(struct pci_dev *, const char *);
 unsigned long ide_pci_dma_base(ide_hwif_t *, const struct ide_port_info *);
 extern const struct ide_dma_ops sff_dma_ops;
+int ide_pci_check_simplex(ide_hwif_t *, const struct ide_port_info *);
 int ide_hwif_setup_dma(ide_hwif_t *, const struct ide_port_info *);
 #else
 static inline int ide_hwif_setup_dma(ide_hwif_t *hwif,

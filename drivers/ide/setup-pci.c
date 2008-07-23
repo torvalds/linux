@@ -73,15 +73,12 @@ static void ide_pci_clear_simplex(unsigned long dma_base, const char *name)
  *	@d: IDE port info
  *
  *	Fetch the DMA Bus-Master-I/O-Base-Address (BMIBA) from PCI space.
- *	Where a device has a partner that is already in DMA mode we check
- *	and enforce IDE simplex rules.
  */
 
 unsigned long ide_pci_dma_base(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long dma_base = 0;
-	u8 dma_stat = 0;
 
 	if (hwif->host_flags & IDE_HFLAG_MMIO)
 		return hwif->dma_base;
@@ -102,11 +99,19 @@ unsigned long ide_pci_dma_base(ide_hwif_t *hwif, const struct ide_port_info *d)
 	if (hwif->channel)
 		dma_base += 8;
 
-	if (d->host_flags & IDE_HFLAG_CS5520)
+	return dma_base;
+}
+EXPORT_SYMBOL_GPL(ide_pci_dma_base);
+
+int ide_pci_check_simplex(ide_hwif_t *hwif, const struct ide_port_info *d)
+{
+	u8 dma_stat;
+
+	if (d->host_flags & (IDE_HFLAG_MMIO | IDE_HFLAG_CS5520))
 		goto out;
 
 	if (d->host_flags & IDE_HFLAG_CLEAR_SIMPLEX) {
-		ide_pci_clear_simplex(dma_base, d->name);
+		ide_pci_clear_simplex(hwif->dma_base, d->name);
 		goto out;
 	}
 
@@ -120,15 +125,15 @@ unsigned long ide_pci_dma_base(ide_hwif_t *hwif, const struct ide_port_info *d)
 	 * we tune the drive then try to grab DMA ownership if we want to be
 	 * the DMA end.  This has to be become dynamic to handle hot-plug.
 	 */
-	dma_stat = hwif->INB(dma_base + 2);
+	dma_stat = hwif->read_sff_dma_status(hwif);
 	if ((dma_stat & 0x80) && hwif->mate && hwif->mate->dma_base) {
 		printk(KERN_INFO "%s: simplex device: DMA disabled\n", d->name);
-		dma_base = 0;
+		return -1;
 	}
 out:
-	return dma_base;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(ide_pci_dma_base);
+EXPORT_SYMBOL_GPL(ide_pci_check_simplex);
 
 /*
  * Set up BM-DMA capability (PnP BIOS should have done this)
@@ -363,7 +368,15 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 	     (dev->class & 0x80))) {
 		unsigned long base = ide_pci_dma_base(hwif, d);
 
-		if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
+		if (base == 0)
+			return -1;
+
+		hwif->dma_base = base;
+
+		if (ide_pci_check_simplex(hwif, d) < 0)
+			return -1;
+
+		if (ide_pci_set_master(dev, d->name) < 0)
 			return -1;
 
 		if (hwif->host_flags & IDE_HFLAG_MMIO)
@@ -376,8 +389,6 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 
 		if (ide_allocate_dma_engine(hwif))
 			return -1;
-
-		hwif->dma_base = base;
 
 		hwif->dma_ops = &sff_dma_ops;
 	}

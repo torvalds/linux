@@ -1320,7 +1320,15 @@ static int __devinit init_dma_hpt366(ide_hwif_t *hwif,
 	unsigned long flags, base = ide_pci_dma_base(hwif, d);
 	u8 dma_old, dma_new, masterdma = 0, slavedma = 0;
 
-	if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
+	if (base == 0)
+		return -1;
+
+	hwif->dma_base = base;
+
+	if (ide_pci_check_simplex(hwif, d) < 0)
+		return -1;
+
+	if (ide_pci_set_master(dev, d->name) < 0)
 		return -1;
 
 	dma_old = inb(base + 2);
@@ -1345,8 +1353,6 @@ static int __devinit init_dma_hpt366(ide_hwif_t *hwif,
 
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
-
-	hwif->dma_base = base;
 
 	hwif->dma_ops = &sff_dma_ops;
 
