@@ -741,6 +741,8 @@ static void scc_tf_read(ide_drive_t *drive, ide_task_t *task)
 	/* be sure we're looking at the low order bits */
 	scc_ide_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
+	if (task->tf_flags & IDE_TFLAG_IN_FEATURE)
+		tf->feature = scc_ide_inb(io_ports->feature_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = scc_ide_inb(io_ports->nsect_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAL)

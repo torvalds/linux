@@ -241,6 +241,8 @@ static void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 	/* be sure we're looking at the low order bits */
 	tf_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
+	if (task->tf_flags & IDE_TFLAG_IN_FEATURE)
+		tf->feature = tf_inb(io_ports->feature_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = tf_inb(io_ports->nsect_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAL)
@@ -389,6 +391,19 @@ void default_hwif_transport(ide_hwif_t *hwif)
 	hwif->input_data  = ata_input_data;
 	hwif->output_data = ata_output_data;
 }
+
+u8 ide_read_error(ide_drive_t *drive)
+{
+	ide_task_t task;
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_IN_FEATURE;
+
+	drive->hwif->tf_read(drive, &task);
+
+	return task.tf.error;
+}
+EXPORT_SYMBOL_GPL(ide_read_error);
 
 void ide_fix_driveid (struct hd_driveid *id)
 {

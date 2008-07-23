@@ -889,6 +889,7 @@ enum {
 	IDE_TFLAG_IN_HOB		= IDE_TFLAG_IN_HOB_FEATURE |
 					  IDE_TFLAG_IN_HOB_NSECT |
 					  IDE_TFLAG_IN_HOB_LBA,
+	IDE_TFLAG_IN_FEATURE		= (1 << 1),
 	IDE_TFLAG_IN_NSECT		= (1 << 25),
 	IDE_TFLAG_IN_LBAL		= (1 << 26),
 	IDE_TFLAG_IN_LBAM		= (1 << 27),
@@ -955,6 +956,8 @@ void ide_tf_dump(const char *, struct ide_taskfile *);
 
 extern void SELECT_DRIVE(ide_drive_t *);
 void SELECT_MASK(ide_drive_t *, int);
+
+u8 ide_read_error(ide_drive_t *);
 
 extern int drive_is_ready(ide_drive_t *);
 
@@ -1356,12 +1359,5 @@ static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)
 	ide_hwif_t *hwif	= HWIF(drive);
 
 	return &hwif->drives[(drive->dn ^ 1) & 1];
-}
-
-static inline u8 ide_read_error(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	return hwif->INB(hwif->io_ports.error_addr);
 }
 #endif /* _IDE_H */
