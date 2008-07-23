@@ -158,6 +158,18 @@ int h_get_mpp(struct hvcall_mpp_data *mpp_data)
 }
 EXPORT_SYMBOL(h_get_mpp);
 
+struct hvcall_ppp_data {
+	u64	entitlement;
+	u64	unallocated_entitlement;
+	u16	group_num;
+	u16	pool_num;
+	u8	capped;
+	u8	weight;
+	u8	unallocated_weight;
+	u16	active_procs_in_pool;
+	u16	active_system_procs;
+};
+
 /*
  * H_GET_PPP hcall returns info in 4 parms.
  *  entitled_capacity,unallocated_capacity,
@@ -178,20 +190,24 @@ EXPORT_SYMBOL(h_get_mpp);
  *              XXXX - Active processors in Physical Processor Pool.
  *                  XXXX  - Processors active on platform.
  */
-static unsigned int h_get_ppp(unsigned long *entitled,
-			      unsigned long *unallocated,
-			      unsigned long *aggregation,
-			      unsigned long *resource)
+static unsigned int h_get_ppp(struct hvcall_ppp_data *ppp_data)
 {
 	unsigned long rc;
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 
 	rc = plpar_hcall(H_GET_PPP, retbuf);
 
-	*entitled = retbuf[0];
-	*unallocated = retbuf[1];
-	*aggregation = retbuf[2];
-	*resource = retbuf[3];
+	ppp_data->entitlement = retbuf[0];
+	ppp_data->unallocated_entitlement = retbuf[1];
+
+	ppp_data->group_num = (retbuf[2] >> 2 * 8) & 0xffff;
+	ppp_data->pool_num = retbuf[2] & 0xffff;
+
+	ppp_data->capped = (retbuf[3] >> 6 * 8) & 0x01;
+	ppp_data->weight = (retbuf[3] >> 5 * 8) & 0xff;
+	ppp_data->unallocated_weight = (retbuf[3] >> 4 * 8) & 0xff;
+	ppp_data->active_procs_in_pool = (retbuf[3] >> 2 * 8) & 0xffff;
+	ppp_data->active_system_procs = retbuf[3] & 0xffff;
 
 	return rc;
 }
@@ -216,41 +232,40 @@ static unsigned h_pic(unsigned long *pool_idle_time,
  */
 static void parse_ppp_data(struct seq_file *m)
 {
-	unsigned long h_entitled, h_unallocated;
-	unsigned long h_aggregation, h_resource;
+	struct hvcall_ppp_data ppp_data;
 	int rc;
 
-	rc = h_get_ppp(&h_entitled, &h_unallocated, &h_aggregation,
-		       &h_resource);
+	rc = h_get_ppp(&ppp_data);
 	if (rc)
 		return;
 
-	seq_printf(m, "partition_entitled_capacity=%ld\n", h_entitled);
-	seq_printf(m, "group=%ld\n", (h_aggregation >> 2 * 8) & 0xffff);
-	seq_printf(m, "system_active_processors=%ld\n",
-		   (h_resource >> 0 * 8) & 0xffff);
+	seq_printf(m, "partition_entitled_capacity=%ld\n",
+	           ppp_data.entitlement);
+	seq_printf(m, "group=%d\n", ppp_data.group_num);
+	seq_printf(m, "system_active_processors=%d\n",
+	           ppp_data.active_system_procs);
 
 	/* pool related entries are apropriate for shared configs */
 	if (lppaca[0].shared_proc) {
 		unsigned long pool_idle_time, pool_procs;
 
-		seq_printf(m, "pool=%ld\n", (h_aggregation >> 0 * 8) & 0xffff);
+		seq_printf(m, "pool=%d\n", ppp_data.pool_num);
 
 		/* report pool_capacity in percentage */
-		seq_printf(m, "pool_capacity=%ld\n",
-			   ((h_resource >> 2 * 8) & 0xffff) * 100);
+		seq_printf(m, "pool_capacity=%d\n",
+			   ppp_data.active_procs_in_pool * 100);
 
 		h_pic(&pool_idle_time, &pool_procs);
 		seq_printf(m, "pool_idle_time=%ld\n", pool_idle_time);
 		seq_printf(m, "pool_num_procs=%ld\n", pool_procs);
 	}
 
-	seq_printf(m, "unallocated_capacity_weight=%ld\n",
-		   (h_resource >> 4 * 8) & 0xFF);
-
-	seq_printf(m, "capacity_weight=%ld\n", (h_resource >> 5 * 8) & 0xFF);
-	seq_printf(m, "capped=%ld\n", (h_resource >> 6 * 8) & 0x01);
-	seq_printf(m, "unallocated_capacity=%ld\n", h_unallocated);
+	seq_printf(m, "unallocated_capacity_weight=%d\n",
+		   ppp_data.unallocated_weight);
+	seq_printf(m, "capacity_weight=%d\n", ppp_data.weight);
+	seq_printf(m, "capped=%d\n", ppp_data.capped);
+	seq_printf(m, "unallocated_capacity=%ld\n",
+		   ppp_data.unallocated_entitlement);
 }
 
 /**
@@ -449,31 +464,27 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 
 static ssize_t update_ppp(u64 *entitlement, u8 *weight)
 {
-	unsigned long current_entitled;
-	unsigned long dummy;
-	unsigned long resource;
-	u8 current_weight, new_weight;
+	struct hvcall_ppp_data ppp_data;
+	u8 new_weight;
 	u64 new_entitled;
 	ssize_t retval;
 
 	/* Get our current parameters */
-	retval = h_get_ppp(&current_entitled, &dummy, &dummy, &resource);
+	retval = h_get_ppp(&ppp_data);
 	if (retval)
 		return retval;
 
-	current_weight = (resource >> 5 * 8) & 0xFF;
-
 	if (entitlement) {
-		new_weight = current_weight;
+		new_weight = ppp_data.weight;
 		new_entitled = *entitlement;
 	} else if (weight) {
 		new_weight = *weight;
-		new_entitled = current_entitled;
+		new_entitled = ppp_data.entitlement;
 	} else
 		return -EINVAL;
 
 	pr_debug("%s: current_entitled = %lu, current_weight = %u\n",
-		 __FUNCTION__, current_entitled, current_weight);
+	         __FUNCTION__, ppp_data.entitlement, ppp_data.weight);
 
 	pr_debug("%s: new_entitled = %lu, new_weight = %u\n",
 		 __FUNCTION__, new_entitled, new_weight);
