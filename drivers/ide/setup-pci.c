@@ -480,7 +480,7 @@ EXPORT_SYMBOL_GPL(ide_pci_setup_ports);
  */
 static int do_ide_setup_pci_device(struct pci_dev *dev,
 				   const struct ide_port_info *d,
-				   u8 *idx, u8 noisy)
+				   u8 noisy)
 {
 	int tried_config = 0;
 	int pciirq, ret;
@@ -529,9 +529,7 @@ static int do_ide_setup_pci_device(struct pci_dev *dev,
 				d->name, pciirq);
 	}
 
-	/* FIXME: silent failure can happen */
-
-	ide_pci_setup_ports(dev, d, pciirq, idx);
+	ret = pciirq;
 out:
 	return ret;
 }
@@ -541,10 +539,14 @@ int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int ret;
 
-	ret = do_ide_setup_pci_device(dev, d, &idx[0], 1);
+	ret = do_ide_setup_pci_device(dev, d, 1);
 
-	if (ret >= 0)
+	if (ret >= 0) {
+		/* FIXME: silent failure can happen */
+		ide_pci_setup_ports(dev, d, ret, &idx[0]);
+
 		ide_device_add(idx, d);
+	}
 
 	return ret;
 }
@@ -558,13 +560,17 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	for (i = 0; i < 2; i++) {
-		ret = do_ide_setup_pci_device(pdev[i], d, &idx[i*2], !i);
+		ret = do_ide_setup_pci_device(pdev[i], d, !i);
+
 		/*
 		 * FIXME: Mom, mom, they stole me the helper function to undo
 		 * do_ide_setup_pci_device() on the first device!
 		 */
 		if (ret < 0)
 			goto out;
+
+		/* FIXME: silent failure can happen */
+		ide_pci_setup_ports(pdev[i], d, ret, &idx[i*2]);
 	}
 
 	ide_device_add(idx, d);
