@@ -410,6 +410,18 @@ static int ide_busy_sleep(ide_hwif_t *hwif)
 	return 1;
 }
 
+static u8 ide_read_device(ide_drive_t *drive)
+{
+	ide_task_t task;
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_IN_DEVICE;
+
+	drive->hwif->tf_read(drive, &task);
+
+	return task.tf.device;
+}
+
 /**
  *	do_probe		-	probe an IDE device
  *	@drive: drive to probe
@@ -434,7 +446,6 @@ static int ide_busy_sleep(ide_hwif_t *hwif)
 static int do_probe (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	struct ide_io_ports *io_ports = &hwif->io_ports;
 	int rc;
 	u8 stat;
 
@@ -455,8 +466,8 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	msleep(50);
 	SELECT_DRIVE(drive);
 	msleep(50);
-	if (hwif->INB(io_ports->device_addr) != drive->select.all &&
-	    !drive->present) {
+
+	if (ide_read_device(drive) != drive->select.all && !drive->present) {
 		if (drive->select.b.unit != 0) {
 			/* exit with drive0 selected */
 			SELECT_DRIVE(&hwif->drives[0]);
