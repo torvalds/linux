@@ -409,6 +409,25 @@ static int lparcfg_count_active_processors(void)
 	return count;
 }
 
+static void pseries_cmo_data(struct seq_file *m)
+{
+	int cpu;
+	unsigned long cmo_faults = 0;
+	unsigned long cmo_fault_time = 0;
+
+	if (!firmware_has_feature(FW_FEATURE_CMO))
+		return;
+
+	for_each_possible_cpu(cpu) {
+		cmo_faults += lppaca[cpu].cmo_faults;
+		cmo_fault_time += lppaca[cpu].cmo_fault_time;
+	}
+
+	seq_printf(m, "cmo_faults=%lu\n", cmo_faults);
+	seq_printf(m, "cmo_fault_time_usec=%lu\n",
+		   cmo_fault_time / tb_ticks_per_usec);
+}
+
 static int pseries_lparcfg_data(struct seq_file *m, void *v)
 {
 	int partition_potential_processors;
@@ -434,6 +453,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 		parse_system_parameter_string(m);
 		parse_ppp_data(m);
 		parse_mpp_data(m);
+		pseries_cmo_data(m);
 
 		seq_printf(m, "purr=%ld\n", get_purr());
 	} else {		/* non SPLPAR case */
