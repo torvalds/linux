@@ -54,10 +54,9 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	void __iomem *base, *alt_base;
 	ide_hwif_t *hwif;
 	struct pata_platform_info *pdata;
+	int ret = 0, mmio = 0;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	int ret = 0;
-	int mmio = 0;
-	hw_regs_t hw;
 	struct ide_port_info d = platform_ide_port_info;
 
 	pdata = pdev->dev.platform_data;
@@ -104,8 +103,6 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	plat_ide_setup_ports(&hw, base, alt_base, pdata, res_irq->start);
 	hw.dev = &pdev->dev;
 
-	ide_init_port_hw(hwif, &hw);
-
 	if (mmio) {
 		d.host_flags |= IDE_HFLAG_MMIO;
 		default_hwif_mmiops(hwif);
@@ -113,7 +110,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx, &d);
+	ide_device_add(idx, &d, hws);
 
 	platform_set_drvdata(pdev, hwif);
 

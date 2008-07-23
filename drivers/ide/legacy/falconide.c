@@ -91,8 +91,8 @@ static void __init falconide_setup_ports(hw_regs_t *hw)
 
 static int __init falconide_init(void)
 {
-	hw_regs_t hw;
 	ide_hwif_t *hwif;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(IDE))
 		return 0;
@@ -111,14 +111,12 @@ static int __init falconide_init(void)
 		u8 index = hwif->index;
 		u8 idx[4] = { index, 0xff, 0xff, 0xff };
 
-		ide_init_port_hw(hwif, &hw);
-
 		/* Atari has a byte-swapped IDE interface */
 		hwif->input_data  = falconide_input_data;
 		hwif->output_data = falconide_output_data;
 
 		ide_get_lock(NULL, NULL);
-		ide_device_add(idx, NULL);
+		ide_device_add(idx, NULL, hws);
 		ide_release_lock();
 	}
 

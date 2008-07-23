@@ -184,9 +184,9 @@ static const struct ide_port_info h8300_port_info = {
 
 static int __init h8300_ide_init(void)
 {
-	hw_regs_t hw;
 	ide_hwif_t *hwif;
 	int index;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	printk(KERN_INFO DRV_NAME ": H8/300 generic IDE interface\n");
@@ -205,12 +205,11 @@ static int __init h8300_ide_init(void)
 		return -ENOENT;
 
 	index = hwif->index;
-	ide_init_port_hw(hwif, &hw);
 	hwif_setup(hwif);
 
 	idx[0] = index;
 
-	ide_device_add(idx, &h8300_port_info);
+	ide_device_add(idx, &h8300_port_info, hws);
 
 	return 0;
 

@@ -442,8 +442,8 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 {
 	ide_hwif_t *hwif;
 	void __iomem *base;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw;
 
 	base = ecardm_iomap(ec, ECARD_RES_MEMC, 0, 0);
 	if (!base)
@@ -467,7 +467,6 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 	if (!hwif)
 		return -ENODEV;
 
-	ide_init_port_hw(hwif, &hw);
 	default_hwif_mmiops(hwif);
 
 	state->hwif[0] = hwif;
@@ -476,7 +475,7 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx, NULL);
+	ide_device_add(idx, NULL, hws);
 
 	return 0;
 }
@@ -497,9 +496,9 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	void __iomem *ioc_base, *easi_base;
 	unsigned int sel = 0;
 	int ret;
+	hw_regs_t hw[2], *hws[] = { &hw[0], NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	struct ide_port_info d = icside_v6_port_info;
-	hw_regs_t hw[2];
 
 	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (!ioc_base) {
@@ -545,16 +544,16 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	if (hwif == NULL)
 		return -ENODEV;
 
-	ide_init_port_hw(hwif, &hw[0]);
+	hwif->chipset = ide_acorn;
 	default_hwif_mmiops(hwif);
 
 	idx[0] = hwif->index;
 
 	mate = ide_find_port();
 	if (mate) {
-		ide_init_port_hw(mate, &hw[1]);
 		default_hwif_mmiops(mate);
 
+		hws[1] = &hw[1];
 		idx[1] = mate->index;
 	}
 
@@ -569,7 +568,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 		d.dma_ops = NULL;
 	}
 
-	ide_device_add(idx, &d);
+	ide_device_add(idx, &d, hws);
 
 	return 0;
 

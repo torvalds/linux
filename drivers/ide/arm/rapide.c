@@ -35,8 +35,8 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 	ide_hwif_t *hwif;
 	void __iomem *base;
 	int ret;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw;
 
 	ret = ecard_request_resources(ec);
 	if (ret)
@@ -59,12 +59,11 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto release;
 	}
 
-	ide_init_port_hw(hwif, &hw);
 	default_hwif_mmiops(hwif);
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx, &rapide_port_info);
+	ide_device_add(idx, &rapide_port_info, hws);
 
 	ecard_set_drvdata(ec, hwif);
 	goto out;

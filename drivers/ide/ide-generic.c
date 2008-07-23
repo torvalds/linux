@@ -31,7 +31,7 @@ static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 	ide_hwif_t *hwif;
 	unsigned int base, ctl;
 	int irq;
-	hw_regs_t hw;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[] = { 0xff, 0xff, 0xff, 0xff };
 
 	if (sscanf(buf, "%x:%x:%d", &base, &ctl, &irq) != 3)
@@ -46,11 +46,9 @@ static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 	hw.irq = irq;
 	hw.chipset = ide_generic;
 
-	ide_init_port_hw(hwif, &hw);
-
 	idx[0] = hwif->index;
 
-	ide_device_add(idx, NULL);
+	ide_device_add(idx, NULL, hws);
 
 	return n;
 };
@@ -90,6 +88,7 @@ static int __init ide_generic_sysfs_init(void)
 
 static int __init ide_generic_init(void)
 {
+	hw_regs_t hw[MAX_HWIFS], *hws[MAX_HWIFS];
 	u8 idx[MAX_HWIFS];
 	int i;
 
@@ -99,8 +98,8 @@ static int __init ide_generic_init(void)
 	for (i = 0; i < MAX_HWIFS; i++) {
 		ide_hwif_t *hwif;
 		unsigned long io_addr = ide_default_io_base(i);
-		hw_regs_t hw;
 
+		hws[i] = NULL;
 		idx[i] = 0xff;
 
 		if ((probe_mask & (1 << i)) && io_addr) {
@@ -129,17 +128,19 @@ static int __init ide_generic_init(void)
 				continue;
 			}
 
-			memset(&hw, 0, sizeof(hw));
-			ide_std_init_ports(&hw, io_addr, io_addr + 0x206);
-			hw.irq = ide_default_irq(io_addr);
-			hw.chipset = ide_generic;
-			ide_init_port_hw(hwif, &hw);
+			hwif->chipset = ide_generic;
 
+			memset(&hw[i], 0, sizeof(hw[i]));
+			ide_std_init_ports(&hw[i], io_addr, io_addr + 0x206);
+			hw[i].irq = ide_default_irq(io_addr);
+			hw[i].chipset = ide_generic;
+
+			hws[i] = &hw[i];
 			idx[i] = i;
 		}
 	}
 
-	ide_device_add_all(idx, NULL);
+	ide_device_add_all(idx, NULL, hws);
 
 	if (ide_generic_sysfs_init())
 		printk(KERN_ERR DRV_NAME ": failed to create ide_generic "

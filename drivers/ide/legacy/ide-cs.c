@@ -161,8 +161,8 @@ static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
 				unsigned long irq, struct pcmcia_device *handle)
 {
     ide_hwif_t *hwif;
-    hw_regs_t hw;
     int i;
+    hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
     u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!request_region(io, 8, DRV_NAME)) {
@@ -188,13 +188,9 @@ static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
     if (hwif == NULL)
 	goto out_release;
 
-    i = hwif->index;
+    idx[0] = hwif->index;
 
-    ide_init_port_hw(hwif, &hw);
-
-    idx[0] = i;
-
-    ide_device_add(idx, &idecs_port_info);
+    ide_device_add(idx, &idecs_port_info, hws);
 
     if (hwif->present)
 	return hwif;

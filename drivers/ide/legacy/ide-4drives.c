@@ -30,8 +30,8 @@ static int __init ide_4drives_init(void)
 {
 	ide_hwif_t *hwif, *mate;
 	unsigned long base = 0x1f0, ctl = 0x3f6;
+	hw_regs_t hw, *hws[] = { NULL, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw;
 
 	if (probe_4drives == 0)
 		return -ENODEV;
@@ -57,17 +57,19 @@ static int __init ide_4drives_init(void)
 
 	hwif = ide_find_port();
 	if (hwif) {
-		ide_init_port_hw(hwif, &hw);
+		hwif->chipset = ide_4drives;
+
+		hws[0] = &hw;
 		idx[0] = hwif->index;
 	}
 
 	mate = ide_find_port();
 	if (mate) {
-		ide_init_port_hw(mate, &hw);
+		hws[1] = &hw;
 		idx[1] = mate->index;
 	}
 
-	ide_device_add(idx, &ide_4drives_port_info);
+	ide_device_add(idx, &ide_4drives_port_info, hws);
 
 	return 0;
 }

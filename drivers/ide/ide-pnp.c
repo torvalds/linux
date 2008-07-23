@@ -29,9 +29,9 @@ static struct pnp_device_id idepnp_devices[] = {
 
 static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
-	hw_regs_t hw;
 	ide_hwif_t *hwif;
 	unsigned long base, ctl;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	printk(KERN_INFO DRV_NAME ": generic PnP IDE interface\n");
 
@@ -64,11 +64,9 @@ static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 		u8 index = hwif->index;
 		u8 idx[4] = { index, 0xff, 0xff, 0xff };
 
-		ide_init_port_hw(hwif, &hw);
-
 		pnp_set_drvdata(dev, hwif);
 
-		ide_device_add(idx, NULL);
+		ide_device_add(idx, NULL, hws);
 
 		return 0;
 	}

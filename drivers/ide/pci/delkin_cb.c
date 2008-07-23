@@ -57,9 +57,9 @@ static int __devinit
 delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 {
 	unsigned long base;
-	hw_regs_t hw;
 	ide_hwif_t *hwif = NULL;
 	int i, rc;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	rc = pci_enable_device(dev);
@@ -93,11 +93,9 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 
 	i = hwif->index;
 
-	ide_init_port_hw(hwif, &hw);
-
 	idx[0] = i;
 
-	ide_device_add(idx, &delkin_cb_port_info);
+	ide_device_add(idx, &delkin_cb_port_info, hws);
 
 	pci_set_drvdata(dev, hwif);
 

@@ -584,8 +584,8 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	unsigned long bar0, cmd_phys_base, ctl;
 	void __iomem *virt_base;
 	ide_hwif_t *hwif;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw;
 	struct ide_port_info d = sgiioc4_port_info;
 
 	/*  Get the CmdBlk and CtrlBlk Base Registers */
@@ -622,8 +622,6 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	if (hwif == NULL)
 		goto err;
 
-	ide_init_port_hw(hwif, &hw);
-
 	/* The IOC4 uses MMIO rather than Port IO. */
 	default_hwif_mmiops(hwif);
 
@@ -634,7 +632,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 
 	idx[0] = hwif->index;
 
-	if (ide_device_add(idx, &d))
+	if (ide_device_add(idx, &d, hws))
 		return -EIO;
 
 	return 0;

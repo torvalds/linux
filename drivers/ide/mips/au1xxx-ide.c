@@ -546,8 +546,8 @@ static int au_ide_probe(struct device *dev)
 	ide_hwif_t *hwif;
 	struct resource *res;
 	int ret = 0;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw;
 
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 	char *mode = "MWDMA2";
@@ -596,8 +596,6 @@ static int au_ide_probe(struct device *dev)
 	hw.dev = dev;
 	hw.chipset = ide_au1xxx;
 
-	ide_init_port_hw(hwif, &hw);
-
 	/* If the user has selected DDMA assisted copies,
 	   then set up a few local I/O function entry points 
 	*/
@@ -611,7 +609,7 @@ static int au_ide_probe(struct device *dev)
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx, &au1xxx_port_info);
+	ide_device_add(idx, &au1xxx_port_info, hws);
 
 	dev_set_drvdata(dev, hwif);
 

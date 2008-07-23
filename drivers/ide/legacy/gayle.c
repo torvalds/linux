@@ -125,6 +125,7 @@ static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
 static int __init gayle_init(void)
 {
     int a4000, i;
+    hw_regs_t hw[GAYLE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
     u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!MACH_IS_AMIGA)
@@ -151,7 +152,6 @@ found:
     for (i = 0; i < GAYLE_NUM_PROBE_HWIFS; i++) {
 	unsigned long base, ctrlport, irqport;
 	ide_ack_intr_t *ack_intr;
-	hw_regs_t hw;
 	ide_hwif_t *hwif;
 	unsigned long phys_base, res_start, res_n;
 
@@ -179,20 +179,19 @@ found:
 	base = (unsigned long)ZTWO_VADDR(phys_base);
 	ctrlport = GAYLE_HAS_CONTROL_REG ? (base + GAYLE_CONTROL) : 0;
 
-	gayle_setup_ports(&hw, base, ctrlport, irqport, ack_intr);
+	gayle_setup_ports(&hw[i], base, ctrlport, irqport, ack_intr);
 
 	hwif = ide_find_port();
 	if (hwif) {
-	    u8 index = hwif->index;
+	    hwif->chipset = ide_generic;
 
-	    ide_init_port_hw(hwif, &hw);
-
-	    idx[i] = index;
+	    hws[i] = &hw[i];
+	    idx[i] = hwif->index;
 	} else
 	    release_mem_region(res_start, res_n);
     }
 
-    ide_device_add(idx, NULL);
+    ide_device_add(idx, NULL, hws);
 
     return 0;
 }

@@ -112,7 +112,7 @@ static int __init q40ide_init(void)
 {
     int i;
     ide_hwif_t *hwif;
-    const char *name;
+    hw_regs_t hw[Q40IDE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
     u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!MACH_IS_Q40)
@@ -121,9 +121,8 @@ static int __init q40ide_init(void)
     printk(KERN_INFO "ide: Q40 IDE controller\n");
 
     for (i = 0; i < Q40IDE_NUM_HWIFS; i++) {
-	hw_regs_t hw;
+	const char *name = q40_ide_names[i];
 
-	name = q40_ide_names[i];
 	if (!request_region(pcide_bases[i], 8, name)) {
 		printk("could not reserve ports %lx-%lx for %s\n",
 		       pcide_bases[i],pcide_bases[i]+8,name);
@@ -135,24 +134,23 @@ static int __init q40ide_init(void)
 		release_region(pcide_bases[i], 8);
 		continue;
 	}
-	q40_ide_setup_ports(&hw, pcide_bases[i],
-			NULL,
-//			m68kide_iops,
+	q40_ide_setup_ports(&hw[i], pcide_bases[i], NULL,
 			q40ide_default_irq(pcide_bases[i]));
 
 	hwif = ide_find_port();
 	if (hwif) {
-		ide_init_port_hw(hwif, &hw);
+		hwif->chipset = ide_generic;
 
 		/* Q40 has a byte-swapped IDE interface */
 		hwif->input_data  = q40ide_input_data;
 		hwif->output_data = q40ide_output_data;
 
+		hws[i] = &hw[i];
 		idx[i] = hwif->index;
 	}
     }
 
-    ide_device_add(idx, NULL);
+    ide_device_add(idx, NULL, hws);
 
     return 0;
 }

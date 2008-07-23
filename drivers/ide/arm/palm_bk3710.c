@@ -351,7 +351,7 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	ide_hwif_t *hwif;
 	unsigned long base, rate;
 	int i;
-	hw_regs_t hw;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	clk = clk_get(NULL, "IDECLK");
@@ -400,13 +400,11 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 
 	i = hwif->index;
 
-	ide_init_port_hw(hwif, &hw);
-
 	default_hwif_mmiops(hwif);
 
 	idx[0] = i;
 
-	ide_device_add(idx, &palm_bk3710_port_info);
+	ide_device_add(idx, &palm_bk3710_port_info, hws);
 
 	return 0;
 out:

@@ -717,8 +717,8 @@ static int __init cmd640x_init(void)
 	int second_port_cmd640 = 0, rc;
 	const char *bus_type, *port2;
 	u8 b, cfr;
+	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw[2];
 
 	if (cmd640_vlb && probe_for_cmd640_vlb()) {
 		bus_type = "VLB";
@@ -787,7 +787,9 @@ static int __init cmd640x_init(void)
 	 * Initialize data for primary port
 	 */
 	if (cmd_hwif0) {
-		ide_init_port_hw(cmd_hwif0, &hw[0]);
+		cmd_hwif0->chipset = ide_cmd640;
+
+		hws[0] = &hw[0];
 		idx[0] = cmd_hwif0->index;
 	}
 
@@ -832,7 +834,7 @@ static int __init cmd640x_init(void)
 	if (second_port_cmd640) {
 		cmd_hwif1 = ide_find_port();
 		if (cmd_hwif1) {
-			ide_init_port_hw(cmd_hwif1, &hw[1]);
+			hws[1] = &hw[1];
 			idx[1] = cmd_hwif1->index;
 		}
 	}
@@ -843,7 +845,7 @@ static int __init cmd640x_init(void)
 	cmd640_dump_regs();
 #endif
 
-	ide_device_add(idx, &cmd640_port_info);
+	ide_device_add(idx, &cmd640_port_info, hws);
 
 	return 1;
 }

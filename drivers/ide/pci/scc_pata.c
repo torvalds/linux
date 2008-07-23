@@ -554,7 +554,7 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 {
 	struct scc_ports *ports = pci_get_drvdata(dev);
 	ide_hwif_t *hwif = NULL;
-	hw_regs_t hw;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int i;
 
@@ -568,11 +568,10 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 	hw.irq = dev->irq;
 	hw.dev = &dev->dev;
 	hw.chipset = ide_pci;
-	ide_init_port_hw(hwif, &hw);
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx, d);
+	ide_device_add(idx, d, hws);
 
 	return 0;
 }

@@ -29,8 +29,8 @@
 static int __init ide_arm_init(void)
 {
 	ide_hwif_t *hwif;
-	hw_regs_t hw;
 	unsigned long base = IDE_ARM_IO, ctl = IDE_ARM_IO + 0x206;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	if (!request_region(base, 8, DRV_NAME)) {
@@ -53,10 +53,9 @@ static int __init ide_arm_init(void)
 
 	hwif = ide_find_port();
 	if (hwif) {
-		ide_init_port_hw(hwif, &hw);
 		idx[0] = hwif->index;
 
-		ide_device_add(idx, NULL);
+		ide_device_add(idx, NULL, hws);
 	}
 
 	return 0;

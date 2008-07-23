@@ -75,8 +75,8 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	ide_hwif_t *hwif;
 	u8 __iomem *base;
 	phys_t offset, size;
-	hw_regs_t hw;
 	int i;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	u8 idx[] = { 0xff, 0xff, 0xff, 0xff };
 
 	if (!SIBYTE_HAVE_IDE)
@@ -120,14 +120,12 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	if (hwif == NULL)
 		goto err;
 
-	ide_init_port_hw(hwif, &hw);
-
 	/* Setup MMIO ops. */
 	default_hwif_mmiops(hwif);
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx, &swarm_port_info);
+	ide_device_add(idx, &swarm_port_info, hws);
 
 	dev_set_drvdata(dev, hwif);
 

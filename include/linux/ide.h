@@ -1000,7 +1000,8 @@ extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *o
 #define ide_pci_register_driver(d) pci_register_driver(d)
 #endif
 
-void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int, u8 *);
+void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int,
+			 u8 *, hw_regs_t *, hw_regs_t **);
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
@@ -1217,8 +1218,8 @@ void ide_undecoded_slave(ide_drive_t *);
 
 void ide_port_apply_params(ide_hwif_t *);
 
-int ide_device_add_all(u8 *idx, const struct ide_port_info *);
-int ide_device_add(u8 idx[4], const struct ide_port_info *);
+int ide_device_add_all(u8 *, const struct ide_port_info *, hw_regs_t **);
+int ide_device_add(u8 *, const struct ide_port_info *, hw_regs_t **);
 int ide_legacy_device_add(const struct ide_port_info *, unsigned long);
 void ide_port_unregister_devices(ide_hwif_t *);
 void ide_port_scan(ide_hwif_t *);
