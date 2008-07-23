@@ -63,6 +63,11 @@ static u8 superio_ide_inb (unsigned long port)
 	return inb(port);
 }
 
+static u8 superio_read_status(ide_hwif_t *hwif)
+{
+	return superio_ide_inb(hwif->io_ports.status_addr);
+}
+
 static u8 superio_read_sff_dma_status(ide_hwif_t *hwif)
 {
 	return superio_ide_inb(hwif->dma_base + ATA_DMA_STATUS);
@@ -127,6 +132,7 @@ static void __devinit superio_ide_init_iops (struct hwif_s *hwif)
 	tmp = superio_ide_inb(superio_ide_dma_status[port]);
 	outb(tmp | 0x66, superio_ide_dma_status[port]);
 
+	hwif->read_status	  = superio_read_status;
 	hwif->read_sff_dma_status = superio_read_sff_dma_status;
 
 	hwif->tf_read = superio_tf_read;
@@ -283,7 +289,7 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 		outb(8, hwif->io_ports.ctl_addr);
 		do {
 			udelay(50);
-			stat = hwif->INB(hwif->io_ports.status_addr);
+			stat = hwif->read_status(hwif);
                 	if (stat == 0xff)
                         	break;
         	} while ((stat & BUSY_STAT) && --timeout);

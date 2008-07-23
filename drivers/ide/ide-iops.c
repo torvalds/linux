@@ -111,6 +111,14 @@ static void ide_exec_command(ide_hwif_t *hwif, u8 cmd)
 		outb(cmd, hwif->io_ports.command_addr);
 }
 
+static u8 ide_read_status(ide_hwif_t *hwif)
+{
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		return readb((void __iomem *)hwif->io_ports.status_addr);
+	else
+		return inb(hwif->io_ports.status_addr);
+}
+
 static u8 ide_read_sff_dma_status(ide_hwif_t *hwif)
 {
 	if (hwif->host_flags & IDE_HFLAG_MMIO)
@@ -340,6 +348,7 @@ static void ata_output_data(ide_drive_t *drive, struct request *rq,
 void default_hwif_transport(ide_hwif_t *hwif)
 {
 	hwif->exec_command	  = ide_exec_command;
+	hwif->read_status	  = ide_read_status;
 	hwif->read_sff_dma_status = ide_read_sff_dma_status;
 
 	hwif->tf_load	  = ide_tf_load;
@@ -505,7 +514,7 @@ int drive_is_ready (ide_drive_t *drive)
 		stat = ide_read_altstatus(drive);
 	else
 		/* Note: this may clear a pending IRQ!! */
-		stat = ide_read_status(drive);
+		stat = hwif->read_status(hwif);
 
 	if (stat & BUSY_STAT)
 		/* drive busy:  definitely not interrupting */
@@ -530,24 +539,25 @@ EXPORT_SYMBOL(drive_is_ready);
  */
 static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long timeout, u8 *rstat)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
 	int i;
 	u8 stat;
 
 	udelay(1);	/* spec allows drive 400ns to assert "BUSY" */
-	stat = ide_read_status(drive);
+	stat = hwif->read_status(hwif);
 
 	if (stat & BUSY_STAT) {
 		local_irq_set(flags);
 		timeout += jiffies;
-		while ((stat = ide_read_status(drive)) & BUSY_STAT) {
+		while ((stat = hwif->read_status(hwif)) & BUSY_STAT) {
 			if (time_after(jiffies, timeout)) {
 				/*
 				 * One last read after the timeout in case
 				 * heavy interrupt load made us not make any
 				 * progress during the timeout..
 				 */
-				stat = ide_read_status(drive);
+				stat = hwif->read_status(hwif);
 				if (!(stat & BUSY_STAT))
 					break;
 
@@ -567,7 +577,7 @@ static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long ti
 	 */
 	for (i = 0; i < 10; i++) {
 		udelay(1);
-		stat = ide_read_status(drive);
+		stat = hwif->read_status(hwif);
 
 		if (OK_STAT(stat, good, bad)) {
 			*rstat = stat;
@@ -718,7 +728,7 @@ int ide_driveid_update(ide_drive_t *drive)
 	} while (stat & BUSY_STAT);
 
 	msleep(50);	/* wait for IRQ and DRQ_STAT */
-	stat = ide_read_status(drive);
+	stat = hwif->read_status(hwif);
 
 	if (!OK_STAT(stat, DRQ_STAT, BAD_R_STAT)) {
 		SELECT_MASK(drive, 0);
@@ -733,7 +743,7 @@ int ide_driveid_update(ide_drive_t *drive)
 		return 0;
 	}
 	hwif->input_data(drive, NULL, id, SECTOR_SIZE);
-	(void)ide_read_status(drive);	/* clear drive IRQ */
+	(void)hwif->read_status(hwif);	/* clear drive IRQ */
 	local_irq_enable();
 	local_irq_restore(flags);
 	ide_fix_driveid(id);
@@ -943,12 +953,13 @@ static ide_startstop_t do_reset1 (ide_drive_t *, int);
  */
 static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 {
-	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
+	ide_hwif_t *hwif = drive->hwif;
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	u8 stat;
 
 	SELECT_DRIVE(drive);
 	udelay (10);
-	stat = ide_read_status(drive);
+	stat = hwif->read_status(hwif);
 
 	if (OK_STAT(stat, 0, BUSY_STAT))
 		printk("%s: ATAPI reset complete\n", drive->name);
@@ -994,7 +1005,7 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		}
 	}
 
-	tmp = ide_read_status(drive);
+	tmp = hwif->read_status(hwif);
 
 	if (!OK_STAT(tmp, 0, BUSY_STAT)) {
 		if (time_before(jiffies, hwgroup->poll_timeout)) {
@@ -1208,7 +1219,7 @@ int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 		 * about locking issues (2.5 work ?).
 		 */
 		mdelay(1);
-		stat = hwif->INB(hwif->io_ports.status_addr);
+		stat = hwif->read_status(hwif);
 		if ((stat & BUSY_STAT) == 0)
 			return 0;
 		/*

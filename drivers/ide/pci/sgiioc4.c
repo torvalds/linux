@@ -127,7 +127,7 @@ sgiioc4_checkirq(ide_hwif_t * hwif)
 	return 0;
 }
 
-static u8 sgiioc4_INB(unsigned long);
+static u8 sgiioc4_read_status(ide_hwif_t *);
 
 static int
 sgiioc4_clearirq(ide_drive_t * drive)
@@ -141,18 +141,19 @@ sgiioc4_clearirq(ide_drive_t * drive)
 	intr_reg = readl((void __iomem *)other_ir);
 	if (intr_reg & 0x03) { /* Valid IOC4-IDE interrupt */
 		/*
-		 * Using sgiioc4_INB to read the Status register has a side
-		 * effect of clearing the interrupt.  The first read should
+		 * Using sgiioc4_read_status to read the Status register has a
+		 * side effect of clearing the interrupt.  The first read should
 		 * clear it if it is set.  The second read should return
 		 * a "clear" status if it got cleared.  If not, then spin
 		 * for a bit trying to clear it.
 		 */
-		u8 stat = sgiioc4_INB(io_ports->status_addr);
+		u8 stat = sgiioc4_read_status(hwif);
 		int count = 0;
-		stat = sgiioc4_INB(io_ports->status_addr);
+
+		stat = sgiioc4_read_status(hwif);
 		while ((stat & 0x80) && (count++ < 100)) {
 			udelay(1);
-			stat = sgiioc4_INB(io_ports->status_addr);
+			stat = sgiioc4_read_status(hwif);
 		}
 
 		if (intr_reg & 0x02) {
@@ -304,9 +305,9 @@ sgiioc4_dma_lost_irq(ide_drive_t * drive)
 	ide_dma_lost_irq(drive);
 }
 
-static u8
-sgiioc4_INB(unsigned long port)
+static u8 sgiioc4_read_status(ide_hwif_t *hwif)
 {
+	unsigned long port = hwif->io_ports.status_addr;
 	u8 reg = (u8) readb((void __iomem *) port);
 
 	if ((port & 0xFFF) == 0x11C) {	/* Status register of IOC4 */
@@ -628,7 +629,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	/* Initializing chipset IRQ Registers */
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 
-	hwif->INB = &sgiioc4_INB;
+	hwif->read_status = sgiioc4_read_status;
 
 	idx[0] = hwif->index;
 

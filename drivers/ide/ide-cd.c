@@ -280,11 +280,12 @@ static void ide_dump_status_no_sense(ide_drive_t *drive, const char *msg, u8 st)
  */
 static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 {
-	struct request *rq = HWGROUP(drive)->rq;
+	ide_hwif_t *hwif = drive->hwif;
+	struct request *rq = hwif->hwgroup->rq;
 	int stat, err, sense_key;
 
 	/* check for errors */
-	stat = ide_read_status(drive);
+	stat = hwif->read_status(hwif);
 
 	if (stat_ret)
 		*stat_ret = stat;
@@ -606,6 +607,8 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 				int len, int ireason, int rw)
 {
+	ide_hwif_t *hwif = drive->hwif;
+
 	/*
 	 * ireason == 0: the drive wants to receive data from us
 	 * ireason == 2: the drive is expecting to transfer data to us
@@ -624,7 +627,7 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 		 * Some drives (ASUS) seem to tell us that status info is
 		 * available.  Just get it and ignore.
 		 */
-		(void)ide_read_status(drive);
+		(void)hwif->read_status(hwif);
 		return 0;
 	} else {
 		/* drive wants a command packet, or invalid ireason... */
@@ -1199,8 +1202,9 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 
 	if (blk_fs_request(rq)) {
 		if (info->cd_flags & IDE_CD_FLAG_SEEKING) {
+			ide_hwif_t *hwif = drive->hwif;
 			unsigned long elapsed = jiffies - info->start_seek;
-			int stat = ide_read_status(drive);
+			int stat = hwif->read_status(hwif);
 
 			if ((stat & SEEK_STAT) != SEEK_STAT) {
 				if (elapsed < IDECD_SEEK_TIMEOUT) {

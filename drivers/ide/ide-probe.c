@@ -276,7 +276,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 
 	if (io_ports->ctl_addr) {
 		a = ide_read_altstatus(drive);
-		s = ide_read_status(drive);
+		s = hwif->read_status(hwif);
 		if ((a ^ s) & ~INDEX_STAT)
 			/* ancient Seagate drives, broken interfaces */
 			printk(KERN_INFO "%s: probing with STATUS(0x%02x) "
@@ -307,12 +307,12 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 		/* give drive a breather */
 		msleep(50);
 		s = use_altstatus ? ide_read_altstatus(drive)
-				  : ide_read_status(drive);
+				  : hwif->read_status(hwif);
 	} while (s & BUSY_STAT);
 
 	/* wait for IRQ and DRQ_STAT */
 	msleep(50);
-	s = ide_read_status(drive);
+	s = hwif->read_status(hwif);
 
 	if (OK_STAT(s, DRQ_STAT, BAD_R_STAT)) {
 		unsigned long flags;
@@ -324,7 +324,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 		/* drive responded with ID */
 		rc = 0;
 		/* clear drive IRQ */
-		(void)ide_read_status(drive);
+		(void)hwif->read_status(hwif);
 		local_irq_restore(flags);
 	} else {
 		/* drive refused ID */
@@ -371,7 +371,7 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 
 		ide_set_irq(drive, 0);
 		/* clear drive IRQ */
-		(void)ide_read_status(drive);
+		(void)hwif->read_status(hwif);
 		udelay(5);
 		irq = probe_irq_off(cookie);
 		if (!hwif->irq) {
@@ -396,7 +396,7 @@ static int ide_busy_sleep(ide_hwif_t *hwif)
 
 	do {
 		msleep(50);
-		stat = hwif->INB(hwif->io_ports.status_addr);
+		stat = hwif->read_status(hwif);
 		if ((stat & BUSY_STAT) == 0)
 			return 0;
 	} while (time_before(jiffies, timeout));
@@ -461,7 +461,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 		return 3;
 	}
 
-	stat = ide_read_status(drive);
+	stat = hwif->read_status(hwif);
 
 	if (OK_STAT(stat, READY_STAT, BUSY_STAT) ||
 	    drive->present || cmd == WIN_PIDENTIFY) {
@@ -471,7 +471,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			rc = try_to_identify(drive,cmd);
 		}
 
-		stat = ide_read_status(drive);
+		stat = hwif->read_status(hwif);
 
 		if (stat == (BUSY_STAT | READY_STAT))
 			return 4;
@@ -488,7 +488,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 		}
 
 		/* ensure drive IRQ is clear */
-		stat = ide_read_status(drive);
+		stat = hwif->read_status(hwif);
 
 		if (rc == 1)
 			printk(KERN_ERR "%s: no response (status = 0x%02x)\n",
@@ -502,7 +502,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 		SELECT_DRIVE(&hwif->drives[0]);
 		msleep(50);
 		/* ensure drive irq is clear */
-		(void)ide_read_status(drive);
+		(void)hwif->read_status(hwif);
 	}
 	return rc;
 }
@@ -527,7 +527,7 @@ static void enable_nest (ide_drive_t *drive)
 
 	msleep(50);
 
-	stat = ide_read_status(drive);
+	stat = hwif->read_status(hwif);
 
 	if (!OK_STAT(stat, 0, BAD_STAT))
 		printk(KERN_CONT "failed (status = 0x%02x)\n", stat);

@@ -949,11 +949,12 @@ static int idefloppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 
 		/* Else assume format_unit has finished, and we're at 0x10000 */
 	} else {
+		ide_hwif_t *hwif = drive->hwif;
 		unsigned long flags;
 		u8 stat;
 
 		local_irq_save(flags);
-		stat = ide_read_status(drive);
+		stat = hwif->read_status(hwif);
 		local_irq_restore(flags);
 
 		progress_indication = ((stat & SEEK_STAT) == 0) ? 0 : 0x10000;

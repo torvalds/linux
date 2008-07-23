@@ -246,7 +246,7 @@ idescsi_atapi_error(ide_drive_t *drive, struct request *rq, u8 stat, u8 err)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
+	if (hwif->read_status(hwif) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
 		hwif->exec_command(hwif, WIN_IDLEIMMEDIATE);
 

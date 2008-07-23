@@ -375,12 +375,14 @@ static int icside_dma_test_irq(ide_drive_t *drive)
 
 static void icside_dma_timeout(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
+
 	printk(KERN_ERR "%s: DMA timeout occurred: ", drive->name);
 
 	if (icside_dma_test_irq(drive))
 		return;
 
-	ide_dump_status(drive, "DMA timeout", ide_read_status(drive));
+	ide_dump_status(drive, "DMA timeout", hwif->read_status(hwif));
 
 	icside_dma_end(drive);
 }

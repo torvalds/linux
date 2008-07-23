@@ -927,11 +927,12 @@ static void idetape_create_mode_sense_cmd(struct ide_atapi_pc *pc, u8 page_code)
 
 static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc *pc = tape->pc;
 	u8 stat;
 
-	stat = ide_read_status(drive);
+	stat = hwif->read_status(hwif);
 
 	if (stat & SEEK_STAT) {
 		if (stat & ERR_STAT) {
@@ -980,6 +981,7 @@ static void ide_tape_create_rw_cmd(idetape_tape_t *tape,
 static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 					  struct request *rq, sector_t block)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc *pc = NULL;
 	struct request *postponed_rq = tape->postponed_rq;
@@ -1017,7 +1019,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	 * If the tape is still busy, postpone our request and service
 	 * the other device meanwhile.
 	 */
-	stat = ide_read_status(drive);
+	stat = hwif->read_status(hwif);
 
 	if (!drive->dsc_overlap && !(rq->cmd[0] & REQ_IDETAPE_PC2))
 		set_bit(IDETAPE_FLAG_IGNORE_DSC, &tape->flags);

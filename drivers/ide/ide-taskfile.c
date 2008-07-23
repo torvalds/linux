@@ -124,7 +124,8 @@ EXPORT_SYMBOL_GPL(do_rw_taskfile);
  */
 static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
 {
-	u8 stat = ide_read_status(drive);
+	ide_hwif_t *hwif = drive->hwif;
+	u8 stat = hwif->read_status(hwif);
 
 	if (OK_STAT(stat, READY_STAT, BAD_STAT))
 		drive->mult_count = drive->mult_req;
@@ -141,10 +142,11 @@ static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
  */
 static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	int retries = 5;
 	u8 stat;
 
-	while (((stat = ide_read_status(drive)) & BUSY_STAT) && retries--)
+	while (((stat = hwif->read_status(hwif)) & BUSY_STAT) && retries--)
 		udelay(10);
 
 	if (OK_STAT(stat, READY_STAT, BAD_STAT))
@@ -162,7 +164,8 @@ static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
  */
 static ide_startstop_t recal_intr(ide_drive_t *drive)
 {
-	u8 stat = ide_read_status(drive);
+	ide_hwif_t *hwif = drive->hwif;
+	u8 stat = hwif->read_status(hwif);
 
 	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
 		return ide_error(drive, "recal_intr", stat);
@@ -174,11 +177,12 @@ static ide_startstop_t recal_intr(ide_drive_t *drive)
  */
 static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 {
-	ide_task_t *args	= HWGROUP(drive)->rq->special;
+	ide_hwif_t *hwif = drive->hwif;
+	ide_task_t *args = hwif->hwgroup->rq->special;
 	u8 stat;
 
 	local_irq_enable_in_hardirq();
-	stat = ide_read_status(drive);
+	stat = hwif->read_status(hwif);
 
 	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
 		return ide_error(drive, "task_no_data_intr", stat);
@@ -192,6 +196,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 
 static u8 wait_drive_not_busy(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	int retries;
 	u8 stat;
 
@@ -200,7 +205,7 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	 * take up to 6 ms on some ATAPI devices, so we will wait max 10 ms.
 	 */
 	for (retries = 0; retries < 1000; retries++) {
-		stat = ide_read_status(drive);
+		stat = hwif->read_status(hwif);
 
 		if (stat & BUSY_STAT)
 			udelay(10);
@@ -383,8 +388,8 @@ static ide_startstop_t task_in_unexpected(ide_drive_t *drive, struct request *rq
 static ide_startstop_t task_in_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = HWGROUP(drive)->rq;
-	u8 stat = ide_read_status(drive);
+	struct request *rq = hwif->hwgroup->rq;
+	u8 stat = hwif->read_status(hwif);
 
 	/* Error? */
 	if (stat & ERR_STAT)
@@ -418,7 +423,7 @@ static ide_startstop_t task_out_intr (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = HWGROUP(drive)->rq;
-	u8 stat = ide_read_status(drive);
+	u8 stat = hwif->read_status(hwif);
 
 	if (!OK_STAT(stat, DRIVE_READY, drive->bad_wstat))
 		return task_error(drive, rq, __func__, stat);

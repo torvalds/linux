@@ -100,10 +100,11 @@ static const struct drive_list_entry drive_blacklist [] = {
  
 ide_startstop_t ide_dma_intr (ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	u8 stat = 0, dma_stat = 0;
 
-	dma_stat = drive->hwif->dma_ops->dma_end(drive);
-	stat = ide_read_status(drive);
+	dma_stat = hwif->dma_ops->dma_end(drive);
+	stat = hwif->read_status(hwif);
 
 	if (OK_STAT(stat,DRIVE_READY,drive->bad_wstat|DRQ_STAT)) {
 		if (!dma_stat) {

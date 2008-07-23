@@ -35,7 +35,7 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	}
 
 	/* Clear the interrupt */
-	stat = ide_read_status(drive);
+	stat = hwif->read_status(hwif);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
 		if (hwif->dma_ops->dma_end(drive) ||
