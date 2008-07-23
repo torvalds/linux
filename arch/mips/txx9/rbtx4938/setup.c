@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/console.h>
-#include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 
@@ -28,33 +27,14 @@
 #include <asm/txx9/spi.h>
 #include <asm/txx9pio.h>
 
-static void rbtx4938_machine_halt(void)
-{
-        printk(KERN_NOTICE "System Halted\n");
-	local_irq_disable();
-
-	while (1)
-		__asm__(".set\tmips3\n\t"
-			"wait\n\t"
-			".set\tmips0");
-}
-
-static void rbtx4938_machine_power_off(void)
-{
-        rbtx4938_machine_halt();
-        /* no return */
-}
-
 static void rbtx4938_machine_restart(char *command)
 {
 	local_irq_disable();
-
-	printk("Rebooting...");
 	writeb(1, rbtx4938_softresetlock_addr);
 	writeb(1, rbtx4938_sfvol_addr);
 	writeb(1, rbtx4938_softreset_addr);
-	while(1)
-		;
+	/* fallback */
+	(*_machine_halt)();
 }
 
 static void __init rbtx4938_pci_setup(void)
@@ -263,8 +243,6 @@ static void __init rbtx4938_mem_setup(void)
 		printk("request resource for fpga failed\n");
 
 	_machine_restart = rbtx4938_machine_restart;
-	_machine_halt = rbtx4938_machine_halt;
-	pm_power_off = rbtx4938_machine_power_off;
 
 	writeb(0xff, rbtx4938_led_addr);
 	printk(KERN_INFO "RBTX4938 --- FPGA(Rev %02x) DIPSW:%02x,%02x\n",

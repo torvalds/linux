@@ -47,11 +47,9 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
-#include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/processor.h>
 #include <asm/reboot.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
@@ -167,17 +165,8 @@ static void __init rbtx4937_arch_init(void)
 #define rbtx4937_arch_init NULL
 #endif /* CONFIG_PCI */
 
-static void __noreturn wait_forever(void)
-{
-	while (1)
-		if (cpu_wait)
-			(*cpu_wait)();
-}
-
 static void toshiba_rbtx4927_restart(char *command)
 {
-	printk(KERN_NOTICE "System Rebooting...\n");
-
 	/* enable the s/w reset register */
 	writeb(1, rbtx4927_softresetlock_addr);
 
@@ -188,24 +177,8 @@ static void toshiba_rbtx4927_restart(char *command)
 	/* do a s/w reset */
 	writeb(1, rbtx4927_softreset_addr);
 
-	/* do something passive while waiting for reset */
-	local_irq_disable();
-	wait_forever();
-	/* no return */
-}
-
-static void toshiba_rbtx4927_halt(void)
-{
-	printk(KERN_NOTICE "System Halted\n");
-	local_irq_disable();
-	wait_forever();
-	/* no return */
-}
-
-static void toshiba_rbtx4927_power_off(void)
-{
-	toshiba_rbtx4927_halt();
-	/* no return */
+	/* fallback */
+	(*_machine_halt)();
 }
 
 static void __init rbtx4927_clock_init(void);
@@ -233,8 +206,6 @@ static void __init rbtx4927_mem_setup(void)
 	}
 
 	_machine_restart = toshiba_rbtx4927_restart;
-	_machine_halt = toshiba_rbtx4927_halt;
-	pm_power_off = toshiba_rbtx4927_power_off;
 
 #ifdef CONFIG_PCI
 	txx9_alloc_pci_controller(&txx9_primary_pcic,

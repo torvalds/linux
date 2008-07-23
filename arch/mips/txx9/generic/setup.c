@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
+#include <asm/reboot.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
 #ifdef CONFIG_CPU_TX49XX
@@ -188,6 +189,25 @@ char * __init prom_getcmdline(void)
 	return &(arcs_cmdline[0]);
 }
 
+static void __noreturn txx9_machine_halt(void)
+{
+	local_irq_disable();
+	clear_c0_status(ST0_IM);
+	while (1) {
+		if (cpu_wait) {
+			(*cpu_wait)();
+			if (cpu_has_counter) {
+				/*
+				 * Clear counter interrupt while it
+				 * breaks WAIT instruction even if
+				 * masked.
+				 */
+				write_c0_compare(0);
+			}
+		}
+	}
+}
+
 /* wrappers */
 void __init plat_mem_setup(void)
 {
@@ -195,6 +215,12 @@ void __init plat_mem_setup(void)
 	ioport_resource.end = ~0UL;	/* no limit */
 	iomem_resource.start = 0;
 	iomem_resource.end = ~0UL;	/* no limit */
+
+	/* fallback restart/halt routines */
+	_machine_restart = (void (*)(char *))txx9_machine_halt;
+	_machine_halt = txx9_machine_halt;
+	pm_power_off = txx9_machine_halt;
+
 #ifdef CONFIG_PCI
 	pcibios_plat_setup = txx9_pcibios_setup;
 #endif

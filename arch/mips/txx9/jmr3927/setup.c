@@ -32,7 +32,6 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #ifdef CONFIG_SERIAL_TXX9
@@ -46,13 +45,12 @@
 #include <asm/txx9/jmr3927.h>
 #include <asm/mipsregs.h>
 
-extern void puts(const char *cp);
-
 /* don't enable - see errata */
 static int jmr3927_ccfg_toeon;
 
-static inline void do_reset(void)
+static void jmr3927_machine_restart(char *command)
 {
+	local_irq_disable();
 #if 1	/* Resetting PCI bus */
 	jmr3927_ioc_reg_out(0, JMR3927_IOC_RESET_ADDR);
 	jmr3927_ioc_reg_out(JMR3927_IOC_RESET_PCI, JMR3927_IOC_RESET_ADDR);
@@ -61,25 +59,8 @@ static inline void do_reset(void)
 	jmr3927_ioc_reg_out(0, JMR3927_IOC_RESET_ADDR);
 #endif
 	jmr3927_ioc_reg_out(JMR3927_IOC_RESET_CPU, JMR3927_IOC_RESET_ADDR);
-}
-
-static void jmr3927_machine_restart(char *command)
-{
-	local_irq_disable();
-	puts("Rebooting...");
-	do_reset();
-}
-
-static void jmr3927_machine_halt(void)
-{
-	puts("JMR-TX3927 halted.\n");
-	while (1);
-}
-
-static void jmr3927_machine_power_off(void)
-{
-	puts("JMR-TX3927 halted. Please turn off the power.\n");
-	while (1);
+	/* fallback */
+	(*_machine_halt)();
 }
 
 static void __init jmr3927_time_init(void)
@@ -102,8 +83,6 @@ static void __init jmr3927_mem_setup(void)
 	set_io_port_base(JMR3927_PORT_BASE + JMR3927_PCIIO);
 
 	_machine_restart = jmr3927_machine_restart;
-	_machine_halt = jmr3927_machine_halt;
-	pm_power_off = jmr3927_machine_power_off;
 
 	/* Reboot on panic */
 	panic_timeout = 180;
