@@ -653,6 +653,8 @@ static struct net_device * au1000_probe(int port_num)
 
 	aup = dev->priv;
 
+	spin_lock_init(&aup->lock);
+
 	/* Allocate the data buffers */
 	/* Snooping works fine with eth on all au1xxx */
 	aup->vaddr = (u32)dma_alloc_noncoherent(NULL, MAX_BUF_SIZE *
@@ -753,7 +755,6 @@ static struct net_device * au1000_probe(int port_num)
 		aup->tx_db_inuse[i] = pDB;
 	}
 
-	spin_lock_init(&aup->lock);
 	dev->base_addr = base;
 	dev->irq = irq;
 	dev->open = au1000_open;
