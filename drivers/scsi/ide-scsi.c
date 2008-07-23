@@ -84,7 +84,6 @@ typedef struct ide_scsi_obj {
 	struct Scsi_Host	*host;
 
 	struct ide_atapi_pc *pc;		/* Current packet command */
-	unsigned long flags;			/* Status/Action flags */
 	unsigned long transform;		/* SCSI cmd translation layer */
 	unsigned long log;			/* log flags */
 } idescsi_scsi_t;
@@ -124,16 +123,6 @@ static inline idescsi_scsi_t *drive_to_idescsi(ide_drive_t *ide_drive)
 {
 	return scsihost_to_idescsi(ide_drive->driver_data);
 }
-
-/*
- *	Per ATAPI device status bits.
- */
-#define IDESCSI_DRQ_INTERRUPT		0	/* DRQ interrupt device */
-
-/*
- *	ide-scsi requests.
- */
-#define IDESCSI_PC_RQ			90
 
 /*
  *	PIO data transfer routine using the scatter gather table.
@@ -421,10 +410,6 @@ static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *r
 
 	if (blk_sense_request(rq) || blk_special_request(rq)) {
 		struct ide_atapi_pc *pc = (struct ide_atapi_pc *)rq->special;
-		idescsi_scsi_t *scsi = drive_to_idescsi(drive);
-
-		if (test_bit(IDESCSI_DRQ_INTERRUPT, &scsi->flags))
-			pc->flags |= PC_FLAG_DRQ_INTERRUPT;
 
 		if (drive->using_dma && !idescsi_map_sg(drive, pc))
 			pc->flags |= PC_FLAG_DMA_OK;
@@ -460,7 +445,7 @@ static inline void idescsi_add_settings(ide_drive_t *drive) { ; }
 static void idescsi_setup (ide_drive_t *drive, idescsi_scsi_t *scsi)
 {
 	if (drive->id && (drive->id->config & 0x0060) == 0x20)
-		set_bit (IDESCSI_DRQ_INTERRUPT, &scsi->flags);
+		set_bit(IDE_AFLAG_DRQ_INTERRUPT, &drive->atapi_flags);
 	clear_bit(IDESCSI_SG_TRANSFORM, &scsi->transform);
 #if IDESCSI_DEBUG_LOG
 	set_bit(IDESCSI_LOG_CMD, &scsi->log);
