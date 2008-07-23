@@ -121,7 +121,7 @@ int cdrom_eject(ide_drive_t *drive, int ejectflag,
 	cmd[0] = GPCMD_START_STOP_UNIT;
 	cmd[4] = loej | (ejectflag != 0);
 
-	return ide_cd_queue_pc(drive, cmd, 0, NULL, 0, sense, 0, 0);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, sense, 0, 0);
 }
 
 /* Lock the door if LOCKFLAG is nonzero; unlock it otherwise. */
@@ -146,7 +146,7 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
 		cmd[0] = GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL;
 		cmd[4] = lockflag ? 1 : 0;
 
-		stat = ide_cd_queue_pc(drive, cmd, 0, NULL, 0,
+		stat = ide_cd_queue_pc(drive, cmd, 0, NULL, NULL,
 				       sense, 0, 0);
 	}
 
@@ -228,7 +228,7 @@ int ide_cdrom_select_speed(struct cdrom_device_info *cdi, int speed)
 		cmd[5] = speed & 0xff;
 	}
 
-	stat = ide_cd_queue_pc(drive, cmd, 0, NULL, 0, &sense, 0, 0);
+	stat = ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, &sense, 0, 0);
 
 	if (!ide_cdrom_get_capabilities(drive, buf)) {
 		ide_cdrom_update_speed(drive, buf);
@@ -371,7 +371,7 @@ static int ide_cd_fake_play_trkind(ide_drive_t *drive, void *arg)
 	lba_to_msf(lba_start,   &cmd[3], &cmd[4], &cmd[5]);
 	lba_to_msf(lba_end - 1, &cmd[6], &cmd[7], &cmd[8]);
 
-	return ide_cd_queue_pc(drive, cmd, 0, NULL, 0, &sense, 0, 0);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, &sense, 0, 0);
 }
 
 static int ide_cd_read_tochdr(ide_drive_t *drive, void *arg)
