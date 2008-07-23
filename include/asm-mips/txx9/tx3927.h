@@ -11,6 +11,7 @@
 #include <asm/txx9/txx927.h>
 
 #define TX3927_REG_BASE	0xfffe0000UL
+#define TX3927_REG_SIZE	0x00010000
 #define TX3927_SDRAMC_REG	(TX3927_REG_BASE + 0x8000)
 #define TX3927_ROMC_REG		(TX3927_REG_BASE + 0x9000)
 #define TX3927_DMA_REG		(TX3927_REG_BASE + 0xb000)
@@ -319,13 +320,22 @@ struct tx3927_ccfg_reg {
 #define tx3927_dmaptr		((struct tx3927_dma_reg *)TX3927_DMA_REG)
 #define tx3927_pcicptr		((struct tx3927_pcic_reg *)TX3927_PCIC_REG)
 #define tx3927_ccfgptr		((struct tx3927_ccfg_reg *)TX3927_CCFG_REG)
-#define tx3927_tmrptr(ch)	((struct txx927_tmr_reg *)TX3927_TMR_REG(ch))
 #define tx3927_sioptr(ch)	((struct txx927_sio_reg *)TX3927_SIO_REG(ch))
 #define tx3927_pioptr		((struct txx9_pio_reg __iomem *)TX3927_PIO_REG)
 
+#define TX3927_REV_PCODE()	(tx3927_ccfgptr->crir >> 16)
+#define TX3927_ROMC_BA(ch)	(tx3927_romcptr->cr[(ch)] & 0xfff00000)
+#define TX3927_ROMC_SIZE(ch)	\
+	(0x00100000 << ((tx3927_romcptr->cr[(ch)] >> 8) & 0xf))
+
+void tx3927_wdt_init(void);
+void tx3927_setup(void);
+void tx3927_time_init(unsigned int evt_tmrnr, unsigned int src_tmrnr);
+void tx3927_setup_serial(unsigned int cts_mask);
 struct pci_controller;
 void __init tx3927_pcic_setup(struct pci_controller *channel,
 			      unsigned long sdram_size, int extarb);
 void tx3927_setup_pcierr_irq(void);
+void tx3927_irq_init(void);
 
 #endif /* __ASM_TXX9_TX3927_H */

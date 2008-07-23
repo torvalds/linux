@@ -46,13 +46,6 @@
 #error JMR3927_IRQ_END > NR_IRQS
 #endif
 
-static unsigned char irc_level[TX3927_NUM_IR] = {
-	5, 5, 5, 5, 5, 5,	/* INT[5:0] */
-	7, 7,			/* SIO */
-	5, 5, 5, 0, 0,		/* DMA, PIO, PCI */
-	6, 6, 6			/* TMR */
-};
-
 /*
  * CP0_STATUS is a thread's resource (saved/restored on context switch).
  * So disable_irq/enable_irq MUST handle IOC/IRC registers.
@@ -103,10 +96,18 @@ static int jmr3927_irq_dispatch(int pending)
 	return irq;
 }
 
-static void __init jmr3927_irq_init(void);
+static struct irq_chip jmr3927_irq_ioc = {
+	.name = "jmr3927_ioc",
+	.ack = mask_irq_ioc,
+	.mask = mask_irq_ioc,
+	.mask_ack = mask_irq_ioc,
+	.unmask = unmask_irq_ioc,
+};
 
 void __init jmr3927_irq_setup(void)
 {
+	int i;
+
 	txx9_irq_dispatch = jmr3927_irq_dispatch;
 	/* Now, interrupt control disabled, */
 	/* all IRC interrupts are masked, */
@@ -122,30 +123,10 @@ void __init jmr3927_irq_setup(void)
 	/* clear PCI Reset interrupts */
 	jmr3927_ioc_reg_out(0, JMR3927_IOC_RESET_ADDR);
 
-	jmr3927_irq_init();
+	tx3927_irq_init();
+	for (i = JMR3927_IRQ_IOC; i < JMR3927_IRQ_IOC + JMR3927_NR_IRQ_IOC; i++)
+		set_irq_chip_and_handler(i, &jmr3927_irq_ioc, handle_level_irq);
 
 	/* setup IOC interrupt 1 (PCI, MODEM) */
 	set_irq_chained_handler(JMR3927_IRQ_IOCINT, handle_simple_irq);
-
-	/* enable all CPU interrupt bits. */
-	set_c0_status(ST0_IM);	/* IE bit is still 0. */
-}
-
-static struct irq_chip jmr3927_irq_ioc = {
-	.name = "jmr3927_ioc",
-	.ack = mask_irq_ioc,
-	.mask = mask_irq_ioc,
-	.mask_ack = mask_irq_ioc,
-	.unmask = unmask_irq_ioc,
-};
-
-static void __init jmr3927_irq_init(void)
-{
-	u32 i;
-
-	txx9_irq_init(TX3927_IRC_REG);
-	for (i = 0; i < TXx9_MAX_IR; i++)
-		txx9_irq_set_pri(i, irc_level[i]);
-	for (i = JMR3927_IRQ_IOC; i < JMR3927_IRQ_IOC + JMR3927_NR_IRQ_IOC; i++)
-		set_irq_chip_and_handler(i, &jmr3927_irq_ioc, handle_level_irq);
 }
