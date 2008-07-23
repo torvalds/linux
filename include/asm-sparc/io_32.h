@@ -244,6 +244,7 @@ _memcpy_toio(volatile void __iomem *dst, const void *src, __kernel_size_t n)
  */
 extern void __iomem *ioremap(unsigned long offset, unsigned long size);
 #define ioremap_nocache(X,Y)	ioremap((X),(Y))
+#define ioremap_wc(X,Y)		ioremap((X),(Y))
 extern void iounmap(volatile void __iomem *addr);
 
 #define ioread8(X)			readb(X)
