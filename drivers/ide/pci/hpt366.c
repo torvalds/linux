@@ -1409,7 +1409,6 @@ static int __devinit hpt36x_init(struct pci_dev *dev, struct pci_dev *dev2)
 
 #define IDE_HFLAGS_HPT3XX \
 	(IDE_HFLAG_NO_ATAPI_DMA | \
-	 IDE_HFLAG_ABUSE_SET_DMA_MODE | \
 	 IDE_HFLAG_OFF_BOARD)
 
 static const struct ide_port_ops hpt3xx_port_ops = {

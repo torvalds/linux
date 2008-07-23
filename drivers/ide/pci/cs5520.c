@@ -97,8 +97,7 @@ static const struct ide_port_ops cs5520_port_ops = {
 		.name		= name_str,			\
 		.port_ops	= &cs5520_port_ops,		\
 		.host_flags	= IDE_HFLAG_ISA_PORTS |		\
-				  IDE_HFLAG_CS5520 |		\
-				  IDE_HFLAG_ABUSE_SET_DMA_MODE, \
+				  IDE_HFLAG_CS5520,		\
 		.pio_mask	= ATA_PIO4,			\
 	}
 
