@@ -1284,7 +1284,7 @@ int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
 	 */
 	cmd[7] = cdi->sanyo_slot % 3;
 
-	return ide_cd_queue_pc(drive, cmd, 0, NULL, 0, sense, 0, REQ_QUIET);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, sense, 0, REQ_QUIET);
 }
 
 static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
@@ -1292,8 +1292,8 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 			       struct request_sense *sense)
 {
 	struct {
-		__u32 lba;
-		__u32 blocklen;
+		__be32 lba;
+		__be32 blocklen;
 	} capbuf;
 
 	int stat;
@@ -1526,15 +1526,12 @@ void ide_cdrom_update_speed(ide_drive_t *drive, u8 *buf)
 	struct cdrom_info *cd = drive->driver_data;
 	u16 curspeed, maxspeed;
 
-	curspeed = *(u16 *)&buf[8 + 14];
-	maxspeed = *(u16 *)&buf[8 +  8];
-
 	if (drive->atapi_flags & IDE_AFLAG_LE_SPEED_FIELDS) {
-		curspeed = le16_to_cpu(curspeed);
-		maxspeed = le16_to_cpu(maxspeed);
+		curspeed = le16_to_cpup((__le16 *)&buf[8 + 14]);
+		maxspeed = le16_to_cpup((__le16 *)&buf[8 + 8]);
 	} else {
-		curspeed = be16_to_cpu(curspeed);
-		maxspeed = be16_to_cpu(maxspeed);
+		curspeed = be16_to_cpup((__be16 *)&buf[8 + 14]);
+		maxspeed = be16_to_cpup((__be16 *)&buf[8 + 8]);
 	}
 
 	cd->current_speed = (curspeed + (176/2)) / 176;
@@ -1675,7 +1672,7 @@ static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
 	else
 		printk(KERN_CONT " drive");
 
-	printk(KERN_CONT ", %dkB Cache\n", be16_to_cpu(*(u16 *)&buf[8 + 12]));
+	printk(KERN_CONT ", %dkB Cache\n", be16_to_cpup((__be16 *)&buf[8 + 12]));
 
 	return nslots;
 }
