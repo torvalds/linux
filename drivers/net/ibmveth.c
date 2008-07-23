@@ -1054,7 +1054,6 @@ static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ibmveth_adapter *adapter = dev->priv;
 	int new_mtu_oh = new_mtu + IBMVETH_BUFF_OH;
-	int reinit = 0;
 	int i, rc;
 
 	if (new_mtu < IBMVETH_MAX_MTU)
@@ -1067,15 +1066,21 @@ static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 	if (i == IbmVethNumBufferPools)
 		return -EINVAL;
 
-	/* Look for an active buffer pool that can hold the new MTU */
-	for(i = 0; i<IbmVethNumBufferPools; i++) {
-		if (!adapter->rx_buff_pool[i].active) {
-			adapter->rx_buff_pool[i].active = 1;
-			reinit = 1;
+	/* Deactivate all the buffer pools so that the next loop can activate
+	   only the buffer pools necessary to hold the new MTU */
+	for (i = 0; i < IbmVethNumBufferPools; i++)
+		if (adapter->rx_buff_pool[i].active) {
+			ibmveth_free_buffer_pool(adapter,
+						 &adapter->rx_buff_pool[i]);
+			adapter->rx_buff_pool[i].active = 0;
 		}
 
+	/* Look for an active buffer pool that can hold the new MTU */
+	for(i = 0; i<IbmVethNumBufferPools; i++) {
+		adapter->rx_buff_pool[i].active = 1;
+
 		if (new_mtu_oh < adapter->rx_buff_pool[i].buff_size) {
-			if (reinit && netif_running(adapter->netdev)) {
+			if (netif_running(adapter->netdev)) {
 				adapter->pool_config = 1;
 				ibmveth_close(adapter->netdev);
 				adapter->pool_config = 0;
@@ -1402,14 +1407,15 @@ const char * buf, size_t count)
 				return -EPERM;
 			}
 
-			pool->active = 0;
 			if (netif_running(netdev)) {
 				adapter->pool_config = 1;
 				ibmveth_close(netdev);
+				pool->active = 0;
 				adapter->pool_config = 0;
 				if ((rc = ibmveth_open(netdev)))
 					return rc;
 			}
+			pool->active = 0;
 		}
 	} else if (attr == &veth_num_attr) {
 		if (value <= 0 || value > IBMVETH_MAX_POOL_COUNT)
