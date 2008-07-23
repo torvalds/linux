@@ -118,15 +118,9 @@ static int __init ide_generic_init(void)
 				continue;
 			}
 
-			/*
-			 * Skip probing if the corresponding
-			 * slot is already occupied.
-			 */
 			hwif = ide_find_port();
-			if (hwif == NULL || hwif->index != i) {
-				idx[i] = 0xff;
+			if (hwif == NULL)
 				continue;
-			}
 
 			hwif->chipset = ide_generic;
 
