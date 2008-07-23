@@ -638,7 +638,7 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 	return drive->present;
 }
 
-static void hwif_release_dev (struct device *dev)
+static void hwif_release_dev(struct device *dev)
 {
 	ide_hwif_t *hwif = container_of(dev, ide_hwif_t, gendev);
 
