@@ -27,6 +27,7 @@
 #include <linux/dmapool.h>
 #include <linux/cache.h>
 #include <linux/pci_ids.h>
+#include <net/tcp.h>
 
 #define IOAT_DMA_VERSION  "2.18"
 
@@ -128,6 +129,20 @@ struct ioat_desc_sw {
 	dma_addr_t dst;
 	struct dma_async_tx_descriptor async_tx;
 };
+
+static inline void ioat_set_tcp_copy_break(struct ioatdma_device *dev)
+{
+	#ifdef CONFIG_NET_DMA
+	switch (dev->version) {
+	case IOAT_VER_1_2:
+		sysctl_tcp_dma_copybreak = 4096;
+		break;
+	case IOAT_VER_2_0:
+		sysctl_tcp_dma_copybreak = 2048;
+		break;
+	}
+	#endif
+}
 
 #if defined(CONFIG_INTEL_IOATDMA) || defined(CONFIG_INTEL_IOATDMA_MODULE)
 struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,

@@ -1581,6 +1581,8 @@ struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_self_test;
 
+	ioat_set_tcp_copy_break(device);
+
 	dma_async_device_register(&device->common);
 
 	INIT_DELAYED_WORK(&device->work, ioat_dma_chan_watchdog);
