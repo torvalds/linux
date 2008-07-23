@@ -53,6 +53,12 @@ MODULE_PARM_DESC(ioat_pending_level,
 static void ioat_dma_chan_reset_part2(struct work_struct *work);
 static void ioat_dma_chan_watchdog(struct work_struct *work);
 
+/*
+ * workaround for IOAT ver.3.0 null descriptor issue
+ * (channel returns error when size is 0)
+ */
+#define NULL_DESC_BUFFER_SIZE 1
+
 /* internal functions */
 static void ioat_dma_start_null_desc(struct ioat_dma_chan *ioat_chan);
 static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *ioat_chan);
@@ -128,6 +134,38 @@ static int ioat_dma_enumerate_channels(struct ioatdma_device *device)
 	u32 xfercap;
 	int i;
 	struct ioat_dma_chan *ioat_chan;
+
+	/*
+	 * IOAT ver.3 workarounds
+	 */
+	if (device->version == IOAT_VER_3_0) {
+		u32 chan_err_mask;
+		u16 dev_id;
+		u32 dmauncerrsts;
+
+		/*
+		 * Write CHANERRMSK_INT with 3E07h to mask out the errors
+		 * that can cause stability issues for IOAT ver.3
+		 */
+		chan_err_mask = 0x3E07;
+		pci_write_config_dword(device->pdev,
+			IOAT_PCI_CHANERRMASK_INT_OFFSET,
+			chan_err_mask);
+
+		/*
+		 * Clear DMAUNCERRSTS Cfg-Reg Parity Error status bit
+		 * (workaround for spurious config parity error after restart)
+		 */
+		pci_read_config_word(device->pdev,
+			IOAT_PCI_DEVICE_ID_OFFSET,
+			&dev_id);
+		if (dev_id == PCI_DEVICE_ID_INTEL_IOAT_TBG0) {
+			dmauncerrsts = 0x10;
+			pci_write_config_dword(device->pdev,
+				IOAT_PCI_DMAUNCERRSTS_OFFSET,
+				dmauncerrsts);
+		}
+	}
 
 	device->common.chancnt = readb(device->reg_base + IOAT_CHANCNT_OFFSET);
 	xfercap_scale = readb(device->reg_base + IOAT_XFERCAP_OFFSET);
@@ -473,6 +511,13 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 		prev = new;
 	} while (len && (new = ioat1_dma_get_next_descriptor(ioat_chan)));
 
+	if (!new) {
+		dev_err(&ioat_chan->device->pdev->dev,
+			"tx submit failed\n");
+		spin_unlock_bh(&ioat_chan->desc_lock);
+		return -ENOMEM;
+	}
+
 	hw->ctl = IOAT_DMA_DESCRIPTOR_CTL_CP_STS;
 	if (new->async_tx.callback) {
 		hw->ctl |= IOAT_DMA_DESCRIPTOR_CTL_INT_GN;
@@ -558,7 +603,14 @@ static dma_cookie_t ioat2_tx_submit(struct dma_async_tx_descriptor *tx)
 		desc_count++;
 	} while (len && (new = ioat2_dma_get_next_descriptor(ioat_chan)));
 
-	hw->ctl = IOAT_DMA_DESCRIPTOR_CTL_CP_STS;
+	if (!new) {
+		dev_err(&ioat_chan->device->pdev->dev,
+			"tx submit failed\n");
+		spin_unlock_bh(&ioat_chan->desc_lock);
+		return -ENOMEM;
+	}
+
+	hw->ctl |= IOAT_DMA_DESCRIPTOR_CTL_CP_STS;
 	if (new->async_tx.callback) {
 		hw->ctl |= IOAT_DMA_DESCRIPTOR_CTL_INT_GN;
 		if (first != new) {
@@ -629,6 +681,7 @@ static struct ioat_desc_sw *ioat_dma_alloc_descriptor(
 		desc_sw->async_tx.tx_submit = ioat1_tx_submit;
 		break;
 	case IOAT_VER_2_0:
+	case IOAT_VER_3_0:
 		desc_sw->async_tx.tx_submit = ioat2_tx_submit;
 		break;
 	}
@@ -779,6 +832,7 @@ static void ioat_dma_free_chan_resources(struct dma_chan *chan)
 		}
 		break;
 	case IOAT_VER_2_0:
+	case IOAT_VER_3_0:
 		list_for_each_entry_safe(desc, _desc,
 					 ioat_chan->free_desc.next, node) {
 			list_del(&desc->node);
@@ -868,7 +922,8 @@ ioat2_dma_get_next_descriptor(struct ioat_dma_chan *ioat_chan)
 
 		/* set up the noop descriptor */
 		noop_desc = to_ioat_desc(ioat_chan->used_desc.next);
-		noop_desc->hw->size = 0;
+		/* set size to non-zero value (channel returns error when size is 0) */
+		noop_desc->hw->size = NULL_DESC_BUFFER_SIZE;
 		noop_desc->hw->ctl = IOAT_DMA_DESCRIPTOR_NUL;
 		noop_desc->hw->src_addr = 0;
 		noop_desc->hw->dst_addr = 0;
@@ -918,6 +973,7 @@ static struct ioat_desc_sw *ioat_dma_get_next_descriptor(
 		return ioat1_dma_get_next_descriptor(ioat_chan);
 		break;
 	case IOAT_VER_2_0:
+	case IOAT_VER_3_0:
 		return ioat2_dma_get_next_descriptor(ioat_chan);
 		break;
 	}
@@ -1061,10 +1117,12 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *ioat_chan)
 		 * perhaps we're stuck so hard that the watchdog can't go off?
 		 * try to catch it after 2 seconds
 		 */
-		if (time_after(jiffies,
-			       ioat_chan->last_completion_time + HZ*WATCHDOG_DELAY)) {
-			ioat_dma_chan_watchdog(&(ioat_chan->device->work.work));
-			ioat_chan->last_completion_time = jiffies;
+		if (ioat_chan->device->version != IOAT_VER_3_0) {
+			if (time_after(jiffies,
+				       ioat_chan->last_completion_time + HZ*WATCHDOG_DELAY)) {
+				ioat_dma_chan_watchdog(&(ioat_chan->device->work.work));
+				ioat_chan->last_completion_time = jiffies;
+			}
 		}
 		return;
 	}
@@ -1120,6 +1178,7 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *ioat_chan)
 		}
 		break;
 	case IOAT_VER_2_0:
+	case IOAT_VER_3_0:
 		/* has some other thread has already cleaned up? */
 		if (ioat_chan->used_desc.prev == NULL)
 			break;
@@ -1223,10 +1282,19 @@ static void ioat_dma_start_null_desc(struct ioat_dma_chan *ioat_chan)
 	spin_lock_bh(&ioat_chan->desc_lock);
 
 	desc = ioat_dma_get_next_descriptor(ioat_chan);
+
+	if (!desc) {
+		dev_err(&ioat_chan->device->pdev->dev,
+			"Unable to start null desc - get next desc failed\n");
+		spin_unlock_bh(&ioat_chan->desc_lock);
+		return;
+	}
+
 	desc->hw->ctl = IOAT_DMA_DESCRIPTOR_NUL
 				| IOAT_DMA_DESCRIPTOR_CTL_INT_GN
 				| IOAT_DMA_DESCRIPTOR_CTL_CP_STS;
-	desc->hw->size = 0;
+	/* set size to non-zero value (channel returns error when size is 0) */
+	desc->hw->size = NULL_DESC_BUFFER_SIZE;
 	desc->hw->src_addr = 0;
 	desc->hw->dst_addr = 0;
 	async_tx_ack(&desc->async_tx);
@@ -1244,6 +1312,7 @@ static void ioat_dma_start_null_desc(struct ioat_dma_chan *ioat_chan)
 			+ IOAT_CHANCMD_OFFSET(ioat_chan->device->version));
 		break;
 	case IOAT_VER_2_0:
+	case IOAT_VER_3_0:
 		writel(((u64) desc->async_tx.phys) & 0x00000000FFFFFFFF,
 		       ioat_chan->reg_base + IOAT2_CHAINADDR_OFFSET_LOW);
 		writel(((u64) desc->async_tx.phys) >> 32,
@@ -1562,6 +1631,7 @@ struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 						ioat1_dma_memcpy_issue_pending;
 		break;
 	case IOAT_VER_2_0:
+	case IOAT_VER_3_0:
 		device->common.device_prep_dma_memcpy = ioat2_dma_prep_memcpy;
 		device->common.device_issue_pending =
 						ioat2_dma_memcpy_issue_pending;
@@ -1585,9 +1655,11 @@ struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 
 	dma_async_device_register(&device->common);
 
-	INIT_DELAYED_WORK(&device->work, ioat_dma_chan_watchdog);
-	schedule_delayed_work(&device->work,
-			      WATCHDOG_DELAY);
+	if (device->version != IOAT_VER_3_0) {
+		INIT_DELAYED_WORK(&device->work, ioat_dma_chan_watchdog);
+		schedule_delayed_work(&device->work,
+				      WATCHDOG_DELAY);
+	}
 
 	return device;
 
@@ -1621,7 +1693,9 @@ void ioat_dma_remove(struct ioatdma_device *device)
 	pci_release_regions(device->pdev);
 	pci_disable_device(device->pdev);
 
-	cancel_delayed_work(&device->work);
+	if (device->version != IOAT_VER_3_0) {
+		cancel_delayed_work(&device->work);
+	}
 
 	list_for_each_entry_safe(chan, _chan,
 				 &device->common.channels, device_node) {
