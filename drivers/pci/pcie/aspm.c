@@ -55,7 +55,7 @@ struct pcie_link_state {
 	struct endpoint_state endpoints[8];
 };
 
-static int aspm_disabled;
+static int aspm_disabled, aspm_force;
 static DEFINE_MUTEX(aspm_lock);
 static LIST_HEAD(link_list);
 
@@ -527,9 +527,10 @@ static int pcie_aspm_sanity_check(struct pci_dev *pdev)
 		 */
 		pci_read_config_dword(child_dev, child_pos + PCI_EXP_DEVCAP,
 			&reg32);
-		if (!(reg32 & PCI_EXP_DEVCAP_RBER)) {
+		if (!(reg32 & PCI_EXP_DEVCAP_RBER && !aspm_force)) {
 			printk("Pre-1.1 PCIe device detected, "
-				"disable ASPM for %s\n", pci_name(pdev));
+				"disable ASPM for %s. It can be enabled forcedly"
+				" with 'pcie_aspm=force'\n", pci_name(pdev));
 			return -EINVAL;
 		}
 	}
@@ -815,15 +816,22 @@ void pcie_aspm_remove_sysfs_dev_files(struct pci_dev *pdev)
 
 static int __init pcie_aspm_disable(char *str)
 {
-	aspm_disabled = 1;
+	if (!strcmp(str, "off")) {
+		aspm_disabled = 1;
+		printk(KERN_INFO "PCIe ASPM is disabled\n");
+	} else if (!strcmp(str, "force")) {
+		aspm_force = 1;
+		printk(KERN_INFO "PCIe ASPM is forcedly enabled\n");
+	}
 	return 1;
 }
 
-__setup("pcie_noaspm", pcie_aspm_disable);
+__setup("pcie_aspm=", pcie_aspm_disable);
 
 void pcie_no_aspm(void)
 {
-	aspm_disabled = 1;
+	if (!aspm_force)
+		aspm_disabled = 1;
 }
 
 #ifdef CONFIG_ACPI
