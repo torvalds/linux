@@ -3736,20 +3736,23 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 
 	bitmap_bh = ext4_read_block_bitmap(sb, group);
 	if (bitmap_bh == NULL) {
-		/* error handling here */
-		ext4_mb_release_desc(&e4b);
-		BUG_ON(bitmap_bh == NULL);
+		ext4_error(sb, __func__, "Error in reading block "
+				"bitmap for %lu\n", group);
+		return 0;
 	}
 
 	err = ext4_mb_load_buddy(sb, group, &e4b);
-	BUG_ON(err != 0); /* error handling here */
+	if (err) {
+		ext4_error(sb, __func__, "Error in loading buddy "
+				"information for %lu\n", group);
+		put_bh(bitmap_bh);
+		return 0;
+	}
 
 	if (needed == 0)
 		needed = EXT4_BLOCKS_PER_GROUP(sb) + 1;
 
-	grp = ext4_get_group_info(sb, group);
 	INIT_LIST_HEAD(&list);
-
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
 repeat:
 	ext4_lock_group(sb, group);
@@ -3906,13 +3909,18 @@ repeat:
 		ext4_get_group_no_and_offset(sb, pa->pa_pstart, &group, NULL);
 
 		err = ext4_mb_load_buddy(sb, group, &e4b);
-		BUG_ON(err != 0); /* error handling here */
+		if (err) {
+			ext4_error(sb, __func__, "Error in loading buddy "
+					"information for %lu\n", group);
+			continue;
+		}
 
 		bitmap_bh = ext4_read_block_bitmap(sb, group);
 		if (bitmap_bh == NULL) {
-			/* error handling here */
+			ext4_error(sb, __func__, "Error in reading block "
+					"bitmap for %lu\n", group);
 			ext4_mb_release_desc(&e4b);
-			BUG_ON(bitmap_bh == NULL);
+			continue;
 		}
 
 		ext4_lock_group(sb, group);
@@ -4423,11 +4431,15 @@ do_more:
 		count -= overflow;
 	}
 	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
-	if (!bitmap_bh)
+	if (!bitmap_bh) {
+		err = -EIO;
 		goto error_return;
+	}
 	gdp = ext4_get_group_desc(sb, block_group, &gd_bh);
-	if (!gdp)
+	if (!gdp) {
+		err = -EIO;
 		goto error_return;
+	}
 
 	if (in_range(ext4_block_bitmap(sb, gdp), block, count) ||
 	    in_range(ext4_inode_bitmap(sb, gdp), block, count) ||
