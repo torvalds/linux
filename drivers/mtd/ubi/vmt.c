@@ -639,7 +639,7 @@ int ubi_rename_volumes(struct ubi_device *ubi, struct list_head *rename_list)
 	}
 
 	if (!err)
-		paranoid_check_volumes(ubi);
+		err = paranoid_check_volumes(ubi);
 	return err;
 }
 
