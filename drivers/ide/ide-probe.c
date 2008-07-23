@@ -1470,18 +1470,20 @@ static int ide_sysfs_register_port(ide_hwif_t *hwif)
 	return rc;
 }
 
+static unsigned int ide_indexes;
+
 /**
- *	ide_find_port_slot	-	find free ide_hwifs[] slot
+ *	ide_find_port_slot	-	find free port slot
  *	@d: IDE port info
  *
- *	Return the new hwif.  If we are out of free slots return NULL.
+ *	Return the new port slot index or -ENOENT if we are out of free slots.
  */
 
-static ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
+static int ide_find_port_slot(const struct ide_port_info *d)
 {
-	ide_hwif_t *hwif;
-	int i;
+	int idx = -ENOENT;
 	u8 bootable = (d && (d->host_flags & IDE_HFLAG_NON_BOOTABLE)) ? 0 : 1;
+	u8 i = (d && (d->host_flags & IDE_HFLAG_QD_2ND_PORT)) ? 1 : 0;;
 
 	/*
 	 * Claim an unassigned slot.
@@ -1493,35 +1495,33 @@ static ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
 	 * Unless there is a bootable card that does not use the standard
 	 * ports 0x1f0/0x170 (the ide0/ide1 defaults).
 	 */
-	if (bootable) {
-		i = (d && (d->host_flags & IDE_HFLAG_QD_2ND_PORT)) ? 1 : 0;
-
-		for (; i < MAX_HWIFS; i++) {
-			hwif = &ide_hwifs[i];
-			if (hwif->chipset == ide_unknown)
-				goto out_found;
-		}
+	mutex_lock(&ide_cfg_mtx);
+	if (MAX_HWIFS == 1) {
+		if (ide_indexes == 0 && i == 0)
+			idx = 1;
 	} else {
-		for (i = 2; i < MAX_HWIFS; i++) {
-			hwif = &ide_hwifs[i];
-			if (hwif->chipset == ide_unknown)
-				goto out_found;
-		}
-		for (i = 0; i < 2 && i < MAX_HWIFS; i++) {
-			hwif = &ide_hwifs[i];
-			if (hwif->chipset == ide_unknown)
-				goto out_found;
+		if (bootable) {
+			if ((ide_indexes | i) != (1 << MAX_HWIFS) - 1)
+				idx = ffz(ide_indexes | i);
+		} else {
+			if ((ide_indexes | 3) != (1 << MAX_HWIFS) - 1)
+				idx = ffz(ide_indexes | 3);
+			else if ((ide_indexes & 3) != 3)
+				idx = ffz(ide_indexes);
 		}
 	}
+	if (idx >= 0)
+		ide_indexes |= (1 << idx);
+	mutex_unlock(&ide_cfg_mtx);
 
-	printk(KERN_ERR "%s: no free slot for interface\n",
-			d ? d->name : "ide");
+	return idx;
+}
 
-	return NULL;
-
-out_found:
-	ide_init_port_data(hwif, i);
-	return hwif;
+static void ide_free_port_slot(int idx)
+{
+	mutex_lock(&ide_cfg_mtx);
+	ide_indexes &= ~(1 << idx);
+	mutex_unlock(&ide_cfg_mtx);
 }
 
 struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
@@ -1536,17 +1536,24 @@ struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
 
 	for (i = 0; i < MAX_HWIFS; i++) {
 		ide_hwif_t *hwif;
+		int idx;
 
 		if (hws[i] == NULL)
 			continue;
 
-		hwif = ide_find_port_slot(d);
-		if (hwif) {
-			hwif->chipset = hws[i]->chipset;
-
-			host->ports[i] = hwif;
-			host->n_ports++;
+		idx = ide_find_port_slot(d);
+		if (idx < 0) {
+			printk(KERN_ERR "%s: no free slot for interface\n",
+					d ? d->name : "ide");
+			continue;
 		}
+
+		hwif = &ide_hwifs[idx];
+
+		ide_init_port_data(hwif, idx);
+
+		host->ports[i] = hwif;
+		host->n_ports++;
 	}
 
 	if (host->n_ports == 0) {
@@ -1695,11 +1702,17 @@ EXPORT_SYMBOL_GPL(ide_host_add);
 
 void ide_host_remove(struct ide_host *host)
 {
+	ide_hwif_t *hwif;
 	int i;
 
 	for (i = 0; i < MAX_HWIFS; i++) {
-		if (host->ports[i])
-			ide_unregister(host->ports[i]);
+		hwif = host->ports[i];
+
+		if (hwif == NULL)
+			continue;
+
+		ide_unregister(hwif);
+		ide_free_port_slot(hwif->index);
 	}
 
 	kfree(host);
