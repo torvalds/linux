@@ -39,8 +39,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-static ide_hwif_t ide_hwifs[MAX_HWIFS]; /* master data repository */
-
 /**
  *	generic_id		-	add a generic drive id
  *	@drive:	drive to make an ID block for
@@ -1583,14 +1581,17 @@ struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
 		if (hws[i] == NULL)
 			continue;
 
+		hwif = kzalloc(sizeof(*hwif), GFP_KERNEL);
+		if (hwif == NULL)
+			continue;
+
 		idx = ide_find_port_slot(d);
 		if (idx < 0) {
 			printk(KERN_ERR "%s: no free slot for interface\n",
 					d ? d->name : "ide");
+			kfree(hwif);
 			continue;
 		}
-
-		hwif = &ide_hwifs[idx];
 
 		ide_init_port_data(hwif, idx);
 
@@ -1755,6 +1756,7 @@ void ide_host_remove(struct ide_host *host)
 
 		ide_unregister(hwif);
 		ide_free_port_slot(hwif->index);
+		kfree(hwif);
 	}
 
 	kfree(host);
