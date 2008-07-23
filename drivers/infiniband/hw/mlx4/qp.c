@@ -78,6 +78,9 @@ static const __be32 mlx4_ib_opcode[] = {
 	[IB_WR_RDMA_READ]		= __constant_cpu_to_be32(MLX4_OPCODE_RDMA_READ),
 	[IB_WR_ATOMIC_CMP_AND_SWP]	= __constant_cpu_to_be32(MLX4_OPCODE_ATOMIC_CS),
 	[IB_WR_ATOMIC_FETCH_AND_ADD]	= __constant_cpu_to_be32(MLX4_OPCODE_ATOMIC_FA),
+	[IB_WR_SEND_WITH_INV]		= __constant_cpu_to_be32(MLX4_OPCODE_SEND_INVAL),
+	[IB_WR_LOCAL_INV]		= __constant_cpu_to_be32(MLX4_OPCODE_LOCAL_INVAL),
+	[IB_WR_FAST_REG_MR]		= __constant_cpu_to_be32(MLX4_OPCODE_FMR),
 };
 
 static struct mlx4_ib_sqp *to_msqp(struct mlx4_ib_qp *mqp)
@@ -976,6 +979,10 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	context->pd	    = cpu_to_be32(to_mpd(ibqp->pd)->pdn);
 	context->params1    = cpu_to_be32(MLX4_IB_ACK_REQ_FREQ << 28);
 
+	/* Set "fast registration enabled" for all kernel QPs */
+	if (!qp->ibqp.uobject)
+		context->params1 |= cpu_to_be32(1 << 11);
+
 	if (attr_mask & IB_QP_RNR_RETRY) {
 		context->params1 |= cpu_to_be32(attr->rnr_retry << 13);
 		optpar |= MLX4_QP_OPTPAR_RNR_RETRY;
@@ -1322,6 +1329,38 @@ static int mlx4_wq_overflow(struct mlx4_ib_wq *wq, int nreq, struct ib_cq *ib_cq
 	return cur + nreq >= wq->max_post;
 }
 
+static __be32 convert_access(int acc)
+{
+	return (acc & IB_ACCESS_REMOTE_ATOMIC ? cpu_to_be32(MLX4_WQE_FMR_PERM_ATOMIC)       : 0) |
+	       (acc & IB_ACCESS_REMOTE_WRITE  ? cpu_to_be32(MLX4_WQE_FMR_PERM_REMOTE_WRITE) : 0) |
+	       (acc & IB_ACCESS_REMOTE_READ   ? cpu_to_be32(MLX4_WQE_FMR_PERM_REMOTE_READ)  : 0) |
+	       (acc & IB_ACCESS_LOCAL_WRITE   ? cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_WRITE)  : 0) |
+		cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_READ);
+}
+
+static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg, struct ib_send_wr *wr)
+{
+	struct mlx4_ib_fast_reg_page_list *mfrpl = to_mfrpl(wr->wr.fast_reg.page_list);
+
+	fseg->flags		= convert_access(wr->wr.fast_reg.access_flags);
+	fseg->mem_key		= cpu_to_be32(wr->wr.fast_reg.rkey);
+	fseg->buf_list		= cpu_to_be64(mfrpl->map);
+	fseg->start_addr	= cpu_to_be64(wr->wr.fast_reg.iova_start);
+	fseg->reg_len		= cpu_to_be64(wr->wr.fast_reg.length);
+	fseg->offset		= 0; /* XXX -- is this just for ZBVA? */
+	fseg->page_size		= cpu_to_be32(wr->wr.fast_reg.page_shift);
+	fseg->reserved[0]	= 0;
+	fseg->reserved[1]	= 0;
+}
+
+static void set_local_inv_seg(struct mlx4_wqe_local_inval_seg *iseg, u32 rkey)
+{
+	iseg->flags	= 0;
+	iseg->mem_key	= cpu_to_be32(rkey);
+	iseg->guest_id	= 0;
+	iseg->pa	= 0;
+}
+
 static __always_inline void set_raddr_seg(struct mlx4_wqe_raddr_seg *rseg,
 					  u64 remote_addr, u32 rkey)
 {
@@ -1423,6 +1462,21 @@ static int build_lso_seg(struct mlx4_wqe_lso_seg *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
+static __be32 send_ieth(struct ib_send_wr *wr)
+{
+	switch (wr->opcode) {
+	case IB_WR_SEND_WITH_IMM:
+	case IB_WR_RDMA_WRITE_WITH_IMM:
+		return wr->ex.imm_data;
+
+	case IB_WR_SEND_WITH_INV:
+		return cpu_to_be32(wr->ex.invalidate_rkey);
+
+	default:
+		return 0;
+	}
+}
+
 int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		      struct ib_send_wr **bad_wr)
 {
@@ -1469,11 +1523,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				     MLX4_WQE_CTRL_TCP_UDP_CSUM) : 0) |
 			qp->sq_signal_bits;
 
-		if (wr->opcode == IB_WR_SEND_WITH_IMM ||
-		    wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM)
-			ctrl->imm = wr->ex.imm_data;
-		else
-			ctrl->imm = 0;
+		ctrl->imm = send_ieth(wr);
 
 		wqe += sizeof *ctrl;
 		size = sizeof *ctrl / 16;
@@ -1503,6 +1553,18 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 					      wr->wr.rdma.rkey);
 				wqe  += sizeof (struct mlx4_wqe_raddr_seg);
 				size += sizeof (struct mlx4_wqe_raddr_seg) / 16;
+				break;
+
+			case IB_WR_LOCAL_INV:
+				set_local_inv_seg(wqe, wr->ex.invalidate_rkey);
+				wqe  += sizeof (struct mlx4_wqe_local_inval_seg);
+				size += sizeof (struct mlx4_wqe_local_inval_seg) / 16;
+				break;
+
+			case IB_WR_FAST_REG_MR:
+				set_fmr_seg(wqe, wr);
+				wqe  += sizeof (struct mlx4_wqe_fmr_seg);
+				size += sizeof (struct mlx4_wqe_fmr_seg) / 16;
 				break;
 
 			default:

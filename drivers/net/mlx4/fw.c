@@ -202,7 +202,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_C_MPT_ENTRY_SZ_OFFSET	0x8e
 #define QUERY_DEV_CAP_MTT_ENTRY_SZ_OFFSET	0x90
 #define QUERY_DEV_CAP_D_MPT_ENTRY_SZ_OFFSET	0x92
-#define QUERY_DEV_CAP_BMME_FLAGS_OFFSET		0x97
+#define QUERY_DEV_CAP_BMME_FLAGS_OFFSET		0x94
 #define QUERY_DEV_CAP_RSVD_LKEY_OFFSET		0x98
 #define QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET		0xa0
 
@@ -377,12 +377,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		}
 	}
 
-	if (dev_cap->bmme_flags & 1)
-		mlx4_dbg(dev, "Base MM extensions: yes "
-			 "(flags %d, rsvd L_Key %08x)\n",
-			 dev_cap->bmme_flags, dev_cap->reserved_lkey);
-	else
-		mlx4_dbg(dev, "Base MM extensions: no\n");
+	mlx4_dbg(dev, "Base MM extensions: flags %08x, rsvd L_Key %08x\n",
+		 dev_cap->bmme_flags, dev_cap->reserved_lkey);
 
 	/*
 	 * Each UAR has 4 EQ doorbells; so if a UAR is reserved, then
