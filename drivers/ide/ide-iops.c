@@ -135,6 +135,23 @@ static u8 ide_read_sff_dma_status(ide_hwif_t *hwif)
 		return inb(hwif->dma_base + ATA_DMA_STATUS);
 }
 
+static void ide_set_irq(ide_hwif_t *hwif, int on)
+{
+	u8 ctl = ATA_DEVCTL_OBS;
+
+	if (on == 4) { /* hack for SRST */
+		ctl |= 4;
+		on &= ~4;
+	}
+
+	ctl |= on ? 0 : 2;
+
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		writeb(ctl, (void __iomem *)hwif->io_ports.ctl_addr);
+	else
+		outb(ctl, hwif->io_ports.ctl_addr);
+}
+
 static void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -359,6 +376,8 @@ void default_hwif_transport(ide_hwif_t *hwif)
 	hwif->read_status	  = ide_read_status;
 	hwif->read_altstatus	  = ide_read_altstatus;
 	hwif->read_sff_dma_status = ide_read_sff_dma_status;
+
+	hwif->set_irq	  = ide_set_irq;
 
 	hwif->tf_load	  = ide_tf_load;
 	hwif->tf_read	  = ide_tf_read;
@@ -722,7 +741,7 @@ int ide_driveid_update(ide_drive_t *drive)
 	 */
 
 	SELECT_MASK(drive, 1);
-	ide_set_irq(drive, 0);
+	hwif->set_irq(hwif, 0);
 	msleep(50);
 	hwif->exec_command(hwif, WIN_IDENTIFY);
 	timeout = jiffies + WAIT_WORSTCASE;
@@ -808,12 +827,12 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	SELECT_DRIVE(drive);
 	SELECT_MASK(drive, 0);
 	udelay(1);
-	ide_set_irq(drive, 0);
+	hwif->set_irq(hwif, 0);
 	hwif->OUTB(speed, io_ports->nsect_addr);
 	hwif->OUTB(SETFEATURES_XFER, io_ports->feature_addr);
 	hwif->exec_command(hwif, WIN_SETFEATURES);
 	if (drive->quirk_list == 2)
-		ide_set_irq(drive, 1);
+		hwif->set_irq(hwif, 1);
 
 	error = __ide_wait_stat(drive, drive->ready_stat,
 				BUSY_STAT|DRQ_STAT|ERR_STAT,
@@ -1129,7 +1148,6 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	ide_hwgroup_t *hwgroup;
 	struct ide_io_ports *io_ports;
 	const struct ide_port_ops *port_ops;
-	u8 ctl;
 
 	spin_lock_irqsave(&ide_lock, flags);
 	hwif = HWIF(drive);
@@ -1174,16 +1192,15 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	 * immediate interrupt due to the edge transition it produces.
 	 * This single interrupt gives us a "fast poll" for drives that
 	 * recover from reset very quickly, saving us the first 50ms wait time.
+	 *
+	 * TODO: add ->softreset method and stop abusing ->set_irq
 	 */
 	/* set SRST and nIEN */
-	hwif->OUTBSYNC(hwif, ATA_DEVCTL_OBS | 6, io_ports->ctl_addr);
+	hwif->set_irq(hwif, 4);
 	/* more than enough time */
 	udelay(10);
-	if (drive->quirk_list == 2)
-		ctl = ATA_DEVCTL_OBS;		/* clear SRST and nIEN */
-	else
-		ctl = ATA_DEVCTL_OBS | 2;	/* clear SRST, leave nIEN */
-	hwif->OUTBSYNC(hwif, ctl, io_ports->ctl_addr);
+	/* clear SRST, leave nIEN (unless device is on the quirk list) */
+	hwif->set_irq(hwif, drive->quirk_list == 2);
 	/* more than enough time */
 	udelay(10);
 	hwgroup->poll_timeout = jiffies + WAIT_WORSTCASE;

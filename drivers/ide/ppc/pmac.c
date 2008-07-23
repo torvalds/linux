@@ -502,6 +502,22 @@ static void pmac_exec_command(ide_hwif_t *hwif, u8 cmd)
 				     + IDE_TIMING_CONFIG));
 }
 
+static void pmac_set_irq(ide_hwif_t *hwif, int on)
+{
+	u8 ctl = ATA_DEVCTL_OBS;
+
+	if (on == 4) { /* hack for SRST */
+		ctl |= 4;
+		on &= ~4;
+	}
+
+	ctl |= on ? 0 : 2;
+
+	writeb(ctl, (void __iomem *)hwif->io_ports.ctl_addr);
+	(void)readl((void __iomem *)(hwif->io_ports.data_addr
+				     + IDE_TIMING_CONFIG));
+}
+
 /*
  * Old tuning functions (called on hdparm -p), sets up drive PIO timings
  */
@@ -1100,6 +1116,7 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 		return -ENOENT;
 
 	hwif->exec_command = pmac_exec_command;
+	hwif->set_irq	   = pmac_set_irq;
 
 	/* Setup MMIO ops */
 	default_hwif_mmiops(hwif);

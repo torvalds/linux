@@ -361,7 +361,7 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 			autoprobe = 1;
 			cookie = probe_irq_on();
 		}
-		ide_set_irq(drive, autoprobe);
+		hwif->set_irq(hwif, autoprobe);
 	}
 
 	retval = actual_try_to_identify(drive, cmd);
@@ -369,7 +369,7 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 	if (autoprobe) {
 		int irq;
 
-		ide_set_irq(drive, 0);
+		hwif->set_irq(hwif, 0);
 		/* clear drive IRQ */
 		(void)hwif->read_status(hwif);
 		udelay(5);
@@ -709,7 +709,7 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 		/* Ignore disks that we will not probe for later. */
 		if (!drive->noprobe || drive->present) {
 			SELECT_DRIVE(drive);
-			ide_set_irq(drive, 1);
+			hwif->set_irq(hwif, 1);
 			mdelay(2);
 			rc = ide_wait_not_busy(hwif, 35000);
 			if (rc)
@@ -1066,8 +1066,7 @@ static int init_irq (ide_hwif_t *hwif)
 			sa = IRQF_SHARED;
 
 		if (io_ports->ctl_addr)
-			/* clear nIEN */
-			hwif->OUTBSYNC(hwif, ATA_DEVCTL_OBS, io_ports->ctl_addr);
+			hwif->set_irq(hwif, 1);
 
 		if (request_irq(hwif->irq,&ide_intr,sa,hwif->name,hwgroup))
 	       		goto out_unlink;

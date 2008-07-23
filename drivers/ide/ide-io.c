@@ -746,16 +746,17 @@ static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		 * the bus may be broken enough to walk on our toes at this
 		 * point.
 		 */
+		ide_hwif_t *hwif = drive->hwif;
 		int rc;
 #ifdef DEBUG_PM
 		printk("%s: Wakeup request inited, waiting for !BSY...\n", drive->name);
 #endif
-		rc = ide_wait_not_busy(HWIF(drive), 35000);
+		rc = ide_wait_not_busy(hwif, 35000);
 		if (rc)
 			printk(KERN_WARNING "%s: bus not ready on wakeup\n", drive->name);
 		SELECT_DRIVE(drive);
-		ide_set_irq(drive, 1);
-		rc = ide_wait_not_busy(HWIF(drive), 100000);
+		hwif->set_irq(hwif, 1);
+		rc = ide_wait_not_busy(hwif, 100000);
 		if (rc)
 			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);
 	}
@@ -1041,7 +1042,7 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 			 * quirk_list may not like intr setups/cleanups
 			 */
 			if (drive->quirk_list != 1)
-				ide_set_irq(drive, 0);
+				hwif->set_irq(hwif, 0);
 		}
 		hwgroup->hwif = hwif;
 		hwgroup->drive = drive;
@@ -1519,6 +1520,7 @@ EXPORT_SYMBOL(ide_do_drive_cmd);
 
 void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount, u8 dma)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	ide_task_t task;
 
 	memset(&task, 0, sizeof(task));
@@ -1529,9 +1531,9 @@ void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount, u8 dma)
 	task.tf.lbah    = (bcount >> 8) & 0xff;
 
 	ide_tf_dump(drive->name, &task.tf);
-	ide_set_irq(drive, 1);
+	hwif->set_irq(hwif, 1);
 	SELECT_MASK(drive, 0);
-	drive->hwif->tf_load(drive, &task);
+	hwif->tf_load(drive, &task);
 }
 
 EXPORT_SYMBOL_GPL(ide_pktcmd_tf_load);

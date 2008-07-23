@@ -494,6 +494,8 @@ typedef struct hwif_s {
 	u8	(*read_altstatus)(struct hwif_s *);
 	u8	(*read_sff_dma_status)(struct hwif_s *);
 
+	void	(*set_irq)(struct hwif_s *, int);
+
 	void (*tf_load)(ide_drive_t *, struct ide_task_s *);
 	void (*tf_read)(ide_drive_t *, struct ide_task_s *);
 
@@ -1354,14 +1356,6 @@ static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)
 	ide_hwif_t *hwif	= HWIF(drive);
 
 	return &hwif->drives[(drive->dn ^ 1) & 1];
-}
-
-static inline void ide_set_irq(ide_drive_t *drive, int on)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	hwif->OUTBSYNC(hwif, ATA_DEVCTL_OBS | (on ? 0 : 2),
-		       hwif->io_ports.ctl_addr);
 }
 
 static inline u8 ide_read_error(ide_drive_t *drive)

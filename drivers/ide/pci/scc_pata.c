@@ -149,6 +149,23 @@ static u8 scc_read_sff_dma_status(ide_hwif_t *hwif)
 	return (u8)in_be32((void *)(hwif->dma_base + 4));
 }
 
+static void scc_set_irq(ide_hwif_t *hwif, int on)
+{
+	u8 ctl = ATA_DEVCTL_OBS;
+
+	if (on == 4) { /* hack for SRST */
+		ctl |= 4;
+		on &= ~4;
+	}
+
+	ctl |= on ? 0 : 2;
+
+	out_be32((void *)hwif->io_ports.ctl_addr, ctl);
+	eieio();
+	in_be32((void *)(hwif->dma_base + 0x01c));
+	eieio();
+}
+
 static void scc_ide_insw(unsigned long port, void *addr, u32 count)
 {
 	u16 *ptr = (u16 *)addr;
@@ -801,6 +818,8 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 	hwif->read_status	  = scc_read_status;
 	hwif->read_altstatus	  = scc_read_altstatus;
 	hwif->read_sff_dma_status = scc_read_sff_dma_status;
+
+	hwif->set_irq = scc_set_irq;
 
 	hwif->tf_load = scc_tf_load;
 	hwif->tf_read = scc_tf_read;
