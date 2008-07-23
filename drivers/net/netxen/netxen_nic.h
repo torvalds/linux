@@ -54,6 +54,7 @@
 
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/vmalloc.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
