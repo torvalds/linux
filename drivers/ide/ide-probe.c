@@ -1477,7 +1477,7 @@ static int ide_sysfs_register_port(ide_hwif_t *hwif)
  *	Return the new hwif.  If we are out of free slots return NULL.
  */
 
-ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
+static ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
 {
 	ide_hwif_t *hwif;
 	int i;
@@ -1523,14 +1523,63 @@ out_found:
 	ide_init_port_data(hwif, i);
 	return hwif;
 }
-EXPORT_SYMBOL_GPL(ide_find_port_slot);
 
-int ide_device_add_all(u8 *idx, const struct ide_port_info *d, hw_regs_t **hws)
+struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
+				    hw_regs_t **hws)
+{
+	struct ide_host *host;
+	int i;
+
+	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	if (host == NULL)
+		return NULL;
+
+	for (i = 0; i < MAX_HWIFS; i++) {
+		ide_hwif_t *hwif;
+
+		if (hws[i] == NULL)
+			continue;
+
+		hwif = ide_find_port_slot(d);
+		if (hwif) {
+			hwif->chipset = hws[i]->chipset;
+
+			host->ports[i] = hwif;
+			host->n_ports++;
+		}
+	}
+
+	if (host->n_ports == 0) {
+		kfree(host);
+		return NULL;
+	}
+
+	return host;
+}
+EXPORT_SYMBOL_GPL(ide_host_alloc_all);
+
+struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
+{
+	hw_regs_t *hws_all[MAX_HWIFS];
+	int i;
+
+	for (i = 0; i < MAX_HWIFS; i++)
+		hws_all[i] = (i < 4) ? hws[i] : NULL;
+
+	return ide_host_alloc_all(d, hws_all);
+}
+EXPORT_SYMBOL_GPL(ide_host_alloc);
+
+int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
+		      hw_regs_t **hws)
 {
 	ide_hwif_t *hwif, *mate = NULL;
+	u8 idx[MAX_HWIFS];
 	int i, rc = 0;
 
 	for (i = 0; i < MAX_HWIFS; i++) {
+		idx[i] = host->ports[i] ? host->ports[i]->index : 0xff;
+
 		if (idx[i] == 0xff) {
 			mate = NULL;
 			continue;
@@ -1626,22 +1675,20 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d, hw_regs_t **hws)
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(ide_device_add_all);
+EXPORT_SYMBOL_GPL(ide_host_register);
 
-int ide_device_add(u8 *idx, const struct ide_port_info *d, hw_regs_t **hws)
+void ide_host_remove(struct ide_host *host)
 {
-	hw_regs_t *hws_all[MAX_HWIFS];
-	u8 idx_all[MAX_HWIFS];
 	int i;
 
 	for (i = 0; i < MAX_HWIFS; i++) {
-		hws_all[i] = (i < 4) ? hws[i] : NULL;
-		idx_all[i] = (i < 4) ? idx[i] : 0xff;
+		if (host->ports[i])
+			ide_unregister(host->ports[i]);
 	}
 
-	return ide_device_add_all(idx_all, d, hws_all);
+	kfree(host);
 }
-EXPORT_SYMBOL_GPL(ide_device_add);
+EXPORT_SYMBOL_GPL(ide_host_remove);
 
 void ide_port_scan(ide_hwif_t *hwif)
 {
@@ -1662,11 +1709,10 @@ void ide_port_scan(ide_hwif_t *hwif)
 }
 EXPORT_SYMBOL_GPL(ide_port_scan);
 
-static void ide_legacy_init_one(u8 *idx, hw_regs_t **hws, hw_regs_t *hw,
+static void ide_legacy_init_one(hw_regs_t **hws, hw_regs_t *hw,
 				u8 port_no, const struct ide_port_info *d,
 				unsigned long config)
 {
-	ide_hwif_t *hwif;
 	unsigned long base, ctl;
 	int irq;
 
@@ -1698,31 +1744,29 @@ static void ide_legacy_init_one(u8 *idx, hw_regs_t **hws, hw_regs_t *hw,
 	hw->chipset = d->chipset;
 	hw->config = config;
 
-	hwif = ide_find_port_slot(d);
-	if (hwif) {
-		hwif->chipset = hw->chipset;
-
-		hws[port_no] = hw;
-		idx[port_no] = hwif->index;
-	}
+	hws[port_no] = hw;
 }
 
 int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
 {
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	struct ide_host *host;
 	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
 
 	memset(&hw, 0, sizeof(hw));
 
 	if ((d->host_flags & IDE_HFLAG_QD_2ND_PORT) == 0)
-		ide_legacy_init_one(idx, hws, &hw[0], 0, d, config);
-	ide_legacy_init_one(idx, hws, &hw[1], 1, d, config);
+		ide_legacy_init_one(hws, &hw[0], 0, d, config);
+	ide_legacy_init_one(hws, &hw[1], 1, d, config);
 
-	if (idx[0] == 0xff && idx[1] == 0xff &&
+	if (hws[0] == NULL && hws[1] == NULL &&
 	    (d->host_flags & IDE_HFLAG_SINGLE))
 		return -ENOENT;
 
-	ide_device_add(idx, d, hws);
+	host = ide_host_alloc(d, hws);
+	if (host == NULL)
+		return -ENOMEM;
+
+	ide_host_register(host, d, hws);
 
 	return 0;
 }

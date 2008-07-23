@@ -28,10 +28,9 @@ static const struct ide_port_info ide_4drives_port_info = {
 
 static int __init ide_4drives_init(void)
 {
-	ide_hwif_t *hwif, *mate;
+	struct ide_host *host;
 	unsigned long base = 0x1f0, ctl = 0x3f6;
-	hw_regs_t hw, *hws[] = { NULL, NULL, NULL, NULL };
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw, *hws[] = { &hw, &hw, NULL, NULL };
 
 	if (probe_4drives == 0)
 		return -ENODEV;
@@ -55,21 +54,9 @@ static int __init ide_4drives_init(void)
 	hw.irq = 14;
 	hw.chipset = ide_4drives;
 
-	hwif = ide_find_port();
-	if (hwif) {
-		hwif->chipset = ide_4drives;
-
-		hws[0] = &hw;
-		idx[0] = hwif->index;
-	}
-
-	mate = ide_find_port();
-	if (mate) {
-		hws[1] = &hw;
-		idx[1] = mate->index;
-	}
-
-	ide_device_add(idx, &ide_4drives_port_info, hws);
+	host = ide_host_alloc(&ide_4drives_port_info, hws);
+	if (host)
+		ide_host_register(host, &ide_4drives_port_info, hws);
 
 	return 0;
 }

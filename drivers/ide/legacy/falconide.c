@@ -112,7 +112,7 @@ static void __init falconide_setup_ports(hw_regs_t *hw)
 
 static int __init falconide_init(void)
 {
-	ide_hwif_t *hwif;
+	struct ide_host *host;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(IDE))
@@ -127,13 +127,10 @@ static int __init falconide_init(void)
 
 	falconide_setup_ports(&hw);
 
-	hwif = ide_find_port();
-	if (hwif) {
-		u8 index = hwif->index;
-		u8 idx[4] = { index, 0xff, 0xff, 0xff };
-
+	host = ide_host_alloc(&falconide_port_info, hws);
+	if (host) {
 		ide_get_lock(NULL, NULL);
-		ide_device_add(idx, &falconide_port_info, hws);
+		ide_host_register(host, &falconide_port_info, hws);
 		ide_release_lock();
 	}
 

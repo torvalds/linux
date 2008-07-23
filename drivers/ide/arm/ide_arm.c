@@ -28,10 +28,9 @@
 
 static int __init ide_arm_init(void)
 {
-	ide_hwif_t *hwif;
+	struct ide_host *host;
 	unsigned long base = IDE_ARM_IO, ctl = IDE_ARM_IO + 0x206;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	if (!request_region(base, 8, DRV_NAME)) {
 		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
@@ -51,12 +50,9 @@ static int __init ide_arm_init(void)
 	hw.irq = IDE_ARM_IRQ;
 	hw.chipset = ide_generic;
 
-	hwif = ide_find_port();
-	if (hwif) {
-		idx[0] = hwif->index;
-
-		ide_device_add(idx, NULL, hws);
-	}
+	host = ide_host_alloc(NULL, hws);
+	if (host)
+		ide_host_register(host, NULL, hws);
 
 	return 0;
 }

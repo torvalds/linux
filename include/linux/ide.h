@@ -558,6 +558,11 @@ typedef struct hwif_s {
 #endif
 } ____cacheline_internodealigned_in_smp ide_hwif_t;
 
+struct ide_host {
+	ide_hwif_t	*ports[MAX_HWIFS];
+	unsigned int	n_ports;
+};
+
 /*
  *  internal ide interrupt handler type
  */
@@ -813,13 +818,6 @@ int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsig
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
 
-ide_hwif_t *ide_find_port_slot(const struct ide_port_info *);
-
-static inline ide_hwif_t *ide_find_port(void)
-{
-	return ide_find_port_slot(NULL);
-}
-
 extern int ide_end_request (ide_drive_t *drive, int uptodate, int nrsecs);
 int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
 			     int uptodate, int nr_sectors);
@@ -1024,7 +1022,7 @@ extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *o
 #endif
 
 void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int,
-			 u8 *, hw_regs_t *, hw_regs_t **);
+			 hw_regs_t *, hw_regs_t **);
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
@@ -1236,8 +1234,11 @@ void ide_undecoded_slave(ide_drive_t *);
 
 void ide_port_apply_params(ide_hwif_t *);
 
-int ide_device_add_all(u8 *, const struct ide_port_info *, hw_regs_t **);
-int ide_device_add(u8 *, const struct ide_port_info *, hw_regs_t **);
+struct ide_host *ide_host_alloc_all(const struct ide_port_info *, hw_regs_t **);
+struct ide_host *ide_host_alloc(const struct ide_port_info *, hw_regs_t **);
+int ide_host_register(struct ide_host *, const struct ide_port_info *,
+		      hw_regs_t **);
+void ide_host_remove(struct ide_host *);
 int ide_legacy_device_add(const struct ide_port_info *, unsigned long);
 void ide_port_unregister_devices(ide_hwif_t *);
 void ide_port_scan(ide_hwif_t *);

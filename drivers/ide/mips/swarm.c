@@ -72,12 +72,11 @@ static const struct ide_port_info swarm_port_info = {
  */
 static int __devinit swarm_ide_probe(struct device *dev)
 {
-	ide_hwif_t *hwif;
 	u8 __iomem *base;
+	struct ide_host *host;
 	phys_t offset, size;
 	int i;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
-	u8 idx[] = { 0xff, 0xff, 0xff, 0xff };
 
 	if (!SIBYTE_HAVE_IDE)
 		return -ENODEV;
@@ -116,15 +115,13 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	hw.irq = K_INT_GB_IDE;
 	hw.chipset = ide_generic;
 
-	hwif = ide_find_port_slot(&swarm_port_info);
-	if (hwif == NULL)
+	host = ide_host_alloc(&swarm_port_info, hws);
+	if (host == NULL)
 		goto err;
 
-	idx[0] = hwif->index;
+	ide_host_register(host, &swarm_port_info, hws);
 
-	ide_device_add(idx, &swarm_port_info, hws);
-
-	dev_set_drvdata(dev, hwif);
+	dev_set_drvdata(dev, host);
 
 	return 0;
 err:

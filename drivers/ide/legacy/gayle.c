@@ -127,9 +127,9 @@ static int __init gayle_init(void)
     unsigned long phys_base, res_start, res_n;
     unsigned long base, ctrlport, irqport;
     ide_ack_intr_t *ack_intr;
+    struct ide_host *host;
     int a4000, i;
     hw_regs_t hw[GAYLE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
-    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!MACH_IS_AMIGA)
 	return -ENODEV;
@@ -172,23 +172,17 @@ found:
 		return -EBUSY;
 
     for (i = 0; i < GAYLE_NUM_PROBE_HWIFS; i++) {
-	ide_hwif_t *hwif;
-
 	base = (unsigned long)ZTWO_VADDR(phys_base + i * GAYLE_NEXT_PORT);
 	ctrlport = GAYLE_HAS_CONTROL_REG ? (base + GAYLE_CONTROL) : 0;
 
 	gayle_setup_ports(&hw[i], base, ctrlport, irqport, ack_intr);
 
-	hwif = ide_find_port();
-	if (hwif) {
-	    hwif->chipset = ide_generic;
-
-	    hws[i] = &hw[i];
-	    idx[i] = hwif->index;
-	}
+	hws[i] = &hw[i];
     }
 
-    ide_device_add(idx, NULL, hws);
+    host = ide_host_alloc(NULL, hws);
+    if (host)
+	ide_host_register(host, NULL, hws);
 
     return 0;
 }

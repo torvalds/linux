@@ -131,10 +131,9 @@ static const char *q40_ide_names[Q40IDE_NUM_HWIFS]={
 
 static int __init q40ide_init(void)
 {
+    struct ide_host *host;
     int i;
-    ide_hwif_t *hwif;
     hw_regs_t hw[Q40IDE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
-    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!MACH_IS_Q40)
       return -ENODEV;
@@ -158,16 +157,12 @@ static int __init q40ide_init(void)
 	q40_ide_setup_ports(&hw[i], pcide_bases[i], NULL,
 			q40ide_default_irq(pcide_bases[i]));
 
-	hwif = ide_find_port();
-	if (hwif) {
-		hwif->chipset = ide_generic;
-
-		hws[i] = &hw[i];
-		idx[i] = hwif->index;
-	}
+	hws[i] = &hw[i];
     }
 
-    ide_device_add(idx, &q40ide_port_info, hws);
+    host = ide_host_alloc(&q40ide_port_info, hws);
+    if (host)
+	ide_host_register(host, &q40ide_port_info, hws);
 
     return 0;
 }

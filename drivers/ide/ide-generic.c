@@ -28,27 +28,24 @@ MODULE_PARM_DESC(probe_mask, "probe mask for legacy ISA IDE ports");
 
 static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 {
-	ide_hwif_t *hwif;
+	struct ide_host *host;
 	unsigned int base, ctl;
 	int irq;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
-	u8 idx[] = { 0xff, 0xff, 0xff, 0xff };
 
 	if (sscanf(buf, "%x:%x:%d", &base, &ctl, &irq) != 3)
 		return -EINVAL;
-
-	hwif = ide_find_port();
-	if (hwif == NULL)
-		return -ENOENT;
 
 	memset(&hw, 0, sizeof(hw));
 	ide_std_init_ports(&hw, base, ctl);
 	hw.irq = irq;
 	hw.chipset = ide_generic;
 
-	idx[0] = hwif->index;
+	host = ide_host_alloc(NULL, hws);
+	if (host == NULL)
+		return -ENOENT;
 
-	ide_device_add(idx, NULL, hws);
+	ide_host_register(host, NULL, hws);
 
 	return n;
 };
@@ -89,18 +86,16 @@ static int __init ide_generic_sysfs_init(void)
 static int __init ide_generic_init(void)
 {
 	hw_regs_t hw[MAX_HWIFS], *hws[MAX_HWIFS];
-	u8 idx[MAX_HWIFS];
+	struct ide_host *host;
 	int i;
 
 	printk(KERN_INFO DRV_NAME ": please use \"probe_mask=0x3f\" module "
 			 "parameter for probing all legacy ISA IDE ports\n");
 
 	for (i = 0; i < MAX_HWIFS; i++) {
-		ide_hwif_t *hwif;
 		unsigned long io_addr = ide_default_io_base(i);
 
 		hws[i] = NULL;
-		idx[i] = 0xff;
 
 		if ((probe_mask & (1 << i)) && io_addr) {
 			if (!request_region(io_addr, 8, DRV_NAME)) {
@@ -118,23 +113,18 @@ static int __init ide_generic_init(void)
 				continue;
 			}
 
-			hwif = ide_find_port();
-			if (hwif == NULL)
-				continue;
-
-			hwif->chipset = ide_generic;
-
 			memset(&hw[i], 0, sizeof(hw[i]));
 			ide_std_init_ports(&hw[i], io_addr, io_addr + 0x206);
 			hw[i].irq = ide_default_irq(io_addr);
 			hw[i].chipset = ide_generic;
 
 			hws[i] = &hw[i];
-			idx[i] = i;
 		}
 	}
 
-	ide_device_add_all(idx, NULL, hws);
+	host = ide_host_alloc_all(NULL, hws);
+	if (host)
+		ide_host_register(host, NULL, hws);
 
 	if (ide_generic_sysfs_init())
 		printk(KERN_ERR DRV_NAME ": failed to create ide_generic "

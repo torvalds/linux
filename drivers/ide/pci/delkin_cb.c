@@ -56,11 +56,10 @@ static const struct ide_port_info delkin_cb_port_info = {
 static int __devinit
 delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 {
+	struct ide_host *host;
 	unsigned long base;
-	ide_hwif_t *hwif = NULL;
 	int i, rc;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	rc = pci_enable_device(dev);
 	if (rc) {
@@ -87,17 +86,13 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	hw.dev = &dev->dev;
 	hw.chipset = ide_pci;		/* this enables IRQ sharing */
 
-	hwif = ide_find_port();
-	if (hwif == NULL)
+	host = ide_host_alloc(&delkin_cb_port_info, hws);
+	if (host == NULL)
 		goto out_disable;
 
-	i = hwif->index;
+	ide_host_register(host, &delkin_cb_port_info, hws);
 
-	idx[0] = i;
-
-	ide_device_add(idx, &delkin_cb_port_info, hws);
-
-	pci_set_drvdata(dev, hwif);
+	pci_set_drvdata(dev, host);
 
 	return 0;
 
@@ -110,9 +105,9 @@ out_disable:
 static void
 delkin_cb_remove (struct pci_dev *dev)
 {
-	ide_hwif_t *hwif = pci_get_drvdata(dev);
+	struct ide_host *host = pci_get_drvdata(dev);
 
-	ide_unregister(hwif);
+	ide_host_remove(host);
 
 	pci_release_regions(dev);
 	pci_disable_device(dev);

@@ -91,8 +91,8 @@ static const char *mac_ide_name[] =
 
 static int __init macide_init(void)
 {
-	ide_hwif_t *hwif;
 	ide_ack_intr_t *ack_intr;
+	struct ide_host *host;
 	unsigned long base;
 	int irq;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
@@ -125,13 +125,9 @@ static int __init macide_init(void)
 
 	macide_setup_ports(&hw, base, irq, ack_intr);
 
-	hwif = ide_find_port();
-	if (hwif) {
-		u8 index = hwif->index;
-		u8 idx[4] = { index, 0xff, 0xff, 0xff };
-
-		ide_device_add(idx, NULL, hws);
-	}
+	host = ide_host_alloc(NULL, hws);
+	if (host)
+		ide_host_register(host, NULL, hws);
 
 	return 0;
 }

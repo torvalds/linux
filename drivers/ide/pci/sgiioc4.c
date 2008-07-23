@@ -600,9 +600,8 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	unsigned long cmd_base, irqport;
 	unsigned long bar0, cmd_phys_base, ctl;
 	void __iomem *virt_base;
-	ide_hwif_t *hwif;
+	struct ide_host *host;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	struct ide_port_info d = sgiioc4_port_info;
 
 	/*  Get the CmdBlk and CtrlBlk Base Registers */
@@ -635,16 +634,14 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	hw.chipset = ide_pci;
 	hw.dev = &dev->dev;
 
-	hwif = ide_find_port_slot(&d);
-	if (hwif == NULL)
-		goto err;
-
 	/* Initializing chipset IRQ Registers */
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 
-	idx[0] = hwif->index;
+	host = ide_host_alloc(&d, hws);
+	if (host == NULL)
+		goto err;
 
-	if (ide_device_add(idx, &d, hws))
+	if (ide_host_register(host, &d, hws))
 		return -EIO;
 
 	return 0;
