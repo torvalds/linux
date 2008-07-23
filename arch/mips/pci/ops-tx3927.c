@@ -41,41 +41,41 @@
 #include <asm/addrspace.h>
 #include <asm/txx9/tx3927.h>
 
-static inline int mkaddr(unsigned char bus, unsigned char dev_fn,
-	unsigned char where)
+static int mkaddr(struct pci_bus *bus, unsigned char devfn, unsigned char where)
 {
-	if (bus == 0 && dev_fn >= PCI_DEVFN(TX3927_PCIC_MAX_DEVNU, 0))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	tx3927_pcicptr->ica = ((bus & 0xff) << 0x10) |
-	                      ((dev_fn & 0xff) << 0x08) |
-	                      (where & 0xfc);
+	if (bus->parent == NULL &&
+	    devfn >= PCI_DEVFN(TX3927_PCIC_MAX_DEVNU, 0))
+		return -1;
+	tx3927_pcicptr->ica =
+		((bus->number & 0xff) << 0x10) |
+		((devfn & 0xff) << 0x08) |
+		(where & 0xfc) | (bus->parent ? 1 : 0);
 
 	/* clear M_ABORT and Disable M_ABORT Int. */
 	tx3927_pcicptr->pcistat |= PCI_STATUS_REC_MASTER_ABORT;
 	tx3927_pcicptr->pcistatim &= ~PCI_STATUS_REC_MASTER_ABORT;
-
-	return PCIBIOS_SUCCESSFUL;
+	return 0;
 }
 
 static inline int check_abort(void)
 {
-	if (tx3927_pcicptr->pcistat & PCI_STATUS_REC_MASTER_ABORT)
+	if (tx3927_pcicptr->pcistat & PCI_STATUS_REC_MASTER_ABORT) {
 		tx3927_pcicptr->pcistat |= PCI_STATUS_REC_MASTER_ABORT;
 		tx3927_pcicptr->pcistatim |= PCI_STATUS_REC_MASTER_ABORT;
+		/* flush write buffer */
+		iob();
 		return PCIBIOS_DEVICE_NOT_FOUND;
-
+	}
 	return PCIBIOS_SUCCESSFUL;
 }
 
 static int tx3927_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	int where, int size, u32 * val)
 {
-	int ret;
-
-	ret = mkaddr(bus->number, devfn, where);
-	if (ret)
-		return ret;
+	if (mkaddr(bus, devfn, where)) {
+		*val = 0xffffffff;
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	}
 
 	switch (size) {
 	case 1:
@@ -97,11 +97,8 @@ static int tx3927_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 static int tx3927_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	int where, int size, u32 val)
 {
-	int ret;
-
-	ret = mkaddr(bus->number, devfn, where);
-	if (ret)
-		return ret;
+	if (mkaddr(bus, devfn, where))
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -116,11 +113,6 @@ static int tx3927_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	case 4:
 		tx3927_pcicptr->icd = cpu_to_le32(val);
 	}
-
-	if (tx3927_pcicptr->pcistat & PCI_STATUS_REC_MASTER_ABORT)
-		tx3927_pcicptr->pcistat |= PCI_STATUS_REC_MASTER_ABORT;
-		tx3927_pcicptr->pcistatim |= PCI_STATUS_REC_MASTER_ABORT;
-		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	return check_abort();
 }

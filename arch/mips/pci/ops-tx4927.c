@@ -85,6 +85,8 @@ static int check_abort(struct tx4927_pcic_reg __iomem *pcicptr)
 		__raw_writel((__raw_readl(&pcicptr->pcistatus) & 0x0000ffff)
 			     | (PCI_STATUS_REC_MASTER_ABORT << 16),
 			     &pcicptr->pcistatus);
+		/* flush write buffer */
+		iob();
 		code = PCIBIOS_DEVICE_NOT_FOUND;
 	}
 	return code;
@@ -406,3 +408,35 @@ void tx4927_report_pcic_status(void)
 			tx4927_report_pcic_status1(pcicptrs[i].pcicptr);
 	}
 }
+
+#ifdef CONFIG_TOSHIBA_FPCIB0
+static void __init tx4927_quirk_slc90e66_bridge(struct pci_dev *dev)
+{
+	struct tx4927_pcic_reg __iomem *pcicptr = pci_bus_to_pcicptr(dev->bus);
+
+	if (!pcicptr)
+		return;
+	if (__raw_readl(&pcicptr->pbacfg) & TX4927_PCIC_PBACFG_PBAEN) {
+		/* Reset Bus Arbiter */
+		__raw_writel(TX4927_PCIC_PBACFG_RPBA, &pcicptr->pbacfg);
+		/*
+		 * swap reqBP and reqXP (raise priority of SLC90E66).
+		 * SLC90E66(PCI-ISA bridge) is connected to REQ2 on
+		 * PCI Backplane board.
+		 */
+		__raw_writel(0x72543610, &pcicptr->pbareqport);
+		__raw_writel(0, &pcicptr->pbabm);
+		/* Use Fixed ParkMaster (required by SLC90E66) */
+		__raw_writel(TX4927_PCIC_PBACFG_FIXPA, &pcicptr->pbacfg);
+		/* Enable Bus Arbiter */
+		__raw_writel(TX4927_PCIC_PBACFG_FIXPA |
+			     TX4927_PCIC_PBACFG_PBAEN,
+			     &pcicptr->pbacfg);
+		printk(KERN_INFO "PCI: Use Fixed Park Master (REQPORT %08x)\n",
+		       __raw_readl(&pcicptr->pbareqport));
+	}
+}
+#define PCI_DEVICE_ID_EFAR_SLC90E66_0 0x9460
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_0,
+	tx4927_quirk_slc90e66_bridge);
+#endif
