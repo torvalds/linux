@@ -24,4 +24,6 @@ static inline int in_exception_text(unsigned long ptr)
 	       ptr < (unsigned long)&__exception_text_end;
 }
 
+extern void __init early_trap_init(void);
+
 #endif
