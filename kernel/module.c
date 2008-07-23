@@ -639,8 +639,8 @@ static int __try_stop_module(void *_sref)
 {
 	struct stopref *sref = _sref;
 
-	/* If it's not unused, quit unless we are told to block. */
-	if ((sref->flags & O_NONBLOCK) && module_refcount(sref->mod) != 0) {
+	/* If it's not unused, quit unless we're forcing. */
+	if (module_refcount(sref->mod) != 0) {
 		if (!(*sref->forced = try_force_unload(sref->flags)))
 			return -EWOULDBLOCK;
 	}
@@ -652,9 +652,16 @@ static int __try_stop_module(void *_sref)
 
 static int try_stop_module(struct module *mod, int flags, int *forced)
 {
-	struct stopref sref = { mod, flags, forced };
+	if (flags & O_NONBLOCK) {
+		struct stopref sref = { mod, flags, forced };
 
-	return stop_machine_run(__try_stop_module, &sref, NR_CPUS);
+		return stop_machine_run(__try_stop_module, &sref, NR_CPUS);
+	} else {
+		/* We don't need to stop the machine for this. */
+		mod->state = MODULE_STATE_GOING;
+		synchronize_sched();
+		return 0;
+	}
 }
 
 unsigned int module_refcount(struct module *mod)
