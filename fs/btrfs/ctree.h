@@ -483,6 +483,7 @@ struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
 	struct btrfs_space_info *space_info;
+	spinlock_t lock;
 	u64 pinned;
 	u64 flags;
 	int cached;

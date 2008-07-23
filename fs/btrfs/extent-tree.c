@@ -319,7 +319,7 @@ no_cache:
 		cache = btrfs_lookup_first_block_group(root->fs_info, last);
 	}
 	cache_miss = 0;
-	cache = __btrfs_find_block_group(root, cache, last, data, 0);
+	cache = btrfs_find_block_group(root, cache, last, data, 0);
 	if (!cache)
 		goto no_cache;
 	*cache_ret = cache;
@@ -379,19 +379,25 @@ __btrfs_find_block_group(struct btrfs_root *root,
 		struct btrfs_block_group_cache *shint;
 		shint = btrfs_lookup_first_block_group(info, search_start);
 		if (shint && block_group_bits(shint, data) && !shint->ro) {
+			spin_lock(&shint->lock);
 			used = btrfs_block_group_used(&shint->item);
 			if (used + shint->pinned <
 			    div_factor(shint->key.offset, factor)) {
+				spin_unlock(&shint->lock);
 				return shint;
 			}
+			spin_unlock(&shint->lock);
 		}
 	}
 	if (hint && !hint->ro && block_group_bits(hint, data)) {
+		spin_lock(&hint->lock);
 		used = btrfs_block_group_used(&hint->item);
 		if (used + hint->pinned <
 		    div_factor(hint->key.offset, factor)) {
+			spin_unlock(&hint->lock);
 			return hint;
 		}
+		spin_unlock(&hint->lock);
 		last = hint->key.objectid + hint->key.offset;
 	} else {
 		if (hint)
@@ -413,6 +419,7 @@ again:
 		}
 
 		cache = (struct btrfs_block_group_cache *)(unsigned long)ptr;
+		spin_lock(&cache->lock);
 		last = cache->key.objectid + cache->key.offset;
 		used = btrfs_block_group_used(&cache->item);
 
@@ -420,9 +427,11 @@ again:
 			free_check = div_factor(cache->key.offset, factor);
 			if (used + cache->pinned < free_check) {
 				found_group = cache;
+				spin_unlock(&cache->lock);
 				goto found;
 			}
 		}
+		spin_unlock(&cache->lock);
 		cond_resched();
 	}
 	if (!wrapped) {
@@ -447,9 +456,7 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 {
 
 	struct btrfs_block_group_cache *ret;
-	mutex_lock(&root->fs_info->alloc_mutex);
 	ret = __btrfs_find_block_group(root, hint, search_start, data, owner);
-	mutex_unlock(&root->fs_info->alloc_mutex);
 	return ret;
 }
 static u64 hash_extent_ref(u64 root_objectid, u64 ref_generation,
@@ -1262,21 +1269,25 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 		set_extent_bits(&info->block_group_cache, start, end,
 				BLOCK_GROUP_DIRTY, GFP_NOFS);
 
+		spin_lock(&cache->lock);
 		old_val = btrfs_block_group_used(&cache->item);
 		num_bytes = min(total, cache->key.offset - byte_in_group);
 		if (alloc) {
 			old_val += num_bytes;
 			cache->space_info->bytes_used += num_bytes;
+			btrfs_set_block_group_used(&cache->item, old_val);
+			spin_unlock(&cache->lock);
 		} else {
 			old_val -= num_bytes;
 			cache->space_info->bytes_used -= num_bytes;
+			btrfs_set_block_group_used(&cache->item, old_val);
+			spin_unlock(&cache->lock);
 			if (mark_free) {
 				set_extent_dirty(&info->free_space_cache,
 						 bytenr, bytenr + num_bytes - 1,
 						 GFP_NOFS);
 			}
 		}
-		btrfs_set_block_group_used(&cache->item, old_val);
 		total -= num_bytes;
 		bytenr += num_bytes;
 	}
@@ -1325,14 +1336,18 @@ static int update_pinned_extents(struct btrfs_root *root,
 		}
 		if (pin) {
 			if (cache) {
+				spin_lock(&cache->lock);
 				cache->pinned += len;
 				cache->space_info->bytes_pinned += len;
+				spin_unlock(&cache->lock);
 			}
 			fs_info->total_pinned += len;
 		} else {
 			if (cache) {
+				spin_lock(&cache->lock);
 				cache->pinned -= len;
 				cache->space_info->bytes_pinned -= len;
+				spin_unlock(&cache->lock);
 			}
 			fs_info->total_pinned -= len;
 		}
@@ -1380,6 +1395,11 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 		update_pinned_extents(root, start, end + 1 - start, 0);
 		clear_extent_dirty(unpin, start, end, GFP_NOFS);
 		set_extent_dirty(free_space_cache, start, end, GFP_NOFS);
+		if (need_resched()) {
+			mutex_unlock(&root->fs_info->alloc_mutex);
+			cond_resched();
+			mutex_lock(&root->fs_info->alloc_mutex);
+		}
 	}
 	mutex_unlock(&root->fs_info->alloc_mutex);
 	return 0;
@@ -1417,8 +1437,16 @@ static int finish_current_insert(struct btrfs_trans_handle *trans,
 					&extent_item, sizeof(extent_item));
 		clear_extent_bits(&info->extent_ins, start, end, EXTENT_LOCKED,
 				  GFP_NOFS);
-		eb = read_tree_block(extent_root, ins.objectid, ins.offset,
-				     trans->transid);
+
+		eb = btrfs_find_tree_block(extent_root, ins.objectid,
+					   ins.offset);
+
+		if (!btrfs_buffer_uptodate(eb, trans->transid)) {
+			mutex_unlock(&extent_root->fs_info->alloc_mutex);
+			btrfs_read_buffer(eb, trans->transid);
+			mutex_lock(&extent_root->fs_info->alloc_mutex);
+		}
+
 		btrfs_tree_lock(eb);
 		level = btrfs_header_level(eb);
 		if (level == 0) {
@@ -1437,6 +1465,11 @@ static int finish_current_insert(struct btrfs_trans_handle *trans,
 					  0, level,
 					  btrfs_disk_key_objectid(&first));
 		BUG_ON(err);
+		if (need_resched()) {
+			mutex_unlock(&extent_root->fs_info->alloc_mutex);
+			cond_resched();
+			mutex_lock(&extent_root->fs_info->alloc_mutex);
+		}
 	}
 	btrfs_free_path(path);
 	return 0;
@@ -1640,15 +1673,28 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 					    EXTENT_LOCKED);
 		if (ret)
 			break;
-		update_pinned_extents(extent_root, start, end + 1 - start, 1);
 		clear_extent_bits(pending_del, start, end, EXTENT_LOCKED,
 				  GFP_NOFS);
-		ret = __free_extent(trans, extent_root,
-				     start, end + 1 - start,
-				     extent_root->root_key.objectid,
-				     0, 0, 0, 0, 0);
+		if (!test_range_bit(&extent_root->fs_info->extent_ins,
+				    start, end, EXTENT_LOCKED, 0)) {
+			update_pinned_extents(extent_root, start,
+					      end + 1 - start, 1);
+			ret = __free_extent(trans, extent_root,
+					     start, end + 1 - start,
+					     extent_root->root_key.objectid,
+					     0, 0, 0, 0, 0);
+		} else {
+			clear_extent_bits(&extent_root->fs_info->extent_ins,
+					  start, end, EXTENT_LOCKED, GFP_NOFS);
+		}
 		if (ret)
 			err = ret;
+
+		if (need_resched()) {
+			mutex_unlock(&extent_root->fs_info->alloc_mutex);
+			cond_resched();
+			mutex_lock(&extent_root->fs_info->alloc_mutex);
+		}
 	}
 	return err;
 }
@@ -1768,12 +1814,12 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 		block_group = btrfs_lookup_first_block_group(info, hint_byte);
 		if (!block_group)
 			hint_byte = search_start;
-		block_group = __btrfs_find_block_group(root, block_group,
+		block_group = btrfs_find_block_group(root, block_group,
 						     hint_byte, data, 1);
 		if (last_ptr && *last_ptr == 0 && block_group)
 			hint_byte = block_group->key.objectid;
 	} else {
-		block_group = __btrfs_find_block_group(root,
+		block_group = btrfs_find_block_group(root,
 						     trans->block_group,
 						     search_start, data, 1);
 	}
@@ -1895,7 +1941,7 @@ enospc:
 	}
 	block_group = btrfs_lookup_first_block_group(info, search_start);
 	cond_resched();
-	block_group = __btrfs_find_block_group(root, block_group,
+	block_group = btrfs_find_block_group(root, block_group,
 					     search_start, data, 0);
 	goto check_failed;
 
@@ -3032,11 +3078,14 @@ int __alloc_chunk_for_shrink(struct btrfs_root *root,
 	u64 new_alloc_flags;
 	u64 calc;
 
+	spin_lock(&shrink_block_group->lock);
 	if (btrfs_block_group_used(&shrink_block_group->item) > 0) {
-
+		spin_unlock(&shrink_block_group->lock);
 		mutex_unlock(&root->fs_info->alloc_mutex);
+
 		trans = btrfs_start_transaction(root, 1);
 		mutex_lock(&root->fs_info->alloc_mutex);
+		spin_lock(&shrink_block_group->lock);
 
 		new_alloc_flags = update_block_group_flags(root,
 						   shrink_block_group->flags);
@@ -3046,13 +3095,16 @@ int __alloc_chunk_for_shrink(struct btrfs_root *root,
 		} else {
 			calc = shrink_block_group->key.offset;
 		}
+		spin_unlock(&shrink_block_group->lock);
+
 		do_chunk_alloc(trans, root->fs_info->extent_root,
 			       calc + 2 * 1024 * 1024, new_alloc_flags, force);
 
 		mutex_unlock(&root->fs_info->alloc_mutex);
 		btrfs_end_transaction(trans, root);
 		mutex_lock(&root->fs_info->alloc_mutex);
-	}
+	} else
+		spin_unlock(&shrink_block_group->lock);
 	return 0;
 }
 
@@ -3199,6 +3251,7 @@ next:
 	mutex_unlock(&root->fs_info->alloc_mutex);
 
 	trans = btrfs_start_transaction(root, 1);
+
 	mutex_lock(&root->fs_info->alloc_mutex);
 	memcpy(&key, &shrink_block_group->key, sizeof(key));
 
@@ -3316,6 +3369,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 			break;
 		}
 
+		spin_lock_init(&cache->lock);
 		read_extent_buffer(leaf, &cache->item,
 				   btrfs_item_ptr_offset(leaf, path->slots[0]),
 				   sizeof(cache->item));
@@ -3343,10 +3397,12 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		/* use EXTENT_LOCKED to prevent merging */
 		set_extent_bits(block_group_cache, found_key.objectid,
 				found_key.objectid + found_key.offset - 1,
-				bit | EXTENT_LOCKED, GFP_NOFS);
+				EXTENT_LOCKED, GFP_NOFS);
 		set_state_private(block_group_cache, found_key.objectid,
 				  (unsigned long)cache);
-
+		set_extent_bits(block_group_cache, found_key.objectid,
+				found_key.objectid + found_key.offset - 1,
+				bit | EXTENT_LOCKED, GFP_NOFS);
 		if (key.objectid >=
 		    btrfs_super_total_bytes(&info->super_copy))
 			break;
@@ -3377,6 +3433,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	BUG_ON(!cache);
 	cache->key.objectid = chunk_offset;
 	cache->key.offset = size;
+	spin_lock_init(&cache->lock);
 	btrfs_set_key_type(&cache->key, BTRFS_BLOCK_GROUP_ITEM_KEY);
 
 	btrfs_set_block_group_used(&cache->item, bytes_used);
@@ -3391,10 +3448,13 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	bit = block_group_state_bits(type);
 	set_extent_bits(block_group_cache, chunk_offset,
 			chunk_offset + size - 1,
-			bit | EXTENT_LOCKED, GFP_NOFS);
-
+			EXTENT_LOCKED, GFP_NOFS);
 	set_state_private(block_group_cache, chunk_offset,
 			  (unsigned long)cache);
+	set_extent_bits(block_group_cache, chunk_offset,
+			chunk_offset + size - 1,
+			bit | EXTENT_LOCKED, GFP_NOFS);
+
 	ret = btrfs_insert_item(trans, extent_root, &cache->key, &cache->item,
 				sizeof(cache->item));
 	BUG_ON(ret);
