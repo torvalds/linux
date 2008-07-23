@@ -43,7 +43,6 @@
 #include <media/saa7115.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
-#include <media/audiochip.h>
 
 #include <linux/workqueue.h>
 

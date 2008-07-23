@@ -448,7 +448,7 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 		   the initialization. Some boards may use different
 		   routes for different inputs. HVR-1300 surely does */
 		if (core->board.audio_chip &&
-		    core->board.audio_chip == AUDIO_CHIP_WM8775) {
+		    core->board.audio_chip == V4L2_IDENT_WM8775) {
 			struct v4l2_routing route;
 
 			route.input = INPUT(input).audioroute;
@@ -1867,7 +1867,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* load and configure helper modules */
 
-	if (core->board.audio_chip == AUDIO_CHIP_WM8775)
+	if (core->board.audio_chip == V4L2_IDENT_WM8775)
 		request_module("wm8775");
 
 	switch (core->boardnr) {

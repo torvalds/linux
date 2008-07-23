@@ -67,7 +67,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/tuner.h>
-#include <media/audiochip.h>
 
 #include <linux/workqueue.h>
 
