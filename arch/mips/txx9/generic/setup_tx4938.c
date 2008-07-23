@@ -262,3 +262,19 @@ void __init tx4938_setup_serial(void)
 	}
 #endif /* CONFIG_SERIAL_TXX9 */
 }
+
+void __init tx4938_spi_init(int busid)
+{
+	txx9_spi_init(busid, TX4938_SPI_REG & 0xfffffffffULL,
+		      TXX9_IRQ_BASE + TX4938_IR_SPI);
+}
+
+void __init tx4938_ethaddr_init(unsigned char *addr0, unsigned char *addr1)
+{
+	u64 pcfg = __raw_readq(&tx4938_ccfgptr->pcfg);
+
+	if (addr0 && (pcfg & TX4938_PCFG_ETH0_SEL))
+		txx9_ethaddr_init(TXX9_IRQ_BASE + TX4938_IR_ETH0, addr0);
+	if (addr1 && (pcfg & TX4938_PCFG_ETH1_SEL))
+		txx9_ethaddr_init(TXX9_IRQ_BASE + TX4938_IR_ETH1, addr1);
+}

@@ -220,6 +220,33 @@ void __init txx9_wdt_init(unsigned long base)
 	platform_device_register_simple("txx9wdt", -1, &res, 1);
 }
 
+/* SPI support */
+void __init txx9_spi_init(int busid, unsigned long base, int irq)
+{
+	struct resource res[] = {
+		{
+			.start	= base,
+			.end	= base + 0x20 - 1,
+			.flags	= IORESOURCE_MEM,
+		}, {
+			.start	= irq,
+			.flags	= IORESOURCE_IRQ,
+		},
+	};
+	platform_device_register_simple("spi_txx9", busid,
+					res, ARRAY_SIZE(res));
+}
+
+void __init txx9_ethaddr_init(unsigned int id, unsigned char *ethaddr)
+{
+	struct platform_device *pdev =
+		platform_device_alloc("tc35815-mac", id);
+	if (!pdev ||
+	    platform_device_add_data(pdev, ethaddr, 6) ||
+	    platform_device_add(pdev))
+		platform_device_put(pdev);
+}
+
 /* wrappers */
 void __init plat_mem_setup(void)
 {

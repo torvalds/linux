@@ -132,19 +132,7 @@ static int __init rbtx4938_ethaddr_init(void)
 		if (sum)
 			printk(KERN_WARNING "seeprom: bad checksum.\n");
 	}
-	for (i = 0; i < 2; i++) {
-		unsigned int id =
-			TXX9_IRQ_BASE + (i ? TX4938_IR_ETH1 : TX4938_IR_ETH0);
-		struct platform_device *pdev;
-		if (!(__raw_readq(&tx4938_ccfgptr->pcfg) &
-		      (i ? TX4938_PCFG_ETH1_SEL : TX4938_PCFG_ETH0_SEL)))
-			continue;
-		pdev = platform_device_alloc("tc35815-mac", id);
-		if (!pdev ||
-		    platform_device_add_data(pdev, &dat[4 + 6 * i], 6) ||
-		    platform_device_add(pdev))
-			platform_device_put(pdev);
-	}
+	tx4938_ethaddr_init(&dat[4], &dat[4 + 6]);
 #endif /* CONFIG_PCI */
 	return 0;
 }
@@ -301,24 +289,6 @@ static struct gpio_chip rbtx4938_spi_gpio_chip = {
 	.ngpio = 3,
 };
 
-/* SPI support */
-
-static void __init txx9_spi_init(unsigned long base, int irq)
-{
-	struct resource res[] = {
-		{
-			.start	= base,
-			.end	= base + 0x20 - 1,
-			.flags	= IORESOURCE_MEM,
-		}, {
-			.start	= irq,
-			.flags	= IORESOURCE_IRQ,
-		},
-	};
-	platform_device_register_simple("spi_txx9", 0,
-					res, ARRAY_SIZE(res));
-}
-
 static int __init rbtx4938_spi_init(void)
 {
 	struct spi_board_info srtc_info = {
@@ -341,7 +311,7 @@ static int __init rbtx4938_spi_init(void)
 	gpio_direction_output(16 + SEEPROM2_CS, 1);
 	gpio_request(16 + SEEPROM3_CS, "seeprom3");
 	gpio_direction_output(16 + SEEPROM3_CS, 1);
-	txx9_spi_init(TX4938_SPI_REG & 0xfffffffffULL, RBTX4938_IRQ_IRC_SPI);
+	tx4938_spi_init(0);
 	return 0;
 }
 

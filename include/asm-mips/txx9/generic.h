@@ -45,5 +45,7 @@ extern int (*txx9_irq_dispatch)(int pending);
 void prom_init_cmdline(void);
 char *prom_getcmdline(void);
 void txx9_wdt_init(unsigned long base);
+void txx9_spi_init(int busid, unsigned long base, int irq);
+void txx9_ethaddr_init(unsigned int id, unsigned char *ethaddr);
 
 #endif /* __ASM_TXX9_GENERIC_H */
