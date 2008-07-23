@@ -828,8 +828,8 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	SELECT_MASK(drive, 0);
 	udelay(1);
 	hwif->set_irq(hwif, 0);
-	hwif->OUTB(speed, io_ports->nsect_addr);
 	hwif->OUTB(SETFEATURES_XFER, io_ports->feature_addr);
+	hwif->OUTB(speed, io_ports->nsect_addr);
 	hwif->exec_command(hwif, WIN_SETFEATURES);
 	if (drive->quirk_list == 2)
 		hwif->set_irq(hwif, 1);
