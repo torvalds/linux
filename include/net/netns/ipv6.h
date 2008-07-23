@@ -39,7 +39,7 @@ struct netns_ipv6 {
 #endif
 	struct rt6_info         *ip6_null_entry;
 	struct rt6_statistics   *rt6_stats;
-	struct timer_list       *ip6_fib_timer;
+	struct timer_list       ip6_fib_timer;
 	struct hlist_head       *fib_table_hash;
 	struct fib6_table       *fib6_main_tbl;
 	struct dst_ops		*ip6_dst_ops;

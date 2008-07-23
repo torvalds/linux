@@ -730,9 +730,6 @@ static void generic_adjust_link(struct  net_device *dev)
 		if (!fep->oldlink) {
 			new_state = 1;
 			fep->oldlink = 1;
-			netif_tx_schedule_all(dev);
-			netif_carrier_on(dev);
-			netif_start_queue(dev);
 		}
 
 		if (new_state)
@@ -742,8 +739,6 @@ static void generic_adjust_link(struct  net_device *dev)
 		fep->oldlink = 0;
 		fep->oldspeed = 0;
 		fep->oldduplex = -1;
-		netif_carrier_off(dev);
-		netif_stop_queue(dev);
 	}
 
 	if (new_state && netif_msg_link(fep))
@@ -817,6 +812,8 @@ static int fs_enet_open(struct net_device *dev)
 		return err;
 	}
 	phy_start(fep->phydev);
+
+	netif_start_queue(dev);
 
 	return 0;
 }

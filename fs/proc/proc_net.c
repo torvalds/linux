@@ -27,6 +27,11 @@
 #include "internal.h"
 
 
+static struct net *get_proc_net(const struct inode *inode)
+{
+	return maybe_get_net(PDE_NET(PDE(inode)));
+}
+
 int seq_open_net(struct inode *ino, struct file *f,
 		 const struct seq_operations *ops, int size)
 {
@@ -184,12 +189,6 @@ void proc_net_remove(struct net *net, const char *name)
 	remove_proc_entry(name, net->proc_net);
 }
 EXPORT_SYMBOL_GPL(proc_net_remove);
-
-struct net *get_proc_net(const struct inode *inode)
-{
-	return maybe_get_net(PDE_NET(PDE(inode)));
-}
-EXPORT_SYMBOL_GPL(get_proc_net);
 
 static __net_init int proc_net_ns_init(struct net *net)
 {

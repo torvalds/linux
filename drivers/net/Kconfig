@@ -1926,20 +1926,6 @@ config E1000
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000.
 
-config E1000_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on E1000
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  If in doubt, say N.
-
 config E1000_DISABLE_PACKET_SPLIT
 	bool "Disable Packet Split for PCI express adapters"
 	depends on E1000
@@ -2303,6 +2289,17 @@ config ATL1
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl1.
+
+config ATL1E
+	tristate "Atheros L1E Gigabit Ethernet support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select CRC32
+	select MII
+	help
+	  This driver supports the Atheros L1E gigabit ethernet adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl1e.
 
 endif # NETDEV_1000
 

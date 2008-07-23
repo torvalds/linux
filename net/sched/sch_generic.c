@@ -212,9 +212,9 @@ static void dev_watchdog(unsigned long arg)
 			if (some_queue_stopped &&
 			    time_after(jiffies, (dev->trans_start +
 						 dev->watchdog_timeo))) {
-				printk(KERN_INFO "NETDEV WATCHDOG: %s: "
-				       "transmit timed out\n",
-				       dev->name);
+				char drivername[64];
+				printk(KERN_INFO "NETDEV WATCHDOG: %s (%s): transmit timed out\n",
+				       dev->name, netdev_drivername(dev, drivername, 64));
 				dev->tx_timeout(dev);
 				WARN_ON_ONCE(1);
 			}

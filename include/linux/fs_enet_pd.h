@@ -103,10 +103,6 @@ struct fs_mii_bb_platform_info {
 	struct fs_mii_bit 	mdio_dir;
 	struct fs_mii_bit 	mdio_dat;
 	struct fs_mii_bit	mdc_dat;
-	int mdio_port;	/* port & bit for MDIO */
-	int mdio_bit;
-	int mdc_port;	/* port & bit for MDC  */
-	int mdc_bit;
 	int delay;	/* delay in us         */
 	int irq[32]; 	/* irqs per phy's */
 };

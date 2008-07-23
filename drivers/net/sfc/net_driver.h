@@ -616,7 +616,9 @@ union efx_multicast_hash {
  * @pci_dev: The PCI device
  * @type: Controller type attributes
  * @legacy_irq: IRQ number
- * @workqueue: Workqueue for resets, port reconfigures and the HW monitor
+ * @workqueue: Workqueue for port reconfigures and the HW monitor.
+ *	Work items do not hold and must not acquire RTNL.
+ * @reset_workqueue: Workqueue for resets.  Work item will acquire RTNL.
  * @reset_work: Scheduled reset workitem
  * @monitor_work: Hardware monitor workitem
  * @membase_phys: Memory BAR value as physical address
@@ -684,6 +686,7 @@ struct efx_nic {
 	const struct efx_nic_type *type;
 	int legacy_irq;
 	struct workqueue_struct *workqueue;
+	struct workqueue_struct *reset_workqueue;
 	struct work_struct reset_work;
 	struct delayed_work monitor_work;
 	resource_size_t membase_phys;

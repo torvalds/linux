@@ -19,6 +19,7 @@
 #include <linux/in.h>
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
+#include <linux/topology.h>
 #include "net_driver.h"
 #include "gmii.h"
 #include "ethtool.h"
@@ -832,7 +833,23 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 	if (efx->interrupt_mode == EFX_INT_MODE_MSIX) {
 		BUG_ON(!pci_find_capability(efx->pci_dev, PCI_CAP_ID_MSIX));
 
-		efx->rss_queues = rss_cpus ? rss_cpus : num_online_cpus();
+		if (rss_cpus == 0) {
+			cpumask_t core_mask;
+			int cpu;
+
+			cpus_clear(core_mask);
+			efx->rss_queues = 0;
+			for_each_online_cpu(cpu) {
+				if (!cpu_isset(cpu, core_mask)) {
+					++efx->rss_queues;
+					cpus_or(core_mask, core_mask,
+						topology_core_siblings(cpu));
+				}
+			}
+		} else {
+			efx->rss_queues = rss_cpus;
+		}
+
 		efx->rss_queues = min(efx->rss_queues, max_channel + 1);
 		efx->rss_queues = min(efx->rss_queues, EFX_MAX_CHANNELS);
 
@@ -1762,7 +1779,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 
 	efx->reset_pending = method;
 
-	queue_work(efx->workqueue, &efx->reset_work);
+	queue_work(efx->reset_workqueue, &efx->reset_work);
 }
 
 /**************************************************************************
@@ -1907,7 +1924,17 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 		goto fail1;
 	}
 
+	efx->reset_workqueue = create_singlethread_workqueue("sfc_reset");
+	if (!efx->reset_workqueue) {
+		rc = -ENOMEM;
+		goto fail2;
+	}
+
 	return 0;
+
+ fail2:
+	destroy_workqueue(efx->workqueue);
+	efx->workqueue = NULL;
 
  fail1:
 	return rc;
@@ -1915,6 +1942,10 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 
 static void efx_fini_struct(struct efx_nic *efx)
 {
+	if (efx->reset_workqueue) {
+		destroy_workqueue(efx->reset_workqueue);
+		efx->reset_workqueue = NULL;
+	}
 	if (efx->workqueue) {
 		destroy_workqueue(efx->workqueue);
 		efx->workqueue = NULL;
@@ -1977,7 +2008,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	 * scheduled from this point because efx_stop_all() has been
 	 * called, we are no longer registered with driverlink, and
 	 * the net_device's have been removed. */
-	flush_workqueue(efx->workqueue);
+	flush_workqueue(efx->reset_workqueue);
 
 	efx_pci_remove_main(efx);
 
@@ -2098,7 +2129,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 		 * scheduled since efx_stop_all() has been called, and we
 		 * have not and never have been registered with either
 		 * the rtnetlink or driverlink layers. */
-		cancel_work_sync(&efx->reset_work);
+		flush_workqueue(efx->reset_workqueue);
 
 		/* Retry if a recoverably reset event has been scheduled */
 		if ((efx->reset_pending != RESET_TYPE_INVISIBLE) &&

@@ -945,10 +945,8 @@ static void cpmac_adjust_link(struct net_device *dev)
 		if (!priv->oldlink) {
 			new_state = 1;
 			priv->oldlink = 1;
-			netif_tx_schedule_all(dev);
 		}
 	} else if (priv->oldlink) {
-		netif_tx_stop_all_queues(dev);
 		new_state = 1;
 		priv->oldlink = 0;
 		priv->oldspeed = 0;
