@@ -21,12 +21,17 @@
 #include <asm/txx9/generic.h>
 #include <asm/txx9/tx4927.h>
 
-void __init tx4927_wdr_init(void)
+static void __init tx4927_wdr_init(void)
 {
 	/* clear WatchDogReset (W1C) */
 	tx4927_ccfg_set(TX4927_CCFG_WDRST);
 	/* do reset on watchdog */
 	tx4927_ccfg_set(TX4927_CCFG_WR);
+}
+
+void __init tx4927_wdt_init(void)
+{
+	txx9_wdt_init(TX4927_TMR_REG(2) & 0xfffffffffULL);
 }
 
 static struct resource tx4927_sdram_resource[4];

@@ -276,7 +276,7 @@ struct tx4938_ccfg_reg {
 #define TX4938_EBUSC_SIZE(ch)	TX4927_EBUSC_SIZE(ch)
 
 #define tx4938_get_mem_size() tx4927_get_mem_size()
-void tx4938_wdr_init(void);
+void tx4938_wdt_init(void);
 void tx4938_setup(void);
 void tx4938_time_init(unsigned int tmrnr);
 void tx4938_setup_serial(void);

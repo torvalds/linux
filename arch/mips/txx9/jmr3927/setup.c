@@ -308,30 +308,16 @@ static int __init jmr3927_rtc_init(void)
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
 
-/* Watchdog support */
-
-static int __init txx9_wdt_init(unsigned long base)
+static void __init tx3927_wdt_init(void)
 {
-	struct resource res = {
-		.start	= base,
-		.end	= base + 0x100 - 1,
-		.flags	= IORESOURCE_MEM,
-	};
-	struct platform_device *dev =
-		platform_device_register_simple("txx9wdt", -1, &res, 1);
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
-}
-
-static int __init jmr3927_wdt_init(void)
-{
-	return txx9_wdt_init(TX3927_TMR_REG(2));
+	txx9_wdt_init(TX3927_TMR_REG(2));
 }
 
 static void __init jmr3927_device_init(void)
 {
 	__swizzle_addr_b = jmr3927_swizzle_addr_b;
 	jmr3927_rtc_init();
-	jmr3927_wdt_init();
+	tx3927_wdt_init();
 }
 
 struct txx9_board_vec jmr3927_vec __initdata = {

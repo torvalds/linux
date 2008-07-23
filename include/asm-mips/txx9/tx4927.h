@@ -243,7 +243,7 @@ static inline void tx4927_ccfg_change(__u64 change, __u64 new)
 }
 
 unsigned int tx4927_get_mem_size(void);
-void tx4927_wdr_init(void);
+void tx4927_wdt_init(void);
 void tx4927_setup(void);
 void tx4927_time_init(unsigned int tmrnr);
 void tx4927_setup_serial(void);

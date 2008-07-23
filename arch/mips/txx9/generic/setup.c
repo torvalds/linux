@@ -20,6 +20,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
@@ -206,6 +207,17 @@ static void __noreturn txx9_machine_halt(void)
 			}
 		}
 	}
+}
+
+/* Watchdog support */
+void __init txx9_wdt_init(unsigned long base)
+{
+	struct resource res = {
+		.start	= base,
+		.end	= base + 0x100 - 1,
+		.flags	= IORESOURCE_MEM,
+	};
+	platform_device_register_simple("txx9wdt", -1, &res, 1);
 }
 
 /* wrappers */

@@ -352,30 +352,11 @@ static void __init rbtx4938_arch_init(void)
 	rbtx4938_spi_init();
 }
 
-/* Watchdog support */
-
-static int __init txx9_wdt_init(unsigned long base)
-{
-	struct resource res = {
-		.start	= base,
-		.end	= base + 0x100 - 1,
-		.flags	= IORESOURCE_MEM,
-	};
-	struct platform_device *dev =
-		platform_device_register_simple("txx9wdt", -1, &res, 1);
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
-}
-
-static int __init rbtx4938_wdt_init(void)
-{
-	return txx9_wdt_init(TX4938_TMR_REG(2) & 0xfffffffffULL);
-}
-
 static void __init rbtx4938_device_init(void)
 {
 	rbtx4938_ethaddr_init();
 	rbtx4938_ne_init();
-	rbtx4938_wdt_init();
+	tx4938_wdt_init();
 }
 
 struct txx9_board_vec rbtx4938_vec __initdata = {
