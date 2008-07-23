@@ -286,6 +286,7 @@ void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 	hwif->dev = hw->dev;
 	hwif->gendev.parent = hw->parent ? hw->parent : hw->dev;
 	hwif->ack_intr = hw->ack_intr;
+	hwif->config_data = hw->config;
 }
 
 /*

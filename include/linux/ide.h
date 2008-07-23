@@ -178,6 +178,7 @@ typedef struct hw_regs_s {
 	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	hwif_chipset_t  chipset;
 	struct device	*dev, *parent;
+	unsigned long	config;
 } hw_regs_t;
 
 void ide_init_port_data(struct hwif_s *, unsigned int);

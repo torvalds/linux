@@ -1689,13 +1689,11 @@ static void ide_legacy_init_one(u8 *idx, hw_regs_t **hws, hw_regs_t *hw,
 	ide_std_init_ports(hw, base, ctl);
 	hw->irq = irq;
 	hw->chipset = d->chipset;
+	hw->config = config;
 
 	hwif = ide_find_port_slot(d);
 	if (hwif) {
 		hwif->chipset = hw->chipset;
-
-		if (config)
-			hwif->config_data = config;
 
 		hws[port_no] = hw;
 		idx[port_no] = hwif->index;
