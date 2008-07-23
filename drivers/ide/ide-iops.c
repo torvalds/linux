@@ -119,6 +119,14 @@ static u8 ide_read_status(ide_hwif_t *hwif)
 		return inb(hwif->io_ports.status_addr);
 }
 
+static u8 ide_read_altstatus(ide_hwif_t *hwif)
+{
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		return readb((void __iomem *)hwif->io_ports.ctl_addr);
+	else
+		return inb(hwif->io_ports.ctl_addr);
+}
+
 static u8 ide_read_sff_dma_status(ide_hwif_t *hwif)
 {
 	if (hwif->host_flags & IDE_HFLAG_MMIO)
@@ -349,6 +357,7 @@ void default_hwif_transport(ide_hwif_t *hwif)
 {
 	hwif->exec_command	  = ide_exec_command;
 	hwif->read_status	  = ide_read_status;
+	hwif->read_altstatus	  = ide_read_altstatus;
 	hwif->read_sff_dma_status = ide_read_sff_dma_status;
 
 	hwif->tf_load	  = ide_tf_load;
@@ -511,7 +520,7 @@ int drive_is_ready (ide_drive_t *drive)
 	 * about possible isa-pnp and pci-pnp issues yet.
 	 */
 	if (hwif->io_ports.ctl_addr)
-		stat = ide_read_altstatus(drive);
+		stat = hwif->read_altstatus(hwif);
 	else
 		/* Note: this may clear a pending IRQ!! */
 		stat = hwif->read_status(hwif);
@@ -724,7 +733,7 @@ int ide_driveid_update(ide_drive_t *drive)
 		}
 
 		msleep(50);	/* give drive a breather */
-		stat = ide_read_altstatus(drive);
+		stat = hwif->read_altstatus(hwif);
 	} while (stat & BUSY_STAT);
 
 	msleep(50);	/* wait for IRQ and DRQ_STAT */

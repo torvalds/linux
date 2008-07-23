@@ -275,7 +275,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	msleep(50);
 
 	if (io_ports->ctl_addr) {
-		a = ide_read_altstatus(drive);
+		a = hwif->read_altstatus(hwif);
 		s = hwif->read_status(hwif);
 		if ((a ^ s) & ~INDEX_STAT)
 			/* ancient Seagate drives, broken interfaces */
@@ -306,7 +306,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 		}
 		/* give drive a breather */
 		msleep(50);
-		s = use_altstatus ? ide_read_altstatus(drive)
+		s = use_altstatus ? hwif->read_altstatus(hwif)
 				  : hwif->read_status(hwif);
 	} while (s & BUSY_STAT);
 

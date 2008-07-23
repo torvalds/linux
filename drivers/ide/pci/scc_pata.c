@@ -139,6 +139,11 @@ static u8 scc_read_status(ide_hwif_t *hwif)
 	return (u8)in_be32((void *)hwif->io_ports.status_addr);
 }
 
+static u8 scc_read_altstatus(ide_hwif_t *hwif)
+{
+	return (u8)in_be32((void *)hwif->io_ports.ctl_addr);
+}
+
 static u8 scc_read_sff_dma_status(ide_hwif_t *hwif)
 {
 	return (u8)in_be32((void *)(hwif->dma_base + 4));
@@ -794,6 +799,7 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 
 	hwif->exec_command	  = scc_exec_command;
 	hwif->read_status	  = scc_read_status;
+	hwif->read_altstatus	  = scc_read_altstatus;
 	hwif->read_sff_dma_status = scc_read_sff_dma_status;
 
 	hwif->tf_load = scc_tf_load;
