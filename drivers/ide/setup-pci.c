@@ -377,7 +377,9 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 		if (ide_allocate_dma_engine(hwif))
 			return -1;
 
-		ide_setup_dma(hwif, base);
+		hwif->dma_base = base;
+
+		hwif->dma_ops = &sff_dma_ops;
 	}
 
 	return 0;

@@ -483,7 +483,9 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	ide_setup_dma(hwif, base);
+	hwif->dma_base = base;
+
+	hwif->dma_ops = &sff_dma_ops;
 
 	return 0;
 }

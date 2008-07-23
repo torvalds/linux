@@ -878,7 +878,7 @@ int ide_allocate_dma_engine(ide_hwif_t *hwif)
 }
 EXPORT_SYMBOL_GPL(ide_allocate_dma_engine);
 
-static const struct ide_dma_ops sff_dma_ops = {
+const struct ide_dma_ops sff_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
@@ -888,13 +888,5 @@ static const struct ide_dma_ops sff_dma_ops = {
 	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
 };
-
-void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
-{
-	hwif->dma_base = base;
-
-	hwif->dma_ops = &sff_dma_ops;
-}
-
-EXPORT_SYMBOL_GPL(ide_setup_dma);
+EXPORT_SYMBOL_GPL(sff_dma_ops);
 #endif /* CONFIG_BLK_DEV_IDEDMA_SFF */

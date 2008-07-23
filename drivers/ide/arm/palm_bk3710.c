@@ -316,15 +316,14 @@ static u8 __devinit palm_bk3710_cable_detect(ide_hwif_t *hwif)
 static int __devinit palm_bk3710_init_dma(ide_hwif_t *hwif,
 					  const struct ide_port_info *d)
 {
-	unsigned long base =
-		hwif->io_ports.data_addr - IDE_PALM_ATA_PRI_REG_OFFSET;
-
 	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	ide_setup_dma(hwif, base);
+	hwif->dma_base = hwif->io_ports.data_addr - IDE_PALM_ATA_PRI_REG_OFFSET;
+
+	hwif->dma_ops = &sff_dma_ops;
 
 	return 0;
 }
