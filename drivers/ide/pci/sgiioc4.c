@@ -603,6 +603,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	struct ide_host *host;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	struct ide_port_info d = sgiioc4_port_info;
+	int rc;
 
 	/*  Get the CmdBlk and CtrlBlk Base Registers */
 	bar0 = pci_resource_start(dev, 0);
@@ -638,17 +639,22 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 
 	host = ide_host_alloc(&d, hws);
-	if (host == NULL)
+	if (host == NULL) {
+		rc = -ENOMEM;
 		goto err;
+	}
 
-	if (ide_host_register(host, &d, hws))
-		return -EIO;
+	rc = ide_host_register(host, &d, hws);
+	if (rc)
+		goto err_free;
 
 	return 0;
+err_free:
+	ide_host_free(host);
 err:
 	release_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE);
 	iounmap(virt_base);
-	return -ENOMEM;
+	return rc;
 }
 
 static unsigned int __devinit

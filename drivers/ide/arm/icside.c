@@ -445,6 +445,7 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 	void __iomem *base;
 	struct ide_host *host;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	int ret;
 
 	base = ecardm_iomap(ec, ECARD_RES_MEMC, 0, 0);
 	if (!base)
@@ -472,9 +473,15 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 
 	ecard_set_drvdata(ec, state);
 
-	ide_host_register(host, NULL, hws);
+	ret = ide_host_register(host, NULL, hws);
+	if (ret)
+		goto err_free;
 
 	return 0;
+err_free:
+	ide_host_free(host);
+	ecard_set_drvdata(ec, NULL);
+	return ret;
 }
 
 static const struct ide_port_info icside_v6_port_info __initdata = {
@@ -547,11 +554,17 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 		d.dma_ops = NULL;
 	}
 
-	ide_host_register(host, &d, hws);
+	ret = ide_host_register(host, NULL, hws);
+	if (ret)
+		goto err_free;
 
 	return 0;
-
- out:
+err_free:
+	ide_host_free(host);
+	if (d.dma_ops)
+		free_dma(ec->dma);
+	ecard_set_drvdata(ec, NULL);
+out:
 	return ret;
 }
 

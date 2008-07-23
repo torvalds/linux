@@ -1236,6 +1236,7 @@ void ide_port_apply_params(ide_hwif_t *);
 
 struct ide_host *ide_host_alloc_all(const struct ide_port_info *, hw_regs_t **);
 struct ide_host *ide_host_alloc(const struct ide_port_info *, hw_regs_t **);
+void ide_host_free(struct ide_host *);
 int ide_host_register(struct ide_host *, const struct ide_port_info *,
 		      hw_regs_t **);
 int ide_host_add(const struct ide_port_info *, hw_regs_t **,

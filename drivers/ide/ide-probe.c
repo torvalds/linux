@@ -1729,12 +1729,17 @@ int ide_host_add(const struct ide_port_info *d, hw_regs_t **hws,
 		 struct ide_host **hostp)
 {
 	struct ide_host *host;
+	int rc;
 
 	host = ide_host_alloc(d, hws);
 	if (host == NULL)
 		return -ENOMEM;
 
-	ide_host_register(host, d, hws);
+	rc = ide_host_register(host, d, hws);
+	if (rc) {
+		ide_host_free(host);
+		return rc;
+	}
 
 	if (hostp)
 		*hostp = host;
@@ -1743,7 +1748,7 @@ int ide_host_add(const struct ide_port_info *d, hw_regs_t **hws,
 }
 EXPORT_SYMBOL_GPL(ide_host_add);
 
-void ide_host_remove(struct ide_host *host)
+void ide_host_free(struct ide_host *host)
 {
 	ide_hwif_t *hwif;
 	int i;
@@ -1754,12 +1759,24 @@ void ide_host_remove(struct ide_host *host)
 		if (hwif == NULL)
 			continue;
 
-		ide_unregister(hwif);
 		ide_free_port_slot(hwif->index);
 		kfree(hwif);
 	}
 
 	kfree(host);
+}
+EXPORT_SYMBOL_GPL(ide_host_free);
+
+void ide_host_remove(struct ide_host *host)
+{
+	int i;
+
+	for (i = 0; i < MAX_HWIFS; i++) {
+		if (host->ports[i])
+			ide_unregister(host->ports[i]);
+	}
+
+	ide_host_free(host);
 }
 EXPORT_SYMBOL_GPL(ide_host_remove);
 

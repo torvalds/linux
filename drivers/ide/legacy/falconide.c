@@ -114,9 +114,10 @@ static int __init falconide_init(void)
 {
 	struct ide_host *host;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	int rc;
 
 	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(IDE))
-		return 0;
+		return -ENODEV;
 
 	printk(KERN_INFO "ide: Falcon IDE controller\n");
 
@@ -128,13 +129,24 @@ static int __init falconide_init(void)
 	falconide_setup_ports(&hw);
 
 	host = ide_host_alloc(&falconide_port_info, hws);
-	if (host) {
-		ide_get_lock(NULL, NULL);
-		ide_host_register(host, &falconide_port_info, hws);
-		ide_release_lock();
+	if (host == NULL) {
+		rc = -ENOMEM;
+		goto err;
 	}
 
+	ide_get_lock(NULL, NULL);
+	rc = ide_host_register(host, &falconide_port_info, hws);
+	ide_release_lock();
+
+	if (rc)
+		goto err_free;
+
 	return 0;
+err_free:
+	ide_host_free(host);
+err:
+	release_mem_region(ATA_HD_BASE, 0x40);
+	return rc;
 }
 
 module_init(falconide_init);

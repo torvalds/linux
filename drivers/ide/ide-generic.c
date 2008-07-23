@@ -84,13 +84,14 @@ static int __init ide_generic_init(void)
 {
 	hw_regs_t hw[MAX_HWIFS], *hws[MAX_HWIFS];
 	struct ide_host *host;
-	int i;
+	unsigned long io_addr;
+	int i, rc;
 
 	printk(KERN_INFO DRV_NAME ": please use \"probe_mask=0x3f\" module "
 			 "parameter for probing all legacy ISA IDE ports\n");
 
 	for (i = 0; i < MAX_HWIFS; i++) {
-		unsigned long io_addr = ide_default_io_base(i);
+		io_addr = ide_default_io_base(i);
 
 		hws[i] = NULL;
 
@@ -120,14 +121,32 @@ static int __init ide_generic_init(void)
 	}
 
 	host = ide_host_alloc_all(NULL, hws);
-	if (host)
-		ide_host_register(host, NULL, hws);
+	if (host == NULL) {
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	rc = ide_host_register(host, NULL, hws);
+	if (rc)
+		goto err_free;
 
 	if (ide_generic_sysfs_init())
 		printk(KERN_ERR DRV_NAME ": failed to create ide_generic "
 					 "class\n");
 
 	return 0;
+err_free:
+	ide_host_free(host);
+err:
+	for (i = 0; i < MAX_HWIFS; i++) {
+		if (hws[i] == NULL)
+			continue;
+
+		io_addr = hws[i]->io_ports.data_addr;
+		release_region(io_addr + 0x206, 1);
+		release_region(io_addr, 8);
+	}
+	return rc;
 }
 
 module_init(ide_generic_init);
