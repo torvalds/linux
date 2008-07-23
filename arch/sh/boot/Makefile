@@ -40,7 +40,7 @@ KERNEL_LOAD	:= $(shell /bin/bash -c 'printf "0x%08x" \
 KERNEL_ENTRY	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_PAGE_OFFSET)  + \
 			$(CONFIG_MEMORY_START) + \
-			$(CONFIG_ZERO_PAGE_OFFSET)+0x1000]')
+			$(CONFIG_ZERO_PAGE_OFFSET) + $(CONFIG_ENTRY_OFFSET)]')
 
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A sh -O linux -T kernel \

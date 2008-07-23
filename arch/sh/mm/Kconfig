@@ -170,6 +170,14 @@ config PAGE_SIZE_64KB
 
 endchoice
 
+config ENTRY_OFFSET
+	hex
+	default "0x00001000" if PAGE_SIZE_4KB
+	default "0x00002000" if PAGE_SIZE_8KB
+	default "0x00004000" if PAGE_SIZE_16KB
+	default "0x00010000" if PAGE_SIZE_64KB
+	default "0x00000000"
+
 choice
 	prompt "HugeTLB page size"
 	depends on HUGETLB_PAGE && (CPU_SH4 || CPU_SH5) && MMU
