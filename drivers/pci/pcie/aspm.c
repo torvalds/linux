@@ -510,6 +510,7 @@ static int pcie_aspm_sanity_check(struct pci_dev *pdev)
 {
 	struct pci_dev *child_dev;
 	int child_pos;
+	u32 reg32;
 
 	/*
 	 * Some functions in a slot might not all be PCIE functions, very
@@ -519,6 +520,18 @@ static int pcie_aspm_sanity_check(struct pci_dev *pdev)
 		child_pos = pci_find_capability(child_dev, PCI_CAP_ID_EXP);
 		if (!child_pos)
 			return -EINVAL;
+
+		/*
+		 * Disable ASPM for pre-1.1 PCIe device, we follow MS to use
+		 * RBER bit to determine if a function is 1.1 version device
+		 */
+		pci_read_config_dword(child_dev, child_pos + PCI_EXP_DEVCAP,
+			&reg32);
+		if (!(reg32 & PCI_EXP_DEVCAP_RBER)) {
+			printk("Pre-1.1 PCIe device detected, "
+				"disable ASPM for %s\n", pci_name(pdev));
+			return -EINVAL;
+		}
 	}
 	return 0;
 }

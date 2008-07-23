@@ -1057,7 +1057,8 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 		}
 	}
 
-	if (bus->self)
+	/* only one slot has pcie device */
+	if (bus->self && nr)
 		pcie_aspm_init_link_state(bus->self);
 
 	return nr;
