@@ -101,7 +101,7 @@ void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 
 	init_completion(&hwif->gendev_rel_comp);
 
-	default_hwif_transport(hwif);
+	hwif->tp_ops = &default_tp_ops;
 
 	ide_port_init_devices_data(hwif);
 }

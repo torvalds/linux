@@ -285,7 +285,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 	int stat, err, sense_key;
 
 	/* check for errors */
-	stat = hwif->read_status(hwif);
+	stat = hwif->tp_ops->read_status(hwif);
 
 	if (stat_ret)
 		*stat_ret = stat;
@@ -590,7 +590,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 		cmd_len = ATAPI_MIN_CDB_BYTES;
 
 	/* send the command to the device */
-	hwif->output_data(drive, NULL, rq->cmd, cmd_len);
+	hwif->tp_ops->output_data(drive, NULL, rq->cmd, cmd_len);
 
 	/* start the DMA if need be */
 	if (info->dma)
@@ -627,7 +627,7 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 		 * Some drives (ASUS) seem to tell us that status info is
 		 * available.  Just get it and ignore.
 		 */
-		(void)hwif->read_status(hwif);
+		(void)hwif->tp_ops->read_status(hwif);
 		return 0;
 	} else {
 		/* drive wants a command packet, or invalid ireason... */
@@ -990,10 +990,10 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 	if (ireason == 0) {
 		write = 1;
-		xferfunc = hwif->output_data;
+		xferfunc = hwif->tp_ops->output_data;
 	} else {
 		write = 0;
-		xferfunc = hwif->input_data;
+		xferfunc = hwif->tp_ops->input_data;
 	}
 
 	/* transfer data */
@@ -1200,7 +1200,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		if (info->cd_flags & IDE_CD_FLAG_SEEKING) {
 			ide_hwif_t *hwif = drive->hwif;
 			unsigned long elapsed = jiffies - info->start_seek;
-			int stat = hwif->read_status(hwif);
+			int stat = hwif->tp_ops->read_status(hwif);
 
 			if ((stat & SEEK_STAT) != SEEK_STAT) {
 				if (elapsed < IDECD_SEEK_TIMEOUT) {

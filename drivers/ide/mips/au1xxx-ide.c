@@ -519,6 +519,23 @@ static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif)
 	*ata_regs = ahwif->regbase + (14 << IDE_REG_SHIFT);
 }
 
+#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA
+static const struct ide_tp_ops au1xxx_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= ide_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= au1xxx_input_data,
+	.output_data		= au1xxx_output_data,
+};
+#endif
+
 static const struct ide_port_ops au1xxx_port_ops = {
 	.set_pio_mode		= au1xxx_set_pio_mode,
 	.set_dma_mode		= auide_set_dma_mode,
@@ -526,6 +543,9 @@ static const struct ide_port_ops au1xxx_port_ops = {
 
 static const struct ide_port_info au1xxx_port_info = {
 	.init_dma		= auide_ddma_init,
+#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA
+	.tp_ops			= &au1xxx_tp_ops,
+#endif
 	.port_ops		= &au1xxx_port_ops,
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 	.dma_ops		= &au1xxx_dma_ops,
@@ -595,15 +615,6 @@ static int au_ide_probe(struct device *dev)
 	hw.irq = ahwif->irq;
 	hw.dev = dev;
 	hw.chipset = ide_au1xxx;
-
-	/* If the user has selected DDMA assisted copies,
-	   then set up a few local I/O function entry points 
-	*/
-
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA	
-	hwif->input_data  = au1xxx_input_data;
-	hwif->output_data = au1xxx_output_data;
-#endif
 
 	auide_hwif.hwif                 = hwif;
 

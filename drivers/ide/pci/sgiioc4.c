@@ -550,6 +550,21 @@ static int sgiioc4_dma_setup(ide_drive_t *drive)
 	return 0;
 }
 
+static const struct ide_tp_ops sgiioc4_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= sgiioc4_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= ide_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
+};
+
 static const struct ide_port_ops sgiioc4_port_ops = {
 	.set_dma_mode		= sgiioc4_set_dma_mode,
 	/* reset DMA engine, clear IRQs */
@@ -572,6 +587,7 @@ static const struct ide_port_info sgiioc4_port_info __devinitdata = {
 	.name			= DRV_NAME,
 	.chipset		= ide_pci,
 	.init_dma		= ide_dma_sgiioc4,
+	.tp_ops			= &sgiioc4_tp_ops,
 	.port_ops		= &sgiioc4_port_ops,
 	.dma_ops		= &sgiioc4_dma_ops,
 	.host_flags		= IDE_HFLAG_MMIO,
@@ -625,8 +641,6 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 
 	/* Initializing chipset IRQ Registers */
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
-
-	hwif->read_status = sgiioc4_read_status;
 
 	idx[0] = hwif->index;
 

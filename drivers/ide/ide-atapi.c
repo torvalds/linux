@@ -22,6 +22,7 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	void (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned, int))
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	xfer_func_t *xferfunc;
 	unsigned int temp;
 	u16 bcount;
@@ -35,7 +36,7 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	}
 
 	/* Clear the interrupt */
-	stat = hwif->read_status(hwif);
+	stat = tp_ops->read_status(hwif);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
 		if (hwif->dma_ops->dma_end(drive) ||
@@ -140,7 +141,7 @@ cmd_finished:
 					if (pc->sg)
 						io_buffers(drive, pc, temp, 0);
 					else
-						hwif->input_data(drive, NULL,
+						tp_ops->input_data(drive, NULL,
 							pc->cur_pos, temp);
 					printk(KERN_ERR "%s: transferred %d of "
 							"%d bytes\n",
@@ -157,9 +158,9 @@ cmd_finished:
 			debug_log("The device wants to send us more data than "
 				  "expected - allowing transfer\n");
 		}
-		xferfunc = hwif->input_data;
+		xferfunc = tp_ops->input_data;
 	} else
-		xferfunc = hwif->output_data;
+		xferfunc = tp_ops->output_data;
 
 	if ((drive->media == ide_floppy && !scsi && !pc->buf) ||
 	    (drive->media == ide_tape && !scsi && pc->bh) ||
@@ -188,7 +189,7 @@ static u8 ide_read_ireason(ide_drive_t *drive)
 	memset(&task, 0, sizeof(task));
 	task.tf_flags = IDE_TFLAG_IN_NSECT;
 
-	drive->hwif->tf_read(drive, &task);
+	drive->hwif->tp_ops->tf_read(drive, &task);
 
 	return task.tf.nsect & 3;
 }
@@ -249,7 +250,7 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 
 	/* Send the actual packet */
 	if ((pc->flags & PC_FLAG_ZIP_DRIVE) == 0)
-		hwif->output_data(drive, NULL, pc->c, 12);
+		hwif->tp_ops->output_data(drive, NULL, pc->c, 12);
 
 	return ide_started;
 }

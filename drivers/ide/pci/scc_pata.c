@@ -808,19 +808,6 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 
 	ide_set_hwifdata(hwif, ports);
 
-	hwif->exec_command	  = scc_exec_command;
-	hwif->read_status	  = scc_read_status;
-	hwif->read_altstatus	  = scc_read_altstatus;
-	hwif->read_sff_dma_status = scc_read_sff_dma_status;
-
-	hwif->set_irq = scc_set_irq;
-
-	hwif->tf_load = scc_tf_load;
-	hwif->tf_read = scc_tf_read;
-
-	hwif->input_data  = scc_input_data;
-	hwif->output_data = scc_output_data;
-
 	hwif->dma_base = dma_base;
 	hwif->config_data = ports->ctl;
 }
@@ -872,6 +859,21 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 		hwif->ultra_mask = ATA_UDMA5; /* 100MHz */
 }
 
+static const struct ide_tp_ops scc_tp_ops = {
+	.exec_command		= scc_exec_command,
+	.read_status		= scc_read_status,
+	.read_altstatus		= scc_read_altstatus,
+	.read_sff_dma_status	= scc_read_sff_dma_status,
+
+	.set_irq		= scc_set_irq,
+
+	.tf_load		= scc_tf_load,
+	.tf_read		= scc_tf_read,
+
+	.input_data		= scc_input_data,
+	.output_data		= scc_output_data,
+};
+
 static const struct ide_port_ops scc_port_ops = {
 	.set_pio_mode		= scc_set_pio_mode,
 	.set_dma_mode		= scc_set_dma_mode,
@@ -895,6 +897,7 @@ static const struct ide_dma_ops scc_dma_ops = {
       .name		= name_str,			\
       .init_iops	= init_iops_scc,		\
       .init_hwif	= init_hwif_scc,		\
+      .tp_ops		= &scc_tp_ops,		\
       .port_ops		= &scc_port_ops,		\
       .dma_ops		= &scc_dma_ops,			\
       .host_flags	= IDE_HFLAG_SINGLE,		\

@@ -155,6 +155,21 @@ static void h8300_output_data(ide_drive_t *drive, struct request *rq,
 	mm_outsw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
 }
 
+static const struct ide_tp_ops h8300_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= ide_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= h8300_tf_load,
+	.tf_read		= h8300_tf_read,
+
+	.input_data		= h8300_input_data,
+	.output_data		= h8300_output_data,
+};
+
 #define H8300_IDE_GAP (2)
 
 static inline void hw_setup(hw_regs_t *hw)
@@ -169,16 +184,8 @@ static inline void hw_setup(hw_regs_t *hw)
 	hw->chipset = ide_generic;
 }
 
-static inline void hwif_setup(ide_hwif_t *hwif)
-{
-	hwif->tf_load = h8300_tf_load;
-	hwif->tf_read = h8300_tf_read;
-
-	hwif->input_data  = h8300_input_data;
-	hwif->output_data = h8300_output_data;
-}
-
 static const struct ide_port_info h8300_port_info = {
+	.tp_ops			= &h8300_tp_ops,
 	.host_flags		= IDE_HFLAG_NO_IO_32BIT | IDE_HFLAG_NO_DMA,
 };
 
@@ -205,7 +212,6 @@ static int __init h8300_ide_init(void)
 		return -ENOENT;
 
 	index = hwif->index;
-	hwif_setup(hwif);
 
 	idx[0] = index;
 

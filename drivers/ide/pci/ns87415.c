@@ -104,7 +104,22 @@ static void superio_tf_read(ide_drive_t *drive, ide_task_t *task)
 	}
 }
 
-static void __devinit superio_ide_init_iops (struct hwif_s *hwif)
+static const struct ide_tp_ops superio_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= superio_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= superio_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= ide_tf_load,
+	.tf_read		= superio_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
+};
+
+static void __devinit superio_init_iops(struct hwif_s *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	u32 dma_stat;
@@ -115,21 +130,6 @@ static void __devinit superio_ide_init_iops (struct hwif_s *hwif)
 	/* Clear error/interrupt, enable dma */
 	tmp = superio_ide_inb(dma_stat);
 	outb(tmp | 0x66, dma_stat);
-
-	hwif->read_status	  = superio_read_status;
-	hwif->read_sff_dma_status = superio_read_sff_dma_status;
-
-	hwif->tf_read = superio_tf_read;
-
-}
-
-static void __devinit init_iops_ns87415(ide_hwif_t *hwif)
-{
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
-
-	if (PCI_SLOT(dev->devfn) == 0xE)
-		/* Built-in - assume it's under superio. */
-		superio_ide_init_iops(hwif);
 }
 #endif
 
@@ -195,7 +195,7 @@ static int ns87415_dma_end(ide_drive_t *drive)
 	u8 dma_stat = 0, dma_cmd = 0;
 
 	drive->waiting_for_dma = 0;
-	dma_stat = hwif->read_sff_dma_status(hwif);
+	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
 	/* get DMA command mode */
 	dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
 	/* stop DMA */
@@ -271,7 +271,7 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 		outb(8, hwif->io_ports.ctl_addr);
 		do {
 			udelay(50);
-			stat = hwif->read_status(hwif);
+			stat = hwif->tp_ops->read_status(hwif);
                 	if (stat == 0xff)
                         	break;
         	} while ((stat & BUSY_STAT) && --timeout);
@@ -306,9 +306,6 @@ static const struct ide_dma_ops ns87415_dma_ops = {
 
 static const struct ide_port_info ns87415_chipset __devinitdata = {
 	.name		= "NS87415",
-#ifdef CONFIG_SUPERIO
-	.init_iops	= init_iops_ns87415,
-#endif
 	.init_hwif	= init_hwif_ns87415,
 	.port_ops	= &ns87415_port_ops,
 	.dma_ops	= &ns87415_dma_ops,
@@ -318,7 +315,16 @@ static const struct ide_port_info ns87415_chipset __devinitdata = {
 
 static int __devinit ns87415_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &ns87415_chipset);
+	struct ide_port_info d = ns87415_chipset;
+
+#ifdef CONFIG_SUPERIO
+	if (PCI_SLOT(dev->devfn) == 0xE) {
+		/* Built-in - assume it's under superio. */
+		d.init_iops = superio_init_iops;
+		d.tp_ops = &superio_tp_ops;
+	}
+#endif
+	return ide_setup_pci_device(dev, &d);
 }
 
 static const struct pci_device_id ns87415_pci_tbl[] = {

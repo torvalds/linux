@@ -247,9 +247,9 @@ static void ide_floppy_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 
 		data = bvec_kmap_irq(bvec, &flags);
 		if (direction)
-			hwif->output_data(drive, NULL, data, count);
+			hwif->tp_ops->output_data(drive, NULL, data, count);
 		else
-			hwif->input_data(drive, NULL, data, count);
+			hwif->tp_ops->input_data(drive, NULL, data, count);
 		bvec_kunmap_irq(data, &flags);
 
 		bcount -= count;
@@ -402,7 +402,7 @@ static int idefloppy_transfer_pc(ide_drive_t *drive)
 	idefloppy_floppy_t *floppy = drive->driver_data;
 
 	/* Send the actual packet */
-	drive->hwif->output_data(drive, NULL, floppy->pc->c, 12);
+	drive->hwif->tp_ops->output_data(drive, NULL, floppy->pc->c, 12);
 
 	/* Timeout for the packet command */
 	return IDEFLOPPY_WAIT_CMD;
@@ -954,7 +954,7 @@ static int idefloppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 		u8 stat;
 
 		local_irq_save(flags);
-		stat = hwif->read_status(hwif);
+		stat = hwif->tp_ops->read_status(hwif);
 		local_irq_restore(flags);
 
 		progress_indication = ((stat & SEEK_STAT) == 0) ? 0 : 0x10000;

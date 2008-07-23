@@ -104,7 +104,7 @@ ide_startstop_t ide_dma_intr (ide_drive_t *drive)
 	u8 stat = 0, dma_stat = 0;
 
 	dma_stat = hwif->dma_ops->dma_end(drive);
-	stat = hwif->read_status(hwif);
+	stat = hwif->tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat,DRIVE_READY,drive->bad_wstat|DRQ_STAT)) {
 		if (!dma_stat) {
@@ -335,7 +335,7 @@ static int config_drive_for_dma (ide_drive_t *drive)
 static int dma_timer_expiry (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8 dma_stat		= hwif->read_sff_dma_status(hwif);
+	u8 dma_stat		= hwif->tp_ops->read_sff_dma_status(hwif);
 
 	printk(KERN_WARNING "%s: dma_timer_expiry: dma status == 0x%02x\n",
 		drive->name, dma_stat);
@@ -370,7 +370,7 @@ void ide_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 unit			= (drive->select.b.unit & 0x01);
-	u8 dma_stat		= hwif->read_sff_dma_status(hwif);
+	u8 dma_stat		= hwif->tp_ops->read_sff_dma_status(hwif);
 
 	if (on)
 		dma_stat |= (1 << (5 + unit));
@@ -482,7 +482,7 @@ int ide_dma_setup(ide_drive_t *drive)
 		outb(reading, hwif->dma_base + ATA_DMA_CMD);
 
 	/* read DMA status for INTR & ERROR flags */
-	dma_stat = hwif->read_sff_dma_status(hwif);
+	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
 
 	/* clear INTR & ERROR flags */
 	if (mmio)
@@ -551,7 +551,7 @@ int __ide_dma_end (ide_drive_t *drive)
 	}
 
 	/* get DMA status */
-	dma_stat = hwif->read_sff_dma_status(hwif);
+	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
 
 	if (mmio)
 		/* clear the INTR & ERROR bits */
@@ -574,7 +574,7 @@ EXPORT_SYMBOL(__ide_dma_end);
 int ide_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8 dma_stat		= hwif->read_sff_dma_status(hwif);
+	u8 dma_stat		= hwif->tp_ops->read_sff_dma_status(hwif);
 
 	/* return 1 if INTR asserted */
 	if ((dma_stat & 4) == 4)

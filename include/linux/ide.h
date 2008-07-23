@@ -408,7 +408,27 @@ typedef struct ide_drive_s {
     ((1<<ide_pci)|(1<<ide_cmd646)|(1<<ide_ali14xx))
 #define IDE_CHIPSET_IS_PCI(c)	((IDE_CHIPSET_PCI_MASK >> (c)) & 1)
 
+struct ide_task_s;
 struct ide_port_info;
+
+struct ide_tp_ops {
+	void	(*exec_command)(struct hwif_s *, u8);
+	u8	(*read_status)(struct hwif_s *);
+	u8	(*read_altstatus)(struct hwif_s *);
+	u8	(*read_sff_dma_status)(struct hwif_s *);
+
+	void	(*set_irq)(struct hwif_s *, int);
+
+	void	(*tf_load)(ide_drive_t *, struct ide_task_s *);
+	void	(*tf_read)(ide_drive_t *, struct ide_task_s *);
+
+	void	(*input_data)(ide_drive_t *, struct request *, void *,
+			      unsigned int);
+	void	(*output_data)(ide_drive_t *, struct request *, void *,
+			       unsigned int);
+};
+
+extern const struct ide_tp_ops default_tp_ops;
 
 struct ide_port_ops {
 	/* host specific initialization of a device */
@@ -447,8 +467,6 @@ struct ide_dma_ops {
 	void	(*dma_timeout)(struct ide_drive_s *);
 };
 
-struct ide_task_s;
-
 typedef struct hwif_s {
 	struct hwif_s *next;		/* for linked-list in ide_hwgroup_t */
 	struct hwif_s *mate;		/* other hwif from same PCI chip */
@@ -486,21 +504,9 @@ typedef struct hwif_s {
 
 	void (*rw_disk)(ide_drive_t *, struct request *);
 
+	const struct ide_tp_ops		*tp_ops;
 	const struct ide_port_ops	*port_ops;
 	const struct ide_dma_ops	*dma_ops;
-
-	void	(*exec_command)(struct hwif_s *, u8);
-	u8	(*read_status)(struct hwif_s *);
-	u8	(*read_altstatus)(struct hwif_s *);
-	u8	(*read_sff_dma_status)(struct hwif_s *);
-
-	void	(*set_irq)(struct hwif_s *, int);
-
-	void (*tf_load)(ide_drive_t *, struct ide_task_s *);
-	void (*tf_read)(ide_drive_t *, struct ide_task_s *);
-
-	void (*input_data)(ide_drive_t *, struct request *, void *, unsigned);
-	void (*output_data)(ide_drive_t *, struct request *, void *, unsigned);
 
 	void (*ide_dma_clear_irq)(ide_drive_t *drive);
 
@@ -949,6 +955,19 @@ typedef struct ide_task_s {
 
 void ide_tf_dump(const char *, struct ide_taskfile *);
 
+void ide_exec_command(ide_hwif_t *, u8);
+u8 ide_read_status(ide_hwif_t *);
+u8 ide_read_altstatus(ide_hwif_t *);
+u8 ide_read_sff_dma_status(ide_hwif_t *);
+
+void ide_set_irq(ide_hwif_t *, int);
+
+void ide_tf_load(ide_drive_t *, ide_task_t *);
+void ide_tf_read(ide_drive_t *, ide_task_t *);
+
+void ide_input_data(ide_drive_t *, struct request *, void *, unsigned int);
+void ide_output_data(ide_drive_t *, struct request *, void *, unsigned int);
+
 extern void SELECT_DRIVE(ide_drive_t *);
 void SELECT_MASK(ide_drive_t *, int);
 
@@ -1021,8 +1040,6 @@ static inline int ide_hwif_setup_dma(ide_hwif_t *hwif,
 	return -EINVAL;
 }
 #endif
-
-extern void default_hwif_transport(ide_hwif_t *);
 
 typedef struct ide_pci_enablebit_s {
 	u8	reg;	/* byte pci reg holding the enable-bit */
@@ -1112,6 +1129,7 @@ struct ide_port_info {
 	int			(*init_dma)(ide_hwif_t *,
 					    const struct ide_port_info *);
 
+	const struct ide_tp_ops		*tp_ops;
 	const struct ide_port_ops	*port_ops;
 	const struct ide_dma_ops	*dma_ops;
 

@@ -974,6 +974,21 @@ static void pmac_ide_init_dev(ide_drive_t *drive)
 	}
 }
 
+static const struct ide_tp_ops pmac_tp_ops = {
+	.exec_command		= pmac_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= ide_read_sff_dma_status,
+
+	.set_irq		= pmac_set_irq,
+
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
+};
+
 static const struct ide_port_ops pmac_ide_ata6_port_ops = {
 	.init_dev		= pmac_ide_init_dev,
 	.set_pio_mode		= pmac_ide_set_pio_mode,
@@ -1003,10 +1018,11 @@ static const struct ide_port_info pmac_port_info = {
 	.name			= DRV_NAME,
 	.init_dma		= pmac_ide_init_dma,
 	.chipset		= ide_pmac,
+	.tp_ops			= &pmac_tp_ops,
+	.port_ops		= &pmac_ide_port_ops,
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
 	.dma_ops		= &pmac_dma_ops,
 #endif
-	.port_ops		= &pmac_ide_port_ops,
 	.host_flags		= IDE_HFLAG_SET_PIO_MODE_KEEP_DMA |
 				  IDE_HFLAG_POST_SET_MODE |
 				  IDE_HFLAG_MMIO |
@@ -1105,9 +1121,6 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 	hwif = ide_find_port_slot(&d);
 	if (hwif == NULL)
 		return -ENOENT;
-
-	hwif->exec_command = pmac_exec_command;
-	hwif->set_irq	   = pmac_set_irq;
 
 	idx[0] = hwif->index;
 

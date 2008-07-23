@@ -96,6 +96,27 @@ static void q40ide_output_data(ide_drive_t *drive, struct request *rq,
 	outsw_swapw(data_addr, buf, (len + 1) / 2);
 }
 
+/* Q40 has a byte-swapped IDE interface */
+static const struct ide_tp_ops q40ide_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= ide_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= q40ide_input_data,
+	.output_data		= q40ide_output_data,
+};
+
+static const struct ide_port_info q40ide_port_info = {
+	.tp_ops			= &q40ide_tp_ops,
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
 /* 
  * the static array is needed to have the name reported in /proc/ioports,
  * hwif->name unfortunately isn't available yet
@@ -141,16 +162,12 @@ static int __init q40ide_init(void)
 	if (hwif) {
 		hwif->chipset = ide_generic;
 
-		/* Q40 has a byte-swapped IDE interface */
-		hwif->input_data  = q40ide_input_data;
-		hwif->output_data = q40ide_output_data;
-
 		hws[i] = &hw[i];
 		idx[i] = hwif->index;
 	}
     }
 
-    ide_device_add(idx, NULL, hws);
+    ide_device_add(idx, &q40ide_port_info, hws);
 
     return 0;
 }
