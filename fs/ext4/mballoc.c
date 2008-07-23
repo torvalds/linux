@@ -2540,7 +2540,7 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 	sbi->s_mb_history_filter = EXT4_MB_HISTORY_DEFAULT;
 	sbi->s_mb_group_prealloc = MB_DEFAULT_GROUP_PREALLOC;
 
-	i = sizeof(struct ext4_locality_group) * NR_CPUS;
+	i = sizeof(struct ext4_locality_group) * nr_cpu_ids;
 	sbi->s_locality_groups = kmalloc(i, GFP_KERNEL);
 	if (sbi->s_locality_groups == NULL) {
 		clear_opt(sbi->s_mount_opt, MBALLOC);
@@ -2548,7 +2548,7 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 		kfree(sbi->s_mb_maxs);
 		return -ENOMEM;
 	}
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < nr_cpu_ids; i++) {
 		struct ext4_locality_group *lg;
 		lg = &sbi->s_locality_groups[i];
 		mutex_init(&lg->lg_mutex);
