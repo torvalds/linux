@@ -703,7 +703,7 @@ static void idetape_init_rq(struct request *rq, u8 cmd)
 {
 	blk_rq_init(NULL, rq);
 	rq->cmd_type = REQ_TYPE_SPECIAL;
-	rq->cmd[0] = cmd;
+	rq->cmd[13] = cmd;
 }
 
 /*
@@ -1019,7 +1019,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	 */
 	stat = hwif->tp_ops->read_status(hwif);
 
-	if (!drive->dsc_overlap && !(rq->cmd[0] & REQ_IDETAPE_PC2))
+	if (!drive->dsc_overlap && !(rq->cmd[13] & REQ_IDETAPE_PC2))
 		set_bit(IDETAPE_FLAG_IGNORE_DSC, &tape->flags);
 
 	if (drive->post_reset == 1) {
@@ -1036,7 +1036,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		} else if (time_after(jiffies, tape->dsc_timeout)) {
 			printk(KERN_ERR "ide-tape: %s: DSC timeout\n",
 				tape->name);
-			if (rq->cmd[0] & REQ_IDETAPE_PC2) {
+			if (rq->cmd[13] & REQ_IDETAPE_PC2) {
 				idetape_media_access_finished(drive);
 				return ide_stopped;
 			} else {
@@ -1049,27 +1049,27 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		idetape_postpone_request(drive);
 		return ide_stopped;
 	}
-	if (rq->cmd[0] & REQ_IDETAPE_READ) {
+	if (rq->cmd[13] & REQ_IDETAPE_READ) {
 		pc = idetape_next_pc_storage(drive);
 		ide_tape_create_rw_cmd(tape, pc, rq->current_nr_sectors,
 					(struct idetape_bh *)rq->special,
 					READ_6);
 		goto out;
 	}
-	if (rq->cmd[0] & REQ_IDETAPE_WRITE) {
+	if (rq->cmd[13] & REQ_IDETAPE_WRITE) {
 		pc = idetape_next_pc_storage(drive);
 		ide_tape_create_rw_cmd(tape, pc, rq->current_nr_sectors,
 					 (struct idetape_bh *)rq->special,
 					 WRITE_6);
 		goto out;
 	}
-	if (rq->cmd[0] & REQ_IDETAPE_PC1) {
+	if (rq->cmd[13] & REQ_IDETAPE_PC1) {
 		pc = (struct ide_atapi_pc *) rq->buffer;
-		rq->cmd[0] &= ~(REQ_IDETAPE_PC1);
-		rq->cmd[0] |= REQ_IDETAPE_PC2;
+		rq->cmd[13] &= ~(REQ_IDETAPE_PC1);
+		rq->cmd[13] |= REQ_IDETAPE_PC2;
 		goto out;
 	}
-	if (rq->cmd[0] & REQ_IDETAPE_PC2) {
+	if (rq->cmd[13] & REQ_IDETAPE_PC2) {
 		idetape_media_access_finished(drive);
 		return ide_stopped;
 	}
@@ -1281,7 +1281,7 @@ static int idetape_queue_pc_tail(ide_drive_t *drive, struct ide_atapi_pc *pc)
 
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
 	rq->cmd_type = REQ_TYPE_SPECIAL;
-	rq->cmd[0] = REQ_IDETAPE_PC1;
+	rq->cmd[13] = REQ_IDETAPE_PC1;
 	rq->buffer = (char *)pc;
 	error = blk_execute_rq(drive->queue, tape->disk, rq, 0);
 	blk_put_request(rq);
@@ -1465,7 +1465,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int blocks,
 
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
 	rq->cmd_type = REQ_TYPE_SPECIAL;
-	rq->cmd[0] = cmd;
+	rq->cmd[13] = cmd;
 	rq->rq_disk = tape->disk;
 	rq->special = (void *)bh;
 	rq->sector = tape->first_frame;
