@@ -689,7 +689,6 @@ static void idetape_init_pc(struct ide_atapi_pc *pc)
 	pc->buf_size = IDETAPE_PC_BUFFER_SIZE;
 	pc->bh = NULL;
 	pc->b_data = NULL;
-	pc->callback = ide_tape_callback;
 }
 
 static void idetape_create_request_sense_cmd(struct ide_atapi_pc *pc)
@@ -886,7 +885,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 			pc->error = IDETAPE_ERROR_GENERAL;
 		}
 		tape->failed_pc = NULL;
-		pc->callback(drive);
+		drive->pc_callback(drive);
 		return ide_stopped;
 	}
 	debug_log(DBG_SENSE, "Retry #%d, cmd = %02X\n", pc->retries, pc->c[0]);
@@ -948,7 +947,7 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 		pc->error = IDETAPE_ERROR_GENERAL;
 		tape->failed_pc = NULL;
 	}
-	pc->callback(drive);
+	drive->pc_callback(drive);
 	return ide_stopped;
 }
 
@@ -2464,6 +2463,8 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	int buffer_size;
 	u8 gcw[2];
 	u16 *ctl = (u16 *)&tape->caps[12];
+
+	drive->pc_callback = ide_tape_callback;
 
 	spin_lock_init(&tape->lock);
 	drive->dsc_overlap = 1;
