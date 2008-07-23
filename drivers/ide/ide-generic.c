@@ -28,9 +28,8 @@ MODULE_PARM_DESC(probe_mask, "probe mask for legacy ISA IDE ports");
 
 static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 {
-	struct ide_host *host;
 	unsigned int base, ctl;
-	int irq;
+	int irq, rc;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	if (sscanf(buf, "%x:%x:%d", &base, &ctl, &irq) != 3)
@@ -41,11 +40,9 @@ static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 	hw.irq = irq;
 	hw.chipset = ide_generic;
 
-	host = ide_host_alloc(NULL, hws);
-	if (host == NULL)
-		return -ENOENT;
-
-	ide_host_register(host, NULL, hws);
+	rc = ide_host_add(NULL, hws, NULL);
+	if (rc)
+		return rc;
 
 	return n;
 };

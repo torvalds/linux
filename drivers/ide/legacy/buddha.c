@@ -151,7 +151,6 @@ static void __init buddha_setup_ports(hw_regs_t *hw, unsigned long base,
 static int __init buddha_init(void)
 {
 	struct zorro_dev *z = NULL;
-	struct ide_host *host;
 	u_long buddha_board = 0;
 	BuddhaType type;
 	int buddha_num_hwifs, i;
@@ -226,9 +225,7 @@ fail_base2:
 			hws[i] = &hw[i];
 		}
 
-		host = ide_host_alloc(NULL, hws);
-		if (host)
-			ide_host_register(host, NULL, hws);
+		ide_host_add(NULL, hws, NULL);
 	}
 
 	return 0;

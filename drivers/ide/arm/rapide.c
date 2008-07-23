@@ -52,13 +52,9 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 	hw.chipset = ide_generic;
 	hw.dev = &ec->dev;
 
-	host = ide_host_alloc(&rapide_port_info, hws);
-	if (host == NULL) {
-		ret = -ENOENT;
+	ret = ide_host_add(&rapide_port_info, hws, &host);
+	if (ret)
 		goto release;
-	}
-
-	ide_host_register(host, &rapide_port_info, hws);
 
 	ecard_set_drvdata(ec, host);
 	goto out;

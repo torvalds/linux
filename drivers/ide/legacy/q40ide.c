@@ -131,7 +131,6 @@ static const char *q40_ide_names[Q40IDE_NUM_HWIFS]={
 
 static int __init q40ide_init(void)
 {
-    struct ide_host *host;
     int i;
     hw_regs_t hw[Q40IDE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
 
@@ -160,11 +159,7 @@ static int __init q40ide_init(void)
 	hws[i] = &hw[i];
     }
 
-    host = ide_host_alloc(&q40ide_port_info, hws);
-    if (host)
-	ide_host_register(host, &q40ide_port_info, hws);
-
-    return 0;
+    return ide_host_add(&q40ide_port_info, hws, NULL);
 }
 
 module_init(q40ide_init);

@@ -127,7 +127,6 @@ static int __init gayle_init(void)
     unsigned long phys_base, res_start, res_n;
     unsigned long base, ctrlport, irqport;
     ide_ack_intr_t *ack_intr;
-    struct ide_host *host;
     int a4000, i;
     hw_regs_t hw[GAYLE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
 
@@ -180,11 +179,7 @@ found:
 	hws[i] = &hw[i];
     }
 
-    host = ide_host_alloc(NULL, hws);
-    if (host)
-	ide_host_register(host, NULL, hws);
-
-    return 0;
+    return ide_host_add(NULL, hws, NULL);
 }
 
 module_init(gayle_init);

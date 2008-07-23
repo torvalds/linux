@@ -28,7 +28,6 @@ static const struct ide_port_info ide_4drives_port_info = {
 
 static int __init ide_4drives_init(void)
 {
-	struct ide_host *host;
 	unsigned long base = 0x1f0, ctl = 0x3f6;
 	hw_regs_t hw, *hws[] = { &hw, &hw, NULL, NULL };
 
@@ -54,11 +53,7 @@ static int __init ide_4drives_init(void)
 	hw.irq = 14;
 	hw.chipset = ide_4drives;
 
-	host = ide_host_alloc(&ide_4drives_port_info, hws);
-	if (host)
-		ide_host_register(host, &ide_4drives_port_info, hws);
-
-	return 0;
+	return ide_host_add(&ide_4drives_port_info, hws, NULL);
 }
 
 module_init(ide_4drives_init);

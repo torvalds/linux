@@ -75,7 +75,7 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	u8 __iomem *base;
 	struct ide_host *host;
 	phys_t offset, size;
-	int i;
+	int i, rc;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	if (!SIBYTE_HAVE_IDE)
@@ -115,11 +115,9 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	hw.irq = K_INT_GB_IDE;
 	hw.chipset = ide_generic;
 
-	host = ide_host_alloc(&swarm_port_info, hws);
-	if (host == NULL)
+	rc = ide_host_add(&swarm_port_info, hws, &host);
+	if (rc)
 		goto err;
-
-	ide_host_register(host, &swarm_port_info, hws);
 
 	dev_set_drvdata(dev, host);
 
@@ -127,7 +125,7 @@ static int __devinit swarm_ide_probe(struct device *dev)
 err:
 	release_resource(&swarm_ide_resource);
 	iounmap(base);
-	return -ENOMEM;
+	return rc;
 }
 
 static struct device_driver swarm_ide_driver = {

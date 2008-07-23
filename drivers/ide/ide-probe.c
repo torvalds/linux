@@ -1677,6 +1677,24 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 }
 EXPORT_SYMBOL_GPL(ide_host_register);
 
+int ide_host_add(const struct ide_port_info *d, hw_regs_t **hws,
+		 struct ide_host **hostp)
+{
+	struct ide_host *host;
+
+	host = ide_host_alloc(d, hws);
+	if (host == NULL)
+		return -ENOMEM;
+
+	ide_host_register(host, d, hws);
+
+	if (hostp)
+		*hostp = host;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ide_host_add);
+
 void ide_host_remove(struct ide_host *host)
 {
 	int i;
@@ -1749,7 +1767,6 @@ static void ide_legacy_init_one(hw_regs_t **hws, hw_regs_t *hw,
 
 int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
 {
-	struct ide_host *host;
 	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
 
 	memset(&hw, 0, sizeof(hw));
@@ -1762,12 +1779,6 @@ int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
 	    (d->host_flags & IDE_HFLAG_SINGLE))
 		return -ENOENT;
 
-	host = ide_host_alloc(d, hws);
-	if (host == NULL)
-		return -ENOMEM;
-
-	ide_host_register(host, d, hws);
-
-	return 0;
+	return ide_host_add(d, hws, NULL);
 }
 EXPORT_SYMBOL_GPL(ide_legacy_device_add);

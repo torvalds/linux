@@ -86,11 +86,9 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	hw.dev = &dev->dev;
 	hw.chipset = ide_pci;		/* this enables IRQ sharing */
 
-	host = ide_host_alloc(&delkin_cb_port_info, hws);
-	if (host == NULL)
+	rc = ide_host_add(&delkin_cb_port_info, hws, &host);
+	if (rc)
 		goto out_disable;
-
-	ide_host_register(host, &delkin_cb_port_info, hws);
 
 	pci_set_drvdata(dev, host);
 
@@ -99,7 +97,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 out_disable:
 	pci_release_regions(dev);
 	pci_disable_device(dev);
-	return -ENODEV;
+	return rc;
 }
 
 static void

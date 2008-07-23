@@ -1238,6 +1238,8 @@ struct ide_host *ide_host_alloc_all(const struct ide_port_info *, hw_regs_t **);
 struct ide_host *ide_host_alloc(const struct ide_port_info *, hw_regs_t **);
 int ide_host_register(struct ide_host *, const struct ide_port_info *,
 		      hw_regs_t **);
+int ide_host_add(const struct ide_port_info *, hw_regs_t **,
+		 struct ide_host **);
 void ide_host_remove(struct ide_host *);
 int ide_legacy_device_add(const struct ide_port_info *, unsigned long);
 void ide_port_unregister_devices(ide_hwif_t *);

@@ -609,13 +609,9 @@ static int au_ide_probe(struct device *dev)
 	hw.dev = dev;
 	hw.chipset = ide_au1xxx;
 
-	host = ide_host_alloc(&au1xxx_port_info, hws);
-	if (host == NULL) {
-		ret = -ENOENT;
+	ret = ide_host_add(&au1xxx_port_info, hws, &host);
+	if (ret)
 		goto out;
-	}
-
-	ide_host_register(host, &au1xxx_port_info, hws);
 
 	auide_hwif.hwif = host->ports[0];
 

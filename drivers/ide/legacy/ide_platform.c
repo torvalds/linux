@@ -99,13 +99,9 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	if (mmio)
 		d.host_flags |= IDE_HFLAG_MMIO;
 
-	host = ide_host_alloc(&d, hws);
-	if (host == NULL) {
-		ret = -ENODEV;
+	ret = ide_host_add(&d, hws, &host);
+	if (ret)
 		goto out;
-	}
-
-	ide_host_register(host, &d, hws);
 
 	platform_set_drvdata(pdev, host);
 

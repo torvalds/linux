@@ -1043,6 +1043,7 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 	ide_hwif_t *hwif;
 	hw_regs_t *hws[] = { hw, NULL, NULL, NULL };
 	struct ide_port_info d = pmac_port_info;
+	int rc;
 
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
 	if (of_device_is_compatible(np, "shasta-ata")) {
@@ -1118,11 +1119,9 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 			 pmif->mdev ? "macio" : "PCI", pmif->aapl_bus_id,
 			 pmif->mediabay ? " (mediabay)" : "", hw->irq);
 
-	host = ide_host_alloc(&d, hws);
-	if (host == NULL)
-		return -ENOENT;
-
-	ide_host_register(host, &d, hws);
+	rc = ide_host_add(&d, hws, &host);
+	if (rc)
+		return rc;
 
 	hwif = host->ports[0];
 

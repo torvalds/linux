@@ -709,7 +709,6 @@ static int cmd640x_init_one(unsigned long base, unsigned long ctl)
  */
 static int __init cmd640x_init(void)
 {
-	struct ide_host *host;
 	int second_port_cmd640 = 0, rc;
 	const char *bus_type, *port2;
 	u8 b, cfr;
@@ -829,11 +828,7 @@ static int __init cmd640x_init(void)
 	cmd640_dump_regs();
 #endif
 
-	host = ide_host_alloc(&cmd640_port_info, hws);
-	if (host)
-		ide_host_register(host, &cmd640_port_info, hws);
-
-	return 1;
+	return ide_host_add(&cmd640_port_info, hws, NULL);
 }
 
 module_param_named(probe_vlb, cmd640_vlb, bool, 0);

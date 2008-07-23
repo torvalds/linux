@@ -541,7 +541,6 @@ out:
 
 int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 {
-	struct ide_host *host;
 	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 	int ret;
 
@@ -551,9 +550,7 @@ int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 		/* FIXME: silent failure can happen */
 		ide_pci_setup_ports(dev, d, ret, &hw[0], &hws[0]);
 
-		host = ide_host_alloc(d, hws);
-		if (host)
-			ide_host_register(host, d, hws);
+		ret = ide_host_add(d, hws, NULL);
 	}
 
 	return ret;
@@ -564,7 +561,6 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 			  const struct ide_port_info *d)
 {
 	struct pci_dev *pdev[] = { dev1, dev2 };
-	struct ide_host *host;
 	int ret, i;
 	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 
@@ -582,9 +578,7 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 		ide_pci_setup_ports(pdev[i], d, ret, &hw[i*2], &hws[i*2]);
 	}
 
-	host = ide_host_alloc(d, hws);
-	if (host)
-		ide_host_register(host, d, hws);
+	ret = ide_host_add(d, hws, NULL);
 out:
 	return ret;
 }

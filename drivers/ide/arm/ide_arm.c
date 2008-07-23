@@ -28,7 +28,6 @@
 
 static int __init ide_arm_init(void)
 {
-	struct ide_host *host;
 	unsigned long base = IDE_ARM_IO, ctl = IDE_ARM_IO + 0x206;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
@@ -50,11 +49,7 @@ static int __init ide_arm_init(void)
 	hw.irq = IDE_ARM_IRQ;
 	hw.chipset = ide_generic;
 
-	host = ide_host_alloc(NULL, hws);
-	if (host)
-		ide_host_register(host, NULL, hws);
-
-	return 0;
+	return ide_host_add(NULL, hws, NULL);
 }
 
 module_init(ide_arm_init);

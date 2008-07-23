@@ -162,7 +162,7 @@ static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
 {
     struct ide_host *host;
     ide_hwif_t *hwif;
-    int i;
+    int i, rc;
     hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
     if (!request_region(io, 8, DRV_NAME)) {
@@ -184,11 +184,9 @@ static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
     hw.chipset = ide_pci;
     hw.dev = &handle->dev;
 
-    host = ide_host_alloc(&idecs_port_info, hws);
-    if (host == NULL)
+    rc = ide_host_add(&idecs_port_info, hws, &host);
+    if (rc)
 	goto out_release;
-
-    ide_host_register(host, &idecs_port_info, hws);
 
     hwif = host->ports[0];
 

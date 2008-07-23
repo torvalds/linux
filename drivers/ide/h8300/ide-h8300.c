@@ -191,7 +191,6 @@ static const struct ide_port_info h8300_port_info = {
 
 static int __init h8300_ide_init(void)
 {
-	struct ide_host *host;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	printk(KERN_INFO DRV_NAME ": H8/300 generic IDE interface\n");
@@ -205,13 +204,7 @@ static int __init h8300_ide_init(void)
 
 	hw_setup(&hw);
 
-	host = ide_host_alloc(&h8300_port_info, hws);
-	if (host == NULL)
-		return -ENOENT;
-
-	ide_host_register(host, &h8300_port_info, hws);
-
-	return 0;
+	return ide_host_add(&h8300_port_info, hws, NULL);
 
 out_busy:
 	printk(KERN_ERR "ide-h8300: IDE I/F resource already used.\n");

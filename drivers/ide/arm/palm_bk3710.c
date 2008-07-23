@@ -349,7 +349,7 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	struct resource *mem, *irq;
 	struct ide_host *host;
 	unsigned long base, rate;
-	int i;
+	int i, rc;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	clk = clk_get(NULL, "IDECLK");
@@ -392,16 +392,14 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	hw.irq = irq->start;
 	hw.chipset = ide_palm3710;
 
-	host = ide_host_alloc(&palm_bk3710_port_info, hws);
-	if (host == NULL)
+	rc = ide_host_add(&palm_bk3710_port_info, hws, NULL);
+	if (rc)
 		goto out;
-
-	ide_host_register(host, &palm_bk3710_port_info, hws);
 
 	return 0;
 out:
 	printk(KERN_WARNING "Palm Chip BK3710 IDE Register Fail\n");
-	return -ENODEV;
+	return rc;
 }
 
 /* work with hotplug and coldplug */
