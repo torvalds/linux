@@ -834,7 +834,16 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	memset(cap, 0, sizeof *cap);
 	strncpy(cap->driver, gspca_dev->sd_desc->name, sizeof cap->driver);
-	strncpy(cap->card, gspca_dev->cam.dev_name, sizeof cap->card);
+/*	strncpy(cap->card, gspca_dev->cam.dev_name, sizeof cap->card); */
+	if (gspca_dev->dev->product != NULL) {
+		strncpy(cap->card, gspca_dev->dev->product,
+			sizeof cap->card);
+	} else {
+		snprintf(cap->card, sizeof cap->card,
+			"USB Camera (%04x:%04x)",
+			le16_to_cpu(gspca_dev->dev->descriptor.idVendor),
+			le16_to_cpu(gspca_dev->dev->descriptor.idProduct));
+	}
 	strncpy(cap->bus_info, gspca_dev->dev->bus->bus_name,
 		sizeof cap->bus_info);
 	cap->version = DRIVER_VERSION_NUMBER;
