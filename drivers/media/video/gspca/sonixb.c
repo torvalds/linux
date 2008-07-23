@@ -868,7 +868,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int mode, l = 0x1f;
 	const __u8 *sn9c10x;
-	__u8 reg01, reg17;
 	__u8 reg17_19[3];
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
@@ -922,21 +921,10 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	/* Special case for SN9C101/2 with OV 7630 */
-	/* HDG: is this really necessary we overwrite the values immediately
-	   afterwards with the ones from the template ?? */
-	if (sd->sensor == SENSOR_OV7630 && sd->fr_h_sz == 12) {
-		reg01 = 0x06;
-		reg17 = 0x29;
-	} else {
-		reg01 = sn9c10x[0];
-		reg17 = sn9c10x[0x17 - 1];
-	}
-
 	/* reg 0x01 bit 2 video transfert on */
-	reg_w(gspca_dev, 0x01, &reg01, 1);
+	reg_w(gspca_dev, 0x01, &sn9c10x[0x01 - 1], 1);
 	/* reg 0x17 SensorClk enable inv Clk 0x60 */
-	reg_w(gspca_dev, 0x17, &reg17, 1);
+	reg_w(gspca_dev, 0x17, &sn9c10x[0x17 - 1], 1);
 	/* Set the registers from the template */
 	reg_w_big(gspca_dev, 0x01, sn9c10x, l);
 	switch (sd->sensor) {
