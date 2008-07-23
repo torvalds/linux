@@ -822,7 +822,7 @@ out_free:
 }
 
 /**
- * ubifs_jnl_write_inode - delete an inode.
+ * ubifs_jnl_delete_inode - delete an inode.
  * @c: UBIFS file-system description object
  * @inode: inode to delete
  *
@@ -831,21 +831,21 @@ out_free:
  * journal.
  *
  * When regular file inodes are unlinked or a directory inode is removed, the
- * 'ubifs_jnl_update()' function write corresponding deletion inode and
+ * 'ubifs_jnl_update()' function writes a corresponding deletion inode and
  * direntry to the media, and adds the inode to orphans. After this, when the
  * last reference to this inode has been dropped, this function is called. In
  * general, it has to write one more deletion inode to the media, because if
  * a commit happened between 'ubifs_jnl_update()' and
  * 'ubifs_jnl_delete_inode()', the deletion inode is not in the journal
- * anymore, and in fact it might be not on the flash anymore, becouse it might
- * have been garbage-collected already. And for optimization reasond UBIFS does
+ * anymore, and in fact it might not be on the flash anymore, because it might
+ * have been garbage-collected already. And for optimization reasons UBIFS does
  * not read the orphan area if it has been unmounted cleanly, so it would have
  * no indication in the journal that there is a deleted inode which has to be
  * removed from TNC.
  *
  * However, if there was no commit between 'ubifs_jnl_update()' and
  * 'ubifs_jnl_delete_inode()', then there is no need to write the deletion
- * inode to the media for the second time. And this is quite typical case.
+ * inode to the media for the second time. And this is quite a typical case.
  *
  * This function returns zero in case of success and a negative error code in
  * case of failure.
