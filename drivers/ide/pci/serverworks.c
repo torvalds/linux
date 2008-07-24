@@ -439,6 +439,7 @@ static struct pci_driver driver = {
 	.name		= "Serverworks_IDE",
 	.id_table	= svwks_pci_tbl,
 	.probe		= svwks_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init svwks_ide_init(void)
@@ -446,7 +447,13 @@ static int __init svwks_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit svwks_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(svwks_ide_init);
+module_exit(svwks_ide_exit);
 
 MODULE_AUTHOR("Michael Aubry. Andrzej Krzysztofowicz, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for Serverworks OSB4/CSB5/CSB6 IDE");
