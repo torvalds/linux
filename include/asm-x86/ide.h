@@ -36,23 +36,13 @@ static __inline__ int ide_default_irq(unsigned long base)
 
 static __inline__ unsigned long ide_default_io_base(int index)
 {
-	/*
-	 *	If PCI is present then it is not safe to poke around
-	 *	the other legacy IDE ports. Only 0x1f0 and 0x170 are
-	 *	defined compatibility mode ports for PCI. A user can 
-	 *	override this using ide= but we must default safe.
-	 */
-	if (no_pci_devices()) {
-		switch(index) {
-			case 2: return 0x1e8;
-			case 3: return 0x168;
-			case 4: return 0x1e0;
-			case 5: return 0x160;
-		}
-	}
 	switch (index) {
 		case 0:	return 0x1f0;
 		case 1:	return 0x170;
+		case 2: return 0x1e8;
+		case 3: return 0x168;
+		case 4: return 0x1e0;
+		case 5: return 0x160;
 		default:
 			return 0;
 	}
