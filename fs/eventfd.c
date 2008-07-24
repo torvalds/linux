@@ -203,7 +203,7 @@ asmlinkage long sys_eventfd2(unsigned int count, int flags)
 	int fd;
 	struct eventfd_ctx *ctx;
 
-	if (flags & ~EFD_CLOEXEC)
+	if (flags & ~(EFD_CLOEXEC | EFD_NONBLOCK))
 		return -EINVAL;
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
@@ -218,7 +218,7 @@ asmlinkage long sys_eventfd2(unsigned int count, int flags)
 	 * anon_inode_getfd() will install the fd.
 	 */
 	fd = anon_inode_getfd("[eventfd]", &eventfd_fops, ctx,
-			      flags & O_CLOEXEC);
+			      flags & (O_CLOEXEC | O_NONBLOCK));
 	if (fd < 0)
 		kfree(ctx);
 	return fd;
