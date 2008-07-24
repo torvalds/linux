@@ -8,7 +8,7 @@
 #ifndef _LINUX_TIMERFD_H
 #define _LINUX_TIMERFD_H
 
-/* For O_CLOEXEC */
+/* For O_CLOEXEC and O_NONBLOCK */
 #include <linux/fcntl.h>
 
 /* Flags for timerfd_settime.  */
@@ -16,6 +16,7 @@
 
 /* Flags for timerfd_create.  */
 #define TFD_CLOEXEC O_CLOEXEC
+#define TFD_NONBLOCK O_NONBLOCK
 
 
 #endif /* _LINUX_TIMERFD_H */
