@@ -462,6 +462,7 @@ static struct pci_driver driver = {
 	.name		= "PIIX_IDE",
 	.id_table	= piix_pci_tbl,
 	.probe		= piix_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init piix_ide_init(void)
@@ -470,7 +471,13 @@ static int __init piix_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit piix_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(piix_ide_init);
+module_exit(piix_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick, Andrzej Krzysztofowicz");
 MODULE_DESCRIPTION("PCI driver module for Intel PIIX IDE");
