@@ -32,16 +32,6 @@ static __inline__ int ide_default_irq(unsigned long base)
 	case 0x170:	return 15;
 	}
 #endif
-#ifdef CONFIG_PPC_PREP
-	switch (base) {
-	case 0x1f0:	return 13;
-	case 0x170:	return 13;
-	case 0x1e8:	return 11;
-	case 0x168:	return 10;
-	case 0xfff0:	return 14;	/* MCP(N)750 ide0 */
-	case 0xffe0:	return 15;	/* MCP(N)750 ide1 */
-	}
-#endif
 	return 0;
 }
 
@@ -52,14 +42,6 @@ static __inline__ unsigned long ide_default_io_base(int index)
 	switch (index) {
 	case 0:		return 0x1f0;
 	case 1:		return 0x170;
-	}
-#endif
-#ifdef CONFIG_PPC_PREP
-	switch (index) {
-	case 0:		return 0x1f0;
-	case 1:		return 0x170;
-	case 2:		return 0x1e8;
-	case 3:		return 0x168;
 	}
 #endif
 	return 0;
