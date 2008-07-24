@@ -847,7 +847,7 @@ sub possible {
 	my ($possible, $line) = @_;
 
 	print "CHECK<$possible> ($line)\n" if ($dbg_possible > 1);
-	if ($possible !~ /^(?:$Storage|$Type|DEFINE_\S+)$/ &&
+	if ($possible !~ /^(?:$Modifier|$Storage|$Type|DEFINE_\S+)$/ &&
 	    $possible ne 'goto' && $possible ne 'return' &&
 	    $possible ne 'case' && $possible ne 'else' &&
 	    $possible ne 'asm' && $possible ne '__asm__' &&
