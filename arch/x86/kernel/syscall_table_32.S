@@ -328,3 +328,4 @@ ENTRY(sys_call_table)
 	.long sys_timerfd_gettime
 	.long sys_signalfd4
 	.long sys_eventfd2
+	.long sys_epoll_create2

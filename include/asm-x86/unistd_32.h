@@ -334,6 +334,7 @@
 #define __NR_timerfd_gettime	326
 #define __NR_signalfd4		327
 #define __NR_eventfd2		328
+#define __NR_epoll_create2	329
 
 #ifdef __KERNEL__
 

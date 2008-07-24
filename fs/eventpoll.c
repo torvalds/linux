@@ -1046,10 +1046,13 @@ retry:
  * RB tree. With the current implementation, the "size" parameter is ignored
  * (besides sanity checks).
  */
-asmlinkage long sys_epoll_create(int size)
+asmlinkage long sys_epoll_create2(int size, int flags)
 {
 	int error, fd = -1;
 	struct eventpoll *ep;
+
+	if (flags & ~EPOLL_CLOEXEC)
+		return -EINVAL;
 
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d)\n",
 		     current, size));
@@ -1068,7 +1071,8 @@ asmlinkage long sys_epoll_create(int size)
 	 * Creates all the items needed to setup an eventpoll file. That is,
 	 * a file structure and a free file descriptor.
 	 */
-	fd = anon_inode_getfd("[eventpoll]", &eventpoll_fops, ep, 0);
+	fd = anon_inode_getfd("[eventpoll]", &eventpoll_fops, ep,
+			      flags & O_CLOEXEC);
 	if (fd < 0)
 		ep_free(ep);
 
@@ -1077,6 +1081,11 @@ error_return:
 		     current, size, fd));
 
 	return fd;
+}
+
+asmlinkage long sys_epoll_create(int size)
+{
+	return sys_epoll_create2(size, 0);
 }
 
 /*

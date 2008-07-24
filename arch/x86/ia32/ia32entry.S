@@ -828,4 +828,5 @@ ia32_sys_call_table:
 	.quad compat_sys_timerfd_gettime
 	.quad compat_sys_signalfd4
 	.quad sys_eventfd2
+	.quad sys_epoll_create2
 ia32_syscall_end:
