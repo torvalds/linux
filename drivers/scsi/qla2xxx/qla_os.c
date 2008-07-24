@@ -2178,7 +2178,7 @@ qla2x00_alloc_work(struct scsi_qla_host *ha, enum qla_work_type type,
 static int
 qla2x00_post_work(struct scsi_qla_host *ha, struct qla_work_evt *e, int locked)
 {
-	unsigned long flags;
+	unsigned long uninitialized_var(flags);
 	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	if (!locked)
