@@ -857,13 +857,6 @@ config DS1302
 
 endif # RTC_LIB
 
-config COBALT_LCD
-	bool "Support for Cobalt LCD"
-	depends on MIPS_COBALT
-	help
-	  This option enables support for the LCD display and buttons found
-	  on Cobalt systems through a misc device.
-
 config DTLK
 	tristate "Double Talk PC internal speech card support"
 	depends on ISA
