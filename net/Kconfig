@@ -236,14 +236,18 @@ source "net/rxrpc/Kconfig"
 config FIB_RULES
 	bool
 
-menu "Wireless"
+menuconfig WIRELESS
+	bool "Wireless"
 	depends on !S390
+	default y
+
+if WIRELESS
 
 source "net/wireless/Kconfig"
 source "net/mac80211/Kconfig"
 source "net/ieee80211/Kconfig"
 
-endmenu
+endif # WIRELESS
 
 source "net/rfkill/Kconfig"
 source "net/9p/Kconfig"
