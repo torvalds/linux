@@ -226,9 +226,8 @@ static int increase_reservation(unsigned long nr_pages)
 	}
 
 	set_xen_guest_handle(reservation.extent_start, frame_list);
-	reservation.nr_extents   = nr_pages;
-	rc = HYPERVISOR_memory_op(
-		XENMEM_populate_physmap, &reservation);
+	reservation.nr_extents = nr_pages;
+	rc = HYPERVISOR_memory_op(XENMEM_populate_physmap, &reservation);
 	if (rc < nr_pages) {
 		if (rc > 0) {
 			int ret;
@@ -236,7 +235,7 @@ static int increase_reservation(unsigned long nr_pages)
 			/* We hit the Xen hard limit: reprobe. */
 			reservation.nr_extents = rc;
 			ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
-					&reservation);
+						   &reservation);
 			BUG_ON(ret != rc);
 		}
 		if (rc >= 0)
@@ -464,130 +463,6 @@ static void balloon_exit(void)
 
 module_exit(balloon_exit);
 
-static void balloon_update_driver_allowance(long delta)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&balloon_lock, flags);
-	balloon_stats.driver_pages += delta;
-	spin_unlock_irqrestore(&balloon_lock, flags);
-}
-
-static int dealloc_pte_fn(
-	pte_t *pte, struct page *pmd_page, unsigned long addr, void *data)
-{
-	unsigned long mfn = pte_mfn(*pte);
-	int ret;
-	struct xen_memory_reservation reservation = {
-		.nr_extents   = 1,
-		.extent_order = 0,
-		.domid        = DOMID_SELF
-	};
-	set_xen_guest_handle(reservation.extent_start, &mfn);
-	set_pte_at(&init_mm, addr, pte, __pte_ma(0ull));
-	set_phys_to_machine(__pa(addr) >> PAGE_SHIFT, INVALID_P2M_ENTRY);
-	ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation, &reservation);
-	BUG_ON(ret != 1);
-	return 0;
-}
-
-static struct page **alloc_empty_pages_and_pagevec(int nr_pages)
-{
-	unsigned long vaddr, flags;
-	struct page *page, **pagevec;
-	int i, ret;
-
-	pagevec = kmalloc(sizeof(page) * nr_pages, GFP_KERNEL);
-	if (pagevec == NULL)
-		return NULL;
-
-	for (i = 0; i < nr_pages; i++) {
-		page = pagevec[i] = alloc_page(GFP_KERNEL);
-		if (page == NULL)
-			goto err;
-
-		vaddr = (unsigned long)page_address(page);
-
-		scrub_page(page);
-
-		spin_lock_irqsave(&balloon_lock, flags);
-
-		if (xen_feature(XENFEAT_auto_translated_physmap)) {
-			unsigned long gmfn = page_to_pfn(page);
-			struct xen_memory_reservation reservation = {
-				.nr_extents   = 1,
-				.extent_order = 0,
-				.domid        = DOMID_SELF
-			};
-			set_xen_guest_handle(reservation.extent_start, &gmfn);
-			ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
-						   &reservation);
-			if (ret == 1)
-				ret = 0; /* success */
-		} else {
-			ret = apply_to_page_range(&init_mm, vaddr, PAGE_SIZE,
-						  dealloc_pte_fn, NULL);
-		}
-
-		if (ret != 0) {
-			spin_unlock_irqrestore(&balloon_lock, flags);
-			__free_page(page);
-			goto err;
-		}
-
-		totalram_pages = --balloon_stats.current_pages;
-
-		spin_unlock_irqrestore(&balloon_lock, flags);
-	}
-
- out:
-	schedule_work(&balloon_worker);
-	flush_tlb_all();
-	return pagevec;
-
- err:
-	spin_lock_irqsave(&balloon_lock, flags);
-	while (--i >= 0)
-		balloon_append(pagevec[i]);
-	spin_unlock_irqrestore(&balloon_lock, flags);
-	kfree(pagevec);
-	pagevec = NULL;
-	goto out;
-}
-
-static void free_empty_pages_and_pagevec(struct page **pagevec, int nr_pages)
-{
-	unsigned long flags;
-	int i;
-
-	if (pagevec == NULL)
-		return;
-
-	spin_lock_irqsave(&balloon_lock, flags);
-	for (i = 0; i < nr_pages; i++) {
-		BUG_ON(page_count(pagevec[i]) != 1);
-		balloon_append(pagevec[i]);
-	}
-	spin_unlock_irqrestore(&balloon_lock, flags);
-
-	kfree(pagevec);
-
-	schedule_work(&balloon_worker);
-}
-
-static void balloon_release_driver_page(struct page *page)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&balloon_lock, flags);
-	balloon_append(page);
-	balloon_stats.driver_pages--;
-	spin_unlock_irqrestore(&balloon_lock, flags);
-
-	schedule_work(&balloon_worker);
-}
-
-
 #define BALLOON_SHOW(name, format, args...)				\
 	static ssize_t show_##name(struct sys_device *dev,		\
 				   struct sysdev_attribute *attr,	\
@@ -689,22 +564,6 @@ static int register_balloon(struct sys_device *sysdev)
 	sysdev_unregister(sysdev);
 	sysdev_class_unregister(&balloon_sysdev_class);
 	return error;
-}
-
-static void unregister_balloon(struct sys_device *sysdev)
-{
-	int i;
-
-	sysfs_remove_group(&sysdev->kobj, &balloon_info_group);
-	for (i = 0; i < ARRAY_SIZE(balloon_attrs); i++)
-		sysdev_remove_file(sysdev, balloon_attrs[i]);
-	sysdev_unregister(sysdev);
-	sysdev_class_unregister(&balloon_sysdev_class);
-}
-
-static void balloon_sysfs_exit(void)
-{
-	unregister_balloon(&balloon_sysdev);
 }
 
 MODULE_LICENSE("GPL");
