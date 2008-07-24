@@ -2717,10 +2717,11 @@ static void handle_stripe5(struct stripe_head *sh)
 	if (sh->reconstruct_state == reconstruct_state_result) {
 		sh->reconstruct_state = reconstruct_state_idle;
 		clear_bit(STRIPE_EXPANDING, &sh->state);
-		for (i = conf->raid_disks; i--; )
+		for (i = conf->raid_disks; i--; ) {
 			set_bit(R5_Wantwrite, &sh->dev[i].flags);
-			set_bit(R5_LOCKED, &dev->flags);
+			set_bit(R5_LOCKED, &sh->dev[i].flags);
 			s.locked++;
+		}
 	}
 
 	if (s.expanded && test_bit(STRIPE_EXPANDING, &sh->state) &&
