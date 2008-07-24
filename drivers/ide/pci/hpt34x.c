@@ -169,6 +169,7 @@ static struct pci_driver driver = {
 	.name		= "HPT34x_IDE",
 	.id_table	= hpt34x_pci_tbl,
 	.probe		= hpt34x_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init hpt34x_ide_init(void)
@@ -176,7 +177,13 @@ static int __init hpt34x_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit hpt34x_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(hpt34x_ide_init);
+module_exit(hpt34x_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for Highpoint 34x IDE");
