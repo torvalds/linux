@@ -194,9 +194,9 @@ extern int mmu_ci_restrictions;
 
 #ifdef CONFIG_HUGETLB_PAGE
 /*
- * The page size index of the huge pages for use by hugetlbfs
+ * The page size indexes of the huge pages for use by hugetlbfs
  */
-extern int mmu_huge_psize;
+extern unsigned int mmu_huge_psizes[MMU_PAGE_COUNT];
 
 #endif /* CONFIG_HUGETLB_PAGE */
 

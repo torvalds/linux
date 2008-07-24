@@ -103,7 +103,6 @@ int mmu_kernel_ssize = MMU_SEGSIZE_256M;
 int mmu_highuser_ssize = MMU_SEGSIZE_256M;
 u16 mmu_slb_size = 64;
 #ifdef CONFIG_HUGETLB_PAGE
-int mmu_huge_psize = MMU_PAGE_16M;
 unsigned int HPAGE_SHIFT;
 #endif
 #ifdef CONFIG_PPC_64K_PAGES
@@ -460,15 +459,15 @@ static void __init htab_init_page_sizes(void)
 	/* Reserve 16G huge page memory sections for huge pages */
 	of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
 
-/* Init large page size. Currently, we pick 16M or 1M depending
+/* Set default large page size. Currently, we pick 16M or 1M depending
 	 * on what is available
 	 */
 	if (mmu_psize_defs[MMU_PAGE_16M].shift)
-		set_huge_psize(MMU_PAGE_16M);
+		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_16M].shift;
 	/* With 4k/4level pagetables, we can't (for now) cope with a
 	 * huge page size < PMD_SIZE */
 	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
-		set_huge_psize(MMU_PAGE_1M);
+		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_1M].shift;
 #endif /* CONFIG_HUGETLB_PAGE */
 }
 
@@ -889,7 +888,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 
 #ifdef CONFIG_HUGETLB_PAGE
 	/* Handle hugepage regions */
-	if (HPAGE_SHIFT && psize == mmu_huge_psize) {
+	if (HPAGE_SHIFT && mmu_huge_psizes[psize]) {
 		DBG_LOW(" -> huge page !\n");
 		return hash_huge_page(mm, access, ea, vsid, local, trap);
 	}

@@ -153,10 +153,10 @@ static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
 };
 
 #ifdef CONFIG_HUGETLB_PAGE
-/* Hugepages need one extra cache, initialized in hugetlbpage.c.  We
- * can't put into the tables above, because HPAGE_SHIFT is not compile
- * time constant. */
-struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)+1];
+/* Hugepages need an extra cache per hugepagesize, initialized in
+ * hugetlbpage.c.  We can't put into the tables above, because HPAGE_SHIFT
+ * is not compile time constant. */
+struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)+MMU_PAGE_COUNT];
 #else
 struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)];
 #endif
