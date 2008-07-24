@@ -328,9 +328,20 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 	if (sbi->catatonic)
 		return -ENOENT;
 
-	if (!dentry->d_inode &&
-	    (sbi->type & (AUTOFS_TYPE_DIRECT | AUTOFS_TYPE_OFFSET)))
-		return -ENOENT;
+	if (!dentry->d_inode) {
+		/*
+		 * A wait for a negative dentry is invalid for certain
+		 * cases. A direct or offset mount "always" has its mount
+		 * point directory created and so the request dentry must
+		 * be positive or the map key doesn't exist. The situation
+		 * is very similar for indirect mounts except only dentrys
+		 * in the root of the autofs file system may be negative.
+		 */
+		if (sbi->type & (AUTOFS_TYPE_DIRECT|AUTOFS_TYPE_OFFSET))
+			return -ENOENT;
+		else if (!IS_ROOT(dentry->d_parent))
+			return -ENOENT;
+	}
 
 	name = kmalloc(NAME_MAX + 1, GFP_KERNEL);
 	if (!name)
