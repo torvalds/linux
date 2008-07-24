@@ -502,6 +502,12 @@ L:	openezx-devel@lists.openezx.org (subscribers-only)
 W:	http://www.openezx.org/
 S:	Maintained
 
+ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
+P:	Sascha Hauer
+M:	kernel@pengutronix.de
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 P:	Lennert Buytenhek
 M:	kernel@wantstofly.org
