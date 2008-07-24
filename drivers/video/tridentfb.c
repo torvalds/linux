@@ -680,8 +680,8 @@ static void set_vclk(struct tridentfb_par *par, unsigned long freq)
 		vga_mm_wseq(par->io_virt, ClockHigh, hi);
 		vga_mm_wseq(par->io_virt, ClockLow, lo);
 	} else {
-		outb(lo, 0x43C8);
-		outb(hi, 0x43C9);
+		t_outb(par, lo, 0x43C8);
+		t_outb(par, hi, 0x43C9);
 	}
 	debug("VCLK = %X %X\n", hi, lo);
 }
