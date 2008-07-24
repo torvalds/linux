@@ -574,7 +574,7 @@ asmlinkage long sys_inotify_init1(int flags)
 	struct file *filp;
 	int fd, ret;
 
-	if (flags & ~IN_CLOEXEC)
+	if (flags & ~(IN_CLOEXEC | IN_NONBLOCK))
 		return -EINVAL;
 
 	fd = get_unused_fd_flags(flags & O_CLOEXEC);
@@ -613,7 +613,7 @@ asmlinkage long sys_inotify_init1(int flags)
 	filp->f_path.dentry = dget(inotify_mnt->mnt_root);
 	filp->f_mapping = filp->f_path.dentry->d_inode->i_mapping;
 	filp->f_mode = FMODE_READ;
-	filp->f_flags = O_RDONLY;
+	filp->f_flags = O_RDONLY | (flags & O_NONBLOCK);
 	filp->private_data = dev;
 
 	INIT_LIST_HEAD(&dev->events);
