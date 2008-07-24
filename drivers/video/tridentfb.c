@@ -835,6 +835,8 @@ static int tridentfb_check_var(struct fb_var_screeninfo *var,
 	/* check color depth */
 	if (bpp == 24)
 		bpp = var->bits_per_pixel = 32;
+	if (par->chip_id == TGUI9440 && bpp == 32)
+		return -EINVAL;
 	/* check whether resolution fits on panel and in memory */
 	if (par->flatpanel && nativex && var->xres > nativex)
 		return -EINVAL;
@@ -881,7 +883,7 @@ static int tridentfb_check_var(struct fb_var_screeninfo *var,
 
 	switch (par->chip_id) {
 	case TGUI9440:
-		ramdac = 90000;
+		ramdac = (bpp >= 16) ? 45000 : 90000;
 		break;
 	case CYBER9320:
 	case TGUI9660:
@@ -1081,12 +1083,6 @@ static int tridentfb_set_par(struct fb_info *info)
 	if (par->chip_id != TGUI9440)
 		write3X4(par, PCIReg, read3X4(par, PCIReg) | 0x06);
 
-	/* convert from picoseconds to kHz */
-	vclk = PICOS2KHZ(info->var.pixclock);
-	if (bpp == 32)
-		vclk *= 2;
-	set_vclk(par, vclk);
-
 	vga_mm_wseq(par->io_virt, 0, 3);
 	vga_mm_wseq(par->io_virt, 1, 1); /* set char clock 8 dots wide */
 	/* enable 4 maps because needed in chain4 mode */
@@ -1094,10 +1090,16 @@ static int tridentfb_set_par(struct fb_info *info)
 	vga_mm_wseq(par->io_virt, 3, 0);
 	vga_mm_wseq(par->io_virt, 4, 0x0E); /* memory mode enable bitmaps ?? */
 
+	/* convert from picoseconds to kHz */
+	vclk = PICOS2KHZ(info->var.pixclock);
+
 	/* divide clock by 2 if 32bpp chain4 mode display and CPU path */
 	tmp = read3CE(par, MiscExtFunc) & 0xF0;
-	if (bpp == 32)
+	if (bpp == 32 || (par->chip_id == TGUI9440 && bpp == 16)) {
 		tmp |= 8;
+		vclk *= 2;
+	}
+	set_vclk(par, vclk);
 	write3CE(par, MiscExtFunc, tmp | 0x12);
 	write3CE(par, 0x5, 0x40);	/* no CGA compat, allow 256 col */
 	write3CE(par, 0x6, 0x05);	/* graphics mode */
@@ -1361,14 +1363,14 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	tridentfb_fix.smem_start = pci_resource_start(dev, 0);
 	tridentfb_fix.smem_len = get_memsize(default_par);
 
+	enable_mmio();
+
 	if (!request_mem_region(tridentfb_fix.smem_start, tridentfb_fix.smem_len, "tridentfb")) {
 		debug("request_mem_region failed!\n");
 		disable_mmio(info->par);
 		err = -1;
 		goto out_unmap1;
 	}
-
-	enable_mmio();
 
 	info->screen_base = ioremap_nocache(tridentfb_fix.smem_start,
 					    tridentfb_fix.smem_len);
