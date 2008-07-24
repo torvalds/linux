@@ -90,6 +90,10 @@ config ANDROID_LOW_MEMORY_KILLER
 	---help---
 	  Register processes to be killed when memory is low
 
+config ANDROID_PMEM
+	bool "Android pmem allocator"
+	depends on ARM
+
 source "drivers/staging/android/switch/Kconfig"
 
 endif # if ANDROID
