@@ -981,14 +981,9 @@ static void __init gather_bootmem_prealloc(void)
 	}
 }
 
-static void __init hugetlb_init_one_hstate(struct hstate *h)
+static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
 {
 	unsigned long i;
-
-	for (i = 0; i < MAX_NUMNODES; ++i)
-		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
-
-	h->hugetlb_next_nid = first_node(node_online_map);
 
 	for (i = 0; i < h->max_huge_pages; ++i) {
 		if (h->order >= MAX_ORDER) {
@@ -997,7 +992,7 @@ static void __init hugetlb_init_one_hstate(struct hstate *h)
 		} else if (!alloc_fresh_huge_page(h))
 			break;
 	}
-	h->max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
+	h->max_huge_pages = i;
 }
 
 static void __init hugetlb_init_hstates(void)
@@ -1005,7 +1000,9 @@ static void __init hugetlb_init_hstates(void)
 	struct hstate *h;
 
 	for_each_hstate(h) {
-		hugetlb_init_one_hstate(h);
+		/* oversize hugepages were init'ed in early boot */
+		if (h->order < MAX_ORDER)
+			hugetlb_hstate_alloc_pages(h);
 	}
 }
 
@@ -1301,6 +1298,8 @@ module_init(hugetlb_init);
 void __init hugetlb_add_hstate(unsigned order)
 {
 	struct hstate *h;
+	unsigned long i;
+
 	if (size_to_hstate(PAGE_SIZE << order)) {
 		printk(KERN_WARNING "hugepagesz= specified twice, ignoring\n");
 		return;
@@ -1310,15 +1309,21 @@ void __init hugetlb_add_hstate(unsigned order)
 	h = &hstates[max_hstate++];
 	h->order = order;
 	h->mask = ~((1ULL << (order + PAGE_SHIFT)) - 1);
+	h->nr_huge_pages = 0;
+	h->free_huge_pages = 0;
+	for (i = 0; i < MAX_NUMNODES; ++i)
+		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+	h->hugetlb_next_nid = first_node(node_online_map);
 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
 					huge_page_size(h)/1024);
-	hugetlb_init_one_hstate(h);
+
 	parsed_hstate = h;
 }
 
 static int __init hugetlb_setup(char *s)
 {
 	unsigned long *mhp;
+	static unsigned long *last_mhp;
 
 	/*
 	 * !max_hstate means we haven't parsed a hugepagesz= parameter yet,
@@ -1329,8 +1334,24 @@ static int __init hugetlb_setup(char *s)
 	else
 		mhp = &parsed_hstate->max_huge_pages;
 
+	if (mhp == last_mhp) {
+		printk(KERN_WARNING "hugepages= specified twice without "
+			"interleaving hugepagesz=, ignoring\n");
+		return 1;
+	}
+
 	if (sscanf(s, "%lu", mhp) <= 0)
 		*mhp = 0;
+
+	/*
+	 * Global state is always initialized later in hugetlb_init.
+	 * But we need to allocate >= MAX_ORDER hstates here early to still
+	 * use the bootmem allocator.
+	 */
+	if (max_hstate && parsed_hstate->order >= MAX_ORDER)
+		hugetlb_hstate_alloc_pages(parsed_hstate);
+
+	last_mhp = mhp;
 
 	return 1;
 }
