@@ -1949,18 +1949,18 @@ printk("2bad mapping end %Lu cur %Lu\n", end, cur);
 							  cur + iosize - 1);
 		}
 		if (!ret) {
-			unsigned long nr = (last_byte >> PAGE_CACHE_SHIFT) + 1;
-			nr -= page->index;
+			unsigned long pnr = (last_byte >> PAGE_CACHE_SHIFT) + 1;
+			pnr -= page->index;
 			ret = submit_extent_page(READ, tree, page,
 					 sector, iosize, page_offset,
-					 bdev, bio, nr,
+					 bdev, bio, pnr,
 					 end_bio_extent_readpage, mirror_num);
+			nr++;
 		}
 		if (ret)
 			SetPageError(page);
 		cur = cur + iosize;
 		page_offset += iosize;
-		nr++;
 	}
 	if (!nr) {
 		if (!PageError(page))

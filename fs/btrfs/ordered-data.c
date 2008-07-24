@@ -557,6 +557,7 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u32 *sum)
 	}
 out:
 	mutex_unlock(&tree->mutex);
+	btrfs_put_ordered_extent(ordered);
 	return ret;
 }
 

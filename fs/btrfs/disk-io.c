@@ -1011,9 +1011,16 @@ void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 	spin_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, offset, PAGE_CACHE_SIZE);
 	spin_unlock(&em_tree->lock);
-	if (!em)
+	if (!em) {
+		__unplug_io_fn(bdi, page);
 		return;
+	}
 
+	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
+		free_extent_map(em);
+		__unplug_io_fn(bdi, page);
+		return;
+	}
 	offset = offset - em->start;
 	btrfs_unplug_page(&BTRFS_I(inode)->root->fs_info->mapping_tree,
 			  em->block_start + offset, page);

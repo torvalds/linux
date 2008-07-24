@@ -611,22 +611,25 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 	    btrfs_test_flag(inode, NODATASUM))
 		return 0;
 
+	/*
+	 * It is possible there is an ordered extent that has
+	 * not yet finished for this range in the file.  If so,
+	 * that extent will have a csum cached, and it will insert
+	 * the sum after all the blocks in the extent are fully
+	 * on disk.  So, look for an ordered extent and use the
+	 * sum if found.  We have to do this before looking in the
+	 * btree because csum items are pre-inserted based on
+	 * the file size.  btrfs_lookup_csum might find an item
+	 * that still hasn't been fully filled.
+	 */
+	ret = btrfs_find_ordered_sum(inode, start, &csum);
+	if (ret == 0)
+		goto found;
+
+	ret = 0;
 	path = btrfs_alloc_path();
-	mutex_lock(&BTRFS_I(inode)->csum_mutex);
 	item = btrfs_lookup_csum(NULL, root, path, inode->i_ino, start, 0);
 	if (IS_ERR(item)) {
-		/*
-		 * It is possible there is an ordered extent that has
-		 * not yet finished for this range in the file.  If so,
-		 * that extent will have a csum cached, and it will insert
-		 * the sum after all the blocks in the extent are fully
-		 * on disk.  So, look for an ordered extent and use the
-		 * sum if found.
-		 */
-		ret = btrfs_find_ordered_sum(inode, start, &csum);
-		if (ret == 0)
-			goto found;
-
 		ret = PTR_ERR(item);
 		/* a csum that isn't present is a preallocated region. */
 		if (ret == -ENOENT || ret == -EFBIG)
@@ -641,7 +644,6 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 found:
 	set_state_private(io_tree, start, csum);
 out:
-	mutex_unlock(&BTRFS_I(inode)->csum_mutex);
 	if (path)
 		btrfs_free_path(path);
 	return ret;
@@ -1375,7 +1377,7 @@ again:
 		}
 		if (!PageUptodate(page)) {
 			ret = -EIO;
-			goto out;
+			goto out_unlock;
 		}
 	}
 	wait_on_page_writeback(page);
@@ -1406,6 +1408,7 @@ again:
 	set_page_dirty(page);
 	unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 
+out_unlock:
 	unlock_page(page);
 	page_cache_release(page);
 out:
