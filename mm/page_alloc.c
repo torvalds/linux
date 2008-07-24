@@ -3461,10 +3461,11 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
 #endif /* CONFIG_FLAT_NODE_MEM_MAP */
 }
 
-void __paginginit free_area_init_node(int nid, struct pglist_data *pgdat,
-		unsigned long *zones_size, unsigned long node_start_pfn,
-		unsigned long *zholes_size)
+void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+		unsigned long node_start_pfn, unsigned long *zholes_size)
 {
+	pg_data_t *pgdat = NODE_DATA(nid);
+
 	pgdat->node_id = nid;
 	pgdat->node_start_pfn = node_start_pfn;
 	calculate_node_totalpages(pgdat, zones_size, zholes_size);
@@ -3961,7 +3962,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 	setup_nr_node_ids();
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
-		free_area_init_node(nid, pgdat, NULL,
+		free_area_init_node(nid, NULL,
 				find_min_pfn_for_node(nid), NULL);
 
 		/* Any memory on that node */
@@ -4032,7 +4033,7 @@ EXPORT_SYMBOL(contig_page_data);
 
 void __init free_area_init(unsigned long *zones_size)
 {
-	free_area_init_node(0, NODE_DATA(0), zones_size,
+	free_area_init_node(0, zones_size,
 			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
 }
 

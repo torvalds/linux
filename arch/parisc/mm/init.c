@@ -887,7 +887,7 @@ void __init paging_init(void)
 		}
 #endif
 
-		free_area_init_node(i, NODE_DATA(i), zones_size,
+		free_area_init_node(i, zones_size,
 				pmem_ranges[i].start_pfn, NULL);
 	}
 }

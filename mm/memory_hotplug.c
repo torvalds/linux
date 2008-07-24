@@ -455,7 +455,7 @@ static pg_data_t *hotadd_new_pgdat(int nid, u64 start)
 	/* we can use NODE_DATA(nid) from here */
 
 	/* init node's zones as empty zones, we don't have any present pages.*/
-	free_area_init_node(nid, pgdat, zones_size, start_pfn, zholes_size);
+	free_area_init_node(nid, zones_size, start_pfn, zholes_size);
 
 	return pgdat;
 }

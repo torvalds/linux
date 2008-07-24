@@ -123,7 +123,7 @@ unsigned long __init zone_sizes_init(void)
 	start_pfn = __MEMORY_START >> PAGE_SHIFT;
 #endif /* CONFIG_MMU */
 
-	free_area_init_node(0, NODE_DATA(0), zones_size, start_pfn, 0);
+	free_area_init_node(0, zones_size, start_pfn, 0);
 
 	return 0;
 }
