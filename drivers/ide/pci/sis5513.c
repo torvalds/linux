@@ -586,6 +586,12 @@ static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_devi
 	return ide_pci_init_one(dev, &d, NULL);
 }
 
+static void __devexit sis5513_remove(struct pci_dev *dev)
+{
+	ide_pci_remove(dev);
+	pci_disable_device(dev);
+}
+
 static const struct pci_device_id sis5513_pci_tbl[] = {
 	{ PCI_VDEVICE(SI, PCI_DEVICE_ID_SI_5513), 0 },
 	{ PCI_VDEVICE(SI, PCI_DEVICE_ID_SI_5518), 0 },
@@ -598,6 +604,7 @@ static struct pci_driver driver = {
 	.name		= "SIS_IDE",
 	.id_table	= sis5513_pci_tbl,
 	.probe		= sis5513_init_one,
+	.remove		= sis5513_remove,
 };
 
 static int __init sis5513_ide_init(void)
@@ -605,7 +612,13 @@ static int __init sis5513_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit sis5513_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(sis5513_ide_init);
+module_exit(sis5513_ide_exit);
 
 MODULE_AUTHOR("Lionel Bouton, L C Chang, Andre Hedrick, Vojtech Pavlik");
 MODULE_DESCRIPTION("PCI driver module for SIS IDE");
