@@ -62,9 +62,9 @@ static void release_memory_resource(struct resource *res)
 
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 #ifndef CONFIG_SPARSEMEM_VMEMMAP
-static void get_page_bootmem(unsigned long info,  struct page *page, int magic)
+static void get_page_bootmem(unsigned long info,  struct page *page, int type)
 {
-	atomic_set(&page->_mapcount, magic);
+	atomic_set(&page->_mapcount, type);
 	SetPagePrivate(page);
 	set_page_private(page, info);
 	atomic_inc(&page->_count);
@@ -72,10 +72,10 @@ static void get_page_bootmem(unsigned long info,  struct page *page, int magic)
 
 void put_page_bootmem(struct page *page)
 {
-	int magic;
+	int type;
 
-	magic = atomic_read(&page->_mapcount);
-	BUG_ON(magic >= -1);
+	type = atomic_read(&page->_mapcount);
+	BUG_ON(type >= -1);
 
 	if (atomic_dec_return(&page->_count) == 1) {
 		ClearPagePrivate(page);
@@ -119,7 +119,7 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
 	mapsize = PAGE_ALIGN(usemap_size()) >> PAGE_SHIFT;
 
 	for (i = 0; i < mapsize; i++, page++)
-		get_page_bootmem(section_nr, page, MIX_INFO);
+		get_page_bootmem(section_nr, page, MIX_SECTION_INFO);
 
 }
 

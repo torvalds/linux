@@ -13,12 +13,12 @@ struct mem_section;
 #ifdef CONFIG_MEMORY_HOTPLUG
 
 /*
- * Magic number for free bootmem.
+ * Types for free bootmem.
  * The normal smallest mapcount is -1. Here is smaller value than it.
  */
-#define SECTION_INFO		0xfffffffe
-#define MIX_INFO		0xfffffffd
-#define NODE_INFO		0xfffffffc
+#define SECTION_INFO		(-1 - 1)
+#define MIX_SECTION_INFO	(-1 - 2)
+#define NODE_INFO		(-1 - 3)
 
 /*
  * pgdat resizing functions
