@@ -4038,8 +4038,8 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *ha)
 	ret = qla2x00_stop_firmware(ha);
 	for (retries = 5; ret != QLA_SUCCESS && ret != QLA_FUNCTION_TIMEOUT &&
 	    retries ; retries--) {
-		qla2x00_reset_chip(ha);
-		if (qla2x00_chip_diag(ha) != QLA_SUCCESS)
+		ha->isp_ops->reset_chip(ha);
+		if (ha->isp_ops->chip_diag(ha) != QLA_SUCCESS)
 			continue;
 		if (qla2x00_setup_chip(ha) != QLA_SUCCESS)
 			continue;
