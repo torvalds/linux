@@ -189,6 +189,16 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 				"context; rc = [%d]\n", rc);
 		goto out;
 	}
+	if (!ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->lower_file) {
+		rc = ecryptfs_init_persistent_file(ecryptfs_dentry);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to initialize "
+			       "the persistent file for the dentry with name "
+			       "[%s]; rc = [%d]\n", __func__,
+			       ecryptfs_dentry->d_name.name, rc);
+			goto out;
+		}
+	}
 	rc = ecryptfs_write_metadata(ecryptfs_dentry);
 	if (rc) {
 		printk(KERN_ERR "Error writing headers; rc = [%d]\n", rc);
@@ -312,7 +322,7 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 				ECRYPTFS_INTERPOSE_FLAG_D_ADD);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error interposing\n");
-		goto out_dput;
+		goto out;
 	}
 	if (S_ISDIR(lower_inode->i_mode)) {
 		ecryptfs_printk(KERN_DEBUG, "Is a directory; returning\n");
@@ -338,11 +348,21 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR,
 				"Cannot ecryptfs_kmalloc a page\n");
-		goto out_dput;
+		goto out;
 	}
 	crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
 	if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED))
 		ecryptfs_set_default_sizes(crypt_stat);
+	if (!ecryptfs_inode_to_private(dentry->d_inode)->lower_file) {
+		rc = ecryptfs_init_persistent_file(dentry);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to initialize "
+			       "the persistent file for the dentry with name "
+			       "[%s]; rc = [%d]\n", __func__,
+			       dentry->d_name.name, rc);
+			goto out;
+		}
+	}
 	rc = ecryptfs_read_and_validate_header_region(page_virt,
 						      dentry->d_inode);
 	if (rc) {
@@ -538,8 +558,7 @@ ecryptfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	rc = vfs_mknod(lower_dir_dentry->d_inode, lower_dentry, mode, dev);
 	if (rc || !lower_dentry->d_inode)
 		goto out;
-	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb,
-				ECRYPTFS_INTERPOSE_FLAG_DELAY_PERSISTENT_FILE);
+	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb, 0);
 	if (rc)
 		goto out;
 	fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);

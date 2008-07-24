@@ -235,7 +235,6 @@ struct ecryptfs_crypt_stat {
 #define ECRYPTFS_METADATA_IN_XATTR  0x00000100
 #define ECRYPTFS_VIEW_AS_ENCRYPTED  0x00000200
 #define ECRYPTFS_KEY_SET            0x00000400
-#define ECRYPTFS_DELAY_PERSISTENT   0x00000800
 	u32 flags;
 	unsigned int file_version;
 	size_t iv_bytes;
@@ -576,7 +575,6 @@ struct ecryptfs_open_req {
 };
 
 #define ECRYPTFS_INTERPOSE_FLAG_D_ADD                 0x00000001
-#define ECRYPTFS_INTERPOSE_FLAG_DELAY_PERSISTENT_FILE 0x00000002
 int ecryptfs_interpose(struct dentry *hidden_dentry,
 		       struct dentry *this_dentry, struct super_block *sb,
 		       u32 flags);

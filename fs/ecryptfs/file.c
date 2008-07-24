@@ -200,10 +200,6 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 	if (!ecryptfs_inode_to_private(inode)->lower_file) {
-		BUG_ON(!(crypt_stat->flags & ECRYPTFS_DELAY_PERSISTENT));
-		mutex_lock(&crypt_stat->cs_mutex);
-		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
-		mutex_unlock(&crypt_stat->cs_mutex);
 		rc = ecryptfs_init_persistent_file(ecryptfs_dentry);
 		if (rc) {
 			printk(KERN_ERR "%s: Error attempting to initialize "
