@@ -641,6 +641,8 @@ __SYSCALL(__NR_timerfd_settime, sys_timerfd_settime)
 __SYSCALL(__NR_timerfd_gettime, sys_timerfd_gettime)
 #define __NR_paccept				288
 __SYSCALL(__NR_paccept, sys_paccept)
+#define __NR_signalfd4				289
+__SYSCALL(__NR_signalfd4, sys_signalfd4)
 
 
 #ifndef __NO_STUBS

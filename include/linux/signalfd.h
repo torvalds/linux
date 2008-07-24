@@ -8,6 +8,11 @@
 #ifndef _LINUX_SIGNALFD_H
 #define _LINUX_SIGNALFD_H
 
+/* For O_CLOEXEC */
+#include <linux/fcntl.h>
+
+/* Flags for signalfd4.  */
+#define SFD_CLOEXEC O_CLOEXEC
 
 struct signalfd_siginfo {
 	__u32 ssi_signo;
