@@ -2992,6 +2992,7 @@ int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 	struct extent_buffer *cur;
 	struct btrfs_key found_key;
 	int slot;
+	int sret;
 	u32 nritems;
 	int level;
 	int ret = 1;
@@ -3009,7 +3010,7 @@ again:
 	while(1) {
 		nritems = btrfs_header_nritems(cur);
 		level = btrfs_header_level(cur);
-		bin_search(cur, min_key, level, &slot);
+		sret = bin_search(cur, min_key, level, &slot);
 
 		/* at level = 0, we're done, setup the path and exit */
 		if (level == 0) {
@@ -3018,6 +3019,8 @@ again:
 			btrfs_item_key_to_cpu(cur, &found_key, slot);
 			goto out;
 		}
+		if (sret && slot > 0)
+			slot--;
 		/*
 		 * check this node pointer against the cache_only and
 		 * min_trans parameters.  If it isn't in cache or is too
