@@ -341,6 +341,7 @@ static struct pci_driver driver = {
 	.name		= "AMD_IDE",
 	.id_table	= amd74xx_pci_tbl,
 	.probe		= amd74xx_probe,
+	.remove		= ide_pci_remove,
 };
 
 static int __init amd74xx_ide_init(void)
@@ -348,7 +349,13 @@ static int __init amd74xx_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit amd74xx_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(amd74xx_ide_init);
+module_exit(amd74xx_ide_exit);
 
 MODULE_AUTHOR("Vojtech Pavlik");
 MODULE_DESCRIPTION("AMD PCI IDE driver");
