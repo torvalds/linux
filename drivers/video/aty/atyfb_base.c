@@ -3335,7 +3335,7 @@ static int __devinit init_from_bios(struct atyfb_par *par)
 		PRINTKE("no BIOS frequency table found, use parameters\n");
 		ret = -ENXIO;
 	}
-	iounmap((void* __iomem )bios_base);
+	iounmap((void __iomem *)bios_base);
 
 	return ret;
 }
