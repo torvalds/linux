@@ -130,26 +130,12 @@ static int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 			ecryptfs_dentry_to_lower_mnt(ecryptfs_dentry);
 
 		lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
-		/* Corresponding dput() and mntput() are done when the
-		 * persistent file is fput() when the eCryptfs inode
-		 * is destroyed. */
-		dget(lower_dentry);
-		mntget(lower_mnt);
-		inode_info->lower_file = dentry_open(lower_dentry,
-						     lower_mnt,
-						     (O_RDWR | O_LARGEFILE));
-		if (IS_ERR(inode_info->lower_file)) {
-			dget(lower_dentry);
-			mntget(lower_mnt);
-			inode_info->lower_file = dentry_open(lower_dentry,
-							     lower_mnt,
-							     (O_RDONLY
-							      | O_LARGEFILE));
-		}
-		if (IS_ERR(inode_info->lower_file)) {
+		rc = ecryptfs_privileged_open(&inode_info->lower_file,
+						     lower_dentry, lower_mnt);
+		if (rc || IS_ERR(inode_info->lower_file)) {
 			printk(KERN_ERR "Error opening lower persistent file "
-			       "for lower_dentry [0x%p] and lower_mnt [0x%p]\n",
-			       lower_dentry, lower_mnt);
+			       "for lower_dentry [0x%p] and lower_mnt [0x%p]; "
+			       "rc = [%d]\n", lower_dentry, lower_mnt, rc);
 			rc = PTR_ERR(inode_info->lower_file);
 			inode_info->lower_file = NULL;
 		}
@@ -679,6 +665,11 @@ static struct ecryptfs_cache_info {
 		.name = "ecryptfs_key_tfm_cache",
 		.size = sizeof(struct ecryptfs_key_tfm),
 	},
+	{
+		.cache = &ecryptfs_open_req_cache,
+		.name = "ecryptfs_open_req_cache",
+		.size = sizeof(struct ecryptfs_open_req),
+	},
 };
 
 static void ecryptfs_free_kmem_caches(void)
@@ -795,11 +786,17 @@ static int __init ecryptfs_init(void)
 		printk(KERN_ERR "sysfs registration failed\n");
 		goto out_unregister_filesystem;
 	}
+	rc = ecryptfs_init_kthread();
+	if (rc) {
+		printk(KERN_ERR "%s: kthread initialization failed; "
+		       "rc = [%d]\n", __func__, rc);
+		goto out_do_sysfs_unregistration;
+	}
 	rc = ecryptfs_init_messaging(ecryptfs_transport);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Failure occured while attempting to "
+		printk(KERN_ERR "Failure occured while attempting to "
 				"initialize the eCryptfs netlink socket\n");
-		goto out_do_sysfs_unregistration;
+		goto out_destroy_kthread;
 	}
 	rc = ecryptfs_init_crypto();
 	if (rc) {
@@ -814,6 +811,8 @@ static int __init ecryptfs_init(void)
 	goto out;
 out_release_messaging:
 	ecryptfs_release_messaging(ecryptfs_transport);
+out_destroy_kthread:
+	ecryptfs_destroy_kthread();
 out_do_sysfs_unregistration:
 	do_sysfs_unregistration();
 out_unregister_filesystem:
@@ -833,6 +832,7 @@ static void __exit ecryptfs_exit(void)
 		printk(KERN_ERR "Failure whilst attempting to destroy crypto; "
 		       "rc = [%d]\n", rc);
 	ecryptfs_release_messaging(ecryptfs_transport);
+	ecryptfs_destroy_kthread();
 	do_sysfs_unregistration();
 	unregister_filesystem(&ecryptfs_fs_type);
 	ecryptfs_free_kmem_caches();
