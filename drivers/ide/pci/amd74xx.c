@@ -302,7 +302,7 @@ static int __devinit amd74xx_probe(struct pci_dev *dev, const struct pci_device_
 			 d.name, pci_name(dev), dev->revision,
 			 amd_dma[fls(d.udma_mask) - 1]);
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id amd74xx_pci_tbl[] = {

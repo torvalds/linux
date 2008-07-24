@@ -256,7 +256,7 @@ static const struct ide_port_info cs5530_chipset __devinitdata = {
 
 static int __devinit cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &cs5530_chipset);
+	return ide_pci_init_one(dev, &cs5530_chipset, NULL);
 }
 
 static const struct pci_device_id cs5530_pci_tbl[] = {

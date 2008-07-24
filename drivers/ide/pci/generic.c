@@ -139,7 +139,7 @@ static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_devi
 			goto out;
 		}
 	}
-	ret = ide_setup_pci_device(dev, d);
+	ret = ide_pci_init_one(dev, d, NULL);
 out:
 	return ret;
 }

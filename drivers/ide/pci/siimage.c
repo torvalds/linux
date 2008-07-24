@@ -795,7 +795,7 @@ static int __devinit siimage_init_one(struct pci_dev *dev,
 		d.host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 	}
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id siimage_pci_tbl[] = {

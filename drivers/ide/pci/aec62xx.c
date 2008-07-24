@@ -273,7 +273,7 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 		}
 	}
 
-	err = ide_setup_pci_device(dev, &d);
+	err = ide_pci_init_one(dev, &d, NULL);
 	if (err)
 		pci_disable_device(dev);
 

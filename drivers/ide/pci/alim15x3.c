@@ -565,7 +565,7 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 	if (idx == 0)
 		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 

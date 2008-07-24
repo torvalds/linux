@@ -104,7 +104,7 @@ static const struct ide_port_info triflex_device __devinitdata = {
 static int __devinit triflex_init_one(struct pci_dev *dev, 
 		const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &triflex_device);
+	return ide_pci_init_one(dev, &triflex_device, NULL);
 }
 
 static const struct pci_device_id triflex_pci_tbl[] = {

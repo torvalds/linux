@@ -419,7 +419,7 @@ static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_dev
 	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	    PCI_FUNC(dev->devfn) == 1) {
 		dev2 = pci_get_slot(dev->bus, dev->devfn + 1);
-		ret = ide_setup_pci_devices(dev, dev2, &cy82c693_chipset);
+		ret = ide_pci_init_two(dev, dev2, &cy82c693_chipset, NULL);
 		/* We leak pci refs here but thats ok - we can't be unloaded */
 	}
 	return ret;

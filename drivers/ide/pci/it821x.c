@@ -664,7 +664,7 @@ static int __devinit it821x_init_one(struct pci_dev *dev, const struct pci_devic
 
 	pci_set_drvdata(dev, itdevs);
 
-	return ide_setup_pci_device(dev, &it821x_chipsets[id->driver_data]);
+	return ide_pci_init_one(dev, &it821x_chipsets[id->driver_data], NULL);
 }
 
 static const struct pci_device_id it821x_pci_tbl[] = {

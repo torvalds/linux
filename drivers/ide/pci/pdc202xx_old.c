@@ -412,7 +412,7 @@ static int __devinit pdc202xx_init_one(struct pci_dev *dev, const struct pci_dev
 		}
 	}
 
-	return ide_setup_pci_device(dev, d);
+	return ide_pci_init_one(dev, d, NULL);
 }
 
 static const struct pci_device_id pdc202xx_pci_tbl[] = {

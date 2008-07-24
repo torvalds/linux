@@ -524,7 +524,7 @@ static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_de
 		dev2 = pdc20270_get_dev2(dev);
 
 		if (dev2) {
-			int ret = ide_setup_pci_devices(dev, dev2, d);
+			int ret = ide_pci_init_two(dev, dev2, d, NULL);
 			if (ret < 0)
 				pci_dev_put(dev2);
 			return ret;
@@ -540,7 +540,7 @@ static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_de
 		return -ENODEV;
 	}
 
-	return ide_setup_pci_device(dev, d);
+	return ide_pci_init_one(dev, d, NULL);
 }
 
 static const struct pci_device_id pdc202new_pci_tbl[] = {

@@ -156,7 +156,7 @@ static int __devinit hpt34x_init_one(struct pci_dev *dev, const struct pci_devic
 
 	d = &hpt34x_chipsets[(pcicmd & PCI_COMMAND_MEMORY) ? 1 : 0];
 
-	return ide_setup_pci_device(dev, d);
+	return ide_pci_init_one(dev, d, NULL);
 }
 
 static const struct pci_device_id hpt34x_pci_tbl[] = {

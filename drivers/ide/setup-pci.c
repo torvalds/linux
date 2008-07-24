@@ -525,8 +525,10 @@ out:
 	return ret;
 }
 
-int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
+int ide_pci_init_one(struct pci_dev *dev, const struct ide_port_info *d,
+		     void *priv)
 {
+	struct ide_host *host;
 	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 	int ret;
 
@@ -536,6 +538,19 @@ int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 
 	ide_pci_setup_ports(dev, d, 0, &hw[0], &hws[0]);
 
+	host = ide_host_alloc(d, hws);
+	if (host == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	host->dev[0] = &dev->dev;
+
+	host->host_priv = priv;
+
+	if (priv)
+		pci_set_drvdata(dev, host);
+
 	ret = do_ide_setup_pci_device(dev, d, 1);
 	if (ret < 0)
 		goto out;
@@ -543,16 +558,19 @@ int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 	/* fixup IRQ */
 	hw[1].irq = hw[0].irq = ret;
 
-	ret = ide_host_add(d, hws, NULL);
+	ret = ide_host_register(host, d, hws);
+	if (ret)
+		ide_host_free(host);
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ide_setup_pci_device);
+EXPORT_SYMBOL_GPL(ide_pci_init_one);
 
-int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
-			  const struct ide_port_info *d)
+int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
+		     const struct ide_port_info *d, void *priv)
 {
 	struct pci_dev *pdev[] = { dev1, dev2 };
+	struct ide_host *host;
 	int ret, i;
 	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 
@@ -562,7 +580,25 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 			goto out;
 
 		ide_pci_setup_ports(pdev[i], d, 0, &hw[i*2], &hws[i*2]);
+	}
 
+	host = ide_host_alloc(d, hws);
+	if (host == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	host->dev[0] = &dev1->dev;
+	host->dev[1] = &dev2->dev;
+
+	host->host_priv = priv;
+
+	if (priv) {
+		pci_set_drvdata(pdev[0], host);
+		pci_set_drvdata(pdev[1], host);
+	}
+
+	for (i = 0; i < 2; i++) {
 		ret = do_ide_setup_pci_device(pdev[i], d, !i);
 
 		/*
@@ -576,8 +612,10 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 		hw[i*2 + 1].irq = hw[i*2].irq = ret;
 	}
 
-	ret = ide_host_add(d, hws, NULL);
+	ret = ide_host_register(host, d, hws);
+	if (ret)
+		ide_host_free(host);
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ide_setup_pci_devices);
+EXPORT_SYMBOL_GPL(ide_pci_init_two);

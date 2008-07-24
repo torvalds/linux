@@ -324,7 +324,7 @@ static int __devinit ns87415_init_one(struct pci_dev *dev, const struct pci_devi
 		d.tp_ops = &superio_tp_ops;
 	}
 #endif
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id ns87415_pci_tbl[] = {

@@ -583,7 +583,7 @@ static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_devi
 
 	d.udma_mask = udma_rates[chipset_family];
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id sis5513_pci_tbl[] = {

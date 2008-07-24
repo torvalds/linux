@@ -422,7 +422,7 @@ static int __devinit svwks_init_one(struct pci_dev *dev, const struct pci_device
 			d.host_flags &= ~IDE_HFLAG_SINGLE;
 	}
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id svwks_pci_tbl[] = {

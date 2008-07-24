@@ -507,7 +507,7 @@ static int __devinit cmd64x_init_one(struct pci_dev *dev, const struct pci_devic
 		}
 	}
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id cmd64x_pci_tbl[] = {

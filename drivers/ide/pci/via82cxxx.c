@@ -466,7 +466,7 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 
 	d.udma_mask = via_config->udma_mask;
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id via_pci_tbl[] = {

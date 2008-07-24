@@ -335,7 +335,7 @@ static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_dev
 		d.host_flags &= ~IDE_HFLAG_SERIALIZE_DMA;
 	}
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id sl82c105_pci_tbl[] = {

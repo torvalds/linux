@@ -184,7 +184,7 @@ static const struct ide_port_info it8213_chipsets[] __devinitdata = {
 
 static int __devinit it8213_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &it8213_chipsets[id->driver_data]);
+	return ide_pci_init_one(dev, &it8213_chipsets[id->driver_data], NULL);
 }
 
 static const struct pci_device_id it8213_pci_tbl[] = {

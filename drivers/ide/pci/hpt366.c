@@ -1608,13 +1608,13 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 				d.host_flags &= ~IDE_HFLAG_NON_BOOTABLE;
 		}
 
-		ret = ide_setup_pci_devices(dev, dev2, &d);
+		ret = ide_pci_init_two(dev, dev2, &d, NULL);
 		if (ret < 0)
 			pci_dev_put(dev2);
 		return ret;
 	}
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id hpt366_pci_tbl[] __devinitconst = {
