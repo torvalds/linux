@@ -14,14 +14,6 @@
 #endif
 #include <asm/io.h>
 
-#ifndef MAX_HWIFS
-#ifdef __powerpc64__
-#define MAX_HWIFS	10
-#else
-#define MAX_HWIFS	8
-#endif
-#endif
-
 #define __ide_mm_insw(p, a, c)	readsw((void __iomem *)(p), (a), (c))
 #define __ide_mm_insl(p, a, c)	readsl((void __iomem *)(p), (a), (c))
 #define __ide_mm_outsw(p, a, c)	writesw((void __iomem *)(p), (a), (c))

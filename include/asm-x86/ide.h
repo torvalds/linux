@@ -11,15 +11,6 @@
 
 #ifdef __KERNEL__
 
-
-#ifndef MAX_HWIFS
-# ifdef CONFIG_BLK_DEV_IDEPCI
-#define MAX_HWIFS	10
-# else
-#define MAX_HWIFS	6
-# endif
-#endif
-
 static __inline__ int ide_default_irq(unsigned long base)
 {
 	switch (base) {

@@ -213,6 +213,14 @@ static inline int __ide_default_irq(unsigned long base)
 
 #include <asm/ide.h>
 
+#ifndef MAX_HWIFS
+#if defined(CONFIG_BLACKFIN) || defined(CONFIG_H8300) || defined(CONFIG_XTENSA)
+# define MAX_HWIFS	1
+#else
+# define MAX_HWIFS	10
+#endif
+#endif
+
 #if !defined(MAX_HWIFS) || defined(CONFIG_EMBEDDED)
 #undef MAX_HWIFS
 #define MAX_HWIFS	CONFIG_IDE_MAX_HWIFS

@@ -19,14 +19,6 @@
 #include <linux/stddef.h>
 #include <asm/processor.h>
 
-#ifndef MAX_HWIFS
-# ifdef CONFIG_BLK_DEV_IDEPCI
-#define MAX_HWIFS	10
-# else
-#define MAX_HWIFS	6
-# endif
-#endif
-
 static __inline__ int ide_probe_legacy(void)
 {
 #ifdef CONFIG_PCI

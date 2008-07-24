@@ -14,11 +14,6 @@
 
 #ifdef __KERNEL__
 
-
-#ifndef MAX_HWIFS
-# define MAX_HWIFS	1
-#endif
-
 #include <asm-generic/ide_iops.h>
 
 #endif	/* __KERNEL__ */
