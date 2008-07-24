@@ -63,12 +63,6 @@
 #define LCD_CENTER	1
 #define LCD_BIOS	2
 
-/* display types */
-#define DISPLAY_CRT	0
-#define DISPLAY_FP	1
-
-#define flatpanel (displaytype == DISPLAY_FP)
-
 /* General Registers */
 #define SPR	0x1F		/* Software Programming Register (videoram) */
 

@@ -30,6 +30,7 @@ struct tridentfb_par {
 	void __iomem *io_virt;	/* iospace virtual memory address */
 	u32 pseudo_pal[16];
 	int chip_id;
+	int flatpanel;
 };
 
 static unsigned char eng_oper;	/* engine operation... */
@@ -43,24 +44,22 @@ static struct fb_fix_screeninfo tridentfb_fix = {
 	.accel = FB_ACCEL_NONE,
 };
 
-static int displaytype;
-
 /* defaults which are normally overriden by user values */
 
 /* video mode */
 static char *mode_option __devinitdata = "640x480";
-static int bpp = 8;
+static int bpp __devinitdata = 8;
 
-static int noaccel;
+static int noaccel __devinitdata;
 
 static int center;
 static int stretch;
 
-static int fp;
-static int crt;
+static int fp __devinitdata;
+static int crt __devinitdata;
 
-static int memsize;
-static int memdiff;
+static int memsize __devinitdata;
+static int memdiff __devinitdata;
 static int nativex;
 
 module_param(mode_option, charp, 0);
@@ -75,7 +74,9 @@ module_param(memsize, int, 0);
 module_param(memdiff, int, 0);
 module_param(nativex, int, 0);
 module_param(fp, int, 0);
+MODULE_PARM_DESC(fp, "Define if flatpanel is connected");
 module_param(crt, int, 0);
+MODULE_PARM_DESC(crt, "Define if CRT is connected");
 
 static int is3Dchip(int id)
 {
@@ -728,15 +729,15 @@ static void set_number_of_lines(struct tridentfb_par *par, int lines)
 
 /*
  * If we see that FP is active we assume we have one.
- * Otherwise we have a CRT display.User can override.
+ * Otherwise we have a CRT display. User can override.
  */
-static unsigned int __devinit get_displaytype(struct tridentfb_par *par)
+static int __devinit is_flatpanel(struct tridentfb_par *par)
 {
 	if (fp)
-		return DISPLAY_FP;
+		return 1;
 	if (crt || !iscyber(par->chip_id))
-		return DISPLAY_CRT;
-	return (read3CE(par, FPConfig) & 0x10) ? DISPLAY_FP : DISPLAY_CRT;
+		return 0;
+	return (read3CE(par, FPConfig) & 0x10) ? 1 : 0;
 }
 
 /* Try detecting the video memory size */
@@ -824,6 +825,7 @@ static unsigned int __devinit get_memsize(struct tridentfb_par *par)
 static int tridentfb_check_var(struct fb_var_screeninfo *var,
 			       struct fb_info *info)
 {
+	struct tridentfb_par *par = info->par;
 	int bpp = var->bits_per_pixel;
 	debug("enter\n");
 
@@ -831,7 +833,7 @@ static int tridentfb_check_var(struct fb_var_screeninfo *var,
 	if (bpp == 24)
 		bpp = var->bits_per_pixel = 32;
 	/* check whether resolution fits on panel and in memory */
-	if (flatpanel && nativex && var->xres > nativex)
+	if (par->flatpanel && nativex && var->xres > nativex)
 		return -EINVAL;
 	if (var->xres * var->yres_virtual * bpp / 8 > info->fix.smem_len)
 		return -EINVAL;
@@ -928,7 +930,7 @@ static int tridentfb_set_par(struct fb_info *info)
 	crtc_unlock(par);
 	write3CE(par, CyberControl, 8);
 
-	if (flatpanel && var->xres < nativex) {
+	if (par->flatpanel && var->xres < nativex) {
 		/*
 		 * on flat panels with native size larger
 		 * than requested resolution decide whether
@@ -1097,7 +1099,7 @@ static int tridentfb_set_par(struct fb_info *info)
 	t_outb(par, tmp, 0x3C6);
 	t_inb(par, 0x3C8);
 
-	if (flatpanel)
+	if (par->flatpanel)
 		set_number_of_lines(par, info->var.yres);
 	set_lwidth(par, info->var.xres * bpp / (4 * 16));
 	info->fix.visual = (bpp == 8) ? FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
@@ -1153,7 +1155,7 @@ static int tridentfb_blank(int blank_mode, struct fb_info *info)
 	struct tridentfb_par *par = info->par;
 
 	debug("enter\n");
-	if (flatpanel)
+	if (par->flatpanel)
 		return 0;
 	t_outb(par, 0x04, 0x83C8); /* Read DPMS Control */
 	PMCont = t_inb(par, 0x83C6) & 0xFC;
@@ -1322,9 +1324,9 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	}
 
 	output("%s board found\n", pci_name(dev));
-	displaytype = get_displaytype(default_par);
+	default_par->flatpanel = is_flatpanel(default_par);
 
-	if (flatpanel)
+	if (default_par->flatpanel)
 		nativex = get_nativex(default_par);
 
 	info->fix = tridentfb_fix;
@@ -1441,9 +1443,9 @@ static int __init tridentfb_setup(char *options)
 		if (!strncmp(opt, "noaccel", 7))
 			noaccel = 1;
 		else if (!strncmp(opt, "fp", 2))
-			displaytype = DISPLAY_FP;
+			fp = 1;
 		else if (!strncmp(opt, "crt", 3))
-			displaytype = DISPLAY_CRT;
+			fp = 0;
 		else if (!strncmp(opt, "bpp=", 4))
 			bpp = simple_strtoul(opt + 4, NULL, 0);
 		else if (!strncmp(opt, "center", 6))
