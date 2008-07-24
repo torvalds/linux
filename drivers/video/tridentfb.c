@@ -878,11 +878,9 @@ static int tridentfb_check_var(struct fb_var_screeninfo *var,
 	switch (bpp) {
 	case 8:
 		var->red.offset = 0;
-		var->green.offset = 0;
-		var->blue.offset = 0;
-		var->red.length = 6;
-		var->green.length = 6;
-		var->blue.length = 6;
+		var->red.length = 8;
+		var->green = var->red;
+		var->blue = var->red;
 		break;
 	case 16:
 		var->red.offset = 11;
