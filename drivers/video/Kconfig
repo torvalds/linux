@@ -1866,6 +1866,16 @@ config FB_W100
 
 	  If unsure, say N.
 
+config FB_SH_MOBILE_LCDC
+	tristate "SuperH Mobile LCDC framebuffer support"
+	depends on FB && SUPERH
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	default m
+	---help---
+	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
+
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"
 	depends on FB && ARCH_S3C2410
