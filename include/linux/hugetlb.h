@@ -39,6 +39,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
 extern unsigned long hugepages_treat_as_movable;
 extern const unsigned long hugetlb_zero, hugetlb_infinity;
 extern int sysctl_hugetlb_shm_group;
+extern struct list_head huge_boot_pages;
 
 /* arch callbacks */
 
@@ -188,6 +189,14 @@ struct hstate {
 	char name[HSTATE_NAME_LEN];
 };
 
+struct huge_bootmem_page {
+	struct list_head list;
+	struct hstate *hstate;
+};
+
+/* arch callback */
+int __init alloc_bootmem_huge_page(struct hstate *h);
+
 void __init hugetlb_add_hstate(unsigned order);
 struct hstate *size_to_hstate(unsigned long size);
 
@@ -256,6 +265,7 @@ static inline struct hstate *page_hstate(struct page *page)
 
 #else
 struct hstate {};
+#define alloc_bootmem_huge_page(h) NULL
 #define hstate_file(f) NULL
 #define hstate_vma(v) NULL
 #define hstate_inode(i) NULL

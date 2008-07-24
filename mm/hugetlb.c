@@ -31,6 +31,8 @@ static int max_hstate;
 unsigned int default_hstate_idx;
 struct hstate hstates[HUGE_MAX_HSTATE];
 
+__initdata LIST_HEAD(huge_boot_pages);
+
 /* for command line parsing */
 static struct hstate * __initdata parsed_hstate;
 static unsigned long __initdata default_hstate_max_huge_pages;
@@ -925,14 +927,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 	return page;
 }
 
-static __initdata LIST_HEAD(huge_boot_pages);
-
-struct huge_bootmem_page {
-	struct list_head list;
-	struct hstate *hstate;
-};
-
-static int __init alloc_bootmem_huge_page(struct hstate *h)
+__attribute__((weak)) int alloc_bootmem_huge_page(struct hstate *h)
 {
 	struct huge_bootmem_page *m;
 	int nr_nodes = nodes_weight(node_online_map);
