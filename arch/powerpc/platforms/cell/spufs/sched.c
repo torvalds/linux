@@ -312,10 +312,27 @@ static struct spu *aff_ref_location(struct spu_context *ctx, int mem_aff,
 	 */
 	node = cpu_to_node(raw_smp_processor_id());
 	for (n = 0; n < MAX_NUMNODES; n++, node++) {
+		int available_spus;
+
 		node = (node < MAX_NUMNODES) ? node : 0;
 		if (!node_allowed(ctx, node))
 			continue;
+
+		available_spus = 0;
 		mutex_lock(&cbe_spu_info[node].list_mutex);
+		list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list) {
+			if (spu->ctx && spu->ctx->gang
+					&& spu->ctx->aff_offset == 0)
+				available_spus -=
+					(spu->ctx->gang->contexts - 1);
+			else
+				available_spus++;
+		}
+		if (available_spus < ctx->gang->contexts) {
+			mutex_unlock(&cbe_spu_info[node].list_mutex);
+			continue;
+		}
+
 		list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list) {
 			if ((!mem_aff || spu->has_mem_affinity) &&
 							sched_spu(spu)) {
