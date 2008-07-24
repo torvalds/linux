@@ -208,9 +208,9 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			seq_puts(m, " type: CDROM ");
 		else
 			seq_printf(m, " type: %d ", dev_type);
-		if (tcon->tidStatus == CifsNeedReconnect) {
+
+		if (tcon->tidStatus == CifsNeedReconnect)
 			seq_puts(m, "\tDISCONNECTED ");
-		}
 	}
 	read_unlock(&GlobalSMBSeslock);
 

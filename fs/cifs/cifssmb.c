@@ -686,11 +686,10 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 						 SecurityBlob,
 						 count - 16,
 						 &server->secType);
-			if (rc == 1) {
+			if (rc == 1)
 				rc = 0;
-			} else {
+			else
 				rc = -EINVAL;
-			}
 		}
 	} else
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;
