@@ -17,7 +17,6 @@ my $quiet = 0;
 my $tree = 1;
 my $chk_signoff = 1;
 my $chk_patch = 1;
-my $tst_type = 0;
 my $tst_only;
 my $emacs = 0;
 my $terse = 0;
@@ -44,7 +43,6 @@ GetOptions(
 	'summary-file!'	=> \$summary_file,
 
 	'debug=s'	=> \%debug,
-	'test-type!'	=> \$tst_type,
 	'test-only=s'	=> \$tst_only,
 ) or exit;
 
@@ -67,6 +65,7 @@ if ($#ARGV < 0) {
 
 my $dbg_values = 0;
 my $dbg_possible = 0;
+my $dbg_type = 0;
 for my $key (keys %debug) {
 	eval "\${dbg_$key} = '$debug{$key}';"
 }
@@ -1307,8 +1306,12 @@ sub process {
 		if ($line=~/^[^\+]/) {next;}
 
 # TEST: allow direct testing of the type matcher.
-		if ($tst_type && $line =~ /^.$Declare$/) {
-			ERROR("TEST: is type $Declare\n" . $herecurr);
+		if ($dbg_type) {
+			if ($line =~ /^.\s*$Declare\s*$/) {
+				ERROR("TEST: is type\n" . $herecurr);
+			} elsif ($dbg_type > 1 && $line =~ /^.+($Declare)/) {
+				ERROR("TEST: is not type ($1 is)\n". $herecurr);
+			}
 			next;
 		}
 
