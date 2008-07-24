@@ -14,6 +14,7 @@
 #include <linux/mempolicy.h>
 #include <linux/cpuset.h>
 #include <linux/mutex.h>
+#include <linux/bootmem.h>
 #include <linux/sysfs.h>
 
 #include <asm/page.h>
@@ -489,7 +490,7 @@ static void free_huge_page(struct page *page)
 	INIT_LIST_HEAD(&page->lru);
 
 	spin_lock(&hugetlb_lock);
-	if (h->surplus_huge_pages_node[nid]) {
+	if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
 		update_and_free_page(h, page);
 		h->surplus_huge_pages--;
 		h->surplus_huge_pages_node[nid]--;
@@ -549,6 +550,9 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
 static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
 {
 	struct page *page;
+
+	if (h->order >= MAX_ORDER)
+		return NULL;
 
 	page = alloc_pages_node(nid,
 		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
@@ -615,6 +619,9 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
 {
 	struct page *page;
 	unsigned int nid;
+
+	if (h->order >= MAX_ORDER)
+		return NULL;
 
 	/*
 	 * Assume we will successfully allocate the surplus page to
@@ -792,6 +799,10 @@ static void return_unused_surplus_pages(struct hstate *h,
 	/* Uncommit the reservation */
 	h->resv_huge_pages -= unused_resv_pages;
 
+	/* Cannot return gigantic pages currently */
+	if (h->order >= MAX_ORDER)
+		return;
+
 	nr_pages = min(unused_resv_pages, h->surplus_huge_pages);
 
 	while (remaining_iterations-- && nr_pages) {
@@ -913,6 +924,63 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 	return page;
 }
 
+static __initdata LIST_HEAD(huge_boot_pages);
+
+struct huge_bootmem_page {
+	struct list_head list;
+	struct hstate *hstate;
+};
+
+static int __init alloc_bootmem_huge_page(struct hstate *h)
+{
+	struct huge_bootmem_page *m;
+	int nr_nodes = nodes_weight(node_online_map);
+
+	while (nr_nodes) {
+		void *addr;
+
+		addr = __alloc_bootmem_node_nopanic(
+				NODE_DATA(h->hugetlb_next_nid),
+				huge_page_size(h), huge_page_size(h), 0);
+
+		if (addr) {
+			/*
+			 * Use the beginning of the huge page to store the
+			 * huge_bootmem_page struct (until gather_bootmem
+			 * puts them into the mem_map).
+			 */
+			m = addr;
+			if (m)
+				goto found;
+		}
+		hstate_next_node(h);
+		nr_nodes--;
+	}
+	return 0;
+
+found:
+	BUG_ON((unsigned long)virt_to_phys(m) & (huge_page_size(h) - 1));
+	/* Put them into a private list first because mem_map is not up yet */
+	list_add(&m->list, &huge_boot_pages);
+	m->hstate = h;
+	return 1;
+}
+
+/* Put bootmem huge pages into the standard lists after mem_map is up */
+static void __init gather_bootmem_prealloc(void)
+{
+	struct huge_bootmem_page *m;
+
+	list_for_each_entry(m, &huge_boot_pages, list) {
+		struct page *page = virt_to_page(m);
+		struct hstate *h = m->hstate;
+		__ClearPageReserved(page);
+		WARN_ON(page_count(page) != 1);
+		prep_compound_page(page, h->order);
+		prep_new_huge_page(h, page, page_to_nid(page));
+	}
+}
+
 static void __init hugetlb_init_one_hstate(struct hstate *h)
 {
 	unsigned long i;
@@ -923,7 +991,10 @@ static void __init hugetlb_init_one_hstate(struct hstate *h)
 	h->hugetlb_next_nid = first_node(node_online_map);
 
 	for (i = 0; i < h->max_huge_pages; ++i) {
-		if (!alloc_fresh_huge_page(h))
+		if (h->order >= MAX_ORDER) {
+			if (!alloc_bootmem_huge_page(h))
+				break;
+		} else if (!alloc_fresh_huge_page(h))
 			break;
 	}
 	h->max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
@@ -956,6 +1027,9 @@ static void try_to_free_low(struct hstate *h, unsigned long count)
 {
 	int i;
 
+	if (h->order >= MAX_ORDER)
+		return;
+
 	for (i = 0; i < MAX_NUMNODES; ++i) {
 		struct page *page, *next;
 		struct list_head *freel = &h->hugepage_freelists[i];
@@ -981,6 +1055,9 @@ static inline void try_to_free_low(struct hstate *h, unsigned long count)
 static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count)
 {
 	unsigned long min_count, ret;
+
+	if (h->order >= MAX_ORDER)
+		return h->max_huge_pages;
 
 	/*
 	 * Increase the pool size
@@ -1209,6 +1286,8 @@ static int __init hugetlb_init(void)
 	default_hstate_idx = size_to_hstate(HPAGE_SIZE) - hstates;
 
 	hugetlb_init_hstates();
+
+	gather_bootmem_prealloc();
 
 	report_hugepages();
 
