@@ -577,14 +577,14 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	ret = btrfs_insert_dir_item(trans, root->fs_info->tree_root,
 				    pending->name, namelen,
 				    root->fs_info->sb->s_root->d_inode->i_ino,
-				    &key, BTRFS_FT_DIR);
+				    &key, BTRFS_FT_DIR, 0);
 
 	if (ret)
 		goto fail;
 
 	ret = btrfs_insert_inode_ref(trans, root->fs_info->tree_root,
 			     pending->name, strlen(pending->name), objectid,
-			     root->fs_info->sb->s_root->d_inode->i_ino);
+			     root->fs_info->sb->s_root->d_inode->i_ino, 0);
 
 	/* Invalidate existing dcache entry for new snapshot. */
 	btrfs_invalidate_dcache_root(root, pending->name, namelen);

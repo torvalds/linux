@@ -129,13 +129,13 @@ static noinline int create_subvol(struct btrfs_root *root, char *name,
 	dir = root->fs_info->sb->s_root->d_inode;
 	ret = btrfs_insert_dir_item(trans, root->fs_info->tree_root,
 				    name, namelen, dir->i_ino, &key,
-				    BTRFS_FT_DIR);
+				    BTRFS_FT_DIR, 0);
 	if (ret)
 		goto fail;
 
 	ret = btrfs_insert_inode_ref(trans, root->fs_info->tree_root,
 			     name, namelen, objectid,
-			     root->fs_info->sb->s_root->d_inode->i_ino);
+			     root->fs_info->sb->s_root->d_inode->i_ino, 0);
 	if (ret)
 		goto fail;
 
