@@ -194,6 +194,7 @@ static struct pci_driver driver = {
 	.name       = "CS5535_IDE",
 	.id_table   = cs5535_pci_tbl,
 	.probe      = cs5535_init_one,
+	.remove     = ide_pci_remove,
 };
 
 static int __init cs5535_ide_init(void)
@@ -201,7 +202,13 @@ static int __init cs5535_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit cs5535_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(cs5535_ide_init);
+module_exit(cs5535_ide_exit);
 
 MODULE_AUTHOR("AMD");
 MODULE_DESCRIPTION("PCI driver module for AMD/NS CS5535 IDE");
