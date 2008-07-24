@@ -395,11 +395,16 @@ cifs_proc_init(void)
 	proc_create("cifsFYI", 0, proc_fs_cifs, &cifsFYI_proc_fops);
 	proc_create("traceSMB", 0, proc_fs_cifs, &traceSMB_proc_fops);
 	proc_create("OplockEnabled", 0, proc_fs_cifs, &cifs_oplock_proc_fops);
-	proc_create("Experimental", 0, proc_fs_cifs, &cifs_experimental_proc_fops);
-	proc_create("LinuxExtensionsEnabled", 0, proc_fs_cifs, &cifs_linux_ext_proc_fops);
-	proc_create("MultiuserMount", 0, proc_fs_cifs, &cifs_multiuser_mount_proc_fops);
-	proc_create("SecurityFlags", 0, proc_fs_cifs, &cifs_security_flags_proc_fops);
-	proc_create("LookupCacheEnabled", 0, proc_fs_cifs, &cifs_lookup_cache_proc_fops);
+	proc_create("Experimental", 0, proc_fs_cifs,
+		    &cifs_experimental_proc_fops);
+	proc_create("LinuxExtensionsEnabled", 0, proc_fs_cifs,
+		    &cifs_linux_ext_proc_fops);
+	proc_create("MultiuserMount", 0, proc_fs_cifs,
+		    &cifs_multiuser_mount_proc_fops);
+	proc_create("SecurityFlags", 0, proc_fs_cifs,
+		    &cifs_security_flags_proc_fops);
+	proc_create("LookupCacheEnabled", 0, proc_fs_cifs,
+		    &cifs_lookup_cache_proc_fops);
 }
 
 void
@@ -655,9 +660,9 @@ static int cifs_multiuser_mount_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_multiuser_mount_proc_open(struct inode *inode, struct file *file)
+static int cifs_multiuser_mount_proc_open(struct inode *inode, struct file *fh)
 {
-	return single_open(file, cifs_multiuser_mount_proc_show, NULL);
+	return single_open(fh, cifs_multiuser_mount_proc_show, NULL);
 }
 
 static ssize_t cifs_multiuser_mount_proc_write(struct file *file,
