@@ -38,6 +38,19 @@ unsigned long saved_max_pfn;
 
 bootmem_data_t bootmem_node_data[MAX_NUMNODES] __initdata;
 
+/*
+ * Given an initialised bdata, it returns the size of the boot bitmap
+ */
+static unsigned long __init get_mapsize(bootmem_data_t *bdata)
+{
+	unsigned long mapsize;
+	unsigned long start = PFN_DOWN(bdata->node_boot_start);
+	unsigned long end = bdata->node_low_pfn;
+
+	mapsize = ((end - start) + 7) / 8;
+	return ALIGN(mapsize, sizeof(long));
+}
+
 /* return the number of _pages_ that will be allocated for the boot bitmap */
 unsigned long __init bootmem_bootmap_pages(unsigned long pages)
 {
@@ -72,19 +85,6 @@ static void __init link_bootmem(bootmem_data_t *bdata)
 }
 
 /*
- * Given an initialised bdata, it returns the size of the boot bitmap
- */
-static unsigned long __init get_mapsize(bootmem_data_t *bdata)
-{
-	unsigned long mapsize;
-	unsigned long start = PFN_DOWN(bdata->node_boot_start);
-	unsigned long end = bdata->node_low_pfn;
-
-	mapsize = ((end - start) + 7) / 8;
-	return ALIGN(mapsize, sizeof(long));
-}
-
-/*
  * Called once to set up the allocator itself.
  */
 static unsigned long __init init_bootmem_core(bootmem_data_t *bdata,
@@ -106,6 +106,146 @@ static unsigned long __init init_bootmem_core(bootmem_data_t *bdata,
 	memset(bdata->node_bootmem_map, 0xff, mapsize);
 
 	return mapsize;
+}
+
+unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
+				unsigned long startpfn, unsigned long endpfn)
+{
+	return init_bootmem_core(pgdat->bdata, freepfn, startpfn, endpfn);
+}
+
+unsigned long __init init_bootmem(unsigned long start, unsigned long pages)
+{
+	max_low_pfn = pages;
+	min_low_pfn = start;
+	return init_bootmem_core(NODE_DATA(0)->bdata, start, 0, pages);
+}
+
+static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+{
+	struct page *page;
+	unsigned long pfn;
+	unsigned long i, count;
+	unsigned long idx;
+	unsigned long *map;
+	int gofast = 0;
+
+	BUG_ON(!bdata->node_bootmem_map);
+
+	count = 0;
+	/* first extant page of the node */
+	pfn = PFN_DOWN(bdata->node_boot_start);
+	idx = bdata->node_low_pfn - pfn;
+	map = bdata->node_bootmem_map;
+	/*
+	 * Check if we are aligned to BITS_PER_LONG pages.  If so, we might
+	 * be able to free page orders of that size at once.
+	 */
+	if (!(pfn & (BITS_PER_LONG-1)))
+		gofast = 1;
+
+	for (i = 0; i < idx; ) {
+		unsigned long v = ~map[i / BITS_PER_LONG];
+
+		if (gofast && v == ~0UL) {
+			int order;
+
+			page = pfn_to_page(pfn);
+			count += BITS_PER_LONG;
+			order = ffs(BITS_PER_LONG) - 1;
+			__free_pages_bootmem(page, order);
+			i += BITS_PER_LONG;
+			page += BITS_PER_LONG;
+		} else if (v) {
+			unsigned long m;
+
+			page = pfn_to_page(pfn);
+			for (m = 1; m && i < idx; m<<=1, page++, i++) {
+				if (v & m) {
+					count++;
+					__free_pages_bootmem(page, 0);
+				}
+			}
+		} else {
+			i += BITS_PER_LONG;
+		}
+		pfn += BITS_PER_LONG;
+	}
+
+	/*
+	 * Now free the allocator bitmap itself, it's not
+	 * needed anymore:
+	 */
+	page = virt_to_page(bdata->node_bootmem_map);
+	idx = (get_mapsize(bdata) + PAGE_SIZE-1) >> PAGE_SHIFT;
+	for (i = 0; i < idx; i++, page++)
+		__free_pages_bootmem(page, 0);
+	count += i;
+	bdata->node_bootmem_map = NULL;
+
+	return count;
+}
+
+unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
+{
+	register_page_bootmem_info_node(pgdat);
+	return free_all_bootmem_core(pgdat->bdata);
+}
+
+unsigned long __init free_all_bootmem(void)
+{
+	return free_all_bootmem_core(NODE_DATA(0)->bdata);
+}
+
+static void __init free_bootmem_core(bootmem_data_t *bdata, unsigned long addr,
+				     unsigned long size)
+{
+	unsigned long sidx, eidx;
+	unsigned long i;
+
+	BUG_ON(!size);
+
+	/* out range */
+	if (addr + size < bdata->node_boot_start ||
+		PFN_DOWN(addr) > bdata->node_low_pfn)
+		return;
+	/*
+	 * round down end of usable mem, partially free pages are
+	 * considered reserved.
+	 */
+
+	if (addr >= bdata->node_boot_start && addr < bdata->last_success)
+		bdata->last_success = addr;
+
+	/*
+	 * Round up to index to the range.
+	 */
+	if (PFN_UP(addr) > PFN_DOWN(bdata->node_boot_start))
+		sidx = PFN_UP(addr) - PFN_DOWN(bdata->node_boot_start);
+	else
+		sidx = 0;
+
+	eidx = PFN_DOWN(addr + size - bdata->node_boot_start);
+	if (eidx > bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start))
+		eidx = bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start);
+
+	for (i = sidx; i < eidx; i++) {
+		if (unlikely(!test_and_clear_bit(i, bdata->node_bootmem_map)))
+			BUG();
+	}
+}
+
+void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+			      unsigned long size)
+{
+	free_bootmem_core(pgdat->bdata, physaddr, size);
+}
+
+void __init free_bootmem(unsigned long addr, unsigned long size)
+{
+	bootmem_data_t *bdata;
+	list_for_each_entry(bdata, &bdata_list, list)
+		free_bootmem_core(bdata, addr, size);
 }
 
 /*
@@ -183,43 +323,36 @@ static void __init reserve_bootmem_core(bootmem_data_t *bdata,
 	}
 }
 
-static void __init free_bootmem_core(bootmem_data_t *bdata, unsigned long addr,
-				     unsigned long size)
+int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+				 unsigned long size, int flags)
 {
-	unsigned long sidx, eidx;
-	unsigned long i;
+	int ret;
 
-	BUG_ON(!size);
-
-	/* out range */
-	if (addr + size < bdata->node_boot_start ||
-		PFN_DOWN(addr) > bdata->node_low_pfn)
-		return;
-	/*
-	 * round down end of usable mem, partially free pages are
-	 * considered reserved.
-	 */
-
-	if (addr >= bdata->node_boot_start && addr < bdata->last_success)
-		bdata->last_success = addr;
-
-	/*
-	 * Round up to index to the range.
-	 */
-	if (PFN_UP(addr) > PFN_DOWN(bdata->node_boot_start))
-		sidx = PFN_UP(addr) - PFN_DOWN(bdata->node_boot_start);
-	else
-		sidx = 0;
-
-	eidx = PFN_DOWN(addr + size - bdata->node_boot_start);
-	if (eidx > bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start))
-		eidx = bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start);
-
-	for (i = sidx; i < eidx; i++) {
-		if (unlikely(!test_and_clear_bit(i, bdata->node_bootmem_map)))
-			BUG();
-	}
+	ret = can_reserve_bootmem_core(pgdat->bdata, physaddr, size, flags);
+	if (ret < 0)
+		return -ENOMEM;
+	reserve_bootmem_core(pgdat->bdata, physaddr, size, flags);
+	return 0;
 }
+
+#ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
+int __init reserve_bootmem(unsigned long addr, unsigned long size,
+			    int flags)
+{
+	bootmem_data_t *bdata;
+	int ret;
+
+	list_for_each_entry(bdata, &bdata_list, list) {
+		ret = can_reserve_bootmem_core(bdata, addr, size, flags);
+		if (ret < 0)
+			return ret;
+	}
+	list_for_each_entry(bdata, &bdata_list, list)
+		reserve_bootmem_core(bdata, addr, size, flags);
+
+	return 0;
+}
+#endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
 
 /*
  * We 'merge' subsequent allocations to save space. We might 'lose'
@@ -371,140 +504,6 @@ found:
 	return ret;
 }
 
-static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
-{
-	struct page *page;
-	unsigned long pfn;
-	unsigned long i, count;
-	unsigned long idx;
-	unsigned long *map; 
-	int gofast = 0;
-
-	BUG_ON(!bdata->node_bootmem_map);
-
-	count = 0;
-	/* first extant page of the node */
-	pfn = PFN_DOWN(bdata->node_boot_start);
-	idx = bdata->node_low_pfn - pfn;
-	map = bdata->node_bootmem_map;
-	/*
-	 * Check if we are aligned to BITS_PER_LONG pages.  If so, we might
-	 * be able to free page orders of that size at once.
-	 */
-	if (!(pfn & (BITS_PER_LONG-1)))
-		gofast = 1;
-
-	for (i = 0; i < idx; ) {
-		unsigned long v = ~map[i / BITS_PER_LONG];
-
-		if (gofast && v == ~0UL) {
-			int order;
-
-			page = pfn_to_page(pfn);
-			count += BITS_PER_LONG;
-			order = ffs(BITS_PER_LONG) - 1;
-			__free_pages_bootmem(page, order);
-			i += BITS_PER_LONG;
-			page += BITS_PER_LONG;
-		} else if (v) {
-			unsigned long m;
-
-			page = pfn_to_page(pfn);
-			for (m = 1; m && i < idx; m<<=1, page++, i++) {
-				if (v & m) {
-					count++;
-					__free_pages_bootmem(page, 0);
-				}
-			}
-		} else {
-			i += BITS_PER_LONG;
-		}
-		pfn += BITS_PER_LONG;
-	}
-
-	/*
-	 * Now free the allocator bitmap itself, it's not
-	 * needed anymore:
-	 */
-	page = virt_to_page(bdata->node_bootmem_map);
-	idx = (get_mapsize(bdata) + PAGE_SIZE-1) >> PAGE_SHIFT;
-	for (i = 0; i < idx; i++, page++)
-		__free_pages_bootmem(page, 0);
-	count += i;
-	bdata->node_bootmem_map = NULL;
-
-	return count;
-}
-
-unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
-				unsigned long startpfn, unsigned long endpfn)
-{
-	return init_bootmem_core(pgdat->bdata, freepfn, startpfn, endpfn);
-}
-
-int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
-				 unsigned long size, int flags)
-{
-	int ret;
-
-	ret = can_reserve_bootmem_core(pgdat->bdata, physaddr, size, flags);
-	if (ret < 0)
-		return -ENOMEM;
-	reserve_bootmem_core(pgdat->bdata, physaddr, size, flags);
-
-	return 0;
-}
-
-void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
-			      unsigned long size)
-{
-	free_bootmem_core(pgdat->bdata, physaddr, size);
-}
-
-unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
-{
-	register_page_bootmem_info_node(pgdat);
-	return free_all_bootmem_core(pgdat->bdata);
-}
-
-unsigned long __init init_bootmem(unsigned long start, unsigned long pages)
-{
-	max_low_pfn = pages;
-	min_low_pfn = start;
-	return init_bootmem_core(NODE_DATA(0)->bdata, start, 0, pages);
-}
-
-#ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
-int __init reserve_bootmem(unsigned long addr, unsigned long size,
-			    int flags)
-{
-	bootmem_data_t *bdata;
-	int ret;
-
-	list_for_each_entry(bdata, &bdata_list, list) {
-		ret = can_reserve_bootmem_core(bdata, addr, size, flags);
-		if (ret < 0)
-			return ret;
-	}
-	list_for_each_entry(bdata, &bdata_list, list)
-		reserve_bootmem_core(bdata, addr, size, flags);
-
-	return 0;
-}
-#endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
-
-void __init free_bootmem(unsigned long addr, unsigned long size)
-{
-	bootmem_data_t *bdata;
-	list_for_each_entry(bdata, &bdata_list, list)
-		free_bootmem_core(bdata, addr, size);
-}
-
-unsigned long __init free_all_bootmem(void)
-{
-	return free_all_bootmem_core(NODE_DATA(0)->bdata);
-}
-
 void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
 				      unsigned long goal)
 {
@@ -533,7 +532,6 @@ void * __init __alloc_bootmem(unsigned long size, unsigned long align,
 	panic("Out of memory");
 	return NULL;
 }
-
 
 void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
 				   unsigned long align, unsigned long goal)
