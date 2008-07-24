@@ -235,6 +235,8 @@ struct tx_desc {
 #define GEN_IP_V4_CHECKSUM		0x00040000
 #define GEN_TCP_UDP_CHECKSUM		0x00020000
 #define UDP_FRAME			0x00010000
+#define MAC_HDR_EXTRA_4_BYTES		0x00008000
+#define MAC_HDR_EXTRA_8_BYTES		0x00000200
 
 #define TX_IHL_SHIFT			11
 
@@ -757,11 +759,35 @@ static void txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 	desc->buf_ptr = dma_map_single(NULL, skb->data, length, DMA_TO_DEVICE);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		BUG_ON(skb->protocol != htons(ETH_P_IP));
+		int mac_hdr_len;
+
+		BUG_ON(skb->protocol != htons(ETH_P_IP) &&
+		       skb->protocol != htons(ETH_P_8021Q));
 
 		cmd_sts |= GEN_TCP_UDP_CHECKSUM |
 			   GEN_IP_V4_CHECKSUM   |
 			   ip_hdr(skb)->ihl << TX_IHL_SHIFT;
+
+		mac_hdr_len = (void *)ip_hdr(skb) - (void *)skb->data;
+		switch (mac_hdr_len - ETH_HLEN) {
+		case 0:
+			break;
+		case 4:
+			cmd_sts |= MAC_HDR_EXTRA_4_BYTES;
+			break;
+		case 8:
+			cmd_sts |= MAC_HDR_EXTRA_8_BYTES;
+			break;
+		case 12:
+			cmd_sts |= MAC_HDR_EXTRA_4_BYTES;
+			cmd_sts |= MAC_HDR_EXTRA_8_BYTES;
+			break;
+		default:
+			if (net_ratelimit())
+				dev_printk(KERN_ERR, &txq_to_mp(txq)->dev->dev,
+				   "mac header length is %d?!\n", mac_hdr_len);
+			break;
+		}
 
 		switch (ip_hdr(skb)->protocol) {
 		case IPPROTO_UDP:
@@ -2565,6 +2591,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	 * have to map the buffers to ISA memory which is only 16 MB
 	 */
 	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM;
+	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM;
 #endif
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
