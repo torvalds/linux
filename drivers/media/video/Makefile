@@ -88,6 +88,7 @@ obj-$(CONFIG_VIDEO_TUNER) += tuner.o
 
 obj-$(CONFIG_VIDEOBUF_GEN) += videobuf-core.o
 obj-$(CONFIG_VIDEOBUF_DMA_SG) += videobuf-dma-sg.o
+obj-$(CONFIG_VIDEOBUF_DMA_CONTIG) += videobuf-dma-contig.o
 obj-$(CONFIG_VIDEOBUF_VMALLOC) += videobuf-vmalloc.o
 obj-$(CONFIG_VIDEOBUF_DVB) += videobuf-dvb.o
 obj-$(CONFIG_VIDEO_BTCX)  += btcx-risc.o
@@ -117,11 +118,13 @@ obj-$(CONFIG_USB_SN9C102)       += sn9c102/
 obj-$(CONFIG_USB_ET61X251)      += et61x251/
 obj-$(CONFIG_USB_PWC)           += pwc/
 obj-$(CONFIG_USB_ZC0301)        += zc0301/
+obj-$(CONFIG_USB_GSPCA)         += gspca/
 
 obj-$(CONFIG_USB_IBMCAM)        += usbvideo/
 obj-$(CONFIG_USB_KONICAWC)      += usbvideo/
 obj-$(CONFIG_USB_VICAM)         += usbvideo/
 obj-$(CONFIG_USB_QUICKCAM_MESSENGER)	+= usbvideo/
+obj-$(CONFIG_USB_S2255)		+= s2255drv.o
 
 obj-$(CONFIG_VIDEO_IVTV) += ivtv/
 obj-$(CONFIG_VIDEO_CX18) += cx18/
@@ -130,9 +133,11 @@ obj-$(CONFIG_VIDEO_VIVI) += vivi.o
 obj-$(CONFIG_VIDEO_CX23885) += cx23885/
 
 obj-$(CONFIG_VIDEO_PXA27x)	+= pxa_camera.o
+obj-$(CONFIG_VIDEO_SH_MOBILE_CEU)	+= sh_mobile_ceu_camera.o
 obj-$(CONFIG_SOC_CAMERA)	+= soc_camera.o
 obj-$(CONFIG_SOC_CAMERA_MT9M001)	+= mt9m001.o
 obj-$(CONFIG_SOC_CAMERA_MT9V022)	+= mt9v022.o
+obj-$(CONFIG_SOC_CAMERA_PLATFORM)	+= soc_camera_platform.o
 
 obj-$(CONFIG_VIDEO_AU0828) += au0828/
 

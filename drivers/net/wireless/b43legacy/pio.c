@@ -196,7 +196,7 @@ static int pio_tx_write_fragment(struct b43legacy_pioqueue *queue,
 	B43legacy_WARN_ON(skb_shinfo(skb)->nr_frags != 0);
 	err = b43legacy_generate_txhdr(queue->dev,
 				 txhdr, skb->data, skb->len,
-				 &packet->txstat.control,
+				 IEEE80211_SKB_CB(skb),
 				 generate_cookie(queue, packet));
 	if (err)
 		return err;
@@ -463,8 +463,7 @@ err_destroy0:
 }
 
 int b43legacy_pio_tx(struct b43legacy_wldev *dev,
-		     struct sk_buff *skb,
-		     struct ieee80211_tx_control *ctl)
+		     struct sk_buff *skb)
 {
 	struct b43legacy_pioqueue *queue = dev->pio.queue1;
 	struct b43legacy_pio_txpacket *packet;
@@ -475,9 +474,6 @@ int b43legacy_pio_tx(struct b43legacy_wldev *dev,
 	packet = list_entry(queue->txfree.next, struct b43legacy_pio_txpacket,
 			    list);
 	packet->skb = skb;
-
-	memset(&packet->txstat, 0, sizeof(packet->txstat));
-	memcpy(&packet->txstat.control, ctl, sizeof(*ctl));
 
 	list_move_tail(&packet->list, &queue->txqueue);
 	queue->nr_txfree--;
@@ -494,6 +490,7 @@ void b43legacy_pio_handle_txstatus(struct b43legacy_wldev *dev,
 {
 	struct b43legacy_pioqueue *queue;
 	struct b43legacy_pio_txpacket *packet;
+	struct ieee80211_tx_info *info;
 
 	queue = parse_cookie(dev, status->cookie, &packet);
 	B43legacy_WARN_ON(!queue);
@@ -505,11 +502,13 @@ void b43legacy_pio_handle_txstatus(struct b43legacy_wldev *dev,
 	queue->tx_devq_used -= (packet->skb->len +
 				sizeof(struct b43legacy_txhdr_fw3));
 
+	info = IEEE80211_SKB_CB(packet->skb);
+	memset(&info->status, 0, sizeof(info->status));
+
 	if (status->acked)
-		packet->txstat.flags |= IEEE80211_TX_STATUS_ACK;
-	packet->txstat.retry_count = status->frame_count - 1;
-	ieee80211_tx_status_irqsafe(dev->wl->hw, packet->skb,
-				    &(packet->txstat));
+		info->flags |= IEEE80211_TX_STAT_ACK;
+	info->status.retry_count = status->frame_count - 1;
+	ieee80211_tx_status_irqsafe(dev->wl->hw, packet->skb);
 	packet->skb = NULL;
 
 	free_txpacket(packet, 1);
@@ -525,13 +524,11 @@ void b43legacy_pio_get_tx_stats(struct b43legacy_wldev *dev,
 {
 	struct b43legacy_pio *pio = &dev->pio;
 	struct b43legacy_pioqueue *queue;
-	struct ieee80211_tx_queue_stats_data *data;
 
 	queue = pio->queue1;
-	data = &(stats->data[0]);
-	data->len = B43legacy_PIO_MAXTXPACKETS - queue->nr_txfree;
-	data->limit = B43legacy_PIO_MAXTXPACKETS;
-	data->count = queue->nr_tx_packets;
+	stats[0].len = B43legacy_PIO_MAXTXPACKETS - queue->nr_txfree;
+	stats[0].limit = B43legacy_PIO_MAXTXPACKETS;
+	stats[0].count = queue->nr_tx_packets;
 }
 
 static void pio_rx_error(struct b43legacy_pioqueue *queue,

@@ -1,13 +1,13 @@
 /******************************************************************************
  * arch-x86_32.h
  *
- * Guest OS interface to x86 32-bit Xen.
+ * Guest OS interface to x86 Xen.
  *
  * Copyright (c) 2004, K A Fraser
  */
 
-#ifndef __XEN_PUBLIC_ARCH_X86_32_H__
-#define __XEN_PUBLIC_ARCH_X86_32_H__
+#ifndef __ASM_X86_XEN_INTERFACE_H
+#define __ASM_X86_XEN_INTERFACE_H
 
 #ifdef __XEN__
 #define __DEFINE_GUEST_HANDLE(name, type) \
@@ -57,6 +57,17 @@ DEFINE_GUEST_HANDLE(long);
 DEFINE_GUEST_HANDLE(void);
 #endif
 
+#ifndef HYPERVISOR_VIRT_START
+#define HYPERVISOR_VIRT_START mk_unsigned_long(__HYPERVISOR_VIRT_START)
+#endif
+
+#ifndef machine_to_phys_mapping
+#define machine_to_phys_mapping ((unsigned long *)HYPERVISOR_VIRT_START)
+#endif
+
+/* Maximum number of virtual CPUs in multi-processor guests. */
+#define MAX_VIRT_CPUS 32
+
 /*
  * SEGMENT DESCRIPTOR TABLES
  */
@@ -71,58 +82,21 @@ DEFINE_GUEST_HANDLE(void);
 #define FIRST_RESERVED_GDT_ENTRY (FIRST_RESERVED_GDT_BYTE / 8)
 
 /*
- * These flat segments are in the Xen-private section of every GDT. Since these
- * are also present in the initial GDT, many OSes will be able to avoid
- * installing their own GDT.
- */
-#define FLAT_RING1_CS 0xe019    /* GDT index 259 */
-#define FLAT_RING1_DS 0xe021    /* GDT index 260 */
-#define FLAT_RING1_SS 0xe021    /* GDT index 260 */
-#define FLAT_RING3_CS 0xe02b    /* GDT index 261 */
-#define FLAT_RING3_DS 0xe033    /* GDT index 262 */
-#define FLAT_RING3_SS 0xe033    /* GDT index 262 */
-
-#define FLAT_KERNEL_CS FLAT_RING1_CS
-#define FLAT_KERNEL_DS FLAT_RING1_DS
-#define FLAT_KERNEL_SS FLAT_RING1_SS
-#define FLAT_USER_CS    FLAT_RING3_CS
-#define FLAT_USER_DS    FLAT_RING3_DS
-#define FLAT_USER_SS    FLAT_RING3_SS
-
-/* And the trap vector is... */
-#define TRAP_INSTR "int $0x82"
-
-/*
- * Virtual addresses beyond this are not modifiable by guest OSes. The
- * machine->physical mapping table starts at this address, read-only.
- */
-#ifdef CONFIG_X86_PAE
-#define __HYPERVISOR_VIRT_START 0xF5800000
-#else
-#define __HYPERVISOR_VIRT_START 0xFC000000
-#endif
-
-#ifndef HYPERVISOR_VIRT_START
-#define HYPERVISOR_VIRT_START mk_unsigned_long(__HYPERVISOR_VIRT_START)
-#endif
-
-#ifndef machine_to_phys_mapping
-#define machine_to_phys_mapping ((unsigned long *)HYPERVISOR_VIRT_START)
-#endif
-
-/* Maximum number of virtual CPUs in multi-processor guests. */
-#define MAX_VIRT_CPUS 32
-
-#ifndef __ASSEMBLY__
-
-/*
  * Send an array of these to HYPERVISOR_set_trap_table()
+ * The privilege level specifies which modes may enter a trap via a software
+ * interrupt. On x86/64, since rings 1 and 2 are unavailable, we allocate
+ * privilege levels as follows:
+ *  Level == 0: Noone may enter
+ *  Level == 1: Kernel may enter
+ *  Level == 2: Kernel may enter
+ *  Level == 3: Everyone may enter
  */
 #define TI_GET_DPL(_ti)		((_ti)->flags & 3)
 #define TI_GET_IF(_ti)		((_ti)->flags & 4)
 #define TI_SET_DPL(_ti, _dpl)	((_ti)->flags |= (_dpl))
 #define TI_SET_IF(_ti, _if)	((_ti)->flags |= ((!!(_if))<<2))
 
+#ifndef __ASSEMBLY__
 struct trap_info {
     uint8_t       vector;  /* exception vector                              */
     uint8_t       flags;   /* 0-3: privilege level; 4: clear event enable?  */
@@ -131,32 +105,21 @@ struct trap_info {
 };
 DEFINE_GUEST_HANDLE_STRUCT(trap_info);
 
-struct cpu_user_regs {
-    uint32_t ebx;
-    uint32_t ecx;
-    uint32_t edx;
-    uint32_t esi;
-    uint32_t edi;
-    uint32_t ebp;
-    uint32_t eax;
-    uint16_t error_code;    /* private */
-    uint16_t entry_vector;  /* private */
-    uint32_t eip;
-    uint16_t cs;
-    uint8_t  saved_upcall_mask;
-    uint8_t  _pad0;
-    uint32_t eflags;        /* eflags.IF == !saved_upcall_mask */
-    uint32_t esp;
-    uint16_t ss, _pad1;
-    uint16_t es, _pad2;
-    uint16_t ds, _pad3;
-    uint16_t fs, _pad4;
-    uint16_t gs, _pad5;
+struct arch_shared_info {
+    unsigned long max_pfn;                  /* max pfn that appears in table */
+    /* Frame containing list of mfns containing list of mfns containing p2m. */
+    unsigned long pfn_to_mfn_frame_list_list;
+    unsigned long nmi_reason;
 };
-DEFINE_GUEST_HANDLE_STRUCT(cpu_user_regs);
+#endif	/* !__ASSEMBLY__ */
 
-typedef uint64_t tsc_timestamp_t; /* RDTSC timestamp */
+#ifdef CONFIG_X86_32
+#include "interface_32.h"
+#else
+#include "interface_64.h"
+#endif
 
+#ifndef __ASSEMBLY__
 /*
  * The following is all CPU context. Note that the fpu_ctxt block is filled
  * in by FXSAVE if the CPU has feature FXSR; otherwise FSAVE is used.
@@ -173,33 +136,29 @@ struct vcpu_guest_context {
     unsigned long ldt_base, ldt_ents;       /* LDT (linear address, # ents) */
     unsigned long gdt_frames[16], gdt_ents; /* GDT (machine frames, # ents) */
     unsigned long kernel_ss, kernel_sp;     /* Virtual TSS (only SS1/SP1)   */
+    /* NB. User pagetable on x86/64 is placed in ctrlreg[1]. */
     unsigned long ctrlreg[8];               /* CR0-CR7 (control registers)  */
     unsigned long debugreg[8];              /* DB0-DB7 (debug registers)    */
+#ifdef __i386__
     unsigned long event_callback_cs;        /* CS:EIP of event callback     */
     unsigned long event_callback_eip;
     unsigned long failsafe_callback_cs;     /* CS:EIP of failsafe callback  */
     unsigned long failsafe_callback_eip;
+#else
+    unsigned long event_callback_eip;
+    unsigned long failsafe_callback_eip;
+    unsigned long syscall_callback_eip;
+#endif
     unsigned long vm_assist;                /* VMASST_TYPE_* bitmap */
+#ifdef __x86_64__
+    /* Segment base addresses. */
+    uint64_t      fs_base;
+    uint64_t      gs_base_kernel;
+    uint64_t      gs_base_user;
+#endif
 };
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_guest_context);
-
-struct arch_shared_info {
-    unsigned long max_pfn;                  /* max pfn that appears in table */
-    /* Frame containing list of mfns containing list of mfns containing p2m. */
-    unsigned long pfn_to_mfn_frame_list_list;
-    unsigned long nmi_reason;
-};
-
-struct arch_vcpu_info {
-    unsigned long cr2;
-    unsigned long pad[5]; /* sizeof(struct vcpu_info) == 64 */
-};
-
-struct xen_callback {
-	unsigned long cs;
-	unsigned long eip;
-};
-#endif /* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLY__ */
 
 /*
  * Prefix forces emulation of some non-trapping instructions.
@@ -213,4 +172,4 @@ struct xen_callback {
 #define XEN_CPUID          XEN_EMULATE_PREFIX "cpuid"
 #endif
 
-#endif
+#endif	/* __ASM_X86_XEN_INTERFACE_H */

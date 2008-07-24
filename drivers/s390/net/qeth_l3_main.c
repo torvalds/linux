@@ -2013,7 +2013,7 @@ static int qeth_l3_verify_vlan_dev(struct net_device *dev,
 		}
 	}
 
-	if (rc && !(netdev_priv(vlan_dev_info(dev)->real_dev) == (void *)card))
+	if (rc && !(netdev_priv(vlan_dev_real_dev(dev)) == (void *)card))
 		return 0;
 
 	return rc;
@@ -2049,7 +2049,7 @@ static struct qeth_card *qeth_l3_get_card_from_dev(struct net_device *dev)
 	if (rc == QETH_REAL_CARD)
 		card = netdev_priv(dev);
 	else if (rc == QETH_VLAN_CARD)
-		card = netdev_priv(vlan_dev_info(dev)->real_dev);
+		card = netdev_priv(vlan_dev_real_dev(dev));
 	if (card && card->options.layer2)
 		card = NULL;
 	QETH_DBF_TEXT_(TRACE, 4, "%d", rc);
@@ -2651,7 +2651,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			tag = (u16 *)(new_skb->data + 12);
 			*tag = __constant_htons(ETH_P_8021Q);
 			*(tag + 1) = htons(vlan_tx_tag_get(new_skb));
-			VLAN_TX_SKB_CB(new_skb)->magic = 0;
+			new_skb->vlan_tci = 0;
 		}
 	}
 

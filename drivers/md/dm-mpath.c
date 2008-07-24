@@ -525,8 +525,10 @@ static int parse_path_selector(struct arg_set *as, struct priority_group *pg,
 	}
 
 	r = read_param(_params, shift(as), &ps_argc, &ti->error);
-	if (r)
+	if (r) {
+		dm_put_path_selector(pst);
 		return -EINVAL;
+	}
 
 	r = pst->create(&pg->ps, ps_argc, as->argv);
 	if (r) {
@@ -623,8 +625,10 @@ static struct priority_group *parse_priority_group(struct arg_set *as,
 		struct pgpath *pgpath;
 		struct arg_set path_args;
 
-		if (as->argc < nr_params)
+		if (as->argc < nr_params) {
+			ti->error = "not enough path parameters";
 			goto bad;
+		}
 
 		path_args.argc = nr_params;
 		path_args.argv = as->argv;
@@ -867,7 +871,7 @@ static int reinstate_path(struct pgpath *pgpath)
 	if (pgpath->path.is_active)
 		goto out;
 
-	if (!pgpath->pg->ps.type) {
+	if (!pgpath->pg->ps.type->reinstate_path) {
 		DMWARN("Reinstate path not supported by path selector %s",
 		       pgpath->pg->ps.type->name);
 		r = -EINVAL;

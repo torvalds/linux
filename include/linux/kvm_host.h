@@ -52,7 +52,8 @@ struct kvm_io_bus {
 
 void kvm_io_bus_init(struct kvm_io_bus *bus);
 void kvm_io_bus_destroy(struct kvm_io_bus *bus);
-struct kvm_io_device *kvm_io_bus_find_dev(struct kvm_io_bus *bus, gpa_t addr);
+struct kvm_io_device *kvm_io_bus_find_dev(struct kvm_io_bus *bus,
+					  gpa_t addr, int len, int is_write);
 void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 			     struct kvm_io_device *dev);
 
@@ -116,6 +117,10 @@ struct kvm {
 	struct kvm_vm_stat stat;
 	struct kvm_arch arch;
 	atomic_t users_count;
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+	struct kvm_coalesced_mmio_dev *coalesced_mmio_dev;
+	struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
+#endif
 };
 
 /* The guest did something we don't support. */
@@ -134,9 +139,6 @@ void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 
 void vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
-
-void decache_vcpus_on_cpu(int cpu);
-
 
 int kvm_init(void *opaque, unsigned int vcpu_size,
 		  struct module *module);
@@ -166,6 +168,7 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
 				struct kvm_memory_slot old,
 				int user_alloc);
+void kvm_arch_flush_shadow(struct kvm *kvm);
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn);
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);

@@ -605,8 +605,8 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 		struct saa7146_pgtable *pt1 = &buf->pt[0];
 		struct saa7146_pgtable *pt2 = &buf->pt[1];
 		struct saa7146_pgtable *pt3 = &buf->pt[2];
-		u32  *ptr1, *ptr2, *ptr3;
-		u32 fill;
+		__le32  *ptr1, *ptr2, *ptr3;
+		__le32 fill;
 
 		int size = buf->fmt->width*buf->fmt->height;
 		int i,p,m1,m2,m3,o1,o2;

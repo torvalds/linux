@@ -80,7 +80,7 @@ static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 }
 #endif
 
-#ifdef CONFIG_NONPROMISC_DEVMEM
+#ifdef CONFIG_STRICT_DEVMEM
 static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 {
 	u64 from = ((u64)pfn) << PAGE_SHIFT;
@@ -989,9 +989,9 @@ static int __init chr_dev_init(void)
 
 	mem_class = class_create(THIS_MODULE, "mem");
 	for (i = 0; i < ARRAY_SIZE(devlist); i++)
-		device_create(mem_class, NULL,
-			      MKDEV(MEM_MAJOR, devlist[i].minor),
-			      devlist[i].name);
+		device_create_drvdata(mem_class, NULL,
+				      MKDEV(MEM_MAJOR, devlist[i].minor),
+				      NULL, devlist[i].name);
 
 	return 0;
 }

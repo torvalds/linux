@@ -52,7 +52,19 @@ static void node_established_contact(struct node *n_ptr);
 
 struct node *tipc_nodes = NULL;	/* sorted list of nodes within cluster */
 
+static DEFINE_SPINLOCK(node_create_lock);
+
 u32 tipc_own_tag = 0;
+
+/**
+ * tipc_node_create - create neighboring node
+ *
+ * Currently, this routine is called by neighbor discovery code, which holds
+ * net_lock for reading only.  We must take node_create_lock to ensure a node
+ * isn't created twice if two different bearers discover the node at the same
+ * time.  (It would be preferable to switch to holding net_lock in write mode,
+ * but this is a non-trivial change.)
+ */
 
 struct node *tipc_node_create(u32 addr)
 {
@@ -60,8 +72,20 @@ struct node *tipc_node_create(u32 addr)
 	struct node *n_ptr;
 	struct node **curr_node;
 
+	spin_lock_bh(&node_create_lock);
+
+	for (n_ptr = tipc_nodes; n_ptr; n_ptr = n_ptr->next) {
+		if (addr < n_ptr->addr)
+			break;
+		if (addr == n_ptr->addr) {
+			spin_unlock_bh(&node_create_lock);
+			return n_ptr;
+		}
+	}
+
 	n_ptr = kzalloc(sizeof(*n_ptr),GFP_ATOMIC);
 	if (!n_ptr) {
+		spin_unlock_bh(&node_create_lock);
 		warn("Node creation failed, no memory\n");
 		return NULL;
 	}
@@ -71,6 +95,7 @@ struct node *tipc_node_create(u32 addr)
 		c_ptr = tipc_cltr_create(addr);
 	}
 	if (!c_ptr) {
+		spin_unlock_bh(&node_create_lock);
 		kfree(n_ptr);
 		return NULL;
 	}
@@ -91,6 +116,7 @@ struct node *tipc_node_create(u32 addr)
 		}
 	}
 	(*curr_node) = n_ptr;
+	spin_unlock_bh(&node_create_lock);
 	return n_ptr;
 }
 
@@ -574,12 +600,14 @@ u32 tipc_available_nodes(const u32 domain)
 	struct node *n_ptr;
 	u32 cnt = 0;
 
+	read_lock_bh(&tipc_net_lock);
 	for (n_ptr = tipc_nodes; n_ptr; n_ptr = n_ptr->next) {
 		if (!in_scope(domain, n_ptr->addr))
 			continue;
 		if (tipc_node_is_up(n_ptr))
 			cnt++;
 	}
+	read_unlock_bh(&tipc_net_lock);
 	return cnt;
 }
 
@@ -599,19 +627,26 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network address)");
 
-	if (!tipc_nodes)
+	read_lock_bh(&tipc_net_lock);
+	if (!tipc_nodes) {
+		read_unlock_bh(&tipc_net_lock);
 		return tipc_cfg_reply_none();
+	}
 
 	/* For now, get space for all other nodes
 	   (will need to modify this when slave nodes are supported */
 
 	payload_size = TLV_SPACE(sizeof(node_info)) * (tipc_max_nodes - 1);
-	if (payload_size > 32768u)
+	if (payload_size > 32768u) {
+		read_unlock_bh(&tipc_net_lock);
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (too many nodes)");
+	}
 	buf = tipc_cfg_reply_alloc(payload_size);
-	if (!buf)
+	if (!buf) {
+		read_unlock_bh(&tipc_net_lock);
 		return NULL;
+	}
 
 	/* Add TLVs for all nodes in scope */
 
@@ -624,6 +659,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 				    &node_info, sizeof(node_info));
 	}
 
+	read_unlock_bh(&tipc_net_lock);
 	return buf;
 }
 
@@ -646,16 +682,22 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	if (tipc_mode != TIPC_NET_MODE)
 		return tipc_cfg_reply_none();
 
+	read_lock_bh(&tipc_net_lock);
+
 	/* Get space for all unicast links + multicast link */
 
 	payload_size = TLV_SPACE(sizeof(link_info)) *
 		(tipc_net.zones[tipc_zone(tipc_own_addr)]->links + 1);
-	if (payload_size > 32768u)
+	if (payload_size > 32768u) {
+		read_unlock_bh(&tipc_net_lock);
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (too many links)");
+	}
 	buf = tipc_cfg_reply_alloc(payload_size);
-	if (!buf)
+	if (!buf) {
+		read_unlock_bh(&tipc_net_lock);
 		return NULL;
+	}
 
 	/* Add TLV for broadcast link */
 
@@ -671,6 +713,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 
 		if (!in_scope(domain, n_ptr->addr))
 			continue;
+		tipc_node_lock(n_ptr);
 		for (i = 0; i < MAX_BEARERS; i++) {
 			if (!n_ptr->links[i])
 				continue;
@@ -680,7 +723,9 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 			tipc_cfg_append_tlv(buf, TIPC_TLV_LINK_INFO,
 					    &link_info, sizeof(link_info));
 		}
+		tipc_node_unlock(n_ptr);
 	}
 
+	read_unlock_bh(&tipc_net_lock);
 	return buf;
 }

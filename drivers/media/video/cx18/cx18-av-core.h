@@ -62,7 +62,8 @@ enum cx18_av_video_input {
 
 enum cx18_av_audio_input {
 	/* Audio inputs: serial or In4-In8 */
-	CX18_AV_AUDIO_SERIAL,
+	CX18_AV_AUDIO_SERIAL1,
+	CX18_AV_AUDIO_SERIAL2,
 	CX18_AV_AUDIO4 = 4,
 	CX18_AV_AUDIO5,
 	CX18_AV_AUDIO6,
@@ -78,6 +79,7 @@ struct cx18_av_state {
 	u32 audclk_freq;
 	int audmode;
 	int vbi_line_offset;
+	int default_volume;
 	u32 id;
 	u32 rev;
 	int is_initialized;
@@ -295,25 +297,16 @@ struct cx18_av_state {
 #define CXADEC_SELECT_AUDIO_STANDARD_FM    0xF9  /* FM radio */
 #define CXADEC_SELECT_AUDIO_STANDARD_AUTO  0xFF  /* Auto detect */
 
-/* Flags on what to preserve on write to 0x400-0x403 with cx18_av_.*_no_acfg()*/
-#define CXADEC_NO_ACFG_AFE	0x01 /* Preserve 0x100-0x107 */
-#define CXADEC_NO_ACFG_PLL	0x02 /* Preserve 0x108-0x10f */
-#define CXADEC_NO_ACFG_VID	0x04 /* Preserve 0x470-0x47f */
-#define CXADEC_NO_ACFG_ALL	0x07
-
 /* ----------------------------------------------------------------------- */
 /* cx18_av-core.c 							   */
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value);
 int cx18_av_write4(struct cx18 *cx, u16 addr, u32 value);
-int cx18_av_write_no_acfg(struct cx18 *cx, u16 addr, u8 value,
-				int no_acfg_mask);
 u8 cx18_av_read(struct cx18 *cx, u16 addr);
 u32 cx18_av_read4(struct cx18 *cx, u16 addr);
 int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned mask, u8 value);
 int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 mask, u32 value);
-int cx18_av_and_or_no_acfg(struct cx18 *cx, u16 addr, unsigned mask, u8 value,
-				int no_acfg_mask);
 int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg);
+void cx18_av_std_setup(struct cx18 *cx);
 
 /* ----------------------------------------------------------------------- */
 /* cx18_av-firmware.c                                                      */
@@ -326,7 +319,6 @@ void cx18_av_audio_set_path(struct cx18 *cx);
 
 /* ----------------------------------------------------------------------- */
 /* cx18_av-vbi.c                                                           */
-void cx18_av_vbi_setup(struct cx18 *cx);
 int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg);
 
 #endif

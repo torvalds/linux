@@ -1064,7 +1064,7 @@ static void sbmac_netpoll(struct net_device *netdev)
 	((M_MAC_INT_EOP_COUNT | M_MAC_INT_EOP_TIMER) << S_MAC_RX_CH0),
 	sc->sbm_imr);
 #else
-	__raw_writeq((M_MAC_INT_CHANNEL << S_MAC_TX_CH0) | 
+	__raw_writeq((M_MAC_INT_CHANNEL << S_MAC_TX_CH0) |
 	(M_MAC_INT_CHANNEL << S_MAC_RX_CH0), sc->sbm_imr);
 #endif
 }

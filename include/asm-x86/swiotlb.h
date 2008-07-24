@@ -45,11 +45,13 @@ extern int swiotlb_force;
 
 #ifdef CONFIG_SWIOTLB
 extern int swiotlb;
+extern void pci_swiotlb_init(void);
 #else
 #define swiotlb 0
+static inline void pci_swiotlb_init(void)
+{
+}
 #endif
-
-extern void pci_swiotlb_init(void);
 
 static inline void dma_mark_clean(void *addr, size_t size) {}
 

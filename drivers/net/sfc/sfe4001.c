@@ -106,28 +106,27 @@
 
 static const u8 xgphy_max_temperature = 90;
 
-void sfe4001_poweroff(struct efx_nic *efx)
+static void sfe4001_poweroff(struct efx_nic *efx)
 {
-	struct efx_i2c_interface *i2c = &efx->i2c;
+	struct i2c_client *ioexp_client = efx->board_info.ioexp_client;
+	struct i2c_client *hwmon_client = efx->board_info.hwmon_client;
 
-	u8 cfg, out, in;
-
-	EFX_INFO(efx, "%s\n", __func__);
-
-	/* Turn off all power rails */
-	out = 0xff;
-	efx_i2c_write(i2c, PCA9539, P0_OUT, &out, 1);
-
-	/* Disable port 1 outputs on IO expander */
-	cfg = 0xff;
-	efx_i2c_write(i2c, PCA9539, P1_CONFIG, &cfg, 1);
-
-	/* Disable port 0 outputs on IO expander */
-	cfg = 0xff;
-	efx_i2c_write(i2c, PCA9539, P0_CONFIG, &cfg, 1);
+	/* Turn off all power rails and disable outputs */
+	i2c_smbus_write_byte_data(ioexp_client, P0_OUT, 0xff);
+	i2c_smbus_write_byte_data(ioexp_client, P1_CONFIG, 0xff);
+	i2c_smbus_write_byte_data(ioexp_client, P0_CONFIG, 0xff);
 
 	/* Clear any over-temperature alert */
-	efx_i2c_read(i2c, MAX6647, RSL, &in, 1);
+	i2c_smbus_read_byte_data(hwmon_client, RSL);
+}
+
+static void sfe4001_fini(struct efx_nic *efx)
+{
+	EFX_INFO(efx, "%s\n", __func__);
+
+	sfe4001_poweroff(efx);
+ 	i2c_unregister_device(efx->board_info.ioexp_client);
+ 	i2c_unregister_device(efx->board_info.hwmon_client);
 }
 
 /* The P0_EN_3V3X line on SFE4001 boards (from A2 onward) is connected
@@ -143,13 +142,25 @@ MODULE_PARM_DESC(phy_flash_cfg,
  * be turned on before the PHY can be used.
  * Context: Process context, rtnl lock held
  */
-int sfe4001_poweron(struct efx_nic *efx)
+int sfe4001_init(struct efx_nic *efx)
 {
-	struct efx_i2c_interface *i2c = &efx->i2c;
+	struct i2c_client *hwmon_client, *ioexp_client;
 	unsigned int count;
 	int rc;
-	u8 out, in, cfg;
+	u8 out;
 	efx_dword_t reg;
+
+	hwmon_client = i2c_new_dummy(&efx->i2c_adap, MAX6647);
+	if (!hwmon_client)
+		return -EIO;
+	efx->board_info.hwmon_client = hwmon_client;
+
+	ioexp_client = i2c_new_dummy(&efx->i2c_adap, PCA9539);
+	if (!ioexp_client) {
+		rc = -EIO;
+		goto fail_hwmon;
+	}
+	efx->board_info.ioexp_client = ioexp_client;
 
 	/* 10Xpress has fixed-function LED pins, so there is no board-specific
 	 * blink code. */
@@ -166,44 +177,45 @@ int sfe4001_poweron(struct efx_nic *efx)
 	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
 	udelay(10);
 
+	efx->board_info.fini = sfe4001_fini;
+
 	/* Set DSP over-temperature alert threshold */
 	EFX_INFO(efx, "DSP cut-out at %dC\n", xgphy_max_temperature);
-	rc = efx_i2c_write(i2c, MAX6647, WLHO,
-			   &xgphy_max_temperature, 1);
+	rc = i2c_smbus_write_byte_data(hwmon_client, WLHO,
+				       xgphy_max_temperature);
 	if (rc)
-		goto fail1;
+		goto fail_ioexp;
 
 	/* Read it back and verify */
-	rc = efx_i2c_read(i2c, MAX6647, RLHN, &in, 1);
-	if (rc)
-		goto fail1;
-	if (in != xgphy_max_temperature) {
+	rc = i2c_smbus_read_byte_data(hwmon_client, RLHN);
+	if (rc < 0)
+		goto fail_ioexp;
+	if (rc != xgphy_max_temperature) {
 		rc = -EFAULT;
-		goto fail1;
+		goto fail_ioexp;
 	}
 
 	/* Clear any previous over-temperature alert */
-	rc = efx_i2c_read(i2c, MAX6647, RSL, &in, 1);
-	if (rc)
-		goto fail1;
+	rc = i2c_smbus_read_byte_data(hwmon_client, RSL);
+	if (rc < 0)
+		goto fail_ioexp;
 
 	/* Enable port 0 and port 1 outputs on IO expander */
-	cfg = 0x00;
-	rc = efx_i2c_write(i2c, PCA9539, P0_CONFIG, &cfg, 1);
+	rc = i2c_smbus_write_byte_data(ioexp_client, P0_CONFIG, 0x00);
 	if (rc)
-		goto fail1;
-	cfg = 0xff & ~(1 << P1_SPARE_LBN);
-	rc = efx_i2c_write(i2c, PCA9539, P1_CONFIG, &cfg, 1);
+		goto fail_ioexp;
+	rc = i2c_smbus_write_byte_data(ioexp_client, P1_CONFIG,
+				       0xff & ~(1 << P1_SPARE_LBN));
 	if (rc)
-		goto fail2;
+		goto fail_on;
 
 	/* Turn all power off then wait 1 sec. This ensures PHY is reset */
 	out = 0xff & ~((0 << P0_EN_1V2_LBN) | (0 << P0_EN_2V5_LBN) |
 		       (0 << P0_EN_3V3X_LBN) | (0 << P0_EN_5V_LBN) |
 		       (0 << P0_EN_1V0X_LBN));
-	rc = efx_i2c_write(i2c, PCA9539, P0_OUT, &out, 1);
+	rc = i2c_smbus_write_byte_data(ioexp_client, P0_OUT, out);
 	if (rc)
-		goto fail3;
+		goto fail_on;
 
 	schedule_timeout_uninterruptible(HZ);
 	count = 0;
@@ -215,26 +227,26 @@ int sfe4001_poweron(struct efx_nic *efx)
 		if (sfe4001_phy_flash_cfg)
 			out |= 1 << P0_EN_3V3X_LBN;
 
-		rc = efx_i2c_write(i2c, PCA9539, P0_OUT, &out, 1);
+		rc = i2c_smbus_write_byte_data(ioexp_client, P0_OUT, out);
 		if (rc)
-			goto fail3;
+			goto fail_on;
 		msleep(10);
 
 		/* Turn on 1V power rail */
 		out &= ~(1 << P0_EN_1V0X_LBN);
-		rc = efx_i2c_write(i2c, PCA9539, P0_OUT, &out, 1);
+		rc = i2c_smbus_write_byte_data(ioexp_client, P0_OUT, out);
 		if (rc)
-			goto fail3;
+			goto fail_on;
 
 		EFX_INFO(efx, "waiting for power (attempt %d)...\n", count);
 
 		schedule_timeout_uninterruptible(HZ);
 
 		/* Check DSP is powered */
-		rc = efx_i2c_read(i2c, PCA9539, P1_IN, &in, 1);
-		if (rc)
-			goto fail3;
-		if (in & (1 << P1_AFE_PWD_LBN))
+		rc = i2c_smbus_read_byte_data(ioexp_client, P1_IN);
+		if (rc < 0)
+			goto fail_on;
+		if (rc & (1 << P1_AFE_PWD_LBN))
 			goto done;
 
 		/* DSP doesn't look powered in flash config mode */
@@ -244,23 +256,17 @@ int sfe4001_poweron(struct efx_nic *efx)
 
 	EFX_INFO(efx, "timed out waiting for power\n");
 	rc = -ETIMEDOUT;
-	goto fail3;
+	goto fail_on;
 
 done:
 	EFX_INFO(efx, "PHY is powered on\n");
 	return 0;
 
-fail3:
-	/* Turn off all power rails */
-	out = 0xff;
-	efx_i2c_write(i2c, PCA9539, P0_OUT, &out, 1);
-	/* Disable port 1 outputs on IO expander */
-	out = 0xff;
-	efx_i2c_write(i2c, PCA9539, P1_CONFIG, &out, 1);
-fail2:
-	/* Disable port 0 outputs on IO expander */
-	out = 0xff;
-	efx_i2c_write(i2c, PCA9539, P0_CONFIG, &out, 1);
-fail1:
+fail_on:
+	sfe4001_poweroff(efx);
+fail_ioexp:
+ 	i2c_unregister_device(ioexp_client);
+fail_hwmon:
+ 	i2c_unregister_device(hwmon_client);
 	return rc;
 }

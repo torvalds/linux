@@ -42,12 +42,14 @@ config 40x
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
+	select PPC_PCI_CHOICE
 
 config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
+	select PPC_PCI_CHOICE
 
 config E200
 	bool "Freescale e200"
@@ -83,9 +85,6 @@ config TUNE_CELL
 	  itself, so the resulting kernel will keep running on all other
 	  machines. When building a kernel that is supposed to run only
 	  on Cell, you should also select the POWER4_ONLY option.
-
-config 6xx
-	bool
 
 # this is temp to handle compat with arch=ppc
 config 8xx

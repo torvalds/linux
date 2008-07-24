@@ -471,7 +471,15 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long base = ide_pci_dma_base(hwif, d);
 
-	if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
+	if (base == 0)
+		return -1;
+
+	hwif->dma_base = base;
+
+	if (ide_pci_check_simplex(hwif, d) < 0)
+		return -1;
+
+	if (ide_pci_set_master(dev, d->name) < 0)
 		return -1;
 
 	if (!hwif->channel)
@@ -483,7 +491,7 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	ide_setup_dma(hwif, base);
+	hwif->dma_ops = &sff_dma_ops;
 
 	return 0;
 }

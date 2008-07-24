@@ -227,9 +227,9 @@ static void piix_dma_clear_irq(ide_drive_t *drive)
 	u8 dma_stat;
 
 	/* clear the INTR & ERROR bits */
-	dma_stat = inb(hwif->dma_status);
+	dma_stat = inb(hwif->dma_base + ATA_DMA_STATUS);
 	/* Should we force the bit as well ? */
-	outb(dma_stat, hwif->dma_status);
+	outb(dma_stat, hwif->dma_base + ATA_DMA_STATUS);
 }
 
 struct ich_laptop {

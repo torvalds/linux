@@ -359,7 +359,8 @@ int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 	return err;
 }
 
-int cp_compat_stat64(struct kstat *stat, struct compat_stat64 __user *statbuf)
+static int cp_compat_stat64(struct kstat *stat,
+			    struct compat_stat64 __user *statbuf)
 {
 	int err;
 
@@ -870,9 +871,9 @@ asmlinkage unsigned long sys32_mremap(unsigned long addr,
 	unsigned long ret = -EINVAL;
 	unsigned long new_addr = __new_addr;
 
-	if (unlikely(sparc64_mmap_check(addr, old_len)))
+	if (unlikely(sparc_mmap_check(addr, old_len)))
 		goto out;
-	if (unlikely(sparc64_mmap_check(new_addr, new_len)))
+	if (unlikely(sparc_mmap_check(new_addr, new_len)))
 		goto out;
 	down_write(&current->mm->mmap_sem);
 	ret = do_mremap(addr, old_len, new_len, flags, new_addr);

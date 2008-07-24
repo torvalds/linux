@@ -69,6 +69,12 @@
 		_id == 0x212;				\
 	})
 
+#define __cpu_is_pxa255(id)                             \
+	({                                              \
+		unsigned int _id = (id) >> 4 & 0xfff;   \
+		_id == 0x2d0;                           \
+	 })
+
 #define __cpu_is_pxa25x(id)				\
 	({						\
 		unsigned int _id = (id) >> 4 & 0xfff;	\
@@ -76,6 +82,7 @@
 	})
 #else
 #define __cpu_is_pxa21x(id)	(0)
+#define __cpu_is_pxa255(id)	(0)
 #define __cpu_is_pxa25x(id)	(0)
 #endif
 
@@ -119,9 +126,24 @@
 #define __cpu_is_pxa320(id)	(0)
 #endif
 
+#ifdef CONFIG_CPU_PXA930
+#define __cpu_is_pxa930(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		_id == 0x683;		\
+	 })
+#else
+#define __cpu_is_pxa930(id)	(0)
+#endif
+
 #define cpu_is_pxa21x()					\
 	({						\
 		__cpu_is_pxa21x(read_cpuid_id());	\
+	})
+
+#define cpu_is_pxa255()                                 \
+	({                                              \
+		__cpu_is_pxa255(read_cpuid_id());       \
 	})
 
 #define cpu_is_pxa25x()					\
@@ -147,6 +169,12 @@
 #define cpu_is_pxa320()					\
 	({						\
 		__cpu_is_pxa320(read_cpuid_id());	\
+	 })
+
+#define cpu_is_pxa930()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa930(id);			\
 	 })
 
 /*
@@ -195,6 +223,11 @@ extern void pxa_gpio_set_value(unsigned gpio, int value);
  * return current memory and LCD clock frequency in units of 10kHz
  */
 extern unsigned int get_memclk_frequency_10khz(void);
+
+/*
+ * register GPIO as reset generator
+ */
+extern int init_gpio_reset(int gpio);
 
 #endif
 

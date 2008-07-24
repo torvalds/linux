@@ -1123,8 +1123,7 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable)
 }
 
 /**
- * pci_prepare_to_sleep - prepare PCI device for system-wide transition into
- *                        a sleep state
+ * pci_prepare_to_sleep - prepare PCI device for system-wide transition into a sleep state
  * @dev: Device to handle.
  *
  * Choose the power state appropriate for the device depending on whether
@@ -1181,8 +1180,7 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
 }
 
 /**
- * pci_back_from_sleep - turn PCI device on during system-wide transition into
- *                       the working state a sleep state
+ * pci_back_from_sleep - turn PCI device on during system-wide transition into working state
  * @dev: Device to handle.
  *
  * Disable device's sytem wake-up capability and put it into D0.

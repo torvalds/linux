@@ -355,6 +355,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.machine_check		= machine_check_generic,
+		.oprofile_cpu_type	= "ppc64/compat-power5+",
 		.platform		= "power5+",
 	},
 	{	/* Power6 */
@@ -386,6 +387,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.machine_check		= machine_check_generic,
+		.oprofile_cpu_type	= "ppc64/compat-power6",
 		.platform		= "power6",
 	},
 	{	/* 2.06-compliant processor, i.e. Power7 "architected" mode */
@@ -397,6 +399,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.machine_check		= machine_check_generic,
+		.oprofile_cpu_type	= "ppc64/compat-power7",
 		.platform		= "power7",
 	},
 	{	/* Power7 */
@@ -1629,6 +1632,23 @@ struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 				t->cpu_setup = s->cpu_setup;
 				t->cpu_restore = s->cpu_restore;
 				t->platform = s->platform;
+				/*
+				 * If we have passed through this logic once
+				 * before and have pulled the default case
+				 * because the real PVR was not found inside
+				 * cpu_specs[], then we are possibly running in
+				 * compatibility mode. In that case, let the
+				 * oprofiler know which set of compatibility
+				 * counters to pull from by making sure the
+				 * oprofile_cpu_type string is set to that of
+				 * compatibility mode. If the oprofile_cpu_type
+				 * already has a value, then we are possibly
+				 * overriding a real PVR with a logical one, and,
+				 * in that case, keep the current value for
+				 * oprofile_cpu_type.
+				 */
+				if (t->oprofile_cpu_type == NULL)
+					t->oprofile_cpu_type = s->oprofile_cpu_type;
 			} else
 				*t = *s;
 			*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;

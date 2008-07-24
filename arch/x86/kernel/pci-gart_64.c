@@ -32,6 +32,7 @@
 #include <asm/mtrr.h>
 #include <asm/pgtable.h>
 #include <asm/proto.h>
+#include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/cacheflush.h>
 #include <asm/swiotlb.h>
@@ -197,9 +198,7 @@ static void iommu_full(struct device *dev, size_t size, int dir)
 	 * out. Hopefully no network devices use single mappings that big.
 	 */
 
-	printk(KERN_ERR
-		"PCI-DMA: Out of IOMMU space for %lu bytes at device %s\n",
-		size, dev->bus_id);
+	dev_err(dev, "PCI-DMA: Out of IOMMU space for %lu bytes\n", size);
 
 	if (size > PAGE_SIZE*EMERGENCY_PAGES) {
 		if (dir == PCI_DMA_FROMDEVICE || dir == PCI_DMA_BIDIRECTIONAL)

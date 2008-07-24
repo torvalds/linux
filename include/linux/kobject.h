@@ -26,7 +26,6 @@
 #include <linux/wait.h>
 #include <asm/atomic.h>
 
-#define KOBJ_NAME_LEN			20
 #define UEVENT_HELPER_PATH_LEN		256
 #define UEVENT_NUM_ENVP			32	/* number of env pointers */
 #define UEVENT_BUFFER_SIZE		2048	/* buffer for the variables */
@@ -59,12 +58,12 @@ enum kobject_action {
 
 struct kobject {
 	const char		*name;
-	struct kref		kref;
 	struct list_head	entry;
 	struct kobject		*parent;
 	struct kset		*kset;
 	struct kobj_type	*ktype;
 	struct sysfs_dirent	*sd;
+	struct kref		kref;
 	unsigned int state_initialized:1;
 	unsigned int state_in_sysfs:1;
 	unsigned int state_add_uevent_sent:1;

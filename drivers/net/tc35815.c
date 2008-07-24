@@ -672,7 +672,6 @@ static void tc_handle_link_change(struct net_device *dev)
 			if (dev->flags & IFF_PROMISC)
 				tc35815_set_multicast_list(dev);
 #endif
-			netif_schedule(dev);
 		} else {
 			lp->speed = 0;
 			lp->duplex = -1;

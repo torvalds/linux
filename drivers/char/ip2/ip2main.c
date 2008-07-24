@@ -718,12 +718,12 @@ ip2_loadmain(int *iop, int *irqp)
 			}
 
 			if ( NULL != ( pB = i2BoardPtrTable[i] ) ) {
-				device_create(ip2_class, NULL,
-						MKDEV(IP2_IPL_MAJOR, 4 * i),
-						"ipl%d", i);
-				device_create(ip2_class, NULL,
-						MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
-						"stat%d", i);
+				device_create_drvdata(ip2_class, NULL,
+						      MKDEV(IP2_IPL_MAJOR, 4 * i),
+						      NULL, "ipl%d", i);
+				device_create_drvdata(ip2_class, NULL,
+						      MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
+						      NULL, "stat%d", i);
 
 			    for ( box = 0; box < ABS_MAX_BOXES; ++box )
 			    {
@@ -1289,11 +1289,12 @@ static void do_input(struct work_struct *work)
 // code duplicated from n_tty (ldisc)
 static inline void  isig(int sig, struct tty_struct *tty, int flush)
 {
+	/* FIXME: This is completely bogus */
 	if (tty->pgrp)
 		kill_pgrp(tty->pgrp, sig, 1);
 	if (flush || !L_NOFLSH(tty)) {
-		if ( tty->ldisc.flush_buffer )  
-			tty->ldisc.flush_buffer(tty);
+		if ( tty->ldisc.ops->flush_buffer )  
+			tty->ldisc.ops->flush_buffer(tty);
 		i2InputFlush( tty->driver_data );
 	}
 }
@@ -1342,7 +1343,7 @@ static void do_status(struct work_struct *work)
 		}
 		tmp = pCh->pTTY->real_raw;
 		pCh->pTTY->real_raw = 0;
-		pCh->pTTY->ldisc.receive_buf( pCh->pTTY, &brkc, &brkf, 1 );
+		pCh->pTTY->ldisc->ops.receive_buf( pCh->pTTY, &brkc, &brkf, 1 );
 		pCh->pTTY->real_raw = tmp;
 	}
 #endif /* NEVER_HAPPENS_AS_SETUP_XXX */

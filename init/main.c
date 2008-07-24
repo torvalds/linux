@@ -415,6 +415,13 @@ static void __init smp_init(void)
 {
 	unsigned int cpu;
 
+	/*
+	 * Set up the current CPU as possible to migrate to.
+	 * The other ones will be done by cpu_up/cpu_down()
+	 */
+	cpu = smp_processor_id();
+	cpu_set(cpu, cpu_active_map);
+
 	/* FIXME: This should be done in userspace --RR */
 	for_each_present_cpu(cpu) {
 		if (num_online_cpus() >= setup_max_cpus)
@@ -630,9 +637,10 @@ asmlinkage void __init start_kernel(void)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start && !initrd_below_start_ok &&
-			initrd_start < min_low_pfn << PAGE_SHIFT) {
+	    page_to_pfn(virt_to_page(initrd_start)) < min_low_pfn) {
 		printk(KERN_CRIT "initrd overwritten (0x%08lx < 0x%08lx) - "
-		    "disabling it.\n",initrd_start,min_low_pfn << PAGE_SHIFT);
+		    "disabling it.\n",
+		    page_to_pfn(virt_to_page(initrd_start)), min_low_pfn);
 		initrd_start = 0;
 	}
 #endif

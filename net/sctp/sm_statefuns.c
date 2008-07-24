@@ -795,8 +795,6 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
 
-	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSMIT, SCTP_NULL());
-
 	/* This will send the COOKIE ACK */
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
 
@@ -883,7 +881,6 @@ sctp_disposition_t sctp_sf_do_5_1E_ca(const struct sctp_endpoint *ep,
 	if (asoc->autoclose)
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
-	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSMIT, SCTP_NULL());
 
 	/* It may also notify its ULP about the successful
 	 * establishment of the association with a Communication Up
@@ -1781,7 +1778,6 @@ static sctp_disposition_t sctp_sf_do_dupcook_b(const struct sctp_endpoint *ep,
 		goto nomem;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
-	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSMIT, SCTP_NULL());
 
 	/* RFC 2960 5.1 Normal Establishment of an Association
 	 *
@@ -1898,11 +1894,12 @@ static sctp_disposition_t sctp_sf_do_dupcook_d(const struct sctp_endpoint *ep,
 
 		}
 	}
-	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSMIT, SCTP_NULL());
 
 	repl = sctp_make_cookie_ack(new_asoc, chunk);
 	if (!repl)
 		goto nomem;
+
+	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
 
 	if (ev)
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
@@ -1910,9 +1907,6 @@ static sctp_disposition_t sctp_sf_do_dupcook_d(const struct sctp_endpoint *ep,
 	if (ai_ev)
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
 					SCTP_ULPEVENT(ai_ev));
-
-	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
-	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSMIT, SCTP_NULL());
 
 	return SCTP_DISPOSITION_CONSUME;
 
@@ -3970,9 +3964,6 @@ sctp_disposition_t sctp_sf_unk_chunk(const struct sctp_endpoint *ep,
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 		break;
 	case SCTP_CID_ACTION_DISCARD_ERR:
-		/* Discard the packet.  */
-		sctp_sf_pdiscard(ep, asoc, type, arg, commands);
-
 		/* Generate an ERROR chunk as response. */
 		hdr = unk_chunk->chunk_hdr;
 		err_chunk = sctp_make_op_error(asoc, unk_chunk,
@@ -3982,6 +3973,9 @@ sctp_disposition_t sctp_sf_unk_chunk(const struct sctp_endpoint *ep,
 			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
 					SCTP_CHUNK(err_chunk));
 		}
+
+		/* Discard the packet.  */
+		sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 		return SCTP_DISPOSITION_CONSUME;
 		break;
 	case SCTP_CID_ACTION_SKIP:

@@ -1,1 +1,1 @@
-#include <asm-generic/irq_regs.h>
+#include <asm-sparc/irq_regs.h>

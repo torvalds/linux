@@ -223,7 +223,7 @@ int  irda_device_is_receiving(struct net_device *dev);
 /* Interface for internal use */
 static inline int irda_device_txqueue_empty(const struct net_device *dev)
 {
-	return skb_queue_empty(&dev->qdisc->q);
+	return qdisc_all_tx_empty(dev);
 }
 int  irda_device_set_raw_mode(struct net_device* self, int status);
 struct net_device *alloc_irdadev(int sizeof_priv);

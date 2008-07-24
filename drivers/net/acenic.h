@@ -693,7 +693,6 @@ struct ace_private
 				__attribute__ ((aligned (SMP_CACHE_BYTES)));
 	u32			last_tx, last_std_rx, last_mini_rx;
 #endif
-	struct net_device_stats stats;
 	int			pci_using_dac;
 };
 

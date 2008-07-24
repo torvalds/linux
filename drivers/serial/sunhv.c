@@ -185,7 +185,7 @@ static struct tty_struct *receive_chars(struct uart_port *port)
 	struct tty_struct *tty = NULL;
 
 	if (port->info != NULL)		/* Unopened serial console */
-		tty = port->info->tty;
+		tty = port->info->port.tty;
 
 	if (sunhv_ops->receive_chars(port, tty))
 		sun_do_break();

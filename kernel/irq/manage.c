@@ -217,6 +217,17 @@ void enable_irq(unsigned int irq)
 }
 EXPORT_SYMBOL(enable_irq);
 
+int set_irq_wake_real(unsigned int irq, unsigned int on)
+{
+	struct irq_desc *desc = irq_desc + irq;
+	int ret = -ENXIO;
+
+	if (desc->chip->set_wake)
+		ret = desc->chip->set_wake(irq, on);
+
+	return ret;
+}
+
 /**
  *	set_irq_wake - control irq power management wakeup
  *	@irq:	interrupt to control
@@ -233,30 +244,34 @@ int set_irq_wake(unsigned int irq, unsigned int on)
 {
 	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
-	int ret = -ENXIO;
-	int (*set_wake)(unsigned, unsigned) = desc->chip->set_wake;
+	int ret = 0;
 
 	/* wakeup-capable irqs can be shared between drivers that
 	 * don't need to have the same sleep mode behaviors.
 	 */
 	spin_lock_irqsave(&desc->lock, flags);
 	if (on) {
-		if (desc->wake_depth++ == 0)
-			desc->status |= IRQ_WAKEUP;
-		else
-			set_wake = NULL;
+		if (desc->wake_depth++ == 0) {
+			ret = set_irq_wake_real(irq, on);
+			if (ret)
+				desc->wake_depth = 0;
+			else
+				desc->status |= IRQ_WAKEUP;
+		}
 	} else {
 		if (desc->wake_depth == 0) {
 			printk(KERN_WARNING "Unbalanced IRQ %d "
 					"wake disable\n", irq);
 			WARN_ON(1);
-		} else if (--desc->wake_depth == 0)
-			desc->status &= ~IRQ_WAKEUP;
-		else
-			set_wake = NULL;
+		} else if (--desc->wake_depth == 0) {
+			ret = set_irq_wake_real(irq, on);
+			if (ret)
+				desc->wake_depth = 1;
+			else
+				desc->status &= ~IRQ_WAKEUP;
+		}
 	}
-	if (set_wake)
-		ret = desc->chip->set_wake(irq, on);
+
 	spin_unlock_irqrestore(&desc->lock, flags);
 	return ret;
 }

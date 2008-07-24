@@ -432,7 +432,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-
 /*
  * attach_inform()
  * gets called when a device attaches to the i2c bus

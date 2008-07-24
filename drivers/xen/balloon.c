@@ -610,6 +610,7 @@ static ssize_t show_target_kb(struct sys_device *dev, char *buf)
 }
 
 static ssize_t store_target_kb(struct sys_device *dev,
+			       struct sysdev_attribute *attr,
 			       const char *buf,
 			       size_t count)
 {

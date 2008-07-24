@@ -19,6 +19,7 @@
 #include <asm/vaddrs.h>
 #include <asm/memreg.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #ifdef CONFIG_SUN4
 #include <asm/pgtsun4.h>
 #else
@@ -1317,7 +1318,6 @@ linux_sparc_syscall:
 	bne	linux_fast_syscall
 	 /* Just do first insn from SAVE_ALL in the delay slot */
 
-	.globl	syscall_is_too_hard
 syscall_is_too_hard:
 	SAVE_ALL_HEAD
 	 rd	%wim, %l3
@@ -1544,8 +1544,7 @@ kgdb_trap_low:
 #endif
 
 	.align	4
-	.globl	__handle_exception, flush_patch_exception
-__handle_exception:
+	.globl	flush_patch_exception
 flush_patch_exception:
 	FLUSH_ALL_KERNEL_WINDOWS;
 	ldd	[%o0], %o6

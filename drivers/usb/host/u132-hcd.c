@@ -3124,7 +3124,7 @@ static int __devinit u132_probe(struct platform_device *pdev)
 	if (pdev->dev.dma_mask)
 		return -EINVAL;
 
-	hcd = usb_create_hcd(&u132_hc_driver, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd(&u132_hc_driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		printk(KERN_ERR "failed to create the usb hcd struct for U132\n"
 			);

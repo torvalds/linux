@@ -81,8 +81,8 @@ void __init plat_mem_setup(void)
 
 	set_io_port_base(CKSEG1ADDR(GT_DEF_PCI0_IO_BASE));
 
-	/* I/O port resource must include LCD/buttons */
-	ioport_resource.end = 0x0fffffff;
+	/* I/O port resource */
+	ioport_resource.end = 0x01ffffff;
 
 	/* These resources have been reserved by VIA SuperI/O chip. */
 	for (i = 0; i < ARRAY_SIZE(cobalt_reserved_resources); i++)

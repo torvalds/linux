@@ -2686,7 +2686,7 @@ omap_udc_setup(struct platform_device *odev, struct otg_transceiver *xceiv)
 	udc->gadget.name = driver_name;
 
 	device_initialize(&udc->gadget.dev);
-	strcpy (udc->gadget.dev.bus_id, "gadget");
+	dev_set_name(&udc->gadget.dev, "gadget");
 	udc->gadget.dev.release = omap_udc_release;
 	udc->gadget.dev.parent = &odev->dev;
 	if (use_dma)

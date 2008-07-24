@@ -92,7 +92,8 @@ unregister_memory(struct memory_block *memory, struct mem_section *section)
  * uses.
  */
 
-static ssize_t show_mem_phys_index(struct sys_device *dev, char *buf)
+static ssize_t show_mem_phys_index(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct memory_block *mem =
 		container_of(dev, struct memory_block, sysdev);
@@ -102,7 +103,8 @@ static ssize_t show_mem_phys_index(struct sys_device *dev, char *buf)
 /*
  * online, offline, going offline, etc.
  */
-static ssize_t show_mem_state(struct sys_device *dev, char *buf)
+static ssize_t show_mem_state(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct memory_block *mem =
 		container_of(dev, struct memory_block, sysdev);
@@ -217,7 +219,8 @@ out:
 }
 
 static ssize_t
-store_mem_state(struct sys_device *dev, const char *buf, size_t count)
+store_mem_state(struct sys_device *dev,
+		struct sysdev_attribute *attr, const char *buf, size_t count)
 {
 	struct memory_block *mem;
 	unsigned int phys_section_nr;
@@ -248,7 +251,8 @@ out:
  * s.t. if I offline all of these sections I can then
  * remove the physical device?
  */
-static ssize_t show_phys_device(struct sys_device *dev, char *buf)
+static ssize_t show_phys_device(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	struct memory_block *mem =
 		container_of(dev, struct memory_block, sysdev);

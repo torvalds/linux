@@ -26,6 +26,12 @@
 #ifndef RT2X00USB_H
 #define RT2X00USB_H
 
+#define to_usb_device_intf(d) \
+({ \
+	struct usb_interface *intf = to_usb_interface(d); \
+	interface_to_usbdev(intf); \
+})
+
 /*
  * This variable should be used with the
  * usb_driver structure initialization.
@@ -46,6 +52,20 @@
 #define REGISTER_BUSY_DELAY		100
 #define REGISTER_TIMEOUT		500
 #define REGISTER_TIMEOUT_FIRMWARE	1000
+
+/**
+ * REGISTER_TIMEOUT16 - Determine the timeout for 16bit register access
+ * @__datalen: Data length
+ */
+#define REGISTER_TIMEOUT16(__datalen)	\
+	( REGISTER_TIMEOUT * ((__datalen) / sizeof(u16)) )
+
+/**
+ * REGISTER_TIMEOUT32 - Determine the timeout for 32bit register access
+ * @__datalen: Data length
+ */
+#define REGISTER_TIMEOUT32(__datalen)	\
+	( REGISTER_TIMEOUT * ((__datalen) / sizeof(u32)) )
 
 /*
  * Cache size
@@ -185,13 +205,12 @@ static inline int rt2x00usb_vendor_request_sw(struct rt2x00_dev *rt2x00dev,
  * kmalloc for correct handling inside the kernel USB layer.
  */
 static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
-					__le16 *eeprom, const u16 lenght)
+					__le16 *eeprom, const u16 length)
 {
-	int timeout = REGISTER_TIMEOUT * (lenght / sizeof(u16));
-
 	return rt2x00usb_vendor_request(rt2x00dev, USB_EEPROM_READ,
 					USB_VENDOR_REQUEST_IN, 0, 0,
-					eeprom, lenght, timeout);
+					eeprom, length,
+					REGISTER_TIMEOUT16(length));
 }
 
 /*
@@ -199,54 +218,52 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
  */
 void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev);
 
-/*
- * TX data handlers.
+/**
+ * rt2x00usb_write_tx_data - Initialize URB for TX operation
+ * @entry: The entry where the frame is located
+ *
+ * This function will initialize the URB and skb descriptor
+ * to prepare the entry for the actual TX operation.
  */
-int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
-			    struct data_queue *queue, struct sk_buff *skb,
-			    struct ieee80211_tx_control *control);
+int rt2x00usb_write_tx_data(struct queue_entry *entry);
 
 /**
- * struct queue_entry_priv_usb_rx: Per RX entry USB specific information
+ * struct queue_entry_priv_usb: Per entry USB specific information
  *
  * @urb: Urb structure used for device communication.
  */
-struct queue_entry_priv_usb_rx {
+struct queue_entry_priv_usb {
 	struct urb *urb;
 };
 
 /**
- * struct queue_entry_priv_usb_tx: Per TX entry USB specific information
+ * struct queue_entry_priv_usb_bcn: Per TX entry USB specific information
  *
- * @urb: Urb structure used for device communication.
- * @control: mac80211 control structure used to transmit data.
- */
-struct queue_entry_priv_usb_tx {
-	struct urb *urb;
-
-	struct ieee80211_tx_control control;
-};
-
-/**
- * struct queue_entry_priv_usb_tx: Per TX entry USB specific information
- *
- * The first section should match &struct queue_entry_priv_usb_tx exactly.
+ * The first section should match &struct queue_entry_priv_usb exactly.
  * rt2500usb can use this structure to send a guardian byte when working
  * with beacons.
  *
  * @urb: Urb structure used for device communication.
- * @control: mac80211 control structure used to transmit data.
  * @guardian_data: Set to 0, used for sending the guardian data.
  * @guardian_urb: Urb structure used to send the guardian data.
  */
 struct queue_entry_priv_usb_bcn {
 	struct urb *urb;
 
-	struct ieee80211_tx_control control;
-
 	unsigned int guardian_data;
 	struct urb *guardian_urb;
 };
+
+/**
+ * rt2x00usb_kick_tx_queue - Kick data queue
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ * @qid: Data queue to kick
+ *
+ * This will walk through all entries of the queue and push all pending
+ * frames to the hardware as a single burst.
+ */
+void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
+			     const enum data_queue_qid qid);
 
 /*
  * Device initialization handlers.

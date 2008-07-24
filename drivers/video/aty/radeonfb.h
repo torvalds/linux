@@ -289,7 +289,7 @@ struct radeonfb_info {
 	struct radeon_regs 	state;
 	struct radeon_regs	init_state;
 
-	char			name[DEVICE_NAME_SIZE];
+	char			name[50];
 
 	unsigned long		mmio_base_phys;
 	unsigned long		fb_base_phys;

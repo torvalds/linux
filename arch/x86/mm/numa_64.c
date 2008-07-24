@@ -20,10 +20,6 @@
 #include <asm/acpi.h>
 #include <asm/k8.h>
 
-#ifndef Dprintk
-#define Dprintk(x...)
-#endif
-
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 

@@ -173,8 +173,52 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		} },
 	},
+	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2] = {
+		.name         = "Hauppauge WinTV HVR 900 (R2)",
+		.vchannels    = 3,
+		.tda9887_conf = TDA9887_PRESENT,
+		.tuner_type   = TUNER_XC2028,
+		.mts_firmware = 1,
+		.decoder      = EM28XX_TVP5150,
+		.input          = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = 0,
+		}, {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = 1,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = TVP5150_SVIDEO,
+			.amux     = 1,
+		} },
+	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
 		.name           = "Hauppauge WinTV HVR 950",
+		.vchannels      = 3,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.tuner_type     = TUNER_XC2028,
+		.mts_firmware   = 1,
+		.has_12mhz_i2s  = 1,
+		.has_dvb        = 1,
+		.decoder        = EM28XX_TVP5150,
+		.input          = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = 0,
+		}, {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = 1,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = TVP5150_SVIDEO,
+			.amux     = 1,
+		} },
+	},
+	[EM2880_BOARD_PINNACLE_PCTV_HD_PRO] = {
+		.name           = "Pinnacle PCTV HD Pro Stick",
 		.vchannels      = 3,
 		.tda9887_conf   = TDA9887_PRESENT,
 		.tuner_type     = TUNER_XC2028,
@@ -382,6 +426,19 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+	[EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA] = {
+		.name         = "PointNix Intra-Oral Camera",
+		.has_snapshot_button = 1,
+		.vchannels    = 1,
+		.tda9887_conf = TDA9887_PRESENT,
+		.tuner_type   = TUNER_ABSENT,
+		.decoder      = EM28XX_SAA7113,
+		.input          = { {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = 0,
+		} },
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -417,10 +474,12 @@ struct usb_device_id em28xx_id_table [] = {
 			.driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
 	{ USB_DEVICE(0x2304, 0x021a),
 			.driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
+	{ USB_DEVICE(0x2304, 0x0227),
+			.driver_info = EM2880_BOARD_PINNACLE_PCTV_HD_PRO },
 	{ USB_DEVICE(0x2040, 0x6500),
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
 	{ USB_DEVICE(0x2040, 0x6502),
-			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
+			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2 },
 	{ USB_DEVICE(0x2040, 0x6513), /* HCW HVR-980 */
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950 },
 	{ USB_DEVICE(0x2040, 0x6517), /* HP  HVR-950 */
@@ -476,6 +535,7 @@ static struct em28xx_hash_table em28xx_eeprom_hash [] = {
 static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0xb06a32c3, EM2800_BOARD_TERRATEC_CINERGY_200, TUNER_LG_PAL_NEW_TAPC},
 	{0xf51200e3, EM2800_BOARD_VGEAR_POCKETTV, TUNER_LG_PAL_NEW_TAPC},
+	{0x1ba50080, EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA, TUNER_ABSENT},
 };
 
 int em28xx_tuner_callback(void *ptr, int command, int arg)
@@ -508,6 +568,7 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
 	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
 	dev->has_dvb = em28xx_boards[dev->model].has_dvb;
+	dev->has_snapshot_button = em28xx_boards[dev->model].has_snapshot_button;
 }
 
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
@@ -542,8 +603,10 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	switch (dev->model) {
 	case EM2880_BOARD_TERRATEC_PRODIGY_XS:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
 		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
 		msleep(50);
@@ -576,7 +639,12 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
+		/* djh - Not sure which demod we need here */
+		ctl->demod = XC3028_FE_DEFAULT;
+		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
 		/* FIXME: Better to specify the needed IF */
 		ctl->demod = XC3028_FE_DEFAULT;
 		break;
@@ -754,6 +822,7 @@ void em28xx_card_setup(struct em28xx *dev)
 	switch (dev->model) {
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	{
 		struct tveeprom tv;
@@ -786,6 +855,9 @@ void em28xx_card_setup(struct em28xx *dev)
 		if (!em28xx_hint_board(dev))
 			em28xx_set_model(dev);
 	}
+
+	if (dev->has_snapshot_button)
+		em28xx_register_snapshot_button(dev);
 
 	/* Allow override tuner type by a module parameter */
 	if (tuner >= 0)

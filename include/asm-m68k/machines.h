@@ -1,4 +1,4 @@
-/* $Id: machines.h,v 1.4 1995/11/25 02:31:58 davem Exp $
+/*
  * machines.h:  Defines for taking apart the machine type value in the
  *              idprom and determining the kind of machine we are on.
  *
@@ -20,8 +20,6 @@ struct Sun_Machine_Models {
 // sun3 port doesn't need to know about sparc machines.
 //#define NUM_SUN_MACHINES   23
 #define NUM_SUN_MACHINES  8
-
-extern struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES];
 
 /* The machine type in the idprom area looks like this:
  *

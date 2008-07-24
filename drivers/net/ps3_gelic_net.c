@@ -110,7 +110,7 @@ static void gelic_card_get_ether_port_status(struct gelic_card *card,
 void gelic_card_up(struct gelic_card *card)
 {
 	pr_debug("%s: called\n", __func__);
-	down(&card->updown_lock);
+	mutex_lock(&card->updown_lock);
 	if (atomic_inc_return(&card->users) == 1) {
 		pr_debug("%s: real do\n", __func__);
 		/* enable irq */
@@ -120,7 +120,7 @@ void gelic_card_up(struct gelic_card *card)
 
 		napi_enable(&card->napi);
 	}
-	up(&card->updown_lock);
+	mutex_unlock(&card->updown_lock);
 	pr_debug("%s: done\n", __func__);
 }
 
@@ -128,7 +128,7 @@ void gelic_card_down(struct gelic_card *card)
 {
 	u64 mask;
 	pr_debug("%s: called\n", __func__);
-	down(&card->updown_lock);
+	mutex_lock(&card->updown_lock);
 	if (atomic_dec_if_positive(&card->users) == 0) {
 		pr_debug("%s: real do\n", __func__);
 		napi_disable(&card->napi);
@@ -146,7 +146,7 @@ void gelic_card_down(struct gelic_card *card)
 		/* stop tx */
 		gelic_card_disable_txdmac(card);
 	}
-	up(&card->updown_lock);
+	mutex_unlock(&card->updown_lock);
 	pr_debug("%s: done\n", __func__);
 }
 
@@ -1534,7 +1534,7 @@ static struct gelic_card *gelic_alloc_card_net(struct net_device **netdev)
 	INIT_WORK(&card->tx_timeout_task, gelic_net_tx_timeout_task);
 	init_waitqueue_head(&card->waitq);
 	atomic_set(&card->tx_timeout_task_counter, 0);
-	init_MUTEX(&card->updown_lock);
+	mutex_init(&card->updown_lock);
 	atomic_set(&card->users, 0);
 
 	return card;

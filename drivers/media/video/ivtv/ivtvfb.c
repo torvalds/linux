@@ -367,6 +367,88 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 	return ivtvfb_prep_dec_dma_to_device(itv, dest_offset, source, count);
 }
 
+static ssize_t ivtvfb_write(struct fb_info *info, const char __user *buf,
+		     size_t count, loff_t *ppos)
+{
+	unsigned long p = *ppos;
+	void *dst;
+	int err = 0;
+	unsigned long total_size;
+	struct ivtv *itv = (struct ivtv *) info->par;
+	unsigned long dma_offset =
+			IVTV_DECODER_OFFSET + itv->osd_info->video_rbase;
+	unsigned long dma_size;
+	u16 lead = 0, tail = 0;
+
+	if (info->state != FBINFO_STATE_RUNNING)
+		return -EPERM;
+
+	total_size = info->screen_size;
+
+	if (total_size == 0)
+		total_size = info->fix.smem_len;
+
+	if (p > total_size)
+		return -EFBIG;
+
+	if (count > total_size) {
+		err = -EFBIG;
+		count = total_size;
+	}
+
+	if (count + p > total_size) {
+		if (!err)
+			err = -ENOSPC;
+
+		count = total_size - p;
+	}
+
+	dst = (void __force *) (info->screen_base + p);
+
+	if (info->fbops->fb_sync)
+		info->fbops->fb_sync(info);
+
+	if (!access_ok(VERIFY_READ, buf, count)) {
+		IVTVFB_WARN("Invalid userspace pointer 0x%08lx\n",
+			(unsigned long)buf);
+		err = -EFAULT;
+	}
+
+	if (!err) {
+		/* If transfer size > threshold and both src/dst
+		addresses are aligned, use DMA */
+		if (count >= 4096 &&
+		    ((unsigned long)buf & 3) == ((unsigned long)dst & 3)) {
+			/* Odd address = can't DMA. Align */
+			if ((unsigned long)dst & 3) {
+				lead = 4 - ((unsigned long)dst & 3);
+				memcpy(dst, buf, lead);
+				buf += lead;
+				dst += lead;
+			}
+			/* DMA resolution is 32 bits */
+			if ((count - lead) & 3)
+				tail = (count - lead) & 3;
+			/* DMA the data */
+			dma_size = count - lead - tail;
+			err = ivtvfb_prep_dec_dma_to_device(itv,
+			       p + lead + dma_offset, (void *)buf, dma_size);
+			dst += dma_size;
+			buf += dma_size;
+			/* Copy any leftover data */
+			if (tail)
+				memcpy(dst, buf, tail);
+		} else {
+			memcpy(dst, buf, count);
+		}
+	}
+
+	if  (!err)
+		*ppos += count;
+
+	return (err) ? err : count;
+}
+
 static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	DEFINE_WAIT(wait);
@@ -708,6 +790,9 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	else
 		var->pixclock = pixclock;
 
+	itv->osd_rect.width = var->xres;
+	itv->osd_rect.height = var->yres;
+
 	IVTVFB_DEBUG_INFO("Display size: %dx%d (virtual %dx%d) @ %dbpp\n",
 		      var->xres, var->yres,
 		      var->xres_virtual, var->yres_virtual,
@@ -824,6 +909,7 @@ static int ivtvfb_blank(int blank_mode, struct fb_info *info)
 
 static struct fb_ops ivtvfb_ops = {
 	.owner = THIS_MODULE,
+	.fb_write       = ivtvfb_write,
 	.fb_check_var   = ivtvfb_check_var,
 	.fb_set_par     = ivtvfb_set_par,
 	.fb_setcolreg   = ivtvfb_setcolreg,
