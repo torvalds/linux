@@ -118,6 +118,7 @@ struct mlx4_bitmap {
 
 struct mlx4_buddy {
 	unsigned long	      **bits;
+	unsigned int	       *num_free;
 	int			max_order;
 	spinlock_t		lock;
 };

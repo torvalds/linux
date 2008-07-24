@@ -219,7 +219,7 @@ struct mlx4_wqe_datagram_seg {
 	__be32			reservd[2];
 };
 
-struct mlx4_lso_seg {
+struct mlx4_wqe_lso_seg {
 	__be32			mss_hdr_size;
 	__be32			header[0];
 };
@@ -231,6 +231,14 @@ struct mlx4_wqe_bind_seg {
 	__be32			lkey;
 	__be64			addr;
 	__be64			length;
+};
+
+enum {
+	MLX4_WQE_FMR_PERM_LOCAL_READ	= 1 << 27,
+	MLX4_WQE_FMR_PERM_LOCAL_WRITE	= 1 << 28,
+	MLX4_WQE_FMR_PERM_REMOTE_READ	= 1 << 29,
+	MLX4_WQE_FMR_PERM_REMOTE_WRITE	= 1 << 30,
+	MLX4_WQE_FMR_PERM_ATOMIC	= 1 << 31
 };
 
 struct mlx4_wqe_fmr_seg {
@@ -255,11 +263,11 @@ struct mlx4_wqe_fmr_ext_seg {
 };
 
 struct mlx4_wqe_local_inval_seg {
-	u8			flags;
-	u8			reserved1[3];
+	__be32			flags;
+	u32			reserved1;
 	__be32			mem_key;
-	u8			reserved2[3];
-	u8			guest_id;
+	u32			reserved2[2];
+	__be32			guest_id;
 	__be64			pa;
 };
 
