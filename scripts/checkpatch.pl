@@ -1670,6 +1670,7 @@ sub process {
 			my $value = $2;
 
 			# Flatten any parentheses and braces
+			$value =~ s/\)\(/\) \(/g;
 			while ($value =~ s/\([^\(\)]*\)/1/) {
 			}
 
