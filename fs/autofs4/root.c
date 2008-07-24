@@ -775,6 +775,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 		list_del_init(&ino->active);
 	spin_unlock(&sbi->lookup_lock);
 
+	ino->size = strlen(symname);
 	cp = kmalloc(ino->size + 1, GFP_KERNEL);
 	if (!cp) {
 		if (!dentry->d_fsdata)
@@ -806,7 +807,6 @@ static int autofs4_dir_symlink(struct inode *dir,
 		atomic_inc(&p_ino->count);
 	ino->inode = inode;
 
-	ino->size = strlen(symname);
 	ino->u.symlink = cp;
 	dir->i_mtime = CURRENT_TIME;
 
