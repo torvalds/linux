@@ -34,6 +34,7 @@ struct hstate hstates[HUGE_MAX_HSTATE];
 /* for command line parsing */
 static struct hstate * __initdata parsed_hstate;
 static unsigned long __initdata default_hstate_max_huge_pages;
+static unsigned long __initdata default_hstate_size;
 
 #define for_each_hstate(h) \
 	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
@@ -1288,11 +1289,14 @@ static int __init hugetlb_init(void)
 {
 	BUILD_BUG_ON(HPAGE_SHIFT == 0);
 
-	if (!size_to_hstate(HPAGE_SIZE)) {
-		hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
-		parsed_hstate->max_huge_pages = default_hstate_max_huge_pages;
+	if (!size_to_hstate(default_hstate_size)) {
+		default_hstate_size = HPAGE_SIZE;
+		if (!size_to_hstate(default_hstate_size))
+			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
 	}
-	default_hstate_idx = size_to_hstate(HPAGE_SIZE) - hstates;
+	default_hstate_idx = size_to_hstate(default_hstate_size) - hstates;
+	if (default_hstate_max_huge_pages)
+		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
 
 	hugetlb_init_hstates();
 
@@ -1332,7 +1336,7 @@ void __init hugetlb_add_hstate(unsigned order)
 	parsed_hstate = h;
 }
 
-static int __init hugetlb_setup(char *s)
+static int __init hugetlb_nrpages_setup(char *s)
 {
 	unsigned long *mhp;
 	static unsigned long *last_mhp;
@@ -1367,7 +1371,14 @@ static int __init hugetlb_setup(char *s)
 
 	return 1;
 }
-__setup("hugepages=", hugetlb_setup);
+__setup("hugepages=", hugetlb_nrpages_setup);
+
+static int __init hugetlb_default_setup(char *s)
+{
+	default_hstate_size = memparse(s, &s);
+	return 1;
+}
+__setup("default_hugepagesz=", hugetlb_default_setup);
 
 static unsigned int cpuset_mems_nr(unsigned int *array)
 {
