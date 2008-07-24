@@ -81,6 +81,7 @@ do { \
 extern void mminit_verify_pageflags_layout(void);
 extern void mminit_verify_page_links(struct page *page,
 		enum zone_type zone, unsigned long nid, unsigned long pfn);
+extern void mminit_verify_zonelist(void);
 
 #else
 
@@ -95,6 +96,10 @@ static inline void mminit_verify_pageflags_layout(void)
 
 static inline void mminit_verify_page_links(struct page *page,
 		enum zone_type zone, unsigned long nid, unsigned long pfn)
+{
+}
+
+static inline void mminit_verify_zonelist(void)
 {
 }
 #endif /* CONFIG_DEBUG_MEMORY_INIT */
