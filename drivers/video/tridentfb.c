@@ -870,8 +870,10 @@ static int tridentfb_check_var(struct fb_var_screeninfo *var,
 		line_length = var->xres_virtual * bpp / 8;
 	}
 
-	if (var->yres > var->yres_virtual)
-		var->yres_virtual = var->yres;
+	/* datasheet specifies how to set panning only up to 4 MB */
+	if (line_length * (var->yres_virtual - var->yres) > (4 << 20))
+		var->yres_virtual = ((4 << 20) / line_length) + var->yres;
+
 	if (line_length * var->yres_virtual > info->fix.smem_len)
 		return -EINVAL;
 
@@ -944,8 +946,6 @@ static int tridentfb_pan_display(struct fb_var_screeninfo *var,
 	debug("enter\n");
 	offset = (var->xoffset + (var->yoffset * var->xres_virtual))
 		* var->bits_per_pixel / 32;
-	info->var.xoffset = var->xoffset;
-	info->var.yoffset = var->yoffset;
 	set_screen_start(par, offset);
 	debug("exit\n");
 	return 0;
@@ -1225,7 +1225,6 @@ static int tridentfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 				((blue & 0xFF00) >> 8);
 	}
 
-/* 	debug("exit\n"); */
 	return 0;
 }
 
