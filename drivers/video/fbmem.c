@@ -35,6 +35,7 @@
 #include <linux/device.h>
 #include <linux/efi.h>
 #include <linux/fb.h>
+#include <linux/major.h>
 
 #include <asm/fb.h>
 

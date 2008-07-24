@@ -8,7 +8,6 @@ struct dentry;
 
 /* Definitions of frame buffers						*/
 
-#define FB_MAJOR		29
 #define FB_MAX			32	/* sufficient for now */
 
 /* ioctls
