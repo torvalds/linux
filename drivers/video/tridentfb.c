@@ -85,6 +85,11 @@ MODULE_PARM_DESC(fp, "Define if flatpanel is connected");
 module_param(crt, int, 0);
 MODULE_PARM_DESC(crt, "Define if CRT is connected");
 
+static int is_oldclock(int id)
+{
+	return (id == TGUI9660);
+}
+
 static int is_blade(int id)
 {
 	return	(id == BLADE3D) ||
@@ -659,23 +664,33 @@ static void set_screen_start(struct tridentfb_par *par, int base)
 static void set_vclk(struct tridentfb_par *par, unsigned long freq)
 {
 	int m, n, k;
-	unsigned long f, fi, d, di;
-	unsigned char lo = 0, hi = 0;
+	unsigned long fi, d, di;
+	unsigned char best_m = 0, best_n = 0, best_k = 0;
+	unsigned char hi, lo;
 
 	d = 20000;
-	for (k = 2; k >= 0; k--)
-		for (m = 0; m < 63; m++)
-			for (n = 0; n < 128; n++) {
+	for (k = 1; k >= 0; k--)
+		for (m = 0; m < 32; m++)
+			for (n = 0; n < 122; n++) {
 				fi = ((14318l * (n + 8)) / (m + 2)) >> k;
 				if ((di = abs(fi - freq)) < d) {
 					d = di;
-					f = fi;
-					lo = n;
-					hi = (k << 6) | m;
+					best_n = n;
+					best_m = m;
+					best_k = k;
 				}
 				if (fi > freq)
 					break;
 			}
+
+	if (is_oldclock(par->chip_id)) {
+		lo = best_n | (best_m << 7);
+		hi = (best_m >> 1) | (best_k << 4);
+	} else {
+		lo = best_n;
+		hi = best_m | (best_k << 6);
+	}
+
 	if (is3Dchip(par->chip_id)) {
 		vga_mm_wseq(par->io_virt, ClockHigh, hi);
 		vga_mm_wseq(par->io_virt, ClockLow, lo);
