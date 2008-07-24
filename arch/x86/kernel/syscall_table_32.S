@@ -330,3 +330,4 @@ ENTRY(sys_call_table)
 	.long sys_eventfd2
 	.long sys_epoll_create2
 	.long sys_dup3			/* 330 */
+	.long sys_pipe2

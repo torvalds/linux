@@ -336,6 +336,7 @@
 #define __NR_eventfd2		328
 #define __NR_epoll_create2	329
 #define __NR_dup3		330
+#define __NR_pipe2		331
 
 #ifdef __KERNEL__
 

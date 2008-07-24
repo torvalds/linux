@@ -649,6 +649,8 @@ __SYSCALL(__NR_eventfd2, sys_eventfd2)
 __SYSCALL(__NR_epoll_create2, sys_epoll_create2)
 #define __NR_dup3				292
 __SYSCALL(__NR_dup3, sys_dup3)
+#define __NR_pipe2				293
+__SYSCALL(__NR_pipe2, sys_pipe2)
 
 
 #ifndef __NO_STUBS

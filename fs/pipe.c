@@ -1027,11 +1027,14 @@ struct file *create_read_pipe(struct file *wrf)
 	return f;
 }
 
-int do_pipe(int *fd)
+int do_pipe_flags(int *fd, int flags)
 {
 	struct file *fw, *fr;
 	int error;
 	int fdw, fdr;
+
+	if (flags & ~O_CLOEXEC)
+		return -EINVAL;
 
 	fw = create_write_pipe();
 	if (IS_ERR(fw))
@@ -1041,12 +1044,12 @@ int do_pipe(int *fd)
 	if (IS_ERR(fr))
 		goto err_write_pipe;
 
-	error = get_unused_fd();
+	error = get_unused_fd_flags(flags);
 	if (error < 0)
 		goto err_read_pipe;
 	fdr = error;
 
-	error = get_unused_fd();
+	error = get_unused_fd_flags(flags);
 	if (error < 0)
 		goto err_fdr;
 	fdw = error;
@@ -1074,16 +1077,21 @@ int do_pipe(int *fd)
 	return error;
 }
 
+int do_pipe(int *fd)
+{
+	return do_pipe_flags(fd, 0);
+}
+
 /*
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way Unix traditionally does this, though.
  */
-asmlinkage long __weak sys_pipe(int __user *fildes)
+asmlinkage long __weak sys_pipe2(int __user *fildes, int flags)
 {
 	int fd[2];
 	int error;
 
-	error = do_pipe(fd);
+	error = do_pipe_flags(fd, flags);
 	if (!error) {
 		if (copy_to_user(fildes, fd, sizeof(fd))) {
 			sys_close(fd[0]);
@@ -1092,6 +1100,11 @@ asmlinkage long __weak sys_pipe(int __user *fildes)
 		}
 	}
 	return error;
+}
+
+asmlinkage long __weak sys_pipe(int __user *fildes)
+{
+	return sys_pipe2(fildes, 0);
 }
 
 /*
