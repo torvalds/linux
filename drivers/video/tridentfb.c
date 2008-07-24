@@ -35,10 +35,11 @@ struct tridentfb_par {
 		(struct tridentfb_par *par, u32, u32, u32, u32, u32, u32);
 	void (*copy_rect)
 		(struct tridentfb_par *par, u32, u32, u32, u32, u32, u32);
+	void (*image_blit)
+		(struct tridentfb_par *par, const char*,
+		 u32, u32, u32, u32, u32, u32);
 	unsigned char eng_oper;	/* engine operation... */
 };
-
-static struct fb_ops tridentfb_ops;
 
 static struct fb_fix_screeninfo tridentfb_fix = {
 	.id = "Trident",
@@ -210,6 +211,21 @@ static void blade_fill_rect(struct tridentfb_par *par,
 
 	writemmr(par, DST1, point(x, y));
 	writemmr(par, DST2, point(x + w - 1, y + h - 1));
+}
+
+static void blade_image_blit(struct tridentfb_par *par, const char *data,
+			     u32 x, u32 y, u32 w, u32 h, u32 c, u32 b)
+{
+	unsigned size = ((w + 31) >> 5) * h;
+
+	writemmr(par, COLOR, c);
+	writemmr(par, BGCOLOR, b);
+	writemmr(par, CMD, 0xa0000000 | 3 << 19);
+
+	writemmr(par, DST1, point(x, y));
+	writemmr(par, DST2, point(x + w - 1, y + h - 1));
+
+	memcpy(par->io_virt + 0x10000, data, 4 * size);
 }
 
 static void blade_copy_rect(struct tridentfb_par *par,
@@ -497,6 +513,36 @@ static void tridentfb_fillrect(struct fb_info *info,
 		       fr->height, col, fr->rop);
 }
 
+static void tridentfb_imageblit(struct fb_info *info,
+				const struct fb_image *img)
+{
+	struct tridentfb_par *par = info->par;
+	int col, bgcol;
+
+	if ((info->flags & FBINFO_HWACCEL_DISABLED) || img->depth != 1) {
+		cfb_imageblit(info, img);
+		return;
+	}
+	if (info->var.bits_per_pixel == 8) {
+		col = img->fg_color;
+		col |= col << 8;
+		col |= col << 16;
+		bgcol = img->bg_color;
+		bgcol |= bgcol << 8;
+		bgcol |= bgcol << 16;
+	} else {
+		col = ((u32 *)(info->pseudo_palette))[img->fg_color];
+		bgcol = ((u32 *)(info->pseudo_palette))[img->bg_color];
+	}
+
+	par->wait_engine(par);
+	if (par->image_blit)
+		par->image_blit(par, img->data, img->dx, img->dy,
+				img->width, img->height, col, bgcol);
+	else
+		cfb_imageblit(info, img);
+}
+
 static void tridentfb_copyarea(struct fb_info *info,
 			       const struct fb_copyarea *ca)
 {
@@ -522,6 +568,7 @@ static int tridentfb_sync(struct fb_info *info)
 #else
 #define tridentfb_fillrect cfb_fillrect
 #define tridentfb_copyarea cfb_copyarea
+#define tridentfb_imageblit cfb_imageblit
 #endif /* CONFIG_FB_TRIDENT_ACCEL */
 
 /*
@@ -1285,7 +1332,7 @@ static struct fb_ops tridentfb_ops = {
 	.fb_set_par = tridentfb_set_par,
 	.fb_fillrect = tridentfb_fillrect,
 	.fb_copyarea = tridentfb_copyarea,
-	.fb_imageblit = cfb_imageblit,
+	.fb_imageblit = tridentfb_imageblit,
 #ifdef CONFIG_FB_TRIDENT_ACCEL
 	.fb_sync = tridentfb_sync,
 #endif
@@ -1369,6 +1416,7 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 		default_par->wait_engine = blade_wait_engine;
 		default_par->fill_rect = blade_fill_rect;
 		default_par->copy_rect = blade_copy_rect;
+		default_par->image_blit = blade_image_blit;
 		tridentfb_fix.accel = FB_ACCEL_TRIDENT_BLADE3D;
 	} else if (chip3D) {			/* 3DImage family left */
 		default_par->init_accel = image_init_accel;
@@ -1446,6 +1494,29 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	} else
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 
+	info->pixmap.addr = kmalloc(4096, GFP_KERNEL);
+	if (!info->pixmap.addr) {
+		err = -ENOMEM;
+		goto out_unmap2;
+	}
+
+	info->pixmap.size = 4096;
+	info->pixmap.buf_align = 4;
+	info->pixmap.scan_align = 1;
+	info->pixmap.access_align = 32;
+	info->pixmap.flags = FB_PIXMAP_SYSTEM;
+
+	if (default_par->image_blit) {
+		info->flags |= FBINFO_HWACCEL_IMAGEBLIT;
+		info->pixmap.scan_align = 4;
+	}
+
+	if (noaccel) {
+		printk(KERN_DEBUG "disabling acceleration\n");
+		info->flags |= FBINFO_HWACCEL_DISABLED;
+		info->pixmap.scan_align = 1;
+	}
+
 	if (!fb_find_mode(&info->var, info,
 			  mode_option, NULL, 0, NULL, bpp)) {
 		err = -EINVAL;
@@ -1471,6 +1542,7 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	return 0;
 
 out_unmap2:
+	kfree(info->pixmap.addr);
 	if (info->screen_base)
 		iounmap(info->screen_base);
 	release_mem_region(tridentfb_fix.smem_start, tridentfb_fix.smem_len);
@@ -1494,6 +1566,7 @@ static void __devexit trident_pci_remove(struct pci_dev *dev)
 	release_mem_region(tridentfb_fix.smem_start, tridentfb_fix.smem_len);
 	release_mem_region(tridentfb_fix.mmio_start, tridentfb_fix.mmio_len);
 	pci_set_drvdata(dev, NULL);
+	kfree(info->pixmap.addr);
 	framebuffer_release(info);
 }
 

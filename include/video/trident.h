@@ -135,6 +135,7 @@
 #define CMD	0x2144
 #define ROP	0x2148
 #define COLOR	0x2160
+#define BGCOLOR	0x2164
 #define SRC1	0x2100
 #define SRC2	0x2104
 #define DST1	0x2108
