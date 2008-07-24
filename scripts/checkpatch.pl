@@ -715,7 +715,7 @@ sub annotate_values {
 				$av_preprocessor = 0;
 			}
 
-		} elsif ($cur =~ /^($Type)\s*(?:$Ident|,|\))/) {
+		} elsif ($cur =~ /^($Type)\s*(?:$Ident|,|\)|\()/) {
 			print "DECLARE($1)\n" if ($dbg_values > 1);
 			$type = 'T';
 
