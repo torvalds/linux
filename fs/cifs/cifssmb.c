@@ -3914,7 +3914,10 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 	bool is_unicode;
 	struct dfs_referral_level_3 *ref;
 
-	is_unicode = pSMBr->hdr.Flags2 & SMBFLG2_UNICODE;
+	if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
+		is_unicode = true;
+	else
+		is_unicode = false;
 	*num_of_nodes = le16_to_cpu(pSMBr->NumberOfReferrals);
 
 	if (*num_of_nodes < 1) {

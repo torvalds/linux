@@ -455,7 +455,7 @@ incomplete_rcv:
 		/* Note that FC 1001 length is big endian on the wire,
 		but we convert it here so it is always manipulated
 		as host byte order */
-		pdu_length = ntohl(smb_buffer->smb_buf_length);
+		pdu_length = be32_to_cpu((__force __be32)smb_buffer->smb_buf_length);
 		smb_buffer->smb_buf_length = pdu_length;
 
 		cFYI(1, ("rfc1002 length 0x%x", pdu_length+4));
