@@ -566,7 +566,7 @@ static const struct inotify_operations inotify_user_ops = {
 	.destroy_watch	= free_inotify_user_watch,
 };
 
-asmlinkage long sys_inotify_init(void)
+asmlinkage long sys_inotify_init1(int flags)
 {
 	struct inotify_device *dev;
 	struct inotify_handle *ih;
@@ -574,7 +574,10 @@ asmlinkage long sys_inotify_init(void)
 	struct file *filp;
 	int fd, ret;
 
-	fd = get_unused_fd();
+	if (flags & ~IN_CLOEXEC)
+		return -EINVAL;
+
+	fd = get_unused_fd_flags(flags & O_CLOEXEC);
 	if (fd < 0)
 		return fd;
 
@@ -636,6 +639,11 @@ out_free_uid:
 out_put_fd:
 	put_unused_fd(fd);
 	return ret;
+}
+
+asmlinkage long sys_inotify_init(void)
+{
+	return sys_inotify_init1(0);
 }
 
 asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)

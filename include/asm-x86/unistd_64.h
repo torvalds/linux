@@ -651,6 +651,8 @@ __SYSCALL(__NR_epoll_create2, sys_epoll_create2)
 __SYSCALL(__NR_dup3, sys_dup3)
 #define __NR_pipe2				293
 __SYSCALL(__NR_pipe2, sys_pipe2)
+#define __NR_inotify_init1			294
+__SYSCALL(__NR_inotify_init1, sys_inotify_init1)
 
 
 #ifndef __NO_STUBS

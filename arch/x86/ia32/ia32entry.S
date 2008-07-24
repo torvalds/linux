@@ -831,4 +831,5 @@ ia32_sys_call_table:
 	.quad sys_epoll_create2
 	.quad sys_dup3			/* 330 */
 	.quad sys_pipe2
+	.quad sys_inotify_init1
 ia32_syscall_end:
