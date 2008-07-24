@@ -543,6 +543,12 @@ int ubifs_budget_space(struct ubifs_info *c, struct ubifs_budget_req *req)
 	int err, idx_growth, data_growth, dd_growth;
 	struct retries_info ri;
 
+	ubifs_assert(req->new_page <= 1);
+	ubifs_assert(req->dirtied_page <= 1);
+	ubifs_assert(req->new_dent <= 1);
+	ubifs_assert(req->mod_dent <= 1);
+	ubifs_assert(req->new_ino <= 1);
+	ubifs_assert(req->new_ino_d <= UBIFS_MAX_INO_DATA);
 	ubifs_assert(req->dirtied_ino <= 4);
 	ubifs_assert(req->dirtied_ino_d <= UBIFS_MAX_INO_DATA * 4);
 
@@ -618,6 +624,12 @@ again:
  */
 void ubifs_release_budget(struct ubifs_info *c, struct ubifs_budget_req *req)
 {
+	ubifs_assert(req->new_page <= 1);
+	ubifs_assert(req->dirtied_page <= 1);
+	ubifs_assert(req->new_dent <= 1);
+	ubifs_assert(req->mod_dent <= 1);
+	ubifs_assert(req->new_ino <= 1);
+	ubifs_assert(req->new_ino_d <= UBIFS_MAX_INO_DATA);
 	ubifs_assert(req->dirtied_ino <= 4);
 	ubifs_assert(req->dirtied_ino_d <= UBIFS_MAX_INO_DATA * 4);
 	if (!req->recalculate) {
