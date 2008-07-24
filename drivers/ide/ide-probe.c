@@ -134,18 +134,6 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 #endif
 	ide_fix_driveid(id);
 
-#if defined (CONFIG_SCSI_EATA_PIO) || defined (CONFIG_SCSI_EATA)
-	/*
-	 * EATA SCSI controllers do a hardware ATA emulation:
-	 * Ignore them if there is a driver for them available.
-	 */
-	if ((id->model[0] == 'P' && id->model[1] == 'M') ||
-	    (id->model[0] == 'S' && id->model[1] == 'K')) {
-		printk("%s: EATA SCSI HBA %.10s\n", drive->name, id->model);
-		goto err_misc;
-	}
-#endif /* CONFIG_SCSI_EATA || CONFIG_SCSI_EATA_PIO */
-
 	/*
 	 *  WIN_IDENTIFY returns little-endian info,
 	 *  WIN_PIDENTIFY *usually* returns little-endian info.
