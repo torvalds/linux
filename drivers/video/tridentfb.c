@@ -31,6 +31,12 @@ struct tridentfb_par {
 	u32 pseudo_pal[16];
 	int chip_id;
 	int flatpanel;
+	void (*init_accel) (struct tridentfb_par *, int, int);
+	void (*wait_engine) (struct tridentfb_par *);
+	void (*fill_rect)
+		(struct tridentfb_par *par, u32, u32, u32, u32, u32, u32);
+	void (*copy_rect)
+		(struct tridentfb_par *par, u32, u32, u32, u32, u32, u32);
 };
 
 static unsigned char eng_oper;	/* engine operation... */
@@ -155,15 +161,6 @@ static inline u8 t_inb(struct tridentfb_par *p, u16 reg)
 	return fb_readb(p->io_virt + reg);
 }
 
-static struct accel_switch {
-	void (*init_accel) (struct tridentfb_par *, int, int);
-	void (*wait_engine) (struct tridentfb_par *);
-	void (*fill_rect)
-		(struct tridentfb_par *par, u32, u32, u32, u32, u32, u32);
-	void (*copy_rect)
-		(struct tridentfb_par *par, u32, u32, u32, u32, u32, u32);
-} *acc;
-
 static inline void writemmr(struct tridentfb_par *par, u16 r, u32 v)
 {
 	fb_writel(v, par->io_virt + r);
@@ -258,13 +255,6 @@ static void blade_copy_rect(struct tridentfb_par *par,
 	writemmr(par, DR1, direction ? d2 : d1);
 	writemmr(par, DR2, direction ? d1 : d2);
 }
-
-static struct accel_switch accel_blade = {
-	blade_init_accel,
-	blade_wait_engine,
-	blade_fill_rect,
-	blade_copy_rect,
-};
 
 /*
  * BladeXP specific acceleration functions
@@ -405,13 +395,6 @@ static void xp_copy_rect(struct tridentfb_par *par,
 	t_outb(par, 0x01, 0x2124);
 }
 
-static struct accel_switch accel_xp = {
-	xp_init_accel,
-	xp_wait_engine,
-	xp_fill_rect,
-	xp_copy_rect,
-};
-
 /*
  * Image specific acceleration functions
  */
@@ -491,13 +474,6 @@ static void image_copy_rect(struct tridentfb_par *par,
 		 0x80000000 | 1 << 22 | 1 << 10 | 1 << 7 | direction);
 }
 
-static struct accel_switch accel_image = {
-	image_init_accel,
-	image_wait_engine,
-	image_fill_rect,
-	image_copy_rect,
-};
-
 /*
  * Accel functions called by the upper layers
  */
@@ -524,18 +500,18 @@ static void tridentfb_fillrect(struct fb_info *info,
 		break;
 	}
 
-	acc->fill_rect(par, fr->dx, fr->dy, fr->width,
+	par->fill_rect(par, fr->dx, fr->dy, fr->width,
 		       fr->height, col, fr->rop);
-	acc->wait_engine(par);
+	par->wait_engine(par);
 }
 static void tridentfb_copyarea(struct fb_info *info,
 			       const struct fb_copyarea *ca)
 {
 	struct tridentfb_par *par = info->par;
 
-	acc->copy_rect(par, ca->sx, ca->sy, ca->dx, ca->dy,
+	par->copy_rect(par, ca->sx, ca->sy, ca->dx, ca->dy,
 		       ca->width, ca->height);
-	acc->wait_engine(par);
+	par->wait_engine(par);
 }
 #else /* !CONFIG_FB_TRIDENT_ACCEL */
 #define tridentfb_fillrect cfb_fillrect
@@ -1029,7 +1005,7 @@ static int tridentfb_set_par(struct fb_info *info)
 	write3X4(par, GraphEngReg, 0x80);
 
 #ifdef CONFIG_FB_TRIDENT_ACCEL
-	acc->init_accel(par, info->var.xres, bpp);
+	par->init_accel(par, info->var.xres, bpp);
 #endif
 
 	switch (bpp) {
@@ -1290,11 +1266,20 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	chip3D = is3Dchip(chip_id);
 
 	if (is_xp(chip_id)) {
-		acc = &accel_xp;
+		default_par->init_accel = xp_init_accel;
+		default_par->wait_engine = xp_wait_engine;
+		default_par->fill_rect = xp_fill_rect;
+		default_par->copy_rect = xp_copy_rect;
 	} else if (is_blade(chip_id)) {
-		acc = &accel_blade;
+		default_par->init_accel = blade_init_accel;
+		default_par->wait_engine = blade_wait_engine;
+		default_par->fill_rect = blade_fill_rect;
+		default_par->copy_rect = blade_copy_rect;
 	} else {
-		acc = &accel_image;
+		default_par->init_accel = image_init_accel;
+		default_par->wait_engine = image_wait_engine;
+		default_par->fill_rect = image_fill_rect;
+		default_par->copy_rect = image_copy_rect;
 	}
 
 	default_par->chip_id = chip_id;
@@ -1365,7 +1350,7 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	if (err < 0)
 		goto out_unmap2;
 
-	if (defaultaccel && acc)
+	if (defaultaccel && default_par->init_accel)
 		info->var.accel_flags |= FB_ACCELF_TEXT;
 	else
 		info->var.accel_flags &= ~FB_ACCELF_TEXT;
