@@ -235,11 +235,56 @@ static int cmos_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
+static void cmos_checkintr(struct cmos_rtc *cmos, unsigned char rtc_control)
+{
+	unsigned char	rtc_intr;
+
+	/* NOTE after changing RTC_xIE bits we always read INTR_FLAGS;
+	 * allegedly some older rtcs need that to handle irqs properly
+	 */
+	rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
+
+	if (is_hpet_enabled())
+		return;
+
+	rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
+	if (is_intr(rtc_intr))
+		rtc_update_irq(cmos->rtc, 1, rtc_intr);
+}
+
+static void cmos_irq_enable(struct cmos_rtc *cmos, unsigned char mask)
+{
+	unsigned char	rtc_control;
+
+	/* flush any pending IRQ status, notably for update irqs,
+	 * before we enable new IRQs
+	 */
+	rtc_control = CMOS_READ(RTC_CONTROL);
+	cmos_checkintr(cmos, rtc_control);
+
+	rtc_control |= mask;
+	CMOS_WRITE(rtc_control, RTC_CONTROL);
+	hpet_set_rtc_irq_bit(mask);
+
+	cmos_checkintr(cmos, rtc_control);
+}
+
+static void cmos_irq_disable(struct cmos_rtc *cmos, unsigned char mask)
+{
+	unsigned char	rtc_control;
+
+	rtc_control = CMOS_READ(RTC_CONTROL);
+	rtc_control &= ~mask;
+	CMOS_WRITE(rtc_control, RTC_CONTROL);
+	hpet_mask_rtc_irq_bit(mask);
+
+	cmos_checkintr(cmos, rtc_control);
+}
+
 static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	unsigned char	mon, mday, hrs, min, sec;
-	unsigned char	rtc_control, rtc_intr;
 
 	if (!is_valid_irq(cmos->irq))
 		return -EIO;
@@ -266,15 +311,7 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	spin_lock_irq(&rtc_lock);
 
 	/* next rtc irq must not be from previous alarm setting */
-	rtc_control = CMOS_READ(RTC_CONTROL);
-	rtc_control &= ~RTC_AIE;
-	CMOS_WRITE(rtc_control, RTC_CONTROL);
-	hpet_mask_rtc_irq_bit(RTC_AIE);
-
-	rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
-	rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
-	if (is_intr(rtc_intr))
-		rtc_update_irq(cmos->rtc, 1, rtc_intr);
+	cmos_irq_disable(cmos, RTC_AIE);
 
 	/* update alarm */
 	CMOS_WRITE(hrs, RTC_HOURS_ALARM);
@@ -293,16 +330,8 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	 */
 	hpet_set_alarm_time(t->time.tm_hour, t->time.tm_min, t->time.tm_sec);
 
-	if (t->enabled) {
-		rtc_control |= RTC_AIE;
-		CMOS_WRITE(rtc_control, RTC_CONTROL);
-		hpet_set_rtc_irq_bit(RTC_AIE);
-
-		rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
-		rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
-		if (is_intr(rtc_intr))
-			rtc_update_irq(cmos->rtc, 1, rtc_intr);
-	}
+	if (t->enabled)
+		cmos_irq_enable(cmos, RTC_AIE);
 
 	spin_unlock_irq(&rtc_lock);
 
@@ -335,28 +364,17 @@ static int cmos_irq_set_freq(struct device *dev, int freq)
 static int cmos_irq_set_state(struct device *dev, int enabled)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
-	unsigned char	rtc_control, rtc_intr;
 	unsigned long	flags;
 
 	if (!is_valid_irq(cmos->irq))
 		return -ENXIO;
 
 	spin_lock_irqsave(&rtc_lock, flags);
-	rtc_control = CMOS_READ(RTC_CONTROL);
 
-	if (enabled) {
-		rtc_control |= RTC_PIE;
-		hpet_set_rtc_irq_bit(RTC_PIE);
-	} else {
-		rtc_control &= ~RTC_PIE;
-		hpet_mask_rtc_irq_bit(RTC_PIE);
-	}
-	CMOS_WRITE(rtc_control, RTC_CONTROL);
-
-	rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
-	rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
-	if (is_intr(rtc_intr))
-		rtc_update_irq(cmos->rtc, 1, rtc_intr);
+	if (enabled)
+		cmos_irq_enable(cmos, RTC_PIE);
+	else
+		cmos_irq_disable(cmos, RTC_PIE);
 
 	spin_unlock_irqrestore(&rtc_lock, flags);
 	return 0;
@@ -368,7 +386,6 @@ static int
 cmos_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
-	unsigned char	rtc_control, rtc_intr;
 	unsigned long	flags;
 
 	switch (cmd) {
@@ -385,32 +402,20 @@ cmos_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	}
 
 	spin_lock_irqsave(&rtc_lock, flags);
-	rtc_control = CMOS_READ(RTC_CONTROL);
 	switch (cmd) {
 	case RTC_AIE_OFF:	/* alarm off */
-		rtc_control &= ~RTC_AIE;
-		hpet_mask_rtc_irq_bit(RTC_AIE);
+		cmos_irq_disable(cmos, RTC_AIE);
 		break;
 	case RTC_AIE_ON:	/* alarm on */
-		rtc_control |= RTC_AIE;
-		hpet_set_rtc_irq_bit(RTC_AIE);
+		cmos_irq_enable(cmos, RTC_AIE);
 		break;
 	case RTC_UIE_OFF:	/* update off */
-		rtc_control &= ~RTC_UIE;
-		hpet_mask_rtc_irq_bit(RTC_UIE);
+		cmos_irq_disable(cmos, RTC_UIE);
 		break;
 	case RTC_UIE_ON:	/* update on */
-		rtc_control |= RTC_UIE;
-		hpet_set_rtc_irq_bit(RTC_UIE);
+		cmos_irq_enable(cmos, RTC_UIE);
 		break;
 	}
-	CMOS_WRITE(rtc_control, RTC_CONTROL);
-
-	rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
-	rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
-	if (is_intr(rtc_intr))
-		rtc_update_irq(cmos->rtc, 1, rtc_intr);
-
 	spin_unlock_irqrestore(&rtc_lock, flags);
 	return 0;
 }
@@ -571,7 +576,6 @@ static irqreturn_t cmos_interrupt(int irq, void *p)
 	 * alarm woke the system.
 	 */
 	if (irqstat & RTC_AIE) {
-		rtc_control = CMOS_READ(RTC_CONTROL);
 		rtc_control &= ~RTC_AIE;
 		CMOS_WRITE(rtc_control, RTC_CONTROL);
 		hpet_mask_rtc_irq_bit(RTC_AIE);
@@ -685,17 +689,10 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	hpet_set_periodic_freq(cmos_rtc.rtc->irq_freq);
 	CMOS_WRITE(RTC_REF_CLCK_32KHZ | 0x06, RTC_FREQ_SELECT);
 
-	/* disable irqs.
-	 *
-	 * NOTE after changing RTC_xIE bits we always read INTR_FLAGS;
-	 * allegedly some older rtcs need that to handle irqs properly
-	 */
-	rtc_control = CMOS_READ(RTC_CONTROL);
-	rtc_control &= ~(RTC_PIE | RTC_AIE | RTC_UIE);
-	CMOS_WRITE(rtc_control, RTC_CONTROL);
-	hpet_mask_rtc_irq_bit(RTC_PIE | RTC_AIE | RTC_UIE);
+	/* disable irqs */
+	cmos_irq_disable(&cmos_rtc, RTC_PIE | RTC_AIE | RTC_UIE);
 
-	CMOS_READ(RTC_INTR_FLAGS);
+	rtc_control = CMOS_READ(RTC_CONTROL);
 
 	spin_unlock_irq(&rtc_lock);
 
@@ -768,15 +765,8 @@ cleanup0:
 
 static void cmos_do_shutdown(void)
 {
-	unsigned char	rtc_control;
-
 	spin_lock_irq(&rtc_lock);
-	rtc_control = CMOS_READ(RTC_CONTROL);
-	rtc_control &= ~RTC_IRQMASK;
-	CMOS_WRITE(rtc_control, RTC_CONTROL);
-	hpet_mask_rtc_irq_bit(RTC_IRQMASK);
-
-	CMOS_READ(RTC_INTR_FLAGS);
+	cmos_irq_disable(&cmos_rtc, RTC_IRQMASK);
 	spin_unlock_irq(&rtc_lock);
 }
 
@@ -817,7 +807,6 @@ static int cmos_suspend(struct device *dev, pm_message_t mesg)
 	spin_lock_irq(&rtc_lock);
 	cmos->suspend_ctrl = tmp = CMOS_READ(RTC_CONTROL);
 	if (tmp & (RTC_PIE|RTC_AIE|RTC_UIE)) {
-		unsigned char	irqstat;
 		unsigned char	mask;
 
 		if (do_wake)
@@ -828,10 +817,7 @@ static int cmos_suspend(struct device *dev, pm_message_t mesg)
 		CMOS_WRITE(tmp, RTC_CONTROL);
 		hpet_mask_rtc_irq_bit(mask);
 
-		irqstat = CMOS_READ(RTC_INTR_FLAGS);
-		irqstat &= (tmp & RTC_IRQMASK) | RTC_IRQF;
-		if (is_intr(irqstat))
-			rtc_update_irq(cmos->rtc, 1, irqstat);
+		cmos_checkintr(cmos, tmp);
 	}
 	spin_unlock_irq(&rtc_lock);
 
@@ -875,7 +861,7 @@ static int cmos_resume(struct device *dev)
 
 			mask = CMOS_READ(RTC_INTR_FLAGS);
 			mask &= (tmp & RTC_IRQMASK) | RTC_IRQF;
-			if (!is_intr(mask))
+			if (!is_hpet_enabled() || !is_intr(mask))
 				break;
 
 			/* force one-shot behavior if HPET blocked
