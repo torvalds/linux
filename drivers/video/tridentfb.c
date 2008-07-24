@@ -87,13 +87,15 @@ MODULE_PARM_DESC(crt, "Define if CRT is connected");
 
 static int is_oldclock(int id)
 {
-	return	(id == TGUI9660) ||
+	return	(id == TGUI9440) ||
+		(id == TGUI9660) ||
 		(id == CYBER9320);
 }
 
 static int is_oldprotect(int id)
 {
-	return	(id == TGUI9660) ||
+	return	(id == TGUI9440) ||
+		(id == TGUI9660) ||
 		(id == PROVIDIA9685) ||
 		(id == CYBER9320) ||
 		(id == CYBER9382) ||
@@ -1042,7 +1044,8 @@ static int tridentfb_set_par(struct fb_info *info)
 	if (!is_xp(par->chip_id))
 		write3X4(par, Performance, read3X4(par, Performance) | 0x10);
 	/* MMIO & PCI read and write burst enable */
-	write3X4(par, PCIReg, read3X4(par, PCIReg) | 0x06);
+	if (par->chip_id != TGUI9440)
+		write3X4(par, PCIReg, read3X4(par, PCIReg) | 0x06);
 
 	/* convert from picoseconds to kHz */
 	vclk = PICOS2KHZ(info->var.pixclock);
@@ -1418,6 +1421,7 @@ static struct pci_device_id trident_devices[] = {
 	{PCI_VENDOR_ID_TRIDENT,	CYBERBLADEAi1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_TRIDENT,	CYBERBLADEAi1D, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_TRIDENT,	CYBERBLADEE4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_TRIDENT,	TGUI9440, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_TRIDENT,	TGUI9660, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_TRIDENT,	IMAGE975, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_TRIDENT,	IMAGE985, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
