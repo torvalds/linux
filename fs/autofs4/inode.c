@@ -24,8 +24,10 @@
 
 static void ino_lnkfree(struct autofs_info *ino)
 {
-	kfree(ino->u.symlink);
-	ino->u.symlink = NULL;
+	if (ino->u.symlink) {
+		kfree(ino->u.symlink);
+		ino->u.symlink = NULL;
+	}
 }
 
 struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
@@ -41,16 +43,18 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 	if (ino == NULL)
 		return NULL;
 
-	ino->flags = 0;
+	if (!reinit) {
+		ino->flags = 0;
+		ino->inode = NULL;
+		ino->dentry = NULL;
+		ino->size = 0;
+		INIT_LIST_HEAD(&ino->active);
+		INIT_LIST_HEAD(&ino->expiring);
+		atomic_set(&ino->count, 0);
+	}
+
 	ino->mode = mode;
-	ino->inode = NULL;
-	ino->dentry = NULL;
-	ino->size = 0;
-
-	INIT_LIST_HEAD(&ino->expiring);
-
 	ino->last_used = jiffies;
-	atomic_set(&ino->count, 0);
 
 	ino->sbi = sbi;
 
@@ -339,6 +343,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	spin_lock_init(&sbi->fs_lock);
 	sbi->queues = NULL;
 	spin_lock_init(&sbi->lookup_lock);
+	INIT_LIST_HEAD(&sbi->active_list);
 	INIT_LIST_HEAD(&sbi->expiring_list);
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;

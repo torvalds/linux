@@ -473,6 +473,8 @@ void autofs4_dentry_release(struct dentry *de)
 
 		if (sbi) {
 			spin_lock(&sbi->lookup_lock);
+			if (!list_empty(&inf->active))
+				list_del(&inf->active);
 			if (!list_empty(&inf->expiring))
 				list_del(&inf->expiring);
 			spin_unlock(&sbi->lookup_lock);
@@ -496,6 +498,58 @@ static struct dentry_operations autofs4_dentry_operations = {
 	.d_revalidate	= autofs4_revalidate,
 	.d_release	= autofs4_dentry_release,
 };
+
+static struct dentry *autofs4_lookup_active(struct autofs_sb_info *sbi, struct dentry *parent, struct qstr *name)
+{
+	unsigned int len = name->len;
+	unsigned int hash = name->hash;
+	const unsigned char *str = name->name;
+	struct list_head *p, *head;
+
+	spin_lock(&dcache_lock);
+	spin_lock(&sbi->lookup_lock);
+	head = &sbi->active_list;
+	list_for_each(p, head) {
+		struct autofs_info *ino;
+		struct dentry *dentry;
+		struct qstr *qstr;
+
+		ino = list_entry(p, struct autofs_info, active);
+		dentry = ino->dentry;
+
+		spin_lock(&dentry->d_lock);
+
+		/* Already gone? */
+		if (atomic_read(&dentry->d_count) == 0)
+			goto next;
+
+		qstr = &dentry->d_name;
+
+		if (dentry->d_name.hash != hash)
+			goto next;
+		if (dentry->d_parent != parent)
+			goto next;
+
+		if (qstr->len != len)
+			goto next;
+		if (memcmp(qstr->name, str, len))
+			goto next;
+
+		if (d_unhashed(dentry)) {
+			dget(dentry);
+			spin_unlock(&dentry->d_lock);
+			spin_unlock(&sbi->lookup_lock);
+			spin_unlock(&dcache_lock);
+			return dentry;
+		}
+next:
+		spin_unlock(&dentry->d_lock);
+	}
+	spin_unlock(&sbi->lookup_lock);
+	spin_unlock(&dcache_lock);
+
+	return NULL;
+}
 
 static struct dentry *autofs4_lookup_expiring(struct autofs_sb_info *sbi, struct dentry *parent, struct qstr *name)
 {
@@ -553,7 +607,8 @@ next:
 static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
 	struct autofs_sb_info *sbi;
-	struct dentry *expiring;
+	struct autofs_info *ino;
+	struct dentry *expiring, *unhashed;
 	int oz_mode;
 
 	DPRINTK("name = %.*s",
@@ -571,12 +626,12 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 
 	expiring = autofs4_lookup_expiring(sbi, dentry->d_parent, &dentry->d_name);
 	if (expiring) {
-		struct autofs_info *ino = autofs4_dentry_ino(expiring);
 		/*
 		 * If we are racing with expire the request might not
 		 * be quite complete but the directory has been removed
 		 * so it must have been successful, so just wait for it.
 		 */
+		ino = autofs4_dentry_ino(expiring);
 		while (ino && (ino->flags & AUTOFS_INF_EXPIRING)) {
 			DPRINTK("wait for incomplete expire %p name=%.*s",
 				expiring, expiring->d_name.len,
@@ -591,21 +646,41 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 		dput(expiring);
 	}
 
-	/*
-	 * Mark the dentry incomplete but don't hash it. We do this
-	 * to serialize our inode creation operations (symlink and
-	 * mkdir) which prevents deadlock during the callback to
-	 * the daemon. Subsequent user space lookups for the same
-	 * dentry are placed on the wait queue while the daemon
-	 * itself is allowed passage unresticted so the create
-	 * operation itself can then hash the dentry. Finally,
-	 * we check for the hashed dentry and return the newly
-	 * hashed dentry.
-	 */
-	dentry->d_op = &autofs4_root_dentry_operations;
+	unhashed = autofs4_lookup_active(sbi, dentry->d_parent, &dentry->d_name);
+	if (unhashed)
+		dentry = unhashed;
+	else {
+		/*
+		 * Mark the dentry incomplete but don't hash it. We do this
+		 * to serialize our inode creation operations (symlink and
+		 * mkdir) which prevents deadlock during the callback to
+		 * the daemon. Subsequent user space lookups for the same
+		 * dentry are placed on the wait queue while the daemon
+		 * itself is allowed passage unresticted so the create
+		 * operation itself can then hash the dentry. Finally,
+		 * we check for the hashed dentry and return the newly
+		 * hashed dentry.
+		 */
+		dentry->d_op = &autofs4_root_dentry_operations;
 
-	dentry->d_fsdata = NULL;
-	d_instantiate(dentry, NULL);
+		/*
+		 * And we need to ensure that the same dentry is used for
+		 * all following lookup calls until it is hashed so that
+		 * the dentry flags are persistent throughout the request.
+		 */
+		ino = autofs4_init_ino(NULL, sbi, 0555);
+		if (!ino)
+			return ERR_PTR(-ENOMEM);
+
+		dentry->d_fsdata = ino;
+		ino->dentry = dentry;
+
+		spin_lock(&sbi->lookup_lock);
+		list_add(&ino->active, &sbi->active_list);
+		spin_unlock(&sbi->lookup_lock);
+
+		d_instantiate(dentry, NULL);
+	}
 
 	if (!oz_mode) {
 		spin_lock(&dentry->d_lock);
@@ -630,12 +705,16 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 			if (sigismember (sigset, SIGKILL) ||
 			    sigismember (sigset, SIGQUIT) ||
 			    sigismember (sigset, SIGINT)) {
+			    if (unhashed)
+				dput(unhashed);
 			    return ERR_PTR(-ERESTARTNOINTR);
 			}
 		}
-		spin_lock(&dentry->d_lock);
-		dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
-		spin_unlock(&dentry->d_lock);
+		if (!oz_mode) {
+			spin_lock(&dentry->d_lock);
+			dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
+			spin_unlock(&dentry->d_lock);
+		}
 	}
 
 	/*
@@ -659,8 +738,14 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 		else
 			dentry = ERR_PTR(-ENOENT);
 
+		if (unhashed)
+			dput(unhashed);
+
 		return dentry;
 	}
+
+	if (unhashed)
+		return unhashed;
 
 	return NULL;
 }
@@ -682,20 +767,30 @@ static int autofs4_dir_symlink(struct inode *dir,
 		return -EACCES;
 
 	ino = autofs4_init_ino(ino, sbi, S_IFLNK | 0555);
-	if (ino == NULL)
-		return -ENOSPC;
+	if (!ino)
+		return -ENOMEM;
 
-	ino->size = strlen(symname);
-	ino->u.symlink = cp = kmalloc(ino->size + 1, GFP_KERNEL);
+	spin_lock(&sbi->lookup_lock);
+	if (!list_empty(&ino->active))
+		list_del_init(&ino->active);
+	spin_unlock(&sbi->lookup_lock);
 
-	if (cp == NULL) {
-		kfree(ino);
-		return -ENOSPC;
+	cp = kmalloc(ino->size + 1, GFP_KERNEL);
+	if (!cp) {
+		if (!dentry->d_fsdata)
+			kfree(ino);
+		return -ENOMEM;
 	}
 
 	strcpy(cp, symname);
 
 	inode = autofs4_get_inode(dir->i_sb, ino);
+	if (!inode) {
+		kfree(cp);
+		if (!dentry->d_fsdata)
+			kfree(ino);
+		return -ENOMEM;
+	}
 	d_add(dentry, inode);
 
 	if (dir == dir->i_sb->s_root->d_inode)
@@ -711,6 +806,8 @@ static int autofs4_dir_symlink(struct inode *dir,
 		atomic_inc(&p_ino->count);
 	ino->inode = inode;
 
+	ino->size = strlen(symname);
+	ino->u.symlink = cp;
 	dir->i_mtime = CURRENT_TIME;
 
 	return 0;
@@ -755,7 +852,8 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 
 	spin_lock(&dcache_lock);
 	spin_lock(&sbi->lookup_lock);
-	list_add(&ino->expiring, &sbi->expiring_list);
+	if (list_empty(&ino->expiring))
+		list_add(&ino->expiring, &sbi->expiring_list);
 	spin_unlock(&sbi->lookup_lock);
 	spin_lock(&dentry->d_lock);
 	__d_drop(dentry);
@@ -783,7 +881,8 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 		return -ENOTEMPTY;
 	}
 	spin_lock(&sbi->lookup_lock);
-	list_add(&ino->expiring, &sbi->expiring_list);
+	if (list_empty(&ino->expiring))
+		list_add(&ino->expiring, &sbi->expiring_list);
 	spin_unlock(&sbi->lookup_lock);
 	spin_lock(&dentry->d_lock);
 	__d_drop(dentry);
@@ -819,10 +918,20 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		dentry, dentry->d_name.len, dentry->d_name.name);
 
 	ino = autofs4_init_ino(ino, sbi, S_IFDIR | 0555);
-	if (ino == NULL)
-		return -ENOSPC;
+	if (!ino)
+		return -ENOMEM;
+
+	spin_lock(&sbi->lookup_lock);
+	if (!list_empty(&ino->active))
+		list_del_init(&ino->active);
+	spin_unlock(&sbi->lookup_lock);
 
 	inode = autofs4_get_inode(dir->i_sb, ino);
+	if (!inode) {
+		if (!dentry->d_fsdata)
+			kfree(ino);
+		return -ENOMEM;
+	}
 	d_add(dentry, inode);
 
 	if (dir == dir->i_sb->s_root->d_inode)

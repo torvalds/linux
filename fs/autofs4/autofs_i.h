@@ -52,6 +52,7 @@ struct autofs_info {
 
 	int		flags;
 
+	struct list_head active;
 	struct list_head expiring;
 
 	struct autofs_sb_info *sbi;
@@ -113,6 +114,7 @@ struct autofs_sb_info {
 	spinlock_t fs_lock;
 	struct autofs_wait_queue *queues; /* Wait queue pointer */
 	spinlock_t lookup_lock;
+	struct list_head active_list;
 	struct list_head expiring_list;
 };
 
