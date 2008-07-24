@@ -4131,9 +4131,6 @@ W:	http://www.uclinux.org/
 L:	uclinux-dev@uclinux.org  (subscribers-only)
 S:	Maintained
 
-UCLINUX FOR NEC V850
-P:	Miles Bader
-
 UCLINUX FOR RENESAS H8/300
 P:	Yoshinori Sato
 M:	ysato@users.sourceforge.jp

@@ -623,7 +623,7 @@ static int do_i2c_entry(const char *filename, struct i2c_device_id *id,
 	return 1;
 }
 
-/* Ignore any prefix, eg. v850 prepends _ */
+/* Ignore any prefix, eg. some architectures prepend _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
 	const char *match;
