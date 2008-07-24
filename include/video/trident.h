@@ -4,9 +4,9 @@
 #endif
 
 #if TRIDENTFB_DEBUG
-#define debug(f,a...)	printk("%s:" f,  __FUNCTION__ , ## a);mdelay(100);
+#define debug(f, a...)	printk("%s:" f,  __func__ , ## a);
 #else
-#define debug(f,a...)
+#define debug(f, a...)
 #endif
 
 #define output(f, a...) pr_info("tridentfb: " f, ## a)
