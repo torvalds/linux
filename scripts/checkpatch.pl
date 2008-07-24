@@ -470,7 +470,9 @@ sub ctx_statement_block {
 		}
 		$off++;
 	}
+	# We are truly at the end, so shuffle to the next line.
 	if ($off == $len) {
+		$loff = $len + 1;
 		$line++;
 		$remain--;
 	}
@@ -1793,30 +1795,26 @@ sub process {
 				$lines[$ln - 1] =~ /^(?:-|..*\\$)/)
 			{
 				$ctx .= $rawlines[$ln - 1] . "\n";
+				$cnt-- if ($lines[$ln - 1] !~ /^-/);
 				$ln++;
-				$cnt--;
 			}
 			$ctx .= $rawlines[$ln - 1];
 
 			($dstat, $dcond, $ln, $cnt, $off) =
 				ctx_statement_block($linenr, $ln - $linenr + 1, 0);
 			#print "dstat<$dstat> dcond<$dcond> cnt<$cnt> off<$off>\n";
-			#print "LINE<$lines[$ln]> len<" . length($lines[$ln]) . "\n";
+			#print "LINE<$lines[$ln-1]> len<" . length($lines[$ln-1]) . "\n";
 
 			# Extract the remainder of the define (if any) and
 			# rip off surrounding spaces, and trailing \'s.
 			$rest = '';
-			if (defined $lines[$ln - 1] &&
-			    $off > length($lines[$ln - 1]))
-			{
+			while ($off != 0 || ($cnt > 0 && $rest =~ /(?:^|\\)\s*$/)) {
+				#print "ADDING $off <" . substr($lines[$ln - 1], $off) . ">\n";
+				if ($off != 0 || $lines[$ln - 1] !~ /^-/) {
+					$rest .= substr($lines[$ln - 1], $off) . "\n";
+					$cnt--;
+				}
 				$ln++;
-				$cnt--;
-				$off = 0;
-			}
-			while ($cnt > 0) {
-				$rest .= substr($lines[$ln - 1], $off) . "\n";
-				$ln++;
-				$cnt--;
 				$off = 0;
 			}
 			$rest =~ s/\\\n.//g;
@@ -1847,6 +1845,7 @@ sub process {
 				DEFINE_PER_CPU|
 				__typeof__\(
 			}x;
+			#print "REST<$rest>\n";
 			if ($rest ne '') {
 				if ($rest !~ /while\s*\(/ &&
 				    $dstat !~ /$exceptions/)
