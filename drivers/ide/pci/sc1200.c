@@ -329,6 +329,7 @@ static struct pci_driver driver = {
 	.name		= "SC1200_IDE",
 	.id_table	= sc1200_pci_tbl,
 	.probe		= sc1200_init_one,
+	.remove		= ide_pci_remove,
 #ifdef CONFIG_PM
 	.suspend	= sc1200_suspend,
 	.resume		= sc1200_resume,
@@ -340,7 +341,13 @@ static int __init sc1200_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit sc1200_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(sc1200_ide_init);
+module_exit(sc1200_ide_exit);
 
 MODULE_AUTHOR("Mark Lord");
 MODULE_DESCRIPTION("PCI driver module for NS SC1200 IDE");
