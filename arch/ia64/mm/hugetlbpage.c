@@ -112,7 +112,7 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int wri
 	return NULL;
 }
 
-void hugetlb_free_pgd_range(struct mmu_gather **tlb,
+void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 			unsigned long addr, unsigned long end,
 			unsigned long floor, unsigned long ceiling)
 {
