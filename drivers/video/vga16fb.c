@@ -1087,12 +1087,15 @@ static void vga16fb_copyarea(struct fb_info *info, const struct fb_copyarea *are
 	width = x2 - dx;
 	height = y2 - dy;
 
+	if (sx + dx < old_dx || sy + dy < old_dy)
+		return;
+
 	/* update sx1,sy1 */
 	sx += (dx - old_dx);
 	sy += (dy - old_dy);
 
 	/* the source must be completely inside the virtual screen */
-	if (sx < 0 || sy < 0 || (sx + width) > vxres || (sy + height) > vyres)
+	if (sx + width > vxres || sy + height > vyres)
 		return;
 
 	switch (info->fix.type) {
