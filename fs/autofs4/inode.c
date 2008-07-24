@@ -47,7 +47,7 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 	ino->dentry = NULL;
 	ino->size = 0;
 
-	INIT_LIST_HEAD(&ino->rehash);
+	INIT_LIST_HEAD(&ino->expiring);
 
 	ino->last_used = jiffies;
 	atomic_set(&ino->count, 0);
@@ -338,8 +338,8 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	mutex_init(&sbi->wq_mutex);
 	spin_lock_init(&sbi->fs_lock);
 	sbi->queues = NULL;
-	spin_lock_init(&sbi->rehash_lock);
-	INIT_LIST_HEAD(&sbi->rehash_list);
+	spin_lock_init(&sbi->lookup_lock);
+	INIT_LIST_HEAD(&sbi->expiring_list);
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
 	s->s_magic = AUTOFS_SUPER_MAGIC;
