@@ -52,5 +52,9 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr);
 
 extern int use_spi_crc;
 
+/* Debugfs information for hosts and cards */
+void mmc_add_host_debugfs(struct mmc_host *host);
+void mmc_remove_host_debugfs(struct mmc_host *host);
+
 #endif
 
