@@ -342,13 +342,13 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
 }
 
 /* Returns true if the VMA has associated reserve pages */
-static int vma_has_private_reserves(struct vm_area_struct *vma)
+static int vma_has_reserves(struct vm_area_struct *vma)
 {
 	if (vma->vm_flags & VM_SHARED)
-		return 0;
-	if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER))
-		return 0;
-	return 1;
+		return 1;
+	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+		return 1;
+	return 0;
 }
 
 static void clear_huge_page(struct page *page,
@@ -420,7 +420,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
 	 * have no page reserves. This check ensures that reservations are
 	 * not "stolen". The child may still get SIGKILLed
 	 */
-	if (!vma_has_private_reserves(vma) &&
+	if (!vma_has_reserves(vma) &&
 			h->free_huge_pages - h->resv_huge_pages == 0)
 		return NULL;
 
