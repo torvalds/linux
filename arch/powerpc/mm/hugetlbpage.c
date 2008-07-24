@@ -128,7 +128,8 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 	return NULL;
 }
 
-pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_alloc(struct mm_struct *mm,
+			unsigned long addr, unsigned long sz)
 {
 	pgd_t *pg;
 	pud_t *pu;

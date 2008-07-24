@@ -124,7 +124,8 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
 	return 1;
 }
 
-pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_alloc(struct mm_struct *mm,
+			unsigned long addr, unsigned long sz)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -368,7 +369,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED) {
-		if (prepare_hugepage_range(addr, len))
+		if (prepare_hugepage_range(file, addr, len))
 			return -EINVAL;
 		return addr;
 	}

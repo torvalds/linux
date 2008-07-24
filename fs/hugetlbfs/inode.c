@@ -80,6 +80,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	struct inode *inode = file->f_path.dentry->d_inode;
 	loff_t len, vma_len;
 	int ret;
+	struct hstate *h = hstate_file(file);
 
 	/*
 	 * vma address alignment (but not the pgoff alignment) has
@@ -92,7 +93,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
 	vma->vm_ops = &hugetlb_vm_ops;
 
-	if (vma->vm_pgoff & ~(HPAGE_MASK >> PAGE_SHIFT))
+	if (vma->vm_pgoff & ~(huge_page_mask(h) >> PAGE_SHIFT))
 		return -EINVAL;
 
 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
@@ -104,8 +105,8 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	len = vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
 
 	if (hugetlb_reserve_pages(inode,
-				vma->vm_pgoff >> (HPAGE_SHIFT-PAGE_SHIFT),
-				len >> HPAGE_SHIFT, vma))
+				vma->vm_pgoff >> huge_page_order(h),
+				len >> huge_page_shift(h), vma))
 		goto out;
 
 	ret = 0;
@@ -130,20 +131,21 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long start_addr;
+	struct hstate *h = hstate_file(file);
 
-	if (len & ~HPAGE_MASK)
+	if (len & ~huge_page_mask(h))
 		return -EINVAL;
 	if (len > TASK_SIZE)
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED) {
-		if (prepare_hugepage_range(addr, len))
+		if (prepare_hugepage_range(file, addr, len))
 			return -EINVAL;
 		return addr;
 	}
 
 	if (addr) {
-		addr = ALIGN(addr, HPAGE_SIZE);
+		addr = ALIGN(addr, huge_page_size(h));
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr &&
 		    (!vma || addr + len <= vma->vm_start))
@@ -156,7 +158,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		start_addr = TASK_UNMAPPED_BASE;
 
 full_search:
-	addr = ALIGN(start_addr, HPAGE_SIZE);
+	addr = ALIGN(start_addr, huge_page_size(h));
 
 	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
 		/* At this point:  (!vma || addr < vma->vm_end). */
@@ -174,7 +176,7 @@ full_search:
 
 		if (!vma || addr + len <= vma->vm_start)
 			return addr;
-		addr = ALIGN(vma->vm_end, HPAGE_SIZE);
+		addr = ALIGN(vma->vm_end, huge_page_size(h));
 	}
 }
 #endif
@@ -225,10 +227,11 @@ hugetlbfs_read_actor(struct page *page, unsigned long offset,
 static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 			      size_t len, loff_t *ppos)
 {
+	struct hstate *h = hstate_file(filp);
 	struct address_space *mapping = filp->f_mapping;
 	struct inode *inode = mapping->host;
-	unsigned long index = *ppos >> HPAGE_SHIFT;
-	unsigned long offset = *ppos & ~HPAGE_MASK;
+	unsigned long index = *ppos >> huge_page_shift(h);
+	unsigned long offset = *ppos & ~huge_page_mask(h);
 	unsigned long end_index;
 	loff_t isize;
 	ssize_t retval = 0;
@@ -243,17 +246,17 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 	if (!isize)
 		goto out;
 
-	end_index = (isize - 1) >> HPAGE_SHIFT;
+	end_index = (isize - 1) >> huge_page_shift(h);
 	for (;;) {
 		struct page *page;
-		int nr, ret;
+		unsigned long nr, ret;
 
 		/* nr is the maximum number of bytes to copy from this page */
-		nr = HPAGE_SIZE;
+		nr = huge_page_size(h);
 		if (index >= end_index) {
 			if (index > end_index)
 				goto out;
-			nr = ((isize - 1) & ~HPAGE_MASK) + 1;
+			nr = ((isize - 1) & ~huge_page_mask(h)) + 1;
 			if (nr <= offset) {
 				goto out;
 			}
@@ -287,8 +290,8 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 		offset += ret;
 		retval += ret;
 		len -= ret;
-		index += offset >> HPAGE_SHIFT;
-		offset &= ~HPAGE_MASK;
+		index += offset >> huge_page_shift(h);
+		offset &= ~huge_page_mask(h);
 
 		if (page)
 			page_cache_release(page);
@@ -298,7 +301,7 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 			break;
 	}
 out:
-	*ppos = ((loff_t)index << HPAGE_SHIFT) + offset;
+	*ppos = ((loff_t)index << huge_page_shift(h)) + offset;
 	mutex_unlock(&inode->i_mutex);
 	return retval;
 }
@@ -339,8 +342,9 @@ static void truncate_huge_page(struct page *page)
 
 static void truncate_hugepages(struct inode *inode, loff_t lstart)
 {
+	struct hstate *h = hstate_inode(inode);
 	struct address_space *mapping = &inode->i_data;
-	const pgoff_t start = lstart >> HPAGE_SHIFT;
+	const pgoff_t start = lstart >> huge_page_shift(h);
 	struct pagevec pvec;
 	pgoff_t next;
 	int i, freed = 0;
@@ -449,8 +453,9 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
 {
 	pgoff_t pgoff;
 	struct address_space *mapping = inode->i_mapping;
+	struct hstate *h = hstate_inode(inode);
 
-	BUG_ON(offset & ~HPAGE_MASK);
+	BUG_ON(offset & ~huge_page_mask(h));
 	pgoff = offset >> PAGE_SHIFT;
 
 	i_size_write(inode, offset);
@@ -465,6 +470,7 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
 static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
+	struct hstate *h = hstate_inode(inode);
 	int error;
 	unsigned int ia_valid = attr->ia_valid;
 
@@ -476,7 +482,7 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if (ia_valid & ATTR_SIZE) {
 		error = -EINVAL;
-		if (!(attr->ia_size & ~HPAGE_MASK))
+		if (!(attr->ia_size & ~huge_page_mask(h)))
 			error = hugetlb_vmtruncate(inode, attr->ia_size);
 		if (error)
 			goto out;
@@ -610,9 +616,10 @@ static int hugetlbfs_set_page_dirty(struct page *page)
 static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(dentry->d_sb);
+	struct hstate *h = hstate_inode(dentry->d_inode);
 
 	buf->f_type = HUGETLBFS_MAGIC;
-	buf->f_bsize = HPAGE_SIZE;
+	buf->f_bsize = huge_page_size(h);
 	if (sbinfo) {
 		spin_lock(&sbinfo->stat_lock);
 		/* If no limits set, just report 0 for max/free/used
@@ -942,7 +949,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size)
 		goto out_dentry;
 
 	error = -ENOMEM;
-	if (hugetlb_reserve_pages(inode, 0, size >> HPAGE_SHIFT, NULL))
+	if (hugetlb_reserve_pages(inode, 0,
+			size >> huge_page_shift(hstate_inode(inode)), NULL))
 		goto out_inode;
 
 	d_instantiate(dentry, inode);

@@ -1812,7 +1812,8 @@ int split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 	struct mempolicy *pol;
 	struct vm_area_struct *new;
 
-	if (is_vm_hugetlb_page(vma) && (addr & ~HPAGE_MASK))
+	if (is_vm_hugetlb_page(vma) && (addr &
+					~(huge_page_mask(hstate_vma(vma)))))
 		return -EINVAL;
 
 	if (mm->map_count >= sysctl_max_map_count)
