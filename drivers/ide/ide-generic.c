@@ -87,6 +87,10 @@ static int __init ide_generic_init(void)
 	unsigned long io_addr;
 	int i, rc;
 
+#ifdef CONFIG_MIPS
+	if (!ide_probe_legacy())
+		return -ENODEV;
+#endif
 	printk(KERN_INFO DRV_NAME ": please use \"probe_mask=0x3f\" module "
 			 "parameter for probing all legacy ISA IDE ports\n");
 
