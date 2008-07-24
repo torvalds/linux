@@ -60,7 +60,7 @@
 
 #define PAGES2KB(_p) ((_p)<<(PAGE_SHIFT-10))
 
-#define BALLOON_CLASS_NAME "memory"
+#define BALLOON_CLASS_NAME "xen_memory"
 
 struct balloon_stats {
 	/* We aim for 'current allocation' == 'target allocation'. */
@@ -588,12 +588,13 @@ static void balloon_release_driver_page(struct page *page)
 }
 
 
-#define BALLOON_SHOW(name, format, args...)			\
-	static ssize_t show_##name(struct sys_device *dev,	\
-				   char *buf)			\
-	{							\
-		return sprintf(buf, format, ##args);		\
-	}							\
+#define BALLOON_SHOW(name, format, args...)				\
+	static ssize_t show_##name(struct sys_device *dev,		\
+				   struct sysdev_attribute *attr,	\
+				   char *buf)				\
+	{								\
+		return sprintf(buf, format, ##args);			\
+	}								\
 	static SYSDEV_ATTR(name, S_IRUGO, show_##name, NULL)
 
 BALLOON_SHOW(current_kb, "%lu\n", PAGES2KB(balloon_stats.current_pages));
@@ -604,7 +605,8 @@ BALLOON_SHOW(hard_limit_kb,
 	     (balloon_stats.hard_limit!=~0UL) ? PAGES2KB(balloon_stats.hard_limit) : 0);
 BALLOON_SHOW(driver_kb, "%lu\n", PAGES2KB(balloon_stats.driver_pages));
 
-static ssize_t show_target_kb(struct sys_device *dev, char *buf)
+static ssize_t show_target_kb(struct sys_device *dev, struct sysdev_attribute *attr,
+			      char *buf)
 {
 	return sprintf(buf, "%lu\n", PAGES2KB(balloon_stats.target_pages));
 }
@@ -614,19 +616,14 @@ static ssize_t store_target_kb(struct sys_device *dev,
 			       const char *buf,
 			       size_t count)
 {
-	char memstring[64], *endchar;
+	char *endchar;
 	unsigned long long target_bytes;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (count <= 1)
-		return -EBADMSG; /* runt */
-	if (count > sizeof(memstring))
-		return -EFBIG;   /* too long */
-	strcpy(memstring, buf);
+	target_bytes = memparse(buf, &endchar);
 
-	target_bytes = memparse(memstring, &endchar);
 	balloon_set_new_target(target_bytes >> PAGE_SHIFT);
 
 	return count;
