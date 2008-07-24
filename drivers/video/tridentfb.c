@@ -87,7 +87,17 @@ MODULE_PARM_DESC(crt, "Define if CRT is connected");
 
 static int is_oldclock(int id)
 {
-	return (id == TGUI9660);
+	return	(id == TGUI9660) ||
+		(id == CYBER9320);
+}
+
+static int is_oldprotect(int id)
+{
+	return	(id == TGUI9660) ||
+		(id == PROVIDIA9685) ||
+		(id == CYBER9320) ||
+		(id == CYBER9382) ||
+		(id == CYBER9385);
 }
 
 static int is_blade(int id)
@@ -143,6 +153,7 @@ static int iscyber(int id)
 
 	case CYBER9320:
 	case TGUI9660:
+	case PROVIDIA9685:
 	case IMAGE975:
 	case IMAGE985:
 	case BLADE3D:
@@ -905,14 +916,14 @@ static int tridentfb_set_par(struct fb_info *info)
 	hsyncend = (var->xres + var->right_margin + var->hsync_len) / 8 - 1;
 	htotal = (var->xres + var->left_margin + var->right_margin +
 		  var->hsync_len) / 8 - 5;
-	hblankstart = hdispend + 2;
+	hblankstart = hdispend + 1;
 	hblankend = htotal + 3;
 
 	vdispend = var->yres - 1;
 	vsyncstart = var->yres + var->lower_margin;
 	vsyncend = vsyncstart + var->vsync_len;
 	vtotal = var->upper_margin + vsyncend - 2;
-	vblankstart = vdispend + 2;
+	vblankstart = vdispend + 1;
 	vblankend = vtotal;
 
 	crtc_unlock(par);
@@ -1020,15 +1031,18 @@ static int tridentfb_set_par(struct fb_info *info)
 
 	write3X4(par, PixelBusReg, tmp);
 
-	tmp = 0x10;
+	tmp = read3X4(par, DRAMControl);
+	if (!is_oldprotect(par->chip_id))
+		tmp |= 0x10;
 	if (iscyber(par->chip_id))
 		tmp |= 0x20;
 	write3X4(par, DRAMControl, tmp);	/* both IO, linear enable */
 
 	write3X4(par, InterfaceSel, read3X4(par, InterfaceSel) | 0x40);
-	write3X4(par, Performance, 0x92);
+	if (!is_xp(par->chip_id))
+		write3X4(par, Performance, read3X4(par, Performance) | 0x10);
 	/* MMIO & PCI read and write burst enable */
-	write3X4(par, PCIReg, 0x07);
+	write3X4(par, PCIReg, read3X4(par, PCIReg) | 0x06);
 
 	/* convert from picoseconds to kHz */
 	vclk = PICOS2KHZ(info->var.pixclock);
@@ -1230,6 +1244,9 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 		revision = vga_io_rseq(RevisionID);
 
 		switch (revision) {
+		case 0x21:
+			chip_id = PROVIDIA9685;
+			break;
 		case 0x22:
 		case 0x23:
 			chip_id = CYBER9397;
