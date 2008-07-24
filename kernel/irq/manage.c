@@ -308,6 +308,30 @@ void compat_irq_chip_set_default_handler(struct irq_desc *desc)
 		desc->handle_irq = NULL;
 }
 
+static int __irq_set_trigger(struct irq_chip *chip, unsigned int irq,
+		unsigned long flags)
+{
+	int ret;
+
+	if (!chip || !chip->set_type) {
+		/*
+		 * IRQF_TRIGGER_* but the PIC does not support multiple
+		 * flow-types?
+		 */
+		pr_warning("No set_type function for IRQ %d (%s)\n", irq,
+				chip ? (chip->name ? : "unknown") : "unknown");
+		return 0;
+	}
+
+	ret = chip->set_type(irq, flags & IRQF_TRIGGER_MASK);
+
+	if (ret)
+		pr_err("setting flow type for irq %u failed (%pF)\n",
+				irq, chip->set_type);
+
+	return ret;
+}
+
 /*
  * Internal function to register an irqaction - typically used to
  * allocate special interrupts that are part of the architecture.
@@ -319,6 +343,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	const char *old_name = NULL;
 	unsigned long flags;
 	int shared = 0;
+	int ret;
 
 	if (irq >= NR_IRQS)
 		return -EINVAL;
@@ -376,35 +401,23 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		shared = 1;
 	}
 
-	*p = new;
-
-	/* Exclude IRQ from balancing */
-	if (new->flags & IRQF_NOBALANCING)
-		desc->status |= IRQ_NO_BALANCING;
-
 	if (!shared) {
 		irq_chip_set_defaults(desc->chip);
 
+		/* Setup the type (level, edge polarity) if configured: */
+		if (new->flags & IRQF_TRIGGER_MASK) {
+			ret = __irq_set_trigger(desc->chip, irq, new->flags);
+
+			if (ret) {
+				spin_unlock_irqrestore(&desc->lock, flags);
+				return ret;
+			}
+		} else
+			compat_irq_chip_set_default_handler(desc);
 #if defined(CONFIG_IRQ_PER_CPU)
 		if (new->flags & IRQF_PERCPU)
 			desc->status |= IRQ_PER_CPU;
 #endif
-
-		/* Setup the type (level, edge polarity) if configured: */
-		if (new->flags & IRQF_TRIGGER_MASK) {
-			if (desc->chip->set_type)
-				desc->chip->set_type(irq,
-						new->flags & IRQF_TRIGGER_MASK);
-			else
-				/*
-				 * IRQF_TRIGGER_* but the PIC does not support
-				 * multiple flow-types?
-				 */
-				printk(KERN_WARNING "No IRQF_TRIGGER set_type "
-				       "function for IRQ %d (%s)\n", irq,
-				       desc->chip->name);
-		} else
-			compat_irq_chip_set_default_handler(desc);
 
 		desc->status &= ~(IRQ_AUTODETECT | IRQ_WAITING |
 				  IRQ_INPROGRESS | IRQ_SPURIOUS_DISABLED);
@@ -423,6 +436,13 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		/* Set default affinity mask once everything is setup */
 		irq_select_affinity(irq);
 	}
+
+	*p = new;
+
+	/* Exclude IRQ from balancing */
+	if (new->flags & IRQF_NOBALANCING)
+		desc->status |= IRQ_NO_BALANCING;
+
 	/* Reset broken irq detection when installing new handler */
 	desc->irq_count = 0;
 	desc->irqs_unhandled = 0;
