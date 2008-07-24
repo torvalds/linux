@@ -1359,10 +1359,6 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 
 	chip_id = id->device;
 
-	if (chip_id == CYBERBLADEi1)
-		output("*** Please do use cyblafb, Cyberblade/i1 support "
-		       "will soon be removed from tridentfb!\n");
-
 #ifndef CONFIG_FB_TRIDENT_ACCEL
 	noaccel = 1;
 #endif
