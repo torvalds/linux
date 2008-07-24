@@ -510,10 +510,8 @@ void ide_fixstring (u8 *s, const int bytecount, const int byteswap)
 
 	if (byteswap) {
 		/* convert from big-endian to host byte order */
-		for (p = end ; p != s;) {
-			unsigned short *pp = (unsigned short *) (p -= 2);
-			*pp = ntohs(*pp);
-		}
+		for (p = end ; p != s;)
+			be16_to_cpus((u16 *)(p -= 2));
 	}
 	/* strip leading blanks */
 	while (s != end && *s == ' ')
