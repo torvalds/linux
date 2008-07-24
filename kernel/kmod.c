@@ -417,12 +417,12 @@ int call_usermodehelper_stdinpipe(struct subprocess_info *sub_info,
 {
 	struct file *f;
 
-	f = create_write_pipe();
+	f = create_write_pipe(0);
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 	*filp = f;
 
-	f = create_read_pipe(f);
+	f = create_read_pipe(f, 0);
 	if (IS_ERR(f)) {
 		free_write_pipe(*filp);
 		return PTR_ERR(f);

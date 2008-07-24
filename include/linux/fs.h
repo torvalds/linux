@@ -1778,8 +1778,8 @@ static inline void allow_write_access(struct file *file)
 }
 extern int do_pipe(int *);
 extern int do_pipe_flags(int *, int);
-extern struct file *create_read_pipe(struct file *f);
-extern struct file *create_write_pipe(void);
+extern struct file *create_read_pipe(struct file *f, int flags);
+extern struct file *create_write_pipe(int flags);
 extern void free_write_pipe(struct file *);
 
 extern struct file *do_filp_open(int dfd, const char *pathname,
