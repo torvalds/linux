@@ -47,6 +47,7 @@ struct net;
 #define SYS_GETSOCKOPT	15		/* sys_getsockopt(2)		*/
 #define SYS_SENDMSG	16		/* sys_sendmsg(2)		*/
 #define SYS_RECVMSG	17		/* sys_recvmsg(2)		*/
+#define SYS_PACCEPT	18		/* sys_paccept(2)		*/
 
 typedef enum {
 	SS_FREE = 0,			/* not allocated		*/
@@ -219,6 +220,8 @@ extern int 	     sock_map_fd(struct socket *sock, int flags);
 extern struct socket *sockfd_lookup(int fd, int *err);
 #define		     sockfd_put(sock) fput(sock->file)
 extern int	     net_ratelimit(void);
+extern long	     do_accept(int fd, struct sockaddr __user *upeer_sockaddr,
+			       int __user *upeer_addrlen, int flags);
 
 #define net_random()		random32()
 #define net_srandom(seed)	srandom32((__force u32)seed)
