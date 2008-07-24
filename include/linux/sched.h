@@ -1983,6 +1983,13 @@ static inline unsigned long *end_of_stack(struct task_struct *p)
 
 #endif
 
+static inline int object_is_on_stack(void *obj)
+{
+	void *stack = task_stack_page(current);
+
+	return (obj >= stack) && (obj < (stack + THREAD_SIZE));
+}
+
 extern void thread_info_cache_init(void);
 
 /* set thread flags in other task's structures
