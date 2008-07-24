@@ -22,8 +22,6 @@
 #define _LINUX_PM_H
 
 #include <linux/list.h>
-#include <asm/atomic.h>
-#include <asm/errno.h>
 
 /*
  * Callbacks for platform drivers to implement.
