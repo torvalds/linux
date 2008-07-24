@@ -1752,21 +1752,18 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 	if (namelen == 2 && strcmp(name, "..") == 0) {
 		struct btrfs_key key;
 		struct extent_buffer *leaf;
-		u32 nritems;
 		int slot;
 
 		key.objectid = dir->i_ino;
+		key.offset = (u64)-1;
 		btrfs_set_key_type(&key, BTRFS_INODE_REF_KEY);
-		key.offset = 0;
+		if (ret < 0 || path->slots[0] == 0)
+			goto out_err;
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		BUG_ON(ret == 0);
 		ret = 0;
-
 		leaf = path->nodes[0];
-		slot = path->slots[0];
-		nritems = btrfs_header_nritems(leaf);
-		if (slot >= nritems)
-			goto out_err;
+		slot = path->slots[0] - 1;
 
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 		if (key.objectid != dir->i_ino ||
@@ -1980,16 +1977,15 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	/* special case for .., just use the back ref */
 	if (filp->f_pos == 1) {
 		btrfs_set_key_type(&key, BTRFS_INODE_REF_KEY);
-		key.offset = 0;
+		key.offset = (u64)-1;
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-		BUG_ON(ret == 0);
-		leaf = path->nodes[0];
-		slot = path->slots[0];
-		nritems = btrfs_header_nritems(leaf);
-		if (slot >= nritems) {
+		if (ret < 0 || path->slots[0] == 0) {
 			btrfs_release_path(root, path);
 			goto read_dir_items;
 		}
+		BUG_ON(ret == 0);
+		leaf = path->nodes[0];
+		slot = path->slots[0] - 1;
 		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 		btrfs_release_path(root, path);
 		if (found_key.objectid != key.objectid ||
