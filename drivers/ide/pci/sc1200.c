@@ -234,19 +234,9 @@ static int sc1200_suspend (struct pci_dev *dev, pm_message_t state)
 	 * we only save state when going from full power to less
 	 */
 	if (state.event == PM_EVENT_ON) {
-		struct sc1200_saved_state *ss;
+		struct ide_host *host = pci_get_drvdata(dev);
+		struct sc1200_saved_state *ss = host->host_priv;
 		unsigned int r;
-
-		/*
-		 * allocate a permanent save area, if not already allocated
-		 */
-		ss = (struct sc1200_saved_state *)pci_get_drvdata(dev);
-		if (ss == NULL) {
-			ss = kmalloc(sizeof(*ss), GFP_KERNEL);
-			if (ss == NULL)
-				return -ENOMEM;
-			pci_set_drvdata(dev, ss);
-		}
 
 		/*
 		 * save timing registers
@@ -263,7 +253,8 @@ static int sc1200_suspend (struct pci_dev *dev, pm_message_t state)
 
 static int sc1200_resume (struct pci_dev *dev)
 {
-	struct sc1200_saved_state *ss;
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct sc1200_saved_state *ss = host->host_priv;
 	unsigned int r;
 	int i;
 
@@ -271,16 +262,12 @@ static int sc1200_resume (struct pci_dev *dev)
 	if (i)
 		return i;
 
-	ss = (struct sc1200_saved_state *)pci_get_drvdata(dev);
-
 	/*
 	 * restore timing registers
 	 * (this may be unnecessary if BIOS also does it)
 	 */
-	if (ss) {
-		for (r = 0; r < 8; r++)
-			pci_write_config_dword(dev, 0x40 + r * 4, ss->regs[r]);
-	}
+	for (r = 0; r < 8; r++)
+		pci_write_config_dword(dev, 0x40 + r * 4, ss->regs[r]);
 
 	return 0;
 }
@@ -317,7 +304,19 @@ static const struct ide_port_info sc1200_chipset __devinitdata = {
 
 static int __devinit sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_pci_init_one(dev, &sc1200_chipset, NULL);
+	struct sc1200_saved_state *ss = NULL;
+	int rc;
+
+#ifdef CONFIG_PM
+	ss = kmalloc(sizeof(*ss), GFP_KERNEL);
+	if (ss == NULL)
+		return -ENOMEM;
+#endif
+	rc = ide_pci_init_one(dev, &sc1200_chipset, ss);
+	if (rc)
+		kfree(ss);
+
+	return rc;
 }
 
 static const struct pci_device_id sc1200_pci_tbl[] = {
