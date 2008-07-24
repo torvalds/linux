@@ -168,12 +168,11 @@ our @modifierList = (
 );
 
 sub build_types {
-	my $mods = "(?:  \n" . join("|\n  ", @modifierList) . "\n)";
-	my $all = "(?:  \n" . join("|\n  ", @typeList) . "\n)";
+	my $mods = "(?x:  \n" . join("|\n  ", @modifierList) . "\n)";
+	my $all = "(?x:  \n" . join("|\n  ", @typeList) . "\n)";
 	$Modifier	= qr{(?:$Attribute|$Sparse|$mods)};
 	$NonptrType	= qr{
-			(?:const\s+)?
-			(?:$mods\s+)?
+			(?:$Modifier\s+|const\s+)*
 			(?:
 				(?:typeof|__typeof__)\s*\(\s*\**\s*$Ident\s*\)|
 				(?:${all}\b)
