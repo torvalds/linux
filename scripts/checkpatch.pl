@@ -846,7 +846,7 @@ sub possible {
 	if ($possible !~ /^(?:$Storage|$Type|DEFINE_\S+)$/ &&
 	    $possible ne 'goto' && $possible ne 'return' &&
 	    $possible ne 'case' && $possible ne 'else' &&
-	    $possible ne 'asm' &&
+	    $possible ne 'asm' && $possible ne '__asm__' &&
 	    $possible !~ /^(typedef|struct|enum)\b/) {
 		# Check for modifiers.
 		$possible =~ s/\s*$Storage\s*//g;
