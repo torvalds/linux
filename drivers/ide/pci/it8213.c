@@ -155,22 +155,16 @@ static const struct ide_port_ops it8213_port_ops = {
 	.cable_detect		= it8213_cable_detect,
 };
 
-#define DECLARE_ITE_DEV(name_str)			\
-	{						\
-		.name		= name_str,		\
-		.enablebits	= { {0x41, 0x80, 0x80} }, \
-		.port_ops	= &it8213_port_ops,	\
-		.host_flags	= IDE_HFLAG_SINGLE,	\
-		.pio_mask	= ATA_PIO4,		\
-		.swdma_mask	= ATA_SWDMA2_ONLY,	\
-		.mwdma_mask	= ATA_MWDMA12_ONLY,	\
-		.udma_mask	= ATA_UDMA6,		\
-	}
-
-static const struct ide_port_info it8213_chipsets[] __devinitdata = {
-	/* 0 */ DECLARE_ITE_DEV("IT8213"),
+static const struct ide_port_info it8213_chipset __devinitdata = {
+	.name		= "IT8213",
+	.enablebits	= { {0x41, 0x80, 0x80} },
+	.port_ops	= &it8213_port_ops,
+	.host_flags	= IDE_HFLAG_SINGLE,
+	.pio_mask	= ATA_PIO4,
+	.swdma_mask	= ATA_SWDMA2_ONLY,
+	.mwdma_mask	= ATA_MWDMA12_ONLY,
+	.udma_mask	= ATA_UDMA6,
 };
-
 
 /**
  *	it8213_init_one	-	pci layer discovery entry
@@ -184,7 +178,7 @@ static const struct ide_port_info it8213_chipsets[] __devinitdata = {
 
 static int __devinit it8213_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_pci_init_one(dev, &it8213_chipsets[id->driver_data], NULL);
+	return ide_pci_init_one(dev, &it8213_chipset, NULL);
 }
 
 static const struct pci_device_id it8213_pci_tbl[] = {
