@@ -113,7 +113,8 @@ struct via82cxxx_dev
 static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	struct via82cxxx_dev *vdev = pci_get_drvdata(dev);
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct via82cxxx_dev *vdev = host->host_priv;
 	u8 t;
 
 	if (~vdev->via_config->flags & VIA_BAD_AST) {
@@ -153,7 +154,8 @@ static void via_set_drive(ide_drive_t *drive, const u8 speed)
 	ide_hwif_t *hwif = drive->hwif;
 	ide_drive_t *peer = hwif->drives + (~drive->dn & 1);
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	struct via82cxxx_dev *vdev = pci_get_drvdata(dev);
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct via82cxxx_dev *vdev = host->host_priv;
 	struct ide_timing t, p;
 	unsigned int T, UT;
 
@@ -266,18 +268,12 @@ static void __devinit via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
 
 static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const char *name)
 {
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct via82cxxx_dev *vdev = host->host_priv;
 	struct pci_dev *isa = NULL;
-	struct via82cxxx_dev *vdev;
 	struct via_isa_bridge *via_config;
 	u8 t, v;
 	u32 u;
-
-	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
-	if (!vdev) {
-		printk(KERN_ERR "VP_IDE: out of memory :(\n");
-		return -ENOMEM;
-	}
-	pci_set_drvdata(dev, vdev);
 
 	/*
 	 * Find the ISA bridge to see how good the IDE is.
@@ -402,7 +398,8 @@ static int via_cable_override(struct pci_dev *pdev)
 static u8 __devinit via82cxxx_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
-	struct via82cxxx_dev *vdev = pci_get_drvdata(pdev);
+	struct ide_host *host = pci_get_drvdata(pdev);
+	struct via82cxxx_dev *vdev = host->host_priv;
 
 	if (via_cable_override(pdev))
 		return ATA_CBL_PATA40_SHORT;
@@ -436,6 +433,8 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 {
 	struct pci_dev *isa = NULL;
 	struct via_isa_bridge *via_config;
+	struct via82cxxx_dev *vdev;
+	int rc;
 	u8 idx = id->driver_data;
 	struct ide_port_info d;
 
@@ -466,7 +465,17 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 
 	d.udma_mask = via_config->udma_mask;
 
-	return ide_pci_init_one(dev, &d, NULL);
+	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	if (!vdev) {
+		printk(KERN_ERR "VP_IDE: out of memory :(\n");
+		return -ENOMEM;
+	}
+
+	rc = ide_pci_init_one(dev, &d, vdev);
+	if (rc)
+		kfree(vdev);
+
+	return rc;
 }
 
 static const struct pci_device_id via_pci_tbl[] = {
