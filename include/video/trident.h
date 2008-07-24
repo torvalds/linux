@@ -4,7 +4,7 @@
 #endif
 
 #if TRIDENTFB_DEBUG
-#define debug(f,a...)	printk("%s:" f,  __FUNCTION__ , ## a);mdelay(1000);
+#define debug(f,a...)	printk("%s:" f,  __FUNCTION__ , ## a);mdelay(100);
 #else
 #define debug(f,a...)
 #endif
@@ -124,3 +124,22 @@
 #define BiosMode     0x5c
 #define BiosReg      0x5d
 
+/* Graphics Engine */
+#define STATUS	0x2120
+#define OLDCMD	0x2124
+#define DRAWFL	0x2128
+#define OLDCLR	0x212C
+#define OLDDST	0x2138
+#define OLDSRC	0x213C
+#define OLDDIM	0x2140
+#define CMD	0x2144
+#define ROP	0x2148
+#define COLOR	0x2160
+#define SRC1	0x2100
+#define SRC2	0x2104
+#define DST1	0x2108
+#define DST2	0x210C
+
+#define ROP_S	0xCC
+#define ROP_P	0xF0
+#define ROP_X	0x66
