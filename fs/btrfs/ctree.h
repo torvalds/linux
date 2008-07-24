@@ -1595,6 +1595,14 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);
 /* inode.c */
+
+/* RHEL and EL kernels have a patch that renames PG_checked to FsMisc */
+#ifdef ClearPageFsMisc
+#define ClearPageChecked ClearPageFsMisc
+#define SetPageChecked SetPageFsMisc
+#define PageChecked PageFsMisc
+#endif
+
 int btrfs_writepages(struct address_space *mapping,
 		     struct writeback_control *wbc);
 int btrfs_create_subvol_root(struct btrfs_root *new_root,
