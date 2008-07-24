@@ -915,7 +915,7 @@ static void tty_reset_termios(struct tty_struct *tty)
  *	do_tty_hangup		-	actual handler for hangup events
  *	@work: tty device
  *
-k *	This can be called by the "eventd" kernel thread.  That is process
+ *	This can be called by the "eventd" kernel thread.  That is process
  *	synchronous but doesn't hold any locks, so we need to make sure we
  *	have the appropriate locks for what we're doing.
  *

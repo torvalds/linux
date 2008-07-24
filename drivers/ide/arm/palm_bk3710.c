@@ -316,15 +316,14 @@ static u8 __devinit palm_bk3710_cable_detect(ide_hwif_t *hwif)
 static int __devinit palm_bk3710_init_dma(ide_hwif_t *hwif,
 					  const struct ide_port_info *d)
 {
-	unsigned long base =
-		hwif->io_ports.data_addr - IDE_PALM_ATA_PRI_REG_OFFSET;
-
 	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	ide_setup_dma(hwif, base);
+	hwif->dma_base = hwif->io_ports.data_addr - IDE_PALM_ATA_PRI_REG_OFFSET;
+
+	hwif->dma_ops = &sff_dma_ops;
 
 	return 0;
 }
@@ -348,11 +347,10 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct resource *mem, *irq;
-	ide_hwif_t *hwif;
+	struct ide_host *host;
 	unsigned long base, rate;
-	int i;
-	hw_regs_t hw;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	int i, rc;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	clk = clk_get(NULL, "IDECLK");
 	if (IS_ERR(clk))
@@ -394,24 +392,14 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	hw.irq = irq->start;
 	hw.chipset = ide_palm3710;
 
-	hwif = ide_find_port();
-	if (hwif == NULL)
+	rc = ide_host_add(&palm_bk3710_port_info, hws, NULL);
+	if (rc)
 		goto out;
-
-	i = hwif->index;
-
-	ide_init_port_hw(hwif, &hw);
-
-	default_hwif_mmiops(hwif);
-
-	idx[0] = i;
-
-	ide_device_add(idx, &palm_bk3710_port_info);
 
 	return 0;
 out:
 	printk(KERN_WARNING "Palm Chip BK3710 IDE Register Fail\n");
-	return -ENODEV;
+	return rc;
 }
 
 /* work with hotplug and coldplug */

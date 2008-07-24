@@ -441,10 +441,7 @@ M:	spyro@f2s.com
 S:	Maintained
 
 ARM PRIMECELL MMCI PL180/1 DRIVER
-P:	Russell King
-M:	rmk@arm.linux.org.uk
-L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
-S:	Maintained
+S:	Orphan
 
 ARM/ADI ROADRUNNER MACHINE SUPPORT
 P:	Lennert Buytenhek
@@ -483,9 +480,26 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/COMPULAB CM-X270/EM-X270 MACHINE SUPPORT
+P:	Mike Rapoport
+M:	mike@compulab.co.il
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+
 ARM/CORGI MACHINE SUPPORT
 P:	Richard Purdie
 M:	rpurdie@rpsys.net
+S:	Maintained
+
+ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
+P:	Daniel Ribeiro
+M:	drwyrm@gmail.com
+P:	Stefan Schmidt
+M:	stefan@openezx.org
+P:	Harald Welte
+M:	laforge@openezx.org
+L:	openezx-devel@lists.openezx.org (subscribers-only)
+W:	http://www.openezx.org/
 S:	Maintained
 
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
@@ -575,8 +589,16 @@ L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
 ARM/TOSA MACHINE SUPPORT
+P:	Dmitry Baryshkov
+M:	dbaryshkov@gmail.com
 P:	Dirk Opfer
 M:	dirk@opfer-online.de
+S:	Maintained
+
+ARM/PALMTX SUPPORT
+P:	Marek Vasut
+M:	marek.vasut@gmail.com
+W:	http://hackndev.com
 S:	Maintained
 
 ARM/PLEB SUPPORT

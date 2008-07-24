@@ -140,8 +140,6 @@ void tick_nohz_update_jiffies(void)
 	if (!ts->tick_stopped)
 		return;
 
-	touch_softlockup_watchdog();
-
 	cpu_clear(cpu, nohz_cpu_mask);
 	now = ktime_get();
 	ts->idle_waketime = now;
@@ -149,6 +147,8 @@ void tick_nohz_update_jiffies(void)
 	local_irq_save(flags);
 	tick_do_update_jiffies64(now);
 	local_irq_restore(flags);
+
+	touch_softlockup_watchdog();
 }
 
 void tick_nohz_stop_idle(int cpu)

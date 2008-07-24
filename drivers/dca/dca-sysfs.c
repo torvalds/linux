@@ -13,10 +13,11 @@ static spinlock_t dca_idr_lock;
 int dca_sysfs_add_req(struct dca_provider *dca, struct device *dev, int slot)
 {
 	struct device *cd;
+	static int req_count;
 
 	cd = device_create_drvdata(dca_class, dca->cd,
 				   MKDEV(0, slot + 1), NULL,
-				   "requester%d", slot);
+				   "requester%d", req_count++);
 	if (IS_ERR(cd))
 		return PTR_ERR(cd);
 	return 0;

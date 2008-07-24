@@ -411,24 +411,28 @@ void native_machine_shutdown(void)
 {
 	/* Stop the cpus and apics */
 #ifdef CONFIG_SMP
-	int reboot_cpu_id;
 
 	/* The boot cpu is always logical cpu 0 */
-	reboot_cpu_id = 0;
+	int reboot_cpu_id = 0;
+	cpumask_of_cpu_ptr(newmask, reboot_cpu_id);
 
 #ifdef CONFIG_X86_32
 	/* See if there has been given a command line override */
 	if ((reboot_cpu != -1) && (reboot_cpu < NR_CPUS) &&
-		cpu_online(reboot_cpu))
+		cpu_online(reboot_cpu)) {
 		reboot_cpu_id = reboot_cpu;
+		cpumask_of_cpu_ptr_next(newmask, reboot_cpu_id);
+	}
 #endif
 
 	/* Make certain the cpu I'm about to reboot on is online */
-	if (!cpu_online(reboot_cpu_id))
+	if (!cpu_online(reboot_cpu_id)) {
 		reboot_cpu_id = smp_processor_id();
+		cpumask_of_cpu_ptr_next(newmask, reboot_cpu_id);
+	}
 
 	/* Make certain I only run on the appropriate processor */
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(reboot_cpu_id));
+	set_cpus_allowed_ptr(current, newmask);
 
 	/* O.K Now that I'm on the appropriate processor,
 	 * stop all of the others.

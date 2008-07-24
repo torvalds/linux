@@ -11,11 +11,11 @@
 
 #include <linux/serial_reg.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/mach-types.h>
 
-#define __REG(x)	((volatile unsigned long *)x)
+#define __REG(x)       ((volatile unsigned long *)x)
 
-#define UART		FFUART
-
+static volatile unsigned long *UART = FFUART;
 
 static inline void putc(char c)
 {
@@ -33,8 +33,13 @@ static inline void flush(void)
 {
 }
 
+static inline void arch_decomp_setup(void)
+{
+	if (machine_is_littleton())
+		UART = STUART;
+}
+
 /*
  * nothing to do
  */
-#define arch_decomp_setup()
 #define arch_decomp_wdog()
