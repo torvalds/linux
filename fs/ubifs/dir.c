@@ -525,7 +525,7 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 	struct ubifs_inode *dir_ui = ubifs_inode(dir);
 	int err, sz_change = CALC_DENT_SIZE(dentry->d_name.len);
 	struct ubifs_budget_req req = { .new_dent = 1, .dirtied_ino = 2,
-					.dirtied_ino_d = ui->data_len };
+				.dirtied_ino_d = ALIGN(ui->data_len, 8) };
 
 	/*
 	 * Budget request settings: new direntry, changing the target inode,
@@ -788,7 +788,8 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 	int sz_change = CALC_DENT_SIZE(dentry->d_name.len);
 	int err, devlen = 0;
 	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
-					.new_ino_d = devlen, .dirtied_ino = 1 };
+					.new_ino_d = ALIGN(devlen, 8),
+					.dirtied_ino = 1 };
 
 	/*
 	 * Budget request settings: new inode, new direntry and changing parent
@@ -862,7 +863,8 @@ static int ubifs_symlink(struct inode *dir, struct dentry *dentry,
 	int err, len = strlen(symname);
 	int sz_change = CALC_DENT_SIZE(dentry->d_name.len);
 	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
-					.new_ino_d = len, .dirtied_ino = 1 };
+					.new_ino_d = ALIGN(len, 8),
+					.dirtied_ino = 1 };
 
 	/*
 	 * Budget request settings: new inode, new direntry and changing parent
@@ -1011,7 +1013,7 @@ static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ubifs_budget_req req = { .new_dent = 1, .mod_dent = 1,
 					.dirtied_ino = 3 };
 	struct ubifs_budget_req ino_req = { .dirtied_ino = 1,
-				.dirtied_ino_d = old_inode_ui->data_len };
+			.dirtied_ino_d = ALIGN(old_inode_ui->data_len, 8) };
 	struct timespec time;
 
 	/*

@@ -890,7 +890,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 	loff_t new_size = attr->ia_size;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	struct ubifs_budget_req req = { .dirtied_ino = 1,
-					.dirtied_ino_d = ui->data_len };
+				.dirtied_ino_d = ALIGN(ui->data_len, 8) };
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
@@ -1052,7 +1052,7 @@ static int update_mctime(struct ubifs_info *c, struct inode *inode)
 	if (mctime_update_needed(inode, &now)) {
 		int err, release;
 		struct ubifs_budget_req req = { .dirtied_ino = 1,
-						.dirtied_ino_d = ui->data_len };
+				.dirtied_ino_d = ALIGN(ui->data_len, 8) };
 
 		err = ubifs_budget_space(c, &req);
 		if (err)

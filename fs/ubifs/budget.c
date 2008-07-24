@@ -551,6 +551,8 @@ int ubifs_budget_space(struct ubifs_info *c, struct ubifs_budget_req *req)
 	ubifs_assert(req->new_ino_d <= UBIFS_MAX_INO_DATA);
 	ubifs_assert(req->dirtied_ino <= 4);
 	ubifs_assert(req->dirtied_ino_d <= UBIFS_MAX_INO_DATA * 4);
+	ubifs_assert(!(req->new_ino_d & 7));
+	ubifs_assert(!(req->dirtied_ino_d & 7));
 
 	data_growth = calc_data_growth(c, req);
 	dd_growth = calc_dd_growth(c, req);
@@ -632,6 +634,8 @@ void ubifs_release_budget(struct ubifs_info *c, struct ubifs_budget_req *req)
 	ubifs_assert(req->new_ino_d <= UBIFS_MAX_INO_DATA);
 	ubifs_assert(req->dirtied_ino <= 4);
 	ubifs_assert(req->dirtied_ino_d <= UBIFS_MAX_INO_DATA * 4);
+	ubifs_assert(!(req->new_ino_d & 7));
+	ubifs_assert(!(req->dirtied_ino_d & 7));
 	if (!req->recalculate) {
 		ubifs_assert(req->idx_growth >= 0);
 		ubifs_assert(req->data_growth >= 0);
@@ -659,7 +663,11 @@ void ubifs_release_budget(struct ubifs_info *c, struct ubifs_budget_req *req)
 
 	ubifs_assert(c->budg_idx_growth >= 0);
 	ubifs_assert(c->budg_data_growth >= 0);
+	ubifs_assert(c->budg_dd_growth >= 0);
 	ubifs_assert(c->min_idx_lebs < c->main_lebs);
+	ubifs_assert(!(c->budg_idx_growth & 7));
+	ubifs_assert(!(c->budg_data_growth & 7));
+	ubifs_assert(!(c->budg_dd_growth & 7));
 	spin_unlock(&c->space_lock);
 }
 
@@ -701,7 +709,7 @@ void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
 	struct ubifs_budget_req req;
 
 	memset(&req, 0, sizeof(struct ubifs_budget_req));
-	req.dd_growth = c->inode_budget + ui->data_len;
+	req.dd_growth = c->inode_budget + ALIGN(ui->data_len, 8);
 	ubifs_release_budget(c, &req);
 }
 

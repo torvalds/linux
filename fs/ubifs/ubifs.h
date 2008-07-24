@@ -808,6 +808,10 @@ struct ubifs_compressor {
  * An inode may contain 4KiB of data at max., thus the widths of @new_ino_d
  * is 13 bits, and @dirtied_ino_d - 15, because up to 4 inodes may be made
  * dirty by the re-name operation.
+ *
+ * Note, UBIFS aligns node lengths to 8-bytes boundary, so the requester has to
+ * make sure the amount of inode data which contribute to @new_ino_d and
+ * @dirtied_ino_d fields are aligned.
  */
 struct ubifs_budget_req {
 	unsigned int fast:1;

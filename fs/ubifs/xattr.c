@@ -103,8 +103,8 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 	struct inode *inode;
 	struct ubifs_inode *ui, *host_ui = ubifs_inode(host);
 	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
-					.new_ino_d = size, .dirtied_ino = 1,
-					.dirtied_ino_d = host_ui->data_len};
+				.new_ino_d = size, .dirtied_ino = 1,
+				.dirtied_ino_d = ALIGN(host_ui->data_len, 8)};
 
 	if (host_ui->xattr_cnt >= MAX_XATTRS_PER_INODE)
 		return -ENOSPC;
