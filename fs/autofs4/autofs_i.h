@@ -52,6 +52,8 @@ struct autofs_info {
 
 	int		flags;
 
+	struct completion expire_complete;
+
 	struct list_head active;
 	struct list_head expiring;
 
@@ -69,6 +71,7 @@ struct autofs_info {
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry is in the process of expiring */
+#define AUTOFS_INF_MOUNTPOINT	(1<<1) /* mountpoint status for direct expire */
 
 struct autofs_wait_queue {
 	wait_queue_head_t queue;

@@ -259,13 +259,15 @@ static struct dentry *autofs4_expire_direct(struct super_block *sb,
 	now = jiffies;
 	timeout = sbi->exp_timeout;
 
-	/* Lock the tree as we must expire as a whole */
 	spin_lock(&sbi->fs_lock);
 	if (!autofs4_direct_busy(mnt, root, timeout, do_now)) {
 		struct autofs_info *ino = autofs4_dentry_ino(root);
-
-		/* Set this flag early to catch sys_chdir and the like */
+		if (d_mountpoint(root)) {
+			ino->flags |= AUTOFS_INF_MOUNTPOINT;
+			root->d_mounted--;
+		}
 		ino->flags |= AUTOFS_INF_EXPIRING;
+		init_completion(&ino->expire_complete);
 		spin_unlock(&sbi->fs_lock);
 		return root;
 	}
@@ -392,6 +394,7 @@ found:
 		expired, (int)expired->d_name.len, expired->d_name.name);
 	ino = autofs4_dentry_ino(expired);
 	ino->flags |= AUTOFS_INF_EXPIRING;
+	init_completion(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
 	spin_lock(&dcache_lock);
 	list_move(&expired->d_parent->d_subdirs, &expired->d_u.d_child);
@@ -429,6 +432,7 @@ int autofs4_expire_run(struct super_block *sb,
 	spin_lock(&sbi->fs_lock);
 	ino = autofs4_dentry_ino(dentry);
 	ino->flags &= ~AUTOFS_INF_EXPIRING;
+	complete_all(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
 
 	return ret;
@@ -457,8 +461,14 @@ int autofs4_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 		/* This is synchronous because it makes the daemon a
                    little easier */
 		ret = autofs4_wait(sbi, dentry, NFY_EXPIRE);
+
 		spin_lock(&sbi->fs_lock);
+		if (ino->flags & AUTOFS_INF_MOUNTPOINT) {
+			sb->s_root->d_mounted++;
+			ino->flags &= ~AUTOFS_INF_MOUNTPOINT;
+		}
 		ino->flags &= ~AUTOFS_INF_EXPIRING;
+		complete_all(&ino->expire_complete);
 		spin_unlock(&sbi->fs_lock);
 		dput(dentry);
 	}
