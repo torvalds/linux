@@ -211,7 +211,7 @@ asmlinkage long sys_signalfd4(int ufd, sigset_t __user *user_mask,
 	sigset_t sigmask;
 	struct signalfd_ctx *ctx;
 
-	if (flags & ~SFD_CLOEXEC)
+	if (flags & ~(SFD_CLOEXEC | SFD_NONBLOCK))
 		return -EINVAL;
 
 	if (sizemask != sizeof(sigset_t) ||
@@ -232,7 +232,7 @@ asmlinkage long sys_signalfd4(int ufd, sigset_t __user *user_mask,
 		 * anon_inode_getfd() will install the fd.
 		 */
 		ufd = anon_inode_getfd("[signalfd]", &signalfd_fops, ctx,
-				       flags & O_CLOEXEC);
+				       flags & (O_CLOEXEC | O_NONBLOCK));
 		if (ufd < 0)
 			kfree(ctx);
 	} else {
