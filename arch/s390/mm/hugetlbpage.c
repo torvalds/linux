@@ -120,6 +120,11 @@ int pmd_huge(pmd_t pmd)
 	return !!(pmd_val(pmd) & _SEGMENT_ENTRY_LARGE);
 }
 
+int pud_huge(pud_t pud)
+{
+	return 0;
+}
+
 struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
 			     pmd_t *pmdp, int write)
 {
