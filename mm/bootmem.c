@@ -234,9 +234,9 @@ static void __init free_bootmem_core(bootmem_data_t *bdata, unsigned long addr,
  *
  * NOTE:  This function is _not_ reentrant.
  */
-void * __init
-__alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
-	      unsigned long align, unsigned long goal, unsigned long limit)
+static void * __init
+alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
+		unsigned long align, unsigned long goal, unsigned long limit)
 {
 	unsigned long areasize, preferred;
 	unsigned long i, start = 0, incr, eidx, end_pfn;
@@ -245,7 +245,7 @@ __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
 	void *node_bootmem_map;
 
 	if (!size) {
-		printk("__alloc_bootmem_core(): zero-sized request\n");
+		printk("alloc_bootmem_core(): zero-sized request\n");
 		BUG();
 	}
 	BUG_ON(align & (align-1));
@@ -512,7 +512,7 @@ void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
 	void *ptr;
 
 	list_for_each_entry(bdata, &bdata_list, list) {
-		ptr = __alloc_bootmem_core(bdata, size, align, goal, 0);
+		ptr = alloc_bootmem_core(bdata, size, align, goal, 0);
 		if (ptr)
 			return ptr;
 	}
@@ -540,7 +540,7 @@ void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
 {
 	void *ptr;
 
-	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
+	ptr = alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
 	if (ptr)
 		return ptr;
 
@@ -559,8 +559,8 @@ void * __init alloc_bootmem_section(unsigned long size,
 	goal = PFN_PHYS(pfn);
 	limit = PFN_PHYS(section_nr_to_pfn(section_nr + 1)) - 1;
 	pgdat = NODE_DATA(early_pfn_to_nid(pfn));
-	ptr = __alloc_bootmem_core(pgdat->bdata, size, SMP_CACHE_BYTES, goal,
-				   limit);
+	ptr = alloc_bootmem_core(pgdat->bdata, size, SMP_CACHE_BYTES, goal,
+				limit);
 
 	if (!ptr)
 		return NULL;
@@ -589,8 +589,8 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
 	void *ptr;
 
 	list_for_each_entry(bdata, &bdata_list, list) {
-		ptr = __alloc_bootmem_core(bdata, size, align, goal,
-						ARCH_LOW_ADDRESS_LIMIT);
+		ptr = alloc_bootmem_core(bdata, size, align, goal,
+					ARCH_LOW_ADDRESS_LIMIT);
 		if (ptr)
 			return ptr;
 	}
@@ -606,6 +606,6 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
 void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
 				       unsigned long align, unsigned long goal)
 {
-	return __alloc_bootmem_core(pgdat->bdata, size, align, goal,
-				    ARCH_LOW_ADDRESS_LIMIT);
+	return alloc_bootmem_core(pgdat->bdata, size, align, goal,
+				ARCH_LOW_ADDRESS_LIMIT);
 }
