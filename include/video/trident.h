@@ -39,25 +39,6 @@
 #define CYBERBLADEXPm8  0x9910
 #define CYBERBLADEXPm16 0x9930
 
-/* acceleration families */
-#define IMAGE	0
-#define BLADE	1
-#define XP	2
-
-#define is_image(id)	
-#define is_xp(id)	((id == CYBERBLADEXPAi1) ||\
-			 (id == CYBERBLADEXPm8) ||\
-			 (id == CYBERBLADEXPm16)) 
-
-#define is_blade(id)	((id == BLADE3D) ||\
-			 (id == CYBERBLADEE4) ||\
-			 (id == CYBERBLADEi7) ||\
-			 (id == CYBERBLADEi7D) ||\
-			 (id == CYBERBLADEi1) ||\
-			 (id == CYBERBLADEi1D) ||\
-			 (id ==	CYBERBLADEAi1) ||\
-			 (id ==	CYBERBLADEAi1D))
-
 /* these defines are for 'lcd' variable */
 #define LCD_STRETCH	0
 #define LCD_CENTER	1

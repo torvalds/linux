@@ -78,6 +78,25 @@ MODULE_PARM_DESC(fp, "Define if flatpanel is connected");
 module_param(crt, int, 0);
 MODULE_PARM_DESC(crt, "Define if CRT is connected");
 
+static int is_blade(int id)
+{
+	return	(id == BLADE3D) ||
+		(id == CYBERBLADEE4) ||
+		(id == CYBERBLADEi7) ||
+		(id == CYBERBLADEi7D) ||
+		(id == CYBERBLADEi1) ||
+		(id == CYBERBLADEi1D) ||
+		(id == CYBERBLADEAi1) ||
+		(id == CYBERBLADEAi1D);
+}
+
+static int is_xp(int id)
+{
+	return	(id == CYBERBLADEXPAi1) ||
+		(id == CYBERBLADEXPm8) ||
+		(id == CYBERBLADEXPm16);
+}
+
 static int is3Dchip(int id)
 {
 	return ((id == BLADE3D) || (id == CYBERBLADEE4) ||
