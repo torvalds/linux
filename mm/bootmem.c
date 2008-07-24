@@ -80,7 +80,7 @@ static void __init link_bootmem(bootmem_data_t *bdata)
 		bootmem_data_t *ent;
 
 		ent = list_entry(iter, bootmem_data_t, list);
-		if (bdata->node_boot_start < ent->node_boot_start)
+		if (bdata->node_min_pfn < ent->node_min_pfn)
 			break;
 	}
 	list_add_tail(&bdata->list, iter);
@@ -96,7 +96,7 @@ static unsigned long __init init_bootmem_core(bootmem_data_t *bdata,
 
 	mminit_validate_memmodel_limits(&start, &end);
 	bdata->node_bootmem_map = phys_to_virt(PFN_PHYS(mapstart));
-	bdata->node_boot_start = PFN_PHYS(start);
+	bdata->node_min_pfn = start;
 	bdata->node_low_pfn = end;
 	link_bootmem(bdata);
 
@@ -151,7 +151,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 	if (!bdata->node_bootmem_map)
 		return 0;
 
-	start = PFN_DOWN(bdata->node_boot_start);
+	start = bdata->node_min_pfn;
 	end = bdata->node_low_pfn;
 
 	/*
@@ -167,7 +167,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 		unsigned long *map, idx, vec;
 
 		map = bdata->node_bootmem_map;
-		idx = start - PFN_DOWN(bdata->node_boot_start);
+		idx = start - bdata->node_min_pfn;
 		vec = ~map[idx / BITS_PER_LONG];
 
 		if (aligned && vec == ~0UL && start + BITS_PER_LONG < end) {
@@ -192,7 +192,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 	}
 
 	page = virt_to_page(bdata->node_bootmem_map);
-	pages = bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start);
+	pages = bdata->node_low_pfn - bdata->node_min_pfn;
 	pages = bootmem_bootmap_pages(pages);
 	count += pages;
 	while (pages--)
@@ -231,8 +231,8 @@ static void __init __free(bootmem_data_t *bdata,
 	unsigned long idx;
 
 	bdebug("nid=%td start=%lx end=%lx\n", bdata - bootmem_node_data,
-		sidx + PFN_DOWN(bdata->node_boot_start),
-		eidx + PFN_DOWN(bdata->node_boot_start));
+		sidx + bdata->node_min_pfn,
+		eidx + bdata->node_min_pfn);
 
 	if (bdata->hint_idx > sidx)
 		bdata->hint_idx = sidx;
@@ -250,8 +250,8 @@ static int __init __reserve(bootmem_data_t *bdata, unsigned long sidx,
 
 	bdebug("nid=%td start=%lx end=%lx flags=%x\n",
 		bdata - bootmem_node_data,
-		sidx + PFN_DOWN(bdata->node_boot_start),
-		eidx + PFN_DOWN(bdata->node_boot_start),
+		sidx + bdata->node_min_pfn,
+		eidx + bdata->node_min_pfn,
 		flags);
 
 	for (idx = sidx; idx < eidx; idx++)
@@ -261,7 +261,7 @@ static int __init __reserve(bootmem_data_t *bdata, unsigned long sidx,
 				return -EBUSY;
 			}
 			bdebug("silent double reserve of PFN %lx\n",
-				idx + PFN_DOWN(bdata->node_boot_start));
+				idx + bdata->node_min_pfn);
 		}
 	return 0;
 }
@@ -275,11 +275,11 @@ static int __init mark_bootmem_node(bootmem_data_t *bdata,
 	bdebug("nid=%td start=%lx end=%lx reserve=%d flags=%x\n",
 		bdata - bootmem_node_data, start, end, reserve, flags);
 
-	BUG_ON(start < PFN_DOWN(bdata->node_boot_start));
+	BUG_ON(start < bdata->node_min_pfn);
 	BUG_ON(end > bdata->node_low_pfn);
 
-	sidx = start - PFN_DOWN(bdata->node_boot_start);
-	eidx = end - PFN_DOWN(bdata->node_boot_start);
+	sidx = start - bdata->node_min_pfn;
+	eidx = end - bdata->node_min_pfn;
 
 	if (reserve)
 		return __reserve(bdata, sidx, eidx, flags);
@@ -299,7 +299,8 @@ static int __init mark_bootmem(unsigned long start, unsigned long end,
 		int err;
 		unsigned long max;
 
-		if (pos < PFN_DOWN(bdata->node_boot_start)) {
+		if (pos < bdata->node_min_pfn ||
+		    pos >= bdata->node_low_pfn) {
 			BUG_ON(pos != start);
 			continue;
 		}
@@ -422,7 +423,7 @@ static void * __init alloc_bootmem_core(struct bootmem_data *bdata,
 		bdata - bootmem_node_data, size, PAGE_ALIGN(size) >> PAGE_SHIFT,
 		align, goal, limit);
 
-	min = PFN_DOWN(bdata->node_boot_start);
+	min = bdata->node_min_pfn;
 	max = bdata->node_low_pfn;
 
 	goal >>= PAGE_SHIFT;
@@ -440,8 +441,8 @@ static void * __init alloc_bootmem_core(struct bootmem_data *bdata,
 	else
 		start = ALIGN(min, step);
 
-	sidx = start - PFN_DOWN(bdata->node_boot_start);
-	midx = max - PFN_DOWN(bdata->node_boot_start);
+	sidx = start - bdata->node_min_pfn;;
+	midx = max - bdata->node_min_pfn;
 
 	if (bdata->hint_idx > sidx) {
 		/*
@@ -491,7 +492,8 @@ find_block:
 				PFN_UP(end_off), BOOTMEM_EXCLUSIVE))
 			BUG();
 
-		region = phys_to_virt(bdata->node_boot_start + start_off);
+		region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) +
+				start_off);
 		memset(region, 0, size);
 		return region;
 	}
@@ -518,7 +520,7 @@ restart:
 
 		if (goal && bdata->node_low_pfn <= PFN_DOWN(goal))
 			continue;
-		if (limit && bdata->node_boot_start >= limit)
+		if (limit && bdata->node_min_pfn >= PFN_DOWN(limit))
 			break;
 
 		region = alloc_bootmem_core(bdata, size, align, goal, limit);

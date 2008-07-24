@@ -304,7 +304,7 @@ void __init paging_init(void)
 
 	for_each_online_node(nid) {
 		bootmem_data_t *bdata = &bootmem_node_data[nid];
-		unsigned long start_pfn = bdata->node_boot_start >> PAGE_SHIFT;
+		unsigned long start_pfn = bdata->node_min_pfn;
 		unsigned long end_pfn = bdata->node_low_pfn;
 
 		if (dma_local_pfn >= end_pfn - start_pfn)
