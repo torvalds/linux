@@ -87,7 +87,8 @@ parameter is applicable:
 	SH	SuperH architecture is enabled.
 	SMP	The kernel is an SMP kernel.
 	SPARC	Sparc architecture is enabled.
-	SWSUSP	Software suspend is enabled.
+	SWSUSP	Software suspend (hibernation) is enabled.
+	SUSPEND	System suspend states are enabled.
 	TS	Appropriate touchscreen support is enabled.
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
@@ -2122,6 +2123,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			See header of drivers/scsi/t128.c.
 
 	tdfx=		[HW,DRM]
+
+	test_suspend=	[SUSPEND]
+			Specify "mem" (for Suspend-to-RAM) or "standby" (for
+			standby suspend) as the system sleep state to briefly
+			enter during system startup.  The system is woken from
+			this state using a wakeup-capable RTC alarm.
 
 	thash_entries=	[KNL,NET]
 			Set number of hash buckets for TCP connection
