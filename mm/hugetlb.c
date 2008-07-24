@@ -247,6 +247,9 @@ static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
 /* Decrement the reserved pages in the hugepage pool by one */
 static void decrement_hugepage_resv_vma(struct vm_area_struct *vma)
 {
+	if (vma->vm_flags & VM_NORESERVE)
+		return;
+
 	if (vma->vm_flags & VM_SHARED) {
 		/* Shared mappings always use reserves */
 		resv_huge_pages--;
@@ -720,25 +723,65 @@ static void return_unused_surplus_pages(unsigned long unused_resv_pages)
 	}
 }
 
+/*
+ * Determine if the huge page at addr within the vma has an associated
+ * reservation.  Where it does not we will need to logically increase
+ * reservation and actually increase quota before an allocation can occur.
+ * Where any new reservation would be required the reservation change is
+ * prepared, but not committed.  Once the page has been quota'd allocated
+ * an instantiated the change should be committed via vma_commit_reservation.
+ * No action is required on failure.
+ */
+static int vma_needs_reservation(struct vm_area_struct *vma, unsigned long addr)
+{
+	struct address_space *mapping = vma->vm_file->f_mapping;
+	struct inode *inode = mapping->host;
+
+	if (vma->vm_flags & VM_SHARED) {
+		pgoff_t idx = vma_pagecache_offset(vma, addr);
+		return region_chg(&inode->i_mapping->private_list,
+							idx, idx + 1);
+
+	} else {
+		if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+			return 1;
+	}
+
+	return 0;
+}
+static void vma_commit_reservation(struct vm_area_struct *vma,
+							unsigned long addr)
+{
+	struct address_space *mapping = vma->vm_file->f_mapping;
+	struct inode *inode = mapping->host;
+
+	if (vma->vm_flags & VM_SHARED) {
+		pgoff_t idx = vma_pagecache_offset(vma, addr);
+		region_add(&inode->i_mapping->private_list, idx, idx + 1);
+	}
+}
+
 static struct page *alloc_huge_page(struct vm_area_struct *vma,
 				    unsigned long addr, int avoid_reserve)
 {
 	struct page *page;
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	struct inode *inode = mapping->host;
-	unsigned int chg = 0;
+	unsigned int chg;
 
 	/*
 	 * Processes that did not create the mapping will have no reserves and
 	 * will not have accounted against quota. Check that the quota can be
 	 * made before satisfying the allocation
+	 * MAP_NORESERVE mappings may also need pages and quota allocated
+	 * if no reserve mapping overlaps.
 	 */
-	if (!(vma->vm_flags & VM_SHARED) &&
-			!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
-		chg = 1;
+	chg = vma_needs_reservation(vma, addr);
+	if (chg < 0)
+		return ERR_PTR(chg);
+	if (chg)
 		if (hugetlb_get_quota(inode->i_mapping, chg))
 			return ERR_PTR(-ENOSPC);
-	}
 
 	spin_lock(&hugetlb_lock);
 	page = dequeue_huge_page_vma(vma, addr, avoid_reserve);
@@ -754,6 +797,8 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 
 	set_page_refcounted(page);
 	set_page_private(page, (unsigned long) mapping);
+
+	vma_commit_reservation(vma, addr);
 
 	return page;
 }
@@ -1559,6 +1604,9 @@ int hugetlb_reserve_pages(struct inode *inode,
 					struct vm_area_struct *vma)
 {
 	long ret, chg;
+
+	if (vma && vma->vm_flags & VM_NORESERVE)
+		return 0;
 
 	/*
 	 * Shared mappings base their reservation on the number of pages that
