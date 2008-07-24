@@ -248,10 +248,11 @@ static int ecryptfs_init_global_auth_toks(
 			       "session keyring for sig specified in mount "
 			       "option: [%s]\n", global_auth_tok->sig);
 			global_auth_tok->flags |= ECRYPTFS_AUTH_TOK_INVALID;
-			rc = 0;
+			goto out;
 		} else
 			global_auth_tok->flags &= ~ECRYPTFS_AUTH_TOK_INVALID;
 	}
+out:
 	return rc;
 }
 
@@ -416,7 +417,6 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		printk(KERN_WARNING "One or more global auth toks could not "
 		       "properly register; rc = [%d]\n", rc);
 	}
-	rc = 0;
 out:
 	return rc;
 }
