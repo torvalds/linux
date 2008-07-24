@@ -211,7 +211,13 @@ static inline int __ide_default_irq(unsigned long base)
 	return 0;
 }
 
+#if defined(CONFIG_ARM) || defined(CONFIG_FRV) || defined(CONFIG_M68K) || \
+    defined(CONFIG_MIPS) || defined(CONFIG_MN10300) || defined(CONFIG_PARISC) \
+    || defined(CONFIG_PPC) || defined(CONFIG_SPARC) || defined(CONFIG_SPARC64)
 #include <asm/ide.h>
+#else
+#include <asm-generic/ide_iops.h>
+#endif
 
 #ifndef MAX_HWIFS
 #if defined(CONFIG_BLACKFIN) || defined(CONFIG_H8300) || defined(CONFIG_XTENSA)
