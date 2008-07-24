@@ -1006,15 +1006,27 @@ static void __init hugetlb_init_hstates(void)
 	}
 }
 
+static char * __init memfmt(char *buf, unsigned long n)
+{
+	if (n >= (1UL << 30))
+		sprintf(buf, "%lu GB", n >> 30);
+	else if (n >= (1UL << 20))
+		sprintf(buf, "%lu MB", n >> 20);
+	else
+		sprintf(buf, "%lu KB", n >> 10);
+	return buf;
+}
+
 static void __init report_hugepages(void)
 {
 	struct hstate *h;
 
 	for_each_hstate(h) {
-		printk(KERN_INFO "Total HugeTLB memory allocated, "
-				"%ld %dMB pages\n",
-				h->free_huge_pages,
-				1 << (h->order + PAGE_SHIFT - 20));
+		char buf[32];
+		printk(KERN_INFO "HugeTLB registered %s page size, "
+				 "pre-allocated %ld pages\n",
+			memfmt(buf, huge_page_size(h)),
+			h->free_huge_pages);
 	}
 }
 
