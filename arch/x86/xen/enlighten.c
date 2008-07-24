@@ -854,6 +854,19 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 			ret = -EFAULT;
 		break;
 #endif
+
+	case MSR_STAR:
+	case MSR_CSTAR:
+	case MSR_LSTAR:
+	case MSR_SYSCALL_MASK:
+	case MSR_IA32_SYSENTER_CS:
+	case MSR_IA32_SYSENTER_ESP:
+	case MSR_IA32_SYSENTER_EIP:
+		/* Fast syscall setup is all done in hypercalls, so
+		   these are all ignored.  Stub them out here to stop
+		   Xen console noise. */
+		break;
+
 	default:
 		ret = native_write_msr_safe(msr, low, high);
 	}
