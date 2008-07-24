@@ -13,6 +13,10 @@ menuconfig MISC_DEVICES
 
 if MISC_DEVICES
 
+config ANDROID_PMEM
+	bool "Android pmem allocator"
+	default y
+
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
 	depends on AVR32 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9
