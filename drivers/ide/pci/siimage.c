@@ -800,6 +800,24 @@ static int __devinit siimage_init_one(struct pci_dev *dev,
 	return rc;
 }
 
+static void __devexit siimage_remove(struct pci_dev *dev)
+{
+	struct ide_host *host = pci_get_drvdata(dev);
+	void __iomem *ioaddr = host->host_priv;
+
+	ide_pci_remove(dev);
+
+	if (ioaddr) {
+		resource_size_t bar5 = pci_resource_start(dev, 5);
+		unsigned long barsize = pci_resource_len(dev, 5);
+
+		iounmap(ioaddr);
+		release_mem_region(bar5, barsize);
+	}
+
+	pci_disable_device(dev);
+}
+
 static const struct pci_device_id siimage_pci_tbl[] = {
 	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_SII_680),    0 },
 #ifdef CONFIG_BLK_DEV_IDE_SATA
@@ -814,6 +832,7 @@ static struct pci_driver driver = {
 	.name		= "SiI_IDE",
 	.id_table	= siimage_pci_tbl,
 	.probe		= siimage_init_one,
+	.remove		= siimage_remove,
 };
 
 static int __init siimage_ide_init(void)
@@ -821,7 +840,13 @@ static int __init siimage_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit siimage_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(siimage_ide_init);
+module_exit(siimage_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick, Alan Cox");
 MODULE_DESCRIPTION("PCI driver module for SiI IDE");
