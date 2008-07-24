@@ -241,13 +241,7 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 			/* Follow down to our covering mount. */
 			if (!follow_down(&nd->path.mnt, &nd->path.dentry))
 				goto done;
-			/*
-			 * We shouldn't need to do this but we have no way
-			 * of knowing what may have been done so try a follow
-			 * just in case.
-			 */
-			autofs4_follow_mount(&nd->path.mnt, &nd->path.dentry);
-			goto done;
+			goto follow;
 		}
 		spin_unlock(&sbi->fs_lock);
 		goto done;
@@ -273,7 +267,7 @@ cont:
 	/* We trigger a mount for almost all flags */
 	lookup_type = nd->flags & (TRIGGER_FLAGS | TRIGGER_INTENTS);
 	if (!(lookup_type || dentry->d_flags & DCACHE_AUTOFS_PENDING))
-		goto done;
+		goto follow;
 
 	/*
 	 * If the dentry contains directories then it is an autofs
