@@ -1552,8 +1552,10 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
 
 		kref_put(&reservations->refs, resv_map_release);
 
-		if (reserve)
+		if (reserve) {
 			hugetlb_acct_memory(h, -reserve);
+			hugetlb_put_quota(vma->vm_file->f_mapping, reserve);
+		}
 	}
 }
 
