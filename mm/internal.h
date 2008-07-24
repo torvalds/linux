@@ -98,4 +98,16 @@ static inline void mminit_verify_page_links(struct page *page,
 {
 }
 #endif /* CONFIG_DEBUG_MEMORY_INIT */
+
+/* mminit_validate_memmodel_limits is independent of CONFIG_DEBUG_MEMORY_INIT */
+#if defined(CONFIG_SPARSEMEM)
+extern void mminit_validate_memmodel_limits(unsigned long *start_pfn,
+				unsigned long *end_pfn);
+#else
+static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
+				unsigned long *end_pfn)
+{
+}
+#endif /* CONFIG_SPARSEMEM */
+
 #endif

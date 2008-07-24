@@ -91,6 +91,7 @@ static unsigned long __init init_bootmem_core(pg_data_t *pgdat,
 	bootmem_data_t *bdata = pgdat->bdata;
 	unsigned long mapsize;
 
+	mminit_validate_memmodel_limits(&start, &end);
 	bdata->node_bootmem_map = phys_to_virt(PFN_PHYS(mapstart));
 	bdata->node_boot_start = PFN_PHYS(start);
 	bdata->node_low_pfn = end;

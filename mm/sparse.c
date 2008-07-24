@@ -12,6 +12,7 @@
 #include <asm/dma.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
+#include "internal.h"
 
 /*
  * Permanent SPARSEMEM data:
@@ -147,22 +148,41 @@ static inline int sparse_early_nid(struct mem_section *section)
 	return (section->section_mem_map >> SECTION_NID_SHIFT);
 }
 
-/* Record a memory area against a node. */
-void __init memory_present(int nid, unsigned long start, unsigned long end)
+/* Validate the physical addressing limitations of the model */
+void __meminit mminit_validate_memmodel_limits(unsigned long *start_pfn,
+						unsigned long *end_pfn)
 {
-	unsigned long max_arch_pfn = 1UL << (MAX_PHYSMEM_BITS-PAGE_SHIFT);
-	unsigned long pfn;
+	unsigned long max_sparsemem_pfn = 1UL << (MAX_PHYSMEM_BITS-PAGE_SHIFT);
 
 	/*
 	 * Sanity checks - do not allow an architecture to pass
 	 * in larger pfns than the maximum scope of sparsemem:
 	 */
-	if (start >= max_arch_pfn)
-		return;
-	if (end >= max_arch_pfn)
-		end = max_arch_pfn;
+	if (*start_pfn > max_sparsemem_pfn) {
+		mminit_dprintk(MMINIT_WARNING, "pfnvalidation",
+			"Start of range %lu -> %lu exceeds SPARSEMEM max %lu\n",
+			*start_pfn, *end_pfn, max_sparsemem_pfn);
+		WARN_ON_ONCE(1);
+		*start_pfn = max_sparsemem_pfn;
+		*end_pfn = max_sparsemem_pfn;
+	}
+
+	if (*end_pfn > max_sparsemem_pfn) {
+		mminit_dprintk(MMINIT_WARNING, "pfnvalidation",
+			"End of range %lu -> %lu exceeds SPARSEMEM max %lu\n",
+			*start_pfn, *end_pfn, max_sparsemem_pfn);
+		WARN_ON_ONCE(1);
+		*end_pfn = max_sparsemem_pfn;
+	}
+}
+
+/* Record a memory area against a node. */
+void __init memory_present(int nid, unsigned long start, unsigned long end)
+{
+	unsigned long pfn;
 
 	start &= PAGE_SECTION_MASK;
+	mminit_validate_memmodel_limits(&start, &end);
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
 		unsigned long section = pfn_to_section_nr(pfn);
 		struct mem_section *ms;
@@ -187,6 +207,7 @@ unsigned long __init node_memmap_size_bytes(int nid, unsigned long start_pfn,
 	unsigned long pfn;
 	unsigned long nr_pages = 0;
 
+	mminit_validate_memmodel_limits(&start_pfn, &end_pfn);
 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
 		if (nid != early_pfn_to_nid(pfn))
 			continue;

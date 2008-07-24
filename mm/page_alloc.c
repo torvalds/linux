@@ -3536,6 +3536,8 @@ void __init add_active_range(unsigned int nid, unsigned long start_pfn,
 			nid, start_pfn, end_pfn,
 			nr_nodemap_entries, MAX_ACTIVE_REGIONS);
 
+	mminit_validate_memmodel_limits(&start_pfn, &end_pfn);
+
 	/* Merge with existing active regions if possible */
 	for (i = 0; i < nr_nodemap_entries; i++) {
 		if (early_node_map[i].nid != nid)
