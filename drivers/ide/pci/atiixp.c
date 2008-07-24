@@ -11,6 +11,8 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
+#define DRV_NAME "atiixp"
+
 #define ATIIXP_IDE_PIO_TIMING		0x40
 #define ATIIXP_IDE_MDMA_TIMING		0x44
 #define ATIIXP_IDE_PIO_CONTROL		0x48
@@ -137,16 +139,17 @@ static const struct ide_port_ops atiixp_port_ops = {
 };
 
 static const struct ide_port_info atiixp_pci_info[] __devinitdata = {
-	{	/* 0 */
-		.name		= "ATIIXP",
+	{	/* 0: IXP200/300/400/700 */
+		.name		= DRV_NAME,
 		.enablebits	= {{0x48,0x01,0x00}, {0x48,0x08,0x00}},
 		.port_ops	= &atiixp_port_ops,
 		.host_flags	= IDE_HFLAG_LEGACY_IRQS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
-	},{	/* 1 */
-		.name		= "SB600_PATA",
+	},
+	{	/* 1: IXP600 */
+		.name		= DRV_NAME,
 		.enablebits	= {{0x48,0x01,0x00}, {0x00,0x00,0x00}},
 		.port_ops	= &atiixp_port_ops,
 		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_LEGACY_IRQS,

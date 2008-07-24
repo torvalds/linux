@@ -15,6 +15,8 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
+#define DRV_NAME "slc90e66"
+
 static DEFINE_SPINLOCK(slc90e66_lock);
 
 static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
@@ -132,7 +134,7 @@ static const struct ide_port_ops slc90e66_port_ops = {
 };
 
 static const struct ide_port_info slc90e66_chipset __devinitdata = {
-	.name		= "SLC90E66",
+	.name		= DRV_NAME,
 	.enablebits	= { {0x41, 0x80, 0x80}, {0x43, 0x80, 0x80} },
 	.port_ops	= &slc90e66_port_ops,
 	.host_flags	= IDE_HFLAG_LEGACY_IRQS,

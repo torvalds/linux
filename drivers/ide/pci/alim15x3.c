@@ -38,6 +38,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "alim15x3"
+
 /*
  * Allow UDMA on M1543C-E chipset for WDC disks that ignore CRC checking
  * (this is DANGEROUS and could result in data corruption).
@@ -515,7 +517,7 @@ static const struct ide_dma_ops ali_dma_ops = {
 };
 
 static const struct ide_port_info ali15x3_chipset __devinitdata = {
-	.name		= "ALI15X3",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_ali15x3,
 	.init_hwif	= init_hwif_ali15x3,
 	.init_dma	= init_dma_ali15x3,

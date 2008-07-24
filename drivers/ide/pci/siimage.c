@@ -44,6 +44,8 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
+#define DRV_NAME "siimage"
+
 /**
  *	pdev_is_sata		-	check if device is SATA
  *	@pdev:	PCI device to check
@@ -717,9 +719,9 @@ static const struct ide_dma_ops sil_dma_ops = {
 	.dma_lost_irq		= ide_dma_lost_irq,
 };
 
-#define DECLARE_SII_DEV(name_str, p_ops)		\
+#define DECLARE_SII_DEV(p_ops)				\
 	{						\
-		.name		= name_str,		\
+		.name		= DRV_NAME,		\
 		.init_chipset	= init_chipset_siimage,	\
 		.init_iops	= init_iops_siimage,	\
 		.port_ops	= p_ops,		\
@@ -730,9 +732,8 @@ static const struct ide_dma_ops sil_dma_ops = {
 	}
 
 static const struct ide_port_info siimage_chipsets[] __devinitdata = {
-	/* 0 */ DECLARE_SII_DEV("SiI680",		&sil_pata_port_ops),
-	/* 1 */ DECLARE_SII_DEV("SiI3112 Serial ATA",	&sil_sata_port_ops),
-	/* 2 */ DECLARE_SII_DEV("Adaptec AAR-1210SA",	&sil_sata_port_ops)
+	/* 0: SiI680 */  DECLARE_SII_DEV(&sil_pata_port_ops),
+	/* 1: SiI3112 */ DECLARE_SII_DEV(&sil_sata_port_ops)
 };
 
 /**
@@ -761,7 +762,7 @@ static int __devinit siimage_init_one(struct pci_dev *dev,
 		static int first = 1;
 
 		if (first) {
-			printk(KERN_INFO "siimage: For full SATA support you "
+			printk(KERN_INFO DRV_NAME ": For full SATA support you "
 				"should use the libata sata_sil module.\n");
 			first = 0;
 		}
@@ -780,7 +781,7 @@ static int __devinit siimage_init_one(struct pci_dev *dev,
 		* seem to get terminally confused in the PCI spaces.
 		*/
 		if (!request_mem_region(bar5, barsize, d.name)) {
-			printk(KERN_WARNING "siimage %s: MMIO ports not "
+			printk(KERN_WARNING DRV_NAME " %s: MMIO ports not "
 				"available\n", pci_name(dev));
 		} else {
 			ioaddr = ioremap(bar5, barsize);
@@ -823,7 +824,7 @@ static const struct pci_device_id siimage_pci_tbl[] = {
 	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_SII_680),    0 },
 #ifdef CONFIG_BLK_DEV_IDE_SATA
 	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_SII_3112),   1 },
-	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_SII_1210SA), 2 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_SII_1210SA), 1 },
 #endif
 	{ 0, },
 };

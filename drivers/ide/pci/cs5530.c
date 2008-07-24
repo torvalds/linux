@@ -22,6 +22,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "cs5530"
+
 /*
  * Here are the standard PIO mode 0-4 timings for each "format".
  * Format-0 uses fast data reg timings, with slower command reg timings.
@@ -243,7 +245,7 @@ static const struct ide_port_ops cs5530_port_ops = {
 };
 
 static const struct ide_port_info cs5530_chipset __devinitdata = {
-	.name		= "CS5530",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,
 	.port_ops	= &cs5530_port_ops,

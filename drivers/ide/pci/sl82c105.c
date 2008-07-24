@@ -23,6 +23,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "sl82c105"
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -301,7 +303,7 @@ static const struct ide_dma_ops sl82c105_dma_ops = {
 };
 
 static const struct ide_port_info sl82c105_chipset __devinitdata = {
-	.name		= "W82C105",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_sl82c105,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
 	.port_ops	= &sl82c105_port_ops,
@@ -328,7 +330,7 @@ static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_dev
 		 * Never ever EVER under any circumstances enable
 		 * DMA when the bridge is this old.
 		 */
-		printk(KERN_INFO "W82C105_IDE: Winbond W83C553 bridge "
+		printk(KERN_INFO DRV_NAME ": Winbond W83C553 bridge "
 				 "revision %d, BM-DMA disabled\n", rev);
 		d.dma_ops = NULL;
 		d.mwdma_mask = 0;

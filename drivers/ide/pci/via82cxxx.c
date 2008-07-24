@@ -35,6 +35,8 @@
 #include <asm/processor.h>
 #endif
 
+#define DRV_NAME "via82cxxx"
+
 #define VIA_IDE_ENABLE		0x40
 #define VIA_IDE_CONFIG		0x41
 #define VIA_FIFO_CONFIG		0x43
@@ -373,7 +375,7 @@ static const struct ide_port_ops via_port_ops = {
 };
 
 static const struct ide_port_info via82cxxx_chipset __devinitdata = {
-	.name		= "VP_IDE",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_via82cxxx,
 	.enablebits	= { { 0x40, 0x02, 0x02 }, { 0x40, 0x01, 0x01 } },
 	.port_ops	= &via_port_ops,
@@ -401,7 +403,7 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	 */
 	via_config = via_config_find(&isa);
 	if (!via_config->id) {
-		printk(KERN_WARNING "VP_IDE %s: unknown chipset, skipping\n",
+		printk(KERN_WARNING DRV_NAME " %s: unknown chipset, skipping\n",
 			pci_name(dev));
 		return -ENODEV;
 	}
@@ -409,7 +411,7 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	/*
 	 * Print the boot message.
 	 */
-	printk(KERN_INFO "VP_IDE %s: VIA %s (rev %02x) IDE %sDMA%s\n",
+	printk(KERN_INFO DRV_NAME " %s: VIA %s (rev %02x) IDE %sDMA%s\n",
 		pci_name(dev), via_config->name, isa->revision,
 		via_config->udma_mask ? "U" : "MW",
 		via_dma[via_config->udma_mask ?
@@ -429,9 +431,9 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	}
 
 	if (via_clock < 20000 || via_clock > 50000) {
-		printk(KERN_WARNING "VP_IDE: User given PCI clock speed "
+		printk(KERN_WARNING DRV_NAME ": User given PCI clock speed "
 			"impossible (%d), using 33 MHz instead.\n", via_clock);
-		printk(KERN_WARNING "VP_IDE: Use ide0=ata66 if you want "
+		printk(KERN_WARNING DRV_NAME ": Use ide0=ata66 if you want "
 			"to assume 80-wire cable.\n");
 		via_clock = 33333;
 	}
@@ -453,7 +455,8 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 	if (!vdev) {
-		printk(KERN_ERR "VP_IDE %s: out of memory :(\n", pci_name(dev));
+		printk(KERN_ERR DRV_NAME " %s: out of memory :(\n",
+			pci_name(dev));
 		return -ENOMEM;
 	}
 

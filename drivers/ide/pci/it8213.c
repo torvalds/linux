@@ -14,6 +14,8 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
+#define DRV_NAME "it8213"
+
 /**
  *	it8213_set_pio_mode	-	set host controller for PIO mode
  *	@drive: drive
@@ -156,7 +158,7 @@ static const struct ide_port_ops it8213_port_ops = {
 };
 
 static const struct ide_port_info it8213_chipset __devinitdata = {
-	.name		= "IT8213",
+	.name		= DRV_NAME,
 	.enablebits	= { {0x41, 0x80, 0x80} },
 	.port_ops	= &it8213_port_ops,
 	.host_flags	= IDE_HFLAG_SINGLE,

@@ -13,6 +13,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "aec62xx"
+
 struct chipset_bus_clock_list_entry {
 	u8 xfer_speed;
 	u8 chipset_settings;
@@ -180,8 +182,8 @@ static const struct ide_port_ops atp86x_port_ops = {
 };
 
 static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "AEC6210",
+	{	/* 0: AEC6210 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_aec62xx,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.port_ops	= &atp850_port_ops,
@@ -192,8 +194,9 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA2,
-	},{	/* 1 */
-		.name		= "AEC6260",
+	},
+	{	/* 1: AEC6260 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_aec62xx,
 		.port_ops	= &atp86x_port_ops,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_NO_AUTODMA |
@@ -201,8 +204,9 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA4,
-	},{	/* 2 */
-		.name		= "AEC6260R",
+	},
+	{	/* 2: AEC6260R */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_aec62xx,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.port_ops	= &atp86x_port_ops,
@@ -211,8 +215,9 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA4,
-	},{	/* 3 */
-		.name		= "AEC6280",
+	},
+	{	/* 3: AEC6280 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_aec62xx,
 		.port_ops	= &atp86x_port_ops,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
@@ -220,8 +225,9 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
-	},{	/* 4 */
-		.name		= "AEC6280R",
+	},
+	{	/* 4: AEC6280R */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_aec62xx,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.port_ops	= &atp86x_port_ops,
@@ -268,7 +274,8 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 		unsigned long dma_base = pci_resource_start(dev, 4);
 
 		if (inb(dma_base + 2) & 0x10) {
-			d.name = (idx == 4) ? "AEC6880R" : "AEC6880";
+			printk(KERN_INFO DRV_NAME " %s: AEC6880%s card detected"
+				"\n", pci_name(dev), (idx == 4) ? "R" : "");
 			d.udma_mask = ATA_UDMA6;
 		}
 	}

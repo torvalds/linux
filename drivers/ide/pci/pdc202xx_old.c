@@ -20,6 +20,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "pdc202xx_old"
+
 #define PDC202XX_DEBUG_DRIVE_INFO	0
 
 static const char *pdc_quirk_drives[] = {
@@ -350,9 +352,9 @@ static const struct ide_dma_ops pdc2026x_dma_ops = {
 	.dma_timeout		= pdc202xx_dma_timeout,
 };
 
-#define DECLARE_PDC2026X_DEV(name_str, udma, extra_flags) \
+#define DECLARE_PDC2026X_DEV(udma, extra_flags) \
 	{ \
-		.name		= name_str, \
+		.name		= DRV_NAME, \
 		.init_chipset	= init_chipset_pdc202xx, \
 		.port_ops	= &pdc2026x_port_ops, \
 		.dma_ops	= &pdc2026x_dma_ops, \
@@ -363,8 +365,8 @@ static const struct ide_dma_ops pdc2026x_dma_ops = {
 	}
 
 static const struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "PDC20246",
+	{	/* 0: PDC20246 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_pdc202xx,
 		.port_ops	= &pdc20246_port_ops,
 		.dma_ops	= &pdc20246_dma_ops,
@@ -374,10 +376,10 @@ static const struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
 		.udma_mask	= ATA_UDMA2,
 	},
 
-	/* 1 */ DECLARE_PDC2026X_DEV("PDC20262", ATA_UDMA4, 0),
-	/* 2 */ DECLARE_PDC2026X_DEV("PDC20263", ATA_UDMA4, 0),
-	/* 3 */ DECLARE_PDC2026X_DEV("PDC20265", ATA_UDMA5, IDE_HFLAG_RQSIZE_256),
-	/* 4 */ DECLARE_PDC2026X_DEV("PDC20267", ATA_UDMA5, IDE_HFLAG_RQSIZE_256),
+	/* 1: PDC2026{2,3} */
+	DECLARE_PDC2026X_DEV(ATA_UDMA4, 0),
+	/* 2: PDC2026{5,7} */
+	DECLARE_PDC2026X_DEV(ATA_UDMA5, IDE_HFLAG_RQSIZE_256),
 };
 
 /**
@@ -396,17 +398,17 @@ static int __devinit pdc202xx_init_one(struct pci_dev *dev, const struct pci_dev
 
 	d = &pdc202xx_chipsets[idx];
 
-	if (idx < 3)
+	if (idx < 2)
 		pdc202ata4_fixup_irq(dev, d->name);
 
-	if (idx == 3) {
+	if (dev->vendor == PCI_DEVICE_ID_PROMISE_20265) {
 		struct pci_dev *bridge = dev->bus->self;
 
 		if (bridge &&
 		    bridge->vendor == PCI_VENDOR_ID_INTEL &&
 		    (bridge->device == PCI_DEVICE_ID_INTEL_I960 ||
 		     bridge->device == PCI_DEVICE_ID_INTEL_I960RM)) {
-			printk(KERN_INFO "pdc202xx_old %s: skipping Promise "
+			printk(KERN_INFO DRV_NAME " %s: skipping Promise "
 				"PDC20265 attached to I2O RAID controller\n",
 				pci_name(dev));
 			return -ENODEV;
@@ -419,9 +421,9 @@ static int __devinit pdc202xx_init_one(struct pci_dev *dev, const struct pci_dev
 static const struct pci_device_id pdc202xx_pci_tbl[] = {
 	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20246), 0 },
 	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20262), 1 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20263), 2 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20265), 3 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20267), 4 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20263), 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20265), 2 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20267), 2 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, pdc202xx_pci_tbl);

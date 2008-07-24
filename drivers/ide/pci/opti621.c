@@ -90,6 +90,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "opti621"
+
 #define READ_REG 0	/* index of Read cycle timing register */
 #define WRITE_REG 1	/* index of Write cycle timing register */
 #define CNTRL_REG 3	/* index of Control register */
@@ -200,7 +202,7 @@ static const struct ide_port_ops opti621_port_ops = {
 };
 
 static const struct ide_port_info opti621_chipset __devinitdata = {
-	.name		= "OPTI621/X",
+	.name		= DRV_NAME,
 	.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
 	.port_ops	= &opti621_port_ops,
 	.host_flags	= IDE_HFLAG_NO_DMA,

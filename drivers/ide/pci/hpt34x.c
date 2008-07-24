@@ -33,6 +33,8 @@
 #include <linux/init.h>
 #include <linux/ide.h>
 
+#define DRV_NAME "hpt34x"
+
 #define HPT343_DEBUG_DRIVE_INFO		0
 
 static void hpt34x_set_mode(ide_drive_t *drive, const u8 speed)
@@ -126,15 +128,15 @@ static const struct ide_port_ops hpt34x_port_ops = {
 	 IDE_HFLAG_NO_AUTODMA)
 
 static const struct ide_port_info hpt34x_chipsets[] __devinitdata = {
-	{ /* 0 */
-		.name		= "HPT343",
+	{ /* 0: HPT343 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_hpt34x,
 		.port_ops	= &hpt34x_port_ops,
 		.host_flags	= IDE_HFLAGS_HPT34X | IDE_HFLAG_NON_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
 	},
-	{ /* 1 */
-		.name		= "HPT345",
+	{ /* 1: HPT345 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_hpt34x,
 		.port_ops	= &hpt34x_port_ops,
 		.host_flags	= IDE_HFLAGS_HPT34X | IDE_HFLAG_OFF_BOARD,

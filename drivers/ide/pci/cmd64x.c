@@ -19,6 +19,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "cmd64x"
+
 #define CMD_DEBUG 0
 
 #if CMD_DEBUG
@@ -407,8 +409,8 @@ static const struct ide_dma_ops cmd648_dma_ops = {
 };
 
 static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "CMD643",
+	{	/* 0: CMD643 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
 		.port_ops	= &cmd64x_port_ops,
@@ -418,8 +420,9 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= 0x00, /* no udma */
-	},{	/* 1 */
-		.name		= "CMD646",
+	},
+	{	/* 1: CMD646 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.chipset	= ide_cmd646,
@@ -429,8 +432,9 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA2,
-	},{	/* 2 */
-		.name		= "CMD648",
+	},
+	{	/* 2: CMD648 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.port_ops	= &cmd64x_port_ops,
@@ -439,8 +443,9 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA4,
-	},{	/* 3 */
-		.name		= "CMD649",
+	},
+	{	/* 3: CMD649 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.port_ops	= &cmd64x_port_ops,

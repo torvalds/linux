@@ -31,6 +31,8 @@
 #include <asm/pci-bridge.h>
 #endif
 
+#define DRV_NAME "pdc202xx_new"
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -458,7 +460,7 @@ static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 
 		if (dev2->irq != dev->irq) {
 			dev2->irq = dev->irq;
-			printk(KERN_INFO "PDC20270 %s: PCI config space "
+			printk(KERN_INFO DRV_NAME " %s: PCI config space "
 				"interrupt fixed\n", pci_name(dev));
 		}
 
@@ -476,9 +478,9 @@ static const struct ide_port_ops pdcnew_port_ops = {
 	.cable_detect		= pdcnew_cable_detect,
 };
 
-#define DECLARE_PDCNEW_DEV(name_str, udma) \
+#define DECLARE_PDCNEW_DEV(udma) \
 	{ \
-		.name		= name_str, \
+		.name		= DRV_NAME, \
 		.init_chipset	= init_chipset_pdcnew, \
 		.port_ops	= &pdcnew_port_ops, \
 		.host_flags	= IDE_HFLAG_POST_SET_MODE | \
@@ -490,13 +492,8 @@ static const struct ide_port_ops pdcnew_port_ops = {
 	}
 
 static const struct ide_port_info pdcnew_chipsets[] __devinitdata = {
-	/* 0 */ DECLARE_PDCNEW_DEV("PDC20268", ATA_UDMA5),
-	/* 1 */ DECLARE_PDCNEW_DEV("PDC20269", ATA_UDMA6),
-	/* 2 */ DECLARE_PDCNEW_DEV("PDC20270", ATA_UDMA5),
-	/* 3 */ DECLARE_PDCNEW_DEV("PDC20271", ATA_UDMA6),
-	/* 4 */ DECLARE_PDCNEW_DEV("PDC20275", ATA_UDMA6),
-	/* 5 */ DECLARE_PDCNEW_DEV("PDC20276", ATA_UDMA6),
-	/* 6 */ DECLARE_PDCNEW_DEV("PDC20277", ATA_UDMA6),
+	/* 0: PDC202{68,70} */		DECLARE_PDCNEW_DEV(ATA_UDMA5),
+	/* 1: PDC202{69,71,75,76,77} */	DECLARE_PDCNEW_DEV(ATA_UDMA6),
 };
 
 /**
@@ -510,13 +507,10 @@ static const struct ide_port_info pdcnew_chipsets[] __devinitdata = {
  
 static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	const struct ide_port_info *d;
+	const struct ide_port_info *d = &pdcnew_chipsets[id->driver_data];
 	struct pci_dev *bridge = dev->bus->self;
-	u8 idx = id->driver_data;
 
-	d = &pdcnew_chipsets[idx];
-
-	if (idx == 2 && bridge &&
+	if (dev->device == PCI_DEVICE_ID_PROMISE_20270 && bridge &&
 	    bridge->vendor == PCI_VENDOR_ID_DEC &&
 	    bridge->device == PCI_DEVICE_ID_DEC_21150) {
 		struct pci_dev *dev2;
@@ -534,11 +528,11 @@ static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_de
 		}
 	}
 
-	if (idx == 5 && bridge &&
+	if (dev->device == PCI_DEVICE_ID_PROMISE_20276 && bridge &&
 	    bridge->vendor == PCI_VENDOR_ID_INTEL &&
 	    (bridge->device == PCI_DEVICE_ID_INTEL_I960 ||
 	     bridge->device == PCI_DEVICE_ID_INTEL_I960RM)) {
-		printk(KERN_INFO "PDC20276 %s: attached to I2O RAID controller,"
+		printk(KERN_INFO DRV_NAME " %s: attached to I2O RAID controller,"
 			" skipping\n", pci_name(dev));
 		return -ENODEV;
 	}
@@ -558,11 +552,11 @@ static void __devexit pdc202new_remove(struct pci_dev *dev)
 static const struct pci_device_id pdc202new_pci_tbl[] = {
 	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20268), 0 },
 	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20269), 1 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20270), 2 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20271), 3 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20275), 4 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20276), 5 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20277), 6 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20270), 0 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20271), 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20275), 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20276), 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20277), 1 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, pdc202new_pci_tbl);

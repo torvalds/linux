@@ -141,6 +141,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "trm290"
+
 static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -245,10 +247,10 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 	u8 reg = 0;
 
 	if ((dev->class & 5) && cfg_base)
-		printk(KERN_INFO "TRM290 %s: chip", pci_name(dev));
+		printk(KERN_INFO DRV_NAME " %s: chip", pci_name(dev));
 	else {
 		cfg_base = 0x3df0;
-		printk(KERN_INFO "TRM290 %s: using default", pci_name(dev));
+		printk(KERN_INFO DRV_NAME " %s: using default", pci_name(dev));
 	}
 	printk(KERN_CONT " config base at 0x%04x\n", cfg_base);
 	hwif->config_data = cfg_base;
@@ -325,7 +327,7 @@ static struct ide_dma_ops trm290_dma_ops = {
 };
 
 static const struct ide_port_info trm290_chipset __devinitdata = {
-	.name		= "TRM290",
+	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_trm290,
 	.chipset	= ide_trm290,
 	.port_ops	= &trm290_port_ops,

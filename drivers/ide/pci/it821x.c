@@ -67,6 +67,8 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
+#define DRV_NAME "it821x"
+
 struct it821x_dev
 {
 	unsigned int smart:1,		/* Are we in smart raid mode */
@@ -569,7 +571,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 		idev->timing10 = 1;
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 		if (idev->smart == 0)
-			printk(KERN_WARNING "it821x %s: revision 0x10, "
+			printk(KERN_WARNING DRV_NAME " %s: revision 0x10, "
 				"workarounds activated\n", pci_name(dev));
 	}
 
@@ -610,12 +612,12 @@ static unsigned int __devinit init_chipset_it821x(struct pci_dev *dev, const cha
 
 	/* Force the card into bypass mode if so requested */
 	if (it8212_noraid) {
-		printk(KERN_INFO "it821x %s: forcing bypass mode\n",
+		printk(KERN_INFO DRV_NAME " %s: forcing bypass mode\n",
 			pci_name(dev));
 		it8212_disable_raid(dev);
 	}
 	pci_read_config_byte(dev, 0x50, &conf);
-	printk(KERN_INFO "it821x %s: controller in %s mode\n",
+	printk(KERN_INFO DRV_NAME " %s: controller in %s mode\n",
 		pci_name(dev), mode[conf & 1]);
 	return 0;
 }
@@ -629,7 +631,7 @@ static const struct ide_port_ops it821x_port_ops = {
 };
 
 static const struct ide_port_info it821x_chipset __devinitdata = {
-	.name		= "IT821X",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_it821x,
 	.init_hwif	= init_hwif_it821x,
 	.port_ops	= &it821x_port_ops,
@@ -652,7 +654,7 @@ static int __devinit it821x_init_one(struct pci_dev *dev, const struct pci_devic
 
 	itdevs = kzalloc(2 * sizeof(*itdevs), GFP_KERNEL);
 	if (itdevs == NULL) {
-		printk(KERN_ERR "it821x %s: out of memory\n", pci_name(dev));
+		printk(KERN_ERR DRV_NAME " %s: out of memory\n", pci_name(dev));
 		return -ENOMEM;
 	}
 

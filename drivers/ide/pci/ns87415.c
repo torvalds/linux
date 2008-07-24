@@ -19,6 +19,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "ns87415"
+
 #ifdef CONFIG_SUPERIO
 /* SUPERIO 87560 is a PoS chip that NatSem denies exists.
  * Unfortunately, it's built-in on all Astro-based PA-RISC workstations
@@ -305,7 +307,7 @@ static const struct ide_dma_ops ns87415_dma_ops = {
 };
 
 static const struct ide_port_info ns87415_chipset __devinitdata = {
-	.name		= "NS87415",
+	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_ns87415,
 	.port_ops	= &ns87415_port_ops,
 	.dma_ops	= &ns87415_dma_ops,

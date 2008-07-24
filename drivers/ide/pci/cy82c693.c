@@ -48,6 +48,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "cy82c693"
+
 /* the current version */
 #define CY82_VERSION	"CY82C693U driver v0.34 99-13-12 Andreas S. Krebs (akrebs@altavista.net)"
 
@@ -398,7 +400,7 @@ static const struct ide_port_ops cy82c693_port_ops = {
 };
 
 static const struct ide_port_info cy82c693_chipset __devinitdata = {
-	.name		= "CY82C693",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_cy82c693,
 	.init_iops	= init_iops_cy82c693,
 	.port_ops	= &cy82c693_port_ops,

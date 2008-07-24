@@ -11,7 +11,7 @@
 #include <linux/pci.h>
 #include <linux/ide.h>
 
-#define DRV_NAME "TC86C001"
+#define DRV_NAME "tc86c001"
 
 static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
 {
@@ -193,7 +193,7 @@ static const struct ide_dma_ops tc86c001_dma_ops = {
 };
 
 static const struct ide_port_info tc86c001_chipset __devinitdata = {
-	.name		= "TC86C001",
+	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_tc86c001,
 	.port_ops	= &tc86c001_port_ops,
 	.dma_ops	= &tc86c001_dma_ops,

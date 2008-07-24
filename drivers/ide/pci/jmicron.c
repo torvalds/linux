@@ -12,6 +12,8 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
+#define DRV_NAME "jmicron"
+
 typedef enum {
 	PORT_PATA0 = 0,
 	PORT_PATA1 = 1,
@@ -102,7 +104,7 @@ static const struct ide_port_ops jmicron_port_ops = {
 };
 
 static const struct ide_port_info jmicron_chipset __devinitdata = {
-	.name		= "JMB",
+	.name		= DRV_NAME,
 	.enablebits	= { { 0x40, 0x01, 0x01 }, { 0x40, 0x10, 0x10 } },
 	.port_ops	= &jmicron_port_ops,
 	.pio_mask	= ATA_PIO5,

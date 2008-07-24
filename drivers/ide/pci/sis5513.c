@@ -52,6 +52,8 @@
 #include <linux/init.h>
 #include <linux/ide.h>
 
+#define DRV_NAME "sis5513"
+
 /* registers layout and init values are chipset family dependant */
 
 #define ATA_16		0x01
@@ -380,7 +382,7 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 		}
 		pci_dev_put(host);
 
-		printk(KERN_INFO "SIS5513 %s: %s %s controller\n",
+		printk(KERN_INFO DRV_NAME " %s: %s %s controller\n",
 			pci_name(dev), SiSHostChipInfo[i].name,
 			chipset_capability[chipset_family]);
 	}
@@ -397,7 +399,7 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 			pci_write_config_dword(dev, 0x54, idemisc);
 
 			if (trueid == 0x5518) {
-				printk(KERN_INFO "SIS5513 %s: SiS 962/963 MuTIOL IDE UDMA133 controller\n",
+				printk(KERN_INFO DRV_NAME " %s: SiS 962/963 MuTIOL IDE UDMA133 controller\n",
 					pci_name(dev));
 				chipset_family = ATA_133;
 
@@ -407,7 +409,7 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 				 */
 				if ((idemisc & 0x40000000) == 0) {
 					pci_write_config_dword(dev, 0x54, idemisc | 0x40000000);
-					printk(KERN_INFO "SIS5513 %s: Switching to 5513 register mapping\n",
+					printk(KERN_INFO DRV_NAME " %s: Switching to 5513 register mapping\n",
 						pci_name(dev));
 				}
 			}
@@ -432,11 +434,11 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 				pci_dev_put(lpc_bridge);
 
 				if (lpc_bridge->revision == 0x10 && (prefctl & 0x80)) {
-					printk(KERN_INFO "SIS5513 %s: SiS 961B MuTIOL IDE UDMA133 controller\n",
+					printk(KERN_INFO DRV_NAME " %s: SiS 961B MuTIOL IDE UDMA133 controller\n",
 						pci_name(dev));
 					chipset_family = ATA_133a;
 				} else {
-					printk(KERN_INFO "SIS5513 %s: SiS 961 MuTIOL IDE UDMA100 controller\n",
+					printk(KERN_INFO DRV_NAME " %s: SiS 961 MuTIOL IDE UDMA100 controller\n",
 						pci_name(dev));
 					chipset_family = ATA_100;
 				}
@@ -560,7 +562,7 @@ static const struct ide_port_ops sis_ata133_port_ops = {
 };
 
 static const struct ide_port_info sis5513_chipset __devinitdata = {
-	.name		= "SIS5513",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_sis5513,
 	.enablebits	= { {0x4a, 0x02, 0x02}, {0x4a, 0x04, 0x04} },
 	.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_NO_AUTODMA,

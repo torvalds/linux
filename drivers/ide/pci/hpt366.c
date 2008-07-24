@@ -131,6 +131,8 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#define DRV_NAME "hpt366"
+
 /* various tuning parameters */
 #define HPT_RESET_STATE_ENGINE
 #undef	HPT_DELAY_INTERRUPT
@@ -1362,7 +1364,7 @@ static void __devinit hpt374_init(struct pci_dev *dev, struct pci_dev *dev2)
 	if (dev2->irq != dev->irq) {
 		/* FIXME: we need a core pci_set_interrupt() */
 		dev2->irq = dev->irq;
-		printk(KERN_INFO "HPT374 %s: PCI config space interrupt "
+		printk(KERN_INFO DRV_NAME " %s: PCI config space interrupt "
 			"fixed\n", pci_name(dev2));
 	}
 }
@@ -1398,7 +1400,7 @@ static int __devinit hpt36x_init(struct pci_dev *dev, struct pci_dev *dev2)
 	pci_read_config_byte(dev2, PCI_INTERRUPT_PIN, &pin2);
 
 	if (pin1 != pin2 && dev->irq == dev2->irq) {
-		printk(KERN_INFO "HPT36x %s: onboard version of chipset, "
+		printk(KERN_INFO DRV_NAME " %s: onboard version of chipset, "
 			"pin1=%d pin2=%d\n", pci_name(dev), pin1, pin2);
 		return 1;
 	}
@@ -1454,8 +1456,8 @@ static const struct ide_dma_ops hpt36x_dma_ops = {
 };
 
 static const struct ide_port_info hpt366_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "HPT36x",
+	{	/* 0: HPT36x */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
@@ -1471,53 +1473,9 @@ static const struct ide_port_info hpt366_chipsets[] __devinitdata = {
 		.host_flags	= IDE_HFLAGS_HPT3XX | IDE_HFLAG_SINGLE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
-	},{	/* 1 */
-		.name		= "HPT372A",
-		.init_chipset	= init_chipset_hpt366,
-		.init_hwif	= init_hwif_hpt366,
-		.init_dma	= init_dma_hpt366,
-		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
-		.port_ops	= &hpt3xx_port_ops,
-		.dma_ops	= &hpt37x_dma_ops,
-		.host_flags	= IDE_HFLAGS_HPT3XX,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-	},{	/* 2 */
-		.name		= "HPT302",
-		.init_chipset	= init_chipset_hpt366,
-		.init_hwif	= init_hwif_hpt366,
-		.init_dma	= init_dma_hpt366,
-		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
-		.port_ops	= &hpt3xx_port_ops,
-		.dma_ops	= &hpt37x_dma_ops,
-		.host_flags	= IDE_HFLAGS_HPT3XX,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-	},{	/* 3 */
-		.name		= "HPT371",
-		.init_chipset	= init_chipset_hpt366,
-		.init_hwif	= init_hwif_hpt366,
-		.init_dma	= init_dma_hpt366,
-		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
-		.port_ops	= &hpt3xx_port_ops,
-		.dma_ops	= &hpt37x_dma_ops,
-		.host_flags	= IDE_HFLAGS_HPT3XX,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-	},{	/* 4 */
-		.name		= "HPT374",
-		.init_chipset	= init_chipset_hpt366,
-		.init_hwif	= init_hwif_hpt366,
-		.init_dma	= init_dma_hpt366,
-		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
-		.udma_mask	= ATA_UDMA5,
-		.port_ops	= &hpt3xx_port_ops,
-		.dma_ops	= &hpt37x_dma_ops,
-		.host_flags	= IDE_HFLAGS_HPT3XX,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-	},{	/* 5 */
-		.name		= "HPT372N",
+	},
+	{	/* 1: HPT3xx */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
@@ -1583,9 +1541,10 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 		break;
 	}
 
-	d = hpt366_chipsets[idx];
+	printk(KERN_INFO DRV_NAME ": %s chipset detected\n", info->chip_name);
 
-	d.name = info->chip_name;
+	d = hpt366_chipsets[min_t(u8, idx, 1)];
+
 	d.udma_mask = info->udma_mask;
 
 	/* fixup ->dma_ops for HPT370/HPT370A */

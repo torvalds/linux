@@ -33,6 +33,8 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
+#define DRV_NAME "triflex"
+
 static void triflex_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -93,7 +95,7 @@ static const struct ide_port_ops triflex_port_ops = {
 };
 
 static const struct ide_port_info triflex_device __devinitdata = {
-	.name		= "TRIFLEX",
+	.name		= DRV_NAME,
 	.enablebits	= {{0x80, 0x01, 0x01}, {0x80, 0x02, 0x02}},
 	.port_ops	= &triflex_port_ops,
 	.pio_mask	= ATA_PIO4,

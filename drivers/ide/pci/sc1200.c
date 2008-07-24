@@ -22,6 +22,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "sc1200"
+
 #define SC1200_REV_A	0x00
 #define SC1200_REV_B1	0x01
 #define SC1200_REV_B3	0x02
@@ -291,7 +293,7 @@ static const struct ide_dma_ops sc1200_dma_ops = {
 };
 
 static const struct ide_port_info sc1200_chipset __devinitdata = {
-	.name		= "SC1200",
+	.name		= DRV_NAME,
 	.port_ops	= &sc1200_port_ops,
 	.dma_ops	= &sc1200_dma_ops,
 	.host_flags	= IDE_HFLAG_SERIALIZE |

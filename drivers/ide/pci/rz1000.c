@@ -21,6 +21,8 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
+#define DRV_NAME "rz1000"
+
 static void __devinit init_hwif_rz1000 (ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -40,7 +42,7 @@ static void __devinit init_hwif_rz1000 (ide_hwif_t *hwif)
 }
 
 static const struct ide_port_info rz1000_chipset __devinitdata = {
-	.name		= "RZ100x",
+	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_rz1000,
 	.chipset	= ide_rz1000,
 	.host_flags	= IDE_HFLAG_NO_DMA,
