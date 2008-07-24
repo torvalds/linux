@@ -177,7 +177,7 @@ static struct tracepoint_entry *get_tracepoint(const char *name)
 	struct tracepoint_entry *e;
 	u32 hash = jhash(name, strlen(name), 0);
 
-	head = &tracepoint_table[hash & ((1 << TRACEPOINT_HASH_BITS)-1)];
+	head = &tracepoint_table[hash & (TRACEPOINT_TABLE_SIZE - 1)];
 	hlist_for_each_entry(e, node, head, hlist) {
 		if (!strcmp(name, e->name))
 			return e;
@@ -197,7 +197,7 @@ static struct tracepoint_entry *add_tracepoint(const char *name)
 	size_t name_len = strlen(name) + 1;
 	u32 hash = jhash(name, name_len-1, 0);
 
-	head = &tracepoint_table[hash & ((1 << TRACEPOINT_HASH_BITS)-1)];
+	head = &tracepoint_table[hash & (TRACEPOINT_TABLE_SIZE - 1)];
 	hlist_for_each_entry(e, node, head, hlist) {
 		if (!strcmp(name, e->name)) {
 			printk(KERN_NOTICE
@@ -233,7 +233,7 @@ static int remove_tracepoint(const char *name)
 	size_t len = strlen(name) + 1;
 	u32 hash = jhash(name, len-1, 0);
 
-	head = &tracepoint_table[hash & ((1 << TRACEPOINT_HASH_BITS)-1)];
+	head = &tracepoint_table[hash & (TRACEPOINT_TABLE_SIZE - 1)];
 	hlist_for_each_entry(e, node, head, hlist) {
 		if (!strcmp(name, e->name)) {
 			found = 1;
