@@ -169,8 +169,7 @@ static void copy_sec_desc(const struct cifs_ntsd *pntsd,
 	for (i = 0; i < 6; i++)
 		ngroup_sid_ptr->authority[i] = group_sid_ptr->authority[i];
 	for (i = 0; i < 5; i++)
-		ngroup_sid_ptr->sub_auth[i] =
-				cpu_to_le32(group_sid_ptr->sub_auth[i]);
+		ngroup_sid_ptr->sub_auth[i] = group_sid_ptr->sub_auth[i];
 
 	return;
 }
