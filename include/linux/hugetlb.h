@@ -164,6 +164,7 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 
 #ifdef CONFIG_HUGETLB_PAGE
 
+#define HSTATE_NAME_LEN 32
 /* Defines one hugetlb page size */
 struct hstate {
 	int hugetlb_next_nid;
@@ -179,6 +180,7 @@ struct hstate {
 	unsigned int nr_huge_pages_node[MAX_NUMNODES];
 	unsigned int free_huge_pages_node[MAX_NUMNODES];
 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+	char name[HSTATE_NAME_LEN];
 };
 
 void __init hugetlb_add_hstate(unsigned order);
