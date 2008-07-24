@@ -4080,12 +4080,6 @@ W:	http://www.prosec.rub.de/tpm/
 L:	tpmdd-devel@lists.sourceforge.net
 S:	Maintained
 
-TRIDENT 4DWAVE/SIS 7018 PCI AUDIO CORE
-P:	Muli Ben-Yehuda
-M:	mulix@mulix.org
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
 TRIVIAL PATCHES
 P:	Jesper Juhl
 M:	trivial@kernel.org
