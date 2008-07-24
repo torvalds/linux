@@ -494,7 +494,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 		/*      remember to free obj->oid */
 		rc = asn1_header_decode(&ctx, &end, &cls, &con, &tag);
 		if (rc) {
-			if ((tag == ASN1_OJI) && (cls == ASN1_PRI)) {
+			if ((tag == ASN1_OJI) && (con == ASN1_PRI)) {
 				rc = asn1_oid_decode(&ctx, end, &oid, &oidlen);
 				if (rc) {
 					rc = compare_oid(oid, oidlen,
