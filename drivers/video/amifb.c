@@ -1136,7 +1136,6 @@ static int amifb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg
 	 * Interface to the low level console driver
 	 */
 
-int amifb_init(void);
 static void amifb_deinit(void);
 
 	/*
@@ -2248,7 +2247,7 @@ static inline void chipfree(void)
 	 * Initialisation
 	 */
 
-int __init amifb_init(void)
+static int __init amifb_init(void)
 {
 	int tag, i, err = 0;
 	u_long chipptr;
@@ -3793,16 +3792,14 @@ static void ami_rebuild_copper(void)
 	}
 }
 
-
-module_init(amifb_init);
-
-#ifdef MODULE
-MODULE_LICENSE("GPL");
-
-void cleanup_module(void)
+static void __exit amifb_exit(void)
 {
 	unregister_framebuffer(&fb_info);
 	amifb_deinit();
 	amifb_video_off();
 }
-#endif /* MODULE */
+
+module_init(amifb_init);
+module_exit(amifb_exit);
+
+MODULE_LICENSE("GPL");
