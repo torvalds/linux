@@ -68,7 +68,7 @@ static void btrfs_put_super (struct super_block * sb)
 enum {
 	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
 	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
-	Opt_ssd, Opt_thread_pool, Opt_err,
+	Opt_ssd, Opt_thread_pool, Opt_noacl,  Opt_err,
 };
 
 static match_table_t tokens = {
@@ -83,7 +83,8 @@ static match_table_t tokens = {
 	{Opt_alloc_start, "alloc_start=%s"},
 	{Opt_thread_pool, "thread_pool=%d"},
 	{Opt_ssd, "ssd"},
-	{Opt_err, NULL}
+	{Opt_noacl, "noacl"},
+	{Opt_err, NULL},
 };
 
 u64 btrfs_parse_size(char *str)
@@ -215,6 +216,9 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 					info->alloc_start);
 			}
 			break;
+		case Opt_noacl:
+			root->fs_info->sb->s_flags &= ~MS_POSIXACL;
+			break;
 		default:
 			break;
 		}
@@ -301,6 +305,7 @@ static int btrfs_fill_super(struct super_block * sb,
 	sb->s_op = &btrfs_super_ops;
 	sb->s_xattr = btrfs_xattr_handlers;
 	sb->s_time_gran = 1;
+	sb->s_flags |= MS_POSIXACL;
 
 	tree_root = open_ctree(sb, fs_devices, (char *)data);
 

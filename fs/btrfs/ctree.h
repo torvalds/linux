@@ -42,6 +42,8 @@ struct btrfs_ordered_sum;
 
 #define BTRFS_MAGIC "_B5RfS_M"
 
+#define BTRFS_ACL_NOT_CACHED    ((void *)-1)
+
 #ifdef CONFIG_LOCKDEP
 # define BTRFS_MAX_LEVEL 7
 #else
@@ -1694,4 +1696,9 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 u64 btrfs_parse_size(char *str);
 int btrfs_parse_options(struct btrfs_root *root, char *options);
 int btrfs_sync_fs(struct super_block *sb, int wait);
+
+/* acl.c */
+int btrfs_check_acl(struct inode *inode, int mask);
+int btrfs_init_acl(struct inode *inode, struct inode *dir);
+int btrfs_acl_chmod(struct inode *inode);
 #endif

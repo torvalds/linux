@@ -36,6 +36,7 @@
 #include <linux/bit_spinlock.h>
 #include <linux/version.h>
 #include <linux/xattr.h>
+#include <linux/posix_acl.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -1478,6 +1479,9 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 out:
 	err = inode_setattr(inode, attr);
+
+	if (!err && ((attr->ia_valid & ATTR_MODE)))
+		err = btrfs_acl_chmod(inode);
 fail:
 	return err;
 }
@@ -2184,6 +2188,12 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
+	err = btrfs_init_acl(inode, dir);
+	if (err) {
+		drop_inode = 1;
+		goto out_unlock;
+	}
+
 	btrfs_set_trans_block_group(trans, inode);
 	err = btrfs_add_nondir(trans, dentry, inode, 0);
 	if (err)
@@ -2238,6 +2248,12 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out_unlock;
+
+	err = btrfs_init_acl(inode, dir);
+	if (err) {
+		drop_inode = 1;
+		goto out_unlock;
+	}
 
 	btrfs_set_trans_block_group(trans, inode);
 	err = btrfs_add_nondir(trans, dentry, inode, 0);
@@ -2366,6 +2382,11 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	}
 
 	drop_on_err = 1;
+
+	err = btrfs_init_acl(inode, dir);
+	if (err)
+		goto out_fail;
+
 	inode->i_op = &btrfs_dir_inode_operations;
 	inode->i_fop = &btrfs_dir_file_operations;
 	btrfs_set_trans_block_group(trans, inode);
@@ -3023,6 +3044,8 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 		return NULL;
 	ei->last_trans = 0;
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
+	ei->i_acl = BTRFS_ACL_NOT_CACHED;
+	ei->i_default_acl = BTRFS_ACL_NOT_CACHED;
 	return &ei->vfs_inode;
 }
 
@@ -3031,6 +3054,13 @@ void btrfs_destroy_inode(struct inode *inode)
 	struct btrfs_ordered_extent *ordered;
 	WARN_ON(!list_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
+
+	if (BTRFS_I(inode)->i_acl &&
+	    BTRFS_I(inode)->i_acl != BTRFS_ACL_NOT_CACHED)
+		posix_acl_release(BTRFS_I(inode)->i_acl);
+	if (BTRFS_I(inode)->i_default_acl &&
+	    BTRFS_I(inode)->i_default_acl != BTRFS_ACL_NOT_CACHED)
+		posix_acl_release(BTRFS_I(inode)->i_default_acl);
 
 	while(1) {
 		ordered = btrfs_lookup_first_ordered_extent(inode, (u64)-1);
@@ -3230,6 +3260,12 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
+	err = btrfs_init_acl(inode, dir);
+	if (err) {
+		drop_inode = 1;
+		goto out_unlock;
+	}
+
 	btrfs_set_trans_block_group(trans, inode);
 	err = btrfs_add_nondir(trans, dentry, inode, 0);
 	if (err)
@@ -3310,7 +3346,7 @@ static int btrfs_permission(struct inode *inode, int mask,
 {
 	if (btrfs_test_flag(inode, READONLY) && (mask & MAY_WRITE))
 		return -EACCES;
-	return generic_permission(inode, mask, NULL);
+	return generic_permission(inode, mask, btrfs_check_acl);
 }
 
 static struct inode_operations btrfs_dir_inode_operations = {
@@ -3392,6 +3428,10 @@ static struct inode_operations btrfs_special_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
 	.permission	= btrfs_permission,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
+	.listxattr	= btrfs_listxattr,
+	.removexattr	= generic_removexattr,
 };
 static struct inode_operations btrfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,

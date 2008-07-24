@@ -36,6 +36,9 @@ struct btrfs_inode {
 	struct inode vfs_inode;
 	struct btrfs_ordered_inode_tree ordered_tree;
 
+	struct posix_acl *i_acl;
+	struct posix_acl *i_default_acl;
+
 	/*
 	 * transid of the trans_handle that last modified this inode
 	 */
