@@ -534,14 +534,16 @@ int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 	if (ret < 0)
 		goto out;
 
+	ide_pci_setup_ports(dev, d, 0, &hw[0], &hws[0]);
+
 	ret = do_ide_setup_pci_device(dev, d, 1);
+	if (ret < 0)
+		goto out;
 
-	if (ret >= 0) {
-		/* FIXME: silent failure can happen */
-		ide_pci_setup_ports(dev, d, ret, &hw[0], &hws[0]);
+	/* fixup IRQ */
+	hw[1].irq = hw[0].irq = ret;
 
-		ret = ide_host_add(d, hws, NULL);
-	}
+	ret = ide_host_add(d, hws, NULL);
 out:
 	return ret;
 }
@@ -559,6 +561,8 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 		if (ret < 0)
 			goto out;
 
+		ide_pci_setup_ports(pdev[i], d, 0, &hw[i*2], &hws[i*2]);
+
 		ret = do_ide_setup_pci_device(pdev[i], d, !i);
 
 		/*
@@ -568,8 +572,8 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 		if (ret < 0)
 			goto out;
 
-		/* FIXME: silent failure can happen */
-		ide_pci_setup_ports(pdev[i], d, ret, &hw[i*2], &hws[i*2]);
+		/* fixup IRQ */
+		hw[i*2 + 1].irq = hw[i*2].irq = ret;
 	}
 
 	ret = ide_host_add(d, hws, NULL);
