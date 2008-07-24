@@ -395,7 +395,7 @@ static void image_fill_rect(struct tridentfb_par *par,
 static void image_copy_rect(struct tridentfb_par *par,
 			    u32 x1, u32 y1, u32 x2, u32 y2, u32 w, u32 h)
 {
-	int direction = 2;
+	int direction = 0x4;
 	u32 s1 = point(x1, y1);
 	u32 s2 = point(x1 + w - 1, y1 + h - 1);
 	u32 d1 = point(x2, y2);
@@ -1075,10 +1075,6 @@ static int tridentfb_set_par(struct fb_info *info)
 	/* enable GE for text acceleration */
 	write3X4(par, GraphEngReg, 0x80);
 
-#ifdef CONFIG_FB_TRIDENT_ACCEL
-	par->init_accel(par, info->var.xres_virtual, bpp);
-#endif
-
 	switch (bpp) {
 	case 8:
 		tmp = 0x00;
@@ -1173,6 +1169,10 @@ static int tridentfb_set_par(struct fb_info *info)
 		set_number_of_lines(par, info->var.yres);
 	info->fix.line_length = info->var.xres_virtual * bpp / 8;
 	set_lwidth(par, info->fix.line_length / 8);
+#ifdef CONFIG_FB_TRIDENT_ACCEL
+	par->init_accel(par, info->var.xres_virtual, bpp);
+#endif
+
 	info->fix.visual = (bpp == 8) ? FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
 	info->cmap.len = (bpp == 8) ? 256 : 16;
 	debug("exit\n");
