@@ -1805,16 +1805,12 @@ static int fixup_tree_root_location(struct btrfs_root *root,
 			     struct btrfs_root **sub_root,
 			     struct dentry *dentry)
 {
-	struct btrfs_path *path;
 	struct btrfs_root_item *ri;
 
 	if (btrfs_key_type(location) != BTRFS_ROOT_ITEM_KEY)
 		return 0;
 	if (location->objectid == BTRFS_ROOT_TREE_OBJECTID)
 		return 0;
-
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
 
 	*sub_root = btrfs_read_fs_root(root->fs_info, location,
 					dentry->d_name.name,
@@ -1827,7 +1823,6 @@ static int fixup_tree_root_location(struct btrfs_root *root,
 	btrfs_set_key_type(location, BTRFS_INODE_ITEM_KEY);
 	location->offset = 0;
 
-	btrfs_free_path(path);
 	return 0;
 }
 
