@@ -572,6 +572,10 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		if (!ret)
 			pci_update_current_state(dev);
 	}
+	/* This device is quirked not to be put into D3, so
+	   don't put it in D3 */
+	if (state == PCI_D3hot && (dev->dev_flags & PCI_DEV_FLAGS_NO_D3))
+		return 0;
 
 	error = pci_raw_set_power_state(dev, state);
 
