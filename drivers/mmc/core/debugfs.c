@@ -12,9 +12,11 @@
 #include <linux/seq_file.h>
 #include <linux/stat.h>
 
+#include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 
 #include "core.h"
+#include "mmc_ops.h"
 
 /* The debugfs functions are optimized away when CONFIG_DEBUG_FS isn't set. */
 static int mmc_ios_show(struct seq_file *s, void *data)
@@ -161,4 +163,63 @@ err_root:
 void mmc_remove_host_debugfs(struct mmc_host *host)
 {
 	debugfs_remove_recursive(host->debugfs_root);
+}
+
+static int mmc_dbg_card_status_get(void *data, u64 *val)
+{
+	struct mmc_card	*card = data;
+	u32		status;
+	int		ret;
+
+	mmc_claim_host(card->host);
+
+	ret = mmc_send_status(data, &status);
+	if (!ret)
+		*val = status;
+
+	mmc_release_host(card->host);
+
+	return ret;
+}
+DEFINE_SIMPLE_ATTRIBUTE(mmc_dbg_card_status_fops, mmc_dbg_card_status_get,
+		NULL, "%08llx\n");
+
+void mmc_add_card_debugfs(struct mmc_card *card)
+{
+	struct mmc_host	*host = card->host;
+	struct dentry	*root;
+
+	if (!host->debugfs_root)
+		return;
+
+	root = debugfs_create_dir(mmc_card_id(card), host->debugfs_root);
+	if (IS_ERR(root))
+		/* Don't complain -- debugfs just isn't enabled */
+		return;
+	if (!root)
+		/* Complain -- debugfs is enabled, but it failed to
+		 * create the directory. */
+		goto err;
+
+	card->debugfs_root = root;
+
+	if (!debugfs_create_x32("state", S_IRUSR, root, &card->state))
+		goto err;
+
+	if (mmc_card_mmc(card) || mmc_card_sd(card))
+		if (!debugfs_create_file("status", S_IRUSR, root, card,
+					&mmc_dbg_card_status_fops))
+			goto err;
+
+	return;
+
+err:
+	debugfs_remove_recursive(root);
+	card->debugfs_root = NULL;
+	dev_err(&card->dev, "failed to initialize debugfs\n");
+}
+
+void mmc_remove_card_debugfs(struct mmc_card *card)
+{
+	debugfs_remove_recursive(card->debugfs_root);
 }

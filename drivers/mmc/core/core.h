@@ -56,5 +56,8 @@ extern int use_spi_crc;
 void mmc_add_host_debugfs(struct mmc_host *host);
 void mmc_remove_host_debugfs(struct mmc_host *host);
 
+void mmc_add_card_debugfs(struct mmc_card *card);
+void mmc_remove_card_debugfs(struct mmc_card *card);
+
 #endif
 
