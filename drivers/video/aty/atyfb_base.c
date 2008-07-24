@@ -424,7 +424,6 @@ static struct {
 #endif /* CONFIG_FB_ATY_CT */
 };
 
-/* can not fail */
 static int __devinit correct_chipset(struct atyfb_par *par)
 {
 	u8 rev;
@@ -436,6 +435,9 @@ static int __devinit correct_chipset(struct atyfb_par *par)
 	for (i = ARRAY_SIZE(aty_chips) - 1; i >= 0; i--)
 		if (par->pci_id == aty_chips[i].pci_id)
 			break;
+
+	if (i < 0)
+		return -ENODEV;
 
 	name = aty_chips[i].name;
 	par->pll_limits.pll_max = aty_chips[i].pll;
