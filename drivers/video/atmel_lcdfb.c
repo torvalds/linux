@@ -379,6 +379,35 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 	return 0;
 }
 
+/*
+ * LCD reset sequence
+ */
+static void atmel_lcdfb_reset(struct atmel_lcdfb_info *sinfo)
+{
+	might_sleep();
+
+	/* LCD power off */
+	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON, sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET);
+
+	/* wait for the LCDC core to become idle */
+	while (lcdc_readl(sinfo, ATMEL_LCDC_PWRCON) & ATMEL_LCDC_BUSY)
+		msleep(10);
+
+	/* DMA disable */
+	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, 0);
+
+	/* wait for DMA engine to become idle */
+	while (lcdc_readl(sinfo, ATMEL_LCDC_DMACON) & ATMEL_LCDC_DMABUSY)
+		msleep(10);
+
+	/* LCD power on */
+	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON,
+		(sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET) | ATMEL_LCDC_PWR);
+
+	/* DMA enable */
+	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, sinfo->default_dmacon);
+}
+
 /**
  *      atmel_lcdfb_set_par - Alters the hardware state.
  *      @info: frame buffer structure that represents a single frame buffer
@@ -400,6 +429,8 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	unsigned long value;
 	unsigned long clk_value_khz;
 	unsigned long bits_per_line;
+
+	might_sleep();
 
 	dev_dbg(info->device, "%s:\n", __func__);
 	dev_dbg(info->device, "  * resolution: %ux%u (%ux%u virtual)\n",
@@ -511,6 +542,8 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 
 	/* Disable all interrupts */
 	lcdc_writel(sinfo, ATMEL_LCDC_IDR, ~0UL);
+	/* Enable FIFO & DMA errors */
+	lcdc_writel(sinfo, ATMEL_LCDC_IER, ATMEL_LCDC_UFLWI | ATMEL_LCDC_OWRI | ATMEL_LCDC_MERI);
 
 	/* ...wait for DMA engine to become idle... */
 	while (lcdc_readl(sinfo, ATMEL_LCDC_DMACON) & ATMEL_LCDC_DMABUSY)
@@ -645,8 +678,24 @@ static irqreturn_t atmel_lcdfb_interrupt(int irq, void *dev_id)
 	u32 status;
 
 	status = lcdc_readl(sinfo, ATMEL_LCDC_ISR);
-	lcdc_writel(sinfo, ATMEL_LCDC_IDR, status);
+	if (status & ATMEL_LCDC_UFLWI) {
+		dev_warn(info->device, "FIFO underflow %#x\n", status);
+		/* reset DMA and FIFO to avoid screen shifting */
+		schedule_work(&sinfo->task);
+	}
+	lcdc_writel(sinfo, ATMEL_LCDC_ICR, status);
 	return IRQ_HANDLED;
+}
+
+/*
+ * LCD controller task (to reset the LCD)
+ */
+static void atmel_lcdfb_task(struct work_struct *work)
+{
+	struct atmel_lcdfb_info *sinfo =
+		container_of(work, struct atmel_lcdfb_info, task);
+
+	atmel_lcdfb_reset(sinfo);
 }
 
 static int __init atmel_lcdfb_init_fbinfo(struct atmel_lcdfb_info *sinfo)
@@ -824,6 +873,10 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		goto unmap_mmio;
 	}
 
+	/* Some operations on the LCDC might sleep and
+	 * require a preemptible task context */
+	INIT_WORK(&sinfo->task, atmel_lcdfb_task);
+
 	ret = atmel_lcdfb_init_fbinfo(sinfo);
 	if (ret < 0) {
 		dev_err(dev, "init fbinfo failed: %d\n", ret);
@@ -866,6 +919,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 free_cmap:
 	fb_dealloc_cmap(&info->cmap);
 unregister_irqs:
+	cancel_work_sync(&sinfo->task);
 	free_irq(sinfo->irq_base, info);
 unmap_mmio:
 	exit_backlight(sinfo);
@@ -903,6 +957,7 @@ static int __exit atmel_lcdfb_remove(struct platform_device *pdev)
 	if (!sinfo)
 		return 0;
 
+	cancel_work_sync(&sinfo->task);
 	exit_backlight(sinfo);
 	if (sinfo->atmel_lcdfb_power_control)
 		sinfo->atmel_lcdfb_power_control(0);
