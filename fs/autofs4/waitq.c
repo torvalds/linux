@@ -46,6 +46,7 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 			kfree(wq->name.name);
 			wq->name.name = NULL;
 		}
+		wq->wait_ctr--;
 		wake_up_interruptible(&wq->queue);
 		wq = nwq;
 	}
@@ -380,7 +381,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		wq->pid = current->pid;
 		wq->tgid = current->tgid;
 		wq->status = -EINTR; /* Status return if interrupted */
-		atomic_set(&wq->wait_ctr, 2);
+		wq->wait_ctr = 2;
 		mutex_unlock(&sbi->wq_mutex);
 
 		if (sbi->version < 5) {
@@ -406,7 +407,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		/* autofs4_notify_daemon() may block */
 		autofs4_notify_daemon(sbi, wq, type);
 	} else {
-		atomic_inc(&wq->wait_ctr);
+		wq->wait_ctr++;
 		mutex_unlock(&sbi->wq_mutex);
 		kfree(qstr.name);
 		DPRINTK("existing wait id = 0x%08lx, name = %.*s, nfy=%d",
@@ -442,8 +443,10 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 	status = wq->status;
 
 	/* Are we the last process to need status? */
-	if (atomic_dec_and_test(&wq->wait_ctr))
+	mutex_lock(&sbi->wq_mutex);
+	if (!--wq->wait_ctr)
 		kfree(wq);
+	mutex_unlock(&sbi->wq_mutex);
 
 	return status;
 }
@@ -467,14 +470,11 @@ int autofs4_wait_release(struct autofs_sb_info *sbi, autofs_wqt_t wait_queue_tok
 	*wql = wq->next;	/* Unlink from chain */
 	kfree(wq->name.name);
 	wq->name.name = NULL;	/* Do not wait on this queue */
-	mutex_unlock(&sbi->wq_mutex);
-
 	wq->status = status;
-
-	if (atomic_dec_and_test(&wq->wait_ctr))	/* Is anyone still waiting for this guy? */
+	wake_up_interruptible(&wq->queue);
+	if (!--wq->wait_ctr)
 		kfree(wq);
-	else
-		wake_up_interruptible(&wq->queue);
+	mutex_unlock(&sbi->wq_mutex);
 
 	return 0;
 }
