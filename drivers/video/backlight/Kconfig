@@ -53,6 +53,13 @@ config LCD_VGG2432A4
 	  If you have a VGG2432A4 panel based on the ILI9320 controller chip
 	  then say y to include a power driver for it.
 
+config LCD_PLATFORM
+	tristate "Platform LCD controls"
+	depends on LCD_CLASS_DEVICE
+	help
+	  This driver provides a platform-device registered LCD power
+	  control interface.
+
 #
 # Backlight
 #
