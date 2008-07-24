@@ -1485,8 +1485,8 @@ static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
 		struct extent_buffer *buf;
 		buf = btrfs_find_tree_block(root, bytenr, num_bytes);
 		if (buf) {
-			if (btrfs_try_tree_lock(buf) &&
-			    btrfs_buffer_uptodate(buf, 0)) {
+			if (btrfs_buffer_uptodate(buf, 0) &&
+			    btrfs_try_tree_lock(buf)) {
 				u64 transid =
 				    root->fs_info->running_transaction->transid;
 				u64 header_transid =
