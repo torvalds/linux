@@ -184,7 +184,7 @@ asmlinkage long sys_timerfd_create(int clockid, int flags)
 	int ufd;
 	struct timerfd_ctx *ctx;
 
-	if (flags)
+	if (flags & ~TFD_CLOEXEC)
 		return -EINVAL;
 	if (clockid != CLOCK_MONOTONIC &&
 	    clockid != CLOCK_REALTIME)
@@ -198,7 +198,8 @@ asmlinkage long sys_timerfd_create(int clockid, int flags)
 	ctx->clockid = clockid;
 	hrtimer_init(&ctx->tmr, clockid, HRTIMER_MODE_ABS);
 
-	ufd = anon_inode_getfd("[timerfd]", &timerfd_fops, ctx, 0);
+	ufd = anon_inode_getfd("[timerfd]", &timerfd_fops, ctx,
+			       flags & O_CLOEXEC);
 	if (ufd < 0)
 		kfree(ctx);
 
