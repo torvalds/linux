@@ -40,6 +40,9 @@ static int hugetlb_next_nid;
  */
 static DEFINE_SPINLOCK(hugetlb_lock);
 
+#define HPAGE_RESV_OWNER    (1UL << (BITS_PER_LONG - 1))
+#define HPAGE_RESV_UNMAPPED (1UL << (BITS_PER_LONG - 2))
+#define HPAGE_RESV_MASK (HPAGE_RESV_OWNER | HPAGE_RESV_UNMAPPED)
 /*
  * These helpers are used to track how many pages are reserved for
  * faults in a MAP_PRIVATE mapping. Only the process that called mmap()
@@ -54,17 +57,32 @@ static unsigned long vma_resv_huge_pages(struct vm_area_struct *vma)
 {
 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
 	if (!(vma->vm_flags & VM_SHARED))
-		return (unsigned long)vma->vm_private_data;
+		return (unsigned long)vma->vm_private_data & ~HPAGE_RESV_MASK;
 	return 0;
 }
 
 static void set_vma_resv_huge_pages(struct vm_area_struct *vma,
 							unsigned long reserve)
 {
+	unsigned long flags;
 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
 	VM_BUG_ON(vma->vm_flags & VM_SHARED);
 
-	vma->vm_private_data = (void *)reserve;
+	flags = (unsigned long)vma->vm_private_data & HPAGE_RESV_MASK;
+	vma->vm_private_data = (void *)(reserve | flags);
+}
+
+static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
+{
+	unsigned long reserveflags = (unsigned long)vma->vm_private_data;
+	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+	vma->vm_private_data = (void *)(reserveflags | flags);
+}
+
+static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
+{
+	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+	return ((unsigned long)vma->vm_private_data & flag) != 0;
 }
 
 /* Decrement the reserved pages in the hugepage pool by one */
@@ -78,14 +96,18 @@ static void decrement_hugepage_resv_vma(struct vm_area_struct *vma)
 		 * Only the process that called mmap() has reserves for
 		 * private mappings.
 		 */
-		if (vma_resv_huge_pages(vma)) {
+		if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+			unsigned long flags, reserve;
 			resv_huge_pages--;
+			flags = (unsigned long)vma->vm_private_data &
+							HPAGE_RESV_MASK;
 			reserve = (unsigned long)vma->vm_private_data - 1;
-			vma->vm_private_data = (void *)reserve;
+			vma->vm_private_data = (void *)(reserve | flags);
 		}
 	}
 }
 
+/* Reset counters to 0 and clear all HPAGE_RESV_* flags */
 void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
 {
 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
@@ -153,7 +175,7 @@ static struct page *dequeue_huge_page(void)
 }
 
 static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
-				unsigned long address)
+				unsigned long address, int avoid_reserve)
 {
 	int nid;
 	struct page *page = NULL;
@@ -173,6 +195,10 @@ static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
 			free_huge_pages - resv_huge_pages == 0)
 		return NULL;
 
+	/* If reserves cannot be used, ensure enough pages are in the pool */
+	if (avoid_reserve && free_huge_pages - resv_huge_pages == 0)
+		return NULL;
+
 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
 						MAX_NR_ZONES - 1, nodemask) {
 		nid = zone_to_nid(zone);
@@ -183,7 +209,9 @@ static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
 			list_del(&page->lru);
 			free_huge_pages--;
 			free_huge_pages_node[nid]--;
-			decrement_hugepage_resv_vma(vma);
+
+			if (!avoid_reserve)
+				decrement_hugepage_resv_vma(vma);
 
 			break;
 		}
@@ -534,7 +562,7 @@ static void return_unused_surplus_pages(unsigned long unused_resv_pages)
 }
 
 static struct page *alloc_huge_page(struct vm_area_struct *vma,
-				    unsigned long addr)
+				    unsigned long addr, int avoid_reserve)
 {
 	struct page *page;
 	struct address_space *mapping = vma->vm_file->f_mapping;
@@ -546,14 +574,15 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 	 * will not have accounted against quota. Check that the quota can be
 	 * made before satisfying the allocation
 	 */
-	if (!vma_has_private_reserves(vma)) {
+	if (!(vma->vm_flags & VM_SHARED) &&
+			!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
 		chg = 1;
 		if (hugetlb_get_quota(inode->i_mapping, chg))
 			return ERR_PTR(-ENOSPC);
 	}
 
 	spin_lock(&hugetlb_lock);
-	page = dequeue_huge_page_vma(vma, addr);
+	page = dequeue_huge_page_vma(vma, addr, avoid_reserve);
 	spin_unlock(&hugetlb_lock);
 
 	if (!page) {
@@ -909,7 +938,7 @@ nomem:
 }
 
 void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
-			    unsigned long end)
+			    unsigned long end, struct page *ref_page)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long address;
@@ -937,6 +966,27 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 		if (huge_pmd_unshare(mm, &address, ptep))
 			continue;
 
+		/*
+		 * If a reference page is supplied, it is because a specific
+		 * page is being unmapped, not a range. Ensure the page we
+		 * are about to unmap is the actual page of interest.
+		 */
+		if (ref_page) {
+			pte = huge_ptep_get(ptep);
+			if (huge_pte_none(pte))
+				continue;
+			page = pte_page(pte);
+			if (page != ref_page)
+				continue;
+
+			/*
+			 * Mark the VMA as having unmapped its page so that
+			 * future faults in this VMA will fail rather than
+			 * looking like data was lost
+			 */
+			set_vma_resv_flags(vma, HPAGE_RESV_UNMAPPED);
+		}
+
 		pte = huge_ptep_get_and_clear(mm, address, ptep);
 		if (huge_pte_none(pte))
 			continue;
@@ -955,7 +1005,7 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 }
 
 void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
-			  unsigned long end)
+			  unsigned long end, struct page *ref_page)
 {
 	/*
 	 * It is undesirable to test vma->vm_file as it should be non-null
@@ -967,19 +1017,68 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	 */
 	if (vma->vm_file) {
 		spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
-		__unmap_hugepage_range(vma, start, end);
+		__unmap_hugepage_range(vma, start, end, ref_page);
 		spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
 	}
 }
 
+/*
+ * This is called when the original mapper is failing to COW a MAP_PRIVATE
+ * mappping it owns the reserve page for. The intention is to unmap the page
+ * from other VMAs and let the children be SIGKILLed if they are faulting the
+ * same region.
+ */
+int unmap_ref_private(struct mm_struct *mm,
+					struct vm_area_struct *vma,
+					struct page *page,
+					unsigned long address)
+{
+	struct vm_area_struct *iter_vma;
+	struct address_space *mapping;
+	struct prio_tree_iter iter;
+	pgoff_t pgoff;
+
+	/*
+	 * vm_pgoff is in PAGE_SIZE units, hence the different calculation
+	 * from page cache lookup which is in HPAGE_SIZE units.
+	 */
+	address = address & huge_page_mask(hstate_vma(vma));
+	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT)
+		+ (vma->vm_pgoff >> PAGE_SHIFT);
+	mapping = (struct address_space *)page_private(page);
+
+	vma_prio_tree_foreach(iter_vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+		/* Do not unmap the current VMA */
+		if (iter_vma == vma)
+			continue;
+
+		/*
+		 * Unmap the page from other VMAs without their own reserves.
+		 * They get marked to be SIGKILLed if they fault in these
+		 * areas. This is because a future no-page fault on this VMA
+		 * could insert a zeroed page instead of the data existing
+		 * from the time of fork. This would look like data corruption
+		 */
+		if (!is_vma_resv_set(iter_vma, HPAGE_RESV_OWNER))
+			unmap_hugepage_range(iter_vma,
+				address, address + HPAGE_SIZE,
+				page);
+	}
+
+	return 1;
+}
+
 static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
-			unsigned long address, pte_t *ptep, pte_t pte)
+			unsigned long address, pte_t *ptep, pte_t pte,
+			struct page *pagecache_page)
 {
 	struct page *old_page, *new_page;
 	int avoidcopy;
+	int outside_reserve = 0;
 
 	old_page = pte_page(pte);
 
+retry_avoidcopy:
 	/* If no-one else is actually using this page, avoid the copy
 	 * and just make the page writable */
 	avoidcopy = (page_count(old_page) == 1);
@@ -988,11 +1087,43 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 		return 0;
 	}
 
+	/*
+	 * If the process that created a MAP_PRIVATE mapping is about to
+	 * perform a COW due to a shared page count, attempt to satisfy
+	 * the allocation without using the existing reserves. The pagecache
+	 * page is used to determine if the reserve at this address was
+	 * consumed or not. If reserves were used, a partial faulted mapping
+	 * at the time of fork() could consume its reserves on COW instead
+	 * of the full address range.
+	 */
+	if (!(vma->vm_flags & VM_SHARED) &&
+			is_vma_resv_set(vma, HPAGE_RESV_OWNER) &&
+			old_page != pagecache_page)
+		outside_reserve = 1;
+
 	page_cache_get(old_page);
-	new_page = alloc_huge_page(vma, address);
+	new_page = alloc_huge_page(vma, address, outside_reserve);
 
 	if (IS_ERR(new_page)) {
 		page_cache_release(old_page);
+
+		/*
+		 * If a process owning a MAP_PRIVATE mapping fails to COW,
+		 * it is due to references held by a child and an insufficient
+		 * huge page pool. To guarantee the original mappers
+		 * reliability, unmap the page from child processes. The child
+		 * may get SIGKILLed if it later faults.
+		 */
+		if (outside_reserve) {
+			BUG_ON(huge_pte_none(pte));
+			if (unmap_ref_private(mm, vma, old_page, address)) {
+				BUG_ON(page_count(old_page) != 1);
+				BUG_ON(huge_pte_none(pte));
+				goto retry_avoidcopy;
+			}
+			WARN_ON_ONCE(1);
+		}
+
 		return -PTR_ERR(new_page);
 	}
 
@@ -1015,6 +1146,20 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	return 0;
 }
 
+/* Return the pagecache page at a given address within a VMA */
+static struct page *hugetlbfs_pagecache_page(struct vm_area_struct *vma,
+			unsigned long address)
+{
+	struct address_space *mapping;
+	unsigned long idx;
+
+	mapping = vma->vm_file->f_mapping;
+	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
+		+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+
+	return find_lock_page(mapping, idx);
+}
+
 static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, pte_t *ptep, int write_access)
 {
@@ -1024,6 +1169,18 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct page *page;
 	struct address_space *mapping;
 	pte_t new_pte;
+
+	/*
+	 * Currently, we are forced to kill the process in the event the
+	 * original mapper has unmapped pages from the child due to a failed
+	 * COW. Warn that such a situation has occured as it may not be obvious
+	 */
+	if (is_vma_resv_set(vma, HPAGE_RESV_UNMAPPED)) {
+		printk(KERN_WARNING
+			"PID %d killed due to inadequate hugepage pool\n",
+			current->pid);
+		return ret;
+	}
 
 	mapping = vma->vm_file->f_mapping;
 	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
@@ -1039,7 +1196,7 @@ retry:
 		size = i_size_read(mapping->host) >> HPAGE_SHIFT;
 		if (idx >= size)
 			goto out;
-		page = alloc_huge_page(vma, address);
+		page = alloc_huge_page(vma, address, 0);
 		if (IS_ERR(page)) {
 			ret = -PTR_ERR(page);
 			goto out;
@@ -1081,7 +1238,7 @@ retry:
 
 	if (write_access && !(vma->vm_flags & VM_SHARED)) {
 		/* Optimization, do the COW without a second fault */
-		ret = hugetlb_cow(mm, vma, address, ptep, new_pte);
+		ret = hugetlb_cow(mm, vma, address, ptep, new_pte, page);
 	}
 
 	spin_unlock(&mm->page_table_lock);
@@ -1126,8 +1283,15 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	spin_lock(&mm->page_table_lock);
 	/* Check for a racing update before calling hugetlb_cow */
 	if (likely(pte_same(entry, huge_ptep_get(ptep))))
-		if (write_access && !pte_write(entry))
-			ret = hugetlb_cow(mm, vma, address, ptep, entry);
+		if (write_access && !pte_write(entry)) {
+			struct page *page;
+			page = hugetlbfs_pagecache_page(vma, address);
+			ret = hugetlb_cow(mm, vma, address, ptep, entry, page);
+			if (page) {
+				unlock_page(page);
+				put_page(page);
+			}
+		}
 	spin_unlock(&mm->page_table_lock);
 	mutex_unlock(&hugetlb_instantiation_mutex);
 
@@ -1371,6 +1535,7 @@ int hugetlb_reserve_pages(struct inode *inode,
 	else {
 		chg = to - from;
 		set_vma_resv_huge_pages(vma, chg);
+		set_vma_resv_flags(vma, HPAGE_RESV_OWNER);
 	}
 
 	if (chg < 0)

@@ -901,7 +901,7 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 			}
 
 			if (unlikely(is_vm_hugetlb_page(vma))) {
-				unmap_hugepage_range(vma, start, end);
+				unmap_hugepage_range(vma, start, end, NULL);
 				zap_work -= (end - start) /
 						(HPAGE_SIZE / PAGE_SIZE);
 				start = end;
