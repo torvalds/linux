@@ -177,7 +177,8 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 			return status;
 		}
 	/* Trigger mount for path component or follow link */
-	} else if (flags & (TRIGGER_FLAGS | TRIGGER_INTENTS) ||
+	} else if (dentry->d_flags & DCACHE_AUTOFS_PENDING ||
+			flags & (TRIGGER_FLAGS | TRIGGER_INTENTS) ||
 			current->link_count) {
 		DPRINTK("waiting for mount name=%.*s",
 			dentry->d_name.len, dentry->d_name.name);
@@ -223,7 +224,8 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 	/* If it's our master or we shouldn't trigger a mount we're done */
 	lookup_type = nd->flags & (TRIGGER_FLAGS | TRIGGER_INTENTS);
-	if (oz_mode || !lookup_type)
+	if (oz_mode ||
+	    !(lookup_type || dentry->d_flags & DCACHE_AUTOFS_PENDING))
 		goto done;
 
 	/* If an expire request is pending wait for it. */
@@ -242,7 +244,8 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 	 * don't try to mount it again.
 	 */
 	spin_lock(&dcache_lock);
-	if (!d_mountpoint(dentry) && __simple_empty(dentry)) {
+	if (dentry->d_flags & DCACHE_AUTOFS_PENDING ||
+	    (!d_mountpoint(dentry) && __simple_empty(dentry))) {
 		spin_unlock(&dcache_lock);
 
 		status = try_to_fill_dentry(dentry, 0);
