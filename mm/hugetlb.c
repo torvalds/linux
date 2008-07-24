@@ -603,7 +603,6 @@ static unsigned long set_max_huge_pages(unsigned long count)
 	}
 
 	while (count > persistent_huge_pages) {
-		int ret;
 		/*
 		 * If this allocation races such that we no longer need the
 		 * page, free_huge_page will handle it by freeing the page
