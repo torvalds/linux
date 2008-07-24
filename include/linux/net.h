@@ -20,7 +20,7 @@
 
 #include <linux/wait.h>
 #include <linux/socket.h>
-#include <linux/fcntl.h>	/* For O_CLOEXEC */
+#include <linux/fcntl.h>	/* For O_CLOEXEC and O_NONBLOCK */
 #include <asm/socket.h>
 
 struct poll_table_struct;
