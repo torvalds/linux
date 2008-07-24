@@ -18,7 +18,7 @@
 #include <linux/fcntl.h>
 #include <linux/types.h>
 
-/* Flags for epoll_create2.  */
+/* Flags for epoll_create1.  */
 #define EPOLL_CLOEXEC O_CLOEXEC
 
 /* Valid opcodes to issue to sys_epoll_ctl() */

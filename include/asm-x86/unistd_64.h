@@ -645,8 +645,8 @@ __SYSCALL(__NR_paccept, sys_paccept)
 __SYSCALL(__NR_signalfd4, sys_signalfd4)
 #define __NR_eventfd2				290
 __SYSCALL(__NR_eventfd2, sys_eventfd2)
-#define __NR_epoll_create2			291
-__SYSCALL(__NR_epoll_create2, sys_epoll_create2)
+#define __NR_epoll_create1			291
+__SYSCALL(__NR_epoll_create1, sys_epoll_create1)
 #define __NR_dup3				292
 __SYSCALL(__NR_dup3, sys_dup3)
 #define __NR_pipe2				293

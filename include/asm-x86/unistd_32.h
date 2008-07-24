@@ -334,7 +334,7 @@
 #define __NR_timerfd_gettime	326
 #define __NR_signalfd4		327
 #define __NR_eventfd2		328
-#define __NR_epoll_create2	329
+#define __NR_epoll_create1	329
 #define __NR_dup3		330
 #define __NR_pipe2		331
 #define __NR_inotify_init1	332

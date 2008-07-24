@@ -1046,7 +1046,7 @@ retry:
  * RB tree. With the current implementation, the "size" parameter is ignored
  * (besides sanity checks).
  */
-asmlinkage long sys_epoll_create2(int size, int flags)
+asmlinkage long sys_epoll_create1(int flags)
 {
 	int error, fd = -1;
 	struct eventpoll *ep;
@@ -1058,14 +1058,13 @@ asmlinkage long sys_epoll_create2(int size, int flags)
 		return -EINVAL;
 
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d)\n",
-		     current, size));
+		     current, flags));
 
 	/*
-	 * Sanity check on the size parameter, and create the internal data
-	 * structure ( "struct eventpoll" ).
+	 * Create the internal data structure ( "struct eventpoll" ).
 	 */
-	error = -EINVAL;
-	if (size <= 0 || (error = ep_alloc(&ep)) < 0) {
+	error = ep_alloc(&ep);
+	if (error < 0) {
 		fd = error;
 		goto error_return;
 	}
@@ -1081,14 +1080,17 @@ asmlinkage long sys_epoll_create2(int size, int flags)
 
 error_return:
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
-		     current, size, fd));
+		     current, flags, fd));
 
 	return fd;
 }
 
 asmlinkage long sys_epoll_create(int size)
 {
-	return sys_epoll_create2(size, 0);
+	if (size < 0)
+		return -EINVAL;
+
+	return sys_epoll_create1(0);
 }
 
 /*
