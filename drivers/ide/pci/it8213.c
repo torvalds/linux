@@ -198,6 +198,7 @@ static struct pci_driver driver = {
 	.name		= "ITE8213_IDE",
 	.id_table	= it8213_pci_tbl,
 	.probe		= it8213_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init it8213_ide_init(void)
@@ -205,7 +206,13 @@ static int __init it8213_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit it8213_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(it8213_ide_init);
+module_exit(it8213_ide_exit);
 
 MODULE_AUTHOR("Jack Lee, Alan Cox");
 MODULE_DESCRIPTION("PCI driver module for the ITE 8213");
