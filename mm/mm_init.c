@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include "internal.h"
 
+#ifdef CONFIG_DEBUG_MEMORY_INIT
 int __meminitdata mminit_loglevel;
 
 /* The zonelists are simply reported, validation is manual. */
@@ -132,3 +133,4 @@ static __init int set_mminit_loglevel(char *str)
 	return 0;
 }
 early_param("mminit_loglevel", set_mminit_loglevel);
+#endif /* CONFIG_DEBUG_MEMORY_INIT */
