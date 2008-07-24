@@ -1150,11 +1150,22 @@ static int iommu_fixed_disabled;
 
 static int __init setup_iommu_fixed(char *str)
 {
+	struct device_node *pciep;
+
 	if (strcmp(str, "off") == 0)
 		iommu_fixed_disabled = 1;
 
-	else if (strcmp(str, "weak") == 0)
+	/* If we can find a pcie-endpoint in the device tree assume that
+	 * we're on a triblade or a CAB so by default the fixed mapping
+	 * should be set to be weakly ordered; but only if the boot
+	 * option WASN'T set for strong ordering
+	 */
+	pciep = of_find_node_by_type(NULL, "pcie-endpoint");
+
+	if (strcmp(str, "weak") == 0 || (pciep && strcmp(str, "strong") != 0))
 		iommu_fixed_is_weak = 1;
+
+	of_node_put(pciep);
 
 	return 1;
 }
