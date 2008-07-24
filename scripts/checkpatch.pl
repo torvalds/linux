@@ -721,6 +721,10 @@ sub annotate_values {
 			print "DECLARE($1)\n" if ($dbg_values > 1);
 			$type = 'T';
 
+		} elsif ($cur =~ /^($Modifier)\s*/) {
+			print "MODIFIER($1)\n" if ($dbg_values > 1);
+			$type = 'T';
+
 		} elsif ($cur =~ /^(\#\s*define\s*$Ident)(\(?)/o) {
 			print "DEFINE($1,$2)\n" if ($dbg_values > 1);
 			$av_preprocessor = 1;
