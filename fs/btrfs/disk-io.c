@@ -732,7 +732,9 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->in_sysfs = 0;
 
 	INIT_LIST_HEAD(&root->dirty_list);
+	INIT_LIST_HEAD(&root->orphan_list);
 	spin_lock_init(&root->node_lock);
+	spin_lock_init(&root->orphan_lock);
 	mutex_init(&root->objectid_mutex);
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
