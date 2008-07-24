@@ -3275,8 +3275,10 @@ next:
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret > 0)
 		ret = -EIO;
-	if (ret < 0)
+	if (ret < 0) {
+		btrfs_end_transaction(trans, root);
 		goto out;
+	}
 
 	clear_extent_bits(&info->block_group_cache, key.objectid,
 			  key.objectid + key.offset - 1,

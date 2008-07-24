@@ -78,8 +78,10 @@ static noinline int create_subvol(struct btrfs_root *root, char *name,
 	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
 				      objectid, trans->transid, 0, 0,
 				      0, 0);
-	if (IS_ERR(leaf))
-		return PTR_ERR(leaf);
+	if (IS_ERR(leaf)) {
+		ret = PTR_ERR(leaf);
+		goto fail;
+	}
 
 	btrfs_set_header_nritems(leaf, 0);
 	btrfs_set_header_level(leaf, 0);
