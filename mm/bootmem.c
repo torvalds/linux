@@ -36,6 +36,8 @@ static LIST_HEAD(bdata_list);
 unsigned long saved_max_pfn;
 #endif
 
+bootmem_data_t bootmem_node_data[MAX_NUMNODES] __initdata;
+
 /* return the number of _pages_ that will be allocated for the boot bitmap */
 unsigned long __init bootmem_bootmap_pages(unsigned long pages)
 {

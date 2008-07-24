@@ -38,6 +38,8 @@ typedef struct bootmem_data {
 	struct list_head list;
 } bootmem_data_t;
 
+extern bootmem_data_t bootmem_node_data[];
+
 extern unsigned long bootmem_bootmap_pages(unsigned long);
 extern unsigned long init_bootmem(unsigned long addr, unsigned long memend);
 extern void free_bootmem(unsigned long addr, unsigned long size);

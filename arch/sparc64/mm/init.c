@@ -788,7 +788,6 @@ int numa_cpu_lookup_table[NR_CPUS];
 cpumask_t numa_cpumask_lookup_table[MAX_NUMNODES];
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-static bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 struct mdesc_mblock {
 	u64	base;
@@ -871,7 +870,7 @@ static void __init allocate_node_data(int nid)
 	NODE_DATA(nid) = __va(paddr);
 	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 
-	NODE_DATA(nid)->bdata = &plat_node_bdata[nid];
+	NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
 #endif
 
 	p = NODE_DATA(nid);
