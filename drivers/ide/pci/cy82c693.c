@@ -420,9 +420,19 @@ static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_dev
 	    PCI_FUNC(dev->devfn) == 1) {
 		dev2 = pci_get_slot(dev->bus, dev->devfn + 1);
 		ret = ide_pci_init_two(dev, dev2, &cy82c693_chipset, NULL);
-		/* We leak pci refs here but thats ok - we can't be unloaded */
+		if (ret)
+			pci_dev_put(dev2);
 	}
 	return ret;
+}
+
+static void __devexit cy82c693_remove(struct pci_dev *dev)
+{
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct pci_dev *dev2 = host->dev[1] ? to_pci_dev(host->dev[1]) : NULL;
+
+	ide_pci_remove(dev);
+	pci_dev_put(dev2);
 }
 
 static const struct pci_device_id cy82c693_pci_tbl[] = {
@@ -435,6 +445,7 @@ static struct pci_driver driver = {
 	.name		= "Cypress_IDE",
 	.id_table	= cy82c693_pci_tbl,
 	.probe		= cy82c693_init_one,
+	.remove		= cy82c693_remove,
 };
 
 static int __init cy82c693_ide_init(void)
@@ -442,7 +453,13 @@ static int __init cy82c693_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit cy82c693_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(cy82c693_ide_init);
+module_exit(cy82c693_ide_exit);
 
 MODULE_AUTHOR("Andreas Krebs, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for the Cypress CY82C693 IDE");
