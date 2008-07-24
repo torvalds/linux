@@ -40,6 +40,28 @@ static int hugetlb_next_nid;
  */
 static DEFINE_SPINLOCK(hugetlb_lock);
 
+/*
+ * Convert the address within this vma to the page offset within
+ * the mapping, in base page units.
+ */
+static pgoff_t vma_page_offset(struct vm_area_struct *vma,
+				unsigned long address)
+{
+	return ((address - vma->vm_start) >> PAGE_SHIFT) +
+					(vma->vm_pgoff >> PAGE_SHIFT);
+}
+
+/*
+ * Convert the address within this vma to the page offset within
+ * the mapping, in pagecache page units; huge pages here.
+ */
+static pgoff_t vma_pagecache_offset(struct vm_area_struct *vma,
+					unsigned long address)
+{
+	return ((address - vma->vm_start) >> HPAGE_SHIFT) +
+			(vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+}
+
 #define HPAGE_RESV_OWNER    (1UL << (BITS_PER_LONG - 1))
 #define HPAGE_RESV_UNMAPPED (1UL << (BITS_PER_LONG - 2))
 #define HPAGE_RESV_MASK (HPAGE_RESV_OWNER | HPAGE_RESV_UNMAPPED)
@@ -53,36 +75,48 @@ static DEFINE_SPINLOCK(hugetlb_lock);
  * to reset the VMA at fork() time as it is not in use yet and there is no
  * chance of the global counters getting corrupted as a result of the values.
  */
+static unsigned long get_vma_private_data(struct vm_area_struct *vma)
+{
+	return (unsigned long)vma->vm_private_data;
+}
+
+static void set_vma_private_data(struct vm_area_struct *vma,
+							unsigned long value)
+{
+	vma->vm_private_data = (void *)value;
+}
+
 static unsigned long vma_resv_huge_pages(struct vm_area_struct *vma)
 {
 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
 	if (!(vma->vm_flags & VM_SHARED))
-		return (unsigned long)vma->vm_private_data & ~HPAGE_RESV_MASK;
+		return get_vma_private_data(vma) & ~HPAGE_RESV_MASK;
 	return 0;
 }
 
 static void set_vma_resv_huge_pages(struct vm_area_struct *vma,
 							unsigned long reserve)
 {
-	unsigned long flags;
 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
 	VM_BUG_ON(vma->vm_flags & VM_SHARED);
 
-	flags = (unsigned long)vma->vm_private_data & HPAGE_RESV_MASK;
-	vma->vm_private_data = (void *)(reserve | flags);
+	set_vma_private_data(vma,
+		(get_vma_private_data(vma) & HPAGE_RESV_MASK) | reserve);
 }
 
 static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
 {
-	unsigned long reserveflags = (unsigned long)vma->vm_private_data;
 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
-	vma->vm_private_data = (void *)(reserveflags | flags);
+	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+
+	set_vma_private_data(vma, get_vma_private_data(vma) | flags);
 }
 
 static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
 {
 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
-	return ((unsigned long)vma->vm_private_data & flag) != 0;
+
+	return (get_vma_private_data(vma) & flag) != 0;
 }
 
 /* Decrement the reserved pages in the hugepage pool by one */
@@ -1151,11 +1185,10 @@ static struct page *hugetlbfs_pagecache_page(struct vm_area_struct *vma,
 			unsigned long address)
 {
 	struct address_space *mapping;
-	unsigned long idx;
+	pgoff_t idx;
 
 	mapping = vma->vm_file->f_mapping;
-	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
-		+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+	idx = vma_pagecache_offset(vma, address);
 
 	return find_lock_page(mapping, idx);
 }
@@ -1164,7 +1197,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, pte_t *ptep, int write_access)
 {
 	int ret = VM_FAULT_SIGBUS;
-	unsigned long idx;
+	pgoff_t idx;
 	unsigned long size;
 	struct page *page;
 	struct address_space *mapping;
@@ -1183,8 +1216,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	mapping = vma->vm_file->f_mapping;
-	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
-		+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+	idx = vma_pagecache_offset(vma, address);
 
 	/*
 	 * Use page lock to guard against racing truncation
