@@ -305,7 +305,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	rcu_read_unlock();
 
 	local->total_ps_buffered = total;
-#ifdef MAC80211_VERBOSE_PS_DEBUG
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: PS buffers full - purged %d frames\n",
 	       wiphy_name(local->hw.wiphy), purged);
 #endif
@@ -342,7 +342,7 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 			purge_old_ps_buffers(tx->local);
 		if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >=
 		    AP_MAX_BC_BUFFER) {
-#ifdef MAC80211_VERBOSE_PS_DEBUG
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "%s: BC TX buffer full - "
 				       "dropping the oldest frame\n",
@@ -389,7 +389,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 			purge_old_ps_buffers(tx->local);
 		if (skb_queue_len(&sta->ps_tx_buf) >= STA_MAX_TX_BUFFER) {
 			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf);
-#ifdef MAC80211_VERBOSE_PS_DEBUG
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "%s: STA %s TX "
 				       "buffer full - dropping oldest frame\n",
