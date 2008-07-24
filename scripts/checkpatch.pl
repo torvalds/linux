@@ -1972,6 +1972,7 @@ sub process {
 			} else {
 				$dstat =~ s/^.\s*\#\s*define\s+$Ident\s*//;
 			}
+			$dstat =~ s/$;//g;
 			$dstat =~ s/\\\n.//g;
 			$dstat =~ s/^\s*//s;
 			$dstat =~ s/\s*$//s;
