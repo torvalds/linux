@@ -223,6 +223,7 @@ static struct pci_driver driver = {
 	.name		= "Opti621_IDE",
 	.id_table	= opti621_pci_tbl,
 	.probe		= opti621_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init opti621_ide_init(void)
@@ -230,7 +231,13 @@ static int __init opti621_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit opti621_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(opti621_ide_init);
+module_exit(opti621_ide_exit);
 
 MODULE_AUTHOR("Jaromir Koutek, Jan Harkes, Mark Lord");
 MODULE_DESCRIPTION("PCI driver module for Opti621 IDE");
