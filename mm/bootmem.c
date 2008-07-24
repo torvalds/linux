@@ -377,7 +377,7 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 	struct page *page;
 	unsigned long pfn;
 	bootmem_data_t *bdata = pgdat->bdata;
-	unsigned long i, count, total = 0;
+	unsigned long i, count;
 	unsigned long idx;
 	unsigned long *map; 
 	int gofast = 0;
@@ -389,10 +389,13 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 	pfn = PFN_DOWN(bdata->node_boot_start);
 	idx = bdata->node_low_pfn - pfn;
 	map = bdata->node_bootmem_map;
-	/* Check physaddr is O(LOG2(BITS_PER_LONG)) page aligned */
-	if (bdata->node_boot_start == 0 ||
-	    ffs(bdata->node_boot_start) - PAGE_SHIFT > ffs(BITS_PER_LONG))
+	/*
+	 * Check if we are aligned to BITS_PER_LONG pages.  If so, we might
+	 * be able to free page orders of that size at once.
+	 */
+	if (!(pfn & (BITS_PER_LONG-1)))
 		gofast = 1;
+
 	for (i = 0; i < idx; ) {
 		unsigned long v = ~map[i / BITS_PER_LONG];
 
@@ -420,23 +423,19 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 		}
 		pfn += BITS_PER_LONG;
 	}
-	total += count;
 
 	/*
 	 * Now free the allocator bitmap itself, it's not
 	 * needed anymore:
 	 */
 	page = virt_to_page(bdata->node_bootmem_map);
-	count = 0;
 	idx = (get_mapsize(bdata) + PAGE_SIZE-1) >> PAGE_SHIFT;
-	for (i = 0; i < idx; i++, page++) {
+	for (i = 0; i < idx; i++, page++)
 		__free_pages_bootmem(page, 0);
-		count++;
-	}
-	total += count;
+	count += i;
 	bdata->node_bootmem_map = NULL;
 
-	return total;
+	return count;
 }
 
 unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
