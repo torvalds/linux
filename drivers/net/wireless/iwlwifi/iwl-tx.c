@@ -962,16 +962,16 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (ret)
 		return ret;
 
-	if ((iwl_queue_space(q) < q->high_mark)
-	    && priv->mac80211_registered) {
+	if ((iwl_queue_space(q) < q->high_mark) && priv->mac80211_registered) {
 		if (wait_write_ptr) {
 			spin_lock_irqsave(&priv->lock, flags);
 			txq->need_update = 1;
 			iwl_txq_update_write_ptr(priv, txq);
 			spin_unlock_irqrestore(&priv->lock, flags);
+		} else {
+			ieee80211_stop_queue(priv->hw,
+					     skb_get_queue_mapping(skb));
 		}
-
-		ieee80211_stop_queue(priv->hw, skb_get_queue_mapping(skb));
 	}
 
 	return 0;
