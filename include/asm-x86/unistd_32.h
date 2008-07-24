@@ -333,6 +333,7 @@
 #define __NR_timerfd_settime	325
 #define __NR_timerfd_gettime	326
 #define __NR_signalfd4		327
+#define __NR_eventfd2		328
 
 #ifdef __KERNEL__
 

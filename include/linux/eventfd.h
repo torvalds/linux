@@ -10,6 +10,12 @@
 
 #ifdef CONFIG_EVENTFD
 
+/* For O_CLOEXEC */
+#include <linux/fcntl.h>
+
+/* Flags for eventfd2.  */
+#define EFD_CLOEXEC O_CLOEXEC
+
 struct file *eventfd_fget(int fd);
 int eventfd_signal(struct file *file, int n);
 
