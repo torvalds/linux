@@ -825,7 +825,16 @@ extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
 				    struct sched_domain_attr *dattr_new);
 extern int arch_reinit_sched_domains(void);
 
-#endif	/* CONFIG_SMP */
+#else /* CONFIG_SMP */
+
+struct sched_domain_attr;
+
+static inline void
+partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
+			struct sched_domain_attr *dattr_new)
+{
+}
+#endif	/* !CONFIG_SMP */
 
 struct io_context;			/* See blkdev.h */
 #define NGROUPS_SMALL		32
