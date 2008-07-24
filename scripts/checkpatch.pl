@@ -858,6 +858,19 @@ sub annotate_values {
 			print "CLOSE($1)\n" if ($dbg_values > 1);
 			$type = 'N';
 
+		} elsif ($cur =~ /^(-(?![->])|\+(?!\+)|\*|\&(?!\&))/o) {
+			my $variant;
+
+			print "OPV($1)\n" if ($dbg_values > 1);
+			if ($type eq 'V') {
+				$variant = 'B';
+			} else {
+				$variant = 'U';
+			}
+
+			substr($var, length($res), 1, $variant);
+			$type = 'N';
+
 		} elsif ($cur =~ /^($Operators)/o) {
 			print "OP($1)\n" if ($dbg_values > 1);
 			if ($1 ne '++' && $1 ne '--') {
@@ -1573,22 +1586,8 @@ sub process {
 				my $ptr = substr($blank, 0, $off) . "^";
 				my $hereptr = "$hereline$ptr\n";
 
-				# Classify operators into binary, unary, or
-				# definitions (* only) where they have more
-				# than one mode.
+				# Pull out the value of this operator.
 				my $op_type = substr($curr_values, $off + 1, 1);
-				my $op_left = substr($curr_values, $off, 1);
-				my $is_unary;
-				if ($op_type eq 'T') {
-					$is_unary = 2;
-				} elsif ($op_left eq 'V') {
-					$is_unary = 0;
-				} else {
-					$is_unary = 1;
-				}
-				#if ($op eq '-' || $op eq '&' || $op eq '*') {
-				#	print "UNARY: <$op_left$op_type $is_unary $a:$op:$c> <$ca:$op:$cc> <$unary_ctx>\n";
-				#}
 
 				# Get the full operator variant.
 				my $opv = $op . substr($curr_vars, $off, 1);
@@ -1625,18 +1624,19 @@ sub process {
 					}
 
 				# '*' as part of a type definition -- reported already.
-				} elsif ($op eq '*' && $is_unary == 2) {
+				} elsif ($opv eq '*_') {
 					#warn "'*' is part of type\n";
 
 				# unary operators should have a space before and
 				# none after.  May be left adjacent to another
 				# unary operator, or a cast
 				} elsif ($op eq '!' || $op eq '~' ||
-				         ($is_unary && ($op eq '*' || $op eq '-' || $op eq '&'))) {
+					 $opv eq '*U' || $opv eq '-U' ||
+					 $opv eq '&U') {
 					if ($ctx !~ /[WEBC]x./ && $ca !~ /(?:\)|!|~|\*|-|\&|\||\+\+|\-\-|\{)$/) {
 						ERROR("space required before that '$op' $at\n" . $hereptr);
 					}
-					if ($op  eq '*' && $cc =~/\s*const\b/) {
+					if ($op eq '*' && $cc =~/\s*const\b/) {
 						# A unary '*' may be const
 
 					} elsif ($ctx =~ /.xW/) {
