@@ -26,52 +26,6 @@
 #include <asm/errno.h>
 
 /*
- * Power management requests... these are passed to pm_send_all() and friends.
- *
- * these functions are old and deprecated, see below.
- */
-typedef int __bitwise pm_request_t;
-
-#define PM_SUSPEND	((__force pm_request_t) 1)	/* enter D1-D3 */
-#define PM_RESUME	((__force pm_request_t) 2)	/* enter D0 */
-
-
-/*
- * Device types... these are passed to pm_register
- */
-typedef int __bitwise pm_dev_t;
-
-#define PM_UNKNOWN_DEV	((__force pm_dev_t) 0)	/* generic */
-#define PM_SYS_DEV	((__force pm_dev_t) 1)	/* system device (fan, KB controller, ...) */
-#define PM_PCI_DEV	((__force pm_dev_t) 2)	/* PCI device */
-#define PM_USB_DEV	((__force pm_dev_t) 3)	/* USB device */
-#define PM_SCSI_DEV	((__force pm_dev_t) 4)	/* SCSI device */
-#define PM_ISA_DEV	((__force pm_dev_t) 5)	/* ISA device */
-#define	PM_MTD_DEV	((__force pm_dev_t) 6)	/* Memory Technology Device */
-
-/*
- * System device hardware ID (PnP) values
- */
-enum
-{
-	PM_SYS_UNKNOWN = 0x00000000, /* generic */
-	PM_SYS_KBC =	 0x41d00303, /* keyboard controller */
-	PM_SYS_COM =	 0x41d00500, /* serial port */
-	PM_SYS_IRDA =	 0x41d00510, /* IRDA controller */
-	PM_SYS_FDC =	 0x41d00700, /* floppy controller */
-	PM_SYS_VGA =	 0x41d00900, /* VGA controller */
-	PM_SYS_PCMCIA =	 0x41d00e00, /* PCMCIA controller */
-};
-
-/*
- * Device identifier
- */
-#define PM_PCI_ID(dev) ((dev)->bus->number << 16 | (dev)->devfn)
-
-/* Functions above this comment are list-based old-style power
- * management. Please avoid using them.  */
-
-/*
  * Callbacks for platform drivers to implement.
  */
 extern void (*pm_idle)(void);
