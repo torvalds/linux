@@ -213,6 +213,7 @@ int btrfs_defrag_file(struct file *file)
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct btrfs_ordered_extent *ordered;
 	struct page *page;
 	unsigned long last_index;
 	unsigned long ra_pages = root->fs_info->bdi.ra_pages;
@@ -234,6 +235,7 @@ int btrfs_defrag_file(struct file *file)
 				       min(last_index, i + ra_pages - 1));
 		}
 		total_read++;
+again:
 		page = grab_cache_page(inode->i_mapping, i);
 		if (!page)
 			goto out_unlock;
@@ -247,18 +249,23 @@ int btrfs_defrag_file(struct file *file)
 			}
 		}
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-		ClearPageDirty(page);
-#else
-		cancel_dirty_page(page, PAGE_CACHE_SIZE);
-#endif
 		wait_on_page_writeback(page);
-		set_page_extent_mapped(page);
 
 		page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
-
 		lock_extent(io_tree, page_start, page_end, GFP_NOFS);
+
+		ordered = btrfs_lookup_ordered_extent(inode, page_start);
+		if (ordered) {
+			unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
+			unlock_page(page);
+			page_cache_release(page);
+			btrfs_start_ordered_extent(inode, ordered, 1);
+			btrfs_put_ordered_extent(ordered);
+			goto again;
+		}
+		set_page_extent_mapped(page);
+
 		set_extent_delalloc(io_tree, page_start,
 				    page_end, GFP_NOFS);
 

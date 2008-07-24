@@ -167,19 +167,27 @@ int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	entry->file_offset = file_offset;
 	entry->start = start;
 	entry->len = len;
+	entry->inode = inode;
+
 	/* one ref for the tree */
 	atomic_set(&entry->refs, 1);
 	init_waitqueue_head(&entry->wait);
 	INIT_LIST_HEAD(&entry->list);
+	INIT_LIST_HEAD(&entry->root_extent_list);
 
 	node = tree_insert(&tree->tree, file_offset,
 			   &entry->rb_node);
 	if (node) {
-		entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
-		atomic_inc(&entry->refs);
+		printk("warning dup entry from add_ordered_extent\n");
+		BUG();
 	}
 	set_extent_ordered(&BTRFS_I(inode)->io_tree, file_offset,
 			   entry_end(entry) - 1, GFP_NOFS);
+
+	spin_lock(&BTRFS_I(inode)->root->fs_info->ordered_extent_lock);
+	list_add_tail(&entry->root_extent_list,
+		      &BTRFS_I(inode)->root->fs_info->ordered_extents);
+	spin_unlock(&BTRFS_I(inode)->root->fs_info->ordered_extent_lock);
 
 	mutex_unlock(&tree->mutex);
 	BUG_ON(node);
@@ -285,8 +293,52 @@ int btrfs_remove_ordered_extent(struct inode *inode,
 	rb_erase(node, &tree->tree);
 	tree->last = NULL;
 	set_bit(BTRFS_ORDERED_COMPLETE, &entry->flags);
+
+	spin_lock(&BTRFS_I(inode)->root->fs_info->ordered_extent_lock);
+	list_del_init(&entry->root_extent_list);
+	spin_unlock(&BTRFS_I(inode)->root->fs_info->ordered_extent_lock);
+
 	mutex_unlock(&tree->mutex);
 	wake_up(&entry->wait);
+	return 0;
+}
+
+int btrfs_wait_ordered_extents(struct btrfs_root *root)
+{
+	struct list_head splice;
+	struct list_head *cur;
+	struct btrfs_ordered_extent *ordered;
+	struct inode *inode;
+
+	INIT_LIST_HEAD(&splice);
+
+	spin_lock(&root->fs_info->ordered_extent_lock);
+	list_splice_init(&root->fs_info->ordered_extents, &splice);
+	while(!list_empty(&splice)) {
+		cur = splice.next;
+		ordered = list_entry(cur, struct btrfs_ordered_extent,
+				     root_extent_list);
+		list_del_init(&ordered->root_extent_list);
+		atomic_inc(&ordered->refs);
+		inode = ordered->inode;
+
+		/*
+		 * the inode can't go away until all the pages are gone
+		 * and the pages won't go away while there is still
+		 * an ordered extent and the ordered extent won't go
+		 * away until it is off this list.  So, we can safely
+		 * increment i_count here and call iput later
+		 */
+		atomic_inc(&inode->i_count);
+		spin_unlock(&root->fs_info->ordered_extent_lock);
+
+		btrfs_start_ordered_extent(inode, ordered, 1);
+		btrfs_put_ordered_extent(ordered);
+		iput(inode);
+
+		spin_lock(&root->fs_info->ordered_extent_lock);
+	}
+	spin_unlock(&root->fs_info->ordered_extent_lock);
 	return 0;
 }
 

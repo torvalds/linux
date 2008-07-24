@@ -1252,6 +1252,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->btree_inode->i_nlink = 1;
 	fs_info->thread_pool_size = min(num_online_cpus() + 2, 8);
 
+	INIT_LIST_HEAD(&fs_info->ordered_extents);
+	spin_lock_init(&fs_info->ordered_extent_lock);
+
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
 

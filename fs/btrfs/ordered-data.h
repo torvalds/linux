@@ -80,6 +80,9 @@ struct btrfs_ordered_extent {
 	/* reference count */
 	atomic_t refs;
 
+	/* the inode we belong to */
+	struct inode *inode;
+
 	/* list of checksums for insertion when the extent io is done */
 	struct list_head list;
 
@@ -88,6 +91,9 @@ struct btrfs_ordered_extent {
 
 	/* our friendly rbtree entry */
 	struct rb_node rb_node;
+
+	/* a per root list of all the pending ordered extents */
+	struct list_head root_extent_list;
 };
 
 
@@ -137,4 +143,5 @@ int btrfs_wait_on_page_writeback_range(struct address_space *mapping,
 				       pgoff_t start, pgoff_t end);
 int btrfs_fdatawrite_range(struct address_space *mapping, loff_t start,
 			   loff_t end, int sync_mode);
+int btrfs_wait_ordered_extents(struct btrfs_root *root);
 #endif

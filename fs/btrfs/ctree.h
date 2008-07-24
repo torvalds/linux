@@ -539,6 +539,13 @@ struct btrfs_fs_info {
 	atomic_t nr_async_submits;
 
 	/*
+	 * this is used by the balancing code to wait for all the pending
+	 * ordered extents
+	 */
+	spinlock_t ordered_extent_lock;
+	struct list_head ordered_extents;
+
+	/*
 	 * there is a pool of worker threads for checksumming during writes
 	 * and a pool for checksumming after reads.  This is because readers
 	 * can run with FS locks held, and the writers may be waiting for

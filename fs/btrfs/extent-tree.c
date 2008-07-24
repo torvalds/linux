@@ -2640,6 +2640,7 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 	struct file_ra_state *ra;
 	unsigned long total_read = 0;
 	unsigned long ra_pages;
+	struct btrfs_ordered_extent *ordered;
 	struct btrfs_trans_handle *trans;
 
 	ra = kzalloc(sizeof(*ra), GFP_NOFS);
@@ -2658,9 +2659,9 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 				       calc_ra(i, last_index, ra_pages));
 		}
 		total_read++;
-		if (((u64)i << PAGE_CACHE_SHIFT) > inode->i_size)
+again:
+		if (((u64)i << PAGE_CACHE_SHIFT) > i_size_read(inode))
 			goto truncate_racing;
-
 		page = grab_cache_page(inode->i_mapping, i);
 		if (!page) {
 			goto out_unlock;
@@ -2674,17 +2675,23 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 				goto out_unlock;
 			}
 		}
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-		ClearPageDirty(page);
-#else
-		cancel_dirty_page(page, PAGE_CACHE_SIZE);
-#endif
 		wait_on_page_writeback(page);
-		set_page_extent_mapped(page);
+
 		page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
-
 		lock_extent(io_tree, page_start, page_end, GFP_NOFS);
+
+		ordered = btrfs_lookup_ordered_extent(inode, page_start);
+		if (ordered) {
+			unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
+			unlock_page(page);
+			page_cache_release(page);
+			btrfs_start_ordered_extent(inode, ordered, 1);
+			btrfs_put_ordered_extent(ordered);
+			goto again;
+		}
+		set_page_extent_mapped(page);
+
 
 		set_extent_delalloc(io_tree, page_start,
 				    page_end, GFP_NOFS);
@@ -2694,10 +2701,18 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 		unlock_page(page);
 		page_cache_release(page);
 	}
-	balance_dirty_pages_ratelimited_nr(inode->i_mapping,
-					   total_read);
 
 out_unlock:
+	/* we have to start the IO in order to get the ordered extents
+	 * instantiated.  This allows the relocation to code to wait
+	 * for all the ordered extents to hit the disk.
+	 *
+	 * Otherwise, it would constantly loop over the same extents
+	 * because the old ones don't get deleted  until the IO is
+	 * started
+	 */
+	btrfs_fdatawrite_range(inode->i_mapping, start, start + len - 1,
+			       WB_SYNC_NONE);
 	kfree(ra);
 	trans = btrfs_start_transaction(BTRFS_I(inode)->root, 1);
 	if (trans) {
@@ -3237,6 +3252,8 @@ next:
 		btrfs_commit_transaction(trans, tree_root);
 
 		btrfs_clean_old_snapshots(tree_root);
+
+		btrfs_wait_ordered_extents(tree_root);
 
 		trans = btrfs_start_transaction(tree_root, 1);
 		btrfs_commit_transaction(trans, tree_root);
