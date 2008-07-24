@@ -19,17 +19,8 @@
 # define MAX_HWIFS	1
 #endif
 
-static __inline__ int ide_default_irq(unsigned long base)
-{
-	/* Unsupported! */
-  	return 0;
-}
-
-static __inline__ unsigned long ide_default_io_base(int index)
-{
-	/* Unsupported! */
-  	return 0;
-}
+#include <asm-generic/ide_iops.h>
 
 #endif	/* __KERNEL__ */
+
 #endif	/* _XTENSA_IDE_H */
