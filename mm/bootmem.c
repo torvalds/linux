@@ -234,6 +234,9 @@ static void __init __free(bootmem_data_t *bdata,
 		sidx + PFN_DOWN(bdata->node_boot_start),
 		eidx + PFN_DOWN(bdata->node_boot_start));
 
+	if (bdata->hint_idx > sidx)
+		bdata->hint_idx = sidx;
+
 	for (idx = sidx; idx < eidx; idx++)
 		if (!test_and_clear_bit(idx, bdata->node_bootmem_map))
 			BUG();
@@ -263,40 +266,57 @@ static int __init __reserve(bootmem_data_t *bdata, unsigned long sidx,
 	return 0;
 }
 
-static void __init free_bootmem_core(bootmem_data_t *bdata, unsigned long addr,
-				     unsigned long size)
+static int __init mark_bootmem_node(bootmem_data_t *bdata,
+				unsigned long start, unsigned long end,
+				int reserve, int flags)
 {
 	unsigned long sidx, eidx;
-	unsigned long i;
 
-	BUG_ON(!size);
+	bdebug("nid=%td start=%lx end=%lx reserve=%d flags=%x\n",
+		bdata - bootmem_node_data, start, end, reserve, flags);
 
-	/* out range */
-	if (addr + size < bdata->node_boot_start ||
-		PFN_DOWN(addr) > bdata->node_low_pfn)
-		return;
-	/*
-	 * round down end of usable mem, partially free pages are
-	 * considered reserved.
-	 */
+	BUG_ON(start < PFN_DOWN(bdata->node_boot_start));
+	BUG_ON(end > bdata->node_low_pfn);
 
-	if (addr >= bdata->node_boot_start &&
-			PFN_DOWN(addr - bdata->node_boot_start) < bdata->hint_idx)
-		bdata->hint_idx = PFN_DOWN(addr - bdata->node_boot_start);
+	sidx = start - PFN_DOWN(bdata->node_boot_start);
+	eidx = end - PFN_DOWN(bdata->node_boot_start);
 
-	/*
-	 * Round up to index to the range.
-	 */
-	if (PFN_UP(addr) > PFN_DOWN(bdata->node_boot_start))
-		sidx = PFN_UP(addr) - PFN_DOWN(bdata->node_boot_start);
+	if (reserve)
+		return __reserve(bdata, sidx, eidx, flags);
 	else
-		sidx = 0;
+		__free(bdata, sidx, eidx);
+	return 0;
+}
 
-	eidx = PFN_DOWN(addr + size - bdata->node_boot_start);
-	if (eidx > bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start))
-		eidx = bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start);
+static int __init mark_bootmem(unsigned long start, unsigned long end,
+				int reserve, int flags)
+{
+	unsigned long pos;
+	bootmem_data_t *bdata;
 
-	__free(bdata, sidx, eidx);
+	pos = start;
+	list_for_each_entry(bdata, &bdata_list, list) {
+		int err;
+		unsigned long max;
+
+		if (pos < PFN_DOWN(bdata->node_boot_start)) {
+			BUG_ON(pos != start);
+			continue;
+		}
+
+		max = min(bdata->node_low_pfn, end);
+
+		err = mark_bootmem_node(bdata, pos, max, reserve, flags);
+		if (reserve && err) {
+			mark_bootmem(start, pos, 0, 0);
+			return err;
+		}
+
+		if (max == end)
+			return 0;
+		pos = bdata->node_low_pfn;
+	}
+	BUG();
 }
 
 /**
@@ -307,12 +327,17 @@ static void __init free_bootmem_core(bootmem_data_t *bdata, unsigned long addr,
  *
  * Partial pages will be considered reserved and left as they are.
  *
- * Only physical pages that actually reside on @pgdat are marked.
+ * The range must reside completely on the specified node.
  */
 void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 			      unsigned long size)
 {
-	free_bootmem_core(pgdat->bdata, physaddr, size);
+	unsigned long start, end;
+
+	start = PFN_UP(physaddr);
+	end = PFN_DOWN(physaddr + size);
+
+	mark_bootmem_node(pgdat->bdata, start, end, 0, 0);
 }
 
 /**
@@ -322,83 +347,16 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
  *
  * Partial pages will be considered reserved and left as they are.
  *
- * All physical pages within the range are marked, no matter what
- * node they reside on.
+ * The range must be contiguous but may span node boundaries.
  */
 void __init free_bootmem(unsigned long addr, unsigned long size)
 {
-	bootmem_data_t *bdata;
-	list_for_each_entry(bdata, &bdata_list, list)
-		free_bootmem_core(bdata, addr, size);
-}
+	unsigned long start, end;
 
-/*
- * Marks a particular physical memory range as unallocatable. Usable RAM
- * might be used for boot-time allocations - or it might get added
- * to the free page pool later on.
- */
-static int __init can_reserve_bootmem_core(bootmem_data_t *bdata,
-			unsigned long addr, unsigned long size, int flags)
-{
-	unsigned long sidx, eidx;
-	unsigned long i;
+	start = PFN_UP(addr);
+	end = PFN_DOWN(addr + size);
 
-	BUG_ON(!size);
-
-	/* out of range, don't hold other */
-	if (addr + size < bdata->node_boot_start ||
-		PFN_DOWN(addr) > bdata->node_low_pfn)
-		return 0;
-
-	/*
-	 * Round up to index to the range.
-	 */
-	if (addr > bdata->node_boot_start)
-		sidx= PFN_DOWN(addr - bdata->node_boot_start);
-	else
-		sidx = 0;
-
-	eidx = PFN_UP(addr + size - bdata->node_boot_start);
-	if (eidx > bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start))
-		eidx = bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start);
-
-	for (i = sidx; i < eidx; i++) {
-		if (test_bit(i, bdata->node_bootmem_map)) {
-			if (flags & BOOTMEM_EXCLUSIVE)
-				return -EBUSY;
-		}
-	}
-
-	return 0;
-
-}
-
-static void __init reserve_bootmem_core(bootmem_data_t *bdata,
-			unsigned long addr, unsigned long size, int flags)
-{
-	unsigned long sidx, eidx;
-	unsigned long i;
-
-	BUG_ON(!size);
-
-	/* out of range */
-	if (addr + size < bdata->node_boot_start ||
-		PFN_DOWN(addr) > bdata->node_low_pfn)
-		return;
-
-	/*
-	 * Round up to index to the range.
-	 */
-	if (addr > bdata->node_boot_start)
-		sidx= PFN_DOWN(addr - bdata->node_boot_start);
-	else
-		sidx = 0;
-
-	eidx = PFN_UP(addr + size - bdata->node_boot_start);
-	if (eidx > bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start))
-		eidx = bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start);
-
-	return __reserve(bdata, sidx, eidx, flags);
+	mark_bootmem(start, end, 0, 0);
 }
 
 /**
@@ -410,18 +368,17 @@ static void __init reserve_bootmem_core(bootmem_data_t *bdata,
  *
  * Partial pages will be reserved.
  *
- * Only physical pages that actually reside on @pgdat are marked.
+ * The range must reside completely on the specified node.
  */
 int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 				 unsigned long size, int flags)
 {
-	int ret;
+	unsigned long start, end;
 
-	ret = can_reserve_bootmem_core(pgdat->bdata, physaddr, size, flags);
-	if (ret < 0)
-		return -ENOMEM;
-	reserve_bootmem_core(pgdat->bdata, physaddr, size, flags);
-	return 0;
+	start = PFN_DOWN(physaddr);
+	end = PFN_UP(physaddr + size);
+
+	return mark_bootmem_node(pgdat->bdata, start, end, 1, flags);
 }
 
 #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
@@ -433,24 +390,17 @@ int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
  *
  * Partial pages will be reserved.
  *
- * All physical pages within the range are marked, no matter what
- * node they reside on.
+ * The range must be contiguous but may span node boundaries.
  */
 int __init reserve_bootmem(unsigned long addr, unsigned long size,
 			    int flags)
 {
-	bootmem_data_t *bdata;
-	int ret;
+	unsigned long start, end;
 
-	list_for_each_entry(bdata, &bdata_list, list) {
-		ret = can_reserve_bootmem_core(bdata, addr, size, flags);
-		if (ret < 0)
-			return ret;
-	}
-	list_for_each_entry(bdata, &bdata_list, list)
-		reserve_bootmem_core(bdata, addr, size, flags);
+	start = PFN_DOWN(addr);
+	end = PFN_UP(addr + size);
 
-	return 0;
+	return mark_bootmem(start, end, 1, flags);
 }
 #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
 
@@ -663,7 +613,7 @@ void * __init alloc_bootmem_section(unsigned long size,
 	if (start_nr != section_nr || end_nr != section_nr) {
 		printk(KERN_WARNING "alloc_bootmem failed on section %ld.\n",
 		       section_nr);
-		free_bootmem_core(pgdat->bdata, __pa(ptr), size);
+		free_bootmem_node(pgdat, __pa(ptr), size);
 		ptr = NULL;
 	}
 
