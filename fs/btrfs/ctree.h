@@ -1689,8 +1689,7 @@ void btrfs_sysfs_del_super(struct btrfs_fs_info *root);
 
 /* xattr.c */
 ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
-int btrfs_delete_xattrs(struct btrfs_trans_handle *trans,
-			struct btrfs_root *root, struct inode *inode);
+
 /* super.c */
 u64 btrfs_parse_size(char *str);
 int btrfs_parse_options(struct btrfs_root *root, char *options);

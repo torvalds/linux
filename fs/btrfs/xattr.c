@@ -379,57 +379,6 @@ err:
 }
 
 /*
- * delete all the xattrs associated with the inode.
- */
-int btrfs_delete_xattrs(struct btrfs_trans_handle *trans,
-			struct btrfs_root *root, struct inode *inode)
-{
-	struct btrfs_path *path;
-	struct btrfs_key key, found_key;
-	struct btrfs_item *item;
-	struct extent_buffer *leaf;
-	int ret;
-
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-	path->reada = -1;
-	key.objectid = inode->i_ino;
-	btrfs_set_key_type(&key, BTRFS_XATTR_ITEM_KEY);
-	key.offset = (u64)-1;
-
-	while(1) {
-		/* look for our next xattr */
-		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-		if (ret < 0)
-			goto out;
-		BUG_ON(ret == 0);
-
-		if (path->slots[0] == 0)
-			break;
-
-		path->slots[0]--;
-		leaf = path->nodes[0];
-		item = btrfs_item_nr(leaf, path->slots[0]);
-		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
-
-		if (found_key.objectid != key.objectid)
-			break;
-		if (btrfs_key_type(&found_key) != BTRFS_XATTR_ITEM_KEY)
-			break;
-
-		ret = btrfs_del_item(trans, root, path);
-		BUG_ON(ret);
-		btrfs_release_path(root, path);
-	}
-	ret = 0;
-out:
-	btrfs_free_path(path);
-
-	return ret;
-}
-
-/*
  * Handler functions
  */
 #define BTRFS_XATTR_SETGET_FUNCS(name, index)				\
