@@ -2231,6 +2231,7 @@ static int __devinit aty_init(struct fb_info *info)
 	const char *ramname = NULL, *xtal;
 	int gtb_memsize, has_var = 0;
 	struct fb_var_screeninfo var;
+	int ret;
 
 	init_waitqueue_head(&par->vblank.wait);
 	spin_lock_init(&par->int_lock);
@@ -2612,7 +2613,8 @@ static int __devinit aty_init(struct fb_info *info)
 			var.yres_virtual = var.yres;
 	}
 
-	if (atyfb_check_var(&var, info)) {
+	ret = atyfb_check_var(&var, info);
+	if (ret) {
 		PRINTKE("can't set default video mode\n");
 		goto aty_init_exit;
 	}
@@ -2623,10 +2625,12 @@ static int __devinit aty_init(struct fb_info *info)
 #endif /* CONFIG_FB_ATY_CT */
 	info->var = var;
 
-	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0)
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret < 0)
 		goto aty_init_exit;
 
-	if (register_framebuffer(info) < 0) {
+	ret = register_framebuffer(info);
+	if (ret < 0) {
 		fb_dealloc_cmap(&info->cmap);
 		goto aty_init_exit;
 	}
@@ -2652,7 +2656,7 @@ aty_init_exit:
 	    par->mtrr_aper = -1;
 	}
 #endif
-	return -1;
+	return ret;
 }
 
 static void aty_resume_chip(struct fb_info *info)
@@ -3467,7 +3471,8 @@ static int __devinit atyfb_pci_probe(struct pci_dev *pdev, const struct pci_devi
 	pci_set_drvdata(pdev, info);
 
 	/* Init chip & register framebuffer */
-	if (aty_init(info))
+	rc = aty_init(info);
+	if (rc)
 		goto err_release_io;
 
 #ifdef __sparc__
