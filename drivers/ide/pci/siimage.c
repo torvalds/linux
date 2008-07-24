@@ -127,9 +127,10 @@ static inline unsigned long siimage_seldev(ide_drive_t *drive, int r)
 
 static u8 sil_ioread8(struct pci_dev *dev, unsigned long addr)
 {
+	struct ide_host *host = pci_get_drvdata(dev);
 	u8 tmp = 0;
 
-	if (pci_get_drvdata(dev))
+	if (host->host_priv)
 		tmp = readb((void __iomem *)addr);
 	else
 		pci_read_config_byte(dev, addr, &tmp);
@@ -139,9 +140,10 @@ static u8 sil_ioread8(struct pci_dev *dev, unsigned long addr)
 
 static u16 sil_ioread16(struct pci_dev *dev, unsigned long addr)
 {
+	struct ide_host *host = pci_get_drvdata(dev);
 	u16 tmp = 0;
 
-	if (pci_get_drvdata(dev))
+	if (host->host_priv)
 		tmp = readw((void __iomem *)addr);
 	else
 		pci_read_config_word(dev, addr, &tmp);
@@ -151,7 +153,9 @@ static u16 sil_ioread16(struct pci_dev *dev, unsigned long addr)
 
 static void sil_iowrite8(struct pci_dev *dev, u8 val, unsigned long addr)
 {
-	if (pci_get_drvdata(dev))
+	struct ide_host *host = pci_get_drvdata(dev);
+
+	if (host->host_priv)
 		writeb(val, (void __iomem *)addr);
 	else
 		pci_write_config_byte(dev, addr, val);
@@ -159,7 +163,9 @@ static void sil_iowrite8(struct pci_dev *dev, u8 val, unsigned long addr)
 
 static void sil_iowrite16(struct pci_dev *dev, u16 val, unsigned long addr)
 {
-	if (pci_get_drvdata(dev))
+	struct ide_host *host = pci_get_drvdata(dev);
+
+	if (host->host_priv)
 		writew(val, (void __iomem *)addr);
 	else
 		pci_write_config_word(dev, addr, val);
@@ -167,7 +173,9 @@ static void sil_iowrite16(struct pci_dev *dev, u16 val, unsigned long addr)
 
 static void sil_iowrite32(struct pci_dev *dev, u32 val, unsigned long addr)
 {
-	if (pci_get_drvdata(dev))
+	struct ide_host *host = pci_get_drvdata(dev);
+
+	if (host->host_priv)
 		writel(val, (void __iomem *)addr);
 	else
 		pci_write_config_dword(dev, addr, val);
@@ -445,44 +453,6 @@ static void sil_sata_pre_reset(ide_drive_t *drive)
 }
 
 /**
- *	setup_mmio_siimage	-	switch controller into MMIO mode
- *	@dev: PCI device we are configuring
- *	@name: device name
- *
- *	Attempt to put the device into MMIO mode. There are some slight
- *	complications here with certain systems where the MMIO BAR isn't
- *	mapped, so we have to be sure that we can fall back to I/O.
- */
-
-static unsigned int setup_mmio_siimage(struct pci_dev *dev, const char *name)
-{
-	resource_size_t bar5	= pci_resource_start(dev, 5);
-	unsigned long barsize	= pci_resource_len(dev, 5);
-	void __iomem *ioaddr;
-
-	/*
-	 *	Drop back to PIO if we can't map the MMIO. Some	systems
-	 *	seem to get terminally confused in the PCI spaces.
-	 */
-	if (!request_mem_region(bar5, barsize, name)) {
-		printk(KERN_WARNING "siimage: IDE controller MMIO ports not "
-				    "available.\n");
-		return 0;
-	}
-
-	ioaddr = ioremap(bar5, barsize);
-	if (ioaddr == NULL) {
-		release_mem_region(bar5, barsize);
-		return 0;
-	}
-
-	pci_set_master(dev);
-	pci_set_drvdata(dev, (void *) ioaddr);
-
-	return 1;
-}
-
-/**
  *	init_chipset_siimage	-	set up an SI device
  *	@dev: PCI device
  *	@name: device name
@@ -494,17 +464,15 @@ static unsigned int setup_mmio_siimage(struct pci_dev *dev, const char *name)
 static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev,
 						   const char *name)
 {
+	struct ide_host *host = pci_get_drvdata(dev);
+	void __iomem *ioaddr = host->host_priv;
 	unsigned long base, scsc_addr;
-	void __iomem *ioaddr = NULL;
-	u8 rev = dev->revision, tmp, BA5_EN;
+	u8 rev = dev->revision, tmp;
 
 	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, rev ? 1 : 255);
 
-	pci_read_config_byte(dev, 0x8A, &BA5_EN);
-
-	if ((BA5_EN & 0x01) || pci_resource_start(dev, 5))
-		if (setup_mmio_siimage(dev, name))
-			ioaddr = pci_get_drvdata(dev);
+	if (ioaddr)
+		pci_set_master(dev);
 
 	base = (unsigned long)ioaddr;
 
@@ -592,7 +560,8 @@ static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev,
 static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	void *addr		= pci_get_drvdata(dev);
+	struct ide_host *host	= pci_get_drvdata(dev);
+	void *addr		= host->host_priv;
 	u8 ch			= hwif->channel;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	unsigned long base;
@@ -691,16 +660,15 @@ static void __devinit sil_quirkproc(ide_drive_t *drive)
 static void __devinit init_iops_siimage(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	struct ide_host *host = pci_get_drvdata(dev);
 
 	hwif->hwif_data = NULL;
 
 	/* Pessimal until we finish probing */
 	hwif->rqsize = 15;
 
-	if (pci_get_drvdata(dev) == NULL)
-		return;
-
-	init_mmio_iops_siimage(hwif);
+	if (host->host_priv)
+		init_mmio_iops_siimage(hwif);
 }
 
 /**
@@ -778,8 +746,13 @@ static const struct ide_port_info siimage_chipsets[] __devinitdata = {
 static int __devinit siimage_init_one(struct pci_dev *dev,
 				      const struct pci_device_id *id)
 {
+	void __iomem *ioaddr = NULL;
+	resource_size_t bar5 = pci_resource_start(dev, 5);
+	unsigned long barsize = pci_resource_len(dev, 5);
+	int rc;
 	struct ide_port_info d;
 	u8 idx = id->driver_data;
+	u8 BA5_EN;
 
 	d = siimage_chipsets[idx];
 
@@ -795,7 +768,36 @@ static int __devinit siimage_init_one(struct pci_dev *dev,
 		d.host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 	}
 
-	return ide_pci_init_one(dev, &d, NULL);
+	rc = pci_enable_device(dev);
+	if (rc)
+		return rc;
+
+	pci_read_config_byte(dev, 0x8A, &BA5_EN);
+	if ((BA5_EN & 0x01) || bar5) {
+		/*
+		* Drop back to PIO if we can't map the MMIO. Some systems
+		* seem to get terminally confused in the PCI spaces.
+		*/
+		if (!request_mem_region(bar5, barsize, d.name)) {
+			printk(KERN_WARNING "siimage: IDE controller MMIO "
+					    "ports not available.\n");
+		} else {
+			ioaddr = ioremap(bar5, barsize);
+			if (ioaddr == NULL)
+				release_mem_region(bar5, barsize);
+		}
+	}
+
+	rc = ide_pci_init_one(dev, &d, ioaddr);
+	if (rc) {
+		if (ioaddr) {
+			iounmap(ioaddr);
+			release_mem_region(bar5, barsize);
+		}
+		pci_disable_device(dev);
+	}
+
+	return rc;
 }
 
 static const struct pci_device_id siimage_pci_tbl[] = {
