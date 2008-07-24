@@ -2709,8 +2709,7 @@ static int atyfb_blank(int blank, struct fb_info *info)
 	if (par->lock_blank || par->asleep)
 		return 0;
 
-#ifdef CONFIG_FB_ATY_BACKLIGHT
-#elif defined(CONFIG_FB_ATY_GENERIC_LCD)
+#ifdef CONFIG_FB_ATY_GENERIC_LCD
 	if (par->lcd_table && blank > FB_BLANK_NORMAL &&
 	    (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {
 		u32 pm = aty_ld_lcd(POWER_MANAGEMENT, par);
@@ -2739,8 +2738,7 @@ static int atyfb_blank(int blank, struct fb_info *info)
 	}
 	aty_st_le32(CRTC_GEN_CNTL, gen_cntl, par);
 
-#ifdef CONFIG_FB_ATY_BACKLIGHT
-#elif defined(CONFIG_FB_ATY_GENERIC_LCD)
+#ifdef CONFIG_FB_ATY_GENERIC_LCD
 	if (par->lcd_table && blank <= FB_BLANK_NORMAL &&
 	    (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {
 		u32 pm = aty_ld_lcd(POWER_MANAGEMENT, par);
