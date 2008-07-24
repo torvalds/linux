@@ -211,7 +211,21 @@ static inline int __ide_default_irq(unsigned long base)
 	return 0;
 }
 
+#if defined(CONFIG_ARM) || defined(CONFIG_FRV) || defined(CONFIG_M68K) || \
+    defined(CONFIG_MIPS) || defined(CONFIG_MN10300) || defined(CONFIG_PARISC) \
+    || defined(CONFIG_PPC) || defined(CONFIG_SPARC) || defined(CONFIG_SPARC64)
 #include <asm/ide.h>
+#else
+#include <asm-generic/ide_iops.h>
+#endif
+
+#ifndef MAX_HWIFS
+#if defined(CONFIG_BLACKFIN) || defined(CONFIG_H8300) || defined(CONFIG_XTENSA)
+# define MAX_HWIFS	1
+#else
+# define MAX_HWIFS	10
+#endif
+#endif
 
 #if !defined(MAX_HWIFS) || defined(CONFIG_EMBEDDED)
 #undef MAX_HWIFS
@@ -532,11 +546,15 @@ struct ide_dma_ops {
 	void	(*dma_timeout)(struct ide_drive_s *);
 };
 
+struct ide_host;
+
 typedef struct hwif_s {
 	struct hwif_s *next;		/* for linked-list in ide_hwgroup_t */
 	struct hwif_s *mate;		/* other hwif from same PCI chip */
 	struct hwgroup_s *hwgroup;	/* actually (ide_hwgroup_t *) */
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
+
+	struct ide_host *host;
 
 	char name[6];			/* name of interface, eg. "ide0" */
 
@@ -626,6 +644,9 @@ typedef struct hwif_s {
 struct ide_host {
 	ide_hwif_t	*ports[MAX_HWIFS];
 	unsigned int	n_ports;
+	struct device	*dev[2];
+	unsigned long	host_flags;
+	void		*host_priv;
 };
 
 /*
@@ -873,6 +894,9 @@ struct ide_driver_s {
 };
 
 #define to_ide_driver(drv) container_of(drv, ide_driver_t, gen_driver)
+
+int ide_device_get(ide_drive_t *);
+void ide_device_put(ide_drive_t *);
 
 int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsigned, unsigned long);
 
@@ -1182,7 +1206,7 @@ enum {
 
 struct ide_port_info {
 	char			*name;
-	unsigned int		(*init_chipset)(struct pci_dev *, const char *);
+	unsigned int		(*init_chipset)(struct pci_dev *);
 	void			(*init_iops)(ide_hwif_t *);
 	void                    (*init_hwif)(ide_hwif_t *);
 	int			(*init_dma)(ide_hwif_t *,
@@ -1201,8 +1225,10 @@ struct ide_port_info {
 	u8			udma_mask;
 };
 
-int ide_setup_pci_device(struct pci_dev *, const struct ide_port_info *);
-int ide_setup_pci_devices(struct pci_dev *, struct pci_dev *, const struct ide_port_info *);
+int ide_pci_init_one(struct pci_dev *, const struct ide_port_info *, void *);
+int ide_pci_init_two(struct pci_dev *, struct pci_dev *,
+		     const struct ide_port_info *, void *);
+void ide_pci_remove(struct pci_dev *);
 
 void ide_map_sg(ide_drive_t *, struct request *);
 void ide_init_sg_cmd(ide_drive_t *, struct request *);
