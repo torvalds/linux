@@ -123,7 +123,7 @@ static int nmi_switch_event(void)
 	if (nmi_multiplex_on() < 0)
 		return -EINVAL;
 
-	on_each_cpu(nmi_cpu_switch, NULL, 0, 1);
+	on_each_cpu(nmi_cpu_switch, NULL, 1);
 
 	return 0;
 }
