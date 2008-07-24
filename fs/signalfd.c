@@ -211,6 +211,10 @@ asmlinkage long sys_signalfd4(int ufd, sigset_t __user *user_mask,
 	sigset_t sigmask;
 	struct signalfd_ctx *ctx;
 
+	/* Check the SFD_* constants for consistency.  */
+	BUILD_BUG_ON(SFD_CLOEXEC != O_CLOEXEC);
+	BUILD_BUG_ON(SFD_NONBLOCK != O_NONBLOCK);
+
 	if (flags & ~(SFD_CLOEXEC | SFD_NONBLOCK))
 		return -EINVAL;
 

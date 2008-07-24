@@ -203,6 +203,10 @@ asmlinkage long sys_eventfd2(unsigned int count, int flags)
 	int fd;
 	struct eventfd_ctx *ctx;
 
+	/* Check the EFD_* constants for consistency.  */
+	BUILD_BUG_ON(EFD_CLOEXEC != O_CLOEXEC);
+	BUILD_BUG_ON(EFD_NONBLOCK != O_NONBLOCK);
+
 	if (flags & ~(EFD_CLOEXEC | EFD_NONBLOCK))
 		return -EINVAL;
 

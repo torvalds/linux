@@ -1051,6 +1051,9 @@ asmlinkage long sys_epoll_create2(int size, int flags)
 	int error, fd = -1;
 	struct eventpoll *ep;
 
+	/* Check the EPOLL_* constant for consistency.  */
+	BUILD_BUG_ON(EPOLL_CLOEXEC != O_CLOEXEC);
+
 	if (flags & ~EPOLL_CLOEXEC)
 		return -EINVAL;
 
