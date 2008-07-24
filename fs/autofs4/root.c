@@ -133,7 +133,10 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 	/* Block on any pending expiry here; invalidate the dentry
            when expiration is done to trigger mount request with a new
            dentry */
-	if (ino && (ino->flags & AUTOFS_INF_EXPIRING)) {
+	spin_lock(&sbi->fs_lock);
+	if (ino->flags & AUTOFS_INF_EXPIRING) {
+		spin_unlock(&sbi->fs_lock);
+
 		DPRINTK("waiting for expire %p name=%.*s",
 			 dentry, dentry->d_name.len, dentry->d_name.name);
 
@@ -149,8 +152,11 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 		status = d_invalidate(dentry);
 		if (status != -EBUSY)
 			return -EAGAIN;
-	}
 
+		goto cont;
+	}
+	spin_unlock(&sbi->fs_lock);
+cont:
 	DPRINTK("dentry=%p %.*s ino=%p",
 		 dentry, dentry->d_name.len, dentry->d_name.name, dentry->d_inode);
 
@@ -229,15 +235,21 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 		goto done;
 
 	/* If an expire request is pending wait for it. */
-	if (ino && (ino->flags & AUTOFS_INF_EXPIRING)) {
+	spin_lock(&sbi->fs_lock);
+	if (ino->flags & AUTOFS_INF_EXPIRING) {
+		spin_unlock(&sbi->fs_lock);
+
 		DPRINTK("waiting for active request %p name=%.*s",
 			dentry, dentry->d_name.len, dentry->d_name.name);
 
 		status = autofs4_wait(sbi, dentry, NFY_NONE);
 
 		DPRINTK("request done status=%d", status);
-	}
 
+		goto cont;
+	}
+	spin_unlock(&sbi->fs_lock);
+cont:
 	/*
 	 * If the dentry contains directories then it is an
 	 * autofs multi-mount with no root mount offset. So
@@ -292,8 +304,11 @@ static int autofs4_revalidate(struct dentry *dentry, struct nameidata *nd)
 	int status = 1;
 
 	/* Pending dentry */
+	spin_lock(&sbi->fs_lock);
 	if (autofs4_ispending(dentry)) {
 		/* The daemon never causes a mount to trigger */
+		spin_unlock(&sbi->fs_lock);
+
 		if (oz_mode)
 			return 1;
 
@@ -316,6 +331,7 @@ static int autofs4_revalidate(struct dentry *dentry, struct nameidata *nd)
 
 		return status;
 	}
+	spin_unlock(&sbi->fs_lock);
 
 	/* Negative dentry.. invalidate if "old" */
 	if (dentry->d_inode == NULL)
@@ -329,6 +345,7 @@ static int autofs4_revalidate(struct dentry *dentry, struct nameidata *nd)
 		DPRINTK("dentry=%p %.*s, emptydir",
 			 dentry, dentry->d_name.len, dentry->d_name.name);
 		spin_unlock(&dcache_lock);
+
 		/* The daemon never causes a mount to trigger */
 		if (oz_mode)
 			return 1;
@@ -521,13 +538,18 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 		 * so it must have been successful, so just wait for it.
 		 */
 		ino = autofs4_dentry_ino(expiring);
-		while (ino && (ino->flags & AUTOFS_INF_EXPIRING)) {
+		spin_lock(&sbi->fs_lock);
+		if (ino->flags & AUTOFS_INF_EXPIRING) {
+			spin_unlock(&sbi->fs_lock);
 			DPRINTK("wait for incomplete expire %p name=%.*s",
 				expiring, expiring->d_name.len,
 				expiring->d_name.name);
 			autofs4_wait(sbi, expiring, NFY_NONE);
 			DPRINTK("request completed");
+			goto cont;
 		}
+		spin_unlock(&sbi->fs_lock);
+cont:
 		spin_lock(&sbi->lookup_lock);
 		if (!list_empty(&ino->expiring))
 			list_del_init(&ino->expiring);

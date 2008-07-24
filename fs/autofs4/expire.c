@@ -292,6 +292,8 @@ static struct dentry *autofs4_expire_indirect(struct super_block *sb,
 	struct list_head *next;
 	int do_now = how & AUTOFS_EXP_IMMEDIATE;
 	int exp_leaves = how & AUTOFS_EXP_LEAVES;
+	struct autofs_info *ino;
+	unsigned int ino_count;
 
 	if (!root)
 		return NULL;
@@ -316,6 +318,9 @@ static struct dentry *autofs4_expire_indirect(struct super_block *sb,
 		dentry = dget(dentry);
 		spin_unlock(&dcache_lock);
 
+		spin_lock(&sbi->fs_lock);
+		ino = autofs4_dentry_ino(dentry);
+
 		/*
 		 * Case 1: (i) indirect mount or top level pseudo direct mount
 		 *	   (autofs-4.1).
@@ -325,6 +330,11 @@ static struct dentry *autofs4_expire_indirect(struct super_block *sb,
 		if (d_mountpoint(dentry)) {
 			DPRINTK("checking mountpoint %p %.*s",
 				dentry, (int)dentry->d_name.len, dentry->d_name.name);
+
+			/* Path walk currently on this dentry? */
+			ino_count = atomic_read(&ino->count) + 2;
+			if (atomic_read(&dentry->d_count) > ino_count)
+				goto next;
 
 			/* Can we umount this guy */
 			if (autofs4_mount_busy(mnt, dentry))
@@ -343,23 +353,25 @@ static struct dentry *autofs4_expire_indirect(struct super_block *sb,
 
 		/* Case 2: tree mount, expire iff entire tree is not busy */
 		if (!exp_leaves) {
-			/* Lock the tree as we must expire as a whole */
-			spin_lock(&sbi->fs_lock);
-			if (!autofs4_tree_busy(mnt, dentry, timeout, do_now)) {
-				struct autofs_info *inf = autofs4_dentry_ino(dentry);
+			/* Path walk currently on this dentry? */
+			ino_count = atomic_read(&ino->count) + 1;
+			if (atomic_read(&dentry->d_count) > ino_count)
+				goto next;
 
-				/* Set this flag early to catch sys_chdir and the like */
-				inf->flags |= AUTOFS_INF_EXPIRING;
-				spin_unlock(&sbi->fs_lock);
+			if (!autofs4_tree_busy(mnt, dentry, timeout, do_now)) {
 				expired = dentry;
 				goto found;
 			}
-			spin_unlock(&sbi->fs_lock);
 		/*
 		 * Case 3: pseudo direct mount, expire individual leaves
 		 *	   (autofs-4.1).
 		 */
 		} else {
+			/* Path walk currently on this dentry? */
+			ino_count = atomic_read(&ino->count) + 1;
+			if (atomic_read(&dentry->d_count) > ino_count)
+				goto next;
+
 			expired = autofs4_check_leaves(mnt, dentry, timeout, do_now);
 			if (expired) {
 				dput(dentry);
@@ -367,6 +379,7 @@ static struct dentry *autofs4_expire_indirect(struct super_block *sb,
 			}
 		}
 next:
+		spin_unlock(&sbi->fs_lock);
 		dput(dentry);
 		spin_lock(&dcache_lock);
 		next = next->next;
@@ -377,6 +390,9 @@ next:
 found:
 	DPRINTK("returning %p %.*s",
 		expired, (int)expired->d_name.len, expired->d_name.name);
+	ino = autofs4_dentry_ino(expired);
+	ino->flags |= AUTOFS_INF_EXPIRING;
+	spin_unlock(&sbi->fs_lock);
 	spin_lock(&dcache_lock);
 	list_move(&expired->d_parent->d_subdirs, &expired->d_u.d_child);
 	spin_unlock(&dcache_lock);
@@ -390,7 +406,9 @@ int autofs4_expire_run(struct super_block *sb,
 		      struct autofs_packet_expire __user *pkt_p)
 {
 	struct autofs_packet_expire pkt;
+	struct autofs_info *ino;
 	struct dentry *dentry;
+	int ret = 0;
 
 	memset(&pkt,0,sizeof pkt);
 
@@ -406,9 +424,14 @@ int autofs4_expire_run(struct super_block *sb,
 	dput(dentry);
 
 	if ( copy_to_user(pkt_p, &pkt, sizeof(struct autofs_packet_expire)) )
-		return -EFAULT;
+		ret = -EFAULT;
 
-	return 0;
+	spin_lock(&sbi->fs_lock);
+	ino = autofs4_dentry_ino(dentry);
+	ino->flags &= ~AUTOFS_INF_EXPIRING;
+	spin_unlock(&sbi->fs_lock);
+
+	return ret;
 }
 
 /* Call repeatedly until it returns -EAGAIN, meaning there's nothing
@@ -433,9 +456,10 @@ int autofs4_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 
 		/* This is synchronous because it makes the daemon a
                    little easier */
-		ino->flags |= AUTOFS_INF_EXPIRING;
 		ret = autofs4_wait(sbi, dentry, NFY_EXPIRE);
+		spin_lock(&sbi->fs_lock);
 		ino->flags &= ~AUTOFS_INF_EXPIRING;
+		spin_unlock(&sbi->fs_lock);
 		dput(dentry);
 	}
 

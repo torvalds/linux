@@ -138,18 +138,14 @@ static inline int autofs4_oz_mode(struct autofs_sb_info *sbi) {
 static inline int autofs4_ispending(struct dentry *dentry)
 {
 	struct autofs_info *inf = autofs4_dentry_ino(dentry);
-	int pending = 0;
 
 	if (dentry->d_flags & DCACHE_AUTOFS_PENDING)
 		return 1;
 
-	if (inf) {
-		spin_lock(&inf->sbi->fs_lock);
-		pending = inf->flags & AUTOFS_INF_EXPIRING;
-		spin_unlock(&inf->sbi->fs_lock);
-	}
+	if (inf->flags & AUTOFS_INF_EXPIRING)
+		return 1;
 
-	return pending;
+	return 0;
 }
 
 static inline void autofs4_copy_atime(struct file *src, struct file *dst)
