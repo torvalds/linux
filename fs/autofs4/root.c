@@ -130,34 +130,6 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	int status;
 
-	/* Block on any pending expiry here; invalidate the dentry
-           when expiration is done to trigger mount request with a new
-           dentry */
-	spin_lock(&sbi->fs_lock);
-	if (ino->flags & AUTOFS_INF_EXPIRING) {
-		spin_unlock(&sbi->fs_lock);
-
-		DPRINTK("waiting for expire %p name=%.*s",
-			 dentry, dentry->d_name.len, dentry->d_name.name);
-
-		status = autofs4_wait(sbi, dentry, NFY_NONE);
-		wait_for_completion(&ino->expire_complete);
-
-		DPRINTK("expire done status=%d", status);
-
-		/*
-		 * If the directory still exists the mount request must
-		 * continue otherwise it can't be followed at the right
-		 * time during the walk.
-		 */
-		status = d_invalidate(dentry);
-		if (status != -EBUSY)
-			return -EAGAIN;
-
-		goto cont;
-	}
-	spin_unlock(&sbi->fs_lock);
-cont:
 	DPRINTK("dentry=%p %.*s ino=%p",
 		 dentry, dentry->d_name.len, dentry->d_name.name, dentry->d_inode);
 
@@ -248,22 +220,8 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 	}
 
 	/* If an expire request is pending everyone must wait. */
-	spin_lock(&sbi->fs_lock);
-	if (ino->flags & AUTOFS_INF_EXPIRING) {
-		spin_unlock(&sbi->fs_lock);
+	autofs4_expire_wait(dentry);
 
-		DPRINTK("waiting for active request %p name=%.*s",
-			dentry, dentry->d_name.len, dentry->d_name.name);
-
-		status = autofs4_wait(sbi, dentry, NFY_NONE);
-		wait_for_completion(&ino->expire_complete);
-
-		DPRINTK("request done status=%d", status);
-
-		goto cont;
-	}
-	spin_unlock(&sbi->fs_lock);
-cont:
 	/* We trigger a mount for almost all flags */
 	lookup_type = nd->flags & (TRIGGER_FLAGS | TRIGGER_INTENTS);
 	if (!(lookup_type || dentry->d_flags & DCACHE_AUTOFS_PENDING))
@@ -332,21 +290,20 @@ static int autofs4_revalidate(struct dentry *dentry, struct nameidata *nd)
 			return 1;
 
 		/*
+		 * If the directory has gone away due to an expire
+		 * we have been called as ->d_revalidate() and so
+		 * we need to return false and proceed to ->lookup().
+		 */
+		if (autofs4_expire_wait(dentry) == -EAGAIN)
+			return 0;
+
+		/*
 		 * A zero status is success otherwise we have a
 		 * negative error code.
 		 */
 		status = try_to_fill_dentry(dentry, flags);
 		if (status == 0)
 			return 1;
-
-		/*
-		 * A status of EAGAIN here means that the dentry has gone
-		 * away while waiting for an expire to complete. If we are
-		 * racing with expire lookup will wait for it so this must
-		 * be a revalidate and we need to send it to lookup.
-		 */
-		if (status == -EAGAIN)
-			return 0;
 
 		return status;
 	}
@@ -557,19 +514,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 		 * so it must have been successful, so just wait for it.
 		 */
 		ino = autofs4_dentry_ino(expiring);
-		spin_lock(&sbi->fs_lock);
-		if (ino->flags & AUTOFS_INF_EXPIRING) {
-			spin_unlock(&sbi->fs_lock);
-			DPRINTK("wait for incomplete expire %p name=%.*s",
-				expiring, expiring->d_name.len,
-				expiring->d_name.name);
-			autofs4_wait(sbi, expiring, NFY_NONE);
-			wait_for_completion(&ino->expire_complete);
-			DPRINTK("request completed");
-			goto cont;
-		}
-		spin_unlock(&sbi->fs_lock);
-cont:
+		autofs4_expire_wait(expiring);
 		spin_lock(&sbi->lookup_lock);
 		if (!list_empty(&ino->expiring))
 			list_del_init(&ino->expiring);
