@@ -1506,14 +1506,13 @@ static int ext4_fill_flex_info(struct super_block *sb)
 
 	flex_group_count = (sbi->s_groups_count + groups_per_flex - 1) /
 		groups_per_flex;
-	sbi->s_flex_groups = kmalloc(flex_group_count *
+	sbi->s_flex_groups = kzalloc(flex_group_count *
 				     sizeof(struct flex_groups), GFP_KERNEL);
 	if (sbi->s_flex_groups == NULL) {
-		printk(KERN_ERR "EXT4-fs: not enough memory\n");
+		printk(KERN_ERR "EXT4-fs: not enough memory for "
+				"%lu flex groups\n", flex_group_count);
 		goto failed;
 	}
-	memset(sbi->s_flex_groups, 0, flex_group_count *
-	       sizeof(struct flex_groups));
 
 	gdp = ext4_get_group_desc(sb, 1, &bh);
 	block_bitmap = ext4_block_bitmap(sb, gdp) - 1;
