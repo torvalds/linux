@@ -1350,7 +1350,7 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 
 	info->fix = tridentfb_fix;
 	info->fbops = &tridentfb_ops;
-
+	info->pseudo_palette = default_par->pseudo_pal;
 
 	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 #ifdef CONFIG_FB_TRIDENT_ACCEL
