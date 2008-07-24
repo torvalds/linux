@@ -40,6 +40,69 @@ static int hugetlb_next_nid;
  */
 static DEFINE_SPINLOCK(hugetlb_lock);
 
+/*
+ * These helpers are used to track how many pages are reserved for
+ * faults in a MAP_PRIVATE mapping. Only the process that called mmap()
+ * is guaranteed to have their future faults succeed.
+ *
+ * With the exception of reset_vma_resv_huge_pages() which is called at fork(),
+ * the reserve counters are updated with the hugetlb_lock held. It is safe
+ * to reset the VMA at fork() time as it is not in use yet and there is no
+ * chance of the global counters getting corrupted as a result of the values.
+ */
+static unsigned long vma_resv_huge_pages(struct vm_area_struct *vma)
+{
+	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+	if (!(vma->vm_flags & VM_SHARED))
+		return (unsigned long)vma->vm_private_data;
+	return 0;
+}
+
+static void set_vma_resv_huge_pages(struct vm_area_struct *vma,
+							unsigned long reserve)
+{
+	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+	VM_BUG_ON(vma->vm_flags & VM_SHARED);
+
+	vma->vm_private_data = (void *)reserve;
+}
+
+/* Decrement the reserved pages in the hugepage pool by one */
+static void decrement_hugepage_resv_vma(struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & VM_SHARED) {
+		/* Shared mappings always use reserves */
+		resv_huge_pages--;
+	} else {
+		/*
+		 * Only the process that called mmap() has reserves for
+		 * private mappings.
+		 */
+		if (vma_resv_huge_pages(vma)) {
+			resv_huge_pages--;
+			reserve = (unsigned long)vma->vm_private_data - 1;
+			vma->vm_private_data = (void *)reserve;
+		}
+	}
+}
+
+void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+{
+	VM_BUG_ON(!is_vm_hugetlb_page(vma));
+	if (!(vma->vm_flags & VM_SHARED))
+		vma->vm_private_data = (void *)0;
+}
+
+/* Returns true if the VMA has associated reserve pages */
+static int vma_has_private_reserves(struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & VM_SHARED)
+		return 0;
+	if (!vma_resv_huge_pages(vma))
+		return 0;
+	return 1;
+}
+
 static void clear_huge_page(struct page *page, unsigned long addr)
 {
 	int i;
@@ -101,6 +164,15 @@ static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
 	struct zone *zone;
 	struct zoneref *z;
 
+	/*
+	 * A child process with MAP_PRIVATE mappings created by their parent
+	 * have no page reserves. This check ensures that reservations are
+	 * not "stolen". The child may still get SIGKILLed
+	 */
+	if (!vma_has_private_reserves(vma) &&
+			free_huge_pages - resv_huge_pages == 0)
+		return NULL;
+
 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
 						MAX_NR_ZONES - 1, nodemask) {
 		nid = zone_to_nid(zone);
@@ -111,8 +183,8 @@ static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
 			list_del(&page->lru);
 			free_huge_pages--;
 			free_huge_pages_node[nid]--;
-			if (vma && vma->vm_flags & VM_MAYSHARE)
-				resv_huge_pages--;
+			decrement_hugepage_resv_vma(vma);
+
 			break;
 		}
 	}
@@ -461,55 +533,40 @@ static void return_unused_surplus_pages(unsigned long unused_resv_pages)
 	}
 }
 
-
-static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
-						unsigned long addr)
-{
-	struct page *page;
-
-	spin_lock(&hugetlb_lock);
-	page = dequeue_huge_page_vma(vma, addr);
-	spin_unlock(&hugetlb_lock);
-	return page ? page : ERR_PTR(-VM_FAULT_OOM);
-}
-
-static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
-						unsigned long addr)
-{
-	struct page *page = NULL;
-
-	if (hugetlb_get_quota(vma->vm_file->f_mapping, 1))
-		return ERR_PTR(-VM_FAULT_SIGBUS);
-
-	spin_lock(&hugetlb_lock);
-	if (free_huge_pages > resv_huge_pages)
-		page = dequeue_huge_page_vma(vma, addr);
-	spin_unlock(&hugetlb_lock);
-	if (!page) {
-		page = alloc_buddy_huge_page(vma, addr);
-		if (!page) {
-			hugetlb_put_quota(vma->vm_file->f_mapping, 1);
-			return ERR_PTR(-VM_FAULT_OOM);
-		}
-	}
-	return page;
-}
-
 static struct page *alloc_huge_page(struct vm_area_struct *vma,
 				    unsigned long addr)
 {
 	struct page *page;
 	struct address_space *mapping = vma->vm_file->f_mapping;
+	struct inode *inode = mapping->host;
+	unsigned int chg = 0;
 
-	if (vma->vm_flags & VM_MAYSHARE)
-		page = alloc_huge_page_shared(vma, addr);
-	else
-		page = alloc_huge_page_private(vma, addr);
-
-	if (!IS_ERR(page)) {
-		set_page_refcounted(page);
-		set_page_private(page, (unsigned long) mapping);
+	/*
+	 * Processes that did not create the mapping will have no reserves and
+	 * will not have accounted against quota. Check that the quota can be
+	 * made before satisfying the allocation
+	 */
+	if (!vma_has_private_reserves(vma)) {
+		chg = 1;
+		if (hugetlb_get_quota(inode->i_mapping, chg))
+			return ERR_PTR(-ENOSPC);
 	}
+
+	spin_lock(&hugetlb_lock);
+	page = dequeue_huge_page_vma(vma, addr);
+	spin_unlock(&hugetlb_lock);
+
+	if (!page) {
+		page = alloc_buddy_huge_page(vma, addr);
+		if (!page) {
+			hugetlb_put_quota(inode->i_mapping, chg);
+			return ERR_PTR(-VM_FAULT_OOM);
+		}
+	}
+
+	set_page_refcounted(page);
+	set_page_private(page, (unsigned long) mapping);
+
 	return page;
 }
 
@@ -757,6 +814,13 @@ out:
 	return ret;
 }
 
+static void hugetlb_vm_op_close(struct vm_area_struct *vma)
+{
+	unsigned long reserve = vma_resv_huge_pages(vma);
+	if (reserve)
+		hugetlb_acct_memory(-reserve);
+}
+
 /*
  * We cannot handle pagefaults against hugetlb pages at all.  They cause
  * handle_mm_fault() to try to instantiate regular-sized pages in the
@@ -771,6 +835,7 @@ static int hugetlb_vm_op_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 struct vm_operations_struct hugetlb_vm_ops = {
 	.fault = hugetlb_vm_op_fault,
+	.close = hugetlb_vm_op_close,
 };
 
 static pte_t make_huge_pte(struct vm_area_struct *vma, struct page *page,
@@ -1289,11 +1354,25 @@ static long region_truncate(struct list_head *head, long end)
 	return chg;
 }
 
-int hugetlb_reserve_pages(struct inode *inode, long from, long to)
+int hugetlb_reserve_pages(struct inode *inode,
+					long from, long to,
+					struct vm_area_struct *vma)
 {
 	long ret, chg;
 
-	chg = region_chg(&inode->i_mapping->private_list, from, to);
+	/*
+	 * Shared mappings base their reservation on the number of pages that
+	 * are already allocated on behalf of the file. Private mappings need
+	 * to reserve the full area even if read-only as mprotect() may be
+	 * called to make the mapping read-write. Assume !vma is a shm mapping
+	 */
+	if (!vma || vma->vm_flags & VM_SHARED)
+		chg = region_chg(&inode->i_mapping->private_list, from, to);
+	else {
+		chg = to - from;
+		set_vma_resv_huge_pages(vma, chg);
+	}
+
 	if (chg < 0)
 		return chg;
 
@@ -1304,7 +1383,8 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
 		hugetlb_put_quota(inode->i_mapping, chg);
 		return ret;
 	}
-	region_add(&inode->i_mapping->private_list, from, to);
+	if (!vma || vma->vm_flags & VM_SHARED)
+		region_add(&inode->i_mapping->private_list, from, to);
 	return 0;
 }
 

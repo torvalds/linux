@@ -17,6 +17,7 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
 	return vma->vm_flags & VM_HUGETLB;
 }
 
+void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
 int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
 int hugetlb_overcommit_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
 int hugetlb_treat_movable_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
@@ -30,7 +31,8 @@ int hugetlb_report_node_meminfo(int, char *);
 unsigned long hugetlb_total_pages(void);
 int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, int write_access);
-int hugetlb_reserve_pages(struct inode *inode, long from, long to);
+int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+						struct vm_area_struct *vma);
 void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
 
 extern unsigned long max_huge_pages;
@@ -58,6 +60,11 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
 {
 	return 0;
 }
+
+static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+{
+}
+
 static inline unsigned long hugetlb_total_pages(void)
 {
 	return 0;

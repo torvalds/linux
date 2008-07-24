@@ -103,9 +103,9 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	ret = -ENOMEM;
 	len = vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
 
-	if (vma->vm_flags & VM_MAYSHARE &&
-	    hugetlb_reserve_pages(inode, vma->vm_pgoff >> (HPAGE_SHIFT-PAGE_SHIFT),
-				  len >> HPAGE_SHIFT))
+	if (hugetlb_reserve_pages(inode,
+				vma->vm_pgoff >> (HPAGE_SHIFT-PAGE_SHIFT),
+				len >> HPAGE_SHIFT, vma))
 		goto out;
 
 	ret = 0;
@@ -942,7 +942,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size)
 		goto out_dentry;
 
 	error = -ENOMEM;
-	if (hugetlb_reserve_pages(inode, 0, size >> HPAGE_SHIFT))
+	if (hugetlb_reserve_pages(inode, 0, size >> HPAGE_SHIFT, NULL))
 		goto out_inode;
 
 	d_instantiate(dentry, inode);
