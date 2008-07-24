@@ -28,15 +28,11 @@
 
 struct tridentfb_par {
 	void __iomem *io_virt;	/* iospace virtual memory address */
+	u32 pseudo_pal[16];
 };
 
 static unsigned char eng_oper;	/* engine operation... */
 static struct fb_ops tridentfb_ops;
-
-/* FIXME:kmalloc these 3 instead */
-static u32 pseudo_pal[16];
-
-static struct fb_var_screeninfo default_var;
 
 static struct fb_fix_screeninfo tridentfb_fix = {
 	.id = "Trident",
@@ -1340,9 +1336,7 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 #ifdef CONFIG_FB_TRIDENT_ACCEL
 	info->flags |= FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT;
 #endif
-	info->pseudo_palette = pseudo_pal;
-
-	if (!fb_find_mode(&default_var, info,
+	if (!fb_find_mode(&info->var, info,
 			  mode_option, NULL, 0, NULL, bpp)) {
 		err = -EINVAL;
 		goto out_unmap2;
@@ -1352,11 +1346,10 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 		goto out_unmap2;
 
 	if (defaultaccel && acc)
-		default_var.accel_flags |= FB_ACCELF_TEXT;
+		info->var.accel_flags |= FB_ACCELF_TEXT;
 	else
-		default_var.accel_flags &= ~FB_ACCELF_TEXT;
-	default_var.activate |= FB_ACTIVATE_NOW;
-	info->var = default_var;
+		info->var.accel_flags &= ~FB_ACCELF_TEXT;
+	info->var.activate |= FB_ACTIVATE_NOW;
 	info->device = &dev->dev;
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR "tridentfb: could not register Trident framebuffer\n");
@@ -1365,8 +1358,8 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 		goto out_unmap2;
 	}
 	output("fb%d: %s frame buffer device %dx%d-%dbpp\n",
-	   info->node, info->fix.id, default_var.xres,
-	   default_var.yres, default_var.bits_per_pixel);
+	   info->node, info->fix.id, info->var.xres,
+	   info->var.yres, info->var.bits_per_pixel);
 
 	pci_set_drvdata(dev, info);
 	return 0;
