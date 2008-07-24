@@ -208,7 +208,7 @@ int add_extent_mapping(struct extent_map_tree *tree,
 	struct extent_map *merge = NULL;
 	struct rb_node *rb;
 
-	BUG_ON(spin_trylock(&tree->lock));
+	assert_spin_locked(&tree->lock);
 	rb = tree_insert(&tree->map, em->start, &em->rb_node);
 	if (rb) {
 		ret = -EEXIST;
@@ -270,7 +270,7 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 	struct rb_node *next = NULL;
 	u64 end = range_end(start, len);
 
-	BUG_ON(spin_trylock(&tree->lock));
+	assert_spin_locked(&tree->lock);
 	rb_node = __tree_search(&tree->map, start, &prev, &next);
 	if (!rb_node && prev) {
 		em = rb_entry(prev, struct extent_map, rb_node);
@@ -317,7 +317,7 @@ int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 	int ret = 0;
 
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
-	BUG_ON(spin_trylock(&tree->lock));
+	assert_spin_locked(&tree->lock);
 	rb_erase(&em->rb_node, &tree->map);
 	em->in_tree = 0;
 	return ret;
