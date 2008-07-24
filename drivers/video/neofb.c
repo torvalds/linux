@@ -201,7 +201,6 @@ static int neoFindMode(int xres, int yres, int depth)
  *
  * Determine the closest clock frequency to the one requested.
  */
-#define REF_FREQ 0xe517		/* 14.31818 in 20.12 fixed point */
 #define MAX_N 127
 #define MAX_D 31
 #define MAX_F 1
@@ -211,27 +210,24 @@ static void neoCalcVCLK(const struct fb_info *info,
 {
 	int n, d, f;
 	int n_best = 0, d_best = 0, f_best = 0;
-	long f_best_diff = (0x7ffff << 12);	/* 20.12 */
-	long f_target = (freq << 12) / 1000;	/* 20.12 */
+	long f_best_diff = 0x7ffff;
 
 	for (f = 0; f <= MAX_F; f++)
-		for (n = 0; n <= MAX_N; n++)
-			for (d = 0; d <= MAX_D; d++) {
-				long f_out;	/* 20.12 */
-				long f_diff;	/* 20.12 */
+		for (d = 0; d <= MAX_D; d++)
+			for (n = 0; n <= MAX_N; n++) {
+				long f_out;
+				long f_diff;
 
-				f_out =
-				    ((((n + 1) << 12) / ((d +
-							  1) *
-							 (1 << f))) >> 12)
-				    * REF_FREQ;
-				f_diff = abs(f_out - f_target);
-				if (f_diff < f_best_diff) {
+				f_out = ((14318 * (n + 1)) / (d + 1)) >> f;
+				f_diff = abs(f_out - freq);
+				if (f_diff <= f_best_diff) {
 					f_best_diff = f_diff;
 					n_best = n;
 					d_best = d;
 					f_best = f;
 				}
+				if (f_out > freq)
+					break;
 			}
 
 	if (info->fix.accel == FB_ACCEL_NEOMAGIC_NM2200 ||
@@ -248,11 +244,11 @@ static void neoCalcVCLK(const struct fb_info *info,
 	par->VCLK3Denominator = d_best;
 
 #ifdef NEOFB_DEBUG
-	printk("neoVCLK: f:%d NumLow=%d NumHi=%d Den=%d Df=%d\n",
-	       f_target >> 12,
+	printk(KERN_DEBUG "neoVCLK: f:%ld NumLow=%d NumHi=%d Den=%d Df=%ld\n",
+	       freq,
 	       par->VCLK3NumeratorLow,
 	       par->VCLK3NumeratorHigh,
-	       par->VCLK3Denominator, f_best_diff >> 12);
+	       par->VCLK3Denominator, f_best_diff);
 #endif
 }
 
