@@ -69,6 +69,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
+#include <linux/thread_info.h>
 #include <linux/wanrouter.h>
 #include <linux/if_bridge.h>
 #include <linux/if_frad.h>
@@ -1504,6 +1505,7 @@ out_fd:
 	goto out_put;
 }
 
+#ifdef HAVE_SET_RESTORE_SIGMASK
 asmlinkage long sys_paccept(int fd, struct sockaddr __user *upeer_sockaddr,
 			    int __user *upeer_addrlen,
 			    const sigset_t __user *sigmask,
@@ -1541,6 +1543,21 @@ asmlinkage long sys_paccept(int fd, struct sockaddr __user *upeer_sockaddr,
 
 	return ret;
 }
+#else
+asmlinkage long sys_paccept(int fd, struct sockaddr __user *upeer_sockaddr,
+			    int __user *upeer_addrlen,
+			    const sigset_t __user *sigmask,
+			    size_t sigsetsize, int flags)
+{
+	/* The platform does not support restoring the signal mask in the
+	 * return path.  So we do not allow using paccept() with a signal
+	 * mask.  */
+	if (sigmask)
+		return -EINVAL;
+
+	return do_accept(fd, upeer_sockaddr, upeer_addrlen, flags);
+}
+#endif
 
 asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr,
 			   int __user *upeer_addrlen)
