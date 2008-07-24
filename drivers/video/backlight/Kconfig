@@ -36,6 +36,23 @@ config LCD_LTV350QV
 
 	  The LTV350QV panel is present on all ATSTK1000 boards.
 
+config LCD_ILI9320
+	tristate
+	depends on LCD_CLASS_DEVICE && BACKLIGHT_LCD_SUPPORT
+	default n
+	help
+	  If you have a panel based on the ILI9320 controller chip
+	  then say y to include a power driver for it.
+
+config LCD_VGG2432A4
+	tristate "VGG2432A4 LCM device support"
+	depends on BACKLIGHT_LCD_SUPPORT && LCD_CLASS_DEVICE && SPI_MASTER
+	select LCD_ILI9320
+	default n
+	help
+	  If you have a VGG2432A4 panel based on the ILI9320 controller chip
+	  then say y to include a power driver for it.
+
 #
 # Backlight
 #
