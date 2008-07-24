@@ -24,11 +24,12 @@
 #include <linux/delay.h>
 #include <video/trident.h>
 
-#define VERSION		"0.7.8-NEWAPI"
+#define VERSION		"0.7.9-NEWAPI"
 
 struct tridentfb_par {
 	void __iomem *io_virt;	/* iospace virtual memory address */
 	u32 pseudo_pal[16];
+	int chip_id;
 };
 
 static unsigned char eng_oper;	/* engine operation... */
@@ -42,9 +43,6 @@ static struct fb_fix_screeninfo tridentfb_fix = {
 	.accel = FB_ACCEL_NONE,
 };
 
-static int chip_id;
-
-static int defaultaccel;
 static int displaytype;
 
 /* defaults which are normally overriden by user values */
@@ -78,9 +76,6 @@ module_param(memdiff, int, 0);
 module_param(nativex, int, 0);
 module_param(fp, int, 0);
 module_param(crt, int, 0);
-
-static int chip3D;
-static int chipcyber;
 
 static int is3Dchip(int id)
 {
@@ -658,7 +653,7 @@ static void set_lwidth(struct tridentfb_par *par, int width)
 /* For resolutions smaller than FP resolution stretch */
 static void screen_stretch(struct tridentfb_par *par)
 {
-	if (chip_id != CYBERBLADEXPAi1)
+	if (par->chip_id != CYBERBLADEXPAi1)
 		write3CE(par, BiosReg, 0);
 	else
 		write3CE(par, BiosReg, 8);
@@ -706,7 +701,7 @@ static void set_vclk(struct tridentfb_par *par, unsigned long freq)
 				if (fi > freq)
 					break;
 			}
-	if (chip3D) {
+	if (is3Dchip(par->chip_id)) {
 		write3C4(par, ClockHigh, hi);
 		write3C4(par, ClockLow, lo);
 	} else {
@@ -739,7 +734,7 @@ static unsigned int __devinit get_displaytype(struct tridentfb_par *par)
 {
 	if (fp)
 		return DISPLAY_FP;
-	if (crt || !chipcyber)
+	if (crt || !iscyber(par->chip_id))
 		return DISPLAY_CRT;
 	return (read3CE(par, FPConfig) & 0x10) ? DISPLAY_FP : DISPLAY_CRT;
 }
@@ -754,7 +749,7 @@ static unsigned int __devinit get_memsize(struct tridentfb_par *par)
 	if (memsize)
 		k = memsize * Kb;
 	else
-		switch (chip_id) {
+		switch (par->chip_id) {
 		case CYBER9525DVD:
 			k = 2560 * Kb;
 			break;
@@ -1034,7 +1029,7 @@ static int tridentfb_set_par(struct fb_info *info)
 	write3X4(par, PixelBusReg, tmp);
 
 	tmp = 0x10;
-	if (chipcyber)
+	if (iscyber(par->chip_id))
 		tmp |= 0x20;
 	write3X4(par, DRAMControl, tmp);	/* both IO, linear enable */
 
@@ -1062,7 +1057,7 @@ static int tridentfb_set_par(struct fb_info *info)
 	write3CE(par, 0x6, 0x05);	/* graphics mode */
 	write3CE(par, 0x7, 0x0F);	/* planes? */
 
-	if (chip_id == CYBERBLADEXPAi1) {
+	if (par->chip_id == CYBERBLADEXPAi1) {
 		/* This fixes snow-effect in 32 bpp */
 		write3X4(par, CRTHSyncStart, 0x84);
 	}
@@ -1217,6 +1212,9 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	unsigned char revision;
 	struct fb_info *info;
 	struct tridentfb_par *default_par;
+	int defaultaccel;
+	int chip3D;
+	int chip_id;
 
 	err = pci_enable_device(dev);
 	if (err)
@@ -1269,7 +1267,6 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	}
 
 	chip3D = is3Dchip(chip_id);
-	chipcyber = iscyber(chip_id);
 
 	if (is_xp(chip_id)) {
 		acc = &accel_xp;
@@ -1278,6 +1275,8 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	} else {
 		acc = &accel_image;
 	}
+
+	default_par->chip_id = chip_id;
 
 	/* acceleration is on by default for 3D chips */
 	defaultaccel = chip3D && !noaccel;
