@@ -171,6 +171,7 @@ our @modifierList = (
 sub build_types {
 	my $mods = "(?:  \n" . join("|\n  ", @modifierList) . "\n)";
 	my $all = "(?:  \n" . join("|\n  ", @typeList) . "\n)";
+	$Modifier	= qr{(?:$Attribute|$Sparse|$mods)};
 	$NonptrType	= qr{
 			(?:const\s+)?
 			(?:$mods\s+)?
@@ -178,15 +179,14 @@ sub build_types {
 				(?:typeof|__typeof__)\s*\(\s*\**\s*$Ident\s*\)|
 				(?:${all}\b)
 			)
-			(?:\s+$Sparse|\s+const)*
+			(?:\s+$Modifier|\s+const)*
 		  }x;
 	$Type	= qr{
 			$NonptrType
 			(?:\s*\*+\s*const|\s*\*+|(?:\s*\[\s*\])+)?
-			(?:\s+$Inline|\s+$Sparse|\s+$Attribute|\s+$mods)*
+			(?:\s+$Inline|\s+$Modifier)*
 		  }x;
 	$Declare	= qr{(?:$Storage\s+)?$Type};
-	$Modifier	= qr{(?:$Attribute|$Sparse|$mods)};
 }
 build_types();
 
@@ -715,7 +715,7 @@ sub annotate_values {
 				$av_preprocessor = 0;
 			}
 
-		} elsif ($cur =~ /^($Type)/) {
+		} elsif ($cur =~ /^($Type)\s*(?:$Ident|,|\))/) {
 			print "DECLARE($1)\n" if ($dbg_values > 1);
 			$type = 'T';
 
@@ -800,8 +800,9 @@ sub annotate_values {
 				print "PAREN('$1')\n" if ($dbg_values > 1);
 			}
 
-		} elsif ($cur =~ /^($Ident)\(/o) {
+		} elsif ($cur =~ /^($Ident)\s*\(/o) {
 			print "FUNC($1)\n" if ($dbg_values > 1);
+			$type = 'V';
 			$av_pending = 'V';
 
 		} elsif ($cur =~ /^($Ident|$Constant)/o) {
