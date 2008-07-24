@@ -1595,6 +1595,8 @@ struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
 
 		ide_init_port_data(hwif, idx);
 
+		hwif->host = host;
+
 		host->ports[i] = hwif;
 		host->n_ports++;
 	}

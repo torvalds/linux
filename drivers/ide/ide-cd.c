@@ -57,23 +57,29 @@ static DEFINE_MUTEX(idecd_ref_mutex);
 #define ide_cd_g(disk) \
 	container_of((disk)->private_data, struct cdrom_info, driver)
 
+static void ide_cd_release(struct kref *);
+
 static struct cdrom_info *ide_cd_get(struct gendisk *disk)
 {
 	struct cdrom_info *cd = NULL;
 
 	mutex_lock(&idecd_ref_mutex);
 	cd = ide_cd_g(disk);
-	if (cd)
+	if (cd) {
 		kref_get(&cd->kref);
+		if (ide_device_get(cd->drive)) {
+			kref_put(&cd->kref, ide_cd_release);
+			cd = NULL;
+		}
+	}
 	mutex_unlock(&idecd_ref_mutex);
 	return cd;
 }
 
-static void ide_cd_release(struct kref *);
-
 static void ide_cd_put(struct cdrom_info *cd)
 {
 	mutex_lock(&idecd_ref_mutex);
+	ide_device_put(cd->drive);
 	kref_put(&cd->kref, ide_cd_release);
 	mutex_unlock(&idecd_ref_mutex);
 }

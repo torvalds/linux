@@ -532,11 +532,15 @@ struct ide_dma_ops {
 	void	(*dma_timeout)(struct ide_drive_s *);
 };
 
+struct ide_host;
+
 typedef struct hwif_s {
 	struct hwif_s *next;		/* for linked-list in ide_hwgroup_t */
 	struct hwif_s *mate;		/* other hwif from same PCI chip */
 	struct hwgroup_s *hwgroup;	/* actually (ide_hwgroup_t *) */
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
+
+	struct ide_host *host;
 
 	char name[6];			/* name of interface, eg. "ide0" */
 
@@ -875,6 +879,9 @@ struct ide_driver_s {
 };
 
 #define to_ide_driver(drv) container_of(drv, ide_driver_t, gen_driver)
+
+int ide_device_get(ide_drive_t *);
+void ide_device_put(ide_drive_t *);
 
 int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsigned, unsigned long);
 

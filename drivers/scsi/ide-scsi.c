@@ -101,8 +101,13 @@ static struct ide_scsi_obj *ide_scsi_get(struct gendisk *disk)
 
 	mutex_lock(&idescsi_ref_mutex);
 	scsi = ide_scsi_g(disk);
-	if (scsi)
+	if (scsi) {
 		scsi_host_get(scsi->host);
+		if (ide_device_get(scsi->drive)) {
+			scsi_host_put(scsi->host);
+			scsi = NULL;
+		}
+	}
 	mutex_unlock(&idescsi_ref_mutex);
 	return scsi;
 }
@@ -110,6 +115,7 @@ static struct ide_scsi_obj *ide_scsi_get(struct gendisk *disk)
 static void ide_scsi_put(struct ide_scsi_obj *scsi)
 {
 	mutex_lock(&idescsi_ref_mutex);
+	ide_device_put(scsi->drive);
 	scsi_host_put(scsi->host);
 	mutex_unlock(&idescsi_ref_mutex);
 }

@@ -322,23 +322,29 @@ static struct class *idetape_sysfs_class;
 #define ide_tape_g(disk) \
 	container_of((disk)->private_data, struct ide_tape_obj, driver)
 
+static void ide_tape_release(struct kref *);
+
 static struct ide_tape_obj *ide_tape_get(struct gendisk *disk)
 {
 	struct ide_tape_obj *tape = NULL;
 
 	mutex_lock(&idetape_ref_mutex);
 	tape = ide_tape_g(disk);
-	if (tape)
+	if (tape) {
 		kref_get(&tape->kref);
+		if (ide_device_get(tape->drive)) {
+			kref_put(&tape->kref, ide_tape_release);
+			tape = NULL;
+		}
+	}
 	mutex_unlock(&idetape_ref_mutex);
 	return tape;
 }
 
-static void ide_tape_release(struct kref *);
-
 static void ide_tape_put(struct ide_tape_obj *tape)
 {
 	mutex_lock(&idetape_ref_mutex);
+	ide_device_put(tape->drive);
 	kref_put(&tape->kref, ide_tape_release);
 	mutex_unlock(&idetape_ref_mutex);
 }
