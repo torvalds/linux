@@ -499,20 +499,21 @@ static int do_ide_setup_pci_device(struct pci_dev *dev,
 	 */
 	pciirq = dev->irq;
 
+	/*
+	 * This allows offboard ide-pci cards the enable a BIOS,
+	 * verify interrupt settings of split-mirror pci-config
+	 * space, place chipset into init-mode, and/or preserve
+	 * an interrupt if the card is not native ide support.
+	 */
+	ret = d->init_chipset ? d->init_chipset(dev, d->name) : 0;
+	if (ret < 0)
+		goto out;
+
 	/* Is it an "IDE storage" device in non-PCI mode? */
 	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE && (dev->class & 5) != 5) {
 		if (noisy)
 			printk(KERN_INFO "%s: not 100%% native mode: "
 				"will probe irqs later\n", d->name);
-		/*
-		 * This allows offboard ide-pci cards the enable a BIOS,
-		 * verify interrupt settings of split-mirror pci-config
-		 * space, place chipset into init-mode, and/or preserve
-		 * an interrupt if the card is not native ide support.
-		 */
-		ret = d->init_chipset ? d->init_chipset(dev, d->name) : 0;
-		if (ret < 0)
-			goto out;
 		pciirq = ret;
 	} else if (tried_config) {
 		if (noisy)
@@ -524,11 +525,6 @@ static int do_ide_setup_pci_device(struct pci_dev *dev,
 				d->name, pciirq);
 		pciirq = 0;
 	} else {
-		if (d->init_chipset) {
-			ret = d->init_chipset(dev, d->name);
-			if (ret < 0)
-				goto out;
-		}
 		if (noisy)
 			printk(KERN_INFO "%s: 100%% native mode on irq %d\n",
 				d->name, pciirq);
