@@ -1658,6 +1658,32 @@ config FB_PM3
 	  similar boards, 3DLabs Permedia3 Create!, Appian Jeronimo 2000
 	  and maybe other boards.
 
+config FB_CARMINE
+	tristate "Fujitsu carmine frame buffer support"
+	depends on FB && PCI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the frame buffer device driver for the Fujitsu Carmine chip.
+	  The driver provides two independent frame buffer devices.
+
+choice
+	depends on FB_CARMINE
+	prompt "DRAM timing"
+	default FB_CARMINE_DRAM_EVAL
+
+config FB_CARMINE_DRAM_EVAL
+	bool "Eval board timings"
+	help
+	  Use timings which work on the eval card.
+
+config CARMINE_DRAM_CUSTOM
+	bool "Custom board timings"
+	help
+	  Use custom board timings.
+endchoice
+
 config FB_AU1100
 	bool "Au1100 LCD Driver"
 	depends on (FB = y) && MIPS && SOC_AU1100
