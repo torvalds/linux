@@ -256,6 +256,20 @@ static int atmel_lcdfb_alloc_video_memory(struct atmel_lcdfb_info *sinfo)
 	return 0;
 }
 
+static const struct fb_videomode *atmel_lcdfb_choose_mode(struct fb_var_screeninfo *var,
+						     struct fb_info *info)
+{
+	struct fb_videomode varfbmode;
+	const struct fb_videomode *fbmode = NULL;
+
+	fb_var_to_videomode(&varfbmode, var);
+	fbmode = fb_find_nearest_mode(&varfbmode, &info->modelist);
+	if (fbmode)
+		fb_videomode_to_var(var, fbmode);
+	return fbmode;
+}
+
+
 /**
  *      atmel_lcdfb_check_var - Validates a var passed in.
  *      @var: frame buffer variable screen structure
@@ -289,6 +303,15 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 	clk_value_khz = clk_get_rate(sinfo->lcdc_clk) / 1000;
 
 	dev_dbg(dev, "%s:\n", __func__);
+
+	if (!(var->pixclock && var->bits_per_pixel)) {
+		/* choose a suitable mode if possible */
+		if (!atmel_lcdfb_choose_mode(var, info)) {
+			dev_err(dev, "needed value not specified\n");
+			return -EINVAL;
+		}
+	}
+
 	dev_dbg(dev, "  resolution: %ux%u\n", var->xres, var->yres);
 	dev_dbg(dev, "  pixclk:     %lu KHz\n", PICOS2KHZ(var->pixclock));
 	dev_dbg(dev, "  bpp:        %u\n", var->bits_per_pixel);
@@ -298,6 +321,13 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 		dev_err(dev, "%lu KHz pixel clock is too fast\n", PICOS2KHZ(var->pixclock));
 		return -EINVAL;
 	}
+
+	/* Do not allow to have real resoulution larger than virtual */
+	if (var->xres > var->xres_virtual)
+		var->xres_virtual = var->xres;
+
+	if (var->yres > var->yres_virtual)
+		var->yres_virtual = var->yres;
 
 	/* Force same alignment for each line */
 	var->xres = (var->xres + 3) & ~3UL;
@@ -740,6 +770,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	struct fb_info *info;
 	struct atmel_lcdfb_info *sinfo;
 	struct atmel_lcdfb_info *pdata_sinfo;
+	struct fb_videomode fbmode;
 	struct resource *regs = NULL;
 	struct resource *map = NULL;
 	int ret;
@@ -905,6 +936,10 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to register framebuffer device: %d\n", ret);
 		goto free_cmap;
 	}
+
+	/* add selected videomode to modelist */
+	fb_var_to_videomode(&fbmode, &info->var);
+	fb_add_videomode(&fbmode, &info->modelist);
 
 	/* Power up the LCDC screen */
 	if (sinfo->atmel_lcdfb_power_control)
