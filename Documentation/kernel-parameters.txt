@@ -2034,6 +2034,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	snd-ymfpci=	[HW,ALSA]
 
+	softlockup_panic=
+			[KNL] Should the soft-lockup detector generate panics.
+
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/sonypi.txt
 
