@@ -1987,6 +1987,10 @@ config FB_AM200EPD
          This enables support for the Metronome display controller used on
          the E-Ink AM-200 EPD devkit.
 
+config FB_COBALT
+	tristate "Cobalt server LCD frame buffer support"
+	depends on FB && MIPS_COBALT
+
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
 	depends on FB
