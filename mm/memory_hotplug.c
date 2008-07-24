@@ -523,6 +523,66 @@ EXPORT_SYMBOL_GPL(add_memory);
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
 /*
+ * A free page on the buddy free lists (not the per-cpu lists) has PageBuddy
+ * set and the size of the free page is given by page_order(). Using this,
+ * the function determines if the pageblock contains only free pages.
+ * Due to buddy contraints, a free page at least the size of a pageblock will
+ * be located at the start of the pageblock
+ */
+static inline int pageblock_free(struct page *page)
+{
+	return PageBuddy(page) && page_order(page) >= pageblock_order;
+}
+
+/* Return the start of the next active pageblock after a given page */
+static struct page *next_active_pageblock(struct page *page)
+{
+	int pageblocks_stride;
+
+	/* Ensure the starting page is pageblock-aligned */
+	BUG_ON(page_to_pfn(page) & (pageblock_nr_pages - 1));
+
+	/* Move forward by at least 1 * pageblock_nr_pages */
+	pageblocks_stride = 1;
+
+	/* If the entire pageblock is free, move to the end of free page */
+	if (pageblock_free(page))
+		pageblocks_stride += page_order(page) - pageblock_order;
+
+	return page + (pageblocks_stride * pageblock_nr_pages);
+}
+
+/* Checks if this range of memory is likely to be hot-removable. */
+int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+{
+	int type;
+	struct page *page = pfn_to_page(start_pfn);
+	struct page *end_page = page + nr_pages;
+
+	/* Check the starting page of each pageblock within the range */
+	for (; page < end_page; page = next_active_pageblock(page)) {
+		type = get_pageblock_migratetype(page);
+
+		/*
+		 * A pageblock containing MOVABLE or free pages is considered
+		 * removable
+		 */
+		if (type != MIGRATE_MOVABLE && !pageblock_free(page))
+			return 0;
+
+		/*
+		 * A pageblock starting with a PageReserved page is not
+		 * considered removable.
+		 */
+		if (PageReserved(page))
+			return 0;
+	}
+
+	/* All pageblocks in the memory block are likely to be hot-removable */
+	return 1;
+}
+
+/*
  * Confirm all pages in a range [start, end) is belongs to the same zone.
  */
 static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
