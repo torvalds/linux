@@ -92,7 +92,7 @@ struct fbcon_ops {
 #define attr_fgcol(fgshift,s)    \
 	(((s) >> (fgshift)) & 0x0f)
 #define attr_bgcol(bgshift,s)    \
-	(((s) >> (bgshift)) & 0x0f)
+	(((s) >> (bgshift)) & 0x07)
 
 /* Monochrome */
 #define attr_bold(s) \
