@@ -227,7 +227,8 @@ asmlinkage long sys_signalfd(int ufd, sigset_t __user *user_mask, size_t sizemas
 		 * When we call this, the initialization must be complete, since
 		 * anon_inode_getfd() will install the fd.
 		 */
-		ufd = anon_inode_getfd("[signalfd]", &signalfd_fops, ctx);
+		ufd = anon_inode_getfd("[signalfd]", &signalfd_fops, ctx,
+				       0);
 		if (ufd < 0)
 			kfree(ctx);
 	} else {

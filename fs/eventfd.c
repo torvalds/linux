@@ -214,7 +214,7 @@ asmlinkage long sys_eventfd(unsigned int count)
 	 * When we call this, the initialization must be complete, since
 	 * anon_inode_getfd() will install the fd.
 	 */
-	fd = anon_inode_getfd("[eventfd]", &eventfd_fops, ctx);
+	fd = anon_inode_getfd("[eventfd]", &eventfd_fops, ctx, 0);
 	if (fd < 0)
 		kfree(ctx);
 	return fd;

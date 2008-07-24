@@ -1068,7 +1068,7 @@ asmlinkage long sys_epoll_create(int size)
 	 * Creates all the items needed to setup an eventpoll file. That is,
 	 * a file structure and a free file descriptor.
 	 */
-	fd = anon_inode_getfd("[eventpoll]", &eventpoll_fops, ep);
+	fd = anon_inode_getfd("[eventpoll]", &eventpoll_fops, ep, 0);
 	if (fd < 0)
 		ep_free(ep);
 
