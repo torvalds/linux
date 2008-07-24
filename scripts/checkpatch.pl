@@ -1435,6 +1435,17 @@ sub process {
 			ERROR("open brace '{' following $1 go on the same line\n" . $hereprev);
 		}
 
+# check for spacing round square brackets; allowed:
+#  1. with a type on the left -- int [] a;
+#  2. at the beginning of a line for slice initialisers -- [0..10] = 5,
+		while ($line =~ /(.*?\s)\[/g) {
+			my ($where, $prefix) = ($-[1], $1);
+			if ($prefix !~ /$Type\s+$/ &&
+			    ($where != 0 || $prefix !~ /^.\s+$/)) {
+				ERROR("space prohibited before open square bracket '['\n" . $herecurr);
+			}
+		}
+
 # check for spaces between functions and their parentheses.
 		while ($line =~ /($Ident)\s+\(/g) {
 			my $name = $1;
