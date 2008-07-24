@@ -505,6 +505,7 @@ static struct pci_driver driver = {
 	.name		= "CMD64x_IDE",
 	.id_table	= cmd64x_pci_tbl,
 	.probe		= cmd64x_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init cmd64x_ide_init(void)
@@ -512,7 +513,13 @@ static int __init cmd64x_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit cmd64x_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(cmd64x_ide_init);
+module_exit(cmd64x_ide_exit);
 
 MODULE_AUTHOR("Eddie Dost, David Miller, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for CMD64x IDE");
