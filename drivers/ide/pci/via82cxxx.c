@@ -401,20 +401,19 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	 */
 	via_config = via_config_find(&isa);
 	if (!via_config->id) {
-		printk(KERN_WARNING "VP_IDE: Unknown VIA SouthBridge, disabling DMA.\n");
+		printk(KERN_WARNING "VP_IDE %s: unknown chipset, skipping\n",
+			pci_name(dev));
 		return -ENODEV;
 	}
 
 	/*
 	 * Print the boot message.
 	 */
-	printk(KERN_INFO "VP_IDE: VIA %s (rev %02x) IDE %sDMA%s "
-		"controller on pci%s\n",
-		via_config->name, isa->revision,
+	printk(KERN_INFO "VP_IDE %s: VIA %s (rev %02x) IDE %sDMA%s\n",
+		pci_name(dev), via_config->name, isa->revision,
 		via_config->udma_mask ? "U" : "MW",
 		via_dma[via_config->udma_mask ?
-			(fls(via_config->udma_mask) - 1) : 0],
-		pci_name(dev));
+			(fls(via_config->udma_mask) - 1) : 0]);
 
 	pci_dev_put(isa);
 
@@ -454,7 +453,7 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 	if (!vdev) {
-		printk(KERN_ERR "VP_IDE: out of memory :(\n");
+		printk(KERN_ERR "VP_IDE %s: out of memory :(\n", pci_name(dev));
 		return -ENOMEM;
 	}
 

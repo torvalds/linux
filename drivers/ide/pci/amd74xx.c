@@ -129,9 +129,9 @@ static void __devinit amd7411_cable_detect(struct pci_dev *dev,
 	amd_80w = ((t & 0x3) ? 1 : 0) | ((t & 0xc) ? 2 : 0);
 	for (i = 24; i >= 0; i -= 8)
 		if (((u >> i) & 4) && !(amd_80w & (1 << (1 - (i >> 4))))) {
-			printk(KERN_WARNING "%s: BIOS didn't set cable bits "
-					    "correctly. Enabling workaround.\n",
-					    name);
+			printk(KERN_WARNING "%s %s: BIOS didn't set cable bits "
+				"correctly. Enabling workaround.\n",
+				name, pci_name(dev));
 			amd_80w |= (1 << (1 - (i >> 4)));
 		}
 }
@@ -280,9 +280,8 @@ static int __devinit amd74xx_probe(struct pci_dev *dev, const struct pci_device_
 			d.udma_mask = ATA_UDMA5;
 	}
 
-	printk(KERN_INFO "%s: %s (rev %02x) UDMA%s controller\n",
-			 d.name, pci_name(dev), dev->revision,
-			 amd_dma[fls(d.udma_mask) - 1]);
+	printk(KERN_INFO "%s %s: UDMA%s controller\n",
+		d.name, pci_name(dev), amd_dma[fls(d.udma_mask) - 1]);
 
 	/*
 	* Determine the system bus clock.

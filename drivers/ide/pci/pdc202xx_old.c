@@ -304,8 +304,8 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 		if (irq != irq2) {
 			pci_write_config_byte(dev,
 				(PCI_INTERRUPT_LINE)|0x80, irq);     /* 0xbc */
-			printk(KERN_INFO "%s: PCI config space interrupt "
-					 "mirror fixed\n", name);
+			printk(KERN_INFO "%s %s: PCI config space interrupt "
+				"mirror fixed\n", name, pci_name(dev));
 		}
 	}
 }
@@ -406,8 +406,9 @@ static int __devinit pdc202xx_init_one(struct pci_dev *dev, const struct pci_dev
 		    bridge->vendor == PCI_VENDOR_ID_INTEL &&
 		    (bridge->device == PCI_DEVICE_ID_INTEL_I960 ||
 		     bridge->device == PCI_DEVICE_ID_INTEL_I960RM)) {
-			printk(KERN_INFO "ide: Skipping Promise PDC20265 "
-				"attached to I2O RAID controller\n");
+			printk(KERN_INFO "pdc202xx_old %s: skipping Promise "
+				"PDC20265 attached to I2O RAID controller\n",
+				pci_name(dev));
 			return -ENODEV;
 		}
 	}

@@ -358,12 +358,13 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 	 * registers setting.
 	 */
 	pll_input = detect_pll_input_clock(dma_base);
-	printk("%s: PLL input clock is %ld kHz\n", name, pll_input / 1000);
+	printk(KERN_INFO "%s %s: PLL input clock is %ld kHz\n",
+		name, pci_name(dev), pll_input / 1000);
 
 	/* Sanity check */
 	if (unlikely(pll_input < 5000000L || pll_input > 70000000L)) {
-		printk(KERN_ERR "%s: Bad PLL input clock %ld Hz, giving up!\n",
-		       name, pll_input);
+		printk(KERN_ERR "%s %s: Bad PLL input clock %ld Hz, giving up!"
+			"\n", name, pci_name(dev), pll_input);
 		goto out;
 	}
 
@@ -399,7 +400,8 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 		r = 0x00;
 	} else {
 		/* Invalid ratio */
-		printk(KERN_ERR "%s: Bad ratio %ld, giving up!\n", name, ratio);
+		printk(KERN_ERR "%s %s: Bad ratio %ld, giving up!\n",
+			name, pci_name(dev), ratio);
 		goto out;
 	}
 
@@ -409,7 +411,8 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 
 	if (unlikely(f < 0 || f > 127)) {
 		/* Invalid F */
-		printk(KERN_ERR "%s: F[%d] invalid!\n", name, f);
+		printk(KERN_ERR "%s %s: F[%d] invalid!\n",
+			name, pci_name(dev), f);
 		goto out;
 	}
 
@@ -455,8 +458,8 @@ static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 
 		if (dev2->irq != dev->irq) {
 			dev2->irq = dev->irq;
-			printk(KERN_INFO "PDC20270: PCI config space "
-					 "interrupt fixed\n");
+			printk(KERN_INFO "PDC20270 %s: PCI config space "
+				"interrupt fixed\n", pci_name(dev));
 		}
 
 		return dev2;
@@ -535,8 +538,8 @@ static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_de
 	    bridge->vendor == PCI_VENDOR_ID_INTEL &&
 	    (bridge->device == PCI_DEVICE_ID_INTEL_I960 ||
 	     bridge->device == PCI_DEVICE_ID_INTEL_I960RM)) {
-		printk(KERN_INFO "PDC20276: attached to I2O RAID controller, "
-				 "skipping\n");
+		printk(KERN_INFO "PDC20276 %s: attached to I2O RAID controller,"
+			" skipping\n", pci_name(dev));
 		return -ENODEV;
 	}
 

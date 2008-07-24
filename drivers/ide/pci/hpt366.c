@@ -1044,8 +1044,8 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev, const cha
 		if ((temp & 0xFFFFF000) != 0xABCDE000) {
 			int i;
 
-			printk(KERN_WARNING "%s: no clock data saved by BIOS\n",
-			       name);
+			printk(KERN_WARNING "%s %s: no clock data saved by "
+				"BIOS\n", name, pci_name(dev));
 
 			/* Calculate the average value of f_CNT. */
 			for (temp = i = 0; i < 128; i++) {
@@ -1070,8 +1070,9 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev, const cha
 		else
 			pci_clk = 66;
 
-		printk(KERN_INFO "%s: DPLL base: %d MHz, f_CNT: %d, "
-		       "assuming %d MHz PCI\n", name, dpll_clk, f_cnt, pci_clk);
+		printk(KERN_INFO "%s %s: DPLL base: %d MHz, f_CNT: %d, "
+			"assuming %d MHz PCI\n", name, pci_name(dev),
+			dpll_clk, f_cnt, pci_clk);
 	} else {
 		u32 itr1 = 0;
 
@@ -1137,7 +1138,8 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev, const cha
 		}
 
 		if (info->timings->clock_table[clock] == NULL) {
-			printk(KERN_ERR "%s: unknown bus timing!\n", name);
+			printk(KERN_ERR "%s %s: unknown bus timing!\n",
+				name, pci_name(dev));
 			return -EIO;
 		}
 
@@ -1163,16 +1165,19 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev, const cha
 				f_low += adjust >> 1;
 		}
 		if (adjust == 8) {
-			printk(KERN_ERR "%s: DPLL did not stabilize!\n", name);
+			printk(KERN_ERR "%s %s: DPLL did not stabilize!\n",
+				name, pci_name(dev));
 			return -EIO;
 		}
 
-		printk("%s: using %d MHz DPLL clock\n", name, dpll_clk);
+		printk(KERN_INFO "%s %s: using %d MHz DPLL clock\n",
+			name, pci_name(dev), dpll_clk);
 	} else {
 		/* Mark the fact that we're not using the DPLL. */
 		dpll_clk = 0;
 
-		printk("%s: using %d MHz PCI clock\n", name, pci_clk);
+		printk(KERN_INFO "%s %s: using %d MHz PCI clock\n",
+			name, pci_name(dev), pci_clk);
 	}
 
 	/* Store the clock frequencies. */
@@ -1357,7 +1362,8 @@ static void __devinit hpt374_init(struct pci_dev *dev, struct pci_dev *dev2)
 	if (dev2->irq != dev->irq) {
 		/* FIXME: we need a core pci_set_interrupt() */
 		dev2->irq = dev->irq;
-		printk(KERN_INFO "HPT374: PCI config space interrupt fixed\n");
+		printk(KERN_INFO "HPT374 %s: PCI config space interrupt "
+			"fixed\n", pci_name(dev2));
 	}
 }
 
@@ -1392,8 +1398,8 @@ static int __devinit hpt36x_init(struct pci_dev *dev, struct pci_dev *dev2)
 	pci_read_config_byte(dev2, PCI_INTERRUPT_PIN, &pin2);
 
 	if (pin1 != pin2 && dev->irq == dev2->irq) {
-		printk(KERN_INFO "HPT36x: onboard version of chipset, "
-				 "pin1=%d pin2=%d\n", pin1, pin2);
+		printk(KERN_INFO "HPT36x %s: onboard version of chipset, "
+			"pin1=%d pin2=%d\n", pci_name(dev), pin1, pin2);
 		return 1;
 	}
 
@@ -1591,7 +1597,8 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 
 	dyn_info = kzalloc(sizeof(*dyn_info) * (dev2 ? 2 : 1), GFP_KERNEL);
 	if (dyn_info == NULL) {
-		printk(KERN_ERR "%s: out of memory!\n", d.name);
+		printk(KERN_ERR "%s %s: out of memory!\n",
+			d.name, pci_name(dev));
 		pci_dev_put(dev2);
 		return -ENOMEM;
 	}

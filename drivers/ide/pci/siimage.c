@@ -539,7 +539,8 @@ static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev,
 			{ "== 100", "== 133", "== 2X PCI", "DISABLED!" };
 
 		tmp >>= 4;
-		printk(KERN_INFO "%s: BASE CLOCK %s\n", name, clk_str[tmp & 3]);
+		printk(KERN_INFO "%s %s: BASE CLOCK %s\n",
+			name, pci_name(dev), clk_str[tmp & 3]);
 	}
 
 	return 0;
@@ -779,8 +780,8 @@ static int __devinit siimage_init_one(struct pci_dev *dev,
 		* seem to get terminally confused in the PCI spaces.
 		*/
 		if (!request_mem_region(bar5, barsize, d.name)) {
-			printk(KERN_WARNING "siimage: IDE controller MMIO "
-					    "ports not available.\n");
+			printk(KERN_WARNING "siimage %s: MMIO ports not "
+				"available\n", pci_name(dev));
 		} else {
 			ioaddr = ioremap(bar5, barsize);
 			if (ioaddr == NULL)
