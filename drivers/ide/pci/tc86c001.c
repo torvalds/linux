@@ -232,6 +232,13 @@ out:
 	return rc;
 }
 
+static void __devexit tc86c001_remove(struct pci_dev *dev)
+{
+	ide_pci_remove(dev);
+	pci_release_region(dev, 5);
+	pci_disable_device(dev);
+}
+
 static const struct pci_device_id tc86c001_pci_tbl[] = {
 	{ PCI_VDEVICE(TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_IDE), 0 },
 	{ 0, }
@@ -241,14 +248,22 @@ MODULE_DEVICE_TABLE(pci, tc86c001_pci_tbl);
 static struct pci_driver driver = {
 	.name		= "TC86C001",
 	.id_table	= tc86c001_pci_tbl,
-	.probe		= tc86c001_init_one
+	.probe		= tc86c001_init_one,
+	.remove		= tc86c001_remove,
 };
 
 static int __init tc86c001_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }
+
+static void __exit tc86c001_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(tc86c001_ide_init);
+module_exit(tc86c001_ide_exit);
 
 MODULE_AUTHOR("MontaVista Software, Inc. <source@mvista.com>");
 MODULE_DESCRIPTION("PCI driver module for TC86C001 IDE");
