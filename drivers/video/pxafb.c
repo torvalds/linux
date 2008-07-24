@@ -41,6 +41,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
@@ -1117,7 +1118,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 {
 	u_int old_state;
 
-	down(&fbi->ctrlr_sem);
+	mutex_lock(&fbi->ctrlr_lock);
 
 	old_state = fbi->state;
 
@@ -1205,7 +1206,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		}
 		break;
 	}
-	up(&fbi->ctrlr_sem);
+	mutex_unlock(&fbi->ctrlr_lock);
 }
 
 /*
@@ -1458,7 +1459,7 @@ static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
 
 	init_waitqueue_head(&fbi->ctrlr_wait);
 	INIT_WORK(&fbi->task, pxafb_task);
-	init_MUTEX(&fbi->ctrlr_sem);
+	mutex_init(&fbi->ctrlr_lock);
 	init_completion(&fbi->disable_done);
 #ifdef CONFIG_FB_PXA_SMARTPANEL
 	init_completion(&fbi->command_done);
