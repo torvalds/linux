@@ -207,15 +207,15 @@ static int idescsi_check_condition(ide_drive_t *drive,
 
 	/* stuff a sense request in front of our current request */
 	pc = kzalloc(sizeof(struct ide_atapi_pc), GFP_ATOMIC);
-	rq = kmalloc(sizeof(struct request), GFP_ATOMIC);
+	rq = blk_get_request(drive->queue, READ, GFP_ATOMIC);
 	buf = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_ATOMIC);
 	if (!pc || !rq || !buf) {
 		kfree(buf);
-		kfree(rq);
+		if (rq)
+			blk_put_request(rq);
 		kfree(pc);
 		return -ENOMEM;
 	}
-	blk_rq_init(NULL, rq);
 	rq->special = (char *) pc;
 	pc->rq = rq;
 	pc->buf = buf;
@@ -232,6 +232,7 @@ static int idescsi_check_condition(ide_drive_t *drive,
 		ide_scsi_hex_dump(pc->c, 6);
 	}
 	rq->rq_disk = scsi->disk;
+	rq->ref_count++;
 	memcpy(rq->cmd, pc->c, 12);
 	ide_do_drive_cmd(drive, rq);
 	return 0;
@@ -278,7 +279,7 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 			SCSI_SENSE_BUFFERSIZE);
 		kfree(pc->buf);
 		kfree(pc);
-		kfree(rq);
+		blk_put_request(rq);
 		pc = opc;
 		rq = pc->rq;
 		pc->scsi_cmd->result = (CHECK_CONDITION << 1) |
@@ -309,7 +310,7 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 	pc->done(pc->scsi_cmd);
 	spin_unlock_irqrestore(host->host_lock, flags);
 	kfree(pc);
-	kfree(rq);
+	blk_put_request(rq);
 	scsi->pc = NULL;
 	return 0;
 }
@@ -583,6 +584,7 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	ide_drive_t *drive = scsi->drive;
 	struct request *rq = NULL;
 	struct ide_atapi_pc *pc = NULL;
+	int write = cmd->sc_data_direction == DMA_TO_DEVICE;
 
 	if (!drive) {
 		scmd_printk (KERN_ERR, cmd, "drive not present\n");
@@ -590,7 +592,7 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	}
 	scsi = drive_to_idescsi(drive);
 	pc = kmalloc(sizeof(struct ide_atapi_pc), GFP_ATOMIC);
-	rq = kmalloc(sizeof(struct request), GFP_ATOMIC);
+	rq = blk_get_request(drive->queue, write, GFP_ATOMIC);
 	if (rq == NULL || pc == NULL) {
 		printk (KERN_ERR "ide-scsi: %s: out of memory\n", drive->name);
 		goto abort;
@@ -620,17 +622,18 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 		}
 	}
 
-	blk_rq_init(NULL, rq);
 	rq->special = (char *) pc;
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	spin_unlock_irq(host->host_lock);
+	rq->ref_count++;
 	memcpy(rq->cmd, pc->c, 12);
 	blk_execute_rq_nowait(drive->queue, scsi->disk, rq, 0, NULL);
 	spin_lock_irq(host->host_lock);
 	return 0;
 abort:
 	kfree (pc);
-	kfree (rq);
+	if (rq)
+		blk_put_request(rq);
 	cmd->result = DID_ERROR << 16;
 	done(cmd);
 	return 0;
@@ -678,7 +681,9 @@ static int idescsi_eh_abort (struct scsi_cmnd *cmd)
 
 		if (blk_sense_request(scsi->pc->rq))
 			kfree(scsi->pc->buf);
-		kfree(scsi->pc->rq);
+		/* we need to call blk_put_request twice. */
+		blk_put_request(scsi->pc->rq);
+		blk_put_request(scsi->pc->rq);
 		kfree(scsi->pc);
 		scsi->pc = NULL;
 
@@ -730,7 +735,7 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 		kfree(scsi->pc->buf);
 	kfree(scsi->pc);
 	scsi->pc = NULL;
-	kfree(req);
+	blk_put_request(req);
 
 	/* now nuke the drive queue */
 	while ((req = elv_next_request(drive->queue))) {
