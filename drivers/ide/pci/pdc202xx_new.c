@@ -543,6 +543,15 @@ static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_de
 	return ide_pci_init_one(dev, d, NULL);
 }
 
+static void __devexit pdc202new_remove(struct pci_dev *dev)
+{
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct pci_dev *dev2 = host->dev[1] ? to_pci_dev(host->dev[1]) : NULL;
+
+	ide_pci_remove(dev);
+	pci_dev_put(dev2);
+}
+
 static const struct pci_device_id pdc202new_pci_tbl[] = {
 	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20268), 0 },
 	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20269), 1 },
@@ -559,6 +568,7 @@ static struct pci_driver driver = {
 	.name		= "Promise_IDE",
 	.id_table	= pdc202new_pci_tbl,
 	.probe		= pdc202new_init_one,
+	.remove		= pdc202new_remove,
 };
 
 static int __init pdc202new_ide_init(void)
@@ -566,7 +576,13 @@ static int __init pdc202new_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit pdc202new_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(pdc202new_ide_init);
+module_exit(pdc202new_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick, Frank Tiernan");
 MODULE_DESCRIPTION("PCI driver module for Promise PDC20268 and higher");
