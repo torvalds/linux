@@ -280,6 +280,12 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 	return err;
 }
 
+static void __devexit aec62xx_remove(struct pci_dev *dev)
+{
+	ide_pci_remove(dev);
+	pci_disable_device(dev);
+}
+
 static const struct pci_device_id aec62xx_pci_tbl[] = {
 	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP850UF), 0 },
 	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP860),   1 },
@@ -294,6 +300,7 @@ static struct pci_driver driver = {
 	.name		= "AEC62xx_IDE",
 	.id_table	= aec62xx_pci_tbl,
 	.probe		= aec62xx_init_one,
+	.remove		= aec62xx_remove,
 };
 
 static int __init aec62xx_ide_init(void)
@@ -301,7 +308,13 @@ static int __init aec62xx_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit aec62xx_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(aec62xx_ide_init);
+module_exit(aec62xx_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for ARTOP AEC62xx IDE");
