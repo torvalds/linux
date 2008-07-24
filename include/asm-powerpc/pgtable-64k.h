@@ -138,7 +138,7 @@ static inline struct subpage_prot_table *pgd_subpage_prot(pgd_t *pgd)
                 unsigned __split = (psize == MMU_PAGE_4K ||                 \
 				    psize == MMU_PAGE_64K_AP);              \
                 shift = mmu_psize_defs[psize].shift;                        \
-	        for (index = 0; va < __end; index++, va += (1 << shift)) {  \
+		for (index = 0; va < __end; index++, va += (1L << shift)) { \
 		        if (!__split || __rpte_sub_valid(rpte, index)) do { \
 
 #define pte_iterate_hashed_end() } while(0); } } while(0)
