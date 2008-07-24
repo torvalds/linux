@@ -393,14 +393,14 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
  *	@dev: PCI device
  *	@d: IDE port info
  *	@noisy: verbose flag
- *	@config: returned as 1 if we configured the hardware
  *
  *	Set up the PCI and controller side of the IDE interface. This brings
  *	up the PCI side of the device, checks that the device is enabled
  *	and enables it if need be
  */
 
-static int ide_setup_pci_controller(struct pci_dev *dev, const struct ide_port_info *d, int noisy, int *config)
+static int ide_setup_pci_controller(struct pci_dev *dev,
+				    const struct ide_port_info *d, int noisy)
 {
 	int ret;
 	u16 pcicmd;
@@ -421,7 +421,6 @@ static int ide_setup_pci_controller(struct pci_dev *dev, const struct ide_port_i
 		ret = ide_pci_configure(dev, d);
 		if (ret < 0)
 			goto out;
-		*config = 1;
 		printk(KERN_INFO "%s: device enabled (Linux)\n", d->name);
 	}
 
@@ -487,10 +486,9 @@ static int do_ide_setup_pci_device(struct pci_dev *dev,
 				   const struct ide_port_info *d,
 				   u8 noisy)
 {
-	int tried_config = 0;
 	int pciirq, ret;
 
-	ret = ide_setup_pci_controller(dev, d, noisy, &tried_config);
+	ret = ide_setup_pci_controller(dev, d, noisy);
 	if (ret < 0)
 		goto out;
 
@@ -515,10 +513,6 @@ static int do_ide_setup_pci_device(struct pci_dev *dev,
 			printk(KERN_INFO "%s: not 100%% native mode: "
 				"will probe irqs later\n", d->name);
 		pciirq = ret;
-	} else if (tried_config) {
-		if (noisy)
-			printk(KERN_INFO "%s: will probe irqs later\n", d->name);
-		pciirq = 0;
 	} else if (!pciirq) {
 		if (noisy)
 			printk(KERN_WARNING "%s: bad irq (%d): will probe later\n",
