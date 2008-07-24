@@ -1608,6 +1608,16 @@ void ieee80211_wake_queue(struct ieee80211_hw *hw, int queue);
 void ieee80211_stop_queue(struct ieee80211_hw *hw, int queue);
 
 /**
+ * ieee80211_queue_stopped - test status of the queue
+ * @hw: pointer as obtained from ieee80211_alloc_hw().
+ * @queue: queue number (counted from zero).
+ *
+ * Drivers should use this function instead of netif_stop_queue.
+ */
+
+int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue);
+
+/**
  * ieee80211_stop_queues - stop all queues
  * @hw: pointer as obtained from ieee80211_alloc_hw().
  *

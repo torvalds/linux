@@ -386,6 +386,13 @@ void ieee80211_stop_queues(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(ieee80211_stop_queues);
 
+int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	return __netif_subqueue_stopped(local->mdev, queue);
+}
+EXPORT_SYMBOL(ieee80211_queue_stopped);
+
 void ieee80211_wake_queues(struct ieee80211_hw *hw)
 {
 	int i;
