@@ -663,15 +663,25 @@ static void sm501fb_panel_power(struct sm501fb_info *fbi, int to)
 		sm501fb_sync_regs(fbi);
 		mdelay(10);
 
+		/* VBIASEN */
+
 		if (!(pd->flags & SM501FB_FLAG_PANEL_NO_VBIASEN)) {
-			control |= SM501_DC_PANEL_CONTROL_BIAS;	/* VBIASEN */
+			if (pd->flags & SM501FB_FLAG_PANEL_INV_VBIASEN)
+				control &= ~SM501_DC_PANEL_CONTROL_BIAS;
+			else
+				control |= SM501_DC_PANEL_CONTROL_BIAS;
+
 			writel(control, ctrl_reg);
 			sm501fb_sync_regs(fbi);
 			mdelay(10);
 		}
 
 		if (!(pd->flags & SM501FB_FLAG_PANEL_NO_FPEN)) {
-			control |= SM501_DC_PANEL_CONTROL_FPEN;
+			if (pd->flags & SM501FB_FLAG_PANEL_INV_FPEN)
+				control &= ~SM501_DC_PANEL_CONTROL_FPEN;
+			else
+				control |= SM501_DC_PANEL_CONTROL_FPEN;
+
 			writel(control, ctrl_reg);
 			sm501fb_sync_regs(fbi);
 			mdelay(10);
@@ -679,14 +689,22 @@ static void sm501fb_panel_power(struct sm501fb_info *fbi, int to)
 	} else if (!to && (control & SM501_DC_PANEL_CONTROL_VDD) != 0) {
 		/* disable panel power */
 		if (!(pd->flags & SM501FB_FLAG_PANEL_NO_FPEN)) {
-			control &= ~SM501_DC_PANEL_CONTROL_FPEN;
+			if (pd->flags & SM501FB_FLAG_PANEL_INV_FPEN)
+				control |= SM501_DC_PANEL_CONTROL_FPEN;
+			else
+				control &= ~SM501_DC_PANEL_CONTROL_FPEN;
+
 			writel(control, ctrl_reg);
 			sm501fb_sync_regs(fbi);
 			mdelay(10);
 		}
 
 		if (!(pd->flags & SM501FB_FLAG_PANEL_NO_VBIASEN)) {
-			control &= ~SM501_DC_PANEL_CONTROL_BIAS;
+			if (pd->flags & SM501FB_FLAG_PANEL_INV_VBIASEN)
+				control |= SM501_DC_PANEL_CONTROL_BIAS;
+			else
+				control &= ~SM501_DC_PANEL_CONTROL_BIAS;
+
 			writel(control, ctrl_reg);
 			sm501fb_sync_regs(fbi);
 			mdelay(10);
