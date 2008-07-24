@@ -389,6 +389,9 @@ static int has_affinity(struct spu_context *ctx)
 	if (list_empty(&ctx->aff_list))
 		return 0;
 
+	if (atomic_read(&ctx->gang->aff_sched_count) == 0)
+		ctx->gang->aff_ref_spu = NULL;
+
 	if (!gang->aff_ref_spu) {
 		if (!(gang->aff_flags & AFF_MERGED))
 			aff_merge_remaining_ctxs(gang);
@@ -416,14 +419,8 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
  	if (spu->ctx->flags & SPU_CREATE_NOSCHED)
 		atomic_dec(&cbe_spu_info[spu->node].reserved_spus);
 
-	if (ctx->gang){
-		mutex_lock(&ctx->gang->aff_mutex);
-		if (has_affinity(ctx)) {
-			if (atomic_dec_and_test(&ctx->gang->aff_sched_count))
-				ctx->gang->aff_ref_spu = NULL;
-		}
-		mutex_unlock(&ctx->gang->aff_mutex);
-	}
+	if (ctx->gang)
+		atomic_dec_if_positive(&ctx->gang->aff_sched_count);
 
 	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
@@ -562,10 +559,7 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
 				goto found;
 			mutex_unlock(&cbe_spu_info[node].list_mutex);
 
-			mutex_lock(&ctx->gang->aff_mutex);
-			if (atomic_dec_and_test(&ctx->gang->aff_sched_count))
-				ctx->gang->aff_ref_spu = NULL;
-			mutex_unlock(&ctx->gang->aff_mutex);
+			atomic_dec(&ctx->gang->aff_sched_count);
 			goto not_found;
 		}
 		mutex_unlock(&ctx->gang->aff_mutex);
