@@ -253,7 +253,7 @@ static int do_balance_runtime(struct rt_rq *rt_rq)
 
 		diff = iter->rt_runtime - iter->rt_time;
 		if (diff > 0) {
-			do_div(diff, weight);
+			diff = div_u64((u64)diff, weight);
 			if (rt_rq->rt_runtime + diff > rt_period)
 				diff = rt_period - rt_rq->rt_runtime;
 			iter->rt_runtime -= diff;
