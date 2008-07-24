@@ -337,6 +337,7 @@ static struct pci_driver driver = {
 	.name		= "NS87415_IDE",
 	.id_table	= ns87415_pci_tbl,
 	.probe		= ns87415_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init ns87415_ide_init(void)
@@ -344,7 +345,13 @@ static int __init ns87415_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit ns87415_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(ns87415_ide_init);
+module_exit(ns87415_ide_exit);
 
 MODULE_AUTHOR("Mark Lord, Eddie Dost, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for NS87415 IDE");
