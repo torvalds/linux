@@ -310,11 +310,9 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 		ret = -EFAULT;
 		goto out;
 	}
+
+	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 	namelen = strlen(vol_args->name);
-	if (namelen > BTRFS_VOL_NAME_MAX) {
-		ret = -EINVAL;
-		goto out;
-	}
 
 	mutex_lock(&root->fs_info->volume_mutex);
 	sizestr = vol_args->name;
@@ -412,11 +410,8 @@ static noinline int btrfs_ioctl_snap_create(struct btrfs_root *root,
 		goto out;
 	}
 
+	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 	namelen = strlen(vol_args->name);
-	if (namelen > BTRFS_VOL_NAME_MAX) {
-		ret = -EINVAL;
-		goto out;
-	}
 	if (strchr(vol_args->name, '/')) {
 		ret = -EINVAL;
 		goto out;
@@ -487,6 +482,7 @@ long btrfs_ioctl_add_dev(struct btrfs_root *root, void __user *arg)
 		ret = -EFAULT;
 		goto out;
 	}
+	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 	ret = btrfs_init_new_device(root, vol_args->name);
 
 out:
@@ -508,6 +504,7 @@ long btrfs_ioctl_rm_dev(struct btrfs_root *root, void __user *arg)
 		ret = -EFAULT;
 		goto out;
 	}
+	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 	ret = btrfs_rm_device(root, vol_args->name);
 
 out:
