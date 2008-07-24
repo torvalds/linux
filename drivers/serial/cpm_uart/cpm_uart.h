@@ -50,6 +50,15 @@
 
 #define SCC_WAIT_CLOSING 100
 
+#define GPIO_CTS	0
+#define GPIO_RTS	1
+#define GPIO_DCD	2
+#define GPIO_DSR	3
+#define GPIO_DTR	4
+#define GPIO_RI		5
+
+#define NUM_GPIOS	(GPIO_RI+1)
+
 struct uart_cpm_port {
 	struct uart_port	port;
 	u16			rx_nrfifos;
@@ -82,6 +91,7 @@ struct uart_cpm_port {
 	int			wait_closing;
 	/* value to combine with opcode to form cpm command */
 	u32			command;
+	int			gpios[NUM_GPIOS];
 };
 
 extern int cpm_uart_nr;
