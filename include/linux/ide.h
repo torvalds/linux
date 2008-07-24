@@ -631,6 +631,7 @@ struct ide_host {
 	ide_hwif_t	*ports[MAX_HWIFS];
 	unsigned int	n_ports;
 	struct device	*dev[2];
+	unsigned long	host_flags;
 	void		*host_priv;
 };
 
@@ -1213,6 +1214,7 @@ struct ide_port_info {
 int ide_pci_init_one(struct pci_dev *, const struct ide_port_info *, void *);
 int ide_pci_init_two(struct pci_dev *, struct pci_dev *,
 		     const struct ide_port_info *, void *);
+void ide_pci_remove(struct pci_dev *);
 
 void ide_map_sg(ide_drive_t *, struct request *);
 void ide_init_sg_cmd(ide_drive_t *, struct request *);

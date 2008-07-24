@@ -1609,6 +1609,9 @@ struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
 	if (hws[0])
 		host->dev[0] = hws[0]->dev;
 
+	if (d)
+		host->host_flags = d->host_flags;
+
 	return host;
 }
 EXPORT_SYMBOL_GPL(ide_host_alloc_all);
