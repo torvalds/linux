@@ -680,10 +680,12 @@ static void set_vclk(struct tridentfb_par *par, unsigned long freq)
 
 	d = 20000;
 	for (k = 1; k >= 0; k--)
-		for (m = 0; m < 32; m++)
-			for (n = 0; n < 122; n++) {
+		for (m = 0; m < 32; m++) {
+			n = 2 * (m + 2) - 8;
+			for (n = (n < 0 ? 0 : n); n < 122; n++) {
 				fi = ((14318l * (n + 8)) / (m + 2)) >> k;
-				if ((di = abs(fi - freq)) < d) {
+				di = abs(fi - freq);
+				if (di <= d) {
 					d = di;
 					best_n = n;
 					best_m = m;
@@ -692,6 +694,7 @@ static void set_vclk(struct tridentfb_par *par, unsigned long freq)
 				if (fi > freq)
 					break;
 			}
+		}
 
 	if (is_oldclock(par->chip_id)) {
 		lo = best_n | (best_m << 7);
@@ -977,8 +980,8 @@ static int tridentfb_set_par(struct fb_info *info)
 
 	debug("enter\n");
 	hdispend = var->xres / 8 - 1;
-	hsyncstart = (var->xres + var->right_margin) / 8 - 1;
-	hsyncend = (var->xres + var->right_margin + var->hsync_len) / 8 - 1;
+	hsyncstart = (var->xres + var->right_margin) / 8;
+	hsyncend = (var->xres + var->right_margin + var->hsync_len) / 8;
 	htotal = (var->xres + var->left_margin + var->right_margin +
 		  var->hsync_len) / 8 - 5;
 	hblankstart = hdispend + 1;
@@ -991,8 +994,22 @@ static int tridentfb_set_par(struct fb_info *info)
 	vblankstart = vdispend + 1;
 	vblankend = vtotal;
 
+	if (info->var.vmode & FB_VMODE_INTERLACED) {
+		vtotal /= 2;
+		vdispend /= 2;
+		vsyncstart /= 2;
+		vsyncend /= 2;
+		vblankstart /= 2;
+		vblankend /= 2;
+	}
+
 	crtc_unlock(par);
 	write3CE(par, CyberControl, 8);
+	tmp = 0xEB;
+	if (var->sync & FB_SYNC_HOR_HIGH_ACT)
+		tmp &= ~0x40;
+	if (var->sync & FB_SYNC_VERT_HIGH_ACT)
+		tmp &= ~0x80;
 
 	if (par->flatpanel && var->xres < nativex) {
 		/*
@@ -1000,7 +1017,7 @@ static int tridentfb_set_par(struct fb_info *info)
 		 * than requested resolution decide whether
 		 * we stretch or center
 		 */
-		t_outb(par, 0xEB, VGA_MIS_W);
+		t_outb(par, tmp | 0xC0, VGA_MIS_W);
 
 		shadowmode_on(par);
 
@@ -1010,7 +1027,7 @@ static int tridentfb_set_par(struct fb_info *info)
 			screen_stretch(par);
 
 	} else {
-		t_outb(par, 0x2B, VGA_MIS_W);
+		t_outb(par, tmp, VGA_MIS_W);
 		write3CE(par, CyberControl, 8);
 	}
 
@@ -1071,6 +1088,10 @@ static int tridentfb_set_par(struct fb_info *info)
 	tmp = (info->var.vmode & FB_VMODE_INTERLACED) ? 0x84 : 0x80;
 	/* enable access extended memory */
 	write3X4(par, CRTCModuleTest, tmp);
+	tmp = read3CE(par, MiscIntContReg) & ~0x4;
+	if (info->var.vmode & FB_VMODE_INTERLACED)
+		tmp |= 0x4;
+	write3CE(par, MiscIntContReg, tmp);
 
 	/* enable GE for text acceleration */
 	write3X4(par, GraphEngReg, 0x80);
