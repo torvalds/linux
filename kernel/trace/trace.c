@@ -1203,9 +1203,6 @@ static void *s_next(struct seq_file *m, void *v, loff_t *pos)
 
 	iter->pos = *pos;
 
-	if (last_ent && !ent)
-		seq_puts(m, "\n\nvim:ft=help\n");
-
 	return ent;
 }
 
