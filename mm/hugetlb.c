@@ -201,20 +201,9 @@ static long region_count(struct list_head *head, long f, long t)
 
 /*
  * Convert the address within this vma to the page offset within
- * the mapping, in base page units.
- */
-static pgoff_t vma_page_offset(struct vm_area_struct *vma,
-				unsigned long address)
-{
-	return ((address - vma->vm_start) >> PAGE_SHIFT) +
-					(vma->vm_pgoff >> PAGE_SHIFT);
-}
-
-/*
- * Convert the address within this vma to the page offset within
  * the mapping, in pagecache page units; huge pages here.
  */
-static pgoff_t vma_pagecache_offset(struct vm_area_struct *vma,
+static pgoff_t vma_hugecache_offset(struct vm_area_struct *vma,
 					unsigned long address)
 {
 	return ((address - vma->vm_start) >> HPAGE_SHIFT) +
@@ -806,7 +795,7 @@ static int vma_needs_reservation(struct vm_area_struct *vma, unsigned long addr)
 	struct inode *inode = mapping->host;
 
 	if (vma->vm_flags & VM_SHARED) {
-		pgoff_t idx = vma_pagecache_offset(vma, addr);
+		pgoff_t idx = vma_hugecache_offset(vma, addr);
 		return region_chg(&inode->i_mapping->private_list,
 							idx, idx + 1);
 
@@ -815,7 +804,7 @@ static int vma_needs_reservation(struct vm_area_struct *vma, unsigned long addr)
 
 	} else  {
 		int err;
-		pgoff_t idx = vma_pagecache_offset(vma, addr);
+		pgoff_t idx = vma_hugecache_offset(vma, addr);
 		struct resv_map *reservations = vma_resv_map(vma);
 
 		err = region_chg(&reservations->regions, idx, idx + 1);
@@ -831,11 +820,11 @@ static void vma_commit_reservation(struct vm_area_struct *vma,
 	struct inode *inode = mapping->host;
 
 	if (vma->vm_flags & VM_SHARED) {
-		pgoff_t idx = vma_pagecache_offset(vma, addr);
+		pgoff_t idx = vma_hugecache_offset(vma, addr);
 		region_add(&inode->i_mapping->private_list, idx, idx + 1);
 
 	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
-		pgoff_t idx = vma_pagecache_offset(vma, addr);
+		pgoff_t idx = vma_hugecache_offset(vma, addr);
 		struct resv_map *reservations = vma_resv_map(vma);
 
 		/* Mark this page used in the map. */
@@ -1153,8 +1142,8 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
 	unsigned long end;
 
 	if (reservations) {
-		start = vma_pagecache_offset(vma, vma->vm_start);
-		end = vma_pagecache_offset(vma, vma->vm_end);
+		start = vma_hugecache_offset(vma, vma->vm_start);
+		end = vma_hugecache_offset(vma, vma->vm_end);
 
 		reserve = (end - start) -
 			region_count(&reservations->regions, start, end);
@@ -1471,7 +1460,7 @@ static struct page *hugetlbfs_pagecache_page(struct vm_area_struct *vma,
 	pgoff_t idx;
 
 	mapping = vma->vm_file->f_mapping;
-	idx = vma_pagecache_offset(vma, address);
+	idx = vma_hugecache_offset(vma, address);
 
 	return find_lock_page(mapping, idx);
 }
@@ -1499,7 +1488,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	mapping = vma->vm_file->f_mapping;
-	idx = vma_pagecache_offset(vma, address);
+	idx = vma_hugecache_offset(vma, address);
 
 	/*
 	 * Use page lock to guard against racing truncation
