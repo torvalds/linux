@@ -215,19 +215,106 @@ autofs4_find_wait(struct autofs_sb_info *sbi, struct qstr *qstr)
 	return wq;
 }
 
+/*
+ * Check if we have a valid request.
+ * Returns
+ * 1 if the request should continue.
+ *   In this case we can return an autofs_wait_queue entry if one is
+ *   found or NULL to idicate a new wait needs to be created.
+ * 0 or a negative errno if the request shouldn't continue.
+ */
+static int validate_request(struct autofs_wait_queue **wait,
+			    struct autofs_sb_info *sbi,
+			    struct qstr *qstr,
+			    struct dentry*dentry, enum autofs_notify notify)
+{
+	struct autofs_wait_queue *wq;
+	struct autofs_info *ino;
+
+	/* Wait in progress, continue; */
+	wq = autofs4_find_wait(sbi, qstr);
+	if (wq) {
+		*wait = wq;
+		return 1;
+	}
+
+	*wait = NULL;
+
+	/* If we don't yet have any info this is a new request */
+	ino = autofs4_dentry_ino(dentry);
+	if (!ino)
+		return 1;
+
+	/*
+	 * If we've been asked to wait on an existing expire (NFY_NONE)
+	 * but there is no wait in the queue ...
+	 */
+	if (notify == NFY_NONE) {
+		/*
+		 * Either we've betean the pending expire to post it's
+		 * wait or it finished while we waited on the mutex.
+		 * So we need to wait till either, the wait appears
+		 * or the expire finishes.
+		 */
+
+		while (ino->flags & AUTOFS_INF_EXPIRING) {
+			mutex_unlock(&sbi->wq_mutex);
+			schedule_timeout_interruptible(HZ/10);
+			if (mutex_lock_interruptible(&sbi->wq_mutex))
+				return -EINTR;
+
+			wq = autofs4_find_wait(sbi, qstr);
+			if (wq) {
+				*wait = wq;
+				return 1;
+			}
+		}
+
+		/*
+		 * Not ideal but the status has already gone. Of the two
+		 * cases where we wait on NFY_NONE neither depend on the
+		 * return status of the wait.
+		 */
+		return 0;
+	}
+
+	/*
+	 * If we've been asked to trigger a mount and the request
+	 * completed while we waited on the mutex ...
+	 */
+	if (notify == NFY_MOUNT) {
+		/*
+		 * If the dentry isn't hashed just go ahead and try the
+		 * mount again with a new wait (not much else we can do).
+		*/
+		if (!d_unhashed(dentry)) {
+			/*
+			 * But if the dentry is hashed, that means that we
+			 * got here through the revalidate path.  Thus, we
+			 * need to check if the dentry has been mounted
+			 * while we waited on the wq_mutex. If it has,
+			 * simply return success.
+			 */
+			if (d_mountpoint(dentry))
+				return 0;
+		}
+	}
+
+	return 1;
+}
+
 int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		enum autofs_notify notify)
 {
-	struct autofs_info *ino;
 	struct autofs_wait_queue *wq;
 	struct qstr qstr;
 	char *name;
-	int status, type;
+	int status, ret, type;
 
 	/* In catatonic mode, we don't wait for nobody */
 	if (sbi->catatonic)
 		return -ENOENT;
-	
+
 	name = kmalloc(NAME_MAX + 1, GFP_KERNEL);
 	if (!name)
 		return -ENOMEM;
@@ -245,43 +332,15 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 	qstr.name = name;
 	qstr.hash = full_name_hash(name, qstr.len);
 
-	if (mutex_lock_interruptible(&sbi->wq_mutex)) {
-		kfree(qstr.name);
+	if (mutex_lock_interruptible(&sbi->wq_mutex))
 		return -EINTR;
-	}
 
-	wq = autofs4_find_wait(sbi, &qstr);
-	ino = autofs4_dentry_ino(dentry);
-	if (!wq && ino && notify == NFY_NONE) {
-		/*
-		 * Either we've betean the pending expire to post it's
-		 * wait or it finished while we waited on the mutex.
-		 * So we need to wait till either, the wait appears
-		 * or the expire finishes.
-		 */
-
-		while (ino->flags & AUTOFS_INF_EXPIRING) {
+	ret = validate_request(&wq, sbi, &qstr, dentry, notify);
+	if (ret <= 0) {
+		if (ret == 0)
 			mutex_unlock(&sbi->wq_mutex);
-			schedule_timeout_interruptible(HZ/10);
-			if (mutex_lock_interruptible(&sbi->wq_mutex)) {
-				kfree(qstr.name);
-				return -EINTR;
-			}
-			wq = autofs4_find_wait(sbi, &qstr);
-			if (wq)
-				break;
-		}
-
-		/*
-		 * Not ideal but the status has already gone. Of the two
-		 * cases where we wait on NFY_NONE neither depend on the
-		 * return status of the wait.
-		 */
-		if (!wq) {
-			kfree(qstr.name);
-			mutex_unlock(&sbi->wq_mutex);
-			return 0;
-		}
+		kfree(qstr.name);
+		return ret;
 	}
 
 	if (!wq) {
@@ -392,9 +451,9 @@ int autofs4_wait_release(struct autofs_sb_info *sbi, autofs_wqt_t wait_queue_tok
 	}
 
 	*wql = wq->next;	/* Unlink from chain */
-	mutex_unlock(&sbi->wq_mutex);
 	kfree(wq->name.name);
 	wq->name.name = NULL;	/* Do not wait on this queue */
+	mutex_unlock(&sbi->wq_mutex);
 
 	wq->status = status;
 
