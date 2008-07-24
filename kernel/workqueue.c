@@ -140,7 +140,6 @@ static void insert_work(struct cpu_workqueue_struct *cwq,
 	wake_up(&cwq->more_work);
 }
 
-/* Preempt must be disabled. */
 static void __queue_work(struct cpu_workqueue_struct *cwq,
 			 struct work_struct *work)
 {
@@ -174,6 +173,31 @@ int queue_work(struct workqueue_struct *wq, struct work_struct *work)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(queue_work);
+
+/**
+ * queue_work_on - queue work on specific cpu
+ * @cpu: CPU number to execute work on
+ * @wq: workqueue to use
+ * @work: work to queue
+ *
+ * Returns 0 if @work was already on a queue, non-zero otherwise.
+ *
+ * We queue the work to a specific CPU, the caller must ensure it
+ * can't go away.
+ */
+int
+queue_work_on(int cpu, struct workqueue_struct *wq, struct work_struct *work)
+{
+	int ret = 0;
+
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, work_data_bits(work))) {
+		BUG_ON(!list_empty(&work->entry));
+		__queue_work(wq_per_cpu(wq, cpu), work);
+		ret = 1;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(queue_work_on);
 
 static void delayed_work_timer_fn(unsigned long __data)
 {
@@ -552,6 +576,19 @@ int schedule_work(struct work_struct *work)
 	return queue_work(keventd_wq, work);
 }
 EXPORT_SYMBOL(schedule_work);
+
+/*
+ * schedule_work_on - put work task on a specific cpu
+ * @cpu: cpu to put the work task on
+ * @work: job to be done
+ *
+ * This puts a job on a specific cpu
+ */
+int schedule_work_on(int cpu, struct work_struct *work)
+{
+	return queue_work_on(cpu, keventd_wq, work);
+}
+EXPORT_SYMBOL(schedule_work_on);
 
 /**
  * schedule_delayed_work - put work task in global workqueue after delay
