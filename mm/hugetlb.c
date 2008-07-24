@@ -1439,19 +1439,9 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 			  unsigned long end, struct page *ref_page)
 {
-	/*
-	 * It is undesirable to test vma->vm_file as it should be non-null
-	 * for valid hugetlb area. However, vm_file will be NULL in the error
-	 * cleanup path of do_mmap_pgoff. When hugetlbfs ->mmap method fails,
-	 * do_mmap_pgoff() nullifies vma->vm_file before calling this function
-	 * to clean up. Since no pte has actually been setup, it is safe to
-	 * do nothing in this case.
-	 */
-	if (vma->vm_file) {
-		spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
-		__unmap_hugepage_range(vma, start, end, ref_page);
-		spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
-	}
+	spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
+	__unmap_hugepage_range(vma, start, end, ref_page);
+	spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
 }
 
 /*
