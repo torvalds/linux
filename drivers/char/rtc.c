@@ -121,8 +121,6 @@ static irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 	return 0;
 }
 #endif
-#else
-extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id);
 #endif
 
 /*
