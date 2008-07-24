@@ -348,6 +348,7 @@ static struct pci_driver driver = {
 	.name		= "W82C105_IDE",
 	.id_table	= sl82c105_pci_tbl,
 	.probe		= sl82c105_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init sl82c105_ide_init(void)
@@ -355,7 +356,13 @@ static int __init sl82c105_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit sl82c105_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(sl82c105_ide_init);
+module_exit(sl82c105_ide_exit);
 
 MODULE_DESCRIPTION("PCI driver module for W82C105 IDE");
 MODULE_LICENSE("GPL");
