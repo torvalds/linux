@@ -1287,6 +1287,7 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 
 	if (!request_mem_region(tridentfb_fix.mmio_start, tridentfb_fix.mmio_len, "tridentfb")) {
 		debug("request_region failed!\n");
+		framebuffer_release(info);
 		return -1;
 	}
 
@@ -1299,8 +1300,6 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 		goto out_unmap1;
 	}
 
-	enable_mmio();
-
 	/* setup framebuffer memory */
 	tridentfb_fix.smem_start = pci_resource_start(dev, 0);
 	tridentfb_fix.smem_len = get_memsize(default_par);
@@ -1311,6 +1310,8 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 		err = -1;
 		goto out_unmap1;
 	}
+
+	enable_mmio();
 
 	info->screen_base = ioremap_nocache(tridentfb_fix.smem_start,
 					    tridentfb_fix.smem_len);
