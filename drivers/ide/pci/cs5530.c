@@ -129,12 +129,11 @@ static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
 /**
  *	init_chipset_5530	-	set up 5530 bridge
  *	@dev: PCI device
- *	@name: device name
  *
  *	Initialize the cs5530 bridge for reliable IDE DMA operation.
  */
 
-static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_cs5530(struct pci_dev *dev)
 {
 	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL;
 
@@ -153,11 +152,11 @@ static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const ch
 		}
 	}
 	if (!master_0) {
-		printk(KERN_ERR "%s: unable to locate PCI MASTER function\n", name);
+		printk(KERN_ERR DRV_NAME ": unable to locate PCI MASTER function\n");
 		goto out;
 	}
 	if (!cs5530_0) {
-		printk(KERN_ERR "%s: unable to locate CS5530 LEGACY function\n", name);
+		printk(KERN_ERR DRV_NAME ": unable to locate CS5530 LEGACY function\n");
 		goto out;
 	}
 

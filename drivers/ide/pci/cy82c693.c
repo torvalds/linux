@@ -332,7 +332,7 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 /*
  * this function is called during init and is used to setup the cy82c693 chip
  */
-static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev)
 {
 	if (PCI_FUNC(dev->devfn) != 1)
 		return 0;
@@ -351,8 +351,8 @@ static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const c
 	data = inb(CY82_DATA_PORT);
 
 #if CY82C693_DEBUG_INFO
-	printk(KERN_INFO "%s: Peripheral Configuration Register: 0x%X\n",
-		name, data);
+	printk(KERN_INFO DRV_NAME ": Peripheral Configuration Register: 0x%X\n",
+		data);
 #endif /* CY82C693_DEBUG_INFO */
 
 	/*
@@ -373,8 +373,8 @@ static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const c
 	outb(data, CY82_DATA_PORT);
 
 #if CY82C693_DEBUG_INFO
-	printk(KERN_INFO "%s: New Peripheral Configuration Register: 0x%X\n",
-		name, data);
+	printk(KERN_INFO ": New Peripheral Configuration Register: 0x%X\n",
+		data);
 #endif /* CY82C693_DEBUG_INFO */
 
 #endif /* CY82C693_SETDMA_CLOCK */

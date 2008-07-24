@@ -262,13 +262,12 @@ static void __devinit via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
 /**
  *	init_chipset_via82cxxx	-	initialization handler
  *	@dev: PCI device
- *	@name: Name of interface
  *
  *	The initialization callback. Here we determine the IDE chip type
  *	and initialize its drive independent registers.
  */
 
-static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct via82cxxx_dev *vdev = host->host_priv;

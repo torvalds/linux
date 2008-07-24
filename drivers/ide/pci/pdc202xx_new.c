@@ -326,8 +326,9 @@ static void __devinit apple_kiwi_init(struct pci_dev *pdev)
 }
 #endif /* CONFIG_PPC_PMAC */
 
-static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev)
 {
+	const char *name = DRV_NAME;
 	unsigned long dma_base = pci_resource_start(dev, 4);
 	unsigned long sec_dma_base = dma_base + 0x08;
 	long pll_input, pll_output, ratio;

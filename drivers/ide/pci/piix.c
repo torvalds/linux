@@ -200,13 +200,12 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 /**
  *	init_chipset_ich	-	set up the ICH chipset
  *	@dev: PCI device to set up
- *	@name: Name of the device
  *
  *	Initialize the PCI device as required.  For the ICH this turns
  *	out to be nice and simple.
  */
 
-static unsigned int __devinit init_chipset_ich(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_ich(struct pci_dev *dev)
 {
 	u32 extra = 0;
 

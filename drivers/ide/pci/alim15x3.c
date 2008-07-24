@@ -209,13 +209,12 @@ static int ali15x3_dma_setup(ide_drive_t *drive)
 /**
  *	init_chipset_ali15x3	-	Initialise an ALi IDE controller
  *	@dev: PCI device
- *	@name: Name of the controller
  *
  *	This function initializes the ALI IDE controller and where 
  *	appropriate also sets up the 1533 southbridge.
  */
-  
-static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const char *name)
+
+static unsigned int __devinit init_chipset_ali15x3(struct pci_dev *dev)
 {
 	unsigned long flags;
 	u8 tmpbyte;

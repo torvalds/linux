@@ -457,14 +457,12 @@ static void sil_sata_pre_reset(ide_drive_t *drive)
 /**
  *	init_chipset_siimage	-	set up an SI device
  *	@dev: PCI device
- *	@name: device name
  *
  *	Perform the initial PCI set up for this device. Attempt to switch
  *	to 133 MHz clocking if the system isn't already set up to do it.
  */
 
-static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev,
-						   const char *name)
+static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	void __iomem *ioaddr = host->host_priv;
@@ -541,8 +539,8 @@ static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev,
 			{ "== 100", "== 133", "== 2X PCI", "DISABLED!" };
 
 		tmp >>= 4;
-		printk(KERN_INFO "%s %s: BASE CLOCK %s\n",
-			name, pci_name(dev), clk_str[tmp & 3]);
+		printk(KERN_INFO DRV_NAME " %s: BASE CLOCK %s\n",
+			pci_name(dev), clk_str[tmp & 3]);
 	}
 
 	return 0;

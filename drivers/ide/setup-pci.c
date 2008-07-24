@@ -515,7 +515,7 @@ static int do_ide_setup_pci_device(struct pci_dev *dev,
 	 * space, place chipset into init-mode, and/or preserve
 	 * an interrupt if the card is not native ide support.
 	 */
-	ret = d->init_chipset ? d->init_chipset(dev, d->name) : 0;
+	ret = d->init_chipset ? d->init_chipset(dev) : 0;
 	if (ret < 0)
 		goto out;
 

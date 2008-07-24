@@ -112,15 +112,13 @@ static void amd_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	amd_set_drive(drive, XFER_PIO_0 + pio);
 }
 
-static void __devinit amd7409_cable_detect(struct pci_dev *dev,
-					   const char *name)
+static void __devinit amd7409_cable_detect(struct pci_dev *dev)
 {
 	/* no host side cable detection */
 	amd_80w = 0x03;
 }
 
-static void __devinit amd7411_cable_detect(struct pci_dev *dev,
-					   const char *name)
+static void __devinit amd7411_cable_detect(struct pci_dev *dev)
 {
 	int i;
 	u32 u = 0;
@@ -131,9 +129,9 @@ static void __devinit amd7411_cable_detect(struct pci_dev *dev,
 	amd_80w = ((t & 0x3) ? 1 : 0) | ((t & 0xc) ? 2 : 0);
 	for (i = 24; i >= 0; i -= 8)
 		if (((u >> i) & 4) && !(amd_80w & (1 << (1 - (i >> 4))))) {
-			printk(KERN_WARNING "%s %s: BIOS didn't set cable bits "
-				"correctly. Enabling workaround.\n",
-				name, pci_name(dev));
+			printk(KERN_WARNING DRV_NAME " %s: BIOS didn't set "
+				"cable bits correctly. Enabling workaround.\n",
+				pci_name(dev));
 			amd_80w |= (1 << (1 - (i >> 4)));
 		}
 }
@@ -142,8 +140,7 @@ static void __devinit amd7411_cable_detect(struct pci_dev *dev,
  * The initialization callback.  Initialize drive independent registers.
  */
 
-static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev,
-						   const char *name)
+static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev)
 {
 	u8 t = 0, offset = amd_offset(dev);
 
@@ -156,9 +153,9 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev,
 		; /* no UDMA > 2 */
 	else if (dev->vendor == PCI_VENDOR_ID_AMD &&
 		 dev->device == PCI_DEVICE_ID_AMD_VIPER_7409)
-		amd7409_cable_detect(dev, name);
+		amd7409_cable_detect(dev);
 	else
-		amd7411_cable_detect(dev, name);
+		amd7411_cable_detect(dev);
 
 /*
  * Take care of prefetch & postwrite.
