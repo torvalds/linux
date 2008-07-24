@@ -488,10 +488,6 @@ static int do_ide_setup_pci_device(struct pci_dev *dev,
 {
 	int pciirq, ret;
 
-	ret = ide_setup_pci_controller(dev, d, noisy);
-	if (ret < 0)
-		goto out;
-
 	/*
 	 * Can we trust the reported IRQ?
 	 */
@@ -534,6 +530,10 @@ int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 	int ret;
 
+	ret = ide_setup_pci_controller(dev, d, 1);
+	if (ret < 0)
+		goto out;
+
 	ret = do_ide_setup_pci_device(dev, d, 1);
 
 	if (ret >= 0) {
@@ -542,7 +542,7 @@ int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 
 		ret = ide_host_add(d, hws, NULL);
 	}
-
+out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ide_setup_pci_device);
@@ -555,6 +555,10 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 
 	for (i = 0; i < 2; i++) {
+		ret = ide_setup_pci_controller(pdev[i], d, !i);
+		if (ret < 0)
+			goto out;
+
 		ret = do_ide_setup_pci_device(pdev[i], d, !i);
 
 		/*
