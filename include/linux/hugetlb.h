@@ -36,8 +36,6 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
 						struct vm_area_struct *vma);
 void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
 
-extern unsigned long max_huge_pages;
-extern unsigned long sysctl_overcommit_huge_pages;
 extern unsigned long hugepages_treat_as_movable;
 extern const unsigned long hugetlb_zero, hugetlb_infinity;
 extern int sysctl_hugetlb_shm_group;
@@ -181,7 +179,17 @@ struct hstate {
 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
 };
 
-extern struct hstate default_hstate;
+void __init hugetlb_add_hstate(unsigned order);
+struct hstate *size_to_hstate(unsigned long size);
+
+#ifndef HUGE_MAX_HSTATE
+#define HUGE_MAX_HSTATE 1
+#endif
+
+extern struct hstate hstates[HUGE_MAX_HSTATE];
+extern unsigned int default_hstate_idx;
+
+#define default_hstate (hstates[default_hstate_idx])
 
 static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
 {
@@ -229,6 +237,11 @@ static inline unsigned int blocks_per_huge_page(struct hstate *h)
 }
 
 #include <asm/hugetlb.h>
+
+static inline struct hstate *page_hstate(struct page *page)
+{
+	return size_to_hstate(PAGE_SIZE << compound_order(page));
+}
 
 #else
 struct hstate {};

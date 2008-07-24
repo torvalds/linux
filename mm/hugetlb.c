@@ -22,12 +22,19 @@
 #include "internal.h"
 
 const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
-unsigned long max_huge_pages;
-unsigned long sysctl_overcommit_huge_pages;
 static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
 unsigned long hugepages_treat_as_movable;
 
-struct hstate default_hstate;
+static int max_hstate;
+unsigned int default_hstate_idx;
+struct hstate hstates[HUGE_MAX_HSTATE];
+
+/* for command line parsing */
+static struct hstate * __initdata parsed_hstate;
+static unsigned long __initdata default_hstate_max_huge_pages;
+
+#define for_each_hstate(h) \
+	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
 
 /*
  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
@@ -454,13 +461,24 @@ static void update_and_free_page(struct hstate *h, struct page *page)
 	__free_pages(page, huge_page_order(h));
 }
 
+struct hstate *size_to_hstate(unsigned long size)
+{
+	struct hstate *h;
+
+	for_each_hstate(h) {
+		if (huge_page_size(h) == size)
+			return h;
+	}
+	return NULL;
+}
+
 static void free_huge_page(struct page *page)
 {
 	/*
 	 * Can't pass hstate in here because it is called from the
 	 * compound page destructor.
 	 */
-	struct hstate *h = &default_hstate;
+	struct hstate *h = page_hstate(page);
 	int nid = page_to_nid(page);
 	struct address_space *mapping;
 
@@ -887,39 +905,94 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 	return page;
 }
 
-static int __init hugetlb_init(void)
+static void __init hugetlb_init_one_hstate(struct hstate *h)
 {
 	unsigned long i;
-	struct hstate *h = &default_hstate;
-
-	if (HPAGE_SHIFT == 0)
-		return 0;
-
-	if (!h->order) {
-		h->order = HPAGE_SHIFT - PAGE_SHIFT;
-		h->mask = HPAGE_MASK;
-	}
 
 	for (i = 0; i < MAX_NUMNODES; ++i)
 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
 
 	h->hugetlb_next_nid = first_node(node_online_map);
 
-	for (i = 0; i < max_huge_pages; ++i) {
+	for (i = 0; i < h->max_huge_pages; ++i) {
 		if (!alloc_fresh_huge_page(h))
 			break;
 	}
-	max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
-	printk(KERN_INFO "Total HugeTLB memory allocated, %ld\n",
-			h->free_huge_pages);
+	h->max_huge_pages = h->free_huge_pages = h->nr_huge_pages = i;
+}
+
+static void __init hugetlb_init_hstates(void)
+{
+	struct hstate *h;
+
+	for_each_hstate(h) {
+		hugetlb_init_one_hstate(h);
+	}
+}
+
+static void __init report_hugepages(void)
+{
+	struct hstate *h;
+
+	for_each_hstate(h) {
+		printk(KERN_INFO "Total HugeTLB memory allocated, "
+				"%ld %dMB pages\n",
+				h->free_huge_pages,
+				1 << (h->order + PAGE_SHIFT - 20));
+	}
+}
+
+static int __init hugetlb_init(void)
+{
+	BUILD_BUG_ON(HPAGE_SHIFT == 0);
+
+	if (!size_to_hstate(HPAGE_SIZE)) {
+		hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
+		parsed_hstate->max_huge_pages = default_hstate_max_huge_pages;
+	}
+	default_hstate_idx = size_to_hstate(HPAGE_SIZE) - hstates;
+
+	hugetlb_init_hstates();
+
+	report_hugepages();
+
 	return 0;
 }
 module_init(hugetlb_init);
 
+/* Should be called on processing a hugepagesz=... option */
+void __init hugetlb_add_hstate(unsigned order)
+{
+	struct hstate *h;
+	if (size_to_hstate(PAGE_SIZE << order)) {
+		printk(KERN_WARNING "hugepagesz= specified twice, ignoring\n");
+		return;
+	}
+	BUG_ON(max_hstate >= HUGE_MAX_HSTATE);
+	BUG_ON(order == 0);
+	h = &hstates[max_hstate++];
+	h->order = order;
+	h->mask = ~((1ULL << (order + PAGE_SHIFT)) - 1);
+	hugetlb_init_one_hstate(h);
+	parsed_hstate = h;
+}
+
 static int __init hugetlb_setup(char *s)
 {
-	if (sscanf(s, "%lu", &max_huge_pages) <= 0)
-		max_huge_pages = 0;
+	unsigned long *mhp;
+
+	/*
+	 * !max_hstate means we haven't parsed a hugepagesz= parameter yet,
+	 * so this hugepages= parameter goes to the "default hstate".
+	 */
+	if (!max_hstate)
+		mhp = &default_hstate_max_huge_pages;
+	else
+		mhp = &parsed_hstate->max_huge_pages;
+
+	if (sscanf(s, "%lu", mhp) <= 0)
+		*mhp = 0;
+
 	return 1;
 }
 __setup("hugepages=", hugetlb_setup);
@@ -950,7 +1023,7 @@ static void try_to_free_low(struct hstate *h, unsigned long count)
 			if (PageHighMem(page))
 				continue;
 			list_del(&page->lru);
-			update_and_free_page(page);
+			update_and_free_page(h, page);
 			h->free_huge_pages--;
 			h->free_huge_pages_node[page_to_nid(page)]--;
 		}
@@ -963,10 +1036,9 @@ static inline void try_to_free_low(struct hstate *h, unsigned long count)
 #endif
 
 #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
-static unsigned long set_max_huge_pages(unsigned long count)
+static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count)
 {
 	unsigned long min_count, ret;
-	struct hstate *h = &default_hstate;
 
 	/*
 	 * Increase the pool size
@@ -1037,8 +1109,19 @@ int hugetlb_sysctl_handler(struct ctl_table *table, int write,
 			   struct file *file, void __user *buffer,
 			   size_t *length, loff_t *ppos)
 {
+	struct hstate *h = &default_hstate;
+	unsigned long tmp;
+
+	if (!write)
+		tmp = h->max_huge_pages;
+
+	table->data = &tmp;
+	table->maxlen = sizeof(unsigned long);
 	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
-	max_huge_pages = set_max_huge_pages(max_huge_pages);
+
+	if (write)
+		h->max_huge_pages = set_max_huge_pages(h, tmp);
+
 	return 0;
 }
 
@@ -1059,10 +1142,21 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
 			size_t *length, loff_t *ppos)
 {
 	struct hstate *h = &default_hstate;
+	unsigned long tmp;
+
+	if (!write)
+		tmp = h->nr_overcommit_huge_pages;
+
+	table->data = &tmp;
+	table->maxlen = sizeof(unsigned long);
 	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
-	spin_lock(&hugetlb_lock);
-	h->nr_overcommit_huge_pages = sysctl_overcommit_huge_pages;
-	spin_unlock(&hugetlb_lock);
+
+	if (write) {
+		spin_lock(&hugetlb_lock);
+		h->nr_overcommit_huge_pages = tmp;
+		spin_unlock(&hugetlb_lock);
+	}
+
 	return 0;
 }
 
