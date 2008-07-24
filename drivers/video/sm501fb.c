@@ -48,10 +48,15 @@ enum sm501_controller {
 	HEAD_PANEL	= 1,
 };
 
-/* SM501 memory address */
+/* SM501 memory address.
+ *
+ * This structure is used to track memory usage within the SM501 framebuffer
+ * allocation. The sm_addr field is stored as an offset as it is often used
+ * against both the physical and mapped addresses.
+ */
 struct sm501_mem {
 	unsigned long	 size;
-	unsigned long	 sm_addr;
+	unsigned long	 sm_addr;	/* offset from base of sm501 fb. */
 	void __iomem	*k_addr;
 };
 
@@ -142,37 +147,63 @@ static inline void sm501fb_sync_regs(struct sm501fb_info *info)
 static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
 			   unsigned int why, size_t size)
 {
-	unsigned int ptr = 0;
-	unsigned int end;
+	struct sm501fb_par *par;
 	struct fb_info *fbi;
+	unsigned int ptr;
+	unsigned int end;
 
 	switch (why) {
 	case SM501_MEMF_CURSOR:
 		ptr = inf->fbmem_len - size;
-		inf->fbmem_len = ptr;
+		inf->fbmem_len = ptr;	/* adjust available memory. */
 		break;
 
 	case SM501_MEMF_PANEL:
 		ptr = inf->fbmem_len - size;
-		fbi = inf->fb[0];
+		fbi = inf->fb[HEAD_CRT];
+
+		/* round down, some programs such as directfb do not draw
+		 * 0,0 correctly unless the start is aligned to a page start.
+		 */
+
+		if (ptr > 0)
+			ptr &= ~(PAGE_SIZE - 1);
 
 		if (fbi && ptr < fbi->fix.smem_len)
+			return -ENOMEM;
+
+		if (ptr < 0)
 			return -ENOMEM;
 
 		break;
 
 	case SM501_MEMF_CRT:
 		ptr = 0;
+
+		/* check to see if we have panel memory allocated
+		 * which would put an limit on available memory. */
+
+		fbi = inf->fb[HEAD_PANEL];
+		if (fbi) {
+			par = fbi->par;
+			end = par->screen.k_addr ? par->screen.sm_addr : inf->fbmem_len;
+		} else
+			end = inf->fbmem_len;
+
+		if ((ptr + size) > end)
+			return -ENOMEM;
+
 		break;
 
 	case SM501_MEMF_ACCEL:
-		fbi = inf->fb[0];
+		fbi = inf->fb[HEAD_CRT];
 		ptr = fbi ? fbi->fix.smem_len : 0;
 
-		fbi = inf->fb[1];
-		if (fbi)
-			end = (fbi->fix.smem_start - inf->fbmem_res->start);
-		else
+		fbi = inf->fb[HEAD_PANEL];
+		if (fbi) {
+			par = fbi->par;
+			end = par->screen.sm_addr;
+		} else
 			end = inf->fbmem_len;
 
 		if ((ptr + size) > end)
