@@ -388,6 +388,7 @@ static int do_microcode_update (void)
 	void *new_mc = NULL;
 	int cpu;
 	cpumask_t old;
+	cpumask_of_cpu_ptr_declare(newmask);
 
 	old = current->cpus_allowed;
 
@@ -404,7 +405,8 @@ static int do_microcode_update (void)
 
 			if (!uci->valid)
 				continue;
-			set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+			cpumask_of_cpu_ptr_next(newmask, cpu);
+			set_cpus_allowed_ptr(current, newmask);
 			error = get_maching_microcode(new_mc, cpu);
 			if (error < 0)
 				goto out;
@@ -574,6 +576,7 @@ static int apply_microcode_check_cpu(int cpu)
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	cpumask_t old;
+	cpumask_of_cpu_ptr(newmask, cpu);
 	unsigned int val[2];
 	int err = 0;
 
@@ -582,7 +585,7 @@ static int apply_microcode_check_cpu(int cpu)
 		return 0;
 
 	old = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, newmask);
 
 	/* Check if the microcode we have in memory matches the CPU */
 	if (c->x86_vendor != X86_VENDOR_INTEL || c->x86 < 6 ||
@@ -620,11 +623,12 @@ static int apply_microcode_check_cpu(int cpu)
 static void microcode_init_cpu(int cpu, int resume)
 {
 	cpumask_t old;
+	cpumask_of_cpu_ptr(newmask, cpu);
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
 	old = current->cpus_allowed;
 
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, newmask);
 	mutex_lock(&microcode_mutex);
 	collect_cpu_info(cpu);
 	if (uci->valid && system_state == SYSTEM_RUNNING && !resume)
@@ -658,11 +662,12 @@ static ssize_t reload_store(struct sys_device *dev,
 		return -EINVAL;
 	if (val == 1) {
 		cpumask_t old;
+		cpumask_of_cpu_ptr(newmask, cpu);
 
 		old = current->cpus_allowed;
 
 		get_online_cpus();
-		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+		set_cpus_allowed_ptr(current, newmask);
 
 		mutex_lock(&microcode_mutex);
 		if (uci->valid)

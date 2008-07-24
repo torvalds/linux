@@ -240,7 +240,7 @@ static int do_balance_runtime(struct rt_rq *rt_rq)
 
 	spin_lock(&rt_b->rt_runtime_lock);
 	rt_period = ktime_to_ns(rt_b->rt_period);
-	for_each_cpu_mask(i, rd->span) {
+	for_each_cpu_mask_nr(i, rd->span) {
 		struct rt_rq *iter = sched_rt_period_rt_rq(rt_b, i);
 		s64 diff;
 
@@ -1107,7 +1107,7 @@ static int pull_rt_task(struct rq *this_rq)
 
 	next = pick_next_task_rt(this_rq);
 
-	for_each_cpu_mask(cpu, this_rq->rd->rto_mask) {
+	for_each_cpu_mask_nr(cpu, this_rq->rd->rto_mask) {
 		if (this_cpu == cpu)
 			continue;
 
