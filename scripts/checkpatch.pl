@@ -9,7 +9,7 @@ use strict;
 my $P = $0;
 $P =~ s@.*/@@g;
 
-my $V = '0.19';
+my $V = '0.20';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
