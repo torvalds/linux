@@ -2161,6 +2161,7 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 	struct radeonfb_info *rinfo;
 	int ret;
 	unsigned char c1, c2;
+	int err = 0;
 
 	pr_debug("radeonfb_pci_register BEGIN\n");
 	
@@ -2340,9 +2341,14 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 
 	/* Register some sysfs stuff (should be done better) */
 	if (rinfo->mon1_EDID)
-		sysfs_create_bin_file(&rinfo->pdev->dev.kobj, &edid1_attr);
+		err |= sysfs_create_bin_file(&rinfo->pdev->dev.kobj,
+						&edid1_attr);
 	if (rinfo->mon2_EDID)
-		sysfs_create_bin_file(&rinfo->pdev->dev.kobj, &edid2_attr);
+		err |= sysfs_create_bin_file(&rinfo->pdev->dev.kobj,
+						&edid2_attr);
+	if (err)
+		pr_warning("%s() Creating sysfs files failed, continuing\n",
+			   __func__);
 
 	/* save current mode regs before we switch into the new one
 	 * so we can restore this upon __exit
