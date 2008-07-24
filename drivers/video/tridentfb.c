@@ -558,13 +558,15 @@ static inline void write3CE(struct tridentfb_par *par, int reg,
 	vga_mm_wgfx(par->io_virt, reg, val);
 }
 
-static void enable_mmio(void)
+static void enable_mmio(struct tridentfb_par *par)
 {
 	/* Goto New Mode */
 	vga_io_rseq(0x0B);
 
 	/* Unprotect registers */
 	vga_io_wseq(NewMode1, 0x80);
+	if (!is_oldprotect(par->chip_id))
+		vga_io_wseq(Protection, 0x92);
 
 	/* Enable MMIO */
 	outb(PCIReg, 0x3D4);
@@ -578,6 +580,8 @@ static void disable_mmio(struct tridentfb_par *par)
 
 	/* Unprotect registers */
 	vga_mm_wseq(par->io_virt, NewMode1, 0x80);
+	if (!is_oldprotect(par->chip_id))
+		vga_mm_wseq(par->io_virt, Protection, 0x92);
 
 	/* Disable MMIO */
 	t_outb(par, PCIReg, 0x3D4);
@@ -995,6 +999,7 @@ static int tridentfb_set_par(struct fb_info *info)
 		vblankend /= 2;
 	}
 
+	enable_mmio(par);
 	crtc_unlock(par);
 	write3CE(par, CyberControl, 8);
 	tmp = 0xEB;
@@ -1116,7 +1121,7 @@ static int tridentfb_set_par(struct fb_info *info)
 	if (!is_xp(par->chip_id))
 		write3X4(par, Performance, read3X4(par, Performance) | 0x10);
 	/* MMIO & PCI read and write burst enable */
-	if (par->chip_id != TGUI9440)
+	if (par->chip_id != TGUI9440 && par->chip_id != IMAGE975)
 		write3X4(par, PCIReg, read3X4(par, PCIReg) | 0x06);
 
 	vga_mm_wseq(par->io_virt, 0, 3);
@@ -1403,7 +1408,7 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 		goto out_unmap1;
 	}
 
-	enable_mmio();
+	enable_mmio(default_par);
 
 	/* setup framebuffer memory */
 	tridentfb_fix.smem_start = pci_resource_start(dev, 0);
