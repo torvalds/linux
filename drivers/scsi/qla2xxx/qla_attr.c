@@ -1177,6 +1177,11 @@ static int
 qla24xx_vport_delete(struct fc_vport *fc_vport)
 {
 	scsi_qla_host_t *vha = fc_vport->dd_data;
+	scsi_qla_host_t *pha = to_qla_parent(vha);
+
+	while (test_bit(LOOP_RESYNC_ACTIVE, &vha->dpc_flags) ||
+	    test_bit(FCPORT_UPDATE_NEEDED, &pha->dpc_flags))
+		msleep(1000);
 
 	qla24xx_disable_vp(vha);
 	qla24xx_deallocate_vp_id(vha);

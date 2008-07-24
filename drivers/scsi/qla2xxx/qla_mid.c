@@ -106,6 +106,7 @@ qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 		    vha->host_no, fcport->loop_id, fcport->vp_idx));
 
 		qla2x00_mark_device_lost(vha, fcport, 0, 0);
+		atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	}
 }
 

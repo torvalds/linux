@@ -3231,7 +3231,8 @@ qla2x00_update_fcports(scsi_qla_host_t *ha)
 
 	/* Go with deferred removal of rport references. */
 	list_for_each_entry(fcport, &ha->fcports, list)
-		if (fcport->drport)
+		if (fcport->drport &&
+		    atomic_read(&fcport->state) != FCS_UNCONFIGURED)
 			qla2x00_rport_del(fcport);
 }
 

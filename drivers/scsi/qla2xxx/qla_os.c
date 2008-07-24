@@ -449,7 +449,7 @@ qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	int rval;
 	scsi_qla_host_t *pha = to_qla_parent(ha);
 
-	if (unlikely(pci_channel_offline(ha->pdev))) {
+	if (unlikely(pci_channel_offline(pha->pdev))) {
 		cmd->result = DID_REQUEUE << 16;
 		goto qc24_fail_command;
 	}
@@ -2335,8 +2335,10 @@ qla2x00_do_dpc(void *data)
 			    ha->host_no));
 		}
 
-		if (test_and_clear_bit(FCPORT_UPDATE_NEEDED, &ha->dpc_flags))
+		if (test_bit(FCPORT_UPDATE_NEEDED, &ha->dpc_flags)) {
 			qla2x00_update_fcports(ha);
+			clear_bit(FCPORT_UPDATE_NEEDED, &ha->dpc_flags);
+		}
 
 		if (test_and_clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags) &&
 		    (!(test_and_set_bit(RESET_ACTIVE, &ha->dpc_flags)))) {
