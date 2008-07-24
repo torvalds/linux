@@ -144,66 +144,59 @@ unsigned long __init init_bootmem(unsigned long start, unsigned long pages)
 
 static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 {
+	int aligned;
 	struct page *page;
-	unsigned long pfn;
-	unsigned long i, count;
-	unsigned long idx, pages;
-	unsigned long *map;
-	int gofast = 0;
+	unsigned long start, end, pages, count = 0;
 
-	BUG_ON(!bdata->node_bootmem_map);
+	if (!bdata->node_bootmem_map)
+		return 0;
 
-	count = 0;
-	/* first extant page of the node */
-	pfn = PFN_DOWN(bdata->node_boot_start);
-	idx = bdata->node_low_pfn - pfn;
-	map = bdata->node_bootmem_map;
+	start = PFN_DOWN(bdata->node_boot_start);
+	end = bdata->node_low_pfn;
+
 	/*
-	 * Check if we are aligned to BITS_PER_LONG pages.  If so, we might
-	 * be able to free page orders of that size at once.
+	 * If the start is aligned to the machines wordsize, we might
+	 * be able to free pages in bulks of that order.
 	 */
-	if (!(pfn & (BITS_PER_LONG-1)))
-		gofast = 1;
+	aligned = !(start & (BITS_PER_LONG - 1));
 
-	for (i = 0; i < idx; ) {
-		unsigned long v = ~map[i / BITS_PER_LONG];
+	bdebug("nid=%td start=%lx end=%lx aligned=%d\n",
+		bdata - bootmem_node_data, start, end, aligned);
 
-		if (gofast && v == ~0UL) {
-			int order;
+	while (start < end) {
+		unsigned long *map, idx, vec;
 
-			page = pfn_to_page(pfn);
+		map = bdata->node_bootmem_map;
+		idx = start - PFN_DOWN(bdata->node_boot_start);
+		vec = ~map[idx / BITS_PER_LONG];
+
+		if (aligned && vec == ~0UL && start + BITS_PER_LONG < end) {
+			int order = ilog2(BITS_PER_LONG);
+
+			__free_pages_bootmem(pfn_to_page(start), order);
 			count += BITS_PER_LONG;
-			order = ffs(BITS_PER_LONG) - 1;
-			__free_pages_bootmem(page, order);
-			i += BITS_PER_LONG;
-			page += BITS_PER_LONG;
-		} else if (v) {
-			unsigned long m;
-
-			page = pfn_to_page(pfn);
-			for (m = 1; m && i < idx; m<<=1, page++, i++) {
-				if (v & m) {
-					count++;
-					__free_pages_bootmem(page, 0);
-				}
-			}
 		} else {
-			i += BITS_PER_LONG;
+			unsigned long off = 0;
+
+			while (vec && off < BITS_PER_LONG) {
+				if (vec & 1) {
+					page = pfn_to_page(start + off);
+					__free_pages_bootmem(page, 0);
+					count++;
+				}
+				vec >>= 1;
+				off++;
+			}
 		}
-		pfn += BITS_PER_LONG;
+		start += BITS_PER_LONG;
 	}
 
-	/*
-	 * Now free the allocator bitmap itself, it's not
-	 * needed anymore:
-	 */
 	page = virt_to_page(bdata->node_bootmem_map);
 	pages = bdata->node_low_pfn - PFN_DOWN(bdata->node_boot_start);
-	idx = bootmem_bootmap_pages(pages);
-	for (i = 0; i < idx; i++, page++)
-		__free_pages_bootmem(page, 0);
-	count += i;
-	bdata->node_bootmem_map = NULL;
+	pages = bootmem_bootmap_pages(pages);
+	count += pages;
+	while (pages--)
+		__free_pages_bootmem(page++, 0);
 
 	bdebug("nid=%td released=%lx\n", bdata - bootmem_node_data, count);
 
