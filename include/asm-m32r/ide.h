@@ -52,12 +52,20 @@ static __inline__ int ide_default_irq(unsigned long base)
 static __inline__ unsigned long ide_default_io_base(int index)
 {
 	switch (index) {
+#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_MAPPI2) \
+	|| defined(CONFIG_PLAT_OPSPUT)
+		case 0:	return 0x1f0;
+#elif defined(CONFIG_PLAT_MAPPI3)
+		case 0:	return 0x1f0;
+		case 1:	return 0x170;
+#else
 		case 0:	return 0x1f0;
 		case 1:	return 0x170;
 		case 2: return 0x1e8;
 		case 3: return 0x168;
 		case 4: return 0x1e0;
 		case 5: return 0x160;
+#endif
 		default:
 			return 0;
 	}
