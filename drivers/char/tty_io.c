@@ -1119,19 +1119,6 @@ int tty_hung_up_p(struct file *filp)
 
 EXPORT_SYMBOL(tty_hung_up_p);
 
-/**
- *	is_tty	-	checker whether file is a TTY
- *	@filp:		file handle that may be a tty
- *
- *	Check if the file handle is a tty handle.
- */
-
-int is_tty(struct file *filp)
-{
-	return filp->f_op->read == tty_read
-		|| filp->f_op->read == hung_up_tty_read;
-}
-
 static void session_clear_tty(struct pid *session)
 {
 	struct task_struct *p;
