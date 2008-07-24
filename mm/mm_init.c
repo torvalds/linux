@@ -7,6 +7,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/kobject.h>
+#include <linux/module.h>
 #include "internal.h"
 
 #ifdef CONFIG_DEBUG_MEMORY_INIT
@@ -134,3 +136,17 @@ static __init int set_mminit_loglevel(char *str)
 }
 early_param("mminit_loglevel", set_mminit_loglevel);
 #endif /* CONFIG_DEBUG_MEMORY_INIT */
+
+struct kobject *mm_kobj;
+EXPORT_SYMBOL_GPL(mm_kobj);
+
+static int __init mm_sysfs_init(void)
+{
+	mm_kobj = kobject_create_and_add("mm", kernel_kobj);
+	if (!mm_kobj)
+		return -ENOMEM;
+
+	return 0;
+}
+
+__initcall(mm_sysfs_init);
