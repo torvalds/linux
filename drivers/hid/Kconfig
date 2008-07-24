@@ -138,6 +138,13 @@ config HID_EZKEY
 	---help---
 	Support for Ezkey mouse and barcodes.
 
+config HID_GYRATION
+	tristate "Gyration"
+	default m
+	depends on USB_HID
+	---help---
+	Support for Gyration remote.
+
 config HID_LOGITECH
 	tristate "Logitech"
 	default m
