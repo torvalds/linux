@@ -31,6 +31,7 @@
 #include <linux/mount.h>
 #include <linux/crypto.h>
 #include <linux/fs_stack.h>
+#include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
 static struct dentry *lock_parent(struct dentry *dentry)
@@ -364,8 +365,7 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 		else
 			file_size = i_size_read(lower_dentry->d_inode);
 	} else {
-		memcpy(&file_size, page_virt, sizeof(file_size));
-		file_size = be64_to_cpu(file_size);
+		file_size = get_unaligned_be64(page_virt);
 	}
 	i_size_write(dentry->d_inode, (loff_t)file_size);
 	kmem_cache_free(ecryptfs_header_cache_2, page_virt);
