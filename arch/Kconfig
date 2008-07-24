@@ -42,3 +42,10 @@ config HAVE_DMA_ATTRS
 
 config USE_GENERIC_SMP_HELPERS
 	def_bool n
+
+config HAVE_CLK
+	def_bool n
+	help
+	  The <linux/clk.h> calls support software clock gating and
+	  thus are a key power management tool on many systems.
+
