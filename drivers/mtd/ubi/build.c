@@ -870,11 +870,9 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 		ubi->beb_rsvd_pebs);
 	ubi_msg("max/mean erase counter: %d/%d", ubi->max_ec, ubi->mean_ec);
 
-	/* Enable the background thread */
-	if (!DBG_DISABLE_BGT) {
+	if (!DBG_DISABLE_BGT)
 		ubi->thread_enabled = 1;
-		wake_up_process(ubi->bgt_thread);
-	}
+	wake_up_process(ubi->bgt_thread);
 
 	ubi_devices[ubi_num] = ubi;
 	return ubi_num;
