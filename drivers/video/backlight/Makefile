@@ -7,6 +7,7 @@ obj-$(CONFIG_LCD_PLATFORM)	   += platform_lcd.o
 obj-$(CONFIG_LCD_VGG2432A4)	   += vgg2432a4.o
 
 obj-$(CONFIG_BACKLIGHT_CLASS_DEVICE) += backlight.o
+obj-$(CONFIG_BACKLIGHT_ATMEL_PWM)    += atmel-pwm-bl.o
 obj-$(CONFIG_BACKLIGHT_CORGI)	+= corgi_bl.o
 obj-$(CONFIG_BACKLIGHT_HP680)	+= hp680_bl.o
 obj-$(CONFIG_BACKLIGHT_LOCOMO)	+= locomolcd.o
