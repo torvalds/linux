@@ -117,7 +117,7 @@ void __ecryptfs_printk(const char *fmt, ...)
  *
  * Returns zero on success; non-zero otherwise
  */
-static int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
+int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 {
 	struct ecryptfs_inode_info *inode_info =
 		ecryptfs_inode_to_private(ecryptfs_dentry->d_inode);
@@ -149,14 +149,14 @@ static int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
  * @lower_dentry: Existing dentry in the lower filesystem
  * @dentry: ecryptfs' dentry
  * @sb: ecryptfs's super_block
- * @flag: If set to true, then d_add is called, else d_instantiate is called
+ * @flags: flags to govern behavior of interpose procedure
  *
  * Interposes upper and lower dentries.
  *
  * Returns zero on success; non-zero otherwise
  */
 int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
-		       struct super_block *sb, int flag)
+		       struct super_block *sb, u32 flags)
 {
 	struct inode *lower_inode;
 	struct inode *inode;
@@ -193,7 +193,7 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 		init_special_inode(inode, lower_inode->i_mode,
 				   lower_inode->i_rdev);
 	dentry->d_op = &ecryptfs_dops;
-	if (flag)
+	if (flags & ECRYPTFS_INTERPOSE_FLAG_D_ADD)
 		d_add(dentry, inode);
 	else
 		d_instantiate(dentry, inode);
@@ -201,12 +201,21 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 	/* This size will be overwritten for real files w/ headers and
 	 * other metadata */
 	fsstack_copy_inode_size(inode, lower_inode);
-	rc = ecryptfs_init_persistent_file(dentry);
-	if (rc) {
-		printk(KERN_ERR "%s: Error attempting to initialize the "
-		       "persistent file for the dentry with name [%s]; "
-		       "rc = [%d]\n", __func__, dentry->d_name.name, rc);
-		goto out;
+	if (!(flags & ECRYPTFS_INTERPOSE_FLAG_DELAY_PERSISTENT_FILE)) {
+		rc = ecryptfs_init_persistent_file(dentry);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to initialize "
+			       "the persistent file for the dentry with name "
+			       "[%s]; rc = [%d]\n", __func__,
+			       dentry->d_name.name, rc);
+			goto out;
+		}
+	} else {
+		struct ecryptfs_inode_info *inode_info =
+			ecryptfs_inode_to_private(dentry->d_inode);
+
+		inode_info->lower_file = NULL;
+		inode_info->crypt_stat.flags |= ECRYPTFS_DELAY_PERSISTENT;
 	}
 out:
 	return rc;
