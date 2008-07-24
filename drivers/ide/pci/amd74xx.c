@@ -173,24 +173,6 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev,
 		t |= 0xf0;
 	pci_write_config_byte(dev, AMD_IDE_CONFIG + offset, t);
 
-/*
- * Determine the system bus clock.
- */
-
-	amd_clock = (ide_pci_clk ? ide_pci_clk : 33) * 1000;
-
-	switch (amd_clock) {
-		case 33000: amd_clock = 33333; break;
-		case 37000: amd_clock = 37500; break;
-		case 41000: amd_clock = 41666; break;
-	}
-
-	if (amd_clock < 20000 || amd_clock > 50000) {
-		printk(KERN_WARNING "%s: User given PCI clock speed impossible (%d), using 33 MHz instead.\n",
-				    name, amd_clock);
-		amd_clock = 33333;
-	}
-
 	return dev->irq;
 }
 
@@ -301,6 +283,24 @@ static int __devinit amd74xx_probe(struct pci_dev *dev, const struct pci_device_
 	printk(KERN_INFO "%s: %s (rev %02x) UDMA%s controller\n",
 			 d.name, pci_name(dev), dev->revision,
 			 amd_dma[fls(d.udma_mask) - 1]);
+
+	/*
+	* Determine the system bus clock.
+	*/
+	amd_clock = (ide_pci_clk ? ide_pci_clk : 33) * 1000;
+
+	switch (amd_clock) {
+	case 33000: amd_clock = 33333; break;
+	case 37000: amd_clock = 37500; break;
+	case 41000: amd_clock = 41666; break;
+	}
+
+	if (amd_clock < 20000 || amd_clock > 50000) {
+		printk(KERN_WARNING "%s: User given PCI clock speed impossible"
+				    " (%d), using 33 MHz instead.\n",
+				    d.name, amd_clock);
+		amd_clock = 33333;
+	}
 
 	return ide_pci_init_one(dev, &d, NULL);
 }
