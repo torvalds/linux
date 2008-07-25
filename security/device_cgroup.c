@@ -202,7 +202,7 @@ static struct cgroup_subsys_state *devcgroup_create(struct cgroup_subsys *ss,
 		}
 		wh->minor = wh->major = ~0;
 		wh->type = DEV_ALL;
-		wh->access = ACC_MKNOD | ACC_READ | ACC_WRITE;
+		wh->access = ACC_MASK;
 		list_add(&wh->list, &dev_cgroup->whitelist);
 	} else {
 		parent_dev_cgroup = cgroup_to_devcgroup(parent_cgroup);
@@ -264,11 +264,10 @@ static char type_to_char(short type)
 
 static void set_majmin(char *str, unsigned m)
 {
-	memset(str, 0, MAJMINLEN);
 	if (m == ~0)
-		sprintf(str, "*");
+		strcpy(str, "*");
 	else
-		snprintf(str, MAJMINLEN, "%u", m);
+		sprintf(str, "%u", m);
 }
 
 static int devcgroup_seq_read(struct cgroup *cgroup, struct cftype *cft,
@@ -360,6 +359,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 {
 	struct dev_cgroup *cur_devcgroup;
 	const char *b;
+	char *endp;
 	int retval = 0, count;
 	struct dev_whitelist_item wh;
 
@@ -395,11 +395,8 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		wh.major = ~0;
 		b++;
 	} else if (isdigit(*b)) {
-		wh.major = 0;
-		while (isdigit(*b)) {
-			wh.major = wh.major*10+(*b-'0');
-			b++;
-		}
+		wh.major = simple_strtoul(b, &endp, 10);
+		b = endp;
 	} else {
 		return -EINVAL;
 	}
@@ -412,11 +409,8 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		wh.minor = ~0;
 		b++;
 	} else if (isdigit(*b)) {
-		wh.minor = 0;
-		while (isdigit(*b)) {
-			wh.minor = wh.minor*10+(*b-'0');
-			b++;
-		}
+		wh.minor = simple_strtoul(b, &endp, 10);
+		b = endp;
 	} else {
 		return -EINVAL;
 	}
