@@ -255,7 +255,9 @@ unifdef-y += kd.h
 unifdef-y += kernelcapi.h
 unifdef-y += kernel.h
 unifdef-y += keyboard.h
+ifneq ($(wildcard $(srctree)/include/asm-$(SRCARCH)/kvm.h),)
 unifdef-y += kvm.h
+endif
 unifdef-y += llc.h
 unifdef-y += loop.h
 unifdef-y += lp.h
