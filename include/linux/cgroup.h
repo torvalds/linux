@@ -364,7 +364,8 @@ static inline struct cgroup* task_cgroup(struct task_struct *task,
 	return task_subsys_state(task, subsys_id)->cgroup;
 }
 
-int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *ss);
+int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *ss,
+							char *nodename);
 
 /* A cgroup_iter should be treated as an opaque object */
 struct cgroup_iter {

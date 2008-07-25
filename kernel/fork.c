@@ -1107,6 +1107,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (clone_flags & CLONE_THREAD)
 		p->tgid = current->tgid;
 
+	if (current->nsproxy != p->nsproxy) {
+		retval = ns_cgroup_clone(p, pid);
+		if (retval)
+			goto bad_fork_free_pid;
+	}
+
 	p->set_child_tid = (clone_flags & CLONE_CHILD_SETTID) ? child_tidptr : NULL;
 	/*
 	 * Clear TID on mm_release()?
