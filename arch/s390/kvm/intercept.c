@@ -38,6 +38,9 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 	if (base2)
 		useraddr += vcpu->arch.guest_gprs[base2];
 
+	if (useraddr & 7)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
 	reg = reg1;
 
 	VCPU_EVENT(vcpu, 5, "lctlg r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
@@ -73,6 +76,9 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 	useraddr = disp2;
 	if (base2)
 		useraddr += vcpu->arch.guest_gprs[base2];
+
+	if (useraddr & 3)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	VCPU_EVENT(vcpu, 5, "lctl r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
 		   disp2);
