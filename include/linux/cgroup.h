@@ -295,6 +295,8 @@ int cgroup_add_files(struct cgroup *cgrp,
 
 int cgroup_is_removed(const struct cgroup *cgrp);
 
+int cgroup_lock_live_group(struct cgroup *cgrp);
+
 int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen);
 
 int cgroup_task_count(const struct cgroup *cgrp);
