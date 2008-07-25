@@ -1411,8 +1411,8 @@ static int flush_journal_list(struct super_block *s,
 
 	/* if flushall == 0, the lock is already held */
 	if (flushall) {
-		down(&journal->j_flush_sem);
-	} else if (!down_trylock(&journal->j_flush_sem)) {
+		mutex_lock(&journal->j_flush_mutex);
+	} else if (mutex_trylock(&journal->j_flush_mutex)) {
 		BUG();
 	}
 
@@ -1642,7 +1642,7 @@ static int flush_journal_list(struct super_block *s,
 	jl->j_state = 0;
 	put_journal_list(s, jl);
 	if (flushall)
-		up(&journal->j_flush_sem);
+		mutex_unlock(&journal->j_flush_mutex);
 	put_fs_excl();
 	return err;
 }
@@ -1772,12 +1772,12 @@ static int kupdate_transactions(struct super_block *s,
 	struct reiserfs_journal *journal = SB_JOURNAL(s);
 	chunk.nr = 0;
 
-	down(&journal->j_flush_sem);
+	mutex_lock(&journal->j_flush_mutex);
 	if (!journal_list_still_alive(s, orig_trans_id)) {
 		goto done;
 	}
 
-	/* we've got j_flush_sem held, nobody is going to delete any
+	/* we've got j_flush_mutex held, nobody is going to delete any
 	 * of these lists out from underneath us
 	 */
 	while ((num_trans && transactions_flushed < num_trans) ||
@@ -1812,7 +1812,7 @@ static int kupdate_transactions(struct super_block *s,
 	}
 
       done:
-	up(&journal->j_flush_sem);
+	mutex_unlock(&journal->j_flush_mutex);
 	return ret;
 }
 
@@ -2838,7 +2838,7 @@ int journal_init(struct super_block *p_s_sb, const char *j_dev_name,
 	journal->j_first = NULL;
 	init_waitqueue_head(&(journal->j_join_wait));
 	mutex_init(&journal->j_mutex);
-	sema_init(&journal->j_flush_sem, 1);
+	mutex_init(&journal->j_flush_mutex);
 
 	journal->j_trans_id = 10;
 	journal->j_mount_id = 10;

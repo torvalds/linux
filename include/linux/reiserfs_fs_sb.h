@@ -194,7 +194,7 @@ struct reiserfs_journal {
 
 	time_t j_trans_start_time;	/* time this transaction started */
 	struct mutex j_mutex;
-	struct semaphore j_flush_sem;
+	struct mutex j_flush_mutex;
 	wait_queue_head_t j_join_wait;	/* wait for current transaction to finish before starting new one */
 	atomic_t j_jlock;	/* lock for j_join_wait */
 	int j_list_bitmap_index;	/* number of next list bitmap to use */
