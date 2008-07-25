@@ -40,20 +40,6 @@ void __list_add(struct list_head *new,
 EXPORT_SYMBOL(__list_add);
 
 /**
- * list_add - add a new entry
- * @new: new entry to be added
- * @head: list head to add it after
- *
- * Insert a new entry after the specified head.
- * This is good for implementing stacks.
- */
-void list_add(struct list_head *new, struct list_head *head)
-{
-	__list_add(new, head, head->next);
-}
-EXPORT_SYMBOL(list_add);
-
-/**
  * list_del - deletes entry from list.
  * @entry: the element to delete from the list.
  * Note: list_empty on entry does not return true after this, the entry is
