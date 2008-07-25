@@ -46,24 +46,6 @@ extern unsigned long sm501_modify_reg(struct device *dev,
 				      unsigned long set,
 				      unsigned long clear);
 
-/* sm501_gpio_set
- *
- * set the state of the given GPIO line
-*/
-
-extern void sm501_gpio_set(struct device *dev,
-			   unsigned long gpio,
-			   unsigned int to,
-			   unsigned int dir);
-
-/* sm501_gpio_get
- *
- * get the state of the given GPIO line
-*/
-
-extern unsigned long sm501_gpio_get(struct device *dev,
-				    unsigned long gpio);
-
 
 /* Platform data definitions */
 
@@ -131,6 +113,7 @@ struct sm501_reg_init {
 #define SM501_USE_FBACCEL	(1<<6)
 #define SM501_USE_AC97		(1<<7)
 #define SM501_USE_I2S		(1<<8)
+#define SM501_USE_GPIO		(1<<9)
 
 #define SM501_USE_ALL		(0xffffffff)
 
@@ -173,6 +156,7 @@ struct sm501_platdata {
 	struct sm501_platdata_fb	*fb;
 
 	int				 flags;
+	unsigned			 gpio_base;
 
 	int	(*get_power)(struct device *dev);
 	int	(*set_power)(struct device *dev, unsigned int on);
