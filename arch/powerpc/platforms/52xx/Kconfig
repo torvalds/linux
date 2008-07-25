@@ -1,7 +1,6 @@
 config PPC_MPC52xx
 	bool "52xx-based boards"
 	depends on PPC_MULTIPLATFORM && PPC32
-	select FSL_SOC
 	select PPC_CLOCK
 	select PPC_PCI_CHOICE
 
@@ -49,5 +48,6 @@ config PPC_MPC5200_GPIO
 	bool "MPC5200 GPIO support"
 	depends on PPC_MPC52xx
 	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
 	help
 	  Enable gpiolib support for mpc5200 based boards

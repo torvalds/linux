@@ -24,3 +24,4 @@ obj-$(CONFIG_HVC_CONSOLE)	+= hvconsole.o
 obj-$(CONFIG_HVCS)		+= hvcserver.o
 obj-$(CONFIG_HCALL_STATS)	+= hvCall_inst.o
 obj-$(CONFIG_PHYP_DUMP)	+= phyp_dump.o
+obj-$(CONFIG_CMM)		+= cmm.o
