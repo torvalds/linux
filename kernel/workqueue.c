@@ -911,6 +911,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 	unsigned int cpu = (unsigned long)hcpu;
 	struct cpu_workqueue_struct *cwq;
 	struct workqueue_struct *wq;
+	int ret = NOTIFY_OK;
 
 	action &= ~CPU_TASKS_FROZEN;
 
@@ -918,7 +919,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 	case CPU_UP_PREPARE:
 		cpu_set(cpu, cpu_populated_map);
 	}
-
+undo:
 	list_for_each_entry(wq, &workqueues, list) {
 		cwq = per_cpu_ptr(wq->cpu_wq, cpu);
 
@@ -928,7 +929,9 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 				break;
 			printk(KERN_ERR "workqueue [%s] for %i failed\n",
 				wq->name, cpu);
-			return NOTIFY_BAD;
+			action = CPU_UP_CANCELED;
+			ret = NOTIFY_BAD;
+			goto undo;
 
 		case CPU_ONLINE:
 			start_workqueue_thread(cwq, cpu);
@@ -948,7 +951,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 		cpu_clear(cpu, cpu_populated_map);
 	}
 
-	return NOTIFY_OK;
+	return ret;
 }
 
 void __init init_workqueues(void)
