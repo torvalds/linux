@@ -667,7 +667,7 @@ static int get_device_resources(struct device *dev,
 	_bdf = calc_devid(pcidev->bus->number, pcidev->devfn);
 
 	/* device not translated by any IOMMU in the system? */
-	if (_bdf >= amd_iommu_last_bdf) {
+	if (_bdf > amd_iommu_last_bdf) {
 		*iommu = NULL;
 		*domain = NULL;
 		*bdf = 0xffff;
@@ -1085,7 +1085,7 @@ void prealloc_protection_domains(void)
 
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
 		devid = (dev->bus->number << 8) | dev->devfn;
-		if (devid >= amd_iommu_last_bdf)
+		if (devid > amd_iommu_last_bdf)
 			continue;
 		devid = amd_iommu_alias_table[devid];
 		if (domain_for_device(devid))
