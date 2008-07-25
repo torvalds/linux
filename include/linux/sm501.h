@@ -157,6 +157,8 @@ struct sm501_init_gpio {
 	struct sm501_reg_init	gpio_ddr_high;
 };
 
+#define SM501_FLAG_SUSPEND_OFF		(1<<4)
+
 /* sm501_platdata
  *
  * This is passed with the platform device to allow the board
@@ -169,6 +171,11 @@ struct sm501_platdata {
 	struct sm501_initdata		*init;
 	struct sm501_init_gpio		*init_gpiop;
 	struct sm501_platdata_fb	*fb;
+
+	int				 flags;
+
+	int	(*get_power)(struct device *dev);
+	int	(*set_power)(struct device *dev, unsigned int on);
 
 	struct sm501_platdata_gpio_i2c	*gpio_i2c;
 	unsigned int			 gpio_i2c_nr;

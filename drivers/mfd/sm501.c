@@ -1138,7 +1138,30 @@ static int sm501_plat_probe(struct platform_device *dev)
 }
 
 #ifdef CONFIG_PM
+
 /* power management support */
+
+static void sm501_set_power(struct sm501_devdata *sm, int on)
+{
+	struct sm501_platdata *pd = sm->platdata;
+
+	if (pd == NULL)
+		return;
+
+	if (pd->get_power) {
+		if (pd->get_power(sm->dev) == on) {
+			dev_dbg(sm->dev, "is already %d\n", on);
+			return;
+		}
+	}
+
+	if (pd->set_power) {
+		dev_dbg(sm->dev, "setting power to %d\n", on);
+
+		pd->set_power(sm->dev, on);
+		sm501_mdelay(sm, 10);
+	}
+}
 
 static int sm501_plat_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -1148,12 +1171,20 @@ static int sm501_plat_suspend(struct platform_device *pdev, pm_message_t state)
 	sm->pm_misc = readl(sm->regs + SM501_MISC_CONTROL);
 
 	sm501_dump_regs(sm);
+
+	if (sm->platdata) {
+		if (sm->platdata->flags & SM501_FLAG_SUSPEND_OFF)
+			sm501_set_power(sm, 0);
+	}
+
 	return 0;
 }
 
 static int sm501_plat_resume(struct platform_device *pdev)
 {
 	struct sm501_devdata *sm = platform_get_drvdata(pdev);
+
+	sm501_set_power(sm, 1);
 
 	sm501_dump_regs(sm);
 	sm501_dump_gate(sm);
