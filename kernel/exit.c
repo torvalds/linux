@@ -680,7 +680,7 @@ static void exit_mm(struct task_struct * tsk)
 		up_read(&mm->mmap_sem);
 		down_write(&mm->mmap_sem);
 		if (!--mm->core_waiters)
-			complete(mm->core_startup_done);
+			complete(&mm->core_state->startup);
 		up_write(&mm->mmap_sem);
 
 		wait_for_completion(&mm->core_done);

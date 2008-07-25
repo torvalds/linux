@@ -159,6 +159,10 @@ struct vm_area_struct {
 #endif
 };
 
+struct core_state {
+	struct completion startup;
+};
+
 struct mm_struct {
 	struct vm_area_struct * mmap;		/* list of VMAs */
 	struct rb_root mm_rb;
@@ -220,7 +224,8 @@ struct mm_struct {
 	unsigned long flags; /* Must use atomic bitops to access the bits */
 
 	/* coredumping support */
-	struct completion *core_startup_done, core_done;
+	struct core_state *core_state;
+	struct completion core_done;
 
 	/* aio bits */
 	rwlock_t		ioctx_list_lock;	/* aio lock */

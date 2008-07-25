@@ -1597,13 +1597,13 @@ static int coredump_wait(int exit_code)
 {
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
-	struct completion startup_done;
+	struct core_state core_state;
 	struct completion *vfork_done;
 	int core_waiters;
 
 	init_completion(&mm->core_done);
-	init_completion(&startup_done);
-	mm->core_startup_done = &startup_done;
+	init_completion(&core_state.startup);
+	mm->core_state = &core_state;
 
 	core_waiters = zap_threads(tsk, mm, exit_code);
 	up_write(&mm->mmap_sem);
@@ -1622,7 +1622,7 @@ static int coredump_wait(int exit_code)
 	}
 
 	if (core_waiters)
-		wait_for_completion(&startup_done);
+		wait_for_completion(&core_state.startup);
 fail:
 	BUG_ON(mm->core_waiters);
 	return core_waiters;
