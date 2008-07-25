@@ -97,7 +97,7 @@ void fuse_invalidate_attr(struct inode *inode)
  * timeout is unknown (unlink, rmdir, rename and in some cases
  * lookup)
  */
-static void fuse_invalidate_entry_cache(struct dentry *entry)
+void fuse_invalidate_entry_cache(struct dentry *entry)
 {
 	fuse_dentry_settime(entry, 0);
 }
@@ -225,7 +225,7 @@ static int invalid_nodeid(u64 nodeid)
 	return !nodeid || nodeid == FUSE_ROOT_ID;
 }
 
-static struct dentry_operations fuse_dentry_operations = {
+struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 };
 
