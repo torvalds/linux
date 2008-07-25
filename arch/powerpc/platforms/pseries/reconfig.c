@@ -365,7 +365,7 @@ static char *parse_node(char *buf, size_t bufsize, struct device_node **npp)
 	*buf = '\0';
 	buf++;
 
-	handle = simple_strtoul(handle_str, NULL, 10);
+	handle = simple_strtoul(handle_str, NULL, 0);
 
 	*npp = of_find_node_by_phandle(handle);
 	return buf;
@@ -422,8 +422,8 @@ static int do_update_property(char *buf, size_t bufsize)
 {
 	struct device_node *np;
 	unsigned char *value;
-	char *name, *end;
-	int length;
+	char *name, *end, *next_prop;
+	int rc, length;
 	struct property *newprop, *oldprop;
 	buf = parse_node(buf, bufsize, &np);
 	end = buf + bufsize;
@@ -431,7 +431,8 @@ static int do_update_property(char *buf, size_t bufsize)
 	if (!np)
 		return -ENODEV;
 
-	if (parse_next_property(buf, end, &name, &length, &value) == NULL)
+	next_prop = parse_next_property(buf, end, &name, &length, &value);
+	if (!next_prop)
 		return -EINVAL;
 
 	newprop = new_property(name, length, value, NULL);
@@ -442,7 +443,34 @@ static int do_update_property(char *buf, size_t bufsize)
 	if (!oldprop)
 		return -ENODEV;
 
-	return prom_update_property(np, newprop, oldprop);
+	rc = prom_update_property(np, newprop, oldprop);
+	if (rc)
+		return rc;
+
+	/* For memory under the ibm,dynamic-reconfiguration-memory node
+	 * of the device tree, adding and removing memory is just an update
+	 * to the ibm,dynamic-memory property instead of adding/removing a
+	 * memory node in the device tree.  For these cases we still need to
+	 * involve the notifier chain.
+	 */
+	if (!strcmp(name, "ibm,dynamic-memory")) {
+		int action;
+
+		next_prop = parse_next_property(next_prop, end, &name,
+						&length, &value);
+		if (!next_prop)
+			return -EINVAL;
+
+		if (!strcmp(name, "add"))
+			action = PSERIES_DRCONF_MEM_ADD;
+		else
+			action = PSERIES_DRCONF_MEM_REMOVE;
+
+		blocking_notifier_call_chain(&pSeries_reconfig_chain,
+					     action, value);
+	}
+
+	return 0;
 }
 
 /**

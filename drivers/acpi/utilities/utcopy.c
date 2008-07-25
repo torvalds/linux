@@ -572,7 +572,7 @@ acpi_ut_copy_epackage_to_ipackage(union acpi_object *external_object,
 	acpi_status status = AE_OK;
 	union acpi_operand_object *package_object;
 	union acpi_operand_object **package_elements;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(ut_copy_epackage_to_ipackage);
 
@@ -599,7 +599,7 @@ acpi_ut_copy_epackage_to_ipackage(union acpi_object *external_object,
 
 			/* Truncate package and delete it */
 
-			package_object->package.count = (u32) i;
+			package_object->package.count = i;
 			package_elements[i] = NULL;
 			acpi_ut_remove_reference(package_object);
 			return_ACPI_STATUS(status);

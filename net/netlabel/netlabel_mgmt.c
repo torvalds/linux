@@ -386,11 +386,7 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 	rcu_read_unlock();
 
 	genlmsg_end(ans_skb, data);
-
-	ret_val = genlmsg_reply(ans_skb, info);
-	if (ret_val != 0)
-		goto listdef_failure;
-	return 0;
+	return genlmsg_reply(ans_skb, info);
 
 listdef_failure_lock:
 	rcu_read_unlock();
@@ -501,11 +497,7 @@ static int netlbl_mgmt_version(struct sk_buff *skb, struct genl_info *info)
 		goto version_failure;
 
 	genlmsg_end(ans_skb, data);
-
-	ret_val = genlmsg_reply(ans_skb, info);
-	if (ret_val != 0)
-		goto version_failure;
-	return 0;
+	return genlmsg_reply(ans_skb, info);
 
 version_failure:
 	kfree_skb(ans_skb);

@@ -73,6 +73,8 @@ extern unsigned long sm501_gpio_get(struct device *dev,
 #define SM501FB_FLAG_USE_HWACCEL	(1<<3)
 #define SM501FB_FLAG_PANEL_NO_FPEN	(1<<4)
 #define SM501FB_FLAG_PANEL_NO_VBIASEN	(1<<5)
+#define SM501FB_FLAG_PANEL_INV_FPEN	(1<<6)
+#define SM501FB_FLAG_PANEL_INV_VBIASEN	(1<<7)
 
 struct sm501_platdata_fbsub {
 	struct fb_videomode	*def_mode;

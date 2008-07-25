@@ -12,8 +12,18 @@
 #include <linux/magic.h>
 
 /* Default timeout values */
+#define NFS_DEF_UDP_TIMEO	(11)
+#define NFS_DEF_UDP_RETRANS	(3)
+#define NFS_DEF_TCP_TIMEO	(600)
+#define NFS_DEF_TCP_RETRANS	(2)
+
 #define NFS_MAX_UDP_TIMEOUT	(60*HZ)
 #define NFS_MAX_TCP_TIMEOUT	(600*HZ)
+
+#define NFS_DEF_ACREGMIN	(3)
+#define NFS_DEF_ACREGMAX	(60)
+#define NFS_DEF_ACDIRMIN	(30)
+#define NFS_DEF_ACDIRMAX	(60)
 
 /*
  * When flushing a cluster of dirty pages, there can be different

@@ -1,7 +1,8 @@
-#ifndef __MMU_H
-#define __MMU_H
-
-/* Default "unsigned long" context */
-typedef unsigned long mm_context_t;
-
+#ifndef ___ASM_SPARC_MMU_H
+#define ___ASM_SPARC_MMU_H
+#if defined(__sparc__) && defined(__arch64__)
+#include <asm-sparc/mmu_64.h>
+#else
+#include <asm-sparc/mmu_32.h>
+#endif
 #endif

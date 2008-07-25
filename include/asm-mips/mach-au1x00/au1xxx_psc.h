@@ -204,6 +204,14 @@ typedef struct	psc_i2s {
 	u32	psc_i2sudf;
 } psc_i2s_t;
 
+#define PSC_I2SCFG_OFFSET	0x08
+#define PSC_I2SMASK_OFFSET	0x0C
+#define PSC_I2SPCR_OFFSET	0x10
+#define PSC_I2SSTAT_OFFSET	0x14
+#define PSC_I2SEVENT_OFFSET	0x18
+#define PSC_I2SRXTX_OFFSET	0x1C
+#define PSC_I2SUDF_OFFSET	0x20
+
 /* I2S Config Register. */
 #define PSC_I2SCFG_RT_MASK	(3 << 30)
 #define PSC_I2SCFG_RT_FIFO1	(0 << 30)

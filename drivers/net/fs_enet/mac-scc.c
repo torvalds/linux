@@ -32,6 +32,7 @@
 #include <linux/bitops.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -41,10 +42,6 @@
 #include <asm/pgtable.h>
 #include <asm/mpc8xx.h>
 #include <asm/cpm1.h>
-#endif
-
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
-#include <asm/of_platform.h>
 #endif
 
 #include "fs_enet.h"
@@ -99,7 +96,6 @@ static inline int scc_cr_cmd(struct fs_enet_private *fep, u32 op)
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 	struct of_device *ofdev = to_of_device(fep->dev);
 
 	fep->interrupt = of_irq_to_resource(ofdev->node, 0, NULL);
@@ -115,27 +111,6 @@ static int do_pd_setup(struct fs_enet_private *fep)
 		iounmap(fep->scc.sccp);
 		return -EINVAL;
 	}
-#else
-	struct platform_device *pdev = to_platform_device(fep->dev);
-	struct resource *r;
-
-	/* Fill out IRQ field */
-	fep->interrupt = platform_get_irq_byname(pdev, "interrupt");
-	if (fep->interrupt < 0)
-		return -EINVAL;
-
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
-	fep->scc.sccp = ioremap(r->start, r->end - r->start + 1);
-
-	if (fep->scc.sccp == NULL)
-		return -EINVAL;
-
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pram");
-	fep->scc.ep = ioremap(r->start, r->end - r->start + 1);
-
-	if (fep->scc.ep == NULL)
-		return -EINVAL;
-#endif
 
 	return 0;
 }
@@ -148,16 +123,6 @@ static int do_pd_setup(struct fs_enet_private *fep)
 static int setup_data(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-	struct fs_platform_info *fpi = fep->fpi;
-
-	fep->scc.idx = fs_get_scc_index(fpi->fs_no);
-	if ((unsigned int)fep->fcc.idx >= 4) /* max 4 SCCs */
-		return -EINVAL;
-
-	fpi->cp_command = fep->fcc.idx << 6;
-#endif
 
 	do_pd_setup(fep);
 

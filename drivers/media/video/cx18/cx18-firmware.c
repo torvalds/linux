@@ -41,9 +41,6 @@
 
 #define CX18_REG_BUS_TIMEOUT_EN      	0xc72024
 
-#define CX18_AUDIO_ENABLE            	0xc72014
-#define CX18_REG_BUS_TIMEOUT_EN      	0xc72024
-
 #define CX18_FAST_CLOCK_PLL_INT      	0xc78000
 #define CX18_FAST_CLOCK_PLL_FRAC     	0xc78004
 #define CX18_FAST_CLOCK_PLL_POST     	0xc78008
@@ -90,7 +87,7 @@
 #define CX18_DSP0_INTERRUPT_MASK     	0xd0004C
 
 /* Encoder/decoder firmware sizes */
-#define CX18_FW_CPU_SIZE 		(174716)
+#define CX18_FW_CPU_SIZE 		(158332)
 #define CX18_FW_APU_SIZE 		(141200)
 
 #define APU_ROM_SYNC1 0x6D676553 /* "mgeS" */
@@ -344,6 +341,11 @@ int cx18_firmware_init(struct cx18 *cx)
 	if (read_reg(CX18_PROC_SOFT_RESET) & 8) {
 		int sz = load_apu_fw_direct("v4l-cx23418-apu.fw",
 			       cx->enc_mem, cx, CX18_FW_APU_SIZE);
+
+		write_enc(0xE51FF004, 0);
+		write_enc(0xa00000, 4);  /* todo: not hardcoded */
+		write_reg(0x00010000, CX18_PROC_SOFT_RESET); /* Start APU */
+		cx18_msleep_timeout(500, 0);
 
 		sz = sz <= 0 ? sz : load_cpu_fw_direct("v4l-cx23418-cpu.fw",
 					cx->enc_mem, cx, CX18_FW_CPU_SIZE);

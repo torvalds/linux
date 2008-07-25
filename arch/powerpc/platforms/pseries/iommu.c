@@ -50,7 +50,8 @@
 
 static void tce_build_pSeries(struct iommu_table *tbl, long index,
 			      long npages, unsigned long uaddr,
-			      enum dma_data_direction direction)
+			      enum dma_data_direction direction,
+			      struct dma_attrs *attrs)
 {
 	u64 proto_tce;
 	u64 *tcep;
@@ -95,7 +96,8 @@ static unsigned long tce_get_pseries(struct iommu_table *tbl, long index)
 
 static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 				long npages, unsigned long uaddr,
-				enum dma_data_direction direction)
+				enum dma_data_direction direction,
+				struct dma_attrs *attrs)
 {
 	u64 rc;
 	u64 proto_tce, tce;
@@ -127,7 +129,8 @@ static DEFINE_PER_CPU(u64 *, tce_page) = NULL;
 
 static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 				     long npages, unsigned long uaddr,
-				     enum dma_data_direction direction)
+				     enum dma_data_direction direction,
+				     struct dma_attrs *attrs)
 {
 	u64 rc;
 	u64 proto_tce;
@@ -135,9 +138,11 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	u64 rpn;
 	long l, limit;
 
-	if (npages == 1)
-		return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
-					   direction);
+	if (npages == 1) {
+		tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
+				    direction, attrs);
+		return;
+	}
 
 	tcep = __get_cpu_var(tce_page);
 
@@ -147,9 +152,11 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	if (!tcep) {
 		tcep = (u64 *)__get_free_page(GFP_ATOMIC);
 		/* If allocation fails, fall back to the loop implementation */
-		if (!tcep)
-			return tce_build_pSeriesLP(tbl, tcenum, npages,
-						   uaddr, direction);
+		if (!tcep) {
+			tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
+					    direction, attrs);
+			return;
+		}
 		__get_cpu_var(tce_page) = tcep;
 	}
 

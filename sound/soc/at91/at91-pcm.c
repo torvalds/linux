@@ -318,7 +318,7 @@ static int at91_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 static u64 at91_pcm_dmamask = 0xffffffff;
 
 static int at91_pcm_new(struct snd_card *card,
-	struct snd_soc_codec_dai *dai, struct snd_pcm *pcm)
+	struct snd_soc_dai *dai, struct snd_pcm *pcm)
 {
 	int ret = 0;
 
@@ -367,7 +367,7 @@ static void at91_pcm_free_dma_buffers(struct snd_pcm *pcm)
 
 #ifdef CONFIG_PM
 static int at91_pcm_suspend(struct platform_device *pdev,
-	struct snd_soc_cpu_dai *dai)
+	struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = dai->runtime;
 	struct at91_runtime_data *prtd;
@@ -392,7 +392,7 @@ static int at91_pcm_suspend(struct platform_device *pdev,
 }
 
 static int at91_pcm_resume(struct platform_device *pdev,
-	struct snd_soc_cpu_dai *dai)
+	struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = dai->runtime;
 	struct at91_runtime_data *prtd;

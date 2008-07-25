@@ -27,12 +27,8 @@
 /*
  * Display register base.
  */
-#ifdef CONFIG_MIPS_SEAD
-#define ASCII_DISPLAY_POS_BASE     0x1f0005c0
-#else
 #define ASCII_DISPLAY_WORD_BASE    0x1f000410
 #define ASCII_DISPLAY_POS_BASE     0x1f000418
-#endif
 
 
 /*
@@ -44,13 +40,8 @@
 /*
  * Reset register.
  */
-#ifdef CONFIG_MIPS_SEAD
-#define SOFTRES_REG       0x1e800050
-#define GORESET           0x4d
-#else
 #define SOFTRES_REG       0x1f000500
 #define GORESET           0x42
-#endif
 
 /*
  * Revision register.

@@ -215,10 +215,7 @@ static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psiz
 		  mm->context.high_slices_psize);
 
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
-	mb();
 
-	/* XXX this is sub-optimal but will do for now */
-	on_each_cpu(slice_flush_segments, mm, 0, 1);
 #ifdef CONFIG_SPU_BASE
 	spu_flush_all_slbs(mm);
 #endif
@@ -384,17 +381,34 @@ static unsigned long slice_find_area(struct mm_struct *mm, unsigned long len,
 		return slice_find_area_bottomup(mm, len, mask, psize, use_cache);
 }
 
+#define or_mask(dst, src)	do {			\
+	(dst).low_slices |= (src).low_slices;		\
+	(dst).high_slices |= (src).high_slices;		\
+} while (0)
+
+#define andnot_mask(dst, src)	do {			\
+	(dst).low_slices &= ~(src).low_slices;		\
+	(dst).high_slices &= ~(src).high_slices;	\
+} while (0)
+
+#ifdef CONFIG_PPC_64K_PAGES
+#define MMU_PAGE_BASE	MMU_PAGE_64K
+#else
+#define MMU_PAGE_BASE	MMU_PAGE_4K
+#endif
+
 unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 				      unsigned long flags, unsigned int psize,
 				      int topdown, int use_cache)
 {
-	struct slice_mask mask;
+	struct slice_mask mask = {0, 0};
 	struct slice_mask good_mask;
 	struct slice_mask potential_mask = {0,0} /* silence stupid warning */;
-	int pmask_set = 0;
+	struct slice_mask compat_mask = {0, 0};
 	int fixed = (flags & MAP_FIXED);
 	int pshift = max_t(int, mmu_psize_defs[psize].shift, PAGE_SHIFT);
 	struct mm_struct *mm = current->mm;
+	unsigned long newaddr;
 
 	/* Sanity checks */
 	BUG_ON(mm->task_size == 0);
@@ -416,21 +430,48 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	if (!fixed && addr) {
 		addr = _ALIGN_UP(addr, 1ul << pshift);
 		slice_dbg(" aligned addr=%lx\n", addr);
+		/* Ignore hint if it's too large or overlaps a VMA */
+		if (addr > mm->task_size - len ||
+		    !slice_area_is_free(mm, addr, len))
+			addr = 0;
 	}
 
-	/* First makeup a "good" mask of slices that have the right size
+	/* First make up a "good" mask of slices that have the right size
 	 * already
 	 */
 	good_mask = slice_mask_for_size(mm, psize);
 	slice_print_mask(" good_mask", good_mask);
 
+	/*
+	 * Here "good" means slices that are already the right page size,
+	 * "compat" means slices that have a compatible page size (i.e.
+	 * 4k in a 64k pagesize kernel), and "free" means slices without
+	 * any VMAs.
+	 *
+	 * If MAP_FIXED:
+	 *	check if fits in good | compat => OK
+	 *	check if fits in good | compat | free => convert free
+	 *	else bad
+	 * If have hint:
+	 *	check if hint fits in good => OK
+	 *	check if hint fits in good | free => convert free
+	 * Otherwise:
+	 *	search in good, found => OK
+	 *	search in good | free, found => convert free
+	 *	search in good | compat | free, found => convert free.
+	 */
+
+#ifdef CONFIG_PPC_64K_PAGES
+	/* If we support combo pages, we can allow 64k pages in 4k slices */
+	if (psize == MMU_PAGE_64K) {
+		compat_mask = slice_mask_for_size(mm, MMU_PAGE_4K);
+		if (fixed)
+			or_mask(good_mask, compat_mask);
+	}
+#endif
+
 	/* First check hint if it's valid or if we have MAP_FIXED */
-	if ((addr != 0 || fixed) && (mm->task_size - len) >= addr) {
-
-		/* Don't bother with hint if it overlaps a VMA */
-		if (!fixed && !slice_area_is_free(mm, addr, len))
-			goto search;
-
+	if (addr != 0 || fixed) {
 		/* Build a mask for the requested range */
 		mask = slice_range_to_mask(addr, len);
 		slice_print_mask(" mask", mask);
@@ -442,54 +483,66 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 			slice_dbg(" fits good !\n");
 			return addr;
 		}
-
-		/* We don't fit in the good mask, check what other slices are
-		 * empty and thus can be converted
+	} else {
+		/* Now let's see if we can find something in the existing
+		 * slices for that size
 		 */
-		potential_mask = slice_mask_for_free(mm);
-		potential_mask.low_slices |= good_mask.low_slices;
-		potential_mask.high_slices |= good_mask.high_slices;
-		pmask_set = 1;
-		slice_print_mask(" potential", potential_mask);
-		if (slice_check_fit(mask, potential_mask)) {
-			slice_dbg(" fits potential !\n");
-			goto convert;
+		newaddr = slice_find_area(mm, len, good_mask, psize, topdown,
+					  use_cache);
+		if (newaddr != -ENOMEM) {
+			/* Found within the good mask, we don't have to setup,
+			 * we thus return directly
+			 */
+			slice_dbg(" found area at 0x%lx\n", newaddr);
+			return newaddr;
 		}
 	}
 
-	/* If we have MAP_FIXED and failed the above step, then error out */
+	/* We don't fit in the good mask, check what other slices are
+	 * empty and thus can be converted
+	 */
+	potential_mask = slice_mask_for_free(mm);
+	or_mask(potential_mask, good_mask);
+	slice_print_mask(" potential", potential_mask);
+
+	if ((addr != 0 || fixed) && slice_check_fit(mask, potential_mask)) {
+		slice_dbg(" fits potential !\n");
+		goto convert;
+	}
+
+	/* If we have MAP_FIXED and failed the above steps, then error out */
 	if (fixed)
 		return -EBUSY;
 
- search:
 	slice_dbg(" search...\n");
 
-	/* Now let's see if we can find something in the existing slices
-	 * for that size
+	/* If we had a hint that didn't work out, see if we can fit
+	 * anywhere in the good area.
 	 */
-	addr = slice_find_area(mm, len, good_mask, psize, topdown, use_cache);
-	if (addr != -ENOMEM) {
-		/* Found within the good mask, we don't have to setup,
-		 * we thus return directly
-		 */
-		slice_dbg(" found area at 0x%lx\n", addr);
-		return addr;
-	}
-
-	/* Won't fit, check what can be converted */
-	if (!pmask_set) {
-		potential_mask = slice_mask_for_free(mm);
-		potential_mask.low_slices |= good_mask.low_slices;
-		potential_mask.high_slices |= good_mask.high_slices;
-		pmask_set = 1;
-		slice_print_mask(" potential", potential_mask);
+	if (addr) {
+		addr = slice_find_area(mm, len, good_mask, psize, topdown,
+				       use_cache);
+		if (addr != -ENOMEM) {
+			slice_dbg(" found area at 0x%lx\n", addr);
+			return addr;
+		}
 	}
 
 	/* Now let's see if we can find something in the existing slices
-	 * for that size
+	 * for that size plus free slices
 	 */
 	addr = slice_find_area(mm, len, potential_mask, psize, topdown,
 			       use_cache);
+
+#ifdef CONFIG_PPC_64K_PAGES
+	if (addr == -ENOMEM && psize == MMU_PAGE_64K) {
+		/* retry the search with 4k-page slices included */
+		or_mask(potential_mask, compat_mask);
+		addr = slice_find_area(mm, len, potential_mask, psize,
+				       topdown, use_cache);
+	}
+#endif
+
 	if (addr == -ENOMEM)
 		return -ENOMEM;
 
@@ -498,7 +551,13 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	slice_print_mask(" mask", mask);
 
  convert:
-	slice_convert(mm, mask, psize);
+	andnot_mask(mask, good_mask);
+	andnot_mask(mask, compat_mask);
+	if (mask.low_slices || mask.high_slices) {
+		slice_convert(mm, mask, psize);
+		if (psize > MMU_PAGE_BASE)
+			on_each_cpu(slice_flush_segments, mm, 1);
+	}
 	return addr;
 
 }
@@ -596,6 +655,36 @@ void slice_set_user_psize(struct mm_struct *mm, unsigned int psize)
 
  bail:
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
+}
+
+void slice_set_psize(struct mm_struct *mm, unsigned long address,
+		     unsigned int psize)
+{
+	unsigned long i, flags;
+	u64 *p;
+
+	spin_lock_irqsave(&slice_convert_lock, flags);
+	if (address < SLICE_LOW_TOP) {
+		i = GET_LOW_SLICE_INDEX(address);
+		p = &mm->context.low_slices_psize;
+	} else {
+		i = GET_HIGH_SLICE_INDEX(address);
+		p = &mm->context.high_slices_psize;
+	}
+	*p = (*p & ~(0xful << (i * 4))) | ((unsigned long) psize << (i * 4));
+	spin_unlock_irqrestore(&slice_convert_lock, flags);
+
+#ifdef CONFIG_SPU_BASE
+	spu_flush_all_slbs(mm);
+#endif
+}
+
+void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
+			   unsigned long len, unsigned int psize)
+{
+	struct slice_mask mask = slice_range_to_mask(start, len);
+
+	slice_convert(mm, mask, psize);
 }
 
 /*

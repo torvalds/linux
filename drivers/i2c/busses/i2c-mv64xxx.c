@@ -530,7 +530,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	drv_data->adapter.id = I2C_HW_MV64XXX;
 	drv_data->adapter.algo = &mv64xxx_i2c_algo;
 	drv_data->adapter.owner = THIS_MODULE;
-	drv_data->adapter.class = I2C_CLASS_HWMON;
+	drv_data->adapter.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	drv_data->adapter.timeout = pdata->timeout;
 	drv_data->adapter.nr = pd->id;
 	platform_set_drvdata(pd, drv_data);

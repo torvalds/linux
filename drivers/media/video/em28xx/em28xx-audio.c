@@ -268,6 +268,12 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	dprintk("opening device and trying to acquire exclusive lock\n");
 
+	if (!dev) {
+		printk(KERN_ERR "BUG: em28xx can't find device struct."
+				" Can't proceed with open\n");
+		return -ENODEV;
+	}
+
 	/* Sets volume, mute, etc */
 
 	dev->mute = 0;
@@ -415,6 +421,12 @@ static int em28xx_audio_init(struct em28xx *dev)
 	static int          devnr;
 	int                 ret, err;
 
+	if (dev->has_audio_class) {
+		/* This device does not support the extension (in this case
+		   the device is expecting the snd-usb-audio module */
+		return 0;
+	}
+
 	printk(KERN_INFO "em28xx-audio.c: probing for em28x1 "
 			 "non standard usbaudio\n");
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
@@ -457,6 +469,12 @@ static int em28xx_audio_fini(struct em28xx *dev)
 {
 	if (dev == NULL)
 		return 0;
+
+	if (dev->has_audio_class) {
+		/* This device does not support the extension (in this case
+		   the device is expecting the snd-usb-audio module */
+		return 0;
+	}
 
 	if (dev->adev) {
 		snd_card_free(dev->adev->sndcard);

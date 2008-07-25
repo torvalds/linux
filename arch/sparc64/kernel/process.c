@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/kallsyms.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/smp.h>
@@ -97,7 +96,7 @@ void cpu_idle(void)
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while(1) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 
 		while (!need_resched() && !cpu_is_offline(cpu))
 			sparc64_yield(cpu);
@@ -211,7 +210,7 @@ static void show_regwindow(struct pt_regs *regs)
 	printk("i4: %016lx i5: %016lx i6: %016lx i7: %016lx\n",
 	       rwk->ins[4], rwk->ins[5], rwk->ins[6], rwk->ins[7]);
 	if (regs->tstate & TSTATE_PRIV)
-		print_symbol("I7: <%s>\n", rwk->ins[7]);
+		printk("I7: <%pS>\n", (void *) rwk->ins[7]);
 }
 
 #ifdef CONFIG_SMP
@@ -232,7 +231,7 @@ void __show_regs(struct pt_regs * regs)
 #endif
 	printk("TSTATE: %016lx TPC: %016lx TNPC: %016lx Y: %08x    %s\n", regs->tstate,
 	       regs->tpc, regs->tnpc, regs->y, print_tainted());
-	print_symbol("TPC: <%s>\n", regs->tpc);
+	printk("TPC: <%pS>\n", (void *) regs->tpc);
 	printk("g0: %016lx g1: %016lx g2: %016lx g3: %016lx\n",
 	       regs->u_regs[0], regs->u_regs[1], regs->u_regs[2],
 	       regs->u_regs[3]);
@@ -245,7 +244,7 @@ void __show_regs(struct pt_regs * regs)
 	printk("o4: %016lx o5: %016lx sp: %016lx ret_pc: %016lx\n",
 	       regs->u_regs[12], regs->u_regs[13], regs->u_regs[14],
 	       regs->u_regs[15]);
-	print_symbol("RPC: <%s>\n", regs->u_regs[15]);
+	printk("RPC: <%pS>\n", (void *) regs->u_regs[15]);
 	show_regwindow(regs);
 #ifdef CONFIG_SMP
 	spin_unlock(&regdump_lock);
@@ -346,9 +345,6 @@ static void sysrq_handle_globreg(int key, struct tty_struct *tty)
 {
 	struct thread_info *tp = current_thread_info();
 	struct pt_regs *regs = get_irq_regs();
-#ifdef CONFIG_KALLSYMS
-	char buffer[KSYM_SYMBOL_LEN];
-#endif
 	unsigned long flags;
 	int this_cpu, cpu;
 
@@ -377,17 +373,13 @@ static void sysrq_handle_globreg(int key, struct tty_struct *tty)
 		       gp->tstate, gp->tpc, gp->tnpc,
 		       ((tp && tp->task) ? tp->task->comm : "NULL"),
 		       ((tp && tp->task) ? tp->task->pid : -1));
-#ifdef CONFIG_KALLSYMS
+
 		if (gp->tstate & TSTATE_PRIV) {
-			sprint_symbol(buffer, gp->tpc);
-			printk("             TPC[%s] ", buffer);
-			sprint_symbol(buffer, gp->o7);
-			printk("O7[%s] ", buffer);
-			sprint_symbol(buffer, gp->i7);
-			printk("I7[%s]\n", buffer);
-		} else
-#endif
-		{
+			printk("             TPC[%pS] O7[%pS] I7[%pS]\n",
+			       (void *) gp->tpc,
+			       (void *) gp->o7,
+			       (void *) gp->i7);
+		} else {
 			printk("             TPC[%lx] O7[%lx] I7[%lx]\n",
 			       gp->tpc, gp->o7, gp->i7);
 		}
@@ -691,9 +683,9 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		  ((unsigned long) child_sf) - STACK_BIAS;
 
 		/* Special case, if we are spawning a kernel thread from
-		 * a userspace task (via KMOD, NFS, or similar) we must
-		 * disable performance counters in the child because the
-		 * address space and protection realm are changing.
+		 * a userspace task (usermode helper, NFS or similar), we
+		 * must disable performance counters in the child because
+		 * the address space and protection realm are changing.
 		 */
 		if (t->flags & _TIF_PERFCTR) {
 			t->user_cntd0 = t->user_cntd1 = NULL;

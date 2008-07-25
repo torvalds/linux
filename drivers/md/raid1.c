@@ -1100,11 +1100,16 @@ static int raid1_spare_active(mddev_t *mddev)
 static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	conf_t *conf = mddev->private;
-	int found = 0;
+	int err = -EEXIST;
 	int mirror = 0;
 	mirror_info_t *p;
+	int first = 0;
+	int last = mddev->raid_disks - 1;
 
-	for (mirror=0; mirror < mddev->raid_disks; mirror++)
+	if (rdev->raid_disk >= 0)
+		first = last = rdev->raid_disk;
+
+	for (mirror = first; mirror <= last; mirror++)
 		if ( !(p=conf->mirrors+mirror)->rdev) {
 
 			blk_queue_stack_limits(mddev->queue,
@@ -1119,7 +1124,7 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
-			found = 1;
+			err = 0;
 			/* As all devices are equivalent, we don't need a full recovery
 			 * if this was recently any drive of the array
 			 */
@@ -1130,7 +1135,7 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		}
 
 	print_conf(conf);
-	return found;
+	return err;
 }
 
 static int raid1_remove_disk(mddev_t *mddev, int number)
@@ -2038,7 +2043,7 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_size = mddev->size;
+	mddev->array_sectors = mddev->size * 2;
 
 	mddev->queue->unplug_fn = raid1_unplug;
 	mddev->queue->backing_dev_info.congested_fn = raid1_congested;
@@ -2100,14 +2105,15 @@ static int raid1_resize(mddev_t *mddev, sector_t sectors)
 	 * any io in the removed space completes, but it hardly seems
 	 * worth it.
 	 */
-	mddev->array_size = sectors>>1;
-	set_capacity(mddev->gendisk, mddev->array_size << 1);
+	mddev->array_sectors = sectors;
+	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
-	if (mddev->array_size > mddev->size && mddev->recovery_cp == MaxSector) {
+	if (mddev->array_sectors / 2 > mddev->size &&
+	    mddev->recovery_cp == MaxSector) {
 		mddev->recovery_cp = mddev->size << 1;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	}
-	mddev->size = mddev->array_size;
+	mddev->size = mddev->array_sectors / 2;
 	mddev->resync_max_sectors = sectors;
 	return 0;
 }
@@ -2131,7 +2137,7 @@ static int raid1_reshape(mddev_t *mddev)
 	conf_t *conf = mddev_to_conf(mddev);
 	int cnt, raid_disks;
 	unsigned long flags;
-	int d, d2;
+	int d, d2, err;
 
 	/* Cannot change chunk_size, layout, or level */
 	if (mddev->chunk_size != mddev->new_chunk ||
@@ -2143,7 +2149,9 @@ static int raid1_reshape(mddev_t *mddev)
 		return -EINVAL;
 	}
 
-	md_allow_write(mddev);
+	err = md_allow_write(mddev);
+	if (err)
+		return err;
 
 	raid_disks = mddev->raid_disks + mddev->delta_disks;
 

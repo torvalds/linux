@@ -239,10 +239,8 @@ int __init sclp_sdias_init(void)
 	debug_register_view(sdias_dbf, &debug_sprintf_view);
 	debug_set_level(sdias_dbf, 6);
 	rc = sclp_register(&sclp_sdias_register);
-	if (rc) {
-		ERROR_MSG("sclp register failed\n");
+	if (rc)
 		return rc;
-	}
 	init_waitqueue_head(&sdias_wq);
 	TRACE("init done\n");
 	return 0;

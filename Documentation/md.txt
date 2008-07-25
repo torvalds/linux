@@ -236,6 +236,11 @@ All md devices contain:
      writing the word for the desired state, however some states
      cannot be explicitly set, and some transitions are not allowed.
 
+     Select/poll works on this file.  All changes except between
+     	active_idle and active (which can be frequent and are not
+	very interesting) are notified.  active->active_idle is
+	reported if the metadata is externally managed.
+
      clear
          No devices, no size, no level
          Writing is equivalent to STOP_ARRAY ioctl
@@ -292,6 +297,10 @@ Each directory contains:
 	      writemostly - device will only be subject to read
 		         requests if there are no other options.
 			 This applies only to raid1 arrays.
+	      blocked  - device has failed, metadata is "external",
+	                 and the failure hasn't been acknowledged yet.
+			 Writes that would write to this device if
+			 it were not faulty are blocked.
 	      spare    - device is working, but not a full member.
 			 This includes spares that are in the process
 			 of being recovered to
@@ -301,6 +310,12 @@ Each directory contains:
 	Writing "remove" removes the device from the array.
 	Writing "writemostly" sets the writemostly flag.
 	Writing "-writemostly" clears the writemostly flag.
+	Writing "blocked" sets the "blocked" flag.
+	Writing "-blocked" clear the "blocked" flag and allows writes
+		to complete.
+
+	This file responds to select/poll. Any change to 'faulty'
+	or 'blocked' causes an event.
 
       errors
 	An approximate count of read errors that have been detected on
@@ -332,7 +347,7 @@ Each directory contains:
         for storage of data.  This will normally be the same as the
 	component_size.  This can be written while assembling an
         array.  If a value less than the current component_size is
-        written, component_size will be reduced to this value.
+        written, it will be rejected.
 
 
 An active md device will also contain and entry for each active device
@@ -380,6 +395,19 @@ also have
            corresponding operation if it was stopped with 'idle'.
 	'check' and 'repair' will start the appropriate process
            providing the current state is 'idle'.
+
+      This file responds to select/poll.  Any important change in the value
+      triggers a poll event.  Sometimes the value will briefly be
+      "recover" if a recovery seems to be needed, but cannot be
+      achieved. In that case, the transition to "recover" isn't
+      notified, but the transition away is.
+
+   degraded
+      This contains a count of the number of devices by which the
+      arrays is degraded.  So an optimal array with show '0'.  A
+      single failed/missing drive will show '1', etc.
+      This file responds to select/poll, any increase or decrease
+      in the count of missing devices will trigger an event.
 
    mismatch_count
       When performing 'check' and 'repair', and possibly when

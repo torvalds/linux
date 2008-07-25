@@ -1,8 +1,6 @@
 /* Driver for USB Mass Storage compliant devices
  * Unusual Devices File
  *
- * $Id: unusual_devs.h,v 1.32 2002/02/25 02:41:24 mdharm Exp $
- *
  * Current development and maintenance by:
  *   (c) 2000-2002 Matthew Dharm (mdharm-usb@one-eyed-alien.net)
  *
@@ -402,9 +400,17 @@ UNUSUAL_DEV(  0x04a5, 0x3010, 0x0100, 0x0100,
 		US_FL_IGNORE_RESIDUE ),
 
 #ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
+/* CY7C68300 : support atacb */
 UNUSUAL_DEV(  0x04b4, 0x6830, 0x0000, 0x9999,
 		"Cypress",
 		"Cypress AT2LP",
+		US_SC_CYP_ATACB, US_PR_DEVICE, NULL,
+		0),
+
+/* CY7C68310 : support atacb and atacb2 */
+UNUSUAL_DEV(  0x04b4, 0x6831, 0x0000, 0x9999,
+		"Cypress",
+		"Cypress ISD-300LP",
 		US_SC_CYP_ATACB, US_PR_DEVICE, NULL,
 		0),
 #endif
@@ -1214,6 +1220,17 @@ UNUSUAL_DEV(  0x084d, 0x0011, 0x0110, 0x0110,
 		"DC2MEGA",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_BULK32),
+
+/* Andrew Lunn <andrew@lunn.ch>
+ * PanDigital Digital Picture Frame. Does not like ALLOW_MEDIUM_REMOVAL
+ * on LUN 4.
+ * Note: Vend:Prod clash with "Ltd Maxell WS30 Slim Digital Camera"
+*/
+UNUSUAL_DEV(  0x0851, 0x1543, 0x0200, 0x0200,
+		"PanDigital",
+		"Photo Frame",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_NOT_LOCKABLE),
 
 /* Andrew Lunn <andrew@lunn.ch>
  * PanDigital Digital Picture Frame. Does not like ALLOW_MEDIUM_REMOVAL

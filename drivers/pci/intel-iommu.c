@@ -37,7 +37,7 @@
 #include "intel-iommu.h"
 #include <asm/proto.h> /* force_iommu in this header in x86-64*/
 #include <asm/cacheflush.h>
-#include <asm/gart.h>
+#include <asm/iommu.h>
 #include "pci.h"
 
 #define IS_GFX_DEVICE(pdev) ((pdev->class >> 16) == PCI_BASE_CLASS_DISPLAY)
@@ -1637,12 +1637,43 @@ static inline int iommu_prepare_rmrr_dev(struct dmar_rmrr_unit *rmrr,
 }
 
 #ifdef CONFIG_DMAR_GFX_WA
-extern int arch_get_ram_range(int slot, u64 *addr, u64 *size);
+struct iommu_prepare_data {
+	struct pci_dev *pdev;
+	int ret;
+};
+
+static int __init iommu_prepare_work_fn(unsigned long start_pfn,
+					 unsigned long end_pfn, void *datax)
+{
+	struct iommu_prepare_data *data;
+
+	data = (struct iommu_prepare_data *)datax;
+
+	data->ret = iommu_prepare_identity_map(data->pdev,
+				start_pfn<<PAGE_SHIFT, end_pfn<<PAGE_SHIFT);
+	return data->ret;
+
+}
+
+static int __init iommu_prepare_with_active_regions(struct pci_dev *pdev)
+{
+	int nid;
+	struct iommu_prepare_data data;
+
+	data.pdev = pdev;
+	data.ret = 0;
+
+	for_each_online_node(nid) {
+		work_with_active_regions(nid, iommu_prepare_work_fn, &data);
+		if (data.ret)
+			return data.ret;
+	}
+	return data.ret;
+}
+
 static void __init iommu_prepare_gfx_mapping(void)
 {
 	struct pci_dev *pdev = NULL;
-	u64 base, size;
-	int slot;
 	int ret;
 
 	for_each_pci_dev(pdev) {
@@ -1651,17 +1682,9 @@ static void __init iommu_prepare_gfx_mapping(void)
 			continue;
 		printk(KERN_INFO "IOMMU: gfx device %s 1-1 mapping\n",
 			pci_name(pdev));
-		slot = arch_get_ram_range(0, &base, &size);
-		while (slot >= 0) {
-			ret = iommu_prepare_identity_map(pdev,
-					base, base + size);
-			if (ret)
-				goto error;
-			slot = arch_get_ram_range(slot, &base, &size);
-		}
-		continue;
-error:
-		printk(KERN_ERR "IOMMU: mapping reserved region failed\n");
+		ret = iommu_prepare_with_active_regions(pdev);
+		if (ret)
+			printk(KERN_ERR "IOMMU: mapping reserved region failed\n");
 	}
 }
 #endif
@@ -1725,7 +1748,6 @@ int __init init_dmars(void)
 	deferred_flush = kzalloc(g_num_of_iommus *
 		sizeof(struct deferred_flush_tables), GFP_KERNEL);
 	if (!deferred_flush) {
-		kfree(g_iommus);
 		ret = -ENOMEM;
 		goto error;
 	}

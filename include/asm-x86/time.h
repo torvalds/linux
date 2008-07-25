@@ -56,4 +56,6 @@ static inline int native_set_wallclock(unsigned long nowtime)
 
 #endif /* CONFIG_PARAVIRT */
 
+extern unsigned long __init calibrate_cpu(void);
+
 #endif

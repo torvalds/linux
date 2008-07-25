@@ -573,7 +573,7 @@ static int lparcfg_open(struct inode *inode, struct file *file)
 	return single_open(file, lparcfg_data, NULL);
 }
 
-const struct file_operations lparcfg_fops = {
+static const struct file_operations lparcfg_fops = {
 	.owner		= THIS_MODULE,
 	.read		= seq_read,
 	.write		= lparcfg_write,
@@ -581,7 +581,7 @@ const struct file_operations lparcfg_fops = {
 	.release	= single_release,
 };
 
-int __init lparcfg_init(void)
+static int __init lparcfg_init(void)
 {
 	struct proc_dir_entry *ent;
 	mode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
@@ -601,7 +601,7 @@ int __init lparcfg_init(void)
 	return 0;
 }
 
-void __exit lparcfg_cleanup(void)
+static void __exit lparcfg_cleanup(void)
 {
 	if (proc_ppc64_lparcfg)
 		remove_proc_entry("lparcfg", proc_ppc64_lparcfg->parent);

@@ -218,8 +218,8 @@ static int nmi_setup(void)
 		}
 
 	}
-	on_each_cpu(nmi_save_registers, NULL, 0, 1);
-	on_each_cpu(nmi_cpu_setup, NULL, 0, 1);
+	on_each_cpu(nmi_save_registers, NULL, 1);
+	on_each_cpu(nmi_cpu_setup, NULL, 1);
 	nmi_enabled = 1;
 	return 0;
 }
@@ -269,12 +269,13 @@ static void nmi_cpu_shutdown(void *dummy)
 
 static void nmi_shutdown(void)
 {
-	struct op_msrs *msrs = &__get_cpu_var(cpu_msrs);
+	struct op_msrs *msrs = &get_cpu_var(cpu_msrs);
 	nmi_enabled = 0;
-	on_each_cpu(nmi_cpu_shutdown, NULL, 0, 1);
+	on_each_cpu(nmi_cpu_shutdown, NULL, 1);
 	unregister_die_notifier(&profile_exceptions_nb);
 	model->shutdown(msrs);
 	free_msrs();
+	put_cpu_var(cpu_msrs);
 }
 
 static void nmi_cpu_start(void *dummy)
@@ -285,7 +286,7 @@ static void nmi_cpu_start(void *dummy)
 
 static int nmi_start(void)
 {
-	on_each_cpu(nmi_cpu_start, NULL, 0, 1);
+	on_each_cpu(nmi_cpu_start, NULL, 1);
 	return 0;
 }
 
@@ -297,7 +298,7 @@ static void nmi_cpu_stop(void *dummy)
 
 static void nmi_stop(void)
 {
-	on_each_cpu(nmi_cpu_stop, NULL, 0, 1);
+	on_each_cpu(nmi_cpu_stop, NULL, 1);
 }
 
 struct op_counter_config counter_config[OP_MAX_COUNTER];
@@ -368,20 +369,34 @@ static int __init ppro_init(char **cpu_type)
 {
 	__u8 cpu_model = boot_cpu_data.x86_model;
 
-	if (cpu_model == 14)
-		*cpu_type = "i386/core";
-	else if (cpu_model == 15 || cpu_model == 23)
-		*cpu_type = "i386/core_2";
-	else if (cpu_model > 0xd)
-		return 0;
-	else if (cpu_model == 9) {
-		*cpu_type = "i386/p6_mobile";
-	} else if (cpu_model > 5) {
-		*cpu_type = "i386/piii";
-	} else if (cpu_model > 2) {
-		*cpu_type = "i386/pii";
-	} else {
+	switch (cpu_model) {
+	case 0 ... 2:
 		*cpu_type = "i386/ppro";
+		break;
+	case 3 ... 5:
+		*cpu_type = "i386/pii";
+		break;
+	case 6 ... 8:
+		*cpu_type = "i386/piii";
+		break;
+	case 9:
+		*cpu_type = "i386/p6_mobile";
+		break;
+	case 10 ... 13:
+		*cpu_type = "i386/p6";
+		break;
+	case 14:
+		*cpu_type = "i386/core";
+		break;
+	case 15: case 23:
+		*cpu_type = "i386/core_2";
+		break;
+	case 26:
+		*cpu_type = "i386/core_2";
+		break;
+	default:
+		/* Unknown */
+		return 0;
 	}
 
 	model = &op_ppro_spec;

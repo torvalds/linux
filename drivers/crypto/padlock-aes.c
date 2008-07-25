@@ -385,12 +385,12 @@ static int __init padlock_init(void)
 	int ret;
 
 	if (!cpu_has_xcrypt) {
-		printk(KERN_ERR PFX "VIA PadLock not detected.\n");
+		printk(KERN_NOTICE PFX "VIA PadLock not detected.\n");
 		return -ENODEV;
 	}
 
 	if (!cpu_has_xcrypt_enabled) {
-		printk(KERN_ERR PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
+		printk(KERN_NOTICE PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
 		return -ENODEV;
 	}
 

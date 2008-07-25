@@ -3,9 +3,12 @@
 
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 #include <asm/chpid.h>
+#include <asm/cio.h>
+#include <asm/fcx.h>
+#include <asm/schid.h>
 #include "chsc.h"
-#include "schid.h"
 
 /*
  * path management control word
@@ -13,7 +16,7 @@
 struct pmcw {
 	u32 intparm;		/* interruption parameter */
 	u32 qf	 : 1;		/* qdio facility */
-	u32 res0 : 1;		/* reserved zeros */
+	u32 w	 : 1;
 	u32 isc  : 3;		/* interruption sublass */
 	u32 res5 : 3;		/* reserved zeros */
 	u32 ena  : 1;		/* enabled */
@@ -47,7 +50,7 @@ struct pmcw {
  */
 struct schib {
 	struct pmcw pmcw;	 /* path management control word */
-	struct scsw scsw;	 /* subchannel status word */
+	union scsw scsw;	 /* subchannel status word */
 	__u64 mba;               /* measurement block address */
 	__u8 mda[4];		 /* model dependent area */
 } __attribute__ ((packed,aligned(4)));
@@ -99,8 +102,11 @@ extern int cio_set_options (struct subchannel *, int);
 extern int cio_get_options (struct subchannel *);
 extern int cio_modify (struct subchannel *);
 
+int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key);
+int cio_tm_intrg(struct subchannel *sch);
+
 int cio_create_sch_lock(struct subchannel *);
-void do_adapter_IO(void);
+void do_adapter_IO(u8 isc);
 void do_IRQ(struct pt_regs *);
 
 /* Use with care. */

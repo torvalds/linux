@@ -279,58 +279,42 @@ static struct diu_hw dr = {
 
 static struct diu_pool pool;
 
-/*	To allocate memory for framebuffer. First try __get_free_pages(). If it
- *	fails, try rh_alloc. The reason is __get_free_pages() cannot allocate
- *	very large memory (more than 4MB). We don't want to allocate all memory
- *	in rheap since small memory allocation/deallocation will fragment the
- *	rheap and make the furture large allocation fail.
+/**
+ * fsl_diu_alloc - allocate memory for the DIU
+ * @size: number of bytes to allocate
+ * @param: returned physical address of memory
+ *
+ * This function allocates a physically-contiguous block of memory.
  */
-
-void *fsl_diu_alloc(unsigned long size, phys_addr_t *phys)
+static void *fsl_diu_alloc(size_t size, phys_addr_t *phys)
 {
 	void *virt;
 
-	pr_debug("size=%lu\n", size);
+	pr_debug("size=%zu\n", size);
 
-	virt = (void *)__get_free_pages(GFP_DMA | __GFP_ZERO, get_order(size));
+	virt = alloc_pages_exact(size, GFP_DMA | __GFP_ZERO);
 	if (virt) {
 		*phys = virt_to_phys(virt);
-		pr_debug("virt %p, phys=%llx\n", virt, (uint64_t) *phys);
-		return virt;
+		pr_debug("virt=%p phys=%llx\n", virt,
+			(unsigned long long)*phys);
 	}
-	if (!diu_ops.diu_mem) {
-		printk(KERN_INFO "%s: no diu_mem."
-			" To reserve more memory, put 'diufb=15M' "
-			"in the command line\n", __func__);
-		return NULL;
-	}
-
-	virt = (void *)rh_alloc(&diu_ops.diu_rh_info, size, "DIU");
-	if (virt) {
-		*phys = virt_to_bus(virt);
-		memset(virt, 0, size);
-	}
-
-	pr_debug("rh virt=%p phys=%lx\n", virt, *phys);
 
 	return virt;
 }
 
-void fsl_diu_free(void *p, unsigned long size)
+/**
+ * fsl_diu_free - release DIU memory
+ * @virt: pointer returned by fsl_diu_alloc()
+ * @size: number of bytes allocated by fsl_diu_alloc()
+ *
+ * This function releases memory allocated by fsl_diu_alloc().
+ */
+static void fsl_diu_free(void *virt, size_t size)
 {
-	pr_debug("p=%p size=%lu\n", p, size);
+	pr_debug("virt=%p size=%zu\n", virt, size);
 
-	if (!p)
-		return;
-
-	if ((p >= diu_ops.diu_mem) &&
-	    (p < (diu_ops.diu_mem + diu_ops.diu_size))) {
-		pr_debug("rh\n");
-		rh_free(&diu_ops.diu_rh_info, (unsigned long) p);
-	} else {
-		pr_debug("dma\n");
-		free_pages((unsigned long)p, get_order(size));
-	}
+	if (virt && size)
+		free_pages_exact(virt, size);
 }
 
 static int fsl_diu_enable_panel(struct fb_info *info)
@@ -770,7 +754,7 @@ static int map_video_memory(struct fb_info *info)
 	info->fix.smem_len = info->fix.line_length * info->var.yres_virtual;
 	pr_debug("MAP_VIDEO_MEMORY: smem_len = %d\n", info->fix.smem_len);
 	info->screen_base = fsl_diu_alloc(info->fix.smem_len, &phys);
-	if (info->screen_base == 0) {
+	if (info->screen_base == NULL) {
 		printk(KERN_ERR "Unable to allocate fb memory\n");
 		return -ENOMEM;
 	}
@@ -788,7 +772,7 @@ static int map_video_memory(struct fb_info *info)
 static void unmap_video_memory(struct fb_info *info)
 {
 	fsl_diu_free(info->screen_base, info->fix.smem_len);
-	info->screen_base = 0;
+	info->screen_base = NULL;
 	info->fix.smem_start = 0;
 	info->fix.smem_len = 0;
 }
@@ -1158,7 +1142,7 @@ static int init_fbinfo(struct fb_info *info)
 	return 0;
 }
 
-static int install_fb(struct fb_info *info)
+static int __devinit install_fb(struct fb_info *info)
 {
 	int rc;
 	struct mfb_info *mfbi = info->par;
@@ -1233,7 +1217,7 @@ static int install_fb(struct fb_info *info)
 	return 0;
 }
 
-static void __exit uninstall_fb(struct fb_info *info)
+static void uninstall_fb(struct fb_info *info)
 {
 	struct mfb_info *mfbi = info->par;
 
@@ -1287,7 +1271,7 @@ static int request_irq_local(int irq)
 	/* Read to clear the status */
 	status = in_be32(&hw->int_status);
 
-	ret = request_irq(irq, fsl_diu_isr, 0, "diu", 0);
+	ret = request_irq(irq, fsl_diu_isr, 0, "diu", NULL);
 	if (ret)
 		pr_info("Request diu IRQ failed.\n");
 	else {
@@ -1312,7 +1296,7 @@ static void free_irq_local(int irq)
 	/* Disable all LCDC interrupt */
 	out_be32(&hw->int_mask, 0x1f);
 
-	free_irq(irq, 0);
+	free_irq(irq, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -1353,7 +1337,8 @@ static int allocate_buf(struct diu_addr *buf, u32 size, u32 bytes_align)
 	dma_addr_t paddr = 0;
 
 	ssize = size + bytes_align;
-	buf->vaddr = dma_alloc_coherent(0, ssize, &paddr, GFP_DMA | __GFP_ZERO);
+	buf->vaddr = dma_alloc_coherent(NULL, ssize, &paddr, GFP_DMA |
+							     __GFP_ZERO);
 	if (!buf->vaddr)
 		return -ENOMEM;
 
@@ -1371,7 +1356,7 @@ static int allocate_buf(struct diu_addr *buf, u32 size, u32 bytes_align)
 
 static void free_buf(struct diu_addr *buf, u32 size, u32 bytes_align)
 {
-	dma_free_coherent(0, size + bytes_align,
+	dma_free_coherent(NULL, size + bytes_align,
 				buf->vaddr, (buf->paddr - buf->offset));
 	return;
 }
@@ -1411,7 +1396,7 @@ static ssize_t show_monitor(struct device *device,
 	return diu_ops.show_monitor_port(machine_data->monitor_port, buf);
 }
 
-static int fsl_diu_probe(struct of_device *ofdev,
+static int __devinit fsl_diu_probe(struct of_device *ofdev,
 	const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->node;

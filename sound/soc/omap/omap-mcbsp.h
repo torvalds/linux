@@ -44,6 +44,6 @@ enum omap_mcbsp_div {
  */
 #define NUM_LINKS	1
 
-extern struct snd_soc_cpu_dai omap_mcbsp_dai[NUM_LINKS];
+extern struct snd_soc_dai omap_mcbsp_dai[NUM_LINKS];
 
 #endif

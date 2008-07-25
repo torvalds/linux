@@ -78,24 +78,6 @@
 #define mk_cr_cmd(PG, SBC, MCN, OP) \
 	((PG << 26) | (SBC << 21) | (MCN << 6) | OP)
 
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-/* Dual Port RAM addresses.  The first 16K is available for almost
- * any CPM use, so we put the BDs there.  The first 128 bytes are
- * used for SMC1 and SMC2 parameter RAM, so we start allocating
- * BDs above that.  All of this must change when we start
- * downloading RAM microcode.
- */
-#define CPM_DATAONLY_BASE	((uint)128)
-#define CPM_DP_NOSPACE		((uint)0x7fffffff)
-#if defined(CONFIG_8272) || defined(CONFIG_MPC8555)
-#define CPM_DATAONLY_SIZE	((uint)(8 * 1024) - CPM_DATAONLY_BASE)
-#define CPM_FCC_SPECIAL_BASE	((uint)0x00009000)
-#else
-#define CPM_DATAONLY_SIZE	((uint)(16 * 1024) - CPM_DATAONLY_BASE)
-#define CPM_FCC_SPECIAL_BASE	((uint)0x0000b000)
-#endif
-#endif
-
 /* The number of pages of host memory we allocate for CPM.  This is
  * done early in kernel initialization to get physically contiguous
  * pages.
@@ -107,17 +89,9 @@
  */
 extern cpm_cpm2_t __iomem *cpmp; /* Pointer to comm processor */
 
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 #define cpm_dpalloc cpm_muram_alloc
 #define cpm_dpfree cpm_muram_free
 #define cpm_dpram_addr cpm_muram_addr
-#else
-extern unsigned long cpm_dpalloc(uint size, uint align);
-extern int cpm_dpfree(unsigned long offset);
-extern unsigned long cpm_dpalloc_fixed(unsigned long offset, uint size, uint align);
-extern void cpm_dpdump(void);
-extern void *cpm_dpram_addr(unsigned long offset);
-#endif
 
 extern void cpm_setbrg(uint brg, uint rate);
 extern void cpm2_fastbrg(uint brg, uint rate, int div16);

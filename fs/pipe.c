@@ -950,7 +950,7 @@ fail_inode:
 	return NULL;
 }
 
-struct file *create_write_pipe(void)
+struct file *create_write_pipe(int flags)
 {
 	int err;
 	struct inode *inode;
@@ -983,7 +983,7 @@ struct file *create_write_pipe(void)
 		goto err_dentry;
 	f->f_mapping = inode->i_mapping;
 
-	f->f_flags = O_WRONLY;
+	f->f_flags = O_WRONLY | (flags & O_NONBLOCK);
 	f->f_version = 0;
 
 	return f;
@@ -1003,24 +1003,23 @@ struct file *create_write_pipe(void)
 void free_write_pipe(struct file *f)
 {
 	free_pipe_info(f->f_dentry->d_inode);
-	dput(f->f_path.dentry);
-	mntput(f->f_path.mnt);
+	path_put(&f->f_path);
 	put_filp(f);
 }
 
-struct file *create_read_pipe(struct file *wrf)
+struct file *create_read_pipe(struct file *wrf, int flags)
 {
 	struct file *f = get_empty_filp();
 	if (!f)
 		return ERR_PTR(-ENFILE);
 
 	/* Grab pipe from the writer */
-	f->f_path.mnt = mntget(wrf->f_path.mnt);
-	f->f_path.dentry = dget(wrf->f_path.dentry);
+	f->f_path = wrf->f_path;
+	path_get(&wrf->f_path);
 	f->f_mapping = wrf->f_path.dentry->d_inode->i_mapping;
 
 	f->f_pos = 0;
-	f->f_flags = O_RDONLY;
+	f->f_flags = O_RDONLY | (flags & O_NONBLOCK);
 	f->f_op = &read_pipe_fops;
 	f->f_mode = FMODE_READ;
 	f->f_version = 0;
@@ -1028,26 +1027,29 @@ struct file *create_read_pipe(struct file *wrf)
 	return f;
 }
 
-int do_pipe(int *fd)
+int do_pipe_flags(int *fd, int flags)
 {
 	struct file *fw, *fr;
 	int error;
 	int fdw, fdr;
 
-	fw = create_write_pipe();
+	if (flags & ~(O_CLOEXEC | O_NONBLOCK))
+		return -EINVAL;
+
+	fw = create_write_pipe(flags);
 	if (IS_ERR(fw))
 		return PTR_ERR(fw);
-	fr = create_read_pipe(fw);
+	fr = create_read_pipe(fw, flags);
 	error = PTR_ERR(fr);
 	if (IS_ERR(fr))
 		goto err_write_pipe;
 
-	error = get_unused_fd();
+	error = get_unused_fd_flags(flags);
 	if (error < 0)
 		goto err_read_pipe;
 	fdr = error;
 
-	error = get_unused_fd();
+	error = get_unused_fd_flags(flags);
 	if (error < 0)
 		goto err_fdr;
 	fdw = error;
@@ -1068,24 +1070,28 @@ int do_pipe(int *fd)
  err_fdr:
 	put_unused_fd(fdr);
  err_read_pipe:
-	dput(fr->f_dentry);
-	mntput(fr->f_vfsmnt);
+	path_put(&fr->f_path);
 	put_filp(fr);
  err_write_pipe:
 	free_write_pipe(fw);
 	return error;
 }
 
+int do_pipe(int *fd)
+{
+	return do_pipe_flags(fd, 0);
+}
+
 /*
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way Unix traditionally does this, though.
  */
-asmlinkage long __weak sys_pipe(int __user *fildes)
+asmlinkage long __weak sys_pipe2(int __user *fildes, int flags)
 {
 	int fd[2];
 	int error;
 
-	error = do_pipe(fd);
+	error = do_pipe_flags(fd, flags);
 	if (!error) {
 		if (copy_to_user(fildes, fd, sizeof(fd))) {
 			sys_close(fd[0]);
@@ -1094,6 +1100,11 @@ asmlinkage long __weak sys_pipe(int __user *fildes)
 		}
 	}
 	return error;
+}
+
+asmlinkage long __weak sys_pipe(int __user *fildes)
+{
+	return sys_pipe2(fildes, 0);
 }
 
 /*

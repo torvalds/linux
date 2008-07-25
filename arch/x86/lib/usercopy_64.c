@@ -158,3 +158,26 @@ unsigned long copy_in_user(void __user *to, const void __user *from, unsigned le
 }
 EXPORT_SYMBOL(copy_in_user);
 
+/*
+ * Try to copy last bytes and clear the rest if needed.
+ * Since protection fault in copy_from/to_user is not a normal situation,
+ * it is not necessary to optimize tail handling.
+ */
+unsigned long
+copy_user_handle_tail(char *to, char *from, unsigned len, unsigned zerorest)
+{
+	char c;
+	unsigned zero_len;
+
+	for (; len; --len) {
+		if (__get_user_nocheck(c, from++, sizeof(char)))
+			break;
+		if (__put_user_nocheck(c, to++, sizeof(char)))
+			break;
+	}
+
+	for (c = 0, zero_len = len; zerorest && zero_len; --zero_len)
+		if (__put_user_nocheck(c, to++, sizeof(char)))
+			break;
+	return len;
+}

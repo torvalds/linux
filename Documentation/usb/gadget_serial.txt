@@ -1,6 +1,7 @@
 
                  Linux Gadget Serial Driver v2.0
                            11/20/2004
+                  (updated 8-May-2008 for v2.3)
 
 
 License and Disclaimer
@@ -31,7 +32,7 @@ Prerequisites
 -------------
 Versions of the gadget serial driver are available for the
 2.4 Linux kernels, but this document assumes you are using
-version 2.0 or later of the gadget serial driver in a 2.6
+version 2.3 or later of the gadget serial driver in a 2.6
 Linux kernel.
 
 This document assumes that you are familiar with Linux and
@@ -39,6 +40,12 @@ Windows and know how to configure and build Linux kernels, run
 standard utilities, use minicom and HyperTerminal, and work with
 USB and serial devices.  It also assumes you configure the Linux
 gadget and usb drivers as modules.
+
+With version 2.3 of the driver, major and minor device nodes are
+no longer statically defined.  Your Linux based system should mount
+sysfs in /sys, and use "mdev" (in Busybox) or "udev" to make the
+/dev nodes matching the sysfs /sys/class/tty files.
+
 
 
 Overview
@@ -104,15 +111,8 @@ driver.  All this are listed under "USB Gadget Support" when
 configuring the kernel.  Then rebuild and install the kernel or
 modules.
 
-The gadget serial driver uses major number 127, for now.  So you
-will need to create a device node for it, like this:
-
-  mknod /dev/ttygserial c 127 0
-
-You only need to do this once.
-
 Then you must load the gadget serial driver.  To load it as an
-ACM device, do this:
+ACM device (recommended for interoperability), do this:
 
   modprobe g_serial use_acm=1
 
@@ -124,6 +124,23 @@ This will also automatically load the underlying gadget peripheral
 controller driver.  This must be done each time you reboot the gadget
 side Linux system.  You can add this to the start up scripts, if
 desired.
+
+Your system should use mdev (from busybox) or udev to make the
+device nodes.  After this gadget driver has been set up you should
+then see a /dev/ttyGS0 node:
+
+  # ls -l /dev/ttyGS0 | cat
+  crw-rw----    1 root     root     253,   0 May  8 14:10 /dev/ttyGS0
+  #
+
+Note that the major number (253, above) is system-specific.  If
+you need to create /dev nodes by hand, the right numbers to use
+will be in the /sys/class/tty/ttyGS0/dev file.
+
+When you link this gadget driver early, perhaps even statically,
+you may want to set up an /etc/inittab entry to run "getty" on it.
+The /dev/ttyGS0 line should work like most any other serial port.
+
 
 If gadget serial is loaded as an ACM device you will want to use
 either the Windows or Linux ACM driver on the host side.  If gadget

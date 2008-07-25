@@ -9,9 +9,6 @@
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
- *
- *  Revision history
- *    4th Feb 2006   Initial version.
  */
 
 #include <linux/init.h>
@@ -25,6 +22,7 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include "wm9712.h"
 
 #define WM9712_VERSION "0.4"
 
@@ -351,7 +349,7 @@ SND_SOC_DAPM_INPUT("MIC1"),
 SND_SOC_DAPM_INPUT("MIC2"),
 };
 
-static const char *audio_map[][3] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 	/* virtual mixer - mixes left & right channels for spk and mono */
 	{"AC97 Mixer", NULL, "Left DAC"},
 	{"AC97 Mixer", NULL, "Right DAC"},
@@ -446,21 +444,14 @@ static const char *audio_map[][3] = {
 	{"Speaker PGA", NULL, "Speaker Mux"},
 	{"LOUT2", NULL, "Speaker PGA"},
 	{"ROUT2", NULL, "Speaker PGA"},
-
-	{NULL, NULL, NULL},
 };
 
 static int wm9712_add_widgets(struct snd_soc_codec *codec)
 {
-	int i;
+	snd_soc_dapm_new_controls(codec, wm9712_dapm_widgets,
+				  ARRAY_SIZE(wm9712_dapm_widgets));
 
-	for (i = 0; i < ARRAY_SIZE(wm9712_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &wm9712_dapm_widgets[i]);
-
-	/* set up audio path connects */
-	for (i = 0; audio_map[i][0] != NULL; i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-					   audio_map[i][1], audio_map[i][2]);
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_new_widgets(codec);
 	return 0;
@@ -541,7 +532,7 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream)
 		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 |\
 		SNDRV_PCM_RATE_48000)
 
-struct snd_soc_codec_dai wm9712_dai[] = {
+struct snd_soc_dai wm9712_dai[] = {
 {
 	.name = "AC97 HiFi",
 	.type = SND_SOC_DAI_AC97_BUS,
@@ -574,23 +565,23 @@ struct snd_soc_codec_dai wm9712_dai[] = {
 };
 EXPORT_SYMBOL_GPL(wm9712_dai);
 
-static int wm9712_dapm_event(struct snd_soc_codec *codec, int event)
+static int wm9712_set_bias_level(struct snd_soc_codec *codec,
+				 enum snd_soc_bias_level level)
 {
-	switch (event) {
-	case SNDRV_CTL_POWER_D0: /* full On */
-	case SNDRV_CTL_POWER_D1: /* partial On */
-	case SNDRV_CTL_POWER_D2: /* partial On */
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+	case SND_SOC_BIAS_PREPARE:
 		break;
-	case SNDRV_CTL_POWER_D3hot: /* Off, with power */
+	case SND_SOC_BIAS_STANDBY:
 		ac97_write(codec, AC97_POWERDOWN, 0x0000);
 		break;
-	case SNDRV_CTL_POWER_D3cold: /* Off, without power */
+	case SND_SOC_BIAS_OFF:
 		/* disable everything including AC link */
 		ac97_write(codec, AC97_EXTENDED_MSTATUS, 0xffff);
 		ac97_write(codec, AC97_POWERDOWN, 0xffff);
 		break;
 	}
-	codec->dapm_state = event;
+	codec->bias_level = level;
 	return 0;
 }
 
@@ -598,12 +589,12 @@ static int wm9712_reset(struct snd_soc_codec *codec, int try_warm)
 {
 	if (try_warm && soc_ac97_ops.warm_reset) {
 		soc_ac97_ops.warm_reset(codec->ac97);
-		if (!(ac97_read(codec, 0) & 0x8000))
+		if (ac97_read(codec, 0) == wm9712_reg[0])
 			return 1;
 	}
 
 	soc_ac97_ops.reset(codec->ac97);
-	if (ac97_read(codec, 0) & 0x8000)
+	if (ac97_read(codec, 0) != wm9712_reg[0])
 		goto err;
 	return 0;
 
@@ -618,7 +609,7 @@ static int wm9712_soc_suspend(struct platform_device *pdev,
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->codec;
 
-	wm9712_dapm_event(codec, SNDRV_CTL_POWER_D3cold);
+	wm9712_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
@@ -635,7 +626,7 @@ static int wm9712_soc_resume(struct platform_device *pdev)
 		return ret;
 	}
 
-	wm9712_dapm_event(codec, SNDRV_CTL_POWER_D3hot);
+	wm9712_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	if (ret == 0) {
 		/* Sync reg_cache with the hardware after cold reset */
@@ -647,8 +638,8 @@ static int wm9712_soc_resume(struct platform_device *pdev)
 		}
 	}
 
-	if (codec->suspend_dapm_state == SNDRV_CTL_POWER_D0)
-		wm9712_dapm_event(codec, SNDRV_CTL_POWER_D0);
+	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
+		wm9712_set_bias_level(codec, SND_SOC_BIAS_ON);
 
 	return ret;
 }
@@ -682,7 +673,7 @@ static int wm9712_soc_probe(struct platform_device *pdev)
 	codec->num_dai = ARRAY_SIZE(wm9712_dai);
 	codec->write = ac97_write;
 	codec->read = ac97_read;
-	codec->dapm_event = wm9712_dapm_event;
+	codec->set_bias_level = wm9712_set_bias_level;
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
@@ -706,7 +697,7 @@ static int wm9712_soc_probe(struct platform_device *pdev)
 	/* set alc mux to none */
 	ac97_write(codec, AC97_VIDEO, ac97_read(codec, AC97_VIDEO) | 0x3000);
 
-	wm9712_dapm_event(codec, SNDRV_CTL_POWER_D3hot);
+	wm9712_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	wm9712_add_controls(codec);
 	wm9712_add_widgets(codec);
 	ret = snd_soc_register_card(socdev);

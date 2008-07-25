@@ -273,6 +273,25 @@ comment "SPI RTC drivers"
 
 if SPI_MASTER
 
+config RTC_DRV_M41T94
+	tristate "ST M41T94"
+	help
+	  If you say yes here you will get support for the
+	  ST M41T94 SPI RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-m41t94.
+
+config RTC_DRV_DS1305
+	tristate "Dallas/Maxim DS1305/DS1306"
+	help
+	  Select this driver to get support for the Dallas/Maxim DS1305
+	  and DS1306 real time clock chips.  These support a trickle
+	  charger, alarms, and NVRAM in addition to the clock.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1305.
+
 config RTC_DRV_MAX6902
 	tristate "Maxim MAX6902"
 	help
@@ -469,6 +488,16 @@ config RTC_DRV_VR41XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-vr41xx.
 
+config RTC_DRV_PL030
+	tristate "ARM AMBA PL030 RTC"
+	depends on ARM_AMBA
+	help
+	  If you say Y here you will get access to ARM AMBA
+	  PrimeCell PL030 RTC found on certain ARM SOCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-pl030.
+
 config RTC_DRV_PL031
 	tristate "ARM AMBA PL031 RTC"
 	depends on ARM_AMBA
@@ -495,12 +524,13 @@ config RTC_DRV_AT91RM9200
 	  this is powered by the backup power supply.
 
 config RTC_DRV_AT91SAM9
-	tristate "AT91SAM9x"
+	tristate "AT91SAM9x/AT91CAP9"
 	depends on ARCH_AT91 && !(ARCH_AT91RM9200 || ARCH_AT91X40)
 	help
-	  RTC driver for the Atmel AT91SAM9x internal RTT (Real Time Timer).
-	  These timers are powered by the backup power supply (such as a
-	  small coin cell battery), but do not need to be used as RTCs.
+	  RTC driver for the Atmel AT91SAM9x and AT91CAP9 internal RTT
+	  (Real Time Timer). These timers are powered by the backup power
+	  supply (such as a small coin cell battery), but do not need to
+	  be used as RTCs.
 
 	  (On AT91SAM9rl chips you probably want to use the dedicated RTC
 	  module and leave the RTT available for other uses.)

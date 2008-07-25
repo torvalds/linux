@@ -92,12 +92,15 @@ struct pci_controller {
 	 *   anything but the PHB.  Only allow talking to the PHB if this is
 	 *   set.
 	 *  BIG_ENDIAN - cfg_addr is a big endian register
+	 *  BROKEN_MRM - the 440EPx/GRx chips have an errata that causes hangs on
+	 *   the PLB4.  Effectively disable MRM commands by setting this.
 	 */
 #define PPC_INDIRECT_TYPE_SET_CFG_TYPE		0x00000001
 #define PPC_INDIRECT_TYPE_EXT_REG		0x00000002
 #define PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS	0x00000004
 #define PPC_INDIRECT_TYPE_NO_PCIE_LINK		0x00000008
 #define PPC_INDIRECT_TYPE_BIG_ENDIAN		0x00000010
+#define PPC_INDIRECT_TYPE_BROKEN_MRM		0x00000020
 	u32 indirect_type;
 #endif	/* !CONFIG_PPC64 */
 	/* Currently, we limit ourselves to 1 IO range and 3 mem

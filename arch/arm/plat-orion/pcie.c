@@ -39,6 +39,7 @@
 #define PCIE_CONF_DATA_OFF	0x18fc
 #define PCIE_MASK_OFF		0x1910
 #define PCIE_CTRL_OFF		0x1a00
+#define  PCIE_CTRL_X1_MODE		0x0001
 #define PCIE_STAT_OFF		0x1a04
 #define  PCIE_STAT_DEV_OFFS		20
 #define  PCIE_STAT_DEV_MASK		0x1f
@@ -60,6 +61,11 @@ u32 __init orion_pcie_rev(void __iomem *base)
 int orion_pcie_link_up(void __iomem *base)
 {
 	return !(readl(base + PCIE_STAT_OFF) & PCIE_STAT_LINK_DOWN);
+}
+
+int __init orion_pcie_x4_mode(void __iomem *base)
+{
+	return !(readl(base + PCIE_CTRL_OFF) & PCIE_CTRL_X1_MODE);
 }
 
 int orion_pcie_get_local_bus_nr(void __iomem *base)

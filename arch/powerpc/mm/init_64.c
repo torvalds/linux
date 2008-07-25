@@ -153,10 +153,10 @@ static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
 };
 
 #ifdef CONFIG_HUGETLB_PAGE
-/* Hugepages need one extra cache, initialized in hugetlbpage.c.  We
- * can't put into the tables above, because HPAGE_SHIFT is not compile
- * time constant. */
-struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)+1];
+/* Hugepages need an extra cache per hugepagesize, initialized in
+ * hugetlbpage.c.  We can't put into the tables above, because HPAGE_SHIFT
+ * is not compile time constant. */
+struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)+MMU_PAGE_COUNT];
 #else
 struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)];
 #endif
@@ -185,7 +185,7 @@ void pgtable_cache_init(void)
  * do this by hand as the proffered address may not be correctly aligned.
  * Subtraction of non-aligned pointers produces undefined results.
  */
-unsigned long __meminit vmemmap_section_start(unsigned long page)
+static unsigned long __meminit vmemmap_section_start(unsigned long page)
 {
 	unsigned long offset = page - ((unsigned long)(vmemmap));
 
@@ -198,7 +198,7 @@ unsigned long __meminit vmemmap_section_start(unsigned long page)
  * which overlaps this vmemmap page is initialised then this page is
  * initialised already.
  */
-int __meminit vmemmap_populated(unsigned long start, int page_size)
+static int __meminit vmemmap_populated(unsigned long start, int page_size)
 {
 	unsigned long end = start + page_size;
 

@@ -22,6 +22,9 @@ obj-$(CONFIG_XEN)		+= xen/
 # default.
 obj-y				+= char/
 
+# gpu/ comes after char for AGP vs DRM startup
+obj-y				+= gpu/
+
 obj-$(CONFIG_CONNECTOR)		+= connector/
 
 # i810fb and intelfb depend on char/agp/

@@ -84,6 +84,7 @@
 #include <linux/pci.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -862,11 +863,13 @@ out:
 } /* End twa_chrdev_ioctl() */
 
 /* This function handles open for the character device */
+/* NOTE that this function will race with remove. */
 static int twa_chrdev_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor_number;
 	int retval = TW_IOCTL_ERROR_OS_ENODEV;
 
+	cycle_kernel_lock();
 	minor_number = iminor(inode);
 	if (minor_number >= twa_device_extension_count)
 		goto out;

@@ -280,6 +280,7 @@ static void pci_track_mmap_page_range(struct vm_area_struct *vma)
 static struct vm_operations_struct pci_mmap_ops = {
 	.open  = pci_track_mmap_page_range,
 	.close = pci_unmap_page_range,
+	.access = generic_access_phys,
 };
 
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
@@ -299,9 +300,9 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		return -EINVAL;
 
 	prot = pgprot_val(vma->vm_page_prot);
-	if (pat_wc_enabled && write_combine)
+	if (pat_enabled && write_combine)
 		prot |= _PAGE_CACHE_WC;
-	else if (pat_wc_enabled || boot_cpu_data.x86 > 3)
+	else if (pat_enabled || boot_cpu_data.x86 > 3)
 		/*
 		 * ioremap() and ioremap_nocache() defaults to UC MINUS for now.
 		 * To avoid attribute conflicts, request UC MINUS here
@@ -334,7 +335,9 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		flags = new_flags;
 	}
 
-	if (vma->vm_pgoff <= max_pfn_mapped &&
+	if (((vma->vm_pgoff < max_low_pfn_mapped) ||
+	     (vma->vm_pgoff >= (1UL<<(32 - PAGE_SHIFT)) &&
+	      vma->vm_pgoff < max_pfn_mapped)) &&
 	    ioremap_change_attr((unsigned long)__va(addr), len, flags)) {
 		free_memtype(addr, addr + len);
 		return -EINVAL;

@@ -73,9 +73,9 @@ acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node *node_to_search);
  ******************************************************************************/
 
 void
-acpi_ns_report_error(char *module_name,
+acpi_ns_report_error(const char *module_name,
 		     u32 line_number,
-		     char *internal_name, acpi_status lookup_status)
+		     const char *internal_name, acpi_status lookup_status)
 {
 	acpi_status status;
 	u32 bad_name;
@@ -130,11 +130,11 @@ acpi_ns_report_error(char *module_name,
  ******************************************************************************/
 
 void
-acpi_ns_report_method_error(char *module_name,
+acpi_ns_report_method_error(const char *module_name,
 			    u32 line_number,
-			    char *message,
+			    const char *message,
 			    struct acpi_namespace_node *prefix_node,
-			    char *path, acpi_status method_status)
+			    const char *path, acpi_status method_status)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node = prefix_node;
@@ -167,7 +167,8 @@ acpi_ns_report_method_error(char *module_name,
  ******************************************************************************/
 
 void
-acpi_ns_print_node_pathname(struct acpi_namespace_node *node, char *message)
+acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
+			    const char *message)
 {
 	struct acpi_buffer buffer;
 	acpi_status status;
@@ -296,7 +297,7 @@ u32 acpi_ns_local(acpi_object_type type)
 
 void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 {
-	char *next_external_char;
+	const char *next_external_char;
 	u32 i;
 
 	ACPI_FUNCTION_ENTRY();
@@ -363,9 +364,9 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 {
 	u32 num_segments = info->num_segments;
 	char *internal_name = info->internal_name;
-	char *external_name = info->next_external_char;
+	const char *external_name = info->next_external_char;
 	char *result = NULL;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(ns_build_internal_name);
 
@@ -400,12 +401,11 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 			result = &internal_name[i];
 		} else if (num_segments == 2) {
 			internal_name[i] = AML_DUAL_NAME_PREFIX;
-			result = &internal_name[(acpi_native_uint) (i + 1)];
+			result = &internal_name[(acpi_size) i + 1];
 		} else {
 			internal_name[i] = AML_MULTI_NAME_PREFIX_OP;
-			internal_name[(acpi_native_uint) (i + 1)] =
-			    (char)num_segments;
-			result = &internal_name[(acpi_native_uint) (i + 2)];
+			internal_name[(acpi_size) i + 1] = (char)num_segments;
+			result = &internal_name[(acpi_size) i + 2];
 		}
 	}
 
@@ -472,7 +472,8 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
  *
  *******************************************************************************/
 
-acpi_status acpi_ns_internalize_name(char *external_name, char **converted_name)
+acpi_status
+acpi_ns_internalize_name(const char *external_name, char **converted_name)
 {
 	char *internal_name;
 	struct acpi_namestring_info info;
@@ -528,15 +529,15 @@ acpi_status acpi_ns_internalize_name(char *external_name, char **converted_name)
 
 acpi_status
 acpi_ns_externalize_name(u32 internal_name_length,
-			 char *internal_name,
+			 const char *internal_name,
 			 u32 * converted_name_length, char **converted_name)
 {
-	acpi_native_uint names_index = 0;
-	acpi_native_uint num_segments = 0;
-	acpi_native_uint required_length;
-	acpi_native_uint prefix_length = 0;
-	acpi_native_uint i = 0;
-	acpi_native_uint j = 0;
+	u32 names_index = 0;
+	u32 num_segments = 0;
+	u32 required_length;
+	u32 prefix_length = 0;
+	u32 i = 0;
+	u32 j = 0;
 
 	ACPI_FUNCTION_TRACE(ns_externalize_name);
 
@@ -582,9 +583,8 @@ acpi_ns_externalize_name(u32 internal_name_length,
 			/* <count> 4-byte names */
 
 			names_index = prefix_length + 2;
-			num_segments = (acpi_native_uint) (u8)
-			    internal_name[(acpi_native_uint)
-					  (prefix_length + 1)];
+			num_segments = (u8)
+			    internal_name[(acpi_size) prefix_length + 1];
 			break;
 
 		case AML_DUAL_NAME_PREFIX:
@@ -823,7 +823,7 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 
 acpi_status
 acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
-		 char *pathname,
+		 const char *pathname,
 		 u32 flags, struct acpi_namespace_node **return_node)
 {
 	union acpi_generic_state scope_info;

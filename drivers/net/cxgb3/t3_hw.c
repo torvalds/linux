@@ -923,7 +923,8 @@ int t3_check_tpsram_version(struct adapter *adapter, int *must_load)
  *	Checks if an adapter's tp sram is compatible with the driver.
  *	Returns 0 if the versions are compatible, a negative error otherwise.
  */
-int t3_check_tpsram(struct adapter *adapter, u8 *tp_sram, unsigned int size)
+int t3_check_tpsram(struct adapter *adapter, const u8 *tp_sram,
+		    unsigned int size)
 {
 	u32 csum;
 	unsigned int i;
@@ -2875,10 +2876,10 @@ static void ulp_config(struct adapter *adap, const struct tp_params *p)
  *
  *	Write the contents of the protocol SRAM.
  */
-int t3_set_proto_sram(struct adapter *adap, u8 *data)
+int t3_set_proto_sram(struct adapter *adap, const u8 *data)
 {
 	int i;
-	__be32 *buf = (__be32 *)data;
+	const __be32 *buf = (const __be32 *)data;
 
 	for (i = 0; i < PROTO_SRAM_LINES; i++) {
 		t3_write_reg(adap, A_TP_EMBED_OP_FIELD5, be32_to_cpu(*buf++));

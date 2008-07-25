@@ -186,7 +186,8 @@ static unsigned long iommu_range_alloc(struct device *dev,
 static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 			      void *page, unsigned int npages,
 			      enum dma_data_direction direction,
-			      unsigned long mask, unsigned int align_order)
+			      unsigned long mask, unsigned int align_order,
+			      struct dma_attrs *attrs)
 {
 	unsigned long entry, flags;
 	dma_addr_t ret = DMA_ERROR_CODE;
@@ -205,7 +206,7 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 
 	/* Put the TCEs in the HW table */
 	ppc_md.tce_build(tbl, entry, npages, (unsigned long)page & IOMMU_PAGE_MASK,
-			 direction);
+			 direction, attrs);
 
 
 	/* Flush/invalidate TLB caches if necessary */
@@ -267,11 +268,11 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 }
 
-int iommu_map_sg(struct device *dev, struct scatterlist *sglist,
-		 int nelems, unsigned long mask,
-		 enum dma_data_direction direction)
+int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
+		 struct scatterlist *sglist, int nelems,
+		 unsigned long mask, enum dma_data_direction direction,
+		 struct dma_attrs *attrs)
 {
-	struct iommu_table *tbl = dev->archdata.dma_data;
 	dma_addr_t dma_next = 0, dma_addr;
 	unsigned long flags;
 	struct scatterlist *s, *outs, *segstart;
@@ -336,7 +337,8 @@ int iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 			    npages, entry, dma_addr);
 
 		/* Insert into HW table */
-		ppc_md.tce_build(tbl, entry, npages, vaddr & IOMMU_PAGE_MASK, direction);
+		ppc_md.tce_build(tbl, entry, npages, vaddr & IOMMU_PAGE_MASK,
+				 direction, attrs);
 
 		/* If we are in an open segment, try merging */
 		if (segstart != s) {
@@ -412,7 +414,8 @@ int iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 
 
 void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
-		int nelems, enum dma_data_direction direction)
+		int nelems, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
 	struct scatterlist *sg;
 	unsigned long flags;
@@ -554,7 +557,7 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
  */
 dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 			    void *vaddr, size_t size, unsigned long mask,
-			    enum dma_data_direction direction)
+		enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 	dma_addr_t dma_handle = DMA_ERROR_CODE;
 	unsigned long uaddr;
@@ -572,7 +575,8 @@ dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 			align = PAGE_SHIFT - IOMMU_PAGE_SHIFT;
 
 		dma_handle = iommu_alloc(dev, tbl, vaddr, npages, direction,
-					 mask >> IOMMU_PAGE_SHIFT, align);
+					 mask >> IOMMU_PAGE_SHIFT, align,
+					 attrs);
 		if (dma_handle == DMA_ERROR_CODE) {
 			if (printk_ratelimit())  {
 				printk(KERN_INFO "iommu_alloc failed, "
@@ -587,7 +591,8 @@ dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 }
 
 void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
-		size_t size, enum dma_data_direction direction)
+		size_t size, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
 	unsigned int npages;
 
@@ -640,7 +645,7 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 	nio_pages = size >> IOMMU_PAGE_SHIFT;
 	io_order = get_iommu_order(size);
 	mapping = iommu_alloc(dev, tbl, ret, nio_pages, DMA_BIDIRECTIONAL,
-			      mask >> IOMMU_PAGE_SHIFT, io_order);
+			      mask >> IOMMU_PAGE_SHIFT, io_order, NULL);
 	if (mapping == DMA_ERROR_CODE) {
 		free_pages((unsigned long)ret, order);
 		return NULL;

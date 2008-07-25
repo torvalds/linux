@@ -1,6 +1,4 @@
 /*
-    voodoo3.c - Part of lm_sensors, Linux kernel modules for hardware
-              monitoring
     Copyright (c) 1998, 1999  Frodo Looijaard <frodol@dds.nl>,
     Philip Edelbrock <phil@netroedge.com>,
     Ralph Metzler <rjkm@thp.uni-koeln.de>, and

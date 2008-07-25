@@ -14,14 +14,13 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/kernel_stat.h>
-#include <asm/io.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
+#include <asm/io.h>
 
 #include "appldata.h"
 
 
-#define MY_PRINT_NAME "appldata_mem"		/* for debug messages, etc. */
 #define P2K(x) ((x) << (PAGE_SHIFT - 10))	/* Converts #Pages to KB */
 
 /*
@@ -70,30 +69,6 @@ static struct appldata_mem_data {
 } __attribute__((packed)) appldata_mem_data;
 
 
-static inline void appldata_debug_print(struct appldata_mem_data *mem_data)
-{
-	P_DEBUG("--- MEM - RECORD ---\n");
-	P_DEBUG("pgpgin     = %8lu KB\n", mem_data->pgpgin);
-	P_DEBUG("pgpgout    = %8lu KB\n", mem_data->pgpgout);
-	P_DEBUG("pswpin     = %8lu Pages\n", mem_data->pswpin);
-	P_DEBUG("pswpout    = %8lu Pages\n", mem_data->pswpout);
-	P_DEBUG("pgalloc    = %8lu \n", mem_data->pgalloc);
-	P_DEBUG("pgfault    = %8lu \n", mem_data->pgfault);
-	P_DEBUG("pgmajfault = %8lu \n", mem_data->pgmajfault);
-	P_DEBUG("sharedram  = %8lu KB\n", mem_data->sharedram);
-	P_DEBUG("totalram   = %8lu KB\n", mem_data->totalram);
-	P_DEBUG("freeram    = %8lu KB\n", mem_data->freeram);
-	P_DEBUG("totalhigh  = %8lu KB\n", mem_data->totalhigh);
-	P_DEBUG("freehigh   = %8lu KB\n", mem_data->freehigh);
-	P_DEBUG("bufferram  = %8lu KB\n", mem_data->bufferram);
-	P_DEBUG("cached     = %8lu KB\n", mem_data->cached);
-	P_DEBUG("totalswap  = %8lu KB\n", mem_data->totalswap);
-	P_DEBUG("freeswap   = %8lu KB\n", mem_data->freeswap);
-	P_DEBUG("sync_count_1 = %u\n", mem_data->sync_count_1);
-	P_DEBUG("sync_count_2 = %u\n", mem_data->sync_count_2);
-	P_DEBUG("timestamp    = %lX\n", mem_data->timestamp);
-}
-
 /*
  * appldata_get_mem_data()
  *
@@ -140,9 +115,6 @@ static void appldata_get_mem_data(void *data)
 
 	mem_data->timestamp = get_clock();
 	mem_data->sync_count_2++;
-#ifdef APPLDATA_DEBUG
-	appldata_debug_print(mem_data);
-#endif
 }
 
 
@@ -164,17 +136,7 @@ static struct appldata_ops ops = {
  */
 static int __init appldata_mem_init(void)
 {
-	int rc;
-
-	P_DEBUG("sizeof(mem) = %lu\n", sizeof(struct appldata_mem_data));
-
-	rc = appldata_register_ops(&ops);
-	if (rc != 0) {
-		P_ERROR("Error registering ops, rc = %i\n", rc);
-	} else {
-		P_DEBUG("%s-ops registered!\n", ops.name);
-	}
-	return rc;
+	return appldata_register_ops(&ops);
 }
 
 /*
@@ -185,7 +147,6 @@ static int __init appldata_mem_init(void)
 static void __exit appldata_mem_exit(void)
 {
 	appldata_unregister_ops(&ops);
-	P_DEBUG("%s-ops unregistered!\n", ops.name);
 }
 
 

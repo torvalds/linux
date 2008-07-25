@@ -40,7 +40,7 @@ static struct mca_bus *mca_root_busses[MAX_MCA_BUSSES];
 
 struct mca_device_info {
 	short pos_id;		/* the 2 byte pos id for this card */
-	char name[DEVICE_NAME_SIZE];
+	char name[50];
 };
 
 static int mca_bus_match (struct device *dev, struct device_driver *drv)

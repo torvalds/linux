@@ -516,7 +516,7 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 	int capture_mask = 0;
 	int playback_mask = 0;
 
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 	struct timeval my_tv1, my_tv2;
 	do_gettimeofday(&my_tv1);
 #endif
@@ -623,7 +623,7 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 
 	mutex_unlock(&mgr->setup_mutex);
 
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 	do_gettimeofday(&my_tv2);
 	snd_printdd("***TRIGGER TASKLET*** TIME = %ld (err = %x)\n",
 		    (long)(my_tv2.tv_usec - my_tv1.tv_usec), err);

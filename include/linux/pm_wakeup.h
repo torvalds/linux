@@ -35,6 +35,11 @@ static inline void device_init_wakeup(struct device *dev, int val)
 	dev->power.can_wakeup = dev->power.should_wakeup = !!val;
 }
 
+static inline void device_set_wakeup_capable(struct device *dev, int val)
+{
+	dev->power.can_wakeup = !!val;
+}
+
 static inline int device_can_wakeup(struct device *dev)
 {
 	return dev->power.can_wakeup;
@@ -47,21 +52,7 @@ static inline void device_set_wakeup_enable(struct device *dev, int val)
 
 static inline int device_may_wakeup(struct device *dev)
 {
-	return dev->power.can_wakeup & dev->power.should_wakeup;
-}
-
-/*
- * Platform hook to activate device wakeup capability, if that's not already
- * handled by enable_irq_wake() etc.
- * Returns zero on success, else negative errno
- */
-extern int (*platform_enable_wakeup)(struct device *dev, int is_on);
-
-static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
-{
-	if (platform_enable_wakeup)
-		return (*platform_enable_wakeup)(dev, is_on);
-	return 0;
+	return dev->power.can_wakeup && dev->power.should_wakeup;
 }
 
 #else /* !CONFIG_PM */
@@ -72,6 +63,8 @@ static inline void device_init_wakeup(struct device *dev, int val)
 	dev->power.can_wakeup = !!val;
 }
 
+static inline void device_set_wakeup_capable(struct device *dev, int val) { }
+
 static inline int device_can_wakeup(struct device *dev)
 {
 	return dev->power.can_wakeup;
@@ -79,11 +72,6 @@ static inline int device_can_wakeup(struct device *dev)
 
 #define device_set_wakeup_enable(dev, val)	do {} while (0)
 #define device_may_wakeup(dev)			0
-
-static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
-{
-	return 0;
-}
 
 #endif /* !CONFIG_PM */
 

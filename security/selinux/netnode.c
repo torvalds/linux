@@ -38,7 +38,6 @@
 #include <linux/ipv6.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
-#include <asm/bug.h>
 
 #include "netnode.h"
 #include "objsec.h"

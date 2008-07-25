@@ -153,19 +153,10 @@ struct raw3270_request __init *raw3270_request_alloc_bootmem(size_t size)
 	struct raw3270_request *rq;
 
 	rq = alloc_bootmem_low(sizeof(struct raw3270));
-	if (!rq)
-		return ERR_PTR(-ENOMEM);
-	memset(rq, 0, sizeof(struct raw3270_request));
 
 	/* alloc output buffer. */
-	if (size > 0) {
+	if (size > 0)
 		rq->buffer = alloc_bootmem_low(size);
-		if (!rq->buffer) {
-			free_bootmem((unsigned long) rq,
-				     sizeof(struct raw3270));
-			return ERR_PTR(-ENOMEM);
-		}
-	}
 	rq->size = size;
 	INIT_LIST_HEAD(&rq->list);
 
@@ -372,17 +363,17 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 
 	if (IS_ERR(irb))
 		rc = RAW3270_IO_RETRY;
-	else if (irb->scsw.fctl & SCSW_FCTL_HALT_FUNC) {
+	else if (irb->scsw.cmd.fctl & SCSW_FCTL_HALT_FUNC) {
 		rq->rc = -EIO;
 		rc = RAW3270_IO_DONE;
-	} else if (irb->scsw.dstat ==  (DEV_STAT_CHN_END | DEV_STAT_DEV_END |
-					DEV_STAT_UNIT_EXCEP)) {
+	} else if (irb->scsw.cmd.dstat == (DEV_STAT_CHN_END | DEV_STAT_DEV_END |
+					   DEV_STAT_UNIT_EXCEP)) {
 		/* Handle CE-DE-UE and subsequent UDE */
 		set_bit(RAW3270_FLAGS_BUSY, &rp->flags);
 		rc = RAW3270_IO_BUSY;
 	} else if (test_bit(RAW3270_FLAGS_BUSY, &rp->flags)) {
 		/* Wait for UDE if busy flag is set. */
-		if (irb->scsw.dstat & DEV_STAT_DEV_END) {
+		if (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) {
 			clear_bit(RAW3270_FLAGS_BUSY, &rp->flags);
 			/* Got it, now retry. */
 			rc = RAW3270_IO_RETRY;
@@ -497,7 +488,7 @@ raw3270_init_irq(struct raw3270_view *view, struct raw3270_request *rq,
 	 * Unit-Check Processing:
 	 * Expect Command Reject or Intervention Required.
 	 */
-	if (irb->scsw.dstat & DEV_STAT_UNIT_CHECK) {
+	if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) {
 		/* Request finished abnormally. */
 		if (irb->ecw[0] & SNS0_INTERVENTION_REQ) {
 			set_bit(RAW3270_FLAGS_BUSY, &view->dev->flags);
@@ -505,16 +496,16 @@ raw3270_init_irq(struct raw3270_view *view, struct raw3270_request *rq,
 		}
 	}
 	if (rq) {
-		if (irb->scsw.dstat & DEV_STAT_UNIT_CHECK) {
+		if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) {
 			if (irb->ecw[0] & SNS0_CMD_REJECT)
 				rq->rc = -EOPNOTSUPP;
 			else
 				rq->rc = -EIO;
 		} else
 			/* Request finished normally. Copy residual count. */
-			rq->rescnt = irb->scsw.count;
+			rq->rescnt = irb->scsw.cmd.count;
 	}
-	if (irb->scsw.dstat & DEV_STAT_ATTENTION) {
+	if (irb->scsw.cmd.dstat & DEV_STAT_ATTENTION) {
 		set_bit(RAW3270_FLAGS_ATTN, &view->dev->flags);
 		wake_up(&raw3270_wait_queue);
 	}
@@ -619,7 +610,6 @@ __raw3270_size_device_vm(struct raw3270 *rp)
 		rp->cols = 132;
 		break;
 	default:
-		printk(KERN_WARNING "vrdccrmd is 0x%.8x\n", model);
 		rc = -EOPNOTSUPP;
 		break;
 	}
@@ -1178,17 +1168,19 @@ static int raw3270_create_attributes(struct raw3270 *rp)
 	if (rc)
 		goto out;
 
-	rp->clttydev = device_create(class3270, &rp->cdev->dev,
-				     MKDEV(IBM_TTY3270_MAJOR, rp->minor),
-				     "tty%s", rp->cdev->dev.bus_id);
+	rp->clttydev = device_create_drvdata(class3270, &rp->cdev->dev,
+					     MKDEV(IBM_TTY3270_MAJOR, rp->minor),
+					     NULL,
+					     "tty%s", rp->cdev->dev.bus_id);
 	if (IS_ERR(rp->clttydev)) {
 		rc = PTR_ERR(rp->clttydev);
 		goto out_ttydev;
 	}
 
-	rp->cltubdev = device_create(class3270, &rp->cdev->dev,
-				     MKDEV(IBM_FS3270_MAJOR, rp->minor),
-				     "tub%s", rp->cdev->dev.bus_id);
+	rp->cltubdev = device_create_drvdata(class3270, &rp->cdev->dev,
+					     MKDEV(IBM_FS3270_MAJOR, rp->minor),
+					     NULL,
+					     "tub%s", rp->cdev->dev.bus_id);
 	if (!IS_ERR(rp->cltubdev))
 		goto out;
 

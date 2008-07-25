@@ -348,8 +348,15 @@ void __dma_sync(void *vaddr, size_t size, int direction)
 	switch (direction) {
 	case DMA_NONE:
 		BUG();
-	case DMA_FROM_DEVICE:	/* invalidate only */
-		invalidate_dcache_range(start, end);
+	case DMA_FROM_DEVICE:
+		/*
+		 * invalidate only when cache-line aligned otherwise there is
+		 * the potential for discarding uncommitted data from the cache
+		 */
+		if ((start & (L1_CACHE_BYTES - 1)) || (size & (L1_CACHE_BYTES - 1)))
+			flush_dcache_range(start, end);
+		else
+			invalidate_dcache_range(start, end);
 		break;
 	case DMA_TO_DEVICE:		/* writeback only */
 		clean_dcache_range(start, end);

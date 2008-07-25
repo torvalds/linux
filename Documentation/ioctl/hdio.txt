@@ -508,12 +508,13 @@ HDIO_DRIVE_RESET		execute a device reset
 
 	error returns:
 	  EACCES	Access denied:  requires CAP_SYS_ADMIN
+	  ENXIO		No such device:	phy dead or ctl_addr == 0
+	  EIO		I/O error:	reset timed out or hardware error
 
 	notes:
 
-	  Abort any current command, prevent anything else from being
-	  queued, execute a reset on the device, and issue BLKRRPART
-	  ioctl on the block device.
+	  Execute a reset on the device as soon as the current IO
+	  operation has completed.
 
 	  Executes an ATAPI soft reset if applicable, otherwise
 	  executes an ATA soft reset on the controller.

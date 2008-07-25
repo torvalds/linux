@@ -13,14 +13,7 @@
 
 #include <linux/types.h>
 #include <linux/cpumask.h>
-
-#define NR_VECTORS	256
-
-#if (NR_VECTORS + 32 * NR_CPUS) < 1024
-#define NR_IRQS (NR_VECTORS + 32 * NR_CPUS)
-#else
-#define NR_IRQS 1024
-#endif
+#include <asm-ia64/nr-irqs.h>
 
 static __inline__ int
 irq_canonicalize (int irq)

@@ -130,7 +130,7 @@ static struct ia64_pal_retval pal_cache_flush(struct kvm_vcpu *vcpu)
 	args.cache_type = gr29;
 	args.operation = gr30;
 	smp_call_function(remote_pal_cache_flush,
-				(void *)&args, 1, 1);
+				(void *)&args, 1);
 	if (args.status != 0)
 		printk(KERN_ERR"pal_cache_flush error!,"
 				"status:0x%lx\n", args.status);

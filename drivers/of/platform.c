@@ -17,6 +17,8 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 
+extern struct device_attribute of_platform_device_attrs[];
+
 static int of_platform_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct of_device *of_dev = to_of_device(dev);
@@ -103,6 +105,7 @@ int of_bus_type_init(struct bus_type *bus, const char *name)
 	bus->suspend = of_platform_device_suspend;
 	bus->resume = of_platform_device_resume;
 	bus->shutdown = of_platform_device_shutdown;
+	bus->dev_attrs = of_platform_device_attrs;
 	return bus_register(bus);
 }
 

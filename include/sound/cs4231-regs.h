@@ -177,4 +177,12 @@
 #define CS4236_RIGHT_WAVE	0x1c	/* right wavetable serial port volume */
 #define CS4236_VERSION		0x9c	/* chip version and ID */
 
+/* definitions for extended registers - OPTI93X */
+#define OPTi931_AUX_LEFT_INPUT	0x10
+#define OPTi931_AUX_RIGHT_INPUT	0x11
+#define OPTi93X_MIC_LEFT_INPUT	0x14
+#define OPTi93X_MIC_RIGHT_INPUT	0x15
+#define OPTi93X_OUT_LEFT	0x16
+#define OPTi93X_OUT_RIGHT	0x17
+
 #endif /* __SOUND_CS4231_REGS_H */

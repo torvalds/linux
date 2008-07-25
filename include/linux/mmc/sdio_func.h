@@ -1,7 +1,7 @@
 /*
  *  include/linux/mmc/sdio_func.h
  *
- *  Copyright 2007 Pierre Ossman
+ *  Copyright 2007-2008 Pierre Ossman
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,6 +45,8 @@ struct sdio_func {
 
 	unsigned		max_blksize;	/* maximum block size */
 	unsigned		cur_blksize;	/* current block size */
+
+	unsigned		enable_timeout;	/* max enable timeout in msec */
 
 	unsigned int		state;		/* function state */
 #define SDIO_STATE_PRESENT	(1<<0)		/* present in sysfs */
@@ -120,23 +122,22 @@ extern int sdio_set_block_size(struct sdio_func *func, unsigned blksz);
 extern int sdio_claim_irq(struct sdio_func *func, sdio_irq_handler_t *handler);
 extern int sdio_release_irq(struct sdio_func *func);
 
-extern unsigned char sdio_readb(struct sdio_func *func,
-	unsigned int addr, int *err_ret);
-extern unsigned short sdio_readw(struct sdio_func *func,
-	unsigned int addr, int *err_ret);
-extern unsigned long sdio_readl(struct sdio_func *func,
-	unsigned int addr, int *err_ret);
+extern unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz);
+
+extern u8 sdio_readb(struct sdio_func *func, unsigned int addr, int *err_ret);
+extern u16 sdio_readw(struct sdio_func *func, unsigned int addr, int *err_ret);
+extern u32 sdio_readl(struct sdio_func *func, unsigned int addr, int *err_ret);
 
 extern int sdio_memcpy_fromio(struct sdio_func *func, void *dst,
 	unsigned int addr, int count);
 extern int sdio_readsb(struct sdio_func *func, void *dst,
 	unsigned int addr, int count);
 
-extern void sdio_writeb(struct sdio_func *func, unsigned char b,
+extern void sdio_writeb(struct sdio_func *func, u8 b,
 	unsigned int addr, int *err_ret);
-extern void sdio_writew(struct sdio_func *func, unsigned short b,
+extern void sdio_writew(struct sdio_func *func, u16 b,
 	unsigned int addr, int *err_ret);
-extern void sdio_writel(struct sdio_func *func, unsigned long b,
+extern void sdio_writel(struct sdio_func *func, u32 b,
 	unsigned int addr, int *err_ret);
 
 extern int sdio_memcpy_toio(struct sdio_func *func, unsigned int addr,

@@ -19,9 +19,13 @@
 
 #if defined(CONFIG_X86_PAE) || defined(CONFIG_X86_64)
 # define NEED_PAE	(1<<(X86_FEATURE_PAE & 31))
-# define NEED_CX8	(1<<(X86_FEATURE_CX8 & 31))
 #else
 # define NEED_PAE	0
+#endif
+
+#ifdef CONFIG_X86_CMPXCHG64
+# define NEED_CX8	(1<<(X86_FEATURE_CX8 & 31))
+#else
 # define NEED_CX8	0
 #endif
 
@@ -38,7 +42,7 @@
 #endif
 
 #ifdef CONFIG_X86_64
-#define NEED_PSE	(1<<(X86_FEATURE_PSE & 31))
+#define NEED_PSE	0
 #define NEED_MSR	(1<<(X86_FEATURE_MSR & 31))
 #define NEED_PGE	(1<<(X86_FEATURE_PGE & 31))
 #define NEED_FXSR	(1<<(X86_FEATURE_FXSR & 31))

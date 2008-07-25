@@ -362,8 +362,9 @@ static int init_coda_psdev(void)
 		goto out_chrdev;
 	}		
 	for (i = 0; i < MAX_CODADEVS; i++)
-		device_create(coda_psdev_class, NULL,
-			      MKDEV(CODA_PSDEV_MAJOR,i), "cfs%d", i);
+		device_create_drvdata(coda_psdev_class, NULL,
+				      MKDEV(CODA_PSDEV_MAJOR, i),
+				      NULL, "cfs%d", i);
 	coda_sysctl_init();
 	goto out;
 

@@ -48,6 +48,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "cy82c693"
+
 /* the current version */
 #define CY82_VERSION	"CY82C693U driver v0.34 99-13-12 Andreas S. Krebs (akrebs@altavista.net)"
 
@@ -133,23 +135,22 @@ static int calc_clk(int time, int bus_speed)
  */
 static void compute_clocks(u8 pio, pio_clocks_t *p_pclk)
 {
+	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
 	int clk1, clk2;
-	int bus_speed = ide_pci_clk ? ide_pci_clk : system_bus_clock();
+	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 
 	/* we don't check against CY82C693's min and max speed,
 	 * so you can play with the idebus=xx parameter
 	 */
 
 	/* let's calc the address setup time clocks */
-	p_pclk->address_time = (u8)calc_clk(ide_pio_timings[pio].setup_time, bus_speed);
+	p_pclk->address_time = (u8)calc_clk(t->setup, bus_speed);
 
 	/* let's calc the active and recovery time clocks */
-	clk1 = calc_clk(ide_pio_timings[pio].active_time, bus_speed);
+	clk1 = calc_clk(t->active, bus_speed);
 
 	/* calc recovery timing */
-	clk2 =	ide_pio_timings[pio].cycle_time -
-		ide_pio_timings[pio].active_time -
-		ide_pio_timings[pio].setup_time;
+	clk2 = t->cycle - t->active - t->setup;
 
 	clk2 = calc_clk(clk2, bus_speed);
 
@@ -331,7 +332,7 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 /*
  * this function is called during init and is used to setup the cy82c693 chip
  */
-static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev)
 {
 	if (PCI_FUNC(dev->devfn) != 1)
 		return 0;
@@ -350,8 +351,8 @@ static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const c
 	data = inb(CY82_DATA_PORT);
 
 #if CY82C693_DEBUG_INFO
-	printk(KERN_INFO "%s: Peripheral Configuration Register: 0x%X\n",
-		name, data);
+	printk(KERN_INFO DRV_NAME ": Peripheral Configuration Register: 0x%X\n",
+		data);
 #endif /* CY82C693_DEBUG_INFO */
 
 	/*
@@ -372,8 +373,8 @@ static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const c
 	outb(data, CY82_DATA_PORT);
 
 #if CY82C693_DEBUG_INFO
-	printk(KERN_INFO "%s: New Peripheral Configuration Register: 0x%X\n",
-		name, data);
+	printk(KERN_INFO ": New Peripheral Configuration Register: 0x%X\n",
+		data);
 #endif /* CY82C693_DEBUG_INFO */
 
 #endif /* CY82C693_SETDMA_CLOCK */
@@ -399,7 +400,7 @@ static const struct ide_port_ops cy82c693_port_ops = {
 };
 
 static const struct ide_port_info cy82c693_chipset __devinitdata = {
-	.name		= "CY82C693",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_cy82c693,
 	.init_iops	= init_iops_cy82c693,
 	.port_ops	= &cy82c693_port_ops,
@@ -420,10 +421,20 @@ static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_dev
 	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	    PCI_FUNC(dev->devfn) == 1) {
 		dev2 = pci_get_slot(dev->bus, dev->devfn + 1);
-		ret = ide_setup_pci_devices(dev, dev2, &cy82c693_chipset);
-		/* We leak pci refs here but thats ok - we can't be unloaded */
+		ret = ide_pci_init_two(dev, dev2, &cy82c693_chipset, NULL);
+		if (ret)
+			pci_dev_put(dev2);
 	}
 	return ret;
+}
+
+static void __devexit cy82c693_remove(struct pci_dev *dev)
+{
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct pci_dev *dev2 = host->dev[1] ? to_pci_dev(host->dev[1]) : NULL;
+
+	ide_pci_remove(dev);
+	pci_dev_put(dev2);
 }
 
 static const struct pci_device_id cy82c693_pci_tbl[] = {
@@ -436,6 +447,7 @@ static struct pci_driver driver = {
 	.name		= "Cypress_IDE",
 	.id_table	= cy82c693_pci_tbl,
 	.probe		= cy82c693_init_one,
+	.remove		= cy82c693_remove,
 };
 
 static int __init cy82c693_ide_init(void)
@@ -443,7 +455,13 @@ static int __init cy82c693_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit cy82c693_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(cy82c693_ide_init);
+module_exit(cy82c693_ide_exit);
 
 MODULE_AUTHOR("Andreas Krebs, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for the Cypress CY82C693 IDE");

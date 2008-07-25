@@ -36,6 +36,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/atomic.h>
+#include <asm/code-patching.h>
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -786,8 +787,7 @@ static void __devinit smp_core99_kick_cpu(int nr)
 {
 	unsigned int save_vector;
 	unsigned long target, flags;
-	volatile unsigned int *vector
-		 = ((volatile unsigned int *)(KERNELBASE+0x100));
+	unsigned int *vector = (unsigned int *)(KERNELBASE+0x100);
 
 	if (nr < 0 || nr > 3)
 		return;
@@ -804,7 +804,7 @@ static void __devinit smp_core99_kick_cpu(int nr)
 	 *   b __secondary_start_pmac_0 + nr*8 - KERNELBASE
 	 */
 	target = (unsigned long) __secondary_start_pmac_0 + nr * 8;
-	create_branch((unsigned long)vector, target, BRANCH_SET_LINK);
+	patch_branch(vector, target, BRANCH_SET_LINK);
 
 	/* Put some life in our friend */
 	pmac_call_feature(PMAC_FTR_RESET_CPU, NULL, nr, 0);

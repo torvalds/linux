@@ -377,7 +377,6 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	}
 
 	info->parameters = &this_walk_state->operands[0];
-	info->parameter_type = ACPI_PARAM_ARGS;
 
 	status = acpi_ds_init_aml_walk(next_walk_state, NULL, method_node,
 				       obj_desc->method.aml_start,

@@ -478,7 +478,7 @@ void __init lguest_arch_host_init(void)
 		cpu_had_pge = 1;
 		/* adjust_pge is a helper function which sets or unsets the PGE
 		 * bit on its CPU, depending on the argument (0 == unset). */
-		on_each_cpu(adjust_pge, (void *)0, 0, 1);
+		on_each_cpu(adjust_pge, (void *)0, 1);
 		/* Turn off the feature in the global feature set. */
 		clear_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
 	}
@@ -493,7 +493,7 @@ void __exit lguest_arch_host_fini(void)
 	if (cpu_had_pge) {
 		set_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
 		/* adjust_pge's argument "1" means set PGE. */
-		on_each_cpu(adjust_pge, (void *)1, 0, 1);
+		on_each_cpu(adjust_pge, (void *)1, 1);
 	}
 	put_online_cpus();
 }

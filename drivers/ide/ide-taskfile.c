@@ -8,28 +8,18 @@
  *  The big the bad and the ugly.
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/major.h>
 #include <linux/errno.h>
-#include <linux/genhd.h>
-#include <linux/blkpg.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
-#include <linux/bitops.h>
 #include <linux/scatterlist.h>
 
-#include <asm/byteorder.h>
-#include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -62,25 +52,6 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 	return ide_raw_taskfile(drive, &args, buf, 1);
 }
 
-static int inline task_dma_ok(ide_task_t *task)
-{
-	if (blk_fs_request(task->rq) || (task->tf_flags & IDE_TFLAG_FLAGGED))
-		return 1;
-
-	switch (task->tf.command) {
-		case WIN_WRITEDMA_ONCE:
-		case WIN_WRITEDMA:
-		case WIN_WRITEDMA_EXT:
-		case WIN_READDMA_ONCE:
-		case WIN_READDMA:
-		case WIN_READDMA_EXT:
-		case WIN_IDENTIFY_DMA:
-			return 1;
-	}
-
-	return 0;
-}
-
 static ide_startstop_t task_no_data_intr(ide_drive_t *);
 static ide_startstop_t set_geometry_intr(ide_drive_t *);
 static ide_startstop_t recal_intr(ide_drive_t *);
@@ -93,6 +64,7 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct ide_taskfile *tf = &task->tf;
 	ide_handler_t *handler = NULL;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
 
 	if (task->data_phase == TASKFILE_MULTI_IN ||
@@ -109,13 +81,15 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 
 	if ((task->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0) {
 		ide_tf_dump(drive->name, tf);
-		hwif->tf_load(drive, task);
+		tp_ops->set_irq(hwif, 1);
+		SELECT_MASK(drive, 0);
+		tp_ops->tf_load(drive, task);
 	}
 
 	switch (task->data_phase) {
 	case TASKFILE_MULTI_OUT:
 	case TASKFILE_OUT:
-		hwif->OUTBSYNC(drive, tf->command, hwif->io_ports.command_addr);
+		tp_ops->exec_command(hwif, tf->command);
 		ndelay(400);	/* FIXME */
 		return pre_task_out_intr(drive, task->rq);
 	case TASKFILE_MULTI_IN:
@@ -137,8 +111,7 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 				    WAIT_WORSTCASE, NULL);
 		return ide_started;
 	default:
-		if (task_dma_ok(task) == 0 || drive->using_dma == 0 ||
-		    dma_ops->dma_setup(drive))
+		if (drive->using_dma == 0 || dma_ops->dma_setup(drive))
 			return ide_stopped;
 		dma_ops->dma_exec_cmd(drive, tf->command);
 		dma_ops->dma_start(drive);
@@ -152,7 +125,11 @@ EXPORT_SYMBOL_GPL(do_rw_taskfile);
  */
 static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
 {
-	u8 stat = ide_read_status(drive);
+	ide_hwif_t *hwif = drive->hwif;
+	u8 stat;
+
+	local_irq_enable_in_hardirq();
+	stat = hwif->tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat, READY_STAT, BAD_STAT))
 		drive->mult_count = drive->mult_req;
@@ -169,11 +146,18 @@ static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
  */
 static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	int retries = 5;
 	u8 stat;
 
-	while (((stat = ide_read_status(drive)) & BUSY_STAT) && retries--)
+	local_irq_enable_in_hardirq();
+
+	while (1) {
+		stat = hwif->tp_ops->read_status(hwif);
+		if ((stat & BUSY_STAT) == 0 || retries-- == 0)
+			break;
 		udelay(10);
+	};
 
 	if (OK_STAT(stat, READY_STAT, BAD_STAT))
 		return ide_stopped;
@@ -181,7 +165,6 @@ static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 	if (stat & (ERR_STAT|DRQ_STAT))
 		return ide_error(drive, "set_geometry_intr", stat);
 
-	BUG_ON(HWGROUP(drive)->handler != NULL);
 	ide_set_handler(drive, &set_geometry_intr, WAIT_WORSTCASE, NULL);
 	return ide_started;
 }
@@ -191,7 +174,11 @@ static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
  */
 static ide_startstop_t recal_intr(ide_drive_t *drive)
 {
-	u8 stat = ide_read_status(drive);
+	ide_hwif_t *hwif = drive->hwif;
+	u8 stat;
+
+	local_irq_enable_in_hardirq();
+	stat = hwif->tp_ops->read_status(hwif);
 
 	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
 		return ide_error(drive, "recal_intr", stat);
@@ -203,11 +190,12 @@ static ide_startstop_t recal_intr(ide_drive_t *drive)
  */
 static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 {
-	ide_task_t *args	= HWGROUP(drive)->rq->special;
+	ide_hwif_t *hwif = drive->hwif;
+	ide_task_t *args = hwif->hwgroup->rq->special;
 	u8 stat;
 
 	local_irq_enable_in_hardirq();
-	stat = ide_read_status(drive);
+	stat = hwif->tp_ops->read_status(hwif);
 
 	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
 		return ide_error(drive, "task_no_data_intr", stat);
@@ -221,6 +209,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 
 static u8 wait_drive_not_busy(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	int retries;
 	u8 stat;
 
@@ -229,7 +218,7 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	 * take up to 6 ms on some ATAPI devices, so we will wait max 10 ms.
 	 */
 	for (retries = 0; retries < 1000; retries++) {
-		stat = ide_read_status(drive);
+		stat = hwif->tp_ops->read_status(hwif);
 
 		if (stat & BUSY_STAT)
 			udelay(10);
@@ -284,9 +273,9 @@ static void ide_pio_sector(ide_drive_t *drive, struct request *rq,
 
 	/* do the actual data transfer */
 	if (write)
-		hwif->output_data(drive, rq, buf, SECTOR_SIZE);
+		hwif->tp_ops->output_data(drive, rq, buf, SECTOR_SIZE);
 	else
-		hwif->input_data(drive, rq, buf, SECTOR_SIZE);
+		hwif->tp_ops->input_data(drive, rq, buf, SECTOR_SIZE);
 
 	kunmap_atomic(buf, KM_BIO_SRC_IRQ);
 #ifdef CONFIG_HIGHMEM
@@ -412,8 +401,8 @@ static ide_startstop_t task_in_unexpected(ide_drive_t *drive, struct request *rq
 static ide_startstop_t task_in_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = HWGROUP(drive)->rq;
-	u8 stat = ide_read_status(drive);
+	struct request *rq = hwif->hwgroup->rq;
+	u8 stat = hwif->tp_ops->read_status(hwif);
 
 	/* Error? */
 	if (stat & ERR_STAT)
@@ -447,7 +436,7 @@ static ide_startstop_t task_out_intr (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = HWGROUP(drive)->rq;
-	u8 stat = ide_read_status(drive);
+	u8 stat = hwif->tp_ops->read_status(hwif);
 
 	if (!OK_STAT(stat, DRIVE_READY, drive->bad_wstat))
 		return task_error(drive, rq, __func__, stat);
@@ -492,11 +481,12 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
 
 int ide_raw_taskfile(ide_drive_t *drive, ide_task_t *task, u8 *buf, u16 nsect)
 {
-	struct request rq;
+	struct request *rq;
+	int error;
 
-	blk_rq_init(NULL, &rq);
-	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
-	rq.buffer = buf;
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq->buffer = buf;
 
 	/*
 	 * (ks) We transfer currently only whole sectors.
@@ -504,16 +494,19 @@ int ide_raw_taskfile(ide_drive_t *drive, ide_task_t *task, u8 *buf, u16 nsect)
 	 * if we would find a solution to transfer any size.
 	 * To support special commands like READ LONG.
 	 */
-	rq.hard_nr_sectors = rq.nr_sectors = nsect;
-	rq.hard_cur_sectors = rq.current_nr_sectors = nsect;
+	rq->hard_nr_sectors = rq->nr_sectors = nsect;
+	rq->hard_cur_sectors = rq->current_nr_sectors = nsect;
 
 	if (task->tf_flags & IDE_TFLAG_WRITE)
-		rq.cmd_flags |= REQ_RW;
+		rq->cmd_flags |= REQ_RW;
 
-	rq.special = task;
-	task->rq = &rq;
+	rq->special = task;
+	task->rq = rq;
 
-	return ide_do_drive_cmd(drive, &rq, ide_wait);
+	error = blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_put_request(rq);
+
+	return error;
 }
 
 EXPORT_SYMBOL(ide_raw_taskfile);
@@ -739,12 +732,14 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	struct hd_driveid *id = drive->id;
 
 	if (NULL == (void *) arg) {
-		struct request rq;
+		struct request *rq;
 
-		ide_init_drive_cmd(&rq);
-		rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
+		rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+		rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+		err = blk_execute_rq(drive->queue, NULL, rq, 0);
+		blk_put_request(rq);
 
-		return ide_do_drive_cmd(drive, &rq, ide_wait);
+		return err;
 	}
 
 	if (copy_from_user(args, (void __user *)arg, 4))

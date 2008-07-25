@@ -20,7 +20,6 @@
 #include <linux/mod_devicetable.h>
 #endif
 
-#include <pcmcia/bulkmem.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/device_id.h>
 
@@ -50,6 +49,24 @@ typedef struct mtd_info_t {
     u_int		Attributes;
     u_int		CardOffset;
 } mtd_info_t;
+
+typedef struct region_info_t {
+    u_int		Attributes;
+    u_int		CardOffset;
+    u_int		RegionSize;
+    u_int		AccessSpeed;
+    u_int		BlockSize;
+    u_int		PartMultiple;
+    u_char		JedecMfr, JedecInfo;
+    memory_handle_t	next;
+} region_info_t;
+#define REGION_TYPE		0x0001
+#define REGION_TYPE_CM		0x0000
+#define REGION_TYPE_AM		0x0001
+#define REGION_PREFETCH		0x0008
+#define REGION_CACHEABLE	0x0010
+#define REGION_BAR_MASK		0xe000
+#define REGION_BAR_SHIFT	13
 
 typedef union ds_ioctl_arg_t {
     adjust_t		adjust;

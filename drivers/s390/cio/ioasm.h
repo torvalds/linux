@@ -2,7 +2,7 @@
 #define S390_CIO_IOASM_H
 
 #include <asm/chpid.h>
-#include "schid.h"
+#include <asm/schid.h>
 
 /*
  * TPI info structure

@@ -27,12 +27,13 @@
 #include <linux/proc_fs.h>
 #include <linux/poll.h>
 #include <linux/pci.h>
+#include <linux/smp_lock.h>
 #include <linux/workqueue.h>
 
-#define IN_CARD_SERVICES
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
+#include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ss.h>
 
@@ -137,6 +138,154 @@ static int proc_read_drivers(char *buf, char **start, off_t pos,
 	return (p - buf);
 }
 #endif
+
+
+#ifdef CONFIG_PCMCIA_PROBE
+
+static int adjust_irq(struct pcmcia_socket *s, adjust_t *adj)
+{
+	int irq;
+	u32 mask;
+
+	irq = adj->resource.irq.IRQ;
+	if ((irq < 0) || (irq > 15))
+		return CS_BAD_IRQ;
+
+	if (adj->Action != REMOVE_MANAGED_RESOURCE)
+		return 0;
+
+	mask = 1 << irq;
+
+	if (!(s->irq_mask & mask))
+		return 0;
+
+	s->irq_mask &= ~mask;
+
+	return 0;
+}
+
+#else
+
+static inline int adjust_irq(struct pcmcia_socket *s, adjust_t *adj) {
+	return CS_SUCCESS;
+}
+
+#endif
+
+static int pcmcia_adjust_resource_info(adjust_t *adj)
+{
+	struct pcmcia_socket *s;
+	int ret = CS_UNSUPPORTED_FUNCTION;
+	unsigned long flags;
+
+	down_read(&pcmcia_socket_list_rwsem);
+	list_for_each_entry(s, &pcmcia_socket_list, socket_list) {
+
+		if (adj->Resource == RES_IRQ)
+			ret = adjust_irq(s, adj);
+
+		else if (s->resource_ops->add_io) {
+			unsigned long begin, end;
+
+			/* you can't use the old interface if the new
+			 * one was used before */
+			spin_lock_irqsave(&s->lock, flags);
+			if ((s->resource_setup_new) &&
+			    !(s->resource_setup_old)) {
+				spin_unlock_irqrestore(&s->lock, flags);
+				continue;
+			} else if (!(s->resource_setup_old))
+				s->resource_setup_old = 1;
+			spin_unlock_irqrestore(&s->lock, flags);
+
+			switch (adj->Resource) {
+			case RES_MEMORY_RANGE:
+				begin = adj->resource.memory.Base;
+				end = adj->resource.memory.Base + adj->resource.memory.Size - 1;
+				if (s->resource_ops->add_mem)
+					ret =s->resource_ops->add_mem(s, adj->Action, begin, end);
+			case RES_IO_RANGE:
+				begin = adj->resource.io.BasePort;
+				end = adj->resource.io.BasePort + adj->resource.io.NumPorts - 1;
+				if (s->resource_ops->add_io)
+					ret = s->resource_ops->add_io(s, adj->Action, begin, end);
+			}
+			if (!ret) {
+				/* as there's no way we know this is the
+				 * last call to adjust_resource_info, we
+				 * always need to assume this is the latest
+				 * one... */
+				spin_lock_irqsave(&s->lock, flags);
+				s->resource_setup_done = 1;
+				spin_unlock_irqrestore(&s->lock, flags);
+			}
+		}
+	}
+	up_read(&pcmcia_socket_list_rwsem);
+
+	return (ret);
+}
+
+/** pccard_get_status
+ *
+ * Get the current socket state bits.  We don't support the latched
+ * SocketState yet: I haven't seen any point for it.
+ */
+
+static int pccard_get_status(struct pcmcia_socket *s,
+			     struct pcmcia_device *p_dev,
+			     cs_status_t *status)
+{
+	config_t *c;
+	int val;
+
+	s->ops->get_status(s, &val);
+	status->CardState = status->SocketState = 0;
+	status->CardState |= (val & SS_DETECT) ? CS_EVENT_CARD_DETECT : 0;
+	status->CardState |= (val & SS_CARDBUS) ? CS_EVENT_CB_DETECT : 0;
+	status->CardState |= (val & SS_3VCARD) ? CS_EVENT_3VCARD : 0;
+	status->CardState |= (val & SS_XVCARD) ? CS_EVENT_XVCARD : 0;
+	if (s->state & SOCKET_SUSPEND)
+		status->CardState |= CS_EVENT_PM_SUSPEND;
+	if (!(s->state & SOCKET_PRESENT))
+		return CS_NO_CARD;
+
+	c = (p_dev) ? p_dev->function_config : NULL;
+
+	if ((c != NULL) && (c->state & CONFIG_LOCKED) &&
+	    (c->IntType & (INT_MEMORY_AND_IO | INT_ZOOMED_VIDEO))) {
+		u_char reg;
+		if (c->CardValues & PRESENT_PIN_REPLACE) {
+			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_PRR)>>1, 1, &reg);
+			status->CardState |=
+				(reg & PRR_WP_STATUS) ? CS_EVENT_WRITE_PROTECT : 0;
+			status->CardState |=
+				(reg & PRR_READY_STATUS) ? CS_EVENT_READY_CHANGE : 0;
+			status->CardState |=
+				(reg & PRR_BVD2_STATUS) ? CS_EVENT_BATTERY_LOW : 0;
+			status->CardState |=
+				(reg & PRR_BVD1_STATUS) ? CS_EVENT_BATTERY_DEAD : 0;
+		} else {
+			/* No PRR?  Then assume we're always ready */
+			status->CardState |= CS_EVENT_READY_CHANGE;
+		}
+		if (c->CardValues & PRESENT_EXT_STATUS) {
+			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_ESR)>>1, 1, &reg);
+			status->CardState |=
+				(reg & ESR_REQ_ATTN) ? CS_EVENT_REQUEST_ATTENTION : 0;
+		}
+		return CS_SUCCESS;
+	}
+	status->CardState |=
+		(val & SS_WRPROT) ? CS_EVENT_WRITE_PROTECT : 0;
+	status->CardState |=
+		(val & SS_BATDEAD) ? CS_EVENT_BATTERY_DEAD : 0;
+	status->CardState |=
+		(val & SS_BATWARN) ? CS_EVENT_BATTERY_LOW : 0;
+	status->CardState |=
+		(val & SS_READY) ? CS_EVENT_READY_CHANGE : 0;
+	return CS_SUCCESS;
+} /* pccard_get_status */
 
 /*======================================================================
 
@@ -397,20 +546,27 @@ static int ds_open(struct inode *inode, struct file *file)
     struct pcmcia_socket *s;
     user_info_t *user;
     static int warning_printed = 0;
+    int ret = 0;
 
     ds_dbg(0, "ds_open(socket %d)\n", i);
 
+    lock_kernel();
     s = pcmcia_get_socket_by_nr(i);
-    if (!s)
-	    return -ENODEV;
+    if (!s) {
+	    ret = -ENODEV;
+	    goto out;
+    }
     s = pcmcia_get_socket(s);
-    if (!s)
-	    return -ENODEV;
+    if (!s) {
+	    ret = -ENODEV;
+	    goto out;
+    }
 
     if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 	    if (s->pcmcia_state.busy) {
 		    pcmcia_put_socket(s);
-		    return -EBUSY;
+		    ret = -EBUSY;
+		    goto out;
 	    }
 	else
 	    s->pcmcia_state.busy = 1;
@@ -419,7 +575,8 @@ static int ds_open(struct inode *inode, struct file *file)
     user = kmalloc(sizeof(user_info_t), GFP_KERNEL);
     if (!user) {
 	    pcmcia_put_socket(s);
-	    return -ENOMEM;
+	    ret = -ENOMEM;
+	    goto out;
     }
     user->event_tail = user->event_head = 0;
     user->next = s->user;
@@ -441,7 +598,9 @@ static int ds_open(struct inode *inode, struct file *file)
 
     if (s->pcmcia_state.present)
 	queue_event(user, CS_EVENT_CARD_INSERTION);
-    return 0;
+out:
+    unlock_kernel();
+    return ret;
 } /* ds_open */
 
 /*====================================================================*/
@@ -546,8 +705,6 @@ static u_int ds_poll(struct file *file, poll_table *wait)
 
 /*====================================================================*/
 
-extern int pcmcia_adjust_resource_info(adjust_t *adj);
-
 static int ds_ioctl(struct inode * inode, struct file * file,
 		    u_int cmd, u_long arg)
 {
@@ -649,7 +806,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	mutex_lock(&s->skt_mutex);
 	pcmcia_validate_mem(s);
 	mutex_unlock(&s->skt_mutex);
-	ret = pccard_validate_cis(s, BIND_FN_ALL, &buf->cisinfo);
+	ret = pccard_validate_cis(s, BIND_FN_ALL, &buf->cisinfo.Chains);
 	break;
     case DS_SUSPEND_CARD:
 	ret = pcmcia_suspend_card(s);

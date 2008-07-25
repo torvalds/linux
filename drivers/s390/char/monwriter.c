@@ -12,6 +12,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/errno.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
@@ -179,10 +180,12 @@ static int monwrite_open(struct inode *inode, struct file *filp)
 	monpriv = kzalloc(sizeof(struct mon_private), GFP_KERNEL);
 	if (!monpriv)
 		return -ENOMEM;
+	lock_kernel();
 	INIT_LIST_HEAD(&monpriv->list);
 	monpriv->hdr_to_read = sizeof(monpriv->hdr);
 	mutex_init(&monpriv->thread_mutex);
 	filp->private_data = monpriv;
+	unlock_kernel();
 	return nonseekable_open(inode, filp);
 }
 

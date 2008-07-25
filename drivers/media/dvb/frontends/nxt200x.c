@@ -93,7 +93,8 @@ static u8 i2c_readbytes (struct nxt200x_state* state, u8 addr, u8* buf, u8 len)
 	return 0;
 }
 
-static int nxt200x_writebytes (struct nxt200x_state* state, u8 reg, u8 *buf, u8 len)
+static int nxt200x_writebytes (struct nxt200x_state* state, u8 reg,
+			       const u8 *buf, u8 len)
 {
 	u8 buf2 [len+1];
 	int err;

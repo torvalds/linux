@@ -1,8 +1,6 @@
 #
 # Serial device configuration
 #
-# $Id: Kconfig,v 1.11 2004/03/11 18:08:04 lethal Exp $
-#
 
 menu "Serial drivers"
 	depends on HAS_IOMEM
@@ -448,22 +446,27 @@ config SERIAL_CLPS711X_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_S3C2410
-	tristate "Samsung S3C2410/S3C2440/S3C2442/S3C2412 Serial port support"
-	depends on ARM && ARCH_S3C2410
-	select SERIAL_CORE
+config SERIAL_SAMSUNG
+	tristate "Samsung SoC serial support"
+	depends on ARM && PLAT_S3C24XX
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
 	  providing /dev/ttySAC0, 1 and 2 (note, some machines may not
 	  provide all of these ports, depending on how the serial port
 	  pins are configured.
 
-	  Currently this driver supports the UARTS on the S3C2410, S3C2440,
-	  S3C2442, S3C2412 and S3C2413 CPUs.
+config SERIAL_SAMSUNG_DEBUG
+	bool "Samsung SoC serial debug"
+	depends on SERIAL_SAMSUNG
+	help
+	  Add support for debugging the serial driver. Since this is
+	  generally being used as a console, we use our own output
+	  routines that go via the low-level debug printascii()
+	  function.
 
-config SERIAL_S3C2410_CONSOLE
-	bool "Support for console on S3C2410 serial port"
-	depends on SERIAL_S3C2410=y
+config SERIAL_SAMSUNG_CONSOLE
+	bool "Support for console on Samsung SoC serial port"
+	depends on SERIAL_SAMSUNG=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  Allow selection of the S3C24XX on-board serial ports for use as
@@ -475,6 +478,37 @@ config SERIAL_S3C2410_CONSOLE
 	  "console=ttySACx". (Try "man bootparam" or see the documentation of
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
+
+config SERIAL_S3C2400
+	tristate "Samsung S3C2410 Serial port support"
+	depends on ARM && SERIAL_SAMSUNG && CPU_S3C2400
+	default y if CPU_S3C2400
+	help
+	  Serial port support for the Samsung S3C2400 SoC
+
+config SERIAL_S3C2410
+	tristate "Samsung S3C2410 Serial port support"
+	depends on SERIAL_SAMSUNG && CPU_S3C2410
+	default y if CPU_S3C2410
+	help
+	  Serial port support for the Samsung S3C2410 SoC
+
+config SERIAL_S3C2412
+	tristate "Samsung S3C2412/S3C2413 Serial port support"
+	depends on SERIAL_SAMSUNG && CPU_S3C2412
+	default y if CPU_S3C2412
+	help
+	  Serial port support for the Samsung S3C2412 and S3C2413 SoC
+
+config SERIAL_S3C2440
+	tristate "Samsung S3C2440/S3C2442 Serial port support"
+	depends on SERIAL_SAMSUNG && (CPU_S3C2440 || CPU_S3C2442)
+	default y if CPU_S3C2440
+	default y if CPU_S3C2442
+	help
+	  Serial port support for the Samsung S3C2440 and S3C2442 SoC
+
+
 
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
@@ -753,7 +787,7 @@ config BFIN_UART3_CTSRTS
 
 config SERIAL_IMX
 	bool "IMX serial port support"
-	depends on ARM && ARCH_IMX
+	depends on ARM && (ARCH_IMX || ARCH_MXC)
 	select SERIAL_CORE
 	help
 	  If you have a machine based on a Motorola IMX CPU you
@@ -906,22 +940,6 @@ config SERIAL_IP22_ZILOG
 config SERIAL_IP22_ZILOG_CONSOLE
 	bool "Console on SGI Zilog8530 serial port"
 	depends on SERIAL_IP22_ZILOG=y
-	select SERIAL_CORE_CONSOLE
-
-config V850E_UART
-	bool "NEC V850E on-chip UART support"
-	depends on V850E_MA1 || V850E_ME2 || V850E_TEG || V850E2_ANNA || V850E_AS85EP1
-	select SERIAL_CORE
-	default y
-
-config V850E_UARTB
-        bool
-	depends on V850E_UART && V850E_ME2
-	default y
-
-config V850E_UART_CONSOLE
-	bool "Use NEC V850E on-chip UART for console"
-	depends on V850E_UART
 	select SERIAL_CORE_CONSOLE
 
 config SERIAL_SH_SCI

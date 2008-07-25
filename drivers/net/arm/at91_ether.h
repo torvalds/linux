@@ -84,7 +84,6 @@ struct recv_desc_bufs
 
 struct at91_private
 {
-	struct net_device_stats stats;
 	struct mii_if_info mii;			/* ethtool support */
 	struct at91_eth_data board_data;	/* board-specific configuration */
 	struct clk *ether_clk;			/* clock */

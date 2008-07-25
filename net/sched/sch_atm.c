@@ -160,7 +160,7 @@ static void atm_tc_put(struct Qdisc *sch, unsigned long cl)
 	*prev = flow->next;
 	pr_debug("atm_tc_put: qdisc %p\n", flow->q);
 	qdisc_destroy(flow->q);
-	tcf_destroy_chain(flow->filter_list);
+	tcf_destroy_chain(&flow->filter_list);
 	if (flow->sock) {
 		pr_debug("atm_tc_put: f_count %d\n",
 			file_count(flow->sock->file));
@@ -296,7 +296,8 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		goto err_out;
 	}
 	flow->filter_list = NULL;
-	flow->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, classid);
+	flow->q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
+				    &pfifo_qdisc_ops, classid);
 	if (!flow->q)
 		flow->q = &noop_qdisc;
 	pr_debug("atm_tc_change: qdisc %p\n", flow->q);
@@ -428,7 +429,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 #endif
 	}
 
-	ret = flow->q->enqueue(skb, flow->q);
+	ret = qdisc_enqueue(skb, flow->q);
 	if (ret != 0) {
 drop: __maybe_unused
 		sch->qstats.drops++;
@@ -436,9 +437,9 @@ drop: __maybe_unused
 			flow->qstats.drops++;
 		return ret;
 	}
-	sch->bstats.bytes += skb->len;
+	sch->bstats.bytes += qdisc_pkt_len(skb);
 	sch->bstats.packets++;
-	flow->bstats.bytes += skb->len;
+	flow->bstats.bytes += qdisc_pkt_len(skb);
 	flow->bstats.packets++;
 	/*
 	 * Okay, this may seem weird. We pretend we've dropped the packet if
@@ -555,7 +556,8 @@ static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt)
 
 	pr_debug("atm_tc_init(sch %p,[qdisc %p],opt %p)\n", sch, p, opt);
 	p->flows = &p->link;
-	p->link.q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, sch->handle);
+	p->link.q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
+				      &pfifo_qdisc_ops, sch->handle);
 	if (!p->link.q)
 		p->link.q = &noop_qdisc;
 	pr_debug("atm_tc_init: link (%p) qdisc %p\n", &p->link, p->link.q);
@@ -586,10 +588,11 @@ static void atm_tc_destroy(struct Qdisc *sch)
 	struct atm_flow_data *flow;
 
 	pr_debug("atm_tc_destroy(sch %p,[qdisc %p])\n", sch, p);
+	for (flow = p->flows; flow; flow = flow->next)
+		tcf_destroy_chain(&flow->filter_list);
+
 	/* races ? */
 	while ((flow = p->flows)) {
-		tcf_destroy_chain(flow->filter_list);
-		flow->filter_list = NULL;
 		if (flow->ref > 1)
 			printk(KERN_ERR "atm_destroy: %p->ref = %d\n", flow,
 			       flow->ref);

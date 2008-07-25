@@ -24,7 +24,7 @@
 
 extern struct clk *s3c2412_get_iisclk(void);
 
-extern struct snd_soc_cpu_dai s3c2412_i2s_dai;
+extern struct snd_soc_dai s3c2412_i2s_dai;
 
 struct s3c2412_rate_calc {
 	unsigned int	clk_div;	/* for prescaler */

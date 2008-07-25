@@ -75,46 +75,19 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return sf->gprs[8];
 }
 
-/*
- * Need to know about CPUs going idle?
- */
-static ATOMIC_NOTIFIER_HEAD(idle_chain);
 DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
-
-int register_idle_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_register(&idle_chain, nb);
-}
-EXPORT_SYMBOL(register_idle_notifier);
-
-int unregister_idle_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&idle_chain, nb);
-}
-EXPORT_SYMBOL(unregister_idle_notifier);
 
 static int s390_idle_enter(void)
 {
 	struct s390_idle_data *idle;
-	int nr_calls = 0;
-	void *hcpu;
-	int rc;
 
-	hcpu = (void *)(long)smp_processor_id();
-	rc = __atomic_notifier_call_chain(&idle_chain, S390_CPU_IDLE, hcpu, -1,
-					  &nr_calls);
-	if (rc == NOTIFY_BAD) {
-		nr_calls--;
-		__atomic_notifier_call_chain(&idle_chain, S390_CPU_NOT_IDLE,
-					     hcpu, nr_calls, NULL);
-		return rc;
-	}
 	idle = &__get_cpu_var(s390_idle);
 	spin_lock(&idle->lock);
 	idle->idle_count++;
 	idle->in_idle = 1;
 	idle->idle_enter = get_clock();
 	spin_unlock(&idle->lock);
+	vtime_stop_cpu_timer();
 	return NOTIFY_OK;
 }
 
@@ -122,13 +95,12 @@ void s390_idle_leave(void)
 {
 	struct s390_idle_data *idle;
 
+	vtime_start_cpu_timer();
 	idle = &__get_cpu_var(s390_idle);
 	spin_lock(&idle->lock);
 	idle->idle_time += get_clock() - idle->idle_enter;
 	idle->in_idle = 0;
 	spin_unlock(&idle->lock);
-	atomic_notifier_call_chain(&idle_chain, S390_CPU_NOT_IDLE,
-				   (void *)(long) smp_processor_id());
 }
 
 extern void s390_handle_mcck(void);
@@ -170,7 +142,7 @@ static void default_idle(void)
 void cpu_idle(void)
 {
 	for (;;) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 		while (!need_resched())
 			default_idle();
 		tick_nohz_restart_sched_tick();

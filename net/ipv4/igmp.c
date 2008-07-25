@@ -8,8 +8,6 @@
  *	the older version didn't come out right using gcc 2.5.8, the newer one
  *	seems to fall out with gcc 2.6.2.
  *
- *	Version: $Id: igmp.c,v 1.47 2002/02/01 22:01:03 davem Exp $
- *
  *	Authors:
  *		Alan Cox <Alan.Cox@linux.org>
  *
@@ -1198,7 +1196,7 @@ void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 
 	ASSERT_RTNL();
 
-	if (dev_net(in_dev->dev) != &init_net)
+	if (!net_eq(dev_net(in_dev->dev), &init_net))
 		return;
 
 	for (im=in_dev->mc_list; im; im=im->next) {
@@ -1280,7 +1278,7 @@ void ip_mc_dec_group(struct in_device *in_dev, __be32 addr)
 
 	ASSERT_RTNL();
 
-	if (dev_net(in_dev->dev) != &init_net)
+	if (!net_eq(dev_net(in_dev->dev), &init_net))
 		return;
 
 	for (ip=&in_dev->mc_list; (i=*ip)!=NULL; ip=&i->next) {
@@ -1310,7 +1308,7 @@ void ip_mc_down(struct in_device *in_dev)
 
 	ASSERT_RTNL();
 
-	if (dev_net(in_dev->dev) != &init_net)
+	if (!net_eq(dev_net(in_dev->dev), &init_net))
 		return;
 
 	for (i=in_dev->mc_list; i; i=i->next)
@@ -1333,7 +1331,7 @@ void ip_mc_init_dev(struct in_device *in_dev)
 {
 	ASSERT_RTNL();
 
-	if (dev_net(in_dev->dev) != &init_net)
+	if (!net_eq(dev_net(in_dev->dev), &init_net))
 		return;
 
 	in_dev->mc_tomb = NULL;
@@ -1359,7 +1357,7 @@ void ip_mc_up(struct in_device *in_dev)
 
 	ASSERT_RTNL();
 
-	if (dev_net(in_dev->dev) != &init_net)
+	if (!net_eq(dev_net(in_dev->dev), &init_net))
 		return;
 
 	ip_mc_inc_group(in_dev, IGMP_ALL_HOSTS);
@@ -1378,7 +1376,7 @@ void ip_mc_destroy_dev(struct in_device *in_dev)
 
 	ASSERT_RTNL();
 
-	if (dev_net(in_dev->dev) != &init_net)
+	if (!net_eq(dev_net(in_dev->dev), &init_net))
 		return;
 
 	/* Deactivate timers */
@@ -1762,7 +1760,7 @@ int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sock_net(sk) != &init_net)
+	if (!net_eq(sock_net(sk), &init_net))
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -1833,7 +1831,7 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 	u32 ifindex;
 	int ret = -EADDRNOTAVAIL;
 
-	if (sock_net(sk) != &init_net)
+	if (!net_eq(sock_net(sk), &init_net))
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -1881,7 +1879,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sock_net(sk) != &init_net)
+	if (!net_eq(sock_net(sk), &init_net))
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2017,7 +2015,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	    msf->imsf_fmode != MCAST_EXCLUDE)
 		return -EINVAL;
 
-	if (sock_net(sk) != &init_net)
+	if (!net_eq(sock_net(sk), &init_net))
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2100,7 +2098,7 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sock_net(sk) != &init_net)
+	if (!net_eq(sock_net(sk), &init_net))
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2165,7 +2163,7 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sock_net(sk) != &init_net)
+	if (!net_eq(sock_net(sk), &init_net))
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2252,7 +2250,7 @@ void ip_mc_drop_socket(struct sock *sk)
 	if (inet->mc_list == NULL)
 		return;
 
-	if (sock_net(sk) != &init_net)
+	if (!net_eq(sock_net(sk), &init_net))
 		return;
 
 	rtnl_lock();

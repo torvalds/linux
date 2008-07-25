@@ -25,13 +25,11 @@
 
 #include <linux/types.h>
 
-/* Macro to aid the definition of ranges of bits */
-#define PB_range(name, required_bits) \
-	name, name ## _end = (name + required_bits) - 1
-
 /* Bit indices that affect a whole block of pages */
 enum pageblock_bits {
-	PB_range(PB_migrate, 3), /* 3 bits required for migrate types */
+	PB_migrate,
+	PB_migrate_end = PB_migrate + 3 - 1,
+			/* 3 bits required for migrate types */
 	NR_PAGEBLOCK_BITS
 };
 

@@ -16,10 +16,6 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
-/*
- * $Id: bnep.h,v 1.5 2002/08/04 21:23:58 maxk Exp $
- */
-
 #ifndef _BNEP_H
 #define _BNEP_H
 

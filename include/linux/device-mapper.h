@@ -9,11 +9,13 @@
 #define _LINUX_DEVICE_MAPPER_H
 
 #include <linux/bio.h>
+#include <linux/blkdev.h>
 
 struct dm_target;
 struct dm_table;
 struct dm_dev;
 struct mapped_device;
+struct bio_vec;
 
 typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
 
@@ -72,6 +74,9 @@ typedef int (*dm_ioctl_fn) (struct dm_target *ti, struct inode *inode,
 			    struct file *filp, unsigned int cmd,
 			    unsigned long arg);
 
+typedef int (*dm_merge_fn) (struct dm_target *ti, struct bvec_merge_data *bvm,
+			    struct bio_vec *biovec, int max_size);
+
 void dm_error(const char *message);
 
 /*
@@ -107,6 +112,7 @@ struct target_type {
 	dm_status_fn status;
 	dm_message_fn message;
 	dm_ioctl_fn ioctl;
+	dm_merge_fn merge;
 };
 
 struct io_restrictions {

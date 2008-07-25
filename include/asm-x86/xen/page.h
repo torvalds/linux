@@ -26,15 +26,20 @@ typedef struct xpaddr {
 #define FOREIGN_FRAME_BIT	(1UL<<31)
 #define FOREIGN_FRAME(m)	((m) | FOREIGN_FRAME_BIT)
 
-extern unsigned long *phys_to_machine_mapping;
+/* Maximum amount of memory we can handle in a domain in pages */
+#define MAX_DOMAIN_PAGES						\
+    ((unsigned long)((u64)CONFIG_XEN_MAX_DOMAIN_MEMORY * 1024 * 1024 * 1024 / PAGE_SIZE))
+
+
+extern unsigned long get_phys_to_machine(unsigned long pfn);
+extern void set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return pfn;
 
-	return phys_to_machine_mapping[(unsigned int)(pfn)] &
-		~FOREIGN_FRAME_BIT;
+	return get_phys_to_machine(pfn) & ~FOREIGN_FRAME_BIT;
 }
 
 static inline int phys_to_machine_mapping_valid(unsigned long pfn)
@@ -42,7 +47,7 @@ static inline int phys_to_machine_mapping_valid(unsigned long pfn)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return 1;
 
-	return (phys_to_machine_mapping[pfn] != INVALID_P2M_ENTRY);
+	return get_phys_to_machine(pfn) != INVALID_P2M_ENTRY;
 }
 
 static inline unsigned long mfn_to_pfn(unsigned long mfn)
@@ -106,18 +111,10 @@ static inline unsigned long mfn_to_local_pfn(unsigned long mfn)
 	unsigned long pfn = mfn_to_pfn(mfn);
 	if ((pfn < max_mapnr)
 	    && !xen_feature(XENFEAT_auto_translated_physmap)
-	    && (phys_to_machine_mapping[pfn] != mfn))
+	    && (get_phys_to_machine(pfn) != mfn))
 		return max_mapnr; /* force !pfn_valid() */
+	/* XXX fixme; not true with sparsemem */
 	return pfn;
-}
-
-static inline void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
-{
-	if (xen_feature(XENFEAT_auto_translated_physmap)) {
-		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
-		return;
-	}
-	phys_to_machine_mapping[pfn] = mfn;
 }
 
 /* VIRT <-> MACHINE conversion */
@@ -127,7 +124,7 @@ static inline void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 
 static inline unsigned long pte_mfn(pte_t pte)
 {
-	return (pte.pte & PTE_MASK) >> PAGE_SHIFT;
+	return (pte.pte & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
 static inline pte_t mfn_pte(unsigned long page_nr, pgprot_t pgprot)
@@ -151,13 +148,17 @@ static inline pte_t __pte_ma(pteval_t x)
 }
 
 #define pmd_val_ma(v) ((v).pmd)
+#ifdef __PAGETABLE_PUD_FOLDED
 #define pud_val_ma(v) ((v).pgd.pgd)
+#else
+#define pud_val_ma(v) ((v).pud)
+#endif
 #define __pmd_ma(x)	((pmd_t) { (x) } )
 
 #define pgd_val_ma(x)	((x).pgd)
 
 
-xmaddr_t arbitrary_virt_to_machine(unsigned long address);
+xmaddr_t arbitrary_virt_to_machine(void *address);
 void make_lowmem_page_readonly(void *vaddr);
 void make_lowmem_page_readwrite(void *vaddr);
 

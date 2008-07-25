@@ -37,8 +37,6 @@
  * Signal information.
  * Defaul offset is required for RSSI <-> dBm conversion.
  */
-#define MAX_SIGNAL			100
-#define MAX_RX_SSI			-1
 #define DEFAULT_RSSI_OFFSET		100
 
 /*
@@ -50,6 +48,11 @@
 #define EEPROM_SIZE			0x0100
 #define BBP_SIZE			0x0020
 #define RF_SIZE				0x0010
+
+/*
+ * Number of TX queues.
+ */
+#define NUM_TX_QUEUES			2
 
 /*
  * Control/Status Registers(CSR).

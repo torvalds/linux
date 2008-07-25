@@ -30,8 +30,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: ipoib.h 1358 2004-12-17 22:00:11Z roland $
  */
 
 #ifndef _IPOIB_H
@@ -52,8 +50,15 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_sa.h>
+#include <linux/inet_lro.h>
 
 /* constants */
+
+enum ipoib_flush_level {
+	IPOIB_FLUSH_LIGHT,
+	IPOIB_FLUSH_NORMAL,
+	IPOIB_FLUSH_HEAVY
+};
 
 enum {
 	IPOIB_ENCAP_LEN		  = 4,
@@ -65,8 +70,8 @@ enum {
 	IPOIB_CM_BUF_SIZE	  = IPOIB_CM_MTU  + IPOIB_ENCAP_LEN,
 	IPOIB_CM_HEAD_SIZE	  = IPOIB_CM_BUF_SIZE % PAGE_SIZE,
 	IPOIB_CM_RX_SG		  = ALIGN(IPOIB_CM_BUF_SIZE, PAGE_SIZE) / PAGE_SIZE,
-	IPOIB_RX_RING_SIZE	  = 128,
-	IPOIB_TX_RING_SIZE	  = 64,
+	IPOIB_RX_RING_SIZE	  = 256,
+	IPOIB_TX_RING_SIZE	  = 128,
 	IPOIB_MAX_QUEUE_SIZE	  = 8192,
 	IPOIB_MIN_QUEUE_SIZE	  = 2,
 	IPOIB_CM_MAX_CONN_QP	  = 4096,
@@ -84,7 +89,6 @@ enum {
 	IPOIB_FLAG_SUBINTERFACE	  = 5,
 	IPOIB_MCAST_RUN		  = 6,
 	IPOIB_STOP_REAPER	  = 7,
-	IPOIB_MCAST_STARTED	  = 8,
 	IPOIB_FLAG_ADMIN_CM	  = 9,
 	IPOIB_FLAG_UMCAST	  = 10,
 	IPOIB_FLAG_CSUM		  = 11,
@@ -96,7 +100,11 @@ enum {
 	IPOIB_MCAST_FLAG_BUSY	  = 2,	/* joining or already joined */
 	IPOIB_MCAST_FLAG_ATTACHED = 3,
 
+	IPOIB_MAX_LRO_DESCRIPTORS = 8,
+	IPOIB_LRO_MAX_AGGR 	  = 64,
+
 	MAX_SEND_CQE		  = 16,
+	IPOIB_CM_COPYBREAK	  = 256,
 };
 
 #define	IPOIB_OP_RECV   (1ul << 31)
@@ -147,6 +155,11 @@ struct ipoib_rx_buf {
 struct ipoib_tx_buf {
 	struct sk_buff *skb;
 	u64		mapping[MAX_SKB_FRAGS + 1];
+};
+
+struct ipoib_cm_tx_buf {
+	struct sk_buff *skb;
+	u64		mapping;
 };
 
 struct ib_cm_id;
@@ -207,7 +220,7 @@ struct ipoib_cm_tx {
 	struct net_device   *dev;
 	struct ipoib_neigh  *neigh;
 	struct ipoib_path   *path;
-	struct ipoib_tx_buf *tx_ring;
+	struct ipoib_cm_tx_buf *tx_ring;
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
 	unsigned long	     flags;
@@ -249,6 +262,11 @@ struct ipoib_ethtool_st {
 	u16     max_coalesced_frames;
 };
 
+struct ipoib_lro {
+	struct net_lro_mgr lro_mgr;
+	struct net_lro_desc lro_desc[IPOIB_MAX_LRO_DESCRIPTORS];
+};
+
 /*
  * Device private locking: tx_lock protects members used in TX fast
  * path (and we use LLTX so upper layers don't do extra locking).
@@ -264,7 +282,6 @@ struct ipoib_dev_priv {
 
 	unsigned long flags;
 
-	struct mutex mcast_mutex;
 	struct mutex vlan_mutex;
 
 	struct rb_root  path_tree;
@@ -276,10 +293,11 @@ struct ipoib_dev_priv {
 
 	struct delayed_work pkey_poll_task;
 	struct delayed_work mcast_task;
-	struct work_struct flush_task;
+	struct work_struct flush_light;
+	struct work_struct flush_normal;
+	struct work_struct flush_heavy;
 	struct work_struct restart_task;
 	struct delayed_work ah_reap_task;
-	struct work_struct pkey_event_task;
 
 	struct ib_device *ca;
 	u8		  port;
@@ -335,6 +353,8 @@ struct ipoib_dev_priv {
 	int	hca_caps;
 	struct ipoib_ethtool_st ethtool;
 	struct timer_list poll_timer;
+
+	struct ipoib_lro lro;
 };
 
 struct ipoib_ah {
@@ -359,6 +379,7 @@ struct ipoib_path {
 
 	struct rb_node	      rb_node;
 	struct list_head      list;
+	int  		      valid;
 };
 
 struct ipoib_neigh {
@@ -423,11 +444,14 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		struct ipoib_ah *address, u32 qpn);
 void ipoib_reap_ah(struct work_struct *work);
 
+void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
 struct ipoib_dev_priv *ipoib_intf_alloc(const char *format);
 
 int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
-void ipoib_ib_dev_flush(struct work_struct *work);
+void ipoib_ib_dev_flush_light(struct work_struct *work);
+void ipoib_ib_dev_flush_normal(struct work_struct *work);
+void ipoib_ib_dev_flush_heavy(struct work_struct *work);
 void ipoib_pkey_event(struct work_struct *work);
 void ipoib_ib_dev_cleanup(struct net_device *dev);
 
@@ -466,9 +490,7 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 #endif
 
 int ipoib_mcast_attach(struct net_device *dev, u16 mlid,
-		       union ib_gid *mgid);
-int ipoib_mcast_detach(struct net_device *dev, u16 mlid,
-		       union ib_gid *mgid);
+		       union ib_gid *mgid, int set_qkey);
 
 int ipoib_init_qp(struct net_device *dev);
 int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca);

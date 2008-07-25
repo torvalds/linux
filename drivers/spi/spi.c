@@ -218,6 +218,8 @@ struct spi_device *spi_new_device(struct spi_master *master,
 	if (!spi_master_get(master))
 		return NULL;
 
+	WARN_ON(strlen(chip->modalias) >= sizeof(proxy->modalias));
+
 	proxy = kzalloc(sizeof *proxy, GFP_KERNEL);
 	if (!proxy) {
 		dev_err(dev, "can't alloc dev for cs%d\n",
@@ -229,7 +231,7 @@ struct spi_device *spi_new_device(struct spi_master *master,
 	proxy->max_speed_hz = chip->max_speed_hz;
 	proxy->mode = chip->mode;
 	proxy->irq = chip->irq;
-	proxy->modalias = chip->modalias;
+	strlcpy(proxy->modalias, chip->modalias, sizeof(proxy->modalias));
 
 	snprintf(proxy->dev.bus_id, sizeof proxy->dev.bus_id,
 			"%s.%u", master->dev.bus_id,
@@ -502,7 +504,7 @@ struct spi_master *spi_busnum_to_master(u16 bus_num)
 	struct device		*dev;
 	struct spi_master	*master = NULL;
 
-	dev = class_find_device(&spi_master_class, &bus_num,
+	dev = class_find_device(&spi_master_class, NULL, &bus_num,
 				__spi_master_match);
 	if (dev)
 		master = container_of(dev, struct spi_master, dev);

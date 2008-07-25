@@ -82,7 +82,7 @@ struct fsl_ssi_private {
 	struct device *dev;
 	unsigned int playback;
 	unsigned int capture;
-	struct snd_soc_cpu_dai cpu_dai;
+	struct snd_soc_dai cpu_dai;
 	struct device_attribute dev_attr;
 
 	struct {
@@ -479,7 +479,7 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream)
  * @freq: the frequency of the given clock ID, currently ignored
  * @dir: SND_SOC_CLOCK_IN (clock slave) or SND_SOC_CLOCK_OUT (clock master)
  */
-static int fsl_ssi_set_sysclk(struct snd_soc_cpu_dai *cpu_dai,
+static int fsl_ssi_set_sysclk(struct snd_soc_dai *cpu_dai,
 			      int clk_id, unsigned int freq, int dir)
 {
 
@@ -497,7 +497,7 @@ static int fsl_ssi_set_sysclk(struct snd_soc_cpu_dai *cpu_dai,
  *
  * @format: one of SND_SOC_DAIFMT_xxx
  */
-static int fsl_ssi_set_fmt(struct snd_soc_cpu_dai *cpu_dai, unsigned int format)
+static int fsl_ssi_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int format)
 {
 	return (format == SND_SOC_DAIFMT_I2S) ? 0 : -EINVAL;
 }
@@ -505,7 +505,7 @@ static int fsl_ssi_set_fmt(struct snd_soc_cpu_dai *cpu_dai, unsigned int format)
 /**
  * fsl_ssi_dai_template: template CPU DAI for the SSI
  */
-static struct snd_soc_cpu_dai fsl_ssi_dai_template = {
+static struct snd_soc_dai fsl_ssi_dai_template = {
 	.playback = {
 		/* The SSI does not support monaural audio. */
 		.channels_min = 2,
@@ -569,15 +569,15 @@ static ssize_t fsl_sysfs_ssi_show(struct device *dev,
 }
 
 /**
- * fsl_ssi_create_dai: create a snd_soc_cpu_dai structure
+ * fsl_ssi_create_dai: create a snd_soc_dai structure
  *
- * This function is called by the machine driver to create a snd_soc_cpu_dai
+ * This function is called by the machine driver to create a snd_soc_dai
  * structure.  The function creates an ssi_private object, which contains
- * the snd_soc_cpu_dai.  It also creates the sysfs statistics device.
+ * the snd_soc_dai.  It also creates the sysfs statistics device.
  */
-struct snd_soc_cpu_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
+struct snd_soc_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 {
-	struct snd_soc_cpu_dai *fsl_ssi_dai;
+	struct snd_soc_dai *fsl_ssi_dai;
 	struct fsl_ssi_private *ssi_private;
 	int ret = 0;
 	struct device_attribute *dev_attr;
@@ -588,7 +588,7 @@ struct snd_soc_cpu_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 		return NULL;
 	}
 	memcpy(&ssi_private->cpu_dai, &fsl_ssi_dai_template,
-	       sizeof(struct snd_soc_cpu_dai));
+	       sizeof(struct snd_soc_dai));
 
 	fsl_ssi_dai = &ssi_private->cpu_dai;
 	dev_attr = &ssi_private->dev_attr;
@@ -623,11 +623,11 @@ struct snd_soc_cpu_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 EXPORT_SYMBOL_GPL(fsl_ssi_create_dai);
 
 /**
- * fsl_ssi_destroy_dai: destroy the snd_soc_cpu_dai object
+ * fsl_ssi_destroy_dai: destroy the snd_soc_dai object
  *
  * This function undoes the operations of fsl_ssi_create_dai()
  */
-void fsl_ssi_destroy_dai(struct snd_soc_cpu_dai *fsl_ssi_dai)
+void fsl_ssi_destroy_dai(struct snd_soc_dai *fsl_ssi_dai)
 {
 	struct fsl_ssi_private *ssi_private =
 	container_of(fsl_ssi_dai, struct fsl_ssi_private, cpu_dai);

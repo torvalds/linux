@@ -80,6 +80,7 @@ static void log_video_status(struct cx18 *cx);
 
 static void cx18_av_initialize(struct cx18 *cx)
 {
+	struct cx18_av_state *state = &cx->av_state;
 	u32 v;
 
 	cx18_av_loadfw(cx);
@@ -159,6 +160,149 @@ static void cx18_av_initialize(struct cx18 *cx)
 /*      	CxDevWrReg(CXADEC_SRC_COMB_CFG, 0x6628021F); */
 /*    } */
 	cx18_av_write4(cx, CXADEC_SRC_COMB_CFG, 0x6628021F);
+	state->default_volume = 228 - cx18_av_read(cx, 0x8d4);
+	state->default_volume = ((state->default_volume / 2) + 23) << 9;
+}
+
+/* ----------------------------------------------------------------------- */
+
+void cx18_av_std_setup(struct cx18 *cx)
+{
+	struct cx18_av_state *state = &cx->av_state;
+	v4l2_std_id std = state->std;
+	int hblank, hactive, burst, vblank, vactive, sc;
+	int vblank656, src_decimation;
+	int luma_lpf, uv_lpf, comb;
+	u32 pll_int, pll_frac, pll_post;
+
+	/* datasheet startup, step 8d */
+	if (std & ~V4L2_STD_NTSC)
+		cx18_av_write(cx, 0x49f, 0x11);
+	else
+		cx18_av_write(cx, 0x49f, 0x14);
+
+	if (std & V4L2_STD_625_50) {
+		hblank = 132;
+		hactive = 720;
+		burst = 93;
+		vblank = 36;
+		vactive = 580;
+		vblank656 = 40;
+		src_decimation = 0x21f;
+
+		luma_lpf = 2;
+		if (std & V4L2_STD_PAL) {
+			uv_lpf = 1;
+			comb = 0x20;
+			sc = 688739;
+		} else if (std == V4L2_STD_PAL_Nc) {
+			uv_lpf = 1;
+			comb = 0x20;
+			sc = 556453;
+		} else { /* SECAM */
+			uv_lpf = 0;
+			comb = 0;
+			sc = 672351;
+		}
+	} else {
+		hactive = 720;
+		hblank = 122;
+		vactive = 487;
+		luma_lpf = 1;
+		uv_lpf = 1;
+		vblank = 26;
+		vblank656 = 26;
+
+		src_decimation = 0x21f;
+		if (std == V4L2_STD_PAL_60) {
+			burst = 0x5b;
+			luma_lpf = 2;
+			comb = 0x20;
+			sc = 688739;
+		} else if (std == V4L2_STD_PAL_M) {
+			burst = 0x61;
+			comb = 0x20;
+			sc = 555452;
+		} else {
+			burst = 0x5b;
+			comb = 0x66;
+			sc = 556063;
+		}
+	}
+
+	/* DEBUG: Displays configured PLL frequency */
+	pll_int = cx18_av_read(cx, 0x108);
+	pll_frac = cx18_av_read4(cx, 0x10c) & 0x1ffffff;
+	pll_post = cx18_av_read(cx, 0x109);
+	CX18_DEBUG_INFO("PLL regs = int: %u, frac: %u, post: %u\n",
+			pll_int, pll_frac, pll_post);
+
+	if (pll_post) {
+		int fin, fsc;
+		int pll = 28636363L * ((((u64)pll_int) << 25) + pll_frac);
+
+		pll >>= 25;
+		pll /= pll_post;
+		CX18_DEBUG_INFO("PLL = %d.%06d MHz\n",
+					pll / 1000000, pll % 1000000);
+		CX18_DEBUG_INFO("PLL/8 = %d.%06d MHz\n",
+					pll / 8000000, (pll / 8) % 1000000);
+
+		fin = ((u64)src_decimation * pll) >> 12;
+		CX18_DEBUG_INFO("ADC Sampling freq = %d.%06d MHz\n",
+					fin / 1000000, fin % 1000000);
+
+		fsc = (((u64)sc) * pll) >> 24L;
+		CX18_DEBUG_INFO("Chroma sub-carrier freq = %d.%06d MHz\n",
+					fsc / 1000000, fsc % 1000000);
+
+		CX18_DEBUG_INFO("hblank %i, hactive %i, "
+			"vblank %i , vactive %i, vblank656 %i, src_dec %i,"
+			"burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x,"
+			" sc 0x%06x\n",
+			hblank, hactive, vblank, vactive, vblank656,
+			src_decimation, burst, luma_lpf, uv_lpf, comb, sc);
+	}
+
+	/* Sets horizontal blanking delay and active lines */
+	cx18_av_write(cx, 0x470, hblank);
+	cx18_av_write(cx, 0x471, 0xff & (((hblank >> 8) & 0x3) |
+						(hactive << 4)));
+	cx18_av_write(cx, 0x472, hactive >> 4);
+
+	/* Sets burst gate delay */
+	cx18_av_write(cx, 0x473, burst);
+
+	/* Sets vertical blanking delay and active duration */
+	cx18_av_write(cx, 0x474, vblank);
+	cx18_av_write(cx, 0x475, 0xff & (((vblank >> 8) & 0x3) |
+						(vactive << 4)));
+	cx18_av_write(cx, 0x476, vactive >> 4);
+	cx18_av_write(cx, 0x477, vblank656);
+
+	/* Sets src decimation rate */
+	cx18_av_write(cx, 0x478, 0xff & src_decimation);
+	cx18_av_write(cx, 0x479, 0xff & (src_decimation >> 8));
+
+	/* Sets Luma and UV Low pass filters */
+	cx18_av_write(cx, 0x47a, luma_lpf << 6 | ((uv_lpf << 4) & 0x30));
+
+	/* Enables comb filters */
+	cx18_av_write(cx, 0x47b, comb);
+
+	/* Sets SC Step*/
+	cx18_av_write(cx, 0x47c, sc);
+	cx18_av_write(cx, 0x47d, 0xff & sc >> 8);
+	cx18_av_write(cx, 0x47e, 0xff & sc >> 16);
+
+	/* Sets VBI parameters */
+	if (std & V4L2_STD_625_50) {
+		cx18_av_write(cx, 0x47f, 0x01);
+		state->vbi_line_offset = 5;
+	} else {
+		cx18_av_write(cx, 0x47f, 0x00);
+		state->vbi_line_offset = 8;
+	}
 }
 
 /* ----------------------------------------------------------------------- */
@@ -169,12 +313,7 @@ static void input_change(struct cx18 *cx)
 	v4l2_std_id std = state->std;
 
 	/* Follow step 8c and 8d of section 3.16 in the cx18_av datasheet */
-	if (std & V4L2_STD_SECAM)
-		cx18_av_write(cx, 0x402, 0);
-	else {
-		cx18_av_write(cx, 0x402, 0x04);
-		cx18_av_write(cx, 0x49f, (std & V4L2_STD_NTSC) ? 0x14 : 0x11);
-	}
+	cx18_av_write(cx, 0x49f, (std & V4L2_STD_NTSC) ? 0x14 : 0x11);
 	cx18_av_and_or(cx, 0x401, ~0x60, 0);
 	cx18_av_and_or(cx, 0x401, ~0x60, 0x60);
 
@@ -228,7 +367,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 		if ((vid_input & ~0xff0) ||
 		    luma < CX18_AV_SVIDEO_LUMA1 ||
-		    luma > CX18_AV_SVIDEO_LUMA4 ||
+		    luma > CX18_AV_SVIDEO_LUMA8 ||
 		    chroma < CX18_AV_SVIDEO_CHROMA4 ||
 		    chroma > CX18_AV_SVIDEO_CHROMA8) {
 			CX18_ERR("0x%04x is not a valid video input!\n",
@@ -246,7 +385,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	}
 
 	switch (aud_input) {
-	case CX18_AV_AUDIO_SERIAL:
+	case CX18_AV_AUDIO_SERIAL1:
+	case CX18_AV_AUDIO_SERIAL2:
 		/* do nothing, use serial audio input */
 		break;
 	case CX18_AV_AUDIO4: reg &= ~0x30; break;
@@ -322,9 +462,9 @@ static int set_v4lstd(struct cx18 *cx)
 		/* Turn off LCOMB */
 		cx18_av_and_or(cx, 0x47b, ~6, 0);
 	}
-	cx18_av_and_or(cx, 0x400, ~0xf, fmt);
+	cx18_av_and_or(cx, 0x400, ~0x2f, fmt | 0x20);
 	cx18_av_and_or(cx, 0x403, ~0x3, pal_m);
-	cx18_av_vbi_setup(cx);
+	cx18_av_std_setup(cx);
 	input_change(cx);
 	return 0;
 }
@@ -563,6 +703,8 @@ int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg)
 
 		switch (qc->id) {
 		case V4L2_CID_AUDIO_VOLUME:
+			return v4l2_ctrl_query_fill(qc, 0, 65535,
+				65535 / 100, state->default_volume);
 		case V4L2_CID_AUDIO_MUTE:
 		case V4L2_CID_AUDIO_BALANCE:
 		case V4L2_CID_AUDIO_BASS:

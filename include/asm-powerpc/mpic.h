@@ -353,6 +353,8 @@ struct mpic
 #define MPIC_ENABLE_MCK			0x00000200
 /* Disable bias among target selection, spread interrupts evenly */
 #define MPIC_NO_BIAS			0x00000400
+/* Ignore NIRQS as reported by FRR */
+#define MPIC_BROKEN_FRR_NIRQS		0x00000800
 
 /* MPIC HW modification ID */
 #define MPIC_REGSET_MASK		0xf0000000

@@ -55,7 +55,7 @@
 static unsigned char ras_log_buf[RTAS_ERROR_LOG_MAX];
 static DEFINE_SPINLOCK(ras_log_buf_lock);
 
-char mce_data_buf[RTAS_ERROR_LOG_MAX];
+static char mce_data_buf[RTAS_ERROR_LOG_MAX];
 
 static int ras_get_sensor_state_token;
 static int ras_check_exception_token;

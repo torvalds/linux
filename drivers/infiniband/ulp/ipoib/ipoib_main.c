@@ -30,8 +30,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: ipoib_main.c 1377 2004-12-23 19:57:12Z roland $
  */
 
 #include "ipoib.h"
@@ -61,6 +59,15 @@ module_param_named(send_queue_size, ipoib_sendq_size, int, 0444);
 MODULE_PARM_DESC(send_queue_size, "Number of descriptors in send queue");
 module_param_named(recv_queue_size, ipoib_recvq_size, int, 0444);
 MODULE_PARM_DESC(recv_queue_size, "Number of descriptors in receive queue");
+
+static int lro;
+module_param(lro, bool, 0444);
+MODULE_PARM_DESC(lro,  "Enable LRO (Large Receive Offload)");
+
+static int lro_max_aggr = IPOIB_LRO_MAX_AGGR;
+module_param(lro_max_aggr, int, 0644);
+MODULE_PARM_DESC(lro_max_aggr, "LRO: Max packets to be aggregated "
+		"(default = 64)");
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 int ipoib_debug_level;
@@ -350,6 +357,23 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */
 
+void ipoib_mark_paths_invalid(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_path *path, *tp;
+
+	spin_lock_irq(&priv->lock);
+
+	list_for_each_entry_safe(path, tp, &priv->path_list, list) {
+		ipoib_dbg(priv, "mark path LID 0x%04x GID " IPOIB_GID_FMT " invalid\n",
+			be16_to_cpu(path->pathrec.dlid),
+			IPOIB_GID_ARG(path->pathrec.dgid));
+		path->valid =  0;
+	}
+
+	spin_unlock_irq(&priv->lock);
+}
+
 void ipoib_flush_paths(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -386,6 +410,7 @@ static void path_rec_completion(int status,
 	struct net_device *dev = path->dev;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_ah *ah = NULL;
+	struct ipoib_ah *old_ah;
 	struct ipoib_neigh *neigh, *tn;
 	struct sk_buff_head skqueue;
 	struct sk_buff *skb;
@@ -409,6 +434,7 @@ static void path_rec_completion(int status,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
+	old_ah   = path->ah;
 	path->ah = ah;
 
 	if (ah) {
@@ -421,6 +447,17 @@ static void path_rec_completion(int status,
 			__skb_queue_tail(&skqueue, skb);
 
 		list_for_each_entry_safe(neigh, tn, &path->neigh_list, list) {
+			if (neigh->ah) {
+				WARN_ON(neigh->ah != old_ah);
+				/*
+				 * Dropping the ah reference inside
+				 * priv->lock is safe here, because we
+				 * will hold one more reference from
+				 * the original value of path->ah (ie
+				 * old_ah).
+				 */
+				ipoib_put_ah(neigh->ah);
+			}
 			kref_get(&path->ah->ref);
 			neigh->ah = path->ah;
 			memcpy(&neigh->dgid.raw, &path->pathrec.dgid.raw,
@@ -443,12 +480,16 @@ static void path_rec_completion(int status,
 			while ((skb = __skb_dequeue(&neigh->queue)))
 				__skb_queue_tail(&skqueue, skb);
 		}
+		path->valid = 1;
 	}
 
 	path->query = NULL;
 	complete(&path->done);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (old_ah)
+		ipoib_put_ah(old_ah);
 
 	while ((skb = __skb_dequeue(&skqueue))) {
 		skb->dev = dev;
@@ -507,7 +548,7 @@ static int path_rec_start(struct net_device *dev,
 				   path_rec_completion,
 				   path, &path->query);
 	if (path->query_id < 0) {
-		ipoib_warn(priv, "ib_sa_path_rec_get failed\n");
+		ipoib_warn(priv, "ib_sa_path_rec_get failed: %d\n", path->query_id);
 		path->query = NULL;
 		return path->query_id;
 	}
@@ -623,8 +664,9 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 	spin_lock(&priv->lock);
 
 	path = __path_find(dev, phdr->hwaddr + 4);
-	if (!path) {
-		path = path_rec_create(dev, phdr->hwaddr + 4);
+	if (!path || !path->valid) {
+		if (!path)
+			path = path_rec_create(dev, phdr->hwaddr + 4);
 		if (path) {
 			/* put pseudoheader back on for next time */
 			skb_push(skb, sizeof *phdr);
@@ -938,6 +980,54 @@ static const struct header_ops ipoib_header_ops = {
 	.create	= ipoib_hard_header,
 };
 
+static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
+		       void **tcph, u64 *hdr_flags, void *priv)
+{
+	unsigned int ip_len;
+	struct iphdr *iph;
+
+	if (unlikely(skb->protocol != htons(ETH_P_IP)))
+		return -1;
+
+	/*
+	 * In the future we may add an else clause that verifies the
+	 * checksum and allows devices which do not calculate checksum
+	 * to use LRO.
+	 */
+	if (unlikely(skb->ip_summed != CHECKSUM_UNNECESSARY))
+		return -1;
+
+	/* Check for non-TCP packet */
+	skb_reset_network_header(skb);
+	iph = ip_hdr(skb);
+	if (iph->protocol != IPPROTO_TCP)
+		return -1;
+
+	ip_len = ip_hdrlen(skb);
+	skb_set_transport_header(skb, ip_len);
+	*tcph = tcp_hdr(skb);
+
+	/* check if IP header and TCP header are complete */
+	if (ntohs(iph->tot_len) < ip_len + tcp_hdrlen(skb))
+		return -1;
+
+	*hdr_flags = LRO_IPV4 | LRO_TCP;
+	*iphdr = iph;
+
+	return 0;
+}
+
+static void ipoib_lro_setup(struct ipoib_dev_priv *priv)
+{
+	priv->lro.lro_mgr.max_aggr	 = lro_max_aggr;
+	priv->lro.lro_mgr.max_desc	 = IPOIB_MAX_LRO_DESCRIPTORS;
+	priv->lro.lro_mgr.lro_arr	 = priv->lro.lro_desc;
+	priv->lro.lro_mgr.get_skb_header = get_skb_hdr;
+	priv->lro.lro_mgr.features	 = LRO_F_NAPI;
+	priv->lro.lro_mgr.dev		 = priv->dev;
+	priv->lro.lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
+}
+
 static void ipoib_setup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -977,10 +1067,11 @@ static void ipoib_setup(struct net_device *dev)
 
 	priv->dev = dev;
 
+	ipoib_lro_setup(priv);
+
 	spin_lock_init(&priv->lock);
 	spin_lock_init(&priv->tx_lock);
 
-	mutex_init(&priv->mcast_mutex);
 	mutex_init(&priv->vlan_mutex);
 
 	INIT_LIST_HEAD(&priv->path_list);
@@ -989,9 +1080,10 @@ static void ipoib_setup(struct net_device *dev)
 	INIT_LIST_HEAD(&priv->multicast_list);
 
 	INIT_DELAYED_WORK(&priv->pkey_poll_task, ipoib_pkey_poll);
-	INIT_WORK(&priv->pkey_event_task, ipoib_pkey_event);
 	INIT_DELAYED_WORK(&priv->mcast_task,   ipoib_mcast_join_task);
-	INIT_WORK(&priv->flush_task,   ipoib_ib_dev_flush);
+	INIT_WORK(&priv->flush_light,   ipoib_ib_dev_flush_light);
+	INIT_WORK(&priv->flush_normal,   ipoib_ib_dev_flush_normal);
+	INIT_WORK(&priv->flush_heavy,   ipoib_ib_dev_flush_heavy);
 	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task);
 	INIT_DELAYED_WORK(&priv->ah_reap_task, ipoib_reap_ah);
 }
@@ -1154,6 +1246,9 @@ static struct net_device *ipoib_add_port(const char *format,
 		priv->dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 	}
 
+	if (lro)
+		priv->dev->features |= NETIF_F_LRO;
+
 	/*
 	 * Set the full membership bit, so that we join the right
 	 * broadcast group, etc.
@@ -1303,6 +1398,12 @@ static int __init ipoib_init_module(void)
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 	ipoib_max_conn_qp = min(ipoib_max_conn_qp, IPOIB_CM_MAX_CONN_QP);
 #endif
+
+	/*
+	 * When copying small received packets, we only copy from the
+	 * linear data part of the SKB, so we rely on this condition.
+	 */
+	BUILD_BUG_ON(IPOIB_CM_COPYBREAK > IPOIB_CM_HEAD_SIZE);
 
 	ret = ipoib_register_debugfs();
 	if (ret)

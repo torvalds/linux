@@ -183,16 +183,19 @@ static int exact_lock(dev_t devt, void *data)
 void add_disk(struct gendisk *disk)
 {
 	struct backing_dev_info *bdi;
+	int retval;
 
 	disk->flags |= GENHD_FL_UP;
 	blk_register_region(MKDEV(disk->major, disk->first_minor),
 			    disk->minors, NULL, exact_match, exact_lock, disk);
 	register_disk(disk);
 	blk_register_queue(disk);
+	blk_register_filter(disk);
 
 	bdi = &disk->queue->backing_dev_info;
 	bdi_register_dev(bdi, MKDEV(disk->major, disk->first_minor));
-	sysfs_create_link(&disk->dev.kobj, &bdi->dev->kobj, "bdi");
+	retval = sysfs_create_link(&disk->dev.kobj, &bdi->dev->kobj, "bdi");
+	WARN_ON(retval);
 }
 
 EXPORT_SYMBOL(add_disk);
@@ -200,6 +203,7 @@ EXPORT_SYMBOL(del_gendisk);	/* in partitions/check.c */
 
 void unlink_gendisk(struct gendisk *disk)
 {
+	blk_unregister_filter(disk);
 	sysfs_remove_link(&disk->dev.kobj, "bdi");
 	bdi_unregister(&disk->queue->backing_dev_info);
 	blk_unregister_queue(disk);
@@ -223,76 +227,101 @@ struct gendisk *get_gendisk(dev_t devt, int *part)
 }
 
 /*
+ * print a partitions - intended for places where the root filesystem can't be
+ * mounted and thus to give the victim some idea of what went wrong
+ */
+static int printk_partition(struct device *dev, void *data)
+{
+	struct gendisk *sgp;
+	char buf[BDEVNAME_SIZE];
+	int n;
+
+	if (dev->type != &disk_type)
+		goto exit;
+
+	sgp = dev_to_disk(dev);
+	/*
+	 * Don't show empty devices or things that have been surpressed
+	 */
+	if (get_capacity(sgp) == 0 ||
+	    (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO))
+		goto exit;
+
+	/*
+	 * Note, unlike /proc/partitions, I am showing the numbers in
+	 * hex - the same format as the root= option takes.
+	 */
+	printk("%02x%02x %10llu %s",
+		sgp->major, sgp->first_minor,
+		(unsigned long long)get_capacity(sgp) >> 1,
+		disk_name(sgp, 0, buf));
+	if (sgp->driverfs_dev != NULL &&
+	    sgp->driverfs_dev->driver != NULL)
+		printk(" driver: %s\n",
+			sgp->driverfs_dev->driver->name);
+	else
+		printk(" (driver?)\n");
+
+	/* now show the partitions */
+	for (n = 0; n < sgp->minors - 1; ++n) {
+		if (sgp->part[n] == NULL)
+			goto exit;
+		if (sgp->part[n]->nr_sects == 0)
+			goto exit;
+		printk("  %02x%02x %10llu %s\n",
+			sgp->major, n + 1 + sgp->first_minor,
+			(unsigned long long)sgp->part[n]->nr_sects >> 1,
+			disk_name(sgp, n + 1, buf));
+	}
+exit:
+	return 0;
+}
+
+/*
  * print a full list of all partitions - intended for places where the root
  * filesystem can't be mounted and thus to give the victim some idea of what
  * went wrong
  */
 void __init printk_all_partitions(void)
 {
-	struct device *dev;
-	struct gendisk *sgp;
-	char buf[BDEVNAME_SIZE];
-	int n;
-
 	mutex_lock(&block_class_lock);
-	/* For each block device... */
-	list_for_each_entry(dev, &block_class.devices, node) {
-		if (dev->type != &disk_type)
-			continue;
-		sgp = dev_to_disk(dev);
-		/*
-		 * Don't show empty devices or things that have been surpressed
-		 */
-		if (get_capacity(sgp) == 0 ||
-		    (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO))
-			continue;
-
-		/*
-		 * Note, unlike /proc/partitions, I am showing the numbers in
-		 * hex - the same format as the root= option takes.
-		 */
-		printk("%02x%02x %10llu %s",
-			sgp->major, sgp->first_minor,
-			(unsigned long long)get_capacity(sgp) >> 1,
-			disk_name(sgp, 0, buf));
-		if (sgp->driverfs_dev != NULL &&
-		    sgp->driverfs_dev->driver != NULL)
-			printk(" driver: %s\n",
-				sgp->driverfs_dev->driver->name);
-		else
-			printk(" (driver?)\n");
-
-		/* now show the partitions */
-		for (n = 0; n < sgp->minors - 1; ++n) {
-			if (sgp->part[n] == NULL)
-				continue;
-			if (sgp->part[n]->nr_sects == 0)
-				continue;
-			printk("  %02x%02x %10llu %s\n",
-				sgp->major, n + 1 + sgp->first_minor,
-				(unsigned long long)sgp->part[n]->nr_sects >> 1,
-				disk_name(sgp, n + 1, buf));
-		}
-	}
-
+	class_for_each_device(&block_class, NULL, NULL, printk_partition);
 	mutex_unlock(&block_class_lock);
 }
 
 #ifdef CONFIG_PROC_FS
 /* iterator */
+static int find_start(struct device *dev, void *data)
+{
+	loff_t k = *(loff_t *)data;
+
+	if (dev->type != &disk_type)
+		return 0;
+	if (!k--)
+		return 1;
+	return 0;
+}
+
 static void *part_start(struct seq_file *part, loff_t *pos)
 {
-	loff_t k = *pos;
 	struct device *dev;
+	loff_t n = *pos;
+
+	if (!n)
+		seq_puts(part, "major minor  #blocks  name\n\n");
 
 	mutex_lock(&block_class_lock);
-	list_for_each_entry(dev, &block_class.devices, node) {
-		if (dev->type != &disk_type)
-			continue;
-		if (!k--)
-			return dev_to_disk(dev);
-	}
+	dev = class_find_device(&block_class, NULL, (void *)pos, find_start);
+	if (dev)
+		return dev_to_disk(dev);
 	return NULL;
+}
+
+static int find_next(struct device *dev, void *data)
+{
+	if (dev->type == &disk_type)
+		return 1;
+	return 0;
 }
 
 static void *part_next(struct seq_file *part, void *v, loff_t *pos)
@@ -300,12 +329,9 @@ static void *part_next(struct seq_file *part, void *v, loff_t *pos)
 	struct gendisk *gp = v;
 	struct device *dev;
 	++*pos;
-	list_for_each_entry(dev, &gp->dev.node, node) {
-		if (&dev->node == &block_class.devices)
-			return NULL;
-		if (dev->type == &disk_type)
-			return dev_to_disk(dev);
-	}
+	dev = class_find_device(&block_class, &gp->dev, NULL, find_next);
+	if (dev)
+		return dev_to_disk(dev);
 	return NULL;
 }
 
@@ -319,9 +345,6 @@ static int show_partition(struct seq_file *part, void *v)
 	struct gendisk *sgp = v;
 	int n;
 	char buf[BDEVNAME_SIZE];
-
-	if (&sgp->dev.node == block_class.devices.next)
-		seq_puts(part, "major minor  #blocks  name\n\n");
 
 	/* Don't show non-partitionable removeable devices or empty devices */
 	if (!get_capacity(sgp) ||
@@ -368,7 +391,10 @@ static struct kobject *base_probe(dev_t devt, int *part, void *data)
 
 static int __init genhd_device_init(void)
 {
-	int error = class_register(&block_class);
+	int error;
+
+	block_class.dev_kobj = sysfs_dev_block_kobj;
+	error = class_register(&block_class);
 	if (unlikely(error))
 		return error;
 	bdev_map = kobj_map_init(base_probe, &block_class_lock);
@@ -398,6 +424,14 @@ static ssize_t disk_removable_show(struct device *dev,
 
 	return sprintf(buf, "%d\n",
 		       (disk->flags & GENHD_FL_REMOVABLE ? 1 : 0));
+}
+
+static ssize_t disk_ro_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+
+	return sprintf(buf, "%d\n", disk->policy ? 1 : 0);
 }
 
 static ssize_t disk_size_show(struct device *dev,
@@ -472,6 +506,7 @@ static ssize_t disk_fail_store(struct device *dev,
 
 static DEVICE_ATTR(range, S_IRUGO, disk_range_show, NULL);
 static DEVICE_ATTR(removable, S_IRUGO, disk_removable_show, NULL);
+static DEVICE_ATTR(ro, S_IRUGO, disk_ro_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, disk_size_show, NULL);
 static DEVICE_ATTR(capability, S_IRUGO, disk_capability_show, NULL);
 static DEVICE_ATTR(stat, S_IRUGO, disk_stat_show, NULL);
@@ -483,6 +518,7 @@ static struct device_attribute dev_attr_fail =
 static struct attribute *disk_attrs[] = {
 	&dev_attr_range.attr,
 	&dev_attr_removable.attr,
+	&dev_attr_ro.attr,
 	&dev_attr_size.attr,
 	&dev_attr_capability.attr,
 	&dev_attr_stat.attr,
@@ -520,6 +556,7 @@ static struct device_type disk_type = {
 	.release	= disk_release,
 };
 
+#ifdef CONFIG_PROC_FS
 /*
  * aggregate disk stat collector.  Uses the same stats that the sysfs
  * entries do, above, but makes them available through one seq_file.
@@ -530,16 +567,12 @@ static struct device_type disk_type = {
 
 static void *diskstats_start(struct seq_file *part, loff_t *pos)
 {
-	loff_t k = *pos;
 	struct device *dev;
 
 	mutex_lock(&block_class_lock);
-	list_for_each_entry(dev, &block_class.devices, node) {
-		if (dev->type != &disk_type)
-			continue;
-		if (!k--)
-			return dev_to_disk(dev);
-	}
+	dev = class_find_device(&block_class, NULL, (void *)pos, find_start);
+	if (dev)
+		return dev_to_disk(dev);
 	return NULL;
 }
 
@@ -549,12 +582,9 @@ static void *diskstats_next(struct seq_file *part, void *v, loff_t *pos)
 	struct device *dev;
 
 	++*pos;
-	list_for_each_entry(dev, &gp->dev.node, node) {
-		if (&dev->node == &block_class.devices)
-			return NULL;
-		if (dev->type == &disk_type)
-			return dev_to_disk(dev);
-	}
+	dev = class_find_device(&block_class, &gp->dev, NULL, find_next);
+	if (dev)
+		return dev_to_disk(dev);
 	return NULL;
 }
 
@@ -629,6 +659,7 @@ const struct seq_operations diskstats_op = {
 	.stop	= diskstats_stop,
 	.show	= diskstats_show
 };
+#endif /* CONFIG_PROC_FS */
 
 static void media_change_notify_thread(struct work_struct *work)
 {
@@ -653,24 +684,38 @@ void genhd_media_change_notify(struct gendisk *disk)
 EXPORT_SYMBOL_GPL(genhd_media_change_notify);
 #endif  /*  0  */
 
+struct find_block {
+	const char *name;
+	int part;
+};
+
+static int match_id(struct device *dev, void *data)
+{
+	struct find_block *find = data;
+
+	if (dev->type != &disk_type)
+		return 0;
+	if (strcmp(dev->bus_id, find->name) == 0) {
+		struct gendisk *disk = dev_to_disk(dev);
+		if (find->part < disk->minors)
+			return 1;
+	}
+	return 0;
+}
+
 dev_t blk_lookup_devt(const char *name, int part)
 {
 	struct device *dev;
 	dev_t devt = MKDEV(0, 0);
+	struct find_block find;
 
 	mutex_lock(&block_class_lock);
-	list_for_each_entry(dev, &block_class.devices, node) {
-		if (dev->type != &disk_type)
-			continue;
-		if (strcmp(dev->bus_id, name) == 0) {
-			struct gendisk *disk = dev_to_disk(dev);
-
-			if (part < disk->minors)
-				devt = MKDEV(MAJOR(dev->devt),
-					     MINOR(dev->devt) + part);
-			break;
-		}
-	}
+	find.name = name;
+	find.part = part;
+	dev = class_find_device(&block_class, NULL, (void *)&find, match_id);
+	if (dev)
+		devt = MKDEV(MAJOR(dev->devt),
+			     MINOR(dev->devt) + part);
 	mutex_unlock(&block_class_lock);
 
 	return devt;

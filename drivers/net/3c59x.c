@@ -1010,7 +1010,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	static int printed_version;
 	int retval, print_info;
 	struct vortex_chip_info * const vci = &vortex_info_tbl[chip_idx];
-	char *print_name = "3c59x";
+	const char *print_name = "3c59x";
 	struct pci_dev *pdev = NULL;
 	struct eisa_device *edev = NULL;
 	DECLARE_MAC_BUF(mac);
@@ -1768,9 +1768,10 @@ vortex_timer(unsigned long data)
 	case XCVR_MII: case XCVR_NWAY:
 		{
 			ok = 1;
-			spin_lock_bh(&vp->lock);
+			/* Interrupts are already disabled */
+			spin_lock(&vp->lock);
 			vortex_check_media(dev, 0);
-			spin_unlock_bh(&vp->lock);
+			spin_unlock(&vp->lock);
 		}
 		break;
 	  default:					/* Other media types handled by Tx timeouts. */

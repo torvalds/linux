@@ -19,7 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/ioctl.h>
 
-#include <asm/mach/time.h>
 #include <asm/arch/board.h>
 #include <asm/arch/at91_rtt.h>
 

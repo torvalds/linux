@@ -15,6 +15,7 @@
  */
 
 #ifndef __ASM_ARCH_MSM_IRQS_H
+#define __ASM_ARCH_MSM_IRQS_H
 
 /* MSM ARM11 Interrupt Numbers */
 /* See 80-VE113-1 A, pp219-221     */

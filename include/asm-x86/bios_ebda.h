@@ -14,4 +14,6 @@ static inline unsigned int get_bios_ebda(void)
 	return address;	/* 0 means none */
 }
 
+void reserve_ebda_region(void);
+
 #endif /* _MACH_BIOS_EBDA_H */

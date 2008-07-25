@@ -584,19 +584,14 @@ list_start:
 	rcu_read_unlock();
 
 	genlmsg_end(ans_skb, data);
-
-	ret_val = genlmsg_reply(ans_skb, info);
-	if (ret_val != 0)
-		goto list_failure;
-
-	return 0;
+	return genlmsg_reply(ans_skb, info);
 
 list_retry:
 	/* XXX - this limit is a guesstimate */
 	if (nlsze_mult < 4) {
 		rcu_read_unlock();
 		kfree_skb(ans_skb);
-		nlsze_mult++;
+		nlsze_mult *= 2;
 		goto list_start;
 	}
 list_failure_lock:

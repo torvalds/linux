@@ -13,6 +13,12 @@ extern int apic_version[MAX_APICS];
 extern u8 apicid_2_node[];
 extern int pic_mode;
 
+#ifdef CONFIG_X86_NUMAQ
+extern int mp_bus_id_to_node[MAX_MP_BUSSES];
+extern int mp_bus_id_to_local[MAX_MP_BUSSES];
+extern int quad_local_to_mp_bus_id [NR_CPUS/4][4];
+#endif
+
 #define MAX_APICID 256
 
 #else
@@ -21,10 +27,10 @@ extern int pic_mode;
 /* Each PCI slot may be a combo card with its own bus.  4 IRQ pins per slot. */
 #define MAX_IRQ_SOURCES (MAX_MP_BUSSES * 4)
 
+#endif
+
 extern void early_find_smp_config(void);
 extern void early_get_smp_config(void);
-
-#endif
 
 #if defined(CONFIG_MCA) || defined(CONFIG_EISA)
 extern int mp_bus_id_to_type[MAX_MP_BUSSES];
@@ -32,15 +38,19 @@ extern int mp_bus_id_to_type[MAX_MP_BUSSES];
 
 extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 
-extern int mp_bus_id_to_pci_bus[MAX_MP_BUSSES];
-
 extern unsigned int boot_cpu_physical_apicid;
+extern unsigned int max_physical_apicid;
 extern int smp_found_config;
 extern int mpc_default_type;
 extern unsigned long mp_lapic_addr;
 
 extern void find_smp_config(void);
 extern void get_smp_config(void);
+#ifdef CONFIG_X86_MPPARSE
+extern void early_reserve_e820_mpc_new(void);
+#else
+static inline void early_reserve_e820_mpc_new(void) { }
+#endif
 
 void __cpuinit generic_processor_info(int apicid, int version);
 #ifdef CONFIG_ACPI
@@ -49,6 +59,17 @@ extern void mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 				   u32 gsi);
 extern void mp_config_acpi_legacy_irqs(void);
 extern int mp_register_gsi(u32 gsi, int edge_level, int active_high_low);
+#ifdef CONFIG_X86_IO_APIC
+extern int mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
+				u32 gsi, int triggering, int polarity);
+#else
+static inline int
+mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
+		   u32 gsi, int triggering, int polarity)
+{
+	return 0;
+}
+#endif
 #endif /* CONFIG_ACPI */
 
 #define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_APICS)
@@ -101,12 +122,19 @@ typedef struct physid_mask physid_mask_t;
 		__physid_mask;						\
 	})
 
+/* Note: will create very large stack frames if physid_mask_t is big */
 #define physid_mask_of_physid(physid)					\
 	({								\
 		physid_mask_t __physid_mask = PHYSID_MASK_NONE;		\
 		physid_set(physid, __physid_mask);			\
 		__physid_mask;						\
 	})
+
+static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
+{
+	physids_clear(*map);
+	physid_set(physid, *map);
+}
 
 #define PHYSID_MASK_ALL		{ {[0 ... PHYSID_ARRAY_SIZE-1] = ~0UL} }
 #define PHYSID_MASK_NONE	{ {[0 ... PHYSID_ARRAY_SIZE-1] = 0UL} }

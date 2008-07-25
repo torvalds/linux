@@ -15,6 +15,7 @@
 #include <linux/poll.h>
 #include <linux/signal.h>
 #include <linux/spinlock.h>
+#include <linux/smp_lock.h>
 #include <linux/dlm.h>
 #include <linux/dlm_device.h>
 
@@ -618,13 +619,17 @@ static int device_open(struct inode *inode, struct file *file)
 	struct dlm_user_proc *proc;
 	struct dlm_ls *ls;
 
+	lock_kernel();
 	ls = dlm_find_lockspace_device(iminor(inode));
-	if (!ls)
+	if (!ls) {
+		unlock_kernel();
 		return -ENOENT;
+	}
 
 	proc = kzalloc(sizeof(struct dlm_user_proc), GFP_KERNEL);
 	if (!proc) {
 		dlm_put_lockspace(ls);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -636,6 +641,7 @@ static int device_open(struct inode *inode, struct file *file)
 	spin_lock_init(&proc->locks_spin);
 	init_waitqueue_head(&proc->wait);
 	file->private_data = proc;
+	unlock_kernel();
 
 	return 0;
 }
@@ -870,6 +876,7 @@ static unsigned int device_poll(struct file *file, poll_table *wait)
 
 static int ctl_device_open(struct inode *inode, struct file *file)
 {
+	cycle_kernel_lock();
 	file->private_data = NULL;
 	return 0;
 }

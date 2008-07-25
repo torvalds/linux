@@ -61,7 +61,7 @@ enum rc_pid_event_type {
 union rc_pid_event_data {
 	/* RC_PID_EVENT_TX_STATUS */
 	struct {
-		struct ieee80211_tx_status tx_status;
+		struct ieee80211_tx_info tx_status;
 	};
 	/* RC_PID_EVENT_TYPE_RATE_CHANGE */
 	/* RC_PID_EVENT_TYPE_TX_RATE */
@@ -141,7 +141,6 @@ struct rc_pid_events_file_info {
  *	rate behaviour values (lower means we should trust more what we learnt
  *	about behaviour of rates, higher means we should trust more the natural
  *	ordering of rates)
- * @fast_start: if Y, push high rates right after initialization
  */
 struct rc_pid_debugfs_entries {
 	struct dentry *dir;
@@ -154,11 +153,10 @@ struct rc_pid_debugfs_entries {
 	struct dentry *sharpen_factor;
 	struct dentry *sharpen_duration;
 	struct dentry *norm_offset;
-	struct dentry *fast_start;
 };
 
 void rate_control_pid_event_tx_status(struct rc_pid_event_buffer *buf,
-					     struct ieee80211_tx_status *stat);
+				      struct ieee80211_tx_info *stat);
 
 void rate_control_pid_event_rate_change(struct rc_pid_event_buffer *buf,
 					       int index, int rate);
@@ -266,9 +264,6 @@ struct rc_pid_info {
 
 	/* Normalization offset. */
 	unsigned int norm_offset;
-
-	/* Fast starst parameter. */
-	unsigned int fast_start;
 
 	/* Rates information. */
 	struct rc_pid_rateinfo *rinfo;

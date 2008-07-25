@@ -1024,7 +1024,7 @@ static int irda_usb_is_receiving(struct irda_usb_cb *self)
  *   Upload firmware code to SigmaTel 421X IRDA-USB dongle
  */
 static int stir421x_fw_upload(struct irda_usb_cb *self,
-			     unsigned char *patch,
+			     const unsigned char *patch,
 			     const unsigned int patch_len)
 {
         int ret = -ENOMEM;
@@ -1073,11 +1073,11 @@ static int stir421x_fw_upload(struct irda_usb_cb *self,
   */
 static int stir421x_patch_device(struct irda_usb_cb *self)
 {
-        unsigned int i;
-        int ret;
-        char stir421x_fw_name[11];
-        const struct firmware *fw;
-        unsigned char *fw_version_ptr; /* pointer to version string */
+	unsigned int i;
+	int ret;
+	char stir421x_fw_name[11];
+	const struct firmware *fw;
+	const unsigned char *fw_version_ptr; /* pointer to version string */
 	unsigned long fw_version = 0;
 
         /*

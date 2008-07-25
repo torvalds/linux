@@ -1,66 +1,20 @@
+/*
+ * linux/drivers/s390/cio/qdio.h
+ *
+ * Copyright 2000,2008 IBM Corp.
+ * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
+ *	      Jan Glauber <jang@linux.vnet.ibm.com>
+ */
 #ifndef _CIO_QDIO_H
 #define _CIO_QDIO_H
 
 #include <asm/page.h>
+#include <asm/schid.h>
+#include "chsc.h"
 
-#include "schid.h"
-
-#ifdef CONFIG_QDIO_DEBUG
-#define QDIO_VERBOSE_LEVEL 9
-#else /* CONFIG_QDIO_DEBUG */
-#define QDIO_VERBOSE_LEVEL 5
-#endif /* CONFIG_QDIO_DEBUG */
-#define QDIO_USE_PROCESSING_STATE
-
-#define QDIO_MINIMAL_BH_RELIEF_TIME 16
-#define QDIO_TIMER_POLL_VALUE 1
-#define IQDIO_TIMER_POLL_VALUE 1
-
-/*
- * unfortunately this can't be (QDIO_MAX_BUFFERS_PER_Q*4/3) or so -- as
- * we never know, whether we'll get initiative again, e.g. to give the
- * transmit skb's back to the stack, however the stack may be waiting for
- * them... therefore we define 4 as threshold to start polling (which
- * will stop as soon as the asynchronous queue catches up)
- * btw, this only applies to the asynchronous HiperSockets queue
- */
-#define IQDIO_FILL_LEVEL_TO_POLL 4
-
-#define TIQDIO_THININT_ISC 3
-#define TIQDIO_DELAY_TARGET 0
-#define QDIO_BUSY_BIT_PATIENCE 100 /* in microsecs */
-#define QDIO_BUSY_BIT_GIVE_UP 10000000 /* 10 seconds */
-#define IQDIO_GLOBAL_LAPS 2 /* GLOBAL_LAPS are not used as we */
-#define IQDIO_GLOBAL_LAPS_INT 1 /* don't global summary */
-#define IQDIO_LOCAL_LAPS 4
-#define IQDIO_LOCAL_LAPS_INT 1
-#define IQDIO_GLOBAL_SUMMARY_CC_MASK 2
-/*#define IQDIO_IQDC_INT_PARM 0x1234*/
-
-#define QDIO_Q_LAPS 5
-
-#define QDIO_STORAGE_KEY PAGE_DEFAULT_KEY
-
-#define L2_CACHELINE_SIZE 256
-#define INDICATORS_PER_CACHELINE (L2_CACHELINE_SIZE/sizeof(__u32))
-
-#define QDIO_PERF "qdio_perf"
-
-/* must be a power of 2 */
-/*#define QDIO_STATS_NUMBER 4
-
-#define QDIO_STATS_CLASSES 2
-#define QDIO_STATS_COUNT_NEEDED 2*/
-
-#define QDIO_NO_USE_COUNT_TIMEOUT (1*HZ) /* wait for 1 sec on each q before
-					    exiting without having use_count
-					    of the queue to 0 */
-
-#define QDIO_ESTABLISH_TIMEOUT (1*HZ)
-#define QDIO_CLEANUP_CLEAR_TIMEOUT (20*HZ)
-#define QDIO_CLEANUP_HALT_TIMEOUT (10*HZ)
-#define QDIO_FORCE_CHECK_TIMEOUT (10*HZ)
-#define QDIO_ACTIVATE_TIMEOUT (5) /* 5 ms */
+#define QDIO_BUSY_BIT_PATIENCE		100	/* 100 microseconds */
+#define QDIO_BUSY_BIT_GIVE_UP		2000000	/* 2 seconds = eternity */
+#define QDIO_INPUT_THRESHOLD		500	/* 500 microseconds */
 
 enum qdio_irq_states {
 	QDIO_IRQ_STATE_INACTIVE,
@@ -72,565 +26,352 @@ enum qdio_irq_states {
 	NR_QDIO_IRQ_STATES,
 };
 
-/* used as intparm in do_IO: */
-#define QDIO_DOING_SENSEID 0
-#define QDIO_DOING_ESTABLISH 1
-#define QDIO_DOING_ACTIVATE 2
-#define QDIO_DOING_CLEANUP 3
+/* used as intparm in do_IO */
+#define QDIO_DOING_ESTABLISH	1
+#define QDIO_DOING_ACTIVATE	2
+#define QDIO_DOING_CLEANUP	3
 
-/************************* DEBUG FACILITY STUFF *********************/
+#define SLSB_STATE_NOT_INIT	0x0
+#define SLSB_STATE_EMPTY	0x1
+#define SLSB_STATE_PRIMED	0x2
+#define SLSB_STATE_HALTED	0xe
+#define SLSB_STATE_ERROR	0xf
+#define SLSB_TYPE_INPUT		0x0
+#define SLSB_TYPE_OUTPUT	0x20
+#define SLSB_OWNER_PROG		0x80
+#define SLSB_OWNER_CU		0x40
 
-#define QDIO_DBF_HEX(ex,name,level,addr,len) \
-	do { \
-	if (ex) \
-		debug_exception(qdio_dbf_##name,level,(void*)(addr),len); \
-	else \
-		debug_event(qdio_dbf_##name,level,(void*)(addr),len); \
-	} while (0)
-#define QDIO_DBF_TEXT(ex,name,level,text) \
-	do { \
-	if (ex) \
-		debug_text_exception(qdio_dbf_##name,level,text); \
-	else \
-		debug_text_event(qdio_dbf_##name,level,text); \
-	} while (0)
+#define SLSB_P_INPUT_NOT_INIT	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_INPUT | SLSB_STATE_NOT_INIT)  /* 0x80 */
+#define SLSB_P_INPUT_ACK	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_INPUT | SLSB_STATE_EMPTY)	   /* 0x81 */
+#define SLSB_CU_INPUT_EMPTY	\
+	(SLSB_OWNER_CU | SLSB_TYPE_INPUT | SLSB_STATE_EMPTY)	   /* 0x41 */
+#define SLSB_P_INPUT_PRIMED	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_INPUT | SLSB_STATE_PRIMED)	   /* 0x82 */
+#define SLSB_P_INPUT_HALTED	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_INPUT | SLSB_STATE_HALTED)	   /* 0x8e */
+#define SLSB_P_INPUT_ERROR	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_INPUT | SLSB_STATE_ERROR)	   /* 0x8f */
+#define SLSB_P_OUTPUT_NOT_INIT	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_OUTPUT | SLSB_STATE_NOT_INIT) /* 0xa0 */
+#define SLSB_P_OUTPUT_EMPTY	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_OUTPUT | SLSB_STATE_EMPTY)	   /* 0xa1 */
+#define SLSB_CU_OUTPUT_PRIMED	\
+	(SLSB_OWNER_CU | SLSB_TYPE_OUTPUT | SLSB_STATE_PRIMED)	   /* 0x62 */
+#define SLSB_P_OUTPUT_HALTED	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_OUTPUT | SLSB_STATE_HALTED)   /* 0xae */
+#define SLSB_P_OUTPUT_ERROR	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_OUTPUT | SLSB_STATE_ERROR)	   /* 0xaf */
 
+#define SLSB_ERROR_DURING_LOOKUP  0xff
 
-#define QDIO_DBF_HEX0(ex,name,addr,len) QDIO_DBF_HEX(ex,name,0,addr,len)
-#define QDIO_DBF_HEX1(ex,name,addr,len) QDIO_DBF_HEX(ex,name,1,addr,len)
-#define QDIO_DBF_HEX2(ex,name,addr,len) QDIO_DBF_HEX(ex,name,2,addr,len)
-#ifdef CONFIG_QDIO_DEBUG
-#define QDIO_DBF_HEX3(ex,name,addr,len) QDIO_DBF_HEX(ex,name,3,addr,len)
-#define QDIO_DBF_HEX4(ex,name,addr,len) QDIO_DBF_HEX(ex,name,4,addr,len)
-#define QDIO_DBF_HEX5(ex,name,addr,len) QDIO_DBF_HEX(ex,name,5,addr,len)
-#define QDIO_DBF_HEX6(ex,name,addr,len) QDIO_DBF_HEX(ex,name,6,addr,len)
-#else /* CONFIG_QDIO_DEBUG */
-#define QDIO_DBF_HEX3(ex,name,addr,len) do {} while (0)
-#define QDIO_DBF_HEX4(ex,name,addr,len) do {} while (0)
-#define QDIO_DBF_HEX5(ex,name,addr,len) do {} while (0)
-#define QDIO_DBF_HEX6(ex,name,addr,len) do {} while (0)
-#endif /* CONFIG_QDIO_DEBUG */
+/* additional CIWs returned by extended Sense-ID */
+#define CIW_TYPE_EQUEUE			0x3 /* establish QDIO queues */
+#define CIW_TYPE_AQUEUE			0x4 /* activate QDIO queues */
 
-#define QDIO_DBF_TEXT0(ex,name,text) QDIO_DBF_TEXT(ex,name,0,text)
-#define QDIO_DBF_TEXT1(ex,name,text) QDIO_DBF_TEXT(ex,name,1,text)
-#define QDIO_DBF_TEXT2(ex,name,text) QDIO_DBF_TEXT(ex,name,2,text)
-#ifdef CONFIG_QDIO_DEBUG
-#define QDIO_DBF_TEXT3(ex,name,text) QDIO_DBF_TEXT(ex,name,3,text)
-#define QDIO_DBF_TEXT4(ex,name,text) QDIO_DBF_TEXT(ex,name,4,text)
-#define QDIO_DBF_TEXT5(ex,name,text) QDIO_DBF_TEXT(ex,name,5,text)
-#define QDIO_DBF_TEXT6(ex,name,text) QDIO_DBF_TEXT(ex,name,6,text)
-#else /* CONFIG_QDIO_DEBUG */
-#define QDIO_DBF_TEXT3(ex,name,text) do {} while (0)
-#define QDIO_DBF_TEXT4(ex,name,text) do {} while (0)
-#define QDIO_DBF_TEXT5(ex,name,text) do {} while (0)
-#define QDIO_DBF_TEXT6(ex,name,text) do {} while (0)
-#endif /* CONFIG_QDIO_DEBUG */
+/* flags for st qdio sch data */
+#define CHSC_FLAG_QDIO_CAPABILITY	0x80
+#define CHSC_FLAG_VALIDITY		0x40
 
-#define QDIO_DBF_SETUP_NAME "qdio_setup"
-#define QDIO_DBF_SETUP_LEN 8
-#define QDIO_DBF_SETUP_PAGES 4
-#define QDIO_DBF_SETUP_NR_AREAS 1
-#ifdef CONFIG_QDIO_DEBUG
-#define QDIO_DBF_SETUP_LEVEL 6
-#else /* CONFIG_QDIO_DEBUG */
-#define QDIO_DBF_SETUP_LEVEL 2
-#endif /* CONFIG_QDIO_DEBUG */
+/* qdio adapter-characteristics-1 flag */
+#define AC1_SIGA_INPUT_NEEDED		0x40	/* process input queues */
+#define AC1_SIGA_OUTPUT_NEEDED		0x20	/* process output queues */
+#define AC1_SIGA_SYNC_NEEDED		0x10	/* ask hypervisor to sync */
+#define AC1_AUTOMATIC_SYNC_ON_THININT	0x08	/* set by hypervisor */
+#define AC1_AUTOMATIC_SYNC_ON_OUT_PCI	0x04	/* set by hypervisor */
+#define AC1_SC_QEBSM_AVAILABLE		0x02	/* available for subchannel */
+#define AC1_SC_QEBSM_ENABLED		0x01	/* enabled for subchannel */
 
-#define QDIO_DBF_SBAL_NAME "qdio_labs" /* sbal */
-#define QDIO_DBF_SBAL_LEN 256
-#define QDIO_DBF_SBAL_PAGES 4
-#define QDIO_DBF_SBAL_NR_AREAS 2
-#ifdef CONFIG_QDIO_DEBUG
-#define QDIO_DBF_SBAL_LEVEL 6
-#else /* CONFIG_QDIO_DEBUG */
-#define QDIO_DBF_SBAL_LEVEL 2
-#endif /* CONFIG_QDIO_DEBUG */
-
-#define QDIO_DBF_TRACE_NAME "qdio_trace"
-#define QDIO_DBF_TRACE_LEN 8
-#define QDIO_DBF_TRACE_NR_AREAS 2
-#ifdef CONFIG_QDIO_DEBUG
-#define QDIO_DBF_TRACE_PAGES 16
-#define QDIO_DBF_TRACE_LEVEL 4 /* -------- could be even more verbose here */
-#else /* CONFIG_QDIO_DEBUG */
-#define QDIO_DBF_TRACE_PAGES 4
-#define QDIO_DBF_TRACE_LEVEL 2
-#endif /* CONFIG_QDIO_DEBUG */
-
-#define QDIO_DBF_SENSE_NAME "qdio_sense"
-#define QDIO_DBF_SENSE_LEN 64
-#define QDIO_DBF_SENSE_PAGES 2
-#define QDIO_DBF_SENSE_NR_AREAS 1
-#ifdef CONFIG_QDIO_DEBUG
-#define QDIO_DBF_SENSE_LEVEL 6
-#else /* CONFIG_QDIO_DEBUG */
-#define QDIO_DBF_SENSE_LEVEL 2
-#endif /* CONFIG_QDIO_DEBUG */
-
-#ifdef CONFIG_QDIO_DEBUG
-#define QDIO_TRACE_QTYPE QDIO_ZFCP_QFMT
-
-#define QDIO_DBF_SLSB_OUT_NAME "qdio_slsb_out"
-#define QDIO_DBF_SLSB_OUT_LEN QDIO_MAX_BUFFERS_PER_Q
-#define QDIO_DBF_SLSB_OUT_PAGES 256
-#define QDIO_DBF_SLSB_OUT_NR_AREAS 1
-#define QDIO_DBF_SLSB_OUT_LEVEL 6
-
-#define QDIO_DBF_SLSB_IN_NAME "qdio_slsb_in"
-#define QDIO_DBF_SLSB_IN_LEN QDIO_MAX_BUFFERS_PER_Q
-#define QDIO_DBF_SLSB_IN_PAGES 256
-#define QDIO_DBF_SLSB_IN_NR_AREAS 1
-#define QDIO_DBF_SLSB_IN_LEVEL 6
-#endif /* CONFIG_QDIO_DEBUG */
-
-#define QDIO_PRINTK_HEADER QDIO_NAME ": "
-
-#if QDIO_VERBOSE_LEVEL>8
-#define QDIO_PRINT_STUPID(x...) printk( KERN_DEBUG QDIO_PRINTK_HEADER x)
-#else
-#define QDIO_PRINT_STUPID(x...) do { } while (0)
-#endif
-
-#if QDIO_VERBOSE_LEVEL>7
-#define QDIO_PRINT_ALL(x...) printk( QDIO_PRINTK_HEADER x)
-#else
-#define QDIO_PRINT_ALL(x...) do { } while (0)
-#endif
-
-#if QDIO_VERBOSE_LEVEL>6
-#define QDIO_PRINT_INFO(x...) printk( QDIO_PRINTK_HEADER x)
-#else
-#define QDIO_PRINT_INFO(x...) do { } while (0)
-#endif
-
-#if QDIO_VERBOSE_LEVEL>5
-#define QDIO_PRINT_WARN(x...) printk( QDIO_PRINTK_HEADER x)
-#else
-#define QDIO_PRINT_WARN(x...) do { } while (0)
-#endif
-
-#if QDIO_VERBOSE_LEVEL>4
-#define QDIO_PRINT_ERR(x...) printk( QDIO_PRINTK_HEADER x)
-#else
-#define QDIO_PRINT_ERR(x...) do { } while (0)
-#endif
-
-#if QDIO_VERBOSE_LEVEL>3
-#define QDIO_PRINT_CRIT(x...) printk( QDIO_PRINTK_HEADER x)
-#else
-#define QDIO_PRINT_CRIT(x...) do { } while (0)
-#endif
-
-#if QDIO_VERBOSE_LEVEL>2
-#define QDIO_PRINT_ALERT(x...) printk( QDIO_PRINTK_HEADER x)
-#else
-#define QDIO_PRINT_ALERT(x...) do { } while (0)
-#endif
-
-#if QDIO_VERBOSE_LEVEL>1
-#define QDIO_PRINT_EMERG(x...) printk( QDIO_PRINTK_HEADER x)
-#else
-#define QDIO_PRINT_EMERG(x...) do { } while (0)
-#endif
-
-#define QDIO_HEXDUMP16(importance,header,ptr) \
-QDIO_PRINT_##importance(header "%02x %02x %02x %02x  " \
-			"%02x %02x %02x %02x  %02x %02x %02x %02x  " \
-			"%02x %02x %02x %02x\n",*(((char*)ptr)), \
-			*(((char*)ptr)+1),*(((char*)ptr)+2), \
-			*(((char*)ptr)+3),*(((char*)ptr)+4), \
-			*(((char*)ptr)+5),*(((char*)ptr)+6), \
-			*(((char*)ptr)+7),*(((char*)ptr)+8), \
-			*(((char*)ptr)+9),*(((char*)ptr)+10), \
-			*(((char*)ptr)+11),*(((char*)ptr)+12), \
-			*(((char*)ptr)+13),*(((char*)ptr)+14), \
-			*(((char*)ptr)+15)); \
-QDIO_PRINT_##importance(header "%02x %02x %02x %02x  %02x %02x %02x %02x  " \
-			"%02x %02x %02x %02x  %02x %02x %02x %02x\n", \
-			*(((char*)ptr)+16),*(((char*)ptr)+17), \
-			*(((char*)ptr)+18),*(((char*)ptr)+19), \
-			*(((char*)ptr)+20),*(((char*)ptr)+21), \
-			*(((char*)ptr)+22),*(((char*)ptr)+23), \
-			*(((char*)ptr)+24),*(((char*)ptr)+25), \
-			*(((char*)ptr)+26),*(((char*)ptr)+27), \
-			*(((char*)ptr)+28),*(((char*)ptr)+29), \
-			*(((char*)ptr)+30),*(((char*)ptr)+31));
-
-/****************** END OF DEBUG FACILITY STUFF *********************/
-
-/*
- * Some instructions as assembly
- */
-
-static inline int
-do_sqbs(unsigned long sch, unsigned char state, int queue,
-       unsigned int *start, unsigned int *count)
-{
 #ifdef CONFIG_64BIT
-       register unsigned long _ccq asm ("0") = *count;
-       register unsigned long _sch asm ("1") = sch;
-       unsigned long _queuestart = ((unsigned long)queue << 32) | *start;
+static inline int do_sqbs(u64 token, unsigned char state, int queue,
+			  int *start, int *count)
+{
+	register unsigned long _ccq asm ("0") = *count;
+	register unsigned long _token asm ("1") = token;
+	unsigned long _queuestart = ((unsigned long)queue << 32) | *start;
 
-       asm volatile(
-	       "	.insn	rsy,0xeb000000008A,%1,0,0(%2)"
-	       : "+d" (_ccq), "+d" (_queuestart)
-	       : "d" ((unsigned long)state), "d" (_sch)
-	       : "memory", "cc");
-       *count = _ccq & 0xff;
-       *start = _queuestart & 0xff;
+	asm volatile(
+		"	.insn	rsy,0xeb000000008A,%1,0,0(%2)"
+		: "+d" (_ccq), "+d" (_queuestart)
+		: "d" ((unsigned long)state), "d" (_token)
+		: "memory", "cc");
+	*count = _ccq & 0xff;
+	*start = _queuestart & 0xff;
 
-       return (_ccq >> 32) & 0xff;
-#else
-       return 0;
-#endif
+	return (_ccq >> 32) & 0xff;
 }
 
-static inline int
-do_eqbs(unsigned long sch, unsigned char *state, int queue,
-	unsigned int *start, unsigned int *count)
+static inline int do_eqbs(u64 token, unsigned char *state, int queue,
+			  int *start, int *count)
 {
-#ifdef CONFIG_64BIT
 	register unsigned long _ccq asm ("0") = *count;
-	register unsigned long _sch asm ("1") = sch;
+	register unsigned long _token asm ("1") = token;
 	unsigned long _queuestart = ((unsigned long)queue << 32) | *start;
 	unsigned long _state = 0;
 
 	asm volatile(
 		"	.insn	rrf,0xB99c0000,%1,%2,0,0"
 		: "+d" (_ccq), "+d" (_queuestart), "+d" (_state)
-		: "d" (_sch)
-		: "memory", "cc" );
+		: "d" (_token)
+		: "memory", "cc");
 	*count = _ccq & 0xff;
 	*start = _queuestart & 0xff;
 	*state = _state & 0xff;
 
 	return (_ccq >> 32) & 0xff;
+}
 #else
-	return 0;
-#endif
-}
+static inline int do_sqbs(u64 token, unsigned char state, int queue,
+			  int *start, int *count) { return 0; }
+static inline int do_eqbs(u64 token, unsigned char *state, int queue,
+			  int *start, int *count) { return 0; }
+#endif /* CONFIG_64BIT */
 
+struct qdio_irq;
 
-static inline int
-do_siga_sync(struct subchannel_id schid, unsigned int mask1, unsigned int mask2)
-{
-	register unsigned long reg0 asm ("0") = 2;
-	register struct subchannel_id reg1 asm ("1") = schid;
-	register unsigned long reg2 asm ("2") = mask1;
-	register unsigned long reg3 asm ("3") = mask2;
-	int cc;
+struct siga_flag {
+	u8 input:1;
+	u8 output:1;
+	u8 sync:1;
+	u8 no_sync_ti:1;
+	u8 no_sync_out_ti:1;
+	u8 no_sync_out_pci:1;
+	u8:2;
+} __attribute__ ((packed));
 
-	asm volatile(
-		"	siga	0\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (cc)
-		: "d" (reg0), "d" (reg1), "d" (reg2), "d" (reg3) : "cc");
-	return cc;
-}
-
-static inline int
-do_siga_input(struct subchannel_id schid, unsigned int mask)
-{
-	register unsigned long reg0 asm ("0") = 1;
-	register struct subchannel_id reg1 asm ("1") = schid;
-	register unsigned long reg2 asm ("2") = mask;
-	int cc;
-
-	asm volatile(
-		"	siga	0\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (cc)
-		: "d" (reg0), "d" (reg1), "d" (reg2) : "cc", "memory");
-	return cc;
-}
-
-static inline int
-do_siga_output(unsigned long schid, unsigned long mask, __u32 *bb,
-	       unsigned int fc)
-{
-	register unsigned long __fc asm("0") = fc;
-	register unsigned long __schid asm("1") = schid;
-	register unsigned long __mask asm("2") = mask;
-	int cc;
-
-	asm volatile(
-		"	siga	0\n"
-		"0:	ipm	%0\n"
-		"	srl	%0,28\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (cc), "+d" (__fc), "+d" (__schid), "+d" (__mask)
-		: "0" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION)
-		: "cc", "memory");
-	(*bb) = ((unsigned int) __fc) >> 31;
-	return cc;
-}
-
-static inline unsigned long
-do_clear_global_summary(void)
-{
-	register unsigned long __fn asm("1") = 3;
-	register unsigned long __tmp asm("2");
-	register unsigned long __time asm("3");
-
-	asm volatile(
-		"	.insn	rre,0xb2650000,2,0"
-		: "+d" (__fn), "=d" (__tmp), "=d" (__time));
-	return __time;
-}
-	
-/*
- * QDIO device commands returned by extended Sense-ID
- */
-#define DEFAULT_ESTABLISH_QS_CMD 0x1b
-#define DEFAULT_ESTABLISH_QS_COUNT 0x1000
-#define DEFAULT_ACTIVATE_QS_CMD 0x1f
-#define DEFAULT_ACTIVATE_QS_COUNT 0
-
-/*
- * additional CIWs returned by extended Sense-ID
- */
-#define CIW_TYPE_EQUEUE 0x3       /* establish QDIO queues */
-#define CIW_TYPE_AQUEUE 0x4       /* activate QDIO queues */
-
-#define QDIO_CHSC_RESPONSE_CODE_OK 1
-/* flags for st qdio sch data */
-#define CHSC_FLAG_QDIO_CAPABILITY 0x80
-#define CHSC_FLAG_VALIDITY 0x40
-
-#define CHSC_FLAG_SIGA_INPUT_NECESSARY 0x40
-#define CHSC_FLAG_SIGA_OUTPUT_NECESSARY 0x20
-#define CHSC_FLAG_SIGA_SYNC_NECESSARY 0x10
-#define CHSC_FLAG_SIGA_SYNC_DONE_ON_THININTS 0x08
-#define CHSC_FLAG_SIGA_SYNC_DONE_ON_OUTB_PCIS 0x04
-
-struct qdio_chsc_ssqd {
+struct chsc_ssqd_area {
 	struct chsc_header request;
-	u16 reserved1:10;
-	u16 ssid:2;
-	u16 fmt:4;
+	u16:10;
+	u8 ssid:2;
+	u8 fmt:4;
 	u16 first_sch;
-	u16 reserved2;
+	u16:16;
 	u16 last_sch;
-	u32 reserved3;
+	u32:32;
 	struct chsc_header response;
-	u32 reserved4;
-	u8  flags;
-	u8  reserved5;
-	u16 sch;
-	u8  qfmt;
-	u8  parm;
-	u8  qdioac1;
-	u8  sch_class;
-	u8  pct;
-	u8  icnt;
-	u8  reserved7;
-	u8  ocnt;
-	u8  reserved8;
-	u8  mbccnt;
-	u16 qdioac2;
-	u64 sch_token;
+	u32:32;
+	struct qdio_ssqd_desc qdio_ssqd;
+} __attribute__ ((packed));
+
+struct scssc_area {
+	struct chsc_header request;
+	u16 operation_code;
+	u16:16;
+	u32:32;
+	u32:32;
+	u64 summary_indicator_addr;
+	u64 subchannel_indicator_addr;
+	u32 ks:4;
+	u32 kc:4;
+	u32:21;
+	u32 isc:3;
+	u32 word_with_d_bit;
+	u32:32;
+	struct subchannel_id schid;
+	u32 reserved[1004];
+	struct chsc_header response;
+	u32:32;
+} __attribute__ ((packed));
+
+struct qdio_input_q {
+	/* input buffer acknowledgement flag */
+	int polling;
+
+	/* last time of noticing incoming data */
+	u64 timestamp;
+
+	/* lock for clearing the acknowledgement */
+	spinlock_t lock;
 };
 
-struct qdio_perf_stats {
-#ifdef CONFIG_64BIT
-	atomic64_t tl_runs;
-	atomic64_t outbound_tl_runs;
-	atomic64_t outbound_tl_runs_resched;
-	atomic64_t inbound_tl_runs;
-	atomic64_t inbound_tl_runs_resched;
-	atomic64_t inbound_thin_tl_runs;
-	atomic64_t inbound_thin_tl_runs_resched;
+struct qdio_output_q {
+	/* failed siga-w attempts*/
+	atomic_t busy_siga_counter;
 
-	atomic64_t siga_outs;
-	atomic64_t siga_ins;
-	atomic64_t siga_syncs;
-	atomic64_t pcis;
-	atomic64_t thinints;
-	atomic64_t fast_reqs;
+	/* start time of busy condition */
+	u64 timestamp;
 
-	atomic64_t outbound_cnt;
-	atomic64_t inbound_cnt;
-#else /* CONFIG_64BIT */
-	atomic_t tl_runs;
-	atomic_t outbound_tl_runs;
-	atomic_t outbound_tl_runs_resched;
-	atomic_t inbound_tl_runs;
-	atomic_t inbound_tl_runs_resched;
-	atomic_t inbound_thin_tl_runs;
-	atomic_t inbound_thin_tl_runs_resched;
+	/* PCIs are enabled for the queue */
+	int pci_out_enabled;
 
-	atomic_t siga_outs;
-	atomic_t siga_ins;
-	atomic_t siga_syncs;
-	atomic_t pcis;
-	atomic_t thinints;
-	atomic_t fast_reqs;
-
-	atomic_t outbound_cnt;
-	atomic_t inbound_cnt;
-#endif /* CONFIG_64BIT */
+	/* timer to check for more outbound work */
+	struct timer_list timer;
 };
-
-/* unlikely as the later the better */
-#define SYNC_MEMORY if (unlikely(q->siga_sync)) qdio_siga_sync_q(q)
-#define SYNC_MEMORY_ALL if (unlikely(q->siga_sync)) \
-	qdio_siga_sync(q,~0U,~0U)
-#define SYNC_MEMORY_ALL_OUTB if (unlikely(q->siga_sync)) \
-	qdio_siga_sync(q,~0U,0)
-
-#define NOW qdio_get_micros()
-#define SAVE_TIMESTAMP(q) q->timing.last_transfer_time=NOW
-#define GET_SAVED_TIMESTAMP(q) (q->timing.last_transfer_time)
-#define SAVE_FRONTIER(q,val) q->last_move_ftc=val
-#define GET_SAVED_FRONTIER(q) (q->last_move_ftc)
-
-#define MY_MODULE_STRING(x) #x
-
-#ifdef CONFIG_64BIT
-#define QDIO_GET_ADDR(x) ((__u32)(unsigned long)x)
-#else /* CONFIG_64BIT */
-#define QDIO_GET_ADDR(x) ((__u32)(long)x)
-#endif /* CONFIG_64BIT */
 
 struct qdio_q {
-	volatile struct slsb slsb;
+	struct slsb slsb;
+	union {
+		struct qdio_input_q in;
+		struct qdio_output_q out;
+	} u;
 
-	char unused[QDIO_MAX_BUFFERS_PER_Q];
+	/* queue number */
+	int nr;
 
-	__u32 * dev_st_chg_ind;
+	/* bitmask of queue number */
+	int mask;
 
+	/* input or output queue */
 	int is_input_q;
-	struct subchannel_id schid;
-	struct ccw_device *cdev;
 
-	unsigned int is_iqdio_q;
-	unsigned int is_thinint_q;
+	/* list of thinint input queues */
+	struct list_head entry;
 
-	/* bit 0 means queue 0, bit 1 means queue 1, ... */
-	unsigned int mask;
-	unsigned int q_no;
-
+	/* upper-layer program handler */
 	qdio_handler_t (*handler);
 
-	/* points to the next buffer to be checked for having
-	 * been processed by the card (outbound)
-	 * or to the next buffer the program should check for (inbound) */
-	volatile int first_to_check;
-	/* and the last time it was: */
-	volatile int last_move_ftc;
+	/*
+	 * inbound: next buffer the program should check for
+	 * outbound: next buffer to check for having been processed
+	 * by the card
+	 */
+	int first_to_check;
 
-	atomic_t number_of_buffers_used;
-	atomic_t polling;
+	/* first_to_check of the last time */
+	int last_move_ftc;
 
-	unsigned int siga_in;
-	unsigned int siga_out;
-	unsigned int siga_sync;
-	unsigned int siga_sync_done_on_thinints;
-	unsigned int siga_sync_done_on_outb_tis;
-	unsigned int hydra_gives_outbound_pcis;
+	/* beginning position for calling the program */
+	int first_to_kick;
 
-	/* used to save beginning position when calling dd_handlers */
-	int first_element_to_kick;
+	/* number of buffers in use by the adapter */
+	atomic_t nr_buf_used;
 
-	atomic_t use_count;
-	atomic_t is_in_shutdown;
-
-	void *irq_ptr;
-
-	struct timer_list timer;
-#ifdef QDIO_USE_TIMERS_FOR_POLLING
-	atomic_t timer_already_set;
-	spinlock_t timer_lock;
-#else /* QDIO_USE_TIMERS_FOR_POLLING */
+	struct qdio_irq *irq_ptr;
 	struct tasklet_struct tasklet;
-#endif /* QDIO_USE_TIMERS_FOR_POLLING */
 
-
-	enum qdio_irq_states state;
-
-	/* used to store the error condition during a data transfer */
+	/* error condition during a data transfer */
 	unsigned int qdio_error;
-	unsigned int siga_error;
-	unsigned int error_status_flags;
-
-	/* list of interesting queues */
-	volatile struct qdio_q *list_next;
-	volatile struct qdio_q *list_prev;
 
 	struct sl *sl;
-	volatile struct sbal *sbal[QDIO_MAX_BUFFERS_PER_Q];
+	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q];
 
-	struct qdio_buffer *qdio_buffers[QDIO_MAX_BUFFERS_PER_Q];
-
-	unsigned long int_parm;
-
-	/*struct {
-		int in_bh_check_limit;
-		int threshold;
-	} threshold_classes[QDIO_STATS_CLASSES];*/
-
-	struct {
-		/* inbound: the time to stop polling
-		   outbound: the time to kick peer */
-		int threshold; /* the real value */
-
-		/* outbound: last time of do_QDIO
-		   inbound: last time of noticing incoming data */
-		/*__u64 last_transfer_times[QDIO_STATS_NUMBER];
-		int last_transfer_index; */
-
-		__u64 last_transfer_time;
-		__u64 busy_start;
-	} timing;
-	atomic_t busy_siga_counter;
-        unsigned int queue_type;
-	unsigned int is_pci_out;
-
-	/* leave this member at the end. won't be cleared in qdio_fill_qs */
-	struct slib *slib; /* a page is allocated under this pointer,
-			      sl points into this page, offset PAGE_SIZE/2
-			      (after slib) */
+	/*
+	 * Warning: Leave this member at the end so it won't be cleared in
+	 * qdio_fill_qs. A page is allocated under this pointer and used for
+	 * slib and sl. slib is 2048 bytes big and sl points to offset
+	 * PAGE_SIZE / 2.
+	 */
+	struct slib *slib;
 } __attribute__ ((aligned(256)));
 
 struct qdio_irq {
-	__u32 * volatile dev_st_chg_ind;
+	struct qib qib;
+	u32 *dsci;		/* address of device state change indicator */
+	struct ccw_device *cdev;
 
 	unsigned long int_parm;
 	struct subchannel_id schid;
-
-	unsigned int is_iqdio_irq;
-	unsigned int is_thinint_irq;
-	unsigned int hydra_gives_outbound_pcis;
-	unsigned int sync_done_on_outb_pcis;
-
-	/* QEBSM facility */
-	unsigned int is_qebsm;
-	unsigned long sch_token;
+	unsigned long sch_token;	/* QEBSM facility */
 
 	enum qdio_irq_states state;
 
-	unsigned int no_input_qs;
-	unsigned int no_output_qs;
+	struct siga_flag siga_flag;	/* siga sync information from qdioac */
 
-	unsigned char qdioac;
+	int nr_input_qs;
+	int nr_output_qs;
 
 	struct ccw1 ccw;
-
 	struct ciw equeue;
 	struct ciw aqueue;
 
-	struct qib qib;
-	
- 	void (*original_int_handler) (struct ccw_device *,
- 				      unsigned long, struct irb *);
+	struct qdio_ssqd_desc ssqd_desc;
 
-	/* leave these four members together at the end. won't be cleared in qdio_fill_irq */
+	void (*orig_handler) (struct ccw_device *, unsigned long, struct irb *);
+
+	/*
+	 * Warning: Leave these members together at the end so they won't be
+	 * cleared in qdio_setup_irq.
+	 */
 	struct qdr *qdr;
+	unsigned long chsc_page;
+
 	struct qdio_q *input_qs[QDIO_MAX_QUEUES_PER_IRQ];
 	struct qdio_q *output_qs[QDIO_MAX_QUEUES_PER_IRQ];
-	struct semaphore setting_up_sema;
+
+	struct mutex setup_mutex;
 };
-#endif
+
+/* helper functions */
+#define queue_type(q)	q->irq_ptr->qib.qfmt
+
+#define is_thinint_irq(irq) \
+	(irq->qib.qfmt == QDIO_IQDIO_QFMT || \
+	 css_general_characteristics.aif_osa)
+
+/* the highest iqdio queue is used for multicast */
+static inline int multicast_outbound(struct qdio_q *q)
+{
+	return (q->irq_ptr->nr_output_qs > 1) &&
+	       (q->nr == q->irq_ptr->nr_output_qs - 1);
+}
+
+static inline unsigned long long get_usecs(void)
+{
+	return monotonic_clock() >> 12;
+}
+
+#define pci_out_supported(q) \
+	(q->irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED)
+#define is_qebsm(q)			(q->irq_ptr->sch_token != 0)
+
+#define need_siga_sync_thinint(q)	(!q->irq_ptr->siga_flag.no_sync_ti)
+#define need_siga_sync_out_thinint(q)	(!q->irq_ptr->siga_flag.no_sync_out_ti)
+#define need_siga_in(q)			(q->irq_ptr->siga_flag.input)
+#define need_siga_out(q)		(q->irq_ptr->siga_flag.output)
+#define need_siga_sync(q)		(q->irq_ptr->siga_flag.sync)
+#define siga_syncs_out_pci(q)		(q->irq_ptr->siga_flag.no_sync_out_pci)
+
+#define for_each_input_queue(irq_ptr, q, i)	\
+	for (i = 0, q = irq_ptr->input_qs[0];	\
+		i < irq_ptr->nr_input_qs;	\
+		q = irq_ptr->input_qs[++i])
+#define for_each_output_queue(irq_ptr, q, i)	\
+	for (i = 0, q = irq_ptr->output_qs[0];	\
+		i < irq_ptr->nr_output_qs;	\
+		q = irq_ptr->output_qs[++i])
+
+#define prev_buf(bufnr)	\
+	((bufnr + QDIO_MAX_BUFFERS_MASK) & QDIO_MAX_BUFFERS_MASK)
+#define next_buf(bufnr)	\
+	((bufnr + 1) & QDIO_MAX_BUFFERS_MASK)
+#define add_buf(bufnr, inc) \
+	((bufnr + inc) & QDIO_MAX_BUFFERS_MASK)
+
+/* prototypes for thin interrupt */
+void qdio_sync_after_thinint(struct qdio_q *q);
+int get_buf_state(struct qdio_q *q, unsigned int bufnr, unsigned char *state);
+void qdio_check_outbound_after_thinint(struct qdio_q *q);
+int qdio_inbound_q_moved(struct qdio_q *q);
+void qdio_kick_inbound_handler(struct qdio_q *q);
+void qdio_stop_polling(struct qdio_q *q);
+int qdio_siga_sync_q(struct qdio_q *q);
+
+void qdio_setup_thinint(struct qdio_irq *irq_ptr);
+int qdio_establish_thinint(struct qdio_irq *irq_ptr);
+void qdio_shutdown_thinint(struct qdio_irq *irq_ptr);
+void tiqdio_add_input_queues(struct qdio_irq *irq_ptr);
+void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr);
+void tiqdio_inbound_processing(unsigned long q);
+int tiqdio_allocate_memory(void);
+void tiqdio_free_memory(void);
+int tiqdio_register_thinints(void);
+void tiqdio_unregister_thinints(void);
+
+/* prototypes for setup */
+void qdio_inbound_processing(unsigned long data);
+void qdio_outbound_processing(unsigned long data);
+void qdio_outbound_timer(unsigned long data);
+void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
+		      struct irb *irb);
+int qdio_allocate_qs(struct qdio_irq *irq_ptr, int nr_input_qs,
+		     int nr_output_qs);
+void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr);
+int qdio_setup_irq(struct qdio_initialize *init_data);
+void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
+				struct ccw_device *cdev);
+void qdio_release_memory(struct qdio_irq *irq_ptr);
+int qdio_setup_init(void);
+void qdio_setup_exit(void);
+
+#endif /* _CIO_QDIO_H */

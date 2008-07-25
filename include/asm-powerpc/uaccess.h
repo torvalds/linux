@@ -6,6 +6,7 @@
 
 #include <linux/sched.h>
 #include <linux/errno.h>
+#include <asm/asm-compat.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 
@@ -141,12 +142,11 @@ extern long __put_user_bad(void);
 		"	b 2b\n"					\
 		".previous\n"					\
 		".section __ex_table,\"a\"\n"			\
-		"	.balign %5\n"				\
+			PPC_LONG_ALIGN "\n"			\
 			PPC_LONG "1b,3b\n"			\
 		".previous"					\
 		: "=r" (err)					\
-		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err),\
-		  "i"(sizeof(unsigned long)))
+		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
 
 #ifdef __powerpc64__
 #define __put_user_asm2(x, ptr, retval)				\
@@ -162,13 +162,12 @@ extern long __put_user_bad(void);
 		"	b 3b\n"					\
 		".previous\n"					\
 		".section __ex_table,\"a\"\n"			\
-		"	.balign %5\n"				\
+			PPC_LONG_ALIGN "\n"			\
 			PPC_LONG "1b,4b\n"			\
 			PPC_LONG "2b,4b\n"			\
 		".previous"					\
 		: "=r" (err)					\
-		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err),\
-		  "i"(sizeof(unsigned long)))
+		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
 #endif /* __powerpc64__ */
 
 #define __put_user_size(x, ptr, size, retval)			\
@@ -226,12 +225,11 @@ extern long __get_user_bad(void);
 		"	b 2b\n"				\
 		".previous\n"				\
 		".section __ex_table,\"a\"\n"		\
-		"	.balign %5\n"			\
+			PPC_LONG_ALIGN "\n"		\
 			PPC_LONG "1b,3b\n"		\
 		".previous"				\
 		: "=r" (err), "=r" (x)			\
-		: "b" (addr), "i" (-EFAULT), "0" (err),	\
-		  "i"(sizeof(unsigned long)))
+		: "b" (addr), "i" (-EFAULT), "0" (err))
 
 #ifdef __powerpc64__
 #define __get_user_asm2(x, addr, err)			\
@@ -249,13 +247,12 @@ extern long __get_user_bad(void);
 		"	b 3b\n"				\
 		".previous\n"				\
 		".section __ex_table,\"a\"\n"		\
-		"	.balign %5\n"			\
+			PPC_LONG_ALIGN "\n"		\
 			PPC_LONG "1b,4b\n"		\
 			PPC_LONG "2b,4b\n"		\
 		".previous"				\
 		: "=r" (err), "=&r" (x)			\
-		: "b" (addr), "i" (-EFAULT), "0" (err),	\
-		  "i"(sizeof(unsigned long)))
+		: "b" (addr), "i" (-EFAULT), "0" (err))
 #endif /* __powerpc64__ */
 
 #define __get_user_size(x, ptr, size, retval)			\

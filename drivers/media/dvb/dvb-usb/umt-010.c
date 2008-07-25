@@ -107,7 +107,7 @@ static struct dvb_usb_device_properties umt_properties = {
 			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-				.count = 20,
+				.count = MAX_NO_URBS_FOR_DATA_STREAM,
 				.endpoint = 0x06,
 				.u = {
 					.bulk = {

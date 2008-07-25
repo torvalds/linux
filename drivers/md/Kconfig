@@ -252,26 +252,13 @@ config DM_ZERO
 config DM_MULTIPATH
 	tristate "Multipath target"
 	depends on BLK_DEV_DM
+	# nasty syntax but means make DM_MULTIPATH independent
+	# of SCSI_DH if the latter isn't defined but if
+	# it is, DM_MULTIPATH must depend on it.  We get a build
+	# error if SCSI_DH=m and DM_MULTIPATH=y
+	depends on SCSI_DH || !SCSI_DH
 	---help---
 	  Allow volume managers to support multipath hardware.
-
-config DM_MULTIPATH_EMC
-	tristate "EMC CX/AX multipath support"
-	depends on DM_MULTIPATH && BLK_DEV_DM
-	---help---
-	  Multipath support for EMC CX/AX series hardware.
-
-config DM_MULTIPATH_RDAC
-	tristate "LSI/Engenio RDAC multipath support (EXPERIMENTAL)"
-	depends on DM_MULTIPATH && BLK_DEV_DM && SCSI && EXPERIMENTAL
-	---help---
-	  Multipath support for LSI/Engenio RDAC.
-
-config DM_MULTIPATH_HP
-        tristate "HP MSA multipath support (EXPERIMENTAL)"
-        depends on DM_MULTIPATH && BLK_DEV_DM && SCSI && EXPERIMENTAL
-        ---help---
-          Multipath support for HP MSA (Active/Passive) series hardware.
 
 config DM_DELAY
 	tristate "I/O delaying target (EXPERIMENTAL)"

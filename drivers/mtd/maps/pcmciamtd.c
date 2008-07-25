@@ -498,17 +498,14 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	int i;
 	config_info_t t;
 	static char *probes[] = { "jedec_probe", "cfi_probe" };
-	cisinfo_t cisinfo;
 	int new_name = 0;
 
 	DEBUG(3, "link=0x%p", link);
 
 	DEBUG(2, "Validating CIS");
-	ret = pcmcia_validate_cis(link, &cisinfo);
+	ret = pcmcia_validate_cis(link, NULL);
 	if(ret != CS_SUCCESS) {
 		cs_error(link, GetTupleData, ret);
-	} else {
-		DEBUG(2, "ValidateCIS found %d chains", cisinfo.Chains);
 	}
 
 	card_settings(dev, link, &new_name);
@@ -563,9 +560,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	DEBUG(1, "Allocated a window of %dKiB", dev->win_size >> 10);
 
 	/* Get write protect status */
-	CS_CHECK(GetStatus, pcmcia_get_status(link, &status));
-	DEBUG(2, "status value: 0x%x window handle = 0x%8.8lx",
-	      status.CardState, (unsigned long)link->win);
+	DEBUG(2, "window handle = 0x%8.8lx", (unsigned long)link->win);
 	dev->win_base = ioremap(req.Base, req.Size);
 	if(!dev->win_base) {
 		err("ioremap(%lu, %u) failed", req.Base, req.Size);

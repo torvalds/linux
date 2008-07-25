@@ -63,13 +63,6 @@ static struct mpic *chrp_mpic;
 DEFINE_PER_CPU(struct timer_list, heartbeat_timer);
 unsigned long event_scan_interval;
 
-/*
- * XXX this should be in xmon.h, but putting it there means xmon.h
- * has to include <linux/interrupt.h> (to get irqreturn_t), which
- * causes all sorts of problems.  -- paulus
- */
-extern irqreturn_t xmon_irq(int, void *);
-
 extern unsigned long loops_per_jiffy;
 
 /* To be replaced by RTAS when available */

@@ -38,10 +38,10 @@
 #include <asm/setup.h>
 #include <asm/mmzone.h>
 #include <asm/bios_ebda.h>
+#include <asm/proto.h>
 
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
-static bootmem_data_t node0_bdata;
 
 /*
  * numa interface - we expect the numa architecture specific code to have
@@ -59,14 +59,14 @@ unsigned long node_end_pfn[MAX_NUMNODES] __read_mostly;
 /*
  * 4) physnode_map     - the mapping between a pfn and owning node
  * physnode_map keeps track of the physical memory layout of a generic
- * numa node on a 256Mb break (each element of the array will
- * represent 256Mb of memory and will be marked by the node id.  so,
+ * numa node on a 64Mb break (each element of the array will
+ * represent 64Mb of memory and will be marked by the node id.  so,
  * if the first gig is on node 0, and the second gig is on node 1
  * physnode_map will contain:
  *
- *     physnode_map[0-3] = 0;
- *     physnode_map[4-7] = 1;
- *     physnode_map[8- ] = -1;
+ *     physnode_map[0-15] = 0;
+ *     physnode_map[16-31] = 1;
+ *     physnode_map[32- ] = -1;
  */
 s8 physnode_map[MAX_ELEMENTS] __read_mostly = { [0 ... (MAX_ELEMENTS - 1)] = -1};
 EXPORT_SYMBOL(physnode_map);
@@ -75,15 +75,15 @@ void memory_present(int nid, unsigned long start, unsigned long end)
 {
 	unsigned long pfn;
 
-	printk(KERN_INFO "Node: %d, start_pfn: %ld, end_pfn: %ld\n",
+	printk(KERN_INFO "Node: %d, start_pfn: %lx, end_pfn: %lx\n",
 			nid, start, end);
 	printk(KERN_DEBUG "  Setting physnode_map array to node %d for pfns:\n", nid);
 	printk(KERN_DEBUG "  ");
 	for (pfn = start; pfn < end; pfn += PAGES_PER_ELEMENT) {
 		physnode_map[pfn / PAGES_PER_ELEMENT] = nid;
-		printk("%ld ", pfn);
+		printk(KERN_CONT "%lx ", pfn);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
 unsigned long node_memmap_size_bytes(int nid, unsigned long start_pfn,
@@ -99,7 +99,6 @@ unsigned long node_memmap_size_bytes(int nid, unsigned long start_pfn,
 #endif
 
 extern unsigned long find_max_low_pfn(void);
-extern void add_one_highpage_init(struct page *, int, int);
 extern unsigned long highend_pfn, highstart_pfn;
 
 #define LARGE_PAGE_BYTES (PTRS_PER_PTE * PAGE_SIZE)
@@ -117,13 +116,13 @@ static unsigned long kva_pages;
  */
 int __init get_memcfg_numa_flat(void)
 {
-	printk("NUMA - single node, flat memory mode\n");
+	printk(KERN_DEBUG "NUMA - single node, flat memory mode\n");
 
-	/* Run the memory configuration and find the top of memory. */
-	propagate_e820_map();
 	node_start_pfn[0] = 0;
 	node_end_pfn[0] = max_pfn;
+	e820_register_active_regions(0, 0, max_pfn);
 	memory_present(0, 0, max_pfn);
+	node_remap_size[0] = node_memmap_size_bytes(0, 0, max_pfn);
 
         /* Indicate there is one node available. */
 	nodes_clear(node_online_map);
@@ -156,24 +155,32 @@ static void __init propagate_e820_map_node(int nid)
  */
 static void __init allocate_pgdat(int nid)
 {
-	if (nid && node_has_online_mem(nid))
+	char buf[16];
+
+	if (node_has_online_mem(nid) && node_remap_start_vaddr[nid])
 		NODE_DATA(nid) = (pg_data_t *)node_remap_start_vaddr[nid];
 	else {
-		NODE_DATA(nid) = (pg_data_t *)(pfn_to_kaddr(min_low_pfn));
-		min_low_pfn += PFN_UP(sizeof(pg_data_t));
+		unsigned long pgdat_phys;
+		pgdat_phys = find_e820_area(min_low_pfn<<PAGE_SHIFT,
+				 max_pfn_mapped<<PAGE_SHIFT,
+				 sizeof(pg_data_t),
+				 PAGE_SIZE);
+		NODE_DATA(nid) = (pg_data_t *)(pfn_to_kaddr(pgdat_phys>>PAGE_SHIFT));
+		memset(buf, 0, sizeof(buf));
+		sprintf(buf, "NODE_DATA %d",  nid);
+		reserve_early(pgdat_phys, pgdat_phys + sizeof(pg_data_t), buf);
 	}
+	printk(KERN_DEBUG "allocate_pgdat: node %d NODE_DATA %08lx\n",
+		nid, (unsigned long)NODE_DATA(nid));
 }
 
-#ifdef CONFIG_DISCONTIGMEM
 /*
- * In the discontig memory model, a portion of the kernel virtual area (KVA)
- * is reserved and portions of nodes are mapped using it. This is to allow
- * node-local memory to be allocated for structures that would normally require
- * ZONE_NORMAL. The memory is allocated with alloc_remap() and callers
- * should be prepared to allocate from the bootmem allocator instead. This KVA
- * mechanism is incompatible with SPARSEMEM as it makes assumptions about the
- * layout of memory that are broken if alloc_remap() succeeds for some of the
- * map and fails for others
+ * In the DISCONTIGMEM and SPARSEMEM memory model, a portion of the kernel
+ * virtual address space (KVA) is reserved and portions of nodes are mapped
+ * using it. This is to allow node-local memory to be allocated for
+ * structures that would normally require ZONE_NORMAL. The memory is
+ * allocated with alloc_remap() and callers should be prepared to allocate
+ * from the bootmem allocator instead.
  */
 static unsigned long node_remap_start_pfn[MAX_NUMNODES];
 static void *node_remap_end_vaddr[MAX_NUMNODES];
@@ -195,15 +202,19 @@ void *alloc_remap(int nid, unsigned long size)
 	return allocation;
 }
 
-void __init remap_numa_kva(void)
+static void __init remap_numa_kva(void)
 {
 	void *vaddr;
 	unsigned long pfn;
 	int node;
 
 	for_each_online_node(node) {
+		printk(KERN_DEBUG "remap_numa_kva: node %d\n", node);
 		for (pfn=0; pfn < node_remap_size[node]; pfn += PTRS_PER_PTE) {
 			vaddr = node_remap_start_vaddr[node]+(pfn<<PAGE_SHIFT);
+			printk(KERN_DEBUG "remap_numa_kva: %08lx to pfn %08lx\n",
+				(unsigned long)vaddr,
+				node_remap_start_pfn[node] + pfn);
 			set_pmd_pfn((ulong) vaddr, 
 				node_remap_start_pfn[node] + pfn, 
 				PAGE_KERNEL_LARGE);
@@ -215,16 +226,20 @@ static unsigned long calculate_numa_remap_pages(void)
 {
 	int nid;
 	unsigned long size, reserve_pages = 0;
-	unsigned long pfn;
 
 	for_each_online_node(nid) {
-		unsigned old_end_pfn = node_end_pfn[nid];
+		u64 node_kva_target;
+		u64 node_kva_final;
 
 		/*
 		 * The acpi/srat node info can show hot-add memroy zones
 		 * where memory could be added but not currently present.
 		 */
+		printk(KERN_DEBUG "node %d pfn: [%lx - %lx]\n",
+			nid, node_start_pfn[nid], node_end_pfn[nid]);
 		if (node_start_pfn[nid] > max_pfn)
+			continue;
+		if (!node_end_pfn[nid])
 			continue;
 		if (node_end_pfn[nid] > max_pfn)
 			node_end_pfn[nid] = max_pfn;
@@ -237,41 +252,48 @@ static unsigned long calculate_numa_remap_pages(void)
 		/* now the roundup is correct, convert to PAGE_SIZE pages */
 		size = size * PTRS_PER_PTE;
 
-		/*
-		 * Validate the region we are allocating only contains valid
-		 * pages.
-		 */
-		for (pfn = node_end_pfn[nid] - size;
-		     pfn < node_end_pfn[nid]; pfn++)
-			if (!page_is_ram(pfn))
-				break;
+		node_kva_target = round_down(node_end_pfn[nid] - size,
+						 PTRS_PER_PTE);
+		node_kva_target <<= PAGE_SHIFT;
+		do {
+			node_kva_final = find_e820_area(node_kva_target,
+					((u64)node_end_pfn[nid])<<PAGE_SHIFT,
+						((u64)size)<<PAGE_SHIFT,
+						LARGE_PAGE_BYTES);
+			node_kva_target -= LARGE_PAGE_BYTES;
+		} while (node_kva_final == -1ULL &&
+			 (node_kva_target>>PAGE_SHIFT) > (node_start_pfn[nid]));
 
-		if (pfn != node_end_pfn[nid])
-			size = 0;
+		if (node_kva_final == -1ULL)
+			panic("Can not get kva ram\n");
 
-		printk("Reserving %ld pages of KVA for lmem_map of node %d\n",
-				size, nid);
 		node_remap_size[nid] = size;
 		node_remap_offset[nid] = reserve_pages;
 		reserve_pages += size;
-		printk("Shrinking node %d from %ld pages to %ld pages\n",
-			nid, node_end_pfn[nid], node_end_pfn[nid] - size);
+		printk(KERN_DEBUG "Reserving %ld pages of KVA for lmem_map of"
+				  " node %d at %llx\n",
+				size, nid, node_kva_final>>PAGE_SHIFT);
 
-		if (node_end_pfn[nid] & (PTRS_PER_PTE-1)) {
-			/*
-			 * Align node_end_pfn[] and node_remap_start_pfn[] to
-			 * pmd boundary. remap_numa_kva will barf otherwise.
-			 */
-			printk("Shrinking node %d further by %ld pages for proper alignment\n",
-				nid, node_end_pfn[nid] & (PTRS_PER_PTE-1));
-			size +=  node_end_pfn[nid] & (PTRS_PER_PTE-1);
-		}
+		/*
+		 *  prevent kva address below max_low_pfn want it on system
+		 *  with less memory later.
+		 *  layout will be: KVA address , KVA RAM
+		 *
+		 *  we are supposed to only record the one less then max_low_pfn
+		 *  but we could have some hole in high memory, and it will only
+		 *  check page_is_ram(pfn) && !page_is_reserved_early(pfn) to decide
+		 *  to use it as free.
+		 *  So reserve_early here, hope we don't run out of that array
+		 */
+		reserve_early(node_kva_final,
+			      node_kva_final+(((u64)size)<<PAGE_SHIFT),
+			      "KVA RAM");
 
-		node_end_pfn[nid] -= size;
-		node_remap_start_pfn[nid] = node_end_pfn[nid];
-		shrink_active_range(nid, old_end_pfn, node_end_pfn[nid]);
+		node_remap_start_pfn[nid] = node_kva_final>>PAGE_SHIFT;
+		remove_active_range(nid, node_remap_start_pfn[nid],
+					 node_remap_start_pfn[nid] + size);
 	}
-	printk("Reserving total of %ld pages for numa KVA remap\n",
+	printk(KERN_INFO "Reserving total of %lx pages for numa KVA remap\n",
 			reserve_pages);
 	return reserve_pages;
 }
@@ -285,37 +307,16 @@ static void init_remap_allocator(int nid)
 	node_remap_alloc_vaddr[nid] = node_remap_start_vaddr[nid] +
 		ALIGN(sizeof(pg_data_t), PAGE_SIZE);
 
-	printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
+	printk(KERN_DEBUG "node %d will remap to vaddr %08lx - %08lx\n", nid,
 		(ulong) node_remap_start_vaddr[nid],
-		(ulong) pfn_to_kaddr(highstart_pfn
-		   + node_remap_offset[nid] + node_remap_size[nid]));
-}
-#else
-void *alloc_remap(int nid, unsigned long size)
-{
-	return NULL;
+		(ulong) node_remap_end_vaddr[nid]);
 }
 
-static unsigned long calculate_numa_remap_pages(void)
-{
-	return 0;
-}
-
-static void init_remap_allocator(int nid)
-{
-}
-
-void __init remap_numa_kva(void)
-{
-}
-#endif /* CONFIG_DISCONTIGMEM */
-
-extern void setup_bootmem_allocator(void);
-unsigned long __init setup_memory(void)
+void __init initmem_init(unsigned long start_pfn,
+				  unsigned long end_pfn)
 {
 	int nid;
-	unsigned long system_start_pfn, system_max_low_pfn;
-	unsigned long wasted_pages;
+	long kva_target_pfn;
 
 	/*
 	 * When mapping a NUMA machine we allocate the node_mem_map arrays
@@ -324,109 +325,77 @@ unsigned long __init setup_memory(void)
 	 * this space and use it to adjust the boundary between ZONE_NORMAL
 	 * and ZONE_HIGHMEM.
 	 */
+
 	get_memcfg_numa();
 
-	kva_pages = calculate_numa_remap_pages();
+	kva_pages = round_up(calculate_numa_remap_pages(), PTRS_PER_PTE);
 
-	/* partially used pages are not usable - thus round upwards */
-	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
+	kva_target_pfn = round_down(max_low_pfn - kva_pages, PTRS_PER_PTE);
+	do {
+		kva_start_pfn = find_e820_area(kva_target_pfn<<PAGE_SHIFT,
+					max_low_pfn<<PAGE_SHIFT,
+					kva_pages<<PAGE_SHIFT,
+					PTRS_PER_PTE<<PAGE_SHIFT) >> PAGE_SHIFT;
+		kva_target_pfn -= PTRS_PER_PTE;
+	} while (kva_start_pfn == -1UL && kva_target_pfn > min_low_pfn);
 
-	kva_start_pfn = find_max_low_pfn() - kva_pages;
+	if (kva_start_pfn == -1UL)
+		panic("Can not get kva space\n");
 
-#ifdef CONFIG_BLK_DEV_INITRD
-	/* Numa kva area is below the initrd */
-	if (initrd_start)
-		kva_start_pfn = PFN_DOWN(initrd_start - PAGE_OFFSET)
-			- kva_pages;
-#endif
-
-	/*
-	 * We waste pages past at the end of the KVA for no good reason other
-	 * than how it is located. This is bad.
-	 */
-	wasted_pages = kva_start_pfn & (PTRS_PER_PTE-1);
-	kva_start_pfn -= wasted_pages;
-	kva_pages += wasted_pages;
-
-	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
-	printk("kva_start_pfn ~ %ld find_max_low_pfn() ~ %ld\n",
+	printk(KERN_INFO "kva_start_pfn ~ %lx max_low_pfn ~ %lx\n",
 		kva_start_pfn, max_low_pfn);
-	printk("max_pfn = %ld\n", max_pfn);
+	printk(KERN_INFO "max_pfn = %lx\n", max_pfn);
+
+	/* avoid clash with initrd */
+	reserve_early(kva_start_pfn<<PAGE_SHIFT,
+		      (kva_start_pfn + kva_pages)<<PAGE_SHIFT,
+		     "KVA PG");
 #ifdef CONFIG_HIGHMEM
 	highstart_pfn = highend_pfn = max_pfn;
-	if (max_pfn > system_max_low_pfn)
-		highstart_pfn = system_max_low_pfn;
+	if (max_pfn > max_low_pfn)
+		highstart_pfn = max_low_pfn;
 	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
 	       pages_to_mb(highend_pfn - highstart_pfn));
 	num_physpages = highend_pfn;
 	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE - 1) + 1;
 #else
-	num_physpages = system_max_low_pfn;
-	high_memory = (void *) __va(system_max_low_pfn * PAGE_SIZE - 1) + 1;
+	num_physpages = max_low_pfn;
+	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
 #endif
 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
-			pages_to_mb(system_max_low_pfn));
-	printk("min_low_pfn = %ld, max_low_pfn = %ld, highstart_pfn = %ld\n", 
-			min_low_pfn, max_low_pfn, highstart_pfn);
+			pages_to_mb(max_low_pfn));
+	printk(KERN_DEBUG "max_low_pfn = %lx, highstart_pfn = %lx\n",
+			max_low_pfn, highstart_pfn);
 
-	printk("Low memory ends at vaddr %08lx\n",
+	printk(KERN_DEBUG "Low memory ends at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(max_low_pfn));
 	for_each_online_node(nid) {
 		init_remap_allocator(nid);
 
 		allocate_pgdat(nid);
 	}
-	printk("High memory starts at vaddr %08lx\n",
+	remap_numa_kva();
+
+	printk(KERN_DEBUG "High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
 	for_each_online_node(nid)
 		propagate_e820_map_node(nid);
 
-	memset(NODE_DATA(0), 0, sizeof(struct pglist_data));
-	NODE_DATA(0)->bdata = &node0_bdata;
+	for_each_online_node(nid)
+		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
+
+	NODE_DATA(0)->bdata = &bootmem_node_data[0];
 	setup_bootmem_allocator();
-	return max_low_pfn;
 }
 
-void __init numa_kva_reserve(void)
-{
-	if (kva_pages)
-		reserve_bootmem(PFN_PHYS(kva_start_pfn), PFN_PHYS(kva_pages),
-				BOOTMEM_DEFAULT);
-}
-
-void __init zone_sizes_init(void)
-{
-	int nid;
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
-	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	max_zone_pfns[ZONE_DMA] =
-		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
-#ifdef CONFIG_HIGHMEM
-	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
-#endif
-
-	/* If SRAT has not registered memory, register it now */
-	if (find_max_pfn_with_active_regions() == 0) {
-		for_each_online_node(nid) {
-			if (node_has_online_mem(nid))
-				add_active_range(nid, node_start_pfn[nid],
-							node_end_pfn[nid]);
-		}
-	}
-
-	free_area_init_nodes(max_zone_pfns);
-	return;
-}
-
-void __init set_highmem_pages_init(int bad_ppro) 
+void __init set_highmem_pages_init(void)
 {
 #ifdef CONFIG_HIGHMEM
 	struct zone *zone;
-	struct page *page;
+	int nid;
 
 	for_each_zone(zone) {
-		unsigned long node_pfn, zone_start_pfn, zone_end_pfn;
+		unsigned long zone_start_pfn, zone_end_pfn;
 
 		if (!is_highmem(zone))
 			continue;
@@ -434,16 +403,12 @@ void __init set_highmem_pages_init(int bad_ppro)
 		zone_start_pfn = zone->zone_start_pfn;
 		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
 
-		printk("Initializing %s for node %d (%08lx:%08lx)\n",
-				zone->name, zone_to_nid(zone),
-				zone_start_pfn, zone_end_pfn);
+		nid = zone_to_nid(zone);
+		printk(KERN_INFO "Initializing %s for node %d (%08lx:%08lx)\n",
+				zone->name, nid, zone_start_pfn, zone_end_pfn);
 
-		for (node_pfn = zone_start_pfn; node_pfn < zone_end_pfn; node_pfn++) {
-			if (!pfn_valid(node_pfn))
-				continue;
-			page = pfn_to_page(node_pfn);
-			add_one_highpage_init(page, node_pfn, bad_ppro);
-		}
+		add_highpages_with_active_regions(nid, zone_start_pfn,
+				 zone_end_pfn);
 	}
 	totalram_pages += totalhigh_pages;
 #endif
@@ -476,3 +441,4 @@ int memory_add_physaddr_to_nid(u64 addr)
 
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
+

@@ -7,21 +7,13 @@
  */
 #include <linux/clk.h>
 #include <linux/clockchips.h>
-#include <linux/time.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/kernel_stat.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/profile.h>
-#include <linux/sysdev.h>
-#include <linux/err.h>
+#include <linux/kernel.h>
+#include <linux/time.h>
 
-#include <asm/div64.h>
 #include <asm/sysreg.h>
-#include <asm/io.h>
-#include <asm/sections.h>
 
 #include <asm/arch/pm.h>
 

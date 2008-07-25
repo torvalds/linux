@@ -631,6 +631,17 @@ static struct clk_init clks_src[] __initdata = {
 		.bit	= S3C2412_CLKSRC_USBCLK_HCLK,
 		.src_0	= &clk_usysclk,
 		.src_1	= &clk_h,
+	/* here we assume  OM[4] select xtal */
+	}, {
+		.clk	= &clk_erefclk,
+		.bit	= S3C2412_CLKSRC_EREFCLK_EXTCLK,
+		.src_0	= &clk_xtal,
+		.src_1	= &clk_ext,
+	}, {
+		.clk	= &clk_urefclk,
+		.bit	= S3C2412_CLKSRC_UREFCLK_EXTCLK,
+		.src_0	= &clk_xtal,
+		.src_1	= &clk_ext,
 	},
 };
 
@@ -666,8 +677,6 @@ static void __init s3c2412_clk_initparents(void)
 static struct clk *clks[] __initdata = {
 	&clk_ext,
 	&clk_usb_bus,
-	&clk_erefclk,
-	&clk_urefclk,
 	&clk_mrefclk,
 	&clk_armclk,
 };

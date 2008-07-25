@@ -27,42 +27,6 @@
 #define ATAPI_CAPABILITIES_PAGE_SIZE		(8 + 20)
 #define ATAPI_CAPABILITIES_PAGE_PAD_SIZE	4
 
-enum {
-	/* Device sends an interrupt when ready for a packet command. */
-	IDE_CD_FLAG_DRQ_INTERRUPT	= (1 << 0),
-	/* Drive cannot lock the door. */
-	IDE_CD_FLAG_NO_DOORLOCK		= (1 << 1),
-	/* Drive cannot eject the disc. */
-	IDE_CD_FLAG_NO_EJECT		= (1 << 2),
-	/* Drive is a pre ATAPI 1.2 drive. */
-	IDE_CD_FLAG_PRE_ATAPI12		= (1 << 3),
-	/* TOC addresses are in BCD. */
-	IDE_CD_FLAG_TOCADDR_AS_BCD	= (1 << 4),
-	/* TOC track numbers are in BCD. */
-	IDE_CD_FLAG_TOCTRACKS_AS_BCD	= (1 << 5),
-	/*
-	 * Drive does not provide data in multiples of SECTOR_SIZE
-	 * when more than one interrupt is needed.
-	 */
-	IDE_CD_FLAG_LIMIT_NFRAMES	= (1 << 6),
-	/* Seeking in progress. */
-	IDE_CD_FLAG_SEEKING		= (1 << 7),
-	/* Driver has noticed a media change. */
-	IDE_CD_FLAG_MEDIA_CHANGED	= (1 << 8),
-	/* Saved TOC information is current. */
-	IDE_CD_FLAG_TOC_VALID		= (1 << 9),
-	/* We think that the drive door is locked. */
-	IDE_CD_FLAG_DOOR_LOCKED		= (1 << 10),
-	/* SET_CD_SPEED command is unsupported. */
-	IDE_CD_FLAG_NO_SPEED_SELECT	= (1 << 11),
-	IDE_CD_FLAG_VERTOS_300_SSD	= (1 << 12),
-	IDE_CD_FLAG_VERTOS_600_ESD	= (1 << 13),
-	IDE_CD_FLAG_SANYO_3CD		= (1 << 14),
-	IDE_CD_FLAG_FULL_CAPS_PAGE	= (1 << 15),
-	IDE_CD_FLAG_PLAY_AUDIO_OK	= (1 << 16),
-	IDE_CD_FLAG_LE_SPEED_FIELDS	= (1 << 17),
-};
-
 /* Structure of a MSF cdrom address. */
 struct atapi_msf {
 	byte reserved;
@@ -128,8 +92,6 @@ struct cdrom_info {
 	unsigned long last_block;
 	unsigned long start_seek;
 
-	unsigned int cd_flags;
-
 	u8 max_speed;		/* Max speed of the drive. */
 	u8 current_speed;	/* Current speed of the drive. */
 
@@ -143,8 +105,8 @@ struct cdrom_info {
 void ide_cd_log_error(const char *, struct request *, struct request_sense *);
 
 /* ide-cd.c functions used by ide-cd_ioctl.c */
-void ide_cd_init_rq(ide_drive_t *, struct request *);
-int ide_cd_queue_pc(ide_drive_t *, struct request *);
+int ide_cd_queue_pc(ide_drive_t *, const unsigned char *, int, void *,
+		    unsigned *, struct request_sense *, int, unsigned int);
 int ide_cd_read_toc(ide_drive_t *, struct request_sense *);
 int ide_cdrom_get_capabilities(ide_drive_t *, u8 *);
 void ide_cdrom_update_speed(ide_drive_t *, u8 *);

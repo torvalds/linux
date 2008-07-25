@@ -1,5 +1,4 @@
 #include <linux/slab.h>
-#include <linux/kexec.h>
 #include <linux/proc_fs.h>
 #include <asm/setup.h>
 #include <asm/types.h>
@@ -7,9 +6,8 @@
 
 struct buffer {
 	size_t size;
-	char *data;
+	char data[];
 };
-static struct buffer tags_buffer;
 
 static int
 read_buffer(char* page, char** start, off_t off, int count,
@@ -29,58 +27,57 @@ read_buffer(char* page, char** start, off_t off, int count,
 	return count;
 }
 
-
-static int
-create_proc_entries(void)
-{
-	struct proc_dir_entry* tags_entry;
-
-	tags_entry = create_proc_read_entry("atags", 0400, NULL, read_buffer, &tags_buffer);
-	if (!tags_entry)
-		return -ENOMEM;
-
-	return 0;
-}
-
-
-static char __initdata atags_copy_buf[KEXEC_BOOT_PARAMS_SIZE];
-static char __initdata *atags_copy;
+#define BOOT_PARAMS_SIZE 1536
+static char __initdata atags_copy[BOOT_PARAMS_SIZE];
 
 void __init save_atags(const struct tag *tags)
 {
-	atags_copy = atags_copy_buf;
-	memcpy(atags_copy, tags, KEXEC_BOOT_PARAMS_SIZE);
+	memcpy(atags_copy, tags, sizeof(atags_copy));
 }
-
 
 static int __init init_atags_procfs(void)
 {
-	struct tag *tag;
-	int error;
+	/*
+	 * This cannot go into save_atags() because kmalloc and proc don't work
+	 * yet when it is called.
+	 */
+	struct proc_dir_entry *tags_entry;
+	struct tag *tag = (struct tag *)atags_copy;
+	struct buffer *b;
+	size_t size;
 
-	if (!atags_copy) {
-		printk(KERN_WARNING "Exporting ATAGs: No saved tags found\n");
-		return -EIO;
+	if (tag->hdr.tag != ATAG_CORE) {
+		printk(KERN_INFO "No ATAGs?");
+		return -EINVAL;
 	}
 
-	for (tag = (struct tag *) atags_copy; tag->hdr.size; tag = tag_next(tag))
+	for (; tag->hdr.size; tag = tag_next(tag))
 		;
 
-	tags_buffer.size = ((char *) tag - atags_copy) + sizeof(tag->hdr);
-	tags_buffer.data = kmalloc(tags_buffer.size, GFP_KERNEL);
-	if (tags_buffer.data == NULL)
-		return -ENOMEM;
-	memcpy(tags_buffer.data, atags_copy, tags_buffer.size);
+	/* include the terminating ATAG_NONE */
+	size = (char *)tag - atags_copy + sizeof(struct tag_header);
 
-	error = create_proc_entries();
-	if (error) {
-		printk(KERN_ERR "Exporting ATAGs: not enough memory\n");
-		kfree(tags_buffer.data);
-		tags_buffer.size = 0;
-		tags_buffer.data = NULL;
-	}
+	WARN_ON(tag->hdr.tag != ATAG_NONE);
 
-	return error;
+	b = kmalloc(sizeof(*b) + size, GFP_KERNEL);
+	if (!b)
+		goto nomem;
+
+	b->size = size;
+	memcpy(b->data, atags_copy, size);
+
+	tags_entry = create_proc_read_entry("atags", 0400,
+			NULL, read_buffer, b);
+
+	if (!tags_entry)
+		goto nomem;
+
+	return 0;
+
+nomem:
+	kfree(b);
+	printk(KERN_ERR "Exporting ATAGs: not enough memory\n");
+
+	return -ENOMEM;
 }
-
 arch_initcall(init_atags_procfs);

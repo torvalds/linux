@@ -233,7 +233,7 @@ static u8 tda10048_readreg(struct tda10048_state *state, u8 reg)
 }
 
 static int tda10048_writeregbulk(struct tda10048_state *state, u8 reg,
-	u8 *data, u16 len)
+				 const u8 *data, u16 len)
 {
 	int ret = -EREMOTEIO;
 	struct i2c_msg msg;

@@ -10,12 +10,16 @@
 
 #ifdef __KERNEL__
 
-#include <asm/pgtable.h>
 #include <asm/io.h>
+#ifdef CONFIG_SPARC64
+#include <asm/pgalloc.h>
+#include <asm/spitfire.h>
+#include <asm/cacheflush.h>
+#include <asm/page.h>
+#else
+#include <asm/pgtable.h>
 #include <asm/psr.h>
-
-#undef  MAX_HWIFS
-#define MAX_HWIFS	2
+#endif
 
 #define __ide_insl(data_reg, buffer, wcount) \
 	__ide_insw(data_reg, buffer, (wcount)<<1)
@@ -28,50 +32,46 @@
 #define __ide_mm_outsw	__ide_outsw
 #define __ide_mm_outsl	__ide_outsl
 
-static inline void __ide_insw(unsigned long port,
-				  void *dst,
-				  unsigned long count)
+static inline void __ide_insw(void __iomem *port, void *dst, u32 count)
 {
-	volatile unsigned short *data_port;
-	/* unsigned long end = (unsigned long)dst + (count << 1); */ /* P3 */
+#if defined(CONFIG_SPARC64) && defined(DCACHE_ALIASING_POSSIBLE)
+	unsigned long end = (unsigned long)dst + (count << 1);
+#endif
 	u16 *ps = dst;
 	u32 *pi;
 
-	data_port = (volatile unsigned short *)port;
-
 	if(((unsigned long)ps) & 0x2) {
-		*ps++ = *data_port;
+		*ps++ = __raw_readw(port);
 		count--;
 	}
 	pi = (u32 *)ps;
 	while(count >= 2) {
 		u32 w;
 
-		w  = (*data_port) << 16;
-		w |= (*data_port);
+		w  = __raw_readw(port) << 16;
+		w |= __raw_readw(port);
 		*pi++ = w;
 		count -= 2;
 	}
 	ps = (u16 *)pi;
 	if(count)
-		*ps++ = *data_port;
+		*ps++ = __raw_readw(port);
 
-	/* __flush_dcache_range((unsigned long)dst, end); */ /* P3 see hme */
+#if defined(CONFIG_SPARC64) && defined(DCACHE_ALIASING_POSSIBLE)
+	__flush_dcache_range((unsigned long)dst, end);
+#endif
 }
 
-static inline void __ide_outsw(unsigned long port,
-				   const void *src,
-				   unsigned long count)
+static inline void __ide_outsw(void __iomem *port, const void *src, u32 count)
 {
-	volatile unsigned short *data_port;
-	/* unsigned long end = (unsigned long)src + (count << 1); */
+#if defined(CONFIG_SPARC64) && defined(DCACHE_ALIASING_POSSIBLE)
+	unsigned long end = (unsigned long)src + (count << 1);
+#endif
 	const u16 *ps = src;
 	const u32 *pi;
 
-	data_port = (volatile unsigned short *)port;
-
 	if(((unsigned long)src) & 0x2) {
-		*data_port = *ps++;
+		__raw_writew(*ps++, port);
 		count--;
 	}
 	pi = (const u32 *)ps;
@@ -79,15 +79,17 @@ static inline void __ide_outsw(unsigned long port,
 		u32 w;
 
 		w = *pi++;
-		*data_port = (w >> 16);
-		*data_port = w;
+		__raw_writew((w >> 16), port);
+		__raw_writew(w, port);
 		count -= 2;
 	}
 	ps = (const u16 *)pi;
 	if(count)
-		*data_port = *ps;
+		__raw_writew(*ps, port);
 
-	/* __flush_dcache_range((unsigned long)src, end); */ /* P3 see hme */
+#if defined(CONFIG_SPARC64) && defined(DCACHE_ALIASING_POSSIBLE)
+	__flush_dcache_range((unsigned long)src, end);
+#endif
 }
 
 #endif /* __KERNEL__ */

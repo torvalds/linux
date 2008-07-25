@@ -1572,7 +1572,7 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 
 	/* determine the address of the CCW to be restarted */
 	/* Imprecise ending is not set -> addr from IRB-SCSW */
-	cpa = default_erp->refers->irb.scsw.cpa;
+	cpa = default_erp->refers->irb.scsw.cmd.cpa;
 
 	if (cpa == 0) {
 
@@ -1725,7 +1725,7 @@ dasd_3990_update_1B(struct dasd_ccw_req * previous_erp, char *sense)
 
 	/* determine the address of the CCW to be restarted */
 	/* Imprecise ending is not set -> addr from IRB-SCSW */
-	cpa = previous_erp->irb.scsw.cpa;
+	cpa = previous_erp->irb.scsw.cmd.cpa;
 
 	if (cpa == 0) {
 
@@ -2171,7 +2171,7 @@ dasd_3990_erp_control_check(struct dasd_ccw_req *erp)
 {
 	struct dasd_device *device = erp->startdev;
 
-	if (erp->refers->irb.scsw.cstat & (SCHN_STAT_INTF_CTRL_CHK
+	if (erp->refers->irb.scsw.cmd.cstat & (SCHN_STAT_INTF_CTRL_CHK
 					   | SCHN_STAT_CHN_CTRL_CHK)) {
 		DEV_MESSAGE(KERN_DEBUG, device, "%s",
 			    "channel or interface control check");
@@ -2352,9 +2352,9 @@ dasd_3990_erp_error_match(struct dasd_ccw_req *cqr1, struct dasd_ccw_req *cqr2)
 
 	if ((cqr1->irb.esw.esw0.erw.cons == 0) &&
 	    (cqr2->irb.esw.esw0.erw.cons == 0))	{
-		if ((cqr1->irb.scsw.cstat & (SCHN_STAT_INTF_CTRL_CHK |
+		if ((cqr1->irb.scsw.cmd.cstat & (SCHN_STAT_INTF_CTRL_CHK |
 					     SCHN_STAT_CHN_CTRL_CHK)) ==
-		    (cqr2->irb.scsw.cstat & (SCHN_STAT_INTF_CTRL_CHK |
+		    (cqr2->irb.scsw.cmd.cstat & (SCHN_STAT_INTF_CTRL_CHK |
 					     SCHN_STAT_CHN_CTRL_CHK)))
 			return 1; /* match with ifcc*/
 	}
@@ -2622,8 +2622,9 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 	}
 
 	/* double-check if current erp/cqr was successfull */
-	if ((cqr->irb.scsw.cstat == 0x00) &&
-	    (cqr->irb.scsw.dstat == (DEV_STAT_CHN_END|DEV_STAT_DEV_END))) {
+	if ((cqr->irb.scsw.cmd.cstat == 0x00) &&
+	    (cqr->irb.scsw.cmd.dstat ==
+	     (DEV_STAT_CHN_END | DEV_STAT_DEV_END))) {
 
 		DEV_MESSAGE(KERN_DEBUG, device,
 			    "ERP called for successful request %p"

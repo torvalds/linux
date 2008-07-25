@@ -30,7 +30,6 @@
 
 static struct smc91x_platdata smc91x_info = {
 	.flags = SMC91X_USE_16BIT,
-	.irq_flags = IRQF_TRIGGER_HIGH,
 };
 
 static struct resource smc91x_eth_resources[] = {
@@ -42,7 +41,7 @@ static struct resource smc91x_eth_resources[] = {
 	},
 	[1] = {
 		.start  = 32, /* IRQ0 */
-		.flags  = IORESOURCE_IRQ,
+		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
 

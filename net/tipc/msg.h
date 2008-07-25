@@ -2,7 +2,7 @@
  * net/tipc/msg.h: Include file for TIPC message header routines
  *
  * Copyright (c) 2000-2007, Ericsson AB
- * Copyright (c) 2005-2007, Wind River Systems
+ * Copyright (c) 2005-2008, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,14 @@ static inline void msg_set_bits(struct tipc_msg *m, u32 w,
 	m->hdr[w] |= htonl(val);
 }
 
+static inline void msg_swap_words(struct tipc_msg *msg, u32 a, u32 b)
+{
+	u32 temp = msg->hdr[a];
+
+	msg->hdr[a] = msg->hdr[b];
+	msg->hdr[b] = temp;
+}
+
 /*
  * Word 0
  */
@@ -119,9 +127,9 @@ static inline int msg_non_seq(struct tipc_msg *m)
 	return msg_bits(m, 0, 20, 1);
 }
 
-static inline void msg_set_non_seq(struct tipc_msg *m)
+static inline void msg_set_non_seq(struct tipc_msg *m, u32 n)
 {
-	msg_set_bits(m, 0, 20, 1, 1);
+	msg_set_bits(m, 0, 20, 1, n);
 }
 
 static inline int msg_dest_droppable(struct tipc_msg *m)
@@ -224,6 +232,25 @@ static inline void msg_set_seqno(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 2, 0, 0xffff, n);
 }
 
+/*
+ * TIPC may utilize the "link ack #" and "link seq #" fields of a short
+ * message header to hold the destination node for the message, since the
+ * normal "dest node" field isn't present.  This cache is only referenced
+ * when required, so populating the cache of a longer message header is
+ * harmless (as long as the header has the two link sequence fields present).
+ *
+ * Note: Host byte order is OK here, since the info never goes off-card.
+ */
+
+static inline u32 msg_destnode_cache(struct tipc_msg *m)
+{
+	return m->hdr[2];
+}
+
+static inline void msg_set_destnode_cache(struct tipc_msg *m, u32 dnode)
+{
+	m->hdr[2] = dnode;
+}
 
 /*
  * Words 3-10
@@ -325,7 +352,7 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    w0:|vers |msg usr|hdr sz |n|resrv|            packet size          |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   w1:|m typ|rsv=0|   sequence gap    |       broadcast ack no        |
+   w1:|m typ|      sequence gap       |       broadcast ack no        |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    w2:| link level ack no/bc_gap_from |     seq no / bcast_gap_to     |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -388,12 +415,12 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 
 static inline u32 msg_seq_gap(struct tipc_msg *m)
 {
-	return msg_bits(m, 1, 16, 0xff);
+	return msg_bits(m, 1, 16, 0x1fff);
 }
 
 static inline void msg_set_seq_gap(struct tipc_msg *m, u32 n)
 {
-	msg_set_bits(m, 1, 16, 0xff, n);
+	msg_set_bits(m, 1, 16, 0x1fff, n);
 }
 
 static inline u32 msg_req_links(struct tipc_msg *m)
@@ -696,7 +723,7 @@ static inline u32 msg_tot_importance(struct tipc_msg *m)
 
 
 static inline void msg_init(struct tipc_msg *m, u32 user, u32 type,
-			    u32 err, u32 hsize, u32 destnode)
+			    u32 hsize, u32 destnode)
 {
 	memset(m, 0, hsize);
 	msg_set_version(m);
@@ -705,7 +732,6 @@ static inline void msg_init(struct tipc_msg *m, u32 user, u32 type,
 	msg_set_size(m, hsize);
 	msg_set_prevnode(m, tipc_own_addr);
 	msg_set_type(m, type);
-	msg_set_errcode(m, err);
 	if (!msg_short(m)) {
 		msg_set_orignode(m, tipc_own_addr);
 		msg_set_destnode(m, destnode);

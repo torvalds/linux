@@ -4,7 +4,7 @@
  * main.c
  */
 
-extern struct list_head dpm_active;	/* The active device list */
+extern struct list_head dpm_list;	/* The active device list */
 
 static inline struct device *to_device(struct list_head *entry)
 {

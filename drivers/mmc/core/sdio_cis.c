@@ -129,6 +129,12 @@ static int cistpl_funce_func(struct sdio_func *func,
 	/* TPLFE_MAX_BLK_SIZE */
 	func->max_blksize = buf[12] | (buf[13] << 8);
 
+	/* TPLFE_ENABLE_TIMEOUT_VAL, present in ver 1.1 and above */
+	if (vsn > SDIO_SDIO_REV_1_00)
+		func->enable_timeout = (buf[28] | (buf[29] << 8)) * 10;
+	else
+		func->enable_timeout = jiffies_to_msecs(HZ);
+
 	return 0;
 }
 

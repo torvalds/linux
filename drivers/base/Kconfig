@@ -27,12 +27,77 @@ config PREVENT_FIRMWARE_BUILD
 	  If unsure say Y here.
 
 config FW_LOADER
-	tristate "Userspace firmware loading support"
+	tristate "Userspace firmware loading support" if EMBEDDED
 	depends on HOTPLUG
+	default y
 	---help---
 	  This option is provided for the case where no in-kernel-tree modules
 	  require userspace firmware loading support, but a module built outside
 	  the kernel tree does.
+
+config FIRMWARE_IN_KERNEL
+	bool "Include in-kernel firmware blobs in kernel binary"
+	depends on FW_LOADER
+	default y
+	help
+	  The kernel source tree includes a number of firmware 'blobs'
+	  which are used by various drivers. The recommended way to
+	  use these is to run "make firmware_install" and to copy the
+	  resulting binary files created in usr/lib/firmware directory
+	  of the kernel tree to the /lib/firmware on your system so
+	  that they can be loaded by userspace helpers on request.
+
+	  Enabling this option will build each required firmware blob
+	  into the kernel directly, where request_firmware() will find
+	  them without having to call out to userspace. This may be
+	  useful if your root file system requires a device which uses
+	  such firmware, and do not wish to use an initrd.
+
+	  This single option controls the inclusion of firmware for
+	  every driver which usees request_firmare() and ships its
+	  firmware in the kernel source tree, to avoid a proliferation
+	  of 'Include firmware for xxx device' options.
+
+	  Say 'N' and let firmware be loaded from userspace.
+
+config EXTRA_FIRMWARE
+	string "External firmware blobs to build into the kernel binary"
+	depends on FW_LOADER
+	help
+	  This option allows firmware to be built into the kernel, for the
+	  cases where the user either cannot or doesn't want to provide it from
+	  userspace at runtime (for example, when the firmware in question is
+	  required for accessing the boot device, and the user doesn't want to
+	  use an initrd).
+
+	  This option is a string, and takes the (space-separated) names of the
+	  firmware files -- the same names which appear in MODULE_FIRMWARE()
+	  and request_firmware() in the source. These files should exist under
+	  the directory specified by the EXTRA_FIRMWARE_DIR option, which is
+	  by default the firmware/ subdirectory of the kernel source tree.
+
+	  So, for example, you might set CONFIG_EXTRA_FIRMWARE="usb8388.bin",
+	  copy the usb8388.bin file into the firmware/ directory, and build the
+	  kernel. Then any request_firmware("usb8388.bin") will be
+	  satisfied internally without needing to call out to userspace.
+
+	  WARNING: If you include additional firmware files into your binary
+	  kernel image which are not available under the terms of the GPL,
+	  then it may be a violation of the GPL to distribute the resulting
+	  image -- since it combines both GPL and non-GPL work. You should
+	  consult a lawyer of your own before distributing such an image.
+
+config EXTRA_FIRMWARE_DIR
+	string "Firmware blobs root directory"
+	depends on EXTRA_FIRMWARE != ""
+	default "firmware"
+	help
+	  This option controls the directory in which the kernel build system
+	  looks for the firmware files listed in the EXTRA_FIRMWARE option.
+	  The default is the firmware/ directory in the kernel source tree,
+	  but by changing this option you can point it elsewhere, such as
+	  the /lib/firmware/ directory or another separate directory
+	  containing firmware files.
 
 config DEBUG_DRIVER
 	bool "Driver Core verbose debug messages"

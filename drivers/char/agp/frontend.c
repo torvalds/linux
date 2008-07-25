@@ -39,6 +39,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include "agp.h"
@@ -677,6 +678,7 @@ static int agp_open(struct inode *inode, struct file *file)
 	struct agp_client *client;
 	int rc = -ENXIO;
 
+	lock_kernel();
 	mutex_lock(&(agp_fe.agp_mutex));
 
 	if (minor != AGPGART_MINOR)
@@ -703,12 +705,14 @@ static int agp_open(struct inode *inode, struct file *file)
 	agp_insert_file_private(priv);
 	DBG("private=%p, client=%p", priv, client);
 	mutex_unlock(&(agp_fe.agp_mutex));
+	unlock_kernel();
 	return 0;
 
 err_out_nomem:
 	rc = -ENOMEM;
 err_out:
 	mutex_unlock(&(agp_fe.agp_mutex));
+	unlock_kernel();
 	return rc;
 }
 

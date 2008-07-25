@@ -189,6 +189,8 @@ s3c2410_get_pll(unsigned int pllval, unsigned int baseclk)
 #define S3C2412_CLKSRC_I2SCLK_MPLL		(1<<9)
 #define S3C2412_CLKSRC_USBCLK_HCLK		(1<<10)
 #define S3C2412_CLKSRC_CAMCLK_HCLK		(1<<11)
+#define S3C2412_CLKSRC_UREFCLK_EXTCLK	(1<<12)
+#define S3C2412_CLKSRC_EREFCLK_EXTCLK	(1<<14)
 
 #endif /* CONFIG_CPU_S3C2412 | CONFIG_CPU_S3C2413 */
 
