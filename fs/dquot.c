@@ -1153,6 +1153,28 @@ int dquot_drop(struct inode *inode)
 	return 0;
 }
 
+/* Wrapper to remove references to quota structures from inode */
+void vfs_dq_drop(struct inode *inode)
+{
+	/* Here we can get arbitrary inode from clear_inode() so we have
+	 * to be careful. OTOH we don't need locking as quota operations
+	 * are allowed to change only at mount time */
+	if (!IS_NOQUOTA(inode) && inode->i_sb && inode->i_sb->dq_op
+	    && inode->i_sb->dq_op->drop) {
+		int cnt;
+		/* Test before calling to rule out calls from proc and such
+                 * where we are not allowed to block. Note that this is
+		 * actually reliable test even without the lock - the caller
+		 * must assure that nobody can come after the DQUOT_DROP and
+		 * add quota pointers back anyway */
+		for (cnt = 0; cnt < MAXQUOTAS; cnt++)
+			if (inode->i_dquot[cnt] != NODQUOT)
+				break;
+		if (cnt < MAXQUOTAS)
+			inode->i_sb->dq_op->drop(inode);
+	}
+}
+
 /*
  * Following four functions update i_blocks+i_bytes fields and
  * quota information (together with appropriate checks)
@@ -1425,6 +1447,18 @@ warn_put_all:
 	up_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	return ret;
 }
+
+/* Wrapper for transferring ownership of an inode */
+int vfs_dq_transfer(struct inode *inode, struct iattr *iattr)
+{
+	if (sb_any_quota_enabled(inode->i_sb) && !IS_NOQUOTA(inode)) {
+		vfs_dq_init(inode);
+		if (inode->i_sb->dq_op->transfer(inode, iattr) == NO_QUOTA)
+			return 1;
+	}
+	return 0;
+}
+
 
 /*
  * Write info of quota file to disk
@@ -1766,6 +1800,22 @@ out:
 	return error;
 }
 
+/* Wrapper to turn on quotas when remounting rw */
+int vfs_dq_quota_on_remount(struct super_block *sb)
+{
+	int cnt;
+	int ret = 0, err;
+
+	if (!sb->s_qcop || !sb->s_qcop->quota_on)
+		return -ENOSYS;
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		err = sb->s_qcop->quota_on(sb, cnt, 0, NULL, 1);
+		if (err < 0 && !ret)
+			ret = err;
+	}
+	return ret;
+}
+
 /* Generic routine for getting common part of quota structure */
 static void do_get_dqblk(struct dquot *dquot, struct if_dqblk *di)
 {
@@ -2101,8 +2151,11 @@ EXPORT_SYMBOL(dquot_release);
 EXPORT_SYMBOL(dquot_mark_dquot_dirty);
 EXPORT_SYMBOL(dquot_initialize);
 EXPORT_SYMBOL(dquot_drop);
+EXPORT_SYMBOL(vfs_dq_drop);
 EXPORT_SYMBOL(dquot_alloc_space);
 EXPORT_SYMBOL(dquot_alloc_inode);
 EXPORT_SYMBOL(dquot_free_space);
 EXPORT_SYMBOL(dquot_free_inode);
 EXPORT_SYMBOL(dquot_transfer);
+EXPORT_SYMBOL(vfs_dq_transfer);
+EXPORT_SYMBOL(vfs_dq_quota_on_remount);
