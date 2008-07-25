@@ -1378,6 +1378,8 @@ static struct pci_driver sm501_pci_drv = {
 	.remove		= sm501_pci_remove,
 };
 
+MODULE_ALIAS("platform:sm501");
+
 static struct platform_driver sm501_plat_drv = {
 	.driver		= {
 		.name	= "sm501",
