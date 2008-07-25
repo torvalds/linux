@@ -1591,7 +1591,7 @@ static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	}
 	rcu_read_unlock();
 done:
-	core_state->nr_threads = nr;
+	atomic_set(&core_state->nr_threads, nr);
 	return nr;
 }
 

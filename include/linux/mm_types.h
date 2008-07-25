@@ -160,7 +160,7 @@ struct vm_area_struct {
 };
 
 struct core_state {
-	int nr_threads;
+	atomic_t nr_threads;
 	struct completion startup;
 };
 

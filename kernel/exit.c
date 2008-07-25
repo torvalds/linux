@@ -678,10 +678,9 @@ static void exit_mm(struct task_struct * tsk)
 	down_read(&mm->mmap_sem);
 	if (mm->core_state) {
 		up_read(&mm->mmap_sem);
-		down_write(&mm->mmap_sem);
-		if (!--mm->core_state->nr_threads)
+
+		if (atomic_dec_and_test(&mm->core_state->nr_threads))
 			complete(&mm->core_state->startup);
-		up_write(&mm->mmap_sem);
 
 		wait_for_completion(&mm->core_done);
 		down_read(&mm->mmap_sem);
