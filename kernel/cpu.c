@@ -461,3 +461,112 @@ out:
 #endif /* CONFIG_PM_SLEEP_SMP */
 
 #endif /* CONFIG_SMP */
+
+#ifndef CONFIG_HAVE_CPUMASK_OF_CPU_MAP
+/* 64 bits of zeros, for initializers. */
+#if BITS_PER_LONG == 32
+#define Z64 0, 0
+#else
+#define Z64 0
+#endif
+
+/* Initializer macros. */
+#define CMI0(n) { .bits = { 1UL << (n) } }
+#define CMI(n, ...) { .bits = { __VA_ARGS__, 1UL << ((n) % BITS_PER_LONG) } }
+
+#define CMI8(n, ...)						\
+	CMI((n), __VA_ARGS__), CMI((n)+1, __VA_ARGS__),		\
+	CMI((n)+2, __VA_ARGS__), CMI((n)+3, __VA_ARGS__),	\
+	CMI((n)+4, __VA_ARGS__), CMI((n)+5, __VA_ARGS__),	\
+	CMI((n)+6, __VA_ARGS__), CMI((n)+7, __VA_ARGS__)
+
+#if BITS_PER_LONG == 32
+#define CMI64(n, ...)							\
+	CMI8((n), __VA_ARGS__), CMI8((n)+8, __VA_ARGS__),		\
+	CMI8((n)+16, __VA_ARGS__), CMI8((n)+24, __VA_ARGS__),		\
+	CMI8((n)+32, 0, __VA_ARGS__), CMI8((n)+40, 0, __VA_ARGS__),	\
+	CMI8((n)+48, 0, __VA_ARGS__), CMI8((n)+56, 0, __VA_ARGS__)
+#else
+#define CMI64(n, ...)							\
+	CMI8((n), __VA_ARGS__), CMI8((n)+8, __VA_ARGS__),		\
+	CMI8((n)+16, __VA_ARGS__), CMI8((n)+24, __VA_ARGS__),		\
+	CMI8((n)+32, __VA_ARGS__), CMI8((n)+40, __VA_ARGS__),	\
+	CMI8((n)+48, __VA_ARGS__), CMI8((n)+56, __VA_ARGS__)
+#endif
+
+#define CMI256(n, ...)							\
+	CMI64((n), __VA_ARGS__), CMI64((n)+64, Z64, __VA_ARGS__),	\
+	CMI64((n)+128, Z64, Z64, __VA_ARGS__),				\
+	CMI64((n)+192, Z64, Z64, Z64, __VA_ARGS__)
+#define Z256 Z64, Z64, Z64, Z64
+
+#define CMI1024(n, ...)					\
+	CMI256((n), __VA_ARGS__),			\
+	CMI256((n)+256, Z256, __VA_ARGS__),		\
+	CMI256((n)+512, Z256, Z256, __VA_ARGS__),	\
+	CMI256((n)+768, Z256, Z256, Z256, __VA_ARGS__)
+#define Z1024 Z256, Z256, Z256, Z256
+
+/* We want this statically initialized, just to be safe.  We try not
+ * to waste too much space, either. */
+static const cpumask_t cpumask_map[] = {
+	CMI0(0), CMI0(1), CMI0(2), CMI0(3),
+#if NR_CPUS > 4
+	CMI0(4), CMI0(5), CMI0(6), CMI0(7),
+#endif
+#if NR_CPUS > 8
+	CMI0(8), CMI0(9), CMI0(10), CMI0(11),
+	CMI0(12), CMI0(13), CMI0(14), CMI0(15),
+#endif
+#if NR_CPUS > 16
+	CMI0(16), CMI0(17), CMI0(18), CMI0(19),
+	CMI0(20), CMI0(21), CMI0(22), CMI0(23),
+	CMI0(24), CMI0(25), CMI0(26), CMI0(27),
+	CMI0(28), CMI0(29), CMI0(30), CMI0(31),
+#endif
+#if NR_CPUS > 32
+#if BITS_PER_LONG == 32
+	CMI(32, 0), CMI(33, 0), CMI(34, 0), CMI(35, 0),
+	CMI(36, 0), CMI(37, 0), CMI(38, 0), CMI(39, 0),
+	CMI(40, 0), CMI(41, 0), CMI(42, 0), CMI(43, 0),
+	CMI(44, 0), CMI(45, 0), CMI(46, 0), CMI(47, 0),
+	CMI(48, 0), CMI(49, 0), CMI(50, 0), CMI(51, 0),
+	CMI(52, 0), CMI(53, 0), CMI(54, 0), CMI(55, 0),
+	CMI(56, 0), CMI(57, 0), CMI(58, 0), CMI(59, 0),
+	CMI(60, 0), CMI(61, 0), CMI(62, 0), CMI(63, 0),
+#else
+	CMI0(32), CMI0(33), CMI0(34), CMI0(35),
+	CMI0(36), CMI0(37), CMI0(38), CMI0(39),
+	CMI0(40), CMI0(41), CMI0(42), CMI0(43),
+	CMI0(44), CMI0(45), CMI0(46), CMI0(47),
+	CMI0(48), CMI0(49), CMI0(50), CMI0(51),
+	CMI0(52), CMI0(53), CMI0(54), CMI0(55),
+	CMI0(56), CMI0(57), CMI0(58), CMI0(59),
+	CMI0(60), CMI0(61), CMI0(62), CMI0(63),
+#endif /* BITS_PER_LONG == 64 */
+#endif
+#if NR_CPUS > 64
+	CMI64(64, Z64),
+#endif
+#if NR_CPUS > 128
+	CMI64(128, Z64, Z64), CMI64(192, Z64, Z64, Z64),
+#endif
+#if NR_CPUS > 256
+	CMI256(256, Z256),
+#endif
+#if NR_CPUS > 512
+	CMI256(512, Z256, Z256), CMI256(768, Z256, Z256, Z256),
+#endif
+#if NR_CPUS > 1024
+	CMI1024(1024, Z1024),
+#endif
+#if NR_CPUS > 2048
+	CMI1024(2048, Z1024, Z1024), CMI1024(3072, Z1024, Z1024, Z1024),
+#endif
+#if NR_CPUS > 4096
+#error NR_CPUS too big.  Fix initializers or set CONFIG_HAVE_CPUMASK_OF_CPU_MAP
+#endif
+};
+
+const cpumask_t *cpumask_of_cpu_map = cpumask_map;
+#endif /* !CONFIG_HAVE_CPUMASK_OF_CPU_MAP */

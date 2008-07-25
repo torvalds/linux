@@ -62,15 +62,7 @@
  * int next_cpu_nr(cpu, mask)		Next cpu past 'cpu', or nr_cpu_ids
  *
  * cpumask_t cpumask_of_cpu(cpu)	Return cpumask with bit 'cpu' set
- *ifdef CONFIG_HAS_CPUMASK_OF_CPU
- * cpumask_of_cpu_ptr_declare(v)	Declares cpumask_t *v
- * cpumask_of_cpu_ptr_next(v, cpu)	Sets v = &cpumask_of_cpu_map[cpu]
- * cpumask_of_cpu_ptr(v, cpu)		Combines above two operations
- *else
- * cpumask_of_cpu_ptr_declare(v)	Declares cpumask_t _v and *v = &_v
- * cpumask_of_cpu_ptr_next(v, cpu)	Sets _v = cpumask_of_cpu(cpu)
- * cpumask_of_cpu_ptr(v, cpu)		Combines above two operations
- *endif
+ *					(can be used as an lvalue)
  * CPU_MASK_ALL				Initializer - all bits set
  * CPU_MASK_NONE			Initializer - no bits set
  * unsigned long *cpus_addr(mask)	Array of unsigned long's in mask
@@ -274,36 +266,9 @@ static inline void __cpus_shift_left(cpumask_t *dstp,
 }
 
 
-#ifdef CONFIG_HAVE_CPUMASK_OF_CPU_MAP
-extern cpumask_t *cpumask_of_cpu_map;
+/* cpumask_of_cpu_map[] is in kernel/cpu.c */
+extern const cpumask_t *cpumask_of_cpu_map;
 #define cpumask_of_cpu(cpu)	(cpumask_of_cpu_map[cpu])
-#define	cpumask_of_cpu_ptr(v, cpu)					\
-		const cpumask_t *v = &cpumask_of_cpu(cpu)
-#define	cpumask_of_cpu_ptr_declare(v)					\
-		const cpumask_t *v
-#define cpumask_of_cpu_ptr_next(v, cpu)					\
-					v = &cpumask_of_cpu(cpu)
-#else
-#define cpumask_of_cpu(cpu)						\
-({									\
-	typeof(_unused_cpumask_arg_) m;					\
-	if (sizeof(m) == sizeof(unsigned long)) {			\
-		m.bits[0] = 1UL<<(cpu);					\
-	} else {							\
-		cpus_clear(m);						\
-		cpu_set((cpu), m);					\
-	}								\
-	m;								\
-})
-#define	cpumask_of_cpu_ptr(v, cpu) 					\
-		cpumask_t _##v = cpumask_of_cpu(cpu);			\
-		const cpumask_t *v = &_##v
-#define	cpumask_of_cpu_ptr_declare(v)					\
-		cpumask_t _##v;						\
-		const cpumask_t *v = &_##v
-#define cpumask_of_cpu_ptr_next(v, cpu)					\
-					_##v = cpumask_of_cpu(cpu)
-#endif
 
 #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
 
