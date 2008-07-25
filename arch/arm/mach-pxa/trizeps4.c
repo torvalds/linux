@@ -254,6 +254,7 @@ static void board_irda_mode(struct device *dev, int mode)
 		/* Fast mode */
 		trizeps_conxs_ircr |= ConXS_IRCR_MODE;
 	}
+	pxa2xx_transceiver_mode(dev, mode);
 	if (mode & IR_OFF) {
 		trizeps_conxs_ircr |= ConXS_IRCR_SD;
 	} else {

@@ -118,6 +118,8 @@ asmlinkage void resume(void);
 #define smp_read_barrier_depends()	do { } while(0)
 #endif
 
+#define read_barrier_depends()  ((void)0)
+
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
 struct __xchg_dummy { unsigned long a[100]; };
@@ -309,5 +311,14 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 #endif
 #endif
 #define arch_align_stack(x) (x)
+
+
+static inline int irqs_disabled_flags(unsigned long flags)
+{
+	if (flags & 0x0700)
+		return 0;
+	else
+		return 1;
+}
 
 #endif /* _M68KNOMMU_SYSTEM_H */

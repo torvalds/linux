@@ -327,7 +327,10 @@ static void mmap_mem_close(struct vm_area_struct *vma)
 
 static struct vm_operations_struct mmap_mem_ops = {
 	.open  = mmap_mem_open,
-	.close = mmap_mem_close
+	.close = mmap_mem_close,
+#ifdef CONFIG_HAVE_IOREMAP_PROT
+	.access = generic_access_phys
+#endif
 };
 
 static int mmap_mem(struct file * file, struct vm_area_struct * vma)
@@ -989,9 +992,9 @@ static int __init chr_dev_init(void)
 
 	mem_class = class_create(THIS_MODULE, "mem");
 	for (i = 0; i < ARRAY_SIZE(devlist); i++)
-		device_create(mem_class, NULL,
-			      MKDEV(MEM_MAJOR, devlist[i].minor),
-			      devlist[i].name);
+		device_create_drvdata(mem_class, NULL,
+				      MKDEV(MEM_MAJOR, devlist[i].minor),
+				      NULL, devlist[i].name);
 
 	return 0;
 }

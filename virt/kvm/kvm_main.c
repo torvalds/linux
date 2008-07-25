@@ -902,7 +902,7 @@ static const struct file_operations kvm_vcpu_fops = {
  */
 static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 {
-	int fd = anon_inode_getfd("kvm-vcpu", &kvm_vcpu_fops, vcpu);
+	int fd = anon_inode_getfd("kvm-vcpu", &kvm_vcpu_fops, vcpu, 0);
 	if (fd < 0)
 		kvm_put_kvm(vcpu->kvm);
 	return fd;
@@ -1261,7 +1261,7 @@ static int kvm_dev_ioctl_create_vm(void)
 	kvm = kvm_create_vm();
 	if (IS_ERR(kvm))
 		return PTR_ERR(kvm);
-	fd = anon_inode_getfd("kvm-vm", &kvm_vm_fops, kvm);
+	fd = anon_inode_getfd("kvm-vm", &kvm_vm_fops, kvm, 0);
 	if (fd < 0)
 		kvm_put_kvm(kvm);
 

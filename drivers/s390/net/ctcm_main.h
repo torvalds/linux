@@ -22,9 +22,9 @@
 
 #define CTC_DRIVER_NAME	"ctcm"
 #define CTC_DEVICE_NAME	"ctc"
-#define CTC_DEVICE_GENE	"ctc%d"
 #define MPC_DEVICE_NAME	"mpc"
-#define MPC_DEVICE_GENE	"mpc%d"
+#define CTC_DEVICE_GENE CTC_DEVICE_NAME "%d"
+#define MPC_DEVICE_GENE	MPC_DEVICE_NAME "%d"
 
 #define CHANNEL_FLAGS_READ	0
 #define CHANNEL_FLAGS_WRITE	1
@@ -47,6 +47,30 @@
 #define ctcm_pr_emerg(fmt, arg...) printk(KERN_EMERG fmt, ##arg)
 #define ctcm_pr_err(fmt, arg...) printk(KERN_ERR fmt, ##arg)
 #define ctcm_pr_crit(fmt, arg...) printk(KERN_CRIT fmt, ##arg)
+
+#define CTCM_PR_DEBUG(fmt, arg...) \
+	do { \
+		if (do_debug) \
+			printk(KERN_DEBUG fmt, ##arg); \
+	} while (0)
+
+#define	CTCM_PR_DBGDATA(fmt, arg...) \
+	do { \
+		if (do_debug_data) \
+			printk(KERN_DEBUG fmt, ##arg); \
+	} while (0)
+
+#define	CTCM_D3_DUMP(buf, len) \
+	do { \
+		if (do_debug_data) \
+			ctcmpc_dumpit(buf, len); \
+	} while (0)
+
+#define	CTCM_CCW_DUMP(buf, len) \
+	do { \
+		if (do_debug_ccw) \
+			ctcmpc_dumpit(buf, len); \
+	} while (0)
 
 /*
  * CCW commands, used in this driver.
@@ -161,8 +185,9 @@ struct channel {
 	fsm_instance *fsm;	/* finite state machine of this channel */
 	struct net_device *netdev;	/* corresponding net_device */
 	struct ctcm_profile prof;
-	unsigned char *trans_skb_data;
+	__u8 *trans_skb_data;
 	__u16 logflags;
+	__u8  sense_rc; /* last unit check sense code report control */
 };
 
 struct ctcm_priv {

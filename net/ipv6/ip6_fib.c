@@ -661,17 +661,17 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 
 static __inline__ void fib6_start_gc(struct net *net, struct rt6_info *rt)
 {
-	if (net->ipv6.ip6_fib_timer->expires == 0 &&
+	if (!timer_pending(&net->ipv6.ip6_fib_timer) &&
 	    (rt->rt6i_flags & (RTF_EXPIRES|RTF_CACHE)))
-		mod_timer(net->ipv6.ip6_fib_timer, jiffies +
-			  net->ipv6.sysctl.ip6_rt_gc_interval);
+		mod_timer(&net->ipv6.ip6_fib_timer,
+			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
 }
 
 void fib6_force_start_gc(struct net *net)
 {
-	if (net->ipv6.ip6_fib_timer->expires == 0)
-		mod_timer(net->ipv6.ip6_fib_timer, jiffies +
-			  net->ipv6.sysctl.ip6_rt_gc_interval);
+	if (!timer_pending(&net->ipv6.ip6_fib_timer))
+		mod_timer(&net->ipv6.ip6_fib_timer,
+			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
 }
 
 /*
@@ -1447,27 +1447,23 @@ void fib6_run_gc(unsigned long expires, struct net *net)
 		gc_args.timeout = expires ? (int)expires :
 			net->ipv6.sysctl.ip6_rt_gc_interval;
 	} else {
-		local_bh_disable();
-		if (!spin_trylock(&fib6_gc_lock)) {
-			mod_timer(net->ipv6.ip6_fib_timer, jiffies + HZ);
-			local_bh_enable();
+		if (!spin_trylock_bh(&fib6_gc_lock)) {
+			mod_timer(&net->ipv6.ip6_fib_timer, jiffies + HZ);
 			return;
 		}
 		gc_args.timeout = net->ipv6.sysctl.ip6_rt_gc_interval;
 	}
-	gc_args.more = 0;
 
-	icmp6_dst_gc(&gc_args.more);
+	gc_args.more = icmp6_dst_gc();
 
 	fib6_clean_all(net, fib6_age, 0, NULL);
 
 	if (gc_args.more)
-		mod_timer(net->ipv6.ip6_fib_timer, jiffies +
-			  net->ipv6.sysctl.ip6_rt_gc_interval);
-	else {
-		del_timer(net->ipv6.ip6_fib_timer);
-		net->ipv6.ip6_fib_timer->expires = 0;
-	}
+		mod_timer(&net->ipv6.ip6_fib_timer,
+			  round_jiffies(jiffies
+					+ net->ipv6.sysctl.ip6_rt_gc_interval));
+	else
+		del_timer(&net->ipv6.ip6_fib_timer);
 	spin_unlock_bh(&fib6_gc_lock);
 }
 
@@ -1478,24 +1474,15 @@ static void fib6_gc_timer_cb(unsigned long arg)
 
 static int fib6_net_init(struct net *net)
 {
-	int ret;
-	struct timer_list *timer;
-
-	ret = -ENOMEM;
-	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
-	if (!timer)
-		goto out;
-
-	setup_timer(timer, fib6_gc_timer_cb, (unsigned long)net);
-	net->ipv6.ip6_fib_timer = timer;
+	setup_timer(&net->ipv6.ip6_fib_timer, fib6_gc_timer_cb, (unsigned long)net);
 
 	net->ipv6.rt6_stats = kzalloc(sizeof(*net->ipv6.rt6_stats), GFP_KERNEL);
 	if (!net->ipv6.rt6_stats)
 		goto out_timer;
 
-	net->ipv6.fib_table_hash =
-		kzalloc(sizeof(*net->ipv6.fib_table_hash)*FIB_TABLE_HASHSZ,
-			GFP_KERNEL);
+	net->ipv6.fib_table_hash = kcalloc(FIB_TABLE_HASHSZ,
+					   sizeof(*net->ipv6.fib_table_hash),
+					   GFP_KERNEL);
 	if (!net->ipv6.fib_table_hash)
 		goto out_rt6_stats;
 
@@ -1521,9 +1508,7 @@ static int fib6_net_init(struct net *net)
 #endif
 	fib6_tables_init(net);
 
-	ret = 0;
-out:
-	return ret;
+	return 0;
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 out_fib6_main_tbl:
@@ -1534,15 +1519,14 @@ out_fib_table_hash:
 out_rt6_stats:
 	kfree(net->ipv6.rt6_stats);
 out_timer:
-	kfree(timer);
-	goto out;
+	return -ENOMEM;
  }
 
 static void fib6_net_exit(struct net *net)
 {
 	rt6_ifdown(net, NULL);
-	del_timer_sync(net->ipv6.ip6_fib_timer);
-	kfree(net->ipv6.ip6_fib_timer);
+	del_timer_sync(&net->ipv6.ip6_fib_timer);
+
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	kfree(net->ipv6.fib6_local_tbl);
 #endif

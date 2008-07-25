@@ -1840,7 +1840,7 @@ static int sx_fw_ioctl(struct inode *inode, struct file *filp,
 	return rc;
 }
 
-static void sx_break(struct tty_struct *tty, int flag)
+static int sx_break(struct tty_struct *tty, int flag)
 {
 	struct sx_port *port = tty->driver_data;
 	int rv;
@@ -1857,6 +1857,7 @@ static void sx_break(struct tty_struct *tty, int flag)
 			read_sx_byte(port->board, CHAN_OFFSET(port, hi_hstat)));
 	unlock_kernel();
 	func_exit();
+	return 0;
 }
 
 static int sx_tiocmget(struct tty_struct *tty, struct file *file)

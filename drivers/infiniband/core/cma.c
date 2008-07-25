@@ -168,6 +168,12 @@ struct cma_work {
 	struct rdma_cm_event	event;
 };
 
+struct cma_ndev_work {
+	struct work_struct	work;
+	struct rdma_id_private	*id;
+	struct rdma_cm_event	event;
+};
+
 union cma_ip_addr {
 	struct in6_addr ip6;
 	struct {
@@ -914,7 +920,10 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	struct rdma_cm_event event;
 	int ret = 0;
 
-	if (cma_disable_callback(id_priv, CMA_CONNECT))
+	if ((ib_event->event != IB_CM_TIMEWAIT_EXIT &&
+		cma_disable_callback(id_priv, CMA_CONNECT)) ||
+	    (ib_event->event == IB_CM_TIMEWAIT_EXIT &&
+		cma_disable_callback(id_priv, CMA_DISCONNECT)))
 		return 0;
 
 	memset(&event, 0, sizeof event);
@@ -950,6 +959,8 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		event.event = RDMA_CM_EVENT_DISCONNECTED;
 		break;
 	case IB_CM_TIMEWAIT_EXIT:
+		event.event = RDMA_CM_EVENT_TIMEWAIT_EXIT;
+		break;
 	case IB_CM_MRA_RECEIVED:
 		/* ignore event */
 		goto out;
@@ -1590,6 +1601,30 @@ static void cma_work_handler(struct work_struct *_work)
 		cma_exch(id_priv, CMA_DESTROYING);
 		destroy = 1;
 	}
+out:
+	mutex_unlock(&id_priv->handler_mutex);
+	cma_deref_id(id_priv);
+	if (destroy)
+		rdma_destroy_id(&id_priv->id);
+	kfree(work);
+}
+
+static void cma_ndev_work_handler(struct work_struct *_work)
+{
+	struct cma_ndev_work *work = container_of(_work, struct cma_ndev_work, work);
+	struct rdma_id_private *id_priv = work->id;
+	int destroy = 0;
+
+	mutex_lock(&id_priv->handler_mutex);
+	if (id_priv->state == CMA_DESTROYING ||
+	    id_priv->state == CMA_DEVICE_REMOVAL)
+		goto out;
+
+	if (id_priv->id.event_handler(&id_priv->id, &work->event)) {
+		cma_exch(id_priv, CMA_DESTROYING);
+		destroy = 1;
+	}
+
 out:
 	mutex_unlock(&id_priv->handler_mutex);
 	cma_deref_id(id_priv);
@@ -2723,6 +2758,65 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 }
 EXPORT_SYMBOL(rdma_leave_multicast);
 
+static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id_priv)
+{
+	struct rdma_dev_addr *dev_addr;
+	struct cma_ndev_work *work;
+
+	dev_addr = &id_priv->id.route.addr.dev_addr;
+
+	if ((dev_addr->src_dev == ndev) &&
+	    memcmp(dev_addr->src_dev_addr, ndev->dev_addr, ndev->addr_len)) {
+		printk(KERN_INFO "RDMA CM addr change for ndev %s used by id %p\n",
+		       ndev->name, &id_priv->id);
+		work = kzalloc(sizeof *work, GFP_KERNEL);
+		if (!work)
+			return -ENOMEM;
+
+		INIT_WORK(&work->work, cma_ndev_work_handler);
+		work->id = id_priv;
+		work->event.event = RDMA_CM_EVENT_ADDR_CHANGE;
+		atomic_inc(&id_priv->refcount);
+		queue_work(cma_wq, &work->work);
+	}
+
+	return 0;
+}
+
+static int cma_netdev_callback(struct notifier_block *self, unsigned long event,
+			       void *ctx)
+{
+	struct net_device *ndev = (struct net_device *)ctx;
+	struct cma_device *cma_dev;
+	struct rdma_id_private *id_priv;
+	int ret = NOTIFY_DONE;
+
+	if (dev_net(ndev) != &init_net)
+		return NOTIFY_DONE;
+
+	if (event != NETDEV_BONDING_FAILOVER)
+		return NOTIFY_DONE;
+
+	if (!(ndev->flags & IFF_MASTER) || !(ndev->priv_flags & IFF_BONDING))
+		return NOTIFY_DONE;
+
+	mutex_lock(&lock);
+	list_for_each_entry(cma_dev, &dev_list, list)
+		list_for_each_entry(id_priv, &cma_dev->id_list, list) {
+			ret = cma_netdev_change(ndev, id_priv);
+			if (ret)
+				goto out;
+		}
+
+out:
+	mutex_unlock(&lock);
+	return ret;
+}
+
+static struct notifier_block cma_nb = {
+	.notifier_call = cma_netdev_callback
+};
+
 static void cma_add_one(struct ib_device *device)
 {
 	struct cma_device *cma_dev;
@@ -2831,6 +2925,7 @@ static int cma_init(void)
 
 	ib_sa_register_client(&sa_client);
 	rdma_addr_register_client(&addr_client);
+	register_netdevice_notifier(&cma_nb);
 
 	ret = ib_register_client(&cma_client);
 	if (ret)
@@ -2838,6 +2933,7 @@ static int cma_init(void)
 	return 0;
 
 err:
+	unregister_netdevice_notifier(&cma_nb);
 	rdma_addr_unregister_client(&addr_client);
 	ib_sa_unregister_client(&sa_client);
 	destroy_workqueue(cma_wq);
@@ -2847,6 +2943,7 @@ err:
 static void cma_cleanup(void)
 {
 	ib_unregister_client(&cma_client);
+	unregister_netdevice_notifier(&cma_nb);
 	rdma_addr_unregister_client(&addr_client);
 	ib_sa_unregister_client(&sa_client);
 	destroy_workqueue(cma_wq);

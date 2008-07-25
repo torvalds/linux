@@ -564,7 +564,7 @@ update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
  *	partition_sched_domains().
  */
 
-static void rebuild_sched_domains(void)
+void rebuild_sched_domains(void)
 {
 	struct kfifo *q;	/* queue of cpusets to be scanned */
 	struct cpuset *cp;	/* scans q */
@@ -679,7 +679,9 @@ restart:
 				if (apn == b->pn) {
 					cpus_or(*dp, *dp, b->cpus_allowed);
 					b->pn = -1;
-					update_domain_attr(dattr, b);
+					if (dattr)
+						update_domain_attr(dattr
+								   + nslot, b);
 				}
 			}
 			nslot++;

@@ -4067,8 +4067,6 @@ static void e1000_netpoll(struct net_device *netdev)
 	disable_irq(adapter->pdev->irq);
 	e1000_intr(adapter->pdev->irq, netdev);
 
-	e1000_clean_tx_irq(adapter);
-
 	enable_irq(adapter->pdev->irq);
 }
 #endif

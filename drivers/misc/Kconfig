@@ -279,6 +279,8 @@ config THINKPAD_ACPI
 	select INPUT
 	select NEW_LEDS
 	select LEDS_CLASS
+	select NET
+	select RFKILL
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -419,5 +421,18 @@ config SGI_XP
 	  hardware based memory protection from the others.  Enabling
 	  this feature will allow for direct communication between SSIs
 	  based on a network adapter and DMA messaging.
+
+config HP_ILO
+	tristate "Channel interface driver for HP iLO/iLO2 processor"
+	default n
+	help
+	  The channel interface driver allows applications to communicate
+	  with iLO/iLO2 management processors present on HP ProLiant
+	  servers.  Upon loading, the driver creates /dev/hpilo/dXccbN files,
+	  which can be used to gather data from the management processor,
+	  via read and write system calls.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hpilo.
 
 endif # MISC_DEVICES

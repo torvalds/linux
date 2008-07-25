@@ -2230,7 +2230,7 @@ static int tiocmset(struct tty_struct *tty, struct file *file,
  * Arguments:		tty		pointer to tty instance data
  *			break_state	-1=set break condition, 0=clear
  */
-static void mgslpc_break(struct tty_struct *tty, int break_state)
+static int mgslpc_break(struct tty_struct *tty, int break_state)
 {
 	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
@@ -2240,7 +2240,7 @@ static void mgslpc_break(struct tty_struct *tty, int break_state)
 			 __FILE__,__LINE__, info->device_name, break_state);
 
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_break"))
-		return;
+		return -EINVAL;
 
 	spin_lock_irqsave(&info->lock,flags);
  	if (break_state == -1)
@@ -2248,6 +2248,7 @@ static void mgslpc_break(struct tty_struct *tty, int break_state)
 	else
 		clear_reg_bits(info, CHA+DAFO, BIT6);
 	spin_unlock_irqrestore(&info->lock,flags);
+	return 0;
 }
 
 /* Service an IOCTL request

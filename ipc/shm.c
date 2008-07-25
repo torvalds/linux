@@ -577,7 +577,8 @@ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
 
 		if (is_file_hugepages(shp->shm_file)) {
 			struct address_space *mapping = inode->i_mapping;
-			*rss += (HPAGE_SIZE/PAGE_SIZE)*mapping->nrpages;
+			struct hstate *h = hstate_file(shp->shm_file);
+			*rss += pages_per_huge_page(h) * mapping->nrpages;
 		} else {
 			struct shmem_inode_info *info = SHMEM_I(inode);
 			spin_lock(&info->lock);

@@ -848,7 +848,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 
 	ep->res = request_mem_region(pdev->resource[0].start,
 			pdev->resource[0].end - pdev->resource[0].start + 1,
-			pdev->dev.bus_id);
+			dev_name(&pdev->dev));
 	if (ep->res == NULL) {
 		dev_err(&pdev->dev, "Could not reserve memory region\n");
 		err = -ENOMEM;

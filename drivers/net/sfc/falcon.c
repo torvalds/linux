@@ -223,13 +223,8 @@ static struct i2c_algo_bit_data falcon_i2c_bit_operations = {
 	.getsda		= falcon_getsda,
 	.getscl		= falcon_getscl,
 	.udelay		= 5,
-	/*
-	 * This is the number of system clock ticks after which
-	 * i2c-algo-bit gives up waiting for SCL to become high.
-	 * It must be at least 2 since the first tick can happen
-	 * immediately after it starts waiting.
-	 */
-	.timeout	= 2,
+	/* Wait up to 50 ms for slave to let us pull SCL high */
+	.timeout	= DIV_ROUND_UP(HZ, 20),
 };
 
 /**************************************************************************
@@ -2479,12 +2474,11 @@ int falcon_probe_nic(struct efx_nic *efx)
 
 	/* Initialise I2C adapter */
  	efx->i2c_adap.owner = THIS_MODULE;
- 	efx->i2c_adap.class = I2C_CLASS_HWMON;
 	nic_data->i2c_data = falcon_i2c_bit_operations;
 	nic_data->i2c_data.data = efx;
  	efx->i2c_adap.algo_data = &nic_data->i2c_data;
 	efx->i2c_adap.dev.parent = &efx->pci_dev->dev;
-	strcpy(efx->i2c_adap.name, "SFC4000 GPIO");
+	strlcpy(efx->i2c_adap.name, "SFC4000 GPIO", sizeof(efx->i2c_adap.name));
 	rc = i2c_bit_add_bus(&efx->i2c_adap);
 	if (rc)
 		goto fail5;

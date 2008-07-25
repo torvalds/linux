@@ -718,12 +718,12 @@ ip2_loadmain(int *iop, int *irqp)
 			}
 
 			if ( NULL != ( pB = i2BoardPtrTable[i] ) ) {
-				device_create(ip2_class, NULL,
-						MKDEV(IP2_IPL_MAJOR, 4 * i),
-						"ipl%d", i);
-				device_create(ip2_class, NULL,
-						MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
-						"stat%d", i);
+				device_create_drvdata(ip2_class, NULL,
+						      MKDEV(IP2_IPL_MAJOR, 4 * i),
+						      NULL, "ipl%d", i);
+				device_create_drvdata(ip2_class, NULL,
+						      MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
+						      NULL, "stat%d", i);
 
 			    for ( box = 0; box < ABS_MAX_BOXES; ++box )
 			    {

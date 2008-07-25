@@ -96,7 +96,7 @@ void cpu_idle(void)
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while(1) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 
 		while (!need_resched() && !cpu_is_offline(cpu))
 			sparc64_yield(cpu);
@@ -683,9 +683,9 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		  ((unsigned long) child_sf) - STACK_BIAS;
 
 		/* Special case, if we are spawning a kernel thread from
-		 * a userspace task (via KMOD, NFS, or similar) we must
-		 * disable performance counters in the child because the
-		 * address space and protection realm are changing.
+		 * a userspace task (usermode helper, NFS or similar), we
+		 * must disable performance counters in the child because
+		 * the address space and protection realm are changing.
 		 */
 		if (t->flags & _TIF_PERFCTR) {
 			t->user_cntd0 = t->user_cntd1 = NULL;

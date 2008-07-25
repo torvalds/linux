@@ -59,7 +59,6 @@ static void __init ep8248e_pic_init(void)
 	of_node_put(np);
 }
 
-#ifdef CONFIG_FS_ENET_MDIO_FCC
 static void ep8248e_set_mdc(struct mdiobb_ctrl *ctrl, int level)
 {
 	if (level)
@@ -165,7 +164,6 @@ static struct of_platform_driver ep8248e_mdio_driver = {
 	.probe = ep8248e_mdio_probe,
 	.remove = ep8248e_mdio_remove,
 };
-#endif
 
 struct cpm_pin {
 	int port, pin, flags;
@@ -298,9 +296,7 @@ static  __initdata struct of_device_id of_bus_ids[] = {
 static int __init declare_of_platform_devices(void)
 {
 	of_platform_bus_probe(NULL, of_bus_ids, NULL);
-#ifdef CONFIG_FS_ENET_MDIO_FCC
 	of_register_platform_driver(&ep8248e_mdio_driver);
-#endif
 
 	return 0;
 }

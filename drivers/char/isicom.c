@@ -1181,14 +1181,17 @@ static int isicom_chars_in_buffer(struct tty_struct *tty)
 }
 
 /* ioctl et all */
-static inline void isicom_send_break(struct isi_port *port,
-	unsigned long length)
+static int isicom_send_break(struct tty_struct *tty, int length)
 {
+	struct isi_port *port = tty->driver_data;
 	struct isi_board *card = port->card;
 	unsigned long base = card->base;
 
+	if (length == -1)
+		return -EOPNOTSUPP;
+
 	if (!lock_card(card))
-		return;
+		return -EINVAL;
 
 	outw(0x8000 | ((port->channel) << (card->shift_count)) | 0x3, base);
 	outw((length & 0xff) << 8 | 0x00, base);
@@ -1196,6 +1199,7 @@ static inline void isicom_send_break(struct isi_port *port,
 	InterruptTheCard(base);
 
 	unlock_card(card);
+	return 0;
 }
 
 static int isicom_tiocmget(struct tty_struct *tty, struct file *file)
@@ -1305,28 +1309,11 @@ static int isicom_ioctl(struct tty_struct *tty, struct file *filp,
 {
 	struct isi_port *port = tty->driver_data;
 	void __user *argp = (void __user *)arg;
-	int retval;
 
 	if (isicom_paranoia_check(port, tty->name, "isicom_ioctl"))
 		return -ENODEV;
 
 	switch (cmd) {
-	case TCSBRK:
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-		tty_wait_until_sent(tty, 0);
-		if (!arg)
-			isicom_send_break(port, HZ/4);
-		return 0;
-
-	case TCSBRKP:
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-		tty_wait_until_sent(tty, 0);
-		isicom_send_break(port, arg ? arg * (HZ/10) : HZ/4);
-		return 0;
 	case TIOCGSERIAL:
 		return isicom_get_serial_info(port, argp);
 
@@ -1459,6 +1446,7 @@ static const struct tty_operations isicom_ops = {
 	.flush_buffer		= isicom_flush_buffer,
 	.tiocmget		= isicom_tiocmget,
 	.tiocmset		= isicom_tiocmset,
+	.break_ctl		= isicom_send_break,
 };
 
 static int __devinit reset_card(struct pci_dev *pdev,
@@ -1832,7 +1820,7 @@ static int __init isicom_init(void)
 	isicom_normal->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL |
 		CLOCAL;
 	isicom_normal->flags			= TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_DYNAMIC_DEV;
+		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_HARDWARE_BREAK;
 	tty_set_operations(isicom_normal, &isicom_ops);
 
 	retval = tty_register_driver(isicom_normal);

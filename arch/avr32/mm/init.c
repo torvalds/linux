@@ -119,8 +119,7 @@ void __init paging_init(void)
 		unsigned long zones_size[MAX_NR_ZONES];
 		unsigned long low, start_pfn;
 
-		start_pfn = pgdat->bdata->node_boot_start;
-		start_pfn >>= PAGE_SHIFT;
+		start_pfn = pgdat->bdata->node_min_pfn;
 		low = pgdat->bdata->node_low_pfn;
 
 		memset(zones_size, 0, sizeof(zones_size));
@@ -129,7 +128,7 @@ void __init paging_init(void)
 		printk("Node %u: start_pfn = 0x%lx, low = 0x%lx\n",
 		       nid, start_pfn, low);
 
-		free_area_init_node(nid, pgdat, zones_size, start_pfn, NULL);
+		free_area_init_node(nid, zones_size, start_pfn, NULL);
 
 		printk("Node %u: mem_map starts at %p\n",
 		       pgdat->node_id, pgdat->node_mem_map);

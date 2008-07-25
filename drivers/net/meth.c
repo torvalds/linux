@@ -287,7 +287,7 @@ int meth_reset(struct net_device *dev)
 
 	/* Initial mode: 10 | Half-duplex | Accept normal packets */
 	priv->mac_ctrl = METH_ACCEPT_MCAST | METH_DEFAULT_IPG;
-	if (dev->flags | IFF_PROMISC)
+	if (dev->flags & IFF_PROMISC)
 		priv->mac_ctrl |= METH_PROMISC;
 	mace->eth.mac_ctrl = priv->mac_ctrl;
 

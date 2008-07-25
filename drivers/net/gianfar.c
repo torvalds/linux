@@ -134,6 +134,9 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb, int l
 static void gfar_vlan_rx_register(struct net_device *netdev,
 		                struct vlan_group *grp);
 void gfar_halt(struct net_device *dev);
+#ifdef CONFIG_PM
+static void gfar_halt_nodisable(struct net_device *dev);
+#endif
 void gfar_start(struct net_device *dev);
 static void gfar_clear_exact_match(struct net_device *dev);
 static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr);
@@ -207,6 +210,7 @@ static int gfar_probe(struct platform_device *pdev)
 
 	spin_lock_init(&priv->txlock);
 	spin_lock_init(&priv->rxlock);
+	spin_lock_init(&priv->bflock);
 
 	platform_set_drvdata(pdev, dev);
 
@@ -378,6 +382,103 @@ static int gfar_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int gfar_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct gfar_private *priv = netdev_priv(dev);
+	unsigned long flags;
+	u32 tempval;
+
+	int magic_packet = priv->wol_en &&
+		(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
+
+	netif_device_detach(dev);
+
+	if (netif_running(dev)) {
+		spin_lock_irqsave(&priv->txlock, flags);
+		spin_lock(&priv->rxlock);
+
+		gfar_halt_nodisable(dev);
+
+		/* Disable Tx, and Rx if wake-on-LAN is disabled. */
+		tempval = gfar_read(&priv->regs->maccfg1);
+
+		tempval &= ~MACCFG1_TX_EN;
+
+		if (!magic_packet)
+			tempval &= ~MACCFG1_RX_EN;
+
+		gfar_write(&priv->regs->maccfg1, tempval);
+
+		spin_unlock(&priv->rxlock);
+		spin_unlock_irqrestore(&priv->txlock, flags);
+
+#ifdef CONFIG_GFAR_NAPI
+		napi_disable(&priv->napi);
+#endif
+
+		if (magic_packet) {
+			/* Enable interrupt on Magic Packet */
+			gfar_write(&priv->regs->imask, IMASK_MAG);
+
+			/* Enable Magic Packet mode */
+			tempval = gfar_read(&priv->regs->maccfg2);
+			tempval |= MACCFG2_MPEN;
+			gfar_write(&priv->regs->maccfg2, tempval);
+		} else {
+			phy_stop(priv->phydev);
+		}
+	}
+
+	return 0;
+}
+
+static int gfar_resume(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct gfar_private *priv = netdev_priv(dev);
+	unsigned long flags;
+	u32 tempval;
+	int magic_packet = priv->wol_en &&
+		(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
+
+	if (!netif_running(dev)) {
+		netif_device_attach(dev);
+		return 0;
+	}
+
+	if (!magic_packet && priv->phydev)
+		phy_start(priv->phydev);
+
+	/* Disable Magic Packet mode, in case something
+	 * else woke us up.
+	 */
+
+	spin_lock_irqsave(&priv->txlock, flags);
+	spin_lock(&priv->rxlock);
+
+	tempval = gfar_read(&priv->regs->maccfg2);
+	tempval &= ~MACCFG2_MPEN;
+	gfar_write(&priv->regs->maccfg2, tempval);
+
+	gfar_start(dev);
+
+	spin_unlock(&priv->rxlock);
+	spin_unlock_irqrestore(&priv->txlock, flags);
+
+	netif_device_attach(dev);
+
+#ifdef CONFIG_GFAR_NAPI
+	napi_enable(&priv->napi);
+#endif
+
+	return 0;
+}
+#else
+#define gfar_suspend NULL
+#define gfar_resume NULL
+#endif
 
 /* Reads the controller's registers to determine what interface
  * connects it to the PHY.
@@ -534,8 +635,9 @@ static void init_registers(struct net_device *dev)
 }
 
 
+#ifdef CONFIG_PM
 /* Halt the receive and transmit queues */
-void gfar_halt(struct net_device *dev)
+static void gfar_halt_nodisable(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->regs;
@@ -558,6 +660,15 @@ void gfar_halt(struct net_device *dev)
 			 (IEVENT_GRSC | IEVENT_GTSC)))
 			cpu_relax();
 	}
+}
+#endif
+
+/* Halt the receive and transmit queues */
+void gfar_halt(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar __iomem *regs = priv->regs;
+	u32 tempval;
 
 	/* Disable Rx and Tx */
 	tempval = gfar_read(&regs->maccfg1);
@@ -1909,7 +2020,12 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 	u32 events = gfar_read(&priv->regs->ievent);
 
 	/* Clear IEVENT */
-	gfar_write(&priv->regs->ievent, IEVENT_ERR_MASK);
+	gfar_write(&priv->regs->ievent, events & IEVENT_ERR_MASK);
+
+	/* Magic Packet is not an error. */
+	if ((priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
+	    (events & IEVENT_MAG))
+		events &= ~IEVENT_MAG;
 
 	/* Hmm... */
 	if (netif_msg_rx_err(priv) || netif_msg_tx_err(priv))
@@ -1977,6 +2093,8 @@ MODULE_ALIAS("platform:fsl-gianfar");
 static struct platform_driver gfar_driver = {
 	.probe = gfar_probe,
 	.remove = gfar_remove,
+	.suspend = gfar_suspend,
+	.resume = gfar_resume,
 	.driver	= {
 		.name = "fsl-gianfar",
 		.owner = THIS_MODULE,

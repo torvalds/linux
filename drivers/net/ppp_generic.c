@@ -866,7 +866,8 @@ static int __init ppp_init(void)
 			err = PTR_ERR(ppp_class);
 			goto out_chrdev;
 		}
-		device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), "ppp");
+		device_create_drvdata(ppp_class, NULL, MKDEV(PPP_MAJOR, 0),
+				      NULL, "ppp");
 	}
 
 out:

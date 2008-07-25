@@ -64,6 +64,8 @@ void __init cpu_hotplug_init(void)
 	cpu_hotplug.refcount = 0;
 }
 
+cpumask_t cpu_active_map;
+
 #ifdef CONFIG_HOTPLUG_CPU
 
 void get_online_cpus(void)
@@ -291,11 +293,30 @@ int __ref cpu_down(unsigned int cpu)
 	int err = 0;
 
 	cpu_maps_update_begin();
-	if (cpu_hotplug_disabled)
-		err = -EBUSY;
-	else
-		err = _cpu_down(cpu, 0);
 
+	if (cpu_hotplug_disabled) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	cpu_clear(cpu, cpu_active_map);
+
+	/*
+	 * Make sure the all cpus did the reschedule and are not
+	 * using stale version of the cpu_active_map.
+	 * This is not strictly necessary becuase stop_machine()
+	 * that we run down the line already provides the required
+	 * synchronization. But it's really a side effect and we do not
+	 * want to depend on the innards of the stop_machine here.
+	 */
+	synchronize_sched();
+
+	err = _cpu_down(cpu, 0);
+
+	if (cpu_online(cpu))
+		cpu_set(cpu, cpu_active_map);
+
+out:
 	cpu_maps_update_done();
 	return err;
 }
@@ -355,11 +376,18 @@ int __cpuinit cpu_up(unsigned int cpu)
 	}
 
 	cpu_maps_update_begin();
-	if (cpu_hotplug_disabled)
-		err = -EBUSY;
-	else
-		err = _cpu_up(cpu, 0);
 
+	if (cpu_hotplug_disabled) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	err = _cpu_up(cpu, 0);
+
+	if (cpu_online(cpu))
+		cpu_set(cpu, cpu_active_map);
+
+out:
 	cpu_maps_update_done();
 	return err;
 }
@@ -413,7 +441,7 @@ void __ref enable_nonboot_cpus(void)
 		goto out;
 
 	printk("Enabling non-boot CPUs ...\n");
-	for_each_cpu_mask(cpu, frozen_cpus) {
+	for_each_cpu_mask_nr(cpu, frozen_cpus) {
 		error = _cpu_up(cpu, 1);
 		if (!error) {
 			printk("CPU%d is up\n", cpu);

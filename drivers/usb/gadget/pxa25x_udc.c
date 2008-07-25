@@ -152,9 +152,10 @@ static int is_vbus_present(void)
 static void pullup_off(void)
 {
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
+	int off_level = mach->gpio_pullup_inverted;
 
 	if (mach->gpio_pullup)
-		gpio_set_value(mach->gpio_pullup, 0);
+		gpio_set_value(mach->gpio_pullup, off_level);
 	else if (mach->udc_command)
 		mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
 }
@@ -162,9 +163,10 @@ static void pullup_off(void)
 static void pullup_on(void)
 {
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
+	int on_level = !mach->gpio_pullup_inverted;
 
 	if (mach->gpio_pullup)
-		gpio_set_value(mach->gpio_pullup, 1);
+		gpio_set_value(mach->gpio_pullup, on_level);
 	else if (mach->udc_command)
 		mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
 }

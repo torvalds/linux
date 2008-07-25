@@ -36,11 +36,13 @@ static ssize_t node_read_cpumap(struct sys_device *dev, int type, char *buf)
 	return len;
 }
 
-static inline ssize_t node_read_cpumask(struct sys_device *dev, char *buf)
+static inline ssize_t node_read_cpumask(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	return node_read_cpumap(dev, 0, buf);
 }
-static inline ssize_t node_read_cpulist(struct sys_device *dev, char *buf)
+static inline ssize_t node_read_cpulist(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	return node_read_cpumap(dev, 1, buf);
 }
@@ -49,7 +51,8 @@ static SYSDEV_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
 static SYSDEV_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
-static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
+static ssize_t node_read_meminfo(struct sys_device * dev,
+			struct sysdev_attribute *attr, char * buf)
 {
 	int n;
 	int nid = dev->id;
@@ -112,7 +115,8 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 #undef K
 static SYSDEV_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
 
-static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
+static ssize_t node_read_numastat(struct sys_device * dev,
+				struct sysdev_attribute *attr, char * buf)
 {
 	return sprintf(buf,
 		       "numa_hit %lu\n"
@@ -130,7 +134,8 @@ static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
 }
 static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
 
-static ssize_t node_read_distance(struct sys_device * dev, char * buf)
+static ssize_t node_read_distance(struct sys_device * dev,
+			struct sysdev_attribute *attr, char * buf)
 {
 	int nid = dev->id;
 	int len = 0;

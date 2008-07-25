@@ -1302,11 +1302,12 @@ static void capinc_tty_hangup(struct tty_struct *tty)
 #endif
 }
 
-static void capinc_tty_break_ctl(struct tty_struct *tty, int state)
+static int capinc_tty_break_ctl(struct tty_struct *tty, int state)
 {
 #ifdef _DEBUG_TTYFUNCS
 	printk(KERN_DEBUG "capinc_tty_break_ctl(%d)\n", state);
 #endif
+	return 0;
 }
 
 static void capinc_tty_flush_buffer(struct tty_struct *tty)
@@ -1552,7 +1553,8 @@ static int __init capi_init(void)
 		return PTR_ERR(capi_class);
 	}
 
-	device_create(capi_class, NULL, MKDEV(capi_major, 0), "capi");
+	device_create_drvdata(capi_class, NULL, MKDEV(capi_major, 0), NULL,
+			      "capi");
 
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
 	if (capinc_tty_init() < 0) {

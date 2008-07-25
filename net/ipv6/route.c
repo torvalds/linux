@@ -978,13 +978,12 @@ out:
 	return &rt->u.dst;
 }
 
-int icmp6_dst_gc(int *more)
+int icmp6_dst_gc(void)
 {
 	struct dst_entry *dst, *next, **pprev;
-	int freed;
+	int more = 0;
 
 	next = NULL;
-	freed = 0;
 
 	spin_lock_bh(&icmp6_dst_lock);
 	pprev = &icmp6_dst_gc_list;
@@ -993,16 +992,15 @@ int icmp6_dst_gc(int *more)
 		if (!atomic_read(&dst->__refcnt)) {
 			*pprev = dst->next;
 			dst_free(dst);
-			freed++;
 		} else {
 			pprev = &dst->next;
-			(*more)++;
+			++more;
 		}
 	}
 
 	spin_unlock_bh(&icmp6_dst_lock);
 
-	return freed;
+	return more;
 }
 
 static int ip6_dst_gc(struct dst_ops *ops)

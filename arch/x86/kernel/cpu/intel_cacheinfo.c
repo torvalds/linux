@@ -489,7 +489,7 @@ static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
 	int sibling;
 
 	this_leaf = CPUID4_INFO_IDX(cpu, index);
-	for_each_cpu_mask(sibling, this_leaf->shared_cpu_map) {
+	for_each_cpu_mask_nr(sibling, this_leaf->shared_cpu_map) {
 		sibling_leaf = CPUID4_INFO_IDX(sibling, index);	
 		cpu_clear(cpu, sibling_leaf->shared_cpu_map);
 	}
@@ -516,6 +516,7 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 	unsigned long		j;
 	int			retval;
 	cpumask_t		oldmask;
+	cpumask_of_cpu_ptr(newmask, cpu);
 
 	if (num_cache_leaves == 0)
 		return -ENOENT;
@@ -526,7 +527,7 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 		return -ENOMEM;
 
 	oldmask = current->cpus_allowed;
-	retval = set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+	retval = set_cpus_allowed_ptr(current, newmask);
 	if (retval)
 		goto out;
 

@@ -1465,7 +1465,7 @@ static unsigned long m2p(phys_addr_t maddr)
 {
 	phys_addr_t paddr;
 
-	maddr &= PTE_MASK;
+	maddr &= PTE_PFN_MASK;
 	paddr = mfn_to_pfn(maddr >> PAGE_SHIFT) << PAGE_SHIFT;
 
 	return paddr;

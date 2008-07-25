@@ -101,21 +101,6 @@ unsigned long clk_get_rate(struct clk *clk)
 EXPORT_SYMBOL(clk_get_rate);
 
 
-static void clk_gpio27_enable(struct clk *clk)
-{
-	pxa_gpio_mode(GPIO11_3_6MHz_MD);
-}
-
-static void clk_gpio27_disable(struct clk *clk)
-{
-}
-
-static const struct clkops clk_gpio27_ops = {
-	.enable		= clk_gpio27_enable,
-	.disable	= clk_gpio27_disable,
-};
-
-
 void clk_cken_enable(struct clk *clk)
 {
 	CKEN |= 1 << clk->cken;
@@ -131,14 +116,6 @@ const struct clkops clk_cken_ops = {
 	.disable	= clk_cken_disable,
 };
 
-static struct clk common_clks[] = {
-	{
-		.name		= "GPIO27_CLK",
-		.ops		= &clk_gpio27_ops,
-		.rate		= 3686400,
-	},
-};
-
 void clks_register(struct clk *clks, size_t num)
 {
 	int i;
@@ -148,10 +125,3 @@ void clks_register(struct clk *clks, size_t num)
 		list_add(&clks[i].node, &clocks);
 	mutex_unlock(&clocks_mutex);
 }
-
-static int __init clk_init(void)
-{
-	clks_register(common_clks, ARRAY_SIZE(common_clks));
-	return 0;
-}
-arch_initcall(clk_init);

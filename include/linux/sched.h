@@ -295,10 +295,11 @@ extern void softlockup_tick(void);
 extern void spawn_softlockup_task(void);
 extern void touch_softlockup_watchdog(void);
 extern void touch_all_softlockup_watchdogs(void);
-extern unsigned long  softlockup_thresh;
+extern unsigned int  softlockup_panic;
 extern unsigned long sysctl_hung_task_check_count;
 extern unsigned long sysctl_hung_task_timeout_secs;
 extern unsigned long sysctl_hung_task_warnings;
+extern int softlockup_thresh;
 #else
 static inline void softlockup_tick(void)
 {
@@ -824,7 +825,16 @@ extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
 				    struct sched_domain_attr *dattr_new);
 extern int arch_reinit_sched_domains(void);
 
-#endif	/* CONFIG_SMP */
+#else /* CONFIG_SMP */
+
+struct sched_domain_attr;
+
+static inline void
+partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
+			struct sched_domain_attr *dattr_new)
+{
+}
+#endif	/* !CONFIG_SMP */
 
 struct io_context;			/* See blkdev.h */
 #define NGROUPS_SMALL		32
@@ -1972,6 +1982,13 @@ static inline unsigned long *end_of_stack(struct task_struct *p)
 }
 
 #endif
+
+static inline int object_is_on_stack(void *obj)
+{
+	void *stack = task_stack_page(current);
+
+	return (obj >= stack) && (obj < (stack + THREAD_SIZE));
+}
 
 extern void thread_info_cache_init(void);
 

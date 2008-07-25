@@ -1,7 +1,4 @@
 
-config HAVE_ARCH_KGDB_SHADOW_INFO
-	bool
-
 config HAVE_ARCH_KGDB
 	bool
 
