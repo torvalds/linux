@@ -75,6 +75,7 @@
 #define		I5100_FERR_NF_MEM_ANY(a)  ((a) & I5100_FERR_NF_MEM_ANY_MASK)
 #define	I5100_NERR_NF_MEM	0xa4	/* MC Next Non-Fatal Errors */
 #define		I5100_NERR_NF_MEM_ANY(a)  I5100_FERR_NF_MEM_ANY(a)
+#define I5100_EMASK_MEM		0xa8	/* MC Error Mask Register */
 
 /* device 21 and 22, func 0 */
 #define I5100_MTR_0	0x154	/* Memory Technology Registers 0-3 */
@@ -708,6 +709,11 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 		ret = -ENODEV;
 		goto bail;
 	}
+
+	/* enable error reporting... */
+	pci_read_config_dword(pdev, I5100_EMASK_MEM, &dw);
+	dw &= ~I5100_FERR_NF_MEM_ANY_MASK;
+	pci_write_config_dword(pdev, I5100_EMASK_MEM, dw);
 
 	/* device 21, func 0, Channel 0 Memory Map, Error Flag/Mask, etc... */
 	ch0mm = pci_get_device_func(PCI_VENDOR_ID_INTEL,
