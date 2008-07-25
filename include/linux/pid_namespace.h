@@ -85,4 +85,7 @@ static inline struct task_struct *task_child_reaper(struct task_struct *tsk)
 	return tsk->nsproxy->pid_ns->child_reaper;
 }
 
+void pidhash_init(void);
+void pidmap_init(void);
+
 #endif /* _LINUX_PID_NS_H */
