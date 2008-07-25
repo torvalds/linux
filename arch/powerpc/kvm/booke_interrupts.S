@@ -332,7 +332,7 @@ lightweight_exit:
 
 	mfspr	r3, SPRN_PID
 	stw	r3, VCPU_HOST_PID(r4)
-	lwz	r3, VCPU_PID(r4)
+	lwz	r3, VCPU_SHADOW_PID(r4)
 	mtspr	SPRN_PID, r3
 
 	/* Prevent all asynchronous TLB updates. */

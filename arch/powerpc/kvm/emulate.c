@@ -508,7 +508,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			case SPRN_MMUCR:
 				vcpu->arch.mmucr = vcpu->arch.gpr[rs]; break;
 			case SPRN_PID:
-				vcpu->arch.pid = vcpu->arch.gpr[rs]; break;
+				kvmppc_set_pid(vcpu, vcpu->arch.gpr[rs]); break;
 			case SPRN_CCR0:
 				vcpu->arch.ccr0 = vcpu->arch.gpr[rs]; break;
 			case SPRN_CCR1:

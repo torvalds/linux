@@ -129,7 +129,11 @@ struct kvm_vcpu_arch {
 	u32 ivor[16];
 	u32 ivpr;
 	u32 pir;
+
+	u32 shadow_pid;
 	u32 pid;
+	u32 swap_pid;
+
 	u32 pvr;
 	u32 ccr0;
 	u32 ccr1;

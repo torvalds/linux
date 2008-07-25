@@ -170,7 +170,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 
 	/* XXX what about AS? */
 
-	stlbe->tid = asid & 0xff;
+	stlbe->tid = !(asid & 0xff);
 
 	/* Force TS=1 for all guest mappings. */
 	/* For now we hardcode 4KB mappings, but it will be important to
@@ -190,7 +190,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
                            gva_t eend, u32 asid)
 {
-	unsigned int pid = asid & 0xff;
+	unsigned int pid = !(asid & 0xff);
 	int i;
 
 	/* XXX Replace loop with fancy data structures. */
@@ -222,23 +222,30 @@ void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	up_write(&current->mm->mmap_sem);
 }
 
-/* Invalidate all mappings, so that when they fault back in they will get the
- * proper permission bits. */
+/* Invalidate all mappings on the privilege switch after PID has been changed.
+ * The guest always runs with PID=1, so we must clear the entire TLB when
+ * switching address spaces. */
 void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
 {
 	int i;
 
-	/* XXX Replace loop with fancy data structures. */
-	down_write(&current->mm->mmap_sem);
-	for (i = 0; i <= tlb_44x_hwater; i++) {
-		struct tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
+	if (vcpu->arch.swap_pid) {
+		/* XXX Replace loop with fancy data structures. */
+		down_write(&current->mm->mmap_sem);
+		for (i = 0; i <= tlb_44x_hwater; i++) {
+			struct tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
 
-		kvmppc_44x_shadow_release(vcpu, i);
-		stlbe->word0 = 0;
-		kvmppc_tlbe_set_modified(vcpu, i);
-		KVMTRACE_5D(STLB_INVAL, vcpu, i,
-				stlbe->tid, stlbe->word0, stlbe->word1,
-				stlbe->word2, handler);
+			/* Future optimization: clear only userspace mappings. */
+			kvmppc_44x_shadow_release(vcpu, i);
+			stlbe->word0 = 0;
+			kvmppc_tlbe_set_modified(vcpu, i);
+			KVMTRACE_5D(STLB_INVAL, vcpu, i,
+			            stlbe->tid, stlbe->word0, stlbe->word1,
+			            stlbe->word2, handler);
+		}
+		up_write(&current->mm->mmap_sem);
+		vcpu->arch.swap_pid = 0;
 	}
-	up_write(&current->mm->mmap_sem);
+
+	vcpu->arch.shadow_pid = !usermode;
 }

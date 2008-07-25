@@ -369,7 +369,7 @@ int main(void)
 	DEFINE(VCPU_SPRG5, offsetof(struct kvm_vcpu, arch.sprg5));
 	DEFINE(VCPU_SPRG6, offsetof(struct kvm_vcpu, arch.sprg6));
 	DEFINE(VCPU_SPRG7, offsetof(struct kvm_vcpu, arch.sprg7));
-	DEFINE(VCPU_PID, offsetof(struct kvm_vcpu, arch.pid));
+	DEFINE(VCPU_SHADOW_PID, offsetof(struct kvm_vcpu, arch.shadow_pid));
 
 	DEFINE(VCPU_LAST_INST, offsetof(struct kvm_vcpu, arch.last_inst));
 	DEFINE(VCPU_FAULT_DEAR, offsetof(struct kvm_vcpu, arch.fault_dear));
