@@ -263,8 +263,8 @@ int ubifs_calc_min_idx_lebs(struct ubifs_info *c)
 
 	idx_size = c->old_idx_sz + c->budg_idx_growth + c->budg_uncommitted_idx;
 
-	/* And make sure we have twice the index size of space reserved */
-	idx_size <<= 1;
+	/* And make sure we have trice the index size of space reserved */
+	idx_size = idx_size + (idx_size << 1);
 
 	/*
 	 * We do not maintain 'old_idx_size' as 'old_idx_lebs'/'old_idx_bytes'
@@ -388,11 +388,11 @@ static int can_use_rp(struct ubifs_info *c)
  * This function makes sure UBIFS has enough free eraseblocks for index growth
  * and data.
  *
- * When budgeting index space, UBIFS reserves twice as more LEBs as the index
+ * When budgeting index space, UBIFS reserves trice as more LEBs as the index
  * would take if it was consolidated and written to the flash. This guarantees
  * that the "in-the-gaps" commit method always succeeds and UBIFS will always
  * be able to commit dirty index. So this function basically adds amount of
- * budgeted index space to the size of the current index, multiplies this by 2,
+ * budgeted index space to the size of the current index, multiplies this by 3,
  * and makes sure this does not exceed the amount of free eraseblocks.
  *
  * Notes about @c->min_idx_lebs and @c->lst.idx_lebs variables:

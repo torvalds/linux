@@ -308,7 +308,7 @@ static inline long long ubifs_reported_space(const struct ubifs_info *c,
 {
 	int divisor, factor;
 
-	divisor = UBIFS_MAX_DATA_NODE_SZ + (c->max_idx_node_sz << 1);
+	divisor = UBIFS_MAX_DATA_NODE_SZ + (c->max_idx_node_sz * 3);
 	factor = UBIFS_MAX_DATA_NODE_SZ - UBIFS_DATA_NODE_SZ;
 	do_div(free, divisor);
 
