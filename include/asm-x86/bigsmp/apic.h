@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MACH_BIGSMP__MACH_APIC_H
-#define ASM_X86__MACH_BIGSMP__MACH_APIC_H
+#ifndef __ASM_MACH_APIC_H
+#define __ASM_MACH_APIC_H
 
 #define xapic_phys_to_log_apicid(cpu) (per_cpu(x86_bios_cpu_apicid, cpu))
 #define esr_disable (1)
@@ -11,7 +11,7 @@ static inline int apic_id_registered(void)
 
 /* Round robin the irqs amoung the online cpus */
 static inline cpumask_t target_cpus(void)
-{ 
+{
 	static unsigned long cpu = NR_CPUS;
 	do {
 		if (cpu >= NR_CPUS)
@@ -23,7 +23,7 @@ static inline cpumask_t target_cpus(void)
 }
 
 #undef APIC_DEST_LOGICAL
-#define APIC_DEST_LOGICAL 	0
+#define APIC_DEST_LOGICAL	0
 #define TARGET_CPUS		(target_cpus())
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
 #define INT_DELIVERY_MODE	(dest_Fixed)
@@ -141,4 +141,4 @@ static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
 	return cpuid_apic >> index_msb;
 }
 
-#endif /* ASM_X86__MACH_BIGSMP__MACH_APIC_H */
+#endif /* __ASM_MACH_APIC_H */
