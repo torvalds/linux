@@ -1,5 +1,8 @@
 #ifndef _LINUX_VIRTIO_CONFIG_H
 #define _LINUX_VIRTIO_CONFIG_H
+/* This header, excluding the #ifdef __KERNEL__ part, is BSD licensed so
+ * anyone can use the definitions to implement compatible drivers/servers. */
+
 /* Virtio devices use a standardized configuration space to define their
  * features and pass configuration information, but each implementation can
  * store and access that space differently. */
