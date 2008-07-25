@@ -499,10 +499,16 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 		if (!size)
 			continue;
 		if (from + size > get_capacity(disk)) {
-			printk(" %s: p%d exceeds device capacity\n",
+			printk(KERN_ERR " %s: p%d exceeds device capacity\n",
 				disk->disk_name, p);
+			continue;
 		}
-		add_partition(disk, p, from, size, state->parts[p].flags);
+		res = add_partition(disk, p, from, size, state->parts[p].flags);
+		if (res) {
+			printk(KERN_ERR " %s: p%d could not be added: %d\n",
+				disk->disk_name, p, -res);
+			continue;
+		}
 #ifdef CONFIG_BLK_DEV_MD
 		if (state->parts[p].flags & ADDPART_FLAG_RAID)
 			md_autodetect_dev(bdev->bd_dev+p);
