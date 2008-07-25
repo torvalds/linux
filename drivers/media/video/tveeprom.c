@@ -34,7 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/i2c.h>
 
 #include <media/tuner.h>
