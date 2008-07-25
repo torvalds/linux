@@ -78,6 +78,7 @@ struct  seminfo {
 
 #ifdef __KERNEL__
 #include <asm/atomic.h>
+#include <linux/rcupdate.h>
 
 struct task_struct;
 
@@ -114,7 +115,10 @@ struct sem_queue {
  * when the process exits.
  */
 struct sem_undo {
-	struct list_head	list_proc;	/* per-process list: all undos from one process */
+	struct list_head	list_proc;	/* per-process list: all undos from one process. */
+						/* rcu protected */
+	struct rcu_head		rcu;		/* rcu struct for sem_undo() */
+	struct sem_undo_list	*ulp;		/* sem_undo_list for the process */
 	struct list_head	list_id;	/* per semaphore array list: all undos for one array */
 	int			semid;		/* semaphore set identifier */
 	short *			semadj;		/* array of adjustments, one per semaphore */
