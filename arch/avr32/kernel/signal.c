@@ -19,6 +19,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/ucontext.h>
+#include <asm/syscalls.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
