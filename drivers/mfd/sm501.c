@@ -996,12 +996,13 @@ static int __devinit sm501_gpio_register_chip(struct sm501_devdata *sm,
 {
 	struct sm501_platdata *pdata = sm->platdata;
 	struct gpio_chip *gchip = &chip->gpio;
-	unsigned base = pdata->gpio_base;
+	int base = pdata->gpio_base;
 
 	memcpy(chip, &gpio_chip_template, sizeof(struct gpio_chip));
 
 	if (chip == &gpio->high) {
-		base += 32;
+		if (base > 0)
+			base += 32;
 		chip->regbase = gpio->regs + SM501_GPIO_DATA_HIGH;
 		gchip->label  = "SM501-HIGH";
 	} else {
@@ -1452,6 +1453,7 @@ static struct sm501_platdata_fb sm501_fb_pdata = {
 static struct sm501_platdata sm501_pci_platdata = {
 	.init		= &sm501_pci_initdata,
 	.fb		= &sm501_fb_pdata,
+	.gpio_base	= -1,
 };
 
 static int sm501_pci_probe(struct pci_dev *dev,

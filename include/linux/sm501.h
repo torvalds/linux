@@ -156,7 +156,7 @@ struct sm501_platdata {
 	struct sm501_platdata_fb	*fb;
 
 	int				 flags;
-	unsigned			 gpio_base;
+	int				 gpio_base;
 
 	int	(*get_power)(struct device *dev);
 	int	(*set_power)(struct device *dev, unsigned int on);
