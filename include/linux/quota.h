@@ -135,6 +135,10 @@ struct if_dqinfo {
 #define QUOTA_NL_BHARDWARN 4		/* Block hardlimit reached */
 #define QUOTA_NL_BSOFTLONGWARN 5	/* Block grace time expired */
 #define QUOTA_NL_BSOFTWARN 6		/* Block softlimit reached */
+#define QUOTA_NL_IHARDBELOW 7		/* Usage got below inode hardlimit */
+#define QUOTA_NL_ISOFTBELOW 8		/* Usage got below inode softlimit */
+#define QUOTA_NL_BHARDBELOW 9		/* Usage got below block hardlimit */
+#define QUOTA_NL_BSOFTBELOW 10		/* Usage got below block softlimit */
 
 enum {
 	QUOTA_NL_C_UNSPEC,
