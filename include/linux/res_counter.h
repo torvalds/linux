@@ -63,9 +63,14 @@ u64 res_counter_read_u64(struct res_counter *counter, int member);
 ssize_t res_counter_read(struct res_counter *counter, int member,
 		const char __user *buf, size_t nbytes, loff_t *pos,
 		int (*read_strategy)(unsigned long long val, char *s));
-ssize_t res_counter_write(struct res_counter *counter, int member,
-		const char __user *buf, size_t nbytes, loff_t *pos,
-		int (*write_strategy)(char *buf, unsigned long long *val));
+
+typedef int (*write_strategy_fn)(const char *buf, unsigned long long *val);
+
+int res_counter_memparse_write_strategy(const char *buf,
+					unsigned long long *res);
+
+int res_counter_write(struct res_counter *counter, int member,
+		      const char *buffer, write_strategy_fn write_strategy);
 
 /*
  * the field descriptors. one for each member of res_counter
