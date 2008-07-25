@@ -64,7 +64,6 @@ obj-$(CONFIG_BRIQ_PANEL)	+= briq_panel.o
 obj-$(CONFIG_BFIN_OTP)		+= bfin-otp.o
 
 obj-$(CONFIG_PRINTER)		+= lp.o
-obj-$(CONFIG_TIPAR)		+= tipar.o
 
 obj-$(CONFIG_APM_EMULATION)	+= apm-emulation.o
 

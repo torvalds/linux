@@ -2159,13 +2159,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			<deci-seconds>: poll all this frequency
 			0: no polling (default)
 
-	tipar.timeout=	[HW,PPT]
-			Set communications timeout in tenths of a second
-			(default 15).
-
-	tipar.delay=	[HW,PPT]
-			Set inter-bit delay in microseconds (default 10).
-
 	tmscsim=	[HW,SCSI]
 			See comment before function dc390_setup() in
 			drivers/scsi/tmscsim.c.
