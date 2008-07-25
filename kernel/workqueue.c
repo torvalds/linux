@@ -125,7 +125,7 @@ struct cpu_workqueue_struct *get_wq_data(struct work_struct *work)
 }
 
 static void insert_work(struct cpu_workqueue_struct *cwq,
-				struct work_struct *work, int tail)
+			struct work_struct *work, struct list_head *head)
 {
 	set_wq_data(work, cwq);
 	/*
@@ -133,10 +133,7 @@ static void insert_work(struct cpu_workqueue_struct *cwq,
 	 * result of list_add() below, see try_to_grab_pending().
 	 */
 	smp_wmb();
-	if (tail)
-		list_add_tail(&work->entry, &cwq->worklist);
-	else
-		list_add(&work->entry, &cwq->worklist);
+	list_add_tail(&work->entry, head);
 	wake_up(&cwq->more_work);
 }
 
@@ -146,7 +143,7 @@ static void __queue_work(struct cpu_workqueue_struct *cwq,
 	unsigned long flags;
 
 	spin_lock_irqsave(&cwq->lock, flags);
-	insert_work(cwq, work, 1);
+	insert_work(cwq, work, &cwq->worklist);
 	spin_unlock_irqrestore(&cwq->lock, flags);
 }
 
@@ -361,14 +358,14 @@ static void wq_barrier_func(struct work_struct *work)
 }
 
 static void insert_wq_barrier(struct cpu_workqueue_struct *cwq,
-					struct wq_barrier *barr, int tail)
+			struct wq_barrier *barr, struct list_head *head)
 {
 	INIT_WORK(&barr->work, wq_barrier_func);
 	__set_bit(WORK_STRUCT_PENDING, work_data_bits(&barr->work));
 
 	init_completion(&barr->done);
 
-	insert_work(cwq, &barr->work, tail);
+	insert_work(cwq, &barr->work, head);
 }
 
 static int flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
@@ -388,7 +385,7 @@ static int flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 		active = 0;
 		spin_lock_irq(&cwq->lock);
 		if (!list_empty(&cwq->worklist) || cwq->current_work != NULL) {
-			insert_wq_barrier(cwq, &barr, 1);
+			insert_wq_barrier(cwq, &barr, &cwq->worklist);
 			active = 1;
 		}
 		spin_unlock_irq(&cwq->lock);
@@ -473,7 +470,7 @@ static void wait_on_cpu_work(struct cpu_workqueue_struct *cwq,
 
 	spin_lock_irq(&cwq->lock);
 	if (unlikely(cwq->current_work == work)) {
-		insert_wq_barrier(cwq, &barr, 0);
+		insert_wq_barrier(cwq, &barr, cwq->worklist.next);
 		running = 1;
 	}
 	spin_unlock_irq(&cwq->lock);
