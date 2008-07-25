@@ -2211,7 +2211,7 @@ rescan_last_byte:
 			c = 0xfffd;
 		    tc = c;
 		} else {	/* no utf or alternate charset mode */
-		    tc = vc->vc_translate[vc->vc_toggle_meta ? (c | 0x80) : c];
+		    tc = vc_translate(vc, c);
 		}
 
 		param.c = tc;

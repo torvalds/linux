@@ -36,6 +36,14 @@ config VT
 	  If unsure, say Y, or else you won't be able to do much with your new
 	  shiny Linux system :-)
 
+config CONSOLE_TRANSLATIONS
+	depends on VT
+	default y
+	bool "Enable character translations in console" if EMBEDDED
+	---help---
+	  This enables support for font mapping and Unicode translation
+	  on virtual consoles.
+
 config VT_CONSOLE
 	bool "Support for console on virtual terminal" if EMBEDDED
 	depends on VT
