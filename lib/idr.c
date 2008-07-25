@@ -6,6 +6,8 @@
  * Modified by George Anzinger to reuse immediately and to use
  * find bit instructions.  Also removed _irq on spinlocks.
  *
+ * Modified by Nadia Derbey to make it RCU safe.
+ *
  * Small id to pointer translation service.
  *
  * It uses a radix tree like structure as a sparse array indexed
@@ -96,7 +98,7 @@ static void idr_mark_full(struct idr_layer **pa, int id)
  * @gfp_mask:	memory allocation flags
  *
  * This function should be called prior to locking and calling the
- * following function.  It preallocates enough memory to satisfy
+ * idr_get_new* functions. It preallocates enough memory to satisfy
  * the worst possible allocation.
  *
  * If the system is REALLY out of memory this function returns 0,
@@ -170,7 +172,7 @@ static int sub_alloc(struct idr *idp, int *starting_id, struct idr_layer **pa)
 			new = get_from_free_list(idp);
 			if (!new)
 				return -1;
-			p->ary[m] = new;
+			rcu_assign_pointer(p->ary[m], new);
 			p->count++;
 		}
 		pa[l--] = p;
@@ -226,7 +228,7 @@ build_up:
 			__set_bit(0, &new->bitmap);
 		p = new;
 	}
-	idp->top = p;
+	rcu_assign_pointer(idp->top, p);
 	idp->layers = layers;
 	v = sub_alloc(idp, &id, pa);
 	if (v == IDR_NEED_TO_GROW)
@@ -245,7 +247,8 @@ static int idr_get_new_above_int(struct idr *idp, void *ptr, int starting_id)
 		 * Successfully found an empty slot.  Install the user
 		 * pointer and mark the slot full.
 		 */
-		pa[0]->ary[id & IDR_MASK] = (struct idr_layer *)ptr;
+		rcu_assign_pointer(pa[0]->ary[id & IDR_MASK],
+				(struct idr_layer *)ptr);
 		pa[0]->count++;
 		idr_mark_full(pa, id);
 	}
@@ -710,7 +713,8 @@ int ida_get_new_above(struct ida *ida, int starting_id, int *p_id)
 			return -EAGAIN;
 
 		memset(bitmap, 0, sizeof(struct ida_bitmap));
-		pa[0]->ary[idr_id & IDR_MASK] = (void *)bitmap;
+		rcu_assign_pointer(pa[0]->ary[idr_id & IDR_MASK],
+				(void *)bitmap);
 		pa[0]->count++;
 	}
 
