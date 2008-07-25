@@ -106,6 +106,11 @@ extern asmlinkage void smp_error_interrupt(void);
 extern void smp_reschedule_interrupt(struct pt_regs *);
 extern void smp_call_function_interrupt(struct pt_regs *);
 extern void smp_call_function_single_interrupt(struct pt_regs *);
+#ifdef CONFIG_X86_32
+extern void smp_invalidate_interrupt(struct pt_regs *);
+#else
+extern asmlinkage void smp_invalidate_interrupt(struct pt_regs *);
+#endif
 #endif
 
 #ifdef CONFIG_X86_32
