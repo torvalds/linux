@@ -105,7 +105,7 @@ static void __init jmr3927_mem_setup(void)
 	/* initialize board */
 	jmr3927_board_init();
 
-	tx3927_setup_serial(1 << 1); /* ch1: noCTS */
+	tx3927_sio_init(0, 1 << 1); /* ch1: noCTS */
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
 	argptr = prom_getcmdline();
 	if (!strstr(argptr, "console="))

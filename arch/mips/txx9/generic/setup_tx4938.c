@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/serial_core.h>
 #include <linux/param.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
@@ -238,11 +237,9 @@ void __init tx4938_time_init(unsigned int tmrnr)
 				     TXX9_IMCLK);
 }
 
-void __init tx4938_setup_serial(void)
+void __init tx4938_sio_init(unsigned int sclk, unsigned int cts_mask)
 {
-#ifdef CONFIG_SERIAL_TXX9
 	int i;
-	struct uart_port req;
 	unsigned int ch_mask = 0;
 
 	if (__raw_readq(&tx4938_ccfgptr->pcfg) & TX4938_PCFG_ETH0_SEL)
@@ -250,17 +247,10 @@ void __init tx4938_setup_serial(void)
 	for (i = 0; i < 2; i++) {
 		if ((1 << i) & ch_mask)
 			continue;
-		memset(&req, 0, sizeof(req));
-		req.line = i;
-		req.iotype = UPIO_MEM;
-		req.membase = (unsigned char __iomem *)TX4938_SIO_REG(i);
-		req.mapbase = TX4938_SIO_REG(i) & 0xfffffffffULL;
-		req.irq = TXX9_IRQ_BASE + TX4938_IR_SIO(i);
-		req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
-		req.uartclk = TXX9_IMCLK;
-		early_serial_txx9_setup(&req);
+		txx9_sio_init(TX4938_SIO_REG(i) & 0xfffffffffULL,
+			      TXX9_IRQ_BASE + TX4938_IR_SIO(i),
+			      i, sclk, (1 << i) & cts_mask);
 	}
-#endif /* CONFIG_SERIAL_TXX9 */
 }
 
 void __init tx4938_spi_init(int busid)

@@ -13,8 +13,8 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/serial_core.h>
 #include <linux/param.h>
+#include <linux/io.h>
 #include <asm/mipsregs.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
@@ -119,23 +119,12 @@ void __init tx3927_time_init(unsigned int evt_tmrnr, unsigned int src_tmrnr)
 	txx9_clocksource_init(TX3927_TMR_REG(src_tmrnr), TXX9_IMCLK);
 }
 
-void __init tx3927_setup_serial(unsigned int cts_mask)
+void __init tx3927_sio_init(unsigned int sclk, unsigned int cts_mask)
 {
-#ifdef CONFIG_SERIAL_TXX9
 	int i;
-	struct uart_port req;
 
-	for (i = 0; i < 2; i++) {
-		memset(&req, 0, sizeof(req));
-		req.line = i;
-		req.iotype = UPIO_MEM;
-		req.membase = (unsigned char __iomem *)TX3927_SIO_REG(i);
-		req.mapbase = TX3927_SIO_REG(i);
-		req.irq = TXX9_IRQ_BASE + TX3927_IR_SIO(i);
-		if (!((1 << i) & cts_mask))
-			req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
-		req.uartclk = TXX9_IMCLK;
-		early_serial_txx9_setup(&req);
-	}
-#endif /* CONFIG_SERIAL_TXX9 */
+	for (i = 0; i < 2; i++)
+		txx9_sio_init(TX3927_SIO_REG(i),
+			      TXX9_IRQ_BASE + TX3927_IR_SIO(i),
+			      i, sclk, (1 << i) & cts_mask);
 }

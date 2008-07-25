@@ -165,7 +165,7 @@ static void __init rbtx4938_mem_setup(void)
 	set_io_port_base(RBTX4938_ETHER_BASE);
 #endif
 
-	tx4938_setup_serial();
+	tx4938_sio_init(7372800, 0);
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
 	argptr = prom_getcmdline();
 	if (!strstr(argptr, "console="))

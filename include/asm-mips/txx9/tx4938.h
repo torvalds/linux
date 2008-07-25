@@ -279,7 +279,7 @@ struct tx4938_ccfg_reg {
 void tx4938_wdt_init(void);
 void tx4938_setup(void);
 void tx4938_time_init(unsigned int tmrnr);
-void tx4938_setup_serial(void);
+void tx4938_sio_init(unsigned int sclk, unsigned int cts_mask);
 void tx4938_spi_init(int busid);
 void tx4938_ethaddr_init(unsigned char *addr0, unsigned char *addr1);
 int tx4938_report_pciclk(void);

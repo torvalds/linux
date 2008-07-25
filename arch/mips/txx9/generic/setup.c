@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/serial_core.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
@@ -245,6 +246,29 @@ void __init txx9_ethaddr_init(unsigned int id, unsigned char *ethaddr)
 	    platform_device_add_data(pdev, ethaddr, 6) ||
 	    platform_device_add(pdev))
 		platform_device_put(pdev);
+}
+
+void __init txx9_sio_init(unsigned long baseaddr, int irq,
+			  unsigned int line, unsigned int sclk, int nocts)
+{
+#ifdef CONFIG_SERIAL_TXX9
+	struct uart_port req;
+
+	memset(&req, 0, sizeof(req));
+	req.line = line;
+	req.iotype = UPIO_MEM;
+	req.membase = ioremap(baseaddr, 0x24);
+	req.mapbase = baseaddr;
+	req.irq = irq;
+	if (!nocts)
+		req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
+	if (sclk) {
+		req.flags |= UPF_MAGIC_MULTIPLIER /*USE_SCLK*/;
+		req.uartclk = sclk;
+	} else
+		req.uartclk = TXX9_IMCLK;
+	early_serial_txx9_setup(&req);
+#endif /* CONFIG_SERIAL_TXX9 */
 }
 
 /* wrappers */

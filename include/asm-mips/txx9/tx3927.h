@@ -331,7 +331,7 @@ struct tx3927_ccfg_reg {
 void tx3927_wdt_init(void);
 void tx3927_setup(void);
 void tx3927_time_init(unsigned int evt_tmrnr, unsigned int src_tmrnr);
-void tx3927_setup_serial(unsigned int cts_mask);
+void tx3927_sio_init(unsigned int sclk, unsigned int cts_mask);
 struct pci_controller;
 void tx3927_pcic_setup(struct pci_controller *channel,
 		       unsigned long sdram_size, int extarb);

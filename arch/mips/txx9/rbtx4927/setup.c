@@ -212,7 +212,7 @@ static void __init rbtx4927_mem_setup(void)
 	set_io_port_base(KSEG1 + RBTX4927_ISA_IO_OFFSET);
 #endif
 
-	tx4927_setup_serial();
+	tx4927_sio_init(0, 0);
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
 	argptr = prom_getcmdline();
 	if (!strstr(argptr, "console="))
