@@ -18,6 +18,7 @@
  */
 #include <linux/virtio.h>
 #include <linux/virtio_ring.h>
+#include <linux/virtio_config.h>
 #include <linux/device.h>
 
 #ifdef DEBUG
@@ -322,5 +323,20 @@ void vring_del_virtqueue(struct virtqueue *vq)
 	kfree(to_vvq(vq));
 }
 EXPORT_SYMBOL_GPL(vring_del_virtqueue);
+
+/* Manipulates transport-specific feature bits. */
+void vring_transport_features(struct virtio_device *vdev)
+{
+	unsigned int i;
+
+	for (i = VIRTIO_TRANSPORT_F_START; i < VIRTIO_TRANSPORT_F_END; i++) {
+		switch (i) {
+		default:
+			/* We don't understand this bit. */
+			clear_bit(i, vdev->features);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(vring_transport_features);
 
 MODULE_LICENSE("GPL");

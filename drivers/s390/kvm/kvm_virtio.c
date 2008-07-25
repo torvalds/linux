@@ -95,6 +95,9 @@ static void kvm_finalize_features(struct virtio_device *vdev)
 	/* Second half of bitmap is features we accept. */
 	u8 *out_features = kvm_vq_features(desc) + desc->feature_len;
 
+	/* Give virtio_ring a chance to accept features. */
+	vring_transport_features(vdev);
+
 	memset(out_features, 0, desc->feature_len);
 	bits = min_t(unsigned, desc->feature_len, sizeof(vdev->features)) * 8;
 	for (i = 0; i < bits; i++) {
