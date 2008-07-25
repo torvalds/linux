@@ -11,10 +11,12 @@
 #define _LINUX_QUOTAOPS_
 
 #include <linux/smp_lock.h>
-
 #include <linux/fs.h>
 
-#define sb_dqopt(sb) (&(sb)->s_dquot)
+static inline struct quota_info *sb_dqopt(struct super_block *sb)
+{
+	return &sb->s_dquot;
+}
 
 #if defined(CONFIG_QUOTA)
 
@@ -54,24 +56,40 @@ void vfs_dq_drop(struct inode *inode);
 int vfs_dq_transfer(struct inode *inode, struct iattr *iattr);
 int vfs_dq_quota_on_remount(struct super_block *sb);
 
-#define sb_dqinfo(sb, type) (sb_dqopt(sb)->info+(type))
+static inline struct mem_dqinfo *sb_dqinfo(struct super_block *sb, int type)
+{
+	return sb_dqopt(sb)->info + type;
+}
 
 /*
  * Functions for checking status of quota
  */
 
-#define sb_has_quota_enabled(sb, type) ((type)==USRQUOTA ? \
-	(sb_dqopt(sb)->flags & DQUOT_USR_ENABLED) : (sb_dqopt(sb)->flags & DQUOT_GRP_ENABLED))
+static inline int sb_has_quota_enabled(struct super_block *sb, int type)
+{
+	if (type == USRQUOTA)
+		return sb_dqopt(sb)->flags & DQUOT_USR_ENABLED;
+	return sb_dqopt(sb)->flags & DQUOT_GRP_ENABLED;
+}
 
-#define sb_any_quota_enabled(sb) (sb_has_quota_enabled(sb, USRQUOTA) | \
-				  sb_has_quota_enabled(sb, GRPQUOTA))
+static inline int sb_any_quota_enabled(struct super_block *sb)
+{
+	return sb_has_quota_enabled(sb, USRQUOTA) ||
+		sb_has_quota_enabled(sb, GRPQUOTA);
+}
 
-#define sb_has_quota_suspended(sb, type) \
-	((type) == USRQUOTA ? (sb_dqopt(sb)->flags & DQUOT_USR_SUSPENDED) : \
-			      (sb_dqopt(sb)->flags & DQUOT_GRP_SUSPENDED))
+static inline int sb_has_quota_suspended(struct super_block *sb, int type)
+{
+	if (type == USRQUOTA)
+		return sb_dqopt(sb)->flags & DQUOT_USR_SUSPENDED;
+	return sb_dqopt(sb)->flags & DQUOT_GRP_SUSPENDED;
+}
 
-#define sb_any_quota_suspended(sb) (sb_has_quota_suspended(sb, USRQUOTA) | \
-				  sb_has_quota_suspended(sb, GRPQUOTA))
+static inline int sb_any_quota_suspended(struct super_block *sb)
+{
+	return sb_has_quota_suspended(sb, USRQUOTA) ||
+		sb_has_quota_suspended(sb, GRPQUOTA);
+}
 
 /*
  * Operations supported for diskquotas.
@@ -180,10 +198,25 @@ static inline int vfs_dq_off(struct super_block *sb, int remount)
 
 #else
 
-#define sb_has_quota_enabled(sb, type) 0
-#define sb_any_quota_enabled(sb) 0
-#define sb_has_quota_suspended(sb, type) 0
-#define sb_any_quota_suspended(sb) 0
+static inline int sb_has_quota_enabled(struct super_block *sb, int type)
+{
+	return 0;
+}
+
+static inline int sb_any_quota_enabled(struct super_block *sb)
+{
+	return 0;
+}
+
+static inline int sb_has_quota_suspended(struct super_block *sb, int type)
+{
+	return 0;
+}
+
+static inline int sb_any_quota_suspended(struct super_block *sb)
+{
+	return 0;
+}
 
 /*
  * NO-OP when quota not configured.
