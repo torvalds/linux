@@ -229,9 +229,7 @@ struct mm_struct {
 
 	unsigned long flags; /* Must use atomic bitops to access the bits */
 
-	/* coredumping support */
-	struct core_state *core_state;
-	struct completion core_done;
+	struct core_state *core_state; /* coredumping support */
 
 	/* aio bits */
 	rwlock_t		ioctx_list_lock;	/* aio lock */

@@ -1602,7 +1602,6 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 	struct completion *vfork_done;
 	int core_waiters;
 
-	init_completion(&mm->core_done);
 	init_completion(&core_state->startup);
 	core_state->dumper.task = tsk;
 	core_state->dumper.next = NULL;
@@ -1626,6 +1625,27 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 		wait_for_completion(&core_state->startup);
 fail:
 	return core_waiters;
+}
+
+static void coredump_finish(struct mm_struct *mm)
+{
+	struct core_thread *curr, *next;
+	struct task_struct *task;
+
+	next = mm->core_state->dumper.next;
+	while ((curr = next) != NULL) {
+		next = curr->next;
+		task = curr->task;
+		/*
+		 * see exit_mm(), curr->task must not see
+		 * ->task == NULL before we read ->next.
+		 */
+		smp_mb();
+		curr->task = NULL;
+		wake_up_process(task);
+	}
+
+	mm->core_state = NULL;
 }
 
 /*
@@ -1812,8 +1832,7 @@ fail_unlock:
 		argv_free(helper_argv);
 
 	current->fsuid = fsuid;
-	complete_all(&mm->core_done);
-	mm->core_state = NULL;
+	coredump_finish(mm);
 fail:
 	return retval;
 }
