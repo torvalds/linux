@@ -342,26 +342,15 @@ lightweight_exit:
 	andc	r6, r5, r6
 	mtmsr	r6
 
-	/* Save the host's non-pinned TLB mappings, and load the guest mappings
-	 * over them. Leave the host's "pinned" kernel mappings in place. */
-	/* XXX optimization: use generation count to avoid swapping unmodified
-	 * entries. */
+	/* Load the guest mappings, leaving the host's "pinned" kernel mappings
+	 * in place. */
+	/* XXX optimization: load only modified guest entries. */
 	mfspr	r10, SPRN_MMUCR			/* Save host MMUCR. */
 	lis	r8, tlb_44x_hwater@ha
 	lwz	r8, tlb_44x_hwater@l(r8)
-	addi	r3, r4, VCPU_HOST_TLB - 4
 	addi	r9, r4, VCPU_SHADOW_TLB - 4
 	li	r6, 0
 1:
-	/* Save host entry. */
-	tlbre	r7, r6, PPC44x_TLB_PAGEID
-	mfspr	r5, SPRN_MMUCR
-	stwu	r5, 4(r3)
-	stwu	r7, 4(r3)
-	tlbre	r7, r6, PPC44x_TLB_XLAT
-	stwu	r7, 4(r3)
-	tlbre	r7, r6, PPC44x_TLB_ATTRIB
-	stwu	r7, 4(r3)
 	/* Load guest entry. */
 	lwzu	r7, 4(r9)
 	mtspr	SPRN_MMUCR, r7

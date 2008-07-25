@@ -81,8 +81,6 @@ struct kvm_vcpu_arch {
 	struct tlbe shadow_tlb[PPC44x_TLB_SIZE];
 	/* Pages which are referenced in the shadow TLB. */
 	struct page *shadow_pages[PPC44x_TLB_SIZE];
-	/* Copy of the host's TLB. */
-	struct tlbe host_tlb[PPC44x_TLB_SIZE];
 
 	u32 host_stack;
 	u32 host_pid;
