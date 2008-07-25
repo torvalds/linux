@@ -645,7 +645,7 @@ static struct kobj_type ktype_mci = {
 /* EDAC memory controller sysfs kset:
  *	/sys/devices/system/edac/mc
  */
-static struct kset mc_kset;
+static struct kset *mc_kset;
 
 /*
  * edac_mc_register_sysfs_main_kobj
@@ -676,7 +676,7 @@ int edac_mc_register_sysfs_main_kobj(struct mem_ctl_info *mci)
 	}
 
 	/* this instance become part of the mc_kset */
-	kobj_mci->kset = &mc_kset;
+	kobj_mci->kset = mc_kset;
 
 	/* register the mc<id> kobject to the mc_kset */
 	err = kobject_init_and_add(kobj_mci, &ktype_mci, NULL,
@@ -906,12 +906,9 @@ int edac_sysfs_setup_mc_kset(void)
 	}
 
 	/* Init the MC's kobject */
-	kobject_set_name(&mc_kset.kobj, "mc");
-	mc_kset.kobj.parent = &edac_class->kset.kobj;
-
-	/* register the mc_kset */
-	err = kset_register(&mc_kset);
-	if (err) {
+	mc_kset = kset_create_and_add("mc", NULL, &edac_class->kset.kobj);
+	if (!mc_kset) {
+		err = -ENOMEM;
 		debugf1("%s() Failed to register '.../edac/mc'\n", __func__);
 		goto fail_out;
 	}
@@ -933,6 +930,6 @@ fail_out:
  */
 void edac_sysfs_teardown_mc_kset(void)
 {
-	kset_unregister(&mc_kset);
+	kset_unregister(mc_kset);
 }
 
