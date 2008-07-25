@@ -420,7 +420,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 		 * be added to the retransmit queue.
 		 */
 		if ((reason == SCTP_RTXR_FAST_RTX  &&
-			    (chunk->fast_retransmit > 0)) ||
+			    (chunk->fast_retransmit == SCTP_NEED_FRTX)) ||
 		    (reason != SCTP_RTXR_FAST_RTX  && !chunk->tsn_gap_acked)) {
 			/* If this chunk was sent less then 1 rto ago, do not
 			 * retransmit this chunk, but give the peer time
@@ -650,8 +650,8 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 			/* Mark the chunk as ineligible for fast retransmit
 			 * after it is retransmitted.
 			 */
-			if (chunk->fast_retransmit > 0)
-				chunk->fast_retransmit = -1;
+			if (chunk->fast_retransmit == SCTP_NEED_FRTX)
+				chunk->fast_retransmit = SCTP_DONT_FRTX;
 
 			/* Force start T3-rtx timer when fast retransmitting
 			 * the earliest outstanding TSN
@@ -680,8 +680,8 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 	 */
 	if (rtx_timeout || fast_rtx) {
 		list_for_each_entry(chunk1, lqueue, transmitted_list) {
-			if (chunk1->fast_retransmit > 0)
-				chunk1->fast_retransmit = -1;
+			if (chunk1->fast_retransmit == SCTP_NEED_FRTX)
+				chunk1->fast_retransmit = SCTP_DONT_FRTX;
 		}
 	}
 
@@ -1656,7 +1656,7 @@ static void sctp_mark_missing(struct sctp_outq *q,
 		 * chunk if it has NOT been fast retransmitted or marked for
 		 * fast retransmit already.
 		 */
-		if (!chunk->fast_retransmit &&
+		if (chunk->fast_retransmit == SCTP_CAN_FRTX &&
 		    !chunk->tsn_gap_acked &&
 		    TSN_lt(tsn, highest_new_tsn_in_sack)) {
 
@@ -1681,7 +1681,7 @@ static void sctp_mark_missing(struct sctp_outq *q,
 		 */
 
 		if (chunk->tsn_missing_report >= 3) {
-			chunk->fast_retransmit = 1;
+			chunk->fast_retransmit = SCTP_NEED_FRTX;
 			do_fast_retransmit = 1;
 		}
 	}

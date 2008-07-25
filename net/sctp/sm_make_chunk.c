@@ -1211,7 +1211,7 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 	 */
 	retval->tsn_missing_report = 0;
 	retval->tsn_gap_acked = 0;
-	retval->fast_retransmit = 0;
+	retval->fast_retransmit = SCTP_CAN_FRTX;
 
 	/* If this is a fragmented message, track all fragments
 	 * of the message (for SEND_FAILED).

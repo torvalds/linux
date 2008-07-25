@@ -731,20 +731,23 @@ struct sctp_chunk {
 	 */
 	struct sk_buff *auth_chunk;
 
-	__u8 rtt_in_progress;	/* Is this chunk used for RTT calculation? */
-	__u8 resent;		/* Has this chunk ever been retransmitted. */
-	__u8 has_tsn;		/* Does this chunk have a TSN yet? */
-	__u8 has_ssn;		/* Does this chunk have a SSN yet? */
-	__u8 singleton;		/* Was this the only chunk in the packet? */
-	__u8 end_of_packet;	/* Was this the last chunk in the packet? */
-	__u8 ecn_ce_done;	/* Have we processed the ECN CE bit? */
-	__u8 pdiscard;		/* Discard the whole packet now? */
-	__u8 tsn_gap_acked;	/* Is this chunk acked by a GAP ACK? */
-	__s8 fast_retransmit;	 /* Is this chunk fast retransmitted? */
-	__u8 tsn_missing_report; /* Data chunk missing counter. */
-	__u8 data_accepted; 	/* At least 1 chunk in this packet accepted */
-	__u8 auth;		/* IN: was auth'ed | OUT: needs auth */
-	__u8 has_asconf;	/* IN: have seen an asconf before */
+#define SCTP_CAN_FRTX 0x0
+#define SCTP_NEED_FRTX 0x1
+#define SCTP_DONT_FRTX 0x2
+	__u16	rtt_in_progress:1,	/* This chunk used for RTT calc? */
+		resent:1,		/* Has this chunk ever been resent. */
+		has_tsn:1,		/* Does this chunk have a TSN yet? */
+		has_ssn:1,		/* Does this chunk have a SSN yet? */
+		singleton:1,		/* Only chunk in the packet? */
+		end_of_packet:1,	/* Last chunk in the packet? */
+		ecn_ce_done:1,		/* Have we processed the ECN CE bit? */
+		pdiscard:1,		/* Discard the whole packet now? */
+		tsn_gap_acked:1,	/* Is this chunk acked by a GAP ACK? */
+		data_accepted:1,	/* At least 1 chunk accepted */
+		auth:1,			/* IN: was auth'ed | OUT: needs auth */
+		has_asconf:1,		/* IN: have seen an asconf before */
+		tsn_missing_report:2,	/* Data chunk missing counter. */
+		fast_retransmit:2;	/* Is this chunk fast retransmitted? */
 };
 
 void sctp_chunk_hold(struct sctp_chunk *);
