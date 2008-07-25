@@ -1747,21 +1747,16 @@ static int do_lock_file_wait(struct file *filp, unsigned int cmd,
 	if (error)
 		return error;
 
-	if (filp->f_op && filp->f_op->lock != NULL)
-		error = filp->f_op->lock(filp, cmd, fl);
-	else {
-		for (;;) {
-			error = posix_lock_file(filp, fl, NULL);
-			if (error != FILE_LOCK_DEFERRED)
-				break;
-			error = wait_event_interruptible(fl->fl_wait,
-							 !fl->fl_next);
-			if (!error)
-				continue;
-
-			locks_delete_block(fl);
+	for (;;) {
+		error = vfs_lock_file(filp, cmd, fl, NULL);
+		if (error != FILE_LOCK_DEFERRED)
 			break;
-		}
+		error = wait_event_interruptible(fl->fl_wait, !fl->fl_next);
+		if (!error)
+			continue;
+
+		locks_delete_block(fl);
+		break;
 	}
 
 	return error;
