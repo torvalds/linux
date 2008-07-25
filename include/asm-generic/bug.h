@@ -97,6 +97,9 @@ extern void warn_slowpath(const char *file, const int line,
 	unlikely(__ret_warn_once);				\
 })
 
+#define WARN_ON_RATELIMIT(condition, state)			\
+		WARN_ON((condition) && __ratelimit(state))
+
 #ifdef CONFIG_SMP
 # define WARN_ON_SMP(x)			WARN_ON(x)
 #else
