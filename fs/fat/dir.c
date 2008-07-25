@@ -325,6 +325,19 @@ parse_long:
 }
 
 /*
+ * Maximum buffer size of short name.
+ * [(MSDOS_NAME + '.') * max one char + nul]
+ * For msdos style, ['.' (hidden) + MSDOS_NAME + '.' + nul]
+ */
+#define FAT_MAX_SHORT_SIZE	((MSDOS_NAME + 1) * NLS_MAX_CHARSET_SIZE + 1)
+/*
+ * Maximum buffer size of unicode chars from slots.
+ * [(max longname slots * 13 (size in a slot) + nul) * sizeof(wchar_t)]
+ */
+#define FAT_MAX_UNI_CHARS	((MSDOS_SLOTS - 1) * 13 + 1)
+#define FAT_MAX_UNI_SIZE	(FAT_MAX_UNI_CHARS * sizeof(wchar_t))
+
+/*
  * Return values: negative -> error, 0 -> not found, positive -> found,
  * value is the total amount of slots, including the shortname entry.
  */
@@ -340,14 +353,10 @@ int fat_search_long(struct inode *inode, const unsigned char *name,
 	wchar_t bufuname[14];
 	wchar_t *unicode = NULL;
 	unsigned char work[MSDOS_NAME];
-	unsigned char *bufname = NULL;
+	unsigned char bufname[FAT_MAX_SHORT_SIZE];
 	unsigned short opt_shortname = sbi->options.shortname;
 	loff_t cpos = 0;
 	int chl, i, j, last_u, err, len;
-
-	bufname = __getname();
-	if (!bufname)
-		return -ENOMEM;
 
 	err = -ENOENT;
 	while (1) {
@@ -414,14 +423,17 @@ parse_record:
 
 		/* Compare shortname */
 		bufuname[last_u] = 0x0000;
-		len = fat_uni_to_x8(sbi, bufuname, bufname, PATH_MAX);
+		len = fat_uni_to_x8(sbi, bufuname, bufname, sizeof(bufname));
 		if (fat_name_match(sbi, name, name_len, bufname, len))
 			goto found;
 
 		if (nr_slots) {
+			void *longname = unicode + FAT_MAX_UNI_CHARS;
+			int size = PATH_MAX - FAT_MAX_UNI_SIZE;
+
 			/* Compare longname */
-			len = fat_uni_to_x8(sbi, unicode, bufname, PATH_MAX);
-			if (fat_name_match(sbi, name, name_len, bufname, len))
+			len = fat_uni_to_x8(sbi, unicode, longname, size);
+			if (fat_name_match(sbi, name, name_len, longname, len))
 				goto found;
 		}
 	}
@@ -435,8 +447,6 @@ found:
 	sinfo->i_pos = fat_make_i_pos(sb, sinfo->bh, sinfo->de);
 	err = 0;
 end_of_dir:
-	if (bufname)
-		__putname(bufname);
 	if (unicode)
 		__putname(unicode);
 
@@ -466,7 +476,8 @@ static int __fat_readdir(struct inode *inode, struct file *filp, void *dirent,
 	unsigned char nr_slots;
 	wchar_t bufuname[14];
 	wchar_t *unicode = NULL;
-	unsigned char c, work[MSDOS_NAME], bufname[56], *ptname = bufname;
+	unsigned char c, work[MSDOS_NAME];
+	unsigned char bufname[FAT_MAX_SHORT_SIZE], *ptname = bufname;
 	unsigned short opt_shortname = sbi->options.shortname;
 	int isvfat = sbi->options.isvfat;
 	int nocase = sbi->options.nocase;
@@ -620,11 +631,10 @@ parse_record:
 	fill_name = bufname;
 	fill_len = i;
 	if (!short_only && nr_slots) {
-		/* convert the unicode long name. 261 is maximum size
-		 * of unicode buffer. (13 * slots + nul) */
-		void *longname = unicode + 261;
-		int buf_size = PATH_MAX - (261 * sizeof(unicode[0]));
-		int long_len = fat_uni_to_x8(sbi, unicode, longname, buf_size);
+		void *longname = unicode + FAT_MAX_UNI_CHARS;
+		int long_len, size = PATH_MAX - FAT_MAX_UNI_SIZE;
+
+		long_len = fat_uni_to_x8(sbi, unicode, longname, size);
 
 		if (!both) {
 			fill_name = longname;
