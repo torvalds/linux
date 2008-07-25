@@ -34,9 +34,10 @@ config INFINIBAND_IPOIB_DEBUG
 	  debug_level and mcast_debug_level module parameters (which
 	  can also be set after the driver is loaded through sysfs).
 
-	  This option also creates an "ipoib_debugfs," which can be
-	  mounted to expose debugging information about IB multicast
-	  groups used by the IPoIB driver.
+	  This option also creates a directory tree under ipoib/ in
+	  debugfs, which contains files that expose debugging
+	  information about IB multicast groups used by the IPoIB
+	  driver.
 
 config INFINIBAND_IPOIB_DEBUG_DATA
 	bool "IP-over-InfiniBand data path debugging"
