@@ -19,7 +19,6 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/pci.h>
-#include <linux/gpio.h>
 #include <linux/i2c-gpio.h>
 
 #include <linux/sm501.h>
@@ -34,6 +33,9 @@ struct sm501_device {
 };
 
 struct sm501_gpio;
+
+#ifdef CONFIG_MFD_SM501_GPIO
+#include <linux/gpio.h>
 
 struct sm501_gpio_chip {
 	struct gpio_chip	gpio;
@@ -50,6 +52,11 @@ struct sm501_gpio {
 	void __iomem		*regs;
 	struct resource		*regs_res;
 };
+#else
+struct sm501_gpio {
+	/* no gpio support, empty definition for sm501_devdata. */
+};
+#endif
 
 struct sm501_devdata {
 	spinlock_t			 reg_lock;
@@ -1082,6 +1089,9 @@ static void sm501_gpio_remove(struct sm501_devdata *sm)
 	struct sm501_gpio *gpio = &sm->gpio;
 	int ret;
 
+	if (!sm->gpio.registered)
+		return;
+
 	ret = gpiochip_remove(&gpio->low.gpio);
 	if (ret)
 		dev_err(sm->dev, "cannot remove low chip, cannot tidy up\n");
@@ -1100,6 +1110,11 @@ static inline int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
 	struct sm501_gpio *gpio = &sm->gpio;
 	return pin + (pin < 32) ? gpio->low.gpio.base : gpio->high.gpio.base;
 }
+
+static inline int sm501_gpio_isregistered(struct sm501_devdata *sm)
+{
+	return sm->gpio.registered;
+}
 #else
 static inline int sm501_register_gpio(struct sm501_devdata *sm)
 {
@@ -1113,6 +1128,11 @@ static inline void sm501_gpio_remove(struct sm501_devdata *sm)
 static inline int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
 {
 	return -1;
+}
+
+static inline int sm501_gpio_isregistered(struct sm501_devdata *sm)
+{
+	return 0;
 }
 #endif
 
@@ -1330,8 +1350,8 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 	}
 
 	if (pdata->gpio_i2c != NULL && pdata->gpio_i2c_nr > 0) {
-		if (!sm->gpio.registered)
-			dev_err(sm->dev, "no gpio registered for i2c gpio.\n");
+		if (!sm501_gpio_isregistered(sm))
+			dev_err(sm->dev, "no gpio available for i2c gpio.\n");
 		else
 			sm501_register_gpio_i2c(sm, pdata);
 	}
@@ -1643,8 +1663,7 @@ static void sm501_dev_remove(struct sm501_devdata *sm)
 
 	device_remove_file(sm->dev, &dev_attr_dbg_regs);
 
-	if (sm->gpio.registered)
-		sm501_gpio_remove(sm);
+	sm501_gpio_remove(sm);
 }
 
 static void sm501_pci_remove(struct pci_dev *dev)
