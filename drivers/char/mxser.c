@@ -173,14 +173,15 @@ static struct pci_device_id mxser_pcibrds[] = {
 };
 MODULE_DEVICE_TABLE(pci, mxser_pcibrds);
 
-static int ioaddr[MXSER_BOARDS] = { 0, 0, 0, 0 };
+static unsigned long ioaddr[MXSER_BOARDS];
 static int ttymajor = MXSERMAJOR;
 
 /* Variables for insmod */
 
 MODULE_AUTHOR("Casper Yang");
 MODULE_DESCRIPTION("MOXA Smartio/Industio Family Multiport Board Device Driver");
-module_param_array(ioaddr, int, NULL, 0);
+module_param_array(ioaddr, ulong, NULL, 0);
+MODULE_PARM_DESC(ioaddr, "ISA io addresses to look for a moxa board");
 module_param(ttymajor, int, 0);
 MODULE_LICENSE("GPL");
 
@@ -279,11 +280,6 @@ struct mxser_mstatus {
 	int dsr;
 	int ri;
 	int dcd;
-};
-
-static int mxserBoardCAP[MXSER_BOARDS] = {
-	0, 0, 0, 0
-	/*  0x180, 0x280, 0x200, 0x320 */
 };
 
 static struct mxser_board mxser_boards[MXSER_BOARDS];
@@ -2763,9 +2759,8 @@ static struct pci_driver mxser_driver = {
 static int __init mxser_module_init(void)
 {
 	struct mxser_board *brd;
-	unsigned long cap;
-	unsigned int i, m, isaloop;
-	int retval, b;
+	unsigned int b, i, m;
+	int retval;
 
 	pr_debug("Loading module mxser ...\n");
 
@@ -2797,41 +2792,33 @@ static int __init mxser_module_init(void)
 		goto err_put;
 	}
 
-	m = 0;
 	/* Start finding ISA boards here */
-	for (isaloop = 0; isaloop < 2; isaloop++)
-		for (b = 0; b < MXSER_BOARDS && m < MXSER_BOARDS; b++) {
-			if (!isaloop)
-				cap = mxserBoardCAP[b]; /* predefined */
-			else
-				cap = ioaddr[b]; /* module param */
+	for (m = 0, b = 0; b < MXSER_BOARDS; b++) {
+		if (!ioaddr[b])
+			continue;
 
-			if (!cap)
-				continue;
-
-			brd = &mxser_boards[m];
-			retval = mxser_get_ISA_conf(cap, brd);
-			if (retval <= 0) {
-				brd->info = NULL;
-				continue;
-			}
-
-			printk(KERN_INFO "mxser: found MOXA %s board "
-				"(CAP=0x%x)\n",	brd->info->name, ioaddr[b]);
-
-			/* mxser_initbrd will hook ISR. */
-			if (mxser_initbrd(brd, NULL) < 0) {
-				brd->info = NULL;
-				continue;
-			}
-
-			brd->idx = m * MXSER_PORTS_PER_BOARD;
-			for (i = 0; i < brd->info->nports; i++)
-				tty_register_device(mxvar_sdriver, brd->idx + i,
-						NULL);
-
-			m++;
+		brd = &mxser_boards[m];
+		retval = mxser_get_ISA_conf(!ioaddr[b], brd);
+		if (retval <= 0) {
+			brd->info = NULL;
+			continue;
 		}
+
+		printk(KERN_INFO "mxser: found MOXA %s board (CAP=0x%lx)\n",
+				brd->info->name, ioaddr[b]);
+
+		/* mxser_initbrd will hook ISR. */
+		if (mxser_initbrd(brd, NULL) < 0) {
+			brd->info = NULL;
+			continue;
+		}
+
+		brd->idx = m * MXSER_PORTS_PER_BOARD;
+		for (i = 0; i < brd->info->nports; i++)
+			tty_register_device(mxvar_sdriver, brd->idx + i, NULL);
+
+		m++;
+	}
 
 	retval = pci_register_driver(&mxser_driver);
 	if (retval) {
