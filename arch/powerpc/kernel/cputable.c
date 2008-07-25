@@ -1660,8 +1660,8 @@ struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 			 * Set the base platform string once; assumes
 			 * we're called with real pvr first.
 			 */
-			if (powerpc_base_platform == NULL)
-				powerpc_base_platform = t->platform;
+			if (*PTRRELOC(&powerpc_base_platform) == NULL)
+				*PTRRELOC(&powerpc_base_platform) = t->platform;
 
 #if defined(CONFIG_PPC64) || defined(CONFIG_BOOKE)
 			/* ppc64 and booke expect identify_cpu to also call
