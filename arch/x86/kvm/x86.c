@@ -1495,6 +1495,7 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 		goto out;
 
 	down_write(&kvm->slots_lock);
+	spin_lock(&kvm->mmu_lock);
 
 	p = &kvm->arch.aliases[alias->slot];
 	p->base_gfn = alias->guest_phys_addr >> PAGE_SHIFT;
@@ -1506,6 +1507,7 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 			break;
 	kvm->arch.naliases = n;
 
+	spin_unlock(&kvm->mmu_lock);
 	kvm_mmu_zap_all(kvm);
 
 	up_write(&kvm->slots_lock);
