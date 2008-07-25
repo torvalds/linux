@@ -17,6 +17,7 @@
 
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <linux/gfp.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -49,6 +50,7 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 	u8 *scratch = *per_cpu_ptr(ipcomp_scratches, cpu);
 	struct crypto_comp *tfm = *per_cpu_ptr(ipcd->tfms, cpu);
 	int err = crypto_comp_decompress(tfm, start, plen, scratch, &dlen);
+	int len;
 
 	if (err)
 		goto out;
@@ -58,13 +60,47 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 		goto out;
 	}
 
-	err = pskb_expand_head(skb, 0, dlen - plen, GFP_ATOMIC);
-	if (err)
-		goto out;
+	len = dlen - plen;
+	if (len > skb_tailroom(skb))
+		len = skb_tailroom(skb);
 
-	skb->truesize += dlen - plen;
-	__skb_put(skb, dlen - plen);
-	skb_copy_to_linear_data(skb, scratch, dlen);
+	skb->truesize += len;
+	__skb_put(skb, len);
+
+	len += plen;
+	skb_copy_to_linear_data(skb, scratch, len);
+
+	while ((scratch += len, dlen -= len) > 0) {
+		skb_frag_t *frag;
+
+		err = -EMSGSIZE;
+		if (WARN_ON(skb_shinfo(skb)->nr_frags >= MAX_SKB_FRAGS))
+			goto out;
+
+		frag = skb_shinfo(skb)->frags + skb_shinfo(skb)->nr_frags;
+		frag->page = alloc_page(GFP_ATOMIC);
+
+		err = -ENOMEM;
+		if (!frag->page)
+			goto out;
+
+		len = PAGE_SIZE;
+		if (dlen < len)
+			len = dlen;
+
+		memcpy(page_address(frag->page), scratch, len);
+
+		frag->page_offset = 0;
+		frag->size = len;
+		skb->truesize += len;
+		skb->data_len += len;
+		skb->len += len;
+
+		skb_shinfo(skb)->nr_frags++;
+	}
+
+	err = 0;
+
 out:
 	put_cpu();
 	return err;
