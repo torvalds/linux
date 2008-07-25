@@ -690,7 +690,8 @@ int schedule_on_each_cpu(work_func_t func)
 		set_bit(WORK_STRUCT_PENDING, work_data_bits(work));
 		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu), work);
 	}
-	flush_workqueue(keventd_wq);
+	for_each_online_cpu(cpu)
+		flush_work(per_cpu_ptr(works, cpu));
 	put_online_cpus();
 	free_percpu(works);
 	return 0;
