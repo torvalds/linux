@@ -22,5 +22,13 @@ extern struct proc_dir_entry *proc_vmcore;
 
 #define vmcore_elf_check_arch(x) (elf_check_arch(x) || vmcore_elf_check_arch_cross(x))
 
+static inline int is_kdump_kernel(void)
+{
+	return (elfcorehdr_addr != ELFCORE_ADDR_MAX) ? 1 : 0;
+}
+#else /* !CONFIG_CRASH_DUMP */
+static inline int is_kdump_kernel(void) { return 0; }
 #endif /* CONFIG_CRASH_DUMP */
+
+extern unsigned long saved_max_pfn;
 #endif /* LINUX_CRASHDUMP_H */
