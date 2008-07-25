@@ -29,9 +29,6 @@
 
 #define CMD_SET_TYPE(cmd, t) ((cmd)->data[1] |= ((t) << 28))
 
-#define to_pages(addr, size) \
-	 (round_up(((addr) & ~PAGE_MASK) + (size), PAGE_SIZE) >> PAGE_SHIFT)
-
 #define EXIT_LOOP_COUNT 10000000
 
 static DEFINE_RWLOCK(amd_iommu_devtable_lock);
@@ -185,7 +182,7 @@ static int iommu_flush_pages(struct amd_iommu *iommu, u16 domid,
 		u64 address, size_t size)
 {
 	int s = 0;
-	unsigned pages = to_pages(address, size);
+	unsigned pages = iommu_num_pages(address, size);
 
 	address &= PAGE_MASK;
 
@@ -557,8 +554,8 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
 	if (iommu->exclusion_start &&
 	    iommu->exclusion_start < dma_dom->aperture_size) {
 		unsigned long startpage = iommu->exclusion_start >> PAGE_SHIFT;
-		int pages = to_pages(iommu->exclusion_start,
-				iommu->exclusion_length);
+		int pages = iommu_num_pages(iommu->exclusion_start,
+					    iommu->exclusion_length);
 		dma_ops_reserve_addresses(dma_dom, startpage, pages);
 	}
 
@@ -767,7 +764,7 @@ static dma_addr_t __map_single(struct device *dev,
 	unsigned int pages;
 	int i;
 
-	pages = to_pages(paddr, size);
+	pages = iommu_num_pages(paddr, size);
 	paddr &= PAGE_MASK;
 
 	address = dma_ops_alloc_addresses(dev, dma_dom, pages);
@@ -802,7 +799,7 @@ static void __unmap_single(struct amd_iommu *iommu,
 	if ((dma_addr == 0) || (dma_addr + size > dma_dom->aperture_size))
 		return;
 
-	pages = to_pages(dma_addr, size);
+	pages = iommu_num_pages(dma_addr, size);
 	dma_addr &= PAGE_MASK;
 	start = dma_addr;
 
