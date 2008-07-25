@@ -1595,17 +1595,16 @@ done:
 	return nr;
 }
 
-static int coredump_wait(int exit_code)
+static int coredump_wait(int exit_code, struct core_state *core_state)
 {
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
-	struct core_state core_state;
 	struct completion *vfork_done;
 	int core_waiters;
 
 	init_completion(&mm->core_done);
-	init_completion(&core_state.startup);
-	core_waiters = zap_threads(tsk, mm, &core_state, exit_code);
+	init_completion(&core_state->startup);
+	core_waiters = zap_threads(tsk, mm, core_state, exit_code);
 	up_write(&mm->mmap_sem);
 
 	if (unlikely(core_waiters < 0))
@@ -1622,8 +1621,7 @@ static int coredump_wait(int exit_code)
 	}
 
 	if (core_waiters)
-		wait_for_completion(&core_state.startup);
-	mm->core_state = NULL;
+		wait_for_completion(&core_state->startup);
 fail:
 	return core_waiters;
 }
@@ -1679,6 +1677,7 @@ int get_dumpable(struct mm_struct *mm)
 
 int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 {
+	struct core_state core_state;
 	char corename[CORENAME_MAX_SIZE + 1];
 	struct mm_struct *mm = current->mm;
 	struct linux_binfmt * binfmt;
@@ -1717,7 +1716,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 		current->fsuid = 0;	/* Dump root private */
 	}
 
-	retval = coredump_wait(exit_code);
+	retval = coredump_wait(exit_code, &core_state);
 	if (retval < 0)
 		goto fail;
 
@@ -1812,6 +1811,7 @@ fail_unlock:
 
 	current->fsuid = fsuid;
 	complete_all(&mm->core_done);
+	mm->core_state = NULL;
 fail:
 	return retval;
 }
