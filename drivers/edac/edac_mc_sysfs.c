@@ -123,39 +123,12 @@ static const char *edac_caps[] = {
 
 
 
-/*
- * /sys/devices/system/edac/mc;
- *	data structures and methods
- */
-static ssize_t memctrl_int_show(void *ptr, char *buffer)
-{
-	int *value = (int *)ptr;
-	return sprintf(buffer, "%u\n", *value);
-}
-
 static ssize_t memctrl_int_store(void *ptr, const char *buffer, size_t count)
 {
 	int *value = (int *)ptr;
 
 	if (isdigit(*buffer))
 		*value = simple_strtoul(buffer, NULL, 0);
-
-	return count;
-}
-
-/*
- * mc poll_msec time value
- */
-static ssize_t poll_msec_int_store(void *ptr, const char *buffer, size_t count)
-{
-	int *value = (int *)ptr;
-
-	if (isdigit(*buffer)) {
-		*value = simple_strtoul(buffer, NULL, 0);
-
-		/* notify edac_mc engine to reset the poll period */
-		edac_mc_reset_delay_period(*value);
-	}
 
 	return count;
 }
@@ -669,98 +642,10 @@ static struct kobj_type ktype_mci = {
 	.default_attrs = (struct attribute **)mci_attr,
 };
 
-/* show/store, tables, etc for the MC kset */
-
-
-struct memctrl_dev_attribute {
-	struct attribute attr;
-	void *value;
-	 ssize_t(*show) (void *, char *);
-	 ssize_t(*store) (void *, const char *, size_t);
-};
-
-/* Set of show/store abstract level functions for memory control object */
-static ssize_t memctrl_dev_show(struct kobject *kobj,
-				struct attribute *attr, char *buffer)
-{
-	struct memctrl_dev_attribute *memctrl_dev;
-	memctrl_dev = (struct memctrl_dev_attribute *)attr;
-
-	if (memctrl_dev->show)
-		return memctrl_dev->show(memctrl_dev->value, buffer);
-
-	return -EIO;
-}
-
-static ssize_t memctrl_dev_store(struct kobject *kobj, struct attribute *attr,
-				 const char *buffer, size_t count)
-{
-	struct memctrl_dev_attribute *memctrl_dev;
-	memctrl_dev = (struct memctrl_dev_attribute *)attr;
-
-	if (memctrl_dev->store)
-		return memctrl_dev->store(memctrl_dev->value, buffer, count);
-
-	return -EIO;
-}
-
-static struct sysfs_ops memctrlfs_ops = {
-	.show = memctrl_dev_show,
-	.store = memctrl_dev_store
-};
-
-#define MEMCTRL_ATTR(_name, _mode, _show, _store)			\
-static struct memctrl_dev_attribute attr_##_name = {			\
-	.attr = {.name = __stringify(_name), .mode = _mode },	\
-	.value  = &_name,					\
-	.show   = _show,					\
-	.store  = _store,					\
-};
-
-#define MEMCTRL_STRING_ATTR(_name, _data, _mode, _show, _store)	\
-static struct memctrl_dev_attribute attr_##_name = {			\
-	.attr = {.name = __stringify(_name), .mode = _mode },	\
-	.value  = _data,					\
-	.show   = _show,					\
-	.store  = _store,					\
-};
-
-/* csrow<id> control files */
-MEMCTRL_ATTR(edac_mc_panic_on_ue,
-	S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
-
-MEMCTRL_ATTR(edac_mc_log_ue,
-	S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
-
-MEMCTRL_ATTR(edac_mc_log_ce,
-	S_IRUGO | S_IWUSR, memctrl_int_show, memctrl_int_store);
-
-MEMCTRL_ATTR(edac_mc_poll_msec,
-	S_IRUGO | S_IWUSR, memctrl_int_show, poll_msec_int_store);
-
-/* Base Attributes of the memory ECC object */
-static struct memctrl_dev_attribute *memctrl_attr[] = {
-	&attr_edac_mc_panic_on_ue,
-	&attr_edac_mc_log_ue,
-	&attr_edac_mc_log_ce,
-	&attr_edac_mc_poll_msec,
-	NULL,
-};
-
-
-/* the ktype for the mc_kset internal kobj */
-static struct kobj_type ktype_mc_set_attribs = {
-	.sysfs_ops = &memctrlfs_ops,
-	.default_attrs = (struct attribute **)memctrl_attr,
-};
-
 /* EDAC memory controller sysfs kset:
  *	/sys/devices/system/edac/mc
  */
-static struct kset mc_kset = {
-	.kobj = {.ktype = &ktype_mc_set_attribs },
-};
-
+static struct kset mc_kset;
 
 /*
  * edac_mc_register_sysfs_main_kobj
