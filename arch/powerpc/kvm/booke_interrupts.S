@@ -335,7 +335,7 @@ lightweight_exit:
 	lwz	r3, VCPU_PID(r4)
 	mtspr	SPRN_PID, r3
 
-	/* Prevent all TLB updates. */
+	/* Prevent all asynchronous TLB updates. */
 	mfmsr	r5
 	lis	r6, (MSR_EE|MSR_CE|MSR_ME|MSR_DE)@h
 	ori	r6, r6, (MSR_EE|MSR_CE|MSR_ME|MSR_DE)@l
@@ -344,27 +344,44 @@ lightweight_exit:
 
 	/* Load the guest mappings, leaving the host's "pinned" kernel mappings
 	 * in place. */
-	/* XXX optimization: load only modified guest entries. */
 	mfspr	r10, SPRN_MMUCR			/* Save host MMUCR. */
-	lis	r8, tlb_44x_hwater@ha
-	lwz	r8, tlb_44x_hwater@l(r8)
-	addi	r9, r4, VCPU_SHADOW_TLB - 4
+	li	r5, PPC44x_TLB_SIZE
+	lis	r5, tlb_44x_hwater@ha
+	lwz	r5, tlb_44x_hwater@l(r5)
+	mtctr	r5
+	addi	r9, r4, VCPU_SHADOW_TLB
+	addi	r5, r4, VCPU_SHADOW_MOD
+	li	r3, 0
+1:
+	lbzx	r7, r3, r5
+	cmpwi	r7, 0
+	beq	3f
+
+	/* Load guest entry. */
+	mulli	r11, r3, TLBE_BYTES
+	add	r11, r11, r9
+	lwz	r7, 0(r11)
+	mtspr	SPRN_MMUCR, r7
+	lwz	r7, 4(r11)
+	tlbwe	r7, r3, PPC44x_TLB_PAGEID
+	lwz	r7, 8(r11)
+	tlbwe	r7, r3, PPC44x_TLB_XLAT
+	lwz	r7, 12(r11)
+	tlbwe	r7, r3, PPC44x_TLB_ATTRIB
+3:
+	addi	r3, r3, 1                       /* Increment index. */
+	bdnz	1b
+
+	mtspr	SPRN_MMUCR, r10			/* Restore host MMUCR. */
+
+	/* Clear bitmap of modified TLB entries */
+	li	r5, PPC44x_TLB_SIZE>>2
+	mtctr	r5
+	addi	r5, r4, VCPU_SHADOW_MOD - 4
 	li	r6, 0
 1:
-	/* Load guest entry. */
-	lwzu	r7, 4(r9)
-	mtspr	SPRN_MMUCR, r7
-	lwzu	r7, 4(r9)
-	tlbwe	r7, r6, PPC44x_TLB_PAGEID
-	lwzu	r7, 4(r9)
-	tlbwe	r7, r6, PPC44x_TLB_XLAT
-	lwzu	r7, 4(r9)
-	tlbwe	r7, r6, PPC44x_TLB_ATTRIB
-	/* Increment index. */
-	addi	r6, r6, 1
-	cmpw	r6, r8
-	blt	1b
-	mtspr	SPRN_MMUCR, r10			/* Restore host MMUCR. */
+	stwu	r6, 4(r5)
+	bdnz	1b
 
 	iccci	0, 0 /* XXX hack */
 

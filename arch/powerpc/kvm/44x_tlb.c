@@ -125,6 +125,11 @@ static void kvmppc_44x_shadow_release(struct kvm_vcpu *vcpu,
 	}
 }
 
+void kvmppc_tlbe_set_modified(struct kvm_vcpu *vcpu, unsigned int i)
+{
+    vcpu->arch.shadow_tlb_mod[i] = 1;
+}
+
 /* Caller must ensure that the specified guest TLB entry is safe to insert into
  * the shadow TLB. */
 void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
@@ -172,10 +177,10 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 	 * use host large pages in the future. */
 	stlbe->word0 = (gvaddr & PAGE_MASK) | PPC44x_TLB_VALID | PPC44x_TLB_TS
 	               | PPC44x_TLB_4K;
-
 	stlbe->word1 = (hpaddr & 0xfffffc00) | ((hpaddr >> 32) & 0xf);
 	stlbe->word2 = kvmppc_44x_tlb_shadow_attrib(flags,
 	                                            vcpu->arch.msr & MSR_PR);
+	kvmppc_tlbe_set_modified(vcpu, victim);
 
 	KVMTRACE_5D(STLB_WRITE, vcpu, victim,
 			stlbe->tid, stlbe->word0, stlbe->word1, stlbe->word2,
@@ -209,6 +214,7 @@ void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 		kvmppc_44x_shadow_release(vcpu, i);
 		stlbe->word0 = 0;
+		kvmppc_tlbe_set_modified(vcpu, i);
 		KVMTRACE_5D(STLB_INVAL, vcpu, i,
 				stlbe->tid, stlbe->word0, stlbe->word1,
 				stlbe->word2, handler);
@@ -229,6 +235,7 @@ void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
 
 		kvmppc_44x_shadow_release(vcpu, i);
 		stlbe->word0 = 0;
+		kvmppc_tlbe_set_modified(vcpu, i);
 		KVMTRACE_5D(STLB_INVAL, vcpu, i,
 				stlbe->tid, stlbe->word0, stlbe->word1,
 				stlbe->word2, handler);

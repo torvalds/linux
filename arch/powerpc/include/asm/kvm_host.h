@@ -82,6 +82,9 @@ struct kvm_vcpu_arch {
 	/* Pages which are referenced in the shadow TLB. */
 	struct page *shadow_pages[PPC44x_TLB_SIZE];
 
+	/* Track which TLB entries we've modified in the current exit. */
+	u8 shadow_tlb_mod[PPC44x_TLB_SIZE];
+
 	u32 host_stack;
 	u32 host_pid;
 	u32 host_dbcr0;

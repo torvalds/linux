@@ -27,6 +27,7 @@
 #include <asm/cputable.h>
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
+#include <asm/tlbflush.h>
 
 
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
@@ -307,14 +308,28 @@ static void kvmppc_load_guest_debug_registers(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	int i;
+
 	if (vcpu->guest_debug.enabled)
 		kvmppc_load_guest_debug_registers(vcpu);
+
+	/* Mark every guest entry in the shadow TLB entry modified, so that they
+	 * will all be reloaded on the next vcpu run (instead of being
+	 * demand-faulted). */
+	for (i = 0; i <= tlb_44x_hwater; i++)
+		kvmppc_tlbe_set_modified(vcpu, i);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->guest_debug.enabled)
 		kvmppc_restore_host_debug_state(vcpu);
+
+	/* Don't leave guest TLB entries resident when being de-scheduled. */
+	/* XXX It would be nice to differentiate between heavyweight exit and
+	 * sched_out here, since we could avoid the TLB flush for heavyweight
+	 * exits. */
+	_tlbia();
 }
 
 int kvm_arch_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,

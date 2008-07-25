@@ -65,6 +65,9 @@ extern void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
                                   gva_t eend, u32 asid);
 extern void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode);
 
+/* XXX Book E specific */
+extern void kvmppc_tlbe_set_modified(struct kvm_vcpu *vcpu, unsigned int i);
+
 extern void kvmppc_check_and_deliver_interrupts(struct kvm_vcpu *vcpu);
 
 static inline void kvmppc_queue_exception(struct kvm_vcpu *vcpu, int exception)
