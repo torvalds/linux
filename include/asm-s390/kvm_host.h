@@ -111,7 +111,7 @@ struct kvm_vcpu_stat {
 	u32 exit_validity;
 	u32 exit_instruction;
 	u32 instruction_lctl;
-	u32 instruction_lctg;
+	u32 instruction_lctlg;
 	u32 exit_program_interruption;
 	u32 exit_instr_and_program;
 	u32 deliver_emergency_signal;
