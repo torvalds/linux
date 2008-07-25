@@ -999,7 +999,7 @@ static int __devinit sm501_gpio_register_chip(struct sm501_devdata *sm,
 	struct gpio_chip *gchip = &chip->gpio;
 	int base = pdata->gpio_base;
 
-	memcpy(chip, &gpio_chip_template, sizeof(struct gpio_chip));
+	chip->gpio = gpio_chip_template;
 
 	if (chip == &gpio->high) {
 		if (base > 0)
@@ -1039,7 +1039,7 @@ static int sm501_register_gpio(struct sm501_devdata *sm)
 	if (gpio->regs == NULL) {
 		dev_err(sm->dev, "gpio: failed to remap registers\n");
 		ret = -ENXIO;
-		goto err_mapped;
+		goto err_claimed;
 	}
 
 	/* Register both our chips. */
@@ -1068,6 +1068,9 @@ static int sm501_register_gpio(struct sm501_devdata *sm)
 	}
 
  err_mapped:
+	iounmap(gpio->regs);
+
+ err_claimed:
 	release_resource(gpio->regs_res);
 	kfree(gpio->regs_res);
 
@@ -1076,33 +1079,38 @@ static int sm501_register_gpio(struct sm501_devdata *sm)
 
 static void sm501_gpio_remove(struct sm501_devdata *sm)
 {
+	struct sm501_gpio *gpio = &sm->gpio;
 	int ret;
 
-	ret = gpiochip_remove(&sm->gpio.low.gpio);
+	ret = gpiochip_remove(&gpio->low.gpio);
 	if (ret)
 		dev_err(sm->dev, "cannot remove low chip, cannot tidy up\n");
 
-	ret = gpiochip_remove(&sm->gpio.high.gpio);
+	ret = gpiochip_remove(&gpio->high.gpio);
 	if (ret)
 		dev_err(sm->dev, "cannot remove high chip, cannot tidy up\n");
+
+	iounmap(gpio->regs);
+	release_resource(gpio->regs_res);
+	kfree(gpio->regs_res);
 }
 
-static int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
+static inline int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
 {
 	struct sm501_gpio *gpio = &sm->gpio;
 	return pin + (pin < 32) ? gpio->low.gpio.base : gpio->high.gpio.base;
 }
 #else
-static int sm501_register_gpio(struct sm501_devdata *sm)
+static inline int sm501_register_gpio(struct sm501_devdata *sm)
 {
 	return 0;
 }
 
-static void sm501_gpio_remove(struct sm501_devdata *sm)
+static inline void sm501_gpio_remove(struct sm501_devdata *sm)
 {
 }
 
-static int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
+static inline int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
 {
 	return -1;
 }
