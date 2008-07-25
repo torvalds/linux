@@ -812,6 +812,12 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
 	sig->min_flt = sig->maj_flt = sig->cmin_flt = sig->cmaj_flt = 0;
 	sig->inblock = sig->oublock = sig->cinblock = sig->coublock = 0;
+#ifdef CONFIG_TASK_XACCT
+	sig->rchar = sig->wchar = sig->syscr = sig->syscw = 0;
+#endif
+#ifdef CONFIG_TASK_IO_ACCOUNTING
+	memset(&sig->ioac, 0, sizeof(sig->ioac));
+#endif
 	sig->sum_sched_runtime = 0;
 	INIT_LIST_HEAD(&sig->cpu_timers[0]);
 	INIT_LIST_HEAD(&sig->cpu_timers[1]);
