@@ -41,7 +41,7 @@ static int isight_firmware_load(struct usb_interface *intf,
 	const struct firmware *firmware;
 	unsigned char *buf = kmalloc(50, GFP_KERNEL);
 	unsigned char data[4];
-	u8 *ptr;
+	const u8 *ptr;
 
 	if (!buf)
 		return -ENOMEM;

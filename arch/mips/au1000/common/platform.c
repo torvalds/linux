@@ -11,6 +11,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/init.h>
@@ -77,14 +78,14 @@ static struct resource au1xxx_usb_ohci_resources[] = {
 };
 
 /* The dmamask must be set for OHCI to work */
-static u64 ohci_dmamask = ~(u32)0;
+static u64 ohci_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1xxx_usb_ohci_device = {
 	.name		= "au1xxx-ohci",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &ohci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 	},
 	.num_resources	= ARRAY_SIZE(au1xxx_usb_ohci_resources),
 	.resource	= au1xxx_usb_ohci_resources,
@@ -106,14 +107,14 @@ static struct resource au1100_lcd_resources[] = {
 	}
 };
 
-static u64 au1100_lcd_dmamask = ~(u32)0;
+static u64 au1100_lcd_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1100_lcd_device = {
 	.name           = "au1100-lcd",
 	.id             = 0,
 	.dev = {
 		.dma_mask               = &au1100_lcd_dmamask,
-		.coherent_dma_mask      = 0xffffffff,
+		.coherent_dma_mask      = DMA_32BIT_MASK,
 	},
 	.num_resources  = ARRAY_SIZE(au1100_lcd_resources),
 	.resource       = au1100_lcd_resources,
@@ -135,14 +136,14 @@ static struct resource au1xxx_usb_ehci_resources[] = {
 	},
 };
 
-static u64 ehci_dmamask = ~(u32)0;
+static u64 ehci_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1xxx_usb_ehci_device = {
 	.name		= "au1xxx-ehci",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 	},
 	.num_resources	= ARRAY_SIZE(au1xxx_usb_ehci_resources),
 	.resource	= au1xxx_usb_ehci_resources,
@@ -180,14 +181,14 @@ static struct resource au1xxx_mmc_resources[] = {
 	}
 };
 
-static u64 udc_dmamask = ~(u32)0;
+static u64 udc_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1xxx_usb_gdt_device = {
 	.name		= "au1xxx-udc",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &udc_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 	},
 	.num_resources	= ARRAY_SIZE(au1xxx_usb_gdt_resources),
 	.resource	= au1xxx_usb_gdt_resources,
@@ -207,14 +208,14 @@ static struct resource au1xxx_usb_otg_resources[] = {
 	},
 };
 
-static u64 uoc_dmamask = ~(u32)0;
+static u64 uoc_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1xxx_usb_otg_device = {
 	.name		= "au1xxx-uoc",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &uoc_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 	},
 	.num_resources	= ARRAY_SIZE(au1xxx_usb_otg_resources),
 	.resource	= au1xxx_usb_otg_resources,
@@ -233,27 +234,27 @@ static struct resource au1200_lcd_resources[] = {
 	}
 };
 
-static u64 au1200_lcd_dmamask = ~(u32)0;
+static u64 au1200_lcd_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1200_lcd_device = {
 	.name           = "au1200-lcd",
 	.id             = 0,
 	.dev = {
 		.dma_mask               = &au1200_lcd_dmamask,
-		.coherent_dma_mask      = 0xffffffff,
+		.coherent_dma_mask      = DMA_32BIT_MASK,
 	},
 	.num_resources  = ARRAY_SIZE(au1200_lcd_resources),
 	.resource       = au1200_lcd_resources,
 };
 
-static u64 au1xxx_mmc_dmamask =  ~(u32)0;
+static u64 au1xxx_mmc_dmamask =  DMA_32BIT_MASK;
 
 static struct platform_device au1xxx_mmc_device = {
 	.name = "au1xxx-mmc",
 	.id = 0,
 	.dev = {
 		.dma_mask               = &au1xxx_mmc_dmamask,
-		.coherent_dma_mask      = 0xffffffff,
+		.coherent_dma_mask      = DMA_32BIT_MASK,
 	},
 	.num_resources  = ARRAY_SIZE(au1xxx_mmc_resources),
 	.resource       = au1xxx_mmc_resources,

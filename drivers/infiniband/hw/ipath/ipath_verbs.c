@@ -35,6 +35,7 @@
 #include <rdma/ib_user_verbs.h>
 #include <linux/io.h>
 #include <linux/utsname.h>
+#include <linux/rculist.h>
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"
@@ -1497,7 +1498,8 @@ static int ipath_query_device(struct ib_device *ibdev,
 		IB_DEVICE_SYS_IMAGE_GUID | IB_DEVICE_RC_RNR_NAK_GEN |
 		IB_DEVICE_PORT_ACTIVE_EVENT | IB_DEVICE_SRQ_RESIZE;
 	props->page_size_cap = PAGE_SIZE;
-	props->vendor_id = dev->dd->ipath_vendorid;
+	props->vendor_id =
+		IPATH_SRC_OUI_1 << 16 | IPATH_SRC_OUI_2 << 8 | IPATH_SRC_OUI_3;
 	props->vendor_part_id = dev->dd->ipath_deviceid;
 	props->hw_ver = dev->dd->ipath_pcirev;
 

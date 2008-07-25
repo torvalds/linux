@@ -75,13 +75,12 @@ struct avc_audit_data {
 
 /* Initialize an AVC audit data structure. */
 #define AVC_AUDIT_DATA_INIT(_d,_t) \
-        { memset((_d), 0, sizeof(struct avc_audit_data)); (_d)->type = AVC_AUDIT_DATA_##_t; }
+	{ memset((_d), 0, sizeof(struct avc_audit_data)); (_d)->type = AVC_AUDIT_DATA_##_t; }
 
 /*
  * AVC statistics
  */
-struct avc_cache_stats
-{
+struct avc_cache_stats {
 	unsigned int lookups;
 	unsigned int hits;
 	unsigned int misses;
@@ -97,8 +96,8 @@ struct avc_cache_stats
 void __init avc_init(void);
 
 void avc_audit(u32 ssid, u32 tsid,
-               u16 tclass, u32 requested,
-               struct av_decision *avd, int result, struct avc_audit_data *auditdata);
+	       u16 tclass, u32 requested,
+	       struct av_decision *avd, int result, struct avc_audit_data *auditdata);
 
 #define AVC_STRICT 1 /* Ignore permissive mode. */
 int avc_has_perm_noaudit(u32 ssid, u32 tsid,
@@ -107,8 +106,8 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 			 struct av_decision *avd);
 
 int avc_has_perm(u32 ssid, u32 tsid,
-                 u16 tclass, u32 requested,
-                 struct avc_audit_data *auditdata);
+		 u16 tclass, u32 requested,
+		 struct avc_audit_data *auditdata);
 
 u32 avc_policy_seqno(void);
 
@@ -122,7 +121,7 @@ u32 avc_policy_seqno(void);
 #define AVC_CALLBACK_AUDITDENY_DISABLE	128
 
 int avc_add_callback(int (*callback)(u32 event, u32 ssid, u32 tsid,
-                                     u16 tclass, u32 perms,
+				     u16 tclass, u32 perms,
 				     u32 *out_retained),
 		     u32 events, u32 ssid, u32 tsid,
 		     u16 tclass, u32 perms);

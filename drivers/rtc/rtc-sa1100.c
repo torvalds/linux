@@ -33,7 +33,6 @@
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
-#include <asm/rtc.h>
 
 #ifdef CONFIG_ARCH_PXA
 #include <asm/arch/pxa-regs.h>
@@ -46,6 +45,42 @@
 static unsigned long rtc_freq = 1024;
 static struct rtc_time rtc_alarm;
 static DEFINE_SPINLOCK(sa1100_rtc_lock);
+
+static inline int rtc_periodic_alarm(struct rtc_time *tm)
+{
+	return  (tm->tm_year == -1) ||
+		((unsigned)tm->tm_mon >= 12) ||
+		((unsigned)(tm->tm_mday - 1) >= 31) ||
+		((unsigned)tm->tm_hour > 23) ||
+		((unsigned)tm->tm_min > 59) ||
+		((unsigned)tm->tm_sec > 59);
+}
+
+/*
+ * Calculate the next alarm time given the requested alarm time mask
+ * and the current time.
+ */
+static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now, struct rtc_time *alrm)
+{
+	unsigned long next_time;
+	unsigned long now_time;
+
+	next->tm_year = now->tm_year;
+	next->tm_mon = now->tm_mon;
+	next->tm_mday = now->tm_mday;
+	next->tm_hour = alrm->tm_hour;
+	next->tm_min = alrm->tm_min;
+	next->tm_sec = alrm->tm_sec;
+
+	rtc_tm_to_time(now, &now_time);
+	rtc_tm_to_time(next, &next_time);
+
+	if (next_time < now_time) {
+		/* Advance one day */
+		next_time += 60 * 60 * 24;
+		rtc_time_to_tm(next_time, next);
+	}
+}
 
 static int rtc_update_alarm(struct rtc_time *alrm)
 {

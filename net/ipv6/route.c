@@ -5,8 +5,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
- *	$Id: route.c,v 1.56 2001/10/31 21:55:55 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
@@ -230,7 +228,7 @@ static __inline__ int rt6_check_expired(const struct rt6_info *rt)
 static inline int rt6_need_strict(struct in6_addr *daddr)
 {
 	return (ipv6_addr_type(daddr) &
-		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL));
+		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK));
 }
 
 /*
@@ -239,15 +237,20 @@ static inline int rt6_need_strict(struct in6_addr *daddr)
 
 static inline struct rt6_info *rt6_device_match(struct net *net,
 						    struct rt6_info *rt,
+						    struct in6_addr *saddr,
 						    int oif,
 						    int flags)
 {
 	struct rt6_info *local = NULL;
 	struct rt6_info *sprt;
 
-	if (oif) {
-		for (sprt = rt; sprt; sprt = sprt->u.dst.rt6_next) {
-			struct net_device *dev = sprt->rt6i_dev;
+	if (!oif && ipv6_addr_any(saddr))
+		goto out;
+
+	for (sprt = rt; sprt; sprt = sprt->u.dst.rt6_next) {
+		struct net_device *dev = sprt->rt6i_dev;
+
+		if (oif) {
 			if (dev->ifindex == oif)
 				return sprt;
 			if (dev->flags & IFF_LOOPBACK) {
@@ -261,14 +264,21 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 				}
 				local = sprt;
 			}
+		} else {
+			if (ipv6_chk_addr(net, saddr, dev,
+					  flags & RT6_LOOKUP_F_IFACE))
+				return sprt;
 		}
+	}
 
+	if (oif) {
 		if (local)
 			return local;
 
 		if (flags & RT6_LOOKUP_F_IFACE)
 			return net->ipv6.ip6_null_entry;
 	}
+out:
 	return rt;
 }
 
@@ -541,7 +551,7 @@ static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 	fn = fib6_lookup(&table->tb6_root, &fl->fl6_dst, &fl->fl6_src);
 restart:
 	rt = fn->leaf;
-	rt = rt6_device_match(net, rt, fl->oif, flags);
+	rt = rt6_device_match(net, rt, &fl->fl6_src, fl->oif, flags);
 	BACKTRACK(net, &fl->fl6_src);
 out:
 	dst_use(&rt->u.dst, jiffies);
@@ -666,7 +676,7 @@ static struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 	int strict = 0;
 	int attempts = 3;
 	int err;
-	int reachable = ipv6_devconf.forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
+	int reachable = net->ipv6.devconf_all->forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
 
@@ -968,13 +978,12 @@ out:
 	return &rt->u.dst;
 }
 
-int icmp6_dst_gc(int *more)
+int icmp6_dst_gc(void)
 {
 	struct dst_entry *dst, *next, **pprev;
-	int freed;
+	int more = 0;
 
 	next = NULL;
-	freed = 0;
 
 	spin_lock_bh(&icmp6_dst_lock);
 	pprev = &icmp6_dst_gc_list;
@@ -983,16 +992,15 @@ int icmp6_dst_gc(int *more)
 		if (!atomic_read(&dst->__refcnt)) {
 			*pprev = dst->next;
 			dst_free(dst);
-			freed++;
 		} else {
 			pprev = &dst->next;
-			(*more)++;
+			++more;
 		}
 	}
 
 	spin_unlock_bh(&icmp6_dst_lock);
 
-	return freed;
+	return more;
 }
 
 static int ip6_dst_gc(struct dst_ops *ops)
@@ -1048,7 +1056,7 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 			hoplimit = idev->cnf.hop_limit;
 			in6_dev_put(idev);
 		} else
-			hoplimit = ipv6_devconf.hop_limit;
+			hoplimit = dev_net(dev)->ipv6.devconf_all->hop_limit;
 	}
 	return hoplimit;
 }
@@ -2406,26 +2414,7 @@ static int ipv6_route_show(struct seq_file *m, void *v)
 
 static int ipv6_route_open(struct inode *inode, struct file *file)
 {
-	int err;
-	struct net *net = get_proc_net(inode);
-	if (!net)
-		return -ENXIO;
-
-	err = single_open(file, ipv6_route_show, net);
-	if (err < 0) {
-		put_net(net);
-		return err;
-	}
-
-	return 0;
-}
-
-static int ipv6_route_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct net *net = seq->private;
-	put_net(net);
-	return single_release(inode, file);
+	return single_open_net(inode, file, ipv6_route_show);
 }
 
 static const struct file_operations ipv6_route_proc_fops = {
@@ -2433,7 +2422,7 @@ static const struct file_operations ipv6_route_proc_fops = {
 	.open		= ipv6_route_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= ipv6_route_release,
+	.release	= single_release_net,
 };
 
 static int rt6_stats_seq_show(struct seq_file *seq, void *v)
@@ -2453,26 +2442,7 @@ static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 
 static int rt6_stats_seq_open(struct inode *inode, struct file *file)
 {
-	int err;
-	struct net *net = get_proc_net(inode);
-	if (!net)
-		return -ENXIO;
-
-	err = single_open(file, rt6_stats_seq_show, net);
-	if (err < 0) {
-		put_net(net);
-		return err;
-	}
-
-	return 0;
-}
-
-static int rt6_stats_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct net *net = (struct net *)seq->private;
-	put_net(net);
-	return single_release(inode, file);
+	return single_open_net(inode, file, rt6_stats_seq_show);
 }
 
 static const struct file_operations rt6_stats_seq_fops = {
@@ -2480,7 +2450,7 @@ static const struct file_operations rt6_stats_seq_fops = {
 	.open	 = rt6_stats_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = rt6_stats_seq_release,
+	.release = single_release_net,
 };
 #endif	/* CONFIG_PROC_FS */
 

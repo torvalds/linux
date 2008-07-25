@@ -51,14 +51,25 @@
 #include <asm/percpu.h>
 #include <asm/dwarf2.h>
 #include <asm/processor-flags.h>
-#include "irq_vectors.h"
+#include <asm/ftrace.h>
+#include <asm/irq_vectors.h>
+
+/* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
+#include <linux/elf-em.h>
+#define AUDIT_ARCH_I386		(EM_386|__AUDIT_ARCH_LE)
+#define __AUDIT_ARCH_LE	   0x40000000
+
+#ifndef CONFIG_AUDITSYSCALL
+#define sysenter_audit	syscall_trace_entry
+#define sysexit_audit	syscall_exit_work
+#endif
 
 /*
  * We use macros for low-level operations which need to be overridden
  * for paravirtualization.  The following will never clobber any registers:
  *   INTERRUPT_RETURN (aka. "iret")
  *   GET_CR0_INTO_EAX (aka. "movl %cr0, %eax")
- *   ENABLE_INTERRUPTS_SYSCALL_RET (aka "sti; sysexit").
+ *   ENABLE_INTERRUPTS_SYSEXIT (aka "sti; sysexit").
  *
  * For DISABLE_INTERRUPTS/ENABLE_INTERRUPTS (aka "cli"/"sti"), you must
  * specify what registers can be overwritten (CLBR_NONE, CLBR_EAX/EDX/ECX/ANY).
@@ -331,8 +342,9 @@ sysenter_past_esp:
 	GET_THREAD_INFO(%ebp)
 
 	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
-	testw $(_TIF_SYSCALL_EMU|_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
-	jnz syscall_trace_entry
+	testw $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%ebp)
+	jnz sysenter_audit
+sysenter_do_call:
 	cmpl $(nr_syscalls), %eax
 	jae syscall_badsys
 	call *sys_call_table(,%eax,4)
@@ -342,14 +354,54 @@ sysenter_past_esp:
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testw $_TIF_ALLWORK_MASK, %cx
-	jne syscall_exit_work
+	jne sysexit_audit
+sysenter_exit:
 /* if something modifies registers it must also disable sysexit */
 	movl PT_EIP(%esp), %edx
 	movl PT_OLDESP(%esp), %ecx
 	xorl %ebp,%ebp
 	TRACE_IRQS_ON
 1:	mov  PT_FS(%esp), %fs
-	ENABLE_INTERRUPTS_SYSCALL_RET
+	ENABLE_INTERRUPTS_SYSEXIT
+
+#ifdef CONFIG_AUDITSYSCALL
+sysenter_audit:
+	testw $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
+	jnz syscall_trace_entry
+	addl $4,%esp
+	CFI_ADJUST_CFA_OFFSET -4
+	/* %esi already in 8(%esp)	   6th arg: 4th syscall arg */
+	/* %edx already in 4(%esp)	   5th arg: 3rd syscall arg */
+	/* %ecx already in 0(%esp)	   4th arg: 2nd syscall arg */
+	movl %ebx,%ecx			/* 3rd arg: 1st syscall arg */
+	movl %eax,%edx			/* 2nd arg: syscall number */
+	movl $AUDIT_ARCH_I386,%eax	/* 1st arg: audit arch */
+	call audit_syscall_entry
+	pushl %ebx
+	CFI_ADJUST_CFA_OFFSET 4
+	movl PT_EAX(%esp),%eax		/* reload syscall number */
+	jmp sysenter_do_call
+
+sysexit_audit:
+	testw $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %cx
+	jne syscall_exit_work
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_ANY)
+	movl %eax,%edx		/* second arg, syscall return value */
+	cmpl $0,%eax		/* is it < 0? */
+	setl %al		/* 1 if so, 0 if not */
+	movzbl %al,%eax		/* zero-extend that */
+	inc %eax /* first arg, 0->1(AUDITSC_SUCCESS), 1->2(AUDITSC_FAILURE) */
+	call audit_syscall_exit
+	DISABLE_INTERRUPTS(CLBR_ANY)
+	TRACE_IRQS_OFF
+	movl TI_flags(%ebp), %ecx
+	testw $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %cx
+	jne syscall_exit_work
+	movl PT_EAX(%esp),%eax	/* reload syscall return value */
+	jmp sysenter_exit
+#endif
+
 	CFI_ENDPROC
 .pushsection .fixup,"ax"
 2:	movl $0,PT_FS(%esp)
@@ -369,7 +421,7 @@ ENTRY(system_call)
 	GET_THREAD_INFO(%ebp)
 					# system call tracing in operation / emulation
 	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
-	testw $(_TIF_SYSCALL_EMU|_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
+	testw $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%ebp)
 	jnz syscall_trace_entry
 	cmpl $(nr_syscalls), %eax
 	jae syscall_badsys
@@ -382,10 +434,6 @@ syscall_exit:
 					# setting need_resched or sigpending
 					# between sampling and the iret
 	TRACE_IRQS_OFF
-	testl $X86_EFLAGS_TF,PT_EFLAGS(%esp)	# If tracing set singlestep flag on exit
-	jz no_singlestep
-	orl $_TIF_SINGLESTEP,TI_flags(%ebp)
-no_singlestep:
 	movl TI_flags(%ebp), %ecx
 	testw $_TIF_ALLWORK_MASK, %cx	# current->work
 	jne syscall_exit_work
@@ -513,12 +561,8 @@ END(work_pending)
 syscall_trace_entry:
 	movl $-ENOSYS,PT_EAX(%esp)
 	movl %esp, %eax
-	xorl %edx,%edx
-	call do_syscall_trace
-	cmpl $0, %eax
-	jne resume_userspace		# ret != 0 -> running under PTRACE_SYSEMU,
-					# so must skip actual syscall
-	movl PT_ORIG_EAX(%esp), %eax
+	call syscall_trace_enter
+	/* What it returned is what we'll actually use.  */
 	cmpl $(nr_syscalls), %eax
 	jnae syscall_call
 	jmp syscall_exit
@@ -527,14 +571,13 @@ END(syscall_trace_entry)
 	# perform syscall exit tracing
 	ALIGN
 syscall_exit_work:
-	testb $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP), %cl
+	testb $_TIF_WORK_SYSCALL_EXIT, %cl
 	jz work_pending
 	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_ANY)	# could let do_syscall_trace() call
+	ENABLE_INTERRUPTS(CLBR_ANY)	# could let syscall_trace_leave() call
 					# schedule() instead
 	movl %esp, %eax
-	movl $1, %edx
-	call do_syscall_trace
+	call syscall_trace_leave
 	jmp resume_userspace
 END(syscall_exit_work)
 	CFI_ENDPROC
@@ -874,10 +917,10 @@ ENTRY(native_iret)
 .previous
 END(native_iret)
 
-ENTRY(native_irq_enable_syscall_ret)
+ENTRY(native_irq_enable_sysexit)
 	sti
 	sysexit
-END(native_irq_enable_syscall_ret)
+END(native_irq_enable_sysexit)
 #endif
 
 KPROBE_ENTRY(int3)
@@ -1023,7 +1066,9 @@ ENDPROC(kernel_thread_helper)
 ENTRY(xen_sysenter_target)
 	RING0_INT_FRAME
 	addl $5*4, %esp		/* remove xen-provided frame */
+	CFI_ADJUST_CFA_OFFSET -5*4
 	jmp sysenter_past_esp
+	CFI_ENDPROC
 
 ENTRY(xen_hypervisor_callback)
 	CFI_STARTPROC
@@ -1109,6 +1154,77 @@ ENTRY(xen_failsafe_callback)
 ENDPROC(xen_failsafe_callback)
 
 #endif	/* CONFIG_XEN */
+
+#ifdef CONFIG_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+ENTRY(mcount)
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl 0xc(%esp), %eax
+	subl $MCOUNT_INSN_SIZE, %eax
+
+.globl mcount_call
+mcount_call:
+	call ftrace_stub
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+	ret
+END(mcount)
+
+ENTRY(ftrace_caller)
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl 0xc(%esp), %eax
+	movl 0x4(%ebp), %edx
+	subl $MCOUNT_INSN_SIZE, %eax
+
+.globl ftrace_call
+ftrace_call:
+	call ftrace_stub
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+.globl ftrace_stub
+ftrace_stub:
+	ret
+END(ftrace_caller)
+
+#else /* ! CONFIG_DYNAMIC_FTRACE */
+
+ENTRY(mcount)
+	cmpl $ftrace_stub, ftrace_trace_function
+	jnz trace
+.globl ftrace_stub
+ftrace_stub:
+	ret
+
+	/* taken from glibc */
+trace:
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl 0xc(%esp), %eax
+	movl 0x4(%ebp), %edx
+	subl $MCOUNT_INSN_SIZE, %eax
+
+	call *ftrace_trace_function
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+	jmp ftrace_stub
+END(mcount)
+#endif /* CONFIG_DYNAMIC_FTRACE */
+#endif /* CONFIG_FTRACE */
 
 .section .rodata,"a"
 #include "syscall_table_32.S"

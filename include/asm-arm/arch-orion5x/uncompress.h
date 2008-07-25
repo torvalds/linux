@@ -8,23 +8,38 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/serial_reg.h>
 #include <asm/arch/orion5x.h>
 
-#define MV_UART_THR	((volatile unsigned char *)(UART0_PHYS_BASE + 0x0))
-#define MV_UART_LSR 	((volatile unsigned char *)(UART0_PHYS_BASE + 0x14))
-
-#define LSR_THRE	0x20
+#define SERIAL_BASE	((unsigned char *)UART0_PHYS_BASE)
 
 static void putc(const char c)
 {
-	int j = 0x1000;
-	while (--j && !(*MV_UART_LSR & LSR_THRE))
+	unsigned char *base = SERIAL_BASE;
+	int i;
+
+	for (i = 0; i < 0x1000; i++) {
+		if (base[UART_LSR << 2] & UART_LSR_THRE)
+			break;
 		barrier();
-	*MV_UART_THR = c;
+	}
+
+	base[UART_TX << 2] = c;
 }
 
 static void flush(void)
 {
+	unsigned char *base = SERIAL_BASE;
+	unsigned char mask;
+	int i;
+
+	mask = UART_LSR_TEMT | UART_LSR_THRE;
+
+	for (i = 0; i < 0x1000; i++) {
+		if ((base[UART_LSR << 2] & mask) == mask)
+			break;
+		barrier();
+	}
 }
 
 /*

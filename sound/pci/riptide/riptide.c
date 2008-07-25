@@ -682,7 +682,7 @@ static union firmware_version firmware_versions[] = {
 	},
 };
 
-static u32 atoh(unsigned char *in, unsigned int len)
+static u32 atoh(const unsigned char *in, unsigned int len)
 {
 	u32 sum = 0;
 	unsigned int mult = 1;
@@ -702,12 +702,12 @@ static u32 atoh(unsigned char *in, unsigned int len)
 	return sum;
 }
 
-static int senddata(struct cmdif *cif, unsigned char *in, u32 offset)
+static int senddata(struct cmdif *cif, const unsigned char *in, u32 offset)
 {
 	u32 addr;
 	u32 data;
 	u32 i;
-	unsigned char *p;
+	const unsigned char *p;
 
 	i = atoh(&in[1], 2);
 	addr = offset + atoh(&in[3], 4);
@@ -726,10 +726,10 @@ static int senddata(struct cmdif *cif, unsigned char *in, u32 offset)
 	return 0;
 }
 
-static int loadfirmware(struct cmdif *cif, unsigned char *img,
+static int loadfirmware(struct cmdif *cif, const unsigned char *img,
 			unsigned int size)
 {
-	unsigned char *in;
+	const unsigned char *in;
 	u32 laddr, saddr, t, val;
 	int err = 0;
 

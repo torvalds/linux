@@ -34,11 +34,8 @@
 /*
  * OTG and transceiver registers, for OMAPs starting with ARM926
  */
-#define OTG_REG32(offset)		__REG32(OTG_BASE + (offset))
-#define OTG_REG16(offset)		__REG16(OTG_BASE + (offset))
-
-#define OTG_REV_REG			OTG_REG32(0x00)
-#define OTG_SYSCON_1_REG		OTG_REG32(0x04)
+#define OTG_REV				(OTG_BASE + 0x00)
+#define OTG_SYSCON_1			(OTG_BASE + 0x04)
 #	define	 USB2_TRX_MODE(w)	(((w)>>24)&0x07)
 #	define	 USB1_TRX_MODE(w)	(((w)>>20)&0x07)
 #	define	 USB0_TRX_MODE(w)	(((w)>>16)&0x07)
@@ -47,7 +44,7 @@
 #	define	 DEV_IDLE_EN		(1 << 13)
 #	define	 OTG_RESET_DONE		(1 << 2)
 #	define	 OTG_SOFT_RESET		(1 << 1)
-#define OTG_SYSCON_2_REG		OTG_REG32(0x08)
+#define OTG_SYSCON_2			(OTG_BASE + 0x08)
 #	define	 OTG_EN			(1 << 31)
 #	define	 USBX_SYNCHRO		(1 << 30)
 #	define	 OTG_MST16		(1 << 29)
@@ -65,7 +62,7 @@
 #	define	 HMC_TLLSPEED		(1 << 7)
 #	define	 HMC_TLLATTACH		(1 << 6)
 #	define	 OTG_HMC(w)		(((w)>>0)&0x3f)
-#define OTG_CTRL_REG			OTG_REG32(0x0c)
+#define OTG_CTRL			(OTG_BASE + 0x0c)
 #	define	 OTG_USB2_EN		(1 << 29)
 #	define	 OTG_USB2_DP		(1 << 28)
 #	define	 OTG_USB2_DM		(1 << 27)
@@ -92,7 +89,7 @@
 #	define	 OTG_PD_VBUS		(1 << 2)
 #	define	 OTG_PU_VBUS		(1 << 1)
 #	define	 OTG_PU_ID		(1 << 0)
-#define OTG_IRQ_EN_REG			OTG_REG16(0x10)
+#define OTG_IRQ_EN			(OTG_BASE + 0x10)	/* 16-bit */
 #	define	 DRIVER_SWITCH		(1 << 15)
 #	define	 A_VBUS_ERR		(1 << 13)
 #	define	 A_REQ_TMROUT		(1 << 12)
@@ -102,9 +99,9 @@
 #	define	 B_SRP_DONE		(1 << 8)
 #	define	 B_SRP_STARTED		(1 << 7)
 #	define	 OPRT_CHG		(1 << 0)
-#define OTG_IRQ_SRC_REG			OTG_REG16(0x14)
+#define OTG_IRQ_SRC			(OTG_BASE + 0x14)	/* 16-bit */
 	// same bits as in IRQ_EN
-#define OTG_OUTCTRL_REG			OTG_REG16(0x18)
+#define OTG_OUTCTRL			(OTG_BASE + 0x18)	/* 16-bit */
 #	define	 OTGVPD			(1 << 14)
 #	define	 OTGVPU			(1 << 13)
 #	define	 OTGPUID		(1 << 12)
@@ -117,13 +114,13 @@
 #	define	 USB0VDR		(1 << 2)
 #	define	 USB0PDEN		(1 << 1)
 #	define	 USB0PUEN		(1 << 0)
-#define OTG_TEST_REG			OTG_REG16(0x20)
-#define OTG_VENDOR_CODE_REG		OTG_REG32(0xfc)
+#define OTG_TEST			(OTG_BASE + 0x20)	/* 16-bit */
+#define OTG_VENDOR_CODE			(OTG_BASE + 0xfc)	/* 16-bit */
 
 /*-------------------------------------------------------------------------*/
 
 /* OMAP1 */
-#define	USB_TRANSCEIVER_CTRL_REG	__REG32(0xfffe1000 + 0x0064)
+#define	USB_TRANSCEIVER_CTRL		(0xfffe1000 + 0x0064)
 #	define	CONF_USB2_UNI_R		(1 << 8)
 #	define	CONF_USB1_UNI_R		(1 << 7)
 #	define	CONF_USB_PORT0_R(x)	(((x)>>4)&0x7)

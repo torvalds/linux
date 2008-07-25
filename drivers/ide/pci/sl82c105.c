@@ -47,10 +47,11 @@
  */
 static unsigned int get_pio_timings(ide_drive_t *drive, u8 pio)
 {
+	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
 	unsigned int cmd_on, cmd_off;
 	u8 iordy = 0;
 
-	cmd_on  = (ide_pio_timings[pio].active_time + 29) / 30;
+	cmd_on  = (t->active + 29) / 30;
 	cmd_off = (ide_pio_cycle_time(drive, pio) - 30 * cmd_on + 29) / 30;
 
 	if (cmd_on == 0)
@@ -156,9 +157,9 @@ static void sl82c105_dma_lost_irq(ide_drive_t *drive)
 	 * Was DMA enabled?  If so, disable it - we're resetting the
 	 * host.  The IDE layer will be handling the drive for us.
 	 */
-	dma_cmd = inb(hwif->dma_command);
+	dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
 	if (dma_cmd & 1) {
-		outb(dma_cmd & ~1, hwif->dma_command);
+		outb(dma_cmd & ~1, hwif->dma_base + ATA_DMA_CMD);
 		printk("sl82c105: DMA was enabled\n");
 	}
 

@@ -40,8 +40,6 @@ static void gfs2_init_glock_once(struct kmem_cache *cachep, void *foo)
 	INIT_HLIST_NODE(&gl->gl_list);
 	spin_lock_init(&gl->gl_spin);
 	INIT_LIST_HEAD(&gl->gl_holders);
-	INIT_LIST_HEAD(&gl->gl_waiters1);
-	INIT_LIST_HEAD(&gl->gl_waiters3);
 	gl->gl_lvb = NULL;
 	atomic_set(&gl->gl_lvb_count, 0);
 	INIT_LIST_HEAD(&gl->gl_reclaim);

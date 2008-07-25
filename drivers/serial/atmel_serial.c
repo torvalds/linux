@@ -662,14 +662,14 @@ static void atmel_rx_from_ring(struct uart_port *port)
 	 * uart_start(), which takes the lock.
 	 */
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(port->info->tty);
+	tty_flip_buffer_push(port->info->port.tty);
 	spin_lock(&port->lock);
 }
 
 static void atmel_rx_from_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	struct atmel_dma_buffer *pdc;
 	int rx_idx = atmel_port->pdc_rx_idx;
 	unsigned int head;
@@ -794,7 +794,7 @@ static void atmel_tasklet_func(unsigned long data)
 static int atmel_startup(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	int retval;
 
 	/*
@@ -953,6 +953,20 @@ static void atmel_shutdown(struct uart_port *port)
 	 */
 	if (atmel_close_hook)
 		atmel_close_hook(port);
+}
+
+/*
+ * Flush any TX data submitted for DMA. Called when the TX circular
+ * buffer is reset.
+ */
+static void atmel_flush_buffer(struct uart_port *port)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+
+	if (atmel_use_dma_tx(port)) {
+		UART_PUT_TCR(port, 0);
+		atmel_port->pdc_tx.ofs = 0;
+	}
 }
 
 /*
@@ -1189,6 +1203,7 @@ static struct uart_ops atmel_pops = {
 	.break_ctl	= atmel_break_ctl,
 	.startup	= atmel_startup,
 	.shutdown	= atmel_shutdown,
+	.flush_buffer	= atmel_flush_buffer,
 	.set_termios	= atmel_set_termios,
 	.type		= atmel_type,
 	.release_port	= atmel_release_port,
@@ -1439,14 +1454,29 @@ static struct uart_driver atmel_uart = {
 };
 
 #ifdef CONFIG_PM
+static bool atmel_serial_clk_will_stop(void)
+{
+#ifdef CONFIG_ARCH_AT91
+	return at91_suspend_entering_slow_clock();
+#else
+	return false;
+#endif
+}
+
 static int atmel_serial_suspend(struct platform_device *pdev,
 				pm_message_t state)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
+	if (atmel_is_console_port(port) && console_suspend_enabled) {
+		/* Drain the TX shifter */
+		while (!(UART_GET_CSR(port) & ATMEL_US_TXEMPTY))
+			cpu_relax();
+	}
+
 	if (device_may_wakeup(&pdev->dev)
-	    && !at91_suspend_entering_slow_clock())
+	    && !atmel_serial_clk_will_stop())
 		enable_irq_wake(port->irq);
 	else {
 		uart_suspend_port(&atmel_uart, port);

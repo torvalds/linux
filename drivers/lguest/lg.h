@@ -136,7 +136,6 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
  * first step in the migration to the kernel types.  pte_pfn is already defined
  * in the kernel. */
 #define pgd_flags(x)	(pgd_val(x) & ~PAGE_MASK)
-#define pte_flags(x)	(pte_val(x) & ~PAGE_MASK)
 #define pgd_pfn(x)	(pgd_val(x) >> PAGE_SHIFT)
 
 /* interrupts_and_traps.c: */

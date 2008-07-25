@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/mach-bast.c
  *
- * Copyright (c) 2003-2005 Simtec Electronics
+ * Copyright (c) 2003-2005,2008 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.simtec.co.uk/products/EB2410ITX/
@@ -20,6 +20,8 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/dm9000.h>
+#include <linux/ata_platform.h>
+#include <linux/i2c.h>
 
 #include <net/ax88796.h>
 
@@ -56,7 +58,9 @@
 #include <asm/plat-s3c24xx/clock.h>
 #include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/cpu.h>
+
 #include "usb-simtec.h"
+#include "nor-simtec.h"
 
 #define COPYRIGHT ", (c) 2004-2005 Simtec Electronics"
 
@@ -134,37 +138,21 @@ static struct map_desc bast_iodesc[] __initdata = {
   { VA_C2(BAST_VA_ISAIO),   PA_CS2(BAST_PA_ISAIO),    SZ_16M, MT_DEVICE },
   { VA_C2(BAST_VA_ISAMEM),  PA_CS2(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
   { VA_C2(BAST_VA_SUPERIO), PA_CS2(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
-  { VA_C2(BAST_VA_IDEPRI),  PA_CS3(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
-  { VA_C2(BAST_VA_IDESEC),  PA_CS3(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
-  { VA_C2(BAST_VA_IDEPRIAUX), PA_CS3(BAST_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
-  { VA_C2(BAST_VA_IDESECAUX), PA_CS3(BAST_PA_IDESECAUX), SZ_1M, MT_DEVICE },
 
   /* slow, word */
   { VA_C3(BAST_VA_ISAIO),   PA_CS3(BAST_PA_ISAIO),    SZ_16M, MT_DEVICE },
   { VA_C3(BAST_VA_ISAMEM),  PA_CS3(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
   { VA_C3(BAST_VA_SUPERIO), PA_CS3(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
-  { VA_C3(BAST_VA_IDEPRI),  PA_CS3(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
-  { VA_C3(BAST_VA_IDESEC),  PA_CS3(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
-  { VA_C3(BAST_VA_IDEPRIAUX), PA_CS3(BAST_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
-  { VA_C3(BAST_VA_IDESECAUX), PA_CS3(BAST_PA_IDESECAUX), SZ_1M, MT_DEVICE },
 
   /* fast, byte */
   { VA_C4(BAST_VA_ISAIO),   PA_CS4(BAST_PA_ISAIO),    SZ_16M, MT_DEVICE },
   { VA_C4(BAST_VA_ISAMEM),  PA_CS4(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
   { VA_C4(BAST_VA_SUPERIO), PA_CS4(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
-  { VA_C4(BAST_VA_IDEPRI),  PA_CS5(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
-  { VA_C4(BAST_VA_IDESEC),  PA_CS5(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
-  { VA_C4(BAST_VA_IDEPRIAUX), PA_CS5(BAST_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
-  { VA_C4(BAST_VA_IDESECAUX), PA_CS5(BAST_PA_IDESECAUX), SZ_1M, MT_DEVICE },
 
   /* fast, word */
   { VA_C5(BAST_VA_ISAIO),   PA_CS5(BAST_PA_ISAIO),    SZ_16M, MT_DEVICE },
   { VA_C5(BAST_VA_ISAMEM),  PA_CS5(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
   { VA_C5(BAST_VA_SUPERIO), PA_CS5(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
-  { VA_C5(BAST_VA_IDEPRI),  PA_CS5(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
-  { VA_C5(BAST_VA_IDESEC),  PA_CS5(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
-  { VA_C5(BAST_VA_IDEPRIAUX), PA_CS5(BAST_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
-  { VA_C5(BAST_VA_IDESECAUX), PA_CS5(BAST_PA_IDESECAUX), SZ_1M, MT_DEVICE },
 };
 
 #define UCON S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK
@@ -216,23 +204,6 @@ static struct s3c2410_uartcfg bast_uartcfgs[] __initdata = {
 		.clocks	     = bast_serial_clocks,
 		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	}
-};
-
-/* NOR Flash on BAST board */
-
-static struct resource bast_nor_resource[] = {
-	[0] = {
-		.start = S3C2410_CS1 + 0x4000000,
-		.end   = S3C2410_CS1 + 0x4000000 + (32*1024*1024) - 1,
-		.flags = IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device bast_device_nor = {
-	.name		= "bast-nor",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(bast_nor_resource),
-	.resource	= bast_nor_resource,
 };
 
 /* NAND Flash on BAST board */
@@ -374,7 +345,7 @@ static struct resource bast_dm9k_resource[] = {
 	[2] = {
 		.start = IRQ_DM9000,
 		.end   = IRQ_DM9000,
-		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	}
 
 };
@@ -564,6 +535,18 @@ static struct s3c2410fb_mach_info __initdata bast_fb_info = {
 	.default_display = 1,
 };
 
+/* I2C devices fitted. */
+
+static struct i2c_board_info bast_i2c_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("tlv320aic23", 0x1a),
+	}, {
+		I2C_BOARD_INFO("simtec-pmu", 0x6b),
+	}, {
+		I2C_BOARD_INFO("ch7013", 0x75),
+	},
+};
+
 /* Standard BAST devices */
 
 static struct platform_device *bast_devices[] __initdata = {
@@ -573,7 +556,6 @@ static struct platform_device *bast_devices[] __initdata = {
 	&s3c_device_i2c,
  	&s3c_device_rtc,
 	&s3c_device_nand,
-	&bast_device_nor,
 	&bast_device_dm9k,
 	&bast_device_asix,
 	&bast_device_axpp,
@@ -622,6 +604,11 @@ static void __init bast_init(void)
 
 	s3c24xx_fb_set_platdata(&bast_fb_info);
 	platform_add_devices(bast_devices, ARRAY_SIZE(bast_devices));
+
+	i2c_register_board_info(0, bast_i2c_devs,
+				ARRAY_SIZE(bast_i2c_devs));
+
+	nor_simtec_init();
 }
 
 MACHINE_START(BAST, "Simtec-BAST")

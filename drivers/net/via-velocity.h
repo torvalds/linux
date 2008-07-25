@@ -236,10 +236,8 @@ struct velocity_rd_info {
 
 struct velocity_td_info {
 	struct sk_buff *skb;
-	u8 *buf;
 	int nskb_dma;
 	dma_addr_t skb_dma[7];
-	dma_addr_t buf_dma;
 };
 
 enum  velocity_owner {
@@ -1505,9 +1503,6 @@ struct velocity_info {
 
 	dma_addr_t rd_pool_dma;
 	dma_addr_t td_pool_dma[TX_QUEUE_NO];
-
-	dma_addr_t tx_bufs_dma;
-	u8 *tx_bufs;
 
 	struct vlan_group    *vlgrp;
 	u8 ip_addr[4];

@@ -36,7 +36,6 @@ const char *cu3088_type[] = {
 	"CTC/A",
 	"ESCON channel",
 	"FICON channel",
-	"P390 LCS card",
 	"OSA LCS card",
 	"CLAW channel device",
 	"unknown channel type",
@@ -49,7 +48,6 @@ static struct ccw_device_id cu3088_ids[] = {
 	{ CCW_DEVICE(0x3088, 0x08), .driver_info = channel_type_parallel },
 	{ CCW_DEVICE(0x3088, 0x1f), .driver_info = channel_type_escon },
 	{ CCW_DEVICE(0x3088, 0x1e), .driver_info = channel_type_ficon },
-	{ CCW_DEVICE(0x3088, 0x01), .driver_info = channel_type_p390 },
 	{ CCW_DEVICE(0x3088, 0x60), .driver_info = channel_type_osa2 },
 	{ CCW_DEVICE(0x3088, 0x61), .driver_info = channel_type_claw },
 	{ /* end of list */ }

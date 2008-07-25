@@ -53,9 +53,9 @@ extern void hash_page_sync(void);
 #endif
 
 #ifdef HAVE_BATS
-extern unsigned long v_mapped_by_bats(unsigned long va);
-extern unsigned long p_mapped_by_bats(unsigned long pa);
-void setbat(int index, unsigned long virt, unsigned long phys,
+extern phys_addr_t v_mapped_by_bats(unsigned long va);
+extern unsigned long p_mapped_by_bats(phys_addr_t pa);
+void setbat(int index, unsigned long virt, phys_addr_t phys,
 	    unsigned int size, int flags);
 
 #else /* !HAVE_BATS */

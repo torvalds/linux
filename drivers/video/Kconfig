@@ -7,7 +7,7 @@ menu "Graphics support"
 
 source "drivers/char/agp/Kconfig"
 
-source "drivers/char/drm/Kconfig"
+source "drivers/gpu/drm/Kconfig"
 
 config VGASTATE
        tristate

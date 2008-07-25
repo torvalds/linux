@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/string.h>
@@ -1659,10 +1660,14 @@ static int mini_rtc_ioctl(struct inode *inode, struct file *file,
 
 static int mini_rtc_open(struct inode *inode, struct file *file)
 {
-	if (mini_rtc_status & RTC_IS_OPEN)
+	lock_kernel();
+	if (mini_rtc_status & RTC_IS_OPEN) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 
 	mini_rtc_status |= RTC_IS_OPEN;
+	unlock_kernel();
 
 	return 0;
 }

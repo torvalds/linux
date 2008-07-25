@@ -213,10 +213,8 @@ static int auide_build_dmatable(ide_drive_t *drive)
 {
 	int i, iswrite, count = 0;
 	ide_hwif_t *hwif = HWIF(drive);
-
 	struct request *rq = HWGROUP(drive)->rq;
-
-	_auide_hwif *ahwif = (_auide_hwif*)hwif->hwif_data;
+	_auide_hwif *ahwif = &auide_hwif;
 	struct scatterlist *sg;
 
 	iswrite = (rq_data_dir(rq) == WRITE);
@@ -402,7 +400,7 @@ static const struct ide_dma_ops au1xxx_dma_ops = {
 
 static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
-	_auide_hwif *auide = (_auide_hwif *)hwif->hwif_data;
+	_auide_hwif *auide = &auide_hwif;
 	dbdev_tab_t source_dev_tab, target_dev_tab;
 	u32 dev_id, tsize, devwidth, flags;
 
@@ -463,7 +461,7 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 #else
 static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
-	_auide_hwif *auide = (_auide_hwif *)hwif->hwif_data;
+	_auide_hwif *auide = &auide_hwif;
 	dbdev_tab_t source_dev_tab;
 	int flags;
 
@@ -521,6 +519,23 @@ static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif)
 	*ata_regs = ahwif->regbase + (14 << IDE_REG_SHIFT);
 }
 
+#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA
+static const struct ide_tp_ops au1xxx_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= ide_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= au1xxx_input_data,
+	.output_data		= au1xxx_output_data,
+};
+#endif
+
 static const struct ide_port_ops au1xxx_port_ops = {
 	.set_pio_mode		= au1xxx_set_pio_mode,
 	.set_dma_mode		= auide_set_dma_mode,
@@ -528,6 +543,9 @@ static const struct ide_port_ops au1xxx_port_ops = {
 
 static const struct ide_port_info au1xxx_port_info = {
 	.init_dma		= auide_ddma_init,
+#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA
+	.tp_ops			= &au1xxx_tp_ops,
+#endif
 	.port_ops		= &au1xxx_port_ops,
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 	.dma_ops		= &au1xxx_dma_ops,
@@ -545,11 +563,10 @@ static int au_ide_probe(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	_auide_hwif *ahwif = &auide_hwif;
-	ide_hwif_t *hwif;
 	struct resource *res;
+	struct ide_host *host;
 	int ret = 0;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 	char *mode = "MWDMA2";
@@ -586,41 +603,19 @@ static int au_ide_probe(struct device *dev)
 		goto out;
 	}
 
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		ret = -ENOENT;
-		goto out;
-	}
-
 	memset(&hw, 0, sizeof(hw));
 	auide_setup_ports(&hw, ahwif);
 	hw.irq = ahwif->irq;
 	hw.dev = dev;
 	hw.chipset = ide_au1xxx;
 
-	ide_init_port_hw(hwif, &hw);
+	ret = ide_host_add(&au1xxx_port_info, hws, &host);
+	if (ret)
+		goto out;
 
-	hwif->dev = dev;
+	auide_hwif.hwif = host->ports[0];
 
-	/* If the user has selected DDMA assisted copies,
-	   then set up a few local I/O function entry points 
-	*/
-
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA	
-	hwif->input_data  = au1xxx_input_data;
-	hwif->output_data = au1xxx_output_data;
-#endif
-	hwif->select_data               = 0;    /* no chipset-specific code */
-	hwif->config_data               = 0;    /* no chipset-specific code */
-
-	auide_hwif.hwif                 = hwif;
-	hwif->hwif_data                 = &auide_hwif;
-
-	idx[0] = hwif->index;
-
-	ide_device_add(idx, &au1xxx_port_info);
-
-	dev_set_drvdata(dev, hwif);
+	dev_set_drvdata(dev, host);
 
 	printk(KERN_INFO "Au1xxx IDE(builtin) configured for %s\n", mode );
 
@@ -632,10 +627,10 @@ static int au_ide_remove(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res;
-	ide_hwif_t *hwif = dev_get_drvdata(dev);
+	struct ide_host *host = dev_get_drvdata(dev);
 	_auide_hwif *ahwif = &auide_hwif;
 
-	ide_unregister(hwif);
+	ide_host_remove(host);
 
 	iounmap((void *)ahwif->regbase);
 

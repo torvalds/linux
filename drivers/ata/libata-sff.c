@@ -345,8 +345,8 @@ void ata_sff_dma_pause(struct ata_port *ap)
 /**
  *	ata_sff_busy_sleep - sleep until BSY clears, or timeout
  *	@ap: port containing status register to be polled
- *	@tmout_pat: impatience timeout
- *	@tmout: overall timeout
+ *	@tmout_pat: impatience timeout in msecs
+ *	@tmout: overall timeout in msecs
  *
  *	Sleep until ATA Status register bit BSY clears,
  *	or a timeout occurs.
@@ -365,7 +365,7 @@ int ata_sff_busy_sleep(struct ata_port *ap,
 
 	status = ata_sff_busy_wait(ap, ATA_BUSY, 300);
 	timer_start = jiffies;
-	timeout = timer_start + tmout_pat;
+	timeout = ata_deadline(timer_start, tmout_pat);
 	while (status != 0xff && (status & ATA_BUSY) &&
 	       time_before(jiffies, timeout)) {
 		msleep(50);
@@ -377,7 +377,7 @@ int ata_sff_busy_sleep(struct ata_port *ap,
 				"port is slow to respond, please be patient "
 				"(Status 0x%x)\n", status);
 
-	timeout = timer_start + tmout;
+	timeout = ata_deadline(timer_start, tmout);
 	while (status != 0xff && (status & ATA_BUSY) &&
 	       time_before(jiffies, timeout)) {
 		msleep(50);
@@ -390,7 +390,7 @@ int ata_sff_busy_sleep(struct ata_port *ap,
 	if (status & ATA_BUSY) {
 		ata_port_printk(ap, KERN_ERR, "port failed to respond "
 				"(%lu secs, Status 0x%x)\n",
-				tmout / HZ, status);
+				DIV_ROUND_UP(tmout, 1000), status);
 		return -EBUSY;
 	}
 
@@ -1888,7 +1888,7 @@ int ata_sff_wait_after_reset(struct ata_link *link, unsigned int devmask,
 	unsigned int dev1 = devmask & (1 << 1);
 	int rc, ret = 0;
 
-	msleep(ATA_WAIT_AFTER_RESET_MSECS);
+	msleep(ATA_WAIT_AFTER_RESET);
 
 	/* always check readiness of the master device */
 	rc = ata_sff_wait_ready(link, deadline);
@@ -2371,7 +2371,8 @@ void ata_bus_reset(struct ata_port *ap)
 
 	/* issue bus reset */
 	if (ap->flags & ATA_FLAG_SRST) {
-		rc = ata_bus_softreset(ap, devmask, jiffies + 40 * HZ);
+		rc = ata_bus_softreset(ap, devmask,
+				       ata_deadline(jiffies, 40000));
 		if (rc && rc != -ENODEV)
 			goto err_out;
 	}

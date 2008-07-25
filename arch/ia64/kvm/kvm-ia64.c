@@ -187,6 +187,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 
 		r = 1;
 		break;
+	case KVM_CAP_COALESCED_MMIO:
+		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
+		break;
 	default:
 		r = 0;
 	}
@@ -195,11 +198,11 @@ int kvm_dev_ioctl_check_extension(long ext)
 }
 
 static struct kvm_io_device *vcpu_find_mmio_dev(struct kvm_vcpu *vcpu,
-					gpa_t addr)
+					gpa_t addr, int len, int is_write)
 {
 	struct kvm_io_device *dev;
 
-	dev = kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr);
+	dev = kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr, len, is_write);
 
 	return dev;
 }
@@ -231,7 +234,7 @@ static int handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	kvm_run->exit_reason = KVM_EXIT_MMIO;
 	return 0;
 mmio:
-	mmio_dev = vcpu_find_mmio_dev(vcpu, p->addr);
+	mmio_dev = vcpu_find_mmio_dev(vcpu, p->addr, p->size, !p->dir);
 	if (mmio_dev) {
 		if (!p->dir)
 			kvm_iodevice_write(mmio_dev, p->addr, p->size,
@@ -395,7 +398,7 @@ static int handle_global_purge(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		if (kvm->vcpus[i]->cpu != -1) {
 			call_data.vcpu = kvm->vcpus[i];
 			smp_call_function_single(kvm->vcpus[i]->cpu,
-					vcpu_global_purge, &call_data, 0, 1);
+					vcpu_global_purge, &call_data, 1);
 		} else
 			printk(KERN_WARNING"kvm: Uninit vcpu received ipi!\n");
 
@@ -1035,14 +1038,6 @@ static void kvm_free_vmm_area(void)
 	}
 }
 
-/*
- * Make sure that a cpu that is being hot-unplugged does not have any vcpus
- * cached on it. Leave it as blank for IA64.
- */
-void decache_vcpus_on_cpu(int cpu)
-{
-}
-
 static void vti_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 }
@@ -1460,6 +1455,9 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	return 0;
 }
 
+void kvm_arch_flush_shadow(struct kvm *kvm)
+{
+}
 
 long kvm_arch_dev_ioctl(struct file *filp,
 		unsigned int ioctl, unsigned long arg)
@@ -1693,7 +1691,7 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 		wake_up_interruptible(&vcpu->wq);
 
 	if (vcpu->guest_mode)
-		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0, 0);
+		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0);
 }
 
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 trig)

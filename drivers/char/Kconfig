@@ -300,16 +300,6 @@ config SPECIALIX
 	  and compile this driver as kernel loadable module which will be
 	  called specialix.
 
-config SPECIALIX_RTSCTS
-	bool "Specialix DTR/RTS pin is RTS"
-	depends on SPECIALIX
-	help
-	  The Specialix IO8+ card can only support either RTS or DTR. If you
-	  say N here, the driver will use the pin as "DTR" when the tty is in
-	  software handshake mode.  If you say Y here or hardware handshake is
-	  on, it will always be RTS.  Read the file
-	  <file:Documentation/specialix.txt> for more information.
-
 config SX
 	tristate "Specialix SX (and SI) card support"
 	depends on SERIAL_NONSTANDARD && (PCI || EISA || ISA)
@@ -648,6 +638,14 @@ config HVCS
 	  will depend on arch specific APIs exported from hvcserver.ko
 	  which will also be compiled when this driver is built as a
 	  module.
+
+config IBM_BSR
+	tristate "IBM POWER Barrier Synchronization Register support"
+	depends on PPC_PSERIES
+	help
+	  This devices exposes a hardware mechanism for fast synchronization
+	  of threads across a large system which avoids bouncing a cacheline
+	  between several cores on a system
 
 source "drivers/char/ipmi/Kconfig"
 

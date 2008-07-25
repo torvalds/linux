@@ -1001,7 +1001,8 @@ static int __init ebda_rsrc_controller (void)
 		tmp_slot = list_entry (list, struct slot, ibm_slot_list);
 
 		snprintf (tmp_slot->hotplug_slot->name, 30, "%s", create_file_name (tmp_slot));
-		pci_hp_register (tmp_slot->hotplug_slot);
+		pci_hp_register(tmp_slot->hotplug_slot,
+			pci_find_bus(0, tmp_slot->bus), tmp_slot->device);
 	}
 
 	print_ebda_hpc ();

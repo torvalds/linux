@@ -839,7 +839,7 @@ tape_dump_sense(struct tape_device* device, struct tape_request *request,
 
 	PRINT_INFO("-------------------------------------------------\n");
 	PRINT_INFO("DSTAT : %02x  CSTAT: %02x	CPA: %04x\n",
-		   irb->scsw.dstat, irb->scsw.cstat, irb->scsw.cpa);
+		   irb->scsw.cmd.dstat, irb->scsw.cmd.cstat, irb->scsw.cmd.cpa);
 	PRINT_INFO("DEVICE: %s\n", device->cdev->dev.bus_id);
 	if (request != NULL)
 		PRINT_INFO("OP	  : %s\n", tape_op_verbose[request->op]);
@@ -867,7 +867,7 @@ tape_dump_sense_dbf(struct tape_device *device, struct tape_request *request,
 	else
 		op = "---";
 	DBF_EVENT(3, "DSTAT : %02x   CSTAT: %02x\n",
-		  irb->scsw.dstat,irb->scsw.cstat);
+		  irb->scsw.cmd.dstat, irb->scsw.cmd.cstat);
 	DBF_EVENT(3, "DEVICE: %08x OP\t: %s\n", device->cdev_id, op);
 	sptr = (unsigned int *) irb->ecw;
 	DBF_EVENT(3, "%08x %08x\n", sptr[0], sptr[1]);
@@ -1083,10 +1083,11 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	 * error might still apply. So we just schedule the request to be
 	 * started later.
 	 */
-	if (irb->scsw.cc != 0 && (irb->scsw.fctl & SCSW_FCTL_START_FUNC) &&
+	if (irb->scsw.cmd.cc != 0 &&
+	    (irb->scsw.cmd.fctl & SCSW_FCTL_START_FUNC) &&
 	    (request->status == TAPE_REQUEST_IN_IO)) {
 		DBF_EVENT(3,"(%08x): deferred cc=%i, fctl=%i. restarting\n",
-			device->cdev_id, irb->scsw.cc, irb->scsw.fctl);
+			device->cdev_id, irb->scsw.cmd.cc, irb->scsw.cmd.fctl);
 		request->status = TAPE_REQUEST_QUEUED;
 		schedule_delayed_work(&device->tape_dnr, HZ);
 		return;
@@ -1094,8 +1095,8 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 
 	/* May be an unsolicited irq */
 	if(request != NULL)
-		request->rescnt = irb->scsw.count;
-	else if ((irb->scsw.dstat == 0x85 || irb->scsw.dstat == 0x80) &&
+		request->rescnt = irb->scsw.cmd.count;
+	else if ((irb->scsw.cmd.dstat == 0x85 || irb->scsw.cmd.dstat == 0x80) &&
 		 !list_empty(&device->req_queue)) {
 		/* Not Ready to Ready after long busy ? */
 		struct tape_request *req;
@@ -1111,7 +1112,7 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			return;
 		}
 	}
-	if (irb->scsw.dstat != 0x0c) {
+	if (irb->scsw.cmd.dstat != 0x0c) {
 		/* Set the 'ONLINE' flag depending on sense byte 1 */
 		if(*(((__u8 *) irb->ecw) + 1) & SENSE_DRIVE_ONLINE)
 			device->tape_generic_status |= GMT_ONLINE(~0);

@@ -140,7 +140,7 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 	u8 buf [BLOCKSIZE+2];
 	int i;
 	int fw_size = fw->size;
-	unsigned char *mem = fw->data;
+	const unsigned char *mem = fw->data;
 
 	dprintk("%s\n", __func__);
 

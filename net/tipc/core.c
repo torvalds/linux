@@ -49,7 +49,7 @@
 #include "config.h"
 
 
-#define TIPC_MOD_VER "1.6.3"
+#define TIPC_MOD_VER "1.6.4"
 
 #ifndef CONFIG_TIPC_ZONES
 #define CONFIG_TIPC_ZONES 3
@@ -117,11 +117,11 @@ void tipc_core_stop_net(void)
  * start_net - start TIPC networking sub-systems
  */
 
-int tipc_core_start_net(void)
+int tipc_core_start_net(unsigned long addr)
 {
 	int res;
 
-	if ((res = tipc_net_start()) ||
+	if ((res = tipc_net_start(addr)) ||
 	    (res = tipc_eth_media_start())) {
 		tipc_core_stop_net();
 	}
@@ -164,8 +164,7 @@ int tipc_core_start(void)
 	tipc_mode = TIPC_NODE_MODE;
 
 	if ((res = tipc_handler_start()) ||
-	    (res = tipc_ref_table_init(tipc_max_ports + tipc_max_subscriptions,
-				       tipc_random)) ||
+	    (res = tipc_ref_table_init(tipc_max_ports, tipc_random)) ||
 	    (res = tipc_reg_start()) ||
 	    (res = tipc_nametbl_init()) ||
 	    (res = tipc_k_signal((Handler)tipc_subscr_start, 0)) ||
@@ -182,7 +181,7 @@ static int __init tipc_init(void)
 {
 	int res;
 
-	tipc_log_reinit(CONFIG_TIPC_LOG);
+	tipc_log_resize(CONFIG_TIPC_LOG);
 	info("Activated (version " TIPC_MOD_VER
 	     " compiled " __DATE__ " " __TIME__ ")\n");
 
@@ -209,7 +208,7 @@ static void __exit tipc_exit(void)
 	tipc_core_stop_net();
 	tipc_core_stop();
 	info("Deactivated\n");
-	tipc_log_stop();
+	tipc_log_resize(0);
 }
 
 module_init(tipc_init);

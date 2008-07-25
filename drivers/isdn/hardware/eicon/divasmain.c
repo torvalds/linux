@@ -21,6 +21,7 @@
 #include <linux/list.h>
 #include <linux/poll.h>
 #include <linux/kmod.h>
+#include <linux/smp_lock.h>
 
 #include "platform.h"
 #undef ID_MASK
@@ -580,6 +581,7 @@ xdi_copy_from_user(void *os_handle, void *dst, const void __user *src, int lengt
  */
 static int divas_open(struct inode *inode, struct file *file)
 {
+	cycle_kernel_lock();
 	return (0);
 }
 

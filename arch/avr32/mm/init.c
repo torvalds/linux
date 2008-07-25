@@ -11,6 +11,7 @@
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/mmzone.h>
+#include <linux/module.h>
 #include <linux/bootmem.h>
 #include <linux/pagemap.h>
 #include <linux/nodemask.h>
@@ -23,11 +24,14 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 
+#define __page_aligned	__attribute__((section(".data.page_aligned")))
+
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-pgd_t swapper_pg_dir[PTRS_PER_PGD];
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned;
 
 struct page *empty_zero_page;
+EXPORT_SYMBOL(empty_zero_page);
 
 /*
  * Cache of MMU context last used.
@@ -106,19 +110,9 @@ void __init paging_init(void)
 	zero_page = alloc_bootmem_low_pages_node(NODE_DATA(0),
 						 PAGE_SIZE);
 
-	{
-		pgd_t *pg_dir;
-		int i;
-
-		pg_dir = swapper_pg_dir;
-		sysreg_write(PTBR, (unsigned long)pg_dir);
-
-		for (i = 0; i < PTRS_PER_PGD; i++)
-			pgd_val(pg_dir[i]) = 0;
-
-		enable_mmu();
-		printk ("CPU: Paging enabled\n");
-	}
+	sysreg_write(PTBR, (unsigned long)swapper_pg_dir);
+	enable_mmu();
+	printk ("CPU: Paging enabled\n");
 
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);

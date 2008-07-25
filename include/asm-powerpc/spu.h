@@ -191,6 +191,7 @@ struct cbe_spu_info {
 	struct list_head spus;
 	int n_spus;
 	int nr_active;
+	atomic_t busy_spus;
 	atomic_t reserved_spus;
 };
 

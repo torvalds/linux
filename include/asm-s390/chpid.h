@@ -10,7 +10,6 @@
 
 #include <linux/string.h>
 #include <asm/types.h>
-#include <asm/cio.h>
 
 #define __MAX_CHPID 255
 
@@ -20,6 +19,9 @@ struct chp_id {
 	u8 reserved2;
 	u8 id;
 } __attribute__((packed));
+
+#ifdef __KERNEL__
+#include <asm/cio.h>
 
 static inline void chp_id_init(struct chp_id *chpid)
 {
@@ -49,5 +51,6 @@ static inline int chp_id_is_valid(struct chp_id *chpid)
 
 #define chp_id_for_each(c) \
 	for (chp_id_init(c); chp_id_is_valid(c); chp_id_next(c))
+#endif /* __KERNEL */
 
 #endif /* _ASM_S390_CHPID_H */

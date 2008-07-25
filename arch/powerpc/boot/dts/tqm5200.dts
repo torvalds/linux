@@ -70,6 +70,20 @@
 			fsl,has-wdt;
 		};
 
+		can@900 {
+			compatible = "fsl,mpc5200-mscan";
+			interrupts = <2 17 0>;
+			interrupt-parent = <&mpc5200_pic>;
+			reg = <0x900 0x80>;
+		};
+
+		can@980 {
+			compatible = "fsl,mpc5200-mscan";
+			interrupts = <2 18 0>;
+			interrupt-parent = <&mpc5200_pic>;
+			reg = <0x980 0x80>;
+		};
+
 		gpio@b00 {
 			compatible = "fsl,mpc5200-gpio";
 			reg = <0xb00 0x40>;

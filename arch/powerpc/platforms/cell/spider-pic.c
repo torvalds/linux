@@ -300,7 +300,7 @@ static void __init spider_init_one(struct device_node *of_node, int chip,
 		panic("spider_pic: can't map registers !");
 
 	/* Allocate a host */
-	pic->host = irq_alloc_host(of_node_get(of_node), IRQ_HOST_MAP_LINEAR,
+	pic->host = irq_alloc_host(of_node, IRQ_HOST_MAP_LINEAR,
 				   SPIDER_SRC_COUNT, &spider_host_ops,
 				   SPIDER_IRQ_INVALID);
 	if (pic->host == NULL)

@@ -296,6 +296,10 @@ static inline int crypt_s390_func_available(int func)
 	unsigned char status[16];
 	int ret;
 
+	/* check if CPACF facility (bit 17) is available */
+	if (!(stfl() & 1ULL << (31 - 17)))
+		return 0;
+
 	switch (func & CRYPT_S390_OP_MASK) {
 	case CRYPT_S390_KM:
 		ret = crypt_s390_km(KM_QUERY, &status, NULL, NULL, 0);

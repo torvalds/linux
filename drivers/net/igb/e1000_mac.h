@@ -94,5 +94,6 @@ enum e1000_mng_mode {
 #define E1000_HICR_C               0x02
 
 extern void e1000_init_function_pointers_82575(struct e1000_hw *hw);
+extern u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr);
 
 #endif

@@ -7,13 +7,14 @@
  *  This program is largely derived from work by the linux-usb group
  *  and associated source files.  Please see the usb/serial files for
  *  individual credits and copyrights.
- *  
+ *
  * 	This program is free software; you can redistribute it and/or modify
  * 	it under the terms of the GNU General Public License as published by
  * 	the Free Software Foundation; either version 2 of the License, or
  * 	(at your option) any later version.
  *
- * See Documentation/usb/usb-serial.txt for more information on using this driver
+ * See Documentation/usb/usb-serial.txt for more information on using this
+ * driver
  *
  * 12-Mar-2001 gkh
  *	Added GoHubs GO-COM232 device id.
@@ -27,7 +28,7 @@
  *    adapter, so pardon any stupid mistakes.  All of the information
  *    I am using to write this driver was acquired by using a modified
  *    UsbSnoop on Windows2000.
- *    
+ *
  */
 
 #ifndef __LINUX_USB_SERIAL_BSA_H
@@ -96,20 +97,20 @@
 
 /*
  * It seems that the interrupt pipe is closely modelled after the
- * 16550 register layout.  This is probably because the adapter can 
+ * 16550 register layout.  This is probably because the adapter can
  * be used in a "DOS" environment to simulate a standard hardware port.
  */
-#define BELKIN_SA_LSR_INDEX		2		/* Line Status Register */
+#define BELKIN_SA_LSR_INDEX		2	/*     Line Status Register */
 #define BELKIN_SA_LSR_RDR		0x01	/* receive data ready */
 #define BELKIN_SA_LSR_OE		0x02	/* overrun error */
 #define BELKIN_SA_LSR_PE		0x04	/* parity error */
 #define BELKIN_SA_LSR_FE		0x08	/* framing error */
 #define BELKIN_SA_LSR_BI		0x10	/* break indicator */
-#define BELKIN_SA_LSR_THE		0x20	/* transmit holding register empty */
+#define BELKIN_SA_LSR_THE		0x20	/* tx holding register empty */
 #define BELKIN_SA_LSR_TE		0x40	/* transmit register empty */
 #define BELKIN_SA_LSR_ERR		0x80	/* OE | PE | FE | BI */
 
-#define BELKIN_SA_MSR_INDEX		3		/* Modem Status Register */
+#define BELKIN_SA_MSR_INDEX		3	/*     Modem Status Register */
 #define BELKIN_SA_MSR_DCTS		0x01	/* Delta CTS */
 #define BELKIN_SA_MSR_DDSR		0x02	/* Delta DSR */
 #define BELKIN_SA_MSR_DRI		0x04	/* Delta RI */

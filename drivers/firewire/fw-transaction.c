@@ -55,6 +55,9 @@
 #define HEADER_GET_DATA_LENGTH(q)	(((q) >> 16) & 0xffff)
 #define HEADER_GET_EXTENDED_TCODE(q)	(((q) >> 0) & 0xffff)
 
+#define HEADER_DESTINATION_IS_BROADCAST(q) \
+	(((q) & HEADER_DESTINATION(0x3f)) == HEADER_DESTINATION(0x3f))
+
 #define PHY_CONFIG_GAP_COUNT(gap_count)	(((gap_count) << 16) | (1 << 22))
 #define PHY_CONFIG_ROOT_ID(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
 #define PHY_IDENTIFIER(id)		((id) << 30)
@@ -624,12 +627,9 @@ allocate_request(struct fw_packet *p)
 void
 fw_send_response(struct fw_card *card, struct fw_request *request, int rcode)
 {
-	/*
-	 * Broadcast packets are reported as ACK_COMPLETE, so this
-	 * check is sufficient to ensure we don't send response to
-	 * broadcast packets or posted writes.
-	 */
-	if (request->ack != ACK_PENDING) {
+	/* unified transaction or broadcast transaction: don't respond */
+	if (request->ack != ACK_PENDING ||
+	    HEADER_DESTINATION_IS_BROADCAST(request->request_header[0])) {
 		kfree(request);
 		return;
 	}
@@ -817,12 +817,13 @@ handle_registers(struct fw_card *card, struct fw_request *request,
 	int reg = offset & ~CSR_REGISTER_BASE;
 	unsigned long long bus_time;
 	__be32 *data = payload;
+	int rcode = RCODE_COMPLETE;
 
 	switch (reg) {
 	case CSR_CYCLE_TIME:
 	case CSR_BUS_TIME:
 		if (!TCODE_IS_READ_REQUEST(tcode) || length != 4) {
-			fw_send_response(card, request, RCODE_TYPE_ERROR);
+			rcode = RCODE_TYPE_ERROR;
 			break;
 		}
 
@@ -831,7 +832,17 @@ handle_registers(struct fw_card *card, struct fw_request *request,
 			*data = cpu_to_be32(bus_time);
 		else
 			*data = cpu_to_be32(bus_time >> 25);
-		fw_send_response(card, request, RCODE_COMPLETE);
+		break;
+
+	case CSR_BROADCAST_CHANNEL:
+		if (tcode == TCODE_READ_QUADLET_REQUEST)
+			*data = cpu_to_be32(card->broadcast_channel);
+		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
+			card->broadcast_channel =
+			    (be32_to_cpu(*data) & BROADCAST_CHANNEL_VALID) |
+			    BROADCAST_CHANNEL_INITIAL;
+		else
+			rcode = RCODE_TYPE_ERROR;
 		break;
 
 	case CSR_BUS_MANAGER_ID:
@@ -850,10 +861,13 @@ handle_registers(struct fw_card *card, struct fw_request *request,
 
 	case CSR_BUSY_TIMEOUT:
 		/* FIXME: Implement this. */
+
 	default:
-		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
+		rcode = RCODE_ADDRESS_ERROR;
 		break;
 	}
+
+	fw_send_response(card, request, rcode);
 }
 
 static struct fw_address_handler registers = {

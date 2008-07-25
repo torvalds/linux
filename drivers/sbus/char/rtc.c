@@ -12,6 +12,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
@@ -213,6 +214,7 @@ static int rtc_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
+	lock_kernel();
 	spin_lock_irq(&mostek_lock);
 	if (rtc_busy) {
 		ret = -EBUSY;
@@ -221,6 +223,7 @@ static int rtc_open(struct inode *inode, struct file *file)
 		ret = 0;
 	}
 	spin_unlock_irq(&mostek_lock);
+	unlock_kernel();
 
 	return ret;
 }

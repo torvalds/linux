@@ -93,9 +93,13 @@ enum {
 #define VT1724_REG_MPU_TXFIFO		0x0a	/*byte ro. number of bytes in TX fifo*/
 #define VT1724_REG_MPU_RXFIFO		0x0b	/*byte ro. number of bytes in RX fifo*/
 
-//are these 2 the wrong way around? they don't seem to be used yet anyway
-#define VT1724_REG_MPU_CTRL		0x0c	/* byte */
-#define VT1724_REG_MPU_DATA		0x0d	/* byte */
+#define VT1724_REG_MPU_DATA		0x0c	/* byte */
+#define VT1724_REG_MPU_CTRL		0x0d	/* byte */
+#define   VT1724_MPU_UART	0x01
+#define   VT1724_MPU_TX_EMPTY	0x02
+#define   VT1724_MPU_TX_FULL	0x04
+#define   VT1724_MPU_RX_EMPTY	0x08
+#define   VT1724_MPU_RX_FULL	0x10
 
 #define VT1724_REG_MPU_FIFO_WM	0x0e	/*byte set the high/low watermarks for RX/TX fifos*/
 #define   VT1724_MPU_RX_FIFO	0x20	//1=rx fifo watermark 0=tx fifo watermark

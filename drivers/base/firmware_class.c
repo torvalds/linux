@@ -49,6 +49,14 @@ struct firmware_priv {
 	struct timer_list timeout;
 };
 
+#ifdef CONFIG_FW_LOADER
+extern struct builtin_fw __start_builtin_fw[];
+extern struct builtin_fw __end_builtin_fw[];
+#else /* Module case. Avoid ifdefs later; it'll all optimise out */
+static struct builtin_fw *__start_builtin_fw;
+static struct builtin_fw *__end_builtin_fw;
+#endif
+
 static void
 fw_load_abort(struct firmware_priv *fw_priv)
 {
@@ -257,7 +265,7 @@ firmware_data_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 	if (retval)
 		goto out;
 
-	memcpy(fw->data + offset, buffer, count);
+	memcpy((u8 *)fw->data + offset, buffer, count);
 
 	fw->size = max_t(size_t, offset + count, fw->size);
 	retval = count;
@@ -391,12 +399,11 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	struct device *f_dev;
 	struct firmware_priv *fw_priv;
 	struct firmware *firmware;
+	struct builtin_fw *builtin;
 	int retval;
 
 	if (!firmware_p)
 		return -EINVAL;
-
-	printk(KERN_INFO "firmware: requesting %s\n", name);
 
 	*firmware_p = firmware = kzalloc(sizeof(*firmware), GFP_KERNEL);
 	if (!firmware) {
@@ -405,6 +412,20 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		retval = -ENOMEM;
 		goto out;
 	}
+
+	for (builtin = __start_builtin_fw; builtin != __end_builtin_fw;
+	     builtin++) {
+		if (strcmp(name, builtin->name))
+			continue;
+		printk(KERN_INFO "firmware: using built-in firmware %s\n",
+		       name);
+		firmware->size = builtin->size;
+		firmware->data = builtin->data;
+		return 0;
+	}
+
+	if (uevent)
+		printk(KERN_INFO "firmware: requesting %s\n", name);
 
 	retval = fw_setup_device(firmware, &f_dev, name, device, uevent);
 	if (retval)
@@ -473,8 +494,16 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 void
 release_firmware(const struct firmware *fw)
 {
+	struct builtin_fw *builtin;
+
 	if (fw) {
+		for (builtin = __start_builtin_fw; builtin != __end_builtin_fw;
+		     builtin++) {
+			if (fw->data == builtin->data)
+				goto free_fw;
+		}
 		vfree(fw->data);
+	free_fw:
 		kfree(fw);
 	}
 }

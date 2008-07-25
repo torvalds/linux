@@ -21,6 +21,8 @@
 
 #include <linux/rwsem.h>
 
+#define MAX_TOPO_LEVEL		6
+
 /* This file contains declarations of usbcore internals that are mostly
  * used or exposed by Host Controller Drivers.
  */
@@ -235,7 +237,7 @@ extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 extern int usb_hcd_get_frame_number(struct usb_device *udev);
 
 extern struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
-		struct device *dev, char *bus_name);
+		struct device *dev, const char *bus_name);
 extern struct usb_hcd *usb_get_hcd(struct usb_hcd *hcd);
 extern void usb_put_hcd(struct usb_hcd *hcd);
 extern int usb_add_hcd(struct usb_hcd *hcd,

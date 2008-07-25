@@ -35,13 +35,9 @@
 
 #include "irq.h"
 
-int smp_num_cpus = 1;
 volatile unsigned long cpu_callin_map[NR_CPUS] __initdata = {0,};
 unsigned char boot_cpu_id = 0;
 unsigned char boot_cpu_id4 = 0; /* boot_cpu_id << 2 */
-int smp_activated = 0;
-volatile int __cpu_number_map[NR_CPUS];
-volatile int __cpu_logical_map[NR_CPUS];
 
 cpumask_t cpu_online_map = CPU_MASK_NONE;
 cpumask_t phys_cpu_present_map = CPU_MASK_NONE;
@@ -54,9 +50,6 @@ cpumask_t smp_commenced_mask = CPU_MASK_NONE;
  * compared to the Alpha and the Intel no?  Most Sparcs have 'swap'
  * instruction which is much better...
  */
-
-/* Used to make bitops atomic */
-unsigned char bitops_spinlock = 0;
 
 void __cpuinit smp_store_cpu_info(int id)
 {

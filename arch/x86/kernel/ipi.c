@@ -8,7 +8,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/cache.h>
-#include <linux/interrupt.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
 
@@ -71,7 +70,7 @@ void __send_IPI_shortcut(unsigned int shortcut, int vector)
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
-	apic_write_around(APIC_ICR, cfg);
+	apic_write(APIC_ICR, cfg);
 }
 
 void send_IPI_self(int vector)
@@ -99,7 +98,7 @@ static inline void __send_IPI_dest_field(unsigned long mask, int vector)
 	 * prepare target chip field
 	 */
 	cfg = __prepare_ICR2(mask);
-	apic_write_around(APIC_ICR2, cfg);
+	apic_write(APIC_ICR2, cfg);
 
 	/*
 	 * program the ICR
@@ -109,7 +108,7 @@ static inline void __send_IPI_dest_field(unsigned long mask, int vector)
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
-	apic_write_around(APIC_ICR, cfg);
+	apic_write(APIC_ICR, cfg);
 }
 
 /*

@@ -49,11 +49,27 @@ struct xenfb_update {
 	int32_t height;		/* rect height */
 };
 
+/*
+ * Framebuffer resize notification event
+ * Capable backend sets feature-resize in xenstore.
+ */
+#define XENFB_TYPE_RESIZE 3
+
+struct xenfb_resize {
+	uint8_t type;		/* XENFB_TYPE_RESIZE */
+	int32_t width;		/* width in pixels */
+	int32_t height;		/* height in pixels */
+	int32_t stride;		/* stride in bytes */
+	int32_t depth;		/* depth in bits */
+	int32_t offset;		/* start offset within framebuffer */
+};
+
 #define XENFB_OUT_EVENT_SIZE 40
 
 union xenfb_out_event {
 	uint8_t type;
 	struct xenfb_update update;
+	struct xenfb_resize resize;
 	char pad[XENFB_OUT_EVENT_SIZE];
 };
 
@@ -105,15 +121,18 @@ struct xenfb_page {
 	 * Each directory page holds PAGE_SIZE / sizeof(*pd)
 	 * framebuffer pages, and can thus map up to PAGE_SIZE *
 	 * PAGE_SIZE / sizeof(*pd) bytes.  With PAGE_SIZE == 4096 and
-	 * sizeof(unsigned long) == 4, that's 4 Megs.  Two directory
-	 * pages should be enough for a while.
+	 * sizeof(unsigned long) == 4/8, that's 4 Megs 32 bit and 2
+	 * Megs 64 bit.  256 directories give enough room for a 512
+	 * Meg framebuffer with a max resolution of 12,800x10,240.
+	 * Should be enough for a while with room leftover for
+	 * expansion.
 	 */
-	unsigned long pd[2];
+	unsigned long pd[256];
 };
 
 /*
- * Wart: xenkbd needs to know resolution.  Put it here until a better
- * solution is found, but don't leak it to the backend.
+ * Wart: xenkbd needs to know default resolution.  Put it here until a
+ * better solution is found, but don't leak it to the backend.
  */
 #ifdef __KERNEL__
 #define XENFB_WIDTH 800

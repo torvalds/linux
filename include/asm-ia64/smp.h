@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/cpumask.h>
 #include <linux/bitops.h>
+#include <linux/irqreturn.h>
 
 #include <asm/io.h>
 #include <asm/param.h>
@@ -37,9 +38,6 @@ ia64_get_lid (void)
 	lid.bits = ia64_getreg(_IA64_REG_CR_LID);
 	return lid.f.id << 8 | lid.f.eid;
 }
-
-extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
-				  void *info, int wait);
 
 #define hard_smp_processor_id()		ia64_get_lid()
 
@@ -123,11 +121,13 @@ extern void __init smp_build_cpu_map(void);
 extern void __init init_smp_config (void);
 extern void smp_do_timer (struct pt_regs *regs);
 
+extern irqreturn_t handle_IPI(int irq, void *dev_id);
 extern void smp_send_reschedule (int cpu);
-extern void lock_ipi_calllock(void);
-extern void unlock_ipi_calllock(void);
 extern void identify_siblings (struct cpuinfo_ia64 *);
 extern int is_multithreading_enabled(void);
+
+extern void arch_send_call_function_single_ipi(int cpu);
+extern void arch_send_call_function_ipi(cpumask_t mask);
 
 #else /* CONFIG_SMP */
 

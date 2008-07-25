@@ -41,6 +41,7 @@
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /* PTE bits */
+#define _PAGE_HASHPTE	0x0400 /* software: pte has an associated HPTE */
 #define _PAGE_SECONDARY 0x8000 /* software: HPTE is in secondary group */
 #define _PAGE_GROUP_IX  0x7000 /* software: HPTE index within group */
 #define _PAGE_F_SECOND  _PAGE_SECONDARY

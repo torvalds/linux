@@ -345,7 +345,7 @@ struct rtc_device *rtc_class_open(char *name)
 	struct device *dev;
 	struct rtc_device *rtc = NULL;
 
-	dev = class_find_device(rtc_class, name, __rtc_match);
+	dev = class_find_device(rtc_class, NULL, name, __rtc_match);
 	if (dev)
 		rtc = to_rtc_device(dev);
 

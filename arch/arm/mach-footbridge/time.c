@@ -115,8 +115,7 @@ static int set_isa_cmos_time(void)
 
 void __init isa_rtc_init(void)
 {
-	if (machine_is_co285() ||
-	    machine_is_personal_server())
+	if (machine_is_personal_server())
 		/*
 		 * Add-in 21285s shouldn't access the RTC
 		 */

@@ -11,10 +11,10 @@
 #ifndef __ASM_ARCH_MXC_COMMON_H__
 #define __ASM_ARCH_MXC_COMMON_H__
 
-struct sys_timer;
-
 extern void mxc_map_io(void);
 extern void mxc_init_irq(void);
-extern struct sys_timer mxc_timer;
+extern void mxc_timer_init(const char *clk_timer);
+extern int mxc_clocks_init(unsigned long fref);
+extern int mxc_register_gpios(void);
 
 #endif

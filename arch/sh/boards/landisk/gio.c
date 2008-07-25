@@ -14,6 +14,7 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <linux/kdev_t.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
@@ -32,17 +33,20 @@ static int openCnt;
 static int gio_open(struct inode *inode, struct file *filp)
 {
 	int minor;
+	int ret = -ENOENT;
 
+	lock_kernel();
 	minor = MINOR(inode->i_rdev);
 	if (minor < DEVCOUNT) {
 		if (openCnt > 0) {
-			return -EALREADY;
+			ret = -EALREADY;
 		} else {
 			openCnt++;
-			return 0;
+			ret = 0;
 		}
 	}
-	return -ENOENT;
+	unlock_kernel();
+	return ret;
 }
 
 static int gio_close(struct inode *inode, struct file *filp)

@@ -318,6 +318,8 @@ static void pio_bank_show(struct seq_file *s, struct gpio_chip *chip)
 		const char *label;
 
 		label = gpiochip_is_requested(chip, i);
+		if (!label && (imr & mask))
+			label = "[irq]";
 		if (!label)
 			continue;
 

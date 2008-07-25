@@ -1179,8 +1179,8 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 
 	tz->tz_enabled = 1;
 
-	printk(KERN_INFO PREFIX "%s is registered as thermal_zone%d\n",
-			tz->device->dev.bus_id, tz->thermal_zone->id);
+	dev_info(&tz->device->dev, "registered as thermal_zone%d\n",
+		 tz->thermal_zone->id);
 	return 0;
 }
 

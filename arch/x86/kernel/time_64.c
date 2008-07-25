@@ -56,7 +56,7 @@ static irqreturn_t timer_event_interrupt(int irq, void *dev_id)
 /* calibrate_cpu is used on systems with fixed rate TSCs to determine
  * processor frequency */
 #define TICK_COUNT 100000000
-unsigned long __init native_calculate_cpu_khz(void)
+unsigned long __init calibrate_cpu(void)
 {
 	int tsc_start, tsc_now;
 	int i, no_ctr_free;
@@ -116,23 +116,11 @@ void __init hpet_time_init(void)
 
 void __init time_init(void)
 {
-	tsc_calibrate();
-
-	cpu_khz = tsc_khz;
-	if (cpu_has(&boot_cpu_data, X86_FEATURE_CONSTANT_TSC) &&
-		(boot_cpu_data.x86_vendor == X86_VENDOR_AMD))
-		cpu_khz = calculate_cpu_khz();
-
-	if (unsynchronized_tsc())
-		mark_tsc_unstable("TSCs unsynchronized");
-
+	tsc_init();
 	if (cpu_has(&boot_cpu_data, X86_FEATURE_RDTSCP))
 		vgetcpu_mode = VGETCPU_RDTSCP;
 	else
 		vgetcpu_mode = VGETCPU_LSL;
 
-	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
-		cpu_khz / 1000, cpu_khz % 1000);
-	init_tsc_clocksource();
 	late_time_init = choose_time_init();
 }

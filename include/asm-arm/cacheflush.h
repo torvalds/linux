@@ -95,11 +95,7 @@
 #endif
 
 #if defined(CONFIG_CPU_FEROCEON)
-# ifdef _CACHE
-#  define MULTI_CACHE 1
-# else
-#  define _CACHE feroceon
-# endif
+# define MULTI_CACHE 1
 #endif
 
 #if defined(CONFIG_CPU_V6)
@@ -409,6 +405,13 @@ extern void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 extern void flush_dcache_page(struct page *);
 
 extern void __flush_dcache_page(struct address_space *mapping, struct page *page);
+
+static inline void __flush_icache_all(void)
+{
+	asm("mcr	p15, 0, %0, c7, c5, 0	@ invalidate I-cache\n"
+	    :
+	    : "r" (0));
+}
 
 #define ARCH_HAS_FLUSH_ANON_PAGE
 static inline void flush_anon_page(struct vm_area_struct *vma,

@@ -1,11 +1,8 @@
-#ifndef _ASM_SPARC_DMA_MAPPING_H
-#define _ASM_SPARC_DMA_MAPPING_H
-
-
-#ifdef CONFIG_PCI
-#include <asm-generic/dma-mapping.h>
+#ifndef ___ASM_SPARC_DMA_MAPPING_H
+#define ___ASM_SPARC_DMA_MAPPING_H
+#if defined(__sparc__) && defined(__arch64__)
+#include <asm-sparc/dma-mapping_64.h>
 #else
-#include <asm-generic/dma-mapping-broken.h>
-#endif /* PCI */
-
-#endif /* _ASM_SPARC_DMA_MAPPING_H */
+#include <asm-sparc/dma-mapping_32.h>
+#endif
+#endif

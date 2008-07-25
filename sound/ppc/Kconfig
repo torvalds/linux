@@ -1,17 +1,17 @@
 # ALSA PowerMac drivers
 
-menu "ALSA PowerMac devices"
-	depends on SND!=n && PPC
+menuconfig SND_PPC
+	bool "PowerPC sound devices"
+	depends on PPC64 || PPC32
+	default y
+	help
+	  Support for sound devices specific to PowerPC architectures.
 
-comment "ALSA PowerMac requires I2C"
-	depends on SND && I2C=n
-
-comment "ALSA PowerMac requires INPUT"
-	depends on SND && INPUT=n
+if SND_PPC
 
 config SND_POWERMAC
 	tristate "PowerMac (AWACS, DACA, Burgundy, Tumbler, Keywest)"
-	depends on SND && I2C && INPUT && PPC_PMAC
+	depends on I2C && INPUT && PPC_PMAC
 	select SND_PCM
 	help
 	  Say Y here to include support for the integrated sound device.
@@ -32,14 +32,9 @@ config SND_POWERMAC_AUTO_DRC
 	  Note that you can turn on/off DRC manually even without this
 	  option.
 
-endmenu
-
-menu "ALSA PowerPC devices"
-	depends on SND!=n && ( PPC64 || PPC32 )
-
 config SND_PS3
 	tristate "PS3 Audio support"
-	depends on SND && PS3_PS3AV
+	depends on PS3_PS3AV
 	select SND_PCM
 	default m
 	help
@@ -52,4 +47,5 @@ config SND_PS3_DEFAULT_START_DELAY
 	int "Startup delay time in ms"
 	depends on SND_PS3
 	default "2000"
-endmenu
+
+endif	# SND_PPC

@@ -1,11 +1,11 @@
 #ifndef _LINUX_KERNEL_STAT_H
 #define _LINUX_KERNEL_STAT_H
 
-#include <asm/irq.h>
 #include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/percpu.h>
 #include <linux/cpumask.h>
+#include <asm/irq.h>
 #include <asm/cputime.h>
 
 /*

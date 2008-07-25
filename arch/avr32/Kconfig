@@ -88,6 +88,7 @@ config PLATFORM_AT32AP
 	select MMU
 	select PERFORMANCE_COUNTERS
 	select HAVE_GPIO_LIB
+	select GENERIC_ALLOCATOR
 
 #
 # CPU types
@@ -147,6 +148,9 @@ config PHYS_OFFSET
 
 source "kernel/Kconfig.preempt"
 
+config QUICKLIST
+	def_bool y
+
 config HAVE_ARCH_BOOTMEM_NODE
 	def_bool n
 
@@ -200,6 +204,11 @@ config CMDLINE
 endmenu
 
 menu "Power management options"
+
+source "kernel/power/Kconfig"
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
 
 menu "CPU Frequency scaling"
 

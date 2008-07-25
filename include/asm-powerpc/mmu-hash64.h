@@ -182,6 +182,7 @@ extern int mmu_io_psize;
 extern int mmu_kernel_ssize;
 extern int mmu_highuser_ssize;
 extern u16 mmu_slb_size;
+extern unsigned long tce_alloc_start, tce_alloc_end;
 
 /*
  * If the processor supports 64k normal pages but not 64k cache

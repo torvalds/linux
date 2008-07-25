@@ -84,6 +84,8 @@ extern int reserve_bootmem(unsigned long addr, unsigned long size, int flags);
 	__alloc_bootmem_low(x, PAGE_SIZE, 0)
 #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
 
+extern int reserve_bootmem_generic(unsigned long addr, unsigned long size,
+				   int flags);
 extern unsigned long free_all_bootmem(void);
 extern unsigned long free_all_bootmem_node(pg_data_t *pgdat);
 extern void *__alloc_bootmem_node(pg_data_t *pgdat,

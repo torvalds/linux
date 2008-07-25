@@ -28,6 +28,12 @@
 
 #include "atstk1000.h"
 
+/* Oscillator frequencies. These are board specific */
+unsigned long at32_board_osc_rates[3] = {
+	[0] = 32768,	/* 32.768 kHz on RTC osc */
+	[1] = 20000000,	/* 20 MHz on osc0 */
+	[2] = 12000000,	/* 12 MHz on osc1 */
+};
 
 /*
  * The ATSTK1006 daughterboard is very similar to the ATSTK1002. Both
@@ -302,11 +308,14 @@ static int __init atstk1002_init(void)
 #ifdef CONFIG_BOARD_ATSTK100X_SPI1
 	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));
 #endif
+#ifndef CONFIG_BOARD_ATSTK1002_SW2_CUSTOM
+	at32_add_device_mci(0, NULL);
+#endif
 #ifdef CONFIG_BOARD_ATSTK1002_SW5_CUSTOM
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
 #else
 	at32_add_device_lcdc(0, &atstk1000_lcdc_data,
-			     fbmem_start, fbmem_size);
+			     fbmem_start, fbmem_size, 0);
 #endif
 	at32_add_device_usba(0, NULL);
 #ifndef CONFIG_BOARD_ATSTK100X_SW3_CUSTOM

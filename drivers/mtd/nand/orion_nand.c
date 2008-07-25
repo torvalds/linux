@@ -85,6 +85,9 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	nc->cmd_ctrl = orion_nand_cmd_ctrl;
 	nc->ecc.mode = NAND_ECC_SOFT;
 
+	if (board->chip_delay)
+		nc->chip_delay = board->chip_delay;
+
 	if (board->width == 16)
 		nc->options |= NAND_BUSWIDTH_16;
 

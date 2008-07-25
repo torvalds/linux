@@ -899,7 +899,8 @@ static noinline void spusched_tick(struct spu_context *ctx)
 			spu_add_to_rq(ctx);
 	} else {
 		spu_context_nospu_trace(spusched_tick__newslice, ctx);
-		ctx->time_slice++;
+		if (!ctx->time_slice)
+			ctx->time_slice++;
 	}
 out:
 	spu_release(ctx);
@@ -993,6 +994,7 @@ void spuctx_switch_state(struct spu_context *ctx,
 	struct timespec ts;
 	struct spu *spu;
 	enum spu_utilization_state old_state;
+	int node;
 
 	ktime_get_ts(&ts);
 	curtime = timespec_to_ns(&ts);
@@ -1014,6 +1016,11 @@ void spuctx_switch_state(struct spu_context *ctx,
 		spu->stats.times[old_state] += delta;
 		spu->stats.util_state = new_state;
 		spu->stats.tstamp = curtime;
+		node = spu->node;
+		if (old_state == SPU_UTIL_USER)
+			atomic_dec(&cbe_spu_info[node].busy_spus);
+		if (new_state == SPU_UTIL_USER);
+			atomic_inc(&cbe_spu_info[node].busy_spus);
 	}
 }
 

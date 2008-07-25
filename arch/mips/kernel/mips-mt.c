@@ -4,7 +4,6 @@
  */
 
 #include <linux/device.h>
-#include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/module.h>
@@ -84,9 +83,9 @@ void mips_mt_regdump(unsigned long mvpctl)
 				       read_vpe_c0_vpeconf0());
 				printk("   VPE%d.Status : %08lx\n",
 				       i, read_vpe_c0_status());
-				printk("   VPE%d.EPC : %08lx ",
-				       i, read_vpe_c0_epc());
-				print_symbol("%s\n", read_vpe_c0_epc());
+				printk("   VPE%d.EPC : %08lx %pS\n",
+				       i, read_vpe_c0_epc(),
+				       (void *) read_vpe_c0_epc());
 				printk("   VPE%d.Cause : %08lx\n",
 				       i, read_vpe_c0_cause());
 				printk("   VPE%d.Config7 : %08lx\n",
@@ -111,8 +110,8 @@ void mips_mt_regdump(unsigned long mvpctl)
 		}
 		printk("   TCStatus : %08lx\n", tcstatval);
 		printk("   TCBind : %08lx\n", read_tc_c0_tcbind());
-		printk("   TCRestart : %08lx ", read_tc_c0_tcrestart());
-		print_symbol("%s\n", read_tc_c0_tcrestart());
+		printk("   TCRestart : %08lx %pS\n",
+		       read_tc_c0_tcrestart(), (void *) read_tc_c0_tcrestart());
 		printk("   TCHalt : %08lx\n", haltval);
 		printk("   TCContext : %08lx\n", read_tc_c0_tccontext());
 		if (!haltval)

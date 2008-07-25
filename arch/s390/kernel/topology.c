@@ -313,8 +313,6 @@ void __init s390_init_cpu_topology(void)
 		machine_has_topology_irq = 1;
 
 	tl_info = alloc_bootmem_pages(PAGE_SIZE);
-	if (!tl_info)
-		goto error;
 	info = tl_info;
 	stsi(info, 15, 1, 2);
 

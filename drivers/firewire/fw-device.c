@@ -168,7 +168,7 @@ static void fw_device_release(struct device *dev)
 	fw_node_put(device->node);
 	kfree(device->config_rom);
 	kfree(device);
-	atomic_dec(&card->device_count);
+	fw_card_put(card);
 }
 
 int fw_device_enable_phys_dma(struct fw_device *device)
@@ -946,8 +946,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 */
 		device_initialize(&device->device);
 		atomic_set(&device->state, FW_DEVICE_INITIALIZING);
-		atomic_inc(&card->device_count);
-		device->card = card;
+		device->card = fw_card_get(card);
 		device->node = fw_node_get(node);
 		device->node_id = node->node_id;
 		device->generation = card->generation;

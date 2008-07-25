@@ -347,11 +347,23 @@ static int ps3_system_bus_match(struct device *_dev,
 	struct ps3_system_bus_driver *drv = ps3_drv_to_system_bus_drv(_drv);
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 
-	result = dev->match_id == drv->match_id;
+	if (!dev->match_sub_id)
+		result = dev->match_id == drv->match_id;
+	else
+		result = dev->match_sub_id == drv->match_sub_id &&
+			dev->match_id == drv->match_id;
 
-	pr_info("%s:%d: dev=%u(%s), drv=%u(%s): %s\n", __func__, __LINE__,
-		dev->match_id, dev->core.bus_id, drv->match_id, drv->core.name,
-		(result ? "match" : "miss"));
+	if (result)
+		pr_info("%s:%d: dev=%u.%u(%s), drv=%u.%u(%s): match\n",
+			__func__, __LINE__,
+			dev->match_id, dev->match_sub_id, dev->core.bus_id,
+			drv->match_id, drv->match_sub_id, drv->core.name);
+	else
+		pr_debug("%s:%d: dev=%u.%u(%s), drv=%u.%u(%s): miss\n",
+			__func__, __LINE__,
+			dev->match_id, dev->match_sub_id, dev->core.bus_id,
+			drv->match_id, drv->match_sub_id, drv->core.name);
+
 	return result;
 }
 
@@ -362,7 +374,7 @@ static int ps3_system_bus_probe(struct device *_dev)
 	struct ps3_system_bus_driver *drv;
 
 	BUG_ON(!dev);
-	pr_info(" -> %s:%d: %s\n", __func__, __LINE__, _dev->bus_id);
+	pr_debug(" -> %s:%d: %s\n", __func__, __LINE__, _dev->bus_id);
 
 	drv = ps3_system_bus_dev_to_system_bus_drv(dev);
 	BUG_ON(!drv);
@@ -370,10 +382,10 @@ static int ps3_system_bus_probe(struct device *_dev)
 	if (drv->probe)
 		result = drv->probe(dev);
 	else
-		pr_info("%s:%d: %s no probe method\n", __func__, __LINE__,
+		pr_debug("%s:%d: %s no probe method\n", __func__, __LINE__,
 			dev->core.bus_id);
 
-	pr_info(" <- %s:%d: %s\n", __func__, __LINE__, dev->core.bus_id);
+	pr_debug(" <- %s:%d: %s\n", __func__, __LINE__, dev->core.bus_id);
 	return result;
 }
 
@@ -384,7 +396,7 @@ static int ps3_system_bus_remove(struct device *_dev)
 	struct ps3_system_bus_driver *drv;
 
 	BUG_ON(!dev);
-	pr_info(" -> %s:%d: %s\n", __func__, __LINE__, _dev->bus_id);
+	pr_debug(" -> %s:%d: %s\n", __func__, __LINE__, _dev->bus_id);
 
 	drv = ps3_system_bus_dev_to_system_bus_drv(dev);
 	BUG_ON(!drv);
@@ -395,7 +407,7 @@ static int ps3_system_bus_remove(struct device *_dev)
 		dev_dbg(&dev->core, "%s:%d %s: no remove method\n",
 			__func__, __LINE__, drv->core.name);
 
-	pr_info(" <- %s:%d: %s\n", __func__, __LINE__, dev->core.bus_id);
+	pr_debug(" <- %s:%d: %s\n", __func__, __LINE__, dev->core.bus_id);
 	return result;
 }
 
@@ -550,7 +562,7 @@ static void ps3_free_coherent(struct device *_dev, size_t size, void *vaddr,
  */
 
 static dma_addr_t ps3_sb_map_single(struct device *_dev, void *ptr, size_t size,
-	enum dma_data_direction direction)
+	enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 	int result;
@@ -570,7 +582,8 @@ static dma_addr_t ps3_sb_map_single(struct device *_dev, void *ptr, size_t size,
 
 static dma_addr_t ps3_ioc0_map_single(struct device *_dev, void *ptr,
 				      size_t size,
-				      enum dma_data_direction direction)
+				      enum dma_data_direction direction,
+				      struct dma_attrs *attrs)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 	int result;
@@ -603,7 +616,7 @@ static dma_addr_t ps3_ioc0_map_single(struct device *_dev, void *ptr,
 }
 
 static void ps3_unmap_single(struct device *_dev, dma_addr_t dma_addr,
-	size_t size, enum dma_data_direction direction)
+	size_t size, enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 	int result;
@@ -617,7 +630,7 @@ static void ps3_unmap_single(struct device *_dev, dma_addr_t dma_addr,
 }
 
 static int ps3_sb_map_sg(struct device *_dev, struct scatterlist *sgl,
-	int nents, enum dma_data_direction direction)
+	int nents, enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 #if defined(CONFIG_PS3_DYNAMIC_DMA)
 	BUG_ON("do");
@@ -646,14 +659,15 @@ static int ps3_sb_map_sg(struct device *_dev, struct scatterlist *sgl,
 
 static int ps3_ioc0_map_sg(struct device *_dev, struct scatterlist *sg,
 			   int nents,
-			   enum dma_data_direction direction)
+			   enum dma_data_direction direction,
+			   struct dma_attrs *attrs)
 {
 	BUG();
 	return 0;
 }
 
 static void ps3_sb_unmap_sg(struct device *_dev, struct scatterlist *sg,
-	int nents, enum dma_data_direction direction)
+	int nents, enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 #if defined(CONFIG_PS3_DYNAMIC_DMA)
 	BUG_ON("do");
@@ -661,7 +675,8 @@ static void ps3_sb_unmap_sg(struct device *_dev, struct scatterlist *sg,
 }
 
 static void ps3_ioc0_unmap_sg(struct device *_dev, struct scatterlist *sg,
-			    int nents, enum dma_data_direction direction)
+			    int nents, enum dma_data_direction direction,
+			    struct dma_attrs *attrs)
 {
 	BUG();
 }

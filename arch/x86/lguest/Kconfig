@@ -3,7 +3,7 @@ config LGUEST_GUEST
 	select PARAVIRT
 	depends on X86_32
 	depends on !X86_PAE
-	depends on !(X86_VISWS || X86_VOYAGER)
+	depends on !X86_VOYAGER
 	select VIRTIO
 	select VIRTIO_RING
 	select VIRTIO_CONSOLE

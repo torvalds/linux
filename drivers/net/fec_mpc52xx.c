@@ -197,9 +197,6 @@ static void mpc52xx_fec_adjust_link(struct net_device *dev)
 		if (priv->link == PHY_DOWN) {
 			new_state = 1;
 			priv->link = phydev->link;
-			netif_schedule(dev);
-			netif_carrier_on(dev);
-			netif_start_queue(dev);
 		}
 
 	} else if (priv->link) {
@@ -207,8 +204,6 @@ static void mpc52xx_fec_adjust_link(struct net_device *dev)
 		priv->link = PHY_DOWN;
 		priv->speed = 0;
 		priv->duplex = -1;
-		netif_stop_queue(dev);
-		netif_carrier_off(dev);
 	}
 
 	if (new_state && netif_msg_link(priv))

@@ -1297,6 +1297,7 @@ static int ps3fb_shutdown(struct ps3_system_bus_device *dev)
 
 static struct ps3_system_bus_driver ps3fb_driver = {
 	.match_id	= PS3_MATCH_ID_GRAPHICS,
+	.match_sub_id	= PS3_MATCH_SUB_ID_FB,
 	.core.name	= DEVICE_NAME,
 	.core.owner	= THIS_MODULE,
 	.probe		= ps3fb_probe,

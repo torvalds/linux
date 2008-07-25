@@ -75,10 +75,14 @@ struct ldttss_desc64 {
 typedef struct gate_struct64 gate_desc;
 typedef struct ldttss_desc64 ldt_desc;
 typedef struct ldttss_desc64 tss_desc;
+#define gate_offset(g) ((g).offset_low | ((unsigned long)(g).offset_middle << 16) | ((unsigned long)(g).offset_high << 32))
+#define gate_segment(g) ((g).segment)
 #else
 typedef struct desc_struct gate_desc;
 typedef struct desc_struct ldt_desc;
 typedef struct desc_struct tss_desc;
+#define gate_offset(g)		(((g).b & 0xffff0000) | ((g).a & 0x0000ffff))
+#define gate_segment(g)		((g).a >> 16)
 #endif
 
 struct desc_ptr {

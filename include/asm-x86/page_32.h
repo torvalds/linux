@@ -13,6 +13,14 @@
  */
 #define __PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)
 
+#ifdef CONFIG_4KSTACKS
+#define THREAD_ORDER	0
+#else
+#define THREAD_ORDER	1
+#endif
+#define THREAD_SIZE 	(PAGE_SIZE << THREAD_ORDER)
+
+
 #ifdef CONFIG_X86_PAE
 /* 44=32+12, the limit we can fit into an unsigned long pfn */
 #define __PHYSICAL_MASK_SHIFT	44
@@ -83,6 +91,13 @@ extern int sysctl_legacy_va_layout;
 
 #define VMALLOC_RESERVE		((unsigned long)__VMALLOC_RESERVE)
 #define MAXMEM			(-__PAGE_OFFSET - __VMALLOC_RESERVE)
+
+extern void find_low_pfn_range(void);
+extern unsigned long init_memory_mapping(unsigned long start,
+					 unsigned long end);
+extern void initmem_init(unsigned long, unsigned long);
+extern void setup_bootmem_allocator(void);
+
 
 #ifdef CONFIG_X86_USE_3DNOW
 #include <asm/mmx.h>

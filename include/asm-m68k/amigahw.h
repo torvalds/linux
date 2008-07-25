@@ -22,8 +22,6 @@
      *  Different Amiga models
      */
 
-extern unsigned long amiga_model;
-
 #define AMI_UNKNOWN	(0)
 #define AMI_500		(1)
 #define AMI_500PLUS	(2)
@@ -59,11 +57,9 @@ extern unsigned long amiga_chipset;
      */
 
 extern unsigned long amiga_eclock;	/* 700 kHz E Peripheral Clock */
-extern unsigned long amiga_masterclock;	/* 28 MHz Master Clock */
 extern unsigned long amiga_colorclock;	/* 3.5 MHz Color Clock */
 extern unsigned long amiga_chip_size;	/* Chip RAM Size (bytes) */
 extern unsigned char amiga_vblank;	/* VBLANK Frequency */
-extern unsigned char amiga_psfreq;	/* Power Supply Frequency */
 
 
 #define AMIGAHW_DECLARE(name)	unsigned name : 1

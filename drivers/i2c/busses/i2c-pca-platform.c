@@ -163,7 +163,7 @@ static int __devinit i2c_pca_pf_probe(struct platform_device *pdev)
 
 	i2c->reg_base = ioremap(res->start, res_len(res));
 	if (!i2c->reg_base) {
-		ret = -EIO;
+		ret = -ENOMEM;
 		goto e_remap;
 	}
 	i2c->io_base = res->start;

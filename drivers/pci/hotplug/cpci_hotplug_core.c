@@ -285,7 +285,7 @@ cpci_hp_register_bus(struct pci_bus *bus, u8 first, u8 last)
 		info->attention_status = cpci_get_attention_status(slot);
 
 		dbg("registering slot %s", slot->hotplug_slot->name);
-		status = pci_hp_register(slot->hotplug_slot);
+		status = pci_hp_register(slot->hotplug_slot, bus, i);
 		if (status) {
 			err("pci_hp_register failed with error %d", status);
 			goto error_name;

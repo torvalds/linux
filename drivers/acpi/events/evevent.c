@@ -188,7 +188,7 @@ acpi_status acpi_ev_install_xrupt_handlers(void)
 
 static acpi_status acpi_ev_fixed_event_initialize(void)
 {
-	acpi_native_uint i;
+	u32 i;
 	acpi_status status;
 
 	/*
@@ -231,7 +231,7 @@ u32 acpi_ev_fixed_event_detect(void)
 	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
 	u32 fixed_status;
 	u32 fixed_enable;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_NAME(ev_fixed_event_detect);
 
@@ -260,7 +260,7 @@ u32 acpi_ev_fixed_event_detect(void)
 
 			/* Found an active (signalled) event */
 			acpi_os_fixed_event_count(i);
-			int_status |= acpi_ev_fixed_event_dispatch((u32) i);
+			int_status |= acpi_ev_fixed_event_dispatch(i);
 		}
 	}
 

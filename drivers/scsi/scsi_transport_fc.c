@@ -417,15 +417,16 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	fc_host->next_vport_number = 0;
 	fc_host->npiv_vports_inuse = 0;
 
-	snprintf(fc_host->work_q_name, KOBJ_NAME_LEN, "fc_wq_%d",
-		shost->host_no);
+	snprintf(fc_host->work_q_name, sizeof(fc_host->work_q_name),
+		 "fc_wq_%d", shost->host_no);
 	fc_host->work_q = create_singlethread_workqueue(
 					fc_host->work_q_name);
 	if (!fc_host->work_q)
 		return -ENOMEM;
 
-	snprintf(fc_host->devloss_work_q_name, KOBJ_NAME_LEN, "fc_dl_%d",
-		shost->host_no);
+	snprintf(fc_host->devloss_work_q_name,
+		 sizeof(fc_host->devloss_work_q_name),
+		 "fc_dl_%d", shost->host_no);
 	fc_host->devloss_work_q = create_singlethread_workqueue(
 					fc_host->devloss_work_q_name);
 	if (!fc_host->devloss_work_q) {

@@ -89,6 +89,9 @@ static __inline__ unsigned int num_booting_cpus(void)
 extern void smp_send_timer(void);
 extern unsigned long send_IPI_mask_phys(cpumask_t, int, int);
 
+extern void arch_send_call_function_single_ipi(int cpu);
+extern void arch_send_call_function_ipi(cpumask_t mask);
+
 #endif	/* not __ASSEMBLY__ */
 
 #define NO_PROC_ID (0xff)	/* No processor magic marker */
@@ -104,6 +107,7 @@ extern unsigned long send_IPI_mask_phys(cpumask_t, int, int);
 #define LOCAL_TIMER_IPI		(M32R_IRQ_IPI3-M32R_IRQ_IPI0)
 #define INVALIDATE_CACHE_IPI	(M32R_IRQ_IPI4-M32R_IRQ_IPI0)
 #define CPU_BOOT_IPI		(M32R_IRQ_IPI5-M32R_IRQ_IPI0)
+#define CALL_FUNC_SINGLE_IPI	(M32R_IRQ_IPI6-M32R_IRQ_IPI0)
 
 #define IPI_SHIFT	(0)
 #define NR_IPIS		(8)

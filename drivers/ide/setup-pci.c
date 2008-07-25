@@ -6,19 +6,15 @@
  *  May be copied or modified under the terms of the GNU General Public License
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/init.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/ide.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 
 /**
  *	ide_setup_pci_baseregs	-	place a PCI IDE controller native
@@ -77,17 +73,14 @@ static void ide_pci_clear_simplex(unsigned long dma_base, const char *name)
  *	@d: IDE port info
  *
  *	Fetch the DMA Bus-Master-I/O-Base-Address (BMIBA) from PCI space.
- *	Where a device has a partner that is already in DMA mode we check
- *	and enforce IDE simplex rules.
  */
 
 unsigned long ide_pci_dma_base(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long dma_base = 0;
-	u8 dma_stat = 0;
 
-	if (hwif->mmio)
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
 		return hwif->dma_base;
 
 	if (hwif->mate && hwif->mate->dma_base) {
@@ -106,11 +99,19 @@ unsigned long ide_pci_dma_base(ide_hwif_t *hwif, const struct ide_port_info *d)
 	if (hwif->channel)
 		dma_base += 8;
 
-	if (d->host_flags & IDE_HFLAG_CS5520)
+	return dma_base;
+}
+EXPORT_SYMBOL_GPL(ide_pci_dma_base);
+
+int ide_pci_check_simplex(ide_hwif_t *hwif, const struct ide_port_info *d)
+{
+	u8 dma_stat;
+
+	if (d->host_flags & (IDE_HFLAG_MMIO | IDE_HFLAG_CS5520))
 		goto out;
 
 	if (d->host_flags & IDE_HFLAG_CLEAR_SIMPLEX) {
-		ide_pci_clear_simplex(dma_base, d->name);
+		ide_pci_clear_simplex(hwif->dma_base, d->name);
 		goto out;
 	}
 
@@ -124,15 +125,15 @@ unsigned long ide_pci_dma_base(ide_hwif_t *hwif, const struct ide_port_info *d)
 	 * we tune the drive then try to grab DMA ownership if we want to be
 	 * the DMA end.  This has to be become dynamic to handle hot-plug.
 	 */
-	dma_stat = hwif->INB(dma_base + 2);
+	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
 	if ((dma_stat & 0x80) && hwif->mate && hwif->mate->dma_base) {
 		printk(KERN_INFO "%s: simplex device: DMA disabled\n", d->name);
-		dma_base = 0;
+		return -1;
 	}
 out:
-	return dma_base;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(ide_pci_dma_base);
+EXPORT_SYMBOL_GPL(ide_pci_check_simplex);
 
 /*
  * Set up BM-DMA capability (PnP BIOS should have done this)
@@ -288,67 +289,54 @@ static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *
 }
 
 /**
- *	ide_hwif_configure	-	configure an IDE interface
+ *	ide_hw_configure	-	configure a hw_regs_t instance
  *	@dev: PCI device holding interface
  *	@d: IDE port info
  *	@port: port number
  *	@irq: PCI IRQ
+ *	@hw: hw_regs_t instance corresponding to this port
  *
  *	Perform the initial set up for the hardware interface structure. This
  *	is done per interface port rather than per PCI device. There may be
  *	more than one port per device.
  *
- *	Returns the new hardware interface structure, or NULL on a failure
+ *	Returns zero on success or an error code.
  */
 
-static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
-				      const struct ide_port_info *d,
-				      unsigned int port, int irq)
+static int ide_hw_configure(struct pci_dev *dev, const struct ide_port_info *d,
+			    unsigned int port, int irq, hw_regs_t *hw)
 {
 	unsigned long ctl = 0, base = 0;
-	ide_hwif_t *hwif;
-	struct hw_regs_s hw;
 
 	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
 		if (ide_pci_check_iomem(dev, d, 2 * port) ||
 		    ide_pci_check_iomem(dev, d, 2 * port + 1)) {
 			printk(KERN_ERR "%s: I/O baseregs (BIOS) are reported "
 					"as MEM for port %d!\n", d->name, port);
-			return NULL;
+			return -EINVAL;
 		}
 
 		ctl  = pci_resource_start(dev, 2*port+1);
 		base = pci_resource_start(dev, 2*port);
-		if ((ctl && !base) || (base && !ctl)) {
-			printk(KERN_ERR "%s: inconsistent baseregs (BIOS) "
-				"for port %d, skipping\n", d->name, port);
-			return NULL;
-		}
-	}
-	if (!ctl) {
+	} else {
 		/* Use default values */
 		ctl = port ? 0x374 : 0x3f4;
 		base = port ? 0x170 : 0x1f0;
 	}
 
-	hwif = ide_find_port_slot(d);
-	if (hwif == NULL) {
-		printk(KERN_ERR "%s: too many IDE interfaces, no room in "
-				"table\n", d->name);
-		return NULL;
+	if (!base || !ctl) {
+		printk(KERN_ERR "%s: bad PCI BARs for port %d, skipping\n",
+				d->name, port);
+		return -EINVAL;
 	}
 
-	memset(&hw, 0, sizeof(hw));
-	hw.irq = irq;
-	hw.dev = &dev->dev;
-	hw.chipset = d->chipset ? d->chipset : ide_pci;
-	ide_std_init_ports(&hw, base, ctl | 2);
+	memset(hw, 0, sizeof(*hw));
+	hw->irq = irq;
+	hw->dev = &dev->dev;
+	hw->chipset = d->chipset ? d->chipset : ide_pci;
+	ide_std_init_ports(hw, base, ctl | 2);
 
-	ide_init_port_hw(hwif, &hw);
-
-	hwif->dev = &dev->dev;
-
-	return hwif;
+	return 0;
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
@@ -371,10 +359,18 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 	     (dev->class & 0x80))) {
 		unsigned long base = ide_pci_dma_base(hwif, d);
 
-		if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
+		if (base == 0)
 			return -1;
 
-		if (hwif->mmio)
+		hwif->dma_base = base;
+
+		if (ide_pci_check_simplex(hwif, d) < 0)
+			return -1;
+
+		if (ide_pci_set_master(dev, d->name) < 0)
+			return -1;
+
+		if (hwif->host_flags & IDE_HFLAG_MMIO)
 			printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 		else
 			printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx\n",
@@ -385,7 +381,7 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 		if (ide_allocate_dma_engine(hwif))
 			return -1;
 
-		ide_setup_dma(hwif, base);
+		hwif->dma_ops = &sff_dma_ops;
 	}
 
 	return 0;
@@ -438,7 +434,8 @@ out:
  *	@dev: PCI device
  *	@d: IDE port info
  *	@pciirq: IRQ line
- *	@idx: ATA index table to update
+ *	@hw: hw_regs_t instances corresponding to this PCI IDE device
+ *	@hws: hw_regs_t pointers table to update
  *
  *	Scan the interfaces attached to this device and do any
  *	necessary per port setup. Attach the devices and ask the
@@ -449,10 +446,10 @@ out:
  *	where the chipset setup is not the default PCI IDE one.
  */
 
-void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int pciirq, u8 *idx)
+void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d,
+			 int pciirq, hw_regs_t *hw, hw_regs_t **hws)
 {
 	int channels = (d->host_flags & IDE_HFLAG_SINGLE) ? 1 : 2, port;
-	ide_hwif_t *hwif;
 	u8 tmp;
 
 	/*
@@ -468,11 +465,10 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int
 			continue;	/* port not enabled */
 		}
 
-		hwif = ide_hwif_configure(dev, d, port, pciirq);
-		if (hwif == NULL)
+		if (ide_hw_configure(dev, d, port, pciirq, hw + port))
 			continue;
 
-		*(idx + port) = hwif->index;
+		*(hws + port) = hw + port;
 	}
 }
 EXPORT_SYMBOL_GPL(ide_pci_setup_ports);
@@ -489,7 +485,7 @@ EXPORT_SYMBOL_GPL(ide_pci_setup_ports);
  */
 static int do_ide_setup_pci_device(struct pci_dev *dev,
 				   const struct ide_port_info *d,
-				   u8 *idx, u8 noisy)
+				   u8 noisy)
 {
 	int tried_config = 0;
 	int pciirq, ret;
@@ -538,22 +534,24 @@ static int do_ide_setup_pci_device(struct pci_dev *dev,
 				d->name, pciirq);
 	}
 
-	/* FIXME: silent failure can happen */
-
-	ide_pci_setup_ports(dev, d, pciirq, idx);
+	ret = pciirq;
 out:
 	return ret;
 }
 
 int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 {
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 	int ret;
 
-	ret = do_ide_setup_pci_device(dev, d, &idx[0], 1);
+	ret = do_ide_setup_pci_device(dev, d, 1);
 
-	if (ret >= 0)
-		ide_device_add(idx, d);
+	if (ret >= 0) {
+		/* FIXME: silent failure can happen */
+		ide_pci_setup_ports(dev, d, ret, &hw[0], &hws[0]);
+
+		ret = ide_host_add(d, hws, NULL);
+	}
 
 	return ret;
 }
@@ -564,19 +562,23 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 {
 	struct pci_dev *pdev[] = { dev1, dev2 };
 	int ret, i;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 
 	for (i = 0; i < 2; i++) {
-		ret = do_ide_setup_pci_device(pdev[i], d, &idx[i*2], !i);
+		ret = do_ide_setup_pci_device(pdev[i], d, !i);
+
 		/*
 		 * FIXME: Mom, mom, they stole me the helper function to undo
 		 * do_ide_setup_pci_device() on the first device!
 		 */
 		if (ret < 0)
 			goto out;
+
+		/* FIXME: silent failure can happen */
+		ide_pci_setup_ports(pdev[i], d, ret, &hw[i*2], &hws[i*2]);
 	}
 
-	ide_device_add(idx, d);
+	ret = ide_host_add(d, hws, NULL);
 out:
 	return ret;
 }

@@ -30,15 +30,17 @@
  */
 #define CRYPTO_ALG_TYPE_MASK		0x0000000f
 #define CRYPTO_ALG_TYPE_CIPHER		0x00000001
-#define CRYPTO_ALG_TYPE_DIGEST		0x00000002
-#define CRYPTO_ALG_TYPE_HASH		0x00000003
+#define CRYPTO_ALG_TYPE_COMPRESS	0x00000002
+#define CRYPTO_ALG_TYPE_AEAD		0x00000003
 #define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000004
 #define CRYPTO_ALG_TYPE_ABLKCIPHER	0x00000005
 #define CRYPTO_ALG_TYPE_GIVCIPHER	0x00000006
-#define CRYPTO_ALG_TYPE_COMPRESS	0x00000008
-#define CRYPTO_ALG_TYPE_AEAD		0x00000009
+#define CRYPTO_ALG_TYPE_DIGEST		0x00000008
+#define CRYPTO_ALG_TYPE_HASH		0x00000009
+#define CRYPTO_ALG_TYPE_AHASH		0x0000000a
 
 #define CRYPTO_ALG_TYPE_HASH_MASK	0x0000000e
+#define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000c
 #define CRYPTO_ALG_TYPE_BLKCIPHER_MASK	0x0000000c
 
 #define CRYPTO_ALG_LARVAL		0x00000010
@@ -102,6 +104,7 @@ struct crypto_async_request;
 struct crypto_aead;
 struct crypto_blkcipher;
 struct crypto_hash;
+struct crypto_ahash;
 struct crypto_tfm;
 struct crypto_type;
 struct aead_givcrypt_request;
@@ -127,6 +130,16 @@ struct ablkcipher_request {
 
 	struct scatterlist *src;
 	struct scatterlist *dst;
+
+	void *__ctx[] CRYPTO_MINALIGN_ATTR;
+};
+
+struct ahash_request {
+	struct crypto_async_request base;
+
+	unsigned int nbytes;
+	struct scatterlist *src;
+	u8		   *result;
 
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
@@ -193,6 +206,17 @@ struct ablkcipher_alg {
 	unsigned int min_keysize;
 	unsigned int max_keysize;
 	unsigned int ivsize;
+};
+
+struct ahash_alg {
+	int (*init)(struct ahash_request *req);
+	int (*update)(struct ahash_request *req);
+	int (*final)(struct ahash_request *req);
+	int (*digest)(struct ahash_request *req);
+	int (*setkey)(struct crypto_ahash *tfm, const u8 *key,
+			unsigned int keylen);
+
+	unsigned int digestsize;
 };
 
 struct aead_alg {
@@ -272,6 +296,7 @@ struct compress_alg {
 #define cra_cipher	cra_u.cipher
 #define cra_digest	cra_u.digest
 #define cra_hash	cra_u.hash
+#define cra_ahash	cra_u.ahash
 #define cra_compress	cra_u.compress
 
 struct crypto_alg {
@@ -298,6 +323,7 @@ struct crypto_alg {
 		struct cipher_alg cipher;
 		struct digest_alg digest;
 		struct hash_alg hash;
+		struct ahash_alg ahash;
 		struct compress_alg compress;
 	} cra_u;
 
@@ -383,6 +409,18 @@ struct hash_tfm {
 	unsigned int digestsize;
 };
 
+struct ahash_tfm {
+	int (*init)(struct ahash_request *req);
+	int (*update)(struct ahash_request *req);
+	int (*final)(struct ahash_request *req);
+	int (*digest)(struct ahash_request *req);
+	int (*setkey)(struct crypto_ahash *tfm, const u8 *key,
+			unsigned int keylen);
+
+	unsigned int digestsize;
+	unsigned int reqsize;
+};
+
 struct compress_tfm {
 	int (*cot_compress)(struct crypto_tfm *tfm,
 	                    const u8 *src, unsigned int slen,
@@ -397,6 +435,7 @@ struct compress_tfm {
 #define crt_blkcipher	crt_u.blkcipher
 #define crt_cipher	crt_u.cipher
 #define crt_hash	crt_u.hash
+#define crt_ahash	crt_u.ahash
 #define crt_compress	crt_u.compress
 
 struct crypto_tfm {
@@ -409,6 +448,7 @@ struct crypto_tfm {
 		struct blkcipher_tfm blkcipher;
 		struct cipher_tfm cipher;
 		struct hash_tfm hash;
+		struct ahash_tfm ahash;
 		struct compress_tfm compress;
 	} crt_u;
 	

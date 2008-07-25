@@ -71,7 +71,7 @@ static int acpi_processor_update_tsd_coord(void)
 	 * coordination between all CPUs.
 	 */
 	for_each_possible_cpu(i) {
-		pr = processors[i];
+		pr = per_cpu(processors, i);
 		if (!pr)
 			continue;
 
@@ -93,7 +93,7 @@ static int acpi_processor_update_tsd_coord(void)
 
 	cpus_clear(covered_cpus);
 	for_each_possible_cpu(i) {
-		pr = processors[i];
+		pr = per_cpu(processors, i);
 		if (!pr)
 			continue;
 
@@ -119,7 +119,7 @@ static int acpi_processor_update_tsd_coord(void)
 			if (i == j)
 				continue;
 
-			match_pr = processors[j];
+			match_pr = per_cpu(processors, j);
 			if (!match_pr)
 				continue;
 
@@ -152,7 +152,7 @@ static int acpi_processor_update_tsd_coord(void)
 			if (i == j)
 				continue;
 
-			match_pr = processors[j];
+			match_pr = per_cpu(processors, j);
 			if (!match_pr)
 				continue;
 
@@ -172,7 +172,7 @@ static int acpi_processor_update_tsd_coord(void)
 
 err_ret:
 	for_each_possible_cpu(i) {
-		pr = processors[i];
+		pr = per_cpu(processors, i);
 		if (!pr)
 			continue;
 
@@ -214,7 +214,7 @@ static int acpi_processor_throttling_notifier(unsigned long event, void *data)
 	struct acpi_processor_throttling *p_throttling;
 
 	cpu = p_tstate->cpu;
-	pr = processors[cpu];
+	pr = per_cpu(processors, cpu);
 	if (!pr) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid pr pointer\n"));
 		return 0;
@@ -827,6 +827,7 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 static int acpi_processor_get_throttling(struct acpi_processor *pr)
 {
 	cpumask_t saved_mask;
+	cpumask_of_cpu_ptr_declare(new_mask);
 	int ret;
 
 	if (!pr)
@@ -838,7 +839,8 @@ static int acpi_processor_get_throttling(struct acpi_processor *pr)
 	 * Migrate task to the cpu pointed by pr.
 	 */
 	saved_mask = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(pr->id));
+	cpumask_of_cpu_ptr_next(new_mask, pr->id);
+	set_cpus_allowed_ptr(current, new_mask);
 	ret = pr->throttling.acpi_processor_get_throttling(pr);
 	/* restore the previous state */
 	set_cpus_allowed_ptr(current, &saved_mask);
@@ -987,6 +989,7 @@ static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 {
 	cpumask_t saved_mask;
+	cpumask_of_cpu_ptr_declare(new_mask);
 	int ret = 0;
 	unsigned int i;
 	struct acpi_processor *match_pr;
@@ -1013,7 +1016,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 	 * affected cpu in order to get one proper T-state.
 	 * The notifier event is THROTTLING_PRECHANGE.
 	 */
-	for_each_cpu_mask(i, online_throttling_cpus) {
+	for_each_cpu_mask_nr(i, online_throttling_cpus) {
 		t_state.cpu = i;
 		acpi_processor_throttling_notifier(THROTTLING_PRECHANGE,
 							&t_state);
@@ -1025,7 +1028,8 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 	 * it can be called only for the cpu pointed by pr.
 	 */
 	if (p_throttling->shared_type == DOMAIN_COORD_TYPE_SW_ANY) {
-		set_cpus_allowed_ptr(current, &cpumask_of_cpu(pr->id));
+		cpumask_of_cpu_ptr_next(new_mask, pr->id);
+		set_cpus_allowed_ptr(current, new_mask);
 		ret = p_throttling->acpi_processor_set_throttling(pr,
 						t_state.target_state);
 	} else {
@@ -1034,8 +1038,8 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 		 * it is necessary to set T-state for every affected
 		 * cpus.
 		 */
-		for_each_cpu_mask(i, online_throttling_cpus) {
-			match_pr = processors[i];
+		for_each_cpu_mask_nr(i, online_throttling_cpus) {
+			match_pr = per_cpu(processors, i);
 			/*
 			 * If the pointer is invalid, we will report the
 			 * error message and continue.
@@ -1056,7 +1060,8 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 				continue;
 			}
 			t_state.cpu = i;
-			set_cpus_allowed_ptr(current, &cpumask_of_cpu(i));
+			cpumask_of_cpu_ptr_next(new_mask, i);
+			set_cpus_allowed_ptr(current, new_mask);
 			ret = match_pr->throttling.
 				acpi_processor_set_throttling(
 				match_pr, t_state.target_state);
@@ -1068,7 +1073,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 	 * affected cpu to update the T-states.
 	 * The notifier event is THROTTLING_POSTCHANGE
 	 */
-	for_each_cpu_mask(i, online_throttling_cpus) {
+	for_each_cpu_mask_nr(i, online_throttling_cpus) {
 		t_state.cpu = i;
 		acpi_processor_throttling_notifier(THROTTLING_POSTCHANGE,
 							&t_state);
@@ -1232,7 +1237,10 @@ static ssize_t acpi_processor_write_throttling(struct file *file,
 	int result = 0;
 	struct seq_file *m = file->private_data;
 	struct acpi_processor *pr = m->private;
-	char state_string[12] = { '\0' };
+	char state_string[5] = "";
+	char *charp = NULL;
+	size_t state_val = 0;
+	char tmpbuf[5] = "";
 
 	if (!pr || (count > sizeof(state_string) - 1))
 		return -EINVAL;
@@ -1241,10 +1249,23 @@ static ssize_t acpi_processor_write_throttling(struct file *file,
 		return -EFAULT;
 
 	state_string[count] = '\0';
+	if ((count > 0) && (state_string[count-1] == '\n'))
+		state_string[count-1] = '\0';
 
-	result = acpi_processor_set_throttling(pr,
-					       simple_strtoul(state_string,
-							      NULL, 0));
+	charp = state_string;
+	if ((state_string[0] == 't') || (state_string[0] == 'T'))
+		charp++;
+
+	state_val = simple_strtoul(charp, NULL, 0);
+	if (state_val >= pr->throttling.state_count)
+		return -EINVAL;
+
+	snprintf(tmpbuf, 5, "%zu", state_val);
+
+	if (strcmp(tmpbuf, charp) != 0)
+		return -EINVAL;
+
+	result = acpi_processor_set_throttling(pr, state_val);
 	if (result)
 		return result;
 

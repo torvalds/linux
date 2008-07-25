@@ -440,14 +440,13 @@ static void fat_delete_inode(struct inode *inode)
 
 static void fat_clear_inode(struct inode *inode)
 {
-	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct super_block *sb = inode->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 
-	lock_kernel();
 	spin_lock(&sbi->inode_hash_lock);
 	fat_cache_inval_inode(inode);
 	hlist_del_init(&MSDOS_I(inode)->i_fat_hash);
 	spin_unlock(&sbi->inode_hash_lock);
-	unlock_kernel();
 }
 
 static void fat_write_super(struct super_block *sb)
@@ -485,7 +484,7 @@ static struct kmem_cache *fat_inode_cachep;
 static struct inode *fat_alloc_inode(struct super_block *sb)
 {
 	struct msdos_inode_info *ei;
-	ei = kmem_cache_alloc(fat_inode_cachep, GFP_KERNEL);
+	ei = kmem_cache_alloc(fat_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -567,7 +566,7 @@ retry:
 	if (inode->i_ino == MSDOS_ROOT_INO || !i_pos)
 		return 0;
 
-	lock_kernel();
+	lock_super(sb);
 	bh = sb_bread(sb, i_pos >> sbi->dir_per_block_bits);
 	if (!bh) {
 		printk(KERN_ERR "FAT: unable to read inode block "
@@ -579,7 +578,7 @@ retry:
 	if (i_pos != MSDOS_I(inode)->i_pos) {
 		spin_unlock(&sbi->inode_hash_lock);
 		brelse(bh);
-		unlock_kernel();
+		unlock_super(sb);
 		goto retry;
 	}
 
@@ -606,7 +605,7 @@ retry:
 		err = sync_dirty_buffer(bh);
 	brelse(bh);
 out:
-	unlock_kernel();
+	unlock_super(sb);
 	return err;
 }
 
@@ -736,6 +735,7 @@ fat_encode_fh(struct dentry *de, __u32 *fh, int *lenp, int connectable)
 
 static struct dentry *fat_get_parent(struct dentry *child)
 {
+	struct super_block *sb = child->d_sb;
 	struct buffer_head *bh;
 	struct msdos_dir_entry *de;
 	loff_t i_pos;
@@ -743,14 +743,14 @@ static struct dentry *fat_get_parent(struct dentry *child)
 	struct inode *inode;
 	int err;
 
-	lock_kernel();
+	lock_super(sb);
 
 	err = fat_get_dotdot_entry(child->d_inode, &bh, &de, &i_pos);
 	if (err) {
 		parent = ERR_PTR(err);
 		goto out;
 	}
-	inode = fat_build_inode(child->d_sb, de, i_pos);
+	inode = fat_build_inode(sb, de, i_pos);
 	brelse(bh);
 	if (IS_ERR(inode)) {
 		parent = ERR_CAST(inode);
@@ -762,7 +762,7 @@ static struct dentry *fat_get_parent(struct dentry *child)
 		parent = ERR_PTR(-ENOMEM);
 	}
 out:
-	unlock_kernel();
+	unlock_super(sb);
 
 	return parent;
 }
@@ -1172,6 +1172,12 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	long error;
 	char buf[50];
 
+	/*
+	 * GFP_KERNEL is ok here, because while we do hold the
+	 * supeblock lock, memory pressure can't call back into
+	 * the filesystem, since we're only just about to mount
+	 * it and have no inodes etc active!
+	 */
 	sbi = kzalloc(sizeof(struct msdos_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;

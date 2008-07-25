@@ -169,7 +169,6 @@ static void usbvision_rvfree(void *mem, unsigned long size)
 }
 
 
-
 #if ENABLE_HEXDUMP
 static void usbvision_hexdump(const unsigned char *data, int len)
 {
@@ -2317,7 +2316,6 @@ static void usbvision_powerOffTimer(unsigned long data)
 	del_timer(&usbvision->powerOffTimer);
 	INIT_WORK(&usbvision->powerOffWork, call_usbvision_power_off);
 	(void) schedule_work(&usbvision->powerOffWork);
-
 }
 
 void usbvision_init_powerOffTimer(struct usb_usbvision *usbvision)
@@ -2518,7 +2516,6 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		}
 	}
 
-
 	/* Submit all URBs */
 	for (bufIdx = 0; bufIdx < USBVISION_NUMSBUF; bufIdx++) {
 			errCode = usb_submit_urb(usbvision->sbuf[bufIdx].urb,
@@ -2563,7 +2560,6 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 		usb_free_urb(usbvision->sbuf[bufIdx].urb);
 		usbvision->sbuf[bufIdx].urb = NULL;
 	}
-
 
 	PDEBUG(DBG_ISOC, "%s: streaming=Stream_Off\n", __func__);
 	usbvision->streaming = Stream_Off;
