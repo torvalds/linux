@@ -11,6 +11,7 @@
 
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/mutex.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 
@@ -139,7 +140,7 @@ struct hfs_sb_info {
 
 	struct nls_table *nls_io, *nls_disk;
 
-	struct semaphore bitmap_lock;
+	struct mutex bitmap_lock;
 
 	unsigned long flags;
 
