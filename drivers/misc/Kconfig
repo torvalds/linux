@@ -436,6 +436,7 @@ config SGI_XP
 
 config HP_ILO
 	tristate "Channel interface driver for HP iLO/iLO2 processor"
+	depends on PCI
 	default n
 	help
 	  The channel interface driver allows applications to communicate
