@@ -2093,20 +2093,6 @@ config CODA_FS
 	  To compile the coda client support as a module, choose M here: the
 	  module will be called coda.
 
-config CODA_FS_OLD_API
-	bool "Use 96-bit Coda file identifiers"
-	depends on CODA_FS
-	help
-	  A new kernel-userspace API had to be introduced for Coda v6.0
-	  to support larger 128-bit file identifiers as needed by the
-	  new realms implementation.
-
-	  However this new API is not backward compatible with older
-	  clients. If you really need to run the old Coda userspace
-	  cache manager then say Y.
-
-	  For most cases you probably want to say N.
-
 config AFS_FS
 	tristate "Andrew File System support (AFS) (EXPERIMENTAL)"
 	depends on INET && EXPERIMENTAL
