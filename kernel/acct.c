@@ -657,7 +657,8 @@ static void acct_process_in_ns(struct pid_namespace *ns)
 }
 
 /**
- * acct_process - now just a wrapper around do_acct_process
+ * acct_process - now just a wrapper around acct_process_in_ns,
+ * which in turn is a wrapper around do_acct_process.
  *
  * handles process accounting for an exiting task
  */
@@ -665,6 +666,11 @@ void acct_process(void)
 {
 	struct pid_namespace *ns;
 
+	/*
+	 * This loop is safe lockless, since current is still
+	 * alive and holds its namespace, which in turn holds
+	 * its parent.
+	 */
 	for (ns = task_active_pid_ns(current); ns != NULL; ns = ns->parent)
 		acct_process_in_ns(ns);
 }
