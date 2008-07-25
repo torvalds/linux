@@ -95,7 +95,7 @@ struct sem_array {
 	struct sem		*sem_base;	/* ptr to first semaphore in array */
 	struct sem_queue	*sem_pending;	/* pending operations to be processed */
 	struct sem_queue	**sem_pending_last; /* last pending operation */
-	struct sem_undo		*undo;		/* undo requests on this array */
+	struct list_head	list_id;	/* undo requests on this array */
 	unsigned long		sem_nsems;	/* no. of semaphores in array */
 };
 
@@ -118,8 +118,8 @@ struct sem_queue {
  * when the process exits.
  */
 struct sem_undo {
-	struct sem_undo *	proc_next;	/* next entry on this process */
-	struct sem_undo *	id_next;	/* next entry on this semaphore set */
+	struct list_head	list_proc;	/* per-process list: all undos from one process */
+	struct list_head	list_id;	/* per semaphore array list: all undos for one array */
 	int			semid;		/* semaphore set identifier */
 	short *			semadj;		/* array of adjustments, one per semaphore */
 };
@@ -128,9 +128,9 @@ struct sem_undo {
  * that may be shared among all a CLONE_SYSVSEM task group.
  */ 
 struct sem_undo_list {
-	atomic_t	refcnt;
-	spinlock_t	lock;
-	struct sem_undo	*proc_list;
+	atomic_t		refcnt;
+	spinlock_t		lock;
+	struct list_head	list_proc;
 };
 
 struct sysv_sem {
