@@ -21,11 +21,13 @@
 struct cgroupfs_root;
 struct cgroup_subsys;
 struct inode;
+struct cgroup;
 
 extern int cgroup_init_early(void);
 extern int cgroup_init(void);
 extern void cgroup_init_smp(void);
 extern void cgroup_lock(void);
+extern bool cgroup_lock_live_group(struct cgroup *cgrp);
 extern void cgroup_unlock(void);
 extern void cgroup_fork(struct task_struct *p);
 extern void cgroup_fork_callbacks(struct task_struct *p);
@@ -294,8 +296,6 @@ int cgroup_add_files(struct cgroup *cgrp,
 			int count);
 
 int cgroup_is_removed(const struct cgroup *cgrp);
-
-int cgroup_lock_live_group(struct cgroup *cgrp);
 
 int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen);
 

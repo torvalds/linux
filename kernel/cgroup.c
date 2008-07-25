@@ -1329,10 +1329,10 @@ enum cgroup_filetype {
  * cgroup_lock_live_group - take cgroup_mutex and check that cgrp is alive.
  * @cgrp: the cgroup to be checked for liveness
  *
- * Returns true (with lock held) on success, or false (with no lock
- * held) on failure.
+ * On success, returns true; the lock should be later released with
+ * cgroup_unlock(). On failure returns false with no lock held.
  */
-int cgroup_lock_live_group(struct cgroup *cgrp)
+bool cgroup_lock_live_group(struct cgroup *cgrp)
 {
 	mutex_lock(&cgroup_mutex);
 	if (cgroup_is_removed(cgrp)) {
@@ -1349,7 +1349,7 @@ static int cgroup_release_agent_write(struct cgroup *cgrp, struct cftype *cft,
 	if (!cgroup_lock_live_group(cgrp))
 		return -ENODEV;
 	strcpy(cgrp->root->release_agent_path, buffer);
-	mutex_unlock(&cgroup_mutex);
+	cgroup_unlock();
 	return 0;
 }
 
@@ -1360,16 +1360,19 @@ static int cgroup_release_agent_show(struct cgroup *cgrp, struct cftype *cft,
 		return -ENODEV;
 	seq_puts(seq, cgrp->root->release_agent_path);
 	seq_putc(seq, '\n');
-	mutex_unlock(&cgroup_mutex);
+	cgroup_unlock();
 	return 0;
 }
+
+/* A buffer size big enough for numbers or short strings */
+#define CGROUP_LOCAL_BUFFER_SIZE 64
 
 static ssize_t cgroup_write_X64(struct cgroup *cgrp, struct cftype *cft,
 				struct file *file,
 				const char __user *userbuf,
 				size_t nbytes, loff_t *unused_ppos)
 {
-	char buffer[64];
+	char buffer[CGROUP_LOCAL_BUFFER_SIZE];
 	int retval = 0;
 	char *end;
 
@@ -1403,7 +1406,7 @@ static ssize_t cgroup_write_string(struct cgroup *cgrp, struct cftype *cft,
 				   const char __user *userbuf,
 				   size_t nbytes, loff_t *unused_ppos)
 {
-	char local_buffer[64];
+	char local_buffer[CGROUP_LOCAL_BUFFER_SIZE];
 	int retval = 0;
 	size_t max_bytes = cft->max_write_len;
 	char *buffer = local_buffer;
@@ -1518,7 +1521,7 @@ static ssize_t cgroup_read_u64(struct cgroup *cgrp, struct cftype *cft,
 			       char __user *buf, size_t nbytes,
 			       loff_t *ppos)
 {
-	char tmp[64];
+	char tmp[CGROUP_LOCAL_BUFFER_SIZE];
 	u64 val = cft->read_u64(cgrp, cft);
 	int len = sprintf(tmp, "%llu\n", (unsigned long long) val);
 
@@ -1530,7 +1533,7 @@ static ssize_t cgroup_read_s64(struct cgroup *cgrp, struct cftype *cft,
 			       char __user *buf, size_t nbytes,
 			       loff_t *ppos)
 {
-	char tmp[64];
+	char tmp[CGROUP_LOCAL_BUFFER_SIZE];
 	s64 val = cft->read_s64(cgrp, cft);
 	int len = sprintf(tmp, "%lld\n", (long long) val);
 
