@@ -61,6 +61,9 @@ struct virtnet_info
 	/* Receive & send queues. */
 	struct sk_buff_head recv;
 	struct sk_buff_head send;
+
+	/* Chain pages by the private ptr. */
+	struct page *pages;
 };
 
 static inline struct virtio_net_hdr *skb_vnet_hdr(struct sk_buff *skb)
@@ -71,6 +74,23 @@ static inline struct virtio_net_hdr *skb_vnet_hdr(struct sk_buff *skb)
 static inline void vnet_hdr_to_sg(struct scatterlist *sg, struct sk_buff *skb)
 {
 	sg_init_one(sg, skb_vnet_hdr(skb), sizeof(struct virtio_net_hdr));
+}
+
+static void give_a_page(struct virtnet_info *vi, struct page *page)
+{
+	page->private = (unsigned long)vi->pages;
+	vi->pages = page;
+}
+
+static struct page *get_a_page(struct virtnet_info *vi, gfp_t gfp_mask)
+{
+	struct page *p = vi->pages;
+
+	if (p)
+		vi->pages = (struct page *)p->private;
+	else
+		p = alloc_page(gfp_mask);
+	return p;
 }
 
 static void skb_xmit_done(struct virtqueue *svq)
@@ -100,6 +120,15 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 		goto drop;
 	}
 	len -= sizeof(struct virtio_net_hdr);
+
+	if (len <= MAX_PACKET_LEN) {
+		unsigned int i;
+
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+			give_a_page(dev->priv, skb_shinfo(skb)->frags[i].page);
+		skb->data_len = 0;
+		skb_shinfo(skb)->nr_frags = 0;
+	}
 
 	err = pskb_trim(skb, len);
 	if (err) {
@@ -183,7 +212,7 @@ static void try_fill_recv(struct virtnet_info *vi)
 		if (vi->big_packets) {
 			for (i = 0; i < MAX_SKB_FRAGS; i++) {
 				skb_frag_t *f = &skb_shinfo(skb)->frags[i];
-				f->page = alloc_page(GFP_ATOMIC);
+				f->page = get_a_page(vi, GFP_ATOMIC);
 				if (!f->page)
 					break;
 
@@ -506,6 +535,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	vi->dev = dev;
 	vi->vdev = vdev;
 	vdev->priv = vi;
+	vi->pages = NULL;
 
 	/* If they give us a callback when all buffers are done, we don't need
 	 * the timer. */
@@ -591,6 +621,10 @@ static void virtnet_remove(struct virtio_device *vdev)
 	vdev->config->del_vq(vi->svq);
 	vdev->config->del_vq(vi->rvq);
 	unregister_netdev(vi->dev);
+
+	while (vi->pages)
+		__free_pages(get_a_page(vi, GFP_KERNEL), 0);
+
 	free_netdev(vi->dev);
 }
 
