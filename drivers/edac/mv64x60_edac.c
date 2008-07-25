@@ -612,7 +612,7 @@ static void get_total_mem(struct mv64x60_mc_pdata *pdata)
 	if (!np)
 		return;
 
-	reg = get_property(np, "reg", NULL);
+	reg = of_get_property(np, "reg", NULL);
 
 	pdata->total_mem = reg[1];
 }
