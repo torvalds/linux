@@ -1363,6 +1363,39 @@ static ssize_t cgroup_write_X64(struct cgroup *cgrp, struct cftype *cft,
 	return retval;
 }
 
+static ssize_t cgroup_write_string(struct cgroup *cgrp, struct cftype *cft,
+				   struct file *file,
+				   const char __user *userbuf,
+				   size_t nbytes, loff_t *unused_ppos)
+{
+	char local_buffer[64];
+	int retval = 0;
+	size_t max_bytes = cft->max_write_len;
+	char *buffer = local_buffer;
+
+	if (!max_bytes)
+		max_bytes = sizeof(local_buffer) - 1;
+	if (nbytes >= max_bytes)
+		return -E2BIG;
+	/* Allocate a dynamic buffer if we need one */
+	if (nbytes >= sizeof(local_buffer)) {
+		buffer = kmalloc(nbytes + 1, GFP_KERNEL);
+		if (buffer == NULL)
+			return -ENOMEM;
+	}
+	if (nbytes && copy_from_user(buffer, userbuf, nbytes))
+		return -EFAULT;
+
+	buffer[nbytes] = 0;     /* nul-terminate */
+	strstrip(buffer);
+	retval = cft->write_string(cgrp, cft, buffer);
+	if (!retval)
+		retval = nbytes;
+	if (buffer != local_buffer)
+		kfree(buffer);
+	return retval;
+}
+
 static ssize_t cgroup_common_file_write(struct cgroup *cgrp,
 					   struct cftype *cft,
 					   struct file *file,
@@ -1440,6 +1473,8 @@ static ssize_t cgroup_file_write(struct file *file, const char __user *buf,
 		return cft->write(cgrp, cft, file, buf, nbytes, ppos);
 	if (cft->write_u64 || cft->write_s64)
 		return cgroup_write_X64(cgrp, cft, file, buf, nbytes, ppos);
+	if (cft->write_string)
+		return cgroup_write_string(cgrp, cft, file, buf, nbytes, ppos);
 	if (cft->trigger) {
 		int ret = cft->trigger(cgrp, (unsigned int)cft->private);
 		return ret ? ret : nbytes;
