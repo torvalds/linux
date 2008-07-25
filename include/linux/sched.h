@@ -1718,7 +1718,7 @@ extern struct pid_namespace init_pid_ns;
  * find_task_by_pid():
  *      finds a task by its global pid
  *
- * see also find_pid() etc in include/linux/pid.h
+ * see also find_vpid() etc in include/linux/pid.h
  */
 
 extern struct task_struct *find_task_by_pid_type_ns(int type, int pid,
