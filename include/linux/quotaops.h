@@ -14,6 +14,8 @@
 
 #include <linux/fs.h>
 
+#define sb_dqopt(sb) (&(sb)->s_dquot)
+
 #if defined(CONFIG_QUOTA)
 
 /*
@@ -51,6 +53,25 @@ int vfs_set_dqblk(struct super_block *sb, int type, qid_t id, struct if_dqblk *d
 void vfs_dq_drop(struct inode *inode);
 int vfs_dq_transfer(struct inode *inode, struct iattr *iattr);
 int vfs_dq_quota_on_remount(struct super_block *sb);
+
+#define sb_dqinfo(sb, type) (sb_dqopt(sb)->info+(type))
+
+/*
+ * Functions for checking status of quota
+ */
+
+#define sb_has_quota_enabled(sb, type) ((type)==USRQUOTA ? \
+	(sb_dqopt(sb)->flags & DQUOT_USR_ENABLED) : (sb_dqopt(sb)->flags & DQUOT_GRP_ENABLED))
+
+#define sb_any_quota_enabled(sb) (sb_has_quota_enabled(sb, USRQUOTA) | \
+				  sb_has_quota_enabled(sb, GRPQUOTA))
+
+#define sb_has_quota_suspended(sb, type) \
+	((type) == USRQUOTA ? (sb_dqopt(sb)->flags & DQUOT_USR_SUSPENDED) : \
+			      (sb_dqopt(sb)->flags & DQUOT_GRP_SUSPENDED))
+
+#define sb_any_quota_suspended(sb) (sb_has_quota_suspended(sb, USRQUOTA) | \
+				  sb_has_quota_suspended(sb, GRPQUOTA))
 
 /*
  * Operations supported for diskquotas.
@@ -158,6 +179,11 @@ static inline int vfs_dq_off(struct super_block *sb, int remount)
 }
 
 #else
+
+#define sb_has_quota_enabled(sb, type) 0
+#define sb_any_quota_enabled(sb) 0
+#define sb_has_quota_suspended(sb, type) 0
+#define sb_any_quota_suspended(sb) 0
 
 /*
  * NO-OP when quota not configured.
