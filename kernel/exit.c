@@ -670,16 +670,16 @@ static void exit_mm(struct task_struct * tsk)
 		return;
 	/*
 	 * Serialize with any possible pending coredump.
-	 * We must hold mmap_sem around checking core_waiters
+	 * We must hold mmap_sem around checking core_state
 	 * and clearing tsk->mm.  The core-inducing thread
-	 * will increment core_waiters for each thread in the
+	 * will increment ->nr_threads for each thread in the
 	 * group with ->mm != NULL.
 	 */
 	down_read(&mm->mmap_sem);
-	if (mm->core_waiters) {
+	if (mm->core_state) {
 		up_read(&mm->mmap_sem);
 		down_write(&mm->mmap_sem);
-		if (!--mm->core_waiters)
+		if (!--mm->core_state->nr_threads)
 			complete(&mm->core_state->startup);
 		up_write(&mm->mmap_sem);
 

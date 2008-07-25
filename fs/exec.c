@@ -722,12 +722,10 @@ static int exec_mmap(struct mm_struct *mm)
 		 * Make sure that if there is a core dump in progress
 		 * for the old mm, we get out and die instead of going
 		 * through with the exec.  We must hold mmap_sem around
-		 * checking core_waiters and changing tsk->mm.  The
-		 * core-inducing thread will increment core_waiters for
-		 * each thread whose ->mm == old_mm.
+		 * checking core_state and changing tsk->mm.
 		 */
 		down_read(&old_mm->mmap_sem);
-		if (unlikely(old_mm->core_waiters)) {
+		if (unlikely(old_mm->core_state)) {
 			up_read(&old_mm->mmap_sem);
 			return -EINTR;
 		}
@@ -1514,7 +1512,7 @@ static void zap_process(struct task_struct *start)
 	t = start;
 	do {
 		if (t != current && t->mm) {
-			t->mm->core_waiters++;
+			t->mm->core_state->nr_threads++;
 			sigaddset(&t->pending.signal, SIGKILL);
 			signal_wake_up(t, 1);
 		}
@@ -1538,11 +1536,11 @@ static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	if (err)
 		return err;
 
-	if (atomic_read(&mm->mm_users) == mm->core_waiters + 1)
+	if (atomic_read(&mm->mm_users) == mm->core_state->nr_threads + 1)
 		goto done;
 	/*
 	 * We should find and kill all tasks which use this mm, and we should
-	 * count them correctly into mm->core_waiters. We don't take tasklist
+	 * count them correctly into ->nr_threads. We don't take tasklist
 	 * lock, but this is safe wrt:
 	 *
 	 * fork:
@@ -1590,7 +1588,7 @@ static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	}
 	rcu_read_unlock();
 done:
-	return mm->core_waiters;
+	return mm->core_state->nr_threads;
 }
 
 static int coredump_wait(int exit_code)
@@ -1603,9 +1601,12 @@ static int coredump_wait(int exit_code)
 
 	init_completion(&mm->core_done);
 	init_completion(&core_state.startup);
+	core_state.nr_threads = 0;
 	mm->core_state = &core_state;
 
 	core_waiters = zap_threads(tsk, mm, exit_code);
+	if (core_waiters < 0)
+		mm->core_state = NULL;
 	up_write(&mm->mmap_sem);
 
 	if (unlikely(core_waiters < 0))
@@ -1623,8 +1624,8 @@ static int coredump_wait(int exit_code)
 
 	if (core_waiters)
 		wait_for_completion(&core_state.startup);
+	mm->core_state = NULL;
 fail:
-	BUG_ON(mm->core_waiters);
 	return core_waiters;
 }
 
@@ -1702,7 +1703,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	/*
 	 * If another thread got here first, or we are not dumpable, bail out.
 	 */
-	if (mm->core_waiters || !get_dumpable(mm)) {
+	if (mm->core_state || !get_dumpable(mm)) {
 		up_write(&mm->mmap_sem);
 		goto fail;
 	}

@@ -160,6 +160,7 @@ struct vm_area_struct {
 };
 
 struct core_state {
+	int nr_threads;
 	struct completion startup;
 };
 
@@ -179,7 +180,6 @@ struct mm_struct {
 	atomic_t mm_users;			/* How many users with user space? */
 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
 	int map_count;				/* number of VMAs */
-	int core_waiters;
 	struct rw_semaphore mmap_sem;
 	spinlock_t page_table_lock;		/* Protects page tables and some counters */
 
