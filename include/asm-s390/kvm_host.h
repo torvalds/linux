@@ -231,5 +231,5 @@ struct kvm_arch{
 	struct kvm_s390_float_interrupt float_int;
 };
 
-extern int sie64a(struct kvm_s390_sie_block *, __u64 *);
+extern int sie64a(struct kvm_s390_sie_block *, unsigned long *);
 #endif
