@@ -97,13 +97,13 @@ static const struct pvr2_device_desc pvr2_device_24xxx = {
 		.flag_has_cx25840 = !0,
 		.flag_has_wm8775 = !0,
 		.flag_has_hauppauge_rom = !0,
-		.flag_has_hauppauge_custom_ir = !0,
 		.flag_has_analogtuner = !0,
 		.flag_has_fmradio = !0,
 		.flag_has_composite = !0,
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_24XXX,
 };
 
 
@@ -344,6 +344,7 @@ static const struct pvr2_device_desc pvr2_device_73xxx = {
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_73xxx_dvb_props,
 #endif
@@ -453,6 +454,7 @@ static const struct pvr2_device_desc pvr2_device_750xx = {
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.default_std_mask = V4L2_STD_NTSC_M,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_750xx_dvb_props,
 #endif
@@ -474,6 +476,7 @@ static const struct pvr2_device_desc pvr2_device_751xx = {
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.default_std_mask = V4L2_STD_NTSC_M,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_751xx_dvb_props,
 #endif
