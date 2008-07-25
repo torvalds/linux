@@ -107,7 +107,7 @@ extern struct pid_namespace init_pid_ns;
  * find_pid_ns() finds the pid in the namespace specified
  * find_vpid() finr the pid by its virtual id, i.e. in the current namespace
  *
- * see also find_task_by_pid() set in include/linux/sched.h
+ * see also find_task_by_vpid() set in include/linux/sched.h
  */
 extern struct pid *find_pid_ns(int nr, struct pid_namespace *ns);
 extern struct pid *find_vpid(int nr);
