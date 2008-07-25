@@ -11,16 +11,17 @@ config INFINIBAND_IPOIB
 
 config INFINIBAND_IPOIB_CM
 	bool "IP-over-InfiniBand Connected Mode support"
-	depends on INFINIBAND_IPOIB && EXPERIMENTAL
+	depends on INFINIBAND_IPOIB
 	default n
 	---help---
-	  This option enables experimental support for IPoIB connected mode.
-	  After enabling this option, you need to switch to connected mode through
-	  /sys/class/net/ibXXX/mode to actually create connections, and then increase
-	  the interface MTU with e.g. ifconfig ib0 mtu 65520.
+	  This option enables support for IPoIB connected mode.  After
+	  enabling this option, you need to switch to connected mode
+	  through /sys/class/net/ibXXX/mode to actually create
+	  connections, and then increase the interface MTU with
+	  e.g. ifconfig ib0 mtu 65520.
 
-	  WARNING: Enabling connected mode will trigger some
-	  packet drops for multicast and UD mode traffic from this interface,
+	  WARNING: Enabling connected mode will trigger some packet
+	  drops for multicast and UD mode traffic from this interface,
 	  unless you limit mtu for these destinations to 2044.
 
 config INFINIBAND_IPOIB_DEBUG
