@@ -285,6 +285,11 @@ out_allowed:
 	set_cpus_allowed_ptr(current, &old_allowed);
 out_release:
 	cpu_hotplug_done();
+	if (!err) {
+		if (raw_notifier_call_chain(&cpu_chain, CPU_POST_DEAD | mod,
+					    hcpu) == NOTIFY_BAD)
+			BUG();
+	}
 	return err;
 }
 

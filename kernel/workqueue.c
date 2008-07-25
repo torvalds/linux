@@ -828,7 +828,7 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 		err = create_workqueue_thread(cwq, singlethread_cpu);
 		start_workqueue_thread(cwq, -1);
 	} else {
-		get_online_cpus();
+		cpu_maps_update_begin();
 		spin_lock(&workqueue_lock);
 		list_add(&wq->list, &workqueues);
 		spin_unlock(&workqueue_lock);
@@ -840,7 +840,7 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 			err = create_workqueue_thread(cwq, cpu);
 			start_workqueue_thread(cwq, cpu);
 		}
-		put_online_cpus();
+		cpu_maps_update_done();
 	}
 
 	if (err) {
@@ -854,8 +854,8 @@ EXPORT_SYMBOL_GPL(__create_workqueue_key);
 static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq)
 {
 	/*
-	 * Our caller is either destroy_workqueue() or CPU_DEAD,
-	 * get_online_cpus() protects cwq->thread.
+	 * Our caller is either destroy_workqueue() or CPU_POST_DEAD,
+	 * cpu_add_remove_lock protects cwq->thread.
 	 */
 	if (cwq->thread == NULL)
 		return;
@@ -865,7 +865,7 @@ static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq)
 
 	flush_cpu_workqueue(cwq);
 	/*
-	 * If the caller is CPU_DEAD and cwq->worklist was not empty,
+	 * If the caller is CPU_POST_DEAD and cwq->worklist was not empty,
 	 * a concurrent flush_workqueue() can insert a barrier after us.
 	 * However, in that case run_workqueue() won't return and check
 	 * kthread_should_stop() until it flushes all work_struct's.
@@ -889,14 +889,14 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	const cpumask_t *cpu_map = wq_cpu_map(wq);
 	int cpu;
 
-	get_online_cpus();
+	cpu_maps_update_begin();
 	spin_lock(&workqueue_lock);
 	list_del(&wq->list);
 	spin_unlock(&workqueue_lock);
 
 	for_each_cpu_mask_nr(cpu, *cpu_map)
 		cleanup_workqueue_thread(per_cpu_ptr(wq->cpu_wq, cpu));
-	put_online_cpus();
+ 	cpu_maps_update_done();
 
 	free_percpu(wq->cpu_wq);
 	kfree(wq);
@@ -935,7 +935,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 
 		case CPU_UP_CANCELED:
 			start_workqueue_thread(cwq, -1);
-		case CPU_DEAD:
+		case CPU_POST_DEAD:
 			cleanup_workqueue_thread(cwq);
 			break;
 		}
@@ -943,7 +943,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_UP_CANCELED:
-	case CPU_DEAD:
+	case CPU_POST_DEAD:
 		cpu_clear(cpu, cpu_populated_map);
 	}
 
