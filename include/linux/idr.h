@@ -73,6 +73,12 @@ struct idr {
 }
 #define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
 
+/* Actions to be taken after a call to _idr_sub_alloc */
+#define IDR_NEED_TO_GROW -2
+#define IDR_NOMORE_SPACE -3
+
+#define _idr_rc_to_errno(rc) ((rc) == -1 ? -EAGAIN : -ENOSPC)
+
 /*
  * This is what we export.
  */
