@@ -203,7 +203,8 @@ struct fat_mount_options {
 		 numtail:1,       /* Does first alias have a numeric '~1' type tail? */
 		 flush:1,	  /* write things quickly */
 		 nocase:1,	  /* Does this need case conversion? 0=need case conversion*/
-		 usefree:1;	  /* Use free_clusters for FAT32 */
+		 usefree:1,	  /* Use free_clusters for FAT32 */
+		 tz_utc:1;	  /* Filesystem timestamps are in UTC */
 };
 
 #define FAT_HASH_BITS	8
@@ -434,8 +435,9 @@ extern int fat_flush_inodes(struct super_block *sb, struct inode *i1,
 extern void fat_fs_panic(struct super_block *s, const char *fmt, ...);
 extern void fat_clusters_flush(struct super_block *sb);
 extern int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster);
-extern int date_dos2unix(unsigned short time, unsigned short date);
-extern void fat_date_unix2dos(int unix_date, __le16 *time, __le16 *date);
+extern int date_dos2unix(unsigned short time, unsigned short date, int tz_utc);
+extern void fat_date_unix2dos(int unix_date, __le16 *time, __le16 *date,
+			      int tz_utc);
 extern int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs);
 
 int fat_cache_init(void);

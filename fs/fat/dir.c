@@ -1101,7 +1101,7 @@ int fat_alloc_new_dir(struct inode *dir, struct timespec *ts)
 		goto error_free;
 	}
 
-	fat_date_unix2dos(ts->tv_sec, &time, &date);
+	fat_date_unix2dos(ts->tv_sec, &time, &date, sbi->options.tz_utc);
 
 	de = (struct msdos_dir_entry *)bhs[0]->b_data;
 	/* filling the new directory slots ("." and ".." entries) */
