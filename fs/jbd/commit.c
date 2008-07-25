@@ -36,7 +36,7 @@ static void journal_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 
 /*
  * When an ext3-ordered file is truncated, it is possible that many pages are
- * not sucessfully freed, because they are attached to a committing transaction.
+ * not successfully freed, because they are attached to a committing transaction.
  * After the transaction commits, these pages are left on the LRU, with no
  * ->mapping, and with attached buffers.  These pages are trivially reclaimable
  * by the VM, but their apparent absence upsets the VM accounting, and it makes
@@ -45,8 +45,8 @@ static void journal_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
  * So here, we have a buffer which has just come off the forget list.  Look to
  * see if we can strip all buffers from the backing page.
  *
- * Called under lock_journal(), and possibly under journal_datalist_lock.  The
- * caller provided us with a ref against the buffer, and we drop that here.
+ * Called under journal->j_list_lock.  The caller provided us with a ref
+ * against the buffer, and we drop that here.
  */
 static void release_buffer_page(struct buffer_head *bh)
 {
@@ -75,6 +75,19 @@ static void release_buffer_page(struct buffer_head *bh)
 
 nope:
 	__brelse(bh);
+}
+
+/*
+ * Decrement reference counter for data buffer. If it has been marked
+ * 'BH_Freed', release it and the page to which it belongs if possible.
+ */
+static void release_data_buffer(struct buffer_head *bh)
+{
+	if (buffer_freed(bh)) {
+		clear_buffer_freed(bh);
+		release_buffer_page(bh);
+	} else
+		put_bh(bh);
 }
 
 /*
@@ -231,7 +244,7 @@ write_out_data:
 			if (locked)
 				unlock_buffer(bh);
 			BUFFER_TRACE(bh, "already cleaned up");
-			put_bh(bh);
+			release_data_buffer(bh);
 			continue;
 		}
 		if (locked && test_clear_buffer_dirty(bh)) {
@@ -258,10 +271,10 @@ write_out_data:
 			if (locked)
 				unlock_buffer(bh);
 			journal_remove_journal_head(bh);
-			/* Once for our safety reference, once for
+			/* One for our safety reference, other for
 			 * journal_remove_journal_head() */
 			put_bh(bh);
-			put_bh(bh);
+			release_data_buffer(bh);
 		}
 
 		if (need_resched() || spin_needbreak(&journal->j_list_lock)) {
@@ -443,7 +456,7 @@ void journal_commit_transaction(journal_t *journal)
 		} else {
 			jbd_unlock_bh_state(bh);
 		}
-		put_bh(bh);
+		release_data_buffer(bh);
 		cond_resched_lock(&journal->j_list_lock);
 	}
 	spin_unlock(&journal->j_list_lock);
@@ -452,8 +465,6 @@ void journal_commit_transaction(journal_t *journal)
 		journal_abort(journal, err);
 
 	journal_write_revoke_records(journal, commit_transaction);
-
-	jbd_debug(3, "JBD: commit phase 2\n");
 
 	/*
 	 * If we found any dirty or locked buffers, then we should have
