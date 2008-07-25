@@ -20,6 +20,8 @@
 
 #ifdef CONFIG_X86_32
 #include <mach_apic.h>
+#include <mach_ipi.h>
+
 /*
  * the following functions deal with sending IPIs between CPUs.
  *
@@ -147,7 +149,6 @@ void send_IPI_mask_sequence(cpumask_t mask, int vector)
 }
 
 /* must come after the send_IPI functions above for inlining */
-#include <mach_ipi.h>
 static int convert_apicid_to_cpu(int apic_id)
 {
 	int i;
