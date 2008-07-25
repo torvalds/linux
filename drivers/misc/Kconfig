@@ -212,6 +212,18 @@ config TC1100_WMI
 	  This is a driver for the WMI extensions (wireless and bluetooth power
 	  control) of the HP Compaq TC1100 tablet.
 
+config HP_WMI
+       tristate "HP WMI extras"
+       depends on ACPI_WMI
+       depends on INPUT
+       depends on RFKILL
+       help
+         Say Y here if you want to support WMI-based hotkeys on HP laptops and
+	 to read data from WMI such as docking or ambient light sensor state.
+
+         To compile this driver as a module, choose M here: the module will
+         be called hp-wmi.
+
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
         depends on X86
