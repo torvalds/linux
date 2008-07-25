@@ -5,7 +5,6 @@
  *
  * This file is released under the GPLv2.
  * See the file COPYING for more details.
- *
  */
 
 #ifndef _ASM_X86_SYSCALLS_H
@@ -87,6 +86,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *);
 /* kernel/sys_x86_64.c */
 asmlinkage long sys_mmap(unsigned long, unsigned long, unsigned long,
 			 unsigned long, unsigned long, unsigned long);
+struct new_utsname;
 asmlinkage long sys_uname(struct new_utsname __user *);
 
 #endif /* CONFIG_X86_32 */
