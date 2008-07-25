@@ -189,7 +189,6 @@ unifdef-y += connector.h
 unifdef-y += cuda.h
 unifdef-y += cyclades.h
 unifdef-y += dccp.h
-unifdef-y += dirent.h
 unifdef-y += dlm.h
 unifdef-y += dlm_plock.h
 unifdef-y += edd.h
