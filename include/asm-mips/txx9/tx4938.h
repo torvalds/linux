@@ -285,6 +285,7 @@ void tx4938_report_pci1clk(void);
 int tx4938_pciclk66_setup(void);
 struct pci_dev;
 int tx4938_pcic1_map_irq(const struct pci_dev *dev, u8 slot);
+void tx4938_setup_pcierr_irq(void);
 void tx4938_irq_init(void);
 
 #endif

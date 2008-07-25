@@ -249,6 +249,7 @@ void tx4927_time_init(unsigned int tmrnr);
 void tx4927_setup_serial(void);
 int tx4927_report_pciclk(void);
 int tx4927_pciclk66_setup(void);
+void tx4927_setup_pcierr_irq(void);
 void tx4927_irq_init(void);
 
 #endif /* __ASM_TXX9_TX4927_H */

@@ -103,22 +103,6 @@ static int jmr3927_irq_dispatch(int pending)
 	return irq;
 }
 
-#ifdef CONFIG_PCI
-static irqreturn_t jmr3927_pcierr_interrupt(int irq, void *dev_id)
-{
-	printk(KERN_WARNING "PCI error interrupt (irq 0x%x).\n", irq);
-	printk(KERN_WARNING "pcistat:%02x, lbstat:%04lx\n",
-	       tx3927_pcicptr->pcistat, tx3927_pcicptr->lbstat);
-
-	return IRQ_HANDLED;
-}
-static struct irqaction pcierr_action = {
-	.handler = jmr3927_pcierr_interrupt,
-	.mask = CPU_MASK_NONE,
-	.name = "PCI error",
-};
-#endif
-
 static void __init jmr3927_irq_init(void);
 
 void __init jmr3927_irq_setup(void)
@@ -142,10 +126,6 @@ void __init jmr3927_irq_setup(void)
 
 	/* setup IOC interrupt 1 (PCI, MODEM) */
 	set_irq_chained_handler(JMR3927_IRQ_IOCINT, handle_simple_irq);
-
-#ifdef CONFIG_PCI
-	setup_irq(JMR3927_IRQ_IRC_PCI, &pcierr_action);
-#endif
 
 	/* enable all CPU interrupt bits. */
 	set_c0_status(ST0_IM);	/* IE bit is still 0. */

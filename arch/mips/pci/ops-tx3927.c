@@ -37,8 +37,11 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 
 #include <asm/addrspace.h>
+#include <asm/txx9irq.h>
+#include <asm/txx9/pci.h>
 #include <asm/txx9/tx3927.h>
 
 static int mkaddr(struct pci_bus *bus, unsigned char devfn, unsigned char where)
@@ -193,4 +196,35 @@ void __init tx3927_pcic_setup(struct pci_controller *channel,
 		PCI_COMMAND_IO |
 		PCI_COMMAND_PARITY | PCI_COMMAND_SERR;
 	local_irq_restore(flags);
+}
+
+static irqreturn_t tx3927_pcierr_interrupt(int irq, void *dev_id)
+{
+	struct pt_regs *regs = get_irq_regs();
+
+	if (txx9_pci_err_action != TXX9_PCI_ERR_IGNORE) {
+		printk(KERN_WARNING "PCI error interrupt at 0x%08lx.\n",
+		       regs->cp0_epc);
+		printk(KERN_WARNING "pcistat:%02x, lbstat:%04lx\n",
+		       tx3927_pcicptr->pcistat, tx3927_pcicptr->lbstat);
+	}
+	if (txx9_pci_err_action != TXX9_PCI_ERR_PANIC) {
+		/* clear all pci errors */
+		tx3927_pcicptr->pcistat |= TX3927_PCIC_PCISTATIM_ALL;
+		tx3927_pcicptr->istat = TX3927_PCIC_IIM_ALL;
+		tx3927_pcicptr->tstat = TX3927_PCIC_TIM_ALL;
+		tx3927_pcicptr->lbstat = TX3927_PCIC_LBIM_ALL;
+		return IRQ_HANDLED;
+	}
+	console_verbose();
+	panic("PCI error.");
+}
+
+void __init tx3927_setup_pcierr_irq(void)
+{
+	if (request_irq(TXX9_IRQ_BASE + TX3927_IR_PCI,
+			tx3927_pcierr_interrupt,
+			IRQF_DISABLED, "PCI error",
+			(void *)TX3927_PCIC_REG))
+		printk(KERN_WARNING "Failed to request irq for PCIERR\n");
 }

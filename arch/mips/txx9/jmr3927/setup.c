@@ -199,6 +199,7 @@ static void __init jmr3927_pci_setup(void)
 		jmr3927_ioc_reg_out(0, JMR3927_IOC_RESET_ADDR);
 	}
 	tx3927_pcic_setup(c, JMR3927_SDRAM_SIZE, extarb);
+	tx3927_setup_pcierr_irq();
 #endif /* CONFIG_PCI */
 }
 

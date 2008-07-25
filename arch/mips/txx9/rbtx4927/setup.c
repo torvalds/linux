@@ -103,6 +103,7 @@ static void __init tx4927_pci_setup(void)
 		tx4927_report_pciclk();
 		tx4927_pcic_setup(tx4927_pcicptr, c, extarb);
 	}
+	tx4927_setup_pcierr_irq();
 }
 
 static void __init tx4937_pci_setup(void)
@@ -149,6 +150,7 @@ static void __init tx4937_pci_setup(void)
 		tx4938_report_pciclk();
 		tx4927_pcic_setup(tx4938_pcicptr, c, extarb);
 	}
+	tx4938_setup_pcierr_irq();
 }
 
 static void __init rbtx4927_arch_init(void)

@@ -121,6 +121,7 @@ static void __init rbtx4938_pci_setup(void)
 		register_pci_controller(c);
 		tx4927_pcic_setup(tx4938_pcic1ptr, c, 0);
 	}
+	tx4938_setup_pcierr_irq();
 #endif /* CONFIG_PCI */
 }
 

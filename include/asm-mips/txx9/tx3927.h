@@ -236,10 +236,16 @@ struct tx3927_ccfg_reg {
 /* see PCI_STATUS_XXX in linux/pci.h */
 #define PCI_STATUS_NEW_CAP	0x0010
 
+/* bits for ISTAT/IIM */
+#define TX3927_PCIC_IIM_ALL	0x00001600
+
 /* bits for TC */
 #define TX3927_PCIC_TC_OF16E	0x00000020
 #define TX3927_PCIC_TC_IF8E	0x00000010
 #define TX3927_PCIC_TC_OF8E	0x00000008
+
+/* bits for TSTAT/TIM */
+#define TX3927_PCIC_TIM_ALL	0x0003ffff
 
 /* bits for IOBA/MBA */
 /* see PCI_BASE_ADDRESS_XXX in linux/pci.h */
@@ -320,5 +326,6 @@ struct tx3927_ccfg_reg {
 struct pci_controller;
 void __init tx3927_pcic_setup(struct pci_controller *channel,
 			      unsigned long sdram_size, int extarb);
+void tx3927_setup_pcierr_irq(void);
 
 #endif /* __ASM_TXX9_TX3927_H */
