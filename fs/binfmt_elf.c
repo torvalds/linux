@@ -1478,7 +1478,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	const struct user_regset_view *view = task_user_regset_view(dump_task);
 	struct elf_thread_core_info *t;
 	struct elf_prpsinfo *psinfo;
-	struct task_struct *g, *p;
+	struct core_thread *ct;
 	unsigned int i;
 
 	info->size = 0;
@@ -1517,34 +1517,26 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	/*
 	 * Allocate a structure for each thread.
 	 */
-	rcu_read_lock();
-	do_each_thread(g, p)
-		if (p->mm == dump_task->mm) {
-			if (p->flags & PF_KTHREAD)
-				continue;
+	for (ct = &dump_task->mm->core_state->dumper; ct; ct = ct->next) {
+		t = kzalloc(offsetof(struct elf_thread_core_info,
+				     notes[info->thread_notes]),
+			    GFP_KERNEL);
+		if (unlikely(!t))
+			return 0;
 
-			t = kzalloc(offsetof(struct elf_thread_core_info,
-					     notes[info->thread_notes]),
-				    GFP_ATOMIC);
-			if (unlikely(!t)) {
-				rcu_read_unlock();
-				return 0;
-			}
-			t->task = p;
-			if (p == dump_task || !info->thread) {
-				t->next = info->thread;
-				info->thread = t;
-			} else {
-				/*
-				 * Make sure to keep the original task at
-				 * the head of the list.
-				 */
-				t->next = info->thread->next;
-				info->thread->next = t;
-			}
+		t->task = ct->task;
+		if (ct->task == dump_task || !info->thread) {
+			t->next = info->thread;
+			info->thread = t;
+		} else {
+			/*
+			 * Make sure to keep the original task at
+			 * the head of the list.
+			 */
+			t->next = info->thread->next;
+			info->thread->next = t;
 		}
-	while_each_thread(g, p);
-	rcu_read_unlock();
+	}
 
 	/*
 	 * Now fill in each thread's information.
@@ -1691,7 +1683,6 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 {
 #define	NUM_NOTES	6
 	struct list_head *t;
-	struct task_struct *g, *p;
 
 	info->notes = NULL;
 	info->prstatus = NULL;
@@ -1723,23 +1714,19 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 
 	info->thread_status_size = 0;
 	if (signr) {
+		struct core_thread *ct;
 		struct elf_thread_status *ets;
-		rcu_read_lock();
-		do_each_thread(g, p)
-			if (current->mm == p->mm && current != p) {
-				if (p->flags & PF_KTHREAD)
-					continue;
 
-				ets = kzalloc(sizeof(*ets), GFP_ATOMIC);
-				if (!ets) {
-					rcu_read_unlock();
-					return 0;
-				}
-				ets->thread = p;
-				list_add(&ets->list, &info->thread_list);
-			}
-		while_each_thread(g, p);
-		rcu_read_unlock();
+		for (ct = current->mm->core_state->dumper.next;
+						ct; ct = ct->next) {
+			ets = kzalloc(sizeof(*ets), GFP_KERNEL);
+			if (!ets)
+				return 0;
+
+			ets->thread = ct->task;
+			list_add(&ets->list, &info->thread_list);
+		}
+
 		list_for_each(t, &info->thread_list) {
 			int sz;
 
