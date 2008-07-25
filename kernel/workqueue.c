@@ -159,14 +159,11 @@ static void __queue_work(struct cpu_workqueue_struct *cwq,
  */
 int queue_work(struct workqueue_struct *wq, struct work_struct *work)
 {
-	int ret = 0;
+	int ret;
 
-	if (!test_and_set_bit(WORK_STRUCT_PENDING, work_data_bits(work))) {
-		BUG_ON(!list_empty(&work->entry));
-		__queue_work(wq_per_cpu(wq, get_cpu()), work);
-		put_cpu();
-		ret = 1;
-	}
+	ret = queue_work_on(get_cpu(), wq, work);
+	put_cpu();
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(queue_work);
