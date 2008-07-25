@@ -1626,6 +1626,9 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 		rcu_read_lock();
 		do_each_thread(g,p)
 			if (current->mm == p->mm && current != p) {
+				if (p->flags & PF_KTHREAD)
+					continue;
+
 				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
 				if (!tmp) {
 					rcu_read_unlock();

@@ -1520,6 +1520,9 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	rcu_read_lock();
 	do_each_thread(g, p)
 		if (p->mm == dump_task->mm) {
+			if (p->flags & PF_KTHREAD)
+				continue;
+
 			t = kzalloc(offsetof(struct elf_thread_core_info,
 					     notes[info->thread_notes]),
 				    GFP_ATOMIC);
@@ -1724,6 +1727,9 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 		rcu_read_lock();
 		do_each_thread(g, p)
 			if (current->mm == p->mm && current != p) {
+				if (p->flags & PF_KTHREAD)
+					continue;
+
 				ets = kzalloc(sizeof(*ets), GFP_ATOMIC);
 				if (!ets) {
 					rcu_read_unlock();
