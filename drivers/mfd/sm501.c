@@ -1108,7 +1108,9 @@ static void sm501_gpio_remove(struct sm501_devdata *sm)
 static inline int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
 {
 	struct sm501_gpio *gpio = &sm->gpio;
-	return pin + (pin < 32) ? gpio->low.gpio.base : gpio->high.gpio.base;
+	int base = (pin < 32) ? gpio->low.gpio.base : gpio->high.gpio.base;
+
+	return (pin % 32) + base;
 }
 
 static inline int sm501_gpio_isregistered(struct sm501_devdata *sm)
