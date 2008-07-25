@@ -579,7 +579,6 @@ void acct_collect(long exitcode, int group_dead)
 
 /**
  * acct_process - now just a wrapper around do_acct_process
- * @exitcode: task exit code
  *
  * handles process accounting for an exiting task
  */
