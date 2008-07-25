@@ -83,6 +83,24 @@ config GPIO_PCF857X
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
 
+comment "PCI GPIO expanders:"
+
+config GPIO_BT8XX
+	tristate "BT8XX GPIO abuser"
+	depends on PCI && VIDEO_BT848=n
+	help
+	  The BT8xx frame grabber chip has 24 GPIO pins than can be abused
+	  as a cheap PCI GPIO card.
+
+	  This chip can be found on Miro, Hauppauge and STB TV-cards.
+
+	  The card needs to be physically altered for using it as a
+	  GPIO card. For more information on how to build a GPIO card
+	  from a BT8xx TV card, see the documentation file at
+	  Documentation/bt8xxgpio.txt
+
+	  If unsure, say N.
+
 comment "SPI GPIO expanders:"
 
 config GPIO_MAX7301
