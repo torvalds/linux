@@ -610,8 +610,13 @@ void rebuild_sched_domains(void)
 	while (__kfifo_get(q, (void *)&cp, sizeof(cp))) {
 		struct cgroup *cont;
 		struct cpuset *child;   /* scans child cpusets of cp */
+
+		if (cpus_empty(cp->cpus_allowed))
+			continue;
+
 		if (is_sched_load_balance(cp))
 			csa[csn++] = cp;
+
 		list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
 			child = cgroup_cs(cont);
 			__kfifo_put(q, (void *)&child, sizeof(cp));
