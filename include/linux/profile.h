@@ -18,9 +18,11 @@ struct pt_regs;
 struct notifier_block;
 
 #if defined(CONFIG_PROFILING) && defined(CONFIG_PROC_FS)
-void create_prof_cpu_mask(struct proc_dir_entry *);
+void create_prof_cpu_mask(struct proc_dir_entry *de);
 #else
-#define create_prof_cpu_mask(x)			do { (void)(x); } while (0)
+static inline void create_prof_cpu_mask(struct proc_dir_entry *de)
+{
+}
 #endif
 
 enum profile_type {
