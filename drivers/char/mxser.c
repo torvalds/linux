@@ -16,7 +16,6 @@
  *	Fed through a cleanup, indent and remove of non 2.6 code by Alan Cox
  *	<alan@redhat.com>. The original 1.8 code is available on www.moxa.com.
  *	- Fixed x86_64 cleanness
- *	- Fixed sleep with spinlock held in mxser_send_break
  */
 
 #include <linux/module.h>
@@ -1634,6 +1633,8 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 
 	switch (cmd) {
 	case MOXA_GET_MAJOR:
+		printk(KERN_WARNING "mxser: '%s' uses deprecated ioctl %x, fix "
+				"your userspace\n", current->comm, cmd);
 		return put_user(ttymajor, (int __user *)argp);
 
 	case MOXA_CHKPORTENABLE:
@@ -1804,7 +1805,6 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 {
 	struct mxser_port *info = tty->driver_data;
 	struct async_icount cnow;
-	struct serial_icounter_struct __user *p_cuser;
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
 	int retval;
@@ -1884,30 +1884,26 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 	 * NB: both 1->0 and 0->1 transitions are counted except for
 	 *     RI where only 0->1 is counted.
 	 */
-	case TIOCGICOUNT:
+	case TIOCGICOUNT: {
+		struct serial_icounter_struct icnt = { 0 };
 		spin_lock_irqsave(&info->slock, flags);
 		cnow = info->icount;
 		spin_unlock_irqrestore(&info->slock, flags);
-		p_cuser = argp;
-		if (put_user(cnow.frame, &p_cuser->frame))
-			return -EFAULT;
-		if (put_user(cnow.brk, &p_cuser->brk))
-			return -EFAULT;
-		if (put_user(cnow.overrun, &p_cuser->overrun))
-			return -EFAULT;
-		if (put_user(cnow.buf_overrun, &p_cuser->buf_overrun))
-			return -EFAULT;
-		if (put_user(cnow.parity, &p_cuser->parity))
-			return -EFAULT;
-		if (put_user(cnow.rx, &p_cuser->rx))
-			return -EFAULT;
-		if (put_user(cnow.tx, &p_cuser->tx))
-			return -EFAULT;
-		put_user(cnow.cts, &p_cuser->cts);
-		put_user(cnow.dsr, &p_cuser->dsr);
-		put_user(cnow.rng, &p_cuser->rng);
-		put_user(cnow.dcd, &p_cuser->dcd);
-		return 0;
+
+		icnt.frame = cnow.frame;
+		icnt.brk = cnow.brk;
+		icnt.overrun = cnow.overrun;
+		icnt.buf_overrun = cnow.buf_overrun;
+		icnt.parity = cnow.parity;
+		icnt.rx = cnow.rx;
+		icnt.tx = cnow.tx;
+		icnt.cts = cnow.cts;
+		icnt.dsr = cnow.dsr;
+		icnt.rng = cnow.rng;
+		icnt.dcd = cnow.dcd;
+
+		return copy_to_user(argp, &icnt, sizeof(icnt)) ? -EFAULT : 0;
+	}
 	case MOXA_HighSpeedOn:
 		return put_user(info->baud_base != 115200 ? 1 : 0, (int __user *)argp);
 	case MOXA_SDS_RSTICOUNTER:
