@@ -343,9 +343,6 @@ static int collect_signal(int sig, struct sigpending *list, siginfo_t *info)
 	struct sigqueue *q, *first = NULL;
 	int still_pending = 0;
 
-	if (unlikely(!sigismember(&list->signal, sig)))
-		return 0;
-
 	/*
 	 * Collect the siginfo appropriate to this signal.  Check if
 	 * there is another siginfo for the same signal.
