@@ -178,7 +178,11 @@ static ssize_t csrow_edac_mode_show(struct csrow_info *csrow, char *data,
 static ssize_t channel_dimm_label_show(struct csrow_info *csrow,
 				char *data, int channel)
 {
-	return snprintf(data, EDAC_MC_LABEL_LEN, "%s",
+	/* if field has not been initialized, there is nothing to send */
+	if (!csrow->channels[channel].label[0])
+		return 0;
+
+	return snprintf(data, EDAC_MC_LABEL_LEN, "%s\n",
 			csrow->channels[channel].label);
 }
 
