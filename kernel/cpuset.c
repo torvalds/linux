@@ -496,11 +496,16 @@ update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
 /*
  * rebuild_sched_domains()
  *
- * If the flag 'sched_load_balance' of any cpuset with non-empty
- * 'cpus' changes, or if the 'cpus' allowed changes in any cpuset
- * which has that flag enabled, or if any cpuset with a non-empty
- * 'cpus' is removed, then call this routine to rebuild the
- * scheduler's dynamic sched domains.
+ * This routine will be called to rebuild the scheduler's dynamic
+ * sched domains:
+ * - if the flag 'sched_load_balance' of any cpuset with non-empty
+ *   'cpus' changes,
+ * - or if the 'cpus' allowed changes in any cpuset which has that
+ *   flag enabled,
+ * - or if the 'sched_relax_domain_level' of any cpuset which has
+ *   that flag enabled and with non-empty 'cpus' changes,
+ * - or if any cpuset with non-empty 'cpus' is removed,
+ * - or if a cpu gets offlined.
  *
  * This routine builds a partial partition of the systems CPUs
  * (the set of non-overlappping cpumask_t's in the array 'part'
@@ -1076,7 +1081,8 @@ static int update_relax_domain_level(struct cpuset *cs, s64 val)
 
 	if (val != cs->relax_domain_level) {
 		cs->relax_domain_level = val;
-		rebuild_sched_domains();
+		if (!cpus_empty(cs->cpus_allowed) && is_sched_load_balance(cs))
+			rebuild_sched_domains();
 	}
 
 	return 0;
