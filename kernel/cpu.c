@@ -462,7 +462,6 @@ out:
 
 #endif /* CONFIG_SMP */
 
-#ifndef CONFIG_HAVE_CPUMASK_OF_CPU_MAP
 /* 64 bits of zeros, for initializers. */
 #if BITS_PER_LONG == 32
 #define Z64 0, 0
@@ -509,7 +508,11 @@ out:
 
 /* We want this statically initialized, just to be safe.  We try not
  * to waste too much space, either. */
-static const cpumask_t cpumask_map[] = {
+static const cpumask_t cpumask_map[]
+#ifdef CONFIG_HAVE_CPUMASK_OF_CPU_MAP
+__initdata
+#endif
+= {
 	CMI0(0), CMI0(1), CMI0(2), CMI0(3),
 #if NR_CPUS > 4
 	CMI0(4), CMI0(5), CMI0(6), CMI0(7),
@@ -569,4 +572,3 @@ static const cpumask_t cpumask_map[] = {
 };
 
 const cpumask_t *cpumask_of_cpu_map = cpumask_map;
-#endif /* !CONFIG_HAVE_CPUMASK_OF_CPU_MAP */

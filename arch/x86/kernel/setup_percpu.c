@@ -81,10 +81,12 @@ static void __init setup_per_cpu_maps(void)
 }
 
 #ifdef CONFIG_HAVE_CPUMASK_OF_CPU_MAP
-cpumask_t *cpumask_of_cpu_map __read_mostly;
-EXPORT_SYMBOL(cpumask_of_cpu_map);
-
-/* requires nr_cpu_ids to be initialized */
+/*
+ * Replace static cpumask_of_cpu_map in the initdata section,
+ * with one that's allocated sized by the possible number of cpus.
+ *
+ * (requires nr_cpu_ids to be initialized)
+ */
 static void __init setup_cpumask_of_cpu(void)
 {
 	int i;
