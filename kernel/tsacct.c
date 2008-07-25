@@ -28,14 +28,14 @@
 void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk)
 {
 	struct timespec uptime, ts;
-	s64 ac_etime;
+	u64 ac_etime;
 
 	BUILD_BUG_ON(TS_COMM_LEN < TASK_COMM_LEN);
 
 	/* calculate task elapsed time in timespec */
 	do_posix_clock_monotonic_gettime(&uptime);
 	ts = timespec_sub(uptime, tsk->start_time);
-	/* rebase elapsed time to usec */
+	/* rebase elapsed time to usec (should never be negative) */
 	ac_etime = timespec_to_ns(&ts);
 	do_div(ac_etime, NSEC_PER_USEC);
 	stats->ac_etime = ac_etime;
