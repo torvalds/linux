@@ -427,6 +427,8 @@ EXPORT_SYMBOL_GPL(flush_workqueue);
  * flush_work - block until a work_struct's callback has terminated
  * @work: the work which is to be flushed
  *
+ * Returns false if @work has already terminated.
+ *
  * It is expected that, prior to calling flush_work(), the caller has
  * arranged for the work to not be requeued, otherwise it doesn't make
  * sense to use this function.
@@ -441,6 +443,9 @@ int flush_work(struct work_struct *work)
 	cwq = get_wq_data(work);
 	if (!cwq)
 		return 0;
+
+	lock_acquire(&cwq->wq->lockdep_map, 0, 0, 0, 2, _THIS_IP_);
+	lock_release(&cwq->wq->lockdep_map, 1, _THIS_IP_);
 
 	prev = NULL;
 	spin_lock_irq(&cwq->lock);
