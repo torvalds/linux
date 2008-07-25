@@ -84,9 +84,9 @@ void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
 {
 	struct mm_struct *mm;
 
-	/* convert pages-jiffies to Mbyte-usec */
-	stats->coremem = jiffies_to_usecs(p->acct_rss_mem1) * PAGE_SIZE / MB;
-	stats->virtmem = jiffies_to_usecs(p->acct_vm_mem1) * PAGE_SIZE / MB;
+	/* convert pages-usec to Mbyte-usec */
+	stats->coremem = p->acct_rss_mem1 * PAGE_SIZE / MB;
+	stats->virtmem = p->acct_vm_mem1 * PAGE_SIZE / MB;
 	mm = get_task_mm(p);
 	if (mm) {
 		/* adjust to KB unit */
@@ -118,12 +118,19 @@ void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
 void acct_update_integrals(struct task_struct *tsk)
 {
 	if (likely(tsk->mm)) {
-		long delta = cputime_to_jiffies(
-			cputime_sub(tsk->stime, tsk->acct_stimexpd));
+		cputime_t time, dtime;
+		struct timeval value;
+		u64 delta;
+
+		time = tsk->stime + tsk->utime;
+		dtime = cputime_sub(time, tsk->acct_timexpd);
+		jiffies_to_timeval(cputime_to_jiffies(dtime), &value);
+		delta = value.tv_sec;
+		delta = delta * USEC_PER_SEC + value.tv_usec;
 
 		if (delta == 0)
 			return;
-		tsk->acct_stimexpd = tsk->stime;
+		tsk->acct_timexpd = time;
 		tsk->acct_rss_mem1 += delta * get_mm_rss(tsk->mm);
 		tsk->acct_vm_mem1 += delta * tsk->mm->total_vm;
 	}
@@ -135,7 +142,7 @@ void acct_update_integrals(struct task_struct *tsk)
  */
 void acct_clear_integrals(struct task_struct *tsk)
 {
-	tsk->acct_stimexpd = 0;
+	tsk->acct_timexpd = 0;
 	tsk->acct_rss_mem1 = 0;
 	tsk->acct_vm_mem1 = 0;
 }
