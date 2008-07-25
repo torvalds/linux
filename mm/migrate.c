@@ -359,8 +359,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 
 	write_unlock_irq(&mapping->tree_lock);
 	if (!PageSwapCache(newpage)) {
-		mem_cgroup_uncharge_page(page);
-		mem_cgroup_getref(newpage);
+		mem_cgroup_uncharge_cache_page(page);
 	}
 
 	return 0;

@@ -35,6 +35,7 @@ extern int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
 extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 					gfp_t gfp_mask);
 extern void mem_cgroup_uncharge_page(struct page *page);
+extern void mem_cgroup_uncharge_cache_page(struct page *page);
 extern void mem_cgroup_move_lists(struct page *page, bool active);
 extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 					struct list_head *dst,
@@ -53,7 +54,6 @@ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
 extern int
 mem_cgroup_prepare_migration(struct page *page, struct page *newpage);
 extern void mem_cgroup_end_migration(struct page *page);
-extern int mem_cgroup_getref(struct page *page);
 
 /*
  * For memory reclaim.
@@ -98,6 +98,10 @@ static inline void mem_cgroup_uncharge_page(struct page *page)
 {
 }
 
+static inline void mem_cgroup_uncharge_cache_page(struct page *page)
+{
+}
+
 static inline void mem_cgroup_move_lists(struct page *page, bool active)
 {
 }
@@ -120,10 +124,6 @@ mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
 }
 
 static inline void mem_cgroup_end_migration(struct page *page)
-{
-}
-
-static inline void mem_cgroup_getref(struct page *page)
 {
 }
 
