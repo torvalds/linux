@@ -326,7 +326,8 @@ EXPORT_SYMBOL(idr_get_new);
 
 static void idr_remove_warning(int id)
 {
-	printk("idr_remove called for id=%d which is not allocated.\n", id);
+	printk(KERN_WARNING
+		"idr_remove called for id=%d which is not allocated.\n", id);
 	dump_stack();
 }
 
