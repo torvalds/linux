@@ -51,6 +51,16 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 
 			/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x14 */
 			cx18_av_write(cx, 0x127, 0x54);
+
+			/* AUD_COUNT = 0x2fff = 8 samples * 4 * 384 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x11202fff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x0d2ef8 = 107999.000 * 8 =
+			 *  ((8 samples/32,000) * (13,500,000 * 8) * 4 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa10d2ef8);
 			break;
 
 		case 44100:
@@ -58,14 +68,24 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x1009040f);
 
 			/* AUX_PLL_FRAC */
-			/* 0x9.7635eb * 28,636,363 / 0x10 = 44100 * 384 */
-			cx18_av_write4(cx, 0x110, 0x00ec6bd6);
+			/* 0x9.7635e7 * 28,636,363.63 / 0x10 = 44100 * 384 */
+			cx18_av_write4(cx, 0x110, 0x00ec6bce);
 
 			/* src3/4/6_ctl */
 			/* 0x1.6d59 = (4 * 15734.26) / 44100 */
 			cx18_av_write4(cx, 0x900, 0x08016d59);
 			cx18_av_write4(cx, 0x904, 0x08016d59);
 			cx18_av_write4(cx, 0x90c, 0x08016d59);
+
+			/* AUD_COUNT = 0x92ff = 49 samples * 2 * 384 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x112092ff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x1d4bf8 = 239999.000 * 8 =
+			 *  ((49 samples/44,100) * (13,500,000 * 8) * 2 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa11d4bf8);
 			break;
 
 		case 48000:
@@ -73,14 +93,24 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x100a040f);
 
 			/* AUX_PLL_FRAC */
-			/* 0xa.4c6b728 * 28,636,363 / 0x10 = 48000 * 384 */
-			cx18_av_write4(cx, 0x110, 0x0098d6e5);
+			/* 0xa.4c6b6ea * 28,636,363.63 / 0x10 = 48000 * 384 */
+			cx18_av_write4(cx, 0x110, 0x0098d6dd);
 
 			/* src3/4/6_ctl */
 			/* 0x1.4faa = (4 * 15734.26) / 48000 */
 			cx18_av_write4(cx, 0x900, 0x08014faa);
 			cx18_av_write4(cx, 0x904, 0x08014faa);
 			cx18_av_write4(cx, 0x90c, 0x08014faa);
+
+			/* AUD_COUNT = 0x5fff = 4 samples * 16 * 384 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x11205fff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x1193f8 = 143999.000 * 8 =
+			 *  ((4 samples/48,000) * (13,500,000 * 8) * 16 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa11193f8);
 			break;
 		}
 	} else {
@@ -90,8 +120,8 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x1e08040f);
 
 			/* AUX_PLL_FRAC */
-			/* 0x8.9504348 * 28,636,363 / 0x1e = 32000 * 256 */
-			cx18_av_write4(cx, 0x110, 0x012a0869);
+			/* 0x8.9504318 * 28,636,363.63 / 0x1e = 32000 * 256 */
+			cx18_av_write4(cx, 0x110, 0x012a0863);
 
 			/* src1_ctl */
 			/* 0x1.0000 = 32000/32000 */
@@ -105,6 +135,16 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 
 			/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x14 */
 			cx18_av_write(cx, 0x127, 0x54);
+
+			/* AUD_COUNT = 0x1fff = 8 samples * 4 * 256 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x11201fff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x0d2ef8 = 107999.000 * 8 =
+			 *  ((8 samples/32,000) * (13,500,000 * 8) * 4 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa10d2ef8);
 			break;
 
 		case 44100:
@@ -112,8 +152,8 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x1809040f);
 
 			/* AUX_PLL_FRAC */
-			/* 0x9.76346B * 28,636,363 / 0x18 = 44100 * 256 */
-			cx18_av_write4(cx, 0x110, 0x00ec6bd6);
+			/* 0x9.7635e74 * 28,636,363.63 / 0x18 = 44100 * 256 */
+			cx18_av_write4(cx, 0x110, 0x00ec6bce);
 
 			/* src1_ctl */
 			/* 0x1.60cd = 44100/32000 */
@@ -124,6 +164,16 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x900, 0x08017385);
 			cx18_av_write4(cx, 0x904, 0x08017385);
 			cx18_av_write4(cx, 0x90c, 0x08017385);
+
+			/* AUD_COUNT = 0x61ff = 49 samples * 2 * 256 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x112061ff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x1d4bf8 = 239999.000 * 8 =
+			 *  ((49 samples/44,100) * (13,500,000 * 8) * 2 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa11d4bf8);
 			break;
 
 		case 48000:
@@ -131,8 +181,8 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x180a040f);
 
 			/* AUX_PLL_FRAC */
-			/* 0xa.4c6b728 * 28,636,363 / 0x18 = 48000 * 256 */
-			cx18_av_write4(cx, 0x110, 0x0098d6e5);
+			/* 0xa.4c6b6ea * 28,636,363.63 / 0x18 = 48000 * 256 */
+			cx18_av_write4(cx, 0x110, 0x0098d6dd);
 
 			/* src1_ctl */
 			/* 0x1.8000 = 48000/32000 */
@@ -143,6 +193,16 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x900, 0x08015555);
 			cx18_av_write4(cx, 0x904, 0x08015555);
 			cx18_av_write4(cx, 0x90c, 0x08015555);
+
+			/* AUD_COUNT = 0x3fff = 4 samples * 16 * 256 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x11203fff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x1193f8 = 143999.000 * 8 =
+			 *  ((4 samples/48,000) * (13,500,000 * 8) * 16 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa11193f8);
 			break;
 		}
 	}
