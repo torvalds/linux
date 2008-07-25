@@ -50,9 +50,10 @@ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
 #define mm_match_cgroup(mm, cgroup)	\
 	((cgroup) == mem_cgroup_from_task((mm)->owner))
 
-extern int mem_cgroup_prepare_migration(struct page *page);
+extern int
+mem_cgroup_prepare_migration(struct page *page, struct page *newpage);
 extern void mem_cgroup_end_migration(struct page *page);
-extern void mem_cgroup_page_migration(struct page *page, struct page *newpage);
+extern int mem_cgroup_getref(struct page *page);
 
 /*
  * For memory reclaim.
@@ -112,7 +113,8 @@ static inline int task_in_mem_cgroup(struct task_struct *task,
 	return 1;
 }
 
-static inline int mem_cgroup_prepare_migration(struct page *page)
+static inline int
+mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
 {
 	return 0;
 }
@@ -121,8 +123,7 @@ static inline void mem_cgroup_end_migration(struct page *page)
 {
 }
 
-static inline void
-mem_cgroup_page_migration(struct page *page, struct page *newpage)
+static inline void mem_cgroup_getref(struct page *page)
 {
 }
 
