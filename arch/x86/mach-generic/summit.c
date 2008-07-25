@@ -11,11 +11,11 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <asm/mach-summit/mach_apicdef.h>
+#include <asm/summit/apicdef.h>
 #include <linux/smp.h>
-#include <asm/mach-summit/mach_apic.h>
-#include <asm/mach-summit/mach_ipi.h>
-#include <asm/mach-summit/mach_mpparse.h>
+#include <asm/summit/apic.h>
+#include <asm/summit/ipi.h>
+#include <asm/summit/mpparse.h>
 
 static int probe_summit(void)
 {
