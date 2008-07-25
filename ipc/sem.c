@@ -1160,12 +1160,10 @@ asmlinkage long sys_semtimedop(int semid, struct sembuf __user *tsops,
 	 * task into the pending queue and go to sleep.
 	 */
 		
-	queue.sma = sma;
 	queue.sops = sops;
 	queue.nsops = nsops;
 	queue.undo = un;
 	queue.pid = task_tgid_vnr(current);
-	queue.id = semid;
 	queue.alter = alter;
 	if (alter)
 		append_to_queue(sma ,&queue);
