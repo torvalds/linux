@@ -93,21 +93,19 @@ struct sem_array {
 	time_t			sem_otime;	/* last semop time */
 	time_t			sem_ctime;	/* last change time */
 	struct sem		*sem_base;	/* ptr to first semaphore in array */
-	struct sem_queue	*sem_pending;	/* pending operations to be processed */
-	struct sem_queue	**sem_pending_last; /* last pending operation */
+	struct list_head	sem_pending;	/* pending operations to be processed */
 	struct list_head	list_id;	/* undo requests on this array */
 	unsigned long		sem_nsems;	/* no. of semaphores in array */
 };
 
 /* One queue for each sleeping process in the system. */
 struct sem_queue {
-	struct sem_queue *	next;	 /* next entry in the queue */
-	struct sem_queue **	prev;	 /* previous entry in the queue, *(q->prev) == q */
-	struct task_struct*	sleeper; /* this process */
-	struct sem_undo *	undo;	 /* undo structure */
+	struct list_head	list;	 /* queue of pending operations */
+	struct task_struct	*sleeper; /* this process */
+	struct sem_undo		*undo;	 /* undo structure */
 	int    			pid;	 /* process id of requesting process */
 	int    			status;	 /* completion status of operation */
-	struct sembuf *		sops;	 /* array of pending operations */
+	struct sembuf		*sops;	 /* array of pending operations */
 	int			nsops;	 /* number of operations */
 	int			alter;   /* does the operation alter the array? */
 };
