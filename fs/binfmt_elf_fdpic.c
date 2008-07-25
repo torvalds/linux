@@ -1573,7 +1573,6 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 	struct memelfnote *notes = NULL;
 	struct elf_prstatus *prstatus = NULL;	/* NT_PRSTATUS */
 	struct elf_prpsinfo *psinfo = NULL;	/* NT_PRPSINFO */
- 	struct task_struct *g, *p;
  	LIST_HEAD(thread_list);
  	struct list_head *t;
 	elf_fpregset_t *fpu = NULL;
@@ -1622,23 +1621,19 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 #endif
 
 	if (signr) {
+		struct core_thread *ct;
 		struct elf_thread_status *tmp;
-		rcu_read_lock();
-		do_each_thread(g,p)
-			if (current->mm == p->mm && current != p) {
-				if (p->flags & PF_KTHREAD)
-					continue;
 
-				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
-				if (!tmp) {
-					rcu_read_unlock();
-					goto cleanup;
-				}
-				tmp->thread = p;
-				list_add(&tmp->list, &thread_list);
-			}
-		while_each_thread(g,p);
-		rcu_read_unlock();
+		for (ct = current->mm->core_state->dumper.next;
+						ct; ct = ct->next) {
+			tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+			if (!tmp)
+				goto cleanup;
+
+			tmp->thread = ct->task;
+			list_add(&tmp->list, &thread_list);
+		}
+
 		list_for_each(t, &thread_list) {
 			struct elf_thread_status *tmp;
 			int sz;
