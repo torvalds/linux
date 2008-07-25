@@ -1604,6 +1604,8 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 
 	init_completion(&mm->core_done);
 	init_completion(&core_state->startup);
+	core_state->dumper.task = tsk;
+	core_state->dumper.next = NULL;
 	core_waiters = zap_threads(tsk, mm, core_state, exit_code);
 	up_write(&mm->mmap_sem);
 

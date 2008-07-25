@@ -159,8 +159,14 @@ struct vm_area_struct {
 #endif
 };
 
+struct core_thread {
+	struct task_struct *task;
+	struct core_thread *next;
+};
+
 struct core_state {
 	atomic_t nr_threads;
+	struct core_thread dumper;
 	struct completion startup;
 };
 
