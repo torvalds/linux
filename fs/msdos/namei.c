@@ -14,12 +14,7 @@
 
 /* Characters that are undesirable in an MS-DOS file name */
 static unsigned char bad_chars[] = "*?<>|\"";
-static unsigned char bad_if_strict_pc[] = "+=,; ";
-/* GEMDOS is less restrictive */
-static unsigned char bad_if_strict_atari[] = " ";
-
-#define bad_if_strict(opts) \
-	((opts)->atari ? bad_if_strict_atari : bad_if_strict_pc)
+static unsigned char bad_if_strict[] = "+=,; ";
 
 /***** Formats an MS-DOS file name. Rejects invalid names. */
 static int msdos_format_name(const unsigned char *name, int len,
@@ -40,21 +35,20 @@ static int msdos_format_name(const unsigned char *name, int len,
 			/* Get rid of dot - test for it elsewhere */
 			name++;
 			len--;
-		} else if (!opts->atari)
+		} else
 			return -EINVAL;
 	}
 	/*
-	 * disallow names that _really_ start with a dot for MS-DOS,
-	 * GEMDOS does not care
+	 * disallow names that _really_ start with a dot
 	 */
-	space = !opts->atari;
+	space = 1;
 	c = 0;
 	for (walk = res; len && walk - res < 8; walk++) {
 		c = *name++;
 		len--;
 		if (opts->name_check != 'r' && strchr(bad_chars, c))
 			return -EINVAL;
-		if (opts->name_check == 's' && strchr(bad_if_strict(opts), c))
+		if (opts->name_check == 's' && strchr(bad_if_strict, c))
 			return -EINVAL;
 		if (c >= 'A' && c <= 'Z' && opts->name_check == 's')
 			return -EINVAL;
@@ -94,7 +88,7 @@ static int msdos_format_name(const unsigned char *name, int len,
 			if (opts->name_check != 'r' && strchr(bad_chars, c))
 				return -EINVAL;
 			if (opts->name_check == 's' &&
-			    strchr(bad_if_strict(opts), c))
+			    strchr(bad_if_strict, c))
 				return -EINVAL;
 			if (c < ' ' || c == ':' || c == '\\')
 				return -EINVAL;
