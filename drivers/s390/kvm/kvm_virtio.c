@@ -88,16 +88,17 @@ static u32 kvm_get_features(struct virtio_device *vdev)
 	return features;
 }
 
-static void kvm_set_features(struct virtio_device *vdev, u32 features)
+static void kvm_finalize_features(struct virtio_device *vdev)
 {
-	unsigned int i;
+	unsigned int i, bits;
 	struct kvm_device_desc *desc = to_kvmdev(vdev)->desc;
 	/* Second half of bitmap is features we accept. */
 	u8 *out_features = kvm_vq_features(desc) + desc->feature_len;
 
 	memset(out_features, 0, desc->feature_len);
-	for (i = 0; i < min(desc->feature_len * 8, 32); i++) {
-		if (features & (1 << i))
+	bits = min_t(unsigned, desc->feature_len, sizeof(vdev->features)) * 8;
+	for (i = 0; i < bits; i++) {
+		if (test_bit(i, vdev->features))
 			out_features[i / 8] |= (1 << (i % 8));
 	}
 }
@@ -223,7 +224,7 @@ static void kvm_del_vq(struct virtqueue *vq)
  */
 static struct virtio_config_ops kvm_vq_configspace_ops = {
 	.get_features = kvm_get_features,
-	.set_features = kvm_set_features,
+	.finalize_features = kvm_finalize_features,
 	.get = kvm_get,
 	.set = kvm_set,
 	.get_status = kvm_get_status,

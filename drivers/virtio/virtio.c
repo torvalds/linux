@@ -113,7 +113,7 @@ static int virtio_dev_probe(struct device *_d)
 			set_bit(f, dev->features);
 	}
 
-	/* Transport features are always preserved to pass to set_features. */
+	/* Transport features always preserved to pass to finalize_features. */
 	for (i = VIRTIO_TRANSPORT_F_START; i < VIRTIO_TRANSPORT_F_END; i++)
 		if (device_features & (1 << i))
 			set_bit(i, dev->features);
@@ -122,8 +122,7 @@ static int virtio_dev_probe(struct device *_d)
 	if (err)
 		add_status(dev, VIRTIO_CONFIG_S_FAILED);
 	else {
-		/* They should never have set feature bits beyond 32 */
-		dev->config->set_features(dev, dev->features[0]);
+		dev->config->finalize_features(dev);
 		add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
 	}
 	return err;
