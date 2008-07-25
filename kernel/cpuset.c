@@ -709,36 +709,6 @@ done:
 	/* Don't kfree(dattr) -- partition_sched_domains() does that. */
 }
 
-static inline int started_after_time(struct task_struct *t1,
-				     struct timespec *time,
-				     struct task_struct *t2)
-{
-	int start_diff = timespec_compare(&t1->start_time, time);
-	if (start_diff > 0) {
-		return 1;
-	} else if (start_diff < 0) {
-		return 0;
-	} else {
-		/*
-		 * Arbitrarily, if two processes started at the same
-		 * time, we'll say that the lower pointer value
-		 * started first. Note that t2 may have exited by now
-		 * so this may not be a valid pointer any longer, but
-		 * that's fine - it still serves to distinguish
-		 * between two tasks started (effectively)
-		 * simultaneously.
-		 */
-		return t1 > t2;
-	}
-}
-
-static inline int started_after(void *p1, void *p2)
-{
-	struct task_struct *t1 = p1;
-	struct task_struct *t2 = p2;
-	return started_after_time(t1, &t2->start_time, t2);
-}
-
 /**
  * cpuset_test_cpumask - test a task's cpus_allowed versus its cpuset's
  * @tsk: task to test
@@ -790,7 +760,12 @@ static int update_tasks_cpumask(struct cpuset *cs)
 	struct ptr_heap heap;
 	int retval;
 
-	retval = heap_init(&heap, PAGE_SIZE, GFP_KERNEL, &started_after);
+	/*
+	 * cgroup_scan_tasks() will initialize heap->gt for us.
+	 * heap_init() is still needed here for we should not change
+	 * cs->cpus_allowed when heap_init() fails.
+	 */
+	retval = heap_init(&heap, PAGE_SIZE, GFP_KERNEL, NULL);
 	if (retval)
 		return retval;
 
