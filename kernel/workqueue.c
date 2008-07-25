@@ -423,6 +423,52 @@ void flush_workqueue(struct workqueue_struct *wq)
 }
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
+/**
+ * flush_work - block until a work_struct's callback has terminated
+ * @work: the work which is to be flushed
+ *
+ * It is expected that, prior to calling flush_work(), the caller has
+ * arranged for the work to not be requeued, otherwise it doesn't make
+ * sense to use this function.
+ */
+int flush_work(struct work_struct *work)
+{
+	struct cpu_workqueue_struct *cwq;
+	struct list_head *prev;
+	struct wq_barrier barr;
+
+	might_sleep();
+	cwq = get_wq_data(work);
+	if (!cwq)
+		return 0;
+
+	prev = NULL;
+	spin_lock_irq(&cwq->lock);
+	if (!list_empty(&work->entry)) {
+		/*
+		 * See the comment near try_to_grab_pending()->smp_rmb().
+		 * If it was re-queued under us we are not going to wait.
+		 */
+		smp_rmb();
+		if (unlikely(cwq != get_wq_data(work)))
+			goto out;
+		prev = &work->entry;
+	} else {
+		if (cwq->current_work != work)
+			goto out;
+		prev = &cwq->worklist;
+	}
+	insert_wq_barrier(cwq, &barr, prev->next);
+out:
+	spin_unlock_irq(&cwq->lock);
+	if (!prev)
+		return 0;
+
+	wait_for_completion(&barr.done);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(flush_work);
+
 /*
  * Upon a successful return (>= 0), the caller "owns" WORK_STRUCT_PENDING bit,
  * so this work can't be re-armed in any way.
