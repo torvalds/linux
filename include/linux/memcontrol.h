@@ -37,6 +37,8 @@ extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 extern void mem_cgroup_uncharge_page(struct page *page);
 extern void mem_cgroup_uncharge_cache_page(struct page *page);
 extern void mem_cgroup_move_lists(struct page *page, bool active);
+extern int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask);
+
 extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 					struct list_head *dst,
 					unsigned long *scanned, int order,
@@ -100,6 +102,11 @@ static inline void mem_cgroup_uncharge_page(struct page *page)
 
 static inline void mem_cgroup_uncharge_cache_page(struct page *page)
 {
+}
+
+static inline int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
+{
+	return 0;
 }
 
 static inline void mem_cgroup_move_lists(struct page *page, bool active)

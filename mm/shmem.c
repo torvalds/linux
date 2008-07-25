@@ -1315,17 +1315,14 @@ repeat:
 			shmem_swp_unmap(entry);
 			spin_unlock(&info->lock);
 			unlock_page(swappage);
+			page_cache_release(swappage);
 			if (error == -ENOMEM) {
 				/* allow reclaim from this memory cgroup */
-				error = mem_cgroup_cache_charge(swappage,
-					current->mm, gfp & ~__GFP_HIGHMEM);
-				if (error) {
-					page_cache_release(swappage);
+				error = mem_cgroup_shrink_usage(current->mm,
+								gfp);
+				if (error)
 					goto failed;
-				}
-				mem_cgroup_uncharge_cache_page(swappage);
 			}
-			page_cache_release(swappage);
 			goto repeat;
 		}
 	} else if (sgp == SGP_READ && !filepage) {
