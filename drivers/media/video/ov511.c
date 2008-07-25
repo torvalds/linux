@@ -5660,43 +5660,43 @@ static int ov_create_sysfs(struct video_device *vdev)
 {
 	int rc;
 
-	rc = video_device_create_file(vdev, &dev_attr_custom_id);
+	rc = device_create_file(&vdev->dev, &dev_attr_custom_id);
 	if (rc) goto err;
-	rc = video_device_create_file(vdev, &dev_attr_model);
+	rc = device_create_file(&vdev->dev, &dev_attr_model);
 	if (rc) goto err_id;
-	rc = video_device_create_file(vdev, &dev_attr_bridge);
+	rc = device_create_file(&vdev->dev, &dev_attr_bridge);
 	if (rc) goto err_model;
-	rc = video_device_create_file(vdev, &dev_attr_sensor);
+	rc = device_create_file(&vdev->dev, &dev_attr_sensor);
 	if (rc) goto err_bridge;
-	rc = video_device_create_file(vdev, &dev_attr_brightness);
+	rc = device_create_file(&vdev->dev, &dev_attr_brightness);
 	if (rc) goto err_sensor;
-	rc = video_device_create_file(vdev, &dev_attr_saturation);
+	rc = device_create_file(&vdev->dev, &dev_attr_saturation);
 	if (rc) goto err_bright;
-	rc = video_device_create_file(vdev, &dev_attr_contrast);
+	rc = device_create_file(&vdev->dev, &dev_attr_contrast);
 	if (rc) goto err_sat;
-	rc = video_device_create_file(vdev, &dev_attr_hue);
+	rc = device_create_file(&vdev->dev, &dev_attr_hue);
 	if (rc) goto err_contrast;
-	rc = video_device_create_file(vdev, &dev_attr_exposure);
+	rc = device_create_file(&vdev->dev, &dev_attr_exposure);
 	if (rc) goto err_hue;
 
 	return 0;
 
 err_hue:
-	video_device_remove_file(vdev, &dev_attr_hue);
+	device_remove_file(&vdev->dev, &dev_attr_hue);
 err_contrast:
-	video_device_remove_file(vdev, &dev_attr_contrast);
+	device_remove_file(&vdev->dev, &dev_attr_contrast);
 err_sat:
-	video_device_remove_file(vdev, &dev_attr_saturation);
+	device_remove_file(&vdev->dev, &dev_attr_saturation);
 err_bright:
-	video_device_remove_file(vdev, &dev_attr_brightness);
+	device_remove_file(&vdev->dev, &dev_attr_brightness);
 err_sensor:
-	video_device_remove_file(vdev, &dev_attr_sensor);
+	device_remove_file(&vdev->dev, &dev_attr_sensor);
 err_bridge:
-	video_device_remove_file(vdev, &dev_attr_bridge);
+	device_remove_file(&vdev->dev, &dev_attr_bridge);
 err_model:
-	video_device_remove_file(vdev, &dev_attr_model);
+	device_remove_file(&vdev->dev, &dev_attr_model);
 err_id:
-	video_device_remove_file(vdev, &dev_attr_custom_id);
+	device_remove_file(&vdev->dev, &dev_attr_custom_id);
 err:
 	return rc;
 }

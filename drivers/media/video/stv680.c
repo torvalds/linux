@@ -525,53 +525,54 @@ static int stv680_create_sysfs_files(struct video_device *vdev)
 {
 	int rc;
 
-	rc = video_device_create_file(vdev, &dev_attr_model);
+	rc = device_create_file(&vdev->dev, &dev_attr_model);
 	if (rc) goto err;
-	rc = video_device_create_file(vdev, &dev_attr_in_use);
+	rc = device_create_file(&vdev->dev, &dev_attr_in_use);
 	if (rc) goto err_model;
-	rc = video_device_create_file(vdev, &dev_attr_streaming);
+	rc = device_create_file(&vdev->dev, &dev_attr_streaming);
 	if (rc) goto err_inuse;
-	rc = video_device_create_file(vdev, &dev_attr_palette);
+	rc = device_create_file(&vdev->dev, &dev_attr_palette);
 	if (rc) goto err_stream;
-	rc = video_device_create_file(vdev, &dev_attr_frames_total);
+	rc = device_create_file(&vdev->dev, &dev_attr_frames_total);
 	if (rc) goto err_pal;
-	rc = video_device_create_file(vdev, &dev_attr_frames_read);
+	rc = device_create_file(&vdev->dev, &dev_attr_frames_read);
 	if (rc) goto err_framtot;
-	rc = video_device_create_file(vdev, &dev_attr_packets_dropped);
+	rc = device_create_file(&vdev->dev, &dev_attr_packets_dropped);
 	if (rc) goto err_framread;
-	rc = video_device_create_file(vdev, &dev_attr_decoding_errors);
+	rc = device_create_file(&vdev->dev, &dev_attr_decoding_errors);
 	if (rc) goto err_dropped;
 
 	return 0;
 
 err_dropped:
-	video_device_remove_file(vdev, &dev_attr_packets_dropped);
+	device_remove_file(&vdev->dev, &dev_attr_packets_dropped);
 err_framread:
-	video_device_remove_file(vdev, &dev_attr_frames_read);
+	device_remove_file(&vdev->dev, &dev_attr_frames_read);
 err_framtot:
-	video_device_remove_file(vdev, &dev_attr_frames_total);
+	device_remove_file(&vdev->dev, &dev_attr_frames_total);
 err_pal:
-	video_device_remove_file(vdev, &dev_attr_palette);
+	device_remove_file(&vdev->dev, &dev_attr_palette);
 err_stream:
-	video_device_remove_file(vdev, &dev_attr_streaming);
+	device_remove_file(&vdev->dev, &dev_attr_streaming);
 err_inuse:
-	video_device_remove_file(vdev, &dev_attr_in_use);
+	device_remove_file(&vdev->dev, &dev_attr_in_use);
 err_model:
-	video_device_remove_file(vdev, &dev_attr_model);
+	device_remove_file(&vdev->dev, &dev_attr_model);
 err:
+	PDEBUG(0, "STV(e): Could not create sysfs files");
 	return rc;
 }
 
 static void stv680_remove_sysfs_files(struct video_device *vdev)
 {
-	video_device_remove_file(vdev, &dev_attr_model);
-	video_device_remove_file(vdev, &dev_attr_in_use);
-	video_device_remove_file(vdev, &dev_attr_streaming);
-	video_device_remove_file(vdev, &dev_attr_palette);
-	video_device_remove_file(vdev, &dev_attr_frames_total);
-	video_device_remove_file(vdev, &dev_attr_frames_read);
-	video_device_remove_file(vdev, &dev_attr_packets_dropped);
-	video_device_remove_file(vdev, &dev_attr_decoding_errors);
+	device_remove_file(&vdev->dev, &dev_attr_model);
+	device_remove_file(&vdev->dev, &dev_attr_in_use);
+	device_remove_file(&vdev->dev, &dev_attr_streaming);
+	device_remove_file(&vdev->dev, &dev_attr_palette);
+	device_remove_file(&vdev->dev, &dev_attr_frames_total);
+	device_remove_file(&vdev->dev, &dev_attr_frames_read);
+	device_remove_file(&vdev->dev, &dev_attr_packets_dropped);
+	device_remove_file(&vdev->dev, &dev_attr_decoding_errors);
 }
 
 /********************************************************************

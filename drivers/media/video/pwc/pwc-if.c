@@ -1047,19 +1047,20 @@ static int pwc_create_sysfs_files(struct video_device *vdev)
 	struct pwc_device *pdev = video_get_drvdata(vdev);
 	int rc;
 
-	rc = video_device_create_file(vdev, &dev_attr_button);
+	rc = device_create_file(&vdev->dev, &dev_attr_button);
 	if (rc)
 		goto err;
 	if (pdev->features & FEATURE_MOTOR_PANTILT) {
-		rc = video_device_create_file(vdev, &dev_attr_pan_tilt);
+		rc = device_create_file(&vdev->dev, &dev_attr_pan_tilt);
 		if (rc) goto err_button;
 	}
 
 	return 0;
 
 err_button:
-	video_device_remove_file(vdev, &dev_attr_button);
+	device_remove_file(&vdev->dev, &dev_attr_button);
 err:
+	PWC_ERROR("Could not create sysfs files.\n");
 	return rc;
 }
 
@@ -1067,8 +1068,8 @@ static void pwc_remove_sysfs_files(struct video_device *vdev)
 {
 	struct pwc_device *pdev = video_get_drvdata(vdev);
 	if (pdev->features & FEATURE_MOTOR_PANTILT)
-		video_device_remove_file(vdev, &dev_attr_pan_tilt);
-	video_device_remove_file(vdev, &dev_attr_button);
+		device_remove_file(&vdev->dev, &dev_attr_pan_tilt);
+	device_remove_file(&vdev->dev, &dev_attr_button);
 }
 
 #ifdef CONFIG_USB_PWC_DEBUG

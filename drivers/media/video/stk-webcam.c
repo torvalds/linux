@@ -341,17 +341,19 @@ static int stk_create_sysfs_files(struct video_device *vdev)
 {
 	int ret;
 
-	ret = video_device_create_file(vdev, &dev_attr_brightness);
-	ret += video_device_create_file(vdev, &dev_attr_hflip);
-	ret += video_device_create_file(vdev, &dev_attr_vflip);
+	ret = device_create_file(&vdev->dev, &dev_attr_brightness);
+	ret += device_create_file(&vdev->dev, &dev_attr_hflip);
+	ret += device_create_file(&vdev->dev, &dev_attr_vflip);
+	if (ret)
+		STK_WARNING("Could not create sysfs files\n");
 	return ret;
 }
 
 static void stk_remove_sysfs_files(struct video_device *vdev)
 {
-	video_device_remove_file(vdev, &dev_attr_brightness);
-	video_device_remove_file(vdev, &dev_attr_hflip);
-	video_device_remove_file(vdev, &dev_attr_vflip);
+	device_remove_file(&vdev->dev, &dev_attr_brightness);
+	device_remove_file(&vdev->dev, &dev_attr_hflip);
+	device_remove_file(&vdev->dev, &dev_attr_vflip);
 }
 
 #else

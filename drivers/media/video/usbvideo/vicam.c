@@ -41,6 +41,7 @@
 #include <linux/videodev.h>
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/firmware.h>

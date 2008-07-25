@@ -16,11 +16,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/compiler.h> /* need __user */
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-#include <linux/videodev.h>
-#else
 #include <linux/videodev2.h>
-#endif
 
 #define VIDEO_MAJOR	81
 /* Minor device allocation */
@@ -101,27 +97,6 @@ void video_unregister_device(struct video_device *);
    later can be used for video_device->release() */
 struct video_device *video_device_alloc(void);
 void video_device_release(struct video_device *vfd);
-
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-#include <linux/mm.h>
-
-static inline int __must_check
-video_device_create_file(struct video_device *vfd,
-			 struct device_attribute *attr)
-{
-	int ret = device_create_file(&vfd->dev, attr);
-	if (ret < 0)
-		printk(KERN_WARNING "%s error: %d\n", __func__, ret);
-	return ret;
-}
-static inline void
-video_device_remove_file(struct video_device *vfd,
-			 struct device_attribute *attr)
-{
-	device_remove_file(&vfd->dev, attr);
-}
-
-#endif /* CONFIG_VIDEO_V4L1_COMPAT */
 
 #ifdef OBSOLETE_DEVDATA /* to be removed soon */
 /* helper functions to access driver private data. */
