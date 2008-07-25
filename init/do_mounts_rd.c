@@ -10,8 +10,6 @@
 
 #include "do_mounts.h"
 
-#define BUILD_CRAMDISK
-
 int __initdata rd_prompt = 1;/* 1 = prompt for RAM disk, 0 = don't prompt */
 
 static int __init prompt_ramdisk(char *str)
@@ -162,14 +160,8 @@ int __init rd_load_image(char *from)
 		goto done;
 
 	if (nblocks == 0) {
-#ifdef BUILD_CRAMDISK
 		if (crd_load(in_fd, out_fd) == 0)
 			goto successful_load;
-#else
-		printk(KERN_NOTICE
-		       "RAMDISK: Kernel does not support compressed "
-		       "RAM disk images\n");
-#endif
 		goto done;
 	}
 
@@ -266,8 +258,6 @@ int __init rd_load_disk(int n)
 	create_dev("/dev/ram", MKDEV(RAMDISK_MAJOR, n));
 	return rd_load_image("/dev/root");
 }
-
-#ifdef BUILD_CRAMDISK
 
 /*
  * gzip declarations
@@ -425,5 +415,3 @@ static int __init crd_load(int in_fd, int out_fd)
 	kfree(window);
 	return result;
 }
-
-#endif  /* BUILD_CRAMDISK */
