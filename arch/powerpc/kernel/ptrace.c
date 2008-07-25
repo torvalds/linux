@@ -717,7 +717,7 @@ void user_disable_single_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 
-#if defined(CONFIG_44x) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_BOOKE)
 	/* If DAC then do not single step, skip */
 	if (task->thread.dabr)
 		return;
@@ -744,10 +744,11 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	if (addr > 0)
 		return -EINVAL;
 
+	/* The bottom 3 bits in dabr are flags */
 	if ((data & ~0x7UL) >= TASK_SIZE)
 		return -EIO;
 
-#ifdef CONFIG_PPC64
+#ifndef CONFIG_BOOKE
 
 	/* For processors using DABR (i.e. 970), the bottom 3 bits are flags.
 	 *  It was assumed, on previous implementations, that 3 bits were
@@ -769,7 +770,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	task->thread.dabr = data;
 
 #endif
-#if defined(CONFIG_44x) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_BOOKE)
 
 	/* As described above, it was assumed 3 bits were passed with the data
 	 *  address, but we will assume only the mode bits will be passed

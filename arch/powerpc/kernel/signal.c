@@ -147,7 +147,7 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	 */
 	if (current->thread.dabr) {
 		set_dabr(current->thread.dabr);
-#if defined(CONFIG_44x) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_BOOKE)
 		mtspr(SPRN_DBCR0, current->thread.dbcr0);
 #endif
 	}
