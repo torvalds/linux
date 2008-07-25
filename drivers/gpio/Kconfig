@@ -67,6 +67,25 @@ config GPIO_SYSFS
 
 comment "I2C GPIO expanders:"
 
+config GPIO_MAX732X
+	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
+	depends on I2C
+	help
+	  Say yes here to support the MAX7319, MAX7320-7327 series of I2C
+	  Port Expanders. Each IO port on these chips has a fixed role of
+	  Input (designated by 'I'), Push-Pull Output ('O'), or Open-Drain
+	  Input and Output (designed by 'P'). The combinations are listed
+	  below:
+
+	  8 bits:	max7319 (8I), max7320 (8O), max7321 (8P),
+		  	max7322 (4I4O), max7323 (4P4O)
+
+	  16 bits:	max7324 (8I8O), max7325 (8P8O),
+		  	max7326 (4I12O), max7327 (4P12O)
+
+	  Board setup code must specify the model to use, and the start
+	  number for these GPIOs.
+
 config GPIO_PCA953X
 	tristate "PCA953x, PCA955x, and MAX7310 I/O ports"
 	depends on I2C
