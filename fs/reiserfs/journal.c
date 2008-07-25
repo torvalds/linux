@@ -558,13 +558,13 @@ static inline void insert_journal_hash(struct reiserfs_journal_cnode **table,
 static inline void lock_journal(struct super_block *p_s_sb)
 {
 	PROC_INFO_INC(p_s_sb, journal.lock_journal);
-	down(&SB_JOURNAL(p_s_sb)->j_lock);
+	mutex_lock(&SB_JOURNAL(p_s_sb)->j_mutex);
 }
 
 /* unlock the current transaction */
 static inline void unlock_journal(struct super_block *p_s_sb)
 {
-	up(&SB_JOURNAL(p_s_sb)->j_lock);
+	mutex_unlock(&SB_JOURNAL(p_s_sb)->j_mutex);
 }
 
 static inline void get_journal_list(struct reiserfs_journal_list *jl)
@@ -2837,7 +2837,7 @@ int journal_init(struct super_block *p_s_sb, const char *j_dev_name,
 	journal->j_last = NULL;
 	journal->j_first = NULL;
 	init_waitqueue_head(&(journal->j_join_wait));
-	sema_init(&journal->j_lock, 1);
+	mutex_init(&journal->j_mutex);
 	sema_init(&journal->j_flush_sem, 1);
 
 	journal->j_trans_id = 10;
