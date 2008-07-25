@@ -112,7 +112,12 @@ long kvm_arch_dev_ioctl(struct file *filp,
 
 int kvm_dev_ioctl_check_extension(long ext)
 {
-	return 0;
+	switch (ext) {
+	case KVM_CAP_USER_MEMORY:
+		return 1;
+	default:
+		return 0;
+	}
 }
 
 /* Section: vm related */
