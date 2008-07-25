@@ -487,17 +487,6 @@ config VIDEO_PMS
 	  To compile this driver as a module, choose M here: the
 	  module will be called pms.
 
-config VIDEO_PLANB
-	tristate "PlanB Video-In on PowerMac"
-	depends on PPC_PMAC && VIDEO_V4L1 && BROKEN
-	help
-	  PlanB is the V4L driver for the PowerMac 7x00/8x00 series video
-	  input hardware. If you want to experiment with this, say Y.
-	  Otherwise, or if you don't understand a word, say N. See
-	  <http://www.cpu.lu/~mlan/linux/dev/planb.html> for more info.
-
-	  Saying M will compile this driver as a module (planb).
-
 config VIDEO_BWQCAM
 	tristate "Quickcam BW Video For Linux"
 	depends on PARPORT && VIDEO_V4L1

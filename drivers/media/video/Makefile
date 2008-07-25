@@ -57,7 +57,6 @@ obj-$(CONFIG_VIDEO_ZORAN_DC30) += zr36050.o zr36016.o
 obj-$(CONFIG_VIDEO_ZORAN_ZR36060) += zr36060.o
 
 obj-$(CONFIG_VIDEO_PMS) += pms.o
-obj-$(CONFIG_VIDEO_PLANB) += planb.o
 obj-$(CONFIG_VIDEO_VINO) += vino.o indycam.o
 obj-$(CONFIG_VIDEO_STRADIS) += stradis.o
 obj-$(CONFIG_VIDEO_CPIA) += cpia.o
