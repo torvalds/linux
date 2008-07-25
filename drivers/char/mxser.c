@@ -48,7 +48,6 @@
 
 #define	MXSER_VERSION	"2.0.4"		/* 1.12 */
 #define	MXSERMAJOR	 174
-#define	MXSERCUMAJOR	 175
 
 #define MXSER_BOARDS		4	/* Max. boards */
 #define MXSER_PORTS_PER_BOARD	8	/* Max. ports per board */
@@ -190,7 +189,6 @@ struct mxser_log {
 	unsigned long rxcnt[MXSER_PORTS];
 	unsigned long txcnt[MXSER_PORTS];
 };
-
 
 struct mxser_mon {
 	unsigned long rxcnt;
@@ -1305,13 +1303,9 @@ static void mxser_flush_chars(struct tty_struct *tty)
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;
 
-	if (info->xmit_cnt <= 0 ||
-			tty->stopped ||
-			!info->port.xmit_buf ||
-			(tty->hw_stopped &&
-			 (info->type != PORT_16550A) &&
-			 (!info->board->chip_flag)
-			))
+	if (info->xmit_cnt <= 0 || tty->stopped || !info->port.xmit_buf ||
+			(tty->hw_stopped && info->type != PORT_16550A &&
+			 !info->board->chip_flag))
 		return;
 
 	spin_lock_irqsave(&info->slock, flags);
@@ -1329,9 +1323,7 @@ static int mxser_write_room(struct tty_struct *tty)
 	int ret;
 
 	ret = SERIAL_XMIT_SIZE - info->xmit_cnt - 1;
-	if (ret < 0)
-		ret = 0;
-	return ret;
+	return ret < 0 ? 0 : ret;
 }
 
 static int mxser_chars_in_buffer(struct tty_struct *tty)
@@ -2762,8 +2754,6 @@ static int __init mxser_module_init(void)
 	unsigned int b, i, m;
 	int retval;
 
-	pr_debug("Loading module mxser ...\n");
-
 	mxvar_sdriver = alloc_tty_driver(MXSER_PORTS + 1);
 	if (!mxvar_sdriver)
 		return -ENOMEM;
@@ -2829,8 +2819,6 @@ static int __init mxser_module_init(void)
 		} /* else: we have some ISA cards under control */
 	}
 
-	pr_debug("Done.\n");
-
 	return 0;
 err_unr:
 	tty_unregister_driver(mxvar_sdriver);
@@ -2842,8 +2830,6 @@ err_put:
 static void __exit mxser_module_exit(void)
 {
 	unsigned int i, j;
-
-	pr_debug("Unloading module mxser ...\n");
 
 	pci_unregister_driver(&mxser_driver);
 
@@ -2858,8 +2844,6 @@ static void __exit mxser_module_exit(void)
 	for (i = 0; i < MXSER_BOARDS; i++)
 		if (mxser_boards[i].info != NULL)
 			mxser_release_res(&mxser_boards[i], NULL, 1);
-
-	pr_debug("Done.\n");
 }
 
 module_init(mxser_module_init);
