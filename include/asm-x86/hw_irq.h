@@ -102,6 +102,11 @@ extern void smp_error_interrupt(struct pt_regs *);
 extern asmlinkage void smp_spurious_interrupt(void);
 extern asmlinkage void smp_error_interrupt(void);
 #endif
+#ifdef CONFIG_X86_SMP
+extern void smp_reschedule_interrupt(struct pt_regs *);
+extern void smp_call_function_interrupt(struct pt_regs *);
+extern void smp_call_function_single_interrupt(struct pt_regs *);
+#endif
 
 #ifdef CONFIG_X86_32
 extern void (*const interrupt[NR_IRQS])(void);
