@@ -365,7 +365,7 @@ void cpuset_update_task_memory_state(void)
 		my_cpusets_mem_gen = top_cpuset.mems_generation;
 	} else {
 		rcu_read_lock();
-		my_cpusets_mem_gen = task_cs(current)->mems_generation;
+		my_cpusets_mem_gen = task_cs(tsk)->mems_generation;
 		rcu_read_unlock();
 	}
 
@@ -1777,7 +1777,7 @@ static void move_member_tasks_to_cpuset(struct cpuset *from, struct cpuset *to)
 	scan.scan.heap = NULL;
 	scan.to = to->css.cgroup;
 
-	if (cgroup_scan_tasks((struct cgroup_scanner *)&scan))
+	if (cgroup_scan_tasks(&scan.scan))
 		printk(KERN_ERR "move_member_tasks_to_cpuset: "
 				"cgroup_scan_tasks failed\n");
 }
