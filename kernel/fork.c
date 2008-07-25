@@ -93,6 +93,23 @@ int nr_processes(void)
 static struct kmem_cache *task_struct_cachep;
 #endif
 
+#ifndef __HAVE_ARCH_THREAD_INFO_ALLOCATOR
+static inline struct thread_info *alloc_thread_info(struct task_struct *tsk)
+{
+#ifdef CONFIG_DEBUG_STACK_USAGE
+	gfp_t mask = GFP_KERNEL | __GFP_ZERO;
+#else
+	gfp_t mask = GFP_KERNEL;
+#endif
+	return (struct thread_info *)__get_free_pages(mask, THREAD_SIZE_ORDER);
+}
+
+static inline void free_thread_info(struct thread_info *ti)
+{
+	free_pages((unsigned long)ti, THREAD_SIZE_ORDER);
+}
+#endif
+
 /* SLAB cache for signal_struct structures (tsk->signal) */
 static struct kmem_cache *signal_cachep;
 
