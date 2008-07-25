@@ -42,7 +42,8 @@
 #define HOST_STACK_LR   (HOST_STACK_SIZE + 4) /* In caller stack frame. */
 
 #define NEED_INST_MASK ((1<<BOOKE_INTERRUPT_PROGRAM) | \
-                        (1<<BOOKE_INTERRUPT_DTLB_MISS))
+                        (1<<BOOKE_INTERRUPT_DTLB_MISS) | \
+                        (1<<BOOKE_INTERRUPT_DEBUG))
 
 #define NEED_DEAR_MASK ((1<<BOOKE_INTERRUPT_DATA_STORAGE) | \
                         (1<<BOOKE_INTERRUPT_DTLB_MISS))
@@ -431,6 +432,14 @@ lightweight_exit:
 	oris	r3, r3, KVMPPC_MSR_MASK@h
 	ori	r3, r3, KVMPPC_MSR_MASK@l
 	mtsrr1	r3
+
+	/* Clear any debug events which occurred since we disabled MSR[DE].
+	 * XXX This gives us a 3-instruction window in which a breakpoint
+	 * intended for guest context could fire in the host instead. */
+	lis	r3, 0xffff
+	ori	r3, r3, 0xffff
+	mtspr	SPRN_DBSR, r3
+
 	lwz	r3, VCPU_GPR(r3)(r4)
 	lwz	r4, VCPU_GPR(r4)(r4)
 	rfi

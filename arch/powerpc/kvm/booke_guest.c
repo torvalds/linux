@@ -410,6 +410,21 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	}
 
+	case BOOKE_INTERRUPT_DEBUG: {
+		u32 dbsr;
+
+		vcpu->arch.pc = mfspr(SPRN_CSRR0);
+
+		/* clear IAC events in DBSR register */
+		dbsr = mfspr(SPRN_DBSR);
+		dbsr &= DBSR_IAC1 | DBSR_IAC2 | DBSR_IAC3 | DBSR_IAC4;
+		mtspr(SPRN_DBSR, dbsr);
+
+		run->exit_reason = KVM_EXIT_DEBUG;
+		r = RESUME_HOST;
+		break;
+	}
+
 	default:
 		printk(KERN_EMERG "exit_nr %d\n", exit_nr);
 		BUG();
