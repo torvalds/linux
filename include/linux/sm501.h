@@ -86,11 +86,19 @@ struct sm501_platdata_fb {
 	struct sm501_platdata_fbsub	*fb_pnl;
 };
 
-/* gpio i2c */
+/* gpio i2c
+ *
+ * Note, we have to pass in the bus number, as the number used will be
+ * passed to the i2c-gpio driver's platform_device.id, subsequently used
+ * to register the i2c bus.
+*/
 
 struct sm501_platdata_gpio_i2c {
+	unsigned int		bus_num;
 	unsigned int		pin_sda;
 	unsigned int		pin_scl;
+	int			udelay;
+	int			timeout;
 };
 
 /* sm501_initdata

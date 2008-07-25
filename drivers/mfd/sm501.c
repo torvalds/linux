@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/gpio.h>
+#include <linux/i2c-gpio.h>
 
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>
@@ -1086,6 +1087,11 @@ static void sm501_gpio_remove(struct sm501_devdata *sm)
 		dev_err(sm->dev, "cannot remove high chip, cannot tidy up\n");
 }
 
+static int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
+{
+	struct sm501_gpio *gpio = &sm->gpio;
+	return pin + (pin < 32) ? gpio->low.gpio.base : gpio->high.gpio.base;
+}
 #else
 static int sm501_register_gpio(struct sm501_devdata *sm)
 {
@@ -1095,7 +1101,65 @@ static int sm501_register_gpio(struct sm501_devdata *sm)
 static void sm501_gpio_remove(struct sm501_devdata *sm)
 {
 }
+
+static int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
+{
+	return -1;
+}
 #endif
+
+static int sm501_register_gpio_i2c_instance(struct sm501_devdata *sm,
+					    struct sm501_platdata_gpio_i2c *iic)
+{
+	struct i2c_gpio_platform_data *icd;
+	struct platform_device *pdev;
+
+	pdev = sm501_create_subdev(sm, "i2c-gpio", 0,
+				   sizeof(struct i2c_gpio_platform_data));
+	if (!pdev)
+		return -ENOMEM;
+
+	icd = pdev->dev.platform_data;
+
+	/* We keep the pin_sda and pin_scl fields relative in case the
+	 * same platform data is passed to >1 SM501.
+	 */
+
+	icd->sda_pin = sm501_gpio_pin2nr(sm, iic->pin_sda);
+	icd->scl_pin = sm501_gpio_pin2nr(sm, iic->pin_scl);
+	icd->timeout = iic->timeout;
+	icd->udelay = iic->udelay;
+
+	/* note, we can't use either of the pin numbers, as the i2c-gpio
+	 * driver uses the platform.id field to generate the bus number
+	 * to register with the i2c core; The i2c core doesn't have enough
+	 * entries to deal with anything we currently use.
+	*/
+
+	pdev->id = iic->bus_num;
+
+	dev_info(sm->dev, "registering i2c-%d: sda=%d (%d), scl=%d (%d)\n",
+		 iic->bus_num,
+		 icd->sda_pin, iic->pin_sda, icd->scl_pin, iic->pin_scl);
+
+	return sm501_register_device(sm, pdev);
+}
+
+static int sm501_register_gpio_i2c(struct sm501_devdata *sm,
+				   struct sm501_platdata *pdata)
+{
+	struct sm501_platdata_gpio_i2c *iic = pdata->gpio_i2c;
+	int index;
+	int ret;
+
+	for (index = 0; index < pdata->gpio_i2c_nr; index++, iic++) {
+		ret = sm501_register_gpio_i2c_instance(sm, iic);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
 
 /* sm501_dbg_regs
  *
@@ -1204,6 +1268,7 @@ static unsigned int sm501_mem_local[] = {
 static int sm501_init_dev(struct sm501_devdata *sm)
 {
 	struct sm501_initdata *idata;
+	struct sm501_platdata *pdata;
 	resource_size_t mem_avail;
 	unsigned long dramctrl;
 	unsigned long devid;
@@ -1242,7 +1307,9 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 
 	/* check to see if we have some device initialisation */
 
-	idata = sm->platdata ? sm->platdata->init : NULL;
+	pdata = sm->platdata;
+	idata = pdata ? pdata->init : NULL;
+
 	if (idata) {
 		sm501_init_regs(sm, idata);
 
@@ -1252,6 +1319,13 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 			sm501_register_uart(sm, idata->devices);
 		if (idata->devices & SM501_USE_GPIO)
 			sm501_register_gpio(sm);
+	}
+
+	if (pdata->gpio_i2c != NULL && pdata->gpio_i2c_nr > 0) {
+		if (!sm->gpio.registered)
+			dev_err(sm->dev, "no gpio registered for i2c gpio.\n");
+		else
+			sm501_register_gpio_i2c(sm, pdata);
 	}
 
 	ret = sm501_check_clocks(sm);
