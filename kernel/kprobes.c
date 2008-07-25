@@ -1337,13 +1337,8 @@ EXPORT_SYMBOL_GPL(register_jprobe);
 EXPORT_SYMBOL_GPL(unregister_jprobe);
 EXPORT_SYMBOL_GPL(register_jprobes);
 EXPORT_SYMBOL_GPL(unregister_jprobes);
-#ifdef CONFIG_KPROBES
 EXPORT_SYMBOL_GPL(jprobe_return);
-#endif
-
-#ifdef CONFIG_KPROBES
 EXPORT_SYMBOL_GPL(register_kretprobe);
 EXPORT_SYMBOL_GPL(unregister_kretprobe);
 EXPORT_SYMBOL_GPL(register_kretprobes);
 EXPORT_SYMBOL_GPL(unregister_kretprobes);
-#endif
