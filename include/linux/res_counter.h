@@ -95,8 +95,10 @@ void res_counter_init(struct res_counter *counter);
  * counter->limit _locked call expects the counter->lock to be taken
  */
 
-int res_counter_charge_locked(struct res_counter *counter, unsigned long val);
-int res_counter_charge(struct res_counter *counter, unsigned long val);
+int __must_check res_counter_charge_locked(struct res_counter *counter,
+		unsigned long val);
+int __must_check res_counter_charge(struct res_counter *counter,
+		unsigned long val);
 
 /*
  * uncharge - tell that some portion of the resource is released
