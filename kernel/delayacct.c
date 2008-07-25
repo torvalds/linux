@@ -165,3 +165,16 @@ __u64 __delayacct_blkio_ticks(struct task_struct *tsk)
 	return ret;
 }
 
+void __delayacct_freepages_start(void)
+{
+	delayacct_start(&current->delays->freepages_start);
+}
+
+void __delayacct_freepages_end(void)
+{
+	delayacct_end(&current->delays->freepages_start,
+			&current->delays->freepages_end,
+			&current->delays->freepages_delay,
+			&current->delays->freepages_count);
+}
+
