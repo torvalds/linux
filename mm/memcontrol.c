@@ -354,6 +354,9 @@ void mem_cgroup_move_lists(struct page *page, bool active)
 	struct mem_cgroup_per_zone *mz;
 	unsigned long flags;
 
+	if (mem_cgroup_subsys.disabled)
+		return;
+
 	/*
 	 * We cannot lock_page_cgroup while holding zone's lru_lock,
 	 * because other holders of lock_page_cgroup can be interrupted
@@ -533,9 +536,6 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
 	struct mem_cgroup_per_zone *mz;
 
-	if (mem_cgroup_subsys.disabled)
-		return 0;
-
 	pc = kmem_cache_alloc(page_cgroup_cache, gfp_mask);
 	if (unlikely(pc == NULL))
 		goto err;
@@ -620,6 +620,9 @@ err:
 
 int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask)
 {
+	if (mem_cgroup_subsys.disabled)
+		return 0;
+
 	/*
 	 * If already mapped, we don't have to account.
 	 * If page cache, page->mapping has address_space.
@@ -638,6 +641,9 @@ int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask)
 int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
 {
+	if (mem_cgroup_subsys.disabled)
+		return 0;
+
 	/*
 	 * Corner case handling. This is called from add_to_page_cache()
 	 * in usual. But some FS (shmem) precharges this page before calling it
@@ -788,6 +794,9 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
 	int progress = 0;
 	int retry = MEM_CGROUP_RECLAIM_RETRIES;
 
+	if (mem_cgroup_subsys.disabled)
+		return 0;
+
 	rcu_read_lock();
 	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
 	css_get(&mem->css);
@@ -856,9 +865,6 @@ static int mem_cgroup_force_empty(struct mem_cgroup *mem)
 {
 	int ret = -EBUSY;
 	int node, zid;
-
-	if (mem_cgroup_subsys.disabled)
-		return 0;
 
 	css_get(&mem->css);
 	/*
@@ -1103,8 +1109,6 @@ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
 static int mem_cgroup_populate(struct cgroup_subsys *ss,
 				struct cgroup *cont)
 {
-	if (mem_cgroup_subsys.disabled)
-		return 0;
 	return cgroup_add_files(cont, ss, mem_cgroup_files,
 					ARRAY_SIZE(mem_cgroup_files));
 }
@@ -1116,9 +1120,6 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 {
 	struct mm_struct *mm;
 	struct mem_cgroup *mem, *old_mem;
-
-	if (mem_cgroup_subsys.disabled)
-		return;
 
 	mm = get_task_mm(p);
 	if (mm == NULL)
