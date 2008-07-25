@@ -24,6 +24,8 @@
 /* register addresses and bit field accessors... */
 
 /* device 16, func 1 */
+#define I5100_MC		0x40	/* Memory Control Register */
+#define		I5100_MC_ERRDETEN(a)	((a) >> 5 & 1)
 #define I5100_MS		0x44	/* Memory Status Register */
 #define I5100_SPDDATA		0x48	/* Serial Presence Detect Status Reg */
 #define		I5100_SPDDATA_RDO(a)	((a) >> 15 & 1)
@@ -685,6 +687,14 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 	rc = pci_enable_device(pdev);
 	if (rc < 0) {
 		ret = rc;
+		goto bail;
+	}
+
+	/* ECC enabled? */
+	pci_read_config_dword(pdev, I5100_MC, &dw);
+	if (!I5100_MC_ERRDETEN(dw)) {
+		printk(KERN_INFO "i5100_edac: ECC not enabled.\n");
+		ret = -ENODEV;
 		goto bail;
 	}
 
