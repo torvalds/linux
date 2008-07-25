@@ -1116,7 +1116,7 @@ EXPORT_SYMBOL_GPL(kill_pid_info_as_uid);
  * is probably wrong.  Should make it like BSD or SYSV.
  */
 
-static int kill_something_info(int sig, struct siginfo *info, int pid)
+static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
 {
 	int ret;
 
@@ -2184,7 +2184,7 @@ sys_rt_sigtimedwait(const sigset_t __user *uthese,
 }
 
 asmlinkage long
-sys_kill(int pid, int sig)
+sys_kill(pid_t pid, int sig)
 {
 	struct siginfo info;
 
@@ -2197,7 +2197,7 @@ sys_kill(int pid, int sig)
 	return kill_something_info(sig, &info, pid);
 }
 
-static int do_tkill(int tgid, int pid, int sig)
+static int do_tkill(pid_t tgid, pid_t pid, int sig)
 {
 	int error;
 	struct siginfo info;
@@ -2243,7 +2243,7 @@ static int do_tkill(int tgid, int pid, int sig)
  *  exists but it's not belonging to the target process anymore. This
  *  method solves the problem of threads exiting and PIDs getting reused.
  */
-asmlinkage long sys_tgkill(int tgid, int pid, int sig)
+asmlinkage long sys_tgkill(pid_t tgid, pid_t pid, int sig)
 {
 	/* This is only valid for single tasks */
 	if (pid <= 0 || tgid <= 0)
@@ -2256,7 +2256,7 @@ asmlinkage long sys_tgkill(int tgid, int pid, int sig)
  *  Send a signal to only one task, even if it's a CLONE_THREAD task.
  */
 asmlinkage long
-sys_tkill(int pid, int sig)
+sys_tkill(pid_t pid, int sig)
 {
 	/* This is only valid for single tasks */
 	if (pid <= 0)
@@ -2266,7 +2266,7 @@ sys_tkill(int pid, int sig)
 }
 
 asmlinkage long
-sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo)
+sys_rt_sigqueueinfo(pid_t pid, int sig, siginfo_t __user *uinfo)
 {
 	siginfo_t info;
 
