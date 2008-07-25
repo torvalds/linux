@@ -1574,11 +1574,12 @@ static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	for_each_process(g) {
 		if (g == tsk->group_leader)
 			continue;
-
+		if (g->flags & PF_KTHREAD)
+			continue;
 		p = g;
 		do {
 			if (p->mm) {
-				if (p->mm == mm) {
+				if (unlikely(p->mm == mm)) {
 					lock_task_sighand(p, &flags);
 					zap_process(p);
 					unlock_task_sighand(p, &flags);
