@@ -16,6 +16,7 @@
 #define version(a) Version_ ## a
 #define version_string(a) version(a)
 
+extern int version_string(LINUX_VERSION_CODE);
 int version_string(LINUX_VERSION_CODE);
 
 struct uts_namespace init_uts_ns = {
