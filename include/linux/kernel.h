@@ -14,6 +14,7 @@
 #include <linux/compiler.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/typecheck.h>
 #include <asm/byteorder.h>
 #include <asm/bug.h>
 
@@ -440,26 +441,6 @@ static inline char *pack_hex_byte(char *buf, u8 byte)
 #define container_of(ptr, type, member) ({			\
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
-
-/*
- * Check at compile time that something is of a particular type.
- * Always evaluates to 1 so you may use it easily in comparisons.
- */
-#define typecheck(type,x) \
-({	type __dummy; \
-	typeof(x) __dummy2; \
-	(void)(&__dummy == &__dummy2); \
-	1; \
-})
-
-/*
- * Check at compile time that 'function' is a certain type, or is a pointer
- * to that type (needs to use typedef for the function type.)
- */
-#define typecheck_fn(type,function) \
-({	typeof(type) __tmp = function; \
-	(void)__tmp; \
-})
 
 struct sysinfo;
 extern int do_sysinfo(struct sysinfo *info);
