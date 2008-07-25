@@ -12,6 +12,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/syscalls.h>
 #include <linux/err.h>
+#include <linux/acct.h>
 
 #define BITS_PER_PAGE		(PAGE_SIZE*8)
 
@@ -181,6 +182,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 
 	/* Child reaper for the pid namespace is going away */
 	pid_ns->child_reaper = NULL;
+	acct_exit_ns(pid_ns);
 	return;
 }
 
