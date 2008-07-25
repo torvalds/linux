@@ -620,13 +620,12 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x046d, 0x0920), DVNM("QC Express")},
-	{USB_DEVICE(0x046d, 0x0921), DVNM("Labtec Webcam")},
-	{USB_DEVICE(0x0545, 0x808b), DVNM("Veo Stingray")},
-	{USB_DEVICE(0x0545, 0x8333), DVNM("Veo Stingray")},
-	{USB_DEVICE(0x0923, 0x010f), DVNM("ICM532 cams")},
+	{USB_DEVICE(0x046d, 0x0920)},
+	{USB_DEVICE(0x046d, 0x0921)},
+	{USB_DEVICE(0x0545, 0x808b)},
+	{USB_DEVICE(0x0545, 0x8333)},
+	{USB_DEVICE(0x0923, 0x010f)},
 	{}
 };
 

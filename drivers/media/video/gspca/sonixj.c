@@ -795,190 +795,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u16 product;
-
-	product = id->idProduct;
-	sd->sensor = -1;
-	switch (id->idVendor) {
-	case 0x0458:				/* Genius */
-/*		switch (product) {
-		case 0x7025: */
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_MI0360;
-			sd->i2c_base = 0x5d;
-/*			break;
-		} */
-		break;
-	case 0x045e:
-/*		switch (product) {
-		case 0x00f5:
-		case 0x00f7: */
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_OV7660;
-			sd->i2c_base = 0x21;
-/*			break;
-		} */
-		break;
-	case 0x0471:				/* Philips */
-/*		switch (product) {
-		case 0x0327:
-		case 0x0328:
-		case 0x0330: */
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_MI0360;
-			sd->i2c_base = 0x5d;
-/*			break;
-		} */
-		break;
-	case 0x0c45:				/* Sonix */
-		switch (product) {
-		case 0x6040:
-			sd->bridge = BRIDGE_SN9C102P;
-/*			sd->sensor = SENSOR_MI0360;	 * from BW600.inf */
-/*fixme: MI0360 base=5d ? */
-			sd->sensor = SENSOR_HV7131R;	/* gspcav1 value */
-			sd->i2c_base = 0x11;
-			break;
-/*		case 0x607a:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C102P;
-			sd->sensor = SENSOR_OV7648;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x607c:
-			sd->bridge = BRIDGE_SN9C102P;
-			sd->sensor = SENSOR_HV7131R;
-			sd->i2c_base = 0x11;
-			break;
-/*		case 0x607e:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C102P;
-			sd->sensor = SENSOR_OV7630;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x60c0:
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_MI0360;
-			sd->i2c_base = 0x5d;
-			break;
-/*		case 0x60c8:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_OM6801;
-			sd->i2c_base = 0x??;
-			break; */
-/*		case 0x60cc:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_HV7131GP;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x60ec:
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_MO4000;
-			sd->i2c_base = 0x21;
-			break;
-/*		case 0x60ef:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_ICM105C;
-			sd->i2c_base = 0x??;
-			break; */
-/*		case 0x60fa:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_OV7648;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x60fb:
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_OV7660;
-			sd->i2c_base = 0x21;
-			break;
-		case 0x60fc:
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_HV7131R;
-			sd->i2c_base = 0x11;
-			break;
-/*		case 0x60fe:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_OV7630;
-			sd->i2c_base = 0x??;
-			break; */
-/*		case 0x6108:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_OM6801;
-			sd->i2c_base = 0x??;
-			break; */
-/*		case 0x6122:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C110;
-			sd->sensor = SENSOR_ICM105C;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x612a:
-/*			sd->bridge = BRIDGE_SN9C110;	 * in BW600.inf */
-			sd->bridge = BRIDGE_SN9C325;
-			sd->sensor = SENSOR_OV7648;
-			sd->i2c_base = 0x21;
-/*fixme: sensor_init has base = 00 et 6e!*/
-			break;
-/*		case 0x6123:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C110;
-			sd->sensor = SENSOR_SanyoCCD;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x612c:
-			sd->bridge = BRIDGE_SN9C110;
-			sd->sensor = SENSOR_MO4000;
-			sd->i2c_base = 0x21;
-			break;
-/*		case 0x612e:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C110;
-			sd->sensor = SENSOR_OV7630;
-			sd->i2c_base = 0x??;
-			break; */
-/*		case 0x612f:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C110;
-			sd->sensor = SENSOR_ICM105C;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x6130:
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_MI0360;
-			sd->i2c_base = 0x5d;
-			break;
-		case 0x6138:
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_MO4000;
-			sd->i2c_base = 0x21;
-			break;
-/*		case 0x613a:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_OV7648;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x613b:
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_OV7660;
-			sd->i2c_base = 0x21;
-			break;
-		case 0x613c:
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_HV7131R;
-			sd->i2c_base = 0x11;
-			break;
-/*		case 0x613e:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_OV7630;
-			sd->i2c_base = 0x??;
-			break; */
-		}
-		break;
-	}
-	if (sd->sensor < 0) {
-		PDEBUG(D_ERR, "Invalid vendor/product %04x:%04x",
-			id->idVendor, product);
-		return -EINVAL;
-	}
 
 	cam = &gspca_dev->cam;
 	cam->epaddr = 0x01;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
+
+	sd->bridge = id->driver_info >> 16;
+	sd->sensor = id->driver_info >> 8;
+	sd->i2c_base = id->driver_info;
 
 	sd->qindex = 4;			/* set the quantization table */
 	sd->brightness = BRIGHTNESS_DEF;
@@ -1596,29 +1421,51 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
+#define BSI(bridge, sensor, i2c_addr) \
+	.driver_info = (BRIDGE_ ## bridge << 16) \
+			| (SENSOR_ ## sensor << 8) \
+			| (i2c_addr)
 static const __devinitdata struct usb_device_id device_table[] = {
 #ifndef CONFIG_USB_SN9C102
-	{USB_DEVICE(0x0458, 0x7025), DVNM("Genius Eye 311Q")},
-	{USB_DEVICE(0x045e, 0x00f5), DVNM("MicroSoft VX3000")},
-	{USB_DEVICE(0x045e, 0x00f7), DVNM("MicroSoft VX1000")},
-	{USB_DEVICE(0x0471, 0x0327), DVNM("Philips SPC 600 NC")},
-	{USB_DEVICE(0x0471, 0x0328), DVNM("Philips SPC 700 NC")},
+	{USB_DEVICE(0x0458, 0x7025), BSI(SN9C120, MI0360, 0x5d)},
+	{USB_DEVICE(0x045e, 0x00f5), BSI(SN9C105, OV7660, 0x21)},
+	{USB_DEVICE(0x045e, 0x00f7), BSI(SN9C105, OV7660, 0x21)},
+	{USB_DEVICE(0x0471, 0x0327), BSI(SN9C105, MI0360, 0x5d)},
+	{USB_DEVICE(0x0471, 0x0328), BSI(SN9C105, MI0360, 0x5d)},
 #endif
-	{USB_DEVICE(0x0471, 0x0330), DVNM("Philips SPC 710NC")},
-	{USB_DEVICE(0x0c45, 0x6040), DVNM("Speed NVC 350K")},
-	{USB_DEVICE(0x0c45, 0x607c), DVNM("Sonix sn9c102p Hv7131R")},
-	{USB_DEVICE(0x0c45, 0x60c0), DVNM("Sangha Sn535")},
-	{USB_DEVICE(0x0c45, 0x60ec), DVNM("SN9C105+MO4000")},
-	{USB_DEVICE(0x0c45, 0x60fb), DVNM("Surfer NoName")},
-	{USB_DEVICE(0x0c45, 0x60fc), DVNM("LG-LIC300")},
-	{USB_DEVICE(0x0c45, 0x612a), DVNM("Avant Camera")},
-	{USB_DEVICE(0x0c45, 0x612c), DVNM("Typhoon Rasy Cam 1.3MPix")},
+	{USB_DEVICE(0x0471, 0x0330), BSI(SN9C105, MI0360, 0x5d)},
+	{USB_DEVICE(0x0c45, 0x6040), BSI(SN9C102P, HV7131R, 0x11)},
+/* bw600.inf:
+	{USB_DEVICE(0x0c45, 0x6040), BSI(SN9C102P, MI0360, 0x5d)}, */
+/*	{USB_DEVICE(0x0c45, 0x603a), BSI(SN9C102P, OV7648, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x607a), BSI(SN9C102P, OV7648, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x607c), BSI(SN9C102P, HV7131R, 0x11)},
+/*	{USB_DEVICE(0x0c45, 0x607e), BSI(SN9C102P, OV7630, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x60c0), BSI(SN9C105, MI0360, 0x5d)},
+/*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6801, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x60cc), BSI(SN9C105, HV7131GP, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x60ec), BSI(SN9C105, MO4000, 0x21)},
+/*	{USB_DEVICE(0x0c45, 0x60ef), BSI(SN9C105, ICM105C, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x60fa), BSI(SN9C105, OV7648, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x60fb), BSI(SN9C105, OV7660, 0x21)},
+	{USB_DEVICE(0x0c45, 0x60fc), BSI(SN9C105, HV7131R, 0x11)},
+/*	{USB_DEVICE(0x0c45, 0x60fe), BSI(SN9C105, OV7630, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x6108), BSI(SN9C120, OM6801, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x6122), BSI(SN9C110, ICM105C, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x6123), BSI(SN9C110, SanyoCCD, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x612a), BSI(SN9C325, OV7648, 0x21)},
+/* bw600.inf:
+	{USB_DEVICE(0x0c45, 0x612a), BSI(SN9C110, OV7648, 0x21)}, */
+	{USB_DEVICE(0x0c45, 0x612c), BSI(SN9C110, MO4000, 0x21)},
+/*	{USB_DEVICE(0x0c45, 0x612e), BSI(SN9C110, OV7630, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x612f), BSI(SN9C110, ICM105C, 0x??)}, */
 #ifndef CONFIG_USB_SN9C102
-	{USB_DEVICE(0x0c45, 0x6130), DVNM("Sonix Pccam")},
-	{USB_DEVICE(0x0c45, 0x6138), DVNM("Sn9c120 Mo4000")},
-	{USB_DEVICE(0x0c45, 0x613b), DVNM("Surfer SN-206")},
-	{USB_DEVICE(0x0c45, 0x613c), DVNM("Sonix Pccam168")},
+	{USB_DEVICE(0x0c45, 0x6130), BSI(SN9C120, MI0360, 0x5d)},
+	{USB_DEVICE(0x0c45, 0x6138), BSI(SN9C120, MO4000, 0x21)},
+/*	{USB_DEVICE(0x0c45, 0x613a), BSI(SN9C120, OV7648, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x613b), BSI(SN9C120, OV7660, 0x21)},
+	{USB_DEVICE(0x0c45, 0x613c), BSI(SN9C120, HV7131R, 0x11)},
+/*	{USB_DEVICE(0x0c45, 0x613e), BSI(SN9C120, OV7630, 0x??)}, */
 #endif
 	{}
 };

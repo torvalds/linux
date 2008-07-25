@@ -2125,21 +2125,20 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x4052), DVNM("Creative Live! VISTA IM")},
-	{USB_DEVICE(0x041e, 0x405f), DVNM("Creative Live! VISTA VF0330")},
-	{USB_DEVICE(0x041e, 0x4060), DVNM("Creative Live! VISTA VF0350")},
-	{USB_DEVICE(0x041e, 0x4061), DVNM("Creative Live! VISTA VF0400")},
-	{USB_DEVICE(0x041e, 0x4064), DVNM("Creative Live! VISTA VF0420")},
-	{USB_DEVICE(0x041e, 0x4068), DVNM("Creative Live! VISTA VF0470")},
-	{USB_DEVICE(0x045e, 0x028c), DVNM("Microsoft xbox cam")},
-	{USB_DEVICE(0x054c, 0x0154), DVNM("Sonny toy4")},
-	{USB_DEVICE(0x054c, 0x0155), DVNM("Sonny toy5")},
-	{USB_DEVICE(0x05a9, 0x0519), DVNM("OmniVision")},
-	{USB_DEVICE(0x05a9, 0x0530), DVNM("OmniVision")},
-	{USB_DEVICE(0x05a9, 0x4519), DVNM("OmniVision")},
-	{USB_DEVICE(0x05a9, 0x8519), DVNM("OmniVision")},
+	{USB_DEVICE(0x041e, 0x4052)},
+	{USB_DEVICE(0x041e, 0x405f)},
+	{USB_DEVICE(0x041e, 0x4060)},
+	{USB_DEVICE(0x041e, 0x4061)},
+	{USB_DEVICE(0x041e, 0x4064)},
+	{USB_DEVICE(0x041e, 0x4068)},
+	{USB_DEVICE(0x045e, 0x028c)},
+	{USB_DEVICE(0x054c, 0x0154)},
+	{USB_DEVICE(0x054c, 0x0155)},
+	{USB_DEVICE(0x05a9, 0x0519)},
+	{USB_DEVICE(0x05a9, 0x0530)},
+	{USB_DEVICE(0x05a9, 0x4519)},
+	{USB_DEVICE(0x05a9, 0x8519)},
 	{}
 };
 #undef DVNAME

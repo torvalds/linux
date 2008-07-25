@@ -800,12 +800,12 @@ static struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x06e1, 0xa190), DVNM("ADS Instant VCD")},
-/*	{USB_DEVICE(0x0733, 0x0430), DVNM("UsbGrabber PV321c")}, */
-	{USB_DEVICE(0x0734, 0x043b), DVNM("3DeMon USB Capture aka")},
-	{USB_DEVICE(0x99fa, 0x8988), DVNM("Grandtec V.cap")},
+	{USB_DEVICE(0x06e1, 0xa190)},
+/*fixme: may be IntelPCCameraPro BRIDGE_SPCA505
+	{USB_DEVICE(0x0733, 0x0430)}, */
+	{USB_DEVICE(0x0734, 0x043b)},
+	{USB_DEVICE(0x99fa, 0x8988)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

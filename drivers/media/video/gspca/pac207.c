@@ -570,17 +570,16 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x4028), DVNM("Creative Webcam Vista Plus")},
-	{USB_DEVICE(0x093a, 0x2460), DVNM("Q-Tec Webcam 100")},
-	{USB_DEVICE(0x093a, 0x2463), DVNM("Philips spc200nc pac207")},
-	{USB_DEVICE(0x093a, 0x2464), DVNM("Labtec Webcam 1200")},
-	{USB_DEVICE(0x093a, 0x2468), DVNM("PAC207")},
-	{USB_DEVICE(0x093a, 0x2470), DVNM("Genius GF112")},
-	{USB_DEVICE(0x093a, 0x2471), DVNM("Genius VideoCam GE111")},
-	{USB_DEVICE(0x093a, 0x2472), DVNM("Genius VideoCam GE110")},
-	{USB_DEVICE(0x2001, 0xf115), DVNM("D-Link DSB-C120")},
+	{USB_DEVICE(0x041e, 0x4028)},
+	{USB_DEVICE(0x093a, 0x2460)},
+	{USB_DEVICE(0x093a, 0x2463)},
+	{USB_DEVICE(0x093a, 0x2464)},
+	{USB_DEVICE(0x093a, 0x2468)},
+	{USB_DEVICE(0x093a, 0x2470)},
+	{USB_DEVICE(0x093a, 0x2471)},
+	{USB_DEVICE(0x093a, 0x2472)},
+	{USB_DEVICE(0x2001, 0xf115)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

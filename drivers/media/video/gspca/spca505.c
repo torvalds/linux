@@ -638,32 +638,11 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u16 vendor;
-	__u16 product;
-
-	vendor = id->idVendor;
-	product = id->idProduct;
-	switch (vendor) {
-	case 0x041e:		/* Creative cameras */
-/*		switch (product) { */
-/*		case 0x401d:	 * here505b */
-			sd->subtype = Nxultra;
-/*			break; */
-/*		} */
-		break;
-	case 0x0733:	/* Rebadged ViewQuest (Intel) and ViewQuest cameras */
-/*		switch (product) { */
-/*		case 0x0430: */
-/*		fixme: may be UsbGrabberPV321 BRIDGE_SPCA506 SENSOR_SAA7113 */
-			sd->subtype = IntelPCCameraPro;
-/*			break; */
-/*		} */
-		break;
-	}
 
 	cam = &gspca_dev->cam;
 	cam->epaddr = 0x01;
 	cam->cam_mode = vga_mode;
+	sd->subtype = id->driver_info;
 	if (sd->subtype != IntelPCCameraPro)
 		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
 	else			/* no 640x480 for IntelPCCameraPro */
@@ -906,10 +885,10 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x401d), DVNM("Creative Webcam NX ULTRA")},
-	{USB_DEVICE(0x0733, 0x0430), DVNM("Intel PC Camera Pro")},
+	{USB_DEVICE(0x041e, 0x401d), Nxultra},
+	{USB_DEVICE(0x0733, 0x0430), IntelPCCameraPro},
+/*fixme: may be UsbGrabberPV321 BRIDGE_SPCA506 SENSOR_SAA7113 */
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

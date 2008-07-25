@@ -1473,57 +1473,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u16 product;
 	int data1, data2;
-
-	product = id->idProduct;
-	switch (id->idVendor) {
-	case 0x0130:		/* Clone webcam */
-/*		switch (product) { */
-/*		case 0x0130: */
-			sd->subtype = HamaUSBSightcam;	/* same as Hama 0010 */
-/*			break; */
-/*		} */
-		break;
-	case 0x041e:		/* Creative cameras */
-/*		switch (product) { */
-/*		case 0x4018: */
-			sd->subtype = CreativeVista;
-/*			break; */
-/*		} */
-		break;
-	case 0x0461:		/* MicroInnovation */
-/*		switch (product) { */
-/*		case 0x0815: */
-			sd->subtype = MicroInnovationIC200;
-/*			break; */
-/*		} */
-		break;
-	case 0x0733:	/* Rebadged ViewQuest (Intel) and ViewQuest cameras */
-/*		switch (product) { */
-/*		case 0x110: */
-			sd->subtype = ViewQuestVQ110;
-/*			break; */
-/*		} */
-		break;
-	case 0x0af9:		/* Hama cameras */
-		switch (product) {
-		case 0x0010:
-			sd->subtype = HamaUSBSightcam;
-			break;
-		case 0x0011:
-			sd->subtype = HamaUSBSightcam2;
-			break;
-		}
-		break;
-	case 0x8086:		/* Intel */
-/*		switch (product) { */
-/*		case 0x0110: */
-			sd->subtype = IntelEasyPCCamera;
-/*			break; */
-/*		} */
-		break;
-	}
 
 	/* Read from global register the USB product and vendor IDs, just to
 	 * prove that we can communicate with the device.  This works, which
@@ -1544,6 +1494,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->epaddr = 0x01;
 	cam->cam_mode = sif_mode;
 	cam->nmodes = ARRAY_SIZE(sif_mode);
+
+	sd->subtype = id->driver_info;
 	sd->brightness = BRIGHTNESS_DEF;
 
 	switch (sd->subtype) {
@@ -1741,15 +1693,14 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x0130, 0x0130), DVNM("Clone Digital Webcam 11043")},
-	{USB_DEVICE(0x041e, 0x4018), DVNM("Creative Webcam Vista (PD1100)")},
-	{USB_DEVICE(0x0461, 0x0815), DVNM("Micro Innovation IC200")},
-	{USB_DEVICE(0x0733, 0x0110), DVNM("ViewQuest VQ110")},
-	{USB_DEVICE(0x0af9, 0x0010), DVNM("Hama USB Sightcam 100")},
-	{USB_DEVICE(0x0af9, 0x0011), DVNM("Hama USB Sightcam 100")},
-	{USB_DEVICE(0x8086, 0x0110), DVNM("Intel Easy PC Camera")},
+	{USB_DEVICE(0x0130, 0x0130), HamaUSBSightcam},
+	{USB_DEVICE(0x041e, 0x4018), CreativeVista},
+	{USB_DEVICE(0x0461, 0x0815), MicroInnovationIC200},
+	{USB_DEVICE(0x0733, 0x0110), ViewQuestVQ110},
+	{USB_DEVICE(0x0af9, 0x0010), HamaUSBSightcam},
+	{USB_DEVICE(0x0af9, 0x0011), HamaUSBSightcam2},
+	{USB_DEVICE(0x8086, 0x0110), IntelEasyPCCamera},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

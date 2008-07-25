@@ -1007,9 +1007,8 @@ static struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x0572, 0x0041), DVNM("Creative Notebook cx11646")},
+	{USB_DEVICE(0x0572, 0x0041)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

@@ -420,9 +420,8 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x093a, 0x050f), DVNM("Mars-Semi Pc-Camera")},
+	{USB_DEVICE(0x093a, 0x050f)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

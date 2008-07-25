@@ -709,16 +709,14 @@ static struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x093a, 0x2600), DVNM("Typhoon")},
-	{USB_DEVICE(0x093a, 0x2601), DVNM("Philips SPC610NC")},
-	{USB_DEVICE(0x093a, 0x2603), DVNM("PAC7312")},
-	{USB_DEVICE(0x093a, 0x2608), DVNM("Trust WB-3300p")},
-	{USB_DEVICE(0x093a, 0x260e), DVNM("Gigaware VGA PC Camera")},
-			/* and also ', Trust WB-3350p, SIGMA cam 2350' */
-	{USB_DEVICE(0x093a, 0x260f), DVNM("SnakeCam")},
-	{USB_DEVICE(0x093a, 0x2621), DVNM("PAC731x")},
+	{USB_DEVICE(0x093a, 0x2600)},
+	{USB_DEVICE(0x093a, 0x2601)},
+	{USB_DEVICE(0x093a, 0x2603)},
+	{USB_DEVICE(0x093a, 0x2608)},
+	{USB_DEVICE(0x093a, 0x260e)},
+	{USB_DEVICE(0x093a, 0x260f)},
+	{USB_DEVICE(0x093a, 0x2621)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

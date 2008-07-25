@@ -1416,29 +1416,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct usb_device *dev = gspca_dev->dev;
 	struct cam *cam;
 	int sensor;
-	__u16 product;
-
-	product = id->idProduct;
-	sd->bridge = BRIDGE_VC0321;
-	switch (id->idVendor) {
-	case 0x0ac8:		/* Vimicro z-star */
-		switch (product) {
-		case 0x0323:
-			sd->bridge = BRIDGE_VC0323;
-			break;
-		}
-		break;
-	case 0x17ef:		/* Lenovo */
-/*		switch (product) { */
-/*		case 0x4802:	 * Lenovo MI1310_SOC */
-			sd->bridge = BRIDGE_VC0323;
-/*			break; */
-/*		} */
-		break;
-	}
 
 	cam = &gspca_dev->cam;
 	cam->epaddr = 0x02;
+	sd->bridge = id->driver_info;
 	if (sd->bridge == BRIDGE_VC0321) {
 		cam->cam_mode = vc0321_mode;
 		cam->nmodes = ARRAY_SIZE(vc0321_mode);
@@ -1767,16 +1748,15 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x046d, 0x0892), DVNM("Logitech Orbicam")},
-	{USB_DEVICE(0x046d, 0x0896), DVNM("Logitech Orbicam")},
-	{USB_DEVICE(0x0ac8, 0x0321), DVNM("Vimicro generic vc0321")},
-	{USB_DEVICE(0x0ac8, 0x0323), DVNM("Vimicro Vc0323")},
-	{USB_DEVICE(0x0ac8, 0x0328), DVNM("A4Tech PK-130MG")},
-	{USB_DEVICE(0x0ac8, 0xc001), DVNM("Sony embedded vimicro")},
-	{USB_DEVICE(0x0ac8, 0xc002), DVNM("Sony embedded vimicro")},
-	{USB_DEVICE(0x17ef, 0x4802), DVNM("Lenovo Vc0323+MI1310_SOC")},
+	{USB_DEVICE(0x046d, 0x0892), BRIDGE_VC0321},
+	{USB_DEVICE(0x046d, 0x0896), BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0x0321), BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0x0323), BRIDGE_VC0323},
+	{USB_DEVICE(0x0ac8, 0x0328), BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0xc001), BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0xc002), BRIDGE_VC0321},
+	{USB_DEVICE(0x17ef, 0x4802), BRIDGE_VC0323},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
