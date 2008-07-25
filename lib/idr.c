@@ -35,7 +35,7 @@
 
 static struct kmem_cache *idr_layer_cache;
 
-static struct idr_layer *alloc_layer(struct idr *idp)
+static struct idr_layer *get_from_free_list(struct idr *idp)
 {
 	struct idr_layer *p;
 	unsigned long flags;
@@ -51,14 +51,14 @@ static struct idr_layer *alloc_layer(struct idr *idp)
 }
 
 /* only called when idp->lock is held */
-static void __free_layer(struct idr *idp, struct idr_layer *p)
+static void __move_to_free_list(struct idr *idp, struct idr_layer *p)
 {
 	p->ary[0] = idp->id_free;
 	idp->id_free = p;
 	idp->id_free_cnt++;
 }
 
-static void free_layer(struct idr *idp, struct idr_layer *p)
+static void move_to_free_list(struct idr *idp, struct idr_layer *p)
 {
 	unsigned long flags;
 
@@ -66,7 +66,7 @@ static void free_layer(struct idr *idp, struct idr_layer *p)
 	 * Depends on the return element being zeroed.
 	 */
 	spin_lock_irqsave(&idp->lock, flags);
-	__free_layer(idp, p);
+	__move_to_free_list(idp, p);
 	spin_unlock_irqrestore(&idp->lock, flags);
 }
 
@@ -109,7 +109,7 @@ int idr_pre_get(struct idr *idp, gfp_t gfp_mask)
 		new = kmem_cache_alloc(idr_layer_cache, gfp_mask);
 		if (new == NULL)
 			return (0);
-		free_layer(idp, new);
+		move_to_free_list(idp, new);
 	}
 	return 1;
 }
@@ -167,7 +167,8 @@ static int sub_alloc(struct idr *idp, int *starting_id, struct idr_layer **pa)
 		 * Create the layer below if it is missing.
 		 */
 		if (!p->ary[m]) {
-			if (!(new = alloc_layer(idp)))
+			new = get_from_free_list(idp);
+			if (!new)
 				return -1;
 			p->ary[m] = new;
 			p->count++;
@@ -192,7 +193,7 @@ build_up:
 	p = idp->top;
 	layers = idp->layers;
 	if (unlikely(!p)) {
-		if (!(p = alloc_layer(idp)))
+		if (!(p = get_from_free_list(idp)))
 			return -1;
 		layers = 1;
 	}
@@ -204,7 +205,7 @@ build_up:
 		layers++;
 		if (!p->count)
 			continue;
-		if (!(new = alloc_layer(idp))) {
+		if (!(new = get_from_free_list(idp))) {
 			/*
 			 * The allocation failed.  If we built part of
 			 * the structure tear it down.
@@ -214,7 +215,7 @@ build_up:
 				p = p->ary[0];
 				new->ary[0] = NULL;
 				new->bitmap = new->count = 0;
-				__free_layer(idp, new);
+				__move_to_free_list(idp, new);
 			}
 			spin_unlock_irqrestore(&idp->lock, flags);
 			return -1;
@@ -351,7 +352,7 @@ static void sub_remove(struct idr *idp, int shift, int id)
 		__clear_bit(n, &p->bitmap);
 		p->ary[n] = NULL;
 		while(*paa && ! --((**paa)->count)){
-			free_layer(idp, **paa);
+			move_to_free_list(idp, **paa);
 			**paa-- = NULL;
 		}
 		if (!*paa)
@@ -378,12 +379,12 @@ void idr_remove(struct idr *idp, int id)
 
 		p = idp->top->ary[0];
 		idp->top->bitmap = idp->top->count = 0;
-		free_layer(idp, idp->top);
+		move_to_free_list(idp, idp->top);
 		idp->top = p;
 		--idp->layers;
 	}
 	while (idp->id_free_cnt >= IDR_FREE_MAX) {
-		p = alloc_layer(idp);
+		p = get_from_free_list(idp);
 		kmem_cache_free(idr_layer_cache, p);
 	}
 	return;
@@ -426,7 +427,7 @@ void idr_remove_all(struct idr *idp)
 		while (n < fls(id)) {
 			if (p) {
 				memset(p, 0, sizeof *p);
-				free_layer(idp, p);
+				move_to_free_list(idp, p);
 			}
 			n += IDR_BITS;
 			p = *--paa;
@@ -444,7 +445,7 @@ EXPORT_SYMBOL(idr_remove_all);
 void idr_destroy(struct idr *idp)
 {
 	while (idp->id_free_cnt) {
-		struct idr_layer *p = alloc_layer(idp);
+		struct idr_layer *p = get_from_free_list(idp);
 		kmem_cache_free(idr_layer_cache, p);
 	}
 }
@@ -749,7 +750,7 @@ int ida_get_new_above(struct ida *ida, int starting_id, int *p_id)
 	 * allocation.
 	 */
 	if (ida->idr.id_free_cnt || ida->free_bitmap) {
-		struct idr_layer *p = alloc_layer(&ida->idr);
+		struct idr_layer *p = get_from_free_list(&ida->idr);
 		if (p)
 			kmem_cache_free(idr_layer_cache, p);
 	}
