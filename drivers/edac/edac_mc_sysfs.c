@@ -44,6 +44,25 @@ int edac_mc_get_poll_msec(void)
 	return edac_mc_poll_msec;
 }
 
+static int edac_set_poll_msec(const char *val, struct kernel_param *kp)
+{
+	long l;
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	ret = strict_strtol(val, 0, &l);
+	if (ret == -EINVAL || ((int)l != l))
+		return -EINVAL;
+	*((int *)kp->arg) = l;
+
+	/* notify edac_mc engine to reset the poll period */
+	edac_mc_reset_delay_period(l);
+
+	return 0;
+}
+
 /* Parameter declarations for above */
 module_param(edac_mc_panic_on_ue, int, 0644);
 MODULE_PARM_DESC(edac_mc_panic_on_ue, "Panic on uncorrected error: 0=off 1=on");
@@ -53,7 +72,8 @@ MODULE_PARM_DESC(edac_mc_log_ue,
 module_param(edac_mc_log_ce, int, 0644);
 MODULE_PARM_DESC(edac_mc_log_ce,
 		 "Log correctable error to console: 0=off 1=on");
-module_param(edac_mc_poll_msec, int, 0644);
+module_param_call(edac_mc_poll_msec, edac_set_poll_msec, param_get_int,
+		  &edac_mc_poll_msec, 0644);
 MODULE_PARM_DESC(edac_mc_poll_msec, "Polling period in milliseconds");
 
 /*
