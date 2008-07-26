@@ -103,7 +103,8 @@ static inline void ptrace_report_syscall(struct pt_regs *regs)
  * the system call.  That must prevent normal entry so no system call is
  * made.  If @task ever returns to user mode after this, its register state
  * is unspecified, but should be something harmless like an %ENOSYS error
- * return.
+ * return.  It should preserve enough information so that syscall_rollback()
+ * can work (see asm-generic/syscall.h).
  *
  * Called without locks, just after entering kernel mode.
  */
