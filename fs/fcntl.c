@@ -135,18 +135,12 @@ asmlinkage long sys_dup3(unsigned int oldfd, unsigned int newfd, int flags)
 	if ((flags & ~O_CLOEXEC) != 0)
 		return -EINVAL;
 
+	if (unlikely(oldfd == newfd))
+		return -EINVAL;
+
 	spin_lock(&files->file_lock);
 	if (!(file = fcheck(oldfd)))
 		goto out_unlock;
-	err = newfd;
-	if (unlikely(newfd == oldfd)) {
-		if (flags & O_CLOEXEC) {
-			fdt = files_fdtable(files);
-			FD_SET(newfd, fdt->close_on_exec);
-		}
-		goto out_unlock;
-	}
-	err = -EBADF;
 	if (newfd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
 		goto out_unlock;
 	get_file(file);			/* We are now finished with oldfd */
@@ -194,6 +188,14 @@ out_fput:
 
 asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
 {
+	if (unlikely(newfd == oldfd)) { /* corner case */
+		struct files_struct *files = current->files;
+		rcu_read_lock();
+		if (!fcheck_files(files, oldfd))
+			oldfd = -EBADF;
+		rcu_read_unlock();
+		return oldfd;
+	}
 	return sys_dup3(oldfd, newfd, 0);
 }
 
