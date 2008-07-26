@@ -603,7 +603,7 @@ static struct sock * unix_create1(struct net *net, struct socket *sock)
 	u->dentry = NULL;
 	u->mnt	  = NULL;
 	spin_lock_init(&u->lock);
-	atomic_set(&u->inflight, 0);
+	atomic_long_set(&u->inflight, 0);
 	INIT_LIST_HEAD(&u->link);
 	mutex_init(&u->readlock); /* single task reading lock */
 	init_waitqueue_head(&u->peer_wait);

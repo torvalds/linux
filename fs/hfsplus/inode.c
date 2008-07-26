@@ -254,8 +254,6 @@ static int hfsplus_file_open(struct inode *inode, struct file *file)
 {
 	if (HFSPLUS_IS_RSRC(inode))
 		inode = HFSPLUS_I(inode).rsrc_inode;
-	if (atomic_read(&file->f_count) != 1)
-		return 0;
 	atomic_inc(&HFSPLUS_I(inode).opencnt);
 	return 0;
 }
@@ -266,8 +264,6 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 
 	if (HFSPLUS_IS_RSRC(inode))
 		inode = HFSPLUS_I(inode).rsrc_inode;
-	if (atomic_read(&file->f_count) != 0)
-		return 0;
 	if (atomic_dec_and_test(&HFSPLUS_I(inode).opencnt)) {
 		mutex_lock(&inode->i_mutex);
 		hfsplus_file_truncate(inode);

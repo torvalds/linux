@@ -795,7 +795,7 @@ struct file {
 #define f_dentry	f_path.dentry
 #define f_vfsmnt	f_path.mnt
 	const struct file_operations	*f_op;
-	atomic_t		f_count;
+	atomic_long_t		f_count;
 	unsigned int 		f_flags;
 	mode_t			f_mode;
 	loff_t			f_pos;
@@ -824,8 +824,8 @@ extern spinlock_t files_lock;
 #define file_list_lock() spin_lock(&files_lock);
 #define file_list_unlock() spin_unlock(&files_lock);
 
-#define get_file(x)	atomic_inc(&(x)->f_count)
-#define file_count(x)	atomic_read(&(x)->f_count)
+#define get_file(x)	atomic_long_inc(&(x)->f_count)
+#define file_count(x)	atomic_long_read(&(x)->f_count)
 
 #ifdef CONFIG_DEBUG_WRITECOUNT
 static inline void file_take_write(struct file *f)
