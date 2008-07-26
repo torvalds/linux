@@ -46,7 +46,7 @@ config EARLY_PRINTK
 config EARLY_PRINTK_DBGP
 	bool "Early printk via EHCI debug port"
 	default n
-	depends on EARLY_PRINTK
+	depends on EARLY_PRINTK && PCI
 	help
 	  Write kernel log output directly into the EHCI debug port.
 
