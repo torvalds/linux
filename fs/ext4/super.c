@@ -1626,7 +1626,8 @@ static int ext4_check_descriptors(struct super_block *sb)
 			       "Checksum for group %lu failed (%u!=%u)\n",
 			       i, le16_to_cpu(ext4_group_desc_csum(sbi, i,
 			       gdp)), le16_to_cpu(gdp->bg_checksum));
-			return 0;
+			if (!(sb->s_flags & MS_RDONLY))
+				return 0;
 		}
 		if (!flexbg_flag)
 			first_block += EXT4_BLOCKS_PER_GROUP(sb);
@@ -2961,6 +2962,7 @@ static int ext4_remount (struct super_block * sb, int * flags, char * data)
 	ext4_fsblk_t n_blocks_count = 0;
 	unsigned long old_sb_flags;
 	struct ext4_mount_options old_opts;
+	ext4_group_t g;
 	int err;
 #ifdef CONFIG_QUOTA
 	int i;
@@ -3036,6 +3038,26 @@ static int ext4_remount (struct super_block * sb, int * flags, char * data)
 				       sb->s_id, le32_to_cpu(ret));
 				err = -EROFS;
 				goto restore_opts;
+			}
+
+			/*
+			 * Make sure the group descriptor checksums
+			 * are sane.  If they aren't, refuse to
+			 * remount r/w.
+			 */
+			for (g = 0; g < sbi->s_groups_count; g++) {
+				struct ext4_group_desc *gdp =
+					ext4_get_group_desc(sb, g, NULL);
+
+				if (!ext4_group_desc_csum_verify(sbi, g, gdp)) {
+					printk(KERN_ERR
+	       "EXT4-fs: ext4_remount: "
+		"Checksum for group %lu failed (%u!=%u)\n",
+		g, le16_to_cpu(ext4_group_desc_csum(sbi, g, gdp)),
+					       le16_to_cpu(gdp->bg_checksum));
+					err = -EINVAL;
+					goto restore_opts;
+				}
 			}
 
 			/*
