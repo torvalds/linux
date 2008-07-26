@@ -95,4 +95,19 @@ static inline void tracehook_report_exec(struct linux_binfmt *fmt,
 		send_sig(SIGTRAP, current, 0);
 }
 
+/**
+ * tracehook_report_exit - task has begun to exit
+ * @exit_code:		pointer to value destined for @current->exit_code
+ *
+ * @exit_code points to the value passed to do_exit(), which tracing
+ * might change here.  This is almost the first thing in do_exit(),
+ * before freeing any resources or setting the %PF_EXITING flag.
+ *
+ * Called with no locks held.
+ */
+static inline void tracehook_report_exit(long *exit_code)
+{
+	ptrace_event(PT_TRACE_EXIT, PTRACE_EVENT_EXIT, *exit_code);
+}
+
 #endif	/* <linux/tracehook.h> */
