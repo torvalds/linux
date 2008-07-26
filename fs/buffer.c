@@ -3272,7 +3272,7 @@ int bh_submit_read(struct buffer_head *bh)
 EXPORT_SYMBOL(bh_submit_read);
 
 static void
-init_buffer_head(struct kmem_cache *cachep, void *data)
+init_buffer_head(void *data)
 {
 	struct buffer_head *bh = data;
 

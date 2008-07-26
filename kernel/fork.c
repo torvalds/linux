@@ -1442,7 +1442,7 @@ long do_fork(unsigned long clone_flags,
 #define ARCH_MIN_MMSTRUCT_ALIGN 0
 #endif
 
-static void sighand_ctor(struct kmem_cache *cachep, void *data)
+static void sighand_ctor(void *data)
 {
 	struct sighand_struct *sighand = data;
 
