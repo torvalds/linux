@@ -660,10 +660,10 @@ static int mxl5007t_get_status(struct dvb_frontend *fe, u32 *status)
 	s32 rf_input_level;
 	int ret;
 
-	mutex_lock(&state->lock);
-
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	mutex_lock(&state->lock);
 
 	ret = mxl5007t_synth_lock_status(state, &rf_locked, &ref_locked);
 	if (mxl_fail(ret))
@@ -676,10 +676,11 @@ static int mxl5007t_get_status(struct dvb_frontend *fe, u32 *status)
 		goto fail;
 	mxl_debug("rf input power: %d", rf_input_level);
 fail:
+	mutex_unlock(&state->lock);
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
-	mutex_unlock(&state->lock);
 	return ret;
 }
 
@@ -730,10 +731,10 @@ static int mxl5007t_set_params(struct dvb_frontend *fe,
 		return -EINVAL;
 	}
 
-	mutex_lock(&state->lock);
-
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	mutex_lock(&state->lock);
 
 	ret = mxl5007t_tuner_init(state, mode);
 	if (mxl_fail(ret))
@@ -747,10 +748,11 @@ static int mxl5007t_set_params(struct dvb_frontend *fe,
 	state->bandwidth = (fe->ops.info.type == FE_OFDM) ?
 		params->u.ofdm.bandwidth : 0;
 fail:
+	mutex_unlock(&state->lock);
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
-	mutex_unlock(&state->lock);
 	return ret;
 }
 
@@ -802,10 +804,10 @@ static int mxl5007t_set_analog_params(struct dvb_frontend *fe,
 	}
 	mxl_debug("setting mxl5007 to system %s", mode_name);
 
-	mutex_lock(&state->lock);
-
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	mutex_lock(&state->lock);
 
 	ret = mxl5007t_tuner_init(state, cable ? cbl_mode : ota_mode);
 	if (mxl_fail(ret))
@@ -818,10 +820,11 @@ static int mxl5007t_set_analog_params(struct dvb_frontend *fe,
 	state->frequency = freq;
 	state->bandwidth = 0;
 fail:
+	mutex_unlock(&state->lock);
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
-	mutex_unlock(&state->lock);
 	return ret;
 }
 
@@ -833,10 +836,10 @@ static int mxl5007t_init(struct dvb_frontend *fe)
 	int ret;
 	u8 d;
 
-	mutex_lock(&state->lock);
-
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	mutex_lock(&state->lock);
 
 	ret = mxl5007t_read_reg(state, 0x05, &d);
 	if (mxl_fail(ret))
@@ -845,10 +848,10 @@ static int mxl5007t_init(struct dvb_frontend *fe)
 	ret = mxl5007t_write_reg(state, 0x05, d | 0x01);
 	mxl_fail(ret);
 fail:
+	mutex_unlock(&state->lock);
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
-
-	mutex_unlock(&state->lock);
 
 	return ret;
 }
@@ -859,10 +862,10 @@ static int mxl5007t_sleep(struct dvb_frontend *fe)
 	int ret;
 	u8 d;
 
-	mutex_lock(&state->lock);
-
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	mutex_lock(&state->lock);
 
 	ret = mxl5007t_read_reg(state, 0x05, &d);
 	if (mxl_fail(ret))
@@ -871,10 +874,10 @@ static int mxl5007t_sleep(struct dvb_frontend *fe)
 	ret = mxl5007t_write_reg(state, 0x05, d & ~0x01);
 	mxl_fail(ret);
 fail:
+	mutex_unlock(&state->lock);
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
-
-	mutex_unlock(&state->lock);
 
 	return ret;
 }
@@ -995,17 +998,17 @@ struct dvb_frontend *mxl5007t_attach(struct dvb_frontend *fe,
 
 		mutex_init(&state->lock);
 
-		mutex_lock(&state->lock);
-
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 
+		mutex_lock(&state->lock);
+
 		ret = mxl5007t_get_chip_id(state);
+
+		mutex_unlock(&state->lock);
 
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
-
-		mutex_unlock(&state->lock);
 
 		/* check return value of mxl5007t_get_chip_id */
 		if (mxl_fail(ret))
