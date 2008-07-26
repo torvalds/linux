@@ -52,6 +52,21 @@
 struct linux_binprm;
 
 /**
+ * tracehook_expect_breakpoints - guess if task memory might be touched
+ * @task:		current task, making a new mapping
+ *
+ * Return nonzero if @task is expected to want breakpoint insertion in
+ * its memory at some point.  A zero return is no guarantee it won't
+ * be done, but this is a hint that it's known to be likely.
+ *
+ * May be called with @task->mm->mmap_sem held for writing.
+ */
+static inline int tracehook_expect_breakpoints(struct task_struct *task)
+{
+	return (task_ptrace(task) & PT_PTRACED) != 0;
+}
+
+/**
  * tracehook_unsafe_exec - check for exec declared unsafe due to tracing
  * @task:		current task doing exec
  *
