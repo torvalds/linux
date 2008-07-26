@@ -2130,13 +2130,13 @@ static const struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x040a, 0x0002), KodakDVC325},
-	{USB_DEVICE(0x0497, 0xc001), SmileIntlCamera},
-	{USB_DEVICE(0x0506, 0x00df), ThreeComHomeConnectLite},
-	{USB_DEVICE(0x0733, 0x0401), IntelCreateAndShare},
-	{USB_DEVICE(0x0733, 0x0402), ViewQuestM318B},
-	{USB_DEVICE(0x1776, 0x501c), Arowana300KCMOSCamera},
-	{USB_DEVICE(0x0000, 0x0000), MystFromOriUnknownCamera},
+	{USB_DEVICE(0x040a, 0x0002), .driver_info = KodakDVC325},
+	{USB_DEVICE(0x0497, 0xc001), .driver_info = SmileIntlCamera},
+	{USB_DEVICE(0x0506, 0x00df), .driver_info = ThreeComHomeConnectLite},
+	{USB_DEVICE(0x0733, 0x0401), .driver_info = IntelCreateAndShare},
+	{USB_DEVICE(0x0733, 0x0402), .driver_info = ViewQuestM318B},
+	{USB_DEVICE(0x1776, 0x501c), .driver_info = Arowana300KCMOSCamera},
+	{USB_DEVICE(0x0000, 0x0000), .driver_info = MystFromOriUnknownCamera},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

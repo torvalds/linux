@@ -1061,21 +1061,21 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x040a, 0x0300), KodakEZ200},
-	{USB_DEVICE(0x041e, 0x400a), CreativePCCam300},
-	{USB_DEVICE(0x046d, 0x0890), LogitechTraveler},
-	{USB_DEVICE(0x046d, 0x0900), LogitechClickSmart310},
-	{USB_DEVICE(0x046d, 0x0901), LogitechClickSmart510},
-	{USB_DEVICE(0x04a5, 0x300c), BenqDC1016},
-	{USB_DEVICE(0x04fc, 0x7333), PalmPixDC85},
-	{USB_DEVICE(0x055f, 0xc200), MustekGsmart300},
-	{USB_DEVICE(0x055f, 0xc220), Gsmartmini},
-	{USB_DEVICE(0x06bd, 0x0404), AgfaCl20},
-	{USB_DEVICE(0x06be, 0x0800), Optimedia},
-	{USB_DEVICE(0x084d, 0x0003), DLinkDSC350},
-	{USB_DEVICE(0x08ca, 0x0103), AiptekPocketDV},
-	{USB_DEVICE(0x2899, 0x012c), ToptroIndus},
-	{USB_DEVICE(0x8086, 0x0630), IntelPocketPCCamera},
+	{USB_DEVICE(0x040a, 0x0300), .driver_info = KodakEZ200},
+	{USB_DEVICE(0x041e, 0x400a), .driver_info = CreativePCCam300},
+	{USB_DEVICE(0x046d, 0x0890), .driver_info = LogitechTraveler},
+	{USB_DEVICE(0x046d, 0x0900), .driver_info = LogitechClickSmart310},
+	{USB_DEVICE(0x046d, 0x0901), .driver_info = LogitechClickSmart510},
+	{USB_DEVICE(0x04a5, 0x300c), .driver_info = BenqDC1016},
+	{USB_DEVICE(0x04fc, 0x7333), .driver_info = PalmPixDC85},
+	{USB_DEVICE(0x055f, 0xc200), .driver_info = MustekGsmart300},
+	{USB_DEVICE(0x055f, 0xc220), .driver_info = Gsmartmini},
+	{USB_DEVICE(0x06bd, 0x0404), .driver_info = AgfaCl20},
+	{USB_DEVICE(0x06be, 0x0800), .driver_info = Optimedia},
+	{USB_DEVICE(0x084d, 0x0003), .driver_info = DLinkDSC350},
+	{USB_DEVICE(0x08ca, 0x0103), .driver_info = AiptekPocketDV},
+	{USB_DEVICE(0x2899, 0x012c), .driver_info = ToptroIndus},
+	{USB_DEVICE(0x8086, 0x0630), .driver_info = IntelPocketPCCamera},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

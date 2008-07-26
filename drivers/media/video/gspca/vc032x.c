@@ -1749,14 +1749,14 @@ static const struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x046d, 0x0892), BRIDGE_VC0321},
-	{USB_DEVICE(0x046d, 0x0896), BRIDGE_VC0321},
-	{USB_DEVICE(0x0ac8, 0x0321), BRIDGE_VC0321},
-	{USB_DEVICE(0x0ac8, 0x0323), BRIDGE_VC0323},
-	{USB_DEVICE(0x0ac8, 0x0328), BRIDGE_VC0321},
-	{USB_DEVICE(0x0ac8, 0xc001), BRIDGE_VC0321},
-	{USB_DEVICE(0x0ac8, 0xc002), BRIDGE_VC0321},
-	{USB_DEVICE(0x17ef, 0x4802), BRIDGE_VC0323},
+	{USB_DEVICE(0x046d, 0x0892), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x046d, 0x0896), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0x0321), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0x0323), .driver_info = BRIDGE_VC0323},
+	{USB_DEVICE(0x0ac8, 0x0328), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0xc001), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0xc002), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x17ef, 0x4802), .driver_info = BRIDGE_VC0323},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

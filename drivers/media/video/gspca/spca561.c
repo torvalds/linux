@@ -975,21 +975,21 @@ static const struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x401a), Rev072A},
-	{USB_DEVICE(0x041e, 0x403b), Rev012A},
-	{USB_DEVICE(0x0458, 0x7004), Rev072A},
-	{USB_DEVICE(0x046d, 0x0928), Rev012A},
-	{USB_DEVICE(0x046d, 0x0929), Rev012A},
-	{USB_DEVICE(0x046d, 0x092a), Rev012A},
-	{USB_DEVICE(0x046d, 0x092b), Rev012A},
-	{USB_DEVICE(0x046d, 0x092c), Rev012A},
-	{USB_DEVICE(0x046d, 0x092d), Rev012A},
-	{USB_DEVICE(0x046d, 0x092e), Rev012A},
-	{USB_DEVICE(0x046d, 0x092f), Rev012A},
-	{USB_DEVICE(0x04fc, 0x0561), Rev072A},
-	{USB_DEVICE(0x060b, 0xa001), Rev072A},
-	{USB_DEVICE(0x10fd, 0x7e50), Rev072A},
-	{USB_DEVICE(0xabcd, 0xcdee), Rev072A},
+	{USB_DEVICE(0x041e, 0x401a), .driver_info = Rev072A},
+	{USB_DEVICE(0x041e, 0x403b), .driver_info = Rev012A},
+	{USB_DEVICE(0x0458, 0x7004), .driver_info = Rev072A},
+	{USB_DEVICE(0x046d, 0x0928), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x0929), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092a), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092b), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092c), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092d), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092e), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092f), .driver_info = Rev012A},
+	{USB_DEVICE(0x04fc, 0x0561), .driver_info = Rev072A},
+	{USB_DEVICE(0x060b, 0xa001), .driver_info = Rev072A},
+	{USB_DEVICE(0x10fd, 0x7e50), .driver_info = Rev072A},
+	{USB_DEVICE(0xabcd, 0xcdee), .driver_info = Rev072A},
 	{}
 };
 
