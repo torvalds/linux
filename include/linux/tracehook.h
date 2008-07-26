@@ -289,4 +289,27 @@ static inline void tracehook_finish_release_task(struct task_struct *task)
 	ptrace_release_task(task);
 }
 
+/**
+ * tracehook_signal_handler - signal handler setup is complete
+ * @sig:		number of signal being delivered
+ * @info:		siginfo_t of signal being delivered
+ * @ka:			sigaction setting that chose the handler
+ * @regs:		user register state
+ * @stepping:		nonzero if debugger single-step or block-step in use
+ *
+ * Called by the arch code after a signal handler has been set up.
+ * Register and stack state reflects the user handler about to run.
+ * Signal mask changes have already been made.
+ *
+ * Called without locks, shortly before returning to user mode
+ * (or handling more signals).
+ */
+static inline void tracehook_signal_handler(int sig, siginfo_t *info,
+					    const struct k_sigaction *ka,
+					    struct pt_regs *regs, int stepping)
+{
+	if (stepping)
+		ptrace_notify(SIGTRAP);
+}
+
 #endif	/* <linux/tracehook.h> */
