@@ -40,25 +40,32 @@ static void rtc_device_release(struct device *dev)
  */
 
 static struct timespec	delta;
+static struct timespec	delta_delta;
 static time_t		oldtime;
 
 static int rtc_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct rtc_device	*rtc = to_rtc_device(dev);
 	struct rtc_time		tm;
-	struct timespec		ts = current_kernel_time();
+	struct timespec		ts;
+	struct timespec		new_delta;
 
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 
+	getnstimeofday(&ts);
 	rtc_read_time(rtc, &tm);
 	rtc_tm_to_time(&tm, &oldtime);
 
 	/* RTC precision is 1 second; adjust delta for avg 1/2 sec err */
-	set_normalized_timespec(&delta,
+	set_normalized_timespec(&new_delta,
 				ts.tv_sec - oldtime,
 				ts.tv_nsec - (NSEC_PER_SEC >> 1));
 
+	/* prevent 1/2 sec errors from accumulating */
+	delta_delta = timespec_sub(new_delta, delta);
+	if (delta_delta.tv_sec < -2 || delta_delta.tv_sec >= 2)
+		delta = new_delta;
 	return 0;
 }
 
@@ -78,6 +85,8 @@ static int rtc_resume(struct device *dev)
 		return 0;
 	}
 	rtc_tm_to_time(&tm, &newtime);
+	if (delta_delta.tv_sec < -1)
+		newtime++;
 	if (newtime <= oldtime) {
 		if (newtime < oldtime)
 			pr_debug("%s:  time travel!\n", dev_name(&rtc->dev));
