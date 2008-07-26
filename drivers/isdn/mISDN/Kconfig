@@ -1,0 +1,9 @@
+#
+# modularer ISDN driver
+#
+
+menuconfig MISDN
+	tristate "Modular ISDN driver"
+	help
+	  Enable support for the modular ISDN driver.
+
