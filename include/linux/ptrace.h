@@ -176,6 +176,19 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 	}
 }
 
+/**
+ * ptrace_release_task - final ptrace-related cleanup of a zombie being reaped
+ * @task:	task in %EXIT_DEAD state
+ *
+ * Called with write_lock(&tasklist_lock) held.
+ */
+static inline void ptrace_release_task(struct task_struct *task)
+{
+	BUG_ON(!list_empty(&task->ptraced));
+	ptrace_unlink(task);
+	BUG_ON(!list_empty(&task->ptrace_entry));
+}
+
 #ifndef force_successful_syscall_return
 /*
  * System call handlers that, upon successful completion, need to return a

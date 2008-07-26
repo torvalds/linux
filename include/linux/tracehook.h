@@ -228,4 +228,32 @@ static inline void tracehook_report_vfork_done(struct task_struct *child,
 	ptrace_event(PT_TRACE_VFORK_DONE, PTRACE_EVENT_VFORK_DONE, pid);
 }
 
+/**
+ * tracehook_prepare_release_task - task is being reaped, clean up tracing
+ * @task:		task in %EXIT_DEAD state
+ *
+ * This is called in release_task() just before @task gets finally reaped
+ * and freed.  This would be the ideal place to remove and clean up any
+ * tracing-related state for @task.
+ *
+ * Called with no locks held.
+ */
+static inline void tracehook_prepare_release_task(struct task_struct *task)
+{
+}
+
+/**
+ * tracehook_finish_release_task - task is being reaped, clean up tracing
+ * @task:		task in %EXIT_DEAD state
+ *
+ * This is called in release_task() when @task is being in the middle of
+ * being reaped.  After this, there must be no tracing entanglements.
+ *
+ * Called with write_lock_irq(&tasklist_lock) held.
+ */
+static inline void tracehook_finish_release_task(struct task_struct *task)
+{
+	ptrace_release_task(task);
+}
+
 #endif	/* <linux/tracehook.h> */
