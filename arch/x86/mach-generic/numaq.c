@@ -4,7 +4,6 @@
 #define APIC_DEFINITION 1
 #include <linux/threads.h>
 #include <linux/cpumask.h>
-#include <linux/smp.h>
 #include <asm/mpspec.h>
 #include <asm/genapic.h>
 #include <asm/fixmap.h>
@@ -12,8 +11,9 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <asm/mach-numaq/mach_apic.h>
 #include <asm/mach-numaq/mach_apicdef.h>
+#include <linux/smp.h>
+#include <asm/mach-numaq/mach_apic.h>
 #include <asm/mach-numaq/mach_ipi.h>
 #include <asm/mach-numaq/mach_mpparse.h>
 #include <asm/mach-numaq/mach_wakecpu.h>

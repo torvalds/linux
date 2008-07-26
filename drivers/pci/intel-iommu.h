@@ -27,19 +27,8 @@
 #include <linux/sysdev.h>
 #include "iova.h"
 #include <linux/io.h>
-
-/*
- * We need a fixed PAGE_SIZE of 4K irrespective of
- * arch PAGE_SIZE for IOMMU page tables.
- */
-#define PAGE_SHIFT_4K		(12)
-#define PAGE_SIZE_4K		(1UL << PAGE_SHIFT_4K)
-#define PAGE_MASK_4K		(((u64)-1) << PAGE_SHIFT_4K)
-#define PAGE_ALIGN_4K(addr)	(((addr) + PAGE_SIZE_4K - 1) & PAGE_MASK_4K)
-
-#define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT_4K)
-#define DMA_32BIT_PFN		IOVA_PFN(DMA_32BIT_MASK)
-#define DMA_64BIT_PFN		IOVA_PFN(DMA_64BIT_MASK)
+#include <asm/cacheflush.h>
+#include "dma_remapping.h"
 
 /*
  * Intel IOMMU register specification per version 1.0 public spec.
@@ -63,6 +52,11 @@
 #define	DMAR_PLMLIMIT_REG 0x6c	/* PMRR low limit */
 #define	DMAR_PHMBASE_REG 0x70	/* pmrr high base addr */
 #define	DMAR_PHMLIMIT_REG 0x78	/* pmrr high limit */
+#define DMAR_IQH_REG	0x80	/* Invalidation queue head register */
+#define DMAR_IQT_REG	0x88	/* Invalidation queue tail register */
+#define DMAR_IQA_REG	0x90	/* Invalidation queue addr register */
+#define DMAR_ICS_REG	0x98	/* Invalidation complete status register */
+#define DMAR_IRTA_REG	0xb8    /* Interrupt remapping table addr register */
 
 #define OFFSET_STRIDE		(9)
 /*
@@ -126,6 +120,10 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define ecap_max_iotlb_offset(e) \
 	(ecap_iotlb_offset(e) + ecap_niotlb_iunits(e) * 16)
 #define ecap_coherent(e)	((e) & 0x1)
+#define ecap_qis(e)		((e) & 0x2)
+#define ecap_eim_support(e)	((e >> 4) & 0x1)
+#define ecap_ir_support(e)	((e >> 3) & 0x1)
+#define ecap_max_handle_mask(e) ((e >> 20) & 0xf)
 
 
 /* IOTLB_REG */
@@ -141,6 +139,17 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_TLB_IH_NONLEAF (((u64)1) << 6)
 #define DMA_TLB_MAX_SIZE (0x3f)
 
+/* INVALID_DESC */
+#define DMA_ID_TLB_GLOBAL_FLUSH	(((u64)1) << 3)
+#define DMA_ID_TLB_DSI_FLUSH	(((u64)2) << 3)
+#define DMA_ID_TLB_PSI_FLUSH	(((u64)3) << 3)
+#define DMA_ID_TLB_READ_DRAIN	(((u64)1) << 7)
+#define DMA_ID_TLB_WRITE_DRAIN	(((u64)1) << 6)
+#define DMA_ID_TLB_DID(id)	(((u64)((id & 0xffff) << 16)))
+#define DMA_ID_TLB_IH_NONLEAF	(((u64)1) << 6)
+#define DMA_ID_TLB_ADDR(addr)	(addr)
+#define DMA_ID_TLB_ADDR_MASK(mask)	(mask)
+
 /* PMEN_REG */
 #define DMA_PMEN_EPM (((u32)1)<<31)
 #define DMA_PMEN_PRS (((u32)1)<<0)
@@ -151,6 +160,9 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_GCMD_SFL (((u32)1) << 29)
 #define DMA_GCMD_EAFL (((u32)1) << 28)
 #define DMA_GCMD_WBF (((u32)1) << 27)
+#define DMA_GCMD_QIE (((u32)1) << 26)
+#define DMA_GCMD_SIRTP (((u32)1) << 24)
+#define DMA_GCMD_IRE (((u32) 1) << 25)
 
 /* GSTS_REG */
 #define DMA_GSTS_TES (((u32)1) << 31)
@@ -158,6 +170,9 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_GSTS_FLS (((u32)1) << 29)
 #define DMA_GSTS_AFLS (((u32)1) << 28)
 #define DMA_GSTS_WBFS (((u32)1) << 27)
+#define DMA_GSTS_QIES (((u32)1) << 26)
+#define DMA_GSTS_IRTPS (((u32)1) << 24)
+#define DMA_GSTS_IRES (((u32)1) << 25)
 
 /* CCMD_REG */
 #define DMA_CCMD_ICC (((u64)1) << 63)
@@ -187,158 +202,106 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define dma_frcd_source_id(c) (c & 0xffff)
 #define dma_frcd_page_addr(d) (d & (((u64)-1) << 12)) /* low 64 bit */
 
-/*
- * 0: Present
- * 1-11: Reserved
- * 12-63: Context Ptr (12 - (haw-1))
- * 64-127: Reserved
- */
-struct root_entry {
-	u64	val;
-	u64	rsvd1;
-};
-#define ROOT_ENTRY_NR (PAGE_SIZE_4K/sizeof(struct root_entry))
-static inline bool root_present(struct root_entry *root)
-{
-	return (root->val & 1);
-}
-static inline void set_root_present(struct root_entry *root)
-{
-	root->val |= 1;
-}
-static inline void set_root_value(struct root_entry *root, unsigned long value)
-{
-	root->val |= value & PAGE_MASK_4K;
+#define DMAR_OPERATION_TIMEOUT ((cycles_t) tsc_khz*10*1000) /* 10sec */
+
+#define IOMMU_WAIT_OP(iommu, offset, op, cond, sts) \
+{\
+	cycles_t start_time = get_cycles();\
+	while (1) {\
+		sts = op (iommu->reg + offset);\
+		if (cond)\
+			break;\
+		if (DMAR_OPERATION_TIMEOUT < (get_cycles() - start_time))\
+			panic("DMAR hardware is malfunctioning\n");\
+		cpu_relax();\
+	}\
 }
 
-struct context_entry;
-static inline struct context_entry *
-get_context_addr_from_root(struct root_entry *root)
-{
-	return (struct context_entry *)
-		(root_present(root)?phys_to_virt(
-		root->val & PAGE_MASK_4K):
-		NULL);
-}
+#define QI_LENGTH	256	/* queue length */
 
-/*
- * low 64 bits:
- * 0: present
- * 1: fault processing disable
- * 2-3: translation type
- * 12-63: address space root
- * high 64 bits:
- * 0-2: address width
- * 3-6: aval
- * 8-23: domain id
- */
-struct context_entry {
-	u64 lo;
-	u64 hi;
-};
-#define context_present(c) ((c).lo & 1)
-#define context_fault_disable(c) (((c).lo >> 1) & 1)
-#define context_translation_type(c) (((c).lo >> 2) & 3)
-#define context_address_root(c) ((c).lo & PAGE_MASK_4K)
-#define context_address_width(c) ((c).hi &  7)
-#define context_domain_id(c) (((c).hi >> 8) & ((1 << 16) - 1))
-
-#define context_set_present(c) do {(c).lo |= 1;} while (0)
-#define context_set_fault_enable(c) \
-	do {(c).lo &= (((u64)-1) << 2) | 1;} while (0)
-#define context_set_translation_type(c, val) \
-	do { \
-		(c).lo &= (((u64)-1) << 4) | 3; \
-		(c).lo |= ((val) & 3) << 2; \
-	} while (0)
-#define CONTEXT_TT_MULTI_LEVEL 0
-#define context_set_address_root(c, val) \
-	do {(c).lo |= (val) & PAGE_MASK_4K;} while (0)
-#define context_set_address_width(c, val) do {(c).hi |= (val) & 7;} while (0)
-#define context_set_domain_id(c, val) \
-	do {(c).hi |= ((val) & ((1 << 16) - 1)) << 8;} while (0)
-#define context_clear_entry(c) do {(c).lo = 0; (c).hi = 0;} while (0)
-
-/*
- * 0: readable
- * 1: writable
- * 2-6: reserved
- * 7: super page
- * 8-11: available
- * 12-63: Host physcial address
- */
-struct dma_pte {
-	u64 val;
-};
-#define dma_clear_pte(p)	do {(p).val = 0;} while (0)
-
-#define DMA_PTE_READ (1)
-#define DMA_PTE_WRITE (2)
-
-#define dma_set_pte_readable(p) do {(p).val |= DMA_PTE_READ;} while (0)
-#define dma_set_pte_writable(p) do {(p).val |= DMA_PTE_WRITE;} while (0)
-#define dma_set_pte_prot(p, prot) \
-		do {(p).val = ((p).val & ~3) | ((prot) & 3); } while (0)
-#define dma_pte_addr(p) ((p).val & PAGE_MASK_4K)
-#define dma_set_pte_addr(p, addr) do {\
-		(p).val |= ((addr) & PAGE_MASK_4K); } while (0)
-#define dma_pte_present(p) (((p).val & 3) != 0)
-
-struct intel_iommu;
-
-struct dmar_domain {
-	int	id;			/* domain id */
-	struct intel_iommu *iommu;	/* back pointer to owning iommu */
-
-	struct list_head devices; 	/* all devices' list */
-	struct iova_domain iovad;	/* iova's that belong to this domain */
-
-	struct dma_pte	*pgd;		/* virtual address */
-	spinlock_t	mapping_lock;	/* page table lock */
-	int		gaw;		/* max guest address width */
-
-	/* adjusted guest address width, 0 is level 2 30-bit */
-	int		agaw;
-
-#define DOMAIN_FLAG_MULTIPLE_DEVICES 1
-	int		flags;
+enum {
+	QI_FREE,
+	QI_IN_USE,
+	QI_DONE
 };
 
-/* PCI domain-device relationship */
-struct device_domain_info {
-	struct list_head link;	/* link to domain siblings */
-	struct list_head global; /* link to global list */
-	u8 bus;			/* PCI bus numer */
-	u8 devfn;		/* PCI devfn number */
-	struct pci_dev *dev; /* it's NULL for PCIE-to-PCI bridge */
-	struct dmar_domain *domain; /* pointer to domain */
+#define QI_CC_TYPE		0x1
+#define QI_IOTLB_TYPE		0x2
+#define QI_DIOTLB_TYPE		0x3
+#define QI_IEC_TYPE		0x4
+#define QI_IWD_TYPE		0x5
+
+#define QI_IEC_SELECTIVE	(((u64)1) << 4)
+#define QI_IEC_IIDEX(idx)	(((u64)(idx & 0xffff) << 32))
+#define QI_IEC_IM(m)		(((u64)(m & 0x1f) << 27))
+
+#define QI_IWD_STATUS_DATA(d)	(((u64)d) << 32)
+#define QI_IWD_STATUS_WRITE	(((u64)1) << 5)
+
+struct qi_desc {
+	u64 low, high;
 };
 
-extern int init_dmars(void);
+struct q_inval {
+	spinlock_t      q_lock;
+	struct qi_desc  *desc;          /* invalidation queue */
+	int             *desc_status;   /* desc status */
+	int             free_head;      /* first free entry */
+	int             free_tail;      /* last free entry */
+	int             free_cnt;
+};
+
+#ifdef CONFIG_INTR_REMAP
+/* 1MB - maximum possible interrupt remapping table size */
+#define INTR_REMAP_PAGE_ORDER	8
+#define INTR_REMAP_TABLE_REG_SIZE	0xf
+
+#define INTR_REMAP_TABLE_ENTRIES	65536
+
+struct ir_table {
+	struct irte *base;
+};
+#endif
 
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64		cap;
 	u64		ecap;
-	unsigned long 	*domain_ids; /* bitmap of domains */
-	struct dmar_domain **domains; /* ptr to domains */
 	int		seg;
 	u32		gcmd; /* Holds TE, EAFL. Don't need SRTP, SFL, WBF */
-	spinlock_t	lock; /* protect context, domain ids */
 	spinlock_t	register_lock; /* protect register handling */
+	int		seq_id;	/* sequence id of the iommu */
+
+#ifdef CONFIG_DMAR
+	unsigned long 	*domain_ids; /* bitmap of domains */
+	struct dmar_domain **domains; /* ptr to domains */
+	spinlock_t	lock; /* protect context, domain ids */
 	struct root_entry *root_entry; /* virtual address */
 
 	unsigned int irq;
 	unsigned char name[7];    /* Device Name */
 	struct msi_msg saved_msg;
 	struct sys_device sysdev;
+#endif
+	struct q_inval  *qi;            /* Queued invalidation info */
+#ifdef CONFIG_INTR_REMAP
+	struct ir_table *ir_table;	/* Interrupt remapping info */
+#endif
 };
 
-#ifndef CONFIG_DMAR_GFX_WA
-static inline void iommu_prepare_gfx_mapping(void)
+static inline void __iommu_flush_cache(
+	struct intel_iommu *iommu, void *addr, int size)
 {
-	return;
+	if (!ecap_coherent(iommu->ecap))
+		clflush_cache_range(addr, size);
 }
-#endif /* !CONFIG_DMAR_GFX_WA */
 
+extern struct dmar_drhd_unit * dmar_find_matched_drhd_unit(struct pci_dev *dev);
+
+extern int alloc_iommu(struct dmar_drhd_unit *drhd);
+extern void free_iommu(struct intel_iommu *iommu);
+extern int dmar_enable_qi(struct intel_iommu *iommu);
+extern void qi_global_iec(struct intel_iommu *iommu);
+
+extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 #endif
