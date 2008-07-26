@@ -89,14 +89,14 @@ static int ts_open(struct inode *inode, struct file *file)
 	err = -EBUSY;
 	if (!mutex_trylock(&dev->empress_tsq.vb_lock))
 		goto done;
-	if (dev->empress_users)
+	if (atomic_read(&dev->empress_users))
 		goto done_up;
 
 	/* Unmute audio */
 	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
 		saa_readb(SAA7134_AUDIO_MUTE_CTRL) & ~(1 << 6));
 
-	dev->empress_users++;
+	atomic_inc(&dev->empress_users);
 	file->private_data = dev;
 	err = 0;
 
@@ -110,8 +110,6 @@ static int ts_release(struct inode *inode, struct file *file)
 {
 	struct saa7134_dev *dev = file->private_data;
 
-	mutex_lock(&dev->empress_tsq.vb_lock);
-
 	videobuf_stop(&dev->empress_tsq);
 	videobuf_mmap_free(&dev->empress_tsq);
 
@@ -122,9 +120,7 @@ static int ts_release(struct inode *inode, struct file *file)
 	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
 		saa_readb(SAA7134_AUDIO_MUTE_CTRL) | (1 << 6));
 
-	dev->empress_users--;
-
-	mutex_unlock(&dev->empress_tsq.vb_lock);
+	atomic_dec(&dev->empress_users);
 
 	return 0;
 }
@@ -447,7 +443,7 @@ static void empress_signal_update(struct work_struct *work)
 		ts_reset_encoder(dev);
 	} else {
 		dprintk("video signal acquired\n");
-		if (dev->empress_users)
+		if (atomic_read(&dev->empress_users))
 			ts_init_encoder(dev);
 	}
 }

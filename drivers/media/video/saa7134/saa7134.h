@@ -561,7 +561,7 @@ struct saa7134_dev {
 	/* SAA7134_MPEG_EMPRESS only */
 	struct video_device        *empress_dev;
 	struct videobuf_queue      empress_tsq;
-	unsigned int               empress_users;
+	atomic_t 		   empress_users;
 	struct work_struct         empress_workqueue;
 	int                        empress_started;
 
