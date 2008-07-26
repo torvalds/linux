@@ -99,7 +99,7 @@ static void mtdoops_inc_counter(struct mtdoops_context *cxt)
 	int ret;
 
 	cxt->nextpage++;
-	if (cxt->nextpage > cxt->oops_pages)
+	if (cxt->nextpage >= cxt->oops_pages)
 		cxt->nextpage = 0;
 	cxt->nextcount++;
 	if (cxt->nextcount == 0xffffffff)
@@ -141,7 +141,7 @@ static void mtdoops_workfunc_erase(struct work_struct *work)
 	mod = (cxt->nextpage * OOPS_PAGE_SIZE) % mtd->erasesize;
 	if (mod != 0) {
 		cxt->nextpage = cxt->nextpage + ((mtd->erasesize - mod) / OOPS_PAGE_SIZE);
-		if (cxt->nextpage > cxt->oops_pages)
+		if (cxt->nextpage >= cxt->oops_pages)
 			cxt->nextpage = 0;
 	}
 
@@ -158,7 +158,7 @@ badblock:
 				cxt->nextpage * OOPS_PAGE_SIZE);
 		i++;
 		cxt->nextpage = cxt->nextpage + (mtd->erasesize / OOPS_PAGE_SIZE);
-		if (cxt->nextpage > cxt->oops_pages)
+		if (cxt->nextpage >= cxt->oops_pages)
 			cxt->nextpage = 0;
 		if (i == (cxt->oops_pages / (mtd->erasesize / OOPS_PAGE_SIZE))) {
 			printk(KERN_ERR "mtdoops: All blocks bad!\n");
