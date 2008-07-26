@@ -66,6 +66,76 @@ static inline int tracehook_expect_breakpoints(struct task_struct *task)
 	return (task_ptrace(task) & PT_PTRACED) != 0;
 }
 
+/*
+ * ptrace report for syscall entry and exit looks identical.
+ */
+static inline void ptrace_report_syscall(struct pt_regs *regs)
+{
+	int ptrace = task_ptrace(current);
+
+	if (!(ptrace & PT_PTRACED))
+		return;
+
+	ptrace_notify(SIGTRAP | ((ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
+
+	/*
+	 * this isn't the same as continuing with a signal, but it will do
+	 * for normal use.  strace only continues with a signal if the
+	 * stopping signal is not SIGTRAP.  -brl
+	 */
+	if (current->exit_code) {
+		send_sig(current->exit_code, current, 1);
+		current->exit_code = 0;
+	}
+}
+
+/**
+ * tracehook_report_syscall_entry - task is about to attempt a system call
+ * @regs:		user register state of current task
+ *
+ * This will be called if %TIF_SYSCALL_TRACE has been set, when the
+ * current task has just entered the kernel for a system call.
+ * Full user register state is available here.  Changing the values
+ * in @regs can affect the system call number and arguments to be tried.
+ * It is safe to block here, preventing the system call from beginning.
+ *
+ * Returns zero normally, or nonzero if the calling arch code should abort
+ * the system call.  That must prevent normal entry so no system call is
+ * made.  If @task ever returns to user mode after this, its register state
+ * is unspecified, but should be something harmless like an %ENOSYS error
+ * return.
+ *
+ * Called without locks, just after entering kernel mode.
+ */
+static inline __must_check int tracehook_report_syscall_entry(
+	struct pt_regs *regs)
+{
+	ptrace_report_syscall(regs);
+	return 0;
+}
+
+/**
+ * tracehook_report_syscall_exit - task has just finished a system call
+ * @regs:		user register state of current task
+ * @step:		nonzero if simulating single-step or block-step
+ *
+ * This will be called if %TIF_SYSCALL_TRACE has been set, when the
+ * current task has just finished an attempted system call.  Full
+ * user register state is available here.  It is safe to block here,
+ * preventing signals from being processed.
+ *
+ * If @step is nonzero, this report is also in lieu of the normal
+ * trap that would follow the system call instruction because
+ * user_enable_block_step() or user_enable_single_step() was used.
+ * In this case, %TIF_SYSCALL_TRACE might not be set.
+ *
+ * Called without locks, just before checking for pending signals.
+ */
+static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
+{
+	ptrace_report_syscall(regs);
+}
+
 /**
  * tracehook_unsafe_exec - check for exec declared unsafe due to tracing
  * @task:		current task doing exec
