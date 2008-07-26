@@ -279,7 +279,7 @@ extern int dir_notify_enable;
 #include <linux/types.h>
 #include <linux/kdev_t.h>
 #include <linux/dcache.h>
-#include <linux/namei.h>
+#include <linux/path.h>
 #include <linux/stat.h>
 #include <linux/cache.h>
 #include <linux/kobject.h>

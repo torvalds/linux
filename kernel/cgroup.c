@@ -45,6 +45,7 @@
 #include <linux/delayacct.h>
 #include <linux/cgroupstats.h>
 #include <linux/hash.h>
+#include <linux/namei.h>
 
 #include <asm/atomic.h>
 

@@ -42,7 +42,6 @@
 #include <linux/in.h>
 #include <linux/kref.h>
 #include <linux/mm.h>
-#include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/rbtree.h>
 #include <linux/rwsem.h>
