@@ -30,10 +30,6 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 
-	int buflen;
-	unsigned char tmpbuf[352 * 288 * 3 / 2]; /* YUVY per line */
-	unsigned char tmpbuf2[352 * 288 * 2];	/* YUYV */
-
 	unsigned char brightness;
 
 	char subtype;
@@ -68,23 +64,23 @@ static struct ctrl sd_ctrls[] = {
 
 static struct v4l2_pix_format sif_mode[] = {
 	{160, 120, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 160 * 2,
-		.sizeimage = 160 * 120 * 2,
+		.bytesperline = 160 * 3,
+		.sizeimage = 160 * 120 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 3},
 	{176, 144, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 176 * 2,
-		.sizeimage = 176 * 144 * 2,
+		.bytesperline = 176 * 3,
+		.sizeimage = 176 * 144 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
 	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 320 * 2,
-		.sizeimage = 320 * 240 * 2,
+		.bytesperline = 320 * 3,
+		.sizeimage = 320 * 240 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
 	{352, 288, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 352 * 2,
-		.sizeimage = 352 * 288 * 2,
+		.bytesperline = 352 * 3,
+		.sizeimage = 352 * 288 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 };
@@ -1567,77 +1563,30 @@ static void sd_close(struct gspca_dev *gspca_dev)
 {
 }
 
-/* convert YUVY per line to YUYV (YUV 4:2:2) */
-static void yuvy_decode(unsigned char *out,
-			unsigned char *in,
-			int width,
-			int height)
-{
-	unsigned char *Ui, *Vi, *yi, *yi1;
-	unsigned char *out1;
-	int i, j;
-
-	yi = in;
-	for (i = height / 2; --i >= 0; ) {
-		out1 = out + width * 2;		/* next line */
-		Ui = yi + width;
-		Vi = Ui + width / 2;
-		yi1 = Vi + width / 2;
-		for (j = width / 2; --j >= 0; ) {
-			*out++ = 128 + *yi++;
-			*out++ = 128 + *Ui;
-			*out++ = 128 + *yi++;
-			*out++ = 128 + *Vi;
-
-			*out1++ = 128 + *yi1++;
-			*out1++ = 128 + *Ui++;
-			*out1++ = 128 + *yi1++;
-			*out1++ = 128 + *Vi++;
-		}
-		yi += width * 2;
-		out = out1;
-	}
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
 	switch (data[0]) {
 	case 0:				/* start of frame */
-		if (gspca_dev->last_packet_type == FIRST_PACKET) {
-			yuvy_decode(sd->tmpbuf2, sd->tmpbuf,
-					gspca_dev->width,
-					gspca_dev->height);
-			frame = gspca_frame_add(gspca_dev,
-						LAST_PACKET,
-						frame,
-						sd->tmpbuf2,
-						gspca_dev->width
-							* gspca_dev->height
-							* 2);
-		}
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-				data, 0);
+		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+					data, 0);
 		data += SPCA508_OFFSET_DATA;
 		len -= SPCA508_OFFSET_DATA;
-		if (len > 0)
-			memcpy(sd->tmpbuf, data, len);
-		else
-			len = 0;
-		sd->buflen = len;
-		return;
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+				data, len);
+		break;
 	case 0xff:			/* drop */
 /*		gspca_dev->last_packet_type = DISCARD_PACKET; */
-		return;
+		break;
+	default:
+		data += 1;
+		len -= 1;
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+				data, len);
+		break;
 	}
-	data += 1;
-	len -= 1;
-	memcpy(&sd->tmpbuf[sd->buflen], data, len);
-	sd->buflen += len;
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev)
