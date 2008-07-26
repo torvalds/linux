@@ -302,11 +302,17 @@
 #define __NR_timerfd_create		1310
 #define __NR_timerfd_settime		1311
 #define __NR_timerfd_gettime		1312
+#define __NR_signalfd4			1313
+#define __NR_eventfd2			1314
+#define __NR_epoll_create1		1315
+#define __NR_dup3			1316
+#define __NR_pipe2			1317
+#define __NR_inotify_init1		1318
 
 #ifdef __KERNEL__
 
 
-#define NR_syscalls			289 /* length of syscall table */
+#define NR_syscalls			295 /* length of syscall table */
 
 /*
  * The following defines stop scripts/checksyscalls.sh from complaining about
