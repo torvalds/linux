@@ -111,3 +111,25 @@ void kvm_set_irq(struct kvm *kvm, int irq, int level)
 	kvm_ioapic_set_irq(kvm->arch.vioapic, irq, level);
 	kvm_pic_set_irq(pic_irqchip(kvm), irq, level);
 }
+
+void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi)
+{
+	struct kvm_irq_ack_notifier *kian;
+	struct hlist_node *n;
+
+	hlist_for_each_entry(kian, n, &kvm->arch.irq_ack_notifier_list, link)
+		if (kian->gsi == gsi)
+			kian->irq_acked(kian);
+}
+
+void kvm_register_irq_ack_notifier(struct kvm *kvm,
+				   struct kvm_irq_ack_notifier *kian)
+{
+	hlist_add_head(&kian->link, &kvm->arch.irq_ack_notifier_list);
+}
+
+void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
+				     struct kvm_irq_ack_notifier *kian)
+{
+	hlist_del(&kian->link);
+}

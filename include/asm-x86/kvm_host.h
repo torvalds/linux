@@ -321,6 +321,12 @@ struct kvm_mem_alias {
 	gfn_t target_gfn;
 };
 
+struct kvm_irq_ack_notifier {
+	struct hlist_node link;
+	unsigned gsi;
+	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
+};
+
 struct kvm_arch{
 	int naliases;
 	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
@@ -336,6 +342,7 @@ struct kvm_arch{
 	struct kvm_pic *vpic;
 	struct kvm_ioapic *vioapic;
 	struct kvm_pit *vpit;
+	struct hlist_head irq_ack_notifier_list;
 
 	int round_robin_prev_vcpu;
 	unsigned int tss_addr;
