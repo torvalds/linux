@@ -55,7 +55,7 @@ struct video_device
 	char name[32];
 	int vfl_type;
 	int minor;
-	/* attribute to diferentiate multiple indexs on one physical device */
+	/* attribute to differentiate multiple indices on one physical device */
 	int index;
 
 	int debug;			/* Activates debug level*/
@@ -78,7 +78,7 @@ struct video_device
 	void *priv;
 #endif
 
-	/* for videodev.c intenal usage -- please don't touch */
+	/* for videodev.c internal usage -- please don't touch */
 	int users;                     /* video_exclusive_{open|close} ... */
 	struct mutex lock;             /* ... helper function uses these   */
 };
