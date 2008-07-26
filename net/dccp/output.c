@@ -284,14 +284,26 @@ void dccp_write_xmit(struct sock *sk, int block)
 	}
 }
 
-int dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
+/**
+ * dccp_retransmit_skb  -  Retransmit Request, Close, or CloseReq packets
+ * There are only four retransmittable packet types in DCCP:
+ * - Request  in client-REQUEST  state (sec. 8.1.1),
+ * - CloseReq in server-CLOSEREQ state (sec. 8.3),
+ * - Close    in   node-CLOSING  state (sec. 8.3),
+ * - Acks in client-PARTOPEN state (sec. 8.1.5, handled by dccp_delack_timer()).
+ * This function expects sk->sk_send_head to contain the original skb.
+ */
+int dccp_retransmit_skb(struct sock *sk)
 {
+	WARN_ON(sk->sk_send_head == NULL);
+
 	if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk) != 0)
 		return -EHOSTUNREACH; /* Routing failure or similar. */
 
-	return dccp_transmit_skb(sk, (skb_cloned(skb) ?
-				      pskb_copy(skb, GFP_ATOMIC):
-				      skb_clone(skb, GFP_ATOMIC)));
+	/* this count is used to distinguish original and retransmitted skb */
+	inet_csk(sk)->icsk_retransmits++;
+
+	return dccp_transmit_skb(sk, skb_clone(sk->sk_send_head, GFP_ATOMIC));
 }
 
 struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
