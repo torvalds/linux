@@ -489,15 +489,12 @@ static void tifm_ms_request(struct memstick_host *msh)
 	return;
 }
 
-static void tifm_ms_set_param(struct memstick_host *msh,
-			      enum memstick_param param,
-			      int value)
+static int tifm_ms_set_param(struct memstick_host *msh,
+			     enum memstick_param param,
+			     int value)
 {
 	struct tifm_ms *host = memstick_priv(msh);
 	struct tifm_dev *sock = host->dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&sock->lock, flags);
 
 	switch (param) {
 	case MEMSTICK_POWER:
@@ -512,7 +509,8 @@ static void tifm_ms_set_param(struct memstick_host *msh,
 			writel(TIFM_MS_SYS_FCLR | TIFM_MS_SYS_INTCLR,
 			       sock->addr + SOCK_MS_SYSTEM);
 			writel(0xffffffff, sock->addr + SOCK_MS_STATUS);
-		}
+		} else
+			return -EINVAL;
 		break;
 	case MEMSTICK_INTERFACE:
 		if (value == MEMSTICK_SERIAL) {
@@ -525,11 +523,12 @@ static void tifm_ms_set_param(struct memstick_host *msh,
 			writel(TIFM_CTRL_FAST_CLK
 			       | readl(sock->addr + SOCK_CONTROL),
 			       sock->addr + SOCK_CONTROL);
-		}
+		} else
+			return -EINVAL;
 		break;
 	};
 
-	spin_unlock_irqrestore(&sock->lock, flags);
+	return 0;
 }
 
 static void tifm_ms_abort(unsigned long data)

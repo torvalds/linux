@@ -415,10 +415,14 @@ err_out:
 	return NULL;
 }
 
-static void memstick_power_on(struct memstick_host *host)
+static int memstick_power_on(struct memstick_host *host)
 {
-	host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
-	host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_SERIAL);
+	int rc = host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
+
+	if (!rc)
+		rc = host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_SERIAL);
+
+	return rc;
 }
 
 static void memstick_check(struct work_struct *work)
@@ -573,11 +577,15 @@ EXPORT_SYMBOL(memstick_suspend_host);
  */
 void memstick_resume_host(struct memstick_host *host)
 {
+	int rc = 0;
+
 	mutex_lock(&host->lock);
 	if (host->card)
-		memstick_power_on(host);
+		rc = memstick_power_on(host);
 	mutex_unlock(&host->lock);
-	memstick_detect_change(host);
+
+	if (!rc)
+		memstick_detect_change(host);
 }
 EXPORT_SYMBOL(memstick_resume_host);
 
