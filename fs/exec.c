@@ -106,11 +106,17 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
  */
 asmlinkage long sys_uselib(const char __user * library)
 {
-	struct file * file;
+	struct file *file;
 	struct nameidata nd;
-	int error;
+	char *tmp = getname(library);
+	int error = PTR_ERR(tmp);
 
-	error = __user_path_lookup_open(library, LOOKUP_FOLLOW, &nd, FMODE_READ|FMODE_EXEC);
+	if (!IS_ERR(tmp)) {
+		error = path_lookup_open(AT_FDCWD, tmp,
+					 LOOKUP_FOLLOW, &nd,
+					 FMODE_READ|FMODE_EXEC);
+		putname(tmp);
+	}
 	if (error)
 		goto out;
 
