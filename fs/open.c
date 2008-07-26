@@ -972,20 +972,12 @@ int get_unused_fd_flags(int flags)
 	int fd, error;
 	struct fdtable *fdt;
 
-  	error = -EMFILE;
 	spin_lock(&files->file_lock);
 
 repeat:
 	fdt = files_fdtable(files);
 	fd = find_next_zero_bit(fdt->open_fds->fds_bits, fdt->max_fds,
 				files->next_fd);
-
-	/*
-	 * N.B. For clone tasks sharing a files structure, this test
-	 * will limit the total number of files that can be opened.
-	 */
-	if (fd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
-		goto out;
 
 	/* Do we need to expand the fd array or fd set?  */
 	error = expand_files(files, fd);
@@ -997,7 +989,6 @@ repeat:
 	 	 * If we needed to expand the fs array we
 		 * might have blocked - try again.
 		 */
-		error = -EMFILE;
 		goto repeat;
 	}
 

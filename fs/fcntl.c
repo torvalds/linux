@@ -64,11 +64,6 @@ static int locate_fd(unsigned int orig_start, int cloexec)
 	struct fdtable *fdt;
 
 	spin_lock(&files->file_lock);
-
-	error = -EINVAL;
-	if (orig_start >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
-		goto out;
-
 repeat:
 	fdt = files_fdtable(files);
 	/*
@@ -83,10 +78,6 @@ repeat:
 	if (start < fdt->max_fds)
 		newfd = find_next_zero_bit(fdt->open_fds->fds_bits,
 					   fdt->max_fds, start);
-	
-	error = -EMFILE;
-	if (newfd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
-		goto out;
 
 	error = expand_files(files, newfd);
 	if (error < 0)
@@ -141,13 +132,14 @@ asmlinkage long sys_dup3(unsigned int oldfd, unsigned int newfd, int flags)
 	spin_lock(&files->file_lock);
 	if (!(file = fcheck(oldfd)))
 		goto out_unlock;
-	if (newfd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
-		goto out_unlock;
 	get_file(file);			/* We are now finished with oldfd */
 
 	err = expand_files(files, newfd);
-	if (err < 0)
+	if (unlikely(err < 0)) {
+		if (err == -EMFILE)
+			err = -EBADF;
 		goto out_fput;
+	}
 
 	/* To avoid races with open() and dup(), we will mark the fd as
 	 * in-use in the open-file bitmap throughout the entire dup2()
@@ -328,6 +320,8 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	switch (cmd) {
 	case F_DUPFD:
 	case F_DUPFD_CLOEXEC:
+		if (arg >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
+			break;
 		get_file(filp);
 		err = dupfd(filp, arg, cmd == F_DUPFD_CLOEXEC);
 		break;
