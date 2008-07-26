@@ -771,6 +771,9 @@ void __init setup_arch(char **cmdline_p)
 
 	_bfin_swrst = bfin_read_SWRST();
 
+	/* If we double fault, reset the system - otherwise we hang forever */
+	bfin_write_SWRST(DOUBLE_FAULT);
+
 	if (_bfin_swrst & RESET_DOUBLE)
 		printk(KERN_INFO "Recovering from Double Fault event\n");
 	else if (_bfin_swrst & RESET_WDOG)
@@ -1017,10 +1020,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 	/* Is it turned on? */
-	if (bfin_read_DMEM_CONTROL() & (ENDCPLB | DMC_ENABLE) != (ENDCPLB | DMC_ENABLE))
+	if ((bfin_read_DMEM_CONTROL() & (ENDCPLB | DMC_ENABLE)) != (ENDCPLB | DMC_ENABLE))
 		dcache_size = 0;
 
-	if (bfin_read_IMEM_CONTROL() & (IMC | ENICPLB) == (IMC | ENICPLB))
+	if ((bfin_read_IMEM_CONTROL() & (IMC | ENICPLB)) == (IMC | ENICPLB))
 		icache_size = 0;
 
 	seq_printf(m, "cache size\t: %d KB(L1 icache) "
