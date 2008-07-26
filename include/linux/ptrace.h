@@ -314,6 +314,10 @@ static inline void user_enable_block_step(struct task_struct *task)
 #define arch_ptrace_stop(code, info)		do { } while (0)
 #endif
 
+extern int task_current_syscall(struct task_struct *target, long *callno,
+				unsigned long args[6], unsigned int maxargs,
+				unsigned long *sp, unsigned long *pc);
+
 #endif
 
 #endif

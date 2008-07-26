@@ -78,6 +78,8 @@ lib-$(CONFIG_GENERIC_BUG) += bug.o
 
 obj-$(CONFIG_HAVE_LMB) += lmb.o
 
+obj-$(CONFIG_HAVE_ARCH_TRACEHOOK) += syscall.o
+
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
 
