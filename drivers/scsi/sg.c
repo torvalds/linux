@@ -217,6 +217,18 @@ static int sg_last_dev(void);
 #define SZ_SG_IOVEC sizeof(sg_iovec_t)
 #define SZ_SG_REQ_INFO sizeof(sg_req_info_t)
 
+static int sg_allow_access(struct file *filp, unsigned char *cmd)
+{
+	struct sg_fd *sfp = (struct sg_fd *)filp->private_data;
+	struct request_queue *q = sfp->parentdp->device->request_queue;
+
+	if (sfp->parentdp->device->type == TYPE_SCANNER)
+		return 0;
+
+	return blk_verify_command(&q->cmd_filter,
+				  cmd, filp->f_mode & FMODE_WRITE);
+}
+
 static int
 sg_open(struct inode *inode, struct file *filp)
 {
@@ -641,7 +653,6 @@ sg_new_write(Sg_fd *sfp, struct file *file, const char __user *buf,
 	unsigned char cmnd[MAX_COMMAND_SIZE];
 	int timeout;
 	unsigned long ul_timeout;
-	struct request_queue *q;
 
 	if (count < SZ_SG_IO_HDR)
 		return -EINVAL;
@@ -690,9 +701,7 @@ sg_new_write(Sg_fd *sfp, struct file *file, const char __user *buf,
 		sg_remove_request(sfp, srp);
 		return -EFAULT;
 	}
-	q = sfp->parentdp->device->request_queue;
-	if (read_only && blk_verify_command(&q->cmd_filter, cmnd,
-					    file->f_mode & FMODE_WRITE)) {
+	if (read_only && sg_allow_access(file, cmnd)) {
 		sg_remove_request(sfp, srp);
 		return -EPERM;
 	}
@@ -1061,14 +1070,11 @@ sg_ioctl(struct inode *inode, struct file *filp,
 			return -ENODEV;
 		if (read_only) {
 			unsigned char opcode = WRITE_6;
-			struct request_queue *q = sdp->device->request_queue;
 			Scsi_Ioctl_Command __user *siocp = p;
 
 			if (copy_from_user(&opcode, siocp->data, 1))
 				return -EFAULT;
-			if (blk_verify_command(&q->cmd_filter,
-					       &opcode,
-					       filp->f_mode & FMODE_WRITE))
+			if (sg_allow_access(filp, &opcode))
 				return -EPERM;
 		}
 		return sg_scsi_ioctl(filp, sdp->device->request_queue, NULL, p);
