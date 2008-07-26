@@ -258,9 +258,7 @@ static void find_next_position(struct mtdoops_context *cxt)
 	if (maxcount == 0xffffffff) {
 		cxt->nextpage = 0;
 		cxt->nextcount = 1;
-		cxt->ready = 1;
-		printk(KERN_DEBUG "mtdoops: Ready %d, %d (first init)\n",
-				cxt->nextpage, cxt->nextcount);
+		schedule_work(&cxt->work_erase);
 		return;
 	}
 
