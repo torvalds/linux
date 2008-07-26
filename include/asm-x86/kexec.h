@@ -10,14 +10,15 @@
 # define VA_PTE_0		5
 # define PA_PTE_1		6
 # define VA_PTE_1		7
+# define PA_SWAP_PAGE		8
 # ifdef CONFIG_X86_PAE
-#  define PA_PMD_0		8
-#  define VA_PMD_0		9
-#  define PA_PMD_1		10
-#  define VA_PMD_1		11
-#  define PAGES_NR		12
+#  define PA_PMD_0		9
+#  define VA_PMD_0		10
+#  define PA_PMD_1		11
+#  define VA_PMD_1		12
+#  define PAGES_NR		13
 # else
-#  define PAGES_NR		8
+#  define PAGES_NR		9
 # endif
 #else
 # define PA_CONTROL_PAGE	0
@@ -152,11 +153,12 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 }
 
 #ifdef CONFIG_X86_32
-asmlinkage NORET_TYPE void
+asmlinkage unsigned long
 relocate_kernel(unsigned long indirection_page,
 		unsigned long control_page,
 		unsigned long start_address,
-		unsigned int has_pae) ATTRIB_NORET;
+		unsigned int has_pae,
+		unsigned int preserve_context);
 #else
 NORET_TYPE void
 relocate_kernel(unsigned long indirection_page,

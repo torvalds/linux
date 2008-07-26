@@ -24,6 +24,8 @@
 #include <linux/utsrelease.h>
 #include <linux/utsname.h>
 #include <linux/numa.h>
+#include <linux/suspend.h>
+#include <linux/device.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
@@ -239,6 +241,12 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 					   get_order(KEXEC_CONTROL_CODE_SIZE));
 	if (!image->control_code_page) {
 		printk(KERN_ERR "Could not allocate control_code_buffer\n");
+		goto out;
+	}
+
+	image->swap_page = kimage_alloc_control_pages(image, 0);
+	if (!image->swap_page) {
+		printk(KERN_ERR "Could not allocate swap buffer\n");
 		goto out;
 	}
 
@@ -986,6 +994,8 @@ asmlinkage long sys_kexec_load(unsigned long entry, unsigned long nr_segments,
 		if (result)
 			goto out;
 
+		if (flags & KEXEC_PRESERVE_CONTEXT)
+			image->preserve_context = 1;
 		result = machine_kexec_prepare(image);
 		if (result)
 			goto out;
@@ -1411,3 +1421,50 @@ static int __init crash_save_vmcoreinfo_init(void)
 }
 
 module_init(crash_save_vmcoreinfo_init)
+
+/**
+ *	kernel_kexec - reboot the system
+ *
+ *	Move into place and start executing a preloaded standalone
+ *	executable.  If nothing was preloaded return an error.
+ */
+int kernel_kexec(void)
+{
+	int error = 0;
+
+	if (xchg(&kexec_lock, 1))
+		return -EBUSY;
+	if (!kexec_image) {
+		error = -EINVAL;
+		goto Unlock;
+	}
+
+	if (kexec_image->preserve_context) {
+#ifdef CONFIG_KEXEC_JUMP
+		local_irq_disable();
+		save_processor_state();
+#endif
+	} else {
+		blocking_notifier_call_chain(&reboot_notifier_list,
+					     SYS_RESTART, NULL);
+		system_state = SYSTEM_RESTART;
+		device_shutdown();
+		sysdev_shutdown();
+		printk(KERN_EMERG "Starting new kernel\n");
+		machine_shutdown();
+	}
+
+	machine_kexec(kexec_image);
+
+	if (kexec_image->preserve_context) {
+#ifdef CONFIG_KEXEC_JUMP
+		restore_processor_state();
+		local_irq_enable();
+#endif
+	}
+
+ Unlock:
+	xchg(&kexec_lock, 0);
+
+	return error;
+}
