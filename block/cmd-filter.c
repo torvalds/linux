@@ -27,7 +27,7 @@
 #include <scsi/scsi.h>
 #include <linux/cdrom.h>
 
-int blk_verify_command(struct blk_scsi_cmd_filter *filter,
+int blk_verify_command(struct blk_cmd_filter *filter,
 		       unsigned char *cmd, int has_write_perm)
 {
 	/* root can do any command. */
@@ -51,7 +51,7 @@ int blk_verify_command(struct blk_scsi_cmd_filter *filter,
 EXPORT_SYMBOL(blk_verify_command);
 
 /* and now, the sysfs stuff */
-static ssize_t rcf_cmds_show(struct blk_scsi_cmd_filter *filter, char *page,
+static ssize_t rcf_cmds_show(struct blk_cmd_filter *filter, char *page,
 			     int rw)
 {
 	char *npage = page;
@@ -78,18 +78,18 @@ static ssize_t rcf_cmds_show(struct blk_scsi_cmd_filter *filter, char *page,
 	return npage - page;
 }
 
-static ssize_t rcf_readcmds_show(struct blk_scsi_cmd_filter *filter, char *page)
+static ssize_t rcf_readcmds_show(struct blk_cmd_filter *filter, char *page)
 {
 	return rcf_cmds_show(filter, page, READ);
 }
 
-static ssize_t rcf_writecmds_show(struct blk_scsi_cmd_filter *filter,
+static ssize_t rcf_writecmds_show(struct blk_cmd_filter *filter,
 				 char *page)
 {
 	return rcf_cmds_show(filter, page, WRITE);
 }
 
-static ssize_t rcf_cmds_store(struct blk_scsi_cmd_filter *filter,
+static ssize_t rcf_cmds_store(struct blk_cmd_filter *filter,
 			      const char *page, size_t count, int rw)
 {
 	ssize_t ret = 0;
@@ -122,13 +122,13 @@ static ssize_t rcf_cmds_store(struct blk_scsi_cmd_filter *filter,
 	return count;
 }
 
-static ssize_t rcf_readcmds_store(struct blk_scsi_cmd_filter *filter,
+static ssize_t rcf_readcmds_store(struct blk_cmd_filter *filter,
 				  const char *page, size_t count)
 {
 	return rcf_cmds_store(filter, page, count, READ);
 }
 
-static ssize_t rcf_writecmds_store(struct blk_scsi_cmd_filter *filter,
+static ssize_t rcf_writecmds_store(struct blk_cmd_filter *filter,
 				   const char *page, size_t count)
 {
 	return rcf_cmds_store(filter, page, count, WRITE);
@@ -136,8 +136,8 @@ static ssize_t rcf_writecmds_store(struct blk_scsi_cmd_filter *filter,
 
 struct rcf_sysfs_entry {
 	struct attribute attr;
-	ssize_t (*show)(struct blk_scsi_cmd_filter *, char *);
-	ssize_t (*store)(struct blk_scsi_cmd_filter *, const char *, size_t);
+	ssize_t (*show)(struct blk_cmd_filter *, char *);
+	ssize_t (*store)(struct blk_cmd_filter *, const char *, size_t);
 };
 
 static struct rcf_sysfs_entry rcf_readcmds_entry = {
@@ -164,9 +164,9 @@ static ssize_t
 rcf_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 {
 	struct rcf_sysfs_entry *entry = to_rcf(attr);
-	struct blk_scsi_cmd_filter *filter;
+	struct blk_cmd_filter *filter;
 
-	filter = container_of(kobj, struct blk_scsi_cmd_filter, kobj);
+	filter = container_of(kobj, struct blk_cmd_filter, kobj);
 	if (entry->show)
 		return entry->show(filter, page);
 
@@ -178,7 +178,7 @@ rcf_attr_store(struct kobject *kobj, struct attribute *attr,
 			const char *page, size_t length)
 {
 	struct rcf_sysfs_entry *entry = to_rcf(attr);
-	struct blk_scsi_cmd_filter *filter;
+	struct blk_cmd_filter *filter;
 
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
@@ -186,7 +186,7 @@ rcf_attr_store(struct kobject *kobj, struct attribute *attr,
 	if (!entry->store)
 		return -EINVAL;
 
-	filter = container_of(kobj, struct blk_scsi_cmd_filter, kobj);
+	filter = container_of(kobj, struct blk_cmd_filter, kobj);
 	return entry->store(filter, page, length);
 }
 
@@ -203,7 +203,7 @@ static struct kobj_type rcf_ktype = {
 int blk_register_filter(struct gendisk *disk)
 {
 	int ret;
-	struct blk_scsi_cmd_filter *filter = &disk->queue->cmd_filter;
+	struct blk_cmd_filter *filter = &disk->queue->cmd_filter;
 	struct kobject *parent = kobject_get(disk->holder_dir->parent);
 
 	if (!parent)
@@ -220,7 +220,7 @@ int blk_register_filter(struct gendisk *disk)
 
 void blk_unregister_filter(struct gendisk *disk)
 {
-	struct blk_scsi_cmd_filter *filter = &disk->queue->cmd_filter;
+	struct blk_cmd_filter *filter = &disk->queue->cmd_filter;
 
 	kobject_put(&filter->kobj);
 	kobject_put(disk->holder_dir->parent);

@@ -105,7 +105,7 @@ static int sg_emulated_host(struct request_queue *q, int __user *p)
 	return put_user(1, p);
 }
 
-void blk_set_cmd_filter_defaults(struct blk_scsi_cmd_filter *filter)
+void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
 {
 	/* Basic read-only commands */
 	__set_bit(TEST_UNIT_READY, filter->read_ok);
