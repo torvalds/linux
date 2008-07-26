@@ -948,7 +948,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	uint32_t revid;
 
 	u_long cclk = 0, sclk = 0;
-	u_int dcache_size = 0, dsup_banks = 0;
+	u_int icache_size = BFIN_ICACHESIZE / 1024, dcache_size = 0, dsup_banks = 0;
 
 	cpu = CPU;
 	mmu = "none";
@@ -1017,12 +1017,15 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 	/* Is it turned on? */
-	if (!((bfin_read_DMEM_CONTROL()) & (ENDCPLB | DMC_ENABLE)))
+	if (bfin_read_DMEM_CONTROL() & (ENDCPLB | DMC_ENABLE) != (ENDCPLB | DMC_ENABLE))
 		dcache_size = 0;
+
+	if (bfin_read_IMEM_CONTROL() & (IMC | ENICPLB) == (IMC | ENICPLB))
+		icache_size = 0;
 
 	seq_printf(m, "cache size\t: %d KB(L1 icache) "
 		"%d KB(L1 dcache-%s) %d KB(L2 cache)\n",
-		BFIN_ICACHESIZE / 1024, dcache_size,
+		icache_size, dcache_size,
 #if defined CONFIG_BFIN_WB
 		"wb"
 #elif defined CONFIG_BFIN_WT
@@ -1032,8 +1035,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m, "%s\n", cache);
 
-	seq_printf(m, "icache setup\t: %d Sub-banks/%d Ways, %d Lines/Way\n",
-		   BFIN_ISUBBANKS, BFIN_IWAYS, BFIN_ILINES);
+	if (icache_size)
+		seq_printf(m, "icache setup\t: %d Sub-banks/%d Ways, %d Lines/Way\n",
+			   BFIN_ISUBBANKS, BFIN_IWAYS, BFIN_ILINES);
+	else
+		seq_printf(m, "icache setup\t: off\n");
+
 	seq_printf(m,
 		   "dcache setup\t: %d Super-banks/%d Sub-banks/%d Ways, %d Lines/Way\n",
 		   dsup_banks, BFIN_DSUBBANKS, BFIN_DWAYS,
