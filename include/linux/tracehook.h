@@ -331,4 +331,25 @@ static inline int tracehook_consider_ignored_signal(struct task_struct *task,
 	return (task_ptrace(task) & PT_PTRACED) != 0;
 }
 
+/**
+ * tracehook_consider_fatal_signal - suppress special handling of fatal signal
+ * @task:		task receiving the signal
+ * @sig:		signal number being sent
+ * @handler:		%SIG_DFL or %SIG_IGN
+ *
+ * Return nonzero to prevent special handling of this termination signal.
+ * Normally @handler is %SIG_DFL.  It can be %SIG_IGN if @sig is ignored,
+ * in which case force_sig() is about to reset it to %SIG_DFL.
+ * When this returns zero, this signal might cause a quick termination
+ * that does not give the debugger a chance to intercept the signal.
+ *
+ * Called with or without @task->sighand->siglock held.
+ */
+static inline int tracehook_consider_fatal_signal(struct task_struct *task,
+						  int sig,
+						  void __user *handler)
+{
+	return (task_ptrace(task) & PT_PTRACED) != 0;
+}
+
 #endif	/* <linux/tracehook.h> */
