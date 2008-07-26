@@ -263,6 +263,10 @@ struct memstick_dev {
 	/* Get next request from the media driver.                         */
 	int                      (*next_request)(struct memstick_dev *card,
 						 struct memstick_request **mrq);
+	/* Tell the media driver to stop doing things                      */
+	void                     (*stop)(struct memstick_dev *card);
+	/* Allow the media driver to continue                              */
+	void                     (*start)(struct memstick_dev *card);
 
 	struct device            dev;
 };

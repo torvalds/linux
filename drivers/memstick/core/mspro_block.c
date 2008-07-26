@@ -752,6 +752,37 @@ static int mspro_block_has_request(struct mspro_block_data *msb)
 	return rc;
 }
 
+static void mspro_block_stop(struct memstick_dev *card)
+{
+	struct mspro_block_data *msb = memstick_get_drvdata(card);
+	int rc = 0;
+	unsigned long flags;
+
+	while (1) {
+		spin_lock_irqsave(&msb->q_lock, flags);
+		if (!msb->has_request) {
+			blk_stop_queue(msb->queue);
+			rc = 1;
+		}
+		spin_unlock_irqrestore(&msb->q_lock, flags);
+
+		if (rc)
+			break;
+
+		wait_for_completion(&card->mrq_complete);
+	}
+}
+
+static void mspro_block_start(struct memstick_dev *card)
+{
+	struct mspro_block_data *msb = memstick_get_drvdata(card);
+	unsigned long flags;
+
+	spin_lock_irqsave(&msb->q_lock, flags);
+	blk_start_queue(msb->queue);
+	spin_unlock_irqrestore(&msb->q_lock, flags);
+}
+
 static int mspro_block_queue_thread(void *data)
 {
 	struct memstick_dev *card = data;
@@ -1272,6 +1303,8 @@ static int mspro_block_probe(struct memstick_dev *card)
 	rc = mspro_block_init_disk(card);
 	if (!rc) {
 		card->check = mspro_block_check_card;
+		card->stop = mspro_block_stop;
+		card->start = mspro_block_start;
 		return 0;
 	}
 

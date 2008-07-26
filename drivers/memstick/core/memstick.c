@@ -433,8 +433,11 @@ static void memstick_check(struct work_struct *work)
 
 	dev_dbg(&host->dev, "memstick_check started\n");
 	mutex_lock(&host->lock);
-	if (!host->card)
-		memstick_power_on(host);
+	if (!host->card) {
+		if (memstick_power_on(host))
+			goto out_power_off;
+	} else
+		host->card->stop(host->card);
 
 	card = memstick_alloc_card(host);
 
@@ -452,7 +455,8 @@ static void memstick_check(struct work_struct *work)
 			    || !(host->card->check(host->card))) {
 				device_unregister(&host->card->dev);
 				host->card = NULL;
-			}
+			} else
+				host->card->start(host->card);
 		}
 
 		if (!host->card) {
@@ -465,6 +469,7 @@ static void memstick_check(struct work_struct *work)
 			kfree(card);
 	}
 
+out_power_off:
 	if (!host->card)
 		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
 
