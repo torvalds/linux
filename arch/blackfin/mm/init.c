@@ -137,11 +137,14 @@ void __init mem_init(void)
 		"(%uk init code, %uk kernel code, %uk data, %uk dma, %uk reserved)\n",
 		(unsigned long) freepages << (PAGE_SHIFT-10), _ramend >> 10,
 		initk, codek, datak, DMA_UNCACHED_REGION >> 10, (reservedpages << (PAGE_SHIFT-10)));
+}
+
+static int __init sram_init(void)
+{
+	unsigned long tmp;
 
 	/* Initialize the blackfin L1 Memory. */
-	l1sram_init();
-	l1_data_sram_init();
-	l1_inst_sram_init();
+	bfin_sram_init();
 
 	/* Allocate this once; never free it.  We assume this gives us a
 	   pointer to the start of L1 scratchpad memory; panic if it
@@ -152,7 +155,10 @@ void __init mem_init(void)
 			tmp, (unsigned long)L1_SCRATCH_TASK_INFO);
 		panic("No L1, time to give up\n");
 	}
+
+	return 0;
 }
+pure_initcall(sram_init);
 
 static void __init free_init_pages(const char *what, unsigned long begin, unsigned long end)
 {
