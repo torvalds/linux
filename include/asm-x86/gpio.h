@@ -16,10 +16,6 @@
 #ifndef _ASM_I386_GPIO_H
 #define _ASM_I386_GPIO_H
 
-#ifdef CONFIG_X86_RDC321X
-#include <gpio.h>
-#else /* CONFIG_X86_RDC321X */
-
 #include <asm-generic/gpio.h>
 
 #ifdef CONFIG_GPIOLIB
@@ -56,7 +52,5 @@ static inline int irq_to_gpio(unsigned int irq)
 }
 
 #endif /* CONFIG_GPIOLIB */
-
-#endif /* CONFIG_X86_RDC321X */
 
 #endif /* ASM_X86__GPIO_H */

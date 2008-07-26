@@ -122,7 +122,7 @@ static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_id_map)
 
 static inline physid_mask_t apicid_to_cpu_present(int apicid)
 {
-	return physid_mask_of_physid(0);
+	return physid_mask_of_physid(apicid);
 }
 
 static inline void setup_portio_remap(void)
