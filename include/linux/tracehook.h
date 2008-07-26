@@ -210,4 +210,22 @@ static inline void tracehook_report_clone_complete(int trace,
 		ptrace_event(0, trace, pid);
 }
 
+/**
+ * tracehook_report_vfork_done - vfork parent's child has exited or exec'd
+ * @child:		child task, already running
+ * @pid:		new child's PID in the parent's namespace
+ *
+ * Called after a %CLONE_VFORK parent has waited for the child to complete.
+ * The clone/vfork system call will return immediately after this.
+ * The @child pointer may be invalid if a self-reaping child died and
+ * tracehook_report_clone() took no action to prevent it from self-reaping.
+ *
+ * Called with no locks held.
+ */
+static inline void tracehook_report_vfork_done(struct task_struct *child,
+					       pid_t pid)
+{
+	ptrace_event(PT_TRACE_VFORK_DONE, PTRACE_EVENT_VFORK_DONE, pid);
+}
+
 #endif	/* <linux/tracehook.h> */

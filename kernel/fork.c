@@ -1414,10 +1414,7 @@ long do_fork(unsigned long clone_flags,
 			freezer_do_not_count();
 			wait_for_completion(&vfork);
 			freezer_count();
-			if (unlikely (current->ptrace & PT_TRACE_VFORK_DONE)) {
-				current->ptrace_message = nr;
-				ptrace_notify ((PTRACE_EVENT_VFORK_DONE << 8) | SIGTRAP);
-			}
+			tracehook_report_vfork_done(p, nr);
 		}
 	} else {
 		nr = PTR_ERR(p);
