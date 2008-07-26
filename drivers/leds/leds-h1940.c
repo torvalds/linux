@@ -23,7 +23,8 @@
 /*
  * Green led.
  */
-void h1940_greenled_set(struct led_classdev *led_dev, enum led_brightness value)
+static void h1940_greenled_set(struct led_classdev *led_dev,
+			       enum led_brightness value)
 {
 	switch (value) {
 	case LED_HALF:
@@ -52,7 +53,8 @@ static struct led_classdev h1940_greenled = {
 /*
  * Red led.
  */
-void h1940_redled_set(struct led_classdev *led_dev, enum led_brightness value)
+static void h1940_redled_set(struct led_classdev *led_dev,
+			     enum led_brightness value)
 {
 	switch (value) {
 	case LED_HALF:
@@ -82,7 +84,8 @@ static struct led_classdev h1940_redled = {
  * Blue led.
  * (it can only be blue flashing led)
  */
-void h1940_blueled_set(struct led_classdev *led_dev, enum led_brightness value)
+static void h1940_blueled_set(struct led_classdev *led_dev,
+			      enum led_brightness value)
 {
 	if (value) {
 		/* flashing Blue */

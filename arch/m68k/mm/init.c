@@ -32,8 +32,6 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-static bootmem_data_t __initdata bootmem_data[MAX_NUMNODES];
-
 pg_data_t pg_data_map[MAX_NUMNODES];
 EXPORT_SYMBOL(pg_data_map);
 
@@ -58,7 +56,7 @@ void __init m68k_setup_node(int node)
 		pg_data_table[i] = pg_data_map + node;
 	}
 #endif
-	pg_data_map[node].bdata = bootmem_data + node;
+	pg_data_map[node].bdata = bootmem_node_data + node;
 	node_set_online(node);
 }
 

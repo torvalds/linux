@@ -836,16 +836,12 @@ static int tdfxfb_pan_display(struct fb_var_screeninfo *var,
 	struct tdfx_par *par = info->par;
 	u32 addr = var->yoffset * info->fix.line_length;
 
-	if (nopan || var->xoffset || (var->yoffset > var->yres_virtual))
-		return -EINVAL;
-	if ((var->yoffset + var->yres > var->yres_virtual && nowrap))
+	if (nopan || var->xoffset)
 		return -EINVAL;
 
 	banshee_make_room(par, 1);
 	tdfx_outl(par, VIDDESKSTART, addr);
 
-	info->var.xoffset = var->xoffset;
-	info->var.yoffset = var->yoffset;
 	return 0;
 }
 
@@ -1426,6 +1422,8 @@ MODULE_LICENSE("GPL");
 module_param(hwcursor, int, 0644);
 MODULE_PARM_DESC(hwcursor, "Enable hardware cursor "
 			"(1=enable, 0=disable, default=1)");
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
 #ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "Disable MTRR support (default: enabled)");

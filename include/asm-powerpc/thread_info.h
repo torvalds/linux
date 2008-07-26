@@ -66,19 +66,11 @@ struct thread_info {
 
 #if THREAD_SHIFT >= PAGE_SHIFT
 
-#define THREAD_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
-
-#ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info(tsk)	\
-	((struct thread_info *)__get_free_pages(GFP_KERNEL | \
-		__GFP_ZERO, THREAD_ORDER))
-#else
-#define alloc_thread_info(tsk)	\
-	((struct thread_info *)__get_free_pages(GFP_KERNEL, THREAD_ORDER))
-#endif
-#define free_thread_info(ti)	free_pages((unsigned long)ti, THREAD_ORDER)
+#define THREAD_SIZE_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
 
 #else /* THREAD_SHIFT < PAGE_SHIFT */
+
+#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 
 extern struct thread_info *alloc_thread_info(struct task_struct *tsk);
 extern void free_thread_info(struct thread_info *ti);

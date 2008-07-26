@@ -31,6 +31,7 @@
 #include <linux/mount.h>
 #include <linux/crypto.h>
 #include <linux/fs_stack.h>
+#include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
 static struct dentry *lock_parent(struct dentry *dentry)
@@ -188,6 +189,16 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 				"context; rc = [%d]\n", rc);
 		goto out;
 	}
+	if (!ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->lower_file) {
+		rc = ecryptfs_init_persistent_file(ecryptfs_dentry);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to initialize "
+			       "the persistent file for the dentry with name "
+			       "[%s]; rc = [%d]\n", __func__,
+			       ecryptfs_dentry->d_name.name, rc);
+			goto out;
+		}
+	}
 	rc = ecryptfs_write_metadata(ecryptfs_dentry);
 	if (rc) {
 		printk(KERN_ERR "Error writing headers; rc = [%d]\n", rc);
@@ -307,10 +318,11 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 		d_add(dentry, NULL);
 		goto out;
 	}
-	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb, 1);
+	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb,
+				ECRYPTFS_INTERPOSE_FLAG_D_ADD);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error interposing\n");
-		goto out_dput;
+		goto out;
 	}
 	if (S_ISDIR(lower_inode->i_mode)) {
 		ecryptfs_printk(KERN_DEBUG, "Is a directory; returning\n");
@@ -336,11 +348,21 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR,
 				"Cannot ecryptfs_kmalloc a page\n");
-		goto out_dput;
+		goto out;
 	}
 	crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
 	if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED))
 		ecryptfs_set_default_sizes(crypt_stat);
+	if (!ecryptfs_inode_to_private(dentry->d_inode)->lower_file) {
+		rc = ecryptfs_init_persistent_file(dentry);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to initialize "
+			       "the persistent file for the dentry with name "
+			       "[%s]; rc = [%d]\n", __func__,
+			       dentry->d_name.name, rc);
+			goto out;
+		}
+	}
 	rc = ecryptfs_read_and_validate_header_region(page_virt,
 						      dentry->d_inode);
 	if (rc) {
@@ -364,8 +386,7 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 		else
 			file_size = i_size_read(lower_dentry->d_inode);
 	} else {
-		memcpy(&file_size, page_virt, sizeof(file_size));
-		file_size = be64_to_cpu(file_size);
+		file_size = get_unaligned_be64(page_virt);
 	}
 	i_size_write(dentry->d_inode, (loff_t)file_size);
 	kmem_cache_free(ecryptfs_header_cache_2, page_virt);

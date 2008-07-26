@@ -256,9 +256,6 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	if (!s->s_root)
 		goto out_iput;
 
-	if (!NO_TRUNCATE)
-		s->s_root->d_op = &minix_dentry_operations;
-
 	if (!(s->s_flags & MS_RDONLY)) {
 		if (sbi->s_version != MINIX_V3) /* s_state is now out from V3 sb */
 			ms->s_state &= ~MINIX_VALID_FS;

@@ -38,6 +38,19 @@ extern void paging_init(void);
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
 #include <asm-generic/pgtable.h>
+
+
+/*
+ * This gets called at the end of handling a page fault, when
+ * the kernel has put a new PTE into the page table for the process.
+ * We use it to ensure coherency between the i-cache and d-cache
+ * for the page which has just been mapped in.
+ * On machines which use an MMU hash table, we use this to put a
+ * corresponding HPTE into the hash table ahead of time, instead of
+ * waiting for the inevitable extra hash-table miss exception.
+ */
+extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

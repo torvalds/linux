@@ -448,7 +448,7 @@ int hpux_pipe(int *kstack_fildes)
 	int error;
 
 	lock_kernel();
-	error = do_pipe(kstack_fildes);
+	error = do_pipe_flags(kstack_fildes, 0);
 	unlock_kernel();
 	return error;
 }
