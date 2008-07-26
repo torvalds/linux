@@ -451,4 +451,24 @@ static inline int tracehook_get_signal(struct task_struct *task,
 	return 0;
 }
 
+/**
+ * tracehook_notify_jctl - report about job control stop/continue
+ * @notify:		nonzero if this is the last thread in the group to stop
+ * @why:		%CLD_STOPPED or %CLD_CONTINUED
+ *
+ * This is called when we might call do_notify_parent_cldstop().
+ * It's called when about to stop for job control; we are already in
+ * %TASK_STOPPED state, about to call schedule().  It's also called when
+ * a delayed %CLD_STOPPED or %CLD_CONTINUED report is ready to be made.
+ *
+ * Return nonzero to generate a %SIGCHLD with @why, which is
+ * normal if @notify is nonzero.
+ *
+ * Called with no locks held.
+ */
+static inline int tracehook_notify_jctl(int notify, int why)
+{
+	return notify || (current->ptrace & PT_PTRACED);
+}
+
 #endif	/* <linux/tracehook.h> */
