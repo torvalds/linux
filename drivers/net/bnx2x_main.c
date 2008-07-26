@@ -1020,7 +1020,7 @@ static inline int bnx2x_alloc_rx_sge(struct bnx2x *bp,
 
 	mapping = pci_map_page(bp->pdev, page, 0, BCM_PAGE_SIZE*PAGES_PER_SGE,
 			       PCI_DMA_FROMDEVICE);
-	if (unlikely(dma_mapping_error(mapping))) {
+	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		__free_pages(page, PAGES_PER_SGE_SHIFT);
 		return -ENOMEM;
 	}
@@ -1048,7 +1048,7 @@ static inline int bnx2x_alloc_rx_skb(struct bnx2x *bp,
 
 	mapping = pci_map_single(bp->pdev, skb->data, bp->rx_buf_use_size,
 				 PCI_DMA_FROMDEVICE);
-	if (unlikely(dma_mapping_error(mapping))) {
+	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
