@@ -1054,10 +1054,9 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
 
 
 /*
+ * The ext4_get_blocks_wrap() function try to look up the requested blocks,
+ * and returns if the blocks are already mapped.
  *
- *
- * ext4_ext4 get_block() wrapper function
- * It will do a look up first, and returns if the blocks already mapped.
  * Otherwise it takes the write lock of the i_data_sem and allocate blocks
  * and store the allocated blocks in the result buffer head and mark it
  * mapped.

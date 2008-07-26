@@ -1441,7 +1441,7 @@ unsigned int ext4_ext_check_overlap(struct inode *inode,
 
 	/*
 	 * get the next allocated block if the extent in the path
-	 * is before the requested block(s) 
+	 * is before the requested block(s)
 	 */
 	if (b2 < b1) {
 		b2 = ext4_ext_next_allocated_block(path);
