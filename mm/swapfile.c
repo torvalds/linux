@@ -33,8 +33,8 @@
 #include <asm/tlbflush.h>
 #include <linux/swapops.h>
 
-DEFINE_SPINLOCK(swap_lock);
-unsigned int nr_swapfiles;
+static DEFINE_SPINLOCK(swap_lock);
+static unsigned int nr_swapfiles;
 long total_swap_pages;
 static int swap_overflow;
 static int least_priority;
@@ -44,7 +44,7 @@ static const char Unused_file[] = "Unused swap file entry ";
 static const char Bad_offset[] = "Bad swap offset entry ";
 static const char Unused_offset[] = "Unused swap offset entry ";
 
-struct swap_list_t swap_list = {-1, -1};
+static struct swap_list_t swap_list = {-1, -1};
 
 static struct swap_info_struct swap_info[MAX_SWAPFILES];
 
