@@ -63,11 +63,12 @@ struct kvm_pic {
 	void *irq_request_opaque;
 	int output;		/* intr from master PIC */
 	struct kvm_io_device dev;
+	void (*ack_notifier)(void *opaque, int irq);
 };
 
 struct kvm_pic *kvm_create_pic(struct kvm *kvm);
 void kvm_pic_set_irq(void *opaque, int irq, int level);
-int kvm_pic_read_irq(struct kvm_pic *s);
+int kvm_pic_read_irq(struct kvm *kvm);
 void kvm_pic_update_irq(struct kvm_pic *s);
 
 static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)

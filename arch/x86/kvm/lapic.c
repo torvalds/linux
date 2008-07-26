@@ -439,7 +439,7 @@ struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
 static void apic_set_eoi(struct kvm_lapic *apic)
 {
 	int vector = apic_find_highest_isr(apic);
-
+	int trigger_mode;
 	/*
 	 * Not every write EOI will has corresponding ISR,
 	 * one example is when Kernel check timer on setup_IO_APIC
@@ -451,7 +451,10 @@ static void apic_set_eoi(struct kvm_lapic *apic)
 	apic_update_ppr(apic);
 
 	if (apic_test_and_clear_vector(vector, apic->regs + APIC_TMR))
-		kvm_ioapic_update_eoi(apic->vcpu->kvm, vector);
+		trigger_mode = IOAPIC_LEVEL_TRIG;
+	else
+		trigger_mode = IOAPIC_EDGE_TRIG;
+	kvm_ioapic_update_eoi(apic->vcpu->kvm, vector, trigger_mode);
 }
 
 static void apic_send_ipi(struct kvm_lapic *apic)

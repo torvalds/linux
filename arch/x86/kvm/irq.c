@@ -72,7 +72,7 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 		if (kvm_apic_accept_pic_intr(v)) {
 			s = pic_irqchip(v->kvm);
 			s->output = 0;		/* PIC */
-			vector = kvm_pic_read_irq(s);
+			vector = kvm_pic_read_irq(v->kvm);
 		}
 	}
 	return vector;

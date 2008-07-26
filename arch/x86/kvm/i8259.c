@@ -159,9 +159,10 @@ static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 		s->irr &= ~(1 << irq);
 }
 
-int kvm_pic_read_irq(struct kvm_pic *s)
+int kvm_pic_read_irq(struct kvm *kvm)
 {
 	int irq, irq2, intno;
+	struct kvm_pic *s = pic_irqchip(kvm);
 
 	irq = pic_get_irq(&s->pics[0]);
 	if (irq >= 0) {
@@ -187,12 +188,21 @@ int kvm_pic_read_irq(struct kvm_pic *s)
 		intno = s->pics[0].irq_base + irq;
 	}
 	pic_update_irq(s);
+	kvm_notify_acked_irq(kvm, irq);
 
 	return intno;
 }
 
 void kvm_pic_reset(struct kvm_kpic_state *s)
 {
+	int irq;
+	struct kvm *kvm = s->pics_state->irq_request_opaque;
+
+	for (irq = 0; irq < PIC_NUM_PINS; irq++) {
+		if (!(s->imr & (1 << irq)) && (s->irr & (1 << irq) ||
+		    s->isr & (1 << irq)))
+			kvm_notify_acked_irq(kvm, irq);
+	}
 	s->last_irr = 0;
 	s->irr = 0;
 	s->imr = 0;
