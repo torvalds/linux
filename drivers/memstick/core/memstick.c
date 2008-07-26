@@ -249,8 +249,11 @@ EXPORT_SYMBOL(memstick_next_req);
  */
 void memstick_new_req(struct memstick_host *host)
 {
-	host->retries = cmd_retries;
-	host->request(host);
+	if (host->card) {
+		host->retries = cmd_retries;
+		INIT_COMPLETION(host->card->mrq_complete);
+		host->request(host);
+	}
 }
 EXPORT_SYMBOL(memstick_new_req);
 

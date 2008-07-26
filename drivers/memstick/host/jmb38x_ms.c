@@ -50,6 +50,7 @@ struct jmb38x_ms_host {
 	struct jmb38x_ms        *chip;
 	void __iomem            *addr;
 	spinlock_t              lock;
+	struct tasklet_struct   notify;
 	int                     id;
 	char                    host_id[32];
 	int                     irq;
@@ -590,23 +591,33 @@ static void jmb38x_ms_abort(unsigned long data)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static void jmb38x_ms_request(struct memstick_host *msh)
+static void jmb38x_ms_req_tasklet(unsigned long data)
 {
+	struct memstick_host *msh = (struct memstick_host *)data;
 	struct jmb38x_ms_host *host = memstick_priv(msh);
 	unsigned long flags;
 	int rc;
 
 	spin_lock_irqsave(&host->lock, flags);
-	if (host->req) {
-		spin_unlock_irqrestore(&host->lock, flags);
-		BUG();
-		return;
+	if (!host->req) {
+		do {
+			rc = memstick_next_req(msh, &host->req);
+			dev_dbg(&host->chip->pdev->dev, "tasklet req %d\n", rc);
+		} while (!rc && jmb38x_ms_issue_cmd(msh));
 	}
-
-	do {
-		rc = memstick_next_req(msh, &host->req);
-	} while (!rc && jmb38x_ms_issue_cmd(msh));
 	spin_unlock_irqrestore(&host->lock, flags);
+}
+
+static void jmb38x_ms_dummy_submit(struct memstick_host *msh)
+{
+	return;
+}
+
+static void jmb38x_ms_submit_req(struct memstick_host *msh)
+{
+	struct jmb38x_ms_host *host = memstick_priv(msh);
+
+	tasklet_schedule(&host->notify);
 }
 
 static int jmb38x_ms_reset(struct jmb38x_ms_host *host)
@@ -816,7 +827,9 @@ static struct memstick_host *jmb38x_ms_alloc_host(struct jmb38x_ms *jm, int cnt)
 		 host->id);
 	host->irq = jm->pdev->irq;
 	host->timeout_jiffies = msecs_to_jiffies(1000);
-	msh->request = jmb38x_ms_request;
+
+	tasklet_init(&host->notify, jmb38x_ms_req_tasklet, (unsigned long)msh);
+	msh->request = jmb38x_ms_submit_req;
 	msh->set_param = jmb38x_ms_set_param;
 
 	msh->caps = MEMSTICK_CAP_PAR4 | MEMSTICK_CAP_PAR8;
@@ -928,6 +941,8 @@ static void jmb38x_ms_remove(struct pci_dev *dev)
 
 		host = memstick_priv(jm->hosts[cnt]);
 
+		jm->hosts[cnt]->request = jmb38x_ms_dummy_submit;
+		tasklet_kill(&host->notify);
 		writel(0, host->addr + INT_SIGNAL_ENABLE);
 		writel(0, host->addr + INT_STATUS_ENABLE);
 		mmiowb();
