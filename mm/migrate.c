@@ -323,7 +323,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 		return 0;
 	}
 
-	write_lock_irq(&mapping->tree_lock);
+	spin_lock_irq(&mapping->tree_lock);
 
 	pslot = radix_tree_lookup_slot(&mapping->page_tree,
  					page_index(page));
@@ -331,12 +331,12 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	expected_count = 2 + !!PagePrivate(page);
 	if (page_count(page) != expected_count ||
 			(struct page *)radix_tree_deref_slot(pslot) != page) {
-		write_unlock_irq(&mapping->tree_lock);
+		spin_unlock_irq(&mapping->tree_lock);
 		return -EAGAIN;
 	}
 
 	if (!page_freeze_refs(page, expected_count)) {
-		write_unlock_irq(&mapping->tree_lock);
+		spin_unlock_irq(&mapping->tree_lock);
 		return -EAGAIN;
 	}
 
@@ -373,10 +373,9 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	__dec_zone_page_state(page, NR_FILE_PAGES);
 	__inc_zone_page_state(newpage, NR_FILE_PAGES);
 
-	write_unlock_irq(&mapping->tree_lock);
-	if (!PageSwapCache(newpage)) {
+	spin_unlock_irq(&mapping->tree_lock);
+	if (!PageSwapCache(newpage))
 		mem_cgroup_uncharge_cache_page(page);
-	}
 
 	return 0;
 }
