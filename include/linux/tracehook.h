@@ -471,4 +471,56 @@ static inline int tracehook_notify_jctl(int notify, int why)
 	return notify || (current->ptrace & PT_PTRACED);
 }
 
+/**
+ * tracehook_notify_death - task is dead, ready to notify parent
+ * @task:		@current task now exiting
+ * @death_cookie:	value to pass to tracehook_report_death()
+ * @group_dead:		nonzero if this was the last thread in the group to die
+ *
+ * Return the signal number to send our parent with do_notify_parent(), or
+ * zero to send no signal and leave a zombie, or -1 to self-reap right now.
+ *
+ * Called with write_lock_irq(&tasklist_lock) held.
+ */
+static inline int tracehook_notify_death(struct task_struct *task,
+					 void **death_cookie, int group_dead)
+{
+	if (task->exit_signal == -1)
+		return task->ptrace ? SIGCHLD : -1;
+
+	/*
+	 * If something other than our normal parent is ptracing us, then
+	 * send it a SIGCHLD instead of honoring exit_signal.  exit_signal
+	 * only has special meaning to our real parent.
+	 */
+	if (thread_group_empty(task) && !ptrace_reparented(task))
+		return task->exit_signal;
+
+	return task->ptrace ? SIGCHLD : 0;
+}
+
+/**
+ * tracehook_report_death - task is dead and ready to be reaped
+ * @task:		@current task now exiting
+ * @signal:		signal number sent to parent, or 0 or -1
+ * @death_cookie:	value passed back from tracehook_notify_death()
+ * @group_dead:		nonzero if this was the last thread in the group to die
+ *
+ * Thread has just become a zombie or is about to self-reap.  If positive,
+ * @signal is the signal number just sent to the parent (usually %SIGCHLD).
+ * If @signal is -1, this thread will self-reap.  If @signal is 0, this is
+ * a delayed_group_leader() zombie.  The @death_cookie was passed back by
+ * tracehook_notify_death().
+ *
+ * If normal reaping is not inhibited, @task->exit_state might be changing
+ * in parallel.
+ *
+ * Called without locks.
+ */
+static inline void tracehook_report_death(struct task_struct *task,
+					  int signal, void *death_cookie,
+					  int group_dead)
+{
+}
+
 #endif	/* <linux/tracehook.h> */
