@@ -22,6 +22,7 @@
 #include <linux/ptrace.h>
 #include <linux/signal.h>
 #include <linux/signalfd.h>
+#include <linux/tracehook.h>
 #include <linux/capability.h>
 #include <linux/freezer.h>
 #include <linux/pid_namespace.h>
@@ -39,24 +40,21 @@
 
 static struct kmem_cache *sigqueue_cachep;
 
-static int __sig_ignored(struct task_struct *t, int sig)
+static void __user *sig_handler(struct task_struct *t, int sig)
 {
-	void __user *handler;
+	return t->sighand->action[sig - 1].sa.sa_handler;
+}
 
+static int sig_handler_ignored(void __user *handler, int sig)
+{
 	/* Is it explicitly or implicitly ignored? */
-
-	handler = t->sighand->action[sig - 1].sa.sa_handler;
 	return handler == SIG_IGN ||
 		(handler == SIG_DFL && sig_kernel_ignore(sig));
 }
 
 static int sig_ignored(struct task_struct *t, int sig)
 {
-	/*
-	 * Tracers always want to know about signals..
-	 */
-	if (t->ptrace & PT_PTRACED)
-		return 0;
+	void __user *handler;
 
 	/*
 	 * Blocked signals are never ignored, since the
@@ -66,7 +64,14 @@ static int sig_ignored(struct task_struct *t, int sig)
 	if (sigismember(&t->blocked, sig) || sigismember(&t->real_blocked, sig))
 		return 0;
 
-	return __sig_ignored(t, sig);
+	handler = sig_handler(t, sig);
+	if (!sig_handler_ignored(handler, sig))
+		return 0;
+
+	/*
+	 * Tracers may want to know about even ignored signals.
+	 */
+	return !tracehook_consider_ignored_signal(t, sig, handler);
 }
 
 /*
@@ -2298,7 +2303,7 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 		 *   (for example, SIGCHLD), shall cause the pending signal to
 		 *   be discarded, whether or not it is blocked"
 		 */
-		if (__sig_ignored(t, sig)) {
+		if (sig_handler_ignored(sig_handler(t, sig), sig)) {
 			sigemptyset(&mask);
 			sigaddset(&mask, sig);
 			rm_from_queue_full(&mask, &t->signal->shared_pending);

@@ -312,4 +312,23 @@ static inline void tracehook_signal_handler(int sig, siginfo_t *info,
 		ptrace_notify(SIGTRAP);
 }
 
+/**
+ * tracehook_consider_ignored_signal - suppress short-circuit of ignored signal
+ * @task:		task receiving the signal
+ * @sig:		signal number being sent
+ * @handler:		%SIG_IGN or %SIG_DFL
+ *
+ * Return zero iff tracing doesn't care to examine this ignored signal,
+ * so it can short-circuit normal delivery and never even get queued.
+ * Either @handler is %SIG_DFL and @sig's default is ignore, or it's %SIG_IGN.
+ *
+ * Called with @task->sighand->siglock held.
+ */
+static inline int tracehook_consider_ignored_signal(struct task_struct *task,
+						    int sig,
+						    void __user *handler)
+{
+	return (task_ptrace(task) & PT_PTRACED) != 0;
+}
+
 #endif	/* <linux/tracehook.h> */
