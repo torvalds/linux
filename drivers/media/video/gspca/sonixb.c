@@ -58,6 +58,12 @@ struct sd {
 	__u8 reg11;
 };
 
+/* flags used in the device id table */
+#define F_GAIN 0x01		/* has gain */
+#define F_AUTO 0x02		/* has autogain */
+#define F_SIF  0x04		/* sif or vga */
+#define F_H18  0x08		/* long (18 b) or short (12 b) frame header */
+
 #define COMP2 0x8f
 #define COMP 0xc7		/* 0x87 //0x07 */
 #define COMP1 0xc9		/* 0x89 //0x09 */
@@ -751,74 +757,28 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u16 product;
 	int sif = 0;
 
 	/* nctrls depends upon the sensor, so we use a per cam copy */
 	memcpy(&sd->sd_desc, gspca_dev->sd_desc, sizeof(struct sd_desc));
 	gspca_dev->sd_desc = &sd->sd_desc;
 
-	sd->fr_h_sz = 12;		/* default size of the frame header */
-	sd->sd_desc.nctrls = 2;		/* default nb of ctrls */
-	product = id->idProduct;
-/*	switch (id->idVendor) { */
-/*	case 0x0c45:				 * Sonix */
-		switch (product) {
-		case 0x6001:			/* SN9C102 */
-		case 0x6005:			/* SN9C101 */
-		case 0x6007:			/* SN9C101 */
-			sd->sensor = SENSOR_TAS5110;
-			sd->sensor_has_gain = 1;
-			sd->sd_desc.nctrls = 4;
-			sd->sd_desc.dq_callback = do_autogain;
-			sif = 1;
-			break;
-		case 0x6009:			/* SN9C101 */
-		case 0x600d:			/* SN9C101 */
-		case 0x6029:			/* SN9C101 */
-			sd->sensor = SENSOR_PAS106;
-			sif = 1;
-			break;
-		case 0x6011:			/* SN9C101 - SN9C101G */
-			sd->sensor = SENSOR_OV6650;
-			sd->sensor_has_gain = 1;
-			sd->sensor_addr = 0x60;
-			sd->sd_desc.nctrls = 5;
-			sd->sd_desc.dq_callback = do_autogain;
-			sif = 1;
-			break;
-		case 0x6019:			/* SN9C101 */
-		case 0x602c:			/* SN9C102 */
-		case 0x602e:			/* SN9C102 */
-		case 0x60b0:			/* SN9C103 */
-			sd->sensor = SENSOR_OV7630;
-			sd->sensor_addr = 0x21;
-			sd->sensor_has_gain = 1;
-			sd->sd_desc.nctrls = 5;
-			sd->sd_desc.dq_callback = do_autogain;
-			if (product == 0x60b0)
-				sd->fr_h_sz = 18; /* size of frame header */
-			break;
-		case 0x6024:			/* SN9C102 */
-		case 0x6025:			/* SN9C102 */
-			sd->sensor = SENSOR_TAS5130CXX;
-			break;
-		case 0x6028:			/* SN9C102 */
-			sd->sensor = SENSOR_PAS202;
-			break;
-		case 0x602d:			/* SN9C102 */
-			sd->sensor = SENSOR_HV7131R;
-			break;
-		case 0x60af:			/* SN9C103 */
-			sd->sensor = SENSOR_PAS202;
-			sd->fr_h_sz = 18;	/* size of frame header (?) */
-			break;
-		}
-/*		break; */
-/*	} */
+	/* copy the webcam info from the device id */
+	sd->sensor = (id->driver_info >> 24) & 0xff;
+	if (id->driver_info & (F_GAIN << 16))
+		sd->sensor_has_gain = 1;
+	if (id->driver_info & (F_AUTO << 16))
+		sd->sd_desc.dq_callback = do_autogain;
+	if (id->driver_info & (F_SIF << 16))
+		sif = 1;
+	if (id->driver_info & (F_H18 << 16))
+		sd->fr_h_sz = 18;		/* size of frame header */
+	else
+		sd->fr_h_sz = 12;
+	sd->sd_desc.nctrls = (id->driver_info >> 8) & 0xff;
+	sd->sensor_addr = id->driver_info & 0xff;
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 	if (!sif) {
 		cam->cam_mode = vga_mode;
@@ -1212,27 +1172,47 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
+#define SFCI(sensor, flags, nctrls, i2c_addr) \
+	.driver_info = (SENSOR_ ## sensor << 24) \
+			| ((flags) << 16) \
+			| ((nctrls) << 8) \
+			| (i2c_addr)
 static __devinitdata struct usb_device_id device_table[] = {
 #ifndef CONFIG_USB_SN9C102
-	{USB_DEVICE(0x0c45, 0x6001), DVNM("Genius VideoCAM NB")},
-	{USB_DEVICE(0x0c45, 0x6005), DVNM("Sweex Tas5110")},
-	{USB_DEVICE(0x0c45, 0x6007), DVNM("Sonix sn9c101 + Tas5110D")},
-	{USB_DEVICE(0x0c45, 0x6009), DVNM("spcaCam@120")},
-	{USB_DEVICE(0x0c45, 0x600d), DVNM("spcaCam@120")},
+	{USB_DEVICE(0x0c45, 0x6001),			/* SN9C102 */
+			SFCI(TAS5110, F_GAIN|F_AUTO|F_SIF, 4, 0)},
+	{USB_DEVICE(0x0c45, 0x6005),			/* SN9C101 */
+			SFCI(TAS5110, F_GAIN|F_AUTO|F_SIF, 4, 0)},
+	{USB_DEVICE(0x0c45, 0x6007),			/* SN9C101 */
+			SFCI(TAS5110, F_GAIN|F_AUTO|F_SIF, 4, 0)},
+	{USB_DEVICE(0x0c45, 0x6009),			/* SN9C101 */
+			SFCI(PAS106, F_SIF, 2, 0)},
+	{USB_DEVICE(0x0c45, 0x600d),			/* SN9C101 */
+			SFCI(PAS106, F_SIF, 2, 0)},
 #endif
-	{USB_DEVICE(0x0c45, 0x6011), DVNM("MAX Webcam Microdia")},
+	{USB_DEVICE(0x0c45, 0x6011),		/* SN9C101 - SN9C101G */
+			SFCI(OV6650, F_GAIN|F_AUTO|F_SIF, 5, 0x60)},
 #ifndef CONFIG_USB_SN9C102
-	{USB_DEVICE(0x0c45, 0x6019), DVNM("Generic Sonix OV7630")},
-	{USB_DEVICE(0x0c45, 0x6024), DVNM("Generic Sonix Tas5130c")},
-	{USB_DEVICE(0x0c45, 0x6025), DVNM("Xcam Shanga")},
-	{USB_DEVICE(0x0c45, 0x6028), DVNM("Sonix Btc Pc380")},
-	{USB_DEVICE(0x0c45, 0x6029), DVNM("spcaCam@150")},
-	{USB_DEVICE(0x0c45, 0x602c), DVNM("Generic Sonix OV7630")},
-	{USB_DEVICE(0x0c45, 0x602d), DVNM("LIC-200 LG")},
-	{USB_DEVICE(0x0c45, 0x602e), DVNM("Genius VideoCam Messenger")},
-	{USB_DEVICE(0x0c45, 0x60af), DVNM("Trust WB3100P")},
-	{USB_DEVICE(0x0c45, 0x60b0), DVNM("Genius VideoCam Look")},
+	{USB_DEVICE(0x0c45, 0x6019),			/* SN9C101 */
+			SFCI(OV7630, F_GAIN|F_AUTO|F_SIF, 5, 0x21)},
+	{USB_DEVICE(0x0c45, 0x6024),			/* SN9C102 */
+			SFCI(TAS5130CXX, 0, 2, 0)},
+	{USB_DEVICE(0x0c45, 0x6025),			/* SN9C102 */
+			SFCI(TAS5130CXX, 0, 2, 0)},
+	{USB_DEVICE(0x0c45, 0x6028),			/* SN9C102 */
+			SFCI(PAS202, 0, 2, 0)},
+	{USB_DEVICE(0x0c45, 0x6029),			/* SN9C101 */
+			SFCI(PAS106, F_SIF, 2, 0)},
+	{USB_DEVICE(0x0c45, 0x602c),			/* SN9C102 */
+			SFCI(OV7630, F_GAIN|F_AUTO|F_SIF, 5, 0x21)},
+	{USB_DEVICE(0x0c45, 0x602d),			/* SN9C102 */
+			SFCI(HV7131R, 0, 2, 0)},
+	{USB_DEVICE(0x0c45, 0x602e),			/* SN9C102 */
+			SFCI(OV7630, F_GAIN|F_AUTO|F_SIF, 5, 0x21)},
+	{USB_DEVICE(0x0c45, 0x60af),			/* SN9C103 */
+			SFCI(PAS202, F_H18, 2, 0)},
+	{USB_DEVICE(0x0c45, 0x60b0),			/* SN9C103 */
+			SFCI(OV7630, F_GAIN|F_AUTO|F_SIF|F_H18, 5, 0x21)},
 #endif
 	{}
 };
