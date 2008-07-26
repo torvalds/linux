@@ -16,6 +16,7 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/hardirq.h>
+#include <linux/dmar.h>
 
 #include <asm/smp.h>
 #include <asm/ipi.h>
@@ -42,6 +43,11 @@ static struct genapic *apic_probe[] __initdata = {
  */
 void __init setup_apic_routing(void)
 {
+	if (genapic == &apic_x2apic_phys || genapic == &apic_x2apic_cluster) {
+		if (!intr_remapping_enabled)
+			genapic = &apic_flat;
+	}
+
 	if (genapic == &apic_flat) {
 		if (max_physical_apicid >= 8)
 			genapic = &apic_physflat;

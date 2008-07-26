@@ -14,7 +14,7 @@ DEFINE_PER_CPU(u32, x86_cpu_to_logical_apicid);
 
 static int __init x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
-	if (cpu_has_x2apic && intr_remapping_enabled)
+	if (cpu_has_x2apic)
 		return 1;
 
 	return 0;
