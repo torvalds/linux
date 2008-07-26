@@ -2451,8 +2451,6 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 
 struct video_device saa7134_video_template = {
 	.name				= "saa7134-video",
-	.type				= VID_TYPE_CAPTURE|VID_TYPE_TUNER |
-					VID_TYPE_CLIPPING|VID_TYPE_SCALES,
 	.fops				= &video_fops,
 	.ioctl_ops 			= &video_ioctl_ops,
 	.minor				= -1,
@@ -2462,7 +2460,6 @@ struct video_device saa7134_video_template = {
 
 struct video_device saa7134_radio_template = {
 	.name			= "saa7134-radio",
-	.type			= VID_TYPE_TUNER,
 	.fops			= &radio_fops,
 	.ioctl_ops 		= &radio_ioctl_ops,
 	.minor			= -1,

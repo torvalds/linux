@@ -1472,7 +1472,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 static struct video_device cx23885_vbi_template;
 static struct video_device cx23885_video_template = {
 	.name                 = "cx23885-video",
-	.type                 = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES,
 	.fops                 = &video_fops,
 	.minor                = -1,
 	.ioctl_ops 	      = &video_ioctl_ops,
@@ -1517,7 +1516,6 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	memcpy(&cx23885_vbi_template, &cx23885_video_template,
 		sizeof(cx23885_vbi_template));
 	strcpy(cx23885_vbi_template.name, "cx23885-vbi");
-	cx23885_vbi_template.type = VID_TYPE_TELETEXT|VID_TYPE_TUNER;
 
 	dev->tvnorm = cx23885_video_template.current_norm;
 

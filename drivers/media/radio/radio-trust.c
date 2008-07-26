@@ -364,7 +364,6 @@ static const struct v4l2_ioctl_ops trust_ioctl_ops = {
 
 static struct video_device trust_radio = {
 	.name		= "Trust FM Radio",
-	.type		= VID_TYPE_TUNER,
 	.fops           = &trust_fops,
 	.ioctl_ops 	= &trust_ioctl_ops,
 };

@@ -908,7 +908,6 @@ static const struct file_operations qcam_fops = {
 static struct video_device qcam_template=
 {
 	.name		= "Connectix Quickcam",
-	.type		= VID_TYPE_CAPTURE,
 	.fops           = &qcam_fops,
 };
 

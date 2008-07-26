@@ -406,7 +406,6 @@ static const struct v4l2_ioctl_ops rtrack_ioctl_ops = {
 
 static struct video_device rtrack_radio = {
 	.name		= "RadioTrack radio",
-	.type		= VID_TYPE_TUNER,
 	.fops           = &rtrack_fops,
 	.ioctl_ops 	= &rtrack_ioctl_ops,
 };

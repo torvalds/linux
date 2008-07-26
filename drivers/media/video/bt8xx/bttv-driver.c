@@ -4182,8 +4182,7 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 
 static struct video_device *vdev_init(struct bttv *btv,
 				      const struct video_device *template,
-				      const char *type_name,
-				      const int type)
+				      const char *type_name)
 {
 	struct video_device *vfd;
 
@@ -4194,7 +4193,6 @@ static struct video_device *vdev_init(struct bttv *btv,
 	vfd->minor   = -1;
 	vfd->parent  = &btv->c.pci->dev;
 	vfd->release = video_device_release;
-	vfd->type    = type;
 	vfd->debug   = bttv_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "BT%d%s %s (%s)",
 		 btv->id, (btv->id==848 && btv->revision==0x12) ? "A" : "",
@@ -4230,20 +4228,11 @@ static void bttv_unregister_video(struct bttv *btv)
 /* register video4linux devices */
 static int __devinit bttv_register_video(struct bttv *btv)
 {
-	int video_type = VID_TYPE_CAPTURE |
-			 VID_TYPE_TUNER   |
-			 VID_TYPE_CLIPPING|
-			 VID_TYPE_SCALES;
-
-	if (no_overlay <= 0) {
-		bttv_video_template.type |= VID_TYPE_OVERLAY;
-	} else {
+	if (no_overlay > 0)
 		printk("bttv: Overlay support disabled.\n");
-	}
 
 	/* video */
-	btv->video_dev = vdev_init(btv, &bttv_video_template,
-				   "video", video_type);
+	btv->video_dev = vdev_init(btv, &bttv_video_template, "video");
 
 	if (NULL == btv->video_dev)
 		goto err;
@@ -4259,8 +4248,7 @@ static int __devinit bttv_register_video(struct bttv *btv)
 	}
 
 	/* vbi */
-	btv->vbi_dev = vdev_init(btv, &bttv_video_template,
-				 "vbi", VID_TYPE_TUNER | VID_TYPE_TELETEXT);
+	btv->vbi_dev = vdev_init(btv, &bttv_video_template, "vbi");
 
 	if (NULL == btv->vbi_dev)
 		goto err;
@@ -4272,8 +4260,7 @@ static int __devinit bttv_register_video(struct bttv *btv)
 	if (!btv->has_radio)
 		return 0;
 	/* radio */
-	btv->radio_dev = vdev_init(btv, &radio_template,
-				   "radio", VID_TYPE_TUNER);
+	btv->radio_dev = vdev_init(btv, &radio_template, "radio");
 	if (NULL == btv->radio_dev)
 		goto err;
 	if (video_register_device(btv->radio_dev, VFL_TYPE_RADIO,radio_nr)<0)

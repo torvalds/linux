@@ -384,7 +384,6 @@ static const struct v4l2_ioctl_ops terratec_ioctl_ops = {
 
 static struct video_device terratec_radio = {
 	.name		= "TerraTec ActiveRadio",
-	.type		= VID_TYPE_TUNER,
 	.fops           = &terratec_fops,
 	.ioctl_ops 	= &terratec_ioctl_ops,
 };

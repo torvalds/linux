@@ -302,6 +302,7 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 		}
 	}
 	video_device[i] = vfd;
+	vfd->vfl_type = type;
 	vfd->minor = i;
 
 	ret = get_index(vfd, index);

@@ -187,9 +187,6 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 		return -ENOMEM;
 	}
 
-	s->v4l2dev->type =
-		VID_TYPE_CAPTURE | VID_TYPE_TUNER | VID_TYPE_TELETEXT |
-		VID_TYPE_CLIPPING | VID_TYPE_SCALES | VID_TYPE_MPEG_ENCODER;
 	snprintf(s->v4l2dev->name, sizeof(s->v4l2dev->name), "cx18-%d",
 			cx->num);
 

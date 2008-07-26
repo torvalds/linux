@@ -793,7 +793,6 @@ static const struct file_operations vicam_fops = {
 
 static struct video_device vicam_template = {
 	.name 		= "ViCam-based USB Camera",
-	.type 		= VID_TYPE_CAPTURE,
 	.fops 		= &vicam_fops,
 	.minor 		= -1,
 };

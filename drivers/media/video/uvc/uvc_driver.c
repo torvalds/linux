@@ -1459,8 +1459,6 @@ static int uvc_register_video(struct uvc_device *dev)
 	 * get another one.
 	 */
 	vdev->parent = &dev->intf->dev;
-	vdev->type = 0;
-	vdev->type2 = 0;
 	vdev->minor = -1;
 	vdev->fops = &uvc_fops;
 	vdev->release = video_device_release;

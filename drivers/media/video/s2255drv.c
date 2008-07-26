@@ -1705,7 +1705,6 @@ static const struct v4l2_ioctl_ops s2255_ioctl_ops = {
 
 static struct video_device template = {
 	.name = "s2255v",
-	.type = VID_TYPE_CAPTURE,
 	.fops = &s2255_fops_v4l,
 	.ioctl_ops = &s2255_ioctl_ops,
 	.minor = -1,

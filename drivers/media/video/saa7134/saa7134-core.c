@@ -1008,11 +1008,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	v4l2_prio_init(&dev->prio);
 
 	/* register v4l devices */
-	if (saa7134_no_overlay <= 0) {
-		saa7134_video_template.type |= VID_TYPE_OVERLAY;
-	} else {
-		printk("%s: Overlay support disabled.\n",dev->name);
-	}
+	if (saa7134_no_overlay > 0)
+		printk(KERN_INFO "%s: Overlay support disabled.\n", dev->name);
+
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);
@@ -1025,7 +1023,6 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	       dev->name,dev->video_dev->minor & 0x1f);
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
-	dev->vbi_dev->type = VID_TYPE_TUNER | VID_TYPE_TELETEXT;
 
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);

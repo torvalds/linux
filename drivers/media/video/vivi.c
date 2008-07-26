@@ -1092,7 +1092,6 @@ static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 
 static struct video_device vivi_template = {
 	.name		= "vivi",
-	.type		= VID_TYPE_CAPTURE,
 	.fops           = &vivi_fops,
 	.ioctl_ops 	= &vivi_ioctl_ops,
 	.minor		= -1,

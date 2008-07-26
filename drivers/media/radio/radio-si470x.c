@@ -1609,7 +1609,6 @@ static struct video_device si470x_viddev_template = {
 	.fops			= &si470x_fops,
 	.ioctl_ops 		= &si470x_ioctl_ops,
 	.name			= DRIVER_NAME,
-	.type			= VID_TYPE_TUNER,
 	.release		= video_device_release,
 };
 

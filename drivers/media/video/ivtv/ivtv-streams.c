@@ -208,11 +208,6 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 		return -ENOMEM;
 	}
 
-	s->v4l2dev->type = VID_TYPE_CAPTURE | VID_TYPE_TUNER | VID_TYPE_TELETEXT |
-		    VID_TYPE_CLIPPING | VID_TYPE_SCALES | VID_TYPE_MPEG_ENCODER;
-	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
-		s->v4l2dev->type |= VID_TYPE_MPEG_DECODER;
-	}
 	snprintf(s->v4l2dev->name, sizeof(s->v4l2dev->name), "ivtv%d %s",
 			itv->num, s->name);
 

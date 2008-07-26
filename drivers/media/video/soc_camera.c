@@ -908,7 +908,6 @@ int soc_camera_video_start(struct soc_camera_device *icd)
 	strlcpy(vdev->name, ici->drv_name, sizeof(vdev->name));
 	/* Maybe better &ici->dev */
 	vdev->parent		= &icd->dev;
-	vdev->type		= VID_TYPE_CAPTURE;
 	vdev->current_norm	= V4L2_STD_UNKNOWN;
 	vdev->fops		= &soc_camera_fops;
 	vdev->ioctl_ops		= &soc_camera_ioctl_ops;

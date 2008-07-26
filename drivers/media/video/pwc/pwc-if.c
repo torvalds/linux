@@ -166,7 +166,6 @@ static const struct file_operations pwc_fops = {
 };
 static struct video_device pwc_template = {
 	.name =		"Philips Webcam",	/* Filled in later */
-	.type =		VID_TYPE_CAPTURE,
 	.release =	video_device_release,
 	.fops =         &pwc_fops,
 	.minor =        -1,

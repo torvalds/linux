@@ -1722,7 +1722,6 @@ static struct video_device cx8800_vbi_template;
 
 static struct video_device cx8800_video_template = {
 	.name                 = "cx8800-video",
-	.type                 = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES,
 	.fops                 = &video_fops,
 	.minor                = -1,
 	.ioctl_ops 	      = &video_ioctl_ops,
@@ -1761,7 +1760,6 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 
 static struct video_device cx8800_radio_template = {
 	.name                 = "cx8800-radio",
-	.type                 = VID_TYPE_TUNER,
 	.fops                 = &radio_fops,
 	.minor                = -1,
 	.ioctl_ops 	      = &radio_ioctl_ops,
@@ -1838,7 +1836,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	memcpy( &cx8800_vbi_template, &cx8800_video_template,
 		sizeof(cx8800_vbi_template) );
 	strcpy(cx8800_vbi_template.name,"cx8800-vbi");
-	cx8800_vbi_template.type = VID_TYPE_TELETEXT|VID_TYPE_TUNER;
 
 	/* initialize driver struct */
 	spin_lock_init(&dev->slock);

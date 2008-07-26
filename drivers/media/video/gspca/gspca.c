@@ -1691,7 +1691,6 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 
 static struct video_device gspca_template = {
 	.name = "gspca main driver",
-	.type = VID_TYPE_CAPTURE,
 	.fops = &dev_fops,
 	.ioctl_ops = &dev_ioctl_ops,
 	.release = dev_release,		/* mandatory */

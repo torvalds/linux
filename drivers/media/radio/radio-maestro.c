@@ -372,7 +372,6 @@ static const struct v4l2_ioctl_ops maestro_ioctl_ops = {
 
 static struct video_device maestro_radio = {
 	.name           = "Maestro radio",
-	.type           = VID_TYPE_TUNER,
 	.fops           = &maestro_fops,
 	.ioctl_ops 	= &maestro_ioctl_ops,
 };

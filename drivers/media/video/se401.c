@@ -1231,7 +1231,6 @@ static const struct file_operations se401_fops = {
 };
 static struct video_device se401_template = {
 	.name =         "se401 USB camera",
-	.type =         VID_TYPE_CAPTURE,
 	.fops =         &se401_fops,
 };
 

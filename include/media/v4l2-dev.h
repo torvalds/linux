@@ -53,8 +53,7 @@ struct video_device
 
 	/* device info */
 	char name[32];
-	int type;       		/* v4l1 */
-	int type2;      		/* v4l2 */
+	int vfl_type;
 	int minor;
 	/* attribute to diferentiate multiple indexs on one physical device */
 	int index;

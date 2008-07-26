@@ -4644,8 +4644,6 @@ static const struct file_operations zoran_fops = {
 
 struct video_device zoran_template __devinitdata = {
 	.name = ZORAN_NAME,
-	.type = ZORAN_VID_TYPE,
-	.type2 = ZORAN_V4L2_VID_FLAGS,
 	.fops = &zoran_fops,
 	.release = &zoran_vdev_release,
 	.minor = -1

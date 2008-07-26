@@ -392,7 +392,6 @@ static const struct v4l2_ioctl_ops gemtek_pci_ioctl_ops = {
 
 static struct video_device vdev_template = {
 	.name          = "Gemtek PCI Radio",
-	.type          = VID_TYPE_TUNER,
 	.fops          = &gemtek_pci_fops,
 	.ioctl_ops     = &gemtek_pci_ioctl_ops,
 };

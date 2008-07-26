@@ -230,7 +230,6 @@ static const struct file_operations pcm20_fops = {
 
 static struct video_device pcm20_radio = {
 	.name		= "Miro PCM 20 radio",
-	.type		= VID_TYPE_TUNER,
 	.fops           = &pcm20_fops,
 	.priv		= &pcm20_unit
 };

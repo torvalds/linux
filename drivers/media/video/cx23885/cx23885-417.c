@@ -1731,10 +1731,6 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 
 static struct video_device cx23885_mpeg_template = {
 	.name          = "cx23885",
-	.type          = VID_TYPE_CAPTURE |
-				VID_TYPE_TUNER |
-				VID_TYPE_SCALES |
-				VID_TYPE_MPEG_ENCODER,
 	.fops          = &mpeg_fops,
 	.ioctl_ops     = &mpeg_ioctl_ops,
 	.minor         = -1,

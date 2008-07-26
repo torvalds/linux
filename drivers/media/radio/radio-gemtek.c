@@ -570,7 +570,6 @@ static const struct v4l2_ioctl_ops gemtek_ioctl_ops = {
 
 static struct video_device gemtek_radio = {
 	.name			= "GemTek Radio card",
-	.type			= VID_TYPE_TUNER,
 	.fops			= &gemtek_fops,
 	.ioctl_ops 		= &gemtek_ioctl_ops,
 };

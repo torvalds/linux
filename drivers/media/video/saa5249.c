@@ -712,7 +712,6 @@ static const struct file_operations saa_fops = {
 static struct video_device saa_template =
 {
 	.name		= IF_NAME,
-	.type		= VID_TYPE_TELETEXT,	/*| VID_TYPE_TUNER ?? */
 	.fops           = &saa_fops,
 };
 

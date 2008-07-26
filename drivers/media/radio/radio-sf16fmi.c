@@ -312,7 +312,6 @@ static const struct v4l2_ioctl_ops fmi_ioctl_ops = {
 
 static struct video_device fmi_radio = {
 	.name		= "SF16FMx radio",
-	.type		= VID_TYPE_TUNER,
 	.fops           = &fmi_fops,
 	.ioctl_ops 	= &fmi_ioctl_ops,
 };

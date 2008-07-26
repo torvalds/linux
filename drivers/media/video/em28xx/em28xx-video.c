@@ -1845,7 +1845,6 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 
 static struct video_device em28xx_radio_template = {
 	.name                 = "em28xx-radio",
-	.type                 = VID_TYPE_TUNER,
 	.fops                 = &radio_fops,
 	.ioctl_ops 	      = &radio_ioctl_ops,
 	.minor                = -1,
@@ -1891,7 +1890,6 @@ EXPORT_SYMBOL(em28xx_unregister_extension);
 
 static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 					     const struct video_device *template,
-					     const int type,
 					     const char *type_name)
 {
 	struct video_device *vfd;
@@ -1903,7 +1901,6 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	vfd->minor   = -1;
 	vfd->parent = &dev->udev->dev;
 	vfd->release = video_device_release;
-	vfd->type = type;
 	vfd->debug = video_debug;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s",
@@ -1981,14 +1978,11 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	list_add_tail(&dev->devlist, &em28xx_devlist);
 
 	/* allocate and fill video video_device struct */
-	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template,
-					  VID_TYPE_CAPTURE, "video");
+	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template, "video");
 	if (NULL == dev->vdev) {
 		em28xx_errdev("cannot allocate video_device.\n");
 		goto fail_unreg;
 	}
-	if (dev->tuner_type != TUNER_ABSENT)
-		dev->vdev->type |= VID_TYPE_TUNER;
 
 	/* register v4l2 video video_device */
 	retval = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
@@ -2000,8 +1994,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	}
 
 	/* Allocate and fill vbi video_device struct */
-	dev->vbi_dev = em28xx_vdev_init(dev, &em28xx_video_template,
-					  VFL_TYPE_VBI, "vbi");
+	dev->vbi_dev = em28xx_vdev_init(dev, &em28xx_video_template, "vbi");
 	/* register v4l2 vbi video_device */
 	if (video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
 					vbi_nr[dev->devno]) < 0) {
@@ -2011,8 +2004,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	}
 
 	if (em28xx_boards[dev->model].radio.type == EM28XX_RADIO) {
-		dev->radio_dev = em28xx_vdev_init(dev, &em28xx_radio_template,
-					VFL_TYPE_RADIO, "radio");
+		dev->radio_dev = em28xx_vdev_init(dev, &em28xx_radio_template, "radio");
 		if (NULL == dev->radio_dev) {
 			em28xx_errdev("cannot allocate video_device.\n");
 			goto fail_unreg;
