@@ -774,32 +774,12 @@ static void __init do_basic_setup(void)
 	do_initcalls();
 }
 
-static int __initdata nosoftlockup;
-
-static int __init nosoftlockup_setup(char *str)
-{
-	nosoftlockup = 1;
-	return 1;
-}
-__setup("nosoftlockup", nosoftlockup_setup);
-
-static void __init __do_pre_smp_initcalls(void)
+static void __init do_pre_smp_initcalls(void)
 {
 	initcall_t *call;
 
 	for (call = __initcall_start; call < __early_initcall_end; call++)
 		do_one_initcall(*call);
-}
-
-static void __init do_pre_smp_initcalls(void)
-{
-	extern int spawn_ksoftirqd(void);
-
-	init_call_single_data();
-	migration_init();
-	spawn_ksoftirqd();
-	if (!nosoftlockup)
-		spawn_softlockup_task();
 }
 
 static void run_init_process(char *init_filename)
@@ -873,7 +853,6 @@ static int __init kernel_init(void * unused)
 
 	smp_prepare_cpus(setup_max_cpus);
 
-	__do_pre_smp_initcalls();
 	do_pre_smp_initcalls();
 
 	smp_init();
