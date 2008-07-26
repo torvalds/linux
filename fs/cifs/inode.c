@@ -1413,6 +1413,82 @@ out_busy:
 	return -ETXTBSY;
 }
 
+static int
+cifs_set_file_size(struct inode *inode, struct iattr *attrs,
+		   int xid, char *full_path)
+{
+	int rc;
+	struct cifsFileInfo *open_file;
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+
+	/*
+	 * To avoid spurious oplock breaks from server, in the case of
+	 * inodes that we already have open, avoid doing path based
+	 * setting of file size if we can do it by handle.
+	 * This keeps our caching token (oplock) and avoids timeouts
+	 * when the local oplock break takes longer to flush
+	 * writebehind data than the SMB timeout for the SetPathInfo
+	 * request would allow
+	 */
+	open_file = find_writable_file(cifsInode);
+	if (open_file) {
+		__u16 nfid = open_file->netfid;
+		__u32 npid = open_file->pid;
+		rc = CIFSSMBSetFileSize(xid, pTcon, attrs->ia_size, nfid,
+					npid, false);
+		atomic_dec(&open_file->wrtPending);
+		cFYI(1, ("SetFSize for attrs rc = %d", rc));
+		if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
+			unsigned int bytes_written;
+			rc = CIFSSMBWrite(xid, pTcon, nfid, 0, attrs->ia_size,
+					  &bytes_written, NULL, NULL, 1);
+			cFYI(1, ("Wrt seteof rc %d", rc));
+		}
+	} else
+		rc = -EINVAL;
+
+	if (rc != 0) {
+		/* Set file size by pathname rather than by handle
+		   either because no valid, writeable file handle for
+		   it was found or because there was an error setting
+		   it by handle */
+		rc = CIFSSMBSetEOF(xid, pTcon, full_path, attrs->ia_size,
+				   false, cifs_sb->local_nls,
+				   cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		cFYI(1, ("SetEOF by path (setattrs) rc = %d", rc));
+		if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
+			__u16 netfid;
+			int oplock = 0;
+
+			rc = SMBLegacyOpen(xid, pTcon, full_path,
+				FILE_OPEN, GENERIC_WRITE,
+				CREATE_NOT_DIR, &netfid, &oplock, NULL,
+				cifs_sb->local_nls,
+				cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+			if (rc == 0) {
+				unsigned int bytes_written;
+				rc = CIFSSMBWrite(xid, pTcon, netfid, 0,
+						  attrs->ia_size,
+						  &bytes_written, NULL,
+						  NULL, 1);
+				cFYI(1, ("wrt seteof rc %d", rc));
+				CIFSSMBClose(xid, pTcon, netfid);
+			}
+		}
+	}
+
+	if (rc == 0) {
+		rc = cifs_vmtruncate(inode, attrs->ia_size);
+		cifs_truncate_page(inode->i_mapping, inode->i_size);
+	}
+
+	return rc;
+}
+
 int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 {
 	int xid;
@@ -1420,7 +1496,6 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
 	int rc = -EACCES;
-	struct cifsFileInfo *open_file = NULL;
 	FILE_BASIC_INFO time_buf;
 	bool set_time = false;
 	bool set_dosattr = false;
@@ -1472,78 +1547,8 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	}
 
 	if (attrs->ia_valid & ATTR_SIZE) {
-		/* To avoid spurious oplock breaks from server, in the case of
-		   inodes that we already have open, avoid doing path based
-		   setting of file size if we can do it by handle.
-		   This keeps our caching token (oplock) and avoids timeouts
-		   when the local oplock break takes longer to flush
-		   writebehind data than the SMB timeout for the SetPathInfo
-		   request would allow */
-
-		open_file = find_writable_file(cifsInode);
-		if (open_file) {
-			__u16 nfid = open_file->netfid;
-			__u32 npid = open_file->pid;
-			rc = CIFSSMBSetFileSize(xid, pTcon, attrs->ia_size,
-						nfid, npid, false);
-			atomic_dec(&open_file->wrtPending);
-			cFYI(1, ("SetFSize for attrs rc = %d", rc));
-			if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
-				unsigned int bytes_written;
-				rc = CIFSSMBWrite(xid, pTcon,
-						  nfid, 0, attrs->ia_size,
-						  &bytes_written, NULL, NULL,
-						  1 /* 45 seconds */);
-				cFYI(1, ("Wrt seteof rc %d", rc));
-			}
-		} else
-			rc = -EINVAL;
-
-		if (rc != 0) {
-			/* Set file size by pathname rather than by handle
-			   either because no valid, writeable file handle for
-			   it was found or because there was an error setting
-			   it by handle */
-			rc = CIFSSMBSetEOF(xid, pTcon, full_path,
-					   attrs->ia_size, false,
-					   cifs_sb->local_nls,
-					   cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			cFYI(1, ("SetEOF by path (setattrs) rc = %d", rc));
-			if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
-				__u16 netfid;
-				int oplock = 0;
-
-				rc = SMBLegacyOpen(xid, pTcon, full_path,
-					FILE_OPEN, GENERIC_WRITE,
-					CREATE_NOT_DIR, &netfid, &oplock,
-					NULL, cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-				if (rc == 0) {
-					unsigned int bytes_written;
-					rc = CIFSSMBWrite(xid, pTcon,
-							netfid, 0,
-							attrs->ia_size,
-							&bytes_written, NULL,
-							NULL, 1 /* 45 sec */);
-					cFYI(1, ("wrt seteof rc %d", rc));
-					CIFSSMBClose(xid, pTcon, netfid);
-				}
-
-			}
-		}
-
-		/* Server is ok setting allocation size implicitly - no need
-		   to call:
-		CIFSSMBSetEOF(xid, pTcon, full_path, attrs->ia_size, true,
-			 cifs_sb->local_nls);
-		   */
-
-		if (rc == 0) {
-			rc = cifs_vmtruncate(inode, attrs->ia_size);
-			cifs_truncate_page(inode->i_mapping, inode->i_size);
-		} else
+		rc = cifs_set_file_size(inode, attrs, xid, full_path);
+		if (rc != 0)
 			goto cifs_setattr_exit;
 	}
 
