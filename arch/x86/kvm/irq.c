@@ -90,7 +90,6 @@ EXPORT_SYMBOL_GPL(kvm_inject_pending_timer_irqs);
 void kvm_timer_intr_post(struct kvm_vcpu *vcpu, int vec)
 {
 	kvm_apic_timer_intr_post(vcpu, vec);
-	kvm_pit_timer_intr_post(vcpu, vec);
 	/* TODO: PIT, RTC etc. */
 }
 EXPORT_SYMBOL_GPL(kvm_timer_intr_post);
