@@ -7513,8 +7513,8 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4036)},
 	{USB_DEVICE(0x041e, 0x403a)},
 #endif
-	{USB_DEVICE(0x041e, 0x4051), SENSOR_TAS5130C_VF0250},
-	{USB_DEVICE(0x041e, 0x4053), SENSOR_TAS5130C_VF0250},
+	{USB_DEVICE(0x041e, 0x4051), .driver_info = SENSOR_TAS5130C_VF0250},
+	{USB_DEVICE(0x041e, 0x4053), .driver_info = SENSOR_TAS5130C_VF0250},
 #ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0458, 0x7007)},
 	{USB_DEVICE(0x0458, 0x700c)},
@@ -7540,7 +7540,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x08d9)},
 	{USB_DEVICE(0x046d, 0x08d8)},
 	{USB_DEVICE(0x046d, 0x08da)},
-	{USB_DEVICE(0x046d, 0x08dd), SENSOR_MC501CB},
+	{USB_DEVICE(0x046d, 0x08dd), .driver_info = SENSOR_MC501CB},
 	{USB_DEVICE(0x0471, 0x0325)},
 	{USB_DEVICE(0x0471, 0x0326)},
 	{USB_DEVICE(0x0471, 0x032d)},
@@ -7556,7 +7556,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0ac8, 0x301b)},
 	{USB_DEVICE(0x0ac8, 0x303b)},
 #endif
-	{USB_DEVICE(0x0ac8, 0x305b), SENSOR_TAS5130C_VF0250},
+	{USB_DEVICE(0x0ac8, 0x305b), .driver_info = SENSOR_TAS5130C_VF0250},
 #ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0ac8, 0x307b)},
 	{USB_DEVICE(0x10fd, 0x0128)},
