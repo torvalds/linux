@@ -700,6 +700,8 @@ static inline int __init get_mem_size(void)
 		case DEVWD_8:  ret *= 2;
 		case DEVWD_16: break;
 	}
+	if ((ddrctl & 0xc000) == 0x4000)
+		ret *= 2;
 	return ret;
 #endif
 	BUG();
