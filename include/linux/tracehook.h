@@ -110,4 +110,104 @@ static inline void tracehook_report_exit(long *exit_code)
 	ptrace_event(PT_TRACE_EXIT, PTRACE_EVENT_EXIT, *exit_code);
 }
 
+/**
+ * tracehook_prepare_clone - prepare for new child to be cloned
+ * @clone_flags:	%CLONE_* flags from clone/fork/vfork system call
+ *
+ * This is called before a new user task is to be cloned.
+ * Its return value will be passed to tracehook_finish_clone().
+ *
+ * Called with no locks held.
+ */
+static inline int tracehook_prepare_clone(unsigned clone_flags)
+{
+	if (clone_flags & CLONE_UNTRACED)
+		return 0;
+
+	if (clone_flags & CLONE_VFORK) {
+		if (current->ptrace & PT_TRACE_VFORK)
+			return PTRACE_EVENT_VFORK;
+	} else if ((clone_flags & CSIGNAL) != SIGCHLD) {
+		if (current->ptrace & PT_TRACE_CLONE)
+			return PTRACE_EVENT_CLONE;
+	} else if (current->ptrace & PT_TRACE_FORK)
+		return PTRACE_EVENT_FORK;
+
+	return 0;
+}
+
+/**
+ * tracehook_finish_clone - new child created and being attached
+ * @child:		new child task
+ * @clone_flags:	%CLONE_* flags from clone/fork/vfork system call
+ * @trace:		return value from tracehook_clone_prepare()
+ *
+ * This is called immediately after adding @child to its parent's children list.
+ * The @trace value is that returned by tracehook_prepare_clone().
+ *
+ * Called with current's siglock and write_lock_irq(&tasklist_lock) held.
+ */
+static inline void tracehook_finish_clone(struct task_struct *child,
+					  unsigned long clone_flags, int trace)
+{
+	ptrace_init_task(child, (clone_flags & CLONE_PTRACE) || trace);
+}
+
+/**
+ * tracehook_report_clone - in parent, new child is about to start running
+ * @trace:		return value from tracehook_clone_prepare()
+ * @regs:		parent's user register state
+ * @clone_flags:	flags from parent's system call
+ * @pid:		new child's PID in the parent's namespace
+ * @child:		new child task
+ *
+ * Called after a child is set up, but before it has been started running.
+ * The @trace value is that returned by tracehook_clone_prepare().
+ * This is not a good place to block, because the child has not started yet.
+ * Suspend the child here if desired, and block in tracehook_clone_complete().
+ * This must prevent the child from self-reaping if tracehook_clone_complete()
+ * uses the @child pointer; otherwise it might have died and been released by
+ * the time tracehook_report_clone_complete() is called.
+ *
+ * Called with no locks held, but the child cannot run until this returns.
+ */
+static inline void tracehook_report_clone(int trace, struct pt_regs *regs,
+					  unsigned long clone_flags,
+					  pid_t pid, struct task_struct *child)
+{
+	if (unlikely(trace)) {
+		/*
+		 * The child starts up with an immediate SIGSTOP.
+		 */
+		sigaddset(&child->pending.signal, SIGSTOP);
+		set_tsk_thread_flag(child, TIF_SIGPENDING);
+	}
+}
+
+/**
+ * tracehook_report_clone_complete - new child is running
+ * @trace:		return value from tracehook_clone_prepare()
+ * @regs:		parent's user register state
+ * @clone_flags:	flags from parent's system call
+ * @pid:		new child's PID in the parent's namespace
+ * @child:		child task, already running
+ *
+ * This is called just after the child has started running.  This is
+ * just before the clone/fork syscall returns, or blocks for vfork
+ * child completion if @clone_flags has the %CLONE_VFORK bit set.
+ * The @child pointer may be invalid if a self-reaping child died and
+ * tracehook_report_clone() took no action to prevent it from self-reaping.
+ *
+ * Called with no locks held.
+ */
+static inline void tracehook_report_clone_complete(int trace,
+						   struct pt_regs *regs,
+						   unsigned long clone_flags,
+						   pid_t pid,
+						   struct task_struct *child)
+{
+	if (unlikely(trace))
+		ptrace_event(0, trace, pid);
+}
+
 #endif	/* <linux/tracehook.h> */

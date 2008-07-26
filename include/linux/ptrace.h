@@ -154,6 +154,28 @@ static inline int ptrace_event(int mask, int event, unsigned long message)
 	return 1;
 }
 
+/**
+ * ptrace_init_task - initialize ptrace state for a new child
+ * @child:		new child task
+ * @ptrace:		true if child should be ptrace'd by parent's tracer
+ *
+ * This is called immediately after adding @child to its parent's children
+ * list.  @ptrace is false in the normal case, and true to ptrace @child.
+ *
+ * Called with current's siglock and write_lock_irq(&tasklist_lock) held.
+ */
+static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
+{
+	INIT_LIST_HEAD(&child->ptrace_entry);
+	INIT_LIST_HEAD(&child->ptraced);
+	child->parent = child->real_parent;
+	child->ptrace = 0;
+	if (unlikely(ptrace)) {
+		child->ptrace = current->ptrace;
+		__ptrace_link(child, current->parent);
+	}
+}
+
 #ifndef force_successful_syscall_return
 /*
  * System call handlers that, upon successful completion, need to return a
