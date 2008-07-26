@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_HUGETLB_H
-#define _ASM_X86_HUGETLB_H
+#ifndef ASM_X86__HUGETLB_H
+#define ASM_X86__HUGETLB_H
 
 #include <asm/page.h>
 
@@ -90,4 +90,4 @@ static inline void arch_release_hugepage(struct page *page)
 {
 }
 
-#endif /* _ASM_X86_HUGETLB_H */
+#endif /* ASM_X86__HUGETLB_H */

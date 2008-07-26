@@ -1,5 +1,5 @@
-#ifndef __ASM_MACH_WAKECPU_H
-#define __ASM_MACH_WAKECPU_H
+#ifndef ASM_X86__MACH_DEFAULT__MACH_WAKECPU_H
+#define ASM_X86__MACH_DEFAULT__MACH_WAKECPU_H
 
 /* 
  * This file copes with machines that wakeup secondary CPUs by the
@@ -39,4 +39,4 @@ static inline void restore_NMI_vector(unsigned short *high, unsigned short *low)
  #define inquire_remote_apic(apicid) {}
 #endif
 
-#endif /* __ASM_MACH_WAKECPU_H */
+#endif /* ASM_X86__MACH_DEFAULT__MACH_WAKECPU_H */

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_INTEL_ARCH_PERFMON_H
-#define _ASM_X86_INTEL_ARCH_PERFMON_H
+#ifndef ASM_X86__INTEL_ARCH_PERFMON_H
+#define ASM_X86__INTEL_ARCH_PERFMON_H
 
 #define MSR_ARCH_PERFMON_PERFCTR0		0xc1
 #define MSR_ARCH_PERFMON_PERFCTR1		0xc2
@@ -28,4 +28,4 @@ union cpuid10_eax {
 	unsigned int full;
 };
 
-#endif /* _ASM_X86_INTEL_ARCH_PERFMON_H */
+#endif /* ASM_X86__INTEL_ARCH_PERFMON_H */

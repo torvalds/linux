@@ -1,5 +1,5 @@
-#ifndef ASM_MSIDEF_H
-#define ASM_MSIDEF_H
+#ifndef ASM_X86__MSIDEF_H
+#define ASM_X86__MSIDEF_H
 
 /*
  * Constants for Intel APIC based MSI messages.
@@ -48,4 +48,4 @@
 #define  MSI_ADDR_DEST_ID(dest)		(((dest) << MSI_ADDR_DEST_ID_SHIFT) & \
 					 MSI_ADDR_DEST_ID_MASK)
 
-#endif /* ASM_MSIDEF_H */
+#endif /* ASM_X86__MSIDEF_H */

@@ -1,5 +1,5 @@
-#ifndef MCA_DMA_H
-#define MCA_DMA_H
+#ifndef ASM_X86__MCA_DMA_H
+#define ASM_X86__MCA_DMA_H
 
 #include <asm/io.h>
 #include <linux/ioport.h>
@@ -198,4 +198,4 @@ static inline void mca_set_dma_mode(unsigned int dmanr, unsigned int mode)
 	outb(mode, MCA_DMA_REG_EXE);
 }
 
-#endif /* MCA_DMA_H */
+#endif /* ASM_X86__MCA_DMA_H */

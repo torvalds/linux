@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_ELF_H
-#define _ASM_X86_ELF_H
+#ifndef ASM_X86__ELF_H
+#define ASM_X86__ELF_H
 
 /*
  * ELF register definitions..
@@ -332,4 +332,4 @@ extern int syscall32_setup_pages(struct linux_binprm *, int exstack);
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk
 
-#endif
+#endif /* ASM_X86__ELF_H */

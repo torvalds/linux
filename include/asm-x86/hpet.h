@@ -1,5 +1,5 @@
-#ifndef ASM_X86_HPET_H
-#define ASM_X86_HPET_H
+#ifndef ASM_X86__HPET_H
+#define ASM_X86__HPET_H
 
 #ifdef CONFIG_HPET_TIMER
 
@@ -90,4 +90,4 @@ static inline int is_hpet_enabled(void) { return 0; }
 #define hpet_readl(a) 0
 
 #endif
-#endif /* ASM_X86_HPET_H */
+#endif /* ASM_X86__HPET_H */

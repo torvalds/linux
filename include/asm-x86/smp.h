@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SMP_H_
-#define _ASM_X86_SMP_H_
+#ifndef ASM_X86__SMP_H
+#define ASM_X86__SMP_H
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
 #include <linux/init.h>
@@ -205,4 +205,4 @@ extern void cpu_uninit(void);
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif
+#endif /* ASM_X86__SMP_H */

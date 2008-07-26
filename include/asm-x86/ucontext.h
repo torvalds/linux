@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_UCONTEXT_H
-#define _ASM_X86_UCONTEXT_H
+#ifndef ASM_X86__UCONTEXT_H
+#define ASM_X86__UCONTEXT_H
 
 struct ucontext {
 	unsigned long	  uc_flags;
@@ -9,4 +9,4 @@ struct ucontext {
 	sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
 
-#endif /* _ASM_X86_UCONTEXT_H */
+#endif /* ASM_X86__UCONTEXT_H */

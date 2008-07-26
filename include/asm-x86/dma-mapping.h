@@ -1,5 +1,5 @@
-#ifndef _ASM_DMA_MAPPING_H_
-#define _ASM_DMA_MAPPING_H_
+#ifndef ASM_X86__DMA_MAPPING_H
+#define ASM_X86__DMA_MAPPING_H
 
 /*
  * IOMMU interface. See Documentation/DMA-mapping.txt and DMA-API.txt for
@@ -233,4 +233,4 @@ extern void *
 dma_mark_declared_memory_occupied(struct device *dev,
 				  dma_addr_t device_addr, size_t size);
 #endif /* CONFIG_X86_32 */
-#endif
+#endif /* ASM_X86__DMA_MAPPING_H */

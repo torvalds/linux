@@ -1,5 +1,5 @@
-#ifndef __X86_64_UACCESS_H
-#define __X86_64_UACCESS_H
+#ifndef ASM_X86__UACCESS_64_H
+#define ASM_X86__UACCESS_64_H
 
 /*
  * User space memory access functions
@@ -198,4 +198,4 @@ static inline int __copy_from_user_inatomic_nocache(void *dst,
 unsigned long
 copy_user_handle_tail(char *to, char *from, unsigned len, unsigned zerorest);
 
-#endif /* __X86_64_UACCESS_H */
+#endif /* ASM_X86__UACCESS_64_H */

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PAGE_H
-#define _ASM_X86_PAGE_H
+#ifndef ASM_X86__PAGE_H
+#define ASM_X86__PAGE_H
 
 #include <linux/const.h>
 
@@ -199,4 +199,4 @@ static inline pteval_t native_pte_flags(pte_t pte)
 #define __HAVE_ARCH_GATE_AREA 1
 
 #endif	/* __KERNEL__ */
-#endif	/* _ASM_X86_PAGE_H */
+#endif /* ASM_X86__PAGE_H */

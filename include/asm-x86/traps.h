@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_TRAPS_H
-#define _ASM_X86_TRAPS_H
+#ifndef ASM_X86__TRAPS_H
+#define ASM_X86__TRAPS_H
 
 /* Common in X86_32 and X86_64 */
 asmlinkage void divide_error(void);
@@ -63,4 +63,4 @@ asmlinkage void do_simd_coprocessor_error(struct pt_regs *);
 asmlinkage void do_spurious_interrupt_bug(struct pt_regs *);
 
 #endif /* CONFIG_X86_32 */
-#endif /* _ASM_X86_TRAPS_H */
+#endif /* ASM_X86__TRAPS_H */

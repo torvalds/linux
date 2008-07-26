@@ -1,5 +1,5 @@
-#ifndef _I386_PGTABLE_3LEVEL_H
-#define _I386_PGTABLE_3LEVEL_H
+#ifndef ASM_X86__PGTABLE_3LEVEL_H
+#define ASM_X86__PGTABLE_3LEVEL_H
 
 /*
  * Intel Physical Address Extension (PAE) Mode - three-level page
@@ -179,4 +179,4 @@ static inline unsigned long pte_pfn(pte_t pte)
 #define __pte_to_swp_entry(pte)		((swp_entry_t){ (pte).pte_high })
 #define __swp_entry_to_pte(x)		((pte_t){ { .pte_high = (x).val } })
 
-#endif /* _I386_PGTABLE_3LEVEL_H */
+#endif /* ASM_X86__PGTABLE_3LEVEL_H */

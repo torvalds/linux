@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_IOCTLS_H
-#define _ASM_X86_IOCTLS_H
+#ifndef ASM_X86__IOCTLS_H
+#define ASM_X86__IOCTLS_H
 
 #include <asm/ioctl.h>
 
@@ -85,4 +85,4 @@
 
 #define TIOCSER_TEMT    0x01	/* Transmitter physically empty */
 
-#endif
+#endif /* ASM_X86__IOCTLS_H */

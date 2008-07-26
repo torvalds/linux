@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PVCLOCK_ABI_H_
-#define _ASM_X86_PVCLOCK_ABI_H_
+#ifndef ASM_X86__PVCLOCK_ABI_H
+#define ASM_X86__PVCLOCK_ABI_H
 #ifndef __ASSEMBLY__
 
 /*
@@ -39,4 +39,4 @@ struct pvclock_wall_clock {
 } __attribute__((__packed__));
 
 #endif /* __ASSEMBLY__ */
-#endif /* _ASM_X86_PVCLOCK_ABI_H_ */
+#endif /* ASM_X86__PVCLOCK_ABI_H */
