@@ -1282,9 +1282,10 @@ config CRASH_DUMP
 config KEXEC_JUMP
 	bool "kexec jump (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	depends on KEXEC && PM_SLEEP && X86_32
+	depends on KEXEC && HIBERNATION && X86_32
 	help
-	  Invoke code in physical address mode via KEXEC
+	  Jump between original kernel and kexeced kernel and invoke
+	  code in physical address mode via KEXEC
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)

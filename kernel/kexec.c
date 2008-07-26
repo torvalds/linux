@@ -26,6 +26,10 @@
 #include <linux/numa.h>
 #include <linux/suspend.h>
 #include <linux/device.h>
+#include <linux/freezer.h>
+#include <linux/pm.h>
+#include <linux/cpu.h>
+#include <linux/console.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
@@ -1441,7 +1445,31 @@ int kernel_kexec(void)
 
 	if (kexec_image->preserve_context) {
 #ifdef CONFIG_KEXEC_JUMP
+		mutex_lock(&pm_mutex);
+		pm_prepare_console();
+		error = freeze_processes();
+		if (error) {
+			error = -EBUSY;
+			goto Restore_console;
+		}
+		suspend_console();
+		error = device_suspend(PMSG_FREEZE);
+		if (error)
+			goto Resume_console;
+		error = disable_nonboot_cpus();
+		if (error)
+			goto Resume_devices;
 		local_irq_disable();
+		/* At this point, device_suspend() has been called,
+		 * but *not* device_power_down(). We *must*
+		 * device_power_down() now.  Otherwise, drivers for
+		 * some devices (e.g. interrupt controllers) become
+		 * desynchronized with the actual state of the
+		 * hardware at resume time, and evil weirdness ensues.
+		 */
+		error = device_power_down(PMSG_FREEZE);
+		if (error)
+			goto Enable_irqs;
 		save_processor_state();
 #endif
 	} else {
@@ -1459,7 +1487,18 @@ int kernel_kexec(void)
 	if (kexec_image->preserve_context) {
 #ifdef CONFIG_KEXEC_JUMP
 		restore_processor_state();
+		device_power_up(PMSG_RESTORE);
+ Enable_irqs:
 		local_irq_enable();
+		enable_nonboot_cpus();
+ Resume_devices:
+		device_resume(PMSG_RESTORE);
+ Resume_console:
+		resume_console();
+		thaw_processes();
+ Restore_console:
+		pm_restore_console();
+		mutex_unlock(&pm_mutex);
 #endif
 	}
 
