@@ -300,7 +300,7 @@ out:
 	return rtn;
 }
 
-static DEFINE_IDR(proc_inum_idr);
+static DEFINE_IDA(proc_inum_ida);
 static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
 
 #define PROC_DYNAMIC_FIRST 0xF0000000U
@@ -315,11 +315,11 @@ static unsigned int get_inode_number(void)
 	int error;
 
 retry:
-	if (idr_pre_get(&proc_inum_idr, GFP_KERNEL) == 0)
+	if (ida_pre_get(&proc_inum_ida, GFP_KERNEL) == 0)
 		return 0;
 
 	spin_lock(&proc_inum_lock);
-	error = idr_get_new(&proc_inum_idr, NULL, &i);
+	error = ida_get_new(&proc_inum_ida, &i);
 	spin_unlock(&proc_inum_lock);
 	if (error == -EAGAIN)
 		goto retry;
@@ -328,7 +328,7 @@ retry:
 
 	if (i > UINT_MAX - PROC_DYNAMIC_FIRST) {
 		spin_lock(&proc_inum_lock);
-		idr_remove(&proc_inum_idr, i);
+		ida_remove(&proc_inum_ida, i);
 		spin_unlock(&proc_inum_lock);
 	}
 	return PROC_DYNAMIC_FIRST + i;
@@ -337,7 +337,7 @@ retry:
 static void release_inode_number(unsigned int inum)
 {
 	spin_lock(&proc_inum_lock);
-	idr_remove(&proc_inum_idr, inum - PROC_DYNAMIC_FIRST);
+	ida_remove(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
 	spin_unlock(&proc_inum_lock);
 }
 
