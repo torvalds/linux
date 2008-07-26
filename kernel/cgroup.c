@@ -1529,7 +1529,7 @@ static int cgroup_seqfile_show(struct seq_file *m, void *arg)
 	return cft->read_seq_string(state->cgroup, cft, m);
 }
 
-int cgroup_seqfile_release(struct inode *inode, struct file *file)
+static int cgroup_seqfile_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	kfree(seq->private);

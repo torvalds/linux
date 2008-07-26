@@ -59,6 +59,24 @@ config HAVE_KPROBES
 config HAVE_KRETPROBES
 	def_bool n
 
+#
+# An arch should select this if it provides all these things:
+#
+#	task_pt_regs()		in asm/processor.h or asm/ptrace.h
+#	arch_has_single_step()	if there is hardware single-step support
+#	arch_has_block_step()	if there is hardware block-step support
+#	arch_ptrace()		and not #define __ARCH_SYS_PTRACE
+#	compat_arch_ptrace()	and #define __ARCH_WANT_COMPAT_SYS_PTRACE
+#	asm/syscall.h		supplying asm-generic/syscall.h interface
+#	linux/regset.h		user_regset interfaces
+#	CORE_DUMP_USE_REGSET	#define'd in linux/elf.h
+#	TIF_SYSCALL_TRACE	calls tracehook_report_syscall_{entry,exit}
+#	TIF_NOTIFY_RESUME	calls tracehook_notify_resume()
+#	signal delivery		calls tracehook_signal_handler()
+#
+config HAVE_ARCH_TRACEHOOK
+	def_bool n
+
 config HAVE_DMA_ATTRS
 	def_bool n
 

@@ -487,6 +487,7 @@ restart:
 				if (!cnt)
 					break;
 			}
+			cond_resched_lock(&dcache_lock);
 		}
 	}
 	while (!list_empty(&tmp)) {

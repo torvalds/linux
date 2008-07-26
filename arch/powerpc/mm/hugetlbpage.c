@@ -113,7 +113,7 @@ static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
 static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 			   unsigned long address, unsigned int psize)
 {
-	pte_t *new = kmem_cache_alloc(huge_pgtable_cache(psize),
+	pte_t *new = kmem_cache_zalloc(huge_pgtable_cache(psize),
 				      GFP_KERNEL|__GFP_REPEAT);
 
 	if (! new)
@@ -730,11 +730,6 @@ static int __init hugepage_setup_sz(char *str)
 }
 __setup("hugepagesz=", hugepage_setup_sz);
 
-static void zero_ctor(struct kmem_cache *cache, void *addr)
-{
-	memset(addr, 0, kmem_cache_size(cache));
-}
-
 static int __init hugetlbpage_init(void)
 {
 	unsigned int psize;
@@ -756,7 +751,7 @@ static int __init hugetlbpage_init(void)
 						HUGEPTE_TABLE_SIZE(psize),
 						HUGEPTE_TABLE_SIZE(psize),
 						0,
-						zero_ctor);
+						NULL);
 			if (!huge_pgtable_cache(psize))
 				panic("hugetlbpage_init(): could not create %s"\
 				      "\n", HUGEPTE_CACHE_NAME(psize));

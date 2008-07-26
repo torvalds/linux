@@ -42,13 +42,13 @@
 #include <linux/module.h>
 #include <linux/namei.h>
 #include <linux/proc_fs.h>
-#include <linux/ptrace.h>
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
+#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -1071,13 +1071,8 @@ EXPORT_SYMBOL(prepare_binprm);
 
 static int unsafe_exec(struct task_struct *p)
 {
-	int unsafe = 0;
-	if (p->ptrace & PT_PTRACED) {
-		if (p->ptrace & PT_PTRACE_CAP)
-			unsafe |= LSM_UNSAFE_PTRACE_CAP;
-		else
-			unsafe |= LSM_UNSAFE_PTRACE;
-	}
+	int unsafe = tracehook_unsafe_exec(p);
+
 	if (atomic_read(&p->fs->count) > 1 ||
 	    atomic_read(&p->files->count) > 1 ||
 	    atomic_read(&p->sighand->count) > 1)
@@ -1214,6 +1209,7 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 			read_unlock(&binfmt_lock);
 			retval = fn(bprm, regs);
 			if (retval >= 0) {
+				tracehook_report_exec(fmt, bprm, regs);
 				put_binfmt(fmt);
 				allow_write_access(bprm->file);
 				if (bprm->file)

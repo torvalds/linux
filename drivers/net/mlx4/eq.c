@@ -526,7 +526,7 @@ int mlx4_map_eq_icm(struct mlx4_dev *dev, u64 icm_virt)
 		return -ENOMEM;
 	priv->eq_table.icm_dma  = pci_map_page(dev->pdev, priv->eq_table.icm_page, 0,
 					       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(priv->eq_table.icm_dma)) {
+	if (pci_dma_mapping_error(dev->pdev, priv->eq_table.icm_dma)) {
 		__free_page(priv->eq_table.icm_page);
 		return -ENOMEM;
 	}

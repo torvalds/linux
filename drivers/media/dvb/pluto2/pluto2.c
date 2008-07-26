@@ -242,7 +242,7 @@ static int __devinit pluto_dma_map(struct pluto *pluto)
 	pluto->dma_addr = pci_map_single(pluto->pdev, pluto->dma_buf,
 			TS_DMA_BYTES, PCI_DMA_FROMDEVICE);
 
-	return pci_dma_mapping_error(pluto->dma_addr);
+	return pci_dma_mapping_error(pluto->pdev, pluto->dma_addr);
 }
 
 static void pluto_dma_unmap(struct pluto *pluto)

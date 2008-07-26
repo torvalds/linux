@@ -177,8 +177,7 @@ static void __enable_irq(struct irq_desc *desc, unsigned int irq)
 {
 	switch (desc->depth) {
 	case 0:
-		printk(KERN_WARNING "Unbalanced enable for IRQ %d\n", irq);
-		WARN_ON(1);
+		WARN(1, KERN_WARNING "Unbalanced enable for IRQ %d\n", irq);
 		break;
 	case 1: {
 		unsigned int status = desc->status & ~IRQ_DISABLED;

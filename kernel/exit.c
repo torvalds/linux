@@ -46,6 +46,7 @@
 #include <linux/resource.h>
 #include <linux/blkdev.h>
 #include <linux/task_io_accounting_ops.h>
+#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -162,27 +163,17 @@ static void delayed_put_task_struct(struct rcu_head *rhp)
 	put_task_struct(container_of(rhp, struct task_struct, rcu));
 }
 
-/*
- * Do final ptrace-related cleanup of a zombie being reaped.
- *
- * Called with write_lock(&tasklist_lock) held.
- */
-static void ptrace_release_task(struct task_struct *p)
-{
-	BUG_ON(!list_empty(&p->ptraced));
-	ptrace_unlink(p);
-	BUG_ON(!list_empty(&p->ptrace_entry));
-}
 
 void release_task(struct task_struct * p)
 {
 	struct task_struct *leader;
 	int zap_leader;
 repeat:
+	tracehook_prepare_release_task(p);
 	atomic_dec(&p->user->processes);
 	proc_flush_task(p);
 	write_lock_irq(&tasklist_lock);
-	ptrace_release_task(p);
+	tracehook_finish_release_task(p);
 	__exit_signal(p);
 
 	/*
@@ -204,6 +195,13 @@ repeat:
 		 * that case.
 		 */
 		zap_leader = task_detached(leader);
+
+		/*
+		 * This maintains the invariant that release_task()
+		 * only runs on a task in EXIT_DEAD, just for sanity.
+		 */
+		if (zap_leader)
+			leader->exit_state = EXIT_DEAD;
 	}
 
 	write_unlock_irq(&tasklist_lock);
@@ -887,7 +885,8 @@ static void forget_original_parent(struct task_struct *father)
  */
 static void exit_notify(struct task_struct *tsk, int group_dead)
 {
-	int state;
+	int signal;
+	void *cookie;
 
 	/*
 	 * This does two things:
@@ -924,22 +923,11 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	    !capable(CAP_KILL))
 		tsk->exit_signal = SIGCHLD;
 
-	/* If something other than our normal parent is ptracing us, then
-	 * send it a SIGCHLD instead of honoring exit_signal.  exit_signal
-	 * only has special meaning to our real parent.
-	 */
-	if (!task_detached(tsk) && thread_group_empty(tsk)) {
-		int signal = ptrace_reparented(tsk) ?
-				SIGCHLD : tsk->exit_signal;
-		do_notify_parent(tsk, signal);
-	} else if (tsk->ptrace) {
-		do_notify_parent(tsk, SIGCHLD);
-	}
+	signal = tracehook_notify_death(tsk, &cookie, group_dead);
+	if (signal > 0)
+		signal = do_notify_parent(tsk, signal);
 
-	state = EXIT_ZOMBIE;
-	if (task_detached(tsk) && likely(!tsk->ptrace))
-		state = EXIT_DEAD;
-	tsk->exit_state = state;
+	tsk->exit_state = signal < 0 ? EXIT_DEAD : EXIT_ZOMBIE;
 
 	/* mt-exec, de_thread() is waiting for us */
 	if (thread_group_leader(tsk) &&
@@ -949,8 +937,10 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 
 	write_unlock_irq(&tasklist_lock);
 
+	tracehook_report_death(tsk, signal, cookie, group_dead);
+
 	/* If the process is dead, release it - nobody will wait for it */
-	if (state == EXIT_DEAD)
+	if (signal < 0)
 		release_task(tsk);
 }
 
@@ -1029,10 +1019,7 @@ NORET_TYPE void do_exit(long code)
 	if (unlikely(!tsk->pid))
 		panic("Attempted to kill the idle task!");
 
-	if (unlikely(current->ptrace & PT_TRACE_EXIT)) {
-		current->ptrace_message = code;
-		ptrace_notify((PTRACE_EVENT_EXIT << 8) | SIGTRAP);
-	}
+	tracehook_report_exit(&code);
 
 	/*
 	 * We're taking recursive faults here in do_exit. Safest is to just

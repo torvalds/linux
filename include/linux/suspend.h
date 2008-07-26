@@ -278,4 +278,6 @@ static inline void register_nosave_region_late(unsigned long b, unsigned long e)
 }
 #endif
 
+extern struct mutex pm_mutex;
+
 #endif /* _LINUX_SUSPEND_H */

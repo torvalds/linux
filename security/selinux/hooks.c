@@ -25,7 +25,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/security.h>
@@ -1971,22 +1971,6 @@ static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
 	return __vm_enough_memory(mm, pages, cap_sys_admin);
 }
 
-/**
- * task_tracer_task - return the task that is tracing the given task
- * @task:		task to consider
- *
- * Returns NULL if noone is tracing @task, or the &struct task_struct
- * pointer to its tracer.
- *
- * Must be called under rcu_read_lock().
- */
-static struct task_struct *task_tracer_task(struct task_struct *task)
-{
-	if (task->ptrace & PT_PTRACED)
-		return rcu_dereference(task->parent);
-	return NULL;
-}
-
 /* binprm security operations */
 
 static int selinux_bprm_alloc_security(struct linux_binprm *bprm)
@@ -2238,7 +2222,7 @@ static void selinux_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
 			u32 ptsid = 0;
 
 			rcu_read_lock();
-			tracer = task_tracer_task(current);
+			tracer = tracehook_tracer_task(current);
 			if (likely(tracer != NULL)) {
 				sec = tracer->security;
 				ptsid = sec->sid;
@@ -5247,7 +5231,7 @@ static int selinux_setprocattr(struct task_struct *p,
 		   Otherwise, leave SID unchanged and fail. */
 		task_lock(p);
 		rcu_read_lock();
-		tracer = task_tracer_task(p);
+		tracer = tracehook_tracer_task(p);
 		if (tracer != NULL) {
 			struct task_security_struct *ptsec = tracer->security;
 			u32 ptsid = ptsec->sid;

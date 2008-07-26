@@ -766,7 +766,7 @@ const struct file_operations cifs_dir_ops = {
 };
 
 static void
-cifs_init_once(struct kmem_cache *cachep, void *inode)
+cifs_init_once(void *inode)
 {
 	struct cifsInodeInfo *cifsi = inode;
 

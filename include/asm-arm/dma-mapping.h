@@ -56,7 +56,7 @@ static inline int dma_is_consistent(struct device *dev, dma_addr_t handle)
 /*
  * DMA errors are defined by all-bits-set in the DMA address.
  */
-static inline int dma_mapping_error(dma_addr_t dma_addr)
+static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return dma_addr == ~0;
 }

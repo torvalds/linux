@@ -455,7 +455,7 @@ incomplete_rcv:
 		/* Note that FC 1001 length is big endian on the wire,
 		but we convert it here so it is always manipulated
 		as host byte order */
-		pdu_length = ntohl(smb_buffer->smb_buf_length);
+		pdu_length = be32_to_cpu((__force __be32)smb_buffer->smb_buf_length);
 		smb_buffer->smb_buf_length = pdu_length;
 
 		cFYI(1, ("rfc1002 length 0x%x", pdu_length+4));
@@ -1461,6 +1461,39 @@ get_dfs_path(int xid, struct cifsSesInfo *pSesInfo, const char *old_path,
 	return rc;
 }
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static struct lock_class_key cifs_key[2];
+static struct lock_class_key cifs_slock_key[2];
+
+static inline void
+cifs_reclassify_socket4(struct socket *sock)
+{
+	struct sock *sk = sock->sk;
+	BUG_ON(sock_owned_by_user(sk));
+	sock_lock_init_class_and_name(sk, "slock-AF_INET-CIFS",
+		&cifs_slock_key[0], "sk_lock-AF_INET-CIFS", &cifs_key[0]);
+}
+
+static inline void
+cifs_reclassify_socket6(struct socket *sock)
+{
+	struct sock *sk = sock->sk;
+	BUG_ON(sock_owned_by_user(sk));
+	sock_lock_init_class_and_name(sk, "slock-AF_INET6-CIFS",
+		&cifs_slock_key[1], "sk_lock-AF_INET6-CIFS", &cifs_key[1]);
+}
+#else
+static inline void
+cifs_reclassify_socket4(struct socket *sock)
+{
+}
+
+static inline void
+cifs_reclassify_socket6(struct socket *sock)
+{
+}
+#endif
+
 /* See RFC1001 section 14 on representation of Netbios names */
 static void rfc1002mangle(char *target, char *source, unsigned int length)
 {
@@ -1495,6 +1528,7 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 		/* BB other socket options to set KEEPALIVE, NODELAY? */
 			cFYI(1, ("Socket created"));
 			(*csocket)->sk->sk_allocation = GFP_NOFS;
+			cifs_reclassify_socket4(*csocket);
 		}
 	}
 
@@ -1627,6 +1661,7 @@ ipv6_connect(struct sockaddr_in6 *psin_server, struct socket **csocket)
 		/* BB other socket options to set KEEPALIVE, NODELAY? */
 			 cFYI(1, ("ipv6 Socket created"));
 			(*csocket)->sk->sk_allocation = GFP_NOFS;
+			cifs_reclassify_socket6(*csocket);
 		}
 	}
 

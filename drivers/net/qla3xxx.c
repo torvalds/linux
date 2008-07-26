@@ -328,7 +328,7 @@ static void ql_release_to_lrg_buf_free_list(struct ql3_adapter *qdev,
 					     qdev->lrg_buffer_len -
 					     QL_HEADER_SPACE,
 					     PCI_DMA_FROMDEVICE);
-			err = pci_dma_mapping_error(map);
+			err = pci_dma_mapping_error(qdev->pdev, map);
 			if(err) {
 				printk(KERN_ERR "%s: PCI mapping failed with error: %d\n",
 				       qdev->ndev->name, err);
@@ -1919,7 +1919,7 @@ static int ql_populate_free_queue(struct ql3_adapter *qdev)
 						     QL_HEADER_SPACE,
 						     PCI_DMA_FROMDEVICE);
 
-				err = pci_dma_mapping_error(map);
+				err = pci_dma_mapping_error(qdev->pdev, map);
 				if(err) {
 					printk(KERN_ERR "%s: PCI mapping failed with error: %d\n",
 					       qdev->ndev->name, err);
@@ -2454,7 +2454,7 @@ static int ql_send_map(struct ql3_adapter *qdev,
 	 */
 	map = pci_map_single(qdev->pdev, skb->data, len, PCI_DMA_TODEVICE);
 
-	err = pci_dma_mapping_error(map);
+	err = pci_dma_mapping_error(qdev->pdev, map);
 	if(err) {
 		printk(KERN_ERR "%s: PCI mapping failed with error: %d\n",
 		       qdev->ndev->name, err);
@@ -2487,7 +2487,7 @@ static int ql_send_map(struct ql3_adapter *qdev,
 						     sizeof(struct oal),
 						     PCI_DMA_TODEVICE);
 
-				err = pci_dma_mapping_error(map);
+				err = pci_dma_mapping_error(qdev->pdev, map);
 				if(err) {
 
 					printk(KERN_ERR "%s: PCI mapping outbound address list with error: %d\n",
@@ -2514,7 +2514,7 @@ static int ql_send_map(struct ql3_adapter *qdev,
 					 frag->page_offset, frag->size,
 					 PCI_DMA_TODEVICE);
 
-			err = pci_dma_mapping_error(map);
+			err = pci_dma_mapping_error(qdev->pdev, map);
 			if(err) {
 				printk(KERN_ERR "%s: PCI mapping frags failed with error: %d\n",
 				       qdev->ndev->name, err);
@@ -2916,7 +2916,7 @@ static int ql_alloc_large_buffers(struct ql3_adapter *qdev)
 					     QL_HEADER_SPACE,
 					     PCI_DMA_FROMDEVICE);
 
-			err = pci_dma_mapping_error(map);
+			err = pci_dma_mapping_error(qdev->pdev, map);
 			if(err) {
 				printk(KERN_ERR "%s: PCI mapping failed with error: %d\n",
 				       qdev->ndev->name, err);

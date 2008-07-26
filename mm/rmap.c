@@ -138,7 +138,7 @@ void anon_vma_unlink(struct vm_area_struct *vma)
 		anon_vma_free(anon_vma);
 }
 
-static void anon_vma_ctor(struct kmem_cache *cachep, void *data)
+static void anon_vma_ctor(void *data)
 {
 	struct anon_vma *anon_vma = data;
 
