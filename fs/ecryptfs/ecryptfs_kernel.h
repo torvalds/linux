@@ -559,10 +559,25 @@ extern struct kmem_cache *ecryptfs_key_record_cache;
 extern struct kmem_cache *ecryptfs_key_sig_cache;
 extern struct kmem_cache *ecryptfs_global_auth_tok_cache;
 extern struct kmem_cache *ecryptfs_key_tfm_cache;
+extern struct kmem_cache *ecryptfs_open_req_cache;
 
+struct ecryptfs_open_req {
+#define ECRYPTFS_REQ_PROCESSED 0x00000001
+#define ECRYPTFS_REQ_DROPPED   0x00000002
+#define ECRYPTFS_REQ_ZOMBIE    0x00000004
+	u32 flags;
+	struct file **lower_file;
+	struct dentry *lower_dentry;
+	struct vfsmount *lower_mnt;
+	wait_queue_head_t wait;
+	struct mutex mux;
+	struct list_head kthread_ctl_list;
+};
+
+#define ECRYPTFS_INTERPOSE_FLAG_D_ADD                 0x00000001
 int ecryptfs_interpose(struct dentry *hidden_dentry,
 		       struct dentry *this_dentry, struct super_block *sb,
-		       int flag);
+		       u32 flags);
 int ecryptfs_fill_zeros(struct file *file, loff_t new_length);
 int ecryptfs_decode_filename(struct ecryptfs_crypt_stat *crypt_stat,
 			     const char *name, int length,
@@ -690,5 +705,11 @@ void ecryptfs_msg_ctx_alloc_to_free(struct ecryptfs_msg_ctx *msg_ctx);
 int
 ecryptfs_spawn_daemon(struct ecryptfs_daemon **daemon, uid_t euid,
 		      struct user_namespace *user_ns, struct pid *pid);
+int ecryptfs_init_kthread(void);
+void ecryptfs_destroy_kthread(void);
+int ecryptfs_privileged_open(struct file **lower_file,
+			     struct dentry *lower_dentry,
+			     struct vfsmount *lower_mnt);
+int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry);
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */

@@ -395,6 +395,12 @@ extern int icache_44x_need_flush;
 #ifndef _PAGE_EXEC
 #define _PAGE_EXEC	0
 #endif
+#ifndef _PAGE_ENDIAN
+#define _PAGE_ENDIAN	0
+#endif
+#ifndef _PAGE_COHERENT
+#define _PAGE_COHERENT	0
+#endif
 #ifndef _PMD_PRESENT_MASK
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
 #endif
@@ -405,6 +411,12 @@ extern int icache_44x_need_flush;
 
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 
+
+#define PAGE_PROT_BITS	__pgprot(_PAGE_GUARDED | _PAGE_COHERENT | _PAGE_NO_CACHE | \
+				 _PAGE_WRITETHRU | _PAGE_ENDIAN | \
+				 _PAGE_USER | _PAGE_ACCESSED | \
+				 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | \
+				 _PAGE_EXEC | _PAGE_HWEXEC)
 /*
  * Note: the _PAGE_COHERENT bit automatically gets set in the hardware
  * PTE if CONFIG_SMP is defined (hash_page does this); there is no need
@@ -538,6 +550,10 @@ static inline pte_t pte_mkyoung(pte_t pte) {
 	pte_val(pte) |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkspecial(pte_t pte) {
 	return pte; }
+static inline unsigned long pte_pgprot(pte_t pte)
+{
+	return __pgprot(pte_val(pte)) & PAGE_PROT_BITS;
+}
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {

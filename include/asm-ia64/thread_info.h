@@ -54,6 +54,8 @@ struct thread_info {
 	},					\
 }
 
+#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
+
 #ifndef ASM_OFFSETS_C
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *) ((char *) current + IA64_TASK_SIZE))

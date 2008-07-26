@@ -1343,8 +1343,6 @@ EXPORT_SYMBOL(in_egroup_p);
 
 DECLARE_RWSEM(uts_sem);
 
-EXPORT_SYMBOL(uts_sem);
-
 asmlinkage long sys_newuname(struct new_utsname __user * name)
 {
 	int errno = 0;
@@ -1795,7 +1793,7 @@ int orderly_poweroff(bool force)
 		goto out;
 	}
 
-	info = call_usermodehelper_setup(argv[0], argv, envp);
+	info = call_usermodehelper_setup(argv[0], argv, envp, GFP_ATOMIC);
 	if (info == NULL) {
 		argv_free(argv);
 		goto out;

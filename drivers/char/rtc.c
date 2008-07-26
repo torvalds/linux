@@ -78,9 +78,10 @@
 #include <linux/wait.h>
 #include <linux/bcd.h>
 #include <linux/delay.h>
+#include <linux/smp_lock.h>
+#include <linux/uaccess.h>
 
 #include <asm/current.h>
-#include <asm/uaccess.h>
 #include <asm/system.h>
 
 #ifdef CONFIG_X86
@@ -120,8 +121,6 @@ static irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 	return 0;
 }
 #endif
-#else
-extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id);
 #endif
 
 /*
@@ -144,8 +143,7 @@ static DEFINE_TIMER(rtc_irq_timer, rtc_dropped_irq, 0, 0);
 static ssize_t rtc_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos);
 
-static int rtc_ioctl(struct inode *inode, struct file *file,
-		     unsigned int cmd, unsigned long arg);
+static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
 #ifdef RTC_IRQ
 static unsigned int rtc_poll(struct file *file, poll_table *wait);
@@ -719,10 +717,13 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, int kernel)
 			    &wtime, sizeof wtime) ? -EFAULT : 0;
 }
 
-static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg)
+static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	return rtc_do_ioctl(cmd, arg, 0);
+	long ret;
+	lock_kernel();
+	ret = rtc_do_ioctl(cmd, arg, 0);
+	unlock_kernel();
+	return ret;
 }
 
 /*
@@ -915,7 +916,7 @@ static const struct file_operations rtc_fops = {
 #ifdef RTC_IRQ
 	.poll		= rtc_poll,
 #endif
-	.ioctl		= rtc_ioctl,
+	.unlocked_ioctl	= rtc_ioctl,
 	.open		= rtc_open,
 	.release	= rtc_release,
 	.fasync		= rtc_fasync,

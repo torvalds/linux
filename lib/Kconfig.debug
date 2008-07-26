@@ -505,6 +505,18 @@ config DEBUG_WRITECOUNT
 
 	  If unsure, say N.
 
+config DEBUG_MEMORY_INIT
+	bool "Debug memory initialisation" if EMBEDDED
+	default !EMBEDDED
+	help
+	  Enable this for additional checks during memory initialisation.
+	  The sanity checks verify aspects of the VM such as the memory model
+	  and other information provided by the architecture. Verbose
+	  information will be printed at KERN_DEBUG loglevel depending
+	  on the mminit_loglevel= command-line option.
+
+	  If unsure, say Y
+
 config DEBUG_LIST
 	bool "Debug linked list manipulation"
 	depends on DEBUG_KERNEL

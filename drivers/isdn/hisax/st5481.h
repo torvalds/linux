@@ -220,7 +220,7 @@ enum {
 #define ERR(format, arg...) \
 printk(KERN_ERR "%s:%s: " format "\n" , __FILE__,  __func__ , ## arg)
 
-#define WARN(format, arg...) \
+#define WARNING(format, arg...) \
 printk(KERN_WARNING "%s:%s: " format "\n" , __FILE__,  __func__ , ## arg)
 
 #define INFO(format, arg...) \
@@ -412,7 +412,7 @@ struct st5481_adapter {
 ({ \
 	int status; \
 	if ((status = usb_submit_urb(urb, mem_flags)) < 0) { \
-		WARN("usb_submit_urb failed,status=%d", status); \
+		WARNING("usb_submit_urb failed,status=%d", status); \
 	} \
         status; \
 })

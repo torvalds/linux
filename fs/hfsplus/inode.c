@@ -163,7 +163,7 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dent
 
 	inode->i_ino = dir->i_ino;
 	INIT_LIST_HEAD(&HFSPLUS_I(inode).open_dir_list);
-	init_MUTEX(&HFSPLUS_I(inode).extents_lock);
+	mutex_init(&HFSPLUS_I(inode).extents_lock);
 	HFSPLUS_I(inode).flags = HFSPLUS_FLG_RSRC;
 
 	hfs_find_init(HFSPLUS_SB(sb).cat_tree, &fd);
@@ -316,7 +316,7 @@ struct inode *hfsplus_new_inode(struct super_block *sb, int mode)
 	inode->i_nlink = 1;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
 	INIT_LIST_HEAD(&HFSPLUS_I(inode).open_dir_list);
-	init_MUTEX(&HFSPLUS_I(inode).extents_lock);
+	mutex_init(&HFSPLUS_I(inode).extents_lock);
 	atomic_set(&HFSPLUS_I(inode).opencnt, 0);
 	HFSPLUS_I(inode).flags = 0;
 	memset(HFSPLUS_I(inode).first_extents, 0, sizeof(hfsplus_extent_rec));

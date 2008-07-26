@@ -18,10 +18,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#ifndef MAX_HWIFS
-#define MAX_HWIFS 8
-#endif
-
 /****************************************************************************/
 /*
  * some bits needed for parts of the IDE subsystem to compile

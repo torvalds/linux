@@ -242,6 +242,8 @@ static int mcp_sa11x0_resume(struct platform_device *dev)
 /*
  * The driver for the SA11x0 MCP port.
  */
+MODULE_ALIAS("platform:sa11x0-mcp");
+
 static struct platform_driver mcp_sa11x0_driver = {
 	.probe		= mcp_sa11x0_probe,
 	.remove		= mcp_sa11x0_remove,

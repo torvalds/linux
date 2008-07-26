@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <linux/vmstat.h>
 #include <linux/sched.h>
 
 #ifdef CONFIG_VM_EVENT_COUNTERS

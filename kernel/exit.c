@@ -85,7 +85,6 @@ static void __exit_signal(struct task_struct *tsk)
 	BUG_ON(!sig);
 	BUG_ON(!atomic_read(&sig->count));
 
-	rcu_read_lock();
 	sighand = rcu_dereference(tsk->sighand);
 	spin_lock(&sighand->siglock);
 
@@ -121,6 +120,18 @@ static void __exit_signal(struct task_struct *tsk)
 		sig->nivcsw += tsk->nivcsw;
 		sig->inblock += task_io_get_inblock(tsk);
 		sig->oublock += task_io_get_oublock(tsk);
+#ifdef CONFIG_TASK_XACCT
+		sig->rchar += tsk->rchar;
+		sig->wchar += tsk->wchar;
+		sig->syscr += tsk->syscr;
+		sig->syscw += tsk->syscw;
+#endif /* CONFIG_TASK_XACCT */
+#ifdef CONFIG_TASK_IO_ACCOUNTING
+		sig->ioac.read_bytes += tsk->ioac.read_bytes;
+		sig->ioac.write_bytes += tsk->ioac.write_bytes;
+		sig->ioac.cancelled_write_bytes +=
+					tsk->ioac.cancelled_write_bytes;
+#endif /* CONFIG_TASK_IO_ACCOUNTING */
 		sig->sum_sched_runtime += tsk->se.sum_exec_runtime;
 		sig = NULL; /* Marker for below. */
 	}
@@ -136,7 +147,6 @@ static void __exit_signal(struct task_struct *tsk)
 	tsk->signal = NULL;
 	tsk->sighand = NULL;
 	spin_unlock(&sighand->siglock);
-	rcu_read_unlock();
 
 	__cleanup_sighand(sighand);
 	clear_tsk_thread_flag(tsk,TIF_SIGPENDING);
@@ -432,7 +442,7 @@ void daemonize(const char *name, ...)
 	 * We don't want to have TIF_FREEZE set if the system-wide hibernation
 	 * or suspend transition begins right now.
 	 */
-	current->flags |= PF_NOFREEZE;
+	current->flags |= (PF_NOFREEZE | PF_KTHREAD);
 
 	if (current->nsproxy != &init_nsproxy) {
 		get_nsproxy(&init_nsproxy);
@@ -666,26 +676,40 @@ assign_new_owner:
 static void exit_mm(struct task_struct * tsk)
 {
 	struct mm_struct *mm = tsk->mm;
+	struct core_state *core_state;
 
 	mm_release(tsk, mm);
 	if (!mm)
 		return;
 	/*
 	 * Serialize with any possible pending coredump.
-	 * We must hold mmap_sem around checking core_waiters
+	 * We must hold mmap_sem around checking core_state
 	 * and clearing tsk->mm.  The core-inducing thread
-	 * will increment core_waiters for each thread in the
+	 * will increment ->nr_threads for each thread in the
 	 * group with ->mm != NULL.
 	 */
 	down_read(&mm->mmap_sem);
-	if (mm->core_waiters) {
+	core_state = mm->core_state;
+	if (core_state) {
+		struct core_thread self;
 		up_read(&mm->mmap_sem);
-		down_write(&mm->mmap_sem);
-		if (!--mm->core_waiters)
-			complete(mm->core_startup_done);
-		up_write(&mm->mmap_sem);
 
-		wait_for_completion(&mm->core_done);
+		self.task = tsk;
+		self.next = xchg(&core_state->dumper.next, &self);
+		/*
+		 * Implies mb(), the result of xchg() must be visible
+		 * to core_state->dumper.
+		 */
+		if (atomic_dec_and_test(&core_state->nr_threads))
+			complete(&core_state->startup);
+
+		for (;;) {
+			set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+			if (!self.task) /* see coredump_finish() */
+				break;
+			schedule();
+		}
+		__set_task_state(tsk, TASK_RUNNING);
 		down_read(&mm->mmap_sem);
 	}
 	atomic_inc(&mm->mm_count);
@@ -1354,6 +1378,21 @@ static int wait_task_zombie(struct task_struct *p, int options,
 		psig->coublock +=
 			task_io_get_oublock(p) +
 			sig->oublock + sig->coublock;
+#ifdef CONFIG_TASK_XACCT
+		psig->rchar += p->rchar + sig->rchar;
+		psig->wchar += p->wchar + sig->wchar;
+		psig->syscr += p->syscr + sig->syscr;
+		psig->syscw += p->syscw + sig->syscw;
+#endif /* CONFIG_TASK_XACCT */
+#ifdef CONFIG_TASK_IO_ACCOUNTING
+		psig->ioac.read_bytes +=
+			p->ioac.read_bytes + sig->ioac.read_bytes;
+		psig->ioac.write_bytes +=
+			p->ioac.write_bytes + sig->ioac.write_bytes;
+		psig->ioac.cancelled_write_bytes +=
+				p->ioac.cancelled_write_bytes +
+				sig->ioac.cancelled_write_bytes;
+#endif /* CONFIG_TASK_IO_ACCOUNTING */
 		spin_unlock_irq(&p->parent->sighand->siglock);
 	}
 

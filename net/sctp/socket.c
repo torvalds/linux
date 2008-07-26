@@ -3910,7 +3910,7 @@ static int sctp_getsockopt_peeloff(struct sock *sk, int len, char __user *optval
 		goto out;
 
 	/* Map the socket to an unused fd that can be returned to the user.  */
-	retval = sock_map_fd(newsock);
+	retval = sock_map_fd(newsock, 0);
 	if (retval < 0) {
 		sock_release(newsock);
 		goto out;

@@ -145,8 +145,12 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	 * user space. The DABR will have been cleared if it
 	 * triggered inside the kernel.
 	 */
-	if (current->thread.dabr)
+	if (current->thread.dabr) {
 		set_dabr(current->thread.dabr);
+#if defined(CONFIG_44x) || defined(CONFIG_BOOKE)
+		mtspr(SPRN_DBCR0, current->thread.dbcr0);
+#endif
+	}
 
 	if (is32) {
         	if (ka.sa.sa_flags & SA_SIGINFO)

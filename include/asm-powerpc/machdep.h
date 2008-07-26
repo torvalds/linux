@@ -76,7 +76,7 @@ struct machdep_calls {
 	 * destroyed as well */
 	void		(*hpte_clear_all)(void);
 
-	void		(*tce_build)(struct iommu_table * tbl,
+	int		(*tce_build)(struct iommu_table *tbl,
 				     long index,
 				     long npages,
 				     unsigned long uaddr,

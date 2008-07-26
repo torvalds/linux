@@ -35,8 +35,22 @@ net_ctl_header_lookup(struct ctl_table_root *root, struct nsproxy *namespaces)
 	return &namespaces->net_ns->sysctl_table_headers;
 }
 
+/* Return standard mode bits for table entry. */
+static int net_ctl_permissions(struct ctl_table_root *root,
+			       struct nsproxy *nsproxy,
+			       struct ctl_table *table)
+{
+	/* Allow network administrator to have same access as root. */
+	if (capable(CAP_NET_ADMIN)) {
+		int mode = (table->mode >> 6) & 7;
+		return (mode << 6) | (mode << 3) | mode;
+	}
+	return table->mode;
+}
+
 static struct ctl_table_root net_sysctl_root = {
 	.lookup = net_ctl_header_lookup,
+	.permissions = net_ctl_permissions,
 };
 
 static LIST_HEAD(net_sysctl_ro_tables);

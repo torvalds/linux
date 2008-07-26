@@ -369,20 +369,34 @@ static int __init ppro_init(char **cpu_type)
 {
 	__u8 cpu_model = boot_cpu_data.x86_model;
 
-	if (cpu_model == 14)
-		*cpu_type = "i386/core";
-	else if (cpu_model == 15 || cpu_model == 23)
-		*cpu_type = "i386/core_2";
-	else if (cpu_model > 0xd)
-		return 0;
-	else if (cpu_model == 9) {
-		*cpu_type = "i386/p6_mobile";
-	} else if (cpu_model > 5) {
-		*cpu_type = "i386/piii";
-	} else if (cpu_model > 2) {
-		*cpu_type = "i386/pii";
-	} else {
+	switch (cpu_model) {
+	case 0 ... 2:
 		*cpu_type = "i386/ppro";
+		break;
+	case 3 ... 5:
+		*cpu_type = "i386/pii";
+		break;
+	case 6 ... 8:
+		*cpu_type = "i386/piii";
+		break;
+	case 9:
+		*cpu_type = "i386/p6_mobile";
+		break;
+	case 10 ... 13:
+		*cpu_type = "i386/p6";
+		break;
+	case 14:
+		*cpu_type = "i386/core";
+		break;
+	case 15: case 23:
+		*cpu_type = "i386/core_2";
+		break;
+	case 26:
+		*cpu_type = "i386/core_2";
+		break;
+	default:
+		/* Unknown */
+		return 0;
 	}
 
 	model = &op_ppro_spec;

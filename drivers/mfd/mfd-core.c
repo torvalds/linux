@@ -36,7 +36,7 @@ static int mfd_add_device(struct platform_device *parent,
 	if (ret)
 		goto fail_device;
 
-	memzero(res, sizeof(res));
+	memset(res, 0, sizeof(res));
 	for (r = 0; r < cell->num_resources; r++) {
 		res[r].name = cell->resources[r].name;
 		res[r].flags = cell->resources[r].flags;

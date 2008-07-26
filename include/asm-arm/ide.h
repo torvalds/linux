@@ -13,10 +13,6 @@
 
 #ifdef __KERNEL__
 
-#ifndef MAX_HWIFS
-#define MAX_HWIFS	4
-#endif
-
 #define __ide_mm_insw(port,addr,len)	readsw(port,addr,len)
 #define __ide_mm_insl(port,addr,len)	readsl(port,addr,len)
 #define __ide_mm_outsw(port,addr,len)	writesw(port,addr,len)
