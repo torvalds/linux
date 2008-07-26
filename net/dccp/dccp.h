@@ -164,7 +164,7 @@ static inline bool dccp_loss_free(const u64 s1, const u64 s2, const u64 ndp)
 {
 	s64 delta = dccp_delta_seqno(s1, s2);
 
-	BUG_TRAP(delta >= 0);
+	WARN_ON(delta < 0);
 	return (u64)delta <= ndp + 1;
 }
 

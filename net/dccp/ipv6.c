@@ -186,7 +186,7 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		 * ICMPs are not backlogged, hence we cannot get an established
 		 * socket here.
 		 */
-		BUG_TRAP(req->sk == NULL);
+		WARN_ON(req->sk != NULL);
 
 		if (seq != dccp_rsk(req)->dreq_iss) {
 			NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);

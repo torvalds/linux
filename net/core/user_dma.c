@@ -27,7 +27,6 @@
 
 #include <linux/dmaengine.h>
 #include <linux/socket.h>
-#include <linux/rtnetlink.h> /* for BUG_TRAP */
 #include <net/tcp.h>
 #include <net/netdma.h>
 
@@ -71,7 +70,7 @@ int dma_skb_copy_datagram_iovec(struct dma_chan *chan,
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		copy = end - offset;
@@ -100,7 +99,7 @@ int dma_skb_copy_datagram_iovec(struct dma_chan *chan,
 		for (; list; list = list->next) {
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			copy = end - offset;
