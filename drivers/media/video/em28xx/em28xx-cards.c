@@ -246,6 +246,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
 		.decoder      = EM28XX_TVP5150,
+		.has_dvb        = 1,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
@@ -637,6 +638,9 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 
 	switch (dev->model) {
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+		ctl->demod = XC3028_FE_ZARLINK456;
+		break;
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:

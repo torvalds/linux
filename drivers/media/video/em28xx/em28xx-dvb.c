@@ -441,6 +441,15 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 #endif
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+		dvb->frontend = dvb_attach(zl10353_attach,
+						&em28xx_zl10353_with_xc3028,
+						&dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0) {
+			 result = -EINVAL;
+			goto out_free;
+		}
+		break;
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card"
 				" isn't supported yet\n",
