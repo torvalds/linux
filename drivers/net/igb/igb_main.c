@@ -385,7 +385,7 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct igb_ring *rx_ring = &adapter->rx_ring[i];
-		rx_ring->buddy = 0;
+		rx_ring->buddy = NULL;
 		igb_assign_vector(adapter, i, IGB_N0_QUEUE, vector++);
 		adapter->eims_enable_mask |= rx_ring->eims_value;
 		if (rx_ring->itr_val)

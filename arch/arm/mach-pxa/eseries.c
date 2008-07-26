@@ -17,7 +17,7 @@
 #include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 
-#include <generic.h>
+#include "generic.h"
 
 /* Only e800 has 128MB RAM */
 static void __init eseries_fixup(struct machine_desc *desc,
@@ -44,6 +44,19 @@ MACHINE_START(E330, "Toshiba e330")
         .init_irq       = pxa25x_init_irq,
         .fixup          = eseries_fixup,
         .timer = &pxa_timer,
+MACHINE_END
+#endif
+
+#ifdef CONFIG_MACH_E350
+MACHINE_START(E350, "Toshiba e350")
+	/* Maintainer: Ian Molton (spyro@f2s.com) */
+	.phys_io        = 0x40000000,
+	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.boot_params    = 0xa0000100,
+	.map_io         = pxa_map_io,
+	.init_irq       = pxa25x_init_irq,
+	.fixup          = eseries_fixup,
+	.timer = &pxa_timer,
 MACHINE_END
 #endif
 

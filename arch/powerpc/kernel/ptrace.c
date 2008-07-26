@@ -703,7 +703,7 @@ void user_enable_single_step(struct task_struct *task)
 
 	if (regs != NULL) {
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
-		task->thread.dbcr0 = DBCR0_IDM | DBCR0_IC;
+		task->thread.dbcr0 |= DBCR0_IDM | DBCR0_IC;
 		regs->msr |= MSR_DE;
 #else
 		regs->msr |= MSR_SE;
@@ -716,9 +716,16 @@ void user_disable_single_step(struct task_struct *task)
 {
 	struct pt_regs *regs = task->thread.regs;
 
+
+#if defined(CONFIG_44x) || defined(CONFIG_BOOKE)
+	/* If DAC then do not single step, skip */
+	if (task->thread.dabr)
+		return;
+#endif
+
 	if (regs != NULL) {
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
-		task->thread.dbcr0 = 0;
+		task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_IDM);
 		regs->msr &= ~MSR_DE;
 #else
 		regs->msr &= ~MSR_SE;
@@ -727,22 +734,75 @@ void user_disable_single_step(struct task_struct *task)
 	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
 
-static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
+int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 			       unsigned long data)
 {
-	/* We only support one DABR and no IABRS at the moment */
+	/* For ppc64 we support one DABR and no IABR's at the moment (ppc64).
+	 *  For embedded processors we support one DAC and no IAC's at the
+	 *  moment.
+	 */
 	if (addr > 0)
 		return -EINVAL;
 
-	/* The bottom 3 bits are flags */
 	if ((data & ~0x7UL) >= TASK_SIZE)
 		return -EIO;
 
-	/* Ensure translation is on */
+#ifdef CONFIG_PPC64
+
+	/* For processors using DABR (i.e. 970), the bottom 3 bits are flags.
+	 *  It was assumed, on previous implementations, that 3 bits were
+	 *  passed together with the data address, fitting the design of the
+	 *  DABR register, as follows:
+	 *
+	 *  bit 0: Read flag
+	 *  bit 1: Write flag
+	 *  bit 2: Breakpoint translation
+	 *
+	 *  Thus, we use them here as so.
+	 */
+
+	/* Ensure breakpoint translation bit is set */
 	if (data && !(data & DABR_TRANSLATION))
 		return -EIO;
 
+	/* Move contents to the DABR register */
 	task->thread.dabr = data;
+
+#endif
+#if defined(CONFIG_44x) || defined(CONFIG_BOOKE)
+
+	/* As described above, it was assumed 3 bits were passed with the data
+	 *  address, but we will assume only the mode bits will be passed
+	 *  as to not cause alignment restrictions for DAC-based processors.
+	 */
+
+	/* DAC's hold the whole address without any mode flags */
+	task->thread.dabr = data & ~0x3UL;
+
+	if (task->thread.dabr == 0) {
+		task->thread.dbcr0 &= ~(DBSR_DAC1R | DBSR_DAC1W | DBCR0_IDM);
+		task->thread.regs->msr &= ~MSR_DE;
+		return 0;
+	}
+
+	/* Read or Write bits must be set */
+
+	if (!(data & 0x3UL))
+		return -EINVAL;
+
+	/* Set the Internal Debugging flag (IDM bit 1) for the DBCR0
+	   register */
+	task->thread.dbcr0 = DBCR0_IDM;
+
+	/* Check for write and read flags and set DBCR0
+	   accordingly */
+	if (data & 0x1UL)
+		task->thread.dbcr0 |= DBSR_DAC1R;
+	if (data & 0x2UL)
+		task->thread.dbcr0 |= DBSR_DAC1W;
+
+	task->thread.regs->msr |= MSR_DE;
+#endif
 	return 0;
 }
 

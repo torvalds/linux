@@ -4,11 +4,12 @@
 #include <asm/page.h>
 
 
-void hugetlb_free_pgd_range(struct mmu_gather **tlb, unsigned long addr,
+void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
 			    unsigned long end, unsigned long floor,
 			    unsigned long ceiling);
 
-int prepare_hugepage_range(unsigned long addr, unsigned long len);
+int prepare_hugepage_range(struct file *file,
+			unsigned long addr, unsigned long len);
 
 static inline int is_hugepage_only_range(struct mm_struct *mm,
 					 unsigned long addr,

@@ -71,6 +71,8 @@ static void sctp_mark_missing(struct sctp_outq *q,
 
 static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 sack_ctsn);
 
+static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout);
+
 /* Add data to the front of the queue. */
 static inline void sctp_outq_head_data(struct sctp_outq *q,
 					struct sctp_chunk *ch)
@@ -712,7 +714,7 @@ int sctp_outq_uncork(struct sctp_outq *q)
  * locking concerns must be made.  Today we use the sock lock to protect
  * this function.
  */
-int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
+static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 {
 	struct sctp_packet *packet;
 	struct sctp_packet singleton;

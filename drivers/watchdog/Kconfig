@@ -788,8 +788,6 @@ config WATCHDOG_RIO
 	  machines.  The watchdog timeout period is normally one minute but
 	  can be changed with a boot-time parameter.
 
-# V850 Architecture
-
 # XTENSA Architecture
 
 #

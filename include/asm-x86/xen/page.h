@@ -124,7 +124,7 @@ static inline unsigned long mfn_to_local_pfn(unsigned long mfn)
 
 static inline unsigned long pte_mfn(pte_t pte)
 {
-	return (pte.pte & PTE_MASK) >> PAGE_SHIFT;
+	return (pte.pte & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
 static inline pte_t mfn_pte(unsigned long page_nr, pgprot_t pgprot)

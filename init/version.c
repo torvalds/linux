@@ -13,10 +13,13 @@
 #include <linux/utsrelease.h>
 #include <linux/version.h>
 
+#ifndef CONFIG_KALLSYMS
 #define version(a) Version_ ## a
 #define version_string(a) version(a)
 
+extern int version_string(LINUX_VERSION_CODE);
 int version_string(LINUX_VERSION_CODE);
+#endif
 
 struct uts_namespace init_uts_ns = {
 	.kref = {

@@ -92,6 +92,8 @@ static inline struct thread_info *current_thread_info(void)
 	return ti;
 }
 
+#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
+
 /* thread information allocation */
 #ifdef CONFIG_DEBUG_STACK_USAGE
 #define alloc_thread_info(ti)	kzalloc(THREAD_SIZE, GFP_KERNEL)

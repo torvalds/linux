@@ -125,12 +125,15 @@ static int dupfd(struct file *file, unsigned int start, int cloexec)
 	return fd;
 }
 
-asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
+asmlinkage long sys_dup3(unsigned int oldfd, unsigned int newfd, int flags)
 {
 	int err = -EBADF;
 	struct file * file, *tofree;
 	struct files_struct * files = current->files;
 	struct fdtable *fdt;
+
+	if ((flags & ~O_CLOEXEC) != 0)
+		return -EINVAL;
 
 	spin_lock(&files->file_lock);
 	if (!(file = fcheck(oldfd)))
@@ -163,7 +166,10 @@ asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
 
 	rcu_assign_pointer(fdt->fd[newfd], file);
 	FD_SET(newfd, fdt->open_fds);
-	FD_CLR(newfd, fdt->close_on_exec);
+	if (flags & O_CLOEXEC)
+		FD_SET(newfd, fdt->close_on_exec);
+	else
+		FD_CLR(newfd, fdt->close_on_exec);
 	spin_unlock(&files->file_lock);
 
 	if (tofree)
@@ -179,6 +185,11 @@ out_fput:
 	spin_unlock(&files->file_lock);
 	fput(file);
 	goto out;
+}
+
+asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
+{
+	return sys_dup3(oldfd, newfd, 0);
 }
 
 asmlinkage long sys_dup(unsigned int fildes)

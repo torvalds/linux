@@ -196,8 +196,9 @@ int usb_register_dev(struct usb_interface *intf,
 		++temp;
 	else
 		temp = name;
-	intf->usb_dev = device_create(usb_class->class, &intf->dev,
-				      MKDEV(USB_MAJOR, minor), "%s", temp);
+	intf->usb_dev = device_create_drvdata(usb_class->class, &intf->dev,
+					      MKDEV(USB_MAJOR, minor), NULL,
+					      "%s", temp);
 	if (IS_ERR(intf->usb_dev)) {
 		down_write(&minor_rwsem);
 		usb_minors[intf->minor] = NULL;

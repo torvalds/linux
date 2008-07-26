@@ -1476,7 +1476,8 @@ void audit_syscall_entry(int arch, int major,
 	struct audit_context *context = tsk->audit_context;
 	enum audit_state     state;
 
-	BUG_ON(!context);
+	if (unlikely(!context))
+		return;
 
 	/*
 	 * This happens only on certain architectures that make system

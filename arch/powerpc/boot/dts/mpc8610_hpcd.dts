@@ -388,6 +388,20 @@
 					  0x01000000 0x0 0x00000000
 					  0x01000000 0x0 0x00000000
 					  0x0 0x00100000>;
+
+				isa@1e {
+					device_type = "isa";
+					#size-cells = <1>;
+					#address-cells = <2>;
+					reg = <0xf000 0 0 0 0>;
+					ranges = <1 0 0x01000000 0 0
+						  0x00001000>;
+
+					rtc@70 {
+						compatible = "pnpPNP,b00";
+						reg = <1 0x70 2>;
+					};
+				};
 			};
 		};
 	};

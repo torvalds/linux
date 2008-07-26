@@ -609,7 +609,7 @@ static void	stli_unthrottle(struct tty_struct *tty);
 static void	stli_stop(struct tty_struct *tty);
 static void	stli_start(struct tty_struct *tty);
 static void	stli_flushbuffer(struct tty_struct *tty);
-static void	stli_breakctl(struct tty_struct *tty, int state);
+static int	stli_breakctl(struct tty_struct *tty, int state);
 static void	stli_waituntilsent(struct tty_struct *tty, int timeout);
 static void	stli_sendxchar(struct tty_struct *tty, char ch);
 static void	stli_hangup(struct tty_struct *tty);
@@ -925,8 +925,7 @@ static void stli_close(struct tty_struct *tty, struct file *filp)
 	clear_bit(ST_TXBUSY, &portp->state);
 	clear_bit(ST_RXSTOP, &portp->state);
 	set_bit(TTY_IO_ERROR, &tty->flags);
-	if (tty->ldisc.ops->flush_buffer)
-		(tty->ldisc.ops->flush_buffer)(tty);
+	tty_ldisc_flush(tty);
 	set_bit(ST_DOFLUSHRX, &portp->state);
 	stli_flushbuffer(tty);
 
@@ -1909,7 +1908,7 @@ static void stli_flushbuffer(struct tty_struct *tty)
 
 /*****************************************************************************/
 
-static void stli_breakctl(struct tty_struct *tty, int state)
+static int stli_breakctl(struct tty_struct *tty, int state)
 {
 	struct stlibrd	*brdp;
 	struct stliport	*portp;
@@ -1917,15 +1916,16 @@ static void stli_breakctl(struct tty_struct *tty, int state)
 
 	portp = tty->driver_data;
 	if (portp == NULL)
-		return;
+		return -EINVAL;
 	if (portp->brdnr >= stli_nrbrds)
-		return;
+		return -EINVAL;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
-		return;
+		return -EINVAL;
 
 	arg = (state == -1) ? BREAKON : BREAKOFF;
 	stli_cmdwait(brdp, portp, A_BREAK, &arg, sizeof(long), 0);
+	return 0;
 }
 
 /*****************************************************************************/
@@ -4599,8 +4599,9 @@ static int __init istallion_module_init(void)
 
 	istallion_class = class_create(THIS_MODULE, "staliomem");
 	for (i = 0; i < 4; i++)
-		device_create(istallion_class, NULL, MKDEV(STL_SIOMEMMAJOR, i),
-			      "staliomem%d", i);
+		device_create_drvdata(istallion_class, NULL,
+				      MKDEV(STL_SIOMEMMAJOR, i),
+				      NULL, "staliomem%d", i);
 
 	return 0;
 err_deinit:

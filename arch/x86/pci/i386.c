@@ -280,6 +280,7 @@ static void pci_track_mmap_page_range(struct vm_area_struct *vma)
 static struct vm_operations_struct pci_mmap_ops = {
 	.open  = pci_track_mmap_page_range,
 	.close = pci_unmap_page_range,
+	.access = generic_access_phys,
 };
 
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,

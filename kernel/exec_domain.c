@@ -65,7 +65,7 @@ lookup_exec_domain(u_long personality)
 				goto out;
 	}
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	read_unlock(&exec_domains_lock);
 	request_module("personality-%ld", pers);
 	read_lock(&exec_domains_lock);

@@ -288,9 +288,32 @@ spufs_mem_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return VM_FAULT_NOPAGE;
 }
 
+static int spufs_mem_mmap_access(struct vm_area_struct *vma,
+				unsigned long address,
+				void *buf, int len, int write)
+{
+	struct spu_context *ctx = vma->vm_file->private_data;
+	unsigned long offset = address - vma->vm_start;
+	char *local_store;
+
+	if (write && !(vma->vm_flags & VM_WRITE))
+		return -EACCES;
+	if (spu_acquire(ctx))
+		return -EINTR;
+	if ((offset + len) > vma->vm_end)
+		len = vma->vm_end - offset;
+	local_store = ctx->ops->get_ls(ctx);
+	if (write)
+		memcpy_toio(local_store + offset, buf, len);
+	else
+		memcpy_fromio(buf, local_store + offset, len);
+	spu_release(ctx);
+	return len;
+}
 
 static struct vm_operations_struct spufs_mem_mmap_vmops = {
 	.fault = spufs_mem_mmap_fault,
+	.access = spufs_mem_mmap_access,
 };
 
 static int spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)

@@ -87,8 +87,6 @@ extern void init_IRQ(void);
 extern void fork_init(unsigned long);
 extern void mca_init(void);
 extern void sbus_init(void);
-extern void pidhash_init(void);
-extern void pidmap_init(void);
 extern void prio_tree_init(void);
 extern void radix_tree_init(void);
 extern void free_initmem(void);
@@ -414,6 +412,13 @@ static void __init setup_per_cpu_areas(void)
 static void __init smp_init(void)
 {
 	unsigned int cpu;
+
+	/*
+	 * Set up the current CPU as possible to migrate to.
+	 * The other ones will be done by cpu_up/cpu_down()
+	 */
+	cpu = smp_processor_id();
+	cpu_set(cpu, cpu_active_map);
 
 	/* FIXME: This should be done in userspace --RR */
 	for_each_present_cpu(cpu) {

@@ -25,7 +25,7 @@ static inline int pud_none(pud_t pud)
 
 static inline int pud_bad(pud_t pud)
 {
-	return (pud_val(pud) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
+	return (pud_val(pud) & ~(PTE_PFN_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
 }
 
 static inline int pud_present(pud_t pud)
@@ -120,9 +120,9 @@ static inline void pud_clear(pud_t *pudp)
 		write_cr3(pgd);
 }
 
-#define pud_page(pud) ((struct page *) __va(pud_val(pud) & PTE_MASK))
+#define pud_page(pud) ((struct page *) __va(pud_val(pud) & PTE_PFN_MASK))
 
-#define pud_page_vaddr(pud) ((unsigned long) __va(pud_val(pud) & PTE_MASK))
+#define pud_page_vaddr(pud) ((unsigned long) __va(pud_val(pud) & PTE_PFN_MASK))
 
 
 /* Find an entry in the second-level page table.. */
@@ -160,7 +160,7 @@ static inline int pte_none(pte_t pte)
 
 static inline unsigned long pte_pfn(pte_t pte)
 {
-	return (pte_val(pte) & PTE_MASK) >> PAGE_SHIFT;
+	return (pte_val(pte) & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
 /*

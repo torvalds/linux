@@ -1325,6 +1325,8 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 			return -ENOPROTOOPT;
 		if (val != 0 && val < 8) /* Illegal coverage: use default (8) */
 			val = 8;
+		else if (val > USHORT_MAX)
+			val = USHORT_MAX;
 		up->pcslen = val;
 		up->pcflag |= UDPLITE_SEND_CC;
 		break;
@@ -1337,6 +1339,8 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 			return -ENOPROTOOPT;
 		if (val != 0 && val < 8) /* Avoid silly minimal values.       */
 			val = 8;
+		else if (val > USHORT_MAX)
+			val = USHORT_MAX;
 		up->pcrlen = val;
 		up->pcflag |= UDPLITE_RECV_CC;
 		break;

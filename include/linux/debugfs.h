@@ -44,6 +44,7 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 				      const char *dest);
 
 void debugfs_remove(struct dentry *dentry);
+void debugfs_remove_recursive(struct dentry *dentry);
 
 struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
                 struct dentry *new_dir, const char *new_name);
@@ -99,6 +100,9 @@ static inline struct dentry *debugfs_create_symlink(const char *name,
 }
 
 static inline void debugfs_remove(struct dentry *dentry)
+{ }
+
+static inline void debugfs_remove_recursive(struct dentry *dentry)
 { }
 
 static inline struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,

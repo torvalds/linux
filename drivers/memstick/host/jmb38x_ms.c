@@ -51,7 +51,7 @@ struct jmb38x_ms_host {
 	void __iomem            *addr;
 	spinlock_t              lock;
 	int                     id;
-	char                    host_id[DEVICE_ID_SIZE];
+	char                    host_id[32];
 	int                     irq;
 	unsigned int            block_pos;
 	unsigned long           timeout_jiffies;
@@ -781,7 +781,7 @@ static struct memstick_host *jmb38x_ms_alloc_host(struct jmb38x_ms *jm, int cnt)
 
 	spin_lock_init(&host->lock);
 	host->id = cnt;
-	snprintf(host->host_id, DEVICE_ID_SIZE, DRIVER_NAME ":slot%d",
+	snprintf(host->host_id, sizeof(host->host_id), DRIVER_NAME ":slot%d",
 		 host->id);
 	host->irq = jm->pdev->irq;
 	host->timeout_jiffies = msecs_to_jiffies(1000);

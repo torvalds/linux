@@ -888,19 +888,22 @@ dm9000_rx(struct net_device *dev)
 			dev_dbg(db->dev, "RST: RX Len:%x\n", RxLen);
 		}
 
-		if (rxhdr.RxStatus & 0xbf) {
+		/* rxhdr.RxStatus is identical to RSR register. */
+		if (rxhdr.RxStatus & (RSR_FOE | RSR_CE | RSR_AE |
+				      RSR_PLE | RSR_RWTO |
+				      RSR_LCS | RSR_RF)) {
 			GoodPacket = false;
-			if (rxhdr.RxStatus & 0x01) {
+			if (rxhdr.RxStatus & RSR_FOE) {
 				if (netif_msg_rx_err(db))
 					dev_dbg(db->dev, "fifo error\n");
 				dev->stats.rx_fifo_errors++;
 			}
-			if (rxhdr.RxStatus & 0x02) {
+			if (rxhdr.RxStatus & RSR_CE) {
 				if (netif_msg_rx_err(db))
 					dev_dbg(db->dev, "crc error\n");
 				dev->stats.rx_crc_errors++;
 			}
-			if (rxhdr.RxStatus & 0x80) {
+			if (rxhdr.RxStatus & RSR_RF) {
 				if (netif_msg_rx_err(db))
 					dev_dbg(db->dev, "length error\n");
 				dev->stats.rx_length_errors++;
@@ -1067,7 +1070,7 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 	/* Fill the phyxcer register into REG_0C */
 	iow(db, DM9000_EPAR, DM9000_PHY | reg);
 
-	iow(db, DM9000_EPCR, 0xc);	/* Issue phyxcer read command */
+	iow(db, DM9000_EPCR, EPCR_ERPRR | EPCR_EPOS);	/* Issue phyxcer read command */
 
 	writeb(reg_save, db->io_addr);
 	spin_unlock_irqrestore(&db->lock,flags);
@@ -1118,7 +1121,7 @@ dm9000_phy_write(struct net_device *dev,
 	iow(db, DM9000_EPDRL, value);
 	iow(db, DM9000_EPDRH, value >> 8);
 
-	iow(db, DM9000_EPCR, 0xa);	/* Issue phyxcer write command */
+	iow(db, DM9000_EPCR, EPCR_EPOS | EPCR_ERPRW);	/* Issue phyxcer write command */
 
 	writeb(reg_save, db->io_addr);
 	spin_unlock_irqrestore(&db->lock, flags);

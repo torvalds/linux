@@ -64,7 +64,8 @@ static int vfs_statfs_native(struct dentry *dentry, struct statfs *buf)
 		memcpy(buf, &st, sizeof(st));
 	else {
 		if (sizeof buf->f_blocks == 4) {
-			if ((st.f_blocks | st.f_bfree | st.f_bavail) &
+			if ((st.f_blocks | st.f_bfree | st.f_bavail |
+			     st.f_bsize | st.f_frsize) &
 			    0xffffffff00000000ULL)
 				return -EOVERFLOW;
 			/*

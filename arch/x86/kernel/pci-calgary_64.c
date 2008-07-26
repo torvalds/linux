@@ -29,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/crash_dump.h>
 #include <linux/dma-mapping.h>
 #include <linux/bitops.h>
 #include <linux/pci_ids.h>
@@ -167,6 +168,8 @@ static void calgary_dump_error_regs(struct iommu_table *tbl);
 static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev);
 static void calioc2_tce_cache_blast(struct iommu_table *tbl);
 static void calioc2_dump_error_regs(struct iommu_table *tbl);
+static void calgary_init_bitmap_from_tce_table(struct iommu_table *tbl);
+static void get_tce_space_from_tar(void);
 
 static struct cal_chipset_ops calgary_chip_ops = {
 	.handle_quirks = calgary_handle_quirks,
@@ -830,7 +833,11 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 
 	tbl = pci_iommu(dev->bus);
 	tbl->it_base = (unsigned long)bus_info[dev->bus->number].tce_space;
-	tce_free(tbl, 0, tbl->it_size);
+
+	if (is_kdump_kernel())
+		calgary_init_bitmap_from_tce_table(tbl);
+	else
+		tce_free(tbl, 0, tbl->it_size);
 
 	if (is_calgary(dev->device))
 		tbl->chip_ops = &calgary_chip_ops;
@@ -1209,6 +1216,10 @@ static int __init calgary_init(void)
 	if (ret)
 		return ret;
 
+	/* Purely for kdump kernel case */
+	if (is_kdump_kernel())
+		get_tce_space_from_tar();
+
 	do {
 		dev = pci_get_device(PCI_VENDOR_ID_IBM, PCI_ANY_ID, dev);
 		if (!dev)
@@ -1339,6 +1350,61 @@ static int __init calgary_bus_has_devices(int bus, unsigned short pci_dev)
 	return (val != 0xffffffff);
 }
 
+/*
+ * calgary_init_bitmap_from_tce_table():
+ * Funtion for kdump case. In the second/kdump kernel initialize
+ * the bitmap based on the tce table entries obtained from first kernel
+ */
+static void calgary_init_bitmap_from_tce_table(struct iommu_table *tbl)
+{
+	u64 *tp;
+	unsigned int index;
+	tp = ((u64 *)tbl->it_base);
+	for (index = 0 ; index < tbl->it_size; index++) {
+		if (*tp != 0x0)
+			set_bit(index, tbl->it_map);
+		tp++;
+	}
+}
+
+/*
+ * get_tce_space_from_tar():
+ * Function for kdump case. Get the tce tables from first kernel
+ * by reading the contents of the base adress register of calgary iommu
+ */
+static void get_tce_space_from_tar()
+{
+	int bus;
+	void __iomem *target;
+	unsigned long tce_space;
+
+	for (bus = 0; bus < MAX_PHB_BUS_NUM; bus++) {
+		struct calgary_bus_info *info = &bus_info[bus];
+		unsigned short pci_device;
+		u32 val;
+
+		val = read_pci_config(bus, 0, 0, 0);
+		pci_device = (val & 0xFFFF0000) >> 16;
+
+		if (!is_cal_pci_dev(pci_device))
+			continue;
+		if (info->translation_disabled)
+			continue;
+
+		if (calgary_bus_has_devices(bus, pci_device) ||
+						translate_empty_slots) {
+			target = calgary_reg(bus_info[bus].bbar,
+						tar_offset(bus));
+			tce_space = be64_to_cpu(readq(target));
+			tce_space = tce_space & TAR_SW_BITS;
+
+			tce_space = tce_space & (~specified_table_size);
+			info->tce_space = (u64 *)__va(tce_space);
+		}
+	}
+	return;
+}
+
 void __init detect_calgary(void)
 {
 	int bus;
@@ -1394,7 +1460,8 @@ void __init detect_calgary(void)
 		return;
 	}
 
-	specified_table_size = determine_tce_table_size(max_pfn * PAGE_SIZE);
+	specified_table_size = determine_tce_table_size((is_kdump_kernel() ?
+					saved_max_pfn : max_pfn) * PAGE_SIZE);
 
 	for (bus = 0; bus < MAX_PHB_BUS_NUM; bus++) {
 		struct calgary_bus_info *info = &bus_info[bus];
@@ -1412,10 +1479,16 @@ void __init detect_calgary(void)
 
 		if (calgary_bus_has_devices(bus, pci_device) ||
 		    translate_empty_slots) {
-			tbl = alloc_tce_table();
-			if (!tbl)
-				goto cleanup;
-			info->tce_space = tbl;
+			/*
+			 * If it is kdump kernel, find and use tce tables
+			 * from first kernel, else allocate tce tables here
+			 */
+			if (!is_kdump_kernel()) {
+				tbl = alloc_tce_table();
+				if (!tbl)
+					goto cleanup;
+				info->tce_space = tbl;
+			}
 			calgary_found = 1;
 		}
 	}

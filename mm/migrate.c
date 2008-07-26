@@ -30,6 +30,7 @@
 #include <linux/vmalloc.h>
 #include <linux/security.h>
 #include <linux/memcontrol.h>
+#include <linux/syscalls.h>
 
 #include "internal.h"
 
@@ -357,6 +358,9 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	__inc_zone_page_state(newpage, NR_FILE_PAGES);
 
 	write_unlock_irq(&mapping->tree_lock);
+	if (!PageSwapCache(newpage)) {
+		mem_cgroup_uncharge_cache_page(page);
+	}
 
 	return 0;
 }
@@ -610,7 +614,6 @@ static int move_to_new_page(struct page *newpage, struct page *page)
 		rc = fallback_migrate_page(mapping, newpage, page);
 
 	if (!rc) {
-		mem_cgroup_page_migration(page, newpage);
 		remove_migration_ptes(page, newpage);
 	} else
 		newpage->mapping = NULL;
@@ -639,6 +642,14 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 	if (page_count(page) == 1)
 		/* page was freed from under us. So we are done. */
 		goto move_newpage;
+
+	charge = mem_cgroup_prepare_migration(page, newpage);
+	if (charge == -ENOMEM) {
+		rc = -ENOMEM;
+		goto move_newpage;
+	}
+	/* prepare cgroup just returns 0 or -ENOMEM */
+	BUG_ON(charge);
 
 	rc = -EAGAIN;
 	if (TestSetPageLocked(page)) {
@@ -691,19 +702,14 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 		goto rcu_unlock;
 	}
 
-	charge = mem_cgroup_prepare_migration(page);
 	/* Establish migration ptes or remove ptes */
 	try_to_unmap(page, 1);
 
 	if (!page_mapped(page))
 		rc = move_to_new_page(newpage, page);
 
-	if (rc) {
+	if (rc)
 		remove_migration_ptes(page, page);
-		if (charge)
-			mem_cgroup_end_migration(page);
-	} else if (charge)
- 		mem_cgroup_end_migration(newpage);
 rcu_unlock:
 	if (rcu_locked)
 		rcu_read_unlock();
@@ -724,6 +730,8 @@ unlock:
 	}
 
 move_newpage:
+	if (!charge)
+		mem_cgroup_end_migration(newpage);
 	/*
 	 * Move the new page to the LRU. If migration was not successful
 	 * then this will free the page.
@@ -1070,7 +1078,6 @@ out2:
 	mmput(mm);
 	return err;
 }
-#endif
 
 /*
  * Call migration functions in the vma_ops that may prepare
@@ -1092,3 +1099,4 @@ int migrate_vmas(struct mm_struct *mm, const nodemask_t *to,
  	}
  	return err;
 }
+#endif

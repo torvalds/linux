@@ -589,7 +589,7 @@ static ssize_t show_cpus(cpumask_t mask, char *buf)
 	ssize_t i = 0;
 	unsigned int cpu;
 
-	for_each_cpu_mask(cpu, mask) {
+	for_each_cpu_mask_nr(cpu, mask) {
 		if (i)
 			i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), " ");
 		i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), "%u", cpu);
@@ -835,7 +835,7 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	}
 #endif
 
-	for_each_cpu_mask(j, policy->cpus) {
+	for_each_cpu_mask_nr(j, policy->cpus) {
 		if (cpu == j)
 			continue;
 
@@ -898,14 +898,14 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	}
 
 	spin_lock_irqsave(&cpufreq_driver_lock, flags);
-	for_each_cpu_mask(j, policy->cpus) {
+	for_each_cpu_mask_nr(j, policy->cpus) {
 		per_cpu(cpufreq_cpu_data, j) = policy;
 		per_cpu(policy_cpu, j) = policy->cpu;
 	}
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
 	/* symlink affected CPUs */
-	for_each_cpu_mask(j, policy->cpus) {
+	for_each_cpu_mask_nr(j, policy->cpus) {
 		if (j == cpu)
 			continue;
 		if (!cpu_online(j))
@@ -945,7 +945,7 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 
 err_out_unregister:
 	spin_lock_irqsave(&cpufreq_driver_lock, flags);
-	for_each_cpu_mask(j, policy->cpus)
+	for_each_cpu_mask_nr(j, policy->cpus)
 		per_cpu(cpufreq_cpu_data, j) = NULL;
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
@@ -1028,7 +1028,7 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 	 * the sysfs links afterwards.
 	 */
 	if (unlikely(cpus_weight(data->cpus) > 1)) {
-		for_each_cpu_mask(j, data->cpus) {
+		for_each_cpu_mask_nr(j, data->cpus) {
 			if (j == cpu)
 				continue;
 			per_cpu(cpufreq_cpu_data, j) = NULL;
@@ -1038,7 +1038,7 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
 	if (unlikely(cpus_weight(data->cpus) > 1)) {
-		for_each_cpu_mask(j, data->cpus) {
+		for_each_cpu_mask_nr(j, data->cpus) {
 			if (j == cpu)
 				continue;
 			dprintk("removing link for cpu %u\n", j);

@@ -261,7 +261,7 @@ static RAW_NOTIFIER_HEAD(netdev_chain);
 
 DEFINE_PER_CPU(struct softnet_data, softnet_data);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_LOCKDEP
 /*
  * register_netdevice() inits txq->_xmit_lock and sets lockdep class
  * according to dev->type
@@ -301,6 +301,7 @@ static const char *netdev_lock_name[] =
 	 "_xmit_NONE"};
 
 static struct lock_class_key netdev_xmit_lock_key[ARRAY_SIZE(netdev_lock_type)];
+static struct lock_class_key netdev_addr_lock_key[ARRAY_SIZE(netdev_lock_type)];
 
 static inline unsigned short netdev_lock_pos(unsigned short dev_type)
 {
@@ -313,8 +314,8 @@ static inline unsigned short netdev_lock_pos(unsigned short dev_type)
 	return ARRAY_SIZE(netdev_lock_type) - 1;
 }
 
-static inline void netdev_set_lockdep_class(spinlock_t *lock,
-					    unsigned short dev_type)
+static inline void netdev_set_xmit_lockdep_class(spinlock_t *lock,
+						 unsigned short dev_type)
 {
 	int i;
 
@@ -322,9 +323,22 @@ static inline void netdev_set_lockdep_class(spinlock_t *lock,
 	lockdep_set_class_and_name(lock, &netdev_xmit_lock_key[i],
 				   netdev_lock_name[i]);
 }
+
+static inline void netdev_set_addr_lockdep_class(struct net_device *dev)
+{
+	int i;
+
+	i = netdev_lock_pos(dev->type);
+	lockdep_set_class_and_name(&dev->addr_list_lock,
+				   &netdev_addr_lock_key[i],
+				   netdev_lock_name[i]);
+}
 #else
-static inline void netdev_set_lockdep_class(spinlock_t *lock,
-					    unsigned short dev_type)
+static inline void netdev_set_xmit_lockdep_class(spinlock_t *lock,
+						 unsigned short dev_type)
+{
+}
+static inline void netdev_set_addr_lockdep_class(struct net_device *dev)
 {
 }
 #endif
@@ -1327,9 +1341,6 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 
 void __netif_schedule(struct Qdisc *q)
 {
-	if (WARN_ON_ONCE(q == &noop_qdisc))
-		return;
-
 	if (!test_and_set_bit(__QDISC_STATE_SCHED, &q->state)) {
 		struct softnet_data *sd;
 		unsigned long flags;
@@ -1645,32 +1656,6 @@ out_kfree_skb:
 	return 0;
 }
 
-/**
- *	dev_queue_xmit - transmit a buffer
- *	@skb: buffer to transmit
- *
- *	Queue a buffer for transmission to a network device. The caller must
- *	have set the device and priority and built the buffer before calling
- *	this function. The function can be called from an interrupt.
- *
- *	A negative errno code is returned on a failure. A success does not
- *	guarantee the frame will be transmitted as it may be dropped due
- *	to congestion or traffic shaping.
- *
- * -----------------------------------------------------------------------------------
- *      I notice this method can also return errors from the queue disciplines,
- *      including NET_XMIT_DROP, which is a positive value.  So, errors can also
- *      be positive.
- *
- *      Regardless of the return value, the skb is consumed, so it is currently
- *      difficult to retry a send to this method.  (You can bump the ref count
- *      before sending to hold a reference for retry if you are careful.)
- *
- *      When calling this method, interrupts MUST be enabled.  This is because
- *      the BH enable code must have IRQs enabled so that it will not deadlock.
- *          --BLG
- */
-
 static u32 simple_tx_hashrnd;
 static int simple_tx_hashrnd_initialized = 0;
 
@@ -1738,6 +1723,31 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 	return netdev_get_tx_queue(dev, queue_index);
 }
 
+/**
+ *	dev_queue_xmit - transmit a buffer
+ *	@skb: buffer to transmit
+ *
+ *	Queue a buffer for transmission to a network device. The caller must
+ *	have set the device and priority and built the buffer before calling
+ *	this function. The function can be called from an interrupt.
+ *
+ *	A negative errno code is returned on a failure. A success does not
+ *	guarantee the frame will be transmitted as it may be dropped due
+ *	to congestion or traffic shaping.
+ *
+ * -----------------------------------------------------------------------------------
+ *      I notice this method can also return errors from the queue disciplines,
+ *      including NET_XMIT_DROP, which is a positive value.  So, errors can also
+ *      be positive.
+ *
+ *      Regardless of the return value, the skb is consumed, so it is currently
+ *      difficult to retry a send to this method.  (You can bump the ref count
+ *      before sending to hold a reference for retry if you are careful.)
+ *
+ *      When calling this method, interrupts MUST be enabled.  This is because
+ *      the BH enable code must have IRQs enabled so that it will not deadlock.
+ *          --BLG
+ */
 int dev_queue_xmit(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
@@ -2385,7 +2395,7 @@ out:
 	 */
 	if (!cpus_empty(net_dma.channel_mask)) {
 		int chan_idx;
-		for_each_cpu_mask(chan_idx, net_dma.channel_mask) {
+		for_each_cpu_mask_nr(chan_idx, net_dma.channel_mask) {
 			struct dma_chan *chan = net_dma.channels[chan_idx];
 			if (chan)
 				dma_async_memcpy_issue_pending(chan);
@@ -3852,7 +3862,7 @@ static void __netdev_init_queue_locks_one(struct net_device *dev,
 					  void *_unused)
 {
 	spin_lock_init(&dev_queue->_xmit_lock);
-	netdev_set_lockdep_class(&dev_queue->_xmit_lock, dev->type);
+	netdev_set_xmit_lockdep_class(&dev_queue->_xmit_lock, dev->type);
 	dev_queue->xmit_lock_owner = -1;
 }
 
@@ -3897,6 +3907,7 @@ int register_netdevice(struct net_device *dev)
 	net = dev_net(dev);
 
 	spin_lock_init(&dev->addr_list_lock);
+	netdev_set_addr_lockdep_class(dev);
 	netdev_init_queue_locks(dev);
 
 	dev->iflink = -1;
@@ -4207,7 +4218,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 {
 	struct netdev_queue *tx;
 	struct net_device *dev;
-	int alloc_size;
+	size_t alloc_size;
 	void *p;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
@@ -4227,7 +4238,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		return NULL;
 	}
 
-	tx = kzalloc(sizeof(struct netdev_queue) * queue_count, GFP_KERNEL);
+	tx = kcalloc(queue_count, sizeof(struct netdev_queue), GFP_KERNEL);
 	if (!tx) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "tx qdiscs.\n");
@@ -4519,7 +4530,7 @@ static void net_dma_rebalance(struct net_dma *net_dma)
 	i = 0;
 	cpu = first_cpu(cpu_online_map);
 
-	for_each_cpu_mask(chan_idx, net_dma->channel_mask) {
+	for_each_cpu_mask_nr(chan_idx, net_dma->channel_mask) {
 		chan = net_dma->channels[chan_idx];
 
 		n = ((num_online_cpus() / cpus_weight(net_dma->channel_mask))
@@ -4684,6 +4695,26 @@ err_idx:
 	kfree(net->dev_name_head);
 err_name:
 	return -ENOMEM;
+}
+
+char *netdev_drivername(struct net_device *dev, char *buffer, int len)
+{
+	struct device_driver *driver;
+	struct device *parent;
+
+	if (len <= 0 || !buffer)
+		return buffer;
+	buffer[0] = 0;
+
+	parent = dev->dev.parent;
+
+	if (!parent)
+		return buffer;
+
+	driver = parent->driver;
+	if (driver && driver->name)
+		strlcpy(buffer, driver->name, len);
+	return buffer;
 }
 
 static void __net_exit netdev_exit(struct net *net)

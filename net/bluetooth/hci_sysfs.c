@@ -398,19 +398,12 @@ int hci_register_sysfs(struct hci_dev *hdev)
 		if (device_create_file(dev, bt_attrs[i]) < 0)
 			BT_ERR("Failed to create device attribute");
 
-	if (sysfs_create_link(&bt_class->subsys.kobj,
-				&dev->kobj, kobject_name(&dev->kobj)) < 0)
-		BT_ERR("Failed to create class symlink");
-
 	return 0;
 }
 
 void hci_unregister_sysfs(struct hci_dev *hdev)
 {
 	BT_DBG("%p name %s type %d", hdev, hdev->name, hdev->type);
-
-	sysfs_remove_link(&bt_class->subsys.kobj,
-					kobject_name(&hdev->dev.kobj));
 
 	device_del(&hdev->dev);
 }

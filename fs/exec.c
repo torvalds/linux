@@ -25,19 +25,18 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
-#include <linux/mman.h>
+#include <linux/mm.h>
 #include <linux/stat.h>
 #include <linux/fcntl.h>
 #include <linux/smp_lock.h>
+#include <linux/swap.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
 #include <linux/key.h>
 #include <linux/personality.h>
 #include <linux/binfmts.h>
-#include <linux/swap.h>
 #include <linux/utsname.h>
 #include <linux/pid_namespace.h>
 #include <linux/module.h>
@@ -47,7 +46,6 @@
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
-#include <linux/rmap.h>
 #include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
@@ -541,7 +539,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 		/*
 		 * when the old and new regions overlap clear from new_end.
 		 */
-		free_pgd_range(&tlb, new_end, old_end, new_end,
+		free_pgd_range(tlb, new_end, old_end, new_end,
 			vma->vm_next ? vma->vm_next->vm_start : 0);
 	} else {
 		/*
@@ -550,7 +548,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 		 * have constraints on va-space that make this illegal (IA64) -
 		 * for the others its just a little faster.
 		 */
-		free_pgd_range(&tlb, old_start, old_end, new_end,
+		free_pgd_range(tlb, old_start, old_end, new_end,
 			vma->vm_next ? vma->vm_next->vm_start : 0);
 	}
 	tlb_finish_mmu(tlb, new_end, old_end);
@@ -724,12 +722,10 @@ static int exec_mmap(struct mm_struct *mm)
 		 * Make sure that if there is a core dump in progress
 		 * for the old mm, we get out and die instead of going
 		 * through with the exec.  We must hold mmap_sem around
-		 * checking core_waiters and changing tsk->mm.  The
-		 * core-inducing thread will increment core_waiters for
-		 * each thread whose ->mm == old_mm.
+		 * checking core_state and changing tsk->mm.
 		 */
 		down_read(&old_mm->mmap_sem);
-		if (unlikely(old_mm->core_waiters)) {
+		if (unlikely(old_mm->core_state)) {
 			up_read(&old_mm->mmap_sem);
 			return -EINTR;
 		}
@@ -1328,6 +1324,7 @@ int do_execve(char * filename,
 	if (retval < 0)
 		goto out;
 
+	current->flags &= ~PF_KTHREAD;
 	retval = search_binary_handler(bprm,regs);
 	if (retval >= 0) {
 		/* execve success */
@@ -1382,17 +1379,14 @@ EXPORT_SYMBOL(set_binfmt);
  * name into corename, which must have space for at least
  * CORENAME_MAX_SIZE bytes plus one byte for the zero terminator.
  */
-static int format_corename(char *corename, const char *pattern, long signr)
+static int format_corename(char *corename, int nr_threads, long signr)
 {
-	const char *pat_ptr = pattern;
+	const char *pat_ptr = core_pattern;
+	int ispipe = (*pat_ptr == '|');
 	char *out_ptr = corename;
 	char *const out_end = corename + CORENAME_MAX_SIZE;
 	int rc;
 	int pid_in_pattern = 0;
-	int ispipe = 0;
-
-	if (*pattern == '|')
-		ispipe = 1;
 
 	/* Repeat as long as we have more pattern to process and more output
 	   space */
@@ -1493,7 +1487,7 @@ static int format_corename(char *corename, const char *pattern, long signr)
 	 * and core_uses_pid is set, then .%pid will be appended to
 	 * the filename. Do not do this for piped commands. */
 	if (!ispipe && !pid_in_pattern
-            && (core_uses_pid || atomic_read(&current->mm->mm_users) != 1)) {
+	    && (core_uses_pid || nr_threads)) {
 		rc = snprintf(out_ptr, out_end - out_ptr,
 			      ".%d", task_tgid_vnr(current));
 		if (rc > out_end - out_ptr)
@@ -1505,9 +1499,10 @@ out:
 	return ispipe;
 }
 
-static void zap_process(struct task_struct *start)
+static int zap_process(struct task_struct *start)
 {
 	struct task_struct *t;
+	int nr = 0;
 
 	start->signal->flags = SIGNAL_GROUP_EXIT;
 	start->signal->group_stop_count = 0;
@@ -1515,72 +1510,99 @@ static void zap_process(struct task_struct *start)
 	t = start;
 	do {
 		if (t != current && t->mm) {
-			t->mm->core_waiters++;
 			sigaddset(&t->pending.signal, SIGKILL);
 			signal_wake_up(t, 1);
+			nr++;
 		}
-	} while ((t = next_thread(t)) != start);
+	} while_each_thread(start, t);
+
+	return nr;
 }
 
 static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
-				int exit_code)
+				struct core_state *core_state, int exit_code)
 {
 	struct task_struct *g, *p;
 	unsigned long flags;
-	int err = -EAGAIN;
+	int nr = -EAGAIN;
 
 	spin_lock_irq(&tsk->sighand->siglock);
 	if (!signal_group_exit(tsk->signal)) {
+		mm->core_state = core_state;
 		tsk->signal->group_exit_code = exit_code;
-		zap_process(tsk);
-		err = 0;
+		nr = zap_process(tsk);
 	}
 	spin_unlock_irq(&tsk->sighand->siglock);
-	if (err)
-		return err;
+	if (unlikely(nr < 0))
+		return nr;
 
-	if (atomic_read(&mm->mm_users) == mm->core_waiters + 1)
+	if (atomic_read(&mm->mm_users) == nr + 1)
 		goto done;
-
+	/*
+	 * We should find and kill all tasks which use this mm, and we should
+	 * count them correctly into ->nr_threads. We don't take tasklist
+	 * lock, but this is safe wrt:
+	 *
+	 * fork:
+	 *	None of sub-threads can fork after zap_process(leader). All
+	 *	processes which were created before this point should be
+	 *	visible to zap_threads() because copy_process() adds the new
+	 *	process to the tail of init_task.tasks list, and lock/unlock
+	 *	of ->siglock provides a memory barrier.
+	 *
+	 * do_exit:
+	 *	The caller holds mm->mmap_sem. This means that the task which
+	 *	uses this mm can't pass exit_mm(), so it can't exit or clear
+	 *	its ->mm.
+	 *
+	 * de_thread:
+	 *	It does list_replace_rcu(&leader->tasks, &current->tasks),
+	 *	we must see either old or new leader, this does not matter.
+	 *	However, it can change p->sighand, so lock_task_sighand(p)
+	 *	must be used. Since p->mm != NULL and we hold ->mmap_sem
+	 *	it can't fail.
+	 *
+	 *	Note also that "g" can be the old leader with ->mm == NULL
+	 *	and already unhashed and thus removed from ->thread_group.
+	 *	This is OK, __unhash_process()->list_del_rcu() does not
+	 *	clear the ->next pointer, we will find the new leader via
+	 *	next_thread().
+	 */
 	rcu_read_lock();
 	for_each_process(g) {
 		if (g == tsk->group_leader)
 			continue;
-
+		if (g->flags & PF_KTHREAD)
+			continue;
 		p = g;
 		do {
 			if (p->mm) {
-				if (p->mm == mm) {
-					/*
-					 * p->sighand can't disappear, but
-					 * may be changed by de_thread()
-					 */
+				if (unlikely(p->mm == mm)) {
 					lock_task_sighand(p, &flags);
-					zap_process(p);
+					nr += zap_process(p);
 					unlock_task_sighand(p, &flags);
 				}
 				break;
 			}
-		} while ((p = next_thread(p)) != g);
+		} while_each_thread(g, p);
 	}
 	rcu_read_unlock();
 done:
-	return mm->core_waiters;
+	atomic_set(&core_state->nr_threads, nr);
+	return nr;
 }
 
-static int coredump_wait(int exit_code)
+static int coredump_wait(int exit_code, struct core_state *core_state)
 {
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
-	struct completion startup_done;
 	struct completion *vfork_done;
 	int core_waiters;
 
-	init_completion(&mm->core_done);
-	init_completion(&startup_done);
-	mm->core_startup_done = &startup_done;
-
-	core_waiters = zap_threads(tsk, mm, exit_code);
+	init_completion(&core_state->startup);
+	core_state->dumper.task = tsk;
+	core_state->dumper.next = NULL;
+	core_waiters = zap_threads(tsk, mm, core_state, exit_code);
 	up_write(&mm->mmap_sem);
 
 	if (unlikely(core_waiters < 0))
@@ -1597,10 +1619,30 @@ static int coredump_wait(int exit_code)
 	}
 
 	if (core_waiters)
-		wait_for_completion(&startup_done);
+		wait_for_completion(&core_state->startup);
 fail:
-	BUG_ON(mm->core_waiters);
 	return core_waiters;
+}
+
+static void coredump_finish(struct mm_struct *mm)
+{
+	struct core_thread *curr, *next;
+	struct task_struct *task;
+
+	next = mm->core_state->dumper.next;
+	while ((curr = next) != NULL) {
+		next = curr->next;
+		task = curr->task;
+		/*
+		 * see exit_mm(), curr->task must not see
+		 * ->task == NULL before we read ->next.
+		 */
+		smp_mb();
+		curr->task = NULL;
+		wake_up_process(task);
+	}
+
+	mm->core_state = NULL;
 }
 
 /*
@@ -1654,6 +1696,7 @@ int get_dumpable(struct mm_struct *mm)
 
 int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 {
+	struct core_state core_state;
 	char corename[CORENAME_MAX_SIZE + 1];
 	struct mm_struct *mm = current->mm;
 	struct linux_binfmt * binfmt;
@@ -1677,7 +1720,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	/*
 	 * If another thread got here first, or we are not dumpable, bail out.
 	 */
-	if (mm->core_waiters || !get_dumpable(mm)) {
+	if (mm->core_state || !get_dumpable(mm)) {
 		up_write(&mm->mmap_sem);
 		goto fail;
 	}
@@ -1692,7 +1735,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 		current->fsuid = 0;	/* Dump root private */
 	}
 
-	retval = coredump_wait(exit_code);
+	retval = coredump_wait(exit_code, &core_state);
 	if (retval < 0)
 		goto fail;
 
@@ -1707,7 +1750,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	 * uses lock_kernel()
 	 */
  	lock_kernel();
-	ispipe = format_corename(corename, core_pattern, signr);
+	ispipe = format_corename(corename, retval, signr);
 	unlock_kernel();
 	/*
 	 * Don't bother to check the RLIMIT_CORE value if core_pattern points
@@ -1786,7 +1829,7 @@ fail_unlock:
 		argv_free(helper_argv);
 
 	current->fsuid = fsuid;
-	complete_all(&mm->core_done);
+	coredump_finish(mm);
 fail:
 	return retval;
 }

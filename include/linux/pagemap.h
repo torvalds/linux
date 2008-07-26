@@ -22,7 +22,7 @@
 
 static inline void mapping_set_error(struct address_space *mapping, int error)
 {
-	if (error) {
+	if (unlikely(error)) {
 		if (error == -ENOSPC)
 			set_bit(AS_ENOSPC, &mapping->flags);
 		else

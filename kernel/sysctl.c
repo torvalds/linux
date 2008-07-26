@@ -43,6 +43,7 @@
 #include <linux/limits.h>
 #include <linux/dcache.h>
 #include <linux/syscalls.h>
+#include <linux/vmstat.h>
 #include <linux/nfs_fs.h>
 #include <linux/acpi.h>
 #include <linux/reboot.h>
@@ -80,7 +81,6 @@ extern int sysctl_drop_caches;
 extern int percpu_pagelist_fraction;
 extern int compat_log;
 extern int maps_protect;
-extern int sysctl_stat_interval;
 extern int latencytop_enabled;
 extern int sysctl_nr_open_min, sysctl_nr_open_max;
 #ifdef CONFIG_RCU_TORTURE_TEST
@@ -88,12 +88,13 @@ extern int rcutorture_runnable;
 #endif /* #ifdef CONFIG_RCU_TORTURE_TEST */
 
 /* Constants used for minimum and  maximum */
-#if defined(CONFIG_DETECT_SOFTLOCKUP) || defined(CONFIG_HIGHMEM)
+#if defined(CONFIG_HIGHMEM) || defined(CONFIG_DETECT_SOFTLOCKUP)
 static int one = 1;
 #endif
 
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 static int sixty = 60;
+static int neg_one = -1;
 #endif
 
 #ifdef CONFIG_MMU
@@ -110,7 +111,7 @@ static int min_percpu_pagelist_fract = 8;
 
 static int ngroups_max = NGROUPS_MAX;
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 extern char modprobe_path[];
 #endif
 #ifdef CONFIG_CHR_DEV_SG
@@ -475,7 +476,7 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= &ftrace_enable_sysctl,
 	},
 #endif
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	{
 		.ctl_name	= KERN_MODPROBE,
 		.procname	= "modprobe",
@@ -623,7 +624,7 @@ static struct ctl_table kern_table[] = {
 	{
 		.ctl_name	= KERN_PRINTK_RATELIMIT,
 		.procname	= "printk_ratelimit",
-		.data		= &printk_ratelimit_jiffies,
+		.data		= &printk_ratelimit_state.interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -632,7 +633,7 @@ static struct ctl_table kern_table[] = {
 	{
 		.ctl_name	= KERN_PRINTK_RATELIMIT_BURST,
 		.procname	= "printk_ratelimit_burst",
-		.data		= &printk_ratelimit_burst,
+		.data		= &printk_ratelimit_state.burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
@@ -739,13 +740,24 @@ static struct ctl_table kern_table[] = {
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 	{
 		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "softlockup_panic",
+		.data		= &softlockup_panic,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "softlockup_thresh",
 		.data		= &softlockup_thresh,
-		.maxlen		= sizeof(unsigned long),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_doulongvec_minmax,
+		.proc_handler	= &proc_dointvec_minmax,
 		.strategy	= &sysctl_intvec,
-		.extra1		= &one,
+		.extra1		= &neg_one,
 		.extra2		= &sixty,
 	},
 	{
@@ -947,7 +959,7 @@ static struct ctl_table vm_table[] = {
 #ifdef CONFIG_HUGETLB_PAGE
 	 {
 		.procname	= "nr_hugepages",
-		.data		= &max_huge_pages,
+		.data		= NULL,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= &hugetlb_sysctl_handler,
@@ -973,10 +985,12 @@ static struct ctl_table vm_table[] = {
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nr_overcommit_hugepages",
-		.data		= &sysctl_overcommit_huge_pages,
-		.maxlen		= sizeof(sysctl_overcommit_huge_pages),
+		.data		= NULL,
+		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= &hugetlb_overcommit_handler,
+		.extra1		= (void *)&hugetlb_zero,
+		.extra2		= (void *)&hugetlb_infinity,
 	},
 #endif
 	{

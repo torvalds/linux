@@ -198,17 +198,13 @@ iop_chan_memset_slot_count(size_t len, int *slots_per_op)
 static inline int
 iop_chan_xor_slot_count(size_t len, int src_cnt, int *slots_per_op)
 {
-	int num_slots;
-	/* slots_to_find = 1 for basic descriptor + 1 per 4 sources above 1
-	 * (1 source => 8 bytes) (1 slot => 32 bytes)
-	 */
-	num_slots = 1 + (((src_cnt - 1) << 3) >> 5);
-	if (((src_cnt - 1) << 3) & 0x1f)
-		num_slots++;
-
-	*slots_per_op = num_slots;
-
-	return num_slots;
+	static const char slot_count_table[] = { 1, 2, 2, 2,
+						 2, 3, 3, 3,
+						 3, 4, 4, 4,
+						 4, 5, 5, 5,
+						};
+	*slots_per_op = slot_count_table[src_cnt - 1];
+	return *slots_per_op;
 }
 
 #define ADMA_MAX_BYTE_COUNT	(16 * 1024 * 1024)

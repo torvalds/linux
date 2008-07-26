@@ -31,4 +31,6 @@ extern struct platform_device pxa25x_device_pwm1;
 extern struct platform_device pxa27x_device_pwm0;
 extern struct platform_device pxa27x_device_pwm1;
 
+extern struct platform_device pxa3xx_device_nand;
+
 void __init pxa_register_device(struct platform_device *dev, void *data);

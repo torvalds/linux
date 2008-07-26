@@ -56,23 +56,29 @@ static DEFINE_MUTEX(idedisk_ref_mutex);
 #define ide_disk_g(disk) \
 	container_of((disk)->private_data, struct ide_disk_obj, driver)
 
+static void ide_disk_release(struct kref *);
+
 static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
 {
 	struct ide_disk_obj *idkp = NULL;
 
 	mutex_lock(&idedisk_ref_mutex);
 	idkp = ide_disk_g(disk);
-	if (idkp)
+	if (idkp) {
 		kref_get(&idkp->kref);
+		if (ide_device_get(idkp->drive)) {
+			kref_put(&idkp->kref, ide_disk_release);
+			idkp = NULL;
+		}
+	}
 	mutex_unlock(&idedisk_ref_mutex);
 	return idkp;
 }
 
-static void ide_disk_release(struct kref *);
-
 static void ide_disk_put(struct ide_disk_obj *idkp)
 {
 	mutex_lock(&idedisk_ref_mutex);
+	ide_device_put(idkp->drive);
 	kref_put(&idkp->kref, ide_disk_release);
 	mutex_unlock(&idedisk_ref_mutex);
 }
@@ -158,7 +164,7 @@ static void ide_tf_set_cmd(ide_drive_t *drive, ide_task_t *task, u8 dma)
 	write = (task->tf_flags & IDE_TFLAG_WRITE) ? 1 : 0;
 
 	if (dma)
-		index = drive->vdma ? 4 : 8;
+		index = 8;
 	else
 		index = drive->mult_count ? 0 : 4;
 

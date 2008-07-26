@@ -245,7 +245,8 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		if (retval)
 			goto exit;
 
-		call_usermodehelper(argv[0], argv, env->envp, UMH_WAIT_EXEC);
+		retval = call_usermodehelper(argv[0], argv,
+					     env->envp, UMH_WAIT_EXEC);
 	}
 
 exit:

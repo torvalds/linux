@@ -16,6 +16,7 @@
 #include <linux/kobject.h>
 #include <linux/klist.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -24,17 +25,13 @@
 #include <asm/atomic.h>
 #include <asm/device.h>
 
-#define DEVICE_NAME_SIZE	50
-/* DEVICE_NAME_HALF is really less than half to accommodate slop */
-#define DEVICE_NAME_HALF	__stringify(20)
-#define DEVICE_ID_SIZE		32
-#define BUS_ID_SIZE		KOBJ_NAME_LEN
-
+#define BUS_ID_SIZE		20
 
 struct device;
 struct device_driver;
 struct driver_private;
 struct class;
+struct class_private;
 struct bus_type;
 struct bus_type_private;
 
@@ -186,13 +183,9 @@ struct class {
 	const char		*name;
 	struct module		*owner;
 
-	struct kset		subsys;
-	struct list_head	devices;
-	struct list_head	interfaces;
-	struct kset		class_dirs;
-	struct semaphore	sem; /* locks children, devices, interfaces */
 	struct class_attribute		*class_attrs;
 	struct device_attribute		*dev_attrs;
+	struct kobject			*dev_kobj;
 
 	int (*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
 
@@ -203,13 +196,28 @@ struct class {
 	int (*resume)(struct device *dev);
 
 	struct pm_ops *pm;
+	struct class_private *p;
 };
 
-extern int __must_check class_register(struct class *class);
+extern struct kobject *sysfs_dev_block_kobj;
+extern struct kobject *sysfs_dev_char_kobj;
+extern int __must_check __class_register(struct class *class,
+					 struct lock_class_key *key);
 extern void class_unregister(struct class *class);
-extern int class_for_each_device(struct class *class, void *data,
+
+/* This is a #define to keep the compiler from merging different
+ * instances of the __key variable */
+#define class_register(class)			\
+({						\
+	static struct lock_class_key __key;	\
+	__class_register(class, &__key);	\
+})
+
+extern int class_for_each_device(struct class *class, struct device *start,
+				 void *data,
 				 int (*fn)(struct device *dev, void *data));
-extern struct device *class_find_device(struct class *class, void *data,
+extern struct device *class_find_device(struct class *class,
+					struct device *start, void *data,
 					int (*match)(struct device *, void *));
 
 struct class_attribute {
@@ -237,8 +245,18 @@ struct class_interface {
 extern int __must_check class_interface_register(struct class_interface *);
 extern void class_interface_unregister(struct class_interface *);
 
-extern struct class *class_create(struct module *owner, const char *name);
+extern struct class * __must_check __class_create(struct module *owner,
+						  const char *name,
+						  struct lock_class_key *key);
 extern void class_destroy(struct class *cls);
+
+/* This is a #define to keep the compiler from merging different
+ * instances of the __key variable */
+#define class_create(owner, name)		\
+({						\
+	static struct lock_class_key __key;	\
+	__class_create(owner, name, &__key);	\
+})
 
 /*
  * The type of device, "struct device" is embedded in. A class
@@ -468,14 +486,10 @@ extern struct device *device_create_vargs(struct class *cls,
 					  const char *fmt,
 					  va_list vargs);
 extern struct device *device_create(struct class *cls, struct device *parent,
-				    dev_t devt, const char *fmt, ...)
-				    __attribute__((format(printf, 4, 5)));
-extern struct device *device_create_drvdata(struct class *cls,
-					    struct device *parent,
-					    dev_t devt,
-					    void *drvdata,
-					    const char *fmt, ...)
+				    dev_t devt, void *drvdata,
+				    const char *fmt, ...)
 				    __attribute__((format(printf, 5, 6)));
+#define device_create_drvdata	device_create
 extern void device_destroy(struct class *cls, dev_t devt);
 
 /*

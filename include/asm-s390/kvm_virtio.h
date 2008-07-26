@@ -50,4 +50,14 @@ struct kvm_vqconfig {
 #define KVM_S390_VIRTIO_RESET		1
 #define KVM_S390_VIRTIO_SET_STATUS	2
 
+#ifdef __KERNEL__
+/* early virtio console setup */
+#ifdef CONFIG_VIRTIO_CONSOLE
+extern void s390_virtio_console_init(void);
+#else
+static inline void s390_virtio_console_init(void)
+{
+}
+#endif /* CONFIG_VIRTIO_CONSOLE */
+#endif /* __KERNEL__ */
 #endif

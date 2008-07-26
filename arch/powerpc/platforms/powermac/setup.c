@@ -97,8 +97,6 @@ extern struct machdep_calls pmac_md;
 int sccdbg;
 #endif
 
-extern void zs_kgdb_hook(int tty_num);
-
 sys_ctrler_t sys_ctrler = SYS_CTRLER_UNKNOWN;
 EXPORT_SYMBOL(sys_ctrler);
 
@@ -328,10 +326,6 @@ static void __init pmac_setup_arch(void)
 	ohare_init();
 	l2cr_init();
 #endif /* CONFIG_PPC32 */
-
-#ifdef CONFIG_KGDB
-	zs_kgdb_hook(0);
-#endif
 
 	find_via_cuda();
 	find_via_pmu();
