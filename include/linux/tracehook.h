@@ -537,4 +537,38 @@ static inline void tracehook_report_death(struct task_struct *task,
 {
 }
 
+#ifdef TIF_NOTIFY_RESUME
+/**
+ * set_notify_resume - cause tracehook_notify_resume() to be called
+ * @task:		task that will call tracehook_notify_resume()
+ *
+ * Calling this arranges that @task will call tracehook_notify_resume()
+ * before returning to user mode.  If it's already running in user mode,
+ * it will enter the kernel and call tracehook_notify_resume() soon.
+ * If it's blocked, it will not be woken.
+ */
+static inline void set_notify_resume(struct task_struct *task)
+{
+	if (!test_and_set_tsk_thread_flag(task, TIF_NOTIFY_RESUME))
+		kick_process(task);
+}
+
+/**
+ * tracehook_notify_resume - report when about to return to user mode
+ * @regs:		user-mode registers of @current task
+ *
+ * This is called when %TIF_NOTIFY_RESUME has been set.  Now we are
+ * about to return to user mode, and the user state in @regs can be
+ * inspected or adjusted.  The caller in arch code has cleared
+ * %TIF_NOTIFY_RESUME before the call.  If the flag gets set again
+ * asynchronously, this will be called again before we return to
+ * user mode.
+ *
+ * Called without locks.
+ */
+static inline void tracehook_notify_resume(struct pt_regs *regs)
+{
+}
+#endif	/* TIF_NOTIFY_RESUME */
+
 #endif	/* <linux/tracehook.h> */
