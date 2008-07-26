@@ -329,6 +329,22 @@ static int empress_g_ext_ctrls(struct file *file, void *priv,
 	return saa7134_i2c_call_saa6752(dev, VIDIOC_G_EXT_CTRLS, ctrls);
 }
 
+static int empress_g_ctrl(struct file *file, void *priv,
+					struct v4l2_control *c)
+{
+	struct saa7134_dev *dev = file->private_data;
+
+	return saa7134_g_ctrl_internal(dev, NULL, c);
+}
+
+static int empress_s_ctrl(struct file *file, void *priv,
+					struct v4l2_control *c)
+{
+	struct saa7134_dev *dev = file->private_data;
+
+	return saa7134_s_ctrl_internal(dev, NULL, c);
+}
+
 static int empress_queryctrl(struct file *file, void *priv,
 					struct v4l2_queryctrl *c)
 {
@@ -415,8 +431,8 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 
 	.vidioc_queryctrl		= empress_queryctrl,
 	.vidioc_querymenu		= empress_querymenu,
-	.vidioc_g_ctrl			= saa7134_g_ctrl,
-	.vidioc_s_ctrl			= saa7134_s_ctrl,
+	.vidioc_g_ctrl			= empress_g_ctrl,
+	.vidioc_s_ctrl			= empress_s_ctrl,
 };
 
 /* ----------------------------------------------------------- */

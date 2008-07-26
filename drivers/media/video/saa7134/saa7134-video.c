@@ -1112,10 +1112,8 @@ static struct videobuf_queue_ops video_qops = {
 
 /* ------------------------------------------------------------------ */
 
-int saa7134_g_ctrl(struct file *file, void *priv, struct v4l2_control *c)
+int saa7134_g_ctrl_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, struct v4l2_control *c)
 {
-	struct saa7134_fh *fh = priv;
-	struct saa7134_dev *dev = fh->dev;
 	const struct v4l2_queryctrl* ctrl;
 
 	ctrl = ctrl_by_id(c->id);
@@ -1160,20 +1158,31 @@ int saa7134_g_ctrl(struct file *file, void *priv, struct v4l2_control *c)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(saa7134_g_ctrl);
+EXPORT_SYMBOL_GPL(saa7134_g_ctrl_internal);
 
-int saa7134_s_ctrl(struct file *file, void *f, struct v4l2_control *c)
+static int saa7134_g_ctrl(struct file *file, void *priv, struct v4l2_control *c)
+{
+	struct saa7134_fh *fh = priv;
+
+	return saa7134_g_ctrl_internal(fh->dev, fh, c);
+}
+
+int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, struct v4l2_control *c)
 {
 	const struct v4l2_queryctrl* ctrl;
-	struct saa7134_fh *fh = f;
-	struct saa7134_dev *dev = fh->dev;
 	unsigned long flags;
 	int restart_overlay = 0;
-	int err = -EINVAL;
+	int err;
 
-	err = v4l2_prio_check(&dev->prio, &fh->prio);
-	if (0 != err)
-		return err;
+	/* When called from the empress code fh == NULL.
+	   That needs to be fixed somehow, but for now this is
+	   good enough. */
+	if (fh) {
+		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		if (0 != err)
+			return err;
+	}
+	err = -EINVAL;
 
 	mutex_lock(&dev->lock);
 
@@ -1274,7 +1283,14 @@ error:
 	mutex_unlock(&dev->lock);
 	return err;
 }
-EXPORT_SYMBOL_GPL(saa7134_s_ctrl);
+EXPORT_SYMBOL_GPL(saa7134_s_ctrl_internal);
+
+static int saa7134_s_ctrl(struct file *file, void *f, struct v4l2_control *c)
+{
+	struct saa7134_fh *fh = f;
+
+	return saa7134_s_ctrl_internal(fh->dev, fh, c);
+}
 
 /* ------------------------------------------------------------------ */
 
