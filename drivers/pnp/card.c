@@ -102,7 +102,7 @@ static int card_probe(struct pnp_card *card, struct pnp_card_driver *drv)
  * @id: pointer to a pnp_id structure
  * @card: pointer to the desired card
  */
-struct pnp_id *pnp_add_card_id(struct pnp_card *card, char *id)
+static struct pnp_id *pnp_add_card_id(struct pnp_card *card, char *id)
 {
 	struct pnp_id *dev_id, *ptr;
 
