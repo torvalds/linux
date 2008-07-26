@@ -201,7 +201,6 @@ static int neoFindMode(int xres, int yres, int depth)
  *
  * Determine the closest clock frequency to the one requested.
  */
-#define REF_FREQ 0xe517		/* 14.31818 in 20.12 fixed point */
 #define MAX_N 127
 #define MAX_D 31
 #define MAX_F 1
@@ -211,27 +210,24 @@ static void neoCalcVCLK(const struct fb_info *info,
 {
 	int n, d, f;
 	int n_best = 0, d_best = 0, f_best = 0;
-	long f_best_diff = (0x7ffff << 12);	/* 20.12 */
-	long f_target = (freq << 12) / 1000;	/* 20.12 */
+	long f_best_diff = 0x7ffff;
 
 	for (f = 0; f <= MAX_F; f++)
-		for (n = 0; n <= MAX_N; n++)
-			for (d = 0; d <= MAX_D; d++) {
-				long f_out;	/* 20.12 */
-				long f_diff;	/* 20.12 */
+		for (d = 0; d <= MAX_D; d++)
+			for (n = 0; n <= MAX_N; n++) {
+				long f_out;
+				long f_diff;
 
-				f_out =
-				    ((((n + 1) << 12) / ((d +
-							  1) *
-							 (1 << f))) >> 12)
-				    * REF_FREQ;
-				f_diff = abs(f_out - f_target);
-				if (f_diff < f_best_diff) {
+				f_out = ((14318 * (n + 1)) / (d + 1)) >> f;
+				f_diff = abs(f_out - freq);
+				if (f_diff <= f_best_diff) {
 					f_best_diff = f_diff;
 					n_best = n;
 					d_best = d;
 					f_best = f;
 				}
+				if (f_out > freq)
+					break;
 			}
 
 	if (info->fix.accel == FB_ACCEL_NEOMAGIC_NM2200 ||
@@ -248,11 +244,11 @@ static void neoCalcVCLK(const struct fb_info *info,
 	par->VCLK3Denominator = d_best;
 
 #ifdef NEOFB_DEBUG
-	printk("neoVCLK: f:%d NumLow=%d NumHi=%d Den=%d Df=%d\n",
-	       f_target >> 12,
+	printk(KERN_DEBUG "neoVCLK: f:%ld NumLow=%d NumHi=%d Den=%d Df=%ld\n",
+	       freq,
 	       par->VCLK3NumeratorLow,
 	       par->VCLK3NumeratorHigh,
-	       par->VCLK3Denominator, f_best_diff >> 12);
+	       par->VCLK3Denominator, f_best_diff);
 #endif
 }
 
@@ -263,15 +259,20 @@ static void neoCalcVCLK(const struct fb_info *info,
  */
 
 static int vgaHWInit(const struct fb_var_screeninfo *var,
-		     const struct fb_info *info,
-		     struct neofb_par *par, struct xtimings *timings)
+		     struct neofb_par *par)
 {
+	int hsync_end = var->xres + var->right_margin + var->hsync_len;
+	int htotal = (hsync_end + var->left_margin) >> 3;
+	int vsync_start = var->yres + var->lower_margin;
+	int vsync_end = vsync_start + var->vsync_len;
+	int vtotal = vsync_end + var->upper_margin;
+
 	par->MiscOutReg = 0x23;
 
-	if (!(timings->sync & FB_SYNC_HOR_HIGH_ACT))
+	if (!(var->sync & FB_SYNC_HOR_HIGH_ACT))
 		par->MiscOutReg |= 0x40;
 
-	if (!(timings->sync & FB_SYNC_VERT_HIGH_ACT))
+	if (!(var->sync & FB_SYNC_VERT_HIGH_ACT))
 		par->MiscOutReg |= 0x80;
 
 	/*
@@ -286,25 +287,25 @@ static int vgaHWInit(const struct fb_var_screeninfo *var,
 	/*
 	 * CRTC Controller
 	 */
-	par->CRTC[0] = (timings->HTotal >> 3) - 5;
-	par->CRTC[1] = (timings->HDisplay >> 3) - 1;
-	par->CRTC[2] = (timings->HDisplay >> 3) - 1;
-	par->CRTC[3] = (((timings->HTotal >> 3) - 1) & 0x1F) | 0x80;
-	par->CRTC[4] = (timings->HSyncStart >> 3);
-	par->CRTC[5] = ((((timings->HTotal >> 3) - 1) & 0x20) << 2)
-	    | (((timings->HSyncEnd >> 3)) & 0x1F);
-	par->CRTC[6] = (timings->VTotal - 2) & 0xFF;
-	par->CRTC[7] = (((timings->VTotal - 2) & 0x100) >> 8)
-	    | (((timings->VDisplay - 1) & 0x100) >> 7)
-	    | ((timings->VSyncStart & 0x100) >> 6)
-	    | (((timings->VDisplay - 1) & 0x100) >> 5)
-	    | 0x10 | (((timings->VTotal - 2) & 0x200) >> 4)
-	    | (((timings->VDisplay - 1) & 0x200) >> 3)
-	    | ((timings->VSyncStart & 0x200) >> 2);
+	par->CRTC[0] = htotal - 5;
+	par->CRTC[1] = (var->xres >> 3) - 1;
+	par->CRTC[2] = (var->xres >> 3) - 1;
+	par->CRTC[3] = ((htotal - 1) & 0x1F) | 0x80;
+	par->CRTC[4] = ((var->xres + var->right_margin) >> 3);
+	par->CRTC[5] = (((htotal - 1) & 0x20) << 2)
+	    | (((hsync_end >> 3)) & 0x1F);
+	par->CRTC[6] = (vtotal - 2) & 0xFF;
+	par->CRTC[7] = (((vtotal - 2) & 0x100) >> 8)
+	    | (((var->yres - 1) & 0x100) >> 7)
+	    | ((vsync_start & 0x100) >> 6)
+	    | (((var->yres - 1) & 0x100) >> 5)
+	    | 0x10 | (((vtotal - 2) & 0x200) >> 4)
+	    | (((var->yres - 1) & 0x200) >> 3)
+	    | ((vsync_start & 0x200) >> 2);
 	par->CRTC[8] = 0x00;
-	par->CRTC[9] = (((timings->VDisplay - 1) & 0x200) >> 4) | 0x40;
+	par->CRTC[9] = (((var->yres - 1) & 0x200) >> 4) | 0x40;
 
-	if (timings->dblscan)
+	if (var->vmode & FB_VMODE_DOUBLE)
 		par->CRTC[9] |= 0x80;
 
 	par->CRTC[10] = 0x00;
@@ -313,13 +314,13 @@ static int vgaHWInit(const struct fb_var_screeninfo *var,
 	par->CRTC[13] = 0x00;
 	par->CRTC[14] = 0x00;
 	par->CRTC[15] = 0x00;
-	par->CRTC[16] = timings->VSyncStart & 0xFF;
-	par->CRTC[17] = (timings->VSyncEnd & 0x0F) | 0x20;
-	par->CRTC[18] = (timings->VDisplay - 1) & 0xFF;
+	par->CRTC[16] = vsync_start & 0xFF;
+	par->CRTC[17] = (vsync_end & 0x0F) | 0x20;
+	par->CRTC[18] = (var->yres - 1) & 0xFF;
 	par->CRTC[19] = var->xres_virtual >> 4;
 	par->CRTC[20] = 0x00;
-	par->CRTC[21] = (timings->VDisplay - 1) & 0xFF;
-	par->CRTC[22] = (timings->VTotal - 1) & 0xFF;
+	par->CRTC[21] = (var->yres - 1) & 0xFF;
+	par->CRTC[22] = (vtotal - 1) & 0xFF;
 	par->CRTC[23] = 0xC3;
 	par->CRTC[24] = 0xFF;
 
@@ -483,7 +484,8 @@ static inline int neo2200_sync(struct fb_info *info)
 {
 	struct neofb_par *par = info->par;
 
-	while (readl(&par->neo2200->bltStat) & 1);
+	while (readl(&par->neo2200->bltStat) & 1)
+		cpu_relax();
 	return 0;
 }
 
@@ -591,33 +593,13 @@ static int
 neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct neofb_par *par = info->par;
-	unsigned int pixclock = var->pixclock;
-	struct xtimings timings;
 	int memlen, vramlen;
 	int mode_ok = 0;
 
 	DBG("neofb_check_var");
 
-	if (!pixclock)
-		pixclock = 10000;	/* 10ns = 100MHz */
-	timings.pixclock = 1000000000 / pixclock;
-	if (timings.pixclock < 1)
-		timings.pixclock = 1;
-
-	if (timings.pixclock > par->maxClock)
+	if (PICOS2KHZ(var->pixclock) > par->maxClock)
 		return -EINVAL;
-
-	timings.dblscan = var->vmode & FB_VMODE_DOUBLE;
-	timings.interlaced = var->vmode & FB_VMODE_INTERLACED;
-	timings.HDisplay = var->xres;
-	timings.HSyncStart = timings.HDisplay + var->right_margin;
-	timings.HSyncEnd = timings.HSyncStart + var->hsync_len;
-	timings.HTotal = timings.HSyncEnd + var->left_margin;
-	timings.VDisplay = var->yres;
-	timings.VSyncStart = timings.VDisplay + var->lower_margin;
-	timings.VSyncEnd = timings.VSyncStart + var->vsync_len;
-	timings.VTotal = timings.VSyncEnd + var->upper_margin;
-	timings.sync = var->sync;
 
 	/* Is the mode larger than the LCD panel? */
 	if (par->internal_display &&
@@ -759,11 +741,11 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 static int neofb_set_par(struct fb_info *info)
 {
 	struct neofb_par *par = info->par;
-	struct xtimings timings;
 	unsigned char temp;
 	int i, clock_hi = 0;
 	int lcd_stretch;
 	int hoffset, voffset;
+	int vsync_start, vtotal;
 
 	DBG("neofb_set_par");
 
@@ -771,28 +753,15 @@ static int neofb_set_par(struct fb_info *info)
 
 	vgaHWProtect(1);	/* Blank the screen */
 
-	timings.dblscan = info->var.vmode & FB_VMODE_DOUBLE;
-	timings.interlaced = info->var.vmode & FB_VMODE_INTERLACED;
-	timings.HDisplay = info->var.xres;
-	timings.HSyncStart = timings.HDisplay + info->var.right_margin;
-	timings.HSyncEnd = timings.HSyncStart + info->var.hsync_len;
-	timings.HTotal = timings.HSyncEnd + info->var.left_margin;
-	timings.VDisplay = info->var.yres;
-	timings.VSyncStart = timings.VDisplay + info->var.lower_margin;
-	timings.VSyncEnd = timings.VSyncStart + info->var.vsync_len;
-	timings.VTotal = timings.VSyncEnd + info->var.upper_margin;
-	timings.sync = info->var.sync;
-	timings.pixclock = PICOS2KHZ(info->var.pixclock);
-
-	if (timings.pixclock < 1)
-		timings.pixclock = 1;
+	vsync_start = info->var.yres + info->var.lower_margin;
+	vtotal = vsync_start + info->var.vsync_len + info->var.upper_margin;
 
 	/*
 	 * This will allocate the datastructure and initialize all of the
 	 * generic VGA registers.
 	 */
 
-	if (vgaHWInit(&info->var, info, par, &timings))
+	if (vgaHWInit(&info->var, par))
 		return -EINVAL;
 
 	/*
@@ -831,10 +800,10 @@ static int neofb_set_par(struct fb_info *info)
 	par->ExtCRTDispAddr = 0x10;
 
 	/* Vertical Extension */
-	par->VerticalExt = (((timings.VTotal - 2) & 0x400) >> 10)
-	    | (((timings.VDisplay - 1) & 0x400) >> 9)
-	    | (((timings.VSyncStart) & 0x400) >> 8)
-	    | (((timings.VSyncStart) & 0x400) >> 7);
+	par->VerticalExt = (((vtotal - 2) & 0x400) >> 10)
+	    | (((info->var.yres - 1) & 0x400) >> 9)
+	    | (((vsync_start) & 0x400) >> 8)
+	    | (((vsync_start) & 0x400) >> 7);
 
 	/* Fast write bursts on unless disabled. */
 	if (par->pci_burst)
@@ -995,7 +964,7 @@ static int neofb_set_par(struct fb_info *info)
 	 * Calculate the VCLK that most closely matches the requested dot
 	 * clock.
 	 */
-	neoCalcVCLK(info, par, timings.pixclock);
+	neoCalcVCLK(info, par, PICOS2KHZ(info->var.pixclock));
 
 	/* Since we program the clocks ourselves, always use VCLK3. */
 	par->MiscOutReg |= 0x0C;
@@ -1927,9 +1896,6 @@ static int __devinit neo_init_hw(struct fb_info *info)
 	int maxClock = 65000;
 	int CursorMem = 1024;
 	int CursorOff = 0x100;
-	int linearSize = 1024;
-	int maxWidth = 1024;
-	int maxHeight = 1024;
 
 	DBG("neo_init_hw");
 
@@ -1948,81 +1914,52 @@ static int __devinit neo_init_hw(struct fb_info *info)
 	case FB_ACCEL_NEOMAGIC_NM2070:
 		videoRam = 896;
 		maxClock = 65000;
-		CursorMem = 2048;
-		CursorOff = 0x100;
-		linearSize = 1024;
-		maxWidth = 1024;
-		maxHeight = 1024;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2090:
 	case FB_ACCEL_NEOMAGIC_NM2093:
-		videoRam = 1152;
-		maxClock = 80000;
-		CursorMem = 2048;
-		CursorOff = 0x100;
-		linearSize = 2048;
-		maxWidth = 1024;
-		maxHeight = 1024;
-		break;
 	case FB_ACCEL_NEOMAGIC_NM2097:
 		videoRam = 1152;
 		maxClock = 80000;
-		CursorMem = 1024;
-		CursorOff = 0x100;
-		linearSize = 2048;
-		maxWidth = 1024;
-		maxHeight = 1024;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2160:
 		videoRam = 2048;
 		maxClock = 90000;
-		CursorMem = 1024;
-		CursorOff = 0x100;
-		linearSize = 2048;
-		maxWidth = 1024;
-		maxHeight = 1024;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2200:
 		videoRam = 2560;
 		maxClock = 110000;
-		CursorMem = 1024;
-		CursorOff = 0x1000;
-		linearSize = 4096;
-		maxWidth = 1280;
-		maxHeight = 1024;	/* ???? */
-
-		par->neo2200 = (Neo2200 __iomem *) par->mmio_vbase;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2230:
 		videoRam = 3008;
 		maxClock = 110000;
-		CursorMem = 1024;
-		CursorOff = 0x1000;
-		linearSize = 4096;
-		maxWidth = 1280;
-		maxHeight = 1024;	/* ???? */
-
-		par->neo2200 = (Neo2200 __iomem *) par->mmio_vbase;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2360:
 		videoRam = 4096;
 		maxClock = 110000;
-		CursorMem = 1024;
-		CursorOff = 0x1000;
-		linearSize = 4096;
-		maxWidth = 1280;
-		maxHeight = 1024;	/* ???? */
-
-		par->neo2200 = (Neo2200 __iomem *) par->mmio_vbase;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2380:
 		videoRam = 6144;
 		maxClock = 110000;
+		break;
+	}
+	switch (info->fix.accel) {
+	case FB_ACCEL_NEOMAGIC_NM2070:
+	case FB_ACCEL_NEOMAGIC_NM2090:
+	case FB_ACCEL_NEOMAGIC_NM2093:
+		CursorMem = 2048;
+		CursorOff = 0x100;
+		break;
+	case FB_ACCEL_NEOMAGIC_NM2097:
+	case FB_ACCEL_NEOMAGIC_NM2160:
+		CursorMem = 1024;
+		CursorOff = 0x100;
+		break;
+	case FB_ACCEL_NEOMAGIC_NM2200:
+	case FB_ACCEL_NEOMAGIC_NM2230:
+	case FB_ACCEL_NEOMAGIC_NM2360:
+	case FB_ACCEL_NEOMAGIC_NM2380:
 		CursorMem = 1024;
 		CursorOff = 0x1000;
-		linearSize = 8192;
-		maxWidth = 1280;
-		maxHeight = 1024;	/* ???? */
 
 		par->neo2200 = (Neo2200 __iomem *) par->mmio_vbase;
 		break;
@@ -2036,7 +1973,7 @@ static int __devinit neo_init_hw(struct fb_info *info)
 */
 	par->maxClock = maxClock;
 	par->cursorOff = CursorOff;
-	return ((videoRam * 1024));
+	return videoRam * 1024;
 }
 
 

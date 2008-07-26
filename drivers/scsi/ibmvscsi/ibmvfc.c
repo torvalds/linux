@@ -3819,6 +3819,20 @@ static int ibmvfc_remove(struct vio_dev *vdev)
 	return 0;
 }
 
+/**
+ * ibmvfc_get_desired_dma - Calculate DMA resources needed by the driver
+ * @vdev:	vio device struct
+ *
+ * Return value:
+ *	Number of bytes the driver will need to DMA map at the same time in
+ *	order to perform well.
+ */
+static unsigned long ibmvfc_get_desired_dma(struct vio_dev *vdev)
+{
+	unsigned long pool_dma = max_requests * sizeof(union ibmvfc_iu);
+	return pool_dma + ((512 * 1024) * driver_template.cmd_per_lun);
+}
+
 static struct vio_device_id ibmvfc_device_table[] __devinitdata = {
 	{"fcp", "IBM,vfc-client"},
 	{ "", "" }
@@ -3829,6 +3843,7 @@ static struct vio_driver ibmvfc_driver = {
 	.id_table = ibmvfc_device_table,
 	.probe = ibmvfc_probe,
 	.remove = ibmvfc_remove,
+	.get_desired_dma = ibmvfc_get_desired_dma,
 	.driver = {
 		.name = IBMVFC_NAME,
 		.owner = THIS_MODULE,

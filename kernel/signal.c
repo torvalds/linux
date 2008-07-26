@@ -338,13 +338,9 @@ unblock_all_signals(void)
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 
-static int collect_signal(int sig, struct sigpending *list, siginfo_t *info)
+static void collect_signal(int sig, struct sigpending *list, siginfo_t *info)
 {
 	struct sigqueue *q, *first = NULL;
-	int still_pending = 0;
-
-	if (unlikely(!sigismember(&list->signal, sig)))
-		return 0;
 
 	/*
 	 * Collect the siginfo appropriate to this signal.  Check if
@@ -352,33 +348,30 @@ static int collect_signal(int sig, struct sigpending *list, siginfo_t *info)
 	*/
 	list_for_each_entry(q, &list->list, list) {
 		if (q->info.si_signo == sig) {
-			if (first) {
-				still_pending = 1;
-				break;
-			}
+			if (first)
+				goto still_pending;
 			first = q;
 		}
 	}
+
+	sigdelset(&list->signal, sig);
+
 	if (first) {
+still_pending:
 		list_del_init(&first->list);
 		copy_siginfo(info, &first->info);
 		__sigqueue_free(first);
-		if (!still_pending)
-			sigdelset(&list->signal, sig);
 	} else {
-
 		/* Ok, it wasn't in the queue.  This must be
 		   a fast-pathed signal or we must have been
 		   out of queue space.  So zero out the info.
 		 */
-		sigdelset(&list->signal, sig);
 		info->si_signo = sig;
 		info->si_errno = 0;
 		info->si_code = 0;
 		info->si_pid = 0;
 		info->si_uid = 0;
 	}
-	return 1;
 }
 
 static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
@@ -396,8 +389,7 @@ static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
 			}
 		}
 
-		if (!collect_signal(sig, pending, info))
-			sig = 0;
+		collect_signal(sig, pending, info);
 	}
 
 	return sig;
@@ -462,8 +454,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 		 * is to alert stop-signal processing code when another
 		 * processor has come along and cleared the flag.
 		 */
-		if (!(tsk->signal->flags & SIGNAL_GROUP_EXIT))
-			tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
+		tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
 	}
 	if ((info->si_code & __SI_MASK) == __SI_TIMER && info->si_sys_private) {
 		/*
@@ -1125,7 +1116,7 @@ EXPORT_SYMBOL_GPL(kill_pid_info_as_uid);
  * is probably wrong.  Should make it like BSD or SYSV.
  */
 
-static int kill_something_info(int sig, struct siginfo *info, int pid)
+static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
 {
 	int ret;
 
@@ -1236,17 +1227,6 @@ int kill_pid(struct pid *pid, int sig, int priv)
 	return kill_pid_info(sig, __si_special(priv), pid);
 }
 EXPORT_SYMBOL(kill_pid);
-
-int
-kill_proc(pid_t pid, int sig, int priv)
-{
-	int ret;
-
-	rcu_read_lock();
-	ret = kill_pid_info(sig, __si_special(priv), find_pid(pid));
-	rcu_read_unlock();
-	return ret;
-}
 
 /*
  * These functions support sending signals using preallocated sigqueue
@@ -1379,10 +1359,9 @@ void do_notify_parent(struct task_struct *tsk, int sig)
 
 	info.si_uid = tsk->uid;
 
-	/* FIXME: find out whether or not this is supposed to be c*time. */
-	info.si_utime = cputime_to_jiffies(cputime_add(tsk->utime,
+	info.si_utime = cputime_to_clock_t(cputime_add(tsk->utime,
 						       tsk->signal->utime));
-	info.si_stime = cputime_to_jiffies(cputime_add(tsk->stime,
+	info.si_stime = cputime_to_clock_t(cputime_add(tsk->stime,
 						       tsk->signal->stime));
 
 	info.si_status = tsk->exit_code & 0x7f;
@@ -1450,9 +1429,8 @@ static void do_notify_parent_cldstop(struct task_struct *tsk, int why)
 
 	info.si_uid = tsk->uid;
 
-	/* FIXME: find out whether or not this is supposed to be c*time. */
-	info.si_utime = cputime_to_jiffies(tsk->utime);
-	info.si_stime = cputime_to_jiffies(tsk->stime);
+	info.si_utime = cputime_to_clock_t(tsk->utime);
+	info.si_stime = cputime_to_clock_t(tsk->stime);
 
  	info.si_code = why;
  	switch (why) {
@@ -1491,10 +1469,10 @@ static inline int may_ptrace_stop(void)
 	 * is a deadlock situation, and pointless because our tracer
 	 * is dead so don't allow us to stop.
 	 * If SIGKILL was already sent before the caller unlocked
-	 * ->siglock we must see ->core_waiters != 0. Otherwise it
+	 * ->siglock we must see ->core_state != NULL. Otherwise it
 	 * is safe to enter schedule().
 	 */
-	if (unlikely(current->mm->core_waiters) &&
+	if (unlikely(current->mm->core_state) &&
 	    unlikely(current->mm == current->parent->mm))
 		return 0;
 
@@ -1507,9 +1485,8 @@ static inline int may_ptrace_stop(void)
  */
 static int sigkill_pending(struct task_struct *tsk)
 {
-	return ((sigismember(&tsk->pending.signal, SIGKILL) ||
-		 sigismember(&tsk->signal->shared_pending.signal, SIGKILL)) &&
-		!unlikely(sigismember(&tsk->blocked, SIGKILL)));
+	return	sigismember(&tsk->pending.signal, SIGKILL) ||
+		sigismember(&tsk->signal->shared_pending.signal, SIGKILL);
 }
 
 /*
@@ -1525,8 +1502,6 @@ static int sigkill_pending(struct task_struct *tsk)
  */
 static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
 {
-	int killed = 0;
-
 	if (arch_ptrace_stop_needed(exit_code, info)) {
 		/*
 		 * The arch code has something special to do before a
@@ -1542,7 +1517,8 @@ static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
 		spin_unlock_irq(&current->sighand->siglock);
 		arch_ptrace_stop(exit_code, info);
 		spin_lock_irq(&current->sighand->siglock);
-		killed = sigkill_pending(current);
+		if (sigkill_pending(current))
+			return;
 	}
 
 	/*
@@ -1559,7 +1535,7 @@ static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
 	__set_current_state(TASK_TRACED);
 	spin_unlock_irq(&current->sighand->siglock);
 	read_lock(&tasklist_lock);
-	if (!unlikely(killed) && may_ptrace_stop()) {
+	if (may_ptrace_stop()) {
 		do_notify_parent_cldstop(current, CLD_TRAPPED);
 		read_unlock(&tasklist_lock);
 		schedule();
@@ -1658,8 +1634,7 @@ static int do_signal_stop(int signr)
 	} else {
 		struct task_struct *t;
 
-		if (unlikely((sig->flags & (SIGNAL_STOP_DEQUEUED | SIGNAL_UNKILLABLE))
-					 != SIGNAL_STOP_DEQUEUED) ||
+		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED) ||
 		    unlikely(signal_group_exit(sig)))
 			return 0;
 		/*
@@ -1920,7 +1895,6 @@ EXPORT_SYMBOL(recalc_sigpending);
 EXPORT_SYMBOL_GPL(dequeue_signal);
 EXPORT_SYMBOL(flush_signals);
 EXPORT_SYMBOL(force_sig);
-EXPORT_SYMBOL(kill_proc);
 EXPORT_SYMBOL(ptrace_notify);
 EXPORT_SYMBOL(send_sig);
 EXPORT_SYMBOL(send_sig_info);
@@ -2196,7 +2170,7 @@ sys_rt_sigtimedwait(const sigset_t __user *uthese,
 }
 
 asmlinkage long
-sys_kill(int pid, int sig)
+sys_kill(pid_t pid, int sig)
 {
 	struct siginfo info;
 
@@ -2209,7 +2183,7 @@ sys_kill(int pid, int sig)
 	return kill_something_info(sig, &info, pid);
 }
 
-static int do_tkill(int tgid, int pid, int sig)
+static int do_tkill(pid_t tgid, pid_t pid, int sig)
 {
 	int error;
 	struct siginfo info;
@@ -2255,7 +2229,7 @@ static int do_tkill(int tgid, int pid, int sig)
  *  exists but it's not belonging to the target process anymore. This
  *  method solves the problem of threads exiting and PIDs getting reused.
  */
-asmlinkage long sys_tgkill(int tgid, int pid, int sig)
+asmlinkage long sys_tgkill(pid_t tgid, pid_t pid, int sig)
 {
 	/* This is only valid for single tasks */
 	if (pid <= 0 || tgid <= 0)
@@ -2268,7 +2242,7 @@ asmlinkage long sys_tgkill(int tgid, int pid, int sig)
  *  Send a signal to only one task, even if it's a CLONE_THREAD task.
  */
 asmlinkage long
-sys_tkill(int pid, int sig)
+sys_tkill(pid_t pid, int sig)
 {
 	/* This is only valid for single tasks */
 	if (pid <= 0)
@@ -2278,7 +2252,7 @@ sys_tkill(int pid, int sig)
 }
 
 asmlinkage long
-sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo)
+sys_rt_sigqueueinfo(pid_t pid, int sig, siginfo_t __user *uinfo)
 {
 	siginfo_t info;
 

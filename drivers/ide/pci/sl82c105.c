@@ -23,6 +23,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "sl82c105"
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -270,7 +272,7 @@ static u8 sl82c105_bridge_revision(struct pci_dev *dev)
  * channel 0 here at least, but channel 1 has to be enabled by
  * firmware or arch code. We still set both to 16 bits mode.
  */
-static unsigned int __devinit init_chipset_sl82c105(struct pci_dev *dev, const char *msg)
+static unsigned int __devinit init_chipset_sl82c105(struct pci_dev *dev)
 {
 	u32 val;
 
@@ -301,7 +303,7 @@ static const struct ide_dma_ops sl82c105_dma_ops = {
 };
 
 static const struct ide_port_info sl82c105_chipset __devinitdata = {
-	.name		= "W82C105",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_sl82c105,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
 	.port_ops	= &sl82c105_port_ops,
@@ -328,14 +330,14 @@ static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_dev
 		 * Never ever EVER under any circumstances enable
 		 * DMA when the bridge is this old.
 		 */
-		printk(KERN_INFO "W82C105_IDE: Winbond W83C553 bridge "
+		printk(KERN_INFO DRV_NAME ": Winbond W83C553 bridge "
 				 "revision %d, BM-DMA disabled\n", rev);
 		d.dma_ops = NULL;
 		d.mwdma_mask = 0;
 		d.host_flags &= ~IDE_HFLAG_SERIALIZE_DMA;
 	}
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id sl82c105_pci_tbl[] = {
@@ -348,6 +350,7 @@ static struct pci_driver driver = {
 	.name		= "W82C105_IDE",
 	.id_table	= sl82c105_pci_tbl,
 	.probe		= sl82c105_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init sl82c105_ide_init(void)
@@ -355,7 +358,13 @@ static int __init sl82c105_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit sl82c105_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(sl82c105_ide_init);
+module_exit(sl82c105_ide_exit);
 
 MODULE_DESCRIPTION("PCI driver module for W82C105 IDE");
 MODULE_LICENSE("GPL");

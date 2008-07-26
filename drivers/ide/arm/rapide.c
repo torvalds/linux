@@ -95,7 +95,13 @@ static int __init rapide_init(void)
 	return ecard_register_driver(&rapide_driver);
 }
 
+static void __exit rapide_exit(void)
+{
+	ecard_unregister_driver(&rapide_driver);
+}
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Yellowstone RAPIDE driver");
 
 module_init(rapide_init);
+module_exit(rapide_exit);

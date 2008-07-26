@@ -102,9 +102,7 @@ extern unsigned long mmap_min_addr;
 #define LSM_SETID_FS	8
 
 /* forward declares to avoid warnings */
-struct nfsctl_arg;
 struct sched_param;
-struct swap_info_struct;
 struct request_sock;
 
 /* bprm_apply_creds unsafe reasons */

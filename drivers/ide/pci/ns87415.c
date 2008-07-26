@@ -19,6 +19,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "ns87415"
+
 #ifdef CONFIG_SUPERIO
 /* SUPERIO 87560 is a PoS chip that NatSem denies exists.
  * Unfortunately, it's built-in on all Astro-based PA-RISC workstations
@@ -305,7 +307,7 @@ static const struct ide_dma_ops ns87415_dma_ops = {
 };
 
 static const struct ide_port_info ns87415_chipset __devinitdata = {
-	.name		= "NS87415",
+	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_ns87415,
 	.port_ops	= &ns87415_port_ops,
 	.dma_ops	= &ns87415_dma_ops,
@@ -324,7 +326,7 @@ static int __devinit ns87415_init_one(struct pci_dev *dev, const struct pci_devi
 		d.tp_ops = &superio_tp_ops;
 	}
 #endif
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id ns87415_pci_tbl[] = {
@@ -337,6 +339,7 @@ static struct pci_driver driver = {
 	.name		= "NS87415_IDE",
 	.id_table	= ns87415_pci_tbl,
 	.probe		= ns87415_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init ns87415_ide_init(void)
@@ -344,7 +347,13 @@ static int __init ns87415_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit ns87415_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(ns87415_ide_init);
+module_exit(ns87415_ide_exit);
 
 MODULE_AUTHOR("Mark Lord, Eddie Dost, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for NS87415 IDE");

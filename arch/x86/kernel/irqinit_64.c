@@ -46,7 +46,8 @@
 	asm("\n.text\n.p2align\n"		\
 	    "IRQ" #nr "_interrupt:\n\t"		\
 	    "push $~(" #nr ") ; "		\
-	    "jmp common_interrupt");
+	    "jmp common_interrupt\n"		\
+	    ".previous");
 
 #define BI(x,y) \
 	BUILD_IRQ(x##y)

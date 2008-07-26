@@ -1460,6 +1460,8 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 			goto modify_qp_exit2;
 		}
 		mqpcb->path_migration_state = attr->path_mig_state + 1;
+		if (attr->path_mig_state == IB_MIG_REARM)
+			my_qp->mig_armed = 1;
 		update_mask |=
 			EHCA_BMASK_SET(MQPCB_MASK_PATH_MIGRATION_STATE, 1);
 	}

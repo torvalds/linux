@@ -736,9 +736,9 @@ static void shutdown_scheduler_queue(struct net_device *dev,
 		dev_queue->qdisc = qdisc_default;
 		dev_queue->qdisc_sleeping = qdisc_default;
 
-		spin_lock(root_lock);
+		spin_lock_bh(root_lock);
 		qdisc_destroy(qdisc);
-		spin_unlock(root_lock);
+		spin_unlock_bh(root_lock);
 	}
 }
 

@@ -575,7 +575,8 @@ int gigaset_m10x_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 	else
 		skb = iraw_encode(skb, HW_HDR_LEN, 0);
 	if (!skb) {
-		err("unable to allocate memory for encoding!\n");
+		dev_err(bcs->cs->dev,
+			"unable to allocate memory for encoding!\n");
 		return -ENOMEM;
 	}
 

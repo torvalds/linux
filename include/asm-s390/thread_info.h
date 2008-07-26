@@ -78,10 +78,7 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *)((*(unsigned long *) __LC_KERNEL_STACK)-THREAD_SIZE);
 }
 
-/* thread information allocation */
-#define alloc_thread_info(tsk) ((struct thread_info *) \
-	__get_free_pages(GFP_KERNEL,THREAD_ORDER))
-#define free_thread_info(ti) free_pages((unsigned long) (ti),THREAD_ORDER)
+#define THREAD_SIZE_ORDER THREAD_ORDER
 
 #endif
 

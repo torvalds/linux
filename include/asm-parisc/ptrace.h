@@ -33,7 +33,6 @@ struct pt_regs {
 	unsigned long ipsw;	/* CR22 */
 };
 
-#define task_regs(task) ((struct pt_regs *) ((char *)(task) + TASK_REGS))
 /*
  * The numbers chosen here are somewhat arbitrary but absolutely MUST
  * not overlap with any of the number assigned in <linux/ptrace.h>.
@@ -43,7 +42,10 @@ struct pt_regs {
  * since we have taken branch traps too)
  */
 #define PTRACE_SINGLEBLOCK	12	/* resume execution until next branch */
+
 #ifdef __KERNEL__
+
+#define task_regs(task) ((struct pt_regs *) ((char *)(task) + TASK_REGS))
 
 /* XXX should we use iaoq[1] or iaoq[0] ? */
 #define user_mode(regs)			(((regs)->iaoq[0] & 3) ? 1 : 0)

@@ -155,6 +155,8 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define __THREAD_INFO_ORDER	0
 #endif /* PAGE_SHIFT == 13 */
 
+#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
+
 #ifdef CONFIG_DEBUG_STACK_USAGE
 #define alloc_thread_info(tsk)					\
 ({								\

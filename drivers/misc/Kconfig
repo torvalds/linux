@@ -77,10 +77,12 @@ config IBM_ASM
 	  for your IBM server.
 
 config PHANTOM
-	tristate "Sensable PHANToM"
+	tristate "Sensable PHANToM (PCI)"
 	depends on PCI
 	help
 	  Say Y here if you want to build a driver for Sensable PHANToM device.
+
+	  This driver is only for PCI PHANToMs.
 
 	  If you choose to build module, its name will be phantom. If unsure,
 	  say N here.
@@ -212,6 +214,18 @@ config TC1100_WMI
 	  This is a driver for the WMI extensions (wireless and bluetooth power
 	  control) of the HP Compaq TC1100 tablet.
 
+config HP_WMI
+       tristate "HP WMI extras"
+       depends on ACPI_WMI
+       depends on INPUT
+       depends on RFKILL
+       help
+         Say Y here if you want to support WMI-based hotkeys on HP laptops and
+	 to read data from WMI such as docking or ambient light sensor state.
+
+         To compile this driver as a module, choose M here: the module will
+         be called hp-wmi.
+
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
         depends on X86
@@ -279,6 +293,8 @@ config THINKPAD_ACPI
 	select INPUT
 	select NEW_LEDS
 	select LEDS_CLASS
+	select NET
+	select RFKILL
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -422,6 +438,7 @@ config SGI_XP
 
 config HP_ILO
 	tristate "Channel interface driver for HP iLO/iLO2 processor"
+	depends on PCI
 	default n
 	help
 	  The channel interface driver allows applications to communicate

@@ -272,9 +272,8 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	ns->used_sems += nsems;
 
 	sma->sem_base = (struct sem *) &sma[1];
-	/* sma->sem_pending = NULL; */
-	sma->sem_pending_last = &sma->sem_pending;
-	/* sma->undo = NULL; */
+	INIT_LIST_HEAD(&sma->sem_pending);
+	INIT_LIST_HEAD(&sma->list_id);
 	sma->sem_nsems = nsems;
 	sma->sem_ctime = get_seconds();
 	sem_unlock(sma);
@@ -329,38 +328,6 @@ asmlinkage long sys_semget(key_t key, int nsems, int semflg)
 	sem_params.u.nsems = nsems;
 
 	return ipcget(ns, &sem_ids(ns), &sem_ops, &sem_params);
-}
-
-/* Manage the doubly linked list sma->sem_pending as a FIFO:
- * insert new queue elements at the tail sma->sem_pending_last.
- */
-static inline void append_to_queue (struct sem_array * sma,
-				    struct sem_queue * q)
-{
-	*(q->prev = sma->sem_pending_last) = q;
-	*(sma->sem_pending_last = &q->next) = NULL;
-}
-
-static inline void prepend_to_queue (struct sem_array * sma,
-				     struct sem_queue * q)
-{
-	q->next = sma->sem_pending;
-	*(q->prev = &sma->sem_pending) = q;
-	if (q->next)
-		q->next->prev = &q->next;
-	else /* sma->sem_pending_last == &sma->sem_pending */
-		sma->sem_pending_last = &q->next;
-}
-
-static inline void remove_from_queue (struct sem_array * sma,
-				      struct sem_queue * q)
-{
-	*(q->prev) = q->next;
-	if (q->next)
-		q->next->prev = q->prev;
-	else /* sma->sem_pending_last == &q->next */
-		sma->sem_pending_last = q->prev;
-	q->prev = NULL; /* mark as removed */
 }
 
 /*
@@ -438,16 +405,15 @@ static void update_queue (struct sem_array * sma)
 	int error;
 	struct sem_queue * q;
 
-	q = sma->sem_pending;
-	while(q) {
+	q = list_entry(sma->sem_pending.next, struct sem_queue, list);
+	while (&q->list != &sma->sem_pending) {
 		error = try_atomic_semop(sma, q->sops, q->nsops,
 					 q->undo, q->pid);
 
 		/* Does q->sleeper still need to sleep? */
 		if (error <= 0) {
 			struct sem_queue *n;
-			remove_from_queue(sma,q);
-			q->status = IN_WAKEUP;
+
 			/*
 			 * Continue scanning. The next operation
 			 * that must be checked depends on the type of the
@@ -458,11 +424,26 @@ static void update_queue (struct sem_array * sma)
 			 *   for semaphore values to become 0.
 			 * - if the operation didn't modify the array,
 			 *   then just continue.
+			 * The order of list_del() and reading ->next
+			 * is crucial: In the former case, the list_del()
+			 * must be done first [because we might be the
+			 * first entry in ->sem_pending], in the latter
+			 * case the list_del() must be done last
+			 * [because the list is invalid after the list_del()]
 			 */
-			if (q->alter)
-				n = sma->sem_pending;
-			else
-				n = q->next;
+			if (q->alter) {
+				list_del(&q->list);
+				n = list_entry(sma->sem_pending.next,
+						struct sem_queue, list);
+			} else {
+				n = list_entry(q->list.next, struct sem_queue,
+						list);
+				list_del(&q->list);
+			}
+
+			/* wake up the waiting thread */
+			q->status = IN_WAKEUP;
+
 			wake_up_process(q->sleeper);
 			/* hands-off: q will disappear immediately after
 			 * writing q->status.
@@ -471,7 +452,7 @@ static void update_queue (struct sem_array * sma)
 			q->status = error;
 			q = n;
 		} else {
-			q = q->next;
+			q = list_entry(q->list.next, struct sem_queue, list);
 		}
 	}
 }
@@ -491,7 +472,7 @@ static int count_semncnt (struct sem_array * sma, ushort semnum)
 	struct sem_queue * q;
 
 	semncnt = 0;
-	for (q = sma->sem_pending; q; q = q->next) {
+	list_for_each_entry(q, &sma->sem_pending, list) {
 		struct sembuf * sops = q->sops;
 		int nsops = q->nsops;
 		int i;
@@ -503,13 +484,14 @@ static int count_semncnt (struct sem_array * sma, ushort semnum)
 	}
 	return semncnt;
 }
+
 static int count_semzcnt (struct sem_array * sma, ushort semnum)
 {
 	int semzcnt;
 	struct sem_queue * q;
 
 	semzcnt = 0;
-	for (q = sma->sem_pending; q; q = q->next) {
+	list_for_each_entry(q, &sma->sem_pending, list) {
 		struct sembuf * sops = q->sops;
 		int nsops = q->nsops;
 		int i;
@@ -522,35 +504,41 @@ static int count_semzcnt (struct sem_array * sma, ushort semnum)
 	return semzcnt;
 }
 
+void free_un(struct rcu_head *head)
+{
+	struct sem_undo *un = container_of(head, struct sem_undo, rcu);
+	kfree(un);
+}
+
 /* Free a semaphore set. freeary() is called with sem_ids.rw_mutex locked
  * as a writer and the spinlock for this semaphore set hold. sem_ids.rw_mutex
  * remains locked on exit.
  */
 static void freeary(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 {
-	struct sem_undo *un;
-	struct sem_queue *q;
+	struct sem_undo *un, *tu;
+	struct sem_queue *q, *tq;
 	struct sem_array *sma = container_of(ipcp, struct sem_array, sem_perm);
 
-	/* Invalidate the existing undo structures for this semaphore set.
-	 * (They will be freed without any further action in exit_sem()
-	 * or during the next semop.)
-	 */
-	for (un = sma->undo; un; un = un->id_next)
+	/* Free the existing undo structures for this semaphore set.  */
+	assert_spin_locked(&sma->sem_perm.lock);
+	list_for_each_entry_safe(un, tu, &sma->list_id, list_id) {
+		list_del(&un->list_id);
+		spin_lock(&un->ulp->lock);
 		un->semid = -1;
+		list_del_rcu(&un->list_proc);
+		spin_unlock(&un->ulp->lock);
+		call_rcu(&un->rcu, free_un);
+	}
 
 	/* Wake up all pending processes and let them fail with EIDRM. */
-	q = sma->sem_pending;
-	while(q) {
-		struct sem_queue *n;
-		/* lazy remove_from_queue: we are killing the whole queue */
-		q->prev = NULL;
-		n = q->next;
+	list_for_each_entry_safe(q, tq, &sma->sem_pending, list) {
+		list_del(&q->list);
+
 		q->status = IN_WAKEUP;
 		wake_up_process(q->sleeper); /* doesn't sleep */
 		smp_wmb();
 		q->status = -EIDRM;	/* hands-off q */
-		q = n;
 	}
 
 	/* Remove the semaphore set from the IDR */
@@ -763,9 +751,12 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 
 		for (i = 0; i < nsems; i++)
 			sma->sem_base[i].semval = sem_io[i];
-		for (un = sma->undo; un; un = un->id_next)
+
+		assert_spin_locked(&sma->sem_perm.lock);
+		list_for_each_entry(un, &sma->list_id, list_id) {
 			for (i = 0; i < nsems; i++)
 				un->semadj[i] = 0;
+		}
 		sma->sem_ctime = get_seconds();
 		/* maybe some queued-up processes were waiting for this */
 		update_queue(sma);
@@ -797,12 +788,15 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 	{
 		int val = arg.val;
 		struct sem_undo *un;
+
 		err = -ERANGE;
 		if (val > SEMVMX || val < 0)
 			goto out_unlock;
 
-		for (un = sma->undo; un; un = un->id_next)
+		assert_spin_locked(&sma->sem_perm.lock);
+		list_for_each_entry(un, &sma->list_id, list_id)
 			un->semadj[semnum] = 0;
+
 		curr->semval = val;
 		curr->sempid = task_tgid_vnr(current);
 		sma->sem_ctime = get_seconds();
@@ -952,6 +946,8 @@ static inline int get_undo_list(struct sem_undo_list **undo_listp)
 			return -ENOMEM;
 		spin_lock_init(&undo_list->lock);
 		atomic_set(&undo_list->refcnt, 1);
+		INIT_LIST_HEAD(&undo_list->list_proc);
+
 		current->sysvsem.undo_list = undo_list;
 	}
 	*undo_listp = undo_list;
@@ -960,25 +956,27 @@ static inline int get_undo_list(struct sem_undo_list **undo_listp)
 
 static struct sem_undo *lookup_undo(struct sem_undo_list *ulp, int semid)
 {
-	struct sem_undo **last, *un;
+	struct sem_undo *walk;
 
-	last = &ulp->proc_list;
-	un = *last;
-	while(un != NULL) {
-		if(un->semid==semid)
-			break;
-		if(un->semid==-1) {
-			*last=un->proc_next;
-			kfree(un);
-		} else {
-			last=&un->proc_next;
-		}
-		un=*last;
+	list_for_each_entry_rcu(walk, &ulp->list_proc, list_proc) {
+		if (walk->semid == semid)
+			return walk;
 	}
-	return un;
+	return NULL;
 }
 
-static struct sem_undo *find_undo(struct ipc_namespace *ns, int semid)
+/**
+ * find_alloc_undo - Lookup (and if not present create) undo array
+ * @ns: namespace
+ * @semid: semaphore array id
+ *
+ * The function looks up (and if not present creates) the undo structure.
+ * The size of the undo structure depends on the size of the semaphore
+ * array, thus the alloc path is not that straightforward.
+ * Lifetime-rules: sem_undo is rcu-protected, on success, the function
+ * performs a rcu_read_lock().
+ */
+static struct sem_undo *find_alloc_undo(struct ipc_namespace *ns, int semid)
 {
 	struct sem_array *sma;
 	struct sem_undo_list *ulp;
@@ -990,13 +988,16 @@ static struct sem_undo *find_undo(struct ipc_namespace *ns, int semid)
 	if (error)
 		return ERR_PTR(error);
 
+	rcu_read_lock();
 	spin_lock(&ulp->lock);
 	un = lookup_undo(ulp, semid);
 	spin_unlock(&ulp->lock);
 	if (likely(un!=NULL))
 		goto out;
+	rcu_read_unlock();
 
 	/* no undo structure around - allocate one. */
+	/* step 1: figure out the size of the semaphore array */
 	sma = sem_lock_check(ns, semid);
 	if (IS_ERR(sma))
 		return ERR_PTR(PTR_ERR(sma));
@@ -1004,37 +1005,45 @@ static struct sem_undo *find_undo(struct ipc_namespace *ns, int semid)
 	nsems = sma->sem_nsems;
 	sem_getref_and_unlock(sma);
 
+	/* step 2: allocate new undo structure */
 	new = kzalloc(sizeof(struct sem_undo) + sizeof(short)*nsems, GFP_KERNEL);
 	if (!new) {
 		sem_putref(sma);
 		return ERR_PTR(-ENOMEM);
 	}
-	new->semadj = (short *) &new[1];
-	new->semid = semid;
 
-	spin_lock(&ulp->lock);
-	un = lookup_undo(ulp, semid);
-	if (un) {
-		spin_unlock(&ulp->lock);
-		kfree(new);
-		sem_putref(sma);
-		goto out;
-	}
+	/* step 3: Acquire the lock on semaphore array */
 	sem_lock_and_putref(sma);
 	if (sma->sem_perm.deleted) {
 		sem_unlock(sma);
-		spin_unlock(&ulp->lock);
 		kfree(new);
 		un = ERR_PTR(-EIDRM);
 		goto out;
 	}
-	new->proc_next = ulp->proc_list;
-	ulp->proc_list = new;
-	new->id_next = sma->undo;
-	sma->undo = new;
-	sem_unlock(sma);
+	spin_lock(&ulp->lock);
+
+	/*
+	 * step 4: check for races: did someone else allocate the undo struct?
+	 */
+	un = lookup_undo(ulp, semid);
+	if (un) {
+		kfree(new);
+		goto success;
+	}
+	/* step 5: initialize & link new undo structure */
+	new->semadj = (short *) &new[1];
+	new->ulp = ulp;
+	new->semid = semid;
+	assert_spin_locked(&ulp->lock);
+	list_add_rcu(&new->list_proc, &ulp->list_proc);
+	assert_spin_locked(&sma->sem_perm.lock);
+	list_add(&new->list_id, &sma->list_id);
 	un = new;
+
+success:
 	spin_unlock(&ulp->lock);
+	rcu_read_lock();
+	sem_unlock(sma);
 out:
 	return un;
 }
@@ -1090,9 +1099,8 @@ asmlinkage long sys_semtimedop(int semid, struct sembuf __user *tsops,
 			alter = 1;
 	}
 
-retry_undos:
 	if (undos) {
-		un = find_undo(ns, semid);
+		un = find_alloc_undo(ns, semid);
 		if (IS_ERR(un)) {
 			error = PTR_ERR(un);
 			goto out_free;
@@ -1102,19 +1110,37 @@ retry_undos:
 
 	sma = sem_lock_check(ns, semid);
 	if (IS_ERR(sma)) {
+		if (un)
+			rcu_read_unlock();
 		error = PTR_ERR(sma);
 		goto out_free;
 	}
 
 	/*
-	 * semid identifiers are not unique - find_undo may have
+	 * semid identifiers are not unique - find_alloc_undo may have
 	 * allocated an undo structure, it was invalidated by an RMID
-	 * and now a new array with received the same id. Check and retry.
+	 * and now a new array with received the same id. Check and fail.
+	 * This case can be detected checking un->semid. The existance of
+	 * "un" itself is guaranteed by rcu.
 	 */
-	if (un && un->semid == -1) {
-		sem_unlock(sma);
-		goto retry_undos;
+	error = -EIDRM;
+	if (un) {
+		if (un->semid == -1) {
+			rcu_read_unlock();
+			goto out_unlock_free;
+		} else {
+			/*
+			 * rcu lock can be released, "un" cannot disappear:
+			 * - sem_lock is acquired, thus IPC_RMID is
+			 *   impossible.
+			 * - exit_sem is impossible, it always operates on
+			 *   current (or a dead task).
+			 */
+
+			rcu_read_unlock();
+		}
 	}
+
 	error = -EFBIG;
 	if (max >= sma->sem_nsems)
 		goto out_unlock_free;
@@ -1138,17 +1164,15 @@ retry_undos:
 	 * task into the pending queue and go to sleep.
 	 */
 		
-	queue.sma = sma;
 	queue.sops = sops;
 	queue.nsops = nsops;
 	queue.undo = un;
 	queue.pid = task_tgid_vnr(current);
-	queue.id = semid;
 	queue.alter = alter;
 	if (alter)
-		append_to_queue(sma ,&queue);
+		list_add_tail(&queue.list, &sma->sem_pending);
 	else
-		prepend_to_queue(sma ,&queue);
+		list_add(&queue.list, &sma->sem_pending);
 
 	queue.status = -EINTR;
 	queue.sleeper = current;
@@ -1174,7 +1198,6 @@ retry_undos:
 
 	sma = sem_lock(ns, semid);
 	if (IS_ERR(sma)) {
-		BUG_ON(queue.prev != NULL);
 		error = -EIDRM;
 		goto out_free;
 	}
@@ -1192,7 +1215,7 @@ retry_undos:
 	 */
 	if (timeout && jiffies_left == 0)
 		error = -EAGAIN;
-	remove_from_queue(sma,&queue);
+	list_del(&queue.list);
 	goto out_unlock_free;
 
 out_unlock_free:
@@ -1243,56 +1266,62 @@ int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
  */
 void exit_sem(struct task_struct *tsk)
 {
-	struct sem_undo_list *undo_list;
-	struct sem_undo *u, **up;
-	struct ipc_namespace *ns;
+	struct sem_undo_list *ulp;
 
-	undo_list = tsk->sysvsem.undo_list;
-	if (!undo_list)
+	ulp = tsk->sysvsem.undo_list;
+	if (!ulp)
 		return;
 	tsk->sysvsem.undo_list = NULL;
 
-	if (!atomic_dec_and_test(&undo_list->refcnt))
+	if (!atomic_dec_and_test(&ulp->refcnt))
 		return;
 
-	ns = tsk->nsproxy->ipc_ns;
-	/* There's no need to hold the semundo list lock, as current
-         * is the last task exiting for this undo list.
-	 */
-	for (up = &undo_list->proc_list; (u = *up); *up = u->proc_next, kfree(u)) {
+	for (;;) {
 		struct sem_array *sma;
-		int nsems, i;
-		struct sem_undo *un, **unp;
+		struct sem_undo *un;
 		int semid;
-	       
-		semid = u->semid;
+		int i;
 
-		if(semid == -1)
-			continue;
-		sma = sem_lock(ns, semid);
+		rcu_read_lock();
+		un = list_entry(rcu_dereference(ulp->list_proc.next),
+					struct sem_undo, list_proc);
+		if (&un->list_proc == &ulp->list_proc)
+			semid = -1;
+		 else
+			semid = un->semid;
+		rcu_read_unlock();
+
+		if (semid == -1)
+			break;
+
+		sma = sem_lock_check(tsk->nsproxy->ipc_ns, un->semid);
+
+		/* exit_sem raced with IPC_RMID, nothing to do */
 		if (IS_ERR(sma))
 			continue;
 
-		if (u->semid == -1)
-			goto next_entry;
-
-		BUG_ON(sem_checkid(sma, u->semid));
-
-		/* remove u from the sma->undo list */
-		for (unp = &sma->undo; (un = *unp); unp = &un->id_next) {
-			if (u == un)
-				goto found;
+		un = lookup_undo(ulp, semid);
+		if (un == NULL) {
+			/* exit_sem raced with IPC_RMID+semget() that created
+			 * exactly the same semid. Nothing to do.
+			 */
+			sem_unlock(sma);
+			continue;
 		}
-		printk ("exit_sem undo list error id=%d\n", u->semid);
-		goto next_entry;
-found:
-		*unp = un->id_next;
-		/* perform adjustments registered in u */
-		nsems = sma->sem_nsems;
-		for (i = 0; i < nsems; i++) {
+
+		/* remove un from the linked lists */
+		assert_spin_locked(&sma->sem_perm.lock);
+		list_del(&un->list_id);
+
+		spin_lock(&ulp->lock);
+		list_del_rcu(&un->list_proc);
+		spin_unlock(&ulp->lock);
+
+		/* perform adjustments registered in un */
+		for (i = 0; i < sma->sem_nsems; i++) {
 			struct sem * semaphore = &sma->sem_base[i];
-			if (u->semadj[i]) {
-				semaphore->semval += u->semadj[i];
+			if (un->semadj[i]) {
+				semaphore->semval += un->semadj[i];
 				/*
 				 * Range checks of the new semaphore value,
 				 * not defined by sus:
@@ -1316,10 +1345,11 @@ found:
 		sma->sem_otime = get_seconds();
 		/* maybe some queued-up processes were waiting for this */
 		update_queue(sma);
-next_entry:
 		sem_unlock(sma);
+
+		call_rcu(&un->rcu, free_un);
 	}
-	kfree(undo_list);
+	kfree(ulp);
 }
 
 #ifdef CONFIG_PROC_FS
