@@ -1028,7 +1028,7 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 		  size_t size, loff_t *off)
 {
 	struct tpm_chip *chip = file->private_data;
-	int in_size = size, out_size;
+	size_t in_size = size, out_size;
 
 	/* cannot perform a write until the read has cleared
 	   either via tpm_read or a user_read_timer timeout */
@@ -1063,7 +1063,7 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 		 size_t size, loff_t *off)
 {
 	struct tpm_chip *chip = file->private_data;
-	int ret_size;
+	ssize_t ret_size;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
 	flush_scheduled_work();
