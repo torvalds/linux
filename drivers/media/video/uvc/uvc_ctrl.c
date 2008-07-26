@@ -195,8 +195,8 @@ static struct uvc_menu_info power_line_frequency_controls[] = {
 };
 
 static struct uvc_menu_info exposure_auto_controls[] = {
-	{ 1, "Manual Mode" },
 	{ 2, "Auto Mode" },
+	{ 1, "Manual Mode" },
 	{ 4, "Shutter Priority Mode" },
 	{ 8, "Aperture Priority Mode" },
 };
