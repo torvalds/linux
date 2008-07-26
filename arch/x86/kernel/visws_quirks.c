@@ -25,6 +25,7 @@
 #include <asm/visws/cobalt.h>
 #include <asm/visws/piix4.h>
 #include <asm/arch_hooks.h>
+#include <asm/io_apic.h>
 #include <asm/fixmap.h>
 #include <asm/reboot.h>
 #include <asm/setup.h>
