@@ -48,5 +48,51 @@
 
 #include <linux/sched.h>
 #include <linux/ptrace.h>
+#include <linux/security.h>
+struct linux_binprm;
+
+/**
+ * tracehook_unsafe_exec - check for exec declared unsafe due to tracing
+ * @task:		current task doing exec
+ *
+ * Return %LSM_UNSAFE_* bits applied to an exec because of tracing.
+ *
+ * Called with task_lock() held on @task.
+ */
+static inline int tracehook_unsafe_exec(struct task_struct *task)
+{
+	int unsafe = 0;
+	int ptrace = task_ptrace(task);
+	if (ptrace & PT_PTRACED) {
+		if (ptrace & PT_PTRACE_CAP)
+			unsafe |= LSM_UNSAFE_PTRACE_CAP;
+		else
+			unsafe |= LSM_UNSAFE_PTRACE;
+	}
+	return unsafe;
+}
+
+/**
+ * tracehook_report_exec - a successful exec was completed
+ * @fmt:		&struct linux_binfmt that performed the exec
+ * @bprm:		&struct linux_binprm containing exec details
+ * @regs:		user-mode register state
+ *
+ * An exec just completed, we are shortly going to return to user mode.
+ * The freshly initialized register state can be seen and changed in @regs.
+ * The name, file and other pointers in @bprm are still on hand to be
+ * inspected, but will be freed as soon as this returns.
+ *
+ * Called with no locks, but with some kernel resources held live
+ * and a reference on @fmt->module.
+ */
+static inline void tracehook_report_exec(struct linux_binfmt *fmt,
+					 struct linux_binprm *bprm,
+					 struct pt_regs *regs)
+{
+	if (!ptrace_event(PT_TRACE_EXEC, PTRACE_EVENT_EXEC, 0) &&
+	    unlikely(task_ptrace(current) & PT_PTRACED))
+		send_sig(SIGTRAP, current, 0);
+}
 
 #endif	/* <linux/tracehook.h> */
