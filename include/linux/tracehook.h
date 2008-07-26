@@ -423,6 +423,20 @@ static inline int tracehook_consider_fatal_signal(struct task_struct *task,
 }
 
 /**
+ * tracehook_force_sigpending - let tracing force signal_pending(current) on
+ *
+ * Called when recomputing our signal_pending() flag.  Return nonzero
+ * to force the signal_pending() flag on, so that tracehook_get_signal()
+ * will be called before the next return to user mode.
+ *
+ * Called with @current->sighand->siglock held.
+ */
+static inline int tracehook_force_sigpending(void)
+{
+	return 0;
+}
+
+/**
  * tracehook_get_signal - deliver synthetic signal to traced task
  * @task:		@current
  * @regs:		task_pt_regs(@current)
