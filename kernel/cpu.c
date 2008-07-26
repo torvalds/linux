@@ -572,3 +572,5 @@ __initdata
 };
 
 const cpumask_t *cpumask_of_cpu_map = cpumask_map;
+
+EXPORT_SYMBOL_GPL(cpumask_of_cpu_map);
