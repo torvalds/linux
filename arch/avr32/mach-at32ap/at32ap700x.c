@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
 
@@ -1299,7 +1300,7 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 
 	if (!data) {
 		data = &_data;
-		memset(data, 0, sizeof(struct mci_platform_data));
+		memset(data, -1, sizeof(struct mci_platform_data));
 		data->detect_pin = GPIO_PIN_NONE;
 		data->wp_pin = GPIO_PIN_NONE;
 	}
@@ -1315,9 +1316,9 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 	select_peripheral(PA(14), PERIPH_A, 0);	/* DATA2 */
 	select_peripheral(PA(15), PERIPH_A, 0);	/* DATA3 */
 
-	if (data->detect_pin != GPIO_PIN_NONE)
+	if (gpio_is_valid(data->detect_pin))
 		at32_select_gpio(data->detect_pin, 0);
-	if (data->wp_pin != GPIO_PIN_NONE)
+	if (gpio_is_valid(data->wp_pin))
 		at32_select_gpio(data->wp_pin, 0);
 
 	atmel_mci0_pclk.dev = &pdev->dev;
@@ -1852,11 +1853,11 @@ at32_add_device_cf(unsigned int id, unsigned int extint,
 	if (at32_init_ide_or_cf(pdev, data->cs, extint))
 		goto fail;
 
-	if (data->detect_pin != GPIO_PIN_NONE)
+	if (gpio_is_valid(data->detect_pin))
 		at32_select_gpio(data->detect_pin, AT32_GPIOF_DEGLITCH);
-	if (data->reset_pin != GPIO_PIN_NONE)
+	if (gpio_is_valid(data->reset_pin))
 		at32_select_gpio(data->reset_pin, 0);
-	if (data->vcc_pin != GPIO_PIN_NONE)
+	if (gpio_is_valid(data->vcc_pin))
 		at32_select_gpio(data->vcc_pin, 0);
 	/* READY is used as extint, so we can't select it as gpio */
 
