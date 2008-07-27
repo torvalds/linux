@@ -324,7 +324,7 @@ static void tc6393xb_attach_irq(struct platform_device *dev)
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	set_irq_type(tc6393xb->irq, IRQT_FALLING);
+	set_irq_type(tc6393xb->irq, IRQ_TYPE_EDGE_FALLING);
 	set_irq_data(tc6393xb->irq, tc6393xb);
 	set_irq_chained_handler(tc6393xb->irq, tc6393xb_irq);
 }

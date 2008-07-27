@@ -198,7 +198,7 @@ static int wm97xx_acc_startup(struct wm97xx *wm)
 		switch (wm->id) {
 		case WM9705_ID2:
 			wm->pen_irq = IRQ_GPIO(4);
-			set_irq_type(IRQ_GPIO(4), IRQT_BOTHEDGE);
+			set_irq_type(IRQ_GPIO(4), IRQ_TYPE_EDGE_BOTH);
 			break;
 		case WM9712_ID2:
 		case WM9713_ID2:

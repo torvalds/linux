@@ -27,10 +27,10 @@
 
 void __init ixdp425_pci_preinit(void)
 {
-	set_irq_type(IRQ_IXDP425_PCI_INTA, IRQT_LOW);
-	set_irq_type(IRQ_IXDP425_PCI_INTB, IRQT_LOW);
-	set_irq_type(IRQ_IXDP425_PCI_INTC, IRQT_LOW);
-	set_irq_type(IRQ_IXDP425_PCI_INTD, IRQT_LOW);
+	set_irq_type(IRQ_IXDP425_PCI_INTA, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_IXDP425_PCI_INTB, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_IXDP425_PCI_INTC, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_IXDP425_PCI_INTD, IRQ_TYPE_LEVEL_LOW);
 
 	ixp4xx_pci_preinit();
 }
