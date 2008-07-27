@@ -2914,7 +2914,7 @@ static int ipv4_sysctl_rtcache_flush_strategy(ctl_table *table,
 	return 0;
 }
 
-ctl_table ipv4_route_table[] = {
+static ctl_table ipv4_route_table[] = {
 	{
 		.ctl_name	= NET_IPV4_ROUTE_GC_THRESH,
 		.procname	= "gc_thresh",
@@ -3214,6 +3214,15 @@ int __init ip_rt_init(void)
 	register_pernet_subsys(&sysctl_route_ops);
 #endif
 	return rc;
+}
+
+/*
+ * We really need to sanitize the damn ipv4 init order, then all
+ * this nonsense will go away.
+ */
+void __init ip_static_sysctl_init(void)
+{
+	register_sysctl_paths(ipv4_route_path, ipv4_route_table);
 }
 
 EXPORT_SYMBOL(__ip_select_ident);
