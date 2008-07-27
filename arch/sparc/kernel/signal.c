@@ -553,6 +553,8 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 		 */
 		if (test_thread_flag(TIF_RESTORE_SIGMASK))
 			clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+		tracehook_signal_handler(signr, &info, &ka, regs, 0);
 		return;
 	}
 	if (restart_syscall &&
