@@ -1758,6 +1758,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 	memcpy(&gspca_dev->fops, &dev_fops, sizeof gspca_dev->fops);
 	gspca_dev->vdev.fops = &gspca_dev->fops;
 	gspca_dev->fops.owner = module;		/* module protection */
+	gspca_dev->present = 1;
 	ret = video_register_device(&gspca_dev->vdev,
 				  VFL_TYPE_GRABBER,
 				  video_nr);
@@ -1766,7 +1767,6 @@ int gspca_dev_probe(struct usb_interface *intf,
 		goto out;
 	}
 
-	gspca_dev->present = 1;
 	usb_set_intfdata(intf, gspca_dev);
 	PDEBUG(D_PROBE, "probe ok");
 	return 0;
