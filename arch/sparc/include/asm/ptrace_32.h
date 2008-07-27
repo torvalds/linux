@@ -74,6 +74,7 @@ struct sparc_stackf {
 
 #define user_mode(regs) (!((regs)->psr & PSR_PS))
 #define instruction_pointer(regs) ((regs)->pc)
+#define user_stack_pointer(regs) ((regs)->u_regs[UREG_FP])
 unsigned long profile_pc(struct pt_regs *);
 extern void show_regs(struct pt_regs *);
 #endif
