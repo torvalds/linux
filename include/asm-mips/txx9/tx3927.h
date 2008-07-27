@@ -10,17 +10,18 @@
 
 #include <asm/txx9/txx927.h>
 
-#define TX3927_SDRAMC_REG	0xfffe8000
-#define TX3927_ROMC_REG		0xfffe9000
-#define TX3927_DMA_REG		0xfffeb000
-#define TX3927_IRC_REG		0xfffec000
-#define TX3927_PCIC_REG		0xfffed000
-#define TX3927_CCFG_REG		0xfffee000
+#define TX3927_REG_BASE	0xfffe0000UL
+#define TX3927_SDRAMC_REG	(TX3927_REG_BASE + 0x8000)
+#define TX3927_ROMC_REG		(TX3927_REG_BASE + 0x9000)
+#define TX3927_DMA_REG		(TX3927_REG_BASE + 0xb000)
+#define TX3927_IRC_REG		(TX3927_REG_BASE + 0xc000)
+#define TX3927_PCIC_REG		(TX3927_REG_BASE + 0xd000)
+#define TX3927_CCFG_REG		(TX3927_REG_BASE + 0xe000)
 #define TX3927_NR_TMR	3
-#define TX3927_TMR_REG(ch)	(0xfffef000 + (ch) * 0x100)
+#define TX3927_TMR_REG(ch)	(TX3927_REG_BASE + 0xf000 + (ch) * 0x100)
 #define TX3927_NR_SIO	2
-#define TX3927_SIO_REG(ch)	(0xfffef300 + (ch) * 0x100)
-#define TX3927_PIO_REG		0xfffef500
+#define TX3927_SIO_REG(ch)	(TX3927_REG_BASE + 0xf300 + (ch) * 0x100)
+#define TX3927_PIO_REG		(TX3927_REG_BASE + 0xf500)
 
 struct tx3927_sdramc_reg {
 	volatile unsigned long cr[8];

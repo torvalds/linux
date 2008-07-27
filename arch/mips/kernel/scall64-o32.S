@@ -247,7 +247,7 @@ sys_call_table:
 	PTR	sys_mkdir
 	PTR	sys_rmdir			/* 4040 */
 	PTR	sys_dup
-	PTR	sys_pipe
+	PTR	sysm_pipe
 	PTR	compat_sys_times
 	PTR	sys_ni_syscall
 	PTR	sys_brk				/* 4045 */

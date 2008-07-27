@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
+#include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/delay.h>
@@ -990,22 +991,9 @@ static int stc_open(struct inode *inode, struct file *file)
 }
 
 static ssize_t stc_read(struct file *file, char *buf, size_t count,
-		 loff_t * offset)
+		 loff_t *offset)
 {
-	int tc = count;
-
-	if ((tc + *offset) > 8192)
-		tc = 8192 - *offset;
-
-	if (tc < 0)
-		return 0;
-
-	if (copy_to_user(buf, stc_firmware + *offset, tc))
-		return -EFAULT;
-
-	*offset += tc;
-
-	return tc;
+	return simple_read_from_buffer(buf, count, offset, stc_firmware, 8192);
 }
 
 static int stc_release(struct inode *inode, struct file *file)
@@ -1693,11 +1681,7 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	i2c_set_adapdata(&ttusb->i2c_adap, ttusb);
 
-#ifdef I2C_ADAP_CLASS_TV_DIGITAL
-	ttusb->i2c_adap.class		  = I2C_ADAP_CLASS_TV_DIGITAL;
-#else
 	ttusb->i2c_adap.class		  = I2C_CLASS_TV_DIGITAL;
-#endif
 	ttusb->i2c_adap.algo              = &ttusb_dec_algo;
 	ttusb->i2c_adap.algo_data         = NULL;
 	ttusb->i2c_adap.dev.parent	  = &udev->dev;

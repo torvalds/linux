@@ -105,4 +105,17 @@ struct platform_device *
 at32_add_device_cf(unsigned int id, unsigned int extint,
 		struct cf_platform_data *data);
 
+/* NAND / SmartMedia */
+struct atmel_nand_data {
+	int	enable_pin;	/* chip enable */
+	int	det_pin;	/* card detect */
+	int	rdy_pin;	/* ready/busy */
+	u8	ale;		/* address line number connected to ALE */
+	u8	cle;		/* address line number connected to CLE */
+	u8	bus_width_16;	/* buswidth is 16 bit */
+	struct mtd_partition *(*partition_info)(int size, int *num_partitions);
+};
+struct platform_device *
+at32_add_device_nand(unsigned int id, struct atmel_nand_data *data);
+
 #endif /* __ASM_ARCH_BOARD_H */

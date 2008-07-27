@@ -146,8 +146,7 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	acpi_status status;
 
 	if (dev->archdata.acpi_handle) {
-		printk(KERN_WARNING PREFIX
-		       "Drivers changed 'acpi_handle' for %s\n", dev->bus_id);
+		dev_warn(dev, "Drivers changed 'acpi_handle'\n");
 		return -EINVAL;
 	}
 	get_device(dev);
@@ -195,8 +194,7 @@ static int acpi_unbind_one(struct device *dev)
 		/* acpi_bind_one increase refcnt by one */
 		put_device(dev);
 	} else {
-		printk(KERN_ERR PREFIX
-		       "Oops, 'acpi_handle' corrupt for %s\n", dev->bus_id);
+		dev_err(dev, "Oops, 'acpi_handle' corrupt\n");
 	}
 	return 0;
 }
@@ -334,9 +332,6 @@ static struct device *__init get_rtc_dev(void)
 static int __init acpi_rtc_init(void)
 {
 	struct device *dev = get_rtc_dev();
-
-	if (acpi_disabled)
-		return 0;
 
 	if (acpi_disabled)
 		return 0;

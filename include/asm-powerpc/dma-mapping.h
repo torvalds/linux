@@ -415,7 +415,7 @@ static inline void dma_sync_sg_for_device(struct device *dev,
 		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
 }
 
-static inline int dma_mapping_error(dma_addr_t dma_addr)
+static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 #ifdef CONFIG_PPC64
 	return (dma_addr == DMA_ERROR_CODE);

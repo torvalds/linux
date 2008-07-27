@@ -1687,6 +1687,19 @@ static int __init at91udc_probe(struct platform_device *pdev)
 				udc->board.pullup_active_low);
 	}
 
+	/* newer chips have more FIFO memory than rm9200 */
+	if (cpu_is_at91sam9260()) {
+		udc->ep[0].maxpacket = 64;
+		udc->ep[3].maxpacket = 64;
+		udc->ep[4].maxpacket = 512;
+		udc->ep[5].maxpacket = 512;
+	} else if (cpu_is_at91sam9261()) {
+		udc->ep[3].maxpacket = 64;
+	} else if (cpu_is_at91sam9263()) {
+		udc->ep[0].maxpacket = 64;
+		udc->ep[3].maxpacket = 64;
+	}
+
 	udc->udp_baseaddr = ioremap(res->start, res->end - res->start + 1);
 	if (!udc->udp_baseaddr) {
 		retval = -ENOMEM;

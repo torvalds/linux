@@ -5,7 +5,7 @@
  * Copyright (C) 1999, 2000  Niibe Yutaka
  *
  */
-#if defined(__SH5__) || defined(CONFIG_SUPERH64)
+#if defined(__SH5__)
 struct pt_regs {
 	unsigned long long pc;
 	unsigned long long sr;

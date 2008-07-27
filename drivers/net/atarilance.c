@@ -243,7 +243,7 @@ struct lance_private {
 
 /* Possible memory/IO addresses for probing */
 
-struct lance_addr {
+static struct lance_addr {
 	unsigned long	memaddr;
 	unsigned long	ioaddr;
 	int				slow_flag;

@@ -119,8 +119,6 @@ obj-$(CONFIG_SH_WDT) += shwdt.o
 
 # SPARC64 Architecture
 
-# V850 Architecture
-
 # XTENSA Architecture
 
 # Architecture Independant

@@ -331,9 +331,10 @@ static void serio_handle_event(void)
 }
 
 /*
- * Remove all events that have been submitted for a given serio port.
+ * Remove all events that have been submitted for a given
+ * object, be it serio port or driver.
  */
-static void serio_remove_pending_events(struct serio *serio)
+static void serio_remove_pending_events(void *object)
 {
 	struct list_head *node, *next;
 	struct serio_event *event;
@@ -343,7 +344,7 @@ static void serio_remove_pending_events(struct serio *serio)
 
 	list_for_each_safe(node, next, &serio_event_list) {
 		event = list_entry(node, struct serio_event, node);
-		if (event->object == serio) {
+		if (event->object == object) {
 			list_del_init(node);
 			serio_free_event(event);
 		}
@@ -837,7 +838,9 @@ void serio_unregister_driver(struct serio_driver *drv)
 	struct serio *serio;
 
 	mutex_lock(&serio_mutex);
+
 	drv->manual_bind = 1;	/* so serio_find_driver ignores it */
+	serio_remove_pending_events(drv);
 
 start_over:
 	list_for_each_entry(serio, &serio_list, node) {

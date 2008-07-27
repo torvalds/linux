@@ -7,6 +7,7 @@
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dw_dmac.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -594,6 +595,17 @@ static void __init genclk_init_parent(struct clk *clk)
 	clk->parent = parent;
 }
 
+static struct dw_dma_platform_data dw_dmac0_data = {
+	.nr_channels	= 3,
+};
+
+static struct resource dw_dmac0_resource[] = {
+	PBMEM(0xff200000),
+	IRQ(2),
+};
+DEFINE_DEV_DATA(dw_dmac, 0);
+DEV_CLK(hclk, dw_dmac0, hsb, 10);
+
 /* --------------------------------------------------------------------
  *  System peripherals
  * -------------------------------------------------------------------- */
@@ -708,17 +720,6 @@ static struct clk pico_clk = {
 	.users		= 1,
 };
 
-static struct resource dmaca0_resource[] = {
-	{
-		.start	= 0xff200000,
-		.end	= 0xff20ffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	IRQ(2),
-};
-DEFINE_DEV(dmaca, 0);
-DEV_CLK(hclk, dmaca0, hsb, 10);
-
 /* --------------------------------------------------------------------
  * HMATRIX
  * -------------------------------------------------------------------- */
@@ -831,7 +832,7 @@ void __init at32_add_system_devices(void)
 	platform_device_register(&at32_eic0_device);
 	platform_device_register(&smc0_device);
 	platform_device_register(&pdc_device);
-	platform_device_register(&dmaca0_device);
+	platform_device_register(&dw_dmac0_device);
 
 	platform_device_register(&at32_tcb0_device);
 	platform_device_register(&at32_tcb1_device);
@@ -1869,6 +1870,58 @@ fail:
 #endif
 
 /* --------------------------------------------------------------------
+ * NAND Flash / SmartMedia
+ * -------------------------------------------------------------------- */
+static struct resource smc_cs3_resource[] __initdata = {
+	{
+		.start	= 0x0c000000,
+		.end	= 0x0fffffff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= 0xfff03c00,
+		.end	= 0xfff03fff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device *__init
+at32_add_device_nand(unsigned int id, struct atmel_nand_data *data)
+{
+	struct platform_device *pdev;
+
+	if (id != 0 || !data)
+		return NULL;
+
+	pdev = platform_device_alloc("atmel_nand", id);
+	if (!pdev)
+		goto fail;
+
+	if (platform_device_add_resources(pdev, smc_cs3_resource,
+				ARRAY_SIZE(smc_cs3_resource)))
+		goto fail;
+
+	if (platform_device_add_data(pdev, data,
+				sizeof(struct atmel_nand_data)))
+		goto fail;
+
+	set_ebi_sfr_bits(HMATRIX_BIT(CS3A));
+	if (data->enable_pin)
+		at32_select_gpio(data->enable_pin,
+				AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+	if (data->rdy_pin)
+		at32_select_gpio(data->rdy_pin, 0);
+	if (data->det_pin)
+		at32_select_gpio(data->det_pin, 0);
+
+	platform_device_add(pdev);
+	return pdev;
+
+fail:
+	platform_device_put(pdev);
+	return NULL;
+}
+
+/* --------------------------------------------------------------------
  * AC97C
  * -------------------------------------------------------------------- */
 static struct resource atmel_ac97c0_resource[] __initdata = {
@@ -2051,7 +2104,7 @@ struct clk *at32_clock_list[] = {
 	&smc0_mck,
 	&pdc_hclk,
 	&pdc_pclk,
-	&dmaca0_hclk,
+	&dw_dmac0_hclk,
 	&pico_clk,
 	&pio0_mck,
 	&pio1_mck,

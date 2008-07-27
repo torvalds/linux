@@ -953,7 +953,7 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 		payload_bus =
 			dma_map_single(ohci->card.device, packet->payload,
 				       packet->payload_length, DMA_TO_DEVICE);
-		if (dma_mapping_error(payload_bus)) {
+		if (dma_mapping_error(ohci->card.device, payload_bus)) {
 			packet->ack = RCODE_SEND_ERROR;
 			return -1;
 		}

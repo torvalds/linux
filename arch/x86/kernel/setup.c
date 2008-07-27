@@ -57,12 +57,8 @@
 #include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/delay.h>
-#include <linux/highmem.h>
 
 #include <linux/kallsyms.h>
-#include <linux/edd.h>
-#include <linux/iscsi_ibft.h>
-#include <linux/kexec.h>
 #include <linux/cpufreq.h>
 #include <linux/dma-mapping.h>
 #include <linux/ctype.h>
@@ -96,7 +92,7 @@
 #include <asm/smp.h>
 #include <asm/desc.h>
 #include <asm/dma.h>
-#include <asm/gart.h>
+#include <asm/iommu.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 
@@ -104,7 +100,6 @@
 #include <asm/paravirt.h>
 
 #include <asm/percpu.h>
-#include <asm/sections.h>
 #include <asm/topology.h>
 #include <asm/apicdef.h>
 #ifdef CONFIG_X86_64
@@ -579,6 +574,10 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
+static struct x86_quirks default_x86_quirks __initdata;
+
+struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
+
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
@@ -598,11 +597,11 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	visws_early_detect();
 	pre_setup_arch_hook();
-	early_cpu_init();
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
 
+	early_cpu_init();
 	early_ioremap_init();
 
 	ROOT_DEV = old_decode_dev(boot_params.hdr.root_dev);
@@ -666,9 +665,6 @@ void __init setup_arch(char **cmdline_p)
 	bss_resource.start = virt_to_phys(&__bss_start);
 	bss_resource.end = virt_to_phys(&__bss_stop)-1;
 
-#ifdef CONFIG_X86_64
-	early_cpu_init();
-#endif
 	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
@@ -681,7 +677,7 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_LOCAL_APIC
 		disable_apic = 1;
 #endif
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
+		setup_clear_cpu_cap(X86_FEATURE_APIC);
 	}
 
 #ifdef CONFIG_PCI
@@ -824,7 +820,10 @@ void __init setup_arch(char **cmdline_p)
 	vmi_init();
 #endif
 
+	paravirt_pagetable_setup_start(swapper_pg_dir);
 	paging_init();
+	paravirt_pagetable_setup_done(swapper_pg_dir);
+	paravirt_post_allocator_init();
 
 #ifdef CONFIG_X86_64
 	map_vsyscall();
@@ -852,14 +851,6 @@ void __init setup_arch(char **cmdline_p)
 	prefill_possible_map();
 #ifdef CONFIG_X86_64
 	init_cpu_to_node();
-#endif
-
-#ifdef CONFIG_X86_NUMAQ
-	/*
-	 * need to check online nodes num, call it
-	 * here before time_init/tsc_init
-	 */
-	numaq_tsc_disable();
 #endif
 
 	init_apic_mappings();

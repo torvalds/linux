@@ -968,7 +968,7 @@ static DEFINE_MUTEX(tmp_buf_mutex);
 /* Calculate the chartime depending on baudrate, numbor of bits etc. */
 static void update_char_time(struct e100_serial * info)
 {
-	tcflag_t cflags = info->tty->termios->c_cflag;
+	tcflag_t cflags = info->port.tty->termios->c_cflag;
 	int bits;
 
 	/* calc. number of bits / data byte */
@@ -1483,7 +1483,8 @@ rs_stop(struct tty_struct *tty)
 				CIRC_CNT(info->xmit.head,
 					 info->xmit.tail,SERIAL_XMIT_SIZE)));
 
-		xoff = IO_FIELD(R_SERIAL0_XOFF, xoff_char, STOP_CHAR(info->tty));
+		xoff = IO_FIELD(R_SERIAL0_XOFF, xoff_char,
+				STOP_CHAR(info->port.tty));
 		xoff |= IO_STATE(R_SERIAL0_XOFF, tx_stop, stop);
 		if (tty->termios->c_iflag & IXON ) {
 			xoff |= IO_STATE(R_SERIAL0_XOFF, auto_xoff, enable);
@@ -1772,7 +1773,7 @@ add_char_and_flag(struct e100_serial *info, unsigned char data, unsigned char fl
 
 		info->icount.rx++;
 	} else {
-		struct tty_struct *tty = info->tty;
+		struct tty_struct *tty = info->port.tty;
 		tty_insert_flip_char(tty, data, flag);
 		info->icount.rx++;
 	}
@@ -1838,7 +1839,7 @@ static unsigned int handle_all_descr_data(struct e100_serial *info)
 		descr->status = 0;
 
 		DFLOW(  DEBUG_LOG(info->line, "RX %lu\n", recvl);
-			if (info->tty->stopped) {
+			if (info->port.tty->stopped) {
 				unsigned char *buf = phys_to_virt(descr->buf);
 				DEBUG_LOG(info->line, "rx 0x%02X\n", buf[0]);
 				DEBUG_LOG(info->line, "rx 0x%02X\n", buf[1]);
@@ -1872,7 +1873,7 @@ static void receive_chars_dma(struct e100_serial *info)
 		IO_STATE(R_DMA_CH6_CLR_INTR, clr_descr, do) |
 		IO_STATE(R_DMA_CH6_CLR_INTR, clr_eop, do);
 
-	tty = info->tty;
+	tty = info->port.tty;
 	if (!tty) /* Something wrong... */
 		return;
 
@@ -2122,7 +2123,7 @@ static void flush_to_flip_buffer(struct e100_serial *info)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	tty = info->tty;
+	tty = info->port.tty;
 
 	if (!tty) {
 		local_irq_restore(flags);
@@ -2287,7 +2288,7 @@ static
 struct e100_serial * handle_ser_rx_interrupt_no_dma(struct e100_serial *info)
 {
 	unsigned long data_read;
-	struct tty_struct *tty = info->tty;
+	struct tty_struct *tty = info->port.tty;
 
 	if (!tty) {
 		printk("!NO TTY!\n");
@@ -2350,7 +2351,7 @@ more_data:
 					data_in, data_read);
 				char flag = TTY_NORMAL;
 				if (info->errorcode == ERRCODE_INSERT_BREAK) {
-					struct tty_struct *tty = info->tty;
+					struct tty_struct *tty = info->port.tty;
 					tty_insert_flip_char(tty, 0, flag);
 					info->icount.rx++;
 				}
@@ -2396,7 +2397,7 @@ more_data:
 		goto more_data;
 	}
 
-	tty_flip_buffer_push(info->tty);
+	tty_flip_buffer_push(info->port.tty);
 	return info;
 }
 
@@ -2547,8 +2548,8 @@ static void handle_ser_tx_interrupt(struct e100_serial *info)
 		rstat = info->port[REG_STATUS];
 		DFLOW(DEBUG_LOG(info->line, "stat %x\n", rstat));
 		e100_disable_serial_tx_ready_irq(info);
-		if (info->tty->stopped)
-			rs_stop(info->tty);
+		if (info->port.tty->stopped)
+			rs_stop(info->port.tty);
 		/* Enable the DMA channel and tell it to continue */
 		e100_enable_txdma_channel(info);
 		/* Wait 12 cycles before doing the DMA command */
@@ -2561,9 +2562,10 @@ static void handle_ser_tx_interrupt(struct e100_serial *info)
 	}
 	/* Normal char-by-char interrupt */
 	if (info->xmit.head == info->xmit.tail
-	    || info->tty->stopped
-	    || info->tty->hw_stopped) {
-		DFLOW(DEBUG_LOG(info->line, "tx_int: stopped %i\n", info->tty->stopped));
+	    || info->port.tty->stopped
+	    || info->port.tty->hw_stopped) {
+		DFLOW(DEBUG_LOG(info->line, "tx_int: stopped %i\n",
+				info->port.tty->stopped));
 		e100_disable_serial_tx_ready_irq(info);
 		info->tr_running = 0;
 		return;
@@ -2725,7 +2727,7 @@ do_softint(struct work_struct *work)
 
 	info = container_of(work, struct e100_serial, work);
 
-	tty = info->tty;
+	tty = info->port.tty;
 	if (!tty)
 		return;
 
@@ -2767,8 +2769,8 @@ startup(struct e100_serial * info)
 	/* Bits and pieces collected from below.  Better to have them
 	   in one ifdef:ed clause than to mix in a lot of ifdefs,
 	   right? */
-	if (info->tty)
-		clear_bit(TTY_IO_ERROR, &info->tty->flags);
+	if (info->port.tty)
+		clear_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
 	info->xmit.head = info->xmit.tail = 0;
 	info->first_recv_buffer = info->last_recv_buffer = NULL;
@@ -2825,8 +2827,8 @@ startup(struct e100_serial * info)
 		e100_disable_txdma_channel(info);
 	}
 
-	if (info->tty)
-		clear_bit(TTY_IO_ERROR, &info->tty->flags);
+	if (info->port.tty)
+		clear_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
 	info->xmit.head = info->xmit.tail = 0;
 	info->first_recv_buffer = info->last_recv_buffer = NULL;
@@ -2940,14 +2942,14 @@ shutdown(struct e100_serial * info)
 			descr[i].buf = 0;
 		}
 
-	if (!info->tty || (info->tty->termios->c_cflag & HUPCL)) {
+	if (!info->port.tty || (info->port.tty->termios->c_cflag & HUPCL)) {
 		/* hang up DTR and RTS if HUPCL is enabled */
 		e100_dtr(info, 0);
 		e100_rts(info, 0); /* could check CRTSCTS before doing this */
 	}
 
-	if (info->tty)
-		set_bit(TTY_IO_ERROR, &info->tty->flags);
+	if (info->port.tty)
+		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
 	info->flags &= ~ASYNC_INITIALIZED;
 	local_irq_restore(flags);
@@ -2964,12 +2966,12 @@ change_speed(struct e100_serial *info)
 	unsigned long flags;
 	/* first some safety checks */
 
-	if (!info->tty || !info->tty->termios)
+	if (!info->port.tty || !info->port.tty->termios)
 		return;
 	if (!info->port)
 		return;
 
-	cflag = info->tty->termios->c_cflag;
+	cflag = info->port.tty->termios->c_cflag;
 
 	/* possibly, the tx/rx should be disabled first to do this safely */
 
@@ -3097,10 +3099,11 @@ change_speed(struct e100_serial *info)
 
 	info->port[REG_TR_CTRL] = info->tx_ctrl;
 	info->port[REG_REC_CTRL] = info->rx_ctrl;
-	xoff = IO_FIELD(R_SERIAL0_XOFF, xoff_char, STOP_CHAR(info->tty));
+	xoff = IO_FIELD(R_SERIAL0_XOFF, xoff_char, STOP_CHAR(info->port.tty));
 	xoff |= IO_STATE(R_SERIAL0_XOFF, tx_stop, enable);
-	if (info->tty->termios->c_iflag & IXON ) {
-		DFLOW(DEBUG_LOG(info->line, "FLOW XOFF enabled 0x%02X\n", STOP_CHAR(info->tty)));
+	if (info->port.tty->termios->c_iflag & IXON ) {
+		DFLOW(DEBUG_LOG(info->line, "FLOW XOFF enabled 0x%02X\n",
+				STOP_CHAR(info->port.tty)));
 		xoff |= IO_STATE(R_SERIAL0_XOFF, auto_xoff, enable);
 	}
 
@@ -3475,7 +3478,7 @@ set_serial_info(struct e100_serial *info,
 	info->type = new_serial.type;
 	info->close_delay = new_serial.close_delay;
 	info->closing_wait = new_serial.closing_wait;
-	info->tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	info->port.tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
 	if (info->flags & ASYNC_INITIALIZED) {
@@ -3811,7 +3814,7 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	tty_ldisc_flush(tty);
 	tty->closing = 0;
 	info->event = 0;
-	info->tty = 0;
+	info->port.tty = NULL;
 	if (info->blocked_open) {
 		if (info->close_delay)
 			schedule_timeout_interruptible(info->close_delay);
@@ -3915,7 +3918,7 @@ rs_hangup(struct tty_struct *tty)
 	info->event = 0;
 	info->count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
-	info->tty = 0;
+	info->port.tty = NULL;
 	wake_up_interruptible(&info->open_wait);
 }
 
@@ -4077,9 +4080,9 @@ rs_open(struct tty_struct *tty, struct file * filp)
 
 	info->count++;
 	tty->driver_data = info;
-	info->tty = tty;
+	info->port.tty = tty;
 
-	info->tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	info->port.tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	if (!tmp_buf) {
 		page = get_zeroed_page(GFP_KERNEL);
@@ -4267,14 +4270,14 @@ static int line_info(char *buf, struct e100_serial *info)
 		       (unsigned long)info->max_recv_cnt);
 
 #if 1
-	if (info->tty) {
+	if (info->port.tty) {
 
-		if (info->tty->stopped)
+		if (info->port.tty->stopped)
 			ret += sprintf(buf+ret, " stopped:%i",
-				       (int)info->tty->stopped);
-		if (info->tty->hw_stopped)
+				       (int)info->port.tty->stopped);
+		if (info->port.tty->hw_stopped)
 			ret += sprintf(buf+ret, " hw_stopped:%i",
-				       (int)info->tty->hw_stopped);
+				       (int)info->port.tty->hw_stopped);
 	}
 
 	{
@@ -4465,7 +4468,7 @@ rs_init(void)
 		info->uses_dma_in = 0;
 		info->uses_dma_out = 0;
 		info->line = i;
-		info->tty = 0;
+		info->port.tty = NULL;
 		info->type = PORT_ETRAX;
 		info->tr_running = 0;
 		info->forced_eop = 0;

@@ -22,7 +22,7 @@ extern struct kmem_cache *pgtable_cache[];
 #define PUD_CACHE_NUM		1
 #define PMD_CACHE_NUM		1
 #define HUGEPTE_CACHE_NUM	2
-#define PTE_NONCACHE_NUM	3  /* from GFP rather than kmem_cache */
+#define PTE_NONCACHE_NUM	7  /* from GFP rather than kmem_cache */
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
@@ -119,7 +119,7 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
 	__free_page(ptepage);
 }
 
-#define PGF_CACHENUM_MASK	0x3
+#define PGF_CACHENUM_MASK	0x7
 
 typedef struct pgtable_free {
 	unsigned long val;

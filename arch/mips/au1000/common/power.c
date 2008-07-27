@@ -31,7 +31,6 @@
 
 #include <linux/init.h>
 #include <linux/pm.h>
-#include <linux/pm_legacy.h>
 #include <linux/sysctl.h>
 #include <linux/jiffies.h>
 

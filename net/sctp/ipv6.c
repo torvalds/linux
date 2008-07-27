@@ -818,7 +818,7 @@ static int sctp_inet6_af_supported(sa_family_t family, struct sctp_sock *sp)
 		return 1;
 	/* v4-mapped-v6 addresses */
 	case AF_INET:
-		if (!__ipv6_only_sock(sctp_opt2sk(sp)) && sp->v4mapped)
+		if (!__ipv6_only_sock(sctp_opt2sk(sp)))
 			return 1;
 	default:
 		return 0;
@@ -840,6 +840,11 @@ static int sctp_inet6_cmp_addr(const union sctp_addr *addr1,
 
 	if (!af1 || !af2)
 		return 0;
+
+	/* If the socket is IPv6 only, v4 addrs will not match */
+	if (__ipv6_only_sock(sctp_opt2sk(opt)) && af1 != af2)
+		return 0;
+
 	/* Today, wildcard AF_INET/AF_INET6. */
 	if (sctp_is_any(addr1) || sctp_is_any(addr2))
 		return 1;
@@ -876,7 +881,11 @@ static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 				return 0;
 			}
 			dev_put(dev);
+		} else if (type == IPV6_ADDR_MAPPED) {
+			if (!opt->v4mapped)
+				return 0;
 		}
+
 		af = opt->pf->af;
 	}
 	return af->available(addr, opt);
@@ -919,9 +928,12 @@ static int sctp_inet6_send_verify(struct sctp_sock *opt, union sctp_addr *addr)
 static int sctp_inet6_supported_addrs(const struct sctp_sock *opt,
 				      __be16 *types)
 {
-	types[0] = SCTP_PARAM_IPV4_ADDRESS;
-	types[1] = SCTP_PARAM_IPV6_ADDRESS;
-	return 2;
+	types[0] = SCTP_PARAM_IPV6_ADDRESS;
+	if (!opt || !ipv6_only_sock(sctp_opt2sk(opt))) {
+		types[1] = SCTP_PARAM_IPV4_ADDRESS;
+		return 2;
+	}
+	return 1;
 }
 
 static const struct proto_ops inet6_seqpacket_ops = {

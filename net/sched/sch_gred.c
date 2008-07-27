@@ -164,7 +164,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 			 * if no default DP has been configured. This
 			 * allows for DP flows to be left untouched.
 			 */
-			if (skb_queue_len(&sch->q) < sch->dev->tx_queue_len)
+			if (skb_queue_len(&sch->q) < qdisc_dev(sch)->tx_queue_len)
 				return qdisc_enqueue_tail(skb, sch);
 			else
 				goto drop;
@@ -188,7 +188,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	}
 
 	q->packetsin++;
-	q->bytesin += skb->len;
+	q->bytesin += qdisc_pkt_len(skb);
 
 	if (gred_wred_mode(t))
 		gred_load_wred_set(t, q);
@@ -226,8 +226,8 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 			break;
 	}
 
-	if (q->backlog + skb->len <= q->limit) {
-		q->backlog += skb->len;
+	if (q->backlog + qdisc_pkt_len(skb) <= q->limit) {
+		q->backlog += qdisc_pkt_len(skb);
 		return qdisc_enqueue_tail(skb, sch);
 	}
 
@@ -254,7 +254,7 @@ static int gred_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	} else {
 		if (red_is_idling(&q->parms))
 			red_end_of_idle_period(&q->parms);
-		q->backlog += skb->len;
+		q->backlog += qdisc_pkt_len(skb);
 	}
 
 	return qdisc_requeue(skb, sch);
@@ -277,7 +277,7 @@ static struct sk_buff *gred_dequeue(struct Qdisc* sch)
 				       "VQ 0x%x after dequeue, screwing up "
 				       "backlog.\n", tc_index_to_dp(skb));
 		} else {
-			q->backlog -= skb->len;
+			q->backlog -= qdisc_pkt_len(skb);
 
 			if (!q->backlog && !gred_wred_mode(t))
 				red_start_of_idle_period(&q->parms);
@@ -299,7 +299,7 @@ static unsigned int gred_drop(struct Qdisc* sch)
 
 	skb = qdisc_dequeue_tail(sch);
 	if (skb) {
-		unsigned int len = skb->len;
+		unsigned int len = qdisc_pkt_len(skb);
 		struct gred_sched_data *q;
 		u16 dp = tc_index_to_dp(skb);
 

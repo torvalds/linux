@@ -167,9 +167,8 @@ void query_edd(void)
 		 * Scan the BIOS-supported hard disks and query EDD
 		 * information...
 		 */
-		get_edd_info(devno, &ei);
-
-		if (boot_params.eddbuf_entries < EDDMAXNR) {
+		if (!get_edd_info(devno, &ei)
+		    && boot_params.eddbuf_entries < EDDMAXNR) {
 			memcpy(edp, &ei, sizeof ei);
 			edp++;
 			boot_params.eddbuf_entries++;

@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/usb.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/usb/serial.h>
 
 /*
@@ -37,17 +37,20 @@
 /*
  * Function Prototypes
  */
-static int cp2101_open(struct usb_serial_port*, struct file*);
-static void cp2101_cleanup(struct usb_serial_port*);
-static void cp2101_close(struct usb_serial_port*, struct file*);
-static void cp2101_get_termios(struct usb_serial_port*);
-static void cp2101_set_termios(struct usb_serial_port*, struct ktermios*);
-static int cp2101_tiocmget (struct usb_serial_port *, struct file *);
-static int cp2101_tiocmset (struct usb_serial_port *, struct file *,
+static int cp2101_open(struct tty_struct *, struct usb_serial_port *,
+							struct file *);
+static void cp2101_cleanup(struct usb_serial_port *);
+static void cp2101_close(struct tty_struct *, struct usb_serial_port *,
+							struct file*);
+static void cp2101_get_termios(struct tty_struct *);
+static void cp2101_set_termios(struct tty_struct *, struct usb_serial_port *,
+							struct ktermios*);
+static int cp2101_tiocmget(struct tty_struct *, struct file *);
+static int cp2101_tiocmset(struct tty_struct *, struct file *,
 		unsigned int, unsigned int);
-static void cp2101_break_ctl(struct usb_serial_port*, int);
-static int cp2101_startup (struct usb_serial *);
-static void cp2101_shutdown(struct usb_serial*);
+static void cp2101_break_ctl(struct tty_struct *, int);
+static int cp2101_startup(struct usb_serial *);
+static void cp2101_shutdown(struct usb_serial *);
 
 
 static int debug;
@@ -93,7 +96,7 @@ static struct usb_device_id id_table [] = {
 	{ } /* Terminating Entry */
 };
 
-MODULE_DEVICE_TABLE (usb, id_table);
+MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver cp2101_driver = {
 	.name		= "cp2101",
@@ -182,7 +185,7 @@ static struct usb_serial_driver cp2101_device = {
  * 'data' is a pointer to a pre-allocated array of integers large
  * enough to hold 'size' bytes (with 4 bytes to each integer)
  */
-static int cp2101_get_config(struct usb_serial_port* port, u8 request,
+static int cp2101_get_config(struct usb_serial_port *port, u8 request,
 		unsigned int *data, int size)
 {
 	struct usb_serial *serial = port->serial;
@@ -202,12 +205,12 @@ static int cp2101_get_config(struct usb_serial_port* port, u8 request,
 	request++;
 
 	/* Issue the request, attempting to read 'size' bytes */
-	result = usb_control_msg (serial->dev,usb_rcvctrlpipe (serial->dev, 0),
+	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 				request, REQTYPE_DEVICE_TO_HOST, 0x0000,
 				0, buf, size, 300);
 
 	/* Convert data into an array of integers */
-	for (i=0; i<length; i++)
+	for (i = 0; i < length; i++)
 		data[i] = le32_to_cpu(buf[i]);
 
 	kfree(buf);
@@ -228,7 +231,7 @@ static int cp2101_get_config(struct usb_serial_port* port, u8 request,
  * Values less than 16 bits wide are sent directly
  * 'size' is specified in bytes.
  */
-static int cp2101_set_config(struct usb_serial_port* port, u8 request,
+static int cp2101_set_config(struct usb_serial_port *port, u8 request,
 		unsigned int *data, int size)
 {
 	struct usb_serial *serial = port->serial;
@@ -250,12 +253,12 @@ static int cp2101_set_config(struct usb_serial_port* port, u8 request,
 		buf[i] = cpu_to_le32(data[i]);
 
 	if (size > 2) {
-		result = usb_control_msg (serial->dev,
+		result = usb_control_msg(serial->dev,
 				usb_sndctrlpipe(serial->dev, 0),
 				request, REQTYPE_HOST_TO_DEVICE, 0x0000,
 				0, buf, size, 300);
 	} else {
-		result = usb_control_msg (serial->dev,
+		result = usb_control_msg(serial->dev,
 				usb_sndctrlpipe(serial->dev, 0),
 				request, REQTYPE_HOST_TO_DEVICE, data[0],
 				0, NULL, 0, 300);
@@ -271,7 +274,7 @@ static int cp2101_set_config(struct usb_serial_port* port, u8 request,
 	}
 
 	/* Single data value */
-	result = usb_control_msg (serial->dev,
+	result = usb_control_msg(serial->dev,
 			usb_sndctrlpipe(serial->dev, 0),
 			request, REQTYPE_HOST_TO_DEVICE, data[0],
 			0, NULL, 0, 300);
@@ -283,13 +286,14 @@ static int cp2101_set_config(struct usb_serial_port* port, u8 request,
  * Convenience function for calling cp2101_set_config on single data values
  * without requiring an integer pointer
  */
-static inline int cp2101_set_config_single(struct usb_serial_port* port,
+static inline int cp2101_set_config_single(struct usb_serial_port *port,
 		u8 request, unsigned int data)
 {
 	return cp2101_set_config(port, request, &data, 2);
 }
 
-static int cp2101_open (struct usb_serial_port *port, struct file *filp)
+static int cp2101_open(struct tty_struct *tty, struct usb_serial_port *port,
+				struct file *filp)
 {
 	struct usb_serial *serial = port->serial;
 	int result;
@@ -303,7 +307,7 @@ static int cp2101_open (struct usb_serial_port *port, struct file *filp)
 	}
 
 	/* Start reading from the device */
-	usb_fill_bulk_urb (port->read_urb, serial->dev,
+	usb_fill_bulk_urb(port->read_urb, serial->dev,
 			usb_rcvbulkpipe(serial->dev,
 			port->bulk_in_endpointAddress),
 			port->read_urb->transfer_buffer,
@@ -318,15 +322,15 @@ static int cp2101_open (struct usb_serial_port *port, struct file *filp)
 	}
 
 	/* Configure the termios structure */
-	cp2101_get_termios(port);
+	cp2101_get_termios(tty);
 
 	/* Set the DTR and RTS pins low */
-	cp2101_tiocmset(port, NULL, TIOCM_DTR | TIOCM_RTS, 0);
+	cp2101_tiocmset(tty, NULL, TIOCM_DTR | TIOCM_RTS, 0);
 
 	return 0;
 }
 
-static void cp2101_cleanup (struct usb_serial_port *port)
+static void cp2101_cleanup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 
@@ -341,7 +345,8 @@ static void cp2101_cleanup (struct usb_serial_port *port)
 	}
 }
 
-static void cp2101_close (struct usb_serial_port *port, struct file * filp)
+static void cp2101_close(struct tty_struct *tty, struct usb_serial_port *port,
+					struct file *filp)
 {
 	dbg("%s - port %d", __func__, port->number);
 
@@ -362,18 +367,14 @@ static void cp2101_close (struct usb_serial_port *port, struct file * filp)
  * from the device, corrects any unsupported values, and configures the
  * termios structure to reflect the state of the device
  */
-static void cp2101_get_termios (struct usb_serial_port *port)
+static void cp2101_get_termios (struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned int cflag, modem_ctl[4];
-	int baud;
-	int bits;
+	unsigned int baud;
+	unsigned int bits;
 
 	dbg("%s - port %d", __func__, port->number);
-
-	if (!port->tty || !port->tty->termios) {
-		dbg("%s - no tty structures", __func__);
-		return;
-	}
 
 	cp2101_get_config(port, CP2101_BAUDRATE, &baud, 2);
 	/* Convert to baudrate */
@@ -382,104 +383,102 @@ static void cp2101_get_termios (struct usb_serial_port *port)
 
 	dbg("%s - baud rate = %d", __func__, baud);
 
-	tty_encode_baud_rate(port->tty, baud, baud);
-	cflag = port->tty->termios->c_cflag;
+	tty_encode_baud_rate(tty, baud, baud);
+	cflag = tty->termios->c_cflag;
 
 	cp2101_get_config(port, CP2101_BITS, &bits, 2);
 	cflag &= ~CSIZE;
-	switch(bits & BITS_DATA_MASK) {
-		case BITS_DATA_5:
-			dbg("%s - data bits = 5", __func__);
-			cflag |= CS5;
-			break;
-		case BITS_DATA_6:
-			dbg("%s - data bits = 6", __func__);
-			cflag |= CS6;
-			break;
-		case BITS_DATA_7:
-			dbg("%s - data bits = 7", __func__);
-			cflag |= CS7;
-			break;
-		case BITS_DATA_8:
-			dbg("%s - data bits = 8", __func__);
-			cflag |= CS8;
-			break;
-		case BITS_DATA_9:
-			dbg("%s - data bits = 9 (not supported, "
-					"using 8 data bits)", __func__);
-			cflag |= CS8;
-			bits &= ~BITS_DATA_MASK;
-			bits |= BITS_DATA_8;
-			cp2101_set_config(port, CP2101_BITS, &bits, 2);
-			break;
-		default:
-			dbg("%s - Unknown number of data bits, "
-					"using 8", __func__);
-			cflag |= CS8;
-			bits &= ~BITS_DATA_MASK;
-			bits |= BITS_DATA_8;
-			cp2101_set_config(port, CP2101_BITS, &bits, 2);
-			break;
+	switch (bits & BITS_DATA_MASK) {
+	case BITS_DATA_5:
+		dbg("%s - data bits = 5", __func__);
+		cflag |= CS5;
+		break;
+	case BITS_DATA_6:
+		dbg("%s - data bits = 6", __func__);
+		cflag |= CS6;
+		break;
+	case BITS_DATA_7:
+		dbg("%s - data bits = 7", __func__);
+		cflag |= CS7;
+		break;
+	case BITS_DATA_8:
+		dbg("%s - data bits = 8", __func__);
+		cflag |= CS8;
+		break;
+	case BITS_DATA_9:
+		dbg("%s - data bits = 9 (not supported, using 8 data bits)",
+								__func__);
+		cflag |= CS8;
+		bits &= ~BITS_DATA_MASK;
+		bits |= BITS_DATA_8;
+		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		break;
+	default:
+		dbg("%s - Unknown number of data bits, using 8", __func__);
+		cflag |= CS8;
+		bits &= ~BITS_DATA_MASK;
+		bits |= BITS_DATA_8;
+		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		break;
 	}
 
-	switch(bits & BITS_PARITY_MASK) {
-		case BITS_PARITY_NONE:
-			dbg("%s - parity = NONE", __func__);
-			cflag &= ~PARENB;
-			break;
-		case BITS_PARITY_ODD:
-			dbg("%s - parity = ODD", __func__);
-			cflag |= (PARENB|PARODD);
-			break;
-		case BITS_PARITY_EVEN:
-			dbg("%s - parity = EVEN", __func__);
-			cflag &= ~PARODD;
-			cflag |= PARENB;
-			break;
-		case BITS_PARITY_MARK:
-			dbg("%s - parity = MARK (not supported, "
-					"disabling parity)", __func__);
-			cflag &= ~PARENB;
-			bits &= ~BITS_PARITY_MASK;
-			cp2101_set_config(port, CP2101_BITS, &bits, 2);
-			break;
-		case BITS_PARITY_SPACE:
-			dbg("%s - parity = SPACE (not supported, "
-					"disabling parity)", __func__);
-			cflag &= ~PARENB;
-			bits &= ~BITS_PARITY_MASK;
-			cp2101_set_config(port, CP2101_BITS, &bits, 2);
-			break;
-		default:
-			dbg("%s - Unknown parity mode, "
-					"disabling parity", __func__);
-			cflag &= ~PARENB;
-			bits &= ~BITS_PARITY_MASK;
-			cp2101_set_config(port, CP2101_BITS, &bits, 2);
-			break;
+	switch (bits & BITS_PARITY_MASK) {
+	case BITS_PARITY_NONE:
+		dbg("%s - parity = NONE", __func__);
+		cflag &= ~PARENB;
+		break;
+	case BITS_PARITY_ODD:
+		dbg("%s - parity = ODD", __func__);
+		cflag |= (PARENB|PARODD);
+		break;
+	case BITS_PARITY_EVEN:
+		dbg("%s - parity = EVEN", __func__);
+		cflag &= ~PARODD;
+		cflag |= PARENB;
+		break;
+	case BITS_PARITY_MARK:
+		dbg("%s - parity = MARK (not supported, disabling parity)",
+				__func__);
+		cflag &= ~PARENB;
+		bits &= ~BITS_PARITY_MASK;
+		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		break;
+	case BITS_PARITY_SPACE:
+		dbg("%s - parity = SPACE (not supported, disabling parity)",
+				__func__);
+		cflag &= ~PARENB;
+		bits &= ~BITS_PARITY_MASK;
+		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		break;
+	default:
+		dbg("%s - Unknown parity mode, disabling parity", __func__);
+		cflag &= ~PARENB;
+		bits &= ~BITS_PARITY_MASK;
+		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		break;
 	}
 
 	cflag &= ~CSTOPB;
-	switch(bits & BITS_STOP_MASK) {
-		case BITS_STOP_1:
-			dbg("%s - stop bits = 1", __func__);
-			break;
-		case BITS_STOP_1_5:
-			dbg("%s - stop bits = 1.5 (not supported, "
-					"using 1 stop bit)", __func__);
-			bits &= ~BITS_STOP_MASK;
-			cp2101_set_config(port, CP2101_BITS, &bits, 2);
-			break;
-		case BITS_STOP_2:
-			dbg("%s - stop bits = 2", __func__);
-			cflag |= CSTOPB;
-			break;
-		default:
-			dbg("%s - Unknown number of stop bits, "
-					"using 1 stop bit", __func__);
-			bits &= ~BITS_STOP_MASK;
-			cp2101_set_config(port, CP2101_BITS, &bits, 2);
-			break;
+	switch (bits & BITS_STOP_MASK) {
+	case BITS_STOP_1:
+		dbg("%s - stop bits = 1", __func__);
+		break;
+	case BITS_STOP_1_5:
+		dbg("%s - stop bits = 1.5 (not supported, using 1 stop bit)",
+								__func__);
+		bits &= ~BITS_STOP_MASK;
+		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		break;
+	case BITS_STOP_2:
+		dbg("%s - stop bits = 2", __func__);
+		cflag |= CSTOPB;
+		break;
+	default:
+		dbg("%s - Unknown number of stop bits, using 1 stop bit",
+								__func__);
+		bits &= ~BITS_STOP_MASK;
+		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		break;
 	}
 
 	cp2101_get_config(port, CP2101_MODEMCTL, modem_ctl, 16);
@@ -491,55 +490,53 @@ static void cp2101_get_termios (struct usb_serial_port *port)
 		cflag &= ~CRTSCTS;
 	}
 
-	port->tty->termios->c_cflag = cflag;
+	tty->termios->c_cflag = cflag;
 }
 
-static void cp2101_set_termios (struct usb_serial_port *port,
-		struct ktermios *old_termios)
+static void cp2101_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	unsigned int cflag, old_cflag;
-	int baud=0, bits;
+	unsigned int baud = 0, bits;
 	unsigned int modem_ctl[4];
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (!port->tty || !port->tty->termios) {
-		dbg("%s - no tty structures", __func__);
+	if (!tty)
 		return;
-	}
-	port->tty->termios->c_cflag &= ~CMSPAR;
 
-	cflag = port->tty->termios->c_cflag;
+	tty->termios->c_cflag &= ~CMSPAR;
+	cflag = tty->termios->c_cflag;
 	old_cflag = old_termios->c_cflag;
-	baud = tty_get_baud_rate(port->tty);
+	baud = tty_get_baud_rate(tty);
 
 	/* If the baud rate is to be updated*/
 	if (baud != tty_termios_baud_rate(old_termios)) {
 		switch (baud) {
-			case 0:
-			case 600:
-			case 1200:
-			case 1800:
-			case 2400:
-			case 4800:
-			case 7200:
-			case 9600:
-			case 14400:
-			case 19200:
-			case 28800:
-			case 38400:
-			case 55854:
-			case 57600:
-			case 115200:
-			case 127117:
-			case 230400:
-			case 460800:
-			case 921600:
-			case 3686400:
-				break;
-			default:
-				baud = 9600;
-				break;
+		case 0:
+		case 600:
+		case 1200:
+		case 1800:
+		case 2400:
+		case 4800:
+		case 7200:
+		case 9600:
+		case 14400:
+		case 19200:
+		case 28800:
+		case 38400:
+		case 55854:
+		case 57600:
+		case 115200:
+		case 127117:
+		case 230400:
+		case 460800:
+		case 921600:
+		case 3686400:
+			break;
+		default:
+			baud = 9600;
+			break;
 		}
 
 		if (baud) {
@@ -554,35 +551,35 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 		}
 	}
 	/* Report back the resulting baud rate */
-	tty_encode_baud_rate(port->tty, baud, baud);
+	tty_encode_baud_rate(tty, baud, baud);
 
 	/* If the number of data bits is to be updated */
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
 		cp2101_get_config(port, CP2101_BITS, &bits, 2);
 		bits &= ~BITS_DATA_MASK;
 		switch (cflag & CSIZE) {
-			case CS5:
-				bits |= BITS_DATA_5;
-				dbg("%s - data bits = 5", __func__);
-				break;
-			case CS6:
-				bits |= BITS_DATA_6;
-				dbg("%s - data bits = 6", __func__);
-				break;
-			case CS7:
-				bits |= BITS_DATA_7;
-				dbg("%s - data bits = 7", __func__);
-				break;
-			case CS8:
-				bits |= BITS_DATA_8;
-				dbg("%s - data bits = 8", __func__);
-				break;
-			/*case CS9:
-			 	bits |= BITS_DATA_9;
-				dbg("%s - data bits = 9", __func__);
-				break;*/
-			default:
-				dev_err(&port->dev, "cp2101 driver does not "
+		case CS5:
+			bits |= BITS_DATA_5;
+			dbg("%s - data bits = 5", __func__);
+			break;
+		case CS6:
+			bits |= BITS_DATA_6;
+			dbg("%s - data bits = 6", __func__);
+			break;
+		case CS7:
+			bits |= BITS_DATA_7;
+			dbg("%s - data bits = 7", __func__);
+			break;
+		case CS8:
+			bits |= BITS_DATA_8;
+			dbg("%s - data bits = 8", __func__);
+			break;
+		/*case CS9:
+			bits |= BITS_DATA_9;
+			dbg("%s - data bits = 9", __func__);
+			break;*/
+		default:
+			dev_err(&port->dev, "cp2101 driver does not "
 					"support the number of bits requested,"
 					" using 8 bit mode\n");
 				bits |= BITS_DATA_8;
@@ -651,10 +648,11 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 
 }
 
-static int cp2101_tiocmset (struct usb_serial_port *port, struct file *file,
+static int cp2101_tiocmset (struct tty_struct *tty, struct file *file,
 		unsigned int set, unsigned int clear)
 {
-	int control = 0;
+	struct usb_serial_port *port = tty->driver_data;
+	unsigned int control = 0;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -681,9 +679,11 @@ static int cp2101_tiocmset (struct usb_serial_port *port, struct file *file,
 
 }
 
-static int cp2101_tiocmget (struct usb_serial_port *port, struct file *file)
+static int cp2101_tiocmget (struct tty_struct *tty, struct file *file)
 {
-	int control, result;
+	struct usb_serial_port *port = tty->driver_data;
+	unsigned int control;
+	int result;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -701,9 +701,10 @@ static int cp2101_tiocmget (struct usb_serial_port *port, struct file *file)
 	return result;
 }
 
-static void cp2101_break_ctl (struct usb_serial_port *port, int break_state)
+static void cp2101_break_ctl (struct tty_struct *tty, int break_state)
 {
-	int state;
+	struct usb_serial_port *port = tty->driver_data;
+	unsigned int state;
 
 	dbg("%s - port %d", __func__, port->number);
 	if (break_state == 0)
@@ -711,30 +712,29 @@ static void cp2101_break_ctl (struct usb_serial_port *port, int break_state)
 	else
 		state = BREAK_ON;
 	dbg("%s - turning break %s", __func__,
-			state==BREAK_OFF ? "off" : "on");
+			state == BREAK_OFF ? "off" : "on");
 	cp2101_set_config(port, CP2101_BREAK, &state, 2);
 }
 
-static int cp2101_startup (struct usb_serial *serial)
+static int cp2101_startup(struct usb_serial *serial)
 {
 	/* CP2101 buffers behave strangely unless device is reset */
 	usb_reset_device(serial->dev);
 	return 0;
 }
 
-static void cp2101_shutdown (struct usb_serial *serial)
+static void cp2101_shutdown(struct usb_serial *serial)
 {
 	int i;
 
 	dbg("%s", __func__);
 
 	/* Stop reads and writes on all ports */
-	for (i=0; i < serial->num_ports; ++i) {
+	for (i = 0; i < serial->num_ports; ++i)
 		cp2101_cleanup(serial->port[i]);
-	}
 }
 
-static int __init cp2101_init (void)
+static int __init cp2101_init(void)
 {
 	int retval;
 
@@ -754,10 +754,10 @@ static int __init cp2101_init (void)
 	return 0;
 }
 
-static void __exit cp2101_exit (void)
+static void __exit cp2101_exit(void)
 {
-	usb_deregister (&cp2101_driver);
-	usb_serial_deregister (&cp2101_device);
+	usb_deregister(&cp2101_driver);
+	usb_serial_deregister(&cp2101_device);
 }
 
 module_init(cp2101_init);

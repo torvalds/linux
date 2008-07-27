@@ -357,7 +357,6 @@ static void bfin_mac_adjust_link(struct net_device *dev)
 		if (!lp->old_link) {
 			new_state = 1;
 			lp->old_link = 1;
-			netif_schedule(dev);
 		}
 	} else if (lp->old_link) {
 		new_state = 1;

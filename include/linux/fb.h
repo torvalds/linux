@@ -8,7 +8,6 @@ struct dentry;
 
 /* Definitions of frame buffers						*/
 
-#define FB_MAJOR		29
 #define FB_MAX			32	/* sufficient for now */
 
 /* ioctls
@@ -120,6 +119,10 @@ struct dentry;
 #define FB_ACCEL_XGI_VOLARI_V	47	/* XGI Volari V3XT, V5, V8      */
 #define FB_ACCEL_XGI_VOLARI_Z	48	/* XGI Volari Z7                */
 #define FB_ACCEL_OMAP1610	49	/* TI OMAP16xx                  */
+#define FB_ACCEL_TRIDENT_TGUI	50	/* Trident TGUI			*/
+#define FB_ACCEL_TRIDENT_3DIMAGE 51	/* Trident 3DImage		*/
+#define FB_ACCEL_TRIDENT_BLADE3D 52	/* Trident Blade3D		*/
+#define FB_ACCEL_TRIDENT_BLADEXP 53	/* Trident BladeXP		*/
 #define FB_ACCEL_NEOMAGIC_NM2070 90	/* NeoMagic NM2070              */
 #define FB_ACCEL_NEOMAGIC_NM2090 91	/* NeoMagic NM2090              */
 #define FB_ACCEL_NEOMAGIC_NM2093 92	/* NeoMagic NM2093              */

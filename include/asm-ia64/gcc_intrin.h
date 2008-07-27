@@ -32,7 +32,7 @@ extern void ia64_bad_param_for_getreg (void);
 register unsigned long ia64_r13 asm ("r13") __used;
 #endif
 
-#define ia64_setreg(regnum, val)						\
+#define ia64_native_setreg(regnum, val)						\
 ({										\
 	switch (regnum) {							\
 	    case _IA64_REG_PSR_L:						\
@@ -61,7 +61,7 @@ register unsigned long ia64_r13 asm ("r13") __used;
 	}									\
 })
 
-#define ia64_getreg(regnum)							\
+#define ia64_native_getreg(regnum)						\
 ({										\
 	__u64 ia64_intri_res;							\
 										\
@@ -385,7 +385,7 @@ register unsigned long ia64_r13 asm ("r13") __used;
 
 #define ia64_invala() asm volatile ("invala" ::: "memory")
 
-#define ia64_thash(addr)							\
+#define ia64_native_thash(addr)							\
 ({										\
 	__u64 ia64_intri_res;							\
 	asm volatile ("thash %0=%1" : "=r"(ia64_intri_res) : "r" (addr));	\
@@ -438,10 +438,10 @@ register unsigned long ia64_r13 asm ("r13") __used;
 #define ia64_set_pmd(index, val)						\
 	asm volatile ("mov pmd[%0]=%1" :: "r"(index), "r"(val) : "memory")
 
-#define ia64_set_rr(index, val)							\
+#define ia64_native_set_rr(index, val)							\
 	asm volatile ("mov rr[%0]=%1" :: "r"(index), "r"(val) : "memory");
 
-#define ia64_get_cpuid(index)								\
+#define ia64_native_get_cpuid(index)							\
 ({											\
 	__u64 ia64_intri_res;								\
 	asm volatile ("mov %0=cpuid[%r1]" : "=r"(ia64_intri_res) : "rO"(index));	\
@@ -477,33 +477,33 @@ register unsigned long ia64_r13 asm ("r13") __used;
 })
 
 
-#define ia64_get_pmd(index)							\
+#define ia64_native_get_pmd(index)						\
 ({										\
 	__u64 ia64_intri_res;							\
 	asm volatile ("mov %0=pmd[%1]" : "=r"(ia64_intri_res) : "r"(index));	\
 	ia64_intri_res;								\
 })
 
-#define ia64_get_rr(index)							\
+#define ia64_native_get_rr(index)						\
 ({										\
 	__u64 ia64_intri_res;							\
 	asm volatile ("mov %0=rr[%1]" : "=r"(ia64_intri_res) : "r" (index));	\
 	ia64_intri_res;								\
 })
 
-#define ia64_fc(addr)	asm volatile ("fc %0" :: "r"(addr) : "memory")
+#define ia64_native_fc(addr)	asm volatile ("fc %0" :: "r"(addr) : "memory")
 
 
 #define ia64_sync_i()	asm volatile (";; sync.i" ::: "memory")
 
-#define ia64_ssm(mask)	asm volatile ("ssm %0":: "i"((mask)) : "memory")
-#define ia64_rsm(mask)	asm volatile ("rsm %0":: "i"((mask)) : "memory")
+#define ia64_native_ssm(mask)	asm volatile ("ssm %0":: "i"((mask)) : "memory")
+#define ia64_native_rsm(mask)	asm volatile ("rsm %0":: "i"((mask)) : "memory")
 #define ia64_sum(mask)	asm volatile ("sum %0":: "i"((mask)) : "memory")
 #define ia64_rum(mask)	asm volatile ("rum %0":: "i"((mask)) : "memory")
 
 #define ia64_ptce(addr)	asm volatile ("ptc.e %0" :: "r"(addr))
 
-#define ia64_ptcga(addr, size)							\
+#define ia64_native_ptcga(addr, size)						\
 do {										\
 	asm volatile ("ptc.ga %0,%1" :: "r"(addr), "r"(size) : "memory");	\
 	ia64_dv_serialize_data();						\
@@ -608,7 +608,7 @@ do {										\
         }								\
 })
 
-#define ia64_intrin_local_irq_restore(x)			\
+#define ia64_native_intrin_local_irq_restore(x)			\
 do {								\
 	asm volatile (";;   cmp.ne p6,p7=%0,r0;;"		\
 		      "(p6) ssm psr.i;"				\

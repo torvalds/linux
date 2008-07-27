@@ -194,9 +194,9 @@ extern int mmu_ci_restrictions;
 
 #ifdef CONFIG_HUGETLB_PAGE
 /*
- * The page size index of the huge pages for use by hugetlbfs
+ * The page size indexes of the huge pages for use by hugetlbfs
  */
-extern int mmu_huge_psize;
+extern unsigned int mmu_huge_psizes[MMU_PAGE_COUNT];
 
 #endif /* CONFIG_HUGETLB_PAGE */
 
@@ -281,6 +281,8 @@ extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long mode,
 			     int psize, int ssize);
 extern void set_huge_psize(int psize);
+extern void add_gpage(unsigned long addr, unsigned long page_size,
+			  unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
 extern void htab_initialize(void);

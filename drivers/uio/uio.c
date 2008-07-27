@@ -427,6 +427,31 @@ static ssize_t uio_read(struct file *filep, char __user *buf,
 	return retval;
 }
 
+static ssize_t uio_write(struct file *filep, const char __user *buf,
+			size_t count, loff_t *ppos)
+{
+	struct uio_listener *listener = filep->private_data;
+	struct uio_device *idev = listener->dev;
+	ssize_t retval;
+	s32 irq_on;
+
+	if (idev->info->irq == UIO_IRQ_NONE)
+		return -EIO;
+
+	if (count != sizeof(s32))
+		return -EINVAL;
+
+	if (!idev->info->irqcontrol)
+		return -ENOSYS;
+
+	if (copy_from_user(&irq_on, buf, count))
+		return -EFAULT;
+
+	retval = idev->info->irqcontrol(idev->info, irq_on);
+
+	return retval ? retval : sizeof(s32);
+}
+
 static int uio_find_mem_index(struct vm_area_struct *vma)
 {
 	int mi;
@@ -546,6 +571,7 @@ static const struct file_operations uio_fops = {
 	.open		= uio_open,
 	.release	= uio_release,
 	.read		= uio_read,
+	.write		= uio_write,
 	.mmap		= uio_mmap,
 	.poll		= uio_poll,
 	.fasync		= uio_fasync,

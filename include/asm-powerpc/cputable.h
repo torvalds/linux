@@ -127,6 +127,8 @@ extern struct cpu_spec *identify_cpu(unsigned long offset, unsigned int pvr);
 extern void do_feature_fixups(unsigned long value, void *fixup_start,
 			      void *fixup_end);
 
+extern const char *powerpc_base_platform;
+
 #endif /* __ASSEMBLY__ */
 
 /* CPU kernel features */

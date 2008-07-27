@@ -2814,7 +2814,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			nesqp = *((struct nes_qp **)&context);
 			if (atomic_inc_return(&nesqp->close_timer_started) == 1) {
 				nesqp->cm_id->add_ref(nesqp->cm_id);
-				nes_add_ref(&nesqp->ibqp);
 				schedule_nes_timer(nesqp->cm_node, (struct sk_buff *)nesqp,
 						NES_TIMER_TYPE_CLOSE, 1, 0);
 				nes_debug(NES_DBG_AEQ, "QP%u Not decrementing QP refcount (%d),"
@@ -2838,7 +2837,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			if (async_event_id == NES_AEQE_AEID_RESET_SENT) {
 				tcp_state = NES_AEQE_TCP_STATE_CLOSED;
 			}
-			nes_add_ref(&nesqp->ibqp);
 			spin_lock_irqsave(&nesqp->lock, flags);
 			nesqp->hw_iwarp_state = iwarp_state;
 			nesqp->hw_tcp_state = tcp_state;
@@ -2876,7 +2874,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				}
 				spin_unlock_irqrestore(&nesqp->lock, flags);
 				if (next_iwarp_state) {
-					nes_add_ref(&nesqp->ibqp);
 					nes_debug(NES_DBG_AEQ, "issuing hw modifyqp for QP%u. next state = 0x%08X,"
 							" also added another reference\n",
 							nesqp->hwqp.qp_id, next_iwarp_state);
@@ -2888,7 +2885,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 					/* FIN Received but ib state not RTS,
 							close complete will be on its way */
 					spin_unlock_irqrestore(&nesqp->lock, flags);
-					nes_rem_ref(&nesqp->ibqp);
 					return;
 				}
 				spin_unlock_irqrestore(&nesqp->lock, flags);
@@ -2922,7 +2918,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			if ((tcp_state == NES_AEQE_TCP_STATE_CLOSE_WAIT) ||
 					((nesqp->ibqp_state == IB_QPS_RTS)&&
 					(async_event_id == NES_AEQE_AEID_LLP_CONNECTION_RESET))) {
-				nes_add_ref(&nesqp->ibqp);
 				nes_cm_disconn(nesqp);
 			} else {
 				nesqp->in_disconnect = 0;
@@ -2931,7 +2926,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			break;
 		case NES_AEQE_AEID_LLP_TOO_MANY_RETRIES:
 			nesqp = *((struct nes_qp **)&context);
-			nes_add_ref(&nesqp->ibqp);
 			spin_lock_irqsave(&nesqp->lock, flags);
 			nesqp->hw_iwarp_state = NES_AEQE_IWARP_STATE_ERROR;
 			nesqp->hw_tcp_state = NES_AEQE_TCP_STATE_CLOSED;
@@ -3042,7 +3036,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
 			}
 			/* tell cm to disconnect, cm will queue work to thread */
-			nes_add_ref(&nesqp->ibqp);
 			nes_cm_disconn(nesqp);
 			break;
 		case NES_AEQE_AEID_DDP_UBE_INVALID_MSN_NO_BUFFER_AVAILABLE:
@@ -3062,7 +3055,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
 			}
 			/* tell cm to disconnect, cm will queue work to thread */
-			nes_add_ref(&nesqp->ibqp);
 			nes_cm_disconn(nesqp);
 			break;
 		case NES_AEQE_AEID_LLP_RECEIVED_MPA_CRC_ERROR:
@@ -3082,7 +3074,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
 			}
 			/* tell cm to disconnect, cm will queue work to thread */
-			nes_add_ref(&nesqp->ibqp);
 			nes_cm_disconn(nesqp);
 			break;
 			/* TODO: additional AEs need to be here */

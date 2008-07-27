@@ -22,6 +22,8 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	void (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned, int))
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct request *rq = hwif->hwgroup->rq;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	xfer_func_t *xferfunc;
 	unsigned int temp;
 	u16 bcount;
@@ -30,12 +32,12 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	debug_log("Enter %s - interrupt handler\n", __func__);
 
 	if (pc->flags & PC_FLAG_TIMEDOUT) {
-		pc->callback(drive);
+		drive->pc_callback(drive);
 		return ide_stopped;
 	}
 
 	/* Clear the interrupt */
-	stat = ide_read_status(drive);
+	stat = tp_ops->read_status(hwif);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
 		if (hwif->dma_ops->dma_end(drive) ||
@@ -63,8 +65,9 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		local_irq_enable_in_hardirq();
 
 		if (drive->media == ide_tape && !scsi &&
-		    (stat & ERR_STAT) && pc->c[0] == REQUEST_SENSE)
+		    (stat & ERR_STAT) && rq->cmd[0] == REQUEST_SENSE)
 			stat &= ~ERR_STAT;
+
 		if ((stat & ERR_STAT) || (pc->flags & PC_FLAG_DMA_ERROR)) {
 			/* Error detected */
 			debug_log("%s: I/O error\n", drive->name);
@@ -75,16 +78,17 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 					goto cmd_finished;
 			}
 
-			if (pc->c[0] == REQUEST_SENSE) {
+			if (rq->cmd[0] == REQUEST_SENSE) {
 				printk(KERN_ERR "%s: I/O error in request sense"
 						" command\n", drive->name);
 				return ide_do_reset(drive);
 			}
 
-			debug_log("[cmd %x]: check condition\n", pc->c[0]);
+			debug_log("[cmd %x]: check condition\n", rq->cmd[0]);
 
 			/* Retry operation */
 			retry_pc(drive);
+
 			/* queued, but not started */
 			return ide_stopped;
 		}
@@ -95,8 +99,10 @@ cmd_finished:
 			dsc_handle(drive);
 			return ide_stopped;
 		}
+
 		/* Command finished - Call the callback function */
-		pc->callback(drive);
+		drive->pc_callback(drive);
+
 		return ide_stopped;
 	}
 
@@ -107,16 +113,15 @@ cmd_finished:
 		ide_dma_off(drive);
 		return ide_do_reset(drive);
 	}
-	/* Get the number of bytes to transfer on this interrupt. */
-	bcount = (hwif->INB(hwif->io_ports.lbah_addr) << 8) |
-		  hwif->INB(hwif->io_ports.lbam_addr);
 
-	ireason = hwif->INB(hwif->io_ports.nsect_addr);
+	/* Get the number of bytes to transfer on this interrupt. */
+	ide_read_bcount_and_ireason(drive, &bcount, &ireason);
 
 	if (ireason & CD) {
 		printk(KERN_ERR "%s: CoD != 0 in %s\n", drive->name, __func__);
 		return ide_do_reset(drive);
 	}
+
 	if (((ireason & IO) == IO) == !!(pc->flags & PC_FLAG_WRITING)) {
 		/* Hopefully, we will never get here */
 		printk(KERN_ERR "%s: We wanted to %s, but the device wants us "
@@ -125,6 +130,7 @@ cmd_finished:
 				(ireason & IO) ? "Read" : "Write");
 		return ide_do_reset(drive);
 	}
+
 	if (!(pc->flags & PC_FLAG_WRITING)) {
 		/* Reading - Check that we have enough space */
 		temp = pc->xferred + bcount;
@@ -142,7 +148,7 @@ cmd_finished:
 					if (pc->sg)
 						io_buffers(drive, pc, temp, 0);
 					else
-						hwif->input_data(drive, NULL,
+						tp_ops->input_data(drive, NULL,
 							pc->cur_pos, temp);
 					printk(KERN_ERR "%s: transferred %d of "
 							"%d bytes\n",
@@ -159,9 +165,9 @@ cmd_finished:
 			debug_log("The device wants to send us more data than "
 				  "expected - allowing transfer\n");
 		}
-		xferfunc = hwif->input_data;
+		xferfunc = tp_ops->input_data;
 	} else
-		xferfunc = hwif->output_data;
+		xferfunc = tp_ops->output_data;
 
 	if ((drive->media == ide_floppy && !scsi && !pc->buf) ||
 	    (drive->media == ide_tape && !scsi && pc->bh) ||
@@ -175,7 +181,7 @@ cmd_finished:
 	pc->cur_pos += bcount;
 
 	debug_log("[cmd %x] transferred %d bytes on that intr.\n",
-		  pc->c[0], bcount);
+		  rq->cmd[0], bcount);
 
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, handler, timeout, expiry);
@@ -183,16 +189,27 @@ cmd_finished:
 }
 EXPORT_SYMBOL_GPL(ide_pc_intr);
 
+static u8 ide_read_ireason(ide_drive_t *drive)
+{
+	ide_task_t task;
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_IN_NSECT;
+
+	drive->hwif->tp_ops->tf_read(drive, &task);
+
+	return task.tf.nsect & 3;
+}
+
 static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	int retries = 100;
 
 	while (retries-- && ((ireason & CD) == 0 || (ireason & IO))) {
 		printk(KERN_ERR "%s: (IO,CoD != (0,1) while issuing "
 				"a packet command, retrying\n", drive->name);
 		udelay(100);
-		ireason = hwif->INB(hwif->io_ports.nsect_addr);
+		ireason = ide_read_ireason(drive);
 		if (retries == 0) {
 			printk(KERN_ERR "%s: (IO,CoD != (0,1) while issuing "
 					"a packet command, ignoring\n",
@@ -210,6 +227,7 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 				ide_expiry_t *expiry)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct request *rq = hwif->hwgroup->rq;
 	ide_startstop_t startstop;
 	u8 ireason;
 
@@ -219,7 +237,7 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		return startstop;
 	}
 
-	ireason = hwif->INB(hwif->io_ports.nsect_addr);
+	ireason = ide_read_ireason(drive);
 	if (drive->media == ide_tape && !drive->scsi)
 		ireason = ide_wait_ireason(drive, ireason);
 
@@ -239,8 +257,8 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	}
 
 	/* Send the actual packet */
-	if ((pc->flags & PC_FLAG_ZIP_DRIVE) == 0)
-		hwif->output_data(drive, NULL, pc->c, 12);
+	if ((drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) == 0)
+		hwif->tp_ops->output_data(drive, NULL, rq->cmd, 12);
 
 	return ide_started;
 }
@@ -284,7 +302,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 			   bcount, dma);
 
 	/* Issue the packet command */
-	if (pc->flags & PC_FLAG_DRQ_INTERRUPT) {
+	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
 		ide_execute_command(drive, WIN_PACKETCMD, handler,
 				    timeout, NULL);
 		return ide_started;

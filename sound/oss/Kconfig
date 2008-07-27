@@ -35,47 +35,6 @@ config SOUND_AU1550_AC97
 	tristate "Au1550/Au1200 AC97 Sound"
 	depends on SOC_AU1550 || SOC_AU1200
 
-config SOUND_TRIDENT
-	tristate "Trident 4DWave DX/NX, SiS 7018 or ALi 5451 PCI Audio Core"
-	depends on PCI
-	---help---
-	  Say Y or M if you have a PCI sound card utilizing the Trident
-	  4DWave-DX/NX chipset or your mother board chipset has SiS 7018
-	  or ALi 5451 built-in. The SiS 7018 PCI Audio Core is embedded
-	  in SiS960 Super South Bridge and SiS540/630 Single Chipset.
-	  The ALi 5451 PCI Audio Core is embedded in ALi M1535, M1535D,
-	  M1535+ or M1535D+ South Bridge.
-
-	  Use lspci -n to find out if your sound card or chipset uses
-	  Trident 4DWave or SiS 7018. PCI ID 1023:2000 or 1023:2001 stands
-	  for Trident 4Dwave. PCI ID 1039:7018 stands for SiS7018. PCI ID
-	  10B9:5451 stands for ALi5451.
-
-	  This driver supports S/PDIF in/out (record/playback) for ALi 5451
-	  embedded in ALi M1535+ and M1535D+. Note that they aren't all
-	  enabled by default; you can enable them by saying Y to "/proc file
-	  system support" and "Sysctl support", and after the /proc file
-	  system has been mounted, executing the command
-
-		command			what is enabled
-
-	  echo 0>/proc/ALi5451	pcm out is also set to S/PDIF out. (Default).
-
-	  echo 1>/proc/ALi5451	use S/PDIF out to output pcm data.
-
-	  echo 2>/proc/ALi5451	use S/PDIF out to output non-pcm data.
-	  (AC3...).
-
-	  echo 3>/proc/ALi5451	record from Ac97 in(MIC, Line in...).
-	  (Default).
-
-	  echo 4>/proc/ALi5451	no matter Ac97 settings, record from S/PDIF
-	  in.
-
-
-	  This driver differs slightly from OSS/Free, so PLEASE READ the
-	  comments at the top of <file:sound/oss/trident.c>.
-
 config SOUND_MSNDCLAS
 	tristate "Support for Turtle Beach MultiSound Classic, Tahiti, Monterey"
 	depends on (m || !STANDALONE) && ISA

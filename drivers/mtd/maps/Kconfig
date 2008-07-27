@@ -1,5 +1,4 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.61 2005/11/07 11:14:26 gleixner Exp $
 
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
@@ -510,6 +509,17 @@ config MTD_PCMCIA_ANONYMOUS
 
 	  If unsure, say N.
 
+config MTD_BFIN_ASYNC
+	tristate "Blackfin BF533-STAMP Flash Chip Support"
+	depends on BFIN533_STAMP && MTD_CFI
+	select MTD_PARTITIONS
+	default y
+	help
+	  Map driver which allows for simultaneous utilization of
+	  ethernet and CFI parallel flash.
+
+	  If compiled as a module, it will be called bfin-async-flash.
+
 config MTD_UCLINUX
 	tristate "Generic uClinux RAM/ROM filesystem support"
 	depends on MTD_PARTITIONS && !MMU
@@ -538,24 +548,6 @@ config MTD_DMV182
 	select MTD_CFI_AMDSTD
         help
           Map driver for Dy-4 SVME/DMV-182 board.
-
-config MTD_BAST
-	tristate "Map driver for Simtec BAST (EB2410ITX) or Thorcom VR1000"
-	depends on ARCH_BAST || MACH_VR1000
-	select MTD_PARTITIONS
-	select MTD_MAP_BANK_WIDTH_16
-	select MTD_JEDECPROBE
-	help
-	  Map driver for NOR flash on the Simtec BAST (EB2410ITX), or the
-	  Thorcom VR1000
-
-	  Note, this driver *cannot* over-ride the WP link on the
-	  board, or currently detect the state of the link.
-
-config MTD_BAST_MAXSIZE
-	int "Maximum size for BAST flash area (MiB)"
-	depends on MTD_BAST
-	default "4"
 
 config MTD_SHARP_SL
 	tristate "ROM mapped on Sharp SL Series"

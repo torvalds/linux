@@ -522,8 +522,7 @@ static int smack_inode_rename(struct inode *old_inode,
  *
  * Returns 0 if access is permitted, -EACCES otherwise
  */
-static int smack_inode_permission(struct inode *inode, int mask,
-				  struct nameidata *nd)
+static int smack_inode_permission(struct inode *inode, int mask)
 {
 	/*
 	 * No permission to check. Existence test. Yup, it's there.

@@ -96,10 +96,8 @@ config INET6_ESP
 
 config INET6_IPCOMP
 	tristate "IPv6: IPComp transformation"
-	select XFRM
 	select INET6_XFRM_TUNNEL
-	select CRYPTO
-	select CRYPTO_DEFLATE
+	select XFRM_IPCOMP
 	---help---
 	  Support for IP Payload Compression Protocol (IPComp) (RFC3173),
 	  typically needed for IPsec.

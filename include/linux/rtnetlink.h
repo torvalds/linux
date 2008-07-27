@@ -482,6 +482,7 @@ enum
 	TCA_RATE,
 	TCA_FCNT,
 	TCA_STATS2,
+	TCA_STAB,
 	__TCA_MAX
 };
 
@@ -751,13 +752,6 @@ extern void __rtnl_unlock(void);
 		printk(KERN_ERR "RTNL: assertion failed at %s (%d)\n", \
 		       __FILE__,  __LINE__); \
 		dump_stack(); \
-	} \
-} while(0)
-
-#define BUG_TRAP(x) do { \
-	if (unlikely(!(x))) { \
-		printk(KERN_ERR "KERNEL: assertion (%s) failed at %s (%d)\n", \
-			#x,  __FILE__ , __LINE__); \
 	} \
 } while(0)
 

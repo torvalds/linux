@@ -186,6 +186,17 @@ hardware.
 	Locking: port_sem taken.
 	Interrupts: caller dependent.
 
+  flush_buffer(port)
+	Flush any write buffers, reset any DMA state and stop any
+	ongoing DMA transfers.
+
+	This will be called whenever the port->info->xmit circular
+	buffer is cleared.
+
+	Locking: port->lock taken.
+	Interrupts: locally disabled.
+	This call must not sleep
+
   set_termios(port,termios,oldtermios)
 	Change the port parameters, including word length, parity, stop
 	bits.  Update read_status_mask and ignore_status_mask to indicate

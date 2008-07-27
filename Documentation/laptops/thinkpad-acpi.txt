@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.20
-                          April 09th, 2008
+                            Version 0.21
+                           May 29th, 2008
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -621,7 +621,8 @@ Bluetooth
 ---------
 
 procfs: /proc/acpi/ibm/bluetooth
-sysfs device attribute: bluetooth_enable
+sysfs device attribute: bluetooth_enable (deprecated)
+sysfs rfkill class: switch "tpacpi_bluetooth_sw"
 
 This feature shows the presence and current state of a ThinkPad
 Bluetooth device in the internal ThinkPad CDC slot.
@@ -643,8 +644,12 @@ Sysfs notes:
 		0: disables Bluetooth / Bluetooth is disabled
 		1: enables Bluetooth / Bluetooth is enabled.
 
-	Note: this interface will be probably be superseded by the
-	generic rfkill class, so it is NOT to be considered stable yet.
+	Note: this interface has been superseded by the	generic rfkill
+	class.  It has been deprecated, and it will be removed in year
+	2010.
+
+	rfkill controller switch "tpacpi_bluetooth_sw": refer to
+	Documentation/rfkill.txt for details.
 
 Video output control -- /proc/acpi/ibm/video
 --------------------------------------------
@@ -1374,7 +1379,8 @@ EXPERIMENTAL: WAN
 -----------------
 
 procfs: /proc/acpi/ibm/wan
-sysfs device attribute: wwan_enable
+sysfs device attribute: wwan_enable (deprecated)
+sysfs rfkill class: switch "tpacpi_wwan_sw"
 
 This feature is marked EXPERIMENTAL because the implementation
 directly accesses hardware registers and may not work as expected. USE
@@ -1404,8 +1410,12 @@ Sysfs notes:
 		0: disables WWAN card / WWAN card is disabled
 		1: enables WWAN card / WWAN card is enabled.
 
-	Note: this interface will be probably be superseded by the
-	generic rfkill class, so it is NOT to be considered stable yet.
+	Note: this interface has been superseded by the	generic rfkill
+	class.  It has been deprecated, and it will be removed in year
+	2010.
+
+	rfkill controller switch "tpacpi_wwan_sw": refer to
+	Documentation/rfkill.txt for details.
 
 Multiple Commands, Module Parameters
 ------------------------------------
