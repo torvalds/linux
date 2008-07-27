@@ -244,7 +244,7 @@ static inline int tracehook_prepare_clone(unsigned clone_flags)
  * tracehook_finish_clone - new child created and being attached
  * @child:		new child task
  * @clone_flags:	%CLONE_* flags from clone/fork/vfork system call
- * @trace:		return value from tracehook_clone_prepare()
+ * @trace:		return value from tracehook_prepare_clone()
  *
  * This is called immediately after adding @child to its parent's children list.
  * The @trace value is that returned by tracehook_prepare_clone().
@@ -259,19 +259,20 @@ static inline void tracehook_finish_clone(struct task_struct *child,
 
 /**
  * tracehook_report_clone - in parent, new child is about to start running
- * @trace:		return value from tracehook_clone_prepare()
+ * @trace:		return value from tracehook_prepare_clone()
  * @regs:		parent's user register state
  * @clone_flags:	flags from parent's system call
  * @pid:		new child's PID in the parent's namespace
  * @child:		new child task
  *
- * Called after a child is set up, but before it has been started running.
- * The @trace value is that returned by tracehook_clone_prepare().
- * This is not a good place to block, because the child has not started yet.
- * Suspend the child here if desired, and block in tracehook_clone_complete().
- * This must prevent the child from self-reaping if tracehook_clone_complete()
- * uses the @child pointer; otherwise it might have died and been released by
- * the time tracehook_report_clone_complete() is called.
+ * Called after a child is set up, but before it has been started
+ * running.  @trace is the value returned by tracehook_prepare_clone().
+ * This is not a good place to block, because the child has not started
+ * yet.  Suspend the child here if desired, and then block in
+ * tracehook_report_clone_complete().  This must prevent the child from
+ * self-reaping if tracehook_report_clone_complete() uses the @child
+ * pointer; otherwise it might have died and been released by the time
+ * tracehook_report_report_clone_complete() is called.
  *
  * Called with no locks held, but the child cannot run until this returns.
  */
@@ -290,7 +291,7 @@ static inline void tracehook_report_clone(int trace, struct pt_regs *regs,
 
 /**
  * tracehook_report_clone_complete - new child is running
- * @trace:		return value from tracehook_clone_prepare()
+ * @trace:		return value from tracehook_prepare_clone()
  * @regs:		parent's user register state
  * @clone_flags:	flags from parent's system call
  * @pid:		new child's PID in the parent's namespace
@@ -347,7 +348,7 @@ static inline void tracehook_prepare_release_task(struct task_struct *task)
 }
 
 /**
- * tracehook_finish_release_task - task is being reaped, clean up tracing
+ * tracehook_finish_release_task - final tracing clean-up
  * @task:		task in %EXIT_DEAD state
  *
  * This is called in release_task() when @task is being in the middle of
