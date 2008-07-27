@@ -1050,10 +1050,9 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 		}
 
 		/* retrieve block of data to send */
-		ifd->offset = gigaset_isowbuf_getbytes(ubc->isooutbuf,
-						       ifd->length);
-		if (ifd->offset < 0) {
-			if (ifd->offset == -EBUSY) {
+		rc = gigaset_isowbuf_getbytes(ubc->isooutbuf, ifd->length);
+		if (rc < 0) {
+			if (rc == -EBUSY) {
 				gig_dbg(DEBUG_ISO,
 					"%s: buffer busy at frame %d",
 					__func__, nframe);
@@ -1062,11 +1061,12 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 			} else {
 				dev_err(ucx->bcs->cs->dev,
 					"%s: buffer error %d at frame %d\n",
-					__func__, ifd->offset, nframe);
-				return ifd->offset;
+					__func__, rc, nframe);
+				return rc;
 			}
 			break;
 		}
+		ifd->offset = rc;
 		ucx->limit = ubc->isooutbuf->nextread;
 		ifd->status = 0;
 		ifd->actual_length = 0;

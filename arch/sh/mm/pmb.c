@@ -293,7 +293,7 @@ void pmb_unmap(unsigned long addr)
 	} while (pmbe);
 }
 
-static void pmb_cache_ctor(struct kmem_cache *cachep, void *pmb)
+static void pmb_cache_ctor(void *pmb)
 {
 	struct pmb_entry *pmbe = pmb;
 

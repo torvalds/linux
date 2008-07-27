@@ -548,7 +548,7 @@ static int path_rec_start(struct net_device *dev,
 				   path_rec_completion,
 				   path, &path->query);
 	if (path->query_id < 0) {
-		ipoib_warn(priv, "ib_sa_path_rec_get failed\n");
+		ipoib_warn(priv, "ib_sa_path_rec_get failed: %d\n", path->query_id);
 		path->query = NULL;
 		return path->query_id;
 	}

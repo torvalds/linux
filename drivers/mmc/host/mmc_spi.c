@@ -1076,6 +1076,7 @@ static void mmc_spi_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		 */
 		if (canpower && ios->power_mode == MMC_POWER_OFF) {
 			int mres;
+			u8 nullbyte = 0;
 
 			host->spi->mode &= ~(SPI_CPOL|SPI_CPHA);
 			mres = spi_setup(host->spi);
@@ -1083,7 +1084,7 @@ static void mmc_spi_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				dev_dbg(&host->spi->dev,
 					"switch to SPI mode 0 failed\n");
 
-			if (spi_w8r8(host->spi, 0x00) < 0)
+			if (spi_write(host->spi, &nullbyte, 1) < 0)
 				dev_dbg(&host->spi->dev,
 					"put spi signals to low failed\n");
 

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -67,6 +67,8 @@ enum {
 	CMD_STAT_BAD_INDEX	= 0x0a,
 	/* FW image corrupted: */
 	CMD_STAT_BAD_NVMEM	= 0x0b,
+	/* Error in ICM mapping (e.g. not enough auxiliary ICM pages to execute command): */
+	CMD_STAT_ICM_ERROR	= 0x0c,
 	/* Attempt to modify a QP/EE which is not in the presumed state: */
 	CMD_STAT_BAD_QP_STATE   = 0x10,
 	/* Bad segment parameters (Address/Size): */
@@ -119,6 +121,7 @@ static int mlx4_status_to_errno(u8 status)
 		[CMD_STAT_BAD_RES_STATE]  = -EBADF,
 		[CMD_STAT_BAD_INDEX]	  = -EBADF,
 		[CMD_STAT_BAD_NVMEM]	  = -EFAULT,
+		[CMD_STAT_ICM_ERROR]	  = -ENFILE,
 		[CMD_STAT_BAD_QP_STATE]   = -EINVAL,
 		[CMD_STAT_BAD_SEG_PARAM]  = -EFAULT,
 		[CMD_STAT_REG_BOUND]	  = -EBUSY,

@@ -194,6 +194,7 @@ struct ehca_qp {
 	u32 packet_count;
 	atomic_t nr_events; /* events seen */
 	wait_queue_head_t wait_completion;
+	int mig_armed;
 };
 
 #define IS_SRQ(qp) (qp->ext_type == EQPT_SRQ)

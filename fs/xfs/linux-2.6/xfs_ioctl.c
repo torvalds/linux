@@ -84,17 +84,15 @@ xfs_find_handle(
 	switch (cmd) {
 	case XFS_IOC_PATH_TO_FSHANDLE:
 	case XFS_IOC_PATH_TO_HANDLE: {
-		struct nameidata	nd;
-		int			error;
-
-		error = user_path_walk_link((const char __user *)hreq.path, &nd);
+		struct path path;
+		int error = user_lpath((const char __user *)hreq.path, &path);
 		if (error)
 			return error;
 
-		ASSERT(nd.path.dentry);
-		ASSERT(nd.path.dentry->d_inode);
-		inode = igrab(nd.path.dentry->d_inode);
-		path_put(&nd.path);
+		ASSERT(path.dentry);
+		ASSERT(path.dentry->d_inode);
+		inode = igrab(path.dentry->d_inode);
+		path_put(&path);
 		break;
 	}
 

@@ -21,12 +21,16 @@ config X86
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_IOREMAP_PROT
+	select HAVE_GET_USER_PAGES_FAST
 	select HAVE_KPROBES
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_KRETPROBES
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE
 	select HAVE_KVM if ((X86_32 && !X86_VOYAGER && !X86_VISWS && !X86_NUMAQ) || X86_64)
 	select HAVE_ARCH_KGDB if !X86_VOYAGER
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 
 config ARCH_DEFCONFIG
 	string
@@ -329,20 +333,6 @@ config X86_BIGSMP
 
 endif
 
-config X86_RDC321X
-	bool "RDC R-321x SoC"
-	depends on X86_32
-	select M486
-	select X86_REBOOTFIXUPS
-	select GENERIC_GPIO
-	select LEDS_CLASS
-	select LEDS_GPIO
-	select NEW_LEDS
-	help
-	  This option is needed for RDC R-321x system-on-chip, also known
-	  as R-8610-(G).
-	  If you don't have one of these chips, you should say N here.
-
 config X86_VSMP
 	bool "Support for ScaleMP vSMP"
 	select PARAVIRT
@@ -365,6 +355,16 @@ config X86_VISWS
 
 	  A kernel compiled for the Visual Workstation will run on general
 	  PCs as well. See <file:Documentation/sgi-visws.txt> for details.
+
+config X86_RDC321X
+	bool "RDC R-321x SoC"
+	depends on X86_32
+	select M486
+	select X86_REBOOTFIXUPS
+	help
+	  This option is needed for RDC R-321x system-on-chip, also known
+	  as R-8610-(G).
+	  If you don't have one of these chips, you should say N here.
 
 config SCHED_NO_NO_OMIT_FRAME_POINTER
 	def_bool y
@@ -1275,6 +1275,14 @@ config CRASH_DUMP
 	  PHYSICAL_START, or it must be built as a relocatable image
 	  (CONFIG_RELOCATABLE=y).
 	  For more details see Documentation/kdump/kdump.txt
+
+config KEXEC_JUMP
+	bool "kexec jump (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on KEXEC && HIBERNATION && X86_32
+	help
+	  Jump between original kernel and kexeced kernel and invoke
+	  code in physical address mode via KEXEC
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)

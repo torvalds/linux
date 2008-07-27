@@ -136,9 +136,14 @@ static int __init setup_kcore(void)
 module_init(setup_kcore);
 #endif
 
-static void zero_ctor(struct kmem_cache *cache, void *addr)
+static void pgd_ctor(void *addr)
 {
-	memset(addr, 0, kmem_cache_size(cache));
+	memset(addr, 0, PGD_TABLE_SIZE);
+}
+
+static void pmd_ctor(void *addr)
+{
+	memset(addr, 0, PMD_TABLE_SIZE);
 }
 
 static const unsigned int pgtable_cache_size[2] = {
@@ -153,29 +158,18 @@ static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
 };
 
 #ifdef CONFIG_HUGETLB_PAGE
-/* Hugepages need one extra cache, initialized in hugetlbpage.c.  We
- * can't put into the tables above, because HPAGE_SHIFT is not compile
- * time constant. */
-struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)+1];
+/* Hugepages need an extra cache per hugepagesize, initialized in
+ * hugetlbpage.c.  We can't put into the tables above, because HPAGE_SHIFT
+ * is not compile time constant. */
+struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)+MMU_PAGE_COUNT];
 #else
 struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)];
 #endif
 
 void pgtable_cache_init(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pgtable_cache_size); i++) {
-		int size = pgtable_cache_size[i];
-		const char *name = pgtable_cache_name[i];
-
-		pr_debug("Allocating page table cache %s (#%d) "
-			"for size: %08x...\n", name, i, size);
-		pgtable_cache[i] = kmem_cache_create(name,
-						     size, size,
-						     SLAB_PANIC,
-						     zero_ctor);
-	}
+	pgtable_cache[0] = kmem_cache_create(pgtable_cache_name[0], PGD_TABLE_SIZE, PGD_TABLE_SIZE, SLAB_PANIC, pgd_ctor);
+	pgtable_cache[1] = kmem_cache_create(pgtable_cache_name[1], PMD_TABLE_SIZE, PMD_TABLE_SIZE, SLAB_PANIC, pmd_ctor);
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP

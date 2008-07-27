@@ -147,7 +147,7 @@ static struct mtd_partition * __init nand_partitions(int size, int *num_partitio
 	return dk_nand_partition;
 }
 
-static struct at91_nand_data __initdata dk_nand_data = {
+static struct atmel_nand_data __initdata dk_nand_data = {
 	.ale		= 22,
 	.cle		= 21,
 	.det_pin	= AT91_PIN_PB1,

@@ -299,7 +299,7 @@ ext4_check_acl(struct inode *inode, int mask)
 }
 
 int
-ext4_permission(struct inode *inode, int mask, struct nameidata *nd)
+ext4_permission(struct inode *inode, int mask)
 {
 	return generic_permission(inode, mask, ext4_check_acl);
 }

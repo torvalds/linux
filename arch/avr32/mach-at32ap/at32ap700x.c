@@ -1871,6 +1871,58 @@ fail:
 #endif
 
 /* --------------------------------------------------------------------
+ * NAND Flash / SmartMedia
+ * -------------------------------------------------------------------- */
+static struct resource smc_cs3_resource[] __initdata = {
+	{
+		.start	= 0x0c000000,
+		.end	= 0x0fffffff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= 0xfff03c00,
+		.end	= 0xfff03fff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device *__init
+at32_add_device_nand(unsigned int id, struct atmel_nand_data *data)
+{
+	struct platform_device *pdev;
+
+	if (id != 0 || !data)
+		return NULL;
+
+	pdev = platform_device_alloc("atmel_nand", id);
+	if (!pdev)
+		goto fail;
+
+	if (platform_device_add_resources(pdev, smc_cs3_resource,
+				ARRAY_SIZE(smc_cs3_resource)))
+		goto fail;
+
+	if (platform_device_add_data(pdev, data,
+				sizeof(struct atmel_nand_data)))
+		goto fail;
+
+	set_ebi_sfr_bits(HMATRIX_BIT(CS3A));
+	if (data->enable_pin)
+		at32_select_gpio(data->enable_pin,
+				AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+	if (data->rdy_pin)
+		at32_select_gpio(data->rdy_pin, 0);
+	if (data->det_pin)
+		at32_select_gpio(data->det_pin, 0);
+
+	platform_device_add(pdev);
+	return pdev;
+
+fail:
+	platform_device_put(pdev);
+	return NULL;
+}
+
+/* --------------------------------------------------------------------
  * AC97C
  * -------------------------------------------------------------------- */
 static struct resource atmel_ac97c0_resource[] __initdata = {

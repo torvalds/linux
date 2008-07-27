@@ -47,9 +47,6 @@ extern int set_fpregs(struct user_i387_struct __user *buf,
 
 extern void show_regs(struct pt_regs *regs);
 
-extern void send_sigtrap(struct task_struct *tsk, struct uml_pt_regs *regs,
-			 int error_code);
-
 extern int arch_copy_tls(struct task_struct *new);
 extern void clear_flushed_tls(struct task_struct *task);
 

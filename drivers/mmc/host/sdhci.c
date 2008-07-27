@@ -337,7 +337,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 
 	host->align_addr = dma_map_single(mmc_dev(host->mmc),
 		host->align_buffer, 128 * 4, direction);
-	if (dma_mapping_error(host->align_addr))
+	if (dma_mapping_error(mmc_dev(host->mmc), host->align_addr))
 		goto fail;
 	BUG_ON(host->align_addr & 0x3);
 
@@ -439,7 +439,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 
 	host->adma_addr = dma_map_single(mmc_dev(host->mmc),
 		host->adma_desc, (128 * 2 + 1) * 4, DMA_TO_DEVICE);
-	if (dma_mapping_error(host->align_addr))
+	if (dma_mapping_error(mmc_dev(host->mmc), host->align_addr))
 		goto unmap_entries;
 	BUG_ON(host->adma_addr & 0x3);
 

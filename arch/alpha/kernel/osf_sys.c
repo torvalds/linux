@@ -253,15 +253,15 @@ do_osf_statfs(struct dentry * dentry, struct osf_statfs __user *buffer,
 }
 
 asmlinkage int
-osf_statfs(char __user *path, struct osf_statfs __user *buffer, unsigned long bufsiz)
+osf_statfs(char __user *pathname, struct osf_statfs __user *buffer, unsigned long bufsiz)
 {
-	struct nameidata nd;
+	struct path path;
 	int retval;
 
-	retval = user_path_walk(path, &nd);
+	retval = user_path(pathname, &path);
 	if (!retval) {
-		retval = do_osf_statfs(nd.path.dentry, buffer, bufsiz);
-		path_put(&nd.path);
+		retval = do_osf_statfs(path.dentry, buffer, bufsiz);
+		path_put(&path);
 	}
 	return retval;
 }

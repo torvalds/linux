@@ -263,6 +263,10 @@ struct memstick_dev {
 	/* Get next request from the media driver.                         */
 	int                      (*next_request)(struct memstick_dev *card,
 						 struct memstick_request **mrq);
+	/* Tell the media driver to stop doing things                      */
+	void                     (*stop)(struct memstick_dev *card);
+	/* Allow the media driver to continue                              */
+	void                     (*start)(struct memstick_dev *card);
 
 	struct device            dev;
 };
@@ -284,7 +288,7 @@ struct memstick_host {
 	/* Notify the host that some requests are pending. */
 	void                (*request)(struct memstick_host *host);
 	/* Set host IO parameters (power, clock, etc).     */
-	void                (*set_param)(struct memstick_host *host,
+	int                 (*set_param)(struct memstick_host *host,
 					 enum memstick_param param,
 					 int value);
 	unsigned long       private[0] ____cacheline_aligned;

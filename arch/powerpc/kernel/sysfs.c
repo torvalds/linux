@@ -529,7 +529,8 @@ static void register_nodes(void)
 #endif
 
 /* Only valid if CPU is present. */
-static ssize_t show_physical_id(struct sys_device *dev, char *buf)
+static ssize_t show_physical_id(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 
