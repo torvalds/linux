@@ -32,6 +32,7 @@
 #include <linux/smp_lock.h>
 #include <linux/version.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 #include <asm/errno.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
