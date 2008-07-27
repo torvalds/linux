@@ -2030,7 +2030,7 @@ release_l2(struct layer2 *l2)
 	skb_queue_purge(&l2->down_queue);
 	ReleaseWin(l2);
 	if (test_bit(FLG_LAPD, &l2->flag)) {
-		release_tei(l2);
+		TEIrelease(l2);
 		if (l2->ch.st)
 			l2->ch.st->dev->D.ctrl(&l2->ch.st->dev->D,
 			    CLOSE_CHANNEL, NULL);
