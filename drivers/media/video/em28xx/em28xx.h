@@ -59,6 +59,7 @@
 #define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2	18
 #define EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA  19
 #define EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600   20
+#define EM2800_BOARD_GRABBEEX_USB2800           21
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

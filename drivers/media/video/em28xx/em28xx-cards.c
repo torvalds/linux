@@ -375,6 +375,21 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		} },
 	},
+	[EM2800_BOARD_GRABBEEX_USB2800] = {
+		.name         = "eMPIA Technology, Inc. GrabBeeX+ Video Encoder",
+		.is_em2800    = 1,
+		.vchannels    = 2,
+		.decoder      = EM28XX_SAA7113,
+		.input          = { {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = 1,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = 1,
+		} },
+	},
 	[EM2800_BOARD_LEADTEK_WINFAST_USBII] = {
 		.name         = "Leadtek Winfast USB II",
 		.is_em2800    = 1,
@@ -541,6 +556,8 @@ struct usb_device_id em28xx_id_table [] = {
 			.driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
 	{ USB_DEVICE(0x0438, 0xb002),
 			.driver_info = EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600 },
+	{ USB_DEVICE(0xeb1a, 0x2801),
+			.driver_info = EM2800_BOARD_GRABBEEX_USB2800 },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -862,6 +879,8 @@ void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir)
 	case (EM2800_BOARD_LEADTEK_WINFAST_USBII):
 		break;
 	case (EM2800_BOARD_KWORLD_USB2800):
+		break;
+	case (EM2800_BOARD_GRABBEEX_USB2800):
 		break;
 	}
 }
