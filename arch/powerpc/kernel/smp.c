@@ -380,6 +380,29 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	return 0;
 }
 
+/* Return the value of the reg property corresponding to the given
+ * logical cpu.
+ */
+int cpu_to_core_id(int cpu)
+{
+	struct device_node *np;
+	const int *reg;
+	int id = -1;
+
+	np = of_get_cpu_node(cpu, NULL);
+	if (!np)
+		goto out;
+
+	reg = of_get_property(np, "reg", NULL);
+	if (!reg)
+		goto out;
+
+	id = *reg;
+out:
+	of_node_put(np);
+	return id;
+}
+
 /* Must be called when no change can occur to cpu_present_map,
  * i.e. during cpu online or offline.
  */
