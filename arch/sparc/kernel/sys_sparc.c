@@ -97,7 +97,7 @@ asmlinkage int sparc_pipe(struct pt_regs *regs)
 	int fd[2];
 	int error;
 
-	error = do_pipe(fd);
+	error = do_pipe_flags(fd, 0);
 	if (error)
 		goto out;
 	regs->u_regs[UREG_I1] = fd[1];

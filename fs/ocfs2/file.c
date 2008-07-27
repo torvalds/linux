@@ -1176,7 +1176,7 @@ bail:
 	return err;
 }
 
-int ocfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
+int ocfs2_permission(struct inode *inode, int mask)
 {
 	int ret;
 

@@ -2,8 +2,6 @@
  * Flash memory access on Hynix GMS30C7201/HMS30C7202 based
  * evaluation boards
  *
- * $Id: h720x-flash.c,v 1.12 2005/11/07 11:14:27 gleixner Exp $
- *
  * (C) 2002 Jungjun Kim <jungjun.kim@hynix.com>
  *     2003 Thomas Gleixner <tglx@linutronix.de>
  */

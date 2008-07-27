@@ -23,6 +23,11 @@
 #ifndef _INCLUDE_H3600_H_
 #define _INCLUDE_H3600_H_
 
+typedef int __bitwise pm_request_t;
+
+#define PM_SUSPEND	((__force pm_request_t) 1)	/* enter D1-D3 */
+#define PM_RESUME	((__force pm_request_t) 2)	/* enter D0 */
+
 /* generalized support for H3xxx series Compaq Pocket PC's */
 #define machine_is_h3xxx() (machine_is_h3100() || machine_is_h3600() || machine_is_h3800())
 

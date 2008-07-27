@@ -85,7 +85,7 @@ SECTIONS
 
 	/* The dummy segment contents for the bug workaround mentioned above
 	   near PHDRS.  */
-	.dummy : {
+	.dummy : AT(ADDR(.dummy) - LOAD_OFFSET) {
 		LONG(0xf177)
 	} :kernel :dummy
 

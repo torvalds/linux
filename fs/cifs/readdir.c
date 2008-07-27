@@ -690,6 +690,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 			else
 				cifs_buf_release(cifsFile->srch_inf.
 						ntwrk_buf_start);
+			cifsFile->srch_inf.ntwrk_buf_start = NULL;
 		}
 		rc = initiate_cifs_search(xid, file);
 		if (rc) {

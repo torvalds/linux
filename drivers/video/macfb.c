@@ -596,7 +596,7 @@ static struct fb_ops macfb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-void __init macfb_setup(char *options)
+static void __init macfb_setup(char *options)
 {
 	char *this_opt;
 	

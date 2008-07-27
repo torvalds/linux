@@ -330,6 +330,14 @@ static void __iomem *ioremap_default(resource_size_t phys_addr,
 	return (void __iomem *)ret;
 }
 
+void __iomem *ioremap_prot(resource_size_t phys_addr, unsigned long size,
+				unsigned long prot_val)
+{
+	return __ioremap_caller(phys_addr, size, (prot_val & _PAGE_CACHE_MASK),
+				__builtin_return_address(0));
+}
+EXPORT_SYMBOL(ioremap_prot);
+
 /**
  * iounmap - Free a IO remapping
  * @addr: virtual address from ioremap_*

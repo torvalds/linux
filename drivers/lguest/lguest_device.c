@@ -98,16 +98,20 @@ static u32 lg_get_features(struct virtio_device *vdev)
 	return features;
 }
 
-static void lg_set_features(struct virtio_device *vdev, u32 features)
+static void lg_finalize_features(struct virtio_device *vdev)
 {
-	unsigned int i;
+	unsigned int i, bits;
 	struct lguest_device_desc *desc = to_lgdev(vdev)->desc;
 	/* Second half of bitmap is features we accept. */
 	u8 *out_features = lg_features(desc) + desc->feature_len;
 
+	/* Give virtio_ring a chance to accept features. */
+	vring_transport_features(vdev);
+
 	memset(out_features, 0, desc->feature_len);
-	for (i = 0; i < min(desc->feature_len * 8, 32); i++) {
-		if (features & (1 << i))
+	bits = min_t(unsigned, desc->feature_len, sizeof(vdev->features)) * 8;
+	for (i = 0; i < bits; i++) {
+		if (test_bit(i, vdev->features))
 			out_features[i / 8] |= (1 << (i % 8));
 	}
 }
@@ -297,7 +301,7 @@ static void lg_del_vq(struct virtqueue *vq)
 /* The ops structure which hooks everything together. */
 static struct virtio_config_ops lguest_config_ops = {
 	.get_features = lg_get_features,
-	.set_features = lg_set_features,
+	.finalize_features = lg_finalize_features,
 	.get = lg_get,
 	.set = lg_set,
 	.get_status = lg_get_status,

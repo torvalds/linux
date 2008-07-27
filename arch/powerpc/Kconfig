@@ -110,8 +110,12 @@ config PPC
 	default y
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_IDE
+	select HAVE_IOREMAP_PROT
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_KPROBES
+	select HAVE_ARCH_KGDB
 	select HAVE_KRETPROBES
 	select HAVE_LMB
 	select HAVE_DMA_ATTRS if PPC64
@@ -842,6 +846,7 @@ source "crypto/Kconfig"
 config PPC_CLOCK
 	bool
 	default n
+	select HAVE_CLK
 
 config PPC_LIB_RHEAP
 	bool

@@ -13,8 +13,10 @@
 #include <asm/arch/mfp-pxa27x.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pxa27x_keypad.h>
+#include <asm/arch/pxa2xx_spi.h>
 #include <asm/arch/camera.h>
 #include <asm/arch/audio.h>
+#include <asm/arch/pxa3xx_nand.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -830,4 +832,63 @@ void __init pxa3xx_set_mci3_info(struct pxamci_platform_data *info)
 	pxa_register_device(&pxa3xx_device_mci3, info);
 }
 
+static struct resource pxa3xx_resources_nand[] = {
+	[0] = {
+		.start	= 0x43100000,
+		.end	= 0x43100053,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_NAND,
+		.end	= IRQ_NAND,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* DRCMR for Data DMA */
+		.start	= 97,
+		.end	= 97,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		/* DRCMR for Command DMA */
+		.start	= 99,
+		.end	= 99,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static u64 pxa3xx_nand_dma_mask = DMA_BIT_MASK(32);
+
+struct platform_device pxa3xx_device_nand = {
+	.name		= "pxa3xx-nand",
+	.id		= -1,
+	.dev		= {
+		.dma_mask = &pxa3xx_nand_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(pxa3xx_resources_nand),
+	.resource	= pxa3xx_resources_nand,
+};
+
+void __init pxa3xx_set_nand_info(struct pxa3xx_nand_platform_data *info)
+{
+	pxa_register_device(&pxa3xx_device_nand, info);
+}
 #endif /* CONFIG_PXA3xx */
+
+/* pxa2xx-spi platform-device ID equals respective SSP platform-device ID + 1.
+ * See comment in arch/arm/mach-pxa/ssp.c::ssp_probe() */
+void __init pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_master *info)
+{
+	struct platform_device *pd;
+
+	pd = platform_device_alloc("pxa2xx-spi", id);
+	if (pd == NULL) {
+		printk(KERN_ERR "pxa2xx-spi: failed to allocate device id %d\n",
+		       id);
+		return;
+	}
+
+	pd->dev.platform_data = info;
+	platform_device_add(pd);
+}

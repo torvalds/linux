@@ -29,7 +29,6 @@ unifdef-y += elf.h
 unifdef-y += nvram.h
 unifdef-y += param.h
 unifdef-y += posix_types.h
-unifdef-y += ptrace.h
 unifdef-y += seccomp.h
 unifdef-y += signal.h
 unifdef-y += spu_info.h

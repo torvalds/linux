@@ -150,7 +150,7 @@ config DETECT_SOFTLOCKUP
 	help
 	  Say Y here to enable the kernel to detect "soft lockups",
 	  which are bugs that cause the kernel to loop in kernel
-	  mode for more than 10 seconds, without giving other tasks a
+	  mode for more than 60 seconds, without giving other tasks a
 	  chance to run.
 
 	  When a soft-lockup is detected, the kernel will print the
@@ -161,6 +161,30 @@ config DETECT_SOFTLOCKUP
 	  (Note that "hard lockups" are separate type of bugs that
 	   can be detected via the NMI-watchdog, on platforms that
 	   support it.)
+
+config BOOTPARAM_SOFTLOCKUP_PANIC
+	bool "Panic (Reboot) On Soft Lockups"
+	depends on DETECT_SOFTLOCKUP
+	help
+	  Say Y here to enable the kernel to panic on "soft lockups",
+	  which are bugs that cause the kernel to loop in kernel
+	  mode for more than 60 seconds, without giving other tasks a
+	  chance to run.
+
+	  The panic can be used in combination with panic_timeout,
+	  to cause the system to reboot automatically after a
+	  lockup has been detected. This feature is useful for
+	  high-availability systems that have uptime guarantees and
+	  where a lockup must be resolved ASAP.
+
+	  Say N if unsure.
+
+config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
+	int
+	depends on DETECT_SOFTLOCKUP
+	range 0 1
+	default 0 if !BOOTPARAM_SOFTLOCKUP_PANIC
+	default 1 if BOOTPARAM_SOFTLOCKUP_PANIC
 
 config SCHED_DEBUG
 	bool "Collect scheduler debugging info"
@@ -480,6 +504,18 @@ config DEBUG_WRITECOUNT
 	  32 bits.
 
 	  If unsure, say N.
+
+config DEBUG_MEMORY_INIT
+	bool "Debug memory initialisation" if EMBEDDED
+	default !EMBEDDED
+	help
+	  Enable this for additional checks during memory initialisation.
+	  The sanity checks verify aspects of the VM such as the memory model
+	  and other information provided by the architecture. Verbose
+	  information will be printed at KERN_DEBUG loglevel depending
+	  on the mminit_loglevel= command-line option.
+
+	  If unsure, say Y
 
 config DEBUG_LIST
 	bool "Debug linked list manipulation"

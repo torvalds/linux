@@ -107,7 +107,6 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>

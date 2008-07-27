@@ -915,7 +915,7 @@ static void tty_reset_termios(struct tty_struct *tty)
  *	do_tty_hangup		-	actual handler for hangup events
  *	@work: tty device
  *
-k *	This can be called by the "eventd" kernel thread.  That is process
+ *	This can be called by the "eventd" kernel thread.  That is process
  *	synchronous but doesn't hold any locks, so we need to make sure we
  *	have the appropriate locks for what we're doing.
  *
@@ -1118,19 +1118,6 @@ int tty_hung_up_p(struct file *filp)
 }
 
 EXPORT_SYMBOL(tty_hung_up_p);
-
-/**
- *	is_tty	-	checker whether file is a TTY
- *	@filp:		file handle that may be a tty
- *
- *	Check if the file handle is a tty handle.
- */
-
-int is_tty(struct file *filp)
-{
-	return filp->f_op->read == tty_read
-		|| filp->f_op->read == hung_up_tty_read;
-}
 
 static void session_clear_tty(struct pid *session)
 {
@@ -3593,7 +3580,6 @@ void proc_clear_tty(struct task_struct *p)
 	p->signal->tty = NULL;
 	spin_unlock_irq(&p->sighand->siglock);
 }
-EXPORT_SYMBOL(proc_clear_tty);
 
 /* Called under the sighand lock */
 

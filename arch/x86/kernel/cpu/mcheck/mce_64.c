@@ -580,7 +580,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	char __user *buf = ubuf;
 	int i, err;
 
-	cpu_tsc = kmalloc(NR_CPUS * sizeof(long), GFP_KERNEL);
+	cpu_tsc = kmalloc(nr_cpu_ids * sizeof(long), GFP_KERNEL);
 	if (!cpu_tsc)
 		return -ENOMEM;
 

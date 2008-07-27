@@ -314,10 +314,12 @@ static int __init asic3_irq_probe(struct platform_device *pdev)
 	unsigned long clksel = 0;
 	unsigned int irq, irq_base;
 	int map_size;
+	int ret;
 
-	asic->irq_nr = platform_get_irq(pdev, 0);
-	if (asic->irq_nr < 0)
-		return asic->irq_nr;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+	asic->irq_nr = ret;
 
 	/* turn on clock to IRQ controller */
 	clksel |= CLOCK_SEL_CX;

@@ -35,7 +35,7 @@ static inline int dma_set_mask(struct device *dev, u64 dma_mask)
 /*
  * dma_map_single can't fail as it is implemented now.
  */
-static inline int dma_mapping_error(dma_addr_t addr)
+static inline int dma_mapping_error(struct device *dev, dma_addr_t addr)
 {
 	return 0;
 }
