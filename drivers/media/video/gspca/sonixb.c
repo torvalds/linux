@@ -1194,7 +1194,7 @@ static __devinitdata struct usb_device_id device_table[] = {
 			SFCI(OV6650, F_GAIN|F_AUTO|F_SIF, 5, 0x60)},
 #ifndef CONFIG_USB_SN9C102
 	{USB_DEVICE(0x0c45, 0x6019),			/* SN9C101 */
-			SFCI(OV7630, F_GAIN|F_AUTO|F_SIF, 5, 0x21)},
+			SFCI(OV7630, F_GAIN|F_AUTO, 5, 0x21)},
 	{USB_DEVICE(0x0c45, 0x6024),			/* SN9C102 */
 			SFCI(TAS5130CXX, 0, 2, 0)},
 	{USB_DEVICE(0x0c45, 0x6025),			/* SN9C102 */
@@ -1204,15 +1204,15 @@ static __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6029),			/* SN9C101 */
 			SFCI(PAS106, F_SIF, 2, 0)},
 	{USB_DEVICE(0x0c45, 0x602c),			/* SN9C102 */
-			SFCI(OV7630, F_GAIN|F_AUTO|F_SIF, 5, 0x21)},
+			SFCI(OV7630, F_GAIN|F_AUTO, 5, 0x21)},
 	{USB_DEVICE(0x0c45, 0x602d),			/* SN9C102 */
 			SFCI(HV7131R, 0, 2, 0)},
 	{USB_DEVICE(0x0c45, 0x602e),			/* SN9C102 */
-			SFCI(OV7630, F_GAIN|F_AUTO|F_SIF, 5, 0x21)},
+			SFCI(OV7630, F_GAIN|F_AUTO, 5, 0x21)},
 	{USB_DEVICE(0x0c45, 0x60af),			/* SN9C103 */
 			SFCI(PAS202, F_H18, 2, 0)},
 	{USB_DEVICE(0x0c45, 0x60b0),			/* SN9C103 */
-			SFCI(OV7630, F_GAIN|F_AUTO|F_SIF|F_H18, 5, 0x21)},
+			SFCI(OV7630, F_GAIN|F_AUTO|F_H18, 5, 0x21)},
 #endif
 	{}
 };
