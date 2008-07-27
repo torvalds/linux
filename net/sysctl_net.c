@@ -73,7 +73,9 @@ static struct ctl_table_root net_sysctl_ro_root = {
 
 static int sysctl_net_init(struct net *net)
 {
-	setup_sysctl_set(&net->sysctls, NULL, is_seen);
+	setup_sysctl_set(&net->sysctls,
+			 &net_sysctl_ro_root.default_set,
+			 is_seen);
 	return 0;
 }
 
