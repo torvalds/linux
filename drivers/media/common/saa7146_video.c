@@ -656,7 +656,7 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 
 		/* if we have a user buffer, the first page may not be
 		   aligned to a page boundary. */
-		pt1->offset = list->offset;
+		pt1->offset = dma->sglist->offset;
 		pt2->offset = pt1->offset+o1;
 		pt3->offset = pt1->offset+o2;
 
