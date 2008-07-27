@@ -675,29 +675,6 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		} },
 	},
-	[EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600] = {
-		.name           = "AMD ATI TV Wonder HD 600",
-		.vchannels      = 3,
-		.tda9887_conf   = TDA9887_PRESENT,
-		.tuner_type     = TUNER_XC2028,
-		.mts_firmware   = 1,
-		.has_12mhz_i2s  = 1,
-		.has_dvb        = 1,
-		.decoder        = EM28XX_TVP5150,
-		.input          = { {
-			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
-		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
-		}, {
-			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
-		} },
-	},
 	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
 		.name         = "Terratec Hybrid XS",
 		.vchannels    = 3,
