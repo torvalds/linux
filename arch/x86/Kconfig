@@ -1131,7 +1131,7 @@ config MTRR
 	  You can safely say Y even if your machine doesn't have MTRRs, you'll
 	  just add about 9 KB to your kernel.
 
-	  See <file:Documentation/mtrr.txt> for more information.
+	  See <file:Documentation/x86/mtrr.txt> for more information.
 
 config MTRR_SANITIZER
 	bool

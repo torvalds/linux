@@ -18,7 +18,7 @@ Richard Gooch
   The AMD K6-2 (stepping 8 and above) and K6-3 processors have two
   MTRRs. These are supported.  The AMD Athlon family provide 8 Intel
   style MTRRs.
-  
+
   The Centaur C6 (WinChip) has 8 MCRs, allowing write-combining. These
   are supported.
 
@@ -87,7 +87,7 @@ reg00: base=0x00000000 (   0MB), size=  64MB: write-back, count=1
 reg01: base=0xfb000000 (4016MB), size=  16MB: write-combining, count=1
 reg02: base=0xfb000000 (4016MB), size=   4kB: uncachable, count=1
 
-Some cards (especially Voodoo Graphics boards) need this 4 kB area 
+Some cards (especially Voodoo Graphics boards) need this 4 kB area
 excluded from the beginning of the region because it is used for
 registers.
 
