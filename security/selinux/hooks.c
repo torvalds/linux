@@ -3539,38 +3539,44 @@ out:
 #endif /* IPV6 */
 
 static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
-			     char **addrp, int src, u8 *proto)
+			     char **_addrp, int src, u8 *proto)
 {
-	int ret = 0;
+	char *addrp;
+	int ret;
 
 	switch (ad->u.net.family) {
 	case PF_INET:
 		ret = selinux_parse_skb_ipv4(skb, ad, proto);
-		if (ret || !addrp)
-			break;
-		*addrp = (char *)(src ? &ad->u.net.v4info.saddr :
-					&ad->u.net.v4info.daddr);
-		break;
+		if (ret)
+			goto parse_error;
+		addrp = (char *)(src ? &ad->u.net.v4info.saddr :
+				       &ad->u.net.v4info.daddr);
+		goto okay;
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case PF_INET6:
 		ret = selinux_parse_skb_ipv6(skb, ad, proto);
-		if (ret || !addrp)
-			break;
-		*addrp = (char *)(src ? &ad->u.net.v6info.saddr :
-					&ad->u.net.v6info.daddr);
-		break;
+		if (ret)
+			goto parse_error;
+		addrp = (char *)(src ? &ad->u.net.v6info.saddr :
+				       &ad->u.net.v6info.daddr);
+		goto okay;
 #endif	/* IPV6 */
 	default:
-		break;
+		addrp = NULL;
+		goto okay;
 	}
 
-	if (unlikely(ret))
-		printk(KERN_WARNING
-		       "SELinux: failure in selinux_parse_skb(),"
-		       " unable to parse packet\n");
-
+parse_error:
+	printk(KERN_WARNING
+	       "SELinux: failure in selinux_parse_skb(),"
+	       " unable to parse packet\n");
 	return ret;
+
+okay:
+	if (_addrp)
+		*_addrp = addrp;
+	return 0;
 }
 
 /**
