@@ -945,7 +945,7 @@ l2_tei(struct layer2 *l2, u_int cmd, u_long arg)
 }
 
 void
-release_tei(struct layer2 *l2)
+TEIrelease(struct layer2 *l2)
 {
 	struct teimgr	*tm = l2->tm;
 	u_long		flags;
