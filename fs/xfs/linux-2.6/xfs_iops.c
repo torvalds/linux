@@ -589,8 +589,7 @@ xfs_check_acl(
 STATIC int
 xfs_vn_permission(
 	struct inode		*inode,
-	int			mask,
-	struct nameidata	*nd)
+	int			mask)
 {
 	return generic_permission(inode, mask, xfs_check_acl);
 }

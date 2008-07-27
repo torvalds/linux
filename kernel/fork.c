@@ -657,13 +657,6 @@ static struct fs_struct *__copy_fs_struct(struct fs_struct *old)
 		path_get(&old->root);
 		fs->pwd = old->pwd;
 		path_get(&old->pwd);
-		if (old->altroot.dentry) {
-			fs->altroot = old->altroot;
-			path_get(&old->altroot);
-		} else {
-			fs->altroot.mnt = NULL;
-			fs->altroot.dentry = NULL;
-		}
 		read_unlock(&old->lock);
 	}
 	return fs;

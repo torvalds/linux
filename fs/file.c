@@ -250,9 +250,18 @@ int expand_files(struct files_struct *files, int nr)
 	struct fdtable *fdt;
 
 	fdt = files_fdtable(files);
+
+	/*
+	 * N.B. For clone tasks sharing a files structure, this test
+	 * will limit the total number of files that can be opened.
+	 */
+	if (nr >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
+		return -EMFILE;
+
 	/* Do we need to expand? */
 	if (nr < fdt->max_fds)
 		return 0;
+
 	/* Can we expand? */
 	if (nr >= sysctl_nr_open)
 		return -EMFILE;

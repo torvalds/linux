@@ -772,7 +772,7 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 	ssize_t ret;
 	int err;
 
-	err = remove_suid(out->f_path.dentry);
+	err = file_remove_suid(out);
 	if (unlikely(err))
 		return err;
 
@@ -830,7 +830,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	ssize_t ret;
 
 	inode_double_lock(inode, pipe->inode);
-	ret = remove_suid(out->f_path.dentry);
+	ret = file_remove_suid(out);
 	if (likely(!ret))
 		ret = __splice_from_pipe(pipe, &sd, pipe_to_file);
 	inode_double_unlock(inode, pipe->inode);
