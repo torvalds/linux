@@ -53,6 +53,7 @@
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/init.h>
 #include <linux/capability.h>
 #include <linux/file.h>
@@ -2402,44 +2403,17 @@ static int proc_base_fill_cache(struct file *filp, void *dirent,
 #ifdef CONFIG_TASK_IO_ACCOUNTING
 static int do_io_accounting(struct task_struct *task, char *buffer, int whole)
 {
-	u64 rchar, wchar, syscr, syscw;
-	struct task_io_accounting ioac;
+	struct proc_io_accounting acct = task->ioac;
+	unsigned long flags;
 
-	rchar = task->rchar;
-	wchar = task->wchar;
-	syscr = task->syscr;
-	syscw = task->syscw;
-	memcpy(&ioac, &task->ioac, sizeof(ioac));
+	if (whole && lock_task_sighand(task, &flags)) {
+		struct task_struct *t = task;
 
-	if (whole) {
-		unsigned long flags;
+		task_io_accounting_add(&acct, &task->signal->ioac);
+		while_each_thread(task, t)
+			task_io_accounting_add(&acct, &t->ioac);
 
-		if (lock_task_sighand(task, &flags)) {
-			struct signal_struct *sig = task->signal;
-			struct task_struct *t = task;
-
-			rchar += sig->rchar;
-			wchar += sig->wchar;
-			syscr += sig->syscr;
-			syscw += sig->syscw;
-
-			ioac.read_bytes += sig->ioac.read_bytes;
-			ioac.write_bytes += sig->ioac.write_bytes;
-			ioac.cancelled_write_bytes +=
-					sig->ioac.cancelled_write_bytes;
-			while_each_thread(task, t) {
-				rchar += t->rchar;
-				wchar += t->wchar;
-				syscr += t->syscr;
-				syscw += t->syscw;
-
-				ioac.read_bytes += t->ioac.read_bytes;
-				ioac.write_bytes += t->ioac.write_bytes;
-				ioac.cancelled_write_bytes +=
-					t->ioac.cancelled_write_bytes;
-			}
-			unlock_task_sighand(task, &flags);
-		}
+		unlock_task_sighand(task, &flags);
 	}
 	return sprintf(buffer,
 			"rchar: %llu\n"
@@ -2449,9 +2423,10 @@ static int do_io_accounting(struct task_struct *task, char *buffer, int whole)
 			"read_bytes: %llu\n"
 			"write_bytes: %llu\n"
 			"cancelled_write_bytes: %llu\n",
-			rchar, wchar, syscr, syscw,
-			ioac.read_bytes, ioac.write_bytes,
-			ioac.cancelled_write_bytes);
+			acct.chr.rchar, acct.chr.wchar,
+			acct.chr.syscr, acct.chr.syscw,
+			acct.blk.read_bytes, acct.blk.write_bytes,
+			acct.blk.cancelled_write_bytes);
 }
 
 static int proc_tid_io_accounting(struct task_struct *task, char *buffer)
