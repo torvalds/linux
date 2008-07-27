@@ -955,7 +955,7 @@ static int bfin_mac_close(struct net_device *dev)
 	return 0;
 }
 
-static int __init bfin_mac_probe(struct platform_device *pdev)
+static int __devinit bfin_mac_probe(struct platform_device *pdev)
 {
 	struct net_device *ndev;
 	struct bfin_mac_local *lp;
@@ -1081,7 +1081,7 @@ out_err_probe_mac:
 	return rc;
 }
 
-static int bfin_mac_remove(struct platform_device *pdev)
+static int __devexit bfin_mac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct bfin_mac_local *lp = netdev_priv(ndev);
@@ -1128,7 +1128,7 @@ static int bfin_mac_resume(struct platform_device *pdev)
 
 static struct platform_driver bfin_mac_driver = {
 	.probe = bfin_mac_probe,
-	.remove = bfin_mac_remove,
+	.remove = __devexit_p(bfin_mac_remove),
 	.resume = bfin_mac_resume,
 	.suspend = bfin_mac_suspend,
 	.driver = {
