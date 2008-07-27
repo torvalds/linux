@@ -318,7 +318,7 @@ out_device_destroy:
 	put_device(&sdev->sdev_gendev);
 out:
 	if (display_failure_msg)
-		printk(ALLOC_FAILURE_MSG, __FUNCTION__);
+		printk(ALLOC_FAILURE_MSG, __func__);
 	return NULL;
 }
 
@@ -404,7 +404,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 
 	starget = kzalloc(size, GFP_KERNEL);
 	if (!starget) {
-		printk(KERN_ERR "%s: allocation failure\n", __FUNCTION__);
+		printk(KERN_ERR "%s: allocation failure\n", __func__);
 		return NULL;
 	}
 	dev = &starget->dev;
@@ -1337,7 +1337,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 	lun_data = kmalloc(length, GFP_ATOMIC |
 			   (sdev->host->unchecked_isa_dma ? __GFP_DMA : 0));
 	if (!lun_data) {
-		printk(ALLOC_FAILURE_MSG, __FUNCTION__);
+		printk(ALLOC_FAILURE_MSG, __func__);
 		goto out;
 	}
 
@@ -1649,7 +1649,7 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 {
 	SCSI_LOG_SCAN_BUS(3, shost_printk (KERN_INFO, shost,
 		"%s: <%u:%u:%u>\n",
-		__FUNCTION__, channel, id, lun));
+		__func__, channel, id, lun));
 
 	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||
 	    ((id != SCAN_WILD_CARD) && (id >= shost->max_id)) ||
@@ -1703,7 +1703,7 @@ static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 		return NULL;
 
 	if (shost->async_scan) {
-		printk("%s called twice for host %d", __FUNCTION__,
+		printk("%s called twice for host %d", __func__,
 				shost->host_no);
 		dump_stack();
 		return NULL;
@@ -1757,9 +1757,10 @@ static void scsi_finish_async_scan(struct async_scan_data *data)
 	mutex_lock(&shost->scan_mutex);
 
 	if (!shost->async_scan) {
-		printk("%s called twice for host %d", __FUNCTION__,
+		printk("%s called twice for host %d", __func__,
 				shost->host_no);
 		dump_stack();
+		mutex_unlock(&shost->scan_mutex);
 		return;
 	}
 
