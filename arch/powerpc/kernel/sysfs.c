@@ -298,7 +298,7 @@ static struct sysdev_attribute pa6t_attrs[] = {
 };
 
 
-static void register_cpu_online(unsigned int cpu)
+static void __cpuinit register_cpu_online(unsigned int cpu)
 {
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct sys_device *s = &c->sysdev;
