@@ -95,7 +95,7 @@ void *__nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	newlen = newoff + t->len;
 	rcu_read_unlock();
 
-	new = krealloc(ct->ext, newlen, gfp);
+	new = __krealloc(ct->ext, newlen, gfp);
 	if (!new)
 		return NULL;
 
