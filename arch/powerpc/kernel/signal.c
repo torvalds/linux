@@ -112,7 +112,7 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 	}
 }
 
-int do_signal(sigset_t *oldset, struct pt_regs *regs)
+static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 {
 	siginfo_t info;
 	int signr;
@@ -186,6 +186,17 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	}
 
 	return ret;
+}
+
+void do_signal(struct pt_regs *regs, unsigned long thread_info_flags)
+{
+	if (thread_info_flags & _TIF_SIGPENDING)
+		do_signal_pending(NULL, regs);
+
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+	}
 }
 
 long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
