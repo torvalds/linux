@@ -63,10 +63,12 @@ struct thread_info *secondary_ti;
 cpumask_t cpu_possible_map = CPU_MASK_NONE;
 cpumask_t cpu_online_map = CPU_MASK_NONE;
 DEFINE_PER_CPU(cpumask_t, cpu_sibling_map) = CPU_MASK_NONE;
+DEFINE_PER_CPU(cpumask_t, cpu_core_map) = CPU_MASK_NONE;
 
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
+EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
@@ -230,6 +232,7 @@ void __devinit smp_prepare_boot_cpu(void)
 
 	cpu_set(boot_cpuid, cpu_online_map);
 	cpu_set(boot_cpuid, per_cpu(cpu_sibling_map, boot_cpuid));
+	cpu_set(boot_cpuid, per_cpu(cpu_core_map, boot_cpuid));
 #ifdef CONFIG_PPC64
 	paca[boot_cpuid].__current = current;
 #endif
@@ -377,11 +380,36 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	return 0;
 }
 
+/* Must be called when no change can occur to cpu_present_map,
+ * i.e. during cpu online or offline.
+ */
+static struct device_node *cpu_to_l2cache(int cpu)
+{
+	struct device_node *np;
+	const phandle *php;
+	phandle ph;
+
+	if (!cpu_present(cpu))
+		return NULL;
+
+	np = of_get_cpu_node(cpu, NULL);
+	if (np == NULL)
+		return NULL;
+
+	php = of_get_property(np, "l2-cache", NULL);
+	if (php == NULL)
+		return NULL;
+	ph = *php;
+	of_node_put(np);
+
+	return of_find_node_by_phandle(ph);
+}
 
 /* Activate a secondary processor. */
 int __devinit start_secondary(void *unused)
 {
 	unsigned int cpu = smp_processor_id();
+	struct device_node *l2_cache;
 	int i, base;
 
 	atomic_inc(&init_mm.mm_count);
@@ -410,7 +438,26 @@ int __devinit start_secondary(void *unused)
 			continue;
 		cpu_set(cpu, per_cpu(cpu_sibling_map, base + i));
 		cpu_set(base + i, per_cpu(cpu_sibling_map, cpu));
+
+		/* cpu_core_map should be a superset of
+		 * cpu_sibling_map even if we don't have cache
+		 * information, so update the former here, too.
+		 */
+		cpu_set(cpu, per_cpu(cpu_core_map, base +i));
+		cpu_set(base + i, per_cpu(cpu_core_map, cpu));
 	}
+	l2_cache = cpu_to_l2cache(cpu);
+	for_each_online_cpu(i) {
+		struct device_node *np = cpu_to_l2cache(i);
+		if (!np)
+			continue;
+		if (np == l2_cache) {
+			cpu_set(cpu, per_cpu(cpu_core_map, i));
+			cpu_set(i, per_cpu(cpu_core_map, cpu));
+		}
+		of_node_put(np);
+	}
+	of_node_put(l2_cache);
 	ipi_call_unlock();
 
 	local_irq_enable();
@@ -448,6 +495,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 #ifdef CONFIG_HOTPLUG_CPU
 int __cpu_disable(void)
 {
+	struct device_node *l2_cache;
 	int cpu = smp_processor_id();
 	int base, i;
 	int err;
@@ -464,7 +512,23 @@ int __cpu_disable(void)
 	for (i = 0; i < threads_per_core; i++) {
 		cpu_clear(cpu, per_cpu(cpu_sibling_map, base + i));
 		cpu_clear(base + i, per_cpu(cpu_sibling_map, cpu));
+		cpu_clear(cpu, per_cpu(cpu_core_map, base +i));
+		cpu_clear(base + i, per_cpu(cpu_core_map, cpu));
 	}
+
+	l2_cache = cpu_to_l2cache(cpu);
+	for_each_present_cpu(i) {
+		struct device_node *np = cpu_to_l2cache(i);
+		if (!np)
+			continue;
+		if (np == l2_cache) {
+			cpu_clear(cpu, per_cpu(cpu_core_map, i));
+			cpu_clear(i, per_cpu(cpu_core_map, cpu));
+		}
+		of_node_put(np);
+	}
+	of_node_put(l2_cache);
+
 
 	return 0;
 }

@@ -108,6 +108,7 @@ static inline void sysfs_remove_device_from_node(struct sys_device *dev,
 #include <asm/smp.h>
 
 #define topology_thread_siblings(cpu)	(per_cpu(cpu_sibling_map, cpu))
+#define topology_core_siblings(cpu)	(per_cpu(cpu_core_map, cpu))
 #endif
 #endif
 

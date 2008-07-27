@@ -62,6 +62,7 @@ extern int smp_hw_index[];
 #endif
 
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
+DECLARE_PER_CPU(cpumask_t, cpu_core_map);
 
 /* Since OpenPIC has only 4 IPIs, we use slightly different message numbers.
  *
