@@ -9,7 +9,7 @@
  * this archive for more details.
  */
 
-#include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/signal.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -177,6 +177,12 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		 * its frame, and we can clear the TLF_RESTORE_SIGMASK flag.
 		 */
 		current_thread_info()->local_flags &= ~_TLF_RESTORE_SIGMASK;
+
+		/*
+		 * Let tracing know that we've done the handler setup.
+		 */
+		tracehook_signal_handler(signr, &info, &ka, regs,
+					 test_thread_flag(TIF_SINGLESTEP));
 	}
 
 	return ret;
