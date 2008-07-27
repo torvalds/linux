@@ -99,19 +99,19 @@ netx_hif_irq_type(unsigned int _irq, unsigned int type)
 
 	irq = _irq - NETX_IRQ_HIF_CHAINED(0);
 
-	if (type & __IRQT_RISEDGE) {
+	if (type & IRQ_TYPE_EDGE_RISING) {
 		DEBUG_IRQ("rising edges\n");
 		val |= (1 << 26) << irq;
 	}
-	if (type & __IRQT_FALEDGE) {
+	if (type & IRQ_TYPE_EDGE_FALLING) {
 		DEBUG_IRQ("falling edges\n");
 		val &= ~((1 << 26) << irq);
 	}
-	if (type & __IRQT_LOWLVL) {
+	if (type & IRQ_TYPE_LEVEL_LOW) {
 		DEBUG_IRQ("low level\n");
 		val &= ~((1 << 26) << irq);
 	}
-	if (type & __IRQT_HIGHLVL) {
+	if (type & IRQ_TYPE_LEVEL_HIGH) {
 		DEBUG_IRQ("high level\n");
 		val |= (1 << 26) << irq;
 	}

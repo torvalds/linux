@@ -834,7 +834,7 @@ static void __init h3800_init_irq(void)
 		set_irq_chip(irq, &h3800_gpio_irqchip);
 	}
 #endif
-	set_irq_type(IRQ_GPIO_H3800_ASIC, IRQT_RISING);
+	set_irq_type(IRQ_GPIO_H3800_ASIC, IRQ_TYPE_EDGE_RISING);
 	set_irq_chained_handler(IRQ_GPIO_H3800_ASIC, h3800_IRQ_demux);
 }
 
