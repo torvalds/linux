@@ -22,6 +22,7 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
+#include <linux/tracehook.h>
 #include <linux/elf.h>
 #include <linux/user.h>
 #include <linux/security.h>
@@ -1014,31 +1015,24 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-static void do_syscall_trace(void)
+/*
+ * We must return the syscall number to actually look up in the table.
+ * This can be -1L to skip running any syscall at all.
+ */
+long do_syscall_trace_enter(struct pt_regs *regs)
 {
-	/* the 0x80 provides a way for the tracing parent to distinguish
-	   between a syscall stop and SIGTRAP delivery */
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
+	long ret = 0;
 
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
-}
-
-void do_syscall_trace_enter(struct pt_regs *regs)
-{
 	secure_computing(regs->gpr[0]);
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE)
-	    && (current->ptrace & PT_PTRACED))
-		do_syscall_trace();
+	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
+	    tracehook_report_syscall_entry(regs))
+		/*
+		 * Tracing decided this syscall should not happen.
+		 * We'll return a bogus call number to get an ENOSYS
+		 * error, but leave the original number in regs->gpr[0].
+		 */
+		ret = -1L;
 
 	if (unlikely(current->audit_context)) {
 #ifdef CONFIG_PPC64
@@ -1056,16 +1050,19 @@ void do_syscall_trace_enter(struct pt_regs *regs)
 					    regs->gpr[5] & 0xffffffff,
 					    regs->gpr[6] & 0xffffffff);
 	}
+
+	return ret ?: regs->gpr[0];
 }
 
 void do_syscall_trace_leave(struct pt_regs *regs)
 {
+	int step;
+
 	if (unlikely(current->audit_context))
 		audit_syscall_exit((regs->ccr&0x10000000)?AUDITSC_FAILURE:AUDITSC_SUCCESS,
 				   regs->result);
 
-	if ((test_thread_flag(TIF_SYSCALL_TRACE)
-	     || test_thread_flag(TIF_SINGLESTEP))
-	    && (current->ptrace & PT_PTRACED))
-		do_syscall_trace();
+	step = test_thread_flag(TIF_SINGLESTEP);
+	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, step);
 }
