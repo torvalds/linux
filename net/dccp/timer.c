@@ -106,7 +106,7 @@ static void dccp_retransmit_timer(struct sock *sk)
 	 *	-- Acks     in client-PARTOPEN state (sec. 8.1.5)
 	 *	-- CloseReq in server-CLOSEREQ state (sec. 8.3)
 	 *	-- Close    in   node-CLOSING  state (sec. 8.3)                */
-	BUG_TRAP(sk->sk_send_head != NULL);
+	WARN_ON(sk->sk_send_head == NULL);
 
 	/*
 	 * More than than 4MSL (8 minutes) has passed, a RESET(aborted) was
