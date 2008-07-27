@@ -24,6 +24,11 @@ static inline void fill_ldt(struct desc_struct *desc,
 	desc->d = info->seg_32bit;
 	desc->g = info->limit_in_pages;
 	desc->base2 = (info->base_addr & 0xff000000) >> 24;
+	/*
+	 * Don't allow setting of the lm bit. It is useless anyway
+	 * because 64bit system calls require __USER_CS:
+	 */
+	desc->l = 0;
 }
 
 extern struct desc_ptr idt_descr;
