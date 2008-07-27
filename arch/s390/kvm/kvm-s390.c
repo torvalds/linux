@@ -39,7 +39,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exit_instruction", VCPU_STAT(exit_instruction) },
 	{ "exit_program_interruption", VCPU_STAT(exit_program_interruption) },
 	{ "exit_instr_and_program_int", VCPU_STAT(exit_instr_and_program) },
-	{ "instruction_lctg", VCPU_STAT(instruction_lctg) },
+	{ "instruction_lctlg", VCPU_STAT(instruction_lctlg) },
 	{ "instruction_lctl", VCPU_STAT(instruction_lctl) },
 	{ "deliver_emergency_signal", VCPU_STAT(deliver_emergency_signal) },
 	{ "deliver_service_signal", VCPU_STAT(deliver_service_signal) },
@@ -112,7 +112,12 @@ long kvm_arch_dev_ioctl(struct file *filp,
 
 int kvm_dev_ioctl_check_extension(long ext)
 {
-	return 0;
+	switch (ext) {
+	case KVM_CAP_USER_MEMORY:
+		return 1;
+	default:
+		return 0;
+	}
 }
 
 /* Section: vm related */

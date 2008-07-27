@@ -121,7 +121,7 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 			break;
 		} else {
 			SAS_DPRINTK("%s: task to dev %016llx response: 0x%x "
-				    "status 0x%x\n", __FUNCTION__,
+				    "status 0x%x\n", __func__,
 				    SAS_ADDR(dev->sas_addr),
 				    task->task_status.resp,
 				    task->task_status.stat);
@@ -1279,7 +1279,7 @@ static int sas_configure_present(struct domain_device *dev, int phy_id,
 			goto out;
 		} else if (res != SMP_RESP_FUNC_ACC) {
 			SAS_DPRINTK("%s: dev %016llx phy 0x%x index 0x%x "
-				    "result 0x%x\n", __FUNCTION__,
+				    "result 0x%x\n", __func__,
 				    SAS_ADDR(dev->sas_addr), phy_id, i, res);
 			goto out;
 		}
@@ -1901,7 +1901,7 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 
 	if (!rsp) {
 		printk("%s: space for a smp response is missing\n",
-		       __FUNCTION__);
+		       __func__);
 		return -EINVAL;
 	}
 
@@ -1914,20 +1914,20 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	if (type != SAS_EDGE_EXPANDER_DEVICE &&
 	    type != SAS_FANOUT_EXPANDER_DEVICE) {
 		printk("%s: can we send a smp request to a device?\n",
-		       __FUNCTION__);
+		       __func__);
 		return -EINVAL;
 	}
 
 	dev = sas_find_dev_by_rphy(rphy);
 	if (!dev) {
-		printk("%s: fail to find a domain_device?\n", __FUNCTION__);
+		printk("%s: fail to find a domain_device?\n", __func__);
 		return -EINVAL;
 	}
 
 	/* do we need to support multiple segments? */
 	if (req->bio->bi_vcnt > 1 || rsp->bio->bi_vcnt > 1) {
 		printk("%s: multiple segments req %u %u, rsp %u %u\n",
-		       __FUNCTION__, req->bio->bi_vcnt, req->data_len,
+		       __func__, req->bio->bi_vcnt, req->data_len,
 		       rsp->bio->bi_vcnt, rsp->data_len);
 		return -EINVAL;
 	}

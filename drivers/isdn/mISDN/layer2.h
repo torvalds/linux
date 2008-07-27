@@ -96,7 +96,7 @@ extern int		tei_l2(struct layer2 *, u_int, u_long arg);
 
 /* from tei.c */
 extern int 		l2_tei(struct layer2 *, u_int, u_long arg);
-extern void 		release_tei(struct layer2 *);
+extern void 		TEIrelease(struct layer2 *);
 extern int 		TEIInit(u_int *);
 extern void 		TEIFree(void);
 
