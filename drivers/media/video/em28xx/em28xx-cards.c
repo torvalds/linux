@@ -1091,7 +1091,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		} },
 	},
-	[EM2820_BOARD_COMPRO_VIDEO_MATE] = {
+	[EM2820_BOARD_COMPRO_VIDEOMATE_FORYOU] = {
 		.name         = "Compro VideoMate ForYou/Stereo",
 		.vchannels    = 2,
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
@@ -1169,7 +1169,7 @@ struct usb_device_id em28xx_id_table [] = {
 	{ USB_DEVICE(0x185b, 0x2870),
 			.driver_info = EM2870_BOARD_COMPRO_VIDEOMATE },
 	{ USB_DEVICE(0x185b, 0x2041),
-			.driver_info = EM2820_BOARD_COMPRO_VIDEO_MATE },
+			.driver_info = EM2820_BOARD_COMPRO_VIDEOMATE_FORYOU },
 	{ USB_DEVICE(0x2040, 0x4200),
 			.driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },
 	{ USB_DEVICE(0x2040, 0x4201),
