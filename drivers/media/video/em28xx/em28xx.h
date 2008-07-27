@@ -97,6 +97,7 @@
 #define EM2882_BOARD_PINNACLE_HYBRID_PRO	  56
 #define EM2883_BOARD_KWORLD_HYBRID_A316		  57
 #define EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950	  58
+#define EM2820_BOARD_COMPRO_VIDEO_MATE		  59
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

@@ -1134,6 +1134,22 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		} },
 	},
+	[EM2820_BOARD_COMPRO_VIDEO_MATE] = {
+		.name         = "Compro VideoMate ForYou/Stereo",
+		.vchannels    = 2,
+		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
+		.tda9887_conf = TDA9887_PRESENT,
+		.decoder      = EM28XX_TVP5150,
+		.input          = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = TVP5150_SVIDEO,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1195,6 +1211,8 @@ struct usb_device_id em28xx_id_table [] = {
 			.driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
 	{ USB_DEVICE(0x185b, 0x2870),
 			.driver_info = EM2870_BOARD_COMPRO_VIDEOMATE },
+	{ USB_DEVICE(0x185b, 0x2041),
+			.driver_info = EM2820_BOARD_COMPRO_VIDEO_MATE },
 	{ USB_DEVICE(0x2040, 0x4200),
 			.driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },
 	{ USB_DEVICE(0x2040, 0x4201),
