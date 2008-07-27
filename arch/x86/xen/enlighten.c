@@ -325,24 +325,55 @@ static unsigned long xen_store_tr(void)
 	return 0;
 }
 
+/*
+ * If 'v' is a vmalloc mapping, then find the linear mapping of the
+ * page (if any) and also set its protections to match:
+ */
+static void set_aliased_prot(void *v, pgprot_t prot)
+{
+	int level;
+	pte_t *ptep;
+	pte_t pte;
+	unsigned long pfn;
+	struct page *page;
+
+	ptep = lookup_address((unsigned long)v, &level);
+	BUG_ON(ptep == NULL);
+
+	pfn = pte_pfn(*ptep);
+	page = pfn_to_page(pfn);
+
+	pte = pfn_pte(pfn, prot);
+
+	if (HYPERVISOR_update_va_mapping((unsigned long)v, pte, 0))
+		BUG();
+
+	if (!PageHighMem(page)) {
+		void *av = __va(PFN_PHYS(pfn));
+
+		if (av != v)
+			if (HYPERVISOR_update_va_mapping((unsigned long)av, pte, 0))
+				BUG();
+	} else
+		kmap_flush_unused();
+}
+
 static void xen_alloc_ldt(struct desc_struct *ldt, unsigned entries)
 {
-	unsigned pages = roundup(entries * LDT_ENTRY_SIZE, PAGE_SIZE);
-	void *v = ldt;
+	const unsigned entries_per_page = PAGE_SIZE / LDT_ENTRY_SIZE;
 	int i;
 
-	for(i = 0; i < pages; i += PAGE_SIZE)
-		make_lowmem_page_readonly(v + i);
+	for(i = 0; i < entries; i += entries_per_page)
+		set_aliased_prot(ldt + i, PAGE_KERNEL_RO);
 }
 
 static void xen_free_ldt(struct desc_struct *ldt, unsigned entries)
 {
-	unsigned pages = roundup(entries * LDT_ENTRY_SIZE, PAGE_SIZE);
-	void *v = ldt;
+	const unsigned entries_per_page = PAGE_SIZE / LDT_ENTRY_SIZE;
 	int i;
 
-	for(i = 0; i < pages; i += PAGE_SIZE)
-		make_lowmem_page_readwrite(v + i);
+	for(i = 0; i < entries; i += entries_per_page)
+		set_aliased_prot(ldt + i, PAGE_KERNEL);
 }
 
 static void xen_set_ldt(const void *addr, unsigned entries)
@@ -446,7 +477,7 @@ static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 				const void *ptr)
 {
 	unsigned long lp = (unsigned long)&dt[entrynum];
-	xmaddr_t mach_lp = virt_to_machine(lp);
+	xmaddr_t mach_lp = arbitrary_virt_to_machine(lp);
 	u64 entry = *(u64 *)ptr;
 
 	preempt_disable();
@@ -579,7 +610,7 @@ static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 }
 
 static void xen_load_sp0(struct tss_struct *tss,
-			  struct thread_struct *thread)
+			 struct thread_struct *thread)
 {
 	struct multicall_space mcs = xen_mc_entry(0);
 	MULTI_stack_switch(mcs.mc, __KERNEL_DS, thread->sp0);
