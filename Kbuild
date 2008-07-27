@@ -43,7 +43,7 @@ $(obj)/$(bounds-file): kernel/bounds.s Kbuild
 # 2) Generate asm-offsets.h
 #
 
-offsets-file := include/asm-$(SRCARCH)/asm-offsets.h
+offsets-file := include/asm/asm-offsets.h
 
 always  += $(offsets-file)
 targets += $(offsets-file)
@@ -81,7 +81,6 @@ arch/$(SRCARCH)/kernel/asm-offsets.s: arch/$(SRCARCH)/kernel/asm-offsets.c \
 	$(call if_changed_dep,cc_s_c)
 
 $(obj)/$(offsets-file): arch/$(SRCARCH)/kernel/asm-offsets.s Kbuild
-	$(Q)mkdir -p $(dir $@)
 	$(call cmd,offsets)
 
 #####

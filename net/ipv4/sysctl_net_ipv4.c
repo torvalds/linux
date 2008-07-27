@@ -401,13 +401,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= &ipv4_local_port_range,
 		.strategy	= &ipv4_sysctl_local_port_range,
 	},
-	{
-		.ctl_name	= NET_IPV4_ROUTE,
-		.procname	= "route",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= ipv4_route_table
-	},
 #ifdef CONFIG_IP_MULTICAST
 	{
 		.ctl_name	= NET_IPV4_IGMP_MAX_MEMBERSHIPS,
@@ -880,13 +873,6 @@ static __init int sysctl_ipv4_init(void)
 	}
 
 	return 0;
-}
-
-/* set enough of tree skeleton to get rid of ordering problems */
-void __init ip_static_sysctl_init(void)
-{
-	static ctl_table table[1];
-	register_sysctl_paths(net_ipv4_ctl_path, table);
 }
 
 __initcall(sysctl_ipv4_init);

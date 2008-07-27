@@ -1680,43 +1680,45 @@ static __init int sysctl_init(void)
 
 core_initcall(sysctl_init);
 
-static int is_branch_in(struct ctl_table *branch, struct ctl_table *table)
+static struct ctl_table *is_branch_in(struct ctl_table *branch,
+				      struct ctl_table *table)
 {
 	struct ctl_table *p;
 	const char *s = branch->procname;
 
 	/* branch should have named subdirectory as its first element */
 	if (!s || !branch->child)
-		return 0;
+		return NULL;
 
 	/* ... and nothing else */
 	if (branch[1].procname || branch[1].ctl_name)
-		return 0;
+		return NULL;
 
 	/* table should contain subdirectory with the same name */
 	for (p = table; p->procname || p->ctl_name; p++) {
 		if (!p->child)
 			continue;
 		if (p->procname && strcmp(p->procname, s) == 0)
-			return 1;
+			return p;
 	}
-	return 0;
+	return NULL;
 }
 
 /* see if attaching q to p would be an improvement */
 static void try_attach(struct ctl_table_header *p, struct ctl_table_header *q)
 {
 	struct ctl_table *to = p->ctl_table, *by = q->ctl_table;
+	struct ctl_table *next;
 	int is_better = 0;
 	int not_in_parent = !p->attached_by;
 
-	while (is_branch_in(by, to)) {
+	while ((next = is_branch_in(by, to)) != NULL) {
 		if (by == q->attached_by)
 			is_better = 1;
 		if (to == p->attached_by)
 			not_in_parent = 1;
 		by = by->child;
-		to = to->child;
+		to = next->child;
 	}
 
 	if (is_better && not_in_parent) {
