@@ -41,6 +41,7 @@
 #include <asm/smp.h>
 #include <asm/time.h>
 #include <asm/machdep.h>
+#include <asm/cputhreads.h>
 #include <asm/cputable.h>
 #include <asm/system.h>
 #include <asm/mpic.h>
@@ -228,6 +229,7 @@ void __devinit smp_prepare_boot_cpu(void)
 	BUG_ON(smp_processor_id() != boot_cpuid);
 
 	cpu_set(boot_cpuid, cpu_online_map);
+	cpu_set(boot_cpuid, per_cpu(cpu_sibling_map, boot_cpuid));
 #ifdef CONFIG_PPC64
 	paca[boot_cpuid].__current = current;
 #endif
@@ -380,6 +382,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 int __devinit start_secondary(void *unused)
 {
 	unsigned int cpu = smp_processor_id();
+	int i, base;
 
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
@@ -400,6 +403,14 @@ int __devinit start_secondary(void *unused)
 
 	ipi_call_lock();
 	cpu_set(cpu, cpu_online_map);
+	/* Update sibling maps */
+	base = cpu_first_thread_in_core(cpu);
+	for (i = 0; i < threads_per_core; i++) {
+		if (cpu_is_offline(base + i))
+			continue;
+		cpu_set(cpu, per_cpu(cpu_sibling_map, base + i));
+		cpu_set(base + i, per_cpu(cpu_sibling_map, cpu));
+	}
 	ipi_call_unlock();
 
 	local_irq_enable();
@@ -437,10 +448,25 @@ void __init smp_cpus_done(unsigned int max_cpus)
 #ifdef CONFIG_HOTPLUG_CPU
 int __cpu_disable(void)
 {
-	if (smp_ops->cpu_disable)
-		return smp_ops->cpu_disable();
+	int cpu = smp_processor_id();
+	int base, i;
+	int err;
 
-	return -ENOSYS;
+	if (!smp_ops->cpu_disable)
+		return -ENOSYS;
+
+	err = smp_ops->cpu_disable();
+	if (err)
+		return err;
+
+	/* Update sibling maps */
+	base = cpu_first_thread_in_core(cpu);
+	for (i = 0; i < threads_per_core; i++) {
+		cpu_clear(cpu, per_cpu(cpu_sibling_map, base + i));
+		cpu_clear(base + i, per_cpu(cpu_sibling_map, cpu));
+	}
+
+	return 0;
 }
 
 void __cpu_die(unsigned int cpu)
