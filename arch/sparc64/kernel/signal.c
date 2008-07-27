@@ -23,6 +23,7 @@
 #include <linux/tty.h>
 #include <linux/binfmts.h>
 #include <linux/bitops.h>
+#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
@@ -575,6 +576,8 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 		 * clear the TS_RESTORE_SIGMASK flag.
 		 */
 		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
+
+		tracehook_signal_handler(signr, &info, &ka, regs, 0);
 		return;
 	}
 	if (restart_syscall &&
