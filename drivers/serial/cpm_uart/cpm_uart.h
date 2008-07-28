@@ -77,6 +77,7 @@ struct uart_cpm_port {
 	unsigned char		*rx_buf;
 	u32			flags;
 	void			(*set_lineif)(struct uart_cpm_port *);
+	struct clk		*clk;
 	u8			brg;
 	uint			 dp_addr;
 	void			*mem_addr;

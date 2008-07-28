@@ -45,6 +45,7 @@
 #include <linux/of_platform.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -596,7 +597,10 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		out_be16(&sccp->scc_psmr, (sbits << 12) | scval);
 	}
 
-	cpm_set_brg(pinfo->brg - 1, baud);
+	if (pinfo->clk)
+		clk_set_rate(pinfo->clk, baud);
+	else
+		cpm_set_brg(pinfo->brg - 1, baud);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -1023,13 +1027,21 @@ static int cpm_uart_init_port(struct device_node *np,
 	int ret;
 	int i;
 
-	data = of_get_property(np, "fsl,cpm-brg", &len);
-	if (!data || len != 4) {
-		printk(KERN_ERR "CPM UART %s has no/invalid "
-		                "fsl,cpm-brg property.\n", np->name);
-		return -EINVAL;
+	data = of_get_property(np, "clock", NULL);
+	if (data) {
+		struct clk *clk = clk_get(NULL, (const char*)data);
+		if (!IS_ERR(clk))
+			pinfo->clk = clk;
 	}
-	pinfo->brg = *data;
+	if (!pinfo->clk) {
+		data = of_get_property(np, "fsl,cpm-brg", &len);
+		if (!data || len != 4) {
+			printk(KERN_ERR "CPM UART %s has no/invalid "
+			                "fsl,cpm-brg property.\n", np->name);
+			return -EINVAL;
+		}
+		pinfo->brg = *data;
+	}
 
 	data = of_get_property(np, "fsl,cpm-command", &len);
 	if (!data || len != 4) {
