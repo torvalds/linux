@@ -594,7 +594,6 @@ struct btrfs_fs_info {
 
 	spinlock_t ref_cache_lock;
 	u64 total_ref_cache_size;
-	u64 running_ref_cache_size;
 
 	u64 avail_data_alloc_bits;
 	u64 avail_metadata_alloc_bits;
@@ -606,10 +605,18 @@ struct btrfs_fs_info {
 	void *bdev_holder;
 };
 
+struct btrfs_leaf_ref_tree {
+	struct rb_root root;
+	struct btrfs_leaf_ref *last;
+	struct list_head list;
+	spinlock_t lock;
+};
+
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
  * and for the extent tree extent_root root.
  */
+struct dirty_root;
 struct btrfs_root {
 	struct extent_buffer *node;
 
@@ -618,6 +625,8 @@ struct btrfs_root {
 
 	struct extent_buffer *commit_root;
 	struct btrfs_leaf_ref_tree *ref_tree;
+	struct btrfs_leaf_ref_tree ref_tree_struct;
+	struct dirty_root *dirty_root;
 
 	struct btrfs_root_item root_item;
 	struct btrfs_key root_key;

@@ -1004,8 +1004,6 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			goto out;
 		}
 
-		btrfs_item_key_to_cpu(buf, &ref->key, 0);
-
 		ref->bytenr = buf->start;
 		ref->owner = btrfs_header_owner(buf);
 		ref->generation = btrfs_header_generation(buf);
@@ -2387,19 +2385,15 @@ static void noinline reada_walk_down(struct btrfs_root *root,
 	}
 }
 
-/*
- * we want to avoid as much random IO as we can with the alloc mutex
- * held, so drop the lock and do the lookup, then do it again with the
- * lock held.
- */
 int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start, u64 len,
 			      u32 *refs)
 {
+	int ret;
 	mutex_unlock(&root->fs_info->alloc_mutex);
-	lookup_extent_ref(NULL, root, start, len, refs);
+	ret = lookup_extent_ref(NULL, root, start, len, refs);
 	cond_resched();
 	mutex_lock(&root->fs_info->alloc_mutex);
-	return lookup_extent_ref(NULL, root, start, len, refs);
+	return ret;
 }
 
 /*
@@ -2468,11 +2462,11 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 			BUG_ON(ret);
 			continue;
 		}
-		
+
 		if (*level == 1) {
 			struct btrfs_key key;
 			btrfs_node_key_to_cpu(cur, &key, path->slots[*level]);
-			ref = btrfs_lookup_leaf_ref(root, &key);
+			ref = btrfs_lookup_leaf_ref(root, bytenr);
 			if (ref) {
 				ret = drop_leaf_ref(trans, root, ref);
 				BUG_ON(ret);
@@ -2482,7 +2476,6 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 				break;
 			}
 		}
-
 		next = btrfs_find_tree_block(root, bytenr, blocksize);
 		if (!next || !btrfs_buffer_uptodate(next, ptr_gen)) {
 			free_extent_buffer(next);
@@ -2672,6 +2665,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			ret = -EAGAIN;
 			break;
 		}
+		wake_up(&root->fs_info->transaction_throttle);
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {

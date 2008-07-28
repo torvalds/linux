@@ -15,6 +15,8 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 021110-1307, USA.
  */
+#ifndef __REFCACHE__
+#define __REFCACHE__
 
 struct btrfs_extent_info {
 	u64 bytenr;
@@ -25,7 +27,6 @@ struct btrfs_extent_info {
 
 struct btrfs_leaf_ref {
 	struct rb_node rb_node;
-	struct btrfs_key key;
 	int in_tree;
 	atomic_t usage;
 
@@ -33,14 +34,9 @@ struct btrfs_leaf_ref {
 	u64 owner;
 	u64 generation;
 	int nritems;
-	struct btrfs_extent_info extents[];
-};
 
-struct btrfs_leaf_ref_tree {
-	struct rb_root root;
-	struct btrfs_leaf_ref *last;
-	u64 generation;
-	spinlock_t lock;
+	struct list_head list;
+	struct btrfs_extent_info extents[];
 };
 
 static inline size_t btrfs_leaf_ref_size(int nr_extents)
@@ -53,7 +49,7 @@ static inline void btrfs_leaf_ref_tree_init(struct btrfs_leaf_ref_tree *tree)
 {
 	tree->root.rb_node = NULL;
 	tree->last = NULL;
-	tree->generation = 0;
+	INIT_LIST_HEAD(&tree->list);
 	spin_lock_init(&tree->lock);
 }
 
@@ -66,7 +62,9 @@ void btrfs_leaf_ref_tree_init(struct btrfs_leaf_ref_tree *tree);
 struct btrfs_leaf_ref *btrfs_alloc_leaf_ref(int nr_extents);
 void btrfs_free_leaf_ref(struct btrfs_leaf_ref *ref);
 struct btrfs_leaf_ref *btrfs_lookup_leaf_ref(struct btrfs_root *root,
-					     struct btrfs_key *key);
+					     u64 bytenr);
 int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref);
 int btrfs_remove_leaf_refs(struct btrfs_root *root);
 int btrfs_remove_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref);
+
+#endif

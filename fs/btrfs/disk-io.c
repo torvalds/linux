@@ -40,6 +40,7 @@
 #include "print-tree.h"
 #include "async-thread.h"
 #include "locking.h"
+#include "ref-cache.h"
 
 #if 0
 static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
@@ -737,6 +738,10 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	spin_lock_init(&root->node_lock);
 	spin_lock_init(&root->orphan_lock);
 	mutex_init(&root->objectid_mutex);
+
+	btrfs_leaf_ref_tree_init(&root->ref_tree_struct);
+	root->ref_tree = &root->ref_tree_struct;
+
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
@@ -1175,9 +1180,6 @@ static int transaction_kthread(void *arg)
 			mutex_unlock(&root->fs_info->trans_mutex);
 			goto sleep;
 		}
-
-		printk("btrfs: running reference cache size %Lu\n",
-			root->fs_info->running_ref_cache_size);
 
 		now = get_seconds();
 		if (now < cur->start_time || now - cur->start_time < 30) {
