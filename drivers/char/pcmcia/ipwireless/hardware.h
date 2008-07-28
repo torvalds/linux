@@ -41,7 +41,7 @@ int ipwireless_set_RTS(struct ipw_hardware *hw, unsigned int channel_idx,
 		int state);
 int ipwireless_send_packet(struct ipw_hardware *hw,
 			    unsigned int channel_idx,
-			    unsigned char *data,
+			    const unsigned char *data,
 			    unsigned int length,
 			    void (*packet_sent_callback) (void *cb,
 							  unsigned int length),

@@ -30,11 +30,11 @@
 static void ipw_send_setup_packet(struct ipw_hardware *hw);
 static void handle_received_SETUP_packet(struct ipw_hardware *ipw,
 					 unsigned int address,
-					 unsigned char *data, int len,
+					 const unsigned char *data, int len,
 					 int is_last);
 static void ipwireless_setup_timer(unsigned long data);
 static void handle_received_CTRL_packet(struct ipw_hardware *hw,
-		unsigned int channel_idx, unsigned char *data, int len);
+		unsigned int channel_idx, const unsigned char *data, int len);
 
 /*#define TIMING_DIAGNOSTICS*/
 
@@ -615,8 +615,10 @@ static void pool_free(struct ipw_hardware *hw, struct ipw_rx_packet *packet)
 }
 
 static void queue_received_packet(struct ipw_hardware *hw,
-				  unsigned int protocol, unsigned int address,
-				  unsigned char *data, int length, int is_last)
+				  unsigned int protocol,
+				  unsigned int address,
+				  const unsigned char *data, int length,
+				  int is_last)
 {
 	unsigned int channel_idx = address - 1;
 	struct ipw_rx_packet *packet = NULL;
@@ -760,10 +762,10 @@ static void ipw_receive_data_work(struct work_struct *work_rx)
 
 static void handle_received_CTRL_packet(struct ipw_hardware *hw,
 					unsigned int channel_idx,
-					unsigned char *data, int len)
+					const unsigned char *data, int len)
 {
-	struct ipw_control_packet_body *body =
-		(struct ipw_control_packet_body *) data;
+	const struct ipw_control_packet_body *body =
+		(const struct ipw_control_packet_body *) data;
 	unsigned int changed_mask;
 
 	if (len != sizeof(struct ipw_control_packet_body)) {
@@ -805,13 +807,13 @@ static void handle_received_CTRL_packet(struct ipw_hardware *hw,
 }
 
 static void handle_received_packet(struct ipw_hardware *hw,
-				   union nl_packet *packet,
+				   const union nl_packet *packet,
 				   unsigned short len)
 {
 	unsigned int protocol = packet->hdr.protocol;
 	unsigned int address = packet->hdr.address;
 	unsigned int header_length;
-	unsigned char *data;
+	const unsigned char *data;
 	unsigned int data_len;
 	int is_last = packet->hdr.packet_rank & NL_LAST_PACKET;
 
@@ -1288,7 +1290,7 @@ static void *alloc_ctrl_packet(int header_size,
 }
 
 int ipwireless_send_packet(struct ipw_hardware *hw, unsigned int channel_idx,
-			    unsigned char *data, unsigned int length,
+			    const unsigned char *data, unsigned int length,
 			    void (*callback) (void *cb, unsigned int length),
 			    void *callback_data)
 {
@@ -1522,10 +1524,10 @@ static void ipw_send_setup_packet(struct ipw_hardware *hw)
 
 static void handle_received_SETUP_packet(struct ipw_hardware *hw,
 					 unsigned int address,
-					 unsigned char *data, int len,
+					 const unsigned char *data, int len,
 					 int is_last)
 {
-	union ipw_setup_rx_msg *rx_msg = (union ipw_setup_rx_msg *) data;
+	const union ipw_setup_rx_msg *rx_msg = (const union ipw_setup_rx_msg *) data;
 
 	if (address != ADDR_SETUP_PROT) {
 		printk(KERN_INFO IPWIRELESS_PCCARD_NAME
