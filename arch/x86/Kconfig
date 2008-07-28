@@ -782,7 +782,7 @@ config X86_REBOOTFIXUPS
 	  Say N otherwise.
 
 config MICROCODE
-	tristate "/dev/cpu/microcode - Intel IA32 CPU microcode support"
+	tristate "/dev/cpu/microcode - microcode support"
 	select FW_LOADER
 	---help---
 	  If you say Y here, you will be able to update the microcode on
@@ -791,14 +791,29 @@ config MICROCODE
 	  actual microcode binary data itself which is not shipped with the
 	  Linux kernel.
 
-	  For latest news and information on obtaining all the required
-	  ingredients for this driver, check:
-	  <http://www.urbanmyth.org/microcode/>.
+	  This option selects the general module only, you need to select
+	  at least one vendor specific module as well.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called microcode.
 
-config MICROCODE_OLD_INTERFACE
+config MICROCODE_INTEL
+       tristate "Intel microcode patch loading support"
+       depends on MICROCODE
+       default MICROCODE
+       select FW_LOADER
+       --help---
+         This options enables microcode patch loading support for Intel
+         processors.
+
+         For latest news and information on obtaining all the required
+         Intel ingredients for this driver, check:
+         <http://www.urbanmyth.org/microcode/>.
+
+         This driver is only available as a module: the module
+         will be called microcode_intel.  
+
+   config MICROCODE_OLD_INTERFACE
 	def_bool y
 	depends on MICROCODE
 

@@ -1,3 +1,6 @@
+extern int microcode_init(void *opaque, struct module *module);
+extern void microcode_exit(void);
+
 struct microcode_ops {
 	long (*get_next_ucode)(void **mc, long offset);
 	long (*microcode_get_next_ucode)(void **mc, long offset);

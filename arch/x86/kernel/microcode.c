@@ -99,25 +99,22 @@ MODULE_DESCRIPTION("Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
 MODULE_LICENSE("GPL");
 
-#define MICROCODE_VERSION 	"1.14a"
+#define MICROCODE_VERSION 	"2.00"
+
+struct microcode_ops *microcode_ops;
 
 /* no concurrent ->write()s are allowed on /dev/cpu/microcode */
-DEFINE_MUTEX(microcode_mutex);
+static DEFINE_MUTEX(microcode_mutex);
+EXPORT_SYMBOL_GPL(microcode_mutex);
 
-struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
-
-extern long get_next_ucode(void **mc, long offset);
-extern int microcode_sanity_check(void *mc);
-extern int get_matching_microcode(void *mc, int cpu);
-extern void collect_cpu_info(int cpu_num);
-extern int cpu_request_microcode(int cpu);
-extern void microcode_fini_cpu(int cpu);
-extern void apply_microcode(int cpu);
-extern int apply_microcode_check_cpu(int cpu);
+static struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
+EXPORT_SYMBOL_GPL(ucode_cpu_info);
 
 #ifdef CONFIG_MICROCODE_OLD_INTERFACE
-void __user *user_buffer;	/* user area microcode data buffer */
-unsigned int user_buffer_size;	/* it's size */
+static void __user *user_buffer;	/* user area microcode data buffer */
+EXPORT_SYMBOL_GPL(user_buffer);
+static unsigned int user_buffer_size;	/* it's size */
+EXPORT_SYMBOL_GPL(user_buffer_size);
 
 static int do_microcode_update (void)
 {
@@ -130,8 +127,8 @@ static int do_microcode_update (void)
 
 	old = current->cpus_allowed;
 
-	while ((cursor = get_next_ucode(&new_mc, cursor)) > 0) {
-		error = microcode_sanity_check(new_mc);
+	while ((cursor = microcode_ops->get_next_ucode(&new_mc, cursor)) > 0) {
+		error = microcode_ops->microcode_sanity_check(new_mc);
 		if (error)
 			goto out;
 		/*
@@ -145,11 +142,12 @@ static int do_microcode_update (void)
 				continue;
 			cpumask_of_cpu_ptr_next(newmask, cpu);
 			set_cpus_allowed_ptr(current, newmask);
-			error = get_maching_microcode(new_mc, cpu);
+			error = microcode_ops->get_matching_microcode(new_mc,
+								      cpu);
 			if (error < 0)
 				goto out;
 			if (error == 1)
-				apply_microcode(cpu);
+				microcode_ops->apply_microcode(cpu);
 		}
 		vfree(new_mc);
 	}
@@ -232,7 +230,8 @@ MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 #endif
 
 /* fake device for request_firmware */
-struct platform_device *microcode_pdev;
+static struct platform_device *microcode_pdev;
+EXPORT_SYMBOL_GPL(microcode_pdev);
 
 static void microcode_init_cpu(int cpu, int resume)
 {
@@ -244,9 +243,9 @@ static void microcode_init_cpu(int cpu, int resume)
 
 	set_cpus_allowed_ptr(current, newmask);
 	mutex_lock(&microcode_mutex);
-	collect_cpu_info(cpu);
+	microcode_ops->collect_cpu_info(cpu);
 	if (uci->valid && system_state == SYSTEM_RUNNING && !resume)
-		cpu_request_microcode(cpu);
+		microcode_ops->cpu_request_microcode(cpu);
 	mutex_unlock(&microcode_mutex);
 	set_cpus_allowed_ptr(current, &old);
 }
@@ -274,7 +273,7 @@ static ssize_t reload_store(struct sys_device *dev,
 
 		mutex_lock(&microcode_mutex);
 		if (uci->valid)
-			err = cpu_request_microcode(cpu);
+			err = microcode_ops->cpu_request_microcode(cpu);
 		mutex_unlock(&microcode_mutex);
 		put_online_cpus();
 		set_cpus_allowed_ptr(current, &old);
@@ -349,7 +348,7 @@ static int mc_sysdev_remove(struct sys_device *sys_dev)
 		return 0;
 
 	pr_debug("microcode: CPU%d removed\n", cpu);
-	microcode_fini_cpu(cpu);
+	microcode_ops->microcode_fini_cpu(cpu);
 	sysfs_remove_group(&sys_dev->kobj, &mc_attr_group);
 	return 0;
 }
@@ -362,7 +361,7 @@ static int mc_sysdev_resume(struct sys_device *dev)
 		return 0;
 	pr_debug("microcode: CPU%d resumed\n", cpu);
 	/* only CPU 0 will apply ucode here */
-	apply_microcode(0);
+	microcode_ops->apply_microcode(0);
 	return 0;
 }
 
@@ -382,7 +381,7 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 	switch (action) {
 	case CPU_UP_CANCELED_FROZEN:
 		/* The CPU refused to come up during a system resume */
-		microcode_fini_cpu(cpu);
+		microcode_ops->microcode_fini_cpu(cpu);
 		break;
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
@@ -390,9 +389,9 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 		break;
 	case CPU_ONLINE_FROZEN:
 		/* System-wide resume is in progress, try to apply microcode */
-		if (apply_microcode_check_cpu(cpu)) {
+		if (microcode_ops->apply_microcode_check_cpu(cpu)) {
 			/* The application of microcode failed */
-			microcode_fini_cpu(cpu);
+			microcode_ops->microcode_fini_cpu(cpu);
 			__mc_sysdev_add(sys_dev, 1);
 			break;
 		}
@@ -416,12 +415,17 @@ static struct notifier_block __refdata mc_cpu_notifier = {
 	.notifier_call = mc_cpu_callback,
 };
 
-static int __init microcode_init (void)
+static int microcode_init(void *opaque, struct module *module)
 {
+	struct microcode_ops *ops = (struct microcode_ops *)opaque;
 	int error;
 
-	printk(KERN_INFO
-		"IA-32 Microcode Update Driver: v" MICROCODE_VERSION " <tigran@aivazian.fsnet.co.uk>\n");
+	if (microcode_ops) {
+		printk(KERN_ERR "microcode: already loaded the other module\n");
+		return -EEXIST;
+	}
+
+	microcode_ops = ops;
 
 	error = microcode_dev_init();
 	if (error)
@@ -443,8 +447,15 @@ static int __init microcode_init (void)
 	}
 
 	register_hotcpu_notifier(&mc_cpu_notifier);
+
+	printk(KERN_INFO
+	       "Microcode Update Driver: v" MICROCODE_VERSION
+	       " <tigran@aivazian.fsnet.co.uk>"
+	       " <peter.oruba@amd.com>\n");
+
 	return 0;
 }
+EXPORT_SYMBOL_GPL(microcode_init);
 
 static void __exit microcode_exit (void)
 {
@@ -457,7 +468,10 @@ static void __exit microcode_exit (void)
 	put_online_cpus();
 
 	platform_device_unregister(microcode_pdev);
-}
 
-module_init(microcode_init)
-module_exit(microcode_exit)
+	microcode_ops = NULL;
+
+	printk(KERN_INFO
+	       "Microcode Update Driver: v" MICROCODE_VERSION " removed.\n");
+}
+EXPORT_SYMBOL_GPL(microcode_exit);

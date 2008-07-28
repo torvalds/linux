@@ -127,7 +127,7 @@ extern struct mutex microcode_mutex;
 
 extern struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
 
-void collect_cpu_info(int cpu_num)
+static void collect_cpu_info(int cpu_num)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu_num);
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
@@ -175,7 +175,7 @@ static inline int microcode_update_match(int cpu_num,
 	return 1;
 }
 
-int microcode_sanity_check(void *mc)
+static int microcode_sanity_check(void *mc)
 {
 	struct microcode_header_intel *mc_header = mc;
 	struct extended_sigtable *ext_header = NULL;
@@ -259,7 +259,7 @@ int microcode_sanity_check(void *mc)
  * return 1 - found update
  * return < 0 - error
  */
-int get_matching_microcode(void *mc, int cpu)
+static int get_matching_microcode(void *mc, int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	struct microcode_header_intel *mc_header = mc;
@@ -288,7 +288,8 @@ int get_matching_microcode(void *mc, int cpu)
 	return 0;
 find:
 	pr_debug("microcode: CPU%d found a matching microcode update with"
-		 " version 0x%x (current=0x%x)\n", cpu, mc_header->rev, uci->rev);
+		 " version 0x%x (current=0x%x)\n",
+		 cpu, mc_header->rev, uci->rev);
 	new_mc = vmalloc(total_size);
 	if (!new_mc) {
 		printk(KERN_ERR "microcode: error! Can not allocate memory\n");
@@ -303,7 +304,7 @@ find:
 	return 1;
 }
 
-void apply_microcode(int cpu)
+static void apply_microcode(int cpu)
 {
 	unsigned long flags;
 	unsigned int val[2];
@@ -347,7 +348,7 @@ void apply_microcode(int cpu)
 extern void __user *user_buffer;        /* user area microcode data buffer */
 extern unsigned int user_buffer_size;   /* it's size */
 
-long get_next_ucode(void **mc, long offset)
+static long get_next_ucode(void **mc, long offset)
 {
 	struct microcode_header_intel mc_header;
 	unsigned long total_size;
@@ -406,7 +407,7 @@ static long get_next_ucode_from_buffer(void **mc, const u8 *buf,
 /* fake device for request_firmware */
 extern struct platform_device *microcode_pdev;
 
-int cpu_request_microcode(int cpu)
+static int cpu_request_microcode(int cpu)
 {
 	char name[30];
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
@@ -455,7 +456,7 @@ int cpu_request_microcode(int cpu)
 	return error;
 }
 
-int apply_microcode_check_cpu(int cpu)
+static int apply_microcode_check_cpu(int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
@@ -504,13 +505,42 @@ int apply_microcode_check_cpu(int cpu)
 	return err;
 }
 
-void microcode_fini_cpu(int cpu)
+static void microcode_fini_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
 	mutex_lock(&microcode_mutex);
 	uci->valid = 0;
-	kfree(uci->mc.mc_intel);
+	vfree(uci->mc.mc_intel);
 	uci->mc.mc_intel = NULL;
 	mutex_unlock(&microcode_mutex);
 }
+
+static struct microcode_ops microcode_intel_ops = {
+	.get_next_ucode                   = get_next_ucode,
+	.get_matching_microcode           = get_matching_microcode,
+	.microcode_sanity_check           = microcode_sanity_check,
+	.apply_microcode_check_cpu        = apply_microcode_check_cpu,
+	.cpu_request_microcode            = cpu_request_microcode,
+	.collect_cpu_info                 = collect_cpu_info,
+	.apply_microcode                  = apply_microcode,
+	.microcode_fini_cpu               = microcode_fini_cpu,
+};
+
+static int __init microcode_intel_module_init(void)
+{
+	struct cpuinfo_x86 *c = &cpu_data(get_cpu());
+
+	if (c->x86_vendor == X86_VENDOR_INTEL)
+		return microcode_init(&microcode_intel_ops, THIS_MODULE);
+	else
+		return -ENODEV;
+}
+
+static void __exit microcode_intel_module_exit(void)
+{
+	microcode_exit();
+}
+
+module_init(microcode_intel_module_init)
+module_exit(microcode_intel_module_exit)
