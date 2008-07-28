@@ -274,7 +274,7 @@ int inode_permission(struct inode *inode, int mask)
 		return retval;
 
 	return security_inode_permission(inode,
-			mask & (MAY_READ|MAY_WRITE|MAY_EXEC));
+			mask & (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND));
 }
 
 /**
