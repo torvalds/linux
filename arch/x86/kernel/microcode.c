@@ -125,13 +125,7 @@ static DEFINE_SPINLOCK(microcode_update_lock);
 /* no concurrent ->write()s are allowed on /dev/cpu/microcode */
 static DEFINE_MUTEX(microcode_mutex);
 
-static struct ucode_cpu_info {
-	int valid;
-	unsigned int sig;
-	unsigned int pf;
-	unsigned int rev;
-	struct microcode *mc;
-} ucode_cpu_info[NR_CPUS];
+static struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
 
 static void collect_cpu_info(int cpu_num)
 {

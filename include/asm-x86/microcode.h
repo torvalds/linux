@@ -29,3 +29,11 @@ struct extended_sigtable {
 	unsigned int            reserved[3];
 	struct extended_signature sigs[0];
 };
+
+struct ucode_cpu_info {
+	int valid;
+	unsigned int sig;
+	unsigned int pf;
+	unsigned int rev;
+	struct microcode *mc;
+};
