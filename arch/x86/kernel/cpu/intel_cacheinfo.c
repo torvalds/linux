@@ -135,11 +135,13 @@ struct _cpuid4_info {
 	cpumask_t shared_cpu_map;	/* future?: only cpus/node is needed */
 };
 
+#ifdef CONFIG_PCI
 static struct pci_device_id k8_nb_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1103) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1203) },
 	{}
 };
+#endif
 
 unsigned short			num_cache_leaves;
 
@@ -663,6 +665,7 @@ static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf) {
 #define to_object(k)	container_of(k, struct _index_kobject, kobj)
 #define to_attr(a)	container_of(a, struct _cache_attr, attr)
 
+#ifdef CONFIG_PCI
 static struct pci_dev *get_k8_northbridge(int node)
 {
 	struct pci_dev *dev = NULL;
@@ -679,6 +682,12 @@ static struct pci_dev *get_k8_northbridge(int node)
 	}
 	return dev;
 }
+#else
+static struct pci_dev *get_k8_northbridge(int node)
+{
+	return NULL;
+}
+#endif
 
 static ssize_t show_cache_disable(struct _cpuid4_info *this_leaf, char *buf)
 {
