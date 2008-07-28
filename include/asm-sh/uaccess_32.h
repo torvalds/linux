@@ -76,7 +76,8 @@ do {							\
 		__put_user_asm(x, ptr, retval, "w");	\
 		break;					\
 	case 4:						\
-		__put_user_asm(x, ptr, retval, "l");	\
+		__put_user_asm((u32)x, ptr,		\
+			       retval, "l");		\
 		break;					\
 	case 8:						\
 		__put_user_u64(x, ptr, retval);		\
