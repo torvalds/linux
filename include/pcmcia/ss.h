@@ -199,8 +199,8 @@ struct pcmcia_socket {
 	io_window_t			io[MAX_IO_WIN];
 	window_t			win[MAX_WIN];
 	struct list_head		cis_cache;
-	u_int				fake_cis_len;
-	char				*fake_cis;
+	size_t				fake_cis_len;
+	u8				*fake_cis;
 
 	struct list_head		socket_list;
 	struct completion		socket_released;

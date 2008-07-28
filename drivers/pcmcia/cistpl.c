@@ -265,13 +265,13 @@ EXPORT_SYMBOL(pcmcia_write_cis_mem);
 ======================================================================*/
 
 static void read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
-			   u_int len, void *ptr)
+			   size_t len, void *ptr)
 {
     struct cis_cache_entry *cis;
     int ret;
 
     if (s->fake_cis) {
-	if (s->fake_cis_len > addr+len)
+	if (s->fake_cis_len >= addr+len)
 	    memcpy(ptr, s->fake_cis+addr, len);
 	else
 	    memset(ptr, 0xff, len);
@@ -380,17 +380,17 @@ int verify_cis_cache(struct pcmcia_socket *s)
     
 ======================================================================*/
 
-int pcmcia_replace_cis(struct pcmcia_socket *s, cisdump_t *cis)
+int pcmcia_replace_cis(struct pcmcia_socket *s,
+		       const u8 *data, const size_t len)
 {
-    kfree(s->fake_cis);
-    s->fake_cis = NULL;
-    if (cis->Length > CISTPL_MAX_CIS_SIZE)
+    if (len > CISTPL_MAX_CIS_SIZE)
 	return CS_BAD_SIZE;
-    s->fake_cis = kmalloc(cis->Length, GFP_KERNEL);
+    kfree(s->fake_cis);
+    s->fake_cis = kmalloc(len, GFP_KERNEL);
     if (s->fake_cis == NULL)
 	return CS_OUT_OF_RESOURCE;
-    s->fake_cis_len = cis->Length;
-    memcpy(s->fake_cis, cis->Data, cis->Length);
+    s->fake_cis_len = len;
+    memcpy(s->fake_cis, data, len);
     return CS_SUCCESS;
 }
 EXPORT_SYMBOL(pcmcia_replace_cis);

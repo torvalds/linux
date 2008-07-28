@@ -854,7 +854,6 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 	int ret = -ENOMEM;
 	int no_funcs;
 	int old_funcs;
-	cisdump_t *cis;
 	cistpl_longlink_mfc_t mfc;
 
 	if (!filename)
@@ -877,16 +876,7 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 			goto release;
 		}
 
-		cis = kzalloc(sizeof(cisdump_t), GFP_KERNEL);
-		if (!cis) {
-			ret = -ENOMEM;
-			goto release;
-		}
-
-		cis->Length = fw->size + 1;
-		memcpy(cis->Data, fw->data, fw->size);
-
-		if (!pcmcia_replace_cis(s, cis))
+		if (!pcmcia_replace_cis(s, fw->data, fw->size))
 			ret = 0;
 		else {
 			printk(KERN_ERR "pcmcia: CIS override failed\n");

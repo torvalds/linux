@@ -68,6 +68,12 @@ typedef struct region_info_t {
 #define REGION_BAR_MASK		0xe000
 #define REGION_BAR_SHIFT	13
 
+/* For ReplaceCIS */
+typedef struct cisdump_t {
+    u_int	Length;
+    cisdata_t	Data[CISTPL_MAX_CIS_SIZE];
+} cisdump_t;
+
 typedef union ds_ioctl_arg_t {
     adjust_t		adjust;
     config_info_t	config;
