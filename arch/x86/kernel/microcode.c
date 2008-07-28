@@ -93,6 +93,7 @@
 #include <asm/msr.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
+#include <asm/microcode.h>
 
 MODULE_DESCRIPTION("Intel CPU (IA-32) Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
