@@ -75,7 +75,7 @@ static void notify_packet_sent(void *callback_data, unsigned int packet_length)
 			spin_unlock_irqrestore(&network->lock, flags);
 			ppp_output_wakeup(network->ppp_channel);
 			if (ipwireless_debug)
-				printk(KERN_INFO IPWIRELESS_PCCARD_NAME
+				printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME
 				       ": ppp unblocked\n");
 		} else
 			spin_unlock_irqrestore(&network->lock, flags);
@@ -144,6 +144,8 @@ static int ipwireless_ppp_start_xmit(struct ppp_channel *ppp_channel,
 		 */
 		network->ppp_blocked = 1;
 		spin_unlock_irqrestore(&network->lock, flags);
+		if (ipwireless_debug)
+			printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME ": ppp blocked\n");
 		return 0;
 	}
 }

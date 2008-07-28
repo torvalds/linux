@@ -49,7 +49,7 @@ static void ipwireless_detach(struct pcmcia_device *link);
 /* Debug mode: more verbose, print sent/recv bytes */
 int ipwireless_debug;
 int ipwireless_loopback;
-int ipwireless_out_queue = 1;
+int ipwireless_out_queue = 10;
 
 module_param_named(debug, ipwireless_debug, int, 0);
 module_param_named(loopback, ipwireless_loopback, int, 0);
@@ -57,7 +57,7 @@ module_param_named(out_queue, ipwireless_out_queue, int, 0);
 MODULE_PARM_DESC(debug, "switch on debug messages [0]");
 MODULE_PARM_DESC(loopback,
 		"debug: enable ras_raw channel [0]");
-MODULE_PARM_DESC(out_queue, "debug: set size of outgoing queue [1]");
+MODULE_PARM_DESC(out_queue, "debug: set size of outgoing PPP queue [10]");
 
 /* Executes in process context. */
 static void signalled_reboot_work(struct work_struct *work_reboot)
