@@ -1,4 +1,4 @@
-/* Copyright 2005 Rusty Russell rusty@rustcorp.com.au IBM Corporation.
+/* Copyright 2008, 2005 Rusty Russell rusty@rustcorp.com.au IBM Corporation.
  * GPL v2 and any later version.
  */
 #include <linux/cpu.h>
@@ -13,220 +13,177 @@
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
 
-/* Since we effect priority and affinity (both of which are visible
- * to, and settable by outside processes) we do indirection via a
- * kthread. */
-
-/* Thread to stop each CPU in user context. */
+/* This controls the threads on each CPU. */
 enum stopmachine_state {
-	STOPMACHINE_WAIT,
+	/* Dummy starting state for thread. */
+	STOPMACHINE_NONE,
+	/* Awaiting everyone to be scheduled. */
 	STOPMACHINE_PREPARE,
+	/* Disable interrupts. */
 	STOPMACHINE_DISABLE_IRQ,
+	/* Run the function */
 	STOPMACHINE_RUN,
+	/* Exit */
 	STOPMACHINE_EXIT,
 };
+static enum stopmachine_state state;
 
 struct stop_machine_data {
 	int (*fn)(void *);
 	void *data;
-	struct completion done;
-	int run_all;
-} smdata;
+	int fnret;
+};
 
-static enum stopmachine_state stopmachine_state;
-static unsigned int stopmachine_num_threads;
-static atomic_t stopmachine_thread_ack;
+/* Like num_online_cpus(), but hotplug cpu uses us, so we need this. */
+static unsigned int num_threads;
+static atomic_t thread_ack;
+static struct completion finished;
+static DEFINE_MUTEX(lock);
 
-static int stopmachine(void *cpu)
+static void set_state(enum stopmachine_state newstate)
 {
-	int irqs_disabled = 0;
-	int prepared = 0;
-	int ran = 0;
-	cpumask_of_cpu_ptr(cpumask, (int)(long)cpu);
+	/* Reset ack counter. */
+	atomic_set(&thread_ack, num_threads);
+	smp_wmb();
+	state = newstate;
+}
 
-	set_cpus_allowed_ptr(current, cpumask);
+/* Last one to ack a state moves to the next state. */
+static void ack_state(void)
+{
+	if (atomic_dec_and_test(&thread_ack)) {
+		/* If we're the last one to ack the EXIT, we're finished. */
+		if (state == STOPMACHINE_EXIT)
+			complete(&finished);
+		else
+			set_state(state + 1);
+	}
+}
 
-	/* Ack: we are alive */
-	smp_mb(); /* Theoretically the ack = 0 might not be on this CPU yet. */
-	atomic_inc(&stopmachine_thread_ack);
+/* This is the actual thread which stops the CPU.  It exits by itself rather
+ * than waiting for kthread_stop(), because it's easier for hotplug CPU. */
+static int stop_cpu(struct stop_machine_data *smdata)
+{
+	enum stopmachine_state curstate = STOPMACHINE_NONE;
+	int uninitialized_var(ret);
 
 	/* Simple state machine */
-	while (stopmachine_state != STOPMACHINE_EXIT) {
-		if (stopmachine_state == STOPMACHINE_DISABLE_IRQ 
-		    && !irqs_disabled) {
-			local_irq_disable();
-			hard_irq_disable();
-			irqs_disabled = 1;
-			/* Ack: irqs disabled. */
-			smp_mb(); /* Must read state first. */
-			atomic_inc(&stopmachine_thread_ack);
-		} else if (stopmachine_state == STOPMACHINE_PREPARE
-			   && !prepared) {
-			/* Everyone is in place, hold CPU. */
-			preempt_disable();
-			prepared = 1;
-			smp_mb(); /* Must read state first. */
-			atomic_inc(&stopmachine_thread_ack);
-		} else if (stopmachine_state == STOPMACHINE_RUN && !ran) {
-			smdata.fn(smdata.data);
-			ran = 1;
-			smp_mb(); /* Must read state first. */
-			atomic_inc(&stopmachine_thread_ack);
-		}
-		/* Yield in first stage: migration threads need to
-		 * help our sisters onto their CPUs. */
-		if (!prepared && !irqs_disabled)
-			yield();
+	do {
+		/* Chill out and ensure we re-read stopmachine_state. */
 		cpu_relax();
-	}
+		if (state != curstate) {
+			curstate = state;
+			switch (curstate) {
+			case STOPMACHINE_DISABLE_IRQ:
+				local_irq_disable();
+				hard_irq_disable();
+				break;
+			case STOPMACHINE_RUN:
+				/* |= allows error detection if functions on
+				 * multiple CPUs. */
+				smdata->fnret |= smdata->fn(smdata->data);
+				break;
+			default:
+				break;
+			}
+			ack_state();
+		}
+	} while (curstate != STOPMACHINE_EXIT);
 
-	/* Ack: we are exiting. */
-	smp_mb(); /* Must read state first. */
-	atomic_inc(&stopmachine_thread_ack);
+	local_irq_enable();
+	do_exit(0);
+}
 
-	if (irqs_disabled)
-		local_irq_enable();
-	if (prepared)
-		preempt_enable();
-
+/* Callback for CPUs which aren't supposed to do anything. */
+static int chill(void *unused)
+{
 	return 0;
 }
 
-/* Change the thread state */
-static void stopmachine_set_state(enum stopmachine_state state)
+int __stop_machine_run(int (*fn)(void *), void *data, unsigned int cpu)
 {
-	atomic_set(&stopmachine_thread_ack, 0);
-	smp_wmb();
-	stopmachine_state = state;
-	while (atomic_read(&stopmachine_thread_ack) != stopmachine_num_threads)
-		cpu_relax();
-}
+	int i, err;
+	struct stop_machine_data active, idle;
+	struct task_struct **threads;
 
-static int stop_machine(void)
-{
-	int i, ret = 0;
+	active.fn = fn;
+	active.data = data;
+	active.fnret = 0;
+	idle.fn = chill;
+	idle.data = NULL;
 
-	atomic_set(&stopmachine_thread_ack, 0);
-	stopmachine_num_threads = 0;
-	stopmachine_state = STOPMACHINE_WAIT;
+	/* If they don't care which cpu fn runs on, just pick one. */
+	if (cpu == NR_CPUS)
+		cpu = any_online_cpu(cpu_online_map);
+
+	/* This could be too big for stack on large machines. */
+	threads = kcalloc(NR_CPUS, sizeof(threads[0]), GFP_KERNEL);
+	if (!threads)
+		return -ENOMEM;
+
+	/* Set up initial state. */
+	mutex_lock(&lock);
+	init_completion(&finished);
+	num_threads = num_online_cpus();
+	set_state(STOPMACHINE_PREPARE);
 
 	for_each_online_cpu(i) {
-		if (i == raw_smp_processor_id())
-			continue;
-		ret = kernel_thread(stopmachine, (void *)(long)i,CLONE_KERNEL);
-		if (ret < 0)
-			break;
-		stopmachine_num_threads++;
-	}
-
-	/* Wait for them all to come to life. */
-	while (atomic_read(&stopmachine_thread_ack) != stopmachine_num_threads) {
-		yield();
-		cpu_relax();
-	}
-
-	/* If some failed, kill them all. */
-	if (ret < 0) {
-		stopmachine_set_state(STOPMACHINE_EXIT);
-		return ret;
-	}
-
-	/* Now they are all started, make them hold the CPUs, ready. */
-	preempt_disable();
-	stopmachine_set_state(STOPMACHINE_PREPARE);
-
-	/* Make them disable irqs. */
-	local_irq_disable();
-	hard_irq_disable();
-	stopmachine_set_state(STOPMACHINE_DISABLE_IRQ);
-
-	return 0;
-}
-
-static void restart_machine(void)
-{
-	stopmachine_set_state(STOPMACHINE_EXIT);
-	local_irq_enable();
-	preempt_enable_no_resched();
-}
-
-static void run_other_cpus(void)
-{
-	stopmachine_set_state(STOPMACHINE_RUN);
-}
-
-static int do_stop(void *_smdata)
-{
-	struct stop_machine_data *smdata = _smdata;
-	int ret;
-
-	ret = stop_machine();
-	if (ret == 0) {
-		ret = smdata->fn(smdata->data);
-		if (smdata->run_all)
-			run_other_cpus();
-		restart_machine();
-	}
-
-	/* We're done: you can kthread_stop us now */
-	complete(&smdata->done);
-
-	/* Wait for kthread_stop */
-	set_current_state(TASK_INTERRUPTIBLE);
-	while (!kthread_should_stop()) {
-		schedule();
-		set_current_state(TASK_INTERRUPTIBLE);
-	}
-	__set_current_state(TASK_RUNNING);
-	return ret;
-}
-
-struct task_struct *__stop_machine_run(int (*fn)(void *), void *data,
-				       unsigned int cpu)
-{
-	static DEFINE_MUTEX(stopmachine_mutex);
-	struct stop_machine_data smdata;
-	struct task_struct *p;
-
-	mutex_lock(&stopmachine_mutex);
-
-	smdata.fn = fn;
-	smdata.data = data;
-	smdata.run_all = (cpu == ALL_CPUS) ? 1 : 0;
-	init_completion(&smdata.done);
-
-	smp_wmb(); /* make sure other cpus see smdata updates */
-
-	/* If they don't care which CPU fn runs on, bind to any online one. */
-	if (cpu == NR_CPUS || cpu == ALL_CPUS)
-		cpu = raw_smp_processor_id();
-
-	p = kthread_create(do_stop, &smdata, "kstopmachine");
-	if (!IS_ERR(p)) {
+		struct stop_machine_data *smdata;
 		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
 
-		/* One high-prio thread per cpu.  We'll do this one. */
-		sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
-		kthread_bind(p, cpu);
-		wake_up_process(p);
-		wait_for_completion(&smdata.done);
+		if (cpu == ALL_CPUS || i == cpu)
+			smdata = &active;
+		else
+			smdata = &idle;
+
+		threads[i] = kthread_create((void *)stop_cpu, smdata, "kstop%u",
+					    i);
+		if (IS_ERR(threads[i])) {
+			err = PTR_ERR(threads[i]);
+			threads[i] = NULL;
+			goto kill_threads;
+		}
+
+		/* Place it onto correct cpu. */
+		kthread_bind(threads[i], i);
+
+		/* Make it highest prio. */
+		if (sched_setscheduler_nocheck(threads[i], SCHED_FIFO, &param))
+			BUG();
 	}
-	mutex_unlock(&stopmachine_mutex);
-	return p;
+
+	/* We've created all the threads.  Wake them all: hold this CPU so one
+	 * doesn't hit this CPU until we're ready. */
+	cpu = get_cpu();
+	for_each_online_cpu(i)
+		wake_up_process(threads[i]);
+
+	/* This will release the thread on our CPU. */
+	put_cpu();
+	wait_for_completion(&finished);
+	mutex_unlock(&lock);
+
+	kfree(threads);
+
+	return active.fnret;
+
+kill_threads:
+	for_each_online_cpu(i)
+		if (threads[i])
+			kthread_stop(threads[i]);
+	mutex_unlock(&lock);
+
+	kfree(threads);
+	return err;
 }
 
 int stop_machine_run(int (*fn)(void *), void *data, unsigned int cpu)
 {
-	struct task_struct *p;
 	int ret;
 
 	/* No CPUs can come up or down during this. */
 	get_online_cpus();
-	p = __stop_machine_run(fn, data, cpu);
-	if (!IS_ERR(p))
-		ret = kthread_stop(p);
-	else
-		ret = PTR_ERR(p);
+	ret = __stop_machine_run(fn, data, cpu);
 	put_online_cpus();
 
 	return ret;

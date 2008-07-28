@@ -216,7 +216,6 @@ static int __ref take_cpu_down(void *_param)
 static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 {
 	int err, nr_calls = 0;
-	struct task_struct *p;
 	cpumask_t old_allowed, tmp;
 	void *hcpu = (void *)(long)cpu;
 	unsigned long mod = tasks_frozen ? CPU_TASKS_FROZEN : 0;
@@ -250,19 +249,15 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	cpu_clear(cpu, tmp);
 	set_cpus_allowed_ptr(current, &tmp);
 
-	p = __stop_machine_run(take_cpu_down, &tcd_param, cpu);
+	err = __stop_machine_run(take_cpu_down, &tcd_param, cpu);
 
-	if (IS_ERR(p) || cpu_online(cpu)) {
+	if (err || cpu_online(cpu)) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
 		if (raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED | mod,
 					    hcpu) == NOTIFY_BAD)
 			BUG();
 
-		if (IS_ERR(p)) {
-			err = PTR_ERR(p);
-			goto out_allowed;
-		}
-		goto out_thread;
+		goto out_allowed;
 	}
 
 	/* Wait for it to sleep (leaving idle task). */
@@ -279,8 +274,6 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 
 	check_for_tasks(cpu);
 
-out_thread:
-	err = kthread_stop(p);
 out_allowed:
 	set_cpus_allowed_ptr(current, &old_allowed);
 out_release:
