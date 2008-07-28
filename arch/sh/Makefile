@@ -91,8 +91,6 @@ LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64+4'
 LDFLAGS			+= -EB
 endif
 
-KBUILD_CFLAGS		+= -pipe $(cflags-y)
-KBUILD_AFLAGS		+= $(cflags-y)
 
 head-y			:= arch/sh/kernel/init_task.o
 head-$(CONFIG_SUPERH32)	+= arch/sh/kernel/head_32.o
@@ -160,57 +158,17 @@ drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 
 boot := arch/sh/boot
 
-ifneq ($(KBUILD_SRC),)
-incdir-prefix	:= $(srctree)/include/asm-sh/
-else
-incdir-prefix	:=
-endif
+cflags-y	+= -Iarch/sh/include/$(cpuincdir-y)
+cflags-y	+= $(foreach d, $(incdir-y), -Iarch/sh/include/mach-$(d))
 
-#	Update machine arch and proc symlinks if something which affects
-#	them changed.  We use .arch and .mach to indicate when they were
-#	updated last, otherwise make uses the target directory mtime.
-
-include/asm-sh/.cpu: $(wildcard include/config/cpu/*.h) \
-		     include/config/auto.conf FORCE
-	@echo '  SYMLINK include/asm-sh/cpu -> include/asm-sh/$(cpuincdir-y)'
-	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
-	$(Q)ln -fsn $(incdir-prefix)$(cpuincdir-y) include/asm-sh/cpu
-	@touch $@
-
-#	Most boards have their own mach directories.  For the ones that
-#	don't, just reference the parent directory so the semantics are
-#	kept roughly the same.
-#
-#	When multiple boards are compiled in at the same time, preference
-#	for the mach link is given to whichever has a directory for its
-#	headers. However, this is only a workaround until platforms that
-#	can live in the same kernel image back away from relying on the
-#	mach link.
-
-include/asm-sh/.mach: $(wildcard include/config/sh/*.h) \
-		      include/config/auto.conf FORCE
-	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
-	$(Q)rm -f include/asm-sh/mach
-	$(Q)for i in $(incdir-y); do \
-	if [ -d $(srctree)/include/asm-sh/$$i ]; then \
-		echo -n '  SYMLINK include/asm-sh/mach -> '; \
-		echo -e "include/asm-sh/$$i"; \
-		ln -fsn $(incdir-prefix)$$i \
-			include/asm-sh/mach; \
-	else \
-		if [ ! -d include/asm-sh/mach ]; then \
-			echo -n '  SYMLINK include/asm-sh/mach -> '; \
-			echo -e 'include/asm-sh'; \
-			ln -fsn $(incdir-prefix)../asm-sh include/asm-sh/mach; \
-		fi; \
-	fi; \
-	done
-	@touch $@
+KBUILD_CFLAGS		+= -pipe $(cflags-y)
+KBUILD_CPPFLAGS		+= $(cflags-y)
+KBUILD_AFLAGS		+= $(cflags-y)
 
 PHONY += maketools FORCE
 
 maketools:  include/linux/version.h FORCE
-	$(Q)$(MAKE) $(build)=arch/sh/tools include/asm-sh/machtypes.h
+	$(Q)$(MAKE) $(build)=arch/sh/tools arch/sh/include/asm/machtypes.h
 
 all: $(KBUILD_IMAGE)
 
@@ -219,8 +177,7 @@ zImage uImage uImage.srec vmlinux.srec: vmlinux
 
 compressed: zImage
 
-archprepare: include/asm-sh/.cpu include/asm-sh/.mach maketools \
-	     arch/sh/lib64/syscalltab.h
+archprepare: maketools arch/sh/lib64/syscalltab.h
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
@@ -262,6 +219,4 @@ arch/sh/lib64/syscalltab.h: arch/sh/kernel/syscalls_64.S
 	$(call filechk,gen-syscalltab)
 
 CLEAN_FILES += arch/sh/lib64/syscalltab.h \
-	       include/asm-sh/machtypes.h \
-	       include/asm-sh/cpu include/asm-sh/.cpu \
-	       include/asm-sh/mach include/asm-sh/.mach
+	       arch/sh/include/asm/machtypes.h

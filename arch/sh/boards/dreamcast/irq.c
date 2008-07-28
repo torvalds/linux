@@ -12,7 +12,7 @@
 #include <linux/irq.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/dreamcast/sysasic.h>
+#include <mach/sysasic.h>
 
 /* Dreamcast System ASIC Hardware Events -
 

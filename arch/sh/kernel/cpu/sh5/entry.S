@@ -11,7 +11,7 @@
  */
 #include <linux/errno.h>
 #include <linux/sys.h>
-#include <asm/cpu/registers.h>
+#include <cpu/registers.h>
 #include <asm/processor.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>

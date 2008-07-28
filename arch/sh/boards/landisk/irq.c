@@ -16,7 +16,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <asm/landisk/iodata_landisk.h>
+#include <mach/iodata_landisk.h>
 
 static void disable_landisk_irq(unsigned int irq)
 {

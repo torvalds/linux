@@ -11,8 +11,8 @@
 #include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/rtc.h>
-#include <asm/sh03/io.h>
-#include <asm/sh03/sh03.h>
+#include <mach/io.h>
+#include <mach/sh03.h>
 #include <asm/addrspace.h>
 
 static void __init init_sh03_IRQ(void)

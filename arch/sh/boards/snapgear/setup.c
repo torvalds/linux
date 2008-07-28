@@ -22,7 +22,7 @@
 #include <asm/snapgear.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/cpu/timer.h>
+#include <cpu/timer.h>
 
 /*
  * EraseConfig handling functions

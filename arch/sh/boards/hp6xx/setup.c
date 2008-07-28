@@ -16,7 +16,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/hp6xx.h>
-#include <asm/cpu/dac.h>
+#include <cpu/dac.h>
 
 #define	SCPCR	0xa4000116
 #define	SCPDR	0xa4000136

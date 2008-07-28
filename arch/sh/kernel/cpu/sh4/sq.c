@@ -22,7 +22,7 @@
 #include <linux/io.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
-#include <asm/cpu/sq.h>
+#include <cpu/sq.h>
 
 struct sq_mapping;
 

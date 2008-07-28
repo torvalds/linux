@@ -13,7 +13,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/signal.h>
-#include <asm/cpu/irq.h>
+#include <cpu/irq.h>
 #include <asm/page.h>
 
 /* Setup for the SMSC FDC37C935 / LAN91C100FD */

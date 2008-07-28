@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <asm/cpu/irq.h>
+#include <cpu/irq.h>
 
 /*
  * Platform Dependent Interrupt Priorities.

@@ -8,7 +8,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/cpu/mmu_context.h>
+#include <cpu/mmu_context.h>
 
 #define k0	r0
 #define k1	r1
