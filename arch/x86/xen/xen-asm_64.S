@@ -122,7 +122,7 @@ check_events:
 	push %r9
 	push %r10
 	push %r11
-	call force_evtchn_callback
+	call xen_force_evtchn_callback
 	pop %r11
 	pop %r10
 	pop %r9

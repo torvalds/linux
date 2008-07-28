@@ -31,6 +31,7 @@ void xen_vcpu_restore(void);
 
 void __init xen_build_dynamic_phys_to_machine(void);
 
+void xen_init_irq_ops(void);
 void xen_setup_timer(int cpu);
 void xen_setup_cpu_clockevents(void);
 unsigned long xen_tsc_khz(void);
