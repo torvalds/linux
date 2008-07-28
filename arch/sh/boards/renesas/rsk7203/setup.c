@@ -10,12 +10,19 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
+#include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/map.h>
+#include <linux/smc911x.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
+
+static struct smc911x_platdata smc911x_info = {
+	.flags		= SMC911X_USE_16BIT,
+	.irq_flags	= IRQF_TRIGGER_LOW,
+};
 
 static struct resource smc911x_resources[] = {
 	[0] = {
@@ -35,6 +42,9 @@ static struct platform_device smc911x_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(smc911x_resources),
 	.resource	= smc911x_resources,
+	.dev		= {
+		.platform_data = &smc911x_info,
+	},
 };
 
 static const char *probes[] = { "cmdlinepart", NULL };
