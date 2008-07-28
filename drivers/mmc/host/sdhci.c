@@ -654,7 +654,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 				 * us an invalid request.
 				 */
 				WARN_ON(1);
-				host->flags &= ~SDHCI_USE_DMA;
+				host->flags &= ~SDHCI_REQ_USE_DMA;
 			} else {
 				writel(host->adma_addr,
 					host->ioaddr + SDHCI_ADMA_ADDRESS);
@@ -673,7 +673,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 				 * us an invalid request.
 				 */
 				WARN_ON(1);
-				host->flags &= ~SDHCI_USE_DMA;
+				host->flags &= ~SDHCI_REQ_USE_DMA;
 			} else {
 				WARN_ON(sg_cnt != 1);
 				writel(sg_dma_address(data->sg),
