@@ -450,7 +450,7 @@ static irqreturn_t imx_int(int irq, void *dev_id)
 			readl(sport->port.membase + UCR1) & UCR1_TXMPTYEN)
 		imx_txint(irq, dev_id);
 
-	if (sts & USR1_RTSS)
+	if (sts & USR1_RTSD)
 		imx_rtsint(irq, dev_id);
 
 	return IRQ_HANDLED;
