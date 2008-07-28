@@ -340,7 +340,7 @@ static void add_trace_begin(void)
  * Add IBS fetch and op entries to event buffer
  */
 static void add_ibs_begin(struct oprofile_cpu_buffer *cpu_buf, int code,
-	int in_kernel, struct mm_struct *mm)
+			  struct mm_struct *mm)
 {
 	unsigned long rip;
 	int i, count;
@@ -592,12 +592,10 @@ void sync_buffer(int cpu)
 #ifdef CONFIG_OPROFILE_IBS
 			} else if (s->event == IBS_FETCH_BEGIN) {
 				state = sb_bt_start;
-				add_ibs_begin(cpu_buf,
-					IBS_FETCH_CODE, in_kernel, mm);
+				add_ibs_begin(cpu_buf, IBS_FETCH_CODE, mm);
 			} else if (s->event == IBS_OP_BEGIN) {
 				state = sb_bt_start;
-				add_ibs_begin(cpu_buf,
-					IBS_OP_CODE, in_kernel, mm);
+				add_ibs_begin(cpu_buf, IBS_OP_CODE, mm);
 #endif
 			} else {
 				struct mm_struct *oldmm = mm;
