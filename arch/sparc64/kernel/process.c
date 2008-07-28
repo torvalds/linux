@@ -319,7 +319,7 @@ static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 
 		rw = (struct reg_window *)
 			(regs->u_regs[UREG_FP] + STACK_BIAS);
-		global_reg_snapshot[this_cpu].i7 = rw->ins[6];
+		global_reg_snapshot[this_cpu].i7 = rw->ins[7];
 	} else
 		global_reg_snapshot[this_cpu].i7 = 0;
 
