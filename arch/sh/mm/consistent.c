@@ -10,6 +10,7 @@
  * for more details.
  */
 #include <linux/mm.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <asm/addrspace.h>
@@ -185,3 +186,32 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	}
 }
 EXPORT_SYMBOL(dma_cache_sync);
+
+int platform_resource_setup_memory(struct platform_device *pdev,
+				   char *name, unsigned long memsize)
+{
+	struct resource *r;
+	dma_addr_t dma_handle;
+	void *buf;
+
+	r = pdev->resource + pdev->num_resources - 1;
+	if (r->flags) {
+		pr_warning("%s: unable to find empty space for resource\n",
+			name);
+		return -EINVAL;
+	}
+
+	buf = dma_alloc_coherent(NULL, memsize, &dma_handle, GFP_KERNEL);
+	if (!buf) {
+		pr_warning("%s: unable to allocate memory\n", name);
+		return -ENOMEM;
+	}
+
+	memset(buf, 0, memsize);
+
+	r->flags = IORESOURCE_MEM;
+	r->start = dma_handle;
+	r->end = r->start + memsize - 1;
+	r->name = name;
+	return 0;
+}
