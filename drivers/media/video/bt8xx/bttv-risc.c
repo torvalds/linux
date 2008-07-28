@@ -31,6 +31,7 @@
 #include <linux/interrupt.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <media/v4l2-ioctl.h>
 
 #include "bttvp.h"
 

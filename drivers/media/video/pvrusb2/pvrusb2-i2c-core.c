@@ -979,7 +979,9 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 		printk(KERN_INFO "%s: IR disabled\n",hdw->name);
 		hdw->i2c_func[0x18] = i2c_black_hole;
 	} else if (ir_mode[hdw->unit_number] == 1) {
-		if (hdw->hdw_desc->flag_has_hauppauge_custom_ir) {
+		if (hdw->hdw_desc->ir_scheme == PVR2_IR_SCHEME_24XXX) {
+			/* This comment is present PURELY to get
+			   checkpatch.pl to STFU.  Lovely, eh? */
 			hdw->i2c_func[0x18] = i2c_24xxx_ir;
 		}
 	}

@@ -46,6 +46,7 @@
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/tuner.h>
 #include "cx18-mailbox.h"
 #include "cx18-av-core.h"

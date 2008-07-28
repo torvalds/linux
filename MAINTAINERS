@@ -3796,6 +3796,12 @@ P:	Ben Nizette
 M:	bn@niasdigital.com
 S:	Maintained
 
+SOC-CAMERA V4L2 SUBSYSTEM
+P:     Guennadi Liakhovetski
+M:     g.liakhovetski@gmx.de
+L:     video4linux-list@redhat.com
+S:     Maintained
+
 SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar
 M:	mingo@redhat.com
