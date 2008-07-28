@@ -45,11 +45,11 @@ struct mfd_cell {
 	const struct resource	*resources;
 };
 
-extern int mfd_add_devices(struct platform_device *parent,
+extern int mfd_add_devices(struct device *parent, int id,
 			   const struct mfd_cell *cells, int n_devs,
 			   struct resource *mem_base,
 			   int irq_base);
 
-extern void mfd_remove_devices(struct platform_device *parent);
+extern void mfd_remove_devices(struct device *parent);
 
 #endif

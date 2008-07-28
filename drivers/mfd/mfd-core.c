@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 
-static int mfd_add_device(struct platform_device *parent,
+static int mfd_add_device(struct device *parent, int id,
 			  const struct mfd_cell *cell,
 			  struct resource *mem_base,
 			  int irq_base)
@@ -25,11 +25,11 @@ static int mfd_add_device(struct platform_device *parent,
 	int ret = -ENOMEM;
 	int r;
 
-	pdev = platform_device_alloc(cell->name, parent->id);
+	pdev = platform_device_alloc(cell->name, id);
 	if (!pdev)
 		goto fail_alloc;
 
-	pdev->dev.parent = &parent->dev;
+	pdev->dev.parent = parent;
 
 	ret = platform_device_add_data(pdev,
 			cell->platform_data, cell->data_size);
@@ -75,7 +75,7 @@ fail_alloc:
 	return ret;
 }
 
-int mfd_add_devices(struct platform_device *parent,
+int mfd_add_devices(struct device *parent, int id,
 		    const struct mfd_cell *cells, int n_devs,
 		    struct resource *mem_base,
 		    int irq_base)
@@ -84,7 +84,7 @@ int mfd_add_devices(struct platform_device *parent,
 	int ret = 0;
 
 	for (i = 0; i < n_devs; i++) {
-		ret = mfd_add_device(parent, cells + i, mem_base, irq_base);
+		ret = mfd_add_device(parent, id, cells + i, mem_base, irq_base);
 		if (ret)
 			break;
 	}
@@ -102,9 +102,9 @@ static int mfd_remove_devices_fn(struct device *dev, void *unused)
 	return 0;
 }
 
-void mfd_remove_devices(struct platform_device *parent)
+void mfd_remove_devices(struct device *parent)
 {
-	device_for_each_child(&parent->dev, NULL, mfd_remove_devices_fn);
+	device_for_each_child(parent, NULL, mfd_remove_devices_fn);
 }
 EXPORT_SYMBOL(mfd_remove_devices);
 
