@@ -99,8 +99,7 @@ EXPORT_SYMBOL(mfd_add_devices);
 
 static int mfd_remove_devices_fn(struct device *dev, void *unused)
 {
-	platform_device_unregister(
-			container_of(dev, struct platform_device, dev));
+	platform_device_unregister(to_platform_device(dev));
 	return 0;
 }
 
