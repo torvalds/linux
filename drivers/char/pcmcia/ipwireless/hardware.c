@@ -1196,7 +1196,7 @@ static irqreturn_t ipwireless_handle_v2_v3_interrupt(int irq,
 	return IRQ_HANDLED;
 }
 
-irqreturn_t ipwireless_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t ipwireless_interrupt(int irq, void *dev_id)
 {
 	struct ipw_hardware *hw = dev_id;
 
