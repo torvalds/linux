@@ -251,7 +251,6 @@ void __init set_imx_fb_info(struct imxfb_mach_info *hard_imx_fb_info)
 {
 	memcpy(&imx_fb_info,hard_imx_fb_info,sizeof(struct imxfb_mach_info));
 }
-EXPORT_SYMBOL(set_imx_fb_info);
 
 static struct resource imxfb_resources[] = {
 	[0] = {
