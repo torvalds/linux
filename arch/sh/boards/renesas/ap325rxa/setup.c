@@ -12,14 +12,21 @@
 
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/smc911x.h>
 #include <asm/sh_mobile_lcdc.h>
 #include <asm/io.h>
 #include <asm/clock.h>
+
+static struct smc911x_platdata smc911x_info = {
+	.flags = SMC911X_USE_32BIT,
+	.irq_flags = IRQF_TRIGGER_LOW,
+};
 
 static struct resource smc9118_resources[] = {
 	[0] = {
@@ -39,6 +46,9 @@ static struct platform_device smc9118_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(smc9118_resources),
 	.resource	= smc9118_resources,
+	.dev		= {
+		.platform_data = &smc911x_info,
+	},
 };
 
 static struct mtd_partition ap325rxa_nor_flash_partitions[] = {
