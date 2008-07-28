@@ -265,10 +265,30 @@ static inline void __cpus_shift_left(cpumask_t *dstp,
 	bitmap_shift_left(dstp->bits, srcp->bits, n, nbits);
 }
 
+/*
+ * Special-case data structure for "single bit set only" constant CPU masks.
+ *
+ * We pre-generate all the 64 (or 32) possible bit positions, with enough
+ * padding to the left and the right, and return the constant pointer
+ * appropriately offset.
+ */
+extern const unsigned long
+	cpu_bit_bitmap[BITS_PER_LONG+1][BITS_TO_LONGS(NR_CPUS)];
 
-/* cpumask_of_cpu_map[] is in kernel/cpu.c */
-extern const cpumask_t *cpumask_of_cpu_map;
-#define cpumask_of_cpu(cpu)	(cpumask_of_cpu_map[cpu])
+static inline const cpumask_t *get_cpu_mask(unsigned int cpu)
+{
+	const unsigned long *p = cpu_bit_bitmap[1 + cpu % BITS_PER_LONG];
+	p -= cpu / BITS_PER_LONG;
+	return (const cpumask_t *)p;
+}
+
+/*
+ * In cases where we take the address of the cpumask immediately,
+ * gcc optimizes it out (it's a constant) and there's no huge stack
+ * variable created:
+ */
+#define cpumask_of_cpu(cpu) ({ *get_cpu_mask(cpu); })
+
 
 #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
 
