@@ -278,6 +278,15 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 	else
 		mask = SDHCI_SPACE_AVAILABLE;
 
+	/*
+	 * Some controllers (JMicron JMB38x) mess up the buffer bits
+	 * for transfers < 4 bytes. As long as it is just one block,
+	 * we can ignore the bits.
+	 */
+	if ((host->quirks & SDHCI_QUIRK_BROKEN_SMALL_PIO) &&
+		(host->data->blocks == 1))
+		mask = ~0;
+
 	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask) {
 		if (host->data->flags & MMC_DATA_READ)
 			sdhci_read_block_pio(host);
