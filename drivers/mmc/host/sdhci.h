@@ -9,6 +9,8 @@
  * your option) any later version.
  */
 
+#include <linux/scatterlist.h>
+
 /*
  * Controller registers
  */

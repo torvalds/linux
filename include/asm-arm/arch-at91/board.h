@@ -89,7 +89,7 @@ struct at91_usbh_data {
 extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
 
  /* NAND / SmartMedia */
-struct at91_nand_data {
+struct atmel_nand_data {
 	u8		enable_pin;	/* chip enable */
 	u8		det_pin;	/* card detect */
 	u8		rdy_pin;	/* ready/busy */
@@ -98,7 +98,7 @@ struct at91_nand_data {
 	u8		bus_width_16;	/* buswidth is 16 bit */
 	struct mtd_partition* (*partition_info)(int, int*);
 };
-extern void __init at91_add_device_nand(struct at91_nand_data *data);
+extern void __init at91_add_device_nand(struct atmel_nand_data *data);
 
  /* I2C*/
 extern void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_devices);

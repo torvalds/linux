@@ -360,7 +360,7 @@ config THINKPAD_ACPI_VIDEO
 	  If you are not sure, say Y here.
 
 config THINKPAD_ACPI_HOTKEY_POLL
-	bool "Suport NVRAM polling for hot keys"
+	bool "Support NVRAM polling for hot keys"
 	depends on THINKPAD_ACPI
 	default y
 	---help---

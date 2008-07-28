@@ -171,7 +171,6 @@ struct iso_context {
 struct fw_ohci {
 	struct fw_card card;
 
-	u32 version;
 	__iomem char *registers;
 	dma_addr_t self_id_bus;
 	__le32 *self_id_cpu;
@@ -180,6 +179,8 @@ struct fw_ohci {
 	int generation;
 	int request_generation;	/* for timestamping incoming requests */
 	u32 bus_seconds;
+
+	bool use_dualbuffer;
 	bool old_uninorth;
 	bool bus_reset_packet_quirk;
 
@@ -953,7 +954,7 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 		payload_bus =
 			dma_map_single(ohci->card.device, packet->payload,
 				       packet->payload_length, DMA_TO_DEVICE);
-		if (dma_mapping_error(payload_bus)) {
+		if (dma_mapping_error(ohci->card.device, payload_bus)) {
 			packet->ack = RCODE_SEND_ERROR;
 			return -1;
 		}
@@ -1885,7 +1886,7 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 	} else {
 		mask = &ohci->ir_context_mask;
 		list = ohci->ir_context_list;
-		if (ohci->version >= OHCI_VERSION_1_1)
+		if (ohci->use_dualbuffer)
 			callback = handle_ir_dualbuffer_packet;
 		else
 			callback = handle_ir_packet_per_buffer;
@@ -1949,7 +1950,7 @@ static int ohci_start_iso(struct fw_iso_context *base,
 	} else {
 		index = ctx - ohci->ir_context_list;
 		control = IR_CONTEXT_ISOCH_HEADER;
-		if (ohci->version >= OHCI_VERSION_1_1)
+		if (ohci->use_dualbuffer)
 			control |= IR_CONTEXT_DUAL_BUFFER_MODE;
 		match = (tags << 28) | (sync << 8) | ctx->base.channel;
 		if (cycle >= 0) {
@@ -2279,7 +2280,7 @@ ohci_queue_iso(struct fw_iso_context *base,
 	spin_lock_irqsave(&ctx->context.ohci->lock, flags);
 	if (base->type == FW_ISO_CONTEXT_TRANSMIT)
 		retval = ohci_queue_iso_transmit(base, packet, buffer, payload);
-	else if (ctx->context.ohci->version >= OHCI_VERSION_1_1)
+	else if (ctx->context.ohci->use_dualbuffer)
 		retval = ohci_queue_iso_receive_dualbuffer(base, packet,
 							 buffer, payload);
 	else
@@ -2341,7 +2342,7 @@ static int __devinit
 pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;
-	u32 bus_options, max_receive, link_speed;
+	u32 bus_options, max_receive, link_speed, version;
 	u64 guid;
 	int err;
 	size_t size;
@@ -2366,12 +2367,6 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	pci_write_config_dword(dev, OHCI1394_PCI_HCI_Control, 0);
 	pci_set_drvdata(dev, ohci);
 
-#if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
-	ohci->old_uninorth = dev->vendor == PCI_VENDOR_ID_APPLE &&
-			     dev->device == PCI_DEVICE_ID_APPLE_UNI_N_FW;
-#endif
-	ohci->bus_reset_packet_quirk = dev->vendor == PCI_VENDOR_ID_TI;
-
 	spin_lock_init(&ohci->lock);
 
 	tasklet_init(&ohci->bus_reset_tasklet,
@@ -2389,6 +2384,23 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		err = -ENXIO;
 		goto fail_iomem;
 	}
+
+	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
+	ohci->use_dualbuffer = version >= OHCI_VERSION_1_1;
+
+/* x86-32 currently doesn't use highmem for dma_alloc_coherent */
+#if !defined(CONFIG_X86_32)
+	/* dual-buffer mode is broken with descriptor addresses above 2G */
+	if (dev->vendor == PCI_VENDOR_ID_TI &&
+	    dev->device == PCI_DEVICE_ID_TI_TSB43AB22)
+		ohci->use_dualbuffer = false;
+#endif
+
+#if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
+	ohci->old_uninorth = dev->vendor == PCI_VENDOR_ID_APPLE &&
+			     dev->device == PCI_DEVICE_ID_APPLE_UNI_N_FW;
+#endif
+	ohci->bus_reset_packet_quirk = dev->vendor == PCI_VENDOR_ID_TI;
 
 	ar_context_init(&ohci->ar_request_ctx, ohci,
 			OHCI1394_AsReqRcvContextControlSet);
@@ -2441,9 +2453,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	if (err < 0)
 		goto fail_self_id;
 
-	ohci->version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
-		  dev->dev.bus_id, ohci->version >> 16, ohci->version & 0xff);
+		  dev->dev.bus_id, version >> 16, version & 0xff);
 	return 0;
 
  fail_self_id:

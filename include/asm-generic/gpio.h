@@ -13,7 +13,7 @@
  *
  * While the GPIO programming interface defines valid GPIO numbers
  * to be in the range 0..MAX_INT, this library restricts them to the
- * smaller range 0..ARCH_NR_GPIOS.
+ * smaller range 0..ARCH_NR_GPIOS-1.
  */
 
 #ifndef ARCH_NR_GPIOS

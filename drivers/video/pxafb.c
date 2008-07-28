@@ -1336,7 +1336,7 @@ static int __devinit pxafb_map_video_memory(struct pxafb_info *fbi)
 		fbi->dma_buff_phys = fbi->map_dma;
 		fbi->palette_cpu = (u16 *) fbi->dma_buff->palette;
 
-	        pr_debug("pxafb: palette_mem_size = 0x%08lx\n", fbi->palette_size*sizeof(u16));
+	        pr_debug("pxafb: palette_mem_size = 0x%08x\n", fbi->palette_size*sizeof(u16));
 
 #ifdef CONFIG_FB_PXA_SMARTPANEL
 		fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;

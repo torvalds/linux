@@ -6,7 +6,7 @@ This document contains an explanation of the struct taskstats fields.
 There are three different groups of fields in the struct taskstats:
 
 1) Common and basic accounting fields
-    If CONFIG_TASKSTATS is set, the taskstats inteface is enabled and
+    If CONFIG_TASKSTATS is set, the taskstats interface is enabled and
     the common fields and basic accounting fields are collected for
     delivery at do_exit() of a task.
 2) Delay accounting fields

@@ -282,11 +282,16 @@ union proc_op {
 		struct task_struct *task);
 };
 
+struct ctl_table_header;
+struct ctl_table;
+
 struct proc_inode {
 	struct pid *pid;
 	int fd;
 	union proc_op op;
 	struct proc_dir_entry *pde;
+	struct ctl_table_header *sysctl;
+	struct ctl_table *sysctl_entry;
 	struct inode vfs_inode;
 };
 

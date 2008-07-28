@@ -635,6 +635,13 @@ static void __init test_wakealarm(struct rtc_device *rtc, suspend_state_t state)
 	}
 	if (status < 0)
 		printk(err_suspend, status);
+
+	/* Some platforms can't detect that the alarm triggered the
+	 * wakeup, or (accordingly) disable it after it afterwards.
+	 * It's supposed to give oneshot behavior; cope.
+	 */
+	alm.enabled = false;
+	rtc_set_alarm(rtc, &alm);
 }
 
 static int __init has_wakealarm(struct device *dev, void *name_ptr)

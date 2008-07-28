@@ -227,7 +227,7 @@ static void __unix_remove_socket(struct sock *sk)
 
 static void __unix_insert_socket(struct hlist_head *list, struct sock *sk)
 {
-	BUG_TRAP(sk_unhashed(sk));
+	WARN_ON(!sk_unhashed(sk));
 	sk_add_node(sk, list);
 }
 
@@ -350,9 +350,9 @@ static void unix_sock_destructor(struct sock *sk)
 
 	skb_queue_purge(&sk->sk_receive_queue);
 
-	BUG_TRAP(!atomic_read(&sk->sk_wmem_alloc));
-	BUG_TRAP(sk_unhashed(sk));
-	BUG_TRAP(!sk->sk_socket);
+	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(!sk_unhashed(sk));
+	WARN_ON(sk->sk_socket);
 	if (!sock_flag(sk, SOCK_DEAD)) {
 		printk("Attempt to release alive unix socket: %p\n", sk);
 		return;
@@ -603,7 +603,7 @@ static struct sock * unix_create1(struct net *net, struct socket *sock)
 	u->dentry = NULL;
 	u->mnt	  = NULL;
 	spin_lock_init(&u->lock);
-	atomic_set(&u->inflight, 0);
+	atomic_long_set(&u->inflight, 0);
 	INIT_LIST_HEAD(&u->link);
 	mutex_init(&u->readlock); /* single task reading lock */
 	init_waitqueue_head(&u->peer_wait);

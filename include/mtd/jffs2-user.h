@@ -1,6 +1,4 @@
 /*
- * $Id: jffs2-user.h,v 1.1 2004/05/05 11:57:54 dwmw2 Exp $
- *
  * JFFS2 definitions for use in user space only
  */
 

@@ -314,7 +314,7 @@ config ARCH_IOP32X
 	select PLAT_IOP
 	select PCI
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Intel's 80219 and IOP32X (XScale) family of
 	  processors.
@@ -325,7 +325,7 @@ config ARCH_IOP33X
 	select PLAT_IOP
 	select PCI
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
 
@@ -418,7 +418,7 @@ config ARCH_MXC
 	select GENERIC_CLOCKEVENTS
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 

@@ -150,7 +150,7 @@ lookup_protocol:
 	answer_flags = answer->flags;
 	rcu_read_unlock();
 
-	BUG_TRAP(answer_prot->slab != NULL);
+	WARN_ON(answer_prot->slab == NULL);
 
 	err = -ENOBUFS;
 	sk = sk_alloc(net, PF_INET6, GFP_KERNEL, answer_prot);
@@ -934,6 +934,11 @@ static int __init inet6_init(void)
 	if (err)
 		goto out_unregister_sock;
 
+#ifdef CONFIG_SYSCTL
+	err = ipv6_static_sysctl_register();
+	if (err)
+		goto static_sysctl_fail;
+#endif
 	/*
 	 *	ipngwg API draft makes clear that the correct semantics
 	 *	for TCP and UDP is to consider one TCP and UDP instance
@@ -1058,6 +1063,10 @@ ipmr_fail:
 icmp_fail:
 	unregister_pernet_subsys(&inet6_net_ops);
 register_pernet_fail:
+#ifdef CONFIG_SYSCTL
+	ipv6_static_sysctl_unregister();
+static_sysctl_fail:
+#endif
 	cleanup_ipv6_mibs();
 out_unregister_sock:
 	sock_unregister(PF_INET6);
@@ -1113,6 +1122,9 @@ static void __exit inet6_exit(void)
 	rawv6_exit();
 
 	unregister_pernet_subsys(&inet6_net_ops);
+#ifdef CONFIG_SYSCTL
+	ipv6_static_sysctl_unregister();
+#endif
 	cleanup_ipv6_mibs();
 	proto_unregister(&rawv6_prot);
 	proto_unregister(&udplitev6_prot);

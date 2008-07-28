@@ -956,7 +956,7 @@ static inline void unregister_fuseblk(void)
 }
 #endif
 
-static void fuse_inode_init_once(struct kmem_cache *cachep, void *foo)
+static void fuse_inode_init_once(void *foo)
 {
 	struct inode * inode = foo;
 

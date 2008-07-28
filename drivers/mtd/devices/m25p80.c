@@ -33,6 +33,7 @@
 /* Flash opcodes. */
 #define	OPCODE_WREN		0x06	/* Write enable */
 #define	OPCODE_RDSR		0x05	/* Read status register */
+#define	OPCODE_WRSR		0x01	/* Write status register 1 byte */
 #define	OPCODE_NORM_READ	0x03	/* Read data bytes (low frequency) */
 #define	OPCODE_FAST_READ	0x0b	/* Read data bytes (high frequency) */
 #define	OPCODE_PP		0x02	/* Page program (up to 256 bytes) */
@@ -112,6 +113,17 @@ static int read_sr(struct m25p *flash)
 	return val;
 }
 
+/*
+ * Write status register 1 byte
+ * Returns negative if error occurred.
+ */
+static int write_sr(struct m25p *flash, u8 val)
+{
+	flash->command[0] = OPCODE_WRSR;
+	flash->command[1] = val;
+
+	return spi_write(flash->spi, flash->command, 2);
+}
 
 /*
  * Set write enable latch with Write Enable command.
@@ -588,6 +600,16 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	flash->spi = spi;
 	mutex_init(&flash->lock);
 	dev_set_drvdata(&spi->dev, flash);
+
+	/*
+	 * Atmel serial flash tend to power up
+	 * with the software protection bits set
+	 */
+
+	if (info->jedec_id >> 16 == 0x1f) {
+		write_enable(flash);
+		write_sr(flash, 0);
+	}
 
 	if (data && data->name)
 		flash->mtd.name = data->name;

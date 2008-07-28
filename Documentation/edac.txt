@@ -327,7 +327,7 @@ Sdram memory scrubbing rate:
 	'sdram_scrub_rate'
 
 	Read/Write attribute file that controls memory scrubbing. The scrubbing
-	rate is set by writing a minimum bandwith in bytes/sec to the attribute
+	rate is set by writing a minimum bandwidth in bytes/sec to the attribute
 	file. The rate will be translated to an internal value that gives at
 	least the specified rate.
 

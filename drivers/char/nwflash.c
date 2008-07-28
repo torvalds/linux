@@ -125,15 +125,15 @@ static ssize_t flash_read(struct file *file, char __user *buf, size_t size,
 	ssize_t ret;
 
 	if (flashdebug)
-		printk(KERN_DEBUG "flash_read: flash_read: offset=0x%lX, "
-		       "buffer=%p, count=0x%X.\n", p, buf, count);
+		printk(KERN_DEBUG "flash_read: flash_read: offset=0x%llx, "
+		       "buffer=%p, count=0x%zx.\n", *ppos, buf, size);
 	/*
 	 * We now lock against reads and writes. --rmk
 	 */
 	if (mutex_lock_interruptible(&nwflash_mutex))
 		return -ERESTARTSYS;
 
-	ret = simple_read_from_buffer(buf, size, ppos, FLASH_BASE, gbFlashSize);
+	ret = simple_read_from_buffer(buf, size, ppos, (void *)FLASH_BASE, gbFlashSize);
 	mutex_unlock(&nwflash_mutex);
 
 	return ret;

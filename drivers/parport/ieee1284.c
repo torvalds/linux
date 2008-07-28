@@ -199,8 +199,6 @@ int parport_wait_peripheral(struct parport *port,
 	/* 40ms of slow polling. */
 	deadline = jiffies + msecs_to_jiffies(40);
 	while (time_before (jiffies, deadline)) {
-		int ret;
-
 		if (signal_pending (current))
 			return -EINTR;
 

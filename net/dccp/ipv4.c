@@ -283,7 +283,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 		 * ICMPs are not backlogged, hence we cannot get an established
 		 * socket here.
 		 */
-		BUG_TRAP(!req->sk);
+		WARN_ON(req->sk);
 
 		if (seq != dccp_rsk(req)->dreq_iss) {
 			NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);

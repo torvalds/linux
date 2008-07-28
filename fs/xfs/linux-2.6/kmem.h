@@ -79,7 +79,7 @@ kmem_zone_init(int size, char *zone_name)
 
 static inline kmem_zone_t *
 kmem_zone_init_flags(int size, char *zone_name, unsigned long flags,
-		     void (*construct)(kmem_zone_t *, void *))
+		     void (*construct)(void *))
 {
 	return kmem_cache_create(zone_name, size, 0, flags, construct);
 }
