@@ -244,7 +244,7 @@ static inline void cfq_schedule_dispatch(struct cfq_data *cfqd)
 {
 	if (cfqd->busy_queues) {
 		cfq_log(cfqd, "schedule dispatch");
-		kblockd_schedule_work(&cfqd->unplug_work);
+		kblockd_schedule_work(cfqd->queue, &cfqd->unplug_work);
 	}
 }
 

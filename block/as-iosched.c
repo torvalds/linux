@@ -462,7 +462,7 @@ static void as_antic_stop(struct as_data *ad)
 			del_timer(&ad->antic_timer);
 		ad->antic_status = ANTIC_FINISHED;
 		/* see as_work_handler */
-		kblockd_schedule_work(&ad->antic_work);
+		kblockd_schedule_work(ad->q, &ad->antic_work);
 	}
 }
 
@@ -483,7 +483,7 @@ static void as_antic_timeout(unsigned long data)
 		aic = ad->io_context->aic;
 
 		ad->antic_status = ANTIC_FINISHED;
-		kblockd_schedule_work(&ad->antic_work);
+		kblockd_schedule_work(q, &ad->antic_work);
 
 		if (aic->ttime_samples == 0) {
 			/* process anticipated on has exited or timed out*/
@@ -844,7 +844,7 @@ static void as_completed_request(struct request_queue *q, struct request *rq)
 	if (ad->changed_batch && ad->nr_dispatched == 1) {
 		ad->current_batch_expires = jiffies +
 					ad->batch_expire[ad->batch_data_dir];
-		kblockd_schedule_work(&ad->antic_work);
+		kblockd_schedule_work(q, &ad->antic_work);
 		ad->changed_batch = 0;
 
 		if (ad->batch_data_dir == REQ_SYNC)

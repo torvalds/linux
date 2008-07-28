@@ -305,7 +305,7 @@ void blk_unplug_timeout(unsigned long data)
 	blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_TIMER, NULL,
 				q->rq.count[READ] + q->rq.count[WRITE]);
 
-	kblockd_schedule_work(&q->unplug_work);
+	kblockd_schedule_work(q, &q->unplug_work);
 }
 
 void blk_unplug(struct request_queue *q)
@@ -346,7 +346,7 @@ void blk_start_queue(struct request_queue *q)
 		queue_flag_clear(QUEUE_FLAG_REENTER, q);
 	} else {
 		blk_plug_device(q);
-		kblockd_schedule_work(&q->unplug_work);
+		kblockd_schedule_work(q, &q->unplug_work);
 	}
 }
 EXPORT_SYMBOL(blk_start_queue);
@@ -411,7 +411,7 @@ void __blk_run_queue(struct request_queue *q)
 			queue_flag_clear(QUEUE_FLAG_REENTER, q);
 		} else {
 			blk_plug_device(q);
-			kblockd_schedule_work(&q->unplug_work);
+			kblockd_schedule_work(q, &q->unplug_work);
 		}
 	}
 }
@@ -1959,7 +1959,7 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		rq->rq_disk = bio->bi_bdev->bd_disk;
 }
 
-int kblockd_schedule_work(struct work_struct *work)
+int kblockd_schedule_work(struct request_queue *q, struct work_struct *work)
 {
 	return queue_work(kblockd_workqueue, work);
 }
