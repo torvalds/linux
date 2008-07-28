@@ -788,10 +788,6 @@ void __init setup_arch(char **cmdline_p)
 
 	initmem_init(0, max_pfn);
 
-#ifdef CONFIG_X86_64
-	dma32_reserve_bootmem();
-#endif
-
 #ifdef CONFIG_ACPI_SLEEP
 	/*
 	 * Reserve low memory region for sleep support.
@@ -805,6 +801,15 @@ void __init setup_arch(char **cmdline_p)
 	find_smp_config();
 #endif
 	reserve_crashkernel();
+
+#ifdef CONFIG_X86_64
+	/*
+	 * dma32_reserve_bootmem() allocates bootmem which may conflict
+	 * with the crashkernel command line, so do that after
+	 * reserve_crashkernel()
+	 */
+	dma32_reserve_bootmem();
+#endif
 
 	reserve_ibft_region();
 
