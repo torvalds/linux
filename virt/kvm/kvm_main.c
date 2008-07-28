@@ -76,6 +76,14 @@ static inline int valid_vcpu(int n)
 	return likely(n >= 0 && n < KVM_MAX_VCPUS);
 }
 
+static inline int is_mmio_pfn(pfn_t pfn)
+{
+	if (pfn_valid(pfn))
+		return PageReserved(pfn_to_page(pfn));
+
+	return true;
+}
+
 /*
  * Switches to specified vcpu, until a matching vcpu_put()
  */
@@ -740,7 +748,7 @@ pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 		}
 
 		pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-		BUG_ON(pfn_valid(pfn));
+		BUG_ON(!is_mmio_pfn(pfn));
 	} else
 		pfn = page_to_pfn(page[0]);
 
@@ -754,10 +762,10 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 	pfn_t pfn;
 
 	pfn = gfn_to_pfn(kvm, gfn);
-	if (pfn_valid(pfn))
+	if (!is_mmio_pfn(pfn))
 		return pfn_to_page(pfn);
 
-	WARN_ON(!pfn_valid(pfn));
+	WARN_ON(is_mmio_pfn(pfn));
 
 	get_page(bad_page);
 	return bad_page;
@@ -773,7 +781,7 @@ EXPORT_SYMBOL_GPL(kvm_release_page_clean);
 
 void kvm_release_pfn_clean(pfn_t pfn)
 {
-	if (pfn_valid(pfn))
+	if (!is_mmio_pfn(pfn))
 		put_page(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_release_pfn_clean);
@@ -799,7 +807,7 @@ EXPORT_SYMBOL_GPL(kvm_set_page_dirty);
 
 void kvm_set_pfn_dirty(pfn_t pfn)
 {
-	if (pfn_valid(pfn)) {
+	if (!is_mmio_pfn(pfn)) {
 		struct page *page = pfn_to_page(pfn);
 		if (!PageReserved(page))
 			SetPageDirty(page);
@@ -809,14 +817,14 @@ EXPORT_SYMBOL_GPL(kvm_set_pfn_dirty);
 
 void kvm_set_pfn_accessed(pfn_t pfn)
 {
-	if (pfn_valid(pfn))
+	if (!is_mmio_pfn(pfn))
 		mark_page_accessed(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_set_pfn_accessed);
 
 void kvm_get_pfn(pfn_t pfn)
 {
-	if (pfn_valid(pfn))
+	if (!is_mmio_pfn(pfn))
 		get_page(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_get_pfn);
