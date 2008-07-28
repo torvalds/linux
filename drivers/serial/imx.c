@@ -127,8 +127,13 @@
 #define  UCR3_RXDSEN	 (1<<6)  /* Receive status interrupt enable */
 #define  UCR3_AIRINTEN   (1<<5)  /* Async IR wake interrupt enable */
 #define  UCR3_AWAKEN	 (1<<4)  /* Async wake interrupt enable */
-#define  UCR3_REF25 	 (1<<3)  /* Ref freq 25 MHz */
-#define  UCR3_REF30 	 (1<<2)  /* Ref Freq 30 MHz */
+#ifdef CONFIG_ARCH_IMX
+#define  UCR3_REF25 	 (1<<3)  /* Ref freq 25 MHz, only on mx1 */
+#define  UCR3_REF30 	 (1<<2)  /* Ref Freq 30 MHz, only on mx1 */
+#endif
+#if defined CONFIG_ARCH_MX2 || defined CONFIG_ARCH_MX3
+#define  UCR3_RXDMUXSEL	 (1<<2)  /* RXD Muxed Input Select, on mx2/mx3 */
+#endif
 #define  UCR3_INVT  	 (1<<1)  /* Inverted Infrared transmission */
 #define  UCR3_BPEN  	 (1<<0)  /* Preset registers enable */
 #define  UCR4_CTSTL_32   (32<<10) /* CTS trigger level (32 chars) */
@@ -597,6 +602,12 @@ static int imx_startup(struct uart_port *port)
 	temp = readl(sport->port.membase + UCR2);
 	temp |= (UCR2_RXEN | UCR2_TXEN);
 	writel(temp, sport->port.membase + UCR2);
+
+#if defined CONFIG_ARCH_MX2 || defined CONFIG_ARCH_MX3
+	temp = readl(sport->port.membase + UCR3);
+	temp |= UCR3_RXDMUXSEL;
+	writel(temp, sport->port.membase + UCR3);
+#endif
 
 	/*
 	 * Enable modem status interrupts
