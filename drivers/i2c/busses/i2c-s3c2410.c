@@ -752,8 +752,11 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 static int s3c24xx_i2c_probe(struct platform_device *pdev)
 {
 	struct s3c24xx_i2c *i2c = &s3c24xx_i2c;
+	struct s3c2410_platform_i2c *pdata;
 	struct resource *res;
 	int ret;
+
+	pdata = s3c24xx_i2c_get_platformdata(&pdev->dev);
 
 	/* find the clock and enable it */
 
@@ -832,7 +835,15 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "irq resource %p (%lu)\n", res,
 		(unsigned long)res->start);
 
-	ret = i2c_add_adapter(&i2c->adap);
+	/* Note, previous versions of the driver used i2c_add_adapter()
+	 * to add the bus at any number. We now pass the bus number via
+	 * the platform data, so if unset it will now default to always
+	 * being bus 0.
+	 */
+
+	i2c->adap.nr = pdata->bus_num;
+
+	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
 		goto err_irq;

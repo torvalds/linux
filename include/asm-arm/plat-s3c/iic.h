@@ -21,6 +21,7 @@
 */
 
 struct s3c2410_platform_i2c {
+	int		bus_num;	/* bus number to use */
 	unsigned int	flags;
 	unsigned int	slave_addr;	/* slave address for controller */
 	unsigned long	bus_freq;	/* standard bus frequency */
