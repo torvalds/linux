@@ -1123,6 +1123,12 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable)
 }
 
 /**
+ * pci_target_state - find an appropriate low power state for a given PCI dev
+ * @dev: PCI device
+ *
+ * Use underlying platform code to find a supported low power state for @dev.
+ * If the platform can't manage @dev, return the deepest state from which it
+ * can generate wake events, based on any available PME info.
  */
 pci_power_t pci_target_state(struct pci_dev *dev)
 {
