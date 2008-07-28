@@ -30,6 +30,7 @@
 #define PORT_PYCR 0xa405014a
 #define PORT_PZCR 0xa405014c
 #define PORT_PADR 0xa4050120
+#define PORT_PHDR 0xa405012e
 #define PORT_PWDR 0xa4050166
 
 #define PORT_HIZCRA 0xa4050158
@@ -50,5 +51,10 @@
 #define PORT_HIZCRC 0xa405015c
 
 #define BSC_CS6ABCR 0xfec1001c
+
+#include <asm/sh_mobile_lcdc.h>
+
+int migor_lcd_qvga_setup(void *board_data, void *sys_ops_handle,
+			 struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
 
 #endif /* __ASM_SH_MIGOR_H */

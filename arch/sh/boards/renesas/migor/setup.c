@@ -19,6 +19,7 @@
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
+#include <asm/sh_mobile_lcdc.h>
 #include <asm/migor.h>
 
 /* Address     IRQ  Size  Bus  Description
@@ -199,9 +200,80 @@ static struct platform_device migor_nand_flash_device = {
 	}
 };
 
+static struct sh_mobile_lcdc_info sh_mobile_lcdc_info = {
+#ifdef CONFIG_SH_MIGOR_RTA_WVGA
+	.clock_source = LCDC_CLK_BUS,
+	.ch[0] = {
+		.chan = LCDC_CHAN_MAINLCD,
+		.bpp = 16,
+		.interface_type = RGB16,
+		.clock_divider = 2,
+		.lcd_cfg = {
+			.name = "LB070WV1",
+			.xres = 800,
+			.yres = 480,
+			.left_margin = 64,
+			.right_margin = 16,
+			.hsync_len = 120,
+			.upper_margin = 1,
+			.lower_margin = 17,
+			.vsync_len = 2,
+			.sync = 0,
+		},
+	}
+#endif
+#ifdef CONFIG_SH_MIGOR_QVGA
+	.clock_source = LCDC_CLK_PERIPHERAL,
+	.ch[0] = {
+		.chan = LCDC_CHAN_MAINLCD,
+		.bpp = 16,
+		.interface_type = SYS16A,
+		.clock_divider = 10,
+		.lcd_cfg = {
+			.name = "PH240320T",
+			.xres = 320,
+			.yres = 240,
+			.left_margin = 0,
+			.right_margin = 16,
+			.hsync_len = 8,
+			.upper_margin = 1,
+			.lower_margin = 17,
+			.vsync_len = 2,
+			.sync = FB_SYNC_HOR_HIGH_ACT,
+		},
+		.board_cfg = {
+			.setup_sys = migor_lcd_qvga_setup,
+		},
+		.sys_bus_cfg = {
+			.ldmt2r = 0x06000a09,
+			.ldmt3r = 0x180e3418,
+		},
+	}
+#endif
+};
+
+static struct resource migor_lcdc_resources[] = {
+	[0] = {
+		.name	= "LCDC",
+		.start	= 0xfe940000, /* P4-only space */
+		.end	= 0xfe941fff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device migor_lcdc_device = {
+	.name		= "sh_mobile_lcdc_fb",
+	.num_resources	= ARRAY_SIZE(migor_lcdc_resources),
+	.resource	= migor_lcdc_resources,
+	.dev	= {
+		.platform_data	= &sh_mobile_lcdc_info,
+	},
+};
+
 static struct platform_device *migor_devices[] __initdata = {
 	&smc91x_eth_device,
 	&sh_keysc_device,
+	&migor_lcdc_device,
 	&migor_nor_flash_device,
 	&migor_nand_flash_device,
 };
@@ -219,6 +291,7 @@ static struct i2c_board_info __initdata migor_i2c_devices[] = {
 static int __init migor_devices_setup(void)
 {
 	clk_always_enable("mstp214"); /* KEYSC */
+	clk_always_enable("mstp200"); /* LCDC */
 
 	i2c_register_board_info(0, migor_i2c_devices,
 				ARRAY_SIZE(migor_i2c_devices));
@@ -248,6 +321,29 @@ static void __init migor_setup(char **cmdline_p)
 	ctrl_outw(ctrl_inw(PORT_PZCR) & ~0xc, PORT_PZCR);
 	ctrl_outw((ctrl_inw(PORT_PSELA) | 0x8000), PORT_PSELA);
 	ctrl_outw((ctrl_inw(PORT_HIZCRC) & ~0x4000), PORT_HIZCRC);
+
+#ifdef CONFIG_SH_MIGOR_RTA_WVGA
+	/* LCDC - WVGA - Enable RGB Interface signals */
+	ctrl_outw(ctrl_inw(PORT_PACR) & ~0x0003, PORT_PACR);
+	ctrl_outw(0x0000, PORT_PHCR);
+	ctrl_outw(0x0000, PORT_PLCR);
+	ctrl_outw(0x0000, PORT_PMCR);
+	ctrl_outw(ctrl_inw(PORT_PRCR) & ~0x000f, PORT_PRCR);
+	ctrl_outw((ctrl_inw(PORT_PSELD) & ~0x000d) | 0x0400, PORT_PSELD);
+	ctrl_outw(ctrl_inw(PORT_MSELCRB) & ~0x0100, PORT_MSELCRB);
+	ctrl_outw(ctrl_inw(PORT_HIZCRA) & ~0x01e0, PORT_HIZCRA);
+#endif
+#ifdef CONFIG_SH_MIGOR_QVGA
+	/* LCDC - QVGA - Enable SYS Interface signals */
+	ctrl_outw(ctrl_inw(PORT_PACR) & ~0x0003, PORT_PACR);
+	ctrl_outw((ctrl_inw(PORT_PHCR) & ~0xcfff) | 0x0010, PORT_PHCR);
+	ctrl_outw(0x0000, PORT_PLCR);
+	ctrl_outw(0x0000, PORT_PMCR);
+	ctrl_outw(ctrl_inw(PORT_PRCR) & ~0x030f, PORT_PRCR);
+	ctrl_outw((ctrl_inw(PORT_PSELD) & ~0x0001) | 0x0420, PORT_PSELD);
+	ctrl_outw(ctrl_inw(PORT_MSELCRB) | 0x0100, PORT_MSELCRB);
+	ctrl_outw(ctrl_inw(PORT_HIZCRA) & ~0x01e0, PORT_HIZCRA);
+#endif
 }
 
 static struct sh_machine_vector mv_migor __initmv = {
