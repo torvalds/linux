@@ -568,7 +568,7 @@ static struct ipw_rx_packet *pool_allocate(struct ipw_hardware *hw,
 			list_del(&packet->queue);
 		} else {
 			const int min_capacity =
-				ipwireless_ppp_mru(hw->network + 2);
+				ipwireless_ppp_mru(hw->network) + 2;
 			int new_capacity;
 
 			spin_unlock_irqrestore(&hw->lock, flags);
