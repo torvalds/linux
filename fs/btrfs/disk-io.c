@@ -716,6 +716,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->node = NULL;
 	root->inode = NULL;
 	root->commit_root = NULL;
+	root->ref_tree = NULL;
 	root->sectorsize = sectorsize;
 	root->nodesize = nodesize;
 	root->leafsize = leafsize;
@@ -1165,12 +1166,19 @@ static int transaction_kthread(void *arg)
 		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
 		mutex_lock(&root->fs_info->transaction_kthread_mutex);
 
+		printk("btrfs: total reference cache size %Lu\n",
+			root->fs_info->total_ref_cache_size);
+
 		mutex_lock(&root->fs_info->trans_mutex);
 		cur = root->fs_info->running_transaction;
 		if (!cur) {
 			mutex_unlock(&root->fs_info->trans_mutex);
 			goto sleep;
 		}
+
+		printk("btrfs: running reference cache size %Lu\n",
+			root->fs_info->running_ref_cache_size);
+
 		now = get_seconds();
 		if (now < cur->start_time || now - cur->start_time < 30) {
 			mutex_unlock(&root->fs_info->trans_mutex);
@@ -1233,6 +1241,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->hash_lock);
 	spin_lock_init(&fs_info->delalloc_lock);
 	spin_lock_init(&fs_info->new_trans_lock);
+	spin_lock_init(&fs_info->ref_cache_lock);
 
 	init_completion(&fs_info->kobj_unregister);
 	fs_info->tree_root = tree_root;
@@ -1699,6 +1708,11 @@ int close_ctree(struct btrfs_root *root)
 		printk("btrfs: at unmount delalloc count %Lu\n",
 		       fs_info->delalloc_bytes);
 	}
+	if (fs_info->total_ref_cache_size) {
+		printk("btrfs: at umount reference cache size %Lu\n",
+			fs_info->total_ref_cache_size);
+	}
+	
 	if (fs_info->extent_root->node)
 		free_extent_buffer(fs_info->extent_root->node);
 

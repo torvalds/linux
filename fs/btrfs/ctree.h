@@ -592,6 +592,10 @@ struct btrfs_fs_info {
 	u64 last_alloc;
 	u64 last_data_alloc;
 
+	spinlock_t ref_cache_lock;
+	u64 total_ref_cache_size;
+	u64 running_ref_cache_size;
+
 	u64 avail_data_alloc_bits;
 	u64 avail_metadata_alloc_bits;
 	u64 avail_system_alloc_bits;
@@ -613,6 +617,8 @@ struct btrfs_root {
 	spinlock_t node_lock;
 
 	struct extent_buffer *commit_root;
+	struct btrfs_leaf_ref_tree *ref_tree;
+
 	struct btrfs_root_item root_item;
 	struct btrfs_key root_key;
 	struct btrfs_fs_info *fs_info;
@@ -1430,7 +1436,7 @@ int btrfs_reserve_extent(struct btrfs_trans_handle *trans,
 				  u64 search_end, struct btrfs_key *ins,
 				  u64 data);
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		  struct extent_buffer *buf);
+		  struct extent_buffer *buf, int cache_ref);
 int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, u64 bytenr, u64 num_bytes,
 		      u64 root_objectid, u64 ref_generation,

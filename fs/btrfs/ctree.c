@@ -165,7 +165,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	btrfs_clear_header_flag(cow, BTRFS_HEADER_FLAG_WRITTEN);
 
 	WARN_ON(btrfs_header_generation(buf) > trans->transid);
-	ret = btrfs_inc_ref(trans, new_root, buf);
+	ret = btrfs_inc_ref(trans, new_root, buf, 0);
 	kfree(new_root);
 
 	if (ret)
@@ -232,7 +232,7 @@ int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	WARN_ON(btrfs_header_generation(buf) > trans->transid);
 	if (btrfs_header_generation(buf) != trans->transid) {
 		different_trans = 1;
-		ret = btrfs_inc_ref(trans, root, buf);
+		ret = btrfs_inc_ref(trans, root, buf, 1);
 		if (ret)
 			return ret;
 	} else {
