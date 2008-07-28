@@ -237,8 +237,10 @@ static unsigned long xen_store_tr(void)
 }
 
 /*
- * If 'v' is a vmalloc mapping, then find the linear mapping of the
- * page (if any) and also set its protections to match:
+ * Set the page permissions for a particular virtual address.  If the
+ * address is a vmalloc mapping (or other non-linear mapping), then
+ * find the linear mapping of the page and also set its protections to
+ * match.
  */
 static void set_aliased_prot(void *v, pgprot_t prot)
 {
@@ -387,8 +389,7 @@ static void xen_load_gs_index(unsigned int idx)
 static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 				const void *ptr)
 {
-	unsigned long lp = (unsigned long)&dt[entrynum];
-	xmaddr_t mach_lp = arbitrary_virt_to_machine(lp);
+	xmaddr_t mach_lp = arbitrary_virt_to_machine(&dt[entrynum]);
 	u64 entry = *(u64 *)ptr;
 
 	preempt_disable();
