@@ -102,17 +102,17 @@ MODULE_LICENSE("GPL");
 #define MICROCODE_VERSION 	"1.14a"
 
 #define DEFAULT_UCODE_DATASIZE 	(2000) 	  /* 2000 bytes */
-#define MC_HEADER_SIZE		(sizeof (microcode_header_t))  	  /* 48 bytes */
+#define MC_HEADER_SIZE		(sizeof (struct microcode_header))  	  /* 48 bytes */
 #define DEFAULT_UCODE_TOTALSIZE (DEFAULT_UCODE_DATASIZE + MC_HEADER_SIZE) /* 2048 bytes */
 #define EXT_HEADER_SIZE		(sizeof (struct extended_sigtable)) /* 20 bytes */
 #define EXT_SIGNATURE_SIZE	(sizeof (struct extended_signature)) /* 12 bytes */
 #define DWSIZE			(sizeof (u32))
 #define get_totalsize(mc) \
-	(((microcode_t *)mc)->hdr.totalsize ? \
-	 ((microcode_t *)mc)->hdr.totalsize : DEFAULT_UCODE_TOTALSIZE)
+	(((struct microcode *)mc)->hdr.totalsize ? \
+	 ((struct microcode *)mc)->hdr.totalsize : DEFAULT_UCODE_TOTALSIZE)
 #define get_datasize(mc) \
-	(((microcode_t *)mc)->hdr.datasize ? \
-	 ((microcode_t *)mc)->hdr.datasize : DEFAULT_UCODE_DATASIZE)
+	(((struct microcode *)mc)->hdr.datasize ? \
+	 ((struct microcode *)mc)->hdr.datasize : DEFAULT_UCODE_DATASIZE)
 
 #define sigmatch(s1, s2, p1, p2) \
 	(((s1) == (s2)) && (((p1) & (p2)) || (((p1) == 0) && ((p2) == 0))))
@@ -130,7 +130,7 @@ static struct ucode_cpu_info {
 	unsigned int sig;
 	unsigned int pf;
 	unsigned int rev;
-	microcode_t *mc;
+	struct microcode *mc;
 } ucode_cpu_info[NR_CPUS];
 
 static void collect_cpu_info(int cpu_num)
@@ -171,7 +171,7 @@ static void collect_cpu_info(int cpu_num)
 }
 
 static inline int microcode_update_match(int cpu_num,
-	microcode_header_t *mc_header, int sig, int pf)
+	struct microcode_header *mc_header, int sig, int pf)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 
@@ -183,7 +183,7 @@ static inline int microcode_update_match(int cpu_num,
 
 static int microcode_sanity_check(void *mc)
 {
-	microcode_header_t *mc_header = mc;
+	struct microcode_header *mc_header = mc;
 	struct extended_sigtable *ext_header = NULL;
 	struct extended_signature *ext_sig;
 	unsigned long total_size, data_size, ext_table_size;
@@ -268,7 +268,7 @@ static int microcode_sanity_check(void *mc)
 static int get_maching_microcode(void *mc, int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	microcode_header_t *mc_header = mc;
+	struct microcode_header *mc_header = mc;
 	struct extended_sigtable *ext_header;
 	unsigned long total_size = get_totalsize(mc_header);
 	int ext_sigcount, i;
@@ -355,7 +355,7 @@ static unsigned int user_buffer_size;	/* it's size */
 
 static long get_next_ucode(void **mc, long offset)
 {
-	microcode_header_t mc_header;
+	struct microcode_header mc_header;
 	unsigned long total_size;
 
 	/* No more data */
@@ -497,13 +497,13 @@ MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 static long get_next_ucode_from_buffer(void **mc, const u8 *buf,
 	unsigned long size, long offset)
 {
-	microcode_header_t *mc_header;
+	struct microcode_header *mc_header;
 	unsigned long total_size;
 
 	/* No more data */
 	if (offset >= size)
 		return 0;
-	mc_header = (microcode_header_t *)(buf + offset);
+	mc_header = (struct microcode_header *)(buf + offset);
 	total_size = get_totalsize(mc_header);
 
 	if (offset + total_size > size) {

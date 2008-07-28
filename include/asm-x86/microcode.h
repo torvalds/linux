@@ -16,9 +16,6 @@ struct microcode {
 	unsigned int            bits[0];
 };
 
-typedef struct microcode          microcode_t;
-typedef struct microcode_header   microcode_header_t;
-
 /* microcode format is extended from prescott processors */
 struct extended_signature {
 	unsigned int            sig;
