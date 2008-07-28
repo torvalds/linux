@@ -248,8 +248,9 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	cpus_setall(tmp);
 	cpu_clear(cpu, tmp);
 	set_cpus_allowed_ptr(current, &tmp);
+	tmp = cpumask_of_cpu(cpu);
 
-	err = __stop_machine_run(take_cpu_down, &tcd_param, cpu);
+	err = __stop_machine(take_cpu_down, &tcd_param, &tmp);
 	if (err) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
 		if (raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED | mod,

@@ -100,7 +100,7 @@ static int chill(void *unused)
 	return 0;
 }
 
-int __stop_machine_run(int (*fn)(void *), void *data, unsigned int cpu)
+int __stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)
 {
 	int i, err;
 	struct stop_machine_data active, idle;
@@ -111,10 +111,6 @@ int __stop_machine_run(int (*fn)(void *), void *data, unsigned int cpu)
 	active.fnret = 0;
 	idle.fn = chill;
 	idle.data = NULL;
-
-	/* If they don't care which cpu fn runs on, just pick one. */
-	if (cpu == NR_CPUS)
-		cpu = any_online_cpu(cpu_online_map);
 
 	/* This could be too big for stack on large machines. */
 	threads = kcalloc(NR_CPUS, sizeof(threads[0]), GFP_KERNEL);
@@ -128,13 +124,16 @@ int __stop_machine_run(int (*fn)(void *), void *data, unsigned int cpu)
 	set_state(STOPMACHINE_PREPARE);
 
 	for_each_online_cpu(i) {
-		struct stop_machine_data *smdata;
+		struct stop_machine_data *smdata = &idle;
 		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
 
-		if (cpu == ALL_CPUS || i == cpu)
-			smdata = &active;
-		else
-			smdata = &idle;
+		if (!cpus) {
+			if (i == first_cpu(cpu_online_map))
+				smdata = &active;
+		} else {
+			if (cpu_isset(i, *cpus))
+				smdata = &active;
+		}
 
 		threads[i] = kthread_create((void *)stop_cpu, smdata, "kstop%u",
 					    i);
@@ -154,7 +153,7 @@ int __stop_machine_run(int (*fn)(void *), void *data, unsigned int cpu)
 
 	/* We've created all the threads.  Wake them all: hold this CPU so one
 	 * doesn't hit this CPU until we're ready. */
-	cpu = get_cpu();
+	get_cpu();
 	for_each_online_cpu(i)
 		wake_up_process(threads[i]);
 
@@ -177,15 +176,15 @@ kill_threads:
 	return err;
 }
 
-int stop_machine_run(int (*fn)(void *), void *data, unsigned int cpu)
+int stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)
 {
 	int ret;
 
 	/* No CPUs can come up or down during this. */
 	get_online_cpus();
-	ret = __stop_machine_run(fn, data, cpu);
+	ret = __stop_machine(fn, data, cpus);
 	put_online_cpus();
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(stop_machine_run);
+EXPORT_SYMBOL_GPL(stop_machine);
