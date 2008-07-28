@@ -311,14 +311,13 @@ static int config_ipwireless(struct ipw_dev *ipw)
 			(unsigned int) link->irq.AssignedIRQ);
 	if (ipw->attr_memory && ipw->common_memory)
 		printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-				": attr memory 0x%08lx-0x%08lx, "
-				"common memory 0x%08lx-0x%08lx\n",
-				request_attr_memory.Base,
-				request_attr_memory.Base
-				+ request_attr_memory.Size - 1,
-				request_common_memory.Base,
-				request_common_memory.Base
-				+ request_common_memory.Size - 1);
+			": attr memory 0x%08lx-0x%08lx, common memory 0x%08lx-0x%08lx\n",
+			request_attr_memory.Base,
+			request_attr_memory.Base
+			+ request_attr_memory.Size - 1,
+			request_common_memory.Base,
+			request_common_memory.Base
+			+ request_common_memory.Size - 1);
 
 	ipw->network = ipwireless_network_create(ipw->hardware);
 	if (!ipw->network)

@@ -79,8 +79,7 @@ static void report_timing(void)
 		timing_stats.last_report_time = jiffies;
 		if (!first)
 			printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-			       ": %u us elapsed - read %lu bytes in %u us, "
-			       "wrote %lu bytes in %u us\n",
+			       ": %u us elapsed - read %lu bytes in %u us, wrote %lu bytes in %u us\n",
 			       jiffies_to_usecs(since),
 			       timing_stats.read_bytes,
 			       jiffies_to_usecs(timing_stats.read_time),
@@ -846,8 +845,7 @@ static void do_receive_packet(struct ipw_hardware *hw)
 		len = inw(hw->base_port + IODRR);
 		if (len > hw->ll_mtu) {
 			printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-			       ": received a packet of %u bytes - "
-			       "longer than the MTU!\n", len);
+			       ": received a packet of %u bytes - longer than the MTU!\n", len);
 			outw(DCR_RXDONE | DCR_RXRESET, hw->base_port + IODCR);
 			return;
 		}
@@ -863,8 +861,7 @@ static void do_receive_packet(struct ipw_hardware *hw)
 		len = inw(hw->base_port);
 		if (len > hw->ll_mtu) {
 			printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-			       ": received a packet of %u bytes - "
-			       "longer than the MTU!\n", len);
+			       ": received a packet of %u bytes - longer than the MTU!\n", len);
 			writew(MEMRX_PCINTACKK,
 				&hw->memory_info_regs->memreg_pc_interrupt_ack);
 			return;
@@ -1180,8 +1177,7 @@ static irqreturn_t ipwireless_handle_v2_v3_interrupt(int irq,
 					": spurious interrupt - new_tx mode\n");
 			else {
 				printk(KERN_WARNING IPWIRELESS_PCCARD_NAME
-					": no valid memreg_tx value - "
-					"switching to the old memreg_tx\n");
+					": no valid memreg_tx value - switching to the old memreg_tx\n");
 				hw->memreg_tx =
 					&hw->memory_info_regs->memreg_tx_old;
 				try_mem_tx_old = 1;
@@ -1487,8 +1483,7 @@ static void handle_setup_get_version_rsp(struct ipw_hardware *hw,
 	if (vers_no == TL_SETUP_VERSION)
 		__handle_setup_get_version_rsp(hw);
 	else
-		printk(KERN_ERR
-				IPWIRELESS_PCCARD_NAME
+		printk(KERN_ERR IPWIRELESS_PCCARD_NAME
 				": invalid hardware version no %u\n",
 				(unsigned int) vers_no);
 }
