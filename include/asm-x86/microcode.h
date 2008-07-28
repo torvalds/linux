@@ -1,3 +1,16 @@
+struct microcode_ops {
+	long (*get_next_ucode)(void **mc, long offset);
+	long (*microcode_get_next_ucode)(void **mc, long offset);
+	int (*get_matching_microcode)(void *mc, int cpu);
+	int (*apply_microcode_check_cpu)(int cpu);
+	int (*microcode_sanity_check)(void *mc);
+	int (*cpu_request_microcode)(int cpu);
+	void (*collect_cpu_info)(int cpu_num);
+	void (*apply_microcode)(int cpu);
+	void (*microcode_fini_cpu)(int cpu);
+	void (*clear_patch)(void *data);
+};
+
 struct microcode_header_intel {
 	unsigned int            hdrver;
 	unsigned int            rev;
