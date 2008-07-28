@@ -32,7 +32,7 @@ static int mfd_add_device(struct platform_device *parent,
 	pdev->dev.parent = &parent->dev;
 
 	ret = platform_device_add_data(pdev,
-			cell, sizeof(struct mfd_cell));
+			cell->platform_data, cell->data_size);
 	if (ret)
 		goto fail_device;
 

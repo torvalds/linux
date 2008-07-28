@@ -466,6 +466,10 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 		tc6393xb_attach_irq(dev);
 
 	tc6393xb_cells[TC6393XB_CELL_NAND].driver_data = tcpd->nand_data;
+	tc6393xb_cells[TC6393XB_CELL_NAND].platform_data =
+		&tc6393xb_cells[TC6393XB_CELL_NAND];
+	tc6393xb_cells[TC6393XB_CELL_NAND].data_size =
+		sizeof(tc6393xb_cells[TC6393XB_CELL_NAND]);
 
 	retval = mfd_add_devices(dev,
 			tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),
