@@ -186,10 +186,10 @@ static void __init voiceblue_init(void)
 	omap_request_gpio(13);
 	omap_request_gpio(14);
 	omap_request_gpio(15);
-	set_irq_type(OMAP_GPIO_IRQ(12), IRQT_RISING);
-	set_irq_type(OMAP_GPIO_IRQ(13), IRQT_RISING);
-	set_irq_type(OMAP_GPIO_IRQ(14), IRQT_RISING);
-	set_irq_type(OMAP_GPIO_IRQ(15), IRQT_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(12), IRQ_TYPE_EDGE_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(13), IRQ_TYPE_EDGE_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(14), IRQ_TYPE_EDGE_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(15), IRQ_TYPE_EDGE_RISING);
 
 	platform_add_devices(voiceblue_devices, ARRAY_SIZE(voiceblue_devices));
 	omap_board_config = voiceblue_config;

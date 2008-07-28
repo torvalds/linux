@@ -646,7 +646,7 @@ static int sossi_init(struct omapfb_device *fbdev)
 	sossi_write_reg(SOSSI_INIT1_REG, l);
 
 	if ((r = request_irq(INT_1610_SoSSI_MATCH, sossi_match_irq,
-			     IRQT_FALLING,
+			     IRQ_TYPE_EDGE_FALLING,
 	     "sossi_match", sossi.fbdev->dev)) < 0) {
 		dev_err(sossi.fbdev->dev, "can't get SoSSI match IRQ\n");
 		goto err;

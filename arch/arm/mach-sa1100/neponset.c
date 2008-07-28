@@ -151,7 +151,7 @@ static int __devinit neponset_probe(struct platform_device *dev)
 	/*
 	 * Install handler for GPIO25.
 	 */
-	set_irq_type(IRQ_GPIO25, IRQT_RISING);
+	set_irq_type(IRQ_GPIO25, IRQ_TYPE_EDGE_RISING);
 	set_irq_chained_handler(IRQ_GPIO25, neponset_irq_handler);
 
 	/*

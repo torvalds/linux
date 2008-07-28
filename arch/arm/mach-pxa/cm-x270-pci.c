@@ -71,7 +71,7 @@ void __cmx270_pci_init_irq(int irq_gpio)
 
 	cmx270_it8152_irq_gpio = irq_gpio;
 
-	set_irq_type(gpio_to_irq(irq_gpio), IRQT_RISING);
+	set_irq_type(gpio_to_irq(irq_gpio), IRQ_TYPE_EDGE_RISING);
 
 	set_irq_chained_handler(gpio_to_irq(irq_gpio), cmx270_it8152_irq_demux);
 }

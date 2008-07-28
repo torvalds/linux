@@ -2403,7 +2403,7 @@ static int proc_base_fill_cache(struct file *filp, void *dirent,
 #ifdef CONFIG_TASK_IO_ACCOUNTING
 static int do_io_accounting(struct task_struct *task, char *buffer, int whole)
 {
-	struct proc_io_accounting acct = task->ioac;
+	struct task_io_accounting acct = task->ioac;
 	unsigned long flags;
 
 	if (whole && lock_task_sighand(task, &flags)) {
@@ -2423,10 +2423,10 @@ static int do_io_accounting(struct task_struct *task, char *buffer, int whole)
 			"read_bytes: %llu\n"
 			"write_bytes: %llu\n"
 			"cancelled_write_bytes: %llu\n",
-			acct.chr.rchar, acct.chr.wchar,
-			acct.chr.syscr, acct.chr.syscw,
-			acct.blk.read_bytes, acct.blk.write_bytes,
-			acct.blk.cancelled_write_bytes);
+			acct.rchar, acct.wchar,
+			acct.syscr, acct.syscw,
+			acct.read_bytes, acct.write_bytes,
+			acct.cancelled_write_bytes);
 }
 
 static int proc_tid_io_accounting(struct task_struct *task, char *buffer)

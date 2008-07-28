@@ -505,7 +505,7 @@ struct signal_struct {
 	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
 	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
 	unsigned long inblock, oublock, cinblock, coublock;
-	struct proc_io_accounting ioac;
+	struct task_io_accounting ioac;
 
 	/*
 	 * Cumulative ns of scheduled CPU time for dead threads in the
@@ -1253,7 +1253,7 @@ struct task_struct {
 
 	unsigned long ptrace_message;
 	siginfo_t *last_siginfo; /* For ptrace use.  */
-	struct proc_io_accounting ioac;
+	struct task_io_accounting ioac;
 #if defined(CONFIG_TASK_XACCT)
 	u64 acct_rss_mem1;	/* accumulated rss usage */
 	u64 acct_vm_mem1;	/* accumulated virtual memory usage */
@@ -2183,22 +2183,22 @@ extern long sched_group_rt_period(struct task_group *tg);
 #ifdef CONFIG_TASK_XACCT
 static inline void add_rchar(struct task_struct *tsk, ssize_t amt)
 {
-	tsk->ioac.chr.rchar += amt;
+	tsk->ioac.rchar += amt;
 }
 
 static inline void add_wchar(struct task_struct *tsk, ssize_t amt)
 {
-	tsk->ioac.chr.wchar += amt;
+	tsk->ioac.wchar += amt;
 }
 
 static inline void inc_syscr(struct task_struct *tsk)
 {
-	tsk->ioac.chr.syscr++;
+	tsk->ioac.syscr++;
 }
 
 static inline void inc_syscw(struct task_struct *tsk)
 {
-	tsk->ioac.chr.syscw++;
+	tsk->ioac.syscw++;
 }
 #else
 static inline void add_rchar(struct task_struct *tsk, ssize_t amt)
