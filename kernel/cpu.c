@@ -250,8 +250,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	set_cpus_allowed_ptr(current, &tmp);
 
 	err = __stop_machine_run(take_cpu_down, &tcd_param, cpu);
-
-	if (err || cpu_online(cpu)) {
+	if (err) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
 		if (raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED | mod,
 					    hcpu) == NOTIFY_BAD)
@@ -259,6 +258,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 
 		goto out_allowed;
 	}
+	BUG_ON(cpu_online(cpu));
 
 	/* Wait for it to sleep (leaving idle task). */
 	while (!idle_cpu(cpu))
