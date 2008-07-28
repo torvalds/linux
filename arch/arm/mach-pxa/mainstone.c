@@ -26,6 +26,7 @@
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/pwm_backlight.h>
+#include <linux/smc91x.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -110,9 +111,9 @@ static unsigned long mainstone_pin_config[] = {
 	GPIO45_AC97_SYSCLK,
 
 	/* Keypad */
-	GPIO93_KP_DKIN_0	| WAKEUP_ON_LEVEL_HIGH,
-	GPIO94_KP_DKIN_1	| WAKEUP_ON_LEVEL_HIGH,
-	GPIO95_KP_DKIN_2	| WAKEUP_ON_LEVEL_HIGH,
+	GPIO93_KP_DKIN_0,
+	GPIO94_KP_DKIN_1,
+	GPIO95_KP_DKIN_2,
 	GPIO100_KP_MKIN_0	| WAKEUP_ON_LEVEL_HIGH,
 	GPIO101_KP_MKIN_1	| WAKEUP_ON_LEVEL_HIGH,
 	GPIO102_KP_MKIN_2	| WAKEUP_ON_LEVEL_HIGH,
@@ -190,7 +191,7 @@ static void __init mainstone_init_irq(void)
 	MST_INTSETCLR = 0;
 
 	set_irq_chained_handler(IRQ_GPIO(0), mainstone_irq_handler);
-	set_irq_type(IRQ_GPIO(0), IRQT_FALLING);
+	set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
 }
 
 #ifdef CONFIG_PM
@@ -240,11 +241,19 @@ static struct resource smc91x_resources[] = {
 	}
 };
 
+static struct smc91x_platdata mainstone_smc91x_info = {
+	.flags	= SMC91X_USE_8BIT | SMC91X_USE_16BIT | SMC91X_USE_32BIT |
+		  SMC91X_NOWAIT | SMC91X_USE_DMA,
+};
+
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
+	.dev		= {
+		.platform_data = &mainstone_smc91x_info,
+	},
 };
 
 static int mst_audio_startup(struct snd_pcm_substream *substream, void *priv)
@@ -455,6 +464,7 @@ static void mainstone_irda_transceiver_mode(struct device *dev, int mode)
 	} else if (mode & IR_FIRMODE) {
 		MST_MSCWR1 |= MST_MSCWR1_IRDA_FIR;
 	}
+	pxa2xx_transceiver_mode(dev, mode);
 	if (mode & IR_OFF) {
 		MST_MSCWR1 = (MST_MSCWR1 & ~MST_MSCWR1_IRDA_MASK) | MST_MSCWR1_IRDA_OFF;
 	} else {
@@ -513,7 +523,7 @@ static struct pxaohci_platform_data mainstone_ohci_platform_data = {
 	.init		= mainstone_ohci_init,
 };
 
-#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULES)
+#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
 static unsigned int mainstone_matrix_keys[] = {
 	KEY(0, 0, KEY_A), KEY(1, 0, KEY_B), KEY(2, 0, KEY_C),
 	KEY(3, 0, KEY_D), KEY(4, 0, KEY_E), KEY(5, 0, KEY_F),

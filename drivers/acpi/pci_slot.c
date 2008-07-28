@@ -6,8 +6,8 @@
  *  Thanks to Kenji Kaneshige <kaneshige.kenji@jp.fujitsu.com> for code
  *  review and fixes.
  *
- *  Copyright (C) 2007 Alex Chiang <achiang@hp.com>
- *  Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
+ *  Copyright (C) 2007-2008 Hewlett-Packard Development Company, L.P.
+ *  	Alex Chiang <achiang@hp.com>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms and conditions of the GNU General Public License,
@@ -158,6 +158,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	if (IS_ERR(pci_slot)) {
 		err("pci_create_slot returned %ld\n", PTR_ERR(pci_slot));
 		kfree(slot);
+		return AE_OK;
 	}
 
 	slot->root_handle = parent_context->root_handle;

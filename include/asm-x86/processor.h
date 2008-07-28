@@ -134,7 +134,7 @@ extern __u32			cleared_cpu_caps[NCAPINTS];
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
 #define cpu_data(cpu)		per_cpu(cpu_info, cpu)
-#define current_cpu_data	cpu_data(smp_processor_id())
+#define current_cpu_data	__get_cpu_var(cpu_info)
 #else
 #define cpu_data(cpu)		boot_cpu_data
 #define current_cpu_data	boot_cpu_data
@@ -721,8 +721,6 @@ static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
 }
 
 extern void mwait_idle_with_hints(unsigned long eax, unsigned long ecx);
-
-extern int			force_mwait;
 
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
 

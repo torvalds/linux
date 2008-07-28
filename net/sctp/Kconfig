@@ -47,11 +47,11 @@ config SCTP_DBG_MSG
 
 config SCTP_DBG_OBJCNT
 	bool "SCTP: Debug object counts"
+	depends on PROC_FS
 	help
 	  If you say Y, this will enable debugging support for counting the 
 	  type of objects that are currently allocated.  This is useful for 
-	  identifying memory leaks.   If the /proc filesystem is enabled this 
-	  debug information can be viewed by 
+	  identifying memory leaks. This debug information can be viewed by
 	  'cat /proc/net/sctp/sctp_dbg_objcnt'
 
 	  If unsure, say N

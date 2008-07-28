@@ -2455,7 +2455,7 @@ static int init_cdev(int minor, char *name, const struct file_operations *fops,
 		goto err_cdev;
 	}
 
-	device = device_create(ipath_class, NULL, dev, name);
+	device = device_create_drvdata(ipath_class, NULL, dev, NULL, name);
 
 	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);

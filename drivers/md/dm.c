@@ -37,8 +37,8 @@ static DEFINE_SPINLOCK(_minor_lock);
 struct dm_io {
 	struct mapped_device *md;
 	int error;
-	struct bio *bio;
 	atomic_t io_count;
+	struct bio *bio;
 	unsigned long start_time;
 };
 
@@ -829,6 +829,49 @@ static int __split_bio(struct mapped_device *md, struct bio *bio)
  * CRUD END
  *---------------------------------------------------------------*/
 
+static int dm_merge_bvec(struct request_queue *q,
+			 struct bvec_merge_data *bvm,
+			 struct bio_vec *biovec)
+{
+	struct mapped_device *md = q->queuedata;
+	struct dm_table *map = dm_get_table(md);
+	struct dm_target *ti;
+	sector_t max_sectors;
+	int max_size;
+
+	if (unlikely(!map))
+		return 0;
+
+	ti = dm_table_find_target(map, bvm->bi_sector);
+
+	/*
+	 * Find maximum amount of I/O that won't need splitting
+	 */
+	max_sectors = min(max_io_len(md, bvm->bi_sector, ti),
+			  (sector_t) BIO_MAX_SECTORS);
+	max_size = (max_sectors << SECTOR_SHIFT) - bvm->bi_size;
+	if (max_size < 0)
+		max_size = 0;
+
+	/*
+	 * merge_bvec_fn() returns number of bytes
+	 * it can accept at this offset
+	 * max is precomputed maximal io size
+	 */
+	if (max_size && ti->type->merge)
+		max_size = ti->type->merge(ti, bvm, biovec, max_size);
+
+	/*
+	 * Always allow an entire first page
+	 */
+	if (max_size <= biovec->bv_len && !(bvm->bi_size >> SECTOR_SHIFT))
+		max_size = biovec->bv_len;
+
+	dm_table_put(map);
+
+	return max_size;
+}
+
 /*
  * The request function that just remaps the bio built up by
  * dm_merge_bvec.
@@ -1032,6 +1075,7 @@ static struct mapped_device *alloc_dev(int minor)
 	blk_queue_make_request(md->queue, dm_request);
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	md->queue->unplug_fn = dm_unplug_all;
+	blk_queue_merge_bvec(md->queue, dm_merge_bvec);
 
 	md->io_pool = mempool_create_slab_pool(MIN_IOS, _io_cache);
 	if (!md->io_pool)

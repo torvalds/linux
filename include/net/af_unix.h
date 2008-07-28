@@ -51,7 +51,7 @@ struct unix_sock {
         struct sock		*peer;
         struct sock		*other;
 	struct list_head	link;
-        atomic_t                inflight;
+        atomic_long_t           inflight;
         spinlock_t		lock;
 	unsigned int		gc_candidate : 1;
         wait_queue_head_t       peer_wait;

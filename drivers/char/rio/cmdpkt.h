@@ -32,12 +32,6 @@
 #ifndef __rio_cmdpkt_h__
 #define __rio_cmdpkt_h__
 
-#ifdef SCCS_LABELS
-#ifndef lint
-static char *_cmdpkt_h_sccs_ = "@(#)cmdpkt.h	1.2";
-#endif
-#endif
-
 /*
 ** overlays for the data area of a packet. Used in both directions
 ** (to build a packet to send, and to interpret a packet that arrives)

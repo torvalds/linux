@@ -71,6 +71,7 @@
 
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include "videocodec.h"
 
 #include <asm/byteorder.h>
@@ -94,7 +95,6 @@
 				V4L2_CAP_VIDEO_OVERLAY \
 			      )
 
-#include <asm/byteorder.h>
 
 #if defined(CONFIG_VIDEO_V4L1_COMPAT)
 #define ZFMT(pal, fcc, cs) \
@@ -1213,8 +1213,8 @@ zoran_open (struct inode *inode,
 
 	/* find the device */
 	for (i = 0; i < zoran_num; i++) {
-		if (zoran[i].video_dev->minor == minor) {
-			zr = &zoran[i];
+		if (zoran[i]->video_dev->minor == minor) {
+			zr = zoran[i];
 			break;
 		}
 	}
@@ -2795,7 +2795,7 @@ zoran_do_ioctl (struct inode *inode,
 	{
 		struct v4l2_format *fmt = arg;
 		int i, res = 0;
-		__u32 printformat;
+		__le32 printformat;
 
 		dprintk(3, KERN_DEBUG "%s: VIDIOC_S_FMT - type=%d, ",
 			ZR_DEVNAME(zr), fmt->type);
@@ -3040,7 +3040,7 @@ zoran_do_ioctl (struct inode *inode,
 	{
 		int i, res = 0;
 		struct v4l2_framebuffer *fb = arg;
-		__u32 printformat = __cpu_to_le32(fb->fmt.pixelformat);
+		__le32 printformat = __cpu_to_le32(fb->fmt.pixelformat);
 
 		dprintk(3,
 			KERN_DEBUG
@@ -4644,8 +4644,6 @@ static const struct file_operations zoran_fops = {
 
 struct video_device zoran_template __devinitdata = {
 	.name = ZORAN_NAME,
-	.type = ZORAN_VID_TYPE,
-	.type2 = ZORAN_V4L2_VID_FLAGS,
 	.fops = &zoran_fops,
 	.release = &zoran_vdev_release,
 	.minor = -1

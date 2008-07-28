@@ -7,6 +7,8 @@ config TOSHIBA_RBTX4927
 	bool "Toshiba RBTX49[23]7 board"
 	depends on MACH_TX49XX
 	select SOC_TX4927
+	# TX4937 is subset of TX4938
+	select SOC_TX4938
 	help
 	  This Toshiba board is based on the TX4927 processor. Say Y here to
 	  support this machine type

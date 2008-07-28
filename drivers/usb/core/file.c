@@ -150,7 +150,7 @@ int usb_register_dev(struct usb_interface *intf,
 	int retval = -EINVAL;
 	int minor_base = class_driver->minor_base;
 	int minor = 0;
-	char name[BUS_ID_SIZE];
+	char name[20];
 	char *temp;
 
 #ifdef CONFIG_USB_DYNAMIC_MINORS
@@ -190,14 +190,15 @@ int usb_register_dev(struct usb_interface *intf,
 	intf->minor = minor;
 
 	/* create a usb class device for this usb interface */
-	snprintf(name, BUS_ID_SIZE, class_driver->name, minor - minor_base);
+	snprintf(name, sizeof(name), class_driver->name, minor - minor_base);
 	temp = strrchr(name, '/');
-	if (temp && (temp[1] != 0x00))
+	if (temp && (temp[1] != '\0'))
 		++temp;
 	else
 		temp = name;
-	intf->usb_dev = device_create(usb_class->class, &intf->dev,
-				      MKDEV(USB_MAJOR, minor), "%s", temp);
+	intf->usb_dev = device_create_drvdata(usb_class->class, &intf->dev,
+					      MKDEV(USB_MAJOR, minor), NULL,
+					      "%s", temp);
 	if (IS_ERR(intf->usb_dev)) {
 		down_write(&minor_rwsem);
 		usb_minors[intf->minor] = NULL;
@@ -227,7 +228,7 @@ void usb_deregister_dev(struct usb_interface *intf,
 			struct usb_class_driver *class_driver)
 {
 	int minor_base = class_driver->minor_base;
-	char name[BUS_ID_SIZE];
+	char name[20];
 
 #ifdef CONFIG_USB_DYNAMIC_MINORS
 	minor_base = 0;
@@ -242,7 +243,7 @@ void usb_deregister_dev(struct usb_interface *intf,
 	usb_minors[intf->minor] = NULL;
 	up_write(&minor_rwsem);
 
-	snprintf(name, BUS_ID_SIZE, class_driver->name, intf->minor - minor_base);
+	snprintf(name, sizeof(name), class_driver->name, intf->minor - minor_base);
 	device_destroy(usb_class->class, MKDEV(USB_MAJOR, intf->minor));
 	intf->usb_dev = NULL;
 	intf->minor = -1;

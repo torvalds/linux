@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include "dvb_frontend.h"
-#include "dvb-pll.h"
 #include "s5h1409.h"
 
 struct s5h1409_state {

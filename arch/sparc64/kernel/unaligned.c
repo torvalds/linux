@@ -2,7 +2,7 @@
  * unaligned.c: Unaligned load/store trap handling with special
  *              cases for the kernel to do them more quickly.
  *
- * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996,2008 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996,1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
@@ -20,7 +20,6 @@
 #include <asm/uaccess.h>
 #include <linux/smp.h>
 #include <linux/bitops.h>
-#include <linux/kallsyms.h>
 #include <asm/fpumacro.h>
 
 /* #define DEBUG_MNA */
@@ -289,8 +288,8 @@ static void log_unaligned(struct pt_regs *regs)
 	if (count < 5) {
 		last_time = jiffies;
 		count++;
-		printk("Kernel unaligned access at TPC[%lx] ", regs->tpc);
-		print_symbol("%s\n", regs->tpc);
+		printk("Kernel unaligned access at TPC[%lx] %pS\n",
+		       regs->tpc, (void *) regs->tpc);
 	}
 }
 

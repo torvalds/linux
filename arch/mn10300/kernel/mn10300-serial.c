@@ -392,7 +392,7 @@ static int mask_test_and_clear(volatile u8 *ptr, u8 mask)
 static void mn10300_serial_receive_interrupt(struct mn10300_serial_port *port)
 {
 	struct uart_icount *icount = &port->uart.icount;
-	struct tty_struct *tty = port->uart.info->tty;
+	struct tty_struct *tty = port->uart.info->port.tty;
 	unsigned ix;
 	int count;
 	u8 st, ch, push, status, overrun;

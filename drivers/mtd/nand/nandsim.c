@@ -21,8 +21,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
- *
- * $Id: nandsim.c,v 1.8 2005/03/19 15:33:56 dedekind Exp $
  */
 
 #include <linux/init.h>
@@ -39,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/random.h>
+#include <asm/div64.h>
 
 /* Default simulator parameters values */
 #if !defined(CONFIG_NANDSIM_FIRST_ID_BYTE)  || \
@@ -298,11 +297,11 @@ struct nandsim {
 
 	/* NAND flash "geometry" */
 	struct nandsin_geometry {
-		uint32_t totsz;     /* total flash size, bytes */
+		uint64_t totsz;     /* total flash size, bytes */
 		uint32_t secsz;     /* flash sector (erase block) size, bytes */
 		uint pgsz;          /* NAND flash page size, bytes */
 		uint oobsz;         /* page OOB area size, bytes */
-		uint32_t totszoob;  /* total flash size including OOB, bytes */
+		uint64_t totszoob;  /* total flash size including OOB, bytes */
 		uint pgszoob;       /* page size including OOB , bytes*/
 		uint secszoob;      /* sector size including OOB, bytes */
 		uint pgnum;         /* total number of pages */
@@ -459,6 +458,12 @@ static char *get_partition_name(int i)
 	return kstrdup(buf, GFP_KERNEL);
 }
 
+static u_int64_t divide(u_int64_t n, u_int32_t d)
+{
+	do_div(n, d);
+	return n;
+}
+
 /*
  * Initialize the nandsim structure.
  *
@@ -469,8 +474,8 @@ static int init_nandsim(struct mtd_info *mtd)
 	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
 	struct nandsim   *ns   = (struct nandsim *)(chip->priv);
 	int i, ret = 0;
-	u_int32_t remains;
-	u_int32_t next_offset;
+	u_int64_t remains;
+	u_int64_t next_offset;
 
 	if (NS_IS_INITIALIZED(ns)) {
 		NS_ERR("init_nandsim: nandsim is already initialized\n");
@@ -487,8 +492,8 @@ static int init_nandsim(struct mtd_info *mtd)
 	ns->geom.oobsz    = mtd->oobsize;
 	ns->geom.secsz    = mtd->erasesize;
 	ns->geom.pgszoob  = ns->geom.pgsz + ns->geom.oobsz;
-	ns->geom.pgnum    = ns->geom.totsz / ns->geom.pgsz;
-	ns->geom.totszoob = ns->geom.totsz + ns->geom.pgnum * ns->geom.oobsz;
+	ns->geom.pgnum    = divide(ns->geom.totsz, ns->geom.pgsz);
+	ns->geom.totszoob = ns->geom.totsz + (uint64_t)ns->geom.pgnum * ns->geom.oobsz;
 	ns->geom.secshift = ffs(ns->geom.secsz) - 1;
 	ns->geom.pgshift  = chip->page_shift;
 	ns->geom.oobshift = ffs(ns->geom.oobsz) - 1;
@@ -511,7 +516,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	}
 
 	if (ns->options & OPT_SMALLPAGE) {
-		if (ns->geom.totsz < (32 << 20)) {
+		if (ns->geom.totsz <= (32 << 20)) {
 			ns->geom.pgaddrbytes  = 3;
 			ns->geom.secaddrbytes = 2;
 		} else {
@@ -537,15 +542,16 @@ static int init_nandsim(struct mtd_info *mtd)
 	remains = ns->geom.totsz;
 	next_offset = 0;
 	for (i = 0; i < parts_num; ++i) {
-		unsigned long part = parts[i];
-		if (!part || part > remains / ns->geom.secsz) {
+		u_int64_t part_sz = (u_int64_t)parts[i] * ns->geom.secsz;
+
+		if (!part_sz || part_sz > remains) {
 			NS_ERR("bad partition size.\n");
 			ret = -EINVAL;
 			goto error;
 		}
 		ns->partitions[i].name   = get_partition_name(i);
 		ns->partitions[i].offset = next_offset;
-		ns->partitions[i].size   = part * ns->geom.secsz;
+		ns->partitions[i].size   = part_sz;
 		next_offset += ns->partitions[i].size;
 		remains -= ns->partitions[i].size;
 	}
@@ -573,7 +579,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	if (ns->busw == 16)
 		NS_WARN("16-bit flashes support wasn't tested\n");
 
-	printk("flash size: %u MiB\n",          ns->geom.totsz >> 20);
+	printk("flash size: %llu MiB\n",        ns->geom.totsz >> 20);
 	printk("page size: %u bytes\n",         ns->geom.pgsz);
 	printk("OOB area size: %u bytes\n",     ns->geom.oobsz);
 	printk("sector size: %u KiB\n",         ns->geom.secsz >> 10);
@@ -583,7 +589,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	printk("bits in sector size: %u\n",     ns->geom.secshift);
 	printk("bits in page size: %u\n",       ns->geom.pgshift);
 	printk("bits in OOB size: %u\n",        ns->geom.oobshift);
-	printk("flash size with OOB: %u KiB\n", ns->geom.totszoob >> 10);
+	printk("flash size with OOB: %llu KiB\n", ns->geom.totszoob >> 10);
 	printk("page address bytes: %u\n",      ns->geom.pgaddrbytes);
 	printk("sector address bytes: %u\n",    ns->geom.secaddrbytes);
 	printk("options: %#x\n",                ns->options);
@@ -825,7 +831,7 @@ static int setup_wear_reporting(struct mtd_info *mtd)
 
 	if (!rptwear)
 		return 0;
-	wear_eb_count = mtd->size / mtd->erasesize;
+	wear_eb_count = divide(mtd->size, mtd->erasesize);
 	mem = wear_eb_count * sizeof(unsigned long);
 	if (mem / sizeof(unsigned long) != wear_eb_count) {
 		NS_ERR("Too many erase blocks for wear reporting\n");
@@ -2013,7 +2019,7 @@ static int __init ns_init_module(void)
 	}
 
 	if (overridesize) {
-		u_int32_t new_size = nsmtd->erasesize << overridesize;
+		u_int64_t new_size = (u_int64_t)nsmtd->erasesize << overridesize;
 		if (new_size >> overridesize != nsmtd->erasesize) {
 			NS_ERR("overridesize is too big\n");
 			goto err_exit;
@@ -2021,7 +2027,8 @@ static int __init ns_init_module(void)
 		/* N.B. This relies on nand_scan not doing anything with the size before we change it */
 		nsmtd->size = new_size;
 		chip->chipsize = new_size;
-		chip->chip_shift = ffs(new_size) - 1;
+		chip->chip_shift = ffs(nsmtd->erasesize) + overridesize - 1;
+		chip->pagemask = (chip->chipsize >> chip->page_shift) - 1;
 	}
 
 	if ((retval = setup_wear_reporting(nsmtd)) != 0)

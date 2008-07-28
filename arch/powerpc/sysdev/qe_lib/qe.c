@@ -64,7 +64,7 @@ static phys_addr_t qebase = -1;
 phys_addr_t get_qe_base(void)
 {
 	struct device_node *qe;
-	unsigned int size;
+	int size;
 	const u32 *prop;
 
 	if (qebase != -1)
@@ -158,7 +158,7 @@ static unsigned int brg_clk = 0;
 unsigned int qe_get_brg_clk(void)
 {
 	struct device_node *qe;
-	unsigned int size;
+	int size;
 	const u32 *prop;
 
 	if (brg_clk)
@@ -305,7 +305,7 @@ EXPORT_SYMBOL(qe_put_snum);
 
 static int qe_sdma_init(void)
 {
-	struct sdma *sdma = &qe_immr->sdma;
+	struct sdma __iomem *sdma = &qe_immr->sdma;
 	unsigned long sdma_buf_offset;
 
 	if (!sdma)

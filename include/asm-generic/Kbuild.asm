@@ -1,4 +1,6 @@
+ifneq ($(wildcard $(srctree)/include/asm-$(SRCARCH)/kvm.h),)
 header-y  += kvm.h
+endif
 
 ifneq ($(wildcard $(srctree)/include/asm-$(SRCARCH)/a.out.h),)
 unifdef-y += a.out.h

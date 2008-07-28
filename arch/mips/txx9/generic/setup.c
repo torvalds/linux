@@ -19,7 +19,9 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <asm/bootinfo.h>
+#include <asm/time.h>
 #include <asm/txx9/generic.h>
 #ifdef CONFIG_CPU_TX49XX
 #include <asm/txx9/tx4938.h>
@@ -30,6 +32,7 @@ struct resource txx9_ce_res[8];
 static char txx9_ce_res_name[8][4];	/* "CEn" */
 
 /* pcode, internal register */
+unsigned int txx9_pcode;
 char txx9_pcode_str[8];
 static struct resource txx9_reg_res = {
 	.name = txx9_pcode_str,
@@ -59,15 +62,16 @@ unsigned int txx9_master_clock;
 unsigned int txx9_cpu_clock;
 unsigned int txx9_gbus_clock;
 
+int txx9_ccfg_toeon __initdata = 1;
 
 /* Minimum CLK support */
 
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	if (!strcmp(id, "spi-baseclk"))
-		return (struct clk *)(txx9_gbus_clock / 2 / 4);
+		return (struct clk *)((unsigned long)txx9_gbus_clock / 2 / 4);
 	if (!strcmp(id, "imbus_clk"))
-		return (struct clk *)(txx9_gbus_clock / 2);
+		return (struct clk *)((unsigned long)txx9_gbus_clock / 2);
 	return ERR_PTR(-ENOENT);
 }
 EXPORT_SYMBOL(clk_get);
@@ -94,6 +98,22 @@ void clk_put(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_put);
 
+/* GPIO support */
+
+#ifdef CONFIG_GENERIC_GPIO
+int gpio_to_irq(unsigned gpio)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL(gpio_to_irq);
+
+int irq_to_gpio(unsigned irq)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL(irq_to_gpio);
+#endif
+
 extern struct txx9_board_vec jmr3927_vec;
 extern struct txx9_board_vec rbtx4927_vec;
 extern struct txx9_board_vec rbtx4937_vec;
@@ -107,6 +127,12 @@ void __init prom_init_cmdline(void)
 	int argc = (int)fw_arg0;
 	char **argv = (char **)fw_arg1;
 	int i;			/* Always ignore the "-c" at argv[0] */
+#ifdef CONFIG_64BIT
+	char *fixed_argv[32];
+	for (i = 0; i < argc; i++)
+		fixed_argv[i] = (char *)(long)(*((__s32 *)argv + i));
+	argv = fixed_argv;
+#endif
 
 	/* ignore all built-in args if any f/w args given */
 	if (argc > 1)
@@ -126,15 +152,19 @@ void __init prom_init(void)
 #endif
 #ifdef CONFIG_CPU_TX49XX
 	switch (TX4938_REV_PCODE()) {
+#ifdef CONFIG_TOSHIBA_RBTX4927
 	case 0x4927:
 		txx9_board_vec = &rbtx4927_vec;
 		break;
 	case 0x4937:
 		txx9_board_vec = &rbtx4937_vec;
 		break;
+#endif
+#ifdef CONFIG_TOSHIBA_RBTX4938
 	case 0x4938:
 		txx9_board_vec = &rbtx4938_vec;
 		break;
+#endif
 	}
 #endif
 
@@ -160,6 +190,10 @@ char * __init prom_getcmdline(void)
 /* wrappers */
 void __init plat_mem_setup(void)
 {
+	ioport_resource.start = 0;
+	ioport_resource.end = ~0UL;	/* no limit */
+	iomem_resource.start = 0;
+	iomem_resource.end = ~0UL;	/* no limit */
 	txx9_board_vec->mem_setup();
 }
 

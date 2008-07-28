@@ -667,6 +667,11 @@ static struct tda1002x_config philips_cu1216_config_altaddress = {
 	.invert = 0,
 };
 
+static struct tda10023_config philips_cu1216_tda10023_config = {
+	.demod_address = 0x0c,
+	.invert = 1,
+};
+
 static int philips_tu1216_tuner_init(struct dvb_frontend *fe)
 {
 	struct budget *budget = (struct budget *) fe->dvb->priv;
@@ -1019,9 +1024,10 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBC_KNC1_PLUS_MK3:
 		budget_av->reinitialise_demod = 1;
 		budget_av->budget.dev->i2c_bitrate = SAA7146_I2C_BUS_BIT_RATE_240;
-		fe = dvb_attach(tda10023_attach, &philips_cu1216_config,
-				     &budget_av->budget.i2c_adap,
-				     read_pwm(budget_av));
+		fe = dvb_attach(tda10023_attach,
+			&philips_cu1216_tda10023_config,
+			&budget_av->budget.i2c_adap,
+			read_pwm(budget_av));
 		if (fe) {
 			fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set_params;
 		}

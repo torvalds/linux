@@ -79,7 +79,7 @@ struct intc_desc {
 	struct intc_sense_reg *sense_regs;
 	unsigned int nr_sense_regs;
 	char *name;
-#ifdef CONFIG_CPU_SH3
+#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	struct intc_mask_reg *ack_regs;
 	unsigned int nr_ack_regs;
 #endif
@@ -95,7 +95,7 @@ struct intc_desc symbol __initdata = {					\
 	chipname,							\
 }
 
-#ifdef CONFIG_CPU_SH3
+#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 #define DECLARE_INTC_DESC_ACK(symbol, chipname, vectors, groups,	\
 	mask_regs, prio_regs, sense_regs, ack_regs)			\
 struct intc_desc symbol __initdata = {					\

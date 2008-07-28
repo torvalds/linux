@@ -124,26 +124,43 @@ struct bfin_sir_self {
 
 #define DRIVER_NAME "bfin_sir"
 
-static void bfin_sir_hw_init(void)
+static int bfin_sir_hw_init(void)
 {
+	int ret = -ENODEV;
 #ifdef CONFIG_BFIN_SIR0
-	peripheral_request(P_UART0_TX, DRIVER_NAME);
-	peripheral_request(P_UART0_RX, DRIVER_NAME);
+	ret = peripheral_request(P_UART0_TX, DRIVER_NAME);
+	if (ret)
+		return ret;
+	ret = peripheral_request(P_UART0_RX, DRIVER_NAME);
+	if (ret)
+		return ret;
 #endif
 
 #ifdef CONFIG_BFIN_SIR1
-	peripheral_request(P_UART1_TX, DRIVER_NAME);
-	peripheral_request(P_UART1_RX, DRIVER_NAME);
+	ret = peripheral_request(P_UART1_TX, DRIVER_NAME);
+	if (ret)
+		return ret;
+	ret = peripheral_request(P_UART1_RX, DRIVER_NAME);
+	if (ret)
+		return ret;
 #endif
 
 #ifdef CONFIG_BFIN_SIR2
-	peripheral_request(P_UART2_TX, DRIVER_NAME);
-	peripheral_request(P_UART2_RX, DRIVER_NAME);
+	ret = peripheral_request(P_UART2_TX, DRIVER_NAME);
+	if (ret)
+		return ret;
+	ret = peripheral_request(P_UART2_RX, DRIVER_NAME);
+	if (ret)
+		return ret;
 #endif
 
 #ifdef CONFIG_BFIN_SIR3
-	peripheral_request(P_UART3_TX, DRIVER_NAME);
-	peripheral_request(P_UART3_RX, DRIVER_NAME);
+	ret = peripheral_request(P_UART3_TX, DRIVER_NAME);
+	if (ret)
+		return ret;
+	ret = peripheral_request(P_UART3_RX, DRIVER_NAME);
+	if (ret)
+		return ret;
 #endif
-	SSYNC();
+	return ret;
 }

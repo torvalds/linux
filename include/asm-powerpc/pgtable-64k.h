@@ -70,6 +70,8 @@ static inline struct subpage_prot_table *pgd_subpage_prot(pgd_t *pgd)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /* Additional PTE bits (don't change without checking asm in hash_low.S) */
+#define __HAVE_ARCH_PTE_SPECIAL
+#define _PAGE_SPECIAL	0x00000400 /* software: special page */
 #define _PAGE_HPTE_SUB	0x0ffff000 /* combo only: sub pages HPTE bits */
 #define _PAGE_HPTE_SUB0	0x08000000 /* combo only: first sub page */
 #define _PAGE_COMBO	0x10000000 /* this is a combo 4k page */
@@ -138,7 +140,7 @@ static inline struct subpage_prot_table *pgd_subpage_prot(pgd_t *pgd)
                 unsigned __split = (psize == MMU_PAGE_4K ||                 \
 				    psize == MMU_PAGE_64K_AP);              \
                 shift = mmu_psize_defs[psize].shift;                        \
-	        for (index = 0; va < __end; index++, va += (1 << shift)) {  \
+		for (index = 0; va < __end; index++, va += (1L << shift)) { \
 		        if (!__split || __rpte_sub_valid(rpte, index)) do { \
 
 #define pte_iterate_hashed_end() } while(0); } } while(0)

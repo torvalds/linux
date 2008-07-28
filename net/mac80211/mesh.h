@@ -109,7 +109,7 @@ struct mesh_table {
 	__u32 hash_rnd;			/* Used for hash generation */
 	atomic_t entries;		/* Up to MAX_MESH_NEIGHBOURS */
 	void (*free_node) (struct hlist_node *p, bool free_leafs);
-	void (*copy_node) (struct hlist_node *p, struct mesh_table *newtbl);
+	int (*copy_node) (struct hlist_node *p, struct mesh_table *newtbl);
 	int size_order;
 	int mean_chain_len;
 };

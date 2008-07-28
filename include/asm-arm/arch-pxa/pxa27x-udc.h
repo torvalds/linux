@@ -97,7 +97,7 @@
 #define UP2OCR_IDON		(1 << 10)	/* OTG ID Read Enable */
 #define UP2OCR_HXS		(1 << 16)	/* Host Port 2 Transceiver Output Select */
 #define UP2OCR_HXOE		(1 << 17)	/* Host Port 2 Transceiver Output Enable */
-#define UP2OCR_SEOS		(1 << 24)	/* Single-Ended Output Select */
+#define UP2OCR_SEOS(x)		((x & 7) << 24)	/* Single-Ended Output Select */
 
 #define UDCCSN(x)	__REG2(0x40600100, (x) << 2)
 #define UDCCSR0         __REG(0x40600100) /* UDC Control/Status register - Endpoint 0 */

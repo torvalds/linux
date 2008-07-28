@@ -126,14 +126,12 @@ static struct irq_chip toshiba_rbtx4927_irq_ioc_type = {
 	.mask_ack = toshiba_rbtx4927_irq_ioc_disable,
 	.unmask = toshiba_rbtx4927_irq_ioc_enable,
 };
-#define TOSHIBA_RBTX4927_IOC_INTR_ENAB (void __iomem *)0xbc002000UL
-#define TOSHIBA_RBTX4927_IOC_INTR_STAT (void __iomem *)0xbc002006UL
 
 static int toshiba_rbtx4927_irq_nested(int sw_irq)
 {
 	u8 level3;
 
-	level3 = readb(TOSHIBA_RBTX4927_IOC_INTR_STAT) & 0x1f;
+	level3 = readb(rbtx4927_imstat_addr) & 0x1f;
 	if (level3)
 		sw_irq = RBTX4927_IRQ_IOC + fls(level3) - 1;
 	return (sw_irq);
@@ -154,18 +152,18 @@ static void toshiba_rbtx4927_irq_ioc_enable(unsigned int irq)
 {
 	unsigned char v;
 
-	v = readb(TOSHIBA_RBTX4927_IOC_INTR_ENAB);
+	v = readb(rbtx4927_imask_addr);
 	v |= (1 << (irq - RBTX4927_IRQ_IOC));
-	writeb(v, TOSHIBA_RBTX4927_IOC_INTR_ENAB);
+	writeb(v, rbtx4927_imask_addr);
 }
 
 static void toshiba_rbtx4927_irq_ioc_disable(unsigned int irq)
 {
 	unsigned char v;
 
-	v = readb(TOSHIBA_RBTX4927_IOC_INTR_ENAB);
+	v = readb(rbtx4927_imask_addr);
 	v &= ~(1 << (irq - RBTX4927_IRQ_IOC));
-	writeb(v, TOSHIBA_RBTX4927_IOC_INTR_ENAB);
+	writeb(v, rbtx4927_imask_addr);
 	mmiowb();
 }
 

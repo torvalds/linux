@@ -99,7 +99,7 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 
 	for (; fcur < fend; fcur++) {
 		if (patch_feature_section(value, fcur)) {
-			__WARN();
+			WARN_ON(1);
 			printk("Unable to patch feature section at %p - %p" \
 				" with %p - %p\n",
 				calc_addr(fcur, fcur->start_off),

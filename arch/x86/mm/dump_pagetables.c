@@ -148,8 +148,8 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 	 * we have now. "break" is either changing perms, levels or
 	 * address space marker.
 	 */
-	prot = pgprot_val(new_prot) & ~(PTE_MASK);
-	cur = pgprot_val(st->current_prot) & ~(PTE_MASK);
+	prot = pgprot_val(new_prot) & ~(PTE_PFN_MASK);
+	cur = pgprot_val(st->current_prot) & ~(PTE_PFN_MASK);
 
 	if (!st->level) {
 		/* First entry */
@@ -221,7 +221,7 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
 	for (i = 0; i < PTRS_PER_PMD; i++) {
 		st->current_address = normalize_addr(P + i * PMD_LEVEL_MULT);
 		if (!pmd_none(*start)) {
-			pgprotval_t prot = pmd_val(*start) & ~PTE_MASK;
+			pgprotval_t prot = pmd_val(*start) & PTE_FLAGS_MASK;
 
 			if (pmd_large(*start) || !pmd_present(*start))
 				note_page(m, st, __pgprot(prot), 3);
@@ -253,7 +253,7 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
 	for (i = 0; i < PTRS_PER_PUD; i++) {
 		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
 		if (!pud_none(*start)) {
-			pgprotval_t prot = pud_val(*start) & ~PTE_MASK;
+			pgprotval_t prot = pud_val(*start) & PTE_FLAGS_MASK;
 
 			if (pud_large(*start) || !pud_present(*start))
 				note_page(m, st, __pgprot(prot), 2);
@@ -288,7 +288,7 @@ static void walk_pgd_level(struct seq_file *m)
 	for (i = 0; i < PTRS_PER_PGD; i++) {
 		st.current_address = normalize_addr(i * PGD_LEVEL_MULT);
 		if (!pgd_none(*start)) {
-			pgprotval_t prot = pgd_val(*start) & ~PTE_MASK;
+			pgprotval_t prot = pgd_val(*start) & PTE_FLAGS_MASK;
 
 			if (pgd_large(*start) || !pgd_present(*start))
 				note_page(m, &st, __pgprot(prot), 1);

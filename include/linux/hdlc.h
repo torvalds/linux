@@ -45,7 +45,6 @@ struct hdlc_proto {
 
 /* Pointed to by dev->priv */
 typedef struct hdlc_device {
-	struct net_device_stats stats;
 	/* used by HDLC layer to take control over HDLC device from hw driver*/
 	int (*attach)(struct net_device *dev,
 		      unsigned short encoding, unsigned short parity);
@@ -108,12 +107,6 @@ int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 			 size_t size);
 /* May be used by hardware driver to gain control over HDLC device */
 void detach_hdlc_protocol(struct net_device *dev);
-
-static __inline__ struct net_device_stats *hdlc_stats(struct net_device *dev)
-{
-	return &dev_to_hdlc(dev)->stats;
-}
-
 
 static __inline__ __be16 hdlc_type_trans(struct sk_buff *skb,
 					 struct net_device *dev)

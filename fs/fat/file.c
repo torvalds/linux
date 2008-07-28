@@ -15,6 +15,8 @@
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/blkdev.h>
+#include <linux/fsnotify.h>
+#include <linux/security.h>
 
 int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg)
@@ -64,6 +66,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 
 		/* Equivalent to a chmod() */
 		ia.ia_valid = ATTR_MODE | ATTR_CTIME;
+		ia.ia_ctime = current_fs_time(inode->i_sb);
 		if (is_dir) {
 			ia.ia_mode = MSDOS_MKMODE(attr,
 				S_IRWXUGO & ~sbi->options.fs_dmask)
@@ -90,11 +93,21 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 			}
 		}
 
-		/* This MUST be done before doing anything irreversible... */
-		err = notify_change(filp->f_path.dentry, &ia);
+		/*
+		 * The security check is questionable...  We single
+		 * out the RO attribute for checking by the security
+		 * module, just because it maps to a file mode.
+		 */
+		err = security_inode_setattr(filp->f_path.dentry, &ia);
 		if (err)
 			goto up;
 
+		/* This MUST be done before doing anything irreversible... */
+		err = fat_setattr(filp->f_path.dentry, &ia);
+		if (err)
+			goto up;
+
+		fsnotify_change(filp->f_path.dentry, ia.ia_valid);
 		if (sbi->options.sys_immutable) {
 			if (attr & ATTR_SYS)
 				inode->i_flags |= S_IMMUTABLE;

@@ -36,4 +36,12 @@ extern const char VDSO32_PRELINK[];
 extern void __user __kernel_sigreturn;
 extern void __user __kernel_rt_sigreturn;
 
+/*
+ * These symbols are defined by vdso32.S to mark the bounds
+ * of the ELF DSO images included therein.
+ */
+extern const char vdso32_int80_start, vdso32_int80_end;
+extern const char vdso32_syscall_start, vdso32_syscall_end;
+extern const char vdso32_sysenter_start, vdso32_sysenter_end;
+
 #endif	/* asm-x86/vdso.h */

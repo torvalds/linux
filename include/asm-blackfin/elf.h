@@ -15,6 +15,8 @@
 #define EF_BFIN_FDPIC		0x00000002	/* -mfdpic */
 #define EF_BFIN_CODE_IN_L1	0x00000010	/* --code-in-l1 */
 #define EF_BFIN_DATA_IN_L1	0x00000020	/* --data-in-l1 */
+#define EF_BFIN_CODE_IN_L2	0x00000040	/* --code-in-l2 */
+#define EF_BFIN_DATA_IN_L2	0x00000080	/* --data-in-l2 */
 
 typedef unsigned long elf_greg_t;
 

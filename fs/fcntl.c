@@ -64,11 +64,6 @@ static int locate_fd(unsigned int orig_start, int cloexec)
 	struct fdtable *fdt;
 
 	spin_lock(&files->file_lock);
-
-	error = -EINVAL;
-	if (orig_start >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
-		goto out;
-
 repeat:
 	fdt = files_fdtable(files);
 	/*
@@ -83,10 +78,6 @@ repeat:
 	if (start < fdt->max_fds)
 		newfd = find_next_zero_bit(fdt->open_fds->fds_bits,
 					   fdt->max_fds, start);
-	
-	error = -EMFILE;
-	if (newfd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
-		goto out;
 
 	error = expand_files(files, newfd);
 	if (error < 0)
@@ -125,27 +116,30 @@ static int dupfd(struct file *file, unsigned int start, int cloexec)
 	return fd;
 }
 
-asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
+asmlinkage long sys_dup3(unsigned int oldfd, unsigned int newfd, int flags)
 {
 	int err = -EBADF;
 	struct file * file, *tofree;
 	struct files_struct * files = current->files;
 	struct fdtable *fdt;
 
+	if ((flags & ~O_CLOEXEC) != 0)
+		return -EINVAL;
+
+	if (unlikely(oldfd == newfd))
+		return -EINVAL;
+
 	spin_lock(&files->file_lock);
 	if (!(file = fcheck(oldfd)))
-		goto out_unlock;
-	err = newfd;
-	if (newfd == oldfd)
-		goto out_unlock;
-	err = -EBADF;
-	if (newfd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
 		goto out_unlock;
 	get_file(file);			/* We are now finished with oldfd */
 
 	err = expand_files(files, newfd);
-	if (err < 0)
+	if (unlikely(err < 0)) {
+		if (err == -EMFILE)
+			err = -EBADF;
 		goto out_fput;
+	}
 
 	/* To avoid races with open() and dup(), we will mark the fd as
 	 * in-use in the open-file bitmap throughout the entire dup2()
@@ -163,7 +157,10 @@ asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
 
 	rcu_assign_pointer(fdt->fd[newfd], file);
 	FD_SET(newfd, fdt->open_fds);
-	FD_CLR(newfd, fdt->close_on_exec);
+	if (flags & O_CLOEXEC)
+		FD_SET(newfd, fdt->close_on_exec);
+	else
+		FD_CLR(newfd, fdt->close_on_exec);
 	spin_unlock(&files->file_lock);
 
 	if (tofree)
@@ -179,6 +176,19 @@ out_fput:
 	spin_unlock(&files->file_lock);
 	fput(file);
 	goto out;
+}
+
+asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
+{
+	if (unlikely(newfd == oldfd)) { /* corner case */
+		struct files_struct *files = current->files;
+		rcu_read_lock();
+		if (!fcheck_files(files, oldfd))
+			oldfd = -EBADF;
+		rcu_read_unlock();
+		return oldfd;
+	}
+	return sys_dup3(oldfd, newfd, 0);
 }
 
 asmlinkage long sys_dup(unsigned int fildes)
@@ -310,6 +320,8 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	switch (cmd) {
 	case F_DUPFD:
 	case F_DUPFD_CLOEXEC:
+		if (arg >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
+			break;
 		get_file(filp);
 		err = dupfd(filp, arg, cmd == F_DUPFD_CLOEXEC);
 		break;

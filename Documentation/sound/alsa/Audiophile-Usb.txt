@@ -236,15 +236,15 @@ The parameter can be given:
        alias snd-card-1 snd-usb-audio
        options snd-usb-audio index=1 device_setup=0x09
 
-CAUTION when initializaing the device
+CAUTION when initializing the device
 -------------------------------------
 
  * Correct initialization on the device requires that device_setup is given to
    the module BEFORE the device is turned on. So, if you use the "manual probing"
    method described above, take care to power-on the device AFTER this initialization.
 
- * Failing to respect this will lead in a misconfiguration of the device. In this case
-   turn off the device, unproble the snd-usb-audio module, then probe it again with 
+ * Failing to respect this will lead to a misconfiguration of the device. In this case
+   turn off the device, unprobe the snd-usb-audio module, then probe it again with
    correct device_setup parameter and then (and only then) turn on the device again.
 
  * If you've correctly initialized the device in a valid mode and then want to switch
@@ -388,9 +388,9 @@ There are 2 main potential issues when using Jackd with the device:
 
 Jack supports big endian devices only in recent versions (thanks to
 Andreas Steinmetz for his first big-endian patch). I can't remember 
-extacly when this support was released into jackd, let's just say that 
+exactly when this support was released into jackd, let's just say that
 with jackd version 0.103.0 it's almost ok (just a small bug is affecting 
-16bits Big-Endian devices, but since you've read  carefully the above 
+16bits Big-Endian devices, but since you've read carefully the above
 paragraphs, you're now using kernel >= 2.6.23 and your 16bits devices 
 are now Little Endians ;-) ).
 

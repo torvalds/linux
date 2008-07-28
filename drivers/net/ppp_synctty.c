@@ -418,7 +418,7 @@ ppp_sync_wakeup(struct tty_struct *tty)
 }
 
 
-static struct tty_ldisc ppp_sync_ldisc = {
+static struct tty_ldisc_ops ppp_sync_ldisc = {
 	.owner	= THIS_MODULE,
 	.magic	= TTY_LDISC_MAGIC,
 	.name	= "pppsync",

@@ -53,6 +53,7 @@
 
 #include "ubifs.h"
 #include <linux/mount.h>
+#include <linux/namei.h>
 
 static int read_block(struct inode *inode, void *addr, unsigned int block,
 		      struct ubifs_data_node *dn)

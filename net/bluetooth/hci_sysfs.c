@@ -113,11 +113,13 @@ static ssize_t show_inquiry_cache(struct device *dev, struct device_attribute *a
 		struct inquiry_data *data = &e->data;
 		bdaddr_t bdaddr;
 		baswap(&bdaddr, &data->bdaddr);
-		n += sprintf(buf + n, "%s %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %u\n",
+		n += sprintf(buf + n, "%s %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
 				batostr(&bdaddr),
-				data->pscan_rep_mode, data->pscan_period_mode, data->pscan_mode,
-				data->dev_class[2], data->dev_class[1], data->dev_class[0],
-				__le16_to_cpu(data->clock_offset), data->rssi, e->timestamp);
+				data->pscan_rep_mode, data->pscan_period_mode,
+				data->pscan_mode, data->dev_class[2],
+				data->dev_class[1], data->dev_class[0],
+				__le16_to_cpu(data->clock_offset),
+				data->rssi, data->ssp_mode, e->timestamp);
 	}
 
 	hci_dev_unlock_bh(hdev);
@@ -249,15 +251,28 @@ static ssize_t show_conn_address(struct device *dev, struct device_attribute *at
 	return sprintf(buf, "%s\n", batostr(&bdaddr));
 }
 
+static ssize_t show_conn_features(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_conn *conn = dev_get_drvdata(dev);
+
+	return sprintf(buf, "0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				conn->features[0], conn->features[1],
+				conn->features[2], conn->features[3],
+				conn->features[4], conn->features[5],
+				conn->features[6], conn->features[7]);
+}
+
 #define CONN_ATTR(_name,_mode,_show,_store) \
 struct device_attribute conn_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
 static CONN_ATTR(type, S_IRUGO, show_conn_type, NULL);
 static CONN_ATTR(address, S_IRUGO, show_conn_address, NULL);
+static CONN_ATTR(features, S_IRUGO, show_conn_features, NULL);
 
 static struct device_attribute *conn_attrs[] = {
 	&conn_attr_type,
 	&conn_attr_address,
+	&conn_attr_features,
 	NULL
 };
 
@@ -296,7 +311,6 @@ static void add_conn(struct work_struct *work)
 void hci_conn_add_sysfs(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
-	bdaddr_t *ba = &conn->dst;
 
 	BT_DBG("conn %p", conn);
 
@@ -305,11 +319,8 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 
 	conn->dev.release = bt_release;
 
-	snprintf(conn->dev.bus_id, BUS_ID_SIZE,
-			"%s%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X",
-			conn->type == ACL_LINK ? "acl" : "sco",
-			ba->b[5], ba->b[4], ba->b[3],
-			ba->b[2], ba->b[1], ba->b[0]);
+	snprintf(conn->dev.bus_id, BUS_ID_SIZE, "%s:%d",
+					hdev->name, conn->handle);
 
 	dev_set_drvdata(&conn->dev, conn);
 
@@ -387,19 +398,12 @@ int hci_register_sysfs(struct hci_dev *hdev)
 		if (device_create_file(dev, bt_attrs[i]) < 0)
 			BT_ERR("Failed to create device attribute");
 
-	if (sysfs_create_link(&bt_class->subsys.kobj,
-				&dev->kobj, kobject_name(&dev->kobj)) < 0)
-		BT_ERR("Failed to create class symlink");
-
 	return 0;
 }
 
 void hci_unregister_sysfs(struct hci_dev *hdev)
 {
 	BT_DBG("%p name %s type %d", hdev, hdev->name, hdev->type);
-
-	sysfs_remove_link(&bt_class->subsys.kobj,
-					kobject_name(&hdev->dev.kobj));
 
 	device_del(&hdev->dev);
 }

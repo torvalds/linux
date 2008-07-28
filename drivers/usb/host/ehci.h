@@ -198,7 +198,10 @@ timer_action (struct ehci_hcd *ehci, enum ehci_timer_action action)
 			break;
 		// case TIMER_ASYNC_SHRINK:
 		default:
-			t = EHCI_SHRINK_JIFFIES;
+			/* add a jiffie since we synch against the
+			 * 8 KHz uframe counter.
+			 */
+			t = DIV_ROUND_UP(EHCI_SHRINK_FRAMES * HZ, 1000) + 1;
 			break;
 		}
 		mod_timer(&ehci->watchdog, t + jiffies);

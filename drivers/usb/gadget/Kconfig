@@ -586,6 +586,20 @@ config USB_G_PRINTER
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
 
+config USB_CDC_COMPOSITE
+	tristate "CDC Composite Device (Ethernet and ACM)"
+	depends on NET
+	help
+	  This driver provides two functions in one configuration:
+	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
+
+	  This driver requires four bulk and two interrupt endpoints,
+	  plus the ability to handle altsettings.  Not all peripheral
+	  controllers are that capable.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module.
+
 # put drivers that need isochronous transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.
 

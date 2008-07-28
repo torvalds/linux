@@ -289,35 +289,73 @@ downdelay
 fail_over_mac
 
 	Specifies whether active-backup mode should set all slaves to
-	the same MAC address (the traditional behavior), or, when
-	enabled, change the bond's MAC address when changing the
-	active interface (i.e., fail over the MAC address itself).
+	the same MAC address at enslavement (the traditional
+	behavior), or, when enabled, perform special handling of the
+	bond's MAC address in accordance with the selected policy.
 
-	Fail over MAC is useful for devices that cannot ever alter
-	their MAC address, or for devices that refuse incoming
-	broadcasts with their own source MAC (which interferes with
-	the ARP monitor).
+	Possible values are:
 
-	The down side of fail over MAC is that every device on the
-	network must be updated via gratuitous ARP, vs. just updating
-	a switch or set of switches (which often takes place for any
-	traffic, not just ARP traffic, if the switch snoops incoming
-	traffic to update its tables) for the traditional method.  If
-	the gratuitous ARP is lost, communication may be disrupted.
+	none or 0
 
-	When fail over MAC is used in conjuction with the mii monitor,
-	devices which assert link up prior to being able to actually
-	transmit and receive are particularly susecptible to loss of
-	the gratuitous ARP, and an appropriate updelay setting may be
-	required.
+		This setting disables fail_over_mac, and causes
+		bonding to set all slaves of an active-backup bond to
+		the same MAC address at enslavement time.  This is the
+		default.
 
-	A value of 0 disables fail over MAC, and is the default.  A
-	value of 1 enables fail over MAC.  This option is enabled
-	automatically if the first slave added cannot change its MAC
-	address.  This option may be modified via sysfs only when no
-	slaves are present in the bond.
+	active or 1
 
-	This option was added in bonding version 3.2.0.
+		The "active" fail_over_mac policy indicates that the
+		MAC address of the bond should always be the MAC
+		address of the currently active slave.  The MAC
+		address of the slaves is not changed; instead, the MAC
+		address of the bond changes during a failover.
+
+		This policy is useful for devices that cannot ever
+		alter their MAC address, or for devices that refuse
+		incoming broadcasts with their own source MAC (which
+		interferes with the ARP monitor).
+
+		The down side of this policy is that every device on
+		the network must be updated via gratuitous ARP,
+		vs. just updating a switch or set of switches (which
+		often takes place for any traffic, not just ARP
+		traffic, if the switch snoops incoming traffic to
+		update its tables) for the traditional method.  If the
+		gratuitous ARP is lost, communication may be
+		disrupted.
+
+		When this policy is used in conjuction with the mii
+		monitor, devices which assert link up prior to being
+		able to actually transmit and receive are particularly
+		susecptible to loss of the gratuitous ARP, and an
+		appropriate updelay setting may be required.
+
+	follow or 2
+
+		The "follow" fail_over_mac policy causes the MAC
+		address of the bond to be selected normally (normally
+		the MAC address of the first slave added to the bond).
+		However, the second and subsequent slaves are not set
+		to this MAC address while they are in a backup role; a
+		slave is programmed with the bond's MAC address at
+		failover time (and the formerly active slave receives
+		the newly active slave's MAC address).
+
+		This policy is useful for multiport devices that
+		either become confused or incur a performance penalty
+		when multiple ports are programmed with the same MAC
+		address.
+
+
+	The default policy is none, unless the first slave cannot
+	change its MAC address, in which case the active policy is
+	selected by default.
+
+	This option may be modified via sysfs only when no slaves are
+	present in the bond.
+
+	This option was added in bonding version 3.2.0.  The "follow"
+	policy was added in bonding version 3.3.0.
 
 lacp_rate
 
@@ -338,7 +376,8 @@ max_bonds
 	Specifies the number of bonding devices to create for this
 	instance of the bonding driver.  E.g., if max_bonds is 3, and
 	the bonding driver is not already loaded, then bond0, bond1
-	and bond2 will be created.  The default value is 1.
+	and bond2 will be created.  The default value is 1.  Specifying
+	a value of 0 will load bonding, but will not create any devices.
 
 miimon
 
@@ -501,6 +540,17 @@ mode
 		swapped with the new curr_active_slave that was
 		chosen.
 
+num_grat_arp
+
+	Specifies the number of gratuitous ARPs to be issued after a
+	failover event.  One gratuitous ARP is issued immediately after
+	the failover, subsequent ARPs are sent at a rate of one per link
+	monitor interval (arp_interval or miimon, whichever is active).
+
+	The valid range is 0 - 255; the default value is 1.  This option
+	affects only the active-backup mode.  This option was added for
+	bonding version 3.3.0.
+
 primary
 
 	A string (eth0, eth2, etc) specifying which slave is the
@@ -581,7 +631,7 @@ xmit_hash_policy
 		in environments where a layer3 gateway device is
 		required to reach most destinations.
 
-		This algorithm is 802.3ad complient.
+		This algorithm is 802.3ad compliant.
 
 	layer3+4
 

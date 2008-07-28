@@ -8,7 +8,7 @@
  *   Copyright (C) 2002,2004 MARA Systems AB <http://www.marasystems.com>
  *    by Henrik Nordstrom <hno@marasystems.com>
  *
- * (C) 2006 Red Hat, Inc., James Morris <jmorris@redhat.com>
+ * (C) 2006,2008 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -94,6 +94,12 @@ connsecmark_tg_check(const char *tablename, const void *entry,
 {
 	const struct xt_connsecmark_target_info *info = targinfo;
 
+	if (strcmp(tablename, "mangle") && strcmp(tablename, "security")) {
+		printk(KERN_INFO PFX "target only valid in the \'mangle\' "
+		       "or \'security\' tables, not \'%s\'.\n", tablename);
+		return false;
+	}
+
 	switch (info->mode) {
 	case CONNSECMARK_SAVE:
 	case CONNSECMARK_RESTORE:
@@ -126,7 +132,6 @@ static struct xt_target connsecmark_tg_reg[] __read_mostly = {
 		.destroy	= connsecmark_tg_destroy,
 		.target		= connsecmark_tg,
 		.targetsize	= sizeof(struct xt_connsecmark_target_info),
-		.table		= "mangle",
 		.me		= THIS_MODULE,
 	},
 	{
@@ -136,7 +141,6 @@ static struct xt_target connsecmark_tg_reg[] __read_mostly = {
 		.destroy	= connsecmark_tg_destroy,
 		.target		= connsecmark_tg,
 		.targetsize	= sizeof(struct xt_connsecmark_target_info),
-		.table		= "mangle",
 		.me		= THIS_MODULE,
 	},
 };
