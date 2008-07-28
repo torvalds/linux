@@ -327,6 +327,21 @@ struct kvm_irq_ack_notifier {
 	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
 };
 
+struct kvm_assigned_dev_kernel {
+	struct kvm_irq_ack_notifier ack_notifier;
+	struct work_struct interrupt_work;
+	struct list_head list;
+	struct kvm_assigned_pci_dev assigned_dev;
+	int assigned_dev_id;
+	int host_busnr;
+	int host_devfn;
+	int host_irq;
+	int guest_irq;
+	int irq_requested;
+	struct pci_dev *dev;
+	struct kvm *kvm;
+};
+
 struct kvm_arch{
 	int naliases;
 	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
@@ -339,6 +354,7 @@ struct kvm_arch{
 	 * Hash table of struct kvm_mmu_page.
 	 */
 	struct list_head active_mmu_pages;
+	struct list_head assigned_dev_head;
 	struct kvm_pic *vpic;
 	struct kvm_ioapic *vioapic;
 	struct kvm_pit *vpit;

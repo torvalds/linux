@@ -383,6 +383,7 @@ struct kvm_trace_rec {
 #define KVM_CAP_MP_STATE 14
 #define KVM_CAP_COALESCED_MMIO 15
 #define KVM_CAP_SYNC_MMU 16  /* Changes to host mmap are reflected in guest */
+#define KVM_CAP_DEVICE_ASSIGNMENT 17
 
 /*
  * ioctls for VM fds
@@ -412,6 +413,10 @@ struct kvm_trace_rec {
 			_IOW(KVMIO,  0x67, struct kvm_coalesced_mmio_zone)
 #define KVM_UNREGISTER_COALESCED_MMIO \
 			_IOW(KVMIO,  0x68, struct kvm_coalesced_mmio_zone)
+#define KVM_ASSIGN_PCI_DEVICE _IOR(KVMIO, 0x69, \
+				   struct kvm_assigned_pci_dev)
+#define KVM_ASSIGN_IRQ _IOR(KVMIO, 0x70, \
+			    struct kvm_assigned_irq)
 
 /*
  * ioctls for vcpu fds
@@ -475,5 +480,19 @@ struct kvm_trace_rec {
 #define KVM_TRC_STLB_WRITE       (KVM_TRC_HANDLER + 0x17)
 #define KVM_TRC_STLB_INVAL       (KVM_TRC_HANDLER + 0x18)
 #define KVM_TRC_PPC_INSTR        (KVM_TRC_HANDLER + 0x19)
+
+struct kvm_assigned_pci_dev {
+	__u32 assigned_dev_id;
+	__u32 busnr;
+	__u32 devfn;
+	__u32 flags;
+};
+
+struct kvm_assigned_irq {
+	__u32 assigned_dev_id;
+	__u32 host_irq;
+	__u32 guest_irq;
+	__u32 flags;
+};
 
 #endif
