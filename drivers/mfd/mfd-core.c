@@ -16,9 +16,9 @@
 #include <linux/mfd/core.h>
 
 static int mfd_add_device(struct platform_device *parent,
-		const struct mfd_cell *cell,
-		struct resource *mem_base,
-		int irq_base)
+			  const struct mfd_cell *cell,
+			  struct resource *mem_base,
+			  int irq_base)
 {
 	struct resource res[cell->num_resources];
 	struct platform_device *pdev;
@@ -75,11 +75,10 @@ fail_alloc:
 	return ret;
 }
 
-int mfd_add_devices(
-		struct platform_device *parent,
-		const struct mfd_cell *cells, int n_devs,
-		struct resource *mem_base,
-		int irq_base)
+int mfd_add_devices(struct platform_device *parent,
+		    const struct mfd_cell *cells, int n_devs,
+		    struct resource *mem_base,
+		    int irq_base)
 {
 	int i;
 	int ret = 0;

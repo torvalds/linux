@@ -1,5 +1,3 @@
-#ifndef MFD_CORE_H
-#define MFD_CORE_H
 /*
  * drivers/mfd/mfd-core.h
  *
@@ -12,6 +10,9 @@
  * published by the Free Software Foundation.
  *
  */
+
+#ifndef MFD_CORE_H
+#define MFD_CORE_H
 
 #include <linux/platform_device.h>
 
@@ -38,17 +39,15 @@ struct mfd_cell {
 	const struct resource	*resources;
 };
 
-static inline struct mfd_cell *
-mfd_get_cell(struct platform_device *pdev)
+static inline struct mfd_cell *mfd_get_cell(struct platform_device *pdev)
 {
 	return (struct mfd_cell *)pdev->dev.platform_data;
 }
 
-extern int mfd_add_devices(
-		struct platform_device *parent,
-		const struct mfd_cell *cells, int n_devs,
-		struct resource *mem_base,
-		int irq_base);
+extern int mfd_add_devices(struct platform_device *parent,
+			   const struct mfd_cell *cells, int n_devs,
+			   struct resource *mem_base,
+			   int irq_base);
 
 extern void mfd_remove_devices(struct platform_device *parent);
 
