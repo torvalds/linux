@@ -975,15 +975,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_GETVSRREGS:
 		return copy_regset_to_user(child, &user_ppc_native_view,
 					   REGSET_VSX,
-					   0, (32 * sizeof(vector128) +
-					       sizeof(u32)),
+					   0, 32 * sizeof(double),
 					   (void __user *) data);
 
 	case PTRACE_SETVSRREGS:
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_VSX,
-					     0, (32 * sizeof(vector128) +
-						 sizeof(u32)),
+					     0, 32 * sizeof(double),
 					     (const void __user *) data);
 #endif
 #ifdef CONFIG_SPE
