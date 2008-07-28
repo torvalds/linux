@@ -732,7 +732,7 @@ static int __init init_exclusion_range(struct ivmd_header *m)
 		set_device_exclusion_range(m->devid, m);
 		break;
 	case ACPI_IVMD_TYPE_ALL:
-		for (i = 0; i < amd_iommu_last_bdf; ++i)
+		for (i = 0; i <= amd_iommu_last_bdf; ++i)
 			set_device_exclusion_range(i, m);
 		break;
 	case ACPI_IVMD_TYPE_RANGE:
@@ -934,7 +934,7 @@ int __init amd_iommu_init(void)
 	/*
 	 * let all alias entries point to itself
 	 */
-	for (i = 0; i < amd_iommu_last_bdf; ++i)
+	for (i = 0; i <= amd_iommu_last_bdf; ++i)
 		amd_iommu_alias_table[i] = i;
 
 	/*

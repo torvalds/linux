@@ -3321,7 +3321,7 @@ int qeth_change_mtu(struct net_device *dev, int new_mtu)
 	struct qeth_card *card;
 	char dbf_text[15];
 
-	card = netdev_priv(dev);
+	card = dev->ml_priv;
 
 	QETH_DBF_TEXT(TRACE, 4, "chgmtu");
 	sprintf(dbf_text, "%8x", new_mtu);
@@ -3343,7 +3343,7 @@ struct net_device_stats *qeth_get_stats(struct net_device *dev)
 {
 	struct qeth_card *card;
 
-	card = netdev_priv(dev);
+	card = dev->ml_priv;
 
 	QETH_DBF_TEXT(TRACE, 5, "getstat");
 
@@ -3395,7 +3395,7 @@ void qeth_tx_timeout(struct net_device *dev)
 {
 	struct qeth_card *card;
 
-	card = netdev_priv(dev);
+	card = dev->ml_priv;
 	card->stats.tx_errors++;
 	qeth_schedule_recovery(card);
 }
@@ -3403,7 +3403,7 @@ EXPORT_SYMBOL_GPL(qeth_tx_timeout);
 
 int qeth_mdio_read(struct net_device *dev, int phy_id, int regnum)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	int rc = 0;
 
 	switch (regnum) {
@@ -4253,7 +4253,7 @@ EXPORT_SYMBOL_GPL(qeth_core_get_stats_count);
 void qeth_core_get_ethtool_stats(struct net_device *dev,
 		struct ethtool_stats *stats, u64 *data)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	data[0] = card->stats.rx_packets -
 				card->perf_stats.initial_rx_packets;
 	data[1] = card->perf_stats.bufs_rec;
@@ -4313,7 +4313,7 @@ EXPORT_SYMBOL_GPL(qeth_core_get_strings);
 void qeth_core_get_drvinfo(struct net_device *dev,
 		struct ethtool_drvinfo *info)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	if (card->options.layer2)
 		strcpy(info->driver, "qeth_l2");
 	else
@@ -4331,7 +4331,7 @@ EXPORT_SYMBOL_GPL(qeth_core_get_drvinfo);
 int qeth_core_ethtool_get_settings(struct net_device *netdev,
 					struct ethtool_cmd *ecmd)
 {
-	struct qeth_card *card = netdev_priv(netdev);
+	struct qeth_card *card = netdev->ml_priv;
 	enum qeth_link_types link_type;
 
 	if ((card->info.type == QETH_CARD_TYPE_IQD) || (card->info.guestlan))

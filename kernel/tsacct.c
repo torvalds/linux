@@ -94,10 +94,10 @@ void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
 		stats->hiwater_vm    = mm->hiwater_vm * PAGE_SIZE / KB;
 		mmput(mm);
 	}
-	stats->read_char	= p->rchar;
-	stats->write_char	= p->wchar;
-	stats->read_syscalls	= p->syscr;
-	stats->write_syscalls	= p->syscw;
+	stats->read_char	= p->ioac.rchar;
+	stats->write_char	= p->ioac.wchar;
+	stats->read_syscalls	= p->ioac.syscr;
+	stats->write_syscalls	= p->ioac.syscw;
 #ifdef CONFIG_TASK_IO_ACCOUNTING
 	stats->read_bytes	= p->ioac.read_bytes;
 	stats->write_bytes	= p->ioac.write_bytes;

@@ -38,7 +38,6 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/miscdevice.h>
-#include <linux/smp_lock.h>
 
 #include <rdma/rdma_user_cm.h>
 #include <rdma/ib_marshall.h>
@@ -1149,6 +1148,14 @@ static unsigned int ucma_poll(struct file *filp, struct poll_table_struct *wait)
 	return mask;
 }
 
+/*
+ * ucma_open() does not need the BKL:
+ *
+ *  - no global state is referred to;
+ *  - there is no ioctl method to race against;
+ *  - no further module initialization is required for open to work
+ *    after the device is registered.
+ */
 static int ucma_open(struct inode *inode, struct file *filp)
 {
 	struct ucma_file *file;
@@ -1157,7 +1164,6 @@ static int ucma_open(struct inode *inode, struct file *filp)
 	if (!file)
 		return -ENOMEM;
 
-	lock_kernel();
 	INIT_LIST_HEAD(&file->event_list);
 	INIT_LIST_HEAD(&file->ctx_list);
 	init_waitqueue_head(&file->poll_wait);
@@ -1165,7 +1171,6 @@ static int ucma_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = file;
 	file->filp = filp;
-	unlock_kernel();
 	return 0;
 }
 

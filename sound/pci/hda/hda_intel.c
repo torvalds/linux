@@ -1047,9 +1047,13 @@ static int azx_setup_periods(struct azx *chip,
 	pos_adj = bdl_pos_adj[chip->dev_index];
 	if (pos_adj > 0) {
 		struct snd_pcm_runtime *runtime = substream->runtime;
+		int pos_align = pos_adj;
 		pos_adj = (pos_adj * runtime->rate + 47999) / 48000;
 		if (!pos_adj)
-			pos_adj = 1;
+			pos_adj = pos_align;
+		else
+			pos_adj = ((pos_adj + pos_align - 1) / pos_align) *
+				pos_align;
 		pos_adj = frames_to_bytes(runtime, pos_adj);
 		if (pos_adj >= period_bytes) {
 			snd_printk(KERN_WARNING "Too big adjustment %d\n",

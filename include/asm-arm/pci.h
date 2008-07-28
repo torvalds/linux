@@ -78,6 +78,14 @@ pcibios_select_root(struct pci_dev *pdev, struct resource *res)
 	return root;
 }
 
+/*
+ * Dummy implementation; always return 0.
+ */
+static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
+{
+	return 0;
+}
+
 #endif /* __KERNEL__ */
  
 #endif

@@ -382,9 +382,9 @@ complete_transaction(struct fw_card *card, int rcode,
 
 	response->response.type   = FW_CDEV_EVENT_RESPONSE;
 	response->response.rcode  = rcode;
-	queue_event(client, &response->event,
-		    &response->response, sizeof(response->response),
-		    response->response.data, response->response.length);
+	queue_event(client, &response->event, &response->response,
+		    sizeof(response->response) + response->response.length,
+		    NULL, 0);
 }
 
 static int ioctl_send_request(struct client *client, void *buffer)

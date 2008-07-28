@@ -1,6 +1,5 @@
 /* fortunet.c memory map
  *
- * $Id: fortunet.c,v 1.11 2005/11/07 11:14:27 gleixner Exp $
  */
 
 #include <linux/module.h>

@@ -859,7 +859,7 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 					    sizeof(hostdata->madapter_info),
 					    DMA_BIDIRECTIONAL);
 
-	if (dma_mapping_error(req->buffer)) {
+	if (dma_mapping_error(hostdata->dev, req->buffer)) {
 		if (!firmware_has_feature(FW_FEATURE_CMO))
 			dev_err(hostdata->dev,
 			        "Unable to map request_buffer for "
@@ -1407,7 +1407,7 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 						    length,
 						    DMA_BIDIRECTIONAL);
 
-	if (dma_mapping_error(host_config->buffer)) {
+	if (dma_mapping_error(hostdata->dev, host_config->buffer)) {
 		if (!firmware_has_feature(FW_FEATURE_CMO))
 			dev_err(hostdata->dev,
 			        "dma_mapping error getting host config\n");

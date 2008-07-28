@@ -204,9 +204,8 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 			}
 			break;
 		default:
-			printk(KERN_WARNING "%s(%p, %ld) unknown action: %ld\n",
+			WARN(1, KERN_WARNING "%s(%p, %ld) unknown action: %ld\n",
 					__func__, mem, action, action);
-			WARN_ON(1);
 			ret = -EINVAL;
 	}
 

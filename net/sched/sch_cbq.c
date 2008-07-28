@@ -1175,7 +1175,7 @@ static void cbq_unlink_class(struct cbq_class *this)
 				this->tparent->children = NULL;
 		}
 	} else {
-		BUG_TRAP(this->sibling == this);
+		WARN_ON(this->sibling != this);
 	}
 }
 
@@ -1699,7 +1699,7 @@ static void cbq_destroy_class(struct Qdisc *sch, struct cbq_class *cl)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 
-	BUG_TRAP(!cl->filters);
+	WARN_ON(cl->filters);
 
 	tcf_destroy_chain(&cl->filter_list);
 	qdisc_destroy(cl->q);

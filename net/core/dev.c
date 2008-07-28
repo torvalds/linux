@@ -1973,7 +1973,7 @@ static void net_tx_action(struct softirq_action *h)
 			struct sk_buff *skb = clist;
 			clist = clist->next;
 
-			BUG_TRAP(!atomic_read(&skb->users));
+			WARN_ON(atomic_read(&skb->users));
 			__kfree_skb(skb);
 		}
 	}
@@ -3847,7 +3847,7 @@ static void rollback_registered(struct net_device *dev)
 		dev->uninit(dev);
 
 	/* Notifier chain MUST detach us from master device. */
-	BUG_TRAP(!dev->master);
+	WARN_ON(dev->master);
 
 	/* Remove entries from kobject tree */
 	netdev_unregister_kobject(dev);
@@ -4169,9 +4169,9 @@ void netdev_run_todo(void)
 
 		/* paranoia */
 		BUG_ON(atomic_read(&dev->refcnt));
-		BUG_TRAP(!dev->ip_ptr);
-		BUG_TRAP(!dev->ip6_ptr);
-		BUG_TRAP(!dev->dn_ptr);
+		WARN_ON(dev->ip_ptr);
+		WARN_ON(dev->ip6_ptr);
+		WARN_ON(dev->dn_ptr);
 
 		if (dev->destructor)
 			dev->destructor(dev);

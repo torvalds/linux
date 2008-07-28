@@ -1,6 +1,4 @@
 /*
- * $Id: redwood.c,v 1.11 2005/11/07 11:14:28 gleixner Exp $
- *
  * drivers/mtd/maps/redwood.c
  *
  * FLASH map for the IBM Redwood 4/5/6 boards.

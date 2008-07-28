@@ -171,7 +171,7 @@ config BSD_PROCESS_ACCT_V3
 	  process and it's parent. Note that this file format is incompatible
 	  with previous v0/v1/v2 file formats, so you will need updated tools
 	  for processing it. A preliminary version of these tools is available
-	  at <http://www.physik3.uni-rostock.de/tim/kernel/utils/acct/>.
+	  at <http://www.gnu.org/software/acct/>.
 
 config TASKSTATS
 	bool "Export task/process statistics through netlink (EXPERIMENTAL)"
@@ -486,7 +486,7 @@ config PID_NS
 	default n
 	depends on NAMESPACES && EXPERIMENTAL
 	help
-	  Suport process id namespaces.  This allows having multiple
+	  Support process id namespaces.  This allows having multiple
 	  process with the same pid as long as they are in different
 	  pid namespaces.  This is a building block of containers.
 
