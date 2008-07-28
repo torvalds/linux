@@ -15,12 +15,11 @@
 #include <linux/slab.h>
 
 #include <asm/msr.h>
-#include <asm/timex.h>
-#include <asm/io.h>
+#include <linux/timex.h>
+#include <linux/io.h>
 
-
-#define POWERNOW_IOPORT 0xfff0         /* it doesn't matter where, as long
-					  as it is unused */
+#define POWERNOW_IOPORT 0xfff0          /* it doesn't matter where, as long
+					   as it is unused */
 
 static unsigned int                     busfreq;   /* FSB, in 10 kHz */
 static unsigned int                     max_multiplier;
@@ -53,7 +52,7 @@ static int powernow_k6_get_cpu_multiplier(void)
 
 	msrval = POWERNOW_IOPORT + 0x1;
 	wrmsr(MSR_K6_EPMR, msrval, 0); /* enable the PowerNow port */
-	invalue=inl(POWERNOW_IOPORT + 0x8);
+	invalue = inl(POWERNOW_IOPORT + 0x8);
 	msrval = POWERNOW_IOPORT + 0x0;
 	wrmsr(MSR_K6_EPMR, msrval, 0); /* disable it again */
 
@@ -67,9 +66,9 @@ static int powernow_k6_get_cpu_multiplier(void)
  *
  *   Tries to change the PowerNow! multiplier
  */
-static void powernow_k6_set_state (unsigned int best_i)
+static void powernow_k6_set_state(unsigned int best_i)
 {
-	unsigned long           outvalue=0, invalue=0;
+	unsigned long           outvalue = 0, invalue = 0;
 	unsigned long           msrval;
 	struct cpufreq_freqs    freqs;
 
@@ -90,10 +89,10 @@ static void powernow_k6_set_state (unsigned int best_i)
 
 	msrval = POWERNOW_IOPORT + 0x1;
 	wrmsr(MSR_K6_EPMR, msrval, 0); /* enable the PowerNow port */
-	invalue=inl(POWERNOW_IOPORT + 0x8);
+	invalue = inl(POWERNOW_IOPORT + 0x8);
 	invalue = invalue & 0xf;
 	outvalue = outvalue | invalue;
-	outl(outvalue ,(POWERNOW_IOPORT + 0x8));
+	outl(outvalue , (POWERNOW_IOPORT + 0x8));
 	msrval = POWERNOW_IOPORT + 0x0;
 	wrmsr(MSR_K6_EPMR, msrval, 0); /* disable it again */
 
@@ -124,7 +123,7 @@ static int powernow_k6_verify(struct cpufreq_policy *policy)
  *
  * sets a new CPUFreq policy
  */
-static int powernow_k6_target (struct cpufreq_policy *policy,
+static int powernow_k6_target(struct cpufreq_policy *policy,
 			       unsigned int target_freq,
 			       unsigned int relation)
 {
@@ -152,7 +151,7 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 	busfreq = cpu_khz / max_multiplier;
 
 	/* table init */
-	for (i=0; (clock_ratio[i].frequency != CPUFREQ_TABLE_END); i++) {
+	for (i = 0; (clock_ratio[i].frequency != CPUFREQ_TABLE_END); i++) {
 		if (clock_ratio[i].index > max_multiplier)
 			clock_ratio[i].frequency = CPUFREQ_ENTRY_INVALID;
 		else
@@ -165,7 +164,7 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 
 	result = cpufreq_frequency_table_cpuinfo(policy, clock_ratio);
 	if (result)
-		return (result);
+		return result;
 
 	cpufreq_frequency_table_get_attr(clock_ratio, policy->cpu);
 
@@ -176,8 +175,8 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 {
 	unsigned int i;
-	for (i=0; i<8; i++) {
-		if (i==max_multiplier)
+	for (i = 0; i < 8; i++) {
+		if (i == max_multiplier)
 			powernow_k6_set_state(i);
 	}
 	cpufreq_frequency_table_put_attr(policy->cpu);
@@ -189,7 +188,7 @@ static unsigned int powernow_k6_get(unsigned int cpu)
 	return busfreq * powernow_k6_get_cpu_multiplier();
 }
 
-static struct freq_attr* powernow_k6_attr[] = {
+static struct freq_attr *powernow_k6_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
 };
@@ -227,7 +226,7 @@ static int __init powernow_k6_init(void)
 	}
 
 	if (cpufreq_register_driver(&powernow_k6_driver)) {
-		release_region (POWERNOW_IOPORT, 16);
+		release_region(POWERNOW_IOPORT, 16);
 		return -EINVAL;
 	}
 
@@ -243,13 +242,13 @@ static int __init powernow_k6_init(void)
 static void __exit powernow_k6_exit(void)
 {
 	cpufreq_unregister_driver(&powernow_k6_driver);
-	release_region (POWERNOW_IOPORT, 16);
+	release_region(POWERNOW_IOPORT, 16);
 }
 
 
-MODULE_AUTHOR ("Arjan van de Ven <arjanv@redhat.com>, Dave Jones <davej@codemonkey.org.uk>, Dominik Brodowski <linux@brodo.de>");
-MODULE_DESCRIPTION ("PowerNow! driver for AMD K6-2+ / K6-3+ processors.");
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("Arjan van de Ven <arjanv@redhat.com>, Dave Jones <davej@codemonkey.org.uk>, Dominik Brodowski <linux@brodo.de>");
+MODULE_DESCRIPTION("PowerNow! driver for AMD K6-2+ / K6-3+ processors.");
+MODULE_LICENSE("GPL");
 
 module_init(powernow_k6_init);
 module_exit(powernow_k6_exit);
