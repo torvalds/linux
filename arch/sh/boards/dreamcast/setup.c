@@ -25,7 +25,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/rtc.h>
-#include <machvec.h>
+#include <asm/machvec.h>
 #include <mach/sysasic.h>
 
 extern struct hw_interrupt_type systemasic_int;
