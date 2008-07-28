@@ -26,8 +26,6 @@
 #include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/interrupt.h>
-#include <linux/cpu.h>
 #include <linux/blktrace_api.h>
 #include <linux/fault-inject.h>
 
@@ -49,8 +47,6 @@ struct kmem_cache *blk_requestq_cachep;
  * Controlling structure to kblockd
  */
 static struct workqueue_struct *kblockd_workqueue;
-
-static DEFINE_PER_CPU(struct list_head, blk_cpu_done);
 
 static void drive_stat_acct(struct request *rq, int new_io)
 {
@@ -1644,82 +1640,6 @@ static int __end_that_request_first(struct request *req, int error,
 }
 
 /*
- * splice the completion data to a local structure and hand off to
- * process_completion_queue() to complete the requests
- */
-static void blk_done_softirq(struct softirq_action *h)
-{
-	struct list_head *cpu_list, local_list;
-
-	local_irq_disable();
-	cpu_list = &__get_cpu_var(blk_cpu_done);
-	list_replace_init(cpu_list, &local_list);
-	local_irq_enable();
-
-	while (!list_empty(&local_list)) {
-		struct request *rq;
-
-		rq = list_entry(local_list.next, struct request, donelist);
-		list_del_init(&rq->donelist);
-		rq->q->softirq_done_fn(rq);
-	}
-}
-
-static int __cpuinit blk_cpu_notify(struct notifier_block *self,
-				    unsigned long action, void *hcpu)
-{
-	/*
-	 * If a CPU goes away, splice its entries to the current CPU
-	 * and trigger a run of the softirq
-	 */
-	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
-		int cpu = (unsigned long) hcpu;
-
-		local_irq_disable();
-		list_splice_init(&per_cpu(blk_cpu_done, cpu),
-				 &__get_cpu_var(blk_cpu_done));
-		raise_softirq_irqoff(BLOCK_SOFTIRQ);
-		local_irq_enable();
-	}
-
-	return NOTIFY_OK;
-}
-
-
-static struct notifier_block blk_cpu_notifier __cpuinitdata = {
-	.notifier_call	= blk_cpu_notify,
-};
-
-/**
- * blk_complete_request - end I/O on a request
- * @req:      the request being processed
- *
- * Description:
- *     Ends all I/O on a request. It does not handle partial completions,
- *     unless the driver actually implements this in its completion callback
- *     through requeueing. The actual completion happens out-of-order,
- *     through a softirq handler. The user must have registered a completion
- *     callback through blk_queue_softirq_done().
- **/
-
-void blk_complete_request(struct request *req)
-{
-	struct list_head *cpu_list;
-	unsigned long flags;
-
-	BUG_ON(!req->q->softirq_done_fn);
-
-	local_irq_save(flags);
-
-	cpu_list = &__get_cpu_var(blk_cpu_done);
-	list_add_tail(&req->donelist, cpu_list);
-	raise_softirq_irqoff(BLOCK_SOFTIRQ);
-
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL(blk_complete_request);
-
-/*
  * queue lock must be held
  */
 static void end_that_request_last(struct request *req, int error)
@@ -2053,8 +1973,6 @@ EXPORT_SYMBOL(kblockd_flush_work);
 
 int __init blk_dev_init(void)
 {
-	int i;
-
 	kblockd_workqueue = create_workqueue("kblockd");
 	if (!kblockd_workqueue)
 		panic("Failed to create kblockd\n");
@@ -2064,12 +1982,6 @@ int __init blk_dev_init(void)
 
 	blk_requestq_cachep = kmem_cache_create("blkdev_queue",
 			sizeof(struct request_queue), 0, SLAB_PANIC, NULL);
-
-	for_each_possible_cpu(i)
-		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
-
-	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq);
-	register_hotcpu_notifier(&blk_cpu_notifier);
 
 	return 0;
 }
