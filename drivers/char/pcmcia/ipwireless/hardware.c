@@ -400,19 +400,14 @@ static void swap_packet_bitfield_from_le(unsigned char *data)
 #endif
 }
 
-static int do_send_fragment(struct ipw_hardware *hw, unsigned char *data,
+static void do_send_fragment(struct ipw_hardware *hw, unsigned char *data,
 			    unsigned length)
 {
 	unsigned i;
 	unsigned long flags;
 
 	start_timing();
-
-	if (length == 0)
-		return 0;
-
-	if (length > hw->ll_mtu)
-		return -1;
+	BUG_ON(length > hw->ll_mtu);
 
 	if (ipwireless_debug)
 		dump_data_bytes("send", data, length);
@@ -458,11 +453,9 @@ static int do_send_fragment(struct ipw_hardware *hw, unsigned char *data,
 	spin_unlock_irqrestore(&hw->lock, flags);
 
 	end_write_timing(length);
-
-	return 0;
 }
 
-static int do_send_packet(struct ipw_hardware *hw, struct ipw_tx_packet *packet)
+static void do_send_packet(struct ipw_hardware *hw, struct ipw_tx_packet *packet)
 {
 	unsigned short fragment_data_len;
 	unsigned short data_left = packet->length - packet->offset;
@@ -522,8 +515,6 @@ static int do_send_packet(struct ipw_hardware *hw, struct ipw_tx_packet *packet)
 					packet->length);
 		kfree(packet);
 	}
-
-	return 0;
 }
 
 static void ipw_setup_hardware(struct ipw_hardware *hw)
