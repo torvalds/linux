@@ -1,7 +1,7 @@
 #ifndef _ASM_PARISC_ROPES_H_
 #define _ASM_PARISC_ROPES_H_
 
-#include <asm-parisc/parisc-device.h>
+#include <asm/parisc-device.h>
 
 #ifdef CONFIG_64BIT
 /* "low end" PA8800 machines use ZX1 chipset: PAT PDC and only run 64-bit */
