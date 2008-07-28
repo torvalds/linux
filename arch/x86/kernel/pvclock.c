@@ -97,6 +97,18 @@ static unsigned pvclock_get_time_values(struct pvclock_shadow_time *dst,
 	return dst->version;
 }
 
+unsigned long pvclock_tsc_khz(struct pvclock_vcpu_time_info *src)
+{
+	u64 tsc_khz = 1000000ULL << 32;
+
+	do_div(tsc_khz, src->tsc_to_system_mul);
+	if (src->tsc_shift < 0)
+		tsc_khz <<= -src->tsc_shift;
+	else
+		tsc_khz >>= src->tsc_shift;
+	return tsc_khz;
+}
+
 cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 {
 	struct pvclock_shadow_time shadow;
