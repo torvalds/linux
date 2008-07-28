@@ -102,43 +102,11 @@
  * 			the fast path and disables lockless freelists.
  */
 
-#define FROZEN (1 << PG_active)
-
 #ifdef CONFIG_SLUB_DEBUG
-#define SLABDEBUG (1 << PG_error)
+#define SLABDEBUG 1
 #else
 #define SLABDEBUG 0
 #endif
-
-static inline int SlabFrozen(struct page *page)
-{
-	return page->flags & FROZEN;
-}
-
-static inline void SetSlabFrozen(struct page *page)
-{
-	page->flags |= FROZEN;
-}
-
-static inline void ClearSlabFrozen(struct page *page)
-{
-	page->flags &= ~FROZEN;
-}
-
-static inline int SlabDebug(struct page *page)
-{
-	return page->flags & SLABDEBUG;
-}
-
-static inline void SetSlabDebug(struct page *page)
-{
-	page->flags |= SLABDEBUG;
-}
-
-static inline void ClearSlabDebug(struct page *page)
-{
-	page->flags &= ~SLABDEBUG;
-}
 
 /*
  * Issues still to be resolved:
@@ -971,7 +939,7 @@ static int free_debug_processing(struct kmem_cache *s, struct page *page,
 	}
 
 	/* Special debug activities for freeing objects */
-	if (!SlabFrozen(page) && !page->freelist)
+	if (!PageSlubFrozen(page) && !page->freelist)
 		remove_full(s, page);
 	if (s->flags & SLAB_STORE_USER)
 		set_track(s, object, TRACK_FREE, addr);
@@ -1044,7 +1012,7 @@ __setup("slub_debug", setup_slub_debug);
 
 static unsigned long kmem_cache_flags(unsigned long objsize,
 	unsigned long flags, const char *name,
-	void (*ctor)(struct kmem_cache *, void *))
+	void (*ctor)(void *))
 {
 	/*
 	 * Enable debugging if selected on the kernel commandline.
@@ -1072,7 +1040,7 @@ static inline int check_object(struct kmem_cache *s, struct page *page,
 static inline void add_full(struct kmem_cache_node *n, struct page *page) {}
 static inline unsigned long kmem_cache_flags(unsigned long objsize,
 	unsigned long flags, const char *name,
-	void (*ctor)(struct kmem_cache *, void *))
+	void (*ctor)(void *))
 {
 	return flags;
 }
@@ -1135,7 +1103,7 @@ static void setup_object(struct kmem_cache *s, struct page *page,
 {
 	setup_object_debug(s, page, object);
 	if (unlikely(s->ctor))
-		s->ctor(s, object);
+		s->ctor(object);
 }
 
 static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
@@ -1157,7 +1125,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 	page->flags |= 1 << PG_slab;
 	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
 			SLAB_STORE_USER | SLAB_TRACE))
-		SetSlabDebug(page);
+		__SetPageSlubDebug(page);
 
 	start = page_address(page);
 
@@ -1184,14 +1152,14 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 	int order = compound_order(page);
 	int pages = 1 << order;
 
-	if (unlikely(SlabDebug(page))) {
+	if (unlikely(SLABDEBUG && PageSlubDebug(page))) {
 		void *p;
 
 		slab_pad_check(s, page);
 		for_each_object(p, s, page_address(page),
 						page->objects)
 			check_object(s, page, p, 0);
-		ClearSlabDebug(page);
+		__ClearPageSlubDebug(page);
 	}
 
 	mod_zone_page_state(page_zone(page),
@@ -1288,7 +1256,7 @@ static inline int lock_and_freeze_slab(struct kmem_cache_node *n,
 	if (slab_trylock(page)) {
 		list_del(&page->lru);
 		n->nr_partial--;
-		SetSlabFrozen(page);
+		__SetPageSlubFrozen(page);
 		return 1;
 	}
 	return 0;
@@ -1398,7 +1366,7 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
 	struct kmem_cache_cpu *c = get_cpu_slab(s, smp_processor_id());
 
-	ClearSlabFrozen(page);
+	__ClearPageSlubFrozen(page);
 	if (page->inuse) {
 
 		if (page->freelist) {
@@ -1406,7 +1374,8 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 			stat(c, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
 		} else {
 			stat(c, DEACTIVATE_FULL);
-			if (SlabDebug(page) && (s->flags & SLAB_STORE_USER))
+			if (SLABDEBUG && PageSlubDebug(page) &&
+						(s->flags & SLAB_STORE_USER))
 				add_full(n, page);
 		}
 		slab_unlock(page);
@@ -1551,7 +1520,7 @@ load_freelist:
 	object = c->page->freelist;
 	if (unlikely(!object))
 		goto another_slab;
-	if (unlikely(SlabDebug(c->page)))
+	if (unlikely(SLABDEBUG && PageSlubDebug(c->page)))
 		goto debug;
 
 	c->freelist = object[c->offset];
@@ -1588,7 +1557,7 @@ new_slab:
 		if (c->page)
 			flush_slab(s, c);
 		slab_lock(new);
-		SetSlabFrozen(new);
+		__SetPageSlubFrozen(new);
 		c->page = new;
 		goto load_freelist;
 	}
@@ -1674,7 +1643,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 	stat(c, FREE_SLOWPATH);
 	slab_lock(page);
 
-	if (unlikely(SlabDebug(page)))
+	if (unlikely(SLABDEBUG && PageSlubDebug(page)))
 		goto debug;
 
 checks_ok:
@@ -1682,7 +1651,7 @@ checks_ok:
 	page->freelist = object;
 	page->inuse--;
 
-	if (unlikely(SlabFrozen(page))) {
+	if (unlikely(PageSlubFrozen(page))) {
 		stat(c, FREE_FROZEN);
 		goto out_unlock;
 	}
@@ -2317,7 +2286,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
 static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
 		const char *name, size_t size,
 		size_t align, unsigned long flags,
-		void (*ctor)(struct kmem_cache *, void *))
+		void (*ctor)(void *))
 {
 	memset(s, 0, kmem_size);
 	s->name = name;
@@ -3073,7 +3042,7 @@ static int slab_unmergeable(struct kmem_cache *s)
 
 static struct kmem_cache *find_mergeable(size_t size,
 		size_t align, unsigned long flags, const char *name,
-		void (*ctor)(struct kmem_cache *, void *))
+		void (*ctor)(void *))
 {
 	struct kmem_cache *s;
 
@@ -3113,8 +3082,7 @@ static struct kmem_cache *find_mergeable(size_t size,
 }
 
 struct kmem_cache *kmem_cache_create(const char *name, size_t size,
-		size_t align, unsigned long flags,
-		void (*ctor)(struct kmem_cache *, void *))
+		size_t align, unsigned long flags, void (*ctor)(void *))
 {
 	struct kmem_cache *s;
 
@@ -3317,12 +3285,12 @@ static void validate_slab_slab(struct kmem_cache *s, struct page *page,
 			s->name, page);
 
 	if (s->flags & DEBUG_DEFAULT_FLAGS) {
-		if (!SlabDebug(page))
-			printk(KERN_ERR "SLUB %s: SlabDebug not set "
+		if (!PageSlubDebug(page))
+			printk(KERN_ERR "SLUB %s: SlubDebug not set "
 				"on slab 0x%p\n", s->name, page);
 	} else {
-		if (SlabDebug(page))
-			printk(KERN_ERR "SLUB %s: SlabDebug set on "
+		if (PageSlubDebug(page))
+			printk(KERN_ERR "SLUB %s: SlubDebug set on "
 				"slab 0x%p\n", s->name, page);
 	}
 }

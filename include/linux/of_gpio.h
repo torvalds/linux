@@ -15,7 +15,7 @@
 #define __LINUX_OF_GPIO_H
 
 #include <linux/errno.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 
 #ifdef CONFIG_OF_GPIO
 

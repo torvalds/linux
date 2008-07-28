@@ -1725,13 +1725,13 @@ static int esp_tiocmset(struct tty_struct *tty, struct file *file,
 /*
  * rs_break() --- routine which turns the break handling on or off
  */
-static void esp_break(struct tty_struct *tty, int break_state)
+static int esp_break(struct tty_struct *tty, int break_state)
 {
 	struct esp_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "esp_break"))
-		return;
+		return -EINVAL;
 
 	if (break_state == -1) {
 		spin_lock_irqsave(&info->lock, flags);
@@ -1747,6 +1747,7 @@ static void esp_break(struct tty_struct *tty, int break_state)
 		serial_out(info, UART_ESI_CMD2, 0x00);
 		spin_unlock_irqrestore(&info->lock, flags);
 	}
+	return 0;
 }
 
 static int rs_ioctl(struct tty_struct *tty, struct file *file,

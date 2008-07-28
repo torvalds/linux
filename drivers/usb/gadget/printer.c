@@ -179,7 +179,7 @@ module_param(qlen, uint, S_IRUGO|S_IWUSR);
 
 #define ERROR(dev, fmt, args...) \
 	xprintk(dev, KERN_ERR, fmt, ## args)
-#define WARN(dev, fmt, args...) \
+#define WARNING(dev, fmt, args...) \
 	xprintk(dev, KERN_WARNING, fmt, ## args)
 #define INFO(dev, fmt, args...) \
 	xprintk(dev, KERN_INFO, fmt, ## args)
@@ -1360,8 +1360,8 @@ printer_bind(struct usb_gadget *gadget)
 
 
 	/* Setup the sysfs files for the printer gadget. */
-	dev->pdev = device_create(usb_gadget_class, NULL, g_printer_devno,
-			"g_printer");
+	dev->pdev = device_create_drvdata(usb_gadget_class, NULL,
+					  g_printer_devno, NULL, "g_printer");
 	if (IS_ERR(dev->pdev)) {
 		ERROR(dev, "Failed to create device: g_printer\n");
 		goto fail;

@@ -309,32 +309,10 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_symlink);
 
-/**
- * debugfs_remove - removes a file or directory from the debugfs filesystem
- * @dentry: a pointer to a the dentry of the file or directory to be
- *          removed.
- *
- * This function removes a file or directory in debugfs that was previously
- * created with a call to another debugfs function (like
- * debugfs_create_file() or variants thereof.)
- *
- * This function is required to be called in order for the file to be
- * removed, no automatic cleanup of files will happen when a module is
- * removed, you are responsible here.
- */
-void debugfs_remove(struct dentry *dentry)
+static void __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 {
-	struct dentry *parent;
 	int ret = 0;
-	
-	if (!dentry)
-		return;
 
-	parent = dentry->d_parent;
-	if (!parent || !parent->d_inode)
-		return;
-
-	mutex_lock(&parent->d_inode->i_mutex);
 	if (debugfs_positive(dentry)) {
 		if (dentry->d_inode) {
 			dget(dentry);
@@ -354,10 +332,110 @@ void debugfs_remove(struct dentry *dentry)
 			dput(dentry);
 		}
 	}
+}
+
+/**
+ * debugfs_remove - removes a file or directory from the debugfs filesystem
+ * @dentry: a pointer to a the dentry of the file or directory to be
+ *          removed.
+ *
+ * This function removes a file or directory in debugfs that was previously
+ * created with a call to another debugfs function (like
+ * debugfs_create_file() or variants thereof.)
+ *
+ * This function is required to be called in order for the file to be
+ * removed, no automatic cleanup of files will happen when a module is
+ * removed, you are responsible here.
+ */
+void debugfs_remove(struct dentry *dentry)
+{
+	struct dentry *parent;
+	
+	if (!dentry)
+		return;
+
+	parent = dentry->d_parent;
+	if (!parent || !parent->d_inode)
+		return;
+
+	mutex_lock(&parent->d_inode->i_mutex);
+	__debugfs_remove(dentry, parent);
 	mutex_unlock(&parent->d_inode->i_mutex);
 	simple_release_fs(&debugfs_mount, &debugfs_mount_count);
 }
 EXPORT_SYMBOL_GPL(debugfs_remove);
+
+/**
+ * debugfs_remove_recursive - recursively removes a directory
+ * @dentry: a pointer to a the dentry of the directory to be removed.
+ *
+ * This function recursively removes a directory tree in debugfs that
+ * was previously created with a call to another debugfs function
+ * (like debugfs_create_file() or variants thereof.)
+ *
+ * This function is required to be called in order for the file to be
+ * removed, no automatic cleanup of files will happen when a module is
+ * removed, you are responsible here.
+ */
+void debugfs_remove_recursive(struct dentry *dentry)
+{
+	struct dentry *child;
+	struct dentry *parent;
+
+	if (!dentry)
+		return;
+
+	parent = dentry->d_parent;
+	if (!parent || !parent->d_inode)
+		return;
+
+	parent = dentry;
+	mutex_lock(&parent->d_inode->i_mutex);
+
+	while (1) {
+		/*
+		 * When all dentries under "parent" has been removed,
+		 * walk up the tree until we reach our starting point.
+		 */
+		if (list_empty(&parent->d_subdirs)) {
+			mutex_unlock(&parent->d_inode->i_mutex);
+			if (parent == dentry)
+				break;
+			parent = parent->d_parent;
+			mutex_lock(&parent->d_inode->i_mutex);
+		}
+		child = list_entry(parent->d_subdirs.next, struct dentry,
+				d_u.d_child);
+
+		/*
+		 * If "child" isn't empty, walk down the tree and
+		 * remove all its descendants first.
+		 */
+		if (!list_empty(&child->d_subdirs)) {
+			mutex_unlock(&parent->d_inode->i_mutex);
+			parent = child;
+			mutex_lock(&parent->d_inode->i_mutex);
+			continue;
+		}
+		__debugfs_remove(child, parent);
+		if (parent->d_subdirs.next == &child->d_u.d_child) {
+			/*
+			 * Avoid infinite loop if we fail to remove
+			 * one dentry.
+			 */
+			mutex_unlock(&parent->d_inode->i_mutex);
+			break;
+		}
+		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
+	}
+
+	parent = dentry->d_parent;
+	mutex_lock(&parent->d_inode->i_mutex);
+	__debugfs_remove(dentry, parent);
+	mutex_unlock(&parent->d_inode->i_mutex);
+	simple_release_fs(&debugfs_mount, &debugfs_mount_count);
+}
+EXPORT_SYMBOL_GPL(debugfs_remove_recursive);
 
 /**
  * debugfs_rename - rename a file/directory in the debugfs filesystem

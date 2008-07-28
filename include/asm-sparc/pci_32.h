@@ -154,7 +154,8 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 
 #define PCI_DMA_ERROR_CODE      (~(dma_addr_t)0x0)
 
-static inline int pci_dma_mapping_error(dma_addr_t dma_addr)
+static inline int pci_dma_mapping_error(struct pci_dev *pdev,
+					dma_addr_t dma_addr)
 {
         return (dma_addr == PCI_DMA_ERROR_CODE);
 }

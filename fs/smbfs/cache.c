@@ -13,7 +13,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/dirent.h>
 #include <linux/smb_fs.h>
 #include <linux/pagemap.h>
 #include <linux/net.h>

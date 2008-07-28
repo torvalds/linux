@@ -310,7 +310,8 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	switch (m->mode) {
 	case SVC_POOL_PERCPU:
 	{
-		set_cpus_allowed_ptr(task, &cpumask_of_cpu(node));
+		cpumask_of_cpu_ptr(cpumask, node);
+		set_cpus_allowed_ptr(task, cpumask);
 		break;
 	}
 	case SVC_POOL_PERNODE:

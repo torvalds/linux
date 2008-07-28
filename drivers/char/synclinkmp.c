@@ -527,7 +527,7 @@ static int  read_proc(char *page, char **start, off_t off, int count,int *eof, v
 static int  chars_in_buffer(struct tty_struct *tty);
 static void throttle(struct tty_struct * tty);
 static void unthrottle(struct tty_struct * tty);
-static void set_break(struct tty_struct *tty, int break_state);
+static int set_break(struct tty_struct *tty, int break_state);
 
 #if SYNCLINK_GENERIC_HDLC
 #define dev_to_port(D) (dev_to_hdlc(D)->priv)
@@ -552,7 +552,7 @@ static int  wait_mgsl_event(SLMP_INFO *info, int __user *mask_ptr);
 static int  tiocmget(struct tty_struct *tty, struct file *file);
 static int  tiocmset(struct tty_struct *tty, struct file *file,
 		     unsigned int set, unsigned int clear);
-static void set_break(struct tty_struct *tty, int break_state);
+static int  set_break(struct tty_struct *tty, int break_state);
 
 static void add_device(SLMP_INFO *info);
 static void device_init(int adapter_num, struct pci_dev *pdev);
@@ -1587,7 +1587,7 @@ static void unthrottle(struct tty_struct * tty)
 /* set or clear transmit break condition
  * break_state	-1=set break condition, 0=clear
  */
-static void set_break(struct tty_struct *tty, int break_state)
+static int set_break(struct tty_struct *tty, int break_state)
 {
 	unsigned char RegValue;
 	SLMP_INFO * info = (SLMP_INFO *)tty->driver_data;
@@ -1598,7 +1598,7 @@ static void set_break(struct tty_struct *tty, int break_state)
 			 __FILE__,__LINE__, info->device_name, break_state);
 
 	if (sanity_check(info, tty->name, "set_break"))
-		return;
+		return -EINVAL;
 
 	spin_lock_irqsave(&info->lock,flags);
 	RegValue = read_reg(info, CTL);
@@ -1608,6 +1608,7 @@ static void set_break(struct tty_struct *tty, int break_state)
 		RegValue &= ~BIT3;
 	write_reg(info, CTL, RegValue);
 	spin_unlock_irqrestore(&info->lock,flags);
+	return 0;
 }
 
 #if SYNCLINK_GENERIC_HDLC

@@ -6,7 +6,7 @@ This document contains an explanation of the struct taskstats fields.
 There are three different groups of fields in the struct taskstats:
 
 1) Common and basic accounting fields
-    If CONFIG_TASKSTATS is set, the taskstats inteface is enabled and
+    If CONFIG_TASKSTATS is set, the taskstats interface is enabled and
     the common fields and basic accounting fields are collected for
     delivery at do_exit() of a task.
 2) Delay accounting fields
@@ -25,6 +25,8 @@ There are three different groups of fields in the struct taskstats:
 4) Per-task and per-thread context switch count statistics
 
 5) Time accounting for SMT machines
+
+6) Extended delay accounting fields for memory reclaim
 
 Future extension should add fields to the end of the taskstats struct, and
 should not change the relative position of each field within the struct.
@@ -170,4 +172,9 @@ struct taskstats {
 	__u64	ac_utimescaled;		/* utime scaled on frequency etc */
 	__u64	ac_stimescaled;		/* stime scaled on frequency etc */
 	__u64	cpu_scaled_run_real_total; /* scaled cpu_run_real_total */
+
+6) Extended delay accounting fields for memory reclaim
+	/* Delay waiting for memory reclaim */
+	__u64	freepages_count;
+	__u64	freepages_delay_total;
 }

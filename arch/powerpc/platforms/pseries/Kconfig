@@ -7,6 +7,7 @@ config PPC_PSERIES
 	select RTAS_ERROR_LOGGING
 	select PPC_UDBG_16550
 	select PPC_NATIVE
+	select PPC_PCI_CHOICE if EMBEDDED
 	default y
 
 config PPC_SPLPAR
@@ -39,3 +40,26 @@ config PPC_PSERIES_DEBUG
 	depends on PPC_PSERIES && PPC_EARLY_DEBUG
 	bool "Enable extra debug logging in platforms/pseries"
 	default y
+
+config PPC_SMLPAR
+	bool "Support for shared-memory logical partitions"
+	depends on PPC_PSERIES
+	select LPARCFG
+	default n
+	help
+	  Select this option to enable shared memory partition support.
+	  With this option a system running in an LPAR can be given more
+	  memory than physically available and will allow firmware to
+	  balance memory across many LPARs.
+
+config CMM
+	tristate "Collaborative memory management"
+	depends on PPC_SMLPAR
+	default y
+	help
+	  Select this option, if you want to enable the kernel interface
+	  to reduce the memory size of the system. This is accomplished
+	  by allocating pages of memory and put them "on hold". This only
+	  makes sense for a system running in an LPAR where the unused pages
+	  will be reused for other LPARs. The interface allows firmware to
+	  balance memory across many LPARs.

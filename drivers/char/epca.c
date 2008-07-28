@@ -184,9 +184,8 @@ static void pc_stop(struct tty_struct *);
 static void pc_start(struct tty_struct *);
 static void pc_throttle(struct tty_struct *tty);
 static void pc_unthrottle(struct tty_struct *tty);
-static void digi_send_break(struct channel *ch, int msec);
+static int pc_send_break(struct tty_struct *tty, int msec);
 static void setup_empty_event(struct tty_struct *tty, struct channel *ch);
-static void epca_setup(char *, int *);
 
 static int pc_write(struct tty_struct *, const unsigned char *, int);
 static int pc_init(void);
@@ -1040,6 +1039,7 @@ static const struct tty_operations pc_ops = {
 	.throttle = pc_throttle,
 	.unthrottle = pc_unthrottle,
 	.hangup = pc_hangup,
+	.break_ctl = pc_send_break
 };
 
 static int info_open(struct tty_struct *tty, struct file *filp)
@@ -1132,7 +1132,7 @@ static int __init pc_init(void)
 	pc_driver->init_termios.c_lflag = 0;
 	pc_driver->init_termios.c_ispeed = 9600;
 	pc_driver->init_termios.c_ospeed = 9600;
-	pc_driver->flags = TTY_DRIVER_REAL_RAW;
+	pc_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_HARDWARE_BREAK;
 	tty_set_operations(pc_driver, &pc_ops);
 
 	pc_info->owner = THIS_MODULE;
@@ -2177,7 +2177,6 @@ static int pc_ioctl(struct tty_struct *tty, struct file *file,
 					unsigned int cmd, unsigned long arg)
 {
 	digiflow_t dflow;
-	int retval;
 	unsigned long flags;
 	unsigned int mflag, mstat;
 	unsigned char startc, stopc;
@@ -2189,37 +2188,7 @@ static int pc_ioctl(struct tty_struct *tty, struct file *file,
 		bc = ch->brdchan;
 	else
 		return -EINVAL;
-	/*
-	 * For POSIX compliance we need to add more ioctls. See tty_ioctl.c in
-	 * /usr/src/linux/drivers/char for a good example. In particular think
-	 * about adding TCSETAF, TCSETAW, TCSETA, TCSETSF, TCSETSW, TCSETS.
-	 */
 	switch (cmd) {
-	case TCSBRK:	/* SVID version: non-zero arg --> no break */
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-		/* Setup an event to indicate when the transmit
-		   buffer empties */
-		spin_lock_irqsave(&epca_lock, flags);
-		setup_empty_event(tty, ch);
-		spin_unlock_irqrestore(&epca_lock, flags);
-		tty_wait_until_sent(tty, 0);
-		if (!arg)
-			digi_send_break(ch, HZ / 4);    /* 1/4 second */
-		return 0;
-	case TCSBRKP:	/* support for POSIX tcsendbreak() */
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-		/* Setup an event to indicate when the transmit buffer
-		   empties */
-		spin_lock_irqsave(&epca_lock, flags);
-		setup_empty_event(tty, ch);
-		spin_unlock_irqrestore(&epca_lock, flags);
-		tty_wait_until_sent(tty, 0);
-		digi_send_break(ch, arg ? arg*(HZ/10) : HZ/4);
-		return 0;
 	case TIOCMODG:
 		mflag = pc_tiocmget(tty, file);
 		if (put_user(mflag, (unsigned long __user *)argp))
@@ -2505,9 +2474,13 @@ static void pc_unthrottle(struct tty_struct *tty)
 	}
 }
 
-static void digi_send_break(struct channel *ch, int msec)
+static int pc_send_break(struct tty_struct *tty, int msec)
 {
+	struct channel *ch = (struct channel *) tty->driver_data;
 	unsigned long flags;
+
+	if (msec == -1)
+		return -EOPNOTSUPP;
 
 	spin_lock_irqsave(&epca_lock, flags);
 	globalwinon(ch);
@@ -2521,6 +2494,7 @@ static void digi_send_break(struct channel *ch, int msec)
 	fepcmd(ch, SENDBREAK, msec, 0, 10, 0);
 	memoff(ch);
 	spin_unlock_irqrestore(&epca_lock, flags);
+	return 0;
 }
 
 /* Caller MUST hold the lock */
@@ -2538,7 +2512,8 @@ static void setup_empty_event(struct tty_struct *tty, struct channel *ch)
 	memoff(ch);
 }
 
-static void epca_setup(char *str, int *ints)
+#ifndef MODULE
+static void __init epca_setup(char *str, int *ints)
 {
 	struct board_info board;
 	int               index, loop, last;
@@ -2791,6 +2766,17 @@ static void epca_setup(char *str, int *ints)
 		board.numports, (int)board.port, (unsigned int) board.membase);
 	num_cards++;
 }
+
+static int __init epca_real_setup(char *str)
+{
+	int ints[11];
+
+	epca_setup(get_options(str, 11, ints), ints);
+	return 1;
+}
+
+__setup("digiepca", epca_real_setup);
+#endif
 
 enum epic_board_types {
 	brd_xr = 0,

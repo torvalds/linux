@@ -708,6 +708,11 @@ EXPORT_SYMBOL(abort);
 
 void __init trap_init(void)
 {
+	return;
+}
+
+void __init early_trap_init(void)
+{
 	unsigned long vectors = CONFIG_VECTORS_BASE;
 	extern char __stubs_start[], __stubs_end[];
 	extern char __vectors_start[], __vectors_end[];

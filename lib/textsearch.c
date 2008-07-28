@@ -267,7 +267,7 @@ struct ts_config *textsearch_prepare(const char *algo, const void *pattern,
 		return ERR_PTR(-EINVAL);
 
 	ops = lookup_ts_algo(algo);
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	/*
 	 * Why not always autoload you may ask. Some users are
 	 * in a situation where requesting a module may deadlock,

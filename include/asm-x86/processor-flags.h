@@ -88,10 +88,12 @@
 #define CX86_ARR_BASE	0xc4
 #define CX86_RCR_BASE	0xdc
 
+#ifdef __KERNEL__
 #ifdef CONFIG_VM86
 #define X86_VM_MASK	X86_EFLAGS_VM
 #else
 #define X86_VM_MASK	0 /* No VM86 support */
+#endif
 #endif
 
 #endif	/* __ASM_I386_PROCESSOR_FLAGS_H */

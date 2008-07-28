@@ -302,6 +302,7 @@
 #define	PHYIE             0x00000001    /* PHY_INT Interrupt Enable                               */
 #define	RXDWA             0x00000002    /* Receive Frame DMA Word Alignment (Odd/Even*)           */
 #define	RXCKS             0x00000004    /* Enable RX Frame TCP/UDP Checksum Computation           */
+#define	TXDWA             0x00000010    /* Transmit Frame DMA Word Alignment (Odd/Even*)          */
 #define	MDCDIV            0x00003F00    /* SCLK:MDC Clock Divisor [MDC=SCLK/(2*(N+1))]            */
 
 #define	SET_MDCDIV(x) (((x)&0x3F)<< 8)   /* Set MDC Clock Divisor                                 */

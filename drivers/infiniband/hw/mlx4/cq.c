@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -637,6 +638,7 @@ repoll:
 		case MLX4_OPCODE_SEND_IMM:
 			wc->wc_flags |= IB_WC_WITH_IMM;
 		case MLX4_OPCODE_SEND:
+		case MLX4_OPCODE_SEND_INVAL:
 			wc->opcode    = IB_WC_SEND;
 			break;
 		case MLX4_OPCODE_RDMA_READ:
@@ -657,6 +659,12 @@ repoll:
 		case MLX4_OPCODE_LSO:
 			wc->opcode    = IB_WC_LSO;
 			break;
+		case MLX4_OPCODE_FMR:
+			wc->opcode    = IB_WC_FAST_REG_MR;
+			break;
+		case MLX4_OPCODE_LOCAL_INVAL:
+			wc->opcode    = IB_WC_LOCAL_INV;
+			break;
 		}
 	} else {
 		wc->byte_len = be32_to_cpu(cqe->byte_cnt);
@@ -666,6 +674,11 @@ repoll:
 			wc->opcode	= IB_WC_RECV_RDMA_WITH_IMM;
 			wc->wc_flags	= IB_WC_WITH_IMM;
 			wc->ex.imm_data = cqe->immed_rss_invalid;
+			break;
+		case MLX4_RECV_OPCODE_SEND_INVAL:
+			wc->opcode	= IB_WC_RECV;
+			wc->wc_flags	= IB_WC_WITH_INVALIDATE;
+			wc->ex.invalidate_rkey = be32_to_cpu(cqe->immed_rss_invalid);
 			break;
 		case MLX4_RECV_OPCODE_SEND:
 			wc->opcode   = IB_WC_RECV;

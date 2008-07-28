@@ -303,7 +303,9 @@ static struct kobj_type kobj_pkt_type_wqueue = {
 static void pkt_sysfs_dev_new(struct pktcdvd_device *pd)
 {
 	if (class_pktcdvd) {
-		pd->dev = device_create(class_pktcdvd, NULL, pd->pkt_dev, "%s", pd->name);
+		pd->dev = device_create_drvdata(class_pktcdvd, NULL,
+						pd->pkt_dev, NULL,
+						"%s", pd->name);
 		if (IS_ERR(pd->dev))
 			pd->dev = NULL;
 	}

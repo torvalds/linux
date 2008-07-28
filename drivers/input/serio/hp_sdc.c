@@ -67,9 +67,9 @@
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/time.h>
+#include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/hil.h>
-#include <linux/semaphore.h>
 #include <asm/io.h>
 #include <asm/system.h>
 

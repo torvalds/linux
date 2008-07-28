@@ -187,7 +187,7 @@ static struct mtd_partition * __init nand_partitions(int size, int *num_partitio
 	return ek_nand_partition;
 }
 
-static struct at91_nand_data __initdata ek_nand_data = {
+static struct atmel_nand_data __initdata ek_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
 //	.det_pin	= ... not connected

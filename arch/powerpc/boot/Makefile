@@ -163,12 +163,12 @@ quiet_cmd_flex = FLEX    $@
       cmd_flex = $(FLEX) -o$@ $<; cp $@ $@_shipped
 
 $(obj)/dtc-src/dtc-parser.tab.c: $(src)/dtc-src/dtc-parser.y FORCE
-     $(call if_changed,bison)
+	$(call if_changed,bison)
 
 $(obj)/dtc-src/dtc-parser.tab.h: $(obj)/dtc-src/dtc-parser.tab.c
 
 $(obj)/dtc-src/dtc-lexer.lex.c: $(src)/dtc-src/dtc-lexer.l FORCE
-     $(call if_changed,flex)
+	$(call if_changed,flex)
 endif
 
 #############

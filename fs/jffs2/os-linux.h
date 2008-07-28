@@ -167,7 +167,7 @@ int jffs2_fsync(struct file *, struct dentry *, int);
 int jffs2_do_readpage_unlock (struct inode *inode, struct page *pg);
 
 /* ioctl.c */
-int jffs2_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
+long jffs2_ioctl(struct file *, unsigned int, unsigned long);
 
 /* symlink.c */
 extern const struct inode_operations jffs2_symlink_inode_operations;

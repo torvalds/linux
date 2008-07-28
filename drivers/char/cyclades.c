@@ -3700,14 +3700,15 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
 /*
  * cy_break() --- routine which turns the break handling on or off
  */
-static void cy_break(struct tty_struct *tty, int break_state)
+static int cy_break(struct tty_struct *tty, int break_state)
 {
 	struct cyclades_port *info = tty->driver_data;
 	struct cyclades_card *card;
 	unsigned long flags;
+	int retval = 0;
 
 	if (serial_paranoia_check(info, tty->name, "cy_break"))
-		return;
+		return -EINVAL;
 
 	card = info->card;
 
@@ -3736,8 +3737,6 @@ static void cy_break(struct tty_struct *tty, int break_state)
 			}
 		}
 	} else {
-		int retval;
-
 		if (break_state == -1) {
 			retval = cyz_issue_cmd(card,
 				info->line - card->first_line,
@@ -3758,6 +3757,7 @@ static void cy_break(struct tty_struct *tty, int break_state)
 		}
 	}
 	spin_unlock_irqrestore(&card->card_lock, flags);
+	return retval;
 }				/* cy_break */
 
 static int get_mon_info(struct cyclades_port *info,

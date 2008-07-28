@@ -112,7 +112,26 @@ unsigned long get_wchan(struct task_struct *p);
 static inline uint32_t __pure bfin_revid(void)
 {
 	/* stored in the upper 4 bits */
-	return bfin_read_CHIPID() >> 28;
+	uint32_t revid = bfin_read_CHIPID() >> 28;
+
+#ifdef CONFIG_BF52x
+	/* ANOMALY_05000357
+	 * Incorrect Revision Number in DSPID Register
+	 */
+	if (revid == 0)
+		switch (bfin_read16(_BOOTROM_GET_DXE_ADDRESS_TWI)) {
+		case 0x0010:
+			revid = 0;
+			break;
+		case 0x2796:
+			revid = 1;
+			break;
+		default:
+			revid = 0xFFFF;
+			break;
+		}
+#endif
+	return revid;
 }
 
 static inline uint32_t __pure bfin_compiled_revid(void)

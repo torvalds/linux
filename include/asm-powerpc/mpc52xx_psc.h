@@ -60,10 +60,12 @@
 #define MPC52xx_PSC_RXTX_FIFO_ALARM	0x0002
 #define MPC52xx_PSC_RXTX_FIFO_EMPTY	0x0001
 
-/* PSC interrupt mask bits */
+/* PSC interrupt status/mask bits */
 #define MPC52xx_PSC_IMR_TXRDY		0x0100
 #define MPC52xx_PSC_IMR_RXRDY		0x0200
 #define MPC52xx_PSC_IMR_DB		0x0400
+#define MPC52xx_PSC_IMR_TXEMP		0x0800
+#define MPC52xx_PSC_IMR_ORERR		0x1000
 #define MPC52xx_PSC_IMR_IPC		0x8000
 
 /* PSC input port change bit */
@@ -92,6 +94,34 @@
 
 #define MPC52xx_PSC_RFNUM_MASK	0x01ff
 
+#define MPC52xx_PSC_SICR_DTS1			(1 << 29)
+#define MPC52xx_PSC_SICR_SHDR			(1 << 28)
+#define MPC52xx_PSC_SICR_SIM_MASK		(0xf << 24)
+#define MPC52xx_PSC_SICR_SIM_UART		(0x0 << 24)
+#define MPC52xx_PSC_SICR_SIM_UART_DCD		(0x8 << 24)
+#define MPC52xx_PSC_SICR_SIM_CODEC_8		(0x1 << 24)
+#define MPC52xx_PSC_SICR_SIM_CODEC_16		(0x2 << 24)
+#define MPC52xx_PSC_SICR_SIM_AC97		(0x3 << 24)
+#define MPC52xx_PSC_SICR_SIM_SIR		(0x8 << 24)
+#define MPC52xx_PSC_SICR_SIM_SIR_DCD		(0xc << 24)
+#define MPC52xx_PSC_SICR_SIM_MIR		(0x5 << 24)
+#define MPC52xx_PSC_SICR_SIM_FIR		(0x6 << 24)
+#define MPC52xx_PSC_SICR_SIM_CODEC_24		(0x7 << 24)
+#define MPC52xx_PSC_SICR_SIM_CODEC_32		(0xf << 24)
+#define MPC52xx_PSC_SICR_GENCLK			(1 << 23)
+#define MPC52xx_PSC_SICR_I2S			(1 << 22)
+#define MPC52xx_PSC_SICR_CLKPOL			(1 << 21)
+#define MPC52xx_PSC_SICR_SYNCPOL		(1 << 20)
+#define MPC52xx_PSC_SICR_CELLSLAVE		(1 << 19)
+#define MPC52xx_PSC_SICR_CELL2XCLK		(1 << 18)
+#define MPC52xx_PSC_SICR_ESAI			(1 << 17)
+#define MPC52xx_PSC_SICR_ENAC97			(1 << 16)
+#define MPC52xx_PSC_SICR_SPI			(1 << 15)
+#define MPC52xx_PSC_SICR_MSTR			(1 << 14)
+#define MPC52xx_PSC_SICR_CPOL			(1 << 13)
+#define MPC52xx_PSC_SICR_CPHA			(1 << 12)
+#define MPC52xx_PSC_SICR_USEEOF			(1 << 11)
+#define MPC52xx_PSC_SICR_DISABLEEOF		(1 << 10)
 
 /* Structure of the hardware registers */
 struct mpc52xx_psc {
@@ -132,8 +162,12 @@ struct mpc52xx_psc {
 	u8		reserved5[3];
 	u8		ctlr;		/* PSC + 0x1c */
 	u8		reserved6[3];
-	u16		ccr;		/* PSC + 0x20 */
-	u8		reserved7[14];
+	/* BitClkDiv field of CCR is byte swapped in
+	 * the hardware for mpc5200/b compatibility */
+	u32		ccr;		/* PSC + 0x20 */
+	u32		ac97_slots;	/* PSC + 0x24 */
+	u32		ac97_cmd;	/* PSC + 0x28 */
+	u32		ac97_data;	/* PSC + 0x2c */
 	u8		ivr;		/* PSC + 0x30 */
 	u8		reserved8[3];
 	u8		ip;		/* PSC + 0x34 */

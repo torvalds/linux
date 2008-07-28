@@ -122,7 +122,7 @@ static struct resource dm9000_resources[] = {
 	[2] = {
 		.start	= TRIZEPS4_ETH_IRQ,
 		.end	= TRIZEPS4_ETH_IRQ,
-		.flags	= (IORESOURCE_IRQ | IRQT_RISING),
+		.flags	= (IORESOURCE_IRQ | IRQ_TYPE_EDGE_RISING),
 	},
 };
 
@@ -254,6 +254,7 @@ static void board_irda_mode(struct device *dev, int mode)
 		/* Fast mode */
 		trizeps_conxs_ircr |= ConXS_IRCR_MODE;
 	}
+	pxa2xx_transceiver_mode(dev, mode);
 	if (mode & IR_OFF) {
 		trizeps_conxs_ircr |= ConXS_IRCR_SD;
 	} else {

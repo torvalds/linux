@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
 #ifndef _ASMARM_PAGE_NOMMU_H
 #define _ASMARM_PAGE_NOMMU_H
 
@@ -41,9 +42,6 @@ typedef unsigned long pgprot_t;
 #define __pte(x)        (x)
 #define __pmd(x)        (x)
 #define __pgprot(x)     (x)
-
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
 extern unsigned long memory_start;
 extern unsigned long memory_end;

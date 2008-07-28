@@ -56,28 +56,28 @@ static void pnx4008_mask_ack_irq(unsigned int irq)
 static int pnx4008_set_irq_type(unsigned int irq, unsigned int type)
 {
 	switch (type) {
-	case IRQT_RISING:
+	case IRQ_TYPE_EDGE_RISING:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) | INTC_BIT(irq), INTC_ATR(irq));	/*edge sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) | INTC_BIT(irq), INTC_APR(irq));	/*rising edge */
 		set_irq_handler(irq, handle_edge_irq);
 		break;
-	case IRQT_FALLING:
+	case IRQ_TYPE_EDGE_FALLING:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) | INTC_BIT(irq), INTC_ATR(irq));	/*edge sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) & ~INTC_BIT(irq), INTC_APR(irq));	/*falling edge */
 		set_irq_handler(irq, handle_edge_irq);
 		break;
-	case IRQT_LOW:
+	case IRQ_TYPE_LEVEL_LOW:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) & ~INTC_BIT(irq), INTC_ATR(irq));	/*level sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) & ~INTC_BIT(irq), INTC_APR(irq));	/*low level */
 		set_irq_handler(irq, handle_level_irq);
 		break;
-	case IRQT_HIGH:
+	case IRQ_TYPE_LEVEL_HIGH:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) & ~INTC_BIT(irq), INTC_ATR(irq));	/*level sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) | INTC_BIT(irq), INTC_APR(irq));	/* high level */
 		set_irq_handler(irq, handle_level_irq);
 		break;
 
-	/* IRQT_BOTHEDGE is not supported */
+	/* IRQ_TYPE_EDGE_BOTH is not supported */
 	default:
 		printk(KERN_ERR "PNX4008 IRQ: Unsupported irq type %d\n", type);
 		return -1;

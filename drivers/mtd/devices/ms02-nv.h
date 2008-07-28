@@ -9,8 +9,6 @@
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
- *
- *	$Id: ms02-nv.h,v 1.3 2003/08/19 09:25:36 dwmw2 Exp $
  */
 
 #include <linux/ioport.h>

@@ -369,7 +369,7 @@ void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data) {}
  * -------------------------------------------------------------------- */
 
 #if defined(CONFIG_MTD_NAND_AT91) || defined(CONFIG_MTD_NAND_AT91_MODULE)
-static struct at91_nand_data nand_data;
+static struct atmel_nand_data nand_data;
 
 #define NAND_BASE	AT91_CHIPSELECT_3
 
@@ -382,7 +382,7 @@ static struct resource nand_resources[] = {
 };
 
 static struct platform_device at91rm9200_nand_device = {
-	.name		= "at91_nand",
+	.name		= "atmel_nand",
 	.id		= -1,
 	.dev		= {
 				.platform_data	= &nand_data,
@@ -391,7 +391,7 @@ static struct platform_device at91rm9200_nand_device = {
 	.num_resources	= ARRAY_SIZE(nand_resources),
 };
 
-void __init at91_add_device_nand(struct at91_nand_data *data)
+void __init at91_add_device_nand(struct atmel_nand_data *data)
 {
 	unsigned int csa;
 
@@ -429,7 +429,7 @@ void __init at91_add_device_nand(struct at91_nand_data *data)
 	platform_device_register(&at91rm9200_nand_device);
 }
 #else
-void __init at91_add_device_nand(struct at91_nand_data *data) {}
+void __init at91_add_device_nand(struct atmel_nand_data *data) {}
 #endif
 
 

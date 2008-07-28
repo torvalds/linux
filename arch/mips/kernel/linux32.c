@@ -11,7 +11,6 @@
 #include <linux/file.h>
 #include <linux/smp_lock.h>
 #include <linux/highuid.h>
-#include <linux/dirent.h>
 #include <linux/resource.h>
 #include <linux/highmem.h>
 #include <linux/time.h>
