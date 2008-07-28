@@ -29,7 +29,6 @@
 #include "main.h"
 #include "tty.h"
 
-#define MAX_OUTGOING_PACKETS_QUEUED   ipwireless_out_queue
 #define MAX_ASSOCIATED_TTYS 2
 
 #define SC_RCV_BITS     (SC_RCV_B7_1|SC_RCV_B7_0|SC_RCV_ODDP|SC_RCV_EVNP)
@@ -94,7 +93,7 @@ static int ipwireless_ppp_start_xmit(struct ppp_channel *ppp_channel,
 	unsigned long flags;
 
 	spin_lock_irqsave(&network->spinlock, flags);
-	if (network->outgoing_packets_queued < MAX_OUTGOING_PACKETS_QUEUED) {
+	if (network->outgoing_packets_queued < ipwireless_out_queue) {
 		unsigned char *buf;
 		static unsigned char header[] = {
 			PPP_ALLSTATIONS, /* 0xff */

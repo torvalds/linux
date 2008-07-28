@@ -227,15 +227,12 @@ struct MEMINFREG {
 	unsigned short memreg_tx_new;	/* TX2 (new) Register (R/W) */
 };
 
-#define IODMADPR 0x00		/* DMA Data Port Register (R/W) */
-
 #define CARD_PRESENT_VALUE (0xBEEFCAFEUL)
 
 #define MEMTX_TX                       0x0001
 #define MEMRX_RX                       0x0001
 #define MEMRX_RX_DONE                  0x0001
 #define MEMRX_PCINTACKK                0x0001
-#define MEMRX_MEMSPURIOUSINT           0x0001
 
 #define NL_NUM_OF_PRIORITIES       3
 #define NL_NUM_OF_PROTOCOLS        3
@@ -422,7 +419,7 @@ static int do_send_fragment(struct ipw_hardware *hw, const unsigned char *data,
 
 		outw(DCR_TXDONE, hw->base_port + IODCR);
 	} else if (hw->hw_version == HW_VERSION_2) {
-		outw((unsigned short) length, hw->base_port + IODMADPR);
+		outw((unsigned short) length, hw->base_port);
 
 		for (i = 0; i < length; i += 2) {
 			unsigned short d = data[i];
@@ -431,10 +428,10 @@ static int do_send_fragment(struct ipw_hardware *hw, const unsigned char *data,
 			if (i + 1 < length)
 				d |= data[i + 1] << 8;
 			raw_data = cpu_to_le16(d);
-			outw(raw_data, hw->base_port + IODMADPR);
+			outw(raw_data, hw->base_port);
 		}
 		while ((i & 3) != 2) {
-			outw((unsigned short) 0xDEAD, hw->base_port + IODMADPR);
+			outw((unsigned short) 0xDEAD, hw->base_port);
 			i += 2;
 		}
 		writew(MEMRX_RX, &hw->memory_info_regs->memreg_rx);
@@ -863,7 +860,7 @@ static void do_receive_packet(struct ipw_hardware *hw)
 			pkt[i + 1] = (unsigned char) (data >> 8);
 		}
 	} else {
-		len = inw(hw->base_port + IODMADPR);
+		len = inw(hw->base_port);
 		if (len > hw->ll_mtu) {
 			printk(KERN_INFO IPWIRELESS_PCCARD_NAME
 			       ": received a packet of %u bytes - "
@@ -874,7 +871,7 @@ static void do_receive_packet(struct ipw_hardware *hw)
 		}
 
 		for (i = 0; i < len; i += 2) {
-			__le16 raw_data = inw(hw->base_port + IODMADPR);
+			__le16 raw_data = inw(hw->base_port);
 			unsigned short data = le16_to_cpu(raw_data);
 
 			pkt[i] = (unsigned char) data;
@@ -882,7 +879,7 @@ static void do_receive_packet(struct ipw_hardware *hw)
 		}
 
 		while ((i & 3) != 2) {
-			inw(hw->base_port + IODMADPR);
+			inw(hw->base_port);
 			i += 2;
 		}
 	}
