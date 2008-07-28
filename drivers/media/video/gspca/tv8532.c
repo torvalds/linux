@@ -22,9 +22,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("TV8532 USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -249,7 +246,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	tv_8532WriteEEprom(gspca_dev);
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 1;
 	cam->cam_mode = sif_mode;
 	cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
@@ -624,13 +620,12 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x046d, 0x0920), DVNM("QC Express")},
-	{USB_DEVICE(0x046d, 0x0921), DVNM("Labtec Webcam")},
-	{USB_DEVICE(0x0545, 0x808b), DVNM("Veo Stingray")},
-	{USB_DEVICE(0x0545, 0x8333), DVNM("Veo Stingray")},
-	{USB_DEVICE(0x0923, 0x010f), DVNM("ICM532 cams")},
+	{USB_DEVICE(0x046d, 0x0920)},
+	{USB_DEVICE(0x046d, 0x0921)},
+	{USB_DEVICE(0x0545, 0x808b)},
+	{USB_DEVICE(0x0545, 0x8333)},
+	{USB_DEVICE(0x0923, 0x010f)},
 	{}
 };
 
@@ -656,7 +651,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 

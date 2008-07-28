@@ -754,7 +754,6 @@ static const struct file_operations ar_fops = {
 };
 
 static struct video_device ar_template = {
-	.owner		= THIS_MODULE,
 	.name		= "Colour AR VGA",
 	.type		= VID_TYPE_CAPTURE,
 	.fops		= &ar_fops,

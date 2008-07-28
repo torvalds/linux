@@ -157,7 +157,7 @@ static int __init cf_init_se(void)
 }
 #endif
 
-int __init cf_init(void)
+static int __init cf_init(void)
 {
 	if (mach_is_se() || mach_is_7722se() || mach_is_7721se())
 		return cf_init_se();

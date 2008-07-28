@@ -71,6 +71,7 @@
 
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include "videocodec.h"
 
 #include <asm/byteorder.h>
@@ -1212,8 +1213,8 @@ zoran_open (struct inode *inode,
 
 	/* find the device */
 	for (i = 0; i < zoran_num; i++) {
-		if (zoran[i].video_dev->minor == minor) {
-			zr = &zoran[i];
+		if (zoran[i]->video_dev->minor == minor) {
+			zr = zoran[i];
 			break;
 		}
 	}
@@ -4643,8 +4644,6 @@ static const struct file_operations zoran_fops = {
 
 struct video_device zoran_template __devinitdata = {
 	.name = ZORAN_NAME,
-	.type = ZORAN_VID_TYPE,
-	.type2 = ZORAN_V4L2_VID_FLAGS,
 	.fops = &zoran_fops,
 	.release = &zoran_vdev_release,
 	.minor = -1

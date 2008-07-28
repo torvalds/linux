@@ -30,6 +30,7 @@
 #include <asm/io.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 
 #include <asm/uaccess.h>
@@ -894,9 +895,7 @@ static const struct file_operations pms_fops = {
 
 static struct video_device pms_template=
 {
-	.owner		= THIS_MODULE,
 	.name		= "Mediavision PMS",
-	.type		= VID_TYPE_CAPTURE,
 	.fops           = &pms_fops,
 };
 

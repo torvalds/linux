@@ -27,8 +27,9 @@
 /* ASID is 8-bit value, so it can't be 0x100 */
 #define MMU_NO_ASID			0x100
 
-#ifdef CONFIG_MMU
 #define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
+
+#ifdef CONFIG_MMU
 #define cpu_context(cpu, mm)	((mm)->context.id[cpu])
 
 #define cpu_asid(cpu, mm)	\
