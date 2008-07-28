@@ -563,9 +563,9 @@ static struct ipw_rx_packet *pool_allocate(struct ipw_hardware *hw,
 		if (!list_empty(&hw->rx_pool)) {
 			packet = list_first_entry(&hw->rx_pool,
 					struct ipw_rx_packet, queue);
-			list_del(&packet->queue);
 			hw->rx_pool_size--;
 			spin_unlock_irqrestore(&hw->lock, flags);
+			list_del(&packet->queue);
 		} else {
 			static int min_capacity = 256;
 			int new_capacity;
@@ -610,7 +610,7 @@ static void pool_free(struct ipw_hardware *hw, struct ipw_rx_packet *packet)
 		kfree(packet);
 	else {
 		hw->rx_pool_size++;
-		list_add_tail(&packet->queue, &hw->rx_pool);
+		list_add(&packet->queue, &hw->rx_pool);
 	}
 }
 
