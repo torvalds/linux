@@ -736,13 +736,20 @@ static int __init hugetlbpage_init(void)
 
 	if (!cpu_has_feature(CPU_FTR_16M_PAGE))
 		return -ENODEV;
+
 	/* Add supported huge page sizes.  Need to change HUGE_MAX_HSTATE
 	 * and adjust PTE_NONCACHE_NUM if the number of supported huge page
 	 * sizes changes.
 	 */
 	set_huge_psize(MMU_PAGE_16M);
-	set_huge_psize(MMU_PAGE_64K);
 	set_huge_psize(MMU_PAGE_16G);
+
+	/* Temporarily disable support for 64K huge pages when 64K SPU local
+	 * store support is enabled as the current implementation conflicts.
+	 */
+#ifndef CONFIG_SPU_FS_64K_LS
+	set_huge_psize(MMU_PAGE_64K);
+#endif
 
 	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
 		if (mmu_huge_psizes[psize]) {
