@@ -786,10 +786,12 @@ config MICROCODE
 	select FW_LOADER
 	---help---
 	  If you say Y here, you will be able to update the microcode on
-	  Intel processors in the IA32 family, e.g. Pentium Pro, Pentium II,
-	  Pentium III, Pentium 4, Xeon etc.  You will obviously need the
-	  actual microcode binary data itself which is not shipped with the
-	  Linux kernel.
+	  certain Intel and AMD processors. The Intel support is for the
+	  IA32 family, e.g. Pentium Pro, Pentium II, Pentium III,
+	  Pentium 4, Xeon etc. The AMD support is for family 0x10 and
+	  0x11 processors, e.g. Opteron, Phenom and Turion 64 Ultra.
+	  You will obviously need the actual microcode binary data itself
+	  which is not shipped with the Linux kernel.
 
 	  This option selects the general module only, you need to select
 	  at least one vendor specific module as well.
@@ -812,6 +814,17 @@ config MICROCODE_INTEL
 
          This driver is only available as a module: the module
          will be called microcode_intel.  
+
+config MICROCODE_AMD
+       tristate "AMD microcode patch loading support"
+       depends on MICROCODE
+       select FW_LOADER
+       --help---
+         If you select this option, microcode patch loading support for AMD
+	 processors will be enabled.
+
+	 This driver is only available as a module: the module
+	 will be called microcode_amd.
 
    config MICROCODE_OLD_INTERFACE
 	def_bool y
