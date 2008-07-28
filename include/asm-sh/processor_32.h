@@ -19,7 +19,7 @@
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").
  */
-#define current_text_addr() ({ void *pc; __asm__("mova	1f, %0\n1:":"=z" (pc)); pc; })
+#define current_text_addr() ({ void *pc; __asm__("mova	1f, %0\n.align 2\n1:":"=z" (pc)); pc; })
 
 /* Core Processor Version Register */
 #define CCN_PVR		0xff000030
