@@ -637,7 +637,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	osb->s_atime_quantum = parsed_options.atime_quantum;
 	osb->preferred_slot = parsed_options.slot;
 	osb->osb_commit_interval = parsed_options.commit_interval;
-	osb->local_alloc_size = parsed_options.localalloc_opt;
+	osb->local_alloc_bits = ocfs2_megabytes_to_clusters(sb, parsed_options.localalloc_opt);
 
 	status = ocfs2_verify_userspace_stack(osb, &parsed_options);
 	if (status)
@@ -938,6 +938,7 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 {
 	struct ocfs2_super *osb = OCFS2_SB(mnt->mnt_sb);
 	unsigned long opts = osb->s_mount_opt;
+	unsigned int local_alloc_megs;
 
 	if (opts & OCFS2_MOUNT_HB_LOCAL)
 		seq_printf(s, ",_netdev,heartbeat=local");
@@ -970,8 +971,9 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		seq_printf(s, ",commit=%u",
 			   (unsigned) (osb->osb_commit_interval / HZ));
 
-	if (osb->local_alloc_size != OCFS2_DEFAULT_LOCAL_ALLOC_SIZE)
-		seq_printf(s, ",localalloc=%d", osb->local_alloc_size);
+	local_alloc_megs = osb->local_alloc_bits >> (20 - osb->s_clustersize_bits);
+	if (local_alloc_megs != OCFS2_DEFAULT_LOCAL_ALLOC_SIZE)
+		seq_printf(s, ",localalloc=%d", local_alloc_megs);
 
 	if (opts & OCFS2_MOUNT_LOCALFLOCKS)
 		seq_printf(s, ",localflocks,");
