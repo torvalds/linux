@@ -1,4 +1,4 @@
-struct microcode_header {
+struct microcode_header_intel {
 	unsigned int            hdrver;
 	unsigned int            rev;
 	unsigned int            date;
@@ -11,8 +11,8 @@ struct microcode_header {
 	unsigned int            reserved[3];
 };
 
-struct microcode {
-	struct microcode_header hdr;
+struct microcode_intel {
+	struct microcode_header_intel hdr;
 	unsigned int            bits[0];
 };
 
@@ -35,5 +35,7 @@ struct ucode_cpu_info {
 	unsigned int sig;
 	unsigned int pf;
 	unsigned int rev;
-	struct microcode *mc;
+	union {
+		struct microcode_intel *mc_intel;
+	} mc;
 };
