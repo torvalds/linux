@@ -55,8 +55,8 @@
  *		in a single CPU package.
  *	1.10	28 Feb 2002 Asit K Mallick <asit.k.mallick@intel.com> and
  *		Tigran Aivazian <tigran@veritas.com>,
- *		Serialize updates as required on HT processors due to speculative
- *		nature of implementation.
+ *		Serialize updates as required on HT processors due to
+ *		speculative nature of implementation.
  *	1.11	22 Mar 2002 Tigran Aivazian <tigran@veritas.com>
  *		Fix the panic when writing zero-length microcode chunk.
  *	1.12	29 Sep 2003 Nitin Kamble <nitin.a.kamble@intel.com>,
@@ -71,7 +71,7 @@
  *		Thanks to Stuart Swales for pointing out this bug.
  */
 
-//#define DEBUG /* pr_debug */
+/* #define DEBUG */ /* pr_debug */
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -99,11 +99,11 @@ MODULE_DESCRIPTION("Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
 MODULE_LICENSE("GPL");
 
-#define DEFAULT_UCODE_DATASIZE 	(2000) 	  /* 2000 bytes */
-#define MC_HEADER_SIZE		(sizeof(struct microcode_header_intel)) /* 48 bytes */
-#define DEFAULT_UCODE_TOTALSIZE (DEFAULT_UCODE_DATASIZE + MC_HEADER_SIZE) /* 2048 bytes */
-#define EXT_HEADER_SIZE		(sizeof(struct extended_sigtable)) /* 20 bytes */
-#define EXT_SIGNATURE_SIZE	(sizeof(struct extended_signature)) /* 12 bytes */
+#define DEFAULT_UCODE_DATASIZE 	(2000)
+#define MC_HEADER_SIZE		(sizeof(struct microcode_header_intel))
+#define DEFAULT_UCODE_TOTALSIZE (DEFAULT_UCODE_DATASIZE + MC_HEADER_SIZE)
+#define EXT_HEADER_SIZE		(sizeof(struct extended_sigtable))
+#define EXT_SIGNATURE_SIZE	(sizeof(struct extended_signature))
 #define DWSIZE			(sizeof(u32))
 #define get_totalsize(mc) \
 	(((struct microcode_intel *)mc)->hdr.totalsize ? \
