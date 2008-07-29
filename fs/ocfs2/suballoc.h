@@ -147,6 +147,7 @@ static inline int ocfs2_is_cluster_bitmap(struct inode *inode)
  * apis above. */
 int ocfs2_reserve_cluster_bitmap_bits(struct ocfs2_super *osb,
 				      struct ocfs2_alloc_context *ac);
+void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac);
 
 /* given a cluster offset, calculate which block group it belongs to
  * and return that block offset. */

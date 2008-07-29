@@ -637,7 +637,8 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	osb->s_atime_quantum = parsed_options.atime_quantum;
 	osb->preferred_slot = parsed_options.slot;
 	osb->osb_commit_interval = parsed_options.commit_interval;
-	osb->local_alloc_bits = ocfs2_megabytes_to_clusters(sb, parsed_options.localalloc_opt);
+	osb->local_alloc_default_bits = ocfs2_megabytes_to_clusters(sb, parsed_options.localalloc_opt);
+	osb->local_alloc_bits = osb->local_alloc_default_bits;
 
 	status = ocfs2_verify_userspace_stack(osb, &parsed_options);
 	if (status)
@@ -1425,6 +1426,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	osb->local_alloc_state = OCFS2_LA_UNUSED;
 	osb->local_alloc_bh = NULL;
+	INIT_DELAYED_WORK(&osb->la_enable_wq, ocfs2_la_enable_worker);
 
 	init_waitqueue_head(&osb->osb_mount_event);
 

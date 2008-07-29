@@ -111,7 +111,7 @@ static inline void ocfs2_block_to_cluster_group(struct inode *inode,
 						u64 *bg_blkno,
 						u16 *bg_bit_off);
 
-static void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac)
+void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac)
 {
 	struct inode *inode = ac->ac_inode;
 
@@ -686,15 +686,6 @@ int ocfs2_reserve_clusters(struct ocfs2_super *osb,
 		if ((status < 0) && (status != -ENOSPC)) {
 			mlog_errno(status);
 			goto bail;
-		} else if (status == -ENOSPC) {
-			/* reserve_local_bits will return enospc with
-			 * the local alloc inode still locked, so we
-			 * can change this safely here. */
-			mlog(0, "Disabling local alloc\n");
-			/* We set to OCFS2_LA_DISABLED so that umount
-			 * can clean up what's left of the local
-			 * allocation */
-			osb->local_alloc_state = OCFS2_LA_DISABLED;
 		}
 	}
 
@@ -1005,6 +996,7 @@ static int ocfs2_cluster_group_search(struct inode *inode,
 	int search = -ENOSPC;
 	int ret;
 	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *) group_bh->b_data;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	u16 tmp_off, tmp_found;
 	unsigned int max_bits, gd_cluster_off;
 
@@ -1045,6 +1037,12 @@ static int ocfs2_cluster_group_search(struct inode *inode,
 			*bit_off = tmp_off;
 			*bits_found = tmp_found;
 			search = 0; /* success */
+		} else if (tmp_found) {
+			/*
+			 * Don't show bits which we'll be returning
+			 * for allocation to the local alloc bitmap.
+			 */
+			ocfs2_local_alloc_seen_free_bits(osb, tmp_found);
 		}
 	}
 
@@ -1203,9 +1201,8 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	status = -ENOSPC;
 	/* for now, the chain search is a bit simplistic. We just use
 	 * the 1st group with any empty bits. */
-	while ((status = ac->ac_group_search(alloc_inode, group_bh,
-					     bits_wanted, min_bits, bit_off,
-					     &tmp_bits)) == -ENOSPC) {
+	while ((status = ac->ac_group_search(alloc_inode, group_bh, bits_wanted,
+					     min_bits, bit_off, &tmp_bits)) == -ENOSPC) {
 		if (!bg->bg_next_group)
 			break;
 
@@ -1838,9 +1835,15 @@ int ocfs2_free_clusters(handle_t *handle,
 	status = ocfs2_free_suballoc_bits(handle, bitmap_inode, bitmap_bh,
 					  bg_start_bit, bg_blkno,
 					  num_clusters);
-	if (status < 0)
+	if (status < 0) {
 		mlog_errno(status);
+		goto out;
+	}
 
+	ocfs2_local_alloc_seen_free_bits(OCFS2_SB(bitmap_inode->i_sb),
+					 num_clusters);
+
+out:
 	mlog_exit(status);
 	return status;
 }

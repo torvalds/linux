@@ -171,9 +171,13 @@ struct ocfs2_alloc_stats
 
 enum ocfs2_local_alloc_state
 {
-	OCFS2_LA_UNUSED = 0,
-	OCFS2_LA_ENABLED,
-	OCFS2_LA_DISABLED
+	OCFS2_LA_UNUSED = 0,	/* Local alloc will never be used for
+				 * this mountpoint. */
+	OCFS2_LA_ENABLED,	/* Local alloc is in use. */
+	OCFS2_LA_THROTTLED,	/* Local alloc is in use, but number
+				 * of bits has been reduced. */
+	OCFS2_LA_DISABLED	/* Local alloc has temporarily been
+				 * disabled. */
 };
 
 enum ocfs2_mount_options
@@ -252,9 +256,20 @@ struct ocfs2_super
 	struct ocfs2_journal *journal;
 	unsigned long osb_commit_interval;
 
+	struct delayed_work		la_enable_wq;
+
+	/*
+	 * Must hold local alloc i_mutex and osb->osb_lock to change
+	 * local_alloc_bits. Reads can be done under either lock.
+	 */
 	unsigned int local_alloc_bits;
-	enum ocfs2_local_alloc_state local_alloc_state;
+	unsigned int local_alloc_default_bits;
+
+	enum ocfs2_local_alloc_state local_alloc_state; /* protected
+							 * by osb_lock */
+
 	struct buffer_head *local_alloc_bh;
+
 	u64 la_last_gd;
 
 	/* Next two fields are for local node slot recovery during
