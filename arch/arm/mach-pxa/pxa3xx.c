@@ -24,6 +24,7 @@
 
 #include <asm/hardware.h>
 #include <asm/arch/pxa3xx-regs.h>
+#include <asm/arch/reset.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/dma.h>
@@ -107,6 +108,12 @@ unsigned int pxa3xx_get_memclk_frequency_10khz(void)
 	clk = (acsr & ACCR_D0CS) ? RO_CLK : smcfs_mult[smcfs] * BASE_CLK;
 
 	return (clk / 10000);
+}
+
+void pxa3xx_clear_reset_status(unsigned int mask)
+{
+	/* RESET_STATUS_* has a 1:1 mapping with ARSR */
+	ARSR = mask;
 }
 
 /*
@@ -532,6 +539,9 @@ static int __init pxa3xx_init(void)
 	int i, ret = 0;
 
 	if (cpu_is_pxa3xx()) {
+
+		reset_status = ARSR;
+
 		/*
 		 * clear RDH bit every time after reset
 		 *
