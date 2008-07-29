@@ -104,16 +104,16 @@ MODULE_LICENSE("GPL");
 struct microcode_ops *microcode_ops;
 
 /* no concurrent ->write()s are allowed on /dev/cpu/microcode */
-static DEFINE_MUTEX(microcode_mutex);
+DEFINE_MUTEX(microcode_mutex);
 EXPORT_SYMBOL_GPL(microcode_mutex);
 
-static struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
+struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
 EXPORT_SYMBOL_GPL(ucode_cpu_info);
 
 #ifdef CONFIG_MICROCODE_OLD_INTERFACE
-static void __user *user_buffer;	/* user area microcode data buffer */
+void __user *user_buffer;		/* user area microcode data buffer */
 EXPORT_SYMBOL_GPL(user_buffer);
-static unsigned int user_buffer_size;	/* it's size */
+unsigned int user_buffer_size;		/* it's size */
 EXPORT_SYMBOL_GPL(user_buffer_size);
 
 static int do_microcode_update (void)
@@ -230,7 +230,7 @@ MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 #endif
 
 /* fake device for request_firmware */
-static struct platform_device *microcode_pdev;
+struct platform_device *microcode_pdev;
 EXPORT_SYMBOL_GPL(microcode_pdev);
 
 static void microcode_init_cpu(int cpu, int resume)
