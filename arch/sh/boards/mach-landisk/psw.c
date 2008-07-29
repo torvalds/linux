@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <mach/iodata_landisk.h>
+#include <mach-landisk/mach/iodata_landisk.h>
 #include <asm/push-switch.h>
 
 static irqreturn_t psw_irq_handler(int irq, void *arg)

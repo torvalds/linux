@@ -20,8 +20,8 @@
 #include <linux/fs.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <mach/gio.h>
-#include <mach/iodata_landisk.h>
+#include <mach-landisk/mach/gio.h>
+#include <mach-landisk/mach/iodata_landisk.h>
 
 #define DEVCOUNT                4
 #define GIO_MINOR	        2	/* GIO minor no. */

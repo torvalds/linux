@@ -27,7 +27,6 @@
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/maple.h>
-#include <asm/mach/maple.h>
 
 /* Very simple mutex to ensure proper cleanup */
 static DEFINE_MUTEX(maple_keyb_mutex);

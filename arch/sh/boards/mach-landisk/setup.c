@@ -18,7 +18,7 @@
 #include <linux/pm.h>
 #include <linux/mm.h>
 #include <asm/machvec.h>
-#include <mach/iodata_landisk.h>
+#include <mach-landisk/mach/iodata_landisk.h>
 #include <asm/io.h>
 
 void init_landisk_IRQ(void);

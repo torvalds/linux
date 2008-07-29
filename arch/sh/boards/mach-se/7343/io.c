@@ -6,7 +6,7 @@
  */
 #include <linux/kernel.h>
 #include <asm/io.h>
-#include <mach/se7343.h>
+#include <mach-se/mach/se7343.h>
 
 #define badio(fn, a) panic("bad i/o operation %s for %08lx.", #fn, a)
 

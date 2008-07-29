@@ -11,7 +11,7 @@
 #ifndef __ASM_SH_DREAMCAST_PCI_H
 #define __ASM_SH_DREAMCAST_PCI_H
 
-#include <mach/sysasic.h>
+#include <mach-dreamcast/mach/sysasic.h>
 
 #define	GAPSPCI_REGS		0x01001400
 #define GAPSPCI_DMA_BASE	0x01840000
