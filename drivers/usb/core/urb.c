@@ -10,6 +10,8 @@
 
 #define to_urb(d) container_of(d, struct urb, kref)
 
+static DEFINE_SPINLOCK(usb_reject_lock);
+
 static void urb_destroy(struct kref *kref)
 {
 	struct urb *urb = to_urb(kref);
@@ -127,6 +129,13 @@ void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor)
 	usb_get_urb(urb);
 	list_add_tail(&urb->anchor_list, &anchor->urb_list);
 	urb->anchor = anchor;
+
+	if (unlikely(anchor->poisoned)) {
+		spin_lock(&usb_reject_lock);
+		urb->reject++;
+		spin_unlock(&usb_reject_lock);
+	}
+
 	spin_unlock_irqrestore(&anchor->lock, flags);
 }
 EXPORT_SYMBOL_GPL(usb_anchor_urb);
@@ -522,7 +531,6 @@ int usb_unlink_urb(struct urb *urb)
 }
 EXPORT_SYMBOL_GPL(usb_unlink_urb);
 
-static DEFINE_MUTEX(usb_reject_mutex);
 /**
  * usb_kill_urb - cancel a transfer request and wait for it to finish
  * @urb: pointer to URB describing a previously submitted request,
@@ -548,16 +556,16 @@ void usb_kill_urb(struct urb *urb)
 	might_sleep();
 	if (!(urb && urb->dev && urb->ep))
 		return;
-	mutex_lock(&usb_reject_mutex);
+	spin_lock_irq(&usb_reject_lock);
 	++urb->reject;
-	mutex_unlock(&usb_reject_mutex);
+	spin_unlock_irq(&usb_reject_lock);
 
 	usb_hcd_unlink_urb(urb, -ENOENT);
 	wait_event(usb_kill_urb_queue, atomic_read(&urb->use_count) == 0);
 
-	mutex_lock(&usb_reject_mutex);
+	spin_lock_irq(&usb_reject_lock);
 	--urb->reject;
-	mutex_unlock(&usb_reject_mutex);
+	spin_unlock_irq(&usb_reject_lock);
 }
 EXPORT_SYMBOL_GPL(usb_kill_urb);
 
@@ -586,9 +594,9 @@ void usb_poison_urb(struct urb *urb)
 	might_sleep();
 	if (!(urb && urb->dev && urb->ep))
 		return;
-	mutex_lock(&usb_reject_mutex);
+	spin_lock_irq(&usb_reject_lock);
 	++urb->reject;
-	mutex_unlock(&usb_reject_mutex);
+	spin_unlock_irq(&usb_reject_lock);
 
 	usb_hcd_unlink_urb(urb, -ENOENT);
 	wait_event(usb_kill_urb_queue, atomic_read(&urb->use_count) == 0);
@@ -597,12 +605,14 @@ EXPORT_SYMBOL_GPL(usb_poison_urb);
 
 void usb_unpoison_urb(struct urb *urb)
 {
+	unsigned long flags;
+
 	if (!urb)
 		return;
 
-	mutex_lock(&usb_reject_mutex);
+	spin_lock_irqsave(&usb_reject_lock, flags);
 	--urb->reject;
-	mutex_unlock(&usb_reject_mutex);
+	spin_unlock_irqrestore(&usb_reject_lock, flags);
 }
 EXPORT_SYMBOL_GPL(usb_unpoison_urb);
 
@@ -633,6 +643,35 @@ void usb_kill_anchored_urbs(struct usb_anchor *anchor)
 }
 EXPORT_SYMBOL_GPL(usb_kill_anchored_urbs);
 
+
+/**
+ * usb_poison_anchored_urbs - cease all traffic from an anchor
+ * @anchor: anchor the requests are bound to
+ *
+ * this allows all outstanding URBs to be poisoned starting
+ * from the back of the queue. Newly added URBs will also be
+ * poisoned
+ */
+void usb_poison_anchored_urbs(struct usb_anchor *anchor)
+{
+	struct urb *victim;
+
+	spin_lock_irq(&anchor->lock);
+	anchor->poisoned = 1;
+	while (!list_empty(&anchor->urb_list)) {
+		victim = list_entry(anchor->urb_list.prev, struct urb,
+				    anchor_list);
+		/* we must make sure the URB isn't freed before we kill it*/
+		usb_get_urb(victim);
+		spin_unlock_irq(&anchor->lock);
+		/* this will unanchor the URB */
+		usb_poison_urb(victim);
+		usb_put_urb(victim);
+		spin_lock_irq(&anchor->lock);
+	}
+	spin_unlock_irq(&anchor->lock);
+}
+EXPORT_SYMBOL_GPL(usb_poison_anchored_urbs);
 /**
  * usb_unlink_anchored_urbs - asynchronously cancel transfer requests en masse
  * @anchor: anchor the requests are bound to
