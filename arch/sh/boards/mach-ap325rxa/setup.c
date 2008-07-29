@@ -165,6 +165,7 @@ static struct platform_device lcdc_device = {
 	},
 };
 
+#ifdef CONFIG_I2C
 static unsigned char camera_ncm03j_magic[] =
 {
 	0x87, 0x00, 0x88, 0x08, 0x89, 0x01, 0x8A, 0xE8,
@@ -234,6 +235,7 @@ static struct platform_device camera_device = {
 		.platform_data	= &camera_info,
 	},
 };
+#endif /* CONFIG_I2C */
 
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
 	.flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_HSYNC_ACTIVE_HIGH |
@@ -270,7 +272,9 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 	&ap325rxa_nor_flash_device,
 	&lcdc_device,
 	&ceu_device,
+#ifdef CONFIG_I2C
 	&camera_device,
+#endif
 };
 
 static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {

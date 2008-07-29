@@ -304,6 +304,7 @@ static void camera_power_off(void)
 	ctrl_outb(ctrl_inb(PORT_PTDR) & ~0x08, PORT_PTDR);
 }
 
+#ifdef CONFIG_I2C
 static unsigned char camera_ov772x_magic[] =
 {
 	0x09, 0x01, 0x0c, 0x10, 0x0d, 0x41, 0x0e, 0x01,
@@ -391,6 +392,7 @@ static struct platform_device migor_camera_device = {
 		.platform_data	= &ov772x_info,
 	},
 };
+#endif /* CONFIG_I2C */
 
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
 	.flags = SOCAM_MASTER | SOCAM_DATAWIDTH_8 | SOCAM_PCLK_SAMPLE_RISING \
@@ -429,7 +431,9 @@ static struct platform_device *migor_devices[] __initdata = {
 	&sh_keysc_device,
 	&migor_lcdc_device,
 	&migor_ceu_device,
+#ifdef CONFIG_I2C
 	&migor_camera_device,
+#endif
 	&migor_nor_flash_device,
 	&migor_nand_flash_device,
 };
