@@ -155,88 +155,84 @@ static void sl811_cs_release(struct pcmcia_device * link)
 	platform_device_unregister(&platform_dev);
 }
 
+struct sl811_css_cfg {
+	cistpl_cftable_entry_t	dflt;
+	config_info_t		conf;
+};
+
+static int sl811_cs_config_check(struct pcmcia_device *p_dev,
+				 cistpl_cftable_entry_t *cfg,
+				 void *priv_data)
+{
+	struct sl811_css_cfg	*cfg_mem = priv_data;
+
+	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
+		memcpy(&cfg_mem->dflt, cfg, sizeof(cistpl_cftable_entry_t));
+
+	if (cfg->index == 0)
+		return -ENODEV;
+
+	p_dev->conf.ConfigIndex = cfg->index;
+
+	/* Use power settings for Vcc and Vpp if present */
+	/*  Note that the CIS values need to be rescaled */
+	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
+		if (cfg->vcc.param[CISTPL_POWER_VNOM]/10000 !=
+		    cfg_mem->conf.Vcc)
+			return -ENODEV;
+	} else if (cfg_mem->dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
+		if (cfg_mem->dflt.vcc.param[CISTPL_POWER_VNOM]/10000
+		    != cfg_mem->conf.Vcc)
+			return -ENODEV;
+		}
+
+	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
+		p_dev->conf.Vpp =
+			cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
+	else if (cfg_mem->dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
+		p_dev->conf.Vpp =
+			cfg_mem->dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
+
+	/* we need an interrupt */
+	if (cfg->irq.IRQInfo1 || cfg_mem->dflt.irq.IRQInfo1)
+		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+
+	/* IO window settings */
+	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	if ((cfg->io.nwin > 0) || (cfg_mem->dflt.io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &cfg_mem->dflt.io;
+
+		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->io.BasePort1 = io->win[0].base;
+		p_dev->io.NumPorts1 = io->win[0].len;
+
+		return pcmcia_request_io(p_dev, &p_dev->io);
+	}
+	pcmcia_disable_device(p_dev);
+	return -ENODEV;
+}
+
+
 static int sl811_cs_config(struct pcmcia_device *link)
 {
 	struct device		*parent = &handle_to_dev(link);
 	local_info_t		*dev = link->priv;
-	tuple_t			tuple;
-	cisparse_t		parse;
 	int			last_fn, last_ret;
-	u_char			buf[64];
-	config_info_t		conf;
-	cistpl_cftable_entry_t	dflt = { 0 };
+	struct sl811_css_cfg	*cfg_mem;
 
 	DBG(0, "sl811_cs_config(0x%p)\n", link);
 
+	cfg_mem = kzalloc(sizeof(struct sl811_css_cfg), GFP_KERNEL);
+	if (!cfg_mem)
+		return -ENOMEM;
+
 	/* Look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo,
-			pcmcia_get_configuration_info(link, &conf));
+			pcmcia_get_configuration_info(link, &cfg_mem->conf));
 
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	while (1) {
-		cistpl_cftable_entry_t	*cfg = &(parse.cftable_entry);
-
-		if (pcmcia_get_tuple_data(link, &tuple) != 0
-				|| pcmcia_parse_tuple(link, &tuple, &parse)
-						!= 0)
-			goto next_entry;
-
-		if (cfg->flags & CISTPL_CFTABLE_DEFAULT) {
-			dflt = *cfg;
-		}
-
-		if (cfg->index == 0)
-			goto next_entry;
-
-		link->conf.ConfigIndex = cfg->index;
-
-		/* Use power settings for Vcc and Vpp if present */
-		/*  Note that the CIS values need to be rescaled */
-		if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-			if (cfg->vcc.param[CISTPL_POWER_VNOM]/10000
-					!= conf.Vcc)
-				goto next_entry;
-		} else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
-			if (dflt.vcc.param[CISTPL_POWER_VNOM]/10000
-					!= conf.Vcc)
-				goto next_entry;
-		}
-
-		if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vpp =
-				cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-		else if (dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vpp =
-				dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
-
-		/* we need an interrupt */
-		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
-			link->conf.Attributes |= CONF_ENABLE_IRQ;
-
-		/* IO window settings */
-		link->io.NumPorts1 = link->io.NumPorts2 = 0;
-		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-
-			link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-			link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-			link->io.BasePort1 = io->win[0].base;
-			link->io.NumPorts1 = io->win[0].len;
-
-			if (pcmcia_request_io(link, &link->io) != 0)
-				goto next_entry;
-		}
-		break;
-
-next_entry:
-		pcmcia_disable_device(link);
-		last_ret = pcmcia_get_next_tuple(link, &tuple);
-	}
+	if (pcmcia_loop_config(link, sl811_cs_config_check, cfg_mem))
+		return -ENODEV;
 
 	/* require an IRQ and two registers */
 	if (!link->io.NumPorts1 || link->io.NumPorts1 < 2)
@@ -269,8 +265,10 @@ cs_failed:
 		printk("sl811_cs_config failed\n");
 		cs_error(link, last_fn, last_ret);
 		sl811_cs_release(link);
+		kfree(cfg_mem);
 		return  -ENODEV;
 	}
+	kfree(cfg_mem);
 	return 0;
 }
 

@@ -526,65 +526,49 @@ static void cm4040_reader_release(struct pcmcia_device *link)
 	return;
 }
 
+static int cm4040_config_check(struct pcmcia_device *p_dev,
+			       cistpl_cftable_entry_t *cfg,
+			       void *priv_data)
+{
+	int rc;
+	p_dev->conf.ConfigIndex = cfg->index;
+
+	if (!cfg->io.nwin)
+		return -ENODEV;
+
+	/* Get the IOaddr */
+	p_dev->io.BasePort1 = cfg->io.win[0].base;
+	p_dev->io.NumPorts1 = cfg->io.win[0].len;
+	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+	if (!(cfg->io.flags & CISTPL_IO_8BIT))
+		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+	if (!(cfg->io.flags & CISTPL_IO_16BIT))
+		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+
+	rc = pcmcia_request_io(p_dev, &p_dev->io);
+	dev_printk(KERN_INFO, &handle_to_dev(p_dev),
+		   "pcmcia_request_io returned 0x%x\n", rc);
+	return rc;
+}
+
+
 static int reader_config(struct pcmcia_device *link, int devno)
 {
 	struct reader_dev *dev;
-	tuple_t tuple;
-	cisparse_t parse;
-	u_char buf[64];
-	int fail_fn, fail_rc;
-	int rc;
-
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = sizeof(buf);
- 	tuple.TupleOffset = 0;
+	int fail_rc;
 
 	link->io.BasePort2 = 0;
 	link->io.NumPorts2 = 0;
 	link->io.Attributes2 = 0;
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	for (rc = pcmcia_get_first_tuple(link, &tuple);
-	     rc == CS_SUCCESS;
-	     rc = pcmcia_get_next_tuple(link, &tuple)) {
-		rc = pcmcia_get_tuple_data(link, &tuple);
-		if (rc != CS_SUCCESS)
-			continue;
-		rc = pcmcia_parse_tuple(link, &tuple, &parse);
-		if (rc != CS_SUCCESS)
-			continue;
 
-		link->conf.ConfigIndex = parse.cftable_entry.index;
-
-		if (!parse.cftable_entry.io.nwin)
-			continue;
-
-		link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
-		link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
-		link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(parse.cftable_entry.io.flags & CISTPL_IO_8BIT))
-			link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(parse.cftable_entry.io.flags & CISTPL_IO_16BIT))
-			link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		link->io.IOAddrLines = parse.cftable_entry.io.flags
-						& CISTPL_IO_LINES_MASK;
-		rc = pcmcia_request_io(link, &link->io);
-
-		dev_printk(KERN_INFO, &handle_to_dev(link), "foo");
-		if (rc == CS_SUCCESS)
-			break;
-		else
-			dev_printk(KERN_INFO, &handle_to_dev(link),
-				   "pcmcia_request_io failed 0x%x\n", rc);
-	}
-	if (rc != CS_SUCCESS)
+	if (pcmcia_loop_config(link, cm4040_config_check, NULL))
 		goto cs_release;
 
 	link->conf.IntType = 00000002;
 
 	if ((fail_rc = pcmcia_request_configuration(link,&link->conf))
 								!=CS_SUCCESS) {
-		fail_fn = RequestConfiguration;
 		dev_printk(KERN_INFO, &handle_to_dev(link),
 			   "pcmcia_request_configuration failed 0x%x\n",
 			   fail_rc);
