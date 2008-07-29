@@ -71,8 +71,8 @@
 #include <asm/processor.h>	/* for boot_cpu_data */
 
 static DEFINE_SPINLOCK(pdc_lock);
-static unsigned long pdc_result[32] __attribute__ ((aligned (8)));
-static unsigned long pdc_result2[32] __attribute__ ((aligned (8)));
+extern unsigned long pdc_result[NUM_PDC_RESULT];
+extern unsigned long pdc_result2[NUM_PDC_RESULT];
 
 #ifdef CONFIG_64BIT
 #define WIDE_FIRMWARE 0x1

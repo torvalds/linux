@@ -8,12 +8,24 @@
  *
  */
 
+#include <asm/pdc.h>
 #include <asm/psw.h>
 #include <asm/assembly.h>
+#include <asm/asm-offsets.h>
 
 #include <linux/linkage.h>
 
+
 	.section	.bss
+
+	.export pdc_result
+	.export pdc_result2
+	.align 8
+pdc_result:
+	.block	ASM_PDC_RESULT_SIZE
+pdc_result2:
+	.block	ASM_PDC_RESULT_SIZE
+
 	.export real_stack
 	.export real32_stack
 	.export real64_stack

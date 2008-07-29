@@ -332,6 +332,9 @@
 #define BOOT_CONSOLE_SPA_OFFSET  0x3c4
 #define BOOT_CONSOLE_PATH_OFFSET 0x3a8
 
+/* size of the pdc_result buffer for firmware.c */
+#define NUM_PDC_RESULT	32
+
 #if !defined(__ASSEMBLY__)
 #ifdef __KERNEL__
 
