@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <asm/machvec.h>
-#include <asm/se.h>
+#include <mach-se/mach/se.h>
 #include <asm/io.h>
 #include <asm/smc37c93x.h>
 #include <asm/heartbeat.h>

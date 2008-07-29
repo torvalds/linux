@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <asm/machvec.h>
-#include <asm/se7721.h>
+#include <mach-se/mach/se7721.h>
 #include <asm/io.h>
 #include <asm/heartbeat.h>
 

@@ -101,15 +101,8 @@ LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 core-y				+= arch/sh/kernel/ arch/sh/mm/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
 
-# Boards
-machdir-$(CONFIG_SH_SOLUTION_ENGINE)		+= mach-se/770x
-machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	+= mach-se/7206
-machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	+= mach-se/7619
-machdir-$(CONFIG_SH_7722_SOLUTION_ENGINE)	+= mach-se/7722
-machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	+= mach-se/7751
-machdir-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= mach-se/7780
-machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	+= mach-se/7343
-machdir-$(CONFIG_SH_7721_SOLUTION_ENGINE)	+= mach-se/7721
+# Boards and Mach groups
+machdir-$(CONFIG_SOLUTION_ENGINE)		+= mach-se
 machdir-$(CONFIG_SH_HP6XX)			+= mach-hp6xx
 machdir-$(CONFIG_SH_DREAMCAST)			+= mach-dreamcast
 machdir-$(CONFIG_SH_SH03)			+= mach-sh03
@@ -132,8 +125,6 @@ machdir-$(CONFIG_SH_SHMIN)			+= mach-shmin
 machdir-$(CONFIG_SH_LBOX_RE2)			+= mach-lboxre2
 machdir-$(CONFIG_SH_MAGIC_PANEL_R2)		+= mach-magicpanelr2
 machdir-$(CONFIG_SH_CAYMAN)			+= mach-cayman
-
-incdir-y	:= $(notdir $(machdir-y))
 
 ifneq ($(machdir-y),)
 core-y	+= $(addprefix arch/sh/boards/, \
@@ -159,7 +150,7 @@ drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 boot := arch/sh/boot
 
 cflags-y	+= -Iarch/sh/include/$(cpuincdir-y)
-cflags-y	+= $(foreach d, $(incdir-y), -Iarch/sh/include/mach-$(d))
+cflags-y	+= $(foreach d, $(machdir-y), -Iarch/sh/include/$(d))
 
 KBUILD_CFLAGS		+= -pipe $(cflags-y)
 KBUILD_CPPFLAGS		+= $(cflags-y)

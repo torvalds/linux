@@ -10,7 +10,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
-#include <asm/se7206.h>
+#include <mach-se/mach/se7206.h>
 
 #define INTSTS0 0x31800000
 #define INTSTS1 0x31800002

@@ -13,9 +13,9 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <asm/irq.h>
-#include <asm/io.h>
-#include <asm/se7343.h>
+#include <linux/irq.h>
+#include <linux/io.h>
+#include <mach-se/mach/se7343.h>
 
 static void disable_se7343_irq(unsigned int irq)
 {

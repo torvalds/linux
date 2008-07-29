@@ -13,7 +13,7 @@
 #include <linux/irq.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/se.h>
+#include <mach-se/mach/se.h>
 
 static struct ipr_data ipr_irq_table[] = {
 	/*

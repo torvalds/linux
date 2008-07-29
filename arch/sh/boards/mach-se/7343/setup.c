@@ -1,8 +1,8 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
-#include <machvec.h>
-#include <mach/se7343.h>
+#include <asm/machvec.h>
+#include <mach-se/mach/se7343.h>
 #include <asm/heartbeat.h>
 #include <asm/irq.h>
 #include <asm/io.h>

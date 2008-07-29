@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/irq.h>
-#include <asm/se7751.h>
+#include <mach-se/mach/se7751.h>
 
 static struct ipr_data ipr_irq_table[] = {
 	{ 13, 3, 3, 2 },

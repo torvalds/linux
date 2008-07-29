@@ -11,7 +11,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <asm/se7721.h>
+#include <mach-se/mach/se7721.h>
 
 enum {
 	UNUSED = 0,

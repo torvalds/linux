@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/se7780.h>
+#include <mach-se/mach/se7780.h>
 
 /*
  * Initialize IRQ setting

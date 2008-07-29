@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <asm/io.h>
-#include <asm/se7751.h>
+#include <mach-se/mach/se7751.h>
 #include <asm/addrspace.h>
 
 static inline volatile u16 *port2adr(unsigned int port)

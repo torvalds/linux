@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <asm/io.h>
-#include <asm/se7206.h>
+#include <mach-se/mach/se7206.h>
 
 
 static inline void delay(void)

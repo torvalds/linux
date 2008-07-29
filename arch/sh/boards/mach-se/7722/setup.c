@@ -17,7 +17,7 @@
 #include <linux/smc91x.h>
 #include <asm/machvec.h>
 #include <asm/clock.h>
-#include <asm/se7722.h>
+#include <mach-se/mach/se7722.h>
 #include <asm/io.h>
 #include <asm/heartbeat.h>
 #include <asm/sh_keysc.h>

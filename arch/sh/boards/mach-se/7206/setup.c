@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/smc91x.h>
-#include <asm/se7206.h>
+#include <mach-se/mach/se7206.h>
 #include <asm/io.h>
 #include <asm/machvec.h>
 #include <asm/heartbeat.h>

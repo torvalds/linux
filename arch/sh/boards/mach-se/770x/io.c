@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <asm/io.h>
-#include <asm/se.h>
+#include <mach-se/mach/se.h>
 
 /* MS7750 requires special versions of in*, out* routines, since
    PC-like io ports are located at upper half byte of 16-bit word which

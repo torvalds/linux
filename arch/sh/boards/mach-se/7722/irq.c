@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/se7722.h>
+#include <mach-se/mach/se7722.h>
 
 static void disable_se7722_irq(unsigned int irq)
 {
