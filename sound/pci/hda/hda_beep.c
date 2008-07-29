@@ -103,7 +103,7 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 
 	err = input_register_device(input_dev);
 	if (err < 0) {
-		kfree(input_dev);
+		input_free_device(input_dev);
 		kfree(beep);
 		return err;
 	}
