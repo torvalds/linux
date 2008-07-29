@@ -29,6 +29,9 @@ extern struct xsave_struct *init_xstate_buf;
 extern void xsave_cntxt_init(void);
 extern void xsave_init(void);
 extern int init_fpu(struct task_struct *child);
+extern int check_for_xstate(struct i387_fxsave_struct __user *buf,
+			    void __user *fpstate,
+			    struct _fpx_sw_bytes *sw);
 
 static inline int xrstor_checking(struct xsave_struct *fx)
 {
@@ -48,7 +51,7 @@ static inline int xrstor_checking(struct xsave_struct *fx)
 	return err;
 }
 
-static inline int xsave_check(struct xsave_struct __user *buf)
+static inline int xsave_user(struct xsave_struct __user *buf)
 {
 	int err;
 	__asm__ __volatile__("1: .byte " REX_PREFIX "0x0f,0xae,0x27\n"

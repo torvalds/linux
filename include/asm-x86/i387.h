@@ -31,8 +31,10 @@ extern user_regset_active_fn fpregs_active, xfpregs_active;
 extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get;
 extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set;
 
+extern struct _fpx_sw_bytes fx_sw_reserved;
 #ifdef CONFIG_IA32_EMULATION
 extern unsigned int sig_xstate_ia32_size;
+extern struct _fpx_sw_bytes fx_sw_reserved_ia32;
 struct _fpstate_ia32;
 struct _xstate_ia32;
 extern int save_i387_xstate_ia32(void __user *buf);
@@ -104,7 +106,7 @@ static inline void clear_fpu_state(struct task_struct *tsk)
 			  X86_FEATURE_FXSAVE_LEAK);
 }
 
-static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
+static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 {
 	int err;
 

@@ -26,6 +26,7 @@
 # define _fpstate_ia32		_fpstate
 # define _xstate_ia32		_xstate
 # define sig_xstate_ia32_size   sig_xstate_size
+# define fx_sw_reserved_ia32	fx_sw_reserved
 # define user_i387_ia32_struct	user_i387_struct
 # define user32_fxsr_struct	user_fxsr_struct
 #endif
@@ -447,9 +448,27 @@ static int save_i387_fxsave(struct _fpstate_ia32 __user *buf)
 	if (err)
 		return -1;
 
-	if (__copy_to_user(&buf->_fxsr_env[0], fx,
-			   sizeof(struct i387_fxsave_struct)))
+	if (__copy_to_user(&buf->_fxsr_env[0], fx, xstate_size))
 		return -1;
+	return 1;
+}
+
+static int save_i387_xsave(void __user *buf)
+{
+	struct _fpstate_ia32 __user *fx = buf;
+	int err = 0;
+
+	if (save_i387_fxsave(fx) < 0)
+		return -1;
+
+	err = __copy_to_user(&fx->sw_reserved, &fx_sw_reserved_ia32,
+			     sizeof(struct _fpx_sw_bytes));
+	err |= __put_user(FP_XSTATE_MAGIC2,
+			  (__u32 __user *) (buf + sig_xstate_ia32_size
+					    - FP_XSTATE_MAGIC2_SIZE));
+	if (err)
+		return -1;
+
 	return 1;
 }
 
@@ -477,6 +496,8 @@ int save_i387_xstate_ia32(void __user *buf)
 
 	unlazy_fpu(tsk);
 
+	if (cpu_has_xsave)
+		return save_i387_xsave(fp);
 	if (cpu_has_fxsr)
 		return save_i387_fxsave(fp);
 	else
@@ -491,14 +512,15 @@ static inline int restore_i387_fsave(struct _fpstate_ia32 __user *buf)
 				sizeof(struct i387_fsave_struct));
 }
 
-static int restore_i387_fxsave(struct _fpstate_ia32 __user *buf)
+static int restore_i387_fxsave(struct _fpstate_ia32 __user *buf,
+			       unsigned int size)
 {
 	struct task_struct *tsk = current;
 	struct user_i387_ia32_struct env;
 	int err;
 
 	err = __copy_from_user(&tsk->thread.xstate->fxsave, &buf->_fxsr_env[0],
-			       sizeof(struct i387_fxsave_struct));
+			       size);
 	/* mxcsr reserved bits must be masked to zero for security reasons */
 	tsk->thread.xstate->fxsave.mxcsr &= mxcsr_feature_mask;
 	if (err || __copy_from_user(&env, buf, sizeof(env)))
@@ -506,6 +528,51 @@ static int restore_i387_fxsave(struct _fpstate_ia32 __user *buf)
 	convert_to_fxsr(tsk, &env);
 
 	return 0;
+}
+
+static int restore_i387_xsave(void __user *buf)
+{
+	struct _fpx_sw_bytes fx_sw_user;
+	struct _fpstate_ia32 __user *fx_user =
+			((struct _fpstate_ia32 __user *) buf);
+	struct i387_fxsave_struct __user *fx =
+		(struct i387_fxsave_struct __user *) &fx_user->_fxsr_env[0];
+	struct xsave_hdr_struct *xsave_hdr =
+				&current->thread.xstate->xsave.xsave_hdr;
+	unsigned int lmask, hmask;
+	int err;
+
+	if (check_for_xstate(fx, buf, &fx_sw_user))
+		goto fx_only;
+
+	lmask = fx_sw_user.xstate_bv;
+	hmask = fx_sw_user.xstate_bv >> 32;
+
+	err = restore_i387_fxsave(buf, fx_sw_user.xstate_size);
+
+	xsave_hdr->xstate_bv &=  (pcntxt_lmask | (((u64) pcntxt_hmask) << 32));
+	/*
+	 * These bits must be zero.
+	 */
+	xsave_hdr->reserved1[0] = xsave_hdr->reserved1[1] = 0;
+
+	/*
+	 * Init the state that is not present in the memory layout
+	 * and enabled by the OS.
+	 */
+	lmask = ~(pcntxt_lmask & ~lmask);
+	hmask = ~(pcntxt_hmask & ~hmask);
+	xsave_hdr->xstate_bv &=  (lmask | (((u64) hmask) << 32));
+
+	return err;
+fx_only:
+	/*
+	 * Couldn't find the extended state information in the memory
+	 * layout. Restore the FP/SSE and init the other extended state
+	 * enabled by the OS.
+	 */
+	xsave_hdr->xstate_bv = XSTATE_FPSSE;
+	return restore_i387_fxsave(buf, sizeof(struct i387_fxsave_struct));
 }
 
 int restore_i387_xstate_ia32(void __user *buf)
@@ -535,8 +602,11 @@ int restore_i387_xstate_ia32(void __user *buf)
 	}
 
 	if (HAVE_HWFP) {
-		if (cpu_has_fxsr)
-			err = restore_i387_fxsave(fp);
+		if (cpu_has_xsave)
+			err = restore_i387_xsave(buf);
+		else if (cpu_has_fxsr)
+			err = restore_i387_fxsave(fp, sizeof(struct
+							   i387_fxsave_struct));
 		else
 			err = restore_i387_fsave(fp);
 	} else {

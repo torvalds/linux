@@ -6,11 +6,67 @@
 #include <linux/bootmem.h>
 #include <linux/compat.h>
 #include <asm/i387.h>
+#ifdef CONFIG_IA32_EMULATION
+#include <asm/sigcontext32.h>
+#endif
 
 /*
  * Supported feature mask by the CPU and the kernel.
  */
 unsigned int pcntxt_hmask, pcntxt_lmask;
+
+struct _fpx_sw_bytes fx_sw_reserved;
+#ifdef CONFIG_IA32_EMULATION
+struct _fpx_sw_bytes fx_sw_reserved_ia32;
+#endif
+
+/*
+ * Check for the presence of extended state information in the
+ * user fpstate pointer in the sigcontext.
+ */
+int check_for_xstate(struct i387_fxsave_struct __user *buf,
+		     void __user *fpstate,
+		     struct _fpx_sw_bytes *fx_sw_user)
+{
+	int min_xstate_size = sizeof(struct i387_fxsave_struct) +
+			      sizeof(struct xsave_hdr_struct);
+	unsigned int magic2;
+	int err;
+
+	err = __copy_from_user(fx_sw_user, &buf->sw_reserved[0],
+			       sizeof(struct _fpx_sw_bytes));
+
+	if (err)
+		return err;
+
+	/*
+	 * First Magic check failed.
+	 */
+	if (fx_sw_user->magic1 != FP_XSTATE_MAGIC1)
+		return -1;
+
+	/*
+	 * Check for error scenarios.
+	 */
+	if (fx_sw_user->xstate_size < min_xstate_size ||
+	    fx_sw_user->xstate_size > xstate_size ||
+	    fx_sw_user->xstate_size > fx_sw_user->extended_size)
+		return -1;
+
+	err = __get_user(magic2, (__u32 *) (((void *)fpstate) +
+					    fx_sw_user->extended_size -
+					    FP_XSTATE_MAGIC2_SIZE));
+	/*
+	 * Check for the presence of second magic word at the end of memory
+	 * layout. This detects the case where the user just copied the legacy
+	 * fpstate layout with out copying the extended state information
+	 * in the memory layout.
+	 */
+	if (err || magic2 != FP_XSTATE_MAGIC2)
+		return -1;
+
+	return 0;
+}
 
 #ifdef CONFIG_X86_64
 /*
@@ -28,15 +84,18 @@ int save_i387_xstate(void __user *buf)
 	BUILD_BUG_ON(sizeof(struct user_i387_struct) !=
 			sizeof(tsk->thread.xstate->fxsave));
 
-	if ((unsigned long)buf % 16)
+	if ((unsigned long)buf % 64)
 		printk("save_i387_xstate: bad fpstate %p\n", buf);
 
 	if (!used_math())
 		return 0;
 	clear_used_math(); /* trigger finit */
 	if (task_thread_info(tsk)->status & TS_USEDFPU) {
-		err = save_i387_checking((struct i387_fxsave_struct __user *)
-					 buf);
+		if (task_thread_info(tsk)->status & TS_XSAVE)
+			err = xsave_user(buf);
+		else
+			err = fxsave_user(buf);
+
 		if (err)
 			return err;
 		task_thread_info(tsk)->status &= ~TS_USEDFPU;
@@ -46,7 +105,64 @@ int save_i387_xstate(void __user *buf)
 				   xstate_size))
 			return -1;
 	}
+
+	if (task_thread_info(tsk)->status & TS_XSAVE) {
+		struct _fpstate __user *fx = buf;
+
+		err = __copy_to_user(&fx->sw_reserved, &fx_sw_reserved,
+				     sizeof(struct _fpx_sw_bytes));
+
+		err |= __put_user(FP_XSTATE_MAGIC2,
+				  (__u32 __user *) (buf + sig_xstate_size
+						    - FP_XSTATE_MAGIC2_SIZE));
+	}
+
 	return 1;
+}
+
+/*
+ * Restore the extended state if present. Otherwise, restore the FP/SSE
+ * state.
+ */
+int restore_user_xstate(void __user *buf)
+{
+	struct _fpx_sw_bytes fx_sw_user;
+	unsigned int lmask, hmask;
+	int err;
+
+	if (((unsigned long)buf % 64) ||
+	     check_for_xstate(buf, buf, &fx_sw_user))
+		goto fx_only;
+
+	lmask = fx_sw_user.xstate_bv;
+	hmask = fx_sw_user.xstate_bv >> 32;
+
+	/*
+	 * restore the state passed by the user.
+	 */
+	err = xrestore_user(buf, lmask, hmask);
+	if (err)
+		return err;
+
+	/*
+	 * init the state skipped by the user.
+	 */
+	lmask = pcntxt_lmask & ~lmask;
+	hmask = pcntxt_hmask & ~hmask;
+
+	xrstor_state(init_xstate_buf, lmask, hmask);
+
+	return 0;
+
+fx_only:
+	/*
+	 * couldn't find the extended state information in the
+	 * memory layout. Restore just the FP/SSE and init all
+	 * the other extended state.
+	 */
+	xrstor_state(init_xstate_buf, pcntxt_lmask & ~XSTATE_FPSSE,
+		     pcntxt_hmask);
+	return fxrstor_checking((__force struct i387_fxsave_struct *)buf);
 }
 
 /*
@@ -55,14 +171,11 @@ int save_i387_xstate(void __user *buf)
 int restore_i387_xstate(void __user *buf)
 {
 	struct task_struct *tsk = current;
-	int err;
+	int err = 0;
 
 	if (!buf) {
-		if (used_math()) {
-			clear_fpu(tsk);
-			clear_used_math();
-		}
-
+		if (used_math())
+			goto clear;
 		return 0;
 	} else
 		if (!access_ok(VERIFY_READ, buf, sig_xstate_size))
@@ -78,18 +191,55 @@ int restore_i387_xstate(void __user *buf)
 		clts();
 		task_thread_info(current)->status |= TS_USEDFPU;
 	}
-	err = fxrstor_checking((__force struct i387_fxsave_struct *)buf);
+	if (task_thread_info(tsk)->status & TS_XSAVE)
+		err = restore_user_xstate(buf);
+	else
+		err = fxrstor_checking((__force struct i387_fxsave_struct *)
+				       buf);
 	if (unlikely(err)) {
 		/*
 		 * Encountered an error while doing the restore from the
 		 * user buffer, clear the fpu state.
 		 */
+clear:
 		clear_fpu(tsk);
 		clear_used_math();
 	}
 	return err;
 }
 #endif
+
+/*
+ * Prepare the SW reserved portion of the fxsave memory layout, indicating
+ * the presence of the extended state information in the memory layout
+ * pointed by the fpstate pointer in the sigcontext.
+ * This will be saved when ever the FP and extended state context is
+ * saved on the user stack during the signal handler delivery to the user.
+ */
+void prepare_fx_sw_frame(void)
+{
+	int size_extended = (xstate_size - sizeof(struct i387_fxsave_struct)) +
+			     FP_XSTATE_MAGIC2_SIZE;
+
+	sig_xstate_size = sizeof(struct _fpstate) + size_extended;
+
+#ifdef CONFIG_IA32_EMULATION
+	sig_xstate_ia32_size = sizeof(struct _fpstate_ia32) + size_extended;
+#endif
+
+	memset(&fx_sw_reserved, 0, sizeof(fx_sw_reserved));
+
+	fx_sw_reserved.magic1 = FP_XSTATE_MAGIC1;
+	fx_sw_reserved.extended_size = sig_xstate_size;
+	fx_sw_reserved.xstate_bv = pcntxt_lmask |
+					 (((u64) (pcntxt_hmask)) << 32);
+	fx_sw_reserved.xstate_size = xstate_size;
+#ifdef CONFIG_IA32_EMULATION
+	memcpy(&fx_sw_reserved_ia32, &fx_sw_reserved,
+	       sizeof(struct _fpx_sw_bytes));
+	fx_sw_reserved_ia32.extended_size = sig_xstate_ia32_size;
+#endif
+}
 
 /*
  * Represents init state for the supported extended state.
@@ -161,6 +311,8 @@ void __init xsave_cntxt_init(void)
 	cpuid_count(0xd, 0, &eax, &ebx, &ecx, &edx);
 
 	xstate_size = ebx;
+
+	prepare_fx_sw_frame();
 
 	setup_xstate_init();
 
