@@ -933,6 +933,11 @@ static bool handle_tun_input(int fd, struct device *dev)
 		/* FIXME: Actually want DRIVER_ACTIVE here. */
 		if (dev->desc->status & VIRTIO_CONFIG_S_DRIVER_OK)
 			warn("network: no dma buffer!");
+
+		/* Now tell it we want to know if new things appear. */
+		dev->vq->vring.used->flags &= ~VRING_USED_F_NO_NOTIFY;
+		wmb();
+
 		/* We'll turn this back on if input buffers are registered. */
 		return false;
 	} else if (out_num)
@@ -967,6 +972,13 @@ static void enable_fd(int fd, struct virtqueue *vq)
 	add_device_fd(vq->dev->fd);
 	/* Tell waker to listen to it again */
 	write(waker_fd, &vq->dev->fd, sizeof(vq->dev->fd));
+}
+
+static void net_enable_fd(int fd, struct virtqueue *vq)
+{
+	/* We don't need to know again when Guest refills receive buffer. */
+	vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
+	enable_fd(fd, vq);
 }
 
 /* When the Guest tells us they updated the status field, we handle it. */
@@ -1426,7 +1438,7 @@ static void setup_tun_net(char *arg)
 
 	/* Network devices need a receive and a send queue, just like
 	 * console. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, enable_fd);
+	add_virtqueue(dev, VIRTQUEUE_NUM, net_enable_fd);
 	add_virtqueue(dev, VIRTQUEUE_NUM, handle_net_output);
 
 	/* We need a socket to perform the magic network ioctls to bring up the
