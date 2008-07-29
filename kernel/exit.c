@@ -121,18 +121,7 @@ static void __exit_signal(struct task_struct *tsk)
 		sig->nivcsw += tsk->nivcsw;
 		sig->inblock += task_io_get_inblock(tsk);
 		sig->oublock += task_io_get_oublock(tsk);
-#ifdef CONFIG_TASK_XACCT
-		sig->rchar += tsk->rchar;
-		sig->wchar += tsk->wchar;
-		sig->syscr += tsk->syscr;
-		sig->syscw += tsk->syscw;
-#endif /* CONFIG_TASK_XACCT */
-#ifdef CONFIG_TASK_IO_ACCOUNTING
-		sig->ioac.read_bytes += tsk->ioac.read_bytes;
-		sig->ioac.write_bytes += tsk->ioac.write_bytes;
-		sig->ioac.cancelled_write_bytes +=
-					tsk->ioac.cancelled_write_bytes;
-#endif /* CONFIG_TASK_IO_ACCOUNTING */
+		task_io_accounting_add(&sig->ioac, &tsk->ioac);
 		sig->sum_sched_runtime += tsk->se.sum_exec_runtime;
 		sig = NULL; /* Marker for below. */
 	}
@@ -1363,21 +1352,8 @@ static int wait_task_zombie(struct task_struct *p, int options,
 		psig->coublock +=
 			task_io_get_oublock(p) +
 			sig->oublock + sig->coublock;
-#ifdef CONFIG_TASK_XACCT
-		psig->rchar += p->rchar + sig->rchar;
-		psig->wchar += p->wchar + sig->wchar;
-		psig->syscr += p->syscr + sig->syscr;
-		psig->syscw += p->syscw + sig->syscw;
-#endif /* CONFIG_TASK_XACCT */
-#ifdef CONFIG_TASK_IO_ACCOUNTING
-		psig->ioac.read_bytes +=
-			p->ioac.read_bytes + sig->ioac.read_bytes;
-		psig->ioac.write_bytes +=
-			p->ioac.write_bytes + sig->ioac.write_bytes;
-		psig->ioac.cancelled_write_bytes +=
-				p->ioac.cancelled_write_bytes +
-				sig->ioac.cancelled_write_bytes;
-#endif /* CONFIG_TASK_IO_ACCOUNTING */
+		task_io_accounting_add(&psig->ioac, &p->ioac);
+		task_io_accounting_add(&psig->ioac, &sig->ioac);
 		spin_unlock_irq(&p->parent->sighand->siglock);
 	}
 

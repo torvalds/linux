@@ -111,7 +111,7 @@ static int cs5345_command(struct i2c_client *client, unsigned cmd, void *arg)
 		if (cmd == VIDIOC_DBG_G_REGISTER)
 			reg->val = cs5345_read(client, reg->reg & 0x1f);
 		else
-			cs5345_write(client, reg->reg & 0x1f, reg->val & 0x1f);
+			cs5345_write(client, reg->reg & 0x1f, reg->val & 0xff);
 		break;
 	}
 #endif

@@ -28,6 +28,7 @@
 
 struct sh_cpuinfo {
 	unsigned int type;
+	int cut_major, cut_minor;
 	unsigned long loops_per_jiffy;
 	unsigned long asid_cache;
 
@@ -112,10 +113,6 @@ struct thread_struct {
 	/* floating point info */
 	union sh_fpu_union fpu;
 };
-
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
 
 /* Count of active tasks with UBC settings */
 extern int ubc_usercnt;

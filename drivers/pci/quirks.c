@@ -923,6 +923,19 @@ static void __init quirk_ide_samemode(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10, quirk_ide_samemode);
 
+/*
+ * Some ATA devices break if put into D3
+ */
+
+static void __devinit quirk_no_ata_d3(struct pci_dev *pdev)
+{
+	/* Quirk the legacy ATA devices only. The AHCI ones are ok */
+	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE)
+		pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, PCI_ANY_ID, quirk_no_ata_d3);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_ATI, PCI_ANY_ID, quirk_no_ata_d3);
+
 /* This was originally an Alpha specific thing, but it really fits here.
  * The i82375 PCI/EISA bridge appears as non-classified. Fix that.
  */

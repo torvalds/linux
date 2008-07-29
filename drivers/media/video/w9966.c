@@ -57,8 +57,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/parport.h>
 
 /*#define DEBUG*/				/* Undef me for production */
@@ -195,9 +196,7 @@ static const struct file_operations w9966_fops = {
 	.llseek         = no_llseek,
 };
 static struct video_device w9966_template = {
-	.owner		= THIS_MODULE,
 	.name           = W9966_DRIVERNAME,
-	.type           = VID_TYPE_CAPTURE | VID_TYPE_SCALES,
 	.fops           = &w9966_fops,
 };
 

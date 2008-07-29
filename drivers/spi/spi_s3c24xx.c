@@ -270,6 +270,7 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 	/* setup the master state. */
 
 	master->num_chipselect = hw->pdata->num_cs;
+	master->bus_num = pdata->bus_num;
 
 	/* setup the state for the bitbang driver */
 

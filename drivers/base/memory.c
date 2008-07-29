@@ -103,7 +103,8 @@ static ssize_t show_mem_phys_index(struct sys_device *dev,
 /*
  * Show whether the section of memory is likely to be hot-removable
  */
-static ssize_t show_mem_removable(struct sys_device *dev, char *buf)
+static ssize_t show_mem_removable(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	unsigned long start_pfn;
 	int ret;

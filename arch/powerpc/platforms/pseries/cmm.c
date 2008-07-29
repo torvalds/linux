@@ -289,7 +289,9 @@ static int cmm_thread(void *dummy)
 }
 
 #define CMM_SHOW(name, format, args...)			\
-	static ssize_t show_##name(struct sys_device *dev, char *buf)	\
+	static ssize_t show_##name(struct sys_device *dev,	\
+				   struct sysdev_attribute *attr,	\
+				   char *buf)			\
 	{							\
 		return sprintf(buf, format, ##args);		\
 	}							\
@@ -298,12 +300,14 @@ static int cmm_thread(void *dummy)
 CMM_SHOW(loaned_kb, "%lu\n", PAGES2KB(loaned_pages));
 CMM_SHOW(loaned_target_kb, "%lu\n", PAGES2KB(loaned_pages_target));
 
-static ssize_t show_oom_pages(struct sys_device *dev, char *buf)
+static ssize_t show_oom_pages(struct sys_device *dev,
+			      struct sysdev_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%lu\n", PAGES2KB(oom_freed_pages));
 }
 
 static ssize_t store_oom_pages(struct sys_device *dev,
+			       struct sysdev_attribute *attr,
 			       const char *buf, size_t count)
 {
 	unsigned long val = simple_strtoul (buf, NULL, 10);

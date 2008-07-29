@@ -99,6 +99,9 @@ struct talitos_private {
 	/* next channel to be assigned next incoming descriptor */
 	atomic_t last_chan;
 
+	/* per-channel number of requests pending in channel h/w fifo */
+	atomic_t *submit_count;
+
 	/* per-channel request fifo */
 	struct talitos_request **fifo;
 
@@ -263,14 +266,14 @@ static int talitos_submit(struct device *dev, struct talitos_desc *desc,
 
 	spin_lock_irqsave(&priv->head_lock[ch], flags);
 
-	head = priv->head[ch];
-	request = &priv->fifo[ch][head];
-
-	if (request->desc) {
-		/* request queue is full */
+	if (!atomic_inc_not_zero(&priv->submit_count[ch])) {
+		/* h/w fifo is full */
 		spin_unlock_irqrestore(&priv->head_lock[ch], flags);
 		return -EAGAIN;
 	}
+
+	head = priv->head[ch];
+	request = &priv->fifo[ch][head];
 
 	/* map descriptor and save caller data */
 	request->dma_desc = dma_map_single(dev, desc, sizeof(*desc),
@@ -335,6 +338,9 @@ static void flush_channel(struct device *dev, int ch, int error, int reset_ch)
 		priv->tail[ch] = (tail + 1) & (priv->fifo_len - 1);
 
 		spin_unlock_irqrestore(&priv->tail_lock[ch], flags);
+
+		atomic_dec(&priv->submit_count[ch]);
+
 		saved_req.callback(dev, saved_req.desc, saved_req.context,
 				   status);
 		/* channel may resume processing in single desc error case */
@@ -842,7 +848,7 @@ static int sg_to_link_tbl(struct scatterlist *sg, int sg_count,
 
 	/* adjust (decrease) last one (or two) entry's len to cryptlen */
 	link_tbl_ptr--;
-	while (link_tbl_ptr->len <= (-cryptlen)) {
+	while (be16_to_cpu(link_tbl_ptr->len) <= (-cryptlen)) {
 		/* Empty this entry, and move to previous one */
 		cryptlen += be16_to_cpu(link_tbl_ptr->len);
 		link_tbl_ptr->len = 0;
@@ -874,7 +880,7 @@ static int ipsec_esp(struct ipsec_esp_edesc *edesc, struct aead_request *areq,
 	unsigned int cryptlen = areq->cryptlen;
 	unsigned int authsize = ctx->authsize;
 	unsigned int ivsize;
-	int sg_count;
+	int sg_count, ret;
 
 	/* hmac key */
 	map_single_talitos_ptr(dev, &desc->ptr[0], ctx->authkeylen, &ctx->key,
@@ -978,7 +984,12 @@ static int ipsec_esp(struct ipsec_esp_edesc *edesc, struct aead_request *areq,
 	map_single_talitos_ptr(dev, &desc->ptr[6], ivsize, ctx->iv, 0,
 			       DMA_FROM_DEVICE);
 
-	return talitos_submit(dev, desc, callback, areq);
+	ret = talitos_submit(dev, desc, callback, areq);
+	if (ret != -EINPROGRESS) {
+		ipsec_esp_unmap(dev, edesc, areq);
+		kfree(edesc);
+	}
+	return ret;
 }
 
 
@@ -1009,6 +1020,8 @@ static struct ipsec_esp_edesc *ipsec_esp_edesc_alloc(struct aead_request *areq,
 	struct talitos_ctx *ctx = crypto_aead_ctx(authenc);
 	struct ipsec_esp_edesc *edesc;
 	int src_nents, dst_nents, alloc_len, dma_len;
+	gfp_t flags = areq->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL :
+		      GFP_ATOMIC;
 
 	if (areq->cryptlen + ctx->authsize > TALITOS_MAX_DATA_LEN) {
 		dev_err(ctx->dev, "cryptlen exceeds h/w max limit\n");
@@ -1022,7 +1035,7 @@ static struct ipsec_esp_edesc *ipsec_esp_edesc_alloc(struct aead_request *areq,
 		dst_nents = src_nents;
 	} else {
 		dst_nents = sg_count(areq->dst, areq->cryptlen + ctx->authsize);
-		dst_nents = (dst_nents == 1) ? 0 : src_nents;
+		dst_nents = (dst_nents == 1) ? 0 : dst_nents;
 	}
 
 	/*
@@ -1040,7 +1053,7 @@ static struct ipsec_esp_edesc *ipsec_esp_edesc_alloc(struct aead_request *areq,
 		alloc_len += icv_stashing ? ctx->authsize : 0;
 	}
 
-	edesc = kmalloc(alloc_len, GFP_DMA);
+	edesc = kmalloc(alloc_len, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(ctx->dev, "could not allocate edescriptor\n");
 		return ERR_PTR(-ENOMEM);
@@ -1337,6 +1350,7 @@ static int __devexit talitos_remove(struct of_device *ofdev)
 	if (hw_supports(dev, DESC_HDR_SEL0_RNG))
 		talitos_unregister_rng(dev);
 
+	kfree(priv->submit_count);
 	kfree(priv->tail);
 	kfree(priv->head);
 
@@ -1466,9 +1480,6 @@ static int talitos_probe(struct of_device *ofdev,
 		goto err_out;
 	}
 
-	of_node_put(np);
-	np = NULL;
-
 	priv->head_lock = kmalloc(sizeof(spinlock_t) * priv->num_channels,
 				  GFP_KERNEL);
 	priv->tail_lock = kmalloc(sizeof(spinlock_t) * priv->num_channels,
@@ -1503,6 +1514,16 @@ static int talitos_probe(struct of_device *ofdev,
 			goto err_out;
 		}
 	}
+
+	priv->submit_count = kmalloc(sizeof(atomic_t) * priv->num_channels,
+				     GFP_KERNEL);
+	if (!priv->submit_count) {
+		dev_err(dev, "failed to allocate fifo submit count space\n");
+		err = -ENOMEM;
+		goto err_out;
+	}
+	for (i = 0; i < priv->num_channels; i++)
+		atomic_set(&priv->submit_count[i], -priv->chfifo_len);
 
 	priv->head = kzalloc(sizeof(int) * priv->num_channels, GFP_KERNEL);
 	priv->tail = kzalloc(sizeof(int) * priv->num_channels, GFP_KERNEL);
@@ -1559,8 +1580,6 @@ static int talitos_probe(struct of_device *ofdev,
 
 err_out:
 	talitos_remove(ofdev);
-	if (np)
-		of_node_put(np);
 
 	return err;
 }

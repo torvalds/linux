@@ -24,9 +24,6 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 8)
-static const char version[] = "2.1.8";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA5xx USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -804,228 +801,28 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
 	struct cam *cam;
-	__u16 vendor;
-	__u16 product;
-	__u8 fw;
-
-	vendor = id->idVendor;
-	product = id->idProduct;
-	switch (vendor) {
-	case 0x041e:		/* Creative cameras */
-/*		switch (product) { */
-/*		case 0x400b: */
-/*		case 0x4012: */
-/*		case 0x4013: */
-/*			sd->bridge = BRIDGE_SPCA504C; */
-/*			break; */
-/*		} */
-		break;
-	case 0x0458:		/* Genius KYE cameras */
-/*		switch (product) { */
-/*		case 0x7006: */
-			sd->bridge = BRIDGE_SPCA504B;
-/*			break; */
-/*		} */
-		break;
-	case 0x0461:		/* MicroInnovation */
-/*		switch (product) { */
-/*		case 0x0821: */
-			sd->bridge = BRIDGE_SPCA533;
-/*			break; */
-/*		} */
-		break;
-	case 0x046d:		/* Logitech Labtec */
-		switch (product) {
-		case 0x0905:
-			sd->subtype = LogitechClickSmart820;
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		case 0x0960:
-			sd->subtype = LogitechClickSmart420;
-			sd->bridge = BRIDGE_SPCA504C;
-			break;
-		}
-		break;
-	case 0x0471:				/* Philips */
-/*		switch (product) { */
-/*		case 0x0322: */
-			sd->bridge = BRIDGE_SPCA504B;
-/*			break; */
-/*		} */
-		break;
-	case 0x04a5:		/* Benq */
-		switch (product) {
-		case 0x3003:
-			sd->bridge = BRIDGE_SPCA504B;
-			break;
-		case 0x3008:
-		case 0x300a:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		}
-		break;
-	case 0x04f1:		/* JVC */
-/*		switch (product) { */
-/*		case 0x1001: */
-			sd->bridge = BRIDGE_SPCA504B;
-/*			break; */
-/*		} */
-		break;
-	case 0x04fc:		/* SunPlus */
-		switch (product) {
-		case 0x500c:
-			sd->bridge = BRIDGE_SPCA504B;
-			break;
-		case 0x504a:
-/* try to get the firmware as some cam answer 2.0.1.2.2
- * and should be a spca504b then overwrite that setting */
-			reg_r(dev, 0x20, 0, gspca_dev->usb_buf, 1);
-			fw = gspca_dev->usb_buf[0];
-			if (fw == 1) {
-				sd->subtype = AiptekMiniPenCam13;
-				sd->bridge = BRIDGE_SPCA504;
-			} else if (fw == 2) {
-				sd->bridge = BRIDGE_SPCA504B;
-			} else
-				return -ENODEV;
-			break;
-		case 0x504b:
-			sd->bridge = BRIDGE_SPCA504B;
-			break;
-		case 0x5330:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		case 0x5360:
-			sd->bridge = BRIDGE_SPCA536;
-			break;
-		case 0xffff:
-			sd->bridge = BRIDGE_SPCA504B;
-			break;
-		}
-		break;
-	case 0x052b:		/* ?? Megapix */
-/*		switch (product) { */
-/*		case 0x1513: */
-			sd->subtype = MegapixV4;
-			sd->bridge = BRIDGE_SPCA533;
-/*			break; */
-/*		} */
-		break;
-	case 0x0546:		/* Polaroid */
-		switch (product) {
-		case 0x3155:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		case 0x3191:
-		case 0x3273:
-			sd->bridge = BRIDGE_SPCA504B;
-			break;
-		}
-		break;
-	case 0x055f:		/* Mustek cameras */
-		switch (product) {
-		case 0xc211:
-			sd->bridge = BRIDGE_SPCA536;
-			break;
-		case 0xc230:
-		case 0xc232:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		case 0xc360:
-			sd->bridge = BRIDGE_SPCA536;
-			break;
-		case 0xc420:
-			sd->bridge = BRIDGE_SPCA504;
-			break;
-		case 0xc430:
-		case 0xc440:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		case 0xc520:
-			sd->bridge = BRIDGE_SPCA504;
-			break;
-		case 0xc530:
-		case 0xc540:
-		case 0xc630:
-		case 0xc650:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		}
-		break;
-	case 0x05da:		/* Digital Dream cameras */
-/*		switch (product) { */
-/*		case 0x1018: */
-			sd->bridge = BRIDGE_SPCA504B;
-/*			break; */
-/*		} */
-		break;
-	case 0x06d6:		/* Trust */
-/*		switch (product) { */
-/*		case 0x0031: */
-			sd->bridge = BRIDGE_SPCA533;	/* SPCA533A */
-/*			break; */
-/*		} */
-		break;
-	case 0x0733:	/* Rebadged ViewQuest (Intel) and ViewQuest cameras */
-		switch (product) {
-		case 0x1311:
-		case 0x1314:
-		case 0x2211:
-		case 0x2221:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		case 0x3261:
-		case 0x3281:
-			sd->bridge = BRIDGE_SPCA536;
-			break;
-		}
-		break;
-	case 0x08ca:		/* Aiptek */
-		switch (product) {
-		case 0x0104:
-		case 0x0106:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		case 0x2008:
-			sd->bridge = BRIDGE_SPCA504B;
-			break;
-		case 0x2010:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		case 0x2016:
-		case 0x2018:
-			sd->bridge = BRIDGE_SPCA504B;
-			break;
-		case 0x2020:
-		case 0x2022:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		case 0x2024:
-			sd->bridge = BRIDGE_SPCA536;
-			break;
-		case 0x2028:
-			sd->bridge = BRIDGE_SPCA533;
-			break;
-		case 0x2040:
-		case 0x2042:
-		case 0x2050:
-		case 0x2060:
-			sd->bridge = BRIDGE_SPCA536;
-			break;
-		}
-		break;
-	case 0x0d64:		/* SunPlus */
-/*		switch (product) { */
-/*		case 0x0303: */
-			sd->bridge = BRIDGE_SPCA536;
-/*			break; */
-/*		} */
-		break;
-	}
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
+
+	sd->bridge = id->driver_info >> 8;
+	sd->subtype = id->driver_info;
+
+	if (sd->subtype == AiptekMiniPenCam13) {
+/* try to get the firmware as some cam answer 2.0.1.2.2
+ * and should be a spca504b then overwrite that setting */
+		reg_r(dev, 0x20, 0, gspca_dev->usb_buf, 1);
+		switch (gspca_dev->usb_buf[0]) {
+		case 1:
+			break;		/* (right bridge/subtype) */
+		case 2:
+			sd->bridge = BRIDGE_SPCA504B;
+			sd->subtype = 0;
+			break;
+		default:
+			return -ENODEV;
+		}
+	}
 
 	switch (sd->bridge) {
 	default:
@@ -1581,65 +1378,67 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
+#define BS(bridge, subtype) \
+	.driver_info = (BRIDGE_ ## bridge << 8) \
+			| (subtype)
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x400b), DVNM("Creative PC-CAM 600")},
-	{USB_DEVICE(0x041e, 0x4012), DVNM("PC-Cam350")},
-	{USB_DEVICE(0x041e, 0x4013), DVNM("Creative Pccam750")},
-	{USB_DEVICE(0x0458, 0x7006), DVNM("Genius Dsc 1.3 Smart")},
-	{USB_DEVICE(0x0461, 0x0821), DVNM("Fujifilm MV-1")},
-	{USB_DEVICE(0x046d, 0x0905), DVNM("Logitech ClickSmart 820")},
-	{USB_DEVICE(0x046d, 0x0960), DVNM("Logitech ClickSmart 420")},
-	{USB_DEVICE(0x0471, 0x0322), DVNM("Philips DMVC1300K")},
-	{USB_DEVICE(0x04a5, 0x3003), DVNM("Benq DC 1300")},
-	{USB_DEVICE(0x04a5, 0x3008), DVNM("Benq DC 1500")},
-	{USB_DEVICE(0x04a5, 0x300a), DVNM("Benq DC3410")},
-	{USB_DEVICE(0x04f1, 0x1001), DVNM("JVC GC A50")},
-	{USB_DEVICE(0x04fc, 0x500c), DVNM("Sunplus CA500C")},
-	{USB_DEVICE(0x04fc, 0x504a), DVNM("Aiptek Mini PenCam 1.3")},
-	{USB_DEVICE(0x04fc, 0x504b), DVNM("Maxell MaxPocket LE 1.3")},
-	{USB_DEVICE(0x04fc, 0x5330), DVNM("Digitrex 2110")},
-	{USB_DEVICE(0x04fc, 0x5360), DVNM("Sunplus Generic")},
-	{USB_DEVICE(0x04fc, 0xffff), DVNM("Pure DigitalDakota")},
-	{USB_DEVICE(0x052b, 0x1513), DVNM("Megapix V4")},
-	{USB_DEVICE(0x0546, 0x3155), DVNM("Polaroid PDC3070")},
-	{USB_DEVICE(0x0546, 0x3191), DVNM("Polaroid Ion 80")},
-	{USB_DEVICE(0x0546, 0x3273), DVNM("Polaroid PDC2030")},
-	{USB_DEVICE(0x055f, 0xc211), DVNM("Kowa Bs888e Microcamera")},
-	{USB_DEVICE(0x055f, 0xc230), DVNM("Mustek Digicam 330K")},
-	{USB_DEVICE(0x055f, 0xc232), DVNM("Mustek MDC3500")},
-	{USB_DEVICE(0x055f, 0xc360), DVNM("Mustek DV4000 Mpeg4 ")},
-	{USB_DEVICE(0x055f, 0xc420), DVNM("Mustek gSmart Mini 2")},
-	{USB_DEVICE(0x055f, 0xc430), DVNM("Mustek Gsmart LCD 2")},
-	{USB_DEVICE(0x055f, 0xc440), DVNM("Mustek DV 3000")},
-	{USB_DEVICE(0x055f, 0xc520), DVNM("Mustek gSmart Mini 3")},
-	{USB_DEVICE(0x055f, 0xc530), DVNM("Mustek Gsmart LCD 3")},
-	{USB_DEVICE(0x055f, 0xc540), DVNM("Gsmart D30")},
-	{USB_DEVICE(0x055f, 0xc630), DVNM("Mustek MDC4000")},
-	{USB_DEVICE(0x055f, 0xc650), DVNM("Mustek MDC5500Z")},
-	{USB_DEVICE(0x05da, 0x1018), DVNM("Digital Dream Enigma 1.3")},
-	{USB_DEVICE(0x06d6, 0x0031), DVNM("Trust 610 LCD PowerC@m Zoom")},
-	{USB_DEVICE(0x0733, 0x1311), DVNM("Digital Dream Epsilon 1.3")},
-	{USB_DEVICE(0x0733, 0x1314), DVNM("Mercury 2.1MEG Deluxe Classic Cam")},
-	{USB_DEVICE(0x0733, 0x2211), DVNM("Jenoptik jdc 21 LCD")},
-	{USB_DEVICE(0x0733, 0x2221), DVNM("Mercury Digital Pro 3.1p")},
-	{USB_DEVICE(0x0733, 0x3261), DVNM("Concord 3045 spca536a")},
-	{USB_DEVICE(0x0733, 0x3281), DVNM("Cyberpix S550V")},
-	{USB_DEVICE(0x08ca, 0x0104), DVNM("Aiptek PocketDVII 1.3")},
-	{USB_DEVICE(0x08ca, 0x0106), DVNM("Aiptek Pocket DV3100+")},
-	{USB_DEVICE(0x08ca, 0x2008), DVNM("Aiptek Mini PenCam 2 M")},
-	{USB_DEVICE(0x08ca, 0x2010), DVNM("Aiptek PocketCam 3M")},
-	{USB_DEVICE(0x08ca, 0x2016), DVNM("Aiptek PocketCam 2 Mega")},
-	{USB_DEVICE(0x08ca, 0x2018), DVNM("Aiptek Pencam SD 2M")},
-	{USB_DEVICE(0x08ca, 0x2020), DVNM("Aiptek Slim 3000F")},
-	{USB_DEVICE(0x08ca, 0x2022), DVNM("Aiptek Slim 3200")},
-	{USB_DEVICE(0x08ca, 0x2024), DVNM("Aiptek DV3500 Mpeg4 ")},
-	{USB_DEVICE(0x08ca, 0x2028), DVNM("Aiptek PocketCam4M")},
-	{USB_DEVICE(0x08ca, 0x2040), DVNM("Aiptek PocketDV4100M")},
-	{USB_DEVICE(0x08ca, 0x2042), DVNM("Aiptek PocketDV5100")},
-	{USB_DEVICE(0x08ca, 0x2050), DVNM("Medion MD 41437")},
-	{USB_DEVICE(0x08ca, 0x2060), DVNM("Aiptek PocketDV5300")},
-	{USB_DEVICE(0x0d64, 0x0303), DVNM("Sunplus FashionCam DXG")},
+	{USB_DEVICE(0x041e, 0x400b), BS(SPCA504C, 0)},
+	{USB_DEVICE(0x041e, 0x4012), BS(SPCA504C, 0)},
+	{USB_DEVICE(0x041e, 0x4013), BS(SPCA504C, 0)},
+	{USB_DEVICE(0x0458, 0x7006), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x0461, 0x0821), BS(SPCA533, 0)},
+	{USB_DEVICE(0x046d, 0x0905), BS(SPCA533, LogitechClickSmart820)},
+	{USB_DEVICE(0x046d, 0x0960), BS(SPCA504C, LogitechClickSmart420)},
+	{USB_DEVICE(0x0471, 0x0322), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x04a5, 0x3003), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x04a5, 0x3008), BS(SPCA533, 0)},
+	{USB_DEVICE(0x04a5, 0x300a), BS(SPCA533, 0)},
+	{USB_DEVICE(0x04f1, 0x1001), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x04fc, 0x500c), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x04fc, 0x504a), BS(SPCA504, AiptekMiniPenCam13)},
+	{USB_DEVICE(0x04fc, 0x504b), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x04fc, 0x5330), BS(SPCA533, 0)},
+	{USB_DEVICE(0x04fc, 0x5360), BS(SPCA536, 0)},
+	{USB_DEVICE(0x04fc, 0xffff), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x052b, 0x1513), BS(SPCA533, MegapixV4)},
+	{USB_DEVICE(0x0546, 0x3155), BS(SPCA533, 0)},
+	{USB_DEVICE(0x0546, 0x3191), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x0546, 0x3273), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x055f, 0xc211), BS(SPCA536, 0)},
+	{USB_DEVICE(0x055f, 0xc230), BS(SPCA533, 0)},
+	{USB_DEVICE(0x055f, 0xc232), BS(SPCA533, 0)},
+	{USB_DEVICE(0x055f, 0xc360), BS(SPCA536, 0)},
+	{USB_DEVICE(0x055f, 0xc420), BS(SPCA504, 0)},
+	{USB_DEVICE(0x055f, 0xc430), BS(SPCA533, 0)},
+	{USB_DEVICE(0x055f, 0xc440), BS(SPCA533, 0)},
+	{USB_DEVICE(0x055f, 0xc520), BS(SPCA504, 0)},
+	{USB_DEVICE(0x055f, 0xc530), BS(SPCA533, 0)},
+	{USB_DEVICE(0x055f, 0xc540), BS(SPCA533, 0)},
+	{USB_DEVICE(0x055f, 0xc630), BS(SPCA533, 0)},
+	{USB_DEVICE(0x055f, 0xc650), BS(SPCA533, 0)},
+	{USB_DEVICE(0x05da, 0x1018), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x06d6, 0x0031), BS(SPCA533, 0)},
+	{USB_DEVICE(0x0733, 0x1311), BS(SPCA533, 0)},
+	{USB_DEVICE(0x0733, 0x1314), BS(SPCA533, 0)},
+	{USB_DEVICE(0x0733, 0x2211), BS(SPCA533, 0)},
+	{USB_DEVICE(0x0733, 0x2221), BS(SPCA533, 0)},
+	{USB_DEVICE(0x0733, 0x3261), BS(SPCA536, 0)},
+	{USB_DEVICE(0x0733, 0x3281), BS(SPCA536, 0)},
+	{USB_DEVICE(0x08ca, 0x0104), BS(SPCA533, 0)},
+	{USB_DEVICE(0x08ca, 0x0106), BS(SPCA533, 0)},
+	{USB_DEVICE(0x08ca, 0x2008), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x08ca, 0x2010), BS(SPCA533, 0)},
+	{USB_DEVICE(0x08ca, 0x2016), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x08ca, 0x2018), BS(SPCA504B, 0)},
+	{USB_DEVICE(0x08ca, 0x2020), BS(SPCA533, 0)},
+	{USB_DEVICE(0x08ca, 0x2022), BS(SPCA533, 0)},
+	{USB_DEVICE(0x08ca, 0x2024), BS(SPCA536, 0)},
+	{USB_DEVICE(0x08ca, 0x2028), BS(SPCA533, 0)},
+	{USB_DEVICE(0x08ca, 0x2040), BS(SPCA536, 0)},
+	{USB_DEVICE(0x08ca, 0x2042), BS(SPCA536, 0)},
+	{USB_DEVICE(0x08ca, 0x2050), BS(SPCA536, 0)},
+	{USB_DEVICE(0x08ca, 0x2060), BS(SPCA536, 0)},
+	{USB_DEVICE(0x0d64, 0x0303), BS(SPCA536, 0)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -1664,7 +1463,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

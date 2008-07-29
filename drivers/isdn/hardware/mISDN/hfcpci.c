@@ -1988,8 +1988,7 @@ setup_hw(struct hfc_pci *hc)
 	printk(KERN_INFO
 		"HFC-PCI: defined at mem %#lx fifo %#lx(%#lx) IRQ %d HZ %d\n",
 		(u_long) hc->hw.pci_io, (u_long) hc->hw.fifos,
-		(u_long) virt_to_bus(hc->hw.fifos),
-		hc->irq, HZ);
+		(u_long) hc->hw.dmahandle, hc->irq, HZ);
 	/* enable memory mapped ports, disable busmaster */
 	pci_write_config_word(hc->pdev, PCI_COMMAND, PCI_ENA_MEMIO);
 	hc->hw.int_m2 = 0;

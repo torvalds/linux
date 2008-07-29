@@ -453,7 +453,8 @@ static __init int svm_hardware_setup(void)
 	if (npt_enabled) {
 		printk(KERN_INFO "kvm: Nested Paging enabled\n");
 		kvm_enable_tdp();
-	}
+	} else
+		kvm_disable_tdp();
 
 	return 0;
 
@@ -1007,10 +1008,13 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	struct kvm *kvm = svm->vcpu.kvm;
 	u64 fault_address;
 	u32 error_code;
+	bool event_injection = false;
 
 	if (!irqchip_in_kernel(kvm) &&
-		is_external_interrupt(exit_int_info))
+	    is_external_interrupt(exit_int_info)) {
+		event_injection = true;
 		push_irq(&svm->vcpu, exit_int_info & SVM_EVTINJ_VEC_MASK);
+	}
 
 	fault_address  = svm->vmcb->control.exit_info_2;
 	error_code = svm->vmcb->control.exit_info_1;
@@ -1024,6 +1028,8 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 			    (u32)fault_address, (u32)(fault_address >> 32),
 			    handler);
 
+	if (event_injection)
+		kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
 	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
 }
 

@@ -191,7 +191,7 @@ static void __init mainstone_init_irq(void)
 	MST_INTSETCLR = 0;
 
 	set_irq_chained_handler(IRQ_GPIO(0), mainstone_irq_handler);
-	set_irq_type(IRQ_GPIO(0), IRQT_FALLING);
+	set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
 }
 
 #ifdef CONFIG_PM

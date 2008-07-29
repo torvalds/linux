@@ -27,6 +27,7 @@
 #include <linux/key.h>
 #include <linux/binfmts.h>
 #include <linux/mman.h>
+#include <linux/mmu_notifier.h>
 #include <linux/fs.h>
 #include <linux/nsproxy.h>
 #include <linux/capability.h>
@@ -414,6 +415,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
 
 	if (likely(!mm_alloc_pgd(mm))) {
 		mm->def_flags = 0;
+		mmu_notifier_mm_init(mm);
 		return mm;
 	}
 
@@ -446,6 +448,7 @@ void __mmdrop(struct mm_struct *mm)
 	BUG_ON(mm == &init_mm);
 	mm_free_pgd(mm);
 	destroy_context(mm);
+	mmu_notifier_mm_destroy(mm);
 	free_mm(mm);
 }
 EXPORT_SYMBOL_GPL(__mmdrop);
@@ -806,12 +809,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
 	sig->min_flt = sig->maj_flt = sig->cmin_flt = sig->cmaj_flt = 0;
 	sig->inblock = sig->oublock = sig->cinblock = sig->coublock = 0;
-#ifdef CONFIG_TASK_XACCT
-	sig->rchar = sig->wchar = sig->syscr = sig->syscw = 0;
-#endif
-#ifdef CONFIG_TASK_IO_ACCOUNTING
-	memset(&sig->ioac, 0, sizeof(sig->ioac));
-#endif
+	task_io_accounting_init(&sig->ioac);
 	sig->sum_sched_runtime = 0;
 	INIT_LIST_HEAD(&sig->cpu_timers[0]);
 	INIT_LIST_HEAD(&sig->cpu_timers[1]);
@@ -994,13 +992,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->last_switch_timestamp = 0;
 #endif
 
-#ifdef CONFIG_TASK_XACCT
-	p->rchar = 0;		/* I/O counter: bytes read */
-	p->wchar = 0;		/* I/O counter: bytes written */
-	p->syscr = 0;		/* I/O counter: read syscalls */
-	p->syscw = 0;		/* I/O counter: write syscalls */
-#endif
-	task_io_accounting_init(p);
+	task_io_accounting_init(&p->ioac);
 	acct_clear_integrals(p);
 
 	p->it_virt_expires = cputime_zero;

@@ -223,14 +223,17 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			struct page **pages)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long end = start + (nr_pages << PAGE_SHIFT);
-	unsigned long addr = start;
+	unsigned long addr, len, end;
 	unsigned long next;
 	pgd_t *pgdp;
 	int nr = 0;
 
+	start &= PAGE_MASK;
+	addr = start;
+	len = (unsigned long) nr_pages << PAGE_SHIFT;
+	end = start + len;
 	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
-					start, nr_pages*PAGE_SIZE)))
+					start, len)))
 		goto slow_irqon;
 
 	/*

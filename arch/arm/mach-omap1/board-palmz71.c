@@ -298,11 +298,11 @@ palmz71_powercable(int irq, void *dev_id)
 	if (omap_get_gpio_datain(PALMZ71_USBDETECT_GPIO)) {
 		printk(KERN_INFO "PM: Power cable connected\n");
 		set_irq_type(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
-				IRQT_FALLING);
+				IRQ_TYPE_EDGE_FALLING);
 	} else {
 		printk(KERN_INFO "PM: Power cable disconnected\n");
 		set_irq_type(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
-				IRQT_RISING);
+				IRQ_TYPE_EDGE_RISING);
 	}
 	return IRQ_HANDLED;
 }

@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include "oss/aci.h"
 #include "miropcm20-rds-core.h"
 
@@ -228,9 +229,7 @@ static const struct file_operations pcm20_fops = {
 };
 
 static struct video_device pcm20_radio = {
-	.owner		= THIS_MODULE,
 	.name		= "Miro PCM 20 radio",
-	.type		= VID_TYPE_TUNER,
 	.fops           = &pcm20_fops,
 	.priv		= &pcm20_unit
 };
