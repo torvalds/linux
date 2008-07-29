@@ -23,6 +23,11 @@ config SUPERH32
 config SUPERH64
 	def_bool y if CPU_SH5
 
+config ARCH_DEFCONFIG
+	string
+	default "arch/sh/configs/shx3_defconfig" if SUPERH32
+	default "arch/sh/configs/cayman_defconfig" if SUPERH64
+
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
