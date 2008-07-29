@@ -415,7 +415,7 @@ static struct notifier_block __refdata mc_cpu_notifier = {
 	.notifier_call = mc_cpu_callback,
 };
 
-static int microcode_init(void *opaque, struct module *module)
+int microcode_init(void *opaque, struct module *module)
 {
 	struct microcode_ops *ops = (struct microcode_ops *)opaque;
 	int error;
@@ -457,7 +457,7 @@ static int microcode_init(void *opaque, struct module *module)
 }
 EXPORT_SYMBOL_GPL(microcode_init);
 
-static void __exit microcode_exit (void)
+void __exit microcode_exit (void)
 {
 	microcode_dev_exit();
 
