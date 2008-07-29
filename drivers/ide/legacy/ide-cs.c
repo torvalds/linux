@@ -220,103 +220,98 @@ out_release:
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
+struct pcmcia_config_check {
+	config_info_t conf;
+	cistpl_cftable_entry_t dflt;
+	unsigned long ctl_base;
+	int skip_vcc;
+	int is_kme;
+};
+
+static int pcmcia_check_one_config(struct pcmcia_device *pdev,
+				   cistpl_cftable_entry_t *cfg,
+				   void *priv_data)
+{
+	struct pcmcia_config_check *stk = priv_data;
+
+	/* Check for matching Vcc, unless we're desperate */
+	if (!stk->skip_vcc) {
+		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
+			if (stk->conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
+				goto next_entry;
+		} else if (stk->dflt.vcc.present & (1 << CISTPL_POWER_VNOM)) {
+			if (stk->conf.Vcc != stk->dflt.vcc.param[CISTPL_POWER_VNOM] / 10000)
+				goto next_entry;
+		}
+	}
+
+	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
+		pdev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+	else if (stk->dflt.vpp1.present & (1 << CISTPL_POWER_VNOM))
+		pdev->conf.Vpp = stk->dflt.vpp1.param[CISTPL_POWER_VNOM] / 10000;
+
+	if ((cfg->io.nwin > 0) || (stk->dflt.io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &stk->dflt.io;
+		pdev->conf.ConfigIndex = cfg->index;
+		pdev->io.BasePort1 = io->win[0].base;
+		pdev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		if (!(io->flags & CISTPL_IO_16BIT))
+			pdev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		if (io->nwin == 2) {
+			pdev->io.NumPorts1 = 8;
+			pdev->io.BasePort2 = io->win[1].base;
+			pdev->io.NumPorts2 = (stk->is_kme) ? 2 : 1;
+			if (pcmcia_request_io(pdev, &pdev->io) != 0)
+				goto next_entry;
+			stk->ctl_base = pdev->io.BasePort2;
+		} else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
+			pdev->io.NumPorts1 = io->win[0].len;
+			pdev->io.NumPorts2 = 0;
+			if (pcmcia_request_io(pdev, &pdev->io) != 0)
+				goto next_entry;
+			stk->ctl_base = pdev->io.BasePort1 + 0x0e;
+		} else
+			goto next_entry;
+		/* If we've got this far, we're done */
+		return 0;
+	}
+next_entry:
+	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
+		memcpy(&stk->dflt, cfg, sizeof(stk->dflt));
+
+	return -ENODEV;
+}
+
 static int ide_config(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    tuple_t tuple;
-    struct {
-	u_short		buf[128];
-	cisparse_t	parse;
-	config_info_t	conf;
-	cistpl_cftable_entry_t dflt;
-    } *stk = NULL;
-    cistpl_cftable_entry_t *cfg;
-    int pass, last_ret = 0, last_fn = 0, is_kme = 0;
+    struct pcmcia_config_check *stk = NULL;
+    int last_ret = 0, last_fn = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
     struct ide_host *host;
 
     DEBUG(0, "ide_config(0x%p)\n", link);
 
-    stk = kzalloc(sizeof(*stk), GFP_KERNEL);
-    if (!stk) goto err_mem;
-    cfg = &stk->parse.cftable_entry;
-
-    tuple.TupleData = (cisdata_t *)&stk->buf;
-    tuple.TupleOffset = 0;
-    tuple.TupleDataMax = 255;
-    tuple.Attributes = 0;
-
     is_kme = ((link->manf_id == MANFID_KME) &&
 	      ((link->card_id == PRODID_KME_KXLC005_A) ||
 	       (link->card_id == PRODID_KME_KXLC005_B)));
 
+    stk = kzalloc(sizeof(*stk), GFP_KERNEL);
+    if (!stk)
+	    goto err_mem;
+    stk->is_kme = is_kme;
+
     /* Not sure if this is right... look up the current Vcc */
     CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &stk->conf));
-
-    pass = io_base = ctl_base = 0;
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    tuple.Attributes = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    while (1) {
-    	if (pcmcia_get_tuple_data(link, &tuple) != 0) goto next_entry;
-	if (pcmcia_parse_tuple(link, &tuple, &stk->parse) != 0) goto next_entry;
-
-	/* Check for matching Vcc, unless we're desperate */
-	if (!pass) {
-	    if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (stk->conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
-		    goto next_entry;
-	    } else if (stk->dflt.vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (stk->conf.Vcc != stk->dflt.vcc.param[CISTPL_POWER_VNOM] / 10000)
-		    goto next_entry;
-	    }
-	}
-
-	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-	    link->conf.Vpp =
-		cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	else if (stk->dflt.vpp1.present & (1 << CISTPL_POWER_VNOM))
-	    link->conf.Vpp =
-		stk->dflt.vpp1.param[CISTPL_POWER_VNOM] / 10000;
-
-	if ((cfg->io.nwin > 0) || (stk->dflt.io.nwin > 0)) {
-	    cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &stk->dflt.io;
-	    link->conf.ConfigIndex = cfg->index;
-	    link->io.BasePort1 = io->win[0].base;
-	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-	    if (!(io->flags & CISTPL_IO_16BIT))
-		link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	    if (io->nwin == 2) {
-		link->io.NumPorts1 = 8;
-		link->io.BasePort2 = io->win[1].base;
-		link->io.NumPorts2 = (is_kme) ? 2 : 1;
-		if (pcmcia_request_io(link, &link->io) != 0)
-			goto next_entry;
-		io_base = link->io.BasePort1;
-		ctl_base = link->io.BasePort2;
-	    } else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
-		link->io.NumPorts1 = io->win[0].len;
-		link->io.NumPorts2 = 0;
-		if (pcmcia_request_io(link, &link->io) != 0)
-			goto next_entry;
-		io_base = link->io.BasePort1;
-		ctl_base = link->io.BasePort1 + 0x0e;
-	    } else goto next_entry;
-	    /* If we've got this far, we're done */
-	    break;
-	}
-
-    next_entry:
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-	    memcpy(&stk->dflt, cfg, sizeof(stk->dflt));
-	if (pass) {
-	    CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
-	} else if (pcmcia_get_next_tuple(link, &tuple) != 0) {
-	    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    stk->skip_vcc = io_base = ctl_base = 0;
+    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk)) {
 	    memset(&stk->dflt, 0, sizeof(stk->dflt));
-	    pass++;
-	}
+	    stk->skip_vcc = 1;
+	    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk))
+		    goto failed; /* No suitable config found */
     }
+    io_base = link->io.BasePort1;
+    ctl_base = stk->ctl_base;
 
     CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
     CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
