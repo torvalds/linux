@@ -48,6 +48,8 @@ struct sd {
 	unsigned char brightness;
 	unsigned char contrast;
 	unsigned char colors;
+	__u8 hflip;
+	__u8 vflip;
 
 	char compress;		/* Should the next frame be compressed? */
 	char compress_inited;	/* Are compression params uploaded? */
@@ -77,6 +79,10 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 #define SD_BRIGHTNESS 0
@@ -120,6 +126,35 @@ static struct ctrl sd_ctrls[] = {
 	    },
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
+	},
+/* next controls work with ov7670 only */
+	{
+	    {
+		.id      = V4L2_CID_HFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Mirror",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define HFLIP_DEF 0
+		.default_value = HFLIP_DEF,
+	    },
+	    .set = sd_sethflip,
+	    .get = sd_gethflip,
+	},
+	{
+	    {
+		.id      = V4L2_CID_VFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Vflip",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define VFLIP_DEF 0
+		.default_value = VFLIP_DEF,
+	    },
+	    .set = sd_setvflip,
+	    .get = sd_getvflip,
 	},
 };
 
@@ -225,6 +260,7 @@ static struct v4l2_pix_format sif_mode[] = {
 #define OV7670_REG_VSTART      0x19    /* Vert start high bits */
 #define OV7670_REG_VSTOP       0x1a    /* Vert stop high bits */
 #define OV7670_REG_MVFP        0x1e    /* Mirror / vflip */
+#define   OV7670_MVFP_VFLIP	 0x10    /* vertical flip */
 #define   OV7670_MVFP_MIRROR     0x20    /* Mirror image */
 #define OV7670_REG_AEW         0x24    /* AGC upper limit */
 #define OV7670_REG_AEB         0x25    /* AGC lower limit */
@@ -930,7 +966,10 @@ static int ov7xx0_configure(struct sd *sd)
 		{ OV7670_REG_EDGE, 0 },
 		{ 0x75, 0x05 },		{ 0x76, 0xe1 },
 		{ 0x4c, 0 },		{ 0x77, 0x01 },
-		{ OV7670_REG_COM13, 0xc3 },	{ 0x4b, 0x09 },
+		{ OV7670_REG_COM13, OV7670_COM13_GAMMA
+				  | OV7670_COM13_UVSAT
+				  | 2},		/* was 3 */
+		{ 0x4b, 0x09 },
 		{ 0xc9, 0x60 },		{ OV7670_REG_COM16, 0x38 },
 		{ 0x56, 0x40 },
 
@@ -957,19 +996,6 @@ static int ov7xx0_configure(struct sd *sd)
 		{ 0x79, 0x05 },		{ 0xc8, 0x30 },
 		{ 0x79, 0x26 },
 
-	/* Format YUV422 */
-		{ OV7670_REG_COM7, OV7670_COM7_YUV },  /* Selects YUV mode */
-		{ OV7670_REG_RGB444, 0 },	/* No RGB444 please */
-		{ OV7670_REG_COM1, 0 },
-		{ OV7670_REG_COM15, OV7670_COM15_R00FF },
-		{ OV7670_REG_COM9, 0x18 },
-				/* 4x gain ceiling; 0x8 is reserved bit */
-		{ 0x4f, 0x80 }, 	/* "matrix coefficient 1" */
-		{ 0x50, 0x80 }, 	/* "matrix coefficient 2" */
-		{ 0x52, 0x22 }, 	/* "matrix coefficient 4" */
-		{ 0x53, 0x5e }, 	/* "matrix coefficient 5" */
-		{ 0x54, 0x80 }, 	/* "matrix coefficient 6" */
-		{ OV7670_REG_COM13, OV7670_COM13_GAMMA|OV7670_COM13_UVSAT },
 };
 
 	PDEBUG(D_PROBE, "starting OV7xx0 configuration");
@@ -1375,6 +1401,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
 	sd->colors = sd_ctrls[SD_COLOR].qctrl.default_value;
+	sd->hflip = HFLIP_DEF;
+	sd->vflip = VFLIP_DEF;
 	return 0;
 error:
 	PDEBUG(D_ERR, "OV519 Config failed");
@@ -1682,6 +1710,26 @@ static int mode_init_ov_sensor_regs(struct sd *sd,
 	return 0;
 }
 
+static void sethflip(struct sd *sd)
+{
+	if (sd->gspca_dev.streaming)
+		ov51x_stop(sd);
+	i2c_w_mask(sd, OV7670_REG_MVFP,
+		OV7670_MVFP_MIRROR * sd->hflip, OV7670_MVFP_MIRROR);
+	if (sd->gspca_dev.streaming)
+		ov51x_restart(sd);
+}
+
+static void setvflip(struct sd *sd)
+{
+	if (sd->gspca_dev.streaming)
+		ov51x_stop(sd);
+	i2c_w_mask(sd, OV7670_REG_MVFP,
+		OV7670_MVFP_VFLIP * sd->vflip, OV7670_MVFP_VFLIP);
+	if (sd->gspca_dev.streaming)
+		ov51x_restart(sd);
+}
+
 static int set_ov_sensor_window(struct sd *sd,
 				struct ovsensor_window *win)
 {
@@ -1811,7 +1859,8 @@ static int set_ov_sensor_window(struct sd *sd,
 		msleep(10);	/* need to sleep between read and write to
 				 * same reg! */
 		i2c_w(sd, OV7670_REG_VREF, v);
-
+		sethflip(sd);
+		setvflip(sd);
 	} else {
 		i2c_w(sd, 0x17, hwsbase + (win->x >> hwscale));
 		i2c_w(sd, 0x18, hwebase + ((win->x + win->width) >> hwscale));
@@ -2110,6 +2159,40 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->hflip = val;
+	sethflip(sd);
+	return 0;
+}
+
+static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->hflip;
+	return 0;
+}
+
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->vflip = val;
+	setvflip(sd);
+	return 0;
+}
+
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->vflip;
+	return 0;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -2178,4 +2261,3 @@ module_exit(sd_mod_exit);
 
 module_param(frame_rate, int, 0644);
 MODULE_PARM_DESC(frame_rate, "Frame rate (5, 10, 15, 20 or 30 fps)");
-
