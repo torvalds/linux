@@ -316,6 +316,8 @@ static int __devinit snd_aw2_create(struct snd_card *card,
 		return -ENOMEM;
 	}
 
+	/* (2) initialization of the chip hardware */
+	snd_aw2_saa7146_setup(&chip->saa7146, chip->iobase_virt);
 
 	if (request_irq(pci->irq, snd_aw2_saa7146_interrupt,
 			IRQF_SHARED, "Audiowerk2", chip)) {
@@ -329,8 +331,6 @@ static int __devinit snd_aw2_create(struct snd_card *card,
 	}
 	chip->irq = pci->irq;
 
-	/* (2) initialization of the chip hardware */
-	snd_aw2_saa7146_setup(&chip->saa7146, chip->iobase_virt);
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0) {
 		free_irq(chip->irq, (void *)chip);

@@ -14,14 +14,6 @@ module_param(tfrc_debug, bool, 0444);
 MODULE_PARM_DESC(tfrc_debug, "Enable debug messages");
 #endif
 
-extern int  tfrc_tx_packet_history_init(void);
-extern void tfrc_tx_packet_history_exit(void);
-extern int  tfrc_rx_packet_history_init(void);
-extern void tfrc_rx_packet_history_exit(void);
-
-extern int  tfrc_li_init(void);
-extern void tfrc_li_exit(void);
-
 static int __init tfrc_module_init(void)
 {
 	int rc = tfrc_li_init();

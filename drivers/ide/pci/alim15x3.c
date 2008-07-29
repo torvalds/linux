@@ -38,6 +38,18 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "alim15x3"
+
+/*
+ * Allow UDMA on M1543C-E chipset for WDC disks that ignore CRC checking
+ * (this is DANGEROUS and could result in data corruption).
+ */
+static int wdc_udma;
+
+module_param(wdc_udma, bool, 0);
+MODULE_PARM_DESC(wdc_udma,
+		 "allow UDMA on M1543C-E chipset for WDC disks (DANGEROUS)");
+
 /*
  *	ALi devices are not plug in. Otherwise these static values would
  *	need to go. They ought to go away anyway
@@ -59,27 +71,20 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	int s_time, a_time, c_time;
+	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
+	int s_time = t->setup, a_time = t->active, c_time = t->cycle;
 	u8 s_clc, a_clc, r_clc;
 	unsigned long flags;
-	int bus_speed = ide_pci_clk ? ide_pci_clk : system_bus_clock();
+	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 	int port = hwif->channel ? 0x5c : 0x58;
 	int portFIFO = hwif->channel ? 0x55 : 0x54;
 	u8 cd_dma_fifo = 0;
 	int unit = drive->select.b.unit & 1;
 
-	s_time = ide_pio_timings[pio].setup_time;
-	a_time = ide_pio_timings[pio].active_time;
 	if ((s_clc = (s_time * bus_speed + 999) / 1000) >= 8)
 		s_clc = 0;
 	if ((a_clc = (a_time * bus_speed + 999) / 1000) >= 8)
 		a_clc = 0;
-	c_time = ide_pio_timings[pio].cycle_time;
-
-#if 0
-	if ((r_clc = ((c_time - s_time - a_time) * bus_speed + 999) / 1000) >= 16)
-		r_clc = 0;
-#endif
 
 	if (!(r_clc = (c_time * bus_speed + 999) / 1000 - a_clc - s_clc)) {
 		r_clc = 1;
@@ -110,16 +115,6 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	pci_write_config_byte(dev, port, s_clc);
 	pci_write_config_byte(dev, port+drive->select.b.unit+2, (a_clc << 4) | r_clc);
 	local_irq_restore(flags);
-
-	/*
-	 * setup   active  rec
-	 * { 70,   165,    365 },   PIO Mode 0
-	 * { 50,   125,    208 },   PIO Mode 1
-	 * { 30,   100,    110 },   PIO Mode 2
-	 * { 30,   80,     70  },   PIO Mode 3 with IORDY
-	 * { 25,   70,     25  },   PIO Mode 4 with IORDY  ns
-	 * { 20,   50,     30  }    PIO Mode 5 with IORDY (nonstandard)
-	 */
 }
 
 /**
@@ -131,9 +126,7 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
  *	The actual rules for the ALi are:
  *		No UDMA on revisions <= 0x20
  *		Disk only for revisions < 0xC2
- *		Not WDC drives for revisions < 0xC2
- *
- *	FIXME: WDC ifdef needs to die
+ *		Not WDC drives on M1543C-E (?)
  */
 
 static u8 ali_udma_filter(ide_drive_t *drive)
@@ -141,10 +134,9 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 	if (m5229_revision > 0x20 && m5229_revision < 0xC2) {
 		if (drive->media != ide_disk)
 			return 0;
-#ifndef CONFIG_WDC_ALI15X3
-		if (chip_is_1543c_e && strstr(drive->id->model, "WDC "))
+		if (chip_is_1543c_e && strstr(drive->id->model, "WDC ") &&
+		    wdc_udma == 0)
 			return 0;
-#endif
 	}
 
 	return drive->hwif->ultra_mask;
@@ -217,13 +209,12 @@ static int ali15x3_dma_setup(ide_drive_t *drive)
 /**
  *	init_chipset_ali15x3	-	Initialise an ALi IDE controller
  *	@dev: PCI device
- *	@name: Name of the controller
  *
  *	This function initializes the ALI IDE controller and where 
  *	appropriate also sets up the 1533 southbridge.
  */
-  
-static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const char *name)
+
+static unsigned int __devinit init_chipset_ali15x3(struct pci_dev *dev)
 {
 	unsigned long flags;
 	u8 tmpbyte;
@@ -481,7 +472,15 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long base = ide_pci_dma_base(hwif, d);
 
-	if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
+	if (base == 0)
+		return -1;
+
+	hwif->dma_base = base;
+
+	if (ide_pci_check_simplex(hwif, d) < 0)
+		return -1;
+
+	if (ide_pci_set_master(dev, d->name) < 0)
 		return -1;
 
 	if (!hwif->channel)
@@ -493,7 +492,7 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	ide_setup_dma(hwif, base);
+	hwif->dma_ops = &sff_dma_ops;
 
 	return 0;
 }
@@ -517,7 +516,7 @@ static const struct ide_dma_ops ali_dma_ops = {
 };
 
 static const struct ide_port_info ali15x3_chipset __devinitdata = {
-	.name		= "ALI15X3",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_ali15x3,
 	.init_hwif	= init_hwif_ali15x3,
 	.init_dma	= init_dma_ali15x3,
@@ -537,16 +536,8 @@ static const struct ide_port_info ali15x3_chipset __devinitdata = {
  
 static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	static struct pci_device_id ati_rs100[] = {
-		{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_RS100) },
-		{ },
-	};
-
 	struct ide_port_info d = ali15x3_chipset;
 	u8 rev = dev->revision, idx = id->driver_data;
-
-	if (pci_dev_present(ati_rs100))
-		printk(KERN_WARNING "alim15x3: ATI Radeon IGP Northbridge is not yet fully tested.\n");
 
 	/* don't use LBA48 DMA on ALi devices before rev 0xC5 */
 	if (rev <= 0xC4)
@@ -575,7 +566,7 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 	if (idx == 0)
 		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 
@@ -590,6 +581,7 @@ static struct pci_driver driver = {
 	.name		= "ALI15x3_IDE",
 	.id_table	= alim15x3_pci_tbl,
 	.probe		= alim15x3_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init ali15x3_ide_init(void)
@@ -597,7 +589,13 @@ static int __init ali15x3_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit ali15x3_ide_exit(void)
+{
+	return pci_unregister_driver(&driver);
+}
+
 module_init(ali15x3_ide_init);
+module_exit(ali15x3_ide_exit);
 
 MODULE_AUTHOR("Michael Aubry, Andrzej Krzysztofowicz, CJ, Andre Hedrick, Alan Cox");
 MODULE_DESCRIPTION("PCI driver module for ALi 15x3 IDE");

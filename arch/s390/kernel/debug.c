@@ -71,7 +71,7 @@ static ssize_t debug_input(struct file *file, const char __user *user_buf,
 			size_t user_len, loff_t * offset);
 static int debug_open(struct inode *inode, struct file *file);
 static int debug_close(struct inode *inode, struct file *file);
-static debug_info_t*  debug_info_create(char *name, int pages_per_area,
+static debug_info_t *debug_info_create(const char *name, int pages_per_area,
 			int nr_areas, int buf_size, mode_t mode);
 static void debug_info_get(debug_info_t *);
 static void debug_info_put(debug_info_t *);
@@ -234,8 +234,8 @@ fail_malloc_areas:
  */
 
 static debug_info_t*
-debug_info_alloc(char *name, int pages_per_area, int nr_areas, int buf_size,
-		int level, int mode)
+debug_info_alloc(const char *name, int pages_per_area, int nr_areas,
+		 int buf_size, int level, int mode)
 {
 	debug_info_t* rc;
 
@@ -326,8 +326,8 @@ debug_info_free(debug_info_t* db_info){
  */
 
 static debug_info_t*
-debug_info_create(char *name, int pages_per_area, int nr_areas, int buf_size,
-		  mode_t mode)
+debug_info_create(const char *name, int pages_per_area, int nr_areas,
+		  int buf_size, mode_t mode)
 {
 	debug_info_t* rc;
 
@@ -684,9 +684,9 @@ debug_close(struct inode *inode, struct file *file)
  * - Returns handle for debug area
  */
 
-debug_info_t *debug_register_mode(char *name, int pages_per_area, int nr_areas,
-				  int buf_size, mode_t mode, uid_t uid,
-				  gid_t gid)
+debug_info_t *debug_register_mode(const char *name, int pages_per_area,
+				  int nr_areas, int buf_size, mode_t mode,
+				  uid_t uid, gid_t gid)
 {
 	debug_info_t *rc = NULL;
 
@@ -722,8 +722,8 @@ EXPORT_SYMBOL(debug_register_mode);
  * - returns handle for debug area
  */
 
-debug_info_t *debug_register(char *name, int pages_per_area, int nr_areas,
-			     int buf_size)
+debug_info_t *debug_register(const char *name, int pages_per_area,
+			     int nr_areas, int buf_size)
 {
 	return debug_register_mode(name, pages_per_area, nr_areas, buf_size,
 				   S_IRUSR | S_IWUSR, 0, 0);
@@ -1079,7 +1079,6 @@ __init debug_init(void)
 	s390dbf_sysctl_header = register_sysctl_table(s390dbf_dir_table);
 	mutex_lock(&debug_mutex);
 	debug_debugfs_root_entry = debugfs_create_dir(DEBUG_DIR_ROOT,NULL);
-	printk(KERN_INFO "debug: Initialization complete\n");
 	initialized = 1;
 	mutex_unlock(&debug_mutex);
 
@@ -1193,7 +1192,6 @@ debug_get_uint(char *buf)
 	for(; isspace(*buf); buf++);
 	rc = simple_strtoul(buf, &buf, 10);
 	if(*buf){
-		printk("debug: no integer specified!\n");
 		rc = -EINVAL;
 	}
 	return rc;
@@ -1340,19 +1338,12 @@ static void debug_flush(debug_info_t* id, int area)
                         	memset(id->areas[i][j], 0, PAGE_SIZE);
 			}
 		}
-                printk(KERN_INFO "debug: %s: all areas flushed\n",id->name);
         } else if(area >= 0 && area < id->nr_areas) {
                 id->active_entries[area] = 0;
 		id->active_pages[area] = 0;
 		for(i = 0; i < id->pages_per_area; i++) {
                 	memset(id->areas[area][i],0,PAGE_SIZE);
 		}
-                printk(KERN_INFO "debug: %s: area %i has been flushed\n",
-                        id->name, area);
-        } else {
-                printk(KERN_INFO
-                      "debug: %s: area %i cannot be flushed (range: %i - %i)\n",
-                        id->name, area, 0, id->nr_areas-1);
         }
         spin_unlock_irqrestore(&id->lock,flags);
 }

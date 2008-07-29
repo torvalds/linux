@@ -43,7 +43,7 @@ struct stub_chip {
 
 static struct stub_chip *stub_chips;
 
-/* Return -1 on error. */
+/* Return negative errno on error. */
 static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 	char read_write, u8 command, int size, union i2c_smbus_data * data)
 {
@@ -120,7 +120,7 @@ static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 
 	default:
 		dev_dbg(&adap->dev, "Unsupported I2C/SMBus command\n");
-		ret = -1;
+		ret = -EOPNOTSUPP;
 		break;
 	} /* switch (size) */
 
@@ -140,7 +140,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter stub_adapter = {
 	.owner		= THIS_MODULE,
-	.class		= I2C_CLASS_HWMON,
+	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.algo		= &smbus_algorithm,
 	.name		= "SMBus stub driver",
 };

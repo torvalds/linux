@@ -32,6 +32,7 @@
 #include <linux/x25.h>
 #include <linux/lapb.h>
 #include <linux/init.h>
+#include <linux/rtnetlink.h>
 #include "x25_asy.h"
 
 #include <net/x25device.h>
@@ -601,8 +602,10 @@ static void x25_asy_close_tty(struct tty_struct *tty)
 	if (!sl || sl->magic != X25_ASY_MAGIC)
 		return;
 
+	rtnl_lock();
 	if (sl->dev->flags & IFF_UP)
 		dev_close(sl->dev);
+	rtnl_unlock();
 
 	tty->disc_data = NULL;
 	sl->tty = NULL;
@@ -751,7 +754,7 @@ static void x25_asy_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 }
 
-static struct tty_ldisc x25_ldisc = {
+static struct tty_ldisc_ops x25_ldisc = {
 	.owner		= THIS_MODULE,
 	.magic		= TTY_LDISC_MAGIC,
 	.name		= "X.25",

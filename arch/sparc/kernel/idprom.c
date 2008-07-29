@@ -1,4 +1,4 @@
-/* $Id: idprom.c,v 1.24 1999/08/31 06:54:20 davem Exp $
+/*
  * idprom.c: Routines to load the idprom into kernel addresses and
  *           interpret the data contained within.
  *
@@ -24,7 +24,7 @@ static struct idprom idprom_buffer;
  * of the Sparc CPU and have a meaningful IDPROM machtype value that we
  * know about.  See asm-sparc/machines.h for empirical constants.
  */
-struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES] = {
+static struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES] = {
 /* First, Sun4's */
 { "Sun 4/100 Series", (SM_SUN4 | SM_4_110) },
 { "Sun 4/200 Series", (SM_SUN4 | SM_4_260) },

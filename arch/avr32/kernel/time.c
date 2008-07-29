@@ -7,21 +7,13 @@
  */
 #include <linux/clk.h>
 #include <linux/clockchips.h>
-#include <linux/time.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/kernel_stat.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/profile.h>
-#include <linux/sysdev.h>
-#include <linux/err.h>
+#include <linux/kernel.h>
+#include <linux/time.h>
 
-#include <asm/div64.h>
 #include <asm/sysreg.h>
-#include <asm/io.h>
-#include <asm/sections.h>
 
 #include <asm/arch/pm.h>
 
@@ -51,6 +43,9 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evdev = dev_id;
 
+	if (unlikely(!(intc_get_pending(0) & 1)))
+		return IRQ_NONE;
+
 	/*
 	 * Disable the interrupt until the clockevent subsystem
 	 * reprograms it.
@@ -63,7 +58,8 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction timer_irqaction = {
 	.handler	= timer_interrupt,
-	.flags		= IRQF_TIMER | IRQF_DISABLED,
+	/* Oprofile uses the same irq as the timer, so allow it to be shared */
+	.flags		= IRQF_TIMER | IRQF_DISABLED | IRQF_SHARED,
 	.name		= "avr32_comparator",
 };
 

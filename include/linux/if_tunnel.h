@@ -41,7 +41,7 @@ struct ip_tunnel_prl {
 	__u16			__reserved;
 	__u32			datalen;
 	__u32			__reserved2;
-	void __user		*data;
+	/* data follows */
 };
 
 /* PRL flags */

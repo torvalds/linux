@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 
@@ -331,7 +332,7 @@ int videobuf_mmap_free(struct videobuf_queue *q)
 }
 
 /* Locking: Caller holds q->vb_lock */
-static int __videobuf_mmap_setup(struct videobuf_queue *q,
+int __videobuf_mmap_setup(struct videobuf_queue *q,
 			unsigned int bcount, unsigned int bsize,
 			enum v4l2_memory memory)
 {
@@ -1129,6 +1130,7 @@ EXPORT_SYMBOL_GPL(videobuf_read_stream);
 EXPORT_SYMBOL_GPL(videobuf_read_one);
 EXPORT_SYMBOL_GPL(videobuf_poll_stream);
 
+EXPORT_SYMBOL_GPL(__videobuf_mmap_setup);
 EXPORT_SYMBOL_GPL(videobuf_mmap_setup);
 EXPORT_SYMBOL_GPL(videobuf_mmap_free);
 EXPORT_SYMBOL_GPL(videobuf_mmap_mapper);

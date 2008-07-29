@@ -17,6 +17,7 @@
 #include <asm/ccwdev.h>
 #include <asm/idals.h>
 #include <asm/chpid.h>
+#include <asm/fcx.h>
 
 #include "cio.h"
 #include "cio_debug.h"
@@ -179,8 +180,8 @@ int ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
 			return -EBUSY;
 	}
 	if (cdev->private->state != DEV_STATE_ONLINE ||
-	    ((sch->schib.scsw.stctl & SCSW_STCTL_PRIM_STATUS) &&
-	     !(sch->schib.scsw.stctl & SCSW_STCTL_SEC_STATUS)) ||
+	    ((sch->schib.scsw.cmd.stctl & SCSW_STCTL_PRIM_STATUS) &&
+	     !(sch->schib.scsw.cmd.stctl & SCSW_STCTL_SEC_STATUS)) ||
 	    cdev->private->flags.doverify)
 		return -EBUSY;
 	ret = cio_set_options (sch, flags);
@@ -379,7 +380,7 @@ int ccw_device_resume(struct ccw_device *cdev)
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE ||
-	    !(sch->schib.scsw.actl & SCSW_ACTL_SUSPENDED))
+	    !(sch->schib.scsw.cmd.actl & SCSW_ACTL_SUSPENDED))
 		return -EINVAL;
 	return cio_resume(sch);
 }
@@ -404,7 +405,7 @@ ccw_device_call_handler(struct ccw_device *cdev)
 	 *  - fast notification was requested (primary status)
 	 *  - unsolicited interrupts
 	 */
-	stctl = cdev->private->irb.scsw.stctl;
+	stctl = scsw_stctl(&cdev->private->irb.scsw);
 	ending_status = (stctl & SCSW_STCTL_SEC_STATUS) ||
 		(stctl == (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND)) ||
 		(stctl == SCSW_STCTL_STATUS_PEND);
@@ -528,14 +529,15 @@ ccw_device_stlck(struct ccw_device *cdev)
 		cio_disable_subchannel(sch); //FIXME: return code?
 		goto out_unlock;
 	}
-	cdev->private->irb.scsw.actl |= SCSW_ACTL_START_PEND;
+	cdev->private->irb.scsw.cmd.actl |= SCSW_ACTL_START_PEND;
 	spin_unlock_irqrestore(sch->lock, flags);
-	wait_event(cdev->private->wait_q, cdev->private->irb.scsw.actl == 0);
+	wait_event(cdev->private->wait_q,
+		   cdev->private->irb.scsw.cmd.actl == 0);
 	spin_lock_irqsave(sch->lock, flags);
 	cio_disable_subchannel(sch); //FIXME: return code?
-	if ((cdev->private->irb.scsw.dstat !=
+	if ((cdev->private->irb.scsw.cmd.dstat !=
 	     (DEV_STAT_CHN_END|DEV_STAT_DEV_END)) ||
-	    (cdev->private->irb.scsw.cstat != 0))
+	    (cdev->private->irb.scsw.cmd.cstat != 0))
 		ret = -EIO;
 	/* Clear irb. */
 	memset(&cdev->private->irb, 0, sizeof(struct irb));
@@ -567,6 +569,122 @@ void ccw_device_get_id(struct ccw_device *cdev, struct ccw_dev_id *dev_id)
 	*dev_id = cdev->private->dev_id;
 }
 EXPORT_SYMBOL(ccw_device_get_id);
+
+/**
+ * ccw_device_tm_start_key - perform start function
+ * @cdev: ccw device on which to perform the start function
+ * @tcw: transport-command word to be started
+ * @intparm: user defined parameter to be passed to the interrupt handler
+ * @lpm: mask of paths to use
+ * @key: storage key to use for storage access
+ *
+ * Start the tcw on the given ccw device. Return zero on success, non-zero
+ * otherwise.
+ */
+int ccw_device_tm_start_key(struct ccw_device *cdev, struct tcw *tcw,
+			    unsigned long intparm, u8 lpm, u8 key)
+{
+	struct subchannel *sch;
+	int rc;
+
+	sch = to_subchannel(cdev->dev.parent);
+	if (cdev->private->state != DEV_STATE_ONLINE)
+		return -EIO;
+	/* Adjust requested path mask to excluded varied off paths. */
+	if (lpm) {
+		lpm &= sch->opm;
+		if (lpm == 0)
+			return -EACCES;
+	}
+	rc = cio_tm_start_key(sch, tcw, lpm, key);
+	if (rc == 0)
+		cdev->private->intparm = intparm;
+	return rc;
+}
+EXPORT_SYMBOL(ccw_device_tm_start_key);
+
+/**
+ * ccw_device_tm_start_timeout_key - perform start function
+ * @cdev: ccw device on which to perform the start function
+ * @tcw: transport-command word to be started
+ * @intparm: user defined parameter to be passed to the interrupt handler
+ * @lpm: mask of paths to use
+ * @key: storage key to use for storage access
+ * @expires: time span in jiffies after which to abort request
+ *
+ * Start the tcw on the given ccw device. Return zero on success, non-zero
+ * otherwise.
+ */
+int ccw_device_tm_start_timeout_key(struct ccw_device *cdev, struct tcw *tcw,
+				    unsigned long intparm, u8 lpm, u8 key,
+				    int expires)
+{
+	int ret;
+
+	ccw_device_set_timeout(cdev, expires);
+	ret = ccw_device_tm_start_key(cdev, tcw, intparm, lpm, key);
+	if (ret != 0)
+		ccw_device_set_timeout(cdev, 0);
+	return ret;
+}
+EXPORT_SYMBOL(ccw_device_tm_start_timeout_key);
+
+/**
+ * ccw_device_tm_start - perform start function
+ * @cdev: ccw device on which to perform the start function
+ * @tcw: transport-command word to be started
+ * @intparm: user defined parameter to be passed to the interrupt handler
+ * @lpm: mask of paths to use
+ *
+ * Start the tcw on the given ccw device. Return zero on success, non-zero
+ * otherwise.
+ */
+int ccw_device_tm_start(struct ccw_device *cdev, struct tcw *tcw,
+			unsigned long intparm, u8 lpm)
+{
+	return ccw_device_tm_start_key(cdev, tcw, intparm, lpm,
+				       PAGE_DEFAULT_KEY);
+}
+EXPORT_SYMBOL(ccw_device_tm_start);
+
+/**
+ * ccw_device_tm_start_timeout - perform start function
+ * @cdev: ccw device on which to perform the start function
+ * @tcw: transport-command word to be started
+ * @intparm: user defined parameter to be passed to the interrupt handler
+ * @lpm: mask of paths to use
+ * @expires: time span in jiffies after which to abort request
+ *
+ * Start the tcw on the given ccw device. Return zero on success, non-zero
+ * otherwise.
+ */
+int ccw_device_tm_start_timeout(struct ccw_device *cdev, struct tcw *tcw,
+			       unsigned long intparm, u8 lpm, int expires)
+{
+	return ccw_device_tm_start_timeout_key(cdev, tcw, intparm, lpm,
+					       PAGE_DEFAULT_KEY, expires);
+}
+EXPORT_SYMBOL(ccw_device_tm_start_timeout);
+
+/**
+ * ccw_device_tm_intrg - perform interrogate function
+ * @cdev: ccw device on which to perform the interrogate function
+ *
+ * Perform an interrogate function on the given ccw device. Return zero on
+ * success, non-zero otherwise.
+ */
+int ccw_device_tm_intrg(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
+	if (cdev->private->state != DEV_STATE_ONLINE)
+		return -EIO;
+	if (!scsw_is_tm(&sch->schib.scsw) ||
+	    !(scsw_actl(&sch->schib.scsw) | SCSW_ACTL_START_PEND))
+		return -EINVAL;
+	return cio_tm_intrg(sch);
+}
+EXPORT_SYMBOL(ccw_device_tm_intrg);
 
 // FIXME: these have to go:
 

@@ -118,7 +118,7 @@ static void iowa_##name at					\
 #undef DEF_PCI_AC_RET
 #undef DEF_PCI_AC_NORET
 
-static struct ppc_pci_io __initdata iowa_pci_io = {
+static const struct ppc_pci_io __devinitconst iowa_pci_io = {
 
 #define DEF_PCI_AC_RET(name, ret, at, al, space, aa)	.name = iowa_##name,
 #define DEF_PCI_AC_NORET(name, at, al, space, aa)	.name = iowa_##name,
@@ -146,7 +146,7 @@ static void __iomem *iowa_ioremap(unsigned long addr, unsigned long size,
 }
 
 /* Regist new bus to support workaround */
-void __init iowa_register_bus(struct pci_controller *phb,
+void __devinit iowa_register_bus(struct pci_controller *phb,
 			struct ppc_pci_io *ops,
 			int (*initfunc)(struct iowa_bus *, void *), void *data)
 {
@@ -173,7 +173,7 @@ void __init iowa_register_bus(struct pci_controller *phb,
 }
 
 /* enable IO workaround */
-void __init io_workaround_init(void)
+void __devinit io_workaround_init(void)
 {
 	static int io_workaround_inited;
 

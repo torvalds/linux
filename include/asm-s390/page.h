@@ -125,10 +125,18 @@ page_get_storage_key(unsigned long addr)
 	return skey;
 }
 
-#endif /* !__ASSEMBLY__ */
+#ifdef CONFIG_PAGE_STATES
 
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)        (((addr)+PAGE_SIZE-1)&PAGE_MASK)
+struct page;
+void arch_free_page(struct page *page, int order);
+void arch_alloc_page(struct page *page, int order);
+
+#define HAVE_ARCH_FREE_PAGE
+#define HAVE_ARCH_ALLOC_PAGE
+
+#endif
+
+#endif /* !__ASSEMBLY__ */
 
 #define __PAGE_OFFSET           0x0UL
 #define PAGE_OFFSET             0x0UL

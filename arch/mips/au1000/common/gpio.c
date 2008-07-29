@@ -69,7 +69,7 @@ static int au1xxx_gpio2_direction_output(unsigned gpio, int value)
 
 static int au1xxx_gpio1_read(unsigned gpio)
 {
-	return ((gpio1->pinstaterd >> gpio) & 0x01);
+	return (gpio1->pinstaterd >> gpio) & 0x01;
 }
 
 static void au1xxx_gpio1_write(unsigned gpio, int value)
@@ -104,7 +104,6 @@ int au1xxx_gpio_get_value(unsigned gpio)
 	else
 		return au1xxx_gpio1_read(gpio);
 }
-
 EXPORT_SYMBOL(au1xxx_gpio_get_value);
 
 void au1xxx_gpio_set_value(unsigned gpio, int value)
@@ -118,7 +117,6 @@ void au1xxx_gpio_set_value(unsigned gpio, int value)
 	else
 		au1xxx_gpio1_write(gpio, value);
 }
-
 EXPORT_SYMBOL(au1xxx_gpio_set_value);
 
 int au1xxx_gpio_direction_input(unsigned gpio)
@@ -132,7 +130,6 @@ int au1xxx_gpio_direction_input(unsigned gpio)
 
 	return au1xxx_gpio1_direction_input(gpio);
 }
-
 EXPORT_SYMBOL(au1xxx_gpio_direction_input);
 
 int au1xxx_gpio_direction_output(unsigned gpio, int value)
@@ -146,5 +143,4 @@ int au1xxx_gpio_direction_output(unsigned gpio, int value)
 
 	return au1xxx_gpio1_direction_output(gpio, value);
 }
-
 EXPORT_SYMBOL(au1xxx_gpio_direction_output);

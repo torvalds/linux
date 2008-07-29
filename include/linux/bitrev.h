@@ -10,6 +10,7 @@ static inline u8 bitrev8(u8 byte)
 	return byte_rev_table[byte];
 }
 
+extern u16 bitrev16(u16 in);
 extern u32 bitrev32(u32 in);
 
 #endif /* _LINUX_BITREV_H */

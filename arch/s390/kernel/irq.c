@@ -25,6 +25,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	static const char *intrclass_names[] = { "EXT", "I/O", };
 	int i = *(loff_t *) v, j;
 
+	get_online_cpus();
 	if (i == 0) {
 		seq_puts(p, "           ");
 		for_each_online_cpu(j)
@@ -43,7 +44,7 @@ int show_interrupts(struct seq_file *p, void *v)
                 seq_putc(p, '\n');
 
         }
-
+	put_online_cpus();
         return 0;
 }
 

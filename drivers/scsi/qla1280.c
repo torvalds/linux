@@ -1695,7 +1695,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 	risc_code_size = *ql1280_board_tbl[ha->devnum].fwlen;
 
 	dprintk(1, "%s: DMA RISC code (%i) words\n",
-			__FUNCTION__, risc_code_size);
+			__func__, risc_code_size);
 
 	num = 0;
 	while (risc_code_size > 0) {
@@ -1721,7 +1721,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 		mb[7] = pci_dma_hi32(ha->request_dma) & 0xffff;
 		mb[6] = pci_dma_hi32(ha->request_dma) >> 16;
 		dprintk(2, "%s: op=%d  0x%p = 0x%4x,0x%4x,0x%4x,0x%4x\n",
-				__FUNCTION__, mb[0],
+				__func__, mb[0],
 				(void *)(long)ha->request_dma,
 				mb[6], mb[7], mb[2], mb[3]);
 		err = qla1280_mailbox_command(ha, BIT_4 | BIT_3 | BIT_2 |
@@ -1753,10 +1753,10 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 			if (tbuf[i] != sp[i] && warn++ < 10) {
 				printk(KERN_ERR "%s: FW compare error @ "
 						"byte(0x%x) loop#=%x\n",
-						__FUNCTION__, i, num);
+						__func__, i, num);
 				printk(KERN_ERR "%s: FWbyte=%x  "
 						"FWfromChip=%x\n",
-						__FUNCTION__, sp[i], tbuf[i]);
+						__func__, sp[i], tbuf[i]);
 				/*break; */
 			}
 		}
@@ -1781,7 +1781,7 @@ qla1280_start_firmware(struct scsi_qla_host *ha)
 	int err;
 
 	dprintk(1, "%s: Verifying checksum of loaded RISC code.\n",
-			__FUNCTION__);
+			__func__);
 
 	/* Verify checksum of loaded RISC code. */
 	mb[0] = MBC_VERIFY_CHECKSUM;
@@ -1794,7 +1794,7 @@ qla1280_start_firmware(struct scsi_qla_host *ha)
 	}
 
 	/* Start firmware execution. */
-	dprintk(1, "%s: start firmware running.\n", __FUNCTION__);
+	dprintk(1, "%s: start firmware running.\n", __func__);
 	mb[0] = MBC_EXECUTE_FIRMWARE;
 	mb[1] = *ql1280_board_tbl[ha->devnum].fwstart;
 	err = qla1280_mailbox_command(ha, BIT_1 | BIT_0, &mb[0]);
@@ -2007,7 +2007,7 @@ qla1280_set_defaults(struct scsi_qla_host *ha)
 		nv->bus[bus].config_2.req_ack_active_negation = 1;
 		nv->bus[bus].config_2.data_line_active_negation = 1;
 		nv->bus[bus].selection_timeout = 250;
-		nv->bus[bus].max_queue_depth = 256;
+		nv->bus[bus].max_queue_depth = 32;
 
 		if (IS_ISP1040(ha)) {
 			nv->bus[bus].bus_reset_delay = 3;
@@ -2051,7 +2051,7 @@ qla1280_config_target(struct scsi_qla_host *ha, int bus, int target)
 	status = qla1280_mailbox_command(ha, 0x0f, mb);
 
 	/* Save Tag queuing enable flag. */
-	flag = (BIT_0 << target) & mb[0];
+	flag = (BIT_0 << target);
 	if (nv->bus[bus].target[target].parameter.tag_queuing)
 		ha->bus_settings[bus].qtag_enables |= flag;
 
@@ -2811,7 +2811,7 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 
 	/* Check for room in outstanding command list. */
 	for (cnt = 0; cnt < MAX_OUTSTANDING_COMMANDS &&
-		     ha->outstanding_cmds[cnt] != 0; cnt++);
+		     ha->outstanding_cmds[cnt] != NULL; cnt++);
 
 	if (cnt >= MAX_OUTSTANDING_COMMANDS) {
 		status = 1;

@@ -60,13 +60,22 @@ struct omapflash_info {
 static void omap_set_vpp(struct map_info *map, int enable)
 {
 	static int	count;
+	u32 l;
 
-	if (enable) {
-		if (count++ == 0)
-			OMAP_EMIFS_CONFIG_REG |= OMAP_EMIFS_CONFIG_WP;
-	} else {
-		if (count && (--count == 0))
-			OMAP_EMIFS_CONFIG_REG &= ~OMAP_EMIFS_CONFIG_WP;
+	if (cpu_class_is_omap1()) {
+		if (enable) {
+			if (count++ == 0) {
+				l = omap_readl(EMIFS_CONFIG);
+				l |= OMAP_EMIFS_CONFIG_WP;
+				omap_writel(l, EMIFS_CONFIG);
+			}
+		} else {
+			if (count && (--count == 0)) {
+				l = omap_readl(EMIFS_CONFIG);
+				l &= ~OMAP_EMIFS_CONFIG_WP;
+				omap_writel(l, EMIFS_CONFIG);
+			}
+		}
 	}
 }
 
@@ -110,7 +119,7 @@ static int __init omapflash_probe(struct platform_device *pdev)
 	err = parse_mtd_partitions(info->mtd, part_probes, &info->parts, 0);
 	if (err > 0)
 		add_mtd_partitions(info->mtd, info->parts, err);
-	else if (err < 0 && pdata->parts)
+	else if (err <= 0 && pdata->parts)
 		add_mtd_partitions(info->mtd, pdata->parts, pdata->nr_parts);
 	else
 #endif

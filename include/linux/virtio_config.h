@@ -1,5 +1,8 @@
 #ifndef _LINUX_VIRTIO_CONFIG_H
 #define _LINUX_VIRTIO_CONFIG_H
+/* This header, excluding the #ifdef __KERNEL__ part, is BSD licensed so
+ * anyone can use the definitions to implement compatible drivers/servers. */
+
 /* Virtio devices use a standardized configuration space to define their
  * features and pass configuration information, but each implementation can
  * store and access that space differently. */
@@ -14,6 +17,16 @@
 #define VIRTIO_CONFIG_S_DRIVER_OK	4
 /* We've given up on this device. */
 #define VIRTIO_CONFIG_S_FAILED		0x80
+
+/* Some virtio feature bits (currently bits 28 through 31) are reserved for the
+ * transport being used (eg. virtio_ring), the rest are per-device feature
+ * bits. */
+#define VIRTIO_TRANSPORT_F_START	28
+#define VIRTIO_TRANSPORT_F_END		32
+
+/* Do we get callbacks when the ring is completely used, even if we've
+ * suppressed them? */
+#define VIRTIO_F_NOTIFY_ON_EMPTY	24
 
 #ifdef __KERNEL__
 #include <linux/virtio.h>
@@ -48,9 +61,10 @@
  * @get_features: get the array of feature bits for this device.
  *	vdev: the virtio_device
  *	Returns the first 32 feature bits (all we currently need).
- * @set_features: confirm what device features we'll be using.
+ * @finalize_features: confirm what device features we'll be using.
  *	vdev: the virtio_device
- *	feature: the first 32 feature bits
+ *	This gives the final feature bits for the device: it can change
+ *	the dev->feature bits if it wants.
  */
 struct virtio_config_ops
 {
@@ -66,7 +80,7 @@ struct virtio_config_ops
 				     void (*callback)(struct virtqueue *));
 	void (*del_vq)(struct virtqueue *vq);
 	u32 (*get_features)(struct virtio_device *vdev);
-	void (*set_features)(struct virtio_device *vdev, u32 features);
+	void (*finalize_features)(struct virtio_device *vdev);
 };
 
 /* If driver didn't advertise the feature, it will never appear. */
@@ -99,7 +113,7 @@ static inline bool virtio_has_feature(const struct virtio_device *vdev,
  * The return value is -ENOENT if the feature doesn't exist.  Otherwise
  * the config value is copied into whatever is pointed to by v. */
 #define virtio_config_val(vdev, fbit, offset, v) \
-	virtio_config_buf((vdev), (fbit), (offset), (v), sizeof(v))
+	virtio_config_buf((vdev), (fbit), (offset), (v), sizeof(*v))
 
 static inline int virtio_config_buf(struct virtio_device *vdev,
 				    unsigned int fbit,

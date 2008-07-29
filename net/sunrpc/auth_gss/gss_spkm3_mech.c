@@ -76,7 +76,7 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *res)
 	q = (const void *)((const char *)p + len);
 	if (unlikely(q > end || q < p))
 		return ERR_PTR(-EFAULT);
-	res->data = kmemdup(p, len, GFP_KERNEL);
+	res->data = kmemdup(p, len, GFP_NOFS);
 	if (unlikely(res->data == NULL))
 		return ERR_PTR(-ENOMEM);
 	return q;
@@ -90,7 +90,7 @@ gss_import_sec_context_spkm3(const void *p, size_t len,
 	struct	spkm3_ctx *ctx;
 	int	version;
 
-	if (!(ctx = kzalloc(sizeof(*ctx), GFP_KERNEL)))
+	if (!(ctx = kzalloc(sizeof(*ctx), GFP_NOFS)))
 		goto out_err;
 
 	p = simple_get_bytes(p, end, &version, sizeof(version));

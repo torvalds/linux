@@ -10,18 +10,19 @@
 #include <linux/fb.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
+#include <linux/of_device.h>
 
-#include <asm/oplib.h>
 #include <asm/fbio.h>
 
 #include "sbuslib.h"
 
-void sbusfb_fill_var(struct fb_var_screeninfo *var, int prom_node, int bpp)
+void sbusfb_fill_var(struct fb_var_screeninfo *var, struct device_node *dp,
+		     int bpp)
 {
 	memset(var, 0, sizeof(*var));
 
-	var->xres = prom_getintdefault(prom_node, "width", 1152);
-	var->yres = prom_getintdefault(prom_node, "height", 900);
+	var->xres = of_getintprop_default(dp, "width", 1152);
+	var->yres = of_getintprop_default(dp, "height", 900);
 	var->xres_virtual = var->xres;
 	var->yres_virtual = var->yres;
 	var->bits_per_pixel = bpp;

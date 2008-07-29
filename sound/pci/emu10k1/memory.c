@@ -437,43 +437,49 @@ static void get_single_page_range(struct snd_util_memhdr *hdr,
 	*last_page_ret = last_page;
 }
 
+/* release allocated pages */
+static void __synth_free_pages(struct snd_emu10k1 *emu, int first_page,
+			       int last_page)
+{
+	int page;
+
+	for (page = first_page; page <= last_page; page++) {
+		free_page((unsigned long)emu->page_ptr_table[page]);
+		emu->page_addr_table[page] = 0;
+		emu->page_ptr_table[page] = NULL;
+	}
+}
+
 /*
  * allocate kernel pages
  */
 static int synth_alloc_pages(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
 {
 	int page, first_page, last_page;
-	struct snd_dma_buffer dmab;
 
 	emu10k1_memblk_init(blk);
 	get_single_page_range(emu->memhdr, blk, &first_page, &last_page);
 	/* allocate kernel pages */
 	for (page = first_page; page <= last_page; page++) {
-		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(emu->pci),
-					PAGE_SIZE, &dmab) < 0)
-			goto __fail;
-		if (! is_valid_page(emu, dmab.addr)) {
-			snd_dma_free_pages(&dmab);
-			goto __fail;
+		/* first try to allocate from <4GB zone */
+		struct page *p = alloc_page(GFP_KERNEL | GFP_DMA32 |
+					    __GFP_NOWARN);
+		if (!p || (page_to_pfn(p) & ~(emu->dma_mask >> PAGE_SHIFT))) {
+			if (p)
+				__free_page(p);
+			/* try to allocate from <16MB zone */
+			p = alloc_page(GFP_ATOMIC | GFP_DMA |
+				       __GFP_NORETRY | /* no OOM-killer */
+				       __GFP_NOWARN);
 		}
-		emu->page_addr_table[page] = dmab.addr;
-		emu->page_ptr_table[page] = dmab.area;
+		if (!p) {
+			__synth_free_pages(emu, first_page, page - 1);
+			return -ENOMEM;
+		}
+		emu->page_addr_table[page] = page_to_phys(p);
+		emu->page_ptr_table[page] = page_address(p);
 	}
 	return 0;
-
-__fail:
-	/* release allocated pages */
-	last_page = page - 1;
-	for (page = first_page; page <= last_page; page++) {
-		dmab.area = emu->page_ptr_table[page];
-		dmab.addr = emu->page_addr_table[page];
-		dmab.bytes = PAGE_SIZE;
-		snd_dma_free_pages(&dmab);
-		emu->page_addr_table[page] = 0;
-		emu->page_ptr_table[page] = NULL;
-	}
-
-	return -ENOMEM;
 }
 
 /*
@@ -481,23 +487,10 @@ __fail:
  */
 static int synth_free_pages(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
 {
-	int page, first_page, last_page;
-	struct snd_dma_buffer dmab;
+	int first_page, last_page;
 
 	get_single_page_range(emu->memhdr, blk, &first_page, &last_page);
-	dmab.dev.type = SNDRV_DMA_TYPE_DEV;
-	dmab.dev.dev = snd_dma_pci_data(emu->pci);
-	for (page = first_page; page <= last_page; page++) {
-		if (emu->page_ptr_table[page] == NULL)
-			continue;
-		dmab.area = emu->page_ptr_table[page];
-		dmab.addr = emu->page_addr_table[page];
-		dmab.bytes = PAGE_SIZE;
-		snd_dma_free_pages(&dmab);
-		emu->page_addr_table[page] = 0;
-		emu->page_ptr_table[page] = NULL;
-	}
-
+	__synth_free_pages(emu, first_page, last_page);
 	return 0;
 }
 

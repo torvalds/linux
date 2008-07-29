@@ -9,7 +9,6 @@
 #include <linux/device.h>
 #include <linux/bootmem.h>
 #include <linux/sched.h>
-#include <linux/kthread.h>
 #include <linux/workqueue.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
@@ -230,20 +229,9 @@ void arch_update_cpu_topology(void)
 	}
 }
 
-static int topology_kthread(void *data)
-{
-	arch_reinit_sched_domains();
-	return 0;
-}
-
 static void topology_work_fn(struct work_struct *work)
 {
-	/* We can't call arch_reinit_sched_domains() from a multi-threaded
-	 * workqueue context since it may deadlock in case of cpu hotplug.
-	 * So we have to create a kernel thread in order to call
-	 * arch_reinit_sched_domains().
-	 */
-	kthread_run(topology_kthread, NULL, "topology_update");
+	arch_reinit_sched_domains();
 }
 
 void topology_schedule_update(void)
@@ -313,8 +301,6 @@ void __init s390_init_cpu_topology(void)
 		machine_has_topology_irq = 1;
 
 	tl_info = alloc_bootmem_pages(PAGE_SIZE);
-	if (!tl_info)
-		goto error;
 	info = tl_info;
 	stsi(info, 15, 1, 2);
 

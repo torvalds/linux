@@ -391,7 +391,9 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	    cardtype = CONTEC;
 	    break;
 	case MANFID_FUJITSU:
-	    if (link->card_id == PRODID_FUJITSU_MBH10302)
+	    if (link->conf.ConfigBase == 0x0fe0)
+		cardtype = MBH10302;
+	    else if (link->card_id == PRODID_FUJITSU_MBH10302) 
                 /* RATOC REX-5588/9822/4886's PRODID are 0004(=MBH10302),
                    but these are MBH10304 based card. */ 
 		cardtype = MBH10304;

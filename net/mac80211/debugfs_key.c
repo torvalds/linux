@@ -97,8 +97,8 @@ static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 		break;
 	case ALG_TKIP:
 		len = scnprintf(buf, sizeof(buf), "%08x %04x\n",
-				key->u.tkip.iv32,
-				key->u.tkip.iv16);
+				key->u.tkip.tx.iv32,
+				key->u.tkip.tx.iv16);
 		break;
 	case ALG_CCMP:
 		tpn = key->u.ccmp.tx_pn;
@@ -128,8 +128,8 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 		for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
 			p += scnprintf(p, sizeof(buf)+buf-p,
 				       "%08x %04x\n",
-				       key->u.tkip.iv32_rx[i],
-				       key->u.tkip.iv16_rx[i]);
+				       key->u.tkip.rx[i].iv32,
+				       key->u.tkip.rx[i].iv16);
 		len = p - buf;
 		break;
 	case ALG_CCMP:
@@ -255,14 +255,23 @@ void ieee80211_debugfs_key_remove(struct ieee80211_key *key)
 void ieee80211_debugfs_key_add_default(struct ieee80211_sub_if_data *sdata)
 {
 	char buf[50];
+	struct ieee80211_key *key;
 
 	if (!sdata->debugfsdir)
 		return;
 
-	sprintf(buf, "../keys/%d", sdata->default_key->debugfs.cnt);
-	sdata->debugfs.default_key =
-		debugfs_create_symlink("default_key", sdata->debugfsdir, buf);
+	/* this is running under the key lock */
+
+	key = sdata->default_key;
+	if (key) {
+		sprintf(buf, "../keys/%d", key->debugfs.cnt);
+		sdata->debugfs.default_key =
+			debugfs_create_symlink("default_key",
+					       sdata->debugfsdir, buf);
+	} else
+		ieee80211_debugfs_key_remove_default(sdata);
 }
+
 void ieee80211_debugfs_key_remove_default(struct ieee80211_sub_if_data *sdata)
 {
 	if (!sdata)

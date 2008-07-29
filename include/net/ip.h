@@ -156,17 +156,14 @@ struct ipv4_config
 };
 
 extern struct ipv4_config ipv4_config;
-DECLARE_SNMP_STAT(struct ipstats_mib, ip_statistics);
-#define IP_INC_STATS(field)		SNMP_INC_STATS(ip_statistics, field)
-#define IP_INC_STATS_BH(field)		SNMP_INC_STATS_BH(ip_statistics, field)
-#define IP_INC_STATS_USER(field) 	SNMP_INC_STATS_USER(ip_statistics, field)
-#define IP_ADD_STATS_BH(field, val)	SNMP_ADD_STATS_BH(ip_statistics, field, val)
-DECLARE_SNMP_STAT(struct linux_mib, net_statistics);
-#define NET_INC_STATS(field)		SNMP_INC_STATS(net_statistics, field)
-#define NET_INC_STATS_BH(field)		SNMP_INC_STATS_BH(net_statistics, field)
-#define NET_INC_STATS_USER(field) 	SNMP_INC_STATS_USER(net_statistics, field)
-#define NET_ADD_STATS_BH(field, adnd)	SNMP_ADD_STATS_BH(net_statistics, field, adnd)
-#define NET_ADD_STATS_USER(field, adnd)	SNMP_ADD_STATS_USER(net_statistics, field, adnd)
+#define IP_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.ip_statistics, field)
+#define IP_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.ip_statistics, field)
+#define IP_ADD_STATS_BH(net, field, val) SNMP_ADD_STATS_BH((net)->mib.ip_statistics, field, val)
+#define NET_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.net_statistics, field)
+#define NET_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.net_statistics, field)
+#define NET_INC_STATS_USER(net, field) 	SNMP_INC_STATS_USER((net)->mib.net_statistics, field)
+#define NET_ADD_STATS_BH(net, field, adnd) SNMP_ADD_STATS_BH((net)->mib.net_statistics, field, adnd)
+#define NET_ADD_STATS_USER(net, field, adnd) SNMP_ADD_STATS_USER((net)->mib.net_statistics, field, adnd)
 
 extern unsigned long snmp_fold_field(void *mib[], int offt);
 extern int snmp_mib_init(void *ptr[2], size_t mibsize);
@@ -191,6 +188,8 @@ extern int sysctl_ip_dynaddr;
 
 extern void ipfrag_init(void);
 
+extern void ip_static_sysctl_init(void);
+
 #ifdef CONFIG_INET
 #include <net/dst.h>
 
@@ -210,7 +209,7 @@ int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
 {
 	return (inet_sk(sk)->pmtudisc == IP_PMTUDISC_DO ||
 		(inet_sk(sk)->pmtudisc == IP_PMTUDISC_WANT &&
-		 !(dst_metric(dst, RTAX_LOCK)&(1<<RTAX_MTU))));
+		 !(dst_metric_locked(dst, RTAX_MTU))));
 }
 
 extern void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more);

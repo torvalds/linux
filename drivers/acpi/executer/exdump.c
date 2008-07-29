@@ -580,25 +580,22 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	case ACPI_TYPE_BUFFER:
 
-		acpi_os_printf("Buffer len %X @ %p\n",
+		acpi_os_printf("Buffer length %.2X @ %p\n",
 			       obj_desc->buffer.length,
 			       obj_desc->buffer.pointer);
-
-		length = obj_desc->buffer.length;
-		if (length > 64) {
-			length = 64;
-		}
 
 		/* Debug only -- dump the buffer contents */
 
 		if (obj_desc->buffer.pointer) {
-			acpi_os_printf("Buffer Contents: ");
-
-			for (index = 0; index < length; index++) {
-				acpi_os_printf(" %02x",
-					       obj_desc->buffer.pointer[index]);
+			length = obj_desc->buffer.length;
+			if (length > 128) {
+				length = 128;
 			}
-			acpi_os_printf("\n");
+
+			acpi_os_printf
+			    ("Buffer Contents: (displaying length 0x%.2X)\n",
+			     length);
+			ACPI_DUMP_BUFFER(obj_desc->buffer.pointer, length);
 		}
 		break;
 
@@ -756,54 +753,42 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
  *
  * FUNCTION:    acpi_ex_dump_operands
  *
- * PARAMETERS:  Operands            - Operand list
- *              interpreter_mode    - Load or Exec
- *              Ident               - Identification
- *              num_levels          - # of stack entries to dump above line
- *              Note                - Output notation
- *              module_name         - Caller's module name
- *              line_number         - Caller's invocation line number
+ * PARAMETERS:	Operands	    - A list of Operand objects
+ *		opcode_name	    - AML opcode name
+ *		num_operands	    - Operand count for this opcode
  *
- * DESCRIPTION: Dump the object stack
+ * DESCRIPTION: Dump the operands associated with the opcode
  *
  ******************************************************************************/
 
 void
 acpi_ex_dump_operands(union acpi_operand_object **operands,
-		      acpi_interpreter_mode interpreter_mode,
-		      char *ident,
-		      u32 num_levels,
-		      char *note, char *module_name, u32 line_number)
+		      const char *opcode_name, u32 num_operands)
 {
-	acpi_native_uint i;
-
 	ACPI_FUNCTION_NAME(ex_dump_operands);
 
-	if (!ident) {
-		ident = "?";
-	}
-
-	if (!note) {
-		note = "?";
+	if (!opcode_name) {
+		opcode_name = "UNKNOWN";
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "************* Operand Stack Contents (Opcode [%s], %d Operands)\n",
-			  ident, num_levels));
+			  "**** Start operand dump for opcode [%s], %d operands\n",
+			  opcode_name, num_operands));
 
-	if (num_levels == 0) {
-		num_levels = 1;
+	if (num_operands == 0) {
+		num_operands = 1;
 	}
 
-	/* Dump the operand stack starting at the top */
+	/* Dump the individual operands */
 
-	for (i = 0; num_levels > 0; i--, num_levels--) {
-		acpi_ex_dump_operand(operands[i], 0);
+	while (num_operands) {
+		acpi_ex_dump_operand(*operands, 0);
+		operands++;
+		num_operands--;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "************* Operand Stack dump from %s(%d), %s\n",
-			  module_name, line_number, note));
+			  "**** End operand dump for [%s]\n", opcode_name));
 	return;
 }
 

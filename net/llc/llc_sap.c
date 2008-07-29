@@ -286,12 +286,14 @@ void llc_build_and_send_xid_pkt(struct llc_sap *sap, struct sk_buff *skb,
  *
  *	Sends received pdus to the sap state machine.
  */
-static void llc_sap_rcv(struct llc_sap *sap, struct sk_buff *skb)
+static void llc_sap_rcv(struct llc_sap *sap, struct sk_buff *skb,
+			struct sock *sk)
 {
 	struct llc_sap_state_ev *ev = llc_sap_ev(skb);
 
 	ev->type   = LLC_SAP_EV_TYPE_PDU;
 	ev->reason = 0;
+	skb->sk = sk;
 	llc_sap_state_process(sap, skb);
 }
 
@@ -360,8 +362,7 @@ static void llc_sap_mcast(struct llc_sap *sap,
 			break;
 
 		sock_hold(sk);
-		skb_set_owner_r(skb1, sk);
-		llc_sap_rcv(sap, skb1);
+		llc_sap_rcv(sap, skb1, sk);
 		sock_put(sk);
 	}
 	read_unlock_bh(&sap->sk_list.lock);
@@ -381,8 +382,7 @@ void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb)
 	} else {
 		struct sock *sk = llc_lookup_dgram(sap, &laddr);
 		if (sk) {
-			skb_set_owner_r(skb, sk);
-			llc_sap_rcv(sap, skb);
+			llc_sap_rcv(sap, skb, sk);
 			sock_put(sk);
 		} else
 			kfree_skb(skb);

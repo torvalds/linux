@@ -36,13 +36,12 @@ gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 {
-	/* XXX implement me */
-	return 0;
+	return !!(v->arch.pending_exceptions);
 }
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	return 1;
+	return !(v->arch.msr & MSR_WE);
 }
 
 
@@ -146,6 +145,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_USER_MEMORY:
 		r = 1;
 		break;
+	case KVM_CAP_COALESCED_MMIO:
+		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
+		break;
 	default:
 		r = 0;
 		break;
@@ -166,6 +168,10 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
                                int user_alloc)
 {
 	return 0;
+}
+
+void kvm_arch_flush_shadow(struct kvm *kvm)
+{
 }
 
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
@@ -214,6 +220,11 @@ static void kvmppc_decrementer_func(unsigned long data)
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
 
 	kvmppc_queue_exception(vcpu, BOOKE_INTERRUPT_DECREMENTER);
+
+	if (waitqueue_active(&vcpu->wq)) {
+		wake_up_interruptible(&vcpu->wq);
+		vcpu->stat.halt_wakeup++;
+	}
 }
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
@@ -233,10 +244,6 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
-{
-}
-
-void decache_vcpus_on_cpu(int cpu)
 {
 }
 
@@ -339,6 +346,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	int r;
 	sigset_t sigsaved;
 
+	vcpu_load(vcpu);
+
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
@@ -363,12 +372,20 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
 
+	vcpu_put(vcpu);
+
 	return r;
 }
 
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 {
 	kvmppc_queue_exception(vcpu, BOOKE_INTERRUPT_EXTERNAL);
+
+	if (waitqueue_active(&vcpu->wq)) {
+		wake_up_interruptible(&vcpu->wq);
+		vcpu->stat.halt_wakeup++;
+	}
+
 	return 0;
 }
 

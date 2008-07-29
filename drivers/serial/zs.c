@@ -602,7 +602,7 @@ static void zs_receive_chars(struct zs_port *zport)
 		uart_insert_char(uport, status, Rx_OVR, ch, flag);
 	}
 
-	tty_flip_buffer_push(uport->info->tty);
+	tty_flip_buffer_push(uport->info->port.tty);
 }
 
 static void zs_raw_transmit_chars(struct zs_port *zport)
@@ -787,7 +787,6 @@ static int zs_startup(struct uart_port *uport)
 	zport->regs[1] &= ~RxINT_MASK;
 	zport->regs[1] |= RxINT_ALL | TxINT_ENAB | EXT_INT_ENAB;
 	zport->regs[3] |= RxENABLE;
-	zport->regs[5] |= TxENAB;
 	zport->regs[15] |= BRKIE;
 	write_zsreg(zport, R1, zport->regs[1]);
 	write_zsreg(zport, R3, zport->regs[3]);
@@ -814,7 +813,6 @@ static void zs_shutdown(struct uart_port *uport)
 
 	spin_lock_irqsave(&scc->zlock, flags);
 
-	zport->regs[5] &= ~TxENAB;
 	zport->regs[3] &= ~RxENABLE;
 	write_zsreg(zport, R5, zport->regs[5]);
 	write_zsreg(zport, R3, zport->regs[3]);
@@ -959,6 +957,23 @@ static void zs_set_termios(struct uart_port *uport, struct ktermios *termios,
 	spin_unlock_irqrestore(&scc->zlock, flags);
 }
 
+/*
+ * Hack alert!
+ * Required solely so that the initial PROM-based console
+ * works undisturbed in parallel with this one.
+ */
+static void zs_pm(struct uart_port *uport, unsigned int state,
+		  unsigned int oldstate)
+{
+	struct zs_port *zport = to_zport(uport);
+
+	if (state < 3)
+		zport->regs[5] |= TxENAB;
+	else
+		zport->regs[5] &= ~TxENAB;
+	write_zsreg(zport, R5, zport->regs[5]);
+}
+
 
 static const char *zs_type(struct uart_port *uport)
 {
@@ -1041,6 +1056,7 @@ static struct uart_ops zs_ops = {
 	.startup	= zs_startup,
 	.shutdown	= zs_shutdown,
 	.set_termios	= zs_set_termios,
+	.pm		= zs_pm,
 	.type		= zs_type,
 	.release_port	= zs_release_port,
 	.request_port	= zs_request_port,
@@ -1190,6 +1206,7 @@ static int __init zs_console_setup(struct console *co, char *options)
 		return ret;
 
 	zs_reset(zport);
+	zs_pm(uport, 0, -1);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);

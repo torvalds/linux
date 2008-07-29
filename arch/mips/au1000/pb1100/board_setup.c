@@ -1,7 +1,6 @@
 /*
- * Copyright 2002 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	ppopov@mvista.com or source@mvista.com
+ * Copyright 2002, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -32,15 +31,15 @@
 
 void board_reset(void)
 {
-    /* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
-    au_writel(0x00000000, 0xAE00001C);
+	/* Hit BCSR.RST_VDDI[SOFT_RESET] */
+	au_writel(0x00000000, PB1100_RST_VDDI);
 }
 
 void __init board_setup(void)
 {
-	volatile void __iomem * base = (volatile void __iomem *) 0xac000000UL;
+	volatile void __iomem *base = (volatile void __iomem *)0xac000000UL;
 
-	// set AUX clock to 12MHz * 8 = 96 MHz
+	/* Set AUX clock to 12 MHz * 8 = 96 MHz */
 	au_writel(8, SYS_AUXPLL);
 	au_writel(0, SYS_PININPUTEN);
 	udelay(100);
@@ -49,44 +48,47 @@ void __init board_setup(void)
 	{
 		u32 pin_func, sys_freqctrl, sys_clksrc;
 
-		// configure pins GPIO[14:9] as GPIO
-		pin_func = au_readl(SYS_PINFUNC) & (u32)(~0x80);
+		/* Configure pins GPIO[14:9] as GPIO */
+		pin_func = au_readl(SYS_PINFUNC) & ~SYS_PF_UR3;
 
-		/* zero and disable FREQ2 */
+		/* Zero and disable FREQ2 */
 		sys_freqctrl = au_readl(SYS_FREQCTRL0);
 		sys_freqctrl &= ~0xFFF00000;
 		au_writel(sys_freqctrl, SYS_FREQCTRL0);
 
-		/* zero and disable USBH/USBD/IrDA clock */
+		/* Zero and disable USBH/USBD/IrDA clock */
 		sys_clksrc = au_readl(SYS_CLKSRC);
-		sys_clksrc &= ~0x0000001F;
+		sys_clksrc &= ~(SYS_CS_CIR | SYS_CS_DIR | SYS_CS_MIR_MASK);
 		au_writel(sys_clksrc, SYS_CLKSRC);
 
 		sys_freqctrl = au_readl(SYS_FREQCTRL0);
 		sys_freqctrl &= ~0xFFF00000;
 
 		sys_clksrc = au_readl(SYS_CLKSRC);
-		sys_clksrc &= ~0x0000001F;
+		sys_clksrc &= ~(SYS_CS_CIR | SYS_CS_DIR | SYS_CS_MIR_MASK);
 
-		// FREQ2 = aux/2 = 48 MHz
-		sys_freqctrl |= ((0<<22) | (1<<21) | (1<<20));
+		/* FREQ2 = aux / 2 = 48 MHz */
+		sys_freqctrl |= (0 << SYS_FC_FRDIV2_BIT) |
+				SYS_FC_FE2 | SYS_FC_FS2;
 		au_writel(sys_freqctrl, SYS_FREQCTRL0);
 
 		/*
-		 * Route 48MHz FREQ2 into USBH/USBD/IrDA
+		 * Route 48 MHz FREQ2 into USBH/USBD/IrDA
 		 */
-		sys_clksrc |= ((4<<2) | (0<<1) | 0 );
+		sys_clksrc |= SYS_CS_MUX_FQ2 << SYS_CS_MIR_BIT;
 		au_writel(sys_clksrc, SYS_CLKSRC);
 
-		/* setup the static bus controller */
+		/* Setup the static bus controller */
 		au_writel(0x00000002, MEM_STCFG3);  /* type = PCMCIA */
 		au_writel(0x280E3D07, MEM_STTIME3); /* 250ns cycle time */
 		au_writel(0x10000000, MEM_STADDR3); /* any PCMCIA select */
 
-		// get USB Functionality pin state (device vs host drive pins)
-		pin_func = au_readl(SYS_PINFUNC) & (u32)(~0x8000);
-		// 2nd USB port is USB host
-		pin_func |= 0x8000;
+		/*
+		 * Get USB Functionality pin state (device vs host drive pins).
+		 */
+		pin_func = au_readl(SYS_PINFUNC) & ~SYS_PF_USB;
+		/* 2nd USB port is USB host. */
+		pin_func |= SYS_PF_USB;
 		au_writel(pin_func, SYS_PINFUNC);
 	}
 #endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
@@ -94,12 +96,12 @@ void __init board_setup(void)
 	/* Enable sys bus clock divider when IDLE state or no bus activity. */
 	au_writel(au_readl(SYS_POWERCTRL) | (0x3 << 5), SYS_POWERCTRL);
 
-	// Enable the RTC if not already enabled
+	/* Enable the RTC if not already enabled. */
 	if (!(readb(base + 0x28) & 0x20)) {
 		writeb(readb(base + 0x28) | 0x20, base + 0x28);
 		au_sync();
 	}
-	// Put the clock in BCD mode
+	/* Put the clock in BCD mode. */
 	if (readb(base + 0x2C) & 0x4) { /* reg B */
 		writeb(readb(base + 0x2c) & ~0x4, base + 0x2c);
 		au_sync();

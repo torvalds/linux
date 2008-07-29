@@ -7,14 +7,14 @@
 #define TICK_SIZE (tick_nsec / 1000)
 
 unsigned long long native_sched_clock(void);
-unsigned long native_calculate_cpu_khz(void);
+unsigned long native_calibrate_tsc(void);
 
 extern int timer_ack;
 extern int no_timer_check;
 extern int recalibrate_cpu_khz(void);
 
 #ifndef CONFIG_PARAVIRT
-#define calculate_cpu_khz() native_calculate_cpu_khz()
+#define calibrate_tsc() native_calibrate_tsc()
 #endif
 
 /* Accelerators for sched_clock()

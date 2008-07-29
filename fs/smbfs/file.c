@@ -408,7 +408,7 @@ smb_file_release(struct inode *inode, struct file * file)
  * privileges, so we need our own check for this.
  */
 static int
-smb_file_permission(struct inode *inode, int mask, struct nameidata *nd)
+smb_file_permission(struct inode *inode, int mask)
 {
 	int mode = inode->i_mode;
 	int error = 0;
@@ -417,14 +417,23 @@ smb_file_permission(struct inode *inode, int mask, struct nameidata *nd)
 
 	/* Look at user permissions */
 	mode >>= 6;
-	if ((mode & 7 & mask) != mask)
+	if (mask & ~mode & (MAY_READ | MAY_WRITE | MAY_EXEC))
 		error = -EACCES;
 	return error;
 }
 
+static loff_t smb_remote_llseek(struct file *file, loff_t offset, int origin)
+{
+	loff_t ret;
+	lock_kernel();
+	ret = generic_file_llseek_unlocked(file, offset, origin);
+	unlock_kernel();
+	return ret;
+}
+
 const struct file_operations smb_file_operations =
 {
-	.llseek		= remote_llseek,
+	.llseek 	= smb_remote_llseek,
 	.read		= do_sync_read,
 	.aio_read	= smb_file_aio_read,
 	.write		= do_sync_write,

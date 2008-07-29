@@ -31,11 +31,11 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/nvram.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/pgtable.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 
 #include "macmodes.h"
 #include "platinumfb.h"

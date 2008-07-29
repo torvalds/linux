@@ -192,23 +192,20 @@ static int RANGE_TO_REG( int range )
 {
 	int i;
 
-	if ( range < lm85_range_map[0] ) { 
-		return 0 ;
-	} else if ( range > lm85_range_map[15] ) {
+	if (range >= lm85_range_map[15])
 		return 15 ;
-	} else {  /* find closest match */
-		for ( i = 14 ; i >= 0 ; --i ) {
-			if ( range > lm85_range_map[i] ) { /* range bracketed */
-				if ((lm85_range_map[i+1] - range) < 
-					(range - lm85_range_map[i])) {
-					i++;
-					break;
-				}
-				break;
-			}
+
+	/* Find the closest match */
+	for (i = 14; i >= 0; --i) {
+		if (range >= lm85_range_map[i]) {
+			if ((lm85_range_map[i + 1] - range) <
+					(range - lm85_range_map[i]))
+				return i + 1;
+			return i;
 		}
 	}
-	return( i & 0x0f );
+
+	return 0;
 }
 #define RANGE_FROM_REG(val) (lm85_range_map[(val)&0x0f])
 

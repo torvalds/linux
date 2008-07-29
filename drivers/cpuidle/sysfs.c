@@ -21,7 +21,8 @@ static int __init cpuidle_sysfs_setup(char *unused)
 }
 __setup("cpuidle_sysfs_switch", cpuidle_sysfs_setup);
 
-static ssize_t show_available_governors(struct sys_device *dev, char *buf)
+static ssize_t show_available_governors(struct sys_device *dev,
+		struct sysdev_attribute *attr, char *buf)
 {
 	ssize_t i = 0;
 	struct cpuidle_governor *tmp;
@@ -39,7 +40,8 @@ out:
 	return i;
 }
 
-static ssize_t show_current_driver(struct sys_device *dev, char *buf)
+static ssize_t show_current_driver(struct sys_device *dev,
+		struct sysdev_attribute *attr, char *buf)
 {
 	ssize_t ret;
 
@@ -53,7 +55,8 @@ static ssize_t show_current_driver(struct sys_device *dev, char *buf)
 	return ret;
 }
 
-static ssize_t show_current_governor(struct sys_device *dev, char *buf)
+static ssize_t show_current_governor(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	ssize_t ret;
 
@@ -68,6 +71,7 @@ static ssize_t show_current_governor(struct sys_device *dev, char *buf)
 }
 
 static ssize_t store_current_governor(struct sys_device *dev,
+	struct sysdev_attribute *attr,
 	const char *buf, size_t count)
 {
 	char gov_name[CPUIDLE_NAME_LEN];

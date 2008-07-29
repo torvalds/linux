@@ -6,30 +6,9 @@
 
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/fcntl.h>
-#include <linux/net.h>
-#include <linux/in.h>
-#include <linux/inet.h>
-#include <linux/udp.h>
-#include <linux/tcp.h>
-#include <linux/unistd.h>
-#include <linux/slab.h>
-#include <linux/netdevice.h>
-#include <linux/skbuff.h>
-#include <linux/file.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <net/sock.h>
-#include <net/checksum.h>
-#include <net/ip.h>
-#include <net/ipv6.h>
-#include <net/tcp_states.h>
-#include <linux/uaccess.h>
-#include <asm/ioctls.h>
-
-#include <linux/sunrpc/types.h>
-#include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svc_xprt.h>
 
@@ -295,8 +274,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 
 	if (!(xprt->xpt_flags &
 	      ((1<<XPT_CONN)|(1<<XPT_DATA)|(1<<XPT_CLOSE)|(1<<XPT_DEFERRED))))
-		return;
-	if (test_bit(XPT_DEAD, &xprt->xpt_flags))
 		return;
 
 	cpu = get_cpu();

@@ -40,6 +40,7 @@
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
 #include <linux/lockdep.h>
+#include <linux/completion.h>
 
 /**
  * struct rcu_head - callback structure for use with RCU
@@ -131,18 +132,6 @@ struct rcu_head {
  */
 #define rcu_read_unlock_bh() __rcu_read_unlock_bh()
 
-/*
- * Prevent the compiler from merging or refetching accesses.  The compiler
- * is also forbidden from reordering successive instances of ACCESS_ONCE(),
- * but only when the compiler is aware of some particular ordering.  One way
- * to make the compiler aware of ordering is to put the two invocations of
- * ACCESS_ONCE() in different C statements.
- *
- * This macro does absolutely -nothing- to prevent the CPU from reordering,
- * merging, or refetching absolutely anything at any time.
- */
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
-
 /**
  * rcu_dereference - fetch an RCU-protected pointer in an
  * RCU read-side critical section.  This pointer may later
@@ -179,6 +168,27 @@ struct rcu_head {
 			smp_wmb(); \
 		(p) = (v); \
 	})
+
+/* Infrastructure to implement the synchronize_() primitives. */
+
+struct rcu_synchronize {
+	struct rcu_head head;
+	struct completion completion;
+};
+
+extern void wakeme_after_rcu(struct rcu_head  *head);
+
+#define synchronize_rcu_xxx(name, func) \
+void name(void) \
+{ \
+	struct rcu_synchronize rcu; \
+	\
+	init_completion(&rcu.completion); \
+	/* Will wake me after RCU finished. */ \
+	func(&rcu.head, wakeme_after_rcu); \
+	/* Wait for it. */ \
+	wait_for_completion(&rcu.completion); \
+}
 
 /**
  * synchronize_sched - block until all CPUs have exited any non-preemptive
@@ -236,8 +246,8 @@ extern void call_rcu_bh(struct rcu_head *head,
 /* Exported common interfaces */
 extern void synchronize_rcu(void);
 extern void rcu_barrier(void);
-extern long rcu_batches_completed(void);
-extern long rcu_batches_completed_bh(void);
+extern void rcu_barrier_bh(void);
+extern void rcu_barrier_sched(void);
 
 /* Internal to kernel */
 extern void rcu_init(void);

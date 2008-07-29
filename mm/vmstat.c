@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <linux/vmstat.h>
 #include <linux/sched.h>
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
@@ -26,7 +27,7 @@ static void sum_vm_events(unsigned long *ret, cpumask_t *cpumask)
 
 	memset(ret, 0, NR_VM_EVENT_ITEMS * sizeof(unsigned long));
 
-	for_each_cpu_mask(cpu, *cpumask) {
+	for_each_cpu_mask_nr(cpu, *cpumask) {
 		struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
 
 		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
@@ -41,7 +42,9 @@ static void sum_vm_events(unsigned long *ret, cpumask_t *cpumask)
 */
 void all_vm_events(unsigned long *ret)
 {
+	get_online_cpus();
 	sum_vm_events(ret, &cpu_online_map);
+	put_online_cpus();
 }
 EXPORT_SYMBOL_GPL(all_vm_events);
 

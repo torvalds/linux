@@ -23,5 +23,11 @@ typedef unsigned int umode_t;
 
 #define BITS_PER_LONG 64
 
+#ifndef __ASSEMBLY__
+
+typedef u64 dma_addr_t;
+typedef u64 dma64_addr_t;
+
+#endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ALPHA_TYPES_H */

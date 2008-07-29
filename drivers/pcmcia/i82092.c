@@ -5,8 +5,6 @@
  *
  * Author: Arjan Van De Ven <arjanv@redhat.com>
  * Loosly based on i82365.c from the pcmcia-cs package
- *
- * $Id: i82092aa.c,v 1.2 2001/10/23 14:43:34 arjanv Exp $
  */
 
 #include <linux/kernel.h>

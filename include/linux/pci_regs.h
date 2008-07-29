@@ -231,6 +231,7 @@
 #define  PCI_PM_CAP_PME_D2	0x2000	/* PME# from D2 */
 #define  PCI_PM_CAP_PME_D3	0x4000	/* PME# from D3 (hot) */
 #define  PCI_PM_CAP_PME_D3cold	0x8000	/* PME# from D3 (cold) */
+#define  PCI_PM_CAP_PME_SHIFT	11	/* Start of the PME Mask in PMC */
 #define PCI_PM_CTRL		4	/* PM control and status register */
 #define  PCI_PM_CTRL_STATE_MASK	0x0003	/* Current power state (D0 to D3) */
 #define  PCI_PM_CTRL_NO_SOFT_RESET	0x0004	/* No reset for D3hot->D0 */
@@ -373,6 +374,7 @@
 #define  PCI_EXP_DEVCAP_ATN_BUT	0x1000	/* Attention Button Present */
 #define  PCI_EXP_DEVCAP_ATN_IND	0x2000	/* Attention Indicator Present */
 #define  PCI_EXP_DEVCAP_PWR_IND	0x4000	/* Power Indicator Present */
+#define  PCI_EXP_DEVCAP_RBER	0x8000	/* Role-Based Error Reporting */
 #define  PCI_EXP_DEVCAP_PWR_VAL	0x3fc0000 /* Slot Power Limit Value */
 #define  PCI_EXP_DEVCAP_PWR_SCL	0xc000000 /* Slot Power Limit Scale */
 #define PCI_EXP_DEVCTL		8	/* Device Control */

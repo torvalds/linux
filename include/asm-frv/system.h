@@ -87,7 +87,7 @@ do {								\
 } while(0)
 
 #define irqs_disabled() \
-	({unsigned long flags; local_save_flags(flags); flags; })
+	({unsigned long flags; local_save_flags(flags); !!flags; })
 
 #define	local_irq_save(flags)			\
 do {						\
@@ -179,7 +179,7 @@ do {							\
 #define mb()			asm volatile ("membar" : : :"memory")
 #define rmb()			asm volatile ("membar" : : :"memory")
 #define wmb()			asm volatile ("membar" : : :"memory")
-#define read_barrier_depends()	barrier()
+#define read_barrier_depends()	do { } while (0)
 
 #ifdef CONFIG_SMP
 #define smp_mb()			mb()

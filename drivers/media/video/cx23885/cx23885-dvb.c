@@ -31,13 +31,13 @@
 #include <media/v4l2-common.h>
 
 #include "s5h1409.h"
+#include "s5h1411.h"
 #include "mt2131.h"
 #include "tda8290.h"
 #include "tda18271.h"
 #include "lgdt330x.h"
 #include "xc5000.h"
 #include "tda10048.h"
-#include "dvb-pll.h"
 #include "tuner-xc2028.h"
 #include "tuner-simple.h"
 #include "dib7000p.h"
@@ -165,8 +165,34 @@ static struct s5h1409_config hauppauge_hvr1500q_config = {
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
+static struct s5h1409_config dvico_s5h1409_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_SERIAL_OUTPUT,
+	.gpio          = S5H1409_GPIO_ON,
+	.qam_if        = 44000,
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+};
+
+static struct s5h1411_config dvico_s5h1411_config = {
+	.output_mode   = S5H1411_SERIAL_OUTPUT,
+	.gpio          = S5H1411_GPIO_ON,
+	.qam_if        = S5H1411_IF_44000,
+	.vsb_if        = S5H1411_IF_44000,
+	.inversion     = S5H1411_INVERSION_OFF,
+	.status_mode   = S5H1411_DEMODLOCKING,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+};
+
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
 	.i2c_address      = 0x61,
+	.if_khz           = 5380,
+	.tuner_callback   = cx23885_tuner_callback
+};
+
+static struct xc5000_config dvico_xc5000_tunerconfig = {
+	.i2c_address      = 0x64,
 	.if_khz           = 5380,
 	.tuner_callback   = cx23885_tuner_callback
 };
@@ -385,12 +411,10 @@ static int dvb_register(struct cx23885_tsport *port)
 		port->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_hvr1500q_config,
 						&dev->i2c_bus[0].i2c_adap);
-		if (port->dvb.frontend != NULL) {
-			hauppauge_hvr1500q_tunerconfig.priv = i2c_bus;
+		if (port->dvb.frontend != NULL)
 			dvb_attach(xc5000_attach, port->dvb.frontend,
 				&i2c_bus->i2c_adap,
-				&hauppauge_hvr1500q_tunerconfig);
-		}
+				&hauppauge_hvr1500q_tunerconfig, i2c_bus);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 		i2c_bus = &dev->i2c_bus[1];
@@ -455,6 +479,21 @@ static int dvb_register(struct cx23885_tsport *port)
 			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
+		break;
+	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
+		i2c_bus = &dev->i2c_bus[port->nr - 1];
+
+		port->dvb.frontend = dvb_attach(s5h1409_attach,
+						&dvico_s5h1409_config,
+						&i2c_bus->i2c_adap);
+		if (port->dvb.frontend == NULL)
+			port->dvb.frontend = dvb_attach(s5h1411_attach,
+							&dvico_s5h1411_config,
+							&i2c_bus->i2c_adap);
+		if (port->dvb.frontend != NULL)
+			dvb_attach(xc5000_attach, port->dvb.frontend,
+				&i2c_bus->i2c_adap,
+				&dvico_xc5000_tunerconfig, i2c_bus);
 		break;
 	default:
 		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n",

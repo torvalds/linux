@@ -1,6 +1,4 @@
 /*
- *  $Id: ipconfig.c,v 1.46 2002/02/01 22:01:04 davem Exp $
- *
  *  Automatic Configuration of IP -- use DHCP, BOOTP, RARP, or
  *  user-supplied information to configure own IP address and routes.
  *
@@ -434,7 +432,7 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	unsigned char *sha, *tha;		/* s for "source", t for "target" */
 	struct ic_device *d;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		goto drop;
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
@@ -710,14 +708,14 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	struct net_device *dev = d->dev;
 	struct sk_buff *skb;
 	struct bootp_pkt *b;
-	int hh_len = LL_RESERVED_SPACE(dev);
 	struct iphdr *h;
 
 	/* Allocate packet */
-	skb = alloc_skb(sizeof(struct bootp_pkt) + hh_len + 15, GFP_KERNEL);
+	skb = alloc_skb(sizeof(struct bootp_pkt) + LL_ALLOCATED_SPACE(dev) + 15,
+			GFP_KERNEL);
 	if (!skb)
 		return;
-	skb_reserve(skb, hh_len);
+	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 	b = (struct bootp_pkt *) skb_put(skb, sizeof(struct bootp_pkt));
 	memset(b, 0, sizeof(struct bootp_pkt));
 
@@ -854,7 +852,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	struct ic_device *d;
 	int len, ext_len;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		goto drop;
 
 	/* Perform verifications before taking the lock.  */

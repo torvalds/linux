@@ -1,12 +1,11 @@
 /*
  *
  * BRIEF MODULE DESCRIPTION
- *      A DMA channel allocator for Au1000. API is modeled loosely off of
+ *      A DMA channel allocator for Au1x00. API is modeled loosely off of
  *      linux/kernel/dma.c.
  *
- * Copyright 2000 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	stevel@mvista.com or source@mvista.com
+ * Copyright 2000, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  * Copyright (C) 2005 Ralf Baechle (ralf@linux-mips.org)
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -39,7 +38,8 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1000_dma.h>
 
-#if defined(CONFIG_SOC_AU1000) || defined(CONFIG_SOC_AU1500) || defined(CONFIG_SOC_AU1100)
+#if defined(CONFIG_SOC_AU1000) || defined(CONFIG_SOC_AU1500) || \
+    defined(CONFIG_SOC_AU1100)
 /*
  * A note on resource allocation:
  *
@@ -56,7 +56,6 @@
  * returned from request_dma.
  */
 
-
 DEFINE_SPINLOCK(au1000_dma_spin_lock);
 
 struct dma_chan au1000_dma_table[NUM_AU1000_DMA_CHANNELS] = {
@@ -71,7 +70,7 @@ struct dma_chan au1000_dma_table[NUM_AU1000_DMA_CHANNELS] = {
 };
 EXPORT_SYMBOL(au1000_dma_table);
 
-// Device FIFO addresses and default DMA modes
+/* Device FIFO addresses and default DMA modes */
 static const struct dma_dev {
 	unsigned int fifo_addr;
 	unsigned int dma_mode;
@@ -80,8 +79,8 @@ static const struct dma_dev {
 	{UART0_ADDR + UART_RX, 0},
 	{0, 0},
 	{0, 0},
-	{AC97C_DATA, DMA_DW16 },          // coherent
-	{AC97C_DATA, DMA_DR | DMA_DW16 }, // coherent
+	{AC97C_DATA, DMA_DW16 },          /* coherent */
+	{AC97C_DATA, DMA_DR | DMA_DW16 }, /* coherent */
 	{UART3_ADDR + UART_TX, DMA_DW8 | DMA_NC},
 	{UART3_ADDR + UART_RX, DMA_DR | DMA_DW8 | DMA_NC},
 	{USBD_EP0RD, DMA_DR | DMA_DW8 | DMA_NC},
@@ -101,10 +100,10 @@ int au1000_dma_read_proc(char *buf, char **start, off_t fpos,
 	struct dma_chan *chan;
 
 	for (i = 0; i < NUM_AU1000_DMA_CHANNELS; i++) {
-		if ((chan = get_dma_chan(i)) != NULL) {
+		chan = get_dma_chan(i);
+		if (chan != NULL)
 			len += sprintf(buf + len, "%2d: %s\n",
 				       i, chan->dev_str);
-		}
 	}
 
 	if (fpos >= len) {
@@ -113,18 +112,19 @@ int au1000_dma_read_proc(char *buf, char **start, off_t fpos,
 		return 0;
 	}
 	*start = buf + fpos;
-	if ((len -= fpos) > length)
+	len -= fpos;
+	if (len > length)
 		return length;
 	*eof = 1;
 	return len;
 }
 
-// Device FIFO addresses and default DMA modes - 2nd bank
+/* Device FIFO addresses and default DMA modes - 2nd bank */
 static const struct dma_dev dma_dev_table_bank2[DMA_NUM_DEV_BANK2] = {
-	{SD0_XMIT_FIFO, DMA_DS | DMA_DW8},		// coherent
-	{SD0_RECV_FIFO, DMA_DS | DMA_DR | DMA_DW8},	// coherent
-	{SD1_XMIT_FIFO, DMA_DS | DMA_DW8},		// coherent
-	{SD1_RECV_FIFO, DMA_DS | DMA_DR | DMA_DW8}	// coherent
+	{ SD0_XMIT_FIFO, DMA_DS | DMA_DW8 },		/* coherent */
+	{ SD0_RECV_FIFO, DMA_DS | DMA_DR | DMA_DW8 },	/* coherent */
+	{ SD1_XMIT_FIFO, DMA_DS | DMA_DW8 },		/* coherent */
+	{ SD1_RECV_FIFO, DMA_DS | DMA_DR | DMA_DW8 }	/* coherent */
 };
 
 void dump_au1000_dma_channel(unsigned int dmanr)
@@ -150,7 +150,6 @@ void dump_au1000_dma_channel(unsigned int dmanr)
 	       au_readl(chan->io + DMA_BUFFER1_COUNT));
 }
 
-
 /*
  * Finds a free channel, and binds the requested device to it.
  * Returns the allocated channel number, or negative on error.
@@ -169,14 +168,14 @@ int request_au1000_dma(int dev_id, const char *dev_str,
 	if (dev_id < 0 || dev_id >= (DMA_NUM_DEV + DMA_NUM_DEV_BANK2))
 		return -EINVAL;
 #else
- 	if (dev_id < 0 || dev_id >= DMA_NUM_DEV)
+	if (dev_id < 0 || dev_id >= DMA_NUM_DEV)
 		return -EINVAL;
 #endif
 
-	for (i = 0; i < NUM_AU1000_DMA_CHANNELS; i++) {
+	for (i = 0; i < NUM_AU1000_DMA_CHANNELS; i++)
 		if (au1000_dma_table[i].dev_id < 0)
 			break;
-	}
+
 	if (i == NUM_AU1000_DMA_CHANNELS)
 		return -ENODEV;
 
@@ -185,15 +184,15 @@ int request_au1000_dma(int dev_id, const char *dev_str,
 	if (dev_id >= DMA_NUM_DEV) {
 		dev_id -= DMA_NUM_DEV;
 		dev = &dma_dev_table_bank2[dev_id];
-	} else {
+	} else
 		dev = &dma_dev_table[dev_id];
-	}
 
 	if (irqhandler) {
 		chan->irq = AU1000_DMA_INT_BASE + i;
 		chan->irq_dev = irq_dev_id;
-		if ((ret = request_irq(chan->irq, irqhandler, irqflags,
-				       dev_str, chan->irq_dev))) {
+		ret = request_irq(chan->irq, irqhandler, irqflags, dev_str,
+				  chan->irq_dev);
+		if (ret) {
 			chan->irq = 0;
 			chan->irq_dev = NULL;
 			return ret;
@@ -203,7 +202,7 @@ int request_au1000_dma(int dev_id, const char *dev_str,
 		chan->irq_dev = NULL;
 	}
 
-	// fill it in
+	/* fill it in */
 	chan->io = DMA_CHANNEL_BASE + i * DMA_CHANNEL_LEN;
 	chan->dev_id = dev_id;
 	chan->dev_str = dev_str;
@@ -220,8 +219,9 @@ EXPORT_SYMBOL(request_au1000_dma);
 void free_au1000_dma(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan) {
-		printk("Trying to free DMA%d\n", dmanr);
+		printk(KERN_ERR "Error trying to free DMA%d\n", dmanr);
 		return;
 	}
 
@@ -235,4 +235,4 @@ void free_au1000_dma(unsigned int dmanr)
 }
 EXPORT_SYMBOL(free_au1000_dma);
 
-#endif // AU1000 AU1500 AU1100
+#endif /* AU1000 AU1500 AU1100 */

@@ -22,6 +22,7 @@
 #include <linux/chio.h>			/* here are all the ioctls */
 #include <linux/mutex.h>
 #include <linux/idr.h>
+#include <linux/smp_lock.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -571,16 +572,19 @@ ch_open(struct inode *inode, struct file *file)
 	scsi_changer *ch;
 	int minor = iminor(inode);
 
+	lock_kernel();
 	spin_lock(&ch_index_lock);
 	ch = idr_find(&ch_index_idr, minor);
 
 	if (NULL == ch || scsi_device_get(ch->device)) {
 		spin_unlock(&ch_index_lock);
+		unlock_kernel();
 		return -ENXIO;
 	}
 	spin_unlock(&ch_index_lock);
 
 	file->private_data = ch;
+	unlock_kernel();
 	return 0;
 }
 
@@ -910,9 +914,9 @@ static int ch_probe(struct device *dev)
 	ch->minor = minor;
 	sprintf(ch->name,"ch%d",ch->minor);
 
-	class_dev = device_create(ch_sysfs_class, dev,
-				  MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
-				  "s%s", ch->name);
+	class_dev = device_create_drvdata(ch_sysfs_class, dev,
+					  MKDEV(SCSI_CHANGER_MAJOR, ch->minor),
+					  ch, "s%s", ch->name);
 	if (IS_ERR(class_dev)) {
 		printk(KERN_WARNING "ch%d: device_create failed\n",
 		       ch->minor);

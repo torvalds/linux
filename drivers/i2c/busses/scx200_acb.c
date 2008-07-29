@@ -442,7 +442,7 @@ static __init struct scx200_acb_iface *scx200_create_iface(const char *text,
 	adapter->owner = THIS_MODULE;
 	adapter->id = I2C_HW_SMBUS_SCX200;
 	adapter->algo = &scx200_acb_algorithm;
-	adapter->class = I2C_CLASS_HWMON;
+	adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adapter->dev.parent = dev;
 
 	mutex_init(&iface->mutex);

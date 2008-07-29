@@ -137,7 +137,7 @@ static int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u32 inst)
 	if (tlbe->word0 & PPC44x_TLB_VALID) {
 		eaddr = get_tlb_eaddr(tlbe);
 		asid = (tlbe->word0 & PPC44x_TLB_TS) | tlbe->tid;
-		kvmppc_mmu_invalidate(vcpu, eaddr, asid);
+		kvmppc_mmu_invalidate(vcpu, eaddr, get_tlb_end(tlbe), asid);
 	}
 
 	switch (ws) {
@@ -246,6 +246,11 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	case 31:
 		switch (get_xop(inst)) {
 
+		case 23:                                        /* lwzx */
+			rt = get_rt(inst);
+			emulated = kvmppc_handle_load(run, vcpu, rt, 4, 1);
+			break;
+
 		case 83:                                        /* mfmsr */
 			rt = get_rt(inst);
 			vcpu->arch.gpr[rt] = vcpu->arch.msr;
@@ -265,6 +270,13 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		case 146:                                       /* mtmsr */
 			rs = get_rs(inst);
 			kvmppc_set_msr(vcpu, vcpu->arch.gpr[rs]);
+			break;
+
+		case 151:                                       /* stwx */
+			rs = get_rs(inst);
+			emulated = kvmppc_handle_store(run, vcpu,
+			                               vcpu->arch.gpr[rs],
+			                               4, 1);
 			break;
 
 		case 163:                                       /* wrteei */

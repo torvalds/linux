@@ -6,6 +6,7 @@
 #ifdef __KERNEL__
 # include <linux/cache.h>
 # include <linux/seqlock.h>
+# include <linux/math64.h>
 #endif
 
 #ifndef _STRUCT_TIMESPEC
@@ -169,18 +170,13 @@ extern struct timeval ns_to_timeval(const s64 nsec);
  * timespec_add_ns - Adds nanoseconds to a timespec
  * @a:		pointer to timespec to be incremented
  * @ns:		unsigned nanoseconds value to be added
+ *
+ * This must always be inlined because its used from the x86-64 vdso,
+ * which cannot call other kernel functions.
  */
-static inline void timespec_add_ns(struct timespec *a, u64 ns)
+static __always_inline void timespec_add_ns(struct timespec *a, u64 ns)
 {
-	ns += a->tv_nsec;
-	while(unlikely(ns >= NSEC_PER_SEC)) {
-		/* The following asm() prevents the compiler from
-		 * optimising this loop into a modulo operation.  */
-		asm("" : "+r"(ns));
-
-		ns -= NSEC_PER_SEC;
-		a->tv_sec++;
-	}
+	a->tv_sec += __iter_div_u64_rem(a->tv_nsec + ns, NSEC_PER_SEC, &ns);
 	a->tv_nsec = ns;
 }
 #endif /* __KERNEL__ */

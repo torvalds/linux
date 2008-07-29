@@ -1,4 +1,4 @@
-Version 1.52 January 3, 2008
+Version 1.53 May 20, 2008
 
 A Partial List of Missing Features
 ==================================
@@ -20,19 +20,20 @@ d) Cleanup now unneeded SessSetup code in
 fs/cifs/connect.c and add back in NTLMSSP code if any servers
 need it
 
-e) ms-dfs and ms-dfs host name resolution cleanup
-
-f) fix NTLMv2 signing when two mounts with different users to same
+e) fix NTLMv2 signing when two mounts with different users to same
 server.
 
-g) Directory entry caching relies on a 1 second timer, rather than 
+f) Directory entry caching relies on a 1 second timer, rather than 
 using FindNotify or equivalent.  - (started)
 
-h) quota support (needs minor kernel change since quota calls
+g) quota support (needs minor kernel change since quota calls
 to make it to network filesystems or deviceless filesystems)
 
-i) investigate sync behavior (including syncpage) and check  
+h) investigate sync behavior (including syncpage) and check  
 for proper behavior of intr/nointr
+
+i) improve support for very old servers (OS/2 and Win9x for example)
+Including support for changing the time remotely (utimes command).
 
 j) hook lower into the sockets api (as NFS/SunRPC does) to avoid the
 extra copy in/out of the socket buffers in some cases.

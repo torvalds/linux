@@ -910,15 +910,21 @@ static void dvb_ca_en50221_thread_update_delay(struct dvb_ca_private *ca)
 	int curdelay = 100000000;
 	int slot;
 
+	/* Beware of too high polling frequency, because one polling
+	 * call might take several hundred milliseconds until timeout!
+	 */
 	for (slot = 0; slot < ca->slot_count; slot++) {
 		switch (ca->slot_info[slot].slot_state) {
 		default:
 		case DVB_CA_SLOTSTATE_NONE:
+			delay = HZ * 60;  /* 60s */
+			if (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE))
+				delay = HZ * 5;  /* 5s */
+			break;
 		case DVB_CA_SLOTSTATE_INVALID:
-			delay = HZ * 60;
-			if (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE)) {
-				delay = HZ / 10;
-			}
+			delay = HZ * 60;  /* 60s */
+			if (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE))
+				delay = HZ / 10;  /* 100ms */
 			break;
 
 		case DVB_CA_SLOTSTATE_UNINITIALISED:
@@ -926,19 +932,17 @@ static void dvb_ca_en50221_thread_update_delay(struct dvb_ca_private *ca)
 		case DVB_CA_SLOTSTATE_VALIDATE:
 		case DVB_CA_SLOTSTATE_WAITFR:
 		case DVB_CA_SLOTSTATE_LINKINIT:
-			delay = HZ / 10;
+			delay = HZ / 10;  /* 100ms */
 			break;
 
 		case DVB_CA_SLOTSTATE_RUNNING:
-			delay = HZ * 60;
-			if (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE)) {
-				delay = HZ / 10;
-			}
+			delay = HZ * 60;  /* 60s */
+			if (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE))
+				delay = HZ / 10;  /* 100ms */
 			if (ca->open) {
 				if ((!ca->slot_info[slot].da_irq_supported) ||
-				    (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_DA))) {
-					delay = HZ / 10;
-				}
+				    (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_DA)))
+					delay = HZ / 10;  /* 100ms */
 			}
 			break;
 		}
@@ -1353,7 +1357,7 @@ static int dvb_ca_en50221_io_read_condition(struct dvb_ca_private *ca,
 
 		idx = dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer, -1, &fraglen);
 		while (idx != -1) {
-			dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2, 0);
+			dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2);
 			if (connection_id == -1)
 				connection_id = hdr[0];
 			if ((hdr[0] == connection_id) && ((hdr[1] & 0x80) == 0)) {
@@ -1434,7 +1438,7 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user * buf,
 			goto exit;
 		}
 
-		dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2, 0);
+		dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2);
 		if (connection_id == -1)
 			connection_id = hdr[0];
 		if (hdr[0] == connection_id) {
@@ -1445,8 +1449,8 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user * buf,
 					fraglen -= 2;
 				}
 
-				if ((status = dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 2,
-								      (u8 *)buf + pktlen, fraglen, 1)) < 0) {
+				if ((status = dvb_ringbuffer_pkt_read_user(&ca->slot_info[slot].rx_buffer, idx, 2,
+								      buf + pktlen, fraglen)) < 0) {
 					goto exit;
 				}
 				pktlen += fraglen;

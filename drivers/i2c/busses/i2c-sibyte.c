@@ -132,18 +132,18 @@ static const struct i2c_algorithm i2c_sibyte_algo = {
 /*
  * registering functions to load algorithms at runtime
  */
-int __init i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
+static int __init i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
 {
 	struct i2c_algo_sibyte_data *adap = i2c_adap->algo_data;
 
-	/* register new adapter to i2c module... */
+	/* Register new adapter to i2c module... */
 	i2c_adap->algo = &i2c_sibyte_algo;
 
-	/* Set the frequency to 100 kHz */
+	/* Set the requested frequency. */
 	csr_out32(speed, SMB_CSR(adap,R_SMB_FREQ));
 	csr_out32(0, SMB_CSR(adap,R_SMB_CONTROL));
 
-	return i2c_add_adapter(i2c_adap);
+	return i2c_add_numbered_adapter(i2c_adap);
 }
 
 
@@ -156,17 +156,19 @@ static struct i2c_adapter sibyte_board_adapter[2] = {
 	{
 		.owner		= THIS_MODULE,
 		.id		= I2C_HW_SIBYTE,
-		.class		= I2C_CLASS_HWMON,
+		.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 		.algo		= NULL,
 		.algo_data	= &sibyte_board_data[0],
+		.nr		= 0,
 		.name		= "SiByte SMBus 0",
 	},
 	{
 		.owner		= THIS_MODULE,
 		.id		= I2C_HW_SIBYTE,
-		.class		= I2C_CLASS_HWMON,
+		.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 		.algo		= NULL,
 		.algo_data	= &sibyte_board_data[1],
+		.nr		= 1,
 		.name		= "SiByte SMBus 1",
 	},
 };

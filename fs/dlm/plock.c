@@ -116,7 +116,7 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	if (xop->callback == NULL)
 		wait_event(recv_wq, (op->done != 0));
 	else {
-		rv = -EINPROGRESS;
+		rv = FILE_LOCK_DEFERRED;
 		goto out;
 	}
 
@@ -379,7 +379,7 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 		struct plock_xop *xop;
 		xop = (struct plock_xop *)op;
 		if (xop->callback)
-			count = dlm_plock_callback(op);
+			dlm_plock_callback(op);
 		else
 			wake_up(&recv_wq);
 	} else

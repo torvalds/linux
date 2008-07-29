@@ -37,10 +37,10 @@ struct mt312_config {
 };
 
 #if defined(CONFIG_DVB_MT312) || (defined(CONFIG_DVB_MT312_MODULE) && defined(MODULE))
-struct dvb_frontend *vp310_mt312_attach(const struct mt312_config *config,
+struct dvb_frontend *mt312_attach(const struct mt312_config *config,
 					struct i2c_adapter *i2c);
 #else
-static inline struct dvb_frontend *vp310_mt312_attach(
+static inline struct dvb_frontend *mt312_attach(
 	const struct mt312_config *config, struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);

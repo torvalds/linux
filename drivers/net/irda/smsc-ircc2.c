@@ -1,5 +1,4 @@
 /*********************************************************************
- * $Id: smsc-ircc2.c,v 1.19.2.5 2002/10/27 11:34:26 dip Exp $
  *
  * Description:   Driver for the SMC Infrared Communications Controller
  * Status:        Experimental.
@@ -376,6 +375,7 @@ MODULE_DEVICE_TABLE(pnp, smsc_ircc_pnp_table);
 
 static int pnp_driver_registered;
 
+#ifdef CONFIG_PNP
 static int __init smsc_ircc_pnp_probe(struct pnp_dev *dev,
 				      const struct pnp_device_id *dev_id)
 {
@@ -402,7 +402,9 @@ static struct pnp_driver smsc_ircc_pnp_driver = {
 	.id_table	= smsc_ircc_pnp_table,
 	.probe		= smsc_ircc_pnp_probe,
 };
-
+#else /* CONFIG_PNP */
+static struct pnp_driver smsc_ircc_pnp_driver;
+#endif
 
 /*******************************************************************************
  *

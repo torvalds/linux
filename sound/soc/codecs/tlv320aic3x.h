@@ -37,6 +37,8 @@
 #define AIC3X_ASD_INTF_CTRLB		9
 /* Audio overflow status and PLL R value programming register */
 #define AIC3X_OVRF_STATUS_AND_PLLR_REG	11
+/* Audio codec digital filter control register */
+#define AIC3X_CODEC_DFILT_CTRL		12
 
 /* ADC PGA Gain control registers */
 #define LADC_VOL			15
@@ -108,6 +110,13 @@
 #define DACR1_2_RLOPM_VOL		92
 #define LLOPM_CTRL			86
 #define RLOPM_CTRL			93
+/* GPIO/IRQ registers */
+#define AIC3X_STICKY_IRQ_FLAGS_REG	96
+#define AIC3X_RT_IRQ_FLAGS_REG		97
+#define AIC3X_GPIO1_REG			98
+#define AIC3X_GPIO2_REG			99
+#define AIC3X_GPIOA_REG			100
+#define AIC3X_GPIOB_REG			101
 /* Clock generation control register */
 #define AIC3X_CLKGEN_CTRL_REG		102
 
@@ -128,12 +137,15 @@
 
 /* PLL registers bitfields */
 #define PLLP_SHIFT		0
+#define PLLQ_SHIFT		3
 #define PLLR_SHIFT		0
 #define PLLJ_SHIFT		2
 #define PLLD_MSB_SHIFT		0
 #define PLLD_LSB_SHIFT		2
 
 /* Clock generation register bits */
+#define CODEC_CLKIN_PLLDIV	0
+#define CODEC_CLKIN_CLKDIV	1
 #define PLL_CLKIN_SHIFT		4
 #define MCLK_SOURCE		0x0
 #define PLL_CLKDIV_SHIFT	0
@@ -171,11 +183,52 @@
 /* Default input volume */
 #define DEFAULT_GAIN    0x20
 
-struct aic3x_setup_data {
-	unsigned short i2c_address;
+/* GPIO API */
+enum {
+	AIC3X_GPIO1_FUNC_DISABLED		= 0,
+	AIC3X_GPIO1_FUNC_AUDIO_WORDCLK_ADC	= 1,
+	AIC3X_GPIO1_FUNC_CLOCK_MUX		= 2,
+	AIC3X_GPIO1_FUNC_CLOCK_MUX_DIV2		= 3,
+	AIC3X_GPIO1_FUNC_CLOCK_MUX_DIV4		= 4,
+	AIC3X_GPIO1_FUNC_CLOCK_MUX_DIV8		= 5,
+	AIC3X_GPIO1_FUNC_SHORT_CIRCUIT_IRQ	= 6,
+	AIC3X_GPIO1_FUNC_AGC_NOISE_IRQ		= 7,
+	AIC3X_GPIO1_FUNC_INPUT			= 8,
+	AIC3X_GPIO1_FUNC_OUTPUT			= 9,
+	AIC3X_GPIO1_FUNC_DIGITAL_MIC_MODCLK	= 10,
+	AIC3X_GPIO1_FUNC_AUDIO_WORDCLK		= 11,
+	AIC3X_GPIO1_FUNC_BUTTON_IRQ		= 12,
+	AIC3X_GPIO1_FUNC_HEADSET_DETECT_IRQ	= 13,
+	AIC3X_GPIO1_FUNC_HEADSET_DETECT_OR_BUTTON_IRQ	= 14,
+	AIC3X_GPIO1_FUNC_ALL_IRQ		= 16
 };
 
-extern struct snd_soc_codec_dai aic3x_dai;
+enum {
+	AIC3X_GPIO2_FUNC_DISABLED		= 0,
+	AIC3X_GPIO2_FUNC_HEADSET_DETECT_IRQ	= 2,
+	AIC3X_GPIO2_FUNC_INPUT			= 3,
+	AIC3X_GPIO2_FUNC_OUTPUT			= 4,
+	AIC3X_GPIO2_FUNC_DIGITAL_MIC_INPUT	= 5,
+	AIC3X_GPIO2_FUNC_AUDIO_BITCLK		= 8,
+	AIC3X_GPIO2_FUNC_HEADSET_DETECT_OR_BUTTON_IRQ = 9,
+	AIC3X_GPIO2_FUNC_ALL_IRQ		= 10,
+	AIC3X_GPIO2_FUNC_SHORT_CIRCUIT_OR_AGC_IRQ = 11,
+	AIC3X_GPIO2_FUNC_HEADSET_OR_BUTTON_PRESS_OR_SHORT_CIRCUIT_IRQ = 12,
+	AIC3X_GPIO2_FUNC_SHORT_CIRCUIT_IRQ	= 13,
+	AIC3X_GPIO2_FUNC_AGC_NOISE_IRQ		= 14,
+	AIC3X_GPIO2_FUNC_BUTTON_PRESS_IRQ	= 15
+};
+
+void aic3x_set_gpio(struct snd_soc_codec *codec, int gpio, int state);
+int aic3x_get_gpio(struct snd_soc_codec *codec, int gpio);
+int aic3x_headset_detected(struct snd_soc_codec *codec);
+
+struct aic3x_setup_data {
+	unsigned short i2c_address;
+	unsigned int gpio_func[2];
+};
+
+extern struct snd_soc_dai aic3x_dai;
 extern struct snd_soc_codec_device soc_codec_dev_aic3x;
 
 #endif /* _AIC3X_H */

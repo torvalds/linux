@@ -9,10 +9,9 @@
 #include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
-#include <asm/of_device.h>
 
 /* XXX This device has a 'dev-comm' property which aparently is
  * XXX a pointer into the openfirmware's address space which is

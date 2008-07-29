@@ -369,7 +369,8 @@ static int impd1_probe(struct lm_device *dev)
 
 	lm_set_drvdata(dev, impd1);
 
-	printk("IM-PD1 found at 0x%08lx\n", dev->resource.start);
+	printk("IM-PD1 found at 0x%08lx\n",
+		(unsigned long)dev->resource.start);
 
 	for (i = 0; i < ARRAY_SIZE(impd1->vcos); i++) {
 		impd1->vcos[i].owner = THIS_MODULE,
@@ -392,9 +393,7 @@ static int impd1_probe(struct lm_device *dev)
 		if (!d)
 			continue;
 
-		snprintf(d->dev.bus_id, sizeof(d->dev.bus_id),
-			 "lm%x:%5.5lx", dev->id, idev->offset >> 12);
-
+		dev_set_name(&d->dev, "lm%x:%5.5lx", dev->id, idev->offset >> 12);
 		d->dev.parent	= &dev->dev;
 		d->res.start	= dev->resource.start + idev->offset;
 		d->res.end	= d->res.start + SZ_4K - 1;
@@ -406,8 +405,7 @@ static int impd1_probe(struct lm_device *dev)
 
 		ret = amba_device_register(d, &dev->resource);
 		if (ret) {
-			printk("unable to register device %s: %d\n",
-				d->dev.bus_id, ret);
+			dev_err(&d->dev, "unable to register device: %d\n");
 			kfree(d);
 		}
 	}

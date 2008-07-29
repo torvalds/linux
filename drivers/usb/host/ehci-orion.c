@@ -115,6 +115,8 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
+	hcd->has_tt = 1;
+
 	ehci_reset(ehci);
 	ehci_port_power(ehci, 0);
 
@@ -137,10 +139,6 @@ static const struct hc_driver ehci_orion_hc_driver = {
 	 */
 	.reset = ehci_orion_setup,
 	.start = ehci_run,
-#ifdef CONFIG_PM
-	.suspend = ehci_bus_suspend,
-	.resume = ehci_bus_resume,
-#endif
 	.stop = ehci_stop,
 	.shutdown = ehci_shutdown,
 
@@ -163,6 +161,8 @@ static const struct hc_driver ehci_orion_hc_driver = {
 	.hub_control = ehci_hub_control,
 	.bus_suspend = ehci_bus_suspend,
 	.bus_resume = ehci_bus_resume,
+	.relinquish_port = ehci_relinquish_port,
+	.port_handed_over = ehci_port_handed_over,
 };
 
 static void __init
@@ -204,7 +204,7 @@ static int __init ehci_orion_drv_probe(struct platform_device *pdev)
 	if (irq <= 0) {
 		dev_err(&pdev->dev,
 			"Found HC with no IRQ. Check %s setup!\n",
-			pdev->dev.bus_id);
+			dev_name(&pdev->dev));
 		err = -ENODEV;
 		goto err1;
 	}
@@ -213,7 +213,7 @@ static int __init ehci_orion_drv_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(&pdev->dev,
 			"Found HC with no register addr. Check %s setup!\n",
-			pdev->dev.bus_id);
+			dev_name(&pdev->dev));
 		err = -ENODEV;
 		goto err1;
 	}
@@ -233,7 +233,7 @@ static int __init ehci_orion_drv_probe(struct platform_device *pdev)
 	}
 
 	hcd = usb_create_hcd(&ehci_orion_hc_driver,
-			&pdev->dev, pdev->dev.bus_id);
+			&pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		err = -ENOMEM;
 		goto err3;
@@ -248,7 +248,7 @@ static int __init ehci_orion_drv_probe(struct platform_device *pdev)
 	ehci->regs = hcd->regs + 0x100 +
 		HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
-	ehci->is_tdi_rh_tt = 1;
+	hcd->has_tt = 1;
 	ehci->sbrn = 0x20;
 
 	/*
@@ -276,7 +276,7 @@ err2:
 	release_mem_region(res->start, res->end - res->start + 1);
 err1:
 	dev_err(&pdev->dev, "init %s fail, %d\n",
-		pdev->dev.bus_id, err);
+		dev_name(&pdev->dev), err);
 
 	return err;
 }

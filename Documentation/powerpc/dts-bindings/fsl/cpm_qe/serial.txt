@@ -1,0 +1,21 @@
+* Serial
+
+Currently defined compatibles:
+- fsl,cpm1-smc-uart
+- fsl,cpm2-smc-uart
+- fsl,cpm1-scc-uart
+- fsl,cpm2-scc-uart
+- fsl,qe-uart
+
+Example:
+
+	serial@11a00 {
+		device_type = "serial";
+		compatible = "fsl,mpc8272-scc-uart",
+			     "fsl,cpm2-scc-uart";
+		reg = <11a00 20 8000 100>;
+		interrupts = <28 8>;
+		interrupt-parent = <&PIC>;
+		fsl,cpm-brg = <1>;
+		fsl,cpm-command = <00800000>;
+	};

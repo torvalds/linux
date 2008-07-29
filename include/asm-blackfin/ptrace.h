@@ -83,13 +83,13 @@ struct pt_regs {
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13	/* ptrace signal  */
 
-#ifdef CONFIG_BINFMT_ELF_FDPIC
 #define PTRACE_GETFDPIC           31
 #define PTRACE_GETFDPIC_EXEC      0
 #define PTRACE_GETFDPIC_INTERP    1
-#endif
 
 #define PS_S  (0x0002)
+
+#ifdef __KERNEL__
 
 /* user_mode returns true if only one bit is set in IPEND, other than the
    master interrupt enable.  */
@@ -97,6 +97,8 @@ struct pt_regs {
 #define instruction_pointer(regs) ((regs)->pc)
 #define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs *);
+
+#endif  /*  __KERNEL__  */
 
 #endif				/* __ASSEMBLY__ */
 

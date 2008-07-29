@@ -33,15 +33,11 @@
 
 #define I2C_DRIVERID_MSP3400	 1
 #define I2C_DRIVERID_TUNER	 2
-#define I2C_DRIVERID_TDA8425	 4	/* stereo sound processor	*/
 #define I2C_DRIVERID_TEA6420	 5	/* audio matrix switch		*/
 #define I2C_DRIVERID_TEA6415C	 6	/* video matrix switch		*/
 #define I2C_DRIVERID_TDA9840	 7	/* stereo sound processor	*/
 #define I2C_DRIVERID_SAA7111A	 8	/* video input processor	*/
 #define I2C_DRIVERID_SAA7185B	13	/* video encoder		*/
-#define I2C_DRIVERID_TEA6300	18	/* audio mixer			*/
-#define I2C_DRIVERID_TDA9850	20	/* audio mixer			*/
-#define I2C_DRIVERID_TDA9855	21	/* audio mixer			*/
 #define I2C_DRIVERID_SAA7110	22	/* video decoder		*/
 #define I2C_DRIVERID_MGATVO	23	/* Matrox TVOut			*/
 #define I2C_DRIVERID_SAA5249	24	/* SAA5249 and compatibles	*/
@@ -50,9 +46,7 @@
 #define I2C_DRIVERID_TDA7432	27	/* Stereo sound processor	*/
 #define I2C_DRIVERID_TVMIXER    28      /* Mixer driver for tv cards    */
 #define I2C_DRIVERID_TVAUDIO    29      /* Generic TV sound driver      */
-#define I2C_DRIVERID_TDA9873    31      /* TV sound decoder chip        */
 #define I2C_DRIVERID_TDA9875    32      /* TV sound decoder chip        */
-#define I2C_DRIVERID_PIC16C54_PV9 33    /* Audio mux/ir receiver        */
 #define I2C_DRIVERID_BT819	40     /* video decoder			*/
 #define I2C_DRIVERID_BT856	41     /* video encoder			*/
 #define I2C_DRIVERID_VPX3220	42     /* video decoder+vbi/vtxt	*/
@@ -63,7 +57,6 @@
 #define I2C_DRIVERID_INDYCAM	58	/* SGI IndyCam			*/
 #define I2C_DRIVERID_OVCAMCHIP	61	/* OmniVision CMOS image sens.	*/
 #define I2C_DRIVERID_MAX6900	63	/* MAX6900 real-time clock	*/
-#define I2C_DRIVERID_TDA9874	66	/* TV sound decoder		*/
 #define I2C_DRIVERID_SAA6752HS	67	/* MPEG2 encoder		*/
 #define I2C_DRIVERID_TVEEPROM	68	/* TV EEPROM			*/
 #define I2C_DRIVERID_WM8775	69	/* wm8775 audio processor	*/
@@ -91,8 +84,6 @@
 #define I2C_DRIVERID_M52790 	95      /* Mitsubishi M52790SP/FP AV switch */
 #define I2C_DRIVERID_CS5345	96	/* cs5345 audio processor	*/
 
-#define I2C_DRIVERID_I2CDEV	900
-
 #define I2C_DRIVERID_OV7670 1048	/* Omnivision 7670 camera */
 
 /*
@@ -111,7 +102,6 @@
 #define I2C_HW_B_RIVA		0x010010 /* Riva based graphics cards */
 #define I2C_HW_B_IOC		0x010011 /* IOC bit-wiggling */
 #define I2C_HW_B_IXP2000	0x010016 /* GPIO on IXP2000 systems */
-#define I2C_HW_B_S3VIA		0x010018 /* S3Via ProSavage adapter */
 #define I2C_HW_B_ZR36067	0x010019 /* Zoran-36057/36067 based boards */
 #define I2C_HW_B_PCILYNX	0x01001a /* TI PCILynx I2C adapter */
 #define I2C_HW_B_CX2388x	0x01001b /* connexant 2388x based tv cards */
@@ -161,7 +151,6 @@
 #define I2C_HW_SMBUS_W9968CF	0x04000d
 #define I2C_HW_SMBUS_OV511	0x04000e /* OV511(+) USB 1.1 webcam ICs */
 #define I2C_HW_SMBUS_OV518	0x04000f /* OV518(+) USB 1.1 webcam ICs */
-#define I2C_HW_SMBUS_OVFX2	0x040011 /* Cypress/OmniVision FX2 webcam */
 #define I2C_HW_SMBUS_CAFE	0x040012 /* Marvell 88ALP01 "CAFE" cam  */
 #define I2C_HW_SMBUS_ALI1563	0x040013
 

@@ -49,6 +49,7 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
 #include <linux/kernel.h>	/* for printk */
 #include <linux/sched.h>
 #include <linux/reboot.h>
+#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 
@@ -270,8 +271,8 @@ rebuild_sys_tab:
 		pHba->initialized = TRUE;
 		pHba->state &= ~DPTI_STATE_RESET;
 		if (adpt_sysfs_class) {
-			struct device *dev = device_create(adpt_sysfs_class,
-				NULL, MKDEV(DPTI_I2O_MAJOR, pHba->unit),
+			struct device *dev = device_create_drvdata(adpt_sysfs_class,
+				NULL, MKDEV(DPTI_I2O_MAJOR, pHba->unit), NULL,
 				"dpti%d", pHba->unit);
 			if (IS_ERR(dev)) {
 				printk(KERN_WARNING"dpti%d: unable to "
@@ -1727,10 +1728,12 @@ static int adpt_open(struct inode *inode, struct file *file)
 	int minor;
 	adpt_hba* pHba;
 
+	lock_kernel();
 	//TODO check for root access
 	//
 	minor = iminor(inode);
 	if (minor >= hba_count) {
+		unlock_kernel();
 		return -ENXIO;
 	}
 	mutex_lock(&adpt_configuration_lock);
@@ -1741,6 +1744,7 @@ static int adpt_open(struct inode *inode, struct file *file)
 	}
 	if (pHba == NULL) {
 		mutex_unlock(&adpt_configuration_lock);
+		unlock_kernel();
 		return -ENXIO;
 	}
 
@@ -1751,6 +1755,7 @@ static int adpt_open(struct inode *inode, struct file *file)
 
 	pHba->in_use = 1;
 	mutex_unlock(&adpt_configuration_lock);
+	unlock_kernel();
 
 	return 0;
 }
@@ -1967,45 +1972,6 @@ cleanup:
 	return rcode;
 }
 
-
-/*
- * This routine returns information about the system.  This does not effect
- * any logic and if the info is wrong - it doesn't matter.
- */
-
-/* Get all the info we can not get from kernel services */
-static int adpt_system_info(void __user *buffer)
-{
-	sysInfo_S si;
-
-	memset(&si, 0, sizeof(si));
-
-	si.osType = OS_LINUX;
-	si.osMajorVersion = 0;
-	si.osMinorVersion = 0;
-	si.osRevision = 0;
-	si.busType = SI_PCI_BUS;
-	si.processorFamily = DPTI_sig.dsProcessorFamily;
-
-#if defined __i386__ 
-	adpt_i386_info(&si);
-#elif defined (__ia64__)
-	adpt_ia64_info(&si);
-#elif defined(__sparc__)
-	adpt_sparc_info(&si);
-#elif defined (__alpha__)
-	adpt_alpha_info(&si);
-#else
-	si.processorType = 0xff ;
-#endif
-	if(copy_to_user(buffer, &si, sizeof(si))){
-		printk(KERN_WARNING"dpti: Could not copy buffer TO user\n");
-		return -EFAULT;
-	}
-
-	return 0;
-}
-
 #if defined __ia64__ 
 static void adpt_ia64_info(sysInfo_S* si)
 {
@@ -2016,7 +1982,6 @@ static void adpt_ia64_info(sysInfo_S* si)
 }
 #endif
 
-
 #if defined __sparc__ 
 static void adpt_sparc_info(sysInfo_S* si)
 {
@@ -2026,7 +1991,6 @@ static void adpt_sparc_info(sysInfo_S* si)
 	si->processorType = PROC_ULTRASPARC;
 }
 #endif
-
 #if defined __alpha__ 
 static void adpt_alpha_info(sysInfo_S* si)
 {
@@ -2038,7 +2002,6 @@ static void adpt_alpha_info(sysInfo_S* si)
 #endif
 
 #if defined __i386__
-
 static void adpt_i386_info(sysInfo_S* si)
 {
 	// This is all the info we need for now
@@ -2059,9 +2022,45 @@ static void adpt_i386_info(sysInfo_S* si)
 		break;
 	}
 }
-
 #endif
 
+/*
+ * This routine returns information about the system.  This does not effect
+ * any logic and if the info is wrong - it doesn't matter.
+ */
+
+/* Get all the info we can not get from kernel services */
+static int adpt_system_info(void __user *buffer)
+{
+	sysInfo_S si;
+
+	memset(&si, 0, sizeof(si));
+
+	si.osType = OS_LINUX;
+	si.osMajorVersion = 0;
+	si.osMinorVersion = 0;
+	si.osRevision = 0;
+	si.busType = SI_PCI_BUS;
+	si.processorFamily = DPTI_sig.dsProcessorFamily;
+
+#if defined __i386__
+	adpt_i386_info(&si);
+#elif defined (__ia64__)
+	adpt_ia64_info(&si);
+#elif defined(__sparc__)
+	adpt_sparc_info(&si);
+#elif defined (__alpha__)
+	adpt_alpha_info(&si);
+#else
+	si.processorType = 0xff ;
+#endif
+	if (copy_to_user(buffer, &si, sizeof(si))){
+		printk(KERN_WARNING"dpti: Could not copy buffer TO user\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
 
 static int adpt_ioctl(struct inode *inode, struct file *file, uint cmd,
 	      ulong arg)

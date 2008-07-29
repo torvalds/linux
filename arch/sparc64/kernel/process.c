@@ -1,6 +1,6 @@
 /*  arch/sparc64/kernel/process.c
  *
- *  Copyright (C) 1995, 1996 David S. Miller (davem@caip.rutgers.edu)
+ *  Copyright (C) 1995, 1996, 2008 David S. Miller (davem@davemloft.net)
  *  Copyright (C) 1996       Eddie C. Dost   (ecd@skynet.be)
  *  Copyright (C) 1997, 1998 Jakub Jelinek   (jj@sunsite.mff.cuni.cz)
  */
@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/kallsyms.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/smp.h>
@@ -30,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/elfcore.h>
+#include <linux/sysrq.h>
 
 #include <asm/oplib.h>
 #include <asm/uaccess.h>
@@ -49,6 +49,8 @@
 #include <asm/sstate.h>
 #include <asm/reboot.h>
 #include <asm/syscalls.h>
+#include <asm/irq_regs.h>
+#include <asm/smp.h>
 
 /* #define VERBOSE_SHOWREGS */
 
@@ -94,7 +96,7 @@ void cpu_idle(void)
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while(1) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 
 		while (!need_resched() && !cpu_is_offline(cpu))
 			sparc64_yield(cpu);
@@ -208,7 +210,7 @@ static void show_regwindow(struct pt_regs *regs)
 	printk("i4: %016lx i5: %016lx i6: %016lx i7: %016lx\n",
 	       rwk->ins[4], rwk->ins[5], rwk->ins[6], rwk->ins[7]);
 	if (regs->tstate & TSTATE_PRIV)
-		print_symbol("I7: <%s>\n", rwk->ins[7]);
+		printk("I7: <%pS>\n", (void *) rwk->ins[7]);
 }
 
 #ifdef CONFIG_SMP
@@ -229,7 +231,7 @@ void __show_regs(struct pt_regs * regs)
 #endif
 	printk("TSTATE: %016lx TPC: %016lx TNPC: %016lx Y: %08x    %s\n", regs->tstate,
 	       regs->tpc, regs->tnpc, regs->y, print_tainted());
-	print_symbol("TPC: <%s>\n", regs->tpc);
+	printk("TPC: <%pS>\n", (void *) regs->tpc);
 	printk("g0: %016lx g1: %016lx g2: %016lx g3: %016lx\n",
 	       regs->u_regs[0], regs->u_regs[1], regs->u_regs[2],
 	       regs->u_regs[3]);
@@ -242,7 +244,7 @@ void __show_regs(struct pt_regs * regs)
 	printk("o4: %016lx o5: %016lx sp: %016lx ret_pc: %016lx\n",
 	       regs->u_regs[12], regs->u_regs[13], regs->u_regs[14],
 	       regs->u_regs[15]);
-	print_symbol("RPC: <%s>\n", regs->u_regs[15]);
+	printk("RPC: <%pS>\n", (void *) regs->u_regs[15]);
 	show_regwindow(regs);
 #ifdef CONFIG_SMP
 	spin_unlock(&regdump_lock);
@@ -297,6 +299,111 @@ void show_regs(struct pt_regs *regs)
 	}
 #endif
 }
+
+#ifdef CONFIG_MAGIC_SYSRQ
+struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
+static DEFINE_SPINLOCK(global_reg_snapshot_lock);
+
+static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
+			      int this_cpu)
+{
+	flushw_all();
+
+	global_reg_snapshot[this_cpu].tstate = regs->tstate;
+	global_reg_snapshot[this_cpu].tpc = regs->tpc;
+	global_reg_snapshot[this_cpu].tnpc = regs->tnpc;
+	global_reg_snapshot[this_cpu].o7 = regs->u_regs[UREG_I7];
+
+	if (regs->tstate & TSTATE_PRIV) {
+		struct reg_window *rw;
+
+		rw = (struct reg_window *)
+			(regs->u_regs[UREG_FP] + STACK_BIAS);
+		global_reg_snapshot[this_cpu].i7 = rw->ins[6];
+	} else
+		global_reg_snapshot[this_cpu].i7 = 0;
+
+	global_reg_snapshot[this_cpu].thread = tp;
+}
+
+/* In order to avoid hangs we do not try to synchronize with the
+ * global register dump client cpus.  The last store they make is to
+ * the thread pointer, so do a short poll waiting for that to become
+ * non-NULL.
+ */
+static void __global_reg_poll(struct global_reg_snapshot *gp)
+{
+	int limit = 0;
+
+	while (!gp->thread && ++limit < 100) {
+		barrier();
+		udelay(1);
+	}
+}
+
+static void sysrq_handle_globreg(int key, struct tty_struct *tty)
+{
+	struct thread_info *tp = current_thread_info();
+	struct pt_regs *regs = get_irq_regs();
+	unsigned long flags;
+	int this_cpu, cpu;
+
+	if (!regs)
+		regs = tp->kregs;
+
+	spin_lock_irqsave(&global_reg_snapshot_lock, flags);
+
+	memset(global_reg_snapshot, 0, sizeof(global_reg_snapshot));
+
+	this_cpu = raw_smp_processor_id();
+
+	__global_reg_self(tp, regs, this_cpu);
+
+	smp_fetch_global_regs();
+
+	for_each_online_cpu(cpu) {
+		struct global_reg_snapshot *gp = &global_reg_snapshot[cpu];
+		struct thread_info *tp;
+
+		__global_reg_poll(gp);
+
+		tp = gp->thread;
+		printk("%c CPU[%3d]: TSTATE[%016lx] TPC[%016lx] TNPC[%016lx] TASK[%s:%d]\n",
+		       (cpu == this_cpu ? '*' : ' '), cpu,
+		       gp->tstate, gp->tpc, gp->tnpc,
+		       ((tp && tp->task) ? tp->task->comm : "NULL"),
+		       ((tp && tp->task) ? tp->task->pid : -1));
+
+		if (gp->tstate & TSTATE_PRIV) {
+			printk("             TPC[%pS] O7[%pS] I7[%pS]\n",
+			       (void *) gp->tpc,
+			       (void *) gp->o7,
+			       (void *) gp->i7);
+		} else {
+			printk("             TPC[%lx] O7[%lx] I7[%lx]\n",
+			       gp->tpc, gp->o7, gp->i7);
+		}
+	}
+
+	memset(global_reg_snapshot, 0, sizeof(global_reg_snapshot));
+
+	spin_unlock_irqrestore(&global_reg_snapshot_lock, flags);
+}
+
+static struct sysrq_key_op sparc_globalreg_op = {
+	.handler	= sysrq_handle_globreg,
+	.help_msg	= "Globalregs",
+	.action_msg	= "Show Global CPU Regs",
+};
+
+static int __init sparc_globreg_init(void)
+{
+	return register_sysrq_key('y', &sparc_globalreg_op);
+}
+
+core_initcall(sparc_globreg_init);
+
+#endif
 
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
@@ -503,6 +610,8 @@ asmlinkage long sparc_do_fork(unsigned long clone_flags,
 			      unsigned long stack_size)
 {
 	int __user *parent_tid_ptr, *child_tid_ptr;
+	unsigned long orig_i1 = regs->u_regs[UREG_I1];
+	long ret;
 
 #ifdef CONFIG_COMPAT
 	if (test_thread_flag(TIF_32BIT)) {
@@ -515,9 +624,19 @@ asmlinkage long sparc_do_fork(unsigned long clone_flags,
 		child_tid_ptr = (int __user *) regs->u_regs[UREG_I4];
 	}
 
-	return do_fork(clone_flags, stack_start,
-		       regs, stack_size,
-		       parent_tid_ptr, child_tid_ptr);
+	ret = do_fork(clone_flags, stack_start,
+		      regs, stack_size,
+		      parent_tid_ptr, child_tid_ptr);
+
+	/* If we get an error and potentially restart the system
+	 * call, we're screwed because copy_thread() clobbered
+	 * the parent's %o1.  So detect that case and restore it
+	 * here.
+	 */
+	if ((unsigned long)ret >= -ERESTART_RESTARTBLOCK)
+		regs->u_regs[UREG_I1] = orig_i1;
+
+	return ret;
 }
 
 /* Copy a Sparc thread.  The fork() return value conventions
@@ -530,36 +649,50 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		struct task_struct *p, struct pt_regs *regs)
 {
 	struct thread_info *t = task_thread_info(p);
+	struct sparc_stackf *parent_sf;
+	unsigned long child_stack_sz;
 	char *child_trap_frame;
+	int kernel_thread;
+
+	kernel_thread = (regs->tstate & TSTATE_PRIV) ? 1 : 0;
+	parent_sf = ((struct sparc_stackf *) regs) - 1;
 
 	/* Calculate offset to stack_frame & pt_regs */
-	child_trap_frame = task_stack_page(p) + (THREAD_SIZE - (TRACEREG_SZ+STACKFRAME_SZ));
-	memcpy(child_trap_frame, (((struct sparc_stackf *)regs)-1), (TRACEREG_SZ+STACKFRAME_SZ));
+	child_stack_sz = ((STACKFRAME_SZ + TRACEREG_SZ) +
+			  (kernel_thread ? STACKFRAME_SZ : 0));
+	child_trap_frame = (task_stack_page(p) +
+			    (THREAD_SIZE - child_stack_sz));
+	memcpy(child_trap_frame, parent_sf, child_stack_sz);
 
-	t->flags = (t->flags & ~((0xffUL << TI_FLAG_CWP_SHIFT) | (0xffUL << TI_FLAG_CURRENT_DS_SHIFT))) |
+	t->flags = (t->flags & ~((0xffUL << TI_FLAG_CWP_SHIFT) |
+				 (0xffUL << TI_FLAG_CURRENT_DS_SHIFT))) |
 		(((regs->tstate + 1) & TSTATE_CWP) << TI_FLAG_CWP_SHIFT);
 	t->new_child = 1;
 	t->ksp = ((unsigned long) child_trap_frame) - STACK_BIAS;
-	t->kregs = (struct pt_regs *)(child_trap_frame+sizeof(struct sparc_stackf));
+	t->kregs = (struct pt_regs *) (child_trap_frame +
+				       sizeof(struct sparc_stackf));
 	t->fpsaved[0] = 0;
 
-	if (regs->tstate & TSTATE_PRIV) {
+	if (kernel_thread) {
+		struct sparc_stackf *child_sf = (struct sparc_stackf *)
+			(child_trap_frame + (STACKFRAME_SZ + TRACEREG_SZ));
+
+		/* Zero terminate the stack backtrace.  */
+		child_sf->fp = NULL;
+		t->kregs->u_regs[UREG_FP] =
+		  ((unsigned long) child_sf) - STACK_BIAS;
+
 		/* Special case, if we are spawning a kernel thread from
-		 * a userspace task (via KMOD, NFS, or similar) we must
-		 * disable performance counters in the child because the
-		 * address space and protection realm are changing.
+		 * a userspace task (usermode helper, NFS or similar), we
+		 * must disable performance counters in the child because
+		 * the address space and protection realm are changing.
 		 */
 		if (t->flags & _TIF_PERFCTR) {
 			t->user_cntd0 = t->user_cntd1 = NULL;
 			t->pcr_reg = 0;
 			t->flags &= ~_TIF_PERFCTR;
 		}
-		t->kregs->u_regs[UREG_FP] = t->ksp;
 		t->flags |= ((long)ASI_P << TI_FLAG_CURRENT_DS_SHIFT);
-		flush_register_windows();
-		memcpy((void *)(t->ksp + STACK_BIAS),
-		       (void *)(regs->u_regs[UREG_FP] + STACK_BIAS),
-		       sizeof(struct sparc_stackf));
 		t->kregs->u_regs[UREG_G6] = (unsigned long) t;
 		t->kregs->u_regs[UREG_G4] = (unsigned long) t->task;
 	} else {

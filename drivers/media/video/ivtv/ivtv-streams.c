@@ -44,23 +44,25 @@
 #include "ivtv-streams.h"
 
 static const struct file_operations ivtv_v4l2_enc_fops = {
-      .owner = THIS_MODULE,
-      .read = ivtv_v4l2_read,
-      .write = ivtv_v4l2_write,
-      .open = ivtv_v4l2_open,
-      .ioctl = ivtv_v4l2_ioctl,
-      .release = ivtv_v4l2_close,
-      .poll = ivtv_v4l2_enc_poll,
+	.owner = THIS_MODULE,
+	.read = ivtv_v4l2_read,
+	.write = ivtv_v4l2_write,
+	.open = ivtv_v4l2_open,
+	.ioctl = ivtv_v4l2_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
+	.release = ivtv_v4l2_close,
+	.poll = ivtv_v4l2_enc_poll,
 };
 
 static const struct file_operations ivtv_v4l2_dec_fops = {
-      .owner = THIS_MODULE,
-      .read = ivtv_v4l2_read,
-      .write = ivtv_v4l2_write,
-      .open = ivtv_v4l2_open,
-      .ioctl = ivtv_v4l2_ioctl,
-      .release = ivtv_v4l2_close,
-      .poll = ivtv_v4l2_dec_poll,
+	.owner = THIS_MODULE,
+	.read = ivtv_v4l2_read,
+	.write = ivtv_v4l2_write,
+	.open = ivtv_v4l2_open,
+	.ioctl = ivtv_v4l2_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
+	.release = ivtv_v4l2_close,
+	.poll = ivtv_v4l2_dec_poll,
 };
 
 #define IVTV_V4L2_DEC_MPG_OFFSET  16	/* offset from 0 to register decoder mpg v4l2 minors on */
@@ -206,19 +208,15 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 		return -ENOMEM;
 	}
 
-	s->v4l2dev->type = VID_TYPE_CAPTURE | VID_TYPE_TUNER | VID_TYPE_TELETEXT |
-		    VID_TYPE_CLIPPING | VID_TYPE_SCALES | VID_TYPE_MPEG_ENCODER;
-	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
-		s->v4l2dev->type |= VID_TYPE_MPEG_DECODER;
-	}
 	snprintf(s->v4l2dev->name, sizeof(s->v4l2dev->name), "ivtv%d %s",
 			itv->num, s->name);
 
 	s->v4l2dev->minor = minor;
-	s->v4l2dev->dev = &itv->dev->dev;
+	s->v4l2dev->parent = &itv->dev->dev;
 	s->v4l2dev->fops = ivtv_stream_info[type].fops;
 	s->v4l2dev->release = video_device_release;
-
+	s->v4l2dev->tvnorms = V4L2_STD_ALL;
+	ivtv_set_funcs(s->v4l2dev);
 	return 0;
 }
 
@@ -244,7 +242,7 @@ int ivtv_streams_setup(struct ivtv *itv)
 		return 0;
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
-	ivtv_streams_cleanup(itv);
+	ivtv_streams_cleanup(itv, 0);
 	return -ENOMEM;
 }
 
@@ -304,12 +302,12 @@ int ivtv_streams_register(struct ivtv *itv)
 		return 0;
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
-	ivtv_streams_cleanup(itv);
+	ivtv_streams_cleanup(itv, 1);
 	return -ENOMEM;
 }
 
 /* Unregister v4l2 devices */
-void ivtv_streams_cleanup(struct ivtv *itv)
+void ivtv_streams_cleanup(struct ivtv *itv, int unregister)
 {
 	int type;
 
@@ -322,8 +320,11 @@ void ivtv_streams_cleanup(struct ivtv *itv)
 			continue;
 
 		ivtv_stream_free(&itv->streams[type]);
-		/* Unregister device */
-		video_unregister_device(vdev);
+		/* Unregister or release device */
+		if (unregister)
+			video_unregister_device(vdev);
+		else
+			video_device_release(vdev);
 	}
 }
 

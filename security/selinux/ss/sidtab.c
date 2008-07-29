@@ -14,10 +14,6 @@
 #define SIDTAB_HASH(sid) \
 (sid & SIDTAB_HASH_MASK)
 
-#define INIT_SIDTAB_LOCK(s) spin_lock_init(&s->lock)
-#define SIDTAB_LOCK(s, x) spin_lock_irqsave(&s->lock, x)
-#define SIDTAB_UNLOCK(s, x) spin_unlock_irqrestore(&s->lock, x)
-
 int sidtab_init(struct sidtab *s)
 {
 	int i;
@@ -30,7 +26,7 @@ int sidtab_init(struct sidtab *s)
 	s->nel = 0;
 	s->next_sid = 1;
 	s->shutdown = 0;
-	INIT_SIDTAB_LOCK(s);
+	spin_lock_init(&s->lock);
 	return 0;
 }
 
@@ -86,7 +82,7 @@ out:
 	return rc;
 }
 
-struct context *sidtab_search(struct sidtab *s, u32 sid)
+static struct context *sidtab_search_core(struct sidtab *s, u32 sid, int force)
 {
 	int hvalue;
 	struct sidtab_node *cur;
@@ -99,7 +95,10 @@ struct context *sidtab_search(struct sidtab *s, u32 sid)
 	while (cur != NULL && sid > cur->sid)
 		cur = cur->next;
 
-	if (cur == NULL || sid != cur->sid) {
+	if (force && cur && sid == cur->sid && cur->context.len)
+		return &cur->context;
+
+	if (cur == NULL || sid != cur->sid || cur->context.len) {
 		/* Remap invalid SIDs to the unlabeled SID. */
 		sid = SECINITSID_UNLABELED;
 		hvalue = SIDTAB_HASH(sid);
@@ -111,6 +110,16 @@ struct context *sidtab_search(struct sidtab *s, u32 sid)
 	}
 
 	return &cur->context;
+}
+
+struct context *sidtab_search(struct sidtab *s, u32 sid)
+{
+	return sidtab_search_core(s, sid, 0);
+}
+
+struct context *sidtab_search_force(struct sidtab *s, u32 sid)
+{
+	return sidtab_search_core(s, sid, 1);
 }
 
 int sidtab_map(struct sidtab *s,
@@ -136,43 +145,6 @@ int sidtab_map(struct sidtab *s,
 	}
 out:
 	return rc;
-}
-
-void sidtab_map_remove_on_error(struct sidtab *s,
-				int (*apply) (u32 sid,
-					      struct context *context,
-					      void *args),
-				void *args)
-{
-	int i, ret;
-	struct sidtab_node *last, *cur, *temp;
-
-	if (!s)
-		return;
-
-	for (i = 0; i < SIDTAB_SIZE; i++) {
-		last = NULL;
-		cur = s->htable[i];
-		while (cur != NULL) {
-			ret = apply(cur->sid, &cur->context, args);
-			if (ret) {
-				if (last)
-					last->next = cur->next;
-				else
-					s->htable[i] = cur->next;
-				temp = cur;
-				cur = cur->next;
-				context_destroy(&temp->context);
-				kfree(temp);
-				s->nel--;
-			} else {
-				last = cur;
-				cur = cur->next;
-			}
-		}
-	}
-
-	return;
 }
 
 static inline u32 sidtab_search_context(struct sidtab *s,
@@ -204,7 +176,7 @@ int sidtab_context_to_sid(struct sidtab *s,
 
 	sid = sidtab_search_context(s, context);
 	if (!sid) {
-		SIDTAB_LOCK(s, flags);
+		spin_lock_irqsave(&s->lock, flags);
 		/* Rescan now that we hold the lock. */
 		sid = sidtab_search_context(s, context);
 		if (sid)
@@ -215,11 +187,15 @@ int sidtab_context_to_sid(struct sidtab *s,
 			goto unlock_out;
 		}
 		sid = s->next_sid++;
+		if (context->len)
+			printk(KERN_INFO
+		       "SELinux:  Context %s is not valid (left unmapped).\n",
+			       context->str);
 		ret = sidtab_insert(s, sid, context);
 		if (ret)
 			s->next_sid--;
 unlock_out:
-		SIDTAB_UNLOCK(s, flags);
+		spin_unlock_irqrestore(&s->lock, flags);
 	}
 
 	if (ret)
@@ -284,19 +260,19 @@ void sidtab_set(struct sidtab *dst, struct sidtab *src)
 {
 	unsigned long flags;
 
-	SIDTAB_LOCK(src, flags);
+	spin_lock_irqsave(&src->lock, flags);
 	dst->htable = src->htable;
 	dst->nel = src->nel;
 	dst->next_sid = src->next_sid;
 	dst->shutdown = 0;
-	SIDTAB_UNLOCK(src, flags);
+	spin_unlock_irqrestore(&src->lock, flags);
 }
 
 void sidtab_shutdown(struct sidtab *s)
 {
 	unsigned long flags;
 
-	SIDTAB_LOCK(s, flags);
+	spin_lock_irqsave(&s->lock, flags);
 	s->shutdown = 1;
-	SIDTAB_UNLOCK(s, flags);
+	spin_unlock_irqrestore(&s->lock, flags);
 }

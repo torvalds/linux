@@ -16,11 +16,10 @@
 #include <linux/fb.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
 #include <asm/upa.h>
-#include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/fbio.h>
 
 #include "sbuslib.h"
@@ -941,7 +940,7 @@ static int __devinit ffb_probe(struct of_device *op,
 	info->screen_base = (char *) par->physbase + FFB_DFB24_POFF;
 	info->pseudo_palette = par->pseudo_palette;
 
-	sbusfb_fill_var(&info->var, dp->node, 32);
+	sbusfb_fill_var(&info->var, dp, 32);
 	par->fbsize = PAGE_ALIGN(info->var.xres * info->var.yres * 4);
 	ffb_fixup_var_rgb(&info->var);
 
@@ -987,7 +986,7 @@ static int __devinit ffb_probe(struct of_device *op,
 	 * chosen console, it will have video outputs off in
 	 * the DAC.
 	 */
-	ffb_blank(0, info);
+	ffb_blank(FB_BLANK_UNBLANK, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0))
 		goto out_unmap_dac;

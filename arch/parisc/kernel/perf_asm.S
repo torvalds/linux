@@ -20,6 +20,8 @@
  */
 
 #include <asm/assembly.h>
+
+#include <linux/init.h>
 #include <linux/linkage.h>
 
 #ifdef CONFIG_64BIT

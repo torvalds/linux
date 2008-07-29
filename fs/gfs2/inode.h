@@ -72,7 +72,6 @@ static inline void gfs2_inum_out(const struct gfs2_inode *ip,
 }
 
 
-void gfs2_inode_attr_in(struct gfs2_inode *ip);
 void gfs2_set_iop(struct inode *inode);
 struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type, 
 				u64 no_addr, u64 no_formal_ino,
@@ -84,13 +83,14 @@ int gfs2_inode_refresh(struct gfs2_inode *ip);
 int gfs2_dinode_dealloc(struct gfs2_inode *inode);
 int gfs2_change_nlink(struct gfs2_inode *ip, int diff);
 struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
-			   int is_root, struct nameidata *nd);
+			   int is_root);
 struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 			   unsigned int mode, dev_t dev);
 int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
 		struct gfs2_inode *ip);
 int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
 		   const struct gfs2_inode *ip);
+int gfs2_permission(struct inode *inode, int mask);
 int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to);
 int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len);
 int gfs2_glock_nq_atime(struct gfs2_holder *gh);

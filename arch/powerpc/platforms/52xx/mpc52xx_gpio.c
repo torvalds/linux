@@ -100,7 +100,7 @@ static int mpc52xx_wkup_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct mpc52xx_gpiochip *chip = container_of(mm_gc,
 			struct mpc52xx_gpiochip, mmchip);
-	struct mpc52xx_gpio_wkup *regs = mm_gc->regs;
+	struct mpc52xx_gpio_wkup __iomem *regs = mm_gc->regs;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -122,7 +122,7 @@ static int
 mpc52xx_wkup_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpio_wkup *regs = mm_gc->regs;
+	struct mpc52xx_gpio_wkup __iomem *regs = mm_gc->regs;
 	struct mpc52xx_gpiochip *chip = container_of(mm_gc,
 			struct mpc52xx_gpiochip, mmchip);
 	unsigned long flags;
@@ -150,7 +150,7 @@ static int __devinit mpc52xx_wkup_gpiochip_probe(struct of_device *ofdev,
 					const struct of_device_id *match)
 {
 	struct mpc52xx_gpiochip *chip;
-	struct mpc52xx_gpio_wkup *regs;
+	struct mpc52xx_gpio_wkup __iomem *regs;
 	struct of_gpio_chip *ofchip;
 	int ret;
 
@@ -260,7 +260,7 @@ static int mpc52xx_simple_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct mpc52xx_gpiochip *chip = container_of(mm_gc,
 			struct mpc52xx_gpiochip, mmchip);
-	struct mpc52xx_gpio *regs = mm_gc->regs;
+	struct mpc52xx_gpio __iomem *regs = mm_gc->regs;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -284,7 +284,7 @@ mpc52xx_simple_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct mpc52xx_gpiochip *chip = container_of(mm_gc,
 			struct mpc52xx_gpiochip, mmchip);
-	struct mpc52xx_gpio *regs = mm_gc->regs;
+	struct mpc52xx_gpio __iomem *regs = mm_gc->regs;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -312,7 +312,7 @@ static int __devinit mpc52xx_simple_gpiochip_probe(struct of_device *ofdev,
 {
 	struct mpc52xx_gpiochip *chip;
 	struct of_gpio_chip *ofchip;
-	struct mpc52xx_gpio *regs;
+	struct mpc52xx_gpio __iomem *regs;
 	int ret;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -387,7 +387,7 @@ mpc52xx_gpt_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 static int mpc52xx_gpt_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpt *regs = mm_gc->regs;
+	struct mpc52xx_gpt __iomem *regs = mm_gc->regs;
 
 	out_be32(&regs->mode, 0x04);
 

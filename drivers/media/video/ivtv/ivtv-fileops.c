@@ -582,12 +582,25 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 	ivtv_queue_init(&q);
 	set_bit(IVTV_F_S_APPL_IO, &s->s_flags);
 
+	/* Start decoder (returns 0 if already started) */
+	mutex_lock(&itv->serialize_lock);
+	rc = ivtv_start_decoding(id, itv->speed);
+	mutex_unlock(&itv->serialize_lock);
+	if (rc) {
+		IVTV_DEBUG_WARN("Failed start decode stream %s\n", s->name);
+
+		/* failure, clean up */
+		clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
+		clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
+		return rc;
+	}
+
 retry:
 	/* If possible, just DMA the entire frame - Check the data transfer size
 	since we may get here before the stream has been fully set-up */
 	if (mode == OUT_YUV && s->q_full.length == 0 && itv->dma_data_req_size) {
 		while (count >= itv->dma_data_req_size) {
-			if (!ivtv_yuv_udma_stream_frame (itv, (void *)user_buf)) {
+			if (!ivtv_yuv_udma_stream_frame (itv, (void __user *)user_buf)) {
 				bytes_written += itv->dma_data_req_size;
 				user_buf += itv->dma_data_req_size;
 				count -= itv->dma_data_req_size;
@@ -664,18 +677,6 @@ retry:
 		ivtv_enqueue(s, buf, &s->q_full);
 	}
 
-	/* Start decoder (returns 0 if already started) */
-	mutex_lock(&itv->serialize_lock);
-	rc = ivtv_start_decoding(id, itv->speed);
-	mutex_unlock(&itv->serialize_lock);
-	if (rc) {
-		IVTV_DEBUG_WARN("Failed start decode stream %s\n", s->name);
-
-		/* failure, clean up */
-		clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
-		clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
-		return rc;
-	}
 	if (test_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags)) {
 		if (s->q_full.length >= itv->dma_data_req_size) {
 			int got_sig;
@@ -987,6 +988,8 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	/* Find which card this open was on */
 	spin_lock(&ivtv_cards_lock);
 	for (x = 0; itv == NULL && x < ivtv_cards_active; x++) {
+		if (ivtv_cards[x] == NULL)
+			continue;
 		/* find out which stream this open was on */
 		for (y = 0; y < IVTV_MAX_STREAMS; y++) {
 			s = &ivtv_cards[x]->streams[y];

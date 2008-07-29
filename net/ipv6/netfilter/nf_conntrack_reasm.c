@@ -207,9 +207,12 @@ fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst)
 	arg.id = id;
 	arg.src = src;
 	arg.dst = dst;
+
+	read_lock_bh(&nf_frags.lock);
 	hash = ip6qhashfn(id, src, dst);
 
 	q = inet_frag_find(&nf_init_frags, &nf_frags, &arg, hash);
+	local_bh_enable();
 	if (q == NULL)
 		goto oom;
 
@@ -413,8 +416,8 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 
 	fq_kill(fq);
 
-	BUG_TRAP(head != NULL);
-	BUG_TRAP(NFCT_FRAG6_CB(head)->offset == 0);
+	WARN_ON(head == NULL);
+	WARN_ON(NFCT_FRAG6_CB(head)->offset != 0);
 
 	/* Unfragmented part is taken from the first segment. */
 	payload_len = ((head->data - skb_network_header(head)) -
@@ -638,10 +641,10 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 		goto ret_orig;
 	}
 
-	spin_lock(&fq->q.lock);
+	spin_lock_bh(&fq->q.lock);
 
 	if (nf_ct_frag6_queue(fq, clone, fhdr, nhoff) < 0) {
-		spin_unlock(&fq->q.lock);
+		spin_unlock_bh(&fq->q.lock);
 		pr_debug("Can't insert skb to queue\n");
 		fq_put(fq);
 		goto ret_orig;
@@ -653,7 +656,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 		if (ret_skb == NULL)
 			pr_debug("Can't reassemble fragmented packets\n");
 	}
-	spin_unlock(&fq->q.lock);
+	spin_unlock_bh(&fq->q.lock);
 
 	fq_put(fq);
 	return ret_skb;

@@ -1,11 +1,10 @@
 /*
  * BRIEF MODULE DESCRIPTION
- *	Defines for using and allocating dma channels on the Alchemy
- *      Au1000 mips processor.
+ *	Defines for using and allocating DMA channels on the Alchemy
+ *      Au1x00 MIPS processors.
  *
- * Copyright 2000 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	stevel@mvista.com or source@mvista.com
+ * Copyright 2000, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -31,7 +30,7 @@
 #ifndef __ASM_AU1000_DMA_H
 #define __ASM_AU1000_DMA_H
 
-#include <asm/io.h>		/* need byte IO */
+#include <linux/io.h>		/* need byte IO */
 #include <linux/spinlock.h>	/* And spinlocks */
 #include <linux/delay.h>
 #include <asm/system.h>
@@ -50,36 +49,36 @@
 #define DMA_DAH_MASK		(0x0f << 20)
 #define DMA_DID_BIT		16
 #define DMA_DID_MASK		(0x0f << DMA_DID_BIT)
-#define DMA_DS			(1<<15)
-#define DMA_BE			(1<<13)
-#define DMA_DR			(1<<12)
-#define DMA_TS8			(1<<11)
+#define DMA_DS			(1 << 15)
+#define DMA_BE			(1 << 13)
+#define DMA_DR			(1 << 12)
+#define DMA_TS8 		(1 << 11)
 #define DMA_DW_BIT		9
 #define DMA_DW_MASK		(0x03 << DMA_DW_BIT)
 #define DMA_DW8			(0 << DMA_DW_BIT)
 #define DMA_DW16		(1 << DMA_DW_BIT)
 #define DMA_DW32		(2 << DMA_DW_BIT)
-#define DMA_NC			(1<<8)
-#define DMA_IE			(1<<7)
-#define DMA_HALT		(1<<6)
-#define DMA_GO			(1<<5)
-#define DMA_AB			(1<<4)
-#define DMA_D1			(1<<3)
-#define DMA_BE1			(1<<2)
-#define DMA_D0			(1<<1)
-#define DMA_BE0			(1<<0)
+#define DMA_NC			(1 << 8)
+#define DMA_IE			(1 << 7)
+#define DMA_HALT		(1 << 6)
+#define DMA_GO			(1 << 5)
+#define DMA_AB			(1 << 4)
+#define DMA_D1			(1 << 3)
+#define DMA_BE1 		(1 << 2)
+#define DMA_D0			(1 << 1)
+#define DMA_BE0 		(1 << 0)
 
-#define DMA_PERIPHERAL_ADDR       0x00000008
-#define DMA_BUFFER0_START         0x0000000C
-#define DMA_BUFFER1_START         0x00000014
-#define DMA_BUFFER0_COUNT         0x00000010
-#define DMA_BUFFER1_COUNT         0x00000018
-#define DMA_BAH_BIT 16
-#define DMA_BAH_MASK (0x0f << DMA_BAH_BIT)
-#define DMA_COUNT_BIT 0
-#define DMA_COUNT_MASK (0xffff << DMA_COUNT_BIT)
+#define DMA_PERIPHERAL_ADDR	0x00000008
+#define DMA_BUFFER0_START	0x0000000C
+#define DMA_BUFFER1_START	0x00000014
+#define DMA_BUFFER0_COUNT	0x00000010
+#define DMA_BUFFER1_COUNT	0x00000018
+#define DMA_BAH_BIT	16
+#define DMA_BAH_MASK	(0x0f << DMA_BAH_BIT)
+#define DMA_COUNT_BIT	0
+#define DMA_COUNT_MASK	(0xffff << DMA_COUNT_BIT)
 
-/* DMA Device ID's follow */
+/* DMA Device IDs follow */
 enum {
 	DMA_ID_UART0_TX = 0,
 	DMA_ID_UART0_RX,
@@ -110,7 +109,8 @@ enum {
 };
 
 struct dma_chan {
-	int dev_id;		// this channel is allocated if >=0, free otherwise
+	int dev_id;		/* this channel is allocated if >= 0, */
+				/* free otherwise */
 	unsigned int io;
 	const char *dev_str;
 	int irq;
@@ -132,23 +132,23 @@ extern int au1000_dma_read_proc(char *buf, char **start, off_t fpos,
 extern void dump_au1000_dma_channel(unsigned int dmanr);
 extern spinlock_t au1000_dma_spin_lock;
 
-
-static __inline__ struct dma_chan *get_dma_chan(unsigned int dmanr)
+static inline struct dma_chan *get_dma_chan(unsigned int dmanr)
 {
-	if (dmanr >= NUM_AU1000_DMA_CHANNELS
-	    || au1000_dma_table[dmanr].dev_id < 0)
+	if (dmanr >= NUM_AU1000_DMA_CHANNELS ||
+	    au1000_dma_table[dmanr].dev_id < 0)
 		return NULL;
 	return &au1000_dma_table[dmanr];
 }
 
-static __inline__ unsigned long claim_dma_lock(void)
+static inline unsigned long claim_dma_lock(void)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&au1000_dma_spin_lock, flags);
 	return flags;
 }
 
-static __inline__ void release_dma_lock(unsigned long flags)
+static inline void release_dma_lock(unsigned long flags)
 {
 	spin_unlock_irqrestore(&au1000_dma_spin_lock, flags);
 }
@@ -156,48 +156,53 @@ static __inline__ void release_dma_lock(unsigned long flags)
 /*
  * Set the DMA buffer enable bits in the mode register.
  */
-static __inline__ void enable_dma_buffer0(unsigned int dmanr)
+static inline void enable_dma_buffer0(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	au_writel(DMA_BE0, chan->io + DMA_MODE_SET);
 }
-static __inline__ void enable_dma_buffer1(unsigned int dmanr)
+
+static inline void enable_dma_buffer1(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	au_writel(DMA_BE1, chan->io + DMA_MODE_SET);
 }
-static __inline__ void enable_dma_buffers(unsigned int dmanr)
+static inline void enable_dma_buffers(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	au_writel(DMA_BE0 | DMA_BE1, chan->io + DMA_MODE_SET);
 }
 
-static __inline__ void start_dma(unsigned int dmanr)
+static inline void start_dma(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
-
 	au_writel(DMA_GO, chan->io + DMA_MODE_SET);
 }
 
 #define DMA_HALT_POLL 0x5000
 
-static __inline__ void halt_dma(unsigned int dmanr)
+static inline void halt_dma(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
 	int i;
+
 	if (!chan)
 		return;
-
 	au_writel(DMA_GO, chan->io + DMA_MODE_CLEAR);
-	// poll the halt bit
+
+	/* Poll the halt bit */
 	for (i = 0; i < DMA_HALT_POLL; i++)
 		if (au_readl(chan->io + DMA_MODE_READ) & DMA_HALT)
 			break;
@@ -205,55 +210,57 @@ static __inline__ void halt_dma(unsigned int dmanr)
 		printk(KERN_INFO "halt_dma: HALT poll expired!\n");
 }
 
-
-static __inline__ void disable_dma(unsigned int dmanr)
+static inline void disable_dma(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 
 	halt_dma(dmanr);
 
-	// now we can disable the buffers
+	/* Now we can disable the buffers */
 	au_writel(~DMA_GO, chan->io + DMA_MODE_CLEAR);
 }
 
-static __inline__ int dma_halted(unsigned int dmanr)
+static inline int dma_halted(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return 1;
 	return (au_readl(chan->io + DMA_MODE_READ) & DMA_HALT) ? 1 : 0;
 }
 
-/* initialize a DMA channel */
-static __inline__ void init_dma(unsigned int dmanr)
+/* Initialize a DMA channel. */
+static inline void init_dma(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
 	u32 mode;
+
 	if (!chan)
 		return;
 
 	disable_dma(dmanr);
 
-	// set device FIFO address
-	au_writel(CPHYSADDR(chan->fifo_addr),
-		  chan->io + DMA_PERIPHERAL_ADDR);
+	/* Set device FIFO address */
+	au_writel(CPHYSADDR(chan->fifo_addr), chan->io + DMA_PERIPHERAL_ADDR);
 
 	mode = chan->mode | (chan->dev_id << DMA_DID_BIT);
 	if (chan->irq)
 		mode |= DMA_IE;
 
 	au_writel(~mode, chan->io + DMA_MODE_CLEAR);
-	au_writel(mode, chan->io + DMA_MODE_SET);
+	au_writel(mode,  chan->io + DMA_MODE_SET);
 }
 
 /*
- * set mode for a specific DMA channel
+ * Set mode for a specific DMA channel
  */
-static __inline__ void set_dma_mode(unsigned int dmanr, unsigned int mode)
+static inline void set_dma_mode(unsigned int dmanr, unsigned int mode)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	/*
@@ -266,36 +273,37 @@ static __inline__ void set_dma_mode(unsigned int dmanr, unsigned int mode)
 	chan->mode |= mode;
 }
 
-static __inline__ unsigned int get_dma_mode(unsigned int dmanr)
+static inline unsigned int get_dma_mode(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return 0;
 	return chan->mode;
 }
 
-static __inline__ int get_dma_active_buffer(unsigned int dmanr)
+static inline int get_dma_active_buffer(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return -1;
 	return (au_readl(chan->io + DMA_MODE_READ) & DMA_AB) ? 1 : 0;
 }
 
-
 /*
- * set the device FIFO address for a specific DMA channel - only
+ * Set the device FIFO address for a specific DMA channel - only
  * applicable to GPO4 and GPO5. All the other devices have fixed
  * FIFO addresses.
  */
-static __inline__ void set_dma_fifo_addr(unsigned int dmanr,
-					 unsigned int a)
+static inline void set_dma_fifo_addr(unsigned int dmanr, unsigned int a)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 
-	if (chan->mode & DMA_DS)	/* second bank of device ids */
+	if (chan->mode & DMA_DS)	/* second bank of device IDs */
 		return;
 
 	if (chan->dev_id != DMA_ID_GP04 && chan->dev_id != DMA_ID_GP05)
@@ -307,16 +315,19 @@ static __inline__ void set_dma_fifo_addr(unsigned int dmanr,
 /*
  * Clear the DMA buffer done bits in the mode register.
  */
-static __inline__ void clear_dma_done0(unsigned int dmanr)
+static inline void clear_dma_done0(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	au_writel(DMA_D0, chan->io + DMA_MODE_CLEAR);
 }
-static __inline__ void clear_dma_done1(unsigned int dmanr)
+
+static inline void clear_dma_done1(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	au_writel(DMA_D1, chan->io + DMA_MODE_CLEAR);
@@ -325,16 +336,17 @@ static __inline__ void clear_dma_done1(unsigned int dmanr)
 /*
  * This does nothing - not applicable to Au1000 DMA.
  */
-static __inline__ void set_dma_page(unsigned int dmanr, char pagenr)
+static inline void set_dma_page(unsigned int dmanr, char pagenr)
 {
 }
 
 /*
  * Set Buffer 0 transfer address for specific DMA channel.
  */
-static __inline__ void set_dma_addr0(unsigned int dmanr, unsigned int a)
+static inline void set_dma_addr0(unsigned int dmanr, unsigned int a)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	au_writel(a, chan->io + DMA_BUFFER0_START);
@@ -343,9 +355,10 @@ static __inline__ void set_dma_addr0(unsigned int dmanr, unsigned int a)
 /*
  * Set Buffer 1 transfer address for specific DMA channel.
  */
-static __inline__ void set_dma_addr1(unsigned int dmanr, unsigned int a)
+static inline void set_dma_addr1(unsigned int dmanr, unsigned int a)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	au_writel(a, chan->io + DMA_BUFFER1_START);
@@ -355,10 +368,10 @@ static __inline__ void set_dma_addr1(unsigned int dmanr, unsigned int a)
 /*
  * Set Buffer 0 transfer size (max 64k) for a specific DMA channel.
  */
-static __inline__ void set_dma_count0(unsigned int dmanr,
-				      unsigned int count)
+static inline void set_dma_count0(unsigned int dmanr, unsigned int count)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	count &= DMA_COUNT_MASK;
@@ -368,10 +381,10 @@ static __inline__ void set_dma_count0(unsigned int dmanr,
 /*
  * Set Buffer 1 transfer size (max 64k) for a specific DMA channel.
  */
-static __inline__ void set_dma_count1(unsigned int dmanr,
-				      unsigned int count)
+static inline void set_dma_count1(unsigned int dmanr, unsigned int count)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	count &= DMA_COUNT_MASK;
@@ -381,10 +394,10 @@ static __inline__ void set_dma_count1(unsigned int dmanr,
 /*
  * Set both buffer transfer sizes (max 64k) for a specific DMA channel.
  */
-static __inline__ void set_dma_count(unsigned int dmanr,
-				     unsigned int count)
+static inline void set_dma_count(unsigned int dmanr, unsigned int count)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return;
 	count &= DMA_COUNT_MASK;
@@ -396,35 +409,36 @@ static __inline__ void set_dma_count(unsigned int dmanr,
  * Returns which buffer has its done bit set in the mode register.
  * Returns -1 if neither or both done bits set.
  */
-static __inline__ unsigned int get_dma_buffer_done(unsigned int dmanr)
+static inline unsigned int get_dma_buffer_done(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return 0;
-
-    return au_readl(chan->io + DMA_MODE_READ) & (DMA_D0 | DMA_D1);
+	return au_readl(chan->io + DMA_MODE_READ) & (DMA_D0 | DMA_D1);
 }
 
 
 /*
  * Returns the DMA channel's Buffer Done IRQ number.
  */
-static __inline__ int get_dma_done_irq(unsigned int dmanr)
+static inline int get_dma_done_irq(unsigned int dmanr)
 {
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return -1;
-
 	return chan->irq;
 }
 
 /*
  * Get DMA residue count. Returns the number of _bytes_ left to transfer.
  */
-static __inline__ int get_dma_residue(unsigned int dmanr)
+static inline int get_dma_residue(unsigned int dmanr)
 {
 	int curBufCntReg, count;
 	struct dma_chan *chan = get_dma_chan(dmanr);
+
 	if (!chan)
 		return 0;
 
@@ -442,4 +456,3 @@ static __inline__ int get_dma_residue(unsigned int dmanr)
 }
 
 #endif /* __ASM_AU1000_DMA_H */
-

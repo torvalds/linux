@@ -267,13 +267,17 @@ static struct i2c_board_info __initdata osk_i2c_board_info[] = {
 
 static void __init osk_init_smc91x(void)
 {
+	u32 l;
+
 	if ((gpio_request(0, "smc_irq")) < 0) {
 		printk("Error requesting gpio 0 for smc91x irq\n");
 		return;
 	}
 
 	/* Check EMIFS wait states to fix errors with SMC_GET_PKT_HDR */
-	EMIFS_CCS(1) |= 0x3;
+	l = omap_readl(EMIFS_CCS(1));
+	l |= 0x3;
+	omap_writel(l, EMIFS_CCS(1));
 }
 
 static void __init osk_init_cf(void)
@@ -284,7 +288,7 @@ static void __init osk_init_cf(void)
 		return;
 	}
 	/* the CF I/O IRQ is really active-low */
-	set_irq_type(OMAP_GPIO_IRQ(62), IRQT_FALLING);
+	set_irq_type(OMAP_GPIO_IRQ(62), IRQ_TYPE_EDGE_FALLING);
 }
 
 static void __init osk_init_irq(void)
@@ -479,7 +483,7 @@ static void __init osk_mistral_init(void)
 	omap_cfg_reg(P20_1610_GPIO4);	/* PENIRQ */
 	gpio_request(4, "ts_int");
 	gpio_direction_input(4);
-	set_irq_type(OMAP_GPIO_IRQ(4), IRQT_FALLING);
+	set_irq_type(OMAP_GPIO_IRQ(4), IRQ_TYPE_EDGE_FALLING);
 
 	spi_register_board_info(mistral_boardinfo,
 			ARRAY_SIZE(mistral_boardinfo));
@@ -490,7 +494,7 @@ static void __init osk_mistral_init(void)
 		int ret = 0;
 
 		gpio_direction_input(OMAP_MPUIO(2));
-		set_irq_type(OMAP_GPIO_IRQ(OMAP_MPUIO(2)), IRQT_RISING);
+		set_irq_type(OMAP_GPIO_IRQ(OMAP_MPUIO(2)), IRQ_TYPE_EDGE_RISING);
 #ifdef	CONFIG_PM
 		/* share the IRQ in case someone wants to use the
 		 * button for more than wakeup from system sleep.
@@ -526,20 +530,26 @@ static void __init osk_mistral_init(void) { }
 
 static void __init osk_init(void)
 {
+	u32 l;
+
 	/* Workaround for wrong CS3 (NOR flash) timing
 	 * There are some U-Boot versions out there which configure
 	 * wrong CS3 memory timings. This mainly leads to CRC
 	 * or similar errors if you use NOR flash (e.g. with JFFS2)
 	 */
-	if (EMIFS_CCS(3) != EMIFS_CS3_VAL)
-		EMIFS_CCS(3) = EMIFS_CS3_VAL;
+	l = omap_readl(EMIFS_CCS(3));
+	if (l != EMIFS_CS3_VAL)
+		omap_writel(EMIFS_CS3_VAL, EMIFS_CCS(3));
 
 	osk_flash_resource.end = osk_flash_resource.start = omap_cs3_phys();
 	osk_flash_resource.end += SZ_32M - 1;
 	platform_add_devices(osk5912_devices, ARRAY_SIZE(osk5912_devices));
 	omap_board_config = osk_config;
 	omap_board_config_size = ARRAY_SIZE(osk_config);
-	USB_TRANSCEIVER_CTRL_REG |= (3 << 1);
+
+	l = omap_readl(USB_TRANSCEIVER_CTRL);
+	l |= (3 << 1);
+	omap_writel(l, USB_TRANSCEIVER_CTRL);
 
 	/* irq for tps65010 chip */
 	/* bootloader effectively does:  omap_cfg_reg(U19_1610_MPUIO1); */

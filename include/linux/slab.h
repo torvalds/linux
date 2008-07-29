@@ -1,7 +1,7 @@
 /*
  * Written by Mark Hemment, 1996 (markhe@nextd.demon.co.uk).
  *
- * (C) SGI 2006, Christoph Lameter <clameter@sgi.com>
+ * (C) SGI 2006, Christoph Lameter
  * 	Cleaned up and restructured to ease the addition of alternative
  * 	implementations of SLAB allocators.
  */
@@ -58,7 +58,7 @@ int slab_is_available(void);
 
 struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
 			unsigned long,
-			void (*)(struct kmem_cache *, void *));
+			void (*)(void *));
 void kmem_cache_destroy(struct kmem_cache *);
 int kmem_cache_shrink(struct kmem_cache *);
 void kmem_cache_free(struct kmem_cache *, void *);
@@ -96,6 +96,7 @@ int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
 /*
  * Common kmalloc functions provided by all allocators
  */
+void * __must_check __krealloc(const void *, size_t, gfp_t);
 void * __must_check krealloc(const void *, size_t, gfp_t);
 void kfree(const void *);
 size_t ksize(const void *);
@@ -180,7 +181,7 @@ size_t ksize(const void *);
  */
 static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 {
-	if (n != 0 && size > ULONG_MAX / n)
+	if (size != 0 && n > ULONG_MAX / size)
 		return NULL;
 	return __kmalloc(n * size, flags | __GFP_ZERO);
 }
@@ -274,6 +275,17 @@ static inline void *kmem_cache_zalloc(struct kmem_cache *k, gfp_t flags)
 static inline void *kzalloc(size_t size, gfp_t flags)
 {
 	return kmalloc(size, flags | __GFP_ZERO);
+}
+
+/**
+ * kzalloc_node - allocate zeroed memory from a particular memory node.
+ * @size: how many bytes of memory are required.
+ * @flags: the type of memory to allocate (see kmalloc).
+ * @node: memory node from which to allocate
+ */
+static inline void *kzalloc_node(size_t size, gfp_t flags, int node)
+{
+	return kmalloc_node(size, flags | __GFP_ZERO, node);
 }
 
 #ifdef CONFIG_SLABINFO

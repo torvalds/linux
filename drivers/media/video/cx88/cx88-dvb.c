@@ -509,9 +509,6 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 	if (!fe) {
 		printk(KERN_ERR "%s/2: xc3028 attach failed\n",
 		       dev->core->name);
-		dvb_frontend_detach(dev->dvb.frontend);
-		dvb_unregister_frontend(dev->dvb.frontend);
-		dev->dvb.frontend = NULL;
 		return -EINVAL;
 	}
 
@@ -523,20 +520,23 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 
 static int dvb_register(struct cx8802_dev *dev)
 {
+	struct cx88_core *core = dev->core;
+
 	/* init struct videobuf_dvb */
-	dev->dvb.name = dev->core->name;
+	dev->dvb.name = core->name;
 	dev->ts_gen_cntrl = 0x0c;
 
 	/* init frontend */
-	switch (dev->core->boardnr) {
+	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
 		dev->dvb.frontend = dvb_attach(cx22702_attach,
 					       &connexant_refboard_config,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap,
-				   DVB_PLL_THOMSON_DTT759X);
+			if (!dvb_attach(dvb_pll_attach, dev->dvb.frontend,
+					0x61, &core->i2c_adap,
+					DVB_PLL_THOMSON_DTT759X))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
@@ -545,11 +545,12 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_WINFAST_DTV1000:
 		dev->dvb.frontend = dvb_attach(cx22702_attach,
 					       &connexant_refboard_config,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
-				   &dev->core->i2c_adap,
-				   DVB_PLL_THOMSON_DTT7579);
+			if (!dvb_attach(dvb_pll_attach, dev->dvb.frontend,
+					0x60, &core->i2c_adap,
+					DVB_PLL_THOMSON_DTT7579))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
@@ -559,29 +560,32 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
 		dev->dvb.frontend = dvb_attach(cx22702_attach,
 					       &hauppauge_hvr_config,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x61,
-				   TUNER_PHILIPS_FMD1216ME_MK3);
+			if (!dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &core->i2c_adap, 0x61,
+				   TUNER_PHILIPS_FMD1216ME_MK3))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
 		dev->dvb.frontend = dvb_attach(mt352_attach,
 					       &dvico_fusionhdtv,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
-				   NULL, DVB_PLL_THOMSON_DTT7579);
+			if (!dvb_attach(dvb_pll_attach, dev->dvb.frontend,
+					0x60, NULL, DVB_PLL_THOMSON_DTT7579))
+				goto frontend_detach;
 			break;
 		}
 		/* ZL10353 replaces MT352 on later cards */
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
 					       &dvico_fusionhdtv_plus_v1_1,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
-				   NULL, DVB_PLL_THOMSON_DTT7579);
+			if (!dvb_attach(dvb_pll_attach, dev->dvb.frontend,
+					0x60, NULL, DVB_PLL_THOMSON_DTT7579))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
@@ -589,28 +593,31 @@ static int dvb_register(struct cx8802_dev *dev)
 		 * compatible, with a slightly different MT352 AGC gain. */
 		dev->dvb.frontend = dvb_attach(mt352_attach,
 					       &dvico_fusionhdtv_dual,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, DVB_PLL_THOMSON_DTT7579);
+			if (!dvb_attach(dvb_pll_attach, dev->dvb.frontend,
+					0x61, NULL, DVB_PLL_THOMSON_DTT7579))
+				goto frontend_detach;
 			break;
 		}
 		/* ZL10353 replaces MT352 on later cards */
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
 					       &dvico_fusionhdtv_plus_v1_1,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, DVB_PLL_THOMSON_DTT7579);
+			if (!dvb_attach(dvb_pll_attach, dev->dvb.frontend,
+					0x61, NULL, DVB_PLL_THOMSON_DTT7579))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 		dev->dvb.frontend = dvb_attach(mt352_attach,
 					       &dvico_fusionhdtv,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, DVB_PLL_LG_Z201);
+			if (!dvb_attach(dvb_pll_attach, dev->dvb.frontend,
+					0x61, NULL, DVB_PLL_LG_Z201))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_KWORLD_DVB_T:
@@ -618,10 +625,11 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_ADSTECH_DVB_T_PCI:
 		dev->dvb.frontend = dvb_attach(mt352_attach,
 					       &dntv_live_dvbt_config,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, DVB_PLL_UNKNOWN_1);
+			if (!dvb_attach(dvb_pll_attach, dev->dvb.frontend,
+					0x61, NULL, DVB_PLL_UNKNOWN_1))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
@@ -630,32 +638,35 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = dvb_attach(mt352_attach, &dntv_live_dvbt_pro_config,
 					       &dev->vp3054->adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x61,
-				   TUNER_PHILIPS_FMD1216ME_MK3);
+			if (!dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+					&core->i2c_adap, 0x61,
+					TUNER_PHILIPS_FMD1216ME_MK3))
+				goto frontend_detach;
 		}
 #else
-		printk(KERN_ERR "%s/2: built without vp3054 support\n", dev->core->name);
+		printk(KERN_ERR "%s/2: built without vp3054 support\n",
+				core->name);
 #endif
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
 					       &dvico_fusionhdtv_hybrid,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x61,
-				   TUNER_THOMSON_FE6600);
+			if (!dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &core->i2c_adap, 0x61,
+				   TUNER_THOMSON_FE6600))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
 					       &dvico_fusionhdtv_xc3028,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend == NULL)
 			dev->dvb.frontend = dvb_attach(mt352_attach,
 						&dvico_fusionhdtv_mt352_xc3028,
-						&dev->core->i2c_adap);
+						&core->i2c_adap);
 		/*
 		 * On this board, the demod provides the I2C bus pullup.
 		 * We must not permit gate_ctrl to be performed, or
@@ -668,19 +679,18 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	case CX88_BOARD_PCHDTV_HD3000:
 		dev->dvb.frontend = dvb_attach(or51132_attach, &pchdtv_hd3000,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x61,
-				   TUNER_THOMSON_DTT761X);
+			if (!dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+					&core->i2c_adap, 0x61,
+					TUNER_THOMSON_DTT761X))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q:
 		dev->ts_gen_cntrl = 0x08;
-		{
-		/* Do a hardware reset of chip before using it. */
-		struct cx88_core *core = dev->core;
 
+		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
 		mdelay(100);
 		cx_set(MO_GP0_IO, 1);
@@ -690,139 +700,137 @@ static int dvb_register(struct cx8802_dev *dev)
 		fusionhdtv_3_gold.pll_rf_set = lgdt330x_pll_rf_set;
 		dev->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x61,
-				   TUNER_MICROTUNE_4042FI5);
-		}
+			if (!dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+					&core->i2c_adap, 0x61,
+					TUNER_MICROTUNE_4042FI5))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T:
 		dev->ts_gen_cntrl = 0x08;
-		{
-		/* Do a hardware reset of chip before using it. */
-		struct cx88_core *core = dev->core;
 
+		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
 		mdelay(100);
 		cx_set(MO_GP0_IO, 9);
 		mdelay(200);
 		dev->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x61,
-				   TUNER_THOMSON_DTT761X);
-		}
+			if (!dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+					&core->i2c_adap, 0x61,
+					TUNER_THOMSON_DTT761X))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
 		dev->ts_gen_cntrl = 0x08;
-		{
-		/* Do a hardware reset of chip before using it. */
-		struct cx88_core *core = dev->core;
 
+		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
 		mdelay(100);
 		cx_set(MO_GP0_IO, 1);
 		mdelay(200);
 		dev->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_5_gold,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x61,
-				   TUNER_LG_TDVS_H06XF);
-			dvb_attach(tda9887_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x43);
-		}
+			if (!dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+					&core->i2c_adap, 0x61,
+					TUNER_LG_TDVS_H06XF))
+				goto frontend_detach;
+			if (!dvb_attach(tda9887_attach, dev->dvb.frontend,
+				   &core->i2c_adap, 0x43))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_PCHDTV_HD5500:
 		dev->ts_gen_cntrl = 0x08;
-		{
-		/* Do a hardware reset of chip before using it. */
-		struct cx88_core *core = dev->core;
 
+		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
 		mdelay(100);
 		cx_set(MO_GP0_IO, 1);
 		mdelay(200);
 		dev->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &pchdtv_hd5500,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x61,
-				   TUNER_LG_TDVS_H06XF);
-			dvb_attach(tda9887_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x43);
-		}
+			if (!dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+					&core->i2c_adap, 0x61,
+					TUNER_LG_TDVS_H06XF))
+				goto frontend_detach;
+			if (!dvb_attach(tda9887_attach, dev->dvb.frontend,
+				   &core->i2c_adap, 0x43))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_ATI_HDTVWONDER:
 		dev->dvb.frontend = dvb_attach(nxt200x_attach,
 					       &ati_hdtvwonder,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x61,
-				   TUNER_PHILIPS_TUV1236D);
+			if (!dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+					&core->i2c_adap, 0x61,
+					TUNER_PHILIPS_TUV1236D))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
 		dev->dvb.frontend = dvb_attach(cx24123_attach,
 					       &hauppauge_novas_config,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend) {
-			dvb_attach(isl6421_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap, 0x08, 0x00, 0x00);
+			if (!dvb_attach(isl6421_attach, dev->dvb.frontend,
+					&core->i2c_adap, 0x08, 0x00, 0x00))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_KWORLD_DVBS_100:
 		dev->dvb.frontend = dvb_attach(cx24123_attach,
 					       &kworld_dvbs_100_config,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
+			core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
 			dev->dvb.frontend->ops.set_voltage = kworld_dvbs_100_set_voltage;
 		}
 		break;
 	case CX88_BOARD_GENIATECH_DVBS:
 		dev->dvb.frontend = dvb_attach(cx24123_attach,
 					       &geniatech_dvbs_config,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
+			core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
 			dev->dvb.frontend->ops.set_voltage = geniatech_dvbs_set_voltage;
 		}
 		break;
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		dev->dvb.frontend = dvb_attach(s5h1409_attach,
 					       &pinnacle_pctv_hd_800i_config,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			/* tuner_config.video_dev must point to
 			 * i2c_adap.algo_data
 			 */
-			pinnacle_pctv_hd_800i_tuner_config.priv =
-						dev->core->i2c_adap.algo_data;
-			dvb_attach(xc5000_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap,
-				   &pinnacle_pctv_hd_800i_tuner_config);
+			if (!dvb_attach(xc5000_attach, dev->dvb.frontend,
+					&core->i2c_adap,
+					&pinnacle_pctv_hd_800i_tuner_config,
+					core->i2c_adap.algo_data))
+				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		dev->dvb.frontend = dvb_attach(s5h1409_attach,
 						&dvico_hdtv5_pci_nano_config,
-						&dev->core->i2c_adap);
+						&core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			struct dvb_frontend *fe;
 			struct xc2028_config cfg = {
-				.i2c_adap  = &dev->core->i2c_adap,
+				.i2c_adap  = &core->i2c_adap,
 				.i2c_addr  = 0x61,
 				.callback  = cx88_pci_nano_callback,
 			};
@@ -841,50 +849,50 @@ static int dvb_register(struct cx8802_dev *dev)
 	 case CX88_BOARD_PINNACLE_HYBRID_PCTV:
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
 					       &cx88_geniatech_x8000_mt,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0)
-			return -EINVAL;
+			goto frontend_detach;
 		break;
 	 case CX88_BOARD_GENIATECH_X8000_MT:
 		dev->ts_gen_cntrl = 0x00;
 
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
 					       &cx88_geniatech_x8000_mt,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0)
-			return -EINVAL;
+			goto frontend_detach;
 		break;
 	 case CX88_BOARD_KWORLD_ATSC_120:
 		dev->dvb.frontend = dvb_attach(s5h1409_attach,
 					       &kworld_atsc_120_config,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0)
-			return -EINVAL;
+			goto frontend_detach;
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
 		dev->dvb.frontend = dvb_attach(s5h1411_attach,
 					       &dvico_fusionhdtv7_config,
-					       &dev->core->i2c_adap);
+					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			/* tuner_config.video_dev must point to
 			 * i2c_adap.algo_data
 			 */
-			dvico_fusionhdtv7_tuner_config.priv =
-						dev->core->i2c_adap.algo_data;
-			dvb_attach(xc5000_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap,
-				   &dvico_fusionhdtv7_tuner_config);
+			if (!dvb_attach(xc5000_attach, dev->dvb.frontend,
+					&core->i2c_adap,
+					&dvico_fusionhdtv7_tuner_config,
+					core->i2c_adap.algo_data))
+				goto frontend_detach;
 		}
 		break;
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card isn't supported yet\n",
-		       dev->core->name);
+		       core->name);
 		break;
 	}
 	if (NULL == dev->dvb.frontend) {
 		printk(KERN_ERR
 		       "%s/2: frontend initialization failed\n",
-		       dev->core->name);
+		       core->name);
 		return -EINVAL;
 	}
 
@@ -892,11 +900,18 @@ static int dvb_register(struct cx8802_dev *dev)
 	dev->dvb.frontend->ops.ts_bus_ctrl = cx88_dvb_bus_ctrl;
 
 	/* Put the analog decoder in standby to keep it quiet */
-	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
+	cx88_call_i2c_clients(core, TUNER_SET_STANDBY, NULL);
 
 	/* register everything */
 	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev,
 				     &dev->pci->dev, adapter_nr);
+
+frontend_detach:
+	if (dev->dvb.frontend) {
+		dvb_frontend_detach(dev->dvb.frontend);
+		dev->dvb.frontend = NULL;
+	}
+	return -EINVAL;
 }
 
 /* ----------------------------------------------------------- */

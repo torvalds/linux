@@ -65,6 +65,7 @@ void __init s3c244x_map_io(struct map_desc *mach_desc, int size)
 
 	/* rename any peripherals used differing from the s3c2410 */
 
+	s3c_device_sdi.name  = "s3c2440-sdi";
 	s3c_device_i2c.name  = "s3c2440-i2c";
 	s3c_device_nand.name = "s3c2440-nand";
 	s3c_device_usbgadget.name = "s3c2440-usbgadget";

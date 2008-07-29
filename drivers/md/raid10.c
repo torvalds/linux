@@ -439,26 +439,27 @@ static sector_t raid10_find_virt(conf_t *conf, sector_t sector, int dev)
 /**
  *	raid10_mergeable_bvec -- tell bio layer if a two requests can be merged
  *	@q: request queue
- *	@bio: the buffer head that's been built up so far
+ *	@bvm: properties of new bio
  *	@biovec: the request that could be merged to it.
  *
  *	Return amount of bytes we can accept at this offset
  *      If near_copies == raid_disk, there are no striping issues,
  *      but in that case, the function isn't called at all.
  */
-static int raid10_mergeable_bvec(struct request_queue *q, struct bio *bio,
-				struct bio_vec *bio_vec)
+static int raid10_mergeable_bvec(struct request_queue *q,
+				 struct bvec_merge_data *bvm,
+				 struct bio_vec *biovec)
 {
 	mddev_t *mddev = q->queuedata;
-	sector_t sector = bio->bi_sector + get_start_sect(bio->bi_bdev);
+	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 	int max;
 	unsigned int chunk_sectors = mddev->chunk_size >> 9;
-	unsigned int bio_sectors = bio->bi_size >> 9;
+	unsigned int bio_sectors = bvm->bi_size >> 9;
 
 	max =  (chunk_sectors - ((sector & (chunk_sectors - 1)) + bio_sectors)) << 9;
 	if (max < 0) max = 0; /* bio_add cannot handle a negative return */
-	if (max <= bio_vec->bv_len && bio_sectors == 0)
-		return bio_vec->bv_len;
+	if (max <= biovec->bv_len && bio_sectors == 0)
+		return biovec->bv_len;
 	else
 		return max;
 }
@@ -886,7 +887,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	 */
 	raid10_find_phys(conf, r10_bio);
  retry_write:
-	blocked_rdev = 0;
+	blocked_rdev = NULL;
 	rcu_read_lock();
 	for (i = 0;  i < conf->copies; i++) {
 		int d = r10_bio->devs[i].devnum;
@@ -1020,7 +1021,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		/*
 		 * if recovery is running, make sure it aborts.
 		 */
-		set_bit(MD_RECOVERY_ERR, &mddev->recovery);
+		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	}
 	set_bit(Faulty, &rdev->flags);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
@@ -1113,24 +1114,30 @@ static int raid10_spare_active(mddev_t *mddev)
 static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	conf_t *conf = mddev->private;
-	int found = 0;
+	int err = -EEXIST;
 	int mirror;
 	mirror_info_t *p;
+	int first = 0;
+	int last = mddev->raid_disks - 1;
 
 	if (mddev->recovery_cp < MaxSector)
 		/* only hot-add to in-sync arrays, as recovery is
 		 * very different from resync
 		 */
-		return 0;
+		return -EBUSY;
 	if (!enough(conf))
-		return 0;
+		return -EINVAL;
+
+	if (rdev->raid_disk)
+		first = last = rdev->raid_disk;
 
 	if (rdev->saved_raid_disk >= 0 &&
+	    rdev->saved_raid_disk >= first &&
 	    conf->mirrors[rdev->saved_raid_disk].rdev == NULL)
 		mirror = rdev->saved_raid_disk;
 	else
-		mirror = 0;
-	for ( ; mirror < mddev->raid_disks; mirror++)
+		mirror = first;
+	for ( ; mirror <= last ; mirror++)
 		if ( !(p=conf->mirrors+mirror)->rdev) {
 
 			blk_queue_stack_limits(mddev->queue,
@@ -1145,7 +1152,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
-			found = 1;
+			err = 0;
 			if (rdev->saved_raid_disk != mirror)
 				conf->fullsync = 1;
 			rcu_assign_pointer(p->rdev, rdev);
@@ -1153,7 +1160,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		}
 
 	print_conf(conf);
-	return found;
+	return err;
 }
 
 static int raid10_remove_disk(mddev_t *mddev, int number)
@@ -1168,6 +1175,14 @@ static int raid10_remove_disk(mddev_t *mddev, int number)
 	if (rdev) {
 		if (test_bit(In_sync, &rdev->flags) ||
 		    atomic_read(&rdev->nr_pending)) {
+			err = -EBUSY;
+			goto abort;
+		}
+		/* Only remove faulty devices in recovery
+		 * is not possible.
+		 */
+		if (!test_bit(Faulty, &rdev->flags) &&
+		    enough(conf)) {
 			err = -EBUSY;
 			goto abort;
 		}
@@ -1237,6 +1252,7 @@ static void end_sync_write(struct bio *bio, int error)
 
 	if (!uptodate)
 		md_error(mddev, conf->mirrors[d].rdev);
+
 	update_head_pos(i, r10_bio);
 
 	while (atomic_dec_and_test(&r10_bio->remaining)) {
@@ -1844,7 +1860,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 					if (rb2)
 						atomic_dec(&rb2->remaining);
 					r10_bio = rb2;
-					if (!test_and_set_bit(MD_RECOVERY_ERR, &mddev->recovery))
+					if (!test_and_set_bit(MD_RECOVERY_INTR,
+							      &mddev->recovery))
 						printk(KERN_INFO "raid10: %s: insufficient working devices for recovery.\n",
 						       mdname(mddev));
 					break;
@@ -2082,6 +2099,9 @@ static int run(mddev_t *mddev)
 		goto out_free_conf;
 	}
 
+	spin_lock_init(&conf->device_lock);
+	mddev->queue->queue_lock = &conf->device_lock;
+
 	rdev_for_each(rdev, tmp, mddev) {
 		disk_idx = rdev->raid_disk;
 		if (disk_idx >= mddev->raid_disks
@@ -2103,7 +2123,6 @@ static int run(mddev_t *mddev)
 
 		disk->head_position = 0;
 	}
-	spin_lock_init(&conf->device_lock);
 	INIT_LIST_HEAD(&conf->retry_list);
 
 	spin_lock_init(&conf->resync_lock);
@@ -2125,6 +2144,8 @@ static int run(mddev_t *mddev)
 		    !test_bit(In_sync, &disk->rdev->flags)) {
 			disk->head_position = 0;
 			mddev->degraded++;
+			if (disk->rdev)
+				conf->fullsync = 1;
 		}
 	}
 
@@ -2144,7 +2165,7 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_size = size << (conf->chunk_shift-1);
+	mddev->array_sectors = size << conf->chunk_shift;
 	mddev->resync_max_sectors = size << conf->chunk_shift;
 
 	mddev->queue->unplug_fn = raid10_unplug;

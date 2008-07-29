@@ -120,6 +120,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t 2 = Hauppauge HVR 1600 (Samsung memory)\n"
 		 "\t\t\t 3 = Compro VideoMate H900\n"
 		 "\t\t\t 4 = Yuan MPC718\n"
+		 "\t\t\t 5 = Conexant Raptor PAL/SECAM\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
@@ -163,16 +164,6 @@ MODULE_SUPPORTED_DEVICE("CX23418 MPEG2 encoder");
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(CX18_VERSION);
-
-int cx18_waitq(wait_queue_head_t *waitq)
-{
-	DEFINE_WAIT(wait);
-
-	prepare_to_wait(waitq, &wait, TASK_INTERRUPTIBLE);
-	schedule();
-	finish_wait(waitq, &wait);
-	return signal_pending(current) ? -EINTR : 0;
-}
 
 /* Generic utility functions */
 int cx18_msleep_timeout(unsigned int msecs, int intr)
@@ -220,12 +211,12 @@ static void cx18_process_eeprom(struct cx18 *cx)
 
 	/* Many thanks to Steven Toth from Hauppauge for providing the
 	   model numbers */
+	/* Note: the Samsung memory models cannot be reliably determined
+	   from the model number. Use the cardtype module option if you
+	   have one of these preproduction models. */
 	switch (tv.model) {
-	case 74000 ... 74099:
+	case 74000 ... 74999:
 		cx->card = cx18_get_card(CX18_CARD_HVR_1600_ESMT);
-		break;
-	case 74700 ... 74799:
-		cx->card = cx18_get_card(CX18_CARD_HVR_1600_SAMSUNG);
 		break;
 	case 0:
 		CX18_ERR("Invalid EEPROM\n");
@@ -430,6 +421,7 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	mutex_init(&cx->serialize_lock);
 	mutex_init(&cx->i2c_bus_lock[0]);
 	mutex_init(&cx->i2c_bus_lock[1]);
+	mutex_init(&cx->gpio_lock);
 
 	spin_lock_init(&cx->lock);
 	spin_lock_init(&cx->dma_reg_lock);
@@ -445,7 +437,7 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 		(cx->params.video_temporal_filter_mode << 1) |
 		(cx->params.video_median_filter_type << 2);
 	cx->params.port = CX2341X_PORT_MEMORY;
-	cx->params.capabilities = CX2341X_CAP_HAS_SLICED_VBI;
+	cx->params.capabilities = CX2341X_CAP_HAS_TS;
 	init_waitqueue_head(&cx->cap_w);
 	init_waitqueue_head(&cx->mb_apu_waitq);
 	init_waitqueue_head(&cx->mb_cpu_waitq);
@@ -548,6 +540,7 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *dev,
 	return 0;
 }
 
+#ifdef MODULE
 static u32 cx18_request_module(struct cx18 *cx, u32 hw,
 		const char *name, u32 id)
 {
@@ -560,18 +553,21 @@ static u32 cx18_request_module(struct cx18 *cx, u32 hw,
 	CX18_DEBUG_INFO("Loaded module %s\n", name);
 	return hw;
 }
+#endif
 
 static void cx18_load_and_init_modules(struct cx18 *cx)
 {
 	u32 hw = cx->card->hw_all;
 	int i;
 
+#ifdef MODULE
 	/* load modules */
 #ifndef CONFIG_MEDIA_TUNER
 	hw = cx18_request_module(cx, hw, "tuner", CX18_HW_TUNER);
 #endif
 #ifndef CONFIG_VIDEO_CS5345
 	hw = cx18_request_module(cx, hw, "cs5345", CX18_HW_CS5345);
+#endif
 #endif
 
 	/* check which i2c devices are actually found */
@@ -613,14 +609,14 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	}
 
 	cx = kzalloc(sizeof(struct cx18), GFP_ATOMIC);
-	if (cx == 0) {
+	if (!cx) {
 		spin_unlock(&cx18_cards_lock);
 		return -ENOMEM;
 	}
 	cx18_cards[cx18_cards_active] = cx;
 	cx->dev = dev;
 	cx->num = cx18_cards_active++;
-	snprintf(cx->name, sizeof(cx->name) - 1, "cx18-%d", cx->num);
+	snprintf(cx->name, sizeof(cx->name), "cx18-%d", cx->num);
 	CX18_INFO("Initializing card #%d\n", cx->num);
 
 	spin_unlock(&cx18_cards_lock);
@@ -676,7 +672,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	cx18_init_power(cx, 1);
 	cx18_init_memory(cx);
 
-	cx->scb = (struct cx18_scb *)(cx->enc_mem + SCB_OFFSET);
+	cx->scb = (struct cx18_scb __iomem *)(cx->enc_mem + SCB_OFFSET);
 	cx18_init_scb(cx);
 
 	cx18_gpio_init(cx);
@@ -727,6 +723,12 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	/* if no tuner was found, then pick the first tuner in the card list */
 	if (cx->options.tuner == -1 && cx->card->tuners[0].std) {
 		cx->std = cx->card->tuners[0].std;
+		if (cx->std & V4L2_STD_PAL)
+			cx->std = V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
+		else if (cx->std & V4L2_STD_NTSC)
+			cx->std = V4L2_STD_NTSC_M;
+		else if (cx->std & V4L2_STD_SECAM)
+			cx->std = V4L2_STD_SECAM_L;
 		cx->options.tuner = cx->card->tuners[0].tuner;
 	}
 	if (cx->options.radio == -1)
@@ -757,17 +759,6 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	if (cx->options.radio > 0)
 		cx->v4l2_cap |= V4L2_CAP_RADIO;
 
-	retval = cx18_streams_setup(cx);
-	if (retval) {
-		CX18_ERR("Error %d setting up streams\n", retval);
-		goto free_irq;
-	}
-	retval = cx18_streams_register(cx);
-	if (retval) {
-		CX18_ERR("Error %d registering devices\n", retval);
-		goto free_streams;
-	}
-
 	if (cx->options.tuner > -1) {
 		struct tuner_setup setup;
 
@@ -794,14 +785,23 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	   are not. */
 	cx->tuner_std = cx->std;
 
-	cx18_init_on_first_open(cx);
+	retval = cx18_streams_setup(cx);
+	if (retval) {
+		CX18_ERR("Error %d setting up streams\n", retval);
+		goto free_irq;
+	}
+	retval = cx18_streams_register(cx);
+	if (retval) {
+		CX18_ERR("Error %d registering devices\n", retval);
+		goto free_streams;
+	}
 
 	CX18_INFO("Initialized card #%d: %s\n", cx->num, cx->card_name);
 
 	return 0;
 
 free_streams:
-	cx18_streams_cleanup(cx);
+	cx18_streams_cleanup(cx, 1);
 free_irq:
 	free_irq(cx->dev->irq, (void *)cx);
 free_i2c:
@@ -826,6 +826,9 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	int video_input;
 	int fw_retry_count = 3;
 	struct v4l2_frequency vf;
+	struct cx18_open_id fh;
+
+	fh.cx = cx;
 
 	if (test_bit(CX18_F_I_FAILED, &cx->i_flags))
 		return -ENXIO;
@@ -877,13 +880,13 @@ int cx18_init_on_first_open(struct cx18 *cx)
 
 	video_input = cx->active_input;
 	cx->active_input++;	/* Force update of input */
-	cx18_v4l2_ioctls(cx, NULL, VIDIOC_S_INPUT, &video_input);
+	cx18_s_input(NULL, &fh, video_input);
 
 	/* Let the VIDIOC_S_STD ioctl do all the work, keeps the code
 	   in one place. */
 	cx->std++;		/* Force full standard initialization */
-	cx18_v4l2_ioctls(cx, NULL, VIDIOC_S_STD, &cx->tuner_std);
-	cx18_v4l2_ioctls(cx, NULL, VIDIOC_S_FREQUENCY, &vf);
+	cx18_s_std(NULL, &fh, &cx->tuner_std);
+	cx18_s_frequency(NULL, &fh, &vf);
 	return 0;
 }
 
@@ -895,7 +898,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	/* Stop all captures */
 	CX18_DEBUG_INFO("Stopping all streams\n");
-	if (atomic_read(&cx->capturing) > 0)
+	if (atomic_read(&cx->tot_capturing) > 0)
 		cx18_stop_all_captures(cx);
 
 	/* Interrupts */
@@ -904,14 +907,13 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	cx18_halt_firmware(cx);
 
-	cx18_streams_cleanup(cx);
+	cx18_streams_cleanup(cx, 1);
 
 	exit_cx18_i2c(cx);
 
 	free_irq(cx->dev->irq, (void *)cx);
 
-	if (cx->dev)
-		cx18_iounmap(cx);
+	cx18_iounmap(cx);
 
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 

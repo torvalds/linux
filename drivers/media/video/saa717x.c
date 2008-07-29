@@ -35,7 +35,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 
-#include <linux/videodev.h>
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <media/v4l2-common.h>
@@ -1429,8 +1428,6 @@ static int saa717x_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	snprintf(client->name, sizeof(client->name) - 1, "saa717x");
-
 	if (saa717x_write(client, 0x5a4, 0xfe) &&
 			saa717x_write(client, 0x5a5, 0x0f) &&
 			saa717x_write(client, 0x5a6, 0x00) &&
@@ -1507,6 +1504,12 @@ static int saa717x_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
+static const struct i2c_device_id saa717x_id[] = {
+	{ "saa717x", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, saa717x_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa717x",
 	.driverid = I2C_DRIVERID_SAA717X,
@@ -1514,4 +1517,5 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.probe = saa717x_probe,
 	.remove = saa717x_remove,
 	.legacy_class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
+	.id_table = saa717x_id,
 };

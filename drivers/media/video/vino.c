@@ -38,7 +38,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-sgi.h>
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/video_decoder.h>
 #include <linux/mutex.h>
@@ -4385,8 +4385,6 @@ static const struct file_operations vino_fops = {
 
 static struct video_device v4l_device_template = {
 	.name		= "NOT SET",
-	/*.type		= VID_TYPE_CAPTURE | VID_TYPE_SUBCAPTURE | */
-	/*	VID_TYPE_CLIPPING | VID_TYPE_SCALES, VID_TYPE_OVERLAY */
 	.fops		= &vino_fops,
 	.minor		= -1,
 };

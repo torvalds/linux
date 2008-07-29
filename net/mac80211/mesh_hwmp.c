@@ -26,7 +26,7 @@ static inline u32 u32_field_get(u8 *preq_elem, int offset, bool ae)
 {
 	if (ae)
 		offset += 6;
-	return le32_to_cpu(get_unaligned((__le32 *) (preq_elem + offset)));
+	return get_unaligned_le32(preq_elem + offset);
 }
 
 /* HWMP IE processing macros */
@@ -120,7 +120,7 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 		*pos++ = WLAN_EID_PREP;
 		break;
 	default:
-		kfree(skb);
+		kfree_skb(skb);
 		return -ENOTSUPP;
 		break;
 	}

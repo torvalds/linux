@@ -2,12 +2,12 @@
  * FILE NAME au1000_gpio.h
  *
  * BRIEF MODULE DESCRIPTION
- *	API to Alchemy Au1000 GPIO device.
+ *	API to Alchemy Au1xx0 GPIO device.
  *
  *  Author: MontaVista Software, Inc.  <source@mvista.com>
- *          Steve Longerbeam <stevel@mvista.com>
+ *          Steve Longerbeam
  *
- * Copyright 2001 MontaVista Software Inc.
+ * Copyright 2001, 2008 MontaVista Software Inc.
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -37,12 +37,12 @@
 
 #define AU1000GPIO_IOC_MAGIC 'A'
 
-#define AU1000GPIO_IN		_IOR (AU1000GPIO_IOC_MAGIC, 0, int)
-#define AU1000GPIO_SET		_IOW (AU1000GPIO_IOC_MAGIC, 1, int)
-#define AU1000GPIO_CLEAR	_IOW (AU1000GPIO_IOC_MAGIC, 2, int)
-#define AU1000GPIO_OUT		_IOW (AU1000GPIO_IOC_MAGIC, 3, int)
-#define AU1000GPIO_TRISTATE	_IOW (AU1000GPIO_IOC_MAGIC, 4, int)
-#define AU1000GPIO_AVAIL_MASK	_IOR (AU1000GPIO_IOC_MAGIC, 5, int)
+#define AU1000GPIO_IN		_IOR(AU1000GPIO_IOC_MAGIC, 0, int)
+#define AU1000GPIO_SET		_IOW(AU1000GPIO_IOC_MAGIC, 1, int)
+#define AU1000GPIO_CLEAR	_IOW(AU1000GPIO_IOC_MAGIC, 2, int)
+#define AU1000GPIO_OUT		_IOW(AU1000GPIO_IOC_MAGIC, 3, int)
+#define AU1000GPIO_TRISTATE	_IOW(AU1000GPIO_IOC_MAGIC, 4, int)
+#define AU1000GPIO_AVAIL_MASK	_IOR(AU1000GPIO_IOC_MAGIC, 5, int)
 
 #ifdef __KERNEL__
 extern u32 get_au1000_avail_gpio_mask(void);

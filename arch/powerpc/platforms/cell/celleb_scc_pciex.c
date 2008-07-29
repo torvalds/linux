@@ -217,7 +217,7 @@ static u##size scc_pciex_in##name(unsigned long port)			\
 static void scc_pciex_ins##name(unsigned long p, void *b, unsigned long c) \
 {									\
 	struct iowa_bus *bus = iowa_pio_find_bus(p);			\
-	u##size *dst = b;						\
+	__le##size *dst = b;						\
 	for (; c != 0; c--, dst++)					\
 		*dst = cpu_to_le##size(__scc_pciex_in##name(bus->phb, p)); \
 	scc_pciex_io_flush(bus);					\
@@ -231,10 +231,11 @@ static void scc_pciex_outs##name(unsigned long p, const void *b,	\
 				 unsigned long c)			\
 {									\
 	struct iowa_bus *bus = iowa_pio_find_bus(p);			\
-	const u##size *src = b;						\
+	const __le##size *src = b;					\
 	for (; c != 0; c--, src++)					\
 		__scc_pciex_out##name(bus->phb, le##size##_to_cpu(*src), p); \
 }
+#define __le8 u8
 #define cpu_to_le8(x) (x)
 #define le8_to_cpu(x) (x)
 PCIEX_PIO_FUNC(8, b)
@@ -280,7 +281,7 @@ static int __init scc_pciex_iowa_init(struct iowa_bus *bus, void *data)
 
 	dummy_page_da = dma_map_single(bus->phb->parent, dummy_page_va,
 				       PAGE_SIZE, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dummy_page_da)) {
+	if (dma_mapping_error(bus->phb->parent, dummy_page_da)) {
 		pr_err("PCIEX:Map dummy page failed.\n");
 		kfree(dummy_page_va);
 		return -1;

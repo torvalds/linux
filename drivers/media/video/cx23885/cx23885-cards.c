@@ -143,6 +143,11 @@ struct cx23885_board cx23885_boards[] = {
 		.name		= "Hauppauge WinTV-HVR1400",
 		.portc		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP] = {
+		.name		= "DViCO FusionHDTV7 Dual Express",
+		.portb		= CX23885_MPEG_DVB,
+		.portc		= CX23885_MPEG_DVB,
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -200,12 +205,20 @@ struct cx23885_subid cx23885_subids[] = {
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1200,
 	}, {
 		.subvendor = 0x0070,
+		.subdevice = 0x71d3,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1200,
+	}, {
+		.subvendor = 0x0070,
 		.subdevice = 0x8101,
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1700,
 	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x8010,
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1400,
+	},{
+		.subvendor = 0x18ac,
+		.subdevice = 0xd618,
+		.card      = CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -245,6 +258,33 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	/* Make sure we support the board model */
 	switch (tv.model)
 	{
+	case 71009:
+		/* WinTV-HVR1200 (PCIe, Retail, full height)
+		 * DVB-T and basic analog */
+	case 71359:
+		/* WinTV-HVR1200 (PCIe, OEM, half height)
+		 * DVB-T and basic analog */
+	case 71439:
+		/* WinTV-HVR1200 (PCIe, OEM, half height)
+		 * DVB-T and basic analog */
+	case 71449:
+		/* WinTV-HVR1200 (PCIe, OEM, full height)
+		 * DVB-T and basic analog */
+	case 71939:
+		/* WinTV-HVR1200 (PCIe, OEM, half height)
+		 * DVB-T and basic analog */
+	case 71949:
+		/* WinTV-HVR1200 (PCIe, OEM, full height)
+		 * DVB-T and basic analog */
+	case 71959:
+		/* WinTV-HVR1200 (PCIe, OEM, full height)
+		 * DVB-T and basic analog */
+	case 71979:
+		/* WinTV-HVR1200 (PCIe, OEM, half height)
+		 * DVB-T and basic analog */
+	case 71999:
+		/* WinTV-HVR1200 (PCIe, OEM, full height)
+		 * DVB-T and basic analog */
 	case 76601: /* WinTV-HVR1800lp (PCIe, Retail, No IR, Dual channel ATSC and MPEG2 HW Encoder */
 	case 77001: /* WinTV-HVR1500 (Express Card, OEM, No IR, ATSC and Basic analog */
 	case 77011: /* WinTV-HVR1500 (Express Card, Retail, No IR, ATSC and Basic analog */
@@ -263,8 +303,11 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	case 80019:
 		/* WinTV-HVR1400 (Express Card, Retail, IR,
 		 * DVB-T and Basic analog */
+	case 81509:
+		/* WinTV-HVR1700 (PCIe, OEM, No IR, half height)
+		 * DVB-T and MPEG2 HW Encoder */
 	case 81519:
-		/* WinTV-HVR1700 (PCIe, Retail, No IR, half height,
+		/* WinTV-HVR1700 (PCIe, OEM, No IR, full height)
 		 * DVB-T and MPEG2 HW Encoder */
 		break;
 	default:
@@ -283,25 +326,41 @@ int cx23885_tuner_callback(void *priv, int command, int arg)
 {
 	struct cx23885_i2c *bus = priv;
 	struct cx23885_dev *dev = bus->dev;
+	u32 bitmask = 0;
+
+	if (command != 0) {
+		printk(KERN_ERR "%s(): Unknown command 0x%x.\n",
+			__func__, command);
+		return -EINVAL;
+	}
 
 	switch(dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
-		if(command == 0) {	/* Tuner Reset Command from xc5000 */
-			/* Drive the tuner into reset and out */
-			cx_clear(GP0_IO, 0x00000004);
-			mdelay(200);
-			cx_set(GP0_IO, 0x00000004);
-			return 0;
-		}
-		else {
-			printk(KERN_ERR
-				"%s(): Unknow command.\n", __func__);
-			return -EINVAL;
+		/* Tuner Reset Command from xc5000 */
+		if (command == 0)
+			bitmask = 0x04;
+		break;
+	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
+		if (command == 0) {
+
+			/* Two identical tuners on two different i2c buses,
+			 * we need to reset the correct gpio. */
+			if (bus->nr == 0)
+				bitmask = 0x01;
+			else if (bus->nr == 1)
+				bitmask = 0x04;
 		}
 		break;
 	}
 
-	return 0; /* Should never be here */
+	if (bitmask) {
+		/* Drive the tuner into reset and back out */
+		cx_clear(GP0_IO, bitmask);
+		mdelay(200);
+		cx_set(GP0_IO, bitmask);
+	}
+
+	return 0;
 }
 
 void cx23885_gpio_setup(struct cx23885_dev *dev)
@@ -393,6 +452,19 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		mdelay(20);
 		cx_set(GP0_IO, 0x00050005);
 		break;
+	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
+		/* GPIO-0 xc5000 tuner reset i2c bus 0 */
+		/* GPIO-1 s5h1409 demod reset i2c bus 0 */
+		/* GPIO-2 xc5000 tuner reset i2c bus 1 */
+		/* GPIO-3 s5h1409 demod reset i2c bus 0 */
+
+		/* Put the parts into reset and back */
+		cx_set(GP0_IO, 0x000f0000);
+		mdelay(20);
+		cx_clear(GP0_IO, 0x0000000f);
+		mdelay(20);
+		cx_set(GP0_IO, 0x000f000f);
+		break;
 	}
 }
 
@@ -443,6 +515,11 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	}
 
 	switch (dev->board) {
+	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
+		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
+		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
+		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
+		/* break omitted intentionally */
 	case CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP:
 		ts1->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */

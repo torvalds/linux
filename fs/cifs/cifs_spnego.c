@@ -119,6 +119,9 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 	dp = description + strlen(description);
 	sprintf(dp, ";uid=0x%x", sesInfo->linux_uid);
 
+	dp = description + strlen(description);
+	sprintf(dp, ";user=%s", sesInfo->userName);
+
 	cFYI(1, ("key description = %s", description));
 	spnego_key = request_key(&cifs_spnego_key_type, description, "");
 

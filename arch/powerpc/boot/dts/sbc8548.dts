@@ -44,6 +44,7 @@
 			timebase-frequency = <0>;	// From uboot
 			bus-frequency = <0>;
 			clock-frequency = <0>;
+			next-level-cache = <&L2>;
 		};
 	};
 
@@ -52,6 +53,99 @@
 		reg = <0x00000000 0x10000000>;
 	};
 
+	localbus@e0000000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		reg = <0xe0000000 0x5000>;
+		interrupt-parent = <&mpic>;
+
+		ranges = <0x0 0x0 0xff800000 0x00800000		/*8MB Flash*/
+			  0x3 0x0 0xf0000000 0x04000000		/*64MB SDRAM*/
+			  0x4 0x0 0xf4000000 0x04000000 	/*64MB SDRAM*/
+			  0x5 0x0 0xf8000000 0x00b10000		/* EPLD */
+			  0x6 0x0 0xfb800000 0x04000000>;	/*64MB Flash*/
+
+
+		flash@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x800000>;
+			bank-width = <1>;
+			device-width = <1>;
+			partition@0x0 {
+				label = "space";
+				reg = <0x00000000 0x00100000>;
+			};
+			partition@0x100000 {
+				label = "bootloader";
+				reg = <0x00100000 0x00700000>;
+				read-only;
+			};
+		};
+
+		epld@5,0 {
+			compatible = "wrs,epld-localbus";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			reg = <0x5 0x0 0x00b10000>;
+			ranges = <
+				0x0 0x0 0x5 0x000000 0x1fff	/* LED */
+				0x1 0x0 0x5 0x100000 0x1fff	/* Switches */
+				0x3 0x0 0x5 0x300000 0x1fff	/* HW Rev. */
+				0xb 0x0	0x5 0xb00000 0x1fff	/* EEPROM */
+			>;
+
+			led@0,0 {
+				compatible = "led";
+				reg = <0x0 0x0 0x1fff>;
+			};
+
+			switches@1,0 {
+				compatible = "switches";
+				reg = <0x1 0x0 0x1fff>;
+			};
+
+			hw-rev@3,0 {
+				compatible = "hw-rev";
+				reg = <0x3 0x0 0x1fff>;
+			};
+
+			eeprom@b,0 {
+				compatible = "eeprom";
+				reg = <0xb 0 0x1fff>;
+			};
+
+		};
+
+		alt-flash@6,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x6 0x0 0x04000000>;
+			compatible = "cfi-flash";
+			bank-width = <4>;
+			device-width = <1>;
+			partition@0x0 {
+				label = "bootloader";
+				reg = <0x00000000 0x00100000>;
+				read-only;
+			};
+			partition@0x00100000 {
+				label = "file-system";
+				reg = <0x00100000 0x01f00000>;
+			};
+			partition@0x02000000 {
+				label = "boot-config";
+				reg = <0x02000000 0x00100000>;
+			};
+			partition@0x02100000 {
+				label = "space";
+				reg = <0x02100000 0x01f00000>;
+			};
+                };
+        };
+
 	soc8548@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -59,6 +153,7 @@
 		ranges = <0x00000000 0xe0000000 0x00100000>;
 		reg = <0xe0000000 0x00001000>;	// CCSRBAR
 		bus-frequency = <0>;
+		compatible = "simple-bus";
 
 		memory-controller@2000 {
 			compatible = "fsl,8548-memory-controller";
@@ -67,7 +162,7 @@
 			interrupts = <0x12 0x2>;
 		};
 
-		l2-cache-controller@20000 {
+		L2: l2-cache-controller@20000 {
 			compatible = "fsl,8548-l2-cache-controller";
 			reg = <0x20000 0x1000>;
 			cache-line-size = <0x20>;	// 32 bytes
@@ -96,6 +191,47 @@
 			interrupts = <0x2b 0x2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
+		};
+
+		dma@21300 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8548-dma", "fsl,eloplus-dma";
+			reg = <0x21300 0x4>;
+			ranges = <0x0 0x21100 0x200>;
+			cell-index = <0>;
+			dma-channel@0 {
+				compatible = "fsl,mpc8548-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x0 0x80>;
+				cell-index = <0>;
+				interrupt-parent = <&mpic>;
+				interrupts = <20 2>;
+			};
+			dma-channel@80 {
+				compatible = "fsl,mpc8548-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x80 0x80>;
+				cell-index = <1>;
+				interrupt-parent = <&mpic>;
+				interrupts = <21 2>;
+			};
+			dma-channel@100 {
+				compatible = "fsl,mpc8548-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x100 0x80>;
+				cell-index = <2>;
+				interrupt-parent = <&mpic>;
+				interrupts = <22 2>;
+			};
+			dma-channel@180 {
+				compatible = "fsl,mpc8548-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x180 0x80>;
+				cell-index = <3>;
+				interrupt-parent = <&mpic>;
+				interrupts = <23 2>;
+			};
 		};
 
 		mdio@24520 {
@@ -168,15 +304,24 @@
 			fsl,has-rstcr;
 		};
 
+		crypto@30000 {
+			compatible = "fsl,sec2.1", "fsl,sec2.0";
+			reg = <0x30000 0x10000>;
+			interrupts = <45 2>;
+			interrupt-parent = <&mpic>;
+			fsl,num-channels = <4>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0xfe>;
+			fsl,descriptor-types-mask = <0x12b0ebf>;
+		};
+
 		mpic: pic@40000 {
 			interrupt-controller;
 			#address-cells = <0>;
-			#size-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <0x40000 0x40000>;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
-                        big-endian;
 		};
 	};
 

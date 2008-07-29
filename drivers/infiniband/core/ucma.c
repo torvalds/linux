@@ -1148,6 +1148,14 @@ static unsigned int ucma_poll(struct file *filp, struct poll_table_struct *wait)
 	return mask;
 }
 
+/*
+ * ucma_open() does not need the BKL:
+ *
+ *  - no global state is referred to;
+ *  - there is no ioctl method to race against;
+ *  - no further module initialization is required for open to work
+ *    after the device is registered.
+ */
 static int ucma_open(struct inode *inode, struct file *filp)
 {
 	struct ucma_file *file;

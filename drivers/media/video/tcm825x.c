@@ -523,6 +523,9 @@ static int ioctl_g_ctrl(struct v4l2_int_device *s,
 	if (val < 0)
 		return val;
 
+	if (vc->id == V4L2_CID_HFLIP || vc->id == V4L2_CID_VFLIP)
+		val ^= sensor->platform_data->is_upside_down();
+
 	vc->value = val;
 	return 0;
 }
@@ -555,6 +558,9 @@ static int ioctl_s_ctrl(struct v4l2_int_device *s,
 	lvc = find_vctrl(vc->id);
 	if (lvc == NULL)
 		return -EINVAL;
+
+	if (vc->id == V4L2_CID_HFLIP || vc->id == V4L2_CID_VFLIP)
+		val ^= sensor->platform_data->is_upside_down();
 
 	val = val << lvc->start_bit;
 	if (tcm825x_write_reg_mask(client, lvc->reg, val))
@@ -885,12 +891,19 @@ static int __exit tcm825x_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id tcm825x_id[] = {
+	{ "tcm825x", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, tcm825x_id);
+
 static struct i2c_driver tcm825x_i2c_driver = {
 	.driver	= {
 		.name = TCM825X_NAME,
 	},
 	.probe	= tcm825x_probe,
 	.remove	= __exit_p(tcm825x_remove),
+	.id_table = tcm825x_id,
 };
 
 static struct tcm825x_sensor tcm825x = {

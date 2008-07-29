@@ -334,7 +334,7 @@ static int omap_mbox_init(struct omap_mbox *mbox)
 	}
 
 	mbox->dev.class = &omap_mbox_class;
-	strlcpy(mbox->dev.bus_id, mbox->name, KOBJ_NAME_LEN);
+	dev_set_name(&mbox->dev, "%s", mbox->name);
 	dev_set_drvdata(&mbox->dev, mbox);
 
 	ret = device_register(&mbox->dev);
@@ -355,7 +355,6 @@ static int omap_mbox_init(struct omap_mbox *mbox)
 			"failed to register mailbox interrupt:%d\n", ret);
 		goto fail_request_irq;
 	}
-	enable_mbox_irq(mbox, IRQ_RX);
 
 	mq = mbox_queue_alloc(mbox, mbox_txq_fn, mbox_tx_work);
 	if (!mq) {

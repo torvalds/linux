@@ -48,16 +48,32 @@ void of_dev_put(struct of_device *dev)
 }
 EXPORT_SYMBOL(of_dev_put);
 
-static ssize_t dev_show_devspec(struct device *dev,
+static ssize_t devspec_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct of_device *ofdev;
 
 	ofdev = to_of_device(dev);
-	return sprintf(buf, "%s", ofdev->node->full_name);
+	return sprintf(buf, "%s\n", ofdev->node->full_name);
 }
 
-static DEVICE_ATTR(devspec, S_IRUGO, dev_show_devspec, NULL);
+static ssize_t modalias_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct of_device *ofdev = to_of_device(dev);
+	ssize_t len = 0;
+
+	len = of_device_get_modalias(ofdev, buf, PAGE_SIZE - 2);
+	buf[len] = '\n';
+	buf[len+1] = 0;
+	return len+1;
+}
+
+struct device_attribute of_platform_device_attrs[] = {
+	__ATTR_RO(devspec),
+	__ATTR_RO(modalias),
+	__ATTR_NULL
+};
 
 /**
  * of_release_dev - free an of device structure when all users of it are finished.
@@ -78,25 +94,61 @@ EXPORT_SYMBOL(of_release_dev);
 
 int of_device_register(struct of_device *ofdev)
 {
-	int rc;
-
 	BUG_ON(ofdev->node == NULL);
-
-	rc = device_register(&ofdev->dev);
-	if (rc)
-		return rc;
-
-	rc = device_create_file(&ofdev->dev, &dev_attr_devspec);
-	if (rc)
-		device_unregister(&ofdev->dev);
-
-	return rc;
+	return device_register(&ofdev->dev);
 }
 EXPORT_SYMBOL(of_device_register);
 
 void of_device_unregister(struct of_device *ofdev)
 {
-	device_remove_file(&ofdev->dev, &dev_attr_devspec);
 	device_unregister(&ofdev->dev);
 }
 EXPORT_SYMBOL(of_device_unregister);
+
+ssize_t of_device_get_modalias(struct of_device *ofdev,
+				char *str, ssize_t len)
+{
+	const char *compat;
+	int cplen, i;
+	ssize_t tsize, csize, repend;
+
+	/* Name & Type */
+	csize = snprintf(str, len, "of:N%sT%s",
+				ofdev->node->name, ofdev->node->type);
+
+	/* Get compatible property if any */
+	compat = of_get_property(ofdev->node, "compatible", &cplen);
+	if (!compat)
+		return csize;
+
+	/* Find true end (we tolerate multiple \0 at the end */
+	for (i = (cplen - 1); i >= 0 && !compat[i]; i--)
+		cplen--;
+	if (!cplen)
+		return csize;
+	cplen++;
+
+	/* Check space (need cplen+1 chars including final \0) */
+	tsize = csize + cplen;
+	repend = tsize;
+
+	if (csize >= len)		/* @ the limit, all is already filled */
+		return tsize;
+
+	if (tsize >= len) {		/* limit compat list */
+		cplen = len - csize - 1;
+		repend = len;
+	}
+
+	/* Copy and do char replacement */
+	memcpy(&str[csize + 1], compat, cplen);
+	for (i = csize; i < repend; i++) {
+		char c = str[i];
+		if (c == '\0')
+			str[i] = 'C';
+		else if (c == ' ')
+			str[i] = '_';
+	}
+
+	return tsize;
+}

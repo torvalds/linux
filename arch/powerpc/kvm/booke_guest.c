@@ -49,6 +49,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "inst_emu",   VCPU_STAT(emulated_inst_exits) },
 	{ "dec",        VCPU_STAT(dec_exits) },
 	{ "ext_intr",   VCPU_STAT(ext_intr_exits) },
+	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ NULL }
 };
 
@@ -226,39 +227,6 @@ void kvmppc_check_and_deliver_interrupts(struct kvm_vcpu *vcpu)
 	}
 }
 
-static int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
-{
-	enum emulation_result er;
-	int r;
-
-	er = kvmppc_emulate_instruction(run, vcpu);
-	switch (er) {
-	case EMULATE_DONE:
-		/* Future optimization: only reload non-volatiles if they were
-		 * actually modified. */
-		r = RESUME_GUEST_NV;
-		break;
-	case EMULATE_DO_MMIO:
-		run->exit_reason = KVM_EXIT_MMIO;
-		/* We must reload nonvolatiles because "update" load/store
-		 * instructions modify register state. */
-		/* Future optimization: only reload non-volatiles if they were
-		 * actually modified. */
-		r = RESUME_HOST_NV;
-		break;
-	case EMULATE_FAIL:
-		/* XXX Deliver Program interrupt to guest. */
-		printk(KERN_EMERG "%s: emulation failed (%08x)\n", __func__,
-		       vcpu->arch.last_inst);
-		r = RESUME_HOST;
-		break;
-	default:
-		BUG();
-	}
-
-	return r;
-}
-
 /**
  * kvmppc_handle_exit
  *
@@ -336,6 +304,11 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		default:
 			BUG();
 		}
+		break;
+
+	case BOOKE_INTERRUPT_FP_UNAVAIL:
+		kvmppc_queue_exception(vcpu, exit_nr);
+		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_DATA_STORAGE:

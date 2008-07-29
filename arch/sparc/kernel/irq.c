@@ -1,4 +1,4 @@
-/*  $Id: irq.c,v 1.114 2001/12/11 04:55:51 davem Exp $
+/*
  *  arch/sparc/kernel/irq.c:  Interrupt request handling routines. On the
  *                            Sparc the IRQs are basically 'cast in stone'
  *                            and you are supposed to probe the prom's device
@@ -154,7 +154,7 @@ void (*sparc_init_timers)(irq_handler_t ) =
 struct irqaction static_irqaction[MAX_STATIC_ALLOC];
 int static_irq_count;
 
-struct {
+static struct {
 	struct irqaction *action;
 	int flags;
 } sparc_irq[NR_IRQS];

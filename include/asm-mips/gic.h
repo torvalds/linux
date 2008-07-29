@@ -24,8 +24,8 @@
 
 #define MSK(n) ((1 << (n)) - 1)
 #define REG32(addr)		(*(volatile unsigned int *) (addr))
-#define REG(base, offs)		REG32((unsigned int)(base) + offs##_##OFS)
-#define REGP(base, phys)	REG32((unsigned int)(base) + (phys))
+#define REG(base, offs)		REG32((unsigned long)(base) + offs##_##OFS)
+#define REGP(base, phys)	REG32((unsigned long)(base) + (phys))
 
 /* Accessors */
 #define GIC_REG(segment, offset) \
@@ -330,7 +330,7 @@
 
 #define GIC_SH_RMASK_OFS		0x0300
 #define GIC_CLR_INTR_MASK(intr, val) \
-	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_RMASK_OFS + 4 + (((((intr) / 32) ^ 1) - 1) * 4)), ((val) << ((intr) % 32))
+	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_RMASK_OFS + 4 + (((((intr) / 32) ^ 1) - 1) * 4)), ((val) << ((intr) % 32)))
 
 /* Register Map for Local Section */
 #define GIC_VPE_CTL_OFS			0x0000

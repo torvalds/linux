@@ -61,7 +61,7 @@ static int ses_probe(struct device *dev)
 	return err;
 }
 
-#define SES_TIMEOUT 30
+#define SES_TIMEOUT (30 * HZ)
 #define SES_RETRIES 3
 
 static int ses_recv_diag(struct scsi_device *sdev, int page_code,

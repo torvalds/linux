@@ -35,9 +35,6 @@
  ***************************************************************************/
 
 #ifndef _cirrus_h
-#ifndef lint
-/* static char* _cirrus_h_sccs = "@(#)cirrus.h	1.16"; */
-#endif
 #define _cirrus_h 1
 
 /* Bit fields for particular registers shared with driver */

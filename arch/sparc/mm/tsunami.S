@@ -1,4 +1,4 @@
-/* $Id: tsunami.S,v 1.7 2001/12/21 04:56:15 davem Exp $
+/*
  * tsunami.S: High speed MicroSparc-I mmu/cache operations.
  *
  * Copyright (C) 1997 David S. Miller (davem@caip.rutgers.edu)
@@ -93,7 +93,6 @@ tsunami_flush_tlb_page_out:
 	ldd	[src + offset + 0x00], t2; \
 	std	t2, [dst + offset + 0x00];
 
-	.globl	tsunami_copy_1page
 tsunami_copy_1page:
 /* NOTE: This routine has to be shorter than 70insns --jj */
 	or	%g0, (PAGE_SIZE >> 8), %g1

@@ -21,7 +21,7 @@
  *  02110-1301, USA.
  */
 
-#define TPACPI_VERSION "0.20"
+#define TPACPI_VERSION "0.21"
 #define TPACPI_SYSFS_VERSION 0x020200
 
 /*
@@ -68,6 +68,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/input.h>
 #include <linux/leds.h>
+#include <linux/rfkill.h>
 #include <asm/uaccess.h>
 
 #include <linux/dmi.h>
@@ -143,6 +144,12 @@ enum {
 #define TPACPI_WORKQUEUE_NAME "ktpacpid"
 
 #define TPACPI_MAX_ACPI_ARGS 3
+
+/* rfkill switches */
+enum {
+	TPACPI_RFK_BLUETOOTH_SW_ID = 0,
+	TPACPI_RFK_WWAN_SW_ID,
+};
 
 /* Debugging */
 #define TPACPI_LOG TPACPI_FILE ": "
@@ -905,6 +912,43 @@ static int __init tpacpi_check_std_acpi_brightness_support(void)
 	return 0;
 }
 
+static int __init tpacpi_new_rfkill(const unsigned int id,
+			struct rfkill **rfk,
+			const enum rfkill_type rfktype,
+			const char *name,
+			int (*toggle_radio)(void *, enum rfkill_state),
+			int (*get_state)(void *, enum rfkill_state *))
+{
+	int res;
+	enum rfkill_state initial_state;
+
+	*rfk = rfkill_allocate(&tpacpi_pdev->dev, rfktype);
+	if (!*rfk) {
+		printk(TPACPI_ERR
+			"failed to allocate memory for rfkill class\n");
+		return -ENOMEM;
+	}
+
+	(*rfk)->name = name;
+	(*rfk)->get_state = get_state;
+	(*rfk)->toggle_radio = toggle_radio;
+
+	if (!get_state(NULL, &initial_state))
+		(*rfk)->state = initial_state;
+
+	res = rfkill_register(*rfk);
+	if (res < 0) {
+		printk(TPACPI_ERR
+			"failed to register %s rfkill switch: %d\n",
+			name, res);
+		rfkill_free(*rfk);
+		*rfk = NULL;
+		return res;
+	}
+
+	return 0;
+}
+
 /*************************************************************************
  * thinkpad-acpi driver attributes
  */
@@ -1283,21 +1327,6 @@ static int hotkey_status_set(int status)
 		return -EIO;
 
 	return 0;
-}
-
-static void tpacpi_input_send_radiosw(void)
-{
-	int wlsw;
-
-	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&wlsw)) {
-		mutex_lock(&tpacpi_inputdev_send_mutex);
-
-		input_report_switch(tpacpi_inputdev,
-				    SW_RADIO, !!wlsw);
-		input_sync(tpacpi_inputdev);
-
-		mutex_unlock(&tpacpi_inputdev_send_mutex);
-	}
 }
 
 static void tpacpi_input_send_tabletsw(void)
@@ -1921,6 +1950,53 @@ static struct attribute *hotkey_mask_attributes[] __initdata = {
 	&dev_attr_hotkey_wakeup_hotunplug_complete.attr,
 };
 
+static void bluetooth_update_rfk(void);
+static void wan_update_rfk(void);
+static void tpacpi_send_radiosw_update(void)
+{
+	int wlsw;
+
+	/* Sync these BEFORE sending any rfkill events */
+	if (tp_features.bluetooth)
+		bluetooth_update_rfk();
+	if (tp_features.wan)
+		wan_update_rfk();
+
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&wlsw)) {
+		mutex_lock(&tpacpi_inputdev_send_mutex);
+
+		input_report_switch(tpacpi_inputdev,
+				    SW_RFKILL_ALL, !!wlsw);
+		input_sync(tpacpi_inputdev);
+
+		mutex_unlock(&tpacpi_inputdev_send_mutex);
+	}
+	hotkey_radio_sw_notify_change();
+}
+
+static void hotkey_exit(void)
+{
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+	hotkey_poll_stop_sync();
+#endif
+
+	if (hotkey_dev_attributes)
+		delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
+
+	kfree(hotkey_keycode_map);
+
+	if (tp_features.hotkey) {
+		dbg_printk(TPACPI_DBG_EXIT,
+			   "restoring original hot key mask\n");
+		/* no short-circuit boolean operator below! */
+		if ((hotkey_mask_set(hotkey_orig_mask) |
+		     hotkey_status_set(hotkey_orig_status)) != 0)
+			printk(TPACPI_ERR
+			       "failed to restore hot key mask "
+			       "to BIOS defaults\n");
+	}
+}
+
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
 	/* Requirements for changing the default keymaps:
@@ -2060,226 +2136,221 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "hotkeys are %s\n",
 		str_supported(tp_features.hotkey));
 
-	if (tp_features.hotkey) {
-		hotkey_dev_attributes = create_attr_set(13, NULL);
-		if (!hotkey_dev_attributes)
-			return -ENOMEM;
-		res = add_many_to_attr_set(hotkey_dev_attributes,
-				hotkey_attributes,
-				ARRAY_SIZE(hotkey_attributes));
+	if (!tp_features.hotkey)
+		return 1;
+
+	hotkey_dev_attributes = create_attr_set(13, NULL);
+	if (!hotkey_dev_attributes)
+		return -ENOMEM;
+	res = add_many_to_attr_set(hotkey_dev_attributes,
+			hotkey_attributes,
+			ARRAY_SIZE(hotkey_attributes));
+	if (res)
+		goto err_exit;
+
+	/* mask not supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
+	   A30, R30, R31, T20-22, X20-21, X22-24.  Detected by checking
+	   for HKEY interface version 0x100 */
+	if (acpi_evalf(hkey_handle, &hkeyv, "MHKV", "qd")) {
+		if ((hkeyv >> 8) != 1) {
+			printk(TPACPI_ERR "unknown version of the "
+			       "HKEY interface: 0x%x\n", hkeyv);
+			printk(TPACPI_ERR "please report this to %s\n",
+			       TPACPI_MAIL);
+		} else {
+			/*
+			 * MHKV 0x100 in A31, R40, R40e,
+			 * T4x, X31, and later
+			 */
+			tp_features.hotkey_mask = 1;
+		}
+	}
+
+	vdbg_printk(TPACPI_DBG_INIT, "hotkey masks are %s\n",
+		str_supported(tp_features.hotkey_mask));
+
+	if (tp_features.hotkey_mask) {
+		if (!acpi_evalf(hkey_handle, &hotkey_all_mask,
+				"MHKA", "qd")) {
+			printk(TPACPI_ERR
+			       "missing MHKA handler, "
+			       "please report this to %s\n",
+			       TPACPI_MAIL);
+			/* FN+F12, FN+F4, FN+F3 */
+			hotkey_all_mask = 0x080cU;
+		}
+	}
+
+	/* hotkey_source_mask *must* be zero for
+	 * the first hotkey_mask_get */
+	res = hotkey_status_get(&hotkey_orig_status);
+	if (res)
+		goto err_exit;
+
+	if (tp_features.hotkey_mask) {
+		res = hotkey_mask_get();
 		if (res)
-			return res;
+			goto err_exit;
 
-		/* mask not supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
-		   A30, R30, R31, T20-22, X20-21, X22-24.  Detected by checking
-		   for HKEY interface version 0x100 */
-		if (acpi_evalf(hkey_handle, &hkeyv, "MHKV", "qd")) {
-			if ((hkeyv >> 8) != 1) {
-				printk(TPACPI_ERR "unknown version of the "
-				       "HKEY interface: 0x%x\n", hkeyv);
-				printk(TPACPI_ERR "please report this to %s\n",
-				       TPACPI_MAIL);
-			} else {
-				/*
-				 * MHKV 0x100 in A31, R40, R40e,
-				 * T4x, X31, and later
-				 */
-				tp_features.hotkey_mask = 1;
-			}
-		}
-
-		vdbg_printk(TPACPI_DBG_INIT, "hotkey masks are %s\n",
-			str_supported(tp_features.hotkey_mask));
-
-		if (tp_features.hotkey_mask) {
-			if (!acpi_evalf(hkey_handle, &hotkey_all_mask,
-					"MHKA", "qd")) {
-				printk(TPACPI_ERR
-				       "missing MHKA handler, "
-				       "please report this to %s\n",
-				       TPACPI_MAIL);
-				/* FN+F12, FN+F4, FN+F3 */
-				hotkey_all_mask = 0x080cU;
-			}
-		}
-
-		/* hotkey_source_mask *must* be zero for
-		 * the first hotkey_mask_get */
-		res = hotkey_status_get(&hotkey_orig_status);
-		if (!res && tp_features.hotkey_mask) {
-			res = hotkey_mask_get();
-			hotkey_orig_mask = hotkey_mask;
-			if (!res) {
-				res = add_many_to_attr_set(
-					hotkey_dev_attributes,
-					hotkey_mask_attributes,
-					ARRAY_SIZE(hotkey_mask_attributes));
-			}
-		}
+		hotkey_orig_mask = hotkey_mask;
+		res = add_many_to_attr_set(
+				hotkey_dev_attributes,
+				hotkey_mask_attributes,
+				ARRAY_SIZE(hotkey_mask_attributes));
+		if (res)
+			goto err_exit;
+	}
 
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
-		if (tp_features.hotkey_mask) {
-			hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK
-						& ~hotkey_all_mask;
-		} else {
-			hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK;
-		}
+	if (tp_features.hotkey_mask) {
+		hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK
+					& ~hotkey_all_mask;
+	} else {
+		hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK;
+	}
 
-		vdbg_printk(TPACPI_DBG_INIT,
-			    "hotkey source mask 0x%08x, polling freq %d\n",
-			    hotkey_source_mask, hotkey_poll_freq);
+	vdbg_printk(TPACPI_DBG_INIT,
+		    "hotkey source mask 0x%08x, polling freq %d\n",
+		    hotkey_source_mask, hotkey_poll_freq);
 #endif
 
-		/* Not all thinkpads have a hardware radio switch */
-		if (!res && acpi_evalf(hkey_handle, &status, "WLSW", "qd")) {
-			tp_features.hotkey_wlsw = 1;
-			printk(TPACPI_INFO
-				"radio switch found; radios are %s\n",
-				enabled(status, 0));
-			res = add_to_attr_set(hotkey_dev_attributes,
-					&dev_attr_hotkey_radio_sw.attr);
-		}
+	/* Not all thinkpads have a hardware radio switch */
+	if (acpi_evalf(hkey_handle, &status, "WLSW", "qd")) {
+		tp_features.hotkey_wlsw = 1;
+		printk(TPACPI_INFO
+			"radio switch found; radios are %s\n",
+			enabled(status, 0));
+	}
+	if (tp_features.hotkey_wlsw)
+		res = add_to_attr_set(hotkey_dev_attributes,
+				&dev_attr_hotkey_radio_sw.attr);
 
-		/* For X41t, X60t, X61t Tablets... */
-		if (!res && acpi_evalf(hkey_handle, &status, "MHKG", "qd")) {
-			tp_features.hotkey_tablet = 1;
-			printk(TPACPI_INFO
-				"possible tablet mode switch found; "
-				"ThinkPad in %s mode\n",
-				(status & TP_HOTKEY_TABLET_MASK)?
-					"tablet" : "laptop");
-			res = add_to_attr_set(hotkey_dev_attributes,
-					&dev_attr_hotkey_tablet_mode.attr);
-		}
+	/* For X41t, X60t, X61t Tablets... */
+	if (!res && acpi_evalf(hkey_handle, &status, "MHKG", "qd")) {
+		tp_features.hotkey_tablet = 1;
+		printk(TPACPI_INFO
+			"possible tablet mode switch found; "
+			"ThinkPad in %s mode\n",
+			(status & TP_HOTKEY_TABLET_MASK)?
+				"tablet" : "laptop");
+		res = add_to_attr_set(hotkey_dev_attributes,
+				&dev_attr_hotkey_tablet_mode.attr);
+	}
 
-		if (!res)
-			res = register_attr_set_with_sysfs(
-					hotkey_dev_attributes,
-					&tpacpi_pdev->dev.kobj);
-		if (res)
-			return res;
+	if (!res)
+		res = register_attr_set_with_sysfs(
+				hotkey_dev_attributes,
+				&tpacpi_pdev->dev.kobj);
+	if (res)
+		goto err_exit;
 
-		/* Set up key map */
+	/* Set up key map */
 
-		hotkey_keycode_map = kmalloc(TPACPI_HOTKEY_MAP_SIZE,
-						GFP_KERNEL);
-		if (!hotkey_keycode_map) {
-			printk(TPACPI_ERR
-				"failed to allocate memory for key map\n");
-			return -ENOMEM;
-		}
+	hotkey_keycode_map = kmalloc(TPACPI_HOTKEY_MAP_SIZE,
+					GFP_KERNEL);
+	if (!hotkey_keycode_map) {
+		printk(TPACPI_ERR
+			"failed to allocate memory for key map\n");
+		res = -ENOMEM;
+		goto err_exit;
+	}
 
-		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO) {
-			dbg_printk(TPACPI_DBG_INIT,
-				   "using Lenovo default hot key map\n");
-			memcpy(hotkey_keycode_map, &lenovo_keycode_map,
-				TPACPI_HOTKEY_MAP_SIZE);
+	if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO) {
+		dbg_printk(TPACPI_DBG_INIT,
+			   "using Lenovo default hot key map\n");
+		memcpy(hotkey_keycode_map, &lenovo_keycode_map,
+			TPACPI_HOTKEY_MAP_SIZE);
+	} else {
+		dbg_printk(TPACPI_DBG_INIT,
+			   "using IBM default hot key map\n");
+		memcpy(hotkey_keycode_map, &ibm_keycode_map,
+			TPACPI_HOTKEY_MAP_SIZE);
+	}
+
+	set_bit(EV_KEY, tpacpi_inputdev->evbit);
+	set_bit(EV_MSC, tpacpi_inputdev->evbit);
+	set_bit(MSC_SCAN, tpacpi_inputdev->mscbit);
+	tpacpi_inputdev->keycodesize = TPACPI_HOTKEY_MAP_TYPESIZE;
+	tpacpi_inputdev->keycodemax = TPACPI_HOTKEY_MAP_LEN;
+	tpacpi_inputdev->keycode = hotkey_keycode_map;
+	for (i = 0; i < TPACPI_HOTKEY_MAP_LEN; i++) {
+		if (hotkey_keycode_map[i] != KEY_RESERVED) {
+			set_bit(hotkey_keycode_map[i],
+				tpacpi_inputdev->keybit);
 		} else {
-			dbg_printk(TPACPI_DBG_INIT,
-				   "using IBM default hot key map\n");
-			memcpy(hotkey_keycode_map, &ibm_keycode_map,
-				TPACPI_HOTKEY_MAP_SIZE);
+			if (i < sizeof(hotkey_reserved_mask)*8)
+				hotkey_reserved_mask |= 1 << i;
 		}
-
-		set_bit(EV_KEY, tpacpi_inputdev->evbit);
-		set_bit(EV_MSC, tpacpi_inputdev->evbit);
-		set_bit(MSC_SCAN, tpacpi_inputdev->mscbit);
-		tpacpi_inputdev->keycodesize = TPACPI_HOTKEY_MAP_TYPESIZE;
-		tpacpi_inputdev->keycodemax = TPACPI_HOTKEY_MAP_LEN;
-		tpacpi_inputdev->keycode = hotkey_keycode_map;
-		for (i = 0; i < TPACPI_HOTKEY_MAP_LEN; i++) {
-			if (hotkey_keycode_map[i] != KEY_RESERVED) {
-				set_bit(hotkey_keycode_map[i],
-					tpacpi_inputdev->keybit);
-			} else {
-				if (i < sizeof(hotkey_reserved_mask)*8)
-					hotkey_reserved_mask |= 1 << i;
-			}
-		}
-
-		if (tp_features.hotkey_wlsw) {
-			set_bit(EV_SW, tpacpi_inputdev->evbit);
-			set_bit(SW_RADIO, tpacpi_inputdev->swbit);
-		}
-		if (tp_features.hotkey_tablet) {
-			set_bit(EV_SW, tpacpi_inputdev->evbit);
-			set_bit(SW_TABLET_MODE, tpacpi_inputdev->swbit);
-		}
-
-		/* Do not issue duplicate brightness change events to
-		 * userspace */
-		if (!tp_features.bright_acpimode)
-			/* update bright_acpimode... */
-			tpacpi_check_std_acpi_brightness_support();
-
-		if (tp_features.bright_acpimode) {
-			printk(TPACPI_INFO
-			       "This ThinkPad has standard ACPI backlight "
-			       "brightness control, supported by the ACPI "
-			       "video driver\n");
-			printk(TPACPI_NOTICE
-			       "Disabling thinkpad-acpi brightness events "
-			       "by default...\n");
-
-			/* The hotkey_reserved_mask change below is not
-			 * necessary while the keys are at KEY_RESERVED in the
-			 * default map, but better safe than sorry, leave it
-			 * here as a marker of what we have to do, especially
-			 * when we finally become able to set this at runtime
-			 * on response to X.org requests */
-			hotkey_reserved_mask |=
-				(1 << TP_ACPI_HOTKEYSCAN_FNHOME)
-				| (1 << TP_ACPI_HOTKEYSCAN_FNEND);
-		}
-
-		dbg_printk(TPACPI_DBG_INIT,
-				"enabling hot key handling\n");
-		res = hotkey_status_set(1);
-		if (res)
-			return res;
-		res = hotkey_mask_set(((hotkey_all_mask | hotkey_source_mask)
-					& ~hotkey_reserved_mask)
-					| hotkey_orig_mask);
-		if (res < 0 && res != -ENXIO)
-			return res;
-
-		dbg_printk(TPACPI_DBG_INIT,
-				"legacy hot key reporting over procfs %s\n",
-				(hotkey_report_mode < 2) ?
-					"enabled" : "disabled");
-
-		tpacpi_inputdev->open = &hotkey_inputdev_open;
-		tpacpi_inputdev->close = &hotkey_inputdev_close;
-
-		hotkey_poll_setup_safe(1);
-		tpacpi_input_send_radiosw();
-		tpacpi_input_send_tabletsw();
 	}
 
-	return (tp_features.hotkey)? 0 : 1;
-}
-
-static void hotkey_exit(void)
-{
-#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
-	hotkey_poll_stop_sync();
-#endif
-
-	if (tp_features.hotkey) {
-		dbg_printk(TPACPI_DBG_EXIT,
-			   "restoring original hot key mask\n");
-		/* no short-circuit boolean operator below! */
-		if ((hotkey_mask_set(hotkey_orig_mask) |
-		     hotkey_status_set(hotkey_orig_status)) != 0)
-			printk(TPACPI_ERR
-			       "failed to restore hot key mask "
-			       "to BIOS defaults\n");
+	if (tp_features.hotkey_wlsw) {
+		set_bit(EV_SW, tpacpi_inputdev->evbit);
+		set_bit(SW_RFKILL_ALL, tpacpi_inputdev->swbit);
+	}
+	if (tp_features.hotkey_tablet) {
+		set_bit(EV_SW, tpacpi_inputdev->evbit);
+		set_bit(SW_TABLET_MODE, tpacpi_inputdev->swbit);
 	}
 
-	if (hotkey_dev_attributes) {
-		delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
-		hotkey_dev_attributes = NULL;
+	/* Do not issue duplicate brightness change events to
+	 * userspace */
+	if (!tp_features.bright_acpimode)
+		/* update bright_acpimode... */
+		tpacpi_check_std_acpi_brightness_support();
+
+	if (tp_features.bright_acpimode) {
+		printk(TPACPI_INFO
+		       "This ThinkPad has standard ACPI backlight "
+		       "brightness control, supported by the ACPI "
+		       "video driver\n");
+		printk(TPACPI_NOTICE
+		       "Disabling thinkpad-acpi brightness events "
+		       "by default...\n");
+
+		/* The hotkey_reserved_mask change below is not
+		 * necessary while the keys are at KEY_RESERVED in the
+		 * default map, but better safe than sorry, leave it
+		 * here as a marker of what we have to do, especially
+		 * when we finally become able to set this at runtime
+		 * on response to X.org requests */
+		hotkey_reserved_mask |=
+			(1 << TP_ACPI_HOTKEYSCAN_FNHOME)
+			| (1 << TP_ACPI_HOTKEYSCAN_FNEND);
 	}
+
+	dbg_printk(TPACPI_DBG_INIT, "enabling hot key handling\n");
+	res = hotkey_status_set(1);
+	if (res) {
+		hotkey_exit();
+		return res;
+	}
+	res = hotkey_mask_set(((hotkey_all_mask | hotkey_source_mask)
+				& ~hotkey_reserved_mask)
+				| hotkey_orig_mask);
+	if (res < 0 && res != -ENXIO) {
+		hotkey_exit();
+		return res;
+	}
+
+	dbg_printk(TPACPI_DBG_INIT,
+			"legacy hot key reporting over procfs %s\n",
+			(hotkey_report_mode < 2) ?
+				"enabled" : "disabled");
+
+	tpacpi_inputdev->open = &hotkey_inputdev_open;
+	tpacpi_inputdev->close = &hotkey_inputdev_close;
+
+	hotkey_poll_setup_safe(1);
+	tpacpi_send_radiosw_update();
+	tpacpi_input_send_tabletsw();
+
+	return 0;
+
+err_exit:
+	delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
+	hotkey_dev_attributes = NULL;
+
+	return (res < 0)? res : 1;
 }
 
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
@@ -2402,8 +2473,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		case 7:
 			/* 0x7000-0x7FFF: misc */
 			if (tp_features.hotkey_wlsw && hkey == 0x7000) {
-				tpacpi_input_send_radiosw();
-				hotkey_radio_sw_notify_change();
+				tpacpi_send_radiosw_update();
 				send_acpi_ev = 0;
 				break;
 			}
@@ -2446,8 +2516,7 @@ static void hotkey_resume(void)
 		printk(TPACPI_ERR
 		       "error while trying to read hot key mask "
 		       "from firmware\n");
-	tpacpi_input_send_radiosw();
-	hotkey_radio_sw_notify_change();
+	tpacpi_send_radiosw_update();
 	hotkey_tablet_mode_notify_change();
 	hotkey_wakeup_reason_notify_change();
 	hotkey_wakeup_hotunplug_complete_notify_change();
@@ -2564,8 +2633,66 @@ enum {
 	TP_ACPI_BLUETOOTH_UNK		= 0x04,	/* unknown function */
 };
 
-static int bluetooth_get_radiosw(void);
-static int bluetooth_set_radiosw(int radio_on);
+static struct rfkill *tpacpi_bluetooth_rfkill;
+
+static int bluetooth_get_radiosw(void)
+{
+	int status;
+
+	if (!tp_features.bluetooth)
+		return -ENODEV;
+
+	/* WLSW overrides bluetooth in firmware/hardware, reflect that */
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&status) && !status)
+		return RFKILL_STATE_HARD_BLOCKED;
+
+	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
+		return -EIO;
+
+	return ((status & TP_ACPI_BLUETOOTH_RADIOSSW) != 0) ?
+		RFKILL_STATE_UNBLOCKED : RFKILL_STATE_SOFT_BLOCKED;
+}
+
+static void bluetooth_update_rfk(void)
+{
+	int status;
+
+	if (!tpacpi_bluetooth_rfkill)
+		return;
+
+	status = bluetooth_get_radiosw();
+	if (status < 0)
+		return;
+	rfkill_force_state(tpacpi_bluetooth_rfkill, status);
+}
+
+static int bluetooth_set_radiosw(int radio_on, int update_rfk)
+{
+	int status;
+
+	if (!tp_features.bluetooth)
+		return -ENODEV;
+
+	/* WLSW overrides bluetooth in firmware/hardware, but there is no
+	 * reason to risk weird behaviour. */
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&status) && !status
+	    && radio_on)
+		return -EPERM;
+
+	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
+		return -EIO;
+	if (radio_on)
+		status |= TP_ACPI_BLUETOOTH_RADIOSSW;
+	else
+		status &= ~TP_ACPI_BLUETOOTH_RADIOSSW;
+	if (!acpi_evalf(hkey_handle, NULL, "SBDC", "vd", status))
+		return -EIO;
+
+	if (update_rfk)
+		bluetooth_update_rfk();
+
+	return 0;
+}
 
 /* sysfs bluetooth enable ---------------------------------------------- */
 static ssize_t bluetooth_enable_show(struct device *dev,
@@ -2578,7 +2705,8 @@ static ssize_t bluetooth_enable_show(struct device *dev,
 	if (status < 0)
 		return status;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", status ? 1 : 0);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			(status == RFKILL_STATE_UNBLOCKED) ? 1 : 0);
 }
 
 static ssize_t bluetooth_enable_store(struct device *dev,
@@ -2591,7 +2719,7 @@ static ssize_t bluetooth_enable_store(struct device *dev,
 	if (parse_strtoul(buf, 1, &t))
 		return -EINVAL;
 
-	res = bluetooth_set_radiosw(t);
+	res = bluetooth_set_radiosw(t, 1);
 
 	return (res) ? res : count;
 }
@@ -2611,6 +2739,31 @@ static const struct attribute_group bluetooth_attr_group = {
 	.attrs = bluetooth_attributes,
 };
 
+static int tpacpi_bluetooth_rfk_get(void *data, enum rfkill_state *state)
+{
+	int bts = bluetooth_get_radiosw();
+
+	if (bts < 0)
+		return bts;
+
+	*state = bts;
+	return 0;
+}
+
+static int tpacpi_bluetooth_rfk_set(void *data, enum rfkill_state state)
+{
+	return bluetooth_set_radiosw((state == RFKILL_STATE_UNBLOCKED), 0);
+}
+
+static void bluetooth_exit(void)
+{
+	if (tpacpi_bluetooth_rfkill)
+		rfkill_unregister(tpacpi_bluetooth_rfkill);
+
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+			&bluetooth_attr_group);
+}
+
 static int __init bluetooth_init(struct ibm_init_struct *iibm)
 {
 	int res;
@@ -2629,57 +2782,32 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.bluetooth),
 		status);
 
-	if (tp_features.bluetooth) {
-		if (!(status & TP_ACPI_BLUETOOTH_HWPRESENT)) {
-			/* no bluetooth hardware present in system */
-			tp_features.bluetooth = 0;
-			dbg_printk(TPACPI_DBG_INIT,
-				   "bluetooth hardware not installed\n");
-		} else {
-			res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
-					&bluetooth_attr_group);
-			if (res)
-				return res;
-		}
+	if (tp_features.bluetooth &&
+	    !(status & TP_ACPI_BLUETOOTH_HWPRESENT)) {
+		/* no bluetooth hardware present in system */
+		tp_features.bluetooth = 0;
+		dbg_printk(TPACPI_DBG_INIT,
+			   "bluetooth hardware not installed\n");
 	}
 
-	return (tp_features.bluetooth)? 0 : 1;
-}
-
-static void bluetooth_exit(void)
-{
-	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
-			&bluetooth_attr_group);
-}
-
-static int bluetooth_get_radiosw(void)
-{
-	int status;
-
 	if (!tp_features.bluetooth)
-		return -ENODEV;
+		return 1;
 
-	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
-		return -EIO;
+	res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+				&bluetooth_attr_group);
+	if (res)
+		return res;
 
-	return ((status & TP_ACPI_BLUETOOTH_RADIOSSW) != 0);
-}
-
-static int bluetooth_set_radiosw(int radio_on)
-{
-	int status;
-
-	if (!tp_features.bluetooth)
-		return -ENODEV;
-
-	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
-		return -EIO;
-	if (radio_on)
-		status |= TP_ACPI_BLUETOOTH_RADIOSSW;
-	else
-		status &= ~TP_ACPI_BLUETOOTH_RADIOSSW;
-	if (!acpi_evalf(hkey_handle, NULL, "SBDC", "vd", status))
-		return -EIO;
+	res = tpacpi_new_rfkill(TPACPI_RFK_BLUETOOTH_SW_ID,
+				&tpacpi_bluetooth_rfkill,
+				RFKILL_TYPE_BLUETOOTH,
+				"tpacpi_bluetooth_sw",
+				tpacpi_bluetooth_rfk_set,
+				tpacpi_bluetooth_rfk_get);
+	if (res) {
+		bluetooth_exit();
+		return res;
+	}
 
 	return 0;
 }
@@ -2694,7 +2822,8 @@ static int bluetooth_read(char *p)
 		len += sprintf(p + len, "status:\t\tnot supported\n");
 	else {
 		len += sprintf(p + len, "status:\t\t%s\n",
-				(status)? "enabled" : "disabled");
+				(status == RFKILL_STATE_UNBLOCKED) ?
+					"enabled" : "disabled");
 		len += sprintf(p + len, "commands:\tenable, disable\n");
 	}
 
@@ -2710,9 +2839,9 @@ static int bluetooth_write(char *buf)
 
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "enable") == 0) {
-			bluetooth_set_radiosw(1);
+			bluetooth_set_radiosw(1, 1);
 		} else if (strlencmp(cmd, "disable") == 0) {
-			bluetooth_set_radiosw(0);
+			bluetooth_set_radiosw(0, 1);
 		} else
 			return -EINVAL;
 	}
@@ -2738,8 +2867,66 @@ enum {
 	TP_ACPI_WANCARD_UNK		= 0x04,	/* unknown function */
 };
 
-static int wan_get_radiosw(void);
-static int wan_set_radiosw(int radio_on);
+static struct rfkill *tpacpi_wan_rfkill;
+
+static int wan_get_radiosw(void)
+{
+	int status;
+
+	if (!tp_features.wan)
+		return -ENODEV;
+
+	/* WLSW overrides WWAN in firmware/hardware, reflect that */
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&status) && !status)
+		return RFKILL_STATE_HARD_BLOCKED;
+
+	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
+		return -EIO;
+
+	return ((status & TP_ACPI_WANCARD_RADIOSSW) != 0) ?
+		RFKILL_STATE_UNBLOCKED : RFKILL_STATE_SOFT_BLOCKED;
+}
+
+static void wan_update_rfk(void)
+{
+	int status;
+
+	if (!tpacpi_wan_rfkill)
+		return;
+
+	status = wan_get_radiosw();
+	if (status < 0)
+		return;
+	rfkill_force_state(tpacpi_wan_rfkill, status);
+}
+
+static int wan_set_radiosw(int radio_on, int update_rfk)
+{
+	int status;
+
+	if (!tp_features.wan)
+		return -ENODEV;
+
+	/* WLSW overrides bluetooth in firmware/hardware, but there is no
+	 * reason to risk weird behaviour. */
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&status) && !status
+	    && radio_on)
+		return -EPERM;
+
+	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
+		return -EIO;
+	if (radio_on)
+		status |= TP_ACPI_WANCARD_RADIOSSW;
+	else
+		status &= ~TP_ACPI_WANCARD_RADIOSSW;
+	if (!acpi_evalf(hkey_handle, NULL, "SWAN", "vd", status))
+		return -EIO;
+
+	if (update_rfk)
+		wan_update_rfk();
+
+	return 0;
+}
 
 /* sysfs wan enable ---------------------------------------------------- */
 static ssize_t wan_enable_show(struct device *dev,
@@ -2752,7 +2939,8 @@ static ssize_t wan_enable_show(struct device *dev,
 	if (status < 0)
 		return status;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", status ? 1 : 0);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			(status == RFKILL_STATE_UNBLOCKED) ? 1 : 0);
 }
 
 static ssize_t wan_enable_store(struct device *dev,
@@ -2765,7 +2953,7 @@ static ssize_t wan_enable_store(struct device *dev,
 	if (parse_strtoul(buf, 1, &t))
 		return -EINVAL;
 
-	res = wan_set_radiosw(t);
+	res = wan_set_radiosw(t, 1);
 
 	return (res) ? res : count;
 }
@@ -2785,6 +2973,31 @@ static const struct attribute_group wan_attr_group = {
 	.attrs = wan_attributes,
 };
 
+static int tpacpi_wan_rfk_get(void *data, enum rfkill_state *state)
+{
+	int wans = wan_get_radiosw();
+
+	if (wans < 0)
+		return wans;
+
+	*state = wans;
+	return 0;
+}
+
+static int tpacpi_wan_rfk_set(void *data, enum rfkill_state state)
+{
+	return wan_set_radiosw((state == RFKILL_STATE_UNBLOCKED), 0);
+}
+
+static void wan_exit(void)
+{
+	if (tpacpi_wan_rfkill)
+		rfkill_unregister(tpacpi_wan_rfkill);
+
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+		&wan_attr_group);
+}
+
 static int __init wan_init(struct ibm_init_struct *iibm)
 {
 	int res;
@@ -2801,57 +3014,32 @@ static int __init wan_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.wan),
 		status);
 
-	if (tp_features.wan) {
-		if (!(status & TP_ACPI_WANCARD_HWPRESENT)) {
-			/* no wan hardware present in system */
-			tp_features.wan = 0;
-			dbg_printk(TPACPI_DBG_INIT,
-				   "wan hardware not installed\n");
-		} else {
-			res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
-					&wan_attr_group);
-			if (res)
-				return res;
-		}
+	if (tp_features.wan &&
+	    !(status & TP_ACPI_WANCARD_HWPRESENT)) {
+		/* no wan hardware present in system */
+		tp_features.wan = 0;
+		dbg_printk(TPACPI_DBG_INIT,
+			   "wan hardware not installed\n");
 	}
 
-	return (tp_features.wan)? 0 : 1;
-}
-
-static void wan_exit(void)
-{
-	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
-		&wan_attr_group);
-}
-
-static int wan_get_radiosw(void)
-{
-	int status;
-
 	if (!tp_features.wan)
-		return -ENODEV;
+		return 1;
 
-	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
-		return -EIO;
+	res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+				&wan_attr_group);
+	if (res)
+		return res;
 
-	return ((status & TP_ACPI_WANCARD_RADIOSSW) != 0);
-}
-
-static int wan_set_radiosw(int radio_on)
-{
-	int status;
-
-	if (!tp_features.wan)
-		return -ENODEV;
-
-	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
-		return -EIO;
-	if (radio_on)
-		status |= TP_ACPI_WANCARD_RADIOSSW;
-	else
-		status &= ~TP_ACPI_WANCARD_RADIOSSW;
-	if (!acpi_evalf(hkey_handle, NULL, "SWAN", "vd", status))
-		return -EIO;
+	res = tpacpi_new_rfkill(TPACPI_RFK_WWAN_SW_ID,
+				&tpacpi_wan_rfkill,
+				RFKILL_TYPE_WWAN,
+				"tpacpi_wwan_sw",
+				tpacpi_wan_rfk_set,
+				tpacpi_wan_rfk_get);
+	if (res) {
+		wan_exit();
+		return res;
+	}
 
 	return 0;
 }
@@ -2866,7 +3054,8 @@ static int wan_read(char *p)
 		len += sprintf(p + len, "status:\t\tnot supported\n");
 	else {
 		len += sprintf(p + len, "status:\t\t%s\n",
-				(status)? "enabled" : "disabled");
+				(status == RFKILL_STATE_UNBLOCKED) ?
+					"enabled" : "disabled");
 		len += sprintf(p + len, "commands:\tenable, disable\n");
 	}
 
@@ -2882,9 +3071,9 @@ static int wan_write(char *buf)
 
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "enable") == 0) {
-			wan_set_radiosw(1);
+			wan_set_radiosw(1, 1);
 		} else if (strlencmp(cmd, "disable") == 0) {
-			wan_set_radiosw(0);
+			wan_set_radiosw(0, 1);
 		} else
 			return -EINVAL;
 	}
@@ -3319,7 +3508,7 @@ static struct tpacpi_led_classdev tpacpi_led_thinklight = {
 
 static int __init light_init(struct ibm_init_struct *iibm)
 {
-	int rc = 0;
+	int rc;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing light subdriver\n");
 
@@ -3337,20 +3526,23 @@ static int __init light_init(struct ibm_init_struct *iibm)
 		tp_features.light_status =
 			acpi_evalf(ec_handle, NULL, "KBLT", "qv");
 
-	vdbg_printk(TPACPI_DBG_INIT, "light is %s\n",
-		str_supported(tp_features.light));
+	vdbg_printk(TPACPI_DBG_INIT, "light is %s, light status is %s\n",
+		str_supported(tp_features.light),
+		str_supported(tp_features.light_status));
 
-	if (tp_features.light) {
-		rc = led_classdev_register(&tpacpi_pdev->dev,
-					   &tpacpi_led_thinklight.led_classdev);
-	}
+	if (!tp_features.light)
+		return 1;
+
+	rc = led_classdev_register(&tpacpi_pdev->dev,
+				   &tpacpi_led_thinklight.led_classdev);
 
 	if (rc < 0) {
 		tp_features.light = 0;
 		tp_features.light_status = 0;
-	} else {
-		rc = (tp_features.light)? 0 : 1;
+	} else  {
+		rc = 0;
 	}
+
 	return rc;
 }
 
@@ -3821,7 +4013,7 @@ TPACPI_HANDLE(led, ec, "SLED",	/* 570 */
 #define TPACPI_LED_NUMLEDS 8
 static struct tpacpi_led_classdev *tpacpi_leds;
 static enum led_status_t tpacpi_led_state_cache[TPACPI_LED_NUMLEDS];
-static const char const *tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
+static const char * const tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
 	/* there's a limit of 19 chars + NULL before 2.6.26 */
 	"tpacpi::power",
 	"tpacpi:orange:batt",
@@ -3833,7 +4025,7 @@ static const char const *tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
 	"tpacpi::standby",
 };
 
-static int led_get_status(unsigned int led)
+static int led_get_status(const unsigned int led)
 {
 	int status;
 	enum led_status_t led_s;
@@ -3857,41 +4049,42 @@ static int led_get_status(unsigned int led)
 	/* not reached */
 }
 
-static int led_set_status(unsigned int led, enum led_status_t ledstatus)
+static int led_set_status(const unsigned int led,
+			  const enum led_status_t ledstatus)
 {
 	/* off, on, blink. Index is led_status_t */
-	static const int const led_sled_arg1[] = { 0, 1, 3 };
-	static const int const led_exp_hlbl[] = { 0, 0, 1 };	/* led# * */
-	static const int const led_exp_hlcl[] = { 0, 1, 1 };	/* led# * */
-	static const int const led_led_arg1[] = { 0, 0x80, 0xc0 };
+	static const unsigned int led_sled_arg1[] = { 0, 1, 3 };
+	static const unsigned int led_led_arg1[] = { 0, 0x80, 0xc0 };
 
 	int rc = 0;
 
 	switch (led_supported) {
 	case TPACPI_LED_570:
-			/* 570 */
-			led = 1 << led;
-			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
-					led, led_sled_arg1[ledstatus]))
-				rc = -EIO;
-			break;
+		/* 570 */
+		if (led > 7)
+			return -EINVAL;
+		if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
+				(1 << led), led_sled_arg1[ledstatus]))
+			rc = -EIO;
+		break;
 	case TPACPI_LED_OLD:
-			/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
-			led = 1 << led;
-			rc = ec_write(TPACPI_LED_EC_HLMS, led);
-			if (rc >= 0)
-				rc = ec_write(TPACPI_LED_EC_HLBL,
-					      led * led_exp_hlbl[ledstatus]);
-			if (rc >= 0)
-				rc = ec_write(TPACPI_LED_EC_HLCL,
-					      led * led_exp_hlcl[ledstatus]);
-			break;
+		/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
+		if (led > 7)
+			return -EINVAL;
+		rc = ec_write(TPACPI_LED_EC_HLMS, (1 << led));
+		if (rc >= 0)
+			rc = ec_write(TPACPI_LED_EC_HLBL,
+				      (ledstatus == TPACPI_LED_BLINK) << led);
+		if (rc >= 0)
+			rc = ec_write(TPACPI_LED_EC_HLCL,
+				      (ledstatus != TPACPI_LED_OFF) << led);
+		break;
 	case TPACPI_LED_NEW:
-			/* all others */
-			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
-					led, led_led_arg1[ledstatus]))
-				rc = -EIO;
-			break;
+		/* all others */
+		if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
+				led, led_led_arg1[ledstatus]))
+			rc = -EIO;
+		break;
 	default:
 		rc = -ENXIO;
 	}
@@ -3978,7 +4171,6 @@ static void led_exit(void)
 	}
 
 	kfree(tpacpi_leds);
-	tpacpi_leds = NULL;
 }
 
 static int __init led_init(struct ibm_init_struct *iibm)
@@ -4802,7 +4994,6 @@ static void brightness_exit(void)
 		vdbg_printk(TPACPI_DBG_EXIT,
 			    "calling backlight_device_unregister()\n");
 		backlight_device_unregister(ibm_backlight_device);
-		ibm_backlight_device = NULL;
 	}
 }
 
@@ -5764,11 +5955,16 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 	    fan_control_access_mode != TPACPI_FAN_WR_NONE) {
 		rc = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
 					 &fan_attr_group);
-		if (!(rc < 0))
-			rc = driver_create_file(&tpacpi_hwmon_pdriver.driver,
-					&driver_attr_fan_watchdog);
 		if (rc < 0)
 			return rc;
+
+		rc = driver_create_file(&tpacpi_hwmon_pdriver.driver,
+					&driver_attr_fan_watchdog);
+		if (rc < 0) {
+			sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj,
+					&fan_attr_group);
+			return rc;
+		}
 		return 0;
 	} else
 		return 1;
@@ -6144,13 +6340,18 @@ err_out:
 
 /* Probing */
 
-static void __init get_thinkpad_model_data(struct thinkpad_id_data *tp)
+/* returns 0 - probe ok, or < 0 - probe error.
+ * Probe ok doesn't mean thinkpad found.
+ * On error, kfree() cleanup on tp->* is not performed, caller must do it */
+static int __must_check __init get_thinkpad_model_data(
+						struct thinkpad_id_data *tp)
 {
 	const struct dmi_device *dev = NULL;
 	char ec_fw_string[18];
+	char const *s;
 
 	if (!tp)
-		return;
+		return -EINVAL;
 
 	memset(tp, 0, sizeof(*tp));
 
@@ -6159,12 +6360,14 @@ static void __init get_thinkpad_model_data(struct thinkpad_id_data *tp)
 	else if (dmi_name_in_vendors("LENOVO"))
 		tp->vendor = PCI_VENDOR_ID_LENOVO;
 	else
-		return;
+		return 0;
 
-	tp->bios_version_str = kstrdup(dmi_get_system_info(DMI_BIOS_VERSION),
-					GFP_KERNEL);
+	s = dmi_get_system_info(DMI_BIOS_VERSION);
+	tp->bios_version_str = kstrdup(s, GFP_KERNEL);
+	if (s && !tp->bios_version_str)
+		return -ENOMEM;
 	if (!tp->bios_version_str)
-		return;
+		return 0;
 	tp->bios_model = tp->bios_version_str[0]
 			 | (tp->bios_version_str[1] << 8);
 
@@ -6183,21 +6386,27 @@ static void __init get_thinkpad_model_data(struct thinkpad_id_data *tp)
 			ec_fw_string[strcspn(ec_fw_string, " ]")] = 0;
 
 			tp->ec_version_str = kstrdup(ec_fw_string, GFP_KERNEL);
+			if (!tp->ec_version_str)
+				return -ENOMEM;
 			tp->ec_model = ec_fw_string[0]
 					| (ec_fw_string[1] << 8);
 			break;
 		}
 	}
 
-	tp->model_str = kstrdup(dmi_get_system_info(DMI_PRODUCT_VERSION),
-					GFP_KERNEL);
-	if (tp->model_str && strnicmp(tp->model_str, "ThinkPad", 8) != 0) {
-		kfree(tp->model_str);
-		tp->model_str = NULL;
+	s = dmi_get_system_info(DMI_PRODUCT_VERSION);
+	if (s && !strnicmp(s, "ThinkPad", 8)) {
+		tp->model_str = kstrdup(s, GFP_KERNEL);
+		if (!tp->model_str)
+			return -ENOMEM;
 	}
 
-	tp->nummodel_str = kstrdup(dmi_get_system_info(DMI_PRODUCT_NAME),
-					GFP_KERNEL);
+	s = dmi_get_system_info(DMI_PRODUCT_NAME);
+	tp->nummodel_str = kstrdup(s, GFP_KERNEL);
+	if (s && !tp->nummodel_str)
+		return -ENOMEM;
+
+	return 0;
 }
 
 static int __init probe_for_thinkpad(void)
@@ -6460,7 +6669,13 @@ static int __init thinkpad_acpi_module_init(void)
 
 	/* Driver-level probe */
 
-	get_thinkpad_model_data(&thinkpad_id);
+	ret = get_thinkpad_model_data(&thinkpad_id);
+	if (ret) {
+		printk(TPACPI_ERR
+			"unable to get DMI data: %d\n", ret);
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
 	ret = probe_for_thinkpad();
 	if (ret) {
 		thinkpad_acpi_module_exit();

@@ -4,7 +4,7 @@
  * Description: cfag12864b LCD userspace example program
  *     License: GPLv2
  *
- *      Author: Copyright (C) Miguel Ojeda Sandonis <maxextreme@gmail.com>
+ *      Author: Copyright (C) Miguel Ojeda Sandonis
  *        Date: 2006-10-31
  *
  *  This program is free software; you can redistribute it and/or modify

@@ -186,17 +186,6 @@ config PREEMPT
 	  Say Y here if you are building a kernel for a desktop, embedded
 	  or real-time system.  Say N if you are unsure.
 
-config PREEMPT_BKL
-	bool "Preempt The Big Kernel Lock"
-	depends on PREEMPT
-	default y
-	help
-	  This option reduces the latency of the kernel by making the
-	  big kernel lock preemptible.
-
-	  Say Y here if you are building a kernel for a desktop system.
-	  Say N if you are unsure.
-
 config MN10300_CURRENT_IN_E2
 	bool "Hold current task address in E2 register"
 	default y

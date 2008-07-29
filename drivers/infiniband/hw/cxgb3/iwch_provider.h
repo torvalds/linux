@@ -296,14 +296,6 @@ static inline u32 iwch_ib_to_tpt_access(int acc)
 	       TPT_LOCAL_READ;
 }
 
-static inline u32 iwch_ib_to_mwbind_access(int acc)
-{
-	return (acc & IB_ACCESS_REMOTE_WRITE ? T3_MEM_ACCESS_REM_WRITE : 0) |
-	       (acc & IB_ACCESS_REMOTE_READ ? T3_MEM_ACCESS_REM_READ : 0) |
-	       (acc & IB_ACCESS_LOCAL_WRITE ? T3_MEM_ACCESS_LOCAL_WRITE : 0) |
-	       T3_MEM_ACCESS_LOCAL_READ;
-}
-
 enum iwch_mmid_state {
 	IWCH_STAG_STATE_VALID,
 	IWCH_STAG_STATE_INVALID
@@ -340,14 +332,14 @@ int iwch_quiesce_qps(struct iwch_cq *chp);
 int iwch_resume_qps(struct iwch_cq *chp);
 void stop_read_rep_timer(struct iwch_qp *qhp);
 int iwch_register_mem(struct iwch_dev *rhp, struct iwch_pd *php,
-					struct iwch_mr *mhp,
-					int shift,
-					__be64 *page_list);
+		      struct iwch_mr *mhp, int shift);
 int iwch_reregister_mem(struct iwch_dev *rhp, struct iwch_pd *php,
 					struct iwch_mr *mhp,
 					int shift,
-					__be64 *page_list,
 					int npages);
+int iwch_alloc_pbl(struct iwch_mr *mhp, int npages);
+void iwch_free_pbl(struct iwch_mr *mhp);
+int iwch_write_pbl(struct iwch_mr *mhp, __be64 *pages, int npages, int offset);
 int build_phys_page_list(struct ib_phys_buf *buffer_list,
 					int num_phys_buf,
 					u64 *iova_start,

@@ -1,4 +1,4 @@
-/* $Id: rtrap.S,v 1.58 2002/01/31 03:30:05 davem Exp $
+/*
  * rtrap.S: Return from Sparc trap low-level code.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
@@ -50,8 +50,9 @@ rtrap_7win_patch5:	and	%g1, 0x7f, %g1
 ret_trap_entry:
 ret_trap_lockless_ipi:
 	andcc	%t_psr, PSR_PS, %g0
+	sethi	%hi(PSR_SYSCALL), %g1
 	be	1f
-	 nop
+	 andn	%t_psr, %g1, %t_psr
 
 	wr	%t_psr, 0x0, %psr
 	b	ret_trap_kernel
@@ -68,19 +69,21 @@ ret_trap_lockless_ipi:
 
 	ld	[%curptr + TI_FLAGS], %g2
 signal_p:
-	andcc	%g2, (_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %g0
+	andcc	%g2, _TIF_DO_NOTIFY_RESUME_MASK, %g0
 	bz,a	ret_trap_continue
 	 ld	[%sp + STACKFRAME_SZ + PT_PSR], %t_psr
 
+	mov	%g2, %o2
 	mov	%l5, %o1
-	mov	%l6, %o2
-	call	do_signal
+	call	do_notify_resume
 	 add	%sp, STACKFRAME_SZ, %o0	! pt_regs ptr
 
 	/* Fall through. */
 	ld	[%sp + STACKFRAME_SZ + PT_PSR], %t_psr
 	clr	%l6
 ret_trap_continue:
+	sethi	%hi(PSR_SYSCALL), %g1
+	andn	%t_psr, %g1, %t_psr
 	wr	%t_psr, 0x0, %psr
 	WRITE_PAUSE
 
@@ -137,8 +140,9 @@ ret_trap_userwins_ok:
 	LOAD_PT_PRIV(sp, t_psr, t_pc, t_npc)
 	or	%t_pc, %t_npc, %g2
 	andcc	%g2, 0x3, %g0
+	sethi	%hi(PSR_SYSCALL), %g2
 	be	1f
-	 nop
+	 andn	%t_psr, %g2, %t_psr
 
 	b	ret_trap_unaligned_pc
 	 add	%sp, STACKFRAME_SZ, %o0
@@ -201,6 +205,8 @@ rtrap_patch5:	and	%g1, 0xff, %g1
 1:
 	LOAD_PT_ALL(sp, t_psr, t_pc, t_npc, g1)
 2:
+	sethi	%hi(PSR_SYSCALL), %twin_tmp1
+	andn	%t_psr, %twin_tmp1, %t_psr
 	wr	%t_psr, 0x0, %psr
 	WRITE_PAUSE
 
@@ -219,8 +225,6 @@ ret_trap_user_stack_is_bolixed:
 	b	signal_p
 	 ld	[%curptr + TI_FLAGS], %g2
 
-
-	.globl	sun4c_rett_stackchk
 sun4c_rett_stackchk:
 	be	1f
 	 and	%fp, 0xfff, %g1		! delay slot

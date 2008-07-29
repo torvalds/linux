@@ -129,7 +129,7 @@ static unsigned long __initdata iSeries_recal_titan;
 static signed long __initdata iSeries_recal_tb;
 
 /* Forward declaration is only needed for iSereis compiles */
-void __init clocksource_init(void);
+static void __init clocksource_init(void);
 #endif
 
 #define XSEC_PER_SEC (1024*1024)
@@ -150,8 +150,8 @@ u64 tb_to_xs;
 unsigned tb_to_us;
 
 #define TICKLEN_SCALE	NTP_SCALE_SHIFT
-u64 last_tick_len;	/* units are ns / 2^TICKLEN_SCALE */
-u64 ticklen_to_xs;	/* 0.64 fraction */
+static u64 last_tick_len;	/* units are ns / 2^TICKLEN_SCALE */
+static u64 ticklen_to_xs;	/* 0.64 fraction */
 
 /* If last_tick_len corresponds to about 1/HZ seconds, then
    last_tick_len << TICKLEN_SHIFT will be about 2^63. */
@@ -164,7 +164,7 @@ static u64 tb_to_ns_scale __read_mostly;
 static unsigned tb_to_ns_shift __read_mostly;
 static unsigned long boot_tb __read_mostly;
 
-struct gettimeofday_struct do_gtod;
+static struct gettimeofday_struct do_gtod;
 
 extern struct timezone sys_tz;
 static long timezone_offset;
@@ -322,7 +322,7 @@ void snapshot_timebases(void)
 {
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
-	on_each_cpu(snapshot_tb_and_purr, NULL, 0, 1);
+	on_each_cpu(snapshot_tb_and_purr, NULL, 1);
 }
 
 /*
@@ -742,10 +742,6 @@ void __init generic_calibrate_decr(void)
 	}
 
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
-	/* Set the time base to zero */
-	mtspr(SPRN_TBWL, 0);
-	mtspr(SPRN_TBWU, 0);
-
 	/* Clear any pending timer interrupts */
 	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
 
@@ -832,7 +828,7 @@ void update_vsyscall_tz(void)
 	++vdso_data->tb_update_count;
 }
 
-void __init clocksource_init(void)
+static void __init clocksource_init(void)
 {
 	struct clocksource *clock;
 

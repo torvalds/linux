@@ -166,7 +166,7 @@ struct device *xpnet = &xpnet_dbg_subname;
  * Packet was recevied by XPC and forwarded to us.
  */
 static void
-xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
+xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 {
 	struct sk_buff *skb;
 	bte_result_t bret;
@@ -282,7 +282,7 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
  * state or message reception on a connection.
  */
 static void
-xpnet_connection_activity(enum xpc_retval reason, partid_t partid, int channel,
+xpnet_connection_activity(enum xp_retval reason, short partid, int channel,
 			  void *data, void *key)
 {
 	long bp;
@@ -291,13 +291,13 @@ xpnet_connection_activity(enum xpc_retval reason, partid_t partid, int channel,
 	DBUG_ON(channel != XPC_NET_CHANNEL);
 
 	switch (reason) {
-	case xpcMsgReceived:	/* message received */
+	case xpMsgReceived:	/* message received */
 		DBUG_ON(data == NULL);
 
 		xpnet_receive(partid, channel, (struct xpnet_message *)data);
 		break;
 
-	case xpcConnected:	/* connection completed to a partition */
+	case xpConnected:	/* connection completed to a partition */
 		spin_lock_bh(&xpnet_broadcast_lock);
 		xpnet_broadcast_partitions |= 1UL << (partid - 1);
 		bp = xpnet_broadcast_partitions;
@@ -330,7 +330,7 @@ xpnet_connection_activity(enum xpc_retval reason, partid_t partid, int channel,
 static int
 xpnet_dev_open(struct net_device *dev)
 {
-	enum xpc_retval ret;
+	enum xp_retval ret;
 
 	dev_dbg(xpnet, "calling xpc_connect(%d, 0x%p, NULL, %ld, %ld, %ld, "
 		"%ld)\n", XPC_NET_CHANNEL, xpnet_connection_activity,
@@ -340,7 +340,7 @@ xpnet_dev_open(struct net_device *dev)
 	ret = xpc_connect(XPC_NET_CHANNEL, xpnet_connection_activity, NULL,
 			  XPNET_MSG_SIZE, XPNET_MSG_NENTRIES,
 			  XPNET_MAX_KTHREADS, XPNET_MAX_IDLE_KTHREADS);
-	if (ret != xpcSuccess) {
+	if (ret != xpSuccess) {
 		dev_err(xpnet, "ifconfig up of %s failed on XPC connect, "
 			"ret=%d\n", dev->name, ret);
 
@@ -407,7 +407,7 @@ xpnet_dev_get_stats(struct net_device *dev)
  * release the skb and then release our pending message structure.
  */
 static void
-xpnet_send_completed(enum xpc_retval reason, partid_t partid, int channel,
+xpnet_send_completed(enum xp_retval reason, short partid, int channel,
 		     void *__qm)
 {
 	struct xpnet_pending_msg *queued_msg = (struct xpnet_pending_msg *)__qm;
@@ -439,12 +439,12 @@ static int
 xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xpnet_pending_msg *queued_msg;
-	enum xpc_retval ret;
+	enum xp_retval ret;
 	struct xpnet_message *msg;
 	u64 start_addr, end_addr;
 	long dp;
 	u8 second_mac_octet;
-	partid_t dest_partid;
+	short dest_partid;
 	struct xpnet_dev_private *priv;
 	u16 embedded_bytes;
 
@@ -528,7 +528,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		ret = xpc_allocate(dest_partid, XPC_NET_CHANNEL,
 				   XPC_NOWAIT, (void **)&msg);
-		if (unlikely(ret != xpcSuccess))
+		if (unlikely(ret != xpSuccess))
 			continue;
 
 		msg->embedded_bytes = embedded_bytes;
@@ -557,7 +557,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		ret = xpc_send_notify(dest_partid, XPC_NET_CHANNEL, msg,
 				      xpnet_send_completed, queued_msg);
-		if (unlikely(ret != xpcSuccess)) {
+		if (unlikely(ret != xpSuccess)) {
 			atomic_dec(&queued_msg->use_count);
 			continue;
 		}

@@ -373,14 +373,14 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 
 	if ((rc = tuner_i2c_xfer_recv(&i2c, buffer, 7))< 5) {
 		printk(KERN_WARNING "It is not a TEA5767. Received %i bytes.\n", rc);
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	/* If all bytes are the same then it's a TV tuner and not a tea5767 */
 	if (buffer[0] == buffer[1] && buffer[0] == buffer[2] &&
 	    buffer[0] == buffer[3] && buffer[0] == buffer[4]) {
 		printk(KERN_WARNING "All bytes are equal. It is not a TEA5767\n");
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	/*  Status bytes:
@@ -390,7 +390,7 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 	 */
 	if (((buffer[3] & 0x0f) != 0x00) || (buffer[4] != 0x00)) {
 		printk(KERN_WARNING "Chip ID is not zero. It is not a TEA5767\n");
-		return EINVAL;
+		return -EINVAL;
 	}
 
 

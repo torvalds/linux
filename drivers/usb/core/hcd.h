@@ -21,6 +21,8 @@
 
 #include <linux/rwsem.h>
 
+#define MAX_TOPO_LEVEL		6
+
 /* This file contains declarations of usbcore internals that are mostly
  * used or exposed by Host Controller Drivers.
  */
@@ -210,9 +212,13 @@ struct hc_driver {
 	int	(*bus_suspend)(struct usb_hcd *);
 	int	(*bus_resume)(struct usb_hcd *);
 	int	(*start_port_reset)(struct usb_hcd *, unsigned port_num);
+	void	(*hub_irq_enable)(struct usb_hcd *);
+		/* Needed only if port-change IRQs are level-triggered */
 
 		/* force handover of high-speed port to full-speed companion */
 	void	(*relinquish_port)(struct usb_hcd *, int);
+		/* has a port been handed over to a companion? */
+	int	(*port_handed_over)(struct usb_hcd *, int);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);
@@ -231,7 +237,7 @@ extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 extern int usb_hcd_get_frame_number(struct usb_device *udev);
 
 extern struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
-		struct device *dev, char *bus_name);
+		struct device *dev, const char *bus_name);
 extern struct usb_hcd *usb_get_hcd(struct usb_hcd *hcd);
 extern void usb_put_hcd(struct usb_hcd *hcd);
 extern int usb_add_hcd(struct usb_hcd *hcd,

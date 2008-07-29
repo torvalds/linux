@@ -1,6 +1,4 @@
 /*
- *  $Id: hashtable.S,v 1.6 1999/10/08 01:56:15 paulus Exp $
- *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *  Rewritten by Cort Dougan (cort@cs.nmt.edu) for PReP

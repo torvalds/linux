@@ -65,6 +65,7 @@ static void __init omap_generic_init(void)
 
 static void __init omap_generic_map_io(void)
 {
+	omap2_set_globals_242x(); /* should be 242x, 243x, or 343x */
 	omap2_map_common_io();
 }
 

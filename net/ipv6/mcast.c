@@ -5,8 +5,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
- *	$Id: mcast.c,v 1.40 2002/02/08 03:57:19 davem Exp $
- *
  *	Based on linux/ipv4/igmp.c and linux/ipv4/ip_sockglue.c
  *
  *	This program is free software; you can redistribute it and/or
@@ -153,7 +151,7 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 #define IGMP6_UNSOLICITED_IVAL	(10*HZ)
 #define MLD_QRV_DEFAULT		2
 
-#define MLD_V1_SEEN(idev) (ipv6_devconf.force_mld_version == 1 || \
+#define MLD_V1_SEEN(idev) (dev_net((idev)->dev)->ipv6.devconf_all->force_mld_version == 1 || \
 		(idev)->cnf.force_mld_version == 1 || \
 		((idev)->mc_v1_seen && \
 		time_before(jiffies, (idev)->mc_v1_seen)))
@@ -164,7 +162,6 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 	((MLDV2_MASK(value, nbmant) | (1<<(nbmant))) << \
 	(MLDV2_MASK((value) >> (nbmant), nbexp) + (nbexp))))
 
-#define MLDV2_QQIC(value) MLDV2_EXP(0x80, 4, 3, value)
 #define MLDV2_MRC(value) MLDV2_EXP(0x8000, 12, 3, value)
 
 #define IPV6_MLD_MAX_MSF	64
@@ -369,10 +366,6 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	int leavegroup = 0;
 	int pmclocked = 0;
 	int err;
-
-	if (pgsr->gsr_group.ss_family != AF_INET6 ||
-	    pgsr->gsr_source.ss_family != AF_INET6)
-		return -EINVAL;
 
 	source = &((struct sockaddr_in6 *)&pgsr->gsr_source)->sin6_addr;
 	group = &((struct sockaddr_in6 *)&pgsr->gsr_group)->sin6_addr;
@@ -1411,7 +1404,7 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 		     IPV6_TLV_PADN, 0 };
 
 	/* we assume size > sizeof(ra) here */
-	skb = sock_alloc_send_skb(sk, size + LL_RESERVED_SPACE(dev), 1, &err);
+	skb = sock_alloc_send_skb(sk, size + LL_ALLOCATED_SPACE(dev), 1, &err);
 
 	if (!skb)
 		return NULL;
@@ -1790,7 +1783,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	payload_len = len + sizeof(ra);
 	full_len = sizeof(struct ipv6hdr) + payload_len;
 
-	skb = sock_alloc_send_skb(sk, LL_RESERVED_SPACE(dev) + full_len, 1, &err);
+	skb = sock_alloc_send_skb(sk, LL_ALLOCATED_SPACE(dev) + full_len, 1, &err);
 
 	if (skb == NULL) {
 		rcu_read_lock();

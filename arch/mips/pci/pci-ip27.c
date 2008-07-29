@@ -48,6 +48,8 @@ int __cpuinit bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 	bridge_t *bridge;
 	int slot;
 
+	pci_probe_only = 1;
+
 	printk("a bridge\n");
 
 	/* XXX: kludge alert.. */
@@ -100,6 +102,11 @@ int __cpuinit bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 	 */
 	bridge->b_wid_control |= BRIDGE_CTRL_IO_SWAP |
 	                         BRIDGE_CTRL_MEM_SWAP;
+#ifdef CONFIG_PAGE_SIZE_4KB
+	bridge->b_wid_control &= ~BRIDGE_CTRL_PAGE_SIZE;
+#else /* 16kB or larger */
+	bridge->b_wid_control |= BRIDGE_CTRL_PAGE_SIZE;
+#endif
 
 	/*
 	 * Hmm...  IRIX sets additional bits in the address which

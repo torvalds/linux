@@ -1,3 +1,11 @@
+Please note that the "What is RCU?" LWN series is an excellent place
+to start learning about RCU:
+
+1.	What is RCU, Fundamentally?  http://lwn.net/Articles/262464/
+2.	What is RCU? Part 2: Usage   http://lwn.net/Articles/263130/
+3.	RCU part 3: the RCU API      http://lwn.net/Articles/264090/
+
+
 What is RCU?
 
 RCU is a synchronization mechanism that was added to the Linux kernel
@@ -772,26 +780,18 @@ Linux-kernel source code, but it helps to have a full list of the
 APIs, since there does not appear to be a way to categorize them
 in docbook.  Here is the list, by category.
 
-Markers for RCU read-side critical sections:
-
-	rcu_read_lock
-	rcu_read_unlock
-	rcu_read_lock_bh
-	rcu_read_unlock_bh
-	srcu_read_lock
-	srcu_read_unlock
-
 RCU pointer/list traversal:
 
 	rcu_dereference
-	list_for_each_rcu		(to be deprecated in favor of
-					 list_for_each_entry_rcu)
 	list_for_each_entry_rcu
-	list_for_each_continue_rcu	(to be deprecated in favor of new
-					 list_for_each_entry_continue_rcu)
 	hlist_for_each_entry_rcu
 
-RCU pointer update:
+	list_for_each_rcu		(to be deprecated in favor of
+					 list_for_each_entry_rcu)
+	list_for_each_continue_rcu	(to be deprecated in favor of new
+					 list_for_each_entry_continue_rcu)
+
+RCU pointer/list update:
 
 	rcu_assign_pointer
 	list_add_rcu
@@ -799,16 +799,36 @@ RCU pointer update:
 	list_del_rcu
 	list_replace_rcu
 	hlist_del_rcu
+	hlist_add_after_rcu
+	hlist_add_before_rcu
 	hlist_add_head_rcu
+	hlist_replace_rcu
+	list_splice_init_rcu()
 
-RCU grace period:
+RCU:	Critical sections	Grace period		Barrier
 
-	synchronize_net
-	synchronize_sched
-	synchronize_rcu
-	synchronize_srcu
-	call_rcu
-	call_rcu_bh
+	rcu_read_lock		synchronize_net		rcu_barrier
+	rcu_read_unlock		synchronize_rcu
+				call_rcu
+
+
+bh:	Critical sections	Grace period		Barrier
+
+	rcu_read_lock_bh	call_rcu_bh		rcu_barrier_bh
+	rcu_read_unlock_bh
+
+
+sched:	Critical sections	Grace period		Barrier
+
+	[preempt_disable]	synchronize_sched	rcu_barrier_sched
+	[and friends]		call_rcu_sched
+
+
+SRCU:	Critical sections	Grace period		Barrier
+
+	srcu_read_lock		synchronize_srcu	N/A
+	srcu_read_unlock
+
 
 See the comment headers in the source code (or the docbook generated
 from them) for more information.

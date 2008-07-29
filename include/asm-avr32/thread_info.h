@@ -61,10 +61,6 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *)addr;
 }
 
-/* thread information allocation */
-#define alloc_thread_info(ti) \
-	((struct thread_info *) __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER))
-#define free_thread_info(ti) free_pages((unsigned long)(ti), 1)
 #define get_thread_info(ti) get_task_struct((ti)->task)
 #define put_thread_info(ti) put_task_struct((ti)->task)
 
@@ -88,6 +84,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_MEMDIE		6
 #define TIF_RESTORE_SIGMASK	7	/* restore signal mask in do_signal */
 #define TIF_CPU_GOING_TO_SLEEP	8	/* CPU is entering sleep 0 mode */
+#define TIF_FREEZE		29
 #define TIF_DEBUG		30	/* debugging enabled */
 #define TIF_USERSPACE		31      /* true if FS sets userspace */
 

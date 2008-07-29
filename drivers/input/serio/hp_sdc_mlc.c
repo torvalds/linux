@@ -50,7 +50,7 @@ MODULE_AUTHOR("Brian S. Julin <bri@calyx.com>");
 MODULE_DESCRIPTION("Glue for onboard HIL MLC in HP-PARISC machines");
 MODULE_LICENSE("Dual BSD/GPL");
 
-struct hp_sdc_mlc_priv_s {
+static struct hp_sdc_mlc_priv_s {
 	int emtestmode;
 	hp_sdc_transaction trans;
 	u8 tseq[16];
@@ -305,6 +305,11 @@ static void hp_sdc_mlc_out(hil_mlc *mlc)
 static int __init hp_sdc_mlc_init(void)
 {
 	hil_mlc *mlc = &hp_sdc_mlc;
+
+#ifdef __mc68000__
+	if (!MACH_IS_HP300)
+		return -ENODEV;
+#endif
 
 	printk(KERN_INFO PREFIX "Registering the System Domain Controller's HIL MLC.\n");
 

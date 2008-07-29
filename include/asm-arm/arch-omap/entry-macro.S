@@ -8,6 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 #include <asm/hardware.h>
+#include <asm/arch/io.h>
 #include <asm/arch/irqs.h>
 
 #if defined(CONFIG_ARCH_OMAP1)

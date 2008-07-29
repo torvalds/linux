@@ -44,6 +44,13 @@
 
 #include <linux/types.h>
 
+/*
+ * These mimic similar macros defined in user-space for inet_ntop(3).
+ * See /usr/include/netinet/in.h .
+ */
+#define INET_ADDRSTRLEN		(16)
+#define INET6_ADDRSTRLEN	(48)
+
 extern __be32 in_aton(const char *str);
 extern int in4_pton(const char *src, int srclen, u8 *dst, int delim, const char **end);
 extern int in6_pton(const char *src, int srclen, u8 *dst, int delim, const char **end);

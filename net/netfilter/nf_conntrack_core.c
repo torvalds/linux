@@ -37,6 +37,7 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_extend.h>
+#include <net/netfilter/nf_conntrack_acct.h>
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
@@ -195,8 +196,6 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	if (l4proto && l4proto->destroy)
 		l4proto->destroy(ct);
-
-	nf_ct_ext_destroy(ct);
 
 	rcu_read_unlock();
 
@@ -466,7 +465,8 @@ static noinline int early_drop(unsigned int hash)
 }
 
 struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
-				   const struct nf_conntrack_tuple *repl)
+				   const struct nf_conntrack_tuple *repl,
+				   gfp_t gfp)
 {
 	struct nf_conn *ct = NULL;
 
@@ -491,7 +491,7 @@ struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 		}
 	}
 
-	ct = kmem_cache_zalloc(nf_conntrack_cachep, GFP_ATOMIC);
+	ct = kmem_cache_zalloc(nf_conntrack_cachep, gfp);
 	if (ct == NULL) {
 		pr_debug("nf_conntrack_alloc: Can't alloc conntrack.\n");
 		atomic_dec(&nf_conntrack_count);
@@ -520,6 +520,7 @@ static void nf_conntrack_free_rcu(struct rcu_head *head)
 
 void nf_conntrack_free(struct nf_conn *ct)
 {
+	nf_ct_ext_destroy(ct);
 	call_rcu(&ct->rcu, nf_conntrack_free_rcu);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_free);
@@ -543,7 +544,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		return NULL;
 	}
 
-	ct = nf_conntrack_alloc(tuple, &repl_tuple);
+	ct = nf_conntrack_alloc(tuple, &repl_tuple, GFP_ATOMIC);
 	if (ct == NULL || IS_ERR(ct)) {
 		pr_debug("Can't allocate conntrack.\n");
 		return (struct nf_conntrack_tuple_hash *)ct;
@@ -554,6 +555,8 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		pr_debug("init conntrack: can't track with proto module\n");
 		return NULL;
 	}
+
+	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
 
 	spin_lock_bh(&nf_conntrack_lock);
 	exp = nf_ct_find_expectation(tuple);
@@ -828,17 +831,16 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 	}
 
 acct:
-#ifdef CONFIG_NF_CT_ACCT
 	if (do_acct) {
-		ct->counters[CTINFO2DIR(ctinfo)].packets++;
-		ct->counters[CTINFO2DIR(ctinfo)].bytes +=
-			skb->len - skb_network_offset(skb);
+		struct nf_conn_counter *acct;
 
-		if ((ct->counters[CTINFO2DIR(ctinfo)].packets & 0x80000000)
-		    || (ct->counters[CTINFO2DIR(ctinfo)].bytes & 0x80000000))
-			event |= IPCT_COUNTER_FILLING;
+		acct = nf_conn_acct_find(ct);
+		if (acct) {
+			acct[CTINFO2DIR(ctinfo)].packets++;
+			acct[CTINFO2DIR(ctinfo)].bytes +=
+				skb->len - skb_network_offset(skb);
+		}
 	}
-#endif
 
 	spin_unlock_bh(&nf_conntrack_lock);
 
@@ -847,6 +849,32 @@ acct:
 		nf_conntrack_event_cache(event, skb);
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
+
+bool __nf_ct_kill_acct(struct nf_conn *ct,
+		       enum ip_conntrack_info ctinfo,
+		       const struct sk_buff *skb,
+		       int do_acct)
+{
+	if (do_acct) {
+		struct nf_conn_counter *acct;
+
+		spin_lock_bh(&nf_conntrack_lock);
+		acct = nf_conn_acct_find(ct);
+		if (acct) {
+			acct[CTINFO2DIR(ctinfo)].packets++;
+			acct[CTINFO2DIR(ctinfo)].bytes +=
+				skb->len - skb_network_offset(skb);
+		}
+		spin_unlock_bh(&nf_conntrack_lock);
+	}
+
+	if (del_timer(&ct->timeout)) {
+		ct->timeout.function((unsigned long)ct);
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(__nf_ct_kill_acct);
 
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 
@@ -1007,6 +1035,7 @@ void nf_conntrack_cleanup(void)
 	nf_conntrack_proto_fini();
 	nf_conntrack_helper_fini();
 	nf_conntrack_expect_fini();
+	nf_conntrack_acct_fini();
 }
 
 struct hlist_head *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced)
@@ -1146,6 +1175,10 @@ int __init nf_conntrack_init(void)
 	if (ret < 0)
 		goto out_fini_expect;
 
+	ret = nf_conntrack_acct_init();
+	if (ret < 0)
+		goto out_fini_helper;
+
 	/* For use by REJECT target */
 	rcu_assign_pointer(ip_ct_attach, nf_conntrack_attach);
 	rcu_assign_pointer(nf_ct_destroy, destroy_conntrack);
@@ -1158,6 +1191,8 @@ int __init nf_conntrack_init(void)
 
 	return ret;
 
+out_fini_helper:
+	nf_conntrack_helper_fini();
 out_fini_expect:
 	nf_conntrack_expect_fini();
 out_fini_proto:

@@ -193,7 +193,7 @@ lasi_init_chip(struct parisc_device *dev)
 	dev->irq = gsc_alloc_irq(&gsc_irq);
 	if (dev->irq < 0) {
 		printk(KERN_ERR "%s(): cannot get GSC irq\n",
-				__FUNCTION__);
+				__func__);
 		kfree(lasi);
 		return -EBUSY;
 	}

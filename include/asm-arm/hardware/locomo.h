@@ -58,6 +58,11 @@
 #define LOCOMO_SPIMD	0x00		/* SPI mode setting */
 #define LOCOMO_SPICT	0x04		/* SPI mode control */
 #define LOCOMO_SPIST	0x08		/* SPI status */
+#define	LOCOMO_SPI_TEND	(1 << 3)	/* Transfer end bit */
+#define	LOCOMO_SPI_REND	(1 << 2)	/* Receive end bit */
+#define	LOCOMO_SPI_RFW	(1 << 1)	/* write buffer bit */
+#define	LOCOMO_SPI_RFR	(1)		/* read buffer bit */
+
 #define LOCOMO_SPIIS	0x10		/* SPI interrupt status */
 #define LOCOMO_SPIWE	0x14		/* SPI interrupt status write enable */
 #define LOCOMO_SPIIE	0x18		/* SPI interrupt enable */
@@ -66,16 +71,12 @@
 #define LOCOMO_SPIRD	0x24		/* SPI receive data read */
 #define LOCOMO_SPITS	0x28		/* SPI transfer data shift */
 #define LOCOMO_SPIRS	0x2C		/* SPI receive data shift */
-#define	LOCOMO_SPI_TEND	(1 << 3)	/* Transfer end bit */
-#define	LOCOMO_SPI_OVRN	(1 << 2)	/* Over Run bit */
-#define	LOCOMO_SPI_RFW	(1 << 1)	/* write buffer bit */
-#define	LOCOMO_SPI_RFR	(1)		/* read buffer bit */
 
 /* GPIO */
 #define LOCOMO_GPD		0x90	/* GPIO direction */
 #define LOCOMO_GPE		0x94	/* GPIO input enable */
 #define LOCOMO_GPL		0x98	/* GPIO level */
-#define LOCOMO_GPO		0x9c	/* GPIO out data setteing */
+#define LOCOMO_GPO		0x9c	/* GPIO out data setting */
 #define LOCOMO_GRIE		0xa0	/* GPIO rise detection */
 #define LOCOMO_GFIE		0xa4	/* GPIO fall detection */
 #define LOCOMO_GIS		0xa8	/* GPIO edge detection status */
@@ -96,6 +97,9 @@
 #define LOCOMO_GPIO_DAC_SDATA	LOCOMO_GPIO(10)
 #define LOCOMO_GPIO_DAC_SCK	LOCOMO_GPIO(11)
 #define LOCOMO_GPIO_DAC_SLOAD	LOCOMO_GPIO(12)
+#define LOCOMO_GPIO_CARD_DETECT LOCOMO_GPIO(13)
+#define LOCOMO_GPIO_WRITE_PROT  LOCOMO_GPIO(14)
+#define LOCOMO_GPIO_CARD_POWER  LOCOMO_GPIO(15)
 
 /* Start the definitions of the devices.  Each device has an initial
  * base address and a series of offsets from that base address. */
@@ -122,7 +126,7 @@
 /* Audio controller */
 #define LOCOMO_AUDIO		0x54
 #define LOCOMO_ACC		0x00	/* Audio clock */
-#define LOCOMO_PAIF		0x7C	/* PCM audio interface */
+#define LOCOMO_PAIF		0xD0	/* PCM audio interface */
 /* Audio clock */
 #define	LOCOMO_ACC_XON		0x80
 #define	LOCOMO_ACC_XEN		0x40
@@ -162,7 +166,7 @@ extern struct bus_type locomo_bus_type;
 #define LOCOMO_DEVID_AUDIO	3
 #define LOCOMO_DEVID_LED	4
 #define LOCOMO_DEVID_UART	5
-#define LOCOMO_DEVID_SPI		6
+#define LOCOMO_DEVID_SPI	6
 
 struct locomo_dev {
 	struct device	dev;
@@ -203,7 +207,6 @@ void locomo_gpio_set_dir(struct device *dev, unsigned int bits, unsigned int dir
 int locomo_gpio_read_level(struct device *dev, unsigned int bits);
 int locomo_gpio_read_output(struct device *dev, unsigned int bits);
 void locomo_gpio_write(struct device *dev, unsigned int bits, unsigned int set);
-
 
 /* M62332 control function */
 void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int channel);

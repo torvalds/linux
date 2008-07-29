@@ -31,10 +31,4 @@ static inline void CIO_HEX_EVENT(int level, void *data, int length)
 	}
 }
 
-#define CIO_DEBUG(printk_level, event_level, msg...) do {	\
-		if (cio_show_msg)				\
-			printk(printk_level "cio: " msg);	\
-		CIO_MSG_EVENT(event_level, msg);		\
-	} while (0)
-
 #endif

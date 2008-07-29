@@ -788,99 +788,36 @@ static void smp_start_sync_tick_client(int cpu)
 			      0, 0, 0, mask);
 }
 
+extern unsigned long xcall_call_function;
+
+void arch_send_call_function_ipi(cpumask_t mask)
+{
+	smp_cross_call_masked(&xcall_call_function, 0, 0, 0, mask);
+}
+
+extern unsigned long xcall_call_function_single;
+
+void arch_send_call_function_single_ipi(int cpu)
+{
+	cpumask_t mask = cpumask_of_cpu(cpu);
+
+	smp_cross_call_masked(&xcall_call_function_single, 0, 0, 0, mask);
+}
+
 /* Send cross call to all processors except self. */
 #define smp_cross_call(func, ctx, data1, data2) \
 	smp_cross_call_masked(func, ctx, data1, data2, cpu_online_map)
 
-struct call_data_struct {
-	void (*func) (void *info);
-	void *info;
-	atomic_t finished;
-	int wait;
-};
-
-static struct call_data_struct *call_data;
-
-extern unsigned long xcall_call_function;
-
-/**
- * smp_call_function(): Run a function on all other CPUs.
- * @func: The function to run. This must be fast and non-blocking.
- * @info: An arbitrary pointer to pass to the function.
- * @nonatomic: currently unused.
- * @wait: If true, wait (atomically) until function has completed on other CPUs.
- *
- * Returns 0 on success, else a negative status code. Does not return until
- * remote CPUs are nearly ready to execute <<func>> or are or have executed.
- *
- * You must not call this function with disabled interrupts or from a
- * hardware interrupt handler or from a bottom half handler.
- */
-static int smp_call_function_mask(void (*func)(void *info), void *info,
-				  int nonatomic, int wait, cpumask_t mask)
-{
-	struct call_data_struct data;
-	int cpus;
-
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
-
-	data.func = func;
-	data.info = info;
-	atomic_set(&data.finished, 0);
-	data.wait = wait;
-
-	spin_lock(&call_lock);
-
-	cpu_clear(smp_processor_id(), mask);
-	cpus = cpus_weight(mask);
-	if (!cpus)
-		goto out_unlock;
-
-	call_data = &data;
-	mb();
-
-	smp_cross_call_masked(&xcall_call_function, 0, 0, 0, mask);
-
-	/* Wait for response */
-	while (atomic_read(&data.finished) != cpus)
-		cpu_relax();
-
-out_unlock:
-	spin_unlock(&call_lock);
-
-	return 0;
-}
-
-int smp_call_function(void (*func)(void *info), void *info,
-		      int nonatomic, int wait)
-{
-	return smp_call_function_mask(func, info, nonatomic, wait,
-				      cpu_online_map);
-}
-
 void smp_call_function_client(int irq, struct pt_regs *regs)
 {
-	void (*func) (void *info) = call_data->func;
-	void *info = call_data->info;
-
 	clear_softint(1 << irq);
+	generic_smp_call_function_interrupt();
+}
 
-	irq_enter();
-
-	if (!call_data->wait) {
-		/* let initiator proceed after getting data */
-		atomic_inc(&call_data->finished);
-	}
-
-	func(info);
-
-	irq_exit();
-
-	if (call_data->wait) {
-		/* let initiator proceed only after completion */
-		atomic_inc(&call_data->finished);
-	}
+void smp_call_function_single_client(int irq, struct pt_regs *regs)
+{
+	clear_softint(1 << irq);
+	generic_smp_call_function_single_interrupt();
 }
 
 static void tsb_sync(void *info)
@@ -900,13 +837,16 @@ static void tsb_sync(void *info)
 
 void smp_tsb_sync(struct mm_struct *mm)
 {
-	smp_call_function_mask(tsb_sync, mm, 0, 1, mm->cpu_vm_mask);
+	smp_call_function_mask(mm->cpu_vm_mask, tsb_sync, mm, 1);
 }
 
 extern unsigned long xcall_flush_tlb_mm;
 extern unsigned long xcall_flush_tlb_pending;
 extern unsigned long xcall_flush_tlb_kernel_range;
 extern unsigned long xcall_report_regs;
+#ifdef CONFIG_MAGIC_SYSRQ
+extern unsigned long xcall_fetch_glob_regs;
+#endif
 extern unsigned long xcall_receive_signal;
 extern unsigned long xcall_new_mmu_context_version;
 #ifdef CONFIG_KGDB
@@ -1041,17 +981,13 @@ void smp_receive_signal(int cpu)
 
 void smp_receive_signal_client(int irq, struct pt_regs *regs)
 {
-	irq_enter();
 	clear_softint(1 << irq);
-	irq_exit();
 }
 
 void smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)
 {
 	struct mm_struct *mm;
 	unsigned long flags;
-
-	irq_enter();
 
 	clear_softint(1 << irq);
 
@@ -1072,8 +1008,6 @@ void smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)
 	load_secondary_context(mm);
 	__flush_tlb_mm(CTX_HWBITS(mm->context),
 		       SECONDARY_CONTEXT);
-
-	irq_exit();
 }
 
 void smp_new_mmu_context_version(void)
@@ -1092,6 +1026,13 @@ void smp_report_regs(void)
 {
 	smp_cross_call(&xcall_report_regs, 0, 0, 0);
 }
+
+#ifdef CONFIG_MAGIC_SYSRQ
+void smp_fetch_global_regs(void)
+{
+	smp_cross_call(&xcall_fetch_glob_regs, 0, 0, 0);
+}
+#endif
 
 /* We know that the window frames of the user have been flushed
  * to the stack before we get here because all callers of us
@@ -1239,8 +1180,6 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 {
 	clear_softint(1 << irq);
 
-	irq_enter();
-
 	preempt_disable();
 
 	__asm__ __volatile__("flushw");
@@ -1253,8 +1192,6 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	prom_world(0);
 
 	preempt_enable();
-
-	irq_exit();
 }
 
 /* /proc/profile writes can call this, don't __init it please. */

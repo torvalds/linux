@@ -126,8 +126,6 @@ static void background_writeout(unsigned long _min_pages);
 static struct prop_descriptor vm_completions;
 static struct prop_descriptor vm_dirties;
 
-static unsigned long determine_dirtyable_memory(void);
-
 /*
  * couple the period to the dirty_ratio:
  *
@@ -347,7 +345,13 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
 #endif
 }
 
-static unsigned long determine_dirtyable_memory(void)
+/**
+ * determine_dirtyable_memory - amount of memory that may be used
+ *
+ * Returns the numebr of pages that can currently be freed and used
+ * by the kernel for direct mappings.
+ */
+unsigned long determine_dirtyable_memory(void)
 {
 	unsigned long x;
 
@@ -956,6 +960,9 @@ retry:
 	}
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = index;
+
+	if (wbc->range_cont)
+		wbc->range_start = index << PAGE_CACHE_SHIFT;
 	return ret;
 }
 EXPORT_SYMBOL(write_cache_pages);
@@ -1081,7 +1088,7 @@ int __set_page_dirty_nobuffers(struct page *page)
 		if (!mapping)
 			return 1;
 
-		write_lock_irq(&mapping->tree_lock);
+		spin_lock_irq(&mapping->tree_lock);
 		mapping2 = page_mapping(page);
 		if (mapping2) { /* Race with truncate? */
 			BUG_ON(mapping2 != mapping);
@@ -1095,7 +1102,7 @@ int __set_page_dirty_nobuffers(struct page *page)
 			radix_tree_tag_set(&mapping->page_tree,
 				page_index(page), PAGECACHE_TAG_DIRTY);
 		}
-		write_unlock_irq(&mapping->tree_lock);
+		spin_unlock_irq(&mapping->tree_lock);
 		if (mapping->host) {
 			/* !PageAnon && !swapper_space */
 			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
@@ -1251,7 +1258,7 @@ int test_clear_page_writeback(struct page *page)
 		struct backing_dev_info *bdi = mapping->backing_dev_info;
 		unsigned long flags;
 
-		write_lock_irqsave(&mapping->tree_lock, flags);
+		spin_lock_irqsave(&mapping->tree_lock, flags);
 		ret = TestClearPageWriteback(page);
 		if (ret) {
 			radix_tree_tag_clear(&mapping->page_tree,
@@ -1262,7 +1269,7 @@ int test_clear_page_writeback(struct page *page)
 				__bdi_writeout_inc(bdi);
 			}
 		}
-		write_unlock_irqrestore(&mapping->tree_lock, flags);
+		spin_unlock_irqrestore(&mapping->tree_lock, flags);
 	} else {
 		ret = TestClearPageWriteback(page);
 	}
@@ -1280,7 +1287,7 @@ int test_set_page_writeback(struct page *page)
 		struct backing_dev_info *bdi = mapping->backing_dev_info;
 		unsigned long flags;
 
-		write_lock_irqsave(&mapping->tree_lock, flags);
+		spin_lock_irqsave(&mapping->tree_lock, flags);
 		ret = TestSetPageWriteback(page);
 		if (!ret) {
 			radix_tree_tag_set(&mapping->page_tree,
@@ -1293,7 +1300,7 @@ int test_set_page_writeback(struct page *page)
 			radix_tree_tag_clear(&mapping->page_tree,
 						page_index(page),
 						PAGECACHE_TAG_DIRTY);
-		write_unlock_irqrestore(&mapping->tree_lock, flags);
+		spin_unlock_irqrestore(&mapping->tree_lock, flags);
 	} else {
 		ret = TestSetPageWriteback(page);
 	}

@@ -59,7 +59,7 @@ struct ppp_device
 
 static inline struct sppp *sppp_of(struct net_device *dev) 
 {
-	struct ppp_device **ppp = dev->priv;
+	struct ppp_device **ppp = dev->ml_priv;
 	BUG_ON((*ppp)->dev != dev);
 	return &(*ppp)->sppp;
 }

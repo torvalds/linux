@@ -714,6 +714,7 @@ void flush_cache_sigtramp(unsigned long vaddr)
 	sh64_icache_inv_current_user_range(vaddr, end);
 }
 
+#ifdef CONFIG_MMU
 /*
  * These *MUST* lie in an area of virtual address space that's otherwise
  * unused.
@@ -830,3 +831,4 @@ void clear_user_page(void *to, unsigned long address, struct page *page)
 	else
 		sh64_clear_user_page_coloured(to, address);
 }
+#endif

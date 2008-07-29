@@ -86,10 +86,10 @@ static DEFINE_SPINLOCK(dasd_devmap_lock);
 static struct list_head dasd_hashlists[256];
 int dasd_max_devindex;
 
-static struct dasd_devmap *dasd_add_busid(char *, int);
+static struct dasd_devmap *dasd_add_busid(const char *, int);
 
 static inline int
-dasd_hash_busid(char *bus_id)
+dasd_hash_busid(const char *bus_id)
 {
 	int hash, i;
 
@@ -394,7 +394,7 @@ dasd_parse(void)
  * devices.
  */
 static struct dasd_devmap *
-dasd_add_busid(char *bus_id, int features)
+dasd_add_busid(const char *bus_id, int features)
 {
 	struct dasd_devmap *devmap, *new, *tmp;
 	int hash;
@@ -430,7 +430,7 @@ dasd_add_busid(char *bus_id, int features)
  * Find devmap for device with given bus_id.
  */
 static struct dasd_devmap *
-dasd_find_busid(char *bus_id)
+dasd_find_busid(const char *bus_id)
 {
 	struct dasd_devmap *devmap, *tmp;
 	int hash;
@@ -452,7 +452,7 @@ dasd_find_busid(char *bus_id)
  * Check if busid has been added to the list of dasd ranges.
  */
 int
-dasd_busid_known(char *bus_id)
+dasd_busid_known(const char *bus_id)
 {
 	return IS_ERR(dasd_find_busid(bus_id)) ? -ENOENT : 0;
 }

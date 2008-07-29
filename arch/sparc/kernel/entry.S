@@ -19,6 +19,7 @@
 #include <asm/vaddrs.h>
 #include <asm/memreg.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #ifdef CONFIG_SUN4
 #include <asm/pgtsun4.h>
 #else
@@ -1195,8 +1196,9 @@ sys_rt_sigreturn:
 	be	1f
 	 nop
 
+	add	%sp, STACKFRAME_SZ, %o0
 	call	syscall_trace
-	 nop
+	 mov	1, %o1
 
 1:
 	/* We are returning to a signal handler. */
@@ -1286,8 +1288,12 @@ linux_fast_syscall:
 	 mov	%i3, %o3
 
 linux_syscall_trace:
+	add	%sp, STACKFRAME_SZ, %o0
 	call	syscall_trace
-	 nop
+	 mov	0, %o1
+	cmp	%o0, 0
+	bne	3f
+	 mov	-ENOSYS, %o0
 	mov	%i0, %o0
 	mov	%i1, %o1
 	mov	%i2, %o2
@@ -1306,6 +1312,8 @@ ret_from_fork:
 	.align	4
 	.globl	linux_sparc_syscall
 linux_sparc_syscall:
+	sethi	%hi(PSR_SYSCALL), %l4
+	or	%l0, %l4, %l0
 	/* Direct access to user regs, must faster. */
 	cmp	%g1, NR_SYSCALLS
 	bgeu	linux_sparc_ni_syscall
@@ -1315,7 +1323,6 @@ linux_sparc_syscall:
 	bne	linux_fast_syscall
 	 /* Just do first insn from SAVE_ALL in the delay slot */
 
-	.globl	syscall_is_too_hard
 syscall_is_too_hard:
 	SAVE_ALL_HEAD
 	 rd	%wim, %l3
@@ -1335,6 +1342,7 @@ syscall_is_too_hard:
 	call	%l7
 	 mov	%i5, %o5
 
+3:
 	st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
 
 ret_sys_call:
@@ -1372,6 +1380,8 @@ ret_sys_call:
 	 st	%l2, [%sp + STACKFRAME_SZ + PT_NPC]
 
 linux_syscall_trace2:
+	add	%sp, STACKFRAME_SZ, %o0
+	mov	1, %o1
 	call	syscall_trace
 	 add	%l1, 0x4, %l2			/* npc = npc+4 */
 	st	%l1, [%sp + STACKFRAME_SZ + PT_PC]
@@ -1542,8 +1552,7 @@ kgdb_trap_low:
 #endif
 
 	.align	4
-	.globl	__handle_exception, flush_patch_exception
-__handle_exception:
+	.globl	flush_patch_exception
 flush_patch_exception:
 	FLUSH_ALL_KERNEL_WINDOWS;
 	ldd	[%o0], %o6

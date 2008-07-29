@@ -700,8 +700,8 @@ struct ucc_geth_82xx_address_filtering_pram {
 	u32 iaddr_l;		/* individual address filter, low */
 	u32 gaddr_h;		/* group address filter, high */
 	u32 gaddr_l;		/* group address filter, low */
-	struct ucc_geth_82xx_enet_address taddr;
-	struct ucc_geth_82xx_enet_address paddr[NUM_OF_PADDRS];
+	struct ucc_geth_82xx_enet_address __iomem taddr;
+	struct ucc_geth_82xx_enet_address __iomem paddr[NUM_OF_PADDRS];
 	u8 res0[0x40 - 0x38];
 } __attribute__ ((packed));
 
@@ -1186,40 +1186,40 @@ struct ucc_geth_private {
 	struct ucc_fast_private *uccf;
 	struct net_device *dev;
 	struct napi_struct napi;
-	struct ucc_geth *ug_regs;
+	struct ucc_geth __iomem *ug_regs;
 	struct ucc_geth_init_pram *p_init_enet_param_shadow;
-	struct ucc_geth_exf_global_pram *p_exf_glbl_param;
+	struct ucc_geth_exf_global_pram __iomem *p_exf_glbl_param;
 	u32 exf_glbl_param_offset;
-	struct ucc_geth_rx_global_pram *p_rx_glbl_pram;
+	struct ucc_geth_rx_global_pram __iomem *p_rx_glbl_pram;
 	u32 rx_glbl_pram_offset;
-	struct ucc_geth_tx_global_pram *p_tx_glbl_pram;
+	struct ucc_geth_tx_global_pram __iomem *p_tx_glbl_pram;
 	u32 tx_glbl_pram_offset;
-	struct ucc_geth_send_queue_mem_region *p_send_q_mem_reg;
+	struct ucc_geth_send_queue_mem_region __iomem *p_send_q_mem_reg;
 	u32 send_q_mem_reg_offset;
-	struct ucc_geth_thread_data_tx *p_thread_data_tx;
+	struct ucc_geth_thread_data_tx __iomem *p_thread_data_tx;
 	u32 thread_dat_tx_offset;
-	struct ucc_geth_thread_data_rx *p_thread_data_rx;
+	struct ucc_geth_thread_data_rx __iomem *p_thread_data_rx;
 	u32 thread_dat_rx_offset;
-	struct ucc_geth_scheduler *p_scheduler;
+	struct ucc_geth_scheduler __iomem *p_scheduler;
 	u32 scheduler_offset;
-	struct ucc_geth_tx_firmware_statistics_pram *p_tx_fw_statistics_pram;
+	struct ucc_geth_tx_firmware_statistics_pram __iomem *p_tx_fw_statistics_pram;
 	u32 tx_fw_statistics_pram_offset;
-	struct ucc_geth_rx_firmware_statistics_pram *p_rx_fw_statistics_pram;
+	struct ucc_geth_rx_firmware_statistics_pram __iomem *p_rx_fw_statistics_pram;
 	u32 rx_fw_statistics_pram_offset;
-	struct ucc_geth_rx_interrupt_coalescing_table *p_rx_irq_coalescing_tbl;
+	struct ucc_geth_rx_interrupt_coalescing_table __iomem *p_rx_irq_coalescing_tbl;
 	u32 rx_irq_coalescing_tbl_offset;
-	struct ucc_geth_rx_bd_queues_entry *p_rx_bd_qs_tbl;
+	struct ucc_geth_rx_bd_queues_entry __iomem *p_rx_bd_qs_tbl;
 	u32 rx_bd_qs_tbl_offset;
-	u8 *p_tx_bd_ring[NUM_TX_QUEUES];
+	u8 __iomem *p_tx_bd_ring[NUM_TX_QUEUES];
 	u32 tx_bd_ring_offset[NUM_TX_QUEUES];
-	u8 *p_rx_bd_ring[NUM_RX_QUEUES];
+	u8 __iomem *p_rx_bd_ring[NUM_RX_QUEUES];
 	u32 rx_bd_ring_offset[NUM_RX_QUEUES];
-	u8 *confBd[NUM_TX_QUEUES];
-	u8 *txBd[NUM_TX_QUEUES];
-	u8 *rxBd[NUM_RX_QUEUES];
+	u8 __iomem *confBd[NUM_TX_QUEUES];
+	u8 __iomem *txBd[NUM_TX_QUEUES];
+	u8 __iomem *rxBd[NUM_RX_QUEUES];
 	int badFrame[NUM_RX_QUEUES];
 	u16 cpucount[NUM_TX_QUEUES];
-	volatile u16 *p_cpucount[NUM_TX_QUEUES];
+	u16 __iomem *p_cpucount[NUM_TX_QUEUES];
 	int indAddrRegUsed[NUM_OF_PADDRS];
 	u8 paddr[NUM_OF_PADDRS][ENET_NUM_OCTETS_PER_ADDRESS];	/* ethernet address */
 	u8 numGroupAddrInHash;
@@ -1250,5 +1250,13 @@ struct ucc_geth_private {
 	int oldduplex;
 	int oldlink;
 };
+
+void uec_set_ethtool_ops(struct net_device *netdev);
+int init_flow_control_params(u32 automatic_flow_control_mode,
+		int rx_flow_control_enable, int tx_flow_control_enable,
+		u16 pause_period, u16 extension_field,
+		u32 __iomem *upsmr_register, u32 __iomem *uempr_register,
+		u32 __iomem *maccfg1_register);
+
 
 #endif				/* __UCC_GETH_H__ */

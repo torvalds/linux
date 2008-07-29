@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -69,13 +69,15 @@ static const struct address_space_operations aspace_aops = {
 struct inode *gfs2_aspace_get(struct gfs2_sbd *sdp)
 {
 	struct inode *aspace;
+	struct gfs2_inode *ip;
 
 	aspace = new_inode(sdp->sd_vfs);
 	if (aspace) {
 		mapping_set_gfp_mask(aspace->i_mapping, GFP_NOFS);
 		aspace->i_mapping->a_ops = &aspace_aops;
 		aspace->i_size = ~0ULL;
-		aspace->i_private = NULL;
+		ip = GFS2_I(aspace);
+		clear_bit(GIF_USER, &ip->i_flags);
 		insert_inode_hash(aspace);
 	}
 	return aspace;
@@ -127,7 +129,7 @@ void gfs2_meta_sync(struct gfs2_glock *gl)
 }
 
 /**
- * getbuf - Get a buffer with a given address space
+ * gfs2_getbuf - Get a buffer with a given address space
  * @gl: the glock
  * @blkno: the block number (filesystem scope)
  * @create: 1 if the buffer should be created
@@ -135,7 +137,7 @@ void gfs2_meta_sync(struct gfs2_glock *gl)
  * Returns: the buffer
  */
 
-static struct buffer_head *getbuf(struct gfs2_glock *gl, u64 blkno, int create)
+struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 {
 	struct address_space *mapping = gl->gl_aspace->i_mapping;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
@@ -203,7 +205,7 @@ static void meta_prep_new(struct buffer_head *bh)
 struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
 {
 	struct buffer_head *bh;
-	bh = getbuf(gl, blkno, CREATE);
+	bh = gfs2_getbuf(gl, blkno, CREATE);
 	meta_prep_new(bh);
 	return bh;
 }
@@ -221,7 +223,7 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
 int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		   struct buffer_head **bhp)
 {
-	*bhp = getbuf(gl, blkno, CREATE);
+	*bhp = gfs2_getbuf(gl, blkno, CREATE);
 	if (!buffer_uptodate(*bhp)) {
 		ll_rw_block(READ_META, 1, bhp);
 		if (flags & DIO_WAIT) {
@@ -344,7 +346,7 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	struct buffer_head *bh;
 
 	while (blen) {
-		bh = getbuf(ip->i_gl, bstart, NO_CREATE);
+		bh = gfs2_getbuf(ip->i_gl, bstart, NO_CREATE);
 		if (bh) {
 			lock_buffer(bh);
 			gfs2_log_lock(sdp);
@@ -419,7 +421,7 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 	if (extlen > max_ra)
 		extlen = max_ra;
 
-	first_bh = getbuf(gl, dblock, CREATE);
+	first_bh = gfs2_getbuf(gl, dblock, CREATE);
 
 	if (buffer_uptodate(first_bh))
 		goto out;
@@ -430,7 +432,7 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 	extlen--;
 
 	while (extlen) {
-		bh = getbuf(gl, dblock, CREATE);
+		bh = gfs2_getbuf(gl, dblock, CREATE);
 
 		if (!buffer_uptodate(bh) && !buffer_locked(bh))
 			ll_rw_block(READA, 1, &bh);

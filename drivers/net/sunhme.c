@@ -111,7 +111,7 @@ static __inline__ void tx_add_log(struct happy_meal *hp, unsigned int a, unsigne
 	struct hme_tx_logent *tlp;
 	unsigned long flags;
 
-	save_and_cli(flags);
+	local_irq_save(flags);
 	tlp = &tx_log[txlog_cur_entry];
 	tlp->tstamp = (unsigned int)jiffies;
 	tlp->tx_new = hp->tx_new;
@@ -119,7 +119,7 @@ static __inline__ void tx_add_log(struct happy_meal *hp, unsigned int a, unsigne
 	tlp->action = a;
 	tlp->status = s;
 	txlog_cur_entry = (txlog_cur_entry + 1) & (TX_LOG_LEN - 1);
-	restore_flags(flags);
+	local_irq_restore(flags);
 }
 static __inline__ void tx_dump_log(void)
 {
@@ -2377,8 +2377,6 @@ static void happy_meal_set_multicast(struct net_device *dev)
 
 	spin_lock_irq(&hp->happy_lock);
 
-	netif_stop_queue(dev);
-
 	if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
 		hme_write32(hp, bregs + BMAC_HTABLE0, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE1, 0xffff);
@@ -2409,8 +2407,6 @@ static void happy_meal_set_multicast(struct net_device *dev)
 		hme_write32(hp, bregs + BMAC_HTABLE2, hash_table[2]);
 		hme_write32(hp, bregs + BMAC_HTABLE3, hash_table[3]);
 	}
-
-	netif_wake_queue(dev);
 
 	spin_unlock_irq(&hp->happy_lock);
 }

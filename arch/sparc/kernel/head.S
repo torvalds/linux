@@ -1,4 +1,4 @@
-/* $Id: head.S,v 1.105 2001/08/12 09:08:56 davem Exp $
+/*
  * head.S: The initial boot code for the Sparc port of Linux.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
@@ -32,7 +32,6 @@
  */
 
 	.align 4
-        .globl  cputyp
 cputyp:
         .word   1
 
@@ -1280,7 +1279,6 @@ halt_me:
  * gets initialized in c-code so all routines can use it.
  */
 
-	.globl	prom_vector_p
 prom_vector_p:
 		.word 0
 

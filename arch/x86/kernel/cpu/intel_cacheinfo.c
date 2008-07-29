@@ -62,6 +62,7 @@ static struct _cache_table cache_table[] __cpuinitdata =
 	{ 0x4b, LVL_3,      8192 },	/* 16-way set assoc, 64 byte line size */
 	{ 0x4c, LVL_3,     12288 },	/* 12-way set assoc, 64 byte line size */
 	{ 0x4d, LVL_3,     16384 },	/* 16-way set assoc, 64 byte line size */
+	{ 0x4e, LVL_2,      6144 },	/* 24-way set assoc, 64 byte line size */
 	{ 0x60, LVL_1_DATA, 16 },	/* 8-way set assoc, sectored cache, 64 byte line size */
 	{ 0x66, LVL_1_DATA, 8 },	/* 4-way set assoc, sectored cache, 64 byte line size */
 	{ 0x67, LVL_1_DATA, 16 },	/* 4-way set assoc, sectored cache, 64 byte line size */
@@ -488,7 +489,7 @@ static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
 	int sibling;
 
 	this_leaf = CPUID4_INFO_IDX(cpu, index);
-	for_each_cpu_mask(sibling, this_leaf->shared_cpu_map) {
+	for_each_cpu_mask_nr(sibling, this_leaf->shared_cpu_map) {
 		sibling_leaf = CPUID4_INFO_IDX(sibling, index);	
 		cpu_clear(cpu, sibling_leaf->shared_cpu_map);
 	}
@@ -779,15 +780,14 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 			}
 			kobject_put(per_cpu(cache_kobject, cpu));
 			cpuid4_cache_sysfs_exit(cpu);
-			break;
+			return retval;
 		}
 		kobject_uevent(&(this_object->kobj), KOBJ_ADD);
 	}
-	if (!retval)
-		cpu_set(cpu, cache_dev_map);
+	cpu_set(cpu, cache_dev_map);
 
 	kobject_uevent(per_cpu(cache_kobject, cpu), KOBJ_ADD);
-	return retval;
+	return 0;
 }
 
 static void __cpuinit cache_remove_dev(struct sys_device * sys_dev)

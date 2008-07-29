@@ -21,7 +21,8 @@
 #include <sys/types.h>
 #endif
 
-#if defined(__arm__) || defined(__mips__) || defined(__avr32__)
+#if defined(__arm__) || defined(__mips__) || defined(__avr32__) || \
+	defined(__bfin__)
 /* This (ioaddr_t) is exposed to userspace & hence cannot be changed. */
 typedef u_int   ioaddr_t;
 #else
@@ -32,9 +33,6 @@ typedef u_short	socket_t;
 typedef u_int	event_t;
 typedef u_char	cisdata_t;
 typedef u_short	page_t;
-
-struct pcmcia_device;
-typedef struct pcmcia_device *client_handle_t;
 
 struct window_t;
 typedef struct window_t *window_handle_t;

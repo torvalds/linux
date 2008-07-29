@@ -46,6 +46,7 @@
 #include <asm/dma.h>
 #include <asm/gpio.h>
 #include <asm/nand.h>
+#include <asm/dpmc.h>
 #include <asm/portmux.h>
 #include <asm/mach/bf54x_keys.h>
 #include <linux/input.h>
@@ -59,6 +60,49 @@ const char bfin_board_name[] = "ADSP-BF548-EZKIT";
 /*
  *  Driver needs to know address, irq and flag pin.
  */
+
+#if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
+static struct resource bfin_isp1761_resources[] = {
+	[0] = {
+		.name	= "isp1761-regs",
+		.start  = 0x2C0C0000,
+		.end    = 0x2C0C0000 + 0xfffff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_PG7,
+		.end    = IRQ_PG7,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_isp1761_device = {
+	.name           = "isp1761",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(bfin_isp1761_resources),
+	.resource       = bfin_isp1761_resources,
+};
+
+static struct platform_device *bfin_isp1761_devices[] = {
+	&bfin_isp1761_device,
+};
+
+int __init bfin_isp1761_init(void)
+{
+	unsigned int num_devices = ARRAY_SIZE(bfin_isp1761_devices);
+
+	printk(KERN_INFO "%s(): registering device resources\n", __func__);
+	set_irq_type(bfin_isp1761_resources[1].start, IRQF_TRIGGER_FALLING);
+
+	return platform_add_devices(bfin_isp1761_devices, num_devices);
+}
+
+void __exit bfin_isp1761_exit(void)
+{
+	platform_device_unregister(&bfin_isp1761_device);
+}
+arch_initcall(bfin_isp1761_init);
+#endif
 
 #if defined(CONFIG_FB_BF54X_LQ043) || defined(CONFIG_FB_BF54X_LQ043_MODULE)
 
@@ -176,6 +220,7 @@ static struct resource bfin_uart_resources[] = {
 	{
 		.start = 0xFFC03100,
 		.end = 0xFFC031FF,
+		.flags = IORESOURCE_MEM,
 	},
 #endif
 };
@@ -411,8 +456,6 @@ static struct platform_device ezkit_flash_device = {
 };
 #endif
 
-#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-/* all SPI peripherals info goes here */
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
 /* SPI flash chip (m25p16) */
@@ -480,7 +523,7 @@ static struct bfin5xx_spi_chip spidev_chip_info = {
 };
 #endif
 
-static struct spi_board_info bf54x_spi_board_info[] __initdata = {
+static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
 	{
@@ -526,6 +569,7 @@ static struct spi_board_info bf54x_spi_board_info[] __initdata = {
 #endif
 };
 
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* SPI (0) */
 static struct resource bfin_spi0_resource[] = {
 	[0] = {
@@ -689,7 +733,38 @@ static struct platform_device bfin_gpios_device = {
 	.resource = &bfin_gpios_resources,
 };
 
+static const unsigned int cclk_vlev_datasheet[] =
+{
+/*
+ * Internal VLEV BF54XSBBC1533
+ ****temporarily using these values until data sheet is updated
+ */
+	VRPAIR(VLEV_085, 150000000),
+	VRPAIR(VLEV_090, 250000000),
+	VRPAIR(VLEV_110, 276000000),
+	VRPAIR(VLEV_115, 301000000),
+	VRPAIR(VLEV_120, 525000000),
+	VRPAIR(VLEV_125, 550000000),
+	VRPAIR(VLEV_130, 600000000),
+};
+
+static struct bfin_dpmc_platform_data bfin_dmpc_vreg_data = {
+	.tuple_tab = cclk_vlev_datasheet,
+	.tabsize = ARRAY_SIZE(cclk_vlev_datasheet),
+	.vr_settling_time = 25 /* us */,
+};
+
+static struct platform_device bfin_dpmc = {
+	.name = "bfin dpmc",
+	.dev = {
+		.platform_data = &bfin_dmpc_vreg_data,
+	},
+};
+
 static struct platform_device *ezkit_devices[] __initdata = {
+
+	&bfin_dpmc,
+
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 	&rtc_device,
 #endif
@@ -768,10 +843,7 @@ static int __init ezkit_init(void)
 
 	platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));
 
-#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-	spi_register_board_info(bf54x_spi_board_info,
-			ARRAY_SIZE(bf54x_spi_board_info));
-#endif
+	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 
 	return 0;
 }

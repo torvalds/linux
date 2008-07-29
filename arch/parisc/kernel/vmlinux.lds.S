@@ -50,6 +50,7 @@ SECTIONS
 
 	_text = .;		/* Text and read-only data */
 	.text ALIGN(16) : {
+		HEAD_TEXT
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
@@ -66,7 +67,6 @@ SECTIONS
 	_etext = .;
 
 	RODATA
-	BUG_TABLE
 
 	/* writeable */
 	/* Make sure this is page aligned so

@@ -126,9 +126,6 @@ static irqreturn_t hwbutton_handler(int irq, void *data)
 	struct hwbutton_interrupt *hirq = data;
 	unsigned long cic_ext = *CIC_EXT_CFG_REG;
 
-	if (irq != hirq->irq)
-		return IRQ_NONE;
-
 	if (CIC_EXT_IS_ACTIVE_HI(cic_ext, hirq->eirq)) {
 		/* Interrupt: pin is now HI */
 		CIC_EXT_SET_ACTIVE_LO(cic_ext, hirq->eirq);
@@ -164,7 +161,7 @@ static int msp_hwbutton_register(struct hwbutton_interrupt *hirq)
 	*CIC_EXT_CFG_REG = cic_ext;
 
 	return request_irq(hirq->irq, hwbutton_handler, IRQF_DISABLED,
-				hirq->name, (void *)hirq);
+			   hirq->name, hirq);
 }
 
 static int __init msp_hwbutton_setup(void)

@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/major.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -41,7 +42,7 @@
 #define BPP_DELAY 100
 
 static const unsigned  BPP_MAJOR = LP_MAJOR;
-static const char* dev_name = "bpp";
+static const char *bpp_dev_name = "bpp";
 
 /* When switching from compatibility to a mode where I can read, try
    the following mode first. */
@@ -429,6 +430,7 @@ static int bpp_open(struct inode *inode, struct file *f)
       unsigned minor = iminor(inode);
       int ret;
 
+      lock_kernel();
       spin_lock(&bpp_open_lock);
       ret = 0;
       if (minor >= BPP_NO) {
@@ -444,6 +446,7 @@ static int bpp_open(struct inode *inode, struct file *f)
 	      }
       }
       spin_unlock(&bpp_open_lock);
+      unlock_kernel();
 
       return ret;
 }
@@ -869,7 +872,7 @@ static void probeLptPort(unsigned idx)
       instances[idx].mode = COMPATIBILITY;
       instances[idx].run_length = 0;
       instances[idx].run_flag = 0;
-      if (!request_region(lpAddr,3, dev_name)) return;
+      if (!request_region(lpAddr,3, bpp_dev_name)) return;
 
       /*
        * First, make sure the instance exists. Do this by writing to
@@ -1021,7 +1024,7 @@ static int __init bpp_init(void)
 	if (rc == 0)
 		return -ENODEV;
 
-	rc = register_chrdev(BPP_MAJOR, dev_name, &bpp_fops);
+	rc = register_chrdev(BPP_MAJOR, bpp_dev_name, &bpp_fops);
 	if (rc < 0)
 		return rc;
 
@@ -1037,7 +1040,7 @@ static void __exit bpp_cleanup(void)
 {
 	unsigned idx;
 
-	unregister_chrdev(BPP_MAJOR, dev_name);
+	unregister_chrdev(BPP_MAJOR, bpp_dev_name);
 
 	for (idx = 0;  idx < BPP_NO; idx++) {
 		if (instances[idx].present)

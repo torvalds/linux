@@ -54,7 +54,7 @@ typedef void ia64_mv_dma_sync_single_for_cpu (struct device *, dma_addr_t, size_
 typedef void ia64_mv_dma_sync_sg_for_cpu (struct device *, struct scatterlist *, int, int);
 typedef void ia64_mv_dma_sync_single_for_device (struct device *, dma_addr_t, size_t, int);
 typedef void ia64_mv_dma_sync_sg_for_device (struct device *, struct scatterlist *, int, int);
-typedef int ia64_mv_dma_mapping_error (dma_addr_t dma_addr);
+typedef int ia64_mv_dma_mapping_error(struct device *, dma_addr_t dma_addr);
 typedef int ia64_mv_dma_supported (struct device *, u64);
 
 typedef dma_addr_t ia64_mv_dma_map_single_attrs (struct device *, void *, size_t, int, struct dma_attrs *);
@@ -126,6 +126,8 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 #  include <asm/machvec_hpzx1_swiotlb.h>
 # elif defined (CONFIG_IA64_SGI_SN2)
 #  include <asm/machvec_sn2.h>
+# elif defined (CONFIG_IA64_SGI_UV)
+#  include <asm/machvec_uv.h>
 # elif defined (CONFIG_IA64_GENERIC)
 
 # ifdef MACHVEC_PLATFORM_HEADER

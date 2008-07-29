@@ -155,9 +155,6 @@ static int generic_probe(struct usb_device *udev)
 {
 	int err, c;
 
-	/* put device-specific files into sysfs */
-	usb_create_sysfs_dev_files(udev);
-
 	/* Choose and set the configuration.  This registers the interfaces
 	 * with the driver core and lets interface drivers bind to them.
 	 */
@@ -189,8 +186,6 @@ static void generic_disconnect(struct usb_device *udev)
 	 * unconfigure the device */
 	if (udev->actconfig)
 		usb_set_configuration(udev, -1);
-
-	usb_remove_sysfs_dev_files(udev);
 }
 
 #ifdef	CONFIG_PM

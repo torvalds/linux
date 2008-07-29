@@ -261,7 +261,7 @@ static void notify_update(struct vc_data *vc)
 #ifdef VT_BUF_VRAM_ONLY
 #define DO_UPDATE(vc)	0
 #else
-#define DO_UPDATE(vc)	CON_IS_VISIBLE(vc)
+#define DO_UPDATE(vc)	(CON_IS_VISIBLE(vc) && !console_blanked)
 #endif
 
 static inline unsigned short *screenpos(struct vc_data *vc, int offset, int viewed)
@@ -434,7 +434,7 @@ static void update_attr(struct vc_data *vc)
 	              vc->vc_blink, vc->vc_underline,
 	              vc->vc_reverse ^ vc->vc_decscnm, vc->vc_italic);
 	vc->vc_video_erase_char = (build_attr(vc, vc->vc_color, 1, vc->vc_blink, 0, vc->vc_decscnm, 0) << 8) | ' ';
-	vc->vc_scrl_erase_char = (build_attr(vc, vc->vc_def_color, 1, false, false, false, false) << 8) | ' ';
+	vc->vc_scrl_erase_char = (build_attr(vc, vc->vc_def_color, 1, false, false, vc->vc_decscnm, false) << 8) | ' ';
 }
 
 /* Note: inverting the screen twice should revert to the original state */
@@ -909,7 +909,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 
 	if (vc->vc_tty) {
 		struct winsize ws, *cws = &vc->vc_tty->winsize;
-		unsigned long flags;
+		struct pid *pgrp = NULL;
 
 		memset(&ws, 0, sizeof(ws));
 		ws.ws_row = vc->vc_rows;
@@ -917,11 +917,14 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 		ws.ws_ypixel = vc->vc_scan_lines;
 
 		mutex_lock(&vc->vc_tty->termios_mutex);
-		spin_lock_irqsave(&vc->vc_tty->ctrl_lock, flags);
-		if ((ws.ws_row != cws->ws_row || ws.ws_col != cws->ws_col) &&
-		    vc->vc_tty->pgrp)
+		spin_lock_irq(&vc->vc_tty->ctrl_lock);
+		if ((ws.ws_row != cws->ws_row || ws.ws_col != cws->ws_col))
+			pgrp = get_pid(vc->vc_tty->pgrp);
+		spin_unlock_irq(&vc->vc_tty->ctrl_lock);
+		if (pgrp) {
 			kill_pgrp(vc->vc_tty->pgrp, SIGWINCH, 1);
-		spin_unlock_irqrestore(&vc->vc_tty->ctrl_lock, flags);
+			put_pid(pgrp);
+		}
 		*cws = ws;
 		mutex_unlock(&vc->vc_tty->termios_mutex);
 	}
@@ -2208,7 +2211,7 @@ rescan_last_byte:
 			c = 0xfffd;
 		    tc = c;
 		} else {	/* no utf or alternate charset mode */
-		    tc = vc->vc_translate[vc->vc_toggle_meta ? (c | 0x80) : c];
+		    tc = vc_translate(vc, c);
 		}
 
 		param.c = tc;
@@ -2742,8 +2745,12 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 				tty->winsize.ws_row = vc_cons[currcons].d->vc_rows;
 				tty->winsize.ws_col = vc_cons[currcons].d->vc_cols;
 			}
-			release_console_sem();
+			if (vc->vc_utf)
+				tty->termios->c_iflag |= IUTF8;
+			else
+				tty->termios->c_iflag &= ~IUTF8;
 			vcs_make_sysfs(tty);
+			release_console_sem();
 			return ret;
 		}
 	}
@@ -2768,8 +2775,8 @@ static void con_close(struct tty_struct *tty, struct file *filp)
 		if (vc)
 			vc->vc_tty = NULL;
 		tty->driver_data = NULL;
-		release_console_sem();
 		vcs_remove_sysfs(tty);
+		release_console_sem();
 		mutex_unlock(&tty_mutex);
 		/*
 		 * tty_mutex is released, but we still hold BKL, so there is
@@ -2918,6 +2925,8 @@ int __init vty_init(void)
 	console_driver->minor_start = 1;
 	console_driver->type = TTY_DRIVER_TYPE_CONSOLE;
 	console_driver->init_termios = tty_std_termios;
+	if (default_utf8)
+		console_driver->init_termios.c_iflag |= IUTF8;
 	console_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_RESET_TERMIOS;
 	tty_set_operations(console_driver, &con_ops);
 	if (tty_register_driver(console_driver))
@@ -3416,9 +3425,10 @@ int register_con_driver(const struct consw *csw, int first, int last)
 	if (retval)
 		goto err;
 
-	con_driver->dev = device_create(vtconsole_class, NULL,
-					MKDEV(0, con_driver->node),
-					"vtcon%i", con_driver->node);
+	con_driver->dev = device_create_drvdata(vtconsole_class, NULL,
+						MKDEV(0, con_driver->node),
+						NULL, "vtcon%i",
+						con_driver->node);
 
 	if (IS_ERR(con_driver->dev)) {
 		printk(KERN_WARNING "Unable to create device for %s; "
@@ -3526,9 +3536,10 @@ static int __init vtconsole_class_init(void)
 		struct con_driver *con = &registered_con_driver[i];
 
 		if (con->con && !con->dev) {
-			con->dev = device_create(vtconsole_class, NULL,
-						 MKDEV(0, con->node),
-						 "vtcon%i", con->node);
+			con->dev = device_create_drvdata(vtconsole_class, NULL,
+							 MKDEV(0, con->node),
+							 NULL, "vtcon%i",
+							 con->node);
 
 			if (IS_ERR(con->dev)) {
 				printk(KERN_WARNING "Unable to create "

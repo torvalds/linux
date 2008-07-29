@@ -81,7 +81,7 @@ static struct usb_device *testdev_to_usbdev (struct usbtest_dev *test)
 
 #define ERROR(tdev, fmt, args...) \
 	dev_err(&(tdev)->intf->dev , fmt , ## args)
-#define WARN(tdev, fmt, args...) \
+#define WARNING(tdev, fmt, args...) \
 	dev_warn(&(tdev)->intf->dev , fmt , ## args)
 
 /*-------------------------------------------------------------------------*/
@@ -856,6 +856,11 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 		struct urb		*u;
 		struct usb_ctrlrequest	req;
 		struct subcase		*reqp;
+
+		/* sign of this variable means:
+		 *  -: tested code must return this (negative) error code
+		 *  +: tested code may return this (negative too) error code
+		 */
 		int			expected = 0;
 
 		/* requests here are mostly expected to succeed on any
@@ -1941,7 +1946,7 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 
 			status = get_endpoints (dev, intf);
 			if (status < 0) {
-				WARN(dev, "couldn't get endpoints, %d\n",
+				WARNING(dev, "couldn't get endpoints, %d\n",
 						status);
 				return status;
 			}

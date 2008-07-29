@@ -31,29 +31,31 @@ struct xc5000_config {
 	u8   i2c_address;
 	u32  if_khz;
 
-	/* For each bridge framework, when it attaches either analog or digital,
-	 * it has to store a reference back to its _core equivalent structure,
-	 * so that it can service the hardware by steering gpio's etc.
-	 * Each bridge implementation is different so cast priv accordingly.
-	 * The xc5000 driver cares not for this value, other than ensuring
-	 * it's passed back to a bridge during tuner_callback().
-	 */
-	void *priv;
 	int  (*tuner_callback) (void *priv, int command, int arg);
 };
 
 /* xc5000 callback command */
 #define XC5000_TUNER_RESET		0
 
+/* For each bridge framework, when it attaches either analog or digital,
+ * it has to store a reference back to its _core equivalent structure,
+ * so that it can service the hardware by steering gpio's etc.
+ * Each bridge implementation is different so cast devptr accordingly.
+ * The xc5000 driver cares not for this value, other than ensuring
+ * it's passed back to a bridge during tuner_callback().
+ */
+
 #if defined(CONFIG_MEDIA_TUNER_XC5000) || \
     (defined(CONFIG_MEDIA_TUNER_XC5000_MODULE) && defined(MODULE))
 extern struct dvb_frontend* xc5000_attach(struct dvb_frontend *fe,
 					  struct i2c_adapter *i2c,
-					  struct xc5000_config *cfg);
+					  struct xc5000_config *cfg,
+					  void *devptr);
 #else
 static inline struct dvb_frontend* xc5000_attach(struct dvb_frontend *fe,
 						 struct i2c_adapter *i2c,
-						 struct xc5000_config *cfg)
+						 struct xc5000_config *cfg,
+						 void *devptr)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;

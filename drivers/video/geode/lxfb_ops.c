@@ -63,54 +63,32 @@ static const struct {
   { 0x00014284,  19688 },
   { 0x00011104,  20400 },
   { 0x00016363,  23625 },
-  { 0x00015303,  24380 },
   { 0x000031AC,  24923 },
   { 0x0000215D,  25175 },
   { 0x00001087,  27000 },
   { 0x0000216C,  28322 },
   { 0x0000218D,  28560 },
-  { 0x00010041,  29913 },
   { 0x000010C9,  31200 },
   { 0x00003147,  31500 },
-  { 0x000141A1,  32400 },
   { 0x000010A7,  33032 },
-  { 0x00012182,  33375 },
-  { 0x000141B1,  33750 },
   { 0x00002159,  35112 },
   { 0x00004249,  35500 },
   { 0x00000057,  36000 },
-  { 0x000141E1,  37125 },
   { 0x0000219A,  37889 },
   { 0x00002158,  39168 },
   { 0x00000045,  40000 },
-  { 0x000131A1,  40500 },
-  { 0x00010061,  42301 },
   { 0x00000089,  43163 },
-  { 0x00012151,  43875 },
   { 0x000010E7,  44900 },
   { 0x00002136,  45720 },
-  { 0x000152E1,  47250 },
-  { 0x00010071,  48000 },
   { 0x00003207,  49500 },
   { 0x00002187,  50000 },
-  { 0x00014291,  50625 },
-  { 0x00011101,  51188 },
-  { 0x00017481,  54563 },
   { 0x00004286,  56250 },
-  { 0x00014170,  57375 },
-  { 0x00016210,  58500 },
   { 0x000010E5,  60065 },
-  { 0x00013140,  62796 },
   { 0x00004214,  65000 },
-  { 0x00016250,  65250 },
   { 0x00001105,  68179 },
-  { 0x000141C0,  69600 },
-  { 0x00015220,  70160 },
-  { 0x00010050,  72000 },
   { 0x000031E4,  74250 },
   { 0x00003183,  75000 },
   { 0x00004284,  78750 },
-  { 0x00012130,  80052 },
   { 0x00001104,  81600 },
   { 0x00006363,  94500 },
   { 0x00005303,  97520 },
@@ -539,25 +517,25 @@ void lx_set_palette_reg(struct fb_info *info, unsigned regno,
 int lx_blank_display(struct fb_info *info, int blank_mode)
 {
 	struct lxfb_par *par = info->par;
-	u32 dcfg, fp_pm;
-	int blank, hsync, vsync, crt;
+	u32 dcfg, misc, fp_pm;
+	int blank, hsync, vsync;
 
 	/* CRT power saving modes. */
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
-		blank = 0; hsync = 1; vsync = 1; crt = 1;
+		blank = 0; hsync = 1; vsync = 1;
 		break;
 	case FB_BLANK_NORMAL:
-		blank = 1; hsync = 1; vsync = 1; crt = 1;
+		blank = 1; hsync = 1; vsync = 1;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
-		blank = 1; hsync = 1; vsync = 0; crt = 1;
+		blank = 1; hsync = 1; vsync = 0;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
-		blank = 1; hsync = 0; vsync = 1; crt = 1;
+		blank = 1; hsync = 0; vsync = 1;
 		break;
 	case FB_BLANK_POWERDOWN:
-		blank = 1; hsync = 0; vsync = 0; crt = 0;
+		blank = 1; hsync = 0; vsync = 0;
 		break;
 	default:
 		return -EINVAL;
@@ -567,14 +545,22 @@ int lx_blank_display(struct fb_info *info, int blank_mode)
 	dcfg &= ~(VP_DCFG_DAC_BL_EN | VP_DCFG_HSYNC_EN | VP_DCFG_VSYNC_EN |
 			VP_DCFG_CRT_EN);
 	if (!blank)
-		dcfg |= VP_DCFG_DAC_BL_EN;
+		dcfg |= VP_DCFG_DAC_BL_EN | VP_DCFG_CRT_EN;
 	if (hsync)
 		dcfg |= VP_DCFG_HSYNC_EN;
 	if (vsync)
 		dcfg |= VP_DCFG_VSYNC_EN;
-	if (crt)
-		dcfg |= VP_DCFG_CRT_EN;
+
 	write_vp(par, VP_DCFG, dcfg);
+
+	misc = read_vp(par, VP_MISC);
+
+	if (vsync && hsync)
+		misc &= ~VP_MISC_DACPWRDN;
+	else
+		misc |= VP_MISC_DACPWRDN;
+
+	write_vp(par, VP_MISC, misc);
 
 	/* Power on/off flat panel */
 

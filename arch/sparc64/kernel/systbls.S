@@ -45,7 +45,7 @@ sys_call_table32:
 /*120*/	.word compat_sys_readv, compat_sys_writev, sys32_settimeofday, sys32_fchown16, sys_fchmod
 	.word sys_nis_syscall, sys32_setreuid16, sys32_setregid16, sys_rename, sys_truncate
 /*130*/	.word sys_ftruncate, sys_flock, compat_sys_lstat64, sys_nis_syscall, sys_nis_syscall
-	.word sys_nis_syscall, sys32_mkdir, sys_rmdir, sys32_utimes, compat_sys_stat64
+	.word sys_nis_syscall, sys32_mkdir, sys_rmdir, compat_sys_utimes, compat_sys_stat64
 /*140*/	.word sys32_sendfile64, sys_nis_syscall, sys32_futex, sys_gettid, compat_sys_getrlimit
 	.word compat_sys_setrlimit, sys_pivot_root, sys32_prctl, sys_pciconfig_read, sys_pciconfig_write
 /*150*/	.word sys_nis_syscall, sys_inotify_init, sys_inotify_add_watch, sys_poll, sys_getdents64
@@ -81,7 +81,8 @@ sys_call_table32:
 /*300*/	.word compat_sys_set_robust_list, compat_sys_get_robust_list, compat_sys_migrate_pages, compat_sys_mbind, compat_sys_get_mempolicy
 	.word compat_sys_set_mempolicy, compat_sys_kexec_load, compat_sys_move_pages, sys_getcpu, compat_sys_epoll_pwait
 /*310*/	.word compat_sys_utimensat, compat_sys_signalfd, sys_timerfd_create, sys_eventfd, compat_sys_fallocate
-	.word compat_sys_timerfd_settime, compat_sys_timerfd_gettime
+	.word compat_sys_timerfd_settime, compat_sys_timerfd_gettime, compat_sys_signalfd4, sys_eventfd2, sys_epoll_create1
+/*320*/	.word sys_dup3, sys_pipe2, sys_inotify_init1
 
 #endif /* CONFIG_COMPAT */
 
@@ -154,4 +155,5 @@ sys_call_table:
 /*300*/	.word sys_set_robust_list, sys_get_robust_list, sys_migrate_pages, sys_mbind, sys_get_mempolicy
 	.word sys_set_mempolicy, sys_kexec_load, sys_move_pages, sys_getcpu, sys_epoll_pwait
 /*310*/	.word sys_utimensat, sys_signalfd, sys_timerfd_create, sys_eventfd, sys_fallocate
-	.word sys_timerfd_settime, sys_timerfd_gettime
+	.word sys_timerfd_settime, sys_timerfd_gettime, sys_signalfd4, sys_eventfd2, sys_epoll_create1
+/*320*/	.word sys_dup3, sys_pipe2, sys_inotify_init1

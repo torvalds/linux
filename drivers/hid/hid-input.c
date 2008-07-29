@@ -1,6 +1,4 @@
 /*
- * $Id: hid-input.c,v 1.2 2002/04/23 00:59:25 rdamazio Exp $
- *
  *  Copyright (c) 2000-2001 Vojtech Pavlik
  *  Copyright (c) 2006-2007 Jiri Kosina
  *
@@ -102,6 +100,8 @@ static struct hidinput_key_translation apple_fn_keys[] = {
 	{ KEY_F2,       KEY_BRIGHTNESSUP,   APPLE_FLAG_FKEY },
 	{ KEY_F3,       KEY_FN_F5,          APPLE_FLAG_FKEY }, /* Exposé */
 	{ KEY_F4,       KEY_FN_F4,          APPLE_FLAG_FKEY }, /* Dashboard */
+	{ KEY_F5,       KEY_KBDILLUMDOWN,   APPLE_FLAG_FKEY },
+	{ KEY_F6,       KEY_KBDILLUMUP,     APPLE_FLAG_FKEY },
 	{ KEY_F7,       KEY_PREVIOUSSONG,   APPLE_FLAG_FKEY },
 	{ KEY_F8,       KEY_PLAYPAUSE,      APPLE_FLAG_FKEY },
 	{ KEY_F9,       KEY_NEXTSONG,       APPLE_FLAG_FKEY },
@@ -218,8 +218,9 @@ int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 			}
 		}
 
-		if (test_bit(usage->code, hid->pb_pressed_numlock) ||
-				test_bit(LED_NUML, input->led)) {
+		if (hid->quirks & HID_QUIRK_APPLE_NUMLOCK_EMULATION && (
+				test_bit(usage->code, hid->pb_pressed_numlock) ||
+				test_bit(LED_NUML, input->led))) {
 			trans = find_translation(powerbook_numlock_keys, usage->code);
 
 			if (trans) {
@@ -613,6 +614,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x0b6: map_key_clear(KEY_PREVIOUSSONG);	break;
 				case 0x0b7: map_key_clear(KEY_STOPCD);		break;
 				case 0x0b8: map_key_clear(KEY_EJECTCD);		break;
+				case 0x0bc: map_key_clear(KEY_MEDIA_REPEAT);	break;
 
 				case 0x0cd: map_key_clear(KEY_PLAYPAUSE);	break;
 			        case 0x0e0: map_abs_clear(ABS_VOLUME);		break;

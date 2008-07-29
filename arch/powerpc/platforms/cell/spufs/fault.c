@@ -83,13 +83,18 @@ int spufs_handle_class0(struct spu_context *ctx)
 		return 0;
 
 	if (stat & CLASS0_DMA_ALIGNMENT_INTR)
-		spufs_handle_event(ctx, ctx->csa.dar, SPE_EVENT_DMA_ALIGNMENT);
+		spufs_handle_event(ctx, ctx->csa.class_0_dar,
+			SPE_EVENT_DMA_ALIGNMENT);
 
 	if (stat & CLASS0_INVALID_DMA_COMMAND_INTR)
-		spufs_handle_event(ctx, ctx->csa.dar, SPE_EVENT_INVALID_DMA);
+		spufs_handle_event(ctx, ctx->csa.class_0_dar,
+			SPE_EVENT_INVALID_DMA);
 
 	if (stat & CLASS0_SPU_ERROR_INTR)
-		spufs_handle_event(ctx, ctx->csa.dar, SPE_EVENT_SPE_ERROR);
+		spufs_handle_event(ctx, ctx->csa.class_0_dar,
+			SPE_EVENT_SPE_ERROR);
+
+	ctx->csa.class_0_pending = 0;
 
 	return -EIO;
 }
@@ -119,8 +124,8 @@ int spufs_handle_class1(struct spu_context *ctx)
 	 * in time, we can still expect to get the same fault
 	 * the immediately after the context restore.
 	 */
-	ea = ctx->csa.dar;
-	dsisr = ctx->csa.dsisr;
+	ea = ctx->csa.class_1_dar;
+	dsisr = ctx->csa.class_1_dsisr;
 
 	if (!(dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED)))
 		return 0;
@@ -158,7 +163,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 	 * time slicing will not preempt the context while the page fault
 	 * handler is running. Context switch code removes mappings.
 	 */
-	ctx->csa.dar = ctx->csa.dsisr = 0;
+	ctx->csa.class_1_dar = ctx->csa.class_1_dsisr = 0;
 
 	/*
 	 * If we handled the fault successfully and are in runnable

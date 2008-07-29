@@ -4,8 +4,6 @@
  * (C) 2000  Nicolas Pitre <nico@cam.org>
  *
  * This code is GPL
- *
- * $Id: dc21285.c,v 1.24 2005/11/07 11:14:26 gleixner Exp $
  */
 #include <linux/module.h>
 #include <linux/types.h>

@@ -703,7 +703,7 @@ extern struct pglist_data *next_online_pgdat(struct pglist_data *pgdat);
 extern struct zone *next_zone(struct zone *zone);
 
 /**
- * for_each_pgdat - helper macro to iterate over all nodes
+ * for_each_online_pgdat - helper macro to iterate over all online nodes
  * @pgdat - pointer to a pg_data_t variable
  */
 #define for_each_online_pgdat(pgdat)			\

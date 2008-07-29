@@ -33,13 +33,9 @@
  */
 void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
 {
-	BUG_ON(!list_empty(&child->ptrace_list));
-	if (child->parent == new_parent)
-		return;
-	list_add(&child->ptrace_list, &child->parent->ptrace_children);
-	remove_parent(child);
+	BUG_ON(!list_empty(&child->ptrace_entry));
+	list_add(&child->ptrace_entry, &new_parent->ptraced);
 	child->parent = new_parent;
-	add_parent(child);
 }
  
 /*
@@ -73,12 +69,8 @@ void __ptrace_unlink(struct task_struct *child)
 	BUG_ON(!child->ptrace);
 
 	child->ptrace = 0;
-	if (ptrace_reparented(child)) {
-		list_del_init(&child->ptrace_list);
-		remove_parent(child);
-		child->parent = child->real_parent;
-		add_parent(child);
-	}
+	child->parent = child->real_parent;
+	list_del_init(&child->ptrace_entry);
 
 	if (task_is_traced(child))
 		ptrace_untrace(child);
@@ -115,13 +107,13 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	read_unlock(&tasklist_lock);
 
 	if (!ret && !kill)
-		wait_task_inactive(child);
+		ret = wait_task_inactive(child, TASK_TRACED) ? 0 : -ESRCH;
 
 	/* All systems go.. */
 	return ret;
 }
 
-int __ptrace_may_attach(struct task_struct *task)
+int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 {
 	/* May we inspect the given task?
 	 * This check is used both for attaching with ptrace
@@ -148,16 +140,16 @@ int __ptrace_may_attach(struct task_struct *task)
 	if (!dumpable && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
 
-	return security_ptrace(current, task);
+	return security_ptrace(current, task, mode);
 }
 
-int ptrace_may_attach(struct task_struct *task)
+bool ptrace_may_access(struct task_struct *task, unsigned int mode)
 {
 	int err;
 	task_lock(task);
-	err = __ptrace_may_attach(task);
+	err = __ptrace_may_access(task, mode);
 	task_unlock(task);
-	return !err;
+	return (!err ? true : false);
 }
 
 int ptrace_attach(struct task_struct *task)
@@ -195,7 +187,7 @@ repeat:
 	/* the same process cannot be attached many times */
 	if (task->ptrace & PT_PTRACED)
 		goto bad;
-	retval = __ptrace_may_attach(task);
+	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH);
 	if (retval)
 		goto bad;
 
@@ -492,14 +484,34 @@ int ptrace_traceme(void)
 	/*
 	 * Are we already being traced?
 	 */
+repeat:
 	task_lock(current);
 	if (!(current->ptrace & PT_PTRACED)) {
-		ret = security_ptrace(current->parent, current);
+		/*
+		 * See ptrace_attach() comments about the locking here.
+		 */
+		unsigned long flags;
+		if (!write_trylock_irqsave(&tasklist_lock, flags)) {
+			task_unlock(current);
+			do {
+				cpu_relax();
+			} while (!write_can_lock(&tasklist_lock));
+			goto repeat;
+		}
+
+		ret = security_ptrace(current->parent, current,
+				      PTRACE_MODE_ATTACH);
+
 		/*
 		 * Set the ptrace bit in the process ptrace flags.
+		 * Then link us on our parent's ptraced list.
 		 */
-		if (!ret)
+		if (!ret) {
 			current->ptrace |= PT_PTRACED;
+			__ptrace_link(current, current->real_parent);
+		}
+
+		write_unlock_irqrestore(&tasklist_lock, flags);
 	}
 	task_unlock(current);
 	return ret;

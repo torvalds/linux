@@ -85,8 +85,8 @@
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 #include <linux/sysctl.h>
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
@@ -504,11 +504,12 @@ static int hwicap_open(struct inode *inode, struct file *file)
 	struct hwicap_drvdata *drvdata;
 	int status;
 
+	lock_kernel();
 	drvdata = container_of(inode->i_cdev, struct hwicap_drvdata, cdev);
 
 	status = mutex_lock_interruptible(&drvdata->sem);
 	if (status)
-		return status;
+		goto out;
 
 	if (drvdata->is_open) {
 		status = -EBUSY;
@@ -528,6 +529,8 @@ static int hwicap_open(struct inode *inode, struct file *file)
 
  error:
 	mutex_unlock(&drvdata->sem);
+ out:
+	unlock_kernel();
 	return status;
 }
 
@@ -654,8 +657,9 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 		dev_err(dev, "cdev_add() failed\n");
 		goto failed3;
 	}
-	/*  devfs_mk_cdev(devt, S_IFCHR|S_IRUGO|S_IWUGO, DRIVER_NAME); */
-	device_create(icap_class, dev, devt, "%s%d", DRIVER_NAME, id);
+
+	device_create_drvdata(icap_class, dev, devt, NULL,
+			      "%s%d", DRIVER_NAME, id);
 	return 0;		/* success */
 
  failed3:

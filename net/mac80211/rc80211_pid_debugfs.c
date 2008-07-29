@@ -39,11 +39,11 @@ static void rate_control_pid_event(struct rc_pid_event_buffer *buf,
 }
 
 void rate_control_pid_event_tx_status(struct rc_pid_event_buffer *buf,
-					     struct ieee80211_tx_status *stat)
+				      struct ieee80211_tx_info *stat)
 {
 	union rc_pid_event_data evd;
 
-	memcpy(&evd.tx_status, stat, sizeof(struct ieee80211_tx_status));
+	memcpy(&evd.tx_status, stat, sizeof(struct ieee80211_tx_info));
 	rate_control_pid_event(buf, RC_PID_EVENT_TYPE_TX_STATUS, &evd);
 }
 
@@ -85,7 +85,7 @@ static int rate_control_pid_events_open(struct inode *inode, struct file *file)
 	struct rc_pid_sta_info *sinfo = inode->i_private;
 	struct rc_pid_event_buffer *events = &sinfo->events;
 	struct rc_pid_events_file_info *file_info;
-	unsigned int status;
+	unsigned long status;
 
 	/* Allocate a state struct */
 	file_info = kmalloc(sizeof(*file_info), GFP_KERNEL);
@@ -135,7 +135,7 @@ static ssize_t rate_control_pid_events_read(struct file *file, char __user *buf,
 	char pb[RC_PID_PRINT_BUF_SIZE];
 	int ret;
 	int p;
-	unsigned int status;
+	unsigned long status;
 
 	/* Check if there is something to read. */
 	if (events->next_entry == file_info->next_entry) {
@@ -167,8 +167,8 @@ static ssize_t rate_control_pid_events_read(struct file *file, char __user *buf,
 	switch (ev->type) {
 	case RC_PID_EVENT_TYPE_TX_STATUS:
 		p += snprintf(pb + p, length - p, "tx_status %u %u",
-			      ev->data.tx_status.excessive_retries,
-			      ev->data.tx_status.retry_count);
+			      ev->data.tx_status.status.excessive_retries,
+			      ev->data.tx_status.status.retry_count);
 		break;
 	case RC_PID_EVENT_TYPE_RATE_CHANGE:
 		p += snprintf(pb + p, length - p, "rate_change %d %d",

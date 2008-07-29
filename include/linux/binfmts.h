@@ -38,7 +38,7 @@ struct linux_binprm{
 		     misc_bang:1;
 	struct file * file;
 	int e_uid, e_gid;
-	kernel_cap_t cap_inheritable, cap_permitted;
+	kernel_cap_t cap_post_exec_permitted;
 	bool cap_effective;
 	void *security;
 	int argc, envc;
@@ -99,6 +99,7 @@ extern int copy_strings_kernel(int argc,char ** argv,struct linux_binprm *bprm);
 extern void compute_creds(struct linux_binprm *binprm);
 extern int do_coredump(long signr, int exit_code, struct pt_regs * regs);
 extern int set_binfmt(struct linux_binfmt *new);
+extern void free_bprm(struct linux_binprm *);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_BINFMTS_H */

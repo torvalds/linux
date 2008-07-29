@@ -12,7 +12,6 @@ usbserial-obj-$(CONFIG_USB_EZUSB)		+= ezusb.o
 usbserial-objs	:= usb-serial.o generic.o bus.o $(usbserial-obj-y)
 
 obj-$(CONFIG_USB_SERIAL_AIRCABLE)		+= aircable.o
-obj-$(CONFIG_USB_SERIAL_AIRPRIME)		+= airprime.o
 obj-$(CONFIG_USB_SERIAL_ARK3116)		+= ark3116.o
 obj-$(CONFIG_USB_SERIAL_BELKIN)			+= belkin_sa.o
 obj-$(CONFIG_USB_SERIAL_CH341)			+= ch341.o
@@ -39,6 +38,7 @@ obj-$(CONFIG_USB_SERIAL_KOBIL_SCT)		+= kobil_sct.o
 obj-$(CONFIG_USB_SERIAL_MCT_U232)		+= mct_u232.o
 obj-$(CONFIG_USB_SERIAL_MOS7720)		+= mos7720.o
 obj-$(CONFIG_USB_SERIAL_MOS7840)		+= mos7840.o
+obj-$(CONFIG_USB_SERIAL_MOTOROLA)		+= moto_modem.o
 obj-$(CONFIG_USB_SERIAL_NAVMAN)			+= navman.o
 obj-$(CONFIG_USB_SERIAL_OMNINET)		+= omninet.o
 obj-$(CONFIG_USB_SERIAL_OPTION)			+= option.o

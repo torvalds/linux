@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
@@ -36,14 +37,14 @@ static struct resource ide_resources[] = {
 	}
 };
 
-static u64 ide_dmamask = ~(u32)0;
+static u64 ide_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device ide_device = {
 	.name		= "au1200-ide",
 	.id		= 0,
 	.dev = {
 		.dma_mask 		= &ide_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 	},
 	.num_resources	= ARRAY_SIZE(ide_resources),
 	.resource	= ide_resources

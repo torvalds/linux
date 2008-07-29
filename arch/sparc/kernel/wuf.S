@@ -1,4 +1,4 @@
-/* $Id: wuf.S,v 1.39 2000/01/08 16:38:18 anton Exp $
+/*
  * wuf.S: Window underflow trap handler for the Sparc.
  *
  * Copyright (C) 1995 David S. Miller
@@ -243,7 +243,6 @@ fwin_user_finish_up:
 	 */
 
 	.align	4
-	.globl	sun4c_fwin_stackchk
 sun4c_fwin_stackchk:
 	/* LOCATION: Window 'W' */
 

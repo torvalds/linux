@@ -76,7 +76,9 @@ static void markeins_machine_power_off(void)
 	while (1) ;
 }
 
-static unsigned long clock[4] = { 166500000, 187312500, 199800000, 210600000 };
+static unsigned long __initdata emma2rh_clock[4] = {
+	166500000, 187312500, 199800000, 210600000
+};
 
 static unsigned int __init detect_bus_frequency(unsigned long rtc_base)
 {
@@ -85,7 +87,8 @@ static unsigned int __init detect_bus_frequency(unsigned long rtc_base)
 	/* detect from boot strap */
 	reg = emma2rh_in32(EMMA2RH_BHIF_STRAP_0);
 	reg = (reg >> 4) & 0x3;
-	return clock[reg];
+
+	return emma2rh_clock[reg];
 }
 
 void __init plat_time_init(void)

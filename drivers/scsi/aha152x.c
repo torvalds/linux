@@ -288,20 +288,20 @@ static LIST_HEAD(aha152x_host_list);
 #define DO_LOCK(flags)	\
 	do { \
 		if(spin_is_locked(&QLOCK)) { \
-			DPRINTK(debug_intr, DEBUG_LEAD "(%s:%d) already locked at %s:%d\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__, QLOCKER, QLOCKERL); \
+			DPRINTK(debug_intr, DEBUG_LEAD "(%s:%d) already locked at %s:%d\n", CMDINFO(CURRENT_SC), __func__, __LINE__, QLOCKER, QLOCKERL); \
 		} \
-		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) locking\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__); \
+		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) locking\n", CMDINFO(CURRENT_SC), __func__, __LINE__); \
 		spin_lock_irqsave(&QLOCK,flags); \
-		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) locked\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__); \
-		QLOCKER=__FUNCTION__; \
+		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) locked\n", CMDINFO(CURRENT_SC), __func__, __LINE__); \
+		QLOCKER=__func__; \
 		QLOCKERL=__LINE__; \
 	} while(0)
 
 #define DO_UNLOCK(flags)	\
 	do { \
-		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) unlocking (locked at %s:%d)\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__, QLOCKER, QLOCKERL); \
+		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) unlocking (locked at %s:%d)\n", CMDINFO(CURRENT_SC), __func__, __LINE__, QLOCKER, QLOCKERL); \
 		spin_unlock_irqrestore(&QLOCK,flags); \
-		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) unlocked\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__); \
+		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) unlocked\n", CMDINFO(CURRENT_SC), __func__, __LINE__); \
 		QLOCKER="(not locked)"; \
 		QLOCKERL=0; \
 	} while(0)
@@ -3582,7 +3582,7 @@ static int checksetup(struct aha152x_setup *setup)
 	if (i == ARRAY_SIZE(ports))
 		return 0;
 
-	if ( request_region(setup->io_port, IO_RANGE, "aha152x")==0 ) {
+	if (!request_region(setup->io_port, IO_RANGE, "aha152x")) {
 		printk(KERN_ERR "aha152x: io port 0x%x busy.\n", setup->io_port);
 		return 0;
 	}
@@ -3830,7 +3830,7 @@ static int __init aha152x_init(void)
 			iounmap(p);
 		}
 		if (!ok && setup_count == 0)
-			return 0;
+			return -ENODEV;
 
 		printk(KERN_INFO "aha152x: BIOS test: passed, ");
 #else
@@ -3842,7 +3842,7 @@ static int __init aha152x_init(void)
 			if ((setup_count == 1) && (setup[0].io_port == ports[i]))
 				continue;
 
-			if ( request_region(ports[i], IO_RANGE, "aha152x")==0 ) {
+			if (!request_region(ports[i], IO_RANGE, "aha152x")) {
 				printk(KERN_ERR "aha152x: io port 0x%x busy.\n", ports[i]);
 				continue;
 			}
@@ -3909,14 +3909,14 @@ static int __init aha152x_init(void)
 #endif
 	}
 
-	return 1;
+	return 0;
 }
 
 static void __exit aha152x_exit(void)
 {
-	struct aha152x_hostdata *hd;
+	struct aha152x_hostdata *hd, *tmp;
 
-	list_for_each_entry(hd, &aha152x_host_list, host_list) {
+	list_for_each_entry_safe(hd, tmp, &aha152x_host_list, host_list) {
 		struct Scsi_Host *shost = container_of((void *)hd, struct Scsi_Host, hostdata);
 
 		aha152x_release(shost);

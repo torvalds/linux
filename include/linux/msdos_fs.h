@@ -2,11 +2,11 @@
 #define _LINUX_MSDOS_FS_H
 
 #include <linux/magic.h>
+#include <asm/byteorder.h>
 
 /*
  * The MS-DOS filesystem constants/structures
  */
-#include <asm/byteorder.h>
 
 #define SECTOR_SIZE	512		/* sector size (bytes) */
 #define SECTOR_BITS	9		/* log2(SECTOR_SIZE) */
@@ -57,12 +57,6 @@
 #define MSDOS_DOT	".          "	/* ".", padded to MSDOS_NAME chars */
 #define MSDOS_DOTDOT	"..         "	/* "..", padded to MSDOS_NAME chars */
 
-/* media of boot sector */
-static inline int fat_valid_media(u8 media)
-{
-	return 0xf8 <= media || media == 0xf0;
-}
-
 #define FAT_FIRST_ENT(s, x)	((MSDOS_SB(s)->fat_bits == 32 ? 0x0FFFFF00 : \
 	MSDOS_SB(s)->fat_bits == 16 ? 0xFF00 : 0xF00) | (x))
 
@@ -95,23 +89,21 @@ static inline int fat_valid_media(u8 media)
 #define IS_FSINFO(x)	(le32_to_cpu((x)->signature1) == FAT_FSINFO_SIG1 \
 			 && le32_to_cpu((x)->signature2) == FAT_FSINFO_SIG2)
 
+struct __fat_dirent {
+	long		d_ino;
+	__kernel_off_t	d_off;
+	unsigned short	d_reclen;
+	char		d_name[256]; /* We must not include limits.h! */
+};
+
 /*
  * ioctl commands
  */
-#define VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct dirent [2])
-#define VFAT_IOCTL_READDIR_SHORT	_IOR('r', 2, struct dirent [2])
+#define VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct __fat_dirent[2])
+#define VFAT_IOCTL_READDIR_SHORT	_IOR('r', 2, struct __fat_dirent[2])
 /* <linux/videotext.h> has used 0x72 ('r') in collision, so skip a few */
 #define FAT_IOCTL_GET_ATTRIBUTES	_IOR('r', 0x10, __u32)
 #define FAT_IOCTL_SET_ATTRIBUTES	_IOW('r', 0x11, __u32)
-
-/*
- * vfat shortname flags
- */
-#define VFAT_SFN_DISPLAY_LOWER	0x0001 /* convert to lowercase for display */
-#define VFAT_SFN_DISPLAY_WIN95	0x0002 /* emulate win95 rule for display */
-#define VFAT_SFN_DISPLAY_WINNT	0x0004 /* emulate winnt rule for display */
-#define VFAT_SFN_CREATE_WIN95	0x0100 /* emulate win95 rule for create */
-#define VFAT_SFN_CREATE_WINNT	0x0200 /* emulate winnt rule for create */
 
 struct fat_boot_sector {
 	__u8	ignored[3];	/* Boot strap short or near jump */
@@ -174,14 +166,6 @@ struct msdos_dir_slot {
 	__u8    name11_12[4];	/* last 2 characters in name */
 };
 
-struct fat_slot_info {
-	loff_t i_pos;		/* on-disk position of directory entry */
-	loff_t slot_off;	/* offset for slot or de start */
-	int nr_slots;		/* number of slots + 1(de) in filename */
-	struct msdos_dir_entry *de;
-	struct buffer_head *bh;
-};
-
 #ifdef __KERNEL__
 
 #include <linux/buffer_head.h>
@@ -189,6 +173,15 @@ struct fat_slot_info {
 #include <linux/nls.h>
 #include <linux/fs.h>
 #include <linux/mutex.h>
+
+/*
+ * vfat shortname flags
+ */
+#define VFAT_SFN_DISPLAY_LOWER	0x0001 /* convert to lowercase for display */
+#define VFAT_SFN_DISPLAY_WIN95	0x0002 /* emulate win95 rule for display */
+#define VFAT_SFN_DISPLAY_WINNT	0x0004 /* emulate winnt rule for display */
+#define VFAT_SFN_CREATE_WIN95	0x0100 /* emulate win95 rule for create */
+#define VFAT_SFN_CREATE_WINNT	0x0200 /* emulate winnt rule for create */
 
 struct fat_mount_options {
 	uid_t fs_uid;
@@ -208,10 +201,10 @@ struct fat_mount_options {
 		 utf8:1,	  /* Use of UTF-8 character set (Default) */
 		 unicode_xlate:1, /* create escape sequences for unhandled Unicode */
 		 numtail:1,       /* Does first alias have a numeric '~1' type tail? */
-		 atari:1,         /* Use Atari GEMDOS variation of MS-DOS fs */
 		 flush:1,	  /* write things quickly */
 		 nocase:1,	  /* Does this need case conversion? 0=need case conversion*/
-		 usefree:1;	  /* Use free_clusters for FAT32 */
+		 usefree:1,	  /* Use free_clusters for FAT32 */
+		 tz_utc:1;	  /* Filesystem timestamps are in UTC */
 };
 
 #define FAT_HASH_BITS	8
@@ -273,6 +266,14 @@ struct msdos_inode_info {
 	struct inode vfs_inode;
 };
 
+struct fat_slot_info {
+	loff_t i_pos;		/* on-disk position of directory entry */
+	loff_t slot_off;	/* offset for slot or de start */
+	int nr_slots;		/* number of slots + 1(de) in filename */
+	struct msdos_dir_entry *de;
+	struct buffer_head *bh;
+};
+
 static inline struct msdos_sb_info *MSDOS_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
@@ -332,6 +333,12 @@ static inline void fatwchar_to16(__u8 *dst, const wchar_t *src, size_t len)
 #else
 	memcpy(dst, src, len * 2);
 #endif
+}
+
+/* media of boot sector */
+static inline int fat_valid_media(u8 media)
+{
+	return 0xf8 <= media || media == 0xf0;
 }
 
 /* fat/cache.c */
@@ -428,8 +435,9 @@ extern int fat_flush_inodes(struct super_block *sb, struct inode *i1,
 extern void fat_fs_panic(struct super_block *s, const char *fmt, ...);
 extern void fat_clusters_flush(struct super_block *sb);
 extern int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster);
-extern int date_dos2unix(unsigned short time, unsigned short date);
-extern void fat_date_unix2dos(int unix_date, __le16 *time, __le16 *date);
+extern int date_dos2unix(unsigned short time, unsigned short date, int tz_utc);
+extern void fat_date_unix2dos(int unix_date, __le16 *time, __le16 *date,
+			      int tz_utc);
 extern int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs);
 
 int fat_cache_init(void);

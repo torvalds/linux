@@ -28,6 +28,7 @@
 #include "au0828.h"
 #include "au8522.h"
 #include "xc5000.h"
+#include "mxl5007t.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -43,6 +44,11 @@ static struct xc5000_config hauppauge_hvr950q_tunerconfig = {
 	.i2c_address      = 0x61,
 	.if_khz           = 6000,
 	.tuner_callback   = au0828_tuner_callback
+};
+
+static struct mxl5007t_config mxl5007t_hvr950q_config = {
+	.xtal_freq_hz = MxL_XTAL_24_MHZ,
+	.if_freq_hz = MxL_IF_6_MHZ,
 };
 
 /*-------------------------------------------------------------------*/
@@ -337,12 +343,19 @@ int au0828_dvb_register(struct au0828_dev *dev)
 		dvb->frontend = dvb_attach(au8522_attach,
 				&hauppauge_hvr950q_config,
 				&dev->i2c_adap);
-		if (dvb->frontend != NULL) {
-			hauppauge_hvr950q_tunerconfig.priv = dev;
+		if (dvb->frontend != NULL)
 			dvb_attach(xc5000_attach, dvb->frontend,
 				&dev->i2c_adap,
-				&hauppauge_hvr950q_tunerconfig);
-		}
+				&hauppauge_hvr950q_tunerconfig, dev);
+		break;
+	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
+		dvb->frontend = dvb_attach(au8522_attach,
+				&hauppauge_hvr950q_config,
+				&dev->i2c_adap);
+		if (dvb->frontend != NULL)
+			dvb_attach(mxl5007t_attach, dvb->frontend,
+				   &dev->i2c_adap, 0x60,
+				   &mxl5007t_hvr950q_config);
 		break;
 	default:
 		printk(KERN_WARNING "The frontend of your DVB/ATSC card "
@@ -354,12 +367,6 @@ int au0828_dvb_register(struct au0828_dev *dev)
 		       __func__);
 		return -1;
 	}
-
-	/* Put the analog decoder in standby to keep it quiet */
-	au0828_call_i2c_clients(dev, TUNER_SET_STANDBY, NULL);
-
-	if (dvb->frontend->ops.analog_ops.standby)
-		dvb->frontend->ops.analog_ops.standby(dvb->frontend);
 
 	/* register everything */
 	ret = dvb_register(dev);

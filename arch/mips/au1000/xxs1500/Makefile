@@ -1,7 +1,6 @@
 #
 #  Copyright 2003 MontaVista Software Inc.
-#  Author: MontaVista Software, Inc.
-#     	ppopov@mvista.com or source@mvista.com
+#  Author: MontaVista Software, Inc. <source@mvista.com>
 #
 # Makefile for MyCable XXS1500 board.
 #

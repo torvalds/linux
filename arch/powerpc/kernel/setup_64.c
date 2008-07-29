@@ -170,6 +170,8 @@ void __init setup_paca(int cpu)
 
 void __init early_setup(unsigned long dt_ptr)
 {
+	/* -------- printk is _NOT_ safe to use here ! ------- */
+
 	/* Fill in any unititialised pacas */
 	initialise_pacas();
 
@@ -179,11 +181,13 @@ void __init early_setup(unsigned long dt_ptr)
 	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
 	setup_paca(0);
 
-	/* Enable early debugging if any specified (see udbg.h) */
-	udbg_early_init();
-
 	/* Initialize lockdep early or else spinlocks will blow */
 	lockdep_init();
+
+	/* -------- printk is now safe to use ------- */
+
+	/* Enable early debugging if any specified (see udbg.h) */
+	udbg_early_init();
 
  	DBG(" -> early_setup(), dt_ptr: 0x%lx\n", dt_ptr);
 
@@ -359,6 +363,8 @@ void __init setup_system(void)
 			  &__start___ftr_fixup, &__stop___ftr_fixup);
 	do_feature_fixups(powerpc_firmware_features,
 			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
+	do_lwsync_fixups(cur_cpu_spec->cpu_features,
+			 &__start___lwsync_fixup, &__stop___lwsync_fixup);
 
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
@@ -605,9 +611,6 @@ void __init setup_per_cpu_areas(void)
 		paca[i].data_offset = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 	}
-
-	/* Now that per_cpu is setup, initialize cpu_sibling_map */
-	smp_setup_cpu_sibling_map();
 }
 #endif
 

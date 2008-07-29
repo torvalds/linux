@@ -384,7 +384,7 @@ sba_search_bitmap(struct ioc *ioc, struct device *dev,
 		}
 		mask = RESMAP_MASK(bits_wanted) >> bitshiftcnt;
 
-		DBG_RES("%s() o %ld %p", __FUNCTION__, o, res_ptr);
+		DBG_RES("%s() o %ld %p", __func__, o, res_ptr);
 		while(res_ptr < res_end)
 		{ 
 			DBG_RES("    %p %lx %lx\n", res_ptr, mask, *res_ptr);
@@ -454,7 +454,7 @@ sba_alloc_range(struct ioc *ioc, struct device *dev, size_t size)
 #endif
 
 	DBG_RES("%s(%x) %d -> %lx hint %x/%x\n",
-		__FUNCTION__, size, pages_needed, pide,
+		__func__, size, pages_needed, pide,
 		(uint) ((unsigned long) ioc->res_hint - (unsigned long) ioc->res_map),
 		ioc->res_bitshift );
 
@@ -497,7 +497,7 @@ sba_free_range(struct ioc *ioc, dma_addr_t iova, size_t size)
 	unsigned long m = RESMAP_MASK(bits_not_wanted) >> (pide & (BITS_PER_LONG - 1));
 
 	DBG_RES("%s( ,%x,%x) %x/%lx %x %p %lx\n",
-		__FUNCTION__, (uint) iova, size,
+		__func__, (uint) iova, size,
 		bits_not_wanted, m, pide, res_ptr, *res_ptr);
 
 #ifdef SBA_COLLECT_STATS
@@ -740,7 +740,7 @@ sba_map_single(struct device *dev, void *addr, size_t size,
 	iovp = (dma_addr_t) pide << IOVP_SHIFT;
 
 	DBG_RUN("%s() 0x%p -> 0x%lx\n",
-		__FUNCTION__, addr, (long) iovp | offset);
+		__func__, addr, (long) iovp | offset);
 
 	pdir_start = &(ioc->pdir_base[pide]);
 
@@ -798,7 +798,7 @@ sba_unmap_single(struct device *dev, dma_addr_t iova, size_t size,
 	unsigned long flags; 
 	dma_addr_t offset;
 
-	DBG_RUN("%s() iovp 0x%lx/%x\n", __FUNCTION__, (long) iova, size);
+	DBG_RUN("%s() iovp 0x%lx/%x\n", __func__, (long) iova, size);
 
 	ioc = GET_IOC(dev);
 	offset = iova & ~IOVP_MASK;
@@ -937,7 +937,7 @@ sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	int coalesced, filled = 0;
 	unsigned long flags;
 
-	DBG_RUN_SG("%s() START %d entries\n", __FUNCTION__, nents);
+	DBG_RUN_SG("%s() START %d entries\n", __func__, nents);
 
 	ioc = GET_IOC(dev);
 
@@ -998,7 +998,7 @@ sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 
 	spin_unlock_irqrestore(&ioc->res_lock, flags);
 
-	DBG_RUN_SG("%s() DONE %d mappings\n", __FUNCTION__, filled);
+	DBG_RUN_SG("%s() DONE %d mappings\n", __func__, filled);
 
 	return filled;
 }
@@ -1023,7 +1023,7 @@ sba_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 #endif
 
 	DBG_RUN_SG("%s() START %d entries,  %p,%x\n",
-		__FUNCTION__, nents, sg_virt_addr(sglist), sglist->length);
+		__func__, nents, sg_virt_addr(sglist), sglist->length);
 
 	ioc = GET_IOC(dev);
 
@@ -1047,7 +1047,7 @@ sba_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 		++sglist;
 	}
 
-	DBG_RUN_SG("%s() DONE (nents %d)\n", __FUNCTION__,  nents);
+	DBG_RUN_SG("%s() DONE (nents %d)\n", __func__,  nents);
 
 #ifdef ASSERT_PDIR_SANITY
 	spin_lock_irqsave(&ioc->res_lock, flags);
@@ -1118,7 +1118,7 @@ sba_alloc_pdir(unsigned int pdir_size)
 	pdir_base = __get_free_pages(GFP_KERNEL, pdir_order);
 	if (NULL == (void *) pdir_base)	{
 		panic("%s() could not allocate I/O Page Table\n",
-			__FUNCTION__);
+			__func__);
 	}
 
 	/* If this is not PA8700 (PCX-W2)
@@ -1261,7 +1261,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	ioc->pdir_size = (iova_space_size / IOVP_SIZE) * sizeof(u64);
 
 	DBG_INIT("%s() hpa 0x%p IOV %dMB (%d bits)\n",
-		__FUNCTION__, ioc->ioc_hpa, iova_space_size >> 20,
+		__func__, ioc->ioc_hpa, iova_space_size >> 20,
 		iov_order + PAGE_SHIFT);
 
 	ioc->pdir_base = (void *) __get_free_pages(GFP_KERNEL,
@@ -1272,7 +1272,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	memset(ioc->pdir_base, 0, ioc->pdir_size);
 
 	DBG_INIT("%s() pdir %p size %x\n",
-			__FUNCTION__, ioc->pdir_base, ioc->pdir_size);
+			__func__, ioc->pdir_base, ioc->pdir_size);
 
 #ifdef SBA_HINT_SUPPORT
 	ioc->hint_shift_pdir = iov_order + PAGE_SHIFT;
@@ -1354,7 +1354,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 	if (agp_found && sba_reserve_agpgart) {
 		printk(KERN_INFO "%s: reserving %dMb of IOVA space for agpgart\n",
-		       __FUNCTION__, (iova_space_size/2) >> 20);
+		       __func__, (iova_space_size/2) >> 20);
 		ioc->pdir_size /= 2;
 		ioc->pdir_base[PDIR_INDEX(iova_space_size/2)] = SBA_AGPGART_COOKIE;
 	}
@@ -1406,7 +1406,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	ioc->pdir_size = pdir_size = (iova_space_size/IOVP_SIZE) * sizeof(u64);
 
 	DBG_INIT("%s() hpa 0x%lx mem %ldMB IOV %dMB (%d bits)\n",
-			__FUNCTION__,
+			__func__,
 			ioc->ioc_hpa,
 			(unsigned long) num_physpages >> (20 - PAGE_SHIFT),
 			iova_space_size>>20,
@@ -1415,7 +1415,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	ioc->pdir_base = sba_alloc_pdir(pdir_size);
 
 	DBG_INIT("%s() pdir %p size %x\n",
-			__FUNCTION__, ioc->pdir_base, pdir_size);
+			__func__, ioc->pdir_base, pdir_size);
 
 #ifdef SBA_HINT_SUPPORT
 	/* FIXME : DMA HINTs not used */
@@ -1443,7 +1443,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 #endif
 
 	DBG_INIT("%s() IOV base 0x%lx mask 0x%0lx\n",
-		__FUNCTION__, ioc->ibase, ioc->imask);
+		__func__, ioc->ibase, ioc->imask);
 
 	/*
 	** FIXME: Hint registers are programmed with default hint
@@ -1470,7 +1470,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 	ioc->ibase = 0; /* used by SBA_IOVA and related macros */	
 
-	DBG_INIT("%s() DONE\n", __FUNCTION__);
+	DBG_INIT("%s() DONE\n", __func__);
 }
 
 
@@ -1544,7 +1544,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 	if (!IS_PLUTO(sba_dev->dev)) {
 		ioc_ctl = READ_REG(sba_dev->sba_hpa+IOC_CTRL);
 		DBG_INIT("%s() hpa 0x%lx ioc_ctl 0x%Lx ->",
-			__FUNCTION__, sba_dev->sba_hpa, ioc_ctl);
+			__func__, sba_dev->sba_hpa, ioc_ctl);
 		ioc_ctl &= ~(IOC_CTRL_RM | IOC_CTRL_NC | IOC_CTRL_CE);
 		ioc_ctl |= IOC_CTRL_DD | IOC_CTRL_D4 | IOC_CTRL_TC;
 			/* j6700 v1.6 firmware sets 0x294f */
@@ -1675,7 +1675,7 @@ sba_common_init(struct sba_device *sba_dev)
 
 		res_size >>= 3;  /* convert bit count to byte count */
 		DBG_INIT("%s() res_size 0x%x\n",
-			__FUNCTION__, res_size);
+			__func__, res_size);
 
 		sba_dev->ioc[i].res_size = res_size;
 		sba_dev->ioc[i].res_map = (char *) __get_free_pages(GFP_KERNEL, get_order(res_size));
@@ -1688,7 +1688,7 @@ sba_common_init(struct sba_device *sba_dev)
 		if (NULL == sba_dev->ioc[i].res_map)
 		{
 			panic("%s:%s() could not allocate resource map\n",
-			      __FILE__, __FUNCTION__ );
+			      __FILE__, __func__ );
 		}
 
 		memset(sba_dev->ioc[i].res_map, 0, res_size);
@@ -1725,7 +1725,7 @@ sba_common_init(struct sba_device *sba_dev)
 #endif
 
 		DBG_INIT("%s() %d res_map %x %p\n",
-			__FUNCTION__, i, res_size, sba_dev->ioc[i].res_map);
+			__func__, i, res_size, sba_dev->ioc[i].res_map);
 	}
 
 	spin_lock_init(&sba_dev->sba_lock);

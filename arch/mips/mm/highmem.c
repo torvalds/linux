@@ -116,4 +116,3 @@ EXPORT_SYMBOL(__kmap);
 EXPORT_SYMBOL(__kunmap);
 EXPORT_SYMBOL(__kmap_atomic);
 EXPORT_SYMBOL(__kunmap_atomic);
-EXPORT_SYMBOL(__kmap_atomic_to_page);

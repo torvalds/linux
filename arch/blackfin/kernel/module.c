@@ -160,15 +160,22 @@ int
 module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			  char *secstrings, struct module *mod)
 {
+	/*
+	 * XXX: sechdrs are vmalloced in kernel/module.c
+	 * and would be vfreed just after module is loaded,
+	 * so we hack to keep the only information we needed
+	 * in mod->arch to correctly free L1 I/D sram later.
+	 * NOTE: this breaks the semantic of mod->arch structure.
+	 */
 	Elf_Shdr *s, *sechdrs_end = sechdrs + hdr->e_shnum;
 	void *dest = NULL;
 
 	for (s = sechdrs; s < sechdrs_end; ++s) {
 		if ((strcmp(".l1.text", secstrings + s->sh_name) == 0) ||
 		    ((strcmp(".text", secstrings + s->sh_name) == 0) &&
-		     (hdr->e_flags & FLG_CODE_IN_L1) && (s->sh_size > 0))) {
-			mod->arch.text_l1 = s;
+		     (hdr->e_flags & EF_BFIN_CODE_IN_L1) && (s->sh_size > 0))) {
 			dest = l1_inst_sram_alloc(s->sh_size);
+			mod->arch.text_l1 = dest;
 			if (dest == NULL) {
 				printk(KERN_ERR
 				       "module %s: L1 instruction memory allocation failed\n",
@@ -181,9 +188,9 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 		}
 		if ((strcmp(".l1.data", secstrings + s->sh_name) == 0) ||
 		    ((strcmp(".data", secstrings + s->sh_name) == 0) &&
-		     (hdr->e_flags & FLG_DATA_IN_L1) && (s->sh_size > 0))) {
-			mod->arch.data_a_l1 = s;
+		     (hdr->e_flags & EF_BFIN_DATA_IN_L1) && (s->sh_size > 0))) {
 			dest = l1_data_sram_alloc(s->sh_size);
+			mod->arch.data_a_l1 = dest;
 			if (dest == NULL) {
 				printk(KERN_ERR
 					"module %s: L1 data memory allocation failed\n",
@@ -196,9 +203,9 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 		}
 		if (strcmp(".l1.bss", secstrings + s->sh_name) == 0 ||
 		    ((strcmp(".bss", secstrings + s->sh_name) == 0) &&
-		     (hdr->e_flags & FLG_DATA_IN_L1) && (s->sh_size > 0))) {
-			mod->arch.bss_a_l1 = s;
+		     (hdr->e_flags & EF_BFIN_DATA_IN_L1) && (s->sh_size > 0))) {
 			dest = l1_data_sram_alloc(s->sh_size);
+			mod->arch.bss_a_l1 = dest;
 			if (dest == NULL) {
 				printk(KERN_ERR
 					"module %s: L1 data memory allocation failed\n",
@@ -210,8 +217,8 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if (strcmp(".l1.data.B", secstrings + s->sh_name) == 0) {
-			mod->arch.data_b_l1 = s;
 			dest = l1_data_B_sram_alloc(s->sh_size);
+			mod->arch.data_b_l1 = dest;
 			if (dest == NULL) {
 				printk(KERN_ERR
 					"module %s: L1 data memory allocation failed\n",
@@ -223,11 +230,56 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if (strcmp(".l1.bss.B", secstrings + s->sh_name) == 0) {
-			mod->arch.bss_b_l1 = s;
 			dest = l1_data_B_sram_alloc(s->sh_size);
+			mod->arch.bss_b_l1 = dest;
 			if (dest == NULL) {
 				printk(KERN_ERR
 					"module %s: L1 data memory allocation failed\n",
+					mod->name);
+				return -1;
+			}
+			memset(dest, 0, s->sh_size);
+			s->sh_flags &= ~SHF_ALLOC;
+			s->sh_addr = (unsigned long)dest;
+		}
+		if ((strcmp(".l2.text", secstrings + s->sh_name) == 0) ||
+		    ((strcmp(".text", secstrings + s->sh_name) == 0) &&
+		     (hdr->e_flags & EF_BFIN_CODE_IN_L2) && (s->sh_size > 0))) {
+			dest = l2_sram_alloc(s->sh_size);
+			mod->arch.text_l2 = dest;
+			if (dest == NULL) {
+				printk(KERN_ERR
+				       "module %s: L2 SRAM allocation failed\n",
+				       mod->name);
+				return -1;
+			}
+			memcpy(dest, (void *)s->sh_addr, s->sh_size);
+			s->sh_flags &= ~SHF_ALLOC;
+			s->sh_addr = (unsigned long)dest;
+		}
+		if ((strcmp(".l2.data", secstrings + s->sh_name) == 0) ||
+		    ((strcmp(".data", secstrings + s->sh_name) == 0) &&
+		     (hdr->e_flags & EF_BFIN_DATA_IN_L2) && (s->sh_size > 0))) {
+			dest = l2_sram_alloc(s->sh_size);
+			mod->arch.data_l2 = dest;
+			if (dest == NULL) {
+				printk(KERN_ERR
+					"module %s: L2 SRAM allocation failed\n",
+					mod->name);
+				return -1;
+			}
+			memcpy(dest, (void *)s->sh_addr, s->sh_size);
+			s->sh_flags &= ~SHF_ALLOC;
+			s->sh_addr = (unsigned long)dest;
+		}
+		if (strcmp(".l2.bss", secstrings + s->sh_name) == 0 ||
+		    ((strcmp(".bss", secstrings + s->sh_name) == 0) &&
+		     (hdr->e_flags & EF_BFIN_DATA_IN_L2) && (s->sh_size > 0))) {
+			dest = l2_sram_alloc(s->sh_size);
+			mod->arch.bss_l2 = dest;
+			if (dest == NULL) {
+				printk(KERN_ERR
+					"module %s: L2 SRAM allocation failed\n",
 					mod->name);
 				return -1;
 			}
@@ -404,9 +456,10 @@ module_finalize(const Elf_Ehdr * hdr,
 			continue;
 
 		if ((sechdrs[i].sh_type == SHT_RELA) &&
-		    ((strcmp(".rela.l1.text", secstrings + sechdrs[i].sh_name) == 0) ||
+		    ((strcmp(".rela.l2.text", secstrings + sechdrs[i].sh_name) == 0) ||
+		    (strcmp(".rela.l1.text", secstrings + sechdrs[i].sh_name) == 0) ||
 		    ((strcmp(".rela.text", secstrings + sechdrs[i].sh_name) == 0) &&
-			 (hdr->e_flags & FLG_CODE_IN_L1)))) {
+			(hdr->e_flags & (EF_BFIN_CODE_IN_L1|EF_BFIN_CODE_IN_L2))))) {
 			apply_relocate_add((Elf_Shdr *) sechdrs, strtab,
 					   symindex, i, mod);
 		}
@@ -416,14 +469,12 @@ module_finalize(const Elf_Ehdr * hdr,
 
 void module_arch_cleanup(struct module *mod)
 {
-	if ((mod->arch.text_l1) && (mod->arch.text_l1->sh_addr))
-		l1_inst_sram_free((void *)mod->arch.text_l1->sh_addr);
-	if ((mod->arch.data_a_l1) && (mod->arch.data_a_l1->sh_addr))
-		l1_data_sram_free((void *)mod->arch.data_a_l1->sh_addr);
-	if ((mod->arch.bss_a_l1) && (mod->arch.bss_a_l1->sh_addr))
-		l1_data_sram_free((void *)mod->arch.bss_a_l1->sh_addr);
-	if ((mod->arch.data_b_l1) && (mod->arch.data_b_l1->sh_addr))
-		l1_data_B_sram_free((void *)mod->arch.data_b_l1->sh_addr);
-	if ((mod->arch.bss_b_l1) && (mod->arch.bss_b_l1->sh_addr))
-		l1_data_B_sram_free((void *)mod->arch.bss_b_l1->sh_addr);
+	l1_inst_sram_free(mod->arch.text_l1);
+	l1_data_A_sram_free(mod->arch.data_a_l1);
+	l1_data_A_sram_free(mod->arch.bss_a_l1);
+	l1_data_B_sram_free(mod->arch.data_b_l1);
+	l1_data_B_sram_free(mod->arch.bss_b_l1);
+	l2_sram_free(mod->arch.text_l2);
+	l2_sram_free(mod->arch.data_l2);
+	l2_sram_free(mod->arch.bss_l2);
 }

@@ -663,7 +663,7 @@ static int
 tty3270_irq(struct tty3270 *tp, struct raw3270_request *rq, struct irb *irb)
 {
 	/* Handle ATTN. Schedule tasklet to read aid. */
-	if (irb->scsw.dstat & DEV_STAT_ATTENTION) {
+	if (irb->scsw.cmd.dstat & DEV_STAT_ATTENTION) {
 		if (!tp->throttle)
 			tty3270_issue_read(tp, 0);
 		else
@@ -671,11 +671,11 @@ tty3270_irq(struct tty3270 *tp, struct raw3270_request *rq, struct irb *irb)
 	}
 
 	if (rq) {
-		if (irb->scsw.dstat & DEV_STAT_UNIT_CHECK)
+		if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK)
 			rq->rc = -EIO;
 		else
 			/* Normal end. Copy residual count. */
-			rq->rescnt = irb->scsw.count;
+			rq->rescnt = irb->scsw.cmd.count;
 	}
 	return RAW3270_IO_DONE;
 }
@@ -965,8 +965,7 @@ tty3270_write_room(struct tty_struct *tty)
  * Insert character into the screen at the current position with the
  * current color and highlight. This function does NOT do cursor movement.
  */
-static int
-tty3270_put_character(struct tty3270 *tp, char ch)
+static void tty3270_put_character(struct tty3270 *tp, char ch)
 {
 	struct tty3270_line *line;
 	struct tty3270_cell *cell;
@@ -986,7 +985,6 @@ tty3270_put_character(struct tty3270 *tp, char ch)
 	cell->character = tp->view.ascebc[(unsigned int) ch];
 	cell->highlight = tp->highlight;
 	cell->f_color = tp->f_color;
-	return 1;
 }
 
 /*
@@ -1612,16 +1610,15 @@ tty3270_write(struct tty_struct * tty,
 /*
  * Put single characters to the ttys character buffer
  */
-static void
-tty3270_put_char(struct tty_struct *tty, unsigned char ch)
+static int tty3270_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct tty3270 *tp;
 
 	tp = tty->driver_data;
-	if (!tp)
-		return;
-	if (tp->char_count < TTY3270_CHAR_BUF_SIZE)
-		tp->char_buf[tp->char_count++] = ch;
+	if (!tp || tp->char_count >= TTY3270_CHAR_BUF_SIZE)
+		return 0;
+	tp->char_buf[tp->char_count++] = ch;
+	return 1;
 }
 
 /*
@@ -1795,15 +1792,12 @@ static int __init tty3270_init(void)
 	tty_set_operations(driver, &tty3270_ops);
 	ret = tty_register_driver(driver);
 	if (ret) {
-		printk(KERN_ERR "tty3270 registration failed with %d\n", ret);
 		put_tty_driver(driver);
 		return ret;
 	}
 	tty3270_driver = driver;
 	ret = raw3270_register_notifier(tty3270_notifier);
 	if (ret) {
-		printk(KERN_ERR "tty3270 notifier registration failed "
-		       "with %d\n", ret);
 		put_tty_driver(driver);
 		return ret;
 

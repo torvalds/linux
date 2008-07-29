@@ -28,10 +28,13 @@ ovstack:
 	.skip		OVSTACKSIZE
 #endif
 	.text
-	.align 32
-	.globl mcount, _mcount
-mcount:
+	.align		32
+	.globl		_mcount
+	.type		_mcount,#function
+	.globl		mcount
+	.type		mcount,#function
 _mcount:
+mcount:
 #ifdef CONFIG_STACK_DEBUG
 	/*
 	 * Check whether %sp is dangerously low.
@@ -55,6 +58,53 @@ _mcount:
 	 or		%g3, %lo(panicstring), %o0
 	call		prom_halt
 	 nop
+1:
 #endif
-1:	retl
+#ifdef CONFIG_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE
+	mov		%o7, %o0
+	.globl		mcount_call
+mcount_call:
+	call		ftrace_stub
+	 mov		%o0, %o7
+#else
+	sethi		%hi(ftrace_trace_function), %g1
+	sethi		%hi(ftrace_stub), %g2
+	ldx		[%g1 + %lo(ftrace_trace_function)], %g1
+	or		%g2, %lo(ftrace_stub), %g2
+	cmp		%g1, %g2
+	be,pn		%icc, 1f
+	 mov		%i7, %o1
+	jmpl		%g1, %g0
+	 mov		%o7, %o0
+	/* not reached */
+1:
+#endif
+#endif
+	retl
 	 nop
+	.size		_mcount,.-_mcount
+	.size		mcount,.-mcount
+
+#ifdef CONFIG_FTRACE
+	.globl		ftrace_stub
+	.type		ftrace_stub,#function
+ftrace_stub:
+	retl
+	 nop
+	.size		ftrace_stub,.-ftrace_stub
+#ifdef CONFIG_DYNAMIC_FTRACE
+	.globl		ftrace_caller
+	.type		ftrace_caller,#function
+ftrace_caller:
+	mov		%i7, %o1
+	mov		%o7, %o0
+	.globl		ftrace_call
+ftrace_call:
+	call		ftrace_stub
+	 mov		%o0, %o7
+	retl
+	 nop
+	.size		ftrace_caller,.-ftrace_caller
+#endif
+#endif

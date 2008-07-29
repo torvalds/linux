@@ -103,7 +103,7 @@ static const unsigned long omap2420_mcbsp_port[][2] = {};
 static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
 	int err = 0;
 
@@ -116,7 +116,7 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream)
 static void omap_mcbsp_dai_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
 
 	if (!cpu_dai->active) {
@@ -128,7 +128,7 @@ static void omap_mcbsp_dai_shutdown(struct snd_pcm_substream *substream)
 static int omap_mcbsp_dai_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
 	int err = 0;
 
@@ -157,7 +157,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
 	int dma, bus_id = mcbsp_data->bus_id, id = cpu_dai->id;
@@ -223,7 +223,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
  * This must be called before _set_clkdiv and _set_sysclk since McBSP register
  * cache is initialized here
  */
-static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
+static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 				      unsigned int fmt)
 {
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
@@ -292,7 +292,7 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
 	return 0;
 }
 
-static int omap_mcbsp_dai_set_clkdiv(struct snd_soc_cpu_dai *cpu_dai,
+static int omap_mcbsp_dai_set_clkdiv(struct snd_soc_dai *cpu_dai,
 				     int div_id, int div)
 {
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
@@ -347,7 +347,7 @@ static int omap_mcbsp_dai_set_clks_src(struct omap_mcbsp_data *mcbsp_data,
 	return 0;
 }
 
-static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_cpu_dai *cpu_dai,
+static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 					 int clk_id, unsigned int freq,
 					 int dir)
 {
@@ -376,7 +376,7 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_cpu_dai *cpu_dai,
 	return err;
 }
 
-struct snd_soc_cpu_dai omap_mcbsp_dai[NUM_LINKS] = {
+struct snd_soc_dai omap_mcbsp_dai[NUM_LINKS] = {
 {
 	.name = "omap-mcbsp-dai",
 	.id = 0,

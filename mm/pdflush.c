@@ -130,7 +130,7 @@ static int __pdflush(struct pdflush_work *my_work)
 		 * Thread creation: For how long have there been zero
 		 * available threads?
 		 */
-		if (jiffies - last_empty_jifs > 1 * HZ) {
+		if (time_after(jiffies, last_empty_jifs + 1 * HZ)) {
 			/* unlocked list_empty() test is OK here */
 			if (list_empty(&pdflush_list)) {
 				/* unlocked test is OK here */
@@ -151,7 +151,7 @@ static int __pdflush(struct pdflush_work *my_work)
 		if (nr_pdflush_threads <= MIN_PDFLUSH_THREADS)
 			continue;
 		pdf = list_entry(pdflush_list.prev, struct pdflush_work, list);
-		if (jiffies - pdf->when_i_went_to_sleep > 1 * HZ) {
+		if (time_after(jiffies, pdf->when_i_went_to_sleep + 1 * HZ)) {
 			/* Limit exit rate */
 			pdf->when_i_went_to_sleep = jiffies;
 			break;					/* exeunt */
@@ -207,7 +207,6 @@ int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0)
 
 	spin_lock_irqsave(&pdflush_lock, flags);
 	if (list_empty(&pdflush_list)) {
-		spin_unlock_irqrestore(&pdflush_lock, flags);
 		ret = -1;
 	} else {
 		struct pdflush_work *pdf;
@@ -219,8 +218,9 @@ int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0)
 		pdf->fn = fn;
 		pdf->arg0 = arg0;
 		wake_up_process(pdf->who);
-		spin_unlock_irqrestore(&pdflush_lock, flags);
 	}
+	spin_unlock_irqrestore(&pdflush_lock, flags);
+
 	return ret;
 }
 

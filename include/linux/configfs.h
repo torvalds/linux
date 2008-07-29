@@ -148,7 +148,8 @@ struct configfs_attribute {
  * items.  If the item is a group, it may support mkdir(2).
  * Groups supply one of make_group() and make_item().  If the
  * group supports make_group(), one can create group children.  If it
- * supports make_item(), one can create config_item children.  If it has
+ * supports make_item(), one can create config_item children.  make_group()
+ * and make_item() return ERR_PTR() on errors.  If it has
  * default_groups on group->default_groups, it has automatically created
  * group children.  default_groups may coexist alongsize make_group() or
  * make_item(), but if the group wishes to have only default_groups

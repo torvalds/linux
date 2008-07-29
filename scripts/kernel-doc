@@ -1556,7 +1556,9 @@ sub create_parameterlist($$$) {
 		    push_parameter($2, "$type $1", $file);
 		}
 		elsif ($param =~ m/(.*?):(\d+)/) {
-		    push_parameter($1, "$type:$2", $file)
+		    if ($type ne "") { # skip unnamed bit-fields
+			push_parameter($1, "$type:$2", $file)
+		    }
 		}
 		else {
 		    push_parameter($param, $type, $file);
@@ -1641,6 +1643,7 @@ sub dump_function($$) {
     $prototype =~ s/^__always_inline +//;
     $prototype =~ s/^noinline +//;
     $prototype =~ s/__devinit +//;
+    $prototype =~ s/__init +//;
     $prototype =~ s/^#define\s+//; #ak added
     $prototype =~ s/__attribute__\s*\(\([a-z,]*\)\)//;
 

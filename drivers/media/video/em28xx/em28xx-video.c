@@ -38,6 +38,7 @@
 
 #include "em28xx.h"
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/msp3400.h>
 #include <media/tuner.h>
 
@@ -683,7 +684,7 @@ static void get_scale(struct em28xx *dev,
 	IOCTL vidioc handling
    ------------------------------------------------------------------*/
 
-static int vidioc_g_fmt_cap(struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh  = priv;
@@ -706,7 +707,7 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap(struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh    = priv;
@@ -766,7 +767,7 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_fmt_cap(struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh  = priv;
@@ -777,7 +778,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	vidioc_try_fmt_cap(file, priv, f);
+	vidioc_try_fmt_vid_cap(file, priv, f);
 
 	mutex_lock(&dev->lock);
 
@@ -826,7 +827,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 	/* Adjusts width/height, if needed */
 	f.fmt.pix.width = dev->width;
 	f.fmt.pix.height = dev->height;
-	vidioc_try_fmt_cap(file, priv, &f);
+	vidioc_try_fmt_vid_cap(file, priv, &f);
 
 	mutex_lock(&dev->lock);
 
@@ -1166,13 +1167,13 @@ static int vidioc_g_register(struct file *file, void *priv,
 
 		reg->val = ret;
 	} else {
-		u64 val = 0;
+		__le64 val = 0;
 		ret = em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
 						   reg->reg, (char *)&val, 2);
 		if (ret < 0)
 			return ret;
 
-		reg->val = cpu_to_le64((__u64)val);
+		reg->val = le64_to_cpu(val);
 	}
 
 	return 0;
@@ -1183,9 +1184,9 @@ static int vidioc_s_register(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	u64 buf;
+	__le64 buf;
 
-	buf = le64_to_cpu((__u64)reg->val);
+	buf = cpu_to_le64(reg->val);
 
 	return em28xx_write_regs(dev, reg->reg, (char *)&buf,
 				 em28xx_reg_len(reg->reg));
@@ -1277,7 +1278,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *fmtd)
 {
 	if (fmtd->index != 0)
@@ -1292,7 +1293,7 @@ static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
 }
 
 /* Sliced VBI ioctls */
-static int vidioc_g_fmt_vbi_capture(struct file *file, void *priv,
+static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh  = priv;
@@ -1316,7 +1317,7 @@ static int vidioc_g_fmt_vbi_capture(struct file *file, void *priv,
 	return rc;
 }
 
-static int vidioc_try_set_vbi_capture(struct file *file, void *priv,
+static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh  = priv;
@@ -1590,6 +1591,8 @@ static void em28xx_release_resources(struct em28xx *dev)
 				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN,
 				dev->vbi_dev->minor-MINOR_VFL_TYPE_VBI_MIN);
 	list_del(&dev->devlist);
+	if (dev->sbutton_input_dev)
+		em28xx_deregister_snapshot_button(dev);
 	if (dev->radio_dev) {
 		if (-1 != dev->radio_dev->minor)
 			video_unregister_device(dev->radio_dev);
@@ -1761,32 +1764,19 @@ static const struct file_operations em28xx_v4l_fops = {
 	.compat_ioctl  = v4l_compat_ioctl32,
 };
 
-static const struct file_operations radio_fops = {
-	.owner         = THIS_MODULE,
-	.open          = em28xx_v4l2_open,
-	.release       = em28xx_v4l2_close,
-	.ioctl	       = video_ioctl2,
-	.compat_ioctl  = v4l_compat_ioctl32,
-	.llseek        = no_llseek,
-};
-
-static const struct video_device em28xx_video_template = {
-	.fops                       = &em28xx_v4l_fops,
-	.release                    = video_device_release,
-
-	.minor                      = -1,
+static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querycap            = vidioc_querycap,
-	.vidioc_enum_fmt_cap        = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap           = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap         = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap           = vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap    = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap       = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap     = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap       = vidioc_s_fmt_vid_cap,
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
 	.vidioc_cropcap             = vidioc_cropcap,
 
-	.vidioc_g_fmt_vbi_capture   = vidioc_g_fmt_vbi_capture,
-	.vidioc_try_fmt_vbi_capture = vidioc_try_set_vbi_capture,
-	.vidioc_s_fmt_vbi_capture   = vidioc_try_set_vbi_capture,
+	.vidioc_g_fmt_sliced_vbi_cap   = vidioc_g_fmt_sliced_vbi_cap,
+	.vidioc_try_fmt_sliced_vbi_cap = vidioc_try_set_sliced_vbi_cap,
+	.vidioc_s_fmt_sliced_vbi_cap   = vidioc_try_set_sliced_vbi_cap,
 
 	.vidioc_reqbufs             = vidioc_reqbufs,
 	.vidioc_querybuf            = vidioc_querybuf,
@@ -1812,16 +1802,29 @@ static const struct video_device em28xx_video_template = {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf                = vidiocgmbuf,
 #endif
+};
+
+static const struct video_device em28xx_video_template = {
+	.fops                       = &em28xx_v4l_fops,
+	.release                    = video_device_release,
+	.ioctl_ops 		    = &video_ioctl_ops,
+
+	.minor                      = -1,
 
 	.tvnorms                    = V4L2_STD_ALL,
 	.current_norm               = V4L2_STD_PAL,
 };
 
-static struct video_device em28xx_radio_template = {
-	.name                 = "em28xx-radio",
-	.type                 = VID_TYPE_TUNER,
-	.fops                 = &radio_fops,
-	.minor                = -1,
+static const struct file_operations radio_fops = {
+	.owner         = THIS_MODULE,
+	.open          = em28xx_v4l2_open,
+	.release       = em28xx_v4l2_close,
+	.ioctl	       = video_ioctl2,
+	.compat_ioctl  = v4l_compat_ioctl32,
+	.llseek        = no_llseek,
+};
+
+static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_querycap      = radio_querycap,
 	.vidioc_g_tuner       = radio_g_tuner,
 	.vidioc_enum_input    = radio_enum_input,
@@ -1840,6 +1843,13 @@ static struct video_device em28xx_radio_template = {
 #endif
 };
 
+static struct video_device em28xx_radio_template = {
+	.name                 = "em28xx-radio",
+	.fops                 = &radio_fops,
+	.ioctl_ops 	      = &radio_ioctl_ops,
+	.minor                = -1,
+};
+
 /******************************** usb interface ******************************/
 
 
@@ -1848,32 +1858,28 @@ static DEFINE_MUTEX(em28xx_extension_devlist_lock);
 
 int em28xx_register_extension(struct em28xx_ops *ops)
 {
-	struct em28xx *h, *dev = NULL;
-
-	list_for_each_entry(h, &em28xx_devlist, devlist)
-		dev = h;
+	struct em28xx *dev = NULL;
 
 	mutex_lock(&em28xx_extension_devlist_lock);
 	list_add_tail(&ops->next, &em28xx_extension_devlist);
-	if (dev)
-		ops->init(dev);
-
+	list_for_each_entry(dev, &em28xx_devlist, devlist) {
+		if (dev)
+			ops->init(dev);
+	}
 	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
 	mutex_unlock(&em28xx_extension_devlist_lock);
-
 	return 0;
 }
 EXPORT_SYMBOL(em28xx_register_extension);
 
 void em28xx_unregister_extension(struct em28xx_ops *ops)
 {
-	struct em28xx *h, *dev = NULL;
+	struct em28xx *dev = NULL;
 
-	list_for_each_entry(h, &em28xx_devlist, devlist)
-		dev = h;
-
-	if (dev)
-		ops->fini(dev);
+	list_for_each_entry(dev, &em28xx_devlist, devlist) {
+		if (dev)
+			ops->fini(dev);
+	}
 
 	mutex_lock(&em28xx_extension_devlist_lock);
 	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);
@@ -1884,7 +1890,6 @@ EXPORT_SYMBOL(em28xx_unregister_extension);
 
 static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 					     const struct video_device *template,
-					     const int type,
 					     const char *type_name)
 {
 	struct video_device *vfd;
@@ -1894,9 +1899,8 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 		return NULL;
 	*vfd = *template;
 	vfd->minor   = -1;
-	vfd->dev = &dev->udev->dev;
+	vfd->parent = &dev->udev->dev;
 	vfd->release = video_device_release;
-	vfd->type = type;
 	vfd->debug = video_debug;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s",
@@ -1974,14 +1978,11 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	list_add_tail(&dev->devlist, &em28xx_devlist);
 
 	/* allocate and fill video video_device struct */
-	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template,
-					  VID_TYPE_CAPTURE, "video");
+	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template, "video");
 	if (NULL == dev->vdev) {
 		em28xx_errdev("cannot allocate video_device.\n");
 		goto fail_unreg;
 	}
-	if (dev->tuner_type != TUNER_ABSENT)
-		dev->vdev->type |= VID_TYPE_TUNER;
 
 	/* register v4l2 video video_device */
 	retval = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
@@ -1993,8 +1994,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	}
 
 	/* Allocate and fill vbi video_device struct */
-	dev->vbi_dev = em28xx_vdev_init(dev, &em28xx_video_template,
-					  VFL_TYPE_VBI, "vbi");
+	dev->vbi_dev = em28xx_vdev_init(dev, &em28xx_video_template, "vbi");
 	/* register v4l2 vbi video_device */
 	if (video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
 					vbi_nr[dev->devno]) < 0) {
@@ -2004,8 +2004,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	}
 
 	if (em28xx_boards[dev->model].radio.type == EM28XX_RADIO) {
-		dev->radio_dev = em28xx_vdev_init(dev, &em28xx_radio_template,
-					VFL_TYPE_RADIO, "radio");
+		dev->radio_dev = em28xx_vdev_init(dev, &em28xx_radio_template, "radio");
 		if (NULL == dev->radio_dev) {
 			em28xx_errdev("cannot allocate video_device.\n");
 			goto fail_unreg;

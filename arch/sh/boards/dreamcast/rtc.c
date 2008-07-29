@@ -30,7 +30,7 @@
  *
  * Grabs the current RTC seconds counter and adjusts it to the Unix Epoch.
  */
-void aica_rtc_gettimeofday(struct timespec *ts)
+static void aica_rtc_gettimeofday(struct timespec *ts)
 {
 	unsigned long val1, val2;
 
@@ -54,7 +54,7 @@ void aica_rtc_gettimeofday(struct timespec *ts)
  *
  * Adjusts the given @tv to the AICA Epoch and sets the RTC seconds counter.
  */
-int aica_rtc_settimeofday(const time_t secs)
+static int aica_rtc_settimeofday(const time_t secs)
 {
 	unsigned long val1, val2;
 	unsigned long adj = secs + TWENTY_YEARS;

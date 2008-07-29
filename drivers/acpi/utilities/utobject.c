@@ -83,7 +83,8 @@ acpi_ut_get_element_length(u8 object_type,
  *
  ******************************************************************************/
 
-union acpi_operand_object *acpi_ut_create_internal_object_dbg(char *module_name,
+union acpi_operand_object *acpi_ut_create_internal_object_dbg(const char
+							      *module_name,
 							      u32 line_number,
 							      u32 component_id,
 							      acpi_object_type
@@ -175,8 +176,8 @@ union acpi_operand_object *acpi_ut_create_package_object(u32 count)
 	 * Create the element array. Count+1 allows the array to be null
 	 * terminated.
 	 */
-	package_elements = ACPI_ALLOCATE_ZEROED((acpi_size)
-						(count + 1) * sizeof(void *));
+	package_elements = ACPI_ALLOCATE_ZEROED(((acpi_size) count +
+						 1) * sizeof(void *));
 	if (!package_elements) {
 		acpi_ut_remove_reference(package_desc);
 		return_PTR(NULL);
@@ -347,7 +348,7 @@ u8 acpi_ut_valid_internal_object(void *object)
  *
  ******************************************************************************/
 
-void *acpi_ut_allocate_object_desc_dbg(char *module_name,
+void *acpi_ut_allocate_object_desc_dbg(const char *module_name,
 				       u32 line_number, u32 component_id)
 {
 	union acpi_operand_object *object;

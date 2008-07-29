@@ -5,8 +5,6 @@
  *
  *		RAW - implementation of IP "raw" sockets.
  *
- * Version:	$Id: raw.c,v 1.64 2002/02/01 22:01:04 davem Exp $
- *
  * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *
@@ -322,7 +320,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 			unsigned int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	int hh_len;
+	struct net *net = sock_net(sk);
 	struct iphdr *iph;
 	struct sk_buff *skb;
 	unsigned int iphlen;
@@ -336,13 +334,12 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	if (flags&MSG_PROBE)
 		goto out;
 
-	hh_len = LL_RESERVED_SPACE(rt->u.dst.dev);
-
-	skb = sock_alloc_send_skb(sk, length+hh_len+15,
-				  flags&MSG_DONTWAIT, &err);
+	skb = sock_alloc_send_skb(sk,
+				  length + LL_ALLOCATED_SPACE(rt->u.dst.dev) + 15,
+				  flags & MSG_DONTWAIT, &err);
 	if (skb == NULL)
 		goto error;
-	skb_reserve(skb, hh_len);
+	skb_reserve(skb, LL_RESERVED_SPACE(rt->u.dst.dev));
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
@@ -372,7 +369,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 		iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
 	}
 	if (iph->protocol == IPPROTO_ICMP)
-		icmp_out_count(((struct icmphdr *)
+		icmp_out_count(net, ((struct icmphdr *)
 			skb_transport_header(skb))->type);
 
 	err = NF_HOOK(PF_INET, NF_INET_LOCAL_OUT, skb, NULL, rt->u.dst.dev,
@@ -388,7 +385,7 @@ error_fault:
 	err = -EFAULT;
 	kfree_skb(skb);
 error:
-	IP_INC_STATS(IPSTATS_MIB_OUTDISCARDS);
+	IP_INC_STATS(net, IPSTATS_MIB_OUTDISCARDS);
 	return err;
 }
 
@@ -610,6 +607,13 @@ static void raw_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 }
 
+static void raw_destroy(struct sock *sk)
+{
+	lock_sock(sk);
+	ip_flush_pending_frames(sk);
+	release_sock(sk);
+}
+
 /* This gets rid of all the nasties in af_inet. -DaveM */
 static int raw_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
@@ -822,6 +826,7 @@ struct proto raw_prot = {
 	.name		   = "RAW",
 	.owner		   = THIS_MODULE,
 	.close		   = raw_close,
+	.destroy	   = raw_destroy,
 	.connect	   = ip4_datagram_connect,
 	.disconnect	   = udp_disconnect,
 	.ioctl		   = raw_ioctl,
@@ -927,7 +932,7 @@ static void raw_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 	      srcp  = inet->num;
 
 	seq_printf(seq, "%4d: %08X:%04X %08X:%04X"
-		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d",
+		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d\n",
 		i, src, srcp, dest, destp, sp->sk_state,
 		atomic_read(&sp->sk_wmem_alloc),
 		atomic_read(&sp->sk_rmem_alloc),
@@ -940,7 +945,7 @@ static int raw_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_printf(seq, "  sl  local_address rem_address   st tx_queue "
 				"rx_queue tr tm->when retrnsmt   uid  timeout "
-				"inode  drops\n");
+				"inode ref pointer drops\n");
 	else
 		raw_sock_seq_show(seq, v, raw_seq_private(seq)->bucket);
 	return 0;

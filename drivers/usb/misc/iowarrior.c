@@ -474,8 +474,8 @@ exit:
 /**
  *	iowarrior_ioctl
  */
-static int iowarrior_ioctl(struct inode *inode, struct file *file,
-			   unsigned int cmd, unsigned long arg)
+static long iowarrior_ioctl(struct file *file, unsigned int cmd,
+							unsigned long arg)
 {
 	struct iowarrior *dev = NULL;
 	__u8 *buffer;
@@ -493,6 +493,7 @@ static int iowarrior_ioctl(struct inode *inode, struct file *file,
 		return -ENOMEM;
 
 	/* lock this object */
+	lock_kernel();
 	mutex_lock(&dev->mutex);
 
 	/* verify that the device wasn't unplugged */
@@ -584,6 +585,7 @@ static int iowarrior_ioctl(struct inode *inode, struct file *file,
 error_out:
 	/* unlock the device */
 	mutex_unlock(&dev->mutex);
+	unlock_kernel();
 	kfree(buffer);
 	return retval;
 }
@@ -719,7 +721,7 @@ static const struct file_operations iowarrior_fops = {
 	.owner = THIS_MODULE,
 	.write = iowarrior_write,
 	.read = iowarrior_read,
-	.ioctl = iowarrior_ioctl,
+	.unlocked_ioctl = iowarrior_ioctl,
 	.open = iowarrior_open,
 	.release = iowarrior_release,
 	.poll = iowarrior_poll,

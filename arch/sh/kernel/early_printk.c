@@ -141,7 +141,9 @@ static void scif_sercon_init(char *s)
  */
 static void scif_sercon_init(char *s)
 {
+	struct uart_port *port = &scif_port;
 	unsigned baud = DEFAULT_BAUD;
+	unsigned int status;
 	char *e;
 
 	if (*s == ',')
@@ -160,19 +162,25 @@ static void scif_sercon_init(char *s)
 			baud = DEFAULT_BAUD;
 	}
 
-	ctrl_outw(0, scif_port.mapbase + 8);
-	ctrl_outw(0, scif_port.mapbase);
+	do {
+		status = sci_in(port, SCxSR);
+	} while (!(status & SCxSR_TEND(port)));
+
+	sci_out(port, SCSCR, 0);	 /* TE=0, RE=0 */
+	sci_out(port, SCFCR, SCFCR_RFRST | SCFCR_TFRST);
+	sci_out(port, SCSMR, 0);
 
 	/* Set baud rate */
-	ctrl_outb((CONFIG_SH_PCLK_FREQ + 16 * baud) /
-		  (32 * baud) - 1, scif_port.mapbase + 4);
+	sci_out(port, SCBRR, (CONFIG_SH_PCLK_FREQ + 16 * baud) /
+		(32 * baud) - 1);
+	udelay((1000000+(baud-1)) / baud); /* Wait one bit interval */
 
-	ctrl_outw(12, scif_port.mapbase + 24);
-	ctrl_outw(8, scif_port.mapbase + 24);
-	ctrl_outw(0, scif_port.mapbase + 32);
-	ctrl_outw(0x60, scif_port.mapbase + 16);
-	ctrl_outw(0, scif_port.mapbase + 36);
-	ctrl_outw(0x30, scif_port.mapbase + 8);
+	sci_out(port, SCSPTR, 0);
+	sci_out(port, SCxSR, 0x60);
+	sci_out(port, SCLSR, 0);
+
+	sci_out(port, SCFCR, 0);
+	sci_out(port, SCSCR, 0x30);	 /* TE=1, RE=1 */
 }
 #endif /* defined(CONFIG_CPU_SUBTYPE_SH7720) */
 #endif /* !defined(CONFIG_SH_STANDARD_BIOS) */

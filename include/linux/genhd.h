@@ -110,6 +110,14 @@ struct hd_struct {
 #define GENHD_FL_SUPPRESS_PARTITION_INFO	32
 #define GENHD_FL_FAIL				64
 
+#define BLK_SCSI_MAX_CMDS	(256)
+#define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
+
+struct blk_scsi_cmd_filter {
+	unsigned long read_ok[BLK_SCSI_CMD_PER_LONG];
+	unsigned long write_ok[BLK_SCSI_CMD_PER_LONG];
+	struct kobject kobj;
+};
 
 struct gendisk {
 	int major;			/* major number of driver */
@@ -120,6 +128,7 @@ struct gendisk {
 	struct hd_struct **part;	/* [indexed by minor] */
 	struct block_device_operations *fops;
 	struct request_queue *queue;
+	struct blk_scsi_cmd_filter cmd_filter;
 	void *private_data;
 	sector_t capacity;
 
@@ -141,6 +150,9 @@ struct gendisk {
 	struct disk_stats dkstats;
 #endif
 	struct work_struct async_notify;
+#ifdef  CONFIG_BLK_DEV_INTEGRITY
+	struct blk_integrity *integrity;
+#endif
 };
 
 /* 
@@ -178,17 +190,17 @@ static inline struct hd_struct *get_part(struct gendisk *gendiskp,
 
 static inline void disk_stat_set_all(struct gendisk *gendiskp, int value)	{
 	int i;
+
 	for_each_possible_cpu(i)
 		memset(per_cpu_ptr(gendiskp->dkstats, i), value,
-				sizeof (struct disk_stats));
+				sizeof(struct disk_stats));
 }		
 
 #define __part_stat_add(part, field, addnd)				\
 	(per_cpu_ptr(part->dkstats, smp_processor_id())->field += addnd)
 
-#define __all_stat_add(gendiskp, field, addnd, sector)		\
+#define __all_stat_add(gendiskp, part, field, addnd, sector)	\
 ({								\
-	struct hd_struct *part = get_part(gendiskp, sector);	\
 	if (part)						\
 		__part_stat_add(part, field, addnd);		\
 	__disk_stat_add(gendiskp, field, addnd);		\
@@ -203,11 +215,13 @@ static inline void disk_stat_set_all(struct gendisk *gendiskp, int value)	{
 	res;								\
 })
 
-static inline void part_stat_set_all(struct hd_struct *part, int value)	{
+static inline void part_stat_set_all(struct hd_struct *part, int value)
+{
 	int i;
+
 	for_each_possible_cpu(i)
 		memset(per_cpu_ptr(part->dkstats, i), value,
-		       sizeof(struct disk_stats));
+				sizeof(struct disk_stats));
 }
 				
 #else /* !CONFIG_SMP */
@@ -223,9 +237,8 @@ static inline void disk_stat_set_all(struct gendisk *gendiskp, int value)
 #define __part_stat_add(part, field, addnd) \
 	(part->dkstats.field += addnd)
 
-#define __all_stat_add(gendiskp, field, addnd, sector)		\
+#define __all_stat_add(gendiskp, part, field, addnd, sector)	\
 ({								\
-	struct hd_struct *part = get_part(gendiskp, sector);	\
 	if (part)						\
 		part->dkstats.field += addnd;			\
 	__disk_stat_add(gendiskp, field, addnd);		\
@@ -276,10 +289,10 @@ static inline void part_stat_set_all(struct hd_struct *part, int value)
 #define part_stat_sub(gendiskp, field, subnd) \
 		part_stat_add(gendiskp, field, -subnd)
 
-#define all_stat_add(gendiskp, field, addnd, sector)		\
+#define all_stat_add(gendiskp, part, field, addnd, sector)	\
 	do {							\
 		preempt_disable();				\
-		__all_stat_add(gendiskp, field, addnd, sector);	\
+		__all_stat_add(gendiskp, part, field, addnd, sector);	\
 		preempt_enable();				\
 	} while (0)
 
@@ -288,15 +301,15 @@ static inline void part_stat_set_all(struct hd_struct *part, int value)
 #define all_stat_dec(gendiskp, field, sector) \
 		all_stat_add(gendiskp, field, -1, sector)
 
-#define __all_stat_inc(gendiskp, field, sector) \
-		__all_stat_add(gendiskp, field, 1, sector)
-#define all_stat_inc(gendiskp, field, sector) \
-		all_stat_add(gendiskp, field, 1, sector)
+#define __all_stat_inc(gendiskp, part, field, sector) \
+		__all_stat_add(gendiskp, part, field, 1, sector)
+#define all_stat_inc(gendiskp, part, field, sector) \
+		all_stat_add(gendiskp, part, field, 1, sector)
 
-#define __all_stat_sub(gendiskp, field, subnd, sector) \
-		__all_stat_add(gendiskp, field, -subnd, sector)
-#define all_stat_sub(gendiskp, field, subnd, sector) \
-		all_stat_add(gendiskp, field, -subnd, sector)
+#define __all_stat_sub(gendiskp, part, field, subnd, sector) \
+		__all_stat_add(gendiskp, part, field, -subnd, sector)
+#define all_stat_sub(gendiskp, part, field, subnd, sector) \
+		all_stat_add(gendiskp, part, field, -subnd, sector)
 
 /* Inlines to alloc and free disk stats in struct gendisk */
 #ifdef  CONFIG_SMP
@@ -524,11 +537,11 @@ struct unixware_disklabel {
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
 
-extern dev_t blk_lookup_devt(const char *name);
+extern dev_t blk_lookup_devt(const char *name, int part);
 extern char *disk_name (struct gendisk *hd, int part, char *buf);
 
 extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
-extern void add_partition(struct gendisk *, int, sector_t, sector_t, int);
+extern int __must_check add_partition(struct gendisk *, int, sector_t, sector_t, int);
 extern void delete_partition(struct gendisk *, int);
 extern void printk_all_partitions(void);
 
@@ -552,7 +565,7 @@ static inline struct block_device *bdget_disk(struct gendisk *disk, int index)
 
 static inline void printk_all_partitions(void) { }
 
-static inline dev_t blk_lookup_devt(const char *name)
+static inline dev_t blk_lookup_devt(const char *name, int part)
 {
 	dev_t devt = MKDEV(0, 0);
 	return devt;

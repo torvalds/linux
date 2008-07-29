@@ -71,12 +71,18 @@ static struct kmem_cache * affs_inode_cachep;
 
 static struct inode *affs_alloc_inode(struct super_block *sb)
 {
-	struct affs_inode_info *ei;
-	ei = (struct affs_inode_info *)kmem_cache_alloc(affs_inode_cachep, GFP_KERNEL);
-	if (!ei)
+	struct affs_inode_info *i;
+
+	i = kmem_cache_alloc(affs_inode_cachep, GFP_KERNEL);
+	if (!i)
 		return NULL;
-	ei->vfs_inode.i_version = 1;
-	return &ei->vfs_inode;
+
+	i->vfs_inode.i_version = 1;
+	i->i_lc = NULL;
+	i->i_ext_bh = NULL;
+	i->i_pa_cnt = 0;
+
+	return &i->vfs_inode;
 }
 
 static void affs_destroy_inode(struct inode *inode)
@@ -84,7 +90,7 @@ static void affs_destroy_inode(struct inode *inode)
 	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
 }
 
-static void init_once(struct kmem_cache *cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct affs_inode_info *ei = (struct affs_inode_info *) foo;
 
@@ -114,8 +120,6 @@ static const struct super_operations affs_sops = {
 	.alloc_inode	= affs_alloc_inode,
 	.destroy_inode	= affs_destroy_inode,
 	.write_inode	= affs_write_inode,
-	.put_inode	= affs_put_inode,
-	.drop_inode	= affs_drop_inode,
 	.delete_inode	= affs_delete_inode,
 	.clear_inode	= affs_clear_inode,
 	.put_super	= affs_put_super,
@@ -286,7 +290,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sbi)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
-	init_MUTEX(&sbi->s_bmlock);
+	mutex_init(&sbi->s_bmlock);
 
 	if (!parse_options(data,&uid,&gid,&i,&reserved,&root_block,
 				&blocksize,&sbi->s_prefix,

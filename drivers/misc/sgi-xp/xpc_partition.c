@@ -403,7 +403,7 @@ xpc_check_remote_hb(void)
 {
 	struct xpc_vars *remote_vars;
 	struct xpc_partition *part;
-	partid_t partid;
+	short partid;
 	bte_result_t bres;
 
 	remote_vars = (struct xpc_vars *)xpc_remote_copy_buffer;
@@ -444,7 +444,7 @@ xpc_check_remote_hb(void)
 		     (remote_vars->heartbeat_offline == 0)) ||
 		    !xpc_hb_allowed(sn_partition_id, remote_vars)) {
 
-			XPC_DEACTIVATE_PARTITION(part, xpcNoHeartbeat);
+			XPC_DEACTIVATE_PARTITION(part, xpNoHeartbeat);
 			continue;
 		}
 
@@ -459,7 +459,7 @@ xpc_check_remote_hb(void)
  * is large enough to contain a copy of their reserved page header and
  * part_nasids mask.
  */
-static enum xpc_retval
+static enum xp_retval
 xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 		  struct xpc_rsvd_page *remote_rp, u64 *remote_rp_pa)
 {
@@ -469,7 +469,7 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 
 	*remote_rp_pa = xpc_get_rsvd_page_pa(nasid);
 	if (*remote_rp_pa == 0)
-		return xpcNoRsvdPageAddr;
+		return xpNoRsvdPageAddr;
 
 	/* pull over the reserved page header and part_nasids mask */
 	bres = xp_bte_copy(*remote_rp_pa, (u64)remote_rp,
@@ -489,18 +489,18 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 
 	if (remote_rp->partid < 1 ||
 	    remote_rp->partid > (XP_MAX_PARTITIONS - 1)) {
-		return xpcInvalidPartid;
+		return xpInvalidPartid;
 	}
 
 	if (remote_rp->partid == sn_partition_id)
-		return xpcLocalPartid;
+		return xpLocalPartid;
 
 	if (XPC_VERSION_MAJOR(remote_rp->version) !=
 	    XPC_VERSION_MAJOR(XPC_RP_VERSION)) {
-		return xpcBadVersion;
+		return xpBadVersion;
 	}
 
-	return xpcSuccess;
+	return xpSuccess;
 }
 
 /*
@@ -509,13 +509,13 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
  * remote_vars points to a buffer that is cacheline aligned for BTE copies and
  * assumed to be of size XPC_RP_VARS_SIZE.
  */
-static enum xpc_retval
+static enum xp_retval
 xpc_get_remote_vars(u64 remote_vars_pa, struct xpc_vars *remote_vars)
 {
 	int bres;
 
 	if (remote_vars_pa == 0)
-		return xpcVarsNotSet;
+		return xpVarsNotSet;
 
 	/* pull over the cross partition variables */
 	bres = xp_bte_copy(remote_vars_pa, (u64)remote_vars, XPC_RP_VARS_SIZE,
@@ -525,10 +525,10 @@ xpc_get_remote_vars(u64 remote_vars_pa, struct xpc_vars *remote_vars)
 
 	if (XPC_VERSION_MAJOR(remote_vars->version) !=
 	    XPC_VERSION_MAJOR(XPC_V_VERSION)) {
-		return xpcBadVersion;
+		return xpBadVersion;
 	}
 
-	return xpcSuccess;
+	return xpSuccess;
 }
 
 /*
@@ -604,16 +604,16 @@ xpc_identify_act_IRQ_req(int nasid)
 	int reactivate = 0;
 	int stamp_diff;
 	struct timespec remote_rp_stamp = { 0, 0 };
-	partid_t partid;
+	short partid;
 	struct xpc_partition *part;
-	enum xpc_retval ret;
+	enum xp_retval ret;
 
 	/* pull over the reserved page structure */
 
 	remote_rp = (struct xpc_rsvd_page *)xpc_remote_copy_buffer;
 
 	ret = xpc_get_remote_rp(nasid, NULL, remote_rp, &remote_rp_pa);
-	if (ret != xpcSuccess) {
+	if (ret != xpSuccess) {
 		dev_warn(xpc_part, "unable to get reserved page from nasid %d, "
 			 "which sent interrupt, reason=%d\n", nasid, ret);
 		return;
@@ -632,7 +632,7 @@ xpc_identify_act_IRQ_req(int nasid)
 	remote_vars = (struct xpc_vars *)xpc_remote_copy_buffer;
 
 	ret = xpc_get_remote_vars(remote_vars_pa, remote_vars);
-	if (ret != xpcSuccess) {
+	if (ret != xpSuccess) {
 
 		dev_warn(xpc_part, "unable to get XPC variables from nasid %d, "
 			 "which sent interrupt, reason=%d\n", nasid, ret);
@@ -699,7 +699,7 @@ xpc_identify_act_IRQ_req(int nasid)
 					  &remote_rp_stamp, remote_rp_pa,
 					  remote_vars_pa, remote_vars);
 		part->reactivate_nasid = nasid;
-		XPC_DEACTIVATE_PARTITION(part, xpcReactivating);
+		XPC_DEACTIVATE_PARTITION(part, xpReactivating);
 		return;
 	}
 
@@ -754,11 +754,11 @@ xpc_identify_act_IRQ_req(int nasid)
 
 	if (reactivate) {
 		part->reactivate_nasid = nasid;
-		XPC_DEACTIVATE_PARTITION(part, xpcReactivating);
+		XPC_DEACTIVATE_PARTITION(part, xpReactivating);
 
 	} else if (XPC_SUPPORTS_DISENGAGE_REQUEST(part->remote_vars_version) &&
 		   xpc_partition_disengage_requested(1UL << partid)) {
-		XPC_DEACTIVATE_PARTITION(part, xpcOtherGoingDown);
+		XPC_DEACTIVATE_PARTITION(part, xpOtherGoingDown);
 	}
 }
 
@@ -825,7 +825,7 @@ xpc_identify_act_IRQ_sender(void)
 int
 xpc_partition_disengaged(struct xpc_partition *part)
 {
-	partid_t partid = XPC_PARTID(part);
+	short partid = XPC_PARTID(part);
 	int disengaged;
 
 	disengaged = (xpc_partition_engaged(1UL << partid) == 0);
@@ -870,20 +870,20 @@ xpc_partition_disengaged(struct xpc_partition *part)
 /*
  * Mark specified partition as active.
  */
-enum xpc_retval
+enum xp_retval
 xpc_mark_partition_active(struct xpc_partition *part)
 {
 	unsigned long irq_flags;
-	enum xpc_retval ret;
+	enum xp_retval ret;
 
 	dev_dbg(xpc_part, "setting partition %d to ACTIVE\n", XPC_PARTID(part));
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
 	if (part->act_state == XPC_P_ACTIVATING) {
 		part->act_state = XPC_P_ACTIVE;
-		ret = xpcSuccess;
+		ret = xpSuccess;
 	} else {
-		DBUG_ON(part->reason == xpcSuccess);
+		DBUG_ON(part->reason == xpSuccess);
 		ret = part->reason;
 	}
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
@@ -896,7 +896,7 @@ xpc_mark_partition_active(struct xpc_partition *part)
  */
 void
 xpc_deactivate_partition(const int line, struct xpc_partition *part,
-			 enum xpc_retval reason)
+			 enum xp_retval reason)
 {
 	unsigned long irq_flags;
 
@@ -905,15 +905,15 @@ xpc_deactivate_partition(const int line, struct xpc_partition *part,
 	if (part->act_state == XPC_P_INACTIVE) {
 		XPC_SET_REASON(part, reason, line);
 		spin_unlock_irqrestore(&part->act_lock, irq_flags);
-		if (reason == xpcReactivating) {
+		if (reason == xpReactivating) {
 			/* we interrupt ourselves to reactivate partition */
 			xpc_IPI_send_reactivate(part);
 		}
 		return;
 	}
 	if (part->act_state == XPC_P_DEACTIVATING) {
-		if ((part->reason == xpcUnloading && reason != xpcUnloading) ||
-		    reason == xpcReactivating) {
+		if ((part->reason == xpUnloading && reason != xpUnloading) ||
+		    reason == xpReactivating) {
 			XPC_SET_REASON(part, reason, line);
 		}
 		spin_unlock_irqrestore(&part->act_lock, irq_flags);
@@ -982,10 +982,10 @@ xpc_discovery(void)
 	int max_regions;
 	int nasid;
 	struct xpc_rsvd_page *rp;
-	partid_t partid;
+	short partid;
 	struct xpc_partition *part;
 	u64 *discovered_nasids;
-	enum xpc_retval ret;
+	enum xp_retval ret;
 
 	remote_rp = xpc_kmalloc_cacheline_aligned(XPC_RP_HEADER_SIZE +
 						  xp_nasid_mask_bytes,
@@ -1063,12 +1063,12 @@ xpc_discovery(void)
 
 			ret = xpc_get_remote_rp(nasid, discovered_nasids,
 						remote_rp, &remote_rp_pa);
-			if (ret != xpcSuccess) {
+			if (ret != xpSuccess) {
 				dev_dbg(xpc_part, "unable to get reserved page "
 					"from nasid %d, reason=%d\n", nasid,
 					ret);
 
-				if (ret == xpcLocalPartid)
+				if (ret == xpLocalPartid)
 					break;
 
 				continue;
@@ -1082,7 +1082,7 @@ xpc_discovery(void)
 			/* pull over the cross partition variables */
 
 			ret = xpc_get_remote_vars(remote_vars_pa, remote_vars);
-			if (ret != xpcSuccess) {
+			if (ret != xpSuccess) {
 				dev_dbg(xpc_part, "unable to get XPC variables "
 					"from nasid %d, reason=%d\n", nasid,
 					ret);
@@ -1116,7 +1116,7 @@ xpc_discovery(void)
 					"register xp_addr region 0x%016lx\n",
 					partid, remote_vars->amos_page_pa);
 
-				XPC_SET_REASON(part, xpcPhysAddrRegFailed,
+				XPC_SET_REASON(part, xpPhysAddrRegFailed,
 					       __LINE__);
 				break;
 			}
@@ -1151,8 +1151,8 @@ xpc_discovery(void)
  * Given a partid, get the nasids owned by that partition from the
  * remote partition's reserved page.
  */
-enum xpc_retval
-xpc_initiate_partid_to_nasids(partid_t partid, void *nasid_mask)
+enum xp_retval
+xpc_initiate_partid_to_nasids(short partid, void *nasid_mask)
 {
 	struct xpc_partition *part;
 	u64 part_nasid_pa;
@@ -1160,7 +1160,7 @@ xpc_initiate_partid_to_nasids(partid_t partid, void *nasid_mask)
 
 	part = &xpc_partitions[partid];
 	if (part->remote_rp_pa == 0)
-		return xpcPartitionDown;
+		return xpPartitionDown;
 
 	memset(nasid_mask, 0, XP_NASID_MASK_BYTES);
 

@@ -33,6 +33,13 @@
 #include <linux/errno.h>
 #include <net/9p/9p.h>
 
+/**
+ * struct errormap - map string errors from Plan 9 to Linux numeric ids
+ * @name: string sent over 9P
+ * @val: numeric id most closely representing @name
+ * @namelen: length of string
+ * @list: hash-table list for string lookup
+ */
 struct errormap {
 	char *name;
 	int val;
@@ -177,8 +184,7 @@ static struct errormap errmap[] = {
 };
 
 /**
- * p9_error_init - preload
- * @errstr: error string
+ * p9_error_init - preload mappings into hash list
  *
  */
 
@@ -206,6 +212,7 @@ EXPORT_SYMBOL(p9_error_init);
 /**
  * errstr2errno - convert error string to error number
  * @errstr: error string
+ * @len: length of error string
  *
  */
 
@@ -230,8 +237,8 @@ int p9_errstr2errno(char *errstr, int len)
 	if (errno == 0) {
 		/* TODO: if error isn't found, add it dynamically */
 		errstr[len] = 0;
-		printk(KERN_ERR "%s: errstr :%s: not found\n", __func__,
-		       errstr);
+		printk(KERN_ERR "%s: server reported unknown error %s\n",
+			__func__, errstr);
 		errno = 1;
 	}
 

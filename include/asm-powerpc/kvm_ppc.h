@@ -57,10 +57,12 @@ extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 extern int kvmppc_emulate_instruction(struct kvm_run *run,
                                       struct kvm_vcpu *vcpu);
+extern int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu);
 
 extern void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn,
                            u64 asid, u32 flags);
-extern void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, u64 eaddr, u64 asid);
+extern void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
+                                  gva_t eend, u32 asid);
 extern void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode);
 
 extern void kvmppc_check_and_deliver_interrupts(struct kvm_vcpu *vcpu);
@@ -77,12 +79,17 @@ static inline void kvmppc_clear_exception(struct kvm_vcpu *vcpu, int exception)
 	clear_bit(priority, &vcpu->arch.pending_exceptions);
 }
 
+/* Helper function for "full" MSR writes. No need to call this if only EE is
+ * changing. */
 static inline void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 {
 	if ((new_msr & MSR_PR) != (vcpu->arch.msr & MSR_PR))
 		kvmppc_mmu_priv_switch(vcpu, new_msr & MSR_PR);
 
 	vcpu->arch.msr = new_msr;
+
+	if (vcpu->arch.msr & MSR_WE)
+		kvm_vcpu_block(vcpu);
 }
 
 #endif /* __POWERPC_KVM_PPC_H__ */

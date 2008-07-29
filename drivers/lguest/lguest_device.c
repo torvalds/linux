@@ -20,14 +20,11 @@
 /* The pointer to our (page) of device descriptions. */
 static void *lguest_devices;
 
-/* Unique numbering for lguest devices. */
-static unsigned int dev_index;
-
 /* For Guests, device memory can be used as normal memory, so we cast away the
  * __iomem to quieten sparse. */
 static inline void *lguest_map(unsigned long phys_addr, unsigned long pages)
 {
-	return (__force void *)ioremap(phys_addr, PAGE_SIZE*pages);
+	return (__force void *)ioremap_cache(phys_addr, PAGE_SIZE*pages);
 }
 
 static inline void lguest_unmap(void *addr)
@@ -101,16 +98,20 @@ static u32 lg_get_features(struct virtio_device *vdev)
 	return features;
 }
 
-static void lg_set_features(struct virtio_device *vdev, u32 features)
+static void lg_finalize_features(struct virtio_device *vdev)
 {
-	unsigned int i;
+	unsigned int i, bits;
 	struct lguest_device_desc *desc = to_lgdev(vdev)->desc;
 	/* Second half of bitmap is features we accept. */
 	u8 *out_features = lg_features(desc) + desc->feature_len;
 
+	/* Give virtio_ring a chance to accept features. */
+	vring_transport_features(vdev);
+
 	memset(out_features, 0, desc->feature_len);
-	for (i = 0; i < min(desc->feature_len * 8, 32); i++) {
-		if (features & (1 << i))
+	bits = min_t(unsigned, desc->feature_len, sizeof(vdev->features)) * 8;
+	for (i = 0; i < bits; i++) {
+		if (test_bit(i, vdev->features))
 			out_features[i / 8] |= (1 << (i % 8));
 	}
 }
@@ -300,7 +301,7 @@ static void lg_del_vq(struct virtqueue *vq)
 /* The ops structure which hooks everything together. */
 static struct virtio_config_ops lguest_config_ops = {
 	.get_features = lg_get_features,
-	.set_features = lg_set_features,
+	.finalize_features = lg_finalize_features,
 	.get = lg_get,
 	.set = lg_set,
 	.get_status = lg_get_status,
@@ -325,8 +326,10 @@ static struct device lguest_root = {
  * As Andrew Tridgell says, "Untested code is buggy code".
  *
  * It's worth reading this carefully: we start with a pointer to the new device
- * descriptor in the "lguest_devices" page. */
-static void add_lguest_device(struct lguest_device_desc *d)
+ * descriptor in the "lguest_devices" page, and the offset into the device
+ * descriptor page so we can uniquely identify it if things go badly wrong. */
+static void add_lguest_device(struct lguest_device_desc *d,
+			      unsigned int offset)
 {
 	struct lguest_device *ldev;
 
@@ -334,18 +337,14 @@ static void add_lguest_device(struct lguest_device_desc *d)
 	 * it. */
 	ldev = kzalloc(sizeof(*ldev), GFP_KERNEL);
 	if (!ldev) {
-		printk(KERN_EMERG "Cannot allocate lguest dev %u\n",
-		       dev_index++);
+		printk(KERN_EMERG "Cannot allocate lguest dev %u type %u\n",
+		       offset, d->type);
 		return;
 	}
 
 	/* This devices' parent is the lguest/ dir. */
 	ldev->vdev.dev.parent = &lguest_root;
 	/* We have a unique device index thanks to the dev_index counter. */
-	ldev->vdev.index = dev_index++;
-	/* The device type comes straight from the descriptor.  There's also a
-	 * device vendor field in the virtio_device struct, which we leave as
-	 * 0. */
 	ldev->vdev.id.device = d->type;
 	/* We have a simple set of routines for querying the device's
 	 * configuration information and setting its status. */
@@ -357,8 +356,8 @@ static void add_lguest_device(struct lguest_device_desc *d)
 	 * virtio_device and calls device_register().  This makes the bus
 	 * infrastructure look for a matching driver. */
 	if (register_virtio_device(&ldev->vdev) != 0) {
-		printk(KERN_ERR "Failed to register lguest device %u\n",
-		       ldev->vdev.index);
+		printk(KERN_ERR "Failed to register lguest dev %u type %u\n",
+		       offset, d->type);
 		kfree(ldev);
 	}
 }
@@ -379,7 +378,7 @@ static void scan_devices(void)
 			break;
 
 		printk("Device at %i has size %u\n", i, desc_size(d));
-		add_lguest_device(d);
+		add_lguest_device(d, i);
 	}
 }
 

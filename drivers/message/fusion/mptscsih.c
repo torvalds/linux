@@ -3,7 +3,7 @@
  *      For use with LSI PCI chip/adapter(s)
  *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2007 LSI Corporation
+ *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -461,7 +461,7 @@ mptscsih_issue_sep_command(MPT_ADAPTER *ioc, VirtTarget *vtarget,
 
 	if ((mf = mpt_get_msg_frame(ioc->InternalCtx, ioc)) == NULL) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s: no msg frames!!\n",
-		    ioc->name,__FUNCTION__));
+		    ioc->name,__func__));
 		return;
 	}
 
@@ -2187,7 +2187,7 @@ mptscsih_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *m
 				(ioc->debug_level & MPT_DEBUG_TM ))
 		printk("%s: ha=%d [%d:%d:0] task_type=0x%02X "
 			"iocstatus=0x%04X\n\tloginfo=0x%08X response_code=0x%02X "
-			"term_cmnds=%d\n", __FUNCTION__, ioc->id, pScsiTmReply->Bus,
+			"term_cmnds=%d\n", __func__, ioc->id, pScsiTmReply->Bus,
 			 pScsiTmReply->TargetID, pScsiTmReq->TaskType,
 			le16_to_cpu(pScsiTmReply->IOCStatus),
 			le32_to_cpu(pScsiTmReply->IOCLogInfo),pScsiTmReply->ResponseCode,
@@ -2451,12 +2451,6 @@ mptscsih_slave_configure(struct scsi_device *sdev)
 		    ioc->name, sdev->sdtr, sdev->wdtr,
 		    sdev->ppr, sdev->inquiry_len));
 
-	if (sdev->id > sh->max_id) {
-		/* error case, should never happen */
-		scsi_adjust_queue_depth(sdev, 0, 1);
-		goto slave_configure_exit;
-	}
-
 	vdevice->configured_lun = 1;
 	mptscsih_change_queue_depth(sdev, MPT_SCSI_CMD_PER_DEV_HIGH);
 
@@ -2469,8 +2463,6 @@ mptscsih_slave_configure(struct scsi_device *sdev)
 		    "negoFlags=%x, maxOffset=%x, SyncFactor=%x\n",
 		    ioc->name, vtarget->negoFlags, vtarget->maxOffset,
 		    vtarget->minSyncFactor));
-
-slave_configure_exit:
 
 	dsprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		"tagged %d, simple %d, ordered %d\n",

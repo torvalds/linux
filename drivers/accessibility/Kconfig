@@ -1,7 +1,17 @@
 menuconfig ACCESSIBILITY
 	bool "Accessibility support"
 	---help---
-	  Enable a submenu where accessibility items may be enabled.
+	  Accessibility handles all special kinds of hardware devices or
+	  software adapters which help people with disabilities (e.g.
+	  blindness) to use computers.
+
+	  That includes braille devices, speech synthesis, keyboard
+	  remapping, etc.
+
+	  Say Y here to get to see options for accessibility.
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
 
 	  If unsure, say N.
 

@@ -236,7 +236,7 @@ void __init_or_module omap2_cfg_debug(const struct pin_config *cfg, u8 reg)
 	warn = (orig != reg);
 	if (debug || warn)
 		printk(KERN_WARNING
-			"MUX: setup %s (0x%08x): 0x%02x -> 0x%02x\n",
+			"MUX: setup %s (0x%p): 0x%04x -> 0x%04x\n",
 			cfg->name, omap_ctrl_base_get() + cfg->mux_reg,
 			orig, reg);
 }

@@ -300,6 +300,7 @@ struct sctp_sock {
 
 	/* The default SACK delay timeout for new associations. */
 	__u32 sackdelay;
+	__u32 sackfreq;
 
 	/* Flags controlling Heartbeat, SACK delay, and Path MTU Discovery. */
 	__u32 param_flags;
@@ -548,7 +549,8 @@ struct sctp_af {
 	struct dst_entry *(*get_dst)	(struct sctp_association *asoc,
 					 union sctp_addr *daddr,
 					 union sctp_addr *saddr);
-	void		(*get_saddr)	(struct sctp_association *asoc,
+	void		(*get_saddr)	(struct sctp_sock *sk,
+					 struct sctp_association *asoc,
 					 struct dst_entry *dst,
 					 union sctp_addr *daddr,
 					 union sctp_addr *saddr);
@@ -587,6 +589,7 @@ struct sctp_af {
 	int		(*is_ce)	(const struct sk_buff *sk);
 	void		(*seq_dump_addr)(struct seq_file *seq,
 					 union sctp_addr *addr);
+	void		(*ecn_capable)(struct sock *sk);
 	__u16		net_header_len;
 	int		sockaddr_len;
 	sa_family_t	sa_family;
@@ -824,7 +827,7 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *,
 				     __u16 sport, __u16 dport);
 struct sctp_packet *sctp_packet_config(struct sctp_packet *, __u32 vtag, int);
 sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *,
-                                       struct sctp_chunk *);
+                                       struct sctp_chunk *, int);
 sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *,
                                      struct sctp_chunk *);
 int sctp_packet_transmit(struct sctp_packet *);
@@ -901,7 +904,10 @@ struct sctp_transport {
 	 *		calculation completes (i.e. the DATA chunk
 	 *		is SACK'd) clear this flag.
 	 */
-	int rto_pending;
+	__u8 rto_pending;
+
+	/* Flag to track the current fast recovery state */
+	__u8 fast_recovery;
 
 	/*
 	 * These are the congestion stats.
@@ -919,6 +925,9 @@ struct sctp_transport {
 
 	/* Data that has been sent, but not acknowledged. */
 	__u32 flight_size;
+
+	/* TSN marking the fast recovery exit point */
+	__u32 fast_recovery_exit;
 
 	/* Destination */
 	struct dst_entry *dst;
@@ -938,6 +947,7 @@ struct sctp_transport {
 
 	/* SACK delay timeout */
 	unsigned long sackdelay;
+	__u32 sackfreq;
 
 	/* When was the last time (in jiffies) that we heard from this
 	 * transport?  We use this to pick new active and retran paths.
@@ -1044,7 +1054,7 @@ void sctp_transport_route(struct sctp_transport *, union sctp_addr *,
 			  struct sctp_sock *);
 void sctp_transport_pmtu(struct sctp_transport *);
 void sctp_transport_free(struct sctp_transport *);
-void sctp_transport_reset_timers(struct sctp_transport *);
+void sctp_transport_reset_timers(struct sctp_transport *, int);
 void sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
@@ -1134,6 +1144,9 @@ struct sctp_outq {
 	/* How many unackd bytes do we have in-flight?	*/
 	__u32 outstanding_bytes;
 
+	/* Are we doing fast-rtx on this queue */
+	char fast_rtx;
+
 	/* Corked? */
 	char cork;
 
@@ -1148,7 +1161,6 @@ void sctp_outq_init(struct sctp_association *, struct sctp_outq *);
 void sctp_outq_teardown(struct sctp_outq *);
 void sctp_outq_free(struct sctp_outq*);
 int sctp_outq_tail(struct sctp_outq *, struct sctp_chunk *chunk);
-int sctp_outq_flush(struct sctp_outq *, int);
 int sctp_outq_sack(struct sctp_outq *, struct sctp_sackhdr *);
 int sctp_outq_is_empty(const struct sctp_outq *);
 void sctp_outq_restart(struct sctp_outq *);
@@ -1198,6 +1210,8 @@ int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
 int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *);
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);
+int sctp_bind_addr_conflict(struct sctp_bind_addr *, const union sctp_addr *,
+			 struct sctp_sock *, struct sctp_sock *);
 int sctp_bind_addr_state(const struct sctp_bind_addr *bp,
 			 const union sctp_addr *addr);
 union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
@@ -1542,6 +1556,7 @@ struct sctp_association {
 		 *             : SACK's are not delayed (see Section 6).
 		 */
 		__u8    sack_needed;     /* Do we need to sack the peer? */
+		__u32	sack_cnt;
 
 		/* These are capabilities which our peer advertised.  */
 		__u8	ecn_capable;	 /* Can peer do ECN? */
@@ -1651,6 +1666,7 @@ struct sctp_association {
 
 	/* SACK delay timeout */
 	unsigned long sackdelay;
+	__u32 sackfreq;
 
 
 	unsigned long timeouts[SCTP_NUM_TIMEOUT_TYPES];

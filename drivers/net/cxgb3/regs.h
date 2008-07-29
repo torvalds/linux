@@ -444,6 +444,14 @@
 
 #define A_PCIE_CFG 0x88
 
+#define S_ENABLELINKDWNDRST    21
+#define V_ENABLELINKDWNDRST(x) ((x) << S_ENABLELINKDWNDRST)
+#define F_ENABLELINKDWNDRST    V_ENABLELINKDWNDRST(1U)
+
+#define S_ENABLELINKDOWNRST    20
+#define V_ENABLELINKDOWNRST(x) ((x) << S_ENABLELINKDOWNRST)
+#define F_ENABLELINKDOWNRST    V_ENABLELINKDOWNRST(1U)
+
 #define S_PCIE_CLIDECEN    16
 #define V_PCIE_CLIDECEN(x) ((x) << S_PCIE_CLIDECEN)
 #define F_PCIE_CLIDECEN    V_PCIE_CLIDECEN(1U)
@@ -1509,15 +1517,17 @@
 
 #define A_ULPRX_ISCSI_TAGMASK 0x514
 
-#define S_HPZ0    0
-#define M_HPZ0    0xf
-#define V_HPZ0(x) ((x) << S_HPZ0)
-#define G_HPZ0(x) (((x) >> S_HPZ0) & M_HPZ0)
+#define A_ULPRX_ISCSI_PSZ 0x518
 
 #define A_ULPRX_TDDP_LLIMIT 0x51c
 
 #define A_ULPRX_TDDP_ULIMIT 0x520
 #define A_ULPRX_TDDP_PSZ 0x528
+
+#define S_HPZ0    0
+#define M_HPZ0    0xf
+#define V_HPZ0(x) ((x) << S_HPZ0)
+#define G_HPZ0(x) (((x) >> S_HPZ0) & M_HPZ0)
 
 #define A_ULPRX_STAG_LLIMIT 0x52c
 

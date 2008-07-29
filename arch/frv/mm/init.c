@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <linux/bootmem.h>
 #include <linux/highmem.h>
+#include <linux/module.h>
 
 #include <asm/setup.h>
 #include <asm/segment.h>
@@ -56,38 +57,9 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
  */
 static unsigned long empty_bad_page_table;
 static unsigned long empty_bad_page;
+
 unsigned long empty_zero_page;
-
-/*****************************************************************************/
-/*
- *
- */
-void show_mem(void)
-{
-	unsigned long i;
-	int free = 0, total = 0, reserved = 0, shared = 0;
-
-	printk("\nMem-info:\n");
-	show_free_areas();
-	i = max_mapnr;
-	while (i-- > 0) {
-		struct page *page = &mem_map[i];
-
-		total++;
-		if (PageReserved(page))
-			reserved++;
-		else if (!page_count(page))
-			free++;
-		else
-			shared += page_count(page) - 1;
-	}
-
-	printk("%d pages of RAM\n",total);
-	printk("%d free pages\n",free);
-	printk("%d reserved pages\n",reserved);
-	printk("%d pages shared\n",shared);
-
-} /* end show_mem() */
+EXPORT_SYMBOL(empty_zero_page);
 
 /*****************************************************************************/
 /*

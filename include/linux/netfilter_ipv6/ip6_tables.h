@@ -17,11 +17,11 @@
 
 #ifdef __KERNEL__
 #include <linux/if.h>
-#include <linux/types.h>
 #include <linux/in6.h>
 #include <linux/ipv6.h>
 #include <linux/skbuff.h>
 #endif
+#include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/netfilter_ipv6.h>
 

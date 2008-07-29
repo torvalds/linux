@@ -286,8 +286,14 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 	t->max_hw_segments = min(t->max_hw_segments, b->max_hw_segments);
 	t->max_segment_size = min(t->max_segment_size, b->max_segment_size);
 	t->hardsect_size = max(t->hardsect_size, b->hardsect_size);
-	if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags))
+	if (!t->queue_lock)
+		WARN_ON_ONCE(1);
+	else if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags)) {
+		unsigned long flags;
+		spin_lock_irqsave(t->queue_lock, flags);
 		queue_flag_clear(QUEUE_FLAG_CLUSTER, t);
+		spin_unlock_irqrestore(t->queue_lock, flags);
+	}
 }
 EXPORT_SYMBOL(blk_queue_stack_limits);
 
@@ -296,17 +302,33 @@ EXPORT_SYMBOL(blk_queue_stack_limits);
  * @q:     the request queue for the device
  * @mask:  pad mask
  *
- * Set pad mask.  Direct IO requests are padded to the mask specified.
+ * Set dma pad mask.
  *
- * Appending pad buffer to a request modifies ->data_len such that it
- * includes the pad buffer.  The original requested data length can be
- * obtained using blk_rq_raw_data_len().
+ * Appending pad buffer to a request modifies the last entry of a
+ * scatter list such that it includes the pad buffer.
  **/
 void blk_queue_dma_pad(struct request_queue *q, unsigned int mask)
 {
 	q->dma_pad_mask = mask;
 }
 EXPORT_SYMBOL(blk_queue_dma_pad);
+
+/**
+ * blk_queue_update_dma_pad - update pad mask
+ * @q:     the request queue for the device
+ * @mask:  pad mask
+ *
+ * Update dma pad mask.
+ *
+ * Appending pad buffer to a request modifies the last entry of a
+ * scatter list such that it includes the pad buffer.
+ **/
+void blk_queue_update_dma_pad(struct request_queue *q, unsigned int mask)
+{
+	if (mask > q->dma_pad_mask)
+		q->dma_pad_mask = mask;
+}
+EXPORT_SYMBOL(blk_queue_update_dma_pad);
 
 /**
  * blk_queue_dma_drain - Set up a drain buffer for excess dma.

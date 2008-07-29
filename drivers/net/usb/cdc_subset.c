@@ -218,7 +218,7 @@ static const struct driver_info	blob_info = {
 /*-------------------------------------------------------------------------*/
 
 #ifndef	HAVE_HARDWARE
-#error You need to configure some hardware for this driver
+#warning You need to configure some hardware for this driver
 #endif
 
 /*

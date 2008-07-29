@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/ioport.h>
 #include <linux/capability.h>
 #include <linux/fcntl.h>
@@ -140,10 +141,14 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 static int rtc_open(struct inode *inode, struct file *file)
 {
-	if(rtc_status)
+	lock_kernel();
+	if(rtc_status) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 
 	rtc_status = 1;
+	unlock_kernel();
 	return 0;
 }
 

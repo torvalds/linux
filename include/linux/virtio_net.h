@@ -1,5 +1,7 @@
 #ifndef _LINUX_VIRTIO_NET_H
 #define _LINUX_VIRTIO_NET_H
+/* This header is BSD licensed so anyone can use the definitions to implement
+ * compatible drivers/servers. */
 #include <linux/virtio_config.h>
 
 /* The ID for virtio_net */
@@ -38,7 +40,7 @@ struct virtio_net_hdr
 #define VIRTIO_NET_HDR_GSO_ECN		0x80	// TCP has ECN set
 	__u8 gso_type;
 	__u16 hdr_len;		/* Ethernet + IP + tcp/udp hdrs */
-	__u16 gso_size;		/* Bytes to append to gso_hdr_len per frame */
+	__u16 gso_size;		/* Bytes to append to hdr_len per frame */
 	__u16 csum_start;	/* Position to start checksumming from */
 	__u16 csum_offset;	/* Offset after that to place checksum */
 };

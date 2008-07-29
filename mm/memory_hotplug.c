@@ -62,9 +62,9 @@ static void release_memory_resource(struct resource *res)
 
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 #ifndef CONFIG_SPARSEMEM_VMEMMAP
-static void get_page_bootmem(unsigned long info,  struct page *page, int magic)
+static void get_page_bootmem(unsigned long info,  struct page *page, int type)
 {
-	atomic_set(&page->_mapcount, magic);
+	atomic_set(&page->_mapcount, type);
 	SetPagePrivate(page);
 	set_page_private(page, info);
 	atomic_inc(&page->_count);
@@ -72,10 +72,10 @@ static void get_page_bootmem(unsigned long info,  struct page *page, int magic)
 
 void put_page_bootmem(struct page *page)
 {
-	int magic;
+	int type;
 
-	magic = atomic_read(&page->_mapcount);
-	BUG_ON(magic >= -1);
+	type = atomic_read(&page->_mapcount);
+	BUG_ON(type >= -1);
 
 	if (atomic_dec_return(&page->_count) == 1) {
 		ClearPagePrivate(page);
@@ -86,7 +86,7 @@ void put_page_bootmem(struct page *page)
 
 }
 
-void register_page_bootmem_info_section(unsigned long start_pfn)
+static void register_page_bootmem_info_section(unsigned long start_pfn)
 {
 	unsigned long *usemap, mapsize, section_nr, i;
 	struct mem_section *ms;
@@ -119,7 +119,7 @@ void register_page_bootmem_info_section(unsigned long start_pfn)
 	mapsize = PAGE_ALIGN(usemap_size()) >> PAGE_SHIFT;
 
 	for (i = 0; i < mapsize; i++, page++)
-		get_page_bootmem(section_nr, page, MIX_INFO);
+		get_page_bootmem(section_nr, page, MIX_SECTION_INFO);
 
 }
 
@@ -159,21 +159,58 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
+static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
+			   unsigned long end_pfn)
+{
+	unsigned long old_zone_end_pfn;
+
+	zone_span_writelock(zone);
+
+	old_zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+	if (start_pfn < zone->zone_start_pfn)
+		zone->zone_start_pfn = start_pfn;
+
+	zone->spanned_pages = max(old_zone_end_pfn, end_pfn) -
+				zone->zone_start_pfn;
+
+	zone_span_writeunlock(zone);
+}
+
+static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
+			    unsigned long end_pfn)
+{
+	unsigned long old_pgdat_end_pfn =
+		pgdat->node_start_pfn + pgdat->node_spanned_pages;
+
+	if (start_pfn < pgdat->node_start_pfn)
+		pgdat->node_start_pfn = start_pfn;
+
+	pgdat->node_spanned_pages = max(old_pgdat_end_pfn, end_pfn) -
+					pgdat->node_start_pfn;
+}
+
 static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	int nr_pages = PAGES_PER_SECTION;
 	int nid = pgdat->node_id;
 	int zone_type;
+	unsigned long flags;
 
 	zone_type = zone - pgdat->node_zones;
 	if (!zone->wait_table) {
-		int ret = 0;
+		int ret;
+
 		ret = init_currently_empty_zone(zone, phys_start_pfn,
 						nr_pages, MEMMAP_HOTPLUG);
-		if (ret < 0)
+		if (ret)
 			return ret;
 	}
+	pgdat_resize_lock(zone->zone_pgdat, &flags);
+	grow_zone_span(zone, phys_start_pfn, phys_start_pfn + nr_pages);
+	grow_pgdat_span(zone->zone_pgdat, phys_start_pfn,
+			phys_start_pfn + nr_pages);
+	pgdat_resize_unlock(zone->zone_pgdat, &flags);
 	memmap_init_zone(nr_pages, nid, zone_type,
 			 phys_start_pfn, MEMMAP_HOTPLUG);
 	return 0;
@@ -299,36 +336,6 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
 }
 EXPORT_SYMBOL_GPL(__remove_pages);
 
-static void grow_zone_span(struct zone *zone,
-		unsigned long start_pfn, unsigned long end_pfn)
-{
-	unsigned long old_zone_end_pfn;
-
-	zone_span_writelock(zone);
-
-	old_zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
-	if (start_pfn < zone->zone_start_pfn)
-		zone->zone_start_pfn = start_pfn;
-
-	zone->spanned_pages = max(old_zone_end_pfn, end_pfn) -
-				zone->zone_start_pfn;
-
-	zone_span_writeunlock(zone);
-}
-
-static void grow_pgdat_span(struct pglist_data *pgdat,
-		unsigned long start_pfn, unsigned long end_pfn)
-{
-	unsigned long old_pgdat_end_pfn =
-		pgdat->node_start_pfn + pgdat->node_spanned_pages;
-
-	if (start_pfn < pgdat->node_start_pfn)
-		pgdat->node_start_pfn = start_pfn;
-
-	pgdat->node_spanned_pages = max(old_pgdat_end_pfn, end_pfn) -
-					pgdat->node_start_pfn;
-}
-
 void online_page(struct page *page)
 {
 	totalram_pages++;
@@ -367,7 +374,6 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
 
 int online_pages(unsigned long pfn, unsigned long nr_pages)
 {
-	unsigned long flags;
 	unsigned long onlined_pages = 0;
 	struct zone *zone;
 	int need_zonelists_rebuild = 0;
@@ -395,11 +401,6 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	 * memory_block->state_mutex.
 	 */
 	zone = page_zone(pfn_to_page(pfn));
-	pgdat_resize_lock(zone->zone_pgdat, &flags);
-	grow_zone_span(zone, pfn, pfn + nr_pages);
-	grow_pgdat_span(zone->zone_pgdat, pfn, pfn + nr_pages);
-	pgdat_resize_unlock(zone->zone_pgdat, &flags);
-
 	/*
 	 * If this zone is not populated, then it is not in zonelist.
 	 * This means the page allocator ignores this zone.
@@ -408,8 +409,15 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	if (!populated_zone(zone))
 		need_zonelists_rebuild = 1;
 
-	walk_memory_resource(pfn, nr_pages, &onlined_pages,
+	ret = walk_memory_resource(pfn, nr_pages, &onlined_pages,
 		online_pages_range);
+	if (ret) {
+		printk(KERN_DEBUG "online_pages %lx at %lx failed\n",
+			nr_pages, pfn);
+		memory_notify(MEM_CANCEL_ONLINE, &arg);
+		return ret;
+	}
+
 	zone->present_pages += onlined_pages;
 	zone->zone_pgdat->node_present_pages += onlined_pages;
 
@@ -421,7 +429,9 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 
 	if (need_zonelists_rebuild)
 		build_all_zonelists();
-	vm_total_pages = nr_free_pagecache_pages();
+	else
+		vm_total_pages = nr_free_pagecache_pages();
+
 	writeback_set_ratelimit();
 
 	if (onlined_pages)
@@ -447,7 +457,7 @@ static pg_data_t *hotadd_new_pgdat(int nid, u64 start)
 	/* we can use NODE_DATA(nid) from here */
 
 	/* init node's zones as empty zones, we don't have any present pages.*/
-	free_area_init_node(nid, pgdat, zones_size, start_pfn, zholes_size);
+	free_area_init_node(nid, zones_size, start_pfn, zholes_size);
 
 	return pgdat;
 }
@@ -512,6 +522,66 @@ error:
 EXPORT_SYMBOL_GPL(add_memory);
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
+/*
+ * A free page on the buddy free lists (not the per-cpu lists) has PageBuddy
+ * set and the size of the free page is given by page_order(). Using this,
+ * the function determines if the pageblock contains only free pages.
+ * Due to buddy contraints, a free page at least the size of a pageblock will
+ * be located at the start of the pageblock
+ */
+static inline int pageblock_free(struct page *page)
+{
+	return PageBuddy(page) && page_order(page) >= pageblock_order;
+}
+
+/* Return the start of the next active pageblock after a given page */
+static struct page *next_active_pageblock(struct page *page)
+{
+	int pageblocks_stride;
+
+	/* Ensure the starting page is pageblock-aligned */
+	BUG_ON(page_to_pfn(page) & (pageblock_nr_pages - 1));
+
+	/* Move forward by at least 1 * pageblock_nr_pages */
+	pageblocks_stride = 1;
+
+	/* If the entire pageblock is free, move to the end of free page */
+	if (pageblock_free(page))
+		pageblocks_stride += page_order(page) - pageblock_order;
+
+	return page + (pageblocks_stride * pageblock_nr_pages);
+}
+
+/* Checks if this range of memory is likely to be hot-removable. */
+int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+{
+	int type;
+	struct page *page = pfn_to_page(start_pfn);
+	struct page *end_page = page + nr_pages;
+
+	/* Check the starting page of each pageblock within the range */
+	for (; page < end_page; page = next_active_pageblock(page)) {
+		type = get_pageblock_migratetype(page);
+
+		/*
+		 * A pageblock containing MOVABLE or free pages is considered
+		 * removable
+		 */
+		if (type != MIGRATE_MOVABLE && !pageblock_free(page))
+			return 0;
+
+		/*
+		 * A pageblock starting with a PageReserved page is not
+		 * considered removable.
+		 */
+		if (PageReserved(page))
+			return 0;
+	}
+
+	/* All pageblocks in the memory block are likely to be hot-removable */
+	return 1;
+}
+
 /*
  * Confirm all pages in a range [start, end) is belongs to the same zone.
  */

@@ -649,7 +649,13 @@ static int usba_ep_disable(struct usb_ep *_ep)
 
 	if (!ep->desc) {
 		spin_unlock_irqrestore(&udc->lock, flags);
-		DBG(DBG_ERR, "ep_disable: %s not enabled\n", ep->ep.name);
+		/* REVISIT because this driver disables endpoints in
+		 * reset_all_endpoints() before calling disconnect(),
+		 * most gadget drivers would trigger this non-error ...
+		 */
+		if (udc->gadget.speed != USB_SPEED_UNKNOWN)
+			DBG(DBG_ERR, "ep_disable: %s not enabled\n",
+					ep->ep.name);
 		return -EINVAL;
 	}
 	ep->desc = NULL;
@@ -1032,8 +1038,6 @@ static struct usba_udc the_udc = {
 			.release	= nop_release,
 		},
 	},
-
-	.lock	= SPIN_LOCK_UNLOCKED,
 };
 
 /*
@@ -1052,6 +1056,12 @@ static void reset_all_endpoints(struct usba_udc *udc)
 		request_complete(ep, req, -ECONNRESET);
 	}
 
+	/* NOTE:  normally, the next call to the gadget driver is in
+	 * charge of disabling endpoints... usually disconnect().
+	 * The exception would be entering a high speed test mode.
+	 *
+	 * FIXME remove this code ... and retest thoroughly.
+	 */
 	list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
 		if (ep->desc) {
 			spin_unlock(&udc->lock);
@@ -1219,7 +1229,7 @@ static inline bool feature_is_ep_halt(struct usb_ctrlrequest *crq)
 static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 		struct usb_ctrlrequest *crq)
 {
-	int retval = 0;;
+	int retval = 0;
 
 	switch (crq->bRequest) {
 	case USB_REQ_GET_STATUS: {
@@ -1693,6 +1703,14 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 		usba_writel(udc, INT_CLR, USBA_END_OF_RESET);
 		reset_all_endpoints(udc);
 
+		if (udc->gadget.speed != USB_SPEED_UNKNOWN
+				&& udc->driver->disconnect) {
+			udc->gadget.speed = USB_SPEED_UNKNOWN;
+			spin_unlock(&udc->lock);
+			udc->driver->disconnect(&udc->gadget);
+			spin_lock(&udc->lock);
+		}
+
 		if (status & USBA_HIGH_SPEED) {
 			DBG(DBG_BUS, "High-speed bus reset detected\n");
 			udc->gadget.speed = USB_SPEED_HIGH;
@@ -1716,9 +1734,13 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 				| USBA_DET_SUSPEND
 				| USBA_END_OF_RESUME));
 
+		/*
+		 * Unclear why we hit this irregularly, e.g. in usbtest,
+		 * but it's clearly harmless...
+		 */
 		if (!(usba_ep_readl(ep0, CFG) & USBA_EPT_MAPPED))
-			dev_warn(&udc->pdev->dev,
-				 "WARNING: EP0 configuration is invalid!\n");
+			dev_dbg(&udc->pdev->dev,
+				 "ODD: EP0 configuration is invalid!\n");
 	}
 
 	spin_unlock(&udc->lock);
@@ -1751,9 +1773,11 @@ static irqreturn_t usba_vbus_irq(int irq, void *devid)
 			reset_all_endpoints(udc);
 			toggle_bias(0);
 			usba_writel(udc, CTRL, USBA_DISABLE_MASK);
-			spin_unlock(&udc->lock);
-			udc->driver->disconnect(&udc->gadget);
-			spin_lock(&udc->lock);
+			if (udc->driver->disconnect) {
+				spin_unlock(&udc->lock);
+				udc->driver->disconnect(&udc->gadget);
+				spin_lock(&udc->lock);
+			}
 		}
 		udc->vbus_prev = vbus;
 	}
@@ -1825,7 +1849,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	if (!udc->pdev)
 		return -ENODEV;
-	if (driver != udc->driver)
+	if (driver != udc->driver || !driver->unbind)
 		return -EINVAL;
 
 	if (udc->vbus_pin != -1)
@@ -1839,6 +1863,9 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	/* This will also disable the DP pullup */
 	toggle_bias(0);
 	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
+
+	if (udc->driver->disconnect)
+		udc->driver->disconnect(&udc->gadget);
 
 	driver->unbind(&udc->gadget);
 	udc->gadget.dev.driver = NULL;
@@ -1879,6 +1906,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 		goto err_get_hclk;
 	}
 
+	spin_lock_init(&udc->lock);
 	udc->pdev = pdev;
 	udc->pclk = pclk;
 	udc->hclk = hclk;

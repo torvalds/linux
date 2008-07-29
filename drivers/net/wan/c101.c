@@ -133,9 +133,9 @@ static void sca_msci_intr(port_t *port)
 	sca_out(stat & (ST1_UDRN | ST1_CDCD), MSCI0_OFFSET + ST1, port);
 
 	if (stat & ST1_UDRN) {
-		struct net_device_stats *stats = hdlc_stats(port_to_dev(port));
-		stats->tx_errors++; /* TX Underrun error detected */
-		stats->tx_fifo_errors++;
+		/* TX Underrun error detected */
+		port_to_dev(port)->stats.tx_errors++;
+		port_to_dev(port)->stats.tx_fifo_errors++;
 	}
 
 	stat = sca_in(MSCI1_OFFSET + ST1, port); /* read MSCI1 ST1 status */

@@ -316,19 +316,6 @@ static int adpt_close(struct inode *inode, struct file *file);
 static void adpt_delay(int millisec);
 #endif
 
-#if defined __ia64__ 
-static void adpt_ia64_info(sysInfo_S* si);
-#endif
-#if defined __sparc__ 
-static void adpt_sparc_info(sysInfo_S* si);
-#endif
-#if defined __alpha__ 
-static void adpt_sparc_info(sysInfo_S* si);
-#endif
-#if defined __i386__
-static void adpt_i386_info(sysInfo_S* si);
-#endif
-
 #define PRINT_BUFFER_SIZE     512
 
 #define HBA_FLAGS_DBG_FLAGS_MASK         0xffff0000	// Mask for debug flags

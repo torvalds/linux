@@ -459,6 +459,7 @@ static void __exit lapbeth_cleanup_driver(void)
 	list_for_each_safe(entry, tmp, &lapbeth_devices) {
 		lapbeth = list_entry(entry, struct lapbethdev, node);
 
+		dev_put(lapbeth->ethdev);
 		unregister_netdevice(lapbeth->axdev);
 	}
 	rtnl_unlock();

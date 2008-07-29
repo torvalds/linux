@@ -606,7 +606,9 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 
 	res->last_used = 0;
 
+	spin_lock(&dlm->spinlock);
 	list_add_tail(&res->tracking, &dlm->tracking_list);
+	spin_unlock(&dlm->spinlock);
 
 	memset(res->lvb, 0, DLM_LVB_LEN);
 	memset(res->refmap, 0, sizeof(res->refmap));

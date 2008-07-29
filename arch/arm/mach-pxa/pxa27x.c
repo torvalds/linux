@@ -146,7 +146,7 @@ static struct clk pxa27x_clks[] = {
 
 	INIT_CKEN("I2SCLK",  I2S,  14682000, 0, &pxa_device_i2s.dev),
 	INIT_CKEN("I2CCLK",  I2C,  32842000, 0, &pxa_device_i2c.dev),
-	INIT_CKEN("UDCCLK",  USB,  48000000, 5, &pxa_device_udc.dev),
+	INIT_CKEN("UDCCLK",  USB,  48000000, 5, &pxa27x_device_udc.dev),
 	INIT_CKEN("MMCCLK",  MMC,  19500000, 0, &pxa_device_mci.dev),
 	INIT_CKEN("FICPCLK", FICP, 48000000, 0, &pxa_device_ficp.dev),
 
@@ -157,12 +157,13 @@ static struct clk pxa27x_clks[] = {
 	INIT_CKEN("SSPCLK", SSP1, 13000000, 0, &pxa27x_device_ssp1.dev),
 	INIT_CKEN("SSPCLK", SSP2, 13000000, 0, &pxa27x_device_ssp2.dev),
 	INIT_CKEN("SSPCLK", SSP3, 13000000, 0, &pxa27x_device_ssp3.dev),
+	INIT_CKEN("PWMCLK", PWM0, 13000000, 0, &pxa27x_device_pwm0.dev),
+	INIT_CKEN("PWMCLK", PWM1, 13000000, 0, &pxa27x_device_pwm1.dev),
 
 	INIT_CKEN("AC97CLK",     AC97,     24576000, 0, NULL),
 	INIT_CKEN("AC97CONFCLK", AC97CONF, 24576000, 0, NULL),
 
 	/*
-	INIT_CKEN("PWMCLK",  PWM0, 13000000, 0, NULL),
 	INIT_CKEN("MSLCLK",  MSL,  48000000, 0, NULL),
 	INIT_CKEN("USIMCLK", USIM, 48000000, 0, NULL),
 	INIT_CKEN("MSTKCLK", MEMSTK, 19500000, 0, NULL),
@@ -181,9 +182,7 @@ static struct clk pxa27x_clks[] = {
  * More ones like CP and general purpose register values are preserved
  * with the stack pointer in sleep.S.
  */
-enum {	SLEEP_SAVE_START = 0,
-
-	SLEEP_SAVE_PGSR0, SLEEP_SAVE_PGSR1, SLEEP_SAVE_PGSR2, SLEEP_SAVE_PGSR3,
+enum {	SLEEP_SAVE_PGSR0, SLEEP_SAVE_PGSR1, SLEEP_SAVE_PGSR2, SLEEP_SAVE_PGSR3,
 
 	SLEEP_SAVE_GAFR0_L, SLEEP_SAVE_GAFR0_U,
 	SLEEP_SAVE_GAFR1_L, SLEEP_SAVE_GAFR1_U,
@@ -198,7 +197,7 @@ enum {	SLEEP_SAVE_START = 0,
 	SLEEP_SAVE_PWER, SLEEP_SAVE_PCFR, SLEEP_SAVE_PRER,
 	SLEEP_SAVE_PFER, SLEEP_SAVE_PKWR,
 
-	SLEEP_SAVE_SIZE
+	SLEEP_SAVE_COUNT
 };
 
 void pxa27x_cpu_pm_save(unsigned long *sleep_save)
@@ -251,6 +250,9 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 	/* Clear edge-detect status register. */
 	PEDR = 0xDF12FE1B;
 
+	/* Clear reset status */
+	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
+
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
 		pxa_cpu_standby();
@@ -269,7 +271,7 @@ static int pxa27x_cpu_pm_valid(suspend_state_t state)
 }
 
 static struct pxa_cpu_pm_fns pxa27x_cpu_pm_fns = {
-	.save_size	= SLEEP_SAVE_SIZE,
+	.save_count	= SLEEP_SAVE_COUNT,
 	.save		= pxa27x_cpu_pm_save,
 	.restore	= pxa27x_cpu_pm_restore,
 	.valid		= pxa27x_cpu_pm_valid,
@@ -348,11 +350,14 @@ struct platform_device pxa27x_device_i2c_power = {
 
 void __init pxa_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 {
+	local_irq_disable();
+	PCFR |= PCFR_PI2CEN;
+	local_irq_enable();
 	pxa27x_device_i2c_power.dev.platform_data = info;
 }
 
 static struct platform_device *devices[] __initdata = {
-	&pxa_device_udc,
+	&pxa27x_device_udc,
 	&pxa_device_ffuart,
 	&pxa_device_btuart,
 	&pxa_device_stuart,
@@ -362,6 +367,8 @@ static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_ssp1,
 	&pxa27x_device_ssp2,
 	&pxa27x_device_ssp3,
+	&pxa27x_device_pwm0,
+	&pxa27x_device_pwm1,
 };
 
 static struct sys_device pxa27x_sysdev[] = {

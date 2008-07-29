@@ -241,6 +241,7 @@ static inline struct slvl_device *slvl_alloc(int iobase, int irq)
 		return NULL;
 
 	sv = d->priv;
+	d->ml_priv = sv;
 	sv->if_ptr = &sv->pppdev;
 	sv->pppdev.dev = d;
 	d->base_addr = iobase;

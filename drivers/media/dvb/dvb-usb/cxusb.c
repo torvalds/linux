@@ -24,6 +24,7 @@
  * see Documentation/dvb/README.dvb-usb for more information
  */
 #include <media/tuner.h>
+#include <linux/vmalloc.h>
 
 #include "cxusb.h"
 
@@ -34,6 +35,7 @@
 #include "zl10353.h"
 #include "tuner-xc2028.h"
 #include "tuner-simple.h"
+#include "mxl5005s.h"
 
 /* debug */
 static int dvb_usb_cxusb_debug;
@@ -42,9 +44,8 @@ MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_ST
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define deb_info(args...)   dprintk(dvb_usb_cxusb_debug,0x01,args)
-#define deb_i2c(args...)    if (d->udev->descriptor.idVendor == USB_VID_MEDION) \
-				dprintk(dvb_usb_cxusb_debug,0x01,args)
+#define deb_info(args...)   dprintk(dvb_usb_cxusb_debug, 0x03, args)
+#define deb_i2c(args...)    dprintk(dvb_usb_cxusb_debug, 0x02, args)
 
 static int cxusb_ctrl_msg(struct dvb_usb_device *d,
 			  u8 cmd, u8 *wbuf, int wlen, u8 *rbuf, int rlen)
@@ -201,6 +202,46 @@ static int cxusb_power_ctrl(struct dvb_usb_device *d, int onoff)
 		return cxusb_ctrl_msg(d, CMD_POWER_OFF, &b, 1, NULL, 0);
 }
 
+static int cxusb_aver_power_ctrl(struct dvb_usb_device *d, int onoff)
+{
+	int ret;
+	if (!onoff)
+		return cxusb_ctrl_msg(d, CMD_POWER_OFF, NULL, 0, NULL, 0);
+	if (d->state == DVB_USB_STATE_INIT &&
+	    usb_set_interface(d->udev, 0, 0) < 0)
+		err("set interface failed");
+	do; while (!(ret = cxusb_ctrl_msg(d, CMD_POWER_ON, NULL, 0, NULL, 0)) &&
+		   !(ret = cxusb_ctrl_msg(d, 0x15, NULL, 0, NULL, 0)) &&
+		   !(ret = cxusb_ctrl_msg(d, 0x17, NULL, 0, NULL, 0)) && 0);
+	if (!ret) {
+		/* FIXME: We don't know why, but we need to configure the
+		 * lgdt3303 with the register settings below on resume */
+		int i;
+		u8 buf, bufs[] = {
+			0x0e, 0x2, 0x00, 0x7f,
+			0x0e, 0x2, 0x02, 0xfe,
+			0x0e, 0x2, 0x02, 0x01,
+			0x0e, 0x2, 0x00, 0x03,
+			0x0e, 0x2, 0x0d, 0x40,
+			0x0e, 0x2, 0x0e, 0x87,
+			0x0e, 0x2, 0x0f, 0x8e,
+			0x0e, 0x2, 0x10, 0x01,
+			0x0e, 0x2, 0x14, 0xd7,
+			0x0e, 0x2, 0x47, 0x88,
+		};
+		msleep(20);
+		for (i = 0; i < sizeof(bufs)/sizeof(u8); i += 4/sizeof(u8)) {
+			ret = cxusb_ctrl_msg(d, CMD_I2C_WRITE,
+					     bufs+i, 4, &buf, 1);
+			if (ret)
+				break;
+			if (buf != 0x8)
+				return -EREMOTEIO;
+		}
+	}
+	return ret;
+}
+
 static int cxusb_bluebird_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	u8 b = 0;
@@ -229,6 +270,16 @@ static int cxusb_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	else
 		cxusb_ctrl_msg(adap->dev, CMD_STREAMING_OFF, NULL, 0, NULL, 0);
 
+	return 0;
+}
+
+static int cxusb_aver_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+{
+	if (onoff)
+		cxusb_ctrl_msg(adap->dev, CMD_AVER_STREAM_ON, NULL, 0, NULL, 0);
+	else
+		cxusb_ctrl_msg(adap->dev, CMD_AVER_STREAM_OFF,
+			       NULL, 0, NULL, 0);
 	return 0;
 }
 
@@ -422,6 +473,12 @@ static struct lgdt330x_config cxusb_lgdt3303_config = {
 	.demod_chip    = LGDT3303,
 };
 
+static struct lgdt330x_config cxusb_aver_lgdt3303_config = {
+	.demod_address       = 0x0e,
+	.demod_chip          = LGDT3303,
+	.clock_polarity_flip = 2,
+};
+
 static struct mt352_config cxusb_dee1601_config = {
 	.demod_address = 0x0f,
 	.demod_init    = cxusb_dee1601_demod_init,
@@ -450,6 +507,24 @@ static struct mt352_config cxusb_mt352_xc3028_config = {
 	.if2 = 4560,
 	.no_tuner = 1,
 	.demod_init = cxusb_mt352_demod_init,
+};
+
+/* FIXME: needs tweaking */
+static struct mxl5005s_config aver_a868r_tuner = {
+	.i2c_address     = 0x63,
+	.if_freq         = 6000000UL,
+	.xtal_freq       = CRYSTAL_FREQ_16000000HZ,
+	.agc_mode        = MXL_SINGLE_AGC,
+	.tracking_filter = MXL_TF_C,
+	.rssi_enable     = MXL_RSSI_ENABLE,
+	.cap_select      = MXL_CAP_SEL_ENABLE,
+	.div_out         = MXL_DIV_OUT_4,
+	.clock_out       = MXL_CLOCK_OUT_DISABLE,
+	.output_load     = MXL5005S_IF_OUTPUT_LOAD_200_OHM,
+	.top		 = MXL5005S_TOP_25P2,
+	.mod_mode        = MXL_DIGITAL_MODE,
+	.if_mode         = MXL_ZERO_IF,
+	.AgcMasterByte   = 0x00,
 };
 
 /* Callbacks for DVB USB */
@@ -532,6 +607,13 @@ static int cxusb_dvico_xc3028_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static int cxusb_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	dvb_attach(mxl5005s_attach, adap->fe,
+		   &adap->dev->i2c_adap, &aver_a868r_tuner);
+	return 0;
+}
+
 static int cxusb_cx22702_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	u8 b;
@@ -556,6 +638,16 @@ static int cxusb_lgdt3303_frontend_attach(struct dvb_usb_adapter *adap)
 
 	if ((adap->fe = dvb_attach(lgdt330x_attach, &cxusb_lgdt3303_config,
 				   &adap->dev->i2c_adap)) != NULL)
+		return 0;
+
+	return -EIO;
+}
+
+static int cxusb_aver_lgdt3303_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	adap->fe = dvb_attach(lgdt330x_attach, &cxusb_aver_lgdt3303_config,
+			      &adap->dev->i2c_adap);
+	if (adap->fe != NULL)
 		return 0;
 
 	return -EIO;
@@ -700,12 +792,26 @@ static int bluebird_patch_dvico_firmware_download(struct usb_device *udev,
 
 		if (fw->data[idoff] == (USB_VID_DVICO & 0xff) &&
 		    fw->data[idoff + 1] == USB_VID_DVICO >> 8) {
-			fw->data[idoff + 2] =
+			struct firmware new_fw;
+			u8 *new_fw_data = vmalloc(fw->size);
+			int ret;
+
+			if (!new_fw_data)
+				return -ENOMEM;
+
+			memcpy(new_fw_data, fw->data, fw->size);
+			new_fw.size = fw->size;
+			new_fw.data = new_fw_data;
+
+			new_fw_data[idoff + 2] =
 				le16_to_cpu(udev->descriptor.idProduct) + 1;
-			fw->data[idoff + 3] =
+			new_fw_data[idoff + 3] =
 				le16_to_cpu(udev->descriptor.idProduct) >> 8;
 
-			return usb_cypress_load_firmware(udev, fw, CYPRESS_FX2);
+			ret = usb_cypress_load_firmware(udev, &new_fw,
+							CYPRESS_FX2);
+			vfree(new_fw_data);
+			return ret;
 		}
 	}
 
@@ -721,6 +827,7 @@ static struct dvb_usb_device_properties cxusb_bluebird_dtt7579_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_properties;
+static struct dvb_usb_device_properties cxusb_aver_a868r_properties;
 
 static int cxusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -741,7 +848,10 @@ static int cxusb_probe(struct usb_interface *intf,
 				     THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf,
 				&cxusb_bluebird_nano2_needsfirmware_properties,
-				     THIS_MODULE, NULL, adapter_nr))
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &cxusb_aver_a868r_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0)
 		return 0;
 
 	return -EINVAL;
@@ -764,6 +874,7 @@ static struct usb_device_id cxusb_table [] = {
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_4) },
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DVB_T_NANO_2) },
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DVB_T_NANO_2_NFW_WARM) },
+	{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_A868R) },
 	{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
@@ -1163,6 +1274,48 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_prope
 		{   "DViCO FusionHDTV DVB-T NANO2 w/o firmware",
 			{ &cxusb_table[14], NULL },
 			{ &cxusb_table[15], NULL },
+		},
+	}
+};
+
+static struct dvb_usb_device_properties cxusb_aver_a868r_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl         = CYPRESS_FX2,
+
+	.size_of_priv     = sizeof(struct cxusb_state),
+
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.streaming_ctrl   = cxusb_aver_streaming_ctrl,
+			.frontend_attach  = cxusb_aver_lgdt3303_frontend_attach,
+			.tuner_attach     = cxusb_mxl5003s_tuner_attach,
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 5,
+				.endpoint = 0x04,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
+
+		},
+	},
+	.power_ctrl       = cxusb_aver_power_ctrl,
+
+	.i2c_algo         = &cxusb_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "AVerMedia AVerTVHD Volar (A868R)",
+			{ NULL },
+			{ &cxusb_table[16], NULL },
 		},
 	}
 };

@@ -339,6 +339,7 @@ struct xfrm_usersa_info {
 #define XFRM_STATE_NOPMTUDISC	4
 #define XFRM_STATE_WILDRECV	8
 #define XFRM_STATE_ICMP		16
+#define XFRM_STATE_AF_UNSPEC	32
 };
 
 struct xfrm_usersa_id {

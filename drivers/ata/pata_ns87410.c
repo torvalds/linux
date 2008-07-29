@@ -91,9 +91,9 @@ static void ns87410_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		return;
 	}
 
-	at.active = FIT(at.active, 2, 16) - 2;
-	at.setup = FIT(at.setup, 1, 4) - 1;
-	at.recover = FIT(at.recover, 1, 12) - 1;
+	at.active = clamp_val(at.active, 2, 16) - 2;
+	at.setup = clamp_val(at.setup, 1, 4) - 1;
+	at.recover = clamp_val(at.recover, 1, 12) - 1;
 
 	idetcr = (at.setup << 6) | (recoverbits[at.recover] << 3) | activebits[at.active];
 

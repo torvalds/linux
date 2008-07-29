@@ -6,7 +6,7 @@
  *  Authors: Dave Boutcher <boutcher@us.ibm.com>
  *           Ryan Arnold <ryanarn@us.ibm.com>
  *           Colin Devilbiss <devilbis@us.ibm.com>
- *           Stephen Rothwell <sfr@au1.ibm.com>
+ *           Stephen Rothwell
  *
  * (C) Copyright 2000-2004 IBM Corporation
  *

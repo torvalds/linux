@@ -62,8 +62,6 @@ struct b43_pio_txpacket {
 	struct b43_pio_txqueue *queue;
 	/* The TX data packet. */
 	struct sk_buff *skb;
-	/* The status meta data. */
-	struct ieee80211_tx_status txstat;
 	/* Index in the (struct b43_pio_txqueue)->packets array. */
 	u8 index;
 
@@ -167,8 +165,7 @@ int b43_pio_init(struct b43_wldev *dev);
 void b43_pio_stop(struct b43_wldev *dev);
 void b43_pio_free(struct b43_wldev *dev);
 
-int b43_pio_tx(struct b43_wldev *dev,
-	       struct sk_buff *skb, struct ieee80211_tx_control *ctl);
+int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb);
 void b43_pio_handle_txstatus(struct b43_wldev *dev,
 			     const struct b43_txstatus *status);
 void b43_pio_get_tx_stats(struct b43_wldev *dev,
@@ -193,8 +190,7 @@ static inline void b43_pio_stop(struct b43_wldev *dev)
 {
 }
 static inline int b43_pio_tx(struct b43_wldev *dev,
-			     struct sk_buff *skb,
-			     struct ieee80211_tx_control *ctl)
+			     struct sk_buff *skb)
 {
 	return 0;
 }

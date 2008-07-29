@@ -18,6 +18,7 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/ftrace.h>
 
 /*
  * libgcc functions - functions that are used internally by the
@@ -178,4 +179,10 @@ EXPORT_SYMBOL(_find_first_zero_bit_be);
 EXPORT_SYMBOL(_find_next_zero_bit_be);
 EXPORT_SYMBOL(_find_first_bit_be);
 EXPORT_SYMBOL(_find_next_bit_be);
+#endif
+
+EXPORT_SYMBOL(copy_page);
+
+#ifdef CONFIG_FTRACE
+EXPORT_SYMBOL(mcount);
 #endif

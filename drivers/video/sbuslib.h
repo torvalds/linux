@@ -11,7 +11,8 @@ struct sbus_mmap_map {
 #define SBUS_MMAP_FBSIZE(n) (-n)
 #define SBUS_MMAP_EMPTY	0x80000000
 
-extern void sbusfb_fill_var(struct fb_var_screeninfo *var, int prom_node, int bpp);
+extern void sbusfb_fill_var(struct fb_var_screeninfo *var,
+			    struct device_node *dp, int bpp);
 struct vm_area_struct;
 extern int sbusfb_mmap_helper(struct sbus_mmap_map *map,
 			      unsigned long physbase, unsigned long fbsize,
@@ -21,6 +22,6 @@ int sbusfb_ioctl_helper(unsigned long cmd, unsigned long arg,
 			struct fb_info *info,
 			int type, int fb_depth, unsigned long fb_size);
 int sbusfb_compat_ioctl(struct fb_info *info, unsigned int cmd,
-		unsigned long arg);
+			unsigned long arg);
 
 #endif /* _SBUSLIB_H */

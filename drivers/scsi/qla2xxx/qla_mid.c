@@ -32,20 +32,21 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 	scsi_qla_host_t *ha = vha->parent;
 
 	/* Find an empty slot and assign an vp_id */
-	down(&ha->vport_sem);
+	mutex_lock(&ha->vport_lock);
 	vp_id = find_first_zero_bit(ha->vp_idx_map, ha->max_npiv_vports + 1);
 	if (vp_id > ha->max_npiv_vports) {
 		DEBUG15(printk ("vp_id %d is bigger than max-supported %d.\n",
 		    vp_id, ha->max_npiv_vports));
-		up(&ha->vport_sem);
+		mutex_unlock(&ha->vport_lock);
 		return vp_id;
 	}
 
 	set_bit(vp_id, ha->vp_idx_map);
 	ha->num_vhosts++;
+	ha->cur_vport_count++;
 	vha->vp_idx = vp_id;
 	list_add_tail(&vha->vp_list, &ha->vp_list);
-	up(&ha->vport_sem);
+	mutex_unlock(&ha->vport_lock);
 	return vp_id;
 }
 
@@ -55,12 +56,13 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	uint16_t vp_id;
 	scsi_qla_host_t *ha = vha->parent;
 
-	down(&ha->vport_sem);
+	mutex_lock(&ha->vport_lock);
 	vp_id = vha->vp_idx;
 	ha->num_vhosts--;
+	ha->cur_vport_count--;
 	clear_bit(vp_id, ha->vp_idx_map);
 	list_del(&vha->vp_list);
-	up(&ha->vport_sem);
+	mutex_unlock(&ha->vport_lock);
 }
 
 static scsi_qla_host_t *
@@ -103,8 +105,8 @@ qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 		    "loop_id=0x%04x :%x\n",
 		    vha->host_no, fcport->loop_id, fcport->vp_idx));
 
-		atomic_set(&fcport->state, FCS_DEVICE_DEAD);
 		qla2x00_mark_device_lost(vha, fcport, 0, 0);
+		atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	}
 }
 
@@ -145,9 +147,9 @@ qla24xx_enable_vp(scsi_qla_host_t *vha)
 	}
 
 	/* Initialize the new vport unless it is a persistent port */
-	down(&ha->vport_sem);
+	mutex_lock(&ha->vport_lock);
 	ret = qla24xx_modify_vp_config(vha);
-	up(&ha->vport_sem);
+	mutex_unlock(&ha->vport_lock);
 
 	if (ret != QLA_SUCCESS) {
 		fc_vport_set_state(vha->fc_vport, FC_VPORT_FAILED);
@@ -276,7 +278,8 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 		clear_bit(RESET_ACTIVE, &vha->dpc_flags);
 	}
 
-	if (test_and_clear_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags)) {
+	if (atomic_read(&vha->vp_state) == VP_ACTIVE &&
+	    test_and_clear_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags)) {
 		if (!(test_and_set_bit(LOOP_RESYNC_ACTIVE, &vha->dpc_flags))) {
 			qla2x00_loop_resync(vha);
 			clear_bit(LOOP_RESYNC_ACTIVE, &vha->dpc_flags);
@@ -390,7 +393,6 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	vha->parent = ha;
 	vha->fc_vport = fc_vport;
 	vha->device_flags = 0;
-	vha->instance = num_hosts;
 	vha->vp_idx = qla24xx_allocate_vp_id(vha);
 	if (vha->vp_idx > ha->max_npiv_vports) {
 		DEBUG15(printk("scsi(%ld): Couldn't allocate vp_id.\n",
@@ -406,6 +408,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	INIT_LIST_HEAD(&vha->list);
 	INIT_LIST_HEAD(&vha->fcports);
 	INIT_LIST_HEAD(&vha->vp_fcports);
+	INIT_LIST_HEAD(&vha->work_list);
 
 	vha->dpc_flags = 0L;
 	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
@@ -427,7 +430,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	host->max_cmd_len = MAX_CMDSZ;
 	host->max_channel = MAX_BUSES - 1;
 	host->max_lun = MAX_LUNS;
-	host->unique_id = vha->instance;
+	host->unique_id = host->host_no;
 	host->max_id = MAX_TARGETS_2200;
 	host->transportt = qla2xxx_transport_vport_template;
 
@@ -435,12 +438,6 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	    vha->host_no, vha));
 
 	vha->flags.init_done = 1;
-	num_hosts++;
-
-	down(&ha->vport_sem);
-	set_bit(vha->vp_idx, ha->vp_idx_map);
-	ha->cur_vport_count++;
-	up(&ha->vport_sem);
 
 	return vha;
 

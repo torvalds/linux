@@ -62,8 +62,7 @@ int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
 int ocfs2_setattr(struct dentry *dentry, struct iattr *attr);
 int ocfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		  struct kstat *stat);
-int ocfs2_permission(struct inode *inode, int mask,
-		     struct nameidata *nd);
+int ocfs2_permission(struct inode *inode, int mask);
 
 int ocfs2_should_update_atime(struct inode *inode,
 			      struct vfsmount *vfsmnt);

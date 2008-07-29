@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <media/tuner.h>
 #include <linux/mutex.h>
+#include <asm/unaligned.h>
 #include "tuner-i2c.h"
 #include "tuner-xc2028.h"
 #include "tuner-xc2028-types.h"
@@ -46,7 +47,7 @@ module_param_string(firmware_name, firmware_name, sizeof(firmware_name), 0);
 MODULE_PARM_DESC(firmware_name, "Firmware file name. Allows overriding the "
 				"default firmware name\n");
 
-static LIST_HEAD(xc2028_list);
+static LIST_HEAD(hybrid_tuner_instance_list);
 static DEFINE_MUTEX(xc2028_list_mutex);
 
 /* struct for storing firmware table */
@@ -68,12 +69,11 @@ struct firmware_properties {
 };
 
 struct xc2028_data {
-	struct list_head        xc2028_list;
+	struct list_head        hybrid_tuner_instance_list;
 	struct tuner_i2c_props  i2c_props;
 	int                     (*tuner_callback) (void *dev,
 						   int command, int arg);
 	void			*video_dev;
-	int			count;
 	__u32			frequency;
 
 	struct firmware_description *firm;
@@ -255,7 +255,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 {
 	struct xc2028_data    *priv = fe->tuner_priv;
 	const struct firmware *fw   = NULL;
-	unsigned char         *p, *endp;
+	const unsigned char   *p, *endp;
 	int                   rc = 0;
 	int		      n, n_array;
 	char		      name[33];
@@ -293,10 +293,10 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	name[sizeof(name) - 1] = 0;
 	p += sizeof(name) - 1;
 
-	priv->firm_version = le16_to_cpu(*(__u16 *) p);
+	priv->firm_version = get_unaligned_le16(p);
 	p += 2;
 
-	n_array = le16_to_cpu(*(__u16 *) p);
+	n_array = get_unaligned_le16(p);
 	p += 2;
 
 	tuner_info("Loading %d firmware images from %s, type: %s, ver %d.%d\n",
@@ -325,26 +325,26 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		}
 
 		/* Checks if there's enough bytes to read */
-		if (p + sizeof(type) + sizeof(id) + sizeof(size) > endp) {
-			tuner_err("Firmware header is incomplete!\n");
-			goto corrupt;
-		}
+		if (endp - p < sizeof(type) + sizeof(id) + sizeof(size))
+			goto header;
 
-		type = le32_to_cpu(*(__u32 *) p);
+		type = get_unaligned_le32(p);
 		p += sizeof(type);
 
-		id = le64_to_cpu(*(v4l2_std_id *) p);
+		id = get_unaligned_le64(p);
 		p += sizeof(id);
 
 		if (type & HAS_IF) {
-			int_freq = le16_to_cpu(*(__u16 *) p);
+			int_freq = get_unaligned_le16(p);
 			p += sizeof(int_freq);
+			if (endp - p < sizeof(size))
+				goto header;
 		}
 
-		size = le32_to_cpu(*(__u32 *) p);
+		size = get_unaligned_le32(p);
 		p += sizeof(size);
 
-		if ((!size) || (size + p > endp)) {
+		if (!size || size > endp - p) {
 			tuner_err("Firmware type ");
 			dump_firm_type(type);
 			printk("(%x), id %llx is corrupted "
@@ -383,6 +383,8 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 
 	goto done;
 
+header:
+	tuner_err("Firmware header is incomplete!\n");
 corrupt:
 	rc = -EINVAL;
 	tuner_err("Error: firmware file is corrupted!\n");
@@ -1072,19 +1074,18 @@ static int xc2028_dvb_release(struct dvb_frontend *fe)
 
 	mutex_lock(&xc2028_list_mutex);
 
-	priv->count--;
-
-	if (!priv->count) {
-		list_del(&priv->xc2028_list);
-
+	/* only perform final cleanup if this is the last instance */
+	if (hybrid_tuner_report_instance_count(priv) == 1) {
 		kfree(priv->ctrl.fname);
-
 		free_firmware(priv);
-		kfree(priv);
-		fe->tuner_priv = NULL;
 	}
 
+	if (priv)
+		hybrid_tuner_release_state(priv);
+
 	mutex_unlock(&xc2028_list_mutex);
+
+	fe->tuner_priv = NULL;
 
 	return 0;
 }
@@ -1150,7 +1151,7 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 				   struct xc2028_config *cfg)
 {
 	struct xc2028_data *priv;
-	void               *video_dev;
+	int instance;
 
 	if (debug)
 		printk(KERN_DEBUG "xc2028: Xcv2028/3028 init called!\n");
@@ -1163,48 +1164,40 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 		return NULL;
 	}
 
-	video_dev = cfg->i2c_adap->algo_data;
-
-	if (debug)
-		printk(KERN_DEBUG "xc2028: video_dev =%p\n", video_dev);
-
 	mutex_lock(&xc2028_list_mutex);
 
-	list_for_each_entry(priv, &xc2028_list, xc2028_list) {
-		if (&priv->i2c_props.adap->dev == &cfg->i2c_adap->dev) {
-			video_dev = NULL;
-			if (debug)
-				printk(KERN_DEBUG "xc2028: reusing device\n");
-
-			break;
-		}
-	}
-
-	if (video_dev) {
-		priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-		if (priv == NULL) {
-			mutex_unlock(&xc2028_list_mutex);
-			return NULL;
-		}
-
-		priv->i2c_props.addr = cfg->i2c_addr;
-		priv->i2c_props.adap = cfg->i2c_adap;
-		priv->i2c_props.name = "xc2028";
-
-		priv->video_dev = video_dev;
+	instance = hybrid_tuner_request_state(struct xc2028_data, priv,
+					      hybrid_tuner_instance_list,
+					      cfg->i2c_adap, cfg->i2c_addr,
+					      "xc2028");
+	switch (instance) {
+	case 0:
+		/* memory allocation failure */
+		goto fail;
+		break;
+	case 1:
+		/* new tuner instance */
 		priv->tuner_callback = cfg->callback;
 		priv->ctrl.max_len = 13;
 
 		mutex_init(&priv->lock);
 
-		list_add_tail(&priv->xc2028_list, &xc2028_list);
+		/* analog side (tuner-core) uses i2c_adap->algo_data.
+		 * digital side is not guaranteed to have algo_data defined.
+		 *
+		 * digital side will always have fe->dvb defined.
+		 * analog side (tuner-core) doesn't (yet) define fe->dvb.
+		 */
+		priv->video_dev = ((fe->dvb) && (fe->dvb->priv)) ?
+				   fe->dvb->priv : cfg->i2c_adap->algo_data;
+
+		fe->tuner_priv = priv;
+		break;
+	case 2:
+		/* existing tuner instance */
+		fe->tuner_priv = priv;
+		break;
 	}
-
-	fe->tuner_priv = priv;
-	priv->count++;
-
-	if (debug)
-		printk(KERN_DEBUG "xc2028: usage count is %i\n", priv->count);
 
 	memcpy(&fe->ops.tuner_ops, &xc2028_dvb_tuner_ops,
 	       sizeof(xc2028_dvb_tuner_ops));
@@ -1217,6 +1210,11 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 	mutex_unlock(&xc2028_list_mutex);
 
 	return fe;
+fail:
+	mutex_unlock(&xc2028_list_mutex);
+
+	xc2028_dvb_release(fe);
+	return NULL;
 }
 
 EXPORT_SYMBOL(xc2028_attach);

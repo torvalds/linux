@@ -12,11 +12,25 @@
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include "net_driver.h"
+#include "selftest.h"
 #include "efx.h"
 #include "ethtool.h"
 #include "falcon.h"
 #include "gmii.h"
 #include "mac.h"
+
+const char *efx_loopback_mode_names[] = {
+	[LOOPBACK_NONE]		= "NONE",
+	[LOOPBACK_MAC]		= "MAC",
+	[LOOPBACK_XGMII]	= "XGMII",
+	[LOOPBACK_XGXS]		= "XGXS",
+	[LOOPBACK_XAUI] 	= "XAUI",
+	[LOOPBACK_PHY]		= "PHY",
+	[LOOPBACK_PHYXS]	= "PHY(XS)",
+	[LOOPBACK_PCS]	 	= "PHY(PCS)",
+	[LOOPBACK_PMAPMD]	= "PHY(PMAPMD)",
+	[LOOPBACK_NETWORK]	= "NETWORK",
+};
 
 static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable);
 
@@ -217,23 +231,179 @@ static void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 	strlcpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
 }
 
+/**
+ * efx_fill_test - fill in an individual self-test entry
+ * @test_index:		Index of the test
+ * @strings:		Ethtool strings, or %NULL
+ * @data:		Ethtool test results, or %NULL
+ * @test:		Pointer to test result (used only if data != %NULL)
+ * @unit_format:	Unit name format (e.g. "channel\%d")
+ * @unit_id:		Unit id (e.g. 0 for "channel0")
+ * @test_format:	Test name format (e.g. "loopback.\%s.tx.sent")
+ * @test_id:		Test id (e.g. "PHY" for "loopback.PHY.tx_sent")
+ *
+ * Fill in an individual self-test entry.
+ */
+static void efx_fill_test(unsigned int test_index,
+			  struct ethtool_string *strings, u64 *data,
+			  int *test, const char *unit_format, int unit_id,
+			  const char *test_format, const char *test_id)
+{
+	struct ethtool_string unit_str, test_str;
+
+	/* Fill data value, if applicable */
+	if (data)
+		data[test_index] = *test;
+
+	/* Fill string, if applicable */
+	if (strings) {
+		snprintf(unit_str.name, sizeof(unit_str.name),
+			 unit_format, unit_id);
+		snprintf(test_str.name, sizeof(test_str.name),
+			 test_format, test_id);
+		snprintf(strings[test_index].name,
+			 sizeof(strings[test_index].name),
+			 "%-9s%-17s", unit_str.name, test_str.name);
+	}
+}
+
+#define EFX_PORT_NAME "port%d", 0
+#define EFX_CHANNEL_NAME(_channel) "channel%d", _channel->channel
+#define EFX_TX_QUEUE_NAME(_tx_queue) "txq%d", _tx_queue->queue
+#define EFX_RX_QUEUE_NAME(_rx_queue) "rxq%d", _rx_queue->queue
+#define EFX_LOOPBACK_NAME(_mode, _counter)			\
+	"loopback.%s." _counter, LOOPBACK_MODE_NAME(mode)
+
+/**
+ * efx_fill_loopback_test - fill in a block of loopback self-test entries
+ * @efx:		Efx NIC
+ * @lb_tests:		Efx loopback self-test results structure
+ * @mode:		Loopback test mode
+ * @test_index:		Starting index of the test
+ * @strings:		Ethtool strings, or %NULL
+ * @data:		Ethtool test results, or %NULL
+ */
+static int efx_fill_loopback_test(struct efx_nic *efx,
+				  struct efx_loopback_self_tests *lb_tests,
+				  enum efx_loopback_mode mode,
+				  unsigned int test_index,
+				  struct ethtool_string *strings, u64 *data)
+{
+	struct efx_tx_queue *tx_queue;
+
+	efx_for_each_tx_queue(tx_queue, efx) {
+		efx_fill_test(test_index++, strings, data,
+			      &lb_tests->tx_sent[tx_queue->queue],
+			      EFX_TX_QUEUE_NAME(tx_queue),
+			      EFX_LOOPBACK_NAME(mode, "tx_sent"));
+		efx_fill_test(test_index++, strings, data,
+			      &lb_tests->tx_done[tx_queue->queue],
+			      EFX_TX_QUEUE_NAME(tx_queue),
+			      EFX_LOOPBACK_NAME(mode, "tx_done"));
+	}
+	efx_fill_test(test_index++, strings, data,
+		      &lb_tests->rx_good,
+		      EFX_PORT_NAME,
+		      EFX_LOOPBACK_NAME(mode, "rx_good"));
+	efx_fill_test(test_index++, strings, data,
+		      &lb_tests->rx_bad,
+		      EFX_PORT_NAME,
+		      EFX_LOOPBACK_NAME(mode, "rx_bad"));
+
+	return test_index;
+}
+
+/**
+ * efx_ethtool_fill_self_tests - get self-test details
+ * @efx:		Efx NIC
+ * @tests:		Efx self-test results structure, or %NULL
+ * @strings:		Ethtool strings, or %NULL
+ * @data:		Ethtool test results, or %NULL
+ */
+static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
+				       struct efx_self_tests *tests,
+				       struct ethtool_string *strings,
+				       u64 *data)
+{
+	struct efx_channel *channel;
+	unsigned int n = 0;
+	enum efx_loopback_mode mode;
+
+	/* Interrupt */
+	efx_fill_test(n++, strings, data, &tests->interrupt,
+		      "core", 0, "interrupt", NULL);
+
+	/* Event queues */
+	efx_for_each_channel(channel, efx) {
+		efx_fill_test(n++, strings, data,
+			      &tests->eventq_dma[channel->channel],
+			      EFX_CHANNEL_NAME(channel),
+			      "eventq.dma", NULL);
+		efx_fill_test(n++, strings, data,
+			      &tests->eventq_int[channel->channel],
+			      EFX_CHANNEL_NAME(channel),
+			      "eventq.int", NULL);
+		efx_fill_test(n++, strings, data,
+			      &tests->eventq_poll[channel->channel],
+			      EFX_CHANNEL_NAME(channel),
+			      "eventq.poll", NULL);
+	}
+
+	/* PHY presence */
+	efx_fill_test(n++, strings, data, &tests->phy_ok,
+		      EFX_PORT_NAME, "phy_ok", NULL);
+
+	/* Loopback tests */
+	efx_fill_test(n++, strings, data, &tests->loopback_speed,
+		      EFX_PORT_NAME, "loopback.speed", NULL);
+	efx_fill_test(n++, strings, data, &tests->loopback_full_duplex,
+		      EFX_PORT_NAME, "loopback.full_duplex", NULL);
+	for (mode = LOOPBACK_NONE; mode < LOOPBACK_TEST_MAX; mode++) {
+		if (!(efx->loopback_modes & (1 << mode)))
+			continue;
+		n = efx_fill_loopback_test(efx,
+					   &tests->loopback[mode], mode, n,
+					   strings, data);
+	}
+
+	return n;
+}
+
 static int efx_ethtool_get_stats_count(struct net_device *net_dev)
 {
 	return EFX_ETHTOOL_NUM_STATS;
 }
 
+static int efx_ethtool_self_test_count(struct net_device *net_dev)
+{
+	struct efx_nic *efx = net_dev->priv;
+
+	return efx_ethtool_fill_self_tests(efx, NULL, NULL, NULL);
+}
+
 static void efx_ethtool_get_strings(struct net_device *net_dev,
 				    u32 string_set, u8 *strings)
 {
+	struct efx_nic *efx = net_dev->priv;
 	struct ethtool_string *ethtool_strings =
 		(struct ethtool_string *)strings;
 	int i;
 
-	if (string_set == ETH_SS_STATS)
+	switch (string_set) {
+	case ETH_SS_STATS:
 		for (i = 0; i < EFX_ETHTOOL_NUM_STATS; i++)
 			strncpy(ethtool_strings[i].name,
 				efx_ethtool_stats[i].name,
 				sizeof(ethtool_strings[i].name));
+		break;
+	case ETH_SS_TEST:
+		efx_ethtool_fill_self_tests(efx, NULL,
+					    ethtool_strings, NULL);
+		break;
+	default:
+		/* No other string sets */
+		break;
+	}
 }
 
 static void efx_ethtool_get_stats(struct net_device *net_dev,
@@ -272,6 +442,22 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 	}
 }
 
+static int efx_ethtool_set_tso(struct net_device *net_dev, u32 enable)
+{
+	int rc;
+
+	/* Our TSO requires TX checksumming, so force TX checksumming
+	 * on when TSO is enabled.
+	 */
+	if (enable) {
+		rc = efx_ethtool_set_tx_csum(net_dev, 1);
+		if (rc)
+			return rc;
+	}
+
+	return ethtool_op_set_tso(net_dev, enable);
+}
+
 static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
 {
 	struct efx_nic *efx = net_dev->priv;
@@ -282,6 +468,15 @@ static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
 		return rc;
 
 	efx_flush_queues(efx);
+
+	/* Our TSO requires TX checksumming, so disable TSO when
+	 * checksumming is disabled
+	 */
+	if (!enable) {
+		rc = efx_ethtool_set_tso(net_dev, 0);
+		if (rc)
+			return rc;
+	}
 
 	return 0;
 }
@@ -303,6 +498,64 @@ static u32 efx_ethtool_get_rx_csum(struct net_device *net_dev)
 	struct efx_nic *efx = net_dev->priv;
 
 	return efx->rx_checksum_enabled;
+}
+
+static void efx_ethtool_self_test(struct net_device *net_dev,
+				  struct ethtool_test *test, u64 *data)
+{
+	struct efx_nic *efx = net_dev->priv;
+	struct efx_self_tests efx_tests;
+	int offline, already_up;
+	int rc;
+
+	ASSERT_RTNL();
+	if (efx->state != STATE_RUNNING) {
+		rc = -EIO;
+		goto fail1;
+	}
+
+	/* We need rx buffers and interrupts. */
+	already_up = (efx->net_dev->flags & IFF_UP);
+	if (!already_up) {
+		rc = dev_open(efx->net_dev);
+		if (rc) {
+			EFX_ERR(efx, "failed opening device.\n");
+			goto fail2;
+		}
+	}
+
+	memset(&efx_tests, 0, sizeof(efx_tests));
+	offline = (test->flags & ETH_TEST_FL_OFFLINE);
+
+	/* Perform online self tests first */
+	rc = efx_online_test(efx, &efx_tests);
+	if (rc)
+		goto out;
+
+	/* Perform offline tests only if online tests passed */
+	if (offline) {
+		/* Stop the kernel from sending packets during the test. */
+		efx_stop_queue(efx);
+		rc = efx_flush_queues(efx);
+		if (!rc)
+			rc = efx_offline_test(efx, &efx_tests,
+					      efx->loopback_modes);
+		efx_wake_queue(efx);
+	}
+
+ out:
+	if (!already_up)
+		dev_close(efx->net_dev);
+
+	EFX_LOG(efx, "%s all %sline self-tests\n",
+		rc == 0 ? "passed" : "failed", offline ? "off" : "on");
+
+ fail2:
+ fail1:
+	/* Fill ethtool results structures */
+	efx_ethtool_fill_self_tests(efx, &efx_tests, NULL, data);
+	if (rc)
+		test->flags |= ETH_TEST_FL_FAILED;
 }
 
 /* Restart autonegotiation */
@@ -451,8 +704,12 @@ struct ethtool_ops efx_ethtool_ops = {
 	.set_tx_csum		= efx_ethtool_set_tx_csum,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
+	.get_tso		= ethtool_op_get_tso,
+	.set_tso		= efx_ethtool_set_tso,
 	.get_flags		= ethtool_op_get_flags,
 	.set_flags		= ethtool_op_set_flags,
+	.self_test_count	= efx_ethtool_self_test_count,
+	.self_test		= efx_ethtool_self_test,
 	.get_strings		= efx_ethtool_get_strings,
 	.phys_id		= efx_ethtool_phys_id,
 	.get_stats_count	= efx_ethtool_get_stats_count,

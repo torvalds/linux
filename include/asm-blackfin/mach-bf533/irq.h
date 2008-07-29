@@ -66,12 +66,13 @@ Core        Emulation               **
 	    DMA8/9 Interrupt	    IVG13	28
 	    DMA10/11 Interrupt	    IVG13	29
 	    Watchdog Timer	    IVG13	30
-            Software Interrupt 1    IVG14       31
-            Software Interrupt 2    --
+
+            Softirq		    IVG14       31
+            System Call    --
                  (lowest priority)  IVG15       32 *
  */
-#define SYS_IRQS		32
-#define NR_PERI_INTS    24
+#define SYS_IRQS	31
+#define NR_PERI_INTS	24
 
 /* The ABSTRACT IRQ definitions */
 /** the first seven of the following are fixed, the rest you change if you need to **/
@@ -96,7 +97,7 @@ Core        Emulation               **
 #define	IRQ_SPORT0_TX		17	/*DMA2 Interrupt (SPORT0 TX) */
 #define	IRQ_SPORT1_RX		18	/*DMA3 Interrupt (SPORT1 RX) */
 #define	IRQ_SPORT1_TX		19	/*DMA4 Interrupt (SPORT1 TX) */
-#define IRQ_SPI			20	/*DMA5 Interrupt (SPI) */
+#define 	IRQ_SPI			20	/*DMA5 Interrupt (SPI) */
 #define	IRQ_UART_RX		21	/*DMA6 Interrupt (UART RX) */
 #define	IRQ_UART_TX		22	/*DMA7 Interrupt (UART TX) */
 #define	IRQ_TMR0		23	/*Timer 0 */
@@ -107,9 +108,6 @@ Core        Emulation               **
 #define	IRQ_MEM_DMA0		28	/*DMA8/9 Interrupt (Memory DMA Stream 0) */
 #define	IRQ_MEM_DMA1		29	/*DMA10/11 Interrupt (Memory DMA Stream 1) */
 #define	IRQ_WATCH	   	30	/*Watch Dog Timer */
-
-#define	IRQ_SW_INT1		31	/*Software Int 1 */
-#define	IRQ_SW_INT2		32	/*Software Int 2 (reserved for SYSCALL) */
 
 #define IRQ_PF0			33
 #define IRQ_PF1			34

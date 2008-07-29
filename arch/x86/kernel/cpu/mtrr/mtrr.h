@@ -81,6 +81,8 @@ void set_mtrr_done(struct set_mtrr_context *ctxt);
 void set_mtrr_cache_disable(struct set_mtrr_context *ctxt);
 void set_mtrr_prepare_save(struct set_mtrr_context *ctxt);
 
+void fill_mtrr_var_range(unsigned int index,
+		u32 base_lo, u32 base_hi, u32 mask_lo, u32 mask_hi);
 void get_mtrr_state(void);
 
 extern void set_mtrr_ops(struct mtrr_ops * ops);
@@ -92,6 +94,7 @@ extern struct mtrr_ops * mtrr_if;
 #define use_intel()	(mtrr_if && mtrr_if->use_intel_if == 1)
 
 extern unsigned int num_var_ranges;
+extern u64 mtrr_tom2;
 
 void mtrr_state_warn(void);
 const char *mtrr_attrib_to_str(int x);

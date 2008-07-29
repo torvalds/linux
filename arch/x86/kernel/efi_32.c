@@ -49,13 +49,13 @@ void efi_call_phys_prelog(void)
 	local_irq_save(efi_rt_eflags);
 
 	/*
-	 * If I don't have PSE, I should just duplicate two entries in page
-	 * directory. If I have PSE, I just need to duplicate one entry in
+	 * If I don't have PAE, I should just duplicate two entries in page
+	 * directory. If I have PAE, I just need to duplicate one entry in
 	 * page directory.
 	 */
 	cr4 = read_cr4();
 
-	if (cr4 & X86_CR4_PSE) {
+	if (cr4 & X86_CR4_PAE) {
 		efi_bak_pg_dir_pointer[0].pgd =
 		    swapper_pg_dir[pgd_index(0)].pgd;
 		swapper_pg_dir[0].pgd =
@@ -93,7 +93,7 @@ void efi_call_phys_epilog(void)
 
 	cr4 = read_cr4();
 
-	if (cr4 & X86_CR4_PSE) {
+	if (cr4 & X86_CR4_PAE) {
 		swapper_pg_dir[pgd_index(0)].pgd =
 		    efi_bak_pg_dir_pointer[0].pgd;
 	} else {

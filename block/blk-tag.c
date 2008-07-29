@@ -70,7 +70,7 @@ void __blk_queue_free_tags(struct request_queue *q)
 	__blk_free_tags(bqt);
 
 	q->queue_tags = NULL;
-	queue_flag_clear(QUEUE_FLAG_QUEUED, q);
+	queue_flag_clear_unlocked(QUEUE_FLAG_QUEUED, q);
 }
 
 /**
@@ -98,7 +98,7 @@ EXPORT_SYMBOL(blk_free_tags);
  **/
 void blk_queue_free_tags(struct request_queue *q)
 {
-	queue_flag_clear(QUEUE_FLAG_QUEUED, q);
+	queue_flag_clear_unlocked(QUEUE_FLAG_QUEUED, q);
 }
 EXPORT_SYMBOL(blk_queue_free_tags);
 
@@ -171,6 +171,9 @@ EXPORT_SYMBOL(blk_init_tags);
  * @q:  the request queue for the device
  * @depth:  the maximum queue depth supported
  * @tags: the tag to use
+ *
+ * Queue lock must be held here if the function is called to resize an
+ * existing map.
  **/
 int blk_queue_init_tags(struct request_queue *q, int depth,
 			struct blk_queue_tag *tags)
@@ -197,7 +200,7 @@ int blk_queue_init_tags(struct request_queue *q, int depth,
 	 * assign it, all done
 	 */
 	q->queue_tags = tags;
-	queue_flag_set(QUEUE_FLAG_QUEUED, q);
+	queue_flag_set_unlocked(QUEUE_FLAG_QUEUED, q);
 	INIT_LIST_HEAD(&q->tag_busy_list);
 	return 0;
 fail:

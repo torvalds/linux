@@ -1,5 +1,7 @@
 #ifndef _LINUX_VIRTIO_BLK_H
 #define _LINUX_VIRTIO_BLK_H
+/* This header is BSD licensed so anyone can use the definitions to implement
+ * compatible drivers/servers. */
 #include <linux/virtio_config.h>
 
 /* The ID for virtio_block */
@@ -10,21 +12,25 @@
 #define VIRTIO_BLK_F_SIZE_MAX	1	/* Indicates maximum segment size */
 #define VIRTIO_BLK_F_SEG_MAX	2	/* Indicates maximum # of segments */
 #define VIRTIO_BLK_F_GEOMETRY	4	/* Legacy geometry available  */
+#define VIRTIO_BLK_F_RO		5	/* Disk is read-only */
+#define VIRTIO_BLK_F_BLK_SIZE	6	/* Block size of disk is available*/
 
 struct virtio_blk_config
 {
 	/* The capacity (in 512-byte sectors). */
-	__le64 capacity;
+	__u64 capacity;
 	/* The maximum segment size (if VIRTIO_BLK_F_SIZE_MAX) */
-	__le32 size_max;
+	__u32 size_max;
 	/* The maximum number of segments (if VIRTIO_BLK_F_SEG_MAX) */
-	__le32 seg_max;
+	__u32 seg_max;
 	/* geometry the device (if VIRTIO_BLK_F_GEOMETRY) */
 	struct virtio_blk_geometry {
-		__le16 cylinders;
+		__u16 cylinders;
 		__u8 heads;
 		__u8 sectors;
 	} geometry;
+	/* block size of device (if VIRTIO_BLK_F_BLK_SIZE) */
+	__u32 blk_size;
 } __attribute__((packed));
 
 /* These two define direction. */

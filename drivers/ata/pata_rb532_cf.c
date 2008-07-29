@@ -57,7 +57,9 @@ static inline void rb532_pata_finish_io(struct ata_port *ap)
 	struct ata_host *ah = ap->host;
 	struct rb532_cf_info *info = ah->private_data;
 
-	ata_sff_altstatus(ap);
+	/* FIXME: Keep previous delay. If this is merely a fence then
+	   ata_sff_sync might be sufficient. */
+	ata_sff_dma_pause(ap);
 	ndelay(RB500_CF_IO_DELAY);
 
 	set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);

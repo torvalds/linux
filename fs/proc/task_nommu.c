@@ -1,6 +1,7 @@
 
 #include <linux/mm.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/mount.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
@@ -112,7 +113,7 @@ static int show_map(struct seq_file *m, void *_vml)
 	struct proc_maps_private *priv = m->private;
 	struct task_struct *task = priv->task;
 
-	if (maps_protect && !ptrace_may_attach(task))
+	if (maps_protect && !ptrace_may_access(task, PTRACE_MODE_READ))
 		return -EACCES;
 
 	return nommu_vma_show(m, vml->vma);

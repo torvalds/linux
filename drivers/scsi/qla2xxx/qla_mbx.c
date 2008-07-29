@@ -918,6 +918,8 @@ qla2x00_get_adapter_id(scsi_qla_host_t *ha, uint16_t *id, uint8_t *al_pa,
 	rval = qla2x00_mailbox_command(ha, mcp);
 	if (mcp->mb[0] == MBS_COMMAND_ERROR)
 		rval = QLA_COMMAND_ERROR;
+	else if (mcp->mb[0] == MBS_INVALID_COMMAND)
+		rval = QLA_INVALID_COMMAND;
 
 	/* Return data. */
 	*id = mcp->mb[1];
@@ -2161,17 +2163,18 @@ qla24xx_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 	struct abort_entry_24xx *abt;
 	dma_addr_t	abt_dma;
 	uint32_t	handle;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
 
 	fcport = sp->fcport;
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
+	spin_lock_irqsave(&pha->hardware_lock, flags);
 	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
-		if (ha->outstanding_cmds[handle] == sp)
+		if (pha->outstanding_cmds[handle] == sp)
 			break;
 	}
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(&pha->hardware_lock, flags);
 	if (handle == MAX_OUTSTANDING_COMMANDS) {
 		/* Command not found. */
 		return QLA_FUNCTION_FAILED;
@@ -2303,8 +2306,6 @@ qla24xx_lun_reset(struct fc_port *fcport, unsigned int l)
 	return __qla24xx_issue_tmf("Lun", TCF_LUN_RESET, fcport, l);
 }
 
-#if 0
-
 int
 qla2x00_system_error(scsi_qla_host_t *ha)
 {
@@ -2312,7 +2313,7 @@ qla2x00_system_error(scsi_qla_host_t *ha)
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 
-	if (!IS_FWI2_CAPABLE(ha))
+	if (!IS_QLA23XX(ha) && !IS_FWI2_CAPABLE(ha))
 		return QLA_FUNCTION_FAILED;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
@@ -2333,8 +2334,6 @@ qla2x00_system_error(scsi_qla_host_t *ha)
 
 	return rval;
 }
-
-#endif  /*  0  */
 
 /**
  * qla2x00_set_serdes_params() -
@@ -2508,7 +2507,7 @@ qla2x00_enable_fce_trace(scsi_qla_host_t *ha, dma_addr_t fce_dma,
 		if (mb)
 			memcpy(mb, mcp->mb, 8 * sizeof(*mb));
 		if (dwords)
-			*dwords = mcp->mb[6];
+			*dwords = buffers;
 	}
 
 	return rval;
@@ -2807,9 +2806,9 @@ qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 	 */
 	map = (vp_index - 1) / 8;
 	pos = (vp_index - 1) & 7;
-	down(&ha->vport_sem);
+	mutex_lock(&ha->vport_lock);
 	vce->vp_idx_map[map] |= 1 << pos;
-	up(&ha->vport_sem);
+	mutex_unlock(&ha->vport_lock);
 
 	rval = qla2x00_issue_iocb(ha, vce, vce_dma, 0);
 	if (rval != QLA_SUCCESS) {

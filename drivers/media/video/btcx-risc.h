@@ -2,8 +2,8 @@
  */
 struct btcx_riscmem {
 	unsigned int   size;
-	u32            *cpu;
-	u32            *jmp;
+	__le32         *cpu;
+	__le32         *jmp;
 	dma_addr_t     dma;
 };
 

@@ -62,6 +62,7 @@ SECTIONS {
 	.text : {
 		_text = .;
 		_stext = . ;
+		HEAD_TEXT
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
@@ -113,6 +114,16 @@ SECTIONS {
 		__start___kcrctab_gpl = .;
 		*(__kcrctab_gpl)
 		__stop___kcrctab_gpl = .;
+
+		/* Kernel symbol table: Normal unused symbols */
+		__start___kcrctab_unused = .;
+		*(__kcrctab_unused)
+		__stop___kcrctab_unused = .;
+
+		/* Kernel symbol table: GPL-only unused symbols */
+		__start___kcrctab_unused_gpl = .;
+		*(__kcrctab_unused_gpl)
+		__stop___kcrctab_unused_gpl = .;
 
 		/* Kernel symbol table: GPL-future symbols */
 		__start___kcrctab_gpl_future = .;

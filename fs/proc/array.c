@@ -80,6 +80,7 @@
 #include <linux/delayacct.h>
 #include <linux/seq_file.h>
 #include <linux/pid_namespace.h>
+#include <linux/tracehook.h>
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -168,8 +169,12 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 	rcu_read_lock();
 	ppid = pid_alive(p) ?
 		task_tgid_nr_ns(rcu_dereference(p->real_parent), ns) : 0;
-	tpid = pid_alive(p) && p->ptrace ?
-		task_pid_nr_ns(rcu_dereference(p->parent), ns) : 0;
+	tpid = 0;
+	if (pid_alive(p)) {
+		struct task_struct *tracer = tracehook_tracer_task(p);
+		if (tracer)
+			tpid = task_pid_nr_ns(tracer, ns);
+	}
 	seq_printf(m,
 		"State:\t%s\n"
 		"Tgid:\t%d\n"
@@ -288,7 +293,7 @@ static void render_cap_t(struct seq_file *m, const char *header,
 	seq_printf(m, "%s", header);
 	CAP_FOR_EACH_U32(__capi) {
 		seq_printf(m, "%08x",
-			   a->cap[(_LINUX_CAPABILITY_U32S-1) - __capi]);
+			   a->cap[(_KERNEL_CAPABILITY_U32S-1) - __capi]);
 	}
 	seq_printf(m, "\n");
 }
@@ -298,6 +303,7 @@ static inline void task_cap(struct seq_file *m, struct task_struct *p)
 	render_cap_t(m, "CapInh:\t", &p->cap_inheritable);
 	render_cap_t(m, "CapPrm:\t", &p->cap_permitted);
 	render_cap_t(m, "CapEff:\t", &p->cap_effective);
+	render_cap_t(m, "CapBnd:\t", &p->cap_bset);
 }
 
 static inline void task_context_switch_counts(struct seq_file *m,

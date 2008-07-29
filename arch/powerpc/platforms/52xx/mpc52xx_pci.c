@@ -63,6 +63,7 @@
 
 #define MPC52xx_PCI_TCR_P		0x01000000
 #define MPC52xx_PCI_TCR_LD		0x00010000
+#define MPC52xx_PCI_TCR_WCT8		0x00000008
 
 #define MPC52xx_PCI_TBATR_DISABLE	0x0
 #define MPC52xx_PCI_TBATR_ENABLE	0x1
@@ -313,7 +314,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 	out_be32(&pci_regs->tbatr1,
 		MPC52xx_PCI_TBATR_ENABLE | MPC52xx_PCI_TARGET_MEM );
 
-	out_be32(&pci_regs->tcr, MPC52xx_PCI_TCR_LD);
+	out_be32(&pci_regs->tcr, MPC52xx_PCI_TCR_LD | MPC52xx_PCI_TCR_WCT8);
 
 	tmp = in_be32(&pci_regs->gscr);
 #if 0

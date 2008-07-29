@@ -41,4 +41,6 @@ struct pxa2xx_spi_chip {
 	void (*cs_control)(u32 command);
 };
 
+extern void pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_master *info);
+
 #endif /*PXA2XX_SPI_H_*/

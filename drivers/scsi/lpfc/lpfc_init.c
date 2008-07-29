@@ -145,8 +145,10 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		return -ERESTART;
 	}
 
-	if (phba->sli_rev == 3 && !mb->un.varRdRev.v3rsp)
+	if (phba->sli_rev == 3 && !mb->un.varRdRev.v3rsp) {
+		mempool_free(pmb, phba->mbox_mem_pool);
 		return -EINVAL;
+	}
 
 	/* Save information as VPD data */
 	vp->rev.rBit = 1;
@@ -551,18 +553,18 @@ static void
 lpfc_hb_timeout(unsigned long ptr)
 {
 	struct lpfc_hba *phba;
+	uint32_t tmo_posted;
 	unsigned long iflag;
 
 	phba = (struct lpfc_hba *)ptr;
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
-	if (!(phba->pport->work_port_events & WORKER_HB_TMO))
+	tmo_posted = phba->pport->work_port_events & WORKER_HB_TMO;
+	if (!tmo_posted)
 		phba->pport->work_port_events |= WORKER_HB_TMO;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
 
-	spin_lock_irqsave(&phba->hbalock, iflag);
-	if (phba->work_wait)
-		wake_up(phba->work_wait);
-	spin_unlock_irqrestore(&phba->hbalock, iflag);
+	if (!tmo_posted)
+		lpfc_worker_wake_up(phba);
 	return;
 }
 
@@ -851,6 +853,8 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 	lpfc_read_la(phba, pmb, mp);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_la;
 	pmb->vport = vport;
+	/* Block ELS IOCBs until we have processed this mbox command */
+	phba->sli.ring[LPFC_ELS_RING].flag |= LPFC_STOP_IOCB_EVENT;
 	rc = lpfc_sli_issue_mbox (phba, pmb, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
 		rc = 4;
@@ -866,6 +870,7 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 	return;
 
 lpfc_handle_latt_free_mbuf:
+	phba->sli.ring[LPFC_ELS_RING].flag &= ~LPFC_STOP_IOCB_EVENT;
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 lpfc_handle_latt_free_mp:
 	kfree(mp);
@@ -1194,8 +1199,7 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 /*   Returns the number of buffers NOT posted.    */
 /**************************************************/
 int
-lpfc_post_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring, int cnt,
-		 int type)
+lpfc_post_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring, int cnt)
 {
 	IOCB_t *icmd;
 	struct lpfc_iocbq *iocb;
@@ -1295,7 +1299,7 @@ lpfc_post_rcv_buf(struct lpfc_hba *phba)
 	struct lpfc_sli *psli = &phba->sli;
 
 	/* Ring 0, ELS / CT buffers */
-	lpfc_post_buffer(phba, &psli->ring[LPFC_ELS_RING], LPFC_BUF_RING0, 1);
+	lpfc_post_buffer(phba, &psli->ring[LPFC_ELS_RING], LPFC_BUF_RING0);
 	/* Ring 2 - FCP no buffers needed */
 
 	return 0;
@@ -1454,6 +1458,15 @@ lpfc_cleanup(struct lpfc_vport *vport)
 
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					     NLP_EVT_DEVICE_RM);
+
+		/* nlp_type zero is not defined, nlp_flag zero also not defined,
+		 * nlp_state is unused, this happens when
+		 * an initiator has logged
+		 * into us so cleanup this ndlp.
+		 */
+		if ((ndlp->nlp_type == 0) && (ndlp->nlp_flag == 0) &&
+			(ndlp->nlp_state == 0))
+			lpfc_nlp_put(ndlp);
 	}
 
 	/* At this point, ALL ndlp's should be gone
@@ -2070,7 +2083,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		if (iocbq_entry == NULL) {
 			printk(KERN_ERR "%s: only allocated %d iocbs of "
 				"expected %d count. Unloading driver.\n",
-				__FUNCTION__, i, LPFC_IOCB_LIST_CNT);
+				__func__, i, LPFC_IOCB_LIST_CNT);
 			error = -ENOMEM;
 			goto out_free_iocbq;
 		}
@@ -2080,7 +2093,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 			kfree (iocbq_entry);
 			printk(KERN_ERR "%s: failed to allocate IOTAG. "
 			       "Unloading driver.\n",
-				__FUNCTION__);
+				__func__);
 			error = -ENOMEM;
 			goto out_free_iocbq;
 		}
@@ -2100,6 +2113,9 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	INIT_LIST_HEAD(&phba->work_list);
 	phba->work_ha_mask = (HA_ERATT|HA_MBATT|HA_LATT);
 	phba->work_ha_mask |= (HA_RXMASK << (LPFC_ELS_RING * 4));
+
+	/* Initialize the wait queue head for the kernel thread */
+	init_waitqueue_head(&phba->work_waitq);
 
 	/* Startup the kernel thread for this host adapter. */
 	phba->worker_thread = kthread_run(lpfc_do_work, phba,

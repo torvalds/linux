@@ -3,9 +3,8 @@
  * BRIEF MODULE DESCRIPTION
  *    PROM library initialisation code, supports YAMON and U-Boot.
  *
- * Copyright 2000, 2001, 2006 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	ppopov@mvista.com or source@mvista.com
+ * Copyright 2000-2001, 2006, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  * This file was derived from Carsten Langgaard's
  * arch/mips/mips-boards/xx files.
@@ -57,7 +56,7 @@ void prom_init_cmdline(void)
 	actr = 1; /* Always ignore argv[0] */
 
 	cp = &(arcs_cmdline[0]);
-	while(actr < prom_argc) {
+	while (actr < prom_argc) {
 		strcpy(cp, prom_argv[actr]);
 		cp += strlen(prom_argv[actr]);
 		*cp++ = ' ';
@@ -84,10 +83,8 @@ char *prom_getenv(char *envname)
 		if (yamon) {
 			if (strcmp(envname, *env++) == 0)
 				return *env;
-		} else {
-			if (strncmp(envname, *env, i) == 0 && (*env)[i] == '=')
-				return *env + i + 1;
-		}
+		} else if (strncmp(envname, *env, i) == 0 && (*env)[i] == '=')
+			return *env + i + 1;
 		env++;
 	}
 
@@ -110,13 +107,13 @@ static inline void str2eaddr(unsigned char *ea, unsigned char *str)
 {
 	int i;
 
-	for(i = 0; i < 6; i++) {
+	for (i = 0; i < 6; i++) {
 		unsigned char num;
 
-		if((*str == '.') || (*str == ':'))
+		if ((*str == '.') || (*str == ':'))
 			str++;
-		num = str2hexnum(*str++) << 4;
-		num |= (str2hexnum(*str++));
+		num  = str2hexnum(*str++) << 4;
+		num |= str2hexnum(*str++);
 		ea[i] = num;
 	}
 }

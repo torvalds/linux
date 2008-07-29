@@ -22,7 +22,7 @@ void foo(void)
 	OFFSET(HOST_SC_CR2, sigcontext, cr2);
 
 	DEFINE_LONGS(HOST_FP_SIZE, sizeof(struct user_fpregs_struct));
-	DEFINE_LONGS(HOST_XFP_SIZE, sizeof(struct user_fpxregs_struct));
+	DEFINE_LONGS(HOST_FPX_SIZE, sizeof(struct user_fpxregs_struct));
 
 	DEFINE(HOST_IP, EIP);
 	DEFINE(HOST_SP, UESP);

@@ -1434,7 +1434,7 @@ L(mmu_fixup_done):
 #endif
 
 #ifdef CONFIG_HP300
-	is_not_hp300(1f)
+	is_not_hp300(2f)
 	/*
 	 * Fix up the iobase register to point to the new location of the LEDs.
 	 */

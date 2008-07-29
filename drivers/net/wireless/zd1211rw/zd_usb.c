@@ -64,6 +64,7 @@ static struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x079b, 0x0062), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x1582, 0x6003), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x050d, 0x705c), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x083a, 0xe506), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x083a, 0x4505), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0471, 0x1236), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x13b1, 0x0024), .driver_info = DEVICE_ZD1211B },
@@ -169,10 +170,11 @@ static int upload_code(struct usb_device *udev,
 	if (flags & REBOOT) {
 		u8 ret;
 
+		/* Use "DMA-aware" buffer. */
 		r = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			USB_REQ_FIRMWARE_CONFIRM,
 			USB_DIR_IN | USB_TYPE_VENDOR,
-			0, 0, &ret, sizeof(ret), 5000 /* ms */);
+			0, 0, p, sizeof(ret), 5000 /* ms */);
 		if (r != sizeof(ret)) {
 			dev_err(&udev->dev,
 				"control request firmeware confirmation failed."
@@ -181,6 +183,7 @@ static int upload_code(struct usb_device *udev,
 				r = -ENODEV;
 			goto error;
 		}
+		ret = p[0];
 		if (ret & 0x80) {
 			dev_err(&udev->dev,
 				"Internal error while downloading."
@@ -312,22 +315,31 @@ int zd_usb_read_fw(struct zd_usb *usb, zd_addr_t addr, u8 *data, u16 len)
 {
 	int r;
 	struct usb_device *udev = zd_usb_to_usbdev(usb);
+	u8 *buf;
 
+	/* Use "DMA-aware" buffer. */
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 	r = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 		USB_REQ_FIRMWARE_READ_DATA, USB_DIR_IN | 0x40, addr, 0,
-		data, len, 5000);
+		buf, len, 5000);
 	if (r < 0) {
 		dev_err(&udev->dev,
 			"read over firmware interface failed: %d\n", r);
-		return r;
+		goto exit;
 	} else if (r != len) {
 		dev_err(&udev->dev,
 			"incomplete read over firmware interface: %d/%d\n",
 			r, len);
-		return -EIO;
+		r = -EIO;
+		goto exit;
 	}
-
-	return 0;
+	r = 0;
+	memcpy(data, buf, len);
+exit:
+	kfree(buf);
+	return r;
 }
 
 #define urb_dev(urb) (&(urb)->dev->dev)
@@ -342,7 +354,7 @@ static inline void handle_regs_int(struct urb *urb)
 	ZD_ASSERT(in_interrupt());
 	spin_lock(&intr->lock);
 
-	int_num = le16_to_cpu(*(u16 *)(urb->transfer_buffer+2));
+	int_num = le16_to_cpu(*(__le16 *)(urb->transfer_buffer+2));
 	if (int_num == CR_INTERRUPT) {
 		struct zd_mac *mac = zd_hw_mac(zd_usb_to_hw(urb->context));
 		memcpy(&mac->intr_buffer, urb->transfer_buffer,
@@ -869,7 +881,7 @@ static void tx_urb_complete(struct urb *urb)
 {
 	int r;
 	struct sk_buff *skb;
-	struct zd_tx_skb_control_block *cb;
+	struct ieee80211_tx_info *info;
 	struct zd_usb *usb;
 
 	switch (urb->status) {
@@ -889,9 +901,13 @@ static void tx_urb_complete(struct urb *urb)
 	}
 free_urb:
 	skb = (struct sk_buff *)urb->context;
+	/*
+	 * grab 'usb' pointer before handing off the skb (since
+	 * it might be freed by zd_mac_tx_to_dev or mac80211)
+	 */
+	info = IEEE80211_SKB_CB(skb);
+	usb = &zd_hw_mac(info->driver_data[0])->chip.usb;
 	zd_mac_tx_to_dev(skb, urb->status);
-	cb = (struct zd_tx_skb_control_block *)skb->cb;
-	usb = &zd_hw_mac(cb->hw)->chip.usb;
 	free_tx_urb(usb, urb);
 	tx_dec_submitted_urbs(usb);
 	return;

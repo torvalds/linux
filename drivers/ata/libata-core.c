@@ -54,7 +54,6 @@
 #include <linux/completion.h>
 #include <linux/suspend.h>
 #include <linux/workqueue.h>
-#include <linux/jiffies.h>
 #include <linux/scatterlist.h>
 #include <linux/io.h>
 #include <scsi/scsi.h>
@@ -145,7 +144,7 @@ static int libata_dma_mask = ATA_DMA_MASK_ATA|ATA_DMA_MASK_ATAPI|ATA_DMA_MASK_CF
 module_param_named(dma, libata_dma_mask, int, 0444);
 MODULE_PARM_DESC(dma, "DMA enable/disable (0x1==ATA, 0x2==ATAPI, 0x4==CF)");
 
-static int ata_probe_timeout = ATA_TMOUT_INTERNAL / HZ;
+static int ata_probe_timeout;
 module_param(ata_probe_timeout, int, 0444);
 MODULE_PARM_DESC(ata_probe_timeout, "Set ATA probing timeout (seconds)");
 
@@ -1533,7 +1532,7 @@ unsigned long ata_id_xfermask(const u16 *id)
  *	@ap: The ata_port to queue port_task for
  *	@fn: workqueue function to be scheduled
  *	@data: data for @fn to use
- *	@delay: delay time for workqueue function
+ *	@delay: delay time in msecs for workqueue function
  *
  *	Schedule @fn(@data) for execution after @delay jiffies using
  *	port_task.  There is one port_task per port and it's the
@@ -1552,7 +1551,7 @@ void ata_pio_queue_task(struct ata_port *ap, void *data, unsigned long delay)
 	ap->port_task_data = data;
 
 	/* may fail if ata_port_flush_task() in progress */
-	queue_delayed_work(ata_wq, &ap->port_task, delay);
+	queue_delayed_work(ata_wq, &ap->port_task, msecs_to_jiffies(delay));
 }
 
 /**
@@ -1612,6 +1611,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	u8 command = tf->command;
+	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
 	unsigned int tag, preempted_tag;
 	u32 preempted_sactive, preempted_qc_active;
@@ -1684,8 +1684,14 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	if (!timeout)
-		timeout = ata_probe_timeout * 1000 / HZ;
+	if (!timeout) {
+		if (ata_probe_timeout)
+			timeout = ata_probe_timeout * 1000;
+		else {
+			timeout = ata_internal_cmd_timeout(dev, command);
+			auto_timeout = 1;
+		}
+	}
 
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
@@ -1760,6 +1766,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	}
 
 	spin_unlock_irqrestore(ap->lock, flags);
+
+	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
+		ata_internal_cmd_timed_out(dev, command);
 
 	return err_mask;
 }
@@ -2125,6 +2134,13 @@ int ata_dev_configure(struct ata_device *dev)
 	/* set horkage */
 	dev->horkage |= ata_dev_blacklisted(dev);
 	ata_force_horkage(dev);
+
+	if (dev->horkage & ATA_HORKAGE_DISABLE) {
+		ata_dev_printk(dev, KERN_INFO,
+			       "unsupported device, disabling\n");
+		ata_dev_disable(dev);
+		return 0;
+	}
 
 	/* let ACPI work its magic */
 	rc = ata_acpi_on_devcfg(dev);
@@ -3312,7 +3328,7 @@ int ata_wait_ready(struct ata_link *link, unsigned long deadline,
 		   int (*check_ready)(struct ata_link *link))
 {
 	unsigned long start = jiffies;
-	unsigned long nodev_deadline = start + ATA_TMOUT_FF_WAIT;
+	unsigned long nodev_deadline = ata_deadline(start, ATA_TMOUT_FF_WAIT);
 	int warned = 0;
 
 	if (time_after(nodev_deadline, deadline))
@@ -3380,7 +3396,7 @@ int ata_wait_ready(struct ata_link *link, unsigned long deadline,
 int ata_wait_after_reset(struct ata_link *link, unsigned long deadline,
 				int (*check_ready)(struct ata_link *link))
 {
-	msleep(ATA_WAIT_AFTER_RESET_MSECS);
+	msleep(ATA_WAIT_AFTER_RESET);
 
 	return ata_wait_ready(link, deadline, check_ready);
 }
@@ -3410,13 +3426,13 @@ int ata_wait_after_reset(struct ata_link *link, unsigned long deadline,
 int sata_link_debounce(struct ata_link *link, const unsigned long *params,
 		       unsigned long deadline)
 {
-	unsigned long interval_msec = params[0];
-	unsigned long duration = msecs_to_jiffies(params[1]);
+	unsigned long interval = params[0];
+	unsigned long duration = params[1];
 	unsigned long last_jiffies, t;
 	u32 last, cur;
 	int rc;
 
-	t = jiffies + msecs_to_jiffies(params[2]);
+	t = ata_deadline(jiffies, params[2]);
 	if (time_before(t, deadline))
 		deadline = t;
 
@@ -3428,7 +3444,7 @@ int sata_link_debounce(struct ata_link *link, const unsigned long *params,
 	last_jiffies = jiffies;
 
 	while (1) {
-		msleep(interval_msec);
+		msleep(interval);
 		if ((rc = sata_scr_read(link, SCR_STATUS, &cur)))
 			return rc;
 		cur &= 0xf;
@@ -3437,7 +3453,8 @@ int sata_link_debounce(struct ata_link *link, const unsigned long *params,
 		if (cur == last) {
 			if (cur == 1 && time_before(jiffies, deadline))
 				continue;
-			if (time_after(jiffies, last_jiffies + duration))
+			if (time_after(jiffies,
+				       ata_deadline(last_jiffies, duration)))
 				return 0;
 			continue;
 		}
@@ -3490,22 +3507,11 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
 	if ((rc = sata_link_debounce(link, params, deadline)))
 		return rc;
 
-	/* Clear SError.  PMP and some host PHYs require this to
-	 * operate and clearing should be done before checking PHY
-	 * online status to avoid race condition (hotplugging between
-	 * link resume and status check).
-	 */
+	/* clear SError, some PHYs require this even for SRST to work */
 	if (!(rc = sata_scr_read(link, SCR_ERROR, &serror)))
 		rc = sata_scr_write(link, SCR_ERROR, serror);
-	if (rc == 0 || rc == -EINVAL) {
-		unsigned long flags;
 
-		spin_lock_irqsave(link->ap->lock, flags);
-		link->eh_info.serror = 0;
-		spin_unlock_irqrestore(link->ap->lock, flags);
-		rc = 0;
-	}
-	return rc;
+	return rc != -EINVAL ? rc : 0;
 }
 
 /**
@@ -3640,7 +3646,8 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 		if (check_ready) {
 			unsigned long pmp_deadline;
 
-			pmp_deadline = jiffies + ATA_TMOUT_PMP_SRST_WAIT;
+			pmp_deadline = ata_deadline(jiffies,
+						    ATA_TMOUT_PMP_SRST_WAIT);
 			if (time_after(pmp_deadline, deadline))
 				pmp_deadline = deadline;
 			ata_wait_ready(link, pmp_deadline, check_ready);
@@ -3653,9 +3660,13 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 	if (check_ready)
 		rc = ata_wait_ready(link, deadline, check_ready);
  out:
-	if (rc && rc != -EAGAIN)
+	if (rc && rc != -EAGAIN) {
+		/* online is set iff link is online && reset succeeded */
+		if (online)
+			*online = false;
 		ata_link_printk(link, KERN_ERR,
 				"COMRESET failed (errno=%d)\n", rc);
+	}
 	DPRINTK("EXIT, rc=%d\n", rc);
 	return rc;
 }
@@ -3700,7 +3711,13 @@ int sata_std_hardreset(struct ata_link *link, unsigned int *class,
  */
 void ata_std_postreset(struct ata_link *link, unsigned int *classes)
 {
+	u32 serror;
+
 	DPRINTK("ENTER\n");
+
+	/* reset complete, clear SError */
+	if (!sata_scr_read(link, SCR_ERROR, &serror))
+		sata_scr_write(link, SCR_ERROR, serror);
 
 	/* print link status */
 	sata_print_link_status(link);
@@ -3894,8 +3911,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "SAMSUNG CD-ROM SN-124", "N001",	ATA_HORKAGE_NODMA },
 	{ "Seagate STT20000A", NULL,		ATA_HORKAGE_NODMA },
 	/* Odd clown on sil3726/4726 PMPs */
-	{ "Config  Disk",	NULL,		ATA_HORKAGE_NODMA |
-						ATA_HORKAGE_SKIP_PM },
+	{ "Config  Disk",	NULL,		ATA_HORKAGE_DISABLE },
 
 	/* Weird ATAPI devices */
 	{ "TORiSAN DVD-ROM DRD-N216", NULL,	ATA_HORKAGE_MAX_SEC_128 },
@@ -4292,7 +4308,7 @@ void ata_sg_clean(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_check_atapi_dma - Check whether ATAPI DMA can be supported
+ *	atapi_check_dma - Check whether ATAPI DMA can be supported
  *	@qc: Metadata associated with taskfile to check
  *
  *	Allow low-level driver to filter ATA PACKET commands, returning
@@ -4305,7 +4321,7 @@ void ata_sg_clean(struct ata_queued_cmd *qc)
  *	RETURNS: 0 when ATAPI DMA can be used
  *               nonzero otherwise
  */
-int ata_check_atapi_dma(struct ata_queued_cmd *qc)
+int atapi_check_dma(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
@@ -5398,7 +5414,7 @@ static void ata_host_stop(struct device *gendev, void *res)
  */
 static void ata_finalize_port_ops(struct ata_port_operations *ops)
 {
-	static spinlock_t lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(lock);
 	const struct ata_port_operations *cur;
 	void **begin = (void **)ops;
 	void **end = (void **)&ops->inherits;
@@ -5616,7 +5632,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 			spin_lock_irqsave(ap->lock, flags);
 
 			ehi->probe_mask |= ATA_ALL_DEVICES;
-			ehi->action |= ATA_EH_RESET;
+			ehi->action |= ATA_EH_RESET | ATA_EH_LPM;
 			ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
 
 			ap->pflags &= ~ATA_PFLAG_INITIALIZING;
@@ -5649,7 +5665,6 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 		struct ata_port *ap = host->ports[i];
 
 		ata_scsi_scan_host(ap, 1);
-		ata_lpm_schedule(ap, ap->pm_policy);
 	}
 
 	return 0;
@@ -6069,8 +6084,6 @@ static void __init ata_parse_force_param(void)
 
 static int __init ata_init(void)
 {
-	ata_probe_timeout *= HZ;
-
 	ata_parse_force_param();
 
 	ata_wq = create_workqueue("ata");
@@ -6123,8 +6136,8 @@ int ata_ratelimit(void)
  *	@reg: IO-mapped register
  *	@mask: Mask to apply to read register value
  *	@val: Wait condition
- *	@interval_msec: polling interval in milliseconds
- *	@timeout_msec: timeout in milliseconds
+ *	@interval: polling interval in milliseconds
+ *	@timeout: timeout in milliseconds
  *
  *	Waiting for some bits of register to change is a common
  *	operation for ATA controllers.  This function reads 32bit LE
@@ -6142,10 +6155,9 @@ int ata_ratelimit(void)
  *	The final register value.
  */
 u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
-		      unsigned long interval_msec,
-		      unsigned long timeout_msec)
+		      unsigned long interval, unsigned long timeout)
 {
-	unsigned long timeout;
+	unsigned long deadline;
 	u32 tmp;
 
 	tmp = ioread32(reg);
@@ -6154,10 +6166,10 @@ u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
 	 * preceding writes reach the controller before starting to
 	 * eat away the timeout.
 	 */
-	timeout = jiffies + (timeout_msec * HZ) / 1000;
+	deadline = ata_deadline(jiffies, timeout);
 
-	while ((tmp & mask) == val && time_before(jiffies, timeout)) {
-		msleep(interval_msec);
+	while ((tmp & mask) == val && time_before(jiffies, deadline)) {
+		msleep(interval);
 		tmp = ioread32(reg);
 	}
 
@@ -6292,6 +6304,7 @@ EXPORT_SYMBOL_GPL(ata_eh_freeze_port);
 EXPORT_SYMBOL_GPL(ata_eh_thaw_port);
 EXPORT_SYMBOL_GPL(ata_eh_qc_complete);
 EXPORT_SYMBOL_GPL(ata_eh_qc_retry);
+EXPORT_SYMBOL_GPL(ata_eh_analyze_ncq_error);
 EXPORT_SYMBOL_GPL(ata_do_eh);
 EXPORT_SYMBOL_GPL(ata_std_error_handler);
 

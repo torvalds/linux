@@ -60,7 +60,7 @@ static inline unsigned long long cycles_2_ns(cycle_t cyc)
 
 static cycle_t read_cycles(void)
 {
-	return get_cycles();
+	return __bfin_cycles_off + (get_cycles() << __bfin_cycles_mod);
 }
 
 unsigned long long sched_clock(void)
@@ -117,7 +117,7 @@ static void bfin_timer_set_mode(enum clock_event_mode mode,
 		break;
 	}
 	case CLOCK_EVT_MODE_ONESHOT:
-		bfin_write_TSCALE(0);
+		bfin_write_TSCALE(TIME_SCALE - 1);
 		bfin_write_TCOUNT(0);
 		bfin_write_TCNTL(TMPWR | TMREN);
 		CSYNC();
@@ -183,10 +183,14 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 static int __init bfin_clockevent_init(void)
 {
+	unsigned long timer_clk;
+
+	timer_clk = get_cclk() / TIME_SCALE;
+
 	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
 	bfin_timer_init();
 
-	clockevent_bfin.mult = div_sc(get_cclk(), NSEC_PER_SEC, clockevent_bfin.shift);
+	clockevent_bfin.mult = div_sc(timer_clk, NSEC_PER_SEC, clockevent_bfin.shift);
 	clockevent_bfin.max_delta_ns = clockevent_delta2ns(-1, &clockevent_bfin);
 	clockevent_bfin.min_delta_ns = clockevent_delta2ns(100, &clockevent_bfin);
 	clockevents_register_device(&clockevent_bfin);

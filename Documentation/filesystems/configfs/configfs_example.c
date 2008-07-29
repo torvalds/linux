@@ -279,7 +279,7 @@ static struct config_item *simple_children_make_item(struct config_group *group,
 
 	simple_child = kzalloc(sizeof(struct simple_child), GFP_KERNEL);
 	if (!simple_child)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 
 	config_item_init_type_name(&simple_child->item, name,
@@ -366,7 +366,7 @@ static struct config_group *group_children_make_group(struct config_group *group
 	simple_children = kzalloc(sizeof(struct simple_children),
 				  GFP_KERNEL);
 	if (!simple_children)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 
 	config_group_init_type_name(&simple_children->group, name,

@@ -13,14 +13,6 @@
 #include "kern_util.h"
 #include "os.h"
 
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies_64 * (NSEC_PER_SEC / HZ);
-}
-
 void timer_handler(int sig, struct uml_pt_regs *regs)
 {
 	unsigned long flags;
@@ -75,7 +67,7 @@ static irqreturn_t um_timer(int irq, void *dev)
 
 static cycle_t itimer_read(void)
 {
-	return os_nsecs();
+	return os_nsecs() / 1000;
 }
 
 static struct clocksource itimer_clocksource = {
@@ -83,7 +75,7 @@ static struct clocksource itimer_clocksource = {
 	.rating		= 300,
 	.read		= itimer_read,
 	.mask		= CLOCKSOURCE_MASK(64),
-	.mult		= 1,
+	.mult		= 1000,
 	.shift		= 0,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };

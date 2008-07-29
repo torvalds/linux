@@ -2098,15 +2098,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
 
 static ssize_t radeon_show_one_edid(char *buf, loff_t off, size_t count, const u8 *edid)
 {
-	if (off > EDID_LENGTH)
-		return 0;
-
-	if (off + count > EDID_LENGTH)
-		count = EDID_LENGTH - off;
-
-	memcpy(buf, edid + off, count);
-
-	return count;
+	return memory_read_from_buffer(buf, count, &off, edid, EDID_LENGTH);
 }
 
 
@@ -2161,6 +2153,7 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 	struct radeonfb_info *rinfo;
 	int ret;
 	unsigned char c1, c2;
+	int err = 0;
 
 	pr_debug("radeonfb_pci_register BEGIN\n");
 	
@@ -2277,8 +2270,8 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 	do {
 		rinfo->fb_base = ioremap (rinfo->fb_base_phys,
 					  rinfo->mapped_vram);
-	} while (   rinfo->fb_base == 0 &&
-		  ((rinfo->mapped_vram /=2) >= MIN_MAPPED_VRAM) );
+	} while (rinfo->fb_base == NULL &&
+		 ((rinfo->mapped_vram /= 2) >= MIN_MAPPED_VRAM));
 
 	if (rinfo->fb_base == NULL) {
 		printk (KERN_ERR "radeonfb (%s): cannot map FB\n",
@@ -2340,9 +2333,14 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 
 	/* Register some sysfs stuff (should be done better) */
 	if (rinfo->mon1_EDID)
-		sysfs_create_bin_file(&rinfo->pdev->dev.kobj, &edid1_attr);
+		err |= sysfs_create_bin_file(&rinfo->pdev->dev.kobj,
+						&edid1_attr);
 	if (rinfo->mon2_EDID)
-		sysfs_create_bin_file(&rinfo->pdev->dev.kobj, &edid2_attr);
+		err |= sysfs_create_bin_file(&rinfo->pdev->dev.kobj,
+						&edid2_attr);
+	if (err)
+		pr_warning("%s() Creating sysfs files failed, continuing\n",
+			   __func__);
 
 	/* save current mode regs before we switch into the new one
 	 * so we can restore this upon __exit

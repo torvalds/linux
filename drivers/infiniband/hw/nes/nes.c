@@ -91,10 +91,6 @@ unsigned int nes_debug_level = 0;
 module_param_named(debug_level, nes_debug_level, uint, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug output level");
 
-unsigned int nes_lro_max_aggr = NES_LRO_MAX_AGGR;
-module_param(nes_lro_max_aggr, int, NES_LRO_MAX_AGGR);
-MODULE_PARM_DESC(nes_mro_max_aggr, " nic LRO MAX packet aggregation");
-
 LIST_HEAD(nes_adapter_list);
 static LIST_HEAD(nes_dev_list);
 
@@ -280,6 +276,7 @@ static void nes_cqp_rem_ref_callback(struct nes_device *nesdev, struct nes_cqp_r
 	}
 	nes_free_resource(nesadapter, nesadapter->allocated_qps, nesqp->hwqp.qp_id);
 
+	nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = NULL;
 	kfree(nesqp->allocated_buffer);
 
 }
@@ -293,7 +290,6 @@ void nes_rem_ref(struct ib_qp *ibqp)
 	struct nes_qp *nesqp;
 	struct nes_vnic *nesvnic = to_nesvnic(ibqp->device);
 	struct nes_device *nesdev = nesvnic->nesdev;
-	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	struct nes_hw_cqp_wqe *cqp_wqe;
 	struct nes_cqp_request *cqp_request;
 	u32 opcode;
@@ -307,8 +303,6 @@ void nes_rem_ref(struct ib_qp *ibqp)
 	}
 
 	if (atomic_dec_and_test(&nesqp->refcount)) {
-		nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = NULL;
-
 		/* Destroy the QP */
 		cqp_request = nes_get_cqp_request(nesdev);
 		if (cqp_request == NULL) {
@@ -332,7 +326,7 @@ void nes_rem_ref(struct ib_qp *ibqp)
 		set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_WQE_ID_IDX, nesqp->hwqp.qp_id);
 		u64temp = (u64)nesqp->nesqp_context_pbase;
 		set_wqe_64bit_value(cqp_wqe->wqe_words, NES_CQP_QP_WQE_CONTEXT_LOW_IDX, u64temp);
-		nes_post_cqp_request(nesdev, cqp_request, NES_CQP_REQUEST_RING_DOORBELL);
+		nes_post_cqp_request(nesdev, cqp_request);
 	}
 }
 

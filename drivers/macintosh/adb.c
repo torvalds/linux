@@ -37,7 +37,7 @@
 #include <linux/device.h>
 #include <linux/kthread.h>
 #include <linux/platform_device.h>
-#include <linux/semaphore.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 #ifdef CONFIG_PPC
@@ -46,7 +46,6 @@
 #endif
 
 
-EXPORT_SYMBOL(adb_controller);
 EXPORT_SYMBOL(adb_client_list);
 
 extern struct adb_driver via_macii_driver;
@@ -80,7 +79,7 @@ static struct adb_driver *adb_driver_list[] = {
 
 static struct class *adb_dev_class;
 
-struct adb_driver *adb_controller;
+static struct adb_driver *adb_controller;
 BLOCKING_NOTIFIER_HEAD(adb_client_list);
 static int adb_got_sleep;
 static int adb_inited;
@@ -102,7 +101,7 @@ static struct adb_handler {
 } adb_handler[16];
 
 /*
- * The adb_handler_sem mutex protects all accesses to the original_address
+ * The adb_handler_mutex mutex protects all accesses to the original_address
  * and handler_id fields of adb_handler[i] for all i, and changes to the
  * handler field.
  * Accesses to the handler field are protected by the adb_handler_lock
@@ -110,7 +109,7 @@ static struct adb_handler {
  * time adb_unregister returns, we know that the old handler isn't being
  * called.
  */
-static DECLARE_MUTEX(adb_handler_sem);
+static DEFINE_MUTEX(adb_handler_mutex);
 static DEFINE_RWLOCK(adb_handler_lock);
 
 #if 0
@@ -290,7 +289,7 @@ static int adb_resume(struct platform_device *dev)
 }
 #endif /* CONFIG_PM */
 
-int __init adb_init(void)
+static int __init adb_init(void)
 {
 	struct adb_driver *driver;
 	int i;
@@ -334,7 +333,7 @@ int __init adb_init(void)
 	return 0;
 }
 
-__initcall(adb_init);
+device_initcall(adb_init);
 
 static int
 do_adb_reset_bus(void)
@@ -355,7 +354,7 @@ do_adb_reset_bus(void)
 		msleep(500);
 	}
 
-	down(&adb_handler_sem);
+	mutex_lock(&adb_handler_mutex);
 	write_lock_irq(&adb_handler_lock);
 	memset(adb_handler, 0, sizeof(adb_handler));
 	write_unlock_irq(&adb_handler_lock);
@@ -376,7 +375,7 @@ do_adb_reset_bus(void)
 		if (adb_controller->autopoll)
 			adb_controller->autopoll(autopoll_devs);
 	}
-	up(&adb_handler_sem);
+	mutex_unlock(&adb_handler_mutex);
 
 	blocking_notifier_call_chain(&adb_client_list,
 		ADB_MSG_POST_RESET, NULL);
@@ -454,7 +453,7 @@ adb_register(int default_id, int handler_id, struct adb_ids *ids,
 {
 	int i;
 
-	down(&adb_handler_sem);
+	mutex_lock(&adb_handler_mutex);
 	ids->nids = 0;
 	for (i = 1; i < 16; i++) {
 		if ((adb_handler[i].original_address == default_id) &&
@@ -472,7 +471,7 @@ adb_register(int default_id, int handler_id, struct adb_ids *ids,
 			ids->id[ids->nids++] = i;
 		}
 	}
-	up(&adb_handler_sem);
+	mutex_unlock(&adb_handler_mutex);
 	return ids->nids;
 }
 
@@ -481,7 +480,7 @@ adb_unregister(int index)
 {
 	int ret = -ENODEV;
 
-	down(&adb_handler_sem);
+	mutex_lock(&adb_handler_mutex);
 	write_lock_irq(&adb_handler_lock);
 	if (adb_handler[index].handler) {
 		while(adb_handler[index].busy) {
@@ -493,7 +492,7 @@ adb_unregister(int index)
 		adb_handler[index].handler = NULL;
 	}
 	write_unlock_irq(&adb_handler_lock);
-	up(&adb_handler_sem);
+	mutex_unlock(&adb_handler_mutex);
 	return ret;
 }
 
@@ -557,19 +556,19 @@ adb_try_handler_change(int address, int new_id)
 {
 	int ret;
 
-	down(&adb_handler_sem);
+	mutex_lock(&adb_handler_mutex);
 	ret = try_handler_change(address, new_id);
-	up(&adb_handler_sem);
+	mutex_unlock(&adb_handler_mutex);
 	return ret;
 }
 
 int
 adb_get_infos(int address, int *original_address, int *handler_id)
 {
-	down(&adb_handler_sem);
+	mutex_lock(&adb_handler_mutex);
 	*original_address = adb_handler[address].original_address;
 	*handler_id = adb_handler[address].handler_id;
-	up(&adb_handler_sem);
+	mutex_unlock(&adb_handler_mutex);
 
 	return (*original_address != 0);
 }
@@ -628,10 +627,10 @@ do_adb_query(struct adb_request *req)
 	case ADB_QUERY_GETDEVINFO:
 		if (req->nbytes < 3)
 			break;
-		down(&adb_handler_sem);
+		mutex_lock(&adb_handler_mutex);
 		req->reply[0] = adb_handler[req->data[2]].original_address;
 		req->reply[1] = adb_handler[req->data[2]].handler_id;
-		up(&adb_handler_sem);
+		mutex_unlock(&adb_handler_mutex);
 		req->complete = 1;
 		req->reply_len = 2;
 		adb_write_done(req);
@@ -644,12 +643,18 @@ do_adb_query(struct adb_request *req)
 static int adb_open(struct inode *inode, struct file *file)
 {
 	struct adbdev_state *state;
+	int ret = 0;
 
-	if (iminor(inode) > 0 || adb_controller == NULL)
-		return -ENXIO;
+	lock_kernel();
+	if (iminor(inode) > 0 || adb_controller == NULL) {
+		ret = -ENXIO;
+		goto out;
+	}
 	state = kmalloc(sizeof(struct adbdev_state), GFP_KERNEL);
-	if (state == 0)
-		return -ENOMEM;
+	if (state == 0) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	file->private_data = state;
 	spin_lock_init(&state->lock);
 	atomic_set(&state->n_pending, 0);
@@ -657,7 +662,9 @@ static int adb_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&state->wait_queue);
 	state->inuse = 1;
 
-	return 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int adb_release(struct inode *inode, struct file *file)
@@ -855,7 +862,8 @@ adbdev_init(void)
 	adb_dev_class = class_create(THIS_MODULE, "adb");
 	if (IS_ERR(adb_dev_class))
 		return;
-	device_create(adb_dev_class, NULL, MKDEV(ADB_MAJOR, 0), "adb");
+	device_create_drvdata(adb_dev_class, NULL, MKDEV(ADB_MAJOR, 0), NULL,
+			      "adb");
 
 	platform_device_register(&adb_pfdev);
 	platform_driver_probe(&adb_pfdrv, adb_dummy_probe);

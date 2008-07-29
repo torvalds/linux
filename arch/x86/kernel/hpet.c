@@ -17,7 +17,7 @@
 
 /* FSEC = 10^-15
    NSEC = 10^-9 */
-#define FSEC_PER_NSEC	1000000
+#define FSEC_PER_NSEC	1000000L
 
 /*
  * HPET address is set in acpi/boot.c, when an ACPI entry exists
@@ -36,26 +36,15 @@ static inline void hpet_writel(unsigned long d, unsigned long a)
 }
 
 #ifdef CONFIG_X86_64
-
 #include <asm/pgtable.h>
-
-static inline void hpet_set_mapping(void)
-{
-	set_fixmap_nocache(FIX_HPET_BASE, hpet_address);
-	__set_fixmap(VSYSCALL_HPET, hpet_address, PAGE_KERNEL_VSYSCALL_NOCACHE);
-	hpet_virt_address = (void __iomem *)fix_to_virt(FIX_HPET_BASE);
-}
-
-static inline void hpet_clear_mapping(void)
-{
-	hpet_virt_address = NULL;
-}
-
-#else
+#endif
 
 static inline void hpet_set_mapping(void)
 {
 	hpet_virt_address = ioremap_nocache(hpet_address, HPET_MMAP_SIZE);
+#ifdef CONFIG_X86_64
+	__set_fixmap(VSYSCALL_HPET, hpet_address, PAGE_KERNEL_VSYSCALL_NOCACHE);
+#endif
 }
 
 static inline void hpet_clear_mapping(void)
@@ -63,7 +52,6 @@ static inline void hpet_clear_mapping(void)
 	iounmap(hpet_virt_address);
 	hpet_virt_address = NULL;
 }
-#endif
 
 /*
  * HPET command line enable / disable
@@ -206,20 +194,19 @@ static void hpet_enable_legacy_int(void)
 
 static void hpet_legacy_clockevent_register(void)
 {
-	uint64_t hpet_freq;
-
 	/* Start HPET legacy interrupts */
 	hpet_enable_legacy_int();
 
 	/*
-	 * The period is a femto seconds value. We need to calculate the
-	 * scaled math multiplication factor for nanosecond to hpet tick
-	 * conversion.
+	 * The mult factor is defined as (include/linux/clockchips.h)
+	 *  mult/2^shift = cyc/ns (in contrast to ns/cyc in clocksource.h)
+	 * hpet_period is in units of femtoseconds (per cycle), so
+	 *  mult/2^shift = cyc/ns = 10^6/hpet_period
+	 *  mult = (10^6 * 2^shift)/hpet_period
+	 *  mult = (FSEC_PER_NSEC << hpet_clockevent.shift)/hpet_period
 	 */
-	hpet_freq = 1000000000000000ULL;
-	do_div(hpet_freq, hpet_period);
-	hpet_clockevent.mult = div_sc((unsigned long) hpet_freq,
-				      NSEC_PER_SEC, hpet_clockevent.shift);
+	hpet_clockevent.mult = div_sc((unsigned long) FSEC_PER_NSEC,
+				      hpet_period, hpet_clockevent.shift);
 	/* Calculate the min / max delta */
 	hpet_clockevent.max_delta_ns = clockevent_delta2ns(0x7FFFFFFF,
 							   &hpet_clockevent);
@@ -324,7 +311,7 @@ static struct clocksource clocksource_hpet = {
 
 static int hpet_clocksource_register(void)
 {
-	u64 tmp, start, now;
+	u64 start, now;
 	cycle_t t1;
 
 	/* Start the counter */
@@ -351,21 +338,15 @@ static int hpet_clocksource_register(void)
 		return -ENODEV;
 	}
 
-	/* Initialize and register HPET clocksource
-	 *
-	 * hpet period is in femto seconds per cycle
-	 * so we need to convert this to ns/cyc units
-	 * approximated by mult/2^shift
-	 *
-	 *  fsec/cyc * 1nsec/1000000fsec = nsec/cyc = mult/2^shift
-	 *  fsec/cyc * 1ns/1000000fsec * 2^shift = mult
-	 *  fsec/cyc * 2^shift * 1nsec/1000000fsec = mult
-	 *  (fsec/cyc << shift)/1000000 = mult
-	 *  (hpet_period << shift)/FSEC_PER_NSEC = mult
+	/*
+	 * The definition of mult is (include/linux/clocksource.h)
+	 * mult/2^shift = ns/cyc and hpet_period is in units of fsec/cyc
+	 * so we first need to convert hpet_period to ns/cyc units:
+	 *  mult/2^shift = ns/cyc = hpet_period/10^6
+	 *  mult = (hpet_period * 2^shift)/10^6
+	 *  mult = (hpet_period << shift)/FSEC_PER_NSEC
 	 */
-	tmp = (u64)hpet_period << HPET_SHIFT;
-	do_div(tmp, FSEC_PER_NSEC);
-	clocksource_hpet.mult = (u32)tmp;
+	clocksource_hpet.mult = div_sc(hpet_period, FSEC_PER_NSEC, HPET_SHIFT);
 
 	clocksource_register(&clocksource_hpet);
 
@@ -487,7 +468,7 @@ void hpet_disable(void)
 #define RTC_NUM_INTS		1
 
 static unsigned long hpet_rtc_flags;
-static unsigned long hpet_prev_update_sec;
+static int hpet_prev_update_sec;
 static struct rtc_time hpet_alarm_time;
 static unsigned long hpet_pie_count;
 static unsigned long hpet_t1_cmp;
@@ -594,6 +575,9 @@ int hpet_set_rtc_irq_bit(unsigned long bit_mask)
 
 	hpet_rtc_flags |= bit_mask;
 
+	if ((bit_mask & RTC_UIE) && !(oldbits & RTC_UIE))
+		hpet_prev_update_sec = -1;
+
 	if (!oldbits)
 		hpet_rtc_timer_init();
 
@@ -671,7 +655,7 @@ static void hpet_rtc_timer_reinit(void)
 		if (hpet_rtc_flags & RTC_PIE)
 			hpet_pie_count += lost_ints;
 		if (printk_ratelimit())
-			printk(KERN_WARNING "rtc: lost %d interrupts\n",
+			printk(KERN_WARNING "hpet1: lost %d rtc interrupts\n",
 				lost_ints);
 	}
 }
@@ -689,7 +673,8 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 
 	if (hpet_rtc_flags & RTC_UIE &&
 	    curr_time.tm_sec != hpet_prev_update_sec) {
-		rtc_int_flag = RTC_UF;
+		if (hpet_prev_update_sec >= 0)
+			rtc_int_flag = RTC_UF;
 		hpet_prev_update_sec = curr_time.tm_sec;
 	}
 

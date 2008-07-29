@@ -140,7 +140,7 @@ static int jfs_check_acl(struct inode *inode, int mask)
 	return -EAGAIN;
 }
 
-int jfs_permission(struct inode *inode, int mask, struct nameidata *nd)
+int jfs_permission(struct inode *inode, int mask)
 {
 	return generic_permission(inode, mask, jfs_check_acl);
 }

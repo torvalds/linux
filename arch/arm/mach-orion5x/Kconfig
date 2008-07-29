@@ -44,6 +44,54 @@ config MACH_LINKSTATION_PRO
 	  Buffalo Linkstation Pro/Live platform. Both v1 and
 	  v2 devices are supported.
 
+config MACH_TS409
+	bool "QNAP TS-409"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  QNAP TS-409 platform.
+
+config MACH_WRT350N_V2
+	bool "Linksys WRT350N v2"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Linksys WRT350N v2 platform.
+
+config MACH_TS78XX
+	bool "Technologic Systems TS-78xx"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Technologic Systems TS-78xx platform.
+
+config MACH_MV2120
+	bool "HP Media Vault mv2120"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  HP Media Vault mv2120 or mv5100.
+
+config MACH_MSS2
+	bool "Maxtor Shared Storage II"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Maxtor Shared Storage II platform.
+
+config MACH_WNR854T
+	bool "Netgear WNR854T"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Netgear WNR854T platform.
+
+config MACH_RD88F5181L_GE
+	bool "Marvell Orion-VoIP GE Reference Design"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell Orion-VoIP GE (88F5181L) RD.
+
+config MACH_RD88F5181L_FXO
+	bool "Marvell Orion-VoIP FXO Reference Design"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell Orion-VoIP FXO (88F5181L) RD.
+
 endmenu
 
 endif

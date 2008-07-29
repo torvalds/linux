@@ -7,15 +7,19 @@
 #ifndef __UM_PAGE_H
 #define __UM_PAGE_H
 
+#include <linux/const.h>
+
+/* PAGE_SHIFT determines the page size */
+#define PAGE_SHIFT	12
+#define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
+#define PAGE_MASK	(~(PAGE_SIZE-1))
+
+#ifndef __ASSEMBLY__
+
 struct page;
 
 #include <linux/types.h>
 #include <asm/vm-flags.h>
-
-/* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	12
-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
-#define PAGE_MASK	(~(PAGE_SIZE-1))
 
 /*
  * These are used to make use of C type-checking..
@@ -88,9 +92,6 @@ typedef struct page *pgtable_t;
 #define __pgd(x) ((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
-
 extern unsigned long uml_physmem;
 
 #define PAGE_OFFSET (uml_physmem)
@@ -114,10 +115,8 @@ extern unsigned long uml_physmem;
 #define pfn_valid(pfn) ((pfn) < max_mapnr)
 #define virt_addr_valid(v) pfn_valid(phys_to_pfn(__pa(v)))
 
-extern struct page *arch_validate(struct page *page, gfp_t mask, int order);
-#define HAVE_ARCH_VALIDATE
-
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
-#endif
+#endif	/* __ASSEMBLY__ */
+#endif	/* __UM_PAGE_H */

@@ -1,7 +1,7 @@
 /*
  * m8xx_pcmcia.c - Linux PCMCIA socket driver for the mpc8xx series.
  *
- * (C) 1999-2000 Magnus Damm <damm@bitsmart.com>
+ * (C) 1999-2000 Magnus Damm <damm@opensource.se>
  * (C) 2001-2002 Montavista Software, Inc.
  *     <mlocke@mvista.com>
  *
@@ -49,6 +49,8 @@
 #include <linux/interrupt.h>
 #include <linux/fsl_devices.h>
 #include <linux/bitops.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
@@ -57,10 +59,7 @@
 #include <asm/8xx_immap.h>
 #include <asm/irq.h>
 #include <asm/fs_pd.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>

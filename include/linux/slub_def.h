@@ -4,7 +4,7 @@
 /*
  * SLUB : A Slab allocator without object queues.
  *
- * (C) 2007 SGI, Christoph Lameter <clameter@sgi.com>
+ * (C) 2007 SGI, Christoph Lameter
  */
 #include <linux/types.h>
 #include <linux/gfp.h>
@@ -85,7 +85,7 @@ struct kmem_cache {
 	struct kmem_cache_order_objects min;
 	gfp_t allocflags;	/* gfp flags to use on each alloc */
 	int refcount;		/* Refcount for slab cache destroy */
-	void (*ctor)(struct kmem_cache *, void *);
+	void (*ctor)(void *);
 	int inuse;		/* Offset to metadata */
 	int align;		/* Alignment */
 	const char *name;	/* Name (only for display!) */
@@ -137,10 +137,12 @@ static __always_inline int kmalloc_index(size_t size)
 	if (size <= KMALLOC_MIN_SIZE)
 		return KMALLOC_SHIFT_LOW;
 
+#if KMALLOC_MIN_SIZE <= 64
 	if (size > 64 && size <= 96)
 		return 1;
 	if (size > 128 && size <= 192)
 		return 2;
+#endif
 	if (size <=          8) return 3;
 	if (size <=         16) return 4;
 	if (size <=         32) return 5;

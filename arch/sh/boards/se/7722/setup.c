@@ -14,7 +14,9 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/input.h>
+#include <linux/smc91x.h>
 #include <asm/machvec.h>
+#include <asm/clock.h>
 #include <asm/se7722.h>
 #include <asm/io.h>
 #include <asm/heartbeat.h>
@@ -44,6 +46,10 @@ static struct platform_device heartbeat_device = {
 };
 
 /* SMC91x */
+static struct smc91x_platdata smc91x_info = {
+	.flags = SMC91X_USE_16BIT,
+};
+
 static struct resource smc91x_eth_resources[] = {
 	[0] = {
 		.name   = "smc91x-regs" ,
@@ -64,6 +70,7 @@ static struct platform_device smc91x_eth_device = {
 	.dev = {
 		.dma_mask               = NULL,         /* don't use dma */
 		.coherent_dma_mask      = 0xffffffff,
+		.platform_data	= &smc91x_info,
 	},
 	.num_resources  = ARRAY_SIZE(smc91x_eth_resources),
 	.resource       = smc91x_eth_resources,
@@ -139,6 +146,8 @@ static struct platform_device *se7722_devices[] __initdata = {
 
 static int __init se7722_devices_setup(void)
 {
+	clk_always_enable("mstp214"); /* KEYSC */
+
 	return platform_add_devices(se7722_devices,
 		ARRAY_SIZE(se7722_devices));
 }
@@ -147,11 +156,6 @@ device_initcall(se7722_devices_setup);
 static void __init se7722_setup(char **cmdline_p)
 {
 	ctrl_outw(0x010D, FPGA_OUT);    /* FPGA */
-
-	ctrl_outl(0x00051001, MSTPCR0);
-	ctrl_outl(0x00000000, MSTPCR1);
-	/* KEYSC, VOU, BEU, CEU, VEU, VPU, LCDC, USB */
-	ctrl_outl(0xffffb7c0, MSTPCR2);
 
 	ctrl_outw(0x0000, PORT_PECR);   /* PORT E 1 = IRQ5 ,E 0 = BS */
 	ctrl_outw(0x1000, PORT_PJCR);   /* PORT J 1 = IRQ1,J 0 =IRQ0 */

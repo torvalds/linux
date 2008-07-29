@@ -134,7 +134,7 @@ extern __u32			cleared_cpu_caps[NCAPINTS];
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
 #define cpu_data(cpu)		per_cpu(cpu_info, cpu)
-#define current_cpu_data	cpu_data(smp_processor_id())
+#define current_cpu_data	__get_cpu_var(cpu_info)
 #else
 #define cpu_data(cpu)		boot_cpu_data
 #define current_cpu_data	boot_cpu_data
@@ -153,7 +153,7 @@ static inline int hlt_works(int cpu)
 
 extern void cpu_detect(struct cpuinfo_x86 *c);
 
-extern void identify_cpu(struct cpuinfo_x86 *);
+extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);
 extern void identify_secondary_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);
@@ -263,15 +263,11 @@ struct tss_struct {
 	struct thread_struct	*io_bitmap_owner;
 
 	/*
-	 * Pad the TSS to be cacheline-aligned (size is 0x100):
-	 */
-	unsigned long		__cacheline_filler[35];
-	/*
 	 * .. and then another 0x100 bytes for the emergency kernel stack:
 	 */
 	unsigned long		stack[64];
 
-} __attribute__((packed));
+} ____cacheline_aligned;
 
 DECLARE_PER_CPU(struct tss_struct, init_tss);
 
@@ -535,7 +531,6 @@ static inline void load_sp0(struct tss_struct *tss,
 }
 
 #define set_iopl_mask native_set_iopl_mask
-#define SWAPGS	swapgs
 #endif /* CONFIG_PARAVIRT */
 
 /*
@@ -727,11 +722,11 @@ static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
 
 extern void mwait_idle_with_hints(unsigned long eax, unsigned long ecx);
 
-extern int			force_mwait;
-
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
 
 extern unsigned long		boot_option_idle_override;
+extern unsigned long		idle_halt;
+extern unsigned long		idle_nomwait;
 
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);

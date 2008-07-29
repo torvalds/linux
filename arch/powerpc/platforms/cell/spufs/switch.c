@@ -132,6 +132,14 @@ static inline void disable_interrupts(struct spu_state *csa, struct spu *spu)
 	spu_int_mask_set(spu, 2, 0ul);
 	eieio();
 	spin_unlock_irq(&spu->register_lock);
+
+	/*
+	 * This flag needs to be set before calling synchronize_irq so
+	 * that the update will be visible to the relevant handlers
+	 * via a simple load.
+	 */
+	set_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags);
+	clear_bit(SPU_CONTEXT_FAULT_PENDING, &spu->flags);
 	synchronize_irq(spu->irqs[0]);
 	synchronize_irq(spu->irqs[1]);
 	synchronize_irq(spu->irqs[2]);
@@ -166,9 +174,8 @@ static inline void set_switch_pending(struct spu_state *csa, struct spu *spu)
 	/* Save, Step 7:
 	 * Restore, Step 5:
 	 *     Set a software context switch pending flag.
+	 *     Done above in Step 3 - disable_interrupts().
 	 */
-	set_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags);
-	mb();
 }
 
 static inline void save_mfc_cntl(struct spu_state *csa, struct spu *spu)
@@ -186,20 +193,21 @@ static inline void save_mfc_cntl(struct spu_state *csa, struct spu *spu)
 				 MFC_CNTL_SUSPEND_COMPLETE);
 		/* fall through */
 	case MFC_CNTL_SUSPEND_COMPLETE:
-		if (csa) {
+		if (csa)
 			csa->priv2.mfc_control_RW =
-				MFC_CNTL_SUSPEND_MASK |
+				in_be64(&priv2->mfc_control_RW) |
 				MFC_CNTL_SUSPEND_DMA_QUEUE;
-		}
 		break;
 	case MFC_CNTL_NORMAL_DMA_QUEUE_OPERATION:
 		out_be64(&priv2->mfc_control_RW, MFC_CNTL_SUSPEND_DMA_QUEUE);
 		POLL_WHILE_FALSE((in_be64(&priv2->mfc_control_RW) &
 				  MFC_CNTL_SUSPEND_DMA_STATUS_MASK) ==
 				 MFC_CNTL_SUSPEND_COMPLETE);
-		if (csa) {
-			csa->priv2.mfc_control_RW = 0;
-		}
+		if (csa)
+			csa->priv2.mfc_control_RW =
+				in_be64(&priv2->mfc_control_RW) &
+				~MFC_CNTL_SUSPEND_DMA_QUEUE &
+				~MFC_CNTL_SUSPEND_MASK;
 		break;
 	}
 }
@@ -249,16 +257,21 @@ static inline void save_spu_status(struct spu_state *csa, struct spu *spu)
 	}
 }
 
-static inline void save_mfc_decr(struct spu_state *csa, struct spu *spu)
+static inline void save_mfc_stopped_status(struct spu_state *csa,
+		struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
+	const u64 mask = MFC_CNTL_DECREMENTER_RUNNING |
+			MFC_CNTL_DMA_QUEUES_EMPTY;
 
 	/* Save, Step 12:
 	 *     Read MFC_CNTL[Ds].  Update saved copy of
 	 *     CSA.MFC_CNTL[Ds].
+	 *
+	 * update: do the same with MFC_CNTL[Q].
 	 */
-	csa->priv2.mfc_control_RW |=
-		in_be64(&priv2->mfc_control_RW) & MFC_CNTL_DECREMENTER_RUNNING;
+	csa->priv2.mfc_control_RW &= ~mask;
+	csa->priv2.mfc_control_RW |= in_be64(&priv2->mfc_control_RW) & mask;
 }
 
 static inline void halt_mfc_decr(struct spu_state *csa, struct spu *spu)
@@ -462,7 +475,9 @@ static inline void purge_mfc_queue(struct spu_state *csa, struct spu *spu)
 	 * Restore, Step 14.
 	 *     Write MFC_CNTL[Pc]=1 (purge queue).
 	 */
-	out_be64(&priv2->mfc_control_RW, MFC_CNTL_PURGE_DMA_REQUEST);
+	out_be64(&priv2->mfc_control_RW,
+			MFC_CNTL_PURGE_DMA_REQUEST |
+			MFC_CNTL_SUSPEND_MASK);
 	eieio();
 }
 
@@ -725,10 +740,14 @@ static inline void set_switch_active(struct spu_state *csa, struct spu *spu)
 	/* Save, Step 48:
 	 * Restore, Step 23.
 	 *     Change the software context switch pending flag
-	 *     to context switch active.
+	 *     to context switch active.  This implementation does
+	 *     not uses a switch active flag.
 	 *
-	 *     This implementation does not uses a switch active flag.
+	 * Now that we have saved the mfc in the csa, we can add in the
+	 * restart command if an exception occurred.
 	 */
+	if (test_bit(SPU_CONTEXT_FAULT_PENDING, &spu->flags))
+		csa->priv2.mfc_control_RW |= MFC_CNTL_RESTART_DMA_COMMAND;
 	clear_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags);
 	mb();
 }
@@ -1690,6 +1709,13 @@ static inline void restore_mfc_sr1(struct spu_state *csa, struct spu *spu)
 	eieio();
 }
 
+static inline void set_int_route(struct spu_state *csa, struct spu *spu)
+{
+	struct spu_context *ctx = spu->ctx;
+
+	spu_cpu_affinity_set(spu, ctx->last_ran);
+}
+
 static inline void restore_other_spu_access(struct spu_state *csa,
 					    struct spu *spu)
 {
@@ -1721,15 +1747,15 @@ static inline void restore_mfc_cntl(struct spu_state *csa, struct spu *spu)
 	 */
 	out_be64(&priv2->mfc_control_RW, csa->priv2.mfc_control_RW);
 	eieio();
+
 	/*
-	 * FIXME: this is to restart a DMA that we were processing
-	 *        before the save. better remember the fault information
-	 *        in the csa instead.
+	 * The queue is put back into the same state that was evident prior to
+	 * the context switch. The suspend flag is added to the saved state in
+	 * the csa, if the operational state was suspending or suspended. In
+	 * this case, the code that suspended the mfc is responsible for
+	 * continuing it. Note that SPE faults do not change the operational
+	 * state of the spu.
 	 */
-	if ((csa->priv2.mfc_control_RW & MFC_CNTL_SUSPEND_DMA_QUEUE_MASK)) {
-		out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESTART_DMA_COMMAND);
-		eieio();
-	}
 }
 
 static inline void enable_user_access(struct spu_state *csa, struct spu *spu)
@@ -1788,7 +1814,7 @@ static int quiece_spu(struct spu_state *prev, struct spu *spu)
 	save_spu_runcntl(prev, spu);	        /* Step 9. */
 	save_mfc_sr1(prev, spu);	        /* Step 10. */
 	save_spu_status(prev, spu);	        /* Step 11. */
-	save_mfc_decr(prev, spu);	        /* Step 12. */
+	save_mfc_stopped_status(prev, spu);     /* Step 12. */
 	halt_mfc_decr(prev, spu);	        /* Step 13. */
 	save_timebase(prev, spu);		/* Step 14. */
 	remove_other_spu_access(prev, spu);	/* Step 15. */
@@ -2000,6 +2026,7 @@ static void restore_csa(struct spu_state *next, struct spu *spu)
 	check_ppuint_mb_stat(next, spu);	/* Step 67. */
 	spu_invalidate_slbs(spu);		/* Modified Step 68. */
 	restore_mfc_sr1(next, spu);	        /* Step 69. */
+	set_int_route(next, spu);		/* NEW      */
 	restore_other_spu_access(next, spu);	/* Step 70. */
 	restore_spu_runcntl(next, spu);	        /* Step 71. */
 	restore_mfc_cntl(next, spu);	        /* Step 72. */

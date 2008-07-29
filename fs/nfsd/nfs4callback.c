@@ -381,7 +381,7 @@ static int do_probe_callback(void *data)
 		.program	= &cb_program,
 		.version	= nfs_cb_version[1]->number,
 		.authflavor	= RPC_AUTH_UNIX, /* XXX: need AUTH_GSS... */
-		.flags		= (RPC_CLNT_CREATE_NOPING),
+		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
 	};
 	struct rpc_message msg = {
 		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
@@ -419,9 +419,9 @@ static int do_probe_callback(void *data)
 out_release_client:
 	rpc_shutdown_client(client);
 out_err:
-	put_nfs4_client(clp);
 	dprintk("NFSD: warning: no callback path to client %.*s\n",
 		(int)clp->cl_name.len, clp->cl_name.data);
+	put_nfs4_client(clp);
 	return status;
 }
 

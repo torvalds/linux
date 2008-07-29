@@ -141,7 +141,7 @@ static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound
 	/* We do not like overly long tags! */
 	if (hdr->taglen > CB_OP_TAGLEN_MAXSZ - 12) {
 		printk("NFSv4 CALLBACK %s: client sent tag of length %u\n",
-				__FUNCTION__, hdr->taglen);
+				__func__, hdr->taglen);
 		return htonl(NFS4ERR_RESOURCE);
 	}
 	p = read_buf(xdr, 12);
@@ -151,7 +151,7 @@ static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound
 	/* Check minor version is zero. */
 	if (minor_version != 0) {
 		printk(KERN_WARNING "%s: NFSv4 server callback with illegal minor version %u!\n",
-				__FUNCTION__, minor_version);
+				__func__, minor_version);
 		return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
 	}
 	hdr->callback_ident = ntohl(*p++);
@@ -179,7 +179,7 @@ static __be32 decode_getattr_args(struct svc_rqst *rqstp, struct xdr_stream *xdr
 	args->addr = svc_addr(rqstp);
 	status = decode_bitmap(xdr, args->bitmap);
 out:
-	dprintk("%s: exit with status = %d\n", __FUNCTION__, ntohl(status));
+	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
 }
 
@@ -200,7 +200,7 @@ static __be32 decode_recall_args(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	args->truncate = ntohl(*p);
 	status = decode_fh(xdr, &args->fh);
 out:
-	dprintk("%s: exit with status = %d\n", __FUNCTION__, ntohl(status));
+	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
 }
 
@@ -349,7 +349,7 @@ static __be32 encode_getattr_res(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	status = encode_attr_mtime(xdr, res->bitmap, &res->mtime);
 	*savep = htonl((unsigned int)((char *)xdr->p - (char *)(savep+1)));
 out:
-	dprintk("%s: exit with status = %d\n", __FUNCTION__, ntohl(status));
+	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
 }
 
@@ -363,7 +363,7 @@ static __be32 process_op(struct svc_rqst *rqstp,
 	long maxlen;
 	__be32 res;
 
-	dprintk("%s: start\n", __FUNCTION__);
+	dprintk("%s: start\n", __func__);
 	status = decode_op_hdr(xdr_in, &op_nr);
 	if (likely(status == 0)) {
 		switch (op_nr) {
@@ -392,7 +392,7 @@ static __be32 process_op(struct svc_rqst *rqstp,
 		status = res;
 	if (op->encode_res != NULL && status == 0)
 		status = op->encode_res(rqstp, xdr_out, resp);
-	dprintk("%s: done, status = %d\n", __FUNCTION__, ntohl(status));
+	dprintk("%s: done, status = %d\n", __func__, ntohl(status));
 	return status;
 }
 
@@ -401,37 +401,37 @@ static __be32 process_op(struct svc_rqst *rqstp,
  */
 static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *resp)
 {
-	struct cb_compound_hdr_arg hdr_arg;
-	struct cb_compound_hdr_res hdr_res;
+	struct cb_compound_hdr_arg hdr_arg = { 0 };
+	struct cb_compound_hdr_res hdr_res = { NULL };
 	struct xdr_stream xdr_in, xdr_out;
 	__be32 *p;
 	__be32 status;
-	unsigned int nops = 1;
+	unsigned int nops = 0;
 
-	dprintk("%s: start\n", __FUNCTION__);
+	dprintk("%s: start\n", __func__);
 
 	xdr_init_decode(&xdr_in, &rqstp->rq_arg, rqstp->rq_arg.head[0].iov_base);
 
 	p = (__be32*)((char *)rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len);
 	xdr_init_encode(&xdr_out, &rqstp->rq_res, p);
 
-	decode_compound_hdr_arg(&xdr_in, &hdr_arg);
+	status = decode_compound_hdr_arg(&xdr_in, &hdr_arg);
+	if (status == __constant_htonl(NFS4ERR_RESOURCE))
+		return rpc_garbage_args;
+
 	hdr_res.taglen = hdr_arg.taglen;
 	hdr_res.tag = hdr_arg.tag;
-	hdr_res.nops = NULL;
-	encode_compound_hdr_res(&xdr_out, &hdr_res);
+	if (encode_compound_hdr_res(&xdr_out, &hdr_res) != 0)
+		return rpc_system_err;
 
-	for (;;) {
+	while (status == 0 && nops != hdr_arg.nops) {
 		status = process_op(rqstp, &xdr_in, argp, &xdr_out, resp);
-		if (status != 0)
-			break;
-		if (nops == hdr_arg.nops)
-			break;
 		nops++;
 	}
+
 	*hdr_res.status = status;
 	*hdr_res.nops = htonl(nops);
-	dprintk("%s: done, status = %u\n", __FUNCTION__, ntohl(status));
+	dprintk("%s: done, status = %u\n", __func__, ntohl(status));
 	return rpc_success;
 }
 

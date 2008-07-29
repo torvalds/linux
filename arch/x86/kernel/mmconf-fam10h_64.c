@@ -12,6 +12,7 @@
 #include <asm/io.h>
 #include <asm/msr.h>
 #include <asm/acpi.h>
+#include <asm/mmconfig.h>
 
 #include "../pci/pci.h"
 

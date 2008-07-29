@@ -24,7 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/hw_random.h>
 #include <linux/delay.h>
-#include <asm/of_platform.h>
+#include <linux/of_platform.h>
 #include <asm/io.h>
 
 #define SDCRNG_CTL_REG			0x00

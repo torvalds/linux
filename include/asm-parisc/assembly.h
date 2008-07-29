@@ -31,9 +31,8 @@
 #define STREGM	std,ma
 #define SHRREG	shrd
 #define SHLREG	shld
-#define ADDIB   addib,*
-#define CMPB    cmpb,*
 #define ANDCM   andcm,*
+#define	COND(x)	* ## x
 #define RP_OFFSET	16
 #define FRAME_SIZE	128
 #define CALLEE_REG_FRAME_SIZE	144
@@ -46,9 +45,8 @@
 #define STREGM	stwm
 #define SHRREG	shr
 #define SHLREG	shlw
-#define ADDIB   addib,
-#define CMPB    cmpb,
 #define ANDCM   andcm
+#define COND(x)	x
 #define RP_OFFSET	20
 #define FRAME_SIZE	64
 #define CALLEE_REG_FRAME_SIZE	128

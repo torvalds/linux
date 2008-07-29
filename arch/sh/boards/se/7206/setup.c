@@ -3,12 +3,13 @@
  * linux/arch/sh/boards/se/7206/setup.c
  *
  * Copyright (C) 2006  Yoshinori Sato
- * Copyright (C) 2007  Paul Mundt
+ * Copyright (C) 2007 - 2008  Paul Mundt
  *
  * Hitachi 7206 SolutionEngine Support.
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/smc91x.h>
 #include <asm/se7206.h>
 #include <asm/io.h>
 #include <asm/machvec.h>
@@ -16,8 +17,9 @@
 
 static struct resource smc91x_resources[] = {
 	[0] = {
-		.start		= 0x300,
-		.end		= 0x300 + 0x020 - 1,
+		.name		= "smc91x-regs",
+		.start		= PA_SMSC + 0x300,
+		.end		= PA_SMSC + 0x300 + 0x020 - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -27,9 +29,18 @@ static struct resource smc91x_resources[] = {
 	},
 };
 
+static struct smc91x_platdata smc91x_info = {
+	.flags	= SMC91X_USE_16BIT,
+};
+
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
 	.id		= -1,
+	.dev		= {
+		.dma_mask		= NULL,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
 };

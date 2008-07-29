@@ -1766,7 +1766,7 @@ static int sis900_rx(struct net_device *net_dev)
 				skb = sis_priv->rx_skbuff[entry];
 				net_dev->stats.rx_dropped++;
 				goto refill_rx_ring;
-			}	
+			}
 
 			/* This situation should never happen, but due to
 			   some unknow bugs, it is possible that

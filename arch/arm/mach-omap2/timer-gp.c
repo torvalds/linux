@@ -59,8 +59,7 @@ static struct irqaction omap2_gp_timer_irq = {
 static int omap2_gp_timer_set_next_event(unsigned long cycles,
 					 struct clock_event_device *evt)
 {
-	omap_dm_timer_set_load(gptimer, 0, 0xffffffff - cycles);
-	omap_dm_timer_start(gptimer);
+	omap_dm_timer_set_load_start(gptimer, 0, 0xffffffff - cycles);
 
 	return 0;
 }
@@ -77,8 +76,7 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 		period = clk_get_rate(omap_dm_timer_get_fclk(gptimer)) / HZ;
 		period -= 1;
 
-		omap_dm_timer_set_load(gptimer, 1, 0xffffffff - period);
-		omap_dm_timer_start(gptimer);
+		omap_dm_timer_set_load_start(gptimer, 1, 0xffffffff - period);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		break;
@@ -172,8 +170,7 @@ static void __init omap2_gp_clocksource_init(void)
 	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gpt));
 	tick_period = (tick_rate / HZ) - 1;
 
-	omap_dm_timer_set_load(gpt, 1, 0);
-	omap_dm_timer_start(gpt);
+	omap_dm_timer_set_load_start(gpt, 1, 0);
 
 	clocksource_gpt.mult =
 		clocksource_khz2mult(tick_rate/1000, clocksource_gpt.shift);

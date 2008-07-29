@@ -186,6 +186,11 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
  * - delay inquiry
  *   Wait extra SBP2_INQUIRY_DELAY seconds after login before SCSI inquiry.
  *
+ * - power condition
+ *   Set the power condition field in the START STOP UNIT commands sent by
+ *   sd_mod on suspend, resume, and shutdown (if manage_start_stop is on).
+ *   Some disks need this to spin down or to resume properly.
+ *
  * - override internal blacklist
  *   Instead of adding to the built-in blacklist, use only the workarounds
  *   specified in the module load parameter.
@@ -199,6 +204,8 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", skip mode page 8 = "   __stringify(SBP2_WORKAROUND_MODE_SENSE_8)
 	", fix capacity = "       __stringify(SBP2_WORKAROUND_FIX_CAPACITY)
 	", delay inquiry = "      __stringify(SBP2_WORKAROUND_DELAY_INQUIRY)
+	", set power condition in start stop unit = "
+				  __stringify(SBP2_WORKAROUND_POWER_CONDITION)
 	", override internal blacklist = " __stringify(SBP2_WORKAROUND_OVERRIDE)
 	", or a combination)");
 
@@ -359,17 +366,24 @@ static const struct {
 		.firmware_revision	= 0x002800,
 		.model_id		= 0x001010,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36 |
-					  SBP2_WORKAROUND_MODE_SENSE_8,
+					  SBP2_WORKAROUND_MODE_SENSE_8 |
+					  SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* DViCO Momobay FX-3A with TSB42AA9A bridge */ {
 		.firmware_revision	= 0x002800,
 		.model_id		= 0x000000,
-		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY,
+		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY |
+					  SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,
 		.model_id		= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36,
+	},
+	/* PL-3507 bridge with Prolific firmware */ {
+		.firmware_revision	= 0x012800,
+		.model_id		= SBP2_ROM_VALUE_WILDCARD,
+		.workarounds		= SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Symbios bridge */ {
 		.firmware_revision	= 0xa0b800,
@@ -1539,15 +1553,13 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 
 static void sbp2_create_command_orb(struct sbp2_lu *lu,
 				    struct sbp2_command_info *cmd,
-				    unchar *scsi_cmd,
-				    unsigned int scsi_use_sg,
-				    unsigned int scsi_request_bufflen,
-				    struct scatterlist *sg,
-				    enum dma_data_direction dma_dir)
+				    struct scsi_cmnd *SCpnt)
 {
 	struct sbp2_fwhost_info *hi = lu->hi;
 	struct sbp2_command_orb *orb = &cmd->command_orb;
 	u32 orb_direction;
+	unsigned int scsi_request_bufflen = scsi_bufflen(SCpnt);
+	enum dma_data_direction dma_dir = SCpnt->sc_data_direction;
 
 	/*
 	 * Set-up our command ORB.
@@ -1580,13 +1592,14 @@ static void sbp2_create_command_orb(struct sbp2_lu *lu,
 		orb->data_descriptor_lo = 0x0;
 		orb->misc |= ORB_SET_DIRECTION(1);
 	} else
-		sbp2_prep_command_orb_sg(orb, hi, cmd, scsi_use_sg, sg,
+		sbp2_prep_command_orb_sg(orb, hi, cmd, scsi_sg_count(SCpnt),
+					 scsi_sglist(SCpnt),
 					 orb_direction, dma_dir);
 
 	sbp2util_cpu_to_be32_buffer(orb, sizeof(*orb));
 
-	memset(orb->cdb, 0, 12);
-	memcpy(orb->cdb, scsi_cmd, COMMAND_SIZE(*scsi_cmd));
+	memset(orb->cdb, 0, sizeof(orb->cdb));
+	memcpy(orb->cdb, SCpnt->cmnd, SCpnt->cmd_len);
 }
 
 static void sbp2_link_orb_command(struct sbp2_lu *lu,
@@ -1669,16 +1682,13 @@ static void sbp2_link_orb_command(struct sbp2_lu *lu,
 static int sbp2_send_command(struct sbp2_lu *lu, struct scsi_cmnd *SCpnt,
 			     void (*done)(struct scsi_cmnd *))
 {
-	unchar *scsi_cmd = (unchar *)SCpnt->cmnd;
 	struct sbp2_command_info *cmd;
 
 	cmd = sbp2util_allocate_command_orb(lu, SCpnt, done);
 	if (!cmd)
 		return -EIO;
 
-	sbp2_create_command_orb(lu, cmd, scsi_cmd, scsi_sg_count(SCpnt),
-				scsi_bufflen(SCpnt), scsi_sglist(SCpnt),
-				SCpnt->sc_data_direction);
+	sbp2_create_command_orb(lu, cmd, SCpnt);
 	sbp2_link_orb_command(lu, cmd);
 
 	return 0;
@@ -1999,6 +2009,8 @@ static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 
 	sdev->use_10_for_rw = 1;
 
+	if (sbp2_exclusive_login)
+		sdev->manage_start_stop = 1;
 	if (sdev->type == TYPE_ROM)
 		sdev->use_10_for_ms = 1;
 	if (sdev->type == TYPE_DISK &&
@@ -2006,6 +2018,8 @@ static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 		sdev->skip_ms_page_8 = 1;
 	if (lu->workarounds & SBP2_WORKAROUND_FIX_CAPACITY)
 		sdev->fix_capacity = 1;
+	if (lu->workarounds & SBP2_WORKAROUND_POWER_CONDITION)
+		sdev->start_stop_pwr_cond = 1;
 	if (lu->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
 		blk_queue_max_sectors(sdev->request_queue, 128 * 1024 / 512);
 	return 0;

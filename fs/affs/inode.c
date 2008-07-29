@@ -58,7 +58,7 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	AFFS_I(inode)->i_extcnt = 1;
 	AFFS_I(inode)->i_ext_last = ~1;
 	AFFS_I(inode)->i_protect = prot;
-	AFFS_I(inode)->i_opencnt = 0;
+	atomic_set(&AFFS_I(inode)->i_opencnt, 0);
 	AFFS_I(inode)->i_blkcnt = 0;
 	AFFS_I(inode)->i_lc = NULL;
 	AFFS_I(inode)->i_lc_size = 0;
@@ -108,8 +108,6 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 			inode->i_mode |= S_IFDIR;
 		} else
 			inode->i_mode = S_IRUGO | S_IXUGO | S_IWUSR | S_IFDIR;
-		if (tail->link_chain)
-			inode->i_nlink = 2;
 		/* Maybe it should be controlled by mount parameter? */
 		//inode->i_mode |= S_ISVTX;
 		inode->i_op = &affs_dir_inode_operations;
@@ -245,31 +243,12 @@ out:
 }
 
 void
-affs_put_inode(struct inode *inode)
-{
-	pr_debug("AFFS: put_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
-	affs_free_prealloc(inode);
-}
-
-void
-affs_drop_inode(struct inode *inode)
-{
-	mutex_lock(&inode->i_mutex);
-	if (inode->i_size != AFFS_I(inode)->mmu_private)
-		affs_truncate(inode);
-	mutex_unlock(&inode->i_mutex);
-
-	generic_drop_inode(inode);
-}
-
-void
 affs_delete_inode(struct inode *inode)
 {
 	pr_debug("AFFS: delete_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
 	truncate_inode_pages(&inode->i_data, 0);
 	inode->i_size = 0;
-	if (S_ISREG(inode->i_mode))
-		affs_truncate(inode);
+	affs_truncate(inode);
 	clear_inode(inode);
 	affs_free_block(inode->i_sb, inode->i_ino);
 }
@@ -277,9 +256,12 @@ affs_delete_inode(struct inode *inode)
 void
 affs_clear_inode(struct inode *inode)
 {
-	unsigned long cache_page = (unsigned long) AFFS_I(inode)->i_lc;
+	unsigned long cache_page;
 
 	pr_debug("AFFS: clear_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
+
+	affs_free_prealloc(inode);
+	cache_page = (unsigned long)AFFS_I(inode)->i_lc;
 	if (cache_page) {
 		pr_debug("AFFS: freeing ext cache\n");
 		AFFS_I(inode)->i_lc = NULL;
@@ -316,7 +298,7 @@ affs_new_inode(struct inode *dir)
 	inode->i_ino     = block;
 	inode->i_nlink   = 1;
 	inode->i_mtime   = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
-	AFFS_I(inode)->i_opencnt = 0;
+	atomic_set(&AFFS_I(inode)->i_opencnt, 0);
 	AFFS_I(inode)->i_blkcnt = 0;
 	AFFS_I(inode)->i_lc = NULL;
 	AFFS_I(inode)->i_lc_size = 0;
@@ -369,12 +351,12 @@ affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s3
 	switch (type) {
 	case ST_LINKFILE:
 	case ST_LINKDIR:
-		inode_bh = bh;
 		retval = -ENOSPC;
 		block = affs_alloc_block(dir, dir->i_ino);
 		if (!block)
 			goto err;
 		retval = -EIO;
+		inode_bh = bh;
 		bh = affs_getzeroblk(sb, block);
 		if (!bh)
 			goto err;

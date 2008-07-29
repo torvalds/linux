@@ -11,6 +11,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/init.h>
@@ -77,14 +78,14 @@ static struct resource au1xxx_usb_ohci_resources[] = {
 };
 
 /* The dmamask must be set for OHCI to work */
-static u64 ohci_dmamask = ~(u32)0;
+static u64 ohci_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1xxx_usb_ohci_device = {
 	.name		= "au1xxx-ohci",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &ohci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 	},
 	.num_resources	= ARRAY_SIZE(au1xxx_usb_ohci_resources),
 	.resource	= au1xxx_usb_ohci_resources,
@@ -106,14 +107,14 @@ static struct resource au1100_lcd_resources[] = {
 	}
 };
 
-static u64 au1100_lcd_dmamask = ~(u32)0;
+static u64 au1100_lcd_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1100_lcd_device = {
 	.name           = "au1100-lcd",
 	.id             = 0,
 	.dev = {
 		.dma_mask               = &au1100_lcd_dmamask,
-		.coherent_dma_mask      = 0xffffffff,
+		.coherent_dma_mask      = DMA_32BIT_MASK,
 	},
 	.num_resources  = ARRAY_SIZE(au1100_lcd_resources),
 	.resource       = au1100_lcd_resources,
@@ -135,14 +136,14 @@ static struct resource au1xxx_usb_ehci_resources[] = {
 	},
 };
 
-static u64 ehci_dmamask = ~(u32)0;
+static u64 ehci_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1xxx_usb_ehci_device = {
 	.name		= "au1xxx-ehci",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 	},
 	.num_resources	= ARRAY_SIZE(au1xxx_usb_ehci_resources),
 	.resource	= au1xxx_usb_ehci_resources,
@@ -165,12 +166,12 @@ static struct resource au1xxx_usb_gdt_resources[] = {
 static struct resource au1xxx_mmc_resources[] = {
 	[0] = {
 		.start          = SD0_PHYS_ADDR,
-		.end            = SD0_PHYS_ADDR + 0x40,
+		.end            = SD0_PHYS_ADDR + 0x7ffff,
 		.flags          = IORESOURCE_MEM,
 	},
 	[1] = {
 		.start		= SD1_PHYS_ADDR,
-		.end 		= SD1_PHYS_ADDR + 0x40,
+		.end 		= SD1_PHYS_ADDR + 0x7ffff,
 		.flags		= IORESOURCE_MEM,
 	},
 	[2] = {
@@ -180,14 +181,14 @@ static struct resource au1xxx_mmc_resources[] = {
 	}
 };
 
-static u64 udc_dmamask = ~(u32)0;
+static u64 udc_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1xxx_usb_gdt_device = {
 	.name		= "au1xxx-udc",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &udc_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 	},
 	.num_resources	= ARRAY_SIZE(au1xxx_usb_gdt_resources),
 	.resource	= au1xxx_usb_gdt_resources,
@@ -207,14 +208,14 @@ static struct resource au1xxx_usb_otg_resources[] = {
 	},
 };
 
-static u64 uoc_dmamask = ~(u32)0;
+static u64 uoc_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1xxx_usb_otg_device = {
 	.name		= "au1xxx-uoc",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &uoc_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_32BIT_MASK,
 	},
 	.num_resources	= ARRAY_SIZE(au1xxx_usb_otg_resources),
 	.resource	= au1xxx_usb_otg_resources,
@@ -233,27 +234,27 @@ static struct resource au1200_lcd_resources[] = {
 	}
 };
 
-static u64 au1200_lcd_dmamask = ~(u32)0;
+static u64 au1200_lcd_dmamask = DMA_32BIT_MASK;
 
 static struct platform_device au1200_lcd_device = {
 	.name           = "au1200-lcd",
 	.id             = 0,
 	.dev = {
 		.dma_mask               = &au1200_lcd_dmamask,
-		.coherent_dma_mask      = 0xffffffff,
+		.coherent_dma_mask      = DMA_32BIT_MASK,
 	},
 	.num_resources  = ARRAY_SIZE(au1200_lcd_resources),
 	.resource       = au1200_lcd_resources,
 };
 
-static u64 au1xxx_mmc_dmamask =  ~(u32)0;
+static u64 au1xxx_mmc_dmamask =  DMA_32BIT_MASK;
 
 static struct platform_device au1xxx_mmc_device = {
 	.name = "au1xxx-mmc",
 	.id = 0,
 	.dev = {
 		.dma_mask               = &au1xxx_mmc_dmamask,
-		.coherent_dma_mask      = 0xffffffff,
+		.coherent_dma_mask      = DMA_32BIT_MASK,
 	},
 	.num_resources  = ARRAY_SIZE(au1xxx_mmc_resources),
 	.resource       = au1xxx_mmc_resources,
@@ -269,8 +270,8 @@ static struct platform_device au1x00_pcmcia_device = {
 #ifdef SMBUS_PSC_BASE
 static struct resource pbdb_smbus_resources[] = {
 	{
-		.start	= SMBUS_PSC_BASE,
-		.end	= SMBUS_PSC_BASE + 0x24 - 1,
+		.start	= CPHYSADDR(SMBUS_PSC_BASE),
+		.end	= CPHYSADDR(SMBUS_PSC_BASE + 0xfffff),
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -302,16 +303,17 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 #endif
 };
 
-int __init au1xxx_platform_init(void)
+static int __init au1xxx_platform_init(void)
 {
 	unsigned int uartclk = get_au1x00_uart_baud_base() * 16;
 	int i;
 
 	/* Fill up uartclk. */
-	for (i = 0; au1x00_uart_data[i].flags ; i++)
+	for (i = 0; au1x00_uart_data[i].flags; i++)
 		au1x00_uart_data[i].uartclk = uartclk;
 
-	return platform_add_devices(au1xxx_platform_devices, ARRAY_SIZE(au1xxx_platform_devices));
+	return platform_add_devices(au1xxx_platform_devices,
+				    ARRAY_SIZE(au1xxx_platform_devices));
 }
 
 arch_initcall(au1xxx_platform_init);

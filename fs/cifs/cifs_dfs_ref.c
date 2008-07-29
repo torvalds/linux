@@ -93,15 +93,11 @@ static char *cifs_get_share_name(const char *node_name)
 	/* find sharename end */
 	pSep++;
 	pSep = memchr(UNC+(pSep-UNC), '\\', len-(pSep-UNC));
-	if (!pSep) {
-		cERROR(1, ("%s:2 cant find share name in node name: %s",
-			__func__, node_name));
-		kfree(UNC);
-		return NULL;
+	if (pSep) {
+		/* trim path up to sharename end
+		 * now we have share name in UNC */
+		*pSep = 0;
 	}
-	/* trim path up to sharename end
-	 *          * now we have share name in UNC */
-	*pSep = 0;
 
 	return UNC;
 }
@@ -188,7 +184,7 @@ static char *compose_mount_options(const char *sb_mountdata,
 		tkn_e = strchr(tkn_e+1, '\\');
 		if (tkn_e) {
 			strcat(mountdata, ",prefixpath=");
-			strcat(mountdata, tkn_e);
+			strcat(mountdata, tkn_e+1);
 		}
 	}
 
@@ -221,46 +217,6 @@ static struct vfsmount *cifs_dfs_do_refmount(const struct vfsmount *mnt_parent,
 	kfree(devname);
 	return mnt;
 
-}
-
-static char *build_full_dfs_path_from_dentry(struct dentry *dentry)
-{
-	char *full_path = NULL;
-	char *search_path;
-	char *tmp_path;
-	size_t l_max_len;
-	struct cifs_sb_info *cifs_sb;
-
-	if (dentry->d_inode == NULL)
-		return NULL;
-
-	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
-
-	if (cifs_sb->tcon == NULL)
-		return NULL;
-
-	search_path = build_path_from_dentry(dentry);
-	if (search_path == NULL)
-		return NULL;
-
-	if (cifs_sb->tcon->Flags & SMB_SHARE_IS_IN_DFS) {
-		/* we should use full path name to correct working with DFS */
-		l_max_len = strnlen(cifs_sb->tcon->treeName, MAX_TREE_SIZE+1) +
-					strnlen(search_path, MAX_PATHCONF) + 1;
-		tmp_path = kmalloc(l_max_len, GFP_KERNEL);
-		if (tmp_path == NULL) {
-			kfree(search_path);
-			return NULL;
-		}
-		strncpy(tmp_path, cifs_sb->tcon->treeName, l_max_len);
-		strcat(tmp_path, search_path);
-		tmp_path[l_max_len-1] = 0;
-		full_path = tmp_path;
-		kfree(search_path);
-	} else {
-		full_path = search_path;
-	}
-	return full_path;
 }
 
 static int add_mount_helper(struct vfsmount *newmnt, struct nameidata *nd,
@@ -330,7 +286,7 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		goto out_err;
 	}
 
-	full_path = build_full_dfs_path_from_dentry(dentry);
+	full_path = build_path_from_dentry(dentry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
 		goto out_err;

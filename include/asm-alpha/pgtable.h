@@ -287,17 +287,34 @@ extern inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 #define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
 #define pgd_offset(mm, address)	((mm)->pgd+pgd_index(address))
 
+/*
+ * The smp_read_barrier_depends() in the following functions are required to
+ * order the load of *dir (the pointer in the top level page table) with any
+ * subsequent load of the returned pmd_t *ret (ret is data dependent on *dir).
+ *
+ * If this ordering is not enforced, the CPU might load an older value of
+ * *ret, which may be uninitialized data. See mm/memory.c:__pte_alloc for
+ * more details.
+ *
+ * Note that we never change the mm->pgd pointer after the task is running, so
+ * pgd_offset does not require such a barrier.
+ */
+
 /* Find an entry in the second-level page table.. */
 extern inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 {
-	return (pmd_t *) pgd_page_vaddr(*dir) + ((address >> PMD_SHIFT) & (PTRS_PER_PAGE - 1));
+	pmd_t *ret = (pmd_t *) pgd_page_vaddr(*dir) + ((address >> PMD_SHIFT) & (PTRS_PER_PAGE - 1));
+	smp_read_barrier_depends(); /* see above */
+	return ret;
 }
 
 /* Find an entry in the third-level page table.. */
 extern inline pte_t * pte_offset_kernel(pmd_t * dir, unsigned long address)
 {
-	return (pte_t *) pmd_page_vaddr(*dir)
+	pte_t *ret = (pte_t *) pmd_page_vaddr(*dir)
 		+ ((address >> PAGE_SHIFT) & (PTRS_PER_PAGE - 1));
+	smp_read_barrier_depends(); /* see above */
+	return ret;
 }
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir),(addr))

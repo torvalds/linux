@@ -7,6 +7,7 @@
 
 struct nf_ct_sip_master {
 	unsigned int	register_cseq;
+	unsigned int	invite_cseq;
 };
 
 enum sip_expectation_classes {

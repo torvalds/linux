@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/seq_file.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 
 struct clk;
 
@@ -30,6 +31,7 @@ struct clk {
 
 	unsigned long		rate;
 	unsigned long		flags;
+	unsigned long		arch_flags;
 };
 
 #define CLK_ALWAYS_ENABLED	(1 << 0)
@@ -41,13 +43,26 @@ void arch_init_clk_ops(struct clk_ops **, int type);
 /* arch/sh/kernel/cpu/clock.c */
 int clk_init(void);
 
-int __clk_enable(struct clk *);
-void __clk_disable(struct clk *);
-
 void clk_recalc_rate(struct clk *);
 
 int clk_register(struct clk *);
 void clk_unregister(struct clk *);
+
+static inline int clk_always_enable(const char *id)
+{
+	struct clk *clk;
+	int ret;
+
+	clk = clk_get(NULL, id);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	ret = clk_enable(clk);
+	if (ret)
+		clk_put(clk);
+
+	return ret;
+}
 
 /* the exported API, in addition to clk_set_rate */
 /**

@@ -30,6 +30,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <asm/unaligned.h>
 
 void *module_alloc(unsigned long size)
 {
@@ -56,34 +57,6 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 	return 0;
 }
 
-#ifdef CONFIG_SUPERH32
-#define COPY_UNALIGNED_WORD(sw, tw, align) \
-{ \
-	void *__s = &(sw), *__t = &(tw); \
-	unsigned short *__s2 = __s, *__t2 = __t; \
-	unsigned char *__s1 = __s, *__t1 = __t; \
-	switch ((align)) \
-	{ \
-	case 0: \
-		*(unsigned long *) __t = *(unsigned long *) __s; \
-		break; \
-	case 2: \
-		*__t2++ = *__s2++; \
-		*__t2 = *__s2; \
-		break; \
-	default: \
-		*__t1++ = *__s1++; \
-		*__t1++ = *__s1++; \
-		*__t1++ = *__s1++; \
-		*__t1 = *__s1; \
-		break; \
-	} \
-}
-#else
-/* One thing SHmedia doesn't screw up! */
-#define COPY_UNALIGNED_WORD(sw, tw, align)	{ (tw) = (sw); }
-#endif
-
 int apply_relocate_add(Elf32_Shdr *sechdrs,
 		   const char *strtab,
 		   unsigned int symindex,
@@ -96,7 +69,6 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	Elf32_Addr relocation;
 	uint32_t *location;
 	uint32_t value;
-	int align;
 
 	pr_debug("Applying relocate section %u to %u\n", relsec,
 		 sechdrs[relsec].sh_info);
@@ -109,7 +81,6 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		sym = (Elf32_Sym *)sechdrs[symindex].sh_addr
 			+ ELF32_R_SYM(rel[i].r_info);
 		relocation = sym->st_value + rel[i].r_addend;
-		align = (int)location & 3;
 
 #ifdef CONFIG_SUPERH64
 		/* For text addresses, bit2 of the st_other field indicates
@@ -122,15 +93,15 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 		case R_SH_DIR32:
-			COPY_UNALIGNED_WORD (*location, value, align);
+			value = get_unaligned(location);
 			value += relocation;
-			COPY_UNALIGNED_WORD (value, *location, align);
+			put_unaligned(value, location);
 			break;
 		case R_SH_REL32:
 			relocation = (relocation - (Elf32_Addr) location);
-			COPY_UNALIGNED_WORD (*location, value, align);
+			value = get_unaligned(location);
 			value += relocation;
-			COPY_UNALIGNED_WORD (value, *location, align);
+			put_unaligned(value, location);
 			break;
 		case R_SH_IMM_LOW16:
 			*location = (*location & ~0x3fffc00) |

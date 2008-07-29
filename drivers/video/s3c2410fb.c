@@ -1,75 +1,15 @@
-/*
- * linux/drivers/video/s3c2410fb.c
- *	Copyright (c) Arnaud Patard, Ben Dooks
+/* linux/drivers/video/s3c2410fb.c
+ *	Copyright (c) 2004,2005 Arnaud Patard
+ *	Copyright (c) 2004-2008 Ben Dooks
+ *
+ * S3C2410 LCD Framebuffer Driver
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive for
  * more details.
  *
- *	    S3C2410 LCD Controller Frame Buffer Driver
- *	    based on skeletonfb.c, sa1100fb.c and others
- *
- * ChangeLog
- * 2005-04-07: Arnaud Patard <arnaud.patard@rtp-net.org>
- *      - u32 state -> pm_message_t state
- *      - S3C2410_{VA,SZ}_LCD -> S3C24XX
- *
- * 2005-03-15: Arnaud Patard <arnaud.patard@rtp-net.org>
- *      - Removed the ioctl
- *      - use readl/writel instead of __raw_writel/__raw_readl
- *
- * 2004-12-04: Arnaud Patard <arnaud.patard@rtp-net.org>
- *      - Added the possibility to set on or off the
- *      debugging messages
- *      - Replaced 0 and 1 by on or off when reading the
- *      /sys files
- *
- * 2005-03-23: Ben Dooks <ben-linux@fluff.org>
- *	- added non 16bpp modes
- *	- updated platform information for range of x/y/bpp
- *	- add code to ensure palette is written correctly
- *	- add pixel clock divisor control
- *
- * 2004-11-11: Arnaud Patard <arnaud.patard@rtp-net.org>
- *	- Removed the use of currcon as it no more exists
- *	- Added LCD power sysfs interface
- *
- * 2004-11-03: Ben Dooks <ben-linux@fluff.org>
- *	- minor cleanups
- *	- add suspend/resume support
- *	- s3c2410fb_setcolreg() not valid in >8bpp modes
- *	- removed last CONFIG_FB_S3C2410_FIXED
- *	- ensure lcd controller stopped before cleanup
- *	- added sysfs interface for backlight power
- *	- added mask for gpio configuration
- *	- ensured IRQs disabled during GPIO configuration
- *	- disable TPAL before enabling video
- *
- * 2004-09-20: Arnaud Patard <arnaud.patard@rtp-net.org>
- *      - Suppress command line options
- *
- * 2004-09-15: Arnaud Patard <arnaud.patard@rtp-net.org>
- *	- code cleanup
- *
- * 2004-09-07: Arnaud Patard <arnaud.patard@rtp-net.org>
- *	- Renamed from h1940fb.c to s3c2410fb.c
- *	- Add support for different devices
- *	- Backlight support
- *
- * 2004-09-05: Herbert Pötzl <herbert@13thfloor.at>
- *	- added clock (de-)allocation code
- *	- added fixem fbmem option
- *
- * 2004-07-27: Arnaud Patard <arnaud.patard@rtp-net.org>
- *	- code cleanup
- *	- added a forgotten return in h1940fb_init
- *
- * 2004-07-19: Herbert Pötzl <herbert@13thfloor.at>
- *	- code cleanup and extended debugging
- *
- * 2004-07-15: Arnaud Patard <arnaud.patard@rtp-net.org>
- *	- First version
- */
+ * Driver based on skeletonfb.c, sa1100fb.c and others.
+*/
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -580,6 +520,27 @@ static int s3c2410fb_setcolreg(unsigned regno,
 	return 0;
 }
 
+/* s3c2410fb_lcd_enable
+ *
+ * shutdown the lcd controller
+ */
+static void s3c2410fb_lcd_enable(struct s3c2410fb_info *fbi, int enable)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	if (enable)
+		fbi->regs.lcdcon1 |= S3C2410_LCDCON1_ENVID;
+	else
+		fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_ENVID;
+
+	writel(fbi->regs.lcdcon1, fbi->io + S3C2410_LCDCON1);
+
+	local_irq_restore(flags);
+}
+
+
 /*
  *      s3c2410fb_blank
  *	@blank_mode: the blank mode we want.
@@ -589,9 +550,6 @@ static int s3c2410fb_setcolreg(unsigned regno,
  *	blanking succeeded, != 0 if un-/blanking failed due to e.g. a
  *	video mode which doesn't support it. Implements VESA suspend
  *	and powerdown modes on hardware that supports disabling hsync/vsync:
- *	blank_mode == 2: suspend vsync
- *	blank_mode == 3: suspend hsync
- *	blank_mode == 4: powerdown
  *
  *	Returns negative errno on error, or zero on success.
  *
@@ -604,6 +562,12 @@ static int s3c2410fb_blank(int blank_mode, struct fb_info *info)
 	dprintk("blank(mode=%d, info=%p)\n", blank_mode, info);
 
 	tpal_reg += is_s3c2412(fbi) ? S3C2412_TPAL : S3C2410_TPAL;
+
+	if (blank_mode == FB_BLANK_POWERDOWN) {
+		s3c2410fb_lcd_enable(fbi, 0);
+	} else {
+		s3c2410fb_lcd_enable(fbi, 1);
+	}
 
 	if (blank_mode == FB_BLANK_UNBLANK)
 		writel(0x0, tpal_reg);
@@ -948,7 +912,10 @@ static int __init s3c24xxfb_probe(struct platform_device *pdev,
 	}
 
 	/* create device files */
-	device_create_file(&pdev->dev, &dev_attr_debug);
+	ret = device_create_file(&pdev->dev, &dev_attr_debug);
+	if (ret) {
+		printk(KERN_ERR "failed to add debug attribute\n");
+	}
 
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
 		fbinfo->node, fbinfo->fix.id);
@@ -983,21 +950,6 @@ static int __init s3c2412fb_probe(struct platform_device *pdev)
 	return s3c24xxfb_probe(pdev, DRV_S3C2412);
 }
 
-/* s3c2410fb_stop_lcd
- *
- * shutdown the lcd controller
- */
-static void s3c2410fb_stop_lcd(struct s3c2410fb_info *fbi)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_ENVID;
-	writel(fbi->regs.lcdcon1, fbi->io + S3C2410_LCDCON1);
-
-	local_irq_restore(flags);
-}
 
 /*
  *  Cleanup
@@ -1010,7 +962,7 @@ static int s3c2410fb_remove(struct platform_device *pdev)
 
 	unregister_framebuffer(fbinfo);
 
-	s3c2410fb_stop_lcd(info);
+	s3c2410fb_lcd_enable(info, 0);
 	msleep(1);
 
 	s3c2410fb_unmap_video_memory(fbinfo);
@@ -1043,7 +995,7 @@ static int s3c2410fb_suspend(struct platform_device *dev, pm_message_t state)
 	struct fb_info	   *fbinfo = platform_get_drvdata(dev);
 	struct s3c2410fb_info *info = fbinfo->par;
 
-	s3c2410fb_stop_lcd(info);
+	s3c2410fb_lcd_enable(info, 0);
 
 	/* sleep before disabling the clock, we need to ensure
 	 * the LCD DMA engine is not going to get back on the bus
@@ -1118,3 +1070,5 @@ MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>, "
 	      "Ben Dooks <ben-linux@fluff.org>");
 MODULE_DESCRIPTION("Framebuffer driver for the s3c2410");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:s3c2410-lcd");
+MODULE_ALIAS("platform:s3c2412-lcd");

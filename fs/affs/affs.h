@@ -2,6 +2,7 @@
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include <linux/amigaffs.h>
+#include <linux/mutex.h>
 
 /* AmigaOS allows file names with up to 30 characters length.
  * Names longer than that will be silently truncated. If you
@@ -48,7 +49,7 @@ struct affs_ext_key {
  * affs fs inode data in memory
  */
 struct affs_inode_info {
-	u32	 i_opencnt;
+	atomic_t i_opencnt;
 	struct semaphore i_link_lock;		/* Protects internal inode access. */
 	struct semaphore i_ext_lock;		/* Protects internal inode access. */
 #define i_hash_lock i_ext_lock
@@ -98,7 +99,7 @@ struct affs_sb_info {
 	gid_t s_gid;			/* gid to override */
 	umode_t s_mode;			/* mode to override */
 	struct buffer_head *s_root_bh;	/* Cached root block. */
-	struct semaphore s_bmlock;	/* Protects bitmap access. */
+	struct mutex s_bmlock;		/* Protects bitmap access. */
 	struct affs_bm_info *s_bitmap;	/* Bitmap infos. */
 	u32 s_bmap_count;		/* # of bitmap blocks. */
 	u32 s_bmap_bits;		/* # of bits in one bitmap blocks */
@@ -170,8 +171,6 @@ extern int	affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 extern unsigned long		 affs_parent_ino(struct inode *dir);
 extern struct inode		*affs_new_inode(struct inode *dir);
 extern int			 affs_notify_change(struct dentry *dentry, struct iattr *attr);
-extern void			 affs_put_inode(struct inode *inode);
-extern void			 affs_drop_inode(struct inode *inode);
 extern void			 affs_delete_inode(struct inode *inode);
 extern void			 affs_clear_inode(struct inode *inode);
 extern struct inode		*affs_iget(struct super_block *sb,

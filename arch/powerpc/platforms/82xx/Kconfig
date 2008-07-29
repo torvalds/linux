@@ -1,7 +1,8 @@
-choice
-	prompt "82xx Board Type"
-	depends on PPC_82xx
-	default MPC8272_ADS
+menuconfig PPC_82xx
+	bool "82xx-based boards (PQ II)"
+	depends on 6xx && PPC_MULTIPLATFORM
+
+if PPC_82xx
 
 config MPC8272_ADS
 	bool "Freescale MPC8272 ADS"
@@ -29,6 +30,7 @@ config EP8248E
 	select 8272
 	select 8260
 	select FSL_SOC
+	select PHYLIB
 	select MDIO_BITBANG
 	help
 	  This enables support for the Embedded Planet EP8248E board.
@@ -36,7 +38,7 @@ config EP8248E
 	  This board is also resold by Freescale as the QUICCStart
 	  MPC8248 Evaluation System and/or the CWH-PPC-8248N-VE.
 
-endchoice
+endif
 
 config PQ2ADS
 	bool

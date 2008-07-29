@@ -44,11 +44,16 @@
 #define MDIO_MMDREG_DEVS1	(6)
 #define MDIO_MMDREG_CTRL2	(7)
 #define MDIO_MMDREG_STAT2	(8)
+#define MDIO_MMDREG_TXDIS	(9)
 
 /* Bits in MMDREG_CTRL1 */
 /* Reset */
 #define MDIO_MMDREG_CTRL1_RESET_LBN	(15)
 #define MDIO_MMDREG_CTRL1_RESET_WIDTH	(1)
+/* Loopback */
+/* Loopback bit for WIS, PCS, PHYSX and DTEXS */
+#define MDIO_MMDREG_CTRL1_LBACK_LBN	(14)
+#define MDIO_MMDREG_CTRL1_LBACK_WIDTH	(1)
 
 /* Bits in MMDREG_STAT1 */
 #define MDIO_MMDREG_STAT1_FAULT_LBN	(7)
@@ -56,6 +61,9 @@
 /* Link state */
 #define MDIO_MMDREG_STAT1_LINK_LBN	(2)
 #define MDIO_MMDREG_STAT1_LINK_WIDTH	(1)
+/* Low power ability */
+#define MDIO_MMDREG_STAT1_LPABLE_LBN	(1)
+#define MDIO_MMDREG_STAT1_LPABLE_WIDTH	(1)
 
 /* Bits in ID reg */
 #define MDIO_ID_REV(_id32)	(_id32 & 0xf)
@@ -76,6 +84,14 @@
 #define MDIO_MMDREG_STAT2_PRESENT_LBN	(14)
 #define MDIO_MMDREG_STAT2_PRESENT_WIDTH (2)
 
+/* Bits in MMDREG_TXDIS */
+#define MDIO_MMDREG_TXDIS_GLOBAL_LBN    (0)
+#define MDIO_MMDREG_TXDIS_GLOBAL_WIDTH  (1)
+
+/* MMD-specific bits, ordered by MMD, then register */
+#define MDIO_PMAPMD_CTRL1_LBACK_LBN	(0)
+#define MDIO_PMAPMD_CTRL1_LBACK_WIDTH	(1)
+
 /* PMA type (4 bits) */
 #define MDIO_PMAPMD_CTRL2_10G_CX4	(0x0)
 #define MDIO_PMAPMD_CTRL2_10G_EW	(0x1)
@@ -95,7 +111,7 @@
 #define MDIO_PMAPMD_CTRL2_10_BT		(0xf)
 #define MDIO_PMAPMD_CTRL2_TYPE_MASK	(0xf)
 
-/* /\* PHY XGXS lane state *\/ */
+/* PHY XGXS lane state */
 #define MDIO_PHYXS_LANE_STATE		(0x18)
 #define MDIO_PHYXS_LANE_ALIGNED_LBN	(12)
 
@@ -216,6 +232,12 @@ int mdio_clause45_check_mmds(struct efx_nic *efx,
 /* Check the link status of specified mmds in bit mask */
 extern int mdio_clause45_links_ok(struct efx_nic *efx,
 				  unsigned int mmd_mask);
+
+/* Generic transmit disable support though PMAPMD */
+extern void mdio_clause45_transmit_disable(struct efx_nic *efx);
+
+/* Generic part of reconfigure: set/clear loopback bits */
+extern void mdio_clause45_phy_reconfigure(struct efx_nic *efx);
 
 /* Read (some of) the PHY settings over MDIO */
 extern void mdio_clause45_get_settings(struct efx_nic *efx,

@@ -105,7 +105,7 @@ void cpu_idle(void)
 #endif
 		if (!idle)
 			idle = default_idle;
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 		while (!need_resched())
 			idle();
 		tick_nohz_restart_sched_tick();
@@ -245,7 +245,7 @@ unsigned long get_wchan(struct task_struct *p)
 
 void finish_atomic_sections (struct pt_regs *regs)
 {
-	int __user *up0 = (int __user *)&regs->p0;
+	int __user *up0 = (int __user *)regs->p0;
 
 	if (regs->pc < ATOMIC_SEQS_START || regs->pc >= ATOMIC_SEQS_END)
 		return;

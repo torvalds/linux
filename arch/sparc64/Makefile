@@ -1,4 +1,3 @@
-# $Id: Makefile,v 1.52 2002/02/09 19:49:31 davem Exp $
 # sparc64/Makefile
 #
 # Makefile for the architecture dependent flags and dependencies on the
@@ -10,7 +9,9 @@
 
 CHECKFLAGS	+= -D__sparc__ -D__sparc_v9__ -m64
 
-CPPFLAGS_vmlinux.lds += -Usparc
+# Undefine sparc when processing vmlinux.lds - it is used
+# And teach CPP we are doing 64 bit builds (for this case)
+CPPFLAGS_vmlinux.lds += -m64 -Usparc
 
 LDFLAGS		:= -m elf64_sparc
 

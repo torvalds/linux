@@ -1394,7 +1394,11 @@ net_open(struct net_device *dev)
 #endif
         if (!result) {
                 printk(KERN_ERR "%s: EEPROM is configured for unavailable media\n", dev->name);
-        release_irq:
+release_dma:
+#if ALLOW_DMA
+		free_dma(dev->dma);
+#endif
+release_irq:
 #if ALLOW_DMA
 		release_dma_buff(lp);
 #endif
@@ -1442,12 +1446,12 @@ net_open(struct net_device *dev)
 			if ((result = detect_bnc(dev)) != DETECTED_NONE)
 				break;
 		printk(KERN_ERR "%s: no media detected\n", dev->name);
-                goto release_irq;
+		goto release_dma;
 	}
 	switch(result) {
 	case DETECTED_NONE:
 		printk(KERN_ERR "%s: no network cable attached to configured media\n", dev->name);
-                goto release_irq;
+		goto release_dma;
 	case DETECTED_RJ45H:
 		printk(KERN_INFO "%s: using half-duplex 10Base-T (RJ-45)\n", dev->name);
 		break;

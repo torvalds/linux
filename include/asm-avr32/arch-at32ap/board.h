@@ -8,6 +8,12 @@
 
 #define GPIO_PIN_NONE	(-1)
 
+/*
+ * Clock rates for various on-board oscillators. The number of entries
+ * in this array is chip-dependent.
+ */
+extern unsigned long at32_board_osc_rates[];
+  
 /* Add basic devices: system manager, interrupt controller, portmuxes, etc. */
 void at32_add_system_devices(void);
 
@@ -36,7 +42,8 @@ at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n);
 struct atmel_lcdfb_info;
 struct platform_device *
 at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
-		     unsigned long fbmem_start, unsigned long fbmem_len);
+		     unsigned long fbmem_start, unsigned long fbmem_len,
+		     unsigned int pin_config);
 
 struct usba_platform_data;
 struct platform_device *
@@ -70,9 +77,22 @@ struct i2c_board_info;
 struct platform_device *at32_add_device_twi(unsigned int id,
 					    struct i2c_board_info *b,
 					    unsigned int n);
-struct platform_device *at32_add_device_mci(unsigned int id);
-struct platform_device *at32_add_device_ac97c(unsigned int id);
+
+struct mci_platform_data;
+struct platform_device *
+at32_add_device_mci(unsigned int id, struct mci_platform_data *data);
+
+struct ac97c_platform_data {
+	unsigned short dma_rx_periph_id;
+	unsigned short dma_tx_periph_id;
+	unsigned short dma_controller_id;
+	int reset_pin;
+};
+struct platform_device *
+at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data);
+
 struct platform_device *at32_add_device_abdac(unsigned int id);
+struct platform_device *at32_add_device_psif(unsigned int id);
 
 struct cf_platform_data {
 	int	detect_pin;
@@ -84,5 +104,18 @@ struct cf_platform_data {
 struct platform_device *
 at32_add_device_cf(unsigned int id, unsigned int extint,
 		struct cf_platform_data *data);
+
+/* NAND / SmartMedia */
+struct atmel_nand_data {
+	int	enable_pin;	/* chip enable */
+	int	det_pin;	/* card detect */
+	int	rdy_pin;	/* ready/busy */
+	u8	ale;		/* address line number connected to ALE */
+	u8	cle;		/* address line number connected to CLE */
+	u8	bus_width_16;	/* buswidth is 16 bit */
+	struct mtd_partition *(*partition_info)(int size, int *num_partitions);
+};
+struct platform_device *
+at32_add_device_nand(unsigned int id, struct atmel_nand_data *data);
 
 #endif /* __ASM_ARCH_BOARD_H */

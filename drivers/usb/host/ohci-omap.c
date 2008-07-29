@@ -169,13 +169,16 @@ static void start_hnp(struct ohci_hcd *ohci)
 {
 	const unsigned	port = ohci_to_hcd(ohci)->self.otg_port - 1;
 	unsigned long	flags;
+	u32 l;
 
 	otg_start_hnp(ohci->transceiver);
 
 	local_irq_save(flags);
 	ohci->transceiver->state = OTG_STATE_A_SUSPEND;
 	writel (RH_PS_PSS, &ohci->regs->roothub.portstatus [port]);
-	OTG_CTRL_REG &= ~OTG_A_BUSREQ;
+	l = omap_readl(OTG_CTRL);
+	l &= ~OTG_A_BUSREQ;
+	omap_writel(l, OTG_CTRL);
 	local_irq_restore(flags);
 }
 
@@ -326,7 +329,7 @@ static int usb_hcd_omap_probe (const struct hc_driver *driver,
 	}
 
 
-	hcd = usb_create_hcd (driver, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd (driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err0;
@@ -466,6 +469,7 @@ static const struct hc_driver ohci_omap_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
+	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,

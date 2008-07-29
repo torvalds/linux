@@ -1820,7 +1820,7 @@ pfm_syswide_cleanup_other_cpu(pfm_context_t *ctx)
 	int ret;
 
 	DPRINT(("calling CPU%d for cleanup\n", ctx->ctx_cpu));
-	ret = smp_call_function_single(ctx->ctx_cpu, pfm_syswide_force_stop, ctx, 0, 1);
+	ret = smp_call_function_single(ctx->ctx_cpu, pfm_syswide_force_stop, ctx, 1);
 	DPRINT(("called CPU%d for cleanup ret=%d\n", ctx->ctx_cpu, ret));
 }
 #endif /* CONFIG_SMP */
@@ -1864,11 +1864,6 @@ pfm_flush(struct file *filp, fl_owner_t id)
 	 * invoked after, it will find an empty queue and no
 	 * signal will be sent. In both case, we are safe
 	 */
-	if (filp->f_flags & FASYNC) {
-		DPRINT(("cleaning up async_queue=%p\n", ctx->ctx_async_queue));
-		pfm_do_fasync (-1, filp, ctx, 0);
-	}
-
 	PROTECT_CTX(ctx, flags);
 
 	state     = ctx->ctx_state;
@@ -1997,6 +1992,11 @@ pfm_close(struct inode *inode, struct file *filp)
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_close: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
+	}
+
+	if (filp->f_flags & FASYNC) {
+		DPRINT(("cleaning up async_queue=%p\n", ctx->ctx_async_queue));
+		pfm_do_fasync(-1, filp, ctx, 0);
 	}
 
 	PROTECT_CTX(ctx, flags);
@@ -2626,7 +2626,7 @@ pfm_task_incompatible(pfm_context_t *ctx, struct task_struct *task)
 	/*
 	 * make sure the task is off any CPU
 	 */
-	wait_task_inactive(task);
+	wait_task_inactive(task, 0);
 
 	/* more to come... */
 
@@ -4774,7 +4774,7 @@ recheck:
 
 		UNPROTECT_CTX(ctx, flags);
 
-		wait_task_inactive(task);
+		wait_task_inactive(task, 0);
 
 		PROTECT_CTX(ctx, flags);
 
@@ -5013,12 +5013,13 @@ pfm_context_force_terminate(pfm_context_t *ctx, struct pt_regs *regs)
 }
 
 static int pfm_ovfl_notify_user(pfm_context_t *ctx, unsigned long ovfl_pmds);
+
  /*
   * pfm_handle_work() can be called with interrupts enabled
   * (TIF_NEED_RESCHED) or disabled. The down_interruptible
   * call may sleep, therefore we must re-enable interrupts
   * to avoid deadlocks. It is safe to do so because this function
-  * is called ONLY when returning to user level (PUStk=1), in which case
+  * is called ONLY when returning to user level (pUStk=1), in which case
   * there is no risk of kernel stack overflow due to deep
   * interrupt nesting.
   */
@@ -5034,7 +5035,8 @@ pfm_handle_work(void)
 
 	ctx = PFM_GET_CTX(current);
 	if (ctx == NULL) {
-		printk(KERN_ERR "perfmon: [%d] has no PFM context\n", task_pid_nr(current));
+		printk(KERN_ERR "perfmon: [%d] has no PFM context\n",
+			task_pid_nr(current));
 		return;
 	}
 
@@ -5058,11 +5060,12 @@ pfm_handle_work(void)
 	/*
 	 * must be done before we check for simple-reset mode
 	 */
-	if (ctx->ctx_fl_going_zombie || ctx->ctx_state == PFM_CTX_ZOMBIE) goto do_zombie;
-
+	if (ctx->ctx_fl_going_zombie || ctx->ctx_state == PFM_CTX_ZOMBIE)
+		goto do_zombie;
 
 	//if (CTX_OVFL_NOBLOCK(ctx)) goto skip_blocking;
-	if (reason == PFM_TRAP_REASON_RESET) goto skip_blocking;
+	if (reason == PFM_TRAP_REASON_RESET)
+		goto skip_blocking;
 
 	/*
 	 * restore interrupt mask to what it was on entry.
@@ -5110,7 +5113,8 @@ do_zombie:
 	/*
 	 * in case of interruption of down() we don't restart anything
 	 */
-	if (ret < 0) goto nothing_to_do;
+	if (ret < 0)
+		goto nothing_to_do;
 
 skip_blocking:
 	pfm_resume_after_ovfl(ctx, ovfl_regs, regs);
@@ -6504,7 +6508,7 @@ pfm_install_alt_pmu_interrupt(pfm_intr_handler_desc_t *hdl)
 	}
 
 	/* save the current system wide pmu states */
-	ret = on_each_cpu(pfm_alt_save_pmu_state, NULL, 0, 1);
+	ret = on_each_cpu(pfm_alt_save_pmu_state, NULL, 1);
 	if (ret) {
 		DPRINT(("on_each_cpu() failed: %d\n", ret));
 		goto cleanup_reserve;
@@ -6549,7 +6553,7 @@ pfm_remove_alt_pmu_interrupt(pfm_intr_handler_desc_t *hdl)
 
 	pfm_alt_intr_handler = NULL;
 
-	ret = on_each_cpu(pfm_alt_restore_pmu_state, NULL, 0, 1);
+	ret = on_each_cpu(pfm_alt_restore_pmu_state, NULL, 1);
 	if (ret) {
 		DPRINT(("on_each_cpu() failed: %d\n", ret));
 	}

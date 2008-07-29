@@ -177,25 +177,6 @@ static struct map_desc ebsa285_host_io_desc[] __initdata = {
 #endif
 };
 
-/*
- * The CO-ebsa285 mapping.
- */
-static struct map_desc co285_io_desc[] __initdata = {
-#ifdef CONFIG_ARCH_CO285
-	{
-		.virtual	= PCIO_BASE,
-		.pfn		= __phys_to_pfn(DC21285_PCI_IO),
-		.length		= PCIO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= PCIMEM_BASE,
-		.pfn		= __phys_to_pfn(DC21285_PCI_MEM),
-		.length		= PCIMEM_SIZE,
-		.type		= MT_DEVICE,
-	},
-#endif
-};
-
 void __init footbridge_map_io(void)
 {
 	/*
@@ -208,8 +189,6 @@ void __init footbridge_map_io(void)
 	 * Now, work out what we've got to map in addition on this
 	 * platform.
 	 */
-	if (machine_is_co285())
-		iotable_init(co285_io_desc, ARRAY_SIZE(co285_io_desc));
 	if (footbridge_cfn_mode())
 		iotable_init(ebsa285_host_io_desc, ARRAY_SIZE(ebsa285_host_io_desc));
 }

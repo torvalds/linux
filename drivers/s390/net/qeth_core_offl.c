@@ -122,8 +122,8 @@ int qeth_eddp_fill_buffer(struct qeth_qdio_out_q *queue,
 			if (element == 0)
 				return -EBUSY;
 			else {
-				PRINT_WARN("could only partially fill eddp "
-					   "buffer!\n");
+				QETH_DBF_MESSAGE(2, "could only partially fill"
+					"eddp buffer!\n");
 				goto out;
 			}
 		}
@@ -143,8 +143,6 @@ int qeth_eddp_fill_buffer(struct qeth_qdio_out_q *queue,
 		if (must_refcnt) {
 			must_refcnt = 0;
 			if (qeth_eddp_buf_ref_context(buf, ctx)) {
-				PRINT_WARN("no memory to create eddp context "
-					   "reference\n");
 				goto out_check;
 			}
 		}

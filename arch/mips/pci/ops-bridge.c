@@ -14,6 +14,22 @@
 #include <asm/sn/sn0/hub.h>
 
 /*
+ * Most of the IOC3 PCI config register aren't present
+ * we emulate what is needed for a normal PCI enumeration
+ */
+static u32 emulate_ioc3_cfg(int where, int size)
+{
+	if (size == 1 && where == 0x3d)
+		return 0x01;
+	else if (size == 2 && where == 0x3c)
+		return 0x0100;
+	else if (size == 4 && where == 0x3c)
+		return 0x00000100;
+
+	return 0;
+}
+
+/*
  * The Bridge ASIC supports both type 0 and type 1 access.  Type 1 is
  * not really documented, so right now I can't write code which uses it.
  * Therefore we use type 0 accesses for now even though they won't work
@@ -64,7 +80,7 @@ oh_my_gawd:
 	 * generic PCI code a chance to look at the wrong register.
 	 */
 	if ((where >= 0x14 && where < 0x40) || (where >= 0x48)) {
-		*value = 0;
+		*value = emulate_ioc3_cfg(where, size);
 		return PCIBIOS_SUCCESSFUL;
 	}
 
@@ -127,7 +143,7 @@ oh_my_gawd:
 	 * generic PCI code a chance to look at the wrong register.
 	 */
 	if ((where >= 0x14 && where < 0x40) || (where >= 0x48)) {
-		*value = 0;
+		*value = emulate_ioc3_cfg(where, size);
 		return PCIBIOS_SUCCESSFUL;
 	}
 

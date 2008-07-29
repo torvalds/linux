@@ -205,8 +205,8 @@ config SATA_VITESSE
 	  If unsure, say N.
 
 config SATA_INIC162X
-	tristate "Initio 162x SATA support (HIGHLY EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Initio 162x SATA support"
+	depends on PCI
 	help
 	  This option enables support for Initio 162x Serial ATA.
 
@@ -651,9 +651,17 @@ config PATA_WINBOND_VLB
 	  Support for the Winbond W83759A controller on Vesa Local Bus
 	  systems.
 
+config HAVE_PATA_PLATFORM
+	bool
+	help
+	  This is an internal configuration node for any machine that
+	  uses pata-platform driver to enable the relevant driver in the
+	  configuration structure without having to submit endless patches
+	  to update the PATA_PLATFORM entry.
+
 config PATA_PLATFORM
 	tristate "Generic platform device PATA support"
-	depends on EMBEDDED || ARCH_RPC || PPC
+	depends on EMBEDDED || ARCH_RPC || PPC || HAVE_PATA_PLATFORM
 	help
 	  This option enables support for generic directly connected ATA
 	  devices commonly found on embedded systems.
@@ -694,6 +702,15 @@ config PATA_SCC
 	help
 	  This option enables support for the built-in IDE controller on
 	  Toshiba Cell Reference Board.
+
+	  If unsure, say N.
+
+config PATA_SCH
+	tristate "Intel SCH PATA support"
+	depends on PCI
+	help
+	  This option enables support for Intel SCH PATA on the Intel
+	  SCH (US15W, US15L, UL11L) series host controllers.
 
 	  If unsure, say N.
 

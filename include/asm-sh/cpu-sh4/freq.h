@@ -12,12 +12,16 @@
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7722) || \
     defined(CONFIG_CPU_SUBTYPE_SH7723) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7343) || \
     defined(CONFIG_CPU_SUBTYPE_SH7366)
 #define FRQCR		        0xa4150000
 #define VCLKCR			0xa4150004
 #define SCLKACR			0xa4150008
 #define SCLKBCR			0xa415000c
 #define IrDACLKCR		0xa4150010
+#define MSTPCR0			0xa4150030
+#define MSTPCR1			0xa4150034
+#define MSTPCR2			0xa4150038
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
       defined(CONFIG_CPU_SUBTYPE_SH7780)
 #define	FRQCR			0xffc80000

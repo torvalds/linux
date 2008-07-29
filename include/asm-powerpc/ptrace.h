@@ -84,6 +84,7 @@ struct pt_regs {
 #ifndef __ASSEMBLY__
 
 #define instruction_pointer(regs) ((regs)->nip)
+#define user_stack_pointer(regs) ((regs)->gpr[1])
 #define regs_return_value(regs) ((regs)->gpr[3])
 
 #ifdef CONFIG_SMP
@@ -119,6 +120,7 @@ extern int ptrace_put_reg(struct task_struct *task, int regno,
 #ifndef __powerpc64__
 #define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) != 0)
 #define IS_MCHECK_EXC(regs)	(((regs)->trap & 4) != 0)
+#define IS_DEBUG_EXC(regs)	(((regs)->trap & 8) != 0)
 #endif /* ! __powerpc64__ */
 #define TRAP(regs)		((regs)->trap & ~0xF)
 #ifdef __powerpc64__
@@ -223,6 +225,14 @@ extern void user_disable_single_step(struct task_struct *);
 #define PT_VRSAVE_32 (PT_VR0 + 33*4)
 #endif
 
+/*
+ * Only store first 32 VSRs here. The second 32 VSRs in VR0-31
+ */
+#define PT_VSR0 150	/* each VSR reg occupies 2 slots in 64-bit */
+#define PT_VSR31 (PT_VSR0 + 2*31)
+#ifdef __KERNEL__
+#define PT_VSR0_32 300 	/* each VSR reg occupies 4 slots in 32-bit */
+#endif
 #endif /* __powerpc64__ */
 
 /*
@@ -244,6 +254,10 @@ extern void user_disable_single_step(struct task_struct *);
  * spefscr, in one go */
 #define PTRACE_GETEVRREGS	20
 #define PTRACE_SETEVRREGS	21
+
+/* Get the first 32 128bit VSX registers */
+#define PTRACE_GETVSRREGS	27
+#define PTRACE_SETVSRREGS	28
 
 /*
  * Get or set a debug register. The first 16 are DABR registers and the

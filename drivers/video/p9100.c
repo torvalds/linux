@@ -15,10 +15,9 @@
 #include <linux/init.h>
 #include <linux/fb.h>
 #include <linux/mm.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/fbio.h>
 
 #include "sbuslib.h"
@@ -275,7 +274,7 @@ static int __devinit p9100_probe(struct of_device *op, const struct of_device_id
 	par->physbase = op->resource[2].start;
 	par->which_io = op->resource[2].flags & IORESOURCE_BITS;
 
-	sbusfb_fill_var(&info->var, dp->node, 8);
+	sbusfb_fill_var(&info->var, dp, 8);
 	info->var.red.length = 8;
 	info->var.green.length = 8;
 	info->var.blue.length = 8;
@@ -295,7 +294,7 @@ static int __devinit p9100_probe(struct of_device *op, const struct of_device_id
 	if (!info->screen_base)
 		goto out_unmap_regs;
 
-	p9100_blank(0, info);
+	p9100_blank(FB_BLANK_UNBLANK, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0))
 		goto out_unmap_screen;

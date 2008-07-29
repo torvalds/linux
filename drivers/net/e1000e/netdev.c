@@ -43,10 +43,11 @@
 #include <linux/if_vlan.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
+#include <linux/pm_qos_params.h>
 
 #include "e1000.h"
 
-#define DRV_VERSION "0.2.1"
+#define DRV_VERSION "0.3.3.3-k2"
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
@@ -97,8 +98,7 @@ static void e1000_receive_skb(struct e1000_adapter *adapter,
 
 	if (adapter->vlgrp && (status & E1000_RXD_STAT_VP))
 		vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
-					 le16_to_cpu(vlan) &
-					 E1000_RXD_SPC_VLAN_MASK);
+					 le16_to_cpu(vlan));
 	else
 		netif_receive_skb(skb);
 
@@ -195,7 +195,7 @@ map_skb:
 		buffer_info->dma = pci_map_single(pdev, skb->data,
 						  adapter->rx_buffer_len,
 						  PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(buffer_info->dma)) {
+		if (pci_dma_mapping_error(pdev, buffer_info->dma)) {
 			dev_err(&pdev->dev, "RX DMA map failed\n");
 			adapter->rx_dma_failed++;
 			break;
@@ -265,7 +265,7 @@ static void e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 						   ps_page->page,
 						   0, PAGE_SIZE,
 						   PCI_DMA_FROMDEVICE);
-				if (pci_dma_mapping_error(ps_page->dma)) {
+				if (pci_dma_mapping_error(pdev, ps_page->dma)) {
 					dev_err(&adapter->pdev->dev,
 					  "RX DMA page map failed\n");
 					adapter->rx_dma_failed++;
@@ -300,7 +300,7 @@ static void e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 		buffer_info->dma = pci_map_single(pdev, skb->data,
 						  adapter->rx_ps_bsize0,
 						  PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(buffer_info->dma)) {
+		if (pci_dma_mapping_error(pdev, buffer_info->dma)) {
 			dev_err(&pdev->dev, "RX DMA map failed\n");
 			adapter->rx_dma_failed++;
 			/* cleanup skb */
@@ -337,6 +337,89 @@ no_buffers:
 		 * twice as much.
 		 */
 		writel(i<<1, adapter->hw.hw_addr + rx_ring->tail);
+	}
+}
+
+/**
+ * e1000_alloc_jumbo_rx_buffers - Replace used jumbo receive buffers
+ * @adapter: address of board private structure
+ * @rx_ring: pointer to receive ring structure
+ * @cleaned_count: number of buffers to allocate this pass
+ **/
+
+static void e1000_alloc_jumbo_rx_buffers(struct e1000_adapter *adapter,
+                                         int cleaned_count)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
+	struct e1000_rx_desc *rx_desc;
+	struct e1000_ring *rx_ring = adapter->rx_ring;
+	struct e1000_buffer *buffer_info;
+	struct sk_buff *skb;
+	unsigned int i;
+	unsigned int bufsz = 256 -
+	                     16 /* for skb_reserve */ -
+	                     NET_IP_ALIGN;
+
+	i = rx_ring->next_to_use;
+	buffer_info = &rx_ring->buffer_info[i];
+
+	while (cleaned_count--) {
+		skb = buffer_info->skb;
+		if (skb) {
+			skb_trim(skb, 0);
+			goto check_page;
+		}
+
+		skb = netdev_alloc_skb(netdev, bufsz);
+		if (unlikely(!skb)) {
+			/* Better luck next round */
+			adapter->alloc_rx_buff_failed++;
+			break;
+		}
+
+		/* Make buffer alignment 2 beyond a 16 byte boundary
+		 * this will result in a 16 byte aligned IP header after
+		 * the 14 byte MAC header is removed
+		 */
+		skb_reserve(skb, NET_IP_ALIGN);
+
+		buffer_info->skb = skb;
+check_page:
+		/* allocate a new page if necessary */
+		if (!buffer_info->page) {
+			buffer_info->page = alloc_page(GFP_ATOMIC);
+			if (unlikely(!buffer_info->page)) {
+				adapter->alloc_rx_buff_failed++;
+				break;
+			}
+		}
+
+		if (!buffer_info->dma)
+			buffer_info->dma = pci_map_page(pdev,
+			                                buffer_info->page, 0,
+			                                PAGE_SIZE,
+			                                PCI_DMA_FROMDEVICE);
+
+		rx_desc = E1000_RX_DESC(*rx_ring, i);
+		rx_desc->buffer_addr = cpu_to_le64(buffer_info->dma);
+
+		if (unlikely(++i == rx_ring->count))
+			i = 0;
+		buffer_info = &rx_ring->buffer_info[i];
+	}
+
+	if (likely(rx_ring->next_to_use != i)) {
+		rx_ring->next_to_use = i;
+		if (unlikely(i-- == 0))
+			i = (rx_ring->count - 1);
+
+		/* Force memory writes to complete before letting h/w
+		 * know there are new descriptors to fetch.  (Only
+		 * applicable for weak-ordered memory model archs,
+		 * such as IA-64). */
+		wmb();
+		writel(i, adapter->hw.hw_addr + rx_ring->tail);
 	}
 }
 
@@ -783,6 +866,186 @@ next_desc:
 }
 
 /**
+ * e1000_consume_page - helper function
+ **/
+static void e1000_consume_page(struct e1000_buffer *bi, struct sk_buff *skb,
+                               u16 length)
+{
+	bi->page = NULL;
+	skb->len += length;
+	skb->data_len += length;
+	skb->truesize += length;
+}
+
+/**
+ * e1000_clean_jumbo_rx_irq - Send received data up the network stack; legacy
+ * @adapter: board private structure
+ *
+ * the return value indicates whether actual cleaning was done, there
+ * is no guarantee that everything was cleaned
+ **/
+
+static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
+                                     int *work_done, int work_to_do)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
+	struct e1000_ring *rx_ring = adapter->rx_ring;
+	struct e1000_rx_desc *rx_desc, *next_rxd;
+	struct e1000_buffer *buffer_info, *next_buffer;
+	u32 length;
+	unsigned int i;
+	int cleaned_count = 0;
+	bool cleaned = false;
+	unsigned int total_rx_bytes=0, total_rx_packets=0;
+
+	i = rx_ring->next_to_clean;
+	rx_desc = E1000_RX_DESC(*rx_ring, i);
+	buffer_info = &rx_ring->buffer_info[i];
+
+	while (rx_desc->status & E1000_RXD_STAT_DD) {
+		struct sk_buff *skb;
+		u8 status;
+
+		if (*work_done >= work_to_do)
+			break;
+		(*work_done)++;
+
+		status = rx_desc->status;
+		skb = buffer_info->skb;
+		buffer_info->skb = NULL;
+
+		++i;
+		if (i == rx_ring->count)
+			i = 0;
+		next_rxd = E1000_RX_DESC(*rx_ring, i);
+		prefetch(next_rxd);
+
+		next_buffer = &rx_ring->buffer_info[i];
+
+		cleaned = true;
+		cleaned_count++;
+		pci_unmap_page(pdev, buffer_info->dma, PAGE_SIZE,
+		               PCI_DMA_FROMDEVICE);
+		buffer_info->dma = 0;
+
+		length = le16_to_cpu(rx_desc->length);
+
+		/* errors is only valid for DD + EOP descriptors */
+		if (unlikely((status & E1000_RXD_STAT_EOP) &&
+		    (rx_desc->errors & E1000_RXD_ERR_FRAME_ERR_MASK))) {
+				/* recycle both page and skb */
+				buffer_info->skb = skb;
+				/* an error means any chain goes out the window
+				 * too */
+				if (rx_ring->rx_skb_top)
+					dev_kfree_skb(rx_ring->rx_skb_top);
+				rx_ring->rx_skb_top = NULL;
+				goto next_desc;
+		}
+
+#define rxtop rx_ring->rx_skb_top
+		if (!(status & E1000_RXD_STAT_EOP)) {
+			/* this descriptor is only the beginning (or middle) */
+			if (!rxtop) {
+				/* this is the beginning of a chain */
+				rxtop = skb;
+				skb_fill_page_desc(rxtop, 0, buffer_info->page,
+				                   0, length);
+			} else {
+				/* this is the middle of a chain */
+				skb_fill_page_desc(rxtop,
+				    skb_shinfo(rxtop)->nr_frags,
+				    buffer_info->page, 0, length);
+				/* re-use the skb, only consumed the page */
+				buffer_info->skb = skb;
+			}
+			e1000_consume_page(buffer_info, rxtop, length);
+			goto next_desc;
+		} else {
+			if (rxtop) {
+				/* end of the chain */
+				skb_fill_page_desc(rxtop,
+				    skb_shinfo(rxtop)->nr_frags,
+				    buffer_info->page, 0, length);
+				/* re-use the current skb, we only consumed the
+				 * page */
+				buffer_info->skb = skb;
+				skb = rxtop;
+				rxtop = NULL;
+				e1000_consume_page(buffer_info, skb, length);
+			} else {
+				/* no chain, got EOP, this buf is the packet
+				 * copybreak to save the put_page/alloc_page */
+				if (length <= copybreak &&
+				    skb_tailroom(skb) >= length) {
+					u8 *vaddr;
+					vaddr = kmap_atomic(buffer_info->page,
+					                   KM_SKB_DATA_SOFTIRQ);
+					memcpy(skb_tail_pointer(skb), vaddr,
+					       length);
+					kunmap_atomic(vaddr,
+					              KM_SKB_DATA_SOFTIRQ);
+					/* re-use the page, so don't erase
+					 * buffer_info->page */
+					skb_put(skb, length);
+				} else {
+					skb_fill_page_desc(skb, 0,
+					                   buffer_info->page, 0,
+				                           length);
+					e1000_consume_page(buffer_info, skb,
+					                   length);
+				}
+			}
+		}
+
+		/* Receive Checksum Offload XXX recompute due to CRC strip? */
+		e1000_rx_checksum(adapter,
+		                  (u32)(status) |
+		                  ((u32)(rx_desc->errors) << 24),
+		                  le16_to_cpu(rx_desc->csum), skb);
+
+		/* probably a little skewed due to removing CRC */
+		total_rx_bytes += skb->len;
+		total_rx_packets++;
+
+		/* eth type trans needs skb->data to point to something */
+		if (!pskb_may_pull(skb, ETH_HLEN)) {
+			ndev_err(netdev, "pskb_may_pull failed.\n");
+			dev_kfree_skb(skb);
+			goto next_desc;
+		}
+
+		e1000_receive_skb(adapter, netdev, skb, status,
+		                  rx_desc->special);
+
+next_desc:
+		rx_desc->status = 0;
+
+		/* return some buffers to hardware, one at a time is too slow */
+		if (unlikely(cleaned_count >= E1000_RX_BUFFER_WRITE)) {
+			adapter->alloc_rx_buf(adapter, cleaned_count);
+			cleaned_count = 0;
+		}
+
+		/* use prefetched values */
+		rx_desc = next_rxd;
+		buffer_info = next_buffer;
+	}
+	rx_ring->next_to_clean = i;
+
+	cleaned_count = e1000_desc_unused(rx_ring);
+	if (cleaned_count)
+		adapter->alloc_rx_buf(adapter, cleaned_count);
+
+	adapter->total_rx_bytes += total_rx_bytes;
+	adapter->total_rx_packets += total_rx_packets;
+	adapter->net_stats.rx_bytes += total_rx_bytes;
+	adapter->net_stats.rx_packets += total_rx_packets;
+	return cleaned;
+}
+
+/**
  * e1000_clean_rx_ring - Free Rx Buffers per Queue
  * @adapter: board private structure
  **/
@@ -802,11 +1065,20 @@ static void e1000_clean_rx_ring(struct e1000_adapter *adapter)
 				pci_unmap_single(pdev, buffer_info->dma,
 						 adapter->rx_buffer_len,
 						 PCI_DMA_FROMDEVICE);
+			else if (adapter->clean_rx == e1000_clean_jumbo_rx_irq)
+				pci_unmap_page(pdev, buffer_info->dma,
+				               PAGE_SIZE,
+				               PCI_DMA_FROMDEVICE);
 			else if (adapter->clean_rx == e1000_clean_rx_irq_ps)
 				pci_unmap_single(pdev, buffer_info->dma,
 						 adapter->rx_ps_bsize0,
 						 PCI_DMA_FROMDEVICE);
 			buffer_info->dma = 0;
+		}
+
+		if (buffer_info->page) {
+			put_page(buffer_info->page);
+			buffer_info->page = NULL;
 		}
 
 		if (buffer_info->skb) {
@@ -1520,7 +1792,6 @@ static void e1000_vlan_rx_register(struct net_device *netdev,
 		if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
 			/* enable VLAN receive filtering */
 			rctl = er32(RCTL);
-			rctl |= E1000_RCTL_VFE;
 			rctl &= ~E1000_RCTL_CFIEN;
 			ew32(RCTL, rctl);
 			e1000_update_mng_vlan(adapter);
@@ -1532,10 +1803,6 @@ static void e1000_vlan_rx_register(struct net_device *netdev,
 		ew32(CTRL, ctrl);
 
 		if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
-			/* disable VLAN filtering */
-			rctl = er32(RCTL);
-			rctl &= ~E1000_RCTL_VFE;
-			ew32(RCTL, rctl);
 			if (adapter->mng_vlan_id !=
 			    (u16)E1000_MNG_VLAN_NONE) {
 				e1000_vlan_rx_kill_vid(netdev,
@@ -1755,10 +2022,12 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	 * a lot of memory, since we allocate 3 pages at all times
 	 * per packet.
 	 */
-	adapter->rx_ps_pages = 0;
 	pages = PAGE_USE_COUNT(adapter->netdev->mtu);
-	if ((pages <= 3) && (PAGE_SIZE <= 16384) && (rctl & E1000_RCTL_LPE))
+	if (!(adapter->flags & FLAG_IS_ICH) && (pages <= 3) &&
+	    (PAGE_SIZE <= 16384) && (rctl & E1000_RCTL_LPE))
 		adapter->rx_ps_pages = pages;
+	else
+		adapter->rx_ps_pages = 0;
 
 	if (adapter->rx_ps_pages) {
 		/* Configure extra packet-split registers */
@@ -1819,9 +2088,12 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 			sizeof(union e1000_rx_desc_packet_split);
 		adapter->clean_rx = e1000_clean_rx_irq_ps;
 		adapter->alloc_rx_buf = e1000_alloc_rx_buffers_ps;
+	} else if (adapter->netdev->mtu > ETH_FRAME_LEN + ETH_FCS_LEN) {
+		rdlen = rx_ring->count * sizeof(struct e1000_rx_desc);
+		adapter->clean_rx = e1000_clean_jumbo_rx_irq;
+		adapter->alloc_rx_buf = e1000_alloc_jumbo_rx_buffers;
 	} else {
-		rdlen = rx_ring->count *
-			sizeof(struct e1000_rx_desc);
+		rdlen = rx_ring->count * sizeof(struct e1000_rx_desc);
 		adapter->clean_rx = e1000_clean_rx_irq;
 		adapter->alloc_rx_buf = e1000_alloc_rx_buffers;
 	}
@@ -1885,8 +2157,21 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	 * units), e.g. using jumbo frames when setting to E1000_ERT_2048
 	 */
 	if ((adapter->flags & FLAG_HAS_ERT) &&
-	    (adapter->netdev->mtu > ETH_DATA_LEN))
-		ew32(ERT, E1000_ERT_2048);
+	    (adapter->netdev->mtu > ETH_DATA_LEN)) {
+		u32 rxdctl = er32(RXDCTL(0));
+		ew32(RXDCTL(0), rxdctl | 0x3);
+		ew32(ERT, E1000_ERT_2048 | (1 << 13));
+		/*
+		 * With jumbo frames and early-receive enabled, excessive
+		 * C4->C2 latencies result in dropped transactions.
+		 */
+		pm_qos_update_requirement(PM_QOS_CPU_DMA_LATENCY,
+					  e1000e_driver_name, 55);
+	} else {
+		pm_qos_update_requirement(PM_QOS_CPU_DMA_LATENCY,
+					  e1000e_driver_name,
+					  PM_QOS_DEFAULT_VALUE);
+	}
 
 	/* Enable Receives */
 	ew32(RCTL, rctl);
@@ -1940,11 +2225,16 @@ static void e1000_set_multi(struct net_device *netdev)
 
 	if (netdev->flags & IFF_PROMISC) {
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-	} else if (netdev->flags & IFF_ALLMULTI) {
-		rctl |= E1000_RCTL_MPE;
-		rctl &= ~E1000_RCTL_UPE;
+		rctl &= ~E1000_RCTL_VFE;
 	} else {
-		rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
+		if (netdev->flags & IFF_ALLMULTI) {
+			rctl |= E1000_RCTL_MPE;
+			rctl &= ~E1000_RCTL_UPE;
+		} else {
+			rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
+		}
+		if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
+			rctl |= E1000_RCTL_VFE;
 	}
 
 	ew32(RCTL, rctl);
@@ -2155,6 +2445,14 @@ void e1000e_reset(struct e1000_adapter *adapter)
 
 	/* Allow time for pending master requests to run */
 	mac->ops.reset_hw(hw);
+
+	/*
+	 * For parts with AMT enabled, let the firmware know
+	 * that the network interface is in control
+	 */
+	if ((adapter->flags & FLAG_HAS_AMT) && e1000e_check_mng_mode(hw))
+		e1000_get_hw_control(adapter);
+
 	ew32(WUC, 0);
 
 	if (mac->ops.init_hw(hw))
@@ -2215,7 +2513,7 @@ void e1000e_down(struct e1000_adapter *adapter)
 	ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	/* flush and sleep below */
 
-	netif_stop_queue(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	/* disable transmits in the hardware */
 	tctl = er32(TCTL);
@@ -2236,7 +2534,8 @@ void e1000e_down(struct e1000_adapter *adapter)
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
 
-	e1000e_reset(adapter);
+	if (!pci_channel_offline(adapter->pdev))
+		e1000e_reset(adapter);
 	e1000_clean_tx_ring(adapter);
 	e1000_clean_rx_ring(adapter);
 
@@ -2363,6 +2662,8 @@ static int e1000_open(struct net_device *netdev)
 	napi_enable(&adapter->napi);
 
 	e1000_irq_enable(adapter);
+
+	netif_tx_start_all_queues(netdev);
 
 	/* fire a link status change interrupt to start the watchdog */
 	ew32(ICS, E1000_ICS_LSC);
@@ -2819,7 +3120,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 			ew32(TCTL, tctl);
 
 			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
+			netif_tx_wake_all_queues(netdev);
 
 			if (!test_bit(__E1000_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
@@ -2831,7 +3132,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 			adapter->link_duplex = 0;
 			ndev_info(netdev, "Link is Down\n");
 			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
+			netif_tx_stop_all_queues(netdev);
 			if (!test_bit(__E1000_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
@@ -3043,7 +3344,7 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 				skb->data + offset,
 				size,
 				PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(buffer_info->dma)) {
+		if (pci_dma_mapping_error(adapter->pdev, buffer_info->dma)) {
 			dev_err(&adapter->pdev->dev, "TX DMA map failed\n");
 			adapter->tx_dma_failed++;
 			return -1;
@@ -3081,7 +3382,8 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 					offset,
 					size,
 					PCI_DMA_TODEVICE);
-			if (pci_dma_mapping_error(buffer_info->dma)) {
+			if (pci_dma_mapping_error(adapter->pdev,
+						  buffer_info->dma)) {
 				dev_err(&adapter->pdev->dev,
 					"TX DMA page map failed\n");
 				adapter->tx_dma_failed++;
@@ -3469,6 +3771,8 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	 * means we reserve 2 more, this pushes us to allocate from the next
 	 * larger slab size.
 	 * i.e. RXBUFFER_2048 --> size-4096 slab
+	 * However with the new *_jumbo_rx* routines, jumbo receives will use
+	 * fragmented skbs
 	 */
 
 	if (max_frame <= 256)
@@ -3626,6 +3930,9 @@ static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 			ew32(CTRL_EXT, ctrl_ext);
 		}
 
+		if (adapter->flags & FLAG_IS_ICH)
+			e1000e_disable_gig_wol_ich8lan(&adapter->hw);
+
 		/* Allow time for pending master requests to run */
 		e1000e_disable_pcie_master(&adapter->hw);
 
@@ -3698,7 +4005,11 @@ static int e1000_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	e1000e_disable_l1aspm(pdev);
-	err = pci_enable_device(pdev);
+
+	if (adapter->need_ioport)
+		err = pci_enable_device(pdev);
+	else
+		err = pci_enable_device_mem(pdev);
 	if (err) {
 		dev_err(&pdev->dev,
 			"Cannot enable PCI device from suspend\n");
@@ -3757,8 +4068,6 @@ static void e1000_netpoll(struct net_device *netdev)
 	disable_irq(adapter->pdev->irq);
 	e1000_intr(adapter->pdev->irq, netdev);
 
-	e1000_clean_tx_irq(adapter);
-
 	enable_irq(adapter->pdev->irq);
 }
 #endif
@@ -3799,9 +4108,14 @@ static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	int err;
 
 	e1000e_disable_l1aspm(pdev);
-	if (pci_enable_device(pdev)) {
+	if (adapter->need_ioport)
+		err = pci_enable_device(pdev);
+	else
+		err = pci_enable_device_mem(pdev);
+	if (err) {
 		dev_err(&pdev->dev,
 			"Cannot re-enable PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -3880,6 +4194,21 @@ static void e1000_print_device_info(struct e1000_adapter *adapter)
 }
 
 /**
+ * e1000e_is_need_ioport - determine if an adapter needs ioport resources or not
+ * @pdev: PCI device information struct
+ *
+ * Returns true if an adapters needs ioport resources
+ **/
+static int e1000e_is_need_ioport(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	/* Currently there are no adapters that need ioport resources */
+	default:
+		return false;
+	}
+}
+
+/**
  * e1000_probe - Device Initialization Routine
  * @pdev: PCI device information struct
  * @ent: entry in e1000_pci_tbl
@@ -3897,16 +4226,26 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	struct e1000_adapter *adapter;
 	struct e1000_hw *hw;
 	const struct e1000_info *ei = e1000_info_tbl[ent->driver_data];
-	unsigned long mmio_start, mmio_len;
-	unsigned long flash_start, flash_len;
+	resource_size_t mmio_start, mmio_len;
+	resource_size_t flash_start, flash_len;
 
 	static int cards_found;
 	int i, err, pci_using_dac;
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
+	int bars, need_ioport;
 
 	e1000e_disable_l1aspm(pdev);
-	err = pci_enable_device(pdev);
+
+	/* do not allocate ioport bars when not needed */
+	need_ioport = e1000e_is_need_ioport(pdev);
+	if (need_ioport) {
+		bars = pci_select_bars(pdev, IORESOURCE_MEM | IORESOURCE_IO);
+		err = pci_enable_device(pdev);
+	} else {
+		bars = pci_select_bars(pdev, IORESOURCE_MEM);
+		err = pci_enable_device_mem(pdev);
+	}
 	if (err)
 		return err;
 
@@ -3929,7 +4268,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		}
 	}
 
-	err = pci_request_regions(pdev, e1000e_driver_name);
+	err = pci_request_selected_regions(pdev, bars, e1000e_driver_name);
 	if (err)
 		goto err_pci_reg;
 
@@ -3954,6 +4293,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	adapter->hw.adapter = adapter;
 	adapter->hw.mac.type = ei->mac;
 	adapter->msg_enable = (1 << NETIF_MSG_DRV | NETIF_MSG_PROBE) - 1;
+	adapter->bars = bars;
+	adapter->need_ioport = need_ioport;
 
 	mmio_start = pci_resource_start(pdev, 0);
 	mmio_len = pci_resource_len(pdev, 0);
@@ -4038,6 +4379,11 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	netdev->features |= NETIF_F_TSO;
 	netdev->features |= NETIF_F_TSO6;
+
+	netdev->vlan_features |= NETIF_F_TSO;
+	netdev->vlan_features |= NETIF_F_TSO6;
+	netdev->vlan_features |= NETIF_F_HW_CSUM;
+	netdev->vlan_features |= NETIF_F_SG;
 
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -4159,7 +4505,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* tell the stack to leave us alone until e1000_open() is called */
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
@@ -4188,7 +4534,7 @@ err_sw_init:
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_regions(pdev);
+	pci_release_selected_regions(pdev, bars);
 err_pci_reg:
 err_dma:
 	pci_disable_device(pdev);
@@ -4236,7 +4582,7 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	iounmap(adapter->hw.hw_addr);
 	if (adapter->hw.flash_address)
 		iounmap(adapter->hw.flash_address);
-	pci_release_regions(pdev);
+	pci_release_selected_regions(pdev, adapter->bars);
 
 	free_netdev(netdev);
 
@@ -4292,6 +4638,13 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IFE_GT), board_ich9lan },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_AMT), board_ich9lan },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_C), board_ich9lan },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_M), board_ich9lan },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_M_AMT), board_ich9lan },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_M_V), board_ich9lan },
+
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_R_BM_LM), board_ich9lan },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_R_BM_LF), board_ich9lan },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_R_BM_V), board_ich9lan },
 
 	{ }	/* terminate list */
 };
@@ -4326,7 +4679,9 @@ static int __init e1000_init_module(void)
 	printk(KERN_INFO "%s: Copyright (c) 1999-2008 Intel Corporation.\n",
 	       e1000e_driver_name);
 	ret = pci_register_driver(&e1000_driver);
-
+	pm_qos_add_requirement(PM_QOS_CPU_DMA_LATENCY, e1000e_driver_name,
+			       PM_QOS_DEFAULT_VALUE);
+				
 	return ret;
 }
 module_init(e1000_init_module);
@@ -4340,6 +4695,7 @@ module_init(e1000_init_module);
 static void __exit e1000_exit_module(void)
 {
 	pci_unregister_driver(&e1000_driver);
+	pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY, e1000e_driver_name);
 }
 module_exit(e1000_exit_module);
 

@@ -177,11 +177,11 @@ static void ali_program_modes(struct ata_port *ap, struct ata_device *adev, stru
 	u8 udma;
 
 	if (t != NULL) {
-		t->setup = FIT(t->setup, 1, 8) & 7;
-		t->act8b = FIT(t->act8b, 1, 8) & 7;
-		t->rec8b = FIT(t->rec8b, 1, 16) & 15;
-		t->active = FIT(t->active, 1, 8) & 7;
-		t->recover = FIT(t->recover, 1, 16) & 15;
+		t->setup = clamp_val(t->setup, 1, 8) & 7;
+		t->act8b = clamp_val(t->act8b, 1, 8) & 7;
+		t->rec8b = clamp_val(t->rec8b, 1, 16) & 15;
+		t->active = clamp_val(t->active, 1, 8) & 7;
+		t->recover = clamp_val(t->recover, 1, 16) & 15;
 
 		pci_write_config_byte(pdev, cas, t->setup);
 		pci_write_config_byte(pdev, cbt, (t->act8b << 4) | t->rec8b);

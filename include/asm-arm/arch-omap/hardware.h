@@ -41,7 +41,6 @@
 #include <asm/types.h>
 #include <asm/arch/cpu.h>
 #endif
-#include <asm/arch/io.h>
 #include <asm/arch/serial.h>
 
 /*
@@ -285,6 +284,7 @@
 #include "omap1510.h"
 #include "omap24xx.h"
 #include "omap16xx.h"
+#include "omap34xx.h"
 
 #ifndef __ASSEMBLER__
 

@@ -230,14 +230,6 @@ static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
 #define ATTR_NOSIZETOK	0x400	/* Don't get the SIZE token */
 
 /*
- * Flags to vop_fsync/reclaim.
- */
-#define FSYNC_NOWAIT	0	/* asynchronous flush */
-#define FSYNC_WAIT	0x1	/* synchronous fsync or forced reclaim */
-#define FSYNC_INVAL	0x2	/* flush and invalidate cached data */
-#define FSYNC_DATA	0x4	/* synchronous fsync of data only */
-
-/*
  * Tracking vnode activity.
  */
 #if defined(XFS_INODE_TRACE)

@@ -55,7 +55,7 @@ struct pcie_link_state {
 	struct endpoint_state endpoints[8];
 };
 
-static int aspm_disabled;
+static int aspm_disabled, aspm_force;
 static DEFINE_MUTEX(aspm_lock);
 static LIST_HEAD(link_list);
 
@@ -506,6 +506,37 @@ static void free_link_state(struct pci_dev *pdev)
 	pdev->link_state = NULL;
 }
 
+static int pcie_aspm_sanity_check(struct pci_dev *pdev)
+{
+	struct pci_dev *child_dev;
+	int child_pos;
+	u32 reg32;
+
+	/*
+	 * Some functions in a slot might not all be PCIE functions, very
+	 * strange. Disable ASPM for the whole slot
+	 */
+	list_for_each_entry(child_dev, &pdev->subordinate->devices, bus_list) {
+		child_pos = pci_find_capability(child_dev, PCI_CAP_ID_EXP);
+		if (!child_pos)
+			return -EINVAL;
+
+		/*
+		 * Disable ASPM for pre-1.1 PCIe device, we follow MS to use
+		 * RBER bit to determine if a function is 1.1 version device
+		 */
+		pci_read_config_dword(child_dev, child_pos + PCI_EXP_DEVCAP,
+			&reg32);
+		if (!(reg32 & PCI_EXP_DEVCAP_RBER && !aspm_force)) {
+			printk("Pre-1.1 PCIe device detected, "
+				"disable ASPM for %s. It can be enabled forcedly"
+				" with 'pcie_aspm=force'\n", pci_name(pdev));
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 /*
  * pcie_aspm_init_link_state: Initiate PCI express link state.
  * It is called after the pcie and its children devices are scaned.
@@ -524,6 +555,9 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 		return;
 	down_read(&pci_bus_sem);
 	if (list_empty(&pdev->subordinate->devices))
+		goto out;
+
+	if (pcie_aspm_sanity_check(pdev))
 		goto out;
 
 	mutex_lock(&aspm_lock);
@@ -782,11 +816,23 @@ void pcie_aspm_remove_sysfs_dev_files(struct pci_dev *pdev)
 
 static int __init pcie_aspm_disable(char *str)
 {
-	aspm_disabled = 1;
+	if (!strcmp(str, "off")) {
+		aspm_disabled = 1;
+		printk(KERN_INFO "PCIe ASPM is disabled\n");
+	} else if (!strcmp(str, "force")) {
+		aspm_force = 1;
+		printk(KERN_INFO "PCIe ASPM is forcedly enabled\n");
+	}
 	return 1;
 }
 
-__setup("pcie_noaspm", pcie_aspm_disable);
+__setup("pcie_aspm=", pcie_aspm_disable);
+
+void pcie_no_aspm(void)
+{
+	if (!aspm_force)
+		aspm_disabled = 1;
+}
 
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>

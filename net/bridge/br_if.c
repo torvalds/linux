@@ -5,8 +5,6 @@
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
  *
- *	$Id: br_if.c,v 1.7 2001/12/24 00:59:55 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
@@ -273,15 +271,13 @@ int br_add_bridge(const char *name)
 	rtnl_lock();
 	if (strchr(dev->name, '%')) {
 		ret = dev_alloc_name(dev, dev->name);
-		if (ret < 0) {
-			free_netdev(dev);
-			goto out;
-		}
+		if (ret < 0)
+			goto out_free;
 	}
 
 	ret = register_netdevice(dev);
 	if (ret)
-		goto out;
+		goto out_free;
 
 	ret = br_sysfs_addbr(dev);
 	if (ret)
@@ -289,6 +285,10 @@ int br_add_bridge(const char *name)
  out:
 	rtnl_unlock();
 	return ret;
+
+out_free:
+	free_netdev(dev);
+	goto out;
 }
 
 int br_del_bridge(const char *name)
@@ -373,6 +373,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
+	err = dev_set_promiscuity(dev, 1);
+	if (err)
+		goto put_back;
+
 	err = kobject_init_and_add(&p->kobj, &brport_ktype, &(dev->dev.kobj),
 				   SYSFS_BRIDGE_PORT_ATTR);
 	if (err)
@@ -387,7 +391,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 		goto err2;
 
 	rcu_assign_pointer(dev->br_port, p);
-	dev_set_promiscuity(dev, 1);
+	dev_disable_lro(dev);
 
 	list_add_rcu(&p->list, &br->port_list);
 
@@ -411,12 +415,12 @@ err2:
 	br_fdb_delete_by_port(br, p, 1);
 err1:
 	kobject_del(&p->kobj);
-	goto put_back;
 err0:
 	kobject_put(&p->kobj);
-
+	dev_set_promiscuity(dev, -1);
 put_back:
 	dev_put(dev);
+	kfree(p);
 	return err;
 }
 
@@ -440,12 +444,16 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 
 void __exit br_cleanup_bridges(void)
 {
-	struct net_device *dev, *nxt;
+	struct net_device *dev;
 
 	rtnl_lock();
-	for_each_netdev_safe(&init_net, dev, nxt)
-		if (dev->priv_flags & IFF_EBRIDGE)
+restart:
+	for_each_netdev(&init_net, dev) {
+		if (dev->priv_flags & IFF_EBRIDGE) {
 			del_br(dev->priv);
+			goto restart;
+		}
+	}
 	rtnl_unlock();
 
 }

@@ -966,7 +966,7 @@ static int transition_frequency_fidvid(struct powernow_k8_data *data, unsigned i
 	freqs.old = find_khz_freq_from_fid(data->currfid);
 	freqs.new = find_khz_freq_from_fid(fid);
 
-	for_each_cpu_mask(i, *(data->available_cores)) {
+	for_each_cpu_mask_nr(i, *(data->available_cores)) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	}
@@ -974,7 +974,7 @@ static int transition_frequency_fidvid(struct powernow_k8_data *data, unsigned i
 	res = transition_fid_vid(data, fid, vid);
 	freqs.new = find_khz_freq_from_fid(data->currfid);
 
-	for_each_cpu_mask(i, *(data->available_cores)) {
+	for_each_cpu_mask_nr(i, *(data->available_cores)) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	}
@@ -997,7 +997,7 @@ static int transition_frequency_pstate(struct powernow_k8_data *data, unsigned i
 	freqs.old = find_khz_freq_from_pstate(data->powernow_table, data->currpstate);
 	freqs.new = find_khz_freq_from_pstate(data->powernow_table, pstate);
 
-	for_each_cpu_mask(i, *(data->available_cores)) {
+	for_each_cpu_mask_nr(i, *(data->available_cores)) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	}
@@ -1005,7 +1005,7 @@ static int transition_frequency_pstate(struct powernow_k8_data *data, unsigned i
 	res = transition_pstate(data, pstate);
 	freqs.new = find_khz_freq_from_pstate(data->powernow_table, pstate);
 
-	for_each_cpu_mask(i, *(data->available_cores)) {
+	for_each_cpu_mask_nr(i, *(data->available_cores)) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	}
@@ -1127,12 +1127,23 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 		 * an UP version, and is deprecated by AMD.
 		 */
 		if (num_online_cpus() != 1) {
-			printk(KERN_ERR PFX "MP systems not supported by PSB BIOS structure\n");
+#ifndef CONFIG_ACPI_PROCESSOR
+			printk(KERN_ERR PFX "ACPI Processor support is required "
+			       "for SMP systems but is absent. Please load the "
+			       "ACPI Processor module before starting this "
+			       "driver.\n");
+#else
+			printk(KERN_ERR PFX "Your BIOS does not provide ACPI "
+			       "_PSS objects in a way that Linux understands. "
+			       "Please report this to the Linux ACPI maintainers"
+			       " and complain to your BIOS vendor.\n");
+#endif
 			kfree(data);
 			return -ENODEV;
 		}
 		if (pol->cpu != 0) {
-			printk(KERN_ERR PFX "No _PSS objects for CPU other than CPU0\n");
+			printk(KERN_ERR PFX "No ACPI _PSS objects for CPU other than "
+			       "CPU0. Complain to your BIOS vendor.\n");
 			kfree(data);
 			return -ENODEV;
 		}

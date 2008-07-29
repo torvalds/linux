@@ -41,6 +41,8 @@ cflags-$(CONFIG_CPU_SH5)		:= $(call cc-option,-m5-32media-nofpu,)
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
 
+cflags-y	+= $(call cc-option,-mno-fdpic)
+
 #
 # -Wa,-isa= tuning implies -Wa,-dsp for the versions of binutils that
 # support it, while -Wa,-dsp by itself limits the range of usable opcodes
@@ -110,7 +112,6 @@ machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	+= se/7343
 machdir-$(CONFIG_SH_7721_SOLUTION_ENGINE)	+= se/7721
 machdir-$(CONFIG_SH_HP6XX)			+= hp6xx
 machdir-$(CONFIG_SH_DREAMCAST)			+= dreamcast
-machdir-$(CONFIG_SH_MPC1211)			+= mpc1211
 machdir-$(CONFIG_SH_SH03)			+= sh03
 machdir-$(CONFIG_SH_SECUREEDGE5410)		+= snapgear
 machdir-$(CONFIG_SH_RTS7751R2D)			+= renesas/rts7751r2d
@@ -120,6 +121,10 @@ machdir-$(CONFIG_SH_HIGHLANDER)			+= renesas/r7780rp
 machdir-$(CONFIG_SH_MIGOR)			+= renesas/migor
 machdir-$(CONFIG_SH_SDK7780)			+= renesas/sdk7780
 machdir-$(CONFIG_SH_X3PROTO)			+= renesas/x3proto
+machdir-$(CONFIG_SH_RSK7203)			+= renesas/rsk7203
+machdir-$(CONFIG_SH_AP325RXA)			+= renesas/ap325rxa
+machdir-$(CONFIG_SH_SH7763RDP)			+= renesas/sh7763rdp
+machdir-$(CONFIG_SH_SH7785LCR)			+= renesas/sh7785lcr
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= superh/microdev
 machdir-$(CONFIG_SH_LANDISK)			+= landisk
 machdir-$(CONFIG_SH_TITAN)			+= titan

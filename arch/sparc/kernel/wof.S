@@ -1,4 +1,4 @@
-/* $Id: wof.S,v 1.40 2000/01/08 16:38:18 anton Exp $
+/*
  * wof.S: Sparc window overflow handler.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
@@ -306,7 +306,6 @@ spwin_bad_ustack_from_kernel:
  * As noted above %curptr cannot be touched by this routine at all.
  */
 
-	.globl	spwin_sun4c_stackchk
 spwin_sun4c_stackchk:
 	/* LOCATION: Window to be saved on the stack */
 

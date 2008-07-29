@@ -6,8 +6,6 @@
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *	Ian P. Morris		<I.P.Morris@soton.ac.uk>
  *
- *	$Id: ip6_input.c,v 1.19 2000/12/13 18:31:50 davem Exp $
- *
  *	Based in linux/net/ipv4/ip_input.c
  *
  *	This program is free software; you can redistribute it and/or
@@ -73,7 +71,8 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 
 	IP6_INC_STATS_BH(idev, IPSTATS_MIB_INRECEIVES);
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
+	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL ||
+	    !idev || unlikely(idev->cnf.disable_ipv6)) {
 		IP6_INC_STATS_BH(idev, IPSTATS_MIB_INDISCARDS);
 		rcu_read_unlock();
 		goto out;
@@ -100,6 +99,15 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	hdr = ipv6_hdr(skb);
 
 	if (hdr->version != 6)
+		goto err;
+
+	/*
+	 * RFC4291 2.5.3
+	 * A packet received on an interface with a destination address
+	 * of loopback must be dropped.
+	 */
+	if (!(dev->flags & IFF_LOOPBACK) &&
+	    ipv6_addr_loopback(&hdr->daddr))
 		goto err;
 
 	skb->transport_header = skb->network_header + sizeof(*hdr);
@@ -241,7 +249,7 @@ int ip6_mc_input(struct sk_buff *skb)
 	/*
 	 *      IPv6 multicast router mode is now supported ;)
 	 */
-	if (ipv6_devconf.mc_forwarding &&
+	if (dev_net(skb->dev)->ipv6.devconf_all->mc_forwarding &&
 	    likely(!(IP6CB(skb)->flags & IP6SKB_FORWARDED))) {
 		/*
 		 * Okay, we try to forward - split and duplicate

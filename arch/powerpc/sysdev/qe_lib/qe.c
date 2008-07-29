@@ -35,7 +35,6 @@
 #include <asm/rheap.h>
 
 static void qe_snums_init(void);
-static void qe_muram_init(void);
 static int qe_sdma_init(void);
 
 static DEFINE_SPINLOCK(qe_lock);
@@ -65,7 +64,7 @@ static phys_addr_t qebase = -1;
 phys_addr_t get_qe_base(void)
 {
 	struct device_node *qe;
-	unsigned int size;
+	int size;
 	const u32 *prop;
 
 	if (qebase != -1)
@@ -88,7 +87,7 @@ phys_addr_t get_qe_base(void)
 
 EXPORT_SYMBOL(get_qe_base);
 
-void qe_reset(void)
+void __init qe_reset(void)
 {
 	if (qe_immr == NULL)
 		qe_immr = ioremap(get_qe_base(), QE_IMMAP_SIZE);
@@ -159,7 +158,7 @@ static unsigned int brg_clk = 0;
 unsigned int qe_get_brg_clk(void)
 {
 	struct device_node *qe;
-	unsigned int size;
+	int size;
 	const u32 *prop;
 
 	if (brg_clk)
@@ -306,7 +305,7 @@ EXPORT_SYMBOL(qe_put_snum);
 
 static int qe_sdma_init(void)
 {
-	struct sdma *sdma = &qe_immr->sdma;
+	struct sdma __iomem *sdma = &qe_immr->sdma;
 	unsigned long sdma_buf_offset;
 
 	if (!sdma)
@@ -324,97 +323,6 @@ static int qe_sdma_init(void)
 
 	return 0;
 }
-
-/*
- * muram_alloc / muram_free bits.
- */
-static DEFINE_SPINLOCK(qe_muram_lock);
-
-/* 16 blocks should be enough to satisfy all requests
- * until the memory subsystem goes up... */
-static rh_block_t qe_boot_muram_rh_block[16];
-static rh_info_t qe_muram_info;
-
-static void qe_muram_init(void)
-{
-	struct device_node *np;
-	const u32 *address;
-	u64 size;
-	unsigned int flags;
-
-	/* initialize the info header */
-	rh_init(&qe_muram_info, 1,
-		sizeof(qe_boot_muram_rh_block) /
-		sizeof(qe_boot_muram_rh_block[0]), qe_boot_muram_rh_block);
-
-	/* Attach the usable muram area */
-	/* XXX: This is a subset of the available muram. It
-	 * varies with the processor and the microcode patches activated.
-	 */
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe-muram-data");
-	if (!np) {
-		np = of_find_node_by_name(NULL, "data-only");
-		if (!np) {
-			WARN_ON(1);
-			return;
-		}
-	}
-
-	address = of_get_address(np, 0, &size, &flags);
-	WARN_ON(!address);
-
-	of_node_put(np);
-	if (address)
-		rh_attach_region(&qe_muram_info, *address, (int)size);
-}
-
-/* This function returns an index into the MURAM area.
- */
-unsigned long qe_muram_alloc(int size, int align)
-{
-	unsigned long start;
-	unsigned long flags;
-
-	spin_lock_irqsave(&qe_muram_lock, flags);
-	start = rh_alloc_align(&qe_muram_info, size, align, "QE");
-	spin_unlock_irqrestore(&qe_muram_lock, flags);
-
-	return start;
-}
-EXPORT_SYMBOL(qe_muram_alloc);
-
-int qe_muram_free(unsigned long offset)
-{
-	int ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&qe_muram_lock, flags);
-	ret = rh_free(&qe_muram_info, offset);
-	spin_unlock_irqrestore(&qe_muram_lock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL(qe_muram_free);
-
-/* not sure if this is ever needed */
-unsigned long qe_muram_alloc_fixed(unsigned long offset, int size)
-{
-	unsigned long start;
-	unsigned long flags;
-
-	spin_lock_irqsave(&qe_muram_lock, flags);
-	start = rh_alloc_fixed(&qe_muram_info, offset, size, "commproc");
-	spin_unlock_irqrestore(&qe_muram_lock, flags);
-
-	return start;
-}
-EXPORT_SYMBOL(qe_muram_alloc_fixed);
-
-void qe_muram_dump(void)
-{
-	rh_dump(&qe_muram_info);
-}
-EXPORT_SYMBOL(qe_muram_dump);
 
 /* The maximum number of RISCs we support */
 #define MAX_QE_RISC     2

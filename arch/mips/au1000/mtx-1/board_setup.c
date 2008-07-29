@@ -3,9 +3,8 @@
  * BRIEF MODULE DESCRIPTION
  *	4G Systems MTX-1 board setup.
  *
- * Copyright 2003 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	ppopov@mvista.com or source@mvista.com
+ * Copyright 2003, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *         Bruno Randolf <bruno.randolf@4g-systems.biz>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -34,7 +33,7 @@
 #include <asm/mach-au1x00/au1000.h>
 
 extern int (*board_pci_idsel)(unsigned int devsel, int assert);
-int    mtx1_pci_idsel(unsigned int devsel, int assert);
+int mtx1_pci_idsel(unsigned int devsel, int assert);
 
 void board_reset(void)
 {
@@ -45,36 +44,36 @@ void board_reset(void)
 void __init board_setup(void)
 {
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
-	// enable USB power switch
-	au_writel( au_readl(GPIO2_DIR) | 0x10, GPIO2_DIR );
-	au_writel( 0x100000, GPIO2_OUTPUT );
+	/* Enable USB power switch */
+	au_writel(au_readl(GPIO2_DIR) | 0x10, GPIO2_DIR);
+	au_writel(0x100000, GPIO2_OUTPUT);
 #endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
 
 #ifdef CONFIG_PCI
 #if defined(__MIPSEB__)
-	au_writel(0xf | (2<<6) | (1<<4), Au1500_PCI_CFG);
+	au_writel(0xf | (2 << 6) | (1 << 4), Au1500_PCI_CFG);
 #else
 	au_writel(0xf, Au1500_PCI_CFG);
 #endif
 #endif
 
-	// initialize sys_pinfunc:
-	au_writel( SYS_PF_NI2, SYS_PINFUNC );
+	/* Initialize sys_pinfunc */
+	au_writel(SYS_PF_NI2, SYS_PINFUNC);
 
-	// initialize GPIO
-	au_writel( 0xFFFFFFFF, SYS_TRIOUTCLR );
-	au_writel( 0x00000001, SYS_OUTPUTCLR ); // set M66EN (PCI 66MHz) to OFF
-	au_writel( 0x00000008, SYS_OUTPUTSET ); // set PCI CLKRUN# to OFF
-	au_writel( 0x00000002, SYS_OUTPUTSET ); // set EXT_IO3 ON
-	au_writel( 0x00000020, SYS_OUTPUTCLR ); // set eth PHY TX_ER to OFF
+	/* Initialize GPIO */
+	au_writel(0xFFFFFFFF, SYS_TRIOUTCLR);
+	au_writel(0x00000001, SYS_OUTPUTCLR); /* set M66EN (PCI 66MHz) to OFF */
+	au_writel(0x00000008, SYS_OUTPUTSET); /* set PCI CLKRUN# to OFF */
+	au_writel(0x00000002, SYS_OUTPUTSET); /* set EXT_IO3 ON */
+	au_writel(0x00000020, SYS_OUTPUTCLR); /* set eth PHY TX_ER to OFF */
 
-	// enable LED and set it to green
-	au_writel( au_readl(GPIO2_DIR) | 0x1800, GPIO2_DIR );
-	au_writel( 0x18000800, GPIO2_OUTPUT );
+	/* Enable LED and set it to green */
+	au_writel(au_readl(GPIO2_DIR) | 0x1800, GPIO2_DIR);
+	au_writel(0x18000800, GPIO2_OUTPUT);
 
 	board_pci_idsel = mtx1_pci_idsel;
 
-	printk("4G Systems MTX-1 Board\n");
+	printk(KERN_INFO "4G Systems MTX-1 Board\n");
 }
 
 int
@@ -82,20 +81,18 @@ mtx1_pci_idsel(unsigned int devsel, int assert)
 {
 #define MTX_IDSEL_ONLY_0_AND_3 0
 #if MTX_IDSEL_ONLY_0_AND_3
-       if (devsel != 0 && devsel != 3) {
-               printk("*** not 0 or 3\n");
-               return 0;
-       }
+	if (devsel != 0 && devsel != 3) {
+		printk(KERN_ERR "*** not 0 or 3\n");
+		return 0;
+	}
 #endif
 
-       if (assert && devsel != 0) {
-               // suppress signal to cardbus
-               au_writel( 0x00000002, SYS_OUTPUTCLR ); // set EXT_IO3 OFF
-       }
-       else {
-               au_writel( 0x00000002, SYS_OUTPUTSET ); // set EXT_IO3 ON
-       }
-       au_sync_udelay(1);
-       return 1;
+	if (assert && devsel != 0)
+		/* Suppress signal to Cardbus */
+		au_writel(0x00000002, SYS_OUTPUTCLR); /* set EXT_IO3 OFF */
+	else
+		au_writel(0x00000002, SYS_OUTPUTSET); /* set EXT_IO3 ON */
+	au_sync_udelay(1);
+	return 1;
 }
 

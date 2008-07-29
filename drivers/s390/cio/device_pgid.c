@@ -28,13 +28,13 @@
  * Helper function called from interrupt context to decide whether an
  * operation should be tried again.
  */
-static int __ccw_device_should_retry(struct scsw *scsw)
+static int __ccw_device_should_retry(union scsw *scsw)
 {
 	/* CC is only valid if start function bit is set. */
-	if ((scsw->fctl & SCSW_FCTL_START_FUNC) && scsw->cc == 1)
+	if ((scsw->cmd.fctl & SCSW_FCTL_START_FUNC) && scsw->cmd.cc == 1)
 		return 1;
 	/* No more activity. For sense and set PGID we stubbornly try again. */
-	if (!scsw->actl)
+	if (!scsw->cmd.actl)
 		return 1;
 	return 0;
 }
@@ -79,7 +79,7 @@ __ccw_device_sense_pgid_start(struct ccw_device *cdev)
 			/* ret is 0, -EBUSY, -EACCES or -ENODEV */
 			if (ret != -EACCES)
 				return ret;
-			CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel "
+			CIO_MSG_EVENT(3, "SNID - Device %04x on Subchannel "
 				      "0.%x.%04x, lpm %02X, became 'not "
 				      "operational'\n",
 				      cdev->private->dev_id.devno,
@@ -125,7 +125,7 @@ __ccw_device_check_sense_pgid(struct ccw_device *cdev)
 
 	sch = to_subchannel(cdev->dev.parent);
 	irb = &cdev->private->irb;
-	if (irb->scsw.fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC)) {
+	if (irb->scsw.cmd.fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC)) {
 		/* Retry Sense PGID if requested. */
 		if (cdev->private->flags.intretry) {
 			cdev->private->flags.intretry = 0;
@@ -155,11 +155,11 @@ __ccw_device_check_sense_pgid(struct ccw_device *cdev)
 			      irb->ecw[6], irb->ecw[7]);
 		return -EAGAIN;
 	}
-	if (irb->scsw.cc == 3) {
+	if (irb->scsw.cmd.cc == 3) {
 		u8 lpm;
 
-		lpm = to_io_private(sch)->orb.lpm;
-		CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel 0.%x.%04x,"
+		lpm = to_io_private(sch)->orb.cmd.lpm;
+		CIO_MSG_EVENT(3, "SNID - Device %04x on Subchannel 0.%x.%04x,"
 			      " lpm %02X, became 'not operational'\n",
 			      cdev->private->dev_id.devno, sch->schid.ssid,
 			      sch->schid.sch_no, lpm);
@@ -188,7 +188,7 @@ ccw_device_sense_pgid_irq(struct ccw_device *cdev, enum dev_event dev_event)
 
 	irb = (struct irb *) __LC_IRB;
 
-	if (irb->scsw.stctl ==
+	if (irb->scsw.cmd.stctl ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
 		if (__ccw_device_should_retry(&irb->scsw)) {
 			ret = __ccw_device_sense_pgid_start(cdev);
@@ -243,16 +243,10 @@ __ccw_device_do_pgid(struct ccw_device *cdev, __u8 func)
 	/* Setup sense path group id channel program. */
 	cdev->private->pgid[0].inf.fc = func;
 	ccw = cdev->private->iccws;
-	if (!cdev->private->flags.pgid_single) {
-		cdev->private->pgid[0].inf.fc |= SPID_FUNC_MULTI_PATH;
-		ccw->cmd_code = CCW_CMD_SUSPEND_RECONN;
-		ccw->cda = 0;
-		ccw->count = 0;
-		ccw->flags = CCW_FLAG_SLI | CCW_FLAG_CC;
-		ccw++;
-	} else
+	if (cdev->private->flags.pgid_single)
 		cdev->private->pgid[0].inf.fc |= SPID_FUNC_SINGLE_PATH;
-
+	else
+		cdev->private->pgid[0].inf.fc |= SPID_FUNC_MULTI_PATH;
 	ccw->cmd_code = CCW_CMD_SET_PGID;
 	ccw->cda = (__u32) __pa (&cdev->private->pgid[0]);
 	ccw->count = sizeof (struct pgid);
@@ -275,7 +269,7 @@ __ccw_device_do_pgid(struct ccw_device *cdev, __u8 func)
 			return ret;
 	}
 	/* PGID command failed on this path. */
-	CIO_MSG_EVENT(2, "SPID - Device %04x on Subchannel "
+	CIO_MSG_EVENT(3, "SPID - Device %04x on Subchannel "
 		      "0.%x.%04x, lpm %02X, became 'not operational'\n",
 		      cdev->private->dev_id.devno, sch->schid.ssid,
 		      sch->schid.sch_no, cdev->private->imask);
@@ -317,7 +311,7 @@ static int __ccw_device_do_nop(struct ccw_device *cdev)
 			return ret;
 	}
 	/* nop command failed on this path. */
-	CIO_MSG_EVENT(2, "NOP - Device %04x on Subchannel "
+	CIO_MSG_EVENT(3, "NOP - Device %04x on Subchannel "
 		      "0.%x.%04x, lpm %02X, became 'not operational'\n",
 		      cdev->private->dev_id.devno, sch->schid.ssid,
 		      sch->schid.sch_no, cdev->private->imask);
@@ -337,7 +331,7 @@ __ccw_device_check_pgid(struct ccw_device *cdev)
 
 	sch = to_subchannel(cdev->dev.parent);
 	irb = &cdev->private->irb;
-	if (irb->scsw.fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC)) {
+	if (irb->scsw.cmd.fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC)) {
 		/* Retry Set PGID if requested. */
 		if (cdev->private->flags.intretry) {
 			cdev->private->flags.intretry = 0;
@@ -361,8 +355,8 @@ __ccw_device_check_pgid(struct ccw_device *cdev)
 			      irb->ecw[6], irb->ecw[7]);
 		return -EAGAIN;
 	}
-	if (irb->scsw.cc == 3) {
-		CIO_MSG_EVENT(2, "SPID - Device %04x on Subchannel 0.%x.%04x,"
+	if (irb->scsw.cmd.cc == 3) {
+		CIO_MSG_EVENT(3, "SPID - Device %04x on Subchannel 0.%x.%04x,"
 			      " lpm %02X, became 'not operational'\n",
 			      cdev->private->dev_id.devno, sch->schid.ssid,
 			      sch->schid.sch_no, cdev->private->imask);
@@ -382,7 +376,7 @@ static int __ccw_device_check_nop(struct ccw_device *cdev)
 
 	sch = to_subchannel(cdev->dev.parent);
 	irb = &cdev->private->irb;
-	if (irb->scsw.fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC)) {
+	if (irb->scsw.cmd.fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC)) {
 		/* Retry NOP if requested. */
 		if (cdev->private->flags.intretry) {
 			cdev->private->flags.intretry = 0;
@@ -390,8 +384,8 @@ static int __ccw_device_check_nop(struct ccw_device *cdev)
 		}
 		return -ETIME;
 	}
-	if (irb->scsw.cc == 3) {
-		CIO_MSG_EVENT(2, "NOP - Device %04x on Subchannel 0.%x.%04x,"
+	if (irb->scsw.cmd.cc == 3) {
+		CIO_MSG_EVENT(3, "NOP - Device %04x on Subchannel 0.%x.%04x,"
 			      " lpm %02X, became 'not operational'\n",
 			      cdev->private->dev_id.devno, sch->schid.ssid,
 			      sch->schid.sch_no, cdev->private->imask);
@@ -444,7 +438,7 @@ ccw_device_verify_irq(struct ccw_device *cdev, enum dev_event dev_event)
 
 	irb = (struct irb *) __LC_IRB;
 
-	if (irb->scsw.stctl ==
+	if (irb->scsw.cmd.stctl ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
 		if (__ccw_device_should_retry(&irb->scsw))
 			__ccw_device_verify_start(cdev);
@@ -550,7 +544,7 @@ ccw_device_disband_irq(struct ccw_device *cdev, enum dev_event dev_event)
 
 	irb = (struct irb *) __LC_IRB;
 
-	if (irb->scsw.stctl ==
+	if (irb->scsw.cmd.stctl ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
 		if (__ccw_device_should_retry(&irb->scsw))
 			__ccw_device_disband_start(cdev);

@@ -15,6 +15,6 @@
 /* I2S clock */
 #define PXA2XX_I2S_SYSCLK		0
 
-extern struct snd_soc_cpu_dai pxa_i2s_dai;
+extern struct snd_soc_dai pxa_i2s_dai;
 
 #endif

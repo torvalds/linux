@@ -24,7 +24,6 @@ void foo(void)
 	OFFSET(HOST_SC_TRAPNO, sigcontext, trapno);
 
 	DEFINE(HOST_FP_SIZE, sizeof(struct _fpstate) / sizeof(unsigned long));
-	DEFINE(HOST_XFP_SIZE, 0);
 	DEFINE_LONGS(HOST_RBX, RBX);
 	DEFINE_LONGS(HOST_RCX, RCX);
 	DEFINE_LONGS(HOST_RDI, RDI);

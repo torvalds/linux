@@ -340,7 +340,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		dev_hold(dev);
 
-		skb = sock_alloc_send_skb(sk, len+LL_RESERVED_SPACE(dev),
+		skb = sock_alloc_send_skb(sk, len+LL_ALLOCATED_SPACE(dev),
 					  msg->msg_flags & MSG_DONTWAIT, &err);
 		if (skb==NULL)
 			goto out_unlock;
@@ -573,9 +573,7 @@ static int econet_release(struct socket *sock)
 
 	sk->sk_state_change(sk);	/* It is useless. Just for sanity. */
 
-	sock->sk = NULL;
-	sk->sk_socket = NULL;
-	sock_set_flag(sk, SOCK_DEAD);
+	sock_orphan(sk);
 
 	/* Purge queues */
 
@@ -1064,7 +1062,7 @@ static int econet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 	struct sock *sk;
 	struct ec_device *edev = dev->ec_ptr;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		goto drop;
 
 	if (skb->pkt_type == PACKET_OTHERHOST)
@@ -1121,7 +1119,7 @@ static int econet_notifier(struct notifier_block *this, unsigned long msg, void 
 	struct net_device *dev = (struct net_device *)data;
 	struct ec_device *edev;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	switch (msg) {

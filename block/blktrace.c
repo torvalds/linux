@@ -75,6 +75,24 @@ static void trace_note_time(struct blk_trace *bt)
 	local_irq_restore(flags);
 }
 
+void __trace_note_message(struct blk_trace *bt, const char *fmt, ...)
+{
+	int n;
+	va_list args;
+	unsigned long flags;
+	char *buf;
+
+	local_irq_save(flags);
+	buf = per_cpu_ptr(bt->msg_data, smp_processor_id());
+	va_start(args, fmt);
+	n = vscnprintf(buf, BLK_TN_MAX_MSG, fmt, args);
+	va_end(args);
+
+	trace_note(bt, 0, BLK_TN_MESSAGE, buf, n);
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(__trace_note_message);
+
 static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
 			 pid_t pid)
 {
@@ -141,10 +159,7 @@ void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	/*
 	 * A word about the locking here - we disable interrupts to reserve
 	 * some space in the relay per-cpu buffer, to prevent an irq
-	 * from coming in and stepping on our toes. Once reserved, it's
-	 * enough to get preemption disabled to prevent read of this data
-	 * before we are through filling it. get_cpu()/put_cpu() does this
-	 * for us
+	 * from coming in and stepping on our toes.
 	 */
 	local_irq_save(flags);
 
@@ -229,9 +244,11 @@ err:
 static void blk_trace_cleanup(struct blk_trace *bt)
 {
 	relay_close(bt->rchan);
+	debugfs_remove(bt->msg_file);
 	debugfs_remove(bt->dropped_file);
 	blk_remove_tree(bt->dir);
 	free_percpu(bt->sequence);
+	free_percpu(bt->msg_data);
 	kfree(bt);
 }
 
@@ -273,6 +290,44 @@ static const struct file_operations blk_dropped_fops = {
 	.owner =	THIS_MODULE,
 	.open =		blk_dropped_open,
 	.read =		blk_dropped_read,
+};
+
+static int blk_msg_open(struct inode *inode, struct file *filp)
+{
+	filp->private_data = inode->i_private;
+
+	return 0;
+}
+
+static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
+				size_t count, loff_t *ppos)
+{
+	char *msg;
+	struct blk_trace *bt;
+
+	if (count > BLK_TN_MAX_MSG)
+		return -EINVAL;
+
+	msg = kmalloc(count, GFP_KERNEL);
+	if (msg == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(msg, buffer, count)) {
+		kfree(msg);
+		return -EFAULT;
+	}
+
+	bt = filp->private_data;
+	__trace_note_message(bt, "%s", msg);
+	kfree(msg);
+
+	return count;
+}
+
+static const struct file_operations blk_msg_fops = {
+	.owner =	THIS_MODULE,
+	.open =		blk_msg_open,
+	.write =	blk_msg_write,
 };
 
 /*
@@ -346,6 +401,10 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!bt->sequence)
 		goto err;
 
+	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG);
+	if (!bt->msg_data)
+		goto err;
+
 	ret = -ENOENT;
 	dir = blk_create_tree(buts->name);
 	if (!dir)
@@ -358,6 +417,10 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	ret = -EIO;
 	bt->dropped_file = debugfs_create_file("dropped", 0444, dir, bt, &blk_dropped_fops);
 	if (!bt->dropped_file)
+		goto err;
+
+	bt->msg_file = debugfs_create_file("msg", 0222, dir, bt, &blk_msg_fops);
+	if (!bt->msg_file)
 		goto err;
 
 	bt->rchan = relay_open("trace", dir, buts->buf_size,
@@ -389,9 +452,12 @@ err:
 	if (dir)
 		blk_remove_tree(dir);
 	if (bt) {
+		if (bt->msg_file)
+			debugfs_remove(bt->msg_file);
 		if (bt->dropped_file)
 			debugfs_remove(bt->dropped_file);
 		free_percpu(bt->sequence);
+		free_percpu(bt->msg_data);
 		if (bt->rchan)
 			relay_close(bt->rchan);
 		kfree(bt);
@@ -476,7 +542,7 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 
 	switch (cmd) {
 	case BLKTRACESETUP:
-		strcpy(b, bdevname(bdev, b));
+		bdevname(bdev, b);
 		ret = blk_trace_setup(q, b, bdev->bd_dev, arg);
 		break;
 	case BLKTRACESTART:

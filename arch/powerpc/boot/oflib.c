@@ -168,8 +168,19 @@ void *of_claim(unsigned long virt, unsigned long size, unsigned long align)
 
 void *of_vmlinux_alloc(unsigned long size)
 {
-	void *p = malloc(size);
+	unsigned long start = (unsigned long)_start, end = (unsigned long)_end;
+	void *addr;
+	void *p;
 
+	/* With some older POWER4 firmware we need to claim the area the kernel
+	 * will reside in.  Newer firmwares don't need this so we just ignore
+	 * the return value.
+	 */
+	addr = of_claim(start, end - start, 0);
+	printf("Trying to claim from 0x%lx to 0x%lx (0x%lx) got %p\r\n",
+	       start, end, end - start, addr);
+
+	p = malloc(size);
 	if (!p)
 		fatal("Can't allocate memory for kernel image!\n\r");
 

@@ -191,9 +191,9 @@ void line_flush_chars(struct tty_struct *tty)
 	line_flush_buffer(tty);
 }
 
-void line_put_char(struct tty_struct *tty, unsigned char ch)
+int line_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	line_write(tty, &ch, sizeof(ch));
+	return line_write(tty, &ch, sizeof(ch));
 }
 
 int line_write(struct tty_struct *tty, const unsigned char *buf, int len)

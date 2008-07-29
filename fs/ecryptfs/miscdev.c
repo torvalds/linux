@@ -243,7 +243,6 @@ ecryptfs_miscdev_read(struct file *file, char __user *buf, size_t count,
 	struct ecryptfs_daemon *daemon;
 	struct ecryptfs_msg_ctx *msg_ctx;
 	size_t packet_length_size;
-	u32 counter_nbo;
 	char packet_length[3];
 	size_t i;
 	size_t total_length;
@@ -257,12 +256,14 @@ ecryptfs_miscdev_read(struct file *file, char __user *buf, size_t count,
 	mutex_lock(&daemon->mux);
 	if (daemon->flags & ECRYPTFS_DAEMON_ZOMBIE) {
 		rc = 0;
+		mutex_unlock(&ecryptfs_daemon_hash_mux);
 		printk(KERN_WARNING "%s: Attempt to read from zombified "
 		       "daemon\n", __func__);
 		goto out_unlock_daemon;
 	}
 	if (daemon->flags & ECRYPTFS_DAEMON_IN_READ) {
 		rc = 0;
+		mutex_unlock(&ecryptfs_daemon_hash_mux);
 		goto out_unlock_daemon;
 	}
 	/* This daemon will not go away so long as this flag is set */
@@ -326,20 +327,18 @@ check_list:
 		       "pending message\n", __func__, count, total_length);
 		goto out_unlock_msg_ctx;
 	}
-	i = 0;
-	buf[i++] = msg_ctx->type;
-	counter_nbo = cpu_to_be32(msg_ctx->counter);
-	memcpy(&buf[i], (char *)&counter_nbo, 4);
-	i += 4;
+	rc = -EFAULT;
+	if (put_user(msg_ctx->type, buf))
+		goto out_unlock_msg_ctx;
+	if (put_user(cpu_to_be32(msg_ctx->counter), (__be32 __user *)(buf + 1)))
+		goto out_unlock_msg_ctx;
+	i = 5;
 	if (msg_ctx->msg) {
-		memcpy(&buf[i], packet_length, packet_length_size);
-		i += packet_length_size;
-		rc = copy_to_user(&buf[i], msg_ctx->msg, msg_ctx->msg_size);
-		if (rc) {
-			printk(KERN_ERR "%s: copy_to_user returned error "
-			       "[%d]\n", __func__, rc);
+		if (copy_to_user(&buf[i], packet_length, packet_length_size))
 			goto out_unlock_msg_ctx;
-		}
+		i += packet_length_size;
+		if (copy_to_user(&buf[i], msg_ctx->msg, msg_ctx->msg_size))
+			goto out_unlock_msg_ctx;
 		i += msg_ctx->msg_size;
 	}
 	rc = i;
@@ -355,46 +354,6 @@ out_unlock_msg_ctx:
 out_unlock_daemon:
 	daemon->flags &= ~ECRYPTFS_DAEMON_IN_READ;
 	mutex_unlock(&daemon->mux);
-	return rc;
-}
-
-/**
- * ecryptfs_miscdev_helo
- * @euid: effective user id of miscdevess sending helo packet
- * @user_ns: The namespace in which @euid applies
- * @pid: miscdevess id of miscdevess sending helo packet
- *
- * Returns zero on success; non-zero otherwise
- */
-static int ecryptfs_miscdev_helo(uid_t euid, struct user_namespace *user_ns,
-				 struct pid *pid)
-{
-	int rc;
-
-	rc = ecryptfs_process_helo(ECRYPTFS_TRANSPORT_MISCDEV, euid, user_ns,
-				   pid);
-	if (rc)
-		printk(KERN_WARNING "Error processing HELO; rc = [%d]\n", rc);
-	return rc;
-}
-
-/**
- * ecryptfs_miscdev_quit
- * @euid: effective user id of miscdevess sending quit packet
- * @user_ns: The namespace in which @euid applies
- * @pid: miscdevess id of miscdevess sending quit packet
- *
- * Returns zero on success; non-zero otherwise
- */
-static int ecryptfs_miscdev_quit(uid_t euid, struct user_namespace *user_ns,
-				 struct pid *pid)
-{
-	int rc;
-
-	rc = ecryptfs_process_quit(euid, user_ns, pid);
-	if (rc)
-		printk(KERN_WARNING
-		       "Error processing QUIT message; rc = [%d]\n", rc);
 	return rc;
 }
 
@@ -450,7 +409,8 @@ static ssize_t
 ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 		       size_t count, loff_t *ppos)
 {
-	u32 counter_nbo, seq;
+	__be32 counter_nbo;
+	u32 seq;
 	size_t packet_size, packet_size_length, i;
 	ssize_t sz = 0;
 	char *data;
@@ -483,7 +443,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 			       count);
 			goto out_free;
 		}
-		memcpy((char *)&counter_nbo, &data[i], 4);
+		memcpy(&counter_nbo, &data[i], 4);
 		seq = be32_to_cpu(counter_nbo);
 		i += 4;
 		rc = ecryptfs_parse_packet_length(&data[i], &packet_size,
@@ -512,26 +472,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 			       __func__, rc);
 		break;
 	case ECRYPTFS_MSG_HELO:
-		rc = ecryptfs_miscdev_helo(current->euid,
-					   current->nsproxy->user_ns,
-					   task_pid(current));
-		if (rc) {
-			printk(KERN_ERR "%s: Error attempting to process "
-			       "helo from pid [0x%p]; rc = [%d]\n", __func__,
-			       task_pid(current), rc);
-			goto out_free;
-		}
-		break;
 	case ECRYPTFS_MSG_QUIT:
-		rc = ecryptfs_miscdev_quit(current->euid,
-					   current->nsproxy->user_ns,
-					   task_pid(current));
-		if (rc) {
-			printk(KERN_ERR "%s: Error attempting to process "
-			       "quit from pid [0x%p]; rc = [%d]\n", __func__,
-			       task_pid(current), rc);
-			goto out_free;
-		}
 		break;
 	default:
 		ecryptfs_printk(KERN_WARNING, "Dropping miscdev "
@@ -575,13 +516,11 @@ int ecryptfs_init_ecryptfs_miscdev(void)
 	int rc;
 
 	atomic_set(&ecryptfs_num_miscdev_opens, 0);
-	mutex_lock(&ecryptfs_daemon_hash_mux);
 	rc = misc_register(&ecryptfs_miscdev);
 	if (rc)
 		printk(KERN_ERR "%s: Failed to register miscellaneous device "
 		       "for communications with userspace daemons; rc = [%d]\n",
 		       __func__, rc);
-	mutex_unlock(&ecryptfs_daemon_hash_mux);
 	return rc;
 }
 

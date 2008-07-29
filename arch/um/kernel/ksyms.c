@@ -18,7 +18,6 @@ EXPORT_SYMBOL(get_signals);
 EXPORT_SYMBOL(kernel_thread);
 EXPORT_SYMBOL(sys_waitpid);
 EXPORT_SYMBOL(flush_tlb_range);
-EXPORT_SYMBOL(arch_validate);
 
 EXPORT_SYMBOL(high_physmem);
 EXPORT_SYMBOL(empty_zero_page);
@@ -59,6 +58,11 @@ EXPORT_SYMBOL(os_accept_connection);
 EXPORT_SYMBOL(os_rcv_fd);
 EXPORT_SYMBOL(run_helper);
 EXPORT_SYMBOL(start_thread);
+
+EXPORT_SYMBOL(add_sigio_fd);
+EXPORT_SYMBOL(ignore_sigio_fd);
+EXPORT_SYMBOL(deactivate_fd);
+EXPORT_SYMBOL(sigio_broken);
 
 #ifdef CONFIG_SMP
 

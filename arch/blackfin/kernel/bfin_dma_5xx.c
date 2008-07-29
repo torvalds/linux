@@ -90,6 +90,17 @@ int request_dma(unsigned int channel, char *device_id)
 {
 
 	pr_debug("request_dma() : BEGIN \n");
+
+#if defined(CONFIG_BF561) && ANOMALY_05000182
+	if (channel >= CH_IMEM_STREAM0_DEST && channel <= CH_IMEM_STREAM1_DEST) {
+		if (get_cclk() > 500000000) {
+			printk(KERN_WARNING
+			       "Request IMDMA failed due to ANOMALY 05000182\n");
+			return -EFAULT;
+		}
+	}
+#endif
+
 	mutex_lock(&(dma_ch[channel].dmalock));
 
 	if ((dma_ch[channel].chan_status == DMA_CHANNEL_REQUESTED)
@@ -460,6 +471,40 @@ unsigned long get_dma_curr_addr(unsigned int channel)
 	return dma_ch[channel].regs->curr_addr_ptr;
 }
 EXPORT_SYMBOL(get_dma_curr_addr);
+
+#ifdef CONFIG_PM
+int blackfin_dma_suspend(void)
+{
+	int i;
+
+#ifdef CONFIG_BF561	/* IMDMA channels doesn't have a PERIPHERAL_MAP */
+	for (i = 0; i <= CH_MEM_STREAM3_SRC; i++) {
+#else
+	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++) {
+#endif
+		if (dma_ch[i].chan_status == DMA_CHANNEL_ENABLED) {
+			printk(KERN_ERR "DMA Channel %d failed to suspend\n", i);
+			return -EBUSY;
+		}
+
+		dma_ch[i].saved_peripheral_map = dma_ch[i].regs->peripheral_map;
+	}
+
+	return 0;
+}
+
+void blackfin_dma_resume(void)
+{
+	int i;
+
+#ifdef CONFIG_BF561	/* IMDMA channels doesn't have a PERIPHERAL_MAP */
+	for (i = 0; i <= CH_MEM_STREAM3_SRC; i++)
+#else
+	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++)
+#endif
+		dma_ch[i].regs->peripheral_map = dma_ch[i].saved_peripheral_map;
+}
+#endif
 
 static void *__dma_memcpy(void *dest, const void *src, size_t size)
 {

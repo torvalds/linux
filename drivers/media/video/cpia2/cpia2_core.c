@@ -32,11 +32,11 @@
 #include "cpia2.h"
 
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/firmware.h>
 
 /* #define _CPIA2_DEBUG_ */
-
-#include "cpia2patch.h"
 
 #ifdef _CPIA2_DEBUG_
 
@@ -893,24 +893,53 @@ int cpia2_set_low_power(struct camera_data *cam)
  *  apply_vp_patch
  *
  *****************************************************************************/
+static int cpia2_send_onebyte_command(struct camera_data *cam,
+				      struct cpia2_command *cmd,
+				      u8 start, u8 datum)
+{
+	cmd->buffer.block_data[0] = datum;
+	cmd->start = start;
+	cmd->reg_count = 1;
+	return cpia2_send_command(cam, cmd);
+}
+
 static int apply_vp_patch(struct camera_data *cam)
 {
-	int i, j;
+	const struct firmware *fw;
+	const char fw_name[] = "cpia2/stv0672_vp4.bin";
+	int i, ret;
 	struct cpia2_command cmd;
+
+	ret = request_firmware(&fw, fw_name, &cam->dev->dev);
+	if (ret) {
+		printk(KERN_ERR "cpia2: failed to load VP patch \"%s\"\n",
+		       fw_name);
+		return ret;
+	}
 
 	cmd.req_mode = CAMERAACCESS_TYPE_REPEAT | CAMERAACCESS_VP;
 	cmd.direction = TRANSFER_WRITE;
 
-	for (i = 0; i < PATCH_DATA_SIZE; i++) {
-		for (j = 0; j < patch_data[i].count; j++) {
-			cmd.buffer.block_data[j] = patch_data[i].data[j];
-		}
+	/* First send the start address... */
+	cpia2_send_onebyte_command(cam, &cmd, 0x0A, fw->data[0]); /* hi */
+	cpia2_send_onebyte_command(cam, &cmd, 0x0B, fw->data[1]); /* lo */
 
-		cmd.start = patch_data[i].reg;
-		cmd.reg_count = patch_data[i].count;
+	/* ... followed by the data payload */
+	for (i = 2; i < fw->size; i += 64) {
+		cmd.start = 0x0C; /* Data */
+		cmd.reg_count = min_t(int, 64, fw->size - i);
+		memcpy(cmd.buffer.block_data, &fw->data[i], cmd.reg_count);
 		cpia2_send_command(cam, &cmd);
 	}
 
+	/* Next send the start address... */
+	cpia2_send_onebyte_command(cam, &cmd, 0x0A, fw->data[0]); /* hi */
+	cpia2_send_onebyte_command(cam, &cmd, 0x0B, fw->data[1]); /* lo */
+
+	/* ... followed by the 'goto' command */
+	cpia2_send_onebyte_command(cam, &cmd, 0x0D, 1);
+
+	release_firmware(fw);
 	return 0;
 }
 

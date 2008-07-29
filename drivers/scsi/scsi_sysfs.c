@@ -249,6 +249,8 @@ shost_rd_attr(cmd_per_lun, "%hd\n");
 shost_rd_attr(can_queue, "%hd\n");
 shost_rd_attr(sg_tablesize, "%hu\n");
 shost_rd_attr(unchecked_isa_dma, "%d\n");
+shost_rd_attr(prot_capabilities, "%u\n");
+shost_rd_attr(prot_guard_type, "%hd\n");
 shost_rd_attr2(proc_name, hostt->proc_name, "%s\n");
 
 static struct attribute *scsi_sysfs_shost_attrs[] = {
@@ -263,6 +265,8 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	&dev_attr_hstate.attr,
 	&dev_attr_supported_mode.attr,
 	&dev_attr_active_mode.attr,
+	&dev_attr_prot_capabilities.attr,
+	&dev_attr_prot_guard_type.attr,
 	NULL
 };
 
@@ -359,7 +363,12 @@ static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
 
 static int scsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct scsi_device *sdev = to_scsi_device(dev);
+	struct scsi_device *sdev;
+
+	if (dev->type != &scsi_dev_type)
+		return 0;
+
+	sdev = to_scsi_device(dev);
 
 	add_uevent_var(env, "MODALIAS=" SCSI_DEVICE_MODALIAS_FMT, sdev->type);
 	return 0;
@@ -434,6 +443,7 @@ struct bus_type scsi_bus_type = {
 	.resume		= scsi_bus_resume,
 	.remove		= scsi_bus_remove,
 };
+EXPORT_SYMBOL_GPL(scsi_bus_type);
 
 int scsi_sysfs_register(void)
 {

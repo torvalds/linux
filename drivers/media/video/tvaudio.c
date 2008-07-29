@@ -69,7 +69,6 @@ typedef struct AUDIOCMD {
 /* chip description */
 struct CHIPDESC {
 	char       *name;             /* chip name         */
-	int        id;                /* ID */
 	int        addr_lo, addr_hi;  /* i2c address range */
 	int        registers;         /* # of registers    */
 
@@ -1256,7 +1255,6 @@ module_param(ta8874z, int, 0444);
 static struct CHIPDESC chiplist[] = {
 	{
 		.name       = "tda9840",
-		.id         = I2C_DRIVERID_TDA9840,
 		.insmodopt  = &tda9840,
 		.addr_lo    = I2C_ADDR_TDA9840 >> 1,
 		.addr_hi    = I2C_ADDR_TDA9840 >> 1,
@@ -1272,7 +1270,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tda9873h",
-		.id         = I2C_DRIVERID_TDA9873,
 		.checkit    = tda9873_checkit,
 		.insmodopt  = &tda9873,
 		.addr_lo    = I2C_ADDR_TDA985x_L >> 1,
@@ -1293,7 +1290,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tda9874h/a",
-		.id         = I2C_DRIVERID_TDA9874,
 		.checkit    = tda9874a_checkit,
 		.initialize = tda9874a_initialize,
 		.insmodopt  = &tda9874a,
@@ -1306,7 +1302,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tda9850",
-		.id         = I2C_DRIVERID_TDA9850,
 		.insmodopt  = &tda9850,
 		.addr_lo    = I2C_ADDR_TDA985x_L >> 1,
 		.addr_hi    = I2C_ADDR_TDA985x_H >> 1,
@@ -1319,7 +1314,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tda9855",
-		.id         = I2C_DRIVERID_TDA9855,
 		.insmodopt  = &tda9855,
 		.addr_lo    = I2C_ADDR_TDA985x_L >> 1,
 		.addr_hi    = I2C_ADDR_TDA985x_H >> 1,
@@ -1344,7 +1338,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tea6300",
-		.id         = I2C_DRIVERID_TEA6300,
 		.insmodopt  = &tea6300,
 		.addr_lo    = I2C_ADDR_TEA6300 >> 1,
 		.addr_hi    = I2C_ADDR_TEA6300 >> 1,
@@ -1365,7 +1358,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tea6320",
-		.id         = I2C_DRIVERID_TEA6300,
 		.initialize = tea6320_initialize,
 		.insmodopt  = &tea6320,
 		.addr_lo    = I2C_ADDR_TEA6300 >> 1,
@@ -1387,7 +1379,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tea6420",
-		.id         = I2C_DRIVERID_TEA6420,
 		.insmodopt  = &tea6420,
 		.addr_lo    = I2C_ADDR_TEA6420 >> 1,
 		.addr_hi    = I2C_ADDR_TEA6420 >> 1,
@@ -1400,7 +1391,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "tda8425",
-		.id         = I2C_DRIVERID_TDA8425,
 		.insmodopt  = &tda8425,
 		.addr_lo    = I2C_ADDR_TDA8425 >> 1,
 		.addr_hi    = I2C_ADDR_TDA8425 >> 1,
@@ -1424,7 +1414,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "pic16c54 (PV951)",
-		.id         = I2C_DRIVERID_PIC16C54_PV9,
 		.insmodopt  = &pic16c54,
 		.addr_lo    = I2C_ADDR_PIC16C54 >> 1,
 		.addr_hi    = I2C_ADDR_PIC16C54>> 1,
@@ -1440,8 +1429,6 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "ta8874z",
-		.id         = -1,
-		/*.id         = I2C_DRIVERID_TA8874Z, */
 		.checkit    = ta8874z_checkit,
 		.insmodopt  = &ta8874z,
 		.addr_lo    = I2C_ADDR_TDA9840 >> 1,
@@ -1505,7 +1492,8 @@ static int chip_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	/* fill required data structures */
-	strcpy(client->name, desc->name);
+	if (!id)
+		strlcpy(client->name, desc->name, I2C_NAME_SIZE);
 	chip->type = desc-chiplist;
 	chip->shadow.count = desc->registers+1;
 	chip->prevmode = -1;
@@ -1830,6 +1818,15 @@ static int chip_legacy_probe(struct i2c_adapter *adap)
 	return 0;
 }
 
+/* This driver supports many devices and the idea is to let the driver
+   detect which device is present. So rather than listing all supported
+   devices here, we pretend to support a single, fake device type. */
+static const struct i2c_device_id chip_id[] = {
+	{ "tvaudio", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, chip_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tvaudio",
 	.driverid = I2C_DRIVERID_TVAUDIO,
@@ -1837,6 +1834,7 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.probe = chip_probe,
 	.remove = chip_remove,
 	.legacy_probe = chip_legacy_probe,
+	.id_table = chip_id,
 };
 
 /*

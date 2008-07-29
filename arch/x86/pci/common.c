@@ -20,6 +20,7 @@
 unsigned int pci_probe = PCI_PROBE_BIOS | PCI_PROBE_CONF1 | PCI_PROBE_CONF2 |
 				PCI_PROBE_MMCONF;
 
+unsigned int pci_early_dump_regs;
 static int pci_bf_sort;
 int pci_routeirq;
 int pcibios_last_bus = -1;
@@ -31,7 +32,7 @@ struct pci_raw_ops *raw_pci_ext_ops;
 int raw_pci_read(unsigned int domain, unsigned int bus, unsigned int devfn,
 						int reg, int len, u32 *val)
 {
-	if (reg < 256 && raw_pci_ops)
+	if (domain == 0 && reg < 256 && raw_pci_ops)
 		return raw_pci_ops->read(domain, bus, devfn, reg, len, val);
 	if (raw_pci_ext_ops)
 		return raw_pci_ext_ops->read(domain, bus, devfn, reg, len, val);
@@ -41,7 +42,7 @@ int raw_pci_read(unsigned int domain, unsigned int bus, unsigned int devfn,
 int raw_pci_write(unsigned int domain, unsigned int bus, unsigned int devfn,
 						int reg, int len, u32 val)
 {
-	if (reg < 256 && raw_pci_ops)
+	if (domain == 0 && reg < 256 && raw_pci_ops)
 		return raw_pci_ops->write(domain, bus, devfn, reg, len, val);
 	if (raw_pci_ext_ops)
 		return raw_pci_ext_ops->write(domain, bus, devfn, reg, len, val);
@@ -77,17 +78,63 @@ int pcibios_scanned;
  */
 DEFINE_SPINLOCK(pci_config_lock);
 
+static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
+{
+	pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
+	printk(KERN_INFO "PCI: %s detected, can skip ISA alignment\n", d->ident);
+	return 0;
+}
+
+static struct dmi_system_id can_skip_pciprobe_dmi_table[] __devinitdata = {
+/*
+ * Systems where PCI IO resource ISA alignment can be skipped
+ * when the ISA enable bit in the bridge control is not set
+ */
+	{
+		.callback = can_skip_ioresource_align,
+		.ident = "IBM System x3800",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "x3800"),
+		},
+	},
+	{
+		.callback = can_skip_ioresource_align,
+		.ident = "IBM System x3850",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "x3850"),
+		},
+	},
+	{
+		.callback = can_skip_ioresource_align,
+		.ident = "IBM System x3950",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "x3950"),
+		},
+	},
+	{}
+};
+
+void __init dmi_check_skip_isa_align(void)
+{
+	dmi_check_system(can_skip_pciprobe_dmi_table);
+}
+
 static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 {
 	struct resource *rom_r = &dev->resource[PCI_ROM_RESOURCE];
 
-	if (rom_r->parent)
-		return;
-	if (rom_r->start)
-		/* we deal with BIOS assigned ROM later */
-		return;
-	if (!(pci_probe & PCI_ASSIGN_ROMS))
+	if (pci_probe & PCI_NOASSIGN_ROMS) {
+		if (rom_r->parent)
+			return;
+		if (rom_r->start) {
+			/* we deal with BIOS assigned ROM later */
+			return;
+		}
 		rom_r->start = rom_r->end = rom_r->flags = 0;
+	}
 }
 
 /*
@@ -275,18 +322,18 @@ static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
 	},
 	{
 		.callback = set_bf_sort,
-		.ident = "HP ProLiant DL385 G2",
+		.ident = "HP ProLiant DL360",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL385 G2"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL360"),
 		},
 	},
 	{
 		.callback = set_bf_sort,
-		.ident = "HP ProLiant DL585 G2",
+		.ident = "HP ProLiant DL380",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL585 G2"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL380"),
 		},
 	},
 #ifdef __i386__
@@ -318,12 +365,15 @@ static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
 	{}
 };
 
+void __init dmi_check_pciprobe(void)
+{
+	dmi_check_system(pciprobe_dmi_table);
+}
+
 struct pci_bus * __devinit pcibios_scan_root(int busnum)
 {
 	struct pci_bus *bus = NULL;
 	struct pci_sysdata *sd;
-
-	dmi_check_system(pciprobe_dmi_table);
 
 	while ((bus = pci_find_next_bus(bus)) != NULL) {
 		if (bus->number == busnum) {
@@ -354,7 +404,7 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 
 extern u8 pci_cache_line_size;
 
-static int __init pcibios_init(void)
+int __init pcibios_init(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
@@ -380,8 +430,6 @@ static int __init pcibios_init(void)
 		pci_sort_breadthfirst();
 	return 0;
 }
-
-subsys_initcall(pcibios_init);
 
 char * __devinit  pcibios_setup(char *str)
 {
@@ -453,14 +501,23 @@ char * __devinit  pcibios_setup(char *str)
 	else if (!strcmp(str, "rom")) {
 		pci_probe |= PCI_ASSIGN_ROMS;
 		return NULL;
+	} else if (!strcmp(str, "norom")) {
+		pci_probe |= PCI_NOASSIGN_ROMS;
+		return NULL;
 	} else if (!strcmp(str, "assign-busses")) {
 		pci_probe |= PCI_ASSIGN_ALL_BUSSES;
 		return NULL;
 	} else if (!strcmp(str, "use_crs")) {
 		pci_probe |= PCI_USE__CRS;
 		return NULL;
+	} else if (!strcmp(str, "earlydump")) {
+		pci_early_dump_regs = 1;
+		return NULL;
 	} else if (!strcmp(str, "routeirq")) {
 		pci_routeirq = 1;
+		return NULL;
+	} else if (!strcmp(str, "skip_isa_align")) {
+		pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
 		return NULL;
 	}
 	return str;
@@ -489,7 +546,7 @@ void pcibios_disable_device (struct pci_dev *dev)
 		pcibios_disable_irq(dev);
 }
 
-struct pci_bus *pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
+struct pci_bus * __devinit pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
 {
 	struct pci_bus *bus = NULL;
 	struct pci_sysdata *sd;
@@ -512,7 +569,7 @@ struct pci_bus *pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
 	return bus;
 }
 
-struct pci_bus *pci_scan_bus_with_sysdata(int busno)
+struct pci_bus * __devinit pci_scan_bus_with_sysdata(int busno)
 {
 	return pci_scan_bus_on_node(busno, &pci_root_ops, -1);
 }

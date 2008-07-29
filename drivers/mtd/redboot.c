@@ -1,6 +1,4 @@
 /*
- * $Id: redboot.c,v 1.21 2006/03/30 18:34:37 bjd Exp $
- *
  * Parse RedBoot-style Flash Image System (FIS) tables and
  * produce a Linux partition array to match.
  */
@@ -295,5 +293,5 @@ module_init(redboot_parser_init);
 module_exit(redboot_parser_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Red Hat, Inc. - David Woodhouse <dwmw2@cambridge.redhat.com>");
+MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
 MODULE_DESCRIPTION("Parsing code for RedBoot Flash Image System (FIS) tables");

@@ -282,16 +282,20 @@ static int opost(unsigned char c, struct tty_struct *tty)
 			if (O_ONLRET(tty))
 				tty->column = 0;
 			if (O_ONLCR(tty)) {
-				if (space < 2)
+				if (space < 2) {
+					unlock_kernel();
 					return -1;
+				}
 				tty_put_char(tty, '\r');
 				tty->column = 0;
 			}
 			tty->canon_column = tty->column;
 			break;
 		case '\r':
-			if (O_ONOCR(tty) && tty->column == 0)
+			if (O_ONOCR(tty) && tty->column == 0) {
+				unlock_kernel();
 				return 0;
+			}
 			if (O_OCRNL(tty)) {
 				c = '\n';
 				if (O_ONLRET(tty))
@@ -303,10 +307,13 @@ static int opost(unsigned char c, struct tty_struct *tty)
 		case '\t':
 			spaces = 8 - (tty->column & 7);
 			if (O_TABDLY(tty) == XTABS) {
-				if (space < spaces)
+				if (space < spaces) {
+					unlock_kernel();
 					return -1;
+				}
 				tty->column += spaces;
 				tty->ops->write(tty, "        ", spaces);
+				unlock_kernel();
 				return 0;
 			}
 			tty->column += spaces;
@@ -1566,7 +1573,7 @@ static unsigned int normal_poll(struct tty_struct *tty, struct file *file,
 	return mask;
 }
 
-struct tty_ldisc tty_ldisc_N_TTY = {
+struct tty_ldisc_ops tty_ldisc_N_TTY = {
 	.magic           = TTY_LDISC_MAGIC,
 	.name            = "n_tty",
 	.open            = n_tty_open,

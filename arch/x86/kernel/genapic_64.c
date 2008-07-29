@@ -51,7 +51,7 @@ void __init setup_apic_routing(void)
 	else
 #endif
 
-	if (num_possible_cpus() <= 8)
+	if (max_physical_apicid < 8)
 		genapic = &apic_flat;
 	else
 		genapic = &apic_physflat;

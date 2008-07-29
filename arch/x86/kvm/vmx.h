@@ -35,9 +35,12 @@
 #define CPU_BASED_MWAIT_EXITING                 0x00000400
 #define CPU_BASED_RDPMC_EXITING                 0x00000800
 #define CPU_BASED_RDTSC_EXITING                 0x00001000
+#define CPU_BASED_CR3_LOAD_EXITING		0x00008000
+#define CPU_BASED_CR3_STORE_EXITING		0x00010000
 #define CPU_BASED_CR8_LOAD_EXITING              0x00080000
 #define CPU_BASED_CR8_STORE_EXITING             0x00100000
 #define CPU_BASED_TPR_SHADOW                    0x00200000
+#define CPU_BASED_VIRTUAL_NMI_PENDING		0x00400000
 #define CPU_BASED_MOV_DR_EXITING                0x00800000
 #define CPU_BASED_UNCOND_IO_EXITING             0x01000000
 #define CPU_BASED_USE_IO_BITMAPS                0x02000000
@@ -49,6 +52,7 @@
  * Definitions of Secondary Processor-Based VM-Execution Controls.
  */
 #define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES 0x00000001
+#define SECONDARY_EXEC_ENABLE_EPT               0x00000002
 #define SECONDARY_EXEC_ENABLE_VPID              0x00000020
 #define SECONDARY_EXEC_WBINVD_EXITING		0x00000040
 
@@ -100,10 +104,22 @@ enum vmcs_field {
 	VIRTUAL_APIC_PAGE_ADDR_HIGH     = 0x00002013,
 	APIC_ACCESS_ADDR		= 0x00002014,
 	APIC_ACCESS_ADDR_HIGH		= 0x00002015,
+	EPT_POINTER                     = 0x0000201a,
+	EPT_POINTER_HIGH                = 0x0000201b,
+	GUEST_PHYSICAL_ADDRESS          = 0x00002400,
+	GUEST_PHYSICAL_ADDRESS_HIGH     = 0x00002401,
 	VMCS_LINK_POINTER               = 0x00002800,
 	VMCS_LINK_POINTER_HIGH          = 0x00002801,
 	GUEST_IA32_DEBUGCTL             = 0x00002802,
 	GUEST_IA32_DEBUGCTL_HIGH        = 0x00002803,
+	GUEST_PDPTR0                    = 0x0000280a,
+	GUEST_PDPTR0_HIGH               = 0x0000280b,
+	GUEST_PDPTR1                    = 0x0000280c,
+	GUEST_PDPTR1_HIGH               = 0x0000280d,
+	GUEST_PDPTR2                    = 0x0000280e,
+	GUEST_PDPTR2_HIGH               = 0x0000280f,
+	GUEST_PDPTR3                    = 0x00002810,
+	GUEST_PDPTR3_HIGH               = 0x00002811,
 	PIN_BASED_VM_EXEC_CONTROL       = 0x00004000,
 	CPU_BASED_VM_EXEC_CONTROL       = 0x00004002,
 	EXCEPTION_BITMAP                = 0x00004004,
@@ -201,7 +217,7 @@ enum vmcs_field {
 #define EXIT_REASON_TRIPLE_FAULT        2
 
 #define EXIT_REASON_PENDING_INTERRUPT   7
-
+#define EXIT_REASON_NMI_WINDOW		8
 #define EXIT_REASON_TASK_SWITCH         9
 #define EXIT_REASON_CPUID               10
 #define EXIT_REASON_HLT                 12
@@ -226,6 +242,8 @@ enum vmcs_field {
 #define EXIT_REASON_MWAIT_INSTRUCTION   36
 #define EXIT_REASON_TPR_BELOW_THRESHOLD 43
 #define EXIT_REASON_APIC_ACCESS         44
+#define EXIT_REASON_EPT_VIOLATION       48
+#define EXIT_REASON_EPT_MISCONFIG       49
 #define EXIT_REASON_WBINVD		54
 
 /*
@@ -234,7 +252,9 @@ enum vmcs_field {
 #define INTR_INFO_VECTOR_MASK           0xff            /* 7:0 */
 #define INTR_INFO_INTR_TYPE_MASK        0x700           /* 10:8 */
 #define INTR_INFO_DELIVER_CODE_MASK     0x800           /* 11 */
+#define INTR_INFO_UNBLOCK_NMI		0x1000		/* 12 */
 #define INTR_INFO_VALID_MASK            0x80000000      /* 31 */
+#define INTR_INFO_RESVD_BITS_MASK       0x7ffff000
 
 #define VECTORING_INFO_VECTOR_MASK           	INTR_INFO_VECTOR_MASK
 #define VECTORING_INFO_TYPE_MASK        	INTR_INFO_INTR_TYPE_MASK
@@ -242,8 +262,15 @@ enum vmcs_field {
 #define VECTORING_INFO_VALID_MASK       	INTR_INFO_VALID_MASK
 
 #define INTR_TYPE_EXT_INTR              (0 << 8) /* external interrupt */
+#define INTR_TYPE_NMI_INTR		(2 << 8) /* NMI */
 #define INTR_TYPE_EXCEPTION             (3 << 8) /* processor exception */
 #define INTR_TYPE_SOFT_INTR             (4 << 8) /* software interrupt */
+
+/* GUEST_INTERRUPTIBILITY_INFO flags. */
+#define GUEST_INTR_STATE_STI		0x00000001
+#define GUEST_INTR_STATE_MOV_SS		0x00000002
+#define GUEST_INTR_STATE_SMI		0x00000004
+#define GUEST_INTR_STATE_NMI		0x00000008
 
 /*
  * Exit Qualifications for MOV for Control Register Access
@@ -316,15 +343,36 @@ enum vmcs_field {
 #define MSR_IA32_VMX_CR4_FIXED1                 0x489
 #define MSR_IA32_VMX_VMCS_ENUM                  0x48a
 #define MSR_IA32_VMX_PROCBASED_CTLS2            0x48b
+#define MSR_IA32_VMX_EPT_VPID_CAP               0x48c
 
 #define MSR_IA32_FEATURE_CONTROL                0x3a
 #define MSR_IA32_FEATURE_CONTROL_LOCKED         0x1
 #define MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED  0x4
 
 #define APIC_ACCESS_PAGE_PRIVATE_MEMSLOT	9
+#define IDENTITY_PAGETABLE_PRIVATE_MEMSLOT	10
 
 #define VMX_NR_VPIDS				(1 << 16)
 #define VMX_VPID_EXTENT_SINGLE_CONTEXT		1
 #define VMX_VPID_EXTENT_ALL_CONTEXT		2
+
+#define VMX_EPT_EXTENT_INDIVIDUAL_ADDR		0
+#define VMX_EPT_EXTENT_CONTEXT			1
+#define VMX_EPT_EXTENT_GLOBAL			2
+#define VMX_EPT_EXTENT_INDIVIDUAL_BIT		(1ull << 24)
+#define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
+#define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)
+#define VMX_EPT_DEFAULT_GAW			3
+#define VMX_EPT_MAX_GAW				0x4
+#define VMX_EPT_MT_EPTE_SHIFT			3
+#define VMX_EPT_GAW_EPTP_SHIFT			3
+#define VMX_EPT_DEFAULT_MT			0x6ull
+#define VMX_EPT_READABLE_MASK			0x1ull
+#define VMX_EPT_WRITABLE_MASK			0x2ull
+#define VMX_EPT_EXECUTABLE_MASK			0x4ull
+#define VMX_EPT_FAKE_ACCESSED_MASK		(1ull << 62)
+#define VMX_EPT_FAKE_DIRTY_MASK			(1ull << 63)
+
+#define VMX_EPT_IDENTITY_PAGETABLE_ADDR		0xfffbc000ul
 
 #endif

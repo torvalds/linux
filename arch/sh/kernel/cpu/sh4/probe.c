@@ -50,14 +50,18 @@ int __init detect_cpu_and_cache_system(void)
 	boot_cpu_data.dcache.ways		= 1;
 	boot_cpu_data.dcache.linesz		= L1_CACHE_BYTES;
 
+	/* We don't know the chip cut */
+	boot_cpu_data.cut_major = boot_cpu_data.cut_minor = -1;
+
 	/*
 	 * Setup some generic flags we can probe on SH-4A parts
 	 */
-	if (((pvr >> 24) & 0xff) == 0x10) {
+	if (((pvr >> 16) & 0xff) == 0x10) {
 		if ((cvr & 0x10000000) == 0)
 			boot_cpu_data.flags |= CPU_HAS_DSP;
 
 		boot_cpu_data.flags |= CPU_HAS_LLSC;
+		boot_cpu_data.cut_major = pvr & 0x7f;
 	}
 
 	/* FPU detection works for everyone */
@@ -132,6 +136,7 @@ int __init detect_cpu_and_cache_system(void)
 
 		switch (prr) {
 		case 0x50:
+		case 0x51:
 			boot_cpu_data.type = CPU_SH7723;
 			boot_cpu_data.flags |= CPU_HAS_FPU | CPU_HAS_L2_CACHE;
 			break;

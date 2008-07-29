@@ -142,8 +142,8 @@
 
 #define DRV_MODULE_NAME		"cassini"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.5"
-#define DRV_MODULE_RELDATE	"4 Jan 2008"
+#define DRV_MODULE_VERSION	"1.6"
+#define DRV_MODULE_RELDATE	"21 May 2008"
 
 #define CAS_DEF_MSG_ENABLE	  \
 	(NETIF_MSG_DRV		| \
@@ -576,6 +576,18 @@ static void cas_spare_recover(struct cas *cp, const gfp_t flags)
 	list_for_each_safe(elem, tmp, &list) {
 		cas_page_t *page = list_entry(elem, cas_page_t, list);
 
+		/*
+		 * With the lockless pagecache, cassini buffering scheme gets
+		 * slightly less accurate: we might find that a page has an
+		 * elevated reference count here, due to a speculative ref,
+		 * and skip it as in-use. Ideally we would be able to reclaim
+		 * it. However this would be such a rare case, it doesn't
+		 * matter too much as we should pick it up the next time round.
+		 *
+		 * Importantly, if we find that the page has a refcount of 1
+		 * here (our refcount), then we know it is definitely not inuse
+		 * so we can reuse it.
+		 */
 		if (page_count(page->buffer) > 1)
 			continue;
 
@@ -2136,9 +2148,12 @@ end_copy_pkt:
 		if (addr)
 			cas_page_unmap(addr);
 	}
-	skb->csum = csum_unfold(~csum);
-	skb->ip_summed = CHECKSUM_COMPLETE;
 	skb->protocol = eth_type_trans(skb, cp->dev);
+	if (skb->protocol == htons(ETH_P_IP)) {
+		skb->csum = csum_unfold(~csum);
+		skb->ip_summed = CHECKSUM_COMPLETE;
+	} else
+		skb->ip_summed = CHECKSUM_NONE;
 	return len;
 }
 

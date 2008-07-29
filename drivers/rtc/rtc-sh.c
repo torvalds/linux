@@ -616,7 +616,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 		goto err_badres;
 	}
 
-	rtc->regbase = (void __iomem *)rtc->res->start;
+	rtc->regbase = ioremap_nocache(rtc->res->start, rtc->regsize);
 	if (unlikely(!rtc->regbase)) {
 		ret = -EINVAL;
 		goto err_badmap;
@@ -626,7 +626,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 					   &sh_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc_dev)) {
 		ret = PTR_ERR(rtc->rtc_dev);
-		goto err_badmap;
+		goto err_unmap;
 	}
 
 	rtc->capabilities = RTC_DEF_CAPABILITIES;
@@ -653,7 +653,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"request period IRQ failed with %d, IRQ %d\n", ret,
 			rtc->periodic_irq);
-		goto err_badmap;
+		goto err_unmap;
 	}
 
 	ret = request_irq(rtc->carry_irq, sh_rtc_interrupt, IRQF_DISABLED,
@@ -663,7 +663,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 			"request carry IRQ failed with %d, IRQ %d\n", ret,
 			rtc->carry_irq);
 		free_irq(rtc->periodic_irq, rtc);
-		goto err_badmap;
+		goto err_unmap;
 	}
 
 	ret = request_irq(rtc->alarm_irq, sh_rtc_alarm, IRQF_DISABLED,
@@ -674,7 +674,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 			rtc->alarm_irq);
 		free_irq(rtc->carry_irq, rtc);
 		free_irq(rtc->periodic_irq, rtc);
-		goto err_badmap;
+		goto err_unmap;
 	}
 
 	tmp = readb(rtc->regbase + RCR1);
@@ -684,6 +684,8 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_unmap:
+	iounmap(rtc->regbase);
 err_badmap:
 	release_resource(rtc->res);
 err_badres:
@@ -707,6 +709,8 @@ static int __devexit sh_rtc_remove(struct platform_device *pdev)
 	free_irq(rtc->alarm_irq, rtc);
 
 	release_resource(rtc->res);
+
+	iounmap(rtc->regbase);
 
 	platform_set_drvdata(pdev, NULL);
 

@@ -150,7 +150,7 @@ __uml_setup("root=", uml_root_setup,
 static int __init no_skas_debug_setup(char *line, int *add)
 {
 	printf("'debug' is not necessary to gdb UML in skas mode - run \n");
-	printf("'gdb linux'");
+	printf("'gdb linux'\n");
 
 	return 0;
 }
@@ -258,6 +258,7 @@ int __init linux_main(int argc, char **argv)
 {
 	unsigned long avail, diff;
 	unsigned long virtmem_size, max_physmem;
+	unsigned long stack;
 	unsigned int i;
 	int add;
 	char * mode;
@@ -273,7 +274,7 @@ int __init linux_main(int argc, char **argv)
 	if (have_root == 0)
 		add_arg(DEFAULT_COMMAND_LINE);
 
-	host_task_size = os_get_task_size();
+	host_task_size = os_get_top_address();
 	/*
 	 * TASK_SIZE needs to be PGDIR_SIZE aligned or else exit_mmap craps
 	 * out
@@ -348,7 +349,9 @@ int __init linux_main(int argc, char **argv)
 	}
 
 	virtmem_size = physmem_size;
-	avail = TASK_SIZE - start_vm;
+	stack = (unsigned long) argv;
+	stack &= ~(1024 * 1024 - 1);
+	avail = stack - start_vm;
 	if (physmem_size > avail)
 		virtmem_size = avail;
 	end_vm = start_vm + virtmem_size;

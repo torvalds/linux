@@ -51,8 +51,30 @@ struct mmc_ios {
 
 struct mmc_host_ops {
 	void	(*request)(struct mmc_host *host, struct mmc_request *req);
+	/*
+	 * Avoid calling these three functions too often or in a "fast path",
+	 * since underlaying controller might implement them in an expensive
+	 * and/or slow way.
+	 *
+	 * Also note that these functions might sleep, so don't call them
+	 * in the atomic contexts!
+	 *
+	 * Return values for the get_ro callback should be:
+	 *   0 for a read/write card
+	 *   1 for a read-only card
+	 *   -ENOSYS when not supported (equal to NULL callback)
+	 *   or a negative errno value when something bad happened
+	 *
+	 * Return values for the get_ro callback should be:
+	 *   0 for a absent card
+	 *   1 for a present card
+	 *   -ENOSYS when not supported (equal to NULL callback)
+	 *   or a negative errno value when something bad happened
+	 */
 	void	(*set_ios)(struct mmc_host *host, struct mmc_ios *ios);
 	int	(*get_ro)(struct mmc_host *host);
+	int	(*get_cd)(struct mmc_host *host);
+
 	void	(*enable_sdio_irq)(struct mmc_host *host, int enable);
 };
 
@@ -89,11 +111,11 @@ struct mmc_host {
 	unsigned long		caps;		/* Host capabilities */
 
 #define MMC_CAP_4_BIT_DATA	(1 << 0)	/* Can the host do 4 bit transfers */
-#define MMC_CAP_MULTIWRITE	(1 << 1)	/* Can accurately report bytes sent to card on error */
-#define MMC_CAP_MMC_HIGHSPEED	(1 << 2)	/* Can do MMC high-speed timing */
-#define MMC_CAP_SD_HIGHSPEED	(1 << 3)	/* Can do SD high-speed timing */
-#define MMC_CAP_SDIO_IRQ	(1 << 4)	/* Can signal pending SDIO IRQs */
-#define MMC_CAP_SPI		(1 << 5)	/* Talks only SPI protocols */
+#define MMC_CAP_MMC_HIGHSPEED	(1 << 1)	/* Can do MMC high-speed timing */
+#define MMC_CAP_SD_HIGHSPEED	(1 << 2)	/* Can do SD high-speed timing */
+#define MMC_CAP_SDIO_IRQ	(1 << 3)	/* Can signal pending SDIO IRQs */
+#define MMC_CAP_SPI		(1 << 4)	/* Talks only SPI protocols */
+#define MMC_CAP_NEEDS_POLL	(1 << 5)	/* Needs polling for card-detection */
 
 	/* host specific block data */
 	unsigned int		max_seg_size;	/* see blk_queue_max_segment_size */
@@ -134,6 +156,8 @@ struct mmc_host {
 #ifdef CONFIG_LEDS_TRIGGERS
 	struct led_trigger	*led;		/* activity led */
 #endif
+
+	struct dentry		*debugfs_root;
 
 	unsigned long		private[0] ____cacheline_aligned;
 };

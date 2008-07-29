@@ -285,7 +285,41 @@
 #define OMAP_MAX_GPIO_LINES	192
 #define IH_GPIO_BASE		(128 + IH2_BASE)
 #define IH_MPUIO_BASE		(OMAP_MAX_GPIO_LINES + IH_GPIO_BASE)
-#define IH_BOARD_BASE		(16 + IH_MPUIO_BASE)
+#define OMAP_IRQ_END		(IH_MPUIO_BASE + 16)
+
+/* External FPGA handles interrupts on Innovator boards */
+#define	OMAP_FPGA_IRQ_BASE	(OMAP_IRQ_END)
+#ifdef	CONFIG_MACH_OMAP_INNOVATOR
+#define OMAP_FPGA_NR_IRQS	24
+#else
+#define OMAP_FPGA_NR_IRQS	0
+#endif
+#define OMAP_FPGA_IRQ_END	(OMAP_FPGA_IRQ_BASE + OMAP_FPGA_NR_IRQS)
+
+/* External TWL4030 can handle interrupts on 2430 and 34xx boards */
+#define	TWL4030_IRQ_BASE	(OMAP_FPGA_IRQ_END)
+#ifdef	CONFIG_TWL4030_CORE
+#define	TWL4030_BASE_NR_IRQS	8
+#define	TWL4030_PWR_NR_IRQS	8
+#else
+#define	TWL4030_BASE_NR_IRQS	0
+#define	TWL4030_PWR_NR_IRQS	0
+#endif
+#define TWL4030_IRQ_END		(TWL4030_IRQ_BASE + TWL4030_BASE_NR_IRQS)
+#define TWL4030_PWR_IRQ_BASE	TWL4030_IRQ_END
+#define	TWL4030_PWR_IRQ_END	(TWL4030_PWR_IRQ_BASE + TWL4030_PWR_NR_IRQS)
+
+/* External TWL4030 gpio interrupts are optional */
+#define TWL4030_GPIO_IRQ_BASE	TWL4030_PWR_IRQ_END
+#ifdef	CONFIG_TWL4030_GPIO
+#define TWL4030_GPIO_NR_IRQS	18
+#else
+#define	TWL4030_GPIO_NR_IRQS	0
+#endif
+#define TWL4030_GPIO_IRQ_END	(TWL4030_GPIO_IRQ_BASE + TWL4030_GPIO_NR_IRQS)
+
+/* Total number of interrupts depends on the enabled blocks above */
+#define NR_IRQS			TWL4030_GPIO_IRQ_END
 
 #define OMAP_IRQ_BIT(irq)	(1 << ((irq) % 32))
 
@@ -293,14 +327,6 @@
 extern void omap_init_irq(void);
 #endif
 
-/*
- * The definition of NR_IRQS is in board-specific header file, which is
- * included via hardware.h
- */
 #include <asm/hardware.h>
-
-#ifndef NR_IRQS
-#define NR_IRQS                 IH_BOARD_BASE
-#endif
 
 #endif

@@ -6,45 +6,6 @@
 #include <asm/numa.h>
 #include "pci.h"
 
-static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
-{
-	pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
-	printk(KERN_INFO "PCI: %s detected, can skip ISA alignment\n", d->ident);
-	return 0;
-}
-
-static struct dmi_system_id acpi_pciprobe_dmi_table[] __devinitdata = {
-/*
- * Systems where PCI IO resource ISA alignment can be skipped
- * when the ISA enable bit in the bridge control is not set
- */
-	{
-		.callback = can_skip_ioresource_align,
-		.ident = "IBM System x3800",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "x3800"),
-		},
-	},
-	{
-		.callback = can_skip_ioresource_align,
-		.ident = "IBM System x3850",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "x3850"),
-		},
-	},
-	{
-		.callback = can_skip_ioresource_align,
-		.ident = "IBM System x3950",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "x3950"),
-		},
-	},
-	{}
-};
-
 struct pci_root_info {
 	char *name;
 	unsigned int res_num;
@@ -196,8 +157,6 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	int pxm;
 #endif
 
-	dmi_check_system(acpi_pciprobe_dmi_table);
-
 	if (domain && !pci_domains_supported) {
 		printk(KERN_WARNING "PCI: Multiple domains not supported "
 		       "(dom %d, bus %d)\n", domain, busnum);
@@ -212,8 +171,11 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	if (node != -1)
 		set_mp_bus_to_node(busnum, node);
 	else
-		node = get_mp_bus_to_node(busnum);
 #endif
+		node = get_mp_bus_to_node(busnum);
+
+	if (node != -1 && !node_online(node))
+		node = -1;
 
 	/* Allocate per-root-bus (not per bus) arch-specific data.
 	 * TODO: leak; this memory is never freed.
@@ -245,22 +207,23 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	if (!bus)
 		kfree(sd);
 
+	if (bus && node != -1) {
 #ifdef CONFIG_ACPI_NUMA
-	if (bus) {
-		if (pxm >= 0) {
+		if (pxm >= 0)
 			printk(KERN_DEBUG "bus %02x -> pxm %d -> node %d\n",
-				busnum, pxm, pxm_to_node(pxm));
-		}
-	}
+				busnum, pxm, node);
+#else
+		printk(KERN_DEBUG "bus %02x -> node %d\n",
+			busnum, node);
 #endif
+	}
 
 	if (bus && (pci_probe & PCI_USE__CRS))
 		get_current_resources(device, busnum, domain, bus);
 	return bus;
 }
 
-extern int pci_routeirq;
-static int __init pci_acpi_init(void)
+int __init pci_acpi_init(void)
 {
 	struct pci_dev *dev = NULL;
 
@@ -294,4 +257,3 @@ static int __init pci_acpi_init(void)
 
 	return 0;
 }
-subsys_initcall(pci_acpi_init);

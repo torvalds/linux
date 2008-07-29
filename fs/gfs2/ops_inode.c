@@ -74,7 +74,7 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 			return PTR_ERR(inode);
 		}
 
-		inode = gfs2_lookupi(dir, &dentry->d_name, 0, nd);
+		inode = gfs2_lookupi(dir, &dentry->d_name, 0);
 		if (inode) {
 			if (!IS_ERR(inode)) {
 				gfs2_holder_uninit(ghs);
@@ -109,7 +109,7 @@ static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 
 	dentry->d_op = &gfs2_dops;
 
-	inode = gfs2_lookupi(dir, &dentry->d_name, 0, nd);
+	inode = gfs2_lookupi(dir, &dentry->d_name, 0);
 	if (inode && IS_ERR(inode))
 		return ERR_CAST(inode);
 
@@ -163,7 +163,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	if (error)
 		goto out;
 
-	error = permission(dir, MAY_WRITE | MAY_EXEC, NULL);
+	error = gfs2_permission(dir, MAY_WRITE | MAY_EXEC);
 	if (error)
 		goto out_gunlock;
 
@@ -669,7 +669,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			}
 		}
 	} else {
-		error = permission(ndir, MAY_WRITE | MAY_EXEC, NULL);
+		error = gfs2_permission(ndir, MAY_WRITE | MAY_EXEC);
 		if (error)
 			goto out_gunlock;
 
@@ -704,7 +704,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	/* Check out the dir to be renamed */
 
 	if (dir_rename) {
-		error = permission(odentry->d_inode, MAY_WRITE, NULL);
+		error = gfs2_permission(odentry->d_inode, MAY_WRITE);
 		if (error)
 			goto out_gunlock;
 	}
@@ -891,7 +891,7 @@ static void *gfs2_follow_link(struct dentry *dentry, struct nameidata *nd)
  * Returns: errno
  */
 
-static int gfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
+int gfs2_permission(struct inode *inode, int mask)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder i_gh;
@@ -905,7 +905,10 @@ static int gfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 		unlock = 1;
 	}
 
-	error = generic_permission(inode, mask, gfs2_check_acl);
+	if ((mask & MAY_WRITE) && IS_IMMUTABLE(inode))
+		error = -EACCES;
+	else
+		error = generic_permission(inode, mask, gfs2_check_acl);
 	if (unlock)
 		gfs2_glock_dq_uninit(&i_gh);
 

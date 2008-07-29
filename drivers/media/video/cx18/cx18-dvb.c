@@ -24,25 +24,27 @@
 #include "cx18-streams.h"
 #include "cx18-cards.h"
 #include "s5h1409.h"
-
-/* Wait until the MXL500X driver is merged */
-#ifdef HAVE_MXL500X
-#include "mxl500x.h"
-#endif
+#include "mxl5005s.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define CX18_REG_DMUX_NUM_PORT_0_CONTROL 0xd5a000
 
-#ifdef HAVE_MXL500X
-static struct mxl500x_config hauppauge_hvr1600_tuner = {
-	.delsys    = MXL500x_MODE_ATSC,
-	.octf      = MXL500x_OCTF_CH,
-	.xtal_freq = 16000000,
-	.iflo_freq = 5380000,
-	.ref_freq  = 322800000,
-	.rssi_ena  = MXL_RSSI_ENABLE,
-	.addr      = 0xC6 >> 1,
+static struct mxl5005s_config hauppauge_hvr1600_tuner = {
+	.i2c_address     = 0xC6 >> 1,
+	.if_freq         = IF_FREQ_5380000HZ,
+	.xtal_freq       = CRYSTAL_FREQ_16000000HZ,
+	.agc_mode        = MXL_SINGLE_AGC,
+	.tracking_filter = MXL_TF_C_H,
+	.rssi_enable     = MXL_RSSI_ENABLE,
+	.cap_select      = MXL_CAP_SEL_ENABLE,
+	.div_out         = MXL_DIV_OUT_4,
+	.clock_out       = MXL_CLOCK_OUT_DISABLE,
+	.output_load     = MXL5005S_IF_OUTPUT_LOAD_200_OHM,
+	.top		 = MXL5005S_TOP_25P2,
+	.mod_mode        = MXL_DIGITAL_MODE,
+	.if_mode         = MXL_ZERO_IF,
+	.AgcMasterByte   = 0x00,
 };
 
 static struct s5h1409_config hauppauge_hvr1600_config = {
@@ -55,7 +57,6 @@ static struct s5h1409_config hauppauge_hvr1600_config = {
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK
 
 };
-#endif
 
 static int dvb_register(struct cx18_stream *stream);
 
@@ -68,11 +69,21 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 	struct dvb_demux *demux = feed->demux;
 	struct cx18_stream *stream = (struct cx18_stream *) demux->priv;
 	struct cx18 *cx = stream->cx;
-	int ret = -EINVAL;
+	int ret;
 	u32 v;
 
 	CX18_DEBUG_INFO("Start feed: pid = 0x%x index = %d\n",
 			feed->pid, feed->index);
+
+	mutex_lock(&cx->serialize_lock);
+	ret = cx18_init_on_first_open(cx);
+	mutex_unlock(&cx->serialize_lock);
+	if (ret) {
+		CX18_ERR("Failed to initialize firmware starting DVB feed\n");
+		return ret;
+	}
+	ret = -EINVAL;
+
 	switch (cx->card->type) {
 	case CX18_CARD_HVR_1600_ESMT:
 	case CX18_CARD_HVR_1600_SAMSUNG:
@@ -100,6 +111,11 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 		if (stream->dvb.feeding++ == 0) {
 			CX18_DEBUG_INFO("Starting Transport DMA\n");
 			ret = cx18_start_v4l2_encode_stream(stream);
+			if (ret < 0) {
+				CX18_DEBUG_INFO(
+					"Failed to start Transport DMA\n");
+				stream->dvb.feeding--;
+			}
 		} else
 			ret = 0;
 		mutex_unlock(&stream->dvb.feedlock);
@@ -252,21 +268,18 @@ static int dvb_register(struct cx18_stream *stream)
 	int ret = 0;
 
 	switch (cx->card->type) {
-/* Wait until the MXL500X driver is merged */
-#ifdef HAVE_MXL500X
 	case CX18_CARD_HVR_1600_ESMT:
 	case CX18_CARD_HVR_1600_SAMSUNG:
 		dvb->fe = dvb_attach(s5h1409_attach,
 			&hauppauge_hvr1600_config,
 			&cx->i2c_adap[0]);
 		if (dvb->fe != NULL) {
-			dvb_attach(mxl500x_attach, dvb->fe,
-				&hauppauge_hvr1600_tuner,
-				&cx->i2c_adap[0]);
+			dvb_attach(mxl5005s_attach, dvb->fe,
+				&cx->i2c_adap[0],
+				&hauppauge_hvr1600_tuner);
 			ret = 0;
 		}
 		break;
-#endif
 	default:
 		/* No Digital Tv Support */
 		break;

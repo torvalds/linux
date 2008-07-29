@@ -202,7 +202,7 @@ static unsigned short start_code[] = {
 	0x0000,Cmd_MCast,
 	0x0076,                 /* link to next command */
 #define CONF_NR_MULTICAST 0x44
-	0x0000,                 /* number of multicast addresses */
+	0x0000,                 /* number of bytes in multicast address(es) */
 #define CONF_MULTICAST 0x46
 	0x0000, 0x0000, 0x0000, /* some addresses */
 	0x0000, 0x0000, 0x0000,
@@ -1569,7 +1569,7 @@ static void eexp_hw_init586(struct net_device *dev)
 
 static void eexp_setup_filter(struct net_device *dev)
 {
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	unsigned short ioaddr = dev->base_addr;
 	int count = dev->mc_count;
 	int i;
@@ -1580,9 +1580,9 @@ static void eexp_setup_filter(struct net_device *dev)
 	}
 
 	outw(CONF_NR_MULTICAST & ~31, ioaddr+SM_PTR);
-	outw(count, ioaddr+SHADOW(CONF_NR_MULTICAST));
-	for (i = 0; i < count; i++) {
-		unsigned short *data = (unsigned short *)dmi->dmi_addr;
+	outw(6*count, ioaddr+SHADOW(CONF_NR_MULTICAST));
+	for (i = 0, dmi = dev->mc_list; i < count; i++, dmi = dmi->next) {
+		unsigned short *data;
 		if (!dmi) {
 			printk(KERN_INFO "%s: too few multicast addresses\n", dev->name);
 			break;
@@ -1591,6 +1591,7 @@ static void eexp_setup_filter(struct net_device *dev)
 			printk(KERN_INFO "%s: invalid multicast address length given.\n", dev->name);
 			continue;
 		}
+		data = (unsigned short *)dmi->dmi_addr;
 		outw((CONF_MULTICAST+(6*i)) & ~31, ioaddr+SM_PTR);
 		outw(data[0], ioaddr+SHADOW(CONF_MULTICAST+(6*i)));
 		outw((CONF_MULTICAST+(6*i)+2) & ~31, ioaddr+SM_PTR);

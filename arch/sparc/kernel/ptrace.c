@@ -21,6 +21,7 @@
 #include <linux/signal.h>
 #include <linux/regset.h>
 #include <linux/elf.h>
+#include <linux/tracehook.h>
 
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -170,8 +171,8 @@ static int genregs32_set(struct task_struct *target,
 		switch (pos) {
 		case 32: /* PSR */
 			psr = regs->psr;
-			psr &= ~PSR_ICC;
-			psr |= (reg & PSR_ICC);
+			psr &= ~(PSR_ICC | PSR_SYSCALL);
+			psr |= (reg & (PSR_ICC | PSR_SYSCALL));
 			regs->psr = psr;
 			break;
 		case 33: /* PC */
@@ -441,6 +442,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	default:
+		if (request == PTRACE_SPARC_DETACH)
+			request = PTRACE_DETACH;
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
@@ -448,21 +451,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-asmlinkage void syscall_trace(void)
+asmlinkage int syscall_trace(struct pt_regs *regs, int syscall_exit_p)
 {
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
-	if (!(current->ptrace & PT_PTRACED))
-		return;
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig (current->exit_code, current, 1);
-		current->exit_code = 0;
+	int ret = 0;
+
+	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
+		if (syscall_exit_p)
+			tracehook_report_syscall_exit(regs, 0);
+		else
+			ret = tracehook_report_syscall_entry(regs);
 	}
+
+	return ret;
 }

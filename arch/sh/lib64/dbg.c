@@ -186,8 +186,8 @@ void evt_debug(int evt, int ret_addr, int event, int tra, struct pt_regs *regs)
 	rr->pc = regs->pc;
 
 	if (sp < stack_bottom + 3092) {
-		printk("evt_debug : stack underflow report\n");
 		int i, j;
+		printk("evt_debug : stack underflow report\n");
 		for (j=0, i = event_ptr; j<16; j++) {
 			rr = event_ring + i;
 			printk("evt=%08x event=%08x tra=%08x pid=%5d sp=%08lx pc=%08lx\n",

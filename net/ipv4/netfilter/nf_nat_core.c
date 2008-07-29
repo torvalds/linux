@@ -240,12 +240,12 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	   This is only required for source (ie. NAT/masq) mappings.
 	   So far, we don't do local source mappings, so multiple
 	   manips not an issue.  */
-	if (maniptype == IP_NAT_MANIP_SRC) {
+	if (maniptype == IP_NAT_MANIP_SRC &&
+	    !(range->flags & IP_NAT_RANGE_PROTO_RANDOM)) {
 		if (find_appropriate_src(orig_tuple, tuple, range)) {
 			pr_debug("get_unique_tuple: Found current src map\n");
-			if (!(range->flags & IP_NAT_RANGE_PROTO_RANDOM))
-				if (!nf_nat_used_tuple(tuple, ct))
-					return;
+			if (!nf_nat_used_tuple(tuple, ct))
+				return;
 		}
 	}
 
@@ -556,7 +556,6 @@ static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 
 	spin_lock_bh(&nf_nat_lock);
 	hlist_del_rcu(&nat->bysource);
-	nat->ct = NULL;
 	spin_unlock_bh(&nf_nat_lock);
 }
 
@@ -570,8 +569,8 @@ static void nf_nat_move_storage(void *new, void *old)
 		return;
 
 	spin_lock_bh(&nf_nat_lock);
-	hlist_replace_rcu(&old_nat->bysource, &new_nat->bysource);
 	new_nat->ct = ct;
+	hlist_replace_rcu(&old_nat->bysource, &new_nat->bysource);
 	spin_unlock_bh(&nf_nat_lock);
 }
 

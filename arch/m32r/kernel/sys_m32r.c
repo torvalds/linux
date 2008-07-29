@@ -76,26 +76,6 @@ asmlinkage int sys_tas(int __user *addr)
 	return oldval;
 }
 
-/*
- * sys_pipe() is the normal C calling standard for creating
- * a pipe. It's not the way Unix traditionally does this, though.
- */
-asmlinkage int
-sys_pipe(unsigned long r0, unsigned long r1, unsigned long r2,
-	unsigned long r3, unsigned long r4, unsigned long r5,
-	unsigned long r6, struct pt_regs regs)
-{
-	int fd[2];
-	int error;
-
-	error = do_pipe(fd);
-	if (!error) {
-		if (copy_to_user((void __user *)r0, fd, 2*sizeof(int)))
-			error = -EFAULT;
-	}
-	return error;
-}
-
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags,
 	unsigned long fd, unsigned long pgoff)

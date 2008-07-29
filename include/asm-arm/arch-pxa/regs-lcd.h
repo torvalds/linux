@@ -1,5 +1,8 @@
 #ifndef __ASM_ARCH_REGS_LCD_H
 #define __ASM_ARCH_REGS_LCD_H
+
+#include <asm/arch/bitfield.h>
+
 /*
  * LCD Controller Registers and Bits Definitions
  */
@@ -24,6 +27,12 @@
 #define LCCR3_4BPP	(2 << 24)
 #define LCCR3_8BPP	(3 << 24)
 #define LCCR3_16BPP	(4 << 24)
+#define LCCR3_18BPP	(5 << 24)
+#define LCCR3_18BPP_P	(6 << 24)
+#define LCCR3_19BPP	(7 << 24)
+#define LCCR3_19BPP_P	(1 << 29)
+#define LCCR3_24BPP	((1 << 29) | (1 << 24))
+#define LCCR3_25BPP	((1 << 29) | (2 << 24))
 
 #define LCCR3_PDFOR_0	(0 << 30)
 #define LCCR3_PDFOR_1	(1 << 30)
@@ -69,7 +78,7 @@
 #define LCCR0_QDM	(1 << 11)	/* LCD Quick Disable mask */
 #define LCCR0_PDD	(0xff << 12)	/* Palette DMA request delay */
 #define LCCR0_PDD_S	12
-#define LCCR0_BM	(1 << 20) 	/* Branch mask */
+#define LCCR0_BM	(1 << 20)	/* Branch mask */
 #define LCCR0_OUM	(1 << 21)	/* Output FIFO underrun mask */
 #define LCCR0_LCDT	(1 << 22)	/* LCD panel type */
 #define LCCR0_RDSTM	(1 << 23)	/* Read status interrupt mask */

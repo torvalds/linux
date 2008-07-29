@@ -86,7 +86,7 @@ static int nfs4_validate_fspath(const struct vfsmount *mnt_parent,
 
 	if (strncmp(path, fs_path, strlen(fs_path)) != 0) {
 		dprintk("%s: path %s does not begin with fsroot %s\n",
-			__FUNCTION__, path, fs_path);
+			__func__, path, fs_path);
 		return -ENOENT;
 	}
 
@@ -134,7 +134,7 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 	if (locations == NULL || locations->nlocations <= 0)
 		goto out;
 
-	dprintk("%s: referral at %s/%s\n", __FUNCTION__,
+	dprintk("%s: referral at %s/%s\n", __func__,
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
 	page = (char *) __get_free_page(GFP_USER);
@@ -204,7 +204,7 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 out:
 	free_page((unsigned long) page);
 	free_page((unsigned long) page2);
-	dprintk("%s: done\n", __FUNCTION__);
+	dprintk("%s: done\n", __func__);
 	return mnt;
 }
 
@@ -223,7 +223,7 @@ struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentr
 	int err;
 
 	/* BUG_ON(IS_ROOT(dentry)); */
-	dprintk("%s: enter\n", __FUNCTION__);
+	dprintk("%s: enter\n", __func__);
 
 	page = alloc_page(GFP_KERNEL);
 	if (page == NULL)
@@ -238,7 +238,7 @@ struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentr
 
 	parent = dget_parent(dentry);
 	dprintk("%s: getting locations for %s/%s\n",
-		__FUNCTION__, parent->d_name.name, dentry->d_name.name);
+		__func__, parent->d_name.name, dentry->d_name.name);
 
 	err = nfs4_proc_fs_locations(parent->d_inode, &dentry->d_name, fs_locations, page);
 	dput(parent);
@@ -252,6 +252,6 @@ out_free:
 	__free_page(page);
 	kfree(fs_locations);
 out:
-	dprintk("%s: done\n", __FUNCTION__);
+	dprintk("%s: done\n", __func__);
 	return mnt;
 }

@@ -139,8 +139,6 @@ static inline int valid_user_regs(struct pt_regs *regs)
 	return 0;
 }
 
-#endif	/* __KERNEL__ */
-
 #define pc_pointer(v) \
 	((v) & ~PCMASK)
 
@@ -153,10 +151,10 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
 
-#ifdef __KERNEL__
 #define predicate(x)		((x) & 0xf0000000)
 #define PREDICATE_ALWAYS	0xe0000000
-#endif
+
+#endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
 

@@ -65,7 +65,6 @@ void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_quota_quantum = 60;
 	gt->gt_atime_quantum = 3600;
 	gt->gt_new_files_jdata = 0;
-	gt->gt_new_files_directio = 0;
 	gt->gt_max_readahead = 1 << 18;
 	gt->gt_stall_secs = 600;
 	gt->gt_complain_secs = 10;
@@ -390,7 +389,7 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 			break;
 
 		INIT_LIST_HEAD(&jd->extent_list);
-		jd->jd_inode = gfs2_lookupi(sdp->sd_jindex, &name, 1, NULL);
+		jd->jd_inode = gfs2_lookupi(sdp->sd_jindex, &name, 1);
 		if (!jd->jd_inode || IS_ERR(jd->jd_inode)) {
 			if (!jd->jd_inode)
 				error = -ENOENT;
@@ -941,8 +940,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	}
 
 	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_DEFERRED,
-			       LM_FLAG_PRIORITY | GL_NOCACHE,
-			       t_gh);
+				   GL_NOCACHE, t_gh);
 
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		error = gfs2_jdesc_check(jd);

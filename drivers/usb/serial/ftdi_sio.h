@@ -1,20 +1,20 @@
 /*
- * Definitions for the FTDI USB Single Port Serial Converter - 
- * known as FTDI_SIO (Serial Input/Output application of the chipset) 
+ * Definitions for the FTDI USB Single Port Serial Converter -
+ * known as FTDI_SIO (Serial Input/Output application of the chipset)
  *
  * The example I have is known as the USC-1000 which is available from
  * http://www.dse.co.nz - cat no XH4214 It looks similar to this:
  * http://www.dansdata.com/usbser.htm but I can't be sure There are other
  * USC-1000s which don't look like my device though so beware!
  *
- * The device is based on the FTDI FT8U100AX chip. It has a DB25 on one side, 
+ * The device is based on the FTDI FT8U100AX chip. It has a DB25 on one side,
  * USB on the other.
  *
  * Thanx to FTDI (http://www.ftdi.co.uk) for so kindly providing details
  * of the protocol required to talk to the device and ongoing assistence
  * during development.
  *
- * Bill Ryder - bryder@sgi.com formerly of Silicon Graphics, Inc.- wrote the 
+ * Bill Ryder - bryder@sgi.com formerly of Silicon Graphics, Inc.- wrote the
  * FTDI_SIO implementation.
  *
  * Philipp Gühring - pg@futureware.at - added the Device ID of the USB relais
@@ -114,11 +114,268 @@
 #define FTDI_OOCDLINK_PID	0xbaf8	/* Amontec JTAGkey */
 
 /*
- * The following are the values for the Matrix Orbital VK204-25-USB
- * display, which use the FT232RL.
+ * The following are the values for the Matrix Orbital FTDI Range
+ * Anything in this range will use an FT232RL.
  */
-#define MTXORB_VK_VID		0x1b3d
-#define MTXORB_VK_PID		0x0158
+#define MTXORB_VID			0x1B3D
+#define MTXORB_FTDI_RANGE_0100_PID	0x0100
+#define MTXORB_FTDI_RANGE_0101_PID	0x0101
+#define MTXORB_FTDI_RANGE_0102_PID	0x0102
+#define MTXORB_FTDI_RANGE_0103_PID	0x0103
+#define MTXORB_FTDI_RANGE_0104_PID	0x0104
+#define MTXORB_FTDI_RANGE_0105_PID	0x0105
+#define MTXORB_FTDI_RANGE_0106_PID	0x0106
+#define MTXORB_FTDI_RANGE_0107_PID	0x0107
+#define MTXORB_FTDI_RANGE_0108_PID	0x0108
+#define MTXORB_FTDI_RANGE_0109_PID	0x0109
+#define MTXORB_FTDI_RANGE_010A_PID	0x010A
+#define MTXORB_FTDI_RANGE_010B_PID	0x010B
+#define MTXORB_FTDI_RANGE_010C_PID	0x010C
+#define MTXORB_FTDI_RANGE_010D_PID	0x010D
+#define MTXORB_FTDI_RANGE_010E_PID	0x010E
+#define MTXORB_FTDI_RANGE_010F_PID	0x010F
+#define MTXORB_FTDI_RANGE_0110_PID	0x0110
+#define MTXORB_FTDI_RANGE_0111_PID	0x0111
+#define MTXORB_FTDI_RANGE_0112_PID	0x0112
+#define MTXORB_FTDI_RANGE_0113_PID	0x0113
+#define MTXORB_FTDI_RANGE_0114_PID	0x0114
+#define MTXORB_FTDI_RANGE_0115_PID	0x0115
+#define MTXORB_FTDI_RANGE_0116_PID	0x0116
+#define MTXORB_FTDI_RANGE_0117_PID	0x0117
+#define MTXORB_FTDI_RANGE_0118_PID	0x0118
+#define MTXORB_FTDI_RANGE_0119_PID	0x0119
+#define MTXORB_FTDI_RANGE_011A_PID	0x011A
+#define MTXORB_FTDI_RANGE_011B_PID	0x011B
+#define MTXORB_FTDI_RANGE_011C_PID	0x011C
+#define MTXORB_FTDI_RANGE_011D_PID	0x011D
+#define MTXORB_FTDI_RANGE_011E_PID	0x011E
+#define MTXORB_FTDI_RANGE_011F_PID	0x011F
+#define MTXORB_FTDI_RANGE_0120_PID	0x0120
+#define MTXORB_FTDI_RANGE_0121_PID	0x0121
+#define MTXORB_FTDI_RANGE_0122_PID	0x0122
+#define MTXORB_FTDI_RANGE_0123_PID	0x0123
+#define MTXORB_FTDI_RANGE_0124_PID	0x0124
+#define MTXORB_FTDI_RANGE_0125_PID	0x0125
+#define MTXORB_FTDI_RANGE_0126_PID	0x0126
+#define MTXORB_FTDI_RANGE_0127_PID	0x0127
+#define MTXORB_FTDI_RANGE_0128_PID	0x0128
+#define MTXORB_FTDI_RANGE_0129_PID	0x0129
+#define MTXORB_FTDI_RANGE_012A_PID	0x012A
+#define MTXORB_FTDI_RANGE_012B_PID	0x012B
+#define MTXORB_FTDI_RANGE_012C_PID	0x012C
+#define MTXORB_FTDI_RANGE_012D_PID	0x012D
+#define MTXORB_FTDI_RANGE_012E_PID	0x012E
+#define MTXORB_FTDI_RANGE_012F_PID	0x012F
+#define MTXORB_FTDI_RANGE_0130_PID	0x0130
+#define MTXORB_FTDI_RANGE_0131_PID	0x0131
+#define MTXORB_FTDI_RANGE_0132_PID	0x0132
+#define MTXORB_FTDI_RANGE_0133_PID	0x0133
+#define MTXORB_FTDI_RANGE_0134_PID	0x0134
+#define MTXORB_FTDI_RANGE_0135_PID	0x0135
+#define MTXORB_FTDI_RANGE_0136_PID	0x0136
+#define MTXORB_FTDI_RANGE_0137_PID	0x0137
+#define MTXORB_FTDI_RANGE_0138_PID	0x0138
+#define MTXORB_FTDI_RANGE_0139_PID	0x0139
+#define MTXORB_FTDI_RANGE_013A_PID	0x013A
+#define MTXORB_FTDI_RANGE_013B_PID	0x013B
+#define MTXORB_FTDI_RANGE_013C_PID	0x013C
+#define MTXORB_FTDI_RANGE_013D_PID	0x013D
+#define MTXORB_FTDI_RANGE_013E_PID	0x013E
+#define MTXORB_FTDI_RANGE_013F_PID	0x013F
+#define MTXORB_FTDI_RANGE_0140_PID	0x0140
+#define MTXORB_FTDI_RANGE_0141_PID	0x0141
+#define MTXORB_FTDI_RANGE_0142_PID	0x0142
+#define MTXORB_FTDI_RANGE_0143_PID	0x0143
+#define MTXORB_FTDI_RANGE_0144_PID	0x0144
+#define MTXORB_FTDI_RANGE_0145_PID	0x0145
+#define MTXORB_FTDI_RANGE_0146_PID	0x0146
+#define MTXORB_FTDI_RANGE_0147_PID	0x0147
+#define MTXORB_FTDI_RANGE_0148_PID	0x0148
+#define MTXORB_FTDI_RANGE_0149_PID	0x0149
+#define MTXORB_FTDI_RANGE_014A_PID	0x014A
+#define MTXORB_FTDI_RANGE_014B_PID	0x014B
+#define MTXORB_FTDI_RANGE_014C_PID	0x014C
+#define MTXORB_FTDI_RANGE_014D_PID	0x014D
+#define MTXORB_FTDI_RANGE_014E_PID	0x014E
+#define MTXORB_FTDI_RANGE_014F_PID	0x014F
+#define MTXORB_FTDI_RANGE_0150_PID	0x0150
+#define MTXORB_FTDI_RANGE_0151_PID	0x0151
+#define MTXORB_FTDI_RANGE_0152_PID	0x0152
+#define MTXORB_FTDI_RANGE_0153_PID	0x0153
+#define MTXORB_FTDI_RANGE_0154_PID	0x0154
+#define MTXORB_FTDI_RANGE_0155_PID	0x0155
+#define MTXORB_FTDI_RANGE_0156_PID	0x0156
+#define MTXORB_FTDI_RANGE_0157_PID	0x0157
+#define MTXORB_FTDI_RANGE_0158_PID	0x0158
+#define MTXORB_FTDI_RANGE_0159_PID	0x0159
+#define MTXORB_FTDI_RANGE_015A_PID	0x015A
+#define MTXORB_FTDI_RANGE_015B_PID	0x015B
+#define MTXORB_FTDI_RANGE_015C_PID	0x015C
+#define MTXORB_FTDI_RANGE_015D_PID	0x015D
+#define MTXORB_FTDI_RANGE_015E_PID	0x015E
+#define MTXORB_FTDI_RANGE_015F_PID	0x015F
+#define MTXORB_FTDI_RANGE_0160_PID	0x0160
+#define MTXORB_FTDI_RANGE_0161_PID	0x0161
+#define MTXORB_FTDI_RANGE_0162_PID	0x0162
+#define MTXORB_FTDI_RANGE_0163_PID	0x0163
+#define MTXORB_FTDI_RANGE_0164_PID	0x0164
+#define MTXORB_FTDI_RANGE_0165_PID	0x0165
+#define MTXORB_FTDI_RANGE_0166_PID	0x0166
+#define MTXORB_FTDI_RANGE_0167_PID	0x0167
+#define MTXORB_FTDI_RANGE_0168_PID	0x0168
+#define MTXORB_FTDI_RANGE_0169_PID	0x0169
+#define MTXORB_FTDI_RANGE_016A_PID	0x016A
+#define MTXORB_FTDI_RANGE_016B_PID	0x016B
+#define MTXORB_FTDI_RANGE_016C_PID	0x016C
+#define MTXORB_FTDI_RANGE_016D_PID	0x016D
+#define MTXORB_FTDI_RANGE_016E_PID	0x016E
+#define MTXORB_FTDI_RANGE_016F_PID	0x016F
+#define MTXORB_FTDI_RANGE_0170_PID	0x0170
+#define MTXORB_FTDI_RANGE_0171_PID	0x0171
+#define MTXORB_FTDI_RANGE_0172_PID	0x0172
+#define MTXORB_FTDI_RANGE_0173_PID	0x0173
+#define MTXORB_FTDI_RANGE_0174_PID	0x0174
+#define MTXORB_FTDI_RANGE_0175_PID	0x0175
+#define MTXORB_FTDI_RANGE_0176_PID	0x0176
+#define MTXORB_FTDI_RANGE_0177_PID	0x0177
+#define MTXORB_FTDI_RANGE_0178_PID	0x0178
+#define MTXORB_FTDI_RANGE_0179_PID	0x0179
+#define MTXORB_FTDI_RANGE_017A_PID	0x017A
+#define MTXORB_FTDI_RANGE_017B_PID	0x017B
+#define MTXORB_FTDI_RANGE_017C_PID	0x017C
+#define MTXORB_FTDI_RANGE_017D_PID	0x017D
+#define MTXORB_FTDI_RANGE_017E_PID	0x017E
+#define MTXORB_FTDI_RANGE_017F_PID	0x017F
+#define MTXORB_FTDI_RANGE_0180_PID	0x0180
+#define MTXORB_FTDI_RANGE_0181_PID	0x0181
+#define MTXORB_FTDI_RANGE_0182_PID	0x0182
+#define MTXORB_FTDI_RANGE_0183_PID	0x0183
+#define MTXORB_FTDI_RANGE_0184_PID	0x0184
+#define MTXORB_FTDI_RANGE_0185_PID	0x0185
+#define MTXORB_FTDI_RANGE_0186_PID	0x0186
+#define MTXORB_FTDI_RANGE_0187_PID	0x0187
+#define MTXORB_FTDI_RANGE_0188_PID	0x0188
+#define MTXORB_FTDI_RANGE_0189_PID	0x0189
+#define MTXORB_FTDI_RANGE_018A_PID	0x018A
+#define MTXORB_FTDI_RANGE_018B_PID	0x018B
+#define MTXORB_FTDI_RANGE_018C_PID	0x018C
+#define MTXORB_FTDI_RANGE_018D_PID	0x018D
+#define MTXORB_FTDI_RANGE_018E_PID	0x018E
+#define MTXORB_FTDI_RANGE_018F_PID	0x018F
+#define MTXORB_FTDI_RANGE_0190_PID	0x0190
+#define MTXORB_FTDI_RANGE_0191_PID	0x0191
+#define MTXORB_FTDI_RANGE_0192_PID	0x0192
+#define MTXORB_FTDI_RANGE_0193_PID	0x0193
+#define MTXORB_FTDI_RANGE_0194_PID	0x0194
+#define MTXORB_FTDI_RANGE_0195_PID	0x0195
+#define MTXORB_FTDI_RANGE_0196_PID	0x0196
+#define MTXORB_FTDI_RANGE_0197_PID	0x0197
+#define MTXORB_FTDI_RANGE_0198_PID	0x0198
+#define MTXORB_FTDI_RANGE_0199_PID	0x0199
+#define MTXORB_FTDI_RANGE_019A_PID	0x019A
+#define MTXORB_FTDI_RANGE_019B_PID	0x019B
+#define MTXORB_FTDI_RANGE_019C_PID	0x019C
+#define MTXORB_FTDI_RANGE_019D_PID	0x019D
+#define MTXORB_FTDI_RANGE_019E_PID	0x019E
+#define MTXORB_FTDI_RANGE_019F_PID	0x019F
+#define MTXORB_FTDI_RANGE_01A0_PID	0x01A0
+#define MTXORB_FTDI_RANGE_01A1_PID	0x01A1
+#define MTXORB_FTDI_RANGE_01A2_PID	0x01A2
+#define MTXORB_FTDI_RANGE_01A3_PID	0x01A3
+#define MTXORB_FTDI_RANGE_01A4_PID	0x01A4
+#define MTXORB_FTDI_RANGE_01A5_PID	0x01A5
+#define MTXORB_FTDI_RANGE_01A6_PID	0x01A6
+#define MTXORB_FTDI_RANGE_01A7_PID	0x01A7
+#define MTXORB_FTDI_RANGE_01A8_PID	0x01A8
+#define MTXORB_FTDI_RANGE_01A9_PID	0x01A9
+#define MTXORB_FTDI_RANGE_01AA_PID	0x01AA
+#define MTXORB_FTDI_RANGE_01AB_PID	0x01AB
+#define MTXORB_FTDI_RANGE_01AC_PID	0x01AC
+#define MTXORB_FTDI_RANGE_01AD_PID	0x01AD
+#define MTXORB_FTDI_RANGE_01AE_PID	0x01AE
+#define MTXORB_FTDI_RANGE_01AF_PID	0x01AF
+#define MTXORB_FTDI_RANGE_01B0_PID	0x01B0
+#define MTXORB_FTDI_RANGE_01B1_PID	0x01B1
+#define MTXORB_FTDI_RANGE_01B2_PID	0x01B2
+#define MTXORB_FTDI_RANGE_01B3_PID	0x01B3
+#define MTXORB_FTDI_RANGE_01B4_PID	0x01B4
+#define MTXORB_FTDI_RANGE_01B5_PID	0x01B5
+#define MTXORB_FTDI_RANGE_01B6_PID	0x01B6
+#define MTXORB_FTDI_RANGE_01B7_PID	0x01B7
+#define MTXORB_FTDI_RANGE_01B8_PID	0x01B8
+#define MTXORB_FTDI_RANGE_01B9_PID	0x01B9
+#define MTXORB_FTDI_RANGE_01BA_PID	0x01BA
+#define MTXORB_FTDI_RANGE_01BB_PID	0x01BB
+#define MTXORB_FTDI_RANGE_01BC_PID	0x01BC
+#define MTXORB_FTDI_RANGE_01BD_PID	0x01BD
+#define MTXORB_FTDI_RANGE_01BE_PID	0x01BE
+#define MTXORB_FTDI_RANGE_01BF_PID	0x01BF
+#define MTXORB_FTDI_RANGE_01C0_PID	0x01C0
+#define MTXORB_FTDI_RANGE_01C1_PID	0x01C1
+#define MTXORB_FTDI_RANGE_01C2_PID	0x01C2
+#define MTXORB_FTDI_RANGE_01C3_PID	0x01C3
+#define MTXORB_FTDI_RANGE_01C4_PID	0x01C4
+#define MTXORB_FTDI_RANGE_01C5_PID	0x01C5
+#define MTXORB_FTDI_RANGE_01C6_PID	0x01C6
+#define MTXORB_FTDI_RANGE_01C7_PID	0x01C7
+#define MTXORB_FTDI_RANGE_01C8_PID	0x01C8
+#define MTXORB_FTDI_RANGE_01C9_PID	0x01C9
+#define MTXORB_FTDI_RANGE_01CA_PID	0x01CA
+#define MTXORB_FTDI_RANGE_01CB_PID	0x01CB
+#define MTXORB_FTDI_RANGE_01CC_PID	0x01CC
+#define MTXORB_FTDI_RANGE_01CD_PID	0x01CD
+#define MTXORB_FTDI_RANGE_01CE_PID	0x01CE
+#define MTXORB_FTDI_RANGE_01CF_PID	0x01CF
+#define MTXORB_FTDI_RANGE_01D0_PID	0x01D0
+#define MTXORB_FTDI_RANGE_01D1_PID	0x01D1
+#define MTXORB_FTDI_RANGE_01D2_PID	0x01D2
+#define MTXORB_FTDI_RANGE_01D3_PID	0x01D3
+#define MTXORB_FTDI_RANGE_01D4_PID	0x01D4
+#define MTXORB_FTDI_RANGE_01D5_PID	0x01D5
+#define MTXORB_FTDI_RANGE_01D6_PID	0x01D6
+#define MTXORB_FTDI_RANGE_01D7_PID	0x01D7
+#define MTXORB_FTDI_RANGE_01D8_PID	0x01D8
+#define MTXORB_FTDI_RANGE_01D9_PID	0x01D9
+#define MTXORB_FTDI_RANGE_01DA_PID	0x01DA
+#define MTXORB_FTDI_RANGE_01DB_PID	0x01DB
+#define MTXORB_FTDI_RANGE_01DC_PID	0x01DC
+#define MTXORB_FTDI_RANGE_01DD_PID	0x01DD
+#define MTXORB_FTDI_RANGE_01DE_PID	0x01DE
+#define MTXORB_FTDI_RANGE_01DF_PID	0x01DF
+#define MTXORB_FTDI_RANGE_01E0_PID	0x01E0
+#define MTXORB_FTDI_RANGE_01E1_PID	0x01E1
+#define MTXORB_FTDI_RANGE_01E2_PID	0x01E2
+#define MTXORB_FTDI_RANGE_01E3_PID	0x01E3
+#define MTXORB_FTDI_RANGE_01E4_PID	0x01E4
+#define MTXORB_FTDI_RANGE_01E5_PID	0x01E5
+#define MTXORB_FTDI_RANGE_01E6_PID	0x01E6
+#define MTXORB_FTDI_RANGE_01E7_PID	0x01E7
+#define MTXORB_FTDI_RANGE_01E8_PID	0x01E8
+#define MTXORB_FTDI_RANGE_01E9_PID	0x01E9
+#define MTXORB_FTDI_RANGE_01EA_PID	0x01EA
+#define MTXORB_FTDI_RANGE_01EB_PID	0x01EB
+#define MTXORB_FTDI_RANGE_01EC_PID	0x01EC
+#define MTXORB_FTDI_RANGE_01ED_PID	0x01ED
+#define MTXORB_FTDI_RANGE_01EE_PID	0x01EE
+#define MTXORB_FTDI_RANGE_01EF_PID	0x01EF
+#define MTXORB_FTDI_RANGE_01F0_PID	0x01F0
+#define MTXORB_FTDI_RANGE_01F1_PID	0x01F1
+#define MTXORB_FTDI_RANGE_01F2_PID	0x01F2
+#define MTXORB_FTDI_RANGE_01F3_PID	0x01F3
+#define MTXORB_FTDI_RANGE_01F4_PID	0x01F4
+#define MTXORB_FTDI_RANGE_01F5_PID	0x01F5
+#define MTXORB_FTDI_RANGE_01F6_PID	0x01F6
+#define MTXORB_FTDI_RANGE_01F7_PID	0x01F7
+#define MTXORB_FTDI_RANGE_01F8_PID	0x01F8
+#define MTXORB_FTDI_RANGE_01F9_PID	0x01F9
+#define MTXORB_FTDI_RANGE_01FA_PID	0x01FA
+#define MTXORB_FTDI_RANGE_01FB_PID	0x01FB
+#define MTXORB_FTDI_RANGE_01FC_PID	0x01FC
+#define MTXORB_FTDI_RANGE_01FD_PID	0x01FD
+#define MTXORB_FTDI_RANGE_01FE_PID	0x01FE
+#define MTXORB_FTDI_RANGE_01FF_PID	0x01FF
+
+
 
 /* Interbiometrics USB I/O Board */
 /* Developed for Interbiometrics by Rudolf Gugler */
@@ -215,7 +472,7 @@
 /*
  * DSS-20 Sync Station for Sony Ericsson P800
  */
-#define FTDI_DSS20_PID          0xFC82  
+#define FTDI_DSS20_PID          0xFC82
 
 /*
  * Home Electronics (www.home-electro.com) USB gadgets
@@ -571,6 +828,9 @@
 /* Propox devices */
 #define FTDI_PROPOX_JTAGCABLEII_PID	0xD738
 
+/* Rig Expert Ukraine devices */
+#define FTDI_REU_TINY_PID		0xED22	/* RigExpert Tiny */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
@@ -590,6 +850,12 @@
  */
 #define	FIC_VID			0x1457
 #define	FIC_NEO1973_DEBUG_PID	0x5118
+
+/*
+ * RATOC REX-USB60F
+ */
+#define RATOC_VENDOR_ID		0x0584
+#define RATOC_PRODUCT_ID_USB60F	0xb020
 
 /*
  *   BmRequestType:  1100 0000b
@@ -618,7 +884,7 @@
 /*
  * BmRequestType:  0100 0000B
  * bRequest:       FTDI_SIO_RESET
- * wValue:         Control Value 
+ * wValue:         Control Value
  *                   0 = Reset SIO
  *                   1 = Purge RX buffer
  *                   2 = Purge TX buffer
@@ -686,7 +952,7 @@
  *   101 - add .625 to divisor
  *   110 - add .750 to divisor
  *   111 - add .875 to divisor
- * Bits 15 to 0 of the 17-bit divisor are placed in the urb value.  Bit 16 is 
+ * Bits 15 to 0 of the 17-bit divisor are placed in the urb value.  Bit 16 is
  * placed in bit 0 of the urb index.
  *
  * Note that there are a couple of special cases to support the highest baud
@@ -705,8 +971,8 @@ typedef enum {
 } ftdi_chip_type_t;
 
 typedef enum {
- ftdi_sio_b300 = 0, 
- ftdi_sio_b600 = 1, 
+ ftdi_sio_b300 = 0,
+ ftdi_sio_b600 = 1,
  ftdi_sio_b1200 = 2,
  ftdi_sio_b2400 = 3,
  ftdi_sio_b4800 = 4,
@@ -715,7 +981,7 @@ typedef enum {
  ftdi_sio_b38400 = 7,
  ftdi_sio_b57600 = 8,
  ftdi_sio_b115200 = 9
-} FTDI_SIO_baudrate_t ;
+} FTDI_SIO_baudrate_t;
 
 /*
  * The ftdi_8U232AM_xxMHz_byyy constants have been removed. The encoded divisor values
@@ -724,19 +990,19 @@ typedef enum {
 
 #define FTDI_SIO_SET_DATA_REQUEST FTDI_SIO_SET_DATA
 #define FTDI_SIO_SET_DATA_REQUEST_TYPE 0x40
-#define FTDI_SIO_SET_DATA_PARITY_NONE (0x0 << 8 )
-#define FTDI_SIO_SET_DATA_PARITY_ODD (0x1 << 8 )
-#define FTDI_SIO_SET_DATA_PARITY_EVEN (0x2 << 8 )
-#define FTDI_SIO_SET_DATA_PARITY_MARK (0x3 << 8 )
-#define FTDI_SIO_SET_DATA_PARITY_SPACE (0x4 << 8 )
-#define FTDI_SIO_SET_DATA_STOP_BITS_1 (0x0 << 11 )
-#define FTDI_SIO_SET_DATA_STOP_BITS_15 (0x1 << 11 )
-#define FTDI_SIO_SET_DATA_STOP_BITS_2 (0x2 << 11 )
+#define FTDI_SIO_SET_DATA_PARITY_NONE (0x0 << 8)
+#define FTDI_SIO_SET_DATA_PARITY_ODD (0x1 << 8)
+#define FTDI_SIO_SET_DATA_PARITY_EVEN (0x2 << 8)
+#define FTDI_SIO_SET_DATA_PARITY_MARK (0x3 << 8)
+#define FTDI_SIO_SET_DATA_PARITY_SPACE (0x4 << 8)
+#define FTDI_SIO_SET_DATA_STOP_BITS_1 (0x0 << 11)
+#define FTDI_SIO_SET_DATA_STOP_BITS_15 (0x1 << 11)
+#define FTDI_SIO_SET_DATA_STOP_BITS_2 (0x2 << 11)
 #define FTDI_SIO_SET_BREAK (0x1 << 14)
 /* FTDI_SIO_SET_DATA */
 
 /*
- * BmRequestType:  0100 0000B 
+ * BmRequestType:  0100 0000B
  * bRequest:       FTDI_SIO_SET_DATA
  * wValue:         Data characteristics (see below)
  * wIndex:         Port
@@ -769,7 +1035,7 @@ typedef enum {
 #define FTDI_SIO_SET_MODEM_CTRL_REQUEST_TYPE 0x40
 #define FTDI_SIO_SET_MODEM_CTRL_REQUEST FTDI_SIO_MODEM_CTRL
 
-/* 
+/*
  * BmRequestType:   0100 0000B
  * bRequest:        FTDI_SIO_MODEM_CTRL
  * wValue:          ControlValue (see below)
@@ -783,11 +1049,11 @@ typedef enum {
  */
 
 #define FTDI_SIO_SET_DTR_MASK 0x1
-#define FTDI_SIO_SET_DTR_HIGH ( 1 | ( FTDI_SIO_SET_DTR_MASK  << 8))
-#define FTDI_SIO_SET_DTR_LOW  ( 0 | ( FTDI_SIO_SET_DTR_MASK  << 8))
+#define FTDI_SIO_SET_DTR_HIGH (1 | (FTDI_SIO_SET_DTR_MASK  << 8))
+#define FTDI_SIO_SET_DTR_LOW  (0 | (FTDI_SIO_SET_DTR_MASK  << 8))
 #define FTDI_SIO_SET_RTS_MASK 0x2
-#define FTDI_SIO_SET_RTS_HIGH ( 2 | ( FTDI_SIO_SET_RTS_MASK << 8 ))
-#define FTDI_SIO_SET_RTS_LOW ( 0 | ( FTDI_SIO_SET_RTS_MASK << 8 ))
+#define FTDI_SIO_SET_RTS_HIGH (2 | (FTDI_SIO_SET_RTS_MASK << 8))
+#define FTDI_SIO_SET_RTS_LOW (0 | (FTDI_SIO_SET_RTS_MASK << 8))
 
 /*
  * ControlValue
@@ -810,7 +1076,7 @@ typedef enum {
 /* FTDI_SIO_SET_FLOW_CTRL */
 #define FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE 0x40
 #define FTDI_SIO_SET_FLOW_CTRL_REQUEST FTDI_SIO_SET_FLOW_CTRL
-#define FTDI_SIO_DISABLE_FLOW_CTRL 0x0 
+#define FTDI_SIO_DISABLE_FLOW_CTRL 0x0
 #define FTDI_SIO_RTS_CTS_HS (0x1 << 8)
 #define FTDI_SIO_DTR_DSR_HS (0x2 << 8)
 #define FTDI_SIO_XON_XOFF_HS (0x4 << 8)
@@ -819,7 +1085,7 @@ typedef enum {
  *   bRequest:       FTDI_SIO_SET_FLOW_CTRL
  *   wValue:         Xoff/Xon
  *   wIndex:         Protocol/Port - hIndex is protocl / lIndex is port
- *   wLength:        0 
+ *   wLength:        0
  *   Data:           None
  *
  * hIndex protocol is:
@@ -835,10 +1101,10 @@ typedef enum {
  *
  * A value of zero in the hIndex field disables handshaking
  *
- * If Xon/Xoff handshaking is specified, the hValue field should contain the XOFF character 
+ * If Xon/Xoff handshaking is specified, the hValue field should contain the XOFF character
  * and the lValue field contains the XON character.
- */  
- 
+ */
+
 /*
  * FTDI_SIO_GET_LATENCY_TIMER
  *
@@ -852,7 +1118,7 @@ typedef enum {
 #define  FTDI_SIO_GET_LATENCY_TIMER_REQUEST FTDI_SIO_GET_LATENCY_TIMER
 #define  FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE 0xC0
 
-/* 
+/*
  *  BmRequestType:   1100 0000b
  *  bRequest:        FTDI_SIO_GET_LATENCY_TIMER
  *  wValue:          0
@@ -861,7 +1127,7 @@ typedef enum {
  *  Data:            latency (on return)
  */
 
-/* 
+/*
  * FTDI_SIO_SET_LATENCY_TIMER
  *
  * Set the timeout interval. The FTDI collects data from the slave
@@ -874,7 +1140,7 @@ typedef enum {
 #define  FTDI_SIO_SET_LATENCY_TIMER_REQUEST FTDI_SIO_SET_LATENCY_TIMER
 #define  FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE 0x40
 
-/* 
+/*
  *  BmRequestType:   0100 0000b
  *  bRequest:        FTDI_SIO_SET_LATENCY_TIMER
  *  wValue:          Latency (milliseconds)
@@ -889,7 +1155,7 @@ typedef enum {
  */
 
 /*
- * FTDI_SIO_SET_EVENT_CHAR 
+ * FTDI_SIO_SET_EVENT_CHAR
  *
  * Set the special event character for the specified communications port.
  * If the device sees this character it will immediately return the
@@ -902,7 +1168,7 @@ typedef enum {
 #define  FTDI_SIO_SET_EVENT_CHAR_REQUEST_TYPE 0x40
 
 
-/* 
+/*
  *  BmRequestType:   0100 0000b
  *  bRequest:        FTDI_SIO_SET_EVENT_CHAR
  *  wValue:          EventChar
@@ -918,12 +1184,12 @@ typedef enum {
  *   B9..15  Reserved
  *
  */
-          
+
 /* FTDI_SIO_SET_ERROR_CHAR */
 
 /* Set the parity error replacement character for the specified communications port */
 
-/* 
+/*
  *  BmRequestType:  0100 0000b
  *  bRequest:       FTDI_SIO_SET_EVENT_CHAR
  *  wValue:         Error Char
@@ -949,15 +1215,15 @@ typedef enum {
 #define FTDI_SIO_DSR_MASK 0x20
 #define FTDI_SIO_RI_MASK  0x40
 #define FTDI_SIO_RLSD_MASK 0x80
-/* 
+/*
  *   BmRequestType:   1100 0000b
  *   bRequest:        FTDI_SIO_GET_MODEM_STATUS
  *   wValue:          zero
  *   wIndex:          Port
  *   wLength:         1
  *   Data:            Status
- * 
- * One byte of data is returned 
+ *
+ * One byte of data is returned
  * B0..3 0
  * B4    CTS
  *         0 = inactive
@@ -970,15 +1236,15 @@ typedef enum {
  *         1 = active
  * B7    Receive Line Signal Detect (RLSD)
  *         0 = inactive
- *         1 = active 
+ *         1 = active
  */
 
 
 
-/* Descriptors returned by the device 
- * 
+/* Descriptors returned by the device
+ *
  *  Device Descriptor
- * 
+ *
  * Offset	Field		Size	Value	Description
  * 0	bLength		1	0x12	Size of descriptor in bytes
  * 1	bDescriptorType	1	0x01	DEVICE Descriptor Type
@@ -994,9 +1260,9 @@ typedef enum {
  * 15	iProduct	1	0x02	Index of prod string desc
  * 16	iSerialNumber	1	0x02	Index of serial nmr string desc
  * 17	bNumConfigurations 1    0x01	Number of possible configurations
- * 
+ *
  * Configuration Descriptor
- * 
+ *
  * Offset	Field			Size	Value
  * 0	bLength			1	0x09	Size of descriptor in bytes
  * 1	bDescriptorType		1	0x02	CONFIGURATION Descriptor Type
@@ -1006,9 +1272,9 @@ typedef enum {
  * 6	iConfiguration		1	0x02	Index of config string descriptor
  * 7	bmAttributes		1	0x20	Config characteristics Remote Wakeup
  * 8	MaxPower		1	0x1E	Max power consumption
- * 
+ *
  * Interface Descriptor
- * 
+ *
  * Offset	Field			Size	Value
  * 0	bLength			1	0x09	Size of descriptor in bytes
  * 1	bDescriptorType		1	0x04	INTERFACE Descriptor Type
@@ -1019,9 +1285,9 @@ typedef enum {
  * 6	bInterfaceSubClass	1	0xFF	Subclass Code
  * 7	bInterfaceProtocol	1	0xFF	Protocol Code
  * 8	iInterface		1	0x02	Index of interface string description
- * 
+ *
  * IN Endpoint Descriptor
- * 
+ *
  * Offset	Field			Size	Value
  * 0	bLength			1	0x07	Size of descriptor in bytes
  * 1	bDescriptorType		1	0x05	ENDPOINT descriptor type
@@ -1029,9 +1295,9 @@ typedef enum {
  * 3	bmAttributes		1	0x02	Endpoint attributes - Bulk
  * 4	bNumEndpoints		2	0x0040	maximum packet size
  * 5	bInterval		1	0x00	Interval for polling endpoint
- * 
+ *
  * OUT Endpoint Descriptor
- * 
+ *
  * Offset	Field			Size	Value
  * 0	bLength			1	0x07	Size of descriptor in bytes
  * 1	bDescriptorType		1	0x05	ENDPOINT descriptor type
@@ -1039,17 +1305,17 @@ typedef enum {
  * 3	bmAttributes		1	0x02	Endpoint attributes - Bulk
  * 4	bNumEndpoints		2	0x0040	maximum packet size
  * 5	bInterval		1	0x00	Interval for polling endpoint
- *     
+ *
  * DATA FORMAT
- * 
+ *
  * IN Endpoint
- * 
+ *
  * The device reserves the first two bytes of data on this endpoint to contain the current
  * values of the modem and line status registers. In the absence of data, the device 
  * generates a message consisting of these two status bytes every 40 ms
- * 
+ *
  * Byte 0: Modem Status
- * 
+ *
  * Offset	Description
  * B0	Reserved - must be 1
  * B1	Reserved - must be 0
@@ -1059,9 +1325,9 @@ typedef enum {
  * B5	Data Set Ready (DSR)
  * B6	Ring Indicator (RI)
  * B7	Receive Line Signal Detect (RLSD)
- * 
+ *
  * Byte 1: Line Status
- * 
+ *
  * Offset	Description
  * B0	Data Ready (DR)
  * B1	Overrun Error (OE)
@@ -1071,7 +1337,7 @@ typedef enum {
  * B5	Transmitter Holding Register (THRE)
  * B6	Transmitter Empty (TEMT)
  * B7	Error in RCVR FIFO
- * 
+ *
  */
 #define FTDI_RS0_CTS	(1 << 4)
 #define FTDI_RS0_DSR	(1 << 5)
@@ -1089,17 +1355,17 @@ typedef enum {
 
 /*
  * OUT Endpoint
- * 
+ *
  * This device reserves the first bytes of data on this endpoint contain the length
  * and port identifier of the message. For the FTDI USB Serial converter the port 
  * identifier is always 1.
- * 
+ *
  * Byte 0: Line Status
- * 
+ *
  * Offset	Description
  * B0	Reserved - must be 1
  * B1	Reserved - must be 0
  * B2..7	Length of message - (not including Byte 0)
- * 
+ *
  */
 

@@ -182,6 +182,9 @@ extern int icache_44x_need_flush;
 #define _PMD_SIZE_16M	0x0e0
 #define PMD_PAGE_SIZE(pmdval)	(1024 << (((pmdval) & _PMD_SIZE) >> 4))
 
+/* Until my rework is finished, 40x still needs atomic PTE updates */
+#define PTE_ATOMIC_UPDATES	1
+
 #elif defined(CONFIG_44x)
 /*
  * Definitions for PPC440
@@ -208,6 +211,13 @@ extern int icache_44x_need_flush;
  *   TLB2:
  *   0  1  2  3  4  ... 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
  *   -  -  -  -  -    - U0 U1 U2 U3 W  I  M  G  E   - UX UW UR SX SW SR
+ *
+ * Newer 440 cores (440x6 as used on AMCC 460EX/460GT) have additional
+ * TLB2 storage attibute fields. Those are:
+ *
+ *   TLB2:
+ *   0...10    11   12   13   14   15   16...31
+ *   no change WL1  IL1I IL1D IL2I IL2D no change
  *
  * There are some constrains and options, to decide mapping software bits
  * into TLB entry.
@@ -246,17 +256,17 @@ extern int icache_44x_need_flush;
  */
 
 #define _PAGE_PRESENT	0x00000001		/* S: PTE valid */
-#define	_PAGE_RW	0x00000002		/* S: Write permission */
+#define _PAGE_RW	0x00000002		/* S: Write permission */
 #define _PAGE_FILE	0x00000004		/* S: nonlinear file mapping */
+#define _PAGE_HWEXEC	0x00000004		/* H: Execute permission */
 #define _PAGE_ACCESSED	0x00000008		/* S: Page referenced */
-#define _PAGE_HWWRITE	0x00000010		/* H: Dirty & RW */
-#define _PAGE_HWEXEC	0x00000020		/* H: Execute permission */
-#define	_PAGE_USER	0x00000040		/* S: User page */
-#define	_PAGE_ENDIAN	0x00000080		/* H: E bit */
-#define	_PAGE_GUARDED	0x00000100		/* H: G bit */
-#define	_PAGE_DIRTY	0x00000200		/* S: Page dirty */
-#define	_PAGE_NO_CACHE	0x00000400		/* H: I bit */
-#define	_PAGE_WRITETHRU	0x00000800		/* H: W bit */
+#define _PAGE_DIRTY	0x00000010		/* S: Page dirty */
+#define _PAGE_USER	0x00000040		/* S: User page */
+#define _PAGE_ENDIAN	0x00000080		/* H: E bit */
+#define _PAGE_GUARDED	0x00000100		/* H: G bit */
+#define _PAGE_COHERENT	0x00000200		/* H: M bit */
+#define _PAGE_NO_CACHE	0x00000400		/* H: I bit */
+#define _PAGE_WRITETHRU	0x00000800		/* H: W bit */
 
 /* TODO: Add large page lowmem mapping support */
 #define _PMD_PRESENT	0
@@ -265,6 +275,7 @@ extern int icache_44x_need_flush;
 
 /* ERPN in a PTE never gets cleared, ignore it */
 #define _PTE_NONE_MASK	0xffffffff00000000ULL
+
 
 #elif defined(CONFIG_FSL_BOOKE)
 /*
@@ -284,10 +295,10 @@ extern int icache_44x_need_flush;
 #define _PAGE_PRESENT	0x00001	/* S: PTE contains a translation */
 #define _PAGE_USER	0x00002	/* S: User page (maps to UR) */
 #define _PAGE_FILE	0x00002	/* S: when !present: nonlinear file mapping */
-#define _PAGE_ACCESSED	0x00004	/* S: Page referenced */
-#define _PAGE_HWWRITE	0x00008	/* H: Dirty & RW, set in exception */
-#define _PAGE_RW	0x00010	/* S: Write permission */
-#define _PAGE_HWEXEC	0x00020	/* H: UX permission */
+#define _PAGE_RW	0x00004	/* S: Write permission (SW) */
+#define _PAGE_DIRTY	0x00008	/* S: Page dirty */
+#define _PAGE_HWEXEC	0x00010	/* H: SX permission */
+#define _PAGE_ACCESSED	0x00020	/* S: Page referenced */
 
 #define _PAGE_ENDIAN	0x00040	/* H: E bit */
 #define _PAGE_GUARDED	0x00080	/* H: G bit */
@@ -296,12 +307,8 @@ extern int icache_44x_need_flush;
 #define _PAGE_WRITETHRU	0x00400	/* H: W bit */
 
 #ifdef CONFIG_PTE_64BIT
-#define _PAGE_DIRTY	0x08000	/* S: Page dirty */
-
 /* ERPN in a PTE never gets cleared, ignore it */
 #define _PTE_NONE_MASK	0xffffffffffff0000ULL
-#else
-#define _PAGE_DIRTY	0x00800	/* S: Page dirty */
 #endif
 
 #define _PMD_PRESENT	0
@@ -338,6 +345,9 @@ extern int icache_44x_need_flush;
 
 #define _PTE_NONE_MASK _PAGE_ACCESSED
 
+/* Until my rework is finished, 8xx still needs atomic PTE updates */
+#define PTE_ATOMIC_UPDATES	1
+
 #else /* CONFIG_6xx */
 /* Definitions for 60x, 740/750, etc. */
 #define _PAGE_PRESENT	0x001	/* software: pte contains a translation */
@@ -358,6 +368,10 @@ extern int icache_44x_need_flush;
 #define _PMD_PRESENT	0
 #define _PMD_PRESENT_MASK (PAGE_MASK)
 #define _PMD_BAD	(~PAGE_MASK)
+
+/* Hash table based platforms need atomic updates of the linux PTE */
+#define PTE_ATOMIC_UPDATES	1
+
 #endif
 
 /*
@@ -381,6 +395,15 @@ extern int icache_44x_need_flush;
 #ifndef _PAGE_EXEC
 #define _PAGE_EXEC	0
 #endif
+#ifndef _PAGE_ENDIAN
+#define _PAGE_ENDIAN	0
+#endif
+#ifndef _PAGE_COHERENT
+#define _PAGE_COHERENT	0
+#endif
+#ifndef _PAGE_WRITETHRU
+#define _PAGE_WRITETHRU	0
+#endif
 #ifndef _PMD_PRESENT_MASK
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
 #endif
@@ -391,6 +414,12 @@ extern int icache_44x_need_flush;
 
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 
+
+#define PAGE_PROT_BITS	__pgprot(_PAGE_GUARDED | _PAGE_COHERENT | _PAGE_NO_CACHE | \
+				 _PAGE_WRITETHRU | _PAGE_ENDIAN | \
+				 _PAGE_USER | _PAGE_ACCESSED | \
+				 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | \
+				 _PAGE_EXEC | _PAGE_HWEXEC)
 /*
  * Note: the _PAGE_COHERENT bit automatically gets set in the hardware
  * PTE if CONFIG_SMP is defined (hash_page does this); there is no need
@@ -524,6 +553,10 @@ static inline pte_t pte_mkyoung(pte_t pte) {
 	pte_val(pte) |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkspecial(pte_t pte) {
 	return pte; }
+static inline unsigned long pte_pgprot(pte_t pte)
+{
+	return __pgprot(pte_val(pte)) & PAGE_PROT_BITS;
+}
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
@@ -550,9 +583,11 @@ extern void add_hash_page(unsigned context, unsigned long va,
  * low PTE word since we expect ALL flag bits to be there
  */
 #ifndef CONFIG_PTE_64BIT
-static inline unsigned long pte_update(pte_t *p, unsigned long clr,
+static inline unsigned long pte_update(pte_t *p,
+				       unsigned long clr,
 				       unsigned long set)
 {
+#ifdef PTE_ATOMIC_UPDATES
 	unsigned long old, tmp;
 
 	__asm__ __volatile__("\
@@ -565,16 +600,26 @@ static inline unsigned long pte_update(pte_t *p, unsigned long clr,
 	: "=&r" (old), "=&r" (tmp), "=m" (*p)
 	: "r" (p), "r" (clr), "r" (set), "m" (*p)
 	: "cc" );
+#else /* PTE_ATOMIC_UPDATES */
+	unsigned long old = pte_val(*p);
+	*p = __pte((old & ~clr) | set);
+#endif /* !PTE_ATOMIC_UPDATES */
+
 #ifdef CONFIG_44x
 	if ((old & _PAGE_USER) && (old & _PAGE_HWEXEC))
 		icache_44x_need_flush = 1;
 #endif
 	return old;
 }
-#else
-static inline unsigned long long pte_update(pte_t *p, unsigned long clr,
-				       unsigned long set)
+#else /* CONFIG_PTE_64BIT */
+/* TODO: Change that to only modify the low word and move set_pte_at()
+ * out of line
+ */
+static inline unsigned long long pte_update(pte_t *p,
+					    unsigned long clr,
+					    unsigned long set)
 {
+#ifdef PTE_ATOMIC_UPDATES
 	unsigned long long old;
 	unsigned long tmp;
 
@@ -589,13 +634,18 @@ static inline unsigned long long pte_update(pte_t *p, unsigned long clr,
 	: "=&r" (old), "=&r" (tmp), "=m" (*p)
 	: "r" (p), "r" ((unsigned long)(p) + 4), "r" (clr), "r" (set), "m" (*p)
 	: "cc" );
+#else /* PTE_ATOMIC_UPDATES */
+	unsigned long long old = pte_val(*p);
+	*p = __pte((old & ~(unsigned long long)clr) | set);
+#endif /* !PTE_ATOMIC_UPDATES */
+
 #ifdef CONFIG_44x
 	if ((old & _PAGE_USER) && (old & _PAGE_HWEXEC))
 		icache_44x_need_flush = 1;
 #endif
 	return old;
 }
-#endif
+#endif /* CONFIG_PTE_64BIT */
 
 /*
  * set_pte stores a linux PTE into the linux page table.
@@ -613,8 +663,8 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 }
 
 /*
- * 2.6 calles this without flushing the TLB entry, this is wrong
- * for our hash-based implementation, we fix that up here
+ * 2.6 calls this without flushing the TLB entry; this is wrong
+ * for our hash-based implementation, we fix that up here.
  */
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 static inline int __ptep_test_and_clear_young(unsigned int context, unsigned long addr, pte_t *ptep)
@@ -645,6 +695,12 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 {
 	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), 0);
 }
+static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+					   unsigned long addr, pte_t *ptep)
+{
+	ptep_set_wrprotect(mm, addr, ptep);
+}
+
 
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry, int dirty)
@@ -658,7 +714,7 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry, int dirty)
 ({									   \
 	int __changed = !pte_same(*(__ptep), __entry);			   \
 	if (__changed) {						   \
-		__ptep_set_access_flags(__ptep, __entry, __dirty);    	   \
+		__ptep_set_access_flags(__ptep, __entry, __dirty);         \
 		flush_tlb_page_nohash(__vma, __address);		   \
 	}								   \
 	__changed;							   \

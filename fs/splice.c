@@ -58,8 +58,8 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 		 */
 		wait_on_page_writeback(page);
 
-		if (PagePrivate(page))
-			try_to_release_page(page, GFP_KERNEL);
+		if (PagePrivate(page) && !try_to_release_page(page, GFP_KERNEL))
+			goto out_unlock;
 
 		/*
 		 * If we succeeded in removing the mapping, set LRU flag
@@ -75,6 +75,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 	 * Raced with truncate or failed to remove page from current
 	 * address space, unlock and return failure.
 	 */
+out_unlock:
 	unlock_page(page);
 	return 1;
 }
@@ -378,13 +379,22 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 				lock_page(page);
 
 			/*
-			 * page was truncated, stop here. if this isn't the
-			 * first page, we'll just complete what we already
-			 * added
+			 * Page was truncated, or invalidated by the
+			 * filesystem.  Redo the find/create, but this time the
+			 * page is kept locked, so there's no chance of another
+			 * race with truncate/invalidate.
 			 */
 			if (!page->mapping) {
 				unlock_page(page);
-				break;
+				page = find_or_create_page(mapping, index,
+						mapping_gfp_mask(mapping));
+
+				if (!page) {
+					error = -ENOMEM;
+					break;
+				}
+				page_cache_release(pages[page_nr]);
+				pages[page_nr] = page;
 			}
 			/*
 			 * page was already under io and is now done, great
@@ -762,7 +772,7 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 	ssize_t ret;
 	int err;
 
-	err = remove_suid(out->f_path.dentry);
+	err = file_remove_suid(out);
 	if (unlikely(err))
 		return err;
 
@@ -811,24 +821,19 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 {
 	struct address_space *mapping = out->f_mapping;
 	struct inode *inode = mapping->host;
-	int killsuid, killpriv;
+	struct splice_desc sd = {
+		.total_len = len,
+		.flags = flags,
+		.pos = *ppos,
+		.u.file = out,
+	};
 	ssize_t ret;
-	int err = 0;
 
-	killpriv = security_inode_need_killpriv(out->f_path.dentry);
-	killsuid = should_remove_suid(out->f_path.dentry);
-	if (unlikely(killsuid || killpriv)) {
-		mutex_lock(&inode->i_mutex);
-		if (killpriv)
-			err = security_inode_killpriv(out->f_path.dentry);
-		if (!err && killsuid)
-			err = __remove_suid(out->f_path.dentry, killsuid);
-		mutex_unlock(&inode->i_mutex);
-		if (err)
-			return err;
-	}
-
-	ret = splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
+	inode_double_lock(inode, pipe->inode);
+	ret = file_remove_suid(out);
+	if (likely(!ret))
+		ret = __splice_from_pipe(pipe, &sd, pipe_to_file);
+	inode_double_unlock(inode, pipe->inode);
 	if (ret > 0) {
 		unsigned long nr_pages;
 
@@ -840,6 +845,8 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		 * sync it.
 		 */
 		if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(inode))) {
+			int err;
+
 			mutex_lock(&inode->i_mutex);
 			err = generic_osync_inode(inode, mapping,
 						  OSYNC_METADATA|OSYNC_DATA);
@@ -986,7 +993,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 
 	while (len) {
 		size_t read_len;
-		loff_t pos = sd->pos;
+		loff_t pos = sd->pos, prev_pos = pos;
 
 		ret = do_splice_to(in, &pos, pipe, len, flags);
 		if (unlikely(ret <= 0))
@@ -1001,15 +1008,19 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		 * could get stuck data in the internal pipe:
 		 */
 		ret = actor(pipe, sd);
-		if (unlikely(ret <= 0))
+		if (unlikely(ret <= 0)) {
+			sd->pos = prev_pos;
 			goto out_release;
+		}
 
 		bytes += ret;
 		len -= ret;
 		sd->pos = pos;
 
-		if (ret < read_len)
+		if (ret < read_len) {
+			sd->pos = prev_pos + ret;
 			goto out_release;
+		}
 	}
 
 done:
@@ -1150,36 +1161,6 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 }
 
 /*
- * Do a copy-from-user while holding the mmap_semaphore for reading, in a
- * manner safe from deadlocking with simultaneous mmap() (grabbing mmap_sem
- * for writing) and page faulting on the user memory pointed to by src.
- * This assumes that we will very rarely hit the partial != 0 path, or this
- * will not be a win.
- */
-static int copy_from_user_mmap_sem(void *dst, const void __user *src, size_t n)
-{
-	int partial;
-
-	if (!access_ok(VERIFY_READ, src, n))
-		return -EFAULT;
-
-	pagefault_disable();
-	partial = __copy_from_user_inatomic(dst, src, n);
-	pagefault_enable();
-
-	/*
-	 * Didn't copy everything, drop the mmap_sem and do a faulting copy
-	 */
-	if (unlikely(partial)) {
-		up_read(&current->mm->mmap_sem);
-		partial = copy_from_user(dst, src, n);
-		down_read(&current->mm->mmap_sem);
-	}
-
-	return partial;
-}
-
-/*
  * Map an iov into an array of pages and offset/length tupples. With the
  * partial_page structure, we can map several non-contiguous ranges into
  * our ones pages[] map instead of splitting that operation into pieces.
@@ -1192,8 +1173,6 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 {
 	int buffers = 0, error = 0;
 
-	down_read(&current->mm->mmap_sem);
-
 	while (nr_vecs) {
 		unsigned long off, npages;
 		struct iovec entry;
@@ -1202,7 +1181,7 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		int i;
 
 		error = -EFAULT;
-		if (copy_from_user_mmap_sem(&entry, iov, sizeof(entry)))
+		if (copy_from_user(&entry, iov, sizeof(entry)))
 			break;
 
 		base = entry.iov_base;
@@ -1236,9 +1215,8 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		if (npages > PIPE_BUFFERS - buffers)
 			npages = PIPE_BUFFERS - buffers;
 
-		error = get_user_pages(current, current->mm,
-				       (unsigned long) base, npages, 0, 0,
-				       &pages[buffers], NULL);
+		error = get_user_pages_fast((unsigned long)base, npages,
+					0, &pages[buffers]);
 
 		if (unlikely(error <= 0))
 			break;
@@ -1276,8 +1254,6 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		nr_vecs--;
 		iov++;
 	}
-
-	up_read(&current->mm->mmap_sem);
 
 	if (buffers)
 		return buffers;

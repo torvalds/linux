@@ -595,7 +595,7 @@ int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple
 int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
 int pccard_parse_tuple(tuple_t *tuple, cisparse_t *parse);
 
-int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, cisinfo_t *info);
+int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned int *count);
 
 /* ... but use these wrappers instead */
 #define pcmcia_get_first_tuple(p_dev, tuple) \

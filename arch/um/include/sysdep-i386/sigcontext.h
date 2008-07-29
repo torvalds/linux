@@ -10,7 +10,7 @@
 
 #define IP_RESTART_SYSCALL(ip) ((ip) -= 2)
 
-#define GET_FAULTINFO_FROM_SC(fi,sc) \
+#define GET_FAULTINFO_FROM_SC(fi, sc) \
 	{ \
 		(fi).cr2 = SC_CR2(sc); \
 		(fi).error_code = SC_ERR(sc); \

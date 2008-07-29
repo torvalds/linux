@@ -7,7 +7,7 @@
  * Description:  Implementation of ins{bwl} for BlackFin processors using zero overhead loops.
  *
  * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
+ *               Copyright 2004-2008 Analog Devices Inc.
  *               Copyright (C) 2005 Bas Vermeulen, BuyWays BV <bas@buyways.nl>
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -63,6 +63,23 @@ ENTRY(_insw)
 	RTS;
 ENDPROC(_insw)
 
+ENTRY(_insw_8)
+	P0 = R0;	/* P0 = port */
+	cli R3;
+	P1 = R1;	/* P1 = address */
+	P2 = R2;	/* P2 = count */
+	SSYNC;
+	LSETUP( .Lword8_loop_s, .Lword8_loop_e) LC0 = P2;
+.Lword8_loop_s:  R0 = W[P0];
+		B[P1++] = R0;
+		R0 = R0 >> 8;
+		B[P1++] = R0;
+		NOP;
+.Lword8_loop_e: NOP;
+	sti R3;
+	RTS;
+ENDPROC(_insw_8)
+
 ENTRY(_insb)
 	P0 = R0;	/* P0 = port */
 	cli R3;
@@ -77,8 +94,6 @@ ENTRY(_insb)
 	sti R3;
 	RTS;
 ENDPROC(_insb)
-
-
 
 ENTRY(_insl_16)
 	P0 = R0;	/* P0 = port */

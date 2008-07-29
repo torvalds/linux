@@ -715,14 +715,14 @@
 
      * Name: "Gary's Encyclopedia - The Linux Kernel"
        Author: Gary (I suppose...).
-       URL: http://www.lisoleg.net/cgi-bin/lisoleg.pl?view=kernel.htm
-       Keywords: links, not found here?.
+       URL: http://slencyclopedia.berlios.de/index.html
+       Keywords: linux, community, everything!
        Description: Gary's Encyclopedia exists to allow the rapid finding
        of documentation and other information of interest to GNU/Linux
        users. It has about 4000 links to external pages in 150 major
        categories. This link is for kernel-specific links, documents,
-       sites... Look there if you could not find here what you were
-       looking for.
+       sites...  This list is now hosted by developer.Berlios.de,
+       but seems not to have been updated since sometime in 1999.
 
      * Name: "The home page of Linux-MM"
        Author: The Linux-MM team.

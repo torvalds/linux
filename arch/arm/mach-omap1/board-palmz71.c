@@ -65,7 +65,7 @@ static int palmz71_keymap[] = {
 	KEY(1, 1, KEY_DOWN),
 	KEY(1, 2, KEY_UP),
 	KEY(1, 3, KEY_RIGHT),
-	KEY(1, 4, KEY_CENTER),
+	KEY(1, 4, KEY_ENTER),
 	KEY(2, 0, KEY_CAMERA),
 	0,
 };
@@ -298,11 +298,11 @@ palmz71_powercable(int irq, void *dev_id)
 	if (omap_get_gpio_datain(PALMZ71_USBDETECT_GPIO)) {
 		printk(KERN_INFO "PM: Power cable connected\n");
 		set_irq_type(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
-				IRQT_FALLING);
+				IRQ_TYPE_EDGE_FALLING);
 	} else {
 		printk(KERN_INFO "PM: Power cable disconnected\n");
 		set_irq_type(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
-				IRQT_RISING);
+				IRQ_TYPE_EDGE_RISING);
 	}
 	return IRQ_HANDLED;
 }

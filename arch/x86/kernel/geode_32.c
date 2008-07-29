@@ -161,6 +161,28 @@ void geode_gpio_setup_event(unsigned int gpio, int pair, int pme)
 }
 EXPORT_SYMBOL_GPL(geode_gpio_setup_event);
 
+int geode_has_vsa2(void)
+{
+	static int has_vsa2 = -1;
+
+	if (has_vsa2 == -1) {
+		u16 val;
+
+		/*
+		 * The VSA has virtual registers that we can query for a
+		 * signature.
+		 */
+		outw(VSA_VR_UNLOCK, VSA_VRC_INDEX);
+		outw(VSA_VR_SIGNATURE, VSA_VRC_INDEX);
+
+		val = inw(VSA_VRC_DATA);
+		has_vsa2 = (val == AMD_VSA_SIG || val == GSW_VSA_SIG);
+	}
+
+	return has_vsa2;
+}
+EXPORT_SYMBOL_GPL(geode_has_vsa2);
+
 static int __init geode_southbridge_init(void)
 {
 	if (!is_geode())

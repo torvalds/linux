@@ -26,18 +26,6 @@
 #define CLIENT_WIN_REQ(i)	(0x1<<(i))
 #define CLIENT_CARDBUS		0x8000
 
-#define REGION_MAGIC	0xE3C9
-typedef struct region_t {
-    u_short		region_magic;
-    u_short		state;
-    dev_info_t		dev_info;
-    struct pcmcia_device	*mtd;
-    u_int		MediaID;
-    region_info_t	info;
-} region_t;
-
-#define REGION_STALE	0x01
-
 /* Each card function gets one of these guys */
 typedef struct config_t {
 	struct kref	ref;
@@ -130,7 +118,6 @@ extern struct list_head pcmcia_socket_list;
 int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *handle, int idx, win_req_t *req);
 int pccard_get_configuration_info(struct pcmcia_socket *s, struct pcmcia_device *p_dev, config_info_t *config);
 int pccard_reset_card(struct pcmcia_socket *skt);
-int pccard_get_status(struct pcmcia_socket *s, struct pcmcia_device *p_dev, cs_status_t *status);
 
 
 struct pcmcia_callback{

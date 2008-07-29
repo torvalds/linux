@@ -39,8 +39,6 @@ static inline void cx18_buf_sync_for_device(struct cx18_stream *s,
 				s->buf_size, s->dma);
 }
 
-int cx18_buf_copy_from_user(struct cx18_stream *s, struct cx18_buffer *buf,
-	const char __user *src, int copybytes);
 void cx18_buf_swap(struct cx18_buffer *buf);
 
 /* cx18_queue utility functions */
@@ -48,8 +46,6 @@ void cx18_queue_init(struct cx18_queue *q);
 void cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
 	struct cx18_queue *q);
 struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q);
-int cx18_queue_move(struct cx18_stream *s, struct cx18_queue *from,
-       struct cx18_queue *steal, struct cx18_queue *to, int needed_bytes);
 struct cx18_buffer *cx18_queue_find_buf(struct cx18_stream *s, u32 id,
 	u32 bytesused);
 void cx18_flush_queues(struct cx18_stream *s);

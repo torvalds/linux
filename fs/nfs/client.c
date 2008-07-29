@@ -431,14 +431,14 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 {
 	to->to_initval = timeo * HZ / 10;
 	to->to_retries = retrans;
-	if (!to->to_retries)
-		to->to_retries = 2;
 
 	switch (proto) {
 	case XPRT_TRANSPORT_TCP:
 	case XPRT_TRANSPORT_RDMA:
+		if (to->to_retries == 0)
+			to->to_retries = NFS_DEF_TCP_RETRANS;
 		if (to->to_initval == 0)
-			to->to_initval = 60 * HZ;
+			to->to_initval = NFS_DEF_TCP_TIMEO * HZ / 10;
 		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
 			to->to_initval = NFS_MAX_TCP_TIMEOUT;
 		to->to_increment = to->to_initval;
@@ -450,14 +450,17 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 		to->to_exponential = 0;
 		break;
 	case XPRT_TRANSPORT_UDP:
-	default:
+		if (to->to_retries == 0)
+			to->to_retries = NFS_DEF_UDP_RETRANS;
 		if (!to->to_initval)
-			to->to_initval = 11 * HZ / 10;
+			to->to_initval = NFS_DEF_UDP_TIMEO * HZ / 10;
 		if (to->to_initval > NFS_MAX_UDP_TIMEOUT)
 			to->to_initval = NFS_MAX_UDP_TIMEOUT;
 		to->to_maxval = NFS_MAX_UDP_TIMEOUT;
 		to->to_exponential = 1;
 		break;
+	default:
+		BUG();
 	}
 }
 
@@ -488,7 +491,7 @@ static int nfs_create_rpc_client(struct nfs_client *clp,
 	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
 		dprintk("%s: cannot create RPC client. Error = %ld\n",
-				__FUNCTION__, PTR_ERR(clnt));
+				__func__, PTR_ERR(clnt));
 		return PTR_ERR(clnt);
 	}
 
@@ -576,7 +579,7 @@ static int nfs_init_server_rpcclient(struct nfs_server *server,
 
 	server->client = rpc_clone_client(clp->cl_rpcclient);
 	if (IS_ERR(server->client)) {
-		dprintk("%s: couldn't create rpc_client!\n", __FUNCTION__);
+		dprintk("%s: couldn't create rpc_client!\n", __func__);
 		return PTR_ERR(server->client);
 	}
 
@@ -590,7 +593,7 @@ static int nfs_init_server_rpcclient(struct nfs_server *server,
 
 		auth = rpcauth_create(pseudoflavour, server->client);
 		if (IS_ERR(auth)) {
-			dprintk("%s: couldn't create credcache!\n", __FUNCTION__);
+			dprintk("%s: couldn't create credcache!\n", __func__);
 			return PTR_ERR(auth);
 		}
 	}
@@ -985,7 +988,7 @@ static int nfs4_init_client(struct nfs_client *clp,
 	error = nfs_idmap_new(clp);
 	if (error < 0) {
 		dprintk("%s: failed to create idmapper. Error = %d\n",
-			__FUNCTION__, error);
+			__func__, error);
 		goto error;
 	}
 	__set_bit(NFS_CS_IDMAP, &clp->cl_res_state);

@@ -19,8 +19,6 @@
 
 typedef unsigned short umode_t;
 
-#endif
-
 #endif /* __ASSEMBLY__ */
 
 /*

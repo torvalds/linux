@@ -42,6 +42,9 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
+/* Location of the trace bit in SYSCFG. */
+#define TRACE_BITS 0x0001
+
 struct fdpic_func_descriptor {
 	unsigned long	text;
 	unsigned long	GOT;
@@ -224,6 +227,16 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t * info,
 	regs->r0 = frame->sig;
 	regs->r1 = (unsigned long)(&frame->info);
 	regs->r2 = (unsigned long)(&frame->uc);
+
+	/*
+	 * Clear the trace flag when entering the signal handler, but
+	 * notify any tracer that was single-stepping it. The tracer
+	 * may want to single-step inside the handler too.
+	 */
+	if (regs->syscfg & TRACE_BITS) {
+		regs->syscfg &= ~TRACE_BITS;
+		ptrace_notify(SIGTRAP);
+	}
 
 	return 0;
 

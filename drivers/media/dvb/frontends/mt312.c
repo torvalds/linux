@@ -737,7 +737,7 @@ static void mt312_release(struct dvb_frontend *fe)
 }
 
 #define MT312_SYS_CLK		90000000UL	/* 90 MHz */
-static struct dvb_frontend_ops vp310_mt312_ops = {
+static struct dvb_frontend_ops mt312_ops = {
 
 	.info = {
 		.name = "Zarlink ???? DVB-S",
@@ -776,7 +776,7 @@ static struct dvb_frontend_ops vp310_mt312_ops = {
 	.set_voltage = mt312_set_voltage,
 };
 
-struct dvb_frontend *vp310_mt312_attach(const struct mt312_config *config,
+struct dvb_frontend *mt312_attach(const struct mt312_config *config,
 					struct i2c_adapter *i2c)
 {
 	struct mt312_state *state = NULL;
@@ -795,7 +795,7 @@ struct dvb_frontend *vp310_mt312_attach(const struct mt312_config *config,
 		goto error;
 
 	/* create dvb_frontend */
-	memcpy(&state->frontend.ops, &vp310_mt312_ops,
+	memcpy(&state->frontend.ops, &mt312_ops,
 		sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
@@ -827,12 +827,13 @@ error:
 	kfree(state);
 	return NULL;
 }
-EXPORT_SYMBOL(vp310_mt312_attach);
+EXPORT_SYMBOL(mt312_attach);
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
 MODULE_DESCRIPTION("Zarlink VP310/MT312/ZL10313 DVB-S Demodulator driver");
 MODULE_AUTHOR("Andreas Oberritter <obi@linuxtv.org>");
+MODULE_AUTHOR("Matthias Schwarzott <zzam@gentoo.org>");
 MODULE_LICENSE("GPL");
 

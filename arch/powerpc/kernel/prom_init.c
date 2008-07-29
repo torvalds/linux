@@ -205,8 +205,6 @@ static int __initdata mem_reserve_cnt;
 static cell_t __initdata regbuf[1024];
 
 
-#define MAX_CPU_THREADS 2
-
 /*
  * Error results ... some OF calls will return "-1" on error, some
  * will return 0, some will return either. To simplify, here are
@@ -620,6 +618,7 @@ static void __init early_cmdline_parse(void)
 #define OV1_PPC_2_03		0x10	/* set if we support PowerPC 2.03 */
 #define OV1_PPC_2_04		0x08	/* set if we support PowerPC 2.04 */
 #define OV1_PPC_2_05		0x04	/* set if we support PowerPC 2.05 */
+#define OV1_PPC_2_06		0x02	/* set if we support PowerPC 2.06 */
 
 /* Option vector 2: Open Firmware options supported */
 #define OV2_REAL_MODE		0x20	/* set if we want OF in real mode */
@@ -642,6 +641,11 @@ static void __init early_cmdline_parse(void)
 #else
 #define OV5_MSI			0x00
 #endif /* CONFIG_PCI_MSI */
+#ifdef CONFIG_PPC_SMLPAR
+#define OV5_CMO			0x80	/* Cooperative Memory Overcommitment */
+#else
+#define OV5_CMO			0x00
+#endif
 
 /*
  * The architecture vector has an array of PVR mask/value pairs,
@@ -650,6 +654,8 @@ static void __init early_cmdline_parse(void)
 static unsigned char ibm_architecture_vec[] = {
 	W(0xfffe0000), W(0x003a0000),	/* POWER5/POWER5+ */
 	W(0xffff0000), W(0x003e0000),	/* POWER6 */
+	W(0xffff0000), W(0x003f0000),	/* POWER7 */
+	W(0xffffffff), W(0x0f000003),	/* all 2.06-compliant */
 	W(0xffffffff), W(0x0f000002),	/* all 2.05-compliant */
 	W(0xfffffffe), W(0x0f000001),	/* all 2.04-compliant and earlier */
 	5 - 1,				/* 5 option vectors */
@@ -658,7 +664,7 @@ static unsigned char ibm_architecture_vec[] = {
 	3 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
 	OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
-	OV1_PPC_2_04 | OV1_PPC_2_05,
+	OV1_PPC_2_04 | OV1_PPC_2_05 | OV1_PPC_2_06,
 
 	/* option vector 2: Open Firmware options supported */
 	34 - 2,				/* length */
@@ -684,10 +690,12 @@ static unsigned char ibm_architecture_vec[] = {
 	0,				/* don't halt */
 
 	/* option vector 5: PAPR/OF options */
-	3 - 2,				/* length */
+	5 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
 	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES | OV5_DRCONF_MEMORY |
 	OV5_DONATE_DEDICATE_CPU | OV5_MSI,
+	0,
+	OV5_CMO,
 };
 
 /* Old method - ELF header with PT_NOTE sections */
@@ -1329,10 +1337,6 @@ static void __init prom_hold_cpus(void)
 	unsigned int reg;
 	phandle node;
 	char type[64];
-	int cpuid = 0;
-	unsigned int interrupt_server[MAX_CPU_THREADS];
-	unsigned int cpu_threads, hw_cpu_num;
-	int propsize;
 	struct prom_t *_prom = &RELOC(prom);
 	unsigned long *spinloop
 		= (void *) LOW_ADDR(__secondary_hold_spinloop);
@@ -1376,7 +1380,6 @@ static void __init prom_hold_cpus(void)
 		reg = -1;
 		prom_getprop(node, "reg", &reg, sizeof(reg));
 
-		prom_debug("\ncpuid        = 0x%x\n", cpuid);
 		prom_debug("cpu hw idx   = 0x%x\n", reg);
 
 		/* Init the acknowledge var which will be reset by
@@ -1385,28 +1388,9 @@ static void __init prom_hold_cpus(void)
 		 */
 		*acknowledge = (unsigned long)-1;
 
-		propsize = prom_getprop(node, "ibm,ppc-interrupt-server#s",
-					&interrupt_server,
-					sizeof(interrupt_server));
-		if (propsize < 0) {
-			/* no property.  old hardware has no SMT */
-			cpu_threads = 1;
-			interrupt_server[0] = reg; /* fake it with phys id */
-		} else {
-			/* We have a threaded processor */
-			cpu_threads = propsize / sizeof(u32);
-			if (cpu_threads > MAX_CPU_THREADS) {
-				prom_printf("SMT: too many threads!\n"
-					    "SMT: found %x, max is %x\n",
-					    cpu_threads, MAX_CPU_THREADS);
-				cpu_threads = 1; /* ToDo: panic? */
-			}
-		}
-
-		hw_cpu_num = interrupt_server[0];
-		if (hw_cpu_num != _prom->cpu) {
+		if (reg != _prom->cpu) {
 			/* Primary Thread of non-boot cpu */
-			prom_printf("%x : starting cpu hw idx %x... ", cpuid, reg);
+			prom_printf("starting cpu hw idx %x... ", reg);
 			call_prom("start-cpu", 3, 0, node,
 				  secondary_hold, reg);
 
@@ -1421,16 +1405,9 @@ static void __init prom_hold_cpus(void)
 		}
 #ifdef CONFIG_SMP
 		else
-			prom_printf("%x : boot cpu     %x\n", cpuid, reg);
+			prom_printf("boot cpu hw idx %x\n", reg);
 #endif /* CONFIG_SMP */
-
-		/* Reserve cpu #s for secondary threads.   They start later. */
-		cpuid += cpu_threads;
 	}
-
-	if (cpuid > NR_CPUS)
-		prom_printf("WARNING: maximum CPUs (" __stringify(NR_CPUS)
-			    ") exceeded: ignoring extras\n");
 
 	prom_debug("prom_hold_cpus: end...\n");
 }

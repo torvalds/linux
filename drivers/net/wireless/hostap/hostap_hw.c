@@ -2835,7 +2835,7 @@ static void hostap_passive_scan(unsigned long data)
 {
 	local_info_t *local = (local_info_t *) data;
 	struct net_device *dev = local->dev;
-	u16 channel;
+	u16 chan;
 
 	if (local->passive_scan_interval <= 0)
 		return;
@@ -2872,11 +2872,11 @@ static void hostap_passive_scan(unsigned long data)
 
 		printk(KERN_DEBUG "%s: passive scan channel %d\n",
 		       dev->name, local->passive_scan_channel);
-		channel = local->passive_scan_channel;
+		chan = local->passive_scan_channel;
 		local->passive_scan_state = PASSIVE_SCAN_WAIT;
 		local->passive_scan_timer.expires = jiffies + HZ / 10;
 	} else {
-		channel = local->channel;
+		chan = local->channel;
 		local->passive_scan_state = PASSIVE_SCAN_LISTEN;
 		local->passive_scan_timer.expires = jiffies +
 			local->passive_scan_interval * HZ;
@@ -2884,9 +2884,9 @@ static void hostap_passive_scan(unsigned long data)
 
 	if (hfa384x_cmd_callback(dev, HFA384X_CMDCODE_TEST |
 				 (HFA384X_TEST_CHANGE_CHANNEL << 8),
-				 channel, NULL, 0))
+				 chan, NULL, 0))
 		printk(KERN_ERR "%s: passive scan channel set %d "
-		       "failed\n", dev->name, channel);
+		       "failed\n", dev->name, chan);
 
 	add_timer(&local->passive_scan_timer);
 }
@@ -3101,7 +3101,22 @@ static void prism2_clear_set_tim_queue(local_info_t *local)
  * This is a natural nesting, which needs a split lock type.
  */
 static struct lock_class_key hostap_netdev_xmit_lock_key;
+static struct lock_class_key hostap_netdev_addr_lock_key;
 
+static void prism2_set_lockdep_class_one(struct net_device *dev,
+					 struct netdev_queue *txq,
+					 void *_unused)
+{
+	lockdep_set_class(&txq->_xmit_lock,
+			  &hostap_netdev_xmit_lock_key);
+}
+
+static void prism2_set_lockdep_class(struct net_device *dev)
+{
+	lockdep_set_class(&dev->addr_list_lock,
+			  &hostap_netdev_addr_lock_key);
+	netdev_for_each_tx_queue(dev, prism2_set_lockdep_class_one, NULL);
+}
 
 static struct net_device *
 prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
@@ -3204,6 +3219,7 @@ prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 	local->auth_algs = PRISM2_AUTH_OPEN | PRISM2_AUTH_SHARED_KEY;
 	local->sram_type = -1;
 	local->scan_channel_mask = 0xffff;
+	local->monitor_type = PRISM2_MONITOR_RADIOTAP;
 
 	/* Initialize task queue structures */
 	INIT_WORK(&local->reset_queue, handle_reset_queue);
@@ -3267,7 +3283,7 @@ while (0)
 	if (ret >= 0)
 		ret = register_netdevice(dev);
 
-	lockdep_set_class(&dev->_xmit_lock, &hostap_netdev_xmit_lock_key);
+	prism2_set_lockdep_class(dev);
 	rtnl_unlock();
 	if (ret < 0) {
 		printk(KERN_WARNING "%s: register netdevice failed!\n",
@@ -3275,11 +3291,6 @@ while (0)
 		goto fail;
 	}
 	printk(KERN_INFO "%s: Registered netdevice %s\n", dev_info, dev->name);
-
-#ifndef PRISM2_NO_PROCFS_DEBUG
-	create_proc_read_entry("registers", 0, local->proc,
-			       prism2_registers_proc_read, local);
-#endif /* PRISM2_NO_PROCFS_DEBUG */
 
 	hostap_init_data(local);
 	return dev;
@@ -3307,6 +3318,10 @@ static int hostap_hw_ready(struct net_device *dev)
 			netif_carrier_off(local->ddev);
 		}
 		hostap_init_proc(local);
+#ifndef PRISM2_NO_PROCFS_DEBUG
+		create_proc_read_entry("registers", 0, local->proc,
+				       prism2_registers_proc_read, local);
+#endif /* PRISM2_NO_PROCFS_DEBUG */
 		hostap_init_ap_proc(local);
 		return 0;
 	}
@@ -3417,7 +3432,7 @@ static void prism2_free_local_data(struct net_device *dev)
 }
 
 
-#ifndef PRISM2_PLX
+#if (defined(PRISM2_PCI) && defined(CONFIG_PM)) || defined(PRISM2_PCCARD)
 static void prism2_suspend(struct net_device *dev)
 {
 	struct hostap_interface *iface;
@@ -3436,7 +3451,7 @@ static void prism2_suspend(struct net_device *dev)
 	/* Disable hardware and firmware */
 	prism2_hw_shutdown(dev, 0);
 }
-#endif /* PRISM2_PLX */
+#endif /* (PRISM2_PCI && CONFIG_PM) || PRISM2_PCCARD */
 
 
 /* These might at some point be compiled separately and used as separate

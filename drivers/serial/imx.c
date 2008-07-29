@@ -40,6 +40,7 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -61,6 +62,11 @@
 #define UBIR  0xa4 /* BRM Incremental Register */
 #define UBMR  0xa8 /* BRM Modulator Register */
 #define UBRC  0xac /* Baud Rate Count Register */
+#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
+#define ONEMS 0xb0 /* One Millisecond register */
+#define UTS   0xb4 /* UART Test Register */
+#endif
+#ifdef CONFIG_ARCH_IMX
 #define BIPR1 0xb0 /* Incremental Preset Register 1 */
 #define BIPR2 0xb4 /* Incremental Preset Register 2 */
 #define BIPR3 0xb8 /* Incremental Preset Register 3 */
@@ -70,6 +76,7 @@
 #define BMPR3 0xc8 /* BRM Modulator Register 3 */
 #define BMPR4 0xcc /* BRM Modulator Register 4 */
 #define UTS   0xd0 /* UART Test Register */
+#endif
 
 /* UART Control Register Bit Fields.*/
 #define  URXD_CHARRDY    (1<<15)
@@ -89,7 +96,12 @@
 #define  UCR1_RTSDEN     (1<<5)	 /* RTS delta interrupt enable */
 #define  UCR1_SNDBRK     (1<<4)	 /* Send break */
 #define  UCR1_TDMAEN     (1<<3)	 /* Transmitter ready DMA enable */
+#ifdef CONFIG_ARCH_IMX
 #define  UCR1_UARTCLKEN  (1<<2)	 /* UART clock enabled */
+#endif
+#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
+#define  UCR1_UARTCLKEN  (0)	 /* not present on mx2/mx3 */
+#endif
 #define  UCR1_DOZE       (1<<1)	 /* Doze */
 #define  UCR1_UARTEN     (1<<0)	 /* UART enabled */
 #define  UCR2_ESCI     	 (1<<15) /* Escape seq interrupt enable */
@@ -163,8 +175,19 @@
 #define  UTS_SOFTRST	 (1<<0)	 /* Software reset */
 
 /* We've been assigned a range on the "Low-density serial ports" major */
+#ifdef CONFIG_ARCH_IMX
 #define SERIAL_IMX_MAJOR	204
 #define MINOR_START		41
+#define DEV_NAME		"ttySMX"
+#define MAX_INTERNAL_IRQ	IMX_IRQS
+#endif
+
+#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
+#define SERIAL_IMX_MAJOR        207
+#define MINOR_START	        16
+#define DEV_NAME		"ttymxc"
+#define MAX_INTERNAL_IRQ	MXC_MAX_INT_LINES
+#endif
 
 /*
  * This determines how often we check the modem status signals
@@ -176,12 +199,15 @@
 
 #define DRIVER_NAME "IMX-uart"
 
+#define UART_NR 8
+
 struct imx_port {
 	struct uart_port	port;
 	struct timer_list	timer;
 	unsigned int		old_status;
 	int			txirq,rxirq,rtsirq;
 	int			have_rtscts:1;
+	struct clk		*clk;
 };
 
 /*
@@ -346,7 +372,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
 	unsigned int rx,flg,ignored = 0;
-	struct tty_struct *tty = sport->port.info->tty;
+	struct tty_struct *tty = sport->port.info->port.tty;
 	unsigned long flags, temp;
 
 	spin_lock_irqsave(&sport->port.lock,flags);
@@ -402,6 +428,26 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 out:
 	spin_unlock_irqrestore(&sport->port.lock,flags);
 	tty_flip_buffer_push(tty);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t imx_int(int irq, void *dev_id)
+{
+	struct imx_port *sport = dev_id;
+	unsigned int sts;
+
+	sts = readl(sport->port.membase + USR1);
+
+	if (sts & USR1_RRDY)
+		imx_rxint(irq, dev_id);
+
+	if (sts & USR1_TRDY &&
+			readl(sport->port.membase + UCR1) & UCR1_TXMPTYEN)
+		imx_txint(irq, dev_id);
+
+	if (sts & USR1_RTSS)
+		imx_rtsint(irq, dev_id);
+
 	return IRQ_HANDLED;
 }
 
@@ -477,7 +523,8 @@ static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
 	 * RFDIV is set such way to satisfy requested uartclk value
 	 */
 	val = TXTL << 10 | RXTL;
-	ufcr_rfdiv = (imx_get_perclk1() + sport->port.uartclk / 2) / sport->port.uartclk;
+	ufcr_rfdiv = (clk_get_rate(sport->clk) + sport->port.uartclk / 2)
+			/ sport->port.uartclk;
 
 	if(!ufcr_rfdiv)
 		ufcr_rfdiv = 1;
@@ -509,21 +556,34 @@ static int imx_startup(struct uart_port *port)
 	writel(temp & ~UCR4_DREN, sport->port.membase + UCR4);
 
 	/*
-	 * Allocate the IRQ
+	 * Allocate the IRQ(s) i.MX1 has three interrupts whereas later
+	 * chips only have one interrupt.
 	 */
-	retval = request_irq(sport->rxirq, imx_rxint, 0,
-			     DRIVER_NAME, sport);
-	if (retval) goto error_out1;
+	if (sport->txirq > 0) {
+		retval = request_irq(sport->rxirq, imx_rxint, 0,
+				DRIVER_NAME, sport);
+		if (retval)
+			goto error_out1;
 
-	retval = request_irq(sport->txirq, imx_txint, 0,
-			     DRIVER_NAME, sport);
-	if (retval) goto error_out2;
+		retval = request_irq(sport->txirq, imx_txint, 0,
+				DRIVER_NAME, sport);
+		if (retval)
+			goto error_out2;
 
-	retval = request_irq(sport->rtsirq, imx_rtsint,
-			     (sport->rtsirq < IMX_IRQS) ? 0 :
+		retval = request_irq(sport->rtsirq, imx_rtsint,
+			     (sport->rtsirq < MAX_INTERNAL_IRQ) ? 0 :
 			       IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			     DRIVER_NAME, sport);
-	if (retval) goto error_out3;
+				DRIVER_NAME, sport);
+		if (retval)
+			goto error_out3;
+	} else {
+		retval = request_irq(sport->port.irq, imx_int, 0,
+				DRIVER_NAME, sport);
+		if (retval) {
+			free_irq(sport->port.irq, sport);
+			goto error_out1;
+		}
+	}
 
 	/*
 	 * Finally, clear and enable interrupts
@@ -548,9 +608,11 @@ static int imx_startup(struct uart_port *port)
 	return 0;
 
 error_out3:
-	free_irq(sport->txirq, sport);
+	if (sport->txirq)
+		free_irq(sport->txirq, sport);
 error_out2:
-	free_irq(sport->rxirq, sport);
+	if (sport->rxirq)
+		free_irq(sport->rxirq, sport);
 error_out1:
 	return retval;
 }
@@ -568,9 +630,12 @@ static void imx_shutdown(struct uart_port *port)
 	/*
 	 * Free the interrupts
 	 */
-	free_irq(sport->rtsirq, sport);
-	free_irq(sport->txirq, sport);
-	free_irq(sport->rxirq, sport);
+	if (sport->txirq > 0) {
+		free_irq(sport->rtsirq, sport);
+		free_irq(sport->txirq, sport);
+		free_irq(sport->rxirq, sport);
+	} else
+		free_irq(sport->port.irq, sport);
 
 	/*
 	 * Disable all interrupts, port and break condition.
@@ -589,6 +654,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned long flags;
 	unsigned int ucr2, old_ucr1, old_txrxen, baud, quot;
 	unsigned int old_csize = old ? old->c_cflag & CSIZE : CS8;
+	unsigned int div, num, denom, ufcr;
 
 	/*
 	 * If we don't support modem control lines, don't allow
@@ -634,7 +700,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	/*
 	 * Ask the core to calculate the divisor for us.
 	 */
-	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
+	baud = uart_get_baud_rate(port, termios, old, 50, port->uartclk / 16);
 	quot = uart_get_divisor(port, baud);
 
 	spin_lock_irqsave(&sport->port.lock, flags);
@@ -684,14 +750,41 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 			sport->port.membase + UCR2);
 	old_txrxen &= (UCR2_TXEN | UCR2_RXEN);
 
-	/* set the baud rate. We assume uartclk = 16 MHz
-	 *
-	 * baud * 16   UBIR - 1
-	 * --------- = --------
-	 *  uartclk    UBMR - 1
-	 */
-	writel((baud / 100) - 1, sport->port.membase + UBIR);
-	writel(10000 - 1, sport->port.membase + UBMR);
+	div = sport->port.uartclk / (baud * 16);
+	if (div > 7)
+		div = 7;
+	if (!div)
+		div = 1;
+
+	num = baud;
+	denom = port->uartclk / div / 16;
+
+	/* shift num and denom right until they fit into 16 bits */
+	while (num > 0x10000 || denom > 0x10000) {
+		num >>= 1;
+		denom >>= 1;
+	}
+	if (num > 0)
+		num -= 1;
+	if (denom > 0)
+		denom -= 1;
+
+	writel(num, sport->port.membase + UBIR);
+	writel(denom, sport->port.membase + UBMR);
+
+	if (div == 7)
+		div = 6; /* 6 in RFDIV means divide by 7 */
+	else
+		div = 6 - div;
+
+	ufcr = readl(sport->port.membase + UFCR);
+	ufcr = (ufcr & (~UFCR_RFDIV)) |
+	    (div << 7);
+	writel(ufcr, sport->port.membase + UFCR);
+
+#ifdef ONEMS
+	writel(sport->port.uartclk / div / 1000, sport->port.membase + ONEMS);
+#endif
 
 	writel(old_ucr1, sport->port.membase + UCR1);
 
@@ -801,65 +894,7 @@ static struct uart_ops imx_pops = {
 	.verify_port	= imx_verify_port,
 };
 
-static struct imx_port imx_ports[] = {
-	{
-	.txirq  = UART1_MINT_TX,
-	.rxirq  = UART1_MINT_RX,
-	.rtsirq = UART1_MINT_RTS,
-	.port	= {
-		.type		= PORT_IMX,
-		.iotype		= UPIO_MEM,
-		.membase	= (void *)IMX_UART1_BASE,
-		.mapbase	= 0x00206000,
-		.irq		= UART1_MINT_RX,
-		.uartclk	= 16000000,
-		.fifosize	= 32,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.ops		= &imx_pops,
-		.line		= 0,
-	},
-	}, {
-	.txirq  = UART2_MINT_TX,
-	.rxirq  = UART2_MINT_RX,
-	.rtsirq = UART2_MINT_RTS,
-	.port	= {
-		.type		= PORT_IMX,
-		.iotype		= UPIO_MEM,
-		.membase	= (void *)IMX_UART2_BASE,
-		.mapbase	= 0x00207000,
-		.irq		= UART2_MINT_RX,
-		.uartclk	= 16000000,
-		.fifosize	= 32,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.ops		= &imx_pops,
-		.line		= 1,
-	},
-	}
-};
-
-/*
- * Setup the IMX serial ports.
- * Note also that we support "console=ttySMXx" where "x" is either 0 or 1.
- * Which serial port this ends up being depends on the machine you're
- * running this kernel on.  I'm not convinced that this is a good idea,
- * but that's the way it traditionally works.
- *
- */
-static void __init imx_init_ports(void)
-{
-	static int first = 1;
-	int i;
-
-	if (!first)
-		return;
-	first = 0;
-
-	for (i = 0; i < ARRAY_SIZE(imx_ports); i++) {
-		init_timer(&imx_ports[i].timer);
-		imx_ports[i].timer.function = imx_timeout;
-		imx_ports[i].timer.data     = (unsigned long)&imx_ports[i];
-	}
-}
+static struct imx_port *imx_ports[UART_NR];
 
 #ifdef CONFIG_SERIAL_IMX_CONSOLE
 static void imx_console_putchar(struct uart_port *port, int ch)
@@ -878,7 +913,7 @@ static void imx_console_putchar(struct uart_port *port, int ch)
 static void
 imx_console_write(struct console *co, const char *s, unsigned int count)
 {
-	struct imx_port *sport = &imx_ports[co->index];
+	struct imx_port *sport = imx_ports[co->index];
 	unsigned int old_ucr1, old_ucr2;
 
 	/*
@@ -944,7 +979,7 @@ imx_console_get_options(struct imx_port *sport, int *baud,
 		else
 			ucfr_rfdiv = 6 - ucfr_rfdiv;
 
-		uartclk = imx_get_perclk1();
+		uartclk = clk_get_rate(sport->clk);
 		uartclk /= ucfr_rfdiv;
 
 		{	/*
@@ -984,7 +1019,7 @@ imx_console_setup(struct console *co, char *options)
 	 */
 	if (co->index == -1 || co->index >= ARRAY_SIZE(imx_ports))
 		co->index = 0;
-	sport = &imx_ports[co->index];
+	sport = imx_ports[co->index];
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -998,7 +1033,7 @@ imx_console_setup(struct console *co, char *options)
 
 static struct uart_driver imx_reg;
 static struct console imx_console = {
-	.name		= "ttySMX",
+	.name		= DEV_NAME,
 	.write		= imx_console_write,
 	.device		= uart_console_device,
 	.setup		= imx_console_setup,
@@ -1006,14 +1041,6 @@ static struct console imx_console = {
 	.index		= -1,
 	.data		= &imx_reg,
 };
-
-static int __init imx_rs_console_init(void)
-{
-	imx_init_ports();
-	register_console(&imx_console);
-	return 0;
-}
-console_initcall(imx_rs_console_init);
 
 #define IMX_CONSOLE	&imx_console
 #else
@@ -1023,7 +1050,7 @@ console_initcall(imx_rs_console_init);
 static struct uart_driver imx_reg = {
 	.owner          = THIS_MODULE,
 	.driver_name    = DRIVER_NAME,
-	.dev_name       = "ttySMX",
+	.dev_name       = DEV_NAME,
 	.major          = SERIAL_IMX_MAJOR,
 	.minor          = MINOR_START,
 	.nr             = ARRAY_SIZE(imx_ports),
@@ -1050,29 +1077,98 @@ static int serial_imx_resume(struct platform_device *dev)
         return 0;
 }
 
-static int serial_imx_probe(struct platform_device *dev)
+static int serial_imx_probe(struct platform_device *pdev)
 {
+	struct imx_port *sport;
 	struct imxuart_platform_data *pdata;
+	void __iomem *base;
+	int ret = 0;
+	struct resource *res;
 
-	imx_ports[dev->id].port.dev = &dev->dev;
+	sport = kzalloc(sizeof(*sport), GFP_KERNEL);
+	if (!sport)
+		return -ENOMEM;
 
-	pdata = (struct imxuart_platform_data *)dev->dev.platform_data;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -ENODEV;
+		goto free;
+	}
+
+	base = ioremap(res->start, PAGE_SIZE);
+	if (!base) {
+		ret = -ENOMEM;
+		goto free;
+	}
+
+	sport->port.dev = &pdev->dev;
+	sport->port.mapbase = res->start;
+	sport->port.membase = base;
+	sport->port.type = PORT_IMX,
+	sport->port.iotype = UPIO_MEM;
+	sport->port.irq = platform_get_irq(pdev, 0);
+	sport->rxirq = platform_get_irq(pdev, 0);
+	sport->txirq = platform_get_irq(pdev, 1);
+	sport->rtsirq = platform_get_irq(pdev, 2);
+	sport->port.fifosize = 32;
+	sport->port.ops = &imx_pops;
+	sport->port.flags = UPF_BOOT_AUTOCONF;
+	sport->port.line = pdev->id;
+	init_timer(&sport->timer);
+	sport->timer.function = imx_timeout;
+	sport->timer.data     = (unsigned long)sport;
+
+	sport->clk = clk_get(&pdev->dev, "uart_clk");
+	if (IS_ERR(sport->clk)) {
+		ret = PTR_ERR(sport->clk);
+		goto unmap;
+	}
+	clk_enable(sport->clk);
+
+	sport->port.uartclk = clk_get_rate(sport->clk);
+
+	imx_ports[pdev->id] = sport;
+
+	pdata = pdev->dev.platform_data;
 	if(pdata && (pdata->flags & IMXUART_HAVE_RTSCTS))
-		imx_ports[dev->id].have_rtscts = 1;
+		sport->have_rtscts = 1;
 
-	uart_add_one_port(&imx_reg, &imx_ports[dev->id].port);
-	platform_set_drvdata(dev, &imx_ports[dev->id]);
+	if (pdata->init)
+		pdata->init(pdev);
+
+	uart_add_one_port(&imx_reg, &sport->port);
+	platform_set_drvdata(pdev, &sport->port);
+
 	return 0;
+unmap:
+	iounmap(sport->port.membase);
+free:
+	kfree(sport);
+
+	return ret;
 }
 
-static int serial_imx_remove(struct platform_device *dev)
+static int serial_imx_remove(struct platform_device *pdev)
 {
-	struct imx_port *sport = platform_get_drvdata(dev);
+	struct imxuart_platform_data *pdata;
+	struct imx_port *sport = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(dev, NULL);
+	pdata = pdev->dev.platform_data;
 
-	if (sport)
+	platform_set_drvdata(pdev, NULL);
+
+	if (sport) {
 		uart_remove_one_port(&imx_reg, &sport->port);
+		clk_put(sport->clk);
+	}
+
+	clk_disable(sport->clk);
+
+	if (pdata->exit)
+		pdata->exit(pdev);
+
+	iounmap(sport->port.membase);
+	kfree(sport);
 
 	return 0;
 }
@@ -1094,8 +1190,6 @@ static int __init imx_serial_init(void)
 	int ret;
 
 	printk(KERN_INFO "Serial: IMX driver\n");
-
-	imx_init_ports();
 
 	ret = uart_register_driver(&imx_reg);
 	if (ret)

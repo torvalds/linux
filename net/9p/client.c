@@ -64,21 +64,30 @@ static match_table_t tokens = {
  * @options: options string passed from mount
  * @v9ses: existing v9fs session information
  *
+ * Return 0 upon success, -ERRNO upon failure
  */
 
-static void parse_opts(char *options, struct p9_client *clnt)
+static int parse_opts(char *opts, struct p9_client *clnt)
 {
+	char *options;
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
 	int option;
-	int ret;
+	int ret = 0;
 
 	clnt->trans_mod = v9fs_default_trans();
 	clnt->dotu = 1;
 	clnt->msize = 8192;
 
-	if (!options)
-		return;
+	if (!opts)
+		return 0;
+
+	options = kstrdup(opts, GFP_KERNEL);
+	if (!options) {
+		P9_DPRINTK(P9_DEBUG_ERROR,
+				"failed to allocate copy of option string\n");
+		return -ENOMEM;
+	}
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -86,10 +95,11 @@ static void parse_opts(char *options, struct p9_client *clnt)
 			continue;
 		token = match_token(p, tokens, args);
 		if (token < Opt_trans) {
-			ret = match_int(&args[0], &option);
-			if (ret < 0) {
+			int r = match_int(&args[0], &option);
+			if (r < 0) {
 				P9_DPRINTK(P9_DEBUG_ERROR,
 					"integer field, but no integer?\n");
+				ret = r;
 				continue;
 			}
 		}
@@ -107,6 +117,8 @@ static void parse_opts(char *options, struct p9_client *clnt)
 			continue;
 		}
 	}
+	kfree(options);
+	return ret;
 }
 
 
@@ -138,16 +150,20 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	if (!clnt)
 		return ERR_PTR(-ENOMEM);
 
+	clnt->trans = NULL;
 	spin_lock_init(&clnt->lock);
 	INIT_LIST_HEAD(&clnt->fidlist);
 	clnt->fidpool = p9_idpool_create();
-	if (!clnt->fidpool) {
+	if (IS_ERR(clnt->fidpool)) {
 		err = PTR_ERR(clnt->fidpool);
 		clnt->fidpool = NULL;
 		goto error;
 	}
 
-	parse_opts(options, clnt);
+	err = parse_opts(options, clnt);
+	if (err < 0)
+		goto error;
+
 	if (clnt->trans_mod == NULL) {
 		err = -EPROTONOSUPPORT;
 		P9_DPRINTK(P9_DEBUG_ERROR,

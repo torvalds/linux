@@ -810,7 +810,7 @@ inserted:
 			/* We need to allocate a new block */
 			ext4_fsblk_t goal = ext4_group_first_block_no(sb,
 						EXT4_I(inode)->i_block_group);
-			ext4_fsblk_t block = ext4_new_block(handle, inode,
+			ext4_fsblk_t block = ext4_new_meta_block(handle, inode,
 							goal, &error);
 			if (error)
 				goto cleanup;
@@ -1009,6 +1009,11 @@ ext4_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 			i.value = NULL;
 			error = ext4_xattr_block_set(handle, inode, &i, &bs);
 		} else if (error == -ENOSPC) {
+			if (EXT4_I(inode)->i_file_acl && !bs.s.base) {
+				error = ext4_xattr_block_find(inode, &i, &bs);
+				if (error)
+					goto cleanup;
+			}
 			error = ext4_xattr_block_set(handle, inode, &i, &bs);
 			if (error)
 				goto cleanup;

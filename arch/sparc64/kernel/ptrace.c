@@ -23,6 +23,7 @@
 #include <linux/audit.h>
 #include <linux/signal.h>
 #include <linux/regset.h>
+#include <linux/tracehook.h>
 #include <linux/compat.h>
 #include <linux/elf.h>
 
@@ -287,11 +288,11 @@ static int genregs64_set(struct task_struct *target,
 					 32 * sizeof(u64),
 					 33 * sizeof(u64));
 		if (!ret) {
-			/* Only the condition codes can be modified
-			 * in the %tstate register.
+			/* Only the condition codes and the "in syscall"
+			 * state can be modified in the %tstate register.
 			 */
-			tstate &= (TSTATE_ICC | TSTATE_XCC);
-			regs->tstate &= ~(TSTATE_ICC | TSTATE_XCC);
+			tstate &= (TSTATE_ICC | TSTATE_XCC | TSTATE_SYSCALL);
+			regs->tstate &= ~(TSTATE_ICC | TSTATE_XCC | TSTATE_SYSCALL);
 			regs->tstate |= tstate;
 		}
 	}
@@ -657,8 +658,10 @@ static int genregs32_set(struct task_struct *target,
 		switch (pos) {
 		case 32: /* PSR */
 			tstate = regs->tstate;
-			tstate &= ~(TSTATE_ICC | TSTATE_XCC);
+			tstate &= ~(TSTATE_ICC | TSTATE_XCC | TSTATE_SYSCALL);
 			tstate |= psr_to_tstate_icc(reg);
+			if (reg & PSR_SYSCALL)
+				tstate |= TSTATE_SYSCALL;
 			regs->tstate = tstate;
 			break;
 		case 33: /* PC */
@@ -944,6 +947,8 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		break;
 
 	default:
+		if (request == PTRACE_SPARC_DETACH)
+			request = PTRACE_DETACH;
 		ret = compat_ptrace_request(child, request, addr, data);
 		break;
 	}
@@ -1036,6 +1041,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	default:
+		if (request == PTRACE_SPARC_DETACH)
+			request = PTRACE_DETACH;
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
@@ -1043,8 +1050,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-asmlinkage void syscall_trace(struct pt_regs *regs, int syscall_exit_p)
+asmlinkage int syscall_trace(struct pt_regs *regs, int syscall_exit_p)
 {
+	int ret = 0;
+
 	/* do the secure computing check first */
 	secure_computing(regs->u_regs[UREG_G1]);
 
@@ -1058,27 +1067,14 @@ asmlinkage void syscall_trace(struct pt_regs *regs, int syscall_exit_p)
 		audit_syscall_exit(result, regs->u_regs[UREG_I0]);
 	}
 
-	if (!(current->ptrace & PT_PTRACED))
-		goto out;
-
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		goto out;
-
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
-
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
+	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
+		if (syscall_exit_p)
+			tracehook_report_syscall_exit(regs, 0);
+		else
+			ret = tracehook_report_syscall_entry(regs);
 	}
 
-out:
-	if (unlikely(current->audit_context) && !syscall_exit_p)
+	if (unlikely(current->audit_context) && !syscall_exit_p && !ret)
 		audit_syscall_entry((test_thread_flag(TIF_32BIT) ?
 				     AUDIT_ARCH_SPARC :
 				     AUDIT_ARCH_SPARC64),
@@ -1087,4 +1083,6 @@ out:
 				    regs->u_regs[UREG_I1],
 				    regs->u_regs[UREG_I2],
 				    regs->u_regs[UREG_I3]);
+
+	return ret;
 }

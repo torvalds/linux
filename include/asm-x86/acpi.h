@@ -28,6 +28,7 @@
 #include <asm/numa.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
+#include <asm/mpspec.h>
 
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
@@ -160,9 +161,7 @@ struct bootnode;
 #ifdef CONFIG_ACPI_NUMA
 extern int acpi_numa;
 extern int acpi_scan_nodes(unsigned long start, unsigned long end);
-#ifdef CONFIG_X86_64
-# define NR_NODE_MEMBLKS (MAX_NUMNODES*2)
-#endif
+#define NR_NODE_MEMBLKS (MAX_NUMNODES*2)
 extern void acpi_fake_nodes(const struct bootnode *fake_nodes,
 				   int num_nodes);
 #else

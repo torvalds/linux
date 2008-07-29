@@ -205,10 +205,18 @@ static int can_create(struct net *net, struct socket *sock, int protocol)
  *  -ENOBUFS on full driver queue (see net_xmit_errno())
  *  -ENOMEM when local loopback failed at calling skb_clone()
  *  -EPERM when trying to send on a non-CAN interface
+ *  -EINVAL when the skb->data does not contain a valid CAN frame
  */
 int can_send(struct sk_buff *skb, int loop)
 {
+	struct sk_buff *newskb = NULL;
+	struct can_frame *cf = (struct can_frame *)skb->data;
 	int err;
+
+	if (skb->len != sizeof(struct can_frame) || cf->can_dlc > 8) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
 
 	if (skb->dev->type != ARPHRD_CAN) {
 		kfree_skb(skb);
@@ -244,8 +252,7 @@ int can_send(struct sk_buff *skb, int loop)
 			 * If the interface is not capable to do loopback
 			 * itself, we do it here.
 			 */
-			struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
-
+			newskb = skb_clone(skb, GFP_ATOMIC);
 			if (!newskb) {
 				kfree_skb(skb);
 				return -ENOMEM;
@@ -254,7 +261,6 @@ int can_send(struct sk_buff *skb, int loop)
 			newskb->sk = skb->sk;
 			newskb->ip_summed = CHECKSUM_UNNECESSARY;
 			newskb->pkt_type = PACKET_BROADCAST;
-			netif_rx(newskb);
 		}
 	} else {
 		/* indication for the CAN driver: no loopback required */
@@ -266,11 +272,20 @@ int can_send(struct sk_buff *skb, int loop)
 	if (err > 0)
 		err = net_xmit_errno(err);
 
+	if (err) {
+		if (newskb)
+			kfree_skb(newskb);
+		return err;
+	}
+
+	if (newskb)
+		netif_rx(newskb);
+
 	/* update statistics */
 	can_stats.tx_frames++;
 	can_stats.tx_frames_delta++;
 
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(can_send);
 
@@ -597,12 +612,15 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct dev_rcv_lists *d;
+	struct can_frame *cf = (struct can_frame *)skb->data;
 	int matches;
 
-	if (dev->type != ARPHRD_CAN || dev_net(dev) != &init_net) {
+	if (dev->type != ARPHRD_CAN || !net_eq(dev_net(dev), &init_net)) {
 		kfree_skb(skb);
 		return 0;
 	}
+
+	BUG_ON(skb->len != sizeof(struct can_frame) || cf->can_dlc > 8);
 
 	/* update statistics */
 	can_stats.rx_frames++;
@@ -710,7 +728,7 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 	struct net_device *dev = (struct net_device *)data;
 	struct dev_rcv_lists *d;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	if (dev->type != ARPHRD_CAN)

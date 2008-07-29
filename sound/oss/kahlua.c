@@ -67,7 +67,7 @@ static int __devinit probe_one(struct pci_dev *pdev, const struct pci_device_id 
 		return 1;
 	
 	mem = ioremap(base, 128);
-	if(mem == 0UL)
+	if (!mem)
 		return 1;
 	map = readw(mem + 0x18);	/* Read the SMI enables */
 	iounmap(mem);

@@ -68,6 +68,7 @@ static int fill_pool(void)
 {
 	gfp_t gfp = GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN;
 	struct debug_obj *new;
+	unsigned long flags;
 
 	if (likely(obj_pool_free >= ODEBUG_POOL_MIN_LEVEL))
 		return obj_pool_free;
@@ -81,10 +82,10 @@ static int fill_pool(void)
 		if (!new)
 			return obj_pool_free;
 
-		spin_lock(&pool_lock);
+		spin_lock_irqsave(&pool_lock, flags);
 		hlist_add_head(&new->node, &obj_pool);
 		obj_pool_free++;
-		spin_unlock(&pool_lock);
+		spin_unlock_irqrestore(&pool_lock, flags);
 	}
 	return obj_pool_free;
 }
@@ -110,16 +111,13 @@ static struct debug_obj *lookup_object(void *addr, struct debug_bucket *b)
 }
 
 /*
- * Allocate a new object. If the pool is empty and no refill possible,
- * switch off the debugger.
+ * Allocate a new object. If the pool is empty, switch off the debugger.
  */
 static struct debug_obj *
 alloc_object(void *addr, struct debug_bucket *b, struct debug_obj_descr *descr)
 {
 	struct debug_obj *obj = NULL;
-	int retry = 0;
 
-repeat:
 	spin_lock(&pool_lock);
 	if (obj_pool.first) {
 		obj	    = hlist_entry(obj_pool.first, typeof(*obj), node);
@@ -140,9 +138,6 @@ repeat:
 			obj_pool_min_free = obj_pool_free;
 	}
 	spin_unlock(&pool_lock);
-
-	if (fill_pool() && !obj && !retry++)
-		goto repeat;
 
 	return obj;
 }
@@ -210,9 +205,8 @@ static void debug_print_object(struct debug_obj *obj, char *msg)
 
 	if (limit < 5 && obj->descr != descr_test) {
 		limit++;
-		printk(KERN_ERR "ODEBUG: %s %s object type: %s\n", msg,
+		WARN(1, KERN_ERR "ODEBUG: %s %s object type: %s\n", msg,
 		       obj_states[obj->state], obj->descr->name);
-		WARN_ON(1);
 	}
 	debug_objects_warnings++;
 }
@@ -231,15 +225,13 @@ debug_object_fixup(int (*fixup)(void *addr, enum debug_obj_state state),
 
 static void debug_object_is_on_stack(void *addr, int onstack)
 {
-	void *stack = current->stack;
 	int is_on_stack;
 	static int limit;
 
 	if (limit > 4)
 		return;
 
-	is_on_stack = (addr >= stack && addr < (stack + THREAD_SIZE));
-
+	is_on_stack = object_is_on_stack(addr);
 	if (is_on_stack == onstack)
 		return;
 
@@ -260,6 +252,8 @@ __debug_object_init(void *addr, struct debug_obj_descr *descr, int onstack)
 	struct debug_bucket *db;
 	struct debug_obj *obj;
 	unsigned long flags;
+
+	fill_pool();
 
 	db = get_bucket((unsigned long) addr);
 
@@ -738,26 +732,22 @@ check_results(void *addr, enum debug_obj_state state, int fixups, int warnings)
 
 	obj = lookup_object(addr, db);
 	if (!obj && state != ODEBUG_STATE_NONE) {
-		printk(KERN_ERR "ODEBUG: selftest object not found\n");
-		WARN_ON(1);
+		WARN(1, KERN_ERR "ODEBUG: selftest object not found\n");
 		goto out;
 	}
 	if (obj && obj->state != state) {
-		printk(KERN_ERR "ODEBUG: selftest wrong state: %d != %d\n",
+		WARN(1, KERN_ERR "ODEBUG: selftest wrong state: %d != %d\n",
 		       obj->state, state);
-		WARN_ON(1);
 		goto out;
 	}
 	if (fixups != debug_objects_fixups) {
-		printk(KERN_ERR "ODEBUG: selftest fixups failed %d != %d\n",
+		WARN(1, KERN_ERR "ODEBUG: selftest fixups failed %d != %d\n",
 		       fixups, debug_objects_fixups);
-		WARN_ON(1);
 		goto out;
 	}
 	if (warnings != debug_objects_warnings) {
-		printk(KERN_ERR "ODEBUG: selftest warnings failed %d != %d\n",
+		WARN(1, KERN_ERR "ODEBUG: selftest warnings failed %d != %d\n",
 		       warnings, debug_objects_warnings);
-		WARN_ON(1);
 		goto out;
 	}
 	res = 0;
