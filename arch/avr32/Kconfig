@@ -119,10 +119,15 @@ config BOARD_ATSTK1000
 config BOARD_ATNGW100
 	bool "ATNGW100 Network Gateway"
 	select CPU_AT32AP7000
+
+config BOARD_FAVR_32
+	bool "Favr-32 LCD-board"
+	select CPU_AT32AP7000
 endchoice
 
 source "arch/avr32/boards/atstk1000/Kconfig"
 source "arch/avr32/boards/atngw100/Kconfig"
+source "arch/avr32/boards/favr-32/Kconfig"
 
 choice
 	prompt "Boot loader type"
