@@ -503,7 +503,7 @@ static int setup_ibs_files(struct super_block * sb, struct dentry * root)
 	oprofilefs_create_ulong(sb, dir, "rand_enable",
 				&ibs_config.rand_en);
 
-	dir = oprofilefs_mkdir(sb, root, "ibs_uops");
+	dir = oprofilefs_mkdir(sb, root, "ibs_op");
 	oprofilefs_create_ulong(sb, dir, "enable",
 				&ibs_config.op_enabled);
 	oprofilefs_create_ulong(sb, dir, "max_count",
