@@ -5996,7 +5996,8 @@ static int remove_and_add_spares(mddev_t *mddev)
 	if (mddev->degraded) {
 		rdev_for_each(rdev, rtmp, mddev) {
 			if (rdev->raid_disk >= 0 &&
-			    !test_bit(In_sync, &rdev->flags))
+			    !test_bit(In_sync, &rdev->flags) &&
+			    !test_bit(Blocked, &rdev->flags))
 				spares++;
 			if (rdev->raid_disk < 0
 			    && !test_bit(Faulty, &rdev->flags)) {
