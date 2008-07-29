@@ -410,6 +410,8 @@ struct snd_soc_codec {
 	void *control_data; /* codec control (i2c/3wire) data */
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
+	int (*display_register)(struct snd_soc_codec *, char *,
+				size_t, unsigned int);
 	hw_write_t hw_write;
 	hw_read_t hw_read;
 	void *reg_cache;

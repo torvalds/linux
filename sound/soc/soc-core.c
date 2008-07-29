@@ -970,9 +970,29 @@ static ssize_t codec_reg_show(struct device *dev,
 		step = codec->reg_cache_step;
 
 	count += sprintf(buf, "%s registers\n", codec->name);
-	for (i = 0; i < codec->reg_cache_size; i += step)
-		count += sprintf(buf + count, "%2x: %4x\n", i,
-			codec->read(codec, i));
+	for (i = 0; i < codec->reg_cache_size; i += step) {
+		count += sprintf(buf + count, "%2x: ", i);
+		if (count >= PAGE_SIZE - 1)
+			break;
+
+		if (codec->display_register)
+			count += codec->display_register(codec, buf + count,
+							 PAGE_SIZE - count, i);
+		else
+			count += snprintf(buf + count, PAGE_SIZE - count,
+					  "%4x", codec->read(codec, i));
+
+		if (count >= PAGE_SIZE - 1)
+			break;
+
+		count += snprintf(buf + count, PAGE_SIZE - count, "\n");
+		if (count >= PAGE_SIZE - 1)
+			break;
+	}
+
+	/* Truncate count; min() would cause a warning */
+	if (count >= PAGE_SIZE)
+		count = PAGE_SIZE - 1;
 
 	return count;
 }
