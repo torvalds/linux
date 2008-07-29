@@ -47,6 +47,10 @@ config SND_SOC_CS4270_VD33_ERRATA
 	bool
 	depends on SND_SOC_CS4270
 
+config SND_SOC_TLV320AIC26
+	tristate "TI TLV320AIC26 Codec support"
+	depends on SND_SOC && SPI
+
 config SND_SOC_TLV320AIC3X
 	tristate
 	depends on I2C
