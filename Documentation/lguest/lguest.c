@@ -66,8 +66,8 @@ typedef uint8_t u8;
 #endif
 /* We can have up to 256 pages for devices. */
 #define DEVICE_PAGES 256
-/* This will occupy 2 pages: it must be a power of 2. */
-#define VIRTQUEUE_NUM 128
+/* This will occupy 3 pages: it must be a power of 2. */
+#define VIRTQUEUE_NUM 256
 
 /*L:120 verbose is both a global flag and a macro.  The C preprocessor allows
  * this, and although I wouldn't recommend it, it works quite nicely here. */
