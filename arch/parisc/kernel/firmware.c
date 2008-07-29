@@ -150,26 +150,40 @@ static void convert_to_wide(unsigned long *addr)
 #endif
 }
 
+#ifdef CONFIG_64BIT
+void __init set_firmware_width_unlocked(void)
+{
+	int ret;
+
+	ret = mem_pdc_call(PDC_MODEL, PDC_MODEL_CAPABILITIES,
+		__pa(pdc_result), 0);
+	convert_to_wide(pdc_result);
+	if (pdc_result[0] != NARROW_FIRMWARE)
+		parisc_narrow_firmware = 0;
+}
+	
 /**
  * set_firmware_width - Determine if the firmware is wide or narrow.
  * 
- * This function must be called before any pdc_* function that uses the convert_to_wide
- * function.
+ * This function must be called before any pdc_* function that uses the
+ * convert_to_wide function.
  */
 void __init set_firmware_width(void)
 {
-#ifdef CONFIG_64BIT
-	int retval;
 	unsigned long flags;
-
-        spin_lock_irqsave(&pdc_lock, flags);
-	retval = mem_pdc_call(PDC_MODEL, PDC_MODEL_CAPABILITIES, __pa(pdc_result), 0);
-	convert_to_wide(pdc_result);
-	if(pdc_result[0] != NARROW_FIRMWARE)
-		parisc_narrow_firmware = 0;
-        spin_unlock_irqrestore(&pdc_lock, flags);
-#endif
+	spin_lock_irqsave(&pdc_lock, flags);
+	set_firmware_width_unlocked();
+	spin_unlock_irqrestore(&pdc_lock, flags);
 }
+#else
+void __init set_firmware_width_unlocked(void) {
+	return;
+}
+
+void __init set_firmware_width(void) {
+	return;
+}
+#endif /*CONFIG_64BIT*/
 
 /**
  * pdc_emergency_unlock - Unlock the linux pdc lock
@@ -288,6 +302,20 @@ int pdc_chassis_warn(unsigned long *warn)
 	return retval;
 }
 
+int __init pdc_coproc_cfg_unlocked(struct pdc_coproc_cfg *pdc_coproc_info)
+{
+	int ret;
+
+	ret = mem_pdc_call(PDC_COPROC, PDC_COPROC_CFG, __pa(pdc_result));
+	convert_to_wide(pdc_result);
+	pdc_coproc_info->ccr_functional = pdc_result[0];
+	pdc_coproc_info->ccr_present = pdc_result[1];
+	pdc_coproc_info->revision = pdc_result[17];
+	pdc_coproc_info->model = pdc_result[18];
+
+	return ret;
+}
+
 /**
  * pdc_coproc_cfg - To identify coprocessors attached to the processor.
  * @pdc_coproc_info: Return buffer address.
@@ -297,19 +325,14 @@ int pdc_chassis_warn(unsigned long *warn)
  */
 int __init pdc_coproc_cfg(struct pdc_coproc_cfg *pdc_coproc_info)
 {
-        int retval;
+	int ret;
 	unsigned long flags;
 
-        spin_lock_irqsave(&pdc_lock, flags);
-        retval = mem_pdc_call(PDC_COPROC, PDC_COPROC_CFG, __pa(pdc_result));
-        convert_to_wide(pdc_result);
-        pdc_coproc_info->ccr_functional = pdc_result[0];
-        pdc_coproc_info->ccr_present = pdc_result[1];
-        pdc_coproc_info->revision = pdc_result[17];
-        pdc_coproc_info->model = pdc_result[18];
-        spin_unlock_irqrestore(&pdc_lock, flags);
+	spin_lock_irqsave(&pdc_lock, flags);
+	ret = pdc_coproc_cfg_unlocked(pdc_coproc_info);
+	spin_unlock_irqrestore(&pdc_lock, flags);
 
-        return retval;
+	return ret;
 }
 
 /**
