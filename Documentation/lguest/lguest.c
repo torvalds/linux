@@ -929,11 +929,9 @@ static void handle_net_output(int fd, struct virtqueue *vq, bool timeout)
 	while ((head = get_vq_desc(vq, iov, &out, &in)) != vq->vring.num) {
 		if (in)
 			errx(1, "Input buffers in output queue?");
-		/* Check header, but otherwise ignore it (we told the Guest we
-		 * supported no features, so it shouldn't have anything
-		 * interesting). */
-		(void)convert(&iov[0], struct virtio_net_hdr);
-		len = writev(vq->dev->fd, iov+1, out-1);
+		len = writev(vq->dev->fd, iov, out);
+		if (len < 0)
+			err(1, "Writing network packet to tun");
 		add_used_and_trigger(fd, vq, head, len);
 		num++;
 	}
@@ -958,7 +956,6 @@ static bool handle_tun_input(int fd, struct device *dev)
 	unsigned int head, in_num, out_num;
 	int len;
 	struct iovec iov[dev->vq->vring.num];
-	struct virtio_net_hdr *hdr;
 
 	/* First we need a network buffer from the Guests's recv virtqueue. */
 	head = get_vq_desc(dev->vq, iov, &out_num, &in_num);
@@ -977,18 +974,13 @@ static bool handle_tun_input(int fd, struct device *dev)
 	} else if (out_num)
 		errx(1, "Output buffers in network recv queue?");
 
-	/* First element is the header: we set it to 0 (no features). */
-	hdr = convert(&iov[0], struct virtio_net_hdr);
-	hdr->flags = 0;
-	hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
-
 	/* Read the packet from the device directly into the Guest's buffer. */
-	len = readv(dev->fd, iov+1, in_num-1);
+	len = readv(dev->fd, iov, in_num);
 	if (len <= 0)
 		err(1, "reading network");
 
 	/* Tell the Guest about the new packet. */
-	add_used_and_trigger(fd, dev->vq, head, sizeof(*hdr) + len);
+	add_used_and_trigger(fd, dev->vq, head, len);
 
 	verbose("tun input packet len %i [%02x %02x] (%s)\n", len,
 		((u8 *)iov[1].iov_base)[0], ((u8 *)iov[1].iov_base)[1],
@@ -1490,10 +1482,14 @@ static int get_tun_device(char tapif[IFNAMSIZ])
 	 * the truth, I completely blundered my way through this code, but it
 	 * works now! */
 	netfd = open_or_die("/dev/net/tun", O_RDWR);
-	ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
 	strcpy(ifr.ifr_name, "tap%d");
 	if (ioctl(netfd, TUNSETIFF, &ifr) != 0)
 		err(1, "configuring /dev/net/tun");
+
+	if (ioctl(netfd, TUNSETOFFLOAD,
+		  TUN_F_CSUM|TUN_F_TSO4|TUN_F_TSO6|TUN_F_TSO_ECN) != 0)
+		err(1, "Could not set features for tun device");
 
 	/* We don't need checksums calculated for packets coming in this
 	 * device: trust us! */
@@ -1561,6 +1557,16 @@ static void setup_tun_net(char *arg)
 	/* Tell Guest what MAC address to use. */
 	add_feature(dev, VIRTIO_NET_F_MAC);
 	add_feature(dev, VIRTIO_F_NOTIFY_ON_EMPTY);
+	/* Expect Guest to handle everything except UFO */
+	add_feature(dev, VIRTIO_NET_F_CSUM);
+	add_feature(dev, VIRTIO_NET_F_GUEST_CSUM);
+	add_feature(dev, VIRTIO_NET_F_MAC);
+	add_feature(dev, VIRTIO_NET_F_GUEST_TSO4);
+	add_feature(dev, VIRTIO_NET_F_GUEST_TSO6);
+	add_feature(dev, VIRTIO_NET_F_GUEST_ECN);
+	add_feature(dev, VIRTIO_NET_F_HOST_TSO4);
+	add_feature(dev, VIRTIO_NET_F_HOST_TSO6);
+	add_feature(dev, VIRTIO_NET_F_HOST_ECN);
 	set_config(dev, sizeof(conf), &conf);
 
 	/* We don't need the socket any more; setup is done. */
