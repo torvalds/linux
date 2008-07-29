@@ -1316,10 +1316,10 @@ int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = e->shift_l == e->shift_r ? 1 : 2;
-	uinfo->value.enumerated.items = e->mask;
+	uinfo->value.enumerated.items = e->max;
 
-	if (uinfo->value.enumerated.item > e->mask - 1)
-		uinfo->value.enumerated.item = e->mask - 1;
+	if (uinfo->value.enumerated.item > e->max - 1)
+		uinfo->value.enumerated.item = e->max - 1;
 	strcpy(uinfo->value.enumerated.name,
 		e->texts[uinfo->value.enumerated.item]);
 	return 0;
@@ -1342,7 +1342,7 @@ int snd_soc_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned short val, bitmask;
 
-	for (bitmask = 1; bitmask < e->mask; bitmask <<= 1)
+	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
 	val = snd_soc_read(codec, e->reg);
 	ucontrol->value.enumerated.item[0]
@@ -1372,14 +1372,14 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 	unsigned short val;
 	unsigned short mask, bitmask;
 
-	for (bitmask = 1; bitmask < e->mask; bitmask <<= 1)
+	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
-	if (ucontrol->value.enumerated.item[0] > e->mask - 1)
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
 	val = ucontrol->value.enumerated.item[0] << e->shift_l;
 	mask = (bitmask - 1) << e->shift_l;
 	if (e->shift_l != e->shift_r) {
-		if (ucontrol->value.enumerated.item[1] > e->mask - 1)
+		if (ucontrol->value.enumerated.item[1] > e->max - 1)
 			return -EINVAL;
 		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
 		mask |= (bitmask - 1) << e->shift_r;
@@ -1406,10 +1406,10 @@ int snd_soc_info_enum_ext(struct snd_kcontrol *kcontrol,
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
-	uinfo->value.enumerated.items = e->mask;
+	uinfo->value.enumerated.items = e->max;
 
-	if (uinfo->value.enumerated.item > e->mask - 1)
-		uinfo->value.enumerated.item = e->mask - 1;
+	if (uinfo->value.enumerated.item > e->max - 1)
+		uinfo->value.enumerated.item = e->max - 1;
 	strcpy(uinfo->value.enumerated.name,
 		e->texts[uinfo->value.enumerated.item]);
 	return 0;

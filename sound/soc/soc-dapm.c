@@ -125,13 +125,13 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 		struct soc_enum *e = (struct soc_enum *)w->kcontrols[i].private_value;
 		int val, item, bitmask;
 
-		for (bitmask = 1; bitmask < e->mask; bitmask <<= 1)
+		for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
 		val = snd_soc_read(w->codec, e->reg);
 		item = (val >> e->shift_l) & (bitmask - 1);
 
 		p->connect = 0;
-		for (i = 0; i < e->mask; i++) {
+		for (i = 0; i < e->max; i++) {
 			if (!(strcmp(p->name, e->texts[i])) && item == i)
 				p->connect = 1;
 		}
@@ -168,7 +168,7 @@ static int dapm_connect_mux(struct snd_soc_codec *codec,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	int i;
 
-	for (i = 0; i < e->mask; i++) {
+	for (i = 0; i < e->max; i++) {
 		if (!(strcmp(control_name, e->texts[i]))) {
 			list_add(&path->list, &codec->dapm_paths);
 			list_add(&path->list_sink, &dest->sources);
@@ -1258,7 +1258,7 @@ int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned short val, bitmask;
 
-	for (bitmask = 1; bitmask < e->mask; bitmask <<= 1)
+	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
 	val = snd_soc_read(widget->codec, e->reg);
 	ucontrol->value.enumerated.item[0] = (val >> e->shift_l) & (bitmask - 1);
@@ -1288,15 +1288,15 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	unsigned short mask, bitmask;
 	int ret = 0;
 
-	for (bitmask = 1; bitmask < e->mask; bitmask <<= 1)
+	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
-	if (ucontrol->value.enumerated.item[0] > e->mask - 1)
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
 	mux = ucontrol->value.enumerated.item[0];
 	val = mux << e->shift_l;
 	mask = (bitmask - 1) << e->shift_l;
 	if (e->shift_l != e->shift_r) {
-		if (ucontrol->value.enumerated.item[1] > e->mask - 1)
+		if (ucontrol->value.enumerated.item[1] > e->max - 1)
 			return -EINVAL;
 		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
 		mask |= (bitmask - 1) << e->shift_r;

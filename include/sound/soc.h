@@ -88,25 +88,25 @@
 	.put    = snd_soc_put_volsw_s8, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = xreg, .min = xmin, .max = xmax} }
-#define SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, xtexts) \
+#define SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmax, xtexts) \
 {	.reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
-	.mask = xmask, .texts = xtexts }
-#define SOC_ENUM_SINGLE(xreg, xshift, xmask, xtexts) \
-	SOC_ENUM_DOUBLE(xreg, xshift, xshift, xmask, xtexts)
-#define SOC_ENUM_SINGLE_EXT(xmask, xtexts) \
-{	.mask = xmask, .texts = xtexts }
+	.max = xmax, .texts = xtexts }
+#define SOC_ENUM_SINGLE(xreg, xshift, xmax, xtexts) \
+	SOC_ENUM_DOUBLE(xreg, xshift, xshift, xmax, xtexts)
+#define SOC_ENUM_SINGLE_EXT(xmax, xtexts) \
+{	.max = xmax, .texts = xtexts }
 #define SOC_ENUM(xname, xenum) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
 	.info = snd_soc_info_enum_double, \
 	.get = snd_soc_get_enum_double, .put = snd_soc_put_enum_double, \
 	.private_value = (unsigned long)&xenum }
-#define SOC_SINGLE_EXT(xname, xreg, xshift, xmask, xinvert,\
+#define SOC_SINGLE_EXT(xname, xreg, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_volsw, \
 	.get = xhandler_get, .put = xhandler_put, \
-	.private_value = SOC_SINGLE_VALUE(xreg, xshift, xmask, xinvert) }
-#define SOC_SINGLE_EXT_TLV(xname, xreg, xshift, xmask, xinvert,\
+	.private_value = SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) }
+#define SOC_SINGLE_EXT_TLV(xname, xreg, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
@@ -114,7 +114,7 @@
 	.tlv.p = (tlv_array), \
 	.info = snd_soc_info_volsw, \
 	.get = xhandler_get, .put = xhandler_put, \
-	.private_value = SOC_SINGLE_VALUE(xreg, xshift, xmask, xinvert) }
+	.private_value = SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) }
 #define SOC_SINGLE_BOOL_EXT(xname, xdata, xhandler_get, xhandler_put) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_bool_ext, \
@@ -536,7 +536,7 @@ struct soc_enum {
 	unsigned short reg2;
 	unsigned char shift_l;
 	unsigned char shift_r;
-	unsigned int mask;
+	unsigned int max;
 	const char **texts;
 	void *dapm;
 };
