@@ -97,10 +97,10 @@ head-$(CONFIG_SUPERH64)	+= arch/sh/kernel/head_64.o
 
 LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
-core-y				+= arch/sh/kernel/ arch/sh/mm/
+core-y				+= arch/sh/kernel/ arch/sh/mm/ arch/sh/boards/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
 
-# Boards and Mach groups
+# Mach groups
 machdir-$(CONFIG_SOLUTION_ENGINE)		+= mach-se
 machdir-$(CONFIG_SH_HP6XX)			+= mach-hp6xx
 machdir-$(CONFIG_SH_DREAMCAST)			+= mach-dreamcast
@@ -114,15 +114,11 @@ machdir-$(CONFIG_SH_MIGOR)			+= mach-migor
 machdir-$(CONFIG_SH_SDK7780)			+= mach-sdk7780
 machdir-$(CONFIG_SH_X3PROTO)			+= mach-x3proto
 machdir-$(CONFIG_SH_RSK7203)			+= mach-rsk7203
-machdir-$(CONFIG_SH_AP325RXA)			+= mach-ap325rxa
 machdir-$(CONFIG_SH_SH7763RDP)			+= mach-sh7763rdp
-machdir-$(CONFIG_SH_SH7785LCR)			+= mach-sh7785lcr
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= mach-microdev
 machdir-$(CONFIG_SH_LANDISK)			+= mach-landisk
 machdir-$(CONFIG_SH_TITAN)			+= mach-titan
-machdir-$(CONFIG_SH_SHMIN)			+= mach-shmin
 machdir-$(CONFIG_SH_LBOX_RE2)			+= mach-lboxre2
-machdir-$(CONFIG_SH_MAGIC_PANEL_R2)		+= mach-magicpanelr2
 machdir-$(CONFIG_SH_CAYMAN)			+= mach-cayman
 
 ifneq ($(machdir-y),)

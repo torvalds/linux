@@ -242,4 +242,17 @@ source "arch/sh/boards/mach-r2d/Kconfig"
 source "arch/sh/boards/mach-highlander/Kconfig"
 source "arch/sh/boards/mach-sdk7780/Kconfig"
 source "arch/sh/boards/mach-migor/Kconfig"
-source "arch/sh/boards/mach-magicpanelr2/Kconfig"
+
+if SH_MAGIC_PANEL_R2
+
+menu "Magic Panel R2 options"
+
+config SH_MAGIC_PANEL_R2_VERSION
+	int SH_MAGIC_PANEL_R2_VERSION
+	default "3"
+	help
+	  Set the version of the Magic Panel R2
+
+endmenu
+
+endif
