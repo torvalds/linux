@@ -8,8 +8,6 @@
 #ifndef __ASM_TXX9_TX3927_H
 #define __ASM_TXX9_TX3927_H
 
-#include <asm/txx9/txx927.h>
-
 #define TX3927_REG_BASE	0xfffe0000UL
 #define TX3927_REG_SIZE	0x00010000
 #define TX3927_SDRAMC_REG	(TX3927_REG_BASE + 0x8000)
