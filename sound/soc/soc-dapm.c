@@ -104,10 +104,13 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	case snd_soc_dapm_switch:
 	case snd_soc_dapm_mixer: {
 		int val;
-		int reg = w->kcontrols[i].private_value & 0xff;
-		int shift = (w->kcontrols[i].private_value >> 8) & 0x0f;
-		int mask = (w->kcontrols[i].private_value >> 16) & 0xff;
-		int invert = (w->kcontrols[i].private_value >> 24) & 0x01;
+		struct soc_mixer_control *mc = (struct soc_mixer_control *)
+			w->kcontrols[i].private_value;
+		uint reg = mc->reg;
+		uint shift = mc->shift;
+		int max = mc->max;
+		uint mask = (1 << fls(max)) - 1;
+		uint invert = mc->invert;
 
 		val = snd_soc_read(w->codec, reg);
 		val = (val >> shift) & mask;
@@ -247,16 +250,19 @@ static int dapm_set_pga(struct snd_soc_dapm_widget *widget, int power)
 		return 0;
 
 	if (widget->num_kcontrols && k) {
-		int reg = k->private_value & 0xff;
-		int shift = (k->private_value >> 8) & 0x0f;
-		int mask = (k->private_value >> 16) & 0xff;
-		int invert = (k->private_value >> 24) & 0x01;
+		struct soc_mixer_control *mc =
+			(struct soc_mixer_control *)k->private_value;
+		uint reg = mc->reg;
+		uint shift = mc->shift;
+		int max = mc->max;
+		uint mask = (1 << fls(max)) - 1;
+		uint invert = mc->invert;
 
 		if (power) {
 			int i;
 			/* power up has happended, increase volume to last level */
 			if (invert) {
-				for (i = mask; i > widget->saved_value; i--)
+				for (i = max; i > widget->saved_value; i--)
 					snd_soc_update_bits(widget->codec, reg, mask, i);
 			} else {
 				for (i = 0; i < widget->saved_value; i++)
@@ -1133,12 +1139,14 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value & 0xff;
-	int shift = (kcontrol->private_value >> 8) & 0x0f;
-	int rshift = (kcontrol->private_value >> 12) & 0x0f;
-	int max = (kcontrol->private_value >> 16) & 0xff;
-	int invert = (kcontrol->private_value >> 24) & 0x01;
-	int mask = (1 << fls(max)) - 1;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	uint reg = mc->reg;
+	uint shift = mc->shift;
+	uint rshift = mc->rshift;
+	int max = mc->max;
+	uint invert = mc->invert;
+	uint mask = (1 << fls(max)) - 1;
 
 	/* return the saved value if we are powered down */
 	if (widget->id == snd_soc_dapm_pga && !widget->power) {
@@ -1176,12 +1184,14 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value & 0xff;
-	int shift = (kcontrol->private_value >> 8) & 0x0f;
-	int rshift = (kcontrol->private_value >> 12) & 0x0f;
-	int max = (kcontrol->private_value >> 16) & 0xff;
-	int mask = (1 << fls(max)) - 1;
-	int invert = (kcontrol->private_value >> 24) & 0x01;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	uint reg = mc->reg;
+	uint shift = mc->shift;
+	uint rshift = mc->rshift;
+	int max = mc->max;
+	uint mask = (1 << fls(max)) - 1;
+	uint invert = mc->invert;
 	unsigned short val, val2, val_mask;
 	int ret;
 

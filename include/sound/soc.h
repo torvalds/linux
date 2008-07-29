@@ -26,10 +26,12 @@
 /*
  * Convenience kcontrol builders
  */
-#define SOC_SINGLE_VALUE(reg, shift, max, invert) ((reg) | ((shift) << 8) |\
-	((shift) << 12) | ((max) << 16) | ((invert) << 24))
-#define SOC_SINGLE_VALUE_EXT(reg, max, invert) ((reg) | ((max) << 16) |\
-	((invert) << 31))
+#define SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) \
+	((unsigned long)&(struct soc_mixer_control) \
+	{.reg = xreg, .shift = xshift, .max = xmax, .invert = xinvert})
+#define SOC_SINGLE_VALUE_EXT(xreg, xmax, xinvert) \
+	((unsigned long)&(struct soc_mixer_control) \
+	{.reg = xreg, .max = xmax, .invert = xinvert})
 #define SOC_SINGLE(xname, reg, shift, max, invert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
@@ -43,45 +45,49 @@
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
 	.put = snd_soc_put_volsw, \
 	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
-#define SOC_DOUBLE(xname, reg, shift_left, shift_right, max, invert) \
+#define SOC_DOUBLE(xname, xreg, shift_left, shift_right, xmax, xinvert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw, \
 	.put = snd_soc_put_volsw, \
-	.private_value = (reg) | ((shift_left) << 8) | \
-		((shift_right) << 12) | ((max) << 16) | ((invert) << 24) }
-#define SOC_DOUBLE_R(xname, reg_left, reg_right, shift, max, invert) \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = xreg, .shift = shift_left, .rshift = shift_right, \
+		 .max = xmax, .invert = xinvert} }
+#define SOC_DOUBLE_R(xname, reg_left, reg_right, xshift, xmax, xinvert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.info = snd_soc_info_volsw_2r, \
 	.get = snd_soc_get_volsw_2r, .put = snd_soc_put_volsw_2r, \
-	.private_value = (reg_left) | ((shift) << 8)  | \
-		((max) << 12) | ((invert) << 20) | ((reg_right) << 24) }
-#define SOC_DOUBLE_TLV(xname, reg, shift_left, shift_right, max, invert, tlv_array) \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
+		.max = xmax, .invert = xinvert} }
+#define SOC_DOUBLE_TLV(xname, xreg, shift_left, shift_right, xmax, xinvert, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
 		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
 	.tlv.p = (tlv_array), \
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw, \
 	.put = snd_soc_put_volsw, \
-	.private_value = (reg) | ((shift_left) << 8) | \
-		((shift_right) << 12) | ((max) << 16) | ((invert) << 24) }
-#define SOC_DOUBLE_R_TLV(xname, reg_left, reg_right, shift, max, invert, tlv_array) \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = xreg, .shift = shift_left, .rshift = shift_right,\
+		 .max = xmax, .invert = xinvert} }
+#define SOC_DOUBLE_R_TLV(xname, reg_left, reg_right, xshift, xmax, xinvert, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
 		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
 	.tlv.p = (tlv_array), \
 	.info = snd_soc_info_volsw_2r, \
 	.get = snd_soc_get_volsw_2r, .put = snd_soc_put_volsw_2r, \
-	.private_value = (reg_left) | ((shift) << 8)  | \
-		((max) << 12) | ((invert) << 20) | ((reg_right) << 24) }
-#define SOC_DOUBLE_S8_TLV(xname, reg, min, max, tlv_array) \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
+		.max = xmax, .invert = xinvert} }
+#define SOC_DOUBLE_S8_TLV(xname, xreg, xmin, xmax, tlv_array) \
 {	.iface  = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 		  SNDRV_CTL_ELEM_ACCESS_READWRITE, \
 	.tlv.p  = (tlv_array), \
 	.info   = snd_soc_info_volsw_s8, .get = snd_soc_get_volsw_s8, \
 	.put    = snd_soc_put_volsw_s8, \
-	.private_value = (reg) | (((signed char)max) << 16) | \
-			 (((signed char)min) << 24) }
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = xreg, .min = xmin, .max = xmax} }
 #define SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, xtexts) \
 {	.reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
 	.mask = xmask, .texts = xtexts }
@@ -516,6 +522,12 @@ struct snd_soc_device {
 struct snd_soc_pcm_runtime {
 	struct snd_soc_dai_link *dai;
 	struct snd_soc_device *socdev;
+};
+
+/* mixer control */
+struct soc_mixer_control {
+	int min, max;
+	uint reg, rreg, shift, rshift, invert;
 };
 
 /* enumerated kcontrol */
