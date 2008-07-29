@@ -2,6 +2,7 @@
 #define __LINUX_MAPLE_H
 
 #include <linux/device.h>
+#include <mach/maple.h>
 
 extern struct bus_type maple_bus_type;
 
@@ -33,6 +34,7 @@ struct mapleq {
 	void *sendbuf, *recvbuf, *recvbufdcsp;
 	unsigned char length;
 	enum maple_code command;
+	struct mutex mutex;
 };
 
 struct maple_devinfo {
@@ -69,7 +71,9 @@ void maple_getcond_callback(struct maple_device *dev,
 			    unsigned long interval,
 			    unsigned long function);
 int maple_driver_register(struct device_driver *drv);
-void maple_add_packet(struct mapleq *mq);
+int maple_add_packet_sleeps(struct maple_device *mdev, u32 function,
+	u32 command, u32 length, void *data);
+void maple_clear_dev(struct maple_device *mdev);
 
 #define to_maple_dev(n) container_of(n, struct maple_device, dev)
 #define to_maple_driver(n) container_of(n, struct maple_driver, drv)
