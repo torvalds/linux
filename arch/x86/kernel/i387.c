@@ -21,9 +21,10 @@
 # include <asm/sigcontext32.h>
 # include <asm/user32.h>
 #else
-# define save_i387_ia32		save_i387
-# define restore_i387_ia32	restore_i387
+# define save_i387_xstate_ia32		save_i387_xstate
+# define restore_i387_xstate_ia32	restore_i387_xstate
 # define _fpstate_ia32		_fpstate
+# define _xstate_ia32		_xstate
 # define sig_xstate_ia32_size   sig_xstate_size
 # define user_i387_ia32_struct	user_i387_struct
 # define user32_fxsr_struct	user_fxsr_struct
@@ -424,7 +425,6 @@ static inline int save_i387_fsave(struct _fpstate_ia32 __user *buf)
 	struct task_struct *tsk = current;
 	struct i387_fsave_struct *fp = &tsk->thread.xstate->fsave;
 
-	unlazy_fpu(tsk);
 	fp->status = fp->swd;
 	if (__copy_to_user(buf, fp, sizeof(struct i387_fsave_struct)))
 		return -1;
@@ -437,8 +437,6 @@ static int save_i387_fxsave(struct _fpstate_ia32 __user *buf)
 	struct i387_fxsave_struct *fx = &tsk->thread.xstate->fxsave;
 	struct user_i387_ia32_struct env;
 	int err = 0;
-
-	unlazy_fpu(tsk);
 
 	convert_from_fxsr(&env, tsk);
 	if (__copy_to_user(buf, &env, sizeof(env)))
@@ -455,10 +453,16 @@ static int save_i387_fxsave(struct _fpstate_ia32 __user *buf)
 	return 1;
 }
 
-int save_i387_ia32(struct _fpstate_ia32 __user *buf)
+int save_i387_xstate_ia32(void __user *buf)
 {
+	struct _fpstate_ia32 __user *fp = (struct _fpstate_ia32 __user *) buf;
+	struct task_struct *tsk = current;
+
 	if (!used_math())
 		return 0;
+
+	if (!access_ok(VERIFY_WRITE, buf, sig_xstate_ia32_size))
+		return -EACCES;
 	/*
 	 * This will cause a "finit" to be triggered by the next
 	 * attempted FPU operation by the 'current' process.
@@ -468,13 +472,15 @@ int save_i387_ia32(struct _fpstate_ia32 __user *buf)
 	if (!HAVE_HWFP) {
 		return fpregs_soft_get(current, NULL,
 				       0, sizeof(struct user_i387_ia32_struct),
-				       NULL, buf) ? -1 : 1;
+				       NULL, fp) ? -1 : 1;
 	}
 
+	unlazy_fpu(tsk);
+
 	if (cpu_has_fxsr)
-		return save_i387_fxsave(buf);
+		return save_i387_fxsave(fp);
 	else
-		return save_i387_fsave(buf);
+		return save_i387_fsave(fp);
 }
 
 static inline int restore_i387_fsave(struct _fpstate_ia32 __user *buf)
@@ -502,13 +508,25 @@ static int restore_i387_fxsave(struct _fpstate_ia32 __user *buf)
 	return 0;
 }
 
-int restore_i387_ia32(struct _fpstate_ia32 __user *buf)
+int restore_i387_xstate_ia32(void __user *buf)
 {
 	int err;
 	struct task_struct *tsk = current;
+	struct _fpstate_ia32 __user *fp = (struct _fpstate_ia32 __user *) buf;
 
 	if (HAVE_HWFP)
 		clear_fpu(tsk);
+
+	if (!buf) {
+		if (used_math()) {
+			clear_fpu(tsk);
+			clear_used_math();
+		}
+
+		return 0;
+	} else
+		if (!access_ok(VERIFY_READ, buf, sig_xstate_ia32_size))
+			return -EACCES;
 
 	if (!used_math()) {
 		err = init_fpu(tsk);
@@ -518,13 +536,13 @@ int restore_i387_ia32(struct _fpstate_ia32 __user *buf)
 
 	if (HAVE_HWFP) {
 		if (cpu_has_fxsr)
-			err = restore_i387_fxsave(buf);
+			err = restore_i387_fxsave(fp);
 		else
-			err = restore_i387_fsave(buf);
+			err = restore_i387_fsave(fp);
 	} else {
 		err = fpregs_soft_set(current, NULL,
 				      0, sizeof(struct user_i387_ia32_struct),
-				      NULL, buf) != 0;
+				      NULL, fp) != 0;
 	}
 	set_used_math();
 

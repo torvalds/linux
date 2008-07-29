@@ -216,7 +216,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 				   unsigned int *peax)
 {
 	unsigned int tmpflags, gs, oldgs, err = 0;
-	struct _fpstate_ia32 __user *buf;
+	void __user *buf;
 	u32 tmp;
 
 	/* Always make any pending restarted system calls return -EINTR */
@@ -260,26 +260,12 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 
 	err |= __get_user(tmp, &sc->fpstate);
 	buf = compat_ptr(tmp);
-	if (buf) {
-		if (!access_ok(VERIFY_READ, buf, sizeof(*buf)))
-			goto badframe;
-		err |= restore_i387_ia32(buf);
-	} else {
-		struct task_struct *me = current;
-
-		if (used_math()) {
-			clear_fpu(me);
-			clear_used_math();
-		}
-	}
+	err |= restore_i387_xstate_ia32(buf);
 
 	err |= __get_user(tmp, &sc->ax);
 	*peax = tmp;
 
 	return err;
-
-badframe:
-	return 1;
 }
 
 asmlinkage long sys32_sigreturn(struct pt_regs *regs)
@@ -351,7 +337,7 @@ badframe:
  */
 
 static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
-				 struct _fpstate_ia32 __user *fpstate,
+				 void __user *fpstate,
 				 struct pt_regs *regs, unsigned int mask)
 {
 	int tmp, err = 0;
@@ -382,7 +368,7 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 	err |= __put_user((u32)regs->flags, &sc->flags);
 	err |= __put_user((u32)regs->sp, &sc->sp_at_signal);
 
-	tmp = save_i387_ia32(fpstate);
+	tmp = save_i387_xstate_ia32(fpstate);
 	if (tmp < 0)
 		err = -EFAULT;
 	else {
@@ -404,7 +390,7 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
  */
 static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 				 size_t frame_size,
-				 struct _fpstate_ia32 **fpstate)
+				 void **fpstate)
 {
 	unsigned long sp;
 
@@ -441,7 +427,7 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	struct sigframe __user *frame;
 	void __user *restorer;
 	int err = 0;
-	struct _fpstate_ia32 __user *fpstate = NULL;
+	void __user *fpstate = NULL;
 
 	/* copy_to_user optimizes that into a single 8 byte store */
 	static const struct {
@@ -529,7 +515,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	struct rt_sigframe __user *frame;
 	void __user *restorer;
 	int err = 0;
-	struct _fpstate_ia32 __user *fpstate = NULL;
+	void __user *fpstate = NULL;
 
 	/* __copy_to_user optimizes that into a single 8 byte store */
 	static const struct {

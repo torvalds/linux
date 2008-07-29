@@ -159,28 +159,14 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	}
 
 	{
-		struct _fpstate __user *buf;
+		void __user *buf;
 
 		err |= __get_user(buf, &sc->fpstate);
-		if (buf) {
-			if (!access_ok(VERIFY_READ, buf, sizeof(*buf)))
-				goto badframe;
-			err |= restore_i387(buf);
-		} else {
-			struct task_struct *me = current;
-
-			if (used_math()) {
-				clear_fpu(me);
-				clear_used_math();
-			}
-		}
+		err |= restore_i387_xstate(buf);
 	}
 
 	err |= __get_user(*pax, &sc->ax);
 	return err;
-
-badframe:
-	return 1;
 }
 
 asmlinkage unsigned long sys_sigreturn(unsigned long __unused)
@@ -262,7 +248,7 @@ badframe:
  * Set up a signal frame.
  */
 static int
-setup_sigcontext(struct sigcontext __user *sc, struct _fpstate __user *fpstate,
+setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 		 struct pt_regs *regs, unsigned long mask)
 {
 	int tmp, err = 0;
@@ -289,7 +275,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct _fpstate __user *fpstate,
 	err |= __put_user(regs->sp, &sc->sp_at_signal);
 	err |= __put_user(regs->ss, (unsigned int __user *)&sc->ss);
 
-	tmp = save_i387(fpstate);
+	tmp = save_i387_xstate(fpstate);
 	if (tmp < 0)
 		err = 1;
 	else
@@ -307,7 +293,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct _fpstate __user *fpstate,
  */
 static inline void __user *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
-	     struct _fpstate **fpstate)
+	     void **fpstate)
 {
 	unsigned long sp;
 
@@ -356,7 +342,7 @@ setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	void __user *restorer;
 	int err = 0;
 	int usig;
-	struct _fpstate __user *fpstate = NULL;
+	void __user *fpstate = NULL;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame), &fpstate);
 
@@ -434,7 +420,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	void __user *restorer;
 	int err = 0;
 	int usig;
-	struct _fpstate __user *fpstate = NULL;
+	void __user *fpstate = NULL;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame), &fpstate);
 

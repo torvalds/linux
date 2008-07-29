@@ -34,8 +34,9 @@ extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set;
 #ifdef CONFIG_IA32_EMULATION
 extern unsigned int sig_xstate_ia32_size;
 struct _fpstate_ia32;
-extern int save_i387_ia32(struct _fpstate_ia32 __user *buf);
-extern int restore_i387_ia32(struct _fpstate_ia32 __user *buf);
+struct _xstate_ia32;
+extern int save_i387_xstate_ia32(void __user *buf);
+extern int restore_i387_xstate_ia32(void __user *buf);
 #endif
 
 #define X87_FSW_ES (1 << 7)	/* Exception Summary */
@@ -249,13 +250,13 @@ end:
 	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
 
+#endif	/* CONFIG_X86_64 */
+
 /*
  * Signal frame handlers...
  */
-extern int save_i387(struct _fpstate __user *buf);
-extern int restore_i387(struct _fpstate __user *buf);
-
-#endif	/* CONFIG_X86_64 */
+extern int save_i387_xstate(void __user *buf);
+extern int restore_i387_xstate(void __user *buf);
 
 static inline void __unlazy_fpu(struct task_struct *tsk)
 {

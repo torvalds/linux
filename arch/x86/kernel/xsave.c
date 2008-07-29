@@ -12,6 +12,85 @@
  */
 unsigned int pcntxt_hmask, pcntxt_lmask;
 
+#ifdef CONFIG_X86_64
+/*
+ * Signal frame handlers.
+ */
+
+int save_i387_xstate(void __user *buf)
+{
+	struct task_struct *tsk = current;
+	int err = 0;
+
+	if (!access_ok(VERIFY_WRITE, buf, sig_xstate_size))
+		return -EACCES;
+
+	BUILD_BUG_ON(sizeof(struct user_i387_struct) !=
+			sizeof(tsk->thread.xstate->fxsave));
+
+	if ((unsigned long)buf % 16)
+		printk("save_i387_xstate: bad fpstate %p\n", buf);
+
+	if (!used_math())
+		return 0;
+	clear_used_math(); /* trigger finit */
+	if (task_thread_info(tsk)->status & TS_USEDFPU) {
+		err = save_i387_checking((struct i387_fxsave_struct __user *)
+					 buf);
+		if (err)
+			return err;
+		task_thread_info(tsk)->status &= ~TS_USEDFPU;
+		stts();
+	} else {
+		if (__copy_to_user(buf, &tsk->thread.xstate->fxsave,
+				   xstate_size))
+			return -1;
+	}
+	return 1;
+}
+
+/*
+ * This restores directly out of user space. Exceptions are handled.
+ */
+int restore_i387_xstate(void __user *buf)
+{
+	struct task_struct *tsk = current;
+	int err;
+
+	if (!buf) {
+		if (used_math()) {
+			clear_fpu(tsk);
+			clear_used_math();
+		}
+
+		return 0;
+	} else
+		if (!access_ok(VERIFY_READ, buf, sig_xstate_size))
+			return -EACCES;
+
+	if (!used_math()) {
+		err = init_fpu(tsk);
+		if (err)
+			return err;
+	}
+
+	if (!(task_thread_info(current)->status & TS_USEDFPU)) {
+		clts();
+		task_thread_info(current)->status |= TS_USEDFPU;
+	}
+	err = fxrstor_checking((__force struct i387_fxsave_struct *)buf);
+	if (unlikely(err)) {
+		/*
+		 * Encountered an error while doing the restore from the
+		 * user buffer, clear the fpu state.
+		 */
+		clear_fpu(tsk);
+		clear_used_math();
+	}
+	return err;
+}
+#endif
+
 /*
  * Represents init state for the supported extended state.
  */
