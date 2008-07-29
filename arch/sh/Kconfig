@@ -594,11 +594,11 @@ config SH_CAYMAN
 
 endmenu
 
-source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
-source "arch/sh/boards/renesas/r7780rp/Kconfig"
-source "arch/sh/boards/renesas/sdk7780/Kconfig"
-source "arch/sh/boards/renesas/migor/Kconfig"
-source "arch/sh/boards/magicpanelr2/Kconfig"
+source "arch/sh/boards/mach-r2d/Kconfig"
+source "arch/sh/boards/mach-highlander/Kconfig"
+source "arch/sh/boards/mach-sdk7780/Kconfig"
+source "arch/sh/boards/mach-migor/Kconfig"
+source "arch/sh/boards/mach-magicpanelr2/Kconfig"
 
 menu "Timer and clock configuration"
 
