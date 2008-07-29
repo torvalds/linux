@@ -123,6 +123,14 @@ void __init pci_iommu_alloc(void)
 
 	pci_swiotlb_init();
 }
+
+unsigned long iommu_num_pages(unsigned long addr, unsigned long len)
+{
+	unsigned long size = roundup((addr & ~PAGE_MASK) + len, PAGE_SIZE);
+
+	return size >> PAGE_SHIFT;
+}
+EXPORT_SYMBOL(iommu_num_pages);
 #endif
 
 /*
