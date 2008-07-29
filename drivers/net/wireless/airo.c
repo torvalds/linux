@@ -1915,7 +1915,7 @@ static int mpi_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 	struct airo_info *ai = dev->priv;
 
 	if (!skb) {
-		airo_print_err(dev->name, "%s: skb == NULL!",__FUNCTION__);
+		airo_print_err(dev->name, "%s: skb == NULL!",__func__);
 		return 0;
 	}
 	npacks = skb_queue_len (&ai->txq);
@@ -1964,7 +1964,7 @@ static int mpi_send_packet (struct net_device *dev)
 	if ((skb = skb_dequeue(&ai->txq)) == NULL) {
 		airo_print_err(dev->name,
 			"%s: Dequeue'd zero in send_packet()",
-			__FUNCTION__);
+			__func__);
 		return 0;
 	}
 
@@ -2115,7 +2115,7 @@ static int airo_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 	u32 *fids = priv->fids;
 
 	if ( skb == NULL ) {
-		airo_print_err(dev->name, "%s: skb == NULL!", __FUNCTION__);
+		airo_print_err(dev->name, "%s: skb == NULL!", __func__);
 		return 0;
 	}
 
@@ -2186,7 +2186,7 @@ static int airo_start_xmit11(struct sk_buff *skb, struct net_device *dev) {
 	}
 
 	if ( skb == NULL ) {
-		airo_print_err(dev->name, "%s: skb == NULL!", __FUNCTION__);
+		airo_print_err(dev->name, "%s: skb == NULL!", __func__);
 		return 0;
 	}
 
@@ -4127,7 +4127,7 @@ static int PC4500_writerid(struct airo_info *ai, u16 rid,
 		if (test_bit(FLAG_ENABLED, &ai->flags) && (RID_WEP_TEMP != rid))
 			airo_print_err(ai->dev->name,
 				"%s: MAC should be disabled (rid=%04x)",
-				__FUNCTION__, rid);
+				__func__, rid);
 		memset(&cmd, 0, sizeof(cmd));
 		memset(&rsp, 0, sizeof(rsp));
 
@@ -4142,7 +4142,7 @@ static int PC4500_writerid(struct airo_info *ai, u16 rid,
 			&ai->config_desc.rid_desc, sizeof(Rid));
 
 		if (len < 4 || len > 2047) {
-			airo_print_err(ai->dev->name, "%s: len=%d", __FUNCTION__, len);
+			airo_print_err(ai->dev->name, "%s: len=%d", __func__, len);
 			rc = -1;
 		} else {
 			memcpy((char *)ai->config_desc.virtual_host_addr,
@@ -4151,9 +4151,9 @@ static int PC4500_writerid(struct airo_info *ai, u16 rid,
 			rc = issuecommand(ai, &cmd, &rsp);
 			if ((rc & 0xff00) != 0) {
 				airo_print_err(ai->dev->name, "%s: Write rid Error %d",
-						__FUNCTION__, rc);
+						__func__, rc);
 				airo_print_err(ai->dev->name, "%s: Cmd=%04x",
-						__FUNCTION__, cmd.cmd);
+						__func__, cmd.cmd);
 			}
 
 			if ((rsp.status & 0x7f00))

@@ -71,7 +71,7 @@ prism54_mib_mode_helper(islpci_private *priv, u32 iw_mode)
 	if (iw_mode == IW_MODE_REPEAT || iw_mode == IW_MODE_SECOND) {
 		printk(KERN_DEBUG
 		       "%s(): Sorry, Repeater mode and Secondary mode "
-		       "are not yet supported by this driver.\n", __FUNCTION__);
+		       "are not yet supported by this driver.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -333,7 +333,7 @@ prism54_set_mode(struct net_device *ndev, struct iw_request_info *info,
 	if (*uwrq > IW_MODE_MONITOR || *uwrq < IW_MODE_AUTO) {
 		printk(KERN_DEBUG
 		       "%s: %s() You passed a non-valid init_mode.\n",
-		       priv->ndev->name, __FUNCTION__);
+		       priv->ndev->name, __func__);
 		return -EINVAL;
 	}
 
@@ -1234,7 +1234,7 @@ prism54_set_txpower(struct net_device *ndev, struct iw_request_info *info,
 		/* don't know how to disable radio */
 		printk(KERN_DEBUG
 		       "%s: %s() disabling radio is not yet supported.\n",
-		       priv->ndev->name, __FUNCTION__);
+		       priv->ndev->name, __func__);
 		return -ENOTSUPP;
 	} else if (vwrq->fixed)
 		/* currently only fixed value is supported */
@@ -1242,7 +1242,7 @@ prism54_set_txpower(struct net_device *ndev, struct iw_request_info *info,
 	else {
 		printk(KERN_DEBUG
 		       "%s: %s() auto power will be implemented later.\n",
-		       priv->ndev->name, __FUNCTION__);
+		       priv->ndev->name, __func__);
 		return -ENOTSUPP;
 	}
 }

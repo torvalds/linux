@@ -720,7 +720,7 @@ static int if_cs_host_to_card(struct lbs_private *priv,
 		ret = if_cs_send_cmd(priv, buf, nb);
 		break;
 	default:
-		lbs_pr_err("%s: unsupported type %d\n", __FUNCTION__, type);
+		lbs_pr_err("%s: unsupported type %d\n", __func__, type);
 	}
 
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);

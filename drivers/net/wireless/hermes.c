@@ -463,7 +463,7 @@ int hermes_read_ltv(hermes_t *hw, int bap, u16 rid, unsigned bufsize,
 	if (rtype != rid)
 		printk(KERN_WARNING "hermes @ %p: %s(): "
 		       "rid (0x%04x) does not match type (0x%04x)\n",
-		       hw->iobase, __FUNCTION__, rid, rtype);
+		       hw->iobase, __func__, rid, rtype);
 	if (HERMES_RECLEN_TO_BYTES(rlength) > bufsize)
 		printk(KERN_WARNING "hermes @ %p: "
 		       "Truncating LTV record from %d to %d bytes. "

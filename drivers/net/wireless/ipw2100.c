@@ -211,7 +211,7 @@ static u32 ipw2100_debug_level = IPW_DL_NONE;
 do { \
 	if (ipw2100_debug_level & (level)) { \
 		printk(KERN_DEBUG "ipw2100: %c %s ", \
-                       in_interrupt() ? 'I' : 'U',  __FUNCTION__); \
+                       in_interrupt() ? 'I' : 'U',  __func__); \
 		printk(message); \
 	} \
 } while (0)
