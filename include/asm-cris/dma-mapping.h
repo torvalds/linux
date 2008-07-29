@@ -14,6 +14,8 @@
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 
 #ifdef CONFIG_PCI
+#include <asm-generic/dma-coherent.h>
+
 void *dma_alloc_coherent(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flag);
 

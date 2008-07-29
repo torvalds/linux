@@ -91,6 +91,7 @@ struct sh_mobile_ceu_dev {
 	void __iomem *base;
 	unsigned long video_limit;
 
+	/* lock used to protect videobuf */
 	spinlock_t lock;
 	struct list_head capture;
 	struct videobuf_buffer *active;

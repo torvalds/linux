@@ -166,10 +166,6 @@ struct thread_struct {
 	union sh_fpu_union fpu;
 };
 
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
-
 #define INIT_MMAP \
 { &init_mm, 0, 0, NULL, PAGE_SHARED, VM_READ | VM_WRITE | VM_EXEC, 1, NULL, NULL }
 

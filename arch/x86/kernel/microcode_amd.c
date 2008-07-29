@@ -445,7 +445,6 @@ static int apply_microcode_check_cpu_amd(int cpu)
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	unsigned int rev;
 	cpumask_t old;
-	cpumask_of_cpu_ptr(newmask, cpu);
 	int err = 0;
 
 	/* Check if the microcode is available */
@@ -453,7 +452,7 @@ static int apply_microcode_check_cpu_amd(int cpu)
 		return 0;
 
 	old = current->cpus_allowed;
-	set_cpus_allowed(current, newmask);
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 
 	/* Check if the microcode we have in memory matches the CPU */
 	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 16)

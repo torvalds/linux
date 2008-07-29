@@ -17,11 +17,13 @@
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/unistd.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
 #include <linux/binfmts.h>
 #include <linux/bitops.h>
+#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
@@ -574,6 +576,8 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 		 * clear the TS_RESTORE_SIGMASK flag.
 		 */
 		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
+
+		tracehook_signal_handler(signr, &info, &ka, regs, 0);
 		return;
 	}
 	if (restart_syscall &&
@@ -605,4 +609,8 @@ void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long
 {
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs, orig_i0);
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+	}
 }

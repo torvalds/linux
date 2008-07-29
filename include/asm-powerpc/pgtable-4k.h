@@ -46,6 +46,8 @@
 #define _PAGE_GROUP_IX  0x7000 /* software: HPTE index within group */
 #define _PAGE_F_SECOND  _PAGE_SECONDARY
 #define _PAGE_F_GIX     _PAGE_GROUP_IX
+#define _PAGE_SPECIAL	0x10000 /* software: special page */
+#define __HAVE_ARCH_PTE_SPECIAL
 
 /* PTE flags to conserve for HPTE identification */
 #define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_HASHPTE | \

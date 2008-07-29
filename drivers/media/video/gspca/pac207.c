@@ -27,9 +27,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
 MODULE_DESCRIPTION("Pixart PAC207");
 MODULE_LICENSE("GPL");
@@ -208,7 +205,7 @@ static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 }
 
 
-int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
+static int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int err;
@@ -223,8 +220,7 @@ int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
 	return err;
 }
 
-
-int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
+static int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int res;
@@ -574,17 +570,16 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x4028), DVNM("Creative Webcam Vista Plus")},
-	{USB_DEVICE(0x093a, 0x2460), DVNM("Q-Tec Webcam 100")},
-	{USB_DEVICE(0x093a, 0x2463), DVNM("Philips spc200nc pac207")},
-	{USB_DEVICE(0x093a, 0x2464), DVNM("Labtec Webcam 1200")},
-	{USB_DEVICE(0x093a, 0x2468), DVNM("PAC207")},
-	{USB_DEVICE(0x093a, 0x2470), DVNM("Genius GF112")},
-	{USB_DEVICE(0x093a, 0x2471), DVNM("Genius VideoCam GE111")},
-	{USB_DEVICE(0x093a, 0x2472), DVNM("Genius VideoCam GE110")},
-	{USB_DEVICE(0x2001, 0xf115), DVNM("D-Link DSB-C120")},
+	{USB_DEVICE(0x041e, 0x4028)},
+	{USB_DEVICE(0x093a, 0x2460)},
+	{USB_DEVICE(0x093a, 0x2463)},
+	{USB_DEVICE(0x093a, 0x2464)},
+	{USB_DEVICE(0x093a, 0x2468)},
+	{USB_DEVICE(0x093a, 0x2470)},
+	{USB_DEVICE(0x093a, 0x2471)},
+	{USB_DEVICE(0x093a, 0x2472)},
+	{USB_DEVICE(0x2001, 0xf115)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -609,7 +604,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

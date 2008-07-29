@@ -61,8 +61,6 @@ struct maple_device {
 
 struct maple_driver {
 	unsigned long function;
-	int (*connect) (struct maple_device * dev);
-	void (*disconnect) (struct maple_device * dev);
 	struct device_driver drv;
 };
 

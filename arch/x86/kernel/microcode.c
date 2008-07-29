@@ -123,7 +123,6 @@ static int do_microcode_update (void)
 	void *new_mc = NULL;
 	int cpu;
 	cpumask_t old;
-	cpumask_of_cpu_ptr_declare(newmask);
 
 	old = current->cpus_allowed;
 
@@ -140,8 +139,7 @@ static int do_microcode_update (void)
 
 			if (!uci->valid)
 				continue;
-			cpumask_of_cpu_ptr_next(newmask, cpu);
-			set_cpus_allowed_ptr(current, newmask);
+			set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 			error = microcode_ops->get_matching_microcode(new_mc,
 								      cpu);
 			if (error < 0)
@@ -236,12 +234,11 @@ EXPORT_SYMBOL_GPL(microcode_pdev);
 static void microcode_init_cpu(int cpu, int resume)
 {
 	cpumask_t old;
-	cpumask_of_cpu_ptr(newmask, cpu);
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
 	old = current->cpus_allowed;
 
-	set_cpus_allowed_ptr(current, newmask);
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 	mutex_lock(&microcode_mutex);
 	microcode_ops->collect_cpu_info(cpu);
 	if (uci->valid && system_state == SYSTEM_RUNNING && !resume)
@@ -263,13 +260,10 @@ static ssize_t reload_store(struct sys_device *dev,
 	if (end == buf)
 		return -EINVAL;
 	if (val == 1) {
-		cpumask_t old;
-		cpumask_of_cpu_ptr(newmask, cpu);
-
-		old = current->cpus_allowed;
+		cpumask_t old = current->cpus_allowed;
 
 		get_online_cpus();
-		set_cpus_allowed_ptr(current, newmask);
+		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 
 		mutex_lock(&microcode_mutex);
 		if (uci->valid)

@@ -2,6 +2,7 @@
 #define _ASM_GENERIC_GPIO_H
 
 #include <linux/types.h>
+#include <linux/errno.h>
 
 #ifdef CONFIG_GPIOLIB
 

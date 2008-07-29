@@ -24,9 +24,6 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SONIX JPEG USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -361,6 +358,7 @@ static const __u8 mo4000_sensor_init[][8] = {
 };
 static const __u8 ov7660_sensor_init[][8] = {
 	{0xa1, 0x21, 0x12, 0x80, 0x00, 0x00, 0x00, 0x10}, /* reset SCCB */
+/*		(delay 20ms) */
 	{0xa1, 0x21, 0x12, 0x05, 0x00, 0x00, 0x00, 0x10},
 						/* Outformat ?? rawRGB */
 	{0xa1, 0x21, 0x13, 0xb8, 0x00, 0x00, 0x00, 0x10}, /* init COM8 */
@@ -539,13 +537,31 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			value, 0,
 			gspca_dev->usb_buf, len,
 			500);
+	PDEBUG(D_USBI, "reg_r [%02x] -> %02x", value, gspca_dev->usb_buf[0]);
 }
 
+static void reg_w1(struct gspca_dev *gspca_dev,
+		   __u16 value,
+		   __u8 data)
+{
+	PDEBUG(D_USBO, "reg_w1 [%02x] = %02x", value, data);
+	gspca_dev->usb_buf[0] = data;
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0x08,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			value,
+			0,
+			gspca_dev->usb_buf, 1,
+			500);
+}
 static void reg_w(struct gspca_dev *gspca_dev,
 			  __u16 value,
 			  const __u8 *buffer,
 			  int len)
 {
+	PDEBUG(D_USBO, "reg_w [%02x] = %02x %02x ..",
+		value, buffer[0], buffer[1]);
 	if (len <= sizeof gspca_dev->usb_buf) {
 		memcpy(gspca_dev->usb_buf, buffer, len);
 		usb_control_msg(gspca_dev->dev,
@@ -571,31 +587,42 @@ static void reg_w(struct gspca_dev *gspca_dev,
 	}
 }
 
-/* I2C write 2 bytes */
-static void i2c_w2(struct gspca_dev *gspca_dev,
-		   const __u8 *buffer)
+/* I2C write 1 byte */
+static void i2c_w1(struct gspca_dev *gspca_dev, __u8 reg, __u8 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 mode[8];
 
-	/* is i2c ready */
-	mode[0] = 0x81 | (2 << 4);
-	mode[1] = sd->i2c_base;
-	mode[2] = buffer[0];
-	mode[3] = buffer[1];
-	mode[4] = 0;
-	mode[5] = 0;
-	mode[6] = 0;
-	mode[7] = 0x10;
-	reg_w(gspca_dev, 0x08, mode, 8);
+	PDEBUG(D_USBO, "i2c_w2 [%02x] = %02x", reg, val);
+	gspca_dev->usb_buf[0] = 0x81 | (2 << 4);	/* = a1 */
+	gspca_dev->usb_buf[1] = sd->i2c_base;
+	gspca_dev->usb_buf[2] = reg;
+	gspca_dev->usb_buf[3] = val;
+	gspca_dev->usb_buf[4] = 0;
+	gspca_dev->usb_buf[5] = 0;
+	gspca_dev->usb_buf[6] = 0;
+	gspca_dev->usb_buf[7] = 0x10;
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0x08,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			0x08,			/* value = i2c */
+			0,
+			gspca_dev->usb_buf, 8,
+			500);
 }
 
 /* I2C write 8 bytes */
 static void i2c_w8(struct gspca_dev *gspca_dev,
 		   const __u8 *buffer)
 {
-	reg_w(gspca_dev, 0x08, buffer, 8);
-	msleep(1);
+	memcpy(gspca_dev->usb_buf, buffer, 8);
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0x08,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			0x08, 0,		/* value, index */
+			gspca_dev->usb_buf, 8,
+			500);
 }
 
 /* read 5 bytes in gspca_dev->usb_buf */
@@ -613,24 +640,21 @@ static void i2c_r5(struct gspca_dev *gspca_dev, __u8 reg)
 	mode[6] = 0;
 	mode[7] = 0x10;
 	i2c_w8(gspca_dev, mode);
+	msleep(2);
 	mode[0] = 0x81 | (5 << 4) | 0x02;
 	mode[2] = 0;
 	i2c_w8(gspca_dev, mode);
+	msleep(2);
 	reg_r(gspca_dev, 0x0a, 5);
 }
 
 static int probesensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 reg02;
-	static const __u8 datasend[] = { 2, 0 };
-	/* reg val1 val2 val3 val4 */
 
-	i2c_w2(gspca_dev, datasend);
-/* should write 0xa1 0x11 0x02 0x00 0x00 0x00 0x00 the 0x10 is add by i2cw */
+	i2c_w1(gspca_dev, 0x02, 0);			/* sensor wakeup */
 	msleep(10);
-	reg02 = 0x66;
-	reg_w(gspca_dev, 0x02, &reg02, 1);		/* Gpio on */
+	reg_w1(gspca_dev, 0x02, 0x66);			/* Gpio on */
 	msleep(10);
 	i2c_r5(gspca_dev, 0);				/* read sensor id */
 	if (gspca_dev->usb_buf[0] == 0x02
@@ -642,7 +666,7 @@ static int probesensor(struct gspca_dev *gspca_dev)
 		sd->sensor = SENSOR_HV7131R;
 		return SENSOR_HV7131R;
 	}
-	PDEBUG(D_PROBE, "Find Sensor %d %d %d",
+	PDEBUG(D_PROBE, "Find Sensor 0x%02x 0x%02x 0x%02x",
 		gspca_dev->usb_buf[0], gspca_dev->usb_buf[1],
 		gspca_dev->usb_buf[2]);
 	PDEBUG(D_PROBE, "Sensor sn9c102P Not found");
@@ -653,8 +677,6 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 			  const __u8 *sn9c1xx)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 data;
-	__u8 regF1;
 	const __u8 *reg9a;
 	static const __u8 reg9a_def[] =
 		{0x08, 0x40, 0x20, 0x10, 0x00, 0x04};
@@ -663,15 +685,13 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 	static const __u8 reg9a_sn9c325[] =
 		{0x0a, 0x40, 0x38, 0x30, 0x00, 0x20};
 
-
-	regF1 = 0x00;
-	reg_w(gspca_dev, 0xf1, &regF1, 1);
-	reg_w(gspca_dev, 0x01, &sn9c1xx[0], 1); /*fixme:jfm was [1] en v1*/
+	reg_w1(gspca_dev, 0xf1, 0x00);
+	reg_w1(gspca_dev, 0x01, sn9c1xx[0]);	/*fixme:jfm was [1] en v1*/
 
 	/* configure gpio */
 	reg_w(gspca_dev, 0x01, &sn9c1xx[1], 2);
 	reg_w(gspca_dev, 0x08, &sn9c1xx[8], 2);
-	reg_w(gspca_dev, 0x17, &sn9c1xx[0x17], 5);	/* jfm was 3 */
+	reg_w(gspca_dev, 0x17, &sn9c1xx[0x17], 5);	/* jfm len was 3 */
 	switch (sd->bridge) {
 	case BRIDGE_SN9C325:
 		reg9a = reg9a_sn9c325;
@@ -685,35 +705,25 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 	}
 	reg_w(gspca_dev, 0x9a, reg9a, 6);
 
-	data = 0x60;				/*fixme:jfm 60 00 00 (3) */
-	reg_w(gspca_dev, 0xd4, &data, 1);
+	reg_w1(gspca_dev, 0xd4, 0x60);	/*fixme:jfm 60 00 00 (3) ? */
 
 	reg_w(gspca_dev, 0x03, &sn9c1xx[3], 0x0f);
 
 	switch (sd->bridge) {
 	case BRIDGE_SN9C120:			/* from win trace */
-		data = 0x61;
-		reg_w(gspca_dev, 0x01, &data, 1);
-		data = 0x20;
-		reg_w(gspca_dev, 0x17, &data, 1);
-		data = 0x60;
-		reg_w(gspca_dev, 0x01, &data, 1);
+		reg_w1(gspca_dev, 0x01, 0x61);
+		reg_w1(gspca_dev, 0x17, 0x20);
+		reg_w1(gspca_dev, 0x01, 0x60);
 		break;
 	case BRIDGE_SN9C325:
-		data = 0x43;
-		reg_w(gspca_dev, 0x01, &data, 1);
-		data = 0xae;
-		reg_w(gspca_dev, 0x17, &data, 1);
-		data = 0x42;
-		reg_w(gspca_dev, 0x01, &data, 1);
+		reg_w1(gspca_dev, 0x01, 0x43);
+		reg_w1(gspca_dev, 0x17, 0xae);
+		reg_w1(gspca_dev, 0x01, 0x42);
 		break;
 	default:
-		data = 0x43;
-		reg_w(gspca_dev, 0x01, &data, 1);
-		data = 0x61;
-		reg_w(gspca_dev, 0x17, &data, 1);
-		data = 0x42;
-		reg_w(gspca_dev, 0x01, &data, 1);
+		reg_w1(gspca_dev, 0x01, 0x43);
+		reg_w1(gspca_dev, 0x17, 0x61);
+		reg_w1(gspca_dev, 0x01, 0x42);
 	}
 
 	if (sd->sensor == SENSOR_HV7131R) {
@@ -770,6 +780,9 @@ static void ov7660_InitSensor(struct gspca_dev *gspca_dev)
 {
 	int i = 0;
 
+	i2c_w8(gspca_dev, ov7660_sensor_init[i]);	/* reset SCCB */
+	i++;
+	msleep(20);
 	while (ov7660_sensor_init[i][0]) {
 		i2c_w8(gspca_dev, ov7660_sensor_init[i]);
 		i++;
@@ -782,193 +795,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u16 vendor;
-	__u16 product;
-
-	vendor = id->idVendor;
-	product = id->idProduct;
-	sd->sensor = -1;
-	switch (vendor) {
-	case 0x0458:				/* Genius */
-/*		switch (product) {
-		case 0x7025: */
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_MI0360;
-			sd->i2c_base = 0x5d;
-/*			break;
-		} */
-		break;
-	case 0x045e:
-/*		switch (product) {
-		case 0x00f5:
-		case 0x00f7: */
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_OV7660;
-			sd->i2c_base = 0x21;
-/*			break;
-		} */
-		break;
-	case 0x0471:				/* Philips */
-/*		switch (product) {
-		case 0x0327:
-		case 0x0328:
-		case 0x0330: */
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_MI0360;
-			sd->i2c_base = 0x5d;
-/*			break;
-		} */
-		break;
-	case 0x0c45:				/* Sonix */
-		switch (product) {
-		case 0x6040:
-			sd->bridge = BRIDGE_SN9C102P;
-/*			sd->sensor = SENSOR_MI0360;	 * from BW600.inf */
-/*fixme: MI0360 base=5d ? */
-			sd->sensor = SENSOR_HV7131R;	/* gspcav1 value */
-			sd->i2c_base = 0x11;
-			break;
-/*		case 0x607a:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C102P;
-			sd->sensor = SENSOR_OV7648;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x607c:
-			sd->bridge = BRIDGE_SN9C102P;
-			sd->sensor = SENSOR_HV7131R;
-			sd->i2c_base = 0x11;
-			break;
-/*		case 0x607e:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C102P;
-			sd->sensor = SENSOR_OV7630;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x60c0:
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_MI0360;
-			sd->i2c_base = 0x5d;
-			break;
-/*		case 0x60c8:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_OM6801;
-			sd->i2c_base = 0x??;
-			break; */
-/*		case 0x60cc:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_HV7131GP;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x60ec:
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_MO4000;
-			sd->i2c_base = 0x21;
-			break;
-/*		case 0x60ef:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_ICM105C;
-			sd->i2c_base = 0x??;
-			break; */
-/*		case 0x60fa:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_OV7648;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x60fb:
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_OV7660;
-			sd->i2c_base = 0x21;
-			break;
-		case 0x60fc:
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_HV7131R;
-			sd->i2c_base = 0x11;
-			break;
-/*		case 0x60fe:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C105;
-			sd->sensor = SENSOR_OV7630;
-			sd->i2c_base = 0x??;
-			break; */
-/*		case 0x6108:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_OM6801;
-			sd->i2c_base = 0x??;
-			break; */
-/*		case 0x6122:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C110;
-			sd->sensor = SENSOR_ICM105C;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x612a:
-/*			sd->bridge = BRIDGE_SN9C110;	 * in BW600.inf */
-			sd->bridge = BRIDGE_SN9C325;
-			sd->sensor = SENSOR_OV7648;
-			sd->i2c_base = 0x21;
-/*fixme: sensor_init has base = 00 et 6e!*/
-			break;
-/*		case 0x6123:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C110;
-			sd->sensor = SENSOR_SanyoCCD;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x612c:
-			sd->bridge = BRIDGE_SN9C110;
-			sd->sensor = SENSOR_MO4000;
-			sd->i2c_base = 0x21;
-			break;
-/*		case 0x612e:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C110;
-			sd->sensor = SENSOR_OV7630;
-			sd->i2c_base = 0x??;
-			break; */
-/*		case 0x612f:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C110;
-			sd->sensor = SENSOR_ICM105C;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x6130:
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_MI0360;
-			sd->i2c_base = 0x5d;
-			break;
-		case 0x6138:
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_MO4000;
-			sd->i2c_base = 0x21;
-			break;
-/*		case 0x613a:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_OV7648;
-			sd->i2c_base = 0x??;
-			break; */
-		case 0x613b:
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_OV7660;
-			sd->i2c_base = 0x21;
-			break;
-		case 0x613c:
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_HV7131R;
-			sd->i2c_base = 0x11;
-			break;
-/*		case 0x613e:				* from BW600.inf
-			sd->bridge = BRIDGE_SN9C120;
-			sd->sensor = SENSOR_OV7630;
-			sd->i2c_base = 0x??;
-			break; */
-		}
-		break;
-	}
-	if (sd->sensor < 0) {
-		PDEBUG(D_ERR, "Invalid vendor/product %04x:%04x",
-			vendor, product);
-		return -EINVAL;
-	}
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
+
+	sd->bridge = id->driver_info >> 16;
+	sd->sensor = id->driver_info >> 8;
+	sd->i2c_base = id->driver_info;
 
 	sd->qindex = 4;			/* set the quantization table */
 	sd->brightness = BRIGHTNESS_DEF;
@@ -983,33 +818,25 @@ static int sd_open(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 /*	const __u8 *sn9c1xx; */
-	__u8 regF1;
 	__u8 regGpio[] = { 0x29, 0x74 };
+	__u8 regF1;
 
 	/* setup a selector by bridge */
-	regF1 = 0x01;
-	reg_w(gspca_dev, 0xf1, &regF1, 1);
+	reg_w1(gspca_dev, 0xf1, 0x01);
 	reg_r(gspca_dev, 0x00, 1);		/* -> regF1 = 0x00 */
-	regF1 = gspca_dev->usb_buf[0];
-	reg_w(gspca_dev, 0xf1, &regF1, 1);
+	reg_w1(gspca_dev, 0xf1, gspca_dev->usb_buf[0]);
 	reg_r(gspca_dev, 0x00, 1);
 	regF1 = gspca_dev->usb_buf[0];
 	switch (sd->bridge) {
 	case BRIDGE_SN9C102P:
 		if (regF1 != 0x11)
 			return -ENODEV;
-		reg_w(gspca_dev, 0x02, &regGpio[1], 1);
+		reg_w1(gspca_dev, 0x02, regGpio[1]);
 		break;
 	case BRIDGE_SN9C105:
 		if (regF1 != 0x11)
 			return -ENODEV;
 		reg_w(gspca_dev, 0x02, regGpio, 2);
-		break;
-	case BRIDGE_SN9C110:
-		if (regF1 != 0x12)
-			return -ENODEV;
-		regGpio[1] = 0x62;
-		reg_w(gspca_dev, 0x02, &regGpio[1], 1);
 		break;
 	case BRIDGE_SN9C120:
 		if (regF1 != 0x12)
@@ -1018,16 +845,15 @@ static int sd_open(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x02, regGpio, 2);
 		break;
 	default:
+/*	case BRIDGE_SN9C110: */
 /*	case BRIDGE_SN9C325: */
 		if (regF1 != 0x12)
 			return -ENODEV;
-		regGpio[1] = 0x62;
-		reg_w(gspca_dev, 0x02, &regGpio[1], 1);
+		reg_w1(gspca_dev, 0x02, 0x62);
 		break;
 	}
 
-	regF1 = 0x01;
-	reg_w(gspca_dev, 0xf1, &regF1, 1);
+	reg_w1(gspca_dev, 0xf1, 0x01);
 
 	return 0;
 }
@@ -1123,7 +949,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	}
 
 	k2 = sd->brightness >> 10;
-	reg_w(gspca_dev, 0x96, &k2, 1);
+	reg_w1(gspca_dev, 0x96, k2);
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
@@ -1152,7 +978,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 		data = (colour + 32) & 0x7f;	/* blue */
 	else
 		data = (-colour + 32) & 0x7f;	/* red */
-	reg_w(gspca_dev, 0x05, &data, 1);
+	reg_w1(gspca_dev, 0x05, data);
 }
 
 /* -- start the camera -- */
@@ -1165,7 +991,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	__u8 reg17;
 	const __u8 *sn9c1xx;
 	int mode;
-	static const __u8 DC29[] = { 0x6a, 0x50, 0x00, 0x00, 0x50, 0x3c };
 	static const __u8 C0[] = { 0x2d, 0x2d, 0x3a, 0x05, 0x04, 0x3f };
 	static const __u8 CA[] = { 0x28, 0xd8, 0x14, 0xec };
 	static const __u8 CA_sn9c120[] =
@@ -1179,21 +1004,20 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 /*fixme:jfm this sequence should appear at end of sd_start */
 /* with
-	data = 0x44;
-	reg_w(gspca_dev, 0x01, &data, 1); */
-	reg_w(gspca_dev, 0x15, &sn9c1xx[0x15], 1);
-	reg_w(gspca_dev, 0x16, &sn9c1xx[0x16], 1);
-	reg_w(gspca_dev, 0x12, &sn9c1xx[0x12], 1);
-	reg_w(gspca_dev, 0x13, &sn9c1xx[0x13], 1);
-	reg_w(gspca_dev, 0x18, &sn9c1xx[0x18], 1);
-	reg_w(gspca_dev, 0xd2, &DC29[0], 1);
-	reg_w(gspca_dev, 0xd3, &DC29[1], 1);
-	reg_w(gspca_dev, 0xc6, &DC29[2], 1);
-	reg_w(gspca_dev, 0xc7, &DC29[3], 1);
-	reg_w(gspca_dev, 0xc8, &DC29[4], 1);
-	reg_w(gspca_dev, 0xc9, &DC29[5], 1);
+	reg_w1(gspca_dev, 0x01, 0x44); */
+	reg_w1(gspca_dev, 0x15, sn9c1xx[0x15]);
+	reg_w1(gspca_dev, 0x16, sn9c1xx[0x16]);
+	reg_w1(gspca_dev, 0x12, sn9c1xx[0x12]);
+	reg_w1(gspca_dev, 0x13, sn9c1xx[0x13]);
+	reg_w1(gspca_dev, 0x18, sn9c1xx[0x18]);
+	reg_w1(gspca_dev, 0xd2, 0x6a);		/* DC29 */
+	reg_w1(gspca_dev, 0xd3, 0x50);
+	reg_w1(gspca_dev, 0xc6, 0x00);
+	reg_w1(gspca_dev, 0xc7, 0x00);
+	reg_w1(gspca_dev, 0xc8, 0x50);
+	reg_w1(gspca_dev, 0xc9, 0x3c);
 /*fixme:jfm end of ending sequence */
-	reg_w(gspca_dev, 0x18, &sn9c1xx[0x18], 1);
+	reg_w1(gspca_dev, 0x18, sn9c1xx[0x18]);
 	switch (sd->bridge) {
 	case BRIDGE_SN9C325:
 		data = 0xae;
@@ -1205,11 +1029,11 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		data = 0x60;
 		break;
 	}
-	reg_w(gspca_dev, 0x17, &data, 1);
-	reg_w(gspca_dev, 0x05, &sn9c1xx[5], 1);
-	reg_w(gspca_dev, 0x07, &sn9c1xx[7], 1);
-	reg_w(gspca_dev, 0x06, &sn9c1xx[6], 1);
-	reg_w(gspca_dev, 0x14, &sn9c1xx[0x14], 1);
+	reg_w1(gspca_dev, 0x17, data);
+	reg_w1(gspca_dev, 0x05, sn9c1xx[5]);
+	reg_w1(gspca_dev, 0x07, sn9c1xx[7]);
+	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);
+	reg_w1(gspca_dev, 0x14, sn9c1xx[0x14]);
 	switch (sd->bridge) {
 	case BRIDGE_SN9C325:
 		reg_w(gspca_dev, 0x20, regsn20_sn9c325,
@@ -1217,10 +1041,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		for (i = 0; i < 8; i++)
 			reg_w(gspca_dev, 0x84, reg84_sn9c325,
 					sizeof reg84_sn9c325);
-		data = 0x0a;
-		reg_w(gspca_dev, 0x9a, &data, 1);
-		data = 0x60;
-		reg_w(gspca_dev, 0x99, &data, 1);
+		reg_w1(gspca_dev, 0x9a, 0x0a);
+		reg_w1(gspca_dev, 0x99, 0x60);
 		break;
 	case BRIDGE_SN9C120:
 		reg_w(gspca_dev, 0x20, regsn20_sn9c120,
@@ -1233,39 +1055,30 @@ static void sd_start(struct gspca_dev *gspca_dev)
 					sizeof reg84_sn9c120_2);
 		reg_w(gspca_dev, 0x84, reg84_sn9c120_3,
 				sizeof reg84_sn9c120_3);
-		data = 0x05;
-		reg_w(gspca_dev, 0x9a, &data, 1);
-		data = 0x5b;
-		reg_w(gspca_dev, 0x99, &data, 1);
+		reg_w1(gspca_dev, 0x9a, 0x05);
+		reg_w1(gspca_dev, 0x99, 0x5b);
 		break;
 	default:
 		reg_w(gspca_dev, 0x20, regsn20, sizeof regsn20);
 		for (i = 0; i < 8; i++)
 			reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
-		data = 0x08;
-		reg_w(gspca_dev, 0x9a, &data, 1);
-		data = 0x59;
-		reg_w(gspca_dev, 0x99, &data, 1);
+		reg_w1(gspca_dev, 0x9a, 0x08);
+		reg_w1(gspca_dev, 0x99, 0x59);
 		break;
 	}
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
-	reg1 = 0x02;
+	if (mode)
+		reg1 = 0x46;	/* 320 clk 48Mhz */
+	else
+		reg1 = 0x06;	/* 640 clk 24Mz */
 	reg17 = 0x61;
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
 		hv7131R_InitSensor(gspca_dev);
-		if (mode)
-			reg1 = 0x46;	/* 320 clk 48Mhz */
-		else
-			reg1 = 0x06;	/* 640 clk 24Mz */
 		break;
 	case SENSOR_MI0360:
 		mi0360_InitSensor(gspca_dev);
-		if (mode)
-			reg1 = 0x46;	/* 320 clk 48Mhz */
-		else
-			reg1 = 0x06;	/* 640 clk 24Mz */
 		break;
 	case SENSOR_MO4000:
 		mo4000_InitSensor(gspca_dev);
@@ -1274,13 +1087,13 @@ static void sd_start(struct gspca_dev *gspca_dev)
 			reg1 = 0x06;	/* clk 24Mz */
 		} else {
 			reg17 = 0x22;	/* 640 MCKSIZE */
-			reg1 = 0x06;	/* 640 clk 24Mz */
+/*			reg1 = 0x06;	 * 640 clk 24Mz (done) */
 		}
 		break;
 	case SENSOR_OV7648:
+		ov7648_InitSensor(gspca_dev);
 		reg17 = 0xa2;
 		reg1 = 0x44;
-		ov7648_InitSensor(gspca_dev);
 /*		if (mode)
 			;		 * 320x2...
 		else
@@ -1292,7 +1105,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		if (mode) {
 /*			reg17 = 0x21;	 * 320 */
 /*			reg1 = 0x44; */
-			reg1 = 0x46;
+/*			reg1 = 0x46;	(done) */
 		} else {
 			reg17 = 0xa2;	/* 640 */
 			reg1 = 0x40;
@@ -1321,16 +1134,16 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 	/* here change size mode 0 -> VGA; 1 -> CIF */
 	data = 0x40 | sn9c1xx[0x18] | (mode << 4);
-	reg_w(gspca_dev, 0x18, &data, 1);
+	reg_w1(gspca_dev, 0x18, data);
 
 	reg_w(gspca_dev, 0x100, qtable4, 0x40);
 	reg_w(gspca_dev, 0x140, qtable4 + 0x40, 0x40);
 
 	data = sn9c1xx[0x18] | (mode << 4);
-	reg_w(gspca_dev, 0x18, &data, 1);
+	reg_w1(gspca_dev, 0x18, data);
 
-	reg_w(gspca_dev, 0x17, &reg17, 1);
-	reg_w(gspca_dev, 0x01, &reg1, 1);
+	reg_w1(gspca_dev, 0x17, reg17);
+	reg_w1(gspca_dev, 0x01, reg1);
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
 }
@@ -1342,7 +1155,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		{ 0xa1, 0x11, 0x02, 0x09, 0x00, 0x00, 0x00, 0x10 };
 	static const __u8 stopmi0360[] =
 		{ 0xb1, 0x5d, 0x07, 0x00, 0x00, 0x00, 0x00, 0x10 };
-	__u8 regF1;
 	__u8 data;
 	const __u8 *sn9c1xx;
 
@@ -1366,12 +1178,11 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		break;
 	}
 	sn9c1xx = sn_tb[(int) sd->sensor];
-	reg_w(gspca_dev, 0x01, &sn9c1xx[1], 1);
-	reg_w(gspca_dev, 0x17, &sn9c1xx[0x17], 1);
-	reg_w(gspca_dev, 0x01, &sn9c1xx[1], 1);
-	reg_w(gspca_dev, 0x01, &data, 1);
-	regF1 = 0x01;
-	reg_w(gspca_dev, 0xf1, &regF1, 1);
+	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
+	reg_w1(gspca_dev, 0x17, sn9c1xx[0x17]);
+	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
+	reg_w1(gspca_dev, 0x01, data);
+	reg_w1(gspca_dev, 0xf1, 0x01);
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -1610,30 +1421,53 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
+#define BSI(bridge, sensor, i2c_addr) \
+	.driver_info = (BRIDGE_ ## bridge << 16) \
+			| (SENSOR_ ## sensor << 8) \
+			| (i2c_addr)
 static const __devinitdata struct usb_device_id device_table[] = {
 #ifndef CONFIG_USB_SN9C102
-	{USB_DEVICE(0x0458, 0x7025), DVNM("Genius Eye 311Q")},
-	{USB_DEVICE(0x045e, 0x00f5), DVNM("MicroSoft VX3000")},
-	{USB_DEVICE(0x045e, 0x00f7), DVNM("MicroSoft VX1000")},
-	{USB_DEVICE(0x0471, 0x0327), DVNM("Philips SPC 600 NC")},
-	{USB_DEVICE(0x0471, 0x0328), DVNM("Philips SPC 700 NC")},
+	{USB_DEVICE(0x0458, 0x7025), BSI(SN9C120, MI0360, 0x5d)},
+	{USB_DEVICE(0x045e, 0x00f5), BSI(SN9C105, OV7660, 0x21)},
+	{USB_DEVICE(0x045e, 0x00f7), BSI(SN9C105, OV7660, 0x21)},
+	{USB_DEVICE(0x0471, 0x0327), BSI(SN9C105, MI0360, 0x5d)},
+	{USB_DEVICE(0x0471, 0x0328), BSI(SN9C105, MI0360, 0x5d)},
 #endif
-	{USB_DEVICE(0x0471, 0x0330), DVNM("Philips SPC 710NC")},
-	{USB_DEVICE(0x0c45, 0x6040), DVNM("Speed NVC 350K")},
-	{USB_DEVICE(0x0c45, 0x607c), DVNM("Sonix sn9c102p Hv7131R")},
-	{USB_DEVICE(0x0c45, 0x60c0), DVNM("Sangha Sn535")},
-	{USB_DEVICE(0x0c45, 0x60ec), DVNM("SN9C105+MO4000")},
-	{USB_DEVICE(0x0c45, 0x60fb), DVNM("Surfer NoName")},
-	{USB_DEVICE(0x0c45, 0x60fc), DVNM("LG-LIC300")},
-	{USB_DEVICE(0x0c45, 0x612a), DVNM("Avant Camera")},
-	{USB_DEVICE(0x0c45, 0x612c), DVNM("Typhoon Rasy Cam 1.3MPix")},
+	{USB_DEVICE(0x0471, 0x0330), BSI(SN9C105, MI0360, 0x5d)},
+	{USB_DEVICE(0x0c45, 0x6040), BSI(SN9C102P, HV7131R, 0x11)},
+/* bw600.inf:
+	{USB_DEVICE(0x0c45, 0x6040), BSI(SN9C102P, MI0360, 0x5d)}, */
+/*	{USB_DEVICE(0x0c45, 0x603a), BSI(SN9C102P, OV7648, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x607a), BSI(SN9C102P, OV7648, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x607c), BSI(SN9C102P, HV7131R, 0x11)},
+/*	{USB_DEVICE(0x0c45, 0x607e), BSI(SN9C102P, OV7630, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x60c0), BSI(SN9C105, MI0360, 0x5d)},
+/*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6801, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x60cc), BSI(SN9C105, HV7131GP, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x60ec), BSI(SN9C105, MO4000, 0x21)},
+/*	{USB_DEVICE(0x0c45, 0x60ef), BSI(SN9C105, ICM105C, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x60fa), BSI(SN9C105, OV7648, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x60fb), BSI(SN9C105, OV7660, 0x21)},
+	{USB_DEVICE(0x0c45, 0x60fc), BSI(SN9C105, HV7131R, 0x11)},
+/*	{USB_DEVICE(0x0c45, 0x60fe), BSI(SN9C105, OV7630, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x6108), BSI(SN9C120, OM6801, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x6122), BSI(SN9C110, ICM105C, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x6123), BSI(SN9C110, SanyoCCD, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x612a), BSI(SN9C325, OV7648, 0x21)},
+/* bw600.inf:
+	{USB_DEVICE(0x0c45, 0x612a), BSI(SN9C110, OV7648, 0x21)}, */
+	{USB_DEVICE(0x0c45, 0x612c), BSI(SN9C110, MO4000, 0x21)},
+/*	{USB_DEVICE(0x0c45, 0x612e), BSI(SN9C110, OV7630, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x612f), BSI(SN9C110, ICM105C, 0x??)}, */
 #ifndef CONFIG_USB_SN9C102
-	{USB_DEVICE(0x0c45, 0x6130), DVNM("Sonix Pccam")},
-	{USB_DEVICE(0x0c45, 0x6138), DVNM("Sn9c120 Mo4000")},
-	{USB_DEVICE(0x0c45, 0x613b), DVNM("Surfer SN-206")},
-	{USB_DEVICE(0x0c45, 0x613c), DVNM("Sonix Pccam168")},
+	{USB_DEVICE(0x0c45, 0x6130), BSI(SN9C120, MI0360, 0x5d)},
+	{USB_DEVICE(0x0c45, 0x6138), BSI(SN9C120, MO4000, 0x21)},
+/*	{USB_DEVICE(0x0c45, 0x613a), BSI(SN9C120, OV7648, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x613b), BSI(SN9C120, OV7660, 0x21)},
+	{USB_DEVICE(0x0c45, 0x613c), BSI(SN9C120, HV7131R, 0x11)},
+/*	{USB_DEVICE(0x0c45, 0x613e), BSI(SN9C120, OV7630, 0x??)}, */
 #endif
+	{USB_DEVICE(0x0c45, 0x6143), BSI(SN9C120, MI0360, 0x5d)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -1658,7 +1492,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	info("v%s registered", version);
+	info("registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

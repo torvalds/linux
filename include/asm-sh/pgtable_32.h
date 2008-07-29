@@ -102,7 +102,9 @@
 #define _PAGE_FLAGS_HARDWARE_MASK	(PHYS_ADDR_MASK & ~(_PAGE_CLEAR_FLAGS))
 
 /* Hardware flags, page size encoding */
-#if defined(CONFIG_X2TLB)
+#if !defined(CONFIG_MMU)
+# define _PAGE_FLAGS_HARD	0ULL
+#elif defined(CONFIG_X2TLB)
 # if defined(CONFIG_PAGE_SIZE_4KB)
 #  define _PAGE_FLAGS_HARD	_PAGE_EXT(_PAGE_EXT_ESZ0)
 # elif defined(CONFIG_PAGE_SIZE_8KB)

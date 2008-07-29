@@ -461,7 +461,6 @@ static int apply_microcode_check_cpu(int cpu)
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	cpumask_t old;
-	cpumask_of_cpu_ptr(newmask, cpu);
 	unsigned int val[2];
 	int err = 0;
 
@@ -470,7 +469,7 @@ static int apply_microcode_check_cpu(int cpu)
 		return 0;
 
 	old = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, newmask);
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 
 	/* Check if the microcode we have in memory matches the CPU */
 	if (c->x86_vendor != X86_VENDOR_INTEL || c->x86 < 6 ||
