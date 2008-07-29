@@ -3299,6 +3299,7 @@ void ieee80211_start_mesh(struct net_device *dev)
 	ifsta = &sdata->u.sta;
 	ifsta->state = IEEE80211_MESH_UP;
 	ieee80211_sta_timer((unsigned long)sdata);
+	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
 }
 #endif
 
