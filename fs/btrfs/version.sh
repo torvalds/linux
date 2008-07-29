@@ -6,10 +6,10 @@
 # Copyright 2008, Oracle
 # Released under the GNU GPLv2
  
-v="Btrfs v0.15"
+v="v0.15"
 
 which hg > /dev/null
-if [ $? == 0 ]; then
+if [ -d .hg ] && [ $? == 0 ]; then
 	last=$(hg tags | grep -m1 -o '^v[0-9.]\+')
 	 
 	# now check if the repo has commits since then...
