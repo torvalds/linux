@@ -214,6 +214,13 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 */
 	target->thread.xstate->fxsave.mxcsr &= mxcsr_feature_mask;
 
+	/*
+	 * update the header bits in the xsave header, indicating the
+	 * presence of FP and SSE state.
+	 */
+	if (cpu_has_xsave)
+		target->thread.xstate->xsave.xsave_hdr.xstate_bv |= XSTATE_FPSSE;
+
 	return ret;
 }
 
@@ -414,6 +421,12 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!ret)
 		convert_to_fxsr(target, &env);
 
+	/*
+	 * update the header bit in the xsave header, indicating the
+	 * presence of FP.
+	 */
+	if (cpu_has_xsave)
+		target->thread.xstate->xsave.xsave_hdr.xstate_bv |= XSTATE_FP;
 	return ret;
 }
 
