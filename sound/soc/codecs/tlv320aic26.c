@@ -418,7 +418,7 @@ static ssize_t aic26_keyclick_set(struct device *dev,
 	return count;
 }
 
-DEVICE_ATTR(keyclick, 0644, aic26_keyclick_show, aic26_keyclick_set);
+static DEVICE_ATTR(keyclick, 0644, aic26_keyclick_show, aic26_keyclick_set);
 
 /* ---------------------------------------------------------------------
  * SPI device portion of driver: probe and release routines and SPI
