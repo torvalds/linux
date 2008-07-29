@@ -91,7 +91,6 @@ LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64+4'
 LDFLAGS			+= -EB
 endif
 
-
 head-y			:= arch/sh/kernel/init_task.o
 head-$(CONFIG_SUPERH32)	+= arch/sh/kernel/head_32.o
 head-$(CONFIG_SUPERH64)	+= arch/sh/kernel/head_64.o
@@ -134,11 +133,22 @@ endif
 # Companion chips
 core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/
 
-cpuincdir-$(CONFIG_CPU_SH2)	:= cpu-sh2
-cpuincdir-$(CONFIG_CPU_SH2A)	:= cpu-sh2a
-cpuincdir-$(CONFIG_CPU_SH3)	:= cpu-sh3
-cpuincdir-$(CONFIG_CPU_SH4)	:= cpu-sh4
-cpuincdir-$(CONFIG_CPU_SH5)	:= cpu-sh5
+#
+# CPU header paths
+#
+# These are ordered by optimization level. A CPU family that is a subset
+# of another (ie, SH-2A / SH-2), is picked up first, with increasing
+# levels of genericness if nothing more suitable is situated in the
+# hierarchy.
+#
+# As an example, in order of preference, SH-2A > SH-2 > common definitions.
+#
+cpuincdir-$(CONFIG_CPU_SH2A)	+= cpu-sh2a
+cpuincdir-$(CONFIG_CPU_SH2)	+= cpu-sh2
+cpuincdir-$(CONFIG_CPU_SH3)	+= cpu-sh3
+cpuincdir-$(CONFIG_CPU_SH4)	+= cpu-sh4
+cpuincdir-$(CONFIG_CPU_SH5)	+= cpu-sh5
+cpuincdir-y			+= cpu-common	# Must be last
 
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
 libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
@@ -149,8 +159,8 @@ drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 
 boot := arch/sh/boot
 
-cflags-y	+= -Iarch/sh/include/$(cpuincdir-y)
-cflags-y	+= $(foreach d, $(machdir-y), -Iarch/sh/include/$(d))
+cflags-y	+= $(foreach d, $(cpuincdir-y), -Iarch/sh/include/$(d)) \
+		   $(foreach d, $(machdir-y), -Iarch/sh/include/$(d))
 
 KBUILD_CFLAGS		+= -pipe $(cflags-y)
 KBUILD_CPPFLAGS		+= $(cflags-y)

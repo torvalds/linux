@@ -10,7 +10,7 @@
 #ifndef __ASM_CPU_SH2_CACHEFLUSH_H
 #define __ASM_CPU_SH2_CACHEFLUSH_H
 
-/* 
+/*
  * Cache flushing:
  *
  *  - flush_cache_all() flushes entire cache
@@ -40,5 +40,5 @@
 #define flush_cache_sigtramp(vaddr)		do { } while (0)
 
 #define p3_cache_init()				do { } while (0)
-#endif /* __ASM_CPU_SH2_CACHEFLUSH_H */
 
+#endif /* __ASM_CPU_SH2_CACHEFLUSH_H */
