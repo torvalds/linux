@@ -46,7 +46,7 @@ const char * const x86_cap_flags[NCAPINTS*32] = {
 	"pni", NULL, NULL, "monitor", "ds_cpl", "vmx", "smx", "est",
 	"tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
 	NULL, NULL, "dca", "sse4_1", "sse4_2", "x2apic", NULL, "popcnt",
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, "xsave", NULL, NULL, NULL, NULL, NULL,
 
 	/* VIA/Cyrix/Centaur-defined */
 	NULL, NULL, "rng", "rng_en", NULL, NULL, "ace", "ace_en",
