@@ -77,8 +77,9 @@ struct __large_struct { unsigned long buf[100]; };
 ({								\
 	long __pu_err;						\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
+	__typeof__(*(ptr)) __pu_val = x;			\
 	__chk_user_ptr(ptr);					\
-	__put_user_size((x), __pu_addr, (size), __pu_err);	\
+	__put_user_size(__pu_val, __pu_addr, (size), __pu_err);	\
 	__pu_err;						\
 })
 
@@ -86,8 +87,9 @@ struct __large_struct { unsigned long buf[100]; };
 ({								\
 	long __pu_err = -EFAULT;				\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
+	__typeof__(*(ptr)) __pu_val = x;			\
 	if (likely(access_ok(VERIFY_WRITE, __pu_addr, size)))	\
-		__put_user_size((x), __pu_addr, (size),		\
+		__put_user_size(__pu_val, __pu_addr, (size),	\
 				__pu_err);			\
 	__pu_err;						\
 })
