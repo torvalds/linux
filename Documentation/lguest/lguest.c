@@ -191,6 +191,9 @@ static void *_convert(struct iovec *iov, size_t size, size_t align,
 	return iov->iov_base;
 }
 
+/* Wrapper for the last available index.  Makes it easier to change. */
+#define lg_last_avail(vq)	((vq)->last_avail_idx)
+
 /* The virtio configuration space is defined to be little-endian.  x86 is
  * little-endian too, but it's nice to be explicit so we have these helpers. */
 #define cpu_to_le16(v16) (v16)
@@ -690,19 +693,22 @@ static unsigned get_vq_desc(struct virtqueue *vq,
 			    unsigned int *out_num, unsigned int *in_num)
 {
 	unsigned int i, head;
+	u16 last_avail;
 
 	/* Check it isn't doing very strange things with descriptor numbers. */
-	if ((u16)(vq->vring.avail->idx - vq->last_avail_idx) > vq->vring.num)
+	last_avail = lg_last_avail(vq);
+	if ((u16)(vq->vring.avail->idx - last_avail) > vq->vring.num)
 		errx(1, "Guest moved used index from %u to %u",
-		     vq->last_avail_idx, vq->vring.avail->idx);
+		     last_avail, vq->vring.avail->idx);
 
 	/* If there's nothing new since last we looked, return invalid. */
-	if (vq->vring.avail->idx == vq->last_avail_idx)
+	if (vq->vring.avail->idx == last_avail)
 		return vq->vring.num;
 
 	/* Grab the next descriptor number they're advertising, and increment
 	 * the index we've seen. */
-	head = vq->vring.avail->ring[vq->last_avail_idx++ % vq->vring.num];
+	head = vq->vring.avail->ring[last_avail % vq->vring.num];
+	lg_last_avail(vq)++;
 
 	/* If their number is silly, that's a fatal mistake. */
 	if (head >= vq->vring.num)
@@ -980,7 +986,7 @@ static void update_device_status(struct device *dev)
 		for (vq = dev->vq; vq; vq = vq->next) {
 			memset(vq->vring.desc, 0,
 			       vring_size(vq->config.num, getpagesize()));
-			vq->last_avail_idx = 0;
+			lg_last_avail(vq) = 0;
 		}
 	} else if (dev->desc->status & VIRTIO_CONFIG_S_FAILED) {
 		warnx("Device %s configuration FAILED", dev->name);
