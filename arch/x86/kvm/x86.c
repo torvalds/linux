@@ -883,6 +883,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PIT:
 	case KVM_CAP_NOP_IO_DELAY:
 	case KVM_CAP_MP_STATE:
+	case KVM_CAP_SYNC_MMU:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
