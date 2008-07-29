@@ -42,7 +42,7 @@ static int snd_pcm_dev_free(struct snd_device *device);
 static int snd_pcm_dev_register(struct snd_device *device);
 static int snd_pcm_dev_disconnect(struct snd_device *device);
 
-static struct snd_pcm *snd_pcm_search(struct snd_card *card, int device)
+static inline struct snd_pcm *snd_pcm_get(struct snd_card *card, int device)
 {
 	struct snd_pcm *pcm;
 
@@ -51,6 +51,37 @@ static struct snd_pcm *snd_pcm_search(struct snd_card *card, int device)
 			return pcm;
 	}
 	return NULL;
+}
+
+static inline int snd_pcm_next(struct snd_card *card, int device)
+{
+	struct snd_pcm *pcm;
+
+	list_for_each_entry(pcm, &snd_pcm_devices, list) {
+		if (pcm->card == card && pcm->device > device)
+			return pcm->device;
+		else if (pcm->card->number > card->number)
+			return -1;
+	}
+	return -1;
+}
+
+static inline int snd_pcm_add(struct snd_pcm *newpcm)
+{
+	struct snd_pcm *pcm;
+
+	list_for_each_entry(pcm, &snd_pcm_devices, list) {
+		if (pcm->card == newpcm->card && pcm->device == newpcm->device)
+			return -EBUSY;
+		if (pcm->card->number > newpcm->card->number ||
+				(pcm->card == newpcm->card &&
+				pcm->device > newpcm->device)) {
+			list_add(&newpcm->list, pcm->list.prev);
+			return 0;
+		}
+	}
+	list_add_tail(&newpcm->list, &snd_pcm_devices);
+	return 0;
 }
 
 static int snd_pcm_control_ioctl(struct snd_card *card,
@@ -65,14 +96,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 			if (get_user(device, (int __user *)arg))
 				return -EFAULT;
 			mutex_lock(&register_mutex);
-			device = device < 0 ? 0 : device + 1;
-			while (device < SNDRV_PCM_DEVICES) {
-				if (snd_pcm_search(card, device))
-					break;
-				device++;
-			}
-			if (device == SNDRV_PCM_DEVICES)
-				device = -1;
+			device = snd_pcm_next(card, device);
 			mutex_unlock(&register_mutex);
 			if (put_user(device, (int __user *)arg))
 				return -EFAULT;
@@ -98,7 +122,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 			if (get_user(subdevice, &info->subdevice))
 				return -EFAULT;
 			mutex_lock(&register_mutex);
-			pcm = snd_pcm_search(card, device);
+			pcm = snd_pcm_get(card, device);
 			if (pcm == NULL) {
 				err = -ENXIO;
 				goto _error;
@@ -931,11 +955,11 @@ static int snd_pcm_dev_register(struct snd_device *device)
 
 	snd_assert(pcm != NULL && device != NULL, return -ENXIO);
 	mutex_lock(&register_mutex);
-	if (snd_pcm_search(pcm->card, pcm->device)) {
+	err = snd_pcm_add(pcm);
+	if (err) {
 		mutex_unlock(&register_mutex);
-		return -EBUSY;
+		return err;
 	}
-	list_add_tail(&pcm->list, &snd_pcm_devices);
 	for (cidx = 0; cidx < 2; cidx++) {
 		int devtype = -1;
 		if (pcm->streams[cidx].substream == NULL)
