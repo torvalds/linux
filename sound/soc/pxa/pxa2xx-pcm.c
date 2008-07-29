@@ -330,7 +330,7 @@ static void pxa2xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 
 static u64 pxa2xx_pcm_dmamask = DMA_32BIT_MASK;
 
-int pxa2xx_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
+static int pxa2xx_soc_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 	struct snd_pcm *pcm)
 {
 	int ret = 0;
@@ -360,7 +360,7 @@ int pxa2xx_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 struct snd_soc_platform pxa2xx_soc_platform = {
 	.name		= "pxa2xx-audio",
 	.pcm_ops 	= &pxa2xx_pcm_ops,
-	.pcm_new	= pxa2xx_pcm_new,
+	.pcm_new	= pxa2xx_soc_pcm_new,
 	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
 };
 EXPORT_SYMBOL_GPL(pxa2xx_soc_platform);
