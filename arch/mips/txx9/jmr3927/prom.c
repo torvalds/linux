@@ -41,22 +41,6 @@
 #include <asm/txx9/generic.h>
 #include <asm/txx9/jmr3927.h>
 
-#define TIMEOUT       0xffffff
-
-void
-prom_putchar(char c)
-{
-        int i = 0;
-
-        do {
-            i++;
-            if (i>TIMEOUT)
-                break;
-        } while (!(tx3927_sioptr(1)->cisr & TXx927_SICISR_TXALS));
-	tx3927_sioptr(1)->tfifo = c;
-	return;
-}
-
 void __init jmr3927_prom_init(void)
 {
 	/* CCFG */
@@ -65,4 +49,5 @@ void __init jmr3927_prom_init(void)
 
 	prom_init_cmdline();
 	add_memory_region(0, JMR3927_SDRAM_SIZE, BOOT_MEM_RAM);
+	txx9_sio_putchar_init(TX3927_SIO_REG(1));
 }

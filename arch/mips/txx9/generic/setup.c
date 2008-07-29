@@ -271,6 +271,37 @@ void __init txx9_sio_init(unsigned long baseaddr, int irq,
 #endif /* CONFIG_SERIAL_TXX9 */
 }
 
+#ifdef CONFIG_EARLY_PRINTK
+static void __init null_prom_putchar(char c)
+{
+}
+void (*txx9_prom_putchar)(char c) __initdata = null_prom_putchar;
+
+void __init prom_putchar(char c)
+{
+	txx9_prom_putchar(c);
+}
+
+static void __iomem *early_txx9_sio_port;
+
+static void __init early_txx9_sio_putchar(char c)
+{
+#define TXX9_SICISR	0x0c
+#define TXX9_SITFIFO	0x1c
+#define TXX9_SICISR_TXALS	0x00000002
+	while (!(__raw_readl(early_txx9_sio_port + TXX9_SICISR) &
+		 TXX9_SICISR_TXALS))
+		;
+	__raw_writel(c, early_txx9_sio_port + TXX9_SITFIFO);
+}
+
+void __init txx9_sio_putchar_init(unsigned long baseaddr)
+{
+	early_txx9_sio_port = ioremap(baseaddr, 0x24);
+	txx9_prom_putchar = early_txx9_sio_putchar;
+}
+#endif /* CONFIG_EARLY_PRINTK */
+
 /* wrappers */
 void __init plat_mem_setup(void)
 {
