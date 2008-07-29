@@ -106,11 +106,11 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 		int val;
 		struct soc_mixer_control *mc = (struct soc_mixer_control *)
 			w->kcontrols[i].private_value;
-		uint reg = mc->reg;
-		uint shift = mc->shift;
+		unsigned int reg = mc->reg;
+		unsigned int shift = mc->shift;
 		int max = mc->max;
-		uint mask = (1 << fls(max)) - 1;
-		uint invert = mc->invert;
+		unsigned int mask = (1 << fls(max)) - 1;
+		unsigned int invert = mc->invert;
 
 		val = snd_soc_read(w->codec, reg);
 		val = (val >> shift) & mask;
@@ -252,11 +252,11 @@ static int dapm_set_pga(struct snd_soc_dapm_widget *widget, int power)
 	if (widget->num_kcontrols && k) {
 		struct soc_mixer_control *mc =
 			(struct soc_mixer_control *)k->private_value;
-		uint reg = mc->reg;
-		uint shift = mc->shift;
+		unsigned int reg = mc->reg;
+		unsigned int shift = mc->shift;
 		int max = mc->max;
-		uint mask = (1 << fls(max)) - 1;
-		uint invert = mc->invert;
+		unsigned int mask = (1 << fls(max)) - 1;
+		unsigned int invert = mc->invert;
 
 		if (power) {
 			int i;
@@ -1141,12 +1141,12 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	uint reg = mc->reg;
-	uint shift = mc->shift;
-	uint rshift = mc->rshift;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int rshift = mc->rshift;
 	int max = mc->max;
-	uint invert = mc->invert;
-	uint mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
+	unsigned int mask = (1 << fls(max)) - 1;
 
 	/* return the saved value if we are powered down */
 	if (widget->id == snd_soc_dapm_pga && !widget->power) {
@@ -1186,12 +1186,12 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	uint reg = mc->reg;
-	uint shift = mc->shift;
-	uint rshift = mc->rshift;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int rshift = mc->rshift;
 	int max = mc->max;
-	uint mask = (1 << fls(max)) - 1;
-	uint invert = mc->invert;
+	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
 	unsigned short val, val2, val_mask;
 	int ret;
 

@@ -1457,8 +1457,8 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int max = mc->max;
-	uint shift = mc->min;
-	uint rshift = mc->rshift;
+	unsigned int shift = mc->min;
+	unsigned int rshift = mc->rshift;
 
 	if (max == 1)
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
@@ -1487,12 +1487,12 @@ int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	uint reg = mc->reg;
-	uint shift = mc->shift;
-	uint rshift = mc->rshift;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int rshift = mc->rshift;
 	int max = mc->max;
-	uint mask = (1 << fls(max)) - 1;
-	uint invert = mc->invert;
+	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
 
 	ucontrol->value.integer.value[0] =
 		(snd_soc_read(codec, reg) >> shift) & mask;
@@ -1526,12 +1526,12 @@ int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	uint reg = mc->reg;
-	uint shift = mc->shift;
-	uint rshift = mc->rshift;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int rshift = mc->rshift;
 	int max = mc->max;
-	uint mask = (1 << fls(max)) - 1;
-	uint invert = mc->invert;
+	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
 	unsigned short val, val2, val_mask;
 
 	val = (ucontrol->value.integer.value[0] & mask);
@@ -1594,12 +1594,12 @@ int snd_soc_get_volsw_2r(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	uint reg = mc->reg;
-	uint reg2 = mc->rreg;
-	uint shift = mc->shift;
+	unsigned int reg = mc->reg;
+	unsigned int reg2 = mc->rreg;
+	unsigned int shift = mc->shift;
 	int max = mc->max;
-	uint mask = (1<<fls(max))-1;
-	uint invert = mc->invert;
+	unsigned int mask = (1<<fls(max))-1;
+	unsigned int invert = mc->invert;
 
 	ucontrol->value.integer.value[0] =
 		(snd_soc_read(codec, reg) >> shift) & mask;
@@ -1631,12 +1631,12 @@ int snd_soc_put_volsw_2r(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	uint reg = mc->reg;
-	uint reg2 = mc->rreg;
-	uint shift = mc->shift;
+	unsigned int reg = mc->reg;
+	unsigned int reg2 = mc->rreg;
+	unsigned int shift = mc->shift;
 	int max = mc->max;
-	uint mask = (1 << fls(max)) - 1;
-	uint invert = mc->invert;
+	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
 	int err;
 	unsigned short val, val2, val_mask;
 
@@ -1701,7 +1701,7 @@ int snd_soc_get_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	uint reg = mc->reg;
+	unsigned int reg = mc->reg;
 	int min = mc->min;
 	int val = snd_soc_read(codec, reg);
 
@@ -1728,7 +1728,7 @@ int snd_soc_put_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	uint reg = mc->reg;
+	unsigned int reg = mc->reg;
 	int min = mc->min;
 	unsigned short val;
 
