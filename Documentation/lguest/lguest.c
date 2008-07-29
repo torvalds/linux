@@ -967,8 +967,6 @@ static bool handle_tun_input(int fd, struct device *dev)
 		 * early, the Guest won't be ready yet.  Wait until the device
 		 * status says it's ready. */
 		/* FIXME: Actually want DRIVER_ACTIVE here. */
-		if (dev->desc->status & VIRTIO_CONFIG_S_DRIVER_OK)
-			warn("network: no dma buffer!");
 
 		/* Now tell it we want to know if new things appear. */
 		dev->vq->vring.used->flags &= ~VRING_USED_F_NO_NOTIFY;
