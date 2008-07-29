@@ -522,6 +522,7 @@ int usb_unlink_urb(struct urb *urb)
 }
 EXPORT_SYMBOL_GPL(usb_unlink_urb);
 
+static DEFINE_MUTEX(usb_reject_mutex);
 /**
  * usb_kill_urb - cancel a transfer request and wait for it to finish
  * @urb: pointer to URB describing a previously submitted request,
@@ -544,23 +545,66 @@ EXPORT_SYMBOL_GPL(usb_unlink_urb);
  */
 void usb_kill_urb(struct urb *urb)
 {
-	static DEFINE_MUTEX(reject_mutex);
-
 	might_sleep();
 	if (!(urb && urb->dev && urb->ep))
 		return;
-	mutex_lock(&reject_mutex);
+	mutex_lock(&usb_reject_mutex);
 	++urb->reject;
-	mutex_unlock(&reject_mutex);
+	mutex_unlock(&usb_reject_mutex);
 
 	usb_hcd_unlink_urb(urb, -ENOENT);
 	wait_event(usb_kill_urb_queue, atomic_read(&urb->use_count) == 0);
 
-	mutex_lock(&reject_mutex);
+	mutex_lock(&usb_reject_mutex);
 	--urb->reject;
-	mutex_unlock(&reject_mutex);
+	mutex_unlock(&usb_reject_mutex);
 }
 EXPORT_SYMBOL_GPL(usb_kill_urb);
+
+/**
+ * usb_poison_urb - reliably kill a transfer and prevent further use of an URB
+ * @urb: pointer to URB describing a previously submitted request,
+ *	may be NULL
+ *
+ * This routine cancels an in-progress request.  It is guaranteed that
+ * upon return all completion handlers will have finished and the URB
+ * will be totally idle and cannot be reused.  These features make
+ * this an ideal way to stop I/O in a disconnect() callback.
+ * If the request has not already finished or been unlinked
+ * the completion handler will see urb->status == -ENOENT.
+ *
+ * After and while the routine runs, attempts to resubmit the URB will fail
+ * with error -EPERM.  Thus even if the URB's completion handler always
+ * tries to resubmit, it will not succeed and the URB will become idle.
+ *
+ * This routine may not be used in an interrupt context (such as a bottom
+ * half or a completion handler), or when holding a spinlock, or in other
+ * situations where the caller can't schedule().
+ */
+void usb_poison_urb(struct urb *urb)
+{
+	might_sleep();
+	if (!(urb && urb->dev && urb->ep))
+		return;
+	mutex_lock(&usb_reject_mutex);
+	++urb->reject;
+	mutex_unlock(&usb_reject_mutex);
+
+	usb_hcd_unlink_urb(urb, -ENOENT);
+	wait_event(usb_kill_urb_queue, atomic_read(&urb->use_count) == 0);
+}
+EXPORT_SYMBOL_GPL(usb_poison_urb);
+
+void usb_unpoison_urb(struct urb *urb)
+{
+	if (!urb)
+		return;
+
+	mutex_lock(&usb_reject_mutex);
+	--urb->reject;
+	mutex_unlock(&usb_reject_mutex);
+}
+EXPORT_SYMBOL_GPL(usb_unpoison_urb);
 
 /**
  * usb_kill_anchored_urbs - cancel transfer requests en masse
