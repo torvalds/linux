@@ -84,7 +84,7 @@ static int i915_dma_cleanup(struct drm_device * dev)
 	 * may not have been called from userspace and after dev_private
 	 * is freed, it's too late.
 	 */
-	if (dev->irq)
+	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
 	if (dev_priv->ring.virtual_start) {
@@ -644,7 +644,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 
 	switch (param->param) {
 	case I915_PARAM_IRQ_ACTIVE:
-		value = dev->irq ? 1 : 0;
+		value = dev->irq_enabled;
 		break;
 	case I915_PARAM_ALLOW_BATCHBUFFER:
 		value = dev_priv->allow_batchbuffer ? 1 : 0;
@@ -763,12 +763,29 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	ret = drm_addmap(dev, base, size, _DRM_REGISTERS,
 			 _DRM_KERNEL | _DRM_DRIVER,
 			 &dev_priv->mmio_map);
+
+
+	/* On the 945G/GM, the chipset reports the MSI capability on the
+	 * integrated graphics even though the support isn't actually there
+	 * according to the published specs.  It doesn't appear to function
+	 * correctly in testing on 945G.
+	 * This may be a side effect of MSI having been made available for PEG
+	 * and the registers being closely associated.
+	 */
+	if (!IS_I945G(dev) && !IS_I945GM(dev))
+		pci_enable_msi(dev->pdev);
+
+	spin_lock_init(&dev_priv->user_irq_lock);
+
 	return ret;
 }
 
 int i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev->pdev->msi_enabled)
+		pci_disable_msi(dev->pdev);
 
 	if (dev_priv->mmio_map)
 		drm_rmmap(dev, dev_priv->mmio_map);
