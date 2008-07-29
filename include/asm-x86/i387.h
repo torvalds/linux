@@ -36,6 +36,8 @@ extern int save_i387_ia32(struct _fpstate_ia32 __user *buf);
 extern int restore_i387_ia32(struct _fpstate_ia32 __user *buf);
 #endif
 
+#define X87_FSW_ES (1 << 7)	/* Exception Summary */
+
 #ifdef CONFIG_X86_64
 
 /* Ignore delayed exceptions from user space */
@@ -46,7 +48,7 @@ static inline void tolerant_fwait(void)
 		     _ASM_EXTABLE(1b, 2b));
 }
 
-static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
+static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
 {
 	int err;
 
@@ -66,15 +68,31 @@ static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
 	return err;
 }
 
-#define X87_FSW_ES (1 << 7)	/* Exception Summary */
+static inline int restore_fpu_checking(struct task_struct *tsk)
+{
+	if (task_thread_info(tsk)->status & TS_XSAVE)
+		return xrstor_checking(&tsk->thread.xstate->xsave);
+	else
+		return fxrstor_checking(&tsk->thread.xstate->fxsave);
+}
 
 /* AMD CPUs don't save/restore FDP/FIP/FOP unless an exception
    is pending. Clear the x87 state here by setting it to fixed
    values. The kernel data segment can be sometimes 0 and sometimes
    new user value. Both should be ok.
    Use the PDA as safe address because it should be already in L1. */
-static inline void clear_fpu_state(struct i387_fxsave_struct *fx)
+static inline void clear_fpu_state(struct task_struct *tsk)
 {
+	struct xsave_struct *xstate = &tsk->thread.xstate->xsave;
+	struct i387_fxsave_struct *fx = &tsk->thread.xstate->fxsave;
+
+	/*
+	 * xsave header may indicate the init state of the FP.
+	 */
+	if ((task_thread_info(tsk)->status & TS_XSAVE) &&
+	    !(xstate->xsave_hdr.xstate_bv & XSTATE_FP))
+		return;
+
 	if (unlikely(fx->swd & X87_FSW_ES))
 		asm volatile("fnclex");
 	alternative_input(ASM_NOP8 ASM_NOP2,
@@ -107,7 +125,7 @@ static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
 	return err;
 }
 
-static inline void __save_init_fpu(struct task_struct *tsk)
+static inline void fxsave(struct task_struct *tsk)
 {
 	/* Using "rex64; fxsave %0" is broken because, if the memory operand
 	   uses any extended registers for addressing, a second REX prefix
@@ -132,7 +150,16 @@ static inline void __save_init_fpu(struct task_struct *tsk)
 			     : "=m" (tsk->thread.xstate->fxsave)
 			     : "cdaSDb" (&tsk->thread.xstate->fxsave));
 #endif
-	clear_fpu_state(&tsk->thread.xstate->fxsave);
+}
+
+static inline void __save_init_fpu(struct task_struct *tsk)
+{
+	if (task_thread_info(tsk)->status & TS_XSAVE)
+		xsave(tsk);
+	else
+		fxsave(tsk);
+
+	clear_fpu_state(tsk);
 	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
 
@@ -147,6 +174,10 @@ static inline void tolerant_fwait(void)
 
 static inline void restore_fpu(struct task_struct *tsk)
 {
+	if (task_thread_info(tsk)->status & TS_XSAVE) {
+		xrstor_checking(&tsk->thread.xstate->xsave);
+		return;
+	}
 	/*
 	 * The "nop" is needed to make the instructions the same
 	 * length.
@@ -172,6 +203,27 @@ static inline void restore_fpu(struct task_struct *tsk)
  */
 static inline void __save_init_fpu(struct task_struct *tsk)
 {
+	if (task_thread_info(tsk)->status & TS_XSAVE) {
+		struct xsave_struct *xstate = &tsk->thread.xstate->xsave;
+		struct i387_fxsave_struct *fx = &tsk->thread.xstate->fxsave;
+
+		xsave(tsk);
+
+		/*
+		 * xsave header may indicate the init state of the FP.
+		 */
+		if (!(xstate->xsave_hdr.xstate_bv & XSTATE_FP))
+			goto end;
+
+		if (unlikely(fx->swd & X87_FSW_ES))
+			asm volatile("fnclex");
+
+		/*
+		 * we can do a simple return here or be paranoid :)
+		 */
+		goto clear_state;
+	}
+
 	/* Use more nops than strictly needed in case the compiler
 	   varies code */
 	alternative_input(
@@ -181,6 +233,7 @@ static inline void __save_init_fpu(struct task_struct *tsk)
 		X86_FEATURE_FXSR,
 		[fx] "m" (tsk->thread.xstate->fxsave),
 		[fsw] "m" (tsk->thread.xstate->fxsave.swd) : "memory");
+clear_state:
 	/* AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception
 	   is pending.  Clear the x87 state here by setting it to fixed
 	   values. safe_address is a random variable that should be in L1 */
@@ -190,6 +243,7 @@ static inline void __save_init_fpu(struct task_struct *tsk)
 		"fildl %[addr]", 	/* set F?P to defined value */
 		X86_FEATURE_FXSAVE_LEAK,
 		[addr] "m" (safe_address));
+end:
 	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
 

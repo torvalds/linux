@@ -709,7 +709,10 @@ void __cpuinit cpu_init(void)
 	/*
 	 * Force FPU initialization:
 	 */
-	current_thread_info()->status = 0;
+	if (cpu_has_xsave)
+		current_thread_info()->status = TS_XSAVE;
+	else
+		current_thread_info()->status = 0;
 	clear_used_math();
 	mxcsr_feature_mask_init();
 

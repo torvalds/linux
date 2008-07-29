@@ -1134,7 +1134,7 @@ asmlinkage void math_state_restore(void)
 	/*
 	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
 	 */
-	if (unlikely(restore_fpu_checking(&me->thread.xstate->fxsave))) {
+	if (unlikely(restore_fpu_checking(me))) {
 		stts();
 		force_sig(SIGSEGV, me);
 		return;

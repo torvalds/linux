@@ -362,6 +362,7 @@ union thread_xstate {
 	struct i387_fsave_struct	fsave;
 	struct i387_fxsave_struct	fxsave;
 	struct i387_soft_struct		soft;
+	struct xsave_struct		xsave;
 };
 
 #ifdef CONFIG_X86_64
