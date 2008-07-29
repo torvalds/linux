@@ -40,7 +40,7 @@
 
 MODULE_DESCRIPTION("AMD Microcode Update Driver");
 MODULE_AUTHOR("Peter Oruba <peter.oruba@amd.com>");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
 
 #define UCODE_MAGIC                0x00414d44
 #define UCODE_EQUIV_CPU_TABLE_TYPE 0x00000000
