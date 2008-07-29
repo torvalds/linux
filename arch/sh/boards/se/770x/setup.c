@@ -113,6 +113,8 @@ static struct platform_device heartbeat_device = {
 	.resource	= heartbeat_resources,
 };
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7710) ||\
+	defined(CONFIG_CPU_SUBTYPE_SH7712)
 /* SH771X Ethernet driver */
 static struct resource sh_eth0_resources[] = {
 	[0] = {
@@ -159,12 +161,16 @@ static struct platform_device sh_eth1_device = {
 	.num_resources = ARRAY_SIZE(sh_eth1_resources),
 	.resource = sh_eth1_resources,
 };
+#endif
 
 static struct platform_device *se_devices[] __initdata = {
 	&heartbeat_device,
 	&cf_ide_device,
+#if defined(CONFIG_CPU_SUBTYPE_SH7710) ||\
+	defined(CONFIG_CPU_SUBTYPE_SH7712)
 	&sh_eth0_device,
 	&sh_eth1_device,
+#endif
 };
 
 static int __init se_devices_setup(void)
