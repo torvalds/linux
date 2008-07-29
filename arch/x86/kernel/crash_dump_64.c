@@ -7,9 +7,8 @@
 
 #include <linux/errno.h>
 #include <linux/crash_dump.h>
-
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 /**
  * copy_oldmem_page - copy one page from "oldmem"
@@ -25,7 +24,7 @@
  * in the current kernel. We stitch up a pte, similar to kmap_atomic.
  */
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
-                               size_t csize, unsigned long offset, int userbuf)
+		size_t csize, unsigned long offset, int userbuf)
 {
 	void  *vaddr;
 
