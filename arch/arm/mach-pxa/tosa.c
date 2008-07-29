@@ -36,6 +36,7 @@
 #include <asm/mach-types.h>
 #include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/mfp-pxa25x.h>
+#include <asm/arch/reset.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/i2c.h>
 #include <asm/arch/mmc.h>

@@ -12,6 +12,7 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
+#include <asm/arch/reset.h>
 
 static void do_hw_reset(void);
 
