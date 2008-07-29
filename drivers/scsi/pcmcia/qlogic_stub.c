@@ -195,39 +195,32 @@ static void qlogic_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
+static int qlogic_config_check(struct pcmcia_device *p_dev,
+				  cistpl_cftable_entry_t *cfg,
+				  void *priv_data)
+{
+	p_dev->conf.ConfigIndex = cfg->index;
+	p_dev->io.BasePort1 = cfg->io.win[0].base;
+	p_dev->io.NumPorts1 = cfg->io.win[0].len;
+
+	if (p_dev->io.BasePort1 == 0)
+		return -ENODEV;
+
+	return pcmcia_request_io(p_dev, &p_dev->io);
+}
+
 static int qlogic_config(struct pcmcia_device * link)
 {
 	scsi_info_t *info = link->priv;
-	tuple_t tuple;
-	cisparse_t parse;
-	int i, last_ret, last_fn;
-	unsigned short tuple_data[32];
+	int last_ret, last_fn;
 	struct Scsi_Host *host;
 
 	DEBUG(0, "qlogic_config(0x%p)\n", link);
 
-	info->manf_id = link->manf_id;
-
-	tuple.TupleData = (cisdata_t *) tuple_data;
-	tuple.TupleDataMax = 64;
-	tuple.TupleOffset = 0;
-
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	while (1) {
-		if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
-				pcmcia_parse_tuple(link, &tuple, &parse) != 0)
-			goto next_entry;
-		link->conf.ConfigIndex = parse.cftable_entry.index;
-		link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
-		link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
-		if (link->io.BasePort1 != 0) {
-			i = pcmcia_request_io(link, &link->io);
-			if (i == CS_SUCCESS)
-				break;
-		}
-	      next_entry:
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
+	last_ret = pcmcia_loop_config(link, qlogic_config_check, NULL);
+	if (last_ret) {
+		cs_error(link, RequestIO, last_ret);
+		goto failed;
 	}
 
 	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
@@ -262,6 +255,7 @@ static int qlogic_config(struct pcmcia_device * link)
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 	pcmcia_disable_device(link);
+failed:
 	return -ENODEV;
 
 }				/* qlogic_config */

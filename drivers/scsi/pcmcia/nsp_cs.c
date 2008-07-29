@@ -1607,133 +1607,136 @@ static void nsp_cs_detach(struct pcmcia_device *link)
     is received, to configure the PCMCIA socket, and to make the
     ethernet device available to the system.
 ======================================================================*/
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-/*====================================================================*/
+
+struct nsp_cs_configdata {
+	nsp_hw_data		*data;
+	win_req_t		req;
+	config_info_t		conf;
+	cistpl_cftable_entry_t	dflt;
+};
+
+static int nsp_cs_config_check(struct pcmcia_device *p_dev,
+			       cistpl_cftable_entry_t *cfg,
+			       void *priv_data)
+{
+	struct nsp_cs_configdata *cfg_mem = priv_data;
+
+	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
+		memcpy(&cfg_mem->dflt, cfg, sizeof(cistpl_cftable_entry_t));
+	if (cfg->index == 0)
+		return -ENODEV;
+
+	p_dev->conf.ConfigIndex = cfg->index;
+
+	/* Does this card need audio output? */
+	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
+		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
+		p_dev->conf.Status = CCSR_AUDIO_ENA;
+	}
+
+	/* Use power settings for Vcc and Vpp if present */
+	/*  Note that the CIS values need to be rescaled */
+	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
+		if (cfg_mem->conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
+			return -ENODEV;
+		else if (cfg_mem->dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
+			if (cfg_mem->conf.Vcc != cfg_mem->dflt.vcc.param[CISTPL_POWER_VNOM]/10000)
+				return -ENODEV;
+		}
+
+		if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM)) {
+			p_dev->conf.Vpp =
+				cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+		} else if (cfg_mem->dflt.vpp1.present & (1 << CISTPL_POWER_VNOM)) {
+			p_dev->conf.Vpp =
+				cfg_mem->dflt.vpp1.param[CISTPL_POWER_VNOM] / 10000;
+		}
+
+		/* Do we need to allocate an interrupt? */
+		if (cfg->irq.IRQInfo1 || cfg_mem->dflt.irq.IRQInfo1) {
+			p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+		}
+
+		/* IO window settings */
+		p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+		if ((cfg->io.nwin > 0) || (cfg_mem->dflt.io.nwin > 0)) {
+			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &cfg_mem->dflt.io;
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+			if (!(io->flags & CISTPL_IO_8BIT))
+				p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+			if (!(io->flags & CISTPL_IO_16BIT))
+				p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+			p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+			p_dev->io.BasePort1 = io->win[0].base;
+			p_dev->io.NumPorts1 = io->win[0].len;
+			if (io->nwin > 1) {
+				p_dev->io.Attributes2 = p_dev->io.Attributes1;
+				p_dev->io.BasePort2 = io->win[1].base;
+				p_dev->io.NumPorts2 = io->win[1].len;
+			}
+			/* This reserves IO space but doesn't actually enable it */
+			if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
+				goto next_entry;
+		}
+
+		if ((cfg->mem.nwin > 0) || (cfg_mem->dflt.mem.nwin > 0)) {
+			memreq_t	map;
+			cistpl_mem_t	*mem =
+				(cfg->mem.nwin) ? &cfg->mem : &cfg_mem->dflt.mem;
+			cfg_mem->req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
+			cfg_mem->req.Attributes |= WIN_ENABLE;
+			cfg_mem->req.Base = mem->win[0].host_addr;
+			cfg_mem->req.Size = mem->win[0].len;
+			if (cfg_mem->req.Size < 0x1000)
+				cfg_mem->req.Size = 0x1000;
+			cfg_mem->req.AccessSpeed = 0;
+			if (pcmcia_request_window(&p_dev, &cfg_mem->req, &p_dev->win) != 0)
+				goto next_entry;
+			map.Page = 0; map.CardOffset = mem->win[0].card_addr;
+			if (pcmcia_map_mem_page(p_dev->win, &map) != 0)
+				goto next_entry;
+
+			cfg_mem->data->MmioAddress = (unsigned long) ioremap_nocache(cfg_mem->req.Base, cfg_mem->req.Size);
+			cfg_mem->data->MmioLength  = cfg_mem->req.Size;
+		}
+		/* If we got this far, we're cool! */
+		return 0;
+	}
+
+next_entry:
+	nsp_dbg(NSP_DEBUG_INIT, "next");
+	pcmcia_disable_device(p_dev);
+	return -ENODEV;
+}
+
 static int nsp_cs_config(struct pcmcia_device *link)
 {
 	int		  ret;
 	scsi_info_t	 *info	 = link->priv;
-	tuple_t		  tuple;
-	cisparse_t	  parse;
-	int		  last_ret, last_fn;
-	unsigned char	  tuple_data[64];
-	config_info_t	  conf;
-	win_req_t         req;
-	memreq_t          map;
-	cistpl_cftable_entry_t dflt = { 0 };
+	struct nsp_cs_configdata *cfg_mem;
 	struct Scsi_Host *host;
 	nsp_hw_data      *data = &nsp_data_base;
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
-	tuple.Attributes      = 0;
-	tuple.TupleData	      = tuple_data;
-	tuple.TupleDataMax    = sizeof(tuple_data);
-	tuple.TupleOffset     = 0;
+	cfg_mem = kzalloc(sizeof(cfg_mem), GFP_KERNEL);
+	if (!cfg_mem)
+		return -ENOMEM;
+	cfg_mem->data = data;
 
 	/* Look up the current Vcc */
-	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &conf));
-
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	while (1) {
-		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-
-		if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
-				pcmcia_parse_tuple(link, &tuple, &parse) != 0)
-			goto next_entry;
-
-		if (cfg->flags & CISTPL_CFTABLE_DEFAULT) { dflt = *cfg; }
-		if (cfg->index == 0) { goto next_entry; }
-		link->conf.ConfigIndex = cfg->index;
-
-		/* Does this card need audio output? */
-		if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-			link->conf.Attributes |= CONF_ENABLE_SPKR;
-			link->conf.Status = CCSR_AUDIO_ENA;
-		}
-
-		/* Use power settings for Vcc and Vpp if present */
-		/*  Note that the CIS values need to be rescaled */
-		if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-			if (conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000) {
-				goto next_entry;
-			}
-		} else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
-			if (conf.Vcc != dflt.vcc.param[CISTPL_POWER_VNOM]/10000) {
-				goto next_entry;
-			}
-		}
-
-		if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM)) {
-			link->conf.Vpp =
-				cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-		} else if (dflt.vpp1.present & (1 << CISTPL_POWER_VNOM)) {
-			link->conf.Vpp =
-				dflt.vpp1.param[CISTPL_POWER_VNOM] / 10000;
-		}
-
-		/* Do we need to allocate an interrupt? */
-		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1) {
-			link->conf.Attributes |= CONF_ENABLE_IRQ;
-		}
-
-		/* IO window settings */
-		link->io.NumPorts1 = link->io.NumPorts2 = 0;
-		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-			link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-			if (!(io->flags & CISTPL_IO_8BIT))
-				link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-			if (!(io->flags & CISTPL_IO_16BIT))
-				link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-			link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-			link->io.BasePort1 = io->win[0].base;
-			link->io.NumPorts1 = io->win[0].len;
-			if (io->nwin > 1) {
-				link->io.Attributes2 = link->io.Attributes1;
-				link->io.BasePort2 = io->win[1].base;
-				link->io.NumPorts2 = io->win[1].len;
-			}
-			/* This reserves IO space but doesn't actually enable it */
-			if (pcmcia_request_io(link, &link->io) != 0)
-				goto next_entry;
-		}
-
-		if ((cfg->mem.nwin > 0) || (dflt.mem.nwin > 0)) {
-			cistpl_mem_t *mem =
-				(cfg->mem.nwin) ? &cfg->mem : &dflt.mem;
-			req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
-			req.Attributes |= WIN_ENABLE;
-			req.Base = mem->win[0].host_addr;
-			req.Size = mem->win[0].len;
-			if (req.Size < 0x1000) {
-				req.Size = 0x1000;
-			}
-			req.AccessSpeed = 0;
-			if (pcmcia_request_window(&link, &req, &link->win) != 0)
-				goto next_entry;
-			map.Page = 0; map.CardOffset = mem->win[0].card_addr;
-			if (pcmcia_map_mem_page(link->win, &map) != 0)
-				goto next_entry;
-
-			data->MmioAddress = (unsigned long)ioremap_nocache(req.Base, req.Size);
-			data->MmioLength  = req.Size;
-		}
-		/* If we got this far, we're cool! */
-		break;
-
-	next_entry:
-		nsp_dbg(NSP_DEBUG_INIT, "next");
-		pcmcia_disable_device(link);
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
-	}
+	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &cfg_mem->conf));
+	ret = pcmcia_loop_config(link, nsp_cs_config_check, cfg_mem);
+		goto cs_failed;
 
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+		if (pcmcia_request_irq(link, &link->irq))
+			goto cs_failed;
 	}
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto cs_failed;
 
 	if (free_ports) {
 		if (link->io.BasePort1) {
@@ -1791,20 +1794,20 @@ static int nsp_cs_config(struct pcmcia_device *link)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 		       link->io.BasePort2+link->io.NumPorts2-1);
 	if (link->win)
-		printk(", mem 0x%06lx-0x%06lx", req.Base,
-		       req.Base+req.Size-1);
+		printk(", mem 0x%06lx-0x%06lx", cfg_mem->req.Base,
+		       cfg_mem->req.Base+cfg_mem->req.Size-1);
 	printk("\n");
 
+	kfree(cfg_mem);
 	return 0;
 
  cs_failed:
 	nsp_dbg(NSP_DEBUG_INIT, "config fail");
-	cs_error(link, last_fn, last_ret);
 	nsp_cs_release(link);
+	kfree(cfg_mem);
 
 	return -ENODEV;
 } /* nsp_cs_config */
-#undef CS_CHECK
 
 
 /*======================================================================
