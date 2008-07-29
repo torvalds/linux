@@ -84,6 +84,7 @@ static void *guest_base;
 static unsigned long guest_limit, guest_max;
 /* The pipe for signal hander to write to. */
 static int timeoutpipe[2];
+static unsigned int timeout_usec = 500;
 
 /* a per-cpu variable indicating whose vcpu is currently running */
 static unsigned int __thread cpu_id;
@@ -905,7 +906,7 @@ static void block_vq(struct virtqueue *vq)
 	itm.it_interval.tv_sec = 0;
 	itm.it_interval.tv_usec = 0;
 	itm.it_value.tv_sec = 0;
-	itm.it_value.tv_usec = 500;
+	itm.it_value.tv_usec = timeout_usec;
 
 	setitimer(ITIMER_REAL, &itm, NULL);
 }
@@ -922,6 +923,7 @@ static void handle_net_output(int fd, struct virtqueue *vq, bool timeout)
 	unsigned int head, out, in, num = 0;
 	int len;
 	struct iovec iov[vq->vring.num];
+	static int last_timeout_num;
 
 	/* Keep getting output buffers from the Guest until we run out. */
 	while ((head = get_vq_desc(vq, iov, &out, &in)) != vq->vring.num) {
@@ -939,6 +941,14 @@ static void handle_net_output(int fd, struct virtqueue *vq, bool timeout)
 	/* Block further kicks and set up a timer if we saw anything. */
 	if (!timeout && num)
 		block_vq(vq);
+
+	if (timeout) {
+		if (num < last_timeout_num)
+			timeout_usec += 10;
+		else if (timeout_usec > 1)
+			timeout_usec--;
+		last_timeout_num = num;
+	}
 }
 
 /* This is where we handle a packet coming in from the tun device to our
