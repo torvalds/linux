@@ -383,6 +383,7 @@ struct snd_soc_codec_device aic26_soc_codec_dev = {
 	.probe = aic26_probe,
 	.remove = aic26_remove,
 };
+EXPORT_SYMBOL_GPL(aic26_soc_codec_dev);
 
 /* ---------------------------------------------------------------------
  * SPI device portion of driver: sysfs files for debugging
