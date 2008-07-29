@@ -21,10 +21,15 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
+#include <linux/kgdb.h>
 
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+
+#ifdef CONFIG_KGDB
+int kgdb_early_setup;
+#endif
 
 static unsigned long irq_map[NR_IRQS / BITS_PER_LONG];
 
@@ -130,8 +135,18 @@ void __init init_IRQ(void)
 {
 	int i;
 
+#ifdef CONFIG_KGDB
+	if (kgdb_early_setup)
+		return;
+#endif
+
 	for (i = 0; i < NR_IRQS; i++)
 		set_irq_noprobe(i);
 
 	arch_init_irq();
+
+#ifdef CONFIG_KGDB
+	if (!kgdb_early_setup)
+		kgdb_early_setup = 1;
+#endif
 }
