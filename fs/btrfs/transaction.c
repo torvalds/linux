@@ -202,35 +202,64 @@ static noinline int wait_for_commit(struct btrfs_root *root,
 	return 0;
 }
 
+void btrfs_throttle(struct btrfs_root *root)
+{
+	struct btrfs_fs_info *info = root->fs_info;
+
+harder:
+	if (atomic_read(&info->throttles)) {
+		DEFINE_WAIT(wait);
+		int thr;
+		int harder_count = 0;
+		thr = atomic_read(&info->throttle_gen);
+
+		do {
+			prepare_to_wait(&info->transaction_throttle,
+					&wait, TASK_UNINTERRUPTIBLE);
+			if (!atomic_read(&info->throttles)) {
+				finish_wait(&info->transaction_throttle, &wait);
+				break;
+			}
+			schedule();
+			finish_wait(&info->transaction_throttle, &wait);
+		} while (thr == atomic_read(&info->throttle_gen));
+
+		if (harder_count < 5 &&
+		    info->total_ref_cache_size > 5 * 1024 * 1024) {
+			harder_count++;
+			goto harder;
+		}
+
+		if (harder_count < 10 &&
+		    info->total_ref_cache_size > 10 * 1024 * 1024) {
+			harder_count++;
+			goto harder;
+		}
+	}
+}
+
 static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, int throttle)
 {
 	struct btrfs_transaction *cur_trans;
+	struct btrfs_fs_info *info = root->fs_info;
 
-	mutex_lock(&root->fs_info->trans_mutex);
-	cur_trans = root->fs_info->running_transaction;
+	mutex_lock(&info->trans_mutex);
+	cur_trans = info->running_transaction;
 	WARN_ON(cur_trans != trans->transaction);
 	WARN_ON(cur_trans->num_writers < 1);
 	cur_trans->num_writers--;
 
 	if (waitqueue_active(&cur_trans->writer_wait))
 		wake_up(&cur_trans->writer_wait);
-
-	if (throttle && atomic_read(&root->fs_info->throttles)) {
-		DEFINE_WAIT(wait);
-		mutex_unlock(&root->fs_info->trans_mutex);
-		prepare_to_wait(&root->fs_info->transaction_throttle, &wait,
-				TASK_UNINTERRUPTIBLE);
-		if (atomic_read(&root->fs_info->throttles))
-			schedule();
-		finish_wait(&root->fs_info->transaction_throttle, &wait);
-		mutex_lock(&root->fs_info->trans_mutex);
-	}
-
 	put_transaction(cur_trans);
-	mutex_unlock(&root->fs_info->trans_mutex);
+	mutex_unlock(&info->trans_mutex);
 	memset(trans, 0, sizeof(*trans));
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
+
+	if (throttle)
+		btrfs_throttle(root);
+
 	return 0;
 }
 

@@ -1171,8 +1171,10 @@ static int transaction_kthread(void *arg)
 		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
 		mutex_lock(&root->fs_info->transaction_kthread_mutex);
 
-		printk("btrfs: total reference cache size %Lu\n",
-			root->fs_info->total_ref_cache_size);
+		if (root->fs_info->total_ref_cache_size > 20 * 1024 * 1024) {
+			printk("btrfs: total reference cache size %Lu\n",
+				root->fs_info->total_ref_cache_size);
+		}
 
 		mutex_lock(&root->fs_info->trans_mutex);
 		cur = root->fs_info->running_transaction;
@@ -1256,6 +1258,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_mapping_init(&fs_info->mapping_tree);
 	atomic_set(&fs_info->nr_async_submits, 0);
 	atomic_set(&fs_info->throttles, 0);
+	atomic_set(&fs_info->throttle_gen, 0);
 	fs_info->sb = sb;
 	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;

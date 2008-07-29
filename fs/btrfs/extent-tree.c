@@ -2650,6 +2650,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 		}
 	}
 	while(1) {
+		atomic_inc(&root->fs_info->throttle_gen);
 		wret = walk_down_tree(trans, root, path, &level);
 		if (wret > 0)
 			break;

@@ -974,6 +974,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		balance_dirty_pages_ratelimited_nr(inode->i_mapping, num_pages);
 		if (num_pages < (root->leafsize >> PAGE_CACHE_SHIFT) + 1)
 			btrfs_btree_balance_dirty(root, 1);
+		btrfs_throttle(root);
 		cond_resched();
 	}
 out:

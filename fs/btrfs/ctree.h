@@ -580,6 +580,7 @@ struct btrfs_fs_info {
 	int do_barriers;
 	int closing;
 	atomic_t throttles;
+	atomic_t throttle_gen;
 
 	u64 total_pinned;
 	struct list_head dirty_cowonly_roots;
