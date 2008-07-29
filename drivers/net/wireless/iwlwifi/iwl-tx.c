@@ -906,7 +906,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	 * first entry */
 	iwl_hw_txq_attach_buf_to_tfd(priv, tfd, txcmd_phys, len);
 
-	if (!(info->flags & IEEE80211_TX_CTL_DO_NOT_ENCRYPT))
+	if (info->control.hw_key)
 		iwl_tx_cmd_build_hwcrypto(priv, info, tx_cmd, skb, sta_id);
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,

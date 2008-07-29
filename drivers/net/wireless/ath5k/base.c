@@ -1237,7 +1237,7 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 
 	pktlen = skb->len;
 
-	if (!(info->flags & IEEE80211_TX_CTL_DO_NOT_ENCRYPT)) {
+	if (info->control.hw_key) {
 		keyidx = info->control.hw_key->hw_key_idx;
 		pktlen += info->control.icv_len;
 	}

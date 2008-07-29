@@ -188,6 +188,9 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 {
 	int i;
 
+	/* XXX: currently broken due to cb/requeue use */
+	return -EPERM;
+
 	/* prepare the filter and save it for the SW queue
 	 * matching the received HW queue */
 
