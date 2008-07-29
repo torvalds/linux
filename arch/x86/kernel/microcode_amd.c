@@ -47,9 +47,9 @@ MODULE_LICENSE("GPL v2");
 #define UCODE_UCODE_TYPE           0x00000001
 
 #define UCODE_MAX_SIZE          (2048)
-#define DEFAULT_UCODE_DATASIZE	(896)	  /* 896 bytes */
-#define MC_HEADER_SIZE		(sizeof(struct microcode_header_amd))	  /* 64 bytes */
-#define DEFAULT_UCODE_TOTALSIZE (DEFAULT_UCODE_DATASIZE + MC_HEADER_SIZE) /* 960 bytes */
+#define DEFAULT_UCODE_DATASIZE	(896)
+#define MC_HEADER_SIZE		(sizeof(struct microcode_header_amd))
+#define DEFAULT_UCODE_TOTALSIZE (DEFAULT_UCODE_DATASIZE + MC_HEADER_SIZE)
 #define DWSIZE			(sizeof(u32))
 /* For now we support a fixed ucode total size only */
 #define get_totalsize(mc) \
