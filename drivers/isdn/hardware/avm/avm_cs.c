@@ -154,78 +154,44 @@ static void avmcs_detach(struct pcmcia_device *link)
     
 ======================================================================*/
 
-static int get_tuple(struct pcmcia_device *handle, tuple_t *tuple,
-		     cisparse_t *parse)
+static int avmcs_configcheck(struct pcmcia_device *p_dev,
+			     cistpl_cftable_entry_t *cf,
+			     void *priv_data)
 {
-    int i = pcmcia_get_tuple_data(handle, tuple);
-    if (i != CS_SUCCESS) return i;
-    return pcmcia_parse_tuple(handle, tuple, parse);
-}
+	if (cf->io.nwin <= 0)
+		return -ENODEV;
 
-static int first_tuple(struct pcmcia_device *handle, tuple_t *tuple,
-		     cisparse_t *parse)
-{
-    int i = pcmcia_get_first_tuple(handle, tuple);
-    if (i != CS_SUCCESS) return i;
-    return get_tuple(handle, tuple, parse);
-}
-
-static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple,
-		     cisparse_t *parse)
-{
-    int i = pcmcia_get_next_tuple(handle, tuple);
-    if (i != CS_SUCCESS) return i;
-    return get_tuple(handle, tuple, parse);
+	p_dev->conf.ConfigIndex = cf->index;
+	p_dev->io.BasePort1 = cf->io.win[0].base;
+	p_dev->io.NumPorts1 = cf->io.win[0].len;
+	p_dev->io.NumPorts2 = 0;
+	printk(KERN_INFO "avm_cs: testing i/o %#x-%#x\n",
+	       p_dev->io.BasePort1,
+	       p_dev->io.BasePort1+p_dev->io.NumPorts1-1);
+	return pcmcia_request_io(p_dev, &p_dev->io);
 }
 
 static int avmcs_config(struct pcmcia_device *link)
 {
-    tuple_t tuple;
-    cisparse_t parse;
-    cistpl_cftable_entry_t *cf = &parse.cftable_entry;
     local_info_t *dev;
     int i;
-    u_char buf[64];
     char devname[128];
     int cardtype;
     int (*addcard)(unsigned int port, unsigned irq);
 
     dev = link->priv;
 
+    devname[0] = 0;
+    if (link->prod_id[1])
+	    strlcpy(devname, link->prod_id[1], sizeof(devname));
+
+    /*
+     * find IO port
+     */
+    if (pcmcia_loop_config(link, avmcs_configcheck, NULL))
+	    return -ENODEV;
+
     do {
-	devname[0] = 0;
-	if (link->prod_id[1])
-		strlcpy(devname, link->prod_id[1], sizeof(devname));
-
-	/*
-         * find IO port
-         */
-	tuple.TupleData = (cisdata_t *)buf;
-	tuple.TupleOffset = 0; tuple.TupleDataMax = 255;
-	tuple.Attributes = 0;
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	i = first_tuple(link, &tuple, &parse);
-	while (i == CS_SUCCESS) {
-	    if (cf->io.nwin > 0) {
-		link->conf.ConfigIndex = cf->index;
-		link->io.BasePort1 = cf->io.win[0].base;
-		link->io.NumPorts1 = cf->io.win[0].len;
-		link->io.NumPorts2 = 0;
-                printk(KERN_INFO "avm_cs: testing i/o %#x-%#x\n",
-			link->io.BasePort1,
-		        link->io.BasePort1+link->io.NumPorts1-1);
-		i = pcmcia_request_io(link, &link->io);
-		if (i == CS_SUCCESS) goto found_port;
-	    }
-	    i = next_tuple(link, &tuple, &parse);
-	}
-
-found_port:
-	if (i != CS_SUCCESS) {
-	    cs_error(link, RequestIO, i);
-	    break;
-	}
-
 	/*
 	 * allocate an interrupt line
 	 */

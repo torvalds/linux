@@ -203,68 +203,41 @@ static void elsa_cs_detach(struct pcmcia_device *link)
     device available to the system.
 
 ======================================================================*/
-static int get_tuple(struct pcmcia_device *handle, tuple_t *tuple,
-                     cisparse_t *parse)
-{
-    int i = pcmcia_get_tuple_data(handle, tuple);
-    if (i != CS_SUCCESS) return i;
-    return pcmcia_parse_tuple(handle, tuple, parse);
-}
 
-static int first_tuple(struct pcmcia_device *handle, tuple_t *tuple,
-                     cisparse_t *parse)
+static int elsa_cs_configcheck(struct pcmcia_device *p_dev,
+			       cistpl_cftable_entry_t *cf,
+			       void *priv_data)
 {
-    int i = pcmcia_get_first_tuple(handle, tuple);
-    if (i != CS_SUCCESS) return i;
-    return get_tuple(handle, tuple, parse);
-}
+	int j;
 
-static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple,
-                     cisparse_t *parse)
-{
-    int i = pcmcia_get_next_tuple(handle, tuple);
-    if (i != CS_SUCCESS) return i;
-    return get_tuple(handle, tuple, parse);
+	if ((cf->io.nwin > 0) && cf->io.win[0].base) {
+		printk(KERN_INFO "(elsa_cs: looks like the 96 model)\n");
+		p_dev->conf.ConfigIndex = cf->index;
+		p_dev->io.BasePort1 = cf->io.win[0].base;
+		if (!pcmcia_request_io(p_dev, &p_dev->io))
+			return 0;
+	} else {
+		printk(KERN_INFO "(elsa_cs: looks like the 97 model)\n");
+		p_dev->conf.ConfigIndex = cf->index;
+		for (j = 0x2f0; j > 0x100; j -= 0x10) {
+			p_dev->io.BasePort1 = j;
+			if (!pcmcia_request_io(p_dev, &p_dev->io))
+				return 0;
+		}
+	}
+	return -ENODEV;
 }
 
 static int elsa_cs_config(struct pcmcia_device *link)
 {
-    tuple_t tuple;
-    cisparse_t parse;
     local_info_t *dev;
-    int i, j, last_fn;
-    u_short buf[128];
-    cistpl_cftable_entry_t *cf = &parse.cftable_entry;
+    int i, last_fn;
     IsdnCard_t icard;
 
     DEBUG(0, "elsa_config(0x%p)\n", link);
     dev = link->priv;
 
-    tuple.TupleData = (cisdata_t *)buf;
-    tuple.TupleOffset = 0; tuple.TupleDataMax = 255;
-    tuple.Attributes = 0;
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    i = first_tuple(link, &tuple, &parse);
-    while (i == CS_SUCCESS) {
-        if ( (cf->io.nwin > 0) && cf->io.win[0].base) {
-            printk(KERN_INFO "(elsa_cs: looks like the 96 model)\n");
-            link->conf.ConfigIndex = cf->index;
-            link->io.BasePort1 = cf->io.win[0].base;
-            i = pcmcia_request_io(link, &link->io);
-            if (i == CS_SUCCESS) break;
-        } else {
-          printk(KERN_INFO "(elsa_cs: looks like the 97 model)\n");
-          link->conf.ConfigIndex = cf->index;
-          for (i = 0, j = 0x2f0; j > 0x100; j -= 0x10) {
-            link->io.BasePort1 = j;
-            i = pcmcia_request_io(link, &link->io);
-            if (i == CS_SUCCESS) break;
-          }
-          break;
-        }
-        i = next_tuple(link, &tuple, &parse);
-    }
-
+    i = pcmcia_loop_config(link, elsa_cs_configcheck, NULL);
     if (i != CS_SUCCESS) {
 	last_fn = RequestIO;
 	goto cs_failed;
