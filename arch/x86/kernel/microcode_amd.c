@@ -56,9 +56,6 @@ MODULE_LICENSE("GPL v2");
 	((((struct microcode_amd *)mc)->hdr.mc_patch_data_len * 28) \
 	 + MC_HEADER_SIZE)
 
-extern int microcode_init(void *opaque, struct module *module);
-extern void microcode_exit(void);
-
 /* serialize access to the physical write */
 static DEFINE_SPINLOCK(microcode_update_lock);
 
