@@ -12,7 +12,7 @@
  */
 #define AT_FPUCW		18	/* Used FPU control word.  */
 
-#ifdef CONFIG_VSYSCALL
+#if defined(CONFIG_VSYSCALL) || !defined(__KERNEL__)
 /*
  * Only define this in the vsyscall case, the entry point to
  * the vsyscall page gets placed here. The kernel will attempt
