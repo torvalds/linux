@@ -322,7 +322,12 @@ struct i387_fxsave_struct {
 	/* 16*16 bytes for each XMM-reg = 256 bytes:			*/
 	u32			xmm_space[64];
 
-	u32			padding[24];
+	u32			padding[12];
+
+	union {
+		u32		padding1[12];
+		u32		sw_reserved[12];
+	};
 
 } __attribute__((aligned(16)));
 
