@@ -60,7 +60,6 @@ config SOC_TX4927
 	select HW_HAS_PCI
 	select IRQ_TXX9
 	select PCI_TX4927
-	select SYS_SUPPORTS_KGDB
 	select GPIO_TXX9
 
 config SOC_TX4938
@@ -70,7 +69,6 @@ config SOC_TX4938
 	select HW_HAS_PCI
 	select IRQ_TXX9
 	select PCI_TX4927
-	select SYS_SUPPORTS_KGDB
 	select GPIO_TXX9
 
 config TOSHIBA_FPCIB0

@@ -126,19 +126,6 @@ asmlinkage void spurious_interrupt(void)
 	atomic_inc(&irq_err_count);
 }
 
-#ifdef CONFIG_KGDB
-extern void breakpoint(void);
-extern void set_debug_traps(void);
-
-static int kgdb_flag = 1;
-static int __init nokgdb(char *str)
-{
-	kgdb_flag = 0;
-	return 1;
-}
-__setup("nokgdb", nokgdb);
-#endif
-
 void __init init_IRQ(void)
 {
 	int i;
@@ -147,12 +134,4 @@ void __init init_IRQ(void)
 		set_irq_noprobe(i);
 
 	arch_init_irq();
-
-#ifdef CONFIG_KGDB
-	if (kgdb_flag) {
-		printk("Wait for gdb client connection ...\n");
-		set_debug_traps();
-		breakpoint();
-	}
-#endif
 }
