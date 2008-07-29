@@ -279,13 +279,13 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	dev_priv->saveDSPASTRIDE = I915_READ(DSPASTRIDE);
 	dev_priv->saveDSPASIZE = I915_READ(DSPASIZE);
 	dev_priv->saveDSPAPOS = I915_READ(DSPAPOS);
-	dev_priv->saveDSPABASE = I915_READ(DSPABASE);
+	dev_priv->saveDSPAADDR = I915_READ(DSPAADDR);
 	if (IS_I965G(dev)) {
 		dev_priv->saveDSPASURF = I915_READ(DSPASURF);
 		dev_priv->saveDSPATILEOFF = I915_READ(DSPATILEOFF);
 	}
 	i915_save_palette(dev, PIPE_A);
-	dev_priv->savePIPEASTAT = I915_READ(I915REG_PIPEASTAT);
+	dev_priv->savePIPEASTAT = I915_READ(PIPEASTAT);
 
 	/* Pipe & plane B info */
 	dev_priv->savePIPEBCONF = I915_READ(PIPEBCONF);
@@ -307,13 +307,13 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	dev_priv->saveDSPBSTRIDE = I915_READ(DSPBSTRIDE);
 	dev_priv->saveDSPBSIZE = I915_READ(DSPBSIZE);
 	dev_priv->saveDSPBPOS = I915_READ(DSPBPOS);
-	dev_priv->saveDSPBBASE = I915_READ(DSPBBASE);
+	dev_priv->saveDSPBADDR = I915_READ(DSPBADDR);
 	if (IS_I965GM(dev) || IS_IGD_GM(dev)) {
 		dev_priv->saveDSPBSURF = I915_READ(DSPBSURF);
 		dev_priv->saveDSPBTILEOFF = I915_READ(DSPBTILEOFF);
 	}
 	i915_save_palette(dev, PIPE_B);
-	dev_priv->savePIPEBSTAT = I915_READ(I915REG_PIPEBSTAT);
+	dev_priv->savePIPEBSTAT = I915_READ(PIPEBSTAT);
 
 	/* CRT state */
 	dev_priv->saveADPA = I915_READ(ADPA);
@@ -328,9 +328,9 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 		dev_priv->saveLVDS = I915_READ(LVDS);
 	if (!IS_I830(dev) && !IS_845G(dev))
 		dev_priv->savePFIT_CONTROL = I915_READ(PFIT_CONTROL);
-	dev_priv->saveLVDSPP_ON = I915_READ(LVDSPP_ON);
-	dev_priv->saveLVDSPP_OFF = I915_READ(LVDSPP_OFF);
-	dev_priv->savePP_CYCLE = I915_READ(PP_CYCLE);
+	dev_priv->savePP_ON_DELAYS = I915_READ(PP_ON_DELAYS);
+	dev_priv->savePP_OFF_DELAYS = I915_READ(PP_OFF_DELAYS);
+	dev_priv->savePP_DIVISOR = I915_READ(PP_DIVISOR);
 
 	/* FIXME: save TV & SDVO state */
 
@@ -341,19 +341,19 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	dev_priv->saveFBC_CONTROL = I915_READ(FBC_CONTROL);
 
 	/* Interrupt state */
-	dev_priv->saveIIR = I915_READ(I915REG_INT_IDENTITY_R);
-	dev_priv->saveIER = I915_READ(I915REG_INT_ENABLE_R);
-	dev_priv->saveIMR = I915_READ(I915REG_INT_MASK_R);
+	dev_priv->saveIIR = I915_READ(IIR);
+	dev_priv->saveIER = I915_READ(IER);
+	dev_priv->saveIMR = I915_READ(IMR);
 
 	/* VGA state */
-	dev_priv->saveVCLK_DIVISOR_VGA0 = I915_READ(VCLK_DIVISOR_VGA0);
-	dev_priv->saveVCLK_DIVISOR_VGA1 = I915_READ(VCLK_DIVISOR_VGA1);
-	dev_priv->saveVCLK_POST_DIV = I915_READ(VCLK_POST_DIV);
+	dev_priv->saveVGA0 = I915_READ(VGA0);
+	dev_priv->saveVGA1 = I915_READ(VGA1);
+	dev_priv->saveVGA_PD = I915_READ(VGA_PD);
 	dev_priv->saveVGACNTRL = I915_READ(VGACNTRL);
 
 	/* Clock gating state */
 	dev_priv->saveD_STATE = I915_READ(D_STATE);
-	dev_priv->saveDSPCLK_GATE_D = I915_READ(DSPCLK_GATE_D);
+	dev_priv->saveCG_2D_DIS = I915_READ(CG_2D_DIS);
 
 	/* Cache mode state */
 	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
@@ -363,7 +363,7 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 
 	/* Scratch space */
 	for (i = 0; i < 16; i++) {
-		dev_priv->saveSWF0[i] = I915_READ(SWF0 + (i << 2));
+		dev_priv->saveSWF0[i] = I915_READ(SWF00 + (i << 2));
 		dev_priv->saveSWF1[i] = I915_READ(SWF10 + (i << 2));
 	}
 	for (i = 0; i < 3; i++)
@@ -424,7 +424,7 @@ static int i915_resume(struct drm_device *dev)
 	I915_WRITE(DSPASIZE, dev_priv->saveDSPASIZE);
 	I915_WRITE(DSPAPOS, dev_priv->saveDSPAPOS);
 	I915_WRITE(PIPEASRC, dev_priv->savePIPEASRC);
-	I915_WRITE(DSPABASE, dev_priv->saveDSPABASE);
+	I915_WRITE(DSPAADDR, dev_priv->saveDSPAADDR);
 	I915_WRITE(DSPASTRIDE, dev_priv->saveDSPASTRIDE);
 	if (IS_I965G(dev)) {
 		I915_WRITE(DSPASURF, dev_priv->saveDSPASURF);
@@ -436,7 +436,7 @@ static int i915_resume(struct drm_device *dev)
 	i915_restore_palette(dev, PIPE_A);
 	/* Enable the plane */
 	I915_WRITE(DSPACNTR, dev_priv->saveDSPACNTR);
-	I915_WRITE(DSPABASE, I915_READ(DSPABASE));
+	I915_WRITE(DSPAADDR, I915_READ(DSPAADDR));
 
 	/* Pipe & plane B info */
 	if (dev_priv->saveDPLL_B & DPLL_VCO_ENABLE) {
@@ -466,7 +466,7 @@ static int i915_resume(struct drm_device *dev)
 	I915_WRITE(DSPBSIZE, dev_priv->saveDSPBSIZE);
 	I915_WRITE(DSPBPOS, dev_priv->saveDSPBPOS);
 	I915_WRITE(PIPEBSRC, dev_priv->savePIPEBSRC);
-	I915_WRITE(DSPBBASE, dev_priv->saveDSPBBASE);
+	I915_WRITE(DSPBADDR, dev_priv->saveDSPBADDR);
 	I915_WRITE(DSPBSTRIDE, dev_priv->saveDSPBSTRIDE);
 	if (IS_I965G(dev)) {
 		I915_WRITE(DSPBSURF, dev_priv->saveDSPBSURF);
@@ -478,7 +478,7 @@ static int i915_resume(struct drm_device *dev)
 	i915_restore_palette(dev, PIPE_B);
 	/* Enable the plane */
 	I915_WRITE(DSPBCNTR, dev_priv->saveDSPBCNTR);
-	I915_WRITE(DSPBBASE, I915_READ(DSPBBASE));
+	I915_WRITE(DSPBADDR, I915_READ(DSPBADDR));
 
 	/* CRT state */
 	I915_WRITE(ADPA, dev_priv->saveADPA);
@@ -493,9 +493,9 @@ static int i915_resume(struct drm_device *dev)
 
 	I915_WRITE(PFIT_PGM_RATIOS, dev_priv->savePFIT_PGM_RATIOS);
 	I915_WRITE(BLC_PWM_CTL, dev_priv->saveBLC_PWM_CTL);
-	I915_WRITE(LVDSPP_ON, dev_priv->saveLVDSPP_ON);
-	I915_WRITE(LVDSPP_OFF, dev_priv->saveLVDSPP_OFF);
-	I915_WRITE(PP_CYCLE, dev_priv->savePP_CYCLE);
+	I915_WRITE(PP_ON_DELAYS, dev_priv->savePP_ON_DELAYS);
+	I915_WRITE(PP_OFF_DELAYS, dev_priv->savePP_OFF_DELAYS);
+	I915_WRITE(PP_DIVISOR, dev_priv->savePP_DIVISOR);
 	I915_WRITE(PP_CONTROL, dev_priv->savePP_CONTROL);
 
 	/* FIXME: restore TV & SDVO state */
@@ -508,14 +508,14 @@ static int i915_resume(struct drm_device *dev)
 
 	/* VGA state */
 	I915_WRITE(VGACNTRL, dev_priv->saveVGACNTRL);
-	I915_WRITE(VCLK_DIVISOR_VGA0, dev_priv->saveVCLK_DIVISOR_VGA0);
-	I915_WRITE(VCLK_DIVISOR_VGA1, dev_priv->saveVCLK_DIVISOR_VGA1);
-	I915_WRITE(VCLK_POST_DIV, dev_priv->saveVCLK_POST_DIV);
+	I915_WRITE(VGA0, dev_priv->saveVGA0);
+	I915_WRITE(VGA1, dev_priv->saveVGA1);
+	I915_WRITE(VGA_PD, dev_priv->saveVGA_PD);
 	udelay(150);
 
 	/* Clock gating state */
 	I915_WRITE (D_STATE, dev_priv->saveD_STATE);
-	I915_WRITE (DSPCLK_GATE_D, dev_priv->saveDSPCLK_GATE_D);
+	I915_WRITE(CG_2D_DIS, dev_priv->saveCG_2D_DIS);
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);
@@ -524,7 +524,7 @@ static int i915_resume(struct drm_device *dev)
 	I915_WRITE (MI_ARB_STATE, dev_priv->saveMI_ARB_STATE | 0xffff0000);
 
 	for (i = 0; i < 16; i++) {
-		I915_WRITE(SWF0 + (i << 2), dev_priv->saveSWF0[i]);
+		I915_WRITE(SWF00 + (i << 2), dev_priv->saveSWF0[i]);
 		I915_WRITE(SWF10 + (i << 2), dev_priv->saveSWF1[i+7]);
 	}
 	for (i = 0; i < 3; i++)
