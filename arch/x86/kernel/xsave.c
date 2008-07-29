@@ -17,6 +17,10 @@ unsigned int pcntxt_hmask, pcntxt_lmask;
  */
 struct xsave_struct *init_xstate_buf;
 
+#ifdef CONFIG_X86_64
+unsigned int sig_xstate_size = sizeof(struct _fpstate);
+#endif
+
 /*
  * Enable the extended processor state save/restore feature
  */

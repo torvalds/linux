@@ -24,6 +24,7 @@
 # define save_i387_ia32		save_i387
 # define restore_i387_ia32	restore_i387
 # define _fpstate_ia32		_fpstate
+# define sig_xstate_ia32_size   sig_xstate_size
 # define user_i387_ia32_struct	user_i387_struct
 # define user32_fxsr_struct	user_fxsr_struct
 #endif
@@ -36,6 +37,7 @@
 
 static unsigned int		mxcsr_feature_mask __read_mostly = 0xffffffffu;
 unsigned int xstate_size;
+unsigned int sig_xstate_ia32_size = sizeof(struct _fpstate_ia32);
 static struct i387_fxsave_struct fx_scratch __cpuinitdata;
 
 void __cpuinit mxcsr_feature_mask_init(void)

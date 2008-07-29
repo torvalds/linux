@@ -20,6 +20,7 @@
 #include <asm/uaccess.h>
 #include <asm/xsave.h>
 
+extern unsigned int sig_xstate_size;
 extern void fpu_init(void);
 extern void mxcsr_feature_mask_init(void);
 extern int init_fpu(struct task_struct *child);
@@ -31,6 +32,7 @@ extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get;
 extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set;
 
 #ifdef CONFIG_IA32_EMULATION
+extern unsigned int sig_xstate_ia32_size;
 struct _fpstate_ia32;
 extern int save_i387_ia32(struct _fpstate_ia32 __user *buf);
 extern int restore_i387_ia32(struct _fpstate_ia32 __user *buf);
