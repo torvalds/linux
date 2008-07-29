@@ -61,6 +61,11 @@ void __init init_thread_xstate(void)
 		return;
 	}
 
+	if (cpu_has_xsave) {
+		xsave_cntxt_init();
+		return;
+	}
+
 	if (cpu_has_fxsr)
 		xstate_size = sizeof(struct i387_fxsave_struct);
 #ifdef CONFIG_X86_32
@@ -82,6 +87,13 @@ void __cpuinit fpu_init(void)
 	set_in_cr4(X86_CR4_OSXMMEXCPT);
 
 	write_cr0(oldcr0 & ~(X86_CR0_TS|X86_CR0_EM)); /* clear TS and EM */
+
+	/*
+	 * Boot processor to setup the FP and extended state context info.
+	 */
+	if (!smp_processor_id())
+		init_thread_xstate();
+	xsave_init();
 
 	mxcsr_feature_mask_init();
 	/* clean state in init */

@@ -1173,10 +1173,6 @@ void __init trap_init(void)
 	set_system_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
 #endif
 	/*
-	 * initialize the per thread extended state:
-	 */
-	init_thread_xstate();
-	/*
 	 * Should be a barrier for any external CPU state:
 	 */
 	cpu_init();

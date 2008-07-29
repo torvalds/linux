@@ -18,6 +18,7 @@
 #include <asm/sigcontext.h>
 #include <asm/user.h>
 #include <asm/uaccess.h>
+#include <asm/xsave.h>
 
 extern void fpu_init(void);
 extern void mxcsr_feature_mask_init(void);
