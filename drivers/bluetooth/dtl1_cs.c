@@ -590,66 +590,30 @@ static void dtl1_detach(struct pcmcia_device *link)
 	kfree(info);
 }
 
-static int get_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
+static int dtl1_confcheck(struct pcmcia_device *p_dev,
+			  cistpl_cftable_entry_t *cf,
+			  void *priv_data)
 {
-	int i;
-
-	i = pcmcia_get_tuple_data(handle, tuple);
-	if (i != CS_SUCCESS)
-		return i;
-
-	return pcmcia_parse_tuple(handle, tuple, parse);
-}
-
-static int first_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
-{
-	if (pcmcia_get_first_tuple(handle, tuple) != CS_SUCCESS)
-		return CS_NO_MORE_ITEMS;
-	return get_tuple(handle, tuple, parse);
-}
-
-static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
-{
-	if (pcmcia_get_next_tuple(handle, tuple) != CS_SUCCESS)
-		return CS_NO_MORE_ITEMS;
-	return get_tuple(handle, tuple, parse);
+	if ((cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {
+		p_dev->conf.ConfigIndex = cf->index;
+		p_dev->io.BasePort1 = cf->io.win[0].base;
+		p_dev->io.NumPorts1 = cf->io.win[0].len;	/*yo */
+		p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
+		if (!pcmcia_request_io(p_dev, &p_dev->io))
+			return 0;
+	}
+	return -ENODEV;
 }
 
 static int dtl1_config(struct pcmcia_device *link)
 {
 	dtl1_info_t *info = link->priv;
-	tuple_t tuple;
-	u_short buf[256];
-	cisparse_t parse;
-	cistpl_cftable_entry_t *cf = &parse.cftable_entry;
 	int i;
-
-	tuple.TupleData = (cisdata_t *)buf;
-	tuple.TupleOffset = 0;
-	tuple.TupleDataMax = 255;
-	tuple.Attributes = 0;
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 
 	/* Look for a generic full-sized window */
 	link->io.NumPorts1 = 8;
-	i = first_tuple(link, &tuple, &parse);
-	while (i != CS_NO_MORE_ITEMS) {
-		if ((i == CS_SUCCESS) && (cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {
-			link->conf.ConfigIndex = cf->index;
-			link->io.BasePort1 = cf->io.win[0].base;
-			link->io.NumPorts1 = cf->io.win[0].len;	/*yo */
-			link->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
-			i = pcmcia_request_io(link, &link->io);
-			if (i == CS_SUCCESS)
-				break;
-		}
-		i = next_tuple(link, &tuple, &parse);
-	}
-
-	if (i != CS_SUCCESS) {
-		cs_error(link, RequestIO, i);
+	if (!pcmcia_loop_config(link, dtl1_confcheck, NULL))
 		goto failed;
-	}
 
 	i = pcmcia_request_irq(link, &link->irq);
 	if (i != CS_SUCCESS) {
