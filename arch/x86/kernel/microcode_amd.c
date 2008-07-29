@@ -394,7 +394,8 @@ static int cpu_request_microcode_amd(int cpu)
 		return error;
 	}
 
-	buf_pos = buf = firmware->data;
+	buf_pos = (unsigned int *)firmware->data;
+	buf = (void *)firmware->data;
 	size = firmware->size;
 
 	if (buf_pos[0] != UCODE_MAGIC) {
