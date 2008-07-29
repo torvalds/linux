@@ -774,6 +774,7 @@ void usb_deregister(struct usb_driver *driver)
 }
 EXPORT_SYMBOL_GPL(usb_deregister);
 
+#ifdef CONFIG_PM
 
 /* Forced unbinding of a USB interface driver, either because
  * it doesn't support pre_reset/post_reset/reset_resume or
@@ -871,8 +872,6 @@ static void do_unbind_rebind(struct usb_device *udev, int action)
 		}
 	}
 }
-
-#ifdef CONFIG_PM
 
 /* Caller has locked udev's pm_mutex */
 static int usb_suspend_device(struct usb_device *udev, pm_message_t msg)
