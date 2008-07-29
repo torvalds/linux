@@ -960,10 +960,10 @@ static void update_device_status(struct device *dev)
 
 		verbose("Device %s OK: offered", dev->name);
 		for (i = 0; i < dev->desc->feature_len; i++)
-			verbose(" %08x", get_feature_bits(dev)[i]);
+			verbose(" %02x", get_feature_bits(dev)[i]);
 		verbose(", accepted");
 		for (i = 0; i < dev->desc->feature_len; i++)
-			verbose(" %08x", get_feature_bits(dev)
+			verbose(" %02x", get_feature_bits(dev)
 				[dev->desc->feature_len+i]);
 
 		if (dev->ready)
