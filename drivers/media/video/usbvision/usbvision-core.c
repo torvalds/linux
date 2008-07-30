@@ -30,7 +30,6 @@
 #include <linux/mm.h>
 #include <linux/utsname.h>
 #include <linux/highmem.h>
-#include <linux/videodev.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -43,7 +42,6 @@
 #include <media/saa7115.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
-#include <media/audiochip.h>
 
 #include <linux/workqueue.h>
 

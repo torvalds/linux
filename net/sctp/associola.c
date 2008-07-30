@@ -464,7 +464,7 @@ static void sctp_association_destroy(struct sctp_association *asoc)
 		spin_unlock_bh(&sctp_assocs_id_lock);
 	}
 
-	BUG_TRAP(!atomic_read(&asoc->rmem_alloc));
+	WARN_ON(atomic_read(&asoc->rmem_alloc));
 
 	if (asoc->base.malloced) {
 		kfree(asoc);

@@ -38,6 +38,8 @@ struct thread_info {
 #define THREAD_SIZE_ORDER	(1)
 #elif defined(CONFIG_PAGE_SIZE_8KB)
 #define THREAD_SIZE_ORDER	(1)
+#elif defined(CONFIG_PAGE_SIZE_16KB)
+#define THREAD_SIZE_ORDER	(0)
 #elif defined(CONFIG_PAGE_SIZE_64KB)
 #define THREAD_SIZE_ORDER	(0)
 #else

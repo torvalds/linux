@@ -401,6 +401,9 @@ extern int icache_44x_need_flush;
 #ifndef _PAGE_COHERENT
 #define _PAGE_COHERENT	0
 #endif
+#ifndef _PAGE_WRITETHRU
+#define _PAGE_WRITETHRU	0
+#endif
 #ifndef _PMD_PRESENT_MASK
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
 #endif

@@ -8,6 +8,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
+#include <linux/dma-mapping.h>
 #include "base.h"
 
 LIST_HEAD(pnp_cards);
@@ -101,7 +102,7 @@ static int card_probe(struct pnp_card *card, struct pnp_card_driver *drv)
  * @id: pointer to a pnp_id structure
  * @card: pointer to the desired card
  */
-struct pnp_id *pnp_add_card_id(struct pnp_card *card, char *id)
+static struct pnp_id *pnp_add_card_id(struct pnp_card *card, char *id)
 {
 	struct pnp_id *dev_id, *ptr;
 
@@ -166,6 +167,9 @@ struct pnp_card *pnp_alloc_card(struct pnp_protocol *protocol, int id, char *pnp
 	card->dev.parent = &card->protocol->dev;
 	sprintf(card->dev.bus_id, "%02x:%02x", card->protocol->number,
 		card->number);
+
+	card->dev.coherent_dma_mask = DMA_24BIT_MASK;
+	card->dev.dma_mask = &card->dev.coherent_dma_mask;
 
 	dev_id = pnp_add_card_id(card, pnpid);
 	if (!dev_id) {

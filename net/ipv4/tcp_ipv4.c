@@ -418,7 +418,7 @@ void tcp_v4_err(struct sk_buff *skb, u32 info)
 		/* ICMPs are not backlogged, hence we cannot get
 		   an established socket here.
 		 */
-		BUG_TRAP(!req->sk);
+		WARN_ON(req->sk);
 
 		if (seq != tcp_rsk(req)->snt_isn) {
 			NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);

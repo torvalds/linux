@@ -931,7 +931,7 @@ group_prealloc  max_to_scan  mb_groups  mb_history  min_to_scan  order2_req
 stats  stream_req
 
 mb_groups:
-This file gives the details of mutiblock allocator buddy cache of free blocks
+This file gives the details of multiblock allocator buddy cache of free blocks
 
 mb_history:
 Multiblock allocation history.
@@ -1474,7 +1474,7 @@ used because pages_free(1355) is smaller than watermark + protection[2]
 normal page requirement. If requirement is DMA zone(index=0), protection[0]
 (=0) is used.
 
-zone[i]'s protection[j] is calculated by following exprssion.
+zone[i]'s protection[j] is calculated by following expression.
 
 (i < j):
   zone[i]->protection[j]

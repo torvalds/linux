@@ -76,6 +76,23 @@
 #define IRQ_CFCARD	7
 #endif
 
+/* SH Ether support (SH7710/SH7712) */
+/* Base address */
+#define SH_ETH0_BASE 0xA7000000
+#define SH_ETH1_BASE 0xA7000400
+/* PHY ID */
+#if defined(CONFIG_CPU_SUBTYPE_SH7710)
+# define PHY_ID 0x00
+#elif defined(CONFIG_CPU_SUBTYPE_SH7712)
+# define PHY_ID 0x01
+#endif
+/* Ether IRQ */
+#define SH_ETH0_IRQ	80
+#define SH_ETH1_IRQ	81
+#define SH_TSU_IRQ	82
+
+void init_se_IRQ(void);
+
 #define __IO_PREFIX	se
 #include <asm/io_generic.h>
 

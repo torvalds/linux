@@ -746,5 +746,5 @@ void dev_shutdown(struct net_device *dev)
 {
 	netdev_for_each_tx_queue(dev, shutdown_scheduler_queue, &noop_qdisc);
 	shutdown_scheduler_queue(dev, &dev->rx_queue, NULL);
-	BUG_TRAP(!timer_pending(&dev->watchdog_timer));
+	WARN_ON(timer_pending(&dev->watchdog_timer));
 }

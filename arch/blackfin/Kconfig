@@ -234,7 +234,7 @@ config MEM_MT48LC16M16A2TG_75
 	bool
 	depends on (BFIN533_EZKIT || BFIN561_EZKIT \
 		|| BFIN533_BLUETECHNIX_CM || BFIN537_BLUETECHNIX_CM \
-		|| H8606_HVSISTEMAS)
+		|| H8606_HVSISTEMAS || BFIN527_BLUETECHNIX_CM)
 	default y
 
 config MEM_MT48LC32M8A2_75
@@ -310,25 +310,6 @@ config BFIN_KERNEL_CLOCK
 	  are also not changed, and the Bootloader does 100% of the hardware
 	  configuration.
 
-config MEM_SIZE
-	int "SDRAM Memory Size in MBytes"
-	depends on BFIN_KERNEL_CLOCK
-	default 64
-
-config MEM_ADD_WIDTH
-	int "Memory Address Width"
-	depends on BFIN_KERNEL_CLOCK
-	depends on (!BF54x)
-	range 8 11
-	default  9 if BFIN533_EZKIT
-	default  9 if BFIN561_EZKIT
-	default  9 if H8606_HVSISTEMAS
-	default 10 if BFIN527_EZKIT
-	default 10 if BFIN537_STAMP
-	default 11 if BFIN533_STAMP
-	default 10 if PNAV10
-	default 10 if BFIN532_IP0X
-
 config PLL_BYPASS
 	bool "Bypass PLL"
 	depends on BFIN_KERNEL_CLOCK
@@ -349,8 +330,7 @@ config VCO_MULT
 	default "45" if BFIN533_STAMP
 	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM)
 	default "22" if BFIN533_BLUETECHNIX_CM
-	default "20" if BFIN537_BLUETECHNIX_CM
-	default "20" if BFIN561_BLUETECHNIX_CM
+	default "20" if (BFIN537_BLUETECHNIX_CM || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
 	default "16" if H8606_HVSISTEMAS
 	help
@@ -390,7 +370,7 @@ config SCLK_DIV
 
 config MAX_MEM_SIZE
 	int "Max SDRAM Memory Size in MBytes"
-	depends on !BFIN_KERNEL_CLOCK && !MPU
+	depends on !MPU
 	default 512
 	help
 	  This is the max memory size that the kernel will create CPLB
@@ -748,14 +728,6 @@ config BFIN_WT
 
 endchoice
 
-config L1_MAX_PIECE
-	int "Set the max L1 SRAM pieces"
-	default 16
-	help
-	  Set the max memory pieces for the L1 SRAM allocation algorithm.
-	  Min value is 16. Max value is 1024.
-
-
 config MPU
 	bool "Enable the memory protection unit (EXPERIMENTAL)"
 	default n
@@ -899,7 +871,7 @@ config ARCH_SUSPEND_POSSIBLE
 	depends on !SMP
 
 choice
-	prompt "Default Power Saving Mode"
+	prompt "Standby Power Saving Mode"
 	depends on PM
 	default PM_BFIN_SLEEP_DEEPER
 config  PM_BFIN_SLEEP_DEEPER
@@ -918,6 +890,8 @@ config  PM_BFIN_SLEEP_DEEPER
 	  normal during Sleep Deeper, due to the reduced SCLK frequency.
 	  When in the sleep mode, system DMA access to L1 memory is not supported.
 
+	  If unsure, select "Sleep Deeper".
+
 config  PM_BFIN_SLEEP
 	bool "Sleep"
 	help
@@ -925,15 +899,17 @@ config  PM_BFIN_SLEEP
 	  dissipation by disabling the clock to the processor core (CCLK).
 	  The PLL and system clock (SCLK), however, continue to operate in
 	  this mode. Typically an external event or RTC activity will wake
-	  up the processor. When in the sleep mode,
-	  system DMA access to L1 memory is not supported.
+	  up the processor. When in the sleep mode, system DMA access to L1
+	  memory is not supported.
+
+	  If unsure, select "Sleep Deeper".
 endchoice
 
 config PM_WAKEUP_BY_GPIO
-	bool "Cause Wakeup Event by GPIO"
+	bool "Allow Wakeup from Standby by GPIO"
 
 config PM_WAKEUP_GPIO_NUMBER
-	int "Wakeup GPIO number"
+	int "GPIO number"
 	range 0 47
 	depends on PM_WAKEUP_BY_GPIO
 	default 2 if BFIN537_STAMP
@@ -953,6 +929,58 @@ config  PM_WAKEUP_GPIO_POLAR_EDGE_R
 config  PM_WAKEUP_GPIO_POLAR_EDGE_B
 	bool "Both EDGE"
 endchoice
+
+comment "Possible Suspend Mem / Hibernate Wake-Up Sources"
+	depends on PM
+
+config PM_BFIN_WAKE_RTC
+	bool "Allow Wake-Up from RESET and on-chip RTC"
+	depends on PM
+	default n
+	help
+	  Enable RTC Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_PH6
+	bool "Allow Wake-Up from on-chip PHY or PH6 GP"
+	depends on PM && (BF52x || BF534 || BF536 || BF537)
+	default n
+	help
+	  Enable PHY and PH6 GP Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_CAN
+	bool "Allow Wake-Up from on-chip CAN0/1"
+	depends on PM && (BF54x || BF534 || BF536 || BF537)
+	default n
+	help
+	  Enable CAN0/1 Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_GP
+	bool "Allow Wake-Up from GPIOs"
+	depends on PM && BF54x
+	default n
+	help
+	  Enable General-Purpose Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_USB
+	bool "Allow Wake-Up from on-chip USB"
+	depends on PM && (BF54x || BF52x)
+	default n
+	help
+	  Enable USB Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_KEYPAD
+	bool "Allow Wake-Up from on-chip Keypad"
+	depends on PM && BF54x
+	default n
+	help
+	  Enable Keypad Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_ROTARY
+	bool "Allow Wake-Up from on-chip Rotary"
+	depends on PM && BF54x
+	default n
+	help
+	  Enable Rotary Wake-Up (Voltage Regulator Power-Up)
 
 endmenu
 

@@ -152,6 +152,7 @@ static int sh7760fb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 		col |= ((*g) & 0xff) << 8;
 		col |= ((*b) & 0xff);
 		col &= SH7760FB_PALETTE_MASK;
+		iowrite32(col, par->base + LDPR(s));
 
 		if (s < 16)
 			((u32 *) (info->pseudo_palette))[s] = s;

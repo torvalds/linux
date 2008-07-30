@@ -269,7 +269,6 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	int reading = rq_data_dir(rq) == READ;
 	int do_copy = 0;
 	struct bio *bio;
-	unsigned long stack_mask = ~(THREAD_SIZE - 1);
 
 	if (len > (q->max_hw_sectors << 9))
 		return -EINVAL;
@@ -278,11 +277,8 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 
 	kaddr = (unsigned long)kbuf;
 	alignment = queue_dma_alignment(q) | q->dma_pad_mask;
-	do_copy = ((kaddr & alignment) || (len & alignment));
-
-	if (!((kaddr & stack_mask) ^
-	      ((unsigned long)current->stack & stack_mask)))
-		do_copy = 1;
+	do_copy = ((kaddr & alignment) || (len & alignment) ||
+		   object_is_on_stack(kbuf));
 
 	if (do_copy)
 		bio = bio_copy_kern(q, kbuf, len, gfp_mask, reading);

@@ -814,7 +814,7 @@ static u16 bnx2x_free_tx_pkt(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	}
 
 	/* release skb */
-	BUG_TRAP(skb);
+	WARN_ON(!skb);
 	dev_kfree_skb(skb);
 	tx_buf->first_bd = 0;
 	tx_buf->skb = NULL;
@@ -837,9 +837,9 @@ static inline u16 bnx2x_tx_avail(struct bnx2x_fastpath *fp)
 	used = SUB_S16(prod, cons) + (s16)NUM_TX_RINGS;
 
 #ifdef BNX2X_STOP_ON_ERROR
-	BUG_TRAP(used >= 0);
-	BUG_TRAP(used <= fp->bp->tx_ring_size);
-	BUG_TRAP((fp->bp->tx_ring_size - used) <= MAX_TX_AVAIL);
+	WARN_ON(used < 0);
+	WARN_ON(used > fp->bp->tx_ring_size);
+	WARN_ON((fp->bp->tx_ring_size - used) > MAX_TX_AVAIL);
 #endif
 
 	return (s16)(fp->bp->tx_ring_size) - used;
@@ -1020,7 +1020,7 @@ static inline int bnx2x_alloc_rx_sge(struct bnx2x *bp,
 
 	mapping = pci_map_page(bp->pdev, page, 0, BCM_PAGE_SIZE*PAGES_PER_SGE,
 			       PCI_DMA_FROMDEVICE);
-	if (unlikely(dma_mapping_error(mapping))) {
+	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		__free_pages(page, PAGES_PER_SGE_SHIFT);
 		return -ENOMEM;
 	}
@@ -1048,7 +1048,7 @@ static inline int bnx2x_alloc_rx_skb(struct bnx2x *bp,
 
 	mapping = pci_map_single(bp->pdev, skb->data, bp->rx_buf_use_size,
 				 PCI_DMA_FROMDEVICE);
-	if (unlikely(dma_mapping_error(mapping))) {
+	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
@@ -4374,7 +4374,7 @@ static void bnx2x_init_rx_rings(struct bnx2x *bp)
 			}
 			ring_prod = NEXT_RX_IDX(ring_prod);
 			cqe_ring_prod = NEXT_RCQ_IDX(cqe_ring_prod);
-			BUG_TRAP(ring_prod > i);
+			WARN_ON(ring_prod <= i);
 		}
 
 		fp->rx_bd_prod = ring_prod;

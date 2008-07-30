@@ -511,8 +511,7 @@ void hfs_clear_inode(struct inode *inode)
 	}
 }
 
-static int hfs_permission(struct inode *inode, int mask,
-			  struct nameidata *nd)
+static int hfs_permission(struct inode *inode, int mask)
 {
 	if (S_ISREG(inode->i_mode) && mask & MAY_EXEC)
 		return 0;
@@ -523,8 +522,6 @@ static int hfs_file_open(struct inode *inode, struct file *file)
 {
 	if (HFS_IS_RSRC(inode))
 		inode = HFS_I(inode)->rsrc_inode;
-	if (atomic_read(&file->f_count) != 1)
-		return 0;
 	atomic_inc(&HFS_I(inode)->opencnt);
 	return 0;
 }
@@ -535,8 +532,6 @@ static int hfs_file_release(struct inode *inode, struct file *file)
 
 	if (HFS_IS_RSRC(inode))
 		inode = HFS_I(inode)->rsrc_inode;
-	if (atomic_read(&file->f_count) != 0)
-		return 0;
 	if (atomic_dec_and_test(&HFS_I(inode)->opencnt)) {
 		mutex_lock(&inode->i_mutex);
 		hfs_file_truncate(inode);

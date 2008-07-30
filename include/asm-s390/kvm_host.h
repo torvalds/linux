@@ -111,7 +111,7 @@ struct kvm_vcpu_stat {
 	u32 exit_validity;
 	u32 exit_instruction;
 	u32 instruction_lctl;
-	u32 instruction_lctg;
+	u32 instruction_lctlg;
 	u32 exit_program_interruption;
 	u32 exit_instr_and_program;
 	u32 deliver_emergency_signal;
@@ -231,5 +231,5 @@ struct kvm_arch{
 	struct kvm_s390_float_interrupt float_int;
 };
 
-extern int sie64a(struct kvm_s390_sie_block *, __u64 *);
+extern int sie64a(struct kvm_s390_sie_block *, unsigned long *);
 #endif

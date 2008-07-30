@@ -74,6 +74,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/sched.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 
@@ -906,9 +907,7 @@ static const struct file_operations qcam_fops = {
 };
 static struct video_device qcam_template=
 {
-	.owner		= THIS_MODULE,
 	.name		= "Connectix Quickcam",
-	.type		= VID_TYPE_CAPTURE,
 	.fops           = &qcam_fops,
 };
 

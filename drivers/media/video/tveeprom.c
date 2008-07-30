@@ -34,13 +34,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/i2c.h>
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-common.h>
-#include <media/audiochip.h>
+#include <media/v4l2-chip-ident.h>
 
 MODULE_DESCRIPTION("i2c Hauppauge eeprom decoder driver");
 MODULE_AUTHOR("John Klar");
@@ -261,70 +261,72 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        		"MaxLinear MXL5005_v2"},
 	{ TUNER_PHILIPS_TDA8290, 	"Philips 18271_8295"},
 	/* 150-159 */
-	{ TUNER_ABSENT,        "Xceive XC5000"},
+	{ TUNER_ABSENT,                 "Xceive XC5000"},
 };
 
+/* Use V4L2_IDENT_AMBIGUOUS for those audio 'chips' that are
+ * internal to a video chip, i.e. not a separate audio chip. */
 static struct HAUPPAUGE_AUDIOIC
 {
-	enum audiochip  id;
+	u32   id;
 	char *name;
 }
 audioIC[] =
 {
 	/* 0-4 */
-	{AUDIO_CHIP_NONE,     "None"},
-	{AUDIO_CHIP_TEA6300,  "TEA6300"},
-	{AUDIO_CHIP_TEA6300,  "TEA6320"},
-	{AUDIO_CHIP_TDA985X,  "TDA9850"},
-	{AUDIO_CHIP_MSP34XX,  "MSP3400C"},
+	{ V4L2_IDENT_NONE,      "None"      },
+	{ V4L2_IDENT_UNKNOWN,   "TEA6300"   },
+	{ V4L2_IDENT_UNKNOWN,   "TEA6320"   },
+	{ V4L2_IDENT_UNKNOWN,   "TDA9850"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP3400C"  },
 	/* 5-9 */
-	{AUDIO_CHIP_MSP34XX,  "MSP3410D"},
-	{AUDIO_CHIP_MSP34XX,  "MSP3415"},
-	{AUDIO_CHIP_MSP34XX,  "MSP3430"},
-	{AUDIO_CHIP_MSP34XX,  "MSP3438"},
-	{AUDIO_CHIP_UNKNOWN,  "CS5331"},
+	{ V4L2_IDENT_MSPX4XX,   "MSP3410D"  },
+	{ V4L2_IDENT_MSPX4XX,   "MSP3415"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP3430"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP3438"   },
+	{ V4L2_IDENT_UNKNOWN,   "CS5331"    },
 	/* 10-14 */
-	{AUDIO_CHIP_MSP34XX,  "MSP3435"},
-	{AUDIO_CHIP_MSP34XX,  "MSP3440"},
-	{AUDIO_CHIP_MSP34XX,  "MSP3445"},
-	{AUDIO_CHIP_MSP34XX,  "MSP3411"},
-	{AUDIO_CHIP_MSP34XX,  "MSP3416"},
+	{ V4L2_IDENT_MSPX4XX,   "MSP3435"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP3440"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP3445"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP3411"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP3416"   },
 	/* 15-19 */
-	{AUDIO_CHIP_MSP34XX,  "MSP3425"},
-	{AUDIO_CHIP_MSP34XX,  "MSP3451"},
-	{AUDIO_CHIP_MSP34XX,  "MSP3418"},
-	{AUDIO_CHIP_UNKNOWN,  "Type 0x12"},
-	{AUDIO_CHIP_UNKNOWN,  "OKI7716"},
+	{ V4L2_IDENT_MSPX4XX,   "MSP3425"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP3451"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP3418"   },
+	{ V4L2_IDENT_UNKNOWN,   "Type 0x12" },
+	{ V4L2_IDENT_UNKNOWN,   "OKI7716"   },
 	/* 20-24 */
-	{AUDIO_CHIP_MSP34XX,  "MSP4410"},
-	{AUDIO_CHIP_MSP34XX,  "MSP4420"},
-	{AUDIO_CHIP_MSP34XX,  "MSP4440"},
-	{AUDIO_CHIP_MSP34XX,  "MSP4450"},
-	{AUDIO_CHIP_MSP34XX,  "MSP4408"},
+	{ V4L2_IDENT_MSPX4XX,   "MSP4410"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP4420"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP4440"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP4450"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP4408"   },
 	/* 25-29 */
-	{AUDIO_CHIP_MSP34XX,  "MSP4418"},
-	{AUDIO_CHIP_MSP34XX,  "MSP4428"},
-	{AUDIO_CHIP_MSP34XX,  "MSP4448"},
-	{AUDIO_CHIP_MSP34XX,  "MSP4458"},
-	{AUDIO_CHIP_MSP34XX,  "Type 0x1d"},
+	{ V4L2_IDENT_MSPX4XX,   "MSP4418"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP4428"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP4448"   },
+	{ V4L2_IDENT_MSPX4XX,   "MSP4458"   },
+	{ V4L2_IDENT_MSPX4XX,   "Type 0x1d" },
 	/* 30-34 */
-	{AUDIO_CHIP_INTERNAL, "CX880"},
-	{AUDIO_CHIP_INTERNAL, "CX881"},
-	{AUDIO_CHIP_INTERNAL, "CX883"},
-	{AUDIO_CHIP_INTERNAL, "CX882"},
-	{AUDIO_CHIP_INTERNAL, "CX25840"},
+	{ V4L2_IDENT_AMBIGUOUS, "CX880"     },
+	{ V4L2_IDENT_AMBIGUOUS, "CX881"     },
+	{ V4L2_IDENT_AMBIGUOUS, "CX883"     },
+	{ V4L2_IDENT_AMBIGUOUS, "CX882"     },
+	{ V4L2_IDENT_AMBIGUOUS, "CX25840"   },
 	/* 35-39 */
-	{AUDIO_CHIP_INTERNAL, "CX25841"},
-	{AUDIO_CHIP_INTERNAL, "CX25842"},
-	{AUDIO_CHIP_INTERNAL, "CX25843"},
-	{AUDIO_CHIP_INTERNAL, "CX23418"},
-	{AUDIO_CHIP_INTERNAL, "CX23885"},
+	{ V4L2_IDENT_AMBIGUOUS, "CX25841"   },
+	{ V4L2_IDENT_AMBIGUOUS, "CX25842"   },
+	{ V4L2_IDENT_AMBIGUOUS, "CX25843"   },
+	{ V4L2_IDENT_AMBIGUOUS, "CX23418"   },
+	{ V4L2_IDENT_AMBIGUOUS, "CX23885"   },
 	/* 40-44 */
-	{AUDIO_CHIP_INTERNAL, "CX23888"},
-	{AUDIO_CHIP_INTERNAL, "SAA7131"},
-	{AUDIO_CHIP_INTERNAL, "CX23887"},
-	{AUDIO_CHIP_INTERNAL, "SAA7164"},
-	{AUDIO_CHIP_INTERNAL, "AU8522"},
+	{ V4L2_IDENT_AMBIGUOUS, "CX23888"   },
+	{ V4L2_IDENT_AMBIGUOUS, "SAA7131"   },
+	{ V4L2_IDENT_AMBIGUOUS, "CX23887"   },
+	{ V4L2_IDENT_AMBIGUOUS, "SAA7164"   },
+	{ V4L2_IDENT_AMBIGUOUS, "AU8522"    },
 };
 
 /* This list is supplied by Hauppauge. Thanks! */
@@ -483,7 +485,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			tvee->has_radio = eeprom_data[i+len-1];
 			/* old style tag, don't know how to detect
 			IR presence, mark as unknown. */
-			tvee->has_ir = -1;
+			tvee->has_ir = 0;
 			tvee->model =
 				eeprom_data[i+8] +
 				(eeprom_data[i+9] << 8);
@@ -509,7 +511,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			if (audioic < ARRAY_SIZE(audioIC))
 				tvee->audio_processor = audioIC[audioic].id;
 			else
-				tvee->audio_processor = AUDIO_CHIP_UNKNOWN;
+				tvee->audio_processor = V4L2_IDENT_UNKNOWN;
 			break;
 
 		/* case 0x03: tag 'EEInfo' */
@@ -542,7 +544,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			if (audioic < ARRAY_SIZE(audioIC))
 				tvee->audio_processor = audioIC[audioic].id;
 			else
-				tvee->audio_processor = AUDIO_CHIP_UNKNOWN;
+				tvee->audio_processor = V4L2_IDENT_UNKNOWN;
 
 			break;
 
@@ -603,7 +605,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 
 		case 0x0f:
 			/* tag 'IRInfo' */
-			tvee->has_ir = eeprom_data[i+1];
+			tvee->has_ir = 1 | (eeprom_data[i+1] << 1);
 			break;
 
 		/* case 0x10: tag 'VBIInfo' */
@@ -690,7 +692,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			t_fmt_name2[6], t_fmt_name2[7], t_format2);
 	if (audioic < 0) {
 		tveeprom_info("audio processor is unknown (no idx)\n");
-		tvee->audio_processor = AUDIO_CHIP_UNKNOWN;
+		tvee->audio_processor = V4L2_IDENT_UNKNOWN;
 	} else {
 		if (audioic < ARRAY_SIZE(audioIC))
 			tveeprom_info("audio processor is %s (idx %d)\n",
@@ -703,14 +705,14 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 		tveeprom_info("decoder processor is %s (idx %d)\n",
 			STRM(decoderIC, tvee->decoder_processor),
 			tvee->decoder_processor);
-	if (tvee->has_ir == -1)
-		tveeprom_info("has %sradio\n",
-				tvee->has_radio ? "" : "no ");
-	else
+	if (tvee->has_ir)
 		tveeprom_info("has %sradio, has %sIR receiver, has %sIR transmitter\n",
 				tvee->has_radio ? "" : "no ",
-				(tvee->has_ir & 1) ? "" : "no ",
-				(tvee->has_ir & 2) ? "" : "no ");
+				(tvee->has_ir & 2) ? "" : "no ",
+				(tvee->has_ir & 4) ? "" : "no ");
+	else
+		tveeprom_info("has %sradio\n",
+				tvee->has_radio ? "" : "no ");
 }
 EXPORT_SYMBOL(tveeprom_hauppauge_analog);
 

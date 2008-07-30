@@ -170,6 +170,13 @@ extern void (*late_time_init)(void);
 	__attribute__((__section__(".initcall" level ".init"))) = fn
 
 /*
+ * Early initcalls run before initializing SMP.
+ *
+ * Only for built-in code, not modules.
+ */
+#define early_initcall(fn)		__define_initcall("early",fn,early)
+
+/*
  * A "pure" initcall has no dependencies on anything else, and purely
  * initializes variables that couldn't be statically initialized.
  *

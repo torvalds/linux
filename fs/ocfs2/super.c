@@ -1118,7 +1118,7 @@ bail:
 	return status;
 }
 
-static void ocfs2_inode_init_once(struct kmem_cache *cachep, void *data)
+static void ocfs2_inode_init_once(void *data)
 {
 	struct ocfs2_inode_info *oi = data;
 

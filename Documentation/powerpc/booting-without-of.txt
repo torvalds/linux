@@ -708,7 +708,7 @@ device or bus to be described by the device tree.
 In general, the format of an address for a device is defined by the
 parent bus type, based on the #address-cells and #size-cells
 properties.  Note that the parent's parent definitions of #address-cells
-and #size-cells are not inhereted so every node with children must specify
+and #size-cells are not inherited so every node with children must specify
 them.  The kernel requires the root node to have those properties defining
 addresses format for devices directly mapped on the processor bus.
 
@@ -1777,7 +1777,7 @@ platforms are moved over to use the flattened-device-tree model.
 
       Xilinx uartlite devices are simple fixed speed serial ports.
 
-      Requred properties:
+      Required properties:
        - current-speed : Baud rate of uartlite
 
       v) Xilinx hwicap
@@ -1799,7 +1799,7 @@ platforms are moved over to use the flattened-device-tree model.
       Xilinx UART 16550 devices are very similar to the NS16550 but with
       different register spacing and an offset from the base address.
 
-      Requred properties:
+      Required properties:
        - clock-frequency : Frequency of the clock input
        - reg-offset : A value of 3 is required
        - reg-shift : A value of 2 is required
@@ -1953,7 +1953,7 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
 1) The /system-controller node
 
   This node is used to represent the system-controller and must be
-  present when the system uses a system contller chip. The top-level
+  present when the system uses a system controller chip. The top-level
   system-controller node contains information that is global to all
   devices within the system controller chip. The node name begins
   with "system-controller" followed by the unit address, which is

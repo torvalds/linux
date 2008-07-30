@@ -2147,7 +2147,7 @@ sba_dma_supported (struct device *dev, u64 mask)
 }
 
 int
-sba_dma_mapping_error (dma_addr_t dma_addr)
+sba_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return 0;
 }

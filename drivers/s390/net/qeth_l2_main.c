@@ -35,7 +35,7 @@ static int qeth_l2_recover(void *);
 
 static int qeth_l2_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	struct mii_ioctl_data *mii_data;
 	int rc = 0;
 
@@ -317,7 +317,7 @@ static void qeth_l2_process_vlans(struct qeth_card *card, int clear)
 
 static void qeth_l2_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	struct qeth_vlan_vid *id;
 
 	QETH_DBF_TEXT_(TRACE, 4, "aid:%d", vid);
@@ -334,7 +334,7 @@ static void qeth_l2_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 static void qeth_l2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct qeth_vlan_vid *id, *tmpid = NULL;
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 
 	QETH_DBF_TEXT_(TRACE, 4, "kid:%d", vid);
 	spin_lock_bh(&card->vlanlock);
@@ -566,7 +566,7 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	int rc = 0;
 
 	QETH_DBF_TEXT(TRACE, 3, "setmac");
@@ -590,7 +590,7 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 
 static void qeth_l2_set_multicast_list(struct net_device *dev)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	struct dev_mc_list *dm;
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
@@ -612,7 +612,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int rc;
 	struct qeth_hdr *hdr = NULL;
 	int elements = 0;
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	struct sk_buff *new_skb = skb;
 	int ipv = qeth_get_ip_version(skb);
 	int cast_type = qeth_get_cast_type(card, skb);
@@ -767,7 +767,7 @@ static void qeth_l2_qdio_input_handler(struct ccw_device *ccwdev,
 
 static int qeth_l2_open(struct net_device *dev)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 
 	QETH_DBF_TEXT(TRACE, 4, "qethopen");
 	if (card->state != CARD_STATE_SOFTSETUP)
@@ -791,7 +791,7 @@ static int qeth_l2_open(struct net_device *dev)
 
 static int qeth_l2_stop(struct net_device *dev)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 
 	QETH_DBF_TEXT(TRACE, 4, "qethstop");
 	netif_tx_disable(dev);
@@ -838,7 +838,7 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 
 static int qeth_l2_ethtool_set_tso(struct net_device *dev, u32 data)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 
 	if (data) {
 		if (card->options.large_send == QETH_LARGE_SEND_NO) {
@@ -894,7 +894,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 	if (!card->dev)
 		return -ENODEV;
 
-	card->dev->priv = card;
+	card->dev->ml_priv = card;
 	card->dev->tx_timeout = &qeth_tx_timeout;
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
 	card->dev->open = qeth_l2_open;
@@ -1178,7 +1178,7 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 	QETH_DBF_TEXT(TRACE, 2, "osnsdmc");
 	if (!dev)
 		return -ENODEV;
-	card = netdev_priv(dev);
+	card = dev->ml_priv;
 	if (!card)
 		return -ENODEV;
 	if ((card->state != CARD_STATE_UP) &&
@@ -1201,7 +1201,7 @@ int qeth_osn_register(unsigned char *read_dev_no, struct net_device **dev,
 	*dev = qeth_l2_netdev_by_devno(read_dev_no);
 	if (*dev == NULL)
 		return -ENODEV;
-	card = netdev_priv(*dev);
+	card = (*dev)->ml_priv;
 	if (!card)
 		return -ENODEV;
 	if ((assist_cb == NULL) || (data_cb == NULL))
@@ -1219,7 +1219,7 @@ void qeth_osn_deregister(struct net_device *dev)
 	QETH_DBF_TEXT(TRACE, 2, "osndereg");
 	if (!dev)
 		return;
-	card = netdev_priv(dev);
+	card = dev->ml_priv;
 	if (!card)
 		return;
 	card->osn_info.assist_cb = NULL;
