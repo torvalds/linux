@@ -26,7 +26,7 @@ static DECLARE_BITMAP(xpc_heartbeating_to_mask_uv, XP_MAX_NPARTITIONS_UV);
 static void *xpc_activate_mq;
 
 static void
-xpc_IPI_send_local_activate_uv(struct xpc_partition *part)
+xpc_send_local_activate_IRQ_uv(struct xpc_partition *part)
 {
 	/*
 	 * >>> make our side think that the remote parition sent an activate
@@ -75,13 +75,13 @@ xpc_request_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
  * >>>	part->sn.uv.activate_mq_gpa = remote_rp->sn.activate_mq_gpa;
  */
 
-	xpc_IPI_send_local_activate_uv(part);
+	xpc_send_local_activate_IRQ_uv(part);
 }
 
 static void
 xpc_request_partition_reactivation_uv(struct xpc_partition *part)
 {
-	xpc_IPI_send_local_activate_uv(part);
+	xpc_send_local_activate_IRQ_uv(part);
 }
 
 /*
@@ -114,7 +114,7 @@ xpc_make_first_contact_uv(struct xpc_partition *part)
 }
 
 static u64
-xpc_get_IPI_flags_uv(struct xpc_partition *part)
+xpc_get_chctl_all_flags_uv(struct xpc_partition *part)
 {
 	/* >>> this function needs fleshing out */
 	return 0UL;
@@ -140,7 +140,7 @@ xpc_init_uv(void)
 	xpc_setup_infrastructure = xpc_setup_infrastructure_uv;
 	xpc_teardown_infrastructure = xpc_teardown_infrastructure_uv;
 	xpc_make_first_contact = xpc_make_first_contact_uv;
-	xpc_get_IPI_flags = xpc_get_IPI_flags_uv;
+	xpc_get_chctl_all_flags = xpc_get_chctl_all_flags_uv;
 	xpc_get_deliverable_msg = xpc_get_deliverable_msg_uv;
 }
 

@@ -186,9 +186,10 @@ struct xpc_vars_part_sn2 {
 	u64 openclose_args_pa;	/* physical address of open and close args */
 	u64 GPs_pa;		/* physical address of Get/Put values */
 
-	u64 IPI_amo_pa;		/* physical address of IPI AMO_t structure */
-	int IPI_nasid;		/* nasid of where to send IPIs */
-	int IPI_phys_cpuid;	/* physical CPU ID of where to send IPIs */
+	u64 chctl_amo_pa;	/* physical address of chctl flags' AMO_t */
+
+	int notify_IRQ_nasid;	/* nasid of where to send notify IRQs */
+	int notify_IRQ_phys_cpuid;	/* CPUID of where to send notify IRQs */
 
 	u8 nchannels;		/* #of defined channels supported */
 
@@ -407,7 +408,7 @@ struct xpc_channel {
 	atomic_t n_on_msg_allocate_wq;	/* #on msg allocation wait queue */
 	wait_queue_head_t msg_allocate_wq;	/* msg allocation wait queue */
 
-	u8 delayed_IPI_flags;	/* IPI flags received, but delayed */
+	u8 delayed_chctl_flags;	/* chctl flags received, but delayed */
 				/* action until channel disconnected */
 
 	/* queue of msg senders who want to be notified when msg received */
@@ -470,6 +471,54 @@ struct xpc_channel {
 #define	XPC_C_WDISCONNECT	0x00040000  /* waiting for channel disconnect */
 
 /*
+ * The channel control flags (chctl) union consists of a 64-bit variable which
+ * is divided up into eight bytes, ordered from right to left. Byte zero
+ * pertains to channel 0, byte one to channel 1, and so on. Each channel's byte
+ * can have one or more of the chctl flags set in it.
+ */
+
+union xpc_channel_ctl_flags {
+	u64 all_flags;
+	u8 flags[XPC_MAX_NCHANNELS];
+};
+
+/* chctl flags */
+#define	XPC_CHCTL_CLOSEREQUEST	0x01
+#define	XPC_CHCTL_CLOSEREPLY	0x02
+#define	XPC_CHCTL_OPENREQUEST	0x04
+#define	XPC_CHCTL_OPENREPLY	0x08
+#define	XPC_CHCTL_MSGREQUEST	0x10
+
+#define XPC_OPENCLOSE_CHCTL_FLAGS \
+			(XPC_CHCTL_CLOSEREQUEST | XPC_CHCTL_CLOSEREPLY | \
+			 XPC_CHCTL_OPENREQUEST | XPC_CHCTL_OPENREPLY)
+#define XPC_MSG_CHCTL_FLAGS	XPC_CHCTL_MSGREQUEST
+
+static inline int
+xpc_any_openclose_chctl_flags_set(union xpc_channel_ctl_flags *chctl)
+{
+	int ch_number;
+
+	for (ch_number = 0; ch_number < XPC_MAX_NCHANNELS; ch_number++) {
+		if (chctl->flags[ch_number] & XPC_OPENCLOSE_CHCTL_FLAGS)
+			return 1;
+	}
+	return 0;
+}
+
+static inline int
+xpc_any_msg_chctl_flags_set(union xpc_channel_ctl_flags *chctl)
+{
+	int ch_number;
+
+	for (ch_number = 0; ch_number < XPC_MAX_NCHANNELS; ch_number++) {
+		if (chctl->flags[ch_number] & XPC_MSG_CHCTL_FLAGS)
+			return 1;
+	}
+	return 0;
+}
+
+/*
  * Manages channels on a partition basis. There is one of these structures
  * for each partition (a partition will never utilize the structure that
  * represents itself).
@@ -494,12 +543,12 @@ struct xpc_partition_sn2 {
 
 	u64 remote_openclose_args_pa;	/* phys addr of remote's args */
 
-	int remote_IPI_nasid;	/* nasid of where to send IPIs */
-	int remote_IPI_phys_cpuid;	/* phys CPU ID of where to send IPIs */
-	char IPI_owner[8];	/* IPI owner's name */
+	int notify_IRQ_nasid;	/* nasid of where to send notify IRQs */
+	int notify_IRQ_phys_cpuid;	/* CPUID of where to send notify IRQs */
+	char notify_IRQ_owner[8];	/* notify IRQ's owner's name */
 
-	AMO_t *remote_IPI_amo_va;    /* address of remote IPI AMO_t structure */
-	AMO_t *local_IPI_amo_va;	/* address of IPI AMO_t structure */
+	AMO_t *remote_chctl_amo_va; /* address of remote chctl flags' AMO_t */
+	AMO_t *local_chctl_amo_va;	/* address of chctl flags' AMO_t */
 
 	struct timer_list dropped_notify_IRQ_timer;	/* dropped IRQ timer */
 };
@@ -536,18 +585,16 @@ struct xpc_partition {
 	atomic_t nchannels_engaged;  /* #of channels engaged with remote part */
 	struct xpc_channel *channels;	/* array of channel structures */
 
-	/* fields used to pass args when opening or closing a channel */
+	/* fields used for managing channel avialability and activity */
+
+	union xpc_channel_ctl_flags chctl; /* chctl flags yet to be processed */
+	spinlock_t chctl_lock;	/* chctl flags lock */
 
 	void *local_openclose_args_base;   /* base address of kmalloc'd space */
 	struct xpc_openclose_args *local_openclose_args;      /* local's args */
 	void *remote_openclose_args_base;  /* base address of kmalloc'd space */
 	struct xpc_openclose_args *remote_openclose_args; /* copy of remote's */
 							  /* args */
-
-	/* IPI sending, receiving and handling related fields */
-
-	u64 local_IPI_amo;	/* IPI amo flags yet to be handled */
-	spinlock_t IPI_lock;	/* IPI handler lock */
 
 	/* channel manager related fields */
 
@@ -580,11 +627,12 @@ struct xpc_partition {
 #define XPC_P_TORNDOWN		0x03	/* infrastructure is torndown */
 
 /*
- * struct xpc_partition IPI_timer #of seconds to wait before checking for
- * dropped IPIs. These occur whenever an IPI amo write doesn't complete until
- * after the IPI was received.
+ * struct xpc_partition_sn2's dropped notify IRQ timer is set to wait the
+ * following interval #of seconds before checking for dropped notify IRQs.
+ * These can occur whenever an IRQ's associated amo write doesn't complete
+ * until after the IRQ was received.
  */
-#define XPC_P_DROPPED_IPI_WAIT_INTERVAL	(0.25 * HZ)
+#define XPC_DROPPED_NOTIFY_IRQ_WAIT_INTERVAL	(0.25 * HZ)
 
 /* number of seconds to wait for other partitions to disengage */
 #define XPC_DISENGAGE_DEFAULT_TIMELIMIT		90
@@ -617,9 +665,9 @@ extern void (*xpc_offline_heartbeat) (void);
 extern void (*xpc_online_heartbeat) (void);
 extern void (*xpc_check_remote_hb) (void);
 extern enum xp_retval (*xpc_make_first_contact) (struct xpc_partition *);
-extern u64 (*xpc_get_IPI_flags) (struct xpc_partition *);
+extern u64 (*xpc_get_chctl_all_flags) (struct xpc_partition *);
 extern void (*xpc_notify_senders_of_disconnect) (struct xpc_channel *);
-extern void (*xpc_process_msg_IPI) (struct xpc_partition *, int);
+extern void (*xpc_process_msg_chctl_flags) (struct xpc_partition *, int);
 extern int (*xpc_n_of_deliverable_msgs) (struct xpc_channel *);
 extern struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *);
 extern void (*xpc_request_partition_activation) (struct xpc_rsvd_page *, u64,
@@ -638,14 +686,13 @@ extern int (*xpc_any_partition_engaged) (void);
 extern void (*xpc_indicate_partition_disengaged) (struct xpc_partition *);
 extern void (*xpc_assume_partition_disengaged) (short);
 
-extern void (*xpc_send_channel_closerequest) (struct xpc_channel *,
-					      unsigned long *);
-extern void (*xpc_send_channel_closereply) (struct xpc_channel *,
+extern void (*xpc_send_chctl_closerequest) (struct xpc_channel *,
 					    unsigned long *);
-extern void (*xpc_send_channel_openrequest) (struct xpc_channel *,
-					     unsigned long *);
-extern void (*xpc_send_channel_openreply) (struct xpc_channel *,
+extern void (*xpc_send_chctl_closereply) (struct xpc_channel *,
+					  unsigned long *);
+extern void (*xpc_send_chctl_openrequest) (struct xpc_channel *,
 					   unsigned long *);
+extern void (*xpc_send_chctl_openreply) (struct xpc_channel *, unsigned long *);
 
 extern enum xp_retval (*xpc_send_msg) (struct xpc_channel *, u32, void *, u16,
 				       u8, xpc_notify_func, void *);
@@ -689,7 +736,7 @@ extern enum xp_retval xpc_initiate_send(short, int, u32, void *, u16);
 extern enum xp_retval xpc_initiate_send_notify(short, int, u32, void *, u16,
 					       xpc_notify_func, void *);
 extern void xpc_initiate_received(short, int, void *);
-extern void xpc_process_channel_activity(struct xpc_partition *);
+extern void xpc_process_sent_chctl_flags(struct xpc_partition *);
 extern void xpc_connected_callout(struct xpc_channel *);
 extern void xpc_deliver_msg(struct xpc_channel *);
 extern void xpc_disconnect_channel(const int, struct xpc_channel *,
@@ -798,26 +845,5 @@ xpc_part_ref(struct xpc_partition *part)
 		(_p)->reason = _reason; \
 		(_p)->reason_line = _line; \
 	}
-
-/*
- * The sending and receiving of IPIs includes the setting of an >>>AMO variable
- * to indicate the reason the IPI was sent. The 64-bit variable is divided
- * up into eight bytes, ordered from right to left. Byte zero pertains to
- * channel 0, byte one to channel 1, and so on. Each byte is described by
- * the following IPI flags.
- */
-
-#define	XPC_IPI_CLOSEREQUEST	0x01
-#define	XPC_IPI_CLOSEREPLY	0x02
-#define	XPC_IPI_OPENREQUEST	0x04
-#define	XPC_IPI_OPENREPLY	0x08
-#define	XPC_IPI_MSGREQUEST	0x10
-
-/* given an >>>AMO variable and a channel#, get its associated IPI flags */
-#define XPC_GET_IPI_FLAGS(_amo, _c)	((u8) (((_amo) >> ((_c) * 8)) & 0xff))
-#define XPC_SET_IPI_FLAGS(_amo, _c, _f)	(_amo) |= ((u64) (_f) << ((_c) * 8))
-
-#define	XPC_ANY_OPENCLOSE_IPI_FLAGS_SET(_amo) ((_amo) & 0x0f0f0f0f0f0f0f0fUL)
-#define XPC_ANY_MSG_IPI_FLAGS_SET(_amo)       ((_amo) & 0x1010101010101010UL)
 
 #endif /* _DRIVERS_MISC_SGIXP_XPC_H */

@@ -25,18 +25,18 @@
  *
  *	Caveats:
  *
- *	  . We currently have no way to determine which nasid an IPI came
- *	    from. Thus, >>> xpc_IPI_send() does a remote AMO write followed by
- *	    an IPI. The AMO indicates where data is to be pulled from, so
- *	    after the IPI arrives, the remote partition checks the AMO word.
- *	    The IPI can actually arrive before the AMO however, so other code
- *	    must periodically check for this case. Also, remote AMO operations
- *	    do not reliably time out. Thus we do a remote PIO read solely to
- *	    know whether the remote partition is down and whether we should
- *	    stop sending IPIs to it. This remote PIO read operation is set up
- *	    in a special nofault region so SAL knows to ignore (and cleanup)
- *	    any errors due to the remote AMO write, PIO read, and/or PIO
- *	    write operations.
+ *	  . Currently on sn2, we have no way to determine which nasid an IRQ
+ *	    came from. Thus, xpc_send_IRQ_sn2() does a remote AMO write
+ *	    followed by an IPI. The AMO indicates where data is to be pulled
+ *	    from, so after the IPI arrives, the remote partition checks the AMO
+ *	    word. The IPI can actually arrive before the AMO however, so other
+ *	    code must periodically check for this case. Also, remote AMO
+ *	    operations do not reliably time out. Thus we do a remote PIO read
+ *	    solely to know whether the remote partition is down and whether we
+ *	    should stop sending IPIs to it. This remote PIO read operation is
+ *	    set up in a special nofault region so SAL knows to ignore (and
+ *	    cleanup) any errors due to the remote AMO write, PIO read, and/or
+ *	    PIO write operations.
  *
  *	    If/when new hardware solves this IPI problem, we should abandon
  *	    the current approach.
@@ -185,8 +185,8 @@ void (*xpc_check_remote_hb) (void);
 
 enum xp_retval (*xpc_make_first_contact) (struct xpc_partition *part);
 void (*xpc_notify_senders_of_disconnect) (struct xpc_channel *ch);
-u64 (*xpc_get_IPI_flags) (struct xpc_partition *part);
-void (*xpc_process_msg_IPI) (struct xpc_partition *part, int ch_number);
+u64 (*xpc_get_chctl_all_flags) (struct xpc_partition *part);
+void (*xpc_process_msg_chctl_flags) (struct xpc_partition *part, int ch_number);
 int (*xpc_n_of_deliverable_msgs) (struct xpc_channel *ch);
 struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *ch);
 
@@ -206,14 +206,14 @@ int (*xpc_any_partition_engaged) (void);
 void (*xpc_indicate_partition_disengaged) (struct xpc_partition *part);
 void (*xpc_assume_partition_disengaged) (short partid);
 
-void (*xpc_send_channel_closerequest) (struct xpc_channel *ch,
-				       unsigned long *irq_flags);
-void (*xpc_send_channel_closereply) (struct xpc_channel *ch,
+void (*xpc_send_chctl_closerequest) (struct xpc_channel *ch,
 				     unsigned long *irq_flags);
-void (*xpc_send_channel_openrequest) (struct xpc_channel *ch,
-				      unsigned long *irq_flags);
-void (*xpc_send_channel_openreply) (struct xpc_channel *ch,
+void (*xpc_send_chctl_closereply) (struct xpc_channel *ch,
+				   unsigned long *irq_flags);
+void (*xpc_send_chctl_openrequest) (struct xpc_channel *ch,
 				    unsigned long *irq_flags);
+void (*xpc_send_chctl_openreply) (struct xpc_channel *ch,
+				  unsigned long *irq_flags);
 
 enum xp_retval (*xpc_send_msg) (struct xpc_channel *ch, u32 flags,
 				void *payload, u16 payload_size, u8 notify_type,
@@ -302,7 +302,7 @@ xpc_hb_checker(void *ignore)
 
 			/*
 			 * We need to periodically recheck to ensure no
-			 * IPI/AMO pairs have been missed.  That check
+			 * IRQ/AMO pairs have been missed.  That check
 			 * must always reset xpc_hb_check_timeout.
 			 */
 			force_IRQ = 1;
@@ -378,7 +378,7 @@ xpc_channel_mgr(struct xpc_partition *part)
 	       atomic_read(&part->nchannels_active) > 0 ||
 	       !xpc_partition_disengaged(part)) {
 
-		xpc_process_channel_activity(part);
+		xpc_process_sent_chctl_flags(part);
 
 		/*
 		 * Wait until we've been requested to activate kthreads or
@@ -396,7 +396,7 @@ xpc_channel_mgr(struct xpc_partition *part)
 		atomic_dec(&part->channel_mgr_requests);
 		(void)wait_event_interruptible(part->channel_mgr_wq,
 				(atomic_read(&part->channel_mgr_requests) > 0 ||
-				 part->local_IPI_amo != 0 ||
+				 part->chctl.all_flags != 0 ||
 				 (part->act_state == XPC_P_DEACTIVATING &&
 				 atomic_read(&part->nchannels_active) == 0 &&
 				 xpc_partition_disengaged(part))));
@@ -753,16 +753,15 @@ xpc_disconnect_wait(int ch_number)
 		DBUG_ON(!(ch->flags & XPC_C_DISCONNECTED));
 		wakeup_channel_mgr = 0;
 
-		if (ch->delayed_IPI_flags) {
+		if (ch->delayed_chctl_flags) {
 			if (part->act_state != XPC_P_DEACTIVATING) {
-				spin_lock(&part->IPI_lock);
-				XPC_SET_IPI_FLAGS(part->local_IPI_amo,
-						  ch->number,
-						  ch->delayed_IPI_flags);
-				spin_unlock(&part->IPI_lock);
+				spin_lock(&part->chctl_lock);
+				part->chctl.flags[ch->number] |=
+				    ch->delayed_chctl_flags;
+				spin_unlock(&part->chctl_lock);
 				wakeup_channel_mgr = 1;
 			}
-			ch->delayed_IPI_flags = 0;
+			ch->delayed_chctl_flags = 0;
 		}
 
 		ch->flags &= ~XPC_C_WDISCONNECT;

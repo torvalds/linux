@@ -201,7 +201,7 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	if (!(ch->flags & XPC_C_OPENREPLY)) {
 		ch->flags |= XPC_C_OPENREPLY;
-		xpc_send_channel_openreply(ch, irq_flags);
+		xpc_send_chctl_openreply(ch, irq_flags);
 	}
 
 	if (!(ch->flags & XPC_C_ROPENREPLY))
@@ -307,7 +307,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 		if (!(ch->flags & XPC_C_CLOSEREPLY)) {
 			ch->flags |= XPC_C_CLOSEREPLY;
-			xpc_send_channel_closereply(ch, irq_flags);
+			xpc_send_chctl_closereply(ch, irq_flags);
 		}
 
 		if (!(ch->flags & XPC_C_RCLOSEREPLY))
@@ -344,15 +344,15 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 	if (ch->flags & XPC_C_WDISCONNECT) {
 		/* we won't lose the CPU since we're holding ch->lock */
 		complete(&ch->wdisconnect_wait);
-	} else if (ch->delayed_IPI_flags) {
+	} else if (ch->delayed_chctl_flags) {
 		if (part->act_state != XPC_P_DEACTIVATING) {
-			/* time to take action on any delayed IPI flags */
-			spin_lock(&part->IPI_lock);
-			XPC_SET_IPI_FLAGS(part->local_IPI_amo, ch->number,
-					  ch->delayed_IPI_flags);
-			spin_unlock(&part->IPI_lock);
+			/* time to take action on any delayed chctl flags */
+			spin_lock(&part->chctl_lock);
+			part->chctl.flags[ch->number] |=
+			    ch->delayed_chctl_flags;
+			spin_unlock(&part->chctl_lock);
 		}
-		ch->delayed_IPI_flags = 0;
+		ch->delayed_chctl_flags = 0;
 	}
 }
 
@@ -360,8 +360,8 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
  * Process a change in the channel's remote connection state.
  */
 static void
-xpc_process_openclose_IPI(struct xpc_partition *part, int ch_number,
-			  u8 IPI_flags)
+xpc_process_openclose_chctl_flags(struct xpc_partition *part, int ch_number,
+				  u8 chctl_flags)
 {
 	unsigned long irq_flags;
 	struct xpc_openclose_args *args =
@@ -376,24 +376,24 @@ again:
 	if ((ch->flags & XPC_C_DISCONNECTED) &&
 	    (ch->flags & XPC_C_WDISCONNECT)) {
 		/*
-		 * Delay processing IPI flags until thread waiting disconnect
+		 * Delay processing chctl flags until thread waiting disconnect
 		 * has had a chance to see that the channel is disconnected.
 		 */
-		ch->delayed_IPI_flags |= IPI_flags;
+		ch->delayed_chctl_flags |= chctl_flags;
 		spin_unlock_irqrestore(&ch->lock, irq_flags);
 		return;
 	}
 
-	if (IPI_flags & XPC_IPI_CLOSEREQUEST) {
+	if (chctl_flags & XPC_CHCTL_CLOSEREQUEST) {
 
-		dev_dbg(xpc_chan, "XPC_IPI_CLOSEREQUEST (reason=%d) received "
+		dev_dbg(xpc_chan, "XPC_CHCTL_CLOSEREQUEST (reason=%d) received "
 			"from partid=%d, channel=%d\n", args->reason,
 			ch->partid, ch->number);
 
 		/*
 		 * If RCLOSEREQUEST is set, we're probably waiting for
 		 * RCLOSEREPLY. We should find it and a ROPENREQUEST packed
-		 * with this RCLOSEREQUEST in the IPI_flags.
+		 * with this RCLOSEREQUEST in the chctl_flags.
 		 */
 
 		if (ch->flags & XPC_C_RCLOSEREQUEST) {
@@ -402,8 +402,8 @@ again:
 			DBUG_ON(!(ch->flags & XPC_C_CLOSEREPLY));
 			DBUG_ON(ch->flags & XPC_C_RCLOSEREPLY);
 
-			DBUG_ON(!(IPI_flags & XPC_IPI_CLOSEREPLY));
-			IPI_flags &= ~XPC_IPI_CLOSEREPLY;
+			DBUG_ON(!(chctl_flags & XPC_CHCTL_CLOSEREPLY));
+			chctl_flags &= ~XPC_CHCTL_CLOSEREPLY;
 			ch->flags |= XPC_C_RCLOSEREPLY;
 
 			/* both sides have finished disconnecting */
@@ -413,17 +413,15 @@ again:
 		}
 
 		if (ch->flags & XPC_C_DISCONNECTED) {
-			if (!(IPI_flags & XPC_IPI_OPENREQUEST)) {
-				if ((XPC_GET_IPI_FLAGS(part->local_IPI_amo,
-						       ch_number) &
-				     XPC_IPI_OPENREQUEST)) {
+			if (!(chctl_flags & XPC_CHCTL_OPENREQUEST)) {
+				if (part->chctl.flags[ch_number] &
+				    XPC_CHCTL_OPENREQUEST) {
 
-					DBUG_ON(ch->delayed_IPI_flags != 0);
-					spin_lock(&part->IPI_lock);
-					XPC_SET_IPI_FLAGS(part->local_IPI_amo,
-							  ch_number,
-							  XPC_IPI_CLOSEREQUEST);
-					spin_unlock(&part->IPI_lock);
+					DBUG_ON(ch->delayed_chctl_flags != 0);
+					spin_lock(&part->chctl_lock);
+					part->chctl.flags[ch_number] |=
+					    XPC_CHCTL_CLOSEREQUEST;
+					spin_unlock(&part->chctl_lock);
 				}
 				spin_unlock_irqrestore(&ch->lock, irq_flags);
 				return;
@@ -436,7 +434,7 @@ again:
 			ch->flags |= (XPC_C_CONNECTING | XPC_C_ROPENREQUEST);
 		}
 
-		IPI_flags &= ~(XPC_IPI_OPENREQUEST | XPC_IPI_OPENREPLY);
+		chctl_flags &= ~(XPC_CHCTL_OPENREQUEST | XPC_CHCTL_OPENREPLY);
 
 		/*
 		 * The meaningful CLOSEREQUEST connection state fields are:
@@ -454,7 +452,7 @@ again:
 
 			XPC_DISCONNECT_CHANNEL(ch, reason, &irq_flags);
 
-			DBUG_ON(IPI_flags & XPC_IPI_CLOSEREPLY);
+			DBUG_ON(chctl_flags & XPC_CHCTL_CLOSEREPLY);
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 			return;
 		}
@@ -462,10 +460,10 @@ again:
 		xpc_process_disconnect(ch, &irq_flags);
 	}
 
-	if (IPI_flags & XPC_IPI_CLOSEREPLY) {
+	if (chctl_flags & XPC_CHCTL_CLOSEREPLY) {
 
-		dev_dbg(xpc_chan, "XPC_IPI_CLOSEREPLY received from partid=%d,"
-			" channel=%d\n", ch->partid, ch->number);
+		dev_dbg(xpc_chan, "XPC_CHCTL_CLOSEREPLY received from partid="
+			"%d, channel=%d\n", ch->partid, ch->number);
 
 		if (ch->flags & XPC_C_DISCONNECTED) {
 			DBUG_ON(part->act_state != XPC_P_DEACTIVATING);
@@ -476,15 +474,14 @@ again:
 		DBUG_ON(!(ch->flags & XPC_C_CLOSEREQUEST));
 
 		if (!(ch->flags & XPC_C_RCLOSEREQUEST)) {
-			if ((XPC_GET_IPI_FLAGS(part->local_IPI_amo, ch_number)
-			     & XPC_IPI_CLOSEREQUEST)) {
+			if (part->chctl.flags[ch_number] &
+			    XPC_CHCTL_CLOSEREQUEST) {
 
-				DBUG_ON(ch->delayed_IPI_flags != 0);
-				spin_lock(&part->IPI_lock);
-				XPC_SET_IPI_FLAGS(part->local_IPI_amo,
-						  ch_number,
-						  XPC_IPI_CLOSEREPLY);
-				spin_unlock(&part->IPI_lock);
+				DBUG_ON(ch->delayed_chctl_flags != 0);
+				spin_lock(&part->chctl_lock);
+				part->chctl.flags[ch_number] |=
+				    XPC_CHCTL_CLOSEREPLY;
+				spin_unlock(&part->chctl_lock);
 			}
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 			return;
@@ -498,9 +495,9 @@ again:
 		}
 	}
 
-	if (IPI_flags & XPC_IPI_OPENREQUEST) {
+	if (chctl_flags & XPC_CHCTL_OPENREQUEST) {
 
-		dev_dbg(xpc_chan, "XPC_IPI_OPENREQUEST (msg_size=%d, "
+		dev_dbg(xpc_chan, "XPC_CHCTL_OPENREQUEST (msg_size=%d, "
 			"local_nentries=%d) received from partid=%d, "
 			"channel=%d\n", args->msg_size, args->local_nentries,
 			ch->partid, ch->number);
@@ -512,7 +509,7 @@ again:
 		}
 
 		if (ch->flags & (XPC_C_DISCONNECTING | XPC_C_WDISCONNECT)) {
-			ch->delayed_IPI_flags |= XPC_IPI_OPENREQUEST;
+			ch->delayed_chctl_flags |= XPC_CHCTL_OPENREQUEST;
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 			return;
 		}
@@ -554,13 +551,13 @@ again:
 		xpc_process_connect(ch, &irq_flags);
 	}
 
-	if (IPI_flags & XPC_IPI_OPENREPLY) {
+	if (chctl_flags & XPC_CHCTL_OPENREPLY) {
 
-		dev_dbg(xpc_chan, "XPC_IPI_OPENREPLY (local_msgqueue_pa=0x%lx, "
-			"local_nentries=%d, remote_nentries=%d) received from "
-			"partid=%d, channel=%d\n", args->local_msgqueue_pa,
-			args->local_nentries, args->remote_nentries,
-			ch->partid, ch->number);
+		dev_dbg(xpc_chan, "XPC_CHCTL_OPENREPLY (local_msgqueue_pa="
+			"0x%lx, local_nentries=%d, remote_nentries=%d) "
+			"received from partid=%d, channel=%d\n",
+			args->local_msgqueue_pa, args->local_nentries,
+			args->remote_nentries, ch->partid, ch->number);
 
 		if (ch->flags & (XPC_C_DISCONNECTING | XPC_C_DISCONNECTED)) {
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
@@ -591,7 +588,7 @@ again:
 		ch->remote_msgqueue_pa = args->local_msgqueue_pa;
 
 		if (args->local_nentries < ch->remote_nentries) {
-			dev_dbg(xpc_chan, "XPC_IPI_OPENREPLY: new "
+			dev_dbg(xpc_chan, "XPC_CHCTL_OPENREPLY: new "
 				"remote_nentries=%d, old remote_nentries=%d, "
 				"partid=%d, channel=%d\n",
 				args->local_nentries, ch->remote_nentries,
@@ -600,7 +597,7 @@ again:
 			ch->remote_nentries = args->local_nentries;
 		}
 		if (args->remote_nentries < ch->local_nentries) {
-			dev_dbg(xpc_chan, "XPC_IPI_OPENREPLY: new "
+			dev_dbg(xpc_chan, "XPC_CHCTL_OPENREPLY: new "
 				"local_nentries=%d, old local_nentries=%d, "
 				"partid=%d, channel=%d\n",
 				args->remote_nentries, ch->local_nentries,
@@ -690,7 +687,7 @@ xpc_connect_channel(struct xpc_channel *ch)
 	/* initiate the connection */
 
 	ch->flags |= (XPC_C_OPENREQUEST | XPC_C_CONNECTING);
-	xpc_send_channel_openrequest(ch, &irq_flags);
+	xpc_send_chctl_openrequest(ch, &irq_flags);
 
 	xpc_process_connect(ch, &irq_flags);
 
@@ -700,15 +697,15 @@ xpc_connect_channel(struct xpc_channel *ch)
 }
 
 void
-xpc_process_channel_activity(struct xpc_partition *part)
+xpc_process_sent_chctl_flags(struct xpc_partition *part)
 {
 	unsigned long irq_flags;
-	u64 IPI_amo, IPI_flags;
+	union xpc_channel_ctl_flags chctl;
 	struct xpc_channel *ch;
 	int ch_number;
 	u32 ch_flags;
 
-	IPI_amo = xpc_get_IPI_flags(part);
+	chctl.all_flags = xpc_get_chctl_all_flags(part);
 
 	/*
 	 * Initiate channel connections for registered channels.
@@ -721,14 +718,14 @@ xpc_process_channel_activity(struct xpc_partition *part)
 		ch = &part->channels[ch_number];
 
 		/*
-		 * Process any open or close related IPI flags, and then deal
+		 * Process any open or close related chctl flags, and then deal
 		 * with connecting or disconnecting the channel as required.
 		 */
 
-		IPI_flags = XPC_GET_IPI_FLAGS(IPI_amo, ch_number);
-
-		if (XPC_ANY_OPENCLOSE_IPI_FLAGS_SET(IPI_flags))
-			xpc_process_openclose_IPI(part, ch_number, IPI_flags);
+		if (chctl.flags[ch_number] & XPC_OPENCLOSE_CHCTL_FLAGS) {
+			xpc_process_openclose_chctl_flags(part, ch_number,
+							chctl.flags[ch_number]);
+		}
 
 		ch_flags = ch->flags;	/* need an atomic snapshot of flags */
 
@@ -755,13 +752,13 @@ xpc_process_channel_activity(struct xpc_partition *part)
 		}
 
 		/*
-		 * Process any message related IPI flags, this may involve the
-		 * activation of kthreads to deliver any pending messages sent
-		 * from the other partition.
+		 * Process any message related chctl flags, this may involve
+		 * the activation of kthreads to deliver any pending messages
+		 * sent from the other partition.
 		 */
 
-		if (XPC_ANY_MSG_IPI_FLAGS_SET(IPI_flags))
-			xpc_process_msg_IPI(part, ch_number);
+		if (chctl.flags[ch_number] & XPC_MSG_CHCTL_FLAGS)
+			xpc_process_msg_chctl_flags(part, ch_number);
 	}
 }
 
@@ -937,7 +934,7 @@ xpc_disconnect_channel(const int line, struct xpc_channel *ch,
 		       XPC_C_ROPENREQUEST | XPC_C_ROPENREPLY |
 		       XPC_C_CONNECTING | XPC_C_CONNECTED);
 
-	xpc_send_channel_closerequest(ch, irq_flags);
+	xpc_send_chctl_closerequest(ch, irq_flags);
 
 	if (channel_was_connected)
 		ch->flags |= XPC_C_WASCONNECTED;
