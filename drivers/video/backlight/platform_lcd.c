@@ -92,7 +92,7 @@ static int __devinit platform_lcd_probe(struct platform_device *pdev)
 
 	plcd->us = dev;
 	plcd->pdata = pdata;
-	plcd->lcd = lcd_device_register("platform-lcd", dev,
+	plcd->lcd = lcd_device_register(dev_name(dev), dev,
 					plcd, &platform_lcd_ops);
 	if (IS_ERR(plcd->lcd)) {
 		dev_err(dev, "cannot register lcd device\n");
