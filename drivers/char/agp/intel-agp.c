@@ -32,8 +32,8 @@
 #define PCI_DEVICE_ID_INTEL_Q35_IG          0x29B2
 #define PCI_DEVICE_ID_INTEL_Q33_HB          0x29D0
 #define PCI_DEVICE_ID_INTEL_Q33_IG          0x29D2
-#define PCI_DEVICE_ID_INTEL_IGD_HB          0x2A40
-#define PCI_DEVICE_ID_INTEL_IGD_IG          0x2A42
+#define PCI_DEVICE_ID_INTEL_GM45_HB         0x2A40
+#define PCI_DEVICE_ID_INTEL_GM45_IG         0x2A42
 #define PCI_DEVICE_ID_INTEL_IGD_E_HB        0x2E00
 #define PCI_DEVICE_ID_INTEL_IGD_E_IG        0x2E02
 #define PCI_DEVICE_ID_INTEL_Q45_HB          0x2E10
@@ -55,7 +55,7 @@
 		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_HB || \
 		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GM_HB || \
 		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GME_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGD_HB)
+		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB)
 
 #define IS_G33 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G33_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q35_HB || \
@@ -1182,7 +1182,7 @@ static unsigned long intel_i965_mask_memory(struct agp_bridge_data *bridge,
 static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 {
 	switch (agp_bridge->dev->device) {
-	case PCI_DEVICE_ID_INTEL_IGD_HB:
+	case PCI_DEVICE_ID_INTEL_GM45_HB:
 	case PCI_DEVICE_ID_INTEL_IGD_E_HB:
 	case PCI_DEVICE_ID_INTEL_Q45_HB:
 	case PCI_DEVICE_ID_INTEL_G45_HB:
@@ -2117,8 +2117,8 @@ static const struct intel_driver_description {
 		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_Q33_HB, PCI_DEVICE_ID_INTEL_Q33_IG, 0, "Q33",
 		NULL, &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_IGD_HB, PCI_DEVICE_ID_INTEL_IGD_IG, 0,
-	    "Intel Integrated Graphics Device", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_GM45_HB, PCI_DEVICE_ID_INTEL_GM45_IG, 0,
+	    "Mobile Intel? GM45 Express", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IGD_E_HB, PCI_DEVICE_ID_INTEL_IGD_E_IG, 0,
 	    "Intel Integrated Graphics Device", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_Q45_HB, PCI_DEVICE_ID_INTEL_Q45_IG, 0,
@@ -2315,7 +2315,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_G33_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q35_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q33_HB),
-	ID(PCI_DEVICE_ID_INTEL_IGD_HB),
+	ID(PCI_DEVICE_ID_INTEL_GM45_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGD_E_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q45_HB),
 	ID(PCI_DEVICE_ID_INTEL_G45_HB),
