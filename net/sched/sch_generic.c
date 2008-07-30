@@ -596,7 +596,7 @@ static void transition_one_qdisc(struct net_device *dev,
 	int *need_watchdog_p = _need_watchdog;
 
 	rcu_assign_pointer(dev_queue->qdisc, new_qdisc);
-	if (new_qdisc != &noqueue_qdisc)
+	if (need_watchdog_p && new_qdisc != &noqueue_qdisc)
 		*need_watchdog_p = 1;
 }
 
@@ -619,6 +619,7 @@ void dev_activate(struct net_device *dev)
 
 	need_watchdog = 0;
 	netdev_for_each_tx_queue(dev, transition_one_qdisc, &need_watchdog);
+	transition_one_qdisc(dev, &dev->rx_queue, NULL);
 
 	if (need_watchdog) {
 		dev->trans_start = jiffies;
@@ -677,6 +678,7 @@ void dev_deactivate(struct net_device *dev)
 	bool running;
 
 	netdev_for_each_tx_queue(dev, dev_deactivate_queue, &noop_qdisc);
+	dev_deactivate_queue(dev, &dev->rx_queue, &noop_qdisc);
 
 	dev_watchdog_down(dev);
 
@@ -718,7 +720,7 @@ static void dev_init_scheduler_queue(struct net_device *dev,
 void dev_init_scheduler(struct net_device *dev)
 {
 	netdev_for_each_tx_queue(dev, dev_init_scheduler_queue, &noop_qdisc);
-	dev_init_scheduler_queue(dev, &dev->rx_queue, NULL);
+	dev_init_scheduler_queue(dev, &dev->rx_queue, &noop_qdisc);
 
 	setup_timer(&dev->watchdog_timer, dev_watchdog, (unsigned long)dev);
 }
@@ -745,6 +747,6 @@ static void shutdown_scheduler_queue(struct net_device *dev,
 void dev_shutdown(struct net_device *dev)
 {
 	netdev_for_each_tx_queue(dev, shutdown_scheduler_queue, &noop_qdisc);
-	shutdown_scheduler_queue(dev, &dev->rx_queue, NULL);
+	shutdown_scheduler_queue(dev, &dev->rx_queue, &noop_qdisc);
 	WARN_ON(timer_pending(&dev->watchdog_timer));
 }
