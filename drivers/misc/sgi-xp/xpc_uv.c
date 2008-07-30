@@ -61,7 +61,7 @@ xpc_heartbeat_exit_uv(void)
 
 static void
 xpc_request_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
-				    u64 remote_rp_pa, int nasid)
+				    unsigned long remote_rp_pa, int nasid)
 {
 	short partid = remote_rp->SAL_partid;
 	struct xpc_partition *part = &xpc_partitions[partid];

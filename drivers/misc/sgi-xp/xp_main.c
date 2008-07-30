@@ -41,7 +41,11 @@ EXPORT_SYMBOL_GPL(xp_partition_id);
 u8 xp_region_size;
 EXPORT_SYMBOL_GPL(xp_region_size);
 
-enum xp_retval (*xp_remote_memcpy) (void *dst, const void *src, size_t len);
+unsigned long (*xp_pa) (void *addr);
+EXPORT_SYMBOL_GPL(xp_pa);
+
+enum xp_retval (*xp_remote_memcpy) (unsigned long dst_gpa,
+				    const unsigned long src_gpa, size_t len);
 EXPORT_SYMBOL_GPL(xp_remote_memcpy);
 
 int (*xp_cpu_to_nasid) (int cpuid);

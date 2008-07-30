@@ -60,15 +60,15 @@ xpc_kmalloc_cacheline_aligned(size_t size, gfp_t flags, void **base)
  * Given a nasid, get the physical address of the  partition's reserved page
  * for that nasid. This function returns 0 on any error.
  */
-static u64
+static unsigned long
 xpc_get_rsvd_page_pa(int nasid)
 {
 	enum xp_retval ret;
 	u64 cookie = 0;
-	u64 rp_pa = nasid;	/* seed with nasid */
+	unsigned long rp_pa = nasid;	/* seed with nasid */
 	size_t len = 0;
-	u64 buf = buf;
-	u64 buf_len = 0;
+	size_t buf_len = 0;
+	void *buf = buf;
 	void *buf_base = NULL;
 
 	while (1) {
@@ -78,7 +78,7 @@ xpc_get_rsvd_page_pa(int nasid)
 
 		dev_dbg(xpc_part, "SAL returned with ret=%d, cookie=0x%016lx, "
 			"address=0x%016lx, len=0x%016lx\n", ret,
-			(unsigned long)cookie, (unsigned long)rp_pa, len);
+			(unsigned long)cookie, rp_pa, len);
 
 		if (ret != xpNeedMoreInfo)
 			break;
@@ -87,19 +87,17 @@ xpc_get_rsvd_page_pa(int nasid)
 		if (L1_CACHE_ALIGN(len) > buf_len) {
 			kfree(buf_base);
 			buf_len = L1_CACHE_ALIGN(len);
-			buf = (u64)xpc_kmalloc_cacheline_aligned(buf_len,
-								 GFP_KERNEL,
-								 &buf_base);
+			buf = xpc_kmalloc_cacheline_aligned(buf_len, GFP_KERNEL,
+							    &buf_base);
 			if (buf_base == NULL) {
 				dev_err(xpc_part, "unable to kmalloc "
-					"len=0x%016lx\n",
-					(unsigned long)buf_len);
+					"len=0x%016lx\n", buf_len);
 				ret = xpNoMemory;
 				break;
 			}
 		}
 
-		ret = xp_remote_memcpy((void *)buf, (void *)rp_pa, buf_len);
+		ret = xp_remote_memcpy(xp_pa(buf), rp_pa, buf_len);
 		if (ret != xpSuccess) {
 			dev_dbg(xpc_part, "xp_remote_memcpy failed %d\n", ret);
 			break;
@@ -111,8 +109,7 @@ xpc_get_rsvd_page_pa(int nasid)
 	if (ret != xpSuccess)
 		rp_pa = 0;
 
-	dev_dbg(xpc_part, "reserved page at phys address 0x%016lx\n",
-		(unsigned long)rp_pa);
+	dev_dbg(xpc_part, "reserved page at phys address 0x%016lx\n", rp_pa);
 	return rp_pa;
 }
 
@@ -125,7 +122,7 @@ struct xpc_rsvd_page *
 xpc_setup_rsvd_page(void)
 {
 	struct xpc_rsvd_page *rp;
-	u64 rp_pa;
+	unsigned long rp_pa;
 	unsigned long new_ts_jiffies;
 
 	/* get the local reserved page's address */
@@ -193,7 +190,7 @@ xpc_setup_rsvd_page(void)
  */
 enum xp_retval
 xpc_get_remote_rp(int nasid, unsigned long *discovered_nasids,
-		  struct xpc_rsvd_page *remote_rp, u64 *remote_rp_pa)
+		  struct xpc_rsvd_page *remote_rp, unsigned long *remote_rp_pa)
 {
 	int l;
 	enum xp_retval ret;
@@ -205,7 +202,7 @@ xpc_get_remote_rp(int nasid, unsigned long *discovered_nasids,
 		return xpNoRsvdPageAddr;
 
 	/* pull over the reserved page header and part_nasids mask */
-	ret = xp_remote_memcpy(remote_rp, (void *)*remote_rp_pa,
+	ret = xp_remote_memcpy(xp_pa(remote_rp), *remote_rp_pa,
 			       XPC_RP_HEADER_SIZE + xpc_nasid_mask_nbytes);
 	if (ret != xpSuccess)
 		return ret;
@@ -389,7 +386,7 @@ xpc_discovery(void)
 {
 	void *remote_rp_base;
 	struct xpc_rsvd_page *remote_rp;
-	u64 remote_rp_pa;
+	unsigned long remote_rp_pa;
 	int region;
 	int region_size;
 	int max_regions;
@@ -500,7 +497,7 @@ enum xp_retval
 xpc_initiate_partid_to_nasids(short partid, void *nasid_mask)
 {
 	struct xpc_partition *part;
-	u64 part_nasid_pa;
+	unsigned long part_nasid_pa;
 
 	part = &xpc_partitions[partid];
 	if (part->remote_rp_pa == 0)
@@ -508,8 +505,8 @@ xpc_initiate_partid_to_nasids(short partid, void *nasid_mask)
 
 	memset(nasid_mask, 0, xpc_nasid_mask_nbytes);
 
-	part_nasid_pa = (u64)XPC_RP_PART_NASIDS(part->remote_rp_pa);
+	part_nasid_pa = (unsigned long)XPC_RP_PART_NASIDS(part->remote_rp_pa);
 
-	return xp_remote_memcpy(nasid_mask, (void *)part_nasid_pa,
+	return xp_remote_memcpy(xp_pa(nasid_mask), part_nasid_pa,
 				xpc_nasid_mask_nbytes);
 }

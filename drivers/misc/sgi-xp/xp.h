@@ -207,7 +207,9 @@ enum xp_retval {
 	xpUnsupported,		/* 56: unsupported functionality or resource */
 	xpNeedMoreInfo,		/* 57: more info is needed by SAL */
 
-	xpUnknownReason		/* 58: unknown reason - must be last in enum */
+	xpGruCopyError,		/* 58: gru_copy_gru() returned error */
+
+	xpUnknownReason		/* 59: unknown reason - must be last in enum */
 };
 
 /*
@@ -349,7 +351,9 @@ extern short xp_max_npartitions;
 extern short xp_partition_id;
 extern u8 xp_region_size;
 
-extern enum xp_retval (*xp_remote_memcpy) (void *, const void *, size_t);
+extern unsigned long (*xp_pa) (void *);
+extern enum xp_retval (*xp_remote_memcpy) (unsigned long, const unsigned long,
+		       size_t);
 extern int (*xp_cpu_to_nasid) (int);
 
 extern u64 xp_nofault_PIOR_target;

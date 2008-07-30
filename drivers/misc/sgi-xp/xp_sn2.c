@@ -63,7 +63,7 @@ xp_register_nofault_code_sn2(void)
 	return xpSuccess;
 }
 
-void
+static void
 xp_unregister_nofault_code_sn2(void)
 {
 	u64 func_addr = *(u64 *)xp_nofault_PIOR;
@@ -75,44 +75,41 @@ xp_unregister_nofault_code_sn2(void)
 }
 
 /*
+ * Convert a virtual memory address to a physical memory address.
+ */
+static unsigned long
+xp_pa_sn2(void *addr)
+{
+	return __pa(addr);
+}
+
+/*
  * Wrapper for bte_copy().
  *
- *	vdst - virtual address of the destination of the transfer.
- *	psrc - physical address of the source of the transfer.
+ *	dst_pa - physical address of the destination of the transfer.
+ *	src_pa - physical address of the source of the transfer.
  *	len - number of bytes to transfer from source to destination.
  *
  * Note: xp_remote_memcpy_sn2() should never be called while holding a spinlock.
  */
 static enum xp_retval
-xp_remote_memcpy_sn2(void *vdst, const void *psrc, size_t len)
+xp_remote_memcpy_sn2(unsigned long dst_pa, const unsigned long src_pa,
+		     size_t len)
 {
 	bte_result_t ret;
-	u64 pdst = ia64_tpa(vdst);
-	/* ??? What are the rules governing the src and dst addresses passed in?
-	 * ??? Currently we're assuming that dst is a virtual address and src
-	 * ??? is a physical address, is this appropriate? Can we allow them to
-	 * ??? be whatever and we make the change here without damaging the
-	 * ??? addresses?
-	 */
 
-	/*
-	 * Ensure that the physically mapped memory is contiguous.
-	 *
-	 * We do this by ensuring that the memory is from region 7 only.
-	 * If the need should arise to use memory from one of the other
-	 * regions, then modify the BUG_ON() statement to ensure that the
-	 * memory from that region is always physically contiguous.
-	 */
-	BUG_ON(REGION_NUMBER(vdst) != RGN_KERNEL);
-
-	ret = bte_copy((u64)psrc, pdst, len, (BTE_NOTIFY | BTE_WACQUIRE), NULL);
+	ret = bte_copy(src_pa, dst_pa, len, (BTE_NOTIFY | BTE_WACQUIRE), NULL);
 	if (ret == BTE_SUCCESS)
 		return xpSuccess;
 
-	if (is_shub2())
-		dev_err(xp, "bte_copy() on shub2 failed, error=0x%x\n", ret);
-	else
-		dev_err(xp, "bte_copy() failed, error=%d\n", ret);
+	if (is_shub2()) {
+		dev_err(xp, "bte_copy() on shub2 failed, error=0x%x dst_pa="
+			"0x%016lx src_pa=0x%016lx len=%ld\\n", ret, dst_pa,
+			src_pa, len);
+	} else {
+		dev_err(xp, "bte_copy() failed, error=%d dst_pa=0x%016lx "
+			"src_pa=0x%016lx len=%ld\\n", ret, dst_pa, src_pa, len);
+	}
 
 	return xpBteCopyError;
 }
@@ -132,6 +129,7 @@ xp_init_sn2(void)
 	xp_partition_id = sn_partition_id;
 	xp_region_size = sn_region_size;
 
+	xp_pa = xp_pa_sn2;
 	xp_remote_memcpy = xp_remote_memcpy_sn2;
 	xp_cpu_to_nasid = xp_cpu_to_nasid_sn2;
 

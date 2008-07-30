@@ -366,9 +366,8 @@ again:
 		dev_dbg(xpc_chan, "XPC_CHCTL_OPENREPLY (local_msgqueue_pa="
 			"0x%lx, local_nentries=%d, remote_nentries=%d) "
 			"received from partid=%d, channel=%d\n",
-			(unsigned long)args->local_msgqueue_pa,
-			args->local_nentries, args->remote_nentries,
-			ch->partid, ch->number);
+			args->local_msgqueue_pa, args->local_nentries,
+			args->remote_nentries, ch->partid, ch->number);
 
 		if (ch->flags & (XPC_C_DISCONNECTING | XPC_C_DISCONNECTED)) {
 			spin_unlock_irqrestore(&ch->lock, irq_flags);

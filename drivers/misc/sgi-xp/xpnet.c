@@ -44,7 +44,7 @@ struct xpnet_message {
 	u16 version;		/* Version for this message */
 	u16 embedded_bytes;	/* #of bytes embedded in XPC message */
 	u32 magic;		/* Special number indicating this is xpnet */
-	u64 buf_pa;		/* phys address of buffer to retrieve */
+	unsigned long buf_pa;	/* phys address of buffer to retrieve */
 	u32 size;		/* #of bytes in buffer */
 	u8 leadin_ignore;	/* #of bytes to ignore at the beginning */
 	u8 tailout_ignore;	/* #of bytes to ignore at the end */
@@ -152,6 +152,7 @@ static void
 xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 {
 	struct sk_buff *skb;
+	void *dst;
 	enum xp_retval ret;
 	struct xpnet_dev_private *priv =
 	    (struct xpnet_dev_private *)xpnet_device->priv;
@@ -166,9 +167,8 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 
 		return;
 	}
-	dev_dbg(xpnet, "received 0x%lx, %d, %d, %d\n",
-		(unsigned long)msg->buf_pa, msg->size, msg->leadin_ignore,
-		msg->tailout_ignore);
+	dev_dbg(xpnet, "received 0x%lx, %d, %d, %d\n", msg->buf_pa, msg->size,
+		msg->leadin_ignore, msg->tailout_ignore);
 
 	/* reserve an extra cache line */
 	skb = dev_alloc_skb(msg->size + L1_CACHE_BYTES);
@@ -210,15 +210,12 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 		skb_copy_to_linear_data(skb, &msg->data,
 					(size_t)msg->embedded_bytes);
 	} else {
+		dst = (void *)((u64)skb->data & ~(L1_CACHE_BYTES - 1));
 		dev_dbg(xpnet, "transferring buffer to the skb->data area;\n\t"
-			"xp_remote_memcpy(0x%p, 0x%p, %hu)\n", (void *)
-				       ((u64)skb->data & ~(L1_CACHE_BYTES - 1)),
+			"xp_remote_memcpy(0x%p, 0x%p, %hu)\n", dst,
 					  (void *)msg->buf_pa, msg->size);
 
-		ret = xp_remote_memcpy((void *)((u64)skb->data &
-						~(L1_CACHE_BYTES - 1)),
-				       (void *)msg->buf_pa, msg->size);
-
+		ret = xp_remote_memcpy(xp_pa(dst), msg->buf_pa, msg->size);
 		if (ret != xpSuccess) {
 			/*
 			 * !!! Need better way of cleaning skb.  Currently skb
@@ -226,8 +223,7 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 			 * !!! dev_kfree_skb.
 			 */
 			dev_err(xpnet, "xp_remote_memcpy(0x%p, 0x%p, 0x%hx) "
-				"returned error=0x%x\n", (void *)
-				((u64)skb->data & ~(L1_CACHE_BYTES - 1)),
+				"returned error=0x%x\n", dst,
 				(void *)msg->buf_pa, msg->size, ret);
 
 			xpc_received(partid, channel, (void *)msg);
@@ -428,13 +424,13 @@ xpnet_send(struct sk_buff *skb, struct xpnet_pending_msg *queued_msg,
 	msg->size = end_addr - start_addr;
 	msg->leadin_ignore = (u64)skb->data - start_addr;
 	msg->tailout_ignore = end_addr - (u64)skb_tail_pointer(skb);
-	msg->buf_pa = __pa(start_addr);
+	msg->buf_pa = xp_pa((void *)start_addr);
 
 	dev_dbg(xpnet, "sending XPC message to %d:%d\n"
 		KERN_DEBUG "msg->buf_pa=0x%lx, msg->size=%u, "
 		"msg->leadin_ignore=%u, msg->tailout_ignore=%u\n",
-		dest_partid, XPC_NET_CHANNEL, (unsigned long)msg->buf_pa,
-		msg->size, msg->leadin_ignore, msg->tailout_ignore);
+		dest_partid, XPC_NET_CHANNEL, msg->buf_pa, msg->size,
+		msg->leadin_ignore, msg->tailout_ignore);
 
 	atomic_inc(&queued_msg->use_count);
 

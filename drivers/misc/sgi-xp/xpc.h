@@ -91,8 +91,8 @@ struct xpc_rsvd_page {
 	u8 version;
 	u8 pad1[3];		/* align to next u64 in 1st 64-byte cacheline */
 	union {
-		u64 vars_pa;	/* physical address of struct xpc_vars */
-		u64 activate_mq_gpa;	/* global phys address of activate_mq */
+		unsigned long vars_pa;	/* phys address of struct xpc_vars */
+		unsigned long activate_mq_gpa; /* gru phy addr of activate_mq */
 	} sn;
 	unsigned long ts_jiffies; /* timestamp when rsvd pg was setup by XPC */
 	u64 pad2[10];		/* align to last u64 in 2nd 64-byte cacheline */
@@ -122,8 +122,8 @@ struct xpc_vars_sn2 {
 	u64 heartbeat_offline;	/* if 0, heartbeat should be changing */
 	int activate_IRQ_nasid;
 	int activate_IRQ_phys_cpuid;
-	u64 vars_part_pa;
-	u64 amos_page_pa;	/* paddr of page of amos from MSPEC driver */
+	unsigned long vars_part_pa;
+	unsigned long amos_page_pa;/* paddr of page of amos from MSPEC driver */
 	struct amo *amos_page;	/* vaddr of page of amos from MSPEC driver */
 };
 
@@ -142,10 +142,10 @@ struct xpc_vars_sn2 {
 struct xpc_vars_part_sn2 {
 	u64 magic;
 
-	u64 openclose_args_pa;	/* physical address of open and close args */
-	u64 GPs_pa;		/* physical address of Get/Put values */
+	unsigned long openclose_args_pa; /* phys addr of open and close args */
+	unsigned long GPs_pa;	/* physical address of Get/Put values */
 
-	u64 chctl_amo_pa;	/* physical address of chctl flags' amo */
+	unsigned long chctl_amo_pa; /* physical address of chctl flags' amo */
 
 	int notify_IRQ_nasid;	/* nasid of where to send notify IRQs */
 	int notify_IRQ_phys_cpuid;	/* CPUID of where to send notify IRQs */
@@ -213,7 +213,7 @@ struct xpc_openclose_args {
 	u16 msg_size;		/* sizeof each message entry */
 	u16 remote_nentries;	/* #of message entries in remote msg queue */
 	u16 local_nentries;	/* #of message entries in local msg queue */
-	u64 local_msgqueue_pa;	/* physical address of local message queue */
+	unsigned long local_msgqueue_pa; /* phys addr of local message queue */
 };
 
 #define XPC_OPENCLOSE_ARGS_SIZE \
@@ -366,8 +366,8 @@ struct xpc_channel {
 	void *remote_msgqueue_base;	/* base address of kmalloc'd space */
 	struct xpc_msg *remote_msgqueue; /* cached copy of remote partition's */
 					 /* local message queue */
-	u64 remote_msgqueue_pa;	/* phys addr of remote partition's */
-				/* local message queue */
+	unsigned long remote_msgqueue_pa; /* phys addr of remote partition's */
+					  /* local message queue */
 
 	atomic_t references;	/* #of external references to queues */
 
@@ -491,12 +491,12 @@ xpc_any_msg_chctl_flags_set(union xpc_channel_ctl_flags *chctl)
  */
 
 struct xpc_partition_sn2 {
-	u64 remote_amos_page_pa;	/* phys addr of partition's amos page */
+	unsigned long remote_amos_page_pa; /* paddr of partition's amos page */
 	int activate_IRQ_nasid;	/* active partition's act/deact nasid */
 	int activate_IRQ_phys_cpuid;	/* active part's act/deact phys cpuid */
 
-	u64 remote_vars_pa;	/* phys addr of partition's vars */
-	u64 remote_vars_part_pa;	/* phys addr of partition's vars part */
+	unsigned long remote_vars_pa;	/* phys addr of partition's vars */
+	unsigned long remote_vars_part_pa; /* paddr of partition's vars part */
 	u8 remote_vars_version;	/* version# of partition's vars */
 
 	void *local_GPs_base;	/* base address of kmalloc'd space */
@@ -504,10 +504,10 @@ struct xpc_partition_sn2 {
 	void *remote_GPs_base;	/* base address of kmalloc'd space */
 	struct xpc_gp_sn2 *remote_GPs;	/* copy of remote partition's local */
 					/* Get/Put values */
-	u64 remote_GPs_pa;	/* phys address of remote partition's local */
-				/* Get/Put values */
+	unsigned long remote_GPs_pa; /* phys addr of remote partition's local */
+				     /* Get/Put values */
 
-	u64 remote_openclose_args_pa;	/* phys addr of remote's args */
+	unsigned long remote_openclose_args_pa;	/* phys addr of remote's args */
 
 	int notify_IRQ_nasid;	/* nasid of where to send notify IRQs */
 	int notify_IRQ_phys_cpuid;	/* CPUID of where to send notify IRQs */
@@ -529,7 +529,7 @@ struct xpc_partition {
 
 	u8 remote_rp_version;	/* version# of partition's rsvd pg */
 	unsigned long remote_rp_ts_jiffies; /* timestamp when rsvd pg setup */
-	u64 remote_rp_pa;	/* phys addr of partition's rsvd pg */
+	unsigned long remote_rp_pa;	/* phys addr of partition's rsvd pg */
 	u64 last_heartbeat;	/* HB at last read */
 	u32 activate_IRQ_rcvd;	/* IRQs since activation */
 	spinlock_t act_lock;	/* protect updating of act_state */
@@ -623,7 +623,8 @@ extern void xpc_activate_partition(struct xpc_partition *);
 extern void xpc_activate_kthreads(struct xpc_channel *, int);
 extern void xpc_create_kthreads(struct xpc_channel *, int, int);
 extern void xpc_disconnect_wait(int);
-extern enum xp_retval (*xpc_get_partition_rsvd_page_pa) (u64, u64 *, u64 *,
+extern enum xp_retval (*xpc_get_partition_rsvd_page_pa) (void *, u64 *,
+							 unsigned long *,
 							 size_t *);
 extern enum xp_retval (*xpc_rsvd_page_init) (struct xpc_rsvd_page *);
 extern void (*xpc_heartbeat_init) (void);
@@ -640,8 +641,8 @@ extern void (*xpc_notify_senders_of_disconnect) (struct xpc_channel *);
 extern void (*xpc_process_msg_chctl_flags) (struct xpc_partition *, int);
 extern int (*xpc_n_of_deliverable_msgs) (struct xpc_channel *);
 extern struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *);
-extern void (*xpc_request_partition_activation) (struct xpc_rsvd_page *, u64,
-						 int);
+extern void (*xpc_request_partition_activation) (struct xpc_rsvd_page *,
+						 unsigned long, int);
 extern void (*xpc_request_partition_reactivation) (struct xpc_partition *);
 extern void (*xpc_request_partition_deactivation) (struct xpc_partition *);
 extern void (*xpc_cancel_partition_deactivation_request) (
@@ -690,7 +691,8 @@ extern enum xp_retval xpc_mark_partition_active(struct xpc_partition *);
 extern void xpc_mark_partition_inactive(struct xpc_partition *);
 extern void xpc_discovery(void);
 extern enum xp_retval xpc_get_remote_rp(int, unsigned long *,
-					struct xpc_rsvd_page *, u64 *);
+					struct xpc_rsvd_page *,
+					unsigned long *);
 extern void xpc_deactivate_partition(const int, struct xpc_partition *,
 				     enum xp_retval);
 extern enum xp_retval xpc_initiate_partid_to_nasids(short, void *);

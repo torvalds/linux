@@ -169,8 +169,9 @@ static struct notifier_block xpc_die_notifier = {
 	.notifier_call = xpc_system_die,
 };
 
-enum xp_retval (*xpc_get_partition_rsvd_page_pa) (u64 buf, u64 *cookie,
-						  u64 *paddr, size_t *len);
+enum xp_retval (*xpc_get_partition_rsvd_page_pa) (void *buf, u64 *cookie,
+						  unsigned long *rp_pa,
+						  size_t *len);
 enum xp_retval (*xpc_rsvd_page_init) (struct xpc_rsvd_page *rp);
 void (*xpc_heartbeat_init) (void);
 void (*xpc_heartbeat_exit) (void);
@@ -189,7 +190,8 @@ int (*xpc_n_of_deliverable_msgs) (struct xpc_channel *ch);
 struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *ch);
 
 void (*xpc_request_partition_activation) (struct xpc_rsvd_page *remote_rp,
-					  u64 remote_rp_pa, int nasid);
+					  unsigned long remote_rp_pa,
+					  int nasid);
 void (*xpc_request_partition_reactivation) (struct xpc_partition *part);
 void (*xpc_request_partition_deactivation) (struct xpc_partition *part);
 void (*xpc_cancel_partition_deactivation_request) (struct xpc_partition *part);

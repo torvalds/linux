@@ -207,8 +207,8 @@ xpc_handle_activate_IRQ_sn2(int irq, void *dev_id)
  * Flag the appropriate amo variable and send an IRQ to the specified node.
  */
 static void
-xpc_send_activate_IRQ_sn2(u64 amos_page_pa, int from_nasid, int to_nasid,
-			  int to_phys_cpuid)
+xpc_send_activate_IRQ_sn2(unsigned long amos_page_pa, int from_nasid,
+			  int to_nasid, int to_phys_cpuid)
 {
 	struct amo *amos = (struct amo *)__va(amos_page_pa +
 					      (XPC_ACTIVATE_IRQ_AMOS_SN2 *
@@ -404,7 +404,7 @@ xpc_send_chctl_openreply_sn2(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	args->remote_nentries = ch->remote_nentries;
 	args->local_nentries = ch->local_nentries;
-	args->local_msgqueue_pa = __pa(ch->local_msgqueue);
+	args->local_msgqueue_pa = xp_pa(ch->local_msgqueue);
 	XPC_SEND_NOTIFY_IRQ_SN2(ch, XPC_CHCTL_OPENREPLY, irq_flags);
 }
 
@@ -577,13 +577,13 @@ xpc_allow_amo_ops_shub_wars_1_1_sn2(void)
 }
 
 static enum xp_retval
-xpc_get_partition_rsvd_page_pa_sn2(u64 buf, u64 *cookie, u64 *paddr,
+xpc_get_partition_rsvd_page_pa_sn2(void *buf, u64 *cookie, unsigned long *rp_pa,
 				   size_t *len)
 {
 	s64 status;
 	enum xp_retval ret;
 
-	status = sn_partition_reserved_page_pa(buf, cookie, paddr, len);
+	status = sn_partition_reserved_page_pa((u64)buf, cookie, rp_pa, len);
 	if (status == SALRET_OK)
 		ret = xpSuccess;
 	else if (status == SALRET_MORE_PASSES)
@@ -604,7 +604,7 @@ xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
 
 	xpc_vars_sn2 = XPC_RP_VARS(rp);
 
-	rp->sn.vars_pa = __pa(xpc_vars_sn2);
+	rp->sn.vars_pa = xp_pa(xpc_vars_sn2);
 
 	/* vars_part array follows immediately after vars */
 	xpc_vars_part_sn2 = (struct xpc_vars_part_sn2 *)((u8 *)XPC_RP_VARS(rp) +
@@ -649,7 +649,7 @@ xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
 	xpc_vars_sn2->version = XPC_V_VERSION;
 	xpc_vars_sn2->activate_IRQ_nasid = cpuid_to_nasid(0);
 	xpc_vars_sn2->activate_IRQ_phys_cpuid = cpu_physical_id(0);
-	xpc_vars_sn2->vars_part_pa = __pa(xpc_vars_part_sn2);
+	xpc_vars_sn2->vars_part_pa = xp_pa(xpc_vars_part_sn2);
 	xpc_vars_sn2->amos_page_pa = ia64_tpa((u64)amos_page);
 	xpc_vars_sn2->amos_page = amos_page;	/* save for next load of XPC */
 
@@ -734,8 +734,8 @@ xpc_check_remote_hb_sn2(void)
 		}
 
 		/* pull the remote_hb cache line */
-		ret = xp_remote_memcpy(remote_vars,
-				       (void *)part->sn.sn2.remote_vars_pa,
+		ret = xp_remote_memcpy(xp_pa(remote_vars),
+				       part->sn.sn2.remote_vars_pa,
 				       XPC_RP_VARS_SIZE);
 		if (ret != xpSuccess) {
 			XPC_DEACTIVATE_PARTITION(part, ret);
@@ -768,7 +768,8 @@ xpc_check_remote_hb_sn2(void)
  * assumed to be of size XPC_RP_VARS_SIZE.
  */
 static enum xp_retval
-xpc_get_remote_vars_sn2(u64 remote_vars_pa, struct xpc_vars_sn2 *remote_vars)
+xpc_get_remote_vars_sn2(unsigned long remote_vars_pa,
+			struct xpc_vars_sn2 *remote_vars)
 {
 	enum xp_retval ret;
 
@@ -776,7 +777,7 @@ xpc_get_remote_vars_sn2(u64 remote_vars_pa, struct xpc_vars_sn2 *remote_vars)
 		return xpVarsNotSet;
 
 	/* pull over the cross partition variables */
-	ret = xp_remote_memcpy(remote_vars, (void *)remote_vars_pa,
+	ret = xp_remote_memcpy(xp_pa(remote_vars), remote_vars_pa,
 			       XPC_RP_VARS_SIZE);
 	if (ret != xpSuccess)
 		return ret;
@@ -791,7 +792,7 @@ xpc_get_remote_vars_sn2(u64 remote_vars_pa, struct xpc_vars_sn2 *remote_vars)
 
 static void
 xpc_request_partition_activation_sn2(struct xpc_rsvd_page *remote_rp,
-				     u64 remote_rp_pa, int nasid)
+				     unsigned long remote_rp_pa, int nasid)
 {
 	xpc_send_local_activate_IRQ_sn2(nasid);
 }
@@ -883,7 +884,8 @@ xpc_partition_deactivation_requested_sn2(short partid)
 static void
 xpc_update_partition_info_sn2(struct xpc_partition *part, u8 remote_rp_version,
 			      unsigned long *remote_rp_ts_jiffies,
-			      u64 remote_rp_pa, u64 remote_vars_pa,
+			      unsigned long remote_rp_pa,
+			      unsigned long remote_vars_pa,
 			      struct xpc_vars_sn2 *remote_vars)
 {
 	struct xpc_partition_sn2 *part_sn2 = &part->sn.sn2;
@@ -948,8 +950,8 @@ xpc_identify_activate_IRQ_req_sn2(int nasid)
 {
 	struct xpc_rsvd_page *remote_rp;
 	struct xpc_vars_sn2 *remote_vars;
-	u64 remote_rp_pa;
-	u64 remote_vars_pa;
+	unsigned long remote_rp_pa;
+	unsigned long remote_vars_pa;
 	int remote_rp_version;
 	int reactivate = 0;
 	unsigned long remote_rp_ts_jiffies = 0;
@@ -1291,11 +1293,11 @@ xpc_setup_infrastructure_sn2(struct xpc_partition *part)
 	 * The setting of the magic # indicates that these per partition
 	 * specific variables are ready to be used.
 	 */
-	xpc_vars_part_sn2[partid].GPs_pa = __pa(part_sn2->local_GPs);
+	xpc_vars_part_sn2[partid].GPs_pa = xp_pa(part_sn2->local_GPs);
 	xpc_vars_part_sn2[partid].openclose_args_pa =
-	    __pa(part->local_openclose_args);
+	    xp_pa(part->local_openclose_args);
 	xpc_vars_part_sn2[partid].chctl_amo_pa =
-	    __pa(part_sn2->local_chctl_amo_va);
+	    xp_pa(part_sn2->local_chctl_amo_va);
 	cpuid = raw_smp_processor_id();	/* any CPU in this partition will do */
 	xpc_vars_part_sn2[partid].notify_IRQ_nasid = cpuid_to_nasid(cpuid);
 	xpc_vars_part_sn2[partid].notify_IRQ_phys_cpuid =
@@ -1382,25 +1384,25 @@ xpc_teardown_infrastructure_sn2(struct xpc_partition *part)
  * Create a wrapper that hides the underlying mechanism for pulling a cacheline
  * (or multiple cachelines) from a remote partition.
  *
- * src must be a cacheline aligned physical address on the remote partition.
+ * src_pa must be a cacheline aligned physical address on the remote partition.
  * dst must be a cacheline aligned virtual address on this partition.
  * cnt must be cacheline sized
  */
 /* ??? Replace this function by call to xp_remote_memcpy() or bte_copy()? */
 static enum xp_retval
 xpc_pull_remote_cachelines_sn2(struct xpc_partition *part, void *dst,
-			       const void *src, size_t cnt)
+			       const unsigned long src_pa, size_t cnt)
 {
 	enum xp_retval ret;
 
-	DBUG_ON((u64)src != L1_CACHE_ALIGN((u64)src));
-	DBUG_ON((u64)dst != L1_CACHE_ALIGN((u64)dst));
+	DBUG_ON(src_pa != L1_CACHE_ALIGN(src_pa));
+	DBUG_ON((unsigned long)dst != L1_CACHE_ALIGN((unsigned long)dst));
 	DBUG_ON(cnt != L1_CACHE_ALIGN(cnt));
 
 	if (part->act_state == XPC_P_DEACTIVATING)
 		return part->reason;
 
-	ret = xp_remote_memcpy(dst, src, cnt);
+	ret = xp_remote_memcpy(xp_pa(dst), src_pa, cnt);
 	if (ret != xpSuccess) {
 		dev_dbg(xpc_chan, "xp_remote_memcpy() from partition %d failed,"
 			" ret=%d\n", XPC_PARTID(part), ret);
@@ -1420,7 +1422,8 @@ xpc_pull_remote_vars_part_sn2(struct xpc_partition *part)
 	struct xpc_vars_part_sn2 *pulled_entry_cacheline =
 	    (struct xpc_vars_part_sn2 *)L1_CACHE_ALIGN((u64)buffer);
 	struct xpc_vars_part_sn2 *pulled_entry;
-	u64 remote_entry_cacheline_pa, remote_entry_pa;
+	unsigned long remote_entry_cacheline_pa;
+	unsigned long remote_entry_pa;
 	short partid = XPC_PARTID(part);
 	enum xp_retval ret;
 
@@ -1440,7 +1443,7 @@ xpc_pull_remote_vars_part_sn2(struct xpc_partition *part)
 						    (L1_CACHE_BYTES - 1)));
 
 	ret = xpc_pull_remote_cachelines_sn2(part, pulled_entry_cacheline,
-					     (void *)remote_entry_cacheline_pa,
+					     remote_entry_cacheline_pa,
 					     L1_CACHE_BYTES);
 	if (ret != xpSuccess) {
 		dev_dbg(xpc_chan, "failed to pull XPC vars_part from "
@@ -1587,7 +1590,7 @@ xpc_get_chctl_all_flags_sn2(struct xpc_partition *part)
 	if (xpc_any_openclose_chctl_flags_set(&chctl)) {
 		ret = xpc_pull_remote_cachelines_sn2(part, part->
 						     remote_openclose_args,
-						     (void *)part_sn2->
+						     part_sn2->
 						     remote_openclose_args_pa,
 						     XPC_OPENCLOSE_ARGS_SIZE);
 		if (ret != xpSuccess) {
@@ -1604,7 +1607,7 @@ xpc_get_chctl_all_flags_sn2(struct xpc_partition *part)
 
 	if (xpc_any_msg_chctl_flags_set(&chctl)) {
 		ret = xpc_pull_remote_cachelines_sn2(part, part_sn2->remote_GPs,
-						(void *)part_sn2->remote_GPs_pa,
+						     part_sn2->remote_GPs_pa,
 						     XPC_GP_SIZE);
 		if (ret != xpSuccess) {
 			XPC_DEACTIVATE_PARTITION(part, ret);
@@ -1971,8 +1974,10 @@ xpc_pull_remote_msg_sn2(struct xpc_channel *ch, s64 get)
 {
 	struct xpc_partition *part = &xpc_partitions[ch->partid];
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
-	struct xpc_msg *remote_msg, *msg;
-	u32 msg_index, nmsgs;
+	unsigned long remote_msg_pa;
+	struct xpc_msg *msg;
+	u32 msg_index;
+	u32 nmsgs;
 	u64 msg_offset;
 	enum xp_retval ret;
 
@@ -1996,10 +2001,9 @@ xpc_pull_remote_msg_sn2(struct xpc_channel *ch, s64 get)
 
 		msg_offset = msg_index * ch->msg_size;
 		msg = (struct xpc_msg *)((u64)ch->remote_msgqueue + msg_offset);
-		remote_msg = (struct xpc_msg *)(ch->remote_msgqueue_pa +
-						msg_offset);
+		remote_msg_pa = ch->remote_msgqueue_pa + msg_offset;
 
-		ret = xpc_pull_remote_cachelines_sn2(part, msg, remote_msg,
+		ret = xpc_pull_remote_cachelines_sn2(part, msg, remote_msg_pa,
 						     nmsgs * ch->msg_size);
 		if (ret != xpSuccess) {
 
