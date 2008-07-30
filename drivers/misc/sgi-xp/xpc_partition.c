@@ -133,7 +133,7 @@ xpc_setup_rsvd_page(void)
 {
 	struct xpc_rsvd_page *rp;
 	u64 rp_pa;
-	unsigned long new_stamp;
+	unsigned long new_ts_jiffies;
 
 	/* get the local reserved page's address */
 
@@ -183,10 +183,10 @@ xpc_setup_rsvd_page(void)
 	 * This signifies to the remote partition that our reserved
 	 * page is initialized.
 	 */
-	new_stamp = jiffies;
-	if (new_stamp == 0 || new_stamp == rp->stamp)
-		new_stamp++;
-	rp->stamp = new_stamp;
+	new_ts_jiffies = jiffies;
+	if (new_ts_jiffies == 0 || new_ts_jiffies == rp->ts_jiffies)
+		new_ts_jiffies++;
+	rp->ts_jiffies = new_ts_jiffies;
 
 	return rp;
 }
@@ -225,8 +225,8 @@ xpc_get_remote_rp(int nasid, unsigned long *discovered_nasids,
 			discovered_nasids[l] |= remote_part_nasids[l];
 	}
 
-	/* see if the reserved page has been set up by XPC */
-	if (remote_rp->stamp == 0)
+	/* zero timestamp indicates the reserved page has not been setup */
+	if (remote_rp->ts_jiffies == 0)
 		return xpRsvdPageNotSet;
 
 	if (XPC_VERSION_MAJOR(remote_rp->version) !=

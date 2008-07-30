@@ -863,8 +863,8 @@ xpc_partition_deactivation_requested_sn2(short partid)
  */
 static void
 xpc_update_partition_info_sn2(struct xpc_partition *part, u8 remote_rp_version,
-			      unsigned long *remote_rp_stamp, u64 remote_rp_pa,
-			      u64 remote_vars_pa,
+			      unsigned long *remote_rp_ts_jiffies,
+			      u64 remote_rp_pa, u64 remote_vars_pa,
 			      struct xpc_vars_sn2 *remote_vars)
 {
 	struct xpc_partition_sn2 *part_sn2 = &part->sn.sn2;
@@ -873,9 +873,9 @@ xpc_update_partition_info_sn2(struct xpc_partition *part, u8 remote_rp_version,
 	dev_dbg(xpc_part, "  remote_rp_version = 0x%016x\n",
 		part->remote_rp_version);
 
-	part->remote_rp_stamp = *remote_rp_stamp;
-	dev_dbg(xpc_part, "  remote_rp_stamp = 0x%016lx\n",
-		part->remote_rp_stamp);
+	part->remote_rp_ts_jiffies = *remote_rp_ts_jiffies;
+	dev_dbg(xpc_part, "  remote_rp_ts_jiffies = 0x%016lx\n",
+		part->remote_rp_ts_jiffies);
 
 	part->remote_rp_pa = remote_rp_pa;
 	dev_dbg(xpc_part, "  remote_rp_pa = 0x%016lx\n", part->remote_rp_pa);
@@ -933,7 +933,7 @@ xpc_identify_activate_IRQ_req_sn2(int nasid)
 	u64 remote_vars_pa;
 	int remote_rp_version;
 	int reactivate = 0;
-	unsigned long remote_rp_stamp = 0;
+	unsigned long remote_rp_ts_jiffies = 0;
 	short partid;
 	struct xpc_partition *part;
 	struct xpc_partition_sn2 *part_sn2;
@@ -952,7 +952,7 @@ xpc_identify_activate_IRQ_req_sn2(int nasid)
 
 	remote_vars_pa = remote_rp->sn.vars_pa;
 	remote_rp_version = remote_rp->version;
-	remote_rp_stamp = remote_rp->stamp;
+	remote_rp_ts_jiffies = remote_rp->ts_jiffies;
 
 	partid = remote_rp->SAL_partid;
 	part = &xpc_partitions[partid];
@@ -981,8 +981,9 @@ xpc_identify_activate_IRQ_req_sn2(int nasid)
 	    part->act_state == XPC_P_INACTIVE) {
 
 		xpc_update_partition_info_sn2(part, remote_rp_version,
-					      &remote_rp_stamp, remote_rp_pa,
-					      remote_vars_pa, remote_vars);
+					      &remote_rp_ts_jiffies,
+					      remote_rp_pa, remote_vars_pa,
+					      remote_vars);
 
 		if (xpc_partition_deactivation_requested_sn2(partid)) {
 			/*
@@ -999,7 +1000,7 @@ xpc_identify_activate_IRQ_req_sn2(int nasid)
 	DBUG_ON(part->remote_rp_version == 0);
 	DBUG_ON(part_sn2->remote_vars_version == 0);
 
-	if (remote_rp_stamp != part->remote_rp_stamp) {
+	if (remote_rp_ts_jiffies != part->remote_rp_ts_jiffies) {
 
 		/* the other side rebooted */
 
@@ -1007,8 +1008,9 @@ xpc_identify_activate_IRQ_req_sn2(int nasid)
 		DBUG_ON(xpc_partition_deactivation_requested_sn2(partid));
 
 		xpc_update_partition_info_sn2(part, remote_rp_version,
-					      &remote_rp_stamp, remote_rp_pa,
-					      remote_vars_pa, remote_vars);
+					      &remote_rp_ts_jiffies,
+					      remote_rp_pa, remote_vars_pa,
+					      remote_vars);
 		reactivate = 1;
 	}
 

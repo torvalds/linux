@@ -862,8 +862,8 @@ xpc_do_exit(enum xp_retval reason)
 	DBUG_ON(xpc_any_partition_engaged());
 	DBUG_ON(xpc_any_hbs_allowed() != 0);
 
-	/* indicate to others that our reserved page is uninitialized */
-	xpc_rsvd_page->stamp = 0;
+	/* a zero timestamp indicates our rsvd page is not initialized */
+	xpc_rsvd_page->ts_jiffies = 0;
 
 	if (reason == xpUnloading) {
 		(void)unregister_die_notifier(&xpc_die_notifier);
@@ -1152,8 +1152,8 @@ xpc_init(void)
 
 	/* initialization was not successful */
 out_3:
-	/* indicate to others that our reserved page is uninitialized */
-	xpc_rsvd_page->stamp = 0;
+	/* a zero timestamp indicates our rsvd page is not initialized */
+	xpc_rsvd_page->ts_jiffies = 0;
 
 	(void)unregister_die_notifier(&xpc_die_notifier);
 	(void)unregister_reboot_notifier(&xpc_reboot_notifier);

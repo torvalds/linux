@@ -87,7 +87,7 @@
  *     which are partition specific (vars part). These are setup by XPC.
  *     (Local partition's vars pointers are xpc_vars and xpc_vars_part.)
  *
- * Note: Until 'stamp' is set non-zero, the partition XPC code has not been
+ * Note: Until 'ts_jiffies' is set non-zero, the partition XPC code has not been
  *       initialized.
  */
 struct xpc_rsvd_page {
@@ -101,7 +101,7 @@ struct xpc_rsvd_page {
 		u64 vars_pa;	/* physical address of struct xpc_vars */
 		u64 activate_mq_gpa;	/* global phys address of activate_mq */
 	} sn;
-	unsigned long stamp;	/* time when reserved page was setup by XPC */
+	unsigned long ts_jiffies; /* timestamp when rsvd pg was setup by XPC */
 	u64 pad2[10];		/* align to last u64 in 2nd 64-byte cacheline */
 	u64 SAL_nasids_size;	/* SAL: size of each nasid mask in bytes */
 };
@@ -534,7 +534,7 @@ struct xpc_partition {
 	/* XPC HB infrastructure */
 
 	u8 remote_rp_version;	/* version# of partition's rsvd pg */
-	unsigned long remote_rp_stamp; /* time when rsvd pg was initialized */
+	unsigned long remote_rp_ts_jiffies; /* timestamp when rsvd pg setup */
 	u64 remote_rp_pa;	/* phys addr of partition's rsvd pg */
 	u64 last_heartbeat;	/* HB at last read */
 	u32 activate_IRQ_rcvd;	/* IRQs since activation */
