@@ -249,8 +249,9 @@ enum xp_retval {
 	xpDisconnected,		/* 51: channel disconnected (closed) */
 
 	xpBteCopyError,		/* 52: bte_copy() returned error */
+	xpSalError,		/* 53: sn SAL error */
 
-	xpUnknownReason		/* 53: unknown reason - must be last in enum */
+	xpUnknownReason		/* 54: unknown reason - must be last in enum */
 };
 
 /*
