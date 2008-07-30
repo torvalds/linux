@@ -257,7 +257,7 @@ static int gpio_keys_resume(struct platform_device *pdev)
 #define gpio_keys_resume	NULL
 #endif
 
-struct platform_driver gpio_keys_device_driver = {
+static struct platform_driver gpio_keys_device_driver = {
 	.probe		= gpio_keys_probe,
 	.remove		= __devexit_p(gpio_keys_remove),
 	.suspend	= gpio_keys_suspend,
