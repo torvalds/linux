@@ -118,6 +118,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 		unsigned int type = button->type ?: EV_KEY;
 
 		bdata->input = input;
+		bdata->button = button;
 		setup_timer(&bdata->timer,
 			    gpio_check_button, (unsigned long)bdata);
 
