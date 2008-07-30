@@ -211,10 +211,8 @@ syscall_exit_work:
 	 nop
 #endif
 	sti
-	! XXX setup arguments...
 	mov	r15, r4
-	mov	#1, r5
-	mov.l	4f, r0			! do_syscall_trace
+	mov.l	8f, r0			! do_syscall_trace_leave
 	jsr	@r0
 	 nop
 	bra	resume_userspace
@@ -223,12 +221,11 @@ syscall_exit_work:
 	.align	2
 syscall_trace_entry:
 	!                     	Yes it is traced.
-	! XXX setup arguments...
 	mov     r15, r4
-	mov     #0, r5
-	mov.l	4f, r11		! Call do_syscall_trace which notifies
+	mov.l	7f, r11		! Call do_syscall_trace_enter which notifies
 	jsr	@r11	    	! superior (will chomp R[0-7])
 	 nop
+	mov.l	r0, @(OFF_R0,r15)	! Save return value
 	!			Reload R0-R4 from kernel stack, where the
 	!   	    	    	parent may have modified them using
 	!   	    	    	ptrace(POKEUSR).  (Note that R0-R2 are
@@ -389,8 +386,9 @@ syscall_exit:
 #endif
 2:	.long	NR_syscalls
 3:	.long	sys_call_table
-4:	.long	do_syscall_trace
 #ifdef CONFIG_TRACE_IRQFLAGS
 5:	.long	trace_hardirqs_on
 6:	.long	trace_hardirqs_off
 #endif
+7:	.long	do_syscall_trace_enter
+8:	.long	do_syscall_trace_leave

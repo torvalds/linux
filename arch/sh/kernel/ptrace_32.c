@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/audit.h>
 #include <linux/seccomp.h>
+#include <linux/tracehook.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -216,41 +217,38 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
+asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
+	long ret = 0;
 
 	secure_computing(regs->regs[0]);
 
-	if (unlikely(current->audit_context) && entryexit)
-		audit_syscall_exit(AUDITSC_RESULT(regs->regs[0]),
-				   regs->regs[0]);
+	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
+	    tracehook_report_syscall_entry(regs))
+		/*
+		 * Tracing decided this syscall should not happen.
+		 * We'll return a bogus call number to get an ENOSYS
+		 * error, but leave the original number in regs->regs[0].
+		 */
+		ret = -1L;
 
-	if (!test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    !test_thread_flag(TIF_SINGLESTEP))
-		goto out;
-	if (!(tsk->ptrace & PT_PTRACED))
-		goto out;
-
-	/* the 0x80 provides a way for the tracing parent to distinguish
-	   between a syscall stop and SIGTRAP delivery */
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) &&
-				 !test_thread_flag(TIF_SINGLESTEP) ? 0x80 : 0));
-
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (tsk->exit_code) {
-		send_sig(tsk->exit_code, tsk, 1);
-		tsk->exit_code = 0;
-	}
-
-out:
-	if (unlikely(current->audit_context) && !entryexit)
+	if (unlikely(current->audit_context))
 		audit_syscall_entry(AUDIT_ARCH_SH, regs->regs[3],
 				    regs->regs[4], regs->regs[5],
 				    regs->regs[6], regs->regs[7]);
 
+	return ret ?: regs->regs[0];
+}
+
+asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
+{
+	int step;
+
+	if (unlikely(current->audit_context))
+		audit_syscall_exit(AUDITSC_RESULT(regs->regs[0]),
+				   regs->regs[0]);
+
+	step = test_thread_flag(TIF_SINGLESTEP);
+	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, step);
 }
