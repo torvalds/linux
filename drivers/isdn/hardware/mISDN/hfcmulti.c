@@ -3971,7 +3971,7 @@ open_bchannel(struct hfc_multi *hc, struct dchannel *dch,
 	struct bchannel	*bch;
 	int		ch;
 
-	if (!test_bit(rq->adr.channel, &dch->dev.channelmap[0]))
+	if (!test_channelmap(rq->adr.channel, dch->dev.channelmap))
 		return -EINVAL;
 	if (rq->protocol == ISDN_P_NONE)
 		return -EINVAL;
@@ -4587,7 +4587,7 @@ init_e1_port(struct hfc_multi *hc, struct hm_map *m)
 		list_add(&bch->ch.list, &dch->dev.bchannels);
 		hc->chan[ch].bch = bch;
 		hc->chan[ch].port = 0;
-		test_and_set_bit(bch->nr, &dch->dev.channelmap[0]);
+		set_channelmap(bch->nr, dch->dev.channelmap);
 	}
 	/* set optical line type */
 	if (port[Port_cnt] & 0x001) {
@@ -4755,7 +4755,7 @@ init_multi_port(struct hfc_multi *hc, int pt)
 		list_add(&bch->ch.list, &dch->dev.bchannels);
 		hc->chan[i + ch].bch = bch;
 		hc->chan[i + ch].port = pt;
-		test_and_set_bit(bch->nr, &dch->dev.channelmap[0]);
+		set_channelmap(bch->nr, dch->dev.channelmap);
 	}
 	/* set master clock */
 	if (port[Port_cnt] & 0x001) {
