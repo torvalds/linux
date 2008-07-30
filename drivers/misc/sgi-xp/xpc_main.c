@@ -188,8 +188,8 @@ u64 (*xpc_get_chctl_all_flags) (struct xpc_partition *part);
 enum xp_retval (*xpc_setup_msg_structures) (struct xpc_channel *ch);
 void (*xpc_teardown_msg_structures) (struct xpc_channel *ch);
 void (*xpc_process_msg_chctl_flags) (struct xpc_partition *part, int ch_number);
-int (*xpc_n_of_deliverable_msgs) (struct xpc_channel *ch);
-struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *ch);
+int (*xpc_n_of_deliverable_payloads) (struct xpc_channel *ch);
+void *(*xpc_get_deliverable_payload) (struct xpc_channel *ch);
 
 void (*xpc_request_partition_activation) (struct xpc_rsvd_page *remote_rp,
 					  unsigned long remote_rp_pa,
@@ -220,10 +220,11 @@ void (*xpc_send_chctl_openreply) (struct xpc_channel *ch,
 void (*xpc_save_remote_msgqueue_pa) (struct xpc_channel *ch,
 				     unsigned long msgqueue_pa);
 
-enum xp_retval (*xpc_send_msg) (struct xpc_channel *ch, u32 flags,
-				void *payload, u16 payload_size, u8 notify_type,
-				xpc_notify_func func, void *key);
-void (*xpc_received_msg) (struct xpc_channel *ch, struct xpc_msg *msg);
+enum xp_retval (*xpc_send_payload) (struct xpc_channel *ch, u32 flags,
+				    void *payload, u16 payload_size,
+				    u8 notify_type, xpc_notify_func func,
+				    void *key);
+void (*xpc_received_payload) (struct xpc_channel *ch, void *payload);
 
 /*
  * Timer function to enforce the timelimit on the partition disengage.
@@ -714,9 +715,9 @@ xpc_kthread_waitmsgs(struct xpc_partition *part, struct xpc_channel *ch)
 	do {
 		/* deliver messages to their intended recipients */
 
-		while (xpc_n_of_deliverable_msgs(ch) > 0 &&
+		while (xpc_n_of_deliverable_payloads(ch) > 0 &&
 		       !(ch->flags & XPC_C_DISCONNECTING)) {
-			xpc_deliver_msg(ch);
+			xpc_deliver_payload(ch);
 		}
 
 		if (atomic_inc_return(&ch->kthreads_idle) >
@@ -730,7 +731,7 @@ xpc_kthread_waitmsgs(struct xpc_partition *part, struct xpc_channel *ch)
 			"wait_event_interruptible_exclusive()\n");
 
 		(void)wait_event_interruptible_exclusive(ch->idle_wq,
-				(xpc_n_of_deliverable_msgs(ch) > 0 ||
+				(xpc_n_of_deliverable_payloads(ch) > 0 ||
 				 (ch->flags & XPC_C_DISCONNECTING)));
 
 		atomic_dec(&ch->kthreads_idle);
@@ -775,7 +776,7 @@ xpc_kthread_start(void *args)
 			 * additional kthreads to help deliver them. We only
 			 * need one less than total #of messages to deliver.
 			 */
-			n_needed = xpc_n_of_deliverable_msgs(ch) - 1;
+			n_needed = xpc_n_of_deliverable_payloads(ch) - 1;
 			if (n_needed > 0 && !(ch->flags & XPC_C_DISCONNECTING))
 				xpc_activate_kthreads(ch, n_needed);
 

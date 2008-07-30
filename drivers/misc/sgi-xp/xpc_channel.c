@@ -139,7 +139,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	ch->func = NULL;
 	ch->key = NULL;
-	ch->msg_size = 0;
+	ch->entry_size = 0;
 	ch->local_nentries = 0;
 	ch->remote_nentries = 0;
 	ch->kthreads_assigned_limit = 0;
@@ -315,9 +315,9 @@ again:
 
 	if (chctl_flags & XPC_CHCTL_OPENREQUEST) {
 
-		dev_dbg(xpc_chan, "XPC_CHCTL_OPENREQUEST (msg_size=%d, "
+		dev_dbg(xpc_chan, "XPC_CHCTL_OPENREQUEST (entry_size=%d, "
 			"local_nentries=%d) received from partid=%d, "
-			"channel=%d\n", args->msg_size, args->local_nentries,
+			"channel=%d\n", args->entry_size, args->local_nentries,
 			ch->partid, ch->number);
 
 		if (part->act_state == XPC_P_AS_DEACTIVATING ||
@@ -338,10 +338,10 @@ again:
 
 		/*
 		 * The meaningful OPENREQUEST connection state fields are:
-		 *      msg_size = size of channel's messages in bytes
+		 *      entry_size = size of channel's messages in bytes
 		 *      local_nentries = remote partition's local_nentries
 		 */
-		if (args->msg_size == 0 || args->local_nentries == 0) {
+		if (args->entry_size == 0 || args->local_nentries == 0) {
 			/* assume OPENREQUEST was delayed by mistake */
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 			return;
@@ -351,14 +351,14 @@ again:
 		ch->remote_nentries = args->local_nentries;
 
 		if (ch->flags & XPC_C_OPENREQUEST) {
-			if (args->msg_size != ch->msg_size) {
+			if (args->entry_size != ch->entry_size) {
 				XPC_DISCONNECT_CHANNEL(ch, xpUnequalMsgSizes,
 						       &irq_flags);
 				spin_unlock_irqrestore(&ch->lock, irq_flags);
 				return;
 			}
 		} else {
-			ch->msg_size = args->msg_size;
+			ch->entry_size = args->entry_size;
 
 			XPC_SET_REASON(ch, 0, 0);
 			ch->flags &= ~XPC_C_DISCONNECTED;
@@ -473,7 +473,7 @@ xpc_connect_channel(struct xpc_channel *ch)
 	ch->local_nentries = registration->nentries;
 
 	if (ch->flags & XPC_C_ROPENREQUEST) {
-		if (registration->msg_size != ch->msg_size) {
+		if (registration->entry_size != ch->entry_size) {
 			/* the local and remote sides aren't the same */
 
 			/*
@@ -492,7 +492,7 @@ xpc_connect_channel(struct xpc_channel *ch)
 			return xpUnequalMsgSizes;
 		}
 	} else {
-		ch->msg_size = registration->msg_size;
+		ch->entry_size = registration->entry_size;
 
 		XPC_SET_REASON(ch, 0, 0);
 		ch->flags &= ~XPC_C_DISCONNECTED;
@@ -859,8 +859,8 @@ xpc_initiate_send(short partid, int ch_number, u32 flags, void *payload,
 	DBUG_ON(payload == NULL);
 
 	if (xpc_part_ref(part)) {
-		ret = xpc_send_msg(&part->channels[ch_number], flags, payload,
-				   payload_size, 0, NULL, NULL);
+		ret = xpc_send_payload(&part->channels[ch_number], flags,
+				       payload, payload_size, 0, NULL, NULL);
 		xpc_part_deref(part);
 	}
 
@@ -911,23 +911,24 @@ xpc_initiate_send_notify(short partid, int ch_number, u32 flags, void *payload,
 	DBUG_ON(func == NULL);
 
 	if (xpc_part_ref(part)) {
-		ret = xpc_send_msg(&part->channels[ch_number], flags, payload,
-				   payload_size, XPC_N_CALL, func, key);
+		ret = xpc_send_payload(&part->channels[ch_number], flags,
+				       payload, payload_size, XPC_N_CALL, func,
+				       key);
 		xpc_part_deref(part);
 	}
 	return ret;
 }
 
 /*
- * Deliver a message to its intended recipient.
+ * Deliver a message's payload to its intended recipient.
  */
 void
-xpc_deliver_msg(struct xpc_channel *ch)
+xpc_deliver_payload(struct xpc_channel *ch)
 {
-	struct xpc_msg *msg;
+	void *payload;
 
-	msg = xpc_get_deliverable_msg(ch);
-	if (msg != NULL) {
+	payload = xpc_get_deliverable_payload(ch);
+	if (payload != NULL) {
 
 		/*
 		 * This ref is taken to protect the payload itself from being
@@ -939,18 +940,16 @@ xpc_deliver_msg(struct xpc_channel *ch)
 		atomic_inc(&ch->kthreads_active);
 
 		if (ch->func != NULL) {
-			dev_dbg(xpc_chan, "ch->func() called, msg=0x%p, "
-				"msg_number=%ld, partid=%d, channel=%d\n",
-				msg, (signed long)msg->number, ch->partid,
+			dev_dbg(xpc_chan, "ch->func() called, payload=0x%p "
+				"partid=%d channel=%d\n", payload, ch->partid,
 				ch->number);
 
 			/* deliver the message to its intended recipient */
-			ch->func(xpMsgReceived, ch->partid, ch->number,
-				 &msg->payload, ch->key);
+			ch->func(xpMsgReceived, ch->partid, ch->number, payload,
+				 ch->key);
 
-			dev_dbg(xpc_chan, "ch->func() returned, msg=0x%p, "
-				"msg_number=%ld, partid=%d, channel=%d\n",
-				msg, (signed long)msg->number, ch->partid,
+			dev_dbg(xpc_chan, "ch->func() returned, payload=0x%p "
+				"partid=%d channel=%d\n", payload, ch->partid,
 				ch->number);
 		}
 
@@ -959,14 +958,11 @@ xpc_deliver_msg(struct xpc_channel *ch)
 }
 
 /*
- * Acknowledge receipt of a delivered message.
- *
- * If a message has XPC_M_INTERRUPT set, send an interrupt to the partition
- * that sent the message.
+ * Acknowledge receipt of a delivered message's payload.
  *
  * This function, although called by users, does not call xpc_part_ref() to
  * ensure that the partition infrastructure is in place. It relies on the
- * fact that we called xpc_msgqueue_ref() in xpc_deliver_msg().
+ * fact that we called xpc_msgqueue_ref() in xpc_deliver_payload().
  *
  * Arguments:
  *
@@ -980,14 +976,13 @@ xpc_initiate_received(short partid, int ch_number, void *payload)
 {
 	struct xpc_partition *part = &xpc_partitions[partid];
 	struct xpc_channel *ch;
-	struct xpc_msg *msg = XPC_MSG_ADDRESS(payload);
 
 	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
 
 	ch = &part->channels[ch_number];
-	xpc_received_msg(ch, msg);
+	xpc_received_payload(ch, payload);
 
-	/* the call to xpc_msgqueue_ref() was done by xpc_deliver_msg()  */
+	/* the call to xpc_msgqueue_ref() was done by xpc_deliver_payload()  */
 	xpc_msgqueue_deref(ch);
 }

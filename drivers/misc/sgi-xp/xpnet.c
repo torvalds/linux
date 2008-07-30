@@ -57,11 +57,10 @@ struct xpnet_message {
  *
  * XPC expects each message to exist in an individual cacheline.
  */
-#define XPNET_MSG_SIZE		(L1_CACHE_BYTES - XPC_MSG_PAYLOAD_OFFSET)
+#define XPNET_MSG_SIZE		XPC_MSG_PAYLOAD_MAX_SIZE
 #define XPNET_MSG_DATA_MAX	\
-		(XPNET_MSG_SIZE - (u64)(&((struct xpnet_message *)0)->data))
-#define XPNET_MSG_ALIGNED_SIZE	(L1_CACHE_ALIGN(XPNET_MSG_SIZE))
-#define XPNET_MSG_NENTRIES	(PAGE_SIZE / XPNET_MSG_ALIGNED_SIZE)
+		(XPNET_MSG_SIZE - offsetof(struct xpnet_message, data))
+#define XPNET_MSG_NENTRIES	(PAGE_SIZE / XPC_MSG_MAX_SIZE)
 
 #define XPNET_MAX_KTHREADS	(XPNET_MSG_NENTRIES + 1)
 #define XPNET_MAX_IDLE_KTHREADS	(XPNET_MSG_NENTRIES + 1)
@@ -408,6 +407,7 @@ xpnet_send(struct sk_buff *skb, struct xpnet_pending_msg *queued_msg,
 {
 	u8 msg_buffer[XPNET_MSG_SIZE];
 	struct xpnet_message *msg = (struct xpnet_message *)&msg_buffer;
+	u16 msg_size = sizeof(struct xpnet_message);
 	enum xp_retval ret;
 
 	msg->embedded_bytes = embedded_bytes;
@@ -417,6 +417,7 @@ xpnet_send(struct sk_buff *skb, struct xpnet_pending_msg *queued_msg,
 			&msg->data, skb->data, (size_t)embedded_bytes);
 		skb_copy_from_linear_data(skb, &msg->data,
 					  (size_t)embedded_bytes);
+		msg_size += embedded_bytes - 1;
 	} else {
 		msg->version = XPNET_VERSION;
 	}
@@ -435,7 +436,7 @@ xpnet_send(struct sk_buff *skb, struct xpnet_pending_msg *queued_msg,
 	atomic_inc(&queued_msg->use_count);
 
 	ret = xpc_send_notify(dest_partid, XPC_NET_CHANNEL, XPC_NOWAIT, msg,
-			      XPNET_MSG_SIZE, xpnet_send_completed, queued_msg);
+			      msg_size, xpnet_send_completed, queued_msg);
 	if (unlikely(ret != xpSuccess))
 		atomic_dec(&queued_msg->use_count);
 }

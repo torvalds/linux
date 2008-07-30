@@ -408,7 +408,7 @@ xpc_send_chctl_openrequest_sn2(struct xpc_channel *ch, unsigned long *irq_flags)
 {
 	struct xpc_openclose_args *args = ch->sn.sn2.local_openclose_args;
 
-	args->msg_size = ch->msg_size;
+	args->entry_size = ch->entry_size;
 	args->local_nentries = ch->local_nentries;
 	XPC_SEND_NOTIFY_IRQ_SN2(ch, XPC_CHCTL_OPENREQUEST, irq_flags);
 }
@@ -1531,14 +1531,14 @@ xpc_allocate_local_msgqueue_sn2(struct xpc_channel *ch)
 
 	for (nentries = ch->local_nentries; nentries > 0; nentries--) {
 
-		nbytes = nentries * ch->msg_size;
+		nbytes = nentries * ch->entry_size;
 		ch_sn2->local_msgqueue =
 		    xpc_kzalloc_cacheline_aligned(nbytes, GFP_KERNEL,
 						  &ch_sn2->local_msgqueue_base);
 		if (ch_sn2->local_msgqueue == NULL)
 			continue;
 
-		nbytes = nentries * sizeof(struct xpc_notify);
+		nbytes = nentries * sizeof(struct xpc_notify_sn2);
 		ch_sn2->notify_queue = kzalloc(nbytes, GFP_KERNEL);
 		if (ch_sn2->notify_queue == NULL) {
 			kfree(ch_sn2->local_msgqueue_base);
@@ -1578,7 +1578,7 @@ xpc_allocate_remote_msgqueue_sn2(struct xpc_channel *ch)
 
 	for (nentries = ch->remote_nentries; nentries > 0; nentries--) {
 
-		nbytes = nentries * ch->msg_size;
+		nbytes = nentries * ch->entry_size;
 		ch_sn2->remote_msgqueue =
 		    xpc_kzalloc_cacheline_aligned(nbytes, GFP_KERNEL, &ch_sn2->
 						  remote_msgqueue_base);
@@ -1632,9 +1632,6 @@ xpc_setup_msg_structures_sn2(struct xpc_channel *ch)
 /*
  * Free up message queues and other stuff that were allocated for the specified
  * channel.
- *
- * Note: ch->reason and ch->reason_line are left set for debugging purposes,
- * they're cleared when XPC_C_DISCONNECTED is cleared.
  */
 static void
 xpc_teardown_msg_structures_sn2(struct xpc_channel *ch)
@@ -1674,7 +1671,7 @@ xpc_teardown_msg_structures_sn2(struct xpc_channel *ch)
 static void
 xpc_notify_senders_sn2(struct xpc_channel *ch, enum xp_retval reason, s64 put)
 {
-	struct xpc_notify *notify;
+	struct xpc_notify_sn2 *notify;
 	u8 notify_type;
 	s64 get = ch->sn.sn2.w_remote_GP.get - 1;
 
@@ -1699,17 +1696,16 @@ xpc_notify_senders_sn2(struct xpc_channel *ch, enum xp_retval reason, s64 put)
 		atomic_dec(&ch->n_to_notify);
 
 		if (notify->func != NULL) {
-			dev_dbg(xpc_chan, "notify->func() called, notify=0x%p, "
-				"msg_number=%ld, partid=%d, channel=%d\n",
+			dev_dbg(xpc_chan, "notify->func() called, notify=0x%p "
+				"msg_number=%ld partid=%d channel=%d\n",
 				(void *)notify, get, ch->partid, ch->number);
 
 			notify->func(reason, ch->partid, ch->number,
 				     notify->key);
 
-			dev_dbg(xpc_chan, "notify->func() returned, "
-				"notify=0x%p, msg_number=%ld, partid=%d, "
-				"channel=%d\n", (void *)notify, get,
-				ch->partid, ch->number);
+			dev_dbg(xpc_chan, "notify->func() returned, notify=0x%p"
+				" msg_number=%ld partid=%d channel=%d\n",
+				(void *)notify, get, ch->partid, ch->number);
 		}
 	}
 }
@@ -1727,14 +1723,14 @@ static inline void
 xpc_clear_local_msgqueue_flags_sn2(struct xpc_channel *ch)
 {
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
-	struct xpc_msg *msg;
+	struct xpc_msg_sn2 *msg;
 	s64 get;
 
 	get = ch_sn2->w_remote_GP.get;
 	do {
-		msg = (struct xpc_msg *)((u64)ch_sn2->local_msgqueue +
-					 (get % ch->local_nentries) *
-					 ch->msg_size);
+		msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->local_msgqueue +
+					     (get % ch->local_nentries) *
+					     ch->entry_size);
 		msg->flags = 0;
 	} while (++get < ch_sn2->remote_GP.get);
 }
@@ -1746,16 +1742,22 @@ static inline void
 xpc_clear_remote_msgqueue_flags_sn2(struct xpc_channel *ch)
 {
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
-	struct xpc_msg *msg;
+	struct xpc_msg_sn2 *msg;
 	s64 put;
 
 	put = ch_sn2->w_remote_GP.put;
 	do {
-		msg = (struct xpc_msg *)((u64)ch_sn2->remote_msgqueue +
-					 (put % ch->remote_nentries) *
-					 ch->msg_size);
+		msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->remote_msgqueue +
+					     (put % ch->remote_nentries) *
+					     ch->entry_size);
 		msg->flags = 0;
 	} while (++put < ch_sn2->remote_GP.put);
+}
+
+static int
+xpc_n_of_deliverable_payloads_sn2(struct xpc_channel *ch)
+{
+	return ch->sn.sn2.w_remote_GP.put - ch->sn.sn2.w_local_GP.get;
 }
 
 static void
@@ -1763,7 +1765,7 @@ xpc_process_msg_chctl_flags_sn2(struct xpc_partition *part, int ch_number)
 {
 	struct xpc_channel *ch = &part->channels[ch_number];
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
-	int nmsgs_sent;
+	int npayloads_sent;
 
 	ch_sn2->remote_GP = part->sn.sn2.remote_GPs[ch_number];
 
@@ -1835,7 +1837,7 @@ xpc_process_msg_chctl_flags_sn2(struct xpc_partition *part, int ch_number)
 	if (ch_sn2->w_remote_GP.put != ch_sn2->remote_GP.put) {
 		/*
 		 * Clear msg->flags in previously received messages, so that
-		 * they're ready for xpc_get_deliverable_msg().
+		 * they're ready for xpc_get_deliverable_payload_sn2().
 		 */
 		xpc_clear_remote_msgqueue_flags_sn2(ch);
 
@@ -1845,27 +1847,27 @@ xpc_process_msg_chctl_flags_sn2(struct xpc_partition *part, int ch_number)
 			"channel=%d\n", ch_sn2->w_remote_GP.put, ch->partid,
 			ch->number);
 
-		nmsgs_sent = ch_sn2->w_remote_GP.put - ch_sn2->w_local_GP.get;
-		if (nmsgs_sent > 0) {
+		npayloads_sent = xpc_n_of_deliverable_payloads_sn2(ch);
+		if (npayloads_sent > 0) {
 			dev_dbg(xpc_chan, "msgs waiting to be copied and "
 				"delivered=%d, partid=%d, channel=%d\n",
-				nmsgs_sent, ch->partid, ch->number);
+				npayloads_sent, ch->partid, ch->number);
 
 			if (ch->flags & XPC_C_CONNECTEDCALLOUT_MADE)
-				xpc_activate_kthreads(ch, nmsgs_sent);
+				xpc_activate_kthreads(ch, npayloads_sent);
 		}
 	}
 
 	xpc_msgqueue_deref(ch);
 }
 
-static struct xpc_msg *
+static struct xpc_msg_sn2 *
 xpc_pull_remote_msg_sn2(struct xpc_channel *ch, s64 get)
 {
 	struct xpc_partition *part = &xpc_partitions[ch->partid];
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
 	unsigned long remote_msg_pa;
-	struct xpc_msg *msg;
+	struct xpc_msg_sn2 *msg;
 	u32 msg_index;
 	u32 nmsgs;
 	u64 msg_offset;
@@ -1889,13 +1891,13 @@ xpc_pull_remote_msg_sn2(struct xpc_channel *ch, s64 get)
 			nmsgs = ch->remote_nentries - msg_index;
 		}
 
-		msg_offset = msg_index * ch->msg_size;
-		msg = (struct xpc_msg *)((u64)ch_sn2->remote_msgqueue +
+		msg_offset = msg_index * ch->entry_size;
+		msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->remote_msgqueue +
 		    msg_offset);
 		remote_msg_pa = ch_sn2->remote_msgqueue_pa + msg_offset;
 
 		ret = xpc_pull_remote_cachelines_sn2(part, msg, remote_msg_pa,
-						     nmsgs * ch->msg_size);
+						     nmsgs * ch->entry_size);
 		if (ret != xpSuccess) {
 
 			dev_dbg(xpc_chan, "failed to pull %d msgs starting with"
@@ -1915,26 +1917,21 @@ xpc_pull_remote_msg_sn2(struct xpc_channel *ch, s64 get)
 	mutex_unlock(&ch_sn2->msg_to_pull_mutex);
 
 	/* return the message we were looking for */
-	msg_offset = (get % ch->remote_nentries) * ch->msg_size;
-	msg = (struct xpc_msg *)((u64)ch_sn2->remote_msgqueue + msg_offset);
+	msg_offset = (get % ch->remote_nentries) * ch->entry_size;
+	msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->remote_msgqueue + msg_offset);
 
 	return msg;
 }
 
-static int
-xpc_n_of_deliverable_msgs_sn2(struct xpc_channel *ch)
-{
-	return ch->sn.sn2.w_remote_GP.put - ch->sn.sn2.w_local_GP.get;
-}
-
 /*
- * Get a message to be delivered.
+ * Get the next deliverable message's payload.
  */
-static struct xpc_msg *
-xpc_get_deliverable_msg_sn2(struct xpc_channel *ch)
+static void *
+xpc_get_deliverable_payload_sn2(struct xpc_channel *ch)
 {
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
-	struct xpc_msg *msg = NULL;
+	struct xpc_msg_sn2 *msg;
+	void *payload = NULL;
 	s64 get;
 
 	do {
@@ -1965,15 +1962,16 @@ xpc_get_deliverable_msg_sn2(struct xpc_channel *ch)
 			msg = xpc_pull_remote_msg_sn2(ch, get);
 
 			DBUG_ON(msg != NULL && msg->number != get);
-			DBUG_ON(msg != NULL && (msg->flags & XPC_M_DONE));
-			DBUG_ON(msg != NULL && !(msg->flags & XPC_M_READY));
+			DBUG_ON(msg != NULL && (msg->flags & XPC_M_SN2_DONE));
+			DBUG_ON(msg != NULL && !(msg->flags & XPC_M_SN2_READY));
 
+			payload = &msg->payload;
 			break;
 		}
 
 	} while (1);
 
-	return msg;
+	return payload;
 }
 
 /*
@@ -1985,7 +1983,7 @@ static void
 xpc_send_msgs_sn2(struct xpc_channel *ch, s64 initial_put)
 {
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
-	struct xpc_msg *msg;
+	struct xpc_msg_sn2 *msg;
 	s64 put = initial_put + 1;
 	int send_msgrequest = 0;
 
@@ -1995,11 +1993,12 @@ xpc_send_msgs_sn2(struct xpc_channel *ch, s64 initial_put)
 			if (put == ch_sn2->w_local_GP.put)
 				break;
 
-			msg = (struct xpc_msg *)((u64)ch_sn2->local_msgqueue +
-						 (put % ch->local_nentries) *
-						 ch->msg_size);
+			msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->
+						     local_msgqueue + (put %
+						     ch->local_nentries) *
+						     ch->entry_size);
 
-			if (!(msg->flags & XPC_M_READY))
+			if (!(msg->flags & XPC_M_SN2_READY))
 				break;
 
 			put++;
@@ -2026,7 +2025,7 @@ xpc_send_msgs_sn2(struct xpc_channel *ch, s64 initial_put)
 
 		/*
 		 * We need to ensure that the message referenced by
-		 * local_GP->put is not XPC_M_READY or that local_GP->put
+		 * local_GP->put is not XPC_M_SN2_READY or that local_GP->put
 		 * equals w_local_GP.put, so we'll go have a look.
 		 */
 		initial_put = put;
@@ -2042,10 +2041,10 @@ xpc_send_msgs_sn2(struct xpc_channel *ch, s64 initial_put)
  */
 static enum xp_retval
 xpc_allocate_msg_sn2(struct xpc_channel *ch, u32 flags,
-		     struct xpc_msg **address_of_msg)
+		     struct xpc_msg_sn2 **address_of_msg)
 {
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
-	struct xpc_msg *msg;
+	struct xpc_msg_sn2 *msg;
 	enum xp_retval ret;
 	s64 put;
 
@@ -2097,8 +2096,9 @@ xpc_allocate_msg_sn2(struct xpc_channel *ch, u32 flags,
 	}
 
 	/* get the message's address and initialize it */
-	msg = (struct xpc_msg *)((u64)ch_sn2->local_msgqueue +
-				 (put % ch->local_nentries) * ch->msg_size);
+	msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->local_msgqueue +
+				     (put % ch->local_nentries) *
+				     ch->entry_size);
 
 	DBUG_ON(msg->flags != 0);
 	msg->number = put;
@@ -2117,20 +2117,20 @@ xpc_allocate_msg_sn2(struct xpc_channel *ch, u32 flags,
  * partition the message is being sent to.
  */
 static enum xp_retval
-xpc_send_msg_sn2(struct xpc_channel *ch, u32 flags, void *payload,
-		 u16 payload_size, u8 notify_type, xpc_notify_func func,
-		 void *key)
+xpc_send_payload_sn2(struct xpc_channel *ch, u32 flags, void *payload,
+		     u16 payload_size, u8 notify_type, xpc_notify_func func,
+		     void *key)
 {
 	enum xp_retval ret = xpSuccess;
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
-	struct xpc_msg *msg = msg;
-	struct xpc_notify *notify = notify;
+	struct xpc_msg_sn2 *msg = msg;
+	struct xpc_notify_sn2 *notify = notify;
 	s64 msg_number;
 	s64 put;
 
 	DBUG_ON(notify_type == XPC_N_CALL && func == NULL);
 
-	if (XPC_MSG_SIZE(payload_size) > ch->msg_size)
+	if (XPC_MSG_SIZE(payload_size) > ch->entry_size)
 		return xpPayloadTooBig;
 
 	xpc_msgqueue_ref(ch);
@@ -2155,7 +2155,7 @@ xpc_send_msg_sn2(struct xpc_channel *ch, u32 flags, void *payload,
 		 * Tell the remote side to send an ACK interrupt when the
 		 * message has been delivered.
 		 */
-		msg->flags |= XPC_M_INTERRUPT;
+		msg->flags |= XPC_M_SN2_INTERRUPT;
 
 		atomic_inc(&ch->n_to_notify);
 
@@ -2185,7 +2185,7 @@ xpc_send_msg_sn2(struct xpc_channel *ch, u32 flags, void *payload,
 
 	memcpy(&msg->payload, payload, payload_size);
 
-	msg->flags |= XPC_M_READY;
+	msg->flags |= XPC_M_SN2_READY;
 
 	/*
 	 * The preceding store of msg->flags must occur before the following
@@ -2208,12 +2208,15 @@ out_1:
  * Now we actually acknowledge the messages that have been delivered and ack'd
  * by advancing the cached remote message queue's Get value and if requested
  * send a chctl msgrequest to the message sender's partition.
+ *
+ * If a message has XPC_M_SN2_INTERRUPT set, send an interrupt to the partition
+ * that sent the message.
  */
 static void
 xpc_acknowledge_msgs_sn2(struct xpc_channel *ch, s64 initial_get, u8 msg_flags)
 {
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
-	struct xpc_msg *msg;
+	struct xpc_msg_sn2 *msg;
 	s64 get = initial_get + 1;
 	int send_msgrequest = 0;
 
@@ -2223,11 +2226,12 @@ xpc_acknowledge_msgs_sn2(struct xpc_channel *ch, s64 initial_get, u8 msg_flags)
 			if (get == ch_sn2->w_local_GP.get)
 				break;
 
-			msg = (struct xpc_msg *)((u64)ch_sn2->remote_msgqueue +
-						 (get % ch->remote_nentries) *
-						 ch->msg_size);
+			msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->
+						     remote_msgqueue + (get %
+						     ch->remote_nentries) *
+						     ch->entry_size);
 
-			if (!(msg->flags & XPC_M_DONE))
+			if (!(msg->flags & XPC_M_SN2_DONE))
 				break;
 
 			msg_flags |= msg->flags;
@@ -2251,11 +2255,11 @@ xpc_acknowledge_msgs_sn2(struct xpc_channel *ch, s64 initial_get, u8 msg_flags)
 		dev_dbg(xpc_chan, "local_GP->get changed to %ld, partid=%d, "
 			"channel=%d\n", get, ch->partid, ch->number);
 
-		send_msgrequest = (msg_flags & XPC_M_INTERRUPT);
+		send_msgrequest = (msg_flags & XPC_M_SN2_INTERRUPT);
 
 		/*
 		 * We need to ensure that the message referenced by
-		 * local_GP->get is not XPC_M_DONE or that local_GP->get
+		 * local_GP->get is not XPC_M_SN2_DONE or that local_GP->get
 		 * equals w_local_GP.get, so we'll go have a look.
 		 */
 		initial_get = get;
@@ -2266,19 +2270,23 @@ xpc_acknowledge_msgs_sn2(struct xpc_channel *ch, s64 initial_get, u8 msg_flags)
 }
 
 static void
-xpc_received_msg_sn2(struct xpc_channel *ch, struct xpc_msg *msg)
+xpc_received_payload_sn2(struct xpc_channel *ch, void *payload)
 {
+	struct xpc_msg_sn2 *msg;
+	s64 msg_number;
 	s64 get;
-	s64 msg_number = msg->number;
+
+	msg = container_of(payload, struct xpc_msg_sn2, payload);
+	msg_number = msg->number;
 
 	dev_dbg(xpc_chan, "msg=0x%p, msg_number=%ld, partid=%d, channel=%d\n",
 		(void *)msg, msg_number, ch->partid, ch->number);
 
-	DBUG_ON((((u64)msg - (u64)ch->remote_msgqueue) / ch->msg_size) !=
+	DBUG_ON((((u64)msg - (u64)ch->remote_msgqueue) / ch->entry_size) !=
 		msg_number % ch->remote_nentries);
-	DBUG_ON(msg->flags & XPC_M_DONE);
+	DBUG_ON(msg->flags & XPC_M_SN2_DONE);
 
-	msg->flags |= XPC_M_DONE;
+	msg->flags |= XPC_M_SN2_DONE;
 
 	/*
 	 * The preceding store of msg->flags must occur before the following
@@ -2337,8 +2345,8 @@ xpc_init_sn2(void)
 
 	xpc_notify_senders_of_disconnect = xpc_notify_senders_of_disconnect_sn2;
 	xpc_process_msg_chctl_flags = xpc_process_msg_chctl_flags_sn2;
-	xpc_n_of_deliverable_msgs = xpc_n_of_deliverable_msgs_sn2;
-	xpc_get_deliverable_msg = xpc_get_deliverable_msg_sn2;
+	xpc_n_of_deliverable_payloads = xpc_n_of_deliverable_payloads_sn2;
+	xpc_get_deliverable_payload = xpc_get_deliverable_payload_sn2;
 
 	xpc_indicate_partition_engaged = xpc_indicate_partition_engaged_sn2;
 	xpc_indicate_partition_disengaged =
@@ -2347,8 +2355,14 @@ xpc_init_sn2(void)
 	xpc_any_partition_engaged = xpc_any_partition_engaged_sn2;
 	xpc_assume_partition_disengaged = xpc_assume_partition_disengaged_sn2;
 
-	xpc_send_msg = xpc_send_msg_sn2;
-	xpc_received_msg = xpc_received_msg_sn2;
+	xpc_send_payload = xpc_send_payload_sn2;
+	xpc_received_payload = xpc_received_payload_sn2;
+
+	if (offsetof(struct xpc_msg_sn2, payload) > XPC_MSG_HDR_MAX_SIZE) {
+		dev_err(xpc_part, "header portion of struct xpc_msg_sn2 is "
+			"larger than %d\n", XPC_MSG_HDR_MAX_SIZE);
+		return -E2BIG;
+	}
 
 	buf_size = max(XPC_RP_VARS_SIZE,
 		       XPC_RP_HEADER_SIZE + XP_NASID_MASK_BYTES_SN2);

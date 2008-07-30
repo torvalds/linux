@@ -154,6 +154,9 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 	DBUG_ON(func == NULL);
 	DBUG_ON(assigned_limit == 0 || idle_limit > assigned_limit);
 
+	if (XPC_MSG_SIZE(payload_size) > XPC_MSG_MAX_SIZE)
+		return xpPayloadTooBig;
+
 	registration = &xpc_registrations[ch_number];
 
 	if (mutex_lock_interruptible(&registration->mutex) != 0)
@@ -166,7 +169,7 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 	}
 
 	/* register the channel for connection */
-	registration->msg_size = XPC_MSG_SIZE(payload_size);
+	registration->entry_size = XPC_MSG_SIZE(payload_size);
 	registration->nentries = nentries;
 	registration->assigned_limit = assigned_limit;
 	registration->idle_limit = idle_limit;
@@ -220,7 +223,7 @@ xpc_disconnect(int ch_number)
 	registration->func = NULL;
 	registration->key = NULL;
 	registration->nentries = 0;
-	registration->msg_size = 0;
+	registration->entry_size = 0;
 	registration->assigned_limit = 0;
 	registration->idle_limit = 0;
 

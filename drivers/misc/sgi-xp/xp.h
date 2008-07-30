@@ -87,39 +87,18 @@
 #endif
 
 /*
- * The format of an XPC message is as follows:
- *
- *      +-------+--------------------------------+
- *      | flags |////////////////////////////////|
- *      +-------+--------------------------------+
- *      |             message #                  |
- *      +----------------------------------------+
- *      |     payload (user-defined message)     |
- *      |                                        |
- *         		:
- *      |                                        |
- *      +----------------------------------------+
- *
- * The size of the payload is defined by the user via xpc_connect(). A user-
- * defined message resides in the payload area.
- *
- * The size of a message entry (within a message queue) must be a cacheline
- * sized multiple in order to facilitate the BTE transfer of messages from one
- * message queue to another. A macro, XPC_MSG_SIZE(), is provided for the user
+ * Define macro, XPC_MSG_SIZE(), is provided for the user
  * that wants to fit as many msg entries as possible in a given memory size
  * (e.g. a memory page).
  */
-struct xpc_msg {
-	u8 flags;		/* FOR XPC INTERNAL USE ONLY */
-	u8 reserved[7];		/* FOR XPC INTERNAL USE ONLY */
-	s64 number;		/* FOR XPC INTERNAL USE ONLY */
+#define XPC_MSG_MAX_SIZE	128
+#define XPC_MSG_HDR_MAX_SIZE	16
+#define XPC_MSG_PAYLOAD_MAX_SIZE (XPC_MSG_MAX_SIZE - XPC_MSG_HDR_MAX_SIZE)
 
-	u64 payload;		/* user defined portion of message */
-};
-
-#define XPC_MSG_PAYLOAD_OFFSET	(u64) (&((struct xpc_msg *)0)->payload)
 #define XPC_MSG_SIZE(_payload_size) \
-		L1_CACHE_ALIGN(XPC_MSG_PAYLOAD_OFFSET + (_payload_size))
+				ALIGN(XPC_MSG_HDR_MAX_SIZE + (_payload_size), \
+				      is_uv() ? 64 : 128)
+
 
 /*
  * Define the return values and values passed to user's callout functions.
@@ -210,7 +189,10 @@ enum xp_retval {
 	xpGruCopyError,		/* 58: gru_copy_gru() returned error */
 	xpGruSendMqError,	/* 59: gru send message queue related error */
 
-	xpUnknownReason		/* 60: unknown reason - must be last in enum */
+	xpBadChannelNumber,	/* 60: invalid channel number */
+	xpBadMsgType,		/* 60: invalid message type */
+
+	xpUnknownReason		/* 61: unknown reason - must be last in enum */
 };
 
 /*
@@ -261,6 +243,9 @@ typedef void (*xpc_channel_func) (enum xp_retval reason, short partid,
  * calling xpc_received().
  *
  * All other reason codes indicate failure.
+ *
+ * NOTE: The user defined function must be callable by an interrupt handler
+ *       and thus cannot block.
  */
 typedef void (*xpc_notify_func) (enum xp_retval reason, short partid,
 				 int ch_number, void *key);
@@ -284,7 +269,7 @@ struct xpc_registration {
 	xpc_channel_func func;	/* function to call */
 	void *key;		/* pointer to user's key */
 	u16 nentries;		/* #of msg entries in local msg queue */
-	u16 msg_size;		/* message queue's message size */
+	u16 entry_size;		/* message queue's message entry size */
 	u32 assigned_limit;	/* limit on #of assigned kthreads */
 	u32 idle_limit;		/* limit on #of idle kthreads */
 } ____cacheline_aligned;

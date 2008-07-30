@@ -181,8 +181,8 @@ struct xpc_vars_part_sn2 {
 				  xpc_nasid_mask_nlongs))
 
 /*
- * The activate_mq is used to send/receive messages that affect XPC's heartbeat,
- * partition active state, and channel state. This is UV only.
+ * The activate_mq is used to send/receive GRU messages that affect XPC's
+ * heartbeat, partition active state, and channel state. This is UV only.
  */
 struct xpc_activate_mq_msghdr_uv {
 	short partid;		/* sender's partid */
@@ -209,45 +209,45 @@ struct xpc_activate_mq_msghdr_uv {
 #define XPC_ACTIVATE_MQ_MSG_MARK_DISENGAGED_UV		11
 
 struct xpc_activate_mq_msg_uv {
-	struct xpc_activate_mq_msghdr_uv header;
+	struct xpc_activate_mq_msghdr_uv hdr;
 };
 
 struct xpc_activate_mq_msg_heartbeat_req_uv {
-	struct xpc_activate_mq_msghdr_uv header;
+	struct xpc_activate_mq_msghdr_uv hdr;
 	u64 heartbeat;
 };
 
 struct xpc_activate_mq_msg_activate_req_uv {
-	struct xpc_activate_mq_msghdr_uv header;
+	struct xpc_activate_mq_msghdr_uv hdr;
 	unsigned long rp_gpa;
 	unsigned long activate_mq_gpa;
 };
 
 struct xpc_activate_mq_msg_deactivate_req_uv {
-	struct xpc_activate_mq_msghdr_uv header;
+	struct xpc_activate_mq_msghdr_uv hdr;
 	enum xp_retval reason;
 };
 
 struct xpc_activate_mq_msg_chctl_closerequest_uv {
-	struct xpc_activate_mq_msghdr_uv header;
+	struct xpc_activate_mq_msghdr_uv hdr;
 	short ch_number;
 	enum xp_retval reason;
 };
 
 struct xpc_activate_mq_msg_chctl_closereply_uv {
-	struct xpc_activate_mq_msghdr_uv header;
+	struct xpc_activate_mq_msghdr_uv hdr;
 	short ch_number;
 };
 
 struct xpc_activate_mq_msg_chctl_openrequest_uv {
-	struct xpc_activate_mq_msghdr_uv header;
+	struct xpc_activate_mq_msghdr_uv hdr;
 	short ch_number;
-	short msg_size;		/* size of notify_mq's messages */
+	short entry_size;	/* size of notify_mq's GRU messages */
 	short local_nentries;	/* ??? Is this needed? What is? */
 };
 
 struct xpc_activate_mq_msg_chctl_openreply_uv {
-	struct xpc_activate_mq_msghdr_uv header;
+	struct xpc_activate_mq_msghdr_uv hdr;
 	short ch_number;
 	short remote_nentries;	/* ??? Is this needed? What is? */
 	short local_nentries;	/* ??? Is this needed? What is? */
@@ -284,7 +284,7 @@ struct xpc_gp_sn2 {
  */
 struct xpc_openclose_args {
 	u16 reason;		/* reason why channel is closing */
-	u16 msg_size;		/* sizeof each message entry */
+	u16 entry_size;		/* sizeof each message entry */
 	u16 remote_nentries;	/* #of message entries in remote msg queue */
 	u16 local_nentries;	/* #of message entries in local msg queue */
 	unsigned long local_msgqueue_pa; /* phys addr of local message queue */
@@ -294,22 +294,79 @@ struct xpc_openclose_args {
 	      L1_CACHE_ALIGN(sizeof(struct xpc_openclose_args) * \
 	      XPC_MAX_NCHANNELS)
 
-/* struct xpc_msg flags */
-
-#define	XPC_M_DONE		0x01	/* msg has been received/consumed */
-#define	XPC_M_READY		0x02	/* msg is ready to be sent */
-#define	XPC_M_INTERRUPT		0x04	/* send interrupt when msg consumed */
-
-#define XPC_MSG_ADDRESS(_payload) \
-		((struct xpc_msg *)((u8 *)(_payload) - XPC_MSG_PAYLOAD_OFFSET))
 
 /*
- * Defines notify entry.
+ * Structures to define a fifo singly-linked list.
+ */
+
+struct xpc_fifo_entry_uv {
+	struct xpc_fifo_entry_uv *next;
+};
+
+struct xpc_fifo_head_uv {
+	struct xpc_fifo_entry_uv *first;
+	struct xpc_fifo_entry_uv *last;
+	spinlock_t lock;
+	int n_entries;
+};
+
+/*
+ * Define a sn2 styled message.
+ *
+ * A user-defined message resides in the payload area. The max size of the
+ * payload is defined by the user via xpc_connect().
+ *
+ * The size of a message entry (within a message queue) must be a 128-byte
+ * cacheline sized multiple in order to facilitate the BTE transfer of messages
+ * from one message queue to another.
+ */
+struct xpc_msg_sn2 {
+	u8 flags;		/* FOR XPC INTERNAL USE ONLY */
+	u8 reserved[7];		/* FOR XPC INTERNAL USE ONLY */
+	s64 number;		/* FOR XPC INTERNAL USE ONLY */
+
+	u64 payload;		/* user defined portion of message */
+};
+
+/* struct xpc_msg_sn2 flags */
+
+#define	XPC_M_SN2_DONE		0x01	/* msg has been received/consumed */
+#define	XPC_M_SN2_READY		0x02	/* msg is ready to be sent */
+#define	XPC_M_SN2_INTERRUPT	0x04	/* send interrupt when msg consumed */
+
+/*
+ * The format of a uv XPC notify_mq GRU message is as follows:
+ *
+ * A user-defined message resides in the payload area. The max size of the
+ * payload is defined by the user via xpc_connect().
+ *
+ * The size of a message (payload and header) sent via the GRU must be either 1
+ * or 2 GRU_CACHE_LINE_BYTES in length.
+ */
+
+struct xpc_notify_mq_msghdr_uv {
+	union {
+		unsigned int gru_msg_hdr;	/* FOR GRU INTERNAL USE ONLY */
+		struct xpc_fifo_entry_uv next;	/* FOR XPC INTERNAL USE ONLY */
+	} u;
+	short partid;		/* FOR XPC INTERNAL USE ONLY */
+	u8 ch_number;		/* FOR XPC INTERNAL USE ONLY */
+	u8 size;		/* FOR XPC INTERNAL USE ONLY */
+	unsigned int msg_slot_number;	/* FOR XPC INTERNAL USE ONLY */
+};
+
+struct xpc_notify_mq_msg_uv {
+	struct xpc_notify_mq_msghdr_uv hdr;
+	unsigned long payload;
+};
+
+/*
+ * Define sn2's notify entry.
  *
  * This is used to notify a message's sender that their message was received
  * and consumed by the intended recipient.
  */
-struct xpc_notify {
+struct xpc_notify_sn2 {
 	u8 type;		/* type of notification */
 
 	/* the following two fields are only used if type == XPC_N_CALL */
@@ -317,9 +374,20 @@ struct xpc_notify {
 	void *key;		/* pointer to user's key */
 };
 
-/* struct xpc_notify type of notification */
+/* struct xpc_notify_sn2 type of notification */
 
-#define	XPC_N_CALL		0x01	/* notify function provided by user */
+#define	XPC_N_CALL	0x01	/* notify function provided by user */
+
+/*
+ * Define uv's version of the notify entry. It additionally is used to allocate
+ * a msg slot on the remote partition into which is copied a sent message.
+ */
+struct xpc_send_msg_slot_uv {
+	struct xpc_fifo_entry_uv next;
+	unsigned int msg_slot_number;
+	xpc_notify_func func;	/* user's notify function */
+	void *key;		/* pointer to user's key */
+};
 
 /*
  * Define the structure that manages all the stuff required by a channel. In
@@ -409,14 +477,14 @@ struct xpc_channel_sn2 {
 					     /* opening or closing of channel */
 
 	void *local_msgqueue_base;	/* base address of kmalloc'd space */
-	struct xpc_msg *local_msgqueue;	/* local message queue */
+	struct xpc_msg_sn2 *local_msgqueue;	/* local message queue */
 	void *remote_msgqueue_base;	/* base address of kmalloc'd space */
-	struct xpc_msg *remote_msgqueue; /* cached copy of remote partition's */
-					 /* local message queue */
+	struct xpc_msg_sn2 *remote_msgqueue; /* cached copy of remote */
+					   /* partition's local message queue */
 	unsigned long remote_msgqueue_pa; /* phys addr of remote partition's */
 					  /* local message queue */
 
-	struct xpc_notify *notify_queue;    /* notify queue for messages sent */
+	struct xpc_notify_sn2 *notify_queue;/* notify queue for messages sent */
 
 	/* various flavors of local and remote Get/Put values */
 
@@ -432,6 +500,12 @@ struct xpc_channel_sn2 {
 struct xpc_channel_uv {
 	unsigned long remote_notify_mq_gpa;	/* gru phys address of remote */
 						/* partition's notify mq */
+
+	struct xpc_send_msg_slot_uv *send_msg_slots;
+	struct xpc_notify_mq_msg_uv *recv_msg_slots;
+
+	struct xpc_fifo_head_uv msg_slot_free_list;
+	struct xpc_fifo_head_uv recv_msg_list;	/* deliverable payloads */
 };
 
 struct xpc_channel {
@@ -444,7 +518,7 @@ struct xpc_channel {
 
 	u16 number;		/* channel # */
 
-	u16 msg_size;		/* sizeof each msg entry */
+	u16 entry_size;		/* sizeof each msg entry */
 	u16 local_nentries;	/* #of msg entries in local msg queue */
 	u16 remote_nentries;	/* #of msg entries in remote msg queue */
 
@@ -733,8 +807,8 @@ extern enum xp_retval (*xpc_setup_msg_structures) (struct xpc_channel *);
 extern void (*xpc_teardown_msg_structures) (struct xpc_channel *);
 extern void (*xpc_notify_senders_of_disconnect) (struct xpc_channel *);
 extern void (*xpc_process_msg_chctl_flags) (struct xpc_partition *, int);
-extern int (*xpc_n_of_deliverable_msgs) (struct xpc_channel *);
-extern struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *);
+extern int (*xpc_n_of_deliverable_payloads) (struct xpc_channel *);
+extern void *(*xpc_get_deliverable_payload) (struct xpc_channel *);
 extern void (*xpc_request_partition_activation) (struct xpc_rsvd_page *,
 						 unsigned long, int);
 extern void (*xpc_request_partition_reactivation) (struct xpc_partition *);
@@ -762,9 +836,9 @@ extern void (*xpc_send_chctl_openreply) (struct xpc_channel *, unsigned long *);
 extern void (*xpc_save_remote_msgqueue_pa) (struct xpc_channel *,
 					    unsigned long);
 
-extern enum xp_retval (*xpc_send_msg) (struct xpc_channel *, u32, void *, u16,
-				       u8, xpc_notify_func, void *);
-extern void (*xpc_received_msg) (struct xpc_channel *, struct xpc_msg *);
+extern enum xp_retval (*xpc_send_payload) (struct xpc_channel *, u32, void *,
+					   u16, u8, xpc_notify_func, void *);
+extern void (*xpc_received_payload) (struct xpc_channel *, void *);
 
 /* found in xpc_sn2.c */
 extern int xpc_init_sn2(void);
@@ -805,7 +879,7 @@ extern enum xp_retval xpc_initiate_send_notify(short, int, u32, void *, u16,
 extern void xpc_initiate_received(short, int, void *);
 extern void xpc_process_sent_chctl_flags(struct xpc_partition *);
 extern void xpc_connected_callout(struct xpc_channel *);
-extern void xpc_deliver_msg(struct xpc_channel *);
+extern void xpc_deliver_payload(struct xpc_channel *);
 extern void xpc_disconnect_channel(const int, struct xpc_channel *,
 				   enum xp_retval, unsigned long *);
 extern void xpc_disconnect_callout(struct xpc_channel *, enum xp_retval);
