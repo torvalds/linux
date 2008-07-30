@@ -1012,9 +1012,7 @@ static int setup_bdle(struct snd_pcm_substream *substream,
 		bdl[0] = cpu_to_le32((u32)addr);
 		bdl[1] = cpu_to_le32(upper_32_bits(addr));
 		/* program the size field of the BDL entry */
-		chunk = PAGE_SIZE - (ofs % PAGE_SIZE);
-		if (size < chunk)
-			chunk = size;
+		chunk = snd_pcm_sgbuf_get_chunk_size(substream, ofs, size);
 		bdl[2] = cpu_to_le32(chunk);
 		/* program the IOC to enable interrupt
 		 * only when the whole fragment is processed
@@ -1672,7 +1670,7 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &azx_pcm_ops);
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
-					      1024 * 64, 1024 * 1024);
+					      1024 * 64, 32 * 1024 * 1024);
 	chip->pcm[cpcm->device] = pcm;
 	return 0;
 }
