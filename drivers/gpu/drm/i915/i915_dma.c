@@ -71,6 +71,52 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 	return -EBUSY;
 }
 
+/**
+ * Sets up the hardware status page for devices that need a physical address
+ * in the register.
+ */
+int i915_init_phys_hws(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	/* Program Hardware Status Page */
+	dev_priv->status_page_dmah =
+		drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 0xffffffff);
+
+	if (!dev_priv->status_page_dmah) {
+		DRM_ERROR("Can not allocate hardware status page\n");
+		return -ENOMEM;
+	}
+	dev_priv->hw_status_page = dev_priv->status_page_dmah->vaddr;
+	dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
+
+	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
+
+	I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
+	DRM_DEBUG("Enabled hardware status page\n");
+	return 0;
+}
+
+/**
+ * Frees the hardware status page, whether it's a physical address or a virtual
+ * address set up by the X Server.
+ */
+void i915_free_hws(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	if (dev_priv->status_page_dmah) {
+		drm_pci_free(dev, dev_priv->status_page_dmah);
+		dev_priv->status_page_dmah = NULL;
+	}
+
+	if (dev_priv->status_gfx_addr) {
+		dev_priv->status_gfx_addr = 0;
+		drm_core_ioremapfree(&dev_priv->hws_map, dev);
+	}
+
+	/* Need to rewrite hardware status page */
+	I915_WRITE(HWS_PGA, 0x1ffff000);
+}
+
 void i915_kernel_lost_context(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -103,18 +149,9 @@ static int i915_dma_cleanup(struct drm_device * dev)
 		dev_priv->ring.map.size = 0;
 	}
 
-	if (dev_priv->status_page_dmah) {
-		drm_pci_free(dev, dev_priv->status_page_dmah);
-		dev_priv->status_page_dmah = NULL;
-		/* Need to rewrite hardware status page */
-		I915_WRITE(HWS_PGA, 0x1ffff000);
-	}
-
-	if (dev_priv->status_gfx_addr) {
-		dev_priv->status_gfx_addr = 0;
-		drm_core_ioremapfree(&dev_priv->hws_map, dev);
-		I915_WRITE(HWS_PGA, 0x1ffff000);
-	}
+	/* Clear the HWS virtual address at teardown */
+	if (I915_NEED_GFX_HWS(dev))
+		i915_free_hws(dev);
 
 	return 0;
 }
@@ -165,23 +202,6 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	 */
 	dev_priv->allow_batchbuffer = 1;
 
-	/* Program Hardware Status Page */
-	if (!I915_NEED_GFX_HWS(dev)) {
-		dev_priv->status_page_dmah =
-			drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 0xffffffff);
-
-		if (!dev_priv->status_page_dmah) {
-			i915_dma_cleanup(dev);
-			DRM_ERROR("Can not allocate hardware status page\n");
-			return -ENOMEM;
-		}
-		dev_priv->hw_status_page = dev_priv->status_page_dmah->vaddr;
-		dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
-
-		memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
-		I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
-	}
-	DRM_DEBUG("Enabled hardware status page\n");
 	return 0;
 }
 
@@ -773,6 +793,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			 _DRM_KERNEL | _DRM_DRIVER,
 			 &dev_priv->mmio_map);
 
+	/* Init HWS */
+	if (!I915_NEED_GFX_HWS(dev)) {
+		ret = i915_init_phys_hws(dev);
+		if (ret != 0)
+			return ret;
+	}
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
 	 * integrated graphics even though the support isn't actually there
@@ -795,6 +821,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
+
+	i915_free_hws(dev);
 
 	if (dev_priv->mmio_map)
 		drm_rmmap(dev, dev_priv->mmio_map);
