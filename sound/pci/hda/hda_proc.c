@@ -229,8 +229,13 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 		snd_iprintf(buffer, " Detect");
 	if (caps & AC_PINCAP_BALANCE)
 		snd_iprintf(buffer, " Balanced");
-	if (caps & AC_PINCAP_LR_SWAP)
-		snd_iprintf(buffer, " R/L");
+	if (caps & AC_PINCAP_HDMI) {
+		/* Realtek uses this bit as a different meaning */
+		if ((codec->vendor_id >> 16) == 0x10ec)
+			snd_iprintf(buffer, " R/L");
+		else
+			snd_iprintf(buffer, " HDMI");
+	}
 	if (caps & AC_PINCAP_TRIG_REQ)
 		snd_iprintf(buffer, " Trigger");
 	if (caps & AC_PINCAP_IMP_SENSE)
@@ -552,9 +557,15 @@ static void print_codec_info(struct snd_info_entry *entry,
 
 		snd_iprintf(buffer, "Node 0x%02x [%s] wcaps 0x%x:", nid,
 			    get_wid_type_name(wid_type), wid_caps);
-		if (wid_caps & AC_WCAP_STEREO)
-			snd_iprintf(buffer, " Stereo");
-		else
+		if (wid_caps & AC_WCAP_STEREO) {
+			unsigned int chans;
+			chans = (wid_caps & AC_WCAP_CHAN_CNT_EXT) >> 13;
+			chans = ((chans << 1) | 1) + 1;
+			if (chans == 2)
+				snd_iprintf(buffer, " Stereo");
+			else
+				snd_iprintf(buffer, " %d-Channels", chans);
+		} else
 			snd_iprintf(buffer, " Mono");
 		if (wid_caps & AC_WCAP_DIGITAL)
 			snd_iprintf(buffer, " Digital");
@@ -566,6 +577,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 			snd_iprintf(buffer, " Stripe");
 		if (wid_caps & AC_WCAP_LR_SWAP)
 			snd_iprintf(buffer, " R/L");
+		if (wid_caps & AC_WCAP_CP_CAPS)
+			snd_iprintf(buffer, " CP");
 		snd_iprintf(buffer, "\n");
 
 		/* volume knob is a special widget that always have connection
