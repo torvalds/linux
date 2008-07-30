@@ -3196,3 +3196,37 @@ int snd_hda_codecs_inuse(struct hda_bus *bus)
 }
 #endif
 #endif
+
+/*
+ * generic arrays
+ */
+
+/* get a new element from the given array
+ * if it exceeds the pre-allocated array size, re-allocate the array
+ */
+void *snd_array_new(struct snd_array *array)
+{
+	if (array->used >= array->alloced) {
+		int num = array->alloced + array->alloc_align;
+		void *nlist = kcalloc(num + 1, array->elem_size, GFP_KERNEL);
+		if (!nlist)
+			return NULL;
+		if (array->list) {
+			memcpy(nlist, array->list,
+			       array->elem_size * array->alloced);
+			kfree(array->list);
+		}
+		array->list = nlist;
+		array->alloced = num;
+	}
+	return array->list + (array->used++ * array->elem_size);
+}
+
+/* free the given array elements */
+void snd_array_free(struct snd_array *array)
+{
+	kfree(array->list);
+	array->used = 0;
+	array->alloced = 0;
+	array->list = NULL;
+}

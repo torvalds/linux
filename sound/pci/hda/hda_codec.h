@@ -520,6 +520,26 @@ enum {
 #define HDA_MAX_CODEC_ADDRESS	0x0f
 
 /*
+ * generic arrays
+ */
+struct snd_array {
+	unsigned int used;
+	unsigned int alloced;
+	unsigned int elem_size;
+	unsigned int alloc_align;
+	void *list;
+};
+
+void *snd_array_new(struct snd_array *array);
+void snd_array_free(struct snd_array *array);
+static inline void snd_array_init(struct snd_array *array, unsigned int size,
+				  unsigned int align)
+{
+	array->elem_size = size;
+	array->alloc_align = align;
+}
+
+/*
  * Structures
  */
 
