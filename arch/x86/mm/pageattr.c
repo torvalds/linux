@@ -592,10 +592,9 @@ repeat:
 	if (!pte_val(old_pte)) {
 		if (!primary)
 			return 0;
-		printk(KERN_WARNING "CPA: called for zero pte. "
+		WARN(1, KERN_WARNING "CPA: called for zero pte. "
 		       "vaddr = %lx cpa->vaddr = %lx\n", address,
 		       cpa->vaddr);
-		WARN_ON(1);
 		return -EINVAL;
 	}
 
