@@ -656,8 +656,8 @@ static int unuse_mm(struct mm_struct *mm,
 
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		/*
-		 * Activate page so shrink_cache is unlikely to unmap its
-		 * ptes while lock is dropped, so swapoff can make progress.
+		 * Activate page so shrink_inactive_list is unlikely to unmap
+		 * its ptes while lock is dropped, so swapoff can make progress.
 		 */
 		activate_page(page);
 		unlock_page(page);

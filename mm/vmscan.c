@@ -1979,7 +1979,7 @@ module_init(kswapd_init)
 int zone_reclaim_mode __read_mostly;
 
 #define RECLAIM_OFF 0
-#define RECLAIM_ZONE (1<<0)	/* Run shrink_cache on the zone */
+#define RECLAIM_ZONE (1<<0)	/* Run shrink_inactive_list on the zone */
 #define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
 #define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
 
