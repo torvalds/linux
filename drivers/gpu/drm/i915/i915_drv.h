@@ -99,7 +99,6 @@ typedef struct drm_i915_private {
 	int front_offset;
 	int current_page;
 	int page_flipping;
-	int use_mi_batchbuffer_start;
 
 	wait_queue_head_t irq_queue;
 	atomic_t irq_received;

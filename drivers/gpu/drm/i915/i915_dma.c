@@ -159,13 +159,6 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	dev_priv->current_page = 0;
 	dev_priv->sarea_priv->pf_current_page = dev_priv->current_page;
 
-	/* We are using separate values as placeholders for mechanisms for
-	 * private backbuffer/depthbuffer usage.
-	 */
-	dev_priv->use_mi_batchbuffer_start = 0;
-	if (IS_I965G(dev)) /* 965 doesn't support older method */
-		dev_priv->use_mi_batchbuffer_start = 1;
-
 	/* Allow hardware batchbuffers unless told otherwise.
 	 */
 	dev_priv->allow_batchbuffer = 1;
@@ -486,7 +479,7 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 				return ret;
 		}
 
-		if (dev_priv->use_mi_batchbuffer_start) {
+		if (!IS_I830(dev) && !IS_845G(dev)) {
 			BEGIN_LP_RING(2);
 			if (IS_I965G(dev)) {
 				OUT_RING(MI_BATCH_BUFFER_START | (2 << 6) | MI_BATCH_NON_SECURE_I965);
@@ -697,8 +690,6 @@ static int i915_setparam(struct drm_device *dev, void *data,
 
 	switch (param->param) {
 	case I915_SETPARAM_USE_MI_BATCHBUFFER_START:
-		if (!IS_I965G(dev))
-			dev_priv->use_mi_batchbuffer_start = param->value;
 		break;
 	case I915_SETPARAM_TEX_LRU_LOG_GRANULARITY:
 		dev_priv->tex_lru_log_granularity = param->value;
