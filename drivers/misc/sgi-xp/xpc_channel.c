@@ -25,145 +25,6 @@
 #include "xpc.h"
 
 /*
- * Guarantee that the kzalloc'd memory is cacheline aligned.
- */
-void *
-xpc_kzalloc_cacheline_aligned(size_t size, gfp_t flags, void **base)
-{
-	/* see if kzalloc will give us cachline aligned memory by default */
-	*base = kzalloc(size, flags);
-	if (*base == NULL)
-		return NULL;
-
-	if ((u64)*base == L1_CACHE_ALIGN((u64)*base))
-		return *base;
-
-	kfree(*base);
-
-	/* nope, we'll have to do it ourselves */
-	*base = kzalloc(size + L1_CACHE_BYTES, flags);
-	if (*base == NULL)
-		return NULL;
-
-	return (void *)L1_CACHE_ALIGN((u64)*base);
-}
-
-/*
- * Allocate the local message queue and the notify queue.
- */
-static enum xp_retval
-xpc_allocate_local_msgqueue(struct xpc_channel *ch)
-{
-	unsigned long irq_flags;
-	int nentries;
-	size_t nbytes;
-
-	for (nentries = ch->local_nentries; nentries > 0; nentries--) {
-
-		nbytes = nentries * ch->msg_size;
-		ch->local_msgqueue = xpc_kzalloc_cacheline_aligned(nbytes,
-								   GFP_KERNEL,
-						      &ch->local_msgqueue_base);
-		if (ch->local_msgqueue == NULL)
-			continue;
-
-		nbytes = nentries * sizeof(struct xpc_notify);
-		ch->notify_queue = kzalloc(nbytes, GFP_KERNEL);
-		if (ch->notify_queue == NULL) {
-			kfree(ch->local_msgqueue_base);
-			ch->local_msgqueue = NULL;
-			continue;
-		}
-
-		spin_lock_irqsave(&ch->lock, irq_flags);
-		if (nentries < ch->local_nentries) {
-			dev_dbg(xpc_chan, "nentries=%d local_nentries=%d, "
-				"partid=%d, channel=%d\n", nentries,
-				ch->local_nentries, ch->partid, ch->number);
-
-			ch->local_nentries = nentries;
-		}
-		spin_unlock_irqrestore(&ch->lock, irq_flags);
-		return xpSuccess;
-	}
-
-	dev_dbg(xpc_chan, "can't get memory for local message queue and notify "
-		"queue, partid=%d, channel=%d\n", ch->partid, ch->number);
-	return xpNoMemory;
-}
-
-/*
- * Allocate the cached remote message queue.
- */
-static enum xp_retval
-xpc_allocate_remote_msgqueue(struct xpc_channel *ch)
-{
-	unsigned long irq_flags;
-	int nentries;
-	size_t nbytes;
-
-	DBUG_ON(ch->remote_nentries <= 0);
-
-	for (nentries = ch->remote_nentries; nentries > 0; nentries--) {
-
-		nbytes = nentries * ch->msg_size;
-		ch->remote_msgqueue = xpc_kzalloc_cacheline_aligned(nbytes,
-								    GFP_KERNEL,
-						     &ch->remote_msgqueue_base);
-		if (ch->remote_msgqueue == NULL)
-			continue;
-
-		spin_lock_irqsave(&ch->lock, irq_flags);
-		if (nentries < ch->remote_nentries) {
-			dev_dbg(xpc_chan, "nentries=%d remote_nentries=%d, "
-				"partid=%d, channel=%d\n", nentries,
-				ch->remote_nentries, ch->partid, ch->number);
-
-			ch->remote_nentries = nentries;
-		}
-		spin_unlock_irqrestore(&ch->lock, irq_flags);
-		return xpSuccess;
-	}
-
-	dev_dbg(xpc_chan, "can't get memory for cached remote message queue, "
-		"partid=%d, channel=%d\n", ch->partid, ch->number);
-	return xpNoMemory;
-}
-
-/*
- * Allocate message queues and other stuff associated with a channel.
- *
- * Note: Assumes all of the channel sizes are filled in.
- */
-static enum xp_retval
-xpc_allocate_msgqueues(struct xpc_channel *ch)
-{
-	unsigned long irq_flags;
-	enum xp_retval ret;
-
-	DBUG_ON(ch->flags & XPC_C_SETUP);
-
-	ret = xpc_allocate_local_msgqueue(ch);
-	if (ret != xpSuccess)
-		return ret;
-
-	ret = xpc_allocate_remote_msgqueue(ch);
-	if (ret != xpSuccess) {
-		kfree(ch->local_msgqueue_base);
-		ch->local_msgqueue = NULL;
-		kfree(ch->notify_queue);
-		ch->notify_queue = NULL;
-		return ret;
-	}
-
-	spin_lock_irqsave(&ch->lock, irq_flags);
-	ch->flags |= XPC_C_SETUP;
-	spin_unlock_irqrestore(&ch->lock, irq_flags);
-
-	return xpSuccess;
-}
-
-/*
  * Process a connect message from a remote partition.
  *
  * Note: xpc_process_connect() is expecting to be called with the
@@ -191,10 +52,11 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 		if (ret != xpSuccess)
 			XPC_DISCONNECT_CHANNEL(ch, ret, irq_flags);
 
+		ch->flags |= XPC_C_SETUP;
+
 		if (ch->flags & (XPC_C_CONNECTED | XPC_C_DISCONNECTING))
 			return;
 
-		DBUG_ON(!(ch->flags & XPC_C_SETUP));
 		DBUG_ON(ch->local_msgqueue == NULL);
 		DBUG_ON(ch->remote_msgqueue == NULL);
 	}
@@ -217,55 +79,6 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 	spin_unlock_irqrestore(&ch->lock, *irq_flags);
 	xpc_create_kthreads(ch, 1, 0);
 	spin_lock_irqsave(&ch->lock, *irq_flags);
-}
-
-/*
- * Free up message queues and other stuff that were allocated for the specified
- * channel.
- *
- * Note: ch->reason and ch->reason_line are left set for debugging purposes,
- * they're cleared when XPC_C_DISCONNECTED is cleared.
- */
-static void
-xpc_free_msgqueues(struct xpc_channel *ch)
-{
-	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
-
-	DBUG_ON(!spin_is_locked(&ch->lock));
-	DBUG_ON(atomic_read(&ch->n_to_notify) != 0);
-
-	ch->remote_msgqueue_pa = 0;
-	ch->func = NULL;
-	ch->key = NULL;
-	ch->msg_size = 0;
-	ch->local_nentries = 0;
-	ch->remote_nentries = 0;
-	ch->kthreads_assigned_limit = 0;
-	ch->kthreads_idle_limit = 0;
-
-	ch_sn2->local_GP->get = 0;
-	ch_sn2->local_GP->put = 0;
-	ch_sn2->remote_GP.get = 0;
-	ch_sn2->remote_GP.put = 0;
-	ch_sn2->w_local_GP.get = 0;
-	ch_sn2->w_local_GP.put = 0;
-	ch_sn2->w_remote_GP.get = 0;
-	ch_sn2->w_remote_GP.put = 0;
-	ch_sn2->next_msg_to_pull = 0;
-
-	if (ch->flags & XPC_C_SETUP) {
-		ch->flags &= ~XPC_C_SETUP;
-
-		dev_dbg(xpc_chan, "ch->flags=0x%x, partid=%d, channel=%d\n",
-			ch->flags, ch->partid, ch->number);
-
-		kfree(ch->local_msgqueue_base);
-		ch->local_msgqueue = NULL;
-		kfree(ch->remote_msgqueue_base);
-		ch->remote_msgqueue = NULL;
-		kfree(ch->notify_queue);
-		ch->notify_queue = NULL;
-	}
 }
 
 /*
@@ -331,7 +144,11 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 	/* it's now safe to free the channel's message queues */
 	xpc_free_msgqueues(ch);
 
-	/* mark disconnected, clear all other flags except XPC_C_WDISCONNECT */
+	/*
+	 * Mark the channel disconnected and clear all other flags, including
+	 * XPC_C_SETUP (because of call to xpc_free_msgqueues()) but not
+	 * including XPC_C_WDISCONNECT (if it was set).
+	 */
 	ch->flags = (XPC_C_DISCONNECTED | (ch->flags & XPC_C_WDISCONNECT));
 
 	atomic_dec(&part->nchannels_active);

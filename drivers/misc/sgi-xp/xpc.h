@@ -666,6 +666,8 @@ extern void (*xpc_online_heartbeat) (void);
 extern void (*xpc_check_remote_hb) (void);
 extern enum xp_retval (*xpc_make_first_contact) (struct xpc_partition *);
 extern u64 (*xpc_get_chctl_all_flags) (struct xpc_partition *);
+extern enum xp_retval (*xpc_allocate_msgqueues) (struct xpc_channel *);
+extern void (*xpc_free_msgqueues) (struct xpc_channel *);
 extern void (*xpc_notify_senders_of_disconnect) (struct xpc_channel *);
 extern void (*xpc_process_msg_chctl_flags) (struct xpc_partition *, int);
 extern int (*xpc_n_of_deliverable_msgs) (struct xpc_channel *);
@@ -728,7 +730,6 @@ extern void xpc_deactivate_partition(const int, struct xpc_partition *,
 extern enum xp_retval xpc_initiate_partid_to_nasids(short, void *);
 
 /* found in xpc_channel.c */
-extern void *xpc_kzalloc_cacheline_aligned(size_t, gfp_t, void **);
 extern void xpc_initiate_connect(int);
 extern void xpc_initiate_disconnect(int);
 extern enum xp_retval xpc_allocate_msg_wait(struct xpc_channel *);
