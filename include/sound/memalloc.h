@@ -97,7 +97,9 @@ static inline unsigned int snd_sgbuf_aligned_pages(size_t size)
  */
 static inline dma_addr_t snd_sgbuf_get_addr(struct snd_sg_buf *sgbuf, size_t offset)
 {
-	return sgbuf->table[offset >> PAGE_SHIFT].addr + offset % PAGE_SIZE;
+	dma_addr_t addr = sgbuf->table[offset >> PAGE_SHIFT].addr;
+	addr &= PAGE_MASK;
+	return addr + offset % PAGE_SIZE;
 }
 
 /*
