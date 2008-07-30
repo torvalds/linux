@@ -202,7 +202,7 @@ work_resched:
 syscall_exit_work:
 	! r0: current_thread_info->flags
 	! r8: current_thread_info
-	tst	#_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP | _TIF_SYSCALL_AUDIT, r0
+	tst	#_TIF_WORK_SYSCALL_MASK, r0
 	bt/s	work_pending
 	 tst	#_TIF_NEED_RESCHED, r0
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -351,7 +351,7 @@ ENTRY(system_call)
 	!
 	get_current_thread_info r8, r10
 	mov.l	@(TI_FLAGS,r8), r8
-	mov	#(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT), r10
+	mov	#_TIF_WORK_SYSCALL_MASK, r10
 	tst	r10, r8
 	bf	syscall_trace_entry
 	!

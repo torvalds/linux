@@ -1300,7 +1300,7 @@ syscall_allowed:
 
 	getcon	KCR0, r2
 	ld.l	r2, TI_FLAGS, r4
-	movi	(_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP | _TIF_SYSCALL_AUDIT), r6
+	movi	_TIF_WORK_SYSCALL_MASK, r6
 	and	r6, r4, r6
 	beq/l	r6, ZERO, tr0
 

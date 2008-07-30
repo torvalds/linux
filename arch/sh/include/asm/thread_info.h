@@ -123,18 +123,34 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_MEMDIE		18
 #define TIF_FREEZE		19
 
-#define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
-#define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
-#define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
-#define _TIF_RESTORE_SIGMASK	(1<<TIF_RESTORE_SIGMASK)
-#define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
-#define _TIF_SYSCALL_AUDIT		(1<<TIF_SYSCALL_AUDIT)
-#define _TIF_USEDFPU		(1<<TIF_USEDFPU)
-#define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
-#define _TIF_FREEZE		(1<<TIF_FREEZE)
+#define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
+#define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
+#define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
+#define _TIF_RESTORE_SIGMASK	(1 << TIF_RESTORE_SIGMASK)
+#define _TIF_SINGLESTEP		(1 << TIF_SINGLESTEP)
+#define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
+#define _TIF_USEDFPU		(1 << TIF_USEDFPU)
+#define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
+#define _TIF_FREEZE		(1 << TIF_FREEZE)
 
-#define _TIF_WORK_MASK		0x000000FE	/* work to do on interrupt/exception return */
-#define _TIF_ALLWORK_MASK	0x000000FF	/* work to do on any return to u-space */
+/*
+ * _TIF_ALLWORK_MASK and _TIF_WORK_MASK need to fit within a byte, or we
+ * blow the tst immediate size constraints and need to fix up
+ * arch/sh/kernel/entry-common.S.
+ */
+
+/* work to do in syscall trace */
+#define _TIF_WORK_SYSCALL_MASK	(_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP | \
+				 _TIF_SYSCALL_AUDIT)
+
+/* work to do on any return to u-space */
+#define _TIF_ALLWORK_MASK	(_TIF_SYSCALL_TRACE | _TIF_SIGPENDING    | \
+				 _TIF_NEED_RESCHED  | _TIF_SYSCALL_AUDIT | \
+				 _TIF_SINGLESTEP    | _TIF_RESTORE_SIGMASK)
+
+/* work to do on interrupt/exception return */
+#define _TIF_WORK_MASK		(_TIF_ALLWORK_MASK & ~(_TIF_SYSCALL_TRACE | \
+				 _TIF_SYSCALL_AUDIT | _TIF_SINGLESTEP))
 
 #endif /* __KERNEL__ */
 
