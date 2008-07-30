@@ -172,6 +172,11 @@ config MTD_CHAR
 	  memory chips, and also use ioctl() to obtain information about
 	  the device, or to erase parts of it.
 
+config HAVE_MTD_OTP
+	bool
+	help
+	  Enable access to OTP regions using MTD_CHAR.
+
 config MTD_BLKDEVS
 	tristate "Common interface to block layer for MTD 'translation layers'"
 	depends on BLOCK

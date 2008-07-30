@@ -29,6 +29,7 @@ config MTD_ONENAND_GENERIC
 
 config MTD_ONENAND_OTP
 	bool "OneNAND OTP Support"
+	select HAVE_MTD_OTP
 	help
 	  One Block of the NAND Flash Array memory is reserved as
 	  a One-Time Programmable Block memory area.
