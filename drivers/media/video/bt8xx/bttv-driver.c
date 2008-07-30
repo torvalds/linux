@@ -3227,6 +3227,7 @@ static int bttv_open(struct inode *inode, struct file *file)
 
 	dprintk(KERN_DEBUG "bttv: open minor=%d\n",minor);
 
+	lock_kernel();
 	for (i = 0; i < bttv_num; i++) {
 		if (bttvs[i].video_dev &&
 		    bttvs[i].video_dev->minor == minor) {
@@ -3241,16 +3242,20 @@ static int bttv_open(struct inode *inode, struct file *file)
 			break;
 		}
 	}
-	if (NULL == btv)
+	if (NULL == btv) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	dprintk(KERN_DEBUG "bttv%d: open called (type=%s)\n",
 		btv->c.nr,v4l2_type_names[type]);
 
 	/* allocate per filehandle data */
 	fh = kmalloc(sizeof(*fh),GFP_KERNEL);
-	if (NULL == fh)
+	if (NULL == fh) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	file->private_data = fh;
 	*fh = btv->init;
 	fh->type = type;
@@ -3290,6 +3295,7 @@ static int bttv_open(struct inode *inode, struct file *file)
 	bttv_vbi_fmt_reset(&fh->vbi_fmt, btv->tvnorm);
 
 	bttv_field_count(btv);
+	unlock_kernel();
 	return 0;
 }
 
@@ -3430,21 +3436,26 @@ static int radio_open(struct inode *inode, struct file *file)
 
 	dprintk("bttv: open minor=%d\n",minor);
 
+	lock_kernel();
 	for (i = 0; i < bttv_num; i++) {
 		if (bttvs[i].radio_dev && bttvs[i].radio_dev->minor == minor) {
 			btv = &bttvs[i];
 			break;
 		}
 	}
-	if (NULL == btv)
+	if (NULL == btv) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	dprintk("bttv%d: open called (radio)\n",btv->c.nr);
 
 	/* allocate per filehandle data */
 	fh = kmalloc(sizeof(*fh), GFP_KERNEL);
-	if (NULL == fh)
+	if (NULL == fh) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	file->private_data = fh;
 	*fh = btv->init;
 	v4l2_prio_open(&btv->prio, &fh->prio);
@@ -3457,6 +3468,7 @@ static int radio_open(struct inode *inode, struct file *file)
 	audio_input(btv,TVAUDIO_INPUT_RADIO);
 
 	mutex_unlock(&btv->lock);
+	unlock_kernel();
 	return 0;
 }
 

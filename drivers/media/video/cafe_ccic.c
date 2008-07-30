@@ -1476,9 +1476,12 @@ static int cafe_v4l_open(struct inode *inode, struct file *filp)
 {
 	struct cafe_camera *cam;
 
+	lock_kernel();
 	cam = cafe_find_dev(iminor(inode));
-	if (cam == NULL)
+	if (cam == NULL) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 	filp->private_data = cam;
 
 	mutex_lock(&cam->s_mutex);
@@ -1490,6 +1493,7 @@ static int cafe_v4l_open(struct inode *inode, struct file *filp)
 	}
 	(cam->users)++;
 	mutex_unlock(&cam->s_mutex);
+	unlock_kernel();
 	return 0;
 }
 

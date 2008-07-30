@@ -1512,6 +1512,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	struct em28xx_fh *fh;
 	enum v4l2_buf_type fh_type = 0;
 
+	lock_kernel();
 	list_for_each_entry(h, &em28xx_devlist, devlist) {
 		if (h->vdev->minor == minor) {
 			dev  = h;
@@ -1527,8 +1528,10 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 			dev   = h;
 		}
 	}
-	if (NULL == dev)
+	if (NULL == dev) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	em28xx_videodbg("open minor=%d type=%s users=%d\n",
 				minor, v4l2_type_names[fh_type], dev->users);
@@ -1537,6 +1540,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);
 	if (!fh) {
 		em28xx_errdev("em28xx-video.c: Out of memory?!\n");
+		unlock_kernel();
 		return -ENOMEM;
 	}
 	mutex_lock(&dev->lock);
@@ -1573,6 +1577,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 			sizeof(struct em28xx_buffer), fh);
 
 	mutex_unlock(&dev->lock);
+	unlock_kernel();
 
 	return errCode;
 }

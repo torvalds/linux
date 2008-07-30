@@ -845,15 +845,19 @@ static int meye_open(struct inode *inode, struct file *file)
 {
 	int i, err;
 
+	lock_kernel();
 	err = video_exclusive_open(inode, file);
-	if (err < 0)
+	if (err < 0) {
+		unlock_kernel();
 		return err;
+	}
 
 	mchip_hic_stop();
 
 	if (mchip_dma_alloc()) {
 		printk(KERN_ERR "meye: mchip framebuffer allocation failed\n");
 		video_exclusive_release(inode, file);
+		unlock_kernel();
 		return -ENOBUFS;
 	}
 
@@ -861,6 +865,7 @@ static int meye_open(struct inode *inode, struct file *file)
 		meye.grab_buffer[i].state = MEYE_BUF_UNUSED;
 	kfifo_reset(meye.grabq);
 	kfifo_reset(meye.doneq);
+	unlock_kernel();
 	return 0;
 }
 

@@ -1086,6 +1086,7 @@ static int stv_open (struct inode *inode, struct file *file)
 	int err = 0;
 
 	/* we are called with the BKL held */
+	lock_kernel();
 	stv680->user = 1;
 	err = stv_init (stv680);	/* main initialization routine for camera */
 
@@ -1099,6 +1100,7 @@ static int stv_open (struct inode *inode, struct file *file)
 	}
 	if (err)
 		stv680->user = 0;
+	unlock_kernel();
 
 	return err;
 }

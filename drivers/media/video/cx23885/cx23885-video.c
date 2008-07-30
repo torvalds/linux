@@ -731,6 +731,7 @@ static int video_open(struct inode *inode, struct file *file)
 	enum v4l2_buf_type type = 0;
 	int radio = 0;
 
+	lock_kernel();
 	list_for_each(list, &cx23885_devlist) {
 		h = list_entry(list, struct cx23885_dev, devlist);
 		if (h->video_dev->minor == minor) {
@@ -748,16 +749,20 @@ static int video_open(struct inode *inode, struct file *file)
 			dev   = h;
 		}
 	}
-	if (NULL == dev)
+	if (NULL == dev) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	dprintk(1, "open minor=%d radio=%d type=%s\n",
 		minor, radio, v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-	if (NULL == fh)
+	if (NULL == fh) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -775,6 +780,7 @@ static int video_open(struct inode *inode, struct file *file)
 
 	dprintk(1, "post videobuf_queue_init()\n");
 
+	unlock_kernel();
 
 	return 0;
 }

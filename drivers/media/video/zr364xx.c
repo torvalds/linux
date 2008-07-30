@@ -643,14 +643,18 @@ static int zr364xx_open(struct inode *inode, struct file *file)
 
 	cam->skip = 2;
 
+	lock_kernel();
 	err = video_exclusive_open(inode, file);
-	if (err < 0)
+	if (err < 0) {
+		unlock_kernel();
 		return err;
+	}
 
 	if (!cam->framebuf) {
 		cam->framebuf = vmalloc_32(MAX_FRAME_SIZE * FRAMES);
 		if (!cam->framebuf) {
 			info("vmalloc_32 failed!");
+			unlock_kernel();
 			return -ENOMEM;
 		}
 	}
@@ -664,6 +668,7 @@ static int zr364xx_open(struct inode *inode, struct file *file)
 		if (err < 0) {
 			info("error during open sequence: %d", i);
 			mutex_unlock(&cam->lock);
+			unlock_kernel();
 			return err;
 		}
 	}
@@ -676,6 +681,7 @@ static int zr364xx_open(struct inode *inode, struct file *file)
 	mdelay(100);
 
 	mutex_unlock(&cam->lock);
+	unlock_kernel();
 	return 0;
 }
 

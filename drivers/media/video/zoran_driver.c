@@ -1211,6 +1211,7 @@ zoran_open (struct inode *inode,
 	struct zoran_fh *fh;
 	int i, res, first_open = 0, have_module_locks = 0;
 
+	lock_kernel();
 	/* find the device */
 	for (i = 0; i < zoran_num; i++) {
 		if (zoran[i]->video_dev->minor == minor) {
@@ -1321,6 +1322,7 @@ zoran_open (struct inode *inode,
 	file->private_data = fh;
 	fh->zr = zr;
 	zoran_open_init_session(file);
+	unlock_kernel();
 
 	return 0;
 
@@ -1338,6 +1340,7 @@ open_unlock_and_return:
 	if (zr) {
 		/*mutex_unlock(&zr->resource_lock);*/
 	}
+	unlock_kernel();
 
 	return res;
 }

@@ -52,6 +52,7 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <stdarg.h>
 #include <linux/i2c.h>
 #include <linux/videotext.h>
@@ -633,9 +634,12 @@ static int saa5249_open(struct inode *inode, struct file *file)
 	struct saa5249_device *t=vd->priv;
 	int err,pgbuf;
 
+	lock_kernel();
 	err = video_exclusive_open(inode,file);
-	if (err < 0)
+	if (err < 0) {
+		unlock_kernel();
 		return err;
+	}
 
 	if (t->client==NULL) {
 		err = -ENODEV;
@@ -664,10 +668,12 @@ static int saa5249_open(struct inode *inode, struct file *file)
 		t->is_searching[pgbuf] = false;
 	}
 	t->virtual_mode = false;
+	unlock_kernel();
 	return 0;
 
  fail:
 	video_exclusive_release(inode,file);
+	unlock_kernel();
 	return err;
 }
 

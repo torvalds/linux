@@ -936,14 +936,18 @@ static int se401_open(struct inode *inode, struct file *file)
 	struct usb_se401 *se401 = (struct usb_se401 *)dev;
 	int err = 0;
 
-	if (se401->user)
+	lock_kernel();
+	if (se401->user) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 	se401->fbuf = rvmalloc(se401->maxframesize * SE401_NUMFRAMES);
 	if (se401->fbuf)
 		file->private_data = dev;
 	else
 		err = -ENOMEM;
 	se401->user = !err;
+	unlock_kernel();
 
 	return err;
 }

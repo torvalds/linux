@@ -1074,6 +1074,7 @@ static int si470x_fops_open(struct inode *inode, struct file *file)
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 	int retval;
 
+	lock_kernel();
 	radio->users++;
 
 	retval = usb_autopm_get_interface(radio->intf);
@@ -1090,6 +1091,7 @@ static int si470x_fops_open(struct inode *inode, struct file *file)
 	}
 
 done:
+	unlock_kernel();
 	return retval;
 }
 

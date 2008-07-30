@@ -1330,6 +1330,8 @@ static int video_open(struct inode *inode, struct file *file)
 	struct saa7134_fh *fh;
 	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	int radio = 0;
+
+	lock_kernel();
 	list_for_each_entry(dev, &saa7134_devlist, devlist) {
 		if (dev->video_dev && (dev->video_dev->minor == minor))
 			goto found;
@@ -1342,6 +1344,7 @@ static int video_open(struct inode *inode, struct file *file)
 			goto found;
 		}
 	}
+	unlock_kernel();
 	return -ENODEV;
  found:
 
@@ -1350,8 +1353,10 @@ static int video_open(struct inode *inode, struct file *file)
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
-	if (NULL == fh)
+	if (NULL == fh) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -1384,6 +1389,7 @@ static int video_open(struct inode *inode, struct file *file)
 		/* switch to video/vbi mode */
 		video_mux(dev,dev->ctl_input);
 	}
+	unlock_kernel();
 	return 0;
 }
 

@@ -44,6 +44,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/videotext.h>
+#include <linux/smp_lock.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -737,9 +738,12 @@ static int saa5246a_open(struct inode *inode, struct file *file)
 	struct saa5246a_device *t = vd->priv;
 	int err;
 
+	lock_kernel();
 	err = video_exclusive_open(inode,file);
-	if (err < 0)
+	if (err < 0) {
+		unlock_kernel();
 		return err;
+	}
 
 	if (t->client==NULL) {
 		err = -ENODEV;
@@ -776,11 +780,13 @@ static int saa5246a_open(struct inode *inode, struct file *file)
 		err = -EIO;
 		goto fail;
 	}
+	unlock_kernel();
 
 	return 0;
 
 fail:
 	video_exclusive_release(inode,file);
+	unlock_kernel();
 	return err;
 }
 

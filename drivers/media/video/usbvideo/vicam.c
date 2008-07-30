@@ -488,20 +488,24 @@ vicam_open(struct inode *inode, struct file *file)
 	 * rely on this fact forever.
 	 */
 
+	lock_kernel();
 	if (cam->open_count > 0) {
 		printk(KERN_INFO
 		       "vicam_open called on already opened camera");
+		unlock_kernel();
 		return -EBUSY;
 	}
 
 	cam->raw_image = kmalloc(VICAM_MAX_READ_SIZE, GFP_KERNEL);
 	if (!cam->raw_image) {
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
 	cam->framebuf = rvmalloc(VICAM_MAX_FRAME_SIZE * VICAM_FRAMES);
 	if (!cam->framebuf) {
 		kfree(cam->raw_image);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -509,6 +513,7 @@ vicam_open(struct inode *inode, struct file *file)
 	if (!cam->cntrlbuf) {
 		kfree(cam->raw_image);
 		rvfree(cam->framebuf, VICAM_MAX_FRAME_SIZE * VICAM_FRAMES);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -526,6 +531,7 @@ vicam_open(struct inode *inode, struct file *file)
 	cam->open_count++;
 
 	file->private_data = cam;
+	unlock_kernel();
 
 	return 0;
 }

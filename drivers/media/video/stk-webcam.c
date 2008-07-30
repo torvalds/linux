@@ -689,11 +689,15 @@ static int v4l_stk_open(struct inode *inode, struct file *fp)
 	vdev = video_devdata(fp);
 	dev = vdev_to_camera(vdev);
 
-	if (dev == NULL || !is_present(dev))
+	lock_kernel();
+	if (dev == NULL || !is_present(dev)) {
+		unlock_kernel();
 		return -ENXIO;
+	}
 	fp->private_data = vdev;
 	kref_get(&dev->kref);
 	usb_autopm_get_interface(dev->interface);
+	unlock_kernel();
 
 	return 0;
 }

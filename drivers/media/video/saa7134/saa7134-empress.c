@@ -79,9 +79,11 @@ static int ts_open(struct inode *inode, struct file *file)
 	struct saa7134_dev *dev;
 	int err;
 
+	lock_kernel();
 	list_for_each_entry(dev, &saa7134_devlist, devlist)
 		if (dev->empress_dev && dev->empress_dev->minor == minor)
 			goto found;
+	unlock_kernel();
 	return -ENODEV;
  found:
 
@@ -103,6 +105,7 @@ static int ts_open(struct inode *inode, struct file *file)
 done_up:
 	mutex_unlock(&dev->empress_tsq.vb_lock);
 done:
+	unlock_kernel();
 	return err;
 }
 

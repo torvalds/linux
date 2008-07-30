@@ -1457,6 +1457,7 @@ static int s2255_open(struct inode *inode, struct file *file)
 	int cur_channel = -1;
 	dprintk(1, "s2255: open called (minor=%d)\n", minor);
 
+	lock_kernel();
 	list_for_each(list, &s2255_devlist) {
 		h = list_entry(list, struct s2255_dev, s2255_devlist);
 		for (i = 0; i < MAX_CHANNELS; i++) {
@@ -1469,6 +1470,7 @@ static int s2255_open(struct inode *inode, struct file *file)
 	}
 
 	if ((NULL == dev) || (cur_channel == -1)) {
+		unlock_kernel();
 		dprintk(1, "s2255: openv4l no dev\n");
 		return -ENODEV;
 	}
@@ -1490,6 +1492,7 @@ static int s2255_open(struct inode *inode, struct file *file)
 			printk(KERN_INFO "2255 FW load failed.\n");
 			dev->users[cur_channel]--;
 			mutex_unlock(&dev->open_lock);
+			unlock_kernel();
 			return -EFAULT;
 		}
 	} else if (atomic_read(&dev->fw_data->fw_state) == S2255_FW_NOTLOADED) {
@@ -1506,6 +1509,7 @@ static int s2255_open(struct inode *inode, struct file *file)
 			       "try again\n");
 			dev->users[cur_channel]--;
 			mutex_unlock(&dev->open_lock);
+			unlock_kernel();
 			return -EBUSY;
 		}
 	}
@@ -1515,6 +1519,7 @@ static int s2255_open(struct inode *inode, struct file *file)
 	if (NULL == fh) {
 		dev->users[cur_channel]--;
 		mutex_unlock(&dev->open_lock);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -1548,6 +1553,7 @@ static int s2255_open(struct inode *inode, struct file *file)
 
 	kref_get(&dev->kref);
 	mutex_unlock(&dev->open_lock);
+	unlock_kernel();
 	return 0;
 }
 

@@ -1583,6 +1583,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 
 	dprintk(2, "%s()\n", __func__);
 
+	lock_kernel();
 	list_for_each(list, &cx23885_devlist) {
 		h = list_entry(list, struct cx23885_dev, devlist);
 		if (h->v4l_device->minor == minor) {
@@ -1591,13 +1592,17 @@ static int mpeg_open(struct inode *inode, struct file *file)
 		}
 	}
 
-	if (dev == NULL)
+	if (dev == NULL) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-	if (NULL == fh)
+	if (NULL == fh) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 
 	file->private_data = fh;
 	fh->dev      = dev;
@@ -1608,6 +1613,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx23885_buffer),
 			    fh);
+	unlock_kernel();
 
 	return 0;
 }
