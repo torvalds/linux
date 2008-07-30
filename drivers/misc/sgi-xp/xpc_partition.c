@@ -242,7 +242,7 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 		return xpBadVersion;
 	}
 
-	/* check that both local and remote partids are valid for each side */
+	/* check that both remote and local partids are valid for each side */
 	if (remote_rp->SAL_partid < 0 ||
 	    remote_rp->SAL_partid >= xp_max_npartitions ||
 	    remote_rp->max_npartitions <= sn_partition_id) {
@@ -256,8 +256,9 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 }
 
 /*
- * See if the other side has responded to a partition disengage request
- * from us.
+ * See if the other side has responded to a partition deactivate request
+ * from us. Though we requested the remote partition to deactivate with regard
+ * to us, we really only need to wait for the other side to disengage from us.
  */
 int
 xpc_partition_disengaged(struct xpc_partition *part)
@@ -265,41 +266,37 @@ xpc_partition_disengaged(struct xpc_partition *part)
 	short partid = XPC_PARTID(part);
 	int disengaged;
 
-	disengaged = (xpc_partition_engaged(1UL << partid) == 0);
-	if (part->disengage_request_timeout) {
+	disengaged = !xpc_partition_engaged(partid);
+	if (part->disengage_timeout) {
 		if (!disengaged) {
-			if (time_is_after_jiffies(part->
-						  disengage_request_timeout)) {
+			if (time_is_after_jiffies(part->disengage_timeout)) {
 				/* timelimit hasn't been reached yet */
 				return 0;
 			}
 
 			/*
-			 * Other side hasn't responded to our disengage
+			 * Other side hasn't responded to our deactivate
 			 * request in a timely fashion, so assume it's dead.
 			 */
 
-			dev_info(xpc_part, "disengage from remote partition %d "
-				 "timed out\n", partid);
-			xpc_disengage_request_timedout = 1;
-			xpc_clear_partition_engaged(1UL << partid);
+			dev_info(xpc_part, "deactivate request to remote "
+				 "partition %d timed out\n", partid);
+			xpc_disengage_timedout = 1;
+			xpc_assume_partition_disengaged(partid);
 			disengaged = 1;
 		}
-		part->disengage_request_timeout = 0;
+		part->disengage_timeout = 0;
 
 		/* cancel the timer function, provided it's not us */
-		if (!in_interrupt()) {
-			del_singleshot_timer_sync(&part->
-						  disengage_request_timer);
-		}
+		if (!in_interrupt())
+			del_singleshot_timer_sync(&part->disengage_timer);
 
 		DBUG_ON(part->act_state != XPC_P_DEACTIVATING &&
 			part->act_state != XPC_P_INACTIVE);
 		if (part->act_state != XPC_P_INACTIVE)
 			xpc_wakeup_channel_mgr(part);
 
-		if (XPC_SUPPORTS_DISENGAGE_REQUEST(part->remote_vars_version))
-			xpc_cancel_partition_disengage_request(part);
+		xpc_cancel_partition_deactivation_request(part);
 	}
 	return disengaged;
 }
@@ -329,7 +326,7 @@ xpc_mark_partition_active(struct xpc_partition *part)
 }
 
 /*
- * Notify XPC that the partition is down.
+ * Start the process of deactivating the specified partition.
  */
 void
 xpc_deactivate_partition(const int line, struct xpc_partition *part,
@@ -344,7 +341,7 @@ xpc_deactivate_partition(const int line, struct xpc_partition *part,
 		spin_unlock_irqrestore(&part->act_lock, irq_flags);
 		if (reason == xpReactivating) {
 			/* we interrupt ourselves to reactivate partition */
-			xpc_IPI_send_local_reactivate(part->reactivate_nasid);
+			xpc_request_partition_reactivation(part);
 		}
 		return;
 	}
@@ -362,17 +359,13 @@ xpc_deactivate_partition(const int line, struct xpc_partition *part,
 
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
 
-	if (XPC_SUPPORTS_DISENGAGE_REQUEST(part->remote_vars_version)) {
-		xpc_request_partition_disengage(part);
-		xpc_IPI_send_disengage(part);
+	/* ask remote partition to deactivate with regard to us */
+	xpc_request_partition_deactivation(part);
 
-		/* set a timelimit on the disengage request */
-		part->disengage_request_timeout = jiffies +
-		    (xpc_disengage_request_timelimit * HZ);
-		part->disengage_request_timer.expires =
-		    part->disengage_request_timeout;
-		add_timer(&part->disengage_request_timer);
-	}
+	/* set a timelimit on the disengage phase of the deactivation request */
+	part->disengage_timeout = jiffies + (xpc_disengage_timelimit * HZ);
+	part->disengage_timer.expires = part->disengage_timeout;
+	add_timer(&part->disengage_timer);
 
 	dev_dbg(xpc_part, "bringing partition %d down, reason = %d\n",
 		XPC_PARTID(part), reason);
@@ -505,8 +498,8 @@ xpc_discovery(void)
 				continue;
 			}
 
-			xpc_initiate_partition_activation(remote_rp,
-							  remote_rp_pa, nasid);
+			xpc_request_partition_activation(remote_rp,
+							 remote_rp_pa, nasid);
 		}
 	}
 

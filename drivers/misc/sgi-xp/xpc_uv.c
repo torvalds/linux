@@ -63,8 +63,8 @@ xpc_heartbeat_exit_uv(void)
 }
 
 static void
-xpc_initiate_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
-				     u64 remote_rp_pa, int nasid)
+xpc_request_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
+				    u64 remote_rp_pa, int nasid)
 {
 	short partid = remote_rp->SAL_partid;
 	struct xpc_partition *part = &xpc_partitions[partid];
@@ -75,6 +75,12 @@ xpc_initiate_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
  * >>>	part->sn.uv.activate_mq_gpa = remote_rp->sn.activate_mq_gpa;
  */
 
+	xpc_IPI_send_local_activate_uv(part);
+}
+
+static void
+xpc_request_partition_reactivation_uv(struct xpc_partition *part)
+{
 	xpc_IPI_send_local_activate_uv(part);
 }
 
@@ -128,8 +134,9 @@ xpc_init_uv(void)
 	xpc_increment_heartbeat = xpc_increment_heartbeat_uv;
 	xpc_heartbeat_init = xpc_heartbeat_init_uv;
 	xpc_heartbeat_exit = xpc_heartbeat_exit_uv;
-	xpc_initiate_partition_activation =
-	    xpc_initiate_partition_activation_uv;
+	xpc_request_partition_activation = xpc_request_partition_activation_uv;
+	xpc_request_partition_reactivation =
+	    xpc_request_partition_reactivation_uv;
 	xpc_setup_infrastructure = xpc_setup_infrastructure_uv;
 	xpc_teardown_infrastructure = xpc_teardown_infrastructure_uv;
 	xpc_make_first_contact = xpc_make_first_contact_uv;

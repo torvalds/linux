@@ -201,7 +201,7 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	if (!(ch->flags & XPC_C_OPENREPLY)) {
 		ch->flags |= XPC_C_OPENREPLY;
-		xpc_IPI_send_openreply(ch, irq_flags);
+		xpc_send_channel_openreply(ch, irq_flags);
 	}
 
 	if (!(ch->flags & XPC_C_ROPENREPLY))
@@ -220,52 +220,6 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 }
 
 /*
- * Notify those who wanted to be notified upon delivery of their message.
- */
-static void
-xpc_notify_senders(struct xpc_channel *ch, enum xp_retval reason, s64 put)
-{
-	struct xpc_notify *notify;
-	u8 notify_type;
-	s64 get = ch->w_remote_GP.get - 1;
-
-	while (++get < put && atomic_read(&ch->n_to_notify) > 0) {
-
-		notify = &ch->notify_queue[get % ch->local_nentries];
-
-		/*
-		 * See if the notify entry indicates it was associated with
-		 * a message who's sender wants to be notified. It is possible
-		 * that it is, but someone else is doing or has done the
-		 * notification.
-		 */
-		notify_type = notify->type;
-		if (notify_type == 0 ||
-		    cmpxchg(&notify->type, notify_type, 0) != notify_type) {
-			continue;
-		}
-
-		DBUG_ON(notify_type != XPC_N_CALL);
-
-		atomic_dec(&ch->n_to_notify);
-
-		if (notify->func != NULL) {
-			dev_dbg(xpc_chan, "notify->func() called, notify=0x%p, "
-				"msg_number=%ld, partid=%d, channel=%d\n",
-				(void *)notify, get, ch->partid, ch->number);
-
-			notify->func(reason, ch->partid, ch->number,
-				     notify->key);
-
-			dev_dbg(xpc_chan, "notify->func() returned, "
-				"notify=0x%p, msg_number=%ld, partid=%d, "
-				"channel=%d\n", (void *)notify, get,
-				ch->partid, ch->number);
-		}
-	}
-}
-
-/*
  * Free up message queues and other stuff that were allocated for the specified
  * channel.
  *
@@ -275,6 +229,8 @@ xpc_notify_senders(struct xpc_channel *ch, enum xp_retval reason, s64 put)
 static void
 xpc_free_msgqueues(struct xpc_channel *ch)
 {
+	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
+
 	DBUG_ON(!spin_is_locked(&ch->lock));
 	DBUG_ON(atomic_read(&ch->n_to_notify) != 0);
 
@@ -287,15 +243,15 @@ xpc_free_msgqueues(struct xpc_channel *ch)
 	ch->kthreads_assigned_limit = 0;
 	ch->kthreads_idle_limit = 0;
 
-	ch->local_GP->get = 0;
-	ch->local_GP->put = 0;
-	ch->remote_GP.get = 0;
-	ch->remote_GP.put = 0;
-	ch->w_local_GP.get = 0;
-	ch->w_local_GP.put = 0;
-	ch->w_remote_GP.get = 0;
-	ch->w_remote_GP.put = 0;
-	ch->next_msg_to_pull = 0;
+	ch_sn2->local_GP->get = 0;
+	ch_sn2->local_GP->put = 0;
+	ch_sn2->remote_GP.get = 0;
+	ch_sn2->remote_GP.put = 0;
+	ch_sn2->w_local_GP.get = 0;
+	ch_sn2->w_local_GP.put = 0;
+	ch_sn2->w_remote_GP.get = 0;
+	ch_sn2->w_remote_GP.put = 0;
+	ch_sn2->next_msg_to_pull = 0;
 
 	if (ch->flags & XPC_C_SETUP) {
 		ch->flags &= ~XPC_C_SETUP;
@@ -339,7 +295,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	if (part->act_state == XPC_P_DEACTIVATING) {
 		/* can't proceed until the other side disengages from us */
-		if (xpc_partition_engaged(1UL << ch->partid))
+		if (xpc_partition_engaged(ch->partid))
 			return;
 
 	} else {
@@ -351,7 +307,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 		if (!(ch->flags & XPC_C_CLOSEREPLY)) {
 			ch->flags |= XPC_C_CLOSEREPLY;
-			xpc_IPI_send_closereply(ch, irq_flags);
+			xpc_send_channel_closereply(ch, irq_flags);
 		}
 
 		if (!(ch->flags & XPC_C_RCLOSEREPLY))
@@ -361,7 +317,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 	/* wake those waiting for notify completion */
 	if (atomic_read(&ch->n_to_notify) > 0) {
 		/* >>> we do callout while holding ch->lock */
-		xpc_notify_senders(ch, ch->reason, ch->w_local_GP.put);
+		xpc_notify_senders_of_disconnect(ch);
 	}
 
 	/* both sides are disconnected now */
@@ -734,149 +690,13 @@ xpc_connect_channel(struct xpc_channel *ch)
 	/* initiate the connection */
 
 	ch->flags |= (XPC_C_OPENREQUEST | XPC_C_CONNECTING);
-	xpc_IPI_send_openrequest(ch, &irq_flags);
+	xpc_send_channel_openrequest(ch, &irq_flags);
 
 	xpc_process_connect(ch, &irq_flags);
 
 	spin_unlock_irqrestore(&ch->lock, irq_flags);
 
 	return xpSuccess;
-}
-
-/*
- * Clear some of the msg flags in the local message queue.
- */
-static inline void
-xpc_clear_local_msgqueue_flags(struct xpc_channel *ch)
-{
-	struct xpc_msg *msg;
-	s64 get;
-
-	get = ch->w_remote_GP.get;
-	do {
-		msg = (struct xpc_msg *)((u64)ch->local_msgqueue +
-					 (get % ch->local_nentries) *
-					 ch->msg_size);
-		msg->flags = 0;
-	} while (++get < ch->remote_GP.get);
-}
-
-/*
- * Clear some of the msg flags in the remote message queue.
- */
-static inline void
-xpc_clear_remote_msgqueue_flags(struct xpc_channel *ch)
-{
-	struct xpc_msg *msg;
-	s64 put;
-
-	put = ch->w_remote_GP.put;
-	do {
-		msg = (struct xpc_msg *)((u64)ch->remote_msgqueue +
-					 (put % ch->remote_nentries) *
-					 ch->msg_size);
-		msg->flags = 0;
-	} while (++put < ch->remote_GP.put);
-}
-
-static void
-xpc_process_msg_IPI(struct xpc_partition *part, int ch_number)
-{
-	struct xpc_channel *ch = &part->channels[ch_number];
-	int nmsgs_sent;
-
-	ch->remote_GP = part->remote_GPs[ch_number];
-
-	/* See what, if anything, has changed for each connected channel */
-
-	xpc_msgqueue_ref(ch);
-
-	if (ch->w_remote_GP.get == ch->remote_GP.get &&
-	    ch->w_remote_GP.put == ch->remote_GP.put) {
-		/* nothing changed since GPs were last pulled */
-		xpc_msgqueue_deref(ch);
-		return;
-	}
-
-	if (!(ch->flags & XPC_C_CONNECTED)) {
-		xpc_msgqueue_deref(ch);
-		return;
-	}
-
-	/*
-	 * First check to see if messages recently sent by us have been
-	 * received by the other side. (The remote GET value will have
-	 * changed since we last looked at it.)
-	 */
-
-	if (ch->w_remote_GP.get != ch->remote_GP.get) {
-
-		/*
-		 * We need to notify any senders that want to be notified
-		 * that their sent messages have been received by their
-		 * intended recipients. We need to do this before updating
-		 * w_remote_GP.get so that we don't allocate the same message
-		 * queue entries prematurely (see xpc_allocate_msg()).
-		 */
-		if (atomic_read(&ch->n_to_notify) > 0) {
-			/*
-			 * Notify senders that messages sent have been
-			 * received and delivered by the other side.
-			 */
-			xpc_notify_senders(ch, xpMsgDelivered,
-					   ch->remote_GP.get);
-		}
-
-		/*
-		 * Clear msg->flags in previously sent messages, so that
-		 * they're ready for xpc_allocate_msg().
-		 */
-		xpc_clear_local_msgqueue_flags(ch);
-
-		ch->w_remote_GP.get = ch->remote_GP.get;
-
-		dev_dbg(xpc_chan, "w_remote_GP.get changed to %ld, partid=%d, "
-			"channel=%d\n", ch->w_remote_GP.get, ch->partid,
-			ch->number);
-
-		/*
-		 * If anyone was waiting for message queue entries to become
-		 * available, wake them up.
-		 */
-		if (atomic_read(&ch->n_on_msg_allocate_wq) > 0)
-			wake_up(&ch->msg_allocate_wq);
-	}
-
-	/*
-	 * Now check for newly sent messages by the other side. (The remote
-	 * PUT value will have changed since we last looked at it.)
-	 */
-
-	if (ch->w_remote_GP.put != ch->remote_GP.put) {
-		/*
-		 * Clear msg->flags in previously received messages, so that
-		 * they're ready for xpc_get_deliverable_msg().
-		 */
-		xpc_clear_remote_msgqueue_flags(ch);
-
-		ch->w_remote_GP.put = ch->remote_GP.put;
-
-		dev_dbg(xpc_chan, "w_remote_GP.put changed to %ld, partid=%d, "
-			"channel=%d\n", ch->w_remote_GP.put, ch->partid,
-			ch->number);
-
-		nmsgs_sent = ch->w_remote_GP.put - ch->w_local_GP.get;
-		if (nmsgs_sent > 0) {
-			dev_dbg(xpc_chan, "msgs waiting to be copied and "
-				"delivered=%d, partid=%d, channel=%d\n",
-				nmsgs_sent, ch->partid, ch->number);
-
-			if (ch->flags & XPC_C_CONNECTEDCALLOUT_MADE)
-				xpc_activate_kthreads(ch, nmsgs_sent);
-		}
-	}
-
-	xpc_msgqueue_deref(ch);
 }
 
 void
@@ -1117,7 +937,7 @@ xpc_disconnect_channel(const int line, struct xpc_channel *ch,
 		       XPC_C_ROPENREQUEST | XPC_C_ROPENREPLY |
 		       XPC_C_CONNECTING | XPC_C_CONNECTED);
 
-	xpc_IPI_send_closerequest(ch, irq_flags);
+	xpc_send_channel_closerequest(ch, irq_flags);
 
 	if (channel_was_connected)
 		ch->flags |= XPC_C_WASCONNECTED;
