@@ -32,12 +32,6 @@ extern struct kmem_cache *btrfs_transaction_cachep;
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
-struct dirty_root {
-	struct list_head list;
-	struct btrfs_root *root;
-	struct btrfs_root *latest_root;
-};
-
 static noinline void put_transaction(struct btrfs_transaction *transaction)
 {
 	WARN_ON(transaction->use_count == 0);
@@ -91,7 +85,7 @@ static noinline int join_transaction(struct btrfs_root *root)
 
 static noinline int record_root_in_trans(struct btrfs_root *root)
 {
-	struct dirty_root *dirty;
+	struct btrfs_dirty_root *dirty;
 	u64 running_trans_id = root->fs_info->running_transaction->transid;
 	if (root->ref_cows && root->last_trans < running_trans_id) {
 		WARN_ON(root == root->fs_info->extent_root);
@@ -372,7 +366,7 @@ int btrfs_add_dead_root(struct btrfs_root *root,
 			struct btrfs_root *latest,
 			struct list_head *dead_list)
 {
-	struct dirty_root *dirty;
+	struct btrfs_dirty_root *dirty;
 
 	dirty = kmalloc(sizeof(*dirty), GFP_NOFS);
 	if (!dirty)
@@ -387,7 +381,7 @@ static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 				    struct radix_tree_root *radix,
 				    struct list_head *list)
 {
-	struct dirty_root *dirty;
+	struct btrfs_dirty_root *dirty;
 	struct btrfs_root *gang[8];
 	struct btrfs_root *root;
 	int i;
@@ -498,7 +492,7 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 				     struct list_head *list)
 {
-	struct dirty_root *dirty;
+	struct btrfs_dirty_root *dirty;
 	struct btrfs_trans_handle *trans;
 	unsigned long nr;
 	u64 num_bytes;
@@ -509,7 +503,7 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 	while(!list_empty(list)) {
 		struct btrfs_root *root;
 
-		dirty = list_entry(list->prev, struct dirty_root, list);
+		dirty = list_entry(list->prev, struct btrfs_dirty_root, list);
 		list_del_init(&dirty->list);
 
 		num_bytes = btrfs_root_used(&dirty->root->root_item);

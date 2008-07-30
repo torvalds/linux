@@ -249,11 +249,8 @@ again:
 		if (bytenr == 0)
 			goto not_found;
 
-		if (btrfs_count_snapshots_in_path(root, path, inode->i_ino,
-						  bytenr) != 1) {
+		if (btrfs_cross_ref_exists(root, &found_key, bytenr))
 			goto not_found;
-		}
-
 		/*
 		 * we may be called by the resizer, make sure we're inside
 		 * the limits of the FS
@@ -277,6 +274,7 @@ loop:
 	goto again;
 
 not_found:
+	btrfs_release_path(root, path);
 	cow_file_range(inode, start, end);
 	start = end + 1;
 	goto loop;

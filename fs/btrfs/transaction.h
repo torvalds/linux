@@ -52,6 +52,11 @@ struct btrfs_pending_snapshot {
 	struct list_head list;
 };
 
+struct btrfs_dirty_root {
+	struct list_head list;
+	struct btrfs_root *root;
+	struct btrfs_root *latest_root;
+};
 
 static inline void btrfs_set_trans_block_group(struct btrfs_trans_handle *trans,
 					       struct inode *inode)

@@ -802,70 +802,57 @@ out:
 	return 0;
 }
 
-u32 btrfs_count_snapshots_in_path(struct btrfs_root *root,
-				  struct btrfs_path *count_path,
-				  u64 expected_owner,
-				  u64 first_extent)
+
+static int get_reference_status(struct btrfs_root *root, u64 bytenr,
+				u64 parent_gen, u64 ref_objectid,
+			        u64 *min_generation, u32 *ref_count)
 {
 	struct btrfs_root *extent_root = root->fs_info->extent_root;
 	struct btrfs_path *path;
-	u64 bytenr;
-	u64 found_objectid;
-	u64 found_owner;
-	u64 root_objectid = root->root_key.objectid;
-	u32 total_count = 0;
-	u32 extent_refs;
-	u32 cur_count;
-	u32 nritems;
-	int ret;
+	struct extent_buffer *leaf;
+	struct btrfs_extent_ref *ref_item;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	struct extent_buffer *l;
-	struct btrfs_extent_item *item;
-	struct btrfs_extent_ref *ref_item;
-	int level = -1;
+	u64 root_objectid = root->root_key.objectid;
+	u64 ref_generation;
+	u32 nritems;
+	int ret;
 
-	/* FIXME, needs locking */
-	BUG();
-
-	mutex_lock(&root->fs_info->alloc_mutex);
-	path = btrfs_alloc_path();
-again:
-	if (level == -1)
-		bytenr = first_extent;
-	else
-		bytenr = count_path->nodes[level]->start;
-
-	cur_count = 0;
 	key.objectid = bytenr;
 	key.offset = 0;
+	key.type = BTRFS_EXTENT_ITEM_KEY;
 
-	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
+	path = btrfs_alloc_path();
+	mutex_lock(&root->fs_info->alloc_mutex);
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
 	BUG_ON(ret == 0);
 
-	l = path->nodes[0];
-	btrfs_item_key_to_cpu(l, &found_key, path->slots[0]);
+	leaf = path->nodes[0];
+	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 
 	if (found_key.objectid != bytenr ||
 	    found_key.type != BTRFS_EXTENT_ITEM_KEY) {
+		ret = 1;
 		goto out;
 	}
 
-	item = btrfs_item_ptr(l, path->slots[0], struct btrfs_extent_item);
-	extent_refs = btrfs_extent_refs(l, item);
+	*ref_count = 0;
+	*min_generation = (u64)-1;
+
 	while (1) {
-		l = path->nodes[0];
-		nritems = btrfs_header_nritems(l);
+		leaf = path->nodes[0];
+		nritems = btrfs_header_nritems(leaf);
 		if (path->slots[0] >= nritems) {
 			ret = btrfs_next_leaf(extent_root, path);
+			if (ret < 0)
+				goto out;
 			if (ret == 0)
 				continue;
 			break;
 		}
-		btrfs_item_key_to_cpu(l, &found_key, path->slots[0]);
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 		if (found_key.objectid != bytenr)
 			break;
 
@@ -874,57 +861,120 @@ again:
 			continue;
 		}
 
-		cur_count++;
-		ref_item = btrfs_item_ptr(l, path->slots[0],
+		ref_item = btrfs_item_ptr(leaf, path->slots[0],
 					  struct btrfs_extent_ref);
-		found_objectid = btrfs_ref_root(l, ref_item);
+		ref_generation = btrfs_ref_generation(leaf, ref_item);
+		/*
+		 * For (parent_gen > 0 && parent_gen > ref_gen):
+		 *
+		 * we reach here through the oldest root, therefore 
+		 * all other reference from same snapshot should have 
+		 * a larger generation.
+		 */
+		if ((root_objectid != btrfs_ref_root(leaf, ref_item)) ||
+		    (parent_gen > 0 && parent_gen > ref_generation) ||
+		    (ref_objectid >= BTRFS_FIRST_FREE_OBJECTID &&
+		     ref_objectid != btrfs_ref_objectid(leaf, ref_item))) {
+			if (ref_count)
+				*ref_count = 2;
+			break;
+		}
 
-		if (found_objectid != root_objectid) {
-			total_count = 2;
-			goto out;
-		}
-		if (level == -1) {
-			found_owner = btrfs_ref_objectid(l, ref_item);
-			if (found_owner != expected_owner) {
-				total_count = 2;
-				goto out;
-			}
-			/*
-			 * nasty.  we don't count a reference held by
-			 * the running transaction.  This allows nodatacow
-			 * to avoid cow most of the time
-			 */
-			if (found_owner >= BTRFS_FIRST_FREE_OBJECTID &&
-			    btrfs_ref_generation(l, ref_item) ==
-			    root->fs_info->generation) {
-				extent_refs--;
-			}
-		}
-		total_count = 1;
+		*ref_count = 1;
+		if (*min_generation > ref_generation)
+			*min_generation = ref_generation;
+
 		path->slots[0]++;
 	}
-	/*
-	 * if there is more than one reference against a data extent,
-	 * we have to assume the other ref is another snapshot
-	 */
-	if (level == -1 && extent_refs > 1) {
-		total_count = 2;
-		goto out;
-	}
-	if (cur_count == 0) {
-		total_count = 0;
-		goto out;
-	}
-	if (level >= 0 && root->node == count_path->nodes[level])
-		goto out;
-	level++;
-	btrfs_release_path(root, path);
-	goto again;
-
+	ret = 0;
 out:
-	btrfs_free_path(path);
 	mutex_unlock(&root->fs_info->alloc_mutex);
-	return total_count;
+	btrfs_free_path(path);
+	return ret;
+}
+
+int btrfs_cross_ref_exists(struct btrfs_root *root,
+			   struct btrfs_key *key, u64 bytenr)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *old_root;
+	struct btrfs_path *path = NULL;
+	struct extent_buffer *eb;
+	struct btrfs_file_extent_item *item;
+	u64 ref_generation;
+	u64 min_generation;
+	u64 extent_start;
+	u32 ref_count;
+	int level;
+	int ret;
+
+	BUG_ON(key->type != BTRFS_EXTENT_DATA_KEY);
+	ret = get_reference_status(root, bytenr, 0, key->objectid,
+				   &min_generation, &ref_count);
+	if (ret)
+		return ret;
+
+	if (ref_count != 1)
+		return 1;
+
+	trans = btrfs_start_transaction(root, 0);
+	old_root = root->dirty_root->root;
+	ref_generation = old_root->root_key.offset;
+
+	/* all references are created in running transaction */
+	if (min_generation > ref_generation) {
+		ret = 0;
+		goto out;
+	}
+
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	path->skip_locking = 1;
+	/* if no item found, the extent is referenced by other snapshot */
+	ret = btrfs_search_slot(NULL, old_root, key, path, 0, 0);
+	if (ret)
+		goto out;
+
+	eb = path->nodes[0];
+	item = btrfs_item_ptr(eb, path->slots[0],
+			      struct btrfs_file_extent_item);
+	if (btrfs_file_extent_type(eb, item) != BTRFS_FILE_EXTENT_REG ||
+	    btrfs_file_extent_disk_bytenr(eb, item) != bytenr) {
+		ret = 1;
+		goto out;
+	}
+
+	for (level = BTRFS_MAX_LEVEL - 1; level >= -1; level--) {
+		if (level >= 0) {
+			eb = path->nodes[level];
+			if (!eb)
+				continue;
+			extent_start = eb->start;
+		} else 
+			extent_start = bytenr;
+
+		ret = get_reference_status(root, extent_start, ref_generation,
+					   0, &min_generation, &ref_count);
+		if (ret)
+			goto out;
+
+		if (ref_count != 1) {
+			ret = 1;
+			goto out;
+		}
+		if (level >= 0)
+			ref_generation = btrfs_header_generation(eb);
+	}
+	ret = 0;
+out:
+	if (path)
+		btrfs_free_path(path);
+	btrfs_end_transaction(trans, root);
+	return ret;
 }
 
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
