@@ -886,7 +886,11 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 #ifdef REMOVE_SUID_PATH
 	err = remove_suid(&file->f_path);
 #else
+# if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+	err = file_remove_suid(file);
+# else
 	err = remove_suid(fdentry(file));
+# endif
 #endif
 	if (err)
 		goto out_nolock;

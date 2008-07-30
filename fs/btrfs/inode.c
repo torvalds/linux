@@ -3293,7 +3293,9 @@ void btrfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+static void init_once(void *foo)
+#elif LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 static void init_once(struct kmem_cache * cachep, void *foo)
 #else
 static void init_once(void * foo, struct kmem_cache * cachep,
@@ -3321,7 +3323,9 @@ void btrfs_destroy_cachep(void)
 
 struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
 				       unsigned long extra_flags,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+				       void (*ctor)(void *)
+#elif LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 				       void (*ctor)(struct kmem_cache *, void *)
 #else
 				       void (*ctor)(void *, struct kmem_cache *,
@@ -3561,8 +3565,12 @@ static int btrfs_set_page_dirty(struct page *page)
 	return __set_page_dirty_nobuffers(page);
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+static int btrfs_permission(struct inode *inode, int mask)
+#else
 static int btrfs_permission(struct inode *inode, int mask,
 			    struct nameidata *nd)
+#endif
 {
 	if (btrfs_test_flag(inode, READONLY) && (mask & MAY_WRITE))
 		return -EACCES;

@@ -2649,9 +2649,24 @@ static inline struct page *extent_buffer_page(struct extent_buffer *eb,
 	mapping = eb->first_page->mapping;
 	if (!mapping)
 		return NULL;
+
+	/*
+	 * extent_buffer_page is only called after pinning the page
+	 * by increasing the reference count.  So we know the page must
+	 * be in the radix tree.
+	 */
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+	rcu_read_lock();
+#else
 	read_lock_irq(&mapping->tree_lock);
+#endif
 	p = radix_tree_lookup(&mapping->page_tree, i);
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+	rcu_read_unlock();
+#else
 	read_unlock_irq(&mapping->tree_lock);
+#endif
 	return p;
 }
 
@@ -2843,13 +2858,21 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			}
 		}
 		clear_page_dirty_for_io(page);
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+		spin_lock_irq(&page->mapping->tree_lock);
+#else
 		read_lock_irq(&page->mapping->tree_lock);
+#endif
 		if (!PageDirty(page)) {
 			radix_tree_tag_clear(&page->mapping->page_tree,
 						page_index(page),
 						PAGECACHE_TAG_DIRTY);
 		}
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+		spin_unlock_irq(&page->mapping->tree_lock);
+#else
 		read_unlock_irq(&page->mapping->tree_lock);
+#endif
 		unlock_page(page);
 	}
 	return 0;
