@@ -1408,7 +1408,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		if (sc->nr_scanned && priority < DEF_PRIORITY - 2)
 			congestion_wait(WRITE, HZ/10);
 	}
-	/* top priority shrink_caches still had more to do? don't OOM, then */
+	/* top priority shrink_zones still had more to do? don't OOM, then */
 	if (!sc->all_unreclaimable && scan_global_lru(sc))
 		ret = nr_reclaimed;
 out:
