@@ -34,8 +34,6 @@
 #include <linux/kmod.h>
 #include <linux/mutex.h>
 
-#define SNDRV_OS_MINORS 256
-
 static int major = CONFIG_SND_MAJOR;
 int snd_major;
 EXPORT_SYMBOL(snd_major);
