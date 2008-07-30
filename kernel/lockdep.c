@@ -372,6 +372,19 @@ unsigned int nr_process_chains;
 unsigned int max_lockdep_depth;
 unsigned int max_recursion_depth;
 
+static unsigned int lockdep_dependency_gen_id;
+
+static bool lockdep_dependency_visit(struct lock_class *source,
+				     unsigned int depth)
+{
+	if (!depth)
+		lockdep_dependency_gen_id++;
+	if (source->dep_gen_id == lockdep_dependency_gen_id)
+		return true;
+	source->dep_gen_id = lockdep_dependency_gen_id;
+	return false;
+}
+
 #ifdef CONFIG_DEBUG_LOCKDEP
 /*
  * We cannot printk in early bootup code. Not even early_printk()
@@ -557,6 +570,9 @@ static void print_lock_class_header(struct lock_class *class, int depth)
 static void print_lock_dependencies(struct lock_class *class, int depth)
 {
 	struct lock_list *entry;
+
+	if (lockdep_dependency_visit(class, depth))
+		return;
 
 	if (DEBUG_LOCKS_WARN_ON(depth >= 20))
 		return;
@@ -959,6 +975,67 @@ static int noinline print_infinite_recursion_bug(void)
 	return 0;
 }
 
+unsigned long __lockdep_count_forward_deps(struct lock_class *class,
+					   unsigned int depth)
+{
+	struct lock_list *entry;
+	unsigned long ret = 1;
+
+	if (lockdep_dependency_visit(class, depth))
+		return 0;
+
+	/*
+	 * Recurse this class's dependency list:
+	 */
+	list_for_each_entry(entry, &class->locks_after, entry)
+		ret += __lockdep_count_forward_deps(entry->class, depth + 1);
+
+	return ret;
+}
+
+unsigned long lockdep_count_forward_deps(struct lock_class *class)
+{
+	unsigned long ret, flags;
+
+	local_irq_save(flags);
+	__raw_spin_lock(&lockdep_lock);
+	ret = __lockdep_count_forward_deps(class, 0);
+	__raw_spin_unlock(&lockdep_lock);
+	local_irq_restore(flags);
+
+	return ret;
+}
+
+unsigned long __lockdep_count_backward_deps(struct lock_class *class,
+					    unsigned int depth)
+{
+	struct lock_list *entry;
+	unsigned long ret = 1;
+
+	if (lockdep_dependency_visit(class, depth))
+		return 0;
+	/*
+	 * Recurse this class's dependency list:
+	 */
+	list_for_each_entry(entry, &class->locks_before, entry)
+		ret += __lockdep_count_backward_deps(entry->class, depth + 1);
+
+	return ret;
+}
+
+unsigned long lockdep_count_backward_deps(struct lock_class *class)
+{
+	unsigned long ret, flags;
+
+	local_irq_save(flags);
+	__raw_spin_lock(&lockdep_lock);
+	ret = __lockdep_count_backward_deps(class, 0);
+	__raw_spin_unlock(&lockdep_lock);
+	local_irq_restore(flags);
+
+	return ret;
+}
+
 /*
  * Prove that the dependency graph starting at <entry> can not
  * lead to <target>. Print an error and return 0 if it does.
@@ -967,6 +1044,9 @@ static noinline int
 check_noncircular(struct lock_class *source, unsigned int depth)
 {
 	struct lock_list *entry;
+
+	if (lockdep_dependency_visit(source, depth))
+		return 1;
 
 	debug_atomic_inc(&nr_cyclic_check_recursions);
 	if (depth > max_recursion_depth)
@@ -1011,6 +1091,9 @@ find_usage_forwards(struct lock_class *source, unsigned int depth)
 	struct lock_list *entry;
 	int ret;
 
+	if (lockdep_dependency_visit(source, depth))
+		return 1;
+
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
 	if (depth >= RECURSION_LIMIT)
@@ -1049,6 +1132,9 @@ find_usage_backwards(struct lock_class *source, unsigned int depth)
 {
 	struct lock_list *entry;
 	int ret;
+
+	if (lockdep_dependency_visit(source, depth))
+		return 1;
 
 	if (!__raw_spin_is_locked(&lockdep_lock))
 		return DEBUG_LOCKS_WARN_ON(1);
