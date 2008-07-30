@@ -57,7 +57,7 @@ static void *sis_sman_mm_allocate(void *private, unsigned long size,
 	if (req.size == 0)
 		return NULL;
 	else
-		return (void *)~req.offset;
+		return (void *)(unsigned long)~req.offset;
 }
 
 static void sis_sman_mm_free(void *private, void *ref)
