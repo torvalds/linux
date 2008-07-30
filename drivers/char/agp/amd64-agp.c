@@ -34,6 +34,7 @@
 
 static struct resource *aperture_resource;
 static int __initdata agp_try_unsupported = 1;
+static int agp_bridges_found;
 
 static void amd64_tlbflush(struct agp_memory *temp)
 {
@@ -489,6 +490,7 @@ static int __devinit agp_amd64_probe(struct pci_dev *pdev,
 {
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr;
+	int err;
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
@@ -536,7 +538,12 @@ static int __devinit agp_amd64_probe(struct pci_dev *pdev,
 	}
 
 	pci_set_drvdata(pdev, bridge);
-	return agp_add_bridge(bridge);
+	err = agp_add_bridge(bridge);
+	if (err < 0)
+		return err;
+
+	agp_bridges_found++;
+	return 0;
 }
 
 static void __devexit agp_amd64_remove(struct pci_dev *pdev)
@@ -713,7 +720,11 @@ int __init agp_amd64_init(void)
 
 	if (agp_off)
 		return -EINVAL;
-	if (pci_register_driver(&agp_amd64_pci_driver) < 0) {
+	err = pci_register_driver(&agp_amd64_pci_driver);
+	if (err < 0)
+		return err;
+
+	if (agp_bridges_found == 0) {
 		struct pci_dev *dev;
 		if (!agp_try_unsupported && !agp_try_unsupported_boot) {
 			printk(KERN_INFO PFX "No supported AGP bridge found.\n");
