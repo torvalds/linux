@@ -22,7 +22,7 @@
 #include "grutables.h"
 #include "gruhandles.h"
 
-unsigned long options __read_mostly;
+unsigned long gru_options __read_mostly;
 
 static struct device_driver gru_driver = {
 	.name = "gru"
@@ -163,14 +163,14 @@ static unsigned long reserve_resources(unsigned long *p, int n, int mmax,
 	return bits;
 }
 
-unsigned long reserve_gru_cb_resources(struct gru_state *gru, int cbr_au_count,
+unsigned long gru_reserve_cb_resources(struct gru_state *gru, int cbr_au_count,
 				       char *cbmap)
 {
 	return reserve_resources(&gru->gs_cbr_map, cbr_au_count, GRU_CBR_AU,
 				 cbmap);
 }
 
-unsigned long reserve_gru_ds_resources(struct gru_state *gru, int dsr_au_count,
+unsigned long gru_reserve_ds_resources(struct gru_state *gru, int dsr_au_count,
 				       char *dsmap)
 {
 	return reserve_resources(&gru->gs_dsr_map, dsr_au_count, GRU_DSR_AU,
@@ -182,10 +182,10 @@ static void reserve_gru_resources(struct gru_state *gru,
 {
 	gru->gs_active_contexts++;
 	gts->ts_cbr_map =
-	    reserve_gru_cb_resources(gru, gts->ts_cbr_au_count,
+	    gru_reserve_cb_resources(gru, gts->ts_cbr_au_count,
 				     gts->ts_cbr_idx);
 	gts->ts_dsr_map =
-	    reserve_gru_ds_resources(gru, gts->ts_dsr_au_count, NULL);
+	    gru_reserve_ds_resources(gru, gts->ts_dsr_au_count, NULL);
 }
 
 static void free_gru_resources(struct gru_state *gru,
@@ -416,6 +416,7 @@ static void gru_free_gru_context(struct gru_thread_state *gts)
 
 /*
  * Prefetching cachelines help hardware performance.
+ * (Strictly a performance enhancement. Not functionally required).
  */
 static void prefetch_data(void *p, int num, int stride)
 {
@@ -746,6 +747,8 @@ again:
  * gru_nopage
  *
  * Map the user's GRU segment
+ *
+ * 	Note: gru segments alway mmaped on GRU_GSEG_PAGESIZE boundaries.
  */
 int gru_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
@@ -757,6 +760,7 @@ int gru_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		vma, vaddr, GSEG_BASE(vaddr));
 	STAT(nopfn);
 
+	/* The following check ensures vaddr is a valid address in the VMA */
 	gts = gru_find_thread_state(vma, TSID(vaddr, vma));
 	if (!gts)
 		return VM_FAULT_SIGBUS;
@@ -775,7 +779,7 @@ again:
 	}
 
 	if (!gts->ts_gru) {
-		while (!gru_assign_gru_context(gts)) {
+		if (!gru_assign_gru_context(gts)) {
 			mutex_unlock(&gts->ts_ctxlock);
 			preempt_enable();
 			schedule_timeout(GRU_ASSIGN_DELAY);  /* true hack ZZZ */

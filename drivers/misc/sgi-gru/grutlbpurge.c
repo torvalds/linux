@@ -242,7 +242,9 @@ static void gru_invalidate_range_end(struct mmu_notifier *mn,
 	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
 						 ms_notifier);
 
-	atomic_dec(&gms->ms_range_active);
+	/* ..._and_test() provides needed barrier */
+	(void)atomic_dec_and_test(&gms->ms_range_active);
+
 	wake_up_all(&gms->ms_wait_queue);
 	gru_dbg(grudev, "gms %p, start 0x%lx, end 0x%lx\n", gms, start, end);
 }

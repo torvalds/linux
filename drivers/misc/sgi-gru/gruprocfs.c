@@ -122,7 +122,7 @@ static ssize_t statistics_write(struct file *file, const char __user *userbuf,
 
 static int options_show(struct seq_file *s, void *p)
 {
-	seq_printf(s, "0x%lx\n", options);
+	seq_printf(s, "0x%lx\n", gru_options);
 	return 0;
 }
 
@@ -136,7 +136,7 @@ static ssize_t options_write(struct file *file, const char __user *userbuf,
 	    (buf, userbuf, count < sizeof(buf) ? count : sizeof(buf)))
 		return -EFAULT;
 	if (!strict_strtoul(buf, 10, &val))
-		options = val;
+		gru_options = val;
 
 	return count;
 }

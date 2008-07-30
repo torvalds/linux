@@ -24,6 +24,70 @@
 #define __GRUTABLES_H__
 
 /*
+ * GRU Chiplet:
+ *   The GRU is a user addressible memory accelerator. It provides
+ *   several forms of load, store, memset, bcopy instructions. In addition, it
+ *   contains special instructions for AMOs, sending messages to message
+ *   queues, etc.
+ *
+ *   The GRU is an integral part of the node controller. It connects
+ *   directly to the cpu socket. In its current implementation, there are 2
+ *   GRU chiplets in the node controller on each blade (~node).
+ *
+ *   The entire GRU memory space is fully coherent and cacheable by the cpus.
+ *
+ *   Each GRU chiplet has a physical memory map that looks like the following:
+ *
+ *   	+-----------------+
+ *   	|/////////////////|
+ *   	|/////////////////|
+ *   	|/////////////////|
+ *   	|/////////////////|
+ *   	|/////////////////|
+ *   	|/////////////////|
+ *   	|/////////////////|
+ *   	|/////////////////|
+ *   	+-----------------+
+ *   	|  system control |
+ *   	+-----------------+        _______ +-------------+
+ *   	|/////////////////|       /        |             |
+ *   	|/////////////////|      /         |             |
+ *   	|/////////////////|     /          | instructions|
+ *   	|/////////////////|    /           |             |
+ *   	|/////////////////|   /            |             |
+ *   	|/////////////////|  /             |-------------|
+ *   	|/////////////////| /              |             |
+ *   	+-----------------+                |             |
+ *   	|   context 15    |                |  data       |
+ *   	+-----------------+                |             |
+ *   	|    ......       | \              |             |
+ *   	+-----------------+  \____________ +-------------+
+ *   	|   context 1     |
+ *   	+-----------------+
+ *   	|   context 0     |
+ *   	+-----------------+
+ *
+ *   Each of the "contexts" is a chunk of memory that can be mmaped into user
+ *   space. The context consists of 2 parts:
+ *
+ *  	- an instruction space that can be directly accessed by the user
+ *  	  to issue GRU instructions and to check instruction status.
+ *
+ *  	- a data area that acts as normal RAM.
+ *
+ *   User instructions contain virtual addresses of data to be accessed by the
+ *   GRU. The GRU contains a TLB that is used to convert these user virtual
+ *   addresses to physical addresses.
+ *
+ *   The "system control" area of the GRU chiplet is used by the kernel driver
+ *   to manage user contexts and to perform functions such as TLB dropin and
+ *   purging.
+ *
+ *   One context may be reserved for the kernel and used for cross-partition
+ *   communication. The GRU will also be used to asynchronously zero out
+ *   large blocks of memory (not currently implemented).
+ *
+ *
  * Tables:
  *
  * 	VDATA-VMA Data		- Holds a few parameters. Head of linked list of
@@ -190,14 +254,14 @@ struct gru_stats_s {
 #define GRU_STEAL_DELAY		((HZ * 200) / 1000)
 
 #define STAT(id)	do {						\
-				if (options & OPT_STATS)		\
+				if (gru_options & OPT_STATS)		\
 					atomic_long_inc(&gru_stats.id);	\
 			} while (0)
 
 #ifdef CONFIG_SGI_GRU_DEBUG
 #define gru_dbg(dev, fmt, x...)						\
 	do {								\
-		if (options & OPT_DPRINT)				\
+		if (gru_options & OPT_DPRINT)				\
 			dev_dbg(dev, "%s: " fmt, __func__, x);		\
 	} while (0)
 #else
@@ -529,9 +593,9 @@ extern void gru_flush_all_tlb(struct gru_state *gru);
 extern int gru_proc_init(void);
 extern void gru_proc_exit(void);
 
-extern unsigned long reserve_gru_cb_resources(struct gru_state *gru,
+extern unsigned long gru_reserve_cb_resources(struct gru_state *gru,
 		int cbr_au_count, char *cbmap);
-extern unsigned long reserve_gru_ds_resources(struct gru_state *gru,
+extern unsigned long gru_reserve_ds_resources(struct gru_state *gru,
 		int dsr_au_count, char *dsmap);
 extern int gru_fault(struct vm_area_struct *, struct vm_fault *vmf);
 extern struct gru_mm_struct *gru_register_mmu_notifier(void);
@@ -540,6 +604,6 @@ extern void gru_drop_mmu_notifier(struct gru_mm_struct *gms);
 extern void gru_flush_tlb_range(struct gru_mm_struct *gms, unsigned long start,
 					unsigned long len);
 
-extern unsigned long options;
+extern unsigned long gru_options;
 
 #endif /* __GRUTABLES_H__ */

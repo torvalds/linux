@@ -638,11 +638,11 @@ int gru_kservices_init(struct gru_state *gru)
 	cpus_possible = uv_blade_nr_possible_cpus(gru->gs_blade_id);
 
 	num = GRU_NUM_KERNEL_CBR * cpus_possible;
-	cbr_map = reserve_gru_cb_resources(gru, GRU_CB_COUNT_TO_AU(num), NULL);
+	cbr_map = gru_reserve_cb_resources(gru, GRU_CB_COUNT_TO_AU(num), NULL);
 	gru->gs_reserved_cbrs += num;
 
 	num = GRU_NUM_KERNEL_DSR_BYTES * cpus_possible;
-	dsr_map = reserve_gru_ds_resources(gru, GRU_DS_BYTES_TO_AU(num), NULL);
+	dsr_map = gru_reserve_ds_resources(gru, GRU_DS_BYTES_TO_AU(num), NULL);
 	gru->gs_reserved_dsr_bytes += num;
 
 	gru->gs_active_contexts++;
@@ -673,7 +673,7 @@ int gru_kservices_init(struct gru_state *gru)
 	}
 	unlock_cch_handle(cch);
 
-	if (options & GRU_QUICKLOOK)
+	if (gru_options & GRU_QUICKLOOK)
 		quicktest(gru);
 	return 0;
 }

@@ -285,16 +285,6 @@ __opword(unsigned char opcode, unsigned char exopc, unsigned char xtype,
 }
 
 /*
- * Prefetch a cacheline. Fetch is unconditional. Must page fault if
- * no valid TLB entry is found.
- * 	??? should I use actual "load" or hardware prefetch???
- */
-static inline void gru_prefetch(void *p)
-{
-	*(volatile char *)p;
-}
-
-/*
  * Architecture specific intrinsics
  */
 static inline void gru_flush_cache(void *p)

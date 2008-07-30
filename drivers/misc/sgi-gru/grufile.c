@@ -112,6 +112,10 @@ static int gru_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if ((vma->vm_flags & (VM_SHARED | VM_WRITE)) != (VM_SHARED | VM_WRITE))
 		return -EPERM;
 
+	if (vma->vm_start & (GRU_GSEG_PAGESIZE - 1) ||
+			vma->vm_end & (GRU_GSEG_PAGESIZE - 1))
+		return -EINVAL;
+
 	vma->vm_flags |=
 	    (VM_IO | VM_DONTCOPY | VM_LOCKED | VM_DONTEXPAND | VM_PFNMAP |
 			VM_RESERVED);
@@ -471,8 +475,8 @@ struct vm_operations_struct gru_vm_ops = {
 module_init(gru_init);
 module_exit(gru_exit);
 
-module_param(options, ulong, 0644);
-MODULE_PARM_DESC(options, "Various debug options");
+module_param(gru_options, ulong, 0644);
+MODULE_PARM_DESC(gru_options, "Various debug options");
 
 MODULE_AUTHOR("Silicon Graphics, Inc.");
 MODULE_LICENSE("GPL");
