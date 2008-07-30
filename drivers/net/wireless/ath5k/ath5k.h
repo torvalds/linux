@@ -271,11 +271,6 @@ enum ath5k_driver_mode {
 /* adding this flag to rate_code enables short preamble, see ar5212_reg.h */
 #define AR5K_SET_SHORT_PREAMBLE 0x04
 
-#define HAS_SHPREAMBLE(_ix) \
-	(rt->rates[_ix].modulation == IEEE80211_RATE_SHORT_PREAMBLE)
-#define SHPREAMBLE_FLAG(_ix) \
-	(HAS_SHPREAMBLE(_ix) ? AR5K_SET_SHORT_PREAMBLE : 0)
-
 
 /****************\
   TX DEFINITIONS
@@ -568,152 +563,61 @@ struct ath5k_athchan_2ghz {
 	u16	a2_athchan;
 };
 
+
 /*
  * Rate definitions
- * TODO: Clean them up or move them on mac80211 -most of these infos are
- * 	 used by the rate control algorytm on MadWiFi.
  */
 
-/* Max number of rates on the rate table and what it seems
- * Atheros hardware supports */
-#define AR5K_MAX_RATES 32
-
 /**
- * struct ath5k_rate - rate structure
- * @valid: is this a valid rate for rate control (remove)
- * @modulation: respective mac80211 modulation
- * @rate_kbps: rate in kbit/s
- * @rate_code: hardware rate value, used in &struct ath5k_desc, on RX on
- *     &struct ath5k_rx_status.rs_rate and on TX on
- *     &struct ath5k_tx_status.ts_rate. Seems the ar5xxx harware supports
- *     up to 32 rates, indexed by 1-32. This means we really only need
- *     6 bits for the rate_code.
- * @dot11_rate: respective IEEE-802.11 rate value
- * @control_rate: index of rate assumed to be used to send control frames.
- *     This can be used to set override the value on the rate duration
- *     registers. This is only useful if we can override in the harware at
- *     what rate we want to send control frames at. Note that IEEE-802.11
- *     Ch. 9.6 (after IEEE 802.11g changes) defines the rate at which we
- *     should send ACK/CTS, if we change this value we can be breaking
- *     the spec.
+ * Seems the ar5xxx harware supports up to 32 rates, indexed by 1-32.
  *
- * This structure is used to get the RX rate or set the TX rate on the
+ * The rate code is used to get the RX rate or set the TX rate on the
  * hardware descriptors. It is also used for internal modulation control
  * and settings.
  *
- * On RX after the &struct ath5k_desc is parsed by the appropriate
- * ah_proc_rx_desc() the respective hardware rate value is set in
- * &struct ath5k_rx_status.rs_rate. On TX the desired rate is set in
- * &struct ath5k_tx_status.ts_rate which is later used to setup the
- * &struct ath5k_desc correctly. This is the hardware rate map we are
- * aware of:
+ * This is the hardware rate map we are aware of:
  *
- * rate_code   1       2       3       4       5       6       7       8
+ * rate_code   0x01    0x02    0x03    0x04    0x05    0x06    0x07    0x08
  * rate_kbps   3000    1000    ?       ?       ?       2000    500     48000
  *
- * rate_code   9       10      11      12      13      14      15      16
+ * rate_code   0x09    0x0A    0x0B    0x0C    0x0D    0x0E    0x0F    0x10
  * rate_kbps   24000   12000   6000    54000   36000   18000   9000    ?
  *
  * rate_code   17      18      19      20      21      22      23      24
  * rate_kbps   ?       ?       ?       ?       ?       ?       ?       11000
  *
  * rate_code   25      26      27      28      29      30      31      32
- * rate_kbps   5500    2000    1000    ?       ?       ?       ?       ?
+ * rate_kbps   5500    2000    1000    11000S  5500S   2000S   ?       ?
  *
+ * "S" indicates CCK rates with short preamble.
+ *
+ * AR5211 has different rate codes for CCK (802.11B) rates. It only uses the
+ * lowest 4 bits, so they are the same as below with a 0xF mask.
+ * (0xB, 0xA, 0x9 and 0x8 for 1M, 2M, 5.5M and 11M).
+ * We handle this in ath5k_setup_bands().
  */
-struct ath5k_rate {
-	u8	valid;
-	u32	modulation;
-	u16	rate_kbps;
-	u8	rate_code;
-	u8	dot11_rate;
-	u8	control_rate;
-};
+#define AR5K_MAX_RATES 32
 
-/* XXX: GRR all this stuff to get leds blinking ??? (check out setcurmode) */
-struct ath5k_rate_table {
-	u16	rate_count;
-	u8	rate_code_to_index[AR5K_MAX_RATES];	/* Back-mapping */
-	struct ath5k_rate rates[AR5K_MAX_RATES];
-};
+/* B */
+#define ATH5K_RATE_CODE_1M	0x1B
+#define ATH5K_RATE_CODE_2M	0x1A
+#define ATH5K_RATE_CODE_5_5M	0x19
+#define ATH5K_RATE_CODE_11M	0x18
+/* A and G */
+#define ATH5K_RATE_CODE_6M	0x0B
+#define ATH5K_RATE_CODE_9M	0x0F
+#define ATH5K_RATE_CODE_12M	0x0A
+#define ATH5K_RATE_CODE_18M	0x0E
+#define ATH5K_RATE_CODE_24M	0x09
+#define ATH5K_RATE_CODE_36M	0x0D
+#define ATH5K_RATE_CODE_48M	0x08
+#define ATH5K_RATE_CODE_54M	0x0C
+/* XR */
+#define ATH5K_RATE_CODE_XR_500K	0x07
+#define ATH5K_RATE_CODE_XR_1M	0x02
+#define ATH5K_RATE_CODE_XR_2M	0x06
+#define ATH5K_RATE_CODE_XR_3M	0x01
 
-/*
- * Rate tables...
- * TODO: CLEAN THIS !!!
- */
-#define AR5K_RATES_11A { 8, {					\
-	255, 255, 255, 255, 255, 255, 255, 255, 6, 4, 2, 0,	\
-	7, 5, 3, 1, 255, 255, 255, 255, 255, 255, 255, 255,	\
-	255, 255, 255, 255, 255, 255, 255, 255 }, {		\
-	{ 1, 0, 6000, 11, 140, 0 },		\
-	{ 1, 0, 9000, 15, 18, 0 },		\
-	{ 1, 0, 12000, 10, 152, 2 },		\
-	{ 1, 0, 18000, 14, 36, 2 },		\
-	{ 1, 0, 24000, 9, 176, 4 },		\
-	{ 1, 0, 36000, 13, 72, 4 },		\
-	{ 1, 0, 48000, 8, 96, 4 },		\
-	{ 1, 0, 54000, 12, 108, 4 } }		\
-}
-
-#define AR5K_RATES_11B { 4, {						\
-	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,	\
-	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,	\
-	3, 2, 1, 0, 255, 255, 255, 255 }, {				\
-	{ 1, 0, 1000, 27, 130, 0 },	\
-	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 2000, 26, 132, 1 },	\
-	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 5500, 25, 139, 1 },	\
-	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 11000, 24, 150, 1 } }	\
-}
-
-#define AR5K_RATES_11G { 12, {					\
-	255, 255, 255, 255, 255, 255, 255, 255, 10, 8, 6, 4,	\
-	11, 9, 7, 5, 255, 255, 255, 255, 255, 255, 255, 255,	\
-	3, 2, 1, 0, 255, 255, 255, 255 }, {			\
-	{ 1, 0, 1000, 27, 2, 0 },		\
-	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 2000, 26, 4, 1 },		\
-	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 5500, 25, 11, 1 },		\
-	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 11000, 24, 22, 1 },	\
-	{ 0, 0, 6000, 11, 12, 4 },	\
-	{ 0, 0, 9000, 15, 18, 4 },	\
-	{ 1, 0, 12000, 10, 24, 6 },	\
-	{ 1, 0, 18000, 14, 36, 6 },	\
-	{ 1, 0, 24000, 9, 48, 8 },	\
-	{ 1, 0, 36000, 13, 72, 8 },	\
-	{ 1, 0, 48000, 8, 96, 8 },	\
-	{ 1, 0, 54000, 12, 108, 8 } }	\
-}
-
-#define AR5K_RATES_TURBO { 8, {					\
-	255, 255, 255, 255, 255, 255, 255, 255, 6, 4, 2, 0,	\
-	7, 5, 3, 1, 255, 255, 255, 255, 255, 255, 255, 255,	\
-	255, 255, 255, 255, 255, 255, 255, 255 }, {		\
-	{ 1, MODULATION_TURBO, 6000, 11, 140, 0 },	\
-	{ 1, MODULATION_TURBO, 9000, 15, 18, 0 },	\
-	{ 1, MODULATION_TURBO, 12000, 10, 152, 2 },	\
-	{ 1, MODULATION_TURBO, 18000, 14, 36, 2 },	\
-	{ 1, MODULATION_TURBO, 24000, 9, 176, 4 },	\
-	{ 1, MODULATION_TURBO, 36000, 13, 72, 4 },	\
-	{ 1, MODULATION_TURBO, 48000, 8, 96, 4 },	\
-	{ 1, MODULATION_TURBO, 54000, 12, 108, 4 } }	\
-}
-
-#define AR5K_RATES_XR { 12, {					\
-	255, 3, 1, 255, 255, 255, 2, 0, 10, 8, 6, 4,		\
-	11, 9, 7, 5, 255, 255, 255, 255, 255, 255, 255, 255,	\
-	255, 255, 255, 255, 255, 255, 255, 255 }, {		\
-	{ 1, MODULATION_XR, 500, 7, 129, 0 },		\
-	{ 1, MODULATION_XR, 1000, 2, 139, 1 },		\
-	{ 1, MODULATION_XR, 2000, 6, 150, 2 },		\
-	{ 1, MODULATION_XR, 3000, 1, 150, 3 },		\
-	{ 1, 0, 6000, 11, 140, 4 },	\
-	{ 1, 0, 9000, 15, 18, 4 },	\
-	{ 1, 0, 12000, 10, 152, 6 },	\
-	{ 1, 0, 18000, 14, 36, 6 },	\
-	{ 1, 0, 24000, 9, 176, 8 },	\
-	{ 1, 0, 36000, 13, 72, 8 },	\
-	{ 1, 0, 48000, 8, 96, 8 },	\
-	{ 1, 0, 54000, 12, 108, 8 } }	\
-}
 
 /*
  * Crypto definitions

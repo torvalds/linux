@@ -31,13 +31,6 @@
 #include "base.h"
 #include "debug.h"
 
-/* Rate tables */
-static const struct ath5k_rate_table ath5k_rt_11a = AR5K_RATES_11A;
-static const struct ath5k_rate_table ath5k_rt_11b = AR5K_RATES_11B;
-static const struct ath5k_rate_table ath5k_rt_11g = AR5K_RATES_11G;
-static const struct ath5k_rate_table ath5k_rt_turbo = AR5K_RATES_TURBO;
-static const struct ath5k_rate_table ath5k_rt_xr = AR5K_RATES_XR;
-
 /* Prototypes */
 static int ath5k_hw_nic_reset(struct ath5k_hw *, u32);
 static int ath5k_hw_nic_wakeup(struct ath5k_hw *, int, bool);
@@ -521,34 +514,6 @@ static int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 }
 
 /*
- * Get the rate table for a specific operation mode
- */
-const struct ath5k_rate_table *ath5k_hw_get_rate_table(struct ath5k_hw *ah,
-		unsigned int mode)
-{
-	ATH5K_TRACE(ah->ah_sc);
-
-	if (!test_bit(mode, ah->ah_capabilities.cap_mode))
-		return NULL;
-
-	/* Get rate tables */
-	switch (mode) {
-	case AR5K_MODE_11A:
-		return &ath5k_rt_11a;
-	case AR5K_MODE_11A_TURBO:
-		return &ath5k_rt_turbo;
-	case AR5K_MODE_11B:
-		return &ath5k_rt_11b;
-	case AR5K_MODE_11G:
-		return &ath5k_rt_11g;
-	case AR5K_MODE_11G_TURBO:
-		return &ath5k_rt_xr;
-	}
-
-	return NULL;
-}
-
-/*
  * Free the ath5k_hw struct
  */
 void ath5k_hw_detach(struct ath5k_hw *ah)
@@ -618,45 +583,42 @@ static inline int ath5k_hw_write_ofdm_timings(struct ath5k_hw *ah,
 	return 0;
 }
 
+
+/*
+ * index into rates for control rates, we can set it up like this because
+ * this is only used for AR5212 and we know it supports G mode
+ */
+static int control_rates[] =
+	{ 0, 1, 1, 1, 4, 4, 6, 6, 8, 8, 8, 8 };
+
 /**
  * ath5k_hw_write_rate_duration - set rate duration during hw resets
  *
  * @ah: the &struct ath5k_hw
  * @mode: one of enum ath5k_driver_mode
  *
- * Write the rate duration table for the current mode upon hw reset. This
- * is a helper for ath5k_hw_reset(). It seems all this is doing is setting
- * an ACK timeout for the hardware for the current mode for each rate. The
- * rates which are capable of short preamble (802.11b rates 2Mbps, 5.5Mbps,
- * and 11Mbps) have another register for the short preamble ACK timeout
- * calculation.
- *
+ * Write the rate duration table upon hw reset. This is a helper for
+ * ath5k_hw_reset(). It seems all this is doing is setting an ACK timeout for
+ * the hardware for the current mode for each rate. The rates which are capable
+ * of short preamble (802.11b rates 2Mbps, 5.5Mbps, and 11Mbps) have another
+ * register for the short preamble ACK timeout calculation.
  */
 static inline void ath5k_hw_write_rate_duration(struct ath5k_hw *ah,
        unsigned int mode)
 {
 	struct ath5k_softc *sc = ah->ah_sc;
-	const struct ath5k_rate_table *rt;
-	struct ieee80211_rate srate = {};
+	struct ieee80211_rate *rate;
 	unsigned int i;
 
-	/* Get rate table for the current operating mode */
-	rt = ath5k_hw_get_rate_table(ah, mode);
-
 	/* Write rate duration table */
-	for (i = 0; i < rt->rate_count; i++) {
-		const struct ath5k_rate *rate, *control_rate;
-
+	for (i = 0; i < sc->sbands[IEEE80211_BAND_2GHZ].n_bitrates; i++) {
 		u32 reg;
 		u16 tx_time;
 
-		rate = &rt->rates[i];
-		control_rate = &rt->rates[rate->control_rate];
+		rate = &sc->sbands[IEEE80211_BAND_2GHZ].bitrates[control_rates[i]];
 
 		/* Set ACK timeout */
-		reg = AR5K_RATE_DUR(rate->rate_code);
-
-		srate.bitrate = control_rate->rate_kbps/100;
+		reg = AR5K_RATE_DUR(rate->hw_value);
 
 		/* An ACK frame consists of 10 bytes. If you add the FCS,
 		 * which ieee80211_generic_frame_duration() adds,
@@ -665,11 +627,11 @@ static inline void ath5k_hw_write_rate_duration(struct ath5k_hw *ah,
 		 * ieee80211_duration() for a brief description of
 		 * what rate we should choose to TX ACKs. */
 		tx_time = le16_to_cpu(ieee80211_generic_frame_duration(sc->hw,
-							sc->vif, 10, &srate));
+							sc->vif, 10, rate));
 
 		ath5k_hw_reg_write(ah, tx_time, reg);
 
-		if (!HAS_SHPREAMBLE(i))
+		if (!(rate->flags & IEEE80211_RATE_SHORT_PREAMBLE))
 			continue;
 
 		/*

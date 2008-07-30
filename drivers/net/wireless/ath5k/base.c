@@ -132,6 +132,48 @@ static struct ath5k_srev_name srev_names[] = {
 	{ "xxxxx",	AR5K_VERSION_RAD,	AR5K_SREV_UNKNOWN },
 };
 
+static struct ieee80211_rate ath5k_rates[] = {
+	{ .bitrate = 10,
+	  .hw_value = ATH5K_RATE_CODE_1M, },
+	{ .bitrate = 20,
+	  .hw_value = ATH5K_RATE_CODE_2M,
+	  .hw_value_short = ATH5K_RATE_CODE_2M | AR5K_SET_SHORT_PREAMBLE,
+	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 55,
+	  .hw_value = ATH5K_RATE_CODE_5_5M,
+	  .hw_value_short = ATH5K_RATE_CODE_5_5M | AR5K_SET_SHORT_PREAMBLE,
+	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 110,
+	  .hw_value = ATH5K_RATE_CODE_11M,
+	  .hw_value_short = ATH5K_RATE_CODE_11M | AR5K_SET_SHORT_PREAMBLE,
+	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 60,
+	  .hw_value = ATH5K_RATE_CODE_6M,
+	  .flags = 0 },
+	{ .bitrate = 90,
+	  .hw_value = ATH5K_RATE_CODE_9M,
+	  .flags = 0 },
+	{ .bitrate = 120,
+	  .hw_value = ATH5K_RATE_CODE_12M,
+	  .flags = 0 },
+	{ .bitrate = 180,
+	  .hw_value = ATH5K_RATE_CODE_18M,
+	  .flags = 0 },
+	{ .bitrate = 240,
+	  .hw_value = ATH5K_RATE_CODE_24M,
+	  .flags = 0 },
+	{ .bitrate = 360,
+	  .hw_value = ATH5K_RATE_CODE_36M,
+	  .flags = 0 },
+	{ .bitrate = 480,
+	  .hw_value = ATH5K_RATE_CODE_48M,
+	  .flags = 0 },
+	{ .bitrate = 540,
+	  .hw_value = ATH5K_RATE_CODE_54M,
+	  .flags = 0 },
+	/* XR missing */
+};
+
 /*
  * Prototypes - PCI stack related functions
  */
@@ -219,20 +261,16 @@ static void 	ath5k_detach(struct pci_dev *pdev,
 			struct ieee80211_hw *hw);
 /* Channel/mode setup */
 static inline short ath5k_ieee2mhz(short chan);
-static unsigned int ath5k_copy_rates(struct ieee80211_rate *rates,
-				const struct ath5k_rate_table *rt,
-				unsigned int max);
 static unsigned int ath5k_copy_channels(struct ath5k_hw *ah,
 				struct ieee80211_channel *channels,
 				unsigned int mode,
 				unsigned int max);
-static int 	ath5k_getchannels(struct ieee80211_hw *hw);
+static int 	ath5k_setup_bands(struct ieee80211_hw *hw);
 static int 	ath5k_chan_set(struct ath5k_softc *sc,
 				struct ieee80211_channel *chan);
 static void	ath5k_setcurmode(struct ath5k_softc *sc,
 				unsigned int mode);
 static void	ath5k_mode_setup(struct ath5k_softc *sc);
-static void	ath5k_set_total_hw_rates(struct ath5k_softc *sc);
 
 /* Descriptor setup */
 static int	ath5k_desc_alloc(struct ath5k_softc *sc,
@@ -646,7 +684,6 @@ err_no_irq:
 #endif /* CONFIG_PM */
 
 
-
 /***********************\
 * Driver Initialization *
 \***********************/
@@ -688,14 +725,11 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	 * on settings like the phy mode and regulatory
 	 * domain restrictions.
 	 */
-	ret = ath5k_getchannels(hw);
+	ret = ath5k_setup_bands(hw);
 	if (ret) {
 		ATH5K_ERR(sc, "can't get channels\n");
 		goto err;
 	}
-
-	/* Set *_rates so we can map hw rate index */
-	ath5k_set_total_hw_rates(sc);
 
 	/* NB: setup here so ath5k_rate_update is happy */
 	if (test_bit(AR5K_MODE_11A, ah->ah_modes))
@@ -813,27 +847,6 @@ ath5k_ieee2mhz(short chan)
 }
 
 static unsigned int
-ath5k_copy_rates(struct ieee80211_rate *rates,
-		const struct ath5k_rate_table *rt,
-		unsigned int max)
-{
-	unsigned int i, count;
-
-	if (rt == NULL)
-		return 0;
-
-	for (i = 0, count = 0; i < rt->rate_count && max > 0; i++) {
-		rates[count].bitrate = rt->rates[i].rate_kbps / 100;
-		rates[count].hw_value = rt->rates[i].rate_code;
-		rates[count].flags = rt->rates[i].modulation;
-		count++;
-		max--;
-	}
-
-	return count;
-}
-
-static unsigned int
 ath5k_copy_channels(struct ath5k_hw *ah,
 		struct ieee80211_channel *channels,
 		unsigned int mode,
@@ -895,74 +908,97 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 	return count;
 }
 
+static void
+ath5k_setup_rate_idx(struct ath5k_softc *sc, struct ieee80211_supported_band *b)
+{
+	u8 i;
+
+	for (i = 0; i < AR5K_MAX_RATES; i++)
+		sc->rate_idx[b->band][i] = -1;
+
+	for (i = 0; i < b->n_bitrates; i++) {
+		sc->rate_idx[b->band][b->bitrates[i].hw_value] = i;
+		if (b->bitrates[i].hw_value_short)
+			sc->rate_idx[b->band][b->bitrates[i].hw_value_short] = i;
+	}
+}
+
 static int
-ath5k_getchannels(struct ieee80211_hw *hw)
+ath5k_setup_bands(struct ieee80211_hw *hw)
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;
-	struct ieee80211_supported_band *sbands = sc->sbands;
-	const struct ath5k_rate_table *hw_rates;
-	unsigned int max_r, max_c, count_r, count_c;
-	int mode2g = AR5K_MODE_11G;
+	struct ieee80211_supported_band *sband;
+	int max_c, count_c = 0;
+	int i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(sc->sbands) < IEEE80211_NUM_BANDS);
-
-	max_r = ARRAY_SIZE(sc->rates);
 	max_c = ARRAY_SIZE(sc->channels);
-	count_r = count_c = 0;
 
 	/* 2GHz band */
-	if (!test_bit(AR5K_MODE_11G, sc->ah->ah_capabilities.cap_mode)) {
-		mode2g = AR5K_MODE_11B;
-		if (!test_bit(AR5K_MODE_11B,
-			sc->ah->ah_capabilities.cap_mode))
-			mode2g = -1;
-	}
+	sband = &sc->sbands[IEEE80211_BAND_2GHZ];
+	sband->band = IEEE80211_BAND_2GHZ;
+	sband->bitrates = &sc->rates[IEEE80211_BAND_2GHZ][0];
 
-	if (mode2g > 0) {
-		struct ieee80211_supported_band *sband =
-			&sbands[IEEE80211_BAND_2GHZ];
+	if (test_bit(AR5K_MODE_11G, sc->ah->ah_capabilities.cap_mode)) {
+		/* G mode */
+		memcpy(sband->bitrates, &ath5k_rates[0],
+		       sizeof(struct ieee80211_rate) * 12);
+		sband->n_bitrates = 12;
 
-		sband->bitrates = sc->rates;
 		sband->channels = sc->channels;
-
-		sband->band = IEEE80211_BAND_2GHZ;
 		sband->n_channels = ath5k_copy_channels(ah, sband->channels,
-					mode2g, max_c);
-
-		hw_rates = ath5k_hw_get_rate_table(ah, mode2g);
-		sband->n_bitrates = ath5k_copy_rates(sband->bitrates,
-					hw_rates, max_r);
-
-		count_c = sband->n_channels;
-		count_r = sband->n_bitrates;
+					AR5K_MODE_11G, max_c);
 
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = sband;
-
-		max_r -= count_r;
+		count_c = sband->n_channels;
 		max_c -= count_c;
+	} else if (test_bit(AR5K_MODE_11B, sc->ah->ah_capabilities.cap_mode)) {
+		/* B mode */
+		memcpy(sband->bitrates, &ath5k_rates[0],
+		       sizeof(struct ieee80211_rate) * 4);
+		sband->n_bitrates = 4;
 
+		/* 5211 only supports B rates and uses 4bit rate codes
+		 * (e.g normally we have 0x1B for 1M, but on 5211 we have 0x0B)
+		 * fix them up here:
+		 */
+		if (ah->ah_version == AR5K_AR5211) {
+			for (i = 0; i < 4; i++) {
+				sband->bitrates[i].hw_value =
+					sband->bitrates[i].hw_value & 0xF;
+				sband->bitrates[i].hw_value_short =
+					sband->bitrates[i].hw_value_short & 0xF;
+			}
+		}
+
+		sband->channels = sc->channels;
+		sband->n_channels = ath5k_copy_channels(ah, sband->channels,
+					AR5K_MODE_11B, max_c);
+
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = sband;
+		count_c = sband->n_channels;
+		max_c -= count_c;
 	}
+	ath5k_setup_rate_idx(sc, sband);
 
-	/* 5GHz band */
-
+	/* 5GHz band, A mode */
 	if (test_bit(AR5K_MODE_11A, sc->ah->ah_capabilities.cap_mode)) {
-		struct ieee80211_supported_band *sband =
-			&sbands[IEEE80211_BAND_5GHZ];
-
-		sband->bitrates = &sc->rates[count_r];
-		sband->channels = &sc->channels[count_c];
-
+		sband = &sc->sbands[IEEE80211_BAND_5GHZ];
 		sband->band = IEEE80211_BAND_5GHZ;
+		sband->bitrates = &sc->rates[IEEE80211_BAND_5GHZ][0];
+
+		memcpy(sband->bitrates, &ath5k_rates[4],
+		       sizeof(struct ieee80211_rate) * 8);
+		sband->n_bitrates = 8;
+
+		sband->channels = &sc->channels[count_c];
 		sband->n_channels = ath5k_copy_channels(ah, sband->channels,
 					AR5K_MODE_11A, max_c);
 
-		hw_rates = ath5k_hw_get_rate_table(ah, AR5K_MODE_11A);
-		sband->n_bitrates = ath5k_copy_rates(sband->bitrates,
-					hw_rates, max_r);
-
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] = sband;
 	}
+	ath5k_setup_rate_idx(sc, sband);
 
 	ath5k_debug_dump_bands(sc);
 
@@ -1031,74 +1067,12 @@ ath5k_mode_setup(struct ath5k_softc *sc)
 	ATH5K_DBG(sc, ATH5K_DEBUG_MODE, "RX filter 0x%x\n", rfilt);
 }
 
-/*
- * Match the hw provided rate index (through descriptors)
- * to an index for sc->curband->bitrates, so it can be used
- * by the stack.
- *
- * This one is a little bit tricky but i think i'm right
- * about this...
- *
- * We have 4 rate tables in the following order:
- * XR (4 rates)
- * 802.11a (8 rates)
- * 802.11b (4 rates)
- * 802.11g (12 rates)
- * that make the hw rate table.
- *
- * Lets take a 5211 for example that supports a and b modes only.
- * First comes the 802.11a table and then 802.11b (total 12 rates).
- * When hw returns eg. 11 it points to the last 802.11b rate (11Mbit),
- * if it returns 2 it points to the second 802.11a rate etc.
- *
- * Same goes for 5212 who has xr/a/b/g support (total 28 rates).
- * First comes the XR table, then 802.11a, 802.11b and 802.11g.
- * When hw returns eg. 27 it points to the last 802.11g rate (54Mbits) etc
- */
-static void
-ath5k_set_total_hw_rates(struct ath5k_softc *sc) {
-
-	struct ath5k_hw *ah = sc->ah;
-
-	if (test_bit(AR5K_MODE_11A, ah->ah_modes))
-		sc->a_rates = 8;
-
-	if (test_bit(AR5K_MODE_11B, ah->ah_modes))
-		sc->b_rates = 4;
-
-	if (test_bit(AR5K_MODE_11G, ah->ah_modes))
-		sc->g_rates = 12;
-
-	/* XXX: Need to see what what happens when
-		xr disable bits in eeprom are set */
-	if (ah->ah_version >= AR5K_AR5212)
-		sc->xr_rates = 4;
-
-}
-
 static inline int
-ath5k_hw_to_driver_rix(struct ath5k_softc *sc, int hw_rix) {
-
-	int mac80211_rix;
-
-	if(sc->curband->band == IEEE80211_BAND_2GHZ) {
-		/* We setup a g ratetable for both b/g modes */
-		mac80211_rix =
-			hw_rix - sc->b_rates - sc->a_rates - sc->xr_rates;
-	} else {
-		mac80211_rix = hw_rix - sc->xr_rates;
-	}
-
-	/* Something went wrong, fallback to basic rate for this band */
-	if ((mac80211_rix >= sc->curband->n_bitrates) ||
-		(mac80211_rix <= 0 ))
-		mac80211_rix = 1;
-
-	return mac80211_rix;
+ath5k_hw_to_driver_rix(struct ath5k_softc *sc, int hw_rix)
+{
+	WARN_ON(hw_rix < 0 || hw_rix > AR5K_MAX_RATES);
+	return sc->rate_idx[sc->curband->band][hw_rix];
 }
-
-
-
 
 /***************\
 * Buffers setup *
@@ -1788,6 +1762,12 @@ accept:
 		rxs.rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
 		rxs.flag |= ath5k_rx_decrypted(sc, ds, skb, &rs);
 
+#if 0		/* add rxs.flag SHORTPRE once it is in mac80211 */
+		if (rs.rs_rate >= ATH5K_RATE_CODE_2M &&
+		    rs.rs_rate <= ATH5K_RATE_CODE_11M &&
+		    rs.rs_rate & AR5K_SET_SHORT_PREAMBLE)
+			rxs.flag |= RX_FLAG_SHORTPRE;
+#endif
 		ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
 
 		/* check beacons in IBSS mode */
