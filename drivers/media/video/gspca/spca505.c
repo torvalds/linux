@@ -776,7 +776,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	default:
 		data += 1;
 		len -= 1;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
 				data, len);
 		break;
 	}
