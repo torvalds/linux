@@ -90,6 +90,14 @@ enum {
 #define AC_VERB_GET_CONFIG_DEFAULT		0x0f1c
 /* f20: AFG/MFG */
 #define AC_VERB_GET_SUBSYSTEM_ID		0x0f20
+#define AC_VERB_GET_CVT_CHAN_COUNT		0x0f2d
+#define AC_VERB_GET_HDMI_DIP_SIZE		0x0f2e
+#define AC_VERB_GET_HDMI_ELDD			0x0f2f
+#define AC_VERB_GET_HDMI_DIP_INDEX		0x0f30
+#define AC_VERB_GET_HDMI_DIP_DATA		0x0f31
+#define AC_VERB_GET_HDMI_DIP_XMIT		0x0f32
+#define AC_VERB_GET_HDMI_CP_CTRL		0x0f33
+#define AC_VERB_GET_HDMI_CHAN_SLOT		0x0f34
 
 /*
  * SET verbs
@@ -123,6 +131,12 @@ enum {
 #define AC_VERB_SET_CONFIG_DEFAULT_BYTES_3	0x71f
 #define AC_VERB_SET_EAPD				0x788
 #define AC_VERB_SET_CODEC_RESET			0x7ff
+#define AC_VERB_SET_CVT_CHAN_COUNT		0x72d
+#define AC_VERB_SET_HDMI_DIP_INDEX		0x730
+#define AC_VERB_SET_HDMI_DIP_DATA		0x731
+#define AC_VERB_SET_HDMI_DIP_XMIT		0x732
+#define AC_VERB_SET_HDMI_CP_CTRL		0x733
+#define AC_VERB_SET_HDMI_CHAN_SLOT		0x734
 
 /*
  * Parameter IDs
@@ -144,6 +158,7 @@ enum {
 #define AC_PAR_GPIO_CAP			0x11
 #define AC_PAR_AMP_OUT_CAP		0x12
 #define AC_PAR_VOL_KNB_CAP		0x13
+#define AC_PAR_HDMI_LPCM_CAP		0x20
 
 /*
  * AC_VERB_PARAMETERS results (32bit)
@@ -172,6 +187,8 @@ enum {
 #define AC_WCAP_DIGITAL			(1<<9)	/* digital I/O */
 #define AC_WCAP_POWER			(1<<10)	/* power control */
 #define AC_WCAP_LR_SWAP			(1<<11)	/* L/R swap */
+#define AC_WCAP_CP_CAPS			(1<<12) /* content protection */
+#define AC_WCAP_CHAN_CNT_EXT		(7<<13)	/* channel count ext */
 #define AC_WCAP_DELAY			(0xf<<16)
 #define AC_WCAP_DELAY_SHIFT		16
 #define AC_WCAP_TYPE			(0xf<<20)
@@ -207,9 +224,20 @@ enum {
 /* Input converter SDI select */
 #define AC_SDI_SELECT			(0xf<<0)
 
-/* Unsolicited response */
+/* Unsolicited response control */
 #define AC_UNSOL_TAG			(0x3f<<0)
 #define AC_UNSOL_ENABLED		(1<<7)
+#define AC_USRSP_EN			AC_UNSOL_ENABLED
+
+/* Unsolicited responses */
+#define AC_UNSOL_RES_TAG		(0x3f<<26)
+#define AC_UNSOL_RES_TAG_SHIFT		26
+#define AC_UNSOL_RES_SUBTAG		(0x1f<<21)
+#define AC_UNSOL_RES_SUBTAG_SHIFT	21
+#define AC_UNSOL_RES_ELDV		(1<<1)	/* ELD Data valid (for HDMI) */
+#define AC_UNSOL_RES_PD			(1<<0)	/* pinsense detect */
+#define AC_UNSOL_RES_CP_STATE		(1<<1)	/* content protection */
+#define AC_UNSOL_RES_CP_READY		(1<<0)	/* content protection */
 
 /* Pin widget capabilies */
 #define AC_PINCAP_IMP_SENSE		(1<<0)	/* impedance sense capable */
@@ -223,6 +251,10 @@ enum {
  *       but is marked reserved in the Intel HDA specification.
  */
 #define AC_PINCAP_LR_SWAP		(1<<7)	/* L/R swap */
+/* Note: The same bit as LR_SWAP is newly defined as HDMI capability
+ *       in HD-audio specification
+ */
+#define AC_PINCAP_HDMI			(1<<7)	/* HDMI pin */
 #define AC_PINCAP_VREF			(0x37<<8)
 #define AC_PINCAP_VREF_SHIFT		8
 #define AC_PINCAP_EAPD			(1<<16)	/* EAPD capable */
@@ -273,6 +305,22 @@ enum {
 #define AC_KNBCAP_NUM_STEPS		(0x7f<<0)
 #define AC_KNBCAP_DELTA			(1<<7)
 
+/* HDMI LPCM capabilities */
+#define AC_LPCMCAP_48K_CP_CHNS		(0x0f<<0) /* max channels w/ CP-on */	
+#define AC_LPCMCAP_48K_NO_CHNS		(0x0f<<4) /* max channels w/o CP-on */
+#define AC_LPCMCAP_48K_20BIT		(1<<8)	/* 20b bitrate supported */
+#define AC_LPCMCAP_48K_24BIT		(1<<9)	/* 24b bitrate supported */
+#define AC_LPCMCAP_96K_CP_CHNS		(0x0f<<10) /* max channels w/ CP-on */	
+#define AC_LPCMCAP_96K_NO_CHNS		(0x0f<<14) /* max channels w/o CP-on */
+#define AC_LPCMCAP_96K_20BIT		(1<<18)	/* 20b bitrate supported */
+#define AC_LPCMCAP_96K_24BIT		(1<<19)	/* 24b bitrate supported */
+#define AC_LPCMCAP_192K_CP_CHNS		(0x0f<<20) /* max channels w/ CP-on */	
+#define AC_LPCMCAP_192K_NO_CHNS		(0x0f<<24) /* max channels w/o CP-on */
+#define AC_LPCMCAP_192K_20BIT		(1<<28)	/* 20b bitrate supported */
+#define AC_LPCMCAP_192K_24BIT		(1<<29)	/* 24b bitrate supported */
+#define AC_LPCMCAP_44K			(1<<30)	/* 44.1kHz support */
+#define AC_LPCMCAP_44K_MS		(1<<31)	/* 44.1kHz-multiplies support */
+
 /*
  * Control Parameters
  */
@@ -318,17 +366,43 @@ enum {
 #define AC_PINCTL_OUT_EN		(1<<6)
 #define AC_PINCTL_HP_EN			(1<<7)
 
-/* Unsolicited response - 8bit */
-#define AC_USRSP_EN			(1<<7)
-
 /* Pin sense - 32bit */
 #define AC_PINSENSE_IMPEDANCE_MASK	(0x7fffffff)
 #define AC_PINSENSE_PRESENCE		(1<<31)
+#define AC_PINSENSE_ELDV		(1<<30)	/* ELD valid (HDMI) */
 
 /* EAPD/BTL enable - 32bit */
 #define AC_EAPDBTL_BALANCED		(1<<0)
 #define AC_EAPDBTL_EAPD			(1<<1)
 #define AC_EAPDBTL_LR_SWAP		(1<<2)
+
+/* HDMI ELD data */
+#define AC_ELDD_ELD_VALID		(1<<31)
+#define AC_ELDD_ELD_DATA		0xff
+
+/* HDMI DIP size */
+#define AC_DIPSIZE_ELD_BUF		(1<<3) /* ELD buf size of packet size */
+#define AC_DIPSIZE_PACK_IDX		(0x07<<0) /* packet index */
+
+/* HDMI DIP index */
+#define AC_DIPIDX_PACK_IDX		(0x07<<5) /* packet idnex */
+#define AC_DIPIDX_BYTE_IDX		(0x1f<<0) /* byte index */
+
+/* HDMI DIP xmit (transmit) control */
+#define AC_DIPXMIT_MASK			(0x3<<6)
+#define AC_DIPXMIT_DISABLE		(0x0<<6) /* disable xmit */
+#define AC_DIPXMIT_ONCE			(0x2<<6) /* xmit once then disable */
+#define AC_DIPXMIT_BEST			(0x3<<6) /* best effort */
+
+/* HDMI content protection (CP) control */
+#define AC_CPCTRL_CES			(1<<9) /* current encryption state */
+#define AC_CPCTRL_READY			(1<<8) /* ready bit */
+#define AC_CPCTRL_SUBTAG		(0x1f<<3) /* subtag for unsol-resp */
+#define AC_CPCTRL_STATE			(3<<0) /* current CP request state */
+
+/* Converter channel <-> HDMI slot mapping */
+#define AC_CVTMAP_HDMI_SLOT		(0xf<<0) /* HDMI slot number */
+#define AC_CVTMAP_CHAN			(0xf<<4) /* converter channel number */
 
 /* configuration default - 32bit */
 #define AC_DEFCFG_SEQUENCE		(0xf<<0)
