@@ -257,13 +257,13 @@ struct pv_mmu_ops {
 	 * Hooks for allocating/releasing pagetable pages when they're
 	 * attached to a pagetable
 	 */
-	void (*alloc_pte)(struct mm_struct *mm, u32 pfn);
-	void (*alloc_pmd)(struct mm_struct *mm, u32 pfn);
-	void (*alloc_pmd_clone)(u32 pfn, u32 clonepfn, u32 start, u32 count);
-	void (*alloc_pud)(struct mm_struct *mm, u32 pfn);
-	void (*release_pte)(u32 pfn);
-	void (*release_pmd)(u32 pfn);
-	void (*release_pud)(u32 pfn);
+	void (*alloc_pte)(struct mm_struct *mm, unsigned long pfn);
+	void (*alloc_pmd)(struct mm_struct *mm, unsigned long pfn);
+	void (*alloc_pmd_clone)(unsigned long pfn, unsigned long clonepfn, unsigned long start, unsigned long count);
+	void (*alloc_pud)(struct mm_struct *mm, unsigned long pfn);
+	void (*release_pte)(unsigned long pfn);
+	void (*release_pmd)(unsigned long pfn);
+	void (*release_pud)(unsigned long pfn);
 
 	/* Pagetable manipulation functions */
 	void (*set_pte)(pte_t *ptep, pte_t pteval);
@@ -993,35 +993,35 @@ static inline void paravirt_pgd_free(struct mm_struct *mm, pgd_t *pgd)
 	PVOP_VCALL2(pv_mmu_ops.pgd_free, mm, pgd);
 }
 
-static inline void paravirt_alloc_pte(struct mm_struct *mm, unsigned pfn)
+static inline void paravirt_alloc_pte(struct mm_struct *mm, unsigned long pfn)
 {
 	PVOP_VCALL2(pv_mmu_ops.alloc_pte, mm, pfn);
 }
-static inline void paravirt_release_pte(unsigned pfn)
+static inline void paravirt_release_pte(unsigned long pfn)
 {
 	PVOP_VCALL1(pv_mmu_ops.release_pte, pfn);
 }
 
-static inline void paravirt_alloc_pmd(struct mm_struct *mm, unsigned pfn)
+static inline void paravirt_alloc_pmd(struct mm_struct *mm, unsigned long pfn)
 {
 	PVOP_VCALL2(pv_mmu_ops.alloc_pmd, mm, pfn);
 }
 
-static inline void paravirt_alloc_pmd_clone(unsigned pfn, unsigned clonepfn,
-					    unsigned start, unsigned count)
+static inline void paravirt_alloc_pmd_clone(unsigned long pfn, unsigned long clonepfn,
+					    unsigned long start, unsigned long count)
 {
 	PVOP_VCALL4(pv_mmu_ops.alloc_pmd_clone, pfn, clonepfn, start, count);
 }
-static inline void paravirt_release_pmd(unsigned pfn)
+static inline void paravirt_release_pmd(unsigned long pfn)
 {
 	PVOP_VCALL1(pv_mmu_ops.release_pmd, pfn);
 }
 
-static inline void paravirt_alloc_pud(struct mm_struct *mm, unsigned pfn)
+static inline void paravirt_alloc_pud(struct mm_struct *mm, unsigned long pfn)
 {
 	PVOP_VCALL2(pv_mmu_ops.alloc_pud, mm, pfn);
 }
-static inline void paravirt_release_pud(unsigned pfn)
+static inline void paravirt_release_pud(unsigned long pfn)
 {
 	PVOP_VCALL1(pv_mmu_ops.release_pud, pfn);
 }

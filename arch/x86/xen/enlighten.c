@@ -812,7 +812,7 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 
 /* Early in boot, while setting up the initial pagetable, assume
    everything is pinned. */
-static __init void xen_alloc_pte_init(struct mm_struct *mm, u32 pfn)
+static __init void xen_alloc_pte_init(struct mm_struct *mm, unsigned long pfn)
 {
 #ifdef CONFIG_FLATMEM
 	BUG_ON(mem_map);	/* should only be used early */
@@ -822,7 +822,7 @@ static __init void xen_alloc_pte_init(struct mm_struct *mm, u32 pfn)
 
 /* Early release_pte assumes that all pts are pinned, since there's
    only init_mm and anything attached to that is pinned. */
-static void xen_release_pte_init(u32 pfn)
+static void xen_release_pte_init(unsigned long pfn)
 {
 	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 }
@@ -838,7 +838,7 @@ static void pin_pagetable_pfn(unsigned cmd, unsigned long pfn)
 
 /* This needs to make sure the new pte page is pinned iff its being
    attached to a pinned pagetable. */
-static void xen_alloc_ptpage(struct mm_struct *mm, u32 pfn, unsigned level)
+static void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn, unsigned level)
 {
 	struct page *page = pfn_to_page(pfn);
 
@@ -856,12 +856,12 @@ static void xen_alloc_ptpage(struct mm_struct *mm, u32 pfn, unsigned level)
 	}
 }
 
-static void xen_alloc_pte(struct mm_struct *mm, u32 pfn)
+static void xen_alloc_pte(struct mm_struct *mm, unsigned long pfn)
 {
 	xen_alloc_ptpage(mm, pfn, PT_PTE);
 }
 
-static void xen_alloc_pmd(struct mm_struct *mm, u32 pfn)
+static void xen_alloc_pmd(struct mm_struct *mm, unsigned long pfn)
 {
 	xen_alloc_ptpage(mm, pfn, PT_PMD);
 }
@@ -909,7 +909,7 @@ static void xen_pgd_free(struct mm_struct *mm, pgd_t *pgd)
 }
 
 /* This should never happen until we're OK to use struct page */
-static void xen_release_ptpage(u32 pfn, unsigned level)
+static void xen_release_ptpage(unsigned long pfn, unsigned level)
 {
 	struct page *page = pfn_to_page(pfn);
 
@@ -923,23 +923,23 @@ static void xen_release_ptpage(u32 pfn, unsigned level)
 	}
 }
 
-static void xen_release_pte(u32 pfn)
+static void xen_release_pte(unsigned long pfn)
 {
 	xen_release_ptpage(pfn, PT_PTE);
 }
 
-static void xen_release_pmd(u32 pfn)
+static void xen_release_pmd(unsigned long pfn)
 {
 	xen_release_ptpage(pfn, PT_PMD);
 }
 
 #if PAGETABLE_LEVELS == 4
-static void xen_alloc_pud(struct mm_struct *mm, u32 pfn)
+static void xen_alloc_pud(struct mm_struct *mm, unsigned long pfn)
 {
 	xen_alloc_ptpage(mm, pfn, PT_PUD);
 }
 
-static void xen_release_pud(u32 pfn)
+static void xen_release_pud(unsigned long pfn)
 {
 	xen_release_ptpage(pfn, PT_PUD);
 }
