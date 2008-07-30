@@ -130,7 +130,6 @@ static void update_rfkill_state(struct rfkill *rfkill)
 
 /**
  * rfkill_toggle_radio - wrapper for toggle_radio hook
- *
  * @rfkill: the rfkill struct to use
  * @force: calls toggle_radio even if cache says it is not needed,
  *	and also makes sure notifications of the state will be
@@ -141,8 +140,8 @@ static void update_rfkill_state(struct rfkill *rfkill)
  * calls and handling all the red tape such as issuing notifications
  * if the call is successful.
  *
- * Note that @force cannot override a (possibly cached) state of
- * RFKILL_STATE_HARD_BLOCKED.  Any device making use of
+ * Note that the @force parameter cannot override a (possibly cached)
+ * state of RFKILL_STATE_HARD_BLOCKED.  Any device making use of
  * RFKILL_STATE_HARD_BLOCKED implements either get_state() or
  * rfkill_force_state(), so the cache either is bypassed or valid.
  *
@@ -150,7 +149,7 @@ static void update_rfkill_state(struct rfkill *rfkill)
  * even if the radio is in RFKILL_STATE_HARD_BLOCKED state, so as to
  * give the driver a hint that it should double-BLOCK the transmitter.
  *
- * Caller must have aquired rfkill_mutex.
+ * Caller must have acquired rfkill->mutex.
  */
 static int rfkill_toggle_radio(struct rfkill *rfkill,
 				enum rfkill_state state,
@@ -200,12 +199,12 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 
 /**
  * rfkill_switch_all - Toggle state of all switches of given type
- * @type: type of interfaces to be affeceted
+ * @type: type of interfaces to be affected
  * @state: the new state
  *
- * This function toggles state of all switches of given type unless
- * a specific switch is claimed by userspace in which case it is
- * left alone.
+ * This function toggles the state of all switches of given type,
+ * unless a specific switch is claimed by userspace (in which case,
+ * that switch is left alone).
  */
 void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 {
@@ -216,8 +215,11 @@ void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 	rfkill_states[type] = state;
 
 	list_for_each_entry(rfkill, &rfkill_list, node) {
-		if ((!rfkill->user_claim) && (rfkill->type == type))
+		if ((!rfkill->user_claim) && (rfkill->type == type)) {
+			mutex_lock(&rfkill->mutex);
 			rfkill_toggle_radio(rfkill, state, 0);
+			mutex_unlock(&rfkill->mutex);
+		}
 	}
 
 	mutex_unlock(&rfkill_mutex);
@@ -228,7 +230,7 @@ EXPORT_SYMBOL(rfkill_switch_all);
  * rfkill_epo - emergency power off all transmitters
  *
  * This kicks all rfkill devices to RFKILL_STATE_SOFT_BLOCKED, ignoring
- * everything in its path but rfkill_mutex.
+ * everything in its path but rfkill_mutex and rfkill->mutex.
  */
 void rfkill_epo(void)
 {
@@ -236,7 +238,9 @@ void rfkill_epo(void)
 
 	mutex_lock(&rfkill_mutex);
 	list_for_each_entry(rfkill, &rfkill_list, node) {
+		mutex_lock(&rfkill->mutex);
 		rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
+		mutex_unlock(&rfkill->mutex);
 	}
 	mutex_unlock(&rfkill_mutex);
 }
@@ -252,7 +256,12 @@ EXPORT_SYMBOL_GPL(rfkill_epo);
  * a notification by the firmware/hardware of the current *real*
  * state of the radio rfkill switch.
  *
- * It may not be called from an atomic context.
+ * Devices which are subject to external changes on their rfkill
+ * state (such as those caused by a hardware rfkill line) MUST
+ * have their driver arrange to call rfkill_force_state() as soon
+ * as possible after such a change.
+ *
+ * This function may not be called from an atomic context.
  */
 int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state)
 {
@@ -367,6 +376,9 @@ static ssize_t rfkill_claim_store(struct device *dev,
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
+	if (rfkill->user_claim_unsupported)
+		return -EOPNOTSUPP;
+
 	/*
 	 * Take the global lock to make sure the kernel is not in
 	 * the middle of rfkill_switch_all
@@ -375,19 +387,17 @@ static ssize_t rfkill_claim_store(struct device *dev,
 	if (error)
 		return error;
 
-	if (rfkill->user_claim_unsupported) {
-		error = -EOPNOTSUPP;
-		goto out_unlock;
-	}
 	if (rfkill->user_claim != claim) {
-		if (!claim)
+		if (!claim) {
+			mutex_lock(&rfkill->mutex);
 			rfkill_toggle_radio(rfkill,
 					    rfkill_states[rfkill->type],
 					    0);
+			mutex_unlock(&rfkill->mutex);
+		}
 		rfkill->user_claim = claim;
 	}
 
-out_unlock:
 	mutex_unlock(&rfkill_mutex);
 
 	return error ? error : count;
@@ -516,8 +526,11 @@ static void rfkill_remove_switch(struct rfkill *rfkill)
 {
 	mutex_lock(&rfkill_mutex);
 	list_del_init(&rfkill->node);
-	rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
 	mutex_unlock(&rfkill_mutex);
+
+	mutex_lock(&rfkill->mutex);
+	rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
+	mutex_unlock(&rfkill->mutex);
 }
 
 /**
@@ -526,9 +539,10 @@ static void rfkill_remove_switch(struct rfkill *rfkill)
  * @type: type of the switch (RFKILL_TYPE_*)
  *
  * This function should be called by the network driver when it needs
- * rfkill structure. Once the structure is allocated the driver shoud
- * finish its initialization by setting name, private data, enable_radio
+ * rfkill structure.  Once the structure is allocated the driver should
+ * finish its initialization by setting the name, private data, enable_radio
  * and disable_radio methods and then register it with rfkill_register().
+ *
  * NOTE: If registration fails the structure shoudl be freed by calling
  * rfkill_free() otherwise rfkill_unregister() should be used.
  */
@@ -560,7 +574,7 @@ EXPORT_SYMBOL(rfkill_allocate);
  * rfkill_free - Mark rfkill structure for deletion
  * @rfkill: rfkill structure to be destroyed
  *
- * Decrements reference count of rfkill structure so it is destroyed.
+ * Decrements reference count of the rfkill structure so it is destroyed.
  * Note that rfkill_free() should _not_ be called after rfkill_unregister().
  */
 void rfkill_free(struct rfkill *rfkill)
@@ -585,8 +599,10 @@ static void rfkill_led_trigger_register(struct rfkill *rfkill)
 static void rfkill_led_trigger_unregister(struct rfkill *rfkill)
 {
 #ifdef CONFIG_RFKILL_LEDS
-	if (rfkill->led_trigger.name)
+	if (rfkill->led_trigger.name) {
 		led_trigger_unregister(&rfkill->led_trigger);
+		rfkill->led_trigger.name = NULL;
+	}
 #endif
 }
 
@@ -622,8 +638,8 @@ int rfkill_register(struct rfkill *rfkill)
 
 	error = device_add(dev);
 	if (error) {
-		rfkill_led_trigger_unregister(rfkill);
 		rfkill_remove_switch(rfkill);
+		rfkill_led_trigger_unregister(rfkill);
 		return error;
 	}
 

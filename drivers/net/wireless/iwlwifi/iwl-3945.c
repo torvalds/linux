@@ -630,7 +630,9 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl3945_priv *priv,
 				   struct ieee80211_rx_status *stats)
 {
 	struct iwl3945_rx_packet *pkt = (struct iwl3945_rx_packet *)rxb->skb->data;
+#ifdef CONFIG_IWL3945_LEDS
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)IWL_RX_DATA(pkt);
+#endif
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
 	short len = le16_to_cpu(rx_hdr->len);

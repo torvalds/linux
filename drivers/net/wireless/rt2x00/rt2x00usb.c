@@ -122,6 +122,38 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_buff);
 
+int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
+					const u8 request, const u8 requesttype,
+					const u16 offset, void *buffer,
+					const u16 buffer_length,
+					const int timeout)
+{
+	int status = 0;
+	unsigned char *tb;
+	u16 off, len, bsize;
+
+	mutex_lock(&rt2x00dev->usb_cache_mutex);
+
+	tb  = buffer;
+	off = offset;
+	len = buffer_length;
+	while (len && !status) {
+		bsize = min_t(u16, CSR_CACHE_SIZE, len);
+		status = rt2x00usb_vendor_req_buff_lock(rt2x00dev, request,
+							requesttype, off, tb,
+							bsize, timeout);
+
+		tb  += bsize;
+		len -= bsize;
+		off += bsize;
+	}
+
+	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+
+	return status;
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_large_buff);
+
 /*
  * TX data handlers.
  */

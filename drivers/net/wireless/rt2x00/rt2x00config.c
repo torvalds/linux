@@ -271,7 +271,7 @@ config:
 		libconf.sifs = SIFS;
 		libconf.pifs = short_slot_time ? SHORT_PIFS : PIFS;
 		libconf.difs = short_slot_time ? SHORT_DIFS : DIFS;
-		libconf.eifs = EIFS;
+		libconf.eifs = short_slot_time ? SHORT_EIFS : EIFS;
 	}
 
 	libconf.conf = conf;
