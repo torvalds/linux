@@ -816,6 +816,11 @@
 #define OLIMEX_VID			0x15BA
 #define OLIMEX_ARM_USB_OCD_PID		0x0003
 
+/* Luminary Micro Stellaris Boards, VID = FTDI_VID */
+/* FTDI 2332C Dual channel device, side A=245 FIFO (JTAG), Side B=RS232 UART */
+#define LMI_LM3S_DEVEL_BOARD_PID	0xbcd8
+#define LMI_LM3S_EVAL_BOARD_PID		0xbcd9
+
 /* www.elsterelectricity.com Elster Unicom III Optical Probe */
 #define FTDI_ELSTER_UNICOM_PID		0xE700 /* Product Id */
 
