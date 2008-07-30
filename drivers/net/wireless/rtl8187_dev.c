@@ -169,6 +169,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	unsigned int ep;
 	void *buf;
 	struct urb *urb;
@@ -234,6 +235,20 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 			ep = epmap[skb_get_queue_mapping(skb)];
 	}
 
+	/* FIXME: The sequence that follows is needed for this driver to
+	 * work with mac80211 since "mac80211: fix TX sequence numbers".
+	 * As with the temporary code in rt2x00, changes will be needed
+	 * to get proper sequence numbers on beacons. In addition, this
+	 * patch places the sequence number in the hardware state, which
+	 * limits us to a single virtual state.
+	 */
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
+		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+			priv->seqno += 0x10;
+		ieee80211hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		ieee80211hdr->seq_ctrl |= cpu_to_le16(priv->seqno);
+	}
+
 	info->driver_data[0] = dev;
 	info->driver_data[1] = urb;
 
@@ -257,6 +272,7 @@ static void rtl8187_rx_cb(struct urb *urb)
 	struct ieee80211_rx_status rx_status = { 0 };
 	int rate, signal;
 	u32 flags;
+	u32 quality;
 
 	spin_lock(&priv->rx_queue.lock);
 	if (skb->next)
@@ -280,44 +296,57 @@ static void rtl8187_rx_cb(struct urb *urb)
 		flags = le32_to_cpu(hdr->flags);
 		signal = hdr->signal & 0x7f;
 		rx_status.antenna = (hdr->signal >> 7) & 1;
-		rx_status.signal = signal;
 		rx_status.noise = hdr->noise;
 		rx_status.mactime = le64_to_cpu(hdr->mac_time);
-		priv->signal = signal;
 		priv->quality = signal;
+		rx_status.qual = priv->quality;
 		priv->noise = hdr->noise;
+		rate = (flags >> 20) & 0xF;
+		if (rate > 3) { /* OFDM rate */
+			if (signal > 90)
+				signal = 90;
+			else if (signal < 25)
+				signal = 25;
+			signal = 90 - signal;
+		} else {	/* CCK rate */
+			if (signal > 95)
+				signal = 95;
+			else if (signal < 30)
+				signal = 30;
+			signal = 95 - signal;
+		}
+		rx_status.signal = signal;
+		priv->signal = signal;
 	} else {
 		struct rtl8187b_rx_hdr *hdr =
 			(typeof(hdr))(skb_tail_pointer(skb) - sizeof(*hdr));
+		/* The Realtek datasheet for the RTL8187B shows that the RX
+		 * header contains the following quantities: signal quality,
+		 * RSSI, AGC, the received power in dB, and the measured SNR.
+		 * In testing, none of these quantities show qualitative
+		 * agreement with AP signal strength, except for the AGC,
+		 * which is inversely proportional to the strength of the
+		 * signal. In the following, the quality and signal strength
+		 * are derived from the AGC. The arbitrary scaling constants
+		 * are chosen to make the results close to the values obtained
+		 * for a BCM4312 using b43 as the driver. The noise is ignored
+		 * for now.
+		 */
 		flags = le32_to_cpu(hdr->flags);
-		signal = hdr->agc >> 1;
-		rx_status.antenna = (hdr->signal >> 7) & 1;
-		rx_status.signal = 64 - min(hdr->noise, (u8)64);
-		rx_status.noise = hdr->noise;
+		quality = 170 - hdr->agc;
+		if (quality > 100)
+			quality = 100;
+		signal = 14 - hdr->agc / 2;
+		rx_status.qual = quality;
+		priv->quality = quality;
+		rx_status.signal = signal;
+		priv->signal = signal;
+		rx_status.antenna = (hdr->rssi >> 7) & 1;
 		rx_status.mactime = le64_to_cpu(hdr->mac_time);
-		priv->signal = hdr->signal;
-		priv->quality = hdr->agc >> 1;
-		priv->noise = hdr->noise;
+		rate = (flags >> 20) & 0xF;
 	}
 
 	skb_trim(skb, flags & 0x0FFF);
-	rate = (flags >> 20) & 0xF;
-	if (rate > 3) {	/* OFDM rate */
-		if (signal > 90)
-			signal = 90;
-		else if (signal < 25)
-			signal = 25;
-		signal = 90 - signal;
-	} else {	/* CCK rate */
-		if (signal > 95)
-			signal = 95;
-		else if (signal < 30)
-			signal = 30;
-		signal = 95 - signal;
-	}
-
-	rx_status.qual = priv->quality;
-	rx_status.signal = signal;
 	rx_status.rate_idx = rate;
 	rx_status.freq = dev->conf.channel->center_freq;
 	rx_status.band = dev->conf.channel->band;
@@ -1015,9 +1044,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 
 	priv->mode = IEEE80211_IF_TYPE_MNTR;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		     IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_SIGNAL_UNSPEC;
-	dev->max_signal = 65;
+		     IEEE80211_HW_RX_INCLUDES_FCS;
 
 	eeprom.data = dev;
 	eeprom.register_read = rtl8187_eeprom_register_read;
@@ -1132,10 +1159,16 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		(*channel++).hw_value = txpwr >> 8;
 	}
 
-	if (priv->is_rtl8187b)
+	if (priv->is_rtl8187b) {
 		printk(KERN_WARNING "rtl8187: 8187B chip detected. Support "
 			"is EXPERIMENTAL, and could damage your\n"
 			"         hardware, use at your own risk\n");
+		dev->flags |= IEEE80211_HW_SIGNAL_DBM;
+	} else {
+		dev->flags |= IEEE80211_HW_SIGNAL_UNSPEC;
+		dev->max_signal = 65;
+	}
+
 	if ((id->driver_info == DEVICE_RTL8187) && priv->is_rtl8187b)
 		printk(KERN_INFO "rtl8187: inconsistency between id with OEM"
 		       " info!\n");
