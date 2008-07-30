@@ -14,7 +14,6 @@
  *
  */
 
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include "xp.h"
@@ -36,8 +35,17 @@ struct device *xp = &xp_dbg_subname;
 short xp_max_npartitions;
 EXPORT_SYMBOL_GPL(xp_max_npartitions);
 
+short xp_partition_id;
+EXPORT_SYMBOL_GPL(xp_partition_id);
+
+u8 xp_region_size;
+EXPORT_SYMBOL_GPL(xp_region_size);
+
 enum xp_retval (*xp_remote_memcpy) (void *dst, const void *src, size_t len);
 EXPORT_SYMBOL_GPL(xp_remote_memcpy);
+
+int (*xp_cpu_to_nasid) (int cpuid);
+EXPORT_SYMBOL_GPL(xp_cpu_to_nasid);
 
 /*
  * xpc_registrations[] keeps track of xpc_connect()'s done by the kernel-level

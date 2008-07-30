@@ -13,9 +13,9 @@
  *
  */
 
-#include <linux/kernel.h>
 #include <linux/delay.h>
 #include <asm/uncached.h>
+#include <asm/sn/mspec.h>
 #include <asm/sn/sn_sal.h>
 #include "xpc.h"
 
@@ -176,7 +176,7 @@ xpc_send_IRQ_sn2(struct amo *amo, u64 flag, int nasid, int phys_cpuid,
 
 	local_irq_restore(irq_flags);
 
-	return ((ret == 0) ? xpSuccess : xpPioReadError);
+	return (ret == 0) ? xpSuccess : xpPioReadError;
 }
 
 static struct amo *
@@ -284,7 +284,7 @@ xpc_handle_notify_IRQ_sn2(int irq, void *dev_id)
 	short partid = (short)(u64)dev_id;
 	struct xpc_partition *part = &xpc_partitions[partid];
 
-	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
+	DBUG_ON(partid < 0 || partid >= XP_MAX_NPARTITIONS_SN2);
 
 	if (xpc_part_ref(part)) {
 		xpc_check_for_sent_chctl_flags_sn2(part);
@@ -577,6 +577,25 @@ xpc_allow_amo_ops_shub_wars_1_1_sn2(void)
 }
 
 static enum xp_retval
+xpc_get_partition_rsvd_page_pa_sn2(u64 buf, u64 *cookie, u64 *paddr,
+				   size_t *len)
+{
+	s64 status;
+	enum xp_retval ret;
+
+	status = sn_partition_reserved_page_pa(buf, cookie, paddr, len);
+	if (status == SALRET_OK)
+		ret = xpSuccess;
+	else if (status == SALRET_MORE_PASSES)
+		ret = xpNeedMoreInfo;
+	else
+		ret = xpSalError;
+
+	return ret;
+}
+
+
+static enum xp_retval
 xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
 {
 	struct amo *amos_page;
@@ -636,7 +655,7 @@ xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
 
 	/* clear xpc_vars_part_sn2 */
 	memset((u64 *)xpc_vars_part_sn2, 0, sizeof(struct xpc_vars_part_sn2) *
-	       xp_max_npartitions);
+	       XP_MAX_NPARTITIONS_SN2);
 
 	/* initialize the activate IRQ related amo variables */
 	for (i = 0; i < xpc_nasid_mask_nlongs; i++)
@@ -699,7 +718,7 @@ xpc_check_remote_hb_sn2(void)
 
 	remote_vars = (struct xpc_vars_sn2 *)xpc_remote_copy_buffer_sn2;
 
-	for (partid = 0; partid < xp_max_npartitions; partid++) {
+	for (partid = 0; partid < XP_MAX_NPARTITIONS_SN2; partid++) {
 
 		if (xpc_exiting)
 			break;
@@ -2386,6 +2405,7 @@ xpc_init_sn2(void)
 	int ret;
 	size_t buf_size;
 
+	xpc_get_partition_rsvd_page_pa = xpc_get_partition_rsvd_page_pa_sn2;
 	xpc_rsvd_page_init = xpc_rsvd_page_init_sn2;
 	xpc_increment_heartbeat = xpc_increment_heartbeat_sn2;
 	xpc_offline_heartbeat = xpc_offline_heartbeat_sn2;

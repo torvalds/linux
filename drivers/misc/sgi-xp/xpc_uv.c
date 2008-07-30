@@ -14,11 +14,8 @@
  */
 
 #include <linux/kernel.h>
-
-/* !!! #include <gru/grukservices.h> */
-/* !!! uv_gpa() is defined in <gru/grukservices.h> */
-#define uv_gpa(_a)		((unsigned long)_a)
-
+#include <asm/uv/uv_hub.h>
+#include "../sgi-gru/grukservices.h"
 #include "xpc.h"
 
 static DECLARE_BITMAP(xpc_heartbeating_to_mask_uv, XP_MAX_NPARTITIONS_UV);

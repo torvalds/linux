@@ -13,17 +13,10 @@
 #ifndef _DRIVERS_MISC_SGIXP_XPC_H
 #define _DRIVERS_MISC_SGIXP_XPC_H
 
-#include <linux/interrupt.h>
-#include <linux/sysctl.h>
-#include <linux/device.h>
-#include <linux/mutex.h>
+#include <linux/wait.h>
 #include <linux/completion.h>
-#include <asm/pgtable.h>
-#include <asm/processor.h>
-#include <asm/sn/clksupport.h>
-#include <asm/sn/addrs.h>
-#include <asm/sn/mspec.h>
-#include <asm/sn/shub_mmr.h>
+#include <linux/timer.h>
+#include <linux/sched.h>
 #include "xp.h"
 
 /*
@@ -179,7 +172,8 @@ struct xpc_vars_part_sn2 {
 #define XPC_RP_HEADER_SIZE	L1_CACHE_ALIGN(sizeof(struct xpc_rsvd_page))
 #define XPC_RP_VARS_SIZE	L1_CACHE_ALIGN(sizeof(struct xpc_vars_sn2))
 
-#define XPC_RP_PART_NASIDS(_rp) ((u64 *)((u8 *)(_rp) + XPC_RP_HEADER_SIZE))
+#define XPC_RP_PART_NASIDS(_rp) ((unsigned long *)((u8 *)(_rp) + \
+				 XPC_RP_HEADER_SIZE))
 #define XPC_RP_MACH_NASIDS(_rp) (XPC_RP_PART_NASIDS(_rp) + \
 				 xpc_nasid_mask_nlongs)
 #define XPC_RP_VARS(_rp)	((struct xpc_vars_sn2 *) \
@@ -202,13 +196,13 @@ struct xpc_vars_part_sn2 {
 /*
  * Define a Get/Put value pair (pointers) used with a message queue.
  */
-struct xpc_gp {
+struct xpc_gp_sn2 {
 	s64 get;		/* Get value */
 	s64 put;		/* Put value */
 };
 
 #define XPC_GP_SIZE \
-		L1_CACHE_ALIGN(sizeof(struct xpc_gp) * XPC_MAX_NCHANNELS)
+		L1_CACHE_ALIGN(sizeof(struct xpc_gp_sn2) * XPC_MAX_NCHANNELS)
 
 /*
  * Define a structure that contains arguments associated with opening and
@@ -340,10 +334,10 @@ struct xpc_channel_sn2 {
 
 	/* various flavors of local and remote Get/Put values */
 
-	struct xpc_gp *local_GP;	/* local Get/Put values */
-	struct xpc_gp remote_GP;	/* remote Get/Put values */
-	struct xpc_gp w_local_GP;	/* working local Get/Put values */
-	struct xpc_gp w_remote_GP;	/* working remote Get/Put values */
+	struct xpc_gp_sn2 *local_GP;	/* local Get/Put values */
+	struct xpc_gp_sn2 remote_GP;	/* remote Get/Put values */
+	struct xpc_gp_sn2 w_local_GP;	/* working local Get/Put values */
+	struct xpc_gp_sn2 w_remote_GP;	/* working remote Get/Put values */
 	s64 next_msg_to_pull;	/* Put value of next msg to pull */
 
 	struct mutex msg_to_pull_mutex;	/* next msg to pull serialization */
@@ -506,9 +500,9 @@ struct xpc_partition_sn2 {
 	u8 remote_vars_version;	/* version# of partition's vars */
 
 	void *local_GPs_base;	/* base address of kmalloc'd space */
-	struct xpc_gp *local_GPs;	/* local Get/Put values */
+	struct xpc_gp_sn2 *local_GPs;	/* local Get/Put values */
 	void *remote_GPs_base;	/* base address of kmalloc'd space */
-	struct xpc_gp *remote_GPs;	/* copy of remote partition's local */
+	struct xpc_gp_sn2 *remote_GPs;	/* copy of remote partition's local */
 					/* Get/Put values */
 	u64 remote_GPs_pa;	/* phys address of remote partition's local */
 				/* Get/Put values */
@@ -629,6 +623,8 @@ extern void xpc_activate_partition(struct xpc_partition *);
 extern void xpc_activate_kthreads(struct xpc_channel *, int);
 extern void xpc_create_kthreads(struct xpc_channel *, int, int);
 extern void xpc_disconnect_wait(int);
+extern enum xp_retval (*xpc_get_partition_rsvd_page_pa) (u64, u64 *, u64 *,
+							 size_t *);
 extern enum xp_retval (*xpc_rsvd_page_init) (struct xpc_rsvd_page *);
 extern void (*xpc_heartbeat_init) (void);
 extern void (*xpc_heartbeat_exit) (void);

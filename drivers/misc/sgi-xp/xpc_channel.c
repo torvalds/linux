@@ -14,14 +14,7 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/cache.h>
-#include <linux/interrupt.h>
-#include <linux/mutex.h>
-#include <linux/completion.h>
-#include <asm/sn/sn_sal.h>
+#include <linux/device.h>
 #include "xpc.h"
 
 /*
@@ -373,8 +366,9 @@ again:
 		dev_dbg(xpc_chan, "XPC_CHCTL_OPENREPLY (local_msgqueue_pa="
 			"0x%lx, local_nentries=%d, remote_nentries=%d) "
 			"received from partid=%d, channel=%d\n",
-			args->local_msgqueue_pa, args->local_nentries,
-			args->remote_nentries, ch->partid, ch->number);
+			(unsigned long)args->local_msgqueue_pa,
+			args->local_nentries, args->remote_nentries,
+			ch->partid, ch->number);
 
 		if (ch->flags & (XPC_C_DISCONNECTING | XPC_C_DISCONNECTED)) {
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
@@ -940,7 +934,7 @@ xpc_deliver_msg(struct xpc_channel *ch)
 		if (ch->func != NULL) {
 			dev_dbg(xpc_chan, "ch->func() called, msg=0x%p, "
 				"msg_number=%ld, partid=%d, channel=%d\n",
-				(void *)msg, msg->number, ch->partid,
+				msg, (signed long)msg->number, ch->partid,
 				ch->number);
 
 			/* deliver the message to its intended recipient */
@@ -949,7 +943,7 @@ xpc_deliver_msg(struct xpc_channel *ch)
 
 			dev_dbg(xpc_chan, "ch->func() returned, msg=0x%p, "
 				"msg_number=%ld, partid=%d, channel=%d\n",
-				(void *)msg, msg->number, ch->partid,
+				msg, (signed long)msg->number, ch->partid,
 				ch->number);
 		}
 

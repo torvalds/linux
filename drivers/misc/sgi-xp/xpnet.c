@@ -21,17 +21,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/ioport.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/delay.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-#include <linux/smp.h>
-#include <linux/string.h>
-#include <asm/atomic.h>
 #include "xp.h"
 
 /*
@@ -175,8 +166,9 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 
 		return;
 	}
-	dev_dbg(xpnet, "received 0x%lx, %d, %d, %d\n", msg->buf_pa, msg->size,
-		msg->leadin_ignore, msg->tailout_ignore);
+	dev_dbg(xpnet, "received 0x%lx, %d, %d, %d\n",
+		(unsigned long)msg->buf_pa, msg->size, msg->leadin_ignore,
+		msg->tailout_ignore);
 
 	/* reserve an extra cache line */
 	skb = dev_alloc_skb(msg->size + L1_CACHE_BYTES);
@@ -320,8 +312,10 @@ xpnet_dev_open(struct net_device *dev)
 
 	dev_dbg(xpnet, "calling xpc_connect(%d, 0x%p, NULL, %ld, %ld, %ld, "
 		"%ld)\n", XPC_NET_CHANNEL, xpnet_connection_activity,
-		XPNET_MSG_SIZE, XPNET_MSG_NENTRIES, XPNET_MAX_KTHREADS,
-		XPNET_MAX_IDLE_KTHREADS);
+		(unsigned long)XPNET_MSG_SIZE,
+		(unsigned long)XPNET_MSG_NENTRIES,
+		(unsigned long)XPNET_MAX_KTHREADS,
+		(unsigned long)XPNET_MAX_IDLE_KTHREADS);
 
 	ret = xpc_connect(XPC_NET_CHANNEL, xpnet_connection_activity, NULL,
 			  XPNET_MSG_SIZE, XPNET_MSG_NENTRIES,
@@ -439,8 +433,8 @@ xpnet_send(struct sk_buff *skb, struct xpnet_pending_msg *queued_msg,
 	dev_dbg(xpnet, "sending XPC message to %d:%d\n"
 		KERN_DEBUG "msg->buf_pa=0x%lx, msg->size=%u, "
 		"msg->leadin_ignore=%u, msg->tailout_ignore=%u\n",
-		dest_partid, XPC_NET_CHANNEL, msg->buf_pa, msg->size,
-		msg->leadin_ignore, msg->tailout_ignore);
+		dest_partid, XPC_NET_CHANNEL, (unsigned long)msg->buf_pa,
+		msg->size, msg->leadin_ignore, msg->tailout_ignore);
 
 	atomic_inc(&queued_msg->use_count);
 
@@ -602,8 +596,8 @@ xpnet_init(void)
 	 */
 	xpnet_device->dev_addr[0] = 0x02;     /* locally administered, no OUI */
 
-	xpnet_device->dev_addr[XPNET_PARTID_OCTET + 1] = sn_partition_id;
-	xpnet_device->dev_addr[XPNET_PARTID_OCTET + 0] = (sn_partition_id >> 8);
+	xpnet_device->dev_addr[XPNET_PARTID_OCTET + 1] = xp_partition_id;
+	xpnet_device->dev_addr[XPNET_PARTID_OCTET + 0] = (xp_partition_id >> 8);
 
 	/*
 	 * ether_setup() sets this to a multicast device.  We are

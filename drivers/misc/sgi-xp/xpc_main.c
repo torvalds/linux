@@ -43,19 +43,13 @@
  *
  */
 
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/cache.h>
-#include <linux/interrupt.h>
+#include <linux/sysctl.h>
+#include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
-#include <linux/completion.h>
 #include <linux/kdebug.h>
 #include <linux/kthread.h>
-#include <linux/uaccess.h>
-#include <asm/sn/intr.h>
-#include <asm/sn/sn_sal.h>
 #include "xpc.h"
 
 /* define two XPC debug device structures to be used with dev_dbg() et al */
@@ -175,6 +169,8 @@ static struct notifier_block xpc_die_notifier = {
 	.notifier_call = xpc_system_die,
 };
 
+enum xp_retval (*xpc_get_partition_rsvd_page_pa) (u64 buf, u64 *cookie,
+						  u64 *paddr, size_t *len);
 enum xp_retval (*xpc_rsvd_page_init) (struct xpc_rsvd_page *rp);
 void (*xpc_heartbeat_init) (void);
 void (*xpc_heartbeat_exit) (void);
@@ -920,7 +916,8 @@ xpc_die_deactivate(void)
 	struct xpc_partition *part;
 	short partid;
 	int any_engaged;
-	long time, printmsg_time, disengage_timeout;
+	long keep_waiting;
+	long wait_to_print;
 
 	/* keep xpc_hb_checker thread from doing anything (just in case) */
 	xpc_exiting = 1;
@@ -937,16 +934,17 @@ xpc_die_deactivate(void)
 		}
 	}
 
-	time = rtc_time();
-	printmsg_time = time +
-	    (XPC_DEACTIVATE_PRINTMSG_INTERVAL * sn_rtc_cycles_per_second);
-	disengage_timeout = time +
-	    (xpc_disengage_timelimit * sn_rtc_cycles_per_second);
-
 	/*
 	 * Though we requested that all other partitions deactivate from us,
-	 * we only wait until they've all disengaged.
+	 * we only wait until they've all disengaged or we've reached the
+	 * defined timelimit.
+	 *
+	 * Given that one iteration through the following while-loop takes
+	 * approximately 200 microseconds, calculate the #of loops to take
+	 * before bailing and the #of loops before printing a waiting message.
 	 */
+	keep_waiting = xpc_disengage_timelimit * 1000 * 5;
+	wait_to_print = XPC_DEACTIVATE_PRINTMSG_INTERVAL * 1000 * 5;
 
 	while (1) {
 		any_engaged = xpc_any_partition_engaged();
@@ -955,8 +953,7 @@ xpc_die_deactivate(void)
 			break;
 		}
 
-		time = rtc_time();
-		if (time >= disengage_timeout) {
+		if (!keep_waiting--) {
 			for (partid = 0; partid < xp_max_npartitions;
 			     partid++) {
 				if (xpc_partition_engaged(partid)) {
@@ -968,15 +965,15 @@ xpc_die_deactivate(void)
 			break;
 		}
 
-		if (time >= printmsg_time) {
+		if (!wait_to_print--) {
 			dev_info(xpc_part, "waiting for remote partitions to "
 				 "deactivate, timeout in %ld seconds\n",
-				 (disengage_timeout - time) /
-				 sn_rtc_cycles_per_second);
-			printmsg_time = time +
-			    (XPC_DEACTIVATE_PRINTMSG_INTERVAL *
-			     sn_rtc_cycles_per_second);
+				 keep_waiting / (1000 * 5));
+			wait_to_print = XPC_DEACTIVATE_PRINTMSG_INTERVAL *
+			    1000 * 5;
 		}
+
+		udelay(200);
 	}
 }
 
@@ -991,6 +988,7 @@ xpc_die_deactivate(void)
 static int
 xpc_system_die(struct notifier_block *nb, unsigned long event, void *unused)
 {
+#ifdef CONFIG_IA64		/* !!! temporary kludge */
 	switch (event) {
 	case DIE_MACHINE_RESTART:
 	case DIE_MACHINE_HALT:
@@ -1019,6 +1017,9 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *unused)
 		xpc_online_heartbeat();
 		break;
 	}
+#else
+	xpc_die_deactivate();
+#endif
 
 	return NOTIFY_DONE;
 }

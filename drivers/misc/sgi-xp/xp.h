@@ -13,18 +13,17 @@
 #ifndef _DRIVERS_MISC_SGIXP_XP_H
 #define _DRIVERS_MISC_SGIXP_XP_H
 
-#include <linux/cache.h>
-#include <linux/hardirq.h>
 #include <linux/mutex.h>
-#include <asm/sn/types.h>
-#ifdef CONFIG_IA64
-#include <asm/sn/arch.h>
-#endif
 
-#ifdef USE_DBUG_ON
-#define DBUG_ON(condition)	BUG_ON(condition)
-#else
-#define DBUG_ON(condition)
+#ifdef CONFIG_IA64
+#include <asm/system.h>
+#include <asm/sn/arch.h>	/* defines is_shub1() and is_shub2() */
+#define is_shub()	ia64_platform_is("sn2")
+#define is_uv()		ia64_platform_is("uv")
+#endif
+#ifdef CONFIG_X86_64
+#include <asm/genapic.h>
+#define is_uv()		is_uv_system()
 #endif
 
 #ifndef is_shub1
@@ -36,11 +35,17 @@
 #endif
 
 #ifndef is_shub
-#define is_shub()	(is_shub1() || is_shub2())
+#define is_shub()	0
 #endif
 
 #ifndef is_uv
 #define is_uv()		0
+#endif
+
+#ifdef USE_DBUG_ON
+#define DBUG_ON(condition)	BUG_ON(condition)
+#else
+#define DBUG_ON(condition)
 #endif
 
 /*
@@ -200,7 +205,9 @@ enum xp_retval {
 	xpPayloadTooBig,	/* 55: payload too large for message slot */
 
 	xpUnsupported,		/* 56: unsupported functionality or resource */
-	xpUnknownReason		/* 57: unknown reason - must be last in enum */
+	xpNeedMoreInfo,		/* 57: more info is needed by SAL */
+
+	xpUnknownReason		/* 58: unknown reason - must be last in enum */
 };
 
 /*
@@ -339,8 +346,11 @@ xpc_partid_to_nasids(short partid, void *nasids)
 }
 
 extern short xp_max_npartitions;
+extern short xp_partition_id;
+extern u8 xp_region_size;
 
 extern enum xp_retval (*xp_remote_memcpy) (void *, const void *, size_t);
+extern int (*xp_cpu_to_nasid) (int);
 
 extern u64 xp_nofault_PIOR_target;
 extern int xp_nofault_PIOR(void *);

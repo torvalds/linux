@@ -12,6 +12,7 @@
  *      Architecture specific implementation of common functions.
  */
 
+#include <linux/module.h>
 #include <linux/device.h>
 #include <asm/sn/bte.h>
 #include <asm/sn/sn_sal.h>
@@ -116,14 +117,23 @@ xp_remote_memcpy_sn2(void *vdst, const void *psrc, size_t len)
 	return xpBteCopyError;
 }
 
+static int
+xp_cpu_to_nasid_sn2(int cpuid)
+{
+	return cpuid_to_nasid(cpuid);
+}
+
 enum xp_retval
 xp_init_sn2(void)
 {
 	BUG_ON(!is_shub());
 
 	xp_max_npartitions = XP_MAX_NPARTITIONS_SN2;
+	xp_partition_id = sn_partition_id;
+	xp_region_size = sn_region_size;
 
 	xp_remote_memcpy = xp_remote_memcpy_sn2;
+	xp_cpu_to_nasid = xp_cpu_to_nasid_sn2;
 
 	return xp_register_nofault_code_sn2();
 }

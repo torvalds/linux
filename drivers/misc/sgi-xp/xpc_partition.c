@@ -15,15 +15,8 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/sysctl.h>
-#include <linux/cache.h>
-#include <linux/mmzone.h>
-#include <linux/nodemask.h>
-#include <asm/sn/intr.h>
-#include <asm/sn/sn_sal.h>
-#include <asm/sn/nodepda.h>
-#include <asm/sn/addrs.h>
+#include <linux/device.h>
+#include <linux/hardirq.h>
 #include "xpc.h"
 
 /* XPC is exiting flag */
@@ -71,24 +64,23 @@ static u64
 xpc_get_rsvd_page_pa(int nasid)
 {
 	enum xp_retval ret;
-	s64 status;
 	u64 cookie = 0;
 	u64 rp_pa = nasid;	/* seed with nasid */
-	u64 len = 0;
+	size_t len = 0;
 	u64 buf = buf;
 	u64 buf_len = 0;
 	void *buf_base = NULL;
 
 	while (1) {
 
-		status = sn_partition_reserved_page_pa(buf, &cookie, &rp_pa,
-						       &len);
+		ret = xpc_get_partition_rsvd_page_pa(buf, &cookie, &rp_pa,
+						     &len);
 
-		dev_dbg(xpc_part, "SAL returned with status=%li, cookie="
-			"0x%016lx, address=0x%016lx, len=0x%016lx\n",
-			status, cookie, rp_pa, len);
+		dev_dbg(xpc_part, "SAL returned with ret=%d, cookie=0x%016lx, "
+			"address=0x%016lx, len=0x%016lx\n", ret,
+			(unsigned long)cookie, (unsigned long)rp_pa, len);
 
-		if (status != SALRET_MORE_PASSES)
+		if (ret != xpNeedMoreInfo)
 			break;
 
 		/* !!! L1_CACHE_ALIGN() is only a sn2-bte_copy requirement */
@@ -100,8 +92,9 @@ xpc_get_rsvd_page_pa(int nasid)
 								 &buf_base);
 			if (buf_base == NULL) {
 				dev_err(xpc_part, "unable to kmalloc "
-					"len=0x%016lx\n", buf_len);
-				status = SALRET_ERROR;
+					"len=0x%016lx\n",
+					(unsigned long)buf_len);
+				ret = xpNoMemory;
 				break;
 			}
 		}
@@ -109,17 +102,17 @@ xpc_get_rsvd_page_pa(int nasid)
 		ret = xp_remote_memcpy((void *)buf, (void *)rp_pa, buf_len);
 		if (ret != xpSuccess) {
 			dev_dbg(xpc_part, "xp_remote_memcpy failed %d\n", ret);
-			status = SALRET_ERROR;
 			break;
 		}
 	}
 
 	kfree(buf_base);
 
-	if (status != SALRET_OK)
+	if (ret != xpSuccess)
 		rp_pa = 0;
 
-	dev_dbg(xpc_part, "reserved page at phys address 0x%016lx\n", rp_pa);
+	dev_dbg(xpc_part, "reserved page at phys address 0x%016lx\n",
+		(unsigned long)rp_pa);
 	return rp_pa;
 }
 
@@ -138,7 +131,7 @@ xpc_setup_rsvd_page(void)
 	/* get the local reserved page's address */
 
 	preempt_disable();
-	rp_pa = xpc_get_rsvd_page_pa(cpuid_to_nasid(smp_processor_id()));
+	rp_pa = xpc_get_rsvd_page_pa(xp_cpu_to_nasid(smp_processor_id()));
 	preempt_enable();
 	if (rp_pa == 0) {
 		dev_err(xpc_part, "SAL failed to locate the reserved page\n");
@@ -150,7 +143,7 @@ xpc_setup_rsvd_page(void)
 		/* SAL_versions < 3 had a SAL_partid defined as a u8 */
 		rp->SAL_partid &= 0xff;
 	}
-	BUG_ON(rp->SAL_partid != sn_partition_id);
+	BUG_ON(rp->SAL_partid != xp_partition_id);
 
 	if (rp->SAL_partid < 0 || rp->SAL_partid >= xp_max_npartitions) {
 		dev_err(xpc_part, "the reserved page's partid of %d is outside "
@@ -237,11 +230,11 @@ xpc_get_remote_rp(int nasid, unsigned long *discovered_nasids,
 	/* check that both remote and local partids are valid for each side */
 	if (remote_rp->SAL_partid < 0 ||
 	    remote_rp->SAL_partid >= xp_max_npartitions ||
-	    remote_rp->max_npartitions <= sn_partition_id) {
+	    remote_rp->max_npartitions <= xp_partition_id) {
 		return xpInvalidPartid;
 	}
 
-	if (remote_rp->SAL_partid == sn_partition_id)
+	if (remote_rp->SAL_partid == xp_partition_id)
 		return xpLocalPartid;
 
 	return xpSuccess;
@@ -426,7 +419,7 @@ xpc_discovery(void)
 	 * protection is in regards to memory, IOI and IPI.
 	 */
 	max_regions = 64;
-	region_size = sn_region_size;
+	region_size = xp_region_size;
 
 	switch (region_size) {
 	case 128:
