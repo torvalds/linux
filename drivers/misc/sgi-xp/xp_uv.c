@@ -18,7 +18,7 @@
 static enum xp_retval
 xp_remote_memcpy_uv(void *vdst, const void *psrc, size_t len)
 {
-	/* >>> this function needs fleshing out */
+	/* !!! this function needs fleshing out */
 	return xpUnsupported;
 }
 

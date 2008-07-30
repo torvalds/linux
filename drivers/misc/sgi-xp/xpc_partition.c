@@ -91,7 +91,7 @@ xpc_get_rsvd_page_pa(int nasid)
 		if (status != SALRET_MORE_PASSES)
 			break;
 
-		/* >>> L1_CACHE_ALIGN() is only a sn2-bte_copy requirement */
+		/* !!! L1_CACHE_ALIGN() is only a sn2-bte_copy requirement */
 		if (L1_CACHE_ALIGN(len) > buf_len) {
 			kfree(buf_base);
 			buf_len = L1_CACHE_ALIGN(len);

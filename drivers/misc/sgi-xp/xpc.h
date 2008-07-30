@@ -276,9 +276,12 @@ struct xpc_notify {
  * There is an array of these structures for each remote partition. It is
  * allocated at the time a partition becomes active. The array contains one
  * of these structures for each potential channel connection to that partition.
+ */
+
+/*
+ * The following is sn2 only.
  *
->>> sn2 only!!!
- * Each of these structures manages two message queues (circular buffers).
+ * Each channel structure manages two message queues (circular buffers).
  * They are allocated at the time a channel connection is made. One of
  * these message queues (local_msgqueue) holds the locally created messages
  * that are destined for the remote partition. The other of these message
@@ -345,6 +348,7 @@ struct xpc_notify {
  *	new messages, by the clearing of the message flags of the acknowledged
  *	messages.
  */
+
 struct xpc_channel_sn2 {
 
 	/* various flavors of local and remote Get/Put values */
@@ -359,7 +363,7 @@ struct xpc_channel_sn2 {
 };
 
 struct xpc_channel_uv {
-	/* >>> code is coming */
+	/* !!! code is coming */
 };
 
 struct xpc_channel {
@@ -500,7 +504,7 @@ xpc_any_msg_chctl_flags_set(union xpc_channel_ctl_flags *chctl)
 }
 
 /*
- * Manages channels on a partition basis. There is one of these structures
+ * Manage channels on a partition basis. There is one of these structures
  * for each partition (a partition will never utilize the structure that
  * represents itself).
  */
@@ -535,7 +539,7 @@ struct xpc_partition_sn2 {
 };
 
 struct xpc_partition_uv {
-	/* >>> code is coming */
+	/* !!! code is coming */
 };
 
 struct xpc_partition {

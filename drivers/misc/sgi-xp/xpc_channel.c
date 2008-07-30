@@ -129,7 +129,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	/* wake those waiting for notify completion */
 	if (atomic_read(&ch->n_to_notify) > 0) {
-		/* >>> we do callout while holding ch->lock */
+		/* we do callout while holding ch->lock, callout can't block */
 		xpc_notify_senders_of_disconnect(ch);
 	}
 

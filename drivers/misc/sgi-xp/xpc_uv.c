@@ -15,8 +15,8 @@
 
 #include <linux/kernel.h>
 
-/* >>> #include <gru/grukservices.h> */
-/* >>> uv_gpa() is defined in <gru/grukservices.h> */
+/* !!! #include <gru/grukservices.h> */
+/* !!! uv_gpa() is defined in <gru/grukservices.h> */
 #define uv_gpa(_a)		((unsigned long)_a)
 
 #include "xpc.h"
@@ -29,16 +29,16 @@ static void
 xpc_send_local_activate_IRQ_uv(struct xpc_partition *part)
 {
 	/*
-	 * >>> make our side think that the remote parition sent an activate
-	 * >>> message our way. Also do what the activate IRQ handler would
-	 * >>> do had one really been sent.
+	 * !!! Make our side think that the remote parition sent an activate
+	 * !!! message our way. Also do what the activate IRQ handler would
+	 * !!! do had one really been sent.
 	 */
 }
 
 static enum xp_retval
 xpc_rsvd_page_init_uv(struct xpc_rsvd_page *rp)
 {
-	/* >>> need to have established xpc_activate_mq earlier */
+	/* !!! need to have established xpc_activate_mq earlier */
 	rp->sn.activate_mq_gpa = uv_gpa(xpc_activate_mq);
 	return xpSuccess;
 }
@@ -46,7 +46,7 @@ xpc_rsvd_page_init_uv(struct xpc_rsvd_page *rp)
 static void
 xpc_increment_heartbeat_uv(void)
 {
-	/* >>> send heartbeat msg to xpc_heartbeating_to_mask partids */
+	/* !!! send heartbeat msg to xpc_heartbeating_to_mask partids */
 }
 
 static void
@@ -59,7 +59,7 @@ xpc_heartbeat_init_uv(void)
 static void
 xpc_heartbeat_exit_uv(void)
 {
-	/* >>> send heartbeat_offline msg to xpc_heartbeating_to_mask partids */
+	/* !!! send heartbeat_offline msg to xpc_heartbeating_to_mask partids */
 }
 
 static void
@@ -70,9 +70,9 @@ xpc_request_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
 	struct xpc_partition *part = &xpc_partitions[partid];
 
 /*
- * >>> setup part structure with the bits of info we can glean from the rp
- * >>>	part->remote_rp_pa = remote_rp_pa;
- * >>>	part->sn.uv.activate_mq_gpa = remote_rp->sn.activate_mq_gpa;
+ * !!! Setup part structure with the bits of info we can glean from the rp:
+ * !!!	part->remote_rp_pa = remote_rp_pa;
+ * !!!	part->sn.uv.activate_mq_gpa = remote_rp->sn.activate_mq_gpa;
  */
 
 	xpc_send_local_activate_IRQ_uv(part);
@@ -91,7 +91,7 @@ xpc_request_partition_reactivation_uv(struct xpc_partition *part)
 static enum xp_retval
 xpc_setup_infrastructure_uv(struct xpc_partition *part)
 {
-	/* >>> this function needs fleshing out */
+	/* !!! this function needs fleshing out */
 	return xpUnsupported;
 }
 
@@ -102,28 +102,28 @@ xpc_setup_infrastructure_uv(struct xpc_partition *part)
 static void
 xpc_teardown_infrastructure_uv(struct xpc_partition *part)
 {
-	/* >>> this function needs fleshing out */
+	/* !!! this function needs fleshing out */
 	return;
 }
 
 static enum xp_retval
 xpc_make_first_contact_uv(struct xpc_partition *part)
 {
-	/* >>> this function needs fleshing out */
+	/* !!! this function needs fleshing out */
 	return xpUnsupported;
 }
 
 static u64
 xpc_get_chctl_all_flags_uv(struct xpc_partition *part)
 {
-	/* >>> this function needs fleshing out */
+	/* !!! this function needs fleshing out */
 	return 0UL;
 }
 
 static struct xpc_msg *
 xpc_get_deliverable_msg_uv(struct xpc_channel *ch)
 {
-	/* >>> this function needs fleshing out */
+	/* !!! this function needs fleshing out */
 	return NULL;
 }
 

@@ -87,11 +87,11 @@ xp_remote_memcpy_sn2(void *vdst, const void *psrc, size_t len)
 {
 	bte_result_t ret;
 	u64 pdst = ia64_tpa(vdst);
-	/* >>> What are the rules governing the src and dst addresses passed in?
-	 * >>> Currently we're assuming that dst is a virtual address and src
-	 * >>> is a physical address, is this appropriate? Can we allow them to
-	 * >>> be whatever and we make the change here without damaging the
-	 * >>> addresses?
+	/* ??? What are the rules governing the src and dst addresses passed in?
+	 * ??? Currently we're assuming that dst is a virtual address and src
+	 * ??? is a physical address, is this appropriate? Can we allow them to
+	 * ??? be whatever and we make the change here without damaging the
+	 * ??? addresses?
 	 */
 
 	/*

@@ -229,9 +229,9 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 
 		if (ret != xpSuccess) {
 			/*
-			 * >>> Need better way of cleaning skb.  Currently skb
-			 * >>> appears in_use and we can't just call
-			 * >>> dev_kfree_skb.
+			 * !!! Need better way of cleaning skb.  Currently skb
+			 * !!! appears in_use and we can't just call
+			 * !!! dev_kfree_skb.
 			 */
 			dev_err(xpnet, "xp_remote_memcpy(0x%p, 0x%p, 0x%hx) "
 				"returned error=0x%x\n", (void *)

@@ -21,7 +21,7 @@
 #include <asm/sn/arch.h>
 #endif
 
-/* >>> Add this #define to some linux header file some day. */
+/* ??? Add this #define to some linux header file some day? */
 #define BYTES_PER_WORD	sizeof(void *)
 
 #ifdef USE_DBUG_ON
@@ -65,18 +65,13 @@
  * other partition that is currently up. Over these channels, kernel-level
  * `users' can communicate with their counterparts on the other partitions.
  *
->>> The following described limitation of a max of eight channels possible
->>> pertains only to ia64-sn2. THIS ISN'T TRUE SINCE I'M PLANNING TO JUST
->>> TIE INTO THE EXISTING MECHANISM ONCE THE CHANNEL MESSAGES ARE RECEIVED.
->>> THE 128-BYTE CACHELINE PERFORMANCE ISSUE IS TIED TO IA64-SN2.
- *
  * If the need for additional channels arises, one can simply increase
  * XPC_MAX_NCHANNELS accordingly. If the day should come where that number
  * exceeds the absolute MAXIMUM number of channels possible (eight), then one
  * will need to make changes to the XPC code to accommodate for this.
  *
- * The absolute maximum number of channels possible is currently limited to
- * eight for performance reasons. The internal cross partition structures
+ * The absolute maximum number of channels possible is limited to eight for
+ * performance reasons on sn2 hardware. The internal cross partition structures
  * require sixteen bytes per channel, and eight allows all of this
  * interface-shared info to fit in one 128-byte cacheline.
  */

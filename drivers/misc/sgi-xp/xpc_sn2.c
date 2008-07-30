@@ -75,7 +75,7 @@ xpc_allow_IPI_ops_sn2(void)
 	int node;
 	int nasid;
 
-	/* >>> The following should get moved into SAL. */
+	/* !!! The following should get moved into SAL. */
 	if (is_shub2()) {
 		xpc_sh2_IPI_access0_sn2 =
 		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH2_IPI_ACCESS0));
@@ -118,7 +118,7 @@ xpc_disallow_IPI_ops_sn2(void)
 	int node;
 	int nasid;
 
-	/* >>> The following should get moved into SAL. */
+	/* !!! The following should get moved into SAL. */
 	if (is_shub2()) {
 		for_each_online_node(node) {
 			nasid = cnodeid_to_nasid(node);
@@ -1360,7 +1360,7 @@ xpc_teardown_infrastructure_sn2(struct xpc_partition *part)
  * dst must be a cacheline aligned virtual address on this partition.
  * cnt must be cacheline sized
  */
-/* >>> Replace this function by call to xp_remote_memcpy() or bte_copy()? */
+/* ??? Replace this function by call to xp_remote_memcpy() or bte_copy()? */
 static enum xp_retval
 xpc_pull_remote_cachelines_sn2(struct xpc_partition *part, void *dst,
 			       const void *src, size_t cnt)
@@ -2242,7 +2242,7 @@ xpc_send_msg_sn2(struct xpc_channel *ch, u32 flags, void *payload,
 		notify->key = key;
 		notify->type = notify_type;
 
-		/* >>> is a mb() needed here? */
+		/* ??? Is a mb() needed here? */
 
 		if (ch->flags & XPC_C_DISCONNECTING) {
 			/*
