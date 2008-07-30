@@ -29,16 +29,6 @@
 /* XPC is exiting flag */
 int xpc_exiting;
 
-/* SH_IPI_ACCESS shub register value on startup */
-static u64 xpc_sh1_IPI_access;
-static u64 xpc_sh2_IPI_access0;
-static u64 xpc_sh2_IPI_access1;
-static u64 xpc_sh2_IPI_access2;
-static u64 xpc_sh2_IPI_access3;
-
-/* original protection values for each node */
-u64 xpc_prot_vec[MAX_NUMNODES];
-
 /* this partition's reserved page pointers */
 struct xpc_rsvd_page *xpc_rsvd_page;
 static u64 *xpc_part_nasids;
@@ -208,117 +198,6 @@ xpc_setup_rsvd_page(void)
 	rp->stamp = new_stamp;
 
 	return rp;
-}
-
-/*
- * Change protections to allow IPI operations (and AMO operations on
- * Shub 1.1 systems).
- */
-void
-xpc_allow_IPI_ops(void)
-{
-	int node;
-	int nasid;
-
-	/* >>> Change SH_IPI_ACCESS code to use SAL call once it is available */
-
-	if (is_shub2()) {
-		xpc_sh2_IPI_access0 =
-		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH2_IPI_ACCESS0));
-		xpc_sh2_IPI_access1 =
-		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH2_IPI_ACCESS1));
-		xpc_sh2_IPI_access2 =
-		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH2_IPI_ACCESS2));
-		xpc_sh2_IPI_access3 =
-		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH2_IPI_ACCESS3));
-
-		for_each_online_node(node) {
-			nasid = cnodeid_to_nasid(node);
-			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS0),
-			      -1UL);
-			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS1),
-			      -1UL);
-			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS2),
-			      -1UL);
-			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS3),
-			      -1UL);
-		}
-
-	} else {
-		xpc_sh1_IPI_access =
-		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH1_IPI_ACCESS));
-
-		for_each_online_node(node) {
-			nasid = cnodeid_to_nasid(node);
-			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH1_IPI_ACCESS),
-			      -1UL);
-
-			/*
-			 * Since the BIST collides with memory operations on
-			 * SHUB 1.1 sn_change_memprotect() cannot be used.
-			 */
-			if (enable_shub_wars_1_1()) {
-				/* open up everything */
-				xpc_prot_vec[node] = (u64)HUB_L((u64 *)
-								GLOBAL_MMR_ADDR
-								(nasid,
-						  SH1_MD_DQLP_MMR_DIR_PRIVEC0));
-				HUB_S((u64 *)
-				      GLOBAL_MMR_ADDR(nasid,
-						   SH1_MD_DQLP_MMR_DIR_PRIVEC0),
-				      -1UL);
-				HUB_S((u64 *)
-				      GLOBAL_MMR_ADDR(nasid,
-						   SH1_MD_DQRP_MMR_DIR_PRIVEC0),
-				      -1UL);
-			}
-		}
-	}
-}
-
-/*
- * Restrict protections to disallow IPI operations (and AMO operations on
- * Shub 1.1 systems).
- */
-void
-xpc_restrict_IPI_ops(void)
-{
-	int node;
-	int nasid;
-
-	/* >>> Change SH_IPI_ACCESS code to use SAL call once it is available */
-
-	if (is_shub2()) {
-
-		for_each_online_node(node) {
-			nasid = cnodeid_to_nasid(node);
-			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS0),
-			      xpc_sh2_IPI_access0);
-			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS1),
-			      xpc_sh2_IPI_access1);
-			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS2),
-			      xpc_sh2_IPI_access2);
-			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS3),
-			      xpc_sh2_IPI_access3);
-		}
-
-	} else {
-
-		for_each_online_node(node) {
-			nasid = cnodeid_to_nasid(node);
-			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH1_IPI_ACCESS),
-			      xpc_sh1_IPI_access);
-
-			if (enable_shub_wars_1_1()) {
-				HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid,
-						   SH1_MD_DQLP_MMR_DIR_PRIVEC0),
-				      xpc_prot_vec[node]);
-				HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid,
-						   SH1_MD_DQRP_MMR_DIR_PRIVEC0),
-				      xpc_prot_vec[node]);
-			}
-		}
-	}
 }
 
 /*

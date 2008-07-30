@@ -22,6 +22,87 @@
 static struct xpc_vars_sn2 *xpc_vars;	/* >>> Add _sn2 suffix? */
 static struct xpc_vars_part_sn2 *xpc_vars_part; /* >>> Add _sn2 suffix? */
 
+/* SH_IPI_ACCESS shub register value on startup */
+static u64 xpc_sh1_IPI_access;
+static u64 xpc_sh2_IPI_access0;
+static u64 xpc_sh2_IPI_access1;
+static u64 xpc_sh2_IPI_access2;
+static u64 xpc_sh2_IPI_access3;
+
+/*
+ * Change protections to allow IPI operations.
+ */
+static void
+xpc_allow_IPI_ops_sn2(void)
+{
+	int node;
+	int nasid;
+
+	/* >>> The following should get moved into SAL. */
+	if (is_shub2()) {
+		xpc_sh2_IPI_access0 =
+		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH2_IPI_ACCESS0));
+		xpc_sh2_IPI_access1 =
+		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH2_IPI_ACCESS1));
+		xpc_sh2_IPI_access2 =
+		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH2_IPI_ACCESS2));
+		xpc_sh2_IPI_access3 =
+		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH2_IPI_ACCESS3));
+
+		for_each_online_node(node) {
+			nasid = cnodeid_to_nasid(node);
+			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS0),
+			      -1UL);
+			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS1),
+			      -1UL);
+			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS2),
+			      -1UL);
+			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS3),
+			      -1UL);
+		}
+	} else {
+		xpc_sh1_IPI_access =
+		    (u64)HUB_L((u64 *)LOCAL_MMR_ADDR(SH1_IPI_ACCESS));
+
+		for_each_online_node(node) {
+			nasid = cnodeid_to_nasid(node);
+			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH1_IPI_ACCESS),
+			      -1UL);
+		}
+	}
+}
+
+/*
+ * Restrict protections to disallow IPI operations.
+ */
+static void
+xpc_disallow_IPI_ops_sn2(void)
+{
+	int node;
+	int nasid;
+
+	/* >>> The following should get moved into SAL. */
+	if (is_shub2()) {
+		for_each_online_node(node) {
+			nasid = cnodeid_to_nasid(node);
+			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS0),
+			      xpc_sh2_IPI_access0);
+			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS1),
+			      xpc_sh2_IPI_access1);
+			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS2),
+			      xpc_sh2_IPI_access2);
+			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH2_IPI_ACCESS3),
+			      xpc_sh2_IPI_access3);
+		}
+	} else {
+		for_each_online_node(node) {
+			nasid = cnodeid_to_nasid(node);
+			HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid, SH1_IPI_ACCESS),
+			      xpc_sh1_IPI_access);
+		}
+	}
+}
+
 /*
  * The following set of macros and functions are used for the sending and
  * receiving of IPIs (also known as IRQs). There are two flavors of IPIs,
@@ -74,6 +155,17 @@ xpc_IPI_init_sn2(int index)
  */
 
 /*
+ * Notify the heartbeat check thread that an activate IRQ has been received.
+ */
+static irqreturn_t
+xpc_handle_activate_IRQ_sn2(int irq, void *dev_id)
+{
+	atomic_inc(&xpc_activate_IRQ_rcvd);
+	wake_up_interruptible(&xpc_activate_IRQ_wq);
+	return IRQ_HANDLED;
+}
+
+/*
  * Flag the appropriate AMO variable and send an IPI to the specified node.
  */
 static void
@@ -100,8 +192,8 @@ xpc_activate_IRQ_send_local_sn2(int from_nasid)
 	/* fake the sending and receipt of an activate IRQ from remote nasid */
 	FETCHOP_STORE_OP(TO_AMO((u64)&amos[w_index].variable), FETCHOP_OR,
 			 (1UL << b_index));
-	atomic_inc(&xpc_act_IRQ_rcvd);
-	wake_up_interruptible(&xpc_act_IRQ_wq);
+	atomic_inc(&xpc_activate_IRQ_rcvd);
+	wake_up_interruptible(&xpc_activate_IRQ_wq);
 }
 
 static void
@@ -383,11 +475,65 @@ xpc_clear_partition_disengage_request_sn2(u64 partid_mask)
 			 ~partid_mask);
 }
 
+/* original protection values for each node */
+static u64 xpc_prot_vec_sn2[MAX_NUMNODES];
+
+/*
+ * Change protections to allow AMO operations on non-Shub 1.1 systems.
+ */
+static enum xp_retval
+xpc_allow_AMO_ops_sn2(AMO_t *amos_page)
+{
+	u64 nasid_array = 0;
+	int ret;
+
+	/*
+	 * On SHUB 1.1, we cannot call sn_change_memprotect() since the BIST
+	 * collides with memory operations. On those systems we call
+	 * xpc_allow_AMO_ops_shub_wars_1_1_sn2() instead.
+	 */
+	if (!enable_shub_wars_1_1()) {
+		ret = sn_change_memprotect(ia64_tpa((u64)amos_page), PAGE_SIZE,
+					   SN_MEMPROT_ACCESS_CLASS_1,
+					   &nasid_array);
+		if (ret != 0)
+			return xpSalError;
+	}
+	return xpSuccess;
+}
+
+/*
+ * Change protections to allow AMO operations on Shub 1.1 systems.
+ */
+static void
+xpc_allow_AMO_ops_shub_wars_1_1_sn2(void)
+{
+	int node;
+	int nasid;
+
+	if (!enable_shub_wars_1_1())
+		return;
+
+	for_each_online_node(node) {
+		nasid = cnodeid_to_nasid(node);
+		/* save current protection values */
+		xpc_prot_vec_sn2[node] =
+		    (u64)HUB_L((u64 *)GLOBAL_MMR_ADDR(nasid,
+						  SH1_MD_DQLP_MMR_DIR_PRIVEC0));
+		/* open up everything */
+		HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid,
+					     SH1_MD_DQLP_MMR_DIR_PRIVEC0),
+		      -1UL);
+		HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid,
+					     SH1_MD_DQRP_MMR_DIR_PRIVEC0),
+		      -1UL);
+	}
+}
+
 static enum xp_retval
 xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
 {
 	AMO_t *amos_page;
-	u64 nasid_array = 0;
 	int i;
 	int ret;
 
@@ -421,21 +567,15 @@ xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
 		}
 
 		/*
-		 * Open up AMO-R/W to cpu.  This is done for Shub 1.1 systems
-		 * when xpc_allow_IPI_ops() is called via xpc_hb_init().
+		 * Open up AMO-R/W to cpu.  This is done on Shub 1.1 systems
+		 * when xpc_allow_AMO_ops_shub_wars_1_1_sn2() is called.
 		 */
-		if (!enable_shub_wars_1_1()) {
-			ret = sn_change_memprotect(ia64_tpa((u64)amos_page),
-						   PAGE_SIZE,
-						   SN_MEMPROT_ACCESS_CLASS_1,
-						   &nasid_array);
-			if (ret != 0) {
-				dev_err(xpc_part, "can't change memory "
-					"protections\n");
-				uncached_free_page(__IA64_UNCACHED_OFFSET |
-						   TO_PHYS((u64)amos_page), 1);
-				return xpSalError;
-			}
+		ret = xpc_allow_AMO_ops_sn2(amos_page);
+		if (ret != xpSuccess) {
+			dev_err(xpc_part, "can't allow AMO operations\n");
+			uncached_free_page(__IA64_UNCACHED_OFFSET |
+					   TO_PHYS((u64)amos_page), 1);
+			return ret;
 		}
 	}
 
@@ -656,7 +796,7 @@ xpc_update_partition_info_sn2(struct xpc_partition *part, u8 remote_rp_version,
  * initialized reserved page.
  */
 static void
-xpc_identify_act_IRQ_req_sn2(int nasid)
+xpc_identify_activate_IRQ_req_sn2(int nasid)
 {
 	struct xpc_rsvd_page *remote_rp;
 	struct xpc_vars_sn2 *remote_vars;
@@ -702,10 +842,10 @@ xpc_identify_act_IRQ_req_sn2(int nasid)
 		return;
 	}
 
-	part->act_IRQ_rcvd++;
+	part->activate_IRQ_rcvd++;
 
 	dev_dbg(xpc_part, "partid for nasid %d is %d; IRQs = %d; HB = "
-		"%ld:0x%lx\n", (int)nasid, (int)partid, part->act_IRQ_rcvd,
+		"%ld:0x%lx\n", (int)nasid, (int)partid, part->activate_IRQ_rcvd,
 		remote_vars->heartbeat, remote_vars->heartbeating_to_mask[0]);
 
 	if (xpc_partition_disengaged(part) &&
@@ -831,7 +971,7 @@ xpc_identify_act_IRQ_req_sn2(int nasid)
  * Return #of IRQs detected.
  */
 int
-xpc_identify_act_IRQ_sender_sn2(void)
+xpc_identify_activate_IRQ_sender_sn2(void)
 {
 	int word, bit;
 	u64 nasid_mask;
@@ -872,7 +1012,7 @@ xpc_identify_act_IRQ_sender_sn2(void)
 				nasid = XPC_NASID_FROM_W_B(word, bit);
 				dev_dbg(xpc_part, "interrupt from nasid %ld\n",
 					nasid);
-				xpc_identify_act_IRQ_req_sn2(nasid);
+				xpc_identify_activate_IRQ_req_sn2(nasid);
 			}
 		}
 	}
@@ -880,14 +1020,14 @@ xpc_identify_act_IRQ_sender_sn2(void)
 }
 
 static void
-xpc_process_act_IRQ_rcvd_sn2(int n_IRQs_expected)
+xpc_process_activate_IRQ_rcvd_sn2(int n_IRQs_expected)
 {
 	int n_IRQs_detected;
 
-	n_IRQs_detected = xpc_identify_act_IRQ_sender_sn2();
+	n_IRQs_detected = xpc_identify_activate_IRQ_sender_sn2();
 	if (n_IRQs_detected < n_IRQs_expected) {
 		/* retry once to help avoid missing AMO */
-		(void)xpc_identify_act_IRQ_sender_sn2();
+		(void)xpc_identify_activate_IRQ_sender_sn2();
 	}
 }
 
@@ -1775,9 +1915,11 @@ xpc_received_msg_sn2(struct xpc_channel *ch, struct xpc_msg *msg)
 		xpc_acknowledge_msgs_sn2(ch, get, msg->flags);
 }
 
-void
+int
 xpc_init_sn2(void)
 {
+	int ret;
+
 	xpc_rsvd_page_init = xpc_rsvd_page_init_sn2;
 	xpc_increment_heartbeat = xpc_increment_heartbeat_sn2;
 	xpc_offline_heartbeat = xpc_offline_heartbeat_sn2;
@@ -1788,7 +1930,7 @@ xpc_init_sn2(void)
 
 	xpc_initiate_partition_activation =
 	    xpc_initiate_partition_activation_sn2;
-	xpc_process_act_IRQ_rcvd = xpc_process_act_IRQ_rcvd_sn2;
+	xpc_process_activate_IRQ_rcvd = xpc_process_activate_IRQ_rcvd_sn2;
 	xpc_setup_infrastructure = xpc_setup_infrastructure_sn2;
 	xpc_teardown_infrastructure = xpc_teardown_infrastructure_sn2;
 	xpc_make_first_contact = xpc_make_first_contact_sn2;
@@ -1819,9 +1961,30 @@ xpc_init_sn2(void)
 
 	xpc_send_msg = xpc_send_msg_sn2;
 	xpc_received_msg = xpc_received_msg_sn2;
+
+	/* open up protections for IPI and [potentially] AMO operations */
+	xpc_allow_IPI_ops_sn2();
+	xpc_allow_AMO_ops_shub_wars_1_1_sn2();
+
+	/*
+	 * This is safe to do before the xpc_hb_checker thread has started
+	 * because the handler releases a wait queue.  If an interrupt is
+	 * received before the thread is waiting, it will not go to sleep,
+	 * but rather immediately process the interrupt.
+	 */
+	ret = request_irq(SGI_XPC_ACTIVATE, xpc_handle_activate_IRQ_sn2, 0,
+			  "xpc hb", NULL);
+	if (ret != 0) {
+		dev_err(xpc_part, "can't register ACTIVATE IRQ handler, "
+			"errno=%d\n", -ret);
+		xpc_disallow_IPI_ops_sn2();
+	}
+	return ret;
 }
 
 void
 xpc_exit_sn2(void)
 {
+	free_irq(SGI_XPC_ACTIVATE, NULL);
+	xpc_disallow_IPI_ops_sn2();
 }

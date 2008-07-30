@@ -480,7 +480,7 @@ struct xpc_partition {
 	u64 remote_amos_page_pa;	/* phys addr of partition's amos page */
 	int remote_act_nasid;	/* active part's act/deact nasid */
 	int remote_act_phys_cpuid;	/* active part's act/deact phys cpuid */
-	u32 act_IRQ_rcvd;	/* IRQs since activation */
+	u32 activate_IRQ_rcvd;	/* IRQs since activation */
 	spinlock_t act_lock;	/* protect updating of act_state */
 	u8 act_state;		/* from XPC HB viewpoint */
 	u8 remote_vars_version;	/* version# of partition's vars */
@@ -580,8 +580,8 @@ extern struct device *xpc_part;
 extern struct device *xpc_chan;
 extern int xpc_disengage_request_timelimit;
 extern int xpc_disengage_request_timedout;
-extern atomic_t xpc_act_IRQ_rcvd;
-extern wait_queue_head_t xpc_act_IRQ_wq;
+extern atomic_t xpc_activate_IRQ_rcvd;
+extern wait_queue_head_t xpc_activate_IRQ_wq;
 extern void *xpc_heartbeating_to_mask;
 extern irqreturn_t xpc_notify_IRQ_handler(int, void *);
 extern void xpc_dropped_IPI_check(struct xpc_partition *);
@@ -601,7 +601,7 @@ extern u64 (*xpc_get_IPI_flags) (struct xpc_partition *);
 extern struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *);
 extern void (*xpc_initiate_partition_activation) (struct xpc_rsvd_page *, u64,
 						  int);
-extern void (*xpc_process_act_IRQ_rcvd) (int);
+extern void (*xpc_process_activate_IRQ_rcvd) (int);
 extern enum xp_retval (*xpc_setup_infrastructure) (struct xpc_partition *);
 extern void (*xpc_teardown_infrastructure) (struct xpc_partition *);
 extern void (*xpc_mark_partition_engaged) (struct xpc_partition *);
@@ -629,10 +629,12 @@ extern enum xp_retval (*xpc_send_msg) (struct xpc_channel *, u32, void *, u16,
 extern void (*xpc_received_msg) (struct xpc_channel *, struct xpc_msg *);
 
 /* found in xpc_sn2.c */
-extern void xpc_init_sn2(void);
+extern int xpc_init_sn2(void);
+extern void xpc_exit_sn2(void);
 
 /* found in xpc_uv.c */
 extern void xpc_init_uv(void);
+extern void xpc_exit_uv(void);
 
 /* found in xpc_partition.c */
 extern int xpc_exiting;
@@ -646,7 +648,7 @@ extern void *xpc_kmalloc_cacheline_aligned(size_t, gfp_t, void **);
 extern struct xpc_rsvd_page *xpc_setup_rsvd_page(void);
 extern void xpc_allow_IPI_ops(void);
 extern void xpc_restrict_IPI_ops(void);
-extern int xpc_identify_act_IRQ_sender(void);
+extern int xpc_identify_activate_IRQ_sender(void);
 extern int xpc_partition_disengaged(struct xpc_partition *);
 extern enum xp_retval xpc_mark_partition_active(struct xpc_partition *);
 extern void xpc_mark_partition_inactive(struct xpc_partition *);

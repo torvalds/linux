@@ -147,11 +147,11 @@ static struct ctl_table_header *xpc_sysctl;
 /* non-zero if any remote partition disengage request was timed out */
 int xpc_disengage_request_timedout;
 
-/* #of IRQs received */
-atomic_t xpc_act_IRQ_rcvd;
+/* #of activate IRQs received */
+atomic_t xpc_activate_IRQ_rcvd = ATOMIC_INIT(0);
 
 /* IRQ handler notifies this wait queue on receipt of an IRQ */
-DECLARE_WAIT_QUEUE_HEAD(xpc_act_IRQ_wq);
+DECLARE_WAIT_QUEUE_HEAD(xpc_activate_IRQ_wq);
 
 static unsigned long xpc_hb_check_timeout;
 static struct timer_list xpc_hb_timer;
@@ -190,7 +190,7 @@ struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *ch);
 void (*xpc_initiate_partition_activation) (struct xpc_rsvd_page *remote_rp,
 					   u64 remote_rp_pa, int nasid);
 
-void (*xpc_process_act_IRQ_rcvd) (int n_IRQs_expected);
+void (*xpc_process_activate_IRQ_rcvd) (int n_IRQs_expected);
 enum xp_retval (*xpc_setup_infrastructure) (struct xpc_partition *part);
 void (*xpc_teardown_infrastructure) (struct xpc_partition *part);
 
@@ -239,17 +239,6 @@ xpc_timeout_partition_disengage_request(unsigned long data)
 }
 
 /*
- * Notify the heartbeat check thread that an IRQ has been received.
- */
-static irqreturn_t
-xpc_act_IRQ_handler(int irq, void *dev_id)
-{
-	atomic_inc(&xpc_act_IRQ_rcvd);
-	wake_up_interruptible(&xpc_act_IRQ_wq);
-	return IRQ_HANDLED;
-}
-
-/*
  * Timer to produce the heartbeat.  The timer structures function is
  * already set when this is initially called.  A tunable is used to
  * specify when the next timeout should occur.
@@ -260,7 +249,7 @@ xpc_hb_beater(unsigned long dummy)
 	xpc_increment_heartbeat();
 
 	if (time_is_before_eq_jiffies(xpc_hb_check_timeout))
-		wake_up_interruptible(&xpc_act_IRQ_wq);
+		wake_up_interruptible(&xpc_activate_IRQ_wq);
 
 	xpc_hb_timer.expires = jiffies + (xpc_hb_interval * HZ);
 	add_timer(&xpc_hb_timer);
@@ -306,7 +295,7 @@ xpc_hb_checker(void *ignore)
 		dev_dbg(xpc_part, "woke up with %d ticks rem; %d IRQs have "
 			"been received\n",
 			(int)(xpc_hb_check_timeout - jiffies),
-			atomic_read(&xpc_act_IRQ_rcvd) - last_IRQ_count);
+			atomic_read(&xpc_activate_IRQ_rcvd) - last_IRQ_count);
 
 		/* checking of remote heartbeats is skewed by IRQ handling */
 		if (time_is_before_eq_jiffies(xpc_hb_check_timeout)) {
@@ -322,15 +311,15 @@ xpc_hb_checker(void *ignore)
 		}
 
 		/* check for outstanding IRQs */
-		new_IRQ_count = atomic_read(&xpc_act_IRQ_rcvd);
+		new_IRQ_count = atomic_read(&xpc_activate_IRQ_rcvd);
 		if (last_IRQ_count < new_IRQ_count || force_IRQ != 0) {
 			force_IRQ = 0;
 
 			dev_dbg(xpc_part, "found an IRQ to process; will be "
 				"resetting xpc_hb_check_timeout\n");
 
-			xpc_process_act_IRQ_rcvd(new_IRQ_count -
-						 last_IRQ_count);
+			xpc_process_activate_IRQ_rcvd(new_IRQ_count -
+						      last_IRQ_count);
 			last_IRQ_count = new_IRQ_count;
 
 			xpc_hb_check_timeout = jiffies +
@@ -338,9 +327,9 @@ xpc_hb_checker(void *ignore)
 		}
 
 		/* wait for IRQ or timeout */
-		(void)wait_event_interruptible(xpc_act_IRQ_wq,
-					       (last_IRQ_count <
-						atomic_read(&xpc_act_IRQ_rcvd)
+		(void)wait_event_interruptible(xpc_activate_IRQ_wq,
+					       (last_IRQ_count < atomic_read(
+						&xpc_activate_IRQ_rcvd)
 						|| time_is_before_eq_jiffies(
 						xpc_hb_check_timeout) ||
 						xpc_exiting));
@@ -884,10 +873,7 @@ xpc_do_exit(enum xp_retval reason)
 	 * the heartbeat checker thread in case it's sleeping.
 	 */
 	xpc_exiting = 1;
-	wake_up_interruptible(&xpc_act_IRQ_wq);
-
-	/* ignore all incoming interrupts */
-	free_irq(SGI_XPC_ACTIVATE, NULL);
+	wake_up_interruptible(&xpc_activate_IRQ_wq);
 
 	/* wait for the discovery thread to exit */
 	wait_for_completion(&xpc_discovery_exited);
@@ -968,9 +954,6 @@ xpc_do_exit(enum xp_retval reason)
 		(void)unregister_reboot_notifier(&xpc_reboot_notifier);
 	}
 
-	/* close down protections for IPI operations */
-	xpc_restrict_IPI_ops();
-
 	/* clear the interface to XPC's functions */
 	xpc_clear_interface();
 
@@ -979,6 +962,11 @@ xpc_do_exit(enum xp_retval reason)
 
 	kfree(xpc_partitions);
 	kfree(xpc_remote_copy_buffer_base);
+
+	if (is_shub())
+		xpc_exit_sn2();
+	else
+		xpc_exit_uv();
 }
 
 /*
@@ -1144,7 +1132,9 @@ xpc_init(void)
 		if (xp_max_npartitions != 64)
 			return -EINVAL;
 
-		xpc_init_sn2();
+		ret = xpc_init_sn2();
+		if (ret != 0)
+			return ret;
 
 	} else if (is_uv()) {
 		xpc_init_uv();
@@ -1163,7 +1153,8 @@ xpc_init(void)
 						  &xpc_remote_copy_buffer_base);
 	if (xpc_remote_copy_buffer == NULL) {
 		dev_err(xpc_part, "can't get memory for remote copy buffer\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_1;
 	}
 
 	xpc_partitions = kzalloc(sizeof(struct xpc_partition) *
@@ -1171,7 +1162,7 @@ xpc_init(void)
 	if (xpc_partitions == NULL) {
 		dev_err(xpc_part, "can't get memory for partition structure\n");
 		ret = -ENOMEM;
-		goto out_1;
+		goto out_2;
 	}
 
 	/*
@@ -1187,7 +1178,7 @@ xpc_init(void)
 
 		DBUG_ON((u64)part != L1_CACHE_ALIGN((u64)part));
 
-		part->act_IRQ_rcvd = 0;
+		part->activate_IRQ_rcvd = 0;
 		spin_lock_init(&part->act_lock);
 		part->act_state = XPC_P_INACTIVE;
 		XPC_SET_REASON(part, 0, 0);
@@ -1203,33 +1194,6 @@ xpc_init(void)
 	}
 
 	xpc_sysctl = register_sysctl_table(xpc_sys_dir);
-
-	/*
-	 * Open up protections for IPI operations (and AMO operations on
-	 * Shub 1.1 systems).
-	 */
-	xpc_allow_IPI_ops();
-
-	/*
-	 * Interrupts being processed will increment this atomic variable and
-	 * awaken the heartbeat thread which will process the interrupts.
-	 */
-	atomic_set(&xpc_act_IRQ_rcvd, 0);
-
-	/*
-	 * This is safe to do before the xpc_hb_checker thread has started
-	 * because the handler releases a wait queue.  If an interrupt is
-	 * received before the thread is waiting, it will not go to sleep,
-	 * but rather immediately process the interrupt.
-	 */
-	ret = request_irq(SGI_XPC_ACTIVATE, xpc_act_IRQ_handler, 0,
-			  "xpc hb", NULL);
-	if (ret != 0) {
-		dev_err(xpc_part, "can't register ACTIVATE IRQ handler, "
-			"errno=%d\n", -ret);
-		ret = -EBUSY;
-		goto out_2;
-	}
 
 	/*
 	 * Fill the partition reserved page with the information needed by
@@ -1296,14 +1260,16 @@ out_4:
 	(void)unregister_die_notifier(&xpc_die_notifier);
 	(void)unregister_reboot_notifier(&xpc_reboot_notifier);
 out_3:
-	free_irq(SGI_XPC_ACTIVATE, NULL);
-out_2:
-	xpc_restrict_IPI_ops();
 	if (xpc_sysctl)
 		unregister_sysctl_table(xpc_sysctl);
 	kfree(xpc_partitions);
-out_1:
+out_2:
 	kfree(xpc_remote_copy_buffer_base);
+out_1:
+	if (is_shub())
+		xpc_exit_sn2();
+	else
+		xpc_exit_uv();
 	return ret;
 }
 
