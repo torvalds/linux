@@ -27,6 +27,7 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 #include <sound/hda_hwdep.h>
+#include <sound/minors.h>
 
 /*
  * write/read an out-of-bound verb
@@ -117,5 +118,161 @@ int __devinit snd_hda_create_hwdep(struct hda_codec *codec)
 	hwdep->ops.ioctl_compat = hda_hwdep_ioctl_compat;
 #endif
 
+	return 0;
+}
+
+/*
+ * sysfs interface
+ */
+
+static int clear_codec(struct hda_codec *codec)
+{
+	snd_hda_codec_reset(codec);
+	return 0;
+}
+
+static int reconfig_codec(struct hda_codec *codec)
+{
+	int err;
+
+	snd_printk(KERN_INFO "hda-codec: reconfiguring\n");
+	snd_hda_codec_reset(codec);
+	err = snd_hda_codec_configure(codec);
+	if (err < 0)
+		return err;
+	/* rebuild PCMs */
+	err = snd_hda_build_pcms(codec->bus);
+	if (err < 0)
+		return err;
+	/* rebuild mixers */
+	err = snd_hda_codec_build_controls(codec);
+	if (err < 0)
+		return err;
+	return 0;
+}
+
+/*
+ * allocate a string at most len chars, and remove the trailing EOL
+ */
+static char *kstrndup_noeol(const char *src, size_t len)
+{
+	char *s = kstrndup(src, len, GFP_KERNEL);
+	char *p;
+	if (!s)
+		return NULL;
+	p = strchr(s, '\n');
+	if (p)
+		*p = 0;
+	return s;
+}
+
+#define CODEC_INFO_SHOW(type)					\
+static ssize_t type##_show(struct device *dev,			\
+			   struct device_attribute *attr,	\
+			   char *buf)				\
+{								\
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
+	struct hda_codec *codec = hwdep->private_data;		\
+	return sprintf(buf, "0x%x\n", codec->type);		\
+}
+
+#define CODEC_INFO_STR_SHOW(type)				\
+static ssize_t type##_show(struct device *dev,			\
+			     struct device_attribute *attr,	\
+					char *buf)		\
+{								\
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
+	struct hda_codec *codec = hwdep->private_data;		\
+	return sprintf(buf, "%s\n",				\
+		       codec->type ? codec->type : "");		\
+}
+
+CODEC_INFO_SHOW(vendor_id);
+CODEC_INFO_SHOW(subsystem_id);
+CODEC_INFO_SHOW(revision_id);
+CODEC_INFO_SHOW(afg);
+CODEC_INFO_SHOW(mfg);
+CODEC_INFO_STR_SHOW(name);
+CODEC_INFO_STR_SHOW(modelname);
+
+#define CODEC_INFO_STORE(type)					\
+static ssize_t type##_store(struct device *dev,			\
+			    struct device_attribute *attr,	\
+			    const char *buf, size_t count)	\
+{								\
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
+	struct hda_codec *codec = hwdep->private_data;		\
+	char *after;						\
+	codec->type = simple_strtoul(buf, &after, 0);		\
+	return count;						\
+}
+
+#define CODEC_INFO_STR_STORE(type)				\
+static ssize_t type##_store(struct device *dev,			\
+			    struct device_attribute *attr,	\
+			    const char *buf, size_t count)	\
+{								\
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
+	struct hda_codec *codec = hwdep->private_data;		\
+	char *s = kstrndup_noeol(buf, 64);			\
+	if (!s)							\
+		return -ENOMEM;					\
+	kfree(codec->type);					\
+	codec->type = s;					\
+	return count;						\
+}
+
+CODEC_INFO_STORE(vendor_id);
+CODEC_INFO_STORE(subsystem_id);
+CODEC_INFO_STORE(revision_id);
+CODEC_INFO_STR_STORE(name);
+CODEC_INFO_STR_STORE(modelname);
+
+#define CODEC_ACTION_STORE(type)				\
+static ssize_t type##_store(struct device *dev,			\
+			    struct device_attribute *attr,	\
+			    const char *buf, size_t count)	\
+{								\
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
+	struct hda_codec *codec = hwdep->private_data;		\
+	int err = 0;						\
+	if (*buf)						\
+		err = type##_codec(codec);			\
+	return err < 0 ? err : count;				\
+}
+
+CODEC_ACTION_STORE(reconfig);
+CODEC_ACTION_STORE(clear);
+
+#define CODEC_ATTR_RW(type) \
+	__ATTR(type, 0644, type##_show, type##_store)
+#define CODEC_ATTR_RO(type) \
+	__ATTR_RO(type)
+#define CODEC_ATTR_WO(type) \
+	__ATTR(type, 0200, NULL, type##_store)
+
+static struct device_attribute codec_attrs[] = {
+	CODEC_ATTR_RW(vendor_id),
+	CODEC_ATTR_RW(subsystem_id),
+	CODEC_ATTR_RW(revision_id),
+	CODEC_ATTR_RO(afg),
+	CODEC_ATTR_RO(mfg),
+	CODEC_ATTR_RW(name),
+	CODEC_ATTR_RW(modelname),
+	CODEC_ATTR_WO(reconfig),
+	CODEC_ATTR_WO(clear),
+};
+
+/*
+ * create sysfs files on hwdep directory
+ */
+int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
+{
+	struct snd_hwdep *hwdep = codec->hwdep;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(codec_attrs); i++)
+		snd_add_device_sysfs_file(SNDRV_DEVICE_TYPE_HWDEP, hwdep->card,
+					  hwdep->device, &codec_attrs[i]);
 	return 0;
 }

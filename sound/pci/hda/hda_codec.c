@@ -393,6 +393,20 @@ static int snd_hda_bus_dev_free(struct snd_device *device)
 	return snd_hda_bus_free(bus);
 }
 
+#ifdef CONFIG_SND_HDA_HWDEP
+static int snd_hda_bus_dev_register(struct snd_device *device)
+{
+	struct hda_bus *bus = device->device_data;
+	struct hda_codec *codec;
+	list_for_each_entry(codec, &bus->codec_list, list) {
+		snd_hda_hwdep_add_sysfs(codec);
+	}
+	return 0;
+}
+#else
+#define snd_hda_bus_dev_register	NULL
+#endif
+
 /**
  * snd_hda_bus_new - create a HDA bus
  * @card: the card entry
@@ -408,6 +422,7 @@ int __devinit snd_hda_bus_new(struct snd_card *card,
 	struct hda_bus *bus;
 	int err;
 	static struct snd_device_ops dev_ops = {
+		.dev_register = snd_hda_bus_dev_register,
 		.dev_free = snd_hda_bus_dev_free,
 	};
 
@@ -686,9 +701,7 @@ int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	}
 	snd_hda_codec_proc_new(codec);
 
-#ifdef CONFIG_SND_HDA_HWDEP
 	snd_hda_create_hwdep(codec);
-#endif
 
 	sprintf(component, "HDA:%08x,%08x,%08x", codec->vendor_id,
 		codec->subsystem_id, codec->revision_id);
