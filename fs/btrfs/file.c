@@ -1095,4 +1095,3 @@ struct file_operations btrfs_file_operations = {
 	.compat_ioctl	= btrfs_ioctl,
 #endif
 };
-

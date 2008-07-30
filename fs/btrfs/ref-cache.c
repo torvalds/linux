@@ -21,12 +21,18 @@
 #include "ref-cache.h"
 #include "transaction.h"
 
-struct btrfs_leaf_ref *btrfs_alloc_leaf_ref(int nr_extents)
+struct btrfs_leaf_ref *btrfs_alloc_leaf_ref(struct btrfs_root *root,
+					    int nr_extents)
 {
 	struct btrfs_leaf_ref *ref;
+	size_t size = btrfs_leaf_ref_size(nr_extents);
 
-	ref = kmalloc(btrfs_leaf_ref_size(nr_extents), GFP_NOFS);
+	ref = kmalloc(size, GFP_NOFS);
 	if (ref) {
+		spin_lock(&root->fs_info->ref_cache_lock);
+		root->fs_info->total_ref_cache_size += size;
+		spin_unlock(&root->fs_info->ref_cache_lock);
+
 		memset(ref, 0, sizeof(*ref));
 		atomic_set(&ref->usage, 1);
 		INIT_LIST_HEAD(&ref->list);
@@ -34,14 +40,20 @@ struct btrfs_leaf_ref *btrfs_alloc_leaf_ref(int nr_extents)
 	return ref;
 }
 
-void btrfs_free_leaf_ref(struct btrfs_leaf_ref *ref)
+void btrfs_free_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 {
 	if (!ref)
 		return;
 	WARN_ON(atomic_read(&ref->usage) == 0);
 	if (atomic_dec_and_test(&ref->usage)) {
+		size_t size = btrfs_leaf_ref_size(ref->nritems);
+
 		BUG_ON(ref->in_tree);
 		kfree(ref);
+
+		spin_lock(&root->fs_info->ref_cache_lock);
+		root->fs_info->total_ref_cache_size -= size;
+		spin_unlock(&root->fs_info->ref_cache_lock);
 	}
 }
 
@@ -64,7 +76,7 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 bytenr,
 		else
 			return parent;
 	}
-	
+
 	entry = rb_entry(node, struct btrfs_leaf_ref, rb_node);
 	entry->in_tree = 1;
 	rb_link_node(node, parent, p);
@@ -91,9 +103,8 @@ static struct rb_node *tree_search(struct rb_root *root, u64 bytenr)
 	return NULL;
 }
 
-int btrfs_remove_leaf_refs(struct btrfs_root *root)
+int btrfs_remove_leaf_refs(struct btrfs_root *root, u64 max_root_gen)
 {
-	struct rb_node *rb;
 	struct btrfs_leaf_ref *ref = NULL;
 	struct btrfs_leaf_ref_tree *tree = root->ref_tree;
 
@@ -101,17 +112,18 @@ int btrfs_remove_leaf_refs(struct btrfs_root *root)
 		return 0;
 
 	spin_lock(&tree->lock);
-	while(!btrfs_leaf_ref_tree_empty(tree)) {
-		rb = rb_first(&tree->root);
-		ref = rb_entry(rb, struct btrfs_leaf_ref, rb_node);
+	while(!list_empty(&tree->list)) {
+		ref = list_entry(tree->list.next, struct btrfs_leaf_ref, list);
+		BUG_ON(!ref->in_tree);
+		if (ref->root_gen > max_root_gen)
+			break;
+
 		rb_erase(&ref->rb_node, &tree->root);
 		ref->in_tree = 0;
 		list_del_init(&ref->list);
 
 		spin_unlock(&tree->lock);
-
-		btrfs_free_leaf_ref(ref);
-
+		btrfs_free_leaf_ref(root, ref);
 		cond_resched();
 		spin_lock(&tree->lock);
 	}
@@ -143,7 +155,6 @@ int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 {
 	int ret = 0;
 	struct rb_node *rb;
-	size_t size = btrfs_leaf_ref_size(ref->nritems);
 	struct btrfs_leaf_ref_tree *tree = root->ref_tree;
 
 	spin_lock(&tree->lock);
@@ -151,9 +162,6 @@ int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 	if (rb) {
 		ret = -EEXIST;
 	} else {
-		spin_lock(&root->fs_info->ref_cache_lock);
-		root->fs_info->total_ref_cache_size += size;
-		spin_unlock(&root->fs_info->ref_cache_lock);
 		atomic_inc(&ref->usage);
 		list_add_tail(&ref->list, &tree->list);
 	}
@@ -163,15 +171,10 @@ int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 
 int btrfs_remove_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 {
-	size_t size = btrfs_leaf_ref_size(ref->nritems);
 	struct btrfs_leaf_ref_tree *tree = root->ref_tree;
 
 	BUG_ON(!ref->in_tree);
 	spin_lock(&tree->lock);
-	
-	spin_lock(&root->fs_info->ref_cache_lock);
-	root->fs_info->total_ref_cache_size -= size;
-	spin_unlock(&root->fs_info->ref_cache_lock);
 
 	rb_erase(&ref->rb_node, &tree->root);
 	ref->in_tree = 0;
@@ -179,7 +182,6 @@ int btrfs_remove_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 
 	spin_unlock(&tree->lock);
 
-	btrfs_free_leaf_ref(ref);
+	btrfs_free_leaf_ref(root, ref);
 	return 0;
 }
-

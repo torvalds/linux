@@ -3275,4 +3275,3 @@ int btrfs_previous_item(struct btrfs_root *root,
 	}
 	return 1;
 }
-

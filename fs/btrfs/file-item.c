@@ -422,4 +422,3 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 	return ret;
 }
-

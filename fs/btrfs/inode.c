@@ -835,17 +835,17 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
 
-	spin_lock(&root->orphan_lock);
+	spin_lock(&root->list_lock);
 
 	/* already on the orphan list, we're good */
 	if (!list_empty(&BTRFS_I(inode)->i_orphan)) {
-		spin_unlock(&root->orphan_lock);
+		spin_unlock(&root->list_lock);
 		return 0;
 	}
 
 	list_add(&BTRFS_I(inode)->i_orphan, &root->orphan_list);
 
-	spin_unlock(&root->orphan_lock);
+	spin_unlock(&root->list_lock);
 
 	/*
 	 * insert an orphan item to track this unlinked/truncated file
@@ -864,20 +864,20 @@ int btrfs_orphan_del(struct btrfs_trans_handle *trans, struct inode *inode)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
 
-	spin_lock(&root->orphan_lock);
+	spin_lock(&root->list_lock);
 
 	if (list_empty(&BTRFS_I(inode)->i_orphan)) {
-		spin_unlock(&root->orphan_lock);
+		spin_unlock(&root->list_lock);
 		return 0;
 	}
 
 	list_del_init(&BTRFS_I(inode)->i_orphan);
 	if (!trans) {
-		spin_unlock(&root->orphan_lock);
+		spin_unlock(&root->list_lock);
 		return 0;
 	}
 
-	spin_unlock(&root->orphan_lock);
+	spin_unlock(&root->list_lock);
 
 	ret = btrfs_del_orphan_item(trans, root, inode->i_ino);
 
@@ -973,9 +973,9 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 		 * add this inode to the orphan list so btrfs_orphan_del does
 		 * the proper thing when we hit it
 		 */
-		spin_lock(&root->orphan_lock);
+		spin_lock(&root->list_lock);
 		list_add(&BTRFS_I(inode)->i_orphan, &root->orphan_list);
-		spin_unlock(&root->orphan_lock);
+		spin_unlock(&root->list_lock);
 
 		/*
 		 * if this is a bad inode, means we actually succeeded in
@@ -3269,13 +3269,13 @@ void btrfs_destroy_inode(struct inode *inode)
 	    BTRFS_I(inode)->i_default_acl != BTRFS_ACL_NOT_CACHED)
 		posix_acl_release(BTRFS_I(inode)->i_default_acl);
 
-	spin_lock(&BTRFS_I(inode)->root->orphan_lock);
+	spin_lock(&BTRFS_I(inode)->root->list_lock);
 	if (!list_empty(&BTRFS_I(inode)->i_orphan)) {
 		printk(KERN_ERR "BTRFS: inode %lu: inode still on the orphan"
 		       " list\n", inode->i_ino);
 		dump_stack();
 	}
-	spin_unlock(&BTRFS_I(inode)->root->orphan_lock);
+	spin_unlock(&BTRFS_I(inode)->root->list_lock);
 
 	while(1) {
 		ordered = btrfs_lookup_first_ordered_extent(inode, (u64)-1);

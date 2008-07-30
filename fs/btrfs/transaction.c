@@ -98,20 +98,24 @@ static noinline int record_root_in_trans(struct btrfs_root *root)
 			BUG_ON(!dirty);
 			dirty->root = kmalloc(sizeof(*dirty->root), GFP_NOFS);
 			BUG_ON(!dirty->root);
-
 			dirty->latest_root = root;
 			INIT_LIST_HEAD(&dirty->list);
 
 			root->commit_root = btrfs_root_node(root);
-			root->dirty_root = dirty;
 
 			memcpy(dirty->root, root, sizeof(*root));
-			dirty->root->ref_tree = &root->ref_tree_struct;
-
 			spin_lock_init(&dirty->root->node_lock);
+			spin_lock_init(&dirty->root->list_lock);
 			mutex_init(&dirty->root->objectid_mutex);
+			INIT_LIST_HEAD(&dirty->root->dead_list);
 			dirty->root->node = root->commit_root;
 			dirty->root->commit_root = NULL;
+
+			spin_lock(&root->list_lock);
+			list_add(&dirty->root->dead_list, &root->dead_list);
+			spin_unlock(&root->list_lock);
+
+			root->dirty_root = dirty;
 		} else {
 			WARN_ON(1);
 		}
@@ -356,8 +360,6 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 		list_del_init(next);
 		root = list_entry(next, struct btrfs_root, dirty_list);
 		update_cowonly_root(trans, root);
-		if (root->fs_info->closing)
-			btrfs_remove_leaf_refs(root);
 	}
 	return 0;
 }
@@ -410,7 +412,11 @@ static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 
 				free_extent_buffer(root->commit_root);
 				root->commit_root = NULL;
-				
+
+				spin_lock(&root->list_lock);
+				list_del_init(&dirty->root->dead_list);
+				spin_unlock(&root->list_lock);
+
 				kfree(dirty->root);
 				kfree(dirty);
 
@@ -497,6 +503,7 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 	unsigned long nr;
 	u64 num_bytes;
 	u64 bytes_used;
+	u64 max_useless;
 	int ret = 0;
 	int err;
 
@@ -554,8 +561,23 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 		}
 		mutex_unlock(&root->fs_info->drop_mutex);
 
+		spin_lock(&root->list_lock);
+		list_del_init(&dirty->root->dead_list);
+		if (!list_empty(&root->dead_list)) {
+			struct btrfs_root *oldest;
+			oldest = list_entry(root->dead_list.prev,
+					    struct btrfs_root, dead_list);
+			max_useless = oldest->root_key.offset - 1;
+		} else {
+			max_useless = root->root_key.offset - 1;
+		}
+		spin_unlock(&root->list_lock);
+
 		nr = trans->blocks_used;
 		ret = btrfs_end_transaction(trans, tree_root);
+		BUG_ON(ret);
+
+		ret = btrfs_remove_leaf_refs(root, max_useless);
 		BUG_ON(ret);
 
 		free_extent_buffer(dirty->root->node);
@@ -785,10 +807,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	put_transaction(cur_trans);
 	put_transaction(cur_trans);
 
+	list_splice_init(&dirty_fs_roots, &root->fs_info->dead_roots);
 	if (root->fs_info->closing)
 		list_splice_init(&root->fs_info->dead_roots, &dirty_fs_roots);
-	else
-		list_splice_init(&dirty_fs_roots, &root->fs_info->dead_roots);
 
 	mutex_unlock(&root->fs_info->trans_mutex);
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
@@ -814,4 +835,3 @@ again:
 	}
 	return 0;
 }
-

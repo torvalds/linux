@@ -56,4 +56,3 @@ int btrfs_tree_locked(struct extent_buffer *eb)
 {
 	return mutex_is_locked(&eb->mutex);
 }
-

@@ -340,4 +340,3 @@ int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 	}
 	return 0;
 }
-

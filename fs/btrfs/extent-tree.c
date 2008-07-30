@@ -867,8 +867,8 @@ static int get_reference_status(struct btrfs_root *root, u64 bytenr,
 		/*
 		 * For (parent_gen > 0 && parent_gen > ref_gen):
 		 *
-		 * we reach here through the oldest root, therefore 
-		 * all other reference from same snapshot should have 
+		 * we reach here through the oldest root, therefore
+		 * all other reference from same snapshot should have
 		 * a larger generation.
 		 */
 		if ((root_objectid != btrfs_ref_root(leaf, ref_item)) ||
@@ -954,7 +954,7 @@ int btrfs_cross_ref_exists(struct btrfs_root *root,
 			if (!eb)
 				continue;
 			extent_start = eb->start;
-		} else 
+		} else
 			extent_start = bytenr;
 
 		ret = get_reference_status(root, extent_start, ref_generation,
@@ -1048,7 +1048,7 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		struct btrfs_leaf_ref *ref;
 		struct btrfs_extent_info *info;
 
-		ref = btrfs_alloc_leaf_ref(nr_file_extents);
+		ref = btrfs_alloc_leaf_ref(root, nr_file_extents);
 		if (!ref) {
 			WARN_ON(1);
 			goto out;
@@ -1059,7 +1059,7 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		ref->generation = btrfs_header_generation(buf);
 		ref->nritems = nr_file_extents;
 		info = ref->extents;
-		
+
 		for (i = 0; nr_file_extents > 0 && i < nritems; i++) {
 			u64 disk_bytenr;
 			btrfs_item_key_to_cpu(buf, &key, i);
@@ -1085,7 +1085,7 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		BUG_ON(!root->ref_tree);
 		ret = btrfs_add_leaf_ref(root, ref);
 		WARN_ON(ret);
-		btrfs_free_leaf_ref(ref);
+		btrfs_free_leaf_ref(root, ref);
 	}
 out:
 	return 0;
@@ -2316,7 +2316,7 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 }
 
 static int noinline drop_leaf_ref_no_cache(struct btrfs_trans_handle *trans,
-				  	   struct btrfs_root *root,
+					   struct btrfs_root *root,
 					   struct extent_buffer *leaf)
 {
 	u64 leaf_owner;
@@ -2367,7 +2367,7 @@ static int noinline drop_leaf_ref_no_cache(struct btrfs_trans_handle *trans,
 }
 
 static int noinline drop_leaf_ref(struct btrfs_trans_handle *trans,
-				  	 struct btrfs_root *root,
+					 struct btrfs_root *root,
 					 struct btrfs_leaf_ref *ref)
 {
 	int i;
@@ -2521,7 +2521,7 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 				ret = drop_leaf_ref(trans, root, ref);
 				BUG_ON(ret);
 				btrfs_remove_leaf_ref(root, ref);
-				btrfs_free_leaf_ref(ref);
+				btrfs_free_leaf_ref(root, ref);
 				*level = 0;
 				break;
 			}

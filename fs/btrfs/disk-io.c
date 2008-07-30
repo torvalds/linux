@@ -735,8 +735,9 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 
 	INIT_LIST_HEAD(&root->dirty_list);
 	INIT_LIST_HEAD(&root->orphan_list);
+	INIT_LIST_HEAD(&root->dead_list);
 	spin_lock_init(&root->node_lock);
-	spin_lock_init(&root->orphan_lock);
+	spin_lock_init(&root->list_lock);
 	mutex_init(&root->objectid_mutex);
 
 	btrfs_leaf_ref_tree_init(&root->ref_tree_struct);
@@ -1717,7 +1718,7 @@ int close_ctree(struct btrfs_root *root)
 		printk("btrfs: at umount reference cache size %Lu\n",
 			fs_info->total_ref_cache_size);
 	}
-	
+
 	if (fs_info->extent_root->node)
 		free_extent_buffer(fs_info->extent_root->node);
 

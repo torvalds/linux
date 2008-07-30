@@ -666,7 +666,8 @@ struct btrfs_root {
 	/* the dirty list is only used by non-reference counted roots */
 	struct list_head dirty_list;
 
-	spinlock_t orphan_lock;
+	spinlock_t list_lock;
+	struct list_head dead_list;
 	struct list_head orphan_list;
 };
 
