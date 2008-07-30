@@ -1165,7 +1165,7 @@ xpc_disconnect_callout(struct xpc_channel *ch, enum xp_retval reason)
  * Wait for a message entry to become available for the specified channel,
  * but don't wait any longer than 1 jiffy.
  */
-static enum xp_retval
+enum xp_retval
 xpc_allocate_msg_wait(struct xpc_channel *ch)
 {
 	enum xp_retval ret;
@@ -1189,96 +1189,6 @@ xpc_allocate_msg_wait(struct xpc_channel *ch)
 	}
 
 	return ret;
-}
-
-/*
- * Allocate an entry for a message from the message queue associated with the
- * specified channel.
- */
-static enum xp_retval
-xpc_allocate_msg(struct xpc_channel *ch, u32 flags,
-		 struct xpc_msg **address_of_msg)
-{
-	struct xpc_msg *msg;
-	enum xp_retval ret;
-	s64 put;
-
-	/* this reference will be dropped in xpc_send_msg() */
-	xpc_msgqueue_ref(ch);
-
-	if (ch->flags & XPC_C_DISCONNECTING) {
-		xpc_msgqueue_deref(ch);
-		return ch->reason;
-	}
-	if (!(ch->flags & XPC_C_CONNECTED)) {
-		xpc_msgqueue_deref(ch);
-		return xpNotConnected;
-	}
-
-	/*
-	 * Get the next available message entry from the local message queue.
-	 * If none are available, we'll make sure that we grab the latest
-	 * GP values.
-	 */
-	ret = xpTimeout;
-
-	while (1) {
-
-		put = ch->w_local_GP.put;
-		rmb();	/* guarantee that .put loads before .get */
-		if (put - ch->w_remote_GP.get < ch->local_nentries) {
-
-			/* There are available message entries. We need to try
-			 * to secure one for ourselves. We'll do this by trying
-			 * to increment w_local_GP.put as long as someone else
-			 * doesn't beat us to it. If they do, we'll have to
-			 * try again.
-			 */
-			if (cmpxchg(&ch->w_local_GP.put, put, put + 1) == put) {
-				/* we got the entry referenced by put */
-				break;
-			}
-			continue;	/* try again */
-		}
-
-		/*
-		 * There aren't any available msg entries at this time.
-		 *
-		 * In waiting for a message entry to become available,
-		 * we set a timeout in case the other side is not
-		 * sending completion IPIs. This lets us fake an IPI
-		 * that will cause the IPI handler to fetch the latest
-		 * GP values as if an IPI was sent by the other side.
-		 */
-		if (ret == xpTimeout)
-			xpc_IPI_send_local_msgrequest(ch);
-
-		if (flags & XPC_NOWAIT) {
-			xpc_msgqueue_deref(ch);
-			return xpNoWait;
-		}
-
-		ret = xpc_allocate_msg_wait(ch);
-		if (ret != xpInterrupted && ret != xpTimeout) {
-			xpc_msgqueue_deref(ch);
-			return ret;
-		}
-	}
-
-	/* get the message's address and initialize it */
-	msg = (struct xpc_msg *)((u64)ch->local_msgqueue +
-				 (put % ch->local_nentries) * ch->msg_size);
-
-	DBUG_ON(msg->flags != 0);
-	msg->number = put;
-
-	dev_dbg(xpc_chan, "w_local_GP.put changed to %ld; msg=0x%p, "
-		"msg_number=%ld, partid=%d, channel=%d\n", put + 1,
-		(void *)msg, msg->number, ch->partid, ch->number);
-
-	*address_of_msg = msg;
-
-	return xpSuccess;
 }
 
 /*
@@ -1314,144 +1224,6 @@ xpc_initiate_allocate(short partid, int ch_number, u32 flags, void **payload)
 			*payload = &msg->payload;
 	}
 
-	return ret;
-}
-
-/*
- * Now we actually send the messages that are ready to be sent by advancing
- * the local message queue's Put value and then send an IPI to the recipient
- * partition.
- */
-static void
-xpc_send_msgs(struct xpc_channel *ch, s64 initial_put)
-{
-	struct xpc_msg *msg;
-	s64 put = initial_put + 1;
-	int send_IPI = 0;
-
-	while (1) {
-
-		while (1) {
-			if (put == ch->w_local_GP.put)
-				break;
-
-			msg = (struct xpc_msg *)((u64)ch->local_msgqueue +
-						 (put % ch->local_nentries) *
-						 ch->msg_size);
-
-			if (!(msg->flags & XPC_M_READY))
-				break;
-
-			put++;
-		}
-
-		if (put == initial_put) {
-			/* nothing's changed */
-			break;
-		}
-
-		if (cmpxchg_rel(&ch->local_GP->put, initial_put, put) !=
-		    initial_put) {
-			/* someone else beat us to it */
-			DBUG_ON(ch->local_GP->put < initial_put);
-			break;
-		}
-
-		/* we just set the new value of local_GP->put */
-
-		dev_dbg(xpc_chan, "local_GP->put changed to %ld, partid=%d, "
-			"channel=%d\n", put, ch->partid, ch->number);
-
-		send_IPI = 1;
-
-		/*
-		 * We need to ensure that the message referenced by
-		 * local_GP->put is not XPC_M_READY or that local_GP->put
-		 * equals w_local_GP.put, so we'll go have a look.
-		 */
-		initial_put = put;
-	}
-
-	if (send_IPI)
-		xpc_IPI_send_msgrequest(ch);
-}
-
-/*
- * Common code that does the actual sending of the message by advancing the
- * local message queue's Put value and sends an IPI to the partition the
- * message is being sent to.
- */
-static enum xp_retval
-xpc_send_msg(struct xpc_channel *ch, struct xpc_msg *msg, u8 notify_type,
-	     xpc_notify_func func, void *key)
-{
-	enum xp_retval ret = xpSuccess;
-	struct xpc_notify *notify = notify;
-	s64 put, msg_number = msg->number;
-
-	DBUG_ON(notify_type == XPC_N_CALL && func == NULL);
-	DBUG_ON((((u64)msg - (u64)ch->local_msgqueue) / ch->msg_size) !=
-		msg_number % ch->local_nentries);
-	DBUG_ON(msg->flags & XPC_M_READY);
-
-	if (ch->flags & XPC_C_DISCONNECTING) {
-		/* drop the reference grabbed in xpc_allocate_msg() */
-		xpc_msgqueue_deref(ch);
-		return ch->reason;
-	}
-
-	if (notify_type != 0) {
-		/*
-		 * Tell the remote side to send an ACK interrupt when the
-		 * message has been delivered.
-		 */
-		msg->flags |= XPC_M_INTERRUPT;
-
-		atomic_inc(&ch->n_to_notify);
-
-		notify = &ch->notify_queue[msg_number % ch->local_nentries];
-		notify->func = func;
-		notify->key = key;
-		notify->type = notify_type;
-
-		/* >>> is a mb() needed here? */
-
-		if (ch->flags & XPC_C_DISCONNECTING) {
-			/*
-			 * An error occurred between our last error check and
-			 * this one. We will try to clear the type field from
-			 * the notify entry. If we succeed then
-			 * xpc_disconnect_channel() didn't already process
-			 * the notify entry.
-			 */
-			if (cmpxchg(&notify->type, notify_type, 0) ==
-			    notify_type) {
-				atomic_dec(&ch->n_to_notify);
-				ret = ch->reason;
-			}
-
-			/* drop the reference grabbed in xpc_allocate_msg() */
-			xpc_msgqueue_deref(ch);
-			return ret;
-		}
-	}
-
-	msg->flags |= XPC_M_READY;
-
-	/*
-	 * The preceding store of msg->flags must occur before the following
-	 * load of ch->local_GP->put.
-	 */
-	mb();
-
-	/* see if the message is next in line to be sent, if so send it */
-
-	put = ch->local_GP->put;
-	if (put == msg_number)
-		xpc_send_msgs(ch, put);
-
-	/* drop the reference grabbed in xpc_allocate_msg() */
-	xpc_msgqueue_deref(ch);
 	return ret;
 }
 
@@ -1586,66 +1358,6 @@ xpc_deliver_msg(struct xpc_channel *ch)
 }
 
 /*
- * Now we actually acknowledge the messages that have been delivered and ack'd
- * by advancing the cached remote message queue's Get value and if requested
- * send an IPI to the message sender's partition.
- */
-static void
-xpc_acknowledge_msgs(struct xpc_channel *ch, s64 initial_get, u8 msg_flags)
-{
-	struct xpc_msg *msg;
-	s64 get = initial_get + 1;
-	int send_IPI = 0;
-
-	while (1) {
-
-		while (1) {
-			if (get == ch->w_local_GP.get)
-				break;
-
-			msg = (struct xpc_msg *)((u64)ch->remote_msgqueue +
-						 (get % ch->remote_nentries) *
-						 ch->msg_size);
-
-			if (!(msg->flags & XPC_M_DONE))
-				break;
-
-			msg_flags |= msg->flags;
-			get++;
-		}
-
-		if (get == initial_get) {
-			/* nothing's changed */
-			break;
-		}
-
-		if (cmpxchg_rel(&ch->local_GP->get, initial_get, get) !=
-		    initial_get) {
-			/* someone else beat us to it */
-			DBUG_ON(ch->local_GP->get <= initial_get);
-			break;
-		}
-
-		/* we just set the new value of local_GP->get */
-
-		dev_dbg(xpc_chan, "local_GP->get changed to %ld, partid=%d, "
-			"channel=%d\n", get, ch->partid, ch->number);
-
-		send_IPI = (msg_flags & XPC_M_INTERRUPT);
-
-		/*
-		 * We need to ensure that the message referenced by
-		 * local_GP->get is not XPC_M_DONE or that local_GP->get
-		 * equals w_local_GP.get, so we'll go have a look.
-		 */
-		initial_get = get;
-	}
-
-	if (send_IPI)
-		xpc_IPI_send_msgrequest(ch);
-}
-
-/*
  * Acknowledge receipt of a delivered message.
  *
  * If a message has XPC_M_INTERRUPT set, send an interrupt to the partition
@@ -1668,35 +1380,12 @@ xpc_initiate_received(short partid, int ch_number, void *payload)
 	struct xpc_partition *part = &xpc_partitions[partid];
 	struct xpc_channel *ch;
 	struct xpc_msg *msg = XPC_MSG_ADDRESS(payload);
-	s64 get, msg_number = msg->number;
 
 	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
 
 	ch = &part->channels[ch_number];
-
-	dev_dbg(xpc_chan, "msg=0x%p, msg_number=%ld, partid=%d, channel=%d\n",
-		(void *)msg, msg_number, ch->partid, ch->number);
-
-	DBUG_ON((((u64)msg - (u64)ch->remote_msgqueue) / ch->msg_size) !=
-		msg_number % ch->remote_nentries);
-	DBUG_ON(msg->flags & XPC_M_DONE);
-
-	msg->flags |= XPC_M_DONE;
-
-	/*
-	 * The preceding store of msg->flags must occur before the following
-	 * load of ch->local_GP->get.
-	 */
-	mb();
-
-	/*
-	 * See if this message is next in line to be acknowledged as having
-	 * been delivered.
-	 */
-	get = ch->local_GP->get;
-	if (get == msg_number)
-		xpc_acknowledge_msgs(ch, get, msg->flags);
+	xpc_received_msg(ch, msg);
 
 	/* the call to xpc_msgqueue_ref() was done by xpc_deliver_msg()  */
 	xpc_msgqueue_deref(ch);

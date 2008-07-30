@@ -19,14 +19,21 @@
 /* >>> uv_gpa() is defined in <gru/grukservices.h> */
 #define uv_gpa(_a)		((unsigned long)_a)
 
-/* >>> temporarily define next three items for xpc.h */
-#define	SGI_XPC_ACTIVATE	23
-#define	SGI_XPC_NOTIFY		24
-#define sn_send_IPI_phys(_a, _b, _c, _d)
-
 #include "xpc.h"
 
+static DECLARE_BITMAP(xpc_heartbeating_to_mask_uv, XP_MAX_NPARTITIONS_UV);
+
 static void *xpc_activate_mq;
+
+static void
+xpc_IPI_send_local_activate_uv(struct xpc_partition *part)
+{
+	/*
+	 * >>> make our side think that the remote parition sent an activate
+	 * >>> message our way. Also do what the activate IRQ handler would
+	 * >>> do had one really been sent.
+	 */
+}
 
 static enum xp_retval
 xpc_rsvd_page_init_uv(struct xpc_rsvd_page *rp)
@@ -34,6 +41,41 @@ xpc_rsvd_page_init_uv(struct xpc_rsvd_page *rp)
 	/* >>> need to have established xpc_activate_mq earlier */
 	rp->sn.activate_mq_gpa = uv_gpa(xpc_activate_mq);
 	return xpSuccess;
+}
+
+static void
+xpc_increment_heartbeat_uv(void)
+{
+	/* >>> send heartbeat msg to xpc_heartbeating_to_mask partids */
+}
+
+static void
+xpc_heartbeat_init_uv(void)
+{
+	bitmap_zero(xpc_heartbeating_to_mask_uv, XP_MAX_NPARTITIONS_UV);
+	xpc_heartbeating_to_mask = &xpc_heartbeating_to_mask_uv[0];
+}
+
+static void
+xpc_heartbeat_exit_uv(void)
+{
+	/* >>> send heartbeat_offline msg to xpc_heartbeating_to_mask partids */
+}
+
+static void
+xpc_initiate_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
+				     u64 remote_rp_pa, int nasid)
+{
+	short partid = remote_rp->SAL_partid;
+	struct xpc_partition *part = &xpc_partitions[partid];
+
+/*
+ * >>> setup part structure with the bits of info we can glean from the rp
+ * >>>	part->remote_rp_pa = remote_rp_pa;
+ * >>>	part->sn.uv.activate_mq_gpa = remote_rp->sn.activate_mq_gpa;
+ */
+
+	xpc_IPI_send_local_activate_uv(part);
 }
 
 /*
@@ -83,6 +125,11 @@ void
 xpc_init_uv(void)
 {
 	xpc_rsvd_page_init = xpc_rsvd_page_init_uv;
+	xpc_increment_heartbeat = xpc_increment_heartbeat_uv;
+	xpc_heartbeat_init = xpc_heartbeat_init_uv;
+	xpc_heartbeat_exit = xpc_heartbeat_exit_uv;
+	xpc_initiate_partition_activation =
+	    xpc_initiate_partition_activation_uv;
 	xpc_setup_infrastructure = xpc_setup_infrastructure_uv;
 	xpc_teardown_infrastructure = xpc_teardown_infrastructure_uv;
 	xpc_make_first_contact = xpc_make_first_contact_uv;

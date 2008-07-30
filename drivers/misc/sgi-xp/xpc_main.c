@@ -148,20 +148,20 @@ static struct ctl_table_header *xpc_sysctl;
 int xpc_disengage_request_timedout;
 
 /* #of IRQs received */
-static atomic_t xpc_act_IRQ_rcvd;
+atomic_t xpc_act_IRQ_rcvd;
 
 /* IRQ handler notifies this wait queue on receipt of an IRQ */
-static DECLARE_WAIT_QUEUE_HEAD(xpc_act_IRQ_wq);
+DECLARE_WAIT_QUEUE_HEAD(xpc_act_IRQ_wq);
 
 static unsigned long xpc_hb_check_timeout;
+static struct timer_list xpc_hb_timer;
+void *xpc_heartbeating_to_mask;
 
 /* notification that the xpc_hb_checker thread has exited */
 static DECLARE_COMPLETION(xpc_hb_checker_exited);
 
 /* notification that the xpc_discovery thread has exited */
 static DECLARE_COMPLETION(xpc_discovery_exited);
-
-static struct timer_list xpc_hb_timer;
 
 static void xpc_kthread_waitmsgs(struct xpc_partition *, struct xpc_channel *);
 
@@ -176,12 +176,54 @@ static struct notifier_block xpc_die_notifier = {
 };
 
 enum xp_retval (*xpc_rsvd_page_init) (struct xpc_rsvd_page *rp);
+void (*xpc_heartbeat_init) (void);
+void (*xpc_heartbeat_exit) (void);
+void (*xpc_increment_heartbeat) (void);
+void (*xpc_offline_heartbeat) (void);
+void (*xpc_online_heartbeat) (void);
+void (*xpc_check_remote_hb) (void);
+
 enum xp_retval (*xpc_make_first_contact) (struct xpc_partition *part);
 u64 (*xpc_get_IPI_flags) (struct xpc_partition *part);
 struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *ch);
+
+void (*xpc_initiate_partition_activation) (struct xpc_rsvd_page *remote_rp,
+					   u64 remote_rp_pa, int nasid);
+
+void (*xpc_process_act_IRQ_rcvd) (int n_IRQs_expected);
 enum xp_retval (*xpc_setup_infrastructure) (struct xpc_partition *part);
 void (*xpc_teardown_infrastructure) (struct xpc_partition *part);
 
+void (*xpc_mark_partition_engaged) (struct xpc_partition *part);
+void (*xpc_mark_partition_disengaged) (struct xpc_partition *part);
+void (*xpc_request_partition_disengage) (struct xpc_partition *part);
+void (*xpc_cancel_partition_disengage_request) (struct xpc_partition *part);
+u64 (*xpc_partition_engaged) (u64 partid_mask);
+u64 (*xpc_partition_disengage_requested) (u64 partid_mask);
+void (*xpc_clear_partition_engaged) (u64 partid_mask);
+void (*xpc_clear_partition_disengage_request) (u64 partid_mask);
+
+void (*xpc_IPI_send_local_activate) (int from_nasid);
+void (*xpc_IPI_send_activated) (struct xpc_partition *part);
+void (*xpc_IPI_send_local_reactivate) (int from_nasid);
+void (*xpc_IPI_send_disengage) (struct xpc_partition *part);
+
+void (*xpc_IPI_send_closerequest) (struct xpc_channel *ch,
+				   unsigned long *irq_flags);
+void (*xpc_IPI_send_closereply) (struct xpc_channel *ch,
+				 unsigned long *irq_flags);
+void (*xpc_IPI_send_openrequest) (struct xpc_channel *ch,
+				  unsigned long *irq_flags);
+void (*xpc_IPI_send_openreply) (struct xpc_channel *ch,
+				unsigned long *irq_flags);
+
+enum xp_retval (*xpc_allocate_msg) (struct xpc_channel *ch, u32 flags,
+				    struct xpc_msg **address_of_msg);
+
+enum xp_retval (*xpc_send_msg) (struct xpc_channel *ch, struct xpc_msg *msg,
+				u8 notify_type, xpc_notify_func func,
+				void *key);
+void (*xpc_received_msg) (struct xpc_channel *ch, struct xpc_msg *msg);
 
 /*
  * Timer function to enforce the timelimit on the partition disengage request.
@@ -218,13 +260,29 @@ xpc_act_IRQ_handler(int irq, void *dev_id)
 static void
 xpc_hb_beater(unsigned long dummy)
 {
-	xpc_vars->heartbeat++;
+	xpc_increment_heartbeat();
 
 	if (time_after_eq(jiffies, xpc_hb_check_timeout))
 		wake_up_interruptible(&xpc_act_IRQ_wq);
 
 	xpc_hb_timer.expires = jiffies + (xpc_hb_interval * HZ);
 	add_timer(&xpc_hb_timer);
+}
+
+static void
+xpc_start_hb_beater(void)
+{
+	xpc_heartbeat_init();
+	init_timer(&xpc_hb_timer);
+	xpc_hb_timer.function = xpc_hb_beater;
+	xpc_hb_beater(0);
+}
+
+static void
+xpc_stop_hb_beater(void)
+{
+	del_timer_sync(&xpc_hb_timer);
+	xpc_heartbeat_exit();
 }
 
 /*
@@ -244,7 +302,7 @@ xpc_hb_checker(void *ignore)
 
 	/* set our heartbeating to other partitions into motion */
 	xpc_hb_check_timeout = jiffies + (xpc_hb_check_interval * HZ);
-	xpc_hb_beater(0);
+	xpc_start_hb_beater();
 
 	while (!xpc_exiting) {
 
@@ -274,11 +332,8 @@ xpc_hb_checker(void *ignore)
 			dev_dbg(xpc_part, "found an IRQ to process; will be "
 				"resetting xpc_hb_check_timeout\n");
 
-			last_IRQ_count += xpc_identify_act_IRQ_sender();
-			if (last_IRQ_count < new_IRQ_count) {
-				/* retry once to help avoid missing AMO */
-				(void)xpc_identify_act_IRQ_sender();
-			}
+			xpc_process_act_IRQ_rcvd(new_IRQ_count -
+						 last_IRQ_count);
 			last_IRQ_count = new_IRQ_count;
 
 			xpc_hb_check_timeout = jiffies +
@@ -293,6 +348,8 @@ xpc_hb_checker(void *ignore)
 							xpc_hb_check_timeout) ||
 						xpc_exiting));
 	}
+
+	xpc_stop_hb_beater();
 
 	dev_dbg(xpc_part, "heartbeat checker is exiting\n");
 
@@ -401,31 +458,7 @@ xpc_activating(void *__partid)
 
 	dev_dbg(xpc_part, "activating partition %d\n", partid);
 
-	/*
-	 * Register the remote partition's AMOs with SAL so it can handle
-	 * and cleanup errors within that address range should the remote
-	 * partition go down. We don't unregister this range because it is
-	 * difficult to tell when outstanding writes to the remote partition
-	 * are finished and thus when it is safe to unregister. This should
-	 * not result in wasted space in the SAL xp_addr_region table because
-	 * we should get the same page for remote_amos_page_pa after module
-	 * reloads and system reboots.
-	 */
-	if (sn_register_xp_addr_region(part->remote_amos_page_pa,
-				       PAGE_SIZE, 1) < 0) {
-		dev_warn(xpc_part, "xpc_activating(%d) failed to register "
-			 "xp_addr region\n", partid);
-
-		spin_lock_irqsave(&part->act_lock, irq_flags);
-		part->act_state = XPC_P_INACTIVE;
-		XPC_SET_REASON(part, xpPhysAddrRegFailed, __LINE__);
-		spin_unlock_irqrestore(&part->act_lock, irq_flags);
-		part->remote_rp_pa = 0;
-		return 0;
-	}
-
-	xpc_allow_hb(partid, xpc_vars);
-	xpc_IPI_send_activated(part);
+	xpc_allow_hb(partid);
 
 	if (xpc_setup_infrastructure(part) == xpSuccess) {
 		(void)xpc_part_ref(part);	/* this will always succeed */
@@ -440,12 +473,12 @@ xpc_activating(void *__partid)
 		xpc_teardown_infrastructure(part);
 	}
 
-	xpc_disallow_hb(partid, xpc_vars);
+	xpc_disallow_hb(partid);
 	xpc_mark_partition_inactive(part);
 
 	if (part->reason == xpReactivating) {
 		/* interrupting ourselves results in activating partition */
-		xpc_IPI_send_reactivate(part);
+		xpc_IPI_send_local_reactivate(part->reactivate_nasid);
 	}
 
 	return 0;
@@ -475,6 +508,32 @@ xpc_activate_partition(struct xpc_partition *part)
 		XPC_SET_REASON(part, xpCloneKThreadFailed, __LINE__);
 		spin_unlock_irqrestore(&part->act_lock, irq_flags);
 	}
+}
+
+/*
+ * Check to see if there is any channel activity to/from the specified
+ * partition.
+ */
+static void
+xpc_check_for_channel_activity(struct xpc_partition *part)
+{
+	u64 IPI_amo;
+	unsigned long irq_flags;
+
+/* this needs to be uncommented, but I'm thinking this function and the */
+/* ones that call it need to be moved into xpc_sn2.c... */
+	IPI_amo = 0; /* = xpc_IPI_receive(part->local_IPI_amo_va); */
+	if (IPI_amo == 0)
+		return;
+
+	spin_lock_irqsave(&part->IPI_lock, irq_flags);
+	part->local_IPI_amo |= IPI_amo;
+	spin_unlock_irqrestore(&part->IPI_lock, irq_flags);
+
+	dev_dbg(xpc_chan, "received IPI from partid=%d, IPI_amo=0x%lx\n",
+		XPC_PARTID(part), IPI_amo);
+
+	xpc_wakeup_channel_mgr(part);
 }
 
 /*
@@ -902,13 +961,10 @@ xpc_do_exit(enum xp_retval reason)
 	} while (1);
 
 	DBUG_ON(xpc_partition_engaged(-1UL));
+	DBUG_ON(xpc_any_hbs_allowed() != 0);
 
 	/* indicate to others that our reserved page is uninitialized */
 	xpc_rsvd_page->stamp = ZERO_STAMP;
-
-	/* now it's time to eliminate our heartbeat */
-	del_timer_sync(&xpc_hb_timer);
-	DBUG_ON(xpc_vars->heartbeating_to_mask != 0);
 
 	if (reason == xpUnloading) {
 		(void)unregister_die_notifier(&xpc_die_notifier);
@@ -968,7 +1024,7 @@ xpc_die_disengage(void)
 	/* keep xpc_hb_checker thread from doing anything (just in case) */
 	xpc_exiting = 1;
 
-	xpc_vars->heartbeating_to_mask = 0;	/* indicate we're deactivated */
+	xpc_disallow_all_hbs();	/*indicate we're deactivated */
 
 	for (partid = 0; partid < xp_max_npartitions; partid++) {
 		part = &xpc_partitions[partid];
@@ -1054,8 +1110,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *unused)
 		/* fall through */
 	case DIE_MCA_MONARCH_ENTER:
 	case DIE_INIT_MONARCH_ENTER:
-		xpc_vars->heartbeat++;
-		xpc_vars->heartbeat_offline = 1;
+		xpc_offline_heartbeat();
 		break;
 
 	case DIE_KDEBUG_LEAVE:
@@ -1066,8 +1121,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *unused)
 		/* fall through */
 	case DIE_MCA_MONARCH_LEAVE:
 	case DIE_INIT_MONARCH_LEAVE:
-		xpc_vars->heartbeat++;
-		xpc_vars->heartbeat_offline = 0;
+		xpc_online_heartbeat();
 		break;
 	}
 
@@ -1202,9 +1256,6 @@ xpc_init(void)
 	if (ret != 0)
 		dev_warn(xpc_part, "can't register die notifier\n");
 
-	init_timer(&xpc_hb_timer);
-	xpc_hb_timer.function = xpc_hb_beater;
-
 	/*
 	 * The real work-horse behind xpc.  This processes incoming
 	 * interrupts and monitors remote heartbeats.
@@ -1246,7 +1297,6 @@ out_4:
 	/* indicate to others that our reserved page is uninitialized */
 	xpc_rsvd_page->stamp = ZERO_STAMP;
 
-	del_timer_sync(&xpc_hb_timer);
 	(void)unregister_die_notifier(&xpc_die_notifier);
 	(void)unregister_reboot_notifier(&xpc_reboot_notifier);
 out_3:
