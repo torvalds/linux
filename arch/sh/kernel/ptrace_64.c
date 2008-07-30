@@ -121,18 +121,23 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 	return 0;
 }
 
+void user_enable_single_step(struct task_struct *child)
+{
+	struct pt_regs *regs = child->thread.uregs;
+
+	regs->sr |= SR_SSTEP;	/* auto-resetting upon exception */
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	regs->sr &= ~SR_SSTEP;
+}
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
 
 	switch (request) {
-	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {
 		unsigned long tmp;
@@ -154,12 +159,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = put_user(tmp, (unsigned long *)data);
 		break;
 	}
-
-	/* when I and D space are separate, this will have to be fixed. */
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = generic_ptrace_pokedata(child, addr, data);
-		break;
 
 	case PTRACE_POKEUSR:
                 /* write the word at location addr in the USER area. We must
@@ -191,58 +190,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = put_fpu_long(child, addr - offsetof(struct user, fpu), data);
 		}
 		break;
-
-	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
-	case PTRACE_CONT: { /* restart after signal. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
-
-/*
- * make the child exit.  Best I can do is send it a sigkill.
- * perhaps it should be put in the status that it wants to
- * exit.
- */
-	case PTRACE_KILL: {
-		ret = 0;
-		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-			break;
-		child->exit_code = SIGKILL;
-		wake_up_process(child);
-		break;
-	}
-
-	case PTRACE_SINGLESTEP: {  /* set the trap flag. */
-		struct pt_regs *regs;
-
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		if ((child->ptrace & PT_DTRACE) == 0) {
-			/* Spurious delayed TF traps may occur */
-			child->ptrace |= PT_DTRACE;
-		}
-
-		regs = child->thread.uregs;
-
-		regs->sr |= SR_SSTEP;	/* auto-resetting upon exception */
-
-		child->exit_code = data;
-		/* give it a chance to run. */
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
@@ -341,5 +288,5 @@ asmlinkage void do_software_break_point(unsigned long long vec,
  */
 void ptrace_disable(struct task_struct *child)
 {
-        /* nothing to do.. */
+	user_disable_single_step(child);
 }

@@ -58,7 +58,23 @@ static inline int put_stack_long(struct task_struct *task, int offset,
 	return 0;
 }
 
-static void ptrace_disable_singlestep(struct task_struct *child)
+void user_enable_single_step(struct task_struct *child)
+{
+	struct pt_regs *regs = task_pt_regs(child);
+	long pc;
+
+	pc = get_stack_long(child, (long)&regs->pc);
+
+	/* Next scheduling will set up UBC */
+	if (child->thread.ubc_pc == 0)
+		ubc_usercnt += 1;
+
+	child->thread.ubc_pc = pc;
+
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+}
+
+void user_disable_single_step(struct task_struct *child)
 {
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 
@@ -82,7 +98,7 @@ static void ptrace_disable_singlestep(struct task_struct *child)
  */
 void ptrace_disable(struct task_struct *child)
 {
-	ptrace_disable_singlestep(child);
+	user_disable_single_step(child);
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
@@ -91,12 +107,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	int ret;
 
 	switch (request) {
-	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {
 		unsigned long tmp;
@@ -126,12 +136,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 	}
 
-	/* when I and D space are separate, this will have to be fixed. */
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = generic_ptrace_pokedata(child, addr, data);
-		break;
-
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 		ret = -EIO;
 		if ((addr & 3) || addr < 0 ||
@@ -151,67 +155,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = 0;
 		}
 		break;
-
-	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
-	case PTRACE_CONT: { /* restart after signal. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-
-		ptrace_disable_singlestep(child);
-
-		child->exit_code = data;
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
-
-/*
- * make the child exit.  Best I can do is send it a sigkill.
- * perhaps it should be put in the status that it wants to
- * exit.
- */
-	case PTRACE_KILL: {
-		ret = 0;
-		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-			break;
-		ptrace_disable_singlestep(child);
-		child->exit_code = SIGKILL;
-		wake_up_process(child);
-		break;
-	}
-
-	case PTRACE_SINGLESTEP: {  /* set the trap flag. */
-		long pc;
-		struct pt_regs *regs = NULL;
-
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		if ((child->ptrace & PT_DTRACE) == 0) {
-			/* Spurious delayed TF traps may occur */
-			child->ptrace |= PT_DTRACE;
-		}
-
-		pc = get_stack_long(child, (long)&regs->pc);
-
-		/* Next scheduling will set up UBC */
-		if (child->thread.ubc_pc == 0)
-			ubc_usercnt += 1;
-		child->thread.ubc_pc = pc;
-
-		set_tsk_thread_flag(child, TIF_SINGLESTEP);
-		child->exit_code = data;
-		/* give it a chance to run. */
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
 
 #ifdef CONFIG_SH_DSP
 	case PTRACE_GETDSPREGS: {
