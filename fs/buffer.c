@@ -580,7 +580,7 @@ EXPORT_SYMBOL(mark_buffer_async_write);
 /*
  * The buffer's backing address_space's private_lock must be held
  */
-static inline void __remove_assoc_queue(struct buffer_head *bh)
+static void __remove_assoc_queue(struct buffer_head *bh)
 {
 	list_del_init(&bh->b_assoc_buffers);
 	WARN_ON(!bh->b_assoc_map);
