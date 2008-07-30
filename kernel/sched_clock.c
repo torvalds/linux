@@ -169,11 +169,8 @@ u64 sched_clock_cpu(int cpu)
 
 		lock_double_clock(scd, my_scd);
 
-		now -= my_scd->tick_raw;
-		now += scd->tick_raw;
-
-		now += my_scd->tick_gtod;
-		now -= scd->tick_gtod;
+		now += scd->tick_raw - my_scd->tick_raw;
+		now += my_scd->tick_gtod - scd->tick_gtod;
 
 		__raw_spin_unlock(&my_scd->lock);
 	} else {
