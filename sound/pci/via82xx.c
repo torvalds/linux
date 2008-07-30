@@ -313,6 +313,7 @@ struct snd_via_sg_table {
 } ;
 
 #define VIA_TABLE_SIZE	255
+#define VIA_MAX_BUFSIZE	(1<<24)
 
 struct viadev {
 	unsigned int reg_offset;
@@ -456,9 +457,7 @@ static int build_via_table(struct viadev *dev, struct snd_pcm_substream *substre
 			}
 			addr = snd_pcm_sgbuf_get_addr(substream, ofs);
 			((u32 *)dev->table.area)[idx << 1] = cpu_to_le32(addr);
-			r = PAGE_SIZE - (ofs % PAGE_SIZE);
-			if (rest < r)
-				r = rest;
+			r = snd_pcm_sgbuf_get_chunk_size(substream, ofs, rest);
 			rest -= r;
 			if (! rest) {
 				if (i == periods - 1)
@@ -1147,9 +1146,9 @@ static struct snd_pcm_hardware snd_via82xx_hw =
 	.rate_max =		48000,
 	.channels_min =		1,
 	.channels_max =		2,
-	.buffer_bytes_max =	128 * 1024,
+	.buffer_bytes_max =	VIA_MAX_BUFSIZE,
 	.period_bytes_min =	32,
-	.period_bytes_max =	128 * 1024,
+	.period_bytes_max =	VIA_MAX_BUFSIZE / 2,
 	.periods_min =		2,
 	.periods_max =		VIA_TABLE_SIZE / 2,
 	.fifo_size =		0,
@@ -1403,7 +1402,7 @@ static int __devinit snd_via8233_pcm_new(struct via82xx *chip)
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
-					      64*1024, 128*1024);
+					      64*1024, VIA_MAX_BUFSIZE);
 
 	/* PCM #1:  multi-channel playback and 2nd capture */
 	err = snd_pcm_new(chip->card, chip->card->shortname, 1, 1, 1, &pcm);
@@ -1421,7 +1420,7 @@ static int __devinit snd_via8233_pcm_new(struct via82xx *chip)
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
-					      64*1024, 128*1024);
+					      64*1024, VIA_MAX_BUFSIZE);
 	return 0;
 }
 
@@ -1455,7 +1454,7 @@ static int __devinit snd_via8233a_pcm_new(struct via82xx *chip)
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
-					      64*1024, 128*1024);
+					      64*1024, VIA_MAX_BUFSIZE);
 
 	/* SPDIF supported? */
 	if (! ac97_can_spdif(chip->ac97))
@@ -1474,7 +1473,7 @@ static int __devinit snd_via8233a_pcm_new(struct via82xx *chip)
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
-					      64*1024, 128*1024)
+					      64*1024, VIA_MAX_BUFSIZE);
 	return 0;
 }
 
@@ -1504,7 +1503,7 @@ static int __devinit snd_via686_pcm_new(struct via82xx *chip)
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
-					      64*1024, 128*1024);
+					      64*1024, VIA_MAX_BUFSIZE);
 	return 0;
 }
 
