@@ -222,6 +222,20 @@ asmlinkage int sh64_ptrace(long request, long pid, long addr, long data)
 	return sys_ptrace(request, pid, addr, data);
 }
 
+static inline int audit_arch(void)
+{
+	int arch = EM_SH;
+
+#ifdef CONFIG_64BIT
+	arch |= __AUDIT_ARCH_64BIT;
+#endif
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+	arch |= __AUDIT_ARCH_LE;
+#endif
+
+	return arch;
+}
+
 asmlinkage long long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	long long ret = 0;
@@ -238,7 +252,7 @@ asmlinkage long long do_syscall_trace_enter(struct pt_regs *regs)
 		ret = -1LL;
 
 	if (unlikely(current->audit_context))
-		audit_syscall_entry(AUDIT_ARCH_SH, regs->regs[1],
+		audit_syscall_entry(audit_arch(), regs->regs[1],
 				    regs->regs[2], regs->regs[3],
 				    regs->regs[4], regs->regs[5]);
 

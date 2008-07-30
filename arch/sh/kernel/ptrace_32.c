@@ -217,6 +217,17 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
+static inline int audit_arch(void)
+{
+	int arch = EM_SH;
+
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+	arch |= __AUDIT_ARCH_LE;
+#endif
+
+	return arch;
+}
+
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	long ret = 0;
@@ -233,7 +244,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		ret = -1L;
 
 	if (unlikely(current->audit_context))
-		audit_syscall_entry(AUDIT_ARCH_SH, regs->regs[3],
+		audit_syscall_entry(audit_arch(), regs->regs[3],
 				    regs->regs[4], regs->regs[5],
 				    regs->regs[6], regs->regs[7]);
 
