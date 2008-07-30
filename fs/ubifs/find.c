@@ -290,7 +290,7 @@ int ubifs_find_dirty_leb(struct ubifs_info *c, struct ubifs_lprops *ret_lp,
 		idx_lp = idx_heap->arr[0];
 		sum = idx_lp->free + idx_lp->dirty;
 		/*
-		 * Since we reserve trice as more space for the index than it
+		 * Since we reserve thrice as much space for the index than it
 		 * actually takes, it does not make sense to pick indexing LEBs
 		 * with less than, say, half LEB of dirty space. May be half is
 		 * not the optimal boundary - this should be tested and
