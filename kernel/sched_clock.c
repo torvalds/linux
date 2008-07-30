@@ -53,7 +53,6 @@ struct sched_clock_data {
 	raw_spinlock_t		lock;
 
 	unsigned long		tick_jiffies;
-	u64			prev_raw;
 	u64			tick_raw;
 	u64			tick_gtod;
 	u64			clock;
@@ -84,7 +83,6 @@ void sched_clock_init(void)
 
 		scd->lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 		scd->tick_jiffies = now_jiffies;
-		scd->prev_raw = 0;
 		scd->tick_raw = 0;
 		scd->tick_gtod = ktime_now;
 		scd->clock = ktime_now;
@@ -105,7 +103,7 @@ static void __update_sched_clock(struct sched_clock_data *scd, u64 now)
 	long delta_jiffies = now_jiffies - scd->tick_jiffies;
 	u64 clock = scd->clock;
 	u64 min_clock, max_clock;
-	s64 delta = now - scd->prev_raw;
+	s64 delta = now - scd->tick_raw;
 
 	WARN_ON_ONCE(!irqs_disabled());
 	min_clock = scd->tick_gtod + delta_jiffies * TICK_NSEC;
@@ -130,7 +128,6 @@ static void __update_sched_clock(struct sched_clock_data *scd, u64 now)
 	if (unlikely(clock < min_clock))
 		clock = min_clock;
 
-	scd->prev_raw = now;
 	scd->tick_jiffies = now_jiffies;
 	scd->clock = clock;
 }
@@ -234,7 +231,6 @@ void sched_clock_idle_wakeup_event(u64 delta_ns)
 	 * rq clock:
 	 */
 	__raw_spin_lock(&scd->lock);
-	scd->prev_raw = now;
 	scd->clock += delta_ns;
 	__raw_spin_unlock(&scd->lock);
 
