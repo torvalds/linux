@@ -187,6 +187,7 @@ int btrfs_start_workers(struct btrfs_workers *workers, int num_workers)
 		worker->task = kthread_run(worker_loop, worker, "btrfs");
 		worker->workers = workers;
 		if (IS_ERR(worker->task)) {
+			kfree(worker);
 			ret = PTR_ERR(worker->task);
 			goto fail;
 		}
