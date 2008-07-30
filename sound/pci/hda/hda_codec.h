@@ -657,10 +657,7 @@ struct hda_amp_info {
 
 struct hda_cache_rec {
 	u16 hash[64];			/* hash table for index */
-	unsigned int num_entries;	/* number of assigned entries */
-	unsigned int size;		/* allocated size */
-	unsigned int record_size;	/* record size (including header) */
-	void *buffer;			/* hash table entries */
+	struct snd_array buf;		/* record entries */
 };
 
 /* PCM callbacks */

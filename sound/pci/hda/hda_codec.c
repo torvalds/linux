@@ -756,12 +756,12 @@ static void __devinit init_hda_cache(struct hda_cache_rec *cache,
 {
 	memset(cache, 0, sizeof(*cache));
 	memset(cache->hash, 0xff, sizeof(cache->hash));
-	cache->record_size = record_size;
+	snd_array_init(&cache->buf, record_size, 64);
 }
 
 static void free_hda_cache(struct hda_cache_rec *cache)
 {
-	kfree(cache->buffer);
+	snd_array_free(&cache->buf);
 }
 
 /* query the hash.  allocate an entry if not found. */
@@ -770,38 +770,18 @@ static struct hda_cache_head  *get_alloc_hash(struct hda_cache_rec *cache,
 {
 	u16 idx = key % (u16)ARRAY_SIZE(cache->hash);
 	u16 cur = cache->hash[idx];
+	struct hda_cache_head *info_head = cache->buf.list;
 	struct hda_cache_head *info;
 
 	while (cur != 0xffff) {
-		info = (struct hda_cache_head *)(cache->buffer +
-						 cur * cache->record_size);
+		info = &info_head[cur];
 		if (info->key == key)
 			return info;
 		cur = info->next;
 	}
 
 	/* add a new hash entry */
-	if (cache->num_entries >= cache->size) {
-		/* reallocate the array */
-		unsigned int new_size = cache->size + 64;
-		void *new_buffer;
-		new_buffer = kcalloc(new_size, cache->record_size, GFP_KERNEL);
-		if (!new_buffer) {
-			snd_printk(KERN_ERR "hda_codec: "
-				   "can't malloc amp_info\n");
-			return NULL;
-		}
-		if (cache->buffer) {
-			memcpy(new_buffer, cache->buffer,
-			       cache->size * cache->record_size);
-			kfree(cache->buffer);
-		}
-		cache->size = new_size;
-		cache->buffer = new_buffer;
-	}
-	cur = cache->num_entries++;
-	info = (struct hda_cache_head *)(cache->buffer +
-					 cur * cache->record_size);
+	info = snd_array_new(&cache->buf);
 	info->key = key;
 	info->val = 0;
 	info->next = cache->hash[idx];
@@ -942,10 +922,10 @@ int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
 /* resume the all amp commands from the cache */
 void snd_hda_codec_resume_amp(struct hda_codec *codec)
 {
-	struct hda_amp_info *buffer = codec->amp_cache.buffer;
+	struct hda_amp_info *buffer = codec->amp_cache.buf.list;
 	int i;
 
-	for (i = 0; i < codec->amp_cache.size; i++, buffer++) {
+	for (i = 0; i < codec->amp_cache.buf.used; i++, buffer++) {
 		u32 key = buffer->head.key;
 		hda_nid_t nid;
 		unsigned int idx, dir, ch;
@@ -1779,10 +1759,10 @@ int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 /* resume the all commands from the cache */
 void snd_hda_codec_resume_cache(struct hda_codec *codec)
 {
-	struct hda_cache_head *buffer = codec->cmd_cache.buffer;
+	struct hda_cache_head *buffer = codec->cmd_cache.buf.list;
 	int i;
 
-	for (i = 0; i < codec->cmd_cache.size; i++, buffer++) {
+	for (i = 0; i < codec->cmd_cache.buf.used; i++, buffer++) {
 		u32 key = buffer->key;
 		if (!key)
 			continue;
