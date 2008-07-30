@@ -36,7 +36,6 @@
 #ifndef _DRM_H_
 #define _DRM_H_
 
-#if defined(__linux__)
 #if defined(__KERNEL__)
 #endif
 #include <asm/ioctl.h>		/* For _IO* macros */
@@ -46,22 +45,6 @@
 #define DRM_IOC_WRITE		_IOC_WRITE
 #define DRM_IOC_READWRITE	_IOC_READ|_IOC_WRITE
 #define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
-#if defined(__FreeBSD__) && defined(IN_MODULE)
-/* Prevent name collision when including sys/ioccom.h */
-#undef ioctl
-#include <sys/ioccom.h>
-#define ioctl(a,b,c)		xf86ioctl(a,b,c)
-#else
-#include <sys/ioccom.h>
-#endif				/* __FreeBSD__ && xf86ioctl */
-#define DRM_IOCTL_NR(n)		((n) & 0xff)
-#define DRM_IOC_VOID		IOC_VOID
-#define DRM_IOC_READ		IOC_OUT
-#define DRM_IOC_WRITE		IOC_IN
-#define DRM_IOC_READWRITE	IOC_INOUT
-#define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
-#endif
 
 #define DRM_MAJOR       226
 #define DRM_MAX_MINOR   15
