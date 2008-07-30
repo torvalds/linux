@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
+#include <asm/div64.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/string.h>
