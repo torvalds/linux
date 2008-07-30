@@ -63,31 +63,35 @@ asmlinkage long sys_dup3(unsigned int oldfd, unsigned int newfd, int flags)
 		return -EINVAL;
 
 	spin_lock(&files->file_lock);
-	if (!(file = fcheck(oldfd)))
-		goto out_unlock;
-	get_file(file);			/* We are now finished with oldfd */
-
 	err = expand_files(files, newfd);
+	file = fcheck(oldfd);
+	if (unlikely(!file))
+		goto Ebadf;
 	if (unlikely(err < 0)) {
 		if (err == -EMFILE)
-			err = -EBADF;
-		goto out_fput;
+			goto Ebadf;
+		goto out_unlock;
 	}
-
-	/* To avoid races with open() and dup(), we will mark the fd as
-	 * in-use in the open-file bitmap throughout the entire dup2()
-	 * process.  This is quite safe: do_close() uses the fd array
-	 * entry, not the bitmap, to decide what work needs to be
-	 * done.  --sct */
-	/* Doesn't work. open() might be there first. --AV */
-
-	/* Yes. It's a race. In user space. Nothing sane to do */
+	/*
+	 * We need to detect attempts to do dup2() over allocated but still
+	 * not finished descriptor.  NB: OpenBSD avoids that at the price of
+	 * extra work in their equivalent of fget() - they insert struct
+	 * file immediately after grabbing descriptor, mark it larval if
+	 * more work (e.g. actual opening) is needed and make sure that
+	 * fget() treats larval files as absent.  Potentially interesting,
+	 * but while extra work in fget() is trivial, locking implications
+	 * and amount of surgery on open()-related paths in VFS are not.
+	 * FreeBSD fails with -EBADF in the same situation, NetBSD "solution"
+	 * deadlocks in rather amusing ways, AFAICS.  All of that is out of
+	 * scope of POSIX or SUS, since neither considers shared descriptor
+	 * tables and this condition does not arise without those.
+	 */
 	err = -EBUSY;
 	fdt = files_fdtable(files);
 	tofree = fdt->fd[newfd];
 	if (!tofree && FD_ISSET(newfd, fdt->open_fds))
-		goto out_fput;
-
+		goto out_unlock;
+	get_file(file);
 	rcu_assign_pointer(fdt->fd[newfd], file);
 	FD_SET(newfd, fdt->open_fds);
 	if (flags & O_CLOEXEC)
@@ -98,17 +102,14 @@ asmlinkage long sys_dup3(unsigned int oldfd, unsigned int newfd, int flags)
 
 	if (tofree)
 		filp_close(tofree, files);
-	err = newfd;
-out:
-	return err;
+
+	return newfd;
+
+Ebadf:
+	err = -EBADF;
 out_unlock:
 	spin_unlock(&files->file_lock);
-	goto out;
-
-out_fput:
-	spin_unlock(&files->file_lock);
-	fput(file);
-	goto out;
+	return err;
 }
 
 asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
