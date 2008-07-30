@@ -46,7 +46,8 @@ struct audit_krule;
  */
 extern int cap_capable(struct task_struct *tsk, int cap);
 extern int cap_settime(struct timespec *ts, struct timezone *tz);
-extern int cap_ptrace(struct task_struct *parent, struct task_struct *child);
+extern int cap_ptrace(struct task_struct *parent, struct task_struct *child,
+		      unsigned int mode);
 extern int cap_capget(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
 extern int cap_capset_check(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
 extern void cap_capset_set(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
@@ -79,6 +80,7 @@ struct xfrm_selector;
 struct xfrm_policy;
 struct xfrm_state;
 struct xfrm_user_sec_ctx;
+struct seq_file;
 
 extern int cap_netlink_send(struct sock *sk, struct sk_buff *skb);
 extern int cap_netlink_recv(struct sk_buff *skb, int cap);
@@ -100,9 +102,7 @@ extern unsigned long mmap_min_addr;
 #define LSM_SETID_FS	8
 
 /* forward declares to avoid warnings */
-struct nfsctl_arg;
 struct sched_param;
-struct swap_info_struct;
 struct request_sock;
 
 /* bprm_apply_creds unsafe reasons */
@@ -289,10 +289,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Update module state after a successful pivot.
  *	@old_path contains the path for the old root.
  *	@new_path contains the path for the new root.
- * @sb_get_mnt_opts:
- *	Get the security relevant mount options used for a superblock
- *	@sb the superblock to get security mount options from
- *	@opts binary data structure containing all lsm mount data
  * @sb_set_mnt_opts:
  *	Set the security relevant mount options used for a superblock
  *	@sb the superblock to set security mount options for
@@ -1170,6 +1166,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	attributes would be changed by the execve.
  *	@parent contains the task_struct structure for parent process.
  *	@child contains the task_struct structure for child process.
+ *	@mode contains the PTRACE_MODE flags indicating the form of access.
  *	Return 0 if permission is granted.
  * @capget:
  *	Get the @effective, @inheritable, and @permitted capability sets for
@@ -1240,11 +1237,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@pages contains the number of pages.
  *	Return 0 if permission is granted.
  *
- * @register_security:
- *	allow module stacking.
- *	@name contains the name of the security module being stacked.
- *	@ops contains a pointer to the struct security_operations of the module to stack.
- *
  * @secid_to_secctx:
  *	Convert secid to security context.
  *	@secid contains the security ID.
@@ -1295,7 +1287,8 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
 struct security_operations {
 	char name[SECURITY_NAME_MAX + 1];
 
-	int (*ptrace) (struct task_struct *parent, struct task_struct *child);
+	int (*ptrace) (struct task_struct *parent, struct task_struct *child,
+		       unsigned int mode);
 	int (*capget) (struct task_struct *target,
 		       kernel_cap_t *effective,
 		       kernel_cap_t *inheritable, kernel_cap_t *permitted);
@@ -1328,6 +1321,7 @@ struct security_operations {
 	void (*sb_free_security) (struct super_block *sb);
 	int (*sb_copy_data) (char *orig, char *copy);
 	int (*sb_kern_mount) (struct super_block *sb, void *data);
+	int (*sb_show_options) (struct seq_file *m, struct super_block *sb);
 	int (*sb_statfs) (struct dentry *dentry);
 	int (*sb_mount) (char *dev_name, struct path *path,
 			 char *type, unsigned long flags, void *data);
@@ -1343,8 +1337,6 @@ struct security_operations {
 			     struct path *new_path);
 	void (*sb_post_pivotroot) (struct path *old_path,
 				   struct path *new_path);
-	int (*sb_get_mnt_opts) (const struct super_block *sb,
-				struct security_mnt_opts *opts);
 	int (*sb_set_mnt_opts) (struct super_block *sb,
 				struct security_mnt_opts *opts);
 	void (*sb_clone_mnt_opts) (const struct super_block *oldsb,
@@ -1370,7 +1362,7 @@ struct security_operations {
 			     struct inode *new_dir, struct dentry *new_dentry);
 	int (*inode_readlink) (struct dentry *dentry);
 	int (*inode_follow_link) (struct dentry *dentry, struct nameidata *nd);
-	int (*inode_permission) (struct inode *inode, int mask, struct nameidata *nd);
+	int (*inode_permission) (struct inode *inode, int mask);
 	int (*inode_setattr)	(struct dentry *dentry, struct iattr *attr);
 	int (*inode_getattr) (struct vfsmount *mnt, struct dentry *dentry);
 	void (*inode_delete) (struct inode *inode);
@@ -1472,10 +1464,6 @@ struct security_operations {
 	int (*netlink_send) (struct sock *sk, struct sk_buff *skb);
 	int (*netlink_recv) (struct sk_buff *skb, int cap);
 
-	/* allow module stacking */
-	int (*register_security) (const char *name,
-				  struct security_operations *ops);
-
 	void (*d_instantiate) (struct dentry *dentry, struct inode *inode);
 
 	int (*getprocattr) (struct task_struct *p, char *name, char **value);
@@ -1565,7 +1553,6 @@ struct security_operations {
 extern int security_init(void);
 extern int security_module_enable(struct security_operations *ops);
 extern int register_security(struct security_operations *ops);
-extern int mod_reg_security(const char *name, struct security_operations *ops);
 extern struct dentry *securityfs_create_file(const char *name, mode_t mode,
 					     struct dentry *parent, void *data,
 					     const struct file_operations *fops);
@@ -1573,7 +1560,8 @@ extern struct dentry *securityfs_create_dir(const char *name, struct dentry *par
 extern void securityfs_remove(struct dentry *dentry);
 
 /* Security operations */
-int security_ptrace(struct task_struct *parent, struct task_struct *child);
+int security_ptrace(struct task_struct *parent, struct task_struct *child,
+		    unsigned int mode);
 int security_capget(struct task_struct *target,
 		    kernel_cap_t *effective,
 		    kernel_cap_t *inheritable,
@@ -1606,6 +1594,7 @@ int security_sb_alloc(struct super_block *sb);
 void security_sb_free(struct super_block *sb);
 int security_sb_copy_data(char *orig, char *copy);
 int security_sb_kern_mount(struct super_block *sb, void *data);
+int security_sb_show_options(struct seq_file *m, struct super_block *sb);
 int security_sb_statfs(struct dentry *dentry);
 int security_sb_mount(char *dev_name, struct path *path,
 		      char *type, unsigned long flags, void *data);
@@ -1617,8 +1606,6 @@ void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *d
 void security_sb_post_addmount(struct vfsmount *mnt, struct path *mountpoint);
 int security_sb_pivotroot(struct path *old_path, struct path *new_path);
 void security_sb_post_pivotroot(struct path *old_path, struct path *new_path);
-int security_sb_get_mnt_opts(const struct super_block *sb,
-				struct security_mnt_opts *opts);
 int security_sb_set_mnt_opts(struct super_block *sb, struct security_mnt_opts *opts);
 void security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb);
@@ -1641,7 +1628,7 @@ int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 			  struct inode *new_dir, struct dentry *new_dentry);
 int security_inode_readlink(struct dentry *dentry);
 int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
-int security_inode_permission(struct inode *inode, int mask, struct nameidata *nd);
+int security_inode_permission(struct inode *inode, int mask);
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr);
 int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry);
 void security_inode_delete(struct inode *inode);
@@ -1755,9 +1742,11 @@ static inline int security_init(void)
 	return 0;
 }
 
-static inline int security_ptrace(struct task_struct *parent, struct task_struct *child)
+static inline int security_ptrace(struct task_struct *parent,
+				  struct task_struct *child,
+				  unsigned int mode)
 {
-	return cap_ptrace(parent, child);
+	return cap_ptrace(parent, child, mode);
 }
 
 static inline int security_capget(struct task_struct *target,
@@ -1881,6 +1870,12 @@ static inline int security_sb_kern_mount(struct super_block *sb, void *data)
 	return 0;
 }
 
+static inline int security_sb_show_options(struct seq_file *m,
+					   struct super_block *sb)
+{
+	return 0;
+}
+
 static inline int security_sb_statfs(struct dentry *dentry)
 {
 	return 0;
@@ -1927,12 +1922,6 @@ static inline int security_sb_pivotroot(struct path *old_path,
 static inline void security_sb_post_pivotroot(struct path *old_path,
 					      struct path *new_path)
 { }
-static inline int security_sb_get_mnt_opts(const struct super_block *sb,
-					   struct security_mnt_opts *opts)
-{
-	security_init_mnt_opts(opts);
-	return 0;
-}
 
 static inline int security_sb_set_mnt_opts(struct super_block *sb,
 					   struct security_mnt_opts *opts)
@@ -2032,8 +2021,7 @@ static inline int security_inode_follow_link(struct dentry *dentry,
 	return 0;
 }
 
-static inline int security_inode_permission(struct inode *inode, int mask,
-					     struct nameidata *nd)
+static inline int security_inode_permission(struct inode *inode, int mask)
 {
 	return 0;
 }

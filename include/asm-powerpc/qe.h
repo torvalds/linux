@@ -16,6 +16,8 @@
 #define _ASM_POWERPC_QE_H
 #ifdef __KERNEL__
 
+#include <linux/spinlock.h>
+#include <asm/cpm.h>
 #include <asm/immap_qe.h>
 
 #define QE_NUM_OF_SNUM	28
@@ -74,10 +76,38 @@ enum qe_clock {
 	QE_CLK_DUMMY
 };
 
+static inline bool qe_clock_is_brg(enum qe_clock clk)
+{
+	return clk >= QE_BRG1 && clk <= QE_BRG16;
+}
+
+extern spinlock_t cmxgcr_lock;
+
 /* Export QE common operations */
-extern void qe_reset(void);
+extern void __init qe_reset(void);
+
+/* QE PIO */
+#define QE_PIO_PINS 32
+
+struct qe_pio_regs {
+	__be32	cpodr;		/* Open drain register */
+	__be32	cpdata;		/* Data register */
+	__be32	cpdir1;		/* Direction register */
+	__be32	cpdir2;		/* Direction register */
+	__be32	cppar1;		/* Pin assignment register */
+	__be32	cppar2;		/* Pin assignment register */
+#ifdef CONFIG_PPC_85xx
+	u8	pad[8];
+#endif
+};
+
 extern int par_io_init(struct device_node *np);
 extern int par_io_of_config(struct device_node *np);
+#define QE_PIO_DIR_IN	2
+#define QE_PIO_DIR_OUT	1
+extern void __par_io_config_pin(struct qe_pio_regs __iomem *par_io, u8 pin,
+				int dir, int open_drain, int assignment,
+				int has_irq);
 extern int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
 			     int assignment, int has_irq);
 extern int par_io_data_set(u8 port, u8 pin, u8 val);
@@ -89,20 +119,13 @@ unsigned int qe_get_brg_clk(void);
 int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier);
 int qe_get_snum(void);
 void qe_put_snum(u8 snum);
-unsigned long qe_muram_alloc(int size, int align);
-int qe_muram_free(unsigned long offset);
-unsigned long qe_muram_alloc_fixed(unsigned long offset, int size);
-void qe_muram_dump(void);
-
-static inline void __iomem *qe_muram_addr(unsigned long offset)
-{
-	return (void __iomem *)&qe_immr->muram[offset];
-}
-
-static inline unsigned long qe_muram_offset(void __iomem *addr)
-{
-	return addr - (void __iomem *)qe_immr->muram;
-}
+/* we actually use cpm_muram implementation, define this for convenience */
+#define qe_muram_init cpm_muram_init
+#define qe_muram_alloc cpm_muram_alloc
+#define qe_muram_alloc_fixed cpm_muram_alloc_fixed
+#define qe_muram_free cpm_muram_free
+#define qe_muram_addr cpm_muram_addr
+#define qe_muram_offset cpm_muram_offset
 
 /* Structure that defines QE firmware binary files.
  *
@@ -156,6 +179,9 @@ int qe_upload_firmware(const struct qe_firmware *firmware);
 /* Obtain information on the uploaded firmware */
 struct qe_firmware_info *qe_get_firmware_info(void);
 
+/* QE USB */
+int qe_usb_clock_set(enum qe_clock clk, int rate);
+
 /* Buffer descriptors */
 struct qe_bd {
 	__be16 status;
@@ -165,20 +191,6 @@ struct qe_bd {
 
 #define BD_STATUS_MASK	0xffff0000
 #define BD_LENGTH_MASK	0x0000ffff
-
-#define BD_SC_EMPTY	0x8000	/* Receive is empty */
-#define BD_SC_READY	0x8000	/* Transmit is ready */
-#define BD_SC_WRAP	0x2000	/* Last buffer descriptor */
-#define BD_SC_INTRPT	0x1000	/* Interrupt on change */
-#define BD_SC_LAST	0x0800	/* Last buffer in frame */
-#define BD_SC_CM	0x0200	/* Continous mode */
-#define BD_SC_ID	0x0100	/* Rec'd too many idles */
-#define BD_SC_P		0x0100	/* xmt preamble */
-#define BD_SC_BR	0x0020	/* Break received */
-#define BD_SC_FR	0x0010	/* Framing error */
-#define BD_SC_PR	0x0008	/* Parity error */
-#define BD_SC_OV	0x0002	/* Overrun */
-#define BD_SC_CD	0x0001	/* ?? */
 
 /* Alignment */
 #define QE_INTR_TABLE_ALIGN	16	/* ??? */
@@ -254,6 +266,16 @@ enum comm_dir {
 #define QE_CMXGCR_MII_ENET_MNG		0x00007000
 #define QE_CMXGCR_MII_ENET_MNG_SHIFT	12
 #define QE_CMXGCR_USBCS			0x0000000f
+#define QE_CMXGCR_USBCS_CLK3		0x1
+#define QE_CMXGCR_USBCS_CLK5		0x2
+#define QE_CMXGCR_USBCS_CLK7		0x3
+#define QE_CMXGCR_USBCS_CLK9		0x4
+#define QE_CMXGCR_USBCS_CLK13		0x5
+#define QE_CMXGCR_USBCS_CLK17		0x6
+#define QE_CMXGCR_USBCS_CLK19		0x7
+#define QE_CMXGCR_USBCS_CLK21		0x8
+#define QE_CMXGCR_USBCS_BRG9		0x9
+#define QE_CMXGCR_USBCS_BRG10		0xa
 
 /* QE CECR Commands.
 */
@@ -283,7 +305,7 @@ enum comm_dir {
 #define QE_HPAC_START_TX		0x0000060b
 #define QE_HPAC_START_RX		0x0000070b
 #define QE_USB_STOP_TX			0x0000000a
-#define QE_USB_RESTART_TX		0x0000000b
+#define QE_USB_RESTART_TX		0x0000000c
 #define QE_QMC_STOP_TX			0x0000000c
 #define QE_QMC_STOP_RX			0x0000000d
 #define QE_SS7_SU_FIL_RESET		0x0000000e

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PTRACE_ABI_H
-#define _ASM_X86_PTRACE_ABI_H
+#ifndef ASM_X86__PTRACE_ABI_H
+#define ASM_X86__PTRACE_ABI_H
 
 #ifdef __i386__
 
@@ -73,10 +73,10 @@
 
 #ifdef __x86_64__
 # define PTRACE_ARCH_PRCTL	  30
-#else
-# define PTRACE_SYSEMU		  31
-# define PTRACE_SYSEMU_SINGLESTEP 32
 #endif
+
+#define PTRACE_SYSEMU		  31
+#define PTRACE_SYSEMU_SINGLESTEP  32
 
 #define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
 
@@ -140,4 +140,4 @@ struct ptrace_bts_config {
    Returns number of BTS records drained.
 */
 
-#endif
+#endif /* ASM_X86__PTRACE_ABI_H */

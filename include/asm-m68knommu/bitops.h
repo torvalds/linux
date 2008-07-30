@@ -14,8 +14,38 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
+#if defined (__mcfisaaplus__) || defined (__mcfisac__)
+static inline int ffs(unsigned int val)
+{
+        if (!val)
+                return 0;
+
+        asm volatile(
+                        "bitrev %0\n\t"
+                        "ff1 %0\n\t"
+                        : "=d" (val)
+                        : "0" (val)
+		    );
+        val++;
+        return val;
+}
+
+static inline int __ffs(unsigned int val)
+{
+        asm volatile(
+                        "bitrev %0\n\t"
+                        "ff1 %0\n\t"
+                        : "=d" (val)
+                        : "0" (val)
+		    );
+        return val;
+}
+
+#else
 #include <asm-generic/bitops/ffs.h>
 #include <asm-generic/bitops/__ffs.h>
+#endif
+
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/ffz.h>
 

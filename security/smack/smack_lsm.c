@@ -95,11 +95,12 @@ struct inode_smack *new_inode_smack(char *smack)
  *
  * Do the capability checks, and require read and write.
  */
-static int smack_ptrace(struct task_struct *ptp, struct task_struct *ctp)
+static int smack_ptrace(struct task_struct *ptp, struct task_struct *ctp,
+			unsigned int mode)
 {
 	int rc;
 
-	rc = cap_ptrace(ptp, ctp);
+	rc = cap_ptrace(ptp, ctp, mode);
 	if (rc != 0)
 		return rc;
 
@@ -521,8 +522,7 @@ static int smack_inode_rename(struct inode *old_inode,
  *
  * Returns 0 if access is permitted, -EACCES otherwise
  */
-static int smack_inode_permission(struct inode *inode, int mask,
-				  struct nameidata *nd)
+static int smack_inode_permission(struct inode *inode, int mask)
 {
 	/*
 	 * No permission to check. Existence test. Yup, it's there.
@@ -1821,27 +1821,6 @@ static void smack_ipc_getsecid(struct kern_ipc_perm *ipp, u32 *secid)
 	*secid = smack_to_secid(smack);
 }
 
-/* module stacking operations */
-
-/**
- * smack_register_security - stack capability module
- * @name: module name
- * @ops: module operations - ignored
- *
- * Allow the capability module to register.
- */
-static int smack_register_security(const char *name,
-				   struct security_operations *ops)
-{
-	if (strcmp(name, "capability") != 0)
-		return -EINVAL;
-
-	printk(KERN_INFO "%s:  Registering secondary module %s\n",
-	       __func__, name);
-
-	return 0;
-}
-
 /**
  * smack_d_instantiate - Make sure the blob is correct on an inode
  * @opt_dentry: unused
@@ -2671,8 +2650,6 @@ struct security_operations smack_ops = {
 
 	.netlink_send =			cap_netlink_send,
 	.netlink_recv = 		cap_netlink_recv,
-
-	.register_security = 		smack_register_security,
 
 	.d_instantiate = 		smack_d_instantiate,
 

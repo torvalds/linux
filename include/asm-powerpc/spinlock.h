@@ -54,7 +54,7 @@
  * This returns the old value in the lock, so we succeeded
  * in getting the lock if the return value is 0.
  */
-static __inline__ unsigned long __spin_trylock(raw_spinlock_t *lock)
+static inline unsigned long __spin_trylock(raw_spinlock_t *lock)
 {
 	unsigned long tmp, token;
 
@@ -73,7 +73,7 @@ static __inline__ unsigned long __spin_trylock(raw_spinlock_t *lock)
 	return tmp;
 }
 
-static int __inline__ __raw_spin_trylock(raw_spinlock_t *lock)
+static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	CLEAR_IO_SYNC;
 	return __spin_trylock(lock) == 0;
@@ -104,7 +104,7 @@ extern void __rw_yield(raw_rwlock_t *lock);
 #define SHARED_PROCESSOR	0
 #endif
 
-static void __inline__ __raw_spin_lock(raw_spinlock_t *lock)
+static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	CLEAR_IO_SYNC;
 	while (1) {
@@ -119,7 +119,8 @@ static void __inline__ __raw_spin_lock(raw_spinlock_t *lock)
 	}
 }
 
-static void __inline__ __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
+static inline
+void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
 {
 	unsigned long flags_dis;
 
@@ -139,7 +140,7 @@ static void __inline__ __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long
 	}
 }
 
-static __inline__ void __raw_spin_unlock(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	SYNC_IO;
 	__asm__ __volatile__("# __raw_spin_unlock\n\t"
@@ -180,7 +181,7 @@ extern void __raw_spin_unlock_wait(raw_spinlock_t *lock);
  * This returns the old value in the lock + 1,
  * so we got a read lock if the return value is > 0.
  */
-static long __inline__ __read_trylock(raw_rwlock_t *rw)
+static inline long __read_trylock(raw_rwlock_t *rw)
 {
 	long tmp;
 
@@ -204,7 +205,7 @@ static long __inline__ __read_trylock(raw_rwlock_t *rw)
  * This returns the old value in the lock,
  * so we got the write lock if the return value is 0.
  */
-static __inline__ long __write_trylock(raw_rwlock_t *rw)
+static inline long __write_trylock(raw_rwlock_t *rw)
 {
 	long tmp, token;
 
@@ -224,7 +225,7 @@ static __inline__ long __write_trylock(raw_rwlock_t *rw)
 	return tmp;
 }
 
-static void __inline__ __raw_read_lock(raw_rwlock_t *rw)
+static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
 	while (1) {
 		if (likely(__read_trylock(rw) > 0))
@@ -238,7 +239,7 @@ static void __inline__ __raw_read_lock(raw_rwlock_t *rw)
 	}
 }
 
-static void __inline__ __raw_write_lock(raw_rwlock_t *rw)
+static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
 	while (1) {
 		if (likely(__write_trylock(rw) == 0))
@@ -252,17 +253,17 @@ static void __inline__ __raw_write_lock(raw_rwlock_t *rw)
 	}
 }
 
-static int __inline__ __raw_read_trylock(raw_rwlock_t *rw)
+static inline int __raw_read_trylock(raw_rwlock_t *rw)
 {
 	return __read_trylock(rw) > 0;
 }
 
-static int __inline__ __raw_write_trylock(raw_rwlock_t *rw)
+static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
 	return __write_trylock(rw) == 0;
 }
 
-static void __inline__ __raw_read_unlock(raw_rwlock_t *rw)
+static inline void __raw_read_unlock(raw_rwlock_t *rw)
 {
 	long tmp;
 
@@ -279,7 +280,7 @@ static void __inline__ __raw_read_unlock(raw_rwlock_t *rw)
 	: "cr0", "memory");
 }
 
-static __inline__ void __raw_write_unlock(raw_rwlock_t *rw)
+static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
 	__asm__ __volatile__("# write_unlock\n\t"
 				LWSYNC_ON_SMP: : :"memory");

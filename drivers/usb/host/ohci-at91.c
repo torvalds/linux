@@ -91,7 +91,7 @@ static void at91_stop_hc(struct platform_device *pdev)
 
 /*-------------------------------------------------------------------------*/
 
-static int usb_hcd_at91_remove (struct usb_hcd *, struct platform_device *);
+static void usb_hcd_at91_remove (struct usb_hcd *, struct platform_device *);
 
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
@@ -184,13 +184,14 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
  * context, "rmmod" or something similar.
  *
  */
-static int usb_hcd_at91_remove(struct usb_hcd *hcd,
+static void usb_hcd_at91_remove(struct usb_hcd *hcd,
 				struct platform_device *pdev)
 {
 	usb_remove_hcd(hcd);
 	at91_stop_hc(pdev);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+	usb_put_hcd(hcd);
 
 	if (cpu_is_at91sam9261())
 		clk_put(hclk);
@@ -199,7 +200,6 @@ static int usb_hcd_at91_remove(struct usb_hcd *hcd,
 	fclk = iclk = hclk = NULL;
 
 	dev_set_drvdata(&pdev->dev, NULL);
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -309,7 +309,8 @@ static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 	}
 
 	device_init_wakeup(&pdev->dev, 0);
-	return usb_hcd_at91_remove(platform_get_drvdata(pdev), pdev);
+	usb_hcd_at91_remove(platform_get_drvdata(pdev), pdev);
+	return 0;
 }
 
 #ifdef CONFIG_PM

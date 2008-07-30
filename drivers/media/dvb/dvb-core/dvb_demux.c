@@ -1056,16 +1056,27 @@ static int dvbdmx_close(struct dmx_demux *demux)
 	return 0;
 }
 
-static int dvbdmx_write(struct dmx_demux *demux, const char *buf, size_t count)
+static int dvbdmx_write(struct dmx_demux *demux, const char __user *buf, size_t count)
 {
 	struct dvb_demux *dvbdemux = (struct dvb_demux *)demux;
+	void *p;
 
 	if ((!demux->frontend) || (demux->frontend->source != DMX_MEMORY_FE))
 		return -EINVAL;
 
-	if (mutex_lock_interruptible(&dvbdemux->mutex))
+	p = kmalloc(count, GFP_USER);
+	if (!p)
+		return -ENOMEM;
+	if (copy_from_user(p, buf, count)) {
+		kfree(p);
+		return -EFAULT;
+	}
+	if (mutex_lock_interruptible(&dvbdemux->mutex)) {
+		kfree(p);
 		return -ERESTARTSYS;
-	dvb_dmx_swfilter(dvbdemux, (u8 *)buf, count);
+	}
+	dvb_dmx_swfilter(dvbdemux, p, count);
+	kfree(p);
 	mutex_unlock(&dvbdemux->mutex);
 
 	if (signal_pending(current))

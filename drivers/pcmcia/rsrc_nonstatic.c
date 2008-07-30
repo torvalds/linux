@@ -31,7 +31,6 @@
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
-#include <pcmcia/bulkmem.h>
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
@@ -261,21 +260,22 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 ======================================================================*/
 
 /* Validation function for cards with a valid CIS */
-static int readable(struct pcmcia_socket *s, struct resource *res, cisinfo_t *info)
+static int readable(struct pcmcia_socket *s, struct resource *res,
+		    unsigned int *count)
 {
 	int ret = -1;
 
 	s->cis_mem.res = res;
 	s->cis_virt = ioremap(res->start, s->map_size);
 	if (s->cis_virt) {
-		ret = pccard_validate_cis(s, BIND_FN_ALL, info);
+		ret = pccard_validate_cis(s, BIND_FN_ALL, count);
 		/* invalidate mapping and CIS cache */
 		iounmap(s->cis_virt);
 		s->cis_virt = NULL;
 		destroy_cis_cache(s);
 	}
 	s->cis_mem.res = NULL;
-	if ((ret != 0) || (info->Chains == 0))
+	if ((ret != 0) || (count == 0))
 		return 0;
 	return 1;
 }
@@ -316,7 +316,7 @@ static int
 cis_readable(struct pcmcia_socket *s, unsigned long base, unsigned long size)
 {
 	struct resource *res1, *res2;
-	cisinfo_t info1, info2;
+	unsigned int info1, info2;
 	int ret = 0;
 
 	res1 = claim_region(s, base, size/2, IORESOURCE_MEM, "cs memory probe");
@@ -330,7 +330,7 @@ cis_readable(struct pcmcia_socket *s, unsigned long base, unsigned long size)
 	free_region(res2);
 	free_region(res1);
 
-	return (ret == 2) && (info1.Chains == info2.Chains);
+	return (ret == 2) && (info1 == info2);
 }
 
 static int
@@ -766,21 +766,6 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 }
 
 
-static int nonstatic_adjust_resource_info(struct pcmcia_socket *s, adjust_t *adj)
-{
-	unsigned long end;
-
-	switch (adj->Resource) {
-	case RES_MEMORY_RANGE:
-		end = adj->resource.memory.Base + adj->resource.memory.Size - 1;
-		return adjust_memory(s, adj->Action, adj->resource.memory.Base, end);
-	case RES_IO_RANGE:
-		end = adj->resource.io.BasePort + adj->resource.io.NumPorts - 1;
-		return adjust_io(s, adj->Action, adj->resource.io.BasePort, end);
-	}
-	return CS_UNSUPPORTED_FUNCTION;
-}
-
 #ifdef CONFIG_PCI
 static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 {
@@ -889,7 +874,8 @@ struct pccard_resource_ops pccard_nonstatic_ops = {
 	.adjust_io_region = nonstatic_adjust_io_region,
 	.find_io = nonstatic_find_io_region,
 	.find_mem = nonstatic_find_mem_region,
-	.adjust_resource = nonstatic_adjust_resource_info,
+	.add_io = adjust_io,
+	.add_mem = adjust_memory,
 	.init = nonstatic_init,
 	.exit = nonstatic_release_resource_db,
 };
@@ -1008,41 +994,34 @@ static ssize_t store_mem_db(struct device *dev,
 }
 static DEVICE_ATTR(available_resources_mem, 0600, show_mem_db, store_mem_db);
 
-static struct device_attribute *pccard_rsrc_attributes[] = {
-	&dev_attr_available_resources_io,
-	&dev_attr_available_resources_mem,
+static struct attribute *pccard_rsrc_attributes[] = {
+	&dev_attr_available_resources_io.attr,
+	&dev_attr_available_resources_mem.attr,
 	NULL,
+};
+
+static const struct attribute_group rsrc_attributes = {
+	.attrs = pccard_rsrc_attributes,
 };
 
 static int __devinit pccard_sysfs_add_rsrc(struct device *dev,
 					   struct class_interface *class_intf)
 {
 	struct pcmcia_socket *s = dev_get_drvdata(dev);
-	struct device_attribute **attr;
-	int ret = 0;
+
 	if (s->resource_ops != &pccard_nonstatic_ops)
 		return 0;
-
-	for (attr = pccard_rsrc_attributes; *attr; attr++) {
-		ret = device_create_file(dev, *attr);
-		if (ret)
-			break;
-	}
-
-	return ret;
+	return sysfs_create_group(&dev->kobj, &rsrc_attributes);
 }
 
 static void __devexit pccard_sysfs_remove_rsrc(struct device *dev,
 					       struct class_interface *class_intf)
 {
 	struct pcmcia_socket *s = dev_get_drvdata(dev);
-	struct device_attribute **attr;
 
 	if (s->resource_ops != &pccard_nonstatic_ops)
 		return;
-
-	for (attr = pccard_rsrc_attributes; *attr; attr++)
-		device_remove_file(dev, *attr);
+	sysfs_remove_group(&dev->kobj, &rsrc_attributes);
 }
 
 static struct class_interface pccard_rsrc_interface __refdata = {

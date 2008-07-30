@@ -366,8 +366,6 @@ static void print_digital_conv(struct snd_info_buffer *buffer,
 {
 	unsigned int digi1 = snd_hda_codec_read(codec, nid, 0,
 						AC_VERB_GET_DIGI_CONVERT_1, 0);
-	unsigned int digi2 = snd_hda_codec_read(codec, nid, 0,
-						AC_VERB_GET_DIGI_CONVERT_2, 0);
 	snd_iprintf(buffer, "  Digital:");
 	if (digi1 & AC_DIG1_ENABLE)
 		snd_iprintf(buffer, " Enabled");
@@ -386,7 +384,8 @@ static void print_digital_conv(struct snd_info_buffer *buffer,
 	if (digi1 & AC_DIG1_LEVEL)
 		snd_iprintf(buffer, " GenLevel");
 	snd_iprintf(buffer, "\n");
-	snd_iprintf(buffer, "  Digital category: 0x%x\n", digi2 & AC_DIG2_CC);
+	snd_iprintf(buffer, "  Digital category: 0x%x\n",
+		    (digi1 >> 8) & AC_DIG2_CC);
 }
 
 static const char *get_pwr_state(u32 state)

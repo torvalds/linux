@@ -125,7 +125,7 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
 		/* Root Table Array has been statically allocated by the host */
 
 		ACPI_MEMSET(initial_table_array, 0,
-			    initial_table_count *
+			    (acpi_size) initial_table_count *
 			    sizeof(struct acpi_table_desc));
 
 		acpi_gbl_root_table_list.tables = initial_table_array;
@@ -183,9 +183,9 @@ acpi_status acpi_reallocate_root_table(void)
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
 
-	new_size =
-	    (acpi_gbl_root_table_list.count +
-	     ACPI_ROOT_TABLE_SIZE_INCREMENT) * sizeof(struct acpi_table_desc);
+	new_size = ((acpi_size) acpi_gbl_root_table_list.count +
+		    ACPI_ROOT_TABLE_SIZE_INCREMENT) *
+	    sizeof(struct acpi_table_desc);
 
 	/* Create new array and copy the old array */
 
@@ -222,7 +222,7 @@ acpi_status acpi_reallocate_root_table(void)
 acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 {
 	acpi_status status;
-	acpi_native_uint table_index;
+	u32 table_index;
 	struct acpi_table_desc table_desc;
 
 	if (!table_ptr)
@@ -264,11 +264,10 @@ ACPI_EXPORT_SYMBOL(acpi_load_table)
  *****************************************************************************/
 acpi_status
 acpi_get_table_header(char *signature,
-		      acpi_native_uint instance,
-		      struct acpi_table_header * out_table_header)
+		      u32 instance, struct acpi_table_header *out_table_header)
 {
-	acpi_native_uint i;
-	acpi_native_uint j;
+       u32 i;
+       u32 j;
 	struct acpi_table_header *header;
 
 	/* Parameter validation */
@@ -378,10 +377,10 @@ ACPI_EXPORT_SYMBOL(acpi_unload_table_id)
  *****************************************************************************/
 acpi_status
 acpi_get_table(char *signature,
-	       acpi_native_uint instance, struct acpi_table_header **out_table)
+	       u32 instance, struct acpi_table_header **out_table)
 {
-	acpi_native_uint i;
-	acpi_native_uint j;
+       u32 i;
+       u32 j;
 	acpi_status status;
 
 	/* Parameter validation */
@@ -435,8 +434,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_table)
  *
  ******************************************************************************/
 acpi_status
-acpi_get_table_by_index(acpi_native_uint table_index,
-			struct acpi_table_header ** table)
+acpi_get_table_by_index(u32 table_index, struct acpi_table_header **table)
 {
 	acpi_status status;
 
@@ -493,7 +491,7 @@ static acpi_status acpi_tb_load_namespace(void)
 {
 	acpi_status status;
 	struct acpi_table_header *table;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(tb_load_namespace);
 

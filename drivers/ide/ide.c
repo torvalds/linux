@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 1994-1998	    Linus Torvalds & authors (see below)
- *  Copyrifht (C) 2003-2005, 2007   Bartlomiej Zolnierkiewicz
+ *  Copyright (C) 2003-2005, 2007   Bartlomiej Zolnierkiewicz
  */
 
 /*
@@ -50,29 +50,16 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/genhd.h>
-#include <linux/blkpg.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/completion.h>
-#include <linux/reboot.h>
-#include <linux/cdrom.h>
-#include <linux/seq_file.h>
 #include <linux/device.h>
-#include <linux/bitops.h>
-
-#include <asm/byteorder.h>
-#include <asm/irq.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
 
 
 /* default maximum number of failures */
@@ -86,15 +73,10 @@ static const u8 ide_hwif_to_major[] = { IDE0_MAJOR, IDE1_MAJOR,
 					IDE6_MAJOR, IDE7_MAJOR,
 					IDE8_MAJOR, IDE9_MAJOR };
 
-static int idebus_parameter;	/* holds the "idebus=" parameter */
-static int system_bus_speed;	/* holds what we think is VESA/PCI bus speed */
-
 DEFINE_MUTEX(ide_cfg_mtx);
- __cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
 
-int noautodma = 0;
-
-ide_hwif_t ide_hwifs[MAX_HWIFS];	/* master data repository */
+__cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
+EXPORT_SYMBOL(ide_lock);
 
 static void ide_port_init_devices_data(ide_hwif_t *);
 
@@ -119,12 +101,10 @@ void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 
 	init_completion(&hwif->gendev_rel_comp);
 
-	default_hwif_iops(hwif);
-	default_hwif_transport(hwif);
+	hwif->tp_ops = &default_tp_ops;
 
 	ide_port_init_devices_data(hwif);
 }
-EXPORT_SYMBOL_GPL(ide_init_port_data);
 
 static void ide_port_init_devices_data(ide_hwif_t *hwif)
 {
@@ -139,7 +119,6 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 		drive->media			= ide_disk;
 		drive->select.all		= (unit<<4)|0xa0;
 		drive->hwif			= hwif;
-		drive->ctl			= 0x08;
 		drive->ready_stat		= READY_STAT;
 		drive->bad_wstat		= BAD_W_STAT;
 		drive->special.b.recalibrate	= 1;
@@ -152,108 +131,6 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 		INIT_LIST_HEAD(&drive->list);
 		init_completion(&drive->gendev_rel_comp);
 	}
-}
-
-/*
- * init_ide_data() sets reasonable default values into all fields
- * of all instances of the hwifs and drives, but only on the first call.
- * Subsequent calls have no effect (they don't wipe out anything).
- *
- * This routine is normally called at driver initialization time,
- * but may also be called MUCH earlier during kernel "command-line"
- * parameter processing.  As such, we cannot depend on any other parts
- * of the kernel (such as memory allocation) to be functioning yet.
- *
- * This is too bad, as otherwise we could dynamically allocate the
- * ide_drive_t structs as needed, rather than always consuming memory
- * for the max possible number (MAX_HWIFS * MAX_DRIVES) of them.
- *
- * FIXME: We should stuff the setup data into __init and copy the
- * relevant hwifs/allocate them properly during boot.
- */
-#define MAGIC_COOKIE 0x12345678
-static void __init init_ide_data (void)
-{
-	unsigned int index;
-	static unsigned long magic_cookie = MAGIC_COOKIE;
-
-	if (magic_cookie != MAGIC_COOKIE)
-		return;		/* already initialized */
-	magic_cookie = 0;
-
-	/* Initialise all interface structures */
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		ide_hwif_t *hwif = &ide_hwifs[index];
-
-		ide_init_port_data(hwif, index);
-	}
-}
-
-/**
- *	ide_system_bus_speed	-	guess bus speed
- *
- *	ide_system_bus_speed() returns what we think is the system VESA/PCI
- *	bus speed (in MHz). This is used for calculating interface PIO timings.
- *	The default is 40 for known PCI systems, 50 otherwise.
- *	The "idebus=xx" parameter can be used to override this value.
- *	The actual value to be used is computed/displayed the first time
- *	through. Drivers should only use this as a last resort.
- *
- *	Returns a guessed speed in MHz.
- */
-
-static int ide_system_bus_speed(void)
-{
-#ifdef CONFIG_PCI
-	static struct pci_device_id pci_default[] = {
-		{ PCI_DEVICE(PCI_ANY_ID, PCI_ANY_ID) },
-		{ }
-	};
-#else
-#define pci_default 0
-#endif /* CONFIG_PCI */
-
-	/* user supplied value */
-	if (idebus_parameter)
-		return idebus_parameter;
-
-	/* safe default value for PCI or VESA and PCI*/
-	return pci_dev_present(pci_default) ? 33 : 50;
-}
-
-void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
-{
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
-
-	spin_lock_irq(&ide_lock);
-	/*
-	 * Remove us from the hwgroup, and free
-	 * the hwgroup if we were the only member
-	 */
-	if (hwif->next == hwif) {
-		BUG_ON(hwgroup->hwif != hwif);
-		kfree(hwgroup);
-	} else {
-		/* There is another interface in hwgroup.
-		 * Unlink us, and set hwgroup->drive and ->hwif to
-		 * something sane.
-		 */
-		ide_hwif_t *g = hwgroup->hwif;
-
-		while (g->next != hwif)
-			g = g->next;
-		g->next = hwif->next;
-		if (hwgroup->hwif == hwif) {
-			/* Chose a random hwif for hwgroup->hwif.
-			 * It's guaranteed that there are no drives
-			 * left in the hwgroup.
-			 */
-			BUG_ON(hwgroup->drive != NULL);
-			hwgroup->hwif = g;
-		}
-		BUG_ON(hwgroup->hwif == hwif);
-	}
-	spin_unlock_irq(&ide_lock);
 }
 
 /* Called with ide_lock held. */
@@ -356,25 +233,19 @@ void ide_unregister(ide_hwif_t *hwif)
 	if (hwif->dma_base)
 		ide_release_dma_engine(hwif);
 
-	spin_lock_irq(&ide_lock);
-	/* restore hwif data to pristine status */
-	ide_init_port_data(hwif, hwif->index);
-	spin_unlock_irq(&ide_lock);
-
 	mutex_unlock(&ide_cfg_mtx);
 }
-
-EXPORT_SYMBOL(ide_unregister);
 
 void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 {
 	memcpy(&hwif->io_ports, &hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
 	hwif->chipset = hw->chipset;
-	hwif->gendev.parent = hw->dev;
+	hwif->dev = hw->dev;
+	hwif->gendev.parent = hw->parent ? hw->parent : hw->dev;
 	hwif->ack_intr = hw->ack_intr;
+	hwif->config_data = hw->config;
 }
-EXPORT_SYMBOL_GPL(ide_init_port_hw);
 
 /*
  *	Locks for IDE setting functionality
@@ -498,7 +369,7 @@ out:
 
 int set_pio_mode(ide_drive_t *drive, int arg)
 {
-	struct request rq;
+	struct request *rq;
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 
@@ -512,12 +383,15 @@ int set_pio_mode(ide_drive_t *drive, int arg)
 	if (drive->special.b.set_tune)
 		return -EBUSY;
 
-	ide_init_drive_cmd(&rq);
-	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 
 	drive->tune_req = (u8) arg;
 	drive->special.b.set_tune = 1;
-	(void) ide_do_drive_cmd(drive, &rq, ide_wait);
+
+	blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_put_request(rq);
+
 	return 0;
 }
 
@@ -537,25 +411,11 @@ static int set_unmaskirq(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-/**
- *	system_bus_clock	-	clock guess
- *
- *	External version of the bus clock guess used by very old IDE drivers
- *	for things like VLB timings. Should not be used.
- */
-
-int system_bus_clock (void)
-{
-	return system_bus_speed;
-}
-
-EXPORT_SYMBOL(system_bus_clock);
-
 static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
 	ide_drive_t *drive = dev->driver_data;
 	ide_hwif_t *hwif = HWIF(drive);
-	struct request rq;
+	struct request *rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
 	int ret;
@@ -564,18 +424,19 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	if (!(drive->dn % 2))
 		ide_acpi_get_timing(hwif);
 
-	blk_rq_init(NULL, &rq);
 	memset(&rqpm, 0, sizeof(rqpm));
 	memset(&args, 0, sizeof(args));
-	rq.cmd_type = REQ_TYPE_PM_SUSPEND;
-	rq.special = &args;
-	rq.data = &rqpm;
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_PM_SUSPEND;
+	rq->special = &args;
+	rq->data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_suspend;
 	if (mesg.event == PM_EVENT_PRETHAW)
 		mesg.event = PM_EVENT_FREEZE;
 	rqpm.pm_state = mesg.event;
 
-	ret = ide_do_drive_cmd(drive, &rq, ide_wait);
+	ret = blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_put_request(rq);
 	/* only call ACPI _PS3 after both drivers are suspended */
 	if (!ret && (((drive->dn % 2) && hwif->drives[0].present
 		 && hwif->drives[1].present)
@@ -589,7 +450,7 @@ static int generic_ide_resume(struct device *dev)
 {
 	ide_drive_t *drive = dev->driver_data;
 	ide_hwif_t *hwif = HWIF(drive);
-	struct request rq;
+	struct request *rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
 	int err;
@@ -602,16 +463,18 @@ static int generic_ide_resume(struct device *dev)
 
 	ide_acpi_exec_tfs(drive);
 
-	blk_rq_init(NULL, &rq);
 	memset(&rqpm, 0, sizeof(rqpm));
 	memset(&args, 0, sizeof(args));
-	rq.cmd_type = REQ_TYPE_PM_RESUME;
-	rq.special = &args;
-	rq.data = &rqpm;
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_PM_RESUME;
+	rq->cmd_flags |= REQ_PREEMPT;
+	rq->special = &args;
+	rq->data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_resume;
 	rqpm.pm_state = PM_EVENT_ON;
 
-	err = ide_do_drive_cmd(drive, &rq, ide_head_wait);
+	err = blk_execute_rq(drive->queue, NULL, rq, 1);
+	blk_put_request(rq);
 
 	if (err == 0 && dev->driver) {
 		ide_driver_t *drv = to_ide_driver(dev->driver);
@@ -621,6 +484,22 @@ static int generic_ide_resume(struct device *dev)
 	}
 
 	return err;
+}
+
+static int generic_drive_reset(ide_drive_t *drive)
+{
+	struct request *rq;
+	int ret = 0;
+
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd_len = 1;
+	rq->cmd[0] = REQ_DRIVE_RESET;
+	rq->cmd_flags |= REQ_SOFTBARRIER;
+	if (blk_execute_rq(drive->queue, NULL, rq, 1))
+		ret = rq->errors;
+	blk_put_request(rq);
+	return ret;
 }
 
 int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device *bdev,
@@ -697,33 +576,8 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
 
-			/*
-			 *	Abort the current command on the
-			 *	group if there is one, taking
-			 *	care not to allow anything else
-			 *	to be queued and to die on the
-			 *	spot if we miss one somehow
-			 */
+			return generic_drive_reset(drive);
 
-			spin_lock_irqsave(&ide_lock, flags);
-
-			if (HWGROUP(drive)->resetting) {
-				spin_unlock_irqrestore(&ide_lock, flags);
-				return -EBUSY;
-			}
-
-			ide_abort(drive, "drive reset");
-
-			BUG_ON(HWGROUP(drive)->handler);
-
-			/* Ensure nothing gets queued after we
-			   drop the lock. Reset will clear the busy */
-
-			HWGROUP(drive)->busy = 1;
-			spin_unlock_irqrestore(&ide_lock, flags);
-			(void) ide_do_reset(drive);
-
-			return 0;
 		case HDIO_GET_BUSSTATE:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
@@ -764,211 +618,52 @@ set_val:
 
 EXPORT_SYMBOL(generic_ide_ioctl);
 
-/*
- * stridx() returns the offset of c within s,
- * or -1 if c is '\0' or not found within s.
- */
-static int __init stridx (const char *s, char c)
-{
-	char *i = strchr(s, c);
-	return (i && c) ? i - s : -1;
-}
-
-/*
- * match_parm() does parsing for ide_setup():
+/**
+ * ide_device_get	-	get an additional reference to a ide_drive_t
+ * @drive:	device to get a reference to
  *
- * 1. the first char of s must be '='.
- * 2. if the remainder matches one of the supplied keywords,
- *     the index (1 based) of the keyword is negated and returned.
- * 3. if the remainder is a series of no more than max_vals numbers
- *     separated by commas, the numbers are saved in vals[] and a
- *     count of how many were saved is returned.  Base10 is assumed,
- *     and base16 is allowed when prefixed with "0x".
- * 4. otherwise, zero is returned.
+ * Gets a reference to the ide_drive_t and increments the use count of the
+ * underlying LLDD module.
  */
-static int __init match_parm (char *s, const char *keywords[], int vals[], int max_vals)
+int ide_device_get(ide_drive_t *drive)
 {
-	static const char *decimal = "0123456789";
-	static const char *hex = "0123456789abcdef";
-	int i, n;
+	struct device *host_dev;
+	struct module *module;
 
-	if (*s++ == '=') {
-		/*
-		 * Try matching against the supplied keywords,
-		 * and return -(index+1) if we match one
-		 */
-		if (keywords != NULL) {
-			for (i = 0; *keywords != NULL; ++i) {
-				if (!strcmp(s, *keywords++))
-					return -(i+1);
-			}
-		}
-		/*
-		 * Look for a series of no more than "max_vals"
-		 * numeric values separated by commas, in base10,
-		 * or base16 when prefixed with "0x".
-		 * Return a count of how many were found.
-		 */
-		for (n = 0; (i = stridx(decimal, *s)) >= 0;) {
-			vals[n] = i;
-			while ((i = stridx(decimal, *++s)) >= 0)
-				vals[n] = (vals[n] * 10) + i;
-			if (*s == 'x' && !vals[n]) {
-				while ((i = stridx(hex, *++s)) >= 0)
-					vals[n] = (vals[n] * 0x10) + i;
-			}
-			if (++n == max_vals)
-				break;
-			if (*s == ',' || *s == ';')
-				++s;
-		}
-		if (!*s)
-			return n;
+	if (!get_device(&drive->gendev))
+		return -ENXIO;
+
+	host_dev = drive->hwif->host->dev[0];
+	module = host_dev ? host_dev->driver->owner : NULL;
+
+	if (module && !try_module_get(module)) {
+		put_device(&drive->gendev);
+		return -ENXIO;
 	}
-	return 0;	/* zero = nothing matched */
-}
 
-/*
- * ide_setup() gets called VERY EARLY during initialization,
- * to handle kernel "command line" strings beginning with "hdx=" or "ide".
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ide_device_get);
+
+/**
+ * ide_device_put	-	release a reference to a ide_drive_t
+ * @drive:	device to release a reference on
  *
- * Remember to update Documentation/ide/ide.txt if you change something here.
+ * Release a reference to the ide_drive_t and decrements the use count of
+ * the underlying LLDD module.
  */
-static int __init ide_setup(char *s)
+void ide_device_put(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif;
-	ide_drive_t *drive;
-	unsigned int hw, unit;
-	int vals[3];
-	const char max_drive = 'a' + ((MAX_HWIFS * MAX_DRIVES) - 1);
+#ifdef CONFIG_MODULE_UNLOAD
+	struct device *host_dev = drive->hwif->host->dev[0];
+	struct module *module = host_dev ? host_dev->driver->owner : NULL;
 
-	if (strncmp(s,"hd",2) == 0 && s[2] == '=')	/* hd= is for hd.c   */
-		return 0;				/* driver and not us */
-
-	if (strncmp(s,"ide",3) && strncmp(s,"idebus",6) && strncmp(s,"hd",2))
-		return 0;
-
-	printk(KERN_INFO "ide_setup: %s", s);
-	init_ide_data ();
-
-#ifdef CONFIG_BLK_DEV_IDEDOUBLER
-	if (!strcmp(s, "ide=doubler")) {
-		extern int ide_doubler;
-
-		printk(" : Enabled support for IDE doublers\n");
-		ide_doubler = 1;
-		goto obsolete_option;
-	}
-#endif /* CONFIG_BLK_DEV_IDEDOUBLER */
-
-	if (!strcmp(s, "ide=nodma")) {
-		printk(" : Prevented DMA\n");
-		noautodma = 1;
-		goto obsolete_option;
-	}
-
-#ifdef CONFIG_BLK_DEV_IDEACPI
-	if (!strcmp(s, "ide=noacpi")) {
-		//printk(" : Disable IDE ACPI support.\n");
-		ide_noacpi = 1;
-		goto obsolete_option;
-	}
-	if (!strcmp(s, "ide=acpigtf")) {
-		//printk(" : Enable IDE ACPI _GTF support.\n");
-		ide_acpigtf = 1;
-		goto obsolete_option;
-	}
-	if (!strcmp(s, "ide=acpionboot")) {
-		//printk(" : Call IDE ACPI methods on boot.\n");
-		ide_acpionboot = 1;
-		goto obsolete_option;
-	}
-#endif /* CONFIG_BLK_DEV_IDEACPI */
-
-	/*
-	 * Look for drive options:  "hdx="
-	 */
-	if (s[0] == 'h' && s[1] == 'd' && s[2] >= 'a' && s[2] <= max_drive) {
-		const char *hd_words[] = {
-			"none", "noprobe", "nowerr", "cdrom", "nodma",
-			"-6", "-7", "-8", "-9", "-10",
-			"noflush", "remap", "remap63", "scsi", NULL };
-		unit = s[2] - 'a';
-		hw   = unit / MAX_DRIVES;
-		unit = unit % MAX_DRIVES;
-		hwif = &ide_hwifs[hw];
-		drive = &hwif->drives[unit];
-		if (strncmp(s + 4, "ide-", 4) == 0) {
-			strlcpy(drive->driver_req, s + 4, sizeof(drive->driver_req));
-			goto obsolete_option;
-		}
-		switch (match_parm(&s[3], hd_words, vals, 3)) {
-			case -1: /* "none" */
-			case -2: /* "noprobe" */
-				drive->noprobe = 1;
-				goto obsolete_option;
-			case -3: /* "nowerr" */
-				drive->bad_wstat = BAD_R_STAT;
-				goto obsolete_option;
-			case -4: /* "cdrom" */
-				drive->present = 1;
-				drive->media = ide_cdrom;
-				/* an ATAPI device ignores DRDY */
-				drive->ready_stat = 0;
-				goto obsolete_option;
-			case -5: /* nodma */
-				drive->nodma = 1;
-				goto obsolete_option;
-			case -11: /* noflush */
-				drive->noflush = 1;
-				goto obsolete_option;
-			case -12: /* "remap" */
-				drive->remap_0_to_1 = 1;
-				goto obsolete_option;
-			case -13: /* "remap63" */
-				drive->sect0 = 63;
-				goto obsolete_option;
-			case -14: /* "scsi" */
-				drive->scsi = 1;
-				goto obsolete_option;
-			case 3: /* cyl,head,sect */
-				drive->media	= ide_disk;
-				drive->ready_stat = READY_STAT;
-				drive->cyl	= drive->bios_cyl  = vals[0];
-				drive->head	= drive->bios_head = vals[1];
-				drive->sect	= drive->bios_sect = vals[2];
-				drive->present	= 1;
-				drive->forced_geom = 1;
-				goto obsolete_option;
-			default:
-				goto bad_option;
-		}
-	}
-
-	if (s[0] != 'i' || s[1] != 'd' || s[2] != 'e')
-		goto bad_option;
-	/*
-	 * Look for bus speed option:  "idebus="
-	 */
-	if (s[3] == 'b' && s[4] == 'u' && s[5] == 's') {
-		if (match_parm(&s[6], NULL, vals, 1) != 1)
-			goto bad_option;
-		if (vals[0] >= 20 && vals[0] <= 66) {
-			idebus_parameter = vals[0];
-		} else
-			printk(" -- BAD BUS SPEED! Expected value from 20 to 66");
-		goto obsolete_option;
-	}
-
-bad_option:
-	printk(" -- BAD OPTION\n");
-	return 1;
-obsolete_option:
-	printk(" -- OBSOLETE OPTION, WILL BE REMOVED SOON!\n");
-	return 1;
+	if (module)
+		module_put(module);
+#endif
+	put_device(&drive->gendev);
 }
-
-EXPORT_SYMBOL(ide_lock);
+EXPORT_SYMBOL_GPL(ide_device_put);
 
 static int ide_bus_match(struct device *dev, struct device_driver *drv)
 {
@@ -1281,11 +976,6 @@ static int __init ide_init(void)
 	int ret;
 
 	printk(KERN_INFO "Uniform Multi-Platform E-IDE driver\n");
-	system_bus_speed = ide_system_bus_speed();
-
-	printk(KERN_INFO "ide: Assuming %dMHz system bus speed "
-			 "for PIO modes%s\n", system_bus_speed,
-			idebus_parameter ? "" : "; override with idebus=xx");
 
 	ret = bus_register(&ide_bus_type);
 	if (ret < 0) {
@@ -1299,8 +989,6 @@ static int __init ide_init(void)
 		goto out_port_class;
 	}
 
-	init_ide_data();
-
 	proc_ide_create();
 
 	return 0;
@@ -1311,32 +999,7 @@ out_port_class:
 	return ret;
 }
 
-#ifdef MODULE
-static char *options = NULL;
-module_param(options, charp, 0);
-MODULE_LICENSE("GPL");
-
-static void __init parse_options (char *line)
-{
-	char *next = line;
-
-	if (line == NULL || !*line)
-		return;
-	while ((line = next) != NULL) {
- 		if ((next = strchr(line,' ')) != NULL)
-			*next++ = 0;
-		if (!ide_setup(line))
-			printk (KERN_INFO "Unknown option '%s'\n", line);
-	}
-}
-
-int __init init_module (void)
-{
-	parse_options(options);
-	return ide_init();
-}
-
-void __exit cleanup_module (void)
+static void __exit ide_exit(void)
 {
 	proc_ide_destroy();
 
@@ -1345,10 +1008,7 @@ void __exit cleanup_module (void)
 	bus_unregister(&ide_bus_type);
 }
 
-#else /* !MODULE */
-
-__setup("", ide_setup);
-
 module_init(ide_init);
+module_exit(ide_exit);
 
-#endif /* MODULE */
+MODULE_LICENSE("GPL");

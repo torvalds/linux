@@ -27,6 +27,12 @@
 #define LCCR3_4BPP	(2 << 24)
 #define LCCR3_8BPP	(3 << 24)
 #define LCCR3_16BPP	(4 << 24)
+#define LCCR3_18BPP	(5 << 24)
+#define LCCR3_18BPP_P	(6 << 24)
+#define LCCR3_19BPP	(7 << 24)
+#define LCCR3_19BPP_P	(1 << 29)
+#define LCCR3_24BPP	((1 << 29) | (1 << 24))
+#define LCCR3_25BPP	((1 << 29) | (2 << 24))
 
 #define LCCR3_PDFOR_0	(0 << 30)
 #define LCCR3_PDFOR_1	(1 << 30)

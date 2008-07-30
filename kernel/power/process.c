@@ -19,9 +19,6 @@
  */
 #define TIMEOUT	(20 * HZ)
 
-#define FREEZER_KERNEL_THREADS 0
-#define FREEZER_USER_SPACE 1
-
 static inline int freezeable(struct task_struct * p)
 {
 	if ((p == current) ||
@@ -84,63 +81,53 @@ static void fake_signal_wake_up(struct task_struct *p)
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
 }
 
-static int has_mm(struct task_struct *p)
+static inline bool should_send_signal(struct task_struct *p)
 {
-	return (p->mm && !(p->flags & PF_BORROWED_MM));
+	return !(p->flags & PF_FREEZER_NOSIG);
 }
 
 /**
  *	freeze_task - send a freeze request to given task
  *	@p: task to send the request to
- *	@with_mm_only: if set, the request will only be sent if the task has its
- *		own mm
- *	Return value: 0, if @with_mm_only is set and the task has no mm of its
- *		own or the task is frozen, 1, otherwise
+ *	@sig_only: if set, the request will only be sent if the task has the
+ *		PF_FREEZER_NOSIG flag unset
+ *	Return value: 'false', if @sig_only is set and the task has
+ *		PF_FREEZER_NOSIG set or the task is frozen, 'true', otherwise
  *
- *	The freeze request is sent by seting the tasks's TIF_FREEZE flag and
+ *	The freeze request is sent by setting the tasks's TIF_FREEZE flag and
  *	either sending a fake signal to it or waking it up, depending on whether
- *	or not it has its own mm (ie. it is a user land task).  If @with_mm_only
- *	is set and the task has no mm of its own (ie. it is a kernel thread),
- *	its TIF_FREEZE flag should not be set.
- *
- *	The task_lock() is necessary to prevent races with exit_mm() or
- *	use_mm()/unuse_mm() from occuring.
+ *	or not it has PF_FREEZER_NOSIG set.  If @sig_only is set and the task
+ *	has PF_FREEZER_NOSIG set (ie. it is a typical kernel thread), its
+ *	TIF_FREEZE flag will not be set.
  */
-static int freeze_task(struct task_struct *p, int with_mm_only)
+static bool freeze_task(struct task_struct *p, bool sig_only)
 {
-	int ret = 1;
-
-	task_lock(p);
-	if (freezing(p)) {
-		if (has_mm(p)) {
-			if (!signal_pending(p))
-				fake_signal_wake_up(p);
-		} else {
-			if (with_mm_only)
-				ret = 0;
-			else
-				wake_up_state(p, TASK_INTERRUPTIBLE);
-		}
-	} else {
+	/*
+	 * We first check if the task is freezing and next if it has already
+	 * been frozen to avoid the race with frozen_process() which first marks
+	 * the task as frozen and next clears its TIF_FREEZE.
+	 */
+	if (!freezing(p)) {
 		rmb();
-		if (frozen(p)) {
-			ret = 0;
-		} else {
-			if (has_mm(p)) {
-				set_freeze_flag(p);
-				fake_signal_wake_up(p);
-			} else {
-				if (with_mm_only) {
-					ret = 0;
-				} else {
-					set_freeze_flag(p);
-					wake_up_state(p, TASK_INTERRUPTIBLE);
-				}
-			}
-		}
+		if (frozen(p))
+			return false;
+
+		if (!sig_only || should_send_signal(p))
+			set_freeze_flag(p);
+		else
+			return false;
 	}
-	task_unlock(p);
-	return ret;
+
+	if (should_send_signal(p)) {
+		if (!signal_pending(p))
+			fake_signal_wake_up(p);
+	} else if (sig_only) {
+		return false;
+	} else {
+		wake_up_state(p, TASK_INTERRUPTIBLE);
+	}
+
+	return true;
 }
 
 static void cancel_freezing(struct task_struct *p)
@@ -156,13 +143,13 @@ static void cancel_freezing(struct task_struct *p)
 	}
 }
 
-static int try_to_freeze_tasks(int freeze_user_space)
+static int try_to_freeze_tasks(bool sig_only)
 {
 	struct task_struct *g, *p;
 	unsigned long end_time;
 	unsigned int todo;
 	struct timeval start, end;
-	s64 elapsed_csecs64;
+	u64 elapsed_csecs64;
 	unsigned int elapsed_csecs;
 
 	do_gettimeofday(&start);
@@ -175,7 +162,7 @@ static int try_to_freeze_tasks(int freeze_user_space)
 			if (frozen(p) || !freezeable(p))
 				continue;
 
-			if (!freeze_task(p, freeze_user_space))
+			if (!freeze_task(p, sig_only))
 				continue;
 
 			/*
@@ -235,13 +222,13 @@ int freeze_processes(void)
 	int error;
 
 	printk("Freezing user space processes ... ");
-	error = try_to_freeze_tasks(FREEZER_USER_SPACE);
+	error = try_to_freeze_tasks(true);
 	if (error)
 		goto Exit;
 	printk("done.\n");
 
 	printk("Freezing remaining freezable tasks ... ");
-	error = try_to_freeze_tasks(FREEZER_KERNEL_THREADS);
+	error = try_to_freeze_tasks(false);
 	if (error)
 		goto Exit;
 	printk("done.");
@@ -251,7 +238,7 @@ int freeze_processes(void)
 	return error;
 }
 
-static void thaw_tasks(int thaw_user_space)
+static void thaw_tasks(bool nosig_only)
 {
 	struct task_struct *g, *p;
 
@@ -260,7 +247,7 @@ static void thaw_tasks(int thaw_user_space)
 		if (!freezeable(p))
 			continue;
 
-		if (!p->mm == thaw_user_space)
+		if (nosig_only && should_send_signal(p))
 			continue;
 
 		thaw_process(p);
@@ -271,8 +258,8 @@ static void thaw_tasks(int thaw_user_space)
 void thaw_processes(void)
 {
 	printk("Restarting tasks ... ");
-	thaw_tasks(FREEZER_KERNEL_THREADS);
-	thaw_tasks(FREEZER_USER_SPACE);
+	thaw_tasks(true);
+	thaw_tasks(false);
 	schedule();
 	printk("done.\n");
 }

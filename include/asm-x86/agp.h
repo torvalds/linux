@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_AGP_H
-#define _ASM_X86_AGP_H
+#ifndef ASM_X86__AGP_H
+#define ASM_X86__AGP_H
 
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
@@ -32,4 +32,4 @@
 #define free_gatt_pages(table, order)	\
 	free_pages((unsigned long)(table), (order))
 
-#endif
+#endif /* ASM_X86__AGP_H */

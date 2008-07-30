@@ -5,6 +5,7 @@
 #include <linux/scatterlist.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>
+#include <asm-generic/dma-coherent.h>
 
 extern struct bus_type pci_bus_type;
 
@@ -171,7 +172,7 @@ static inline int dma_get_cache_alignment(void)
 	return L1_CACHE_BYTES;
 }
 
-static inline int dma_mapping_error(dma_addr_t dma_addr)
+static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return dma_addr == 0;
 }

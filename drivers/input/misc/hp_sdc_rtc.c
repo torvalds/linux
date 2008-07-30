@@ -35,6 +35,7 @@
 
 #include <linux/hp_sdc.h>
 #include <linux/errno.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -43,6 +44,7 @@
 #include <linux/proc_fs.h>
 #include <linux/poll.h>
 #include <linux/rtc.h>
+#include <linux/semaphore.h>
 
 MODULE_AUTHOR("Brian S. Julin <bri@calyx.com>");
 MODULE_DESCRIPTION("HP i8042 SDC + MSM-58321 RTC Driver");
@@ -408,6 +410,7 @@ static unsigned int hp_sdc_rtc_poll(struct file *file, poll_table *wait)
 
 static int hp_sdc_rtc_open(struct inode *inode, struct file *file)
 {
+	cycle_kernel_lock();
         return 0;
 }
 

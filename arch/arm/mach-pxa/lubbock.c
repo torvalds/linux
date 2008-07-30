@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/smc91x.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -43,6 +44,7 @@
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/mfp-pxa25x.h>
+#include <asm/arch/audio.h>
 #include <asm/arch/lubbock.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/irda.h>
@@ -150,7 +152,7 @@ static void __init lubbock_init_irq(void)
 	}
 
 	set_irq_chained_handler(IRQ_GPIO(0), lubbock_irq_handler);
-	set_irq_type(IRQ_GPIO(0), IRQT_FALLING);
+	set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
 }
 
 #ifdef CONFIG_PM
@@ -196,11 +198,6 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	// no D+ pullup; lubbock can't connect/disconnect in software
 };
 
-static struct platform_device lub_audio_device = {
-	.name		= "pxa2xx-ac97",
-	.id		= -1,
-};
-
 static struct resource sa1111_resources[] = {
 	[0] = {
 		.start	= 0x10000000,
@@ -228,14 +225,6 @@ static struct platform_device sa1111_device = {
  */
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
 	.num_chipselect	= 0,
-};
-
-static struct platform_device pxa_ssp = {
-	.name		= "pxa2xx-spi",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &pxa_ssp_master_info,
-	},
 };
 
 static int lubbock_ads7846_pendown_state(void)
@@ -296,11 +285,18 @@ static struct resource smc91x_resources[] = {
 	},
 };
 
+static struct smc91x_platdata lubbock_smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT | SMC91X_IO_SHIFT_2,
+};
+
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
+	.dev		= {
+		.platform_data = &lubbock_smc91x_info,
+	},
 };
 
 static struct resource flash_resources[] = {
@@ -368,11 +364,9 @@ static struct platform_device lubbock_flash_device[2] = {
 
 static struct platform_device *devices[] __initdata = {
 	&sa1111_device,
-	&lub_audio_device,
 	&smc91x_device,
 	&lubbock_flash_device[0],
 	&lubbock_flash_device[1],
-	&pxa_ssp,
 };
 
 static struct pxafb_mode_info sharp_lm8v31_mode = {
@@ -476,6 +470,7 @@ static void lubbock_irda_transceiver_mode(struct device *dev, int mode)
 	} else if (mode & IR_FIRMODE) {
 		LUB_MISC_WR |= 1 << 4;
 	}
+	pxa2xx_transceiver_mode(dev, mode);
 	local_irq_restore(flags);
 }
 
@@ -494,6 +489,7 @@ static void __init lubbock_init(void)
 	set_pxa_fb_info(&sharp_lm8v31);
 	pxa_set_mci_info(&lubbock_mci_platform_data);
 	pxa_set_ficp_info(&lubbock_ficp_platform_data);
+	pxa_set_ac97_info(NULL);
 
 	lubbock_flash_data[0].width = lubbock_flash_data[1].width =
 		(BOOT_DEF & 1) ? 2 : 4;
@@ -505,6 +501,7 @@ static void __init lubbock_init(void)
 	lubbock_flash_data[flashboot].name = "boot-rom";
 	(void) platform_add_devices(devices, ARRAY_SIZE(devices));
 
+	pxa2xx_set_spi_info(1, &pxa_ssp_master_info);
 	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 }
 

@@ -304,6 +304,14 @@ static int do_ap_entry(const char *filename,
 	return 1;
 }
 
+/* looks like: "css:tN" */
+static int do_css_entry(const char *filename,
+			struct css_device_id *id, char *alias)
+{
+	sprintf(alias, "css:t%01X", id->type);
+	return 1;
+}
+
 /* Looks like: "serio:tyNprNidNexN" */
 static int do_serio_entry(const char *filename,
 			  struct serio_device_id *id, char *alias)
@@ -332,11 +340,18 @@ static int do_acpi_entry(const char *filename,
 }
 
 /* looks like: "pnp:dD" */
-static int do_pnp_entry(const char *filename,
-			struct pnp_device_id *id, char *alias)
+static void do_pnp_device_entry(void *symval, unsigned long size,
+				struct module *mod)
 {
-	sprintf(alias, "pnp:d%s*", id->id);
-	return 1;
+	const unsigned long id_size = sizeof(struct pnp_device_id);
+	const struct pnp_device_id *id = symval;
+
+	device_id_check(mod->name, "pnp", size, id_size, symval);
+
+	buf_printf(&mod->dev_table_buf,
+		   "MODULE_ALIAS(\"pnp:d%s*\");\n", id->id);
+	buf_printf(&mod->dev_table_buf,
+		   "MODULE_ALIAS(\"acpi*:%s:*\");\n", id->id);
 }
 
 /* looks like: "pnp:dD" for every device of the card */
@@ -380,9 +395,12 @@ static void do_pnp_card_entries(void *symval, unsigned long size,
 			}
 
 			/* add an individual alias for every device entry */
-			if (!dup)
+			if (!dup) {
 				buf_printf(&mod->dev_table_buf,
 					   "MODULE_ALIAS(\"pnp:d%s*\");\n", id);
+				buf_printf(&mod->dev_table_buf,
+					   "MODULE_ALIAS(\"acpi*:%s:*\");\n", id);
+			}
 		}
 	}
 }
@@ -605,7 +623,7 @@ static int do_i2c_entry(const char *filename, struct i2c_device_id *id,
 	return 1;
 }
 
-/* Ignore any prefix, eg. v850 prepends _ */
+/* Ignore any prefix, eg. some architectures prepend _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
 	const char *match;
@@ -680,6 +698,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct ap_device_id), "ap",
 			 do_ap_entry, mod);
+	else if (sym_is(symname, "__mod_css_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct css_device_id), "css",
+			 do_css_entry, mod);
 	else if (sym_is(symname, "__mod_serio_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct serio_device_id), "serio",
@@ -689,9 +711,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 			 sizeof(struct acpi_device_id), "acpi",
 			 do_acpi_entry, mod);
 	else if (sym_is(symname, "__mod_pnp_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct pnp_device_id), "pnp",
-			 do_pnp_entry, mod);
+		do_pnp_device_entry(symval, sym->st_size, mod);
 	else if (sym_is(symname, "__mod_pnp_card_device_table"))
 		do_pnp_card_entries(symval, sym->st_size, mod);
 	else if (sym_is(symname, "__mod_pcmcia_device_table"))

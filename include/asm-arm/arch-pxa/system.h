@@ -12,6 +12,7 @@
 
 #include <asm/proc-fns.h>
 #include "hardware.h"
+#include "pxa2xx-regs.h"
 #include "pxa-regs.h"
 
 static inline void arch_idle(void)
@@ -20,19 +21,4 @@ static inline void arch_idle(void)
 }
 
 
-static inline void arch_reset(char mode)
-{
-	if (cpu_is_pxa2xx())
-		RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
-
-	if (mode == 's') {
-		/* Jump into ROM at address 0 */
-		cpu_reset(0);
-	} else {
-		/* Initialize the watchdog and let it fire */
-		OWER = OWER_WME;
-		OSSR = OSSR_M3;
-		OSMR3 = OSCR + 368640;	/* ... in 100 ms */
-	}
-}
-
+void arch_reset(char mode);

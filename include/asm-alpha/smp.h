@@ -47,12 +47,13 @@ extern struct cpuinfo_alpha cpu_data[NR_CPUS];
 extern int smp_num_cpus;
 #define cpu_possible_map	cpu_present_map
 
-int smp_call_function_on_cpu(void (*func) (void *info), void *info,int retry, int wait, cpumask_t cpu);
+extern void arch_send_call_function_single_ipi(int cpu);
+extern void arch_send_call_function_ipi(cpumask_t mask);
 
 #else /* CONFIG_SMP */
 
 #define hard_smp_processor_id()		0
-#define smp_call_function_on_cpu(func,info,retry,wait,cpu)    ({ 0; })
+#define smp_call_function_on_cpu(func,info,wait,cpu)    ({ 0; })
 
 #endif /* CONFIG_SMP */
 

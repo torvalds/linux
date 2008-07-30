@@ -2490,7 +2490,7 @@ static void dbri_debug_read(struct snd_info_entry *entry,
 }
 #endif
 
-void __devinit snd_dbri_proc(struct snd_card *card)
+static void __devinit snd_dbri_proc(struct snd_card *card)
 {
 	struct snd_dbri *dbri = card->private_data;
 	struct snd_info_entry *entry;

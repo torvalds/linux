@@ -109,7 +109,7 @@ static void do_call_function(void)
 }
 
 static void __smp_call_function_map(void (*func) (void *info), void *info,
-				    int nonatomic, int wait, cpumask_t map)
+				    int wait, cpumask_t map)
 {
 	struct call_data_struct data;
 	int cpu, local = 0;
@@ -162,7 +162,6 @@ out:
  * smp_call_function:
  * @func: the function to run; this must be fast and non-blocking
  * @info: an arbitrary pointer to pass to the function
- * @nonatomic: unused
  * @wait: if true, wait (atomically) until function has completed on other CPUs
  *
  * Run a function on all other CPUs.
@@ -170,15 +169,14 @@ out:
  * You must not call this function with disabled interrupts, from a
  * hardware interrupt handler or from a bottom half.
  */
-int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
-		      int wait)
+int smp_call_function(void (*func) (void *info), void *info, int wait)
 {
 	cpumask_t map;
 
 	spin_lock(&call_lock);
 	map = cpu_online_map;
 	cpu_clear(smp_processor_id(), map);
-	__smp_call_function_map(func, info, nonatomic, wait, map);
+	__smp_call_function_map(func, info, wait, map);
 	spin_unlock(&call_lock);
 	return 0;
 }
@@ -189,7 +187,6 @@ EXPORT_SYMBOL(smp_call_function);
  * @cpu: the CPU where func should run
  * @func: the function to run; this must be fast and non-blocking
  * @info: an arbitrary pointer to pass to the function
- * @nonatomic: unused
  * @wait: if true, wait (atomically) until function has completed on other CPUs
  *
  * Run a function on one processor.
@@ -198,11 +195,10 @@ EXPORT_SYMBOL(smp_call_function);
  * hardware interrupt handler or from a bottom half.
  */
 int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
-			     int nonatomic, int wait)
+			     int wait)
 {
 	spin_lock(&call_lock);
-	__smp_call_function_map(func, info, nonatomic, wait,
-				cpumask_of_cpu(cpu));
+	__smp_call_function_map(func, info, wait, cpumask_of_cpu(cpu));
 	spin_unlock(&call_lock);
 	return 0;
 }
@@ -228,7 +224,7 @@ int smp_call_function_mask(cpumask_t mask, void (*func)(void *), void *info,
 {
 	spin_lock(&call_lock);
 	cpu_clear(smp_processor_id(), mask);
-	__smp_call_function_map(func, info, 0, wait, mask);
+	__smp_call_function_map(func, info, wait, mask);
 	spin_unlock(&call_lock);
 	return 0;
 }
@@ -303,7 +299,7 @@ static void smp_ptlb_callback(void *info)
 
 void smp_ptlb_all(void)
 {
-	on_each_cpu(smp_ptlb_callback, NULL, 0, 1);
+	on_each_cpu(smp_ptlb_callback, NULL, 1);
 }
 EXPORT_SYMBOL(smp_ptlb_all);
 #endif /* ! CONFIG_64BIT */
@@ -351,7 +347,7 @@ void smp_ctl_set_bit(int cr, int bit)
 	memset(&parms.orvals, 0, sizeof(parms.orvals));
 	memset(&parms.andvals, 0xff, sizeof(parms.andvals));
 	parms.orvals[cr] = 1 << bit;
-	on_each_cpu(smp_ctl_bit_callback, &parms, 0, 1);
+	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
 EXPORT_SYMBOL(smp_ctl_set_bit);
 
@@ -365,7 +361,7 @@ void smp_ctl_clear_bit(int cr, int bit)
 	memset(&parms.orvals, 0, sizeof(parms.orvals));
 	memset(&parms.andvals, 0xff, sizeof(parms.andvals));
 	parms.andvals[cr] = ~(1L << bit);
-	on_each_cpu(smp_ctl_bit_callback, &parms, 0, 1);
+	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
 EXPORT_SYMBOL(smp_ctl_clear_bit);
 
@@ -868,7 +864,8 @@ int setup_profiling_timer(unsigned int multiplier)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static ssize_t cpu_configure_show(struct sys_device *dev, char *buf)
+static ssize_t cpu_configure_show(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	ssize_t count;
 
@@ -878,8 +875,9 @@ static ssize_t cpu_configure_show(struct sys_device *dev, char *buf)
 	return count;
 }
 
-static ssize_t cpu_configure_store(struct sys_device *dev, const char *buf,
-				   size_t count)
+static ssize_t cpu_configure_store(struct sys_device *dev,
+				  struct sysdev_attribute *attr,
+				  const char *buf, size_t count)
 {
 	int cpu = dev->id;
 	int val, rc;
@@ -926,7 +924,8 @@ out:
 static SYSDEV_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static ssize_t cpu_polarization_show(struct sys_device *dev, char *buf)
+static ssize_t cpu_polarization_show(struct sys_device *dev,
+				     struct sysdev_attribute *attr, char *buf)
 {
 	int cpu = dev->id;
 	ssize_t count;
@@ -954,7 +953,8 @@ static ssize_t cpu_polarization_show(struct sys_device *dev, char *buf)
 }
 static SYSDEV_ATTR(polarization, 0444, cpu_polarization_show, NULL);
 
-static ssize_t show_cpu_address(struct sys_device *dev, char *buf)
+static ssize_t show_cpu_address(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", __cpu_logical_map[dev->id]);
 }
@@ -974,7 +974,8 @@ static struct attribute_group cpu_common_attr_group = {
 	.attrs = cpu_common_attrs,
 };
 
-static ssize_t show_capability(struct sys_device *dev, char *buf)
+static ssize_t show_capability(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	unsigned int capability;
 	int rc;
@@ -986,7 +987,8 @@ static ssize_t show_capability(struct sys_device *dev, char *buf)
 }
 static SYSDEV_ATTR(capability, 0444, show_capability, NULL);
 
-static ssize_t show_idle_count(struct sys_device *dev, char *buf)
+static ssize_t show_idle_count(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	struct s390_idle_data *idle;
 	unsigned long long idle_count;
@@ -999,7 +1001,8 @@ static ssize_t show_idle_count(struct sys_device *dev, char *buf)
 }
 static SYSDEV_ATTR(idle_count, 0444, show_idle_count, NULL);
 
-static ssize_t show_idle_time(struct sys_device *dev, char *buf)
+static ssize_t show_idle_time(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	struct s390_idle_data *idle;
 	unsigned long long new_time;
@@ -1116,7 +1119,9 @@ out:
 	return rc;
 }
 
-static ssize_t __ref rescan_store(struct sys_device *dev, const char *buf,
+static ssize_t __ref rescan_store(struct sys_device *dev,
+				  struct sysdev_attribute *attr,
+				  const char *buf,
 				  size_t count)
 {
 	int rc;
@@ -1127,7 +1132,9 @@ static ssize_t __ref rescan_store(struct sys_device *dev, const char *buf,
 static SYSDEV_ATTR(rescan, 0200, NULL, rescan_store);
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static ssize_t dispatching_show(struct sys_device *dev, char *buf)
+static ssize_t dispatching_show(struct sys_device *dev,
+				struct sysdev_attribute *attr,
+				char *buf)
 {
 	ssize_t count;
 
@@ -1137,8 +1144,9 @@ static ssize_t dispatching_show(struct sys_device *dev, char *buf)
 	return count;
 }
 
-static ssize_t dispatching_store(struct sys_device *dev, const char *buf,
-				 size_t count)
+static ssize_t dispatching_store(struct sys_device *dev,
+				 struct sysdev_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int val, rc;
 	char delim;

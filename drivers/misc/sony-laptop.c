@@ -46,6 +46,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
@@ -1927,8 +1928,10 @@ static int sonypi_misc_release(struct inode *inode, struct file *file)
 static int sonypi_misc_open(struct inode *inode, struct file *file)
 {
 	/* Flush input queue on first open */
+	lock_kernel();
 	if (atomic_inc_return(&sonypi_compat.open_count) == 1)
 		kfifo_reset(sonypi_compat.fifo);
+	unlock_kernel();
 	return 0;
 }
 

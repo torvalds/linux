@@ -51,9 +51,9 @@ needs only about 3% CPU time to do so, it can do with a 0.03 * 0.005s =
 0.00015s. So this group can be scheduled with a period of 0.005s and a run time
 of 0.00015s.
 
-The remaining CPU time will be used for user input and other tass. Because
+The remaining CPU time will be used for user input and other tasks. Because
 realtime tasks have explicitly allocated the CPU time they need to perform
-their tasks, buffer underruns in the graphocs or audio can be eliminated.
+their tasks, buffer underruns in the graphics or audio can be eliminated.
 
 NOTE: the above example is not fully implemented as of yet (2.6.25). We still
 lack an EDF scheduler to make non-uniform periods usable.

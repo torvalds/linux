@@ -24,7 +24,11 @@
 #ifndef __ASM_ARCH_OMAP_MCBSP_H
 #define __ASM_ARCH_OMAP_MCBSP_H
 
+#include <linux/completion.h>
+#include <linux/spinlock.h>
+
 #include <asm/hardware.h>
+#include <asm/arch/clock.h>
 
 #define OMAP730_MCBSP1_BASE	0xfffb1000
 #define OMAP730_MCBSP2_BASE	0xfffb1800
@@ -39,6 +43,9 @@
 
 #define OMAP24XX_MCBSP1_BASE	0x48074000
 #define OMAP24XX_MCBSP2_BASE	0x48076000
+
+#define OMAP34XX_MCBSP1_BASE	0x48074000
+#define OMAP34XX_MCBSP2_BASE	0x49022000
 
 #if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP730)
 
@@ -74,7 +81,8 @@
 #define OMAP_MCBSP_REG_XCERG	0x3A
 #define OMAP_MCBSP_REG_XCERH	0x3C
 
-#define OMAP_MAX_MCBSP_COUNT 3
+#define OMAP_MAX_MCBSP_COUNT	3
+#define MAX_MCBSP_CLOCKS	3
 
 #define AUDIO_MCBSP_DATAWRITE	(OMAP1510_MCBSP1_BASE + OMAP_MCBSP_REG_DXR1)
 #define AUDIO_MCBSP_DATAREAD	(OMAP1510_MCBSP1_BASE + OMAP_MCBSP_REG_DRR1)
@@ -117,7 +125,8 @@
 #define OMAP_MCBSP_REG_XCERG	0x74
 #define OMAP_MCBSP_REG_XCERH	0x78
 
-#define OMAP_MAX_MCBSP_COUNT 2
+#define OMAP_MAX_MCBSP_COUNT	2
+#define MAX_MCBSP_CLOCKS	2
 
 #define AUDIO_MCBSP_DATAWRITE	(OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DXR1)
 #define AUDIO_MCBSP_DATAREAD	(OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DRR1)
@@ -298,6 +307,55 @@ struct omap_mcbsp_spi_cfg {
 	omap_mcbsp_word_length		word_length;
 };
 
+/* Platform specific configuration */
+struct omap_mcbsp_ops {
+	void (*request)(unsigned int);
+	void (*free)(unsigned int);
+	int (*check)(unsigned int);
+};
+
+struct omap_mcbsp_platform_data {
+	u32 virt_base;
+	u8 dma_rx_sync, dma_tx_sync;
+	u16 rx_irq, tx_irq;
+	struct omap_mcbsp_ops *ops;
+	char const *clk_name;
+};
+
+struct omap_mcbsp {
+	struct device *dev;
+	u32 io_base;
+	u8 id;
+	u8 free;
+	omap_mcbsp_word_length rx_word_length;
+	omap_mcbsp_word_length tx_word_length;
+
+	omap_mcbsp_io_type_t io_type; /* IRQ or poll */
+	/* IRQ based TX/RX */
+	int rx_irq;
+	int tx_irq;
+
+	/* DMA stuff */
+	u8 dma_rx_sync;
+	short dma_rx_lch;
+	u8 dma_tx_sync;
+	short dma_tx_lch;
+
+	/* Completion queues */
+	struct completion tx_irq_completion;
+	struct completion rx_irq_completion;
+	struct completion tx_dma_completion;
+	struct completion rx_dma_completion;
+
+	/* Protect the field .free, while checking if the mcbsp is in use */
+	spinlock_t lock;
+	struct omap_mcbsp_platform_data *pdata;
+	struct clk *clk;
+};
+
+int omap_mcbsp_init(void);
+void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
+					int size);
 void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg * config);
 int omap_mcbsp_request(unsigned int id);
 void omap_mcbsp_free(unsigned int id);

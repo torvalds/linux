@@ -19,22 +19,22 @@
  */
 
 /*
- * UBI wear-leveling unit.
+ * UBI wear-leveling sub-system.
  *
- * This unit is responsible for wear-leveling. It works in terms of physical
- * eraseblocks and erase counters and knows nothing about logical eraseblocks,
- * volumes, etc. From this unit's perspective all physical eraseblocks are of
- * two types - used and free. Used physical eraseblocks are those that were
- * "get" by the 'ubi_wl_get_peb()' function, and free physical eraseblocks are
- * those that were put by the 'ubi_wl_put_peb()' function.
+ * This sub-system is responsible for wear-leveling. It works in terms of
+ * physical* eraseblocks and erase counters and knows nothing about logical
+ * eraseblocks, volumes, etc. From this sub-system's perspective all physical
+ * eraseblocks are of two types - used and free. Used physical eraseblocks are
+ * those that were "get" by the 'ubi_wl_get_peb()' function, and free physical
+ * eraseblocks are those that were put by the 'ubi_wl_put_peb()' function.
  *
  * Physical eraseblocks returned by 'ubi_wl_get_peb()' have only erase counter
- * header. The rest of the physical eraseblock contains only 0xFF bytes.
+ * header. The rest of the physical eraseblock contains only %0xFF bytes.
  *
- * When physical eraseblocks are returned to the WL unit by means of the
+ * When physical eraseblocks are returned to the WL sub-system by means of the
  * 'ubi_wl_put_peb()' function, they are scheduled for erasure. The erasure is
  * done asynchronously in context of the per-UBI device background thread,
- * which is also managed by the WL unit.
+ * which is also managed by the WL sub-system.
  *
  * The wear-leveling is ensured by means of moving the contents of used
  * physical eraseblocks with low erase counter to free physical eraseblocks
@@ -43,34 +43,36 @@
  * The 'ubi_wl_get_peb()' function accepts data type hints which help to pick
  * an "optimal" physical eraseblock. For example, when it is known that the
  * physical eraseblock will be "put" soon because it contains short-term data,
- * the WL unit may pick a free physical eraseblock with low erase counter, and
- * so forth.
+ * the WL sub-system may pick a free physical eraseblock with low erase
+ * counter, and so forth.
  *
- * If the WL unit fails to erase a physical eraseblock, it marks it as bad.
+ * If the WL sub-system fails to erase a physical eraseblock, it marks it as
+ * bad.
  *
- * This unit is also responsible for scrubbing. If a bit-flip is detected in a
- * physical eraseblock, it has to be moved. Technically this is the same as
- * moving it for wear-leveling reasons.
+ * This sub-system is also responsible for scrubbing. If a bit-flip is detected
+ * in a physical eraseblock, it has to be moved. Technically this is the same
+ * as moving it for wear-leveling reasons.
  *
- * As it was said, for the UBI unit all physical eraseblocks are either "free"
- * or "used". Free eraseblock are kept in the @wl->free RB-tree, while used
- * eraseblocks are kept in a set of different RB-trees: @wl->used,
+ * As it was said, for the UBI sub-system all physical eraseblocks are either
+ * "free" or "used". Free eraseblock are kept in the @wl->free RB-tree, while
+ * used eraseblocks are kept in a set of different RB-trees: @wl->used,
  * @wl->prot.pnum, @wl->prot.aec, and @wl->scrub.
  *
  * Note, in this implementation, we keep a small in-RAM object for each physical
  * eraseblock. This is surely not a scalable solution. But it appears to be good
  * enough for moderately large flashes and it is simple. In future, one may
- * re-work this unit and make it more scalable.
+ * re-work this sub-system and make it more scalable.
  *
- * At the moment this unit does not utilize the sequence number, which was
- * introduced relatively recently. But it would be wise to do this because the
- * sequence number of a logical eraseblock characterizes how old is it. For
+ * At the moment this sub-system does not utilize the sequence number, which
+ * was introduced relatively recently. But it would be wise to do this because
+ * the sequence number of a logical eraseblock characterizes how old is it. For
  * example, when we move a PEB with low erase counter, and we need to pick the
  * target PEB, we pick a PEB with the highest EC if our PEB is "old" and we
  * pick target PEB with an average EC if our PEB is not very "old". This is a
- * room for future re-works of the WL unit.
+ * room for future re-works of the WL sub-system.
  *
- * FIXME: looks too complex, should be simplified (later).
+ * Note: the stuff with protection trees looks too complex and is difficult to
+ * understand. Should be fixed.
  */
 
 #include <linux/slab.h>
@@ -92,20 +94,21 @@
 
 /*
  * Maximum difference between two erase counters. If this threshold is
- * exceeded, the WL unit starts moving data from used physical eraseblocks with
- * low erase counter to free physical eraseblocks with high erase counter.
+ * exceeded, the WL sub-system starts moving data from used physical
+ * eraseblocks with low erase counter to free physical eraseblocks with high
+ * erase counter.
  */
 #define UBI_WL_THRESHOLD CONFIG_MTD_UBI_WL_THRESHOLD
 
 /*
- * When a physical eraseblock is moved, the WL unit has to pick the target
+ * When a physical eraseblock is moved, the WL sub-system has to pick the target
  * physical eraseblock to move to. The simplest way would be just to pick the
  * one with the highest erase counter. But in certain workloads this could lead
  * to an unlimited wear of one or few physical eraseblock. Indeed, imagine a
  * situation when the picked physical eraseblock is constantly erased after the
  * data is written to it. So, we have a constant which limits the highest erase
- * counter of the free physical eraseblock to pick. Namely, the WL unit does
- * not pick eraseblocks with erase counter greater then the lowest erase
+ * counter of the free physical eraseblock to pick. Namely, the WL sub-system
+ * does not pick eraseblocks with erase counter greater then the lowest erase
  * counter plus %WL_FREE_MAX_DIFF.
  */
 #define WL_FREE_MAX_DIFF (2*UBI_WL_THRESHOLD)
@@ -123,11 +126,11 @@
  * @abs_ec: the absolute erase counter value when the protection ends
  * @e: the wear-leveling entry of the physical eraseblock under protection
  *
- * When the WL unit returns a physical eraseblock, the physical eraseblock is
- * protected from being moved for some "time". For this reason, the physical
- * eraseblock is not directly moved from the @wl->free tree to the @wl->used
- * tree. There is one more tree in between where this physical eraseblock is
- * temporarily stored (@wl->prot).
+ * When the WL sub-system returns a physical eraseblock, the physical
+ * eraseblock is protected from being moved for some "time". For this reason,
+ * the physical eraseblock is not directly moved from the @wl->free tree to the
+ * @wl->used tree. There is one more tree in between where this physical
+ * eraseblock is temporarily stored (@wl->prot).
  *
  * All this protection stuff is needed because:
  *  o we don't want to move physical eraseblocks just after we have given them
@@ -175,7 +178,6 @@ struct ubi_wl_prot_entry {
  * @list: a link in the list of pending works
  * @func: worker function
  * @priv: private data of the worker function
- *
  * @e: physical eraseblock to erase
  * @torture: if the physical eraseblock has to be tortured
  *
@@ -473,52 +475,47 @@ retry:
 	}
 
 	switch (dtype) {
-		case UBI_LONGTERM:
-			/*
-			 * For long term data we pick a physical eraseblock
-			 * with high erase counter. But the highest erase
-			 * counter we can pick is bounded by the the lowest
-			 * erase counter plus %WL_FREE_MAX_DIFF.
-			 */
-			e = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
-			protect = LT_PROTECTION;
-			break;
-		case UBI_UNKNOWN:
-			/*
-			 * For unknown data we pick a physical eraseblock with
-			 * medium erase counter. But we by no means can pick a
-			 * physical eraseblock with erase counter greater or
-			 * equivalent than the lowest erase counter plus
-			 * %WL_FREE_MAX_DIFF.
-			 */
-			first = rb_entry(rb_first(&ubi->free),
-					 struct ubi_wl_entry, rb);
-			last = rb_entry(rb_last(&ubi->free),
-					struct ubi_wl_entry, rb);
+	case UBI_LONGTERM:
+		/*
+		 * For long term data we pick a physical eraseblock with high
+		 * erase counter. But the highest erase counter we can pick is
+		 * bounded by the the lowest erase counter plus
+		 * %WL_FREE_MAX_DIFF.
+		 */
+		e = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
+		protect = LT_PROTECTION;
+		break;
+	case UBI_UNKNOWN:
+		/*
+		 * For unknown data we pick a physical eraseblock with medium
+		 * erase counter. But we by no means can pick a physical
+		 * eraseblock with erase counter greater or equivalent than the
+		 * lowest erase counter plus %WL_FREE_MAX_DIFF.
+		 */
+		first = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry, rb);
+		last = rb_entry(rb_last(&ubi->free), struct ubi_wl_entry, rb);
 
-			if (last->ec - first->ec < WL_FREE_MAX_DIFF)
-				e = rb_entry(ubi->free.rb_node,
-						struct ubi_wl_entry, rb);
-			else {
-				medium_ec = (first->ec + WL_FREE_MAX_DIFF)/2;
-				e = find_wl_entry(&ubi->free, medium_ec);
-			}
-			protect = U_PROTECTION;
-			break;
-		case UBI_SHORTTERM:
-			/*
-			 * For short term data we pick a physical eraseblock
-			 * with the lowest erase counter as we expect it will
-			 * be erased soon.
-			 */
-			e = rb_entry(rb_first(&ubi->free),
-				     struct ubi_wl_entry, rb);
-			protect = ST_PROTECTION;
-			break;
-		default:
-			protect = 0;
-			e = NULL;
-			BUG();
+		if (last->ec - first->ec < WL_FREE_MAX_DIFF)
+			e = rb_entry(ubi->free.rb_node,
+					struct ubi_wl_entry, rb);
+		else {
+			medium_ec = (first->ec + WL_FREE_MAX_DIFF)/2;
+			e = find_wl_entry(&ubi->free, medium_ec);
+		}
+		protect = U_PROTECTION;
+		break;
+	case UBI_SHORTTERM:
+		/*
+		 * For short term data we pick a physical eraseblock with the
+		 * lowest erase counter as we expect it will be erased soon.
+		 */
+		e = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry, rb);
+		protect = ST_PROTECTION;
+		break;
+	default:
+		protect = 0;
+		e = NULL;
+		BUG();
 	}
 
 	/*
@@ -582,7 +579,8 @@ found:
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-static int sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e, int torture)
+static int sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
+		      int torture)
 {
 	int err;
 	struct ubi_ec_hdr *ec_hdr;
@@ -634,8 +632,7 @@ out_free:
 }
 
 /**
- * check_protection_over - check if it is time to stop protecting some
- * physical eraseblocks.
+ * check_protection_over - check if it is time to stop protecting some PEBs.
  * @ubi: UBI device description object
  *
  * This function is called after each erase operation, when the absolute erase
@@ -871,6 +868,10 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	}
 
 	ubi_free_vid_hdr(ubi, vid_hdr);
+	if (scrubbing && !protect)
+		ubi_msg("scrubbed PEB %d, data moved to PEB %d",
+			e1->pnum, e2->pnum);
+
 	spin_lock(&ubi->wl_lock);
 	if (protect)
 		prot_tree_add(ubi, e1, pe, protect);
@@ -1054,8 +1055,8 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 		spin_unlock(&ubi->wl_lock);
 
 		/*
-		 * One more erase operation has happened, take care about protected
-		 * physical eraseblocks.
+		 * One more erase operation has happened, take care about
+		 * protected physical eraseblocks.
 		 */
 		check_protection_over(ubi);
 
@@ -1136,7 +1137,7 @@ out_ro:
 }
 
 /**
- * ubi_wl_put_peb - return a physical eraseblock to the wear-leveling unit.
+ * ubi_wl_put_peb - return a PEB to the wear-leveling sub-system.
  * @ubi: UBI device description object
  * @pnum: physical eraseblock to return
  * @torture: if this physical eraseblock has to be tortured
@@ -1175,11 +1176,11 @@ retry:
 		/*
 		 * User is putting the physical eraseblock which was selected
 		 * as the target the data is moved to. It may happen if the EBA
-		 * unit already re-mapped the LEB in 'ubi_eba_copy_leb()' but
-		 * the WL unit has not put the PEB to the "used" tree yet, but
-		 * it is about to do this. So we just set a flag which will
-		 * tell the WL worker that the PEB is not needed anymore and
-		 * should be scheduled for erasure.
+		 * sub-system already re-mapped the LEB in 'ubi_eba_copy_leb()'
+		 * but the WL sub-system has not put the PEB to the "used" tree
+		 * yet, but it is about to do this. So we just set a flag which
+		 * will tell the WL worker that the PEB is not needed anymore
+		 * and should be scheduled for erasure.
 		 */
 		dbg_wl("PEB %d is the target of data moving", pnum);
 		ubi_assert(!ubi->move_to_put);
@@ -1229,7 +1230,7 @@ int ubi_wl_scrub_peb(struct ubi_device *ubi, int pnum)
 {
 	struct ubi_wl_entry *e;
 
-	ubi_msg("schedule PEB %d for scrubbing", pnum);
+	dbg_msg("schedule PEB %d for scrubbing", pnum);
 
 retry:
 	spin_lock(&ubi->wl_lock);
@@ -1368,7 +1369,7 @@ int ubi_thread(void *u)
 		int err;
 
 		if (kthread_should_stop())
-			goto out;
+			break;
 
 		if (try_to_freeze())
 			continue;
@@ -1403,7 +1404,6 @@ int ubi_thread(void *u)
 		cond_resched();
 	}
 
-out:
 	dbg_wl("background thread \"%s\" is killed", ubi->bgt_name);
 	return 0;
 }
@@ -1426,8 +1426,7 @@ static void cancel_pending(struct ubi_device *ubi)
 }
 
 /**
- * ubi_wl_init_scan - initialize the wear-leveling unit using scanning
- * information.
+ * ubi_wl_init_scan - initialize the WL sub-system using scanning information.
  * @ubi: UBI device description object
  * @si: scanning information
  *
@@ -1584,13 +1583,12 @@ static void protection_trees_destroy(struct ubi_device *ubi)
 }
 
 /**
- * ubi_wl_close - close the wear-leveling unit.
+ * ubi_wl_close - close the wear-leveling sub-system.
  * @ubi: UBI device description object
  */
 void ubi_wl_close(struct ubi_device *ubi)
 {
-	dbg_wl("close the UBI wear-leveling unit");
-
+	dbg_wl("close the WL sub-system");
 	cancel_pending(ubi);
 	protection_trees_destroy(ubi);
 	tree_destroy(&ubi->used);
@@ -1602,8 +1600,7 @@ void ubi_wl_close(struct ubi_device *ubi)
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
 
 /**
- * paranoid_check_ec - make sure that the erase counter of a physical eraseblock
- * is correct.
+ * paranoid_check_ec - make sure that the erase counter of a PEB is correct.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  * @ec: the erase counter to check
@@ -1644,13 +1641,12 @@ out_free:
 }
 
 /**
- * paranoid_check_in_wl_tree - make sure that a wear-leveling entry is present
- * in a WL RB-tree.
+ * paranoid_check_in_wl_tree - check that wear-leveling entry is in WL RB-tree.
  * @e: the wear-leveling entry to check
  * @root: the root of the tree
  *
- * This function returns zero if @e is in the @root RB-tree and %1 if it
- * is not.
+ * This function returns zero if @e is in the @root RB-tree and %1 if it is
+ * not.
  */
 static int paranoid_check_in_wl_tree(struct ubi_wl_entry *e,
 				     struct rb_root *root)

@@ -202,7 +202,6 @@ static int __init bcm1480_pcibios_init(void)
 {
 	uint32_t cmdreg;
 	uint64_t reg;
-	extern int pci_probe_only;
 
 	/* CFE will assign PCI resources */
 	pci_probe_only = 1;
@@ -254,8 +253,6 @@ static int __init bcm1480_pcibios_init(void)
 		ioremap(A_BCM1480_PHYS_PCI_IO_MATCH_BYTES, 65536);
 	bcm1480_controller.io_map_base -= bcm1480_controller.io_offset;
 	set_io_port_base(bcm1480_controller.io_map_base);
-	isa_slot_offset = (unsigned long)
-		ioremap(A_BCM1480_PHYS_PCI_MEM_MATCH_BYTES, 1024*1024);
 
 	register_pci_controller(&bcm1480_controller);
 

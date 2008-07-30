@@ -129,6 +129,7 @@ struct blk_trace {
 	u32 dev;
 	struct dentry *dir;
 	struct dentry *dropped_file;
+	struct dentry *msg_file;
 	atomic_t dropped;
 };
 

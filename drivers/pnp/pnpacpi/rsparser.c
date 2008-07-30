@@ -3,6 +3,8 @@
  *
  * Copyright (c) 2004 Matthieu Castet <castet.matthieu@free.fr>
  * Copyright (c) 2004 Li Shaohua <shaohua.li@intel.com>
+ * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
+ *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -98,8 +100,10 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_dev *dev,
 	int irq, flags;
 	int p, t;
 
-	if (!valid_IRQ(gsi))
+	if (!valid_IRQ(gsi)) {
+		pnp_add_irq_resource(dev, gsi, IORESOURCE_DISABLED);
 		return;
+	}
 
 	/*
 	 * in IO-APIC mode, use overrided attribute. Two reasons:
@@ -178,11 +182,66 @@ static void pnpacpi_parse_allocated_ioresource(struct pnp_dev *dev, u64 start,
 	u64 end = start + len - 1;
 
 	if (io_decode == ACPI_DECODE_16)
-		flags |= PNP_PORT_FLAG_16BITADDR;
+		flags |= IORESOURCE_IO_16BIT_ADDR;
 	if (len == 0 || end >= 0x10003)
 		flags |= IORESOURCE_DISABLED;
 
 	pnp_add_io_resource(dev, start, end, flags);
+}
+
+/*
+ * Device CSRs that do not appear in PCI config space should be described
+ * via ACPI.  This would normally be done with Address Space Descriptors
+ * marked as "consumer-only," but old versions of Windows and Linux ignore
+ * the producer/consumer flag, so HP invented a vendor-defined resource to
+ * describe the location and size of CSR space.
+ */
+static struct acpi_vendor_uuid hp_ccsr_uuid = {
+	.subtype = 2,
+	.data = { 0xf9, 0xad, 0xe9, 0x69, 0x4f, 0x92, 0x5f, 0xab, 0xf6, 0x4a,
+	    0x24, 0xd2, 0x01, 0x37, 0x0e, 0xad },
+};
+
+static int vendor_resource_matches(struct pnp_dev *dev,
+				   struct acpi_resource_vendor_typed *vendor,
+				   struct acpi_vendor_uuid *match,
+				   int expected_len)
+{
+	int uuid_len = sizeof(vendor->uuid);
+	u8 uuid_subtype = vendor->uuid_subtype;
+	u8 *uuid = vendor->uuid;
+	int actual_len;
+
+	/* byte_length includes uuid_subtype and uuid */
+	actual_len = vendor->byte_length - uuid_len - 1;
+
+	if (uuid_subtype == match->subtype &&
+	    uuid_len == sizeof(match->data) &&
+	    memcmp(uuid, match->data, uuid_len) == 0) {
+		if (expected_len && expected_len != actual_len) {
+			dev_err(&dev->dev, "wrong vendor descriptor size; "
+				"expected %d, found %d bytes\n",
+				expected_len, actual_len);
+			return 0;
+		}
+
+		return 1;
+	}
+
+	return 0;
+}
+
+static void pnpacpi_parse_allocated_vendor(struct pnp_dev *dev,
+				    struct acpi_resource_vendor_typed *vendor)
+{
+	if (vendor_resource_matches(dev, vendor, &hp_ccsr_uuid, 16)) {
+		u64 start, length;
+
+		memcpy(&start, vendor->byte_data, sizeof(start));
+		memcpy(&length, vendor->byte_data + 8, sizeof(length));
+
+		pnp_add_mem_resource(dev, start, start + length - 1, 0);
+	}
 }
 
 static void pnpacpi_parse_allocated_memresource(struct pnp_dev *dev,
@@ -235,6 +294,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	struct acpi_resource_dma *dma;
 	struct acpi_resource_io *io;
 	struct acpi_resource_fixed_io *fixed_io;
+	struct acpi_resource_vendor_typed *vendor_typed;
 	struct acpi_resource_memory24 *memory24;
 	struct acpi_resource_memory32 *memory32;
 	struct acpi_resource_fixed_memory32 *fixed_memory32;
@@ -248,24 +308,39 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		 * _CRS, but some firmware violates this, so parse them all.
 		 */
 		irq = &res->data.irq;
-		for (i = 0; i < irq->interrupt_count; i++) {
-			pnpacpi_parse_allocated_irqresource(dev,
-				irq->interrupts[i],
-				irq->triggering,
-				irq->polarity,
-				irq->sharable);
+		if (irq->interrupt_count == 0)
+			pnp_add_irq_resource(dev, 0, IORESOURCE_DISABLED);
+		else {
+			for (i = 0; i < irq->interrupt_count; i++) {
+				pnpacpi_parse_allocated_irqresource(dev,
+					irq->interrupts[i],
+					irq->triggering,
+					irq->polarity,
+				    irq->sharable);
+			}
+
+			/*
+			 * The IRQ encoder puts a single interrupt in each
+			 * descriptor, so if a _CRS descriptor has more than
+			 * one interrupt, we won't be able to re-encode it.
+			 */
+			if (pnp_can_write(dev) && irq->interrupt_count > 1) {
+				dev_warn(&dev->dev, "multiple interrupts in "
+					 "_CRS descriptor; configuration can't "
+					 "be changed\n");
+				dev->capabilities &= ~PNP_WRITE;
+			}
 		}
 		break;
 
 	case ACPI_RESOURCE_TYPE_DMA:
 		dma = &res->data.dma;
-		if (dma->channel_count > 0) {
+		if (dma->channel_count > 0 && dma->channels[0] != (u8) -1)
 			flags = dma_flags(dma->type, dma->bus_master,
 					  dma->transfer);
-			if (dma->channels[0] == (u8) -1)
-				flags |= IORESOURCE_DISABLED;
-			pnp_add_dma_resource(dev, dma->channels[0], flags);
-		}
+		else
+			flags = IORESOURCE_DISABLED;
+		pnp_add_dma_resource(dev, dma->channels[0], flags);
 		break;
 
 	case ACPI_RESOURCE_TYPE_IO:
@@ -289,6 +364,8 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		break;
 
 	case ACPI_RESOURCE_TYPE_VENDOR:
+		vendor_typed = &res->data.vendor_typed;
+		pnpacpi_parse_allocated_vendor(dev, vendor_typed);
 		break;
 
 	case ACPI_RESOURCE_TYPE_END_TAG:
@@ -331,12 +408,29 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		if (extended_irq->producer_consumer == ACPI_PRODUCER)
 			return AE_OK;
 
-		for (i = 0; i < extended_irq->interrupt_count; i++) {
-			pnpacpi_parse_allocated_irqresource(dev,
-				extended_irq->interrupts[i],
-				extended_irq->triggering,
-				extended_irq->polarity,
-				extended_irq->sharable);
+		if (extended_irq->interrupt_count == 0)
+			pnp_add_irq_resource(dev, 0, IORESOURCE_DISABLED);
+		else {
+			for (i = 0; i < extended_irq->interrupt_count; i++) {
+				pnpacpi_parse_allocated_irqresource(dev,
+					extended_irq->interrupts[i],
+					extended_irq->triggering,
+					extended_irq->polarity,
+					extended_irq->sharable);
+			}
+
+			/*
+			 * The IRQ encoder puts a single interrupt in each
+			 * descriptor, so if a _CRS descriptor has more than
+			 * one interrupt, we won't be able to re-encode it.
+			 */
+			if (pnp_can_write(dev) &&
+			    extended_irq->interrupt_count > 1) {
+				dev_warn(&dev->dev, "multiple interrupts in "
+					 "_CRS descriptor; configuration can't "
+					 "be changed\n");
+				dev->capabilities &= ~PNP_WRITE;
+			}
 		}
 		break;
 
@@ -373,179 +467,147 @@ int pnpacpi_parse_allocated_resource(struct pnp_dev *dev)
 }
 
 static __init void pnpacpi_parse_dma_option(struct pnp_dev *dev,
-					    struct pnp_option *option,
+					    unsigned int option_flags,
 					    struct acpi_resource_dma *p)
 {
 	int i;
-	struct pnp_dma *dma;
+	unsigned char map = 0, flags;
 
 	if (p->channel_count == 0)
 		return;
-	dma = kzalloc(sizeof(struct pnp_dma), GFP_KERNEL);
-	if (!dma)
-		return;
 
 	for (i = 0; i < p->channel_count; i++)
-		dma->map |= 1 << p->channels[i];
+		map |= 1 << p->channels[i];
 
-	dma->flags = dma_flags(p->type, p->bus_master, p->transfer);
-
-	pnp_register_dma_resource(dev, option, dma);
+	flags = dma_flags(p->type, p->bus_master, p->transfer);
+	pnp_register_dma_resource(dev, option_flags, map, flags);
 }
 
 static __init void pnpacpi_parse_irq_option(struct pnp_dev *dev,
-					    struct pnp_option *option,
+					    unsigned int option_flags,
 					    struct acpi_resource_irq *p)
 {
 	int i;
-	struct pnp_irq *irq;
+	pnp_irq_mask_t map;
+	unsigned char flags;
 
 	if (p->interrupt_count == 0)
 		return;
-	irq = kzalloc(sizeof(struct pnp_irq), GFP_KERNEL);
-	if (!irq)
-		return;
 
+	bitmap_zero(map.bits, PNP_IRQ_NR);
 	for (i = 0; i < p->interrupt_count; i++)
 		if (p->interrupts[i])
-			__set_bit(p->interrupts[i], irq->map);
-	irq->flags = irq_flags(p->triggering, p->polarity, p->sharable);
+			__set_bit(p->interrupts[i], map.bits);
 
-	pnp_register_irq_resource(dev, option, irq);
+	flags = irq_flags(p->triggering, p->polarity, p->sharable);
+	pnp_register_irq_resource(dev, option_flags, &map, flags);
 }
 
 static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
-						struct pnp_option *option,
+					unsigned int option_flags,
 					struct acpi_resource_extended_irq *p)
 {
 	int i;
-	struct pnp_irq *irq;
+	pnp_irq_mask_t map;
+	unsigned char flags;
 
 	if (p->interrupt_count == 0)
 		return;
-	irq = kzalloc(sizeof(struct pnp_irq), GFP_KERNEL);
-	if (!irq)
-		return;
 
-	for (i = 0; i < p->interrupt_count; i++)
-		if (p->interrupts[i])
-			__set_bit(p->interrupts[i], irq->map);
-	irq->flags = irq_flags(p->triggering, p->polarity, p->sharable);
+	bitmap_zero(map.bits, PNP_IRQ_NR);
+	for (i = 0; i < p->interrupt_count; i++) {
+		if (p->interrupts[i]) {
+			if (p->interrupts[i] < PNP_IRQ_NR)
+				__set_bit(p->interrupts[i], map.bits);
+			else
+				dev_err(&dev->dev, "ignoring IRQ %d option "
+					"(too large for %d entry bitmap)\n",
+					p->interrupts[i], PNP_IRQ_NR);
+		}
+	}
 
-	pnp_register_irq_resource(dev, option, irq);
+	flags = irq_flags(p->triggering, p->polarity, p->sharable);
+	pnp_register_irq_resource(dev, option_flags, &map, flags);
 }
 
 static __init void pnpacpi_parse_port_option(struct pnp_dev *dev,
-					     struct pnp_option *option,
+					     unsigned int option_flags,
 					     struct acpi_resource_io *io)
 {
-	struct pnp_port *port;
+	unsigned char flags = 0;
 
 	if (io->address_length == 0)
 		return;
-	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-	if (!port)
-		return;
-	port->min = io->minimum;
-	port->max = io->maximum;
-	port->align = io->alignment;
-	port->size = io->address_length;
-	port->flags = ACPI_DECODE_16 == io->io_decode ?
-	    PNP_PORT_FLAG_16BITADDR : 0;
-	pnp_register_port_resource(dev, option, port);
+
+	if (io->io_decode == ACPI_DECODE_16)
+		flags = IORESOURCE_IO_16BIT_ADDR;
+	pnp_register_port_resource(dev, option_flags, io->minimum, io->maximum,
+				   io->alignment, io->address_length, flags);
 }
 
 static __init void pnpacpi_parse_fixed_port_option(struct pnp_dev *dev,
-						   struct pnp_option *option,
+					unsigned int option_flags,
 					struct acpi_resource_fixed_io *io)
 {
-	struct pnp_port *port;
-
 	if (io->address_length == 0)
 		return;
-	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-	if (!port)
-		return;
-	port->min = port->max = io->address;
-	port->size = io->address_length;
-	port->align = 0;
-	port->flags = PNP_PORT_FLAG_FIXED;
-	pnp_register_port_resource(dev, option, port);
+
+	pnp_register_port_resource(dev, option_flags, io->address, io->address,
+				   0, io->address_length, IORESOURCE_IO_FIXED);
 }
 
 static __init void pnpacpi_parse_mem24_option(struct pnp_dev *dev,
-					      struct pnp_option *option,
+					      unsigned int option_flags,
 					      struct acpi_resource_memory24 *p)
 {
-	struct pnp_mem *mem;
+	unsigned char flags = 0;
 
 	if (p->address_length == 0)
 		return;
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = p->minimum;
-	mem->max = p->maximum;
-	mem->align = p->alignment;
-	mem->size = p->address_length;
 
-	mem->flags = (ACPI_READ_WRITE_MEMORY == p->write_protect) ?
-	    IORESOURCE_MEM_WRITEABLE : 0;
-
-	pnp_register_mem_resource(dev, option, mem);
+	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
+		flags = IORESOURCE_MEM_WRITEABLE;
+	pnp_register_mem_resource(dev, option_flags, p->minimum, p->maximum,
+				  p->alignment, p->address_length, flags);
 }
 
 static __init void pnpacpi_parse_mem32_option(struct pnp_dev *dev,
-					      struct pnp_option *option,
+					      unsigned int option_flags,
 					      struct acpi_resource_memory32 *p)
 {
-	struct pnp_mem *mem;
+	unsigned char flags = 0;
 
 	if (p->address_length == 0)
 		return;
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = p->minimum;
-	mem->max = p->maximum;
-	mem->align = p->alignment;
-	mem->size = p->address_length;
 
-	mem->flags = (ACPI_READ_WRITE_MEMORY == p->write_protect) ?
-	    IORESOURCE_MEM_WRITEABLE : 0;
-
-	pnp_register_mem_resource(dev, option, mem);
+	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
+		flags = IORESOURCE_MEM_WRITEABLE;
+	pnp_register_mem_resource(dev, option_flags, p->minimum, p->maximum,
+				  p->alignment, p->address_length, flags);
 }
 
 static __init void pnpacpi_parse_fixed_mem32_option(struct pnp_dev *dev,
-						    struct pnp_option *option,
+					unsigned int option_flags,
 					struct acpi_resource_fixed_memory32 *p)
 {
-	struct pnp_mem *mem;
+	unsigned char flags = 0;
 
 	if (p->address_length == 0)
 		return;
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = mem->max = p->address;
-	mem->size = p->address_length;
-	mem->align = 0;
 
-	mem->flags = (ACPI_READ_WRITE_MEMORY == p->write_protect) ?
-	    IORESOURCE_MEM_WRITEABLE : 0;
-
-	pnp_register_mem_resource(dev, option, mem);
+	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
+		flags = IORESOURCE_MEM_WRITEABLE;
+	pnp_register_mem_resource(dev, option_flags, p->address, p->address,
+				  0, p->address_length, flags);
 }
 
 static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
-						struct pnp_option *option,
+						unsigned int option_flags,
 						struct acpi_resource *r)
 {
 	struct acpi_resource_address64 addr, *p = &addr;
 	acpi_status status;
-	struct pnp_mem *mem;
-	struct pnp_port *port;
+	unsigned char flags = 0;
 
 	status = acpi_resource_to_address64(r, p);
 	if (!ACPI_SUCCESS(status)) {
@@ -558,49 +620,37 @@ static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
 		return;
 
 	if (p->resource_type == ACPI_MEMORY_RANGE) {
-		mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-		if (!mem)
-			return;
-		mem->min = mem->max = p->minimum;
-		mem->size = p->address_length;
-		mem->align = 0;
-		mem->flags = (p->info.mem.write_protect ==
-			      ACPI_READ_WRITE_MEMORY) ? IORESOURCE_MEM_WRITEABLE
-		    : 0;
-		pnp_register_mem_resource(dev, option, mem);
-	} else if (p->resource_type == ACPI_IO_RANGE) {
-		port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-		if (!port)
-			return;
-		port->min = port->max = p->minimum;
-		port->size = p->address_length;
-		port->align = 0;
-		port->flags = PNP_PORT_FLAG_FIXED;
-		pnp_register_port_resource(dev, option, port);
-	}
+		if (p->info.mem.write_protect == ACPI_READ_WRITE_MEMORY)
+			flags = IORESOURCE_MEM_WRITEABLE;
+		pnp_register_mem_resource(dev, option_flags, p->minimum,
+					  p->minimum, 0, p->address_length,
+					  flags);
+	} else if (p->resource_type == ACPI_IO_RANGE)
+		pnp_register_port_resource(dev, option_flags, p->minimum,
+					   p->minimum, 0, p->address_length,
+					   IORESOURCE_IO_FIXED);
 }
 
 struct acpipnp_parse_option_s {
-	struct pnp_option *option;
-	struct pnp_option *option_independent;
 	struct pnp_dev *dev;
+	unsigned int option_flags;
 };
 
 static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 						  void *data)
 {
-	int priority = 0;
+	int priority;
 	struct acpipnp_parse_option_s *parse_data = data;
 	struct pnp_dev *dev = parse_data->dev;
-	struct pnp_option *option = parse_data->option;
+	unsigned int option_flags = parse_data->option_flags;
 
 	switch (res->type) {
 	case ACPI_RESOURCE_TYPE_IRQ:
-		pnpacpi_parse_irq_option(dev, option, &res->data.irq);
+		pnpacpi_parse_irq_option(dev, option_flags, &res->data.irq);
 		break;
 
 	case ACPI_RESOURCE_TYPE_DMA:
-		pnpacpi_parse_dma_option(dev, option, &res->data.dma);
+		pnpacpi_parse_dma_option(dev, option_flags, &res->data.dma);
 		break;
 
 	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
@@ -620,31 +670,19 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 			priority = PNP_RES_PRIORITY_INVALID;
 			break;
 		}
-		/* TBD: Consider performance/robustness bits */
-		option = pnp_register_dependent_option(dev, priority);
-		if (!option)
-			return AE_ERROR;
-		parse_data->option = option;
+		parse_data->option_flags = pnp_new_dependent_set(dev, priority);
 		break;
 
 	case ACPI_RESOURCE_TYPE_END_DEPENDENT:
-		/*only one EndDependentFn is allowed */
-		if (!parse_data->option_independent) {
-			dev_warn(&dev->dev, "more than one EndDependentFn "
-				 "in _PRS\n");
-			return AE_ERROR;
-		}
-		parse_data->option = parse_data->option_independent;
-		parse_data->option_independent = NULL;
-		dev_dbg(&dev->dev, "end dependent options\n");
+		parse_data->option_flags = 0;
 		break;
 
 	case ACPI_RESOURCE_TYPE_IO:
-		pnpacpi_parse_port_option(dev, option, &res->data.io);
+		pnpacpi_parse_port_option(dev, option_flags, &res->data.io);
 		break;
 
 	case ACPI_RESOURCE_TYPE_FIXED_IO:
-		pnpacpi_parse_fixed_port_option(dev, option,
+		pnpacpi_parse_fixed_port_option(dev, option_flags,
 					        &res->data.fixed_io);
 		break;
 
@@ -653,29 +691,31 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 		break;
 
 	case ACPI_RESOURCE_TYPE_MEMORY24:
-		pnpacpi_parse_mem24_option(dev, option, &res->data.memory24);
+		pnpacpi_parse_mem24_option(dev, option_flags,
+					   &res->data.memory24);
 		break;
 
 	case ACPI_RESOURCE_TYPE_MEMORY32:
-		pnpacpi_parse_mem32_option(dev, option, &res->data.memory32);
+		pnpacpi_parse_mem32_option(dev, option_flags,
+					   &res->data.memory32);
 		break;
 
 	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
-		pnpacpi_parse_fixed_mem32_option(dev, option,
+		pnpacpi_parse_fixed_mem32_option(dev, option_flags,
 						 &res->data.fixed_memory32);
 		break;
 
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		pnpacpi_parse_address_option(dev, option, res);
+		pnpacpi_parse_address_option(dev, option_flags, res);
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
-		pnpacpi_parse_ext_irq_option(dev, option,
+		pnpacpi_parse_ext_irq_option(dev, option_flags,
 					     &res->data.extended_irq);
 		break;
 
@@ -699,12 +739,9 @@ int __init pnpacpi_parse_resource_option_data(struct pnp_dev *dev)
 
 	dev_dbg(&dev->dev, "parse resource options\n");
 
-	parse_data.option = pnp_register_independent_option(dev);
-	if (!parse_data.option)
-		return -ENOMEM;
-
-	parse_data.option_independent = parse_data.option;
 	parse_data.dev = dev;
+	parse_data.option_flags = 0;
+
 	status = acpi_walk_resources(handle, METHOD_NAME__PRS,
 				     pnpacpi_option_resource, &parse_data);
 
@@ -806,6 +843,13 @@ static void pnpacpi_encode_irq(struct pnp_dev *dev,
 	struct acpi_resource_irq *irq = &resource->data.irq;
 	int triggering, polarity, shareable;
 
+	if (!pnp_resource_enabled(p)) {
+		irq->interrupt_count = 0;
+		dev_dbg(&dev->dev, "  encode irq (%s)\n",
+			p ? "disabled" : "missing");
+		return;
+	}
+
 	decode_irq_flags(dev, p->flags, &triggering, &polarity, &shareable);
 	irq->triggering = triggering;
 	irq->polarity = polarity;
@@ -828,6 +872,13 @@ static void pnpacpi_encode_ext_irq(struct pnp_dev *dev,
 	struct acpi_resource_extended_irq *extended_irq = &resource->data.extended_irq;
 	int triggering, polarity, shareable;
 
+	if (!pnp_resource_enabled(p)) {
+		extended_irq->interrupt_count = 0;
+		dev_dbg(&dev->dev, "  encode extended irq (%s)\n",
+			p ? "disabled" : "missing");
+		return;
+	}
+
 	decode_irq_flags(dev, p->flags, &triggering, &polarity, &shareable);
 	extended_irq->producer_consumer = ACPI_CONSUMER;
 	extended_irq->triggering = triggering;
@@ -847,6 +898,13 @@ static void pnpacpi_encode_dma(struct pnp_dev *dev,
 			       struct resource *p)
 {
 	struct acpi_resource_dma *dma = &resource->data.dma;
+
+	if (!pnp_resource_enabled(p)) {
+		dma->channel_count = 0;
+		dev_dbg(&dev->dev, "  encode dma (%s)\n",
+			p ? "disabled" : "missing");
+		return;
+	}
 
 	/* Note: pnp_assign_dma will copy pnp_dma->flags into p->flags */
 	switch (p->flags & IORESOURCE_DMA_SPEED_MASK) {
@@ -889,17 +947,21 @@ static void pnpacpi_encode_io(struct pnp_dev *dev,
 {
 	struct acpi_resource_io *io = &resource->data.io;
 
-	/* Note: pnp_assign_port will copy pnp_port->flags into p->flags */
-	io->io_decode = (p->flags & PNP_PORT_FLAG_16BITADDR) ?
-	    ACPI_DECODE_16 : ACPI_DECODE_10;
-	io->minimum = p->start;
-	io->maximum = p->end;
-	io->alignment = 0;	/* Correct? */
-	io->address_length = p->end - p->start + 1;
+	if (pnp_resource_enabled(p)) {
+		/* Note: pnp_assign_port copies pnp_port->flags into p->flags */
+		io->io_decode = (p->flags & IORESOURCE_IO_16BIT_ADDR) ?
+		    ACPI_DECODE_16 : ACPI_DECODE_10;
+		io->minimum = p->start;
+		io->maximum = p->end;
+		io->alignment = 0;	/* Correct? */
+		io->address_length = p->end - p->start + 1;
+	} else {
+		io->minimum = 0;
+		io->address_length = 0;
+	}
 
-	dev_dbg(&dev->dev, "  encode io %#llx-%#llx decode %#x\n",
-		(unsigned long long) p->start, (unsigned long long) p->end,
-		io->io_decode);
+	dev_dbg(&dev->dev, "  encode io %#x-%#x decode %#x\n", io->minimum,
+		io->minimum + io->address_length - 1, io->io_decode);
 }
 
 static void pnpacpi_encode_fixed_io(struct pnp_dev *dev,
@@ -908,11 +970,16 @@ static void pnpacpi_encode_fixed_io(struct pnp_dev *dev,
 {
 	struct acpi_resource_fixed_io *fixed_io = &resource->data.fixed_io;
 
-	fixed_io->address = p->start;
-	fixed_io->address_length = p->end - p->start + 1;
+	if (pnp_resource_enabled(p)) {
+		fixed_io->address = p->start;
+		fixed_io->address_length = p->end - p->start + 1;
+	} else {
+		fixed_io->address = 0;
+		fixed_io->address_length = 0;
+	}
 
-	dev_dbg(&dev->dev, "  encode fixed_io %#llx-%#llx\n",
-		(unsigned long long) p->start, (unsigned long long) p->end);
+	dev_dbg(&dev->dev, "  encode fixed_io %#x-%#x\n", fixed_io->address,
+		fixed_io->address + fixed_io->address_length - 1);
 }
 
 static void pnpacpi_encode_mem24(struct pnp_dev *dev,
@@ -921,17 +988,22 @@ static void pnpacpi_encode_mem24(struct pnp_dev *dev,
 {
 	struct acpi_resource_memory24 *memory24 = &resource->data.memory24;
 
-	/* Note: pnp_assign_mem will copy pnp_mem->flags into p->flags */
-	memory24->write_protect =
-	    (p->flags & IORESOURCE_MEM_WRITEABLE) ?
-	    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
-	memory24->minimum = p->start;
-	memory24->maximum = p->end;
-	memory24->alignment = 0;
-	memory24->address_length = p->end - p->start + 1;
+	if (pnp_resource_enabled(p)) {
+		/* Note: pnp_assign_mem copies pnp_mem->flags into p->flags */
+		memory24->write_protect = p->flags & IORESOURCE_MEM_WRITEABLE ?
+		    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
+		memory24->minimum = p->start;
+		memory24->maximum = p->end;
+		memory24->alignment = 0;
+		memory24->address_length = p->end - p->start + 1;
+	} else {
+		memory24->minimum = 0;
+		memory24->address_length = 0;
+	}
 
-	dev_dbg(&dev->dev, "  encode mem24 %#llx-%#llx write_protect %#x\n",
-		(unsigned long long) p->start, (unsigned long long) p->end,
+	dev_dbg(&dev->dev, "  encode mem24 %#x-%#x write_protect %#x\n",
+		memory24->minimum,
+		memory24->minimum + memory24->address_length - 1,
 		memory24->write_protect);
 }
 
@@ -941,16 +1013,21 @@ static void pnpacpi_encode_mem32(struct pnp_dev *dev,
 {
 	struct acpi_resource_memory32 *memory32 = &resource->data.memory32;
 
-	memory32->write_protect =
-	    (p->flags & IORESOURCE_MEM_WRITEABLE) ?
-	    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
-	memory32->minimum = p->start;
-	memory32->maximum = p->end;
-	memory32->alignment = 0;
-	memory32->address_length = p->end - p->start + 1;
+	if (pnp_resource_enabled(p)) {
+		memory32->write_protect = p->flags & IORESOURCE_MEM_WRITEABLE ?
+		    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
+		memory32->minimum = p->start;
+		memory32->maximum = p->end;
+		memory32->alignment = 0;
+		memory32->address_length = p->end - p->start + 1;
+	} else {
+		memory32->minimum = 0;
+		memory32->alignment = 0;
+	}
 
-	dev_dbg(&dev->dev, "  encode mem32 %#llx-%#llx write_protect %#x\n",
-		(unsigned long long) p->start, (unsigned long long) p->end,
+	dev_dbg(&dev->dev, "  encode mem32 %#x-%#x write_protect %#x\n",
+		memory32->minimum,
+		memory32->minimum + memory32->address_length - 1,
 		memory32->write_protect);
 }
 
@@ -960,15 +1037,20 @@ static void pnpacpi_encode_fixed_mem32(struct pnp_dev *dev,
 {
 	struct acpi_resource_fixed_memory32 *fixed_memory32 = &resource->data.fixed_memory32;
 
-	fixed_memory32->write_protect =
-	    (p->flags & IORESOURCE_MEM_WRITEABLE) ?
-	    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
-	fixed_memory32->address = p->start;
-	fixed_memory32->address_length = p->end - p->start + 1;
+	if (pnp_resource_enabled(p)) {
+		fixed_memory32->write_protect =
+		    p->flags & IORESOURCE_MEM_WRITEABLE ?
+		    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
+		fixed_memory32->address = p->start;
+		fixed_memory32->address_length = p->end - p->start + 1;
+	} else {
+		fixed_memory32->address = 0;
+		fixed_memory32->address_length = 0;
+	}
 
-	dev_dbg(&dev->dev, "  encode fixed_mem32 %#llx-%#llx "
-		"write_protect %#x\n",
-		(unsigned long long) p->start, (unsigned long long) p->end,
+	dev_dbg(&dev->dev, "  encode fixed_mem32 %#x-%#x write_protect %#x\n",
+		fixed_memory32->address,
+		fixed_memory32->address + fixed_memory32->address_length - 1,
 		fixed_memory32->write_protect);
 }
 

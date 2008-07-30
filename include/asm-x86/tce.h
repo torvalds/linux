@@ -21,8 +21,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef _ASM_X86_64_TCE_H
-#define _ASM_X86_64_TCE_H
+#ifndef ASM_X86__TCE_H
+#define ASM_X86__TCE_H
 
 extern unsigned int specified_table_size;
 struct iommu_table;
@@ -45,4 +45,4 @@ extern void * __init alloc_tce_table(void);
 extern void __init free_tce_table(void *tbl);
 extern int __init build_tce_table(struct pci_dev *dev, void __iomem *bbar);
 
-#endif /* _ASM_X86_64_TCE_H */
+#endif /* ASM_X86__TCE_H */

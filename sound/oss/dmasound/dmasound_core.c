@@ -211,10 +211,6 @@ static int state_unit = -1;
 static int irq_installed;
 #endif /* MODULE */
 
-/* software implemented recording volume! */
-uint software_input_volume = SW_INPUT_VOLUME_SCALE * SW_INPUT_VOLUME_DEFAULT;
-EXPORT_SYMBOL(software_input_volume);
-
 /* control over who can modify resources shared between play/record */
 static mode_t shared_resource_owner;
 static int shared_resources_initialised;
@@ -1188,7 +1184,7 @@ static struct {
 
 /* publish this function for use by low-level code, if required */
 
-char *get_afmt_string(int afmt)
+static char *get_afmt_string(int afmt)
 {
         switch(afmt) {
             case AFMT_MU_LAW:
@@ -1551,4 +1547,3 @@ EXPORT_SYMBOL(dmasound_catchRadius);
 EXPORT_SYMBOL(dmasound_ulaw2dma8);
 EXPORT_SYMBOL(dmasound_alaw2dma8);
 #endif
-EXPORT_SYMBOL(get_afmt_string) ;

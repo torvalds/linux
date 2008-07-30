@@ -27,6 +27,7 @@
 #include <asm/arch/orion5x.h>
 #include <asm/plat-orion/orion_nand.h>
 #include "common.h"
+#include "mpp.h"
 
 /*****************************************************************************
  * DB-88F5281 on board devices
@@ -86,7 +87,7 @@ static struct platform_device db88f5281_boot_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data = &db88f5281_boot_flash_data,
+		.platform_data	= &db88f5281_boot_flash_data,
 	},
 	.num_resources	= 1,
 	.resource	= &db88f5281_boot_flash_resource,
@@ -110,7 +111,7 @@ static struct platform_device db88f5281_nor_flash = {
 	.name		= "physmap-flash",
 	.id		= 1,
 	.dev		= {
-		.platform_data = &db88f5281_nor_flash_data,
+		.platform_data	= &db88f5281_nor_flash_data,
 	},
 	.num_resources	= 1,
 	.resource	= &db88f5281_nor_flash_resource,
@@ -125,18 +126,15 @@ static struct mtd_partition db88f5281_nand_parts[] = {
 		.name = "kernel",
 		.offset = 0,
 		.size = SZ_2M,
-	},
-	{
+	}, {
 		.name = "root",
 		.offset = SZ_2M,
 		.size = (SZ_16M - SZ_2M),
-	},
-	{
+	}, {
 		.name = "user",
 		.offset = SZ_16M,
 		.size = SZ_8M,
-	},
-	{
+	}, {
 		.name = "recovery",
 		.offset = (SZ_16M + SZ_8M),
 		.size = SZ_8M,
@@ -215,7 +213,7 @@ void __init db88f5281_pci_preinit(void)
 	pin = DB88F5281_PCI_SLOT0_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int1") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQT_LOW);
+			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "db88f5281_pci_preinit faield to "
 					"set_irq_type pin %d\n", pin);
@@ -228,7 +226,7 @@ void __init db88f5281_pci_preinit(void)
 	pin = DB88F5281_PCI_SLOT1_SLOT2_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int2") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQT_LOW);
+			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "db88f5281_pci_preinit faield "
 					"to set_irq_type pin %d\n", pin);
@@ -288,7 +286,6 @@ subsys_initcall(db88f5281_pci_init);
  ****************************************************************************/
 static struct mv643xx_eth_platform_data db88f5281_eth_data = {
 	.phy_addr	= 8,
-	.force_phy_addr = 1,
 };
 
 /*****************************************************************************
@@ -301,11 +298,28 @@ static struct i2c_board_info __initdata db88f5281_i2c_rtc = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-
-static struct platform_device *db88f5281_devs[] __initdata = {
-	&db88f5281_boot_flash,
-	&db88f5281_nor_flash,
-	&db88f5281_nand_flash,
+static struct orion5x_mpp_mode db88f5281_mpp_modes[] __initdata = {
+	{  0, MPP_GPIO },		/* USB Over Current */
+	{  1, MPP_GPIO },		/* USB Vbat input */
+	{  2, MPP_PCI_ARB },		/* PCI_REQn[2] */
+	{  3, MPP_PCI_ARB },		/* PCI_GNTn[2] */
+	{  4, MPP_PCI_ARB },		/* PCI_REQn[3] */
+	{  5, MPP_PCI_ARB },		/* PCI_GNTn[3] */
+	{  6, MPP_GPIO },		/* JP0, CON17.2 */
+	{  7, MPP_GPIO },		/* JP1, CON17.1 */
+	{  8, MPP_GPIO },		/* JP2, CON11.2 */
+	{  9, MPP_GPIO },		/* JP3, CON11.3 */
+	{ 10, MPP_GPIO },		/* RTC int */
+	{ 11, MPP_GPIO },		/* Baud Rate Generator */
+	{ 12, MPP_GPIO },		/* PCI int 1 */
+	{ 13, MPP_GPIO },		/* PCI int 2 */
+	{ 14, MPP_NAND },		/* NAND_REn[2] */
+	{ 15, MPP_NAND },		/* NAND_WEn[2] */
+	{ 16, MPP_UART },		/* UART1_RX */
+	{ 17, MPP_UART },		/* UART1_TX */
+	{ 18, MPP_UART },		/* UART1_CTSn */
+	{ 19, MPP_UART },		/* UART1_RTSn */
+	{ -1 },
 };
 
 static void __init db88f5281_init(void)
@@ -315,39 +329,31 @@ static void __init db88f5281_init(void)
 	 */
 	orion5x_init();
 
+	orion5x_mpp_conf(db88f5281_mpp_modes);
+	writel(0, MPP_DEV_CTRL);		/* DEV_D[31:16] */
+
 	/*
-	 * Setup the CPU address decode windows for our on-board devices
+	 * Configure peripherals.
 	 */
+	orion5x_ehci0_init();
+	orion5x_eth_init(&db88f5281_eth_data);
+	orion5x_i2c_init();
+	orion5x_uart0_init();
+	orion5x_uart1_init();
+
 	orion5x_setup_dev_boot_win(DB88F5281_NOR_BOOT_BASE,
 				DB88F5281_NOR_BOOT_SIZE);
+	platform_device_register(&db88f5281_boot_flash);
+
 	orion5x_setup_dev0_win(DB88F5281_7SEG_BASE, DB88F5281_7SEG_SIZE);
+
 	orion5x_setup_dev1_win(DB88F5281_NOR_BASE, DB88F5281_NOR_SIZE);
+	platform_device_register(&db88f5281_nor_flash);
+
 	orion5x_setup_dev2_win(DB88F5281_NAND_BASE, DB88F5281_NAND_SIZE);
+	platform_device_register(&db88f5281_nand_flash);
 
-	/*
-	 * Setup Multiplexing Pins:
-	 * MPP0: GPIO (USB Over Current)	MPP1: GPIO (USB Vbat input)
-	 * MPP2: PCI_REQn[2]			MPP3: PCI_GNTn[2]
-	 * MPP4: PCI_REQn[3]			MPP5: PCI_GNTn[3]
-	 * MPP6: GPIO (JP0, CON17.2)		MPP7: GPIO (JP1, CON17.1)
-	 * MPP8: GPIO (JP2, CON11.2)		MPP9: GPIO (JP3, CON11.3)
-	 * MPP10: GPIO (RTC int)		MPP11: GPIO (Baud Rate Generator)
-	 * MPP12: GPIO (PCI int 1)		MPP13: GPIO (PCI int 2)
-	 * MPP14: NAND_REn[2]			MPP15: NAND_WEn[2]
-	 * MPP16: UART1_RX			MPP17: UART1_TX
-	 * MPP18: UART1_CTS			MPP19: UART1_RTS
-	 * MPP-DEV: DEV_D[16:31]
-	 */
-	orion5x_write(MPP_0_7_CTRL, 0x00222203);
-	orion5x_write(MPP_8_15_CTRL, 0x44000000);
-	orion5x_write(MPP_16_19_CTRL, 0);
-	orion5x_write(MPP_DEV_CTRL, 0);
-
-	orion5x_gpio_set_valid_pins(0x00003fc3);
-
-	platform_add_devices(db88f5281_devs, ARRAY_SIZE(db88f5281_devs));
 	i2c_register_board_info(0, &db88f5281_i2c_rtc, 1);
-	orion5x_eth_init(&db88f5281_eth_data);
 }
 
 MACHINE_START(DB88F5281, "Marvell Orion-2 Development Board")

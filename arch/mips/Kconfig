@@ -181,38 +181,6 @@ config LEMOTE_FULONG
 	  Lemote Fulong mini-PC board based on the Chinese Loongson-2E CPU and
 	  an FPGA northbridge
 
-config MIPS_ATLAS
-	bool "MIPS Atlas board"
-	select BOOT_ELF32
-	select BOOT_RAW
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select SYS_HAS_EARLY_PRINTK
-	select IRQ_CPU
-	select HW_HAS_PCI
-	select MIPS_BOARDS_GEN
-	select MIPS_BONITO64
-	select PCI_GT64XXX_PCI0
-	select MIPS_MSC
-	select RM7000_CPU_SCACHE
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_HAS_CPU_MIPS64_R1
-	select SYS_HAS_CPU_NEVADA
-	select SYS_HAS_CPU_RM7000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_MULTITHREADING if EXPERIMENTAL
-	select SYS_SUPPORTS_SMARTMIPS
-	select GENERIC_HARDIRQS_NO__DO_IRQ
-	help
-	  This enables support for the MIPS Technologies Atlas evaluation
-	  board.
-
 config MIPS_MALTA
 	bool "MIPS Malta board"
 	select ARCH_MAY_HAVE_PC_FDC
@@ -247,26 +215,6 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_SMARTMIPS
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
-	  board.
-
-config MIPS_SEAD
-	bool "MIPS SEAD board"
-	select CEVT_R4K
-	select CSRC_R4K
-	select IRQ_CPU
-	select DMA_NONCOHERENT
-	select SYS_HAS_EARLY_PRINTK
-	select MIPS_BOARDS_GEN
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_HAS_CPU_MIPS64_R1
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_SMARTMIPS
-	help
-	  This enables support for the MIPS Technologies SEAD evaluation
 	  board.
 
 config MIPS_SIM
@@ -382,6 +330,7 @@ config SGI_IP22
 	select SGI_HAS_DS1286
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
+	select SGI_HAS_HAL2
 	select SGI_HAS_SEEQ
 	select SGI_HAS_WD93
 	select SGI_HAS_ZILOG
@@ -437,6 +386,7 @@ config SGI_IP28
 	select SGI_HAS_DS1286
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
+	select SGI_HAS_HAL2
 	select SGI_HAS_SEEQ
 	select SGI_HAS_WD93
 	select SGI_HAS_ZILOG
@@ -602,65 +552,29 @@ config SNI_RM
 	  Technology and now in turn merged with Fujitsu.  Say Y here to
 	  support this machine type.
 
-config TOSHIBA_JMR3927
-	bool "Toshiba JMR-TX3927 board"
-	select CEVT_TXX9
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select MIPS_TX3927
-	select IRQ_TXX9
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_TX39XX
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
-	select GPIO_TXX9
+config MACH_TX39XX
+	bool "Toshiba TX39 series based machines"
 
-config TOSHIBA_RBTX4927
-	bool "Toshiba RBTX49[23]7 board"
+config MACH_TX49XX
+	bool "Toshiba TX49 series based machines"
+
+config MIKROTIK_RB532
+	bool "Mikrotik RB532 boards"
 	select CEVT_R4K
 	select CSRC_R4K
-	select CEVT_TXX9
 	select DMA_NONCOHERENT
-	select HAS_TXX9_SERIAL
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select HW_HAS_PCI
 	select IRQ_CPU
-	select IRQ_TXX9
-	select I8259 if TOSHIBA_FPCIB0
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_TX49XX
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
-	select GENERIC_HARDIRQS_NO__DO_IRQ
-	help
-	  This Toshiba board is based on the TX4927 processor. Say Y here to
-	  support this machine type
-
-config TOSHIBA_RBTX4938
-	bool "Toshiba RBTX4938 board"
-	select CEVT_R4K
-	select CSRC_R4K
-	select CEVT_TXX9
-	select DMA_NONCOHERENT
-	select HAS_TXX9_SERIAL
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_TXX9
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_TX49XX
+	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
-	select GENERIC_HARDIRQS_NO__DO_IRQ
-	select GPIO_TXX9
+	select SWAP_IO_SPACE
+	select BOOT_RAW
+	select GENERIC_GPIO
 	help
-	  This Toshiba board is based on the TX4938 processor. Say Y here to
-	  support this machine type
+	  Support the Mikrotik(tm) RouterBoard 532 series,
+	  based on the IDT RC32434 SoC.
 
 config WR_PPMC
 	bool "Wind River PPMC board"
@@ -694,8 +608,7 @@ source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
-source "arch/mips/tx4927/Kconfig"
-source "arch/mips/tx4938/Kconfig"
+source "arch/mips/txx9/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 
 endmenu
@@ -800,7 +713,7 @@ config CSRC_SB1250
 
 config GPIO_TXX9
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	bool
 
 config CFE
@@ -939,10 +852,6 @@ config PCI_GT64XXX_PCI0
 config NO_EXCEPT_FILL
 	bool
 
-config MIPS_TX3927
-	bool
-	select HAS_TXX9_SERIAL
-
 config MIPS_RM9122
 	bool
 	select SERIAL_RM9000
@@ -979,6 +888,9 @@ config SGI_HAS_DS1286
 config SGI_HAS_INDYDOG
 	bool
 
+config SGI_HAS_HAL2
+	bool
+
 config SGI_HAS_SEEQ
 	bool
 
@@ -1005,7 +917,7 @@ config BOOT_ELF32
 
 config MIPS_L1_CACHE_SHIFT
 	int
-	default "4" if MACH_DECSTATION
+	default "4" if MACH_DECSTATION || MIKROTIK_RB532
 	default "7" if SGI_IP22 || SGI_IP27 || SGI_IP28 || SNI_RM
 	default "4" if PMC_MSP4200_EVAL
 	default "5"
@@ -1763,6 +1675,7 @@ config SMP
 	bool "Multi-Processing support"
 	depends on SYS_SUPPORTS_SMP
 	select IRQ_PER_CPU
+	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -2063,10 +1976,6 @@ source "fs/Kconfig.binfmt"
 
 config TRAD_SIGNALS
 	bool
-
-config BINFMT_IRIX
-	bool "Include IRIX binary compatibility"
-	depends on CPU_BIG_ENDIAN && 32BIT && BROKEN
 
 config MIPS32_COMPAT
 	bool "Kernel support for Linux/MIPS 32-bit binary compatibility"

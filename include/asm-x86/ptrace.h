@@ -1,9 +1,14 @@
-#ifndef _ASM_X86_PTRACE_H
-#define _ASM_X86_PTRACE_H
+#ifndef ASM_X86__PTRACE_H
+#define ASM_X86__PTRACE_H
 
 #include <linux/compiler.h>	/* For __user */
 #include <asm/ptrace-abi.h>
+#include <asm/processor-flags.h>
 
+#ifdef __KERNEL__
+#include <asm/ds.h>		/* the DS BTS struct is used for ptrace too */
+#include <asm/segment.h>
+#endif
 
 #ifndef __ASSEMBLY__
 
@@ -54,9 +59,6 @@ struct pt_regs {
 	unsigned long sp;
 	unsigned long ss;
 };
-
-#include <asm/vm86.h>
-#include <asm/segment.h>
 
 #endif /* __KERNEL__ */
 
@@ -237,4 +239,4 @@ extern int do_set_thread_area(struct task_struct *p, int idx,
 
 #endif /* !__ASSEMBLY__ */
 
-#endif
+#endif /* ASM_X86__PTRACE_H */

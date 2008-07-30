@@ -23,11 +23,12 @@
  * Send feedback to <gone@us.ibm.com>
  */
 
-#ifndef NUMAQ_H
-#define NUMAQ_H
+#ifndef ASM_X86__NUMAQ_H
+#define ASM_X86__NUMAQ_H
 
 #ifdef CONFIG_X86_NUMAQ
 
+extern int found_numaq;
 extern int get_memcfg_numaq(void);
 
 /*
@@ -156,10 +157,13 @@ struct sys_cfg_data {
 	struct		eachquadmem eq[MAX_NUMNODES];	/* indexed by quad id */
 };
 
-static inline unsigned long *get_zholes_size(int nid)
+void numaq_tsc_disable(void);
+
+#else
+static inline int get_memcfg_numaq(void)
 {
-	return NULL;
+	return 0;
 }
 #endif /* CONFIG_X86_NUMAQ */
-#endif /* NUMAQ_H */
+#endif /* ASM_X86__NUMAQ_H */
 

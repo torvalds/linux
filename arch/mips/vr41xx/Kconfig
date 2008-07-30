@@ -23,16 +23,6 @@ config IBM_WORKPAD
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
-config NEC_CMBVR4133
-	bool "NEC CMB-VR4133"
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select IRQ_CPU
-	select HW_HAS_PCI
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
 config TANBAC_TB022X
 	bool "TANBAC VR4131 multichip module and TANBAC VR4131DIMM"
 	select CEVT_R4K
@@ -72,13 +62,6 @@ config ZAO_CAPCELLA
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 endchoice
-
-config ROCKHOPPER
-	bool "Support for Rockhopper base board"
-	depends on NEC_CMBVR4133
-	select PCI_VR41XX
-	select I8259
-	select HAVE_STD_PC_SERIAL_PORT
 
 choice
 	prompt "Base board type"

@@ -1,5 +1,5 @@
-#ifndef _I386_CHECKSUM_H
-#define _I386_CHECKSUM_H
+#ifndef ASM_X86__CHECKSUM_32_H
+#define ASM_X86__CHECKSUM_32_H
 
 #include <linux/in6.h>
 
@@ -186,4 +186,4 @@ static inline __wsum csum_and_copy_to_user(const void *src,
 	return (__force __wsum)-1; /* invalid checksum */
 }
 
-#endif
+#endif /* ASM_X86__CHECKSUM_32_H */

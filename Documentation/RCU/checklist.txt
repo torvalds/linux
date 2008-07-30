@@ -13,10 +13,13 @@ over a rather long period of time, but improvements are always welcome!
 	detailed performance measurements show that RCU is nonetheless
 	the right tool for the job.
 
-	The other exception would be where performance is not an issue,
-	and RCU provides a simpler implementation.  An example of this
-	situation is the dynamic NMI code in the Linux 2.6 kernel,
-	at least on architectures where NMIs are rare.
+	Another exception is where performance is not an issue, and RCU
+	provides a simpler implementation.  An example of this situation
+	is the dynamic NMI code in the Linux 2.6 kernel, at least on
+	architectures where NMIs are rare.
+
+	Yet another exception is where the low real-time latency of RCU's
+	read-side primitives is critically important.
 
 1.	Does the update code have proper mutual exclusion?
 
@@ -39,9 +42,10 @@ over a rather long period of time, but improvements are always welcome!
 
 2.	Do the RCU read-side critical sections make proper use of
 	rcu_read_lock() and friends?  These primitives are needed
-	to suppress preemption (or bottom halves, in the case of
-	rcu_read_lock_bh()) in the read-side critical sections,
-	and are also an excellent aid to readability.
+	to prevent grace periods from ending prematurely, which
+	could result in data being unceremoniously freed out from
+	under your read-side code, which can greatly increase the
+	actuarial risk of your kernel.
 
 	As a rough rule of thumb, any dereference of an RCU-protected
 	pointer must be covered by rcu_read_lock() or rcu_read_lock_bh()
@@ -54,15 +58,30 @@ over a rather long period of time, but improvements are always welcome!
 	be running while updates are in progress.  There are a number
 	of ways to handle this concurrency, depending on the situation:
 
-	a.	Make updates appear atomic to readers.  For example,
+	a.	Use the RCU variants of the list and hlist update
+		primitives to add, remove, and replace elements on an
+		RCU-protected list.  Alternatively, use the RCU-protected
+		trees that have been added to the Linux kernel.
+
+		This is almost always the best approach.
+
+	b.	Proceed as in (a) above, but also maintain per-element
+		locks (that are acquired by both readers and writers)
+		that guard per-element state.  Of course, fields that
+		the readers refrain from accessing can be guarded by the
+		update-side lock.
+
+		This works quite well, also.
+
+	c.	Make updates appear atomic to readers.  For example,
 		pointer updates to properly aligned fields will appear
 		atomic, as will individual atomic primitives.  Operations
 		performed under a lock and sequences of multiple atomic
 		primitives will -not- appear to be atomic.
 
-		This is almost always the best approach.
+		This can work, but is starting to get a bit tricky.
 
-	b.	Carefully order the updates and the reads so that
+	d.	Carefully order the updates and the reads so that
 		readers see valid data at all phases of the update.
 		This is often more difficult than it sounds, especially
 		given modern CPUs' tendency to reorder memory references.
@@ -123,18 +142,22 @@ over a rather long period of time, but improvements are always welcome!
 		when publicizing a pointer to a structure that can
 		be traversed by an RCU read-side critical section.
 
-5.	If call_rcu(), or a related primitive such as call_rcu_bh(),
-	is used, the callback function must be written to be called
-	from softirq context.  In particular, it cannot block.
+5.	If call_rcu(), or a related primitive such as call_rcu_bh() or
+	call_rcu_sched(), is used, the callback function must be
+	written to be called from softirq context.  In particular,
+	it cannot block.
 
 6.	Since synchronize_rcu() can block, it cannot be called from
-	any sort of irq context.
+	any sort of irq context.  Ditto for synchronize_sched() and
+	synchronize_srcu().
 
 7.	If the updater uses call_rcu(), then the corresponding readers
 	must use rcu_read_lock() and rcu_read_unlock().  If the updater
 	uses call_rcu_bh(), then the corresponding readers must use
-	rcu_read_lock_bh() and rcu_read_unlock_bh().  Mixing things up
-	will result in confusion and broken kernels.
+	rcu_read_lock_bh() and rcu_read_unlock_bh().  If the updater
+	uses call_rcu_sched(), then the corresponding readers must
+	disable preemption.  Mixing things up will result in confusion
+	and broken kernels.
 
 	One exception to this rule: rcu_read_lock() and rcu_read_unlock()
 	may be substituted for rcu_read_lock_bh() and rcu_read_unlock_bh()
@@ -143,9 +166,9 @@ over a rather long period of time, but improvements are always welcome!
 	such cases is a must, of course!  And the jury is still out on
 	whether the increased speed is worth it.
 
-8.	Although synchronize_rcu() is a bit slower than is call_rcu(),
-	it usually results in simpler code.  So, unless update
-	performance is critically important or the updaters cannot block,
+8.	Although synchronize_rcu() is slower than is call_rcu(), it
+	usually results in simpler code.  So, unless update performance
+	is critically important or the updaters cannot block,
 	synchronize_rcu() should be used in preference to call_rcu().
 
 	An especially important property of the synchronize_rcu()
@@ -187,23 +210,23 @@ over a rather long period of time, but improvements are always welcome!
 		number of updates per grace period.
 
 9.	All RCU list-traversal primitives, which include
-	list_for_each_rcu(), list_for_each_entry_rcu(),
+	rcu_dereference(), list_for_each_rcu(), list_for_each_entry_rcu(),
 	list_for_each_continue_rcu(), and list_for_each_safe_rcu(),
-	must be within an RCU read-side critical section.  RCU
+	must be either within an RCU read-side critical section or
+	must be protected by appropriate update-side locks.  RCU
 	read-side critical sections are delimited by rcu_read_lock()
 	and rcu_read_unlock(), or by similar primitives such as
 	rcu_read_lock_bh() and rcu_read_unlock_bh().
 
-	Use of the _rcu() list-traversal primitives outside of an
-	RCU read-side critical section causes no harm other than
-	a slight performance degradation on Alpha CPUs.  It can
-	also be quite helpful in reducing code bloat when common
-	code is shared between readers and updaters.
+	The reason that it is permissible to use RCU list-traversal
+	primitives when the update-side lock is held is that doing so
+	can be quite helpful in reducing code bloat when common code is
+	shared between readers and updaters.
 
 10.	Conversely, if you are in an RCU read-side critical section,
-	you -must- use the "_rcu()" variants of the list macros.
-	Failing to do so will break Alpha and confuse people reading
-	your code.
+	and you don't hold the appropriate update-side lock, you -must-
+	use the "_rcu()" variants of the list macros.  Failing to do so
+	will break Alpha and confuse people reading your code.
 
 11.	Note that synchronize_rcu() -only- guarantees to wait until
 	all currently executing rcu_read_lock()-protected RCU read-side
@@ -229,6 +252,14 @@ over a rather long period of time, but improvements are always welcome!
 	if the callbacks do manipulate a shared data structure, they
 	must use whatever locking or other synchronization is required
 	to safely access and/or modify that data structure.
+
+	RCU callbacks are -usually- executed on the same CPU that executed
+	the corresponding call_rcu(), call_rcu_bh(), or call_rcu_sched(),
+	but are by -no- means guaranteed to be.  For example, if a given
+	CPU goes offline while having an RCU callback pending, then that
+	RCU callback will execute on some surviving CPU.  (If this was
+	not the case, a self-spawning RCU callback would prevent the
+	victim CPU from ever going offline.)
 
 14.	SRCU (srcu_read_lock(), srcu_read_unlock(), and synchronize_srcu())
 	may only be invoked from process context.  Unlike other forms of

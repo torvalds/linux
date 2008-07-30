@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_64_VSYSCALL_H_
-#define _ASM_X86_64_VSYSCALL_H_
+#ifndef ASM_X86__VSYSCALL_H
+#define ASM_X86__VSYSCALL_H
 
 enum vsyscall_num {
 	__NR_vgettimeofday,
@@ -24,7 +24,8 @@ enum vsyscall_num {
 	((unused, __section__ (".vsyscall_gtod_data"),aligned(16)))
 #define __section_vsyscall_clock __attribute__ \
 	((unused, __section__ (".vsyscall_clock"),aligned(16)))
-#define __vsyscall_fn __attribute__ ((unused,__section__(".vsyscall_fn")))
+#define __vsyscall_fn \
+	__attribute__ ((unused, __section__(".vsyscall_fn"))) notrace
 
 #define VGETCPU_RDTSCP	1
 #define VGETCPU_LSL	2
@@ -40,4 +41,4 @@ extern void map_vsyscall(void);
 
 #endif /* __KERNEL__ */
 
-#endif /* _ASM_X86_64_VSYSCALL_H_ */
+#endif /* ASM_X86__VSYSCALL_H */

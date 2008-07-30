@@ -1,13 +1,7 @@
-#ifndef _ASM_X86_DMI_H
-#define _ASM_X86_DMI_H
+#ifndef ASM_X86__DMI_H
+#define ASM_X86__DMI_H
 
 #include <asm/io.h>
-
-#ifdef CONFIG_X86_32
-
-#define dmi_alloc alloc_bootmem
-
-#else /* CONFIG_X86_32 */
 
 #define DMI_MAX_DATA 2048
 
@@ -25,10 +19,8 @@ static inline void *dmi_alloc(unsigned len)
 	return dmi_alloc_data + idx;
 }
 
-#endif
-
 /* Use early IO mappings for DMI because it's initialized early */
 #define dmi_ioremap early_ioremap
 #define dmi_iounmap early_iounmap
 
-#endif
+#endif /* ASM_X86__DMI_H */

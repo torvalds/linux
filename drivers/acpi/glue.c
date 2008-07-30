@@ -146,8 +146,7 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	acpi_status status;
 
 	if (dev->archdata.acpi_handle) {
-		printk(KERN_WARNING PREFIX
-		       "Drivers changed 'acpi_handle' for %s\n", dev->bus_id);
+		dev_warn(dev, "Drivers changed 'acpi_handle'\n");
 		return -EINVAL;
 	}
 	get_device(dev);
@@ -166,6 +165,8 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 				"firmware_node");
 		ret = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
 				"physical_node");
+		if (acpi_dev->wakeup.flags.valid)
+			device_set_wakeup_capable(dev, true);
 	}
 
 	return 0;
@@ -193,8 +194,7 @@ static int acpi_unbind_one(struct device *dev)
 		/* acpi_bind_one increase refcnt by one */
 		put_device(dev);
 	} else {
-		printk(KERN_ERR PREFIX
-		       "Oops, 'acpi_handle' corrupt for %s\n", dev->bus_id);
+		dev_err(dev, "Oops, 'acpi_handle' corrupt\n");
 	}
 	return 0;
 }

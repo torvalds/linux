@@ -1,13 +1,17 @@
-#ifndef _ASM_X86_PGALLOC_H
-#define _ASM_X86_PGALLOC_H
+#ifndef ASM_X86__PGALLOC_H
+#define ASM_X86__PGALLOC_H
 
 #include <linux/threads.h>
 #include <linux/mm.h>		/* for struct page */
 #include <linux/pagemap.h>
 
+static inline int  __paravirt_pgd_alloc(struct mm_struct *mm) { return 0; }
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
+#define paravirt_pgd_alloc(mm)	__paravirt_pgd_alloc(mm)
+static inline void paravirt_pgd_free(struct mm_struct *mm, pgd_t *pgd) {}
 static inline void paravirt_alloc_pte(struct mm_struct *mm, unsigned long pfn)	{}
 static inline void paravirt_alloc_pmd(struct mm_struct *mm, unsigned long pfn)	{}
 static inline void paravirt_alloc_pmd_clone(unsigned long pfn, unsigned long clonepfn,
@@ -107,4 +111,4 @@ extern void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud);
 #endif	/* PAGETABLE_LEVELS > 3 */
 #endif	/* PAGETABLE_LEVELS > 2 */
 
-#endif	/* _ASM_X86_PGALLOC_H */
+#endif /* ASM_X86__PGALLOC_H */

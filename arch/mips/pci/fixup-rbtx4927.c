@@ -33,108 +33,41 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/types.h>
-#include <linux/pci.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
+#include <asm/txx9/pci.h>
+#include <asm/txx9/rbtx4927.h>
 
-#include <asm/tx4927/tx4927.h>
-#include <asm/tx4927/tx4927_pci.h>
-
-#undef  DEBUG
-#ifdef  DEBUG
-#define DBG(x...)       printk(x)
-#else
-#define DBG(x...)
-#endif
-
-/* look up table for backplane pci irq for slots 17-20 by pin # */
-static unsigned char backplane_pci_irq[4][4] = {
-	/* PJ6 SLOT:  17, PIN: 1 */ {TX4927_IRQ_IOC_PCIA,
-				     /* PJ6 SLOT:  17, PIN: 2 */
-				     TX4927_IRQ_IOC_PCIB,
-				     /* PJ6 SLOT:  17, PIN: 3 */
-				     TX4927_IRQ_IOC_PCIC,
-				     /* PJ6 SLOT:  17, PIN: 4 */
-				     TX4927_IRQ_IOC_PCID},
-	/* SB  SLOT:  18, PIN: 1 */ {TX4927_IRQ_IOC_PCIB,
-				     /* SB  SLOT:  18, PIN: 2 */
-				     TX4927_IRQ_IOC_PCIC,
-				     /* SB  SLOT:  18, PIN: 3 */
-				     TX4927_IRQ_IOC_PCID,
-				     /* SB  SLOT:  18, PIN: 4 */
-				     TX4927_IRQ_IOC_PCIA},
-	/* PJ5 SLOT:  19, PIN: 1 */ {TX4927_IRQ_IOC_PCIC,
-				     /* PJ5 SLOT:  19, PIN: 2 */
-				     TX4927_IRQ_IOC_PCID,
-				     /* PJ5 SLOT:  19, PIN: 3 */
-				     TX4927_IRQ_IOC_PCIA,
-				     /* PJ5 SLOT:  19, PIN: 4 */
-				     TX4927_IRQ_IOC_PCIB},
-	/* PJ4 SLOT:  20, PIN: 1 */ {TX4927_IRQ_IOC_PCID,
-				     /* PJ4 SLOT:  20, PIN: 2 */
-				     TX4927_IRQ_IOC_PCIA,
-				     /* PJ4 SLOT:  20, PIN: 3 */
-				     TX4927_IRQ_IOC_PCIB,
-				     /* PJ4 SLOT:  20, PIN: 4 */
-				     TX4927_IRQ_IOC_PCIC}
-};
-
-static int pci_get_irq(const struct pci_dev *dev, int pin)
+int __init rbtx4927_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	unsigned char irq = pin;
 
-	DBG("pci_get_irq: pin is %d\n", pin);
 	/* IRQ rotation */
 	irq--;			/* 0-3 */
-	if (dev->bus->parent == NULL &&
-	    PCI_SLOT(dev->devfn) == TX4927_PCIC_IDSEL_AD_TO_SLOT(23)) {
-		printk("Onboard PCI_SLOT(dev->devfn) is %d\n",
-		       PCI_SLOT(dev->devfn));
-		/* IDSEL=A23 is tx4927 onboard pci slot */
-		irq = (irq + PCI_SLOT(dev->devfn)) % 4;
-		irq++;		/* 1-4 */
-		DBG("irq is now %d\n", irq);
-
-		switch (irq) {
-		case 1:
-			irq = TX4927_IRQ_IOC_PCIA;
-			break;
-		case 2:
-			irq = TX4927_IRQ_IOC_PCIB;
-			break;
-		case 3:
-			irq = TX4927_IRQ_IOC_PCIC;
-			break;
-		case 4:
-			irq = TX4927_IRQ_IOC_PCID;
-			break;
-		}
+	if (slot == TX4927_PCIC_IDSEL_AD_TO_SLOT(23)) {
+		/* PCI CardSlot (IDSEL=A23) */
+		/* PCIA => PCIA */
+		irq = (irq + 0 + slot) % 4;
 	} else {
 		/* PCI Backplane */
-		DBG("PCI Backplane PCI_SLOT(dev->devfn) is %d\n",
-		    PCI_SLOT(dev->devfn));
-		irq = backplane_pci_irq[PCI_SLOT(dev->devfn) - 17][irq];
+		if (txx9_pci_option & TXX9_PCI_OPT_PICMG)
+			irq = (irq + 33 - slot) % 4;
+		else
+			irq = (irq + 3 + slot) % 4;
 	}
-	DBG("assigned irq %d\n", irq);
+	irq++;	/* 1-4 */
+
+	switch (irq) {
+	case 1:
+		irq = RBTX4927_IRQ_IOC_PCIA;
+		break;
+	case 2:
+		irq = RBTX4927_IRQ_IOC_PCIB;
+		break;
+	case 3:
+		irq = RBTX4927_IRQ_IOC_PCIC;
+		break;
+	case 4:
+		irq = RBTX4927_IRQ_IOC_PCID;
+		break;
+	}
 	return irq;
-}
-
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
-{
-	unsigned char irq;
-
-	printk("PCI Setup for pin %d \n", pin);
-
-	if (dev->device == 0x9130) /* IDE */
-		irq = 14;
-	else
-		irq = pci_get_irq(dev, pin);
-
-	return irq;
-}
-
-/* Do platform specific device initialization at pci_enable_device() time */
-int pcibios_plat_dev_init(struct pci_dev *dev)
-{
-	return 0;
 }

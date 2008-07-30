@@ -203,7 +203,7 @@ static void netx_txint(struct uart_port *port)
 static void netx_rxint(struct uart_port *port)
 {
 	unsigned char rx, flg, status;
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 
 	while (!(readl(port->membase + UART_FR) & FR_RXFE)) {
 		rx = readl(port->membase + UART_DR);

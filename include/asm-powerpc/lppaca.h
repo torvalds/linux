@@ -125,7 +125,10 @@ struct lppaca {
 	// NOTE: This value will ALWAYS be zero for dedicated processors and
 	// will NEVER be zero for shared processors (ie, initialized to a 1).
 	volatile u32 yield_count;	// PLIC increments each dispatchx00-x03
-	u8	reserved6[124];		// Reserved                     x04-x7F
+	u32 reserved6;
+	volatile u64 cmo_faults;	// CMO page fault count         x08-x0F
+	volatile u64 cmo_fault_time;	// CMO page fault time          x10-x17
+	u8	reserved7[104];		// Reserved                     x18-x7F
 
 //=============================================================================
 // CACHE_LINE_4-5 0x0180 - 0x027F Contains PMC interrupt data

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SIGNAL_H
-#define _ASM_X86_SIGNAL_H
+#ifndef ASM_X86__SIGNAL_H
+#define ASM_X86__SIGNAL_H
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
@@ -181,12 +181,12 @@ typedef struct sigaltstack {
 #ifdef __KERNEL__
 #include <asm/sigcontext.h>
 
-#ifdef __386__
+#ifdef __i386__
 
 #define __HAVE_ARCH_SIG_BITOPS
 
 #define sigaddset(set,sig)		    \
-	(__builtin_constantp(sig)	    \
+	(__builtin_constant_p(sig)	    \
 	 ? __const_sigaddset((set), (sig))  \
 	 : __gen_sigaddset((set), (sig)))
 
@@ -256,4 +256,4 @@ struct pt_regs;
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 
-#endif
+#endif /* ASM_X86__SIGNAL_H */

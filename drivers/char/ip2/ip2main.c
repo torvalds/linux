@@ -98,6 +98,9 @@
 #include <linux/major.h>
 #include <linux/wait.h>
 #include <linux/device.h>
+#include <linux/smp_lock.h>
+#include <linux/firmware.h>
+#include <linux/platform_device.h>
 
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -155,9 +158,7 @@ static char *pcDriver_name   = "ip2";
 static char *pcIpl    		 = "ip2ipl";
 
 // cheezy kludge or genius - you decide?
-int ip2_loadmain(int *, int *, unsigned char *, int);
-static unsigned char *Fip_firmware;
-static int Fip_firmware_size;
+int ip2_loadmain(int *, int *);
 
 /***********************/
 /* Function Prototypes */
@@ -202,13 +203,13 @@ static int set_serial_info(i2ChanStrPtr, struct serial_struct __user *);
 
 static ssize_t ip2_ipl_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t ip2_ipl_write(struct file *, const char __user *, size_t, loff_t *);
-static int ip2_ipl_ioctl(struct inode *, struct file *, UINT, ULONG);
+static long ip2_ipl_ioctl(struct file *, UINT, ULONG);
 static int ip2_ipl_open(struct inode *, struct file *);
 
 static int DumpTraceBuffer(char __user *, int);
 static int DumpFifoBuffer( char __user *, int);
 
-static void ip2_init_board(int);
+static void ip2_init_board(int, const struct firmware *);
 static unsigned short find_eisa_board(int);
 
 /***************/
@@ -235,7 +236,7 @@ static const struct file_operations ip2_ipl = {
 	.owner		= THIS_MODULE,
 	.read		= ip2_ipl_read,
 	.write		= ip2_ipl_write,
-	.ioctl		= ip2_ipl_ioctl,
+	.unlocked_ioctl	= ip2_ipl_ioctl,
 	.open		= ip2_ipl_open,
 }; 
 
@@ -474,8 +475,27 @@ static const struct tty_operations ip2_ops = {
 /* SA_RANDOM   - can be source for cert. random number generators */
 #define IP2_SA_FLAGS	0
 
+
+static const struct firmware *ip2_request_firmware(void)
+{
+	struct platform_device *pdev;
+	const struct firmware *fw;
+
+	pdev = platform_device_register_simple("ip2", 0, NULL, 0);
+	if (IS_ERR(pdev)) {
+		printk(KERN_ERR "Failed to register platform device for ip2\n");
+		return NULL;
+	}
+	if (request_firmware(&fw, "intelliport2.bin", &pdev->dev)) {
+		printk(KERN_ERR "Failed to load firmware 'intelliport2.bin'\n");
+		fw = NULL;
+	}
+	platform_device_unregister(pdev);
+	return fw;
+}
+
 int
-ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize) 
+ip2_loadmain(int *iop, int *irqp)
 {
 	int i, j, box;
 	int err = 0;
@@ -483,6 +503,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 	i2eBordStrPtr pB = NULL;
 	int rc = -1;
 	static struct pci_dev *pci_dev_i = NULL;
+	const struct firmware *fw = NULL;
 
 	ip2trace (ITRC_NO_PORT, ITRC_INIT, ITRC_ENTER, 0 );
 
@@ -515,9 +536,6 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 		}
 	}
 	poll_only = !poll_only;
-
-	Fip_firmware = firmware;
-	Fip_firmware_size = firmsize;
 
 	/* Announce our presence */
 	printk( KERN_INFO "%s version %s\n", pcName, pcVersion );
@@ -638,10 +656,18 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 		}
 	}
 	for ( i = 0; i < IP2_MAX_BOARDS; ++i ) {
+		/* We don't want to request the firmware unless we have at
+		   least one board */
 		if ( i2BoardPtrTable[i] != NULL ) {
-			ip2_init_board( i );
+			if (!fw)
+				fw = ip2_request_firmware();
+			if (!fw)
+				break;
+			ip2_init_board(i, fw);
 		}
 	}
+	if (fw)
+		release_firmware(fw);
 
 	ip2trace (ITRC_NO_PORT, ITRC_INIT, 2, 0 );
 
@@ -692,12 +718,12 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 			}
 
 			if ( NULL != ( pB = i2BoardPtrTable[i] ) ) {
-				device_create(ip2_class, NULL,
-						MKDEV(IP2_IPL_MAJOR, 4 * i),
-						"ipl%d", i);
-				device_create(ip2_class, NULL,
-						MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
-						"stat%d", i);
+				device_create_drvdata(ip2_class, NULL,
+						      MKDEV(IP2_IPL_MAJOR, 4 * i),
+						      NULL, "ipl%d", i);
+				device_create_drvdata(ip2_class, NULL,
+						      MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
+						      NULL, "stat%d", i);
 
 			    for ( box = 0; box < ABS_MAX_BOXES; ++box )
 			    {
@@ -769,7 +795,7 @@ out:
 /* are reported on the console.                                               */
 /******************************************************************************/
 static void
-ip2_init_board( int boardnum )
+ip2_init_board(int boardnum, const struct firmware *fw)
 {
 	int i;
 	int nports = 0, nboxes = 0;
@@ -789,7 +815,7 @@ ip2_init_board( int boardnum )
 		goto err_initialize;
 	}
 
-	if ( iiDownloadAll ( pB, (loadHdrStrPtr)Fip_firmware, 1, Fip_firmware_size )
+	if ( iiDownloadAll ( pB, (loadHdrStrPtr)fw->data, 1, fw->size )
 	    != II_DOWN_GOOD ) {
 		printk ( KERN_ERR "IP2: failed to download loadware\n" );
 		goto err_release_region;
@@ -1263,11 +1289,12 @@ static void do_input(struct work_struct *work)
 // code duplicated from n_tty (ldisc)
 static inline void  isig(int sig, struct tty_struct *tty, int flush)
 {
+	/* FIXME: This is completely bogus */
 	if (tty->pgrp)
 		kill_pgrp(tty->pgrp, sig, 1);
 	if (flush || !L_NOFLSH(tty)) {
-		if ( tty->ldisc.flush_buffer )  
-			tty->ldisc.flush_buffer(tty);
+		if ( tty->ldisc.ops->flush_buffer )  
+			tty->ldisc.ops->flush_buffer(tty);
 		i2InputFlush( tty->driver_data );
 	}
 }
@@ -1316,7 +1343,7 @@ static void do_status(struct work_struct *work)
 		}
 		tmp = pCh->pTTY->real_raw;
 		pCh->pTTY->real_raw = 0;
-		pCh->pTTY->ldisc.receive_buf( pCh->pTTY, &brkc, &brkf, 1 );
+		pCh->pTTY->ldisc->ops.receive_buf( pCh->pTTY, &brkc, &brkf, 1 );
 		pCh->pTTY->real_raw = tmp;
 	}
 #endif /* NEVER_HAPPENS_AS_SETUP_XXX */
@@ -2818,10 +2845,10 @@ ip2_ipl_write(struct file *pFile, const char __user *pData, size_t count, loff_t
 /*                                                                            */
 /*                                                                            */
 /******************************************************************************/
-static int
-ip2_ipl_ioctl ( struct inode *pInode, struct file *pFile, UINT cmd, ULONG arg )
+static long
+ip2_ipl_ioctl (struct file *pFile, UINT cmd, ULONG arg )
 {
-	unsigned int iplminor = iminor(pInode);
+	unsigned int iplminor = iminor(pFile->f_path.dentry->d_inode);
 	int rc = 0;
 	void __user *argp = (void __user *)arg;
 	ULONG __user *pIndex = argp;
@@ -2831,6 +2858,8 @@ ip2_ipl_ioctl ( struct inode *pInode, struct file *pFile, UINT cmd, ULONG arg )
 #ifdef IP2DEBUG_IPL
 	printk (KERN_DEBUG "IP2IPL: ioctl cmd %d, arg %ld\n", cmd, arg );
 #endif
+
+	lock_kernel();
 
 	switch ( iplminor ) {
 	case 0:	    // IPL device
@@ -2892,6 +2921,7 @@ ip2_ipl_ioctl ( struct inode *pInode, struct file *pFile, UINT cmd, ULONG arg )
 		rc = -ENODEV;
 		break;
 	}
+	unlock_kernel();
 	return rc;
 }
 
@@ -2908,42 +2938,11 @@ ip2_ipl_ioctl ( struct inode *pInode, struct file *pFile, UINT cmd, ULONG arg )
 static int
 ip2_ipl_open( struct inode *pInode, struct file *pFile )
 {
-	unsigned int iplminor = iminor(pInode);
-	i2eBordStrPtr pB;
-	i2ChanStrPtr  pCh;
 
 #ifdef IP2DEBUG_IPL
 	printk (KERN_DEBUG "IP2IPL: open\n" );
 #endif
-
-	switch(iplminor) {
-	// These are the IPL devices
-	case 0:
-	case 4:
-	case 8:
-	case 12:
-		break;
-
-	// These are the status devices
-	case 1:
-	case 5:
-	case 9:
-	case 13:
-		break;
-
-	// These are the debug devices
-	case 2:
-	case 6:
-	case 10:
-	case 14:
-		pB = i2BoardPtrTable[iplminor / 4];
-		pCh = (i2ChanStrPtr) pB->i2eChannelPtr;
-		break;
-
-	// This is the trace device
-	case 3:
-		break;
-	}
+	cycle_kernel_lock();
 	return 0;
 }
 

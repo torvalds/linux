@@ -21,10 +21,17 @@ config X86
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_IOREMAP_PROT
+	select HAVE_GET_USER_PAGES_FAST
 	select HAVE_KPROBES
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_KRETPROBES
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE
 	select HAVE_KVM if ((X86_32 && !X86_VOYAGER && !X86_VISWS && !X86_NUMAQ) || X86_64)
 	select HAVE_ARCH_KGDB if !X86_VOYAGER
+	select HAVE_GENERIC_DMA_COHERENT if X86_32
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 
 config ARCH_DEFCONFIG
 	string
@@ -121,7 +128,7 @@ config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
 
 config HAVE_SETUP_PER_CPU_AREA
-	def_bool X86_64 || (X86_SMP && !X86_VOYAGER)
+	def_bool X86_64_SMP || (X86_SMP && !X86_VOYAGER)
 
 config HAVE_CPUMASK_OF_CPU_MAP
 	def_bool X86_64_SMP
@@ -168,6 +175,7 @@ config GENERIC_PENDING_IRQ
 config X86_SMP
 	bool
 	depends on SMP && ((X86_32 && !X86_VOYAGER) || X86_64)
+	select USE_GENERIC_SMP_HELPERS
 	default y
 
 config X86_32_SMP
@@ -181,12 +189,12 @@ config X86_64_SMP
 config X86_HT
 	bool
 	depends on SMP
-	depends on (X86_32 && !(X86_VISWS || X86_VOYAGER)) || X86_64
+	depends on (X86_32 && !X86_VOYAGER) || X86_64
 	default y
 
 config X86_BIOS_REBOOT
 	bool
-	depends on !X86_VISWS && !X86_VOYAGER
+	depends on !X86_VOYAGER
 	default y
 
 config X86_TRAMPOLINE
@@ -230,6 +238,26 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config X86_FIND_SMP_CONFIG
+	def_bool y
+	depends on X86_MPPARSE || X86_VOYAGER
+
+if ACPI
+config X86_MPPARSE
+	def_bool y
+	bool "Enable MPS table"
+	depends on X86_LOCAL_APIC
+	help
+	  For old smp systems that do not have proper acpi support. Newer systems
+	  (esp with 64bit cpus) with acpi support, MADT and DSDT will override it
+endif
+
+if !ACPI
+config X86_MPPARSE
+	def_bool y
+	depends on X86_LOCAL_APIC
+endif
+
 choice
 	prompt "Subarchitecture Type"
 	default X86_PC
@@ -251,7 +279,7 @@ config X86_ELAN
 
 config X86_VOYAGER
 	bool "Voyager (NCR)"
-	depends on X86_32 && (SMP || BROKEN)
+	depends on X86_32 && (SMP || BROKEN) && !PCI
 	help
 	  Voyager is an MCA-based 32-way capable SMP architecture proprietary
 	  to NCR Corp.  Machine classes 345x/35xx/4100/51xx are Voyager-based.
@@ -261,16 +289,27 @@ config X86_VOYAGER
 	  If you do not specifically know you have a Voyager based machine,
 	  say N here, otherwise the kernel you build will not be bootable.
 
+config X86_GENERICARCH
+       bool "Generic architecture"
+	depends on X86_32
+       help
+          This option compiles in the NUMAQ, Summit, bigsmp, ES7000, default
+	  subarchitectures.  It is intended for a generic binary kernel.
+	  if you select them all, kernel will probe it one by one. and will
+	  fallback to default.
+
+if X86_GENERICARCH
+
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
-	depends on SMP && X86_32
+	depends on SMP && X86_32 && PCI && X86_MPPARSE
 	select NUMA
 	help
-	  This option is used for getting Linux to run on a (IBM/Sequent) NUMA
-	  multiquad box. This changes the way that processors are bootstrapped,
-	  and uses Clustered Logical APIC addressing mode instead of Flat Logical.
-	  You will need a new lynxer.elf file to flash your firmware with - send
-	  email to <Martin.Bligh@us.ibm.com>.
+	  This option is used for getting Linux to run on a NUMAQ (IBM/Sequent)
+	  NUMA multiquad box. This changes the way that processors are
+	  bootstrapped, and uses Clustered Logical APIC addressing mode instead
+	  of Flat Logical.  You will need a new lynxer.elf file to flash your
+	  firmware with - send email to <Martin.Bligh@us.ibm.com>.
 
 config X86_SUMMIT
 	bool "Summit/EXA (IBM x440)"
@@ -279,71 +318,54 @@ config X86_SUMMIT
 	  This option is needed for IBM systems that use the Summit/EXA chipset.
 	  In particular, it is needed for the x440.
 
-	  If you don't have one of these computers, you should say N here.
-	  If you want to build a NUMA kernel, you must select ACPI.
-
-config X86_BIGSMP
-	bool "Support for other sub-arch SMP systems with more than 8 CPUs"
-	depends on X86_32 && SMP
-	help
-	  This option is needed for the systems that have more than 8 CPUs
-	  and if the system is not of any sub-arch type above.
-
-	  If you don't have such a system, you should say N here.
-
-config X86_VISWS
-	bool "SGI 320/540 (Visual Workstation)"
-	depends on X86_32
-	help
-	  The SGI Visual Workstation series is an IA32-based workstation
-	  based on SGI systems chips with some legacy PC hardware attached.
-
-	  Say Y here to create a kernel to run on the SGI 320 or 540.
-
-	  A kernel compiled for the Visual Workstation will not run on PCs
-	  and vice versa. See <file:Documentation/sgi-visws.txt> for details.
-
-config X86_GENERICARCH
-       bool "Generic architecture (Summit, bigsmp, ES7000, default)"
-	depends on X86_32
-       help
-          This option compiles in the Summit, bigsmp, ES7000, default subarchitectures.
-	  It is intended for a generic binary kernel.
-	  If you want a NUMA kernel, select ACPI.   We need SRAT for NUMA.
-
 config X86_ES7000
 	bool "Support for Unisys ES7000 IA32 series"
 	depends on X86_32 && SMP
 	help
 	  Support for Unisys ES7000 systems.  Say 'Y' here if this kernel is
 	  supposed to run on an IA32-based Unisys ES7000 system.
-	  Only choose this option if you have such a system, otherwise you
-	  should say N here.
 
-config X86_RDC321X
-	bool "RDC R-321x SoC"
-	depends on X86_32
-	select M486
-	select X86_REBOOTFIXUPS
-	select GENERIC_GPIO
-	select LEDS_CLASS
-	select LEDS_GPIO
-	select NEW_LEDS
+config X86_BIGSMP
+	bool "Support for big SMP systems with more than 8 CPUs"
+	depends on X86_32 && SMP
 	help
-	  This option is needed for RDC R-321x system-on-chip, also known
-	  as R-8610-(G).
-	  If you don't have one of these chips, you should say N here.
+	  This option is needed for the systems that have more than 8 CPUs
+	  and if the system is not of any sub-arch type above.
+
+endif
 
 config X86_VSMP
 	bool "Support for ScaleMP vSMP"
 	select PARAVIRT
-	depends on X86_64
+	depends on X86_64 && PCI
 	help
 	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
 	  supposed to run on these EM64T-based machines.  Only choose this option
 	  if you have one of these machines.
 
 endchoice
+
+config X86_VISWS
+	bool "SGI 320/540 (Visual Workstation)"
+	depends on X86_32 && PCI && !X86_VOYAGER && X86_MPPARSE && PCI_GODIRECT
+	help
+	  The SGI Visual Workstation series is an IA32-based workstation
+	  based on SGI systems chips with some legacy PC hardware attached.
+
+	  Say Y here to create a kernel to run on the SGI 320 or 540.
+
+	  A kernel compiled for the Visual Workstation will run on general
+	  PCs as well. See <file:Documentation/sgi-visws.txt> for details.
+
+config X86_RDC321X
+	bool "RDC R-321x SoC"
+	depends on X86_32
+	select M486
+	select X86_REBOOTFIXUPS
+	help
+	  This option is needed for RDC R-321x system-on-chip, also known
+	  as R-8610-(G).
+	  If you don't have one of these chips, you should say N here.
 
 config SCHED_NO_NO_OMIT_FRAME_POINTER
 	def_bool y
@@ -373,7 +395,7 @@ config VMI
 	bool "VMI Guest support"
 	select PARAVIRT
 	depends on X86_32
-	depends on !(X86_VISWS || X86_VOYAGER)
+	depends on !X86_VOYAGER
 	help
 	  VMI provides a paravirtualized interface to the VMware ESX server
 	  (it could be used by other hypervisors in theory too, but is not
@@ -384,7 +406,7 @@ config KVM_CLOCK
 	bool "KVM paravirtualized clock"
 	select PARAVIRT
 	select PARAVIRT_CLOCK
-	depends on !(X86_VISWS || X86_VOYAGER)
+	depends on !X86_VOYAGER
 	help
 	  Turning on this option will allow you to run a paravirtualized clock
 	  when running over the KVM hypervisor. Instead of relying on a PIT
@@ -395,7 +417,7 @@ config KVM_CLOCK
 config KVM_GUEST
 	bool "KVM Guest support"
 	select PARAVIRT
-	depends on !(X86_VISWS || X86_VOYAGER)
+	depends on !X86_VOYAGER
 	help
 	 This option enables various optimizations for running under the KVM
 	 hypervisor.
@@ -404,7 +426,7 @@ source "arch/x86/lguest/Kconfig"
 
 config PARAVIRT
 	bool "Enable paravirtualization code"
-	depends on !(X86_VISWS || X86_VOYAGER)
+	depends on !X86_VOYAGER
 	help
 	  This changes the kernel so it can modify itself when it is run
 	  under a hypervisor, potentially improving performance significantly
@@ -417,51 +439,31 @@ config PARAVIRT_CLOCK
 
 endif
 
-config MEMTEST_BOOTPARAM
-	bool "Memtest boot parameter"
-	depends on X86_64
-	default y
+config PARAVIRT_DEBUG
+       bool "paravirt-ops debugging"
+       depends on PARAVIRT && DEBUG_KERNEL
+       help
+         Enable to debug paravirt_ops internals.  Specifically, BUG if
+	 a paravirt_op is missing when it is called.
+
+config MEMTEST
+	bool "Memtest"
 	help
 	  This option adds a kernel parameter 'memtest', which allows memtest
-	  to be disabled at boot.  If this option is selected, memtest
-	  functionality can be disabled with memtest=0 on the kernel
-	  command line.  The purpose of this option is to allow a single
-	  kernel image to be distributed with memtest built in, but not
-	  necessarily enabled.
-
-	  If you are unsure how to answer this question, answer Y.
-
-config MEMTEST_BOOTPARAM_VALUE
-	int "Memtest boot parameter default value (0-4)"
-	depends on MEMTEST_BOOTPARAM
-	range 0 4
-	default 0
-	help
-	  This option sets the default value for the kernel parameter
-	  'memtest', which allows memtest to be disabled at boot.  If this
-	  option is set to 0 (zero), the memtest kernel parameter will
-	  default to 0, disabling memtest at bootup.  If this option is
-	  set to 4, the memtest kernel parameter will default to 4,
-	  enabling memtest at bootup, and use that as pattern number.
-
-	  If you are unsure how to answer this question, answer 0.
-
-config ACPI_SRAT
-	def_bool y
-	depends on X86_32 && ACPI && NUMA && (X86_SUMMIT || X86_GENERICARCH)
-	select ACPI_NUMA
-
-config HAVE_ARCH_PARSE_SRAT
-	def_bool y
-	depends on ACPI_SRAT
+	  to be set.
+		memtest=0, mean disabled; -- default
+		memtest=1, mean do 1 test pattern;
+		...
+		memtest=4, mean do 4 test patterns.
+	  If you are unsure how to answer this question, answer N.
 
 config X86_SUMMIT_NUMA
 	def_bool y
-	depends on X86_32 && NUMA && (X86_SUMMIT || X86_GENERICARCH)
+	depends on X86_32 && NUMA && X86_GENERICARCH
 
 config X86_CYCLONE_TIMER
 	def_bool y
-	depends on X86_32 && X86_SUMMIT || X86_GENERICARCH
+	depends on X86_GENERICARCH
 
 config ES7000_CLUSTERED_APIC
 	def_bool y
@@ -549,6 +551,21 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
 	  If unsure, say Y.
 
+config AMD_IOMMU
+	bool "AMD IOMMU support"
+	select SWIOTLB
+	depends on X86_64 && PCI && ACPI
+	help
+	  With this option you can enable support for AMD IOMMU hardware in
+	  your system. An IOMMU is a hardware component which provides
+	  remapping of DMA memory accesses from devices. With an AMD IOMMU you
+	  can isolate the the DMA memory of different devices and protect the
+	  system from misbehaving device drivers or hardware.
+
+	  You can find out if your system has an AMD IOMMU if you look into
+	  your BIOS for an option to enable it or if you have an IVRS ACPI
+	  table.
+
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
 	bool
@@ -560,21 +577,36 @@ config SWIOTLB
 	  3 GB of memory. If unsure, say Y.
 
 config IOMMU_HELPER
-	def_bool (CALGARY_IOMMU || GART_IOMMU || SWIOTLB)
+	def_bool (CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU)
+config MAXSMP
+	bool "Configure Maximum number of SMP Processors and NUMA Nodes"
+	depends on X86_64 && SMP
+	default n
+	help
+	  Configure maximum number of CPUS and NUMA Nodes for this architecture.
+	  If unsure, say N.
 
+if MAXSMP
 config NR_CPUS
-	int "Maximum number of CPUs (2-255)"
-	range 2 255
+	int
+	default "4096"
+endif
+
+if !MAXSMP
+config NR_CPUS
+	int "Maximum number of CPUs (2-4096)"
+	range 2 4096
 	depends on SMP
 	default "32" if X86_NUMAQ || X86_SUMMIT || X86_BIGSMP || X86_ES7000
 	default "8"
 	help
 	  This allows you to specify the maximum number of CPUs which this
-	  kernel will support.  The maximum supported value is 255 and the
+	  kernel will support.  The maximum supported value is 4096 and the
 	  minimum value which makes sense is 2.
 
 	  This is purely to save memory - each supported CPU adds
 	  approximately eight kilobytes to the kernel image.
+endif
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -598,7 +630,7 @@ source "kernel/Kconfig.preempt"
 
 config X86_UP_APIC
 	bool "Local APIC support on uniprocessors"
-	depends on X86_32 && !SMP && !(X86_VISWS || X86_VOYAGER || X86_GENERICARCH)
+	depends on X86_32 && !SMP && !(X86_VOYAGER || X86_GENERICARCH)
 	help
 	  A local APIC (Advanced Programmable Interrupt Controller) is an
 	  integrated interrupt controller in the CPU. If you have a single-CPU
@@ -623,11 +655,11 @@ config X86_UP_IOAPIC
 
 config X86_LOCAL_APIC
 	def_bool y
-	depends on X86_64 || (X86_32 && (X86_UP_APIC || ((X86_VISWS || SMP) && !X86_VOYAGER) || X86_GENERICARCH))
+	depends on X86_64 || (X86_32 && (X86_UP_APIC || (SMP && !X86_VOYAGER) || X86_GENERICARCH))
 
 config X86_IO_APIC
 	def_bool y
-	depends on X86_64 || (X86_32 && (X86_UP_IOAPIC || (SMP && !(X86_VISWS || X86_VOYAGER)) || X86_GENERICARCH))
+	depends on X86_64 || (X86_32 && (X86_UP_IOAPIC || (SMP && !X86_VOYAGER) || X86_GENERICARCH))
 
 config X86_VISWS_APIC
 	def_bool y
@@ -681,7 +713,7 @@ config X86_MCE_NONFATAL
 
 config X86_MCE_P4THERMAL
 	bool "check for P4 thermal throttling interrupt."
-	depends on X86_32 && X86_MCE && (X86_UP_APIC || SMP) && !X86_VISWS
+	depends on X86_32 && X86_MCE && (X86_UP_APIC || SMP)
 	help
 	  Enabling this feature will cause a message to be printed when the P4
 	  enters thermal throttling.
@@ -911,9 +943,9 @@ config X86_PAE
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support (EXPERIMENTAL)"
 	depends on SMP
-	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || (X86_SUMMIT || X86_GENERICARCH) && ACPI) && EXPERIMENTAL)
+	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || X86_BIGSMP || X86_SUMMIT && ACPI) && EXPERIMENTAL)
 	default n if X86_PC
-	default y if (X86_NUMAQ || X86_SUMMIT)
+	default y if (X86_NUMAQ || X86_SUMMIT || X86_BIGSMP)
 	help
 	  Enable NUMA (Non Uniform Memory Access) support.
 	  The kernel will try to allocate memory used by a CPU on the
@@ -965,13 +997,25 @@ config NUMA_EMU
 	  into virtual nodes when booted with "numa=fake=N", where N is the
 	  number of nodes. This is only useful for debugging.
 
+if MAXSMP
+
 config NODES_SHIFT
-	int "Max num nodes shift(1-9)"
-	range 1 9  if X86_64
+	int
+	default "9"
+endif
+
+if !MAXSMP
+config NODES_SHIFT
+	int "Maximum NUMA Nodes (as a power of 2)"
+	range 1 9   if X86_64
 	default "6" if X86_64
 	default "4" if X86_NUMAQ
 	default "3"
 	depends on NEED_MULTIPLE_NODES
+	help
+	  Specify the maximum number of NUMA Nodes available on the target
+	  system.  Increases memory reserved to accomodate various tables.
+endif
 
 config HAVE_ARCH_BOOTMEM_NODE
 	def_bool y
@@ -1090,6 +1134,37 @@ config MTRR
 
 	  See <file:Documentation/mtrr.txt> for more information.
 
+config MTRR_SANITIZER
+	bool
+	prompt "MTRR cleanup support"
+	depends on MTRR
+	help
+	  Convert MTRR layout from continuous to discrete, so X drivers can
+	  add writeback entries.
+
+	  Can be disabled with disable_mtrr_cleanup on the kernel command line.
+	  The largest mtrr entry size for a continous block can be set with
+	  mtrr_chunk_size.
+
+	  If unsure, say N.
+
+config MTRR_SANITIZER_ENABLE_DEFAULT
+	int "MTRR cleanup enable value (0-1)"
+	range 0 1
+	default "0"
+	depends on MTRR_SANITIZER
+	help
+	  Enable mtrr cleanup default value
+
+config MTRR_SANITIZER_SPARE_REG_NR_DEFAULT
+	int "MTRR cleanup spare reg num (0-7)"
+	range 0 7
+	default "1"
+	depends on MTRR_SANITIZER
+	help
+	  mtrr cleanup spare entries default, it can be changed via
+	  mtrr_spare_reg_nr=N on the kernel command line.
+
 config X86_PAT
 	bool
 	prompt "x86 PAT support"
@@ -1190,7 +1265,6 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "kernel crash dumps (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 	depends on X86_64 || (X86_32 && HIGHMEM)
 	help
 	  Generate crash dump after being started by kexec.
@@ -1202,6 +1276,14 @@ config CRASH_DUMP
 	  PHYSICAL_START, or it must be built as a relocatable image
 	  (CONFIG_RELOCATABLE=y).
 	  For more details see Documentation/kdump/kdump.txt
+
+config KEXEC_JUMP
+	bool "kexec jump (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on KEXEC && HIBERNATION && X86_32
+	help
+	  Jump between original kernel and kexeced kernel and invoke
+	  code in physical address mode via KEXEC
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
@@ -1339,7 +1421,7 @@ config X86_APM_BOOT
 
 menuconfig APM
 	tristate "APM (Advanced Power Management) BIOS support"
-	depends on X86_32 && PM_SLEEP && !X86_VISWS
+	depends on X86_32 && PM_SLEEP
 	---help---
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with
@@ -1475,8 +1557,7 @@ endmenu
 menu "Bus options (PCI etc.)"
 
 config PCI
-	bool "PCI support" if !X86_VISWS && !X86_VSMP
-	depends on !X86_VOYAGER
+	bool "PCI support"
 	default y
 	select ARCH_SUPPORTS_MSI if (X86_LOCAL_APIC && X86_IO_APIC)
 	help
@@ -1487,7 +1568,7 @@ config PCI
 
 choice
 	prompt "PCI access mode"
-	depends on X86_32 && PCI && !X86_VISWS
+	depends on X86_32 && PCI
 	default PCI_GOANY
 	---help---
 	  On PCI systems, the BIOS can be used to detect the PCI devices and
@@ -1524,12 +1605,12 @@ endchoice
 
 config PCI_BIOS
 	def_bool y
-	depends on X86_32 && !X86_VISWS && PCI && (PCI_GOBIOS || PCI_GOANY)
+	depends on X86_32 && PCI && (PCI_GOBIOS || PCI_GOANY)
 
 # x86-64 doesn't support PCI BIOS access from long mode so always go direct.
 config PCI_DIRECT
 	def_bool y
-	depends on PCI && (X86_64 || (PCI_GODIRECT || PCI_GOANY || PCI_GOOLPC) || X86_VISWS)
+	depends on PCI && (X86_64 || (PCI_GODIRECT || PCI_GOANY || PCI_GOOLPC))
 
 config PCI_MMCONFIG
 	def_bool y
@@ -1577,6 +1658,14 @@ config DMAR_FLOPPY_WA
 	 workaround will setup a 1:1 mapping for the first
 	 16M to make floppy (an ISA device) work.
 
+config INTR_REMAP
+	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
+	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
+	help
+	 Supports Interrupt remapping for IO-APIC and MSI devices.
+	 To use x2apic mode in the CPU's which support x2APIC enhancements or
+	 to support platforms with CPU's having > 8 bit APIC ID, say Y.
+
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
@@ -1589,7 +1678,7 @@ if X86_32
 
 config ISA
 	bool "ISA support"
-	depends on !(X86_VOYAGER || X86_VISWS)
+	depends on !X86_VOYAGER
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
@@ -1616,7 +1705,7 @@ config EISA
 source "drivers/eisa/Kconfig"
 
 config MCA
-	bool "MCA support" if !(X86_VISWS || X86_VOYAGER)
+	bool "MCA support" if !X86_VOYAGER
 	default y if X86_VOYAGER
 	help
 	  MicroChannel Architecture is found in some IBM PS/2 machines and

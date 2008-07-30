@@ -15,8 +15,8 @@
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
  */
 
-#ifndef _ASM_HIGHMEM_H
-#define _ASM_HIGHMEM_H
+#ifndef ASM_X86__HIGHMEM_H
+#define ASM_X86__HIGHMEM_H
 
 #ifdef __KERNEL__
 
@@ -74,6 +74,9 @@ struct page *kmap_atomic_to_page(void *ptr);
 
 #define flush_cache_kmaps()	do { } while (0)
 
+extern void add_highpages_with_active_regions(int nid, unsigned long start_pfn,
+					unsigned long end_pfn);
+
 #endif /* __KERNEL__ */
 
-#endif /* _ASM_HIGHMEM_H */
+#endif /* ASM_X86__HIGHMEM_H */

@@ -453,7 +453,7 @@ int snd_vx_load_boot_image(struct vx_core *chip, const struct firmware *boot)
 			vx_outb(chip, TXM, 0);
 			vx_outb(chip, TXL, 0);
 		} else {
-			unsigned char *image = boot->data + i;
+			const unsigned char *image = boot->data + i;
 			if (vx_wait_isr_bit(chip, ISR_TX_EMPTY) < 0) {
 				snd_printk(KERN_ERR "dsp boot failed at %d\n", i);
 				return -EIO;
@@ -671,7 +671,7 @@ int snd_vx_dsp_load(struct vx_core *chip, const struct firmware *dsp)
 	unsigned int i;
 	int err;
 	unsigned int csum = 0;
-	unsigned char *image, *cptr;
+	const unsigned char *image, *cptr;
 
 	snd_assert(dsp->size % 3 == 0, return -EINVAL);
 

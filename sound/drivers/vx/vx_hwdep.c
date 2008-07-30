@@ -183,7 +183,7 @@ static int vx_hwdep_dsp_load(struct snd_hwdep *hw,
 		kfree(fw);
 		return -ENOMEM;
 	}
-	if (copy_from_user(fw->data, dsp->image, dsp->length)) {
+	if (copy_from_user((void *)fw->data, dsp->image, dsp->length)) {
 		free_fw(fw);
 		return -EFAULT;
 	}

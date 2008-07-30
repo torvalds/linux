@@ -1520,7 +1520,7 @@ int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 					jfs_error(ip->i_sb,
 						  "diAlloc: can't find free bit "
 						  "in wmap");
-					return EIO;
+					return -EIO;
 				}
 
 				/* determine the inode number within the

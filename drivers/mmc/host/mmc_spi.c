@@ -1076,6 +1076,7 @@ static void mmc_spi_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		 */
 		if (canpower && ios->power_mode == MMC_POWER_OFF) {
 			int mres;
+			u8 nullbyte = 0;
 
 			host->spi->mode &= ~(SPI_CPOL|SPI_CPHA);
 			mres = spi_setup(host->spi);
@@ -1083,7 +1084,7 @@ static void mmc_spi_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				dev_dbg(&host->spi->dev,
 					"switch to SPI mode 0 failed\n");
 
-			if (spi_w8r8(host->spi, 0x00) < 0)
+			if (spi_write(host->spi, &nullbyte, 1) < 0)
 				dev_dbg(&host->spi->dev,
 					"put spi signals to low failed\n");
 
@@ -1126,16 +1127,28 @@ static int mmc_spi_get_ro(struct mmc_host *mmc)
 	struct mmc_spi_host *host = mmc_priv(mmc);
 
 	if (host->pdata && host->pdata->get_ro)
-		return host->pdata->get_ro(mmc->parent);
-	/* board doesn't support read only detection; assume writeable */
-	return 0;
+		return !!host->pdata->get_ro(mmc->parent);
+	/*
+	 * Board doesn't support read only detection; let the mmc core
+	 * decide what to do.
+	 */
+	return -ENOSYS;
 }
 
+static int mmc_spi_get_cd(struct mmc_host *mmc)
+{
+	struct mmc_spi_host *host = mmc_priv(mmc);
+
+	if (host->pdata && host->pdata->get_cd)
+		return !!host->pdata->get_cd(mmc->parent);
+	return -ENOSYS;
+}
 
 static const struct mmc_host_ops mmc_spi_ops = {
 	.request	= mmc_spi_request,
 	.set_ios	= mmc_spi_set_ios,
 	.get_ro		= mmc_spi_get_ro,
+	.get_cd		= mmc_spi_get_cd,
 };
 
 
@@ -1240,10 +1253,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	mmc->ops = &mmc_spi_ops;
 	mmc->max_blk_size = MMC_SPI_BLOCKSIZE;
 
-	/* As long as we keep track of the number of successfully
-	 * transmitted blocks, we're good for multiwrite.
-	 */
-	mmc->caps = MMC_CAP_SPI | MMC_CAP_MULTIWRITE;
+	mmc->caps = MMC_CAP_SPI;
 
 	/* SPI doesn't need the lowspeed device identification thing for
 	 * MMC or SD cards, since it never comes up in open drain mode.
@@ -1319,17 +1329,23 @@ static int mmc_spi_probe(struct spi_device *spi)
 			goto fail_glue_init;
 	}
 
+	/* pass platform capabilities, if any */
+	if (host->pdata)
+		mmc->caps |= host->pdata->caps;
+
 	status = mmc_add_host(mmc);
 	if (status != 0)
 		goto fail_add_host;
 
-	dev_info(&spi->dev, "SD/MMC host %s%s%s%s\n",
+	dev_info(&spi->dev, "SD/MMC host %s%s%s%s%s\n",
 			mmc->class_dev.bus_id,
 			host->dma_dev ? "" : ", no DMA",
 			(host->pdata && host->pdata->get_ro)
 				? "" : ", no WP",
 			(host->pdata && host->pdata->setpower)
-				? "" : ", no poweroff");
+				? "" : ", no poweroff",
+			(mmc->caps & MMC_CAP_NEEDS_POLL)
+				? ", cd polling" : "");
 	return 0;
 
 fail_add_host:

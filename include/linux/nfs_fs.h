@@ -12,8 +12,18 @@
 #include <linux/magic.h>
 
 /* Default timeout values */
+#define NFS_DEF_UDP_TIMEO	(11)
+#define NFS_DEF_UDP_RETRANS	(3)
+#define NFS_DEF_TCP_TIMEO	(600)
+#define NFS_DEF_TCP_RETRANS	(2)
+
 #define NFS_MAX_UDP_TIMEOUT	(60*HZ)
 #define NFS_MAX_TCP_TIMEOUT	(600*HZ)
+
+#define NFS_DEF_ACREGMIN	(3)
+#define NFS_DEF_ACREGMAX	(60)
+#define NFS_DEF_ACDIRMIN	(30)
+#define NFS_DEF_ACDIRMAX	(60)
 
 /*
  * When flushing a cluster of dirty pages, there can be different
@@ -32,7 +42,6 @@
 #include <linux/in.h>
 #include <linux/kref.h>
 #include <linux/mm.h>
-#include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/rbtree.h>
 #include <linux/rwsem.h>
@@ -322,7 +331,7 @@ extern int nfs_refresh_inode(struct inode *, struct nfs_fattr *);
 extern int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
-extern int nfs_permission(struct inode *, int, struct nameidata *);
+extern int nfs_permission(struct inode *, int);
 extern int nfs_open(struct inode *, struct file *);
 extern int nfs_release(struct inode *, struct file *);
 extern int nfs_attribute_timeout(struct inode *inode);

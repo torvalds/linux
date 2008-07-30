@@ -1,5 +1,5 @@
-#ifndef _ASM_X8664_PROTO_H
-#define _ASM_X8664_PROTO_H 1
+#ifndef ASM_X86__PROTO_H
+#define ASM_X86__PROTO_H
 
 #include <asm/ldt.h>
 
@@ -13,8 +13,6 @@ extern void syscall_init(void);
 extern void ia32_syscall(void);
 extern void ia32_cstar_target(void);
 extern void ia32_sysenter_target(void);
-
-extern void reserve_bootmem_generic(unsigned long phys, unsigned len);
 
 extern void syscall32_cpu_init(void);
 
@@ -31,4 +29,4 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr);
 #define round_up(x, y) (((x) + (y) - 1) & ~((y) - 1))
 #define round_down(x, y) ((x) & ~((y) - 1))
 
-#endif
+#endif /* ASM_X86__PROTO_H */

@@ -829,7 +829,6 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 	if (use_isoc) {
 		const struct usb_host_interface *desc = data_intf->cur_altsetting;
 		const __u8 target_address = USB_DIR_IN | usbatm->driver->isoc_in;
-		int i;
 
 		use_isoc = 0; /* fall back to bulk if endpoint not found */
 

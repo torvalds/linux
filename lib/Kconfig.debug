@@ -74,6 +74,9 @@ config DEBUG_FS
 	  debugging files into.  Enable this option to be able to read and
 	  write to these files.
 
+	  For detailed documentation on the debugfs API, see
+	  Documentation/DocBook/filesystems.
+
 	  If unsure, say N.
 
 config HEADERS_CHECK
@@ -147,7 +150,7 @@ config DETECT_SOFTLOCKUP
 	help
 	  Say Y here to enable the kernel to detect "soft lockups",
 	  which are bugs that cause the kernel to loop in kernel
-	  mode for more than 10 seconds, without giving other tasks a
+	  mode for more than 60 seconds, without giving other tasks a
 	  chance to run.
 
 	  When a soft-lockup is detected, the kernel will print the
@@ -158,6 +161,30 @@ config DETECT_SOFTLOCKUP
 	  (Note that "hard lockups" are separate type of bugs that
 	   can be detected via the NMI-watchdog, on platforms that
 	   support it.)
+
+config BOOTPARAM_SOFTLOCKUP_PANIC
+	bool "Panic (Reboot) On Soft Lockups"
+	depends on DETECT_SOFTLOCKUP
+	help
+	  Say Y here to enable the kernel to panic on "soft lockups",
+	  which are bugs that cause the kernel to loop in kernel
+	  mode for more than 60 seconds, without giving other tasks a
+	  chance to run.
+
+	  The panic can be used in combination with panic_timeout,
+	  to cause the system to reboot automatically after a
+	  lockup has been detected. This feature is useful for
+	  high-availability systems that have uptime guarantees and
+	  where a lockup must be resolved ASAP.
+
+	  Say N if unsure.
+
+config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
+	int
+	depends on DETECT_SOFTLOCKUP
+	range 0 1
+	default 0 if !BOOTPARAM_SOFTLOCKUP_PANIC
+	default 1 if BOOTPARAM_SOFTLOCKUP_PANIC
 
 config SCHED_DEBUG
 	bool "Collect scheduler debugging info"
@@ -419,7 +446,6 @@ config DEBUG_LOCKING_API_SELFTESTS
 
 config STACKTRACE
 	bool
-	depends on DEBUG_KERNEL
 	depends on STACKTRACE_SUPPORT
 
 config DEBUG_KOBJECT
@@ -479,6 +505,18 @@ config DEBUG_WRITECOUNT
 
 	  If unsure, say N.
 
+config DEBUG_MEMORY_INIT
+	bool "Debug memory initialisation" if EMBEDDED
+	default !EMBEDDED
+	help
+	  Enable this for additional checks during memory initialisation.
+	  The sanity checks verify aspects of the VM such as the memory model
+	  and other information provided by the architecture. Verbose
+	  information will be printed at KERN_DEBUG loglevel depending
+	  on the mminit_loglevel= command-line option.
+
+	  If unsure, say Y
+
 config DEBUG_LIST
 	bool "Debug linked list manipulation"
 	depends on DEBUG_KERNEL
@@ -531,15 +569,33 @@ config BOOT_PRINTK_DELAY
 config RCU_TORTURE_TEST
 	tristate "torture tests for RCU"
 	depends on DEBUG_KERNEL
-	depends on m
 	default n
 	help
 	  This option provides a kernel module that runs torture tests
 	  on the RCU infrastructure.  The kernel module may be built
 	  after the fact on the running kernel to be tested, if desired.
 
+	  Say Y here if you want RCU torture tests to be built into
+	  the kernel.
 	  Say M if you want the RCU torture tests to build as a module.
 	  Say N if you are unsure.
+
+config RCU_TORTURE_TEST_RUNNABLE
+	bool "torture tests for RCU runnable by default"
+	depends on RCU_TORTURE_TEST = y
+	default n
+	help
+	  This option provides a way to build the RCU torture tests
+	  directly into the kernel without them starting up at boot
+	  time.  You can use /proc/sys/kernel/rcutorture_runnable
+	  to manually override this setting.  This /proc file is
+	  available only when the RCU torture tests have been built
+	  into the kernel.
+
+	  Say Y here if you want the RCU torture tests to start during
+	  boot (you probably don't).
+	  Say N here if you want the RCU torture tests to start only
+	  after being manually enabled via /proc.
 
 config KPROBES_SANITY_TEST
 	bool "Kprobes sanity tests"
@@ -562,6 +618,9 @@ config BACKTRACE_SELF_TEST
 	  the kernel stack backtrace code. This option is not useful
 	  for distributions or general kernels, but only for kernel
 	  developers working on architecture code.
+
+	  Note that if you want to also test saved backtraces, you will
+	  have to enable STACKTRACE as well.
 
 	  Say N if you are unsure.
 
@@ -633,6 +692,8 @@ config LATENCYTOP
 	help
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
+
+source kernel/trace/Kconfig
 
 config PROVIDE_OHCI1394_DMA_INIT
 	bool "Remote debugging over FireWire early on boot"

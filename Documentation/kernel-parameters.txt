@@ -87,7 +87,8 @@ parameter is applicable:
 	SH	SuperH architecture is enabled.
 	SMP	The kernel is an SMP kernel.
 	SPARC	Sparc architecture is enabled.
-	SWSUSP	Software suspend is enabled.
+	SWSUSP	Software suspend (hibernation) is enabled.
+	SUSPEND	System suspend states are enabled.
 	TS	Appropriate touchscreen support is enabled.
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
@@ -147,10 +148,16 @@ and is between 256 and 4096 characters. It is defined in the file
 			default: 0
 
 	acpi_sleep=	[HW,ACPI] Sleep options
-			Format: { s3_bios, s3_mode, s3_beep }
+			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig, old_ordering }
 			See Documentation/power/video.txt for s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
 			as soon as the kernel's real-mode entry point is called.
+			s4_nohwsig prevents ACPI hardware signature from being
+			used during resume from hibernation.
+			old_ordering causes the ACPI 1.0 ordering of the _PTS
+			control method, wrt putting devices into low power
+			states, to be enforced (the ACPI 2.0 ordering of _PTS is
+			used by default).
 
 	acpi_sci=	[HW,ACPI] ACPI System Control Interrupt trigger mode
 			Format: { level | edge | high | low }
@@ -270,6 +277,17 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	aic79xx=	[HW,SCSI]
 			See Documentation/scsi/aic79xx.txt.
+
+	amd_iommu=	[HW,X86-84]
+			Pass parameters to the AMD IOMMU driver in the system.
+			Possible values are:
+			isolate - enable device isolation (each device, as far
+			          as possible, will get its own protection
+			          domain)
+	amd_iommu_size= [HW,X86-64]
+			Define the size of the aperture for the AMD IOMMU
+			driver. Possible values are:
+			'32M', '64M' (default), '128M', '256M', '512M', '1G'
 
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
@@ -560,6 +578,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	debug_objects	[KNL] Enable object debugging
 
+	debugpat	[X86] Enable PAT debugging
+
 	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.
@@ -598,6 +618,29 @@ and is between 256 and 4096 characters. It is defined in the file
 	digiepca=	[HW,SERIAL]
 			See drivers/char/README.epca and
 			Documentation/digiepca.txt.
+
+	disable_mtrr_cleanup [X86]
+	enable_mtrr_cleanup [X86]
+			The kernel tries to adjust MTRR layout from continuous
+			to discrete, to make X server driver able to add WB
+			entry later. This parameter enables/disables that.
+
+	mtrr_chunk_size=nn[KMG] [X86]
+			used for mtrr cleanup. It is largest continous chunk
+			that could hold holes aka. UC entries.
+
+	mtrr_gran_size=nn[KMG] [X86]
+			Used for mtrr cleanup. It is granularity of mtrr block.
+			Default is 1.
+			Large value could prevent small alignment from
+			using up MTRRs.
+
+	mtrr_spare_reg_nr=n [X86]
+			Format: <integer>
+			Range: 0,7 : spare reg number
+			Default : 1
+			Used for mtrr cleanup. It is spare mtrr entries number.
+			Set to 2 or more if your graphical card needs more.
 
 	disable_mtrr_trim [X86, Intel and AMD only]
 			By default the kernel will trim any uncacheable
@@ -722,9 +765,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	hd=		[EIDE] (E)IDE hard drive subsystem geometry
 			Format: <cyl>,<head>,<sect>
 
-	hd?=		[HW] (E)IDE subsystem
-	hd?lun=		See Documentation/ide/ide.txt.
-
 	highmem=nn[KMG]	[KNL,BOOT] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
 			highmem otherwise. This also works to reduce highmem
@@ -737,8 +777,22 @@ and is between 256 and 4096 characters. It is defined in the file
 	hisax=		[HW,ISDN]
 			See Documentation/isdn/README.HiSax.
 
-	hugepages=	[HW,X86-32,IA-64] Maximal number of HugeTLB pages.
-	hugepagesz=	[HW,IA-64,PPC] The size of the HugeTLB pages.
+	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
+	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
+			On x86-64 and powerpc, this option can be specified
+			multiple times interleaved with hugepages= to reserve
+			huge pages of different sizes. Valid pages sizes on
+			x86-64 are 2M (when the CPU supports "pse") and 1G
+			(when the CPU supports the "pdpe1gb" cpuinfo flag)
+			Note that 1GB pages can only be allocated at boot time
+			using hugepages= and not freed afterwards.
+	default_hugepagesz=
+			[same as hugepagesz=] The size of the default
+			HugeTLB page size. This is the size represented by
+			the legacy /proc/ hugepages APIs, used for SHM, and
+			default size when mounting hugetlbfs filesystems.
+			Defaults to the default architecture's huge page size
+			if not specified.
 
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
@@ -785,7 +839,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/ide/ide.txt.
 
 	idle=		[X86]
-			Format: idle=poll or idle=mwait
+			Format: idle=poll or idle=mwait, idle=halt, idle=nomwait
 			Poll forces a polling idle loop that can slightly improves the performance
 			of waking up a idle CPU, but will use a lot of power and make the system
 			run hot. Not recommended.
@@ -793,6 +847,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			to not use it because it doesn't save as much power as a normal idle
 			loop use the MONITOR/MWAIT idle loop anyways. Performance should be the same
 			as idle=poll.
+			idle=halt. Halt is forced to be used for CPU idle.
+			In such case C2/C3 won't be used again.
+			idle=nomwait. Disable mwait for CPU C-states
 
 	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
 			Claim all unknown PCI IDE storage controllers.
@@ -1166,7 +1223,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			         or
 			         memmap=0x10000$0x18690000
 
-	memtest=	[KNL,X86_64] Enable memtest
+	memtest=	[KNL,X86] Enable memtest
 			Format: <integer>
 			range: 0,4 : pattern number
 			default : 0 <disable>
@@ -1184,6 +1241,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			problem by letting the user disable the workaround.
 
 	mga=		[HW,DRM]
+
+	mminit_loglevel=
+			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
+			parameter allows control of the logging verbosity for
+			the additional memory initialisation checks. A value
+			of 0 disables mminit logging and a level of 4 will
+			log everything. Information is printed at KERN_DEBUG
+			so loglevel=8 may also need to be specified.
 
 	mousedev.tap_time=
 			[MOUSE] Maximum time between finger touching and
@@ -1207,6 +1272,11 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	mtdparts=	[MTD]
 			See drivers/mtd/cmdlinepart.c.
+
+	mtdset=		[ARM]
+			ARM/S3C2412 JIVE boot control
+
+			See arch/arm/mach-s3c2412/mach-jive.c
 
 	mtouchusb.raw_coordinates=
 			[HW] Make the MicroTouch USB driver use raw coordinates
@@ -1233,6 +1303,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			something different and driver-specific.
 			This usage is only documented in each driver source
 			file if at all.
+
+	nf_conntrack.acct=
+			[NETFILTER] Enable connection tracking flow accounting
+			0 to disable accounting
+			1 to enable accounting
+			Default value depends on CONFIG_NF_CT_ACCT that is
+			going to be removed in 2.6.29.
 
 	nfsaddrs=	[NFS]
 			See Documentation/filesystems/nfsroot.txt.
@@ -1342,6 +1419,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
 
 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
+
+	nox2apic	[X86-64,APIC] Do not enable x2APIC mode.
+
+	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
+			default x2apic cluster mode on platforms
+			supporting x2apic.
 
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.
@@ -1496,6 +1579,9 @@ and is between 256 and 4096 characters. It is defined in the file
 				Use with caution as certain devices share
 				address decoders between ROMs and other
 				resources.
+		norom		[X86-32,X86_64] Do not assign address space to
+				expansion ROMs that do not already have
+				BIOS assigned address ranges.
 		irqmask=0xMMMM	[X86-32] Set a bit mask of IRQs allowed to be
 				assigned automatically to PCI devices. You can
 				make the kernel exclude IRQs of your ISA cards
@@ -1570,6 +1656,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	plip=		[PPT,NET] Parallel port network link
 			Format: { parport<nr> | timid | 0 }
 			See also Documentation/parport.txt.
+
+	pmtmr=		[X86] Manual setup of pmtmr I/O Port. 
+			Override pmtimer IOPort with a hex value.
+			e.g. pmtmr=0x508
 
 	pnpacpi=	[ACPI]
 			{ off }
@@ -1975,6 +2065,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	snd-ymfpci=	[HW,ALSA]
 
+	softlockup_panic=
+			[KNL] Should the soft-lockup detector generate panics.
+
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/sonypi.txt
 
@@ -2039,6 +2132,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	tdfx=		[HW,DRM]
 
+	test_suspend=	[SUSPEND]
+			Specify "mem" (for Suspend-to-RAM) or "standby" (for
+			standby suspend) as the system sleep state to briefly
+			enter during system startup.  The system is woken from
+			this state using a wakeup-capable RTC alarm.
+
 	thash_entries=	[KNL,NET]
 			Set number of hash buckets for TCP connection
 
@@ -2065,13 +2164,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Specify global default ACPI thermal zone polling rate
 			<deci-seconds>: poll all this frequency
 			0: no polling (default)
-
-	tipar.timeout=	[HW,PPT]
-			Set communications timeout in tenths of a second
-			(default 15).
-
-	tipar.delay=	[HW,PPT]
-			Set inter-bit delay in microseconds (default 10).
 
 	tmscsim=	[HW,SCSI]
 			See comment before function dc390_setup() in
@@ -2106,6 +2198,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			Note that genuine overcurrent events won't be
 			reported either.
 
+	unknown_nmi_panic
+			[X86-32,X86-64]
+			Set unknown_nmi_panic=1 early on boot.
+
 	usbcore.autosuspend=
 			[USB] The autosuspend time delay (in seconds) used
 			for newly-detected USB devices (default 2).  This
@@ -2115,6 +2211,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
+
+	add_efi_memmap	[EFI; x86-32,X86-64] Include EFI memory map in
+			kernel's map of available physical RAM.
 
 	vdso=		[X86-32,SH,x86-64]
 			vdso=2: enable compat VDSO (default with COMPAT_VDSO)

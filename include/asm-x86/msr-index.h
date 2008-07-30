@@ -1,5 +1,5 @@
-#ifndef __ASM_MSR_INDEX_H
-#define __ASM_MSR_INDEX_H
+#ifndef ASM_X86__MSR_INDEX_H
+#define ASM_X86__MSR_INDEX_H
 
 /* CPU model specific register (MSR) numbers */
 
@@ -111,7 +111,9 @@
 #define MSR_K8_TOP_MEM2			0xc001001d
 #define MSR_K8_SYSCFG			0xc0010010
 #define MSR_K8_HWCR			0xc0010015
-#define MSR_K8_ENABLE_C1E		0xc0010055
+#define MSR_K8_INT_PENDING_MSG		0xc0010055
+/* C1E active bits in int pending message */
+#define K8_INTP_C1E_ACTIVE_MASK		0x18000000
 #define MSR_K8_TSEG_ADDR		0xc0010112
 #define K8_MTRRFIXRANGE_DRAM_ENABLE	0x00040000 /* MtrrFixDramEn bit    */
 #define K8_MTRRFIXRANGE_DRAM_MODIFY	0x00080000 /* MtrrFixDramModEn bit */
@@ -308,4 +310,4 @@
 /* Geode defined MSRs */
 #define MSR_GEODE_BUSCONT_CONF0		0x00001900
 
-#endif /* __ASM_MSR_INDEX_H */
+#endif /* ASM_X86__MSR_INDEX_H */

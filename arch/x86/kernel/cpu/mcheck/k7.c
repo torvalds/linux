@@ -9,23 +9,23 @@
 #include <linux/interrupt.h>
 #include <linux/smp.h>
 
-#include <asm/processor.h> 
+#include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/msr.h>
 
 #include "mce.h"
 
 /* Machine Check Handler For AMD Athlon/Duron */
-static void k7_machine_check(struct pt_regs * regs, long error_code)
+static void k7_machine_check(struct pt_regs *regs, long error_code)
 {
-	int recover=1;
+	int recover = 1;
 	u32 alow, ahigh, high, low;
 	u32 mcgstl, mcgsth;
 	int i;
 
-	rdmsr (MSR_IA32_MCG_STATUS, mcgstl, mcgsth);
+	rdmsr(MSR_IA32_MCG_STATUS, mcgstl, mcgsth);
 	if (mcgstl & (1<<0))	/* Recoverable ? */
-		recover=0;
+		recover = 0;
 
 	printk(KERN_EMERG "CPU %d: Machine Check Exception: %08x%08x\n",
 		smp_processor_id(), mcgsth, mcgstl);
@@ -60,12 +60,12 @@ static void k7_machine_check(struct pt_regs * regs, long error_code)
 	}
 
 	if (recover&2)
-		panic ("CPU context corrupt");
+		panic("CPU context corrupt");
 	if (recover&1)
-		panic ("Unable to continue");
-	printk (KERN_EMERG "Attempting to continue.\n");
+		panic("Unable to continue");
+	printk(KERN_EMERG "Attempting to continue.\n");
 	mcgstl &= ~(1<<2);
-	wrmsr (MSR_IA32_MCG_STATUS,mcgstl, mcgsth);
+	wrmsr(MSR_IA32_MCG_STATUS, mcgstl, mcgsth);
 }
 
 
@@ -81,25 +81,25 @@ void amd_mcheck_init(struct cpuinfo_x86 *c)
 	machine_check_vector = k7_machine_check;
 	wmb();
 
-	printk (KERN_INFO "Intel machine check architecture supported.\n");
-	rdmsr (MSR_IA32_MCG_CAP, l, h);
+	printk(KERN_INFO "Intel machine check architecture supported.\n");
+	rdmsr(MSR_IA32_MCG_CAP, l, h);
 	if (l & (1<<8))	/* Control register present ? */
-		wrmsr (MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
+		wrmsr(MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
 	nr_mce_banks = l & 0xff;
 
 	/* Clear status for MC index 0 separately, we don't touch CTL,
 	 * as some K7 Athlons cause spurious MCEs when its enabled. */
 	if (boot_cpu_data.x86 == 6) {
-		wrmsr (MSR_IA32_MC0_STATUS, 0x0, 0x0);
+		wrmsr(MSR_IA32_MC0_STATUS, 0x0, 0x0);
 		i = 1;
 	} else
 		i = 0;
-	for (; i<nr_mce_banks; i++) {
-		wrmsr (MSR_IA32_MC0_CTL+4*i, 0xffffffff, 0xffffffff);
-		wrmsr (MSR_IA32_MC0_STATUS+4*i, 0x0, 0x0);
+	for (; i < nr_mce_banks; i++) {
+		wrmsr(MSR_IA32_MC0_CTL+4*i, 0xffffffff, 0xffffffff);
+		wrmsr(MSR_IA32_MC0_STATUS+4*i, 0x0, 0x0);
 	}
 
-	set_in_cr4 (X86_CR4_MCE);
-	printk (KERN_INFO "Intel machine check reporting enabled on CPU#%d.\n",
+	set_in_cr4(X86_CR4_MCE);
+	printk(KERN_INFO "Intel machine check reporting enabled on CPU#%d.\n",
 		smp_processor_id());
 }

@@ -22,6 +22,7 @@
 #include <pcmcia/ss.h>
 
 #include <asm/hardware.h>
+#include <asm/mach-types.h>
 #include <asm/irq.h>
 
 #include <asm/arch/pxa-regs.h>
@@ -136,7 +137,7 @@ static void mst_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
 {
 }
 
-static struct pcmcia_low_level mst_pcmcia_ops = {
+static struct pcmcia_low_level mst_pcmcia_ops __initdata = {
 	.owner			= THIS_MODULE,
 	.hw_init		= mst_pcmcia_hw_init,
 	.hw_shutdown		= mst_pcmcia_hw_shutdown,
@@ -153,13 +154,17 @@ static int __init mst_pcmcia_init(void)
 {
 	int ret;
 
+	if (!machine_is_mainstone())
+		return -ENODEV;
+
 	mst_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 	if (!mst_pcmcia_device)
 		return -ENOMEM;
 
-	mst_pcmcia_device->dev.platform_data = &mst_pcmcia_ops;
-
-	ret = platform_device_add(mst_pcmcia_device);
+	ret = platform_device_add_data(mst_pcmcia_device, &mst_pcmcia_ops,
+				       sizeof(mst_pcmcia_ops));
+	if (ret == 0)
+		ret = platform_device_add(mst_pcmcia_device);
 
 	if (ret)
 		platform_device_put(mst_pcmcia_device);

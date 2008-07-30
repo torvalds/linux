@@ -68,13 +68,6 @@ static char command_line[CL_SIZE];
 const unsigned long mips_io_port_base __read_mostly = -1;
 EXPORT_SYMBOL(mips_io_port_base);
 
-/*
- * isa_slot_offset is the address where E(ISA) busaddress 0 is mapped
- * for the processor.
- */
-unsigned long isa_slot_offset;
-EXPORT_SYMBOL(isa_slot_offset);
-
 static struct resource code_resource = { .name = "Kernel code", };
 static struct resource data_resource = { .name = "Kernel data", };
 
@@ -557,11 +550,7 @@ void __init setup_arch(char **cmdline_p)
 	prom_init();
 
 #ifdef CONFIG_EARLY_PRINTK
-	{
-		extern void setup_early_printk(void);
-
-		setup_early_printk();
-	}
+	setup_early_printk();
 #endif
 	cpu_report();
 	check_bugs_early();

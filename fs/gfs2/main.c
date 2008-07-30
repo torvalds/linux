@@ -24,7 +24,7 @@
 #include "util.h"
 #include "glock.h"
 
-static void gfs2_init_inode_once(struct kmem_cache *cachep, void *foo)
+static void gfs2_init_inode_once(void *foo)
 {
 	struct gfs2_inode *ip = foo;
 
@@ -33,15 +33,13 @@ static void gfs2_init_inode_once(struct kmem_cache *cachep, void *foo)
 	ip->i_alloc = NULL;
 }
 
-static void gfs2_init_glock_once(struct kmem_cache *cachep, void *foo)
+static void gfs2_init_glock_once(void *foo)
 {
 	struct gfs2_glock *gl = foo;
 
 	INIT_HLIST_NODE(&gl->gl_list);
 	spin_lock_init(&gl->gl_spin);
 	INIT_LIST_HEAD(&gl->gl_holders);
-	INIT_LIST_HEAD(&gl->gl_waiters1);
-	INIT_LIST_HEAD(&gl->gl_waiters3);
 	gl->gl_lvb = NULL;
 	atomic_set(&gl->gl_lvb_count, 0);
 	INIT_LIST_HEAD(&gl->gl_reclaim);

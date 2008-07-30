@@ -36,7 +36,7 @@
  *	in any case.
  */
 
-int verify_iovec(struct msghdr *m, struct iovec *iov, char *address, int mode)
+int verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr *address, int mode)
 {
 	int size, err, ct;
 

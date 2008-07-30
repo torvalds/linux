@@ -1,5 +1,5 @@
-#ifndef _ASM_ARCH_HOOKS_H
-#define _ASM_ARCH_HOOKS_H
+#ifndef ASM_X86__ARCH_HOOKS_H
+#define ASM_X86__ARCH_HOOKS_H
 
 #include <linux/interrupt.h>
 
@@ -21,7 +21,8 @@ extern void intr_init_hook(void);
 extern void pre_intr_init_hook(void);
 extern void pre_setup_arch_hook(void);
 extern void trap_init_hook(void);
+extern void pre_time_init_hook(void);
 extern void time_init_hook(void);
 extern void mca_nmi_hook(void);
 
-#endif
+#endif /* ASM_X86__ARCH_HOOKS_H */

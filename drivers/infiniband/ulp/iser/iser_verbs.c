@@ -29,8 +29,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: iser_verbs.c 7051 2006-05-10 12:29:11Z ogerlitz $
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -325,7 +323,18 @@ static void iser_conn_release(struct iser_conn *ib_conn)
 		iser_device_try_release(device);
 	if (ib_conn->iser_conn)
 		ib_conn->iser_conn->ib_conn = NULL;
-	kfree(ib_conn);
+	iscsi_destroy_endpoint(ib_conn->ep);
+}
+
+void iser_conn_get(struct iser_conn *ib_conn)
+{
+	atomic_inc(&ib_conn->refcount);
+}
+
+void iser_conn_put(struct iser_conn *ib_conn)
+{
+	if (atomic_dec_and_test(&ib_conn->refcount))
+		iser_conn_release(ib_conn);
 }
 
 /**
@@ -349,7 +358,7 @@ void iser_conn_terminate(struct iser_conn *ib_conn)
 	wait_event_interruptible(ib_conn->wait,
 				 ib_conn->state == ISER_CONN_DOWN);
 
-	iser_conn_release(ib_conn);
+	iser_conn_put(ib_conn);
 }
 
 static void iser_connect_error(struct rdma_cm_id *cma_id)
@@ -474,6 +483,7 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED:
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
+	case RDMA_CM_EVENT_ADDR_CHANGE:
 		iser_disconnected_handler(cma_id);
 		break;
 	default:
@@ -483,24 +493,15 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 	return ret;
 }
 
-int iser_conn_init(struct iser_conn **ibconn)
+void iser_conn_init(struct iser_conn *ib_conn)
 {
-	struct iser_conn *ib_conn;
-
-	ib_conn = kzalloc(sizeof *ib_conn, GFP_KERNEL);
-	if (!ib_conn) {
-		iser_err("can't alloc memory for struct iser_conn\n");
-		return -ENOMEM;
-	}
 	ib_conn->state = ISER_CONN_INIT;
 	init_waitqueue_head(&ib_conn->wait);
 	atomic_set(&ib_conn->post_recv_buf_count, 0);
 	atomic_set(&ib_conn->post_send_buf_count, 0);
+	atomic_set(&ib_conn->refcount, 1);
 	INIT_LIST_HEAD(&ib_conn->conn_list);
 	spin_lock_init(&ib_conn->lock);
-
-	*ibconn = ib_conn;
-	return 0;
 }
 
  /**

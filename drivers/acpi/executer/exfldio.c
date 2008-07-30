@@ -153,14 +153,15 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 			/*
 			 * Slack mode only:  We will go ahead and allow access to this
 			 * field if it is within the region length rounded up to the next
-			 * access width boundary.
+			 * access width boundary. acpi_size cast for 64-bit compile.
 			 */
 			if (ACPI_ROUND_UP(rgn_desc->region.length,
 					  obj_desc->common_field.
 					  access_byte_width) >=
-			    (obj_desc->common_field.base_byte_offset +
-			     (acpi_native_uint) obj_desc->common_field.
-			     access_byte_width + field_datum_byte_offset)) {
+			    ((acpi_size) obj_desc->common_field.
+			     base_byte_offset +
+			     obj_desc->common_field.access_byte_width +
+			     field_datum_byte_offset)) {
 				return_ACPI_STATUS(AE_OK);
 			}
 		}

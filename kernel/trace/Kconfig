@@ -1,0 +1,135 @@
+#
+# Architectures that offer an FTRACE implementation should select HAVE_FTRACE:
+#
+config HAVE_FTRACE
+	bool
+
+config HAVE_DYNAMIC_FTRACE
+	bool
+
+config TRACER_MAX_TRACE
+	bool
+
+config TRACING
+	bool
+	select DEBUG_FS
+	select STACKTRACE
+
+config FTRACE
+	bool "Kernel Function Tracer"
+	depends on HAVE_FTRACE
+	select FRAME_POINTER
+	select TRACING
+	select CONTEXT_SWITCH_TRACER
+	help
+	  Enable the kernel to trace every kernel function. This is done
+	  by using a compiler feature to insert a small, 5-byte No-Operation
+	  instruction to the beginning of every kernel function, which NOP
+	  sequence is then dynamically patched into a tracer call when
+	  tracing is enabled by the administrator. If it's runtime disabled
+	  (the bootup default), then the overhead of the instructions is very
+	  small and not measurable even in micro-benchmarks.
+
+config IRQSOFF_TRACER
+	bool "Interrupts-off Latency Tracer"
+	default n
+	depends on TRACE_IRQFLAGS_SUPPORT
+	depends on GENERIC_TIME
+	depends on HAVE_FTRACE
+	select TRACE_IRQFLAGS
+	select TRACING
+	select TRACER_MAX_TRACE
+	help
+	  This option measures the time spent in irqs-off critical
+	  sections, with microsecond accuracy.
+
+	  The default measurement method is a maximum search, which is
+	  disabled by default and can be runtime (re-)started
+	  via:
+
+	      echo 0 > /debugfs/tracing/tracing_max_latency
+
+	  (Note that kernel size and overhead increases with this option
+	  enabled. This option and the preempt-off timing option can be
+	  used together or separately.)
+
+config PREEMPT_TRACER
+	bool "Preemption-off Latency Tracer"
+	default n
+	depends on GENERIC_TIME
+	depends on PREEMPT
+	depends on HAVE_FTRACE
+	select TRACING
+	select TRACER_MAX_TRACE
+	help
+	  This option measures the time spent in preemption off critical
+	  sections, with microsecond accuracy.
+
+	  The default measurement method is a maximum search, which is
+	  disabled by default and can be runtime (re-)started
+	  via:
+
+	      echo 0 > /debugfs/tracing/tracing_max_latency
+
+	  (Note that kernel size and overhead increases with this option
+	  enabled. This option and the irqs-off timing option can be
+	  used together or separately.)
+
+config SYSPROF_TRACER
+	bool "Sysprof Tracer"
+	depends on X86
+	select TRACING
+	help
+	  This tracer provides the trace needed by the 'Sysprof' userspace
+	  tool.
+
+config SCHED_TRACER
+	bool "Scheduling Latency Tracer"
+	depends on HAVE_FTRACE
+	select TRACING
+	select CONTEXT_SWITCH_TRACER
+	select TRACER_MAX_TRACE
+	help
+	  This tracer tracks the latency of the highest priority task
+	  to be scheduled in, starting from the point it has woken up.
+
+config CONTEXT_SWITCH_TRACER
+	bool "Trace process context switches"
+	depends on HAVE_FTRACE
+	select TRACING
+	select MARKERS
+	help
+	  This tracer gets called from the context switch and records
+	  all switching of tasks.
+
+config DYNAMIC_FTRACE
+	bool "enable/disable ftrace tracepoints dynamically"
+	depends on FTRACE
+	depends on HAVE_DYNAMIC_FTRACE
+	default y
+	help
+         This option will modify all the calls to ftrace dynamically
+	 (will patch them out of the binary image and replaces them
+	 with a No-Op instruction) as they are called. A table is
+	 created to dynamically enable them again.
+
+	 This way a CONFIG_FTRACE kernel is slightly larger, but otherwise
+	 has native performance as long as no tracing is active.
+
+	 The changes to the code are done by a kernel thread that
+	 wakes up once a second and checks to see if any ftrace calls
+	 were made. If so, it runs stop_machine (stops all CPUS)
+	 and modifies the code to jump over the call to ftrace.
+
+config FTRACE_SELFTEST
+	bool
+
+config FTRACE_STARTUP_TEST
+	bool "Perform a startup test on ftrace"
+	depends on TRACING
+	select FTRACE_SELFTEST
+	help
+	  This option performs a series of startup tests on ftrace. On bootup
+	  a series of tests are made to verify that the tracer is
+	  functioning properly. It will do tests on all the configured
+	  tracers of ftrace.

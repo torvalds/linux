@@ -113,37 +113,10 @@ mcore-y  := arch/x86/mach-default/
 mflags-$(CONFIG_X86_VOYAGER)	:= -Iinclude/asm-x86/mach-voyager
 mcore-$(CONFIG_X86_VOYAGER)	:= arch/x86/mach-voyager/
 
-# VISWS subarch support
-mflags-$(CONFIG_X86_VISWS)	:= -Iinclude/asm-x86/mach-visws
-mcore-$(CONFIG_X86_VISWS)	:= arch/x86/mach-visws/
-
-# NUMAQ subarch support
-mflags-$(CONFIG_X86_NUMAQ)	:= -Iinclude/asm-x86/mach-numaq
-mcore-$(CONFIG_X86_NUMAQ)	:= arch/x86/mach-default/
-
-# BIGSMP subarch support
-mflags-$(CONFIG_X86_BIGSMP)	:= -Iinclude/asm-x86/mach-bigsmp
-mcore-$(CONFIG_X86_BIGSMP)	:= arch/x86/mach-default/
-
-#Summit subarch support
-mflags-$(CONFIG_X86_SUMMIT)	:= -Iinclude/asm-x86/mach-summit
-mcore-$(CONFIG_X86_SUMMIT)	:= arch/x86/mach-default/
-
 # generic subarchitecture
 mflags-$(CONFIG_X86_GENERICARCH):= -Iinclude/asm-x86/mach-generic
 fcore-$(CONFIG_X86_GENERICARCH)	+= arch/x86/mach-generic/
 mcore-$(CONFIG_X86_GENERICARCH)	:= arch/x86/mach-default/
-
-
-# ES7000 subarch support
-mflags-$(CONFIG_X86_ES7000)	:= -Iinclude/asm-x86/mach-es7000
-fcore-$(CONFIG_X86_ES7000)	:= arch/x86/mach-es7000/
-mcore-$(CONFIG_X86_ES7000)	:= arch/x86/mach-default/
-
-# RDC R-321x subarch support
-mflags-$(CONFIG_X86_RDC321X)	:= -Iinclude/asm-x86/mach-rdc321x
-mcore-$(CONFIG_X86_RDC321X)	:= arch/x86/mach-default/
-core-$(CONFIG_X86_RDC321X)	+= arch/x86/mach-rdc321x/
 
 # default subarch .h files
 mflags-y += -Iinclude/asm-x86/mach-default
@@ -160,6 +133,7 @@ KBUILD_AFLAGS += $(mflags-y)
 
 head-y := arch/x86/kernel/head_$(BITS).o
 head-y += arch/x86/kernel/head$(BITS).o
+head-y += arch/x86/kernel/head.o
 head-y += arch/x86/kernel/init_task.o
 
 libs-y  += arch/x86/lib/
@@ -210,12 +184,12 @@ all: bzImage
 
 # KBUILD_IMAGE specify target image being built
                     KBUILD_IMAGE := $(boot)/bzImage
-zImage zlilo zdisk: KBUILD_IMAGE := arch/x86/boot/zImage
+zImage zlilo zdisk: KBUILD_IMAGE := $(boot)/zImage
 
 zImage bzImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(KBUILD_IMAGE)
 	$(Q)mkdir -p $(objtree)/arch/$(UTS_MACHINE)/boot
-	$(Q)ln -fsn ../../x86/boot/bzImage $(objtree)/arch/$(UTS_MACHINE)/boot/bzImage
+	$(Q)ln -fsn ../../x86/boot/bzImage $(objtree)/arch/$(UTS_MACHINE)/boot/$@
 
 compressed: zImage
 

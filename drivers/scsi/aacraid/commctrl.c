@@ -41,6 +41,7 @@
 #include <linux/kthread.h>
 #include <linux/semaphore.h>
 #include <asm/uaccess.h>
+#include <scsi/scsi_host.h>
 
 #include "aacraid.h"
 
@@ -581,6 +582,14 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			for (i = 0; i < upsg->count; i++) {
 				u64 addr;
 				void* p;
+				if (upsg->sg[i].count >
+				    (dev->adapter_info.options &
+				     AAC_OPT_NEW_COMM) ?
+				      (dev->scsi_host_ptr->max_sectors << 9) :
+				      65536) {
+					rcode = -EINVAL;
+					goto cleanup;
+				}
 				/* Does this really need to be GFP_DMA? */
 				p = kmalloc(upsg->sg[i].count,GFP_KERNEL|__GFP_DMA);
 				if(!p) {
@@ -625,6 +634,14 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			for (i = 0; i < usg->count; i++) {
 				u64 addr;
 				void* p;
+				if (usg->sg[i].count >
+				    (dev->adapter_info.options &
+				     AAC_OPT_NEW_COMM) ?
+				      (dev->scsi_host_ptr->max_sectors << 9) :
+				      65536) {
+					rcode = -EINVAL;
+					goto cleanup;
+				}
 				/* Does this really need to be GFP_DMA? */
 				p = kmalloc(usg->sg[i].count,GFP_KERNEL|__GFP_DMA);
 				if(!p) {
@@ -667,6 +684,14 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			for (i = 0; i < upsg->count; i++) {
 				uintptr_t addr;
 				void* p;
+				if (usg->sg[i].count >
+				    (dev->adapter_info.options &
+				     AAC_OPT_NEW_COMM) ?
+				      (dev->scsi_host_ptr->max_sectors << 9) :
+				      65536) {
+					rcode = -EINVAL;
+					goto cleanup;
+				}
 				/* Does this really need to be GFP_DMA? */
 				p = kmalloc(usg->sg[i].count,GFP_KERNEL|__GFP_DMA);
 				if(!p) {
@@ -698,6 +723,14 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			for (i = 0; i < upsg->count; i++) {
 				dma_addr_t addr;
 				void* p;
+				if (upsg->sg[i].count >
+				    (dev->adapter_info.options &
+				     AAC_OPT_NEW_COMM) ?
+				      (dev->scsi_host_ptr->max_sectors << 9) :
+				      65536) {
+					rcode = -EINVAL;
+					goto cleanup;
+				}
 				p = kmalloc(upsg->sg[i].count, GFP_KERNEL);
 				if (!p) {
 					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",

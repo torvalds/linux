@@ -197,8 +197,8 @@ unsigned long long xen_sched_clock(void)
 }
 
 
-/* Get the CPU speed from Xen */
-unsigned long xen_cpu_khz(void)
+/* Get the TSC speed from Xen */
+unsigned long xen_tsc_khz(void)
 {
 	u64 xen_khz = 1000000ULL << 32;
 	const struct pvclock_vcpu_time_info *info =
@@ -457,6 +457,19 @@ void xen_setup_cpu_clockevents(void)
 	BUG_ON(preemptible());
 
 	clockevents_register_device(&__get_cpu_var(xen_clock_events));
+}
+
+void xen_timer_resume(void)
+{
+	int cpu;
+
+	if (xen_clockevent != &xen_vcpuop_clockevent)
+		return;
+
+	for_each_online_cpu(cpu) {
+		if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
+			BUG();
+	}
 }
 
 __init void xen_time_init(void)

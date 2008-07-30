@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/version.h>
+#include <linux/mm.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -475,3 +476,4 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	wake_up(&buf->wait);
 	return nextbuf;
 }
+

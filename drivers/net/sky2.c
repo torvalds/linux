@@ -51,7 +51,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.21"
+#define DRV_VERSION		"1.22"
 #define PFX			DRV_NAME " "
 
 /*
@@ -98,7 +98,7 @@ static int disable_msi = 0;
 module_param(disable_msi, int, 0);
 MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
 
-static const struct pci_device_id sky2_id_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(sky2_id_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9000) }, /* SK-9Sxx */
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9E00) }, /* SK-9Exx */
 	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x4b00) },	/* DGE-560T */
@@ -137,6 +137,7 @@ static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436C) }, /* 88E8072 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436D) }, /* 88E8055 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4370) }, /* 88E8075 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4380) }, /* 88E8057 */
 	{ 0 }
 };
 
@@ -146,17 +147,6 @@ MODULE_DEVICE_TABLE(pci, sky2_id_table);
 static const unsigned txqaddr[] = { Q_XA1, Q_XA2 };
 static const unsigned rxqaddr[] = { Q_R1, Q_R2 };
 static const u32 portirq_msk[] = { Y2_IS_PORT_1, Y2_IS_PORT_2 };
-
-/* This driver supports yukon2 chipset only */
-static const char *yukon2_name[] = {
-	"XL",		/* 0xb3 */
-	"EC Ultra", 	/* 0xb4 */
-	"Extreme",	/* 0xb5 */
-	"EC",		/* 0xb6 */
-	"FE",		/* 0xb7 */
-	"FE+",		/* 0xb8 */
-	"Supreme",	/* 0xb9 */
-};
 
 static void sky2_set_multicast(struct net_device *dev);
 
@@ -283,6 +273,86 @@ static void sky2_power_aux(struct sky2_hw *hw)
 		sky2_write8(hw, B0_POWER_CTRL,
 			    (PC_VAUX_ENA | PC_VCC_ENA |
 			     PC_VAUX_ON | PC_VCC_OFF));
+}
+
+static void sky2_power_state(struct sky2_hw *hw, pci_power_t state)
+{
+	u16 power_control = sky2_pci_read16(hw, hw->pm_cap + PCI_PM_CTRL);
+	int pex = pci_find_capability(hw->pdev, PCI_CAP_ID_EXP);
+	u32 reg;
+
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
+
+	switch (state) {
+	case PCI_D0:
+		break;
+
+	case PCI_D1:
+		power_control |= 1;
+		break;
+
+	case PCI_D2:
+		power_control |= 2;
+		break;
+
+	case PCI_D3hot:
+	case PCI_D3cold:
+		power_control |= 3;
+		if (hw->flags & SKY2_HW_ADV_POWER_CTL) {
+			/* additional power saving measurements */
+			reg = sky2_pci_read32(hw, PCI_DEV_REG4);
+
+			/* set gating core clock for LTSSM in L1 state */
+			reg |= P_PEX_LTSSM_STAT(P_PEX_LTSSM_L1_STAT) |
+				/* auto clock gated scheme controlled by CLKREQ */
+				P_ASPM_A1_MODE_SELECT |
+				/* enable Gate Root Core Clock */
+				P_CLK_GATE_ROOT_COR_ENA;
+
+			if (pex && (hw->flags & SKY2_HW_CLK_POWER)) {
+				/* enable Clock Power Management (CLKREQ) */
+				u16 ctrl = sky2_pci_read16(hw, pex + PCI_EXP_DEVCTL);
+
+				ctrl |= PCI_EXP_DEVCTL_AUX_PME;
+				sky2_pci_write16(hw, pex + PCI_EXP_DEVCTL, ctrl);
+			} else
+				/* force CLKREQ Enable in Our4 (A1b only) */
+				reg |= P_ASPM_FORCE_CLKREQ_ENA;
+
+			/* set Mask Register for Release/Gate Clock */
+			sky2_pci_write32(hw, PCI_DEV_REG5,
+					 P_REL_PCIE_EXIT_L1_ST | P_GAT_PCIE_ENTER_L1_ST |
+					 P_REL_PCIE_RX_EX_IDLE | P_GAT_PCIE_RX_EL_IDLE |
+					 P_REL_GPHY_LINK_UP | P_GAT_GPHY_LINK_DOWN);
+		} else
+			sky2_write8(hw, B28_Y2_ASF_STAT_CMD, Y2_ASF_CLK_HALT);
+
+		/* put CPU into reset state */
+		sky2_write8(hw,  B28_Y2_ASF_STAT_CMD, HCU_CCSR_ASF_RESET);
+		if (hw->chip_id == CHIP_ID_YUKON_SUPR && hw->chip_rev == CHIP_REV_YU_SU_A0)
+			/* put CPU into halt state */
+			sky2_write8(hw, B28_Y2_ASF_STAT_CMD, HCU_CCSR_ASF_HALTED);
+
+		if (pex && !(hw->flags & SKY2_HW_RAM_BUFFER)) {
+			reg = sky2_pci_read32(hw, PCI_DEV_REG1);
+			/* force to PCIe L1 */
+			reg |= PCI_FORCE_PEX_L1;
+			sky2_pci_write32(hw, PCI_DEV_REG1, reg);
+		}
+		break;
+
+	default:
+		dev_warn(&hw->pdev->dev, PFX "Invalid power state (%d) ",
+		       state);
+		return;
+	}
+
+	power_control |= PCI_PM_CTRL_PME_ENABLE;
+	/* Finally, set the new power state. */
+	sky2_pci_write32(hw, hw->pm_cap + PCI_PM_CTRL, power_control);
+
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
+	sky2_pci_read32(hw, B0_CTST);
 }
 
 static void sky2_gmac_reset(struct sky2_hw *hw, unsigned port)
@@ -579,8 +649,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		ledover |= PHY_M_LED_MO_RX(MO_LED_OFF);
 	}
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
-	    hw->chip_rev == CHIP_REV_YU_EC_U_A1) {
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_UL_2) {
 		/* apply fixes in PHY AFE */
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 255);
 
@@ -588,9 +657,11 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		gm_phy_write(hw, port, 0x18, 0xaa99);
 		gm_phy_write(hw, port, 0x17, 0x2011);
 
-		/* fix for IEEE A/B Symmetry failure in 1000BASE-T */
-		gm_phy_write(hw, port, 0x18, 0xa204);
-		gm_phy_write(hw, port, 0x17, 0x2002);
+		if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+			/* fix for IEEE A/B Symmetry failure in 1000BASE-T */
+			gm_phy_write(hw, port, 0x18, 0xa204);
+			gm_phy_write(hw, port, 0x17, 0x2002);
+		}
 
 		/* set page register to 0 */
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 0);
@@ -599,7 +670,8 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		/* apply workaround for integrated resistors calibration */
 		gm_phy_write(hw, port, PHY_MARV_PAGE_ADDR, 17);
 		gm_phy_write(hw, port, PHY_MARV_PAGE_DATA, 0x3f60);
-	} else if (hw->chip_id != CHIP_ID_YUKON_EX) {
+	} else if (hw->chip_id != CHIP_ID_YUKON_EX &&
+		   hw->chip_id < CHIP_ID_YUKON_SUPR) {
 		/* no effect on Yukon-XL */
 		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
 
@@ -620,28 +692,71 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_DEF_MSK);
 }
 
-static void sky2_phy_power(struct sky2_hw *hw, unsigned port, int onoff)
+static const u32 phy_power[] = { PCI_Y2_PHY1_POWD, PCI_Y2_PHY2_POWD };
+static const u32 coma_mode[] = { PCI_Y2_PHY1_COMA, PCI_Y2_PHY2_COMA };
+
+static void sky2_phy_power_up(struct sky2_hw *hw, unsigned port)
 {
 	u32 reg1;
-	static const u32 phy_power[] = { PCI_Y2_PHY1_POWD, PCI_Y2_PHY2_POWD };
-	static const u32 coma_mode[] = { PCI_Y2_PHY1_COMA, PCI_Y2_PHY2_COMA };
 
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
-	/* Turn on/off phy power saving */
-	if (onoff)
-		reg1 &= ~phy_power[port];
-	else
-		reg1 |= phy_power[port];
+	reg1 &= ~phy_power[port];
 
-	if (onoff && hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
+	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
 		reg1 |= coma_mode[port];
 
 	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	sky2_pci_read32(hw, PCI_DEV_REG1);
+}
 
-	udelay(100);
+static void sky2_phy_power_down(struct sky2_hw *hw, unsigned port)
+{
+	u32 reg1;
+	u16 ctrl;
+
+	/* release GPHY Control reset */
+	sky2_write8(hw, SK_REG(port, GPHY_CTRL), GPC_RST_CLR);
+
+	/* release GMAC reset */
+	sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_RST_CLR);
+
+	if (hw->flags & SKY2_HW_NEWER_PHY) {
+		/* select page 2 to access MAC control register */
+		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 2);
+
+		ctrl = gm_phy_read(hw, port, PHY_MARV_PHY_CTRL);
+		/* allow GMII Power Down */
+		ctrl &= ~PHY_M_MAC_GMIF_PUP;
+		gm_phy_write(hw, port, PHY_MARV_PHY_CTRL, ctrl);
+
+		/* set page register back to 0 */
+		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 0);
+	}
+
+	/* setup General Purpose Control Register */
+	gma_write16(hw, port, GM_GP_CTRL,
+		    GM_GPCR_FL_PASS | GM_GPCR_SPEED_100 | GM_GPCR_AU_ALL_DIS);
+
+	if (hw->chip_id != CHIP_ID_YUKON_EC) {
+		if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+			ctrl = gm_phy_read(hw, port, PHY_MARV_PHY_CTRL);
+
+			/* enable Power Down */
+			ctrl |= PHY_M_PC_POW_D_ENA;
+			gm_phy_write(hw, port, PHY_MARV_PHY_CTRL, ctrl);
+		}
+
+		/* set IEEE compatible Power Down Mode (dev. #4.99) */
+		gm_phy_write(hw, port, PHY_MARV_CTRL, PHY_CT_PDOWN);
+	}
+
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
+	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
+	reg1 |= phy_power[port];		/* set PHY to PowerDown/COMA Mode */
+	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 }
 
 /* Force a renegotiation */
@@ -676,8 +791,11 @@ static void sky2_wol_init(struct sky2_port *sky2)
 
 	sky2->advertising &= ~(ADVERTISED_1000baseT_Half|ADVERTISED_1000baseT_Full);
 	sky2->flow_mode = FC_NONE;
-	sky2_phy_power(hw, port, 1);
-	sky2_phy_reinit(sky2);
+
+	spin_lock_bh(&sky2->phy_lock);
+	sky2_phy_power_up(hw, port);
+	sky2_phy_init(hw, port);
+	spin_unlock_bh(&sky2->phy_lock);
 
 	sky2->flow_mode = save_mode;
 	sky2->advertising = ctrl;
@@ -782,6 +900,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	sky2_write8(hw, SK_REG(port, GMAC_IRQ_MSK), GMAC_DEF_MSK);
 
 	spin_lock_bh(&sky2->phy_lock);
+	sky2_phy_power_up(hw, port);
 	sky2_phy_init(hw, port);
 	spin_unlock_bh(&sky2->phy_lock);
 
@@ -1386,8 +1505,6 @@ static int sky2_up(struct net_device *dev)
 	if (!sky2->rx_ring)
 		goto err_out;
 
-	sky2_phy_power(hw, port, 1);
-
 	sky2_mac_init(hw, port);
 
 	/* Register is number of 4K blocks on internal RAM buffer. */
@@ -1712,9 +1829,6 @@ static int sky2_down(struct net_device *dev)
 	if (netif_msg_ifdown(sky2))
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
 
-	/* Stop more packets from being queued */
-	netif_stop_queue(dev);
-
 	/* Disable port IRQ */
 	imask = sky2_read32(hw, B0_IMSK);
 	imask &= ~portirq_msk[port];
@@ -1768,9 +1882,7 @@ static int sky2_down(struct net_device *dev)
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_SET);
 
-	sky2_phy_power(hw, port, 0);
-
-	netif_carrier_off(dev);
+	sky2_phy_power_down(hw, port);
 
 	/* turn off LED's */
 	sky2_write16(hw, B0_Y2LED, LED_STAT_OFF);
@@ -2694,6 +2806,7 @@ static u32 sky2_mhz(const struct sky2_hw *hw)
 	case CHIP_ID_YUKON_EC_U:
 	case CHIP_ID_YUKON_EX:
 	case CHIP_ID_YUKON_SUPR:
+	case CHIP_ID_YUKON_UL_2:
 		return 125;
 
 	case CHIP_ID_YUKON_FE:
@@ -2742,6 +2855,10 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 		hw->flags = SKY2_HW_GIGABIT
 			| SKY2_HW_NEWER_PHY
 			| SKY2_HW_ADV_POWER_CTL;
+
+		/* check for Rev. A1 dev 4200 */
+		if (sky2_read16(hw, Q_ADDR(Q_XA1, Q_WM)) == 0)
+			hw->flags |= SKY2_HW_CLK_POWER;
 		break;
 
 	case CHIP_ID_YUKON_EX:
@@ -2782,6 +2899,11 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 			| SKY2_HW_ADV_POWER_CTL;
 		break;
 
+	case CHIP_ID_YUKON_UL_2:
+		hw->flags = SKY2_HW_GIGABIT
+			| SKY2_HW_ADV_POWER_CTL;
+		break;
+
 	default:
 		dev_err(&hw->pdev->dev, "unsupported chip type 0x%x\n",
 			hw->chip_id);
@@ -2792,6 +2914,11 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 	if (hw->pmd_type == 'L' || hw->pmd_type == 'S' || hw->pmd_type == 'P')
 		hw->flags |= SKY2_HW_FIBRE_PHY;
 
+	hw->pm_cap = pci_find_capability(hw->pdev, PCI_CAP_ID_PM);
+	if (hw->pm_cap == 0) {
+		dev_err(&hw->pdev->dev, "cannot find PowerManagement capability\n");
+		return -EIO;
+	}
 
 	hw->ports = 1;
 	t8 = sky2_read8(hw, B2_Y2_HW_RES);
@@ -3379,7 +3506,7 @@ static void sky2_led(struct sky2_port *sky2, enum led_mode mode)
 
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, pg);
 	} else
-		gm_phy_write(hw, port, PHY_MARV_LED_OVER, 
+		gm_phy_write(hw, port, PHY_MARV_LED_OVER,
 				     PHY_M_LED_MO_DUP(mode) |
 				     PHY_M_LED_MO_10(mode) |
 				     PHY_M_LED_MO_100(mode) |
@@ -4132,12 +4259,34 @@ static int __devinit pci_wake_enabled(struct pci_dev *dev)
 	return value & PCI_PM_CTRL_PME_ENABLE;
 }
 
+/* This driver supports yukon2 chipset only */
+static const char *sky2_name(u8 chipid, char *buf, int sz)
+{
+	const char *name[] = {
+		"XL",		/* 0xb3 */
+		"EC Ultra", 	/* 0xb4 */
+		"Extreme",	/* 0xb5 */
+		"EC",		/* 0xb6 */
+		"FE",		/* 0xb7 */
+		"FE+",		/* 0xb8 */
+		"Supreme",	/* 0xb9 */
+		"UL 2",		/* 0xba */
+	};
+
+	if (chipid >= CHIP_ID_YUKON_XL && chipid < CHIP_ID_YUKON_UL_2)
+		strncpy(buf, name[chipid - CHIP_ID_YUKON_XL], sz);
+	else
+		snprintf(buf, sz, "(chip %#x)", chipid);
+	return buf;
+}
+
 static int __devinit sky2_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct sky2_hw *hw;
 	int err, using_dac = 0, wol_default;
+	char buf1[16];
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -4208,10 +4357,10 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_out_iounmap;
 
-	dev_info(&pdev->dev, "v%s addr 0x%llx irq %d Yukon-%s (0x%x) rev %d\n",
-	       DRV_VERSION, (unsigned long long)pci_resource_start(pdev, 0),
-	       pdev->irq, yukon2_name[hw->chip_id - CHIP_ID_YUKON_XL],
-	       hw->chip_id, hw->chip_rev);
+	dev_info(&pdev->dev, "v%s addr 0x%llx irq %d Yukon-2 %s rev %d\n",
+		 DRV_VERSION, (unsigned long long)pci_resource_start(pdev, 0),
+		 pdev->irq, sky2_name(hw->chip_id, buf1, sizeof(buf1)),
+		 hw->chip_rev);
 
 	sky2_reset(hw);
 
@@ -4363,7 +4512,7 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	pci_save_state(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), wol);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	sky2_power_state(hw, pci_choose_state(pdev, state));
 
 	return 0;
 }
@@ -4376,9 +4525,7 @@ static int sky2_resume(struct pci_dev *pdev)
 	if (!hw)
 		return 0;
 
-	err = pci_set_power_state(pdev, PCI_D0);
-	if (err)
-		goto out;
+	sky2_power_state(hw, PCI_D0);
 
 	err = pci_restore_state(pdev);
 	if (err)
@@ -4448,8 +4595,7 @@ static void sky2_shutdown(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D3cold, wol);
 
 	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
+	sky2_power_state(hw, PCI_D3hot);
 }
 
 static struct pci_driver sky2_driver = {

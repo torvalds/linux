@@ -29,7 +29,7 @@
 
 #define STI_DRIVERVERSION "Version 0.9a"
 
-struct sti_struct *default_sti __read_mostly;
+static struct sti_struct *default_sti __read_mostly;
 
 /* number of STI ROMS found and their ptrs to each struct */
 static int num_sti_roms __read_mostly;
@@ -68,8 +68,7 @@ static const struct sti_init_flags default_init_flags = {
 	.init_cmap_tx = 1,
 };
 
-int
-sti_init_graph(struct sti_struct *sti) 
+static int sti_init_graph(struct sti_struct *sti)
 {
 	struct sti_init_inptr_ext inptr_ext = { 0, };
 	struct sti_init_inptr inptr = {
@@ -100,8 +99,7 @@ static const struct sti_conf_flags default_conf_flags = {
 	.wait	= STI_WAIT,
 };
 
-void
-sti_inq_conf(struct sti_struct *sti)
+static void sti_inq_conf(struct sti_struct *sti)
 {
 	struct sti_conf_inptr inptr = { 0, };
 	unsigned long flags;
@@ -237,8 +235,8 @@ static void sti_flush(unsigned long start, unsigned long end)
 	flush_icache_range(start, end);
 }
 
-void __devinit
-sti_rom_copy(unsigned long base, unsigned long count, void *dest)
+static void __devinit sti_rom_copy(unsigned long base, unsigned long count,
+				   void *dest)
 {
 	unsigned long dest_start = (unsigned long) dest;
 
@@ -478,8 +476,8 @@ sti_init_glob_cfg(struct sti_struct *sti,
 }
 
 #ifdef CONFIG_FB
-struct sti_cooked_font * __devinit
-sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
+static struct sti_cooked_font __devinit
+*sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
 {
 	const struct font_desc *fbfont;
 	unsigned int size, bpc;
@@ -534,16 +532,16 @@ sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
 	return cooked_font;
 }
 #else
-struct sti_cooked_font * __devinit
-sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
+static struct sti_cooked_font __devinit
+*sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
 {
 	return NULL;
 }
 #endif
 
-struct sti_cooked_font * __devinit
-sti_select_font(struct sti_cooked_rom *rom,
-	    int (*search_font_fnc) (struct sti_cooked_rom *,int,int) )
+static struct sti_cooked_font __devinit
+*sti_select_font(struct sti_cooked_rom *rom,
+		 int (*search_font_fnc)(struct sti_cooked_rom *, int, int))
 {
 	struct sti_cooked_font *font;
 	int i;
@@ -707,8 +705,7 @@ sti_get_bmode_rom (unsigned long address)
 	return raw;
 }
 
-struct sti_rom * __devinit
-sti_get_wmode_rom (unsigned long address)
+static struct sti_rom __devinit *sti_get_wmode_rom(unsigned long address)
 {
 	struct sti_rom *raw;
 	unsigned long size;
@@ -723,8 +720,8 @@ sti_get_wmode_rom (unsigned long address)
 	return raw;
 }
 
-int __devinit
-sti_read_rom(int wordmode, struct sti_struct *sti, unsigned long address)
+static int __devinit sti_read_rom(int wordmode, struct sti_struct *sti,
+				  unsigned long address)
 {
 	struct sti_cooked_rom *cooked;
 	struct sti_rom *raw = NULL;

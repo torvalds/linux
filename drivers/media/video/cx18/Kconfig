@@ -2,9 +2,7 @@ config VIDEO_CX18
 	tristate "Conexant cx23418 MPEG encoder support"
 	depends on VIDEO_V4L2 && DVB_CORE && PCI && I2C && EXPERIMENTAL
 	depends on INPUT	# due to VIDEO_IR
-	depends on HOTPLUG	# due to FW_LOADER
 	select I2C_ALGOBIT
-	select FW_LOADER
 	select VIDEO_IR
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM

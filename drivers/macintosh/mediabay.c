@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/ide.h>
 #include <linux/kthread.h>
+#include <linux/mutex.h>
 #include <asm/prom.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -77,7 +78,7 @@ struct media_bay_info {
 	int				index;
 	int				cached_gpio;
 	int				sleeping;
-	struct semaphore		lock;
+	struct mutex			lock;
 #ifdef CONFIG_BLK_DEV_IDE_PMAC
 	ide_hwif_t			*cd_port;
 	void __iomem			*cd_base;
@@ -459,27 +460,27 @@ int media_bay_set_ide_infos(struct device_node* which_bay, unsigned long base,
 		if (bay->mdev && which_bay == bay->mdev->ofdev.node) {
 			int timeout = 5000, index = hwif->index;
 			
-			down(&bay->lock);
+			mutex_lock(&bay->lock);
 
 			bay->cd_port	= hwif;
  			bay->cd_base	= (void __iomem *) base;
 			bay->cd_irq	= irq;
 
 			if ((MB_CD != bay->content_id) || bay->state != mb_up) {
-				up(&bay->lock);
+				mutex_unlock(&bay->lock);
 				return 0;
 			}
 			printk(KERN_DEBUG "Registered ide%d for media bay %d\n", index, i);
 			do {
 				if (MB_IDE_READY(i)) {
 					bay->cd_index	= index;
-					up(&bay->lock);
+					mutex_unlock(&bay->lock);
 					return 0;
 				}
 				mdelay(1);
 			} while(--timeout);
 			printk(KERN_DEBUG "Timeount waiting IDE in bay %d\n", i);
-			up(&bay->lock);
+			mutex_unlock(&bay->lock);
 			return -ENODEV;
 		}
 	}
@@ -617,10 +618,10 @@ static int media_bay_task(void *x)
 
 	while (!kthread_should_stop()) {
 		for (i = 0; i < media_bay_count; ++i) {
-			down(&media_bays[i].lock);
+			mutex_lock(&media_bays[i].lock);
 			if (!media_bays[i].sleeping)
 				media_bay_step(i);
-			up(&media_bays[i].lock);
+			mutex_unlock(&media_bays[i].lock);
 		}
 
 		msleep_interruptible(MB_POLL_DELAY);
@@ -660,7 +661,7 @@ static int __devinit media_bay_attach(struct macio_dev *mdev, const struct of_de
 	bay->index = i;
 	bay->ops = match->data;
 	bay->sleeping = 0;
-	init_MUTEX(&bay->lock);
+	mutex_init(&bay->lock);
 
 	/* Init HW probing */
 	if (bay->ops->init)
@@ -698,10 +699,10 @@ static int media_bay_suspend(struct macio_dev *mdev, pm_message_t state)
 
 	if (state.event != mdev->ofdev.dev.power.power_state.event
 	    && (state.event & PM_EVENT_SLEEP)) {
-		down(&bay->lock);
+		mutex_lock(&bay->lock);
 		bay->sleeping = 1;
 		set_mb_power(bay, 0);
-		up(&bay->lock);
+		mutex_unlock(&bay->lock);
 		msleep(MB_POLL_DELAY);
 		mdev->ofdev.dev.power.power_state = state;
 	}
@@ -720,12 +721,12 @@ static int media_bay_resume(struct macio_dev *mdev)
 	       	   they seem to help the 3400 get it right.
 	       	 */
 	       	/* Force MB power to 0 */
-		down(&bay->lock);
+		mutex_lock(&bay->lock);
 	       	set_mb_power(bay, 0);
 		msleep(MB_POWER_DELAY);
 	       	if (bay->ops->content(bay) != bay->content_id) {
 			printk("mediabay%d: content changed during sleep...\n", bay->index);
-			up(&bay->lock);
+			mutex_unlock(&bay->lock);
 	       		return 0;
 		}
 	       	set_mb_power(bay, 1);
@@ -741,7 +742,7 @@ static int media_bay_resume(struct macio_dev *mdev)
 	       	} while((bay->state != mb_empty) &&
 	       		(bay->state != mb_up));
 		bay->sleeping = 0;
-		up(&bay->lock);
+		mutex_unlock(&bay->lock);
 	}
 	return 0;
 }

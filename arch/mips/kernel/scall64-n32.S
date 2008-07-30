@@ -141,7 +141,7 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_readv
 	PTR	compat_sys_writev
 	PTR	sys_access			/* 6020 */
-	PTR	sys_pipe
+	PTR	sysm_pipe
 	PTR	compat_sys_select
 	PTR	sys_sched_yield
 	PTR	sys_mremap

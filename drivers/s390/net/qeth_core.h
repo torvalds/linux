@@ -239,11 +239,6 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 /*not used unless the microcode gets patched*/
 #define QETH_PCI_TIMER_VALUE(card) 3
 
-#define QETH_MIN_INPUT_THRESHOLD 1
-#define QETH_MAX_INPUT_THRESHOLD 500
-#define QETH_MIN_OUTPUT_THRESHOLD 1
-#define QETH_MAX_OUTPUT_THRESHOLD 300
-
 /* priority queing */
 #define QETH_PRIOQ_DEFAULT QETH_NO_PRIO_QUEUEING
 #define QETH_DEFAULT_QUEUE    2
@@ -811,17 +806,14 @@ int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,
 struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *,
 			enum qeth_ipa_cmds, enum qeth_prot_versions);
 int qeth_query_setadapterparms(struct qeth_card *);
-int qeth_check_qdio_errors(struct qdio_buffer *, unsigned int,
-		       unsigned int, const char *);
+int qeth_check_qdio_errors(struct qdio_buffer *, unsigned int, const char *);
 void qeth_queue_input_buffer(struct qeth_card *, int);
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
 		struct qdio_buffer *, struct qdio_buffer_element **, int *,
 		struct qeth_hdr **);
 void qeth_schedule_recovery(struct qeth_card *);
 void qeth_qdio_output_handler(struct ccw_device *, unsigned int,
-			unsigned int, unsigned int,
-			unsigned int, int, int,
-			unsigned long);
+			int, int, int, unsigned long);
 void qeth_clear_ipacmd_list(struct qeth_card *);
 int qeth_qdio_clear_card(struct qeth_card *, int);
 void qeth_clear_working_pool_list(struct qeth_card *);

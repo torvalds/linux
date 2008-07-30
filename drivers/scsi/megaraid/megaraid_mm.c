@@ -15,6 +15,7 @@
  * Common management module
  */
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include "megaraid_mm.h"
 
 
@@ -96,6 +97,7 @@ mraid_mm_open(struct inode *inode, struct file *filep)
 	 */
 	if (!capable(CAP_SYS_ADMIN)) return (-EACCES);
 
+	cycle_kernel_lock();
 	return 0;
 }
 
@@ -927,7 +929,7 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 			!adapter->pthru_dma_pool) {
 
 		con_log(CL_ANN, (KERN_WARNING
-			"megaraid cmm: out of memory, %s %d\n", __FUNCTION__,
+			"megaraid cmm: out of memory, %s %d\n", __func__,
 			__LINE__));
 
 		rval = (-ENOMEM);
@@ -955,7 +957,7 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 
 			con_log(CL_ANN, (KERN_WARNING
 				"megaraid cmm: out of memory, %s %d\n",
-					__FUNCTION__, __LINE__));
+					__func__, __LINE__));
 
 			rval = (-ENOMEM);
 

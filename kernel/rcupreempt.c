@@ -46,11 +46,11 @@
 #include <asm/atomic.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
+#include <linux/kthread.h>
 #include <linux/completion.h>
 #include <linux/moduleparam.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
-#include <linux/rcupdate.h>
 #include <linux/cpu.h>
 #include <linux/random.h>
 #include <linux/delay.h>
@@ -82,14 +82,18 @@ struct rcu_data {
 	spinlock_t	lock;		/* Protect rcu_data fields. */
 	long		completed;	/* Number of last completed batch. */
 	int		waitlistcount;
-	struct tasklet_struct rcu_tasklet;
 	struct rcu_head *nextlist;
 	struct rcu_head **nexttail;
 	struct rcu_head *waitlist[GP_STAGES];
 	struct rcu_head **waittail[GP_STAGES];
-	struct rcu_head *donelist;
+	struct rcu_head *donelist;	/* from waitlist & waitschedlist */
 	struct rcu_head **donetail;
 	long rcu_flipctr[2];
+	struct rcu_head *nextschedlist;
+	struct rcu_head **nextschedtail;
+	struct rcu_head *waitschedlist;
+	struct rcu_head **waitschedtail;
+	int rcu_sched_sleeping;
 #ifdef CONFIG_RCU_TRACE
 	struct rcupreempt_trace trace;
 #endif /* #ifdef CONFIG_RCU_TRACE */
@@ -131,11 +135,24 @@ enum rcu_try_flip_states {
 	rcu_try_flip_waitmb_state,
 };
 
+/*
+ * States for rcu_ctrlblk.rcu_sched_sleep.
+ */
+
+enum rcu_sched_sleep_states {
+	rcu_sched_not_sleeping,	/* Not sleeping, callbacks need GP.  */
+	rcu_sched_sleep_prep,	/* Thinking of sleeping, rechecking. */
+	rcu_sched_sleeping,	/* Sleeping, awaken if GP needed. */
+};
+
 struct rcu_ctrlblk {
 	spinlock_t	fliplock;	/* Protect state-machine transitions. */
 	long		completed;	/* Number of last completed batch. */
 	enum rcu_try_flip_states rcu_try_flip_state; /* The current state of
 							the rcu state machine */
+	spinlock_t	schedlock;	/* Protect rcu_sched sleep state. */
+	enum rcu_sched_sleep_states sched_sleep; /* rcu_sched state. */
+	wait_queue_head_t sched_wq;	/* Place for rcu_sched to sleep. */
 };
 
 static DEFINE_PER_CPU(struct rcu_data, rcu_data);
@@ -143,8 +160,12 @@ static struct rcu_ctrlblk rcu_ctrlblk = {
 	.fliplock = __SPIN_LOCK_UNLOCKED(rcu_ctrlblk.fliplock),
 	.completed = 0,
 	.rcu_try_flip_state = rcu_try_flip_idle_state,
+	.schedlock = __SPIN_LOCK_UNLOCKED(rcu_ctrlblk.schedlock),
+	.sched_sleep = rcu_sched_not_sleeping,
+	.sched_wq = __WAIT_QUEUE_HEAD_INITIALIZER(rcu_ctrlblk.sched_wq),
 };
 
+static struct task_struct *rcu_sched_grace_period_task;
 
 #ifdef CONFIG_RCU_TRACE
 static char *rcu_try_flip_state_names[] =
@@ -206,6 +227,8 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(enum rcu_mb_flag_values, rcu_mb_flag)
  * to by a local variable.
  */
 #define RCU_TRACE_RDP(f, rdp) RCU_TRACE(f, &((rdp)->trace));
+
+#define RCU_SCHED_BATCH_TIME (HZ / 50)
 
 /*
  * Return the number of RCU batches processed thus far.  Useful
@@ -411,32 +434,34 @@ static void __rcu_advance_callbacks(struct rcu_data *rdp)
 	}
 }
 
-#ifdef CONFIG_NO_HZ
+DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_dyntick_sched, rcu_dyntick_sched) = {
+	.dynticks = 1,
+};
 
-DEFINE_PER_CPU(long, dynticks_progress_counter) = 1;
-static DEFINE_PER_CPU(long, rcu_dyntick_snapshot);
+#ifdef CONFIG_NO_HZ
 static DEFINE_PER_CPU(int, rcu_update_flag);
 
 /**
  * rcu_irq_enter - Called from Hard irq handlers and NMI/SMI.
  *
  * If the CPU was idle with dynamic ticks active, this updates the
- * dynticks_progress_counter to let the RCU handling know that the
+ * rcu_dyntick_sched.dynticks to let the RCU handling know that the
  * CPU is active.
  */
 void rcu_irq_enter(void)
 {
 	int cpu = smp_processor_id();
+	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
 
 	if (per_cpu(rcu_update_flag, cpu))
 		per_cpu(rcu_update_flag, cpu)++;
 
 	/*
 	 * Only update if we are coming from a stopped ticks mode
-	 * (dynticks_progress_counter is even).
+	 * (rcu_dyntick_sched.dynticks is even).
 	 */
 	if (!in_interrupt() &&
-	    (per_cpu(dynticks_progress_counter, cpu) & 0x1) == 0) {
+	    (rdssp->dynticks & 0x1) == 0) {
 		/*
 		 * The following might seem like we could have a race
 		 * with NMI/SMIs. But this really isn't a problem.
@@ -459,12 +484,12 @@ void rcu_irq_enter(void)
 		 * RCU read-side critical sections on this CPU would
 		 * have already completed.
 		 */
-		per_cpu(dynticks_progress_counter, cpu)++;
+		rdssp->dynticks++;
 		/*
 		 * The following memory barrier ensures that any
 		 * rcu_read_lock() primitives in the irq handler
 		 * are seen by other CPUs to follow the above
-		 * increment to dynticks_progress_counter. This is
+		 * increment to rcu_dyntick_sched.dynticks. This is
 		 * required in order for other CPUs to correctly
 		 * determine when it is safe to advance the RCU
 		 * grace-period state machine.
@@ -472,7 +497,7 @@ void rcu_irq_enter(void)
 		smp_mb(); /* see above block comment. */
 		/*
 		 * Since we can't determine the dynamic tick mode from
-		 * the dynticks_progress_counter after this routine,
+		 * the rcu_dyntick_sched.dynticks after this routine,
 		 * we use a second flag to acknowledge that we came
 		 * from an idle state with ticks stopped.
 		 */
@@ -480,7 +505,7 @@ void rcu_irq_enter(void)
 		/*
 		 * If we take an NMI/SMI now, they will also increment
 		 * the rcu_update_flag, and will not update the
-		 * dynticks_progress_counter on exit. That is for
+		 * rcu_dyntick_sched.dynticks on exit. That is for
 		 * this IRQ to do.
 		 */
 	}
@@ -490,12 +515,13 @@ void rcu_irq_enter(void)
  * rcu_irq_exit - Called from exiting Hard irq context.
  *
  * If the CPU was idle with dynamic ticks active, update the
- * dynticks_progress_counter to put let the RCU handling be
+ * rcu_dyntick_sched.dynticks to put let the RCU handling be
  * aware that the CPU is going back to idle with no ticks.
  */
 void rcu_irq_exit(void)
 {
 	int cpu = smp_processor_id();
+	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
 
 	/*
 	 * rcu_update_flag is set if we interrupted the CPU
@@ -503,7 +529,7 @@ void rcu_irq_exit(void)
 	 * Once this occurs, we keep track of interrupt nesting
 	 * because a NMI/SMI could also come in, and we still
 	 * only want the IRQ that started the increment of the
-	 * dynticks_progress_counter to be the one that modifies
+	 * rcu_dyntick_sched.dynticks to be the one that modifies
 	 * it on exit.
 	 */
 	if (per_cpu(rcu_update_flag, cpu)) {
@@ -515,28 +541,29 @@ void rcu_irq_exit(void)
 
 		/*
 		 * If an NMI/SMI happens now we are still
-		 * protected by the dynticks_progress_counter being odd.
+		 * protected by the rcu_dyntick_sched.dynticks being odd.
 		 */
 
 		/*
 		 * The following memory barrier ensures that any
 		 * rcu_read_unlock() primitives in the irq handler
 		 * are seen by other CPUs to preceed the following
-		 * increment to dynticks_progress_counter. This
+		 * increment to rcu_dyntick_sched.dynticks. This
 		 * is required in order for other CPUs to determine
 		 * when it is safe to advance the RCU grace-period
 		 * state machine.
 		 */
 		smp_mb(); /* see above block comment. */
-		per_cpu(dynticks_progress_counter, cpu)++;
-		WARN_ON(per_cpu(dynticks_progress_counter, cpu) & 0x1);
+		rdssp->dynticks++;
+		WARN_ON(rdssp->dynticks & 0x1);
 	}
 }
 
 static void dyntick_save_progress_counter(int cpu)
 {
-	per_cpu(rcu_dyntick_snapshot, cpu) =
-		per_cpu(dynticks_progress_counter, cpu);
+	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
+
+	rdssp->dynticks_snap = rdssp->dynticks;
 }
 
 static inline int
@@ -544,9 +571,10 @@ rcu_try_flip_waitack_needed(int cpu)
 {
 	long curr;
 	long snap;
+	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
 
-	curr = per_cpu(dynticks_progress_counter, cpu);
-	snap = per_cpu(rcu_dyntick_snapshot, cpu);
+	curr = rdssp->dynticks;
+	snap = rdssp->dynticks_snap;
 	smp_mb(); /* force ordering with cpu entering/leaving dynticks. */
 
 	/*
@@ -567,7 +595,7 @@ rcu_try_flip_waitack_needed(int cpu)
 	 * that this CPU already acknowledged the counter.
 	 */
 
-	if ((curr - snap) > 2 || (snap & 0x1) == 0)
+	if ((curr - snap) > 2 || (curr & 0x1) == 0)
 		return 0;
 
 	/* We need this CPU to explicitly acknowledge the counter flip. */
@@ -580,9 +608,10 @@ rcu_try_flip_waitmb_needed(int cpu)
 {
 	long curr;
 	long snap;
+	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
 
-	curr = per_cpu(dynticks_progress_counter, cpu);
-	snap = per_cpu(rcu_dyntick_snapshot, cpu);
+	curr = rdssp->dynticks;
+	snap = rdssp->dynticks_snap;
 	smp_mb(); /* force ordering with cpu entering/leaving dynticks. */
 
 	/*
@@ -609,13 +638,85 @@ rcu_try_flip_waitmb_needed(int cpu)
 	return 1;
 }
 
+static void dyntick_save_progress_counter_sched(int cpu)
+{
+	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
+
+	rdssp->sched_dynticks_snap = rdssp->dynticks;
+}
+
+static int rcu_qsctr_inc_needed_dyntick(int cpu)
+{
+	long curr;
+	long snap;
+	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
+
+	curr = rdssp->dynticks;
+	snap = rdssp->sched_dynticks_snap;
+	smp_mb(); /* force ordering with cpu entering/leaving dynticks. */
+
+	/*
+	 * If the CPU remained in dynticks mode for the entire time
+	 * and didn't take any interrupts, NMIs, SMIs, or whatever,
+	 * then it cannot be in the middle of an rcu_read_lock(), so
+	 * the next rcu_read_lock() it executes must use the new value
+	 * of the counter.  Therefore, this CPU has been in a quiescent
+	 * state the entire time, and we don't need to wait for it.
+	 */
+
+	if ((curr == snap) && ((curr & 0x1) == 0))
+		return 0;
+
+	/*
+	 * If the CPU passed through or entered a dynticks idle phase with
+	 * no active irq handlers, then, as above, this CPU has already
+	 * passed through a quiescent state.
+	 */
+
+	if ((curr - snap) > 2 || (snap & 0x1) == 0)
+		return 0;
+
+	/* We need this CPU to go through a quiescent state. */
+
+	return 1;
+}
+
 #else /* !CONFIG_NO_HZ */
 
-# define dyntick_save_progress_counter(cpu)	do { } while (0)
-# define rcu_try_flip_waitack_needed(cpu)	(1)
-# define rcu_try_flip_waitmb_needed(cpu)	(1)
+# define dyntick_save_progress_counter(cpu)		do { } while (0)
+# define rcu_try_flip_waitack_needed(cpu)		(1)
+# define rcu_try_flip_waitmb_needed(cpu)		(1)
+
+# define dyntick_save_progress_counter_sched(cpu)	do { } while (0)
+# define rcu_qsctr_inc_needed_dyntick(cpu)		(1)
 
 #endif /* CONFIG_NO_HZ */
+
+static void save_qsctr_sched(int cpu)
+{
+	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
+
+	rdssp->sched_qs_snap = rdssp->sched_qs;
+}
+
+static inline int rcu_qsctr_inc_needed(int cpu)
+{
+	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
+
+	/*
+	 * If there has been a quiescent state, no more need to wait
+	 * on this CPU.
+	 */
+
+	if (rdssp->sched_qs != rdssp->sched_qs_snap) {
+		smp_mb(); /* force ordering with cpu entering schedule(). */
+		return 0;
+	}
+
+	/* We need this CPU to go through a quiescent state. */
+
+	return 1;
+}
 
 /*
  * Get here when RCU is idle.  Decide whether we need to
@@ -655,7 +756,7 @@ rcu_try_flip_idle(void)
 
 	/* Now ask each CPU for acknowledgement of the flip. */
 
-	for_each_cpu_mask(cpu, rcu_cpu_online_map) {
+	for_each_cpu_mask_nr(cpu, rcu_cpu_online_map) {
 		per_cpu(rcu_flip_flag, cpu) = rcu_flipped;
 		dyntick_save_progress_counter(cpu);
 	}
@@ -673,7 +774,7 @@ rcu_try_flip_waitack(void)
 	int cpu;
 
 	RCU_TRACE_ME(rcupreempt_trace_try_flip_a1);
-	for_each_cpu_mask(cpu, rcu_cpu_online_map)
+	for_each_cpu_mask_nr(cpu, rcu_cpu_online_map)
 		if (rcu_try_flip_waitack_needed(cpu) &&
 		    per_cpu(rcu_flip_flag, cpu) != rcu_flip_seen) {
 			RCU_TRACE_ME(rcupreempt_trace_try_flip_ae1);
@@ -705,7 +806,7 @@ rcu_try_flip_waitzero(void)
 	/* Check to see if the sum of the "last" counters is zero. */
 
 	RCU_TRACE_ME(rcupreempt_trace_try_flip_z1);
-	for_each_cpu_mask(cpu, rcu_cpu_online_map)
+	for_each_cpu_mask_nr(cpu, rcu_cpu_online_map)
 		sum += RCU_DATA_CPU(cpu)->rcu_flipctr[lastidx];
 	if (sum != 0) {
 		RCU_TRACE_ME(rcupreempt_trace_try_flip_ze1);
@@ -720,7 +821,7 @@ rcu_try_flip_waitzero(void)
 	smp_mb();  /*  ^^^^^^^^^^^^ */
 
 	/* Call for a memory barrier from each CPU. */
-	for_each_cpu_mask(cpu, rcu_cpu_online_map) {
+	for_each_cpu_mask_nr(cpu, rcu_cpu_online_map) {
 		per_cpu(rcu_mb_flag, cpu) = rcu_mb_needed;
 		dyntick_save_progress_counter(cpu);
 	}
@@ -740,7 +841,7 @@ rcu_try_flip_waitmb(void)
 	int cpu;
 
 	RCU_TRACE_ME(rcupreempt_trace_try_flip_m1);
-	for_each_cpu_mask(cpu, rcu_cpu_online_map)
+	for_each_cpu_mask_nr(cpu, rcu_cpu_online_map)
 		if (rcu_try_flip_waitmb_needed(cpu) &&
 		    per_cpu(rcu_mb_flag, cpu) != rcu_mb_done) {
 			RCU_TRACE_ME(rcupreempt_trace_try_flip_me1);
@@ -819,6 +920,26 @@ void rcu_check_callbacks(int cpu, int user)
 	unsigned long flags;
 	struct rcu_data *rdp = RCU_DATA_CPU(cpu);
 
+	/*
+	 * If this CPU took its interrupt from user mode or from the
+	 * idle loop, and this is not a nested interrupt, then
+	 * this CPU has to have exited all prior preept-disable
+	 * sections of code.  So increment the counter to note this.
+	 *
+	 * The memory barrier is needed to handle the case where
+	 * writes from a preempt-disable section of code get reordered
+	 * into schedule() by this CPU's write buffer.  So the memory
+	 * barrier makes sure that the rcu_qsctr_inc() is seen by other
+	 * CPUs to happen after any such write.
+	 */
+
+	if (user ||
+	    (idle_cpu(cpu) && !in_softirq() &&
+	     hardirq_count() <= (1 << HARDIRQ_SHIFT))) {
+		smp_mb();	/* Guard against aggressive schedule(). */
+	     	rcu_qsctr_inc(cpu);
+	}
+
 	rcu_check_mb(cpu);
 	if (rcu_ctrlblk.completed == rdp->completed)
 		rcu_try_flip();
@@ -869,6 +990,8 @@ void rcu_offline_cpu(int cpu)
 	struct rcu_head *list = NULL;
 	unsigned long flags;
 	struct rcu_data *rdp = RCU_DATA_CPU(cpu);
+	struct rcu_head *schedlist = NULL;
+	struct rcu_head **schedtail = &schedlist;
 	struct rcu_head **tail = &list;
 
 	/*
@@ -882,6 +1005,11 @@ void rcu_offline_cpu(int cpu)
 		rcu_offline_cpu_enqueue(rdp->waitlist[i], rdp->waittail[i],
 						list, tail);
 	rcu_offline_cpu_enqueue(rdp->nextlist, rdp->nexttail, list, tail);
+	rcu_offline_cpu_enqueue(rdp->waitschedlist, rdp->waitschedtail,
+				schedlist, schedtail);
+	rcu_offline_cpu_enqueue(rdp->nextschedlist, rdp->nextschedtail,
+				schedlist, schedtail);
+	rdp->rcu_sched_sleeping = 0;
 	spin_unlock_irqrestore(&rdp->lock, flags);
 	rdp->waitlistcount = 0;
 
@@ -916,12 +1044,15 @@ void rcu_offline_cpu(int cpu)
 	 * fix.
 	 */
 
-	local_irq_save(flags);
+	local_irq_save(flags);  /* disable preempt till we know what lock. */
 	rdp = RCU_DATA_ME();
 	spin_lock(&rdp->lock);
 	*rdp->nexttail = list;
 	if (list)
 		rdp->nexttail = tail;
+	*rdp->nextschedtail = schedlist;
+	if (schedlist)
+		rdp->nextschedtail = schedtail;
 	spin_unlock_irqrestore(&rdp->lock, flags);
 }
 
@@ -936,10 +1067,25 @@ void rcu_offline_cpu(int cpu)
 void __cpuinit rcu_online_cpu(int cpu)
 {
 	unsigned long flags;
+	struct rcu_data *rdp;
 
 	spin_lock_irqsave(&rcu_ctrlblk.fliplock, flags);
 	cpu_set(cpu, rcu_cpu_online_map);
 	spin_unlock_irqrestore(&rcu_ctrlblk.fliplock, flags);
+
+	/*
+	 * The rcu_sched grace-period processing might have bypassed
+	 * this CPU, given that it was not in the rcu_cpu_online_map
+	 * when the grace-period scan started.  This means that the
+	 * grace-period task might sleep.  So make sure that if this
+	 * should happen, the first callback posted to this CPU will
+	 * wake up the grace-period task if need be.
+	 */
+
+	rdp = RCU_DATA_CPU(cpu);
+	spin_lock_irqsave(&rdp->lock, flags);
+	rdp->rcu_sched_sleeping = 1;
+	spin_unlock_irqrestore(&rdp->lock, flags);
 }
 
 static void rcu_process_callbacks(struct softirq_action *unused)
@@ -982,10 +1128,45 @@ void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 	*rdp->nexttail = head;
 	rdp->nexttail = &head->next;
 	RCU_TRACE_RDP(rcupreempt_trace_next_add, rdp);
-	spin_unlock(&rdp->lock);
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&rdp->lock, flags);
 }
 EXPORT_SYMBOL_GPL(call_rcu);
+
+void call_rcu_sched(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
+{
+	unsigned long flags;
+	struct rcu_data *rdp;
+	int wake_gp = 0;
+
+	head->func = func;
+	head->next = NULL;
+	local_irq_save(flags);
+	rdp = RCU_DATA_ME();
+	spin_lock(&rdp->lock);
+	*rdp->nextschedtail = head;
+	rdp->nextschedtail = &head->next;
+	if (rdp->rcu_sched_sleeping) {
+
+		/* Grace-period processing might be sleeping... */
+
+		rdp->rcu_sched_sleeping = 0;
+		wake_gp = 1;
+	}
+	spin_unlock_irqrestore(&rdp->lock, flags);
+	if (wake_gp) {
+
+		/* Wake up grace-period processing, unless someone beat us. */
+
+		spin_lock_irqsave(&rcu_ctrlblk.schedlock, flags);
+		if (rcu_ctrlblk.sched_sleep != rcu_sched_sleeping)
+			wake_gp = 0;
+		rcu_ctrlblk.sched_sleep = rcu_sched_not_sleeping;
+		spin_unlock_irqrestore(&rcu_ctrlblk.schedlock, flags);
+		if (wake_gp)
+			wake_up_interruptible(&rcu_ctrlblk.sched_wq);
+	}
+}
+EXPORT_SYMBOL_GPL(call_rcu_sched);
 
 /*
  * Wait until all currently running preempt_disable() code segments
@@ -993,20 +1174,150 @@ EXPORT_SYMBOL_GPL(call_rcu);
  * in -rt this does -not- necessarily result in all currently executing
  * interrupt -handlers- having completed.
  */
-void __synchronize_sched(void)
-{
-	cpumask_t oldmask;
-	int cpu;
-
-	if (sched_getaffinity(0, &oldmask) < 0)
-		oldmask = cpu_possible_map;
-	for_each_online_cpu(cpu) {
-		sched_setaffinity(0, &cpumask_of_cpu(cpu));
-		schedule();
-	}
-	sched_setaffinity(0, &oldmask);
-}
+synchronize_rcu_xxx(__synchronize_sched, call_rcu_sched)
 EXPORT_SYMBOL_GPL(__synchronize_sched);
+
+/*
+ * kthread function that manages call_rcu_sched grace periods.
+ */
+static int rcu_sched_grace_period(void *arg)
+{
+	int couldsleep;		/* might sleep after current pass. */
+	int couldsleepnext = 0; /* might sleep after next pass. */
+	int cpu;
+	unsigned long flags;
+	struct rcu_data *rdp;
+	int ret;
+
+	/*
+	 * Each pass through the following loop handles one
+	 * rcu_sched grace period cycle.
+	 */
+	do {
+		/* Save each CPU's current state. */
+
+		for_each_online_cpu(cpu) {
+			dyntick_save_progress_counter_sched(cpu);
+			save_qsctr_sched(cpu);
+		}
+
+		/*
+		 * Sleep for about an RCU grace-period's worth to
+		 * allow better batching and to consume less CPU.
+		 */
+		schedule_timeout_interruptible(RCU_SCHED_BATCH_TIME);
+
+		/*
+		 * If there was nothing to do last time, prepare to
+		 * sleep at the end of the current grace period cycle.
+		 */
+		couldsleep = couldsleepnext;
+		couldsleepnext = 1;
+		if (couldsleep) {
+			spin_lock_irqsave(&rcu_ctrlblk.schedlock, flags);
+			rcu_ctrlblk.sched_sleep = rcu_sched_sleep_prep;
+			spin_unlock_irqrestore(&rcu_ctrlblk.schedlock, flags);
+		}
+
+		/*
+		 * Wait on each CPU in turn to have either visited
+		 * a quiescent state or been in dynticks-idle mode.
+		 */
+		for_each_online_cpu(cpu) {
+			while (rcu_qsctr_inc_needed(cpu) &&
+			       rcu_qsctr_inc_needed_dyntick(cpu)) {
+				/* resched_cpu(cpu); @@@ */
+				schedule_timeout_interruptible(1);
+			}
+		}
+
+		/* Advance callbacks for each CPU.  */
+
+		for_each_online_cpu(cpu) {
+
+			rdp = RCU_DATA_CPU(cpu);
+			spin_lock_irqsave(&rdp->lock, flags);
+
+			/*
+			 * We are running on this CPU irq-disabled, so no
+			 * CPU can go offline until we re-enable irqs.
+			 * The current CPU might have already gone
+			 * offline (between the for_each_offline_cpu and
+			 * the spin_lock_irqsave), but in that case all its
+			 * callback lists will be empty, so no harm done.
+			 *
+			 * Advance the callbacks!  We share normal RCU's
+			 * donelist, since callbacks are invoked the
+			 * same way in either case.
+			 */
+			if (rdp->waitschedlist != NULL) {
+				*rdp->donetail = rdp->waitschedlist;
+				rdp->donetail = rdp->waitschedtail;
+
+				/*
+				 * Next rcu_check_callbacks() will
+				 * do the required raise_softirq().
+				 */
+			}
+			if (rdp->nextschedlist != NULL) {
+				rdp->waitschedlist = rdp->nextschedlist;
+				rdp->waitschedtail = rdp->nextschedtail;
+				couldsleep = 0;
+				couldsleepnext = 0;
+			} else {
+				rdp->waitschedlist = NULL;
+				rdp->waitschedtail = &rdp->waitschedlist;
+			}
+			rdp->nextschedlist = NULL;
+			rdp->nextschedtail = &rdp->nextschedlist;
+
+			/* Mark sleep intention. */
+
+			rdp->rcu_sched_sleeping = couldsleep;
+
+			spin_unlock_irqrestore(&rdp->lock, flags);
+		}
+
+		/* If we saw callbacks on the last scan, go deal with them. */
+
+		if (!couldsleep)
+			continue;
+
+		/* Attempt to block... */
+
+		spin_lock_irqsave(&rcu_ctrlblk.schedlock, flags);
+		if (rcu_ctrlblk.sched_sleep != rcu_sched_sleep_prep) {
+
+			/*
+			 * Someone posted a callback after we scanned.
+			 * Go take care of it.
+			 */
+			spin_unlock_irqrestore(&rcu_ctrlblk.schedlock, flags);
+			couldsleepnext = 0;
+			continue;
+		}
+
+		/* Block until the next person posts a callback. */
+
+		rcu_ctrlblk.sched_sleep = rcu_sched_sleeping;
+		spin_unlock_irqrestore(&rcu_ctrlblk.schedlock, flags);
+		ret = 0;
+		__wait_event_interruptible(rcu_ctrlblk.sched_wq,
+			rcu_ctrlblk.sched_sleep != rcu_sched_sleeping,
+			ret);
+
+		/*
+		 * Signals would prevent us from sleeping, and we cannot
+		 * do much with them in any case.  So flush them.
+		 */
+		if (ret)
+			flush_signals(current);
+		couldsleepnext = 0;
+
+	} while (!kthread_should_stop());
+
+	return (0);
+}
 
 /*
  * Check to see if any future RCU-related work will need to be done
@@ -1023,7 +1334,9 @@ int rcu_needs_cpu(int cpu)
 
 	return (rdp->donelist != NULL ||
 		!!rdp->waitlistcount ||
-		rdp->nextlist != NULL);
+		rdp->nextlist != NULL ||
+		rdp->nextschedlist != NULL ||
+		rdp->waitschedlist != NULL);
 }
 
 int rcu_pending(int cpu)
@@ -1034,7 +1347,9 @@ int rcu_pending(int cpu)
 
 	if (rdp->donelist != NULL ||
 	    !!rdp->waitlistcount ||
-	    rdp->nextlist != NULL)
+	    rdp->nextlist != NULL ||
+	    rdp->nextschedlist != NULL ||
+	    rdp->waitschedlist != NULL)
 		return 1;
 
 	/* The RCU core needs an acknowledgement from this CPU. */
@@ -1101,6 +1416,11 @@ void __init __rcu_init(void)
 		rdp->donetail = &rdp->donelist;
 		rdp->rcu_flipctr[0] = 0;
 		rdp->rcu_flipctr[1] = 0;
+		rdp->nextschedlist = NULL;
+		rdp->nextschedtail = &rdp->nextschedlist;
+		rdp->waitschedlist = NULL;
+		rdp->waitschedtail = &rdp->waitschedlist;
+		rdp->rcu_sched_sleeping = 0;
 	}
 	register_cpu_notifier(&rcu_nb);
 
@@ -1119,15 +1439,19 @@ void __init __rcu_init(void)
 	for_each_online_cpu(cpu)
 		rcu_cpu_notify(&rcu_nb, CPU_UP_PREPARE,	(void *)(long) cpu);
 
-	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks, NULL);
+	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }
 
 /*
- * Deprecated, use synchronize_rcu() or synchronize_sched() instead.
+ * Late-boot-time RCU initialization that must wait until after scheduler
+ * has been initialized.
  */
-void synchronize_kernel(void)
+void __init rcu_init_sched(void)
 {
-	synchronize_rcu();
+	rcu_sched_grace_period_task = kthread_run(rcu_sched_grace_period,
+						  NULL,
+						  "rcu_sched_grace_period");
+	WARN_ON(IS_ERR(rcu_sched_grace_period_task));
 }
 
 #ifdef CONFIG_RCU_TRACE

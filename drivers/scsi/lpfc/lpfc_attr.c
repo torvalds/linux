@@ -1995,8 +1995,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		/* Don't allow mailbox commands to be sent when blocked
 		 * or when in the middle of discovery
 		 */
-		if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO ||
-		    vport->fc_flag & FC_NDISC_ACTIVE) {
+		if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(&phba->hbalock);
 			return  -EAGAIN;

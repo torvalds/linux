@@ -1,5 +1,5 @@
-#ifndef __ASM_X86_MSR_H_
-#define __ASM_X86_MSR_H_
+#ifndef ASM_X86__MSR_H
+#define ASM_X86__MSR_H
 
 #include <asm/msr-index.h>
 
@@ -66,7 +66,7 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 static inline void native_write_msr(unsigned int msr,
 				    unsigned low, unsigned high)
 {
-	asm volatile("wrmsr" : : "c" (msr), "a"(low), "d" (high));
+	asm volatile("wrmsr" : : "c" (msr), "a"(low), "d" (high) : "memory");
 }
 
 static inline int native_write_msr_safe(unsigned int msr,
@@ -81,7 +81,8 @@ static inline int native_write_msr_safe(unsigned int msr,
 		     _ASM_EXTABLE(2b, 3b)
 		     : "=a" (err)
 		     : "c" (msr), "0" (low), "d" (high),
-		     "i" (-EFAULT));
+		       "i" (-EFAULT)
+		     : "memory");
 	return err;
 }
 
@@ -219,4 +220,4 @@ static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 #endif /* __KERNEL__ */
 
 
-#endif
+#endif /* ASM_X86__MSR_H */

@@ -84,6 +84,105 @@ void __init at91_add_device_usbh(struct at91_usbh_data *data) {}
 
 
 /* --------------------------------------------------------------------
+ *  USB HS Device (Gadget)
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_USB_GADGET_ATMEL_USBA) || defined(CONFIG_USB_GADGET_ATMEL_USBA_MODULE)
+
+static struct resource usba_udc_resources[] = {
+	[0] = {
+		.start	= AT91CAP9_UDPHS_FIFO,
+		.end	= AT91CAP9_UDPHS_FIFO + SZ_512K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91CAP9_BASE_UDPHS,
+		.end	= AT91CAP9_BASE_UDPHS + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= AT91CAP9_ID_UDPHS,
+		.end	= AT91CAP9_ID_UDPHS,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+#define EP(nam, idx, maxpkt, maxbk, dma, isoc)			\
+	[idx] = {						\
+		.name		= nam,				\
+		.index		= idx,				\
+		.fifo_size	= maxpkt,			\
+		.nr_banks	= maxbk,			\
+		.can_dma	= dma,				\
+		.can_isoc	= isoc,				\
+	}
+
+static struct usba_ep_data usba_udc_ep[] = {
+	EP("ep0", 0,   64, 1, 0, 0),
+	EP("ep1", 1, 1024, 3, 1, 1),
+	EP("ep2", 2, 1024, 3, 1, 1),
+	EP("ep3", 3, 1024, 2, 1, 1),
+	EP("ep4", 4, 1024, 2, 1, 1),
+	EP("ep5", 5, 1024, 2, 1, 0),
+	EP("ep6", 6, 1024, 2, 1, 0),
+	EP("ep7", 7, 1024, 2, 0, 0),
+};
+
+#undef EP
+
+/*
+ * pdata doesn't have room for any endpoints, so we need to
+ * append room for the ones we need right after it.
+ */
+static struct {
+	struct usba_platform_data pdata;
+	struct usba_ep_data ep[8];
+} usba_udc_data;
+
+static struct platform_device at91_usba_udc_device = {
+	.name		= "atmel_usba_udc",
+	.id		= -1,
+	.dev		= {
+				.platform_data	= &usba_udc_data.pdata,
+	},
+	.resource	= usba_udc_resources,
+	.num_resources	= ARRAY_SIZE(usba_udc_resources),
+};
+
+void __init at91_add_device_usba(struct usba_platform_data *data)
+{
+	at91_sys_write(AT91_MATRIX_UDPHS, AT91_MATRIX_SELECT_UDPHS |
+					  AT91_MATRIX_UDPHS_BYPASS_LOCK);
+
+	/*
+	 * Invalid pins are 0 on AT91, but the usba driver is shared
+	 * with AVR32, which use negative values instead. Once/if
+	 * gpio_is_valid() is ported to AT91, revisit this code.
+	 */
+	usba_udc_data.pdata.vbus_pin = -EINVAL;
+	usba_udc_data.pdata.num_ep = ARRAY_SIZE(usba_udc_ep);
+	memcpy(usba_udc_data.ep, usba_udc_ep, sizeof(usba_udc_ep));;
+
+	if (data && data->vbus_pin > 0) {
+		at91_set_gpio_input(data->vbus_pin, 0);
+		at91_set_deglitch(data->vbus_pin, 1);
+		usba_udc_data.pdata.vbus_pin = data->vbus_pin;
+	}
+
+	/* Pullup pin is handled internally by USB device peripheral */
+
+	/* Clocks */
+	at91_clock_associate("utmi_clk", &at91_usba_udc_device.dev, "hclk");
+	at91_clock_associate("udphs_clk", &at91_usba_udc_device.dev, "pclk");
+
+	platform_device_register(&at91_usba_udc_device);
+}
+#else
+void __init at91_add_device_usba(struct usba_platform_data *data) {}
+#endif
+
+
+/* --------------------------------------------------------------------
  *  Ethernet
  * -------------------------------------------------------------------- */
 
@@ -278,7 +377,7 @@ void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data) {}
  * -------------------------------------------------------------------- */
 
 #if defined(CONFIG_MTD_NAND_AT91) || defined(CONFIG_MTD_NAND_AT91_MODULE)
-static struct at91_nand_data nand_data;
+static struct atmel_nand_data nand_data;
 
 #define NAND_BASE	AT91_CHIPSELECT_3
 
@@ -296,7 +395,7 @@ static struct resource nand_resources[] = {
 };
 
 static struct platform_device at91cap9_nand_device = {
-	.name		= "at91_nand",
+	.name		= "atmel_nand",
 	.id		= -1,
 	.dev		= {
 				.platform_data	= &nand_data,
@@ -305,7 +404,7 @@ static struct platform_device at91cap9_nand_device = {
 	.num_resources	= ARRAY_SIZE(nand_resources),
 };
 
-void __init at91_add_device_nand(struct at91_nand_data *data)
+void __init at91_add_device_nand(struct atmel_nand_data *data)
 {
 	unsigned long csa, mode;
 
@@ -346,7 +445,7 @@ void __init at91_add_device_nand(struct at91_nand_data *data)
 	platform_device_register(&at91cap9_nand_device);
 }
 #else
-void __init at91_add_device_nand(struct at91_nand_data *data) {}
+void __init at91_add_device_nand(struct atmel_nand_data *data) {}
 #endif
 
 

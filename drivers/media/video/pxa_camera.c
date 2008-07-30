@@ -30,6 +30,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
+#include <media/videobuf-dma-sg.h>
 #include <media/soc_camera.h>
 
 #include <linux/videodev2.h>
@@ -582,6 +583,19 @@ static struct videobuf_queue_ops pxa_videobuf_ops = {
 	.buf_release    = pxa_videobuf_release,
 };
 
+static void pxa_camera_init_videobuf(struct videobuf_queue *q,
+			      struct soc_camera_device *icd)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct pxa_camera_dev *pcdev = ici->priv;
+
+	/* We must pass NULL as dev pointer, then all pci_* dma operations
+	 * transform to normal dma_* ones. */
+	videobuf_queue_sg_init(q, &pxa_videobuf_ops, NULL, &pcdev->lock,
+				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
+				sizeof(struct pxa_buffer), icd);
+}
+
 static int mclk_get_divisor(struct pxa_camera_dev *pcdev)
 {
 	unsigned int mclk_10khz = pcdev->platform_mclk_10khz;
@@ -983,34 +997,23 @@ static int pxa_camera_querycap(struct soc_camera_host *ici,
 	return 0;
 }
 
-static spinlock_t *pxa_camera_spinlock_alloc(struct soc_camera_file *icf)
-{
-	struct soc_camera_host *ici =
-		to_soc_camera_host(icf->icd->dev.parent);
-	struct pxa_camera_dev *pcdev = ici->priv;
-
-	return &pcdev->lock;
-}
-
 static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= pxa_camera_add_device,
 	.remove		= pxa_camera_remove_device,
 	.set_fmt_cap	= pxa_camera_set_fmt_cap,
 	.try_fmt_cap	= pxa_camera_try_fmt_cap,
+	.init_videobuf	= pxa_camera_init_videobuf,
 	.reqbufs	= pxa_camera_reqbufs,
 	.poll		= pxa_camera_poll,
 	.querycap	= pxa_camera_querycap,
 	.try_bus_param	= pxa_camera_try_bus_param,
 	.set_bus_param	= pxa_camera_set_bus_param,
-	.spinlock_alloc	= pxa_camera_spinlock_alloc,
 };
 
 /* Should be allocated dynamically too, but we have only one. */
 static struct soc_camera_host pxa_soc_camera_host = {
 	.drv_name		= PXA_CAM_DRV_NAME,
-	.vbq_ops		= &pxa_videobuf_ops,
-	.msize			= sizeof(struct pxa_buffer),
 	.ops			= &pxa_soc_camera_host_ops,
 };
 

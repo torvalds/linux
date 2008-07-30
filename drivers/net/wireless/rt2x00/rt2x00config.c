@@ -84,6 +84,8 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	memset(&erp, 0, sizeof(erp));
 
 	erp.short_preamble = bss_conf->use_short_preamble;
+	erp.cts_protection = bss_conf->use_cts_prot;
+
 	erp.ack_timeout = PLCP + get_duration(ACK_SIZE, 10);
 	erp.ack_consume_time = SIFS + PLCP + get_duration(ACK_SIZE, 10);
 

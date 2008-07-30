@@ -27,6 +27,7 @@
 #include <linux/miscdevice.h>
 #include <linux/kmod.h>
 #include <linux/reboot.h>
+#include <linux/smp_lock.h>
 
 #include <asm/ebus.h>
 #include <asm/uaccess.h>
@@ -694,6 +695,7 @@ envctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int
 envctrl_open(struct inode *inode, struct file *file)
 {
+	cycle_kernel_lock();
 	file->private_data = NULL;
 	return 0;
 }

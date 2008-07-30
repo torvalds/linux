@@ -16,12 +16,15 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/completion.h>
+#include <linux/crc-itu-t.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/kref.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/crc-itu-t.h>
+
 #include "fw-transaction.h"
 #include "fw-topology.h"
 #include "fw-device.h"
@@ -396,14 +399,16 @@ fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 {
 	static atomic_t index = ATOMIC_INIT(-1);
 
-	atomic_set(&card->device_count, 0);
 	card->index = atomic_inc_return(&index);
 	card->driver = driver;
 	card->device = device;
 	card->current_tlabel = 0;
 	card->tlabel_mask = 0;
 	card->color = 0;
+	card->broadcast_channel = BROADCAST_CHANNEL_INITIAL;
 
+	kref_init(&card->kref);
+	init_completion(&card->done);
 	INIT_LIST_HEAD(&card->transaction_list);
 	spin_lock_init(&card->lock);
 	setup_timer(&card->flush_timer,
@@ -496,7 +501,6 @@ dummy_enable_phys_dma(struct fw_card *card,
 }
 
 static struct fw_card_driver dummy_driver = {
-	.name            = "dummy",
 	.enable          = dummy_enable,
 	.update_phy_reg  = dummy_update_phy_reg,
 	.set_config_rom  = dummy_set_config_rom,
@@ -505,6 +509,14 @@ static struct fw_card_driver dummy_driver = {
 	.send_response   = dummy_send_response,
 	.enable_phys_dma = dummy_enable_phys_dma,
 };
+
+void
+fw_card_release(struct kref *kref)
+{
+	struct fw_card *card = container_of(kref, struct fw_card, kref);
+
+	complete(&card->done);
+}
 
 void
 fw_core_remove_card(struct fw_card *card)
@@ -521,15 +533,13 @@ fw_core_remove_card(struct fw_card *card)
 	card->driver = &dummy_driver;
 
 	fw_destroy_nodes(card);
-	/*
-	 * Wait for all device workqueue jobs to finish.  Otherwise the
-	 * firewire-core module could be unloaded before the jobs ran.
-	 */
-	while (atomic_read(&card->device_count) > 0)
-		msleep(100);
+
+	/* Wait for all users, especially device workqueue jobs, to finish. */
+	fw_card_put(card);
+	wait_for_completion(&card->done);
 
 	cancel_delayed_work_sync(&card->work);
-	fw_flush_transactions(card);
+	WARN_ON(!list_empty(&card->transaction_list));
 	del_timer_sync(&card->flush_timer);
 }
 EXPORT_SYMBOL(fw_core_remove_card);

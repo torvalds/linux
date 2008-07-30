@@ -42,12 +42,14 @@ config 40x
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
+	select PPC_PCI_CHOICE
 
 config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
+	select PPC_PCI_CHOICE
 
 config E200
 	bool "Freescale e200"
@@ -84,9 +86,6 @@ config TUNE_CELL
 	  machines. When building a kernel that is supposed to run only
 	  on Cell, you should also select the POWER4_ONLY option.
 
-config 6xx
-	bool
-
 # this is temp to handle compat with arch=ppc
 config 8xx
 	bool
@@ -94,6 +93,11 @@ config 8xx
 config E500
 	select FSL_EMB_PERFMON
 	bool
+
+config PPC_E500MC
+	bool "e500mc Support"
+	select PPC_FPU
+	depends on E500
 
 config PPC_FPU
 	bool
@@ -155,9 +159,25 @@ config ALTIVEC
 
 	  If in doubt, say Y here.
 
+config VSX
+	bool "VSX Support"
+	depends on POWER4 && ALTIVEC && PPC_FPU
+	---help---
+
+	  This option enables kernel support for the Vector Scaler extensions
+	  to the PowerPC processor. The kernel currently supports saving and
+	  restoring VSX registers, and turning on the 'VSX enable' bit so user
+	  processes can execute VSX instructions.
+
+	  This option is only useful if you have a processor that supports
+	  VSX (P7 and above), but does not have any affect on a non-VSX
+	  CPUs (it does, however add code to the kernel).
+
+	  If in doubt, say Y here.
+
 config SPE
 	bool "SPE Support"
-	depends on E200 || E500
+	depends on E200 || (E500 && !PPC_E500MC)
 	default y
 	---help---
 	  This option enables kernel support for the Signal Processing
@@ -182,7 +202,7 @@ config PPC_STD_MMU_32
 
 config PPC_MM_SLICES
 	bool
-	default y if HUGETLB_PAGE
+	default y if HUGETLB_PAGE || PPC_64K_PAGES
 	default n
 
 config VIRT_CPU_ACCOUNTING

@@ -47,6 +47,30 @@ Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
 
 ---------------------------
 
+What:	old tuner-3036 i2c driver
+When:	2.6.28
+Why:	This driver is for VERY old i2c-over-parallel port teletext receiver
+	boxes. Rather then spending effort on converting this driver to V4L2,
+	and since it is extremely unlikely that anyone still uses one of these
+	devices, it was decided to drop it.
+Who:	Hans Verkuil <hverkuil@xs4all.nl>
+	Mauro Carvalho Chehab <mchehab@infradead.org>
+
+ ---------------------------
+
+What:   V4L2 dpc7146 driver
+When:   2.6.28
+Why:    Old driver for the dpc7146 demonstration board that is no longer
+	relevant. The last time this was tested on actual hardware was
+	probably around 2002. Since this is a driver for a demonstration
+	board the decision was made to remove it rather than spending a
+	lot of effort continually updating this driver to stay in sync
+	with the latest internal V4L2 or I2C API.
+Who:    Hans Verkuil <hverkuil@xs4all.nl>
+	Mauro Carvalho Chehab <mchehab@infradead.org>
+
+---------------------------
+
 What:	PCMCIA control ioctl (needed for pcmcia-cs [cardmgr, cardctl])
 When:	November 2005
 Files:	drivers/pcmcia/: pcmcia_ioctl.c
@@ -138,24 +162,6 @@ Who:	Kay Sievers <kay.sievers@suse.de>
 
 ---------------------------
 
-What:	find_task_by_pid
-When:	2.6.26
-Why:	With pid namespaces, calling this funciton will return the
-	wrong task when called from inside a namespace.
-
-	The best way to save a task pid and find a task by this
-	pid later, is to find this task's struct pid pointer (or get
-	it directly from the task) and call pid_task() later.
-
-	If someone really needs to get a task by its pid_t, then
-	he most likely needs the find_task_by_vpid() to get the
-	task from the same namespace as the current task is in, but
-	this may be not so in general.
-
-Who:	Pavel Emelyanov <xemul@openvz.org>
-
----------------------------
-
 What:	ACPI procfs interface
 When:	July 2008
 Why:	ACPI sysfs conversion should be finished by January 2008.
@@ -219,13 +225,6 @@ Why:	The i386/x86_64 merge provides a symlink to the old bzImage
 	location so not yet updated user space tools, e.g. package
 	scripts, do not break.
 Who:	Thomas Gleixner <tglx@linutronix.de>
-
----------------------------
-
-What:	i2c-i810, i2c-prosavage and i2c-savage4
-When:	May 2008
-Why:	These drivers are superseded by i810fb, intelfb and savagefb.
-Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
@@ -307,11 +306,15 @@ Who:	ocfs2-devel@oss.oracle.com
 
 ---------------------------
 
-What:	asm/semaphore.h
-When:	2.6.26
-Why:	Implementation became generic; users should now include
-	linux/semaphore.h instead.
-Who:	Matthew Wilcox <willy@linux.intel.com>
+What:	SCTP_GET_PEER_ADDRS_NUM_OLD, SCTP_GET_PEER_ADDRS_OLD,
+	SCTP_GET_LOCAL_ADDRS_NUM_OLD, SCTP_GET_LOCAL_ADDRS_OLD
+When: 	June 2009
+Why:    A newer version of the options have been introduced in 2005 that
+	removes the limitions of the old API.  The sctp library has been
+        converted to use these new options at the same time.  Any user
+	space app that directly uses the old options should convert to using
+	the new options.
+Who:	Vlad Yasevich <vladislav.yasevich@hp.com>
 
 ---------------------------
 
@@ -321,3 +324,23 @@ Why:	This option was introduced just to allow older lm-sensors userspace
 	to keep working over the upgrade to 2.6.26. At the scheduled time of
 	removal fixed lm-sensors (2.x or 3.x) should be readily available.
 Who:	Rene Herman <rene.herman@gmail.com>
+
+---------------------------
+
+What:	Code that is now under CONFIG_WIRELESS_EXT_SYSFS
+	(in net/core/net-sysfs.c)
+When:	After the only user (hal) has seen a release with the patches
+	for enough time, probably some time in 2010.
+Why:	Over 1K .text/.data size reduction, data is available in other
+	ways (ioctls)
+Who:	Johannes Berg <johannes@sipsolutions.net>
+
+---------------------------
+
+What: CONFIG_NF_CT_ACCT
+When: 2.6.29
+Why:  Accounting can now be enabled/disabled without kernel recompilation.
+      Currently used only to set a default value for a feature that is also
+      controlled by a kernel/module/sysfs/sysctl parameter.
+Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
+

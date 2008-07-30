@@ -1,7 +1,4 @@
 /*
-    i2c-hydra.c - Part of lm_sensors,  Linux kernel modules
-                  for hardware monitoring
-
     i2c Support for the Apple `Hydra' Mac I/O
 
     Copyright (c) 1999-2004 Geert Uytterhoeven <geert@linux-m68k.org>

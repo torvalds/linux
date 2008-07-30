@@ -19,6 +19,7 @@
 #include <linux/uio.h>
 #include <linux/idr.h>
 #include <linux/bsg.h>
+#include <linux/smp_lock.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>
@@ -44,11 +45,12 @@ struct bsg_device {
 	char name[BUS_ID_SIZE];
 	int max_queue;
 	unsigned long flags;
+	struct blk_scsi_cmd_filter *cmd_filter;
+	mode_t *f_mode;
 };
 
 enum {
 	BSG_F_BLOCK		= 1,
-	BSG_F_WRITE_PERM	= 2,
 };
 
 #define BSG_DEFAULT_CMDS	64
@@ -172,7 +174,7 @@ unlock:
 }
 
 static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
-				struct sg_io_v4 *hdr, int has_write_perm)
+				struct sg_io_v4 *hdr, struct bsg_device *bd)
 {
 	if (hdr->request_len > BLK_MAX_CDB) {
 		rq->cmd = kzalloc(hdr->request_len, GFP_KERNEL);
@@ -185,7 +187,8 @@ static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
 		return -EFAULT;
 
 	if (hdr->subprotocol == BSG_SUB_PROTOCOL_SCSI_CMD) {
-		if (blk_verify_command(rq->cmd, has_write_perm))
+		if (blk_cmd_filter_verify_command(bd->cmd_filter, rq->cmd,
+						 bd->f_mode))
 			return -EPERM;
 	} else if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
@@ -263,8 +266,7 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr)
 	rq = blk_get_request(q, rw, GFP_KERNEL);
 	if (!rq)
 		return ERR_PTR(-ENOMEM);
-	ret = blk_fill_sgv4_hdr_rq(q, rq, hdr, test_bit(BSG_F_WRITE_PERM,
-						       &bd->flags));
+	ret = blk_fill_sgv4_hdr_rq(q, rq, hdr, bd);
 	if (ret)
 		goto out;
 
@@ -566,12 +568,23 @@ static inline void bsg_set_block(struct bsg_device *bd, struct file *file)
 		set_bit(BSG_F_BLOCK, &bd->flags);
 }
 
-static inline void bsg_set_write_perm(struct bsg_device *bd, struct file *file)
+static void bsg_set_cmd_filter(struct bsg_device *bd,
+			   struct file *file)
 {
-	if (file->f_mode & FMODE_WRITE)
-		set_bit(BSG_F_WRITE_PERM, &bd->flags);
-	else
-		clear_bit(BSG_F_WRITE_PERM, &bd->flags);
+	struct inode *inode;
+	struct gendisk *disk;
+
+	if (!file)
+		return;
+
+	inode = file->f_dentry->d_inode;
+	if (!inode)
+		return;
+
+	disk = inode->i_bdev->bd_disk;
+
+	bd->cmd_filter = &disk->cmd_filter;
+	bd->f_mode = &file->f_mode;
 }
 
 /*
@@ -595,6 +608,8 @@ bsg_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	dprintk("%s: read %Zd bytes\n", bd->name, count);
 
 	bsg_set_block(bd, file);
+	bsg_set_cmd_filter(bd, file);
+
 	bytes_read = 0;
 	ret = __bsg_read(buf, count, bd, NULL, &bytes_read);
 	*ppos = bytes_read;
@@ -668,7 +683,7 @@ bsg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	dprintk("%s: write %Zd bytes\n", bd->name, count);
 
 	bsg_set_block(bd, file);
-	bsg_set_write_perm(bd, file);
+	bsg_set_cmd_filter(bd, file);
 
 	bytes_written = 0;
 	ret = __bsg_write(bd, buf, count, &bytes_written);
@@ -725,8 +740,13 @@ static int bsg_put_device(struct bsg_device *bd)
 	mutex_lock(&bsg_mutex);
 
 	do_free = atomic_dec_and_test(&bd->ref_count);
-	if (!do_free)
+	if (!do_free) {
+		mutex_unlock(&bsg_mutex);
 		goto out;
+	}
+
+	hlist_del(&bd->dev_list);
+	mutex_unlock(&bsg_mutex);
 
 	dprintk("%s: tearing down\n", bd->name);
 
@@ -742,10 +762,8 @@ static int bsg_put_device(struct bsg_device *bd)
 	 */
 	ret = bsg_complete_all_commands(bd);
 
-	hlist_del(&bd->dev_list);
 	kfree(bd);
 out:
-	mutex_unlock(&bsg_mutex);
 	kref_put(&q->bsg_dev.ref, bsg_kref_release_function);
 	if (do_free)
 		blk_put_queue(q);
@@ -772,7 +790,9 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 	}
 
 	bd->queue = rq;
+
 	bsg_set_block(bd, file);
+	bsg_set_cmd_filter(bd, file);
 
 	atomic_set(&bd->ref_count, 1);
 	mutex_lock(&bsg_mutex);
@@ -835,7 +855,11 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 
 static int bsg_open(struct inode *inode, struct file *file)
 {
-	struct bsg_device *bd = bsg_get_device(inode, file);
+	struct bsg_device *bd;
+
+	lock_kernel();
+	bd = bsg_get_device(inode, file);
+	unlock_kernel();
 
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
@@ -1020,7 +1044,8 @@ int bsg_register_queue(struct request_queue *q, struct device *parent,
 	bcd->release = release;
 	kref_init(&bcd->ref);
 	dev = MKDEV(bsg_major, bcd->minor);
-	class_dev = device_create(bsg_class, parent, dev, "%s", devname);
+	class_dev = device_create_drvdata(bsg_class, parent, dev, NULL,
+					  "%s", devname);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
 		goto put_dev;

@@ -26,6 +26,7 @@
  */
 #define KERNEL_START		 (GATE_ADDR+__IA64_UL_CONST(0x100000000))
 #define PERCPU_ADDR		(-PERCPU_PAGE_SIZE)
+#define LOAD_OFFSET		(KERNEL_START - KERNEL_TR_PAGE_SIZE)
 
 #ifndef __ASSEMBLY__
 
@@ -122,10 +123,16 @@ extern struct ia64_boot_param {
  *   write a floating-point register right before reading the PSR
  *   and that writes to PSR.mfl
  */
+#ifdef CONFIG_PARAVIRT
+#define __local_save_flags()	ia64_get_psr_i()
+#else
+#define __local_save_flags()	ia64_getreg(_IA64_REG_PSR)
+#endif
+
 #define __local_irq_save(x)			\
 do {						\
 	ia64_stop();				\
-	(x) = ia64_getreg(_IA64_REG_PSR);	\
+	(x) = __local_save_flags();		\
 	ia64_stop();				\
 	ia64_rsm(IA64_PSR_I);			\
 } while (0)
@@ -173,7 +180,7 @@ do {								\
 #endif /* !CONFIG_IA64_DEBUG_IRQ */
 
 #define local_irq_enable()	({ ia64_stop(); ia64_ssm(IA64_PSR_I); ia64_srlz_d(); })
-#define local_save_flags(flags)	({ ia64_stop(); (flags) = ia64_getreg(_IA64_REG_PSR); })
+#define local_save_flags(flags)	({ ia64_stop(); (flags) = __local_save_flags(); })
 
 #define irqs_disabled()				\
 ({						\

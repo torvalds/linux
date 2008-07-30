@@ -35,9 +35,12 @@
 #include <linux/interrupt.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
 #include <linux/freezer.h>
+
+#define VIVI_MODULE_NAME "vivi"
 
 /* Wake up at about 30 fps */
 #define WAKE_NUMERATOR 30
@@ -47,7 +50,7 @@
 #include "font.h"
 
 #define VIVI_MAJOR_VERSION 0
-#define VIVI_MINOR_VERSION 4
+#define VIVI_MINOR_VERSION 5
 #define VIVI_RELEASE 0
 #define VIVI_VERSION \
 	KERNEL_VERSION(VIVI_MAJOR_VERSION, VIVI_MINOR_VERSION, VIVI_RELEASE)
@@ -630,7 +633,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (f->index > 0)
@@ -641,7 +644,7 @@ static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap(struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct vivi_fh *fh = priv;
@@ -658,7 +661,7 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 	return (0);
 }
 
-static int vidioc_try_fmt_cap(struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct vivi_fh  *fh  = priv;
@@ -706,13 +709,13 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 }
 
 /*FIXME: This seems to be generic enough to be at videodev2 */
-static int vidioc_s_fmt_cap(struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct vivi_fh  *fh = priv;
 	struct videobuf_queue *q = &fh->vb_vidq;
 
-	int ret = vidioc_try_fmt_cap(file, fh, f);
+	int ret = vidioc_try_fmt_vid_cap(file, fh, f);
 	if (ret < 0)
 		return (ret);
 
@@ -1017,10 +1020,15 @@ static int vivi_release(void)
 		list_del(list);
 		dev = list_entry(list, struct vivi_dev, vivi_devlist);
 
-		if (-1 != dev->vfd->minor)
+		if (-1 != dev->vfd->minor) {
 			video_unregister_device(dev->vfd);
-		else
+			printk(KERN_INFO "%s: /dev/video%d unregistered.\n",
+				VIVI_MODULE_NAME, dev->vfd->minor);
+		} else {
 			video_device_release(dev->vfd);
+			printk(KERN_INFO "%s: /dev/video%d released.\n",
+				VIVI_MODULE_NAME, dev->vfd->minor);
+		}
 
 		kfree(dev);
 	}
@@ -1058,18 +1066,12 @@ static const struct file_operations vivi_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device vivi_template = {
-	.name		= "vivi",
-	.type		= VID_TYPE_CAPTURE,
-	.fops           = &vivi_fops,
-	.minor		= -1,
-	.release	= video_device_release,
-
+static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
-	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap     = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap   = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap     = vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
 	.vidioc_reqbufs       = vidioc_reqbufs,
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
@@ -1086,6 +1088,15 @@ static struct video_device vivi_template = {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif
+};
+
+static struct video_device vivi_template = {
+	.name		= "vivi",
+	.fops           = &vivi_fops,
+	.ioctl_ops 	= &vivi_ioctl_ops,
+	.minor		= -1,
+	.release	= video_device_release,
+
 	.tvnorms              = V4L2_STD_525_60,
 	.current_norm         = V4L2_STD_NTSC_M,
 };
@@ -1131,6 +1142,8 @@ static int __init vivi_init(void)
 			video_nr++;
 
 		dev->vfd = vfd;
+		printk(KERN_INFO "%s: V4L2 device registered as /dev/video%d\n",
+			VIVI_MODULE_NAME, vfd->minor);
 	}
 
 	if (ret < 0) {
@@ -1138,7 +1151,9 @@ static int __init vivi_init(void)
 		printk(KERN_INFO "Error %d while loading vivi driver\n", ret);
 	} else
 		printk(KERN_INFO "Video Technology Magazine Virtual Video "
-				 "Capture Board successfully loaded.\n");
+			"Capture Board ver %u.%u.%u successfully loaded.\n",
+			(VIVI_VERSION >> 16) & 0xFF, (VIVI_VERSION >> 8) & 0xFF,
+			VIVI_VERSION & 0xFF);
 	return ret;
 }
 

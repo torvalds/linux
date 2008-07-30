@@ -1703,11 +1703,11 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 	send_last_imm:
 		if (header_in_data) {
-			wc.imm_data = *(__be32 *) data;
+			wc.ex.imm_data = *(__be32 *) data;
 			data += sizeof(__be32);
 		} else {
 			/* Immediate data comes after BTH */
-			wc.imm_data = ohdr->u.imm_data;
+			wc.ex.imm_data = ohdr->u.imm_data;
 		}
 		hdrsize += 4;
 		wc.wc_flags = IB_WC_WITH_IMM;

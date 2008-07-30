@@ -63,11 +63,9 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 #define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
 
-#ifdef PCMCIA_DEBUG
-INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#ifdef CONFIG_PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, 0);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"ide-cs.c 1.3 2002/10/26 05:45:31 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -76,7 +74,7 @@ static char *version =
 
 typedef struct ide_info_t {
 	struct pcmcia_device	*p_dev;
-	ide_hwif_t		*hwif;
+	struct ide_host		*host;
     int		ndev;
     dev_node_t	node;
 } ide_info_t;
@@ -134,7 +132,7 @@ static int ide_probe(struct pcmcia_device *link)
 static void ide_detach(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    ide_hwif_t *hwif = info->hwif;
+    ide_hwif_t *hwif = info->host->ports[0];
     unsigned long data_addr, ctl_addr;
 
     DEBUG(0, "ide_detach(0x%p)\n", link);
@@ -154,13 +152,18 @@ static const struct ide_port_ops idecs_port_ops = {
 	.quirkproc		= ide_undecoded_slave,
 };
 
-static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
+static const struct ide_port_info idecs_port_info = {
+	.port_ops		= &idecs_port_ops,
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
+static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
 				unsigned long irq, struct pcmcia_device *handle)
 {
+    struct ide_host *host;
     ide_hwif_t *hwif;
-    hw_regs_t hw;
-    int i;
-    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+    int i, rc;
+    hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
     if (!request_region(io, 8, DRV_NAME)) {
 	printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
@@ -181,32 +184,24 @@ static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
     hw.chipset = ide_pci;
     hw.dev = &handle->dev;
 
-    hwif = ide_find_port();
-    if (hwif == NULL)
+    rc = ide_host_add(&idecs_port_info, hws, &host);
+    if (rc)
 	goto out_release;
 
-    i = hwif->index;
-
-    ide_init_port_data(hwif, i);
-    ide_init_port_hw(hwif, &hw);
-    hwif->port_ops = &idecs_port_ops;
-
-    idx[0] = i;
-
-    ide_device_add(idx, NULL);
+    hwif = host->ports[0];
 
     if (hwif->present)
-	return hwif;
+	return host;
 
     /* retry registration in case device is still spinning up */
     for (i = 0; i < 10; i++) {
 	msleep(100);
 	ide_port_scan(hwif);
 	if (hwif->present)
-	    return hwif;
+	    return host;
     }
 
-    return hwif;
+    return host;
 
 out_release:
     release_region(ctl, 1);
@@ -238,7 +233,7 @@ static int ide_config(struct pcmcia_device *link)
     cistpl_cftable_entry_t *cfg;
     int pass, last_ret = 0, last_fn = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
-    ide_hwif_t *hwif;
+    struct ide_host *host;
 
     DEBUG(0, "ide_config(0x%p)\n", link);
 
@@ -333,21 +328,21 @@ static int ide_config(struct pcmcia_device *link)
     if (is_kme)
 	outb(0x81, ctl_base+1);
 
-     hwif = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
-     if (hwif == NULL && link->io.NumPorts1 == 0x20) {
+     host = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
+     if (host == NULL && link->io.NumPorts1 == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
-	    hwif = idecs_register(io_base + 0x10, ctl_base + 0x10,
+	    host = idecs_register(io_base + 0x10, ctl_base + 0x10,
 				  link->irq.AssignedIRQ, link);
     }
 
-    if (hwif == NULL)
+    if (host == NULL)
 	goto failed;
 
     info->ndev = 1;
-    sprintf(info->node.dev_name, "hd%c", 'a' + hwif->index * 2);
-    info->node.major = hwif->major;
+    sprintf(info->node.dev_name, "hd%c", 'a' + host->ports[0]->index * 2);
+    info->node.major = host->ports[0]->major;
     info->node.minor = 0;
-    info->hwif = hwif;
+    info->host = host;
     link->dev_node = &info->node;
     printk(KERN_INFO "ide-cs: %s: Vpp = %d.%d\n",
 	   info->node.dev_name, link->conf.Vpp / 10, link->conf.Vpp % 10);
@@ -375,18 +370,18 @@ failed:
 
 ======================================================================*/
 
-void ide_release(struct pcmcia_device *link)
+static void ide_release(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    ide_hwif_t *hwif = info->hwif;
+    struct ide_host *host = info->host;
 
     DEBUG(0, "ide_release(0x%p)\n", link);
 
-    if (info->ndev) {
+    if (info->ndev)
 	/* FIXME: if this fails we need to queue the cleanup somehow
 	   -- need to investigate the required PCMCIA magic */
-	ide_unregister(hwif);
-    }
+	ide_host_remove(host);
+
     info->ndev = 0;
 
     pcmcia_disable_device(link);

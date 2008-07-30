@@ -53,7 +53,8 @@ config SMSC_PHY
 config BROADCOM_PHY
 	tristate "Drivers for Broadcom PHYs"
 	---help---
-	  Currently supports the BCM5411, BCM5421 and BCM5461 PHYs.
+	  Currently supports the BCM5411, BCM5421, BCM5461, BCM5464, BCM5481
+	  and BCM5482 PHYs.
 
 config ICPLUS_PHY
 	tristate "Drivers for ICPlus PHYs"
@@ -82,5 +83,11 @@ config MDIO_BITBANG
 	  drive the relevant pins.
 
 	  If in doubt, say N.
+
+config MDIO_OF_GPIO
+	tristate "Support for GPIO lib-based bitbanged MDIO buses"
+	depends on MDIO_BITBANG && OF_GPIO
+	---help---
+	  Supports GPIO lib-based MDIO busses.
 
 endif # PHYLIB

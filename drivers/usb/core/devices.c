@@ -46,8 +46,6 @@
  * 2000-07-05: Ashley Montanaro <ashley@compsoc.man.ac.uk>
  *   Converted file reading routine to dump to buffer once
  *   per device, not per bus
- *
- * $Id: devices.c,v 1.5 2000/01/11 13:58:21 tom Exp $
  */
 
 #include <linux/fs.h>
@@ -62,8 +60,6 @@
 
 #include "usb.h"
 #include "hcd.h"
-
-#define MAX_TOPO_LEVEL		6
 
 /* Define ALLOW_SERIAL_NUMBER if you want to see the serial number of devices */
 #define ALLOW_SERIAL_NUMBER

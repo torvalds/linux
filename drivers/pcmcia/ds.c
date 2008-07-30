@@ -25,7 +25,6 @@
 #include <linux/kref.h>
 #include <linux/dma-mapping.h>
 
-#define IN_CARD_SERVICES
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -741,9 +740,8 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 
 static int pcmcia_card_add(struct pcmcia_socket *s)
 {
-	cisinfo_t cisinfo;
 	cistpl_longlink_mfc_t mfc;
-	unsigned int no_funcs, i;
+	unsigned int no_funcs, i, no_chains;
 	int ret = 0;
 
 	if (!(s->resource_setup_done)) {
@@ -757,8 +755,8 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 		return -EAGAIN; /* try again, but later... */
 	}
 
-	ret = pccard_validate_cis(s, BIND_FN_ALL, &cisinfo);
-	if (ret || !cisinfo.Chains) {
+	ret = pccard_validate_cis(s, BIND_FN_ALL, &no_chains);
+	if (ret || !no_chains) {
 		ds_dbg(0, "invalid CIS or invalid resources\n");
 		return -ENODEV;
 	}
@@ -852,7 +850,7 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 {
 	struct pcmcia_socket *s = dev->socket;
 	const struct firmware *fw;
-	char path[20];
+	char path[FIRMWARE_NAME_MAX];
 	int ret = -ENOMEM;
 	int no_funcs;
 	int old_funcs;
@@ -864,7 +862,7 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 
 	ds_dbg(1, "trying to load CIS file %s\n", filename);
 
-	if (strlen(filename) > 14) {
+	if (strlen(filename) > (FIRMWARE_NAME_MAX - 1)) {
 		printk(KERN_WARNING "pcmcia: CIS filename is too long [%s]\n",
 			filename);
 		return -EINVAL;

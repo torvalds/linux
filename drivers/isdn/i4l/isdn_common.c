@@ -1732,7 +1732,7 @@ isdn_open(struct inode *ino, struct file *filep)
 	int chidx;
 	int retval = -ENODEV;
 
-
+	lock_kernel();
 	if (minor == ISDN_MINOR_STATUS) {
 		infostruct *p;
 
@@ -1783,6 +1783,7 @@ isdn_open(struct inode *ino, struct file *filep)
 #endif
  out:
 	nonseekable_open(ino, filep);
+	unlock_kernel();
 	return retval;
 }
 

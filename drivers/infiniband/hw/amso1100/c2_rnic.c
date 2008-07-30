@@ -454,7 +454,7 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 	    (IB_DEVICE_RESIZE_MAX_WR |
 	     IB_DEVICE_CURR_QP_STATE_MOD |
 	     IB_DEVICE_SYS_IMAGE_GUID |
-	     IB_DEVICE_ZERO_STAG |
+	     IB_DEVICE_LOCAL_DMA_LKEY |
 	     IB_DEVICE_MEM_WINDOW);
 
 	/* Allocate the qptr_array */

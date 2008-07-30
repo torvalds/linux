@@ -24,8 +24,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  * 
- * $Id: msnd_classic.h,v 1.10 1999/03/21 17:36:09 andrewtv Exp $
- *
  ********************************************************************/
 #ifndef __MSND_CLASSIC_H
 #define __MSND_CLASSIC_H

@@ -844,14 +844,13 @@ static int tcp_packet(struct nf_conn *ct,
 			/* Attempt to reopen a closed/aborted connection.
 			 * Delete this connection and look up again. */
 			write_unlock_bh(&tcp_lock);
+
 			/* Only repeat if we can actually remove the timer.
 			 * Destruction may already be in progress in process
 			 * context and we must give it a chance to terminate.
 			 */
-			if (del_timer(&ct->timeout)) {
-				ct->timeout.function((unsigned long)ct);
+			if (nf_ct_kill(ct))
 				return -NF_REPEAT;
-			}
 			return -NF_DROP;
 		}
 		/* Fall through */
@@ -884,8 +883,7 @@ static int tcp_packet(struct nf_conn *ct,
 			if (LOG_INVALID(IPPROTO_TCP))
 				nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 					  "nf_ct_tcp: killing out of sync session ");
-			if (del_timer(&ct->timeout))
-				ct->timeout.function((unsigned long)ct);
+			nf_ct_kill(ct);
 			return -NF_DROP;
 		}
 		ct->proto.tcp.last_index = index;
@@ -968,8 +966,7 @@ static int tcp_packet(struct nf_conn *ct,
 		   problem case, so we can delete the conntrack
 		   immediately.  --RR */
 		if (th->rst) {
-			if (del_timer(&ct->timeout))
-				ct->timeout.function((unsigned long)ct);
+			nf_ct_kill_acct(ct, ctinfo, skb);
 			return NF_ACCEPT;
 		}
 	} else if (!test_bit(IPS_ASSURED_BIT, &ct->status)

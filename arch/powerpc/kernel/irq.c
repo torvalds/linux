@@ -98,7 +98,7 @@ EXPORT_SYMBOL(irq_desc);
 
 int distribute_irqs = 1;
 
-static inline unsigned long get_hard_enabled(void)
+static inline notrace unsigned long get_hard_enabled(void)
 {
 	unsigned long enabled;
 
@@ -108,13 +108,13 @@ static inline unsigned long get_hard_enabled(void)
 	return enabled;
 }
 
-static inline void set_soft_enabled(unsigned long enable)
+static inline notrace void set_soft_enabled(unsigned long enable)
 {
 	__asm__ __volatile__("stb %0,%1(13)"
 	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
 }
 
-void raw_local_irq_restore(unsigned long en)
+notrace void raw_local_irq_restore(unsigned long en)
 {
 	/*
 	 * get_paca()->soft_enabled = en;
@@ -356,9 +356,42 @@ void __init init_IRQ(void)
 {
 	if (ppc_md.init_IRQ)
 		ppc_md.init_IRQ();
+
+	exc_lvl_ctx_init();
+
 	irq_ctx_init();
 }
 
+#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+struct thread_info   *critirq_ctx[NR_CPUS] __read_mostly;
+struct thread_info    *dbgirq_ctx[NR_CPUS] __read_mostly;
+struct thread_info *mcheckirq_ctx[NR_CPUS] __read_mostly;
+
+void exc_lvl_ctx_init(void)
+{
+	struct thread_info *tp;
+	int i;
+
+	for_each_possible_cpu(i) {
+		memset((void *)critirq_ctx[i], 0, THREAD_SIZE);
+		tp = critirq_ctx[i];
+		tp->cpu = i;
+		tp->preempt_count = 0;
+
+#ifdef CONFIG_BOOKE
+		memset((void *)dbgirq_ctx[i], 0, THREAD_SIZE);
+		tp = dbgirq_ctx[i];
+		tp->cpu = i;
+		tp->preempt_count = 0;
+
+		memset((void *)mcheckirq_ctx[i], 0, THREAD_SIZE);
+		tp = mcheckirq_ctx[i];
+		tp->cpu = i;
+		tp->preempt_count = HARDIRQ_OFFSET;
+#endif
+	}
+}
+#endif
 
 #ifdef CONFIG_IRQSTACKS
 struct thread_info *softirq_ctx[NR_CPUS] __read_mostly;
@@ -465,7 +498,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	host->revmap_type = revmap_type;
 	host->inval_irq = inval_irq;
 	host->ops = ops;
-	host->of_node = of_node;
+	host->of_node = of_node_get(of_node);
 
 	if (host->ops->match == NULL)
 		host->ops->match = default_irq_host_match;

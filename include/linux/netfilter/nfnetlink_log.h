@@ -48,6 +48,9 @@ enum nfulnl_attr_type {
 	NFULA_SEQ,			/* instance-local sequence number */
 	NFULA_SEQ_GLOBAL,		/* global sequence number */
 	NFULA_GID,			/* group id of socket */
+	NFULA_HWTYPE,			/* hardware type */
+	NFULA_HWHEADER,			/* hardware header */
+	NFULA_HWLEN,			/* hardware header length */
 
 	__NFULA_MAX
 };

@@ -506,6 +506,7 @@ static void ext4_put_super (struct super_block * sb)
 	ext4_ext_release(sb);
 	ext4_xattr_put_super(sb);
 	jbd2_journal_destroy(sbi->s_journal);
+	sbi->s_journal = NULL;
 	if (!(sb->s_flags & MS_RDONLY)) {
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
@@ -517,6 +518,7 @@ static void ext4_put_super (struct super_block * sb)
 	for (i = 0; i < sbi->s_gdb_count; i++)
 		brelse(sbi->s_group_desc[i]);
 	kfree(sbi->s_group_desc);
+	kfree(sbi->s_flex_groups);
 	percpu_counter_destroy(&sbi->s_freeblocks_counter);
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
 	percpu_counter_destroy(&sbi->s_dirs_counter);
@@ -571,6 +573,12 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	memset(&ei->i_cached_extent, 0, sizeof(struct ext4_ext_cache));
 	INIT_LIST_HEAD(&ei->i_prealloc_list);
 	spin_lock_init(&ei->i_prealloc_lock);
+	jbd2_journal_init_jbd_inode(&ei->jinode, &ei->vfs_inode);
+	ei->i_reserved_data_blocks = 0;
+	ei->i_reserved_meta_blocks = 0;
+	ei->i_allocated_meta_blocks = 0;
+	ei->i_delalloc_reserved_flag = 0;
+	spin_lock_init(&(ei->i_block_reservation_lock));
 	return &ei->vfs_inode;
 }
 
@@ -587,7 +595,7 @@ static void ext4_destroy_inode(struct inode *inode)
 	kmem_cache_free(ext4_inode_cachep, EXT4_I(inode));
 }
 
-static void init_once(struct kmem_cache *cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct ext4_inode_info *ei = (struct ext4_inode_info *) foo;
 
@@ -635,6 +643,8 @@ static void ext4_clear_inode(struct inode *inode)
 	EXT4_I(inode)->i_block_alloc_info = NULL;
 	if (unlikely(rsv))
 		kfree(rsv);
+	jbd2_journal_release_jbd_inode(EXT4_SB(inode->i_sb)->s_journal,
+				       &EXT4_I(inode)->jinode);
 }
 
 static inline void ext4_show_quota_options(struct seq_file *seq, struct super_block *sb)
@@ -671,7 +681,6 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	unsigned long def_mount_opts;
 	struct super_block *sb = vfs->mnt_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	journal_t *journal = sbi->s_journal;
 	struct ext4_super_block *es = sbi->s_es;
 
 	def_mount_opts = le32_to_cpu(es->s_default_mount_opts);
@@ -747,6 +756,9 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",nomballoc");
 	if (test_opt(sb, I_VERSION))
 		seq_puts(seq, ",i_version");
+	if (!test_opt(sb, DELALLOC))
+		seq_puts(seq, ",nodelalloc");
+
 
 	if (sbi->s_stripe)
 		seq_printf(seq, ",stripe=%lu", sbi->s_stripe);
@@ -894,7 +906,7 @@ enum {
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
 	Opt_grpquota, Opt_extents, Opt_noextents, Opt_i_version,
-	Opt_mballoc, Opt_nomballoc, Opt_stripe,
+	Opt_mballoc, Opt_nomballoc, Opt_stripe, Opt_delalloc, Opt_nodelalloc,
 };
 
 static match_table_t tokens = {
@@ -953,6 +965,8 @@ static match_table_t tokens = {
 	{Opt_nomballoc, "nomballoc"},
 	{Opt_stripe, "stripe=%u"},
 	{Opt_resize, "resize"},
+	{Opt_delalloc, "delalloc"},
+	{Opt_nodelalloc, "nodelalloc"},
 	{Opt_err, NULL},
 };
 
@@ -990,6 +1004,7 @@ static int parse_options (char *options, struct super_block *sb,
 	int qtype, qfmt;
 	char *qname;
 #endif
+	ext4_fsblk_t last_block;
 
 	if (!options)
 		return 1;
@@ -1309,14 +1324,38 @@ set_qf_format:
 			clear_opt(sbi->s_mount_opt, NOBH);
 			break;
 		case Opt_extents:
+			if (!EXT4_HAS_INCOMPAT_FEATURE(sb,
+					EXT4_FEATURE_INCOMPAT_EXTENTS)) {
+				ext4_warning(sb, __func__,
+					"extents feature not enabled "
+					"on this filesystem, use tune2fs\n");
+				return 0;
+			}
 			set_opt (sbi->s_mount_opt, EXTENTS);
 			break;
 		case Opt_noextents:
+			/*
+			 * When e2fsprogs support resizing an already existing
+			 * ext3 file system to greater than 2**32 we need to
+			 * add support to block allocator to handle growing
+			 * already existing block  mapped inode so that blocks
+			 * allocated for them fall within 2**32
+			 */
+			last_block = ext4_blocks_count(sbi->s_es) - 1;
+			if (last_block  > 0xffffffffULL) {
+				printk(KERN_ERR "EXT4-fs: Filesystem too "
+						"large to mount with "
+						"-o noextents options\n");
+				return 0;
+			}
 			clear_opt (sbi->s_mount_opt, EXTENTS);
 			break;
 		case Opt_i_version:
 			set_opt(sbi->s_mount_opt, I_VERSION);
 			sb->s_flags |= MS_I_VERSION;
+			break;
+		case Opt_nodelalloc:
+			clear_opt(sbi->s_mount_opt, DELALLOC);
 			break;
 		case Opt_mballoc:
 			set_opt(sbi->s_mount_opt, MBALLOC);
@@ -1330,6 +1369,9 @@ set_qf_format:
 			if (option < 0)
 				return 0;
 			sbi->s_stripe = option;
+			break;
+		case Opt_delalloc:
+			set_opt(sbi->s_mount_opt, DELALLOC);
 			break;
 		default:
 			printk (KERN_ERR
@@ -1441,6 +1483,54 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 		printk("internal journal\n");
 	}
 	return res;
+}
+
+static int ext4_fill_flex_info(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_group_desc *gdp = NULL;
+	struct buffer_head *bh;
+	ext4_group_t flex_group_count;
+	ext4_group_t flex_group;
+	int groups_per_flex = 0;
+	__u64 block_bitmap = 0;
+	int i;
+
+	if (!sbi->s_es->s_log_groups_per_flex) {
+		sbi->s_log_groups_per_flex = 0;
+		return 1;
+	}
+
+	sbi->s_log_groups_per_flex = sbi->s_es->s_log_groups_per_flex;
+	groups_per_flex = 1 << sbi->s_log_groups_per_flex;
+
+	flex_group_count = (sbi->s_groups_count + groups_per_flex - 1) /
+		groups_per_flex;
+	sbi->s_flex_groups = kmalloc(flex_group_count *
+				     sizeof(struct flex_groups), GFP_KERNEL);
+	if (sbi->s_flex_groups == NULL) {
+		printk(KERN_ERR "EXT4-fs: not enough memory\n");
+		goto failed;
+	}
+	memset(sbi->s_flex_groups, 0, flex_group_count *
+	       sizeof(struct flex_groups));
+
+	gdp = ext4_get_group_desc(sb, 1, &bh);
+	block_bitmap = ext4_block_bitmap(sb, gdp) - 1;
+
+	for (i = 0; i < sbi->s_groups_count; i++) {
+		gdp = ext4_get_group_desc(sb, i, &bh);
+
+		flex_group = ext4_flex_group(sbi, i);
+		sbi->s_flex_groups[flex_group].free_inodes +=
+			le16_to_cpu(gdp->bg_free_inodes_count);
+		sbi->s_flex_groups[flex_group].free_blocks +=
+			le16_to_cpu(gdp->bg_free_blocks_count);
+	}
+
+	return 1;
+failed:
+	return 0;
 }
 
 __le16 ext4_group_desc_csum(struct ext4_sb_info *sbi, __u32 block_group,
@@ -1810,8 +1900,8 @@ static unsigned long ext4_get_stripe_size(struct ext4_sb_info *sbi)
 }
 
 static int ext4_fill_super (struct super_block *sb, void *data, int silent)
-				__releases(kernel_sem)
-				__acquires(kernel_sem)
+				__releases(kernel_lock)
+				__acquires(kernel_lock)
 
 {
 	struct buffer_head * bh;
@@ -1848,11 +1938,6 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	blocksize = sb_min_blocksize(sb, EXT4_MIN_BLOCK_SIZE);
 	if (!blocksize) {
 		printk(KERN_ERR "EXT4-fs: unable to set blocksize\n");
-		goto out_fail;
-	}
-
-	if (!sb_set_blocksize(sb, blocksize)) {
-		printk(KERN_ERR "EXT4-fs: bad blocksize %d.\n", blocksize);
 		goto out_fail;
 	}
 
@@ -1919,14 +2004,27 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 
 	/*
 	 * turn on extents feature by default in ext4 filesystem
-	 * User -o noextents to turn it off
+	 * only if feature flag already set by mkfs or tune2fs.
+	 * Use -o noextents to turn it off
 	 */
-	set_opt(sbi->s_mount_opt, EXTENTS);
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS))
+		set_opt(sbi->s_mount_opt, EXTENTS);
+	else
+		ext4_warning(sb, __func__,
+			"extents feature not enabled on this filesystem, "
+			"use tune2fs.\n");
 	/*
-	 * turn on mballoc feature by default in ext4 filesystem
-	 * User -o nomballoc to turn it off
+	 * turn on mballoc code by default in ext4 filesystem
+	 * Use -o nomballoc to turn it off
 	 */
 	set_opt(sbi->s_mount_opt, MBALLOC);
+
+	/*
+	 * enable delayed allocation by default
+	 * Use -o nodelalloc to turn it off
+	 */
+	set_opt(sbi->s_mount_opt, DELALLOC);
+
 
 	if (!parse_options ((char *) data, sb, &journal_inum, &journal_devnum,
 			    NULL, 0))
@@ -2138,6 +2236,14 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		printk(KERN_ERR "EXT4-fs: group descriptors corrupted!\n");
 		goto failed_mount2;
 	}
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG))
+		if (!ext4_fill_flex_info(sb)) {
+			printk(KERN_ERR
+			       "EXT4-fs: unable to initialize "
+			       "flex_bg meta info!\n");
+			goto failed_mount2;
+		}
+
 	sbi->s_gdb_count = db_count;
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 	spin_lock_init(&sbi->s_next_gen_lock);
@@ -2358,6 +2464,13 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		test_opt(sb,DATA_FLAGS) == EXT4_MOUNT_ORDERED_DATA ? "ordered":
 		"writeback");
 
+	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
+		printk(KERN_WARNING "EXT4-fs: Ignoring delalloc option - "
+				"requested data journaling mode\n");
+		clear_opt(sbi->s_mount_opt, DELALLOC);
+	} else if (test_opt(sb, DELALLOC))
+		printk(KERN_INFO "EXT4-fs: delayed allocation enabled\n");
+
 	ext4_ext_init(sb);
 	ext4_mb_init(sb, needs_recovery);
 
@@ -2372,6 +2485,7 @@ cantfind_ext4:
 
 failed_mount4:
 	jbd2_journal_destroy(sbi->s_journal);
+	sbi->s_journal = NULL;
 failed_mount3:
 	percpu_counter_destroy(&sbi->s_freeblocks_counter);
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
@@ -3325,7 +3439,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 			err = ext4_journal_dirty_metadata(handle, bh);
 		else {
 			/* Always do at least ordered writes for quotas */
-			err = ext4_journal_dirty_data(handle, bh);
+			err = ext4_jbd2_file_inode(handle, inode);
 			mark_buffer_dirty(bh);
 		}
 		brelse(bh);

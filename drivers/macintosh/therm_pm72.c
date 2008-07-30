@@ -123,14 +123,14 @@
 #include <linux/i2c.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/sections.h>
-#include <asm/of_device.h>
 #include <asm/macio.h>
-#include <asm/of_platform.h>
 
 #include "therm_pm72.h"
 

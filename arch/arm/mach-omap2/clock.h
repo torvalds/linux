@@ -18,11 +18,16 @@
 
 #include <asm/arch/clock.h>
 
+/* The maximum error between a target DPLL rate and the rounded rate in Hz */
+#define DEFAULT_DPLL_RATE_TOLERANCE	50000
+
 int omap2_clk_enable(struct clk *clk);
 void omap2_clk_disable(struct clk *clk);
 long omap2_clk_round_rate(struct clk *clk, unsigned long rate);
 int omap2_clk_set_rate(struct clk *clk, unsigned long rate);
 int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent);
+int omap2_dpll_rate_tolerance_set(struct clk *clk, unsigned int tolerance);
+long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate);
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 void omap2_clk_disable_unused(struct clk *clk);
@@ -42,6 +47,7 @@ long omap2_clksel_round_rate(struct clk *clk, unsigned long target_rate);
 int omap2_clksel_set_rate(struct clk *clk, unsigned long rate);
 u32 omap2_get_dpll_rate(struct clk *clk);
 int omap2_wait_clock_ready(void __iomem *reg, u32 cval, const char *name);
+void omap2_clk_prepare_for_reboot(void);
 
 extern u8 cpu_mask;
 

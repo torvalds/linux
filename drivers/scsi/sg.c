@@ -49,6 +49,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
 #include <linux/blktrace_api.h>
+#include <linux/smp_lock.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -182,8 +183,9 @@ static int sg_build_sgat(Sg_scatter_hold * schp, const Sg_fd * sfp,
 			 int tablesize);
 static ssize_t sg_new_read(Sg_fd * sfp, char __user *buf, size_t count,
 			   Sg_request * srp);
-static ssize_t sg_new_write(Sg_fd * sfp, const char __user *buf, size_t count,
-			    int blocking, int read_only, Sg_request ** o_srp);
+static ssize_t sg_new_write(Sg_fd *sfp, struct file *file,
+			const char __user *buf, size_t count, int blocking,
+			int read_only, Sg_request **o_srp);
 static int sg_common_write(Sg_fd * sfp, Sg_request * srp,
 			   unsigned char *cmnd, int timeout, int blocking);
 static int sg_u_iovec(sg_io_hdr_t * hp, int sg_num, int ind,
@@ -204,7 +206,6 @@ static Sg_request *sg_get_rq_mark(Sg_fd * sfp, int pack_id);
 static Sg_request *sg_add_request(Sg_fd * sfp);
 static int sg_remove_request(Sg_fd * sfp, Sg_request * srp);
 static int sg_res_in_use(Sg_fd * sfp);
-static int sg_allow_access(unsigned char opcode, char dev_type);
 static int sg_build_direct(Sg_request * srp, Sg_fd * sfp, int dxfer_len);
 static Sg_device *sg_get_dev(int dev);
 #ifdef CONFIG_SCSI_PROC_FS
@@ -227,19 +228,26 @@ sg_open(struct inode *inode, struct file *filp)
 	int res;
 	int retval;
 
+	lock_kernel();
 	nonseekable_open(inode, filp);
 	SCSI_LOG_TIMEOUT(3, printk("sg_open: dev=%d, flags=0x%x\n", dev, flags));
 	sdp = sg_get_dev(dev);
-	if ((!sdp) || (!sdp->device))
+	if ((!sdp) || (!sdp->device)) {
+		unlock_kernel();
 		return -ENXIO;
-	if (sdp->detached)
+	}
+	if (sdp->detached) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	/* This driver's module count bumped by fops_get in <linux/fs.h> */
 	/* Prevent the device driver from vanishing while we sleep */
 	retval = scsi_device_get(sdp->device);
-	if (retval)
+	if (retval) {
+		unlock_kernel();
 		return retval;
+	}
 
 	if (!((flags & O_NONBLOCK) ||
 	      scsi_block_when_processing_errors(sdp->device))) {
@@ -295,10 +303,12 @@ sg_open(struct inode *inode, struct file *filp)
 		retval = -ENOMEM;
 		goto error_out;
 	}
+	unlock_kernel();
 	return 0;
 
       error_out:
 	scsi_device_put(sdp->device);
+	unlock_kernel();
 	return retval;
 }
 
@@ -544,7 +554,7 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 		return -EFAULT;
 	blocking = !(filp->f_flags & O_NONBLOCK);
 	if (old_hdr.reply_len < 0)
-		return sg_new_write(sfp, buf, count, blocking, 0, NULL);
+		return sg_new_write(sfp, filp, buf, count, blocking, 0, NULL);
 	if (count < (SZ_SG_HEADER + 6))
 		return -EIO;	/* The minimum scsi command length is 6 bytes. */
 
@@ -621,8 +631,9 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 }
 
 static ssize_t
-sg_new_write(Sg_fd * sfp, const char __user *buf, size_t count,
-	     int blocking, int read_only, Sg_request ** o_srp)
+sg_new_write(Sg_fd *sfp, struct file *file, const char __user *buf,
+		 size_t count, int blocking, int read_only,
+		 Sg_request **o_srp)
 {
 	int k;
 	Sg_request *srp;
@@ -678,8 +689,7 @@ sg_new_write(Sg_fd * sfp, const char __user *buf, size_t count,
 		sg_remove_request(sfp, srp);
 		return -EFAULT;
 	}
-	if (read_only &&
-	    (!sg_allow_access(cmnd[0], sfp->parentdp->device->type))) {
+	if (read_only && !blk_verify_command(file, cmnd)) {
 		sg_remove_request(sfp, srp);
 		return -EPERM;
 	}
@@ -799,7 +809,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 			if (!access_ok(VERIFY_WRITE, p, SZ_SG_IO_HDR))
 				return -EFAULT;
 			result =
-			    sg_new_write(sfp, p, SZ_SG_IO_HDR,
+			    sg_new_write(sfp, filp, p, SZ_SG_IO_HDR,
 					 blocking, read_only, &srp);
 			if (result < 0)
 				return result;
@@ -1026,6 +1036,9 @@ sg_ioctl(struct inode *inode, struct file *filp,
 		case SG_SCSI_RESET_DEVICE:
 			val = SCSI_TRY_RESET_DEVICE;
 			break;
+		case SG_SCSI_RESET_TARGET:
+			val = SCSI_TRY_RESET_TARGET;
+			break;
 		case SG_SCSI_RESET_BUS:
 			val = SCSI_TRY_RESET_BUS;
 			break;
@@ -1048,7 +1061,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 
 			if (copy_from_user(&opcode, siocp->data, 1))
 				return -EFAULT;
-			if (!sg_allow_access(opcode, sdp->device->type))
+			if (!blk_verify_command(filp, &opcode))
 				return -EPERM;
 		}
 		return sg_scsi_ioctl(filp, sdp->device->request_queue, NULL, p);
@@ -2500,30 +2513,6 @@ sg_page_free(struct page *page, int size)
 	for (order = 0, a_size = PAGE_SIZE; a_size < size;
 	     order++, a_size <<= 1) ;
 	__free_pages(page, order);
-}
-
-#ifndef MAINTENANCE_IN_CMD
-#define MAINTENANCE_IN_CMD 0xa3
-#endif
-
-static unsigned char allow_ops[] = { TEST_UNIT_READY, REQUEST_SENSE,
-	INQUIRY, READ_CAPACITY, READ_BUFFER, READ_6, READ_10, READ_12,
-	READ_16, MODE_SENSE, MODE_SENSE_10, LOG_SENSE, REPORT_LUNS,
-	SERVICE_ACTION_IN, RECEIVE_DIAGNOSTIC, READ_LONG, MAINTENANCE_IN_CMD
-};
-
-static int
-sg_allow_access(unsigned char opcode, char dev_type)
-{
-	int k;
-
-	if (TYPE_SCANNER == dev_type)	/* TYPE_ROM maybe burner */
-		return 1;
-	for (k = 0; k < sizeof (allow_ops); ++k) {
-		if (opcode == allow_ops[k])
-			return 1;
-	}
-	return 0;
 }
 
 #ifdef CONFIG_SCSI_PROC_FS

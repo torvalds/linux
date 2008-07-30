@@ -24,6 +24,12 @@
 #include <linux/utsrelease.h>
 #include <linux/utsname.h>
 #include <linux/numa.h>
+#include <linux/suspend.h>
+#include <linux/device.h>
+#include <linux/freezer.h>
+#include <linux/pm.h>
+#include <linux/cpu.h>
+#include <linux/console.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
@@ -239,6 +245,12 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 					   get_order(KEXEC_CONTROL_CODE_SIZE));
 	if (!image->control_code_page) {
 		printk(KERN_ERR "Could not allocate control_code_buffer\n");
+		goto out;
+	}
+
+	image->swap_page = kimage_alloc_control_pages(image, 0);
+	if (!image->swap_page) {
+		printk(KERN_ERR "Could not allocate swap buffer\n");
 		goto out;
 	}
 
@@ -589,14 +601,12 @@ static void kimage_free_extra_pages(struct kimage *image)
 	kimage_free_page_list(&image->unuseable_pages);
 
 }
-static int kimage_terminate(struct kimage *image)
+static void kimage_terminate(struct kimage *image)
 {
 	if (*image->entry != 0)
 		image->entry++;
 
 	*image->entry = IND_DONE;
-
-	return 0;
 }
 
 #define for_each_kimage_entry(image, ptr, entry) \
@@ -988,6 +998,8 @@ asmlinkage long sys_kexec_load(unsigned long entry, unsigned long nr_segments,
 		if (result)
 			goto out;
 
+		if (flags & KEXEC_PRESERVE_CONTEXT)
+			image->preserve_context = 1;
 		result = machine_kexec_prepare(image);
 		if (result)
 			goto out;
@@ -997,9 +1009,7 @@ asmlinkage long sys_kexec_load(unsigned long entry, unsigned long nr_segments,
 			if (result)
 				goto out;
 		}
-		result = kimage_terminate(image);
-		if (result)
-			goto out;
+		kimage_terminate(image);
 	}
 	/* Install the new kernel, and  Uninstall the old */
 	image = xchg(dest_image, image);
@@ -1415,3 +1425,85 @@ static int __init crash_save_vmcoreinfo_init(void)
 }
 
 module_init(crash_save_vmcoreinfo_init)
+
+/**
+ *	kernel_kexec - reboot the system
+ *
+ *	Move into place and start executing a preloaded standalone
+ *	executable.  If nothing was preloaded return an error.
+ */
+int kernel_kexec(void)
+{
+	int error = 0;
+
+	if (xchg(&kexec_lock, 1))
+		return -EBUSY;
+	if (!kexec_image) {
+		error = -EINVAL;
+		goto Unlock;
+	}
+
+	if (kexec_image->preserve_context) {
+#ifdef CONFIG_KEXEC_JUMP
+		mutex_lock(&pm_mutex);
+		pm_prepare_console();
+		error = freeze_processes();
+		if (error) {
+			error = -EBUSY;
+			goto Restore_console;
+		}
+		suspend_console();
+		error = device_suspend(PMSG_FREEZE);
+		if (error)
+			goto Resume_console;
+		error = disable_nonboot_cpus();
+		if (error)
+			goto Resume_devices;
+		local_irq_disable();
+		/* At this point, device_suspend() has been called,
+		 * but *not* device_power_down(). We *must*
+		 * device_power_down() now.  Otherwise, drivers for
+		 * some devices (e.g. interrupt controllers) become
+		 * desynchronized with the actual state of the
+		 * hardware at resume time, and evil weirdness ensues.
+		 */
+		error = device_power_down(PMSG_FREEZE);
+		if (error)
+			goto Enable_irqs;
+		save_processor_state();
+#endif
+	} else {
+		blocking_notifier_call_chain(&reboot_notifier_list,
+					     SYS_RESTART, NULL);
+		system_state = SYSTEM_RESTART;
+		device_shutdown();
+		sysdev_shutdown();
+		printk(KERN_EMERG "Starting new kernel\n");
+		machine_shutdown();
+	}
+
+	machine_kexec(kexec_image);
+
+	if (kexec_image->preserve_context) {
+#ifdef CONFIG_KEXEC_JUMP
+		restore_processor_state();
+		device_power_up(PMSG_RESTORE);
+ Enable_irqs:
+		local_irq_enable();
+		enable_nonboot_cpus();
+ Resume_devices:
+		device_resume(PMSG_RESTORE);
+ Resume_console:
+		resume_console();
+		thaw_processes();
+ Restore_console:
+		pm_restore_console();
+		mutex_unlock(&pm_mutex);
+#endif
+	}
+
+ Unlock:
+	xchg(&kexec_lock, 0);
+
+	return error;
+}

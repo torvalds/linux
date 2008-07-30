@@ -122,8 +122,7 @@ typedef struct sigaltstack {
 
 #ifdef __KERNEL__
 struct pt_regs;
-extern int do_signal(sigset_t *oldset, struct pt_regs *regs);
-extern int do_signal32(sigset_t *oldset, struct pt_regs *regs);
+extern void do_signal(struct pt_regs *regs, unsigned long thread_info_flags);
 #define ptrace_signal_deliver(regs, cookie) do { } while (0)
 #endif /* __KERNEL__ */
 

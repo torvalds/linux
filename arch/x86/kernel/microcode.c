@@ -5,13 +5,14 @@
  *		      2006	Shaohua Li <shaohua.li@intel.com>
  *
  *	This driver allows to upgrade microcode on Intel processors
- *	belonging to IA-32 family - PentiumPro, Pentium II, 
+ *	belonging to IA-32 family - PentiumPro, Pentium II,
  *	Pentium III, Xeon, Pentium 4, etc.
  *
- *	Reference: Section 8.10 of Volume III, Intel Pentium 4 Manual, 
- *	Order Number 245472 or free download from:
- *		
- *	http://developer.intel.com/design/pentium4/manuals/245472.htm
+ *	Reference: Section 8.11 of Volume 3a, IA-32 Intel? Architecture
+ *	Software Developer's Manual
+ *	Order Number 253668 or free download from:
+ *
+ *	http://developer.intel.com/design/pentium4/manuals/253668.htm
  *
  *	For more information, go to http://www.urbanmyth.org/microcode
  *
@@ -58,12 +59,12 @@
  *		nature of implementation.
  *	1.11	22 Mar 2002 Tigran Aivazian <tigran@veritas.com>
  *		Fix the panic when writing zero-length microcode chunk.
- *	1.12	29 Sep 2003 Nitin Kamble <nitin.a.kamble@intel.com>, 
+ *	1.12	29 Sep 2003 Nitin Kamble <nitin.a.kamble@intel.com>,
  *		Jun Nakajima <jun.nakajima@intel.com>
  *		Support for the microcode updates in the new format.
  *	1.13	10 Oct 2003 Tigran Aivazian <tigran@veritas.com>
  *		Removed ->read() method and obsoleted MICROCODE_IOCFREE ioctl
- *		because we no longer hold a copy of applied microcode 
+ *		because we no longer hold a copy of applied microcode
  *		in kernel memory.
  *	1.14	25 Jun 2004 Tigran Aivazian <tigran@veritas.com>
  *		Fix sigmatch() macro to handle old CPUs with pf == 0.
@@ -75,6 +76,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -320,11 +322,11 @@ static void apply_microcode(int cpu)
 		return;
 
 	/* serialize access to the physical write to MSR 0x79 */
-	spin_lock_irqsave(&microcode_update_lock, flags);          
+	spin_lock_irqsave(&microcode_update_lock, flags);
 
 	/* write microcode via MSR 0x79 */
 	wrmsr(MSR_IA32_UCODE_WRITE,
-		(unsigned long) uci->mc->bits, 
+		(unsigned long) uci->mc->bits,
 		(unsigned long) uci->mc->bits >> 16 >> 16);
 	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 
@@ -341,7 +343,7 @@ static void apply_microcode(int cpu)
 		return;
 	}
 	printk(KERN_INFO "microcode: CPU%d updated from revision "
-	       "0x%x to 0x%x, date = %08x \n", 
+	       "0x%x to 0x%x, date = %08x \n",
 	       cpu_num, uci->rev, val[1], uci->mc->hdr.date);
 	uci->rev = val[1];
 }
@@ -422,6 +424,7 @@ out:
 
 static int microcode_open (struct inode *unused1, struct file *unused2)
 {
+	cycle_kernel_lock();
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
 }
 
@@ -488,7 +491,7 @@ MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 #define microcode_dev_exit() do { } while(0)
 #endif
 
-static long get_next_ucode_from_buffer(void **mc, void *buf,
+static long get_next_ucode_from_buffer(void **mc, const u8 *buf,
 	unsigned long size, long offset)
 {
 	microcode_header_t *mc_header;
@@ -522,7 +525,7 @@ static int cpu_request_microcode(int cpu)
 	char name[30];
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	const struct firmware *firmware;
-	void *buf;
+	const u8 *buf;
 	unsigned long size;
 	long offset = 0;
 	int error;
@@ -534,7 +537,7 @@ static int cpu_request_microcode(int cpu)
 		c->x86, c->x86_model, c->x86_mask);
 	error = request_firmware(&firmware, name, &microcode_pdev->dev);
 	if (error) {
-		pr_debug("microcode: ucode data file %s load failed\n", name);
+		pr_debug("microcode: data file %s load failed\n", name);
 		return error;
 	}
 	buf = firmware->data;
@@ -641,7 +644,9 @@ static void microcode_fini_cpu(int cpu)
 	mutex_unlock(&microcode_mutex);
 }
 
-static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
+static ssize_t reload_store(struct sys_device *dev,
+			    struct sysdev_attribute *attr,
+			    const char *buf, size_t sz)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 	char *end;
@@ -652,9 +657,7 @@ static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
 	if (end == buf)
 		return -EINVAL;
 	if (val == 1) {
-		cpumask_t old;
-
-		old = current->cpus_allowed;
+		cpumask_t old = current->cpus_allowed;
 
 		get_online_cpus();
 		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
@@ -671,14 +674,16 @@ static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
 	return sz;
 }
 
-static ssize_t version_show(struct sys_device *dev, char *buf)
+static ssize_t version_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 
 	return sprintf(buf, "0x%x\n", uci->rev);
 }
 
-static ssize_t pf_show(struct sys_device *dev, char *buf)
+static ssize_t pf_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 
@@ -805,6 +810,9 @@ static int __init microcode_init (void)
 {
 	int error;
 
+	printk(KERN_INFO
+		"IA-32 Microcode Update Driver: v" MICROCODE_VERSION " <tigran@aivazian.fsnet.co.uk>\n");
+
 	error = microcode_dev_init();
 	if (error)
 		return error;
@@ -825,9 +833,6 @@ static int __init microcode_init (void)
 	}
 
 	register_hotcpu_notifier(&mc_cpu_notifier);
-
-	printk(KERN_INFO 
-		"IA-32 Microcode Update Driver: v" MICROCODE_VERSION " <tigran@aivazian.fsnet.co.uk>\n");
 	return 0;
 }
 

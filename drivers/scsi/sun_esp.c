@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/mm.h>
 #include <linux/init.h>
 
 #include <asm/irq.h>

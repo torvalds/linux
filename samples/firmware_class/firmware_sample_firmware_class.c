@@ -124,7 +124,7 @@ static int fw_setup_class_device(struct class_device *class_dev,
 	class_dev->class_id[BUS_ID_SIZE-1] = '\0';
 	class_dev->dev = device;
 
-	class_dev->class = &firmware_class,
+	class_dev->class = &firmware_class;
 	class_set_devdata(class_dev, fw_priv);
 	retval = class_device_register(class_dev);
 	if (retval) {

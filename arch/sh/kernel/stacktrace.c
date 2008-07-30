@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 #include <linux/thread_info.h>
+#include <linux/module.h>
 #include <asm/ptrace.h>
 
 /*
@@ -34,3 +35,4 @@ void save_stack_trace(struct stack_trace *trace)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(save_stack_trace);

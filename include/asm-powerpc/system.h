@@ -30,8 +30,8 @@
  *
  * For wmb(), we use sync since wmb is used in drivers to order
  * stores to system memory with respect to writes to the device.
- * However, smp_wmb() can be a lighter-weight eieio barrier on
- * SMP since it is only used to order updates to system memory.
+ * However, smp_wmb() can be a lighter-weight lwsync or eieio barrier
+ * on SMP since it is only used to order updates to system memory.
  */
 #define mb()   __asm__ __volatile__ ("sync" : : : "memory")
 #define rmb()  __asm__ __volatile__ ("sync" : : : "memory")
@@ -43,9 +43,16 @@
 #ifdef __KERNEL__
 #define AT_VECTOR_SIZE_ARCH 6 /* entries in ARCH_DLINFO */
 #ifdef CONFIG_SMP
+
+#ifdef __SUBARCH_HAS_LWSYNC
+#    define SMPWMB      lwsync
+#else
+#    define SMPWMB      eieio
+#endif
+
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
-#define smp_wmb()	eieio()
+#define smp_wmb()	__asm__ __volatile__ (__stringify(SMPWMB) : : :"memory")
 #define smp_read_barrier_depends()	read_barrier_depends()
 #else
 #define smp_mb()	barrier()
@@ -103,6 +110,8 @@ static inline int debugger_fault_handler(struct pt_regs *regs) { return 0; }
 #endif
 
 extern int set_dabr(unsigned long dabr);
+extern void do_dabr(struct pt_regs *regs, unsigned long address,
+		    unsigned long error_code);
 extern void print_backtrace(unsigned long *);
 extern void show_regs(struct pt_regs * regs);
 extern void flush_instruction_cache(void);
@@ -132,6 +141,8 @@ extern void enable_kernel_altivec(void);
 extern void giveup_altivec(struct task_struct *);
 extern void load_up_altivec(struct task_struct *);
 extern int emulate_altivec(struct pt_regs *);
+extern void __giveup_vsx(struct task_struct *);
+extern void giveup_vsx(struct task_struct *);
 extern void enable_kernel_spe(void);
 extern void giveup_spe(struct task_struct *);
 extern void load_up_spe(struct task_struct *);
@@ -151,6 +162,14 @@ static inline void discard_lazy_cpu_state(void)
 extern void flush_altivec_to_thread(struct task_struct *);
 #else
 static inline void flush_altivec_to_thread(struct task_struct *t)
+{
+}
+#endif
+
+#ifdef CONFIG_VSX
+extern void flush_vsx_to_thread(struct task_struct *);
+#else
+static inline void flush_vsx_to_thread(struct task_struct *t)
 {
 }
 #endif
@@ -190,6 +209,7 @@ extern struct task_struct *_switch(struct thread_struct *prev,
 
 extern unsigned int rtas_data;
 extern int mem_init_done;	/* set on boot once kmalloc can be called */
+extern int init_bootmem_done;	/* set on !NUMA once bootmem is available */
 extern unsigned long memory_limit;
 extern unsigned long klimit;
 
@@ -517,54 +537,6 @@ extern unsigned long add_reloc_offset(unsigned long);
 extern void reloc_got2(unsigned long);
 
 #define PTRRELOC(x)	((typeof(x)) add_reloc_offset((unsigned long)(x)))
-
-static inline void create_instruction(unsigned long addr, unsigned int instr)
-{
-	unsigned int *p;
-	p  = (unsigned int *)addr;
-	*p = instr;
-	asm ("dcbst 0, %0; sync; icbi 0,%0; sync; isync" : : "r" (p));
-}
-
-/* Flags for create_branch:
- * "b"   == create_branch(addr, target, 0);
- * "ba"  == create_branch(addr, target, BRANCH_ABSOLUTE);
- * "bl"  == create_branch(addr, target, BRANCH_SET_LINK);
- * "bla" == create_branch(addr, target, BRANCH_ABSOLUTE | BRANCH_SET_LINK);
- */
-#define BRANCH_SET_LINK	0x1
-#define BRANCH_ABSOLUTE	0x2
-
-static inline void create_branch(unsigned long addr,
-		unsigned long target, int flags)
-{
-	unsigned int instruction;
-
-	if (! (flags & BRANCH_ABSOLUTE))
-		target = target - addr;
-
-	/* Mask out the flags and target, so they don't step on each other. */
-	instruction = 0x48000000 | (flags & 0x3) | (target & 0x03FFFFFC);
-
-	create_instruction(addr, instruction);
-}
-
-static inline void create_function_call(unsigned long addr, void * func)
-{
-	unsigned long func_addr;
-
-#ifdef CONFIG_PPC64
-	/*
-	 * On PPC64 the function pointer actually points to the function's
-	 * descriptor. The first entry in the descriptor is the address
-	 * of the function text.
-	 */
-	func_addr = *(unsigned long *)func;
-#else
-	func_addr = (unsigned long)func;
-#endif
-	create_branch(addr, func_addr, BRANCH_SET_LINK);
-}
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 extern void account_system_vtime(struct task_struct *);

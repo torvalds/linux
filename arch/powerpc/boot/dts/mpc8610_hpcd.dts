@@ -172,14 +172,28 @@
 		};
 
 		mpic: interrupt-controller@40000 {
-			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <0x40000 0x40000>;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
-			big-endian;
+		};
+
+		msi@41600 {
+			compatible = "fsl,mpc8610-msi", "fsl,mpic-msi";
+			reg = <0x41600 0x80>;
+			msi-available-ranges = <0 0x100>;
+			interrupts = <
+				0xe0 0
+				0xe1 0
+				0xe2 0
+				0xe3 0
+				0xe4 0
+				0xe5 0
+				0xe6 0
+				0xe7 0>;
+			interrupt-parent = <&mpic>;
 		};
 
 		global-utilities@e0000 {
@@ -349,7 +363,7 @@
 			0xe000 0 0 4 &mpic 1 1
 
 			/* IDSEL 0x1f */
-			0xf800 0 0 1 &mpic 3 0
+			0xf800 0 0 1 &mpic 3 2
 			0xf800 0 0 2 &mpic 0 1
 		>;
 
@@ -374,6 +388,20 @@
 					  0x01000000 0x0 0x00000000
 					  0x01000000 0x0 0x00000000
 					  0x0 0x00100000>;
+
+				isa@1e {
+					device_type = "isa";
+					#size-cells = <1>;
+					#address-cells = <2>;
+					reg = <0xf000 0 0 0 0>;
+					ranges = <1 0 0x01000000 0 0
+						  0x00001000>;
+
+					rtc@70 {
+						compatible = "pnpPNP,b00";
+						reg = <1 0x70 2>;
+					};
+				};
 			};
 		};
 	};

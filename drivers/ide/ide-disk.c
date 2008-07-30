@@ -56,23 +56,29 @@ static DEFINE_MUTEX(idedisk_ref_mutex);
 #define ide_disk_g(disk) \
 	container_of((disk)->private_data, struct ide_disk_obj, driver)
 
+static void ide_disk_release(struct kref *);
+
 static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
 {
 	struct ide_disk_obj *idkp = NULL;
 
 	mutex_lock(&idedisk_ref_mutex);
 	idkp = ide_disk_g(disk);
-	if (idkp)
+	if (idkp) {
 		kref_get(&idkp->kref);
+		if (ide_device_get(idkp->drive)) {
+			kref_put(&idkp->kref, ide_disk_release);
+			idkp = NULL;
+		}
+	}
 	mutex_unlock(&idedisk_ref_mutex);
 	return idkp;
 }
 
-static void ide_disk_release(struct kref *);
-
 static void ide_disk_put(struct ide_disk_obj *idkp)
 {
 	mutex_lock(&idedisk_ref_mutex);
+	ide_device_put(idkp->drive);
 	kref_put(&idkp->kref, ide_disk_release);
 	mutex_unlock(&idedisk_ref_mutex);
 }
@@ -158,7 +164,7 @@ static void ide_tf_set_cmd(ide_drive_t *drive, ide_task_t *task, u8 dma)
 	write = (task->tf_flags & IDE_TFLAG_WRITE) ? 1 : 0;
 
 	if (dma)
-		index = drive->vdma ? 4 : 8;
+		index = 8;
 	else
 		index = drive->mult_count ? 0 : 4;
 
@@ -198,8 +204,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	}
 
 	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_NO_SELECT_MASK;  /* FIXME? */
-	task.tf_flags |= (IDE_TFLAG_TF | IDE_TFLAG_DEVICE);
+	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
 	if (drive->select.b.lba) {
 		if (lba48) {
@@ -617,7 +622,8 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
  */
 static int set_multcount(ide_drive_t *drive, int arg)
 {
-	struct request rq;
+	struct request *rq;
+	int error;
 
 	if (arg < 0 || arg > drive->id->max_multsect)
 		return -EINVAL;
@@ -625,12 +631,13 @@ static int set_multcount(ide_drive_t *drive, int arg)
 	if (drive->special.b.set_multmode)
 		return -EBUSY;
 
-	ide_init_drive_cmd(&rq);
-	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 
 	drive->mult_req = arg;
 	drive->special.b.set_multmode = 1;
-	(void)ide_do_drive_cmd(drive, &rq, ide_wait);
+	error = blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_put_request(rq);
 
 	return (drive->mult_count == arg) ? 0 : -EIO;
 }
@@ -984,7 +991,6 @@ static ide_driver_t idedisk_driver = {
 	.do_request		= ide_do_rw_disk,
 	.end_request		= ide_end_request,
 	.error			= __ide_error,
-	.abort			= __ide_abort,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idedisk_proc,
 #endif

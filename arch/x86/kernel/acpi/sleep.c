@@ -9,6 +9,7 @@
 #include <linux/bootmem.h>
 #include <linux/dmi.h>
 #include <linux/cpumask.h>
+#include <asm/segment.h>
 
 #include "realmode/wakeup.h"
 #include "sleep.h"
@@ -51,18 +52,27 @@ int acpi_save_state_mem(void)
 	header->video_mode = saved_video_mode;
 
 	header->wakeup_jmp_seg = acpi_wakeup_address >> 4;
+
+	/*
+	 * Set up the wakeup GDT.  We set these up as Big Real Mode,
+	 * that is, with limits set to 4 GB.  At least the Lenovo
+	 * Thinkpad X61 is known to need this for the video BIOS
+	 * initialization quirk to work; this is likely to also
+	 * be the case for other laptops or integrated video devices.
+	 */
+
 	/* GDT[0]: GDT self-pointer */
 	header->wakeup_gdt[0] =
 		(u64)(sizeof(header->wakeup_gdt) - 1) +
 		((u64)(acpi_wakeup_address +
 			((char *)&header->wakeup_gdt - (char *)acpi_realmode))
 				<< 16);
-	/* GDT[1]: real-mode-like code segment */
-	header->wakeup_gdt[1] = (0x009bULL << 40) +
-		((u64)acpi_wakeup_address << 16) + 0xffff;
-	/* GDT[2]: real-mode-like data segment */
-	header->wakeup_gdt[2] = (0x0093ULL << 40) +
-		((u64)acpi_wakeup_address << 16) + 0xffff;
+	/* GDT[1]: big real mode-like code segment */
+	header->wakeup_gdt[1] =
+		GDT_ENTRY(0x809b, acpi_wakeup_address, 0xfffff);
+	/* GDT[2]: big real mode-like data segment */
+	header->wakeup_gdt[2] =
+		GDT_ENTRY(0x8093, acpi_wakeup_address, 0xfffff);
 
 #ifndef CONFIG_64BIT
 	store_gdt((struct desc_ptr *)&header->pmode_gdt);
@@ -86,7 +96,9 @@ int acpi_save_state_mem(void)
 	saved_magic = 0x12345678;
 #else /* CONFIG_64BIT */
 	header->trampoline_segment = setup_trampoline() >> 4;
-	init_rsp = (unsigned long)temp_stack + 4096;
+#ifdef CONFIG_SMP
+	stack_start.sp = temp_stack + 4096;
+#endif
 	initial_code = (unsigned long)wakeup_long64;
 	saved_magic = 0x123456789abcdef0;
 #endif /* CONFIG_64BIT */
@@ -138,6 +150,12 @@ static int __init acpi_sleep_setup(char *str)
 			acpi_realmode_flags |= 2;
 		if (strncmp(str, "s3_beep", 7) == 0)
 			acpi_realmode_flags |= 4;
+#ifdef CONFIG_HIBERNATION
+		if (strncmp(str, "s4_nohwsig", 10) == 0)
+			acpi_no_s4_hw_signature();
+#endif
+		if (strncmp(str, "old_ordering", 12) == 0)
+			acpi_old_suspend_ordering();
 		str = strchr(str, ',');
 		if (str != NULL)
 			str += strspn(str, ", \t");

@@ -312,10 +312,27 @@ static struct spu *aff_ref_location(struct spu_context *ctx, int mem_aff,
 	 */
 	node = cpu_to_node(raw_smp_processor_id());
 	for (n = 0; n < MAX_NUMNODES; n++, node++) {
+		int available_spus;
+
 		node = (node < MAX_NUMNODES) ? node : 0;
 		if (!node_allowed(ctx, node))
 			continue;
+
+		available_spus = 0;
 		mutex_lock(&cbe_spu_info[node].list_mutex);
+		list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list) {
+			if (spu->ctx && spu->ctx->gang
+					&& spu->ctx->aff_offset == 0)
+				available_spus -=
+					(spu->ctx->gang->contexts - 1);
+			else
+				available_spus++;
+		}
+		if (available_spus < ctx->gang->contexts) {
+			mutex_unlock(&cbe_spu_info[node].list_mutex);
+			continue;
+		}
+
 		list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list) {
 			if ((!mem_aff || spu->has_mem_affinity) &&
 							sched_spu(spu)) {
@@ -389,6 +406,9 @@ static int has_affinity(struct spu_context *ctx)
 	if (list_empty(&ctx->aff_list))
 		return 0;
 
+	if (atomic_read(&ctx->gang->aff_sched_count) == 0)
+		ctx->gang->aff_ref_spu = NULL;
+
 	if (!gang->aff_ref_spu) {
 		if (!(gang->aff_flags & AFF_MERGED))
 			aff_merge_remaining_ctxs(gang);
@@ -416,14 +436,8 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
  	if (spu->ctx->flags & SPU_CREATE_NOSCHED)
 		atomic_dec(&cbe_spu_info[spu->node].reserved_spus);
 
-	if (ctx->gang){
-		mutex_lock(&ctx->gang->aff_mutex);
-		if (has_affinity(ctx)) {
-			if (atomic_dec_and_test(&ctx->gang->aff_sched_count))
-				ctx->gang->aff_ref_spu = NULL;
-		}
-		mutex_unlock(&ctx->gang->aff_mutex);
-	}
+	if (ctx->gang)
+		atomic_dec_if_positive(&ctx->gang->aff_sched_count);
 
 	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
@@ -562,10 +576,7 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
 				goto found;
 			mutex_unlock(&cbe_spu_info[node].list_mutex);
 
-			mutex_lock(&ctx->gang->aff_mutex);
-			if (atomic_dec_and_test(&ctx->gang->aff_sched_count))
-				ctx->gang->aff_ref_spu = NULL;
-			mutex_unlock(&ctx->gang->aff_mutex);
+			atomic_dec(&ctx->gang->aff_sched_count);
 			goto not_found;
 		}
 		mutex_unlock(&ctx->gang->aff_mutex);
@@ -899,7 +910,8 @@ static noinline void spusched_tick(struct spu_context *ctx)
 			spu_add_to_rq(ctx);
 	} else {
 		spu_context_nospu_trace(spusched_tick__newslice, ctx);
-		ctx->time_slice++;
+		if (!ctx->time_slice)
+			ctx->time_slice++;
 	}
 out:
 	spu_release(ctx);
@@ -993,6 +1005,7 @@ void spuctx_switch_state(struct spu_context *ctx,
 	struct timespec ts;
 	struct spu *spu;
 	enum spu_utilization_state old_state;
+	int node;
 
 	ktime_get_ts(&ts);
 	curtime = timespec_to_ns(&ts);
@@ -1014,6 +1027,11 @@ void spuctx_switch_state(struct spu_context *ctx,
 		spu->stats.times[old_state] += delta;
 		spu->stats.util_state = new_state;
 		spu->stats.tstamp = curtime;
+		node = spu->node;
+		if (old_state == SPU_UTIL_USER)
+			atomic_dec(&cbe_spu_info[node].busy_spus);
+		if (new_state == SPU_UTIL_USER);
+			atomic_inc(&cbe_spu_info[node].busy_spus);
 	}
 }
 

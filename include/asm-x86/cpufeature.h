@@ -1,8 +1,8 @@
 /*
  * Defines x86 CPU feature bits
  */
-#ifndef _ASM_X86_CPUFEATURE_H
-#define _ASM_X86_CPUFEATURE_H
+#ifndef ASM_X86__CPUFEATURE_H
+#define ASM_X86__CPUFEATURE_H
 
 #include <asm/required-features.h>
 
@@ -74,11 +74,12 @@
 #define X86_FEATURE_ARCH_PERFMON (3*32+11) /* Intel Architectural PerfMon */
 #define X86_FEATURE_PEBS	(3*32+12)  /* Precise-Event Based Sampling */
 #define X86_FEATURE_BTS		(3*32+13)  /* Branch Trace Store */
-/* 14 free */
-/* 15 free */
+#define X86_FEATURE_SYSCALL32	(3*32+14)  /* syscall in ia32 userspace */
+#define X86_FEATURE_SYSENTER32	(3*32+15)  /* sysenter in ia32 userspace */
 #define X86_FEATURE_REP_GOOD	(3*32+16) /* rep microcode works well on this CPU */
 #define X86_FEATURE_MFENCE_RDTSC (3*32+17) /* Mfence synchronizes RDTSC */
 #define X86_FEATURE_LFENCE_RDTSC (3*32+18) /* Lfence synchronizes RDTSC */
+#define X86_FEATURE_11AP	(3*32+19)  /* Bad local APIC aka 11AP */
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
 #define X86_FEATURE_XMM3	(4*32+ 0) /* Streaming SIMD Extensions-3 */
@@ -90,6 +91,7 @@
 #define X86_FEATURE_CX16	(4*32+13) /* CMPXCHG16B */
 #define X86_FEATURE_XTPR	(4*32+14) /* Send Task Priority Messages */
 #define X86_FEATURE_DCA		(4*32+18) /* Direct Cache Access */
+#define X86_FEATURE_X2APIC	(4*32+21) /* x2APIC */
 
 /* VIA/Cyrix/Centaur-defined CPU features, CPUID level 0xC0000001, word 5 */
 #define X86_FEATURE_XSTORE	(5*32+ 2) /* on-CPU RNG present (xstore insn) */
@@ -106,6 +108,7 @@
 /* More extended AMD flags: CPUID level 0x80000001, ecx, word 6 */
 #define X86_FEATURE_LAHF_LM	(6*32+ 0) /* LAHF/SAHF in long mode */
 #define X86_FEATURE_CMP_LEGACY	(6*32+ 1) /* If yes HyperThreading not valid */
+#define X86_FEATURE_IBS		(6*32+ 10) /* Instruction Based Sampling */
 
 /*
  * Auxiliary flags: Linux defined - For features scattered in various
@@ -142,11 +145,11 @@ extern const char * const x86_power_flags[32];
 #define clear_cpu_cap(c, bit)	clear_bit(bit, (unsigned long *)((c)->x86_capability))
 #define setup_clear_cpu_cap(bit) do { \
 	clear_cpu_cap(&boot_cpu_data, bit);	\
-	set_bit(bit, cleared_cpu_caps); 	\
+	set_bit(bit, (unsigned long *)cleared_cpu_caps); \
 } while (0)
 #define setup_force_cpu_cap(bit) do { \
 	set_cpu_cap(&boot_cpu_data, bit);	\
-	clear_bit(bit, cleared_cpu_caps); 	\
+	clear_bit(bit, (unsigned long *)cleared_cpu_caps); 	\
 } while (0)
 
 #define cpu_has_fpu		boot_cpu_has(X86_FEATURE_FPU)
@@ -187,6 +190,7 @@ extern const char * const x86_power_flags[32];
 #define cpu_has_gbpages		boot_cpu_has(X86_FEATURE_GBPAGES)
 #define cpu_has_arch_perfmon	boot_cpu_has(X86_FEATURE_ARCH_PERFMON)
 #define cpu_has_pat		boot_cpu_has(X86_FEATURE_PAT)
+#define cpu_has_x2apic		boot_cpu_has(X86_FEATURE_X2APIC)
 
 #if defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_64)
 # define cpu_has_invlpg		1
@@ -218,4 +222,4 @@ extern const char * const x86_power_flags[32];
 
 #endif /* defined(__KERNEL__) && !defined(__ASSEMBLY__) */
 
-#endif /* _ASM_X86_CPUFEATURE_H */
+#endif /* ASM_X86__CPUFEATURE_H */

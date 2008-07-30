@@ -1,6 +1,4 @@
 /*
- * $Id: mtdchar.c,v 1.76 2005/11/07 11:14:20 gleixner Exp $
- *
  * Character-device access to raw MTD devices.
  *
  */
@@ -14,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/compatmac.h>
@@ -27,10 +26,13 @@ static void mtd_notify_add(struct mtd_info* mtd)
 	if (!mtd)
 		return;
 
-	device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2), "mtd%d", mtd->index);
+	device_create_drvdata(mtd_class, NULL,
+			      MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
+			      NULL, "mtd%d", mtd->index);
 
-	device_create(mtd_class, NULL,
-		      MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1), "mtd%dro", mtd->index);
+	device_create_drvdata(mtd_class, NULL,
+			      MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
+			      NULL, "mtd%dro", mtd->index);
 }
 
 static void mtd_notify_remove(struct mtd_info* mtd)
@@ -86,6 +88,7 @@ static int mtd_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
 	int devnum = minor >> 1;
+	int ret = 0;
 	struct mtd_info *mtd;
 	struct mtd_file_info *mfi;
 
@@ -98,31 +101,39 @@ static int mtd_open(struct inode *inode, struct file *file)
 	if ((file->f_mode & 2) && (minor & 1))
 		return -EACCES;
 
+	lock_kernel();
 	mtd = get_mtd_device(NULL, devnum);
 
-	if (IS_ERR(mtd))
-		return PTR_ERR(mtd);
+	if (IS_ERR(mtd)) {
+		ret = PTR_ERR(mtd);
+		goto out;
+	}
 
 	if (MTD_ABSENT == mtd->type) {
 		put_mtd_device(mtd);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out;
 	}
 
 	/* You can't open it RW if it's not a writeable device */
 	if ((file->f_mode & 2) && !(mtd->flags & MTD_WRITEABLE)) {
 		put_mtd_device(mtd);
-		return -EACCES;
+		ret = -EACCES;
+		goto out;
 	}
 
 	mfi = kzalloc(sizeof(*mfi), GFP_KERNEL);
 	if (!mfi) {
 		put_mtd_device(mtd);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 	mfi->mtd = mtd;
 	file->private_data = mfi;
 
-	return 0;
+out:
+	unlock_kernel();
+	return ret;
 } /* mtd_open */
 
 /*====================================================================*/
@@ -481,6 +492,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	{
 		struct mtd_oob_buf buf;
 		struct mtd_oob_ops ops;
+		struct mtd_oob_buf __user *user_buf = argp;
 	        uint32_t retlen;
 
 		if(!(file->f_mode & 2))
@@ -524,8 +536,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (ops.oobretlen > 0xFFFFFFFFU)
 			ret = -EOVERFLOW;
 		retlen = ops.oobretlen;
-		if (copy_to_user(&((struct mtd_oob_buf *)argp)->length,
-				 &retlen, sizeof(buf.length)))
+		if (copy_to_user(&user_buf->length, &retlen, sizeof(buf.length)))
 			ret = -EFAULT;
 
 		kfree(ops.oobbuf);
@@ -579,29 +590,29 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 	case MEMLOCK:
 	{
-		struct erase_info_user info;
+		struct erase_info_user einfo;
 
-		if (copy_from_user(&info, argp, sizeof(info)))
+		if (copy_from_user(&einfo, argp, sizeof(einfo)))
 			return -EFAULT;
 
 		if (!mtd->lock)
 			ret = -EOPNOTSUPP;
 		else
-			ret = mtd->lock(mtd, info.start, info.length);
+			ret = mtd->lock(mtd, einfo.start, einfo.length);
 		break;
 	}
 
 	case MEMUNLOCK:
 	{
-		struct erase_info_user info;
+		struct erase_info_user einfo;
 
-		if (copy_from_user(&info, argp, sizeof(info)))
+		if (copy_from_user(&einfo, argp, sizeof(einfo)))
 			return -EFAULT;
 
 		if (!mtd->unlock)
 			ret = -EOPNOTSUPP;
 		else
-			ret = mtd->unlock(mtd, info.start, info.length);
+			ret = mtd->unlock(mtd, einfo.start, einfo.length);
 		break;
 	}
 
@@ -701,15 +712,15 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 	case OTPLOCK:
 	{
-		struct otp_info info;
+		struct otp_info oinfo;
 
 		if (mfi->mode != MTD_MODE_OTP_USER)
 			return -EINVAL;
-		if (copy_from_user(&info, argp, sizeof(info)))
+		if (copy_from_user(&oinfo, argp, sizeof(oinfo)))
 			return -EFAULT;
 		if (!mtd->lock_user_prot_reg)
 			return -EOPNOTSUPP;
-		ret = mtd->lock_user_prot_reg(mtd, info.start, info.length);
+		ret = mtd->lock_user_prot_reg(mtd, oinfo.start, oinfo.length);
 		break;
 	}
 #endif

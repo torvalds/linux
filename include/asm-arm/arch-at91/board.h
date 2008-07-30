@@ -36,6 +36,7 @@
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
+#include <linux/usb/atmel_usba_udc.h>
 
  /* USB Device */
 struct at91_udc_data {
@@ -44,6 +45,9 @@ struct at91_udc_data {
 	u8	pullup_active_low;	/* true == pullup_pin is active low */
 };
 extern void __init at91_add_device_udc(struct at91_udc_data *data);
+
+ /* USB High Speed Device */
+extern void __init at91_add_device_usba(struct usba_platform_data *data);
 
  /* Compact Flash */
 struct at91_cf_data {
@@ -73,7 +77,7 @@ struct at91_eth_data {
 };
 extern void __init at91_add_device_eth(struct at91_eth_data *data);
 
-#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263) || defined(CONFIG_ARCH_AT91CAP9)
+#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263) || defined(CONFIG_ARCH_AT91SAM9G20) || defined(CONFIG_ARCH_AT91CAP9)
 #define eth_platform_data	at91_eth_data
 #endif
 
@@ -85,7 +89,7 @@ struct at91_usbh_data {
 extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
 
  /* NAND / SmartMedia */
-struct at91_nand_data {
+struct atmel_nand_data {
 	u8		enable_pin;	/* chip enable */
 	u8		det_pin;	/* card detect */
 	u8		rdy_pin;	/* ready/busy */
@@ -94,7 +98,7 @@ struct at91_nand_data {
 	u8		bus_width_16;	/* buswidth is 16 bit */
 	struct mtd_partition* (*partition_info)(int, int*);
 };
-extern void __init at91_add_device_nand(struct at91_nand_data *data);
+extern void __init at91_add_device_nand(struct atmel_nand_data *data);
 
  /* I2C*/
 extern void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_devices);

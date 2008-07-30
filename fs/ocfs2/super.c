@@ -1118,7 +1118,7 @@ bail:
 	return status;
 }
 
-static void ocfs2_inode_init_once(struct kmem_cache *cachep, void *data)
+static void ocfs2_inode_init_once(void *data)
 {
 	struct ocfs2_inode_info *oi = data;
 
@@ -1703,7 +1703,11 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 	local = ocfs2_mount_local(osb);
 
 	/* will play back anything left in the journal. */
-	ocfs2_journal_load(osb->journal, local);
+	status = ocfs2_journal_load(osb->journal, local);
+	if (status < 0) {
+		mlog(ML_ERROR, "ocfs2 journal load failed! %d\n", status);
+		goto finally;
+	}
 
 	if (dirty) {
 		/* recover my local alloc if we didn't unmount cleanly. */

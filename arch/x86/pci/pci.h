@@ -27,6 +27,8 @@
 #define PCI_CAN_SKIP_ISA_ALIGN	0x8000
 #define PCI_USE__CRS		0x10000
 #define PCI_CHECK_ENABLE_AMD_MMCONF	0x20000
+#define PCI_HAS_IO_ECS		0x40000
+#define PCI_NOASSIGN_ROMS	0x80000
 
 extern unsigned int pci_probe;
 extern unsigned long pirq_table_addr;
@@ -37,9 +39,6 @@ enum pci_bf_sort_state {
 	pci_force_bf,
 	pci_dmi_bf,
 };
-
-extern void __init dmi_check_pciprobe(void);
-extern void __init dmi_check_skip_isa_align(void);
 
 /* pci-i386.c */
 
@@ -98,10 +97,20 @@ extern struct pci_raw_ops *raw_pci_ext_ops;
 
 extern struct pci_raw_ops pci_direct_conf1;
 
+/* arch_initcall level */
 extern int pci_direct_probe(void);
 extern void pci_direct_init(int type);
 extern void pci_pcbios_init(void);
 extern int pci_olpc_init(void);
+extern void __init dmi_check_pciprobe(void);
+extern void __init dmi_check_skip_isa_align(void);
+
+/* some common used subsys_initcalls */
+extern int __init pci_acpi_init(void);
+extern int __init pcibios_irq_init(void);
+extern int __init pci_visws_init(void);
+extern int __init pci_numaq_init(void);
+extern int __init pcibios_init(void);
 
 /* pci-mmconfig.c */
 

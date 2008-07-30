@@ -2,8 +2,6 @@
  *	inftl.h -- defines to support the Inverse NAND Flash Translation Layer
  *
  *	(C) Copyright 2002, Greg Ungerer (gerg@snapgear.com)
- *
- *	$Id: inftl.h,v 1.7 2005/06/13 13:08:45 sean Exp $
  */
 
 #ifndef __MTD_INFTL_H__
@@ -51,8 +49,6 @@ struct INFTLrecord {
 
 int INFTL_mount(struct INFTLrecord *s);
 int INFTL_formatblock(struct INFTLrecord *s, int block);
-
-extern char inftlmountrev[];
 
 void INFTL_dumptables(struct INFTLrecord *s);
 void INFTL_dumpVUchains(struct INFTLrecord *s);

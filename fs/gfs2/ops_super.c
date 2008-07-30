@@ -126,7 +126,7 @@ static void gfs2_put_super(struct super_block *sb)
 	gfs2_clear_rgrpd(sdp);
 	gfs2_jindex_free(sdp);
 	/*  Take apart glock structures and buffer lists  */
-	gfs2_gl_hash_clear(sdp, WAIT);
+	gfs2_gl_hash_clear(sdp);
 	/*  Unmount the locking protocol  */
 	gfs2_lm_unmount(sdp);
 
@@ -155,7 +155,7 @@ static void gfs2_write_super(struct super_block *sb)
 static int gfs2_sync_fs(struct super_block *sb, int wait)
 {
 	sb->s_dirt = 0;
-	if (wait)
+	if (wait && sb->s_fs_info)
 		gfs2_log_flush(sb->s_fs_info, NULL);
 	return 0;
 }
