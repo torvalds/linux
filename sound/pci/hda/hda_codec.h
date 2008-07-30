@@ -823,6 +823,7 @@ void snd_hda_codec_resume_cache(struct hda_codec *codec);
  * Mixer
  */
 int snd_hda_build_controls(struct hda_bus *bus);
+int snd_hda_codec_build_controls(struct hda_codec *codec);
 
 /*
  * PCM
