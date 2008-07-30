@@ -2262,6 +2262,28 @@ static int __devinit set_pcm_default_values(struct hda_codec *codec,
 	return 0;
 }
 
+/*
+ * attach a new PCM stream
+ */
+static int __devinit
+snd_hda_attach_pcm(struct hda_codec *codec, struct hda_pcm *pcm)
+{
+	struct hda_pcm_stream *info;
+	int stream, err;
+
+	if (!pcm->name)
+		return -EINVAL;
+	for (stream = 0; stream < 2; stream++) {
+		info = &pcm->stream[stream];
+		if (info->substreams) {
+			err = set_pcm_default_values(codec, info);
+			if (err < 0)
+				return err;
+		}
+	}
+	return codec->bus->ops.attach_pcm(codec, pcm);
+}
+
 /**
  * snd_hda_build_pcms - build PCM information
  * @bus: the BUS
@@ -2290,10 +2312,24 @@ static int __devinit set_pcm_default_values(struct hda_codec *codec,
  */
 int __devinit snd_hda_build_pcms(struct hda_bus *bus)
 {
+	static const char *dev_name[HDA_PCM_NTYPES] = {
+		"Audio", "SPDIF", "HDMI", "Modem"
+	};
+	/* starting device index for each PCM type */
+	static int dev_idx[HDA_PCM_NTYPES] = {
+		[HDA_PCM_TYPE_AUDIO] = 0,
+		[HDA_PCM_TYPE_SPDIF] = 1,
+		[HDA_PCM_TYPE_HDMI] = 3,
+		[HDA_PCM_TYPE_MODEM] = 6
+	};
+	/* normal audio device indices; not linear to keep compatibility */
+	static int audio_idx[4] = { 0, 2, 4, 5 };
 	struct hda_codec *codec;
+	int num_devs[HDA_PCM_NTYPES];
 
+	memset(num_devs, 0, sizeof(num_devs));
 	list_for_each_entry(codec, &bus->codec_list, list) {
-		unsigned int pcm, s;
+		unsigned int pcm;
 		int err;
 		if (!codec->patch_ops.build_pcms)
 			continue;
@@ -2301,15 +2337,37 @@ int __devinit snd_hda_build_pcms(struct hda_bus *bus)
 		if (err < 0)
 			return err;
 		for (pcm = 0; pcm < codec->num_pcms; pcm++) {
-			for (s = 0; s < 2; s++) {
-				struct hda_pcm_stream *info;
-				info = &codec->pcm_info[pcm].stream[s];
-				if (!info->substreams)
+			struct hda_pcm *cpcm = &codec->pcm_info[pcm];
+			int type = cpcm->pcm_type;
+			switch (type) {
+			case HDA_PCM_TYPE_AUDIO:
+				if (num_devs[type] >= ARRAY_SIZE(audio_idx)) {
+					snd_printk(KERN_WARNING
+						   "Too many audio devices\n");
 					continue;
-				err = set_pcm_default_values(codec, info);
-				if (err < 0)
-					return err;
+				}
+				cpcm->device = audio_idx[num_devs[type]];
+				break;
+			case HDA_PCM_TYPE_SPDIF:
+			case HDA_PCM_TYPE_HDMI:
+			case HDA_PCM_TYPE_MODEM:
+				if (num_devs[type]) {
+					snd_printk(KERN_WARNING
+						   "%s already defined\n",
+						   dev_name[type]);
+					continue;
+				}
+				cpcm->device = dev_idx[type];
+				break;
+			default:
+				snd_printk(KERN_WARNING
+					   "Invalid PCM type %d\n", type);
+				continue;
 			}
+			num_devs[type]++;
+			err = snd_hda_attach_pcm(codec, cpcm);
+			if (err < 0)
+				return err;
 		}
 	}
 	return 0;

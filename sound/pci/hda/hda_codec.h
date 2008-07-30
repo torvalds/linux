@@ -542,6 +542,8 @@ struct hda_bus_ops {
 	unsigned int (*get_response)(struct hda_codec *codec);
 	/* free the private data */
 	void (*private_free)(struct hda_bus *);
+	/* attach a PCM stream */
+	int (*attach_pcm)(struct hda_codec *codec, struct hda_pcm *pcm);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	/* notify power-up/down from codec to controller */
 	void (*pm_notify)(struct hda_codec *codec);
@@ -680,7 +682,8 @@ struct hda_pcm {
 	char *name;
 	struct hda_pcm_stream stream[2];
 	unsigned int pcm_type;	/* HDA_PCM_TYPE_XXX */
-	int device;	/* assigned device number */
+	int device;		/* device number to assign */
+	struct snd_pcm *pcm;	/* assigned PCM instance */
 };
 
 /* codec information */
