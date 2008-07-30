@@ -207,13 +207,16 @@ MODULE_PARM_DESC(overridesize,   "Specifies the NAND Flash size overriding the I
 #define STATE_CMD_READID       0x0000000A /* read ID */
 #define STATE_CMD_ERASE2       0x0000000B /* sector erase second command */
 #define STATE_CMD_RESET        0x0000000C /* reset */
+#define STATE_CMD_RNDOUT       0x0000000D /* random output command */
+#define STATE_CMD_RNDOUTSTART  0x0000000E /* random output start command */
 #define STATE_CMD_MASK         0x0000000F /* command states mask */
 
 /* After an address is input, the simulator goes to one of these states */
 #define STATE_ADDR_PAGE        0x00000010 /* full (row, column) address is accepted */
 #define STATE_ADDR_SEC         0x00000020 /* sector address was accepted */
-#define STATE_ADDR_ZERO        0x00000030 /* one byte zero address was accepted */
-#define STATE_ADDR_MASK        0x00000030 /* address states mask */
+#define STATE_ADDR_COLUMN      0x00000030 /* column address was accepted */
+#define STATE_ADDR_ZERO        0x00000040 /* one byte zero address was accepted */
+#define STATE_ADDR_MASK        0x00000070 /* address states mask */
 
 /* Durind data input/output the simulator is in these states */
 #define STATE_DATAIN           0x00000100 /* waiting for data input */
@@ -240,7 +243,7 @@ MODULE_PARM_DESC(overridesize,   "Specifies the NAND Flash size overriding the I
 #define ACTION_OOBOFF    0x00600000 /* add to address OOB offset */
 #define ACTION_MASK      0x00700000 /* action mask */
 
-#define NS_OPER_NUM      12 /* Number of operations supported by the simulator */
+#define NS_OPER_NUM      13 /* Number of operations supported by the simulator */
 #define NS_OPER_STATES   6  /* Maximum number of states in operation */
 
 #define OPT_ANY          0xFFFFFFFF /* any chip supports this operation */
@@ -373,7 +376,10 @@ static struct nandsim_operations {
 	{OPT_ANY, {STATE_CMD_READID, STATE_ADDR_ZERO, STATE_DATAOUT_ID, STATE_READY}},
 	/* Large page devices read page */
 	{OPT_LARGEPAGE, {STATE_CMD_READ0, STATE_ADDR_PAGE, STATE_CMD_READSTART | ACTION_CPY,
-			       STATE_DATAOUT, STATE_READY}}
+			       STATE_DATAOUT, STATE_READY}},
+	/* Large page devices random page read */
+	{OPT_LARGEPAGE, {STATE_CMD_RNDOUT, STATE_ADDR_COLUMN, STATE_CMD_RNDOUTSTART | ACTION_CPY,
+			       STATE_DATAOUT, STATE_READY}},
 };
 
 struct weak_block {
@@ -937,12 +943,18 @@ static char *get_state_name(uint32_t state)
 			return "STATE_CMD_ERASE2";
 		case STATE_CMD_RESET:
 			return "STATE_CMD_RESET";
+		case STATE_CMD_RNDOUT:
+			return "STATE_CMD_RNDOUT";
+		case STATE_CMD_RNDOUTSTART:
+			return "STATE_CMD_RNDOUTSTART";
 		case STATE_ADDR_PAGE:
 			return "STATE_ADDR_PAGE";
 		case STATE_ADDR_SEC:
 			return "STATE_ADDR_SEC";
 		case STATE_ADDR_ZERO:
 			return "STATE_ADDR_ZERO";
+		case STATE_ADDR_COLUMN:
+			return "STATE_ADDR_COLUMN";
 		case STATE_DATAIN:
 			return "STATE_DATAIN";
 		case STATE_DATAOUT:
@@ -973,6 +985,7 @@ static int check_command(int cmd)
 	switch (cmd) {
 
 	case NAND_CMD_READ0:
+	case NAND_CMD_READ1:
 	case NAND_CMD_READSTART:
 	case NAND_CMD_PAGEPROG:
 	case NAND_CMD_READOOB:
@@ -982,7 +995,8 @@ static int check_command(int cmd)
 	case NAND_CMD_READID:
 	case NAND_CMD_ERASE2:
 	case NAND_CMD_RESET:
-	case NAND_CMD_READ1:
+	case NAND_CMD_RNDOUT:
+	case NAND_CMD_RNDOUTSTART:
 		return 0;
 
 	case NAND_CMD_STATUS_MULTI:
@@ -1021,6 +1035,10 @@ static uint32_t get_state_by_command(unsigned command)
 			return STATE_CMD_ERASE2;
 		case NAND_CMD_RESET:
 			return STATE_CMD_RESET;
+		case NAND_CMD_RNDOUT:
+			return STATE_CMD_RNDOUT;
+		case NAND_CMD_RNDOUTSTART:
+			return STATE_CMD_RNDOUTSTART;
 	}
 
 	NS_ERR("get_state_by_command: unknown command, BUG\n");
@@ -1582,6 +1600,11 @@ static void switch_state(struct nandsim *ns)
 				ns->regs.num = 1;
 				break;
 
+			case STATE_ADDR_COLUMN:
+				/* Column address is always 2 bytes */
+				ns->regs.num = ns->geom.pgaddrbytes - ns->geom.secaddrbytes;
+				break;
+
 			default:
 				NS_ERR("switch_state: BUG! unknown address state\n");
 		}
@@ -1693,15 +1716,21 @@ static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 			return;
 		}
 
-		/*
-		 * Chip might still be in STATE_DATAOUT
-		 * (if OPT_AUTOINCR feature is supported), STATE_DATAOUT_STATUS or
-		 * STATE_DATAOUT_STATUS_M state. If so, switch state.
-		 */
+		/* Check that the command byte is correct */
+		if (check_command(byte)) {
+			NS_ERR("write_byte: unknown command %#x\n", (uint)byte);
+			return;
+		}
+
 		if (NS_STATE(ns->state) == STATE_DATAOUT_STATUS
 			|| NS_STATE(ns->state) == STATE_DATAOUT_STATUS_M
-			|| ((ns->options & OPT_AUTOINCR) && NS_STATE(ns->state) == STATE_DATAOUT))
+			|| NS_STATE(ns->state) == STATE_DATAOUT) {
+			int row = ns->regs.row;
+
 			switch_state(ns);
+			if (byte == NAND_CMD_RNDOUT)
+				ns->regs.row = row;
+		}
 
 		/* Check if chip is expecting command */
 		if (NS_STATE(ns->nxstate) != STATE_UNKNOWN && !(ns->nxstate & STATE_CMD_MASK)) {
@@ -1713,12 +1742,6 @@ static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 			NS_WARN("write_byte: command (%#x) wasn't expected, expected state is %s, "
 				"ignore previous states\n", (uint)byte, get_state_name(ns->nxstate));
 			switch_to_ready_state(ns, NS_STATUS_FAILED(ns));
-		}
-
-		/* Check that the command byte is correct */
-		if (check_command(byte)) {
-			NS_ERR("write_byte: unknown command %#x\n", (uint)byte);
-			return;
 		}
 
 		NS_DBG("command byte corresponding to %s state accepted\n",
