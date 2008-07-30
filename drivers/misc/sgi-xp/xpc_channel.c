@@ -1192,87 +1192,54 @@ xpc_allocate_msg_wait(struct xpc_channel *ch)
 }
 
 /*
- * Allocate an entry for a message from the message queue associated with the
- * specified channel. NOTE that this routine can sleep waiting for a message
- * entry to become available. To not sleep, pass in the XPC_NOWAIT flag.
+ * Send a message that contains the user's payload on the specified channel
+ * connected to the specified partition.
+ *
+ * NOTE that this routine can sleep waiting for a message entry to become
+ * available. To not sleep, pass in the XPC_NOWAIT flag.
+ *
+ * Once sent, this routine will not wait for the message to be received, nor
+ * will notification be given when it does happen.
  *
  * Arguments:
  *
  *	partid - ID of partition to which the channel is connected.
- *	ch_number - channel #.
- *	flags - see xpc.h for valid flags.
- *	payload - address of the allocated payload area pointer (filled in on
- * 	          return) in which the user-defined message is constructed.
+ *	ch_number - channel # to send message on.
+ *	flags - see xp.h for valid flags.
+ *	payload - pointer to the payload which is to be sent.
+ *	payload_size - size of the payload in bytes.
  */
 enum xp_retval
-xpc_initiate_allocate(short partid, int ch_number, u32 flags, void **payload)
+xpc_initiate_send(short partid, int ch_number, u32 flags, void *payload,
+		  u16 payload_size)
 {
 	struct xpc_partition *part = &xpc_partitions[partid];
 	enum xp_retval ret = xpUnknownReason;
-	struct xpc_msg *msg = NULL;
+
+	dev_dbg(xpc_chan, "payload=0x%p, partid=%d, channel=%d\n", payload,
+		partid, ch_number);
 
 	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
-
-	*payload = NULL;
+	DBUG_ON(payload == NULL);
 
 	if (xpc_part_ref(part)) {
-		ret = xpc_allocate_msg(&part->channels[ch_number], flags, &msg);
+		ret = xpc_send_msg(&part->channels[ch_number], flags, payload,
+				   payload_size, 0, NULL, NULL);
 		xpc_part_deref(part);
-
-		if (msg != NULL)
-			*payload = &msg->payload;
 	}
 
 	return ret;
 }
 
 /*
- * Send a message previously allocated using xpc_initiate_allocate() on the
- * specified channel connected to the specified partition.
+ * Send a message that contains the user's payload on the specified channel
+ * connected to the specified partition.
  *
- * This routine will not wait for the message to be received, nor will
- * notification be given when it does happen. Once this routine has returned
- * the message entry allocated via xpc_initiate_allocate() is no longer
- * accessable to the caller.
+ * NOTE that this routine can sleep waiting for a message entry to become
+ * available. To not sleep, pass in the XPC_NOWAIT flag.
  *
- * This routine, although called by users, does not call xpc_part_ref() to
- * ensure that the partition infrastructure is in place. It relies on the
- * fact that we called xpc_msgqueue_ref() in xpc_allocate_msg().
- *
- * Arguments:
- *
- *	partid - ID of partition to which the channel is connected.
- *	ch_number - channel # to send message on.
- *	payload - pointer to the payload area allocated via
- *			xpc_initiate_allocate().
- */
-enum xp_retval
-xpc_initiate_send(short partid, int ch_number, void *payload)
-{
-	struct xpc_partition *part = &xpc_partitions[partid];
-	struct xpc_msg *msg = XPC_MSG_ADDRESS(payload);
-	enum xp_retval ret;
-
-	dev_dbg(xpc_chan, "msg=0x%p, partid=%d, channel=%d\n", (void *)msg,
-		partid, ch_number);
-
-	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
-	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
-	DBUG_ON(msg == NULL);
-
-	ret = xpc_send_msg(&part->channels[ch_number], msg, 0, NULL, NULL);
-
-	return ret;
-}
-
-/*
- * Send a message previously allocated using xpc_initiate_allocate on the
- * specified channel connected to the specified partition.
- *
- * This routine will not wait for the message to be sent. Once this routine
- * has returned the message entry allocated via xpc_initiate_allocate() is no
- * longer accessable to the caller.
+ * This routine will not wait for the message to be sent or received.
  *
  * Once the remote end of the channel has received the message, the function
  * passed as an argument to xpc_initiate_send_notify() will be called. This
@@ -1282,38 +1249,37 @@ xpc_initiate_send(short partid, int ch_number, void *payload)
  *
  * If this routine returns an error, the caller's function will NOT be called.
  *
- * This routine, although called by users, does not call xpc_part_ref() to
- * ensure that the partition infrastructure is in place. It relies on the
- * fact that we called xpc_msgqueue_ref() in xpc_allocate_msg().
- *
  * Arguments:
  *
  *	partid - ID of partition to which the channel is connected.
  *	ch_number - channel # to send message on.
- *	payload - pointer to the payload area allocated via
- *			xpc_initiate_allocate().
+ *	flags - see xp.h for valid flags.
+ *	payload - pointer to the payload which is to be sent.
+ *	payload_size - size of the payload in bytes.
  *	func - function to call with asynchronous notification of message
  *		  receipt. THIS FUNCTION MUST BE NON-BLOCKING.
  *	key - user-defined key to be passed to the function when it's called.
  */
 enum xp_retval
-xpc_initiate_send_notify(short partid, int ch_number, void *payload,
-			 xpc_notify_func func, void *key)
+xpc_initiate_send_notify(short partid, int ch_number, u32 flags, void *payload,
+			 u16 payload_size, xpc_notify_func func, void *key)
 {
 	struct xpc_partition *part = &xpc_partitions[partid];
-	struct xpc_msg *msg = XPC_MSG_ADDRESS(payload);
-	enum xp_retval ret;
+	enum xp_retval ret = xpUnknownReason;
 
-	dev_dbg(xpc_chan, "msg=0x%p, partid=%d, channel=%d\n", (void *)msg,
+	dev_dbg(xpc_chan, "payload=0x%p, partid=%d, channel=%d\n", payload,
 		partid, ch_number);
 
 	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
-	DBUG_ON(msg == NULL);
+	DBUG_ON(payload == NULL);
 	DBUG_ON(func == NULL);
 
-	ret = xpc_send_msg(&part->channels[ch_number], msg, XPC_N_CALL,
-			   func, key);
+	if (xpc_part_ref(part)) {
+		ret = xpc_send_msg(&part->channels[ch_number], flags, payload,
+				   payload_size, XPC_N_CALL, func, key);
+		xpc_part_deref(part);
+	}
 	return ret;
 }
 
@@ -1372,7 +1338,7 @@ xpc_deliver_msg(struct xpc_channel *ch)
  *	partid - ID of partition to which the channel is connected.
  *	ch_number - channel # message received on.
  *	payload - pointer to the payload area allocated via
- *			xpc_initiate_allocate().
+ *			xpc_initiate_send() or xpc_initiate_send_notify().
  */
 void
 xpc_initiate_received(short partid, int ch_number, void *payload)

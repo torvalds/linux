@@ -438,7 +438,8 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xpnet_pending_msg *queued_msg;
 	enum xp_retval ret;
-	struct xpnet_message *msg;
+	u8 msg_buffer[XPNET_MSG_SIZE];
+	struct xpnet_message *msg = (struct xpnet_message *)&msg_buffer[0];
 	u64 start_addr, end_addr;
 	long dp;
 	u8 second_mac_octet;
@@ -524,11 +525,6 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* found a partition to send to */
 
-		ret = xpc_allocate(dest_partid, XPC_NET_CHANNEL,
-				   XPC_NOWAIT, (void **)&msg);
-		if (unlikely(ret != xpSuccess))
-			continue;
-
 		msg->embedded_bytes = embedded_bytes;
 		if (unlikely(embedded_bytes != 0)) {
 			msg->version = XPNET_VERSION_EMBED;
@@ -553,7 +549,8 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		atomic_inc(&queued_msg->use_count);
 
-		ret = xpc_send_notify(dest_partid, XPC_NET_CHANNEL, msg,
+		ret = xpc_send_notify(dest_partid, XPC_NET_CHANNEL, XPC_NOWAIT,
+				      &msg, sizeof(msg) + embedded_bytes - 1,
 				      xpnet_send_completed, queued_msg);
 		if (unlikely(ret != xpSuccess)) {
 			atomic_dec(&queued_msg->use_count);

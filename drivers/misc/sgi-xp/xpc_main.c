@@ -217,12 +217,9 @@ void (*xpc_IPI_send_openrequest) (struct xpc_channel *ch,
 void (*xpc_IPI_send_openreply) (struct xpc_channel *ch,
 				unsigned long *irq_flags);
 
-enum xp_retval (*xpc_allocate_msg) (struct xpc_channel *ch, u32 flags,
-				    struct xpc_msg **address_of_msg);
-
-enum xp_retval (*xpc_send_msg) (struct xpc_channel *ch, struct xpc_msg *msg,
-				u8 notify_type, xpc_notify_func func,
-				void *key);
+enum xp_retval (*xpc_send_msg) (struct xpc_channel *ch, u32 flags,
+				void *payload, u16 payload_size, u8 notify_type,
+				xpc_notify_func func, void *key);
 void (*xpc_received_msg) (struct xpc_channel *ch, struct xpc_msg *msg);
 
 /*
@@ -1286,9 +1283,8 @@ xpc_init(void)
 
 	/* set the interface to point at XPC's functions */
 	xpc_set_interface(xpc_initiate_connect, xpc_initiate_disconnect,
-			  xpc_initiate_allocate, xpc_initiate_send,
-			  xpc_initiate_send_notify, xpc_initiate_received,
-			  xpc_initiate_partid_to_nasids);
+			  xpc_initiate_send, xpc_initiate_send_notify,
+			  xpc_initiate_received, xpc_initiate_partid_to_nasids);
 
 	return 0;
 

@@ -116,12 +116,6 @@
  * The size of the payload is defined by the user via xpc_connect(). A user-
  * defined message resides in the payload area.
  *
- * The user should have no dealings with the message header, but only the
- * message's payload. When a message entry is allocated (via xpc_allocate())
- * a pointer to the payload area is returned and not the actual beginning of
- * the XPC message. The user then constructs a message in the payload area
- * and passes that pointer as an argument on xpc_send() or xpc_send_notify().
- *
  * The size of a message entry (within a message queue) must be a cacheline
  * sized multiple in order to facilitate the BTE transfer of messages from one
  * message queue to another. A macro, XPC_MSG_SIZE(), is provided for the user
@@ -221,9 +215,10 @@ enum xp_retval {
 	xpBteCopyError,		/* 52: bte_copy() returned error */
 	xpSalError,		/* 53: sn SAL error */
 	xpRsvdPageNotSet,	/* 54: the reserved page is not set up */
+	xpPayloadTooBig,	/* 55: payload too large for message slot */
 
-	xpUnsupported,		/* 55: unsupported functionality or resource */
-	xpUnknownReason		/* 56: unknown reason - must be last in enum */
+	xpUnsupported,		/* 56: unsupported functionality or resource */
+	xpUnknownReason		/* 57: unknown reason - must be last in enum */
 };
 
 /*
@@ -304,16 +299,15 @@ struct xpc_registration {
 
 #define XPC_CHANNEL_REGISTERED(_c)	(xpc_registrations[_c].func != NULL)
 
-/* the following are valid xpc_allocate() flags */
+/* the following are valid xpc_send() or xpc_send_notify() flags */
 #define XPC_WAIT	0	/* wait flag */
 #define XPC_NOWAIT	1	/* no wait flag */
 
 struct xpc_interface {
 	void (*connect) (int);
 	void (*disconnect) (int);
-	enum xp_retval (*allocate) (short, int, u32, void **);
-	enum xp_retval (*send) (short, int, void *);
-	enum xp_retval (*send_notify) (short, int, void *,
+	enum xp_retval (*send) (short, int, u32, void *, u16);
+	enum xp_retval (*send_notify) (short, int, u32, void *, u16,
 					xpc_notify_func, void *);
 	void (*received) (short, int, void *);
 	enum xp_retval (*partid_to_nasids) (short, void *);
@@ -323,10 +317,9 @@ extern struct xpc_interface xpc_interface;
 
 extern void xpc_set_interface(void (*)(int),
 			      void (*)(int),
-			      enum xp_retval (*)(short, int, u32, void **),
-			      enum xp_retval (*)(short, int, void *),
-			      enum xp_retval (*)(short, int, void *,
-						  xpc_notify_func, void *),
+			      enum xp_retval (*)(short, int, u32, void *, u16),
+			      enum xp_retval (*)(short, int, u32, void *, u16,
+						 xpc_notify_func, void *),
 			      void (*)(short, int, void *),
 			      enum xp_retval (*)(short, void *));
 extern void xpc_clear_interface(void);
@@ -336,22 +329,19 @@ extern enum xp_retval xpc_connect(int, xpc_channel_func, void *, u16,
 extern void xpc_disconnect(int);
 
 static inline enum xp_retval
-xpc_allocate(short partid, int ch_number, u32 flags, void **payload)
+xpc_send(short partid, int ch_number, u32 flags, void *payload,
+	 u16 payload_size)
 {
-	return xpc_interface.allocate(partid, ch_number, flags, payload);
+	return xpc_interface.send(partid, ch_number, flags, payload,
+				  payload_size);
 }
 
 static inline enum xp_retval
-xpc_send(short partid, int ch_number, void *payload)
+xpc_send_notify(short partid, int ch_number, u32 flags, void *payload,
+		u16 payload_size, xpc_notify_func func, void *key)
 {
-	return xpc_interface.send(partid, ch_number, payload);
-}
-
-static inline enum xp_retval
-xpc_send_notify(short partid, int ch_number, void *payload,
-		xpc_notify_func func, void *key)
-{
-	return xpc_interface.send_notify(partid, ch_number, payload, func, key);
+	return xpc_interface.send_notify(partid, ch_number, flags, payload,
+					 payload_size, func, key);
 }
 
 static inline void

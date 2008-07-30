@@ -1532,18 +1532,6 @@ xpc_allocate_msg_sn2(struct xpc_channel *ch, u32 flags,
 	enum xp_retval ret;
 	s64 put;
 
-	/* this reference will be dropped in xpc_send_msg_sn2() */
-	xpc_msgqueue_ref(ch);
-
-	if (ch->flags & XPC_C_DISCONNECTING) {
-		xpc_msgqueue_deref(ch);
-		return ch->reason;
-	}
-	if (!(ch->flags & XPC_C_CONNECTED)) {
-		xpc_msgqueue_deref(ch);
-		return xpNotConnected;
-	}
-
 	/*
 	 * Get the next available message entry from the local message queue.
 	 * If none are available, we'll make sure that we grab the latest
@@ -1582,16 +1570,12 @@ xpc_allocate_msg_sn2(struct xpc_channel *ch, u32 flags,
 		if (ret == xpTimeout)
 			xpc_IPI_send_local_msgrequest_sn2(ch);
 
-		if (flags & XPC_NOWAIT) {
-			xpc_msgqueue_deref(ch);
+		if (flags & XPC_NOWAIT)
 			return xpNoWait;
-		}
 
 		ret = xpc_allocate_msg_wait(ch);
-		if (ret != xpInterrupted && ret != xpTimeout) {
-			xpc_msgqueue_deref(ch);
+		if (ret != xpInterrupted && ret != xpTimeout)
 			return ret;
-		}
 	}
 
 	/* get the message's address and initialize it */
@@ -1606,7 +1590,6 @@ xpc_allocate_msg_sn2(struct xpc_channel *ch, u32 flags,
 		(void *)msg, msg->number, ch->partid, ch->number);
 
 	*address_of_msg = msg;
-
 	return xpSuccess;
 }
 
@@ -1616,23 +1599,37 @@ xpc_allocate_msg_sn2(struct xpc_channel *ch, u32 flags,
  * message is being sent to.
  */
 static enum xp_retval
-xpc_send_msg_sn2(struct xpc_channel *ch, struct xpc_msg *msg, u8 notify_type,
-		 xpc_notify_func func, void *key)
+xpc_send_msg_sn2(struct xpc_channel *ch, u32 flags, void *payload,
+		 u16 payload_size, u8 notify_type, xpc_notify_func func,
+		 void *key)
 {
 	enum xp_retval ret = xpSuccess;
+	struct xpc_msg *msg = msg;
 	struct xpc_notify *notify = notify;
-	s64 put, msg_number = msg->number;
+	s64 msg_number;
+	s64 put;
 
 	DBUG_ON(notify_type == XPC_N_CALL && func == NULL);
-	DBUG_ON((((u64)msg - (u64)ch->local_msgqueue) / ch->msg_size) !=
-		msg_number % ch->local_nentries);
-	DBUG_ON(msg->flags & XPC_M_READY);
+
+	if (XPC_MSG_SIZE(payload_size) > ch->msg_size)
+		return xpPayloadTooBig;
+
+	xpc_msgqueue_ref(ch);
 
 	if (ch->flags & XPC_C_DISCONNECTING) {
-		/* drop the reference grabbed in xpc_allocate_msg_sn2() */
-		xpc_msgqueue_deref(ch);
-		return ch->reason;
+		ret = ch->reason;
+		goto out_1;
 	}
+	if (!(ch->flags & XPC_C_CONNECTED)) {
+		ret = xpNotConnected;
+		goto out_1;
+	}
+
+	ret = xpc_allocate_msg_sn2(ch, flags, &msg);
+	if (ret != xpSuccess)
+		goto out_1;
+
+	msg_number = msg->number;
 
 	if (notify_type != 0) {
 		/*
@@ -1663,12 +1660,11 @@ xpc_send_msg_sn2(struct xpc_channel *ch, struct xpc_msg *msg, u8 notify_type,
 				atomic_dec(&ch->n_to_notify);
 				ret = ch->reason;
 			}
-
-			/* drop reference grabbed in xpc_allocate_msg_sn2() */
-			xpc_msgqueue_deref(ch);
-			return ret;
+			goto out_1;
 		}
 	}
+
+	memcpy(&msg->payload, payload, payload_size);
 
 	msg->flags |= XPC_M_READY;
 
@@ -1684,7 +1680,7 @@ xpc_send_msg_sn2(struct xpc_channel *ch, struct xpc_msg *msg, u8 notify_type,
 	if (put == msg_number)
 		xpc_send_msgs_sn2(ch, put);
 
-	/* drop the reference grabbed in xpc_allocate_msg_sn2() */
+out_1:
 	xpc_msgqueue_deref(ch);
 	return ret;
 }
@@ -1820,8 +1816,6 @@ xpc_init_sn2(void)
 	xpc_IPI_send_closereply = xpc_IPI_send_closereply_sn2;
 	xpc_IPI_send_openrequest = xpc_IPI_send_openrequest_sn2;
 	xpc_IPI_send_openreply = xpc_IPI_send_openreply_sn2;
-
-	xpc_allocate_msg = xpc_allocate_msg_sn2;
 
 	xpc_send_msg = xpc_send_msg_sn2;
 	xpc_received_msg = xpc_received_msg_sn2;

@@ -624,9 +624,7 @@ extern void (*xpc_IPI_send_closereply) (struct xpc_channel *, unsigned long *);
 extern void (*xpc_IPI_send_openrequest) (struct xpc_channel *, unsigned long *);
 extern void (*xpc_IPI_send_openreply) (struct xpc_channel *, unsigned long *);
 
-extern enum xp_retval (*xpc_allocate_msg) (struct xpc_channel *, u32,
-					   struct xpc_msg **);
-extern enum xp_retval (*xpc_send_msg) (struct xpc_channel *, struct xpc_msg *,
+extern enum xp_retval (*xpc_send_msg) (struct xpc_channel *, u32, void *, u16,
 				       u8, xpc_notify_func, void *);
 extern void (*xpc_received_msg) (struct xpc_channel *, struct xpc_msg *);
 
@@ -664,9 +662,8 @@ extern void *xpc_kzalloc_cacheline_aligned(size_t, gfp_t, void **);
 extern void xpc_initiate_connect(int);
 extern void xpc_initiate_disconnect(int);
 extern enum xp_retval xpc_allocate_msg_wait(struct xpc_channel *);
-extern enum xp_retval xpc_initiate_allocate(short, int, u32, void **);
-extern enum xp_retval xpc_initiate_send(short, int, void *);
-extern enum xp_retval xpc_initiate_send_notify(short, int, void *,
+extern enum xp_retval xpc_initiate_send(short, int, u32, void *, u16);
+extern enum xp_retval xpc_initiate_send_notify(short, int, u32, void *, u16,
 					       xpc_notify_func, void *);
 extern void xpc_initiate_received(short, int, void *);
 extern void xpc_process_channel_activity(struct xpc_partition *);
