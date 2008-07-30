@@ -101,6 +101,8 @@ static int __devinit platform_lcd_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, plcd);
+	platform_lcd_set_power(plcd->lcd, FB_BLANK_NORMAL);
+
 	return 0;
 
  err_mem:
