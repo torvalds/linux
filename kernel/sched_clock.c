@@ -97,7 +97,7 @@ void sched_clock_init(void)
  *  - filter out backward motion
  *  - use jiffies to generate a min,max window to clip the raw values
  */
-static void __update_sched_clock(struct sched_clock_data *scd, u64 now)
+static u64 __update_sched_clock(struct sched_clock_data *scd, u64 now)
 {
 	unsigned long now_jiffies = jiffies;
 	long delta_jiffies = now_jiffies - scd->tick_jiffies;
@@ -130,6 +130,8 @@ static void __update_sched_clock(struct sched_clock_data *scd, u64 now)
 
 	scd->tick_jiffies = now_jiffies;
 	scd->clock = clock;
+
+	return clock;
 }
 
 static void lock_double_clock(struct sched_clock_data *data1,
@@ -174,8 +176,7 @@ u64 sched_clock_cpu(int cpu)
 		__raw_spin_lock(&scd->lock);
 	}
 
-	__update_sched_clock(scd, now);
-	clock = scd->clock;
+	clock = __update_sched_clock(scd, now);
 
 	__raw_spin_unlock(&scd->lock);
 
