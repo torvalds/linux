@@ -25,6 +25,22 @@
 #define DBUG_ON(condition)
 #endif
 
+#ifndef is_shub1
+#define is_shub1()	0
+#endif
+
+#ifndef is_shub2
+#define is_shub2()	0
+#endif
+
+#ifndef is_shub
+#define is_shub()	(is_shub1() || is_shub2())
+#endif
+
+#ifndef is_uv
+#define is_uv()		0
+#endif
+
 /*
  * Define the maximum number of logically defined partitions the system
  * can support. It is constrained by the maximum number of hardware
