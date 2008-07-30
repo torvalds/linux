@@ -576,21 +576,21 @@ struct xpc_partition {
 
 /* struct xpc_partition act_state values (for XPC HB) */
 
-#define	XPC_P_INACTIVE		0x00	/* partition is not active */
-#define XPC_P_ACTIVATION_REQ	0x01	/* created thread to activate */
-#define XPC_P_ACTIVATING	0x02	/* activation thread started */
-#define XPC_P_ACTIVE		0x03	/* xpc_partition_up() was called */
-#define XPC_P_DEACTIVATING	0x04	/* partition deactivation initiated */
+#define	XPC_P_AS_INACTIVE	0x00	/* partition is not active */
+#define XPC_P_AS_ACTIVATION_REQ	0x01	/* created thread to activate */
+#define XPC_P_AS_ACTIVATING	0x02	/* activation thread started */
+#define XPC_P_AS_ACTIVE		0x03	/* xpc_partition_up() was called */
+#define XPC_P_AS_DEACTIVATING	0x04	/* partition deactivation initiated */
 
 #define XPC_DEACTIVATE_PARTITION(_p, _reason) \
 			xpc_deactivate_partition(__LINE__, (_p), (_reason))
 
 /* struct xpc_partition setup_state values */
 
-#define XPC_P_UNSET		0x00	/* infrastructure was never setup */
-#define XPC_P_SETUP		0x01	/* infrastructure is setup */
-#define XPC_P_WTEARDOWN		0x02	/* waiting to teardown infrastructure */
-#define XPC_P_TORNDOWN		0x03	/* infrastructure is torndown */
+#define XPC_P_SS_UNSET		0x00	/* infrastructure was never setup */
+#define XPC_P_SS_SETUP		0x01	/* infrastructure is setup */
+#define XPC_P_SS_WTEARDOWN	0x02	/* waiting to teardown infrastructure */
+#define XPC_P_SS_TORNDOWN	0x03	/* infrastructure is torndown */
 
 /*
  * struct xpc_partition_sn2's dropped notify IRQ timer is set to wait the
@@ -787,7 +787,7 @@ xpc_part_deref(struct xpc_partition *part)
 	s32 refs = atomic_dec_return(&part->references);
 
 	DBUG_ON(refs < 0);
-	if (refs == 0 && part->setup_state == XPC_P_WTEARDOWN)
+	if (refs == 0 && part->setup_state == XPC_P_SS_WTEARDOWN)
 		wake_up(&part->teardown_wq);
 }
 
@@ -797,7 +797,7 @@ xpc_part_ref(struct xpc_partition *part)
 	int setup;
 
 	atomic_inc(&part->references);
-	setup = (part->setup_state == XPC_P_SETUP);
+	setup = (part->setup_state == XPC_P_SS_SETUP);
 	if (!setup)
 		xpc_part_deref(part);
 

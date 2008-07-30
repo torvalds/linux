@@ -327,7 +327,7 @@ xpc_send_notify_IRQ_sn2(struct xpc_channel *ch, u8 chctl_flag,
 	union xpc_channel_ctl_flags chctl = { 0 };
 	enum xp_retval ret;
 
-	if (likely(part->act_state != XPC_P_DEACTIVATING)) {
+	if (likely(part->act_state != XPC_P_AS_DEACTIVATING)) {
 		chctl.flags[ch->number] = chctl_flag;
 		ret = xpc_send_IRQ_sn2(part_sn2->remote_chctl_amo_va,
 				       chctl.all_flags,
@@ -975,7 +975,7 @@ xpc_identify_activate_IRQ_req_sn2(int nasid)
 		remote_vars->heartbeat, remote_vars->heartbeating_to_mask[0]);
 
 	if (xpc_partition_disengaged(part) &&
-	    part->act_state == XPC_P_INACTIVE) {
+	    part->act_state == XPC_P_AS_INACTIVE) {
 
 		xpc_update_partition_info_sn2(part, remote_rp_version,
 					      &remote_rp_ts_jiffies,
@@ -1257,10 +1257,10 @@ xpc_setup_infrastructure_sn2(struct xpc_partition *part)
 	}
 
 	/*
-	 * With the setting of the partition setup_state to XPC_P_SETUP, we're
-	 * declaring that this partition is ready to go.
+	 * With the setting of the partition setup_state to XPC_P_SS_SETUP,
+	 * we're declaring that this partition is ready to go.
 	 */
-	part->setup_state = XPC_P_SETUP;
+	part->setup_state = XPC_P_SS_SETUP;
 
 	/*
 	 * Setup the per partition specific variables required by the
@@ -1323,8 +1323,8 @@ xpc_teardown_infrastructure_sn2(struct xpc_partition *part)
 
 	DBUG_ON(atomic_read(&part->nchannels_engaged) != 0);
 	DBUG_ON(atomic_read(&part->nchannels_active) != 0);
-	DBUG_ON(part->setup_state != XPC_P_SETUP);
-	part->setup_state = XPC_P_WTEARDOWN;
+	DBUG_ON(part->setup_state != XPC_P_SS_SETUP);
+	part->setup_state = XPC_P_SS_WTEARDOWN;
 
 	xpc_vars_part_sn2[partid].magic = 0;
 
@@ -1338,7 +1338,7 @@ xpc_teardown_infrastructure_sn2(struct xpc_partition *part)
 
 	/* now we can begin tearing down the infrastructure */
 
-	part->setup_state = XPC_P_TORNDOWN;
+	part->setup_state = XPC_P_SS_TORNDOWN;
 
 	/* in case we've still got outstanding timers registered... */
 	del_timer_sync(&part_sn2->dropped_notify_IRQ_timer);
@@ -1375,7 +1375,7 @@ xpc_pull_remote_cachelines_sn2(struct xpc_partition *part, void *dst,
 	DBUG_ON((unsigned long)dst != L1_CACHE_ALIGN((unsigned long)dst));
 	DBUG_ON(cnt != L1_CACHE_ALIGN(cnt));
 
-	if (part->act_state == XPC_P_DEACTIVATING)
+	if (part->act_state == XPC_P_AS_DEACTIVATING)
 		return part->reason;
 
 	ret = xp_remote_memcpy(xp_pa(dst), src_pa, cnt);
@@ -1534,7 +1534,7 @@ xpc_make_first_contact_sn2(struct xpc_partition *part)
 		/* wait a 1/4 of a second or so */
 		(void)msleep_interruptible(250);
 
-		if (part->act_state == XPC_P_DEACTIVATING)
+		if (part->act_state == XPC_P_AS_DEACTIVATING)
 			return part->reason;
 	}
 

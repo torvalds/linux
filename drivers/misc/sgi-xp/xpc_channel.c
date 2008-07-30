@@ -99,7 +99,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 	DBUG_ON((ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) &&
 		!(ch->flags & XPC_C_DISCONNECTINGCALLOUT_MADE));
 
-	if (part->act_state == XPC_P_DEACTIVATING) {
+	if (part->act_state == XPC_P_AS_DEACTIVATING) {
 		/* can't proceed until the other side disengages from us */
 		if (xpc_partition_engaged(ch->partid))
 			return;
@@ -155,7 +155,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 		/* we won't lose the CPU since we're holding ch->lock */
 		complete(&ch->wdisconnect_wait);
 	} else if (ch->delayed_chctl_flags) {
-		if (part->act_state != XPC_P_DEACTIVATING) {
+		if (part->act_state != XPC_P_AS_DEACTIVATING) {
 			/* time to take action on any delayed chctl flags */
 			spin_lock(&part->chctl_lock);
 			part->chctl.flags[ch->number] |=
@@ -276,7 +276,7 @@ again:
 			"%d, channel=%d\n", ch->partid, ch->number);
 
 		if (ch->flags & XPC_C_DISCONNECTED) {
-			DBUG_ON(part->act_state != XPC_P_DEACTIVATING);
+			DBUG_ON(part->act_state != XPC_P_AS_DEACTIVATING);
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 			return;
 		}
@@ -312,7 +312,7 @@ again:
 			"channel=%d\n", args->msg_size, args->local_nentries,
 			ch->partid, ch->number);
 
-		if (part->act_state == XPC_P_DEACTIVATING ||
+		if (part->act_state == XPC_P_AS_DEACTIVATING ||
 		    (ch->flags & XPC_C_ROPENREQUEST)) {
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 			return;
@@ -546,7 +546,7 @@ xpc_process_sent_chctl_flags(struct xpc_partition *part)
 			continue;
 		}
 
-		if (part->act_state == XPC_P_DEACTIVATING)
+		if (part->act_state == XPC_P_AS_DEACTIVATING)
 			continue;
 
 		if (!(ch_flags & XPC_C_CONNECTED)) {

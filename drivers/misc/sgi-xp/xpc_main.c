@@ -290,8 +290,8 @@ xpc_check_remote_hb(void)
 
 		part = &xpc_partitions[partid];
 
-		if (part->act_state == XPC_P_INACTIVE ||
-		    part->act_state == XPC_P_DEACTIVATING) {
+		if (part->act_state == XPC_P_AS_INACTIVE ||
+		    part->act_state == XPC_P_AS_DEACTIVATING) {
 			continue;
 		}
 
@@ -406,7 +406,7 @@ xpc_initiate_discovery(void *ignore)
 static void
 xpc_channel_mgr(struct xpc_partition *part)
 {
-	while (part->act_state != XPC_P_DEACTIVATING ||
+	while (part->act_state != XPC_P_AS_DEACTIVATING ||
 	       atomic_read(&part->nchannels_active) > 0 ||
 	       !xpc_partition_disengaged(part)) {
 
@@ -429,7 +429,7 @@ xpc_channel_mgr(struct xpc_partition *part)
 		(void)wait_event_interruptible(part->channel_mgr_wq,
 				(atomic_read(&part->channel_mgr_requests) > 0 ||
 				 part->chctl.all_flags != 0 ||
-				 (part->act_state == XPC_P_DEACTIVATING &&
+				 (part->act_state == XPC_P_AS_DEACTIVATING &&
 				 atomic_read(&part->nchannels_active) == 0 &&
 				 xpc_partition_disengaged(part))));
 		atomic_set(&part->channel_mgr_requests, 1);
@@ -458,16 +458,16 @@ xpc_activating(void *__partid)
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
 
-	if (part->act_state == XPC_P_DEACTIVATING) {
-		part->act_state = XPC_P_INACTIVE;
+	if (part->act_state == XPC_P_AS_DEACTIVATING) {
+		part->act_state = XPC_P_AS_INACTIVE;
 		spin_unlock_irqrestore(&part->act_lock, irq_flags);
 		part->remote_rp_pa = 0;
 		return 0;
 	}
 
 	/* indicate the thread is activating */
-	DBUG_ON(part->act_state != XPC_P_ACTIVATION_REQ);
-	part->act_state = XPC_P_ACTIVATING;
+	DBUG_ON(part->act_state != XPC_P_AS_ACTIVATION_REQ);
+	part->act_state = XPC_P_AS_ACTIVATING;
 
 	XPC_SET_REASON(part, 0, 0);
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
@@ -509,9 +509,9 @@ xpc_activate_partition(struct xpc_partition *part)
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
 
-	DBUG_ON(part->act_state != XPC_P_INACTIVE);
+	DBUG_ON(part->act_state != XPC_P_AS_INACTIVE);
 
-	part->act_state = XPC_P_ACTIVATION_REQ;
+	part->act_state = XPC_P_AS_ACTIVATION_REQ;
 	XPC_SET_REASON(part, xpCloneKThread, __LINE__);
 
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
@@ -520,7 +520,7 @@ xpc_activate_partition(struct xpc_partition *part)
 			      partid);
 	if (IS_ERR(kthread)) {
 		spin_lock_irqsave(&part->act_lock, irq_flags);
-		part->act_state = XPC_P_INACTIVE;
+		part->act_state = XPC_P_AS_INACTIVE;
 		XPC_SET_REASON(part, xpCloneKThreadFailed, __LINE__);
 		spin_unlock_irqrestore(&part->act_lock, irq_flags);
 	}
@@ -786,7 +786,7 @@ xpc_disconnect_wait(int ch_number)
 		wakeup_channel_mgr = 0;
 
 		if (ch->delayed_chctl_flags) {
-			if (part->act_state != XPC_P_DEACTIVATING) {
+			if (part->act_state != XPC_P_AS_DEACTIVATING) {
 				spin_lock(&part->chctl_lock);
 				part->chctl.flags[ch->number] |=
 				    ch->delayed_chctl_flags;
@@ -846,7 +846,7 @@ xpc_do_exit(enum xp_retval reason)
 			part = &xpc_partitions[partid];
 
 			if (xpc_partition_disengaged(part) &&
-			    part->act_state == XPC_P_INACTIVE) {
+			    part->act_state == XPC_P_AS_INACTIVE) {
 				continue;
 			}
 
@@ -962,7 +962,7 @@ xpc_die_deactivate(void)
 		part = &xpc_partitions[partid];
 
 		if (xpc_partition_engaged(partid) ||
-		    part->act_state != XPC_P_INACTIVE) {
+		    part->act_state != XPC_P_AS_INACTIVE) {
 			xpc_request_partition_deactivation(part);
 			xpc_indicate_partition_disengaged(part);
 		}
@@ -1113,7 +1113,7 @@ xpc_init(void)
 
 		part->activate_IRQ_rcvd = 0;
 		spin_lock_init(&part->act_lock);
-		part->act_state = XPC_P_INACTIVE;
+		part->act_state = XPC_P_AS_INACTIVE;
 		XPC_SET_REASON(part, 0, 0);
 
 		init_timer(&part->disengage_timer);
@@ -1121,7 +1121,7 @@ xpc_init(void)
 		    xpc_timeout_partition_disengage;
 		part->disengage_timer.data = (unsigned long)part;
 
-		part->setup_state = XPC_P_UNSET;
+		part->setup_state = XPC_P_SS_UNSET;
 		init_waitqueue_head(&part->teardown_wq);
 		atomic_set(&part->references, 0);
 	}

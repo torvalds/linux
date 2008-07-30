@@ -273,9 +273,9 @@ xpc_partition_disengaged(struct xpc_partition *part)
 		if (!in_interrupt())
 			del_singleshot_timer_sync(&part->disengage_timer);
 
-		DBUG_ON(part->act_state != XPC_P_DEACTIVATING &&
-			part->act_state != XPC_P_INACTIVE);
-		if (part->act_state != XPC_P_INACTIVE)
+		DBUG_ON(part->act_state != XPC_P_AS_DEACTIVATING &&
+			part->act_state != XPC_P_AS_INACTIVE);
+		if (part->act_state != XPC_P_AS_INACTIVE)
 			xpc_wakeup_channel_mgr(part);
 
 		xpc_cancel_partition_deactivation_request(part);
@@ -295,8 +295,8 @@ xpc_mark_partition_active(struct xpc_partition *part)
 	dev_dbg(xpc_part, "setting partition %d to ACTIVE\n", XPC_PARTID(part));
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
-	if (part->act_state == XPC_P_ACTIVATING) {
-		part->act_state = XPC_P_ACTIVE;
+	if (part->act_state == XPC_P_AS_ACTIVATING) {
+		part->act_state = XPC_P_AS_ACTIVE;
 		ret = xpSuccess;
 	} else {
 		DBUG_ON(part->reason == xpSuccess);
@@ -318,7 +318,7 @@ xpc_deactivate_partition(const int line, struct xpc_partition *part,
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
 
-	if (part->act_state == XPC_P_INACTIVE) {
+	if (part->act_state == XPC_P_AS_INACTIVE) {
 		XPC_SET_REASON(part, reason, line);
 		spin_unlock_irqrestore(&part->act_lock, irq_flags);
 		if (reason == xpReactivating) {
@@ -327,7 +327,7 @@ xpc_deactivate_partition(const int line, struct xpc_partition *part,
 		}
 		return;
 	}
-	if (part->act_state == XPC_P_DEACTIVATING) {
+	if (part->act_state == XPC_P_AS_DEACTIVATING) {
 		if ((part->reason == xpUnloading && reason != xpUnloading) ||
 		    reason == xpReactivating) {
 			XPC_SET_REASON(part, reason, line);
@@ -336,7 +336,7 @@ xpc_deactivate_partition(const int line, struct xpc_partition *part,
 		return;
 	}
 
-	part->act_state = XPC_P_DEACTIVATING;
+	part->act_state = XPC_P_AS_DEACTIVATING;
 	XPC_SET_REASON(part, reason, line);
 
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
@@ -367,7 +367,7 @@ xpc_mark_partition_inactive(struct xpc_partition *part)
 		XPC_PARTID(part));
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
-	part->act_state = XPC_P_INACTIVE;
+	part->act_state = XPC_P_AS_INACTIVE;
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
 	part->remote_rp_pa = 0;
 }
