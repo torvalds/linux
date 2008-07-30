@@ -531,99 +531,6 @@ static int iwl3945_is_network_packet(struct iwl3945_priv *priv,
 	}
 }
 
-static void iwl3945_add_radiotap(struct iwl3945_priv *priv,
-				 struct sk_buff *skb,
-				 struct iwl3945_rx_frame_hdr *rx_hdr,
-				 struct ieee80211_rx_status *stats)
-{
-	/* First cache any information we need before we overwrite
-	 * the information provided in the skb from the hardware */
-	s8 signal = stats->signal;
-	s8 noise = 0;
-	int rate = stats->rate_idx;
-	u64 tsf = stats->mactime;
-	__le16 phy_flags_hw = rx_hdr->phy_flags, antenna;
-
-	struct iwl3945_rt_rx_hdr {
-		struct ieee80211_radiotap_header rt_hdr;
-		__le64 rt_tsf;		/* TSF */
-		u8 rt_flags;		/* radiotap packet flags */
-		u8 rt_rate;		/* rate in 500kb/s */
-		__le16 rt_channelMHz;	/* channel in MHz */
-		__le16 rt_chbitmask;	/* channel bitfield */
-		s8 rt_dbmsignal;	/* signal in dBm, kluged to signed */
-		s8 rt_dbmnoise;
-		u8 rt_antenna;		/* antenna number */
-	} __attribute__ ((packed)) *iwl3945_rt;
-
-	if (skb_headroom(skb) < sizeof(*iwl3945_rt)) {
-		if (net_ratelimit())
-			printk(KERN_ERR "not enough headroom [%d] for "
-			       "radiotap head [%zd]\n",
-			       skb_headroom(skb), sizeof(*iwl3945_rt));
-		return;
-	}
-
-	/* put radiotap header in front of 802.11 header and data */
-	iwl3945_rt = (void *)skb_push(skb, sizeof(*iwl3945_rt));
-
-	/* initialise radiotap header */
-	iwl3945_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
-	iwl3945_rt->rt_hdr.it_pad = 0;
-
-	/* total header + data */
-	put_unaligned_le16(sizeof(*iwl3945_rt), &iwl3945_rt->rt_hdr.it_len);
-
-	/* Indicate all the fields we add to the radiotap header */
-	put_unaligned_le32((1 << IEEE80211_RADIOTAP_TSFT) |
-			   (1 << IEEE80211_RADIOTAP_FLAGS) |
-			   (1 << IEEE80211_RADIOTAP_RATE) |
-			   (1 << IEEE80211_RADIOTAP_CHANNEL) |
-			   (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
-			   (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE) |
-			   (1 << IEEE80211_RADIOTAP_ANTENNA),
-			&iwl3945_rt->rt_hdr.it_present);
-
-	/* Zero the flags, we'll add to them as we go */
-	iwl3945_rt->rt_flags = 0;
-
-	put_unaligned_le64(tsf, &iwl3945_rt->rt_tsf);
-
-	iwl3945_rt->rt_dbmsignal = signal;
-	iwl3945_rt->rt_dbmnoise = noise;
-
-	/* Convert the channel frequency and set the flags */
-	put_unaligned_le16(stats->freq, &iwl3945_rt->rt_channelMHz);
-	if (!(phy_flags_hw & RX_RES_PHY_FLAGS_BAND_24_MSK))
-		put_unaligned_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_5GHZ,
-			      &iwl3945_rt->rt_chbitmask);
-	else if (phy_flags_hw & RX_RES_PHY_FLAGS_MOD_CCK_MSK)
-		put_unaligned_le16(IEEE80211_CHAN_CCK | IEEE80211_CHAN_2GHZ,
-			      &iwl3945_rt->rt_chbitmask);
-	else	/* 802.11g */
-		put_unaligned_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ,
-			      &iwl3945_rt->rt_chbitmask);
-
-	if (rate == -1)
-		iwl3945_rt->rt_rate = 0;
-	else {
-		if (stats->band == IEEE80211_BAND_5GHZ)
-			rate += IWL_FIRST_OFDM_RATE;
-
-		iwl3945_rt->rt_rate = iwl3945_rates[rate].ieee;
-	}
-
-	/* antenna number */
-	antenna = phy_flags_hw & RX_RES_PHY_FLAGS_ANTENNA_MSK;
-	iwl3945_rt->rt_antenna = le16_to_cpu(antenna) >> 4;
-
-	/* set the preamble flag if we have it */
-	if (phy_flags_hw & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
-		iwl3945_rt->rt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
-
-	stats->flag |= RX_FLAG_RADIOTAP;
-}
-
 static void iwl3945_pass_packet_to_mac80211(struct iwl3945_priv *priv,
 				   struct iwl3945_rx_mem_buffer *rxb,
 				   struct ieee80211_rx_status *stats)
@@ -657,9 +564,6 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl3945_priv *priv,
 		iwl3945_set_decrypted_flag(priv, rxb->skb,
 				       le32_to_cpu(rx_end->status), stats);
 
-	if (priv->add_radiotap)
-		iwl3945_add_radiotap(priv, rxb->skb, rx_hdr, stats);
-
 #ifdef CONFIG_IWL3945_LEDS
 	if (ieee80211_is_data(hdr->frame_control))
 		priv->rxtxpackets += len;
@@ -684,7 +588,6 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 	u16 rx_stats_noise_diff = le16_to_cpu(rx_stats->noise_diff);
 	u8 network_packet;
 
-	rx_status.antenna = 0;
 	rx_status.flag = 0;
 	rx_status.mactime = le64_to_cpu(rx_end->timestamp);
 	rx_status.freq =
@@ -695,6 +598,13 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 	rx_status.rate_idx = iwl3945_hwrate_to_plcp_idx(rx_hdr->rate);
 	if (rx_status.band == IEEE80211_BAND_5GHZ)
 		rx_status.rate_idx -= IWL_FIRST_OFDM_RATE;
+
+	rx_status.antenna = le16_to_cpu(rx_hdr->phy_flags &
+					RX_RES_PHY_FLAGS_ANTENNA_MSK) >> 4;
+
+	/* set the preamble flag if appropriate */
+	if (rx_hdr->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
+		rx_status.flag |= RX_FLAG_SHORTPRE;
 
 	if ((unlikely(rx_stats->phy_count > 20))) {
 		IWL_DEBUG_DROP

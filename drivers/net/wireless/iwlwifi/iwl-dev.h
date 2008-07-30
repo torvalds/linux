@@ -829,7 +829,6 @@ struct iwl_priv {
 
 	enum ieee80211_band band;
 	int alloc_rxb_skb;
-	bool add_radiotap;
 
 	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
 				       struct iwl_rx_mem_buffer *rxb);
