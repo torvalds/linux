@@ -40,11 +40,15 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_ring_buffer_t *ring = &(dev_priv->ring);
+	u32 acthd_reg = IS_I965G(dev) ? ACTHD_I965 : ACTHD;
+	u32 last_acthd = I915_READ(acthd_reg);
+	u32 acthd;
 	u32 last_head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
 	int i;
 
-	for (i = 0; i < 10000; i++) {
+	for (i = 0; i < 100000; i++) {
 		ring->head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
+		acthd = I915_READ(acthd_reg);
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
 			ring->space += ring->Size;
@@ -55,8 +59,13 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 
 		if (ring->head != last_head)
 			i = 0;
+		if (acthd != last_acthd)
+			i = 0;
 
 		last_head = ring->head;
+		last_acthd = acthd;
+		msleep_interruptible(10);
+
 	}
 
 	return -EBUSY;
