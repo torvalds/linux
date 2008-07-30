@@ -36,6 +36,9 @@ struct device *xp = &xp_dbg_subname;
 short xp_max_npartitions;
 EXPORT_SYMBOL_GPL(xp_max_npartitions);
 
+enum xp_retval (*xp_remote_memcpy) (void *dst, const void *src, size_t len);
+EXPORT_SYMBOL_GPL(xp_remote_memcpy);
+
 /*
  * xpc_registrations[] keeps track of xpc_connect()'s done by the kernel-level
  * users of XPC.

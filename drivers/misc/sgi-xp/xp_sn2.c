@@ -13,6 +13,7 @@
  */
 
 #include <linux/device.h>
+#include <asm/sn/bte.h>
 #include <asm/sn/sn_sal.h>
 #include "xp.h"
 
@@ -72,12 +73,57 @@ xp_unregister_nofault_code_sn2(void)
 				       err_func_addr, 1, 0);
 }
 
+/*
+ * Wrapper for bte_copy().
+ *
+ *	vdst - virtual address of the destination of the transfer.
+ *	psrc - physical address of the source of the transfer.
+ *	len - number of bytes to transfer from source to destination.
+ *
+ * Note: xp_remote_memcpy_sn2() should never be called while holding a spinlock.
+ */
+static enum xp_retval
+xp_remote_memcpy_sn2(void *vdst, const void *psrc, size_t len)
+{
+	bte_result_t ret;
+	u64 pdst = ia64_tpa(vdst);
+	/* >>> What are the rules governing the src and dst addresses passed in?
+	 * >>> Currently we're assuming that dst is a virtual address and src
+	 * >>> is a physical address, is this appropriate? Can we allow them to
+	 * >>> be whatever and we make the change here without damaging the
+	 * >>> addresses?
+	 */
+
+	/*
+	 * Ensure that the physically mapped memory is contiguous.
+	 *
+	 * We do this by ensuring that the memory is from region 7 only.
+	 * If the need should arise to use memory from one of the other
+	 * regions, then modify the BUG_ON() statement to ensure that the
+	 * memory from that region is always physically contiguous.
+	 */
+	BUG_ON(REGION_NUMBER(vdst) != RGN_KERNEL);
+
+	ret = bte_copy((u64)psrc, pdst, len, (BTE_NOTIFY | BTE_WACQUIRE), NULL);
+	if (ret == BTE_SUCCESS)
+		return xpSuccess;
+
+	if (is_shub2())
+		dev_err(xp, "bte_copy() on shub2 failed, error=0x%x\n", ret);
+	else
+		dev_err(xp, "bte_copy() failed, error=%d\n", ret);
+
+	return xpBteCopyError;
+}
+
 enum xp_retval
 xp_init_sn2(void)
 {
 	BUG_ON(!is_shub());
 
 	xp_max_npartitions = XP_MAX_NPARTITIONS_SN2;
+
+	xp_remote_memcpy = xp_remote_memcpy_sn2;
 
 	return xp_register_nofault_code_sn2();
 }

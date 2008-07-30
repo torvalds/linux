@@ -21,7 +21,6 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
-#include <asm/sn/bte.h>
 #include <asm/sn/sn_sal.h>
 #include "xpc.h"
 
@@ -252,13 +251,13 @@ xpc_setup_infrastructure(struct xpc_partition *part)
  *
  * src must be a cacheline aligned physical address on the remote partition.
  * dst must be a cacheline aligned virtual address on this partition.
- * cnt must be an cacheline sized
+ * cnt must be cacheline sized
  */
 static enum xp_retval
 xpc_pull_remote_cachelines(struct xpc_partition *part, void *dst,
 			   const void *src, size_t cnt)
 {
-	bte_result_t bte_ret;
+	enum xp_retval ret;
 
 	DBUG_ON((u64)src != L1_CACHE_ALIGN((u64)src));
 	DBUG_ON((u64)dst != L1_CACHE_ALIGN((u64)dst));
@@ -267,15 +266,12 @@ xpc_pull_remote_cachelines(struct xpc_partition *part, void *dst,
 	if (part->act_state == XPC_P_DEACTIVATING)
 		return part->reason;
 
-	bte_ret = xp_bte_copy((u64)src, (u64)dst, (u64)cnt,
-			      (BTE_NORMAL | BTE_WACQUIRE), NULL);
-	if (bte_ret == BTE_SUCCESS)
-		return xpSuccess;
-
-	dev_dbg(xpc_chan, "xp_bte_copy() from partition %d failed, ret=%d\n",
-		XPC_PARTID(part), bte_ret);
-
-	return xpc_map_bte_errors(bte_ret);
+	ret = xp_remote_memcpy(dst, src, cnt);
+	if (ret != xpSuccess) {
+		dev_dbg(xpc_chan, "xp_remote_memcpy() from partition %d failed,"
+			" ret=%d\n", XPC_PARTID(part), ret);
+	}
+	return ret;
 }
 
 /*

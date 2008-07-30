@@ -32,7 +32,6 @@
 #include <linux/mii.h>
 #include <linux/smp.h>
 #include <linux/string.h>
-#include <asm/sn/bte.h>
 #include <asm/sn/io.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/atomic.h>
@@ -169,7 +168,7 @@ static void
 xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 {
 	struct sk_buff *skb;
-	bte_result_t bret;
+	enum xp_retval ret;
 	struct xpnet_dev_private *priv =
 	    (struct xpnet_dev_private *)xpnet_device->priv;
 
@@ -201,7 +200,7 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 
 	/*
 	 * The allocated skb has some reserved space.
-	 * In order to use bte_copy, we need to get the
+	 * In order to use xp_remote_memcpy(), we need to get the
 	 * skb->data pointer moved forward.
 	 */
 	skb_reserve(skb, (L1_CACHE_BYTES - ((u64)skb->data &
@@ -227,25 +226,24 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 					(size_t)msg->embedded_bytes);
 	} else {
 		dev_dbg(xpnet, "transferring buffer to the skb->data area;\n\t"
-			"bte_copy(0x%p, 0x%p, %hu)\n", (void *)msg->buf_pa,
-			(void *)__pa((u64)skb->data & ~(L1_CACHE_BYTES - 1)),
-			msg->size);
+			"xp_remote_memcpy(0x%p, 0x%p, %hu)\n", (void *)
+				       ((u64)skb->data & ~(L1_CACHE_BYTES - 1)),
+					  (void *)msg->buf_pa, msg->size);
 
-		bret = bte_copy(msg->buf_pa,
-				__pa((u64)skb->data & ~(L1_CACHE_BYTES - 1)),
-				msg->size, (BTE_NOTIFY | BTE_WACQUIRE), NULL);
+		ret = xp_remote_memcpy((void *)((u64)skb->data &
+				                ~(L1_CACHE_BYTES - 1)),
+				       (void *)msg->buf_pa, msg->size);
 
-		if (bret != BTE_SUCCESS) {
+		if (ret != xpSuccess) {
 			/*
 			 * >>> Need better way of cleaning skb.  Currently skb
 			 * >>> appears in_use and we can't just call
 			 * >>> dev_kfree_skb.
 			 */
-			dev_err(xpnet, "bte_copy(0x%p, 0x%p, 0x%hx) returned "
-				"error=0x%x\n", (void *)msg->buf_pa,
-				(void *)__pa((u64)skb->data &
-					     ~(L1_CACHE_BYTES - 1)),
-				msg->size, bret);
+			dev_err(xpnet, "xp_remote_memcpy(0x%p, 0x%p, 0x%hx) "
+				"returned error=0x%x\n", (void *)
+				((u64)skb->data & ~(L1_CACHE_BYTES - 1)),
+				(void *)msg->buf_pa, msg->size, ret);
 
 			xpc_received(partid, channel, (void *)msg);
 

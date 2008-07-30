@@ -20,7 +20,6 @@
 #include <linux/completion.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/sn/bte.h>
 #include <asm/sn/clksupport.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/mspec.h>
@@ -1123,12 +1122,6 @@ xpc_IPI_init(int index)
 
 	(void)xpc_IPI_receive(amo);	/* clear AMO variable */
 	return amo;
-}
-
-static inline enum xp_retval
-xpc_map_bte_errors(bte_result_t error)
-{
-	return ((error == BTE_SUCCESS) ? xpSuccess : xpBteCopyError);
 }
 
 /*

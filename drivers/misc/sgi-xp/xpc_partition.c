@@ -21,7 +21,6 @@
 #include <linux/mmzone.h>
 #include <linux/nodemask.h>
 #include <asm/uncached.h>
-#include <asm/sn/bte.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/nodepda.h>
@@ -92,7 +91,7 @@ xpc_kmalloc_cacheline_aligned(size_t size, gfp_t flags, void **base)
 static u64
 xpc_get_rsvd_page_pa(int nasid)
 {
-	bte_result_t bte_res;
+	enum xp_retval ret;
 	s64 status;
 	u64 cookie = 0;
 	u64 rp_pa = nasid;	/* seed with nasid */
@@ -113,6 +112,7 @@ xpc_get_rsvd_page_pa(int nasid)
 		if (status != SALRET_MORE_PASSES)
 			break;
 
+		/* >>> L1_CACHE_ALIGN() is only a sn2-bte_copy requirement */
 		if (L1_CACHE_ALIGN(len) > buf_len) {
 			kfree(buf_base);
 			buf_len = L1_CACHE_ALIGN(len);
@@ -127,10 +127,9 @@ xpc_get_rsvd_page_pa(int nasid)
 			}
 		}
 
-		bte_res = xp_bte_copy(rp_pa, buf, buf_len,
-				      (BTE_NOTIFY | BTE_WACQUIRE), NULL);
-		if (bte_res != BTE_SUCCESS) {
-			dev_dbg(xpc_part, "xp_bte_copy failed %i\n", bte_res);
+		ret = xp_remote_memcpy((void *)buf, (void *)rp_pa, buf_len);
+		if (ret != xpSuccess) {
+			dev_dbg(xpc_part, "xp_remote_memcpy failed %d\n", ret);
 			status = SALRET_ERROR;
 			break;
 		}
@@ -398,7 +397,7 @@ xpc_check_remote_hb(void)
 	struct xpc_vars *remote_vars;
 	struct xpc_partition *part;
 	short partid;
-	bte_result_t bres;
+	enum xp_retval ret;
 
 	remote_vars = (struct xpc_vars *)xpc_remote_copy_buffer;
 
@@ -418,13 +417,11 @@ xpc_check_remote_hb(void)
 		}
 
 		/* pull the remote_hb cache line */
-		bres = xp_bte_copy(part->remote_vars_pa,
-				   (u64)remote_vars,
-				   XPC_RP_VARS_SIZE,
-				   (BTE_NOTIFY | BTE_WACQUIRE), NULL);
-		if (bres != BTE_SUCCESS) {
-			XPC_DEACTIVATE_PARTITION(part,
-						 xpc_map_bte_errors(bres));
+		ret = xp_remote_memcpy(remote_vars,
+				       (void *)part->remote_vars_pa,
+				       XPC_RP_VARS_SIZE);
+		if (ret != xpSuccess) {
+			XPC_DEACTIVATE_PARTITION(part, ret);
 			continue;
 		}
 
@@ -457,7 +454,8 @@ static enum xp_retval
 xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 		  struct xpc_rsvd_page *remote_rp, u64 *remote_rp_pa)
 {
-	int bres, i;
+	int i;
+	enum xp_retval ret;
 
 	/* get the reserved page's physical address */
 
@@ -466,11 +464,10 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 		return xpNoRsvdPageAddr;
 
 	/* pull over the reserved page header and part_nasids mask */
-	bres = xp_bte_copy(*remote_rp_pa, (u64)remote_rp,
-			   XPC_RP_HEADER_SIZE + xp_nasid_mask_bytes,
-			   (BTE_NOTIFY | BTE_WACQUIRE), NULL);
-	if (bres != BTE_SUCCESS)
-		return xpc_map_bte_errors(bres);
+	ret = xp_remote_memcpy(remote_rp, (void *)*remote_rp_pa,
+			       XPC_RP_HEADER_SIZE + xp_nasid_mask_bytes);
+	if (ret != xpSuccess)
+		return ret;
 
 	if (discovered_nasids != NULL) {
 		u64 *remote_part_nasids = XPC_RP_PART_NASIDS(remote_rp);
@@ -504,16 +501,16 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 static enum xp_retval
 xpc_get_remote_vars(u64 remote_vars_pa, struct xpc_vars *remote_vars)
 {
-	int bres;
+	enum xp_retval ret;
 
 	if (remote_vars_pa == 0)
 		return xpVarsNotSet;
 
 	/* pull over the cross partition variables */
-	bres = xp_bte_copy(remote_vars_pa, (u64)remote_vars, XPC_RP_VARS_SIZE,
-			   (BTE_NOTIFY | BTE_WACQUIRE), NULL);
-	if (bres != BTE_SUCCESS)
-		return xpc_map_bte_errors(bres);
+	ret = xp_remote_memcpy(remote_vars, (void *)remote_vars_pa,
+			       XPC_RP_VARS_SIZE);
+	if (ret != xpSuccess)
+		return ret;
 
 	if (XPC_VERSION_MAJOR(remote_vars->version) !=
 	    XPC_VERSION_MAJOR(XPC_V_VERSION)) {
@@ -1148,7 +1145,6 @@ xpc_initiate_partid_to_nasids(short partid, void *nasid_mask)
 {
 	struct xpc_partition *part;
 	u64 part_nasid_pa;
-	int bte_res;
 
 	part = &xpc_partitions[partid];
 	if (part->remote_rp_pa == 0)
@@ -1158,9 +1154,6 @@ xpc_initiate_partid_to_nasids(short partid, void *nasid_mask)
 
 	part_nasid_pa = (u64)XPC_RP_PART_NASIDS(part->remote_rp_pa);
 
-	bte_res = xp_bte_copy(part_nasid_pa, (u64)nasid_mask,
-			      xp_nasid_mask_bytes, (BTE_NOTIFY | BTE_WACQUIRE),
-			      NULL);
-
-	return xpc_map_bte_errors(bte_res);
+	return xp_remote_memcpy(nasid_mask, (void *)part_nasid_pa,
+				xp_nasid_mask_bytes);
 }
