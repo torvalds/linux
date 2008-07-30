@@ -20,6 +20,7 @@
 #include <linux/signal.h>
 #include <linux/io.h>
 #include <linux/audit.h>
+#include <linux/seccomp.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -275,6 +276,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	struct task_struct *tsk = current;
+
+	secure_computing(regs->regs[0]);
 
 	if (unlikely(current->audit_context) && entryexit)
 		audit_syscall_exit(AUDITSC_RESULT(regs->regs[0]),

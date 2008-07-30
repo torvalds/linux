@@ -27,6 +27,7 @@
 #include <linux/signal.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
+#include <linux/seccomp.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -276,6 +277,8 @@ asmlinkage int sh64_ptrace(long request, long pid, long addr, long data)
 asmlinkage void syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	struct task_struct *tsk = current;
+
+	secure_computing(regs->regs[9]);
 
 	if (unlikely(current->audit_context) && entryexit)
 		audit_syscall_exit(AUDITSC_RESULT(regs->regs[9]),
