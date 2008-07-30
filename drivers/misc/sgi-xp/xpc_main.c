@@ -26,16 +26,16 @@
  *	Caveats:
  *
  *	  . Currently on sn2, we have no way to determine which nasid an IRQ
- *	    came from. Thus, xpc_send_IRQ_sn2() does a remote AMO write
- *	    followed by an IPI. The AMO indicates where data is to be pulled
- *	    from, so after the IPI arrives, the remote partition checks the AMO
- *	    word. The IPI can actually arrive before the AMO however, so other
- *	    code must periodically check for this case. Also, remote AMO
+ *	    came from. Thus, xpc_send_IRQ_sn2() does a remote amo write
+ *	    followed by an IPI. The amo indicates where data is to be pulled
+ *	    from, so after the IPI arrives, the remote partition checks the amo
+ *	    word. The IPI can actually arrive before the amo however, so other
+ *	    code must periodically check for this case. Also, remote amo
  *	    operations do not reliably time out. Thus we do a remote PIO read
  *	    solely to know whether the remote partition is down and whether we
  *	    should stop sending IPIs to it. This remote PIO read operation is
  *	    set up in a special nofault region so SAL knows to ignore (and
- *	    cleanup) any errors due to the remote AMO write, PIO read, and/or
+ *	    cleanup) any errors due to the remote amo write, PIO read, and/or
  *	    PIO write operations.
  *
  *	    If/when new hardware solves this IPI problem, we should abandon
@@ -302,7 +302,7 @@ xpc_hb_checker(void *ignore)
 
 			/*
 			 * We need to periodically recheck to ensure no
-			 * IRQ/AMO pairs have been missed.  That check
+			 * IRQ/amo pairs have been missed.  That check
 			 * must always reset xpc_hb_check_timeout.
 			 */
 			force_IRQ = 1;
@@ -1034,7 +1034,7 @@ xpc_init(void)
 	if (is_shub()) {
 		/*
 		 * The ia64-sn2 architecture supports at most 64 partitions.
-		 * And the inability to unregister remote AMOs restricts us
+		 * And the inability to unregister remote amos restricts us
 		 * further to only support exactly 64 partitions on this
 		 * architecture, no less.
 		 */

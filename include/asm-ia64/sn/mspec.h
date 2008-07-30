@@ -4,7 +4,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2001-2004 Silicon Graphics, Inc.  All rights reserved.
+ * Copyright (c) 2001-2008 Silicon Graphics, Inc.  All rights reserved.
  */
 
 #ifndef _ASM_IA64_SN_MSPEC_H
@@ -32,26 +32,26 @@
 #ifdef __KERNEL__
 
 /*
- * Each Atomic Memory Operation (AMO formerly known as fetchop)
+ * Each Atomic Memory Operation (amo, formerly known as fetchop)
  * variable is 64 bytes long.  The first 8 bytes are used.  The
  * remaining 56 bytes are unaddressable due to the operation taking
  * that portion of the address.
  *
- * NOTE: The AMO_t _MUST_ be placed in either the first or second half
- * of the cache line.  The cache line _MUST NOT_ be used for anything
- * other than additional AMO_t entries.  This is because there are two
+ * NOTE: The amo structure _MUST_ be placed in either the first or second
+ * half of the cache line.  The cache line _MUST NOT_ be used for anything
+ * other than additional amo entries.  This is because there are two
  * addresses which reference the same physical cache line.  One will
  * be a cached entry with the memory type bits all set.  This address
- * may be loaded into processor cache.  The AMO_t will be referenced
+ * may be loaded into processor cache.  The amo will be referenced
  * uncached via the memory special memory type.  If any portion of the
  * cached cache-line is modified, when that line is flushed, it will
  * overwrite the uncached value in physical memory and lead to
  * inconsistency.
  */
-typedef struct {
+struct amo {
         u64 variable;
         u64 unused[7];
-} AMO_t;
+};
 
 
 #endif /* __KERNEL__ */

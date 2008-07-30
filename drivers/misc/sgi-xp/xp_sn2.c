@@ -32,7 +32,7 @@ EXPORT_SYMBOL_GPL(xp_nofault_PIOR_target);
  * If the PIO read times out, the MCA handler will consume the error and
  * return to a kernel-provided instruction to indicate an error. This PIO read
  * exists because it is guaranteed to timeout if the destination is down
- * (AMO operations do not timeout on at least some CPUs on Shubs <= v1.2,
+ * (amo operations do not timeout on at least some CPUs on Shubs <= v1.2,
  * which unfortunately we have to work around).
  */
 static enum xp_retval
