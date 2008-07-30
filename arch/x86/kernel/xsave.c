@@ -9,11 +9,12 @@
 #ifdef CONFIG_IA32_EMULATION
 #include <asm/sigcontext32.h>
 #endif
+#include <asm/xcr.h>
 
 /*
  * Supported feature mask by the CPU and the kernel.
  */
-unsigned int pcntxt_hmask, pcntxt_lmask;
+u64 pcntxt_mask;
 
 struct _fpx_sw_bytes fx_sw_reserved;
 #ifdef CONFIG_IA32_EMULATION
@@ -127,30 +128,28 @@ int save_i387_xstate(void __user *buf)
 int restore_user_xstate(void __user *buf)
 {
 	struct _fpx_sw_bytes fx_sw_user;
-	unsigned int lmask, hmask;
+	u64 mask;
 	int err;
 
 	if (((unsigned long)buf % 64) ||
 	     check_for_xstate(buf, buf, &fx_sw_user))
 		goto fx_only;
 
-	lmask = fx_sw_user.xstate_bv;
-	hmask = fx_sw_user.xstate_bv >> 32;
+	mask = fx_sw_user.xstate_bv;
 
 	/*
 	 * restore the state passed by the user.
 	 */
-	err = xrestore_user(buf, lmask, hmask);
+	err = xrestore_user(buf, mask);
 	if (err)
 		return err;
 
 	/*
 	 * init the state skipped by the user.
 	 */
-	lmask = pcntxt_lmask & ~lmask;
-	hmask = pcntxt_hmask & ~hmask;
+	mask = pcntxt_mask & ~mask;
 
-	xrstor_state(init_xstate_buf, lmask, hmask);
+	xrstor_state(init_xstate_buf, mask);
 
 	return 0;
 
@@ -160,8 +159,7 @@ fx_only:
 	 * memory layout. Restore just the FP/SSE and init all
 	 * the other extended state.
 	 */
-	xrstor_state(init_xstate_buf, pcntxt_lmask & ~XSTATE_FPSSE,
-		     pcntxt_hmask);
+	xrstor_state(init_xstate_buf, pcntxt_mask & ~XSTATE_FPSSE);
 	return fxrstor_checking((__force struct i387_fxsave_struct *)buf);
 }
 
@@ -231,8 +229,7 @@ void prepare_fx_sw_frame(void)
 
 	fx_sw_reserved.magic1 = FP_XSTATE_MAGIC1;
 	fx_sw_reserved.extended_size = sig_xstate_size;
-	fx_sw_reserved.xstate_bv = pcntxt_lmask |
-					 (((u64) (pcntxt_hmask)) << 32);
+	fx_sw_reserved.xstate_bv = pcntxt_mask;
 	fx_sw_reserved.xstate_size = xstate_size;
 #ifdef CONFIG_IA32_EMULATION
 	memcpy(&fx_sw_reserved_ia32, &fx_sw_reserved,
@@ -263,11 +260,8 @@ void __cpuinit xsave_init(void)
 	/*
 	 * Enable all the features that the HW is capable of
 	 * and the Linux kernel is aware of.
-	 *
-	 * xsetbv();
 	 */
-	asm volatile(".byte 0x0f,0x01,0xd1" : : "c" (0),
-		     "a" (pcntxt_lmask), "d" (pcntxt_hmask));
+	xsetbv(XCR_XFEATURE_ENABLED_MASK, pcntxt_mask);
 }
 
 /*
@@ -287,36 +281,31 @@ void __init xsave_cntxt_init(void)
 	unsigned int eax, ebx, ecx, edx;
 
 	cpuid_count(0xd, 0, &eax, &ebx, &ecx, &edx);
+	pcntxt_mask = eax + ((u64)edx << 32);
 
-	pcntxt_lmask = eax;
-	pcntxt_hmask = edx;
-
-	if ((pcntxt_lmask & XSTATE_FPSSE) != XSTATE_FPSSE) {
-		printk(KERN_ERR "FP/SSE not shown under xsave features %x\n",
-		       pcntxt_lmask);
+	if ((pcntxt_mask & XSTATE_FPSSE) != XSTATE_FPSSE) {
+		printk(KERN_ERR "FP/SSE not shown under xsave features 0x%llx\n",
+		       pcntxt_mask);
 		BUG();
 	}
 
 	/*
 	 * for now OS knows only about FP/SSE
 	 */
-	pcntxt_lmask = pcntxt_lmask & XCNTXT_LMASK;
-	pcntxt_hmask = pcntxt_hmask & XCNTXT_HMASK;
-
+	pcntxt_mask = pcntxt_mask & XCNTXT_MASK;
 	xsave_init();
 
 	/*
 	 * Recompute the context size for enabled features
 	 */
 	cpuid_count(0xd, 0, &eax, &ebx, &ecx, &edx);
-
 	xstate_size = ebx;
 
 	prepare_fx_sw_frame();
 
 	setup_xstate_init();
 
-	printk(KERN_INFO "xsave/xrstor: enabled xstate_bv 0x%Lx, "
+	printk(KERN_INFO "xsave/xrstor: enabled xstate_bv 0x%llx, "
 	       "cntxt size 0x%x\n",
-	       (pcntxt_lmask | ((u64) pcntxt_hmask << 32)), xstate_size);
+	       pcntxt_mask, xstate_size);
 }

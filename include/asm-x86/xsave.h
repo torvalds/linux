@@ -1,6 +1,7 @@
 #ifndef __ASM_X86_XSAVE_H
 #define __ASM_X86_XSAVE_H
 
+#include <linux/types.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
 
@@ -14,8 +15,7 @@
 /*
  * These are the features that the OS can handle currently.
  */
-#define XCNTXT_LMASK	(XSTATE_FP | XSTATE_SSE)
-#define XCNTXT_HMASK	0x0
+#define XCNTXT_MASK	(XSTATE_FP | XSTATE_SSE)
 
 #ifdef CONFIG_X86_64
 #define REX_PREFIX	"0x48, "
@@ -23,7 +23,8 @@
 #define REX_PREFIX
 #endif
 
-extern unsigned int xstate_size, pcntxt_hmask, pcntxt_lmask;
+extern unsigned int xstate_size;
+extern u64 pcntxt_mask;
 extern struct xsave_struct *init_xstate_buf;
 
 extern void xsave_cntxt_init(void);
@@ -73,12 +74,12 @@ static inline int xsave_user(struct xsave_struct __user *buf)
 	return err;
 }
 
-static inline int xrestore_user(struct xsave_struct __user *buf,
-				unsigned int lmask,
-				unsigned int hmask)
+static inline int xrestore_user(struct xsave_struct __user *buf, u64 mask)
 {
 	int err;
 	struct xsave_struct *xstate = ((__force struct xsave_struct *)buf);
+	u32 lmask = mask;
+	u32 hmask = mask >> 32;
 
 	__asm__ __volatile__("1: .byte " REX_PREFIX "0x0f,0xae,0x2f\n"
 			     "2:\n"
@@ -96,8 +97,11 @@ static inline int xrestore_user(struct xsave_struct __user *buf,
 	return err;
 }
 
-static inline void xrstor_state(struct xsave_struct *fx, int lmask, int hmask)
+static inline void xrstor_state(struct xsave_struct *fx, u64 mask)
 {
+	u32 lmask = mask;
+	u32 hmask = mask >> 32;
+
 	asm volatile(".byte " REX_PREFIX "0x0f,0xae,0x2f\n\t"
 		     : : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
 		     :   "memory");

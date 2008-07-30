@@ -552,18 +552,17 @@ static int restore_i387_xsave(void __user *buf)
 		(struct i387_fxsave_struct __user *) &fx_user->_fxsr_env[0];
 	struct xsave_hdr_struct *xsave_hdr =
 				&current->thread.xstate->xsave.xsave_hdr;
-	unsigned int lmask, hmask;
+	u64 mask;
 	int err;
 
 	if (check_for_xstate(fx, buf, &fx_sw_user))
 		goto fx_only;
 
-	lmask = fx_sw_user.xstate_bv;
-	hmask = fx_sw_user.xstate_bv >> 32;
+	mask = fx_sw_user.xstate_bv;
 
 	err = restore_i387_fxsave(buf, fx_sw_user.xstate_size);
 
-	xsave_hdr->xstate_bv &=  (pcntxt_lmask | (((u64) pcntxt_hmask) << 32));
+	xsave_hdr->xstate_bv &= pcntxt_mask;
 	/*
 	 * These bits must be zero.
 	 */
@@ -573,9 +572,8 @@ static int restore_i387_xsave(void __user *buf)
 	 * Init the state that is not present in the memory layout
 	 * and enabled by the OS.
 	 */
-	lmask = ~(pcntxt_lmask & ~lmask);
-	hmask = ~(pcntxt_hmask & ~hmask);
-	xsave_hdr->xstate_bv &=  (lmask | (((u64) hmask) << 32));
+	mask = ~(pcntxt_mask & ~mask);
+	xsave_hdr->xstate_bv &= mask;
 
 	return err;
 fx_only:
