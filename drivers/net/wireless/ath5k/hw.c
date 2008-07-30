@@ -843,27 +843,26 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		 * Write some more initial register settings
 		 */
 		if (ah->ah_version == AR5K_AR5212) {
-			ath5k_hw_reg_write(ah, 0x0002a002, AR5K_PHY(11));
+			ath5k_hw_reg_write(ah, 0x0002a002, 0x982c);
 
 			if (channel->hw_value == CHANNEL_G)
 				if (ah->ah_mac_srev < AR5K_SREV_VER_AR2413)
 					ath5k_hw_reg_write(ah, 0x00f80d80,
-						AR5K_PHY(83));
+								0x994c);
 				else if (ah->ah_mac_srev < AR5K_SREV_VER_AR2424)
 					ath5k_hw_reg_write(ah, 0x00380140,
-						AR5K_PHY(83));
+								0x994c);
 				else if (ah->ah_mac_srev < AR5K_SREV_VER_AR2425)
 					ath5k_hw_reg_write(ah, 0x00fc0ec0,
-						AR5K_PHY(83));
+								0x994c);
 				else /* 2425 */
 					ath5k_hw_reg_write(ah, 0x00fc0fc0,
-						AR5K_PHY(83));
+								0x994c);
 			else
-				ath5k_hw_reg_write(ah, 0x00000000,
-					AR5K_PHY(83));
+				ath5k_hw_reg_write(ah, 0x00000000, 0x994c);
 
 			ath5k_hw_reg_write(ah, 0x000009b5, 0xa228);
-			ath5k_hw_reg_write(ah, 0x0000000f, 0x8060);
+			ath5k_hw_reg_write(ah, 0x0000000f, AR5K_SEQ_MASK);
 			ath5k_hw_reg_write(ah, 0x00000000, 0xa254);
 			ath5k_hw_reg_write(ah, 0x0000000e, AR5K_PHY_SCAL);
 		}
@@ -935,7 +934,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 			return ret;
 
 		/* Set antenna mode */
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x44),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_ANT_CTL,
 			ah->ah_antenna[ee_mode][0], 0xfffffc06);
 
 		/*
@@ -965,15 +964,15 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 
 		ath5k_hw_reg_write(ah,
 			AR5K_PHY_NF_SVAL(ee->ee_noise_floor_thr[ee_mode]),
-			AR5K_PHY(0x5a));
+			AR5K_PHY_NFTHRES);
 
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x11),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_SETTLING,
 			(ee->ee_switch_settling[ee_mode] << 7) & 0x3f80,
 			0xffffc07f);
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x12),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_GAIN,
 			(ee->ee_ant_tx_rx[ee_mode] << 12) & 0x3f000,
 			0xfffc0fff);
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x14),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_DESIRED_SIZE,
 			(ee->ee_adc_desired_size[ee_mode] & 0x00ff) |
 			((ee->ee_pga_desired_size[ee_mode] << 8) & 0xff00),
 			0xffff0000);
@@ -982,13 +981,13 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 			(ee->ee_tx_end2xpa_disable[ee_mode] << 24) |
 			(ee->ee_tx_end2xpa_disable[ee_mode] << 16) |
 			(ee->ee_tx_frm2xpa_enable[ee_mode] << 8) |
-			(ee->ee_tx_frm2xpa_enable[ee_mode]), AR5K_PHY(0x0d));
+			(ee->ee_tx_frm2xpa_enable[ee_mode]), AR5K_PHY_RF_CTL4);
 
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x0a),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_RF_CTL3,
 			ee->ee_tx_end2xlna_enable[ee_mode] << 8, 0xffff00ff);
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x19),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_NF,
 			(ee->ee_thr_62[ee_mode] << 12) & 0x7f000, 0xfff80fff);
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x49), 4, 0xffffff01);
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_OFDM_SELFCORR, 4, 0xffffff01);
 
 		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ,
 		    AR5K_PHY_IQ_CORR_ENABLE |
@@ -3363,11 +3362,13 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		ath5k_hw_reg_write(ah, ah->ah_turbo ?
 			AR5K_INIT_PROTO_TIME_CNTRL_TURBO :
 			AR5K_INIT_PROTO_TIME_CNTRL, AR5K_IFS1);
-		/* Set PHY register 0x9844 (??) */
+		/* Set AR5K_PHY_SETTLING */
 		ath5k_hw_reg_write(ah, ah->ah_turbo ?
-			(ath5k_hw_reg_read(ah, AR5K_PHY(17)) & ~0x7F) | 0x38 :
-			(ath5k_hw_reg_read(ah, AR5K_PHY(17)) & ~0x7F) | 0x1C,
-			AR5K_PHY(17));
+			(ath5k_hw_reg_read(ah, AR5K_PHY_SETTLING) & ~0x7F)
+			| 0x38 :
+			(ath5k_hw_reg_read(ah, AR5K_PHY_SETTLING) & ~0x7F)
+			| 0x1C,
+			AR5K_PHY_SETTLING);
 		/* Set Frame Control Register */
 		ath5k_hw_reg_write(ah, ah->ah_turbo ?
 			(AR5K_PHY_FRAME_CTL_INI | AR5K_PHY_TURBO_MODE |
