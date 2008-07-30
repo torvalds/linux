@@ -96,6 +96,17 @@ static int hda_hwdep_open(struct snd_hwdep *hw, struct file *file)
 	return 0;
 }
 
+static void clear_hwdep_elements(struct hda_codec *codec)
+{
+	/* clear init verbs */
+	snd_array_free(&codec->init_verbs);
+}
+
+static void hwdep_free(struct snd_hwdep *hwdep)
+{
+	clear_hwdep_elements(hwdep->private_data);
+}
+
 int __devinit snd_hda_create_hwdep(struct hda_codec *codec)
 {
 	char hwname[16];
@@ -110,6 +121,7 @@ int __devinit snd_hda_create_hwdep(struct hda_codec *codec)
 	sprintf(hwdep->name, "HDA Codec %d", codec->addr);
 	hwdep->iface = SNDRV_HWDEP_IFACE_HDA;
 	hwdep->private_data = codec;
+	hwdep->private_free = hwdep_free;
 	hwdep->exclusive = 1;
 
 	hwdep->ops.open = hda_hwdep_open;
@@ -117,6 +129,8 @@ int __devinit snd_hda_create_hwdep(struct hda_codec *codec)
 #ifdef CONFIG_COMPAT
 	hwdep->ops.ioctl_compat = hda_hwdep_ioctl_compat;
 #endif
+
+	snd_array_init(&codec->init_verbs, sizeof(struct hda_verb), 32);
 
 	return 0;
 }
@@ -128,6 +142,7 @@ int __devinit snd_hda_create_hwdep(struct hda_codec *codec)
 static int clear_codec(struct hda_codec *codec)
 {
 	snd_hda_codec_reset(codec);
+	clear_hwdep_elements(codec);
 	return 0;
 }
 
@@ -244,6 +259,27 @@ static ssize_t type##_store(struct device *dev,			\
 CODEC_ACTION_STORE(reconfig);
 CODEC_ACTION_STORE(clear);
 
+static ssize_t init_verbs_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	char *p;
+	struct hda_verb verb, *v;
+
+	verb.nid = simple_strtoul(buf, &p, 0);
+	verb.verb = simple_strtoul(p, &p, 0);
+	verb.param = simple_strtoul(p, &p, 0);
+	if (!verb.nid || !verb.verb || !verb.param)
+		return -EINVAL;
+	v = snd_array_new(&codec->init_verbs);
+	if (!v)
+		return -ENOMEM;
+	*v = verb;
+	return count;
+}
+
 #define CODEC_ATTR_RW(type) \
 	__ATTR(type, 0644, type##_show, type##_store)
 #define CODEC_ATTR_RO(type) \
@@ -259,6 +295,7 @@ static struct device_attribute codec_attrs[] = {
 	CODEC_ATTR_RO(mfg),
 	CODEC_ATTR_RW(name),
 	CODEC_ATTR_RW(modelname),
+	CODEC_ATTR_WO(init_verbs),
 	CODEC_ATTR_WO(reconfig),
 	CODEC_ATTR_WO(clear),
 };

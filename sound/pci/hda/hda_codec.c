@@ -1941,6 +1941,17 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	}
 }
 
+#ifdef CONFIG_SND_HDA_HWDEP
+/* execute additional init verbs */
+static void hda_exec_init_verbs(struct hda_codec *codec)
+{
+	if (codec->init_verbs.list)
+		snd_hda_sequence_write(codec, codec->init_verbs.list);
+}
+#else
+static inline void hda_exec_init_verbs(struct hda_codec *codec) {}
+#endif
+
 #ifdef SND_HDA_NEEDS_RESUME
 /*
  * call suspend and power-down; used both from PM and power-save
@@ -1967,6 +1978,7 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	hda_set_power_state(codec,
 			    codec->afg ? codec->afg : codec->mfg,
 			    AC_PWRST_D0);
+	hda_exec_init_verbs(codec);
 	if (codec->patch_ops.resume)
 		codec->patch_ops.resume(codec);
 	else {
@@ -2008,6 +2020,7 @@ int snd_hda_codec_build_controls(struct hda_codec *codec)
 	hda_set_power_state(codec,
 			    codec->afg ? codec->afg : codec->mfg,
 			    AC_PWRST_D0);
+	hda_exec_init_verbs(codec);
 	/* continue to initialize... */
 	if (codec->patch_ops.init)
 		err = codec->patch_ops.init(codec);

@@ -751,7 +751,10 @@ struct hda_codec {
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
 	hda_nid_t *slave_dig_outs; /* optional digital out slave widgets */
 
+#ifdef CONFIG_SND_HDA_HWDEP
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
+	struct snd_array init_verbs;	/* additional init verbs */
+#endif
 
 	/* misc flags */
 	unsigned int spdif_status_reset :1; /* needs to toggle SPDIF for each
