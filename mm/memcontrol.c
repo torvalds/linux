@@ -1168,9 +1168,6 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 	mem = mem_cgroup_from_cont(cont);
 	old_mem = mem_cgroup_from_cont(old_cont);
 
-	if (mem == old_mem)
-		goto out;
-
 	/*
 	 * Only thread group leaders are allowed to migrate, the mm_struct is
 	 * in effect owned by the leader
