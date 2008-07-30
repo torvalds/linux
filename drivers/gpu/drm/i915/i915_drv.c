@@ -85,12 +85,15 @@ static struct drm_driver driver = {
 	/* don't use mtrr's here, the Xserver or user space app should
 	 * deal with them for intel hardware.
 	 */
-	.driver_features = DRIVER_USE_AGP | DRIVER_REQUIRE_AGP |
-		DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
+	.driver_features =
+	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | /* DRIVER_USE_MTRR |*/
+	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM,
 	.load = i915_driver_load,
 	.unload = i915_driver_unload,
+	.open = i915_driver_open,
 	.lastclose = i915_driver_lastclose,
 	.preclose = i915_driver_preclose,
+	.postclose = i915_driver_postclose,
 	.suspend = i915_suspend,
 	.resume = i915_resume,
 	.device_is_agp = i915_driver_device_is_agp,
@@ -104,6 +107,10 @@ static struct drm_driver driver = {
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
+	.proc_init = i915_gem_proc_init,
+	.proc_cleanup = i915_gem_proc_cleanup,
+	.gem_init_object = i915_gem_init_object,
+	.gem_free_object = i915_gem_free_object,
 	.ioctls = i915_ioctls,
 	.fops = {
 		 .owner = THIS_MODULE,

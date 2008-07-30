@@ -39,7 +39,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20060119"
+#define DRIVER_DATE		"20080730"
 
 enum pipe {
 	PIPE_A = 0,
@@ -60,16 +60,23 @@ enum pipe {
 #define DRIVER_MINOR		6
 #define DRIVER_PATCHLEVEL	0
 
+#define WATCH_COHERENCY	0
+#define WATCH_BUF	0
+#define WATCH_EXEC	0
+#define WATCH_LRU	0
+#define WATCH_RELOC	0
+#define WATCH_INACTIVE	0
+#define WATCH_PWRITE	0
+
 typedef struct _drm_i915_ring_buffer {
 	int tail_mask;
-	unsigned long Start;
-	unsigned long End;
 	unsigned long Size;
 	u8 *virtual_start;
 	int head;
 	int tail;
 	int space;
 	drm_local_map_t map;
+	struct drm_gem_object *ring_obj;
 } drm_i915_ring_buffer_t;
 
 struct mem_block {
@@ -101,6 +108,8 @@ struct intel_opregion {
 };
 
 typedef struct drm_i915_private {
+	struct drm_device *dev;
+
 	drm_local_map_t *sarea;
 	drm_local_map_t *mmio_map;
 
@@ -113,6 +122,7 @@ typedef struct drm_i915_private {
 	uint32_t counter;
 	unsigned int status_gfx_addr;
 	drm_local_map_t hws_map;
+	struct drm_gem_object *hws_obj;
 
 	unsigned int cpp;
 	int back_offset;
@@ -122,7 +132,6 @@ typedef struct drm_i915_private {
 
 	wait_queue_head_t irq_queue;
 	atomic_t irq_received;
-	atomic_t irq_emitted;
 	/** Protects user_irq_refcount and irq_mask_reg */
 	spinlock_t user_irq_lock;
 	/** Refcount for i915_user_irq_get() versus i915_user_irq_put(). */
@@ -230,7 +239,173 @@ typedef struct drm_i915_private {
 	u8 saveDACMASK;
 	u8 saveDACDATA[256*3]; /* 256 3-byte colors */
 	u8 saveCR[37];
+
+	struct {
+		struct drm_mm gtt_space;
+
+		/**
+		 * List of objects currently involved in rendering from the
+		 * ringbuffer.
+		 *
+		 * A reference is held on the buffer while on this list.
+		 */
+		struct list_head active_list;
+
+		/**
+		 * List of objects which are not in the ringbuffer but which
+		 * still have a write_domain which needs to be flushed before
+		 * unbinding.
+		 *
+		 * A reference is held on the buffer while on this list.
+		 */
+		struct list_head flushing_list;
+
+		/**
+		 * LRU list of objects which are not in the ringbuffer and
+		 * are ready to unbind, but are still in the GTT.
+		 *
+		 * A reference is not held on the buffer while on this list,
+		 * as merely being GTT-bound shouldn't prevent its being
+		 * freed, and we'll pull it off the list in the free path.
+		 */
+		struct list_head inactive_list;
+
+		/**
+		 * List of breadcrumbs associated with GPU requests currently
+		 * outstanding.
+		 */
+		struct list_head request_list;
+
+		/**
+		 * We leave the user IRQ off as much as possible,
+		 * but this means that requests will finish and never
+		 * be retired once the system goes idle. Set a timer to
+		 * fire periodically while the ring is running. When it
+		 * fires, go retire requests.
+		 */
+		struct delayed_work retire_work;
+
+		uint32_t next_gem_seqno;
+
+		/**
+		 * Waiting sequence number, if any
+		 */
+		uint32_t waiting_gem_seqno;
+
+		/**
+		 * Last seq seen at irq time
+		 */
+		uint32_t irq_gem_seqno;
+
+		/**
+		 * Flag if the X Server, and thus DRM, is not currently in
+		 * control of the device.
+		 *
+		 * This is set between LeaveVT and EnterVT.  It needs to be
+		 * replaced with a semaphore.  It also needs to be
+		 * transitioned away from for kernel modesetting.
+		 */
+		int suspended;
+
+		/**
+		 * Flag if the hardware appears to be wedged.
+		 *
+		 * This is set when attempts to idle the device timeout.
+		 * It prevents command submission from occuring and makes
+		 * every pending request fail
+		 */
+		int wedged;
+
+		/** Bit 6 swizzling required for X tiling */
+		uint32_t bit_6_swizzle_x;
+		/** Bit 6 swizzling required for Y tiling */
+		uint32_t bit_6_swizzle_y;
+	} mm;
 } drm_i915_private_t;
+
+/** driver private structure attached to each drm_gem_object */
+struct drm_i915_gem_object {
+	struct drm_gem_object *obj;
+
+	/** Current space allocated to this object in the GTT, if any. */
+	struct drm_mm_node *gtt_space;
+
+	/** This object's place on the active/flushing/inactive lists */
+	struct list_head list;
+
+	/**
+	 * This is set if the object is on the active or flushing lists
+	 * (has pending rendering), and is not set if it's on inactive (ready
+	 * to be unbound).
+	 */
+	int active;
+
+	/**
+	 * This is set if the object has been written to since last bound
+	 * to the GTT
+	 */
+	int dirty;
+
+	/** AGP memory structure for our GTT binding. */
+	DRM_AGP_MEM *agp_mem;
+
+	struct page **page_list;
+
+	/**
+	 * Current offset of the object in GTT space.
+	 *
+	 * This is the same as gtt_space->start
+	 */
+	uint32_t gtt_offset;
+
+	/** Boolean whether this object has a valid gtt offset. */
+	int gtt_bound;
+
+	/** How many users have pinned this object in GTT space */
+	int pin_count;
+
+	/** Breadcrumb of last rendering to the buffer. */
+	uint32_t last_rendering_seqno;
+
+	/** Current tiling mode for the object. */
+	uint32_t tiling_mode;
+
+	/**
+	 * Flagging of which individual pages are valid in GEM_DOMAIN_CPU when
+	 * GEM_DOMAIN_CPU is not in the object's read domain.
+	 */
+	uint8_t *page_cpu_valid;
+};
+
+/**
+ * Request queue structure.
+ *
+ * The request queue allows us to note sequence numbers that have been emitted
+ * and may be associated with active buffers to be retired.
+ *
+ * By keeping this list, we can avoid having to do questionable
+ * sequence-number comparisons on buffer last_rendering_seqnos, and associate
+ * an emission time with seqnos for tracking how far ahead of the GPU we are.
+ */
+struct drm_i915_gem_request {
+	/** GEM sequence number associated with this request. */
+	uint32_t seqno;
+
+	/** Time at which this request was emitted, in jiffies. */
+	unsigned long emitted_jiffies;
+
+	/** Cache domains that were flushed at the start of the request. */
+	uint32_t flush_domains;
+
+	struct list_head list;
+};
+
+struct drm_i915_file_private {
+	struct {
+		uint32_t last_gem_seqno;
+		uint32_t last_gem_throttle_seqno;
+	} mm;
+};
 
 extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
@@ -239,18 +414,26 @@ extern int i915_max_ioctl;
 extern void i915_kernel_lost_context(struct drm_device * dev);
 extern int i915_driver_load(struct drm_device *, unsigned long flags);
 extern int i915_driver_unload(struct drm_device *);
+extern int i915_driver_open(struct drm_device *dev, struct drm_file *file_priv);
 extern void i915_driver_lastclose(struct drm_device * dev);
 extern void i915_driver_preclose(struct drm_device *dev,
 				 struct drm_file *file_priv);
+extern void i915_driver_postclose(struct drm_device *dev,
+				  struct drm_file *file_priv);
 extern int i915_driver_device_is_agp(struct drm_device * dev);
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
+extern int i915_emit_box(struct drm_device *dev,
+			 struct drm_clip_rect __user *boxes,
+			 int i, int DR1, int DR4);
 
 /* i915_irq.c */
 extern int i915_irq_emit(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 extern int i915_irq_wait(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
+void i915_user_irq_get(struct drm_device *dev);
+void i915_user_irq_put(struct drm_device *dev);
 
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(struct drm_device * dev);
@@ -279,6 +462,67 @@ extern int i915_mem_destroy_heap(struct drm_device *dev, void *data,
 extern void i915_mem_takedown(struct mem_block **heap);
 extern void i915_mem_release(struct drm_device * dev,
 			     struct drm_file *file_priv, struct mem_block *heap);
+/* i915_gem.c */
+int i915_gem_init_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int i915_gem_create_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv);
+int i915_gem_pread_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+int i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv);
+int i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+int i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file_priv);
+int i915_gem_execbuffer(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int i915_gem_pin_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv);
+int i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+int i915_gem_busy_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv);
+int i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
+int i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
+int i915_gem_set_tiling(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int i915_gem_get_tiling(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+void i915_gem_load(struct drm_device *dev);
+int i915_gem_proc_init(struct drm_minor *minor);
+void i915_gem_proc_cleanup(struct drm_minor *minor);
+int i915_gem_init_object(struct drm_gem_object *obj);
+void i915_gem_free_object(struct drm_gem_object *obj);
+int i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment);
+void i915_gem_object_unpin(struct drm_gem_object *obj);
+void i915_gem_lastclose(struct drm_device *dev);
+uint32_t i915_get_gem_seqno(struct drm_device *dev);
+void i915_gem_retire_requests(struct drm_device *dev);
+void i915_gem_retire_work_handler(struct work_struct *work);
+void i915_gem_clflush_object(struct drm_gem_object *obj);
+
+/* i915_gem_tiling.c */
+void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
+
+/* i915_gem_debug.c */
+void i915_gem_dump_object(struct drm_gem_object *obj, int len,
+			  const char *where, uint32_t mark);
+#if WATCH_INACTIVE
+void i915_verify_inactive(struct drm_device *dev, char *file, int line);
+#else
+#define i915_verify_inactive(dev, file, line)
+#endif
+void i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle);
+void i915_gem_dump_object(struct drm_gem_object *obj, int len,
+			  const char *where, uint32_t mark);
+void i915_dump_lru(struct drm_device *dev, const char *where);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
@@ -347,6 +591,7 @@ extern void opregion_enable_asle(struct drm_device *dev);
  */
 #define READ_HWSP(dev_priv, reg)  (((volatile u32*)(dev_priv->hw_status_page))[reg])
 #define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, 5)
+#define I915_GEM_HWS_INDEX		0x10
 
 extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 

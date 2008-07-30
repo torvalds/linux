@@ -407,15 +407,20 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		I915_WRITE(PIPEBSTAT, pipeb_stats);
 	}
 
-	if (iir & I915_ASLE_INTERRUPT)
-		opregion_asle_intr(dev);
+	I915_WRITE(IIR, iir);
+	if (dev->pdev->msi_enabled)
+		I915_WRITE(IMR, dev_priv->irq_mask_reg);
+	(void) I915_READ(IIR); /* Flush posted writes */
 
 	dev_priv->sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 
-	if (dev->pdev->msi_enabled)
-		I915_WRITE(IMR, dev_priv->irq_mask_reg);
-	I915_WRITE(IIR, iir);
-	(void) I915_READ(IIR);
+	if (iir & I915_USER_INTERRUPT) {
+		dev_priv->mm.irq_gem_seqno = i915_get_gem_seqno(dev);
+		DRM_WAKEUP(&dev_priv->irq_queue);
+	}
+
+	if (iir & I915_ASLE_INTERRUPT)
+		opregion_asle_intr(dev);
 
 	if (vblank && dev_priv->swaps_pending > 0)
 		drm_locked_tasklet(dev, i915_vblank_tasklet);
@@ -449,7 +454,7 @@ static int i915_emit_irq(struct drm_device * dev)
 	return dev_priv->counter;
 }
 
-static void i915_user_irq_get(struct drm_device *dev)
+void i915_user_irq_get(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 

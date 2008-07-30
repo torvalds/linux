@@ -170,24 +170,31 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	dev_priv->sarea_priv = (drm_i915_sarea_t *)
 	    ((u8 *) dev_priv->sarea->handle + init->sarea_priv_offset);
 
-	dev_priv->ring.Start = init->ring_start;
-	dev_priv->ring.End = init->ring_end;
-	dev_priv->ring.Size = init->ring_size;
-	dev_priv->ring.tail_mask = dev_priv->ring.Size - 1;
+	if (init->ring_size != 0) {
+		if (dev_priv->ring.ring_obj != NULL) {
+			i915_dma_cleanup(dev);
+			DRM_ERROR("Client tried to initialize ringbuffer in "
+				  "GEM mode\n");
+			return -EINVAL;
+		}
 
-	dev_priv->ring.map.offset = init->ring_start;
-	dev_priv->ring.map.size = init->ring_size;
-	dev_priv->ring.map.type = 0;
-	dev_priv->ring.map.flags = 0;
-	dev_priv->ring.map.mtrr = 0;
+		dev_priv->ring.Size = init->ring_size;
+		dev_priv->ring.tail_mask = dev_priv->ring.Size - 1;
 
-	drm_core_ioremap(&dev_priv->ring.map, dev);
+		dev_priv->ring.map.offset = init->ring_start;
+		dev_priv->ring.map.size = init->ring_size;
+		dev_priv->ring.map.type = 0;
+		dev_priv->ring.map.flags = 0;
+		dev_priv->ring.map.mtrr = 0;
 
-	if (dev_priv->ring.map.handle == NULL) {
-		i915_dma_cleanup(dev);
-		DRM_ERROR("can not ioremap virtual address for"
-			  " ring buffer\n");
-		return -ENOMEM;
+		drm_core_ioremap(&dev_priv->ring.map, dev);
+
+		if (dev_priv->ring.map.handle == NULL) {
+			i915_dma_cleanup(dev);
+			DRM_ERROR("can not ioremap virtual address for"
+				  " ring buffer\n");
+			return -ENOMEM;
+		}
 	}
 
 	dev_priv->ring.virtual_start = dev_priv->ring.map.handle;
@@ -377,9 +384,10 @@ static int i915_emit_cmds(struct drm_device * dev, int __user * buffer, int dwor
 	return 0;
 }
 
-static int i915_emit_box(struct drm_device * dev,
-			 struct drm_clip_rect __user * boxes,
-			 int i, int DR1, int DR4)
+int
+i915_emit_box(struct drm_device *dev,
+	      struct drm_clip_rect __user *boxes,
+	      int i, int DR1, int DR4)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_clip_rect box;
@@ -681,6 +689,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_LAST_DISPATCH:
 		value = READ_BREADCRUMB(dev_priv);
 		break;
+	case I915_PARAM_HAS_GEM:
+		value = 1;
+		break;
 	default:
 		DRM_ERROR("Unknown parameter %d\n", param->param);
 		return -EINVAL;
@@ -784,6 +795,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	memset(dev_priv, 0, sizeof(drm_i915_private_t));
 
 	dev->dev_private = (void *)dev_priv;
+	dev_priv->dev = dev;
 
 	/* Add register map (needed for suspend/resume) */
 	base = drm_get_resource_start(dev, mmio_bar);
@@ -792,6 +804,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	ret = drm_addmap(dev, base, size, _DRM_REGISTERS,
 			 _DRM_KERNEL | _DRM_DRIVER,
 			 &dev_priv->mmio_map);
+
+	i915_gem_load(dev);
 
 	/* Init HWS */
 	if (!I915_NEED_GFX_HWS(dev)) {
@@ -838,12 +852,33 @@ int i915_driver_unload(struct drm_device *dev)
 	return 0;
 }
 
+int i915_driver_open(struct drm_device *dev, struct drm_file *file_priv)
+{
+	struct drm_i915_file_private *i915_file_priv;
+
+	DRM_DEBUG("\n");
+	i915_file_priv = (struct drm_i915_file_private *)
+	    drm_alloc(sizeof(*i915_file_priv), DRM_MEM_FILES);
+
+	if (!i915_file_priv)
+		return -ENOMEM;
+
+	file_priv->driver_priv = i915_file_priv;
+
+	i915_file_priv->mm.last_gem_seqno = 0;
+	i915_file_priv->mm.last_gem_throttle_seqno = 0;
+
+	return 0;
+}
+
 void i915_driver_lastclose(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (!dev_priv)
 		return;
+
+	i915_gem_lastclose(dev);
 
 	if (dev_priv->agp_heap)
 		i915_mem_takedown(&(dev_priv->agp_heap));
@@ -855,6 +890,13 @@ void i915_driver_preclose(struct drm_device * dev, struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	i915_mem_release(dev, file_priv, dev_priv->agp_heap);
+}
+
+void i915_driver_postclose(struct drm_device *dev, struct drm_file *file_priv)
+{
+	struct drm_i915_file_private *i915_file_priv = file_priv->driver_priv;
+
+	drm_free(i915_file_priv, sizeof(*i915_file_priv), DRM_MEM_FILES);
 }
 
 struct drm_ioctl_desc i915_ioctls[] = {
@@ -875,6 +917,22 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_I915_GET_VBLANK_PIPE,  i915_vblank_pipe_get, DRM_AUTH ),
 	DRM_IOCTL_DEF(DRM_I915_VBLANK_SWAP, i915_vblank_swap, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_I915_HWS_ADDR, i915_set_status_page, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_I915_GEM_INIT, i915_gem_init_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_I915_GEM_EXECBUFFER, i915_gem_execbuffer, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_I915_GEM_PIN, i915_gem_pin_ioctl, DRM_AUTH|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_I915_GEM_UNPIN, i915_gem_unpin_ioctl, DRM_AUTH|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_I915_GEM_BUSY, i915_gem_busy_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_I915_GEM_THROTTLE, i915_gem_throttle_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_I915_GEM_ENTERVT, i915_gem_entervt_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_I915_GEM_LEAVEVT, i915_gem_leavevt_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_I915_GEM_CREATE, i915_gem_create_ioctl, 0),
+	DRM_IOCTL_DEF(DRM_I915_GEM_PREAD, i915_gem_pread_ioctl, 0),
+	DRM_IOCTL_DEF(DRM_I915_GEM_PWRITE, i915_gem_pwrite_ioctl, 0),
+	DRM_IOCTL_DEF(DRM_I915_GEM_MMAP, i915_gem_mmap_ioctl, 0),
+	DRM_IOCTL_DEF(DRM_I915_GEM_SET_DOMAIN, i915_gem_set_domain_ioctl, 0),
+	DRM_IOCTL_DEF(DRM_I915_GEM_SW_FINISH, i915_gem_sw_finish_ioctl, 0),
+	DRM_IOCTL_DEF(DRM_I915_GEM_SET_TILING, i915_gem_set_tiling, 0),
+	DRM_IOCTL_DEF(DRM_I915_GEM_GET_TILING, i915_gem_get_tiling, 0),
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);

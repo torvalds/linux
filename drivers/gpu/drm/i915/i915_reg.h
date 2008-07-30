@@ -25,19 +25,6 @@
 #ifndef _I915_REG_H_
 #define _I915_REG_H_
 
-/* MCH MMIO space */
-/** 915-945 and GM965 MCH register controlling DRAM channel access */
-#define DCC		0x200
-#define DCC_ADDRESSING_MODE_SINGLE_CHANNEL		(0 << 0)
-#define DCC_ADDRESSING_MODE_DUAL_CHANNEL_ASYMMETRIC	(1 << 0)
-#define DCC_ADDRESSING_MODE_DUAL_CHANNEL_INTERLEAVED	(2 << 0)
-#define DCC_ADDRESSING_MODE_MASK			(3 << 0)
-#define DCC_CHANNEL_XOR_DISABLE				(1 << 10)
-
-/** 965 MCH register controlling DRAM channel configuration */
-#define CHDECMISC		0x111
-#define CHDECMISC_FLEXMEMORY		(1 << 1)
-
 /*
  * The Bridge device's PCI config space has information about the
  * fb aperture size and the amount of pre-reserved memory.
@@ -515,6 +502,30 @@
 
 #define PALETTE_A		0x0a000
 #define PALETTE_B		0x0a800
+
+/* MCH MMIO space */
+
+/*
+ * MCHBAR mirror.
+ *
+ * This mirrors the MCHBAR MMIO space whose location is determined by
+ * device 0 function 0's pci config register 0x44 or 0x48 and matches it in
+ * every way.  It is not accessible from the CP register read instructions.
+ *
+ */
+#define MCHBAR_MIRROR_BASE	0x10000
+
+/** 915-945 and GM965 MCH register controlling DRAM channel access */
+#define DCC			0x10200
+#define DCC_ADDRESSING_MODE_SINGLE_CHANNEL		(0 << 0)
+#define DCC_ADDRESSING_MODE_DUAL_CHANNEL_ASYMMETRIC	(1 << 0)
+#define DCC_ADDRESSING_MODE_DUAL_CHANNEL_INTERLEAVED	(2 << 0)
+#define DCC_ADDRESSING_MODE_MASK			(3 << 0)
+#define DCC_CHANNEL_XOR_DISABLE				(1 << 10)
+
+/** 965 MCH register controlling DRAM channel configuration */
+#define C0DRB3			0x10206
+#define C1DRB3			0x10606
 
 /*
  * Overlay regs
