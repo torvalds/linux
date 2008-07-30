@@ -830,10 +830,21 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 		start_workqueue_thread(cwq, -1);
 	} else {
 		cpu_maps_update_begin();
+		/*
+		 * We must place this wq on list even if the code below fails.
+		 * cpu_down(cpu) can remove cpu from cpu_populated_map before
+		 * destroy_workqueue() takes the lock, in that case we leak
+		 * cwq[cpu]->thread.
+		 */
 		spin_lock(&workqueue_lock);
 		list_add(&wq->list, &workqueues);
 		spin_unlock(&workqueue_lock);
-
+		/*
+		 * We must initialize cwqs for each possible cpu even if we
+		 * are going to call destroy_workqueue() finally. Otherwise
+		 * cpu_up() can hit the uninitialized cwq once we drop the
+		 * lock.
+		 */
 		for_each_possible_cpu(cpu) {
 			cwq = init_cpu_workqueue(wq, cpu);
 			if (err || !cpu_online(cpu))
