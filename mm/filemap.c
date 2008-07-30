@@ -1879,7 +1879,7 @@ void iov_iter_advance(struct iov_iter *i, size_t bytes)
 		 * The !iov->iov_len check ensures we skip over unlikely
 		 * zero-length segments (without overruning the iovec).
 		 */
-		while (bytes || unlikely(!iov->iov_len && i->count)) {
+		while (bytes || unlikely(i->count && !iov->iov_len)) {
 			int copy;
 
 			copy = min(bytes, iov->iov_len - base);
