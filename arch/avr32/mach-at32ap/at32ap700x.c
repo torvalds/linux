@@ -1273,6 +1273,7 @@ struct platform_device *__init
 at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 {
 	struct platform_device		*pdev;
+	struct dw_dma_slave		*dws;
 
 	if (id != 0 || !data)
 		return NULL;
@@ -1289,6 +1290,21 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 				ARRAY_SIZE(atmel_mci0_resource)))
 		goto fail;
 
+	if (data->dma_slave)
+		dws = kmemdup(to_dw_dma_slave(data->dma_slave),
+				sizeof(struct dw_dma_slave), GFP_KERNEL);
+	else
+		dws = kzalloc(sizeof(struct dw_dma_slave), GFP_KERNEL);
+
+	dws->slave.dev = &pdev->dev;
+	dws->slave.dma_dev = &dw_dmac0_device.dev;
+	dws->slave.reg_width = DMA_SLAVE_WIDTH_32BIT;
+	dws->cfg_hi = (DWC_CFGH_SRC_PER(0)
+				| DWC_CFGH_DST_PER(1));
+	dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL
+				| DWC_CFGL_HS_SRC_POL);
+
+	data->dma_slave = &dws->slave;
 
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct mci_platform_data)))
