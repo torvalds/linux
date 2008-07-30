@@ -719,6 +719,8 @@ struct hda_codec {
 
 	/* detected preset */
 	const struct hda_codec_preset *preset;
+	const char *name;	/* codec name */
+	const char *modelname;	/* model name for preset */
 
 	/* set by patch */
 	struct hda_codec_ops patch_ops;

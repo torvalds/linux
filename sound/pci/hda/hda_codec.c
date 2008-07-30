@@ -446,7 +446,7 @@ int __devinit snd_hda_bus_new(struct snd_card *card,
 
 #ifdef CONFIG_SND_HDA_GENERIC
 #define is_generic_config(codec) \
-	(codec->bus->modelname && !strcmp(codec->bus->modelname, "generic"))
+	(codec->modelname && !strcmp(codec->modelname, "generic"))
 #else
 #define is_generic_config(codec)	0
 #endif
@@ -481,15 +481,14 @@ find_codec_preset(struct hda_codec *codec)
 }
 
 /*
- * snd_hda_get_codec_name - store the codec name
+ * get_codec_name - store the codec name
  */
-void snd_hda_get_codec_name(struct hda_codec *codec,
-			    char *name, int namelen)
+static int get_codec_name(struct hda_codec *codec)
 {
 	const struct hda_vendor_id *c;
 	const char *vendor = NULL;
 	u16 vendor_id = codec->vendor_id >> 16;
-	char tmp[16];
+	char tmp[16], name[32];
 
 	for (c = hda_vendor_ids; c->id; c++) {
 		if (c->id == vendor_id) {
@@ -502,10 +501,15 @@ void snd_hda_get_codec_name(struct hda_codec *codec,
 		vendor = tmp;
 	}
 	if (codec->preset && codec->preset->name)
-		snprintf(name, namelen, "%s %s", vendor, codec->preset->name);
+		snprintf(name, sizeof(name), "%s %s", vendor,
+			 codec->preset->name);
 	else
-		snprintf(name, namelen, "%s ID %x", vendor,
+		snprintf(name, sizeof(name), "%s ID %x", vendor,
 			 codec->vendor_id & 0xffff);
+	codec->name = kstrdup(name, GFP_KERNEL);
+	if (!codec->name)
+		return -ENOMEM;
+	return 0;
 }
 
 /*
@@ -575,6 +579,8 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 		codec->patch_ops.free(codec);
 	free_hda_cache(&codec->amp_cache);
 	free_hda_cache(&codec->cmd_cache);
+	kfree(codec->name);
+	kfree(codec->modelname);
 	kfree(codec->wcaps);
 	kfree(codec);
 }
@@ -661,12 +667,19 @@ int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 			snd_hda_codec_read(codec, nid, 0,
 					   AC_VERB_GET_SUBSYSTEM_ID, 0);
 	}
+	if (bus->modelname)
+		codec->modelname = kstrdup(bus->modelname, GFP_KERNEL);
 
 	codec->preset = find_codec_preset(codec);
+	if (!codec->name) {
+		err = get_codec_name(codec);
+		if (err < 0)
+			return err;
+	}
 	/* audio codec should override the mixer name */
-	if (codec->afg || !*bus->card->mixername)
-		snd_hda_get_codec_name(codec, bus->card->mixername,
-				       sizeof(bus->card->mixername));
+	if (codec->afg || !*codec->bus->card->mixername)
+		strlcpy(codec->bus->card->mixername, codec->name,
+			sizeof(codec->bus->card->mixername));
 
 	if (is_generic_config(codec)) {
 		err = snd_hda_parse_generic_codec(codec);
@@ -2370,11 +2383,11 @@ int snd_hda_check_board_config(struct hda_codec *codec,
 			       int num_configs, const char **models,
 			       const struct snd_pci_quirk *tbl)
 {
-	if (codec->bus->modelname && models) {
+	if (codec->modelname && models) {
 		int i;
 		for (i = 0; i < num_configs; i++) {
 			if (models[i] &&
-			    !strcmp(codec->bus->modelname, models[i])) {
+			    !strcmp(codec->modelname, models[i])) {
 				snd_printd(KERN_INFO "hda_codec: model '%s' is "
 					   "selected\n", models[i]);
 				return i;
