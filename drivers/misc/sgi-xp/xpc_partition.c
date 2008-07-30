@@ -51,13 +51,7 @@ struct xpc_vars_part *xpc_vars_part;
 static int xp_nasid_mask_bytes;	/* actual size in bytes of nasid mask */
 static int xp_nasid_mask_words;	/* actual size in words of nasid mask */
 
-/*
- * For performance reasons, each entry of xpc_partitions[] is cacheline
- * aligned. And xpc_partitions[] is padded with an additional entry at the
- * end so that the last legitimate entry doesn't share its cacheline with
- * another variable.
- */
-struct xpc_partition xpc_partitions[XP_MAX_PARTITIONS + 1];
+struct xpc_partition *xpc_partitions;
 
 /*
  * Generic buffer used to store a local copy of portions of a remote
@@ -261,7 +255,7 @@ xpc_rsvd_page_init(void)
 
 	/* clear xpc_vars_part */
 	memset((u64 *)xpc_vars_part, 0, sizeof(struct xpc_vars_part) *
-	       XP_MAX_PARTITIONS);
+	       xp_max_npartitions);
 
 	/* initialize the activate IRQ related AMO variables */
 	for (i = 0; i < xp_nasid_mask_words; i++)
@@ -408,7 +402,7 @@ xpc_check_remote_hb(void)
 
 	remote_vars = (struct xpc_vars *)xpc_remote_copy_buffer;
 
-	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+	for (partid = 0; partid < xp_max_npartitions; partid++) {
 
 		if (xpc_exiting)
 			break;
@@ -487,10 +481,8 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 
 	/* check that the partid is for another partition */
 
-	if (remote_rp->partid < 1 ||
-	    remote_rp->partid > (XP_MAX_PARTITIONS - 1)) {
+	if (remote_rp->partid < 0 || remote_rp->partid >= xp_max_npartitions)
 		return xpInvalidPartid;
-	}
 
 	if (remote_rp->partid == sn_partition_id)
 		return xpLocalPartid;

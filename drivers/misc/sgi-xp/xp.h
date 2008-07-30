@@ -18,6 +18,9 @@
 #include <linux/mutex.h>
 #include <asm/sn/types.h>
 #include <asm/sn/bte.h>
+#ifdef CONFIG_IA64
+#include <asm/sn/arch.h>
+#endif
 
 /* >>> Add this #define to some linux header file some day. */
 #define BYTES_PER_WORD	sizeof(void *)
@@ -45,17 +48,18 @@
 #endif
 
 /*
- * Define the maximum number of logically defined partitions the system
- * can support. It is constrained by the maximum number of hardware
- * partitionable regions. The term 'region' in this context refers to the
- * minimum number of nodes that can comprise an access protection grouping.
- * The access protection is in regards to memory, IPI and IOI.
+ * Define the maximum number of partitions the system can possibly support.
+ * It is based on the maximum number of hardware partitionable regions. The
+ * term 'region' in this context refers to the minimum number of nodes that
+ * can comprise an access protection grouping. The access protection is in
+ * regards to memory, IPI and IOI.
  *
  * The maximum number of hardware partitionable regions is equal to the
  * maximum number of nodes in the entire system divided by the minimum number
  * of nodes that comprise an access protection grouping.
  */
-#define XP_MAX_PARTITIONS	64
+#define XP_MAX_NPARTITIONS_SN2	64
+#define XP_MAX_NPARTITIONS_UV	256
 
 /*
  * Define the number of u64s required to represent all the C-brick nasids
@@ -112,24 +116,28 @@ xp_bte_copy(u64 src, u64 vdst, u64 len, u64 mode, void *notification)
  * other partition that is currently up. Over these channels, kernel-level
  * `users' can communicate with their counterparts on the other partitions.
  *
- * The maxinum number of channels is limited to eight. For performance reasons,
- * the internal cross partition structures require sixteen bytes per channel,
- * and eight allows all of this interface-shared info to fit in one cache line.
+>>> The following described limitation of a max of eight channels possible
+>>> pertains only to ia64-sn2. THIS ISN'T TRUE SINCE I'M PLANNING TO JUST
+>>> TIE INTO THE EXISTING MECHANISM ONCE THE CHANNEL MESSAGES ARE RECEIVED.
+>>> THE 128-BYTE CACHELINE PERFORMANCE ISSUE IS TIED TO IA64-SN2.
  *
- * XPC_NCHANNELS reflects the total number of channels currently defined.
  * If the need for additional channels arises, one can simply increase
- * XPC_NCHANNELS accordingly. If the day should come where that number
- * exceeds the MAXIMUM number of channels allowed (eight), then one will need
- * to make changes to the XPC code to allow for this.
+ * XPC_MAX_NCHANNELS accordingly. If the day should come where that number
+ * exceeds the absolute MAXIMUM number of channels possible (eight), then one
+ * will need to make changes to the XPC code to accommodate for this.
+ *
+ * The absolute maximum number of channels possible is currently limited to
+ * eight for performance reasons. The internal cross partition structures
+ * require sixteen bytes per channel, and eight allows all of this
+ * interface-shared info to fit in one 128-byte cacheline.
  */
 #define XPC_MEM_CHANNEL		0	/* memory channel number */
 #define	XPC_NET_CHANNEL		1	/* network channel number */
 
-#define	XPC_NCHANNELS		2	/* #of defined channels */
-#define XPC_MAX_NCHANNELS	8	/* max #of channels allowed */
+#define XPC_MAX_NCHANNELS	2	/* max #of channels allowed */
 
-#if XPC_NCHANNELS > XPC_MAX_NCHANNELS
-#error	XPC_NCHANNELS exceeds MAXIMUM allowed.
+#if XPC_MAX_NCHANNELS > 8
+#error	XPC_MAX_NCHANNELS exceeds absolute MAXIMUM possible.
 #endif
 
 /*
@@ -254,7 +262,8 @@ enum xp_retval {
 	xpBteCopyError,		/* 52: bte_copy() returned error */
 	xpSalError,		/* 53: sn SAL error */
 
-	xpUnknownReason		/* 54: unknown reason - must be last in enum */
+	xpUnsupported,		/* 54: unsupported functionality or resource */
+	xpUnknownReason		/* 55: unknown reason - must be last in enum */
 };
 
 /*
@@ -397,8 +406,16 @@ xpc_partid_to_nasids(short partid, void *nasids)
 	return xpc_interface.partid_to_nasids(partid, nasids);
 }
 
+extern short xp_max_npartitions;
+
 extern u64 xp_nofault_PIOR_target;
 extern int xp_nofault_PIOR(void *);
 extern int xp_error_PIOR(void);
+
+extern struct device *xp;
+extern enum xp_retval xp_init_sn2(void);
+extern enum xp_retval xp_init_uv(void);
+extern void xp_exit_sn2(void);
+extern void xp_exit_uv(void);
 
 #endif /* _DRIVERS_MISC_SGIXP_XP_H */

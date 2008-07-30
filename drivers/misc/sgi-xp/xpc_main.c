@@ -433,7 +433,7 @@ xpc_activating(void *__partid)
 	struct xpc_partition *part = &xpc_partitions[partid];
 	unsigned long irq_flags;
 
-	DBUG_ON(partid <= 0 || partid >= XP_MAX_PARTITIONS);
+	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
 
@@ -544,7 +544,7 @@ xpc_notify_IRQ_handler(int irq, void *dev_id)
 	short partid = (short)(u64)dev_id;
 	struct xpc_partition *part = &xpc_partitions[partid];
 
-	DBUG_ON(partid <= 0 || partid >= XP_MAX_PARTITIONS);
+	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 
 	if (xpc_part_ref(part)) {
 		xpc_check_for_channel_activity(part);
@@ -815,7 +815,7 @@ xpc_disconnect_wait(int ch_number)
 	int wakeup_channel_mgr;
 
 	/* now wait for all callouts to the caller's function to cease */
-	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+	for (partid = 0; partid < xp_max_npartitions; partid++) {
 		part = &xpc_partitions[partid];
 
 		if (!xpc_part_ref(part))
@@ -895,7 +895,7 @@ xpc_do_exit(enum xp_retval reason)
 	do {
 		active_part_count = 0;
 
-		for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+		for (partid = 0; partid < xp_max_npartitions; partid++) {
 			part = &xpc_partitions[partid];
 
 			if (xpc_partition_disengaged(part) &&
@@ -956,11 +956,8 @@ xpc_do_exit(enum xp_retval reason)
 	DBUG_ON(xpc_vars->heartbeating_to_mask != 0);
 
 	if (reason == xpUnloading) {
-		/* take ourselves off of the reboot_notifier_list */
-		(void)unregister_reboot_notifier(&xpc_reboot_notifier);
-
-		/* take ourselves off of the die_notifier list */
 		(void)unregister_die_notifier(&xpc_die_notifier);
+		(void)unregister_reboot_notifier(&xpc_reboot_notifier);
 	}
 
 	/* close down protections for IPI operations */
@@ -972,6 +969,7 @@ xpc_do_exit(enum xp_retval reason)
 	if (xpc_sysctl)
 		unregister_sysctl_table(xpc_sysctl);
 
+	kfree(xpc_partitions);
 	kfree(xpc_remote_copy_buffer_base);
 }
 
@@ -1017,7 +1015,7 @@ xpc_die_disengage(void)
 
 	xpc_vars->heartbeating_to_mask = 0;	/* indicate we're deactivated */
 
-	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+	for (partid = 0; partid < xp_max_npartitions; partid++) {
 		part = &xpc_partitions[partid];
 
 		if (!XPC_SUPPORTS_DISENGAGE_REQUEST(part->
@@ -1053,7 +1051,8 @@ xpc_die_disengage(void)
 
 		time = rtc_time();
 		if (time >= disengage_request_timeout) {
-			for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+			for (partid = 0; partid < xp_max_npartitions;
+			     partid++) {
 				if (engaged & (1UL << partid)) {
 					dev_info(xpc_part, "disengage from "
 						 "remote partition %d timed "
@@ -1132,18 +1131,26 @@ xpc_init(void)
 	if (!ia64_platform_is("sn2"))
 		return -ENODEV;
 
+	snprintf(xpc_part->bus_id, BUS_ID_SIZE, "part");
+	snprintf(xpc_chan->bus_id, BUS_ID_SIZE, "chan");
+
 	buf_size = max(XPC_RP_VARS_SIZE,
 		       XPC_RP_HEADER_SIZE + XP_NASID_MASK_BYTES);
 	xpc_remote_copy_buffer = xpc_kmalloc_cacheline_aligned(buf_size,
 							       GFP_KERNEL,
 						  &xpc_remote_copy_buffer_base);
-	if (xpc_remote_copy_buffer == NULL)
+	if (xpc_remote_copy_buffer == NULL) {
+		dev_err(xpc_part, "can't get memory for remote copy buffer\n");
 		return -ENOMEM;
+	}
 
-	snprintf(xpc_part->bus_id, BUS_ID_SIZE, "part");
-	snprintf(xpc_chan->bus_id, BUS_ID_SIZE, "chan");
-
-	xpc_sysctl = register_sysctl_table(xpc_sys_dir);
+	xpc_partitions = kzalloc(sizeof(struct xpc_partition) *
+				 xp_max_npartitions, GFP_KERNEL);
+	if (xpc_partitions == NULL) {
+		dev_err(xpc_part, "can't get memory for partition structure\n");
+		ret = -ENOMEM;
+		goto out_1;
+	}
 
 	/*
 	 * The first few fields of each entry of xpc_partitions[] need to
@@ -1153,7 +1160,7 @@ xpc_init(void)
 	 * ENTRIES ARE MEANINGFUL UNTIL AFTER AN ENTRY'S CORRESPONDING
 	 * PARTITION HAS BEEN ACTIVATED.
 	 */
-	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+	for (partid = 0; partid < xp_max_npartitions; partid++) {
 		part = &xpc_partitions[partid];
 
 		DBUG_ON((u64)part != L1_CACHE_ALIGN((u64)part));
@@ -1172,6 +1179,8 @@ xpc_init(void)
 		init_waitqueue_head(&part->teardown_wq);
 		atomic_set(&part->references, 0);
 	}
+
+	xpc_sysctl = register_sysctl_table(xpc_sys_dir);
 
 	/*
 	 * Open up protections for IPI operations (and AMO operations on
@@ -1196,14 +1205,8 @@ xpc_init(void)
 	if (ret != 0) {
 		dev_err(xpc_part, "can't register ACTIVATE IRQ handler, "
 			"errno=%d\n", -ret);
-
-		xpc_restrict_IPI_ops();
-
-		if (xpc_sysctl)
-			unregister_sysctl_table(xpc_sysctl);
-
-		kfree(xpc_remote_copy_buffer_base);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out_2;
 	}
 
 	/*
@@ -1213,16 +1216,9 @@ xpc_init(void)
 	 */
 	xpc_rsvd_page = xpc_rsvd_page_init();
 	if (xpc_rsvd_page == NULL) {
-		dev_err(xpc_part, "could not setup our reserved page\n");
-
-		free_irq(SGI_XPC_ACTIVATE, NULL);
-		xpc_restrict_IPI_ops();
-
-		if (xpc_sysctl)
-			unregister_sysctl_table(xpc_sysctl);
-
-		kfree(xpc_remote_copy_buffer_base);
-		return -EBUSY;
+		dev_err(xpc_part, "can't setup our reserved page\n");
+		ret = -EBUSY;
+		goto out_3;
 	}
 
 	/* add ourselves to the reboot_notifier_list */
@@ -1245,25 +1241,8 @@ xpc_init(void)
 	kthread = kthread_run(xpc_hb_checker, NULL, XPC_HB_CHECK_THREAD_NAME);
 	if (IS_ERR(kthread)) {
 		dev_err(xpc_part, "failed while forking hb check thread\n");
-
-		/* indicate to others that our reserved page is uninitialized */
-		xpc_rsvd_page->vars_pa = 0;
-
-		/* take ourselves off of the reboot_notifier_list */
-		(void)unregister_reboot_notifier(&xpc_reboot_notifier);
-
-		/* take ourselves off of the die_notifier list */
-		(void)unregister_die_notifier(&xpc_die_notifier);
-
-		del_timer_sync(&xpc_hb_timer);
-		free_irq(SGI_XPC_ACTIVATE, NULL);
-		xpc_restrict_IPI_ops();
-
-		if (xpc_sysctl)
-			unregister_sysctl_table(xpc_sysctl);
-
-		kfree(xpc_remote_copy_buffer_base);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out_4;
 	}
 
 	/*
@@ -1290,6 +1269,24 @@ xpc_init(void)
 			  xpc_initiate_partid_to_nasids);
 
 	return 0;
+
+	/* initialization was not successful */
+out_4:
+	/* indicate to others that our reserved page is uninitialized */
+	xpc_rsvd_page->vars_pa = 0;
+	del_timer_sync(&xpc_hb_timer);
+	(void)unregister_die_notifier(&xpc_die_notifier);
+	(void)unregister_reboot_notifier(&xpc_reboot_notifier);
+out_3:
+	free_irq(SGI_XPC_ACTIVATE, NULL);
+out_2:
+	xpc_restrict_IPI_ops();
+	if (xpc_sysctl)
+		unregister_sysctl_table(xpc_sysctl);
+	kfree(xpc_partitions);
+out_1:
+	kfree(xpc_remote_copy_buffer_base);
+	return ret;
 }
 
 module_init(xpc_init);

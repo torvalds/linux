@@ -110,14 +110,14 @@ xpc_setup_infrastructure(struct xpc_partition *part)
 	 * Allocate all of the channel structures as a contiguous chunk of
 	 * memory.
 	 */
-	part->channels = kzalloc(sizeof(struct xpc_channel) * XPC_NCHANNELS,
+	part->channels = kzalloc(sizeof(struct xpc_channel) * XPC_MAX_NCHANNELS,
 				 GFP_KERNEL);
 	if (part->channels == NULL) {
 		dev_err(xpc_chan, "can't get memory for channels\n");
 		return xpNoMemory;
 	}
 
-	part->nchannels = XPC_NCHANNELS;
+	part->nchannels = XPC_MAX_NCHANNELS;
 
 	/* allocate all the required GET/PUT values */
 
@@ -1432,9 +1432,9 @@ xpc_initiate_connect(int ch_number)
 	struct xpc_partition *part;
 	struct xpc_channel *ch;
 
-	DBUG_ON(ch_number < 0 || ch_number >= XPC_NCHANNELS);
+	DBUG_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
 
-	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+	for (partid = 0; partid < xp_max_npartitions; partid++) {
 		part = &xpc_partitions[partid];
 
 		if (xpc_part_ref(part)) {
@@ -1488,10 +1488,10 @@ xpc_initiate_disconnect(int ch_number)
 	struct xpc_partition *part;
 	struct xpc_channel *ch;
 
-	DBUG_ON(ch_number < 0 || ch_number >= XPC_NCHANNELS);
+	DBUG_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
 
 	/* initiate the channel disconnect for every active partition */
-	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+	for (partid = 0; partid < xp_max_npartitions; partid++) {
 		part = &xpc_partitions[partid];
 
 		if (xpc_part_ref(part)) {
@@ -1734,7 +1734,7 @@ xpc_initiate_allocate(short partid, int ch_number, u32 flags, void **payload)
 	enum xp_retval ret = xpUnknownReason;
 	struct xpc_msg *msg = NULL;
 
-	DBUG_ON(partid <= 0 || partid >= XP_MAX_PARTITIONS);
+	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
 
 	*payload = NULL;
@@ -1918,7 +1918,7 @@ xpc_initiate_send(short partid, int ch_number, void *payload)
 	dev_dbg(xpc_chan, "msg=0x%p, partid=%d, channel=%d\n", (void *)msg,
 		partid, ch_number);
 
-	DBUG_ON(partid <= 0 || partid >= XP_MAX_PARTITIONS);
+	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
 	DBUG_ON(msg == NULL);
 
@@ -1968,7 +1968,7 @@ xpc_initiate_send_notify(short partid, int ch_number, void *payload,
 	dev_dbg(xpc_chan, "msg=0x%p, partid=%d, channel=%d\n", (void *)msg,
 		partid, ch_number);
 
-	DBUG_ON(partid <= 0 || partid >= XP_MAX_PARTITIONS);
+	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
 	DBUG_ON(msg == NULL);
 	DBUG_ON(func == NULL);
@@ -2210,7 +2210,7 @@ xpc_initiate_received(short partid, int ch_number, void *payload)
 	struct xpc_msg *msg = XPC_MSG_ADDRESS(payload);
 	s64 get, msg_number = msg->number;
 
-	DBUG_ON(partid <= 0 || partid >= XP_MAX_PARTITIONS);
+	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
 
 	ch = &part->channels[ch_number];

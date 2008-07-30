@@ -287,7 +287,7 @@ xpnet_connection_activity(enum xp_retval reason, short partid, int channel,
 {
 	long bp;
 
-	DBUG_ON(partid <= 0 || partid >= XP_MAX_PARTITIONS);
+	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
 	DBUG_ON(channel != XPC_NET_CHANNEL);
 
 	switch (reason) {
@@ -513,7 +513,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/*
 	 * Main send loop.
 	 */
-	for (dest_partid = 1; dp && dest_partid < XP_MAX_PARTITIONS;
+	for (dest_partid = 0; dp && dest_partid < xp_max_npartitions;
 	     dest_partid++) {
 
 		if (!(dp & (1UL << (dest_partid - 1)))) {
