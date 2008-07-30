@@ -210,28 +210,26 @@ static void
 xpc_send_activate_IRQ_sn2(u64 amos_page_pa, int from_nasid, int to_nasid,
 			  int to_phys_cpuid)
 {
-	int w_index = XPC_NASID_W_INDEX(from_nasid);
-	int b_index = XPC_NASID_B_INDEX(from_nasid);
 	struct amo *amos = (struct amo *)__va(amos_page_pa +
 					      (XPC_ACTIVATE_IRQ_AMOS_SN2 *
 					      sizeof(struct amo)));
 
-	(void)xpc_send_IRQ_sn2(&amos[w_index], (1UL << b_index), to_nasid,
+	(void)xpc_send_IRQ_sn2(&amos[BIT_WORD(from_nasid / 2)],
+			       BIT_MASK(from_nasid / 2), to_nasid,
 			       to_phys_cpuid, SGI_XPC_ACTIVATE);
 }
 
 static void
 xpc_send_local_activate_IRQ_sn2(int from_nasid)
 {
-	int w_index = XPC_NASID_W_INDEX(from_nasid);
-	int b_index = XPC_NASID_B_INDEX(from_nasid);
 	struct amo *amos = (struct amo *)__va(xpc_vars_sn2->amos_page_pa +
 					      (XPC_ACTIVATE_IRQ_AMOS_SN2 *
 					      sizeof(struct amo)));
 
 	/* fake the sending and receipt of an activate IRQ from remote nasid */
-	FETCHOP_STORE_OP(TO_AMO((u64)&amos[w_index].variable), FETCHOP_OR,
-			 (1UL << b_index));
+	FETCHOP_STORE_OP(TO_AMO((u64)&amos[BIT_WORD(from_nasid / 2)].variable),
+			 FETCHOP_OR, BIT_MASK(from_nasid / 2));
+
 	atomic_inc(&xpc_activate_IRQ_rcvd);
 	wake_up_interruptible(&xpc_activate_IRQ_wq);
 }
@@ -439,7 +437,8 @@ xpc_indicate_partition_engaged_sn2(struct xpc_partition *part)
 
 	/* set bit corresponding to our partid in remote partition's amo */
 	FETCHOP_STORE_OP(TO_AMO((u64)&amo->variable), FETCHOP_OR,
-			 (1UL << sn_partition_id));
+			 BIT(sn_partition_id));
+
 	/*
 	 * We must always use the nofault function regardless of whether we
 	 * are on a Shub 1.1 system or a Shub 1.2 slice 0xc processor. If we
@@ -466,7 +465,8 @@ xpc_indicate_partition_disengaged_sn2(struct xpc_partition *part)
 
 	/* clear bit corresponding to our partid in remote partition's amo */
 	FETCHOP_STORE_OP(TO_AMO((u64)&amo->variable), FETCHOP_AND,
-			 ~(1UL << sn_partition_id));
+			 ~BIT(sn_partition_id));
+
 	/*
 	 * We must always use the nofault function regardless of whether we
 	 * are on a Shub 1.1 system or a Shub 1.2 slice 0xc processor. If we
@@ -497,7 +497,7 @@ xpc_partition_engaged_sn2(short partid)
 
 	/* our partition's amo variable ANDed with partid mask */
 	return (FETCHOP_LOAD_OP(TO_AMO((u64)&amo->variable), FETCHOP_LOAD) &
-		(1UL << partid)) != 0;
+		BIT(partid)) != 0;
 }
 
 static int
@@ -518,7 +518,7 @@ xpc_assume_partition_disengaged_sn2(short partid)
 
 	/* clear bit(s) based on partid mask in our partition's amo */
 	FETCHOP_STORE_OP(TO_AMO((u64)&amo->variable), FETCHOP_AND,
-			 ~(1UL << partid));
+			 ~BIT(partid));
 }
 
 /* original protection values for each node */
@@ -639,7 +639,7 @@ xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
 	       xp_max_npartitions);
 
 	/* initialize the activate IRQ related amo variables */
-	for (i = 0; i < xpc_nasid_mask_words; i++)
+	for (i = 0; i < xpc_nasid_mask_nlongs; i++)
 		(void)xpc_init_IRQ_amo_sn2(XPC_ACTIVATE_IRQ_AMOS_SN2 + i);
 
 	/* initialize the engaged remote partitions related amo variables */
@@ -796,7 +796,8 @@ xpc_request_partition_deactivation_sn2(struct xpc_partition *part)
 
 	/* set bit corresponding to our partid in remote partition's amo */
 	FETCHOP_STORE_OP(TO_AMO((u64)&amo->variable), FETCHOP_OR,
-			 (1UL << sn_partition_id));
+			 BIT(sn_partition_id));
+
 	/*
 	 * We must always use the nofault function regardless of whether we
 	 * are on a Shub 1.1 system or a Shub 1.2 slice 0xc processor. If we
@@ -831,7 +832,8 @@ xpc_cancel_partition_deactivation_request_sn2(struct xpc_partition *part)
 
 	/* clear bit corresponding to our partid in remote partition's amo */
 	FETCHOP_STORE_OP(TO_AMO((u64)&amo->variable), FETCHOP_AND,
-			 ~(1UL << sn_partition_id));
+			 ~BIT(sn_partition_id));
+
 	/*
 	 * We must always use the nofault function regardless of whether we
 	 * are on a Shub 1.1 system or a Shub 1.2 slice 0xc processor. If we
@@ -853,7 +855,7 @@ xpc_partition_deactivation_requested_sn2(short partid)
 
 	/* our partition's amo variable ANDed with partid mask */
 	return (FETCHOP_LOAD_OP(TO_AMO((u64)&amo->variable), FETCHOP_LOAD) &
-		(1UL << partid)) != 0;
+		BIT(partid)) != 0;
 }
 
 /*
@@ -1031,28 +1033,31 @@ xpc_identify_activate_IRQ_req_sn2(int nasid)
 int
 xpc_identify_activate_IRQ_sender_sn2(void)
 {
-	int word, bit;
-	u64 nasid_mask;
+	int l;
+	int b;
+	unsigned long nasid_mask_long;
 	u64 nasid;		/* remote nasid */
 	int n_IRQs_detected = 0;
 	struct amo *act_amos;
 
 	act_amos = xpc_vars_sn2->amos_page + XPC_ACTIVATE_IRQ_AMOS_SN2;
 
-	/* scan through act amo variable looking for non-zero entries */
-	for (word = 0; word < xpc_nasid_mask_words; word++) {
+	/* scan through activate amo variables looking for non-zero entries */
+	for (l = 0; l < xpc_nasid_mask_nlongs; l++) {
 
 		if (xpc_exiting)
 			break;
 
-		nasid_mask = xpc_receive_IRQ_amo_sn2(&act_amos[word]);
-		if (nasid_mask == 0) {
-			/* no IRQs from nasids in this variable */
+		nasid_mask_long = xpc_receive_IRQ_amo_sn2(&act_amos[l]);
+
+		b = find_first_bit(&nasid_mask_long, BITS_PER_LONG);
+		if (b >= BITS_PER_LONG) {
+			/* no IRQs from nasids in this amo variable */
 			continue;
 		}
 
-		dev_dbg(xpc_part, "amo[%d] gave back 0x%lx\n", word,
-			nasid_mask);
+		dev_dbg(xpc_part, "amo[%d] gave back 0x%lx\n", l,
+			nasid_mask_long);
 
 		/*
 		 * If this nasid has been added to the machine since
@@ -1060,19 +1065,19 @@ xpc_identify_activate_IRQ_sender_sn2(void)
 		 * remote nasid in our reserved pages machine mask.
 		 * This is used in the event of module reload.
 		 */
-		xpc_mach_nasids[word] |= nasid_mask;
+		xpc_mach_nasids[l] |= nasid_mask_long;
 
 		/* locate the nasid(s) which sent interrupts */
 
-		for (bit = 0; bit < (8 * sizeof(u64)); bit++) {
-			if (nasid_mask & (1UL << bit)) {
-				n_IRQs_detected++;
-				nasid = XPC_NASID_FROM_W_B(word, bit);
-				dev_dbg(xpc_part, "interrupt from nasid %ld\n",
-					nasid);
-				xpc_identify_activate_IRQ_req_sn2(nasid);
-			}
-		}
+		do {
+			n_IRQs_detected++;
+			nasid = (l * BITS_PER_LONG + b) * 2;
+			dev_dbg(xpc_part, "interrupt from nasid %ld\n", nasid);
+			xpc_identify_activate_IRQ_req_sn2(nasid);
+
+			b = find_next_bit(&nasid_mask_long, BITS_PER_LONG,
+					  b + 1);
+		} while (b < BITS_PER_LONG);
 	}
 	return n_IRQs_detected;
 }

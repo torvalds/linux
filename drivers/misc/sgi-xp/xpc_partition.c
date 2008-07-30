@@ -31,11 +31,11 @@ int xpc_exiting;
 
 /* this partition's reserved page pointers */
 struct xpc_rsvd_page *xpc_rsvd_page;
-static u64 *xpc_part_nasids;
-u64 *xpc_mach_nasids;
+static unsigned long *xpc_part_nasids;
+unsigned long *xpc_mach_nasids;
 
-static int xpc_sizeof_nasid_mask;	/* actual size in bytes of nasid mask */
-int xpc_nasid_mask_words;	/* actual size in words of nasid mask */
+static int xpc_nasid_mask_nbytes;	/* #of bytes in nasid mask */
+int xpc_nasid_mask_nlongs;	/* #of longs in nasid mask */
 
 struct xpc_partition *xpc_partitions;
 
@@ -167,9 +167,9 @@ xpc_setup_rsvd_page(void)
 		/* SAL_version 1 didn't set the nasids_size field */
 		rp->SAL_nasids_size = 128;
 	}
-	xpc_sizeof_nasid_mask = rp->SAL_nasids_size;
-	xpc_nasid_mask_words = DIV_ROUND_UP(xpc_sizeof_nasid_mask,
-					    BYTES_PER_WORD);
+	xpc_nasid_mask_nbytes = rp->SAL_nasids_size;
+	xpc_nasid_mask_nlongs = BITS_TO_LONGS(rp->SAL_nasids_size *
+					      BITS_PER_BYTE);
 
 	/* setup the pointers to the various items in the reserved page */
 	xpc_part_nasids = XPC_RP_PART_NASIDS(rp);
@@ -199,10 +199,10 @@ xpc_setup_rsvd_page(void)
  * part_nasids mask.
  */
 enum xp_retval
-xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
+xpc_get_remote_rp(int nasid, unsigned long *discovered_nasids,
 		  struct xpc_rsvd_page *remote_rp, u64 *remote_rp_pa)
 {
-	int i;
+	int l;
 	enum xp_retval ret;
 
 	/* get the reserved page's physical address */
@@ -213,15 +213,16 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 
 	/* pull over the reserved page header and part_nasids mask */
 	ret = xp_remote_memcpy(remote_rp, (void *)*remote_rp_pa,
-			       XPC_RP_HEADER_SIZE + xpc_sizeof_nasid_mask);
+			       XPC_RP_HEADER_SIZE + xpc_nasid_mask_nbytes);
 	if (ret != xpSuccess)
 		return ret;
 
 	if (discovered_nasids != NULL) {
-		u64 *remote_part_nasids = XPC_RP_PART_NASIDS(remote_rp);
+		unsigned long *remote_part_nasids =
+		    XPC_RP_PART_NASIDS(remote_rp);
 
-		for (i = 0; i < xpc_nasid_mask_words; i++)
-			discovered_nasids[i] |= remote_part_nasids[i];
+		for (l = 0; l < xpc_nasid_mask_nlongs; l++)
+			discovered_nasids[l] |= remote_part_nasids[l];
 	}
 
 	/* see if the reserved page has been set up by XPC */
@@ -401,16 +402,16 @@ xpc_discovery(void)
 	int max_regions;
 	int nasid;
 	struct xpc_rsvd_page *rp;
-	u64 *discovered_nasids;
+	unsigned long *discovered_nasids;
 	enum xp_retval ret;
 
 	remote_rp = xpc_kmalloc_cacheline_aligned(XPC_RP_HEADER_SIZE +
-						  xpc_sizeof_nasid_mask,
+						  xpc_nasid_mask_nbytes,
 						  GFP_KERNEL, &remote_rp_base);
 	if (remote_rp == NULL)
 		return;
 
-	discovered_nasids = kzalloc(sizeof(u64) * xpc_nasid_mask_words,
+	discovered_nasids = kzalloc(sizeof(long) * xpc_nasid_mask_nlongs,
 				    GFP_KERNEL);
 	if (discovered_nasids == NULL) {
 		kfree(remote_rp_base);
@@ -453,21 +454,21 @@ xpc_discovery(void)
 
 			dev_dbg(xpc_part, "checking nasid %d\n", nasid);
 
-			if (XPC_NASID_IN_ARRAY(nasid, xpc_part_nasids)) {
+			if (test_bit(nasid / 2, xpc_part_nasids)) {
 				dev_dbg(xpc_part, "PROM indicates Nasid %d is "
 					"part of the local partition; skipping "
 					"region\n", nasid);
 				break;
 			}
 
-			if (!(XPC_NASID_IN_ARRAY(nasid, xpc_mach_nasids))) {
+			if (!(test_bit(nasid / 2, xpc_mach_nasids))) {
 				dev_dbg(xpc_part, "PROM indicates Nasid %d was "
 					"not on Numa-Link network at reset\n",
 					nasid);
 				continue;
 			}
 
-			if (XPC_NASID_IN_ARRAY(nasid, discovered_nasids)) {
+			if (test_bit(nasid / 2, discovered_nasids)) {
 				dev_dbg(xpc_part, "Nasid %d is part of a "
 					"partition which was previously "
 					"discovered\n", nasid);
@@ -512,10 +513,10 @@ xpc_initiate_partid_to_nasids(short partid, void *nasid_mask)
 	if (part->remote_rp_pa == 0)
 		return xpPartitionDown;
 
-	memset(nasid_mask, 0, xpc_sizeof_nasid_mask);
+	memset(nasid_mask, 0, xpc_nasid_mask_nbytes);
 
 	part_nasid_pa = (u64)XPC_RP_PART_NASIDS(part->remote_rp_pa);
 
 	return xp_remote_memcpy(nasid_mask, (void *)part_nasid_pa,
-				xpc_sizeof_nasid_mask);
+				xpc_nasid_mask_nbytes);
 }

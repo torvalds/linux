@@ -35,23 +35,7 @@
 #define XPC_VERSION_MAJOR(_v)		((_v) >> 4)
 #define XPC_VERSION_MINOR(_v)		((_v) & 0xf)
 
-/*
- * The next macros define word or bit representations for given
- * C-brick nasid in either the SAL provided bit array representing
- * nasids in the partition/machine or the array of amo structures used
- * for inter-partition initiation communications.
- *
- * For SN2 machines, C-Bricks are alway even numbered NASIDs.  As
- * such, some space will be saved by insisting that nasid information
- * passed from SAL always be packed for C-Bricks and the
- * cross-partition interrupts use the same packing scheme.
- */
-#define XPC_NASID_W_INDEX(_n)	(((_n) / 64) / 2)
-#define XPC_NASID_B_INDEX(_n)	(((_n) / 2) & (64 - 1))
-#define XPC_NASID_IN_ARRAY(_n, _p) ((_p)[XPC_NASID_W_INDEX(_n)] & \
-				    (1UL << XPC_NASID_B_INDEX(_n)))
-#define XPC_NASID_FROM_W_B(_w, _b) (((_w) * 64 + (_b)) * 2)
-
+/* define frequency of the heartbeat and frequency how often it's checked */
 #define XPC_HB_DEFAULT_INTERVAL		5	/* incr HB every x secs */
 #define XPC_HB_CHECK_DEFAULT_INTERVAL	20	/* check HB every x secs */
 
@@ -86,11 +70,13 @@
  *     the actual nasids in the entire machine (mach_nasids). We're only
  *     interested in the even numbered nasids (which contain the processors
  *     and/or memory), so we only need half as many bits to represent the
- *     nasids. The part_nasids mask is located starting at the first cacheline
- *     following the reserved page header. The mach_nasids mask follows right
- *     after the part_nasids mask. The size in bytes of each mask is reflected
- *     by the reserved page header field 'SAL_nasids_size'. (Local partition's
- *     mask pointers are xpc_part_nasids and xpc_mach_nasids.)
+ *     nasids. When mapping nasid to bit in a mask (or bit to nasid) be sure
+ *     to either divide or multiply by 2. The part_nasids mask is located
+ *     starting at the first cacheline following the reserved page header. The
+ *     mach_nasids mask follows right after the part_nasids mask. The size in
+ *     bytes of each mask is reflected by the reserved page header field
+ *     'SAL_nasids_size'. (Local partition's mask pointers are xpc_part_nasids
+ *     and xpc_mach_nasids.)
  *
  *   vars	(ia64-sn2 only)
  *   vars part	(ia64-sn2 only)
@@ -194,10 +180,11 @@ struct xpc_vars_part_sn2 {
 #define XPC_RP_VARS_SIZE	L1_CACHE_ALIGN(sizeof(struct xpc_vars_sn2))
 
 #define XPC_RP_PART_NASIDS(_rp) ((u64 *)((u8 *)(_rp) + XPC_RP_HEADER_SIZE))
-#define XPC_RP_MACH_NASIDS(_rp) (XPC_RP_PART_NASIDS(_rp) + xpc_nasid_mask_words)
+#define XPC_RP_MACH_NASIDS(_rp) (XPC_RP_PART_NASIDS(_rp) + \
+				 xpc_nasid_mask_nlongs)
 #define XPC_RP_VARS(_rp)	((struct xpc_vars_sn2 *) \
 				 (XPC_RP_MACH_NASIDS(_rp) + \
-				  xpc_nasid_mask_words))
+				  xpc_nasid_mask_nlongs))
 
 /*
  * Functions registered by add_timer() or called by kernel_thread() only
@@ -695,9 +682,9 @@ extern void xpc_exit_uv(void);
 
 /* found in xpc_partition.c */
 extern int xpc_exiting;
-extern int xpc_nasid_mask_words;
+extern int xpc_nasid_mask_nlongs;
 extern struct xpc_rsvd_page *xpc_rsvd_page;
-extern u64 *xpc_mach_nasids;
+extern unsigned long *xpc_mach_nasids;
 extern struct xpc_partition *xpc_partitions;
 extern void *xpc_kmalloc_cacheline_aligned(size_t, gfp_t, void **);
 extern struct xpc_rsvd_page *xpc_setup_rsvd_page(void);
@@ -706,8 +693,8 @@ extern int xpc_partition_disengaged(struct xpc_partition *);
 extern enum xp_retval xpc_mark_partition_active(struct xpc_partition *);
 extern void xpc_mark_partition_inactive(struct xpc_partition *);
 extern void xpc_discovery(void);
-extern enum xp_retval xpc_get_remote_rp(int, u64 *, struct xpc_rsvd_page *,
-					u64 *);
+extern enum xp_retval xpc_get_remote_rp(int, unsigned long *,
+					struct xpc_rsvd_page *, u64 *);
 extern void xpc_deactivate_partition(const int, struct xpc_partition *,
 				     enum xp_retval);
 extern enum xp_retval xpc_initiate_partid_to_nasids(short, void *);

@@ -21,9 +21,6 @@
 #include <asm/sn/arch.h>
 #endif
 
-/* ??? Add this #define to some linux header file some day? */
-#define BYTES_PER_WORD	sizeof(void *)
-
 #ifdef USE_DBUG_ON
 #define DBUG_ON(condition)	BUG_ON(condition)
 #else
