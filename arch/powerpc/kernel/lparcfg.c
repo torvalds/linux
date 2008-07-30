@@ -636,10 +636,6 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 		retval = -EIO;
 	} else if (retval == H_PARAMETER) {
 		retval = -EINVAL;
-	} else {
-		printk(KERN_WARNING "%s: received unknown hv return code %ld",
-		       __func__, retval);
-		retval = -EIO;
 	}
 
 	return retval;

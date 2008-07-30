@@ -461,6 +461,8 @@ void pgtable_cache_init(void);
 	return pt;
 }
 
+pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long address);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_PGTABLE_PPC64_H_ */

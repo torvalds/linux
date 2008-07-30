@@ -12,6 +12,7 @@
 
 #include <asm/immap_cpm2.h>
 #include <asm/cpm.h>
+#include <sysdev/fsl_soc.h>
 
 #ifdef CONFIG_PPC_85xx
 #define CPM_MAP_ADDR (get_immrbase() + 0x80000)
@@ -93,9 +94,39 @@ extern cpm_cpm2_t __iomem *cpmp; /* Pointer to comm processor */
 #define cpm_dpfree cpm_muram_free
 #define cpm_dpram_addr cpm_muram_addr
 
-extern void cpm_setbrg(uint brg, uint rate);
-extern void cpm2_fastbrg(uint brg, uint rate, int div16);
 extern void cpm2_reset(void);
+
+/* Baud rate generators.
+*/
+#define CPM_BRG_RST		((uint)0x00020000)
+#define CPM_BRG_EN		((uint)0x00010000)
+#define CPM_BRG_EXTC_INT	((uint)0x00000000)
+#define CPM_BRG_EXTC_CLK3_9	((uint)0x00004000)
+#define CPM_BRG_EXTC_CLK5_15	((uint)0x00008000)
+#define CPM_BRG_ATB		((uint)0x00002000)
+#define CPM_BRG_CD_MASK		((uint)0x00001ffe)
+#define CPM_BRG_DIV16		((uint)0x00000001)
+
+#define CPM2_BRG_INT_CLK	(get_brgfreq())
+#define CPM2_BRG_UART_CLK	(CPM2_BRG_INT_CLK/16)
+
+extern void __cpm2_setbrg(uint brg, uint rate, uint clk, int div16, int src);
+
+/* This function is used by UARTS, or anything else that uses a 16x
+ * oversampled clock.
+ */
+static inline void cpm_setbrg(uint brg, uint rate)
+{
+	__cpm2_setbrg(brg, rate, CPM2_BRG_UART_CLK, 0, CPM_BRG_EXTC_INT);
+}
+
+/* This function is used to set high speed synchronous baud rate
+ * clocks.
+ */
+static inline void cpm2_fastbrg(uint brg, uint rate, int div16)
+{
+	__cpm2_setbrg(brg, rate, CPM2_BRG_INT_CLK, div16, CPM_BRG_EXTC_INT);
+}
 
 /* Function code bits, usually generic to devices.
 */
@@ -194,17 +225,6 @@ typedef struct smc_uart {
 #define SMCM_BSY	((unsigned char)0x04)
 #define SMCM_TX		((unsigned char)0x02)
 #define SMCM_RX		((unsigned char)0x01)
-
-/* Baud rate generators.
-*/
-#define CPM_BRG_RST		((uint)0x00020000)
-#define CPM_BRG_EN		((uint)0x00010000)
-#define CPM_BRG_EXTC_INT	((uint)0x00000000)
-#define CPM_BRG_EXTC_CLK3_9	((uint)0x00004000)
-#define CPM_BRG_EXTC_CLK5_15	((uint)0x00008000)
-#define CPM_BRG_ATB		((uint)0x00002000)
-#define CPM_BRG_CD_MASK		((uint)0x00001ffe)
-#define CPM_BRG_DIV16		((uint)0x00000001)
 
 /* SCCs.
 */
