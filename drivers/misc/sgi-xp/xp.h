@@ -208,8 +208,9 @@ enum xp_retval {
 	xpNeedMoreInfo,		/* 57: more info is needed by SAL */
 
 	xpGruCopyError,		/* 58: gru_copy_gru() returned error */
+	xpGruSendMqError,	/* 59: gru send message queue related error */
 
-	xpUnknownReason		/* 59: unknown reason - must be last in enum */
+	xpUnknownReason		/* 60: unknown reason - must be last in enum */
 };
 
 /*

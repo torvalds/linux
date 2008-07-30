@@ -53,11 +53,18 @@
  * Buffer used to store a local copy of portions of a remote partition's
  * reserved page (either its header and part_nasids mask, or its vars).
  */
-static char *xpc_remote_copy_buffer_sn2;
 static void *xpc_remote_copy_buffer_base_sn2;
+static char *xpc_remote_copy_buffer_sn2;
 
 static struct xpc_vars_sn2 *xpc_vars_sn2;
 static struct xpc_vars_part_sn2 *xpc_vars_part_sn2;
+
+static int
+xpc_setup_partitions_sn_sn2(void)
+{
+	/* nothing needs to be done */
+	return 0;
+}
 
 /* SH_IPI_ACCESS shub register value on startup */
 static u64 xpc_sh1_IPI_access_sn2;
@@ -198,7 +205,12 @@ xpc_init_IRQ_amo_sn2(int index)
 static irqreturn_t
 xpc_handle_activate_IRQ_sn2(int irq, void *dev_id)
 {
-	atomic_inc(&xpc_activate_IRQ_rcvd);
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&xpc_activate_IRQ_rcvd_lock, irq_flags);
+	xpc_activate_IRQ_rcvd++;
+	spin_unlock_irqrestore(&xpc_activate_IRQ_rcvd_lock, irq_flags);
+
 	wake_up_interruptible(&xpc_activate_IRQ_wq);
 	return IRQ_HANDLED;
 }
@@ -222,6 +234,7 @@ xpc_send_activate_IRQ_sn2(unsigned long amos_page_pa, int from_nasid,
 static void
 xpc_send_local_activate_IRQ_sn2(int from_nasid)
 {
+	unsigned long irq_flags;
 	struct amo *amos = (struct amo *)__va(xpc_vars_sn2->amos_page_pa +
 					      (XPC_ACTIVATE_IRQ_AMOS_SN2 *
 					      sizeof(struct amo)));
@@ -230,7 +243,10 @@ xpc_send_local_activate_IRQ_sn2(int from_nasid)
 	FETCHOP_STORE_OP(TO_AMO((u64)&amos[BIT_WORD(from_nasid / 2)].variable),
 			 FETCHOP_OR, BIT_MASK(from_nasid / 2));
 
-	atomic_inc(&xpc_activate_IRQ_rcvd);
+	spin_lock_irqsave(&xpc_activate_IRQ_rcvd_lock, irq_flags);
+	xpc_activate_IRQ_rcvd++;
+	spin_unlock_irqrestore(&xpc_activate_IRQ_rcvd_lock, irq_flags);
+
 	wake_up_interruptible(&xpc_activate_IRQ_wq);
 }
 
@@ -375,7 +391,7 @@ static void
 xpc_send_chctl_closerequest_sn2(struct xpc_channel *ch,
 				unsigned long *irq_flags)
 {
-	struct xpc_openclose_args *args = ch->local_openclose_args;
+	struct xpc_openclose_args *args = ch->sn.sn2.local_openclose_args;
 
 	args->reason = ch->reason;
 	XPC_SEND_NOTIFY_IRQ_SN2(ch, XPC_CHCTL_CLOSEREQUEST, irq_flags);
@@ -390,7 +406,7 @@ xpc_send_chctl_closereply_sn2(struct xpc_channel *ch, unsigned long *irq_flags)
 static void
 xpc_send_chctl_openrequest_sn2(struct xpc_channel *ch, unsigned long *irq_flags)
 {
-	struct xpc_openclose_args *args = ch->local_openclose_args;
+	struct xpc_openclose_args *args = ch->sn.sn2.local_openclose_args;
 
 	args->msg_size = ch->msg_size;
 	args->local_nentries = ch->local_nentries;
@@ -400,11 +416,11 @@ xpc_send_chctl_openrequest_sn2(struct xpc_channel *ch, unsigned long *irq_flags)
 static void
 xpc_send_chctl_openreply_sn2(struct xpc_channel *ch, unsigned long *irq_flags)
 {
-	struct xpc_openclose_args *args = ch->local_openclose_args;
+	struct xpc_openclose_args *args = ch->sn.sn2.local_openclose_args;
 
 	args->remote_nentries = ch->remote_nentries;
 	args->local_nentries = ch->local_nentries;
-	args->local_msgqueue_pa = xp_pa(ch->local_msgqueue);
+	args->local_msgqueue_pa = xp_pa(ch->sn.sn2.local_msgqueue);
 	XPC_SEND_NOTIFY_IRQ_SN2(ch, XPC_CHCTL_OPENREPLY, irq_flags);
 }
 
@@ -418,6 +434,13 @@ static void
 xpc_send_chctl_local_msgrequest_sn2(struct xpc_channel *ch)
 {
 	XPC_SEND_LOCAL_NOTIFY_IRQ_SN2(ch, XPC_CHCTL_MSGREQUEST);
+}
+
+static void
+xpc_save_remote_msgqueue_pa_sn2(struct xpc_channel *ch,
+				unsigned long msgqueue_pa)
+{
+	ch->sn.sn2.remote_msgqueue_pa = msgqueue_pa;
 }
 
 /*
@@ -489,6 +512,17 @@ xpc_indicate_partition_disengaged_sn2(struct xpc_partition *part)
 				  part_sn2->activate_IRQ_phys_cpuid);
 }
 
+static void
+xpc_assume_partition_disengaged_sn2(short partid)
+{
+	struct amo *amo = xpc_vars_sn2->amos_page +
+			  XPC_ENGAGED_PARTITIONS_AMO_SN2;
+
+	/* clear bit(s) based on partid mask in our partition's amo */
+	FETCHOP_STORE_OP(TO_AMO((u64)&amo->variable), FETCHOP_AND,
+			 ~BIT(partid));
+}
+
 static int
 xpc_partition_engaged_sn2(short partid)
 {
@@ -508,17 +542,6 @@ xpc_any_partition_engaged_sn2(void)
 
 	/* our partition's amo variable */
 	return FETCHOP_LOAD_OP(TO_AMO((u64)&amo->variable), FETCHOP_LOAD) != 0;
-}
-
-static void
-xpc_assume_partition_disengaged_sn2(short partid)
-{
-	struct amo *amo = xpc_vars_sn2->amos_page +
-			  XPC_ENGAGED_PARTITIONS_AMO_SN2;
-
-	/* clear bit(s) based on partid mask in our partition's amo */
-	FETCHOP_STORE_OP(TO_AMO((u64)&amo->variable), FETCHOP_AND,
-			 ~BIT(partid));
 }
 
 /* original protection values for each node */
@@ -595,8 +618,8 @@ xpc_get_partition_rsvd_page_pa_sn2(void *buf, u64 *cookie, unsigned long *rp_pa,
 }
 
 
-static enum xp_retval
-xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
+static int
+xpc_setup_rsvd_page_sn_sn2(struct xpc_rsvd_page *rp)
 {
 	struct amo *amos_page;
 	int i;
@@ -627,7 +650,7 @@ xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
 		amos_page = (struct amo *)TO_AMO(uncached_alloc_page(0, 1));
 		if (amos_page == NULL) {
 			dev_err(xpc_part, "can't allocate page of amos\n");
-			return xpNoMemory;
+			return -ENOMEM;
 		}
 
 		/*
@@ -639,7 +662,7 @@ xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
 			dev_err(xpc_part, "can't allow amo operations\n");
 			uncached_free_page(__IA64_UNCACHED_OFFSET |
 					   TO_PHYS((u64)amos_page), 1);
-			return ret;
+			return -EPERM;
 		}
 	}
 
@@ -665,7 +688,7 @@ xpc_rsvd_page_init_sn2(struct xpc_rsvd_page *rp)
 	(void)xpc_init_IRQ_amo_sn2(XPC_ENGAGED_PARTITIONS_AMO_SN2);
 	(void)xpc_init_IRQ_amo_sn2(XPC_DEACTIVATE_REQUEST_AMO_SN2);
 
-	return xpSuccess;
+	return 0;
 }
 
 static void
@@ -1082,9 +1105,18 @@ xpc_identify_activate_IRQ_sender_sn2(void)
 }
 
 static void
-xpc_process_activate_IRQ_rcvd_sn2(int n_IRQs_expected)
+xpc_process_activate_IRQ_rcvd_sn2(void)
 {
+	unsigned long irq_flags;
+	int n_IRQs_expected;
 	int n_IRQs_detected;
+
+	DBUG_ON(xpc_activate_IRQ_rcvd == 0);
+
+	spin_lock_irqsave(&xpc_activate_IRQ_rcvd_lock, irq_flags);
+	n_IRQs_expected = xpc_activate_IRQ_rcvd;
+	xpc_activate_IRQ_rcvd = 0;
+	spin_unlock_irqrestore(&xpc_activate_IRQ_rcvd_lock, irq_flags);
 
 	n_IRQs_detected = xpc_identify_activate_IRQ_sender_sn2();
 	if (n_IRQs_detected < n_IRQs_expected) {
@@ -1094,115 +1126,62 @@ xpc_process_activate_IRQ_rcvd_sn2(int n_IRQs_expected)
 }
 
 /*
- * Guarantee that the kzalloc'd memory is cacheline aligned.
- */
-static void *
-xpc_kzalloc_cacheline_aligned_sn2(size_t size, gfp_t flags, void **base)
-{
-	/* see if kzalloc will give us cachline aligned memory by default */
-	*base = kzalloc(size, flags);
-	if (*base == NULL)
-		return NULL;
-
-	if ((u64)*base == L1_CACHE_ALIGN((u64)*base))
-		return *base;
-
-	kfree(*base);
-
-	/* nope, we'll have to do it ourselves */
-	*base = kzalloc(size + L1_CACHE_BYTES, flags);
-	if (*base == NULL)
-		return NULL;
-
-	return (void *)L1_CACHE_ALIGN((u64)*base);
-}
-
-/*
- * Setup the infrastructure necessary to support XPartition Communication
- * between the specified remote partition and the local one.
+ * Setup the channel structures that are sn2 specific.
  */
 static enum xp_retval
-xpc_setup_infrastructure_sn2(struct xpc_partition *part)
+xpc_setup_ch_structures_sn_sn2(struct xpc_partition *part)
 {
 	struct xpc_partition_sn2 *part_sn2 = &part->sn.sn2;
+	struct xpc_channel_sn2 *ch_sn2;
 	enum xp_retval retval;
 	int ret;
 	int cpuid;
 	int ch_number;
-	struct xpc_channel *ch;
 	struct timer_list *timer;
 	short partid = XPC_PARTID(part);
-
-	/*
-	 * Allocate all of the channel structures as a contiguous chunk of
-	 * memory.
-	 */
-	DBUG_ON(part->channels != NULL);
-	part->channels = kzalloc(sizeof(struct xpc_channel) * XPC_MAX_NCHANNELS,
-				 GFP_KERNEL);
-	if (part->channels == NULL) {
-		dev_err(xpc_chan, "can't get memory for channels\n");
-		return xpNoMemory;
-	}
 
 	/* allocate all the required GET/PUT values */
 
 	part_sn2->local_GPs =
-	    xpc_kzalloc_cacheline_aligned_sn2(XPC_GP_SIZE, GFP_KERNEL,
-					      &part_sn2->local_GPs_base);
+	    xpc_kzalloc_cacheline_aligned(XPC_GP_SIZE, GFP_KERNEL,
+					  &part_sn2->local_GPs_base);
 	if (part_sn2->local_GPs == NULL) {
 		dev_err(xpc_chan, "can't get memory for local get/put "
 			"values\n");
-		retval = xpNoMemory;
-		goto out_1;
+		return xpNoMemory;
 	}
 
 	part_sn2->remote_GPs =
-	    xpc_kzalloc_cacheline_aligned_sn2(XPC_GP_SIZE, GFP_KERNEL,
-					      &part_sn2->remote_GPs_base);
+	    xpc_kzalloc_cacheline_aligned(XPC_GP_SIZE, GFP_KERNEL,
+					  &part_sn2->remote_GPs_base);
 	if (part_sn2->remote_GPs == NULL) {
 		dev_err(xpc_chan, "can't get memory for remote get/put "
 			"values\n");
 		retval = xpNoMemory;
-		goto out_2;
+		goto out_1;
 	}
 
 	part_sn2->remote_GPs_pa = 0;
 
 	/* allocate all the required open and close args */
 
-	part->local_openclose_args =
-	    xpc_kzalloc_cacheline_aligned_sn2(XPC_OPENCLOSE_ARGS_SIZE,
-					      GFP_KERNEL,
-					      &part->local_openclose_args_base);
-	if (part->local_openclose_args == NULL) {
+	part_sn2->local_openclose_args =
+	    xpc_kzalloc_cacheline_aligned(XPC_OPENCLOSE_ARGS_SIZE,
+					  GFP_KERNEL, &part_sn2->
+					  local_openclose_args_base);
+	if (part_sn2->local_openclose_args == NULL) {
 		dev_err(xpc_chan, "can't get memory for local connect args\n");
 		retval = xpNoMemory;
-		goto out_3;
-	}
-
-	part->remote_openclose_args =
-	    xpc_kzalloc_cacheline_aligned_sn2(XPC_OPENCLOSE_ARGS_SIZE,
-					      GFP_KERNEL,
-					     &part->remote_openclose_args_base);
-	if (part->remote_openclose_args == NULL) {
-		dev_err(xpc_chan, "can't get memory for remote connect args\n");
-		retval = xpNoMemory;
-		goto out_4;
+		goto out_2;
 	}
 
 	part_sn2->remote_openclose_args_pa = 0;
 
 	part_sn2->local_chctl_amo_va = xpc_init_IRQ_amo_sn2(partid);
-	part->chctl.all_flags = 0;
-	spin_lock_init(&part->chctl_lock);
 
 	part_sn2->notify_IRQ_nasid = 0;
 	part_sn2->notify_IRQ_phys_cpuid = 0;
 	part_sn2->remote_chctl_amo_va = NULL;
-
-	atomic_set(&part->channel_mgr_requests, 1);
-	init_waitqueue_head(&part->channel_mgr_wq);
 
 	sprintf(part_sn2->notify_IRQ_owner, "xpc%02d", partid);
 	ret = request_irq(SGI_XPC_NOTIFY, xpc_handle_notify_IRQ_sn2,
@@ -1212,7 +1191,7 @@ xpc_setup_infrastructure_sn2(struct xpc_partition *part)
 		dev_err(xpc_chan, "can't register NOTIFY IRQ handler, "
 			"errno=%d\n", -ret);
 		retval = xpLackOfResources;
-		goto out_5;
+		goto out_3;
 	}
 
 	/* Setup a timer to check for dropped notify IRQs */
@@ -1224,43 +1203,15 @@ xpc_setup_infrastructure_sn2(struct xpc_partition *part)
 	timer->expires = jiffies + XPC_DROPPED_NOTIFY_IRQ_WAIT_INTERVAL;
 	add_timer(timer);
 
-	part->nchannels = XPC_MAX_NCHANNELS;
-
-	atomic_set(&part->nchannels_active, 0);
-	atomic_set(&part->nchannels_engaged, 0);
-
 	for (ch_number = 0; ch_number < part->nchannels; ch_number++) {
-		ch = &part->channels[ch_number];
+		ch_sn2 = &part->channels[ch_number].sn.sn2;
 
-		ch->partid = partid;
-		ch->number = ch_number;
-		ch->flags = XPC_C_DISCONNECTED;
+		ch_sn2->local_GP = &part_sn2->local_GPs[ch_number];
+		ch_sn2->local_openclose_args =
+		    &part_sn2->local_openclose_args[ch_number];
 
-		ch->sn.sn2.local_GP = &part_sn2->local_GPs[ch_number];
-		ch->local_openclose_args =
-		    &part->local_openclose_args[ch_number];
-
-		atomic_set(&ch->kthreads_assigned, 0);
-		atomic_set(&ch->kthreads_idle, 0);
-		atomic_set(&ch->kthreads_active, 0);
-
-		atomic_set(&ch->references, 0);
-		atomic_set(&ch->n_to_notify, 0);
-
-		spin_lock_init(&ch->lock);
-		mutex_init(&ch->sn.sn2.msg_to_pull_mutex);
-		init_completion(&ch->wdisconnect_wait);
-
-		atomic_set(&ch->n_on_msg_allocate_wq, 0);
-		init_waitqueue_head(&ch->msg_allocate_wq);
-		init_waitqueue_head(&ch->idle_wq);
+		mutex_init(&ch_sn2->msg_to_pull_mutex);
 	}
-
-	/*
-	 * With the setting of the partition setup_state to XPC_P_SS_SETUP,
-	 * we're declaring that this partition is ready to go.
-	 */
-	part->setup_state = XPC_P_SS_SETUP;
 
 	/*
 	 * Setup the per partition specific variables required by the
@@ -1271,7 +1222,7 @@ xpc_setup_infrastructure_sn2(struct xpc_partition *part)
 	 */
 	xpc_vars_part_sn2[partid].GPs_pa = xp_pa(part_sn2->local_GPs);
 	xpc_vars_part_sn2[partid].openclose_args_pa =
-	    xp_pa(part->local_openclose_args);
+	    xp_pa(part_sn2->local_openclose_args);
 	xpc_vars_part_sn2[partid].chctl_amo_pa =
 	    xp_pa(part_sn2->local_chctl_amo_va);
 	cpuid = raw_smp_processor_id();	/* any CPU in this partition will do */
@@ -1279,80 +1230,48 @@ xpc_setup_infrastructure_sn2(struct xpc_partition *part)
 	xpc_vars_part_sn2[partid].notify_IRQ_phys_cpuid =
 	    cpu_physical_id(cpuid);
 	xpc_vars_part_sn2[partid].nchannels = part->nchannels;
-	xpc_vars_part_sn2[partid].magic = XPC_VP_MAGIC1;
+	xpc_vars_part_sn2[partid].magic = XPC_VP_MAGIC1_SN2;
 
 	return xpSuccess;
 
-	/* setup of infrastructure failed */
-out_5:
-	kfree(part->remote_openclose_args_base);
-	part->remote_openclose_args = NULL;
-out_4:
-	kfree(part->local_openclose_args_base);
-	part->local_openclose_args = NULL;
+	/* setup of ch structures failed */
 out_3:
+	kfree(part_sn2->local_openclose_args_base);
+	part_sn2->local_openclose_args = NULL;
+out_2:
 	kfree(part_sn2->remote_GPs_base);
 	part_sn2->remote_GPs = NULL;
-out_2:
+out_1:
 	kfree(part_sn2->local_GPs_base);
 	part_sn2->local_GPs = NULL;
-out_1:
-	kfree(part->channels);
-	part->channels = NULL;
 	return retval;
 }
 
 /*
- * Teardown the infrastructure necessary to support XPartition Communication
- * between the specified remote partition and the local one.
+ * Teardown the channel structures that are sn2 specific.
  */
 static void
-xpc_teardown_infrastructure_sn2(struct xpc_partition *part)
+xpc_teardown_ch_structures_sn_sn2(struct xpc_partition *part)
 {
 	struct xpc_partition_sn2 *part_sn2 = &part->sn.sn2;
 	short partid = XPC_PARTID(part);
 
 	/*
-	 * We start off by making this partition inaccessible to local
-	 * processes by marking it as no longer setup. Then we make it
-	 * inaccessible to remote processes by clearing the XPC per partition
-	 * specific variable's magic # (which indicates that these variables
-	 * are no longer valid) and by ignoring all XPC notify IRQs sent to
-	 * this partition.
+	 * Indicate that the variables specific to the remote partition are no
+	 * longer available for its use.
 	 */
-
-	DBUG_ON(atomic_read(&part->nchannels_engaged) != 0);
-	DBUG_ON(atomic_read(&part->nchannels_active) != 0);
-	DBUG_ON(part->setup_state != XPC_P_SS_SETUP);
-	part->setup_state = XPC_P_SS_WTEARDOWN;
-
 	xpc_vars_part_sn2[partid].magic = 0;
-
-	free_irq(SGI_XPC_NOTIFY, (void *)(u64)partid);
-
-	/*
-	 * Before proceeding with the teardown we have to wait until all
-	 * existing references cease.
-	 */
-	wait_event(part->teardown_wq, (atomic_read(&part->references) == 0));
-
-	/* now we can begin tearing down the infrastructure */
-
-	part->setup_state = XPC_P_SS_TORNDOWN;
 
 	/* in case we've still got outstanding timers registered... */
 	del_timer_sync(&part_sn2->dropped_notify_IRQ_timer);
+	free_irq(SGI_XPC_NOTIFY, (void *)(u64)partid);
 
-	kfree(part->remote_openclose_args_base);
-	part->remote_openclose_args = NULL;
-	kfree(part->local_openclose_args_base);
-	part->local_openclose_args = NULL;
+	kfree(part_sn2->local_openclose_args_base);
+	part_sn2->local_openclose_args = NULL;
 	kfree(part_sn2->remote_GPs_base);
 	part_sn2->remote_GPs = NULL;
 	kfree(part_sn2->local_GPs_base);
 	part_sn2->local_GPs = NULL;
-	kfree(part->channels);
-	part->channels = NULL;
 	part_sn2->local_chctl_amo_va = NULL;
 }
 
@@ -1429,8 +1348,8 @@ xpc_pull_remote_vars_part_sn2(struct xpc_partition *part)
 
 	/* see if they've been set up yet */
 
-	if (pulled_entry->magic != XPC_VP_MAGIC1 &&
-	    pulled_entry->magic != XPC_VP_MAGIC2) {
+	if (pulled_entry->magic != XPC_VP_MAGIC1_SN2 &&
+	    pulled_entry->magic != XPC_VP_MAGIC2_SN2) {
 
 		if (pulled_entry->magic != 0) {
 			dev_dbg(xpc_chan, "partition %d's XPC vars_part for "
@@ -1443,7 +1362,7 @@ xpc_pull_remote_vars_part_sn2(struct xpc_partition *part)
 		return xpRetry;
 	}
 
-	if (xpc_vars_part_sn2[partid].magic == XPC_VP_MAGIC1) {
+	if (xpc_vars_part_sn2[partid].magic == XPC_VP_MAGIC1_SN2) {
 
 		/* validate the variables */
 
@@ -1473,10 +1392,10 @@ xpc_pull_remote_vars_part_sn2(struct xpc_partition *part)
 
 		/* let the other side know that we've pulled their variables */
 
-		xpc_vars_part_sn2[partid].magic = XPC_VP_MAGIC2;
+		xpc_vars_part_sn2[partid].magic = XPC_VP_MAGIC2_SN2;
 	}
 
-	if (pulled_entry->magic == XPC_VP_MAGIC1)
+	if (pulled_entry->magic == XPC_VP_MAGIC1_SN2)
 		return xpRetry;
 
 	return xpSuccess;
@@ -1605,6 +1524,7 @@ xpc_get_chctl_all_flags_sn2(struct xpc_partition *part)
 static enum xp_retval
 xpc_allocate_local_msgqueue_sn2(struct xpc_channel *ch)
 {
+	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
 	unsigned long irq_flags;
 	int nentries;
 	size_t nbytes;
@@ -1612,17 +1532,17 @@ xpc_allocate_local_msgqueue_sn2(struct xpc_channel *ch)
 	for (nentries = ch->local_nentries; nentries > 0; nentries--) {
 
 		nbytes = nentries * ch->msg_size;
-		ch->local_msgqueue =
-		    xpc_kzalloc_cacheline_aligned_sn2(nbytes, GFP_KERNEL,
-						      &ch->local_msgqueue_base);
-		if (ch->local_msgqueue == NULL)
+		ch_sn2->local_msgqueue =
+		    xpc_kzalloc_cacheline_aligned(nbytes, GFP_KERNEL,
+						  &ch_sn2->local_msgqueue_base);
+		if (ch_sn2->local_msgqueue == NULL)
 			continue;
 
 		nbytes = nentries * sizeof(struct xpc_notify);
-		ch->notify_queue = kzalloc(nbytes, GFP_KERNEL);
-		if (ch->notify_queue == NULL) {
-			kfree(ch->local_msgqueue_base);
-			ch->local_msgqueue = NULL;
+		ch_sn2->notify_queue = kzalloc(nbytes, GFP_KERNEL);
+		if (ch_sn2->notify_queue == NULL) {
+			kfree(ch_sn2->local_msgqueue_base);
+			ch_sn2->local_msgqueue = NULL;
 			continue;
 		}
 
@@ -1649,6 +1569,7 @@ xpc_allocate_local_msgqueue_sn2(struct xpc_channel *ch)
 static enum xp_retval
 xpc_allocate_remote_msgqueue_sn2(struct xpc_channel *ch)
 {
+	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
 	unsigned long irq_flags;
 	int nentries;
 	size_t nbytes;
@@ -1658,10 +1579,10 @@ xpc_allocate_remote_msgqueue_sn2(struct xpc_channel *ch)
 	for (nentries = ch->remote_nentries; nentries > 0; nentries--) {
 
 		nbytes = nentries * ch->msg_size;
-		ch->remote_msgqueue =
-		    xpc_kzalloc_cacheline_aligned_sn2(nbytes, GFP_KERNEL,
-						     &ch->remote_msgqueue_base);
-		if (ch->remote_msgqueue == NULL)
+		ch_sn2->remote_msgqueue =
+		    xpc_kzalloc_cacheline_aligned(nbytes, GFP_KERNEL, &ch_sn2->
+						  remote_msgqueue_base);
+		if (ch_sn2->remote_msgqueue == NULL)
 			continue;
 
 		spin_lock_irqsave(&ch->lock, irq_flags);
@@ -1687,8 +1608,9 @@ xpc_allocate_remote_msgqueue_sn2(struct xpc_channel *ch)
  * Note: Assumes all of the channel sizes are filled in.
  */
 static enum xp_retval
-xpc_allocate_msgqueues_sn2(struct xpc_channel *ch)
+xpc_setup_msg_structures_sn2(struct xpc_channel *ch)
 {
+	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
 	enum xp_retval ret;
 
 	DBUG_ON(ch->flags & XPC_C_SETUP);
@@ -1698,10 +1620,10 @@ xpc_allocate_msgqueues_sn2(struct xpc_channel *ch)
 
 		ret = xpc_allocate_remote_msgqueue_sn2(ch);
 		if (ret != xpSuccess) {
-			kfree(ch->local_msgqueue_base);
-			ch->local_msgqueue = NULL;
-			kfree(ch->notify_queue);
-			ch->notify_queue = NULL;
+			kfree(ch_sn2->local_msgqueue_base);
+			ch_sn2->local_msgqueue = NULL;
+			kfree(ch_sn2->notify_queue);
+			ch_sn2->notify_queue = NULL;
 		}
 	}
 	return ret;
@@ -1715,21 +1637,13 @@ xpc_allocate_msgqueues_sn2(struct xpc_channel *ch)
  * they're cleared when XPC_C_DISCONNECTED is cleared.
  */
 static void
-xpc_free_msgqueues_sn2(struct xpc_channel *ch)
+xpc_teardown_msg_structures_sn2(struct xpc_channel *ch)
 {
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
 
 	DBUG_ON(!spin_is_locked(&ch->lock));
-	DBUG_ON(atomic_read(&ch->n_to_notify) != 0);
 
-	ch->remote_msgqueue_pa = 0;
-	ch->func = NULL;
-	ch->key = NULL;
-	ch->msg_size = 0;
-	ch->local_nentries = 0;
-	ch->remote_nentries = 0;
-	ch->kthreads_assigned_limit = 0;
-	ch->kthreads_idle_limit = 0;
+	ch_sn2->remote_msgqueue_pa = 0;
 
 	ch_sn2->local_GP->get = 0;
 	ch_sn2->local_GP->put = 0;
@@ -1745,12 +1659,12 @@ xpc_free_msgqueues_sn2(struct xpc_channel *ch)
 		dev_dbg(xpc_chan, "ch->flags=0x%x, partid=%d, channel=%d\n",
 			ch->flags, ch->partid, ch->number);
 
-		kfree(ch->local_msgqueue_base);
-		ch->local_msgqueue = NULL;
-		kfree(ch->remote_msgqueue_base);
-		ch->remote_msgqueue = NULL;
-		kfree(ch->notify_queue);
-		ch->notify_queue = NULL;
+		kfree(ch_sn2->local_msgqueue_base);
+		ch_sn2->local_msgqueue = NULL;
+		kfree(ch_sn2->remote_msgqueue_base);
+		ch_sn2->remote_msgqueue = NULL;
+		kfree(ch_sn2->notify_queue);
+		ch_sn2->notify_queue = NULL;
 	}
 }
 
@@ -1766,7 +1680,7 @@ xpc_notify_senders_sn2(struct xpc_channel *ch, enum xp_retval reason, s64 put)
 
 	while (++get < put && atomic_read(&ch->n_to_notify) > 0) {
 
-		notify = &ch->notify_queue[get % ch->local_nentries];
+		notify = &ch->sn.sn2.notify_queue[get % ch->local_nentries];
 
 		/*
 		 * See if the notify entry indicates it was associated with
@@ -1818,7 +1732,7 @@ xpc_clear_local_msgqueue_flags_sn2(struct xpc_channel *ch)
 
 	get = ch_sn2->w_remote_GP.get;
 	do {
-		msg = (struct xpc_msg *)((u64)ch->local_msgqueue +
+		msg = (struct xpc_msg *)((u64)ch_sn2->local_msgqueue +
 					 (get % ch->local_nentries) *
 					 ch->msg_size);
 		msg->flags = 0;
@@ -1837,7 +1751,7 @@ xpc_clear_remote_msgqueue_flags_sn2(struct xpc_channel *ch)
 
 	put = ch_sn2->w_remote_GP.put;
 	do {
-		msg = (struct xpc_msg *)((u64)ch->remote_msgqueue +
+		msg = (struct xpc_msg *)((u64)ch_sn2->remote_msgqueue +
 					 (put % ch->remote_nentries) *
 					 ch->msg_size);
 		msg->flags = 0;
@@ -1976,8 +1890,9 @@ xpc_pull_remote_msg_sn2(struct xpc_channel *ch, s64 get)
 		}
 
 		msg_offset = msg_index * ch->msg_size;
-		msg = (struct xpc_msg *)((u64)ch->remote_msgqueue + msg_offset);
-		remote_msg_pa = ch->remote_msgqueue_pa + msg_offset;
+		msg = (struct xpc_msg *)((u64)ch_sn2->remote_msgqueue +
+		    msg_offset);
+		remote_msg_pa = ch_sn2->remote_msgqueue_pa + msg_offset;
 
 		ret = xpc_pull_remote_cachelines_sn2(part, msg, remote_msg_pa,
 						     nmsgs * ch->msg_size);
@@ -2001,7 +1916,7 @@ xpc_pull_remote_msg_sn2(struct xpc_channel *ch, s64 get)
 
 	/* return the message we were looking for */
 	msg_offset = (get % ch->remote_nentries) * ch->msg_size;
-	msg = (struct xpc_msg *)((u64)ch->remote_msgqueue + msg_offset);
+	msg = (struct xpc_msg *)((u64)ch_sn2->remote_msgqueue + msg_offset);
 
 	return msg;
 }
@@ -2080,7 +1995,7 @@ xpc_send_msgs_sn2(struct xpc_channel *ch, s64 initial_put)
 			if (put == ch_sn2->w_local_GP.put)
 				break;
 
-			msg = (struct xpc_msg *)((u64)ch->local_msgqueue +
+			msg = (struct xpc_msg *)((u64)ch_sn2->local_msgqueue +
 						 (put % ch->local_nentries) *
 						 ch->msg_size);
 
@@ -2182,7 +2097,7 @@ xpc_allocate_msg_sn2(struct xpc_channel *ch, u32 flags,
 	}
 
 	/* get the message's address and initialize it */
-	msg = (struct xpc_msg *)((u64)ch->local_msgqueue +
+	msg = (struct xpc_msg *)((u64)ch_sn2->local_msgqueue +
 				 (put % ch->local_nentries) * ch->msg_size);
 
 	DBUG_ON(msg->flags != 0);
@@ -2207,6 +2122,7 @@ xpc_send_msg_sn2(struct xpc_channel *ch, u32 flags, void *payload,
 		 void *key)
 {
 	enum xp_retval ret = xpSuccess;
+	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
 	struct xpc_msg *msg = msg;
 	struct xpc_notify *notify = notify;
 	s64 msg_number;
@@ -2243,7 +2159,7 @@ xpc_send_msg_sn2(struct xpc_channel *ch, u32 flags, void *payload,
 
 		atomic_inc(&ch->n_to_notify);
 
-		notify = &ch->notify_queue[msg_number % ch->local_nentries];
+		notify = &ch_sn2->notify_queue[msg_number % ch->local_nentries];
 		notify->func = func;
 		notify->key = key;
 		notify->type = notify_type;
@@ -2279,7 +2195,7 @@ xpc_send_msg_sn2(struct xpc_channel *ch, u32 flags, void *payload,
 
 	/* see if the message is next in line to be sent, if so send it */
 
-	put = ch->sn.sn2.local_GP->put;
+	put = ch_sn2->local_GP->put;
 	if (put == msg_number)
 		xpc_send_msgs_sn2(ch, put);
 
@@ -2307,7 +2223,7 @@ xpc_acknowledge_msgs_sn2(struct xpc_channel *ch, s64 initial_get, u8 msg_flags)
 			if (get == ch_sn2->w_local_GP.get)
 				break;
 
-			msg = (struct xpc_msg *)((u64)ch->remote_msgqueue +
+			msg = (struct xpc_msg *)((u64)ch_sn2->remote_msgqueue +
 						 (get % ch->remote_nentries) *
 						 ch->msg_size);
 
@@ -2385,8 +2301,9 @@ xpc_init_sn2(void)
 	int ret;
 	size_t buf_size;
 
+	xpc_setup_partitions_sn = xpc_setup_partitions_sn_sn2;
 	xpc_get_partition_rsvd_page_pa = xpc_get_partition_rsvd_page_pa_sn2;
-	xpc_rsvd_page_init = xpc_rsvd_page_init_sn2;
+	xpc_setup_rsvd_page_sn = xpc_setup_rsvd_page_sn_sn2;
 	xpc_increment_heartbeat = xpc_increment_heartbeat_sn2;
 	xpc_offline_heartbeat = xpc_offline_heartbeat_sn2;
 	xpc_online_heartbeat = xpc_online_heartbeat_sn2;
@@ -2403,28 +2320,32 @@ xpc_init_sn2(void)
 	    xpc_cancel_partition_deactivation_request_sn2;
 
 	xpc_process_activate_IRQ_rcvd = xpc_process_activate_IRQ_rcvd_sn2;
-	xpc_setup_infrastructure = xpc_setup_infrastructure_sn2;
-	xpc_teardown_infrastructure = xpc_teardown_infrastructure_sn2;
+	xpc_setup_ch_structures_sn = xpc_setup_ch_structures_sn_sn2;
+	xpc_teardown_ch_structures_sn = xpc_teardown_ch_structures_sn_sn2;
 	xpc_make_first_contact = xpc_make_first_contact_sn2;
+
 	xpc_get_chctl_all_flags = xpc_get_chctl_all_flags_sn2;
-	xpc_allocate_msgqueues = xpc_allocate_msgqueues_sn2;
-	xpc_free_msgqueues = xpc_free_msgqueues_sn2;
+	xpc_send_chctl_closerequest = xpc_send_chctl_closerequest_sn2;
+	xpc_send_chctl_closereply = xpc_send_chctl_closereply_sn2;
+	xpc_send_chctl_openrequest = xpc_send_chctl_openrequest_sn2;
+	xpc_send_chctl_openreply = xpc_send_chctl_openreply_sn2;
+
+	xpc_save_remote_msgqueue_pa = xpc_save_remote_msgqueue_pa_sn2;
+
+	xpc_setup_msg_structures = xpc_setup_msg_structures_sn2;
+	xpc_teardown_msg_structures = xpc_teardown_msg_structures_sn2;
+
 	xpc_notify_senders_of_disconnect = xpc_notify_senders_of_disconnect_sn2;
 	xpc_process_msg_chctl_flags = xpc_process_msg_chctl_flags_sn2;
 	xpc_n_of_deliverable_msgs = xpc_n_of_deliverable_msgs_sn2;
 	xpc_get_deliverable_msg = xpc_get_deliverable_msg_sn2;
 
 	xpc_indicate_partition_engaged = xpc_indicate_partition_engaged_sn2;
-	xpc_partition_engaged = xpc_partition_engaged_sn2;
-	xpc_any_partition_engaged = xpc_any_partition_engaged_sn2;
 	xpc_indicate_partition_disengaged =
 	    xpc_indicate_partition_disengaged_sn2;
+	xpc_partition_engaged = xpc_partition_engaged_sn2;
+	xpc_any_partition_engaged = xpc_any_partition_engaged_sn2;
 	xpc_assume_partition_disengaged = xpc_assume_partition_disengaged_sn2;
-
-	xpc_send_chctl_closerequest = xpc_send_chctl_closerequest_sn2;
-	xpc_send_chctl_closereply = xpc_send_chctl_closereply_sn2;
-	xpc_send_chctl_openrequest = xpc_send_chctl_openrequest_sn2;
-	xpc_send_chctl_openreply = xpc_send_chctl_openreply_sn2;
 
 	xpc_send_msg = xpc_send_msg_sn2;
 	xpc_received_msg = xpc_received_msg_sn2;

@@ -164,8 +164,8 @@ struct xpc_vars_part_sn2 {
  * MAGIC2 indicates that this partition has pulled the remote partititions
  * per partition variables that pertain to this partition.
  */
-#define XPC_VP_MAGIC1	0x0053524156435058L   /* 'XPCVARS\0'L (little endian) */
-#define XPC_VP_MAGIC2	0x0073726176435058L   /* 'XPCvars\0'L (little endian) */
+#define XPC_VP_MAGIC1_SN2 0x0053524156435058L /* 'XPCVARS\0'L (little endian) */
+#define XPC_VP_MAGIC2_SN2 0x0073726176435058L /* 'XPCvars\0'L (little endian) */
 
 /* the reserved page sizes and offsets */
 
@@ -179,6 +179,80 @@ struct xpc_vars_part_sn2 {
 #define XPC_RP_VARS(_rp)	((struct xpc_vars_sn2 *) \
 				 (XPC_RP_MACH_NASIDS(_rp) + \
 				  xpc_nasid_mask_nlongs))
+
+/*
+ * The activate_mq is used to send/receive messages that affect XPC's heartbeat,
+ * partition active state, and channel state. This is UV only.
+ */
+struct xpc_activate_mq_msghdr_uv {
+	short partid;		/* sender's partid */
+	u8 act_state;		/* sender's act_state at time msg sent */
+	u8 type;		/* message's type */
+	unsigned long rp_ts_jiffies; /* timestamp of sender's rp setup by XPC */
+};
+
+/* activate_mq defined message types */
+#define XPC_ACTIVATE_MQ_MSG_SYNC_ACT_STATE_UV		0
+#define XPC_ACTIVATE_MQ_MSG_INC_HEARTBEAT_UV		1
+#define XPC_ACTIVATE_MQ_MSG_OFFLINE_HEARTBEAT_UV	2
+#define XPC_ACTIVATE_MQ_MSG_ONLINE_HEARTBEAT_UV		3
+
+#define XPC_ACTIVATE_MQ_MSG_ACTIVATE_REQ_UV		4
+#define XPC_ACTIVATE_MQ_MSG_DEACTIVATE_REQ_UV		5
+
+#define XPC_ACTIVATE_MQ_MSG_CHCTL_CLOSEREQUEST_UV	6
+#define XPC_ACTIVATE_MQ_MSG_CHCTL_CLOSEREPLY_UV		7
+#define XPC_ACTIVATE_MQ_MSG_CHCTL_OPENREQUEST_UV	8
+#define XPC_ACTIVATE_MQ_MSG_CHCTL_OPENREPLY_UV		9
+
+#define XPC_ACTIVATE_MQ_MSG_MARK_ENGAGED_UV		10
+#define XPC_ACTIVATE_MQ_MSG_MARK_DISENGAGED_UV		11
+
+struct xpc_activate_mq_msg_uv {
+	struct xpc_activate_mq_msghdr_uv header;
+};
+
+struct xpc_activate_mq_msg_heartbeat_req_uv {
+	struct xpc_activate_mq_msghdr_uv header;
+	u64 heartbeat;
+};
+
+struct xpc_activate_mq_msg_activate_req_uv {
+	struct xpc_activate_mq_msghdr_uv header;
+	unsigned long rp_gpa;
+	unsigned long activate_mq_gpa;
+};
+
+struct xpc_activate_mq_msg_deactivate_req_uv {
+	struct xpc_activate_mq_msghdr_uv header;
+	enum xp_retval reason;
+};
+
+struct xpc_activate_mq_msg_chctl_closerequest_uv {
+	struct xpc_activate_mq_msghdr_uv header;
+	short ch_number;
+	enum xp_retval reason;
+};
+
+struct xpc_activate_mq_msg_chctl_closereply_uv {
+	struct xpc_activate_mq_msghdr_uv header;
+	short ch_number;
+};
+
+struct xpc_activate_mq_msg_chctl_openrequest_uv {
+	struct xpc_activate_mq_msghdr_uv header;
+	short ch_number;
+	short msg_size;		/* size of notify_mq's messages */
+	short local_nentries;	/* ??? Is this needed? What is? */
+};
+
+struct xpc_activate_mq_msg_chctl_openreply_uv {
+	struct xpc_activate_mq_msghdr_uv header;
+	short ch_number;
+	short remote_nentries;	/* ??? Is this needed? What is? */
+	short local_nentries;	/* ??? Is this needed? What is? */
+	unsigned long local_notify_mq_gpa;
+};
 
 /*
  * Functions registered by add_timer() or called by kernel_thread() only
@@ -331,6 +405,18 @@ struct xpc_notify {
  */
 
 struct xpc_channel_sn2 {
+	struct xpc_openclose_args *local_openclose_args; /* args passed on */
+					     /* opening or closing of channel */
+
+	void *local_msgqueue_base;	/* base address of kmalloc'd space */
+	struct xpc_msg *local_msgqueue;	/* local message queue */
+	void *remote_msgqueue_base;	/* base address of kmalloc'd space */
+	struct xpc_msg *remote_msgqueue; /* cached copy of remote partition's */
+					 /* local message queue */
+	unsigned long remote_msgqueue_pa; /* phys addr of remote partition's */
+					  /* local message queue */
+
+	struct xpc_notify *notify_queue;    /* notify queue for messages sent */
 
 	/* various flavors of local and remote Get/Put values */
 
@@ -344,13 +430,14 @@ struct xpc_channel_sn2 {
 };
 
 struct xpc_channel_uv {
-	/* !!! code is coming */
+	unsigned long remote_notify_mq_gpa;	/* gru phys address of remote */
+						/* partition's notify mq */
 };
 
 struct xpc_channel {
 	short partid;		/* ID of remote partition connected */
 	spinlock_t lock;	/* lock for updating this structure */
-	u32 flags;		/* general flags */
+	unsigned int flags;	/* general flags */
 
 	enum xp_retval reason;	/* reason why channel is disconnect'g */
 	int reason_line;	/* line# disconnect initiated from */
@@ -361,14 +448,6 @@ struct xpc_channel {
 	u16 local_nentries;	/* #of msg entries in local msg queue */
 	u16 remote_nentries;	/* #of msg entries in remote msg queue */
 
-	void *local_msgqueue_base;	/* base address of kmalloc'd space */
-	struct xpc_msg *local_msgqueue;	/* local message queue */
-	void *remote_msgqueue_base;	/* base address of kmalloc'd space */
-	struct xpc_msg *remote_msgqueue; /* cached copy of remote partition's */
-					 /* local message queue */
-	unsigned long remote_msgqueue_pa; /* phys addr of remote partition's */
-					  /* local message queue */
-
 	atomic_t references;	/* #of external references to queues */
 
 	atomic_t n_on_msg_allocate_wq;	/* #on msg allocation wait queue */
@@ -377,18 +456,12 @@ struct xpc_channel {
 	u8 delayed_chctl_flags;	/* chctl flags received, but delayed */
 				/* action until channel disconnected */
 
-	/* queue of msg senders who want to be notified when msg received */
-
 	atomic_t n_to_notify;	/* #of msg senders to notify */
-	struct xpc_notify *notify_queue;    /* notify queue for messages sent */
 
 	xpc_channel_func func;	/* user's channel function */
 	void *key;		/* pointer to user's key */
 
 	struct completion wdisconnect_wait;    /* wait for channel disconnect */
-
-	struct xpc_openclose_args *local_openclose_args; /* args passed on */
-					     /* opening or closing of channel */
 
 	/* kthread management related fields */
 
@@ -507,6 +580,8 @@ struct xpc_partition_sn2 {
 	unsigned long remote_GPs_pa; /* phys addr of remote partition's local */
 				     /* Get/Put values */
 
+	void *local_openclose_args_base;   /* base address of kmalloc'd space */
+	struct xpc_openclose_args *local_openclose_args;      /* local's args */
 	unsigned long remote_openclose_args_pa;	/* phys addr of remote's args */
 
 	int notify_IRQ_nasid;	/* nasid of where to send notify IRQs */
@@ -520,8 +595,26 @@ struct xpc_partition_sn2 {
 };
 
 struct xpc_partition_uv {
-	/* !!! code is coming */
+	unsigned long remote_activate_mq_gpa;	/* gru phys address of remote */
+						/* partition's activate mq */
+	spinlock_t flags_lock;	/* protect updating of flags */
+	unsigned int flags;	/* general flags */
+	u8 remote_act_state;	/* remote partition's act_state */
+	u8 act_state_req;	/* act_state request from remote partition */
+	enum xp_retval reason;	/* reason for deactivate act_state request */
+	u64 heartbeat;		/* incremented by remote partition */
 };
+
+/* struct xpc_partition_uv flags */
+
+#define XPC_P_HEARTBEAT_OFFLINE_UV	0x00000001
+#define XPC_P_ENGAGED_UV		0x00000002
+
+/* struct xpc_partition_uv act_state change requests */
+
+#define XPC_P_ASR_ACTIVATE_UV		0x01
+#define XPC_P_ASR_REACTIVATE_UV		0x02
+#define XPC_P_ASR_DEACTIVATE_UV		0x03
 
 struct xpc_partition {
 
@@ -556,8 +649,6 @@ struct xpc_partition {
 	union xpc_channel_ctl_flags chctl; /* chctl flags yet to be processed */
 	spinlock_t chctl_lock;	/* chctl flags lock */
 
-	void *local_openclose_args_base;   /* base address of kmalloc'd space */
-	struct xpc_openclose_args *local_openclose_args;      /* local's args */
 	void *remote_openclose_args_base;  /* base address of kmalloc'd space */
 	struct xpc_openclose_args *remote_openclose_args; /* copy of remote's */
 							  /* args */
@@ -616,17 +707,20 @@ extern struct device *xpc_part;
 extern struct device *xpc_chan;
 extern int xpc_disengage_timelimit;
 extern int xpc_disengage_timedout;
-extern atomic_t xpc_activate_IRQ_rcvd;
+extern int xpc_activate_IRQ_rcvd;
+extern spinlock_t xpc_activate_IRQ_rcvd_lock;
 extern wait_queue_head_t xpc_activate_IRQ_wq;
 extern void *xpc_heartbeating_to_mask;
+extern void *xpc_kzalloc_cacheline_aligned(size_t, gfp_t, void **);
 extern void xpc_activate_partition(struct xpc_partition *);
 extern void xpc_activate_kthreads(struct xpc_channel *, int);
 extern void xpc_create_kthreads(struct xpc_channel *, int, int);
 extern void xpc_disconnect_wait(int);
+extern int (*xpc_setup_partitions_sn) (void);
 extern enum xp_retval (*xpc_get_partition_rsvd_page_pa) (void *, u64 *,
 							 unsigned long *,
 							 size_t *);
-extern enum xp_retval (*xpc_rsvd_page_init) (struct xpc_rsvd_page *);
+extern int (*xpc_setup_rsvd_page_sn) (struct xpc_rsvd_page *);
 extern void (*xpc_heartbeat_init) (void);
 extern void (*xpc_heartbeat_exit) (void);
 extern void (*xpc_increment_heartbeat) (void);
@@ -635,8 +729,8 @@ extern void (*xpc_online_heartbeat) (void);
 extern enum xp_retval (*xpc_get_remote_heartbeat) (struct xpc_partition *);
 extern enum xp_retval (*xpc_make_first_contact) (struct xpc_partition *);
 extern u64 (*xpc_get_chctl_all_flags) (struct xpc_partition *);
-extern enum xp_retval (*xpc_allocate_msgqueues) (struct xpc_channel *);
-extern void (*xpc_free_msgqueues) (struct xpc_channel *);
+extern enum xp_retval (*xpc_setup_msg_structures) (struct xpc_channel *);
+extern void (*xpc_teardown_msg_structures) (struct xpc_channel *);
 extern void (*xpc_notify_senders_of_disconnect) (struct xpc_channel *);
 extern void (*xpc_process_msg_chctl_flags) (struct xpc_partition *, int);
 extern int (*xpc_n_of_deliverable_msgs) (struct xpc_channel *);
@@ -647,9 +741,9 @@ extern void (*xpc_request_partition_reactivation) (struct xpc_partition *);
 extern void (*xpc_request_partition_deactivation) (struct xpc_partition *);
 extern void (*xpc_cancel_partition_deactivation_request) (
 							struct xpc_partition *);
-extern void (*xpc_process_activate_IRQ_rcvd) (int);
-extern enum xp_retval (*xpc_setup_infrastructure) (struct xpc_partition *);
-extern void (*xpc_teardown_infrastructure) (struct xpc_partition *);
+extern void (*xpc_process_activate_IRQ_rcvd) (void);
+extern enum xp_retval (*xpc_setup_ch_structures_sn) (struct xpc_partition *);
+extern void (*xpc_teardown_ch_structures_sn) (struct xpc_partition *);
 
 extern void (*xpc_indicate_partition_engaged) (struct xpc_partition *);
 extern int (*xpc_partition_engaged) (short);
@@ -665,6 +759,9 @@ extern void (*xpc_send_chctl_openrequest) (struct xpc_channel *,
 					   unsigned long *);
 extern void (*xpc_send_chctl_openreply) (struct xpc_channel *, unsigned long *);
 
+extern void (*xpc_save_remote_msgqueue_pa) (struct xpc_channel *,
+					    unsigned long);
+
 extern enum xp_retval (*xpc_send_msg) (struct xpc_channel *, u32, void *, u16,
 				       u8, xpc_notify_func, void *);
 extern void (*xpc_received_msg) (struct xpc_channel *, struct xpc_msg *);
@@ -674,7 +771,7 @@ extern int xpc_init_sn2(void);
 extern void xpc_exit_sn2(void);
 
 /* found in xpc_uv.c */
-extern void xpc_init_uv(void);
+extern int xpc_init_uv(void);
 extern void xpc_exit_uv(void);
 
 /* found in xpc_partition.c */
@@ -684,7 +781,8 @@ extern struct xpc_rsvd_page *xpc_rsvd_page;
 extern unsigned long *xpc_mach_nasids;
 extern struct xpc_partition *xpc_partitions;
 extern void *xpc_kmalloc_cacheline_aligned(size_t, gfp_t, void **);
-extern struct xpc_rsvd_page *xpc_setup_rsvd_page(void);
+extern int xpc_setup_rsvd_page(void);
+extern void xpc_teardown_rsvd_page(void);
 extern int xpc_identify_activate_IRQ_sender(void);
 extern int xpc_partition_disengaged(struct xpc_partition *);
 extern enum xp_retval xpc_mark_partition_active(struct xpc_partition *);

@@ -42,15 +42,25 @@ xp_remote_memcpy_uv(unsigned long dst_gpa, const unsigned long src_gpa,
 	return xpGruCopyError;
 }
 
+static int
+xp_cpu_to_nasid_uv(int cpuid)
+{
+	/* ??? Is this same as sn2 nasid in mach/part bitmaps set up by SAL? */
+	return UV_PNODE_TO_NASID(uv_cpu_to_pnode(cpuid));
+}
+
 enum xp_retval
 xp_init_uv(void)
 {
 	BUG_ON(!is_uv());
 
 	xp_max_npartitions = XP_MAX_NPARTITIONS_UV;
+	xp_partition_id = 0;	/* !!! not correct value */
+	xp_region_size = 0;	/* !!! not correct value */
 
 	xp_pa = xp_pa_uv;
 	xp_remote_memcpy = xp_remote_memcpy_uv;
+	xp_cpu_to_nasid = xp_cpu_to_nasid_uv;
 
 	return xpSuccess;
 }

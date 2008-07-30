@@ -39,7 +39,7 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	if (!(ch->flags & XPC_C_SETUP)) {
 		spin_unlock_irqrestore(&ch->lock, *irq_flags);
-		ret = xpc_allocate_msgqueues(ch);
+		ret = xpc_setup_msg_structures(ch);
 		spin_lock_irqsave(&ch->lock, *irq_flags);
 
 		if (ret != xpSuccess)
@@ -61,8 +61,6 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	if (!(ch->flags & XPC_C_ROPENREPLY))
 		return;
-
-	DBUG_ON(ch->remote_msgqueue_pa == 0);
 
 	ch->flags = (XPC_C_CONNECTED | XPC_C_SETUP);	/* clear all else */
 
@@ -134,13 +132,23 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 		spin_lock_irqsave(&ch->lock, *irq_flags);
 	}
 
+	DBUG_ON(atomic_read(&ch->n_to_notify) != 0);
+
 	/* it's now safe to free the channel's message queues */
-	xpc_free_msgqueues(ch);
+	xpc_teardown_msg_structures(ch);
+
+	ch->func = NULL;
+	ch->key = NULL;
+	ch->msg_size = 0;
+	ch->local_nentries = 0;
+	ch->remote_nentries = 0;
+	ch->kthreads_assigned_limit = 0;
+	ch->kthreads_idle_limit = 0;
 
 	/*
 	 * Mark the channel disconnected and clear all other flags, including
-	 * XPC_C_SETUP (because of call to xpc_free_msgqueues()) but not
-	 * including XPC_C_WDISCONNECT (if it was set).
+	 * XPC_C_SETUP (because of call to xpc_teardown_msg_structures()) but
+	 * not including XPC_C_WDISCONNECT (if it was set).
 	 */
 	ch->flags = (XPC_C_DISCONNECTED | (ch->flags & XPC_C_WDISCONNECT));
 
@@ -395,7 +403,7 @@ again:
 		DBUG_ON(args->remote_nentries == 0);
 
 		ch->flags |= XPC_C_ROPENREPLY;
-		ch->remote_msgqueue_pa = args->local_msgqueue_pa;
+		xpc_save_remote_msgqueue_pa(ch, args->local_msgqueue_pa);
 
 		if (args->local_nentries < ch->remote_nentries) {
 			dev_dbg(xpc_chan, "XPC_CHCTL_OPENREPLY: new "

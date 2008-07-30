@@ -73,6 +73,12 @@ xpc_get_rsvd_page_pa(int nasid)
 
 	while (1) {
 
+		/* !!! rp_pa will need to be _gpa on UV.
+		 * ??? So do we save it into the architecture specific parts
+		 * ??? of the xpc_partition structure? Do we rename this
+		 * ??? function or have two versions? Rename rp_pa for UV to
+		 * ??? rp_gpa?
+		 */
 		ret = xpc_get_partition_rsvd_page_pa(buf, &cookie, &rp_pa,
 						     &len);
 
@@ -118,9 +124,10 @@ xpc_get_rsvd_page_pa(int nasid)
  * other partitions to discover we are alive and establish initial
  * communications.
  */
-struct xpc_rsvd_page *
+int
 xpc_setup_rsvd_page(void)
 {
+	int ret;
 	struct xpc_rsvd_page *rp;
 	unsigned long rp_pa;
 	unsigned long new_ts_jiffies;
@@ -132,7 +139,7 @@ xpc_setup_rsvd_page(void)
 	preempt_enable();
 	if (rp_pa == 0) {
 		dev_err(xpc_part, "SAL failed to locate the reserved page\n");
-		return NULL;
+		return -ESRCH;
 	}
 	rp = (struct xpc_rsvd_page *)__va(rp_pa);
 
@@ -146,7 +153,7 @@ xpc_setup_rsvd_page(void)
 		dev_err(xpc_part, "the reserved page's partid of %d is outside "
 			"supported range (< 0 || >= %d)\n", rp->SAL_partid,
 			xp_max_npartitions);
-		return NULL;
+		return -EINVAL;
 	}
 
 	rp->version = XPC_RP_VERSION;
@@ -165,8 +172,9 @@ xpc_setup_rsvd_page(void)
 	xpc_part_nasids = XPC_RP_PART_NASIDS(rp);
 	xpc_mach_nasids = XPC_RP_MACH_NASIDS(rp);
 
-	if (xpc_rsvd_page_init(rp) != xpSuccess)
-		return NULL;
+	ret = xpc_setup_rsvd_page_sn(rp);
+	if (ret != 0)
+		return ret;
 
 	/*
 	 * Set timestamp of when reserved page was setup by XPC.
@@ -178,7 +186,15 @@ xpc_setup_rsvd_page(void)
 		new_ts_jiffies++;
 	rp->ts_jiffies = new_ts_jiffies;
 
-	return rp;
+	xpc_rsvd_page = rp;
+	return 0;
+}
+
+void
+xpc_teardown_rsvd_page(void)
+{
+	/* a zero timestamp indicates our rsvd page is not initialized */
+	xpc_rsvd_page->ts_jiffies = 0;
 }
 
 /*
