@@ -115,8 +115,8 @@ struct xpc_rsvd_page {
 		u64 vars_pa;	/* physical address of struct xpc_vars */
 		u64 activate_mq_gpa;	/* global phys address of activate_mq */
 	} sn;
-	struct timespec stamp;	/* time when reserved page was setup by XPC */
-	u64 pad2[9];		/* align to last u64 in 2nd 64-byte cacheline */
+	unsigned long stamp;	/* time when reserved page was setup by XPC */
+	u64 pad2[10];		/* align to last u64 in 2nd 64-byte cacheline */
 	u64 SAL_nasids_size;	/* SAL: size of each nasid mask in bytes */
 };
 
@@ -124,26 +124,6 @@ struct xpc_rsvd_page {
 
 #define XPC_SUPPORTS_RP_STAMP(_version) \
 			(_version >= _XPC_VERSION(1, 1))
-
-#define ZERO_STAMP	((struct timespec){0, 0})
-/*
- * compare stamps - the return value is:
- *
- *	< 0,	if stamp1 < stamp2
- *	= 0,	if stamp1 == stamp2
- *	> 0,	if stamp1 > stamp2
- */
-static inline int
-xpc_compare_stamps(struct timespec *stamp1, struct timespec *stamp2)
-{
-	int ret;
-
-	ret = stamp1->tv_sec - stamp2->tv_sec;
-	if (ret == 0)
-		ret = stamp1->tv_nsec - stamp2->tv_nsec;
-
-	return ret;
-}
 
 /*
  * Define the structures by which XPC variables can be exported to other
@@ -492,7 +472,7 @@ struct xpc_partition {
 	/* XPC HB infrastructure */
 
 	u8 remote_rp_version;	/* version# of partition's rsvd pg */
-	struct timespec remote_rp_stamp; /* time when rsvd pg was initialized */
+	unsigned long remote_rp_stamp; /* time when rsvd pg was initialized */
 	u64 remote_rp_pa;	/* phys addr of partition's rsvd pg */
 	u64 remote_vars_pa;	/* phys addr of partition's vars */
 	u64 remote_vars_part_pa;	/* phys addr of partition's vars part */

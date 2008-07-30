@@ -233,7 +233,7 @@ xpc_timeout_partition_disengage_request(unsigned long data)
 {
 	struct xpc_partition *part = (struct xpc_partition *)data;
 
-	DBUG_ON(time_before(jiffies, part->disengage_request_timeout));
+	DBUG_ON(time_is_after_jiffies(part->disengage_request_timeout));
 
 	(void)xpc_partition_disengaged(part);
 
@@ -262,7 +262,7 @@ xpc_hb_beater(unsigned long dummy)
 {
 	xpc_increment_heartbeat();
 
-	if (time_after_eq(jiffies, xpc_hb_check_timeout))
+	if (time_is_before_eq_jiffies(xpc_hb_check_timeout))
 		wake_up_interruptible(&xpc_act_IRQ_wq);
 
 	xpc_hb_timer.expires = jiffies + (xpc_hb_interval * HZ);
@@ -312,7 +312,7 @@ xpc_hb_checker(void *ignore)
 			atomic_read(&xpc_act_IRQ_rcvd) - last_IRQ_count);
 
 		/* checking of remote heartbeats is skewed by IRQ handling */
-		if (time_after_eq(jiffies, xpc_hb_check_timeout)) {
+		if (time_is_before_eq_jiffies(xpc_hb_check_timeout)) {
 			dev_dbg(xpc_part, "checking remote heartbeats\n");
 			xpc_check_remote_hb();
 
@@ -344,8 +344,8 @@ xpc_hb_checker(void *ignore)
 		(void)wait_event_interruptible(xpc_act_IRQ_wq,
 					       (last_IRQ_count <
 						atomic_read(&xpc_act_IRQ_rcvd)
-						|| time_after_eq(jiffies,
-							xpc_hb_check_timeout) ||
+						|| time_is_before_eq_jiffies(
+						xpc_hb_check_timeout) ||
 						xpc_exiting));
 	}
 
@@ -929,7 +929,7 @@ xpc_do_exit(enum xp_retval reason)
 		}
 
 		if (xpc_partition_engaged(-1UL)) {
-			if (time_after(jiffies, printmsg_time)) {
+			if (time_is_before_jiffies(printmsg_time)) {
 				dev_info(xpc_part, "waiting for remote "
 					 "partitions to disengage, timeout in "
 					 "%ld seconds\n",
@@ -964,7 +964,7 @@ xpc_do_exit(enum xp_retval reason)
 	DBUG_ON(xpc_any_hbs_allowed() != 0);
 
 	/* indicate to others that our reserved page is uninitialized */
-	xpc_rsvd_page->stamp = ZERO_STAMP;
+	xpc_rsvd_page->stamp = 0;
 
 	if (reason == xpUnloading) {
 		(void)unregister_die_notifier(&xpc_die_notifier);
@@ -1295,7 +1295,7 @@ xpc_init(void)
 	/* initialization was not successful */
 out_4:
 	/* indicate to others that our reserved page is uninitialized */
-	xpc_rsvd_page->stamp = ZERO_STAMP;
+	xpc_rsvd_page->stamp = 0;
 
 	(void)unregister_die_notifier(&xpc_die_notifier);
 	(void)unregister_reboot_notifier(&xpc_reboot_notifier);

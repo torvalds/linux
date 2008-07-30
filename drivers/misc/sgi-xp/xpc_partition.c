@@ -152,6 +152,7 @@ xpc_setup_rsvd_page(void)
 {
 	struct xpc_rsvd_page *rp;
 	u64 rp_pa;
+	unsigned long new_stamp;
 
 	/* get the local reserved page's address */
 
@@ -201,7 +202,10 @@ xpc_setup_rsvd_page(void)
 	 * This signifies to the remote partition that our reserved
 	 * page is initialized.
 	 */
-	rp->stamp = CURRENT_TIME;
+	new_stamp = jiffies;
+	if (new_stamp == 0 || new_stamp == rp->stamp)
+		new_stamp++;
+	rp->stamp = new_stamp;
 
 	return rp;
 }
@@ -350,18 +354,8 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 			discovered_nasids[i] |= remote_part_nasids[i];
 	}
 
-	/* check that the partid is valid and is for another partition */
-
-	if (remote_rp->SAL_partid < 0 ||
-	    remote_rp->SAL_partid >= xp_max_npartitions) {
-		return xpInvalidPartid;
-	}
-
-	if (remote_rp->SAL_partid == sn_partition_id)
-		return xpLocalPartid;
-
-	/* see if the rest of the reserved page has been set up by XPC */
-	if (timespec_equal(&remote_rp->stamp, &ZERO_STAMP))
+	/* see if the reserved page has been set up by XPC */
+	if (remote_rp->stamp == 0)
 		return xpRsvdPageNotSet;
 
 	if (XPC_VERSION_MAJOR(remote_rp->version) !=
@@ -369,8 +363,15 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 		return xpBadVersion;
 	}
 
-	if (remote_rp->max_npartitions <= sn_partition_id)
+	/* check that both local and remote partids are valid for each side */
+	if (remote_rp->SAL_partid < 0 ||
+	    remote_rp->SAL_partid >= xp_max_npartitions ||
+	    remote_rp->max_npartitions <= sn_partition_id) {
 		return xpInvalidPartid;
+	}
+
+	if (remote_rp->SAL_partid == sn_partition_id)
+		return xpLocalPartid;
 
 	return xpSuccess;
 }
@@ -388,8 +389,8 @@ xpc_partition_disengaged(struct xpc_partition *part)
 	disengaged = (xpc_partition_engaged(1UL << partid) == 0);
 	if (part->disengage_request_timeout) {
 		if (!disengaged) {
-			if (time_before(jiffies,
-			    part->disengage_request_timeout)) {
+			if (time_is_after_jiffies(part->
+						  disengage_request_timeout)) {
 				/* timelimit hasn't been reached yet */
 				return 0;
 			}

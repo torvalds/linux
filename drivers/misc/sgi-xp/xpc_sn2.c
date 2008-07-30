@@ -597,8 +597,8 @@ xpc_initiate_partition_activation_sn2(struct xpc_rsvd_page *remote_rp,
  */
 static void
 xpc_update_partition_info_sn2(struct xpc_partition *part, u8 remote_rp_version,
-			      struct timespec *remote_rp_stamp,
-			      u64 remote_rp_pa, u64 remote_vars_pa,
+			      unsigned long *remote_rp_stamp, u64 remote_rp_pa,
+			      u64 remote_vars_pa,
 			      struct xpc_vars_sn2 *remote_vars)
 {
 	part->remote_rp_version = remote_rp_version;
@@ -606,8 +606,8 @@ xpc_update_partition_info_sn2(struct xpc_partition *part, u8 remote_rp_version,
 		part->remote_rp_version);
 
 	part->remote_rp_stamp = *remote_rp_stamp;
-	dev_dbg(xpc_part, "  remote_rp_stamp (tv_sec = 0x%lx tv_nsec = 0x%lx\n",
-		part->remote_rp_stamp.tv_sec, part->remote_rp_stamp.tv_nsec);
+	dev_dbg(xpc_part, "  remote_rp_stamp = 0x%016lx\n",
+		part->remote_rp_stamp);
 
 	part->remote_rp_pa = remote_rp_pa;
 	dev_dbg(xpc_part, "  remote_rp_pa = 0x%016lx\n", part->remote_rp_pa);
@@ -664,8 +664,7 @@ xpc_identify_act_IRQ_req_sn2(int nasid)
 	u64 remote_vars_pa;
 	int remote_rp_version;
 	int reactivate = 0;
-	int stamp_diff;
-	struct timespec remote_rp_stamp = { 0, 0 }; /*>>> ZERO_STAMP */
+	unsigned long remote_rp_stamp = 0;
 	short partid;
 	struct xpc_partition *part;
 	enum xp_retval ret;
@@ -788,10 +787,7 @@ xpc_identify_act_IRQ_req_sn2(int nasid)
 	} else {
 		DBUG_ON(!XPC_SUPPORTS_DISENGAGE_REQUEST(remote_vars->version));
 
-		stamp_diff = xpc_compare_stamps(&part->remote_rp_stamp,
-						&remote_rp_stamp);
-		if (stamp_diff != 0) {
-			DBUG_ON(stamp_diff >= 0);
+		if (remote_rp_stamp != part->remote_rp_stamp) {
 
 			/*
 			 * Other side rebooted and the previous XPC did support
