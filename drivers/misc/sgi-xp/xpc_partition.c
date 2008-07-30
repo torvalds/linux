@@ -20,7 +20,6 @@
 #include <linux/cache.h>
 #include <linux/mmzone.h>
 #include <linux/nodemask.h>
-#include <asm/uncached.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/nodepda.h>
@@ -44,11 +43,10 @@ u64 xpc_prot_vec[MAX_NUMNODES];
 struct xpc_rsvd_page *xpc_rsvd_page;
 static u64 *xpc_part_nasids;
 static u64 *xpc_mach_nasids;
-struct xpc_vars *xpc_vars;
-struct xpc_vars_part *xpc_vars_part;
 
-static int xp_nasid_mask_bytes;	/* actual size in bytes of nasid mask */
-static int xp_nasid_mask_words;	/* actual size in words of nasid mask */
+/* >>> next two variables should be 'xpc_' if they remain here */
+static int xp_sizeof_nasid_mask;	/* actual size in bytes of nasid mask */
+int xp_nasid_mask_words;	/* actual size in words of nasid mask */
 
 struct xpc_partition *xpc_partitions;
 
@@ -150,12 +148,10 @@ xpc_get_rsvd_page_pa(int nasid)
  * communications.
  */
 struct xpc_rsvd_page *
-xpc_rsvd_page_init(void)
+xpc_setup_rsvd_page(void)
 {
 	struct xpc_rsvd_page *rp;
-	AMO_t *amos_page;
-	u64 rp_pa, nasid_array = 0;
-	int i, ret;
+	u64 rp_pa;
 
 	/* get the local reserved page's address */
 
@@ -168,110 +164,44 @@ xpc_rsvd_page_init(void)
 	}
 	rp = (struct xpc_rsvd_page *)__va(rp_pa);
 
-	if (rp->partid != sn_partition_id) {
-		dev_err(xpc_part, "the reserved page's partid of %d should be "
-			"%d\n", rp->partid, sn_partition_id);
+	if (rp->SAL_version < 3) {
+		/* SAL_versions < 3 had a SAL_partid defined as a u8 */
+		rp->SAL_partid &= 0xff;
+	}
+	BUG_ON(rp->SAL_partid != sn_partition_id);
+
+	if (rp->SAL_partid < 0 || rp->SAL_partid >= xp_max_npartitions) {
+		dev_err(xpc_part, "the reserved page's partid of %d is outside "
+			"supported range (< 0 || >= %d)\n", rp->SAL_partid,
+			xp_max_npartitions);
 		return NULL;
 	}
 
 	rp->version = XPC_RP_VERSION;
+	rp->max_npartitions = xp_max_npartitions;
 
 	/* establish the actual sizes of the nasid masks */
 	if (rp->SAL_version == 1) {
 		/* SAL_version 1 didn't set the nasids_size field */
-		rp->nasids_size = 128;
+		rp->SAL_nasids_size = 128;
 	}
-	xp_nasid_mask_bytes = rp->nasids_size;
-	xp_nasid_mask_words = xp_nasid_mask_bytes / 8;
+	xp_sizeof_nasid_mask = rp->SAL_nasids_size;
+	xp_nasid_mask_words = DIV_ROUND_UP(xp_sizeof_nasid_mask,
+					   BYTES_PER_WORD);
 
 	/* setup the pointers to the various items in the reserved page */
 	xpc_part_nasids = XPC_RP_PART_NASIDS(rp);
 	xpc_mach_nasids = XPC_RP_MACH_NASIDS(rp);
-	xpc_vars = XPC_RP_VARS(rp);
-	xpc_vars_part = XPC_RP_VARS_PART(rp);
+
+	if (xpc_rsvd_page_init(rp) != xpSuccess)
+		return NULL;
 
 	/*
-	 * Before clearing xpc_vars, see if a page of AMOs had been previously
-	 * allocated. If not we'll need to allocate one and set permissions
-	 * so that cross-partition AMOs are allowed.
-	 *
-	 * The allocated AMO page needs MCA reporting to remain disabled after
-	 * XPC has unloaded.  To make this work, we keep a copy of the pointer
-	 * to this page (i.e., amos_page) in the struct xpc_vars structure,
-	 * which is pointed to by the reserved page, and re-use that saved copy
-	 * on subsequent loads of XPC. This AMO page is never freed, and its
-	 * memory protections are never restricted.
-	 */
-	amos_page = xpc_vars->amos_page;
-	if (amos_page == NULL) {
-		amos_page = (AMO_t *)TO_AMO(uncached_alloc_page(0, 1));
-		if (amos_page == NULL) {
-			dev_err(xpc_part, "can't allocate page of AMOs\n");
-			return NULL;
-		}
-
-		/*
-		 * Open up AMO-R/W to cpu.  This is done for Shub 1.1 systems
-		 * when xpc_allow_IPI_ops() is called via xpc_hb_init().
-		 */
-		if (!enable_shub_wars_1_1()) {
-			ret = sn_change_memprotect(ia64_tpa((u64)amos_page),
-						   PAGE_SIZE,
-						   SN_MEMPROT_ACCESS_CLASS_1,
-						   &nasid_array);
-			if (ret != 0) {
-				dev_err(xpc_part, "can't change memory "
-					"protections\n");
-				uncached_free_page(__IA64_UNCACHED_OFFSET |
-						   TO_PHYS((u64)amos_page), 1);
-				return NULL;
-			}
-		}
-	} else if (!IS_AMO_ADDRESS((u64)amos_page)) {
-		/*
-		 * EFI's XPBOOT can also set amos_page in the reserved page,
-		 * but it happens to leave it as an uncached physical address
-		 * and we need it to be an uncached virtual, so we'll have to
-		 * convert it.
-		 */
-		if (!IS_AMO_PHYS_ADDRESS((u64)amos_page)) {
-			dev_err(xpc_part, "previously used amos_page address "
-				"is bad = 0x%p\n", (void *)amos_page);
-			return NULL;
-		}
-		amos_page = (AMO_t *)TO_AMO((u64)amos_page);
-	}
-
-	/* clear xpc_vars */
-	memset(xpc_vars, 0, sizeof(struct xpc_vars));
-
-	xpc_vars->version = XPC_V_VERSION;
-	xpc_vars->act_nasid = cpuid_to_nasid(0);
-	xpc_vars->act_phys_cpuid = cpu_physical_id(0);
-	xpc_vars->vars_part_pa = __pa(xpc_vars_part);
-	xpc_vars->amos_page_pa = ia64_tpa((u64)amos_page);
-	xpc_vars->amos_page = amos_page;	/* save for next load of XPC */
-
-	/* clear xpc_vars_part */
-	memset((u64 *)xpc_vars_part, 0, sizeof(struct xpc_vars_part) *
-	       xp_max_npartitions);
-
-	/* initialize the activate IRQ related AMO variables */
-	for (i = 0; i < xp_nasid_mask_words; i++)
-		(void)xpc_IPI_init(XPC_ACTIVATE_IRQ_AMOS + i);
-
-	/* initialize the engaged remote partitions related AMO variables */
-	(void)xpc_IPI_init(XPC_ENGAGED_PARTITIONS_AMO);
-	(void)xpc_IPI_init(XPC_DISENGAGE_REQUEST_AMO);
-
-	/* timestamp of when reserved page was setup by XPC */
-	rp->stamp = CURRENT_TIME;
-
-	/*
+	 * Set timestamp of when reserved page was setup by XPC.
 	 * This signifies to the remote partition that our reserved
 	 * page is initialized.
 	 */
-	rp->vars_pa = __pa(xpc_vars);
+	rp->stamp = CURRENT_TIME;
 
 	return rp;
 }
@@ -465,7 +395,7 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 
 	/* pull over the reserved page header and part_nasids mask */
 	ret = xp_remote_memcpy(remote_rp, (void *)*remote_rp_pa,
-			       XPC_RP_HEADER_SIZE + xp_nasid_mask_bytes);
+			       XPC_RP_HEADER_SIZE + xp_sizeof_nasid_mask);
 	if (ret != xpSuccess)
 		return ret;
 
@@ -476,18 +406,27 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 			discovered_nasids[i] |= remote_part_nasids[i];
 	}
 
-	/* check that the partid is for another partition */
+	/* check that the partid is valid and is for another partition */
 
-	if (remote_rp->partid < 0 || remote_rp->partid >= xp_max_npartitions)
+	if (remote_rp->SAL_partid < 0 ||
+	    remote_rp->SAL_partid >= xp_max_npartitions) {
 		return xpInvalidPartid;
+	}
 
-	if (remote_rp->partid == sn_partition_id)
+	if (remote_rp->SAL_partid == sn_partition_id)
 		return xpLocalPartid;
+
+	/* see if the rest of the reserved page has been set up by XPC */
+	if (timespec_equal(&remote_rp->stamp, &ZERO_STAMP))
+		return xpRsvdPageNotSet;
 
 	if (XPC_VERSION_MAJOR(remote_rp->version) !=
 	    XPC_VERSION_MAJOR(XPC_RP_VERSION)) {
 		return xpBadVersion;
 	}
+
+	if (remote_rp->max_npartitions <= sn_partition_id)
+		return xpInvalidPartid;
 
 	return xpSuccess;
 }
@@ -592,7 +531,7 @@ xpc_identify_act_IRQ_req(int nasid)
 	int remote_rp_version;
 	int reactivate = 0;
 	int stamp_diff;
-	struct timespec remote_rp_stamp = { 0, 0 };
+	struct timespec remote_rp_stamp = { 0, 0 }; /*>>> ZERO_STAMP */
 	short partid;
 	struct xpc_partition *part;
 	enum xp_retval ret;
@@ -608,12 +547,12 @@ xpc_identify_act_IRQ_req(int nasid)
 		return;
 	}
 
-	remote_vars_pa = remote_rp->vars_pa;
+	remote_vars_pa = remote_rp->sn.vars_pa;
 	remote_rp_version = remote_rp->version;
 	if (XPC_SUPPORTS_RP_STAMP(remote_rp_version))
 		remote_rp_stamp = remote_rp->stamp;
 
-	partid = remote_rp->partid;
+	partid = remote_rp->SAL_partid;
 	part = &xpc_partitions[partid];
 
 	/* pull over the cross partition variables */
@@ -977,7 +916,7 @@ xpc_discovery(void)
 	enum xp_retval ret;
 
 	remote_rp = xpc_kmalloc_cacheline_aligned(XPC_RP_HEADER_SIZE +
-						  xp_nasid_mask_bytes,
+						  xp_sizeof_nasid_mask,
 						  GFP_KERNEL, &remote_rp_base);
 	if (remote_rp == NULL)
 		return;
@@ -1063,9 +1002,9 @@ xpc_discovery(void)
 				continue;
 			}
 
-			remote_vars_pa = remote_rp->vars_pa;
+			remote_vars_pa = remote_rp->sn.vars_pa;
 
-			partid = remote_rp->partid;
+			partid = remote_rp->SAL_partid;
 			part = &xpc_partitions[partid];
 
 			/* pull over the cross partition variables */
@@ -1155,5 +1094,5 @@ xpc_initiate_partid_to_nasids(short partid, void *nasid_mask)
 	part_nasid_pa = (u64)XPC_RP_PART_NASIDS(part->remote_rp_pa);
 
 	return xp_remote_memcpy(nasid_mask, (void *)part_nasid_pa,
-				xp_nasid_mask_bytes);
+				xp_sizeof_nasid_mask);
 }

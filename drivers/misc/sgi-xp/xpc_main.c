@@ -175,6 +175,8 @@ static struct notifier_block xpc_die_notifier = {
 	.notifier_call = xpc_system_die,
 };
 
+enum xp_retval (*xpc_rsvd_page_init) (struct xpc_rsvd_page *rp);
+
 /*
  * Timer function to enforce the timelimit on the partition disengage request.
  */
@@ -949,7 +951,7 @@ xpc_do_exit(enum xp_retval reason)
 	DBUG_ON(xpc_partition_engaged(-1UL));
 
 	/* indicate to others that our reserved page is uninitialized */
-	xpc_rsvd_page->vars_pa = 0;
+	xpc_rsvd_page->stamp = ZERO_STAMP;
 
 	/* now it's time to eliminate our heartbeat */
 	del_timer_sync(&xpc_hb_timer);
@@ -1128,8 +1130,24 @@ xpc_init(void)
 	struct task_struct *kthread;
 	size_t buf_size;
 
-	if (!ia64_platform_is("sn2"))
+	if (is_shub()) {
+		/*
+		 * The ia64-sn2 architecture supports at most 64 partitions.
+		 * And the inability to unregister remote AMOs restricts us
+		 * further to only support exactly 64 partitions on this
+		 * architecture, no less.
+		 */
+		if (xp_max_npartitions != 64)
+			return -EINVAL;
+
+		xpc_init_sn2();
+
+	} else if (is_uv()) {
+		xpc_init_uv();
+
+	} else {
 		return -ENODEV;
+	}
 
 	snprintf(xpc_part->bus_id, BUS_ID_SIZE, "part");
 	snprintf(xpc_chan->bus_id, BUS_ID_SIZE, "chan");
@@ -1214,7 +1232,7 @@ xpc_init(void)
 	 * other partitions to discover we are alive and establish initial
 	 * communications.
 	 */
-	xpc_rsvd_page = xpc_rsvd_page_init();
+	xpc_rsvd_page = xpc_setup_rsvd_page();
 	if (xpc_rsvd_page == NULL) {
 		dev_err(xpc_part, "can't setup our reserved page\n");
 		ret = -EBUSY;
@@ -1273,7 +1291,8 @@ xpc_init(void)
 	/* initialization was not successful */
 out_4:
 	/* indicate to others that our reserved page is uninitialized */
-	xpc_rsvd_page->vars_pa = 0;
+	xpc_rsvd_page->stamp = ZERO_STAMP;
+
 	del_timer_sync(&xpc_hb_timer);
 	(void)unregister_die_notifier(&xpc_die_notifier);
 	(void)unregister_reboot_notifier(&xpc_reboot_notifier);

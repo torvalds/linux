@@ -71,11 +71,11 @@
  *
  *   reserved page header
  *
- *     The first cacheline of the reserved page contains the header
- *     (struct xpc_rsvd_page). Before SAL initialization has completed,
+ *     The first two 64-byte cachelines of the reserved page contain the
+ *     header (struct xpc_rsvd_page). Before SAL initialization has completed,
  *     SAL has set up the following fields of the reserved page header:
- *     SAL_signature, SAL_version, partid, and nasids_size. The other
- *     fields are set up by XPC. (xpc_rsvd_page points to the local
+ *     SAL_signature, SAL_version, SAL_partid, and SAL_nasids_size. The
+ *     other fields are set up by XPC. (xpc_rsvd_page points to the local
  *     partition's reserved page.)
  *
  *   part_nasids mask
@@ -89,11 +89,11 @@
  *     nasids. The part_nasids mask is located starting at the first cacheline
  *     following the reserved page header. The mach_nasids mask follows right
  *     after the part_nasids mask. The size in bytes of each mask is reflected
- *     by the reserved page header field 'nasids_size'. (Local partition's
+ *     by the reserved page header field 'SAL_nasids_size'. (Local partition's
  *     mask pointers are xpc_part_nasids and xpc_mach_nasids.)
  *
- *   vars
- *   vars part
+ *   vars	(ia64-sn2 only)
+ *   vars part	(ia64-sn2 only)
  *
  *     Immediately following the mach_nasids mask are the XPC variables
  *     required by other partitions. First are those that are generic to all
@@ -101,25 +101,31 @@
  *     which are partition specific (vars part). These are setup by XPC.
  *     (Local partition's vars pointers are xpc_vars and xpc_vars_part.)
  *
- * Note: Until vars_pa is set, the partition XPC code has not been initialized.
+ * Note: Until 'stamp' is set non-zero, the partition XPC code has not been
+ *       initialized.
  */
 struct xpc_rsvd_page {
 	u64 SAL_signature;	/* SAL: unique signature */
 	u64 SAL_version;	/* SAL: version */
-	u8 partid;		/* SAL: partition ID */
+	short SAL_partid;	/* SAL: partition ID */
+	short max_npartitions;	/* value of XPC_MAX_PARTITIONS */
 	u8 version;
-	u8 pad1[6];		/* align to next u64 in cacheline */
-	u64 vars_pa;		/* physical address of struct xpc_vars */
+	u8 pad1[3];		/* align to next u64 in 1st 64-byte cacheline */
+	union {
+		u64 vars_pa;	/* physical address of struct xpc_vars */
+		u64 activate_mq_gpa;	/* global phys address of activate_mq */
+	} sn;
 	struct timespec stamp;	/* time when reserved page was setup by XPC */
-	u64 pad2[9];		/* align to last u64 in cacheline */
-	u64 nasids_size;	/* SAL: size of each nasid mask in bytes */
+	u64 pad2[9];		/* align to last u64 in 2nd 64-byte cacheline */
+	u64 SAL_nasids_size;	/* SAL: size of each nasid mask in bytes */
 };
 
-#define XPC_RP_VERSION _XPC_VERSION(1, 1) /* version 1.1 of the reserved page */
+#define XPC_RP_VERSION _XPC_VERSION(2, 0) /* version 2.0 of the reserved page */
 
 #define XPC_SUPPORTS_RP_STAMP(_version) \
 			(_version >= _XPC_VERSION(1, 1))
 
+#define ZERO_STAMP	((struct timespec){0, 0})
 /*
  * compare stamps - the return value is:
  *
@@ -218,10 +224,10 @@ xpc_disallow_hb(short partid, struct xpc_vars *vars)
  *
  * An array of these structures, one per partition, will be defined. As a
  * partition becomes active XPC will copy the array entry corresponding to
- * itself from that partition. It is desirable that the size of this
- * structure evenly divide into a cacheline, such that none of the entries
- * in this array crosses a cacheline boundary. As it is now, each entry
- * occupies half a cacheline.
+ * itself from that partition. It is desirable that the size of this structure
+ * evenly divides into a 128-byte cacheline, such that none of the entries in
+ * this array crosses a 128-byte cacheline boundary. As it is now, each entry
+ * occupies a 64-byte cacheline.
  */
 struct xpc_vars_part {
 	u64 magic;
@@ -632,16 +638,25 @@ extern void xpc_activate_kthreads(struct xpc_channel *, int);
 extern void xpc_create_kthreads(struct xpc_channel *, int, int);
 extern void xpc_disconnect_wait(int);
 
+extern enum xp_retval (*xpc_rsvd_page_init) (struct xpc_rsvd_page *);
+
+/* found in xpc_sn2.c */
+extern void xpc_init_sn2(void);
+extern struct xpc_vars *xpc_vars;		/*>>> eliminate from here */
+extern struct xpc_vars_part *xpc_vars_part;	/*>>> eliminate from here */
+
+/* found in xpc_uv.c */
+extern void xpc_init_uv(void);
+
 /* found in xpc_partition.c */
 extern int xpc_exiting;
-extern struct xpc_vars *xpc_vars;
+extern int xp_nasid_mask_words;
 extern struct xpc_rsvd_page *xpc_rsvd_page;
-extern struct xpc_vars_part *xpc_vars_part;
 extern struct xpc_partition *xpc_partitions;
 extern char *xpc_remote_copy_buffer;
 extern void *xpc_remote_copy_buffer_base;
 extern void *xpc_kmalloc_cacheline_aligned(size_t, gfp_t, void **);
-extern struct xpc_rsvd_page *xpc_rsvd_page_init(void);
+extern struct xpc_rsvd_page *xpc_setup_rsvd_page(void);
 extern void xpc_allow_IPI_ops(void);
 extern void xpc_restrict_IPI_ops(void);
 extern int xpc_identify_act_IRQ_sender(void);

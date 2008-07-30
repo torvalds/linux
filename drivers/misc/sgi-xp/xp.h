@@ -220,9 +220,10 @@ enum xp_retval {
 
 	xpBteCopyError,		/* 52: bte_copy() returned error */
 	xpSalError,		/* 53: sn SAL error */
+	xpRsvdPageNotSet,	/* 54: the reserved page is not set up */
 
-	xpUnsupported,		/* 54: unsupported functionality or resource */
-	xpUnknownReason		/* 55: unknown reason - must be last in enum */
+	xpUnsupported,		/* 55: unsupported functionality or resource */
+	xpUnknownReason		/* 56: unknown reason - must be last in enum */
 };
 
 /*
