@@ -95,10 +95,10 @@ static int acpi_processor_ppc_notifier(struct notifier_block *nb,
 	if (ignore_ppc)
 		return 0;
 
-	mutex_lock(&performance_mutex);
-
 	if (event != CPUFREQ_INCOMPATIBLE)
-		goto out;
+		return 0;
+
+	mutex_lock(&performance_mutex);
 
 	pr = per_cpu(processors, policy->cpu);
 	if (!pr || !pr->performance)
