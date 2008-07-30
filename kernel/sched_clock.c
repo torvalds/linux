@@ -149,7 +149,7 @@ static void lock_double_clock(struct sched_clock_data *data1,
 u64 sched_clock_cpu(int cpu)
 {
 	struct sched_clock_data *scd = cpu_sdc(cpu);
-	u64 now, clock;
+	u64 now, clock, this_clock, remote_clock;
 
 	if (unlikely(!sched_clock_running))
 		return 0ull;
@@ -158,25 +158,35 @@ u64 sched_clock_cpu(int cpu)
 	now = sched_clock();
 
 	if (cpu != raw_smp_processor_id()) {
-		/*
-		 * in order to update a remote cpu's clock based on our
-		 * unstable raw time rebase it against:
-		 *   tick_raw		(offset between raw counters)
-		 *   tick_gotd          (tick offset between cpus)
-		 */
 		struct sched_clock_data *my_scd = this_scd();
 
 		lock_double_clock(scd, my_scd);
 
-		now += scd->tick_raw - my_scd->tick_raw;
-		now += my_scd->tick_gtod - scd->tick_gtod;
+		this_clock = __update_sched_clock(my_scd, now);
+		remote_clock = scd->clock;
+
+		/*
+		 * Use the opportunity that we have both locks
+		 * taken to couple the two clocks: we take the
+		 * larger time as the latest time for both
+		 * runqueues. (this creates monotonic movement)
+		 */
+		if (likely(remote_clock < this_clock)) {
+			clock = this_clock;
+			scd->clock = clock;
+		} else {
+			/*
+			 * Should be rare, but possible:
+			 */
+			clock = remote_clock;
+			my_scd->clock = remote_clock;
+		}
 
 		__raw_spin_unlock(&my_scd->lock);
 	} else {
 		__raw_spin_lock(&scd->lock);
+		clock = __update_sched_clock(scd, now);
 	}
-
-	clock = __update_sched_clock(scd, now);
 
 	__raw_spin_unlock(&scd->lock);
 
@@ -223,7 +233,6 @@ EXPORT_SYMBOL_GPL(sched_clock_idle_sleep_event);
 void sched_clock_idle_wakeup_event(u64 delta_ns)
 {
 	struct sched_clock_data *scd = this_scd();
-	u64 now = sched_clock();
 
 	/*
 	 * Override the previous timestamp and ignore all
