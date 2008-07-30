@@ -486,11 +486,36 @@ static int cpusets_overlap(struct cpuset *a, struct cpuset *b)
 static void
 update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
 {
-	if (!dattr)
-		return;
 	if (dattr->relax_domain_level < c->relax_domain_level)
 		dattr->relax_domain_level = c->relax_domain_level;
 	return;
+}
+
+static void
+update_domain_attr_tree(struct sched_domain_attr *dattr, struct cpuset *c)
+{
+	LIST_HEAD(q);
+
+	list_add(&c->stack_list, &q);
+	while (!list_empty(&q)) {
+		struct cpuset *cp;
+		struct cgroup *cont;
+		struct cpuset *child;
+
+		cp = list_first_entry(&q, struct cpuset, stack_list);
+		list_del(q.next);
+
+		if (cpus_empty(cp->cpus_allowed))
+			continue;
+
+		if (is_sched_load_balance(cp))
+			update_domain_attr(dattr, cp);
+
+		list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
+			child = cgroup_cs(cont);
+			list_add_tail(&child->stack_list, &q);
+		}
+	}
 }
 
 /*
@@ -614,8 +639,16 @@ void rebuild_sched_domains(void)
 		if (cpus_empty(cp->cpus_allowed))
 			continue;
 
-		if (is_sched_load_balance(cp))
+		/*
+		 * All child cpusets contain a subset of the parent's cpus, so
+		 * just skip them, and then we call update_domain_attr_tree()
+		 * to calc relax_domain_level of the corresponding sched
+		 * domain.
+		 */
+		if (is_sched_load_balance(cp)) {
 			csa[csn++] = cp;
+			continue;
+		}
 
 		list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
 			child = cgroup_cs(cont);
@@ -686,7 +719,7 @@ restart:
 					cpus_or(*dp, *dp, b->cpus_allowed);
 					b->pn = -1;
 					if (dattr)
-						update_domain_attr(dattr
+						update_domain_attr_tree(dattr
 								   + nslot, b);
 				}
 			}
