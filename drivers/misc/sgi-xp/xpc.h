@@ -227,9 +227,9 @@ xpc_disallow_hb(short partid, struct xpc_vars *vars)
  * itself from that partition. It is desirable that the size of this structure
  * evenly divides into a 128-byte cacheline, such that none of the entries in
  * this array crosses a 128-byte cacheline boundary. As it is now, each entry
- * occupies a 64-byte cacheline.
+ * occupies 64-bytes.
  */
-struct xpc_vars_part {
+struct xpc_vars_part_sn2 {
 	u64 magic;
 
 	u64 openclose_args_pa;	/* physical address of open and close args */
@@ -265,8 +265,6 @@ struct xpc_vars_part {
 #define XPC_RP_MACH_NASIDS(_rp) (XPC_RP_PART_NASIDS(_rp) + xp_nasid_mask_words)
 #define XPC_RP_VARS(_rp)	((struct xpc_vars *)(XPC_RP_MACH_NASIDS(_rp) + \
 				    xp_nasid_mask_words))
-#define XPC_RP_VARS_PART(_rp)	((struct xpc_vars_part *) \
-				    ((u8 *)XPC_RP_VARS(_rp) + XPC_RP_VARS_SIZE))
 
 /*
  * Functions registered by add_timer() or called by kernel_thread() only
@@ -541,13 +539,6 @@ struct xpc_partition {
 	wait_queue_head_t teardown_wq;	/* kthread waiting to teardown infra */
 	atomic_t references;	/* #of references to infrastructure */
 
-	/*
-	 * NONE OF THE PRECEDING FIELDS OF THIS STRUCTURE WILL BE CLEARED WHEN
-	 * XPC SETS UP THE NECESSARY INFRASTRUCTURE TO SUPPORT CROSS PARTITION
-	 * COMMUNICATION. ALL OF THE FOLLOWING FIELDS WILL BE CLEARED. (THE
-	 * 'nchannels' FIELD MUST BE THE FIRST OF THE FIELDS TO BE CLEARED.)
-	 */
-
 	u8 nchannels;		/* #of defined channels supported */
 	atomic_t nchannels_active;  /* #of channels that are not DISCONNECTED */
 	atomic_t nchannels_engaged;  /* #of channels engaged with remote part */
@@ -613,7 +604,7 @@ struct xpc_partition {
  * dropped IPIs. These occur whenever an IPI amo write doesn't complete until
  * after the IPI was received.
  */
-#define XPC_P_DROPPED_IPI_WAIT	(0.25 * HZ)
+#define XPC_P_DROPPED_IPI_WAIT_INTERVAL	(0.25 * HZ)
 
 /* number of seconds to wait for other partitions to disengage */
 #define XPC_DISENGAGE_REQUEST_DEFAULT_TIMELIMIT	90
@@ -637,13 +628,16 @@ extern void xpc_activate_partition(struct xpc_partition *);
 extern void xpc_activate_kthreads(struct xpc_channel *, int);
 extern void xpc_create_kthreads(struct xpc_channel *, int, int);
 extern void xpc_disconnect_wait(int);
-
 extern enum xp_retval (*xpc_rsvd_page_init) (struct xpc_rsvd_page *);
+extern enum xp_retval (*xpc_make_first_contact) (struct xpc_partition *);
+extern u64 (*xpc_get_IPI_flags) (struct xpc_partition *);
+extern struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *);
+extern enum xp_retval (*xpc_setup_infrastructure) (struct xpc_partition *);
+extern void (*xpc_teardown_infrastructure) (struct xpc_partition *);
 
 /* found in xpc_sn2.c */
 extern void xpc_init_sn2(void);
 extern struct xpc_vars *xpc_vars;		/*>>> eliminate from here */
-extern struct xpc_vars_part *xpc_vars_part;	/*>>> eliminate from here */
 
 /* found in xpc_uv.c */
 extern void xpc_init_uv(void);
@@ -670,6 +664,7 @@ extern void xpc_deactivate_partition(const int, struct xpc_partition *,
 extern enum xp_retval xpc_initiate_partid_to_nasids(short, void *);
 
 /* found in xpc_channel.c */
+extern void *xpc_kzalloc_cacheline_aligned(size_t, gfp_t, void **);
 extern void xpc_initiate_connect(int);
 extern void xpc_initiate_disconnect(int);
 extern enum xp_retval xpc_initiate_allocate(short, int, u32, void **);
@@ -677,8 +672,6 @@ extern enum xp_retval xpc_initiate_send(short, int, void *);
 extern enum xp_retval xpc_initiate_send_notify(short, int, void *,
 					       xpc_notify_func, void *);
 extern void xpc_initiate_received(short, int, void *);
-extern enum xp_retval xpc_setup_infrastructure(struct xpc_partition *);
-extern enum xp_retval xpc_pull_remote_vars_part(struct xpc_partition *);
 extern void xpc_process_channel_activity(struct xpc_partition *);
 extern void xpc_connected_callout(struct xpc_channel *);
 extern void xpc_deliver_msg(struct xpc_channel *);
@@ -686,7 +679,6 @@ extern void xpc_disconnect_channel(const int, struct xpc_channel *,
 				   enum xp_retval, unsigned long *);
 extern void xpc_disconnect_callout(struct xpc_channel *, enum xp_retval);
 extern void xpc_partition_going_down(struct xpc_partition *, enum xp_retval);
-extern void xpc_teardown_infrastructure(struct xpc_partition *);
 
 static inline void
 xpc_wakeup_channel_mgr(struct xpc_partition *part)

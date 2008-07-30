@@ -176,6 +176,12 @@ static struct notifier_block xpc_die_notifier = {
 };
 
 enum xp_retval (*xpc_rsvd_page_init) (struct xpc_rsvd_page *rp);
+enum xp_retval (*xpc_make_first_contact) (struct xpc_partition *part);
+u64 (*xpc_get_IPI_flags) (struct xpc_partition *part);
+struct xpc_msg *(*xpc_get_deliverable_msg) (struct xpc_channel *ch);
+enum xp_retval (*xpc_setup_infrastructure) (struct xpc_partition *part);
+void (*xpc_teardown_infrastructure) (struct xpc_partition *part);
+
 
 /*
  * Timer function to enforce the timelimit on the partition disengage request.
@@ -313,37 +319,8 @@ xpc_initiate_discovery(void *ignore)
 }
 
 /*
- * Establish first contact with the remote partititon. This involves pulling
- * the XPC per partition variables from the remote partition and waiting for
- * the remote partition to pull ours.
- */
-static enum xp_retval
-xpc_make_first_contact(struct xpc_partition *part)
-{
-	enum xp_retval ret;
-
-	while ((ret = xpc_pull_remote_vars_part(part)) != xpSuccess) {
-		if (ret != xpRetry) {
-			XPC_DEACTIVATE_PARTITION(part, ret);
-			return ret;
-		}
-
-		dev_dbg(xpc_chan, "waiting to make first contact with "
-			"partition %d\n", XPC_PARTID(part));
-
-		/* wait a 1/4 of a second or so */
-		(void)msleep_interruptible(250);
-
-		if (part->act_state == XPC_P_DEACTIVATING)
-			return part->reason;
-	}
-
-	return xpc_mark_partition_active(part);
-}
-
-/*
  * The first kthread assigned to a newly activated partition is the one
- * created by XPC HB with which it calls xpc_partition_up(). XPC hangs on to
+ * created by XPC HB with which it calls xpc_activating(). XPC hangs on to
  * that kthread until the partition is brought down, at which time that kthread
  * returns back to XPC HB. (The return of that kthread will signify to XPC HB
  * that XPC has dismantled all communication infrastructure for the associated
@@ -393,41 +370,10 @@ xpc_channel_mgr(struct xpc_partition *part)
  * upped partition.
  *
  * The kthread that was created by XPC HB and which setup the XPC
- * infrastructure will remain assigned to the partition until the partition
- * goes down. At which time the kthread will teardown the XPC infrastructure
- * and then exit.
- *
- * XPC HB will put the remote partition's XPC per partition specific variables
- * physical address into xpc_partitions[partid].remote_vars_part_pa prior to
- * calling xpc_partition_up().
+ * infrastructure will remain assigned to the partition becoming the channel
+ * manager for that partition until the partition is deactivating, at which
+ * time the kthread will teardown the XPC infrastructure and then exit.
  */
-static void
-xpc_partition_up(struct xpc_partition *part)
-{
-	DBUG_ON(part->channels != NULL);
-
-	dev_dbg(xpc_chan, "activating partition %d\n", XPC_PARTID(part));
-
-	if (xpc_setup_infrastructure(part) != xpSuccess)
-		return;
-
-	/*
-	 * The kthread that XPC HB called us with will become the
-	 * channel manager for this partition. It will not return
-	 * back to XPC HB until the partition's XPC infrastructure
-	 * has been dismantled.
-	 */
-
-	(void)xpc_part_ref(part);	/* this will always succeed */
-
-	if (xpc_make_first_contact(part) == xpSuccess)
-		xpc_channel_mgr(part);
-
-	xpc_part_deref(part);
-
-	xpc_teardown_infrastructure(part);
-}
-
 static int
 xpc_activating(void *__partid)
 {
@@ -453,7 +399,7 @@ xpc_activating(void *__partid)
 	XPC_SET_REASON(part, 0, 0);
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
 
-	dev_dbg(xpc_part, "bringing partition %d up\n", partid);
+	dev_dbg(xpc_part, "activating partition %d\n", partid);
 
 	/*
 	 * Register the remote partition's AMOs with SAL so it can handle
@@ -467,7 +413,7 @@ xpc_activating(void *__partid)
 	 */
 	if (sn_register_xp_addr_region(part->remote_amos_page_pa,
 				       PAGE_SIZE, 1) < 0) {
-		dev_warn(xpc_part, "xpc_partition_up(%d) failed to register "
+		dev_warn(xpc_part, "xpc_activating(%d) failed to register "
 			 "xp_addr region\n", partid);
 
 		spin_lock_irqsave(&part->act_lock, irq_flags);
@@ -481,11 +427,18 @@ xpc_activating(void *__partid)
 	xpc_allow_hb(partid, xpc_vars);
 	xpc_IPI_send_activated(part);
 
-	/*
-	 * xpc_partition_up() holds this thread and marks this partition as
-	 * XPC_P_ACTIVE by calling xpc_hb_mark_active().
-	 */
-	(void)xpc_partition_up(part);
+	if (xpc_setup_infrastructure(part) == xpSuccess) {
+		(void)xpc_part_ref(part);	/* this will always succeed */
+
+		if (xpc_make_first_contact(part) == xpSuccess) {
+			xpc_mark_partition_active(part);
+			xpc_channel_mgr(part);
+			/* won't return until partition is deactivating */
+		}
+
+		xpc_part_deref(part);
+		xpc_teardown_infrastructure(part);
+	}
 
 	xpc_disallow_hb(partid, xpc_vars);
 	xpc_mark_partition_inactive(part);
@@ -568,7 +521,7 @@ xpc_dropped_IPI_check(struct xpc_partition *part)
 		xpc_check_for_channel_activity(part);
 
 		part->dropped_IPI_timer.expires = jiffies +
-		    XPC_P_DROPPED_IPI_WAIT;
+		    XPC_P_DROPPED_IPI_WAIT_INTERVAL;
 		add_timer(&part->dropped_IPI_timer);
 		xpc_part_deref(part);
 	}

@@ -486,6 +486,7 @@ xpc_update_partition_info(struct xpc_partition *part, u8 remote_rp_version,
 	dev_dbg(xpc_part, "  last_heartbeat = 0x%016lx\n",
 		part->last_heartbeat);
 
+/* >>> remote_vars_part_pa and vars_part_pa are sn2 only!!! */
 	part->remote_vars_part_pa = remote_vars->vars_part_pa;
 	dev_dbg(xpc_part, "  remote_vars_part_pa = 0x%016lx\n",
 		part->remote_vars_part_pa);
