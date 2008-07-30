@@ -704,61 +704,37 @@ xpc_heartbeat_exit_sn2(void)
 	xpc_offline_heartbeat_sn2();
 }
 
-/*
- * At periodic intervals, scan through all active partitions and ensure
- * their heartbeat is still active.  If not, the partition is deactivated.
- */
-static void
-xpc_check_remote_hb_sn2(void)
+static enum xp_retval
+xpc_get_remote_heartbeat_sn2(struct xpc_partition *part)
 {
 	struct xpc_vars_sn2 *remote_vars;
-	struct xpc_partition *part;
-	short partid;
 	enum xp_retval ret;
 
 	remote_vars = (struct xpc_vars_sn2 *)xpc_remote_copy_buffer_sn2;
 
-	for (partid = 0; partid < XP_MAX_NPARTITIONS_SN2; partid++) {
+	/* pull the remote vars structure that contains the heartbeat */
+	ret = xp_remote_memcpy(xp_pa(remote_vars),
+			       part->sn.sn2.remote_vars_pa,
+			       XPC_RP_VARS_SIZE);
+	if (ret != xpSuccess)
+		return ret;
 
-		if (xpc_exiting)
-			break;
+	dev_dbg(xpc_part, "partid=%d, heartbeat=%ld, last_heartbeat=%ld, "
+		"heartbeat_offline=%ld, HB_mask[0]=0x%lx\n", XPC_PARTID(part),
+		remote_vars->heartbeat, part->last_heartbeat,
+		remote_vars->heartbeat_offline,
+		remote_vars->heartbeating_to_mask[0]);
 
-		if (partid == sn_partition_id)
-			continue;
-
-		part = &xpc_partitions[partid];
-
-		if (part->act_state == XPC_P_INACTIVE ||
-		    part->act_state == XPC_P_DEACTIVATING) {
-			continue;
-		}
-
-		/* pull the remote_hb cache line */
-		ret = xp_remote_memcpy(xp_pa(remote_vars),
-				       part->sn.sn2.remote_vars_pa,
-				       XPC_RP_VARS_SIZE);
-		if (ret != xpSuccess) {
-			XPC_DEACTIVATE_PARTITION(part, ret);
-			continue;
-		}
-
-		dev_dbg(xpc_part, "partid = %d, heartbeat = %ld, last_heartbeat"
-			" = %ld, heartbeat_offline = %ld, HB_mask[0] = 0x%lx\n",
-			partid, remote_vars->heartbeat, part->last_heartbeat,
-			remote_vars->heartbeat_offline,
-			remote_vars->heartbeating_to_mask[0]);
-
-		if (((remote_vars->heartbeat == part->last_heartbeat) &&
-		     (remote_vars->heartbeat_offline == 0)) ||
-		    !xpc_hb_allowed(sn_partition_id,
-				    &remote_vars->heartbeating_to_mask)) {
-
-			XPC_DEACTIVATE_PARTITION(part, xpNoHeartbeat);
-			continue;
-		}
-
+	if ((remote_vars->heartbeat == part->last_heartbeat &&
+	    remote_vars->heartbeat_offline == 0) ||
+	    !xpc_hb_allowed(sn_partition_id,
+			    &remote_vars->heartbeating_to_mask)) {
+		ret = xpNoHeartbeat;
+	} else {
 		part->last_heartbeat = remote_vars->heartbeat;
 	}
+
+	return ret;
 }
 
 /*
@@ -2416,7 +2392,7 @@ xpc_init_sn2(void)
 	xpc_online_heartbeat = xpc_online_heartbeat_sn2;
 	xpc_heartbeat_init = xpc_heartbeat_init_sn2;
 	xpc_heartbeat_exit = xpc_heartbeat_exit_sn2;
-	xpc_check_remote_hb = xpc_check_remote_hb_sn2;
+	xpc_get_remote_heartbeat = xpc_get_remote_heartbeat_sn2;
 
 	xpc_request_partition_activation = xpc_request_partition_activation_sn2;
 	xpc_request_partition_reactivation =

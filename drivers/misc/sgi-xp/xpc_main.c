@@ -178,7 +178,7 @@ void (*xpc_heartbeat_exit) (void);
 void (*xpc_increment_heartbeat) (void);
 void (*xpc_offline_heartbeat) (void);
 void (*xpc_online_heartbeat) (void);
-void (*xpc_check_remote_hb) (void);
+enum xp_retval (*xpc_get_remote_heartbeat) (struct xpc_partition *part);
 
 enum xp_retval (*xpc_make_first_contact) (struct xpc_partition *part);
 void (*xpc_notify_senders_of_disconnect) (struct xpc_channel *ch);
@@ -267,6 +267,38 @@ xpc_stop_hb_beater(void)
 {
 	del_timer_sync(&xpc_hb_timer);
 	xpc_heartbeat_exit();
+}
+
+/*
+ * At periodic intervals, scan through all active partitions and ensure
+ * their heartbeat is still active.  If not, the partition is deactivated.
+ */
+static void
+xpc_check_remote_hb(void)
+{
+	struct xpc_partition *part;
+	short partid;
+	enum xp_retval ret;
+
+	for (partid = 0; partid < xp_max_npartitions; partid++) {
+
+		if (xpc_exiting)
+			break;
+
+		if (partid == xp_partition_id)
+			continue;
+
+		part = &xpc_partitions[partid];
+
+		if (part->act_state == XPC_P_INACTIVE ||
+		    part->act_state == XPC_P_DEACTIVATING) {
+			continue;
+		}
+
+		ret = xpc_get_remote_heartbeat(part);
+		if (ret != xpSuccess)
+			XPC_DEACTIVATE_PARTITION(part, ret);
+	}
 }
 
 /*

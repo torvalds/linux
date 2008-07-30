@@ -632,7 +632,7 @@ extern void (*xpc_heartbeat_exit) (void);
 extern void (*xpc_increment_heartbeat) (void);
 extern void (*xpc_offline_heartbeat) (void);
 extern void (*xpc_online_heartbeat) (void);
-extern void (*xpc_check_remote_hb) (void);
+extern enum xp_retval (*xpc_get_remote_heartbeat) (struct xpc_partition *);
 extern enum xp_retval (*xpc_make_first_contact) (struct xpc_partition *);
 extern u64 (*xpc_get_chctl_all_flags) (struct xpc_partition *);
 extern enum xp_retval (*xpc_allocate_msgqueues) (struct xpc_channel *);
