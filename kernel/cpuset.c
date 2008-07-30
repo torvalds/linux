@@ -616,7 +616,7 @@ void rebuild_sched_domains(void)
 		dattr = kmalloc(sizeof(struct sched_domain_attr), GFP_KERNEL);
 		if (dattr) {
 			*dattr = SD_ATTR_INIT;
-			update_domain_attr(dattr, &top_cpuset);
+			update_domain_attr_tree(dattr, &top_cpuset);
 		}
 		*doms = top_cpuset.cpus_allowed;
 		goto rebuild;
