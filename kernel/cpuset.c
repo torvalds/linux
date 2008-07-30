@@ -54,7 +54,6 @@
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
 #include <linux/mutex.h>
-#include <linux/kfifo.h>
 #include <linux/workqueue.h>
 #include <linux/cgroup.h>
 
@@ -557,7 +556,7 @@ update_domain_attr_tree(struct sched_domain_attr *dattr, struct cpuset *c)
  * So the reverse nesting would risk an ABBA deadlock.
  *
  * The three key local variables below are:
- *    q  - a kfifo queue of cpuset pointers, used to implement a
+ *    q  - a linked-list queue of cpuset pointers, used to implement a
  *	   top-down scan of all cpusets.  This scan loads a pointer
  *	   to each cpuset marked is_sched_load_balance into the
  *	   array 'csa'.  For our purposes, rebuilding the schedulers
@@ -592,7 +591,7 @@ update_domain_attr_tree(struct sched_domain_attr *dattr, struct cpuset *c)
 
 void rebuild_sched_domains(void)
 {
-	struct kfifo *q;	/* queue of cpusets to be scanned */
+	LIST_HEAD(q);		/* queue of cpusets to be scanned*/
 	struct cpuset *cp;	/* scans q */
 	struct cpuset **csa;	/* array of all cpuset ptrs */
 	int csn;		/* how many cpuset ptrs in csa so far */
@@ -602,7 +601,6 @@ void rebuild_sched_domains(void)
 	int ndoms;		/* number of sched domains in result */
 	int nslot;		/* next empty doms[] cpumask_t slot */
 
-	q = NULL;
 	csa = NULL;
 	doms = NULL;
 	dattr = NULL;
@@ -622,19 +620,18 @@ void rebuild_sched_domains(void)
 		goto rebuild;
 	}
 
-	q = kfifo_alloc(number_of_cpusets * sizeof(cp), GFP_KERNEL, NULL);
-	if (IS_ERR(q))
-		goto done;
 	csa = kmalloc(number_of_cpusets * sizeof(cp), GFP_KERNEL);
 	if (!csa)
 		goto done;
 	csn = 0;
 
-	cp = &top_cpuset;
-	__kfifo_put(q, (void *)&cp, sizeof(cp));
-	while (__kfifo_get(q, (void *)&cp, sizeof(cp))) {
+	list_add(&top_cpuset.stack_list, &q);
+	while (!list_empty(&q)) {
 		struct cgroup *cont;
 		struct cpuset *child;   /* scans child cpusets of cp */
+
+		cp = list_first_entry(&q, struct cpuset, stack_list);
+		list_del(q.next);
 
 		if (cpus_empty(cp->cpus_allowed))
 			continue;
@@ -652,7 +649,7 @@ void rebuild_sched_domains(void)
 
 		list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
 			child = cgroup_cs(cont);
-			__kfifo_put(q, (void *)&child, sizeof(cp));
+			list_add_tail(&child->stack_list, &q);
 		}
   	}
 
@@ -735,8 +732,6 @@ rebuild:
 	put_online_cpus();
 
 done:
-	if (q && !IS_ERR(q))
-		kfifo_free(q);
 	kfree(csa);
 	/* Don't kfree(doms) -- partition_sched_domains() does that. */
 	/* Don't kfree(dattr) -- partition_sched_domains() does that. */
