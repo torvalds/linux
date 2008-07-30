@@ -34,19 +34,10 @@ struct xpc_rsvd_page *xpc_rsvd_page;
 static u64 *xpc_part_nasids;
 u64 *xpc_mach_nasids;
 
-/* >>> next two variables should be 'xpc_' if they remain here */
-static int xp_sizeof_nasid_mask;	/* actual size in bytes of nasid mask */
-int xp_nasid_mask_words;	/* actual size in words of nasid mask */
+static int xpc_sizeof_nasid_mask;	/* actual size in bytes of nasid mask */
+int xpc_nasid_mask_words;	/* actual size in words of nasid mask */
 
 struct xpc_partition *xpc_partitions;
-
-/*
- * Generic buffer used to store a local copy of portions of a remote
- * partition's reserved page (either its header and part_nasids mask,
- * or its vars).
- */
-char *xpc_remote_copy_buffer;
-void *xpc_remote_copy_buffer_base;
 
 /*
  * Guarantee that the kmalloc'd memory is cacheline aligned.
@@ -176,9 +167,9 @@ xpc_setup_rsvd_page(void)
 		/* SAL_version 1 didn't set the nasids_size field */
 		rp->SAL_nasids_size = 128;
 	}
-	xp_sizeof_nasid_mask = rp->SAL_nasids_size;
-	xp_nasid_mask_words = DIV_ROUND_UP(xp_sizeof_nasid_mask,
-					   BYTES_PER_WORD);
+	xpc_sizeof_nasid_mask = rp->SAL_nasids_size;
+	xpc_nasid_mask_words = DIV_ROUND_UP(xpc_sizeof_nasid_mask,
+					    BYTES_PER_WORD);
 
 	/* setup the pointers to the various items in the reserved page */
 	xpc_part_nasids = XPC_RP_PART_NASIDS(rp);
@@ -222,14 +213,14 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 
 	/* pull over the reserved page header and part_nasids mask */
 	ret = xp_remote_memcpy(remote_rp, (void *)*remote_rp_pa,
-			       XPC_RP_HEADER_SIZE + xp_sizeof_nasid_mask);
+			       XPC_RP_HEADER_SIZE + xpc_sizeof_nasid_mask);
 	if (ret != xpSuccess)
 		return ret;
 
 	if (discovered_nasids != NULL) {
 		u64 *remote_part_nasids = XPC_RP_PART_NASIDS(remote_rp);
 
-		for (i = 0; i < xp_nasid_mask_words; i++)
+		for (i = 0; i < xpc_nasid_mask_words; i++)
 			discovered_nasids[i] |= remote_part_nasids[i];
 	}
 
@@ -414,12 +405,12 @@ xpc_discovery(void)
 	enum xp_retval ret;
 
 	remote_rp = xpc_kmalloc_cacheline_aligned(XPC_RP_HEADER_SIZE +
-						  xp_sizeof_nasid_mask,
+						  xpc_sizeof_nasid_mask,
 						  GFP_KERNEL, &remote_rp_base);
 	if (remote_rp == NULL)
 		return;
 
-	discovered_nasids = kzalloc(sizeof(u64) * xp_nasid_mask_words,
+	discovered_nasids = kzalloc(sizeof(u64) * xpc_nasid_mask_words,
 				    GFP_KERNEL);
 	if (discovered_nasids == NULL) {
 		kfree(remote_rp_base);
@@ -521,10 +512,10 @@ xpc_initiate_partid_to_nasids(short partid, void *nasid_mask)
 	if (part->remote_rp_pa == 0)
 		return xpPartitionDown;
 
-	memset(nasid_mask, 0, XP_NASID_MASK_BYTES);
+	memset(nasid_mask, 0, xpc_sizeof_nasid_mask);
 
 	part_nasid_pa = (u64)XPC_RP_PART_NASIDS(part->remote_rp_pa);
 
 	return xp_remote_memcpy(nasid_mask, (void *)part_nasid_pa,
-				xp_sizeof_nasid_mask);
+				xpc_sizeof_nasid_mask);
 }

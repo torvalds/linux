@@ -61,16 +61,6 @@
 #define XP_MAX_NPARTITIONS_UV	256
 
 /*
- * Define the number of u64s required to represent all the C-brick nasids
- * as a bitmap.  The cross-partition kernel modules deal only with
- * C-brick nasids, thus the need for bitmaps which don't account for
- * odd-numbered (non C-brick) nasids.
- */
-#define XP_MAX_PHYSNODE_ID	(MAX_NUMALINK_NODES / 2)
-#define XP_NASID_MASK_BYTES	((XP_MAX_PHYSNODE_ID + 7) / 8)
-#define XP_NASID_MASK_WORDS	((XP_MAX_PHYSNODE_ID + 63) / 64)
-
-/*
  * XPC establishes channel connections between the local partition and any
  * other partition that is currently up. Over these channels, kernel-level
  * `users' can communicate with their counterparts on the other partitions.

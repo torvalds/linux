@@ -877,7 +877,6 @@ xpc_do_exit(enum xp_retval reason)
 		unregister_sysctl_table(xpc_sysctl);
 
 	kfree(xpc_partitions);
-	kfree(xpc_remote_copy_buffer_base);
 
 	if (is_shub())
 		xpc_exit_sn2();
@@ -1031,7 +1030,9 @@ xpc_init(void)
 	short partid;
 	struct xpc_partition *part;
 	struct task_struct *kthread;
-	size_t buf_size;
+
+	snprintf(xpc_part->bus_id, BUS_ID_SIZE, "part");
+	snprintf(xpc_chan->bus_id, BUS_ID_SIZE, "chan");
 
 	if (is_shub()) {
 		/*
@@ -1054,26 +1055,12 @@ xpc_init(void)
 		return -ENODEV;
 	}
 
-	snprintf(xpc_part->bus_id, BUS_ID_SIZE, "part");
-	snprintf(xpc_chan->bus_id, BUS_ID_SIZE, "chan");
-
-	buf_size = max(XPC_RP_VARS_SIZE,
-		       XPC_RP_HEADER_SIZE + XP_NASID_MASK_BYTES);
-	xpc_remote_copy_buffer = xpc_kmalloc_cacheline_aligned(buf_size,
-							       GFP_KERNEL,
-						  &xpc_remote_copy_buffer_base);
-	if (xpc_remote_copy_buffer == NULL) {
-		dev_err(xpc_part, "can't get memory for remote copy buffer\n");
-		ret = -ENOMEM;
-		goto out_1;
-	}
-
 	xpc_partitions = kzalloc(sizeof(struct xpc_partition) *
 				 xp_max_npartitions, GFP_KERNEL);
 	if (xpc_partitions == NULL) {
 		dev_err(xpc_part, "can't get memory for partition structure\n");
 		ret = -ENOMEM;
-		goto out_2;
+		goto out_1;
 	}
 
 	/*
@@ -1115,7 +1102,7 @@ xpc_init(void)
 	if (xpc_rsvd_page == NULL) {
 		dev_err(xpc_part, "can't setup our reserved page\n");
 		ret = -EBUSY;
-		goto out_3;
+		goto out_2;
 	}
 
 	/* add ourselves to the reboot_notifier_list */
@@ -1136,7 +1123,7 @@ xpc_init(void)
 	if (IS_ERR(kthread)) {
 		dev_err(xpc_part, "failed while forking hb check thread\n");
 		ret = -EBUSY;
-		goto out_4;
+		goto out_3;
 	}
 
 	/*
@@ -1164,18 +1151,16 @@ xpc_init(void)
 	return 0;
 
 	/* initialization was not successful */
-out_4:
+out_3:
 	/* indicate to others that our reserved page is uninitialized */
 	xpc_rsvd_page->stamp = 0;
 
 	(void)unregister_die_notifier(&xpc_die_notifier);
 	(void)unregister_reboot_notifier(&xpc_reboot_notifier);
-out_3:
+out_2:
 	if (xpc_sysctl)
 		unregister_sysctl_table(xpc_sysctl);
 	kfree(xpc_partitions);
-out_2:
-	kfree(xpc_remote_copy_buffer_base);
 out_1:
 	if (is_shub())
 		xpc_exit_sn2();
