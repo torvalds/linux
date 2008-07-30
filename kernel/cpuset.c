@@ -1833,24 +1833,21 @@ static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
  */
 static void scan_for_empty_cpusets(const struct cpuset *root)
 {
+	LIST_HEAD(queue);
 	struct cpuset *cp;	/* scans cpusets being updated */
 	struct cpuset *child;	/* scans child cpusets of cp */
-	struct list_head queue;
 	struct cgroup *cont;
 	nodemask_t oldmems;
-
-	INIT_LIST_HEAD(&queue);
 
 	list_add_tail((struct list_head *)&root->stack_list, &queue);
 
 	while (!list_empty(&queue)) {
-		cp = container_of(queue.next, struct cpuset, stack_list);
+		cp = list_first_entry(&queue, struct cpuset, stack_list);
 		list_del(queue.next);
 		list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
 			child = cgroup_cs(cont);
 			list_add_tail(&child->stack_list, &queue);
 		}
-		cont = cp->css.cgroup;
 
 		/* Continue past cpusets with all cpus, mems online */
 		if (cpus_subset(cp->cpus_allowed, cpu_online_map) &&
