@@ -235,8 +235,8 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 	       (unsigned long long)parent_transid,
 	       (unsigned long long)btrfs_header_generation(eb));
 	ret = 1;
-out:
 	clear_extent_buffer_uptodate(io_tree, eb);
+out:
 	unlock_extent(io_tree, eb->start, eb->start + eb->len - 1,
 		      GFP_NOFS);
 	return ret;

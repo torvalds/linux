@@ -2647,6 +2647,8 @@ static inline struct page *extent_buffer_page(struct extent_buffer *eb,
 		return eb->first_page;
 	i += eb->start >> PAGE_CACHE_SHIFT;
 	mapping = eb->first_page->mapping;
+	if (!mapping)
+		return NULL;
 	read_lock_irq(&mapping->tree_lock);
 	p = radix_tree_lookup(&mapping->page_tree, i);
 	read_unlock_irq(&mapping->tree_lock);
@@ -2908,7 +2910,8 @@ int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
 			      GFP_NOFS);
 	for (i = 0; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
-		ClearPageUptodate(page);
+		if (page)
+			ClearPageUptodate(page);
 	}
 	return 0;
 }
