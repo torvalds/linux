@@ -740,6 +740,8 @@ struct hda_codec {
 	hda_nid_t start_nid;
 	u32 *wcaps;
 
+	struct snd_array mixers;	/* list of assigned mixer elements */
+
 	struct hda_cache_rec amp_cache;	/* cache for amp access */
 	struct hda_cache_rec cmd_cache;	/* cache for other commands */
 

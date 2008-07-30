@@ -393,6 +393,9 @@ u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction);
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);
 
+int snd_hda_ctl_add(struct hda_codec *codec, struct snd_kcontrol *kctl);
+void snd_hda_ctls_clear(struct hda_codec *codec);
+
 /*
  * hwdep interface
  */

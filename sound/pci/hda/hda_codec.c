@@ -574,6 +574,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	flush_scheduled_work();
 #endif
 	list_del(&codec->list);
+	snd_array_free(&codec->mixers);
 	codec->bus->caddr_tbl[codec->addr] = NULL;
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
@@ -622,6 +623,7 @@ int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	mutex_init(&codec->spdif_mutex);
 	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
+	snd_array_init(&codec->mixers, sizeof(struct snd_kcontrol *), 32);
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	INIT_DELAYED_WORK(&codec->power_work, hda_power_work);
@@ -1090,6 +1092,32 @@ struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 	return _snd_hda_find_mixer_ctl(codec, name, 0);
 }
 
+/* Add a control element and assign to the codec */
+int snd_hda_ctl_add(struct hda_codec *codec, struct snd_kcontrol *kctl)
+{
+	int err;
+	struct snd_kcontrol **knewp;
+
+	err = snd_ctl_add(codec->bus->card, kctl);
+	if (err < 0)
+		return err;
+	knewp = snd_array_new(&codec->mixers);
+	if (!knewp)
+		return -ENOMEM;
+	*knewp = kctl;
+	return 0;
+}
+
+/* Clear all controls assigned to the given codec */
+void snd_hda_ctls_clear(struct hda_codec *codec)
+{
+	int i;
+	struct snd_kcontrol **kctls = codec->mixers.list;
+	for (i = 0; i < codec->mixers.used; i++)
+		snd_ctl_remove(codec->bus->card, kctls[i]);
+	snd_array_free(&codec->mixers);
+}
+
 /* create a virtual master control and add slaves */
 int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 			unsigned int *tlv, const char **slaves)
@@ -1107,7 +1135,7 @@ int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 	kctl = snd_ctl_make_virtual_master(name, tlv);
 	if (!kctl)
 		return -ENOMEM;
-	err = snd_ctl_add(codec->bus->card, kctl);
+	err = snd_hda_ctl_add(codec, kctl);
 	if (err < 0)
 		return err;
 	
@@ -1571,7 +1599,7 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 		kctl = snd_ctl_new1(dig_mix, codec);
 		kctl->id.index = idx;
 		kctl->private_value = nid;
-		err = snd_ctl_add(codec->bus->card, kctl);
+		err = snd_hda_ctl_add(codec, kctl);
 		if (err < 0)
 			return err;
 	}
@@ -1615,7 +1643,7 @@ int snd_hda_create_spdif_share_sw(struct hda_codec *codec,
 	if (!mout->dig_out_nid)
 		return 0;
 	/* ATTENTION: here mout is passed as private_data, instead of codec */
-	return snd_ctl_add(codec->bus->card,
+	return snd_hda_ctl_add(codec,
 			   snd_ctl_new1(&spdif_share_sw, mout));
 }
 
@@ -1717,7 +1745,7 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 	for (dig_mix = dig_in_ctls; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
 		kctl->private_value = nid;
-		err = snd_ctl_add(codec->bus->card, kctl);
+		err = snd_hda_ctl_add(codec, kctl);
 		if (err < 0)
 			return err;
 	}
@@ -2440,7 +2468,7 @@ int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 		kctl = snd_ctl_new1(knew, codec);
 		if (!kctl)
 			return -ENOMEM;
-		err = snd_ctl_add(codec->bus->card, kctl);
+		err = snd_hda_ctl_add(codec, kctl);
 		if (err < 0) {
 			if (!codec->addr)
 				return err;
@@ -2448,7 +2476,7 @@ int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 			if (!kctl)
 				return -ENOMEM;
 			kctl->id.device = codec->addr;
-			err = snd_ctl_add(codec->bus->card, kctl);
+			err = snd_hda_ctl_add(codec, kctl);
 			if (err < 0)
 				return err;
 		}

@@ -1250,7 +1250,7 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 	}
 	if (spec->num_dmuxes > 0) {
 		stac_dmux_mixer.count = spec->num_dmuxes;
-		err = snd_ctl_add(codec->bus->card,
+		err = snd_hda_ctl_add(codec,
 				  snd_ctl_new1(&stac_dmux_mixer, codec));
 		if (err < 0)
 			return err;
