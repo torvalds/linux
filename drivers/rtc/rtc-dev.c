@@ -221,7 +221,7 @@ static long rtc_dev_ioctl(struct file *file,
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
-		return -EBUSY;
+		return err;
 
 	/* check that the calling task has appropriate permissions
 	 * for certain ioctls. doing this check here is useful
