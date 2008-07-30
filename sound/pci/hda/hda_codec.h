@@ -754,6 +754,7 @@ struct hda_codec {
 #ifdef CONFIG_SND_HDA_HWDEP
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
 	struct snd_array init_verbs;	/* additional init verbs */
+	struct snd_array hints;		/* additional hints */
 #endif
 
 	/* misc flags */

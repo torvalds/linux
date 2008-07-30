@@ -23,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/compat.h>
 #include <linux/mutex.h>
+#include <linux/ctype.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -98,8 +99,16 @@ static int hda_hwdep_open(struct snd_hwdep *hw, struct file *file)
 
 static void clear_hwdep_elements(struct hda_codec *codec)
 {
+	char **head;
+	int i;
+
 	/* clear init verbs */
 	snd_array_free(&codec->init_verbs);
+	/* clear hints */
+	head = codec->hints.list;
+	for (i = 0; i < codec->hints.used; i++, head++)
+		kfree(*head);
+	snd_array_free(&codec->hints);
 }
 
 static void hwdep_free(struct snd_hwdep *hwdep)
@@ -131,6 +140,7 @@ int __devinit snd_hda_create_hwdep(struct hda_codec *codec)
 #endif
 
 	snd_array_init(&codec->init_verbs, sizeof(struct hda_verb), 32);
+	snd_array_init(&codec->hints, sizeof(char *), 32);
 
 	return 0;
 }
@@ -280,6 +290,29 @@ static ssize_t init_verbs_store(struct device *dev,
 	return count;
 }
 
+static ssize_t hints_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	char *p;
+	char **hint;
+
+	if (!*buf || isspace(*buf) || *buf == '#' || *buf == '\n')
+		return count;
+	p = kstrndup_noeol(buf, 1024);
+	if (!p)
+		return -ENOMEM;
+	hint = snd_array_new(&codec->hints);
+	if (!hint) {
+		kfree(p);
+		return -ENOMEM;
+	}
+	*hint = p;
+	return count;
+}
+
 #define CODEC_ATTR_RW(type) \
 	__ATTR(type, 0644, type##_show, type##_store)
 #define CODEC_ATTR_RO(type) \
@@ -296,6 +329,7 @@ static struct device_attribute codec_attrs[] = {
 	CODEC_ATTR_RW(name),
 	CODEC_ATTR_RW(modelname),
 	CODEC_ATTR_WO(init_verbs),
+	CODEC_ATTR_WO(hints),
 	CODEC_ATTR_WO(reconfig),
 	CODEC_ATTR_WO(clear),
 };
