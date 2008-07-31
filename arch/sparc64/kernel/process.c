@@ -300,7 +300,6 @@ void show_regs(struct pt_regs *regs)
 #endif
 }
 
-#ifdef CONFIG_MAGIC_SYSRQ
 struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
 static DEFINE_SPINLOCK(global_reg_snapshot_lock);
 
@@ -362,7 +361,7 @@ static void __global_reg_poll(struct global_reg_snapshot *gp)
 	}
 }
 
-static void sysrq_handle_globreg(int key, struct tty_struct *tty)
+void __trigger_all_cpu_backtrace(void)
 {
 	struct thread_info *tp = current_thread_info();
 	struct pt_regs *regs = get_irq_regs();
@@ -410,6 +409,13 @@ static void sysrq_handle_globreg(int key, struct tty_struct *tty)
 	memset(global_reg_snapshot, 0, sizeof(global_reg_snapshot));
 
 	spin_unlock_irqrestore(&global_reg_snapshot_lock, flags);
+}
+
+#ifdef CONFIG_MAGIC_SYSRQ
+
+static void sysrq_handle_globreg(int key, struct tty_struct *tty)
+{
+	__trigger_all_cpu_backtrace();
 }
 
 static struct sysrq_key_op sparc_globalreg_op = {
