@@ -135,19 +135,16 @@ static int tc6393xb_nand_enable(struct platform_device *nand)
 
 static struct resource __devinitdata tc6393xb_nand_resources[] = {
 	{
-		.name	= TMIO_NAND_CONFIG,
 		.start	= 0x0100,
 		.end	= 0x01ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= TMIO_NAND_CONTROL,
 		.start	= 0x1000,
 		.end	= 0x1007,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= TMIO_NAND_IRQ,
 		.start	= IRQ_TC6393_NAND,
 		.end	= IRQ_TC6393_NAND,
 		.flags	= IORESOURCE_IRQ,
