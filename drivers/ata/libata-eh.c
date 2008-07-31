@@ -2251,10 +2251,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	ehc->i.action &= ~ATA_EH_RESET;
 	if (hardreset) {
 		reset = hardreset;
-		ehc->i.action = ATA_EH_HARDRESET;
+		ehc->i.action |= ATA_EH_HARDRESET;
 	} else if (softreset) {
 		reset = softreset;
-		ehc->i.action = ATA_EH_SOFTRESET;
+		ehc->i.action |= ATA_EH_SOFTRESET;
 	}
 
 	if (prereset) {
