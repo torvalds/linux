@@ -39,7 +39,7 @@ struct cipher_testvec {
 	char *iv;
 	char *input;
 	char *result;
-	unsigned char tap[MAX_TAP];
+	unsigned short tap[MAX_TAP];
 	int np;
 	unsigned char fail;
 	unsigned char wk; /* weak key flag */
@@ -5111,6 +5111,8 @@ static struct cipher_testvec aes_ctr_enc_tv_template[] = {
 			"\x4b\xef\x31\x18\xea\xac\xb1\x84"
 			"\x21\xed\xda\x86",
 		.rlen = 4100,
+		.np	= 2,
+		.tap	= { 4064, 36 },
 	},
 };
 
@@ -8126,7 +8128,9 @@ static struct cipher_testvec salsa20_stream_enc_tv_template[] = {
 			"\xfc\x3f\x09\x7a\x0b\xdc\xc5\x1b"
 			"\x87\x13\xc6\x5b\x59\x8d\xf2\xc8"
 			"\xaf\xdf\x11\x95",
-		.rlen = 4100,
+		.rlen	= 4100,
+		.np	= 2,
+		.tap	= { 4064, 36 },
 	},
 };
 
