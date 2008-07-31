@@ -1495,8 +1495,10 @@ static int snd_wss_capture_open(struct snd_pcm_substream *substream)
 
 	/* hardware limitation of cheap chips */
 	if (chip->hardware == WSS_HW_CS4235 ||
-	    chip->hardware == WSS_HW_CS4239)
-		runtime->hw.formats = SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE;
+	    chip->hardware == WSS_HW_CS4239 ||
+	    chip->hardware == WSS_HW_OPTI93X)
+		runtime->hw.formats = SNDRV_PCM_FMTBIT_U8 |
+				      SNDRV_PCM_FMTBIT_S16_LE;
 
 	snd_pcm_limit_isa_dma_size(chip->dma2, &runtime->hw.buffer_bytes_max);
 	snd_pcm_limit_isa_dma_size(chip->dma2, &runtime->hw.period_bytes_max);
