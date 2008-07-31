@@ -541,6 +541,78 @@ static int __init pmac_declare_of_platform_devices(void)
 }
 machine_device_initcall(powermac, pmac_declare_of_platform_devices);
 
+#ifdef CONFIG_SERIAL_PMACZILOG_CONSOLE
+/*
+ * This is called very early, as part of console_init() (typically just after
+ * time_init()). This function is respondible for trying to find a good
+ * default console on serial ports. It tries to match the open firmware
+ * default output with one of the available serial console drivers.
+ */
+static int __init check_pmac_serial_console(void)
+{
+	struct device_node *prom_stdout = NULL;
+	int offset = 0;
+	const char *name;
+#ifdef CONFIG_SERIAL_PMACZILOG_TTYS
+	char *devname = "ttyS";
+#else
+	char *devname = "ttyPZ";
+#endif
+
+	pr_debug(" -> check_pmac_serial_console()\n");
+
+	/* The user has requested a console so this is already set up. */
+	if (strstr(boot_command_line, "console=")) {
+		pr_debug(" console was specified !\n");
+		return -EBUSY;
+	}
+
+	if (!of_chosen) {
+		pr_debug(" of_chosen is NULL !\n");
+		return -ENODEV;
+	}
+
+	/* We are getting a weird phandle from OF ... */
+	/* ... So use the full path instead */
+	name = of_get_property(of_chosen, "linux,stdout-path", NULL);
+	if (name == NULL) {
+		pr_debug(" no linux,stdout-path !\n");
+		return -ENODEV;
+	}
+	prom_stdout = of_find_node_by_path(name);
+	if (!prom_stdout) {
+		pr_debug(" can't find stdout package %s !\n", name);
+		return -ENODEV;
+	}
+	pr_debug("stdout is %s\n", prom_stdout->full_name);
+
+	name = of_get_property(prom_stdout, "name", NULL);
+	if (!name) {
+		pr_debug(" stdout package has no name !\n");
+		goto not_found;
+	}
+
+	if (strcmp(name, "ch-a") == 0)
+		offset = 0;
+	else if (strcmp(name, "ch-b") == 0)
+		offset = 1;
+	else
+		goto not_found;
+	of_node_put(prom_stdout);
+
+	pr_debug("Found serial console at %s%d\n", devname, offset);
+
+	return add_preferred_console(devname, offset, NULL);
+
+ not_found:
+	pr_debug("No preferred console found !\n");
+	of_node_put(prom_stdout);
+	return -ENODEV;
+}
+console_initcall(check_pmac_serial_console);
+
+#endif /* CONFIG_SERIAL_PMACZILOG_CONSOLE */
+
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */

@@ -254,7 +254,7 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 		return;
 
 	/* Clear the DAC and struct entries.  One shot trigger */
-#if (defined(CONFIG_44x) || defined(CONFIG_BOOKE))
+#if defined(CONFIG_BOOKE)
 	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~(DBSR_DAC1R | DBSR_DAC1W
 							| DBCR0_IDM));
 #endif
@@ -286,7 +286,7 @@ int set_dabr(unsigned long dabr)
 	mtspr(SPRN_DABR, dabr);
 #endif
 
-#if defined(CONFIG_44x) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_BOOKE)
 	mtspr(SPRN_DAC1, dabr);
 #endif
 
@@ -373,7 +373,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
 		set_dabr(new->thread.dabr);
 
-#if defined(CONFIG_44x) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_BOOKE)
 	/* If new thread DAC (HW breakpoint) is the same then leave it */
 	if (new->thread.dabr)
 		set_dabr(new->thread.dabr);
@@ -568,7 +568,7 @@ void flush_thread(void)
 		current->thread.dabr = 0;
 		set_dabr(0);
 
-#if defined(CONFIG_44x) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_BOOKE)
 		current->thread.dbcr0 &= ~(DBSR_DAC1R | DBSR_DAC1W);
 #endif
 	}

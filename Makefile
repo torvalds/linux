@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 26
-EXTRAVERSION =
+SUBLEVEL = 27
+EXTRAVERSION = -rc1
 NAME = Rotary Wombat
 
 # *DOCUMENTATION*
@@ -206,7 +206,11 @@ ifeq ($(ARCH),x86_64)
 endif
 
 # Where to locate arch specific headers
-hdr-arch       := $(SRCARCH)
+ifeq ($(ARCH),sparc64)
+       hdr-arch  := sparc
+else
+       hdr-arch  := $(SRCARCH)
+endif
 
 KCONFIG_CONFIG	?= .config
 

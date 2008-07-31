@@ -148,7 +148,8 @@ static int mt2032_compute_freq(struct dvb_frontend *fe,
 	tuner_dbg("mt2032: rfin=%d lo2=%d lo2n=%d lo2a=%d num=%d lo2freq=%d\n",
 		  rfin,lo2,lo2n,lo2a,lo2num,lo2freq);
 
-	if(lo1a<0 || lo1a>7 || lo1n<17 ||lo1n>48 || lo2a<0 ||lo2a >7 ||lo2n<17 || lo2n>30) {
+	if (lo1a > 7 || lo1n < 17 || lo1n > 48 || lo2a > 7 || lo2n < 17 ||
+			lo2n > 30) {
 		tuner_info("mt2032: frequency parameters out of range: %d %d %d %d\n",
 			   lo1a, lo1n, lo2a,lo2n);
 		return(-1);
