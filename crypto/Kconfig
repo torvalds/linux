@@ -40,7 +40,9 @@ config CRYPTO_HASH
 
 config CRYPTO_MANAGER
 	tristate "Cryptographic algorithm manager"
-	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
+	select CRYPTO_HASH
+	select CRYPTO_BLKCIPHER
 	help
 	  Create default cryptographic template instantiations such as
 	  cbc(aes).
@@ -85,9 +87,7 @@ config CRYPTO_AUTHENC
 config CRYPTO_TEST
 	tristate "Testing module"
 	depends on m
-	select CRYPTO_ALGAPI
-	select CRYPTO_AEAD
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
 	help
 	  Quick & dirty crypto test module.
 

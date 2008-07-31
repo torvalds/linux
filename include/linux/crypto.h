@@ -515,6 +515,8 @@ struct crypto_tfm *crypto_alloc_tfm(const char *alg_name, u32 tfm_flags);
 struct crypto_tfm *crypto_alloc_base(const char *alg_name, u32 type, u32 mask);
 void crypto_free_tfm(struct crypto_tfm *tfm);
 
+int alg_test(const char *driver, const char *alg, u32 type, u32 mask);
+
 /*
  * Transform helpers which query the underlying algorithm.
  */
