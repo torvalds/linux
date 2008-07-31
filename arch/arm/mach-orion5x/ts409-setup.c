@@ -208,10 +208,16 @@ static struct platform_device ts409_leds = {
  *     Power button is attached to the PIC microcontroller
  ****************************************************************************/
 
+#define QNAP_TS409_GPIO_KEY_RESET	14
 #define QNAP_TS409_GPIO_KEY_MEDIA	15
 
 static struct gpio_keys_button qnap_ts409_buttons[] = {
 	{
+		.code		= KEY_RESTART,
+		.gpio		= QNAP_TS409_GPIO_KEY_RESET,
+		.desc		= "Reset Button",
+		.active_low	= 1,
+	}, {
 		.code		= KEY_COPY,
 		.gpio		= QNAP_TS409_GPIO_KEY_MEDIA,
 		.desc		= "USB Copy Button",
