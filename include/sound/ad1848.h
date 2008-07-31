@@ -126,36 +126,4 @@ int snd_ad1848_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm);
 const struct snd_pcm_ops *snd_ad1848_get_pcm_ops(int direction);
 int snd_ad1848_mixer(struct snd_wss *chip);
 
-/* exported mixer stuffs */
-enum { AD1848_MIX_SINGLE, AD1848_MIX_DOUBLE, AD1848_MIX_CAPTURE };
-
-#define AD1848_MIXVAL_SINGLE(reg, shift, mask, invert) \
-	((reg) | ((shift) << 8) | ((mask) << 16) | ((invert) << 24))
-#define AD1848_MIXVAL_DOUBLE(left_reg, right_reg, shift_left, shift_right, mask, invert) \
-	((left_reg) | ((right_reg) << 8) | ((shift_left) << 16) | ((shift_right) << 19) | ((mask) << 24) | ((invert) << 22))
-
-/* for ease of use */
-struct ad1848_mix_elem {
-	const char *name;
-	int index;
-	int type;
-	unsigned long private_value;
-	const unsigned int *tlv;
-};
-
-#define AD1848_SINGLE(xname, xindex, reg, shift, mask, invert) \
-{ .name = xname, \
-  .index = xindex, \
-  .type = AD1848_MIX_SINGLE, \
-  .private_value = AD1848_MIXVAL_SINGLE(reg, shift, mask, invert) }
-
-#define AD1848_DOUBLE(xname, xindex, left_reg, right_reg, shift_left, shift_right, mask, invert) \
-{ .name = xname, \
-  .index = xindex, \
-  .type = AD1848_MIX_DOUBLE, \
-  .private_value = AD1848_MIXVAL_DOUBLE(left_reg, right_reg, shift_left, shift_right, mask, invert) }
-
-int snd_ad1848_add_ctl_elem(struct snd_wss *chip,
-			    const struct ad1848_mix_elem *c);
-
 #endif /* __SOUND_AD1848_H */

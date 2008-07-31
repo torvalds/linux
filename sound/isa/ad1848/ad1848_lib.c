@@ -1163,88 +1163,64 @@ static int snd_ad1848_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
-/*
- */
-int snd_ad1848_add_ctl_elem(struct snd_wss *chip,
-			    const struct ad1848_mix_elem *c)
-{
-	static struct snd_kcontrol_new newctls[] = {
-		[AD1848_MIX_SINGLE] = {
-			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-			.info = snd_ad1848_info_single,
-			.get = snd_ad1848_get_single,
-			.put = snd_ad1848_put_single,
-		},
-		[AD1848_MIX_DOUBLE] = {
-			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-			.info = snd_ad1848_info_double,
-			.get = snd_ad1848_get_double,
-			.put = snd_ad1848_put_double,
-		},
-		[AD1848_MIX_CAPTURE] = {
-			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-			.info = snd_ad1848_info_mux,
-			.get = snd_ad1848_get_mux,
-			.put = snd_ad1848_put_mux,
-		},
-	};
-	struct snd_kcontrol *ctl;
-	int err;
-
-	ctl = snd_ctl_new1(&newctls[c->type], chip);
-	if (! ctl)
-		return -ENOMEM;
-	strlcpy(ctl->id.name, c->name, sizeof(ctl->id.name));
-	ctl->id.index = c->index;
-	ctl->private_value = c->private_value;
-	if (c->tlv) {
-		ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		ctl->tlv.p = c->tlv;
-	}
-	if ((err = snd_ctl_add(chip->card, ctl)) < 0)
-		return err;
-	return 0;
-}
-
-EXPORT_SYMBOL(snd_ad1848_add_ctl_elem);
-
 static const DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
 
 #define AD1848_SINGLE_TLV(xname, xindex, reg, shift, mask, invert, xtlv) \
-{ .name = xname, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .name = xname, \
   .index = xindex, \
-  .type = AD1848_MIX_SINGLE, \
-  .private_value = AD1848_MIXVAL_SINGLE(reg, shift, mask, invert), \
-  .tlv = xtlv }
+  .info = snd_ad1848_info_single, \
+  .get = snd_ad1848_get_single, \
+  .put = snd_ad1848_put_single, \
+  .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24), \
+  .tlv = { .p = (xtlv) } }
 
 #define AD1848_DOUBLE_TLV(xname, xindex, left_reg, right_reg, shift_left, shift_right, mask, invert, xtlv) \
-{ .name = xname, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .name = xname, \
   .index = xindex, \
-  .type = AD1848_MIX_DOUBLE, \
-  .private_value = AD1848_MIXVAL_DOUBLE(left_reg, right_reg, shift_left, shift_right, mask, invert), \
-  .tlv = xtlv }
+  .info = snd_ad1848_info_double, \
+  .get = snd_ad1848_get_double, \
+  .put = snd_ad1848_put_double, \
+  .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | \
+		   (shift_right << 19) | (mask << 24) | (invert << 22), \
+  .tlv = { .p = (xtlv) } }
 
-static struct ad1848_mix_elem snd_ad1848_controls[] = {
-AD1848_DOUBLE("PCM Playback Switch", 0, AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 7, 7, 1, 1),
-AD1848_DOUBLE_TLV("PCM Playback Volume", 0, AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 0, 0, 63, 1,
-		  db_scale_6bit),
-AD1848_DOUBLE("Aux Playback Switch", 0, AD1848_AUX1_LEFT_INPUT, AD1848_AUX1_RIGHT_INPUT, 7, 7, 1, 1),
-AD1848_DOUBLE_TLV("Aux Playback Volume", 0, AD1848_AUX1_LEFT_INPUT, AD1848_AUX1_RIGHT_INPUT, 0, 0, 31, 1,
-		  db_scale_5bit_12db_max),
-AD1848_DOUBLE("Aux Playback Switch", 1, AD1848_AUX2_LEFT_INPUT, AD1848_AUX2_RIGHT_INPUT, 7, 7, 1, 1),
-AD1848_DOUBLE_TLV("Aux Playback Volume", 1, AD1848_AUX2_LEFT_INPUT, AD1848_AUX2_RIGHT_INPUT, 0, 0, 31, 1,
-		  db_scale_5bit_12db_max),
-AD1848_DOUBLE_TLV("Capture Volume", 0, AD1848_LEFT_INPUT, AD1848_RIGHT_INPUT, 0, 0, 15, 0,
-		  db_scale_rec_gain),
+static struct snd_kcontrol_new snd_ad1848_controls[] = {
+WSS_DOUBLE("PCM Playback Switch", 0,
+		AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 7, 7, 1, 1),
+AD1848_DOUBLE_TLV("PCM Playback Volume", 0,
+		AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 0, 0, 63, 1,
+		db_scale_6bit),
+WSS_DOUBLE("Aux Playback Switch", 0,
+		AD1848_AUX1_LEFT_INPUT, AD1848_AUX1_RIGHT_INPUT, 7, 7, 1, 1),
+AD1848_DOUBLE_TLV("Aux Playback Volume", 0,
+		AD1848_AUX1_LEFT_INPUT, AD1848_AUX1_RIGHT_INPUT, 0, 0, 31, 1,
+		db_scale_5bit_12db_max),
+WSS_DOUBLE("Aux Playback Switch", 1,
+		AD1848_AUX2_LEFT_INPUT, AD1848_AUX2_RIGHT_INPUT, 7, 7, 1, 1),
+AD1848_DOUBLE_TLV("Aux Playback Volume", 1,
+		AD1848_AUX2_LEFT_INPUT, AD1848_AUX2_RIGHT_INPUT, 0, 0, 31, 1,
+		db_scale_5bit_12db_max),
+AD1848_DOUBLE_TLV("Capture Volume", 0,
+		AD1848_LEFT_INPUT, AD1848_RIGHT_INPUT, 0, 0, 15, 0,
+		db_scale_rec_gain),
 {
 	.name = "Capture Source",
-	.type = AD1848_MIX_CAPTURE,
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.info = snd_ad1848_info_mux,
+	.get = snd_ad1848_get_mux,
+	.put = snd_ad1848_put_mux,
 },
-AD1848_SINGLE("Loopback Capture Switch", 0, AD1848_LOOPBACK, 0, 1, 0),
-AD1848_SINGLE_TLV("Loopback Capture Volume", 0, AD1848_LOOPBACK, 1, 63, 0,
-		  db_scale_6bit),
+WSS_SINGLE("Loopback Capture Switch", 0,
+		AD1848_LOOPBACK, 0, 1, 0),
+AD1848_SINGLE_TLV("Loopback Capture Volume", 0,
+		AD1848_LOOPBACK, 1, 63, 0,
+		db_scale_6bit),
 };
                                         
 int snd_ad1848_mixer(struct snd_wss *chip)
@@ -1261,9 +1237,12 @@ int snd_ad1848_mixer(struct snd_wss *chip)
 
 	strcpy(card->mixername, pcm->name);
 
-	for (idx = 0; idx < ARRAY_SIZE(snd_ad1848_controls); idx++)
-		if ((err = snd_ad1848_add_ctl_elem(chip, &snd_ad1848_controls[idx])) < 0)
+	for (idx = 0; idx < ARRAY_SIZE(snd_ad1848_controls); idx++) {
+		err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_ad1848_controls[idx], chip));
+		if (err < 0)
 			return err;
+	}
 
 	return 0;
 }

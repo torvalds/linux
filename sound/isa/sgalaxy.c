@@ -175,9 +175,11 @@ static int __devinit snd_sgalaxy_detect(int dev, int irq, int dma)
 	return snd_sgalaxy_setup_wss(wssport[dev], irq, dma);
 }
 
-static struct ad1848_mix_elem snd_sgalaxy_controls[] = {
-AD1848_DOUBLE("Aux Playback Switch", 0, SGALAXY_AUXC_LEFT, SGALAXY_AUXC_RIGHT, 7, 7, 1, 1),
-AD1848_DOUBLE("Aux Playback Volume", 0, SGALAXY_AUXC_LEFT, SGALAXY_AUXC_RIGHT, 0, 0, 31, 0)
+static struct snd_kcontrol_new snd_sgalaxy_controls[] = {
+WSS_DOUBLE("Aux Playback Switch", 0,
+		SGALAXY_AUXC_LEFT, SGALAXY_AUXC_RIGHT, 7, 7, 1, 1),
+WSS_DOUBLE("Aux Playback Volume", 0,
+		SGALAXY_AUXC_LEFT, SGALAXY_AUXC_RIGHT, 0, 0, 31, 0)
 };
 
 static int __devinit snd_sgalaxy_mixer(struct snd_wss *chip)
@@ -210,7 +212,9 @@ static int __devinit snd_sgalaxy_mixer(struct snd_wss *chip)
 		return err;
 	/* build AUX2 input */
 	for (idx = 0; idx < ARRAY_SIZE(snd_sgalaxy_controls); idx++) {
-		if ((err = snd_ad1848_add_ctl_elem(chip, &snd_sgalaxy_controls[idx])) < 0)
+		err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_sgalaxy_controls[idx], chip));
+		if (err < 0)
 			return err;
 	}
 	return 0;

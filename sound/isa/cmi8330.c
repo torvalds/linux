@@ -174,32 +174,57 @@ MODULE_DEVICE_TABLE(pnp_card, snd_cmi8330_pnpids);
 #endif
 
 
-static struct ad1848_mix_elem snd_cmi8330_controls[] __devinitdata = {
-AD1848_DOUBLE("Master Playback Volume", 0, CMI8330_MASTVOL, CMI8330_MASTVOL, 4, 0, 15, 0),
-AD1848_SINGLE("Loud Playback Switch", 0, CMI8330_MUTEMUX, 6, 1, 1),
-AD1848_DOUBLE("PCM Playback Switch", 0, AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 7, 7, 1, 1),
-AD1848_DOUBLE("PCM Playback Volume", 0, AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 0, 0, 63, 1),
-AD1848_DOUBLE("Line Playback Switch", 0, CMI8330_MUTEMUX, CMI8330_MUTEMUX, 4, 3, 1, 0),
-AD1848_DOUBLE("Line Playback Volume", 0, CMI8330_LINVOL, CMI8330_LINVOL, 4, 0, 15, 0),
-AD1848_DOUBLE("Line Capture Switch", 0, CMI8330_RMUX3D, CMI8330_RMUX3D, 2, 1, 1, 0),
-AD1848_DOUBLE("Line Capture Volume", 0, CMI8330_LINGAIN, CMI8330_LINGAIN, 4, 0, 15, 0),
-AD1848_DOUBLE("CD Playback Switch", 0, CMI8330_MUTEMUX, CMI8330_MUTEMUX, 2, 1, 1, 0),
-AD1848_DOUBLE("CD Capture Switch", 0, CMI8330_RMUX3D, CMI8330_RMUX3D, 4, 3, 1, 0),
-AD1848_DOUBLE("CD Playback Volume", 0, CMI8330_CDINVOL, CMI8330_CDINVOL, 4, 0, 15, 0),
-AD1848_DOUBLE("CD Capture Volume", 0, CMI8330_CDINGAIN, CMI8330_CDINGAIN, 4, 0, 15, 0),
-AD1848_SINGLE("Mic Playback Switch", 0, CMI8330_MUTEMUX, 0, 1, 0),
-AD1848_SINGLE("Mic Playback Volume", 0, CMI8330_OUTPUTVOL, 0, 7, 0),
-AD1848_SINGLE("Mic Capture Switch", 0, CMI8330_RMUX3D, 0, 1, 0),
-AD1848_SINGLE("Mic Capture Volume", 0, CMI8330_OUTPUTVOL, 5, 7, 0),
-AD1848_DOUBLE("Wavetable Playback Switch", 0, CMI8330_RECMUX, CMI8330_RECMUX, 1, 0, 1, 0),
-AD1848_DOUBLE("Wavetable Playback Volume", 0, CMI8330_WAVVOL, CMI8330_WAVVOL, 4, 0, 15, 0),
-AD1848_DOUBLE("Wavetable Capture Switch", 0, CMI8330_RECMUX, CMI8330_RECMUX, 5, 4, 1, 0),
-AD1848_DOUBLE("Wavetable Capture Volume", 0, CMI8330_WAVGAIN, CMI8330_WAVGAIN, 4, 0, 15, 0),
-AD1848_SINGLE("3D Control - Switch", 0, CMI8330_RMUX3D, 5, 1, 1),
-AD1848_SINGLE("PC Speaker Playback Volume", 0, CMI8330_OUTPUTVOL, 3, 3, 0),
-AD1848_SINGLE("FM Playback Switch", 0, CMI8330_RECMUX, 3, 1, 1),
-AD1848_SINGLE(SNDRV_CTL_NAME_IEC958("Input ",CAPTURE,SWITCH), 0, CMI8330_RMUX3D, 7, 1, 1),
-AD1848_SINGLE(SNDRV_CTL_NAME_IEC958("Input ",PLAYBACK,SWITCH), 0, CMI8330_MUTEMUX, 7, 1, 1),
+static struct snd_kcontrol_new snd_cmi8330_controls[] __devinitdata = {
+WSS_DOUBLE("Master Playback Volume", 0,
+		CMI8330_MASTVOL, CMI8330_MASTVOL, 4, 0, 15, 0),
+WSS_SINGLE("Loud Playback Switch", 0,
+		CMI8330_MUTEMUX, 6, 1, 1),
+WSS_DOUBLE("PCM Playback Switch", 0,
+		AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 7, 7, 1, 1),
+WSS_DOUBLE("PCM Playback Volume", 0,
+		AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 0, 0, 63, 1),
+WSS_DOUBLE("Line Playback Switch", 0,
+		CMI8330_MUTEMUX, CMI8330_MUTEMUX, 4, 3, 1, 0),
+WSS_DOUBLE("Line Playback Volume", 0,
+		CMI8330_LINVOL, CMI8330_LINVOL, 4, 0, 15, 0),
+WSS_DOUBLE("Line Capture Switch", 0,
+		CMI8330_RMUX3D, CMI8330_RMUX3D, 2, 1, 1, 0),
+WSS_DOUBLE("Line Capture Volume", 0,
+		CMI8330_LINGAIN, CMI8330_LINGAIN, 4, 0, 15, 0),
+WSS_DOUBLE("CD Playback Switch", 0,
+		CMI8330_MUTEMUX, CMI8330_MUTEMUX, 2, 1, 1, 0),
+WSS_DOUBLE("CD Capture Switch", 0,
+		CMI8330_RMUX3D, CMI8330_RMUX3D, 4, 3, 1, 0),
+WSS_DOUBLE("CD Playback Volume", 0,
+		CMI8330_CDINVOL, CMI8330_CDINVOL, 4, 0, 15, 0),
+WSS_DOUBLE("CD Capture Volume", 0,
+		CMI8330_CDINGAIN, CMI8330_CDINGAIN, 4, 0, 15, 0),
+WSS_SINGLE("Mic Playback Switch", 0,
+		CMI8330_MUTEMUX, 0, 1, 0),
+WSS_SINGLE("Mic Playback Volume", 0,
+		CMI8330_OUTPUTVOL, 0, 7, 0),
+WSS_SINGLE("Mic Capture Switch", 0,
+		CMI8330_RMUX3D, 0, 1, 0),
+WSS_SINGLE("Mic Capture Volume", 0,
+		CMI8330_OUTPUTVOL, 5, 7, 0),
+WSS_DOUBLE("Wavetable Playback Switch", 0,
+		CMI8330_RECMUX, CMI8330_RECMUX, 1, 0, 1, 0),
+WSS_DOUBLE("Wavetable Playback Volume", 0,
+		CMI8330_WAVVOL, CMI8330_WAVVOL, 4, 0, 15, 0),
+WSS_DOUBLE("Wavetable Capture Switch", 0,
+		CMI8330_RECMUX, CMI8330_RECMUX, 5, 4, 1, 0),
+WSS_DOUBLE("Wavetable Capture Volume", 0,
+		CMI8330_WAVGAIN, CMI8330_WAVGAIN, 4, 0, 15, 0),
+WSS_SINGLE("3D Control - Switch", 0,
+		CMI8330_RMUX3D, 5, 1, 1),
+WSS_SINGLE("PC Speaker Playback Volume", 0,
+		CMI8330_OUTPUTVOL, 3, 3, 0),
+WSS_SINGLE("FM Playback Switch", 0,
+		CMI8330_RECMUX, 3, 1, 1),
+WSS_SINGLE(SNDRV_CTL_NAME_IEC958("Input ", CAPTURE, SWITCH), 0,
+		CMI8330_RMUX3D, 7, 1, 1),
+WSS_SINGLE(SNDRV_CTL_NAME_IEC958("Input ", PLAYBACK, SWITCH), 0,
+		CMI8330_MUTEMUX, 7, 1, 1),
 };
 
 #ifdef ENABLE_SB_MIXER
@@ -268,7 +293,10 @@ static int __devinit snd_cmi8330_mixer(struct snd_card *card, struct snd_cmi8330
 	strcpy(card->mixername, "CMI8330/C3D");
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_cmi8330_controls); idx++) {
-		if ((err = snd_ad1848_add_ctl_elem(acard->wss, &snd_cmi8330_controls[idx])) < 0)
+		err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_cmi8330_controls[idx],
+					     acard->wss));
+		if (err < 0)
 			return err;
 	}
 
