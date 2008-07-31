@@ -134,9 +134,9 @@ struct global_reg_snapshot {
 	unsigned long		tnpc;
 	unsigned long		o7;
 	unsigned long		i7;
+	unsigned long		rpc;
 	struct thread_info	*thread;
 	unsigned long		pad1;
-	unsigned long		pad2;
 };
 
 #define __ARCH_WANT_COMPAT_SYS_PTRACE
@@ -315,9 +315,9 @@ extern void __show_regs(struct pt_regs *);
 #define GR_SNAP_TNPC	0x10
 #define GR_SNAP_O7	0x18
 #define GR_SNAP_I7	0x20
-#define GR_SNAP_THREAD	0x28
-#define GR_SNAP_PAD1	0x30
-#define GR_SNAP_PAD2	0x38
+#define GR_SNAP_RPC	0x28
+#define GR_SNAP_THREAD	0x30
+#define GR_SNAP_PAD1	0x38
 
 #endif  /*  __KERNEL__  */
 
