@@ -154,7 +154,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 {
 	struct input_dev *input = hidinput->input;
 	struct hid_device *device = input_get_drvdata(input);
-	int max = 0, code, ret;
+	int max = 0, code;
 	unsigned long *bit = NULL;
 
 	field->hidinput = hidinput;
@@ -172,11 +172,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		dbg_hid_line(" [non-LED output field] ");
 		goto ignore;
 	}
-
-	/* handle input mappings for quirky devices */
-	ret = hidinput_mapping_quirks(usage, hidinput, &bit, &max);
-	if (ret)
-		goto mapped;
 
 	if (device->driver->input_mapping) {
 		int ret = device->driver->input_mapping(device, hidinput, field,
@@ -588,10 +583,6 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 	input = field->hidinput->input;
 
 	if (!usage->type)
-		return;
-
-	/* handle input events for quirky devices */
-	if (hidinput_event_quirks(hid, field, usage, value))
 		return;
 
 	if (usage->hat_min < usage->hat_max || usage->hat_dir) {

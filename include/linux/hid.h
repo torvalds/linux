@@ -617,9 +617,6 @@ extern void hidinput_disconnect(struct hid_device *);
 int hid_set_field(struct hid_field *, unsigned, __s32);
 int hid_input_report(struct hid_device *, int type, u8 *, int, int);
 int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field);
-int hidinput_mapping_quirks(struct hid_usage *, struct hid_input *,
-		unsigned long **, int *);
-int hidinput_event_quirks(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 void hid_output_report(struct hid_report *report, __u8 *data);
 struct hid_device *hid_allocate_device(void);
 int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
