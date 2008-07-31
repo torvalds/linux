@@ -74,9 +74,9 @@ static void menu_reflect(struct cpuidle_device *dev)
 {
 	struct menu_device *data = &__get_cpu_var(menu_devices);
 	int last_idx = data->last_state_idx;
-	unsigned int measured_us =
-		cpuidle_get_last_residency(dev) + data->elapsed_us;
+	unsigned int last_idle_us = cpuidle_get_last_residency(dev);
 	struct cpuidle_state *target = &dev->states[last_idx];
+	unsigned int measured_us;
 
 	/*
 	 * Ugh, this idle state doesn't support residency measurements, so we
@@ -84,20 +84,27 @@ static void menu_reflect(struct cpuidle_device *dev)
 	 * for one full standard timer tick.  However, be aware that this
 	 * could potentially result in a suboptimal state transition.
 	 */
-	if (!(target->flags & CPUIDLE_FLAG_TIME_VALID))
-		measured_us = USEC_PER_SEC / HZ;
+	if (unlikely(!(target->flags & CPUIDLE_FLAG_TIME_VALID)))
+		last_idle_us = USEC_PER_SEC / HZ;
 
-	/* Predict time remaining until next break event */
-	if (measured_us + BREAK_FUZZ < data->expected_us - target->exit_latency) {
-		data->predicted_us = max(measured_us, data->last_measured_us);
+	/*
+	 * measured_us and elapsed_us are the cumulative idle time, since the
+	 * last time we were woken out of idle by an interrupt.
+	 */
+	if (data->elapsed_us <= data->elapsed_us + last_idle_us)
+		measured_us = data->elapsed_us + last_idle_us;
+	else
+		measured_us = -1;
+
+	/* Predict time until next break event */
+	data->predicted_us = max(measured_us, data->last_measured_us);
+
+	if (last_idle_us + BREAK_FUZZ <
+	    data->expected_us - target->exit_latency) {
 		data->last_measured_us = measured_us;
 		data->elapsed_us = 0;
 	} else {
-		if (data->elapsed_us < data->elapsed_us + measured_us)
-			data->elapsed_us = measured_us;
-		else
-			data->elapsed_us = -1;
-		data->predicted_us = max(measured_us, data->last_measured_us);
+		data->elapsed_us = measured_us;
 	}
 }
 
