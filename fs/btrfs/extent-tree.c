@@ -2526,6 +2526,9 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 				*level = 0;
 				break;
 			}
+			if (printk_ratelimit())
+				printk("leaf ref miss for bytenr %llu\n",
+				       (unsigned long long)bytenr);
 		}
 		next = btrfs_find_tree_block(root, bytenr, blocksize);
 		if (!next || !btrfs_buffer_uptodate(next, ptr_gen)) {

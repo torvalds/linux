@@ -124,17 +124,12 @@ static noinline int record_root_in_trans(struct btrfs_root *root)
 	return 0;
 }
 
-struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
-					     int num_blocks, int join)
+static void wait_current_trans(struct btrfs_root *root)
 {
-	struct btrfs_trans_handle *h =
-		kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
 	struct btrfs_transaction *cur_trans;
-	int ret;
 
-	mutex_lock(&root->fs_info->trans_mutex);
 	cur_trans = root->fs_info->running_transaction;
-	if (cur_trans && cur_trans->blocked && !join) {
+	if (cur_trans && cur_trans->blocked) {
 		DEFINE_WAIT(wait);
 		cur_trans->use_count++;
 		while(1) {
@@ -154,6 +149,18 @@ struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 		}
 		put_transaction(cur_trans);
 	}
+}
+
+struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
+					     int num_blocks, int join)
+{
+	struct btrfs_trans_handle *h =
+		kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
+	int ret;
+
+	mutex_lock(&root->fs_info->trans_mutex);
+	if (!join)
+		wait_current_trans(root);
 	ret = join_transaction(root);
 	BUG_ON(ret);
 
@@ -200,7 +207,7 @@ static noinline int wait_for_commit(struct btrfs_root *root,
 	return 0;
 }
 
-void btrfs_throttle(struct btrfs_root *root)
+static void throttle_on_drops(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *info = root->fs_info;
 
@@ -223,17 +230,26 @@ harder:
 		} while (thr == atomic_read(&info->throttle_gen));
 
 		if (harder_count < 5 &&
-		    info->total_ref_cache_size > 5 * 1024 * 1024) {
+		    info->total_ref_cache_size > 1 * 1024 * 1024) {
 			harder_count++;
 			goto harder;
 		}
 
 		if (harder_count < 10 &&
-		    info->total_ref_cache_size > 10 * 1024 * 1024) {
+		    info->total_ref_cache_size > 5 * 1024 * 1024) {
 			harder_count++;
 			goto harder;
 		}
 	}
+}
+
+void btrfs_throttle(struct btrfs_root *root)
+{
+	mutex_lock(&root->fs_info->trans_mutex);
+	wait_current_trans(root);
+	mutex_unlock(&root->fs_info->trans_mutex);
+
+	throttle_on_drops(root);
 }
 
 static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
@@ -256,7 +272,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 
 	if (throttle)
-		btrfs_throttle(root);
+		throttle_on_drops(root);
 
 	return 0;
 }
