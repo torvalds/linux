@@ -14,19 +14,11 @@
 
 #define OPCODE_OB_MAC_IOCB_FN0          0x01
 #define OPCODE_OB_MAC_IOCB_FN2          0x21
-#define OPCODE_OB_TCP_IOCB_FN0          0x03
-#define OPCODE_OB_TCP_IOCB_FN2          0x23
-#define OPCODE_UPDATE_NCB_IOCB_FN0      0x00
-#define OPCODE_UPDATE_NCB_IOCB_FN2      0x20
 
-#define OPCODE_UPDATE_NCB_IOCB      0xF0
 #define OPCODE_IB_MAC_IOCB          0xF9
 #define OPCODE_IB_3032_MAC_IOCB     0x09
 #define OPCODE_IB_IP_IOCB           0xFA
 #define OPCODE_IB_3032_IP_IOCB      0x0A
-#define OPCODE_IB_TCP_IOCB          0xFB
-#define OPCODE_DUMP_PROTO_IOCB      0xFE
-#define OPCODE_BUFFER_ALERT_IOCB    0xFB
 
 #define OPCODE_FUNC_ID_MASK                 0x30
 #define OUTBOUND_MAC_IOCB                   0x01	/* plus function bits */
