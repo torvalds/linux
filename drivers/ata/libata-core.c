@@ -4976,16 +4976,16 @@ int sata_scr_write_flush(struct ata_link *link, int reg, u32 val)
  *	None.
  *
  *	RETURNS:
- *	1 if the port online status is available and online.
+ *	True if the port online status is available and online.
  */
-int ata_link_online(struct ata_link *link)
+bool ata_link_online(struct ata_link *link)
 {
 	u32 sstatus;
 
 	if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0 &&
 	    (sstatus & 0xf) == 0x3)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 /**
@@ -5000,16 +5000,16 @@ int ata_link_online(struct ata_link *link)
  *	None.
  *
  *	RETURNS:
- *	1 if the port offline status is available and offline.
+ *	True if the port offline status is available and offline.
  */
-int ata_link_offline(struct ata_link *link)
+bool ata_link_offline(struct ata_link *link)
 {
 	u32 sstatus;
 
 	if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0 &&
 	    (sstatus & 0xf) != 0x3)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 #ifdef CONFIG_PM

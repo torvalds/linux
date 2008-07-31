@@ -321,6 +321,8 @@ enum {
 	ATA_EH_LPM		= (1 << 4),  /* link power management action */
 
 	ATA_EH_PERDEV_MASK	= ATA_EH_REVALIDATE,
+	ATA_EH_ALL_ACTIONS	= ATA_EH_REVALIDATE | ATA_EH_RESET |
+				  ATA_EH_ENABLE_LINK | ATA_EH_LPM,
 
 	/* ata_eh_info->flags */
 	ATA_EHI_HOTPLUGGED	= (1 << 0),  /* could have been hotplugged */
@@ -920,8 +922,8 @@ extern int sata_scr_valid(struct ata_link *link);
 extern int sata_scr_read(struct ata_link *link, int reg, u32 *val);
 extern int sata_scr_write(struct ata_link *link, int reg, u32 val);
 extern int sata_scr_write_flush(struct ata_link *link, int reg, u32 val);
-extern int ata_link_online(struct ata_link *link);
-extern int ata_link_offline(struct ata_link *link);
+extern bool ata_link_online(struct ata_link *link);
+extern bool ata_link_offline(struct ata_link *link);
 #ifdef CONFIG_PM
 extern int ata_host_suspend(struct ata_host *host, pm_message_t mesg);
 extern void ata_host_resume(struct ata_host *host);
