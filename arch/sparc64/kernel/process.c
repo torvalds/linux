@@ -52,8 +52,6 @@
 #include <asm/irq_regs.h>
 #include <asm/smp.h>
 
-/* #define VERBOSE_SHOWREGS */
-
 static void sparc64_yield(int cpu)
 {
 	if (tlb_type != hypervisor)
@@ -253,30 +251,8 @@ void __show_regs(struct pt_regs * regs)
 #endif
 }
 
-#ifdef VERBOSE_SHOWREGS
-static void idump_from_user (unsigned int *pc)
-{
-	int i;
-	int code;
-	
-	if((((unsigned long) pc) & 3))
-		return;
-	
-	pc -= 3;
-	for(i = -3; i < 6; i++) {
-		get_user(code, pc);
-		printk("%c%08x%c",i?' ':'<',code,i?' ':'>');
-		pc++;
-	}
-	printk("\n");
-}
-#endif
-
 void show_regs(struct pt_regs *regs)
 {
-#ifdef VERBOSE_SHOWREGS
-	extern long etrap, etraptl1;
-#endif
 	__show_regs(regs);
 #if 0
 #ifdef CONFIG_SMP
@@ -286,17 +262,6 @@ void show_regs(struct pt_regs *regs)
 		smp_report_regs();
 	}
 #endif
-#endif
-
-#ifdef VERBOSE_SHOWREGS	
-	if (regs->tpc >= &etrap && regs->tpc < &etraptl1 &&
-	    regs->u_regs[14] >= (long)current - PAGE_SIZE &&
-	    regs->u_regs[14] < (long)current + 6 * PAGE_SIZE) {
-		printk ("*********parent**********\n");
-		__show_regs((struct pt_regs *)(regs->u_regs[14] + PTREGS_OFF));
-		idump_from_user(((struct pt_regs *)(regs->u_regs[14] + PTREGS_OFF))->tpc);
-		printk ("*********endpar**********\n");
-	}
 #endif
 }
 
