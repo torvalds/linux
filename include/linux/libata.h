@@ -647,6 +647,7 @@ struct ata_link {
 
 	unsigned int		flags;		/* ATA_LFLAG_xxx */
 
+	u32			saved_scontrol;	/* SControl on probe */
 	unsigned int		hw_sata_spd_limit;
 	unsigned int		sata_spd_limit;
 	unsigned int		sata_spd;	/* current SATA PHY speed */

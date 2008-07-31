@@ -5199,15 +5199,14 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
  */
 int sata_link_init_spd(struct ata_link *link)
 {
-	u32 scontrol;
 	u8 spd;
 	int rc;
 
-	rc = sata_scr_read(link, SCR_CONTROL, &scontrol);
+	rc = sata_scr_read(link, SCR_CONTROL, &link->saved_scontrol);
 	if (rc)
 		return rc;
 
-	spd = (scontrol >> 4) & 0xf;
+	spd = (link->saved_scontrol >> 4) & 0xf;
 	if (spd)
 		link->hw_sata_spd_limit &= (1 << spd) - 1;
 
@@ -5794,9 +5793,10 @@ static void ata_port_detach(struct ata_port *ap)
 	ata_port_wait_eh(ap);
 
 	/* EH is now guaranteed to see UNLOADING - EH context belongs
-	 * to us.  Disable all existing devices.
+	 * to us.  Restore SControl and disable all existing devices.
 	 */
-	ata_port_for_each_link(link, ap) {
+	__ata_port_for_each_link(link, ap) {
+		sata_scr_write(link, SCR_CONTROL, link->saved_scontrol);
 		ata_link_for_each_dev(dev, link)
 			ata_dev_disable(dev);
 	}
