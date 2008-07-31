@@ -2177,7 +2177,6 @@ static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
 void die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
-	extern void smp_report_regs(void);
 	int count = 0;
 	
 	/* Amuse the user. */
@@ -2215,11 +2214,6 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 		}
 		user_instruction_dump ((unsigned int __user *) regs->tpc);
 	}
-#if 0
-#ifdef CONFIG_SMP
-	smp_report_regs();
-#endif
-#endif                                                	
 	if (regs->tstate & TSTATE_PRIV)
 		do_exit(SIGKILL);
 	do_exit(SIGSEGV);

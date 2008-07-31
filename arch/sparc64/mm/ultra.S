@@ -480,41 +480,6 @@ xcall_sync_tick:
 	b		rtrap_xcall
 	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 
-	/* NOTE: This is SPECIAL!!  We do etrap/rtrap however
-	 *       we choose to deal with the "BH's run with
-	 *       %pil==15" problem (described in asm/pil.h)
-	 *       by just invoking rtrap directly past where
-	 *       BH's are checked for.
-	 *
-	 *       We do it like this because we do not want %pil==15
-	 *       lockups to prevent regs being reported.
-	 */
-	.globl		xcall_report_regs
-xcall_report_regs:
-
-661:	rdpr		%pstate, %g2
-	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
-	.section	.sun4v_2insn_patch, "ax"
-	.word		661b
-	nop
-	nop
-	.previous
-
-	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
-	sethi		%hi(109f), %g7
-	b,pt		%xcc, etrap_irq
-109:	 or		%g7, %lo(109b), %g7
-#ifdef CONFIG_TRACE_IRQFLAGS
-	call		trace_hardirqs_off
-	 nop
-#endif
-	call		__show_regs
-	 add		%sp, PTREGS_OFF, %o0
-	/* Has to be a non-v9 branch due to the large distance. */
-	b		rtrap_xcall
-	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
-
 #ifdef CONFIG_MAGIC_SYSRQ
 	.globl		xcall_fetch_glob_regs
 xcall_fetch_glob_regs:

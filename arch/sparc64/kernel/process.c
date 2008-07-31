@@ -254,15 +254,6 @@ void __show_regs(struct pt_regs * regs)
 void show_regs(struct pt_regs *regs)
 {
 	__show_regs(regs);
-#if 0
-#ifdef CONFIG_SMP
-	{
-		extern void smp_report_regs(void);
-
-		smp_report_regs();
-	}
-#endif
-#endif
 }
 
 struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
