@@ -106,24 +106,6 @@
 #define AD1848_CALIB_IN_PROGRESS 0x20	/* auto calibrate in progress */
 #define AD1848_DMA_REQUEST	0x10	/* DMA request in progress */
 
-/* defines for codec.mode */
-
-#define AD1848_MODE_NONE	0x0000
-#define AD1848_MODE_PLAY	0x0001
-#define AD1848_MODE_CAPTURE	0x0002
-#define AD1848_MODE_TIMER	0x0004
-#define AD1848_MODE_OPEN	(AD1848_MODE_PLAY|AD1848_MODE_CAPTURE|AD1848_MODE_TIMER)
-#define AD1848_MODE_RUNNING	0x0010
-
-/* defines for codec.hardware */
-
-#define AD1848_HW_DETECT	0x0000	/* let AD1848 driver detect chip */
-#define AD1848_HW_AD1847	0x0001	/* AD1847 chip */
-#define AD1848_HW_AD1848	0x0002	/* AD1848 chip */
-#define AD1848_HW_CS4248	0x0003	/* CS4248 chip */
-#define AD1848_HW_CMI8330	0x0004	/* CMI8330 chip */
-#define AD1848_HW_THINKPAD	0x0005	/* Thinkpad 360/750/755 */
-
 /* IBM Thinkpad specific stuff */
 #define AD1848_THINKPAD_CTL_PORT1		0x15e8
 #define AD1848_THINKPAD_CTL_PORT2		0x15e9
@@ -167,25 +149,11 @@ struct ad1848_mix_elem {
   .type = AD1848_MIX_SINGLE, \
   .private_value = AD1848_MIXVAL_SINGLE(reg, shift, mask, invert) }
 
-#define AD1848_SINGLE_TLV(xname, xindex, reg, shift, mask, invert, xtlv) \
-{ .name = xname, \
-  .index = xindex, \
-  .type = AD1848_MIX_SINGLE, \
-  .private_value = AD1848_MIXVAL_SINGLE(reg, shift, mask, invert), \
-  .tlv = xtlv }
-
 #define AD1848_DOUBLE(xname, xindex, left_reg, right_reg, shift_left, shift_right, mask, invert) \
 { .name = xname, \
   .index = xindex, \
   .type = AD1848_MIX_DOUBLE, \
   .private_value = AD1848_MIXVAL_DOUBLE(left_reg, right_reg, shift_left, shift_right, mask, invert) }
-
-#define AD1848_DOUBLE_TLV(xname, xindex, left_reg, right_reg, shift_left, shift_right, mask, invert, xtlv) \
-{ .name = xname, \
-  .index = xindex, \
-  .type = AD1848_MIX_DOUBLE, \
-  .private_value = AD1848_MIXVAL_DOUBLE(left_reg, right_reg, shift_left, shift_right, mask, invert), \
-  .tlv = xtlv }
 
 int snd_ad1848_add_ctl_elem(struct snd_wss *chip,
 			    const struct ad1848_mix_elem *c);

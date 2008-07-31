@@ -55,6 +55,12 @@
 #define WSS_HW_CS4237B       0x0402	/* CS4237B - SRS 3D */
 #define WSS_HW_CS4238B	0x0403	/* CS4238B - QSOUND 3D */
 #define WSS_HW_CS4239	0x0404	/* CS4239 - Crystal Clear (tm) stereo enhancement */
+#define WSS_HW_AD1848_MASK	0x0800	/* AD1848 serie (half duplex) */
+#define WSS_HW_AD1847		0x0801	/* AD1847 chip */
+#define WSS_HW_AD1848		0x0802	/* AD1848 chip */
+#define WSS_HW_CS4248		0x0803	/* CS4248 chip */
+#define WSS_HW_CMI8330		0x0804	/* CMI8330 chip */
+#define WSS_HW_THINKPAD		0x0805	/* Thinkpad 360/750/755 */
 /* compatible, but clones */
 #define WSS_HW_INTERWAVE     0x1000	/* InterWave chip */
 #define WSS_HW_OPL3SA2       0x1101	/* OPL3-SA2 chip, similar to cs4231 */

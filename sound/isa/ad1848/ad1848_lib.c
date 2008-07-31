@@ -283,14 +283,12 @@ static int snd_ad1848_trigger(struct snd_wss *chip, unsigned char what,
 			return 0;
 		}
 		snd_ad1848_out(chip, AD1848_IFACE_CTRL, chip->image[AD1848_IFACE_CTRL] |= what);
-		chip->mode |= AD1848_MODE_RUNNING;
 	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
 		if (!(chip->image[AD1848_IFACE_CTRL] & what)) {
 			spin_unlock(&chip->reg_lock);
 			return 0;
 		}
 		snd_ad1848_out(chip, AD1848_IFACE_CTRL, chip->image[AD1848_IFACE_CTRL] &= ~what);
-		chip->mode &= ~AD1848_MODE_RUNNING;
 	} else {
 		result = -EINVAL;
 	}
@@ -378,7 +376,7 @@ static int snd_ad1848_open(struct snd_wss *chip, unsigned int mode)
 {
 	unsigned long flags;
 
-	if (chip->mode & AD1848_MODE_OPEN)
+	if (chip->mode & WSS_MODE_OPEN)
 		return -EAGAIN;
 
 	snd_ad1848_mce_down(chip);
@@ -570,11 +568,9 @@ static irqreturn_t snd_ad1848_interrupt(int irq, void *dev_id)
 {
 	struct snd_wss *chip = dev_id;
 
-	if ((chip->mode & AD1848_MODE_PLAY) && chip->playback_substream &&
-	    (chip->mode & AD1848_MODE_RUNNING))
+	if ((chip->mode & WSS_MODE_PLAY) && chip->playback_substream)
 		snd_pcm_period_elapsed(chip->playback_substream);
-	if ((chip->mode & AD1848_MODE_CAPTURE) && chip->capture_substream &&
-	    (chip->mode & AD1848_MODE_RUNNING))
+	if ((chip->mode & WSS_MODE_RECORD) && chip->capture_substream)
 		snd_pcm_period_elapsed(chip->capture_substream);
 	outb(0, AD1848P(chip, STATUS));	/* clear global interrupt bit */
 	return IRQ_HANDLED;
@@ -690,19 +686,19 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 	}
 	if (id != 1)
 		return -ENODEV;	/* no valid device found */
-	if (chip->hardware == AD1848_HW_DETECT) {
+	if (chip->hardware == WSS_HW_DETECT) {
 		if (ad1847) {
-			chip->hardware = AD1848_HW_AD1847;
+			chip->hardware = WSS_HW_AD1847;
 		} else {
-			chip->hardware = AD1848_HW_AD1848;
+			chip->hardware = WSS_HW_AD1848;
 			rev = snd_ad1848_in(chip, AD1848_MISC_INFO);
 			if (rev & 0x80) {
-				chip->hardware = AD1848_HW_CS4248;
+				chip->hardware = WSS_HW_CS4248;
 			} else if ((rev & 0x0f) == 0x0a) {
 				snd_ad1848_out(chip, AD1848_MISC_INFO, 0x40);
 				for (i = 0; i < 16; ++i) {
 					if (snd_ad1848_in(chip, i) != snd_ad1848_in(chip, i + 16)) {
-						chip->hardware = AD1848_HW_CMI8330;
+						chip->hardware = WSS_HW_CMI8330;
 						break;
 					}
 				}
@@ -782,7 +778,8 @@ static int snd_ad1848_playback_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if ((err = snd_ad1848_open(chip, AD1848_MODE_PLAY)) < 0)
+	err = snd_ad1848_open(chip, WSS_MODE_PLAY);
+	if (err < 0)
 		return err;
 	chip->playback_substream = substream;
 	runtime->hw = snd_ad1848_playback;
@@ -798,7 +795,8 @@ static int snd_ad1848_capture_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if ((err = snd_ad1848_open(chip, AD1848_MODE_CAPTURE)) < 0)
+	err = snd_ad1848_open(chip, WSS_MODE_RECORD);
+	if (err < 0)
 		return err;
 	chip->capture_substream = substream;
 	runtime->hw = snd_ad1848_capture;
@@ -812,7 +810,7 @@ static int snd_ad1848_playback_close(struct snd_pcm_substream *substream)
 {
 	struct snd_wss *chip = snd_pcm_substream_chip(substream);
 
-	chip->mode &= ~AD1848_MODE_PLAY;
+	chip->mode &= ~WSS_MODE_PLAY;
 	chip->playback_substream = NULL;
 	snd_ad1848_close(chip);
 	return 0;
@@ -822,7 +820,7 @@ static int snd_ad1848_capture_close(struct snd_pcm_substream *substream)
 {
 	struct snd_wss *chip = snd_pcm_substream_chip(substream);
 
-	chip->mode &= ~AD1848_MODE_CAPTURE;
+	chip->mode &= ~WSS_MODE_RECORD;
 	chip->capture_substream = NULL;
 	snd_ad1848_close(chip);
 	return 0;
@@ -903,9 +901,9 @@ int snd_ad1848_create(struct snd_card *card,
 	chip->dma1 = dma;
 	chip->dma2 = dma;
 
-	if (hardware == AD1848_HW_THINKPAD) {
+	if (hardware == WSS_HW_THINKPAD) {
 		chip->thinkpad_flag = 1;
-		chip->hardware = AD1848_HW_DETECT; /* reset */
+		chip->hardware = WSS_HW_DETECT; /* reset */
 		snd_ad1848_thinkpad_twiddle(chip, 1);
 	}
 
@@ -1213,6 +1211,20 @@ EXPORT_SYMBOL(snd_ad1848_add_ctl_elem);
 static const DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
+
+#define AD1848_SINGLE_TLV(xname, xindex, reg, shift, mask, invert, xtlv) \
+{ .name = xname, \
+  .index = xindex, \
+  .type = AD1848_MIX_SINGLE, \
+  .private_value = AD1848_MIXVAL_SINGLE(reg, shift, mask, invert), \
+  .tlv = xtlv }
+
+#define AD1848_DOUBLE_TLV(xname, xindex, left_reg, right_reg, shift_left, shift_right, mask, invert, xtlv) \
+{ .name = xname, \
+  .index = xindex, \
+  .type = AD1848_MIX_DOUBLE, \
+  .private_value = AD1848_MIXVAL_DOUBLE(left_reg, right_reg, shift_left, shift_right, mask, invert), \
+  .tlv = xtlv }
 
 static struct ad1848_mix_elem snd_ad1848_controls[] = {
 AD1848_DOUBLE("PCM Playback Switch", 0, AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 7, 7, 1, 1),

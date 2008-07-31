@@ -265,7 +265,7 @@ static int __devinit snd_sgalaxy_probe(struct device *devptr, unsigned int dev)
 
 	if ((err = snd_ad1848_create(card, wssport[dev] + 4,
 				     xirq, xdma1,
-				     AD1848_HW_DETECT, &chip)) < 0)
+				     WSS_HW_DETECT, &chip)) < 0)
 		goto _err;
 	card->private_data = chip;
 

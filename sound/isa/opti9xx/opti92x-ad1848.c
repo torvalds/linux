@@ -775,7 +775,7 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 #else
 	if ((error = snd_ad1848_create(card, chip->wss_base + 4,
 				       chip->irq, chip->dma1,
-				       AD1848_HW_DETECT, &codec)) < 0)
+				       WSS_HW_DETECT, &codec)) < 0)
 		return error;
 	if ((error = snd_ad1848_pcm(codec, 0, &pcm)) < 0)
 		return error;

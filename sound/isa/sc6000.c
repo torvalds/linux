@@ -549,7 +549,7 @@ static int __devinit snd_sc6000_probe(struct device *devptr, unsigned int dev)
 		goto err_unmap2;
 
 	err = snd_ad1848_create(card, mss_port[dev] + 4, xirq, xdma,
-				AD1848_HW_DETECT, &chip);
+				WSS_HW_DETECT, &chip);
 	if (err < 0)
 		goto err_unmap2;
 	card->private_data = chip;

@@ -96,7 +96,7 @@ static int __devinit snd_ad1848_probe(struct device *dev, unsigned int n)
 		return -EINVAL;
 
 	error = snd_ad1848_create(card, port[n], irq[n], dma1[n],
-			thinkpad[n] ? AD1848_HW_THINKPAD : AD1848_HW_DETECT, &chip);
+			thinkpad[n] ? WSS_HW_THINKPAD : WSS_HW_DETECT, &chip);
 	if (error < 0)
 		goto out;
 

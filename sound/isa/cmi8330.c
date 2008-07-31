@@ -465,12 +465,12 @@ static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
 				     wssport[dev] + 4,
 				     wssirq[dev],
 				     wssdma[dev],
-				     AD1848_HW_DETECT,
+				     WSS_HW_DETECT,
 				     &acard->wss)) < 0) {
 		snd_printk(KERN_ERR PFX "(AD1848) device busy??\n");
 		return err;
 	}
-	if (acard->wss->hardware != AD1848_HW_CMI8330) {
+	if (acard->wss->hardware != WSS_HW_CMI8330) {
 		snd_printk(KERN_ERR PFX "(AD1848) not found during probe\n");
 		return -ENODEV;
 	}
