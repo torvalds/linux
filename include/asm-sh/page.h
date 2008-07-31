@@ -12,6 +12,8 @@
 # define PAGE_SHIFT	12
 #elif defined(CONFIG_PAGE_SIZE_8KB)
 # define PAGE_SHIFT	13
+#elif defined(CONFIG_PAGE_SIZE_16KB)
+# define PAGE_SHIFT	14
 #elif defined(CONFIG_PAGE_SIZE_64KB)
 # define PAGE_SHIFT	16
 #else

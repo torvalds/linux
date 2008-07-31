@@ -23,9 +23,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7311");
 MODULE_LICENSE("GPL");
@@ -266,7 +263,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	reg_w(gspca_dev, 0x3e, 0x20);
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x05;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
@@ -713,16 +709,14 @@ static struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x093a, 0x2600), DVNM("Typhoon")},
-	{USB_DEVICE(0x093a, 0x2601), DVNM("Philips SPC610NC")},
-	{USB_DEVICE(0x093a, 0x2603), DVNM("PAC7312")},
-	{USB_DEVICE(0x093a, 0x2608), DVNM("Trust WB-3300p")},
-	{USB_DEVICE(0x093a, 0x260e), DVNM("Gigaware VGA PC Camera")},
-			/* and also ', Trust WB-3350p, SIGMA cam 2350' */
-	{USB_DEVICE(0x093a, 0x260f), DVNM("SnakeCam")},
-	{USB_DEVICE(0x093a, 0x2621), DVNM("PAC731x")},
+	{USB_DEVICE(0x093a, 0x2600)},
+	{USB_DEVICE(0x093a, 0x2601)},
+	{USB_DEVICE(0x093a, 0x2603)},
+	{USB_DEVICE(0x093a, 0x2608)},
+	{USB_DEVICE(0x093a, 0x260e)},
+	{USB_DEVICE(0x093a, 0x260f)},
+	{USB_DEVICE(0x093a, 0x2621)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -747,7 +741,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

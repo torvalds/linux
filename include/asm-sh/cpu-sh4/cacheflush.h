@@ -30,7 +30,6 @@ void flush_dcache_page(struct page *pg);
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
 void flush_icache_range(unsigned long start, unsigned long end);
-void flush_cache_sigtramp(unsigned long addr);
 void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
 			     unsigned long addr, int len);
 

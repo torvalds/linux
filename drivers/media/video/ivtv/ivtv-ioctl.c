@@ -1842,69 +1842,73 @@ int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 	return res;
 }
 
+static const struct v4l2_ioctl_ops ivtv_ioctl_ops = {
+	.vidioc_querycap    		    = ivtv_querycap,
+	.vidioc_g_priority  		    = ivtv_g_priority,
+	.vidioc_s_priority  		    = ivtv_s_priority,
+	.vidioc_s_audio     		    = ivtv_s_audio,
+	.vidioc_g_audio     		    = ivtv_g_audio,
+	.vidioc_enumaudio   		    = ivtv_enumaudio,
+	.vidioc_s_audout     		    = ivtv_s_audout,
+	.vidioc_g_audout     		    = ivtv_g_audout,
+	.vidioc_enum_input   		    = ivtv_enum_input,
+	.vidioc_enum_output   		    = ivtv_enum_output,
+	.vidioc_enumaudout   		    = ivtv_enumaudout,
+	.vidioc_cropcap       		    = ivtv_cropcap,
+	.vidioc_s_crop       		    = ivtv_s_crop,
+	.vidioc_g_crop       		    = ivtv_g_crop,
+	.vidioc_g_input      		    = ivtv_g_input,
+	.vidioc_s_input      		    = ivtv_s_input,
+	.vidioc_g_output     		    = ivtv_g_output,
+	.vidioc_s_output     		    = ivtv_s_output,
+	.vidioc_g_frequency 		    = ivtv_g_frequency,
+	.vidioc_s_frequency  		    = ivtv_s_frequency,
+	.vidioc_s_tuner      		    = ivtv_s_tuner,
+	.vidioc_g_tuner      		    = ivtv_g_tuner,
+	.vidioc_g_enc_index 		    = ivtv_g_enc_index,
+	.vidioc_g_fbuf			    = ivtv_g_fbuf,
+	.vidioc_s_fbuf			    = ivtv_s_fbuf,
+	.vidioc_g_std 			    = ivtv_g_std,
+	.vidioc_s_std 			    = ivtv_s_std,
+	.vidioc_overlay			    = ivtv_overlay,
+	.vidioc_log_status		    = ivtv_log_status,
+	.vidioc_enum_fmt_vid_cap 	    = ivtv_enum_fmt_vid_cap,
+	.vidioc_encoder_cmd  		    = ivtv_encoder_cmd,
+	.vidioc_try_encoder_cmd 	    = ivtv_try_encoder_cmd,
+	.vidioc_enum_fmt_vid_out 	    = ivtv_enum_fmt_vid_out,
+	.vidioc_g_fmt_vid_cap 		    = ivtv_g_fmt_vid_cap,
+	.vidioc_g_fmt_vbi_cap		    = ivtv_g_fmt_vbi_cap,
+	.vidioc_g_fmt_sliced_vbi_cap        = ivtv_g_fmt_sliced_vbi_cap,
+	.vidioc_g_fmt_vid_out               = ivtv_g_fmt_vid_out,
+	.vidioc_g_fmt_vid_out_overlay       = ivtv_g_fmt_vid_out_overlay,
+	.vidioc_g_fmt_sliced_vbi_out        = ivtv_g_fmt_sliced_vbi_out,
+	.vidioc_s_fmt_vid_cap  		    = ivtv_s_fmt_vid_cap,
+	.vidioc_s_fmt_vbi_cap 		    = ivtv_s_fmt_vbi_cap,
+	.vidioc_s_fmt_sliced_vbi_cap        = ivtv_s_fmt_sliced_vbi_cap,
+	.vidioc_s_fmt_vid_out               = ivtv_s_fmt_vid_out,
+	.vidioc_s_fmt_vid_out_overlay       = ivtv_s_fmt_vid_out_overlay,
+	.vidioc_s_fmt_sliced_vbi_out        = ivtv_s_fmt_sliced_vbi_out,
+	.vidioc_try_fmt_vid_cap  	    = ivtv_try_fmt_vid_cap,
+	.vidioc_try_fmt_vbi_cap		    = ivtv_try_fmt_vbi_cap,
+	.vidioc_try_fmt_sliced_vbi_cap      = ivtv_try_fmt_sliced_vbi_cap,
+	.vidioc_try_fmt_vid_out 	    = ivtv_try_fmt_vid_out,
+	.vidioc_try_fmt_vid_out_overlay     = ivtv_try_fmt_vid_out_overlay,
+	.vidioc_try_fmt_sliced_vbi_out 	    = ivtv_try_fmt_sliced_vbi_out,
+	.vidioc_g_sliced_vbi_cap 	    = ivtv_g_sliced_vbi_cap,
+	.vidioc_g_chip_ident 		    = ivtv_g_chip_ident,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register 		    = ivtv_g_register,
+	.vidioc_s_register 		    = ivtv_s_register,
+#endif
+	.vidioc_default 		    = ivtv_default,
+	.vidioc_queryctrl 		    = ivtv_queryctrl,
+	.vidioc_querymenu 		    = ivtv_querymenu,
+	.vidioc_g_ext_ctrls 		    = ivtv_g_ext_ctrls,
+	.vidioc_s_ext_ctrls 		    = ivtv_s_ext_ctrls,
+	.vidioc_try_ext_ctrls    	    = ivtv_try_ext_ctrls,
+};
+
 void ivtv_set_funcs(struct video_device *vdev)
 {
-	vdev->vidioc_querycap     	    = ivtv_querycap;
-	vdev->vidioc_g_priority   	    = ivtv_g_priority;
-	vdev->vidioc_s_priority   	    = ivtv_s_priority;
-	vdev->vidioc_s_audio      	    = ivtv_s_audio;
-	vdev->vidioc_g_audio      	    = ivtv_g_audio;
-	vdev->vidioc_enumaudio   	    = ivtv_enumaudio;
-	vdev->vidioc_s_audout     	    = ivtv_s_audout;
-	vdev->vidioc_g_audout     	    = ivtv_g_audout;
-	vdev->vidioc_enum_input   	    = ivtv_enum_input;
-	vdev->vidioc_enum_output   	    = ivtv_enum_output;
-	vdev->vidioc_enumaudout   	    = ivtv_enumaudout;
-	vdev->vidioc_cropcap       	    = ivtv_cropcap;
-	vdev->vidioc_s_crop       	    = ivtv_s_crop;
-	vdev->vidioc_g_crop       	    = ivtv_g_crop;
-	vdev->vidioc_g_input      	    = ivtv_g_input;
-	vdev->vidioc_s_input      	    = ivtv_s_input;
-	vdev->vidioc_g_output     	    = ivtv_g_output;
-	vdev->vidioc_s_output     	    = ivtv_s_output;
-	vdev->vidioc_g_frequency 	    = ivtv_g_frequency;
-	vdev->vidioc_s_frequency  	    = ivtv_s_frequency;
-	vdev->vidioc_s_tuner      	    = ivtv_s_tuner;
-	vdev->vidioc_g_tuner      	    = ivtv_g_tuner;
-	vdev->vidioc_g_enc_index 	    = ivtv_g_enc_index;
-	vdev->vidioc_g_fbuf		    = ivtv_g_fbuf;
-	vdev->vidioc_s_fbuf		    = ivtv_s_fbuf;
-	vdev->vidioc_g_std 		    = ivtv_g_std;
-	vdev->vidioc_s_std 		    = ivtv_s_std;
-	vdev->vidioc_overlay		    = ivtv_overlay;
-	vdev->vidioc_log_status		    = ivtv_log_status;
-	vdev->vidioc_enum_fmt_vid_cap 	    = ivtv_enum_fmt_vid_cap;
-	vdev->vidioc_encoder_cmd  	    = ivtv_encoder_cmd;
-	vdev->vidioc_try_encoder_cmd 	    = ivtv_try_encoder_cmd;
-	vdev->vidioc_enum_fmt_vid_out       = ivtv_enum_fmt_vid_out;
-	vdev->vidioc_g_fmt_vid_cap  	    = ivtv_g_fmt_vid_cap;
-	vdev->vidioc_g_fmt_vbi_cap	    = ivtv_g_fmt_vbi_cap;
-	vdev->vidioc_g_fmt_sliced_vbi_cap   = ivtv_g_fmt_sliced_vbi_cap;
-	vdev->vidioc_g_fmt_vid_out          = ivtv_g_fmt_vid_out;
-	vdev->vidioc_g_fmt_vid_out_overlay  = ivtv_g_fmt_vid_out_overlay;
-	vdev->vidioc_g_fmt_sliced_vbi_out   = ivtv_g_fmt_sliced_vbi_out;
-	vdev->vidioc_s_fmt_vid_cap  	    = ivtv_s_fmt_vid_cap;
-	vdev->vidioc_s_fmt_vbi_cap 	    = ivtv_s_fmt_vbi_cap;
-	vdev->vidioc_s_fmt_sliced_vbi_cap   = ivtv_s_fmt_sliced_vbi_cap;
-	vdev->vidioc_s_fmt_vid_out          = ivtv_s_fmt_vid_out;
-	vdev->vidioc_s_fmt_vid_out_overlay  = ivtv_s_fmt_vid_out_overlay;
-	vdev->vidioc_s_fmt_sliced_vbi_out   = ivtv_s_fmt_sliced_vbi_out;
-	vdev->vidioc_try_fmt_vid_cap  	    = ivtv_try_fmt_vid_cap;
-	vdev->vidioc_try_fmt_vbi_cap	    = ivtv_try_fmt_vbi_cap;
-	vdev->vidioc_try_fmt_sliced_vbi_cap = ivtv_try_fmt_sliced_vbi_cap;
-	vdev->vidioc_try_fmt_vid_out        = ivtv_try_fmt_vid_out;
-	vdev->vidioc_try_fmt_vid_out_overlay = ivtv_try_fmt_vid_out_overlay;
-	vdev->vidioc_try_fmt_sliced_vbi_out = ivtv_try_fmt_sliced_vbi_out;
-	vdev->vidioc_g_sliced_vbi_cap 	    = ivtv_g_sliced_vbi_cap;
-	vdev->vidioc_g_chip_ident 	    = ivtv_g_chip_ident;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	vdev->vidioc_g_register 	    = ivtv_g_register;
-	vdev->vidioc_s_register 	    = ivtv_s_register;
-#endif
-	vdev->vidioc_default 		    = ivtv_default;
-	vdev->vidioc_queryctrl 		    = ivtv_queryctrl;
-	vdev->vidioc_querymenu 		    = ivtv_querymenu;
-	vdev->vidioc_g_ext_ctrls    	    = ivtv_g_ext_ctrls;
-	vdev->vidioc_s_ext_ctrls    	    = ivtv_s_ext_ctrls;
-	vdev->vidioc_try_ext_ctrls    	    = ivtv_try_ext_ctrls;
+	vdev->ioctl_ops = &ivtv_ioctl_ops;
 }

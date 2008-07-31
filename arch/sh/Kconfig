@@ -11,6 +11,7 @@ config SUPERH
 	select HAVE_CLK
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_GENERIC_DMA_COHERENT
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -477,6 +478,10 @@ config SH_RTS7751R2D
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
 
+config SH_RSK7203
+	bool "RSK7203"
+	depends on CPU_SUBTYPE_SH7203
+
 config SH_SDK7780
 	bool "SDK7780R3"
 	depends on CPU_SUBTYPE_SH7780
@@ -491,12 +496,41 @@ config SH_HIGHLANDER
 	select SYS_SUPPORTS_PCI
 	select IO_TRAPPED
 
+config SH_SH7785LCR
+	bool "SH7785LCR"
+	depends on CPU_SUBTYPE_SH7785
+	select SYS_SUPPORTS_PCI
+	select IO_TRAPPED
+
+config SH_SH7785LCR_29BIT_PHYSMAPS
+	bool "SH7785LCR 29bit physmaps"
+	depends on SH_SH7785LCR
+	default y
+	help
+	  This board has 2 physical memory maps. It can be changed with
+	  DIP switch(S2-5). If you set the DIP switch for S2-5 = ON,
+	  you can access all on-board device in 29bit address mode.
+
 config SH_MIGOR
 	bool "Migo-R"
 	depends on CPU_SUBTYPE_SH7722
 	help
 	  Select Migo-R if configuring for the SH7722 Migo-R platform
           by Renesas System Solutions Asia Pte. Ltd.
+
+config SH_AP325RXA
+	bool "AP-325RXA"
+	depends on CPU_SUBTYPE_SH7723
+	help
+	  Renesas "AP-325RXA" support.
+	  Compatible with ALGO SYSTEM CO.,LTD. "AP-320A"
+
+config SH_SH7763RDP
+	bool "SH7763RDP"
+	depends on CPU_SUBTYPE_SH7763
+	help
+	  Select SH7763RDP if configuring for a Renesas SH7763
+	  evaluation board.
 
 config SH_EDOSK7705
 	bool "EDOSK7705"
@@ -559,6 +593,7 @@ endmenu
 source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 source "arch/sh/boards/renesas/r7780rp/Kconfig"
 source "arch/sh/boards/renesas/sdk7780/Kconfig"
+source "arch/sh/boards/renesas/migor/Kconfig"
 source "arch/sh/boards/magicpanelr2/Kconfig"
 
 menu "Timer and clock configuration"

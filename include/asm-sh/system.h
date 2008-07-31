@@ -148,14 +148,6 @@ extern unsigned long cached_to_uncached;
 
 extern struct dentry *sh_debugfs_root;
 
-/* XXX
- * disable hlt during certain critical i/o operations
- */
-#define HAVE_DISABLE_HLT
-void disable_hlt(void);
-void enable_hlt(void);
-
-void default_idle(void);
 void per_cpu_trap_init(void);
 
 asmlinkage void break_point_trap(void);

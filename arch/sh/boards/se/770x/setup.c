@@ -14,8 +14,6 @@
 #include <asm/smc37c93x.h>
 #include <asm/heartbeat.h>
 
-void init_se_IRQ(void);
-
 /*
  * Configure the Super I/O chip
  */
@@ -73,7 +71,7 @@ static struct resource cf_ide_resources[] = {
 	},
 	[1] = {
 		.start  = PA_MRSHPC_IO + 0x1f0 + 0x206,
-		.end    = PA_MRSHPC_IO + 0x1f0 +8 + 0x206 + 8,
+		.end    = PA_MRSHPC_IO + 0x1f0 + 8 + 0x206 + 8,
 		.flags  = IORESOURCE_MEM,
 	},
 	[2] = {
@@ -115,9 +113,58 @@ static struct platform_device heartbeat_device = {
 	.resource	= heartbeat_resources,
 };
 
+/* SH771X Ethernet driver */
+static struct resource sh_eth0_resources[] = {
+	[0] = {
+		.start = SH_ETH0_BASE,
+		.end = SH_ETH0_BASE + 0x1B8,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = SH_ETH0_IRQ,
+		.end = SH_ETH0_IRQ,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sh_eth0_device = {
+	.name = "sh-eth",
+	.id	= 0,
+	.dev = {
+		.platform_data = PHY_ID,
+	},
+	.num_resources = ARRAY_SIZE(sh_eth0_resources),
+	.resource = sh_eth0_resources,
+};
+
+static struct resource sh_eth1_resources[] = {
+	[0] = {
+		.start = SH_ETH1_BASE,
+		.end = SH_ETH1_BASE + 0x1B8,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = SH_ETH1_IRQ,
+		.end = SH_ETH1_IRQ,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sh_eth1_device = {
+	.name = "sh-eth",
+	.id	= 1,
+	.dev = {
+		.platform_data = PHY_ID,
+	},
+	.num_resources = ARRAY_SIZE(sh_eth1_resources),
+	.resource = sh_eth1_resources,
+};
+
 static struct platform_device *se_devices[] __initdata = {
 	&heartbeat_device,
 	&cf_ide_device,
+	&sh_eth0_device,
+	&sh_eth1_device,
 };
 
 static int __init se_devices_setup(void)

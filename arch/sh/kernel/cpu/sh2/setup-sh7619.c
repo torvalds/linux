@@ -96,8 +96,32 @@ static struct platform_device sci_device = {
 	},
 };
 
+static struct resource eth_resources[] = {
+	[0] = {
+		.start = 0xfb000000,
+		.end =   0xfb0001c8,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = 85,
+		.end = 85,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device eth_device = {
+	.name = "sh-eth",
+	.id	= -1,
+	.dev = {
+		.platform_data = (void *)1,
+	},
+	.num_resources = ARRAY_SIZE(eth_resources),
+	.resource = eth_resources,
+};
+
 static struct platform_device *sh7619_devices[] __initdata = {
 	&sci_device,
+	&eth_device,
 };
 
 static int __init sh7619_devices_setup(void)

@@ -1,4 +1,4 @@
-List of the webcams know by gspca.
+List of the webcams known by gspca.
 
 The modules are:
 	gspca_main	main driver

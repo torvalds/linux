@@ -1,9 +1,14 @@
 #ifndef __ASM_SH_ELF_H
 #define __ASM_SH_ELF_H
 
+#include <linux/utsname.h>
 #include <asm/auxvec.h>
 #include <asm/ptrace.h>
 #include <asm/user.h>
+
+/* ELF header e_flags defines */
+#define EF_SH_PIC		0x100	/* -fpic */
+#define EF_SH_FDPIC		0x8000	/* -mfdpic */
 
 /* SH (particularly SHcompact) relocation types  */
 #define	R_SH_NONE		0
@@ -43,6 +48,28 @@
 #define	R_SH_RELATIVE		165
 #define	R_SH_GOTOFF		166
 #define	R_SH_GOTPC		167
+
+/* FDPIC relocs */
+#define R_SH_GOT20		70
+#define R_SH_GOTOFF20		71
+#define R_SH_GOTFUNCDESC	72
+#define R_SH_GOTFUNCDESC20	73
+#define R_SH_GOTOFFFUNCDESC	74
+#define R_SH_GOTOFFFUNCDESC20	75
+#define R_SH_FUNCDESC		76
+#define R_SH_FUNCDESC_VALUE	77
+
+#if 0 /* XXX - later .. */
+#define R_SH_GOT20		198
+#define R_SH_GOTOFF20		199
+#define R_SH_GOTFUNCDESC	200
+#define R_SH_GOTFUNCDESC20	201
+#define R_SH_GOTOFFFUNCDESC	202
+#define R_SH_GOTOFFFUNCDESC20	203
+#define R_SH_FUNCDESC		204
+#define R_SH_FUNCDESC_VALUE	205
+#endif
+
 /* SHmedia relocs */
 #define R_SH_IMM_LOW16		246
 #define R_SH_IMM_LOW16_PCREL	247
@@ -77,9 +104,12 @@ typedef struct user_fpu_struct elf_fpregset_t;
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(x) ( (x)->e_machine == EM_SH )
+#define elf_check_arch(x)		((x)->e_machine == EM_SH)
+#define elf_check_fdpic(x)		((x)->e_flags & EF_SH_FDPIC)
+#define elf_check_const_displacement(x)	((x)->e_flags & EF_SH_PIC)
 
 #define USE_ELF_CORE_DUMP
+#define ELF_FDPIC_CORE_EFLAGS	EF_SH_FDPIC
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical
@@ -136,6 +166,27 @@ typedef struct user_fpu_struct elf_fpregset_t;
        _r->regs[8]=0; _r->regs[9]=0; _r->regs[10]=0; _r->regs[11]=0; \
        _r->regs[12]=0; _r->regs[13]=0; _r->regs[14]=0; \
        _r->sr = SR_FD; } while (0)
+
+#define ELF_FDPIC_PLAT_INIT(_r, _exec_map_addr, _interp_map_addr,	\
+			    _dynamic_addr)				\
+do {									\
+	_r->regs[0]	= 0;						\
+	_r->regs[1]	= 0;						\
+	_r->regs[2]	= 0;						\
+	_r->regs[3]	= 0;						\
+	_r->regs[4]	= 0;						\
+	_r->regs[5]	= 0;						\
+	_r->regs[6]	= 0;						\
+	_r->regs[7]	= 0;						\
+	_r->regs[8]	= _exec_map_addr;				\
+	_r->regs[9]	= _interp_map_addr;				\
+	_r->regs[10]	= _dynamic_addr;				\
+	_r->regs[11]	= 0;						\
+	_r->regs[12]	= 0;						\
+	_r->regs[13]	= 0;						\
+	_r->regs[14]	= 0;						\
+	_r->sr		= SR_FD;					\
+} while (0)
 #endif
 
 #define SET_PERSONALITY(ex, ibcs2) set_personality(PER_LINUX_32BIT)

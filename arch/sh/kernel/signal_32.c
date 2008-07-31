@@ -33,6 +33,11 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
+struct fdpic_func_descriptor {
+	unsigned long	text;
+	unsigned long	GOT;
+};
+
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
@@ -368,6 +373,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		err |= __put_user(OR_R0_R0, &frame->retcode[6]);
 		err |= __put_user((__NR_sigreturn), &frame->retcode[7]);
 		regs->pr = (unsigned long) frame->retcode;
+		flush_icache_range(regs->pr, regs->pr + sizeof(frame->retcode));
 	}
 
 	if (err)
@@ -378,17 +384,20 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	regs->regs[4] = signal; /* Arg for signal handler */
 	regs->regs[5] = 0;
 	regs->regs[6] = (unsigned long) &frame->sc;
-	regs->pc = (unsigned long) ka->sa.sa_handler;
+
+	if (current->personality & FDPIC_FUNCPTRS) {
+		struct fdpic_func_descriptor __user *funcptr =
+			(struct fdpic_func_descriptor __user *)ka->sa.sa_handler;
+
+		__get_user(regs->pc, &funcptr->text);
+		__get_user(regs->regs[12], &funcptr->GOT);
+	} else
+		regs->pc = (unsigned long)ka->sa.sa_handler;
 
 	set_fs(USER_DS);
 
 	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
 		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
-
-	flush_cache_sigtramp(regs->pr);
-
-	if ((-regs->pr & (L1_CACHE_BYTES-1)) < sizeof(frame->retcode))
-		flush_cache_sigtramp(regs->pr + L1_CACHE_BYTES);
 
 	return 0;
 
@@ -458,17 +467,22 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->regs[4] = signal; /* Arg for signal handler */
 	regs->regs[5] = (unsigned long) &frame->info;
 	regs->regs[6] = (unsigned long) &frame->uc;
-	regs->pc = (unsigned long) ka->sa.sa_handler;
+
+	if (current->personality & FDPIC_FUNCPTRS) {
+		struct fdpic_func_descriptor __user *funcptr =
+			(struct fdpic_func_descriptor __user *)ka->sa.sa_handler;
+
+		__get_user(regs->pc, &funcptr->text);
+		__get_user(regs->regs[12], &funcptr->GOT);
+	} else
+		regs->pc = (unsigned long)ka->sa.sa_handler;
 
 	set_fs(USER_DS);
 
 	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
 		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
 
-	flush_cache_sigtramp(regs->pr);
-
-	if ((-regs->pr & (L1_CACHE_BYTES-1)) < sizeof(frame->retcode))
-		flush_cache_sigtramp(regs->pr + L1_CACHE_BYTES);
+	flush_icache_range(regs->pr, regs->pr + sizeof(frame->retcode));
 
 	return 0;
 

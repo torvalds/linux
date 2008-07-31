@@ -87,6 +87,11 @@ struct pt_dspregs {
 	unsigned long	mod;
 };
 
+#define PTRACE_GETFDPIC		31	/* get the ELF fdpic loadmap address */
+
+#define PTRACE_GETFDPIC_EXEC	0	/* [addr] request the executable loadmap */
+#define PTRACE_GETFDPIC_INTERP	1	/* [addr] request the interpreter loadmap */
+
 #define	PTRACE_GETDSPREGS	55
 #define	PTRACE_SETDSPREGS	56
 #endif
