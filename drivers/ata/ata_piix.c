@@ -165,8 +165,10 @@ static void piix_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static void ich_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static int ich_pata_cable_detect(struct ata_port *ap);
 static u8 piix_vmw_bmdma_status(struct ata_port *ap);
-static int piix_sidpr_scr_read(struct ata_port *ap, unsigned int reg, u32 *val);
-static int piix_sidpr_scr_write(struct ata_port *ap, unsigned int reg, u32 val);
+static int piix_sidpr_scr_read(struct ata_link *link,
+			       unsigned int reg, u32 *val);
+static int piix_sidpr_scr_write(struct ata_link *link,
+				unsigned int reg, u32 val);
 #ifdef CONFIG_PM
 static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 static int piix_pci_device_resume(struct pci_dev *pdev);
@@ -971,8 +973,10 @@ static u32 piix_merge_scr(u32 val0, u32 val1, const int * const *merge_tbl)
 	return val;
 }
 
-static int piix_sidpr_scr_read(struct ata_port *ap, unsigned int reg, u32 *val)
+static int piix_sidpr_scr_read(struct ata_link *link,
+			       unsigned int reg, u32 *val)
 {
+	struct ata_port *ap = link->ap;
 	const int * const sstatus_merge_tbl[] = {
 		/* DET */ (const int []){ 1, 3, 0, 4, 3, -1 },
 		/* SPD */ (const int []){ 2, 1, 0, -1 },
@@ -1013,8 +1017,11 @@ static int piix_sidpr_scr_read(struct ata_port *ap, unsigned int reg, u32 *val)
 	return 0;
 }
 
-static int piix_sidpr_scr_write(struct ata_port *ap, unsigned int reg, u32 val)
+static int piix_sidpr_scr_write(struct ata_link *link,
+				unsigned int reg, u32 val)
 {
+	struct ata_port *ap = link->ap;
+
 	if (reg >= ARRAY_SIZE(piix_sidx_map))
 		return -EINVAL;
 

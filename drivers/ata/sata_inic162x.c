@@ -269,9 +269,9 @@ static void inic_reset_port(void __iomem *port_base)
 	writeb(0xff, port_base + PORT_IRQ_STAT);
 }
 
-static int inic_scr_read(struct ata_port *ap, unsigned sc_reg, u32 *val)
+static int inic_scr_read(struct ata_link *link, unsigned sc_reg, u32 *val)
 {
-	void __iomem *scr_addr = inic_port_base(ap) + PORT_SCR;
+	void __iomem *scr_addr = inic_port_base(link->ap) + PORT_SCR;
 	void __iomem *addr;
 
 	if (unlikely(sc_reg >= ARRAY_SIZE(scr_map)))
@@ -286,9 +286,9 @@ static int inic_scr_read(struct ata_port *ap, unsigned sc_reg, u32 *val)
 	return 0;
 }
 
-static int inic_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
+static int inic_scr_write(struct ata_link *link, unsigned sc_reg, u32 val)
 {
-	void __iomem *scr_addr = inic_port_base(ap) + PORT_SCR;
+	void __iomem *scr_addr = inic_port_base(link->ap) + PORT_SCR;
 
 	if (unlikely(sc_reg >= ARRAY_SIZE(scr_map)))
 		return -EINVAL;

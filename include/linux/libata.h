@@ -772,8 +772,8 @@ struct ata_port_operations {
 	/*
 	 * Optional features
 	 */
-	int  (*scr_read)(struct ata_port *ap, unsigned int sc_reg, u32 *val);
-	int  (*scr_write)(struct ata_port *ap, unsigned int sc_reg, u32 val);
+	int  (*scr_read)(struct ata_link *link, unsigned int sc_reg, u32 *val);
+	int  (*scr_write)(struct ata_link *link, unsigned int sc_reg, u32 val);
 	void (*pmp_attach)(struct ata_port *ap);
 	void (*pmp_detach)(struct ata_port *ap);
 	int  (*enable_pm)(struct ata_port *ap, enum link_pm policy);

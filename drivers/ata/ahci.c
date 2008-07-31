@@ -267,8 +267,8 @@ struct ahci_port_priv {
 					 	 * per PM slot */
 };
 
-static int ahci_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
-static int ahci_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int ahci_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
+static int ahci_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc);
 static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
@@ -820,10 +820,10 @@ static unsigned ahci_scr_offset(struct ata_port *ap, unsigned int sc_reg)
 	return 0;
 }
 
-static int ahci_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
+static int ahci_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val)
 {
-	void __iomem *port_mmio = ahci_port_base(ap);
-	int offset = ahci_scr_offset(ap, sc_reg);
+	void __iomem *port_mmio = ahci_port_base(link->ap);
+	int offset = ahci_scr_offset(link->ap, sc_reg);
 
 	if (offset) {
 		*val = readl(port_mmio + offset);
@@ -832,10 +832,10 @@ static int ahci_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 	return -EINVAL;
 }
 
-static int ahci_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int ahci_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
 {
-	void __iomem *port_mmio = ahci_port_base(ap);
-	int offset = ahci_scr_offset(ap, sc_reg);
+	void __iomem *port_mmio = ahci_port_base(link->ap);
+	int offset = ahci_scr_offset(link->ap, sc_reg);
 
 	if (offset) {
 		writel(val, port_mmio + offset);
@@ -973,7 +973,7 @@ static void ahci_disable_alpm(struct ata_port *ap)
 	writel(PORT_IRQ_PHYRDY, port_mmio + PORT_IRQ_STAT);
 
 	/* go ahead and clean out PhyRdy Change from Serror too */
-	ahci_scr_write(ap, SCR_ERROR, ((1 << 16) | (1 << 18)));
+	ahci_scr_write(&ap->link, SCR_ERROR, ((1 << 16) | (1 << 18)));
 
 	/*
  	 * Clear flag to indicate that we should ignore all PhyRdy
@@ -1937,8 +1937,8 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 	ata_ehi_push_desc(host_ehi, "irq_stat 0x%08x", irq_stat);
 
 	/* AHCI needs SError cleared; otherwise, it might lock up */
-	ahci_scr_read(ap, SCR_ERROR, &serror);
-	ahci_scr_write(ap, SCR_ERROR, serror);
+	ahci_scr_read(&ap->link, SCR_ERROR, &serror);
+	ahci_scr_write(&ap->link, SCR_ERROR, serror);
 	host_ehi->serror |= serror;
 
 	/* some controllers set IRQ_IF_ERR on device errors, ignore it */
@@ -2027,7 +2027,7 @@ static void ahci_port_intr(struct ata_port *ap)
 	if ((hpriv->flags & AHCI_HFLAG_NO_HOTPLUG) &&
 		(status & PORT_IRQ_PHYRDY)) {
 		status &= ~PORT_IRQ_PHYRDY;
-		ahci_scr_write(ap, SCR_ERROR, ((1 << 16) | (1 << 18)));
+		ahci_scr_write(&ap->link, SCR_ERROR, ((1 << 16) | (1 << 18)));
 	}
 
 	if (unlikely(status & PORT_IRQ_ERROR)) {

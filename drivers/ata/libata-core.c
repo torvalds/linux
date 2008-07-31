@@ -4868,10 +4868,8 @@ int sata_scr_valid(struct ata_link *link)
 int sata_scr_read(struct ata_link *link, int reg, u32 *val)
 {
 	if (ata_is_host_link(link)) {
-		struct ata_port *ap = link->ap;
-
 		if (sata_scr_valid(link))
-			return ap->ops->scr_read(ap, reg, val);
+			return link->ap->ops->scr_read(link, reg, val);
 		return -EOPNOTSUPP;
 	}
 
@@ -4897,10 +4895,8 @@ int sata_scr_read(struct ata_link *link, int reg, u32 *val)
 int sata_scr_write(struct ata_link *link, int reg, u32 val)
 {
 	if (ata_is_host_link(link)) {
-		struct ata_port *ap = link->ap;
-
 		if (sata_scr_valid(link))
-			return ap->ops->scr_write(ap, reg, val);
+			return link->ap->ops->scr_write(link, reg, val);
 		return -EOPNOTSUPP;
 	}
 
@@ -4925,13 +4921,12 @@ int sata_scr_write(struct ata_link *link, int reg, u32 val)
 int sata_scr_write_flush(struct ata_link *link, int reg, u32 val)
 {
 	if (ata_is_host_link(link)) {
-		struct ata_port *ap = link->ap;
 		int rc;
 
 		if (sata_scr_valid(link)) {
-			rc = ap->ops->scr_write(ap, reg, val);
+			rc = link->ap->ops->scr_write(link, reg, val);
 			if (rc == 0)
-				rc = ap->ops->scr_read(ap, reg, &val);
+				rc = link->ap->ops->scr_read(link, reg, &val);
 			return rc;
 		}
 		return -EOPNOTSUPP;
