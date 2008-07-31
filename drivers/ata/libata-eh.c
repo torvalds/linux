@@ -2171,18 +2171,12 @@ static int ata_do_reset(struct ata_link *link, ata_reset_fn_t reset,
 }
 
 static int ata_eh_followup_srst_needed(struct ata_link *link,
-				       int rc, int classify,
-				       const unsigned int *classes)
+				       int rc, const unsigned int *classes)
 {
 	if ((link->flags & ATA_LFLAG_NO_SRST) || ata_link_offline(link))
 		return 0;
-	if (rc == -EAGAIN) {
-		if (classify)
-			return 1;
-		rc = 0;
-	}
-	if (rc != 0)
-		return 0;
+	if (rc == -EAGAIN)
+		return 1;
 	if (sata_pmp_supported(link->ap) && ata_is_host_link(link))
 		return 1;
 	return 0;
@@ -2309,9 +2303,11 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			ehc->i.flags |= ATA_EHI_DID_SOFTRESET;
 
 		rc = ata_do_reset(link, reset, classes, deadline);
+		if (rc && rc != -EAGAIN)
+			goto fail;
 
 		if (reset == hardreset &&
-		    ata_eh_followup_srst_needed(link, rc, classify, classes)) {
+		    ata_eh_followup_srst_needed(link, rc, classes)) {
 			/* okay, let's do follow-up softreset */
 			reset = softreset;
 
@@ -2326,10 +2322,6 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			ata_eh_about_to_do(link, NULL, ATA_EH_RESET);
 			rc = ata_do_reset(link, reset, classes, deadline);
 		}
-
-		/* -EAGAIN can happen if we skipped followup SRST */
-		if (rc && rc != -EAGAIN)
-			goto fail;
 	} else {
 		if (verbose)
 			ata_link_printk(link, KERN_INFO, "no reset method "
