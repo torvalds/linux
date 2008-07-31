@@ -261,6 +261,7 @@ extern int icache_44x_need_flush;
 #define _PAGE_HWEXEC	0x00000004		/* H: Execute permission */
 #define _PAGE_ACCESSED	0x00000008		/* S: Page referenced */
 #define _PAGE_DIRTY	0x00000010		/* S: Page dirty */
+#define _PAGE_SPECIAL	0x00000020		/* S: Special page */
 #define _PAGE_USER	0x00000040		/* S: User page */
 #define _PAGE_ENDIAN	0x00000080		/* H: E bit */
 #define _PAGE_GUARDED	0x00000100		/* H: G bit */
@@ -276,6 +277,7 @@ extern int icache_44x_need_flush;
 /* ERPN in a PTE never gets cleared, ignore it */
 #define _PTE_NONE_MASK	0xffffffff00000000ULL
 
+#define __HAVE_ARCH_PTE_SPECIAL
 
 #elif defined(CONFIG_FSL_BOOKE)
 /*
@@ -305,6 +307,7 @@ extern int icache_44x_need_flush;
 #define _PAGE_COHERENT	0x00100	/* H: M bit */
 #define _PAGE_NO_CACHE	0x00200	/* H: I bit */
 #define _PAGE_WRITETHRU	0x00400	/* H: W bit */
+#define _PAGE_SPECIAL	0x00800 /* S: Special page */
 
 #ifdef CONFIG_PTE_64BIT
 /* ERPN in a PTE never gets cleared, ignore it */
@@ -314,6 +317,8 @@ extern int icache_44x_need_flush;
 #define _PMD_PRESENT	0
 #define _PMD_PRESENT_MASK (PAGE_MASK)
 #define _PMD_BAD	(~PAGE_MASK)
+
+#define __HAVE_ARCH_PTE_SPECIAL
 
 #elif defined(CONFIG_8xx)
 /* Definitions for 8xx embedded chips. */
@@ -362,6 +367,7 @@ extern int icache_44x_need_flush;
 #define _PAGE_ACCESSED	0x100	/* R: page referenced */
 #define _PAGE_EXEC	0x200	/* software: i-cache coherency required */
 #define _PAGE_RW	0x400	/* software: user write access allowed */
+#define _PAGE_SPECIAL	0x800	/* software: Special page */
 
 #define _PTE_NONE_MASK	_PAGE_HASHPTE
 
@@ -371,6 +377,8 @@ extern int icache_44x_need_flush;
 
 /* Hash table based platforms need atomic updates of the linux PTE */
 #define PTE_ATOMIC_UPDATES	1
+
+#define __HAVE_ARCH_PTE_SPECIAL
 
 #endif
 
@@ -403,6 +411,9 @@ extern int icache_44x_need_flush;
 #endif
 #ifndef _PAGE_WRITETHRU
 #define _PAGE_WRITETHRU	0
+#endif
+#ifndef _PAGE_SPECIAL
+#define _PAGE_SPECIAL	0
 #endif
 #ifndef _PMD_PRESENT_MASK
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
@@ -534,7 +545,7 @@ static inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
-static inline int pte_special(pte_t pte)	{ return 0; }
+static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
 
 static inline void pte_uncache(pte_t pte)       { pte_val(pte) |= _PAGE_NO_CACHE; }
 static inline void pte_cache(pte_t pte)         { pte_val(pte) &= ~_PAGE_NO_CACHE; }
@@ -553,7 +564,7 @@ static inline pte_t pte_mkdirty(pte_t pte) {
 static inline pte_t pte_mkyoung(pte_t pte) {
 	pte_val(pte) |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkspecial(pte_t pte) {
-	return pte; }
+	pte_val(pte) |= _PAGE_SPECIAL; return pte; }
 static inline unsigned long pte_pgprot(pte_t pte)
 {
 	return __pgprot(pte_val(pte)) & PAGE_PROT_BITS;
