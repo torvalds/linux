@@ -14,6 +14,7 @@
 #include <linux/utsrelease.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
+#include <linux/notifier.h>
 #include <linux/debugfs.h>
 #include <linux/pagemap.h>
 #include <linux/hardirq.h>
@@ -22,6 +23,7 @@
 #include <linux/ftrace.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
+#include <linux/kdebug.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -103,8 +105,15 @@ int				ftrace_function_enabled;
  * trace_nr_entries is the number of entries that is allocated
  * for a buffer. Note, the number of entries is always rounded
  * to ENTRIES_PER_PAGE.
+ *
+ * This number is purposely set to a low number of 16384.
+ * If the dump on oops happens, it will be much appreciated
+ * to not have to wait for all that output. Anyway this can be
+ * boot time and run time configurable.
  */
-static unsigned long		trace_nr_entries = 65536UL;
+#define TRACE_ENTRIES_DEFAULT	16384UL
+
+static unsigned long		trace_nr_entries = TRACE_ENTRIES_DEFAULT;
 
 /* trace_types holds a link list of available tracers. */
 static struct tracer		*trace_types __read_mostly;
@@ -3142,6 +3151,165 @@ int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 }
 EXPORT_SYMBOL_GPL(__ftrace_printk);
 
+static int trace_panic_handler(struct notifier_block *this,
+			       unsigned long event, void *unused)
+{
+	ftrace_dump();
+	return NOTIFY_OK;
+}
+
+static struct notifier_block trace_panic_notifier = {
+	.notifier_call  = trace_panic_handler,
+	.next           = NULL,
+	.priority       = 150   /* priority: INT_MAX >= x >= 0 */
+};
+
+static int trace_die_handler(struct notifier_block *self,
+			     unsigned long val,
+			     void *data)
+{
+	switch (val) {
+	case DIE_OOPS:
+		ftrace_dump();
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block trace_die_notifier = {
+	.notifier_call = trace_die_handler,
+	.priority = 200
+};
+
+/*
+ * printk is set to max of 1024, we really don't need it that big.
+ * Nothing should be printing 1000 characters anyway.
+ */
+#define TRACE_MAX_PRINT		1000
+
+/*
+ * Define here KERN_TRACE so that we have one place to modify
+ * it if we decide to change what log level the ftrace dump
+ * should be at.
+ */
+#define KERN_TRACE		KERN_INFO
+
+static void
+trace_printk_seq(struct trace_seq *s)
+{
+	/* Probably should print a warning here. */
+	if (s->len >= 1000)
+		s->len = 1000;
+
+	/* should be zero ended, but we are paranoid. */
+	s->buffer[s->len] = 0;
+
+	printk(KERN_TRACE "%s", s->buffer);
+
+	trace_seq_reset(s);
+}
+
+
+void ftrace_dump(void)
+{
+	static DEFINE_SPINLOCK(ftrace_dump_lock);
+	/* use static because iter can be a bit big for the stack */
+	static struct trace_iterator iter;
+	struct trace_array_cpu *data;
+	static cpumask_t mask;
+	static int dump_ran;
+	unsigned long flags;
+	int cnt = 0;
+	int cpu;
+
+	/* only one dump */
+	spin_lock_irqsave(&ftrace_dump_lock, flags);
+	if (dump_ran)
+		goto out;
+
+	dump_ran = 1;
+
+	/* No turning back! */
+	ftrace_kill_atomic();
+
+	printk(KERN_TRACE "Dumping ftrace buffer:\n");
+
+	iter.tr = &global_trace;
+	iter.trace = current_trace;
+
+	/*
+	 * We need to stop all tracing on all CPUS to read the
+	 * the next buffer. This is a bit expensive, but is
+	 * not done often. We fill all what we can read,
+	 * and then release the locks again.
+	 */
+
+	cpus_clear(mask);
+
+	for_each_tracing_cpu(cpu) {
+		data = iter.tr->data[cpu];
+
+		if (!head_page(data) || !data->trace_idx)
+			continue;
+
+		atomic_inc(&data->disabled);
+		cpu_set(cpu, mask);
+	}
+
+	for_each_cpu_mask(cpu, mask) {
+		data = iter.tr->data[cpu];
+		__raw_spin_lock(&data->lock);
+
+		if (data->overrun > iter.last_overrun[cpu])
+			iter.overrun[cpu] +=
+				data->overrun - iter.last_overrun[cpu];
+		iter.last_overrun[cpu] = data->overrun;
+	}
+
+	while (!trace_empty(&iter)) {
+
+		if (!cnt)
+			printk(KERN_TRACE "---------------------------------\n");
+
+		cnt++;
+
+		/* reset all but tr, trace, and overruns */
+		memset(&iter.seq, 0,
+		       sizeof(struct trace_iterator) -
+		       offsetof(struct trace_iterator, seq));
+		iter.iter_flags |= TRACE_FILE_LAT_FMT;
+		iter.pos = -1;
+
+		if (find_next_entry_inc(&iter) != NULL) {
+			print_trace_line(&iter);
+			trace_consume(&iter);
+		}
+
+		trace_printk_seq(&iter.seq);
+	}
+
+	if (!cnt)
+		printk(KERN_TRACE "   (ftrace buffer empty)\n");
+	else
+		printk(KERN_TRACE "---------------------------------\n");
+
+	for_each_cpu_mask(cpu, mask) {
+		data = iter.tr->data[cpu];
+		__raw_spin_unlock(&data->lock);
+	}
+
+	for_each_cpu_mask(cpu, mask) {
+		data = iter.tr->data[cpu];
+		atomic_dec(&data->disabled);
+	}
+
+
+ out:
+	spin_unlock_irqrestore(&ftrace_dump_lock, flags);
+}
+
 static int trace_alloc_page(void)
 {
 	struct trace_array_cpu *data;
@@ -3337,6 +3505,11 @@ __init static int tracer_alloc_buffers(void)
 	/* All seems OK, enable tracing */
 	global_trace.ctrl = tracer_enabled;
 	tracing_disabled = 0;
+
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &trace_panic_notifier);
+
+	register_die_notifier(&trace_die_notifier);
 
 	return 0;
 

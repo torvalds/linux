@@ -178,6 +178,7 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
 extern int
 __ftrace_printk(unsigned long ip, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
+extern void ftrace_dump(void);
 #else
 static inline void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3) { }
@@ -186,6 +187,7 @@ ftrace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 0)))
 {
 	return 0;
 }
+static inline void ftrace_dump(void) { }
 #endif
 
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
