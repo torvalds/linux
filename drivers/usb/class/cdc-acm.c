@@ -512,7 +512,7 @@ static void acm_softint(struct work_struct *work)
 static void acm_waker(struct work_struct *waker)
 {
 	struct acm *acm = container_of(waker, struct acm, waker);
-	long flags;
+	unsigned long flags;
 	int rv;
 
 	rv = usb_autopm_get_interface(acm->control);
