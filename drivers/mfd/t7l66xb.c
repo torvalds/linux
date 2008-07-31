@@ -338,9 +338,14 @@ static int t7l66xb_probe(struct platform_device *dev)
 	t7l66xb_attach_irq(dev);
 
 	t7l66xb_cells[T7L66XB_CELL_NAND].driver_data = pdata->nand_data;
+	t7l66xb_cells[T7L66XB_CELL_NAND].platform_data =
+		&t7l66xb_cells[T7L66XB_CELL_NAND];
+	t7l66xb_cells[T7L66XB_CELL_NAND].data_size =
+		sizeof(t7l66xb_cells[T7L66XB_CELL_NAND]);
 
-	ret = mfd_add_devices(dev, t7l66xb_cells, ARRAY_SIZE(t7l66xb_cells),
-		iomem, t7l66xb->irq_base);
+	ret = mfd_add_devices(&dev->dev, dev->id,
+			      t7l66xb_cells, ARRAY_SIZE(t7l66xb_cells),
+			      iomem, t7l66xb->irq_base);
 
 	if (!ret)
 		return 0;
@@ -366,7 +371,7 @@ static int t7l66xb_remove(struct platform_device *dev)
 	t7l66xb_detach_irq(dev);
 	iounmap(t7l66xb->scr);
 	release_resource(&t7l66xb->rscr);
-	mfd_remove_devices(dev);
+	mfd_remove_devices(&dev->dev);
 	platform_set_drvdata(dev, NULL);
 	kfree(t7l66xb);
 

@@ -119,8 +119,8 @@ static int tc6387xb_probe(struct platform_device *dev)
 
 	printk(KERN_INFO "Toshiba tc6387xb initialised\n");
 
-	ret = mfd_add_devices(dev, tc6387xb_cells,
-		ARRAY_SIZE(tc6387xb_cells), iomem, irq);
+	ret = mfd_add_devices(&dev->dev, dev->id, tc6387xb_cells,
+			      ARRAY_SIZE(tc6387xb_cells), iomem, irq);
 
 	if (!ret)
 		return 0;
