@@ -4036,9 +4036,6 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 
 	ndev->tx_queue_len = NUM_REQ_Q_ENTRIES;
 
-	/* Turn off support for multicasting */
-	ndev->flags &= ~IFF_MULTICAST;
-
 	/* Record PCI bus information. */
 	ql_get_board_info(qdev);
 
