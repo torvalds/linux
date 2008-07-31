@@ -157,7 +157,7 @@
 					#size-cells = <1>;
 					partition@300000 {
 						label = "fpga";
-						reg = <0x0030000 0x00040000>;
+						reg = <0x0300000 0x00040000>;
 					};
 					partition@340000 {
 						label = "env";
