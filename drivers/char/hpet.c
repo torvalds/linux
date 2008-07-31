@@ -764,6 +764,7 @@ int hpet_alloc(struct hpet_data *hdp)
 	static struct hpets *last = NULL;
 	unsigned long period;
 	unsigned long long temp;
+	u32 remainder;
 
 	/*
 	 * hpet_alloc can be called by platform dependent code.
@@ -827,12 +828,13 @@ int hpet_alloc(struct hpet_data *hdp)
 		printk("%s %d", i > 0 ? "," : "", hdp->hd_irq[i]);
 	printk("\n");
 
+	temp = hpetp->hp_tick_freq;
+	remainder = do_div(temp, 1000000);
 	printk(KERN_INFO
 		"hpet%u: %u comparators, %d-bit %u.%06u MHz counter\n",
 		hpetp->hp_which, hpetp->hp_ntimer,
 		cap & HPET_COUNTER_SIZE_MASK ? 64 : 32,
-		(unsigned) (hpetp->hp_tick_freq / 1000000),
-		(unsigned) (hpetp->hp_tick_freq % 1000000));
+		(unsigned) temp, remainder);
 
 	mcfg = readq(&hpet->hpet_config);
 	if ((mcfg & HPET_ENABLE_CNF_MASK) == 0) {
