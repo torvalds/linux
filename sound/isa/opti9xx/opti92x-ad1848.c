@@ -33,11 +33,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <sound/core.h>
-#if defined(CS4231) || defined(OPTi93X)
 #include <sound/wss.h>
-#else
-#include <sound/ad1848.h>
-#endif	/* CS4231 */
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #ifndef OPTi93X
@@ -148,9 +144,7 @@ struct snd_opti9xx {
 	long wss_base;
 	int irq;
 	int dma1;
-#if defined(CS4231) || defined(OPTi93X)
 	int dma2;
-#endif	/* CS4231 || OPTi93X */
 
 	long fm_port;
 
@@ -225,9 +219,7 @@ static int __devinit snd_opti9xx_init(struct snd_opti9xx *chip,
 	chip->wss_base = -1;
 	chip->irq = -1;
 	chip->dma1 = -1;
-#if defined(CS4231) || defined (OPTi93X)
 	chip->dma2 = -1;
-#endif 	/* CS4231 || OPTi93X */
 	chip->fm_port = -1;
 	chip->mpu_port = -1;
 	chip->mpu_irq = -1;
@@ -740,7 +732,6 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 	if (error)
 		return error;
 
-#if defined(CS4231) || defined(OPTi93X)
 	error = snd_wss_create(card, chip->wss_base + 4, -1,
 			       chip->irq, chip->dma1, chip->dma2,
 #ifdef CS4231
@@ -753,12 +744,6 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 		return error;
 #ifdef OPTi93X
 	chip->codec = codec;
-#endif
-#else
-	error = snd_ad1848_create(card, chip->wss_base + 4, chip->irq,
-				  chip->dma1, WSS_HW_DETECT, &codec);
-	if (error < 0)
-		return error;
 #endif
 	error = snd_wss_pcm(codec, 0, &pcm);
 	if (error < 0)

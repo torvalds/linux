@@ -29,7 +29,7 @@
 #include <linux/io.h>
 #include <asm/dma.h>
 #include <sound/core.h>
-#include <sound/ad1848.h>
+#include <sound/wss.h>
 #include <sound/opl3.h>
 #include <sound/mpu401.h>
 #include <sound/control.h>
@@ -548,8 +548,8 @@ static int __devinit snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	if (err < 0)
 		goto err_unmap2;
 
-	err = snd_ad1848_create(card, mss_port[dev] + 4, xirq, xdma,
-				WSS_HW_DETECT, &chip);
+	err = snd_wss_create(card, mss_port[dev] + 4,  -1, xirq, xdma, -1,
+			     WSS_HW_DETECT, 0, &chip);
 	if (err < 0)
 		goto err_unmap2;
 	card->private_data = chip;

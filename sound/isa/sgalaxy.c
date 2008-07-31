@@ -31,7 +31,7 @@
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/sb.h>
-#include <sound/ad1848.h>
+#include <sound/wss.h>
 #include <sound/control.h>
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
@@ -267,9 +267,10 @@ static int __devinit snd_sgalaxy_probe(struct device *devptr, unsigned int dev)
 	if ((err = snd_sgalaxy_detect(dev, xirq, xdma1)) < 0)
 		goto _err;
 
-	if ((err = snd_ad1848_create(card, wssport[dev] + 4,
-				     xirq, xdma1,
-				     WSS_HW_DETECT, &chip)) < 0)
+	err = snd_wss_create(card, wssport[dev] + 4, -1,
+			     xirq, xdma1, -1,
+			     WSS_HW_DETECT, 0, &chip);
+	if (err < 0)
 		goto _err;
 	card->private_data = chip;
 
@@ -331,8 +332,8 @@ static int snd_sgalaxy_resume(struct device *pdev, unsigned int n)
 	struct snd_wss *chip = card->private_data;
 
 	chip->resume(chip);
-	snd_ad1848_out(chip, SGALAXY_AUXC_LEFT, chip->image[SGALAXY_AUXC_LEFT]);
-	snd_ad1848_out(chip, SGALAXY_AUXC_RIGHT, chip->image[SGALAXY_AUXC_RIGHT]);
+	snd_wss_out(chip, SGALAXY_AUXC_LEFT, chip->image[SGALAXY_AUXC_LEFT]);
+	snd_wss_out(chip, SGALAXY_AUXC_RIGHT, chip->image[SGALAXY_AUXC_RIGHT]);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;

@@ -1073,7 +1073,11 @@ irqreturn_t snd_wss_interrupt(int irq, void *dev_id)
 	struct snd_wss *chip = dev_id;
 	unsigned char status;
 
-	status = snd_wss_in(chip, CS4231_IRQ_STATUS);
+	if (chip->hardware & WSS_HW_AD1848_MASK)
+		/* pretend it was the only possible irq for AD1848 */
+		status = CS4231_PLAYBACK_IRQ;
+	else
+		status = snd_wss_in(chip, CS4231_IRQ_STATUS);
 	if (status & CS4231_TIMER_IRQ) {
 		if (chip->timer)
 			snd_timer_interrupt(chip->timer, chip->timer->sticks);
@@ -1105,7 +1109,11 @@ irqreturn_t snd_wss_interrupt(int irq, void *dev_id)
 	}
 
 	spin_lock(&chip->reg_lock);
-	snd_wss_outm(chip, CS4231_IRQ_STATUS, ~CS4231_ALL_IRQS | ~status, 0);
+	status = ~CS4231_ALL_IRQS | ~status;
+	if (chip->hardware & WSS_HW_AD1848_MASK)
+		wss_outb(chip, CS4231P(STATUS), 0);
+	else
+		snd_wss_outm(chip, CS4231_IRQ_STATUS, status, 0);
 	spin_unlock(&chip->reg_lock);
 	return IRQ_HANDLED;
 }
@@ -1137,36 +1145,112 @@ static snd_pcm_uframes_t snd_wss_capture_pointer(struct snd_pcm_substream *subst
 
  */
 
+static int snd_ad1848_probe(struct snd_wss *chip)
+{
+	unsigned long flags;
+	int i, id, rev, ad1847;
+
+	id = 0;
+	ad1847 = 0;
+	for (i = 0; i < 1000; i++) {
+		mb();
+		if (inb(chip->port + CS4231P(REGSEL)) & CS4231_INIT)
+			msleep(1);
+		else {
+			spin_lock_irqsave(&chip->reg_lock, flags);
+			snd_wss_out(chip, CS4231_MISC_INFO, 0x00);
+			snd_wss_out(chip, CS4231_LEFT_INPUT, 0xaa);
+			snd_wss_out(chip, CS4231_RIGHT_INPUT, 0x45);
+			rev = snd_wss_in(chip, CS4231_RIGHT_INPUT);
+			if (rev == 0x65) {
+				spin_unlock_irqrestore(&chip->reg_lock, flags);
+				id = 1;
+				ad1847 = 1;
+				break;
+			}
+			if (snd_wss_in(chip, CS4231_LEFT_INPUT) == 0xaa &&
+			    rev == 0x45) {
+				spin_unlock_irqrestore(&chip->reg_lock, flags);
+				id = 1;
+				break;
+			}
+			spin_unlock_irqrestore(&chip->reg_lock, flags);
+		}
+	}
+	if (id != 1)
+		return -ENODEV;	/* no valid device found */
+	id = 0;
+	if (chip->hardware == WSS_HW_DETECT)
+		id = ad1847 ? WSS_HW_AD1847 : WSS_HW_AD1848;
+
+	spin_lock_irqsave(&chip->reg_lock, flags);
+	inb(chip->port + CS4231P(STATUS));	/* clear any pendings IRQ */
+	outb(0, chip->port + CS4231P(STATUS));
+	mb();
+	if (id == WSS_HW_AD1848) {
+		/* check if there are more than 16 registers */
+		rev = snd_wss_in(chip, CS4231_MISC_INFO);
+		snd_wss_out(chip, CS4231_MISC_INFO, 0x40);
+		for (i = 0; i < 16; ++i) {
+			if (snd_wss_in(chip, i) != snd_wss_in(chip, i + 16)) {
+				id = WSS_HW_CMI8330;
+				break;
+			}
+		}
+		snd_wss_out(chip, CS4231_MISC_INFO, 0x00);
+		if (id != WSS_HW_CMI8330 && (rev & 0x80))
+			id = WSS_HW_CS4248;
+		if (id == WSS_HW_CMI8330 && (rev & 0x0f) != 0x0a)
+			id = 0;
+	}
+	if (id == WSS_HW_CMI8330) {
+		/* verify it is not CS4231 by changing the version register */
+		/* on CMI8330 it is volume control register and can be set 0 */
+		snd_wss_out(chip, CS4231_MISC_INFO, CS4231_MODE2);
+		snd_wss_dout(chip, CS4231_VERSION, 0x00);
+		rev = snd_wss_in(chip, CS4231_VERSION) & 0xe7;
+		if (rev)
+			id = 0;
+		snd_wss_out(chip, CS4231_MISC_INFO, 0);
+	}
+	if (id)
+		chip->hardware = id;
+
+	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	return 0;		/* all things are ok.. */
+}
+
 static int snd_wss_probe(struct snd_wss *chip)
 {
 	unsigned long flags;
-	int i, id, rev;
+	int i, id, rev, regnum;
 	unsigned char *ptr;
 	unsigned int hw;
 
-#if 0
-	snd_wss_debug(chip);
-#endif
-	id = 0;
-	for (i = 0; i < 50; i++) {
-		mb();
-		if (wss_inb(chip, CS4231P(REGSEL)) & CS4231_INIT)
-			udelay(2000);
-		else {
-			spin_lock_irqsave(&chip->reg_lock, flags);
-			snd_wss_out(chip, CS4231_MISC_INFO, CS4231_MODE2);
-			id = snd_wss_in(chip, CS4231_MISC_INFO) & 0x0f;
-			spin_unlock_irqrestore(&chip->reg_lock, flags);
-			if (id == 0x0a)
-				break;	/* this is valid value */
-		}
-	}
-	snd_printdd("wss: port = 0x%lx, id = 0x%x\n", chip->port, id);
-	if (id != 0x0a)
-		return -ENODEV;	/* no valid device found */
+	id = snd_ad1848_probe(chip);
+	if (id < 0)
+		return id;
 
 	hw = chip->hardware;
 	if ((hw & WSS_HW_TYPE_MASK) == WSS_HW_DETECT) {
+		for (i = 0; i < 50; i++) {
+			mb();
+			if (wss_inb(chip, CS4231P(REGSEL)) & CS4231_INIT)
+				msleep(2);
+			else {
+				spin_lock_irqsave(&chip->reg_lock, flags);
+				snd_wss_out(chip, CS4231_MISC_INFO,
+					    CS4231_MODE2);
+				id = snd_wss_in(chip, CS4231_MISC_INFO) & 0x0f;
+				spin_unlock_irqrestore(&chip->reg_lock, flags);
+				if (id == 0x0a)
+					break;	/* this is valid value */
+			}
+		}
+		snd_printdd("wss: port = 0x%lx, id = 0x%x\n", chip->port, id);
+		if (id != 0x0a)
+			return -ENODEV;	/* no valid device found */
+
 		rev = snd_wss_in(chip, CS4231_VERSION) & 0xe7;
 		snd_printdd("CS4231: VERSION (I25) = 0x%x\n", rev);
 		if (rev == 0x80) {
@@ -1197,7 +1281,8 @@ static int snd_wss_probe(struct snd_wss *chip)
 	mb();
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
-	chip->image[CS4231_MISC_INFO] = CS4231_MODE2;
+	if (!(chip->hardware & WSS_HW_AD1848_MASK))
+		chip->image[CS4231_MISC_INFO] = CS4231_MODE2;
 	switch (chip->hardware) {
 	case WSS_HW_INTERWAVE:
 		chip->image[CS4231_MISC_INFO] = CS4231_IW_MODE3;
@@ -1223,9 +1308,10 @@ static int snd_wss_probe(struct snd_wss *chip)
 			chip->hardware == WSS_HW_INTERWAVE ? 0xc2 : 0x01;
 	}
 	ptr = (unsigned char *) &chip->image;
+	regnum = (chip->hardware & WSS_HW_AD1848_MASK) ? 16 : 32;
 	snd_wss_mce_down(chip);
 	spin_lock_irqsave(&chip->reg_lock, flags);
-	for (i = 0; i < 32; i++)	/* ok.. fill all CS4231 registers */
+	for (i = 0; i < regnum; i++)	/* ok.. fill all registers */
 		snd_wss_out(chip, i, *ptr++);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	snd_wss_mce_up(chip);
@@ -1635,6 +1721,10 @@ static int snd_wss_new(struct snd_card *card,
 	else
 		memcpy(&chip->image, &snd_wss_original_image,
 		       sizeof(snd_wss_original_image));
+	if (chip->hardware & WSS_HW_AD1848_MASK) {
+		chip->image[CS4231_PIN_CTRL] = 0;
+		chip->image[CS4231_TEST_INIT] = 0;
+	}
 
 	*rchip = chip;
 	return 0;
@@ -1662,7 +1752,7 @@ int snd_wss_create(struct snd_card *card,
 	chip->dma1 = -1;
 	chip->dma2 = -1;
 
-	chip->res_port = request_region(port, 4, "CS4231");
+	chip->res_port = request_region(port, 4, "WSS");
 	if (!chip->res_port) {
 		snd_printk(KERN_ERR "wss: can't grab port 0x%lx\n", port);
 		snd_wss_free(chip);
@@ -1681,20 +1771,20 @@ int snd_wss_create(struct snd_card *card,
 	chip->cport = cport;
 	if (!(hwshare & WSS_HWSHARE_IRQ))
 		if (request_irq(irq, snd_wss_interrupt, IRQF_DISABLED,
-				"CS4231", (void *) chip)) {
+				"WSS", (void *) chip)) {
 			snd_printk(KERN_ERR "wss: can't grab IRQ %d\n", irq);
 			snd_wss_free(chip);
 			return -EBUSY;
 		}
 	chip->irq = irq;
-	if (!(hwshare & WSS_HWSHARE_DMA1) && request_dma(dma1, "CS4231 - 1")) {
+	if (!(hwshare & WSS_HWSHARE_DMA1) && request_dma(dma1, "WSS - 1")) {
 		snd_printk(KERN_ERR "wss: can't grab DMA1 %d\n", dma1);
 		snd_wss_free(chip);
 		return -EBUSY;
 	}
 	chip->dma1 = dma1;
 	if (!(hwshare & WSS_HWSHARE_DMA2) && dma1 != dma2 &&
-	      dma2 >= 0 && request_dma(dma2, "CS4231 - 2")) {
+	      dma2 >= 0 && request_dma(dma2, "WSS - 2")) {
 		snd_printk(KERN_ERR "wss: can't grab DMA2 %d\n", dma2);
 		snd_wss_free(chip);
 		return -EBUSY;
@@ -1704,6 +1794,12 @@ int snd_wss_create(struct snd_card *card,
 		chip->dma2 = chip->dma1;
 	} else
 		chip->dma2 = dma2;
+
+	if (hardware == WSS_HW_THINKPAD) {
+		chip->thinkpad_flag = 1;
+		chip->hardware = WSS_HW_DETECT; /* reset */
+		snd_wss_thinkpad_twiddle(chip, 1);
+	}
 
 	/* global setup */
 	if (snd_wss_probe(chip) < 0) {
@@ -1775,12 +1871,6 @@ int snd_wss_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_wss_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_wss_capture_ops);
 
-	/* temporary */
-	if (chip->hardware & WSS_HW_AD1848_MASK) {
-		chip->rate_constraint = snd_wss_xrate;
-		chip->set_playback_format = snd_wss_playback_format;
-		chip->set_capture_format = snd_wss_capture_format;
-	}
 	/* global setup */
 	pcm->private_data = chip;
 	pcm->info_flags = 0;

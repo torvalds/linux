@@ -4,11 +4,6 @@ config SND_WSS_LIB
         tristate
         select SND_PCM
 
-config SND_AD1848_LIB
-        tristate
-        select SND_PCM
-        select SND_WSS_LIB
-
 config SND_SB_COMMON
         tristate
 
@@ -56,7 +51,7 @@ config SND_AD1816A
 
 config SND_AD1848
 	tristate "Generic AD1848/CS4248 driver"
-	select SND_AD1848_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for AD1848 (Analog Devices) or
 	  CS4248 (Cirrus Logic - Crystal Semiconductors) chips.
@@ -97,7 +92,7 @@ config SND_AZT2320
 
 config SND_CMI8330
 	tristate "C-Media CMI8330"
-	select SND_AD1848_LIB
+	select SND_WSS_LIB
 	select SND_SB16_DSP
 	help
 	  Say Y here to include support for soundcards based on the
@@ -193,7 +188,7 @@ config SND_ES18XX
 config SND_SC6000
 	tristate "Gallant SC-6000, Audio Excel DSP 16"
 	depends on HAS_IOPORT
-	select SND_AD1848_LIB
+	select SND_WSS_LIB
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	help
@@ -280,7 +275,7 @@ config SND_OPTI92X_AD1848
 	select SND_OPL3_LIB
 	select SND_OPL4_LIB
 	select SND_MPU401_UART
-	select SND_AD1848_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for soundcards based on Opti
 	  82C92x or OTI-601 chips and using an AD1848 codec.
@@ -373,7 +368,7 @@ config SND_SB16_CSP
 
 config SND_SGALAXY
 	tristate "Aztech Sound Galaxy"
-	select SND_AD1848_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for Aztech Sound Galaxy
 	  soundcards.

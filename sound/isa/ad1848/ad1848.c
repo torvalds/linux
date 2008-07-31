@@ -28,7 +28,7 @@
 #include <linux/wait.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
-#include <sound/ad1848.h>
+#include <sound/wss.h>
 #include <sound/initval.h>
 
 #define CRD_NAME "Generic AD1848/AD1847/CS4248"
@@ -95,8 +95,9 @@ static int __devinit snd_ad1848_probe(struct device *dev, unsigned int n)
 	if (!card)
 		return -EINVAL;
 
-	error = snd_ad1848_create(card, port[n], irq[n], dma1[n],
-			thinkpad[n] ? WSS_HW_THINKPAD : WSS_HW_DETECT, &chip);
+	error = snd_wss_create(card, port[n], -1, irq[n], dma1[n], -1,
+			thinkpad[n] ? WSS_HW_THINKPAD : WSS_HW_DETECT,
+			0, &chip);
 	if (error < 0)
 		goto out;
 
