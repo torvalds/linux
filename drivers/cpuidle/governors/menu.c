@@ -34,21 +34,28 @@ static DEFINE_PER_CPU(struct menu_device, menu_devices);
 static int menu_select(struct cpuidle_device *dev)
 {
 	struct menu_device *data = &__get_cpu_var(menu_devices);
+	int latency_req = pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY);
 	int i;
+
+	/* Special case when user has set very strict latency requirement */
+	if (unlikely(latency_req == 0)) {
+		data->last_state_idx = 0;
+		return 0;
+	}
 
 	/* determine the expected residency time */
 	data->expected_us =
 		(u32) ktime_to_ns(tick_nohz_get_sleep_length()) / 1000;
 
 	/* find the deepest idle state that satisfies our constraints */
-	for (i = 1; i < dev->state_count; i++) {
+	for (i = CPUIDLE_DRIVER_STATE_START + 1; i < dev->state_count; i++) {
 		struct cpuidle_state *s = &dev->states[i];
 
 		if (s->target_residency > data->expected_us)
 			break;
 		if (s->target_residency > data->predicted_us)
 			break;
-		if (s->exit_latency > pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY))
+		if (s->exit_latency > latency_req)
 			break;
 	}
 
