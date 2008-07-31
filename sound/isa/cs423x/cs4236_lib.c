@@ -85,7 +85,7 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <sound/core.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #include <sound/asoundef.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");

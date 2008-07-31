@@ -31,7 +31,7 @@
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/hwdep.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #include <sound/mpu401.h>
 #include <sound/initval.h>
 

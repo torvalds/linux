@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <sound/core.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #include <sound/pcm_params.h>
 
 #include <asm/io.h>

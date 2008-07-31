@@ -34,7 +34,7 @@
 #include <asm/dma.h>
 #include <sound/core.h>
 #if defined(CS4231) || defined(OPTi93X)
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #else
 #include <sound/ad1848.h>
 #endif	/* CS4231 */

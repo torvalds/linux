@@ -28,7 +28,7 @@
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/gus.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
 #include <sound/initval.h>

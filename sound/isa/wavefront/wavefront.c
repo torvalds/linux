@@ -29,6 +29,7 @@
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/opl3.h>
+#include <sound/wss.h>
 #include <sound/snd_wavefront.h>
 
 MODULE_AUTHOR("Paul Barton-Davis <pbd@op.net>");

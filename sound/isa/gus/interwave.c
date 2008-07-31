@@ -32,7 +32,7 @@
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/gus.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #ifdef SNDRV_STB
 #include <sound/tea6330t.h>
 #endif

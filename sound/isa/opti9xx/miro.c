@@ -32,7 +32,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <sound/core.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #include <sound/mpu401.h>
 #include <sound/opl4.h>
 #include <sound/control.h>
