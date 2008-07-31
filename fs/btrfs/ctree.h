@@ -1613,6 +1613,8 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 		       struct btrfs_key *location, int mod);
 
 /* file-item.c */
+int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
+			  struct bio *bio);
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
 			       u64 objectid, u64 pos, u64 disk_offset,

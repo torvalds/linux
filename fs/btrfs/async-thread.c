@@ -160,7 +160,7 @@ void btrfs_init_workers(struct btrfs_workers *workers, int max)
 	INIT_LIST_HEAD(&workers->idle_list);
 	spin_lock_init(&workers->lock);
 	workers->max_workers = max;
-	workers->idle_thresh = 64;
+	workers->idle_thresh = 32;
 }
 
 /*

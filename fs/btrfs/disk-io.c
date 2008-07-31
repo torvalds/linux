@@ -1357,10 +1357,25 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 */
 	btrfs_init_workers(&fs_info->workers, fs_info->thread_pool_size);
 	btrfs_init_workers(&fs_info->submit_workers, fs_info->thread_pool_size);
+
+	/* a higher idle thresh on the submit workers makes it much more
+	 * likely that bios will be send down in a sane order to the
+	 * devices
+	 */
+	fs_info->submit_workers.idle_thresh = 64;
+
 	btrfs_init_workers(&fs_info->fixup_workers, 1);
 	btrfs_init_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
 	btrfs_init_workers(&fs_info->endio_write_workers,
 			   fs_info->thread_pool_size);
+
+	/*
+	 * endios are largely parallel and should have a very
+	 * low idle thresh
+	 */
+	fs_info->endio_workers.idle_thresh = 4;
+	fs_info->endio_write_workers.idle_thresh = 4;
+
 	btrfs_start_workers(&fs_info->workers, 1);
 	btrfs_start_workers(&fs_info->submit_workers, 1);
 	btrfs_start_workers(&fs_info->fixup_workers, 1);

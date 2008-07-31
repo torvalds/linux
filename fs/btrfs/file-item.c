@@ -134,6 +134,83 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
+			  struct bio *bio)
+{
+	u32 sum;
+	struct bio_vec *bvec = bio->bi_io_vec;
+	int bio_index = 0;
+	u64 offset;
+	u64 item_start_offset = 0;
+	u64 item_last_offset = 0;
+	u32 diff;
+	int ret;
+	struct btrfs_path *path;
+	struct btrfs_csum_item *item = NULL;
+	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+
+	path = btrfs_alloc_path();
+	path->reada = 2;
+
+	WARN_ON(bio->bi_vcnt <= 0);
+
+	while(bio_index < bio->bi_vcnt) {
+		offset = page_offset(bvec->bv_page) + bvec->bv_offset;
+		ret = btrfs_find_ordered_sum(inode, offset, &sum);
+		if (ret == 0)
+			goto found;
+
+		if (!item || offset < item_start_offset ||
+		    offset >= item_last_offset) {
+			struct btrfs_key found_key;
+			u32 item_size;
+
+			if (item)
+				btrfs_release_path(root, path);
+			item = btrfs_lookup_csum(NULL, root, path,
+						 inode->i_ino, offset, 0);
+			if (IS_ERR(item)) {
+				ret = PTR_ERR(item);
+				if (ret == -ENOENT || ret == -EFBIG)
+					ret = 0;
+				sum = 0;
+				printk("no csum found for inode %lu start "
+				       "%llu\n", inode->i_ino,
+				       (unsigned long long)offset);
+				goto found;
+			}
+			btrfs_item_key_to_cpu(path->nodes[0], &found_key,
+					      path->slots[0]);
+
+			item_start_offset = found_key.offset;
+			item_size = btrfs_item_size_nr(path->nodes[0],
+						       path->slots[0]);
+			item_last_offset = item_start_offset +
+				(item_size / BTRFS_CRC32_SIZE) *
+				root->sectorsize;
+			item = btrfs_item_ptr(path->nodes[0], path->slots[0],
+					      struct btrfs_csum_item);
+		}
+		/*
+		 * this byte range must be able to fit inside
+		 * a single leaf so it will also fit inside a u32
+		 */
+		diff = offset - item_start_offset;
+		diff = diff / root->sectorsize;
+		diff = diff * BTRFS_CRC32_SIZE;
+
+		read_extent_buffer(path->nodes[0], &sum,
+				   (unsigned long)item + diff,
+				   BTRFS_CRC32_SIZE);
+found:
+		set_state_private(io_tree, offset, sum);
+		bio_index++;
+		bvec++;
+	}
+	btrfs_free_path(path);
+	return 0;
+}
+
 int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		       struct bio *bio)
 {
