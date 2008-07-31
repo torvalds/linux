@@ -397,7 +397,7 @@ static int __devinit sc6000_init_board(char __iomem *vport, int irq, int dma,
 	return 0;
 }
 
-static int __devinit snd_sc6000_mixer(struct snd_ad1848 *chip)
+static int __devinit snd_sc6000_mixer(struct snd_wss *chip)
 {
 	struct snd_card *card = chip->card;
 	struct snd_ctl_elem_id id1, id2;
@@ -483,7 +483,7 @@ static int __devinit snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	int xirq = irq[dev];
 	int xdma = dma[dev];
 	struct snd_card *card;
-	struct snd_ad1848 *chip;
+	struct snd_wss *chip;
 	struct snd_opl3 *opl3;
 	char __iomem *vport;
 	char __iomem *vmss_port;

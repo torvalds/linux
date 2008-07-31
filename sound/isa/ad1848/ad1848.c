@@ -87,7 +87,7 @@ static int __devinit snd_ad1848_match(struct device *dev, unsigned int n)
 static int __devinit snd_ad1848_probe(struct device *dev, unsigned int n)
 {
 	struct snd_card *card;
-	struct snd_ad1848 *chip;
+	struct snd_wss *chip;
 	struct snd_pcm *pcm;
 	int error;
 
@@ -142,7 +142,7 @@ static int __devexit snd_ad1848_remove(struct device *dev, unsigned int n)
 static int snd_ad1848_suspend(struct device *dev, unsigned int n, pm_message_t state)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
-	struct snd_ad1848 *chip = card->private_data;
+	struct snd_wss *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	chip->suspend(chip);
@@ -152,7 +152,7 @@ static int snd_ad1848_suspend(struct device *dev, unsigned int n, pm_message_t s
 static int snd_ad1848_resume(struct device *dev, unsigned int n)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
-	struct snd_ad1848 *chip = card->private_data;
+	struct snd_wss *chip = card->private_data;
 
 	chip->resume(chip);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);

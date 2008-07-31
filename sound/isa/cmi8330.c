@@ -151,7 +151,7 @@ struct snd_cmi8330 {
 	struct pnp_dev *play;
 #endif
 	struct snd_card *card;
-	struct snd_ad1848 *wss;
+	struct snd_wss *wss;
 	struct snd_sb *sb;
 
 	struct snd_pcm *pcm;

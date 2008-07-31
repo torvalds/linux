@@ -706,13 +706,9 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 	static long possible_ports[] = {0x530, 0xe80, 0xf40, 0x604, -1};
 	int error;
 	struct snd_opti9xx *chip = card->private_data;
-#if defined(CS4231) || defined(OPTi93X)
 	struct snd_wss *codec;
 #ifdef CS4231
 	struct snd_timer *timer;
-#endif
-#else
-	struct snd_ad1848 *codec;
 #endif
 	struct snd_pcm *pcm;
 	struct snd_rawmidi *rmidi;

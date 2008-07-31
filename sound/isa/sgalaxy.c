@@ -180,7 +180,7 @@ AD1848_DOUBLE("Aux Playback Switch", 0, SGALAXY_AUXC_LEFT, SGALAXY_AUXC_RIGHT, 7
 AD1848_DOUBLE("Aux Playback Volume", 0, SGALAXY_AUXC_LEFT, SGALAXY_AUXC_RIGHT, 0, 0, 31, 0)
 };
 
-static int __devinit snd_sgalaxy_mixer(struct snd_ad1848 *chip)
+static int __devinit snd_sgalaxy_mixer(struct snd_wss *chip)
 {
 	struct snd_card *card = chip->card;
 	struct snd_ctl_elem_id id1, id2;
@@ -237,7 +237,7 @@ static int __devinit snd_sgalaxy_probe(struct device *devptr, unsigned int dev)
 	static int possible_dmas[] = {1, 3, 0, -1};
 	int err, xirq, xdma1;
 	struct snd_card *card;
-	struct snd_ad1848 *chip;
+	struct snd_wss *chip;
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
 	if (card == NULL)
@@ -312,7 +312,7 @@ static int snd_sgalaxy_suspend(struct device *pdev, unsigned int n,
 			       pm_message_t state)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
-	struct snd_ad1848 *chip = card->private_data;
+	struct snd_wss *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	chip->suspend(chip);
@@ -322,7 +322,7 @@ static int snd_sgalaxy_suspend(struct device *pdev, unsigned int n,
 static int snd_sgalaxy_resume(struct device *pdev, unsigned int n)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
-	struct snd_ad1848 *chip = card->private_data;
+	struct snd_wss *chip = card->private_data;
 
 	chip->resume(chip);
 	snd_ad1848_out(chip, SGALAXY_AUXC_LEFT, chip->image[SGALAXY_AUXC_LEFT]);

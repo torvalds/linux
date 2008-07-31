@@ -25,6 +25,8 @@
 #include "pcm.h"
 #include <linux/interrupt.h>
 
+#include "wss.h"	/* temporary till the driver is removed */
+
 /* IO ports */
 
 #define AD1848P( chip, x ) ( (chip) -> port + c_d_c_AD1848##x )
@@ -127,48 +129,20 @@
 #define AD1848_THINKPAD_CTL_PORT2		0x15e9
 #define AD1848_THINKPAD_CS4248_ENABLE_BIT	0x02
 
-struct snd_ad1848 {
-	unsigned long port;		/* i/o port */
-	struct resource *res_port;
-	int irq;			/* IRQ line */
-	int dma;			/* data DMA */
-	unsigned short version;		/* version of CODEC chip */
-	unsigned short mode;		/* see to AD1848_MODE_XXXX */
-	unsigned short hardware;	/* see to AD1848_HW_XXXX */
-	unsigned short single_dma:1;	/* forced single DMA mode (GUS 16-bit daughter board) or dma1 == dma2 */
-
-	struct snd_pcm *pcm;
-	struct snd_pcm_substream *playback_substream;
-	struct snd_pcm_substream *capture_substream;
-	struct snd_card *card;
-
-	unsigned char image[32];	/* SGalaxy needs an access to extended registers */
-	int mce_bit;
-	int calibrate_mute;
-	int dma_size;
-	int thinkpad_flag;		/* Thinkpad CS4248 needs some extra help */
-
-#ifdef CONFIG_PM
-	void (*suspend)(struct snd_ad1848 *chip);
-	void (*resume)(struct snd_ad1848 *chip);
-#endif
-
-	spinlock_t reg_lock;
-};
-
 /* exported functions */
 
-void snd_ad1848_out(struct snd_ad1848 *chip, unsigned char reg, unsigned char value);
+void snd_ad1848_out(struct snd_wss *chip, unsigned char reg,
+		    unsigned char value);
 
 int snd_ad1848_create(struct snd_card *card,
 		      unsigned long port,
 		      int irq, int dma,
 		      unsigned short hardware,
-		      struct snd_ad1848 ** chip);
+		      struct snd_wss **chip);
 
-int snd_ad1848_pcm(struct snd_ad1848 * chip, int device, struct snd_pcm **rpcm);
+int snd_ad1848_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm);
 const struct snd_pcm_ops *snd_ad1848_get_pcm_ops(int direction);
-int snd_ad1848_mixer(struct snd_ad1848 * chip);
+int snd_ad1848_mixer(struct snd_wss *chip);
 
 /* exported mixer stuffs */
 enum { AD1848_MIX_SINGLE, AD1848_MIX_DOUBLE, AD1848_MIX_CAPTURE };
@@ -213,6 +187,7 @@ struct ad1848_mix_elem {
   .private_value = AD1848_MIXVAL_DOUBLE(left_reg, right_reg, shift_left, shift_right, mask, invert), \
   .tlv = xtlv }
 
-int snd_ad1848_add_ctl_elem(struct snd_ad1848 *chip, const struct ad1848_mix_elem *c);
+int snd_ad1848_add_ctl_elem(struct snd_wss *chip,
+			    const struct ad1848_mix_elem *c);
 
 #endif /* __SOUND_AD1848_H */
