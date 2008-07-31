@@ -106,7 +106,7 @@ static int __devinit snd_ad1848_probe(struct device *dev, unsigned int n)
 	if (error < 0)
 		goto out;
 
-	error = snd_ad1848_mixer(chip);
+	error = snd_wss_mixer(chip);
 	if (error < 0)
 		goto out;
 

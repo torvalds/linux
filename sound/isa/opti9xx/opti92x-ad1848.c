@@ -757,6 +757,15 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 	error = snd_wss_pcm(codec, 0, &pcm);
 	if (error < 0)
 		return error;
+#else
+	error = snd_ad1848_create(card, chip->wss_base + 4, chip->irq,
+				  chip->dma1, WSS_HW_DETECT, &codec);
+	if (error < 0)
+		return error;
+	error = snd_ad1848_pcm(codec, 0, &pcm);
+	if (error < 0)
+		return error;
+#endif
 	error = snd_wss_mixer(codec);
 	if (error < 0)
 		return error;
@@ -764,23 +773,14 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 	error = snd_wss_timer(codec, 0, &timer);
 	if (error < 0)
 		return error;
-#else /* OPTI93X */
+#endif
+#ifdef OPTi93X
 	error = request_irq(chip->irq, snd_opti93x_interrupt,
 			    IRQF_DISABLED, DEV_NAME" - WSS", codec);
 	if (error < 0) {
 		snd_printk(KERN_ERR "opti9xx: can't grab IRQ %d\n", chip->irq);
 		return error;
 	}
-#endif
-#else
-	if ((error = snd_ad1848_create(card, chip->wss_base + 4,
-				       chip->irq, chip->dma1,
-				       WSS_HW_DETECT, &codec)) < 0)
-		return error;
-	if ((error = snd_ad1848_pcm(codec, 0, &pcm)) < 0)
-		return error;
-	if ((error = snd_ad1848_mixer(codec)) < 0)
-		return error;
 #endif
 	strcpy(card->driver, chip->name);
 	sprintf(card->shortname, "OPTi %s", card->driver);

@@ -193,6 +193,31 @@ int snd_wss_put_single(struct snd_kcontrol *kcontrol,
   .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | \
 		   (shift_right << 19) | (mask << 24) | (invert << 22) }
 
+#define WSS_SINGLE_TLV(xname, xindex, reg, shift, mask, invert, xtlv) \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .name = xname, \
+  .index = xindex, \
+  .info = snd_wss_info_single, \
+  .get = snd_wss_get_single, \
+  .put = snd_wss_put_single, \
+  .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24), \
+  .tlv = { .p = (xtlv) } }
+
+#define WSS_DOUBLE_TLV(xname, xindex, left_reg, right_reg, \
+			shift_left, shift_right, mask, invert, xtlv) \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .name = xname, \
+  .index = xindex, \
+  .info = snd_wss_info_double, \
+  .get = snd_wss_get_double, \
+  .put = snd_wss_put_double, \
+  .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | \
+		   (shift_right << 19) | (mask << 24) | (invert << 22), \
+  .tlv = { .p = (xtlv) } }
+
+
 int snd_wss_info_double(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo);
 int snd_wss_get_double(struct snd_kcontrol *kcontrol,

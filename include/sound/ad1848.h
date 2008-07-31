@@ -115,6 +115,5 @@ int snd_ad1848_create(struct snd_card *card,
 
 int snd_ad1848_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm);
 const struct snd_pcm_ops *snd_ad1848_get_pcm_ops(int direction);
-int snd_ad1848_mixer(struct snd_wss *chip);
 
 #endif /* __SOUND_AD1848_H */

@@ -33,6 +33,7 @@
 #include <sound/core.h>
 #include <sound/wss.h>
 #include <sound/pcm_params.h>
+#include <sound/tlv.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -1957,15 +1958,57 @@ int snd_wss_put_double(struct snd_kcontrol *kcontrol,
 	val1 <<= shift_left;
 	val2 <<= shift_right;
 	spin_lock_irqsave(&chip->reg_lock, flags);
-	val1 = (chip->image[left_reg] & ~(mask << shift_left)) | val1;
-	val2 = (chip->image[right_reg] & ~(mask << shift_right)) | val2;
-	change = val1 != chip->image[left_reg] || val2 != chip->image[right_reg];
-	snd_wss_out(chip, left_reg, val1);
-	snd_wss_out(chip, right_reg, val2);
+	if (left_reg != right_reg) {
+		val1 = (chip->image[left_reg] & ~(mask << shift_left)) | val1;
+		val2 = (chip->image[right_reg] & ~(mask << shift_right)) | val2;
+		change = val1 != chip->image[left_reg] ||
+			 val2 != chip->image[right_reg];
+		snd_wss_out(chip, left_reg, val1);
+		snd_wss_out(chip, right_reg, val2);
+	} else {
+		mask = (mask << shift_left) | (mask << shift_right);
+		val1 = (chip->image[left_reg] & ~mask) | val1 | val2;
+		change = val1 != chip->image[left_reg];
+		snd_wss_out(chip, left_reg, val1);
+	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return change;
 }
 EXPORT_SYMBOL(snd_wss_put_double);
+
+static const DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
+
+static struct snd_kcontrol_new snd_ad1848_controls[] = {
+WSS_DOUBLE("PCM Playback Switch", 0, CS4231_LEFT_OUTPUT, CS4231_RIGHT_OUTPUT,
+	   7, 7, 1, 1),
+WSS_DOUBLE_TLV("PCM Playback Volume", 0,
+	       CS4231_LEFT_OUTPUT, CS4231_RIGHT_OUTPUT, 0, 0, 63, 1,
+	       db_scale_6bit),
+WSS_DOUBLE("Aux Playback Switch", 0,
+	   CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 7, 7, 1, 1),
+WSS_DOUBLE_TLV("Aux Playback Volume", 0,
+	       CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 0, 0, 31, 1,
+	       db_scale_5bit_12db_max),
+WSS_DOUBLE("Aux Playback Switch", 1,
+	   CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 7, 7, 1, 1),
+WSS_DOUBLE_TLV("Aux Playback Volume", 1,
+	       CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 0, 0, 31, 1,
+	       db_scale_5bit_12db_max),
+WSS_DOUBLE_TLV("Capture Volume", 0, CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT,
+		0, 0, 15, 0, db_scale_rec_gain),
+{
+	.name = "Capture Source",
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.info = snd_wss_info_mux,
+	.get = snd_wss_get_mux,
+	.put = snd_wss_put_mux,
+},
+WSS_SINGLE("Loopback Capture Switch", 0, CS4231_LOOPBACK, 0, 1, 0),
+WSS_SINGLE_TLV("Loopback Capture Volume", 0, CS4231_LOOPBACK, 1, 63, 0,
+	       db_scale_6bit),
+};
 
 static struct snd_kcontrol_new snd_wss_controls[] = {
 WSS_DOUBLE("PCM Playback Switch", 0,
@@ -2067,6 +2110,14 @@ int snd_wss_mixer(struct snd_wss *chip)
 		for (idx = 0; idx < ARRAY_SIZE(snd_opti93x_controls); idx++) {
 			err = snd_ctl_add(card,
 					snd_ctl_new1(&snd_opti93x_controls[idx],
+						     chip));
+			if (err < 0)
+				return err;
+		}
+	else if (chip->hardware & WSS_HW_AD1848_MASK)
+		for (idx = 0; idx < ARRAY_SIZE(snd_ad1848_controls); idx++) {
+			err = snd_ctl_add(card,
+					snd_ctl_new1(&snd_ad1848_controls[idx],
 						     chip));
 			if (err < 0)
 				return err;

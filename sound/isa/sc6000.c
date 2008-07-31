@@ -560,9 +560,9 @@ static int __devinit snd_sc6000_probe(struct device *devptr, unsigned int dev)
 			   "error creating new ad1848 PCM device\n");
 		goto err_unmap2;
 	}
-	err = snd_ad1848_mixer(chip);
+	err = snd_wss_mixer(chip);
 	if (err < 0) {
-		snd_printk(KERN_ERR PFX "error creating new ad1848 mixer\n");
+		snd_printk(KERN_ERR PFX "error creating new WSS mixer\n");
 		goto err_unmap2;
 	}
 	err = snd_sc6000_mixer(chip);

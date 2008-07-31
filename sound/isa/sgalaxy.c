@@ -277,8 +277,9 @@ static int __devinit snd_sgalaxy_probe(struct device *devptr, unsigned int dev)
 		snd_printdd(PFX "error creating new ad1848 PCM device\n");
 		goto _err;
 	}
-	if ((err = snd_ad1848_mixer(chip)) < 0) {
-		snd_printdd(PFX "error creating new ad1848 mixer\n");
+	err = snd_wss_mixer(chip);
+	if (err < 0) {
+		snd_printdd(PFX "error creating new WSS mixer\n");
 		goto _err;
 	}
 	if ((err = snd_sgalaxy_mixer(chip)) < 0) {
