@@ -98,8 +98,8 @@ static void tcrypt_complete(struct crypto_async_request *req, int err)
 	complete(&res->completion);
 }
 
-static void test_hash(char *algo, struct hash_testvec *template,
-		      unsigned int tcount)
+static int test_hash(char *algo, struct hash_testvec *template,
+		     unsigned int tcount)
 {
 	unsigned int i, j, k, temp;
 	struct scatterlist sg[8];
@@ -110,27 +110,26 @@ static void test_hash(char *algo, struct hash_testvec *template,
 	int ret;
 	void *hash_buff;
 
-	printk("\ntesting %s\n", algo);
-
 	init_completion(&tresult.completion);
 
 	tfm = crypto_alloc_ahash(algo, 0, 0);
 	if (IS_ERR(tfm)) {
-		printk("failed to load transform for %s: %ld\n", algo,
-		       PTR_ERR(tfm));
-		return;
+		printk(KERN_ERR "alg: hash: Failed to load transform for %s: "
+		       "%ld\n", algo, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
 	req = ahash_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		printk(KERN_ERR "failed to allocate request for %s\n", algo);
+		printk(KERN_ERR "alg: hash: Failed to allocate request for "
+		       "%s\n", algo);
+		ret = -ENOMEM;
 		goto out_noreq;
 	}
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				   tcrypt_complete, &tresult);
 
 	for (i = 0; i < tcount; i++) {
-		printk("test %u:\n", i + 1);
 		memset(result, 0, 64);
 
 		hash_buff = xbuf[0];
@@ -143,7 +142,9 @@ static void test_hash(char *algo, struct hash_testvec *template,
 			ret = crypto_ahash_setkey(tfm, template[i].key,
 						  template[i].ksize);
 			if (ret) {
-				printk("setkey() failed ret=%d\n", ret);
+				printk(KERN_ERR "alg: hash: setkey failed on "
+				       "test %d for %s: ret=%d\n", i + 1, algo,
+				       -ret);
 				goto out;
 			}
 		}
@@ -163,24 +164,25 @@ static void test_hash(char *algo, struct hash_testvec *template,
 			}
 			/* fall through */
 		default:
-			printk("digest () failed ret=%d\n", ret);
+			printk(KERN_ERR "alg: hash: digest failed on test %d "
+			       "for %s: ret=%d\n", i + 1, algo, -ret);
 			goto out;
 		}
 
-		hexdump(result, crypto_ahash_digestsize(tfm));
-		printk("%s\n",
-		       memcmp(result, template[i].digest,
-			      crypto_ahash_digestsize(tfm)) ?
-		       "fail" : "pass");
+		if (memcmp(result, template[i].digest,
+			   crypto_ahash_digestsize(tfm))) {
+			printk(KERN_ERR "alg: hash: Test %d failed for %s\n",
+			       i + 1, algo);
+			hexdump(result, crypto_ahash_digestsize(tfm));
+			ret = -EINVAL;
+			goto out;
+		}
 	}
-
-	printk("testing %s across pages\n", algo);
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
 		if (template[i].np) {
 			j++;
-			printk("test %u:\n", j);
 			memset(result, 0, 64);
 
 			temp = 0;
@@ -201,7 +203,10 @@ static void test_hash(char *algo, struct hash_testvec *template,
 							  template[i].ksize);
 
 				if (ret) {
-					printk("setkey() failed ret=%d\n", ret);
+					printk(KERN_ERR "alg: hash: setkey "
+					       "failed on chunking test %d "
+					       "for %s: ret=%d\n", j, algo,
+					       -ret);
 					goto out;
 				}
 			}
@@ -222,28 +227,37 @@ static void test_hash(char *algo, struct hash_testvec *template,
 				}
 				/* fall through */
 			default:
-				printk("digest () failed ret=%d\n", ret);
+				printk(KERN_ERR "alg: hash: digest failed "
+				       "on chunking test %d for %s: "
+				       "ret=%d\n", j, algo, -ret);
 				goto out;
 			}
 
-			hexdump(result, crypto_ahash_digestsize(tfm));
-			printk("%s\n",
-			       memcmp(result, template[i].digest,
-				      crypto_ahash_digestsize(tfm)) ?
-			       "fail" : "pass");
+			if (memcmp(result, template[i].digest,
+				   crypto_ahash_digestsize(tfm))) {
+				printk(KERN_ERR "alg: hash: Chunking test %d "
+				       "failed for %s\n", j, algo);
+				hexdump(result, crypto_ahash_digestsize(tfm));
+				ret = -EINVAL;
+				goto out;
+			}
 		}
 	}
+
+	ret = 0;
 
 out:
 	ahash_request_free(req);
 out_noreq:
 	crypto_free_ahash(tfm);
+	return ret;
 }
 
-static void test_aead(char *algo, int enc, struct aead_testvec *template,
-		      unsigned int tcount)
+static int test_aead(char *algo, int enc, struct aead_testvec *template,
+		     unsigned int tcount)
 {
-	unsigned int ret, i, j, k, n, temp;
+	unsigned int i, j, k, n, temp;
+	int ret = 0;
 	char *q;
 	struct crypto_aead *tfm;
 	char *key;
@@ -262,21 +276,21 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 	else
 		e = "decryption";
 
-	printk(KERN_INFO "\ntesting %s %s\n", algo, e);
-
 	init_completion(&result.completion);
 
 	tfm = crypto_alloc_aead(algo, 0, 0);
 
 	if (IS_ERR(tfm)) {
-		printk(KERN_INFO "failed to load transform for %s: %ld\n",
-		       algo, PTR_ERR(tfm));
-		return;
+		printk(KERN_ERR "alg: aead: Failed to load transform for %s: "
+		       "%ld\n", algo, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
 	req = aead_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		printk(KERN_INFO "failed to allocate request for %s\n", algo);
+		printk(KERN_ERR "alg: aead: Failed to allocate request for "
+		       "%s\n", algo);
+		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -285,8 +299,7 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 
 	for (i = 0, j = 0; i < tcount; i++) {
 		if (!template[i].np) {
-			printk(KERN_INFO "test %u (%d bit key):\n",
-			       ++j, template[i].klen * 8);
+			j++;
 
 			/* some tepmplates have no input data but they will
 			 * touch input
@@ -310,21 +323,21 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 
 			ret = crypto_aead_setkey(tfm, key,
 						 template[i].klen);
-			if (ret) {
-				printk(KERN_INFO "setkey() failed flags=%x\n",
+			if (!ret == template[i].fail) {
+				printk(KERN_ERR "alg: aead: setkey failed on "
+				       "test %d for %s: flags=%x\n", j, algo,
 				       crypto_aead_get_flags(tfm));
-
-				if (!template[i].fail)
-					continue;
-			}
+				goto out;
+			} else if (ret)
+				continue;
 
 			authsize = abs(template[i].rlen - template[i].ilen);
 			ret = crypto_aead_setauthsize(tfm, authsize);
 			if (ret) {
-				printk(KERN_INFO
-				       "failed to set authsize = %u\n",
-				       authsize);
-				continue;
+				printk(KERN_ERR "alg: aead: Failed to set "
+				       "authsize to %u on test %d for %s\n",
+				       authsize, j, algo);
+				goto out;
 			}
 
 			sg_init_one(&sg[0], input,
@@ -354,26 +367,25 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 				}
 				/* fall through */
 			default:
-				printk(KERN_INFO "%s () failed err=%d\n",
-				       e, -ret);
-				continue;
+				printk(KERN_ERR "alg: aead: %s failed on test "
+				       "%d for %s: ret=%d\n", e, j, algo, -ret);
+				goto out;
 			}
 
 			q = input;
-			hexdump(q, template[i].rlen);
-
-			printk(KERN_INFO "enc/dec: %s\n",
-			       memcmp(q, template[i].result,
-				      template[i].rlen) ? "fail" : "pass");
+			if (memcmp(q, template[i].result, template[i].rlen)) {
+				printk(KERN_ERR "alg: aead: Test %d failed on "
+				       "%s for %s\n", j, e, algo);
+				hexdump(q, template[i].rlen);
+				ret = -EINVAL;
+				goto out;
+			}
 		}
 	}
 
-	printk(KERN_INFO "\ntesting %s %s across pages (chunking)\n", algo, e);
-
 	for (i = 0, j = 0; i < tcount; i++) {
 		if (template[i].np) {
-			printk(KERN_INFO "test %u (%d bit key):\n",
-			       ++j, template[i].klen * 8);
+			j++;
 
 			if (template[i].iv)
 				memcpy(iv, template[i].iv, MAX_IVLEN);
@@ -387,16 +399,17 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 			key = template[i].key;
 
 			ret = crypto_aead_setkey(tfm, key, template[i].klen);
-			if (ret) {
-				printk(KERN_INFO "setkey() failed flags=%x\n",
-				       crypto_aead_get_flags(tfm));
-
-				if (!template[i].fail)
-					goto out;
-			}
+			if (!ret == template[i].fail) {
+				printk(KERN_ERR "alg: aead: setkey failed on "
+				       "chunk test %d for %s: flags=%x\n", j,
+				       algo, crypto_aead_get_flags(tfm));
+				goto out;
+			} else if (ret)
+				continue;
 
 			authsize = abs(template[i].rlen - template[i].ilen);
 
+			ret = -EINVAL;
 			sg_init_table(sg, template[i].np);
 			for (k = 0, temp = 0; k < template[i].np; k++) {
 				if (WARN_ON(offset_in_page(IDX[k]) +
@@ -421,17 +434,19 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 
 			ret = crypto_aead_setauthsize(tfm, authsize);
 			if (ret) {
-				printk(KERN_INFO
-				       "failed to set authsize = %u\n",
-				       authsize);
+				printk(KERN_ERR "alg: aead: Failed to set "
+				       "authsize to %u on chunk test %d for "
+				       "%s\n", authsize, j, algo);
 				goto out;
 			}
 
 			if (enc) {
 				if (WARN_ON(sg[k - 1].offset +
 					    sg[k - 1].length + authsize >
-					    PAGE_SIZE))
+					    PAGE_SIZE)) {
+					ret = -EINVAL;
 					goto out;
+				}
 
 				sg[k - 1].length += authsize;
 			}
@@ -470,23 +485,28 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 				}
 				/* fall through */
 			default:
-				printk(KERN_INFO "%s () failed err=%d\n",
-				       e, -ret);
+				printk(KERN_ERR "alg: aead: %s failed on "
+				       "chunk test %d for %s: ret=%d\n", e, j,
+				       algo, -ret);
 				goto out;
 			}
 
+			ret = -EINVAL;
 			for (k = 0, temp = 0; k < template[i].np; k++) {
-				printk(KERN_INFO "page %u\n", k);
 				q = xbuf[IDX[k] >> PAGE_SHIFT] +
 				    offset_in_page(IDX[k]);
 
 				n = template[i].tap[k];
 				if (k == template[i].np - 1)
 					n += enc ? authsize : -authsize;
-				hexdump(q, n);
-				printk(KERN_INFO "%s\n",
-				       memcmp(q, template[i].result + temp, n) ?
-				       "fail" : "pass");
+
+				if (memcmp(q, template[i].result + temp, n)) {
+					printk(KERN_ERR "alg: aead: Chunk "
+					       "test %d failed on %s at page "
+					       "%u for %s\n", j, e, k, algo);
+					hexdump(q, n);
+					goto out;
+				}
 
 				q += n;
 				if (k == template[i].np - 1 && !enc) {
@@ -501,9 +521,13 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 						;
 				}
 				if (n) {
-					printk("Result buffer corruption %u "
-					       "bytes:\n", n);
+					printk(KERN_ERR "alg: aead: Result "
+					       "buffer corruption in chunk "
+					       "test %d on %s at page %u for "
+					       "%s: %u bytes:\n", j, e, k,
+					       algo, n);
 					hexdump(q, n);
+					goto out;
 				}
 
 				temp += template[i].tap[k];
@@ -511,15 +535,19 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 		}
 	}
 
+	ret = 0;
+
 out:
 	crypto_free_aead(tfm);
 	aead_request_free(req);
+	return ret;
 }
 
-static void test_cipher(char *algo, int enc,
-			struct cipher_testvec *template, unsigned int tcount)
+static int test_cipher(char *algo, int enc,
+		       struct cipher_testvec *template, unsigned int tcount)
 {
-	unsigned int ret, i, j, k, n, temp;
+	unsigned int i, j, k, n, temp;
+	int ret;
 	char *q;
 	struct crypto_ablkcipher *tfm;
 	struct ablkcipher_request *req;
@@ -534,20 +562,20 @@ static void test_cipher(char *algo, int enc,
 	else
 		e = "decryption";
 
-	printk("\ntesting %s %s\n", algo, e);
-
 	init_completion(&result.completion);
 	tfm = crypto_alloc_ablkcipher(algo, 0, 0);
 
 	if (IS_ERR(tfm)) {
-		printk("failed to load transform for %s: %ld\n", algo,
-		       PTR_ERR(tfm));
-		return;
+		printk(KERN_ERR "alg: cipher: Failed to load transform for "
+		       "%s: %ld\n", algo, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
 	req = ablkcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		printk("failed to allocate request for %s\n", algo);
+		printk(KERN_ERR "alg: cipher: Failed to allocate request for "
+		       "%s\n", algo);
+		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -563,8 +591,6 @@ static void test_cipher(char *algo, int enc,
 
 		if (!(template[i].np)) {
 			j++;
-			printk("test %u (%d bit key):\n",
-			j, template[i].klen * 8);
 
 			data = xbuf[0];
 			memcpy(data, template[i].input, template[i].ilen);
@@ -576,13 +602,13 @@ static void test_cipher(char *algo, int enc,
 
 			ret = crypto_ablkcipher_setkey(tfm, template[i].key,
 						       template[i].klen);
-			if (ret) {
-				printk("setkey() failed flags=%x\n",
-				       crypto_ablkcipher_get_flags(tfm));
-
-				if (!template[i].fail)
-					goto out;
-			}
+			if (!ret == template[i].fail) {
+				printk(KERN_ERR "alg: cipher: setkey failed "
+				       "on test %d for %s: flags=%x\n", j,
+				       algo, crypto_ablkcipher_get_flags(tfm));
+				goto out;
+			} else if (ret)
+				continue;
 
 			sg_init_one(&sg[0], data, template[i].ilen);
 
@@ -605,20 +631,22 @@ static void test_cipher(char *algo, int enc,
 				}
 				/* fall through */
 			default:
-				printk("%s () failed err=%d\n", e, -ret);
+				printk(KERN_ERR "alg: cipher: %s failed on "
+				       "test %d for %s: ret=%d\n", e, j, algo,
+				       -ret);
 				goto out;
 			}
 
 			q = data;
-			hexdump(q, template[i].rlen);
-
-			printk("%s\n",
-			       memcmp(q, template[i].result,
-				      template[i].rlen) ? "fail" : "pass");
+			if (memcmp(q, template[i].result, template[i].rlen)) {
+				printk(KERN_ERR "alg: cipher: Test %d failed "
+				       "on %s for %s\n", j, e, algo);
+				hexdump(q, template[i].rlen);
+				ret = -EINVAL;
+				goto out;
+			}
 		}
 	}
-
-	printk("\ntesting %s %s across pages (chunking)\n", algo, e);
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
@@ -630,8 +658,6 @@ static void test_cipher(char *algo, int enc,
 
 		if (template[i].np) {
 			j++;
-			printk("test %u (%d bit key):\n",
-			j, template[i].klen * 8);
 
 			crypto_ablkcipher_clear_flags(tfm, ~0);
 			if (template[i].wk)
@@ -640,15 +666,17 @@ static void test_cipher(char *algo, int enc,
 
 			ret = crypto_ablkcipher_setkey(tfm, template[i].key,
 						       template[i].klen);
-			if (ret) {
-				printk("setkey() failed flags=%x\n",
-						crypto_ablkcipher_get_flags(tfm));
-
-				if (!template[i].fail)
-					goto out;
-			}
+			if (!ret == template[i].fail) {
+				printk(KERN_ERR "alg: cipher: setkey failed "
+				       "on chunk test %d for %s: flags=%x\n",
+				       j, algo,
+				       crypto_ablkcipher_get_flags(tfm));
+				goto out;
+			} else if (ret)
+				continue;
 
 			temp = 0;
+			ret = -EINVAL;
 			sg_init_table(sg, template[i].np);
 			for (k = 0; k < template[i].np; k++) {
 				if (WARN_ON(offset_in_page(IDX[k]) +
@@ -690,36 +718,50 @@ static void test_cipher(char *algo, int enc,
 				}
 				/* fall through */
 			default:
-				printk("%s () failed err=%d\n", e, -ret);
+				printk(KERN_ERR "alg: cipher: %s failed on "
+				       "chunk test %d for %s: ret=%d\n", e, j,
+				       algo, -ret);
 				goto out;
 			}
 
 			temp = 0;
+			ret = -EINVAL;
 			for (k = 0; k < template[i].np; k++) {
-				printk("page %u\n", k);
 				q = xbuf[IDX[k] >> PAGE_SHIFT] +
 				    offset_in_page(IDX[k]);
-				hexdump(q, template[i].tap[k]);
-				printk("%s\n",
-					memcmp(q, template[i].result + temp,
-						template[i].tap[k]) ? "fail" :
-					"pass");
+
+				if (memcmp(q, template[i].result + temp,
+					   template[i].tap[k])) {
+					printk(KERN_ERR "alg: cipher: Chunk "
+					       "test %d failed on %s at page "
+					       "%u for %s\n", j, e, k, algo);
+					hexdump(q, template[i].tap[k]);
+					goto out;
+				}
 
 				q += template[i].tap[k];
 				for (n = 0; offset_in_page(q + n) && q[n]; n++)
 					;
 				if (n) {
-					printk("Result buffer corruption %u "
-					       "bytes:\n", n);
+					printk(KERN_ERR "alg: cipher: "
+					       "Result buffer corruption in "
+					       "chunk test %d on %s at page "
+					       "%u for %s: %u bytes:\n", j, e,
+					       k, algo, n);
 					hexdump(q, n);
+					goto out;
 				}
 				temp += template[i].tap[k];
 			}
 		}
 	}
+
+	ret = 0;
+
 out:
 	crypto_free_ablkcipher(tfm);
 	ablkcipher_request_free(req);
+	return ret;
 }
 
 static int test_cipher_jiffies(struct blkcipher_desc *desc, int enc,
@@ -1118,62 +1160,74 @@ out:
 	crypto_free_hash(tfm);
 }
 
-static void test_comp(char *algo, struct comp_testvec *ctemplate,
-		       struct comp_testvec *dtemplate, int ctcount, int dtcount)
+static int test_comp(char *algo, struct comp_testvec *ctemplate,
+		     struct comp_testvec *dtemplate, int ctcount, int dtcount)
 {
 	unsigned int i;
 	char result[COMP_BUF_SIZE];
 	struct crypto_comp *tfm;
-
-	printk("\ntesting %s compression\n", algo);
+	int ret;
 
 	tfm = crypto_alloc_comp(algo, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm)) {
-		printk("failed to load transform for %s\n", algo);
-		return;
+		printk(KERN_ERR "alg: comp: Failed to load transform for %s: "
+		       "%ld\n", algo, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
 	for (i = 0; i < ctcount; i++) {
-		int ilen, ret, dlen = COMP_BUF_SIZE;
+		int ilen, dlen = COMP_BUF_SIZE;
 
-		printk("test %u:\n", i + 1);
 		memset(result, 0, sizeof (result));
 
 		ilen = ctemplate[i].inlen;
 		ret = crypto_comp_compress(tfm, ctemplate[i].input,
 		                           ilen, result, &dlen);
 		if (ret) {
-			printk("fail: ret=%d\n", ret);
-			continue;
+			printk(KERN_ERR "alg: comp: compression failed "
+			       "on test %d for %s: ret=%d\n", i + 1, algo,
+			       -ret);
+			goto out;
 		}
-		hexdump(result, dlen);
-		printk("%s (ratio %d:%d)\n",
-		       memcmp(result, ctemplate[i].output, dlen) ? "fail" : "pass",
-		       ilen, dlen);
-	}
 
-	printk("\ntesting %s decompression\n", algo);
+		if (memcmp(result, ctemplate[i].output, dlen)) {
+			printk(KERN_ERR "alg: comp: Compression test %d "
+			       "failed for %s\n", i + 1, algo);
+			hexdump(result, dlen);
+			ret = -EINVAL;
+			goto out;
+		}
+	}
 
 	for (i = 0; i < dtcount; i++) {
 		int ilen, ret, dlen = COMP_BUF_SIZE;
 
-		printk("test %u:\n", i + 1);
 		memset(result, 0, sizeof (result));
 
 		ilen = dtemplate[i].inlen;
 		ret = crypto_comp_decompress(tfm, dtemplate[i].input,
 		                             ilen, result, &dlen);
 		if (ret) {
-			printk("fail: ret=%d\n", ret);
-			continue;
+			printk(KERN_ERR "alg: comp: decompression failed "
+			       "on test %d for %s: ret=%d\n", i + 1, algo,
+			       -ret);
+			goto out;
 		}
-		hexdump(result, dlen);
-		printk("%s (ratio %d:%d)\n",
-		       memcmp(result, dtemplate[i].output, dlen) ? "fail" : "pass",
-		       ilen, dlen);
+
+		if (memcmp(result, dtemplate[i].output, dlen)) {
+			printk(KERN_ERR "alg: comp: Decompression test %d "
+			       "failed for %s\n", i + 1, algo);
+			hexdump(result, dlen);
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 
+	ret = 0;
+
+out:
 	crypto_free_comp(tfm);
+	return ret;
 }
 
 static void test_available(void)
