@@ -133,7 +133,7 @@ struct snd_opl3sa2 {
 	spinlock_t reg_lock;
 	struct snd_hwdep *synth;
 	struct snd_rawmidi *rmidi;
-	struct snd_cs4231 *cs4231;
+	struct snd_wss *wss;
 	unsigned char ctlregs[0x20];
 	int ymode;		/* SL added */
 	struct snd_kcontrol *master_switch;
@@ -318,7 +318,7 @@ static irqreturn_t snd_opl3sa2_interrupt(int irq, void *dev_id)
 
 	if (status & 0x07) {	/* TI,CI,PI */
 		handled = 1;
-		snd_cs4231_interrupt(irq, chip->cs4231);
+		snd_wss_interrupt(irq, chip->wss);
 	}
 
 	if (status & 0x40) { /* hardware volume change */
@@ -573,7 +573,7 @@ static int snd_opl3sa2_suspend(struct snd_card *card, pm_message_t state)
 	struct snd_opl3sa2 *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	chip->cs4231->suspend(chip->cs4231);
+	chip->wss->suspend(chip->wss);
 	/* power down */
 	snd_opl3sa2_write(chip, OPL3SA2_PM_CTRL, OPL3SA2_PM_D3);
 
@@ -597,8 +597,8 @@ static int snd_opl3sa2_resume(struct snd_card *card)
 		for (i = 0x12; i <= 0x16; i++)
 			snd_opl3sa2_write(chip, i, chip->ctlregs[i]);
 	}
-	/* restore cs4231 */
-	chip->cs4231->resume(chip->cs4231);
+	/* restore wss */
+	chip->wss->resume(chip->wss);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
@@ -659,7 +659,7 @@ static int __devinit snd_opl3sa2_probe(struct snd_card *card, int dev)
 {
 	int xirq, xdma1, xdma2;
 	struct snd_opl3sa2 *chip;
-	struct snd_cs4231 *cs4231;
+	struct snd_wss *wss;
 	struct snd_opl3 *opl3;
 	int err;
 
@@ -679,23 +679,25 @@ static int __devinit snd_opl3sa2_probe(struct snd_card *card, int dev)
 		return -ENODEV;
 	}
 	chip->irq = xirq;
-	if ((err = snd_cs4231_create(card,
-				     wss_port[dev] + 4, -1,
-				     xirq, xdma1, xdma2,
-				     CS4231_HW_OPL3SA2,
-				     CS4231_HWSHARE_IRQ,
-				     &cs4231)) < 0) {
+	err = snd_wss_create(card,
+			     wss_port[dev] + 4, -1,
+			     xirq, xdma1, xdma2,
+			     WSS_HW_OPL3SA2, WSS_HWSHARE_IRQ, &wss);
+	if (err < 0) {
 		snd_printd("Oops, WSS not detected at 0x%lx\n", wss_port[dev] + 4);
 		return err;
 	}
-	chip->cs4231 = cs4231;
-	if ((err = snd_cs4231_pcm(cs4231, 0, NULL)) < 0)
+	chip->wss = wss;
+	err = snd_wss_pcm(wss, 0, NULL);
+	if (err < 0)
 		return err;
-	if ((err = snd_cs4231_mixer(cs4231)) < 0)
+	err = snd_wss_mixer(wss);
+	if (err < 0)
 		return err;
 	if ((err = snd_opl3sa2_mixer(chip)) < 0)
 		return err;
-	if ((err = snd_cs4231_timer(cs4231, 0, NULL)) < 0)
+	err = snd_wss_timer(wss, 0, NULL);
+	if (err < 0)
 		return err;
 	if (fm_port[dev] >= 0x340 && fm_port[dev] < 0x400) {
 		if ((err = snd_opl3_create(card, fm_port[dev],

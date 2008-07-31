@@ -139,7 +139,7 @@ struct snd_opti9xx {
 	unsigned long mc_base_size;
 #ifdef OPTi93X
 	unsigned long mc_indir_index;
-	struct snd_cs4231 *codec;
+	struct snd_wss *codec;
 #endif	/* OPTi93X */
 	unsigned long pwd_reg;
 
@@ -562,7 +562,7 @@ __skip_mpu:
 
 static irqreturn_t snd_opti93x_interrupt(int irq, void *dev_id)
 {
-	struct snd_cs4231 *codec = dev_id;
+	struct snd_wss *codec = dev_id;
 	struct snd_opti9xx *chip = codec->card->private_data;
 	unsigned char status;
 
@@ -570,7 +570,7 @@ static irqreturn_t snd_opti93x_interrupt(int irq, void *dev_id)
 	if ((status & OPTi93X_IRQ_PLAYBACK) && codec->playback_substream)
 		snd_pcm_period_elapsed(codec->playback_substream);
 	if ((status & OPTi93X_IRQ_CAPTURE) && codec->capture_substream) {
-		snd_cs4231_overrange(codec);
+		snd_wss_overrange(codec);
 		snd_pcm_period_elapsed(codec->capture_substream);
 	}
 	outb(0x00, OPTi93X_PORT(codec, STATUS));
@@ -691,7 +691,7 @@ static void snd_card_opti9xx_free(struct snd_card *card)
         
 	if (chip) {
 #ifdef OPTi93X
-		struct snd_cs4231 *codec = chip->codec;
+		struct snd_wss *codec = chip->codec;
 		if (codec && codec->irq > 0) {
 			disable_irq(codec->irq);
 			free_irq(codec->irq, codec);
@@ -707,7 +707,7 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 	int error;
 	struct snd_opti9xx *chip = card->private_data;
 #if defined(CS4231) || defined(OPTi93X)
-	struct snd_cs4231 *codec;
+	struct snd_wss *codec;
 #ifdef CS4231
 	struct snd_timer *timer;
 #endif
@@ -734,33 +734,39 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 #endif
 
 	if (chip->wss_base == SNDRV_AUTO_PORT) {
-		if ((chip->wss_base = snd_legacy_find_free_ioport(possible_ports, 4)) < 0) {
+		chip->wss_base = snd_legacy_find_free_ioport(possible_ports, 4);
+		if (chip->wss_base < 0) {
 			snd_printk("unable to find a free WSS port\n");
 			return -EBUSY;
 		}
 	}
-	if ((error = snd_opti9xx_configure(chip)))
+	error = snd_opti9xx_configure(chip);
+	if (error)
 		return error;
 
 #if defined(CS4231) || defined(OPTi93X)
-	if ((error = snd_cs4231_create(card, chip->wss_base + 4, -1,
-				       chip->irq, chip->dma1, chip->dma2,
+	error = snd_wss_create(card, chip->wss_base + 4, -1,
+			       chip->irq, chip->dma1, chip->dma2,
 #ifdef CS4231
-				       CS4231_HW_DETECT, 0,
+			       WSS_HW_DETECT, 0,
 #else /* OPTi93x */
-				       CS4231_HW_OPTI93X, CS4231_HWSHARE_IRQ,
+			       WSS_HW_OPTI93X, WSS_HWSHARE_IRQ,
 #endif
-				       &codec)) < 0)
+			       &codec);
+	if (error < 0)
 		return error;
 #ifdef OPTi93X
 	chip->codec = codec;
 #endif
-	if ((error = snd_cs4231_pcm(codec, 0, &pcm)) < 0)
+	error = snd_wss_pcm(codec, 0, &pcm);
+	if (error < 0)
 		return error;
-	if ((error = snd_cs4231_mixer(codec)) < 0)
+	error = snd_wss_mixer(codec);
+	if (error < 0)
 		return error;
 #ifdef CS4231
-	if ((error = snd_cs4231_timer(codec, 0, &timer)) < 0)
+	error = snd_wss_timer(codec, 0, &timer);
+	if (error < 0)
 		return error;
 #else /* OPTI93X */
 	error = request_irq(chip->irq, snd_opti93x_interrupt,
