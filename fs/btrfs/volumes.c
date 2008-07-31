@@ -180,7 +180,11 @@ loop:
 		pending = pending->bi_next;
 		cur->bi_next = NULL;
 		atomic_dec(&device->dev_root->fs_info->nr_async_submits);
+
+		BUG_ON(atomic_read(&cur->bi_cnt) == 0);
+		bio_get(cur);
 		submit_bio(cur->bi_rw, cur);
+		bio_put(cur);
 		num_run++;
 
 		/*
@@ -188,10 +192,11 @@ loop:
 		 * is now congested.  Back off and let other work structs
 		 * run instead
 		 */
-		if (pending && num_run && bdi_write_congested(bdi)) {
+		if (pending && bdi_write_congested(bdi)) {
 			struct bio *old_head;
 
 			spin_lock(&device->io_lock);
+
 			old_head = device->pending_bios;
 			device->pending_bios = pending;
 			if (device->pending_bio_tail)
@@ -2125,7 +2130,9 @@ int schedule_bio(struct btrfs_root *root, struct btrfs_device *device,
 
 	/* don't bother with additional async steps for reads, right now */
 	if (!(rw & (1 << BIO_RW))) {
+		bio_get(bio);
 		submit_bio(rw, bio);
+		bio_put(bio);
 		return 0;
 	}
 
@@ -2136,6 +2143,7 @@ int schedule_bio(struct btrfs_root *root, struct btrfs_device *device,
 	 * on a queue for later
 	 */
 	atomic_inc(&root->fs_info->nr_async_submits);
+	WARN_ON(bio->bi_next);
 	bio->bi_next = NULL;
 	bio->bi_rw |= rw;
 
