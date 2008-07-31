@@ -139,7 +139,8 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	if (IS_ERR(block)) {
 		DEV_MESSAGE(KERN_WARNING, device, "%s",
 			    "could not allocate dasd block structure");
-		kfree(device->private);
+		device->private = NULL;
+		kfree(private);
 		return PTR_ERR(block);
 	}
 	device->block = block;
@@ -152,6 +153,10 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 		DEV_MESSAGE(KERN_WARNING, device,
 			    "Read device characteristics returned error %d",
 			    rc);
+		device->block = NULL;
+		dasd_free_block(block);
+		device->private = NULL;
+		kfree(private);
 		return rc;
 	}
 
@@ -222,7 +227,7 @@ static void dasd_fba_handle_unsolicited_interrupt(struct dasd_device *device,
 
 	/* first of all check for state change pending interrupt */
 	mask = DEV_STAT_ATTENTION | DEV_STAT_DEV_END | DEV_STAT_UNIT_EXCEP;
-	if ((irb->scsw.dstat & mask) == mask) {
+	if ((irb->scsw.cmd.dstat & mask) == mask) {
 		dasd_generic_handle_state_change(device);
 		return;
 	}
@@ -449,11 +454,11 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		      device->cdev->dev.bus_id);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " in req: %p CS: 0x%02X DS: 0x%02X\n", req,
-		       irb->scsw.cstat, irb->scsw.dstat);
+		       irb->scsw.cmd.cstat, irb->scsw.cmd.dstat);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
 		       device->cdev->dev.bus_id,
-		       (void *) (addr_t) irb->scsw.cpa);
+		       (void *) (addr_t) irb->scsw.cmd.cpa);
 	if (irb->esw.esw0.erw.cons) {
 		for (sl = 0; sl < 4; sl++) {
 			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
@@ -498,11 +503,11 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 
 	/* print failing CCW area */
 	len = 0;
-	if (act <  ((struct ccw1 *)(addr_t) irb->scsw.cpa) - 2) {
-		act = ((struct ccw1 *)(addr_t) irb->scsw.cpa) - 2;
+	if (act <  ((struct ccw1 *)(addr_t) irb->scsw.cmd.cpa) - 2) {
+		act = ((struct ccw1 *)(addr_t) irb->scsw.cmd.cpa) - 2;
 		len += sprintf(page + len, KERN_ERR PRINTK_HEADER "......\n");
 	}
-	end = min((struct ccw1 *)(addr_t) irb->scsw.cpa + 2, last);
+	end = min((struct ccw1 *)(addr_t) irb->scsw.cmd.cpa + 2, last);
 	while (act <= end) {
 		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 			       " CCW %p: %08X %08X DAT:",

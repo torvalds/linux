@@ -84,10 +84,9 @@
     runs an instance of gdb against the vmlinux file which contains
     the symbols (not boot image such as bzImage, zImage, uImage...).
     In gdb the developer specifies the connection parameters and
-    connects to kgdb.  Depending on which kgdb I/O modules exist in
-    the kernel for a given architecture, it may be possible to debug
-    the test machine's kernel with the development machine using a
-    rs232 or ethernet connection.
+    connects to kgdb.  The type of connection a developer makes with
+    gdb depends on the availability of kgdb I/O modules compiled as
+    builtin's or kernel modules in the test machine's kernel.
     </para>
   </chapter>
   <chapter id="CompilingAKernel">
@@ -223,7 +222,7 @@
   </para>
   <para>
   IMPORTANT NOTE: Using this option with kgdb over the console
-  (kgdboc) or kgdb over ethernet (kgdboe) is not supported.
+  (kgdboc) is not supported.
   </para>
   </sect1>
   </chapter>
@@ -249,18 +248,11 @@
     (gdb) target remote /dev/ttyS0
     </programlisting>
     <para>
-    Example (kgdb to a terminal server):
+    Example (kgdb to a terminal server on tcp port 2012):
     </para>
     <programlisting>
     % gdb ./vmlinux
-    (gdb) target remote udp:192.168.2.2:6443
-    </programlisting>
-    <para>
-    Example (kgdb over ethernet):
-    </para>
-    <programlisting>
-    % gdb ./vmlinux
-    (gdb) target remote udp:192.168.2.2:6443
+    (gdb) target remote 192.168.2.2:2012
     </programlisting>
     <para>
     Once connected, you can debug a kernel the way you would debug an

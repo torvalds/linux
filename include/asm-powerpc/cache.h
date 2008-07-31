@@ -8,6 +8,9 @@
 #if defined(CONFIG_8xx) || defined(CONFIG_403GCX)
 #define L1_CACHE_SHIFT		4
 #define MAX_COPY_PREFETCH	1
+#elif defined(CONFIG_PPC_E500MC)
+#define L1_CACHE_SHIFT		6
+#define MAX_COPY_PREFETCH	4
 #elif defined(CONFIG_PPC32)
 #define L1_CACHE_SHIFT		5
 #define MAX_COPY_PREFETCH	4

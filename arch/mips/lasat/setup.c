@@ -127,9 +127,11 @@ void __init plat_time_init(void)
 void __init plat_mem_setup(void)
 {
 	int i;
-	lasat_misc  = &lasat_misc_info[mips_machtype];
+	int lasat_type = IS_LASAT_200() ? 1 : 0;
+
+	lasat_misc  = &lasat_misc_info[lasat_type];
 #ifdef CONFIG_PICVUE
-	picvue = &pvc_defs[mips_machtype];
+	picvue = &pvc_defs[lasat_type];
 #endif
 
 	/* Set up panic notifier */
@@ -140,7 +142,7 @@ void __init plat_mem_setup(void)
 	lasat_reboot_setup();
 
 #ifdef CONFIG_DS1603
-	ds1603 = &ds_defs[mips_machtype];
+	ds1603 = &ds_defs[lasat_type];
 #endif
 
 #ifdef DYNAMIC_SERIAL_INIT

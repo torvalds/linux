@@ -166,6 +166,9 @@ unifdef-y += acct.h
 unifdef-y += adb.h
 unifdef-y += adfs_fs.h
 unifdef-y += agpgart.h
+ifneq ($(wildcard $(srctree)/include/asm-$(SRCARCH)/a.out.h),)
+unifdef-y += a.out.h
+endif
 unifdef-y += apm_bios.h
 unifdef-y += atalk.h
 unifdef-y += atmdev.h
@@ -186,7 +189,6 @@ unifdef-y += connector.h
 unifdef-y += cuda.h
 unifdef-y += cyclades.h
 unifdef-y += dccp.h
-unifdef-y += dirent.h
 unifdef-y += dlm.h
 unifdef-y += dlm_plock.h
 unifdef-y += edd.h
@@ -253,7 +255,9 @@ unifdef-y += kd.h
 unifdef-y += kernelcapi.h
 unifdef-y += kernel.h
 unifdef-y += keyboard.h
+ifneq ($(wildcard $(srctree)/include/asm-$(SRCARCH)/kvm.h),)
 unifdef-y += kvm.h
+endif
 unifdef-y += llc.h
 unifdef-y += loop.h
 unifdef-y += lp.h

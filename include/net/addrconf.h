@@ -121,7 +121,8 @@ static inline int addrconf_finite_timeout(unsigned long timeout)
  */
 extern int			ipv6_addr_label_init(void);
 extern void			ipv6_addr_label_rtnl_register(void);
-extern u32			ipv6_addr_label(const struct in6_addr *addr,
+extern u32			ipv6_addr_label(struct net *net,
+						const struct in6_addr *addr,
 						int type, int ifindex);
 
 /*

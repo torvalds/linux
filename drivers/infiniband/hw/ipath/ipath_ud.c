@@ -96,7 +96,7 @@ static void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_swqe *swqe)
 
 	if (swqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
 		wc.wc_flags = IB_WC_WITH_IMM;
-		wc.imm_data = swqe->wr.ex.imm_data;
+		wc.ex.imm_data = swqe->wr.ex.imm_data;
 	}
 
 	/*
@@ -492,14 +492,14 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	if (qp->ibqp.qp_num > 1 &&
 	    opcode == IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE) {
 		if (header_in_data) {
-			wc.imm_data = *(__be32 *) data;
+			wc.ex.imm_data = *(__be32 *) data;
 			data += sizeof(__be32);
 		} else
-			wc.imm_data = ohdr->u.ud.imm_data;
+			wc.ex.imm_data = ohdr->u.ud.imm_data;
 		wc.wc_flags = IB_WC_WITH_IMM;
 		hdrsize += sizeof(u32);
 	} else if (opcode == IB_OPCODE_UD_SEND_ONLY) {
-		wc.imm_data = 0;
+		wc.ex.imm_data = 0;
 		wc.wc_flags = 0;
 	} else {
 		dev->n_pkt_drops++;

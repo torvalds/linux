@@ -32,7 +32,7 @@
 #include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/info.h>
-#include <sound/mpu401.h>
+#include <sound/rawmidi.h>
 #include <sound/initval.h>
 
 #include <sound/asoundef.h>
@@ -223,29 +223,152 @@ static unsigned int snd_vt1724_get_gpio_data(struct snd_ice1712 *ice)
 }
 
 /*
- * MPU401 accessor
+ * MIDI
  */
-static unsigned char snd_vt1724_mpu401_read(struct snd_mpu401 *mpu,
-					    unsigned long addr)
+
+static void vt1724_midi_clear_rx(struct snd_ice1712 *ice)
 {
-	/* fix status bits to the standard position */
-	/* only RX_EMPTY and TX_FULL are checked */
-	if (addr == MPU401C(mpu))
-		return (inb(addr) & 0x0c) << 4;
-	else
-		return inb(addr);
+	unsigned int count;
+
+	for (count = inb(ICEREG1724(ice, MPU_RXFIFO)); count > 0; --count)
+		inb(ICEREG1724(ice, MPU_DATA));
 }
 
-static void snd_vt1724_mpu401_write(struct snd_mpu401 *mpu,
-				    unsigned char data, unsigned long addr)
+static inline struct snd_rawmidi_substream *
+get_rawmidi_substream(struct snd_ice1712 *ice, unsigned int stream)
 {
-	if (addr == MPU401C(mpu)) {
-		if (data == MPU401_ENTER_UART)
-			outb(0x01, addr);
-		/* what else? */
-	} else
-		outb(data, addr);
+	return list_first_entry(&ice->rmidi[0]->streams[stream].substreams,
+				struct snd_rawmidi_substream, list);
 }
+
+static void vt1724_midi_write(struct snd_ice1712 *ice)
+{
+	struct snd_rawmidi_substream *s;
+	int count, i;
+	u8 buffer[32];
+
+	s = get_rawmidi_substream(ice, SNDRV_RAWMIDI_STREAM_OUTPUT);
+	count = 31 - inb(ICEREG1724(ice, MPU_TXFIFO));
+	if (count > 0) {
+		count = snd_rawmidi_transmit(s, buffer, count);
+		for (i = 0; i < count; ++i)
+			outb(buffer[i], ICEREG1724(ice, MPU_DATA));
+	}
+}
+
+static void vt1724_midi_read(struct snd_ice1712 *ice)
+{
+	struct snd_rawmidi_substream *s;
+	int count, i;
+	u8 buffer[32];
+
+	s = get_rawmidi_substream(ice, SNDRV_RAWMIDI_STREAM_INPUT);
+	count = inb(ICEREG1724(ice, MPU_RXFIFO));
+	if (count > 0) {
+		count = min(count, 32);
+		for (i = 0; i < count; ++i)
+			buffer[i] = inb(ICEREG1724(ice, MPU_DATA));
+		snd_rawmidi_receive(s, buffer, count);
+	}
+}
+
+static void vt1724_enable_midi_irq(struct snd_rawmidi_substream *substream,
+				   u8 flag, int enable)
+{
+	struct snd_ice1712 *ice = substream->rmidi->private_data;
+	u8 mask;
+
+	spin_lock_irq(&ice->reg_lock);
+	mask = inb(ICEREG1724(ice, IRQMASK));
+	if (enable)
+		mask &= ~flag;
+	else
+		mask |= flag;
+	outb(mask, ICEREG1724(ice, IRQMASK));
+	spin_unlock_irq(&ice->reg_lock);
+}
+
+static int vt1724_midi_output_open(struct snd_rawmidi_substream *s)
+{
+	vt1724_enable_midi_irq(s, VT1724_IRQ_MPU_TX, 1);
+	return 0;
+}
+
+static int vt1724_midi_output_close(struct snd_rawmidi_substream *s)
+{
+	vt1724_enable_midi_irq(s, VT1724_IRQ_MPU_TX, 0);
+	return 0;
+}
+
+static void vt1724_midi_output_trigger(struct snd_rawmidi_substream *s, int up)
+{
+	struct snd_ice1712 *ice = s->rmidi->private_data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ice->reg_lock, flags);
+	if (up) {
+		ice->midi_output = 1;
+		vt1724_midi_write(ice);
+	} else {
+		ice->midi_output = 0;
+	}
+	spin_unlock_irqrestore(&ice->reg_lock, flags);
+}
+
+static void vt1724_midi_output_drain(struct snd_rawmidi_substream *s)
+{
+	struct snd_ice1712 *ice = s->rmidi->private_data;
+	unsigned long timeout;
+
+	/* 32 bytes should be transmitted in less than about 12 ms */
+	timeout = jiffies + msecs_to_jiffies(15);
+	do {
+		if (inb(ICEREG1724(ice, MPU_CTRL)) & VT1724_MPU_TX_EMPTY)
+			break;
+		schedule_timeout_uninterruptible(1);
+	} while (time_after(timeout, jiffies));
+}
+
+static struct snd_rawmidi_ops vt1724_midi_output_ops = {
+	.open = vt1724_midi_output_open,
+	.close = vt1724_midi_output_close,
+	.trigger = vt1724_midi_output_trigger,
+	.drain = vt1724_midi_output_drain,
+};
+
+static int vt1724_midi_input_open(struct snd_rawmidi_substream *s)
+{
+	vt1724_midi_clear_rx(s->rmidi->private_data);
+	vt1724_enable_midi_irq(s, VT1724_IRQ_MPU_RX, 1);
+	return 0;
+}
+
+static int vt1724_midi_input_close(struct snd_rawmidi_substream *s)
+{
+	vt1724_enable_midi_irq(s, VT1724_IRQ_MPU_RX, 0);
+	return 0;
+}
+
+static void vt1724_midi_input_trigger(struct snd_rawmidi_substream *s, int up)
+{
+	struct snd_ice1712 *ice = s->rmidi->private_data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ice->reg_lock, flags);
+	if (up) {
+		ice->midi_input = 1;
+		vt1724_midi_read(ice);
+	} else {
+		ice->midi_input = 0;
+	}
+	spin_unlock_irqrestore(&ice->reg_lock, flags);
+}
+
+static struct snd_rawmidi_ops vt1724_midi_input_ops = {
+	.open = vt1724_midi_input_open,
+	.close = vt1724_midi_input_close,
+	.trigger = vt1724_midi_input_trigger,
+};
 
 
 /*
@@ -278,13 +401,10 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
 #endif
 		handled = 1;		
 		if (status & VT1724_IRQ_MPU_TX) {
-			if (ice->rmidi[0])
-				snd_mpu401_uart_interrupt_tx(irq,
-					ice->rmidi[0]->private_data);
-			else /* disable TX to be sure */
-				outb(inb(ICEREG1724(ice, IRQMASK)) |
-				     VT1724_IRQ_MPU_TX,
-				     ICEREG1724(ice, IRQMASK));
+			spin_lock(&ice->reg_lock);
+			if (ice->midi_output)
+				vt1724_midi_write(ice);
+			spin_unlock(&ice->reg_lock);
 			/* Due to mysterical reasons, MPU_TX is always
 			 * generated (and can't be cleared) when a PCM
 			 * playback is going.  So let's ignore at the
@@ -293,13 +413,12 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
 			status_mask &= ~VT1724_IRQ_MPU_TX;
 		}
 		if (status & VT1724_IRQ_MPU_RX) {
-			if (ice->rmidi[0])
-				snd_mpu401_uart_interrupt(irq,
-					ice->rmidi[0]->private_data);
-			else /* disable RX to be sure */
-				outb(inb(ICEREG1724(ice, IRQMASK)) |
-				     VT1724_IRQ_MPU_RX,
-				     ICEREG1724(ice, IRQMASK));
+			spin_lock(&ice->reg_lock);
+			if (ice->midi_input)
+				vt1724_midi_read(ice);
+			else
+				vt1724_midi_clear_rx(ice);
+			spin_unlock(&ice->reg_lock);
 		}
 		/* ack MPU irq */
 		outb(status, ICEREG1724(ice, IRQSTAT));
@@ -2425,28 +2544,30 @@ static int __devinit snd_vt1724_probe(struct pci_dev *pci,
 
 	if (! c->no_mpu401) {
 		if (ice->eeprom.data[ICE_EEP2_SYSCONF] & VT1724_CFG_MPU401) {
-			struct snd_mpu401 *mpu;
-			if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
-						       ICEREG1724(ice, MPU_CTRL),
-						       (MPU401_INFO_INTEGRATED |
-							MPU401_INFO_NO_ACK |
-							MPU401_INFO_TX_IRQ),
-						       ice->irq, 0,
-						       &ice->rmidi[0])) < 0) {
+			struct snd_rawmidi *rmidi;
+
+			err = snd_rawmidi_new(card, "MIDI", 0, 1, 1, &rmidi);
+			if (err < 0) {
 				snd_card_free(card);
 				return err;
 			}
-			mpu = ice->rmidi[0]->private_data;
-			mpu->read = snd_vt1724_mpu401_read;
-			mpu->write = snd_vt1724_mpu401_write;
-			/* unmask MPU RX/TX irqs */
-			outb(inb(ICEREG1724(ice, IRQMASK)) &
-			     ~(VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX),
-			     ICEREG1724(ice, IRQMASK));
+			ice->rmidi[0] = rmidi;
+			rmidi->private_data = ice;
+			strcpy(rmidi->name, "ICE1724 MIDI");
+			rmidi->info_flags = SNDRV_RAWMIDI_INFO_OUTPUT |
+					    SNDRV_RAWMIDI_INFO_INPUT |
+					    SNDRV_RAWMIDI_INFO_DUPLEX;
+			snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT,
+					    &vt1724_midi_output_ops);
+			snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT,
+					    &vt1724_midi_input_ops);
+
 			/* set watermarks */
 			outb(VT1724_MPU_RX_FIFO | 0x1,
 			     ICEREG1724(ice, MPU_FIFO_WM));
 			outb(0x1, ICEREG1724(ice, MPU_FIFO_WM));
+			/* set UART mode */
+			outb(VT1724_MPU_UART, ICEREG1724(ice, MPU_CTRL));
 		}
 	}
 

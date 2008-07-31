@@ -29,7 +29,9 @@
 #include <asm/desc.h>
 #include <asm/setup.h>
 #include <asm/arch_hooks.h>
+#include <asm/pgtable.h>
 #include <asm/time.h>
+#include <asm/pgalloc.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
 #include <asm/fixmap.h>
@@ -122,6 +124,7 @@ static void *get_call_destination(u8 type)
 		.pv_irq_ops = pv_irq_ops,
 		.pv_apic_ops = pv_apic_ops,
 		.pv_mmu_ops = pv_mmu_ops,
+		.pv_lock_ops = pv_lock_ops,
 	};
 	return *((void **)&tmpl + type);
 }
@@ -139,7 +142,9 @@ unsigned paravirt_patch_default(u8 type, u16 clobbers, void *insnbuf,
 		/* If the operation is a nop, then nop the callsite */
 		ret = paravirt_patch_nop();
 	else if (type == PARAVIRT_PATCH(pv_cpu_ops.iret) ||
-		 type == PARAVIRT_PATCH(pv_cpu_ops.irq_enable_syscall_ret))
+		 type == PARAVIRT_PATCH(pv_cpu_ops.irq_enable_sysexit) ||
+		 type == PARAVIRT_PATCH(pv_cpu_ops.usergs_sysret32) ||
+		 type == PARAVIRT_PATCH(pv_cpu_ops.usergs_sysret64))
 		/* If operation requires a jmp, then jmp */
 		ret = paravirt_patch_jmp(insnbuf, opfunc, addr, len);
 	else
@@ -190,7 +195,9 @@ static void native_flush_tlb_single(unsigned long addr)
 
 /* These are in entry.S */
 extern void native_iret(void);
-extern void native_irq_enable_syscall_ret(void);
+extern void native_irq_enable_sysexit(void);
+extern void native_usergs_sysret32(void);
+extern void native_usergs_sysret64(void);
 
 static int __init print_banner(void)
 {
@@ -261,6 +268,17 @@ enum paravirt_lazy_mode paravirt_get_lazy_mode(void)
 	return __get_cpu_var(paravirt_lazy_mode);
 }
 
+void __init paravirt_use_bytelocks(void)
+{
+#ifdef CONFIG_SMP
+	pv_lock_ops.spin_is_locked = __byte_spin_is_locked;
+	pv_lock_ops.spin_is_contended = __byte_spin_is_contended;
+	pv_lock_ops.spin_lock = __byte_spin_lock;
+	pv_lock_ops.spin_trylock = __byte_spin_trylock;
+	pv_lock_ops.spin_unlock = __byte_spin_unlock;
+#endif
+}
+
 struct pv_info pv_info = {
 	.name = "bare hardware",
 	.paravirt_enabled = 0,
@@ -280,7 +298,7 @@ struct pv_time_ops pv_time_ops = {
 	.get_wallclock = native_get_wallclock,
 	.set_wallclock = native_set_wallclock,
 	.sched_clock = native_sched_clock,
-	.get_cpu_khz = native_calculate_cpu_khz,
+	.get_tsc_khz = native_calibrate_tsc,
 };
 
 struct pv_irq_ops pv_irq_ops = {
@@ -291,6 +309,9 @@ struct pv_irq_ops pv_irq_ops = {
 	.irq_enable = native_irq_enable,
 	.safe_halt = native_safe_halt,
 	.halt = native_halt,
+#ifdef CONFIG_X86_64
+	.adjust_exception_frame = paravirt_nop,
+#endif
 };
 
 struct pv_cpu_ops pv_cpu_ops = {
@@ -321,12 +342,23 @@ struct pv_cpu_ops pv_cpu_ops = {
 	.store_idt = native_store_idt,
 	.store_tr = native_store_tr,
 	.load_tls = native_load_tls,
+#ifdef CONFIG_X86_64
+	.load_gs_index = native_load_gs_index,
+#endif
 	.write_ldt_entry = native_write_ldt_entry,
 	.write_gdt_entry = native_write_gdt_entry,
 	.write_idt_entry = native_write_idt_entry,
 	.load_sp0 = native_load_sp0,
 
-	.irq_enable_syscall_ret = native_irq_enable_syscall_ret,
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
+	.irq_enable_sysexit = native_irq_enable_sysexit,
+#endif
+#ifdef CONFIG_X86_64
+#ifdef CONFIG_IA32_EMULATION
+	.usergs_sysret32 = native_usergs_sysret32,
+#endif
+	.usergs_sysret64 = native_usergs_sysret64,
+#endif
 	.iret = native_iret,
 	.swapgs = native_swapgs,
 
@@ -342,7 +374,6 @@ struct pv_cpu_ops pv_cpu_ops = {
 struct pv_apic_ops pv_apic_ops = {
 #ifdef CONFIG_X86_LOCAL_APIC
 	.apic_write = native_apic_write,
-	.apic_write_atomic = native_apic_write_atomic,
 	.apic_read = native_apic_read,
 	.setup_boot_clock = setup_boot_APIC_clock,
 	.setup_secondary_clock = setup_secondary_APIC_clock,
@@ -354,6 +385,9 @@ struct pv_mmu_ops pv_mmu_ops = {
 #ifndef CONFIG_X86_64
 	.pagetable_setup_start = native_pagetable_setup_start,
 	.pagetable_setup_done = native_pagetable_setup_done,
+#else
+	.pagetable_setup_start = paravirt_nop,
+	.pagetable_setup_done = paravirt_nop,
 #endif
 
 	.read_cr2 = native_read_cr2,
@@ -365,6 +399,9 @@ struct pv_mmu_ops pv_mmu_ops = {
 	.flush_tlb_kernel = native_flush_tlb_global,
 	.flush_tlb_single = native_flush_tlb_single,
 	.flush_tlb_others = native_flush_tlb_others,
+
+	.pgd_alloc = __paravirt_pgd_alloc,
+	.pgd_free = paravirt_nop,
 
 	.alloc_pte = paravirt_nop,
 	.alloc_pmd = paravirt_nop,
@@ -379,6 +416,9 @@ struct pv_mmu_ops pv_mmu_ops = {
 	.set_pmd = native_set_pmd,
 	.pte_update = paravirt_nop,
 	.pte_update_defer = paravirt_nop,
+
+	.ptep_modify_prot_start = __ptep_modify_prot_start,
+	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
 
 #ifdef CONFIG_HIGHPTE
 	.kmap_atomic_pte = kmap_atomic,
@@ -403,6 +443,7 @@ struct pv_mmu_ops pv_mmu_ops = {
 #endif /* PAGETABLE_LEVELS >= 3 */
 
 	.pte_val = native_pte_val,
+	.pte_flags = native_pte_flags,
 	.pgd_val = native_pgd_val,
 
 	.make_pte = native_make_pte,
@@ -416,7 +457,21 @@ struct pv_mmu_ops pv_mmu_ops = {
 		.enter = paravirt_nop,
 		.leave = paravirt_nop,
 	},
+
+	.set_fixmap = native_set_fixmap,
 };
+
+struct pv_lock_ops pv_lock_ops = {
+#ifdef CONFIG_SMP
+	.spin_is_locked = __ticket_spin_is_locked,
+	.spin_is_contended = __ticket_spin_is_contended,
+
+	.spin_lock = __ticket_spin_lock,
+	.spin_trylock = __ticket_spin_trylock,
+	.spin_unlock = __ticket_spin_unlock,
+#endif
+};
+EXPORT_SYMBOL_GPL(pv_lock_ops);
 
 EXPORT_SYMBOL_GPL(pv_time_ops);
 EXPORT_SYMBOL    (pv_cpu_ops);

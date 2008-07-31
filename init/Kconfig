@@ -171,7 +171,7 @@ config BSD_PROCESS_ACCT_V3
 	  process and it's parent. Note that this file format is incompatible
 	  with previous v0/v1/v2 file formats, so you will need updated tools
 	  for processing it. A preliminary version of these tools is available
-	  at <http://www.physik3.uni-rostock.de/tim/kernel/utils/acct/>.
+	  at <http://www.gnu.org/software/acct/>.
 
 config TASKSTATS
 	bool "Export task/process statistics through netlink (EXPERIMENTAL)"
@@ -486,7 +486,7 @@ config PID_NS
 	default n
 	depends on NAMESPACES && EXPERIMENTAL
 	help
-	  Suport process id namespaces.  This allows having multiple
+	  Support process id namespaces.  This allows having multiple
 	  process with the same pid as long as they are in different
 	  pid namespaces.  This is a building block of containers.
 
@@ -802,6 +802,10 @@ config PROC_PAGE_MONITOR
 
 endmenu		# General setup
 
+config HAVE_GENERIC_DMA_COHERENT
+	bool
+	default n
+
 config SLABINFO
 	bool
 	depends on PROC_FS
@@ -856,8 +860,8 @@ config MODULE_UNLOAD
 	help
 	  Without this option you will not be able to unload any
 	  modules (note that some modules may not be unloadable
-	  anyway), which makes your kernel slightly smaller and
-	  simpler.  If unsure, say Y.
+	  anyway), which makes your kernel smaller, faster
+	  and simpler.  If unsure, say Y.
 
 config MODULE_FORCE_UNLOAD
 	bool "Forced module unloading"
@@ -893,16 +897,11 @@ config MODULE_SRCVERSION_ALL
 	  will be created for all modules.  If unsure, say N.
 
 config KMOD
-	bool "Automatic kernel module loading"
+	def_bool y
 	depends on MODULES
 	help
-	  Normally when you have selected some parts of the kernel to
-	  be created as kernel modules, you must load them (using the
-	  "modprobe" command) before you can use them. If you say Y
-	  here, some parts of the kernel will be able to load modules
-	  automatically: when a part of the kernel needs a module, it
-	  runs modprobe with the appropriate arguments, thereby
-	  loading the module if it is available.  If unsure, say Y.
+	  This is being removed soon.  These days, CONFIG_MODULES
+	  implies CONFIG_KMOD, so use that instead.
 
 config STOP_MACHINE
 	bool

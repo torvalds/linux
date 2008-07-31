@@ -164,7 +164,7 @@ bad_mirred:
 		if (skb2 != NULL)
 			kfree_skb(skb2);
 		m->tcf_qstats.overlimits++;
-		m->tcf_bstats.bytes += skb->len;
+		m->tcf_bstats.bytes += qdisc_pkt_len(skb);
 		m->tcf_bstats.packets++;
 		spin_unlock(&m->tcf_lock);
 		/* should we be asking for packet to be dropped?
@@ -184,7 +184,7 @@ bad_mirred:
 		goto bad_mirred;
 	}
 
-	m->tcf_bstats.bytes += skb2->len;
+	m->tcf_bstats.bytes += qdisc_pkt_len(skb2);
 	m->tcf_bstats.packets++;
 	if (!(at & AT_EGRESS))
 		if (m->tcfm_ok_push)

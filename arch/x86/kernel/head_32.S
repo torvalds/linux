@@ -194,6 +194,7 @@ default_entry:
 	xorl %ebx,%ebx				/* %ebx is kept at zero */
 
 	movl $pa(pg0), %edi
+	movl %edi, pa(init_pg_tables_start)
 	movl $pa(swapper_pg_pmd), %edx
 	movl $PTE_ATTR, %eax
 10:
@@ -219,6 +220,8 @@ default_entry:
 	jb 10b
 1:
 	movl %edi,pa(init_pg_tables_end)
+	shrl $12, %eax
+	movl %eax, pa(max_pfn_mapped)
 
 	/* Do early initialization of the fixmap area */
 	movl $pa(swapper_pg_fixmap)+PDE_ATTR,%eax
@@ -228,6 +231,7 @@ default_entry:
 page_pde_offset = (__PAGE_OFFSET >> 20);
 
 	movl $pa(pg0), %edi
+	movl %edi, pa(init_pg_tables_start)
 	movl $pa(swapper_pg_dir), %edx
 	movl $PTE_ATTR, %eax
 10:
@@ -249,6 +253,8 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 	cmpl %ebp,%eax
 	jb 10b
 	movl %edi,pa(init_pg_tables_end)
+	shrl $12, %eax
+	movl %eax, pa(max_pfn_mapped)
 
 	/* Do early initialization of the fixmap area */
 	movl $pa(swapper_pg_fixmap)+PDE_ATTR,%eax
@@ -446,10 +452,10 @@ is386:	movl $2,%ecx		# set MP
 	je   1f
 	movl $(__KERNEL_PERCPU), %eax
 	movl %eax,%fs		# set this cpu's percpu
-	jmp initialize_secondary # all other CPUs call initialize_secondary
+	movl (stack_start), %esp
 1:
 #endif /* CONFIG_SMP */
-	jmp i386_start_kernel
+	jmp *(initial_code)
 
 /*
  * We depend on ET to be correct. This checks for 287/387.
@@ -591,6 +597,11 @@ ignore_int:
 	popl %eax
 #endif
 	iret
+
+.section .cpuinit.data,"wa"
+.align 4
+ENTRY(initial_code)
+	.long i386_start_kernel
 
 .section .text
 /*

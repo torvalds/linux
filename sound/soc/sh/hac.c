@@ -266,7 +266,7 @@ static int hac_hw_params(struct snd_pcm_substream *substream,
 #define AC97_FMTS	\
 	SNDRV_PCM_FMTBIT_S16_LE
 
-struct snd_soc_cpu_dai sh4_hac_dai[] = {
+struct snd_soc_dai sh4_hac_dai[] = {
 {
 	.name			= "HAC0",
 	.id			= 0,

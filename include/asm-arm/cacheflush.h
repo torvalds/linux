@@ -95,11 +95,7 @@
 #endif
 
 #if defined(CONFIG_CPU_FEROCEON)
-# ifdef _CACHE
-#  define MULTI_CACHE 1
-# else
-#  define _CACHE feroceon
-# endif
+# define MULTI_CACHE 1
 #endif
 
 #if defined(CONFIG_CPU_V6)
@@ -410,6 +406,13 @@ extern void flush_dcache_page(struct page *);
 
 extern void __flush_dcache_page(struct address_space *mapping, struct page *page);
 
+static inline void __flush_icache_all(void)
+{
+	asm("mcr	p15, 0, %0, c7, c5, 0	@ invalidate I-cache\n"
+	    :
+	    : "r" (0));
+}
+
 #define ARCH_HAS_FLUSH_ANON_PAGE
 static inline void flush_anon_page(struct vm_area_struct *vma,
 			 struct page *page, unsigned long vmaddr)
@@ -421,9 +424,9 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 }
 
 #define flush_dcache_mmap_lock(mapping) \
-	write_lock_irq(&(mapping)->tree_lock)
+	spin_lock_irq(&(mapping)->tree_lock)
 #define flush_dcache_mmap_unlock(mapping) \
-	write_unlock_irq(&(mapping)->tree_lock)
+	spin_unlock_irq(&(mapping)->tree_lock)
 
 #define flush_icache_user_range(vma,page,addr,len) \
 	flush_dcache_page(page)
@@ -456,15 +459,19 @@ static inline void flush_ioremap_region(unsigned long phys, void __iomem *virt,
 #define __cacheid_vivt_asid_tagged_instr(val)	(__cacheid_type_v7(val) ? ((val & (3 << 14)) == (1 << 14)) : 0)
 
 #if defined(CONFIG_CPU_CACHE_VIVT) && !defined(CONFIG_CPU_CACHE_VIPT)
-
+/*
+ * VIVT caches only
+ */
 #define cache_is_vivt()			1
 #define cache_is_vipt()			0
 #define cache_is_vipt_nonaliasing()	0
 #define cache_is_vipt_aliasing()	0
 #define icache_is_vivt_asid_tagged()	0
 
-#elif defined(CONFIG_CPU_CACHE_VIPT)
-
+#elif !defined(CONFIG_CPU_CACHE_VIVT) && defined(CONFIG_CPU_CACHE_VIPT)
+/*
+ * VIPT caches only
+ */
 #define cache_is_vivt()			0
 #define cache_is_vipt()			1
 #define cache_is_vipt_nonaliasing()					\
@@ -486,7 +493,12 @@ static inline void flush_ioremap_region(unsigned long phys, void __iomem *virt,
 	})
 
 #else
-
+/*
+ * VIVT or VIPT caches.  Note that this is unreliable since ARM926
+ * and V6 CPUs satisfy the "(val & (15 << 25)) == (14 << 25)" test.
+ * There's no way to tell from the CacheType register what type (!)
+ * the cache is.
+ */
 #define cache_is_vivt()							\
 	({								\
 		unsigned int __val = read_cpuid(CPUID_CACHETYPE);	\

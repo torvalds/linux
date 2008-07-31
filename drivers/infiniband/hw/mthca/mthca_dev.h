@@ -32,8 +32,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: mthca_dev.h 1349 2004-12-16 21:09:43Z roland $
  */
 
 #ifndef MTHCA_DEV_H
@@ -204,6 +202,7 @@ struct mthca_pd_table {
 
 struct mthca_buddy {
 	unsigned long **bits;
+	int	       *num_free;
 	int             max_order;
 	spinlock_t      lock;
 };
@@ -279,7 +278,6 @@ struct mthca_mcg_table {
 struct mthca_catas_err {
 	u64			addr;
 	u32 __iomem	       *map;
-	unsigned long		stop;
 	u32			size;
 	struct timer_list	timer;
 	struct list_head	list;

@@ -9,6 +9,7 @@
 #include <linux/list.h>
 
 #include <net/netns/core.h>
+#include <net/netns/mib.h>
 #include <net/netns/unix.h>
 #include <net/netns/packet.h>
 #include <net/netns/ipv4.h>
@@ -37,7 +38,9 @@ struct net {
 	struct proc_dir_entry 	*proc_net;
 	struct proc_dir_entry 	*proc_net_stat;
 
-	struct list_head	sysctl_table_headers;
+#ifdef CONFIG_SYSCTL
+	struct ctl_table_set	sysctls;
+#endif
 
 	struct net_device       *loopback_dev;          /* The loopback */
 
@@ -52,6 +55,7 @@ struct net {
 	struct sock 		*rtnl;			/* rtnetlink socket */
 
 	struct netns_core	core;
+	struct netns_mib	mib;
 	struct netns_packet	packet;
 	struct netns_unix	unx;
 	struct netns_ipv4	ipv4;
@@ -95,6 +99,11 @@ extern struct list_head net_namespace_list;
 #ifdef CONFIG_NET_NS
 extern void __put_net(struct net *net);
 
+static inline int net_alive(struct net *net)
+{
+	return net && atomic_read(&net->count);
+}
+
 static inline struct net *get_net(struct net *net)
 {
 	atomic_inc(&net->count);
@@ -125,6 +134,12 @@ int net_eq(const struct net *net1, const struct net *net2)
 	return net1 == net2;
 }
 #else
+
+static inline int net_alive(struct net *net)
+{
+	return 1;
+}
+
 static inline struct net *get_net(struct net *net)
 {
 	return net;
@@ -201,7 +216,10 @@ extern void unregister_pernet_gen_device(int id, struct pernet_operations *);
 struct ctl_path;
 struct ctl_table;
 struct ctl_table_header;
+
 extern struct ctl_table_header *register_net_sysctl_table(struct net *net,
+	const struct ctl_path *path, struct ctl_table *table);
+extern struct ctl_table_header *register_net_sysctl_rotable(
 	const struct ctl_path *path, struct ctl_table *table);
 extern void unregister_net_sysctl_table(struct ctl_table_header *header);
 

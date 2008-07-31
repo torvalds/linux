@@ -55,6 +55,7 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 static char *model[SNDRV_CARDS];
 static int position_fix[SNDRV_CARDS];
+static int bdl_pos_adj[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int single_cmd;
 static int enable_msi;
@@ -69,7 +70,9 @@ module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 module_param_array(position_fix, int, NULL, 0444);
 MODULE_PARM_DESC(position_fix, "Fix DMA pointer "
-		 "(0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size).");
+		 "(0 = auto, 1 = none, 2 = POSBUF).");
+module_param_array(bdl_pos_adj, int, NULL, 0644);
+MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset.");
 module_param_array(probe_mask, int, NULL, 0444);
 MODULE_PARM_DESC(probe_mask, "Bitmask to probe codecs (default = -1).");
 module_param(single_cmd, bool, 0444);
@@ -197,6 +200,10 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define ATIHDMI_NUM_CAPTURE	0
 #define ATIHDMI_NUM_PLAYBACK	1
 
+/* TERA has 4 playback and 3 capture */
+#define TERA_NUM_CAPTURE	3
+#define TERA_NUM_PLAYBACK	4
+
 /* this number is statically defined for simplicity */
 #define MAX_AZX_DEV		16
 
@@ -259,9 +266,8 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 /* position fix mode */
 enum {
 	POS_FIX_AUTO,
-	POS_FIX_NONE,
+	POS_FIX_LPIB,
 	POS_FIX_POSBUF,
-	POS_FIX_FIFO,
 };
 
 /* Defines for ATI HD Audio support in SB450 south bridge */
@@ -285,6 +291,7 @@ struct azx_dev {
 	u32 *posbuf;		/* position buffer pointer */
 
 	unsigned int bufsize;	/* size of the play buffer in bytes */
+	unsigned int period_bytes; /* size of the period in bytes */
 	unsigned int frags;	/* number for period in the play buffer */
 	unsigned int fifo_size;	/* FIFO size */
 
@@ -301,11 +308,11 @@ struct azx_dev {
 					 */
 	unsigned char stream_tag;	/* assigned stream */
 	unsigned char index;		/* stream index */
-	/* for sanity check of position buffer */
-	unsigned int period_intr;
 
 	unsigned int opened :1;
 	unsigned int running :1;
+	unsigned int irq_pending :1;
+	unsigned int irq_ignore :1;
 };
 
 /* CORB/RIRB */
@@ -323,6 +330,7 @@ struct azx_rb {
 struct azx {
 	struct snd_card *card;
 	struct pci_dev *pci;
+	int dev_index;
 
 	/* chip type specific */
 	int driver_type;
@@ -366,9 +374,13 @@ struct azx {
 	unsigned int single_cmd :1;
 	unsigned int polling_mode :1;
 	unsigned int msi :1;
+	unsigned int irq_pending_warned :1;
 
 	/* for debugging */
 	unsigned int last_cmd;	/* last issued command (to sync) */
+
+	/* for pending irqs */
+	struct work_struct irq_pending_work;
 };
 
 /* driver types */
@@ -381,6 +393,7 @@ enum {
 	AZX_DRIVER_SIS,
 	AZX_DRIVER_ULI,
 	AZX_DRIVER_NVIDIA,
+	AZX_DRIVER_TERA,
 };
 
 static char *driver_short_names[] __devinitdata = {
@@ -392,6 +405,7 @@ static char *driver_short_names[] __devinitdata = {
 	[AZX_DRIVER_SIS] = "HDA SIS966",
 	[AZX_DRIVER_ULI] = "HDA ULI M5461",
 	[AZX_DRIVER_NVIDIA] = "HDA NVidia",
+	[AZX_DRIVER_TERA] = "HDA Teradici", 
 };
 
 /*
@@ -426,11 +440,6 @@ static char *driver_short_names[] __devinitdata = {
 /* for pcm support */
 #define get_azx_dev(substream) (substream->runtime->private_data)
 
-/* Get the upper 32bit of the given dma_addr_t
- * Compiler should optimize and eliminate the code if dma_addr_t is 32bit
- */
-#define upper_32bit(addr) (sizeof(addr) > 4 ? (u32)((addr) >> 32) : (u32)0)
-
 static int azx_acquire_irq(struct azx *chip, int do_disconnect);
 
 /*
@@ -461,7 +470,7 @@ static void azx_init_cmd_io(struct azx *chip)
 	chip->corb.addr = chip->rb.addr;
 	chip->corb.buf = (u32 *)chip->rb.area;
 	azx_writel(chip, CORBLBASE, (u32)chip->corb.addr);
-	azx_writel(chip, CORBUBASE, upper_32bit(chip->corb.addr));
+	azx_writel(chip, CORBUBASE, upper_32_bits(chip->corb.addr));
 
 	/* set the corb size to 256 entries (ULI requires explicitly) */
 	azx_writeb(chip, CORBSIZE, 0x02);
@@ -476,7 +485,7 @@ static void azx_init_cmd_io(struct azx *chip)
 	chip->rirb.addr = chip->rb.addr + 2048;
 	chip->rirb.buf = (u32 *)(chip->rb.area + 2048);
 	azx_writel(chip, RIRBLBASE, (u32)chip->rirb.addr);
-	azx_writel(chip, RIRBUBASE, upper_32bit(chip->rirb.addr));
+	azx_writel(chip, RIRBUBASE, upper_32_bits(chip->rirb.addr));
 
 	/* set the rirb size to 256 entries (ULI requires explicitly) */
 	azx_writeb(chip, RIRBSIZE, 0x02);
@@ -847,7 +856,7 @@ static void azx_init_chip(struct azx *chip)
 
 	/* program the position buffer */
 	azx_writel(chip, DPLBASE, (u32)chip->posbuf.addr);
-	azx_writel(chip, DPUBASE, upper_32bit(chip->posbuf.addr));
+	azx_writel(chip, DPUBASE, upper_32_bits(chip->posbuf.addr));
 
 	chip->initialized = 1;
 }
@@ -908,6 +917,8 @@ static void azx_init_pci(struct azx *chip)
 }
 
 
+static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev);
+
 /*
  * interrupt handler
  */
@@ -930,11 +941,23 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 		azx_dev = &chip->azx_dev[i];
 		if (status & azx_dev->sd_int_sta_mask) {
 			azx_sd_writeb(azx_dev, SD_STS, SD_INT_MASK);
-			if (azx_dev->substream && azx_dev->running) {
-				azx_dev->period_intr++;
+			if (!azx_dev->substream || !azx_dev->running)
+				continue;
+			/* ignore the first dummy IRQ (due to pos_adj) */
+			if (azx_dev->irq_ignore) {
+				azx_dev->irq_ignore = 0;
+				continue;
+			}
+			/* check whether this IRQ is really acceptable */
+			if (azx_position_ok(chip, azx_dev)) {
+				azx_dev->irq_pending = 0;
 				spin_unlock(&chip->reg_lock);
 				snd_pcm_period_elapsed(azx_dev->substream);
 				spin_lock(&chip->reg_lock);
+			} else {
+				/* bogus IRQ, process it later */
+				azx_dev->irq_pending = 1;
+				schedule_work(&chip->irq_pending_work);
 			}
 		}
 	}
@@ -959,59 +982,111 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 
 
 /*
- * set up BDL entries
+ * set up a BDL entry
  */
-static int azx_setup_periods(struct snd_pcm_substream *substream,
-			     struct azx_dev *azx_dev)
+static int setup_bdle(struct snd_pcm_substream *substream,
+		      struct azx_dev *azx_dev, u32 **bdlp,
+		      int ofs, int size, int with_ioc)
 {
 	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
+	u32 *bdl = *bdlp;
+
+	while (size > 0) {
+		dma_addr_t addr;
+		int chunk;
+
+		if (azx_dev->frags >= AZX_MAX_BDL_ENTRIES)
+			return -EINVAL;
+
+		addr = snd_pcm_sgbuf_get_addr(sgbuf, ofs);
+		/* program the address field of the BDL entry */
+		bdl[0] = cpu_to_le32((u32)addr);
+		bdl[1] = cpu_to_le32(upper_32_bits(addr));
+		/* program the size field of the BDL entry */
+		chunk = PAGE_SIZE - (ofs % PAGE_SIZE);
+		if (size < chunk)
+			chunk = size;
+		bdl[2] = cpu_to_le32(chunk);
+		/* program the IOC to enable interrupt
+		 * only when the whole fragment is processed
+		 */
+		size -= chunk;
+		bdl[3] = (size || !with_ioc) ? 0 : cpu_to_le32(0x01);
+		bdl += 4;
+		azx_dev->frags++;
+		ofs += chunk;
+	}
+	*bdlp = bdl;
+	return ofs;
+}
+
+/*
+ * set up BDL entries
+ */
+static int azx_setup_periods(struct azx *chip,
+			     struct snd_pcm_substream *substream,
+			     struct azx_dev *azx_dev)
+{
 	u32 *bdl;
 	int i, ofs, periods, period_bytes;
+	int pos_adj;
 
 	/* reset BDL address */
 	azx_sd_writel(azx_dev, SD_BDLPL, 0);
 	azx_sd_writel(azx_dev, SD_BDLPU, 0);
 
 	period_bytes = snd_pcm_lib_period_bytes(substream);
+	azx_dev->period_bytes = period_bytes;
 	periods = azx_dev->bufsize / period_bytes;
 
 	/* program the initial BDL entries */
 	bdl = (u32 *)azx_dev->bdl.area;
 	ofs = 0;
 	azx_dev->frags = 0;
-	for (i = 0; i < periods; i++) {
-		int size, rest;
-		if (i >= AZX_MAX_BDL_ENTRIES) {
-			snd_printk(KERN_ERR "Too many BDL entries: "
-				   "buffer=%d, period=%d\n",
-				   azx_dev->bufsize, period_bytes);
-			/* reset */
-			azx_sd_writel(azx_dev, SD_BDLPL, 0);
-			azx_sd_writel(azx_dev, SD_BDLPU, 0);
-			return -EINVAL;
+	azx_dev->irq_ignore = 0;
+	pos_adj = bdl_pos_adj[chip->dev_index];
+	if (pos_adj > 0) {
+		struct snd_pcm_runtime *runtime = substream->runtime;
+		int pos_align = pos_adj;
+		pos_adj = (pos_adj * runtime->rate + 47999) / 48000;
+		if (!pos_adj)
+			pos_adj = pos_align;
+		else
+			pos_adj = ((pos_adj + pos_align - 1) / pos_align) *
+				pos_align;
+		pos_adj = frames_to_bytes(runtime, pos_adj);
+		if (pos_adj >= period_bytes) {
+			snd_printk(KERN_WARNING "Too big adjustment %d\n",
+				   bdl_pos_adj[chip->dev_index]);
+			pos_adj = 0;
+		} else {
+			ofs = setup_bdle(substream, azx_dev,
+					 &bdl, ofs, pos_adj, 1);
+			if (ofs < 0)
+				goto error;
+			azx_dev->irq_ignore = 1;
 		}
-		rest = period_bytes;
-		do {
-			dma_addr_t addr = snd_pcm_sgbuf_get_addr(sgbuf, ofs);
-			/* program the address field of the BDL entry */
-			bdl[0] = cpu_to_le32((u32)addr);
-			bdl[1] = cpu_to_le32(upper_32bit(addr));
-			/* program the size field of the BDL entry */
-			size = PAGE_SIZE - (ofs % PAGE_SIZE);
-			if (rest < size)
-				size = rest;
-			bdl[2] = cpu_to_le32(size);
-			/* program the IOC to enable interrupt
-			 * only when the whole fragment is processed
-			 */
-			rest -= size;
-			bdl[3] = rest ? 0 : cpu_to_le32(0x01);
-			bdl += 4;
-			azx_dev->frags++;
-			ofs += size;
-		} while (rest > 0);
+	} else
+		pos_adj = 0;
+	for (i = 0; i < periods; i++) {
+		if (i == periods - 1 && pos_adj)
+			ofs = setup_bdle(substream, azx_dev, &bdl, ofs,
+					 period_bytes - pos_adj, 0);
+		else
+			ofs = setup_bdle(substream, azx_dev, &bdl, ofs,
+					 period_bytes, 1);
+		if (ofs < 0)
+			goto error;
 	}
 	return 0;
+
+ error:
+	snd_printk(KERN_ERR "Too many BDL entries: buffer=%d, period=%d\n",
+		   azx_dev->bufsize, period_bytes);
+	/* reset */
+	azx_sd_writel(azx_dev, SD_BDLPL, 0);
+	azx_sd_writel(azx_dev, SD_BDLPU, 0);
+	return -EINVAL;
 }
 
 /*
@@ -1062,7 +1137,7 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	/* lower BDL address */
 	azx_sd_writel(azx_dev, SD_BDLPL, (u32)azx_dev->bdl.addr);
 	/* upper BDL address */
-	azx_sd_writel(azx_dev, SD_BDLPU, upper_32bit(azx_dev->bdl.addr));
+	azx_sd_writel(azx_dev, SD_BDLPU, upper_32_bits(azx_dev->bdl.addr));
 
 	/* enable the position buffer */
 	if (chip->position_fix == POS_FIX_POSBUF ||
@@ -1085,7 +1160,7 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
  */
 
 static unsigned int azx_max_codecs[] __devinitdata = {
-	[AZX_DRIVER_ICH] = 3,
+	[AZX_DRIVER_ICH] = 4,		/* Some ICH9 boards use SD3 */
 	[AZX_DRIVER_SCH] = 3,
 	[AZX_DRIVER_ATI] = 4,
 	[AZX_DRIVER_ATIHDMI] = 4,
@@ -1093,6 +1168,7 @@ static unsigned int azx_max_codecs[] __devinitdata = {
 	[AZX_DRIVER_SIS] = 3,		/* FIXME: correct? */
 	[AZX_DRIVER_ULI] = 3,		/* FIXME: correct? */
 	[AZX_DRIVER_NVIDIA] = 3,	/* FIXME: correct? */
+	[AZX_DRIVER_TERA] = 1,
 };
 
 static int __devinit azx_codec_create(struct azx *chip, const char *model,
@@ -1316,7 +1392,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 
 	snd_printdd("azx_pcm_prepare: bufsize=0x%x, format=0x%x\n",
 		    azx_dev->bufsize, azx_dev->format_val);
-	if (azx_setup_periods(substream, azx_dev) < 0)
+	if (azx_setup_periods(chip, substream, azx_dev) < 0)
 		return -EINVAL;
 	azx_setup_controller(chip, azx_dev);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -1421,35 +1497,113 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
-static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
+static unsigned int azx_get_position(struct azx *chip,
+				     struct azx_dev *azx_dev)
 {
-	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	struct azx *chip = apcm->chip;
-	struct azx_dev *azx_dev = get_azx_dev(substream);
 	unsigned int pos;
 
 	if (chip->position_fix == POS_FIX_POSBUF ||
 	    chip->position_fix == POS_FIX_AUTO) {
 		/* use the position buffer */
 		pos = le32_to_cpu(*azx_dev->posbuf);
-		if (chip->position_fix == POS_FIX_AUTO &&
-		    azx_dev->period_intr == 1 && !pos) {
-			printk(KERN_WARNING
-			       "hda-intel: Invalid position buffer, "
-			       "using LPIB read method instead.\n");
-			chip->position_fix = POS_FIX_NONE;
-			goto read_lpib;
-		}
 	} else {
-	read_lpib:
 		/* read LPIB */
 		pos = azx_sd_readl(azx_dev, SD_LPIB);
-		if (chip->position_fix == POS_FIX_FIFO)
-			pos += azx_dev->fifo_size;
 	}
 	if (pos >= azx_dev->bufsize)
 		pos = 0;
-	return bytes_to_frames(substream->runtime, pos);
+	return pos;
+}
+
+static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
+{
+	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
+	struct azx *chip = apcm->chip;
+	struct azx_dev *azx_dev = get_azx_dev(substream);
+	return bytes_to_frames(substream->runtime,
+			       azx_get_position(chip, azx_dev));
+}
+
+/*
+ * Check whether the current DMA position is acceptable for updating
+ * periods.  Returns non-zero if it's OK.
+ *
+ * Many HD-audio controllers appear pretty inaccurate about
+ * the update-IRQ timing.  The IRQ is issued before actually the
+ * data is processed.  So, we need to process it afterwords in a
+ * workqueue.
+ */
+static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
+{
+	unsigned int pos;
+
+	pos = azx_get_position(chip, azx_dev);
+	if (chip->position_fix == POS_FIX_AUTO) {
+		if (!pos) {
+			printk(KERN_WARNING
+			       "hda-intel: Invalid position buffer, "
+			       "using LPIB read method instead.\n");
+			chip->position_fix = POS_FIX_LPIB;
+			pos = azx_get_position(chip, azx_dev);
+		} else
+			chip->position_fix = POS_FIX_POSBUF;
+	}
+
+	if (pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
+		return 0; /* NG - it's below the period boundary */
+	return 1; /* OK, it's fine */
+}
+
+/*
+ * The work for pending PCM period updates.
+ */
+static void azx_irq_pending_work(struct work_struct *work)
+{
+	struct azx *chip = container_of(work, struct azx, irq_pending_work);
+	int i, pending;
+
+	if (!chip->irq_pending_warned) {
+		printk(KERN_WARNING
+		       "hda-intel: IRQ timing workaround is activated "
+		       "for card #%d. Suggest a bigger bdl_pos_adj.\n",
+		       chip->card->number);
+		chip->irq_pending_warned = 1;
+	}
+
+	for (;;) {
+		pending = 0;
+		spin_lock_irq(&chip->reg_lock);
+		for (i = 0; i < chip->num_streams; i++) {
+			struct azx_dev *azx_dev = &chip->azx_dev[i];
+			if (!azx_dev->irq_pending ||
+			    !azx_dev->substream ||
+			    !azx_dev->running)
+				continue;
+			if (azx_position_ok(chip, azx_dev)) {
+				azx_dev->irq_pending = 0;
+				spin_unlock(&chip->reg_lock);
+				snd_pcm_period_elapsed(azx_dev->substream);
+				spin_lock(&chip->reg_lock);
+			} else
+				pending++;
+		}
+		spin_unlock_irq(&chip->reg_lock);
+		if (!pending)
+			return;
+		cond_resched();
+	}
+}
+
+/* clear irq_pending flags and assure no on-going workq */
+static void azx_clear_irq_pending(struct azx *chip)
+{
+	int i;
+
+	spin_lock_irq(&chip->reg_lock);
+	for (i = 0; i < chip->num_streams; i++)
+		chip->azx_dev[i].irq_pending = 0;
+	spin_unlock_irq(&chip->reg_lock);
+	flush_scheduled_work();
 }
 
 static struct snd_pcm_ops azx_pcm_ops = {
@@ -1676,6 +1830,7 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	azx_clear_irq_pending(chip);
 	for (i = 0; i < AZX_MAX_PCMS; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	if (chip->initialized)
@@ -1732,6 +1887,7 @@ static int azx_free(struct azx *chip)
 	int i;
 
 	if (chip->initialized) {
+		azx_clear_irq_pending(chip);
 		for (i = 0; i < chip->num_streams; i++)
 			azx_stream_stop(chip, &chip->azx_dev[i]);
 		azx_stop_chip(chip);
@@ -1770,9 +1926,9 @@ static int azx_dev_free(struct snd_device *device)
  * white/black-listing for position_fix
  */
 static struct snd_pci_quirk position_fix_list[] __devinitdata = {
-	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_NONE),
-	SND_PCI_QUIRK(0x1028, 0x01de, "Dell Precision 390", POS_FIX_NONE),
-	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_NONE),
+	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x1028, 0x01de, "Dell Precision 390", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_LPIB),
 	{}
 };
 
@@ -1857,11 +2013,24 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->irq = -1;
 	chip->driver_type = driver_type;
 	chip->msi = enable_msi;
+	chip->dev_index = dev;
+	INIT_WORK(&chip->irq_pending_work, azx_irq_pending_work);
 
 	chip->position_fix = check_position_fix(chip, position_fix[dev]);
 	check_probe_mask(chip, dev);
 
 	chip->single_cmd = single_cmd;
+
+	if (bdl_pos_adj[dev] < 0) {
+		switch (chip->driver_type) {
+		case AZX_DRIVER_ICH:
+			bdl_pos_adj[dev] = 1;
+			break;
+		default:
+			bdl_pos_adj[dev] = 32;
+			break;
+		}
+	}
 
 #if BITS_PER_LONG != 64
 	/* Fix up base address on ULI M5461 */
@@ -2089,6 +2258,7 @@ static struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE(0x8086, 0x27d8), .driver_data = AZX_DRIVER_ICH },
 	{ PCI_DEVICE(0x8086, 0x269a), .driver_data = AZX_DRIVER_ICH },
 	{ PCI_DEVICE(0x8086, 0x284b), .driver_data = AZX_DRIVER_ICH },
+	{ PCI_DEVICE(0x8086, 0x2911), .driver_data = AZX_DRIVER_ICH },
 	{ PCI_DEVICE(0x8086, 0x293e), .driver_data = AZX_DRIVER_ICH },
 	{ PCI_DEVICE(0x8086, 0x293f), .driver_data = AZX_DRIVER_ICH },
 	{ PCI_DEVICE(0x8086, 0x3a3e), .driver_data = AZX_DRIVER_ICH },
@@ -2141,6 +2311,8 @@ static struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE(0x10de, 0x0bd5), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0bd6), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0bd7), .driver_data = AZX_DRIVER_NVIDIA },
+	/* Teradici */
+	{ PCI_DEVICE(0x6549, 0x1200), .driver_data = AZX_DRIVER_TERA },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, azx_ids);

@@ -19,6 +19,7 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -53,6 +54,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
+	lock_kernel();
 	mutex_lock(&raw_mutex);
 
 	/*
@@ -79,6 +81,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 			bdev->bd_inode->i_mapping;
 	filp->private_data = bdev;
 	mutex_unlock(&raw_mutex);
+	unlock_kernel();
 	return 0;
 
 out2:
@@ -128,8 +131,8 @@ raw_ioctl(struct inode *inode, struct file *filp,
 static void bind_device(struct raw_config_request *rq)
 {
 	device_destroy(raw_class, MKDEV(RAW_MAJOR, rq->raw_minor));
-	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, rq->raw_minor),
-		      "raw%d", rq->raw_minor);
+	device_create_drvdata(raw_class, NULL, MKDEV(RAW_MAJOR, rq->raw_minor),
+			      NULL, "raw%d", rq->raw_minor);
 }
 
 /*
@@ -280,7 +283,8 @@ static int __init raw_init(void)
 		ret = PTR_ERR(raw_class);
 		goto error_region;
 	}
-	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), "rawctl");
+	device_create_drvdata(raw_class, NULL, MKDEV(RAW_MAJOR, 0), NULL,
+			      "rawctl");
 
 	return 0;
 

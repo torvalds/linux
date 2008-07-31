@@ -4,7 +4,7 @@
    Written By: Adam Radford <linuxraid@amcc.com>
    Modifications By: Tom Couch <linuxraid@amcc.com>
 
-   Copyright (C) 2004-2007 Applied Micro Circuits Corporation.
+   Copyright (C) 2004-2008 Applied Micro Circuits Corporation.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,6 +71,10 @@
                  Add support for 9650SE controllers.
    2.26.02.009 - Fix dma mask setting to fallback to 32-bit if 64-bit fails.
    2.26.02.010 - Add support for 9690SA controllers.
+   2.26.02.011 - Increase max AENs drained to 256.
+                 Add MSI support and "use_msi" module parameter.
+                 Fix bug in twa_get_param() on 4GB+.
+                 Use pci_resource_len() for ioremap().
 */
 
 #include <linux/module.h>
@@ -84,6 +88,7 @@
 #include <linux/pci.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -94,7 +99,7 @@
 #include "3w-9xxx.h"
 
 /* Globals */
-#define TW_DRIVER_VERSION "2.26.02.010"
+#define TW_DRIVER_VERSION "2.26.02.011"
 static TW_Device_Extension *twa_device_extension_list[TW_MAX_SLOT];
 static unsigned int twa_device_extension_count;
 static int twa_major = -1;
@@ -105,6 +110,10 @@ MODULE_AUTHOR ("AMCC");
 MODULE_DESCRIPTION ("3ware 9000 Storage Controller Linux Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(TW_DRIVER_VERSION);
+
+static int use_msi = 0;
+module_param(use_msi, int, S_IRUGO);
+MODULE_PARM_DESC(use_msi, "Use Message Signaled Interrupts.  Default: 0");
 
 /* Function prototypes */
 static void twa_aen_queue_event(TW_Device_Extension *tw_dev, TW_Command_Apache_Header *header);
@@ -862,11 +871,13 @@ out:
 } /* End twa_chrdev_ioctl() */
 
 /* This function handles open for the character device */
+/* NOTE that this function will race with remove. */
 static int twa_chrdev_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor_number;
 	int retval = TW_IOCTL_ERROR_OS_ENODEV;
 
+	cycle_kernel_lock();
 	minor_number = iminor(inode);
 	if (minor_number >= twa_device_extension_count)
 		goto out;
@@ -1035,7 +1046,6 @@ static void *twa_get_param(TW_Device_Extension *tw_dev, int request_id, int tabl
 	TW_Command_Full *full_command_packet;
 	TW_Command *command_packet;
 	TW_Param_Apache *param;
-	unsigned long param_value;
 	void *retval = NULL;
 
 	/* Setup the command packet */
@@ -1054,9 +1064,8 @@ static void *twa_get_param(TW_Device_Extension *tw_dev, int request_id, int tabl
 	param->table_id = cpu_to_le16(table_id | 0x8000);
 	param->parameter_id = cpu_to_le16(parameter_id);
 	param->parameter_size_bytes = cpu_to_le16(parameter_size_bytes);
-	param_value = tw_dev->generic_buffer_phys[request_id];
 
-	command_packet->byte8_offset.param.sgl[0].address = TW_CPU_TO_SGL(param_value);
+	command_packet->byte8_offset.param.sgl[0].address = TW_CPU_TO_SGL(tw_dev->generic_buffer_phys[request_id]);
 	command_packet->byte8_offset.param.sgl[0].length = cpu_to_le32(TW_SECTOR_SIZE);
 
 	/* Post the command packet to the board */
@@ -1997,7 +2006,7 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 {
 	struct Scsi_Host *host = NULL;
 	TW_Device_Extension *tw_dev;
-	u32 mem_addr;
+	unsigned long mem_addr, mem_len;
 	int retval = -ENODEV;
 
 	retval = pci_enable_device(pdev);
@@ -2042,13 +2051,16 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 		goto out_free_device_extension;
 	}
 
-	if (pdev->device == PCI_DEVICE_ID_3WARE_9000)
+	if (pdev->device == PCI_DEVICE_ID_3WARE_9000) {
 		mem_addr = pci_resource_start(pdev, 1);
-	else
+		mem_len = pci_resource_len(pdev, 1);
+	} else {
 		mem_addr = pci_resource_start(pdev, 2);
+		mem_len = pci_resource_len(pdev, 2);
+	}
 
 	/* Save base address */
-	tw_dev->base_addr = ioremap(mem_addr, PAGE_SIZE);
+	tw_dev->base_addr = ioremap(mem_addr, mem_len);
 	if (!tw_dev->base_addr) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x35, "Failed to ioremap");
 		goto out_release_mem_region;
@@ -2083,7 +2095,7 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 
 	pci_set_drvdata(pdev, host);
 
-	printk(KERN_WARNING "3w-9xxx: scsi%d: Found a 3ware 9000 Storage Controller at 0x%x, IRQ: %d.\n",
+	printk(KERN_WARNING "3w-9xxx: scsi%d: Found a 3ware 9000 Storage Controller at 0x%lx, IRQ: %d.\n",
 	       host->host_no, mem_addr, pdev->irq);
 	printk(KERN_WARNING "3w-9xxx: scsi%d: Firmware %s, BIOS %s, Ports: %d.\n",
 	       host->host_no,
@@ -2093,6 +2105,11 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 				     TW_PARAM_BIOSVER, TW_PARAM_BIOSVER_LENGTH),
 	       le32_to_cpu(*(int *)twa_get_param(tw_dev, 2, TW_INFORMATION_TABLE,
 				     TW_PARAM_PORTCOUNT, TW_PARAM_PORTCOUNT_LENGTH)));
+
+	/* Try to enable MSI */
+	if (use_msi && (pdev->device != PCI_DEVICE_ID_3WARE_9000) &&
+	    !pci_enable_msi(pdev))
+		set_bit(TW_USING_MSI, &tw_dev->flags);
 
 	/* Now setup the interrupt handler */
 	retval = request_irq(pdev->irq, twa_interrupt, IRQF_SHARED, "3w-9xxx", tw_dev);
@@ -2117,6 +2134,8 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 	return 0;
 
 out_remove_host:
+	if (test_bit(TW_USING_MSI, &tw_dev->flags))
+		pci_disable_msi(pdev);
 	scsi_remove_host(host);
 out_iounmap:
 	iounmap(tw_dev->base_addr);
@@ -2147,6 +2166,10 @@ static void twa_remove(struct pci_dev *pdev)
 
 	/* Shutdown the card */
 	__twa_shutdown(tw_dev);
+
+	/* Disable MSI if enabled */
+	if (test_bit(TW_USING_MSI, &tw_dev->flags))
+		pci_disable_msi(pdev);
 
 	/* Free IO remapping */
 	iounmap(tw_dev->base_addr);

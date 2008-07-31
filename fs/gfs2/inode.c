@@ -448,7 +448,7 @@ struct inode *gfs2_lookup_simple(struct inode *dip, const char *name)
 	struct qstr qstr;
 	struct inode *inode;
 	gfs2_str2qstr(&qstr, name);
-	inode = gfs2_lookupi(dip, &qstr, 1, NULL);
+	inode = gfs2_lookupi(dip, &qstr, 1);
 	/* gfs2_lookupi has inconsistent callers: vfs
 	 * related routines expect NULL for no entry found,
 	 * gfs2_lookup_simple callers expect ENOENT
@@ -477,7 +477,7 @@ struct inode *gfs2_lookup_simple(struct inode *dip, const char *name)
  */
 
 struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
-			   int is_root, struct nameidata *nd)
+			   int is_root)
 {
 	struct super_block *sb = dir->i_sb;
 	struct gfs2_inode *dip = GFS2_I(dir);
@@ -504,7 +504,7 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 	}
 
 	if (!is_root) {
-		error = permission(dir, MAY_EXEC, NULL);
+		error = gfs2_permission(dir, MAY_EXEC);
 		if (error)
 			goto out;
 	}
@@ -667,7 +667,7 @@ static int create_ok(struct gfs2_inode *dip, const struct qstr *name,
 {
 	int error;
 
-	error = permission(&dip->i_inode, MAY_WRITE | MAY_EXEC, NULL);
+	error = gfs2_permission(&dip->i_inode, MAY_WRITE | MAY_EXEC);
 	if (error)
 		return error;
 
@@ -789,12 +789,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 		if ((dip->i_di.di_flags & GFS2_DIF_INHERIT_JDATA) ||
 		    gfs2_tune_get(sdp, gt_new_files_jdata))
 			di->di_flags |= cpu_to_be32(GFS2_DIF_JDATA);
-		if ((dip->i_di.di_flags & GFS2_DIF_INHERIT_DIRECTIO) ||
-		    gfs2_tune_get(sdp, gt_new_files_directio))
-			di->di_flags |= cpu_to_be32(GFS2_DIF_DIRECTIO);
 	} else if (S_ISDIR(mode)) {
-		di->di_flags |= cpu_to_be32(dip->i_di.di_flags &
-					    GFS2_DIF_INHERIT_DIRECTIO);
 		di->di_flags |= cpu_to_be32(dip->i_di.di_flags &
 					    GFS2_DIF_INHERIT_JDATA);
 	}
@@ -1134,7 +1129,7 @@ int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
 	if (IS_APPEND(&dip->i_inode))
 		return -EPERM;
 
-	error = permission(&dip->i_inode, MAY_WRITE | MAY_EXEC, NULL);
+	error = gfs2_permission(&dip->i_inode, MAY_WRITE | MAY_EXEC);
 	if (error)
 		return error;
 
@@ -1178,7 +1173,7 @@ int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 			break;
 		}
 
-		tmp = gfs2_lookupi(dir, &dotdot, 1, NULL);
+		tmp = gfs2_lookupi(dir, &dotdot, 1);
 		if (IS_ERR(tmp)) {
 			error = PTR_ERR(tmp);
 			break;

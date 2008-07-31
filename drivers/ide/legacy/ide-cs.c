@@ -63,11 +63,9 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 #define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
 
-#ifdef PCMCIA_DEBUG
-INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#ifdef CONFIG_PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, 0);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"ide-cs.c 1.3 2002/10/26 05:45:31 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -76,7 +74,7 @@ static char *version =
 
 typedef struct ide_info_t {
 	struct pcmcia_device	*p_dev;
-	ide_hwif_t		*hwif;
+	struct ide_host		*host;
     int		ndev;
     dev_node_t	node;
 } ide_info_t;
@@ -134,7 +132,7 @@ static int ide_probe(struct pcmcia_device *link)
 static void ide_detach(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    ide_hwif_t *hwif = info->hwif;
+    ide_hwif_t *hwif = info->host->ports[0];
     unsigned long data_addr, ctl_addr;
 
     DEBUG(0, "ide_detach(0x%p)\n", link);
@@ -154,13 +152,18 @@ static const struct ide_port_ops idecs_port_ops = {
 	.quirkproc		= ide_undecoded_slave,
 };
 
-static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
+static const struct ide_port_info idecs_port_info = {
+	.port_ops		= &idecs_port_ops,
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
+static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
 				unsigned long irq, struct pcmcia_device *handle)
 {
+    struct ide_host *host;
     ide_hwif_t *hwif;
-    hw_regs_t hw;
-    int i;
-    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+    int i, rc;
+    hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
     if (!request_region(io, 8, DRV_NAME)) {
 	printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
@@ -181,32 +184,24 @@ static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
     hw.chipset = ide_pci;
     hw.dev = &handle->dev;
 
-    hwif = ide_find_port();
-    if (hwif == NULL)
+    rc = ide_host_add(&idecs_port_info, hws, &host);
+    if (rc)
 	goto out_release;
 
-    i = hwif->index;
-
-    ide_init_port_data(hwif, i);
-    ide_init_port_hw(hwif, &hw);
-    hwif->port_ops = &idecs_port_ops;
-
-    idx[0] = i;
-
-    ide_device_add(idx, NULL);
+    hwif = host->ports[0];
 
     if (hwif->present)
-	return hwif;
+	return host;
 
     /* retry registration in case device is still spinning up */
     for (i = 0; i < 10; i++) {
 	msleep(100);
 	ide_port_scan(hwif);
 	if (hwif->present)
-	    return hwif;
+	    return host;
     }
 
-    return hwif;
+    return host;
 
 out_release:
     release_region(ctl, 1);
@@ -238,7 +233,7 @@ static int ide_config(struct pcmcia_device *link)
     cistpl_cftable_entry_t *cfg;
     int pass, last_ret = 0, last_fn = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
-    ide_hwif_t *hwif;
+    struct ide_host *host;
 
     DEBUG(0, "ide_config(0x%p)\n", link);
 
@@ -333,21 +328,21 @@ static int ide_config(struct pcmcia_device *link)
     if (is_kme)
 	outb(0x81, ctl_base+1);
 
-     hwif = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
-     if (hwif == NULL && link->io.NumPorts1 == 0x20) {
+     host = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
+     if (host == NULL && link->io.NumPorts1 == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
-	    hwif = idecs_register(io_base + 0x10, ctl_base + 0x10,
+	    host = idecs_register(io_base + 0x10, ctl_base + 0x10,
 				  link->irq.AssignedIRQ, link);
     }
 
-    if (hwif == NULL)
+    if (host == NULL)
 	goto failed;
 
     info->ndev = 1;
-    sprintf(info->node.dev_name, "hd%c", 'a' + hwif->index * 2);
-    info->node.major = hwif->major;
+    sprintf(info->node.dev_name, "hd%c", 'a' + host->ports[0]->index * 2);
+    info->node.major = host->ports[0]->major;
     info->node.minor = 0;
-    info->hwif = hwif;
+    info->host = host;
     link->dev_node = &info->node;
     printk(KERN_INFO "ide-cs: %s: Vpp = %d.%d\n",
 	   info->node.dev_name, link->conf.Vpp / 10, link->conf.Vpp % 10);
@@ -375,18 +370,18 @@ failed:
 
 ======================================================================*/
 
-void ide_release(struct pcmcia_device *link)
+static void ide_release(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    ide_hwif_t *hwif = info->hwif;
+    struct ide_host *host = info->host;
 
     DEBUG(0, "ide_release(0x%p)\n", link);
 
-    if (info->ndev) {
+    if (info->ndev)
 	/* FIXME: if this fails we need to queue the cleanup somehow
 	   -- need to investigate the required PCMCIA magic */
-	ide_unregister(hwif);
-    }
+	ide_host_remove(host);
+
     info->ndev = 0;
 
     pcmcia_disable_device(link);
@@ -410,6 +405,7 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x001c, 0x0001),	/* Mitsubishi CFA */
 	PCMCIA_DEVICE_MANF_CARD(0x0032, 0x0704),
 	PCMCIA_DEVICE_MANF_CARD(0x0045, 0x0401),	/* SanDisk CFA */
+	PCMCIA_DEVICE_MANF_CARD(0x004f, 0x0000),	/* Kingston */
 	PCMCIA_DEVICE_MANF_CARD(0x0098, 0x0000),	/* Toshiba */
 	PCMCIA_DEVICE_MANF_CARD(0x00a4, 0x002d),
 	PCMCIA_DEVICE_MANF_CARD(0x00ce, 0x0000),	/* Samsung */
@@ -439,6 +435,7 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "PCIDE", 0x547e66dc, 0x5c5ab149),
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "PCIDEII", 0x547e66dc, 0xb3662674),
 	PCMCIA_DEVICE_PROD_ID12("LOOKMEET", "CBIDE2      ", 0xe37be2b5, 0x8671043b),
+	PCMCIA_DEVICE_PROD_ID12("M-Systems", "CF300", 0x7ed2ad87, 0x7e9e78ee),
 	PCMCIA_DEVICE_PROD_ID12("M-Systems", "CF500", 0x7ed2ad87, 0x7a13045c),
 	PCMCIA_DEVICE_PROD_ID2("NinjaATA-", 0xebe0bd79),
 	PCMCIA_DEVICE_PROD_ID12("PCMCIA", "CD-ROM", 0x281f1c5d, 0x66536591),
@@ -449,6 +446,7 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("SMI VENDOR", "SMI PRODUCT", 0x30896c92, 0x703cc5f6),
 	PCMCIA_DEVICE_PROD_ID12("TOSHIBA", "MK2001MPL", 0xb4585a1a, 0x3489e003),
 	PCMCIA_DEVICE_PROD_ID1("TRANSCEND    512M   ", 0xd0909443),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS1GCF45", 0x709b1bf1, 0xf68b6f32),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS1GCF80", 0x709b1bf1, 0x2a54d4b1),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS2GCF120", 0x709b1bf1, 0x969aa4f2),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS4GCF120", 0x709b1bf1, 0xf54a91c8),

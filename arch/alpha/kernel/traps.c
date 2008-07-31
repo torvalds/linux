@@ -447,7 +447,7 @@ struct unaligned_stat {
 
 
 /* Macro for exception fixup code to access integer registers.  */
-#define una_reg(r)  (regs->regs[(r) >= 16 && (r) <= 18 ? (r)+19 : (r)])
+#define una_reg(r)  (_regs[(r) >= 16 && (r) <= 18 ? (r)+19 : (r)])
 
 
 asmlinkage void
@@ -456,6 +456,7 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 {
 	long error, tmp1, tmp2, tmp3, tmp4;
 	unsigned long pc = regs->pc - 4;
+	unsigned long *_regs = regs->regs;
 	const struct exception_table_entry *fixup;
 
 	unaligned[0].count++;

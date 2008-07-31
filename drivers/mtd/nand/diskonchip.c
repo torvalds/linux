@@ -15,8 +15,6 @@
  * converted to the generic Reed-Solomon library by Thomas Gleixner <tglx@linutronix.de>
  *
  * Interface to generic NAND code for M-Systems DiskOnChip devices
- *
- * $Id: diskonchip.c,v 1.55 2005/11/07 11:14:30 gleixner Exp $
  */
 
 #include <linux/kernel.h>
@@ -54,8 +52,6 @@ static unsigned long __initdata doc_locations[] = {
 	0xe0000, 0xe2000, 0xe4000, 0xe6000,
 	0xe8000, 0xea000, 0xec000, 0xee000,
 #endif /*  CONFIG_MTD_DOCPROBE_HIGH */
-#elif defined(__PPC__)
-	0xe4000000,
 #else
 #warning Unknown architecture for DiskOnChip. No default probe locations defined
 #endif

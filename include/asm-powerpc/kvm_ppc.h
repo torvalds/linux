@@ -61,7 +61,8 @@ extern int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu);
 
 extern void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn,
                            u64 asid, u32 flags);
-extern void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, u64 eaddr, u64 asid);
+extern void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
+                                  gva_t eend, u32 asid);
 extern void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode);
 
 extern void kvmppc_check_and_deliver_interrupts(struct kvm_vcpu *vcpu);

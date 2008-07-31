@@ -9,17 +9,7 @@
  * your option) any later version.
  */
 
-/*
- * PCI registers
- */
-
-#define PCI_SDHCI_IFPIO			0x00
-#define PCI_SDHCI_IFDMA			0x01
-#define PCI_SDHCI_IFVENDOR		0x02
-
-#define PCI_SLOT_INFO			0x40	/* 8 bits */
-#define  PCI_SLOT_INFO_SLOTS(x)		((x >> 4) & 7)
-#define  PCI_SLOT_INFO_FIRST_BAR_MASK	0x07
+#include <linux/scatterlist.h>
 
 /*
  * Controller registers
@@ -72,6 +62,11 @@
 #define  SDHCI_CTRL_LED		0x01
 #define  SDHCI_CTRL_4BITBUS	0x02
 #define  SDHCI_CTRL_HISPD	0x04
+#define  SDHCI_CTRL_DMA_MASK	0x18
+#define   SDHCI_CTRL_SDMA	0x00
+#define   SDHCI_CTRL_ADMA1	0x08
+#define   SDHCI_CTRL_ADMA32	0x10
+#define   SDHCI_CTRL_ADMA64	0x18
 
 #define SDHCI_POWER_CONTROL	0x29
 #define  SDHCI_POWER_ON		0x01
@@ -117,6 +112,7 @@
 #define  SDHCI_INT_DATA_END_BIT	0x00400000
 #define  SDHCI_INT_BUS_POWER	0x00800000
 #define  SDHCI_INT_ACMD12ERR	0x01000000
+#define  SDHCI_INT_ADMA_ERROR	0x02000000
 
 #define  SDHCI_INT_NORMAL_MASK	0x00007FFF
 #define  SDHCI_INT_ERROR_MASK	0xFFFF8000
@@ -140,11 +136,14 @@
 #define  SDHCI_CLOCK_BASE_SHIFT	8
 #define  SDHCI_MAX_BLOCK_MASK	0x00030000
 #define  SDHCI_MAX_BLOCK_SHIFT  16
+#define  SDHCI_CAN_DO_ADMA2	0x00080000
+#define  SDHCI_CAN_DO_ADMA1	0x00100000
 #define  SDHCI_CAN_DO_HISPD	0x00200000
 #define  SDHCI_CAN_DO_DMA	0x00400000
 #define  SDHCI_CAN_VDD_330	0x01000000
 #define  SDHCI_CAN_VDD_300	0x02000000
 #define  SDHCI_CAN_VDD_180	0x04000000
+#define  SDHCI_CAN_64BIT	0x10000000
 
 /* 44-47 reserved for more caps */
 
@@ -152,7 +151,16 @@
 
 /* 4C-4F reserved for more max current */
 
-/* 50-FB reserved */
+#define SDHCI_SET_ACMD12_ERROR	0x50
+#define SDHCI_SET_INT_ERROR	0x52
+
+#define SDHCI_ADMA_ERROR	0x54
+
+/* 55-57 reserved */
+
+#define SDHCI_ADMA_ADDRESS	0x58
+
+/* 60-FB reserved */
 
 #define SDHCI_SLOT_INT_STATUS	0xFC
 
@@ -161,12 +169,52 @@
 #define  SDHCI_VENDOR_VER_SHIFT	8
 #define  SDHCI_SPEC_VER_MASK	0x00FF
 #define  SDHCI_SPEC_VER_SHIFT	0
+#define   SDHCI_SPEC_100	0
+#define   SDHCI_SPEC_200	1
 
-struct sdhci_chip;
+struct sdhci_ops;
 
 struct sdhci_host {
-	struct sdhci_chip	*chip;
+	/* Data set by hardware interface driver */
+	const char		*hw_name;	/* Hardware bus name */
+
+	unsigned int		quirks;		/* Deviations from spec. */
+
+/* Controller doesn't honor resets unless we touch the clock register */
+#define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
+/* Controller has bad caps bits, but really supports DMA */
+#define SDHCI_QUIRK_FORCE_DMA				(1<<1)
+/* Controller doesn't like to be reset when there is no card inserted. */
+#define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
+/* Controller doesn't like clearing the power reg before a change */
+#define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
+/* Controller has flaky internal state so reset it on each ios change */
+#define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1<<4)
+/* Controller has an unusable DMA engine */
+#define SDHCI_QUIRK_BROKEN_DMA				(1<<5)
+/* Controller has an unusable ADMA engine */
+#define SDHCI_QUIRK_BROKEN_ADMA				(1<<6)
+/* Controller can only DMA from 32-bit aligned addresses */
+#define SDHCI_QUIRK_32BIT_DMA_ADDR			(1<<7)
+/* Controller can only DMA chunk sizes that are a multiple of 32 bits */
+#define SDHCI_QUIRK_32BIT_DMA_SIZE			(1<<8)
+/* Controller can only ADMA chunks that are a multiple of 32 bits */
+#define SDHCI_QUIRK_32BIT_ADMA_SIZE			(1<<9)
+/* Controller needs to be reset after each request to stay stable */
+#define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<10)
+/* Controller needs voltage and power writes to happen separately */
+#define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<11)
+/* Controller provides an incorrect timeout value for transfers */
+#define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<12)
+
+	int			irq;		/* Device IRQ */
+	void __iomem *		ioaddr;		/* Mapped address */
+
+	const struct sdhci_ops	*ops;		/* Low level hw interface */
+
+	/* Internal data */
 	struct mmc_host		*mmc;		/* MMC structure */
+	u64			dma_mask;	/* custom DMA mask */
 
 #ifdef CONFIG_LEDS_CLASS
 	struct led_classdev	led;		/* LED control */
@@ -176,7 +224,11 @@ struct sdhci_host {
 
 	int			flags;		/* Host attributes */
 #define SDHCI_USE_DMA		(1<<0)		/* Host is DMA capable */
-#define SDHCI_REQ_USE_DMA	(1<<1)		/* Use DMA for this req. */
+#define SDHCI_USE_ADMA		(1<<1)		/* Host is ADMA capable */
+#define SDHCI_REQ_USE_DMA	(1<<2)		/* Use DMA for this req. */
+#define SDHCI_DEVICE_DEAD	(1<<3)		/* Device unresponsive */
+
+	unsigned int		version;	/* SDHCI spec. version */
 
 	unsigned int		max_clk;	/* Max possible freq (MHz) */
 	unsigned int		timeout_clk;	/* Timeout freq (KHz) */
@@ -189,27 +241,44 @@ struct sdhci_host {
 	struct mmc_data		*data;		/* Current data request */
 	unsigned int		data_early:1;	/* Data finished before cmd */
 
-	struct scatterlist	*cur_sg;	/* We're working on this */
-	int			num_sg;		/* Entries left */
-	int			offset;		/* Offset into current sg */
-	int			remain;		/* Bytes left in current */
+	struct sg_mapping_iter	sg_miter;	/* SG state for PIO */
+	unsigned int		blocks;		/* remaining PIO blocks */
 
-	int			irq;		/* Device IRQ */
-	int			bar;		/* PCI BAR index */
-	unsigned long		addr;		/* Bus address */
-	void __iomem *		ioaddr;		/* Mapped address */
+	int			sg_count;	/* Mapped sg entries */
+
+	u8			*adma_desc;	/* ADMA descriptor table */
+	u8			*align_buffer;	/* Bounce buffer */
+
+	dma_addr_t		adma_addr;	/* Mapped ADMA descr. table */
+	dma_addr_t		align_addr;	/* Mapped bounce buffer */
 
 	struct tasklet_struct	card_tasklet;	/* Tasklet structures */
 	struct tasklet_struct	finish_tasklet;
 
 	struct timer_list	timer;		/* Timer for timeouts */
+
+	unsigned long		private[0] ____cacheline_aligned;
 };
 
-struct sdhci_chip {
-	struct pci_dev		*pdev;
 
-	unsigned long		quirks;
-
-	int			num_slots;	/* Slots on controller */
-	struct sdhci_host	*hosts[0];	/* Pointers to hosts */
+struct sdhci_ops {
+	int		(*enable_dma)(struct sdhci_host *host);
 };
+
+
+extern struct sdhci_host *sdhci_alloc_host(struct device *dev,
+	size_t priv_size);
+extern void sdhci_free_host(struct sdhci_host *host);
+
+static inline void *sdhci_priv(struct sdhci_host *host)
+{
+	return (void *)host->private;
+}
+
+extern int sdhci_add_host(struct sdhci_host *host);
+extern void sdhci_remove_host(struct sdhci_host *host, int dead);
+
+#ifdef CONFIG_PM
+extern int sdhci_suspend_host(struct sdhci_host *host, pm_message_t state);
+extern int sdhci_resume_host(struct sdhci_host *host);
+#endif

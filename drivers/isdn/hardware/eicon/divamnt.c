@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/poll.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 
 #include "platform.h"
@@ -127,14 +128,19 @@ static unsigned int maint_poll(struct file *file, poll_table * wait)
 
 static int maint_open(struct inode *ino, struct file *filep)
 {
+	int ret;
+
+	lock_kernel();
 	/* only one open is allowed, so we test
 	   it atomically */
 	if (test_and_set_bit(0, &opened))
-		return (-EBUSY);
-
-	filep->private_data = NULL;
-
-	return nonseekable_open(ino, filep);
+		ret = -EBUSY;
+	else {
+		filep->private_data = NULL;
+		ret = nonseekable_open(ino, filep);
+	}
+	unlock_kernel();
+	return ret;
 }
 
 static int maint_close(struct inode *ino, struct file *filep)

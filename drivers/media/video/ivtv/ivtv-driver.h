@@ -60,6 +60,7 @@
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/tuner.h>
 #include <media/cx2341x.h>
 
@@ -634,7 +635,6 @@ struct ivtv {
 	/* Locking */
 	spinlock_t lock;                /* lock access to this struct */
 	struct mutex serialize_lock;    /* mutex used to serialize open/close/start/stop/ioctl operations */
-
 
 	/* Streams */
 	int stream_buf_size[IVTV_MAX_STREAMS];          /* stream buffer size */

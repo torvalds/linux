@@ -254,12 +254,12 @@ static int __init padlock_init(void)
 	int rc = -ENODEV;
 
 	if (!cpu_has_phe) {
-		printk(KERN_ERR PFX "VIA PadLock Hash Engine not detected.\n");
+		printk(KERN_NOTICE PFX "VIA PadLock Hash Engine not detected.\n");
 		return -ENODEV;
 	}
 
 	if (!cpu_has_phe_enabled) {
-		printk(KERN_ERR PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
+		printk(KERN_NOTICE PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
 		return -ENODEV;
 	}
 

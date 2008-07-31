@@ -1,6 +1,6 @@
 config SND_AT91_SOC
 	tristate "SoC Audio for the Atmel AT91 System-on-Chip"
-	depends on ARCH_AT91 && SND_SOC
+	depends on ARCH_AT91
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the AT91 SSC interface. You will also need

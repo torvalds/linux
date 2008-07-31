@@ -74,6 +74,8 @@ static DEFINE_SPINLOCK(boot_lock);
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
+	trace_hardirqs_off();
+
 	/*
 	 * the primary core may have used a "cross call" soft interrupt
 	 * to get this processor out of WFI in the BootMonitor - make

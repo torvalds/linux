@@ -27,6 +27,7 @@
  * option) any later version.
  */
 #include <linux/ds1286.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
@@ -252,6 +253,7 @@ static int ds1286_ioctl(struct inode *inode, struct file *file,
 
 static int ds1286_open(struct inode *inode, struct file *file)
 {
+	lock_kernel();
 	spin_lock_irq(&ds1286_lock);
 
 	if (ds1286_status & RTC_IS_OPEN)
@@ -260,10 +262,12 @@ static int ds1286_open(struct inode *inode, struct file *file)
 	ds1286_status |= RTC_IS_OPEN;
 
 	spin_unlock_irq(&ds1286_lock);
+	unlock_kernel();
 	return 0;
 
 out_busy:
 	spin_lock_irq(&ds1286_lock);
+	unlock_kernel();
 	return -EBUSY;
 }
 

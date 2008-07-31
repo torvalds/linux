@@ -30,6 +30,7 @@
 struct tick_device tick_broadcast_device;
 static cpumask_t tick_broadcast_mask;
 static DEFINE_SPINLOCK(tick_broadcast_lock);
+static int tick_broadcast_force;
 
 #ifdef CONFIG_TICK_ONESHOT
 static void tick_broadcast_clear_oneshot(int cpu);
@@ -232,10 +233,11 @@ static void tick_do_broadcast_on_off(void *why)
 						     CLOCK_EVT_MODE_SHUTDOWN);
 		}
 		if (*reason == CLOCK_EVT_NOTIFY_BROADCAST_FORCE)
-			dev->features |= CLOCK_EVT_FEAT_DUMMY;
+			tick_broadcast_force = 1;
 		break;
 	case CLOCK_EVT_NOTIFY_BROADCAST_OFF:
-		if (cpu_isset(cpu, tick_broadcast_mask)) {
+		if (!tick_broadcast_force &&
+		    cpu_isset(cpu, tick_broadcast_mask)) {
 			cpu_clear(cpu, tick_broadcast_mask);
 			if (td->mode == TICKDEV_MODE_PERIODIC)
 				tick_setup_periodic(dev, 0);
@@ -266,7 +268,7 @@ void tick_broadcast_on_off(unsigned long reason, int *oncpu)
 		       "offline CPU #%d\n", *oncpu);
 	else
 		smp_call_function_single(*oncpu, tick_do_broadcast_on_off,
-					 &reason, 1, 1);
+					 &reason, 1);
 }
 
 /*
@@ -397,8 +399,7 @@ again:
 	mask = CPU_MASK_NONE;
 	now = ktime_get();
 	/* Find all expired events */
-	for (cpu = first_cpu(tick_broadcast_oneshot_mask); cpu != NR_CPUS;
-	     cpu = next_cpu(cpu, tick_broadcast_oneshot_mask)) {
+	for_each_cpu_mask_nr(cpu, tick_broadcast_oneshot_mask) {
 		td = &per_cpu(tick_cpu_device, cpu);
 		if (td->evtdev->next_event.tv64 <= now.tv64)
 			cpu_set(cpu, mask);

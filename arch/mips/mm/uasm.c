@@ -396,7 +396,7 @@ int __cpuinit uasm_in_compat_space_p(long addr)
 #endif
 }
 
-int __cpuinit uasm_rel_highest(long val)
+static int __cpuinit uasm_rel_highest(long val)
 {
 #ifdef CONFIG_64BIT
 	return ((((val + 0x800080008000L) >> 48) & 0xffff) ^ 0x8000) - 0x8000;
@@ -405,7 +405,7 @@ int __cpuinit uasm_rel_highest(long val)
 #endif
 }
 
-int __cpuinit uasm_rel_higher(long val)
+static int __cpuinit uasm_rel_higher(long val)
 {
 #ifdef CONFIG_64BIT
 	return ((((val + 0x80008000L) >> 32) & 0xffff) ^ 0x8000) - 0x8000;

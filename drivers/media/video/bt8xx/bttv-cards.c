@@ -3768,7 +3768,8 @@ static int terratec_active_radio_upgrade(struct bttv *btv)
 #define BTTV_ALT_DCLK		0x100000
 #define BTTV_ALT_NCONFIG	0x800000
 
-static int __devinit pvr_altera_load(struct bttv *btv, u8 *micro, u32 microlen)
+static int __devinit pvr_altera_load(struct bttv *btv, const u8 *micro,
+				     u32 microlen)
 {
 	u32 n;
 	u8 bits;

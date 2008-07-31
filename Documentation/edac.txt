@@ -222,73 +222,8 @@ both csrow2 and csrow3 are populated, this indicates a dual ranked
 set of DIMMs for channels 0 and 1.
 
 
-Within each of the 'mc','mcX' and 'csrowX' directories are several
+Within each of the 'mcX' and 'csrowX' directories are several
 EDAC control and attribute files.
-
-
-============================================================================
-DIRECTORY 'mc'
-
-In directory 'mc' are EDAC system overall control and attribute files:
-
-
-Panic on UE control file:
-
-	'edac_mc_panic_on_ue'
-
-	An uncorrectable error will cause a machine panic.  This is usually
-	desirable.  It is a bad idea to continue when an uncorrectable error
-	occurs - it is indeterminate what was uncorrected and the operating
-	system context might be so mangled that continuing will lead to further
-	corruption. If the kernel has MCE configured, then EDAC will never
-	notice the UE.
-
-	LOAD TIME: module/kernel parameter: panic_on_ue=[0|1]
-
-	RUN TIME:  echo "1" >/sys/devices/system/edac/mc/edac_mc_panic_on_ue
-
-
-Log UE control file:
-
-	'edac_mc_log_ue'
-
-	Generate kernel messages describing uncorrectable errors.  These errors
-	are reported through the system message log system.  UE statistics
-	will be accumulated even when UE logging is disabled.
-
-	LOAD TIME: module/kernel parameter: log_ue=[0|1]
-
-	RUN TIME: echo "1" >/sys/devices/system/edac/mc/edac_mc_log_ue
-
-
-Log CE control file:
-
-	'edac_mc_log_ce'
-
-	Generate kernel messages describing correctable errors.  These
-	errors are reported through the system message log system.
-	CE statistics will be accumulated even when CE logging is disabled.
-
-	LOAD TIME: module/kernel parameter: log_ce=[0|1]
-
-	RUN TIME: echo "1" >/sys/devices/system/edac/mc/edac_mc_log_ce
-
-
-Polling period control file:
-
-	'edac_mc_poll_msec'
-
-	The time period, in milliseconds, for polling for error information.
-	Too small a value wastes resources.  Too large a value might delay
-	necessary handling of errors and might loose valuable information for
-	locating the error.  1000 milliseconds (once each second) is the current
-	default. Systems which require all the bandwidth they can get, may
-	increase this.
-
-	LOAD TIME: module/kernel parameter: poll_msec=[0|1]
-
-	RUN TIME: echo "1000" >/sys/devices/system/edac/mc/edac_mc_poll_msec
-
 
 ============================================================================
 'mcX' DIRECTORIES
@@ -392,7 +327,7 @@ Sdram memory scrubbing rate:
 	'sdram_scrub_rate'
 
 	Read/Write attribute file that controls memory scrubbing. The scrubbing
-	rate is set by writing a minimum bandwith in bytes/sec to the attribute
+	rate is set by writing a minimum bandwidth in bytes/sec to the attribute
 	file. The rate will be translated to an internal value that gives at
 	least the specified rate.
 
@@ -537,7 +472,6 @@ Channel 1 DIMM Label control file:
 	motherboard specific and determination of this information
 	must occur in userland at this time.
 
-
 ============================================================================
 SYSTEM LOGGING
 
@@ -568,7 +502,6 @@ The structure of the message is:
 Both UEs and CEs with no info will lack all but memory controller,
 error type, a notice of "no info" and then an optional,
 driver-specific error message.
-
 
 
 ============================================================================
@@ -604,6 +537,74 @@ Enable/Disable PCI Parity checking control file:
 	echo "0" >/sys/devices/system/edac/pci/check_pci_parity
 
 
+Parity Count:
+
+	'pci_parity_count'
+
+	This attribute file will display the number of parity errors that
+	have been detected.
+
+
+============================================================================
+MODULE PARAMETERS
+
+Panic on UE control file:
+
+	'edac_mc_panic_on_ue'
+
+	An uncorrectable error will cause a machine panic.  This is usually
+	desirable.  It is a bad idea to continue when an uncorrectable error
+	occurs - it is indeterminate what was uncorrected and the operating
+	system context might be so mangled that continuing will lead to further
+	corruption. If the kernel has MCE configured, then EDAC will never
+	notice the UE.
+
+	LOAD TIME: module/kernel parameter: edac_mc_panic_on_ue=[0|1]
+
+	RUN TIME:  echo "1" > /sys/module/edac_core/parameters/edac_mc_panic_on_ue
+
+
+Log UE control file:
+
+	'edac_mc_log_ue'
+
+	Generate kernel messages describing uncorrectable errors.  These errors
+	are reported through the system message log system.  UE statistics
+	will be accumulated even when UE logging is disabled.
+
+	LOAD TIME: module/kernel parameter: edac_mc_log_ue=[0|1]
+
+	RUN TIME: echo "1" > /sys/module/edac_core/parameters/edac_mc_log_ue
+
+
+Log CE control file:
+
+	'edac_mc_log_ce'
+
+	Generate kernel messages describing correctable errors.  These
+	errors are reported through the system message log system.
+	CE statistics will be accumulated even when CE logging is disabled.
+
+	LOAD TIME: module/kernel parameter: edac_mc_log_ce=[0|1]
+
+	RUN TIME: echo "1" > /sys/module/edac_core/parameters/edac_mc_log_ce
+
+
+Polling period control file:
+
+	'edac_mc_poll_msec'
+
+	The time period, in milliseconds, for polling for error information.
+	Too small a value wastes resources.  Too large a value might delay
+	necessary handling of errors and might loose valuable information for
+	locating the error.  1000 milliseconds (once each second) is the current
+	default. Systems which require all the bandwidth they can get, may
+	increase this.
+
+	LOAD TIME: module/kernel parameter: edac_mc_poll_msec=[0|1]
+
+	RUN TIME: echo "1000" > /sys/module/edac_core/parameters/edac_mc_poll_msec
+
 
 Panic on PCI PARITY Error:
 
@@ -614,21 +615,13 @@ Panic on PCI PARITY Error:
 	error has been detected.
 
 
-	module/kernel parameter: panic_on_pci_parity=[0|1]
+	module/kernel parameter: edac_panic_on_pci_pe=[0|1]
 
 	Enable:
-	echo "1" >/sys/devices/system/edac/pci/panic_on_pci_parity
+	echo "1" > /sys/module/edac_core/parameters/edac_panic_on_pci_pe
 
 	Disable:
-	echo "0" >/sys/devices/system/edac/pci/panic_on_pci_parity
-
-
-Parity Count:
-
-	'pci_parity_count'
-
-	This attribute file will display the number of parity errors that
-	have been detected.
+	echo "0" > /sys/module/edac_core/parameters/edac_panic_on_pci_pe
 
 
 

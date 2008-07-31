@@ -130,25 +130,37 @@ static inline unsigned int AOUT_FROM_REG(u8 reg)
 	return SCALE(reg, 1250, 255);
 }
 
-static int adm9240_attach_adapter(struct i2c_adapter *adapter);
-static int adm9240_detect(struct i2c_adapter *adapter, int address, int kind);
+static int adm9240_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id);
+static int adm9240_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info);
 static void adm9240_init_client(struct i2c_client *client);
-static int adm9240_detach_client(struct i2c_client *client);
+static int adm9240_remove(struct i2c_client *client);
 static struct adm9240_data *adm9240_update_device(struct device *dev);
 
 /* driver data */
+static const struct i2c_device_id adm9240_id[] = {
+	{ "adm9240", adm9240 },
+	{ "ds1780", ds1780 },
+	{ "lm81", lm81 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, adm9240_id);
+
 static struct i2c_driver adm9240_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "adm9240",
 	},
-	.attach_adapter	= adm9240_attach_adapter,
-	.detach_client	= adm9240_detach_client,
+	.probe		= adm9240_probe,
+	.remove		= adm9240_remove,
+	.id_table	= adm9240_id,
+	.detect		= adm9240_detect,
+	.address_data	= &addr_data,
 };
 
 /* per client data */
 struct adm9240_data {
-	enum chips type;
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	struct mutex update_lock;
 	char valid;
@@ -532,28 +544,17 @@ static const struct attribute_group adm9240_group = {
 
 /*** sensor chip detect and driver install ***/
 
-static int adm9240_detect(struct i2c_adapter *adapter, int address, int kind)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int adm9240_detect(struct i2c_client *new_client, int kind,
+			  struct i2c_board_info *info)
 {
-	struct i2c_client *new_client;
-	struct adm9240_data *data;
-	int err = 0;
+	struct i2c_adapter *adapter = new_client->adapter;
 	const char *name = "";
+	int address = new_client->addr;
 	u8 man_id, die_rev;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		goto exit;
-
-	if (!(data = kzalloc(sizeof(*data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &adm9240_driver;
-	new_client->flags = 0;
+		return -ENODEV;
 
 	if (kind == 0) {
 		kind = adm9240;
@@ -566,7 +567,7 @@ static int adm9240_detect(struct i2c_adapter *adapter, int address, int kind)
 				!= address) {
 			dev_err(&adapter->dev, "detect fail: address match, "
 					"0x%02x\n", address);
-			goto exit_free;
+			return -ENODEV;
 		}
 
 		/* check known chip manufacturer */
@@ -581,7 +582,7 @@ static int adm9240_detect(struct i2c_adapter *adapter, int address, int kind)
 		} else {
 			dev_err(&adapter->dev, "detect fail: unknown manuf, "
 					"0x%02x\n", man_id);
-			goto exit_free;
+			return -ENODEV;
 		}
 
 		/* successful detect, print chip info */
@@ -600,20 +601,31 @@ static int adm9240_detect(struct i2c_adapter *adapter, int address, int kind)
 	} else if (kind == lm81) {
 		name = "lm81";
 	}
+	strlcpy(info->type, name, I2C_NAME_SIZE);
 
-	/* fill in the remaining client fields and attach */
-	strlcpy(new_client->name, name, I2C_NAME_SIZE);
-	data->type = kind;
+	return 0;
+}
+
+static int adm9240_probe(struct i2c_client *new_client,
+			 const struct i2c_device_id *id)
+{
+	struct adm9240_data *data;
+	int err;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(new_client, data);
 	mutex_init(&data->update_lock);
-
-	if ((err = i2c_attach_client(new_client)))
-		goto exit_free;
 
 	adm9240_init_client(new_client);
 
 	/* populate sysfs filesystem */
 	if ((err = sysfs_create_group(&new_client->dev.kobj, &adm9240_group)))
-		goto exit_detach;
+		goto exit_free;
 
 	data->hwmon_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -625,31 +637,18 @@ static int adm9240_detect(struct i2c_adapter *adapter, int address, int kind)
 
 exit_remove:
 	sysfs_remove_group(&new_client->dev.kobj, &adm9240_group);
-exit_detach:
-	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
 	return err;
 }
 
-static int adm9240_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, adm9240_detect);
-}
-
-static int adm9240_detach_client(struct i2c_client *client)
+static int adm9240_remove(struct i2c_client *client)
 {
 	struct adm9240_data *data = i2c_get_clientdata(client);
-	int err;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adm9240_group);
-
-	if ((err = i2c_detach_client(client)))
-		return err;
 
 	kfree(data);
 	return 0;

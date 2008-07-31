@@ -42,17 +42,20 @@ static inline const char * pcid_name (struct pci_dev *pdev)
 }
 
 #ifdef DEBUG
-static void print_device_node_tree (struct pci_dn *pdn, int dent)
+static void print_device_node_tree(struct pci_dn *pdn, int dent)
 {
 	int i;
-	if (!pdn) return;
-	for (i=0;i<dent; i++)
+	struct device_node *pc;
+
+	if (!pdn)
+		return;
+	for (i = 0; i < dent; i++)
 		printk(" ");
 	printk("dn=%s mode=%x \tcfg_addr=%x pe_addr=%x \tfull=%s\n",
 		pdn->node->name, pdn->eeh_mode, pdn->eeh_config_addr,
 		pdn->eeh_pe_config_addr, pdn->node->full_name);
 	dent += 3;
-	struct device_node *pc = pdn->node->child;
+	pc = pdn->node->child;
 	while (pc) {
 		print_device_node_tree(PCI_DN(pc), dent);
 		pc = pc->sibling;

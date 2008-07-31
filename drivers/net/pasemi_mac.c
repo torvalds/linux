@@ -277,7 +277,7 @@ static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
 	*tcph = tcp_hdr(skb);
 
 	/* check if ip header and tcp header are complete */
-	if (iph->tot_len < ip_len + tcp_hdrlen(skb))
+	if (ntohs(iph->tot_len) < ip_len + tcp_hdrlen(skb))
 		return -1;
 
 	*hdr_flags = LRO_IPV4 | LRO_TCP;
@@ -650,7 +650,7 @@ static void pasemi_mac_replenish_rx_ring(const struct net_device *dev,
 				     mac->bufsz - LOCAL_SKB_ALIGN,
 				     PCI_DMA_FROMDEVICE);
 
-		if (unlikely(dma_mapping_error(dma))) {
+		if (unlikely(pci_dma_mapping_error(mac->dma_pdev, dma))) {
 			dev_kfree_skb_irq(info->skb);
 			break;
 		}
@@ -1519,7 +1519,7 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	map[0] = pci_map_single(mac->dma_pdev, skb->data, skb_headlen(skb),
 				PCI_DMA_TODEVICE);
 	map_size[0] = skb_headlen(skb);
-	if (dma_mapping_error(map[0]))
+	if (pci_dma_mapping_error(mac->dma_pdev, map[0]))
 		goto out_err_nolock;
 
 	for (i = 0; i < nfrags; i++) {
@@ -1529,7 +1529,7 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 					frag->page_offset, frag->size,
 					PCI_DMA_TODEVICE);
 		map_size[i+1] = frag->size;
-		if (dma_mapping_error(map[i+1])) {
+		if (pci_dma_mapping_error(mac->dma_pdev, map[i+1])) {
 			nfrags = i;
 			goto out_err_nolock;
 		}

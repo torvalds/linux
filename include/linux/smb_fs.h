@@ -43,18 +43,13 @@ static inline struct smb_inode_info *SMB_I(struct inode *inode)
 }
 
 /* macro names are short for word, double-word, long value (?) */
-#define WVAL(buf,pos) \
-	(le16_to_cpu(get_unaligned((__le16 *)((u8 *)(buf) + (pos)))))
-#define DVAL(buf,pos) \
-	(le32_to_cpu(get_unaligned((__le32 *)((u8 *)(buf) + (pos)))))
-#define LVAL(buf,pos) \
-	(le64_to_cpu(get_unaligned((__le64 *)((u8 *)(buf) + (pos)))))
-#define WSET(buf,pos,val) \
-	put_unaligned(cpu_to_le16((u16)(val)), (__le16 *)((u8 *)(buf) + (pos)))
-#define DSET(buf,pos,val) \
-	put_unaligned(cpu_to_le32((u32)(val)), (__le32 *)((u8 *)(buf) + (pos)))
-#define LSET(buf,pos,val) \
-	put_unaligned(cpu_to_le64((u64)(val)), (__le64 *)((u8 *)(buf) + (pos)))
+#define WVAL(buf, pos) (get_unaligned_le16((u8 *)(buf) + (pos)))
+#define DVAL(buf, pos) (get_unaligned_le32((u8 *)(buf) + (pos)))
+#define LVAL(buf, pos) (get_unaligned_le64((u8 *)(buf) + (pos)))
+
+#define WSET(buf, pos, val) put_unaligned_le16((val), (u8 *)(buf) + (pos))
+#define DSET(buf, pos, val) put_unaligned_le32((val), (u8 *)(buf) + (pos))
+#define LSET(buf, pos, val) put_unaligned_le64((val), (u8 *)(buf) + (pos))
 
 /* where to find the base of the SMB packet proper */
 #define smb_base(buf) ((u8 *)(((u8 *)(buf))+4))

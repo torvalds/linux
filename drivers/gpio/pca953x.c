@@ -33,7 +33,7 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "pca9554", 8, },
 	{ "pca9555", 16, },
 	{ "pca9557", 8, },
-	/* REVISIT several pca955x parts should work here too */
+	{ "max7310", 8, },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca953x_id);
@@ -188,6 +188,7 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->base = chip->gpio_start;
 	gc->ngpio = gpios;
 	gc->label = chip->client->name;
+	gc->dev = &chip->client->dev;
 	gc->owner = THIS_MODULE;
 }
 

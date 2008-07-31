@@ -80,7 +80,6 @@ typedef struct snd_card_saa7134 {
 } snd_card_saa7134_t;
 
 
-
 /*
  * PCM structure
  */
@@ -613,9 +612,15 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_card_saa7134_pcm_t *pcm;
 	snd_card_saa7134_t *saa7134 = snd_pcm_substream_chip(substream);
-	struct saa7134_dev *dev = saa7134->dev;
+	struct saa7134_dev *dev;
 	int amux, err;
 
+	if (!saa7134) {
+		printk(KERN_ERR "BUG: saa7134 can't find device struct."
+				" Can't proceed with open\n");
+		return -ENODEV;
+	}
+	dev = saa7134->dev;
 	mutex_lock(&dev->dmasound.lock);
 
 	dev->dmasound.read_count  = 0;
@@ -1115,6 +1120,3 @@ late_initcall(saa7134_alsa_init);
 module_exit(saa7134_alsa_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ricardo Cerqueira");
-
-
-

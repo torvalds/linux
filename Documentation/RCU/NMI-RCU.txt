@@ -93,6 +93,9 @@ Since NMI handlers disable preemption, synchronize_sched() is guaranteed
 not to return until all ongoing NMI handlers exit.  It is therefore safe
 to free up the handler's data as soon as synchronize_sched() returns.
 
+Important note: for this to work, the architecture in question must
+invoke irq_enter() and irq_exit() on NMI entry and exit, respectively.
+
 
 Answer to Quick Quiz
 

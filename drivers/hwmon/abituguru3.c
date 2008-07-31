@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/dmi.h>
 #include <asm/io.h>
 
 /* uGuru3 bank addresses */
@@ -323,7 +324,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "AUX1 Fan",		36, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
-	{ 0x0013, "unknown", {
+	{ 0x0013, "Abit AW8D", {
 		{ "CPU Core",		 0, 0, 10, 1, 0 },
 		{ "DDR",		 1, 0, 10, 1, 0 },
 		{ "DDR VTT",		 2, 0, 10, 1, 0 },
@@ -349,6 +350,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "AUX2 Fan",		36, 2, 60, 1, 0 },
 		{ "AUX3 Fan",		37, 2, 60, 1, 0 },
 		{ "AUX4 Fan",		38, 2, 60, 1, 0 },
+		{ "AUX5 Fan",		39, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
 	{ 0x0014, "Abit AB9 Pro", {
@@ -1111,11 +1113,12 @@ static int __init abituguru3_detect(void)
 {
 	/* See if there is an uguru3 there. An idle uGuru3 will hold 0x00 or
 	   0x08 at DATA and 0xAC at CMD. Sometimes the uGuru3 will hold 0x05
-	   at CMD instead, why is unknown. So we test for 0x05 too. */
+	   or 0x55 at CMD instead, why is unknown. */
 	u8 data_val = inb_p(ABIT_UGURU3_BASE + ABIT_UGURU3_DATA);
 	u8 cmd_val = inb_p(ABIT_UGURU3_BASE + ABIT_UGURU3_CMD);
 	if (((data_val == 0x00) || (data_val == 0x08)) &&
-			((cmd_val == 0xAC) || (cmd_val == 0x05)))
+			((cmd_val == 0xAC) || (cmd_val == 0x05) ||
+			 (cmd_val == 0x55)))
 		return ABIT_UGURU3_BASE;
 
 	ABIT_UGURU3_DEBUG("no Abit uGuru3 found, data = 0x%02X, cmd = "
@@ -1137,6 +1140,15 @@ static int __init abituguru3_init(void)
 {
 	int address, err;
 	struct resource res = { .flags = IORESOURCE_IO };
+
+#ifdef CONFIG_DMI
+	const char *board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
+
+	/* safety check, refuse to load on non Abit motherboards */
+	if (!force && (!board_vendor ||
+			strcmp(board_vendor, "http://www.abit.com.tw/")))
+		return -ENODEV;
+#endif
 
 	address = abituguru3_detect();
 	if (address < 0)

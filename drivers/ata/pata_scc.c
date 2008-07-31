@@ -696,7 +696,7 @@ static void scc_bmdma_stop (struct ata_queued_cmd *qc)
 
 		if (reg & INTSTS_BMSINT) {
 			unsigned int classes;
-			unsigned long deadline = jiffies + ATA_TMOUT_BOOT;
+			unsigned long deadline = ata_deadline(jiffies, ATA_TMOUT_BOOT);
 			printk(KERN_WARNING "%s: Internal Bus Error\n", DRV_NAME);
 			out_be32(bmid_base + SCC_DMA_INTST, INTSTS_BMSINT);
 			/* TBD: SW reset */

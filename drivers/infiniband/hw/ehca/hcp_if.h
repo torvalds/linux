@@ -260,5 +260,6 @@ u64 hipz_h_error_data(const struct ipz_adapter_handle adapter_handle,
 		      const u64 ressource_handle,
 		      void *rblock,
 		      unsigned long *byte_count);
+u64 hipz_h_eoi(int irq);
 
 #endif /* __HCP_IF_H__ */

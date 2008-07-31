@@ -38,6 +38,8 @@ struct thread_info {
 #define THREAD_SIZE_ORDER	(1)
 #elif defined(CONFIG_PAGE_SIZE_8KB)
 #define THREAD_SIZE_ORDER	(1)
+#elif defined(CONFIG_PAGE_SIZE_16KB)
+#define THREAD_SIZE_ORDER	(0)
 #elif defined(CONFIG_PAGE_SIZE_64KB)
 #define THREAD_SIZE_ORDER	(0)
 #else
@@ -91,6 +93,8 @@ static inline struct thread_info *current_thread_info(void)
 
 	return ti;
 }
+
+#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 
 /* thread information allocation */
 #ifdef CONFIG_DEBUG_STACK_USAGE

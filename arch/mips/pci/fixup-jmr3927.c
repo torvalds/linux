@@ -28,36 +28,31 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/types.h>
-#include <linux/pci.h>
-#include <linux/init.h>
+#include <asm/txx9/pci.h>
+#include <asm/txx9/jmr3927.h>
 
-#include <asm/jmr3927/jmr3927.h>
-
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int __init jmr3927_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	unsigned char irq = pin;
 
-	/* SMSC SLC90E66 IDE uses irq 14, 15 (default) */
-	if (dev->vendor == PCI_VENDOR_ID_EFAR &&
-	    dev->device == PCI_DEVICE_ID_EFAR_SLC90E66_1)
-		return irq;
 	/* IRQ rotation (PICMG) */
 	irq--;			/* 0-3 */
-	if (dev->bus->parent == NULL &&
-	    slot == TX3927_PCIC_IDSEL_AD_TO_SLOT(23)) {
+	if (slot == TX3927_PCIC_IDSEL_AD_TO_SLOT(23)) {
 		/* PCI CardSlot (IDSEL=A23, DevNu=12) */
 		/* PCIA => PCIC (IDSEL=A23) */
 		/* NOTE: JMR3927 JP1 must be set to OPEN */
 		irq = (irq + 2) % 4;
-	} else if (dev->bus->parent == NULL &&
-		   slot == TX3927_PCIC_IDSEL_AD_TO_SLOT(22)) {
+	} else if (slot == TX3927_PCIC_IDSEL_AD_TO_SLOT(22)) {
 		/* PCI CardSlot (IDSEL=A22, DevNu=11) */
 		/* PCIA => PCIA (IDSEL=A22) */
 		/* NOTE: JMR3927 JP1 must be set to OPEN */
 		irq = (irq + 0) % 4;
 	} else {
 		/* PCI Backplane */
-		irq = (irq + 3 + slot) % 4;
+		if (txx9_pci_option & TXX9_PCI_OPT_PICMG)
+			irq = (irq + 33 - slot) % 4;
+		else
+			irq = (irq + 3 + slot) % 4;
 	}
 	irq++;			/* 1-4 */
 
@@ -66,15 +61,13 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		irq = JMR3927_IRQ_IOC_PCIA;
 		break;
 	case 2:
-		// wrong for backplane irq = JMR3927_IRQ_IOC_PCIB;
-		irq = JMR3927_IRQ_IOC_PCID;
+		irq = JMR3927_IRQ_IOC_PCIB;
 		break;
 	case 3:
 		irq = JMR3927_IRQ_IOC_PCIC;
 		break;
 	case 4:
-		// wrong for backplane irq = JMR3927_IRQ_IOC_PCID;
-		irq = JMR3927_IRQ_IOC_PCIB;
+		irq = JMR3927_IRQ_IOC_PCID;
 		break;
 	}
 
@@ -83,10 +76,4 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	    slot == TX3927_PCIC_IDSEL_AD_TO_SLOT(24))
 		irq = JMR3927_IRQ_ETHER0;
 	return irq;
-}
-
-/* Do platform specific device initialization at pci_enable_device() time */
-int pcibios_plat_dev_init(struct pci_dev *dev)
-{
-	return 0;
 }

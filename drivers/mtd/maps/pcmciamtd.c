@@ -1,6 +1,4 @@
 /*
- * $Id: pcmciamtd.c,v 1.55 2005/11/07 11:14:28 gleixner Exp $
- *
  * pcmciamtd.c - MTD driver for PCMCIA flash memory cards
  *
  * Author: Simon Evans <spse@secret.org.uk>
@@ -48,7 +46,6 @@ static const int debug = 0;
 
 
 #define DRIVER_DESC	"PCMCIA Flash memory card driver"
-#define DRIVER_VERSION	"$Revision: 1.55 $"
 
 /* Size of the PCMCIA address space: 26 bits = 64 MB */
 #define MAX_PCMCIA_ADDR	0x4000000
@@ -498,17 +495,14 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	int i;
 	config_info_t t;
 	static char *probes[] = { "jedec_probe", "cfi_probe" };
-	cisinfo_t cisinfo;
 	int new_name = 0;
 
 	DEBUG(3, "link=0x%p", link);
 
 	DEBUG(2, "Validating CIS");
-	ret = pcmcia_validate_cis(link, &cisinfo);
+	ret = pcmcia_validate_cis(link, NULL);
 	if(ret != CS_SUCCESS) {
 		cs_error(link, GetTupleData, ret);
-	} else {
-		DEBUG(2, "ValidateCIS found %d chains", cisinfo.Chains);
 	}
 
 	card_settings(dev, link, &new_name);
@@ -563,9 +557,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	DEBUG(1, "Allocated a window of %dKiB", dev->win_size >> 10);
 
 	/* Get write protect status */
-	CS_CHECK(GetStatus, pcmcia_get_status(link, &status));
-	DEBUG(2, "status value: 0x%x window handle = 0x%8.8lx",
-	      status.CardState, (unsigned long)link->win);
+	DEBUG(2, "window handle = 0x%8.8lx", (unsigned long)link->win);
 	dev->win_base = ioremap(req.Base, req.Size);
 	if(!dev->win_base) {
 		err("ioremap(%lu, %u) failed", req.Base, req.Size);
@@ -790,7 +782,7 @@ static struct pcmcia_driver pcmciamtd_driver = {
 
 static int __init init_pcmciamtd(void)
 {
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	info(DRIVER_DESC);
 
 	if(bankwidth && bankwidth != 1 && bankwidth != 2) {
 		info("bad bankwidth (%d), using default", bankwidth);

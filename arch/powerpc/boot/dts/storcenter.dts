@@ -95,6 +95,7 @@
 
 		mpic: interrupt-controller@40000 {
 			#interrupt-cells = <2>;
+			#address-cells = <0>;
 			device_type = "open-pic";
 			compatible = "chrp,open-pic";
 			interrupt-controller;

@@ -199,7 +199,7 @@ void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data) {}
  * -------------------------------------------------------------------- */
 
 #if defined(CONFIG_MTD_NAND_AT91) || defined(CONFIG_MTD_NAND_AT91_MODULE)
-static struct at91_nand_data nand_data;
+static struct atmel_nand_data nand_data;
 
 #define NAND_BASE	AT91_CHIPSELECT_3
 
@@ -211,8 +211,8 @@ static struct resource nand_resources[] = {
 	}
 };
 
-static struct platform_device at91_nand_device = {
-	.name		= "at91_nand",
+static struct platform_device atmel_nand_device = {
+	.name		= "atmel_nand",
 	.id		= -1,
 	.dev		= {
 				.platform_data	= &nand_data,
@@ -221,7 +221,7 @@ static struct platform_device at91_nand_device = {
 	.num_resources	= ARRAY_SIZE(nand_resources),
 };
 
-void __init at91_add_device_nand(struct at91_nand_data *data)
+void __init at91_add_device_nand(struct atmel_nand_data *data)
 {
 	unsigned long csa, mode;
 
@@ -232,19 +232,19 @@ void __init at91_add_device_nand(struct at91_nand_data *data)
 	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_CS3A_SMC_SMARTMEDIA);
 
 	/* set the bus interface characteristics */
-	at91_sys_write(AT91_SMC_SETUP(3), AT91_SMC_NWESETUP_(0) | AT91_SMC_NCS_WRSETUP_(0)
-			| AT91_SMC_NRDSETUP_(0) | AT91_SMC_NCS_RDSETUP_(0));
+	at91_sys_write(AT91_SMC_SETUP(3), AT91_SMC_NWESETUP_(1) | AT91_SMC_NCS_WRSETUP_(0)
+			| AT91_SMC_NRDSETUP_(1) | AT91_SMC_NCS_RDSETUP_(0));
 
-	at91_sys_write(AT91_SMC_PULSE(3), AT91_SMC_NWEPULSE_(2) | AT91_SMC_NCS_WRPULSE_(5)
-			| AT91_SMC_NRDPULSE_(2) | AT91_SMC_NCS_RDPULSE_(5));
+	at91_sys_write(AT91_SMC_PULSE(3), AT91_SMC_NWEPULSE_(3) | AT91_SMC_NCS_WRPULSE_(3)
+			| AT91_SMC_NRDPULSE_(3) | AT91_SMC_NCS_RDPULSE_(3));
 
-	at91_sys_write(AT91_SMC_CYCLE(3), AT91_SMC_NWECYCLE_(7) | AT91_SMC_NRDCYCLE_(7));
+	at91_sys_write(AT91_SMC_CYCLE(3), AT91_SMC_NWECYCLE_(5) | AT91_SMC_NRDCYCLE_(5));
 
 	if (data->bus_width_16)
 		mode = AT91_SMC_DBW_16;
 	else
 		mode = AT91_SMC_DBW_8;
-	at91_sys_write(AT91_SMC_MODE(3), mode | AT91_SMC_READMODE | AT91_SMC_WRITEMODE | AT91_SMC_EXNWMODE_DISABLE | AT91_SMC_TDF_(1));
+	at91_sys_write(AT91_SMC_MODE(3), mode | AT91_SMC_READMODE | AT91_SMC_WRITEMODE | AT91_SMC_EXNWMODE_DISABLE | AT91_SMC_TDF_(2));
 
 	/* enable pin */
 	if (data->enable_pin)
@@ -262,11 +262,11 @@ void __init at91_add_device_nand(struct at91_nand_data *data)
 	at91_set_A_periph(AT91_PIN_PC1, 0);		/* NANDWE */
 
 	nand_data = *data;
-	platform_device_register(&at91_nand_device);
+	platform_device_register(&atmel_nand_device);
 }
 
 #else
-void __init at91_add_device_nand(struct at91_nand_data *data) {}
+void __init at91_add_device_nand(struct atmel_nand_data *data) {}
 #endif
 
 

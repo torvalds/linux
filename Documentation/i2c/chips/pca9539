@@ -7,7 +7,7 @@ drivers/gpio/pca9539.c instead.
 Supported chips:
   * Philips PCA9539
     Prefix: 'pca9539'
-    Addresses scanned: 0x74 - 0x77
+    Addresses scanned: none
     Datasheet:
         http://www.semiconductors.philips.com/acrobat/datasheets/PCA9539_2.pdf
 
@@ -21,6 +21,14 @@ The Philips PCA9539 is a 16 bit low power I/O device.
 All 16 lines can be individually configured as an input or output.
 The input sense can also be inverted.
 The 16 lines are split between two bytes.
+
+
+Detection
+---------
+
+The PCA9539 is difficult to detect and not commonly found in PC machines,
+so you have to pass the I2C bus and address of the installed PCA9539
+devices explicitly to the driver at load time via the force=... parameter.
 
 
 Sysfs entries

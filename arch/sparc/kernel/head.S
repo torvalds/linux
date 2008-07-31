@@ -32,7 +32,6 @@
  */
 
 	.align 4
-        .globl  cputyp
 cputyp:
         .word   1
 
@@ -1280,7 +1279,6 @@ halt_me:
  * gets initialized in c-code so all routines can use it.
  */
 
-	.globl	prom_vector_p
 prom_vector_p:
 		.word 0
 

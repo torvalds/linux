@@ -18,13 +18,11 @@
 #include <asm/arch/sdrc.h>
 
 #ifndef __ASSEMBLER__
-extern unsigned long omap2_sdrc_base;
-extern unsigned long omap2_sms_base;
+extern void __iomem *omap2_sdrc_base;
+extern void __iomem *omap2_sms_base;
 
-#define OMAP_SDRC_REGADDR(reg)						\
-		(void __iomem *)IO_ADDRESS(omap2_sdrc_base + (reg))
-#define OMAP_SMS_REGADDR(reg)						\
-		(void __iomem *)IO_ADDRESS(omap2_sms_base + (reg))
+#define OMAP_SDRC_REGADDR(reg)			(omap2_sdrc_base + (reg))
+#define OMAP_SMS_REGADDR(reg)			(omap2_sms_base + (reg))
 
 /* SDRC global register get/set */
 

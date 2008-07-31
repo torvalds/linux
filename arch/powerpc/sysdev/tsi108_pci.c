@@ -426,11 +426,10 @@ void __init tsi108_pci_int_init(struct device_node *node)
 {
 	DBG("Tsi108_pci_int_init: initializing PCI interrupts\n");
 
-	pci_irq_host = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LEGACY,
+	pci_irq_host = irq_alloc_host(node, IRQ_HOST_MAP_LEGACY,
 				      0, &pci_irq_host_ops, 0);
 	if (pci_irq_host == NULL) {
 		printk(KERN_ERR "pci_irq_host: failed to allocate irq host !\n");
-		of_node_put(node);
 		return;
 	}
 

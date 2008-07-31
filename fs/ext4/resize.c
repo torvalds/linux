@@ -855,7 +855,8 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	 */
 
 	/* Update group descriptor block for new group */
-	gdp = (struct ext4_group_desc *)primary->b_data + gdb_off;
+	gdp = (struct ext4_group_desc *)((char *)primary->b_data +
+					 gdb_off * EXT4_DESC_SIZE(sb));
 
 	ext4_block_bitmap_set(sb, gdp, input->block_bitmap); /* LV FIXME */
 	ext4_inode_bitmap_set(sb, gdp, input->inode_bitmap); /* LV FIXME */
@@ -864,6 +865,15 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	gdp->bg_free_inodes_count = cpu_to_le16(EXT4_INODES_PER_GROUP(sb));
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, input->group, gdp);
 
+	/*
+	 * We can allocate memory for mb_alloc based on the new group
+	 * descriptor
+	 */
+	if (test_opt(sb, MBALLOC)) {
+		err = ext4_mb_add_more_groupinfo(sb, input->group, gdp);
+		if (err)
+			goto exit_journal;
+	}
 	/*
 	 * Make the new blocks and inodes valid next.  We do this before
 	 * increasing the group count so that once the group is enabled,
@@ -956,6 +966,8 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	handle_t *handle;
 	int err;
 	unsigned long freed_blocks;
+	ext4_group_t group;
+	struct ext4_group_info *grp;
 
 	/* We don't need to worry about locking wrt other resizers just
 	 * yet: we're going to revalidate es->s_blocks_count after
@@ -987,7 +999,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	}
 
 	/* Handle the remaining blocks in the last group only. */
-	ext4_get_group_no_and_offset(sb, o_blocks_count, NULL, &last);
+	ext4_get_group_no_and_offset(sb, o_blocks_count, &group, &last);
 
 	if (last == 0) {
 		ext4_warning(sb, __func__,
@@ -1059,6 +1071,45 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 		   o_blocks_count + add);
 	if ((err = ext4_journal_stop(handle)))
 		goto exit_put;
+
+	/*
+	 * Mark mballoc pages as not up to date so that they will be updated
+	 * next time they are loaded by ext4_mb_load_buddy.
+	 */
+	if (test_opt(sb, MBALLOC)) {
+		struct ext4_sb_info *sbi = EXT4_SB(sb);
+		struct inode *inode = sbi->s_buddy_cache;
+		int blocks_per_page;
+		int block;
+		int pnum;
+		struct page *page;
+
+		/* Set buddy page as not up to date */
+		blocks_per_page = PAGE_CACHE_SIZE / sb->s_blocksize;
+		block = group * 2;
+		pnum = block / blocks_per_page;
+		page = find_get_page(inode->i_mapping, pnum);
+		if (page != NULL) {
+			ClearPageUptodate(page);
+			page_cache_release(page);
+		}
+
+		/* Set bitmap page as not up to date */
+		block++;
+		pnum = block / blocks_per_page;
+		page = find_get_page(inode->i_mapping, pnum);
+		if (page != NULL) {
+			ClearPageUptodate(page);
+			page_cache_release(page);
+		}
+
+		/* Get the info on the last group */
+		grp = ext4_get_group_info(sb, group);
+
+		/* Update free blocks in group info */
+		ext4_mb_update_group_info(grp, add);
+	}
+
 	if (test_opt(sb, DEBUG))
 		printk(KERN_DEBUG "EXT4-fs: extended group to %llu blocks\n",
 		       ext4_blocks_count(es));

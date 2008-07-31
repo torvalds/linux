@@ -40,6 +40,7 @@
 			timebase-frequency = <0>;		/* From U-boot */
 			bus-frequency = <0>;			/* From U-boot */
 			clock-frequency = <0>;			/* From U-boot */
+			next-level-cache = <&L2>;
 		};
 	};
 
@@ -58,16 +59,16 @@
 		memory-controller@2000 {
 			compatible = "fsl,8540-memory-controller";
 			reg = <0x2000 0x1000>;
-			interrupt-parent = <&MPIC>;
+			interrupt-parent = <&mpic>;
 			interrupts = <0x12 0x2>;
 		};
 
-		l2-cache-controller@20000 {
+		L2: l2-cache-controller@20000 {
 			compatible = "fsl,8540-l2-cache-controller";
 			reg = <0x20000 0x1000>;
 			cache-line-size = <0x20>;		/* 32 bytes */
 			cache-size = <0x40000>;			/* L2, 256K */
-			interrupt-parent = <&MPIC>;
+			interrupt-parent = <&mpic>;
 			interrupts = <0x10 0x2>;
 		};
 
@@ -78,8 +79,49 @@
 			compatible = "fsl-i2c";
 			reg = <0x3000 0x100>;
 			interrupts = <0x2b 0x2>;
-			interrupt-parent = <&MPIC>;
+			interrupt-parent = <&mpic>;
 			dfsrr;
+		};
+
+		dma@21300 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8560-dma", "fsl,eloplus-dma";
+			reg = <0x21300 0x4>;
+			ranges = <0x0 0x21100 0x200>;
+			cell-index = <0>;
+			dma-channel@0 {
+				compatible = "fsl,mpc8560-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x0 0x80>;
+				cell-index = <0>;
+				interrupt-parent = <&mpic>;
+				interrupts = <20 2>;
+			};
+			dma-channel@80 {
+				compatible = "fsl,mpc8560-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x80 0x80>;
+				cell-index = <1>;
+				interrupt-parent = <&mpic>;
+				interrupts = <21 2>;
+			};
+			dma-channel@100 {
+				compatible = "fsl,mpc8560-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x100 0x80>;
+				cell-index = <2>;
+				interrupt-parent = <&mpic>;
+				interrupts = <22 2>;
+			};
+			dma-channel@180 {
+				compatible = "fsl,mpc8560-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x180 0x80>;
+				cell-index = <3>;
+				interrupt-parent = <&mpic>;
+				interrupts = <23 2>;
+			};
 		};
 
 		mdio@24520 {					/* For TSECs */
@@ -89,13 +131,13 @@
 			reg = <0x24520 0x20>;
 
 			PHY1: ethernet-phy@1 {
-				interrupt-parent = <&MPIC>;
+				interrupt-parent = <&mpic>;
 				reg = <0x1>;
 				device_type = "ethernet-phy";
 			};
 
 			PHY2: ethernet-phy@2 {
-				interrupt-parent = <&MPIC>;
+				interrupt-parent = <&mpic>;
 				reg = <0x2>;
 				device_type = "ethernet-phy";
 			};
@@ -109,7 +151,7 @@
 			/* Mac address filled in by bootwrapper */
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <0x1d 0x2 0x1e 0x2 0x22 0x2>;
-			interrupt-parent = <&MPIC>;
+			interrupt-parent = <&mpic>;
 			phy-handle = <&PHY1>;
 		};
 
@@ -121,11 +163,11 @@
 			/* Mac address filled in by bootwrapper */
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <0x23 0x2 0x24 0x2 0x28 0x2>;
-			interrupt-parent = <&MPIC>;
+			interrupt-parent = <&mpic>;
 			phy-handle = <&PHY2>;
 		};
 
-		MPIC: pic@40000 {
+		mpic: pic@40000 {
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			interrupt-controller;
@@ -164,7 +206,7 @@
 				#interrupt-cells = <2>;
 				interrupt-controller;
 				interrupts = <0x2e 0x2>;
-				interrupt-parent = <&MPIC>;
+				interrupt-parent = <&mpic>;
 				reg = <0x90c00 0x80>;
 				compatible = "fsl,mpc8560-cpm-pic", "fsl,cpm2-pic";
 			};
@@ -202,7 +244,7 @@
 				fsl,mdc-pin = <25>;
 
 				PHY0: ethernet-phy@0 {
-					interrupt-parent = <&MPIC>;
+					interrupt-parent = <&mpic>;
 					reg = <0x0>;
 					device_type = "ethernet-phy";
 				};

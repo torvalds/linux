@@ -3,6 +3,8 @@
  *
  * based on isapnp.c resource management (c) Jaroslav Kysela <perex@perex.cz>
  * Copyright 2003 Adam Belay <ambx1@neo.rr.com>
+ * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
+ *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
 #include <linux/module.h>
@@ -28,201 +30,121 @@ static int pnp_reserve_mem[16] = {[0 ... 15] = -1 };	/* reserve (don't use) some
  * option registration
  */
 
-struct pnp_option *pnp_build_option(int priority)
+struct pnp_option *pnp_build_option(struct pnp_dev *dev, unsigned long type,
+				    unsigned int option_flags)
 {
-	struct pnp_option *option = pnp_alloc(sizeof(struct pnp_option));
+	struct pnp_option *option;
 
+	option = kzalloc(sizeof(struct pnp_option), GFP_KERNEL);
 	if (!option)
 		return NULL;
 
-	option->priority = priority & 0xff;
-	/* make sure the priority is valid */
-	if (option->priority > PNP_RES_PRIORITY_FUNCTIONAL)
-		option->priority = PNP_RES_PRIORITY_INVALID;
+	option->flags = option_flags;
+	option->type = type;
 
+	list_add_tail(&option->list, &dev->options);
 	return option;
 }
 
-struct pnp_option *pnp_register_independent_option(struct pnp_dev *dev)
+int pnp_register_irq_resource(struct pnp_dev *dev, unsigned int option_flags,
+			      pnp_irq_mask_t *map, unsigned char flags)
 {
 	struct pnp_option *option;
+	struct pnp_irq *irq;
 
-	option = pnp_build_option(PNP_RES_PRIORITY_PREFERRED);
+	option = pnp_build_option(dev, IORESOURCE_IRQ, option_flags);
+	if (!option)
+		return -ENOMEM;
 
-	/* this should never happen but if it does we'll try to continue */
-	if (dev->independent)
-		dev_err(&dev->dev, "independent resource already registered\n");
-	dev->independent = option;
-
-	dev_dbg(&dev->dev, "new independent option\n");
-	return option;
-}
-
-struct pnp_option *pnp_register_dependent_option(struct pnp_dev *dev,
-						 int priority)
-{
-	struct pnp_option *option;
-
-	option = pnp_build_option(priority);
-
-	if (dev->dependent) {
-		struct pnp_option *parent = dev->dependent;
-		while (parent->next)
-			parent = parent->next;
-		parent->next = option;
-	} else
-		dev->dependent = option;
-
-	dev_dbg(&dev->dev, "new dependent option (priority %#x)\n", priority);
-	return option;
-}
-
-int pnp_register_irq_resource(struct pnp_dev *dev, struct pnp_option *option,
-			      struct pnp_irq *data)
-{
-	struct pnp_irq *ptr;
-#ifdef DEBUG
-	char buf[PNP_IRQ_NR];   /* hex-encoded, so this is overkill but safe */
-#endif
-
-	ptr = option->irq;
-	while (ptr && ptr->next)
-		ptr = ptr->next;
-	if (ptr)
-		ptr->next = data;
-	else
-		option->irq = data;
+	irq = &option->u.irq;
+	irq->map = *map;
+	irq->flags = flags;
 
 #ifdef CONFIG_PCI
 	{
 		int i;
 
 		for (i = 0; i < 16; i++)
-			if (test_bit(i, data->map))
+			if (test_bit(i, irq->map.bits))
 				pcibios_penalize_isa_irq(i, 0);
 	}
 #endif
 
-#ifdef DEBUG
-	bitmap_scnprintf(buf, sizeof(buf), data->map, PNP_IRQ_NR);
-	dev_dbg(&dev->dev, "  irq bitmask %s flags %#x\n", buf,
-		data->flags);
-#endif
+	dbg_pnp_show_option(dev, option);
 	return 0;
 }
 
-int pnp_register_dma_resource(struct pnp_dev *dev, struct pnp_option *option,
-			      struct pnp_dma *data)
+int pnp_register_dma_resource(struct pnp_dev *dev, unsigned int option_flags,
+			      unsigned char map, unsigned char flags)
 {
-	struct pnp_dma *ptr;
+	struct pnp_option *option;
+	struct pnp_dma *dma;
 
-	ptr = option->dma;
-	while (ptr && ptr->next)
-		ptr = ptr->next;
-	if (ptr)
-		ptr->next = data;
-	else
-		option->dma = data;
+	option = pnp_build_option(dev, IORESOURCE_DMA, option_flags);
+	if (!option)
+		return -ENOMEM;
 
-	dev_dbg(&dev->dev, "  dma bitmask %#x flags %#x\n", data->map,
-		data->flags);
+	dma = &option->u.dma;
+	dma->map = map;
+	dma->flags = flags;
+
+	dbg_pnp_show_option(dev, option);
 	return 0;
 }
 
-int pnp_register_port_resource(struct pnp_dev *dev, struct pnp_option *option,
-			       struct pnp_port *data)
+int pnp_register_port_resource(struct pnp_dev *dev, unsigned int option_flags,
+			       resource_size_t min, resource_size_t max,
+			       resource_size_t align, resource_size_t size,
+			       unsigned char flags)
 {
-	struct pnp_port *ptr;
+	struct pnp_option *option;
+	struct pnp_port *port;
 
-	ptr = option->port;
-	while (ptr && ptr->next)
-		ptr = ptr->next;
-	if (ptr)
-		ptr->next = data;
-	else
-		option->port = data;
+	option = pnp_build_option(dev, IORESOURCE_IO, option_flags);
+	if (!option)
+		return -ENOMEM;
 
-	dev_dbg(&dev->dev, "  io  "
-		"min %#x max %#x align %d size %d flags %#x\n",
-		data->min, data->max, data->align, data->size, data->flags);
+	port = &option->u.port;
+	port->min = min;
+	port->max = max;
+	port->align = align;
+	port->size = size;
+	port->flags = flags;
+
+	dbg_pnp_show_option(dev, option);
 	return 0;
 }
 
-int pnp_register_mem_resource(struct pnp_dev *dev, struct pnp_option *option,
-			      struct pnp_mem *data)
+int pnp_register_mem_resource(struct pnp_dev *dev, unsigned int option_flags,
+			      resource_size_t min, resource_size_t max,
+			      resource_size_t align, resource_size_t size,
+			      unsigned char flags)
 {
-	struct pnp_mem *ptr;
+	struct pnp_option *option;
+	struct pnp_mem *mem;
 
-	ptr = option->mem;
-	while (ptr && ptr->next)
-		ptr = ptr->next;
-	if (ptr)
-		ptr->next = data;
-	else
-		option->mem = data;
+	option = pnp_build_option(dev, IORESOURCE_MEM, option_flags);
+	if (!option)
+		return -ENOMEM;
 
-	dev_dbg(&dev->dev, "  mem "
-		"min %#x max %#x align %d size %d flags %#x\n",
-		data->min, data->max, data->align, data->size, data->flags);
+	mem = &option->u.mem;
+	mem->min = min;
+	mem->max = max;
+	mem->align = align;
+	mem->size = size;
+	mem->flags = flags;
+
+	dbg_pnp_show_option(dev, option);
 	return 0;
 }
 
-static void pnp_free_port(struct pnp_port *port)
+void pnp_free_options(struct pnp_dev *dev)
 {
-	struct pnp_port *next;
+	struct pnp_option *option, *tmp;
 
-	while (port) {
-		next = port->next;
-		kfree(port);
-		port = next;
-	}
-}
-
-static void pnp_free_irq(struct pnp_irq *irq)
-{
-	struct pnp_irq *next;
-
-	while (irq) {
-		next = irq->next;
-		kfree(irq);
-		irq = next;
-	}
-}
-
-static void pnp_free_dma(struct pnp_dma *dma)
-{
-	struct pnp_dma *next;
-
-	while (dma) {
-		next = dma->next;
-		kfree(dma);
-		dma = next;
-	}
-}
-
-static void pnp_free_mem(struct pnp_mem *mem)
-{
-	struct pnp_mem *next;
-
-	while (mem) {
-		next = mem->next;
-		kfree(mem);
-		mem = next;
-	}
-}
-
-void pnp_free_option(struct pnp_option *option)
-{
-	struct pnp_option *next;
-
-	while (option) {
-		next = option->next;
-		pnp_free_port(option->port);
-		pnp_free_irq(option->irq);
-		pnp_free_dma(option->dma);
-		pnp_free_mem(option->mem);
+	list_for_each_entry_safe(option, tmp, &dev->options, list) {
+		list_del(&option->list);
 		kfree(option);
-		option = next;
 	}
 }
 
@@ -237,7 +159,7 @@ void pnp_free_option(struct pnp_option *option)
 	!((*(enda) < *(startb)) || (*(endb) < *(starta)))
 
 #define cannot_compare(flags) \
-((flags) & (IORESOURCE_UNSET | IORESOURCE_DISABLED))
+((flags) & IORESOURCE_DISABLED)
 
 int pnp_check_port(struct pnp_dev *dev, struct resource *res)
 {
@@ -364,6 +286,61 @@ static irqreturn_t pnp_test_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_PCI
+static int pci_dev_uses_irq(struct pnp_dev *pnp, struct pci_dev *pci,
+			    unsigned int irq)
+{
+	u32 class;
+	u8 progif;
+
+	if (pci->irq == irq) {
+		dev_dbg(&pnp->dev, "device %s using irq %d\n",
+			pci_name(pci), irq);
+		return 1;
+	}
+
+	/*
+	 * See pci_setup_device() and ata_pci_sff_activate_host() for
+	 * similar IDE legacy detection.
+	 */
+	pci_read_config_dword(pci, PCI_CLASS_REVISION, &class);
+	class >>= 8;		/* discard revision ID */
+	progif = class & 0xff;
+	class >>= 8;
+
+	if (class == PCI_CLASS_STORAGE_IDE) {
+		/*
+		 * Unless both channels are native-PCI mode only,
+		 * treat the compatibility IRQs as busy.
+		 */
+		if ((progif & 0x5) != 0x5)
+			if (pci_get_legacy_ide_irq(pci, 0) == irq ||
+			    pci_get_legacy_ide_irq(pci, 1) == irq) {
+				dev_dbg(&pnp->dev, "legacy IDE device %s "
+					"using irq %d\n", pci_name(pci), irq);
+				return 1;
+			}
+	}
+
+	return 0;
+}
+#endif
+
+static int pci_uses_irq(struct pnp_dev *pnp, unsigned int irq)
+{
+#ifdef CONFIG_PCI
+	struct pci_dev *pci = NULL;
+
+	for_each_pci_dev(pci) {
+		if (pci_dev_uses_irq(pnp, pci, irq)) {
+			pci_dev_put(pci);
+			return 1;
+		}
+	}
+#endif
+	return 0;
+}
+
 int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 {
 	int i;
@@ -395,18 +372,9 @@ int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 		}
 	}
 
-#ifdef CONFIG_PCI
 	/* check if the resource is being used by a pci device */
-	{
-		struct pci_dev *pci = NULL;
-		for_each_pci_dev(pci) {
-			if (pci->irq == *irq) {
-				pci_dev_put(pci);
-				return 0;
-			}
-		}
-	}
-#endif
+	if (pci_uses_irq(dev, *irq))
+		return 0;
 
 	/* check if the resource is already in use, skip if the
 	 * device is active because it itself may be in use */
@@ -499,81 +467,37 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 #endif
 }
 
-struct pnp_resource *pnp_get_pnp_resource(struct pnp_dev *dev,
-					  unsigned int type, unsigned int num)
+int pnp_resource_type(struct resource *res)
 {
-	struct pnp_resource_table *res = dev->res;
-
-	switch (type) {
-	case IORESOURCE_IO:
-		if (num >= PNP_MAX_PORT)
-			return NULL;
-		return &res->port[num];
-	case IORESOURCE_MEM:
-		if (num >= PNP_MAX_MEM)
-			return NULL;
-		return &res->mem[num];
-	case IORESOURCE_IRQ:
-		if (num >= PNP_MAX_IRQ)
-			return NULL;
-		return &res->irq[num];
-	case IORESOURCE_DMA:
-		if (num >= PNP_MAX_DMA)
-			return NULL;
-		return &res->dma[num];
-	}
-	return NULL;
+	return res->flags & (IORESOURCE_IO  | IORESOURCE_MEM |
+			     IORESOURCE_IRQ | IORESOURCE_DMA);
 }
 
 struct resource *pnp_get_resource(struct pnp_dev *dev,
 				  unsigned int type, unsigned int num)
 {
 	struct pnp_resource *pnp_res;
+	struct resource *res;
 
-	pnp_res = pnp_get_pnp_resource(dev, type, num);
-	if (pnp_res)
-		return &pnp_res->res;
-
+	list_for_each_entry(pnp_res, &dev->resources, list) {
+		res = &pnp_res->res;
+		if (pnp_resource_type(res) == type && num-- == 0)
+			return res;
+	}
 	return NULL;
 }
 EXPORT_SYMBOL(pnp_get_resource);
 
-static struct pnp_resource *pnp_new_resource(struct pnp_dev *dev, int type)
+static struct pnp_resource *pnp_new_resource(struct pnp_dev *dev)
 {
 	struct pnp_resource *pnp_res;
-	int i;
 
-	switch (type) {
-	case IORESOURCE_IO:
-		for (i = 0; i < PNP_MAX_PORT; i++) {
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_IO, i);
-			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
-				return pnp_res;
-		}
-		break;
-	case IORESOURCE_MEM:
-		for (i = 0; i < PNP_MAX_MEM; i++) {
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_MEM, i);
-			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
-				return pnp_res;
-		}
-		break;
-	case IORESOURCE_IRQ:
-		for (i = 0; i < PNP_MAX_IRQ; i++) {
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_IRQ, i);
-			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
-				return pnp_res;
-		}
-		break;
-	case IORESOURCE_DMA:
-		for (i = 0; i < PNP_MAX_DMA; i++) {
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_DMA, i);
-			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
-				return pnp_res;
-		}
-		break;
-	}
-	return NULL;
+	pnp_res = kzalloc(sizeof(struct pnp_resource), GFP_KERNEL);
+	if (!pnp_res)
+		return NULL;
+
+	list_add_tail(&pnp_res->list, &dev->resources);
+	return pnp_res;
 }
 
 struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
@@ -581,15 +505,10 @@ struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
 {
 	struct pnp_resource *pnp_res;
 	struct resource *res;
-	static unsigned char warned;
 
-	pnp_res = pnp_new_resource(dev, IORESOURCE_IRQ);
+	pnp_res = pnp_new_resource(dev);
 	if (!pnp_res) {
-		if (!warned) {
-			dev_err(&dev->dev, "can't add resource for IRQ %d\n",
-				irq);
-			warned = 1;
-		}
+		dev_err(&dev->dev, "can't add resource for IRQ %d\n", irq);
 		return NULL;
 	}
 
@@ -607,15 +526,10 @@ struct pnp_resource *pnp_add_dma_resource(struct pnp_dev *dev, int dma,
 {
 	struct pnp_resource *pnp_res;
 	struct resource *res;
-	static unsigned char warned;
 
-	pnp_res = pnp_new_resource(dev, IORESOURCE_DMA);
+	pnp_res = pnp_new_resource(dev);
 	if (!pnp_res) {
-		if (!warned) {
-			dev_err(&dev->dev, "can't add resource for DMA %d\n",
-				dma);
-			warned = 1;
-		}
+		dev_err(&dev->dev, "can't add resource for DMA %d\n", dma);
 		return NULL;
 	}
 
@@ -634,16 +548,12 @@ struct pnp_resource *pnp_add_io_resource(struct pnp_dev *dev,
 {
 	struct pnp_resource *pnp_res;
 	struct resource *res;
-	static unsigned char warned;
 
-	pnp_res = pnp_new_resource(dev, IORESOURCE_IO);
+	pnp_res = pnp_new_resource(dev);
 	if (!pnp_res) {
-		if (!warned) {
-			dev_err(&dev->dev, "can't add resource for IO "
-				"%#llx-%#llx\n",(unsigned long long) start,
-				(unsigned long long) end);
-			warned = 1;
-		}
+		dev_err(&dev->dev, "can't add resource for IO %#llx-%#llx\n",
+			(unsigned long long) start,
+			(unsigned long long) end);
 		return NULL;
 	}
 
@@ -663,16 +573,12 @@ struct pnp_resource *pnp_add_mem_resource(struct pnp_dev *dev,
 {
 	struct pnp_resource *pnp_res;
 	struct resource *res;
-	static unsigned char warned;
 
-	pnp_res = pnp_new_resource(dev, IORESOURCE_MEM);
+	pnp_res = pnp_new_resource(dev);
 	if (!pnp_res) {
-		if (!warned) {
-			dev_err(&dev->dev, "can't add resource for MEM "
-				"%#llx-%#llx\n",(unsigned long long) start,
-				(unsigned long long) end);
-			warned = 1;
-		}
+		dev_err(&dev->dev, "can't add resource for MEM %#llx-%#llx\n",
+			(unsigned long long) start,
+			(unsigned long long) end);
 		return NULL;
 	}
 
@@ -685,6 +591,52 @@ struct pnp_resource *pnp_add_mem_resource(struct pnp_dev *dev,
 		(unsigned long long) start, (unsigned long long) end, flags);
 	return pnp_res;
 }
+
+/*
+ * Determine whether the specified resource is a possible configuration
+ * for this device.
+ */
+int pnp_possible_config(struct pnp_dev *dev, int type, resource_size_t start,
+			resource_size_t size)
+{
+	struct pnp_option *option;
+	struct pnp_port *port;
+	struct pnp_mem *mem;
+	struct pnp_irq *irq;
+	struct pnp_dma *dma;
+
+	list_for_each_entry(option, &dev->options, list) {
+		if (option->type != type)
+			continue;
+
+		switch (option->type) {
+		case IORESOURCE_IO:
+			port = &option->u.port;
+			if (port->min == start && port->size == size)
+				return 1;
+			break;
+		case IORESOURCE_MEM:
+			mem = &option->u.mem;
+			if (mem->min == start && mem->size == size)
+				return 1;
+			break;
+		case IORESOURCE_IRQ:
+			irq = &option->u.irq;
+			if (start < PNP_IRQ_NR &&
+			    test_bit(start, irq->map.bits))
+				return 1;
+			break;
+		case IORESOURCE_DMA:
+			dma = &option->u.dma;
+			if (dma->map & (1 << start))
+				return 1;
+			break;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(pnp_possible_config);
 
 /* format is: pnp_reserve_irq=irq1[,irq2] .... */
 static int __init pnp_setup_reserve_irq(char *str)

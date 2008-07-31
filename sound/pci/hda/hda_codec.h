@@ -78,7 +78,7 @@ enum {
 #define AC_VERB_GET_BEEP_CONTROL		0x0f0a
 #define AC_VERB_GET_EAPD_BTLENABLE		0x0f0c
 #define AC_VERB_GET_DIGI_CONVERT_1		0x0f0d
-#define AC_VERB_GET_DIGI_CONVERT_2		0x0f0e
+#define AC_VERB_GET_DIGI_CONVERT_2		0x0f0e /* unused */
 #define AC_VERB_GET_VOLUME_KNOB_CONTROL		0x0f0f
 /* f10-f1a: GPIO */
 #define AC_VERB_GET_GPIO_DATA			0x0f15

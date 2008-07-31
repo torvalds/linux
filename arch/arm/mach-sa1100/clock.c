@@ -103,7 +103,7 @@ static void clk_gpio27_disable(void)
 }
 
 static struct clk clk_gpio27 = {
-	.name		= "GPIO27_CLK",
+	.name		= "SA1111_CLK",
 	.rate		= 3686400,
 	.enable		= clk_gpio27_enable,
 	.disable	= clk_gpio27_disable,

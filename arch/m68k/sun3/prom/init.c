@@ -1,4 +1,4 @@
-/* $Id: init.c,v 1.9 1996/12/18 06:46:55 tridge Exp $
+/*
  * init.c:  Initialize internal variables used by the PROM
  *          library functions.
  *
@@ -31,11 +31,6 @@ extern void prom_ranges_init(void);
 
 void __init prom_init(struct linux_romvec *rp)
 {
-#ifdef CONFIG_AP1000
-	extern struct linux_romvec *ap_prom_init(void);
-	rp = ap_prom_init();
-#endif
-
 	romvec = rp;
 #ifndef CONFIG_SUN3
 	switch(romvec->pv_romvers) {
@@ -53,10 +48,6 @@ void __init prom_init(struct linux_romvec *rp)
 		prom_printf("PROMLIB: Sun IEEE Prom not supported yet\n");
 		prom_halt();
 		break;
-	case 42: /* why not :-) */
-		prom_vers = PROM_AP1000;
-		break;
-
 	default:
 		prom_printf("PROMLIB: Bad PROM version %d\n",
 			    romvec->pv_romvers);

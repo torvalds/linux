@@ -29,8 +29,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: mthca_eq.c 1382 2004-12-24 02:21:02Z roland $
  */
 
 #include <linux/errno.h>
@@ -782,7 +780,7 @@ int mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt)
 		return -ENOMEM;
 	dev->eq_table.icm_dma  = pci_map_page(dev->pdev, dev->eq_table.icm_page, 0,
 					      PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(dev->eq_table.icm_dma)) {
+	if (pci_dma_mapping_error(dev->pdev, dev->eq_table.icm_dma)) {
 		__free_page(dev->eq_table.icm_page);
 		return -ENOMEM;
 	}

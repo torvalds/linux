@@ -21,6 +21,8 @@
 #include <asm/dma.h>
 #include <asm/ecard.h>
 
+#define DRV_NAME "icside"
+
 #define ICS_IDENT_OFFSET		0x2280
 
 #define ICS_ARCIN_V5_INTRSTAT		0x0000
@@ -68,8 +70,9 @@ struct icside_state {
 	unsigned int enabled;
 	void __iomem *irq_port;
 	void __iomem *ioc_base;
+	unsigned int sel;
 	unsigned int type;
-	ide_hwif_t *hwif[2];
+	struct ide_host *host;
 };
 
 #define ICS_TYPE_A3IN	0
@@ -165,7 +168,8 @@ static const expansioncard_ops_t icside_ops_arcin_v6 = {
 static void icside_maskproc(ide_drive_t *drive, int mask)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	struct icside_state *state = hwif->hwif_data;
+	struct expansion_card *ec = ECARD_DEV(hwif->dev);
+	struct icside_state *state = ecard_get_drvdata(ec);
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -308,6 +312,7 @@ static int icside_dma_setup(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
+	struct icside_state *state = ecard_get_drvdata(ec);
 	struct request *rq = hwif->hwgroup->rq;
 	unsigned int dma_mode;
 
@@ -331,7 +336,7 @@ static int icside_dma_setup(ide_drive_t *drive)
 	/*
 	 * Route the DMA signals to the correct interface.
 	 */
-	writeb(hwif->select_data, hwif->config_data);
+	writeb(state->sel | hwif->channel, state->ioc_base);
 
 	/*
 	 * Select the correct timing for this drive.
@@ -359,7 +364,8 @@ static void icside_dma_exec_cmd(ide_drive_t *drive, u8 cmd)
 static int icside_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	struct icside_state *state = hwif->hwif_data;
+	struct expansion_card *ec = ECARD_DEV(hwif->dev);
+	struct icside_state *state = ecard_get_drvdata(ec);
 
 	return readb(state->irq_port +
 		     (hwif->channel ?
@@ -369,12 +375,14 @@ static int icside_dma_test_irq(ide_drive_t *drive)
 
 static void icside_dma_timeout(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
+
 	printk(KERN_ERR "%s: DMA timeout occurred: ", drive->name);
 
 	if (icside_dma_test_irq(drive))
 		return;
 
-	ide_dump_status(drive, "DMA timeout", ide_read_status(drive));
+	ide_dump_status(drive, "DMA timeout", hwif->tp_ops->read_status(hwif));
 
 	icside_dma_end(drive);
 }
@@ -411,44 +419,33 @@ static int icside_dma_off_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 	return -EOPNOTSUPP;
 }
 
-static ide_hwif_t *
-icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *ec)
+static void icside_setup_ports(hw_regs_t *hw, void __iomem *base,
+			       struct cardinfo *info, struct expansion_card *ec)
 {
 	unsigned long port = (unsigned long)base + info->dataoffset;
-	ide_hwif_t *hwif;
 
-	hwif = ide_find_port();
-	if (hwif) {
-		/*
-		 * Ensure we're using MMIO
-		 */
-		default_hwif_mmiops(hwif);
+	hw->io_ports.data_addr	 = port;
+	hw->io_ports.error_addr	 = port + (1 << info->stepping);
+	hw->io_ports.nsect_addr	 = port + (2 << info->stepping);
+	hw->io_ports.lbal_addr	 = port + (3 << info->stepping);
+	hw->io_ports.lbam_addr	 = port + (4 << info->stepping);
+	hw->io_ports.lbah_addr	 = port + (5 << info->stepping);
+	hw->io_ports.device_addr = port + (6 << info->stepping);
+	hw->io_ports.status_addr = port + (7 << info->stepping);
+	hw->io_ports.ctl_addr	 = (unsigned long)base + info->ctrloffset;
 
-		hwif->io_ports.data_addr = port;
-		hwif->io_ports.error_addr = port + (1 << info->stepping);
-		hwif->io_ports.nsect_addr = port + (2 << info->stepping);
-		hwif->io_ports.lbal_addr = port + (3 << info->stepping);
-		hwif->io_ports.lbam_addr = port + (4 << info->stepping);
-		hwif->io_ports.lbah_addr = port + (5 << info->stepping);
-		hwif->io_ports.device_addr = port + (6 << info->stepping);
-		hwif->io_ports.status_addr = port + (7 << info->stepping);
-		hwif->io_ports.ctl_addr =
-			(unsigned long)base + info->ctrloffset;
-		hwif->irq     = ec->irq;
-		hwif->chipset = ide_acorn;
-		hwif->gendev.parent = &ec->dev;
-		hwif->dev = &ec->dev;
-	}
-
-	return hwif;
+	hw->irq = ec->irq;
+	hw->dev = &ec->dev;
+	hw->chipset = ide_acorn;
 }
 
 static int __init
 icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 {
-	ide_hwif_t *hwif;
 	void __iomem *base;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	struct ide_host *host;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	int ret;
 
 	base = ecardm_iomap(ec, ECARD_RES_MEMC, 0, 0);
 	if (!base)
@@ -466,17 +463,25 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 	 */
 	icside_irqdisable_arcin_v5(ec, 0);
 
-	hwif = icside_setup(base, &icside_cardinfo_v5, ec);
-	if (!hwif)
+	icside_setup_ports(&hw, base, &icside_cardinfo_v5, ec);
+
+	host = ide_host_alloc(NULL, hws);
+	if (host == NULL)
 		return -ENODEV;
 
-	state->hwif[0] = hwif;
+	state->host = host;
 
-	idx[0] = hwif->index;
+	ecard_set_drvdata(ec, state);
 
-	ide_device_add(idx, NULL);
+	ret = ide_host_register(host, NULL, hws);
+	if (ret)
+		goto err_free;
 
 	return 0;
+err_free:
+	ide_host_free(host);
+	ecard_set_drvdata(ec, NULL);
+	return ret;
 }
 
 static const struct ide_port_info icside_v6_port_info __initdata = {
@@ -491,11 +496,11 @@ static const struct ide_port_info icside_v6_port_info __initdata = {
 static int __init
 icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 {
-	ide_hwif_t *hwif, *mate;
 	void __iomem *ioc_base, *easi_base;
+	struct ide_host *host;
 	unsigned int sel = 0;
 	int ret;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw[2], *hws[] = { &hw[0], NULL, NULL, NULL };
 	struct ide_port_info d = icside_v6_port_info;
 
 	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
@@ -525,48 +530,41 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 
 	state->irq_port   = easi_base;
 	state->ioc_base   = ioc_base;
+	state->sel	  = sel;
 
 	/*
 	 * Be on the safe side - disable interrupts
 	 */
 	icside_irqdisable_arcin_v6(ec, 0);
 
-	/*
-	 * Find and register the interfaces.
-	 */
-	hwif = icside_setup(easi_base, &icside_cardinfo_v6_1, ec);
-	mate = icside_setup(easi_base, &icside_cardinfo_v6_2, ec);
+	icside_setup_ports(&hw[0], easi_base, &icside_cardinfo_v6_1, ec);
+	icside_setup_ports(&hw[1], easi_base, &icside_cardinfo_v6_2, ec);
 
-	if (!hwif || !mate) {
-		ret = -ENODEV;
-		goto out;
-	}
+	host = ide_host_alloc(&d, hws);
+	if (host == NULL)
+		return -ENODEV;
 
-	state->hwif[0]    = hwif;
-	state->hwif[1]    = mate;
+	state->host = host;
 
-	hwif->hwif_data   = state;
-	hwif->config_data = (unsigned long)ioc_base;
-	hwif->select_data = sel;
+	ecard_set_drvdata(ec, state);
 
-	mate->hwif_data   = state;
-	mate->config_data = (unsigned long)ioc_base;
-	mate->select_data = sel | 1;
-
-	if (ec->dma != NO_DMA && !request_dma(ec->dma, hwif->name)) {
+	if (ec->dma != NO_DMA && !request_dma(ec->dma, DRV_NAME)) {
 		d.init_dma = icside_dma_init;
 		d.port_ops = &icside_v6_port_ops;
 		d.dma_ops = NULL;
 	}
 
-	idx[0] = hwif->index;
-	idx[1] = mate->index;
-
-	ide_device_add(idx, &d);
+	ret = ide_host_register(host, NULL, hws);
+	if (ret)
+		goto err_free;
 
 	return 0;
-
- out:
+err_free:
+	ide_host_free(host);
+	if (d.dma_ops)
+		free_dma(ec->dma);
+	ecard_set_drvdata(ec, NULL);
+out:
 	return ret;
 }
 
@@ -627,10 +625,8 @@ icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 		break;
 	}
 
-	if (ret == 0) {
-		ecard_set_drvdata(ec, state);
+	if (ret == 0)
 		goto out;
-	}
 
 	kfree(state);
  release:
@@ -714,8 +710,14 @@ static int __init icside_init(void)
 	return ecard_register_driver(&icside_driver);
 }
 
+static void __exit icside_exit(void);
+{
+	ecard_unregister_driver(&icside_driver);
+}
+
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ICS IDE driver");
 
 module_init(icside_init);
+module_exit(icside_exit);

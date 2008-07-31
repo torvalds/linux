@@ -49,6 +49,7 @@
 #define DMA_RX_YCOUNT		(PAGE_SIZE / DMA_RX_XCOUNT)
 
 #define DMA_RX_FLUSH_JIFFIES	(HZ / 50)
+#define CTS_CHECK_JIFFIES	(HZ / 50)
 
 #ifdef CONFIG_SERIAL_BFIN_DMA
 static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart);
@@ -174,7 +175,7 @@ int kgdb_get_debug_char(void)
 #ifdef CONFIG_SERIAL_BFIN_PIO
 static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 {
-	struct tty_struct *tty = uart->port.info->tty;
+	struct tty_struct *tty = uart->port.info->port.tty;
 	unsigned int status, ch, flg;
 	static struct timeval anomaly_start = { .tv_sec = 0 };
 
@@ -290,11 +291,6 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 {
 	struct circ_buf *xmit = &uart->port.info->xmit;
 
-	if (uart->port.x_char) {
-		UART_PUT_CHAR(uart, uart->port.x_char);
-		uart->port.icount.tx++;
-		uart->port.x_char = 0;
-	}
 	/*
 	 * Check the modem control lines before
 	 * transmitting anything.
@@ -304,6 +300,12 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&uart->port)) {
 		bfin_serial_stop_tx(&uart->port);
 		return;
+	}
+
+	if (uart->port.x_char) {
+		UART_PUT_CHAR(uart, uart->port.x_char);
+		uart->port.icount.tx++;
+		uart->port.x_char = 0;
 	}
 
 	while ((UART_GET_LSR(uart) & THRE) && xmit->tail != xmit->head) {
@@ -345,21 +347,18 @@ static irqreturn_t bfin_serial_tx_int(int irq, void *dev_id)
 }
 #endif
 
-#ifdef CONFIG_SERIAL_BFIN_CTSRTS
-static void bfin_serial_do_work(struct work_struct *work)
-{
-	struct bfin_serial_port *uart = container_of(work, struct bfin_serial_port, cts_workqueue);
-
-	bfin_serial_mctrl_check(uart);
-}
-#endif
-
 #ifdef CONFIG_SERIAL_BFIN_DMA
 static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 {
 	struct circ_buf *xmit = &uart->port.info->xmit;
 
 	uart->tx_done = 0;
+
+	/*
+	 * Check the modem control lines before
+	 * transmitting anything.
+	 */
+	bfin_serial_mctrl_check(uart);
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&uart->port)) {
 		uart->tx_count = 0;
@@ -372,12 +371,6 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 		uart->port.icount.tx++;
 		uart->port.x_char = 0;
 	}
-
-	/*
-	 * Check the modem control lines before
-	 * transmitting anything.
-	 */
-	bfin_serial_mctrl_check(uart);
 
 	uart->tx_count = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
 	if (uart->tx_count > (UART_XMIT_SIZE - xmit->tail))
@@ -400,7 +393,7 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 
 static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 {
-	struct tty_struct *tty = uart->port.info->tty;
+	struct tty_struct *tty = uart->port.info->port.tty;
 	int i, flg, status;
 
 	status = UART_GET_LSR(uart);
@@ -559,13 +552,16 @@ static void bfin_serial_mctrl_check(struct bfin_serial_port *uart)
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
 	unsigned int status;
 	struct uart_info *info = uart->port.info;
-	struct tty_struct *tty = info->tty;
+	struct tty_struct *tty = info->port.tty;
 
 	status = bfin_serial_get_mctrl(&uart->port);
 	uart_handle_cts_change(&uart->port, status & TIOCM_CTS);
 	if (!(status & TIOCM_CTS)) {
 		tty->hw_stopped = 1;
-		schedule_work(&uart->cts_workqueue);
+		uart->cts_timer.data = (unsigned long)(uart);
+		uart->cts_timer.function = (void *)bfin_serial_mctrl_check;
+		uart->cts_timer.expires = jiffies + CTS_CHECK_JIFFIES;
+		add_timer(&(uart->cts_timer));
 	} else {
 		tty->hw_stopped = 0;
 	}
@@ -818,10 +814,10 @@ static void bfin_serial_set_ldisc(struct uart_port *port)
 	int line = port->line;
 	unsigned short val;
 
-	if (line >= port->info->tty->driver->num)
+	if (line >= port->info->port.tty->driver->num)
 		return;
 
-	switch (port->info->tty->ldisc.num) {
+	switch (port->info->port.tty->ldisc.num) {
 	case N_IRDA:
 		val = UART_GET_GCTL(&bfin_serial_ports[line]);
 		val |= (IREN | RPOLC);
@@ -885,7 +881,7 @@ static void __init bfin_serial_init_ports(void)
 		init_timer(&(bfin_serial_ports[i].rx_dma_timer));
 #endif
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
-		INIT_WORK(&bfin_serial_ports[i].cts_workqueue, bfin_serial_do_work);
+		init_timer(&(bfin_serial_ports[i].cts_timer));
 		bfin_serial_ports[i].cts_pin	    =
 			bfin_serial_resource[i].uart_cts_pin;
 		bfin_serial_ports[i].rts_pin	    =

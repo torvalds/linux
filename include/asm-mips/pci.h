@@ -172,4 +172,6 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 	return channel ? 15 : 14;
 }
 
+extern int pci_probe_only;
+
 #endif /* _ASM_PCI_H */

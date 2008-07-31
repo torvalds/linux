@@ -22,18 +22,18 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define ACER_WMI_VERSION	"0.1"
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/dmi.h>
+#include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/i8042.h>
+#include <linux/debugfs.h>
 
 #include <acpi/acpi_drivers.h>
 
@@ -87,6 +87,7 @@ struct acer_quirks {
  * Acer ACPI method GUIDs
  */
 #define AMW0_GUID1		"67C3371D-95A3-4C37-BB61-DD47B491DAAB"
+#define AMW0_GUID2		"431F16ED-0C2B-444C-B267-27DEB140CF9C"
 #define WMID_GUID1		"6AF4F258-B401-42fd-BE91-3D4AC2D7C0D3"
 #define WMID_GUID2		"95764E09-FB56-4e83-B31A-37761F60994A"
 
@@ -150,6 +151,12 @@ struct acer_data {
 	int brightness;
 };
 
+struct acer_debug {
+	struct dentry *root;
+	struct dentry *devices;
+	u32 wmid_devices;
+};
+
 /* Each low-level interface must define at least some of the following */
 struct wmi_interface {
 	/* The WMI device type */
@@ -160,6 +167,9 @@ struct wmi_interface {
 
 	/* Private data for the current interface */
 	struct acer_data data;
+
+	/* debugfs entries associated with this interface */
+	struct acer_debug debug;
 };
 
 /* The static interface pointer, points to the currently detected interface */
@@ -174,7 +184,7 @@ static struct wmi_interface *interface;
 struct quirk_entry {
 	u8 wireless;
 	u8 mailled;
-	u8 brightness;
+	s8 brightness;
 	u8 bluetooth;
 };
 
@@ -198,6 +208,10 @@ static int dmi_matched(const struct dmi_system_id *dmi)
 static struct quirk_entry quirk_unknown = {
 };
 
+static struct quirk_entry quirk_acer_aspire_1520 = {
+	.brightness = -1,
+};
+
 static struct quirk_entry quirk_acer_travelmate_2490 = {
 	.mailled = 1,
 };
@@ -207,7 +221,29 @@ static struct quirk_entry quirk_medion_md_98300 = {
 	.wireless = 1,
 };
 
+static struct quirk_entry quirk_fujitsu_amilo_li_1718 = {
+	.wireless = 2,
+};
+
 static struct dmi_system_id acer_quirks[] = {
+	{
+		.callback = dmi_matched,
+		.ident = "Acer Aspire 1360",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1360"),
+		},
+		.driver_data = &quirk_acer_aspire_1520,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Acer Aspire 1520",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1520"),
+		},
+		.driver_data = &quirk_acer_aspire_1520,
+	},
 	{
 		.callback = dmi_matched,
 		.ident = "Acer Aspire 3100",
@@ -300,6 +336,15 @@ static struct dmi_system_id acer_quirks[] = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Fujitsu Siemens Amilo Li 1718",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Li 1718"),
+		},
+		.driver_data = &quirk_fujitsu_amilo_li_1718,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Medion MD 98300",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
@@ -389,6 +434,12 @@ struct wmi_interface *iface)
 		switch (quirks->wireless) {
 		case 1:
 			err = ec_read(0x7B, &result);
+			if (err)
+				return AE_ERROR;
+			*value = result & 0x1;
+			return AE_OK;
+		case 2:
+			err = ec_read(0x71, &result);
 			if (err)
 				return AE_ERROR;
 			*value = result & 0x1;
@@ -506,6 +557,15 @@ static acpi_status AMW0_set_capabilities(void)
 	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
 
+	/*
+	 * On laptops with this strange GUID (non Acer), normal probing doesn't
+	 * work.
+	 */
+	if (wmi_has_guid(AMW0_GUID2)) {
+		interface->capability |= ACER_CAP_WIRELESS;
+		return AE_OK;
+	}
+
 	args.eax = ACER_AMW0_WRITE;
 	args.ecx = args.edx = 0;
 
@@ -552,7 +612,8 @@ static acpi_status AMW0_set_capabilities(void)
 	 * appear to use the same EC register for brightness, even if they
 	 * differ for wireless, etc
 	 */
-	interface->capability |= ACER_CAP_BRIGHTNESS;
+	if (quirks->brightness >= 0)
+		interface->capability |= ACER_CAP_BRIGHTNESS;
 
 	return AE_OK;
 }
@@ -807,7 +868,15 @@ static int read_brightness(struct backlight_device *bd)
 
 static int update_bl_status(struct backlight_device *bd)
 {
-	set_u32(bd->props.brightness, ACER_CAP_BRIGHTNESS);
+	int intensity = bd->props.brightness;
+
+	if (bd->props.power != FB_BLANK_UNBLANK)
+		intensity = 0;
+	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
+		intensity = 0;
+
+	set_u32(intensity, ACER_CAP_BRIGHTNESS);
+
 	return 0;
 }
 
@@ -829,8 +898,9 @@ static int __devinit acer_backlight_init(struct device *dev)
 
 	acer_backlight_device = bd;
 
+	bd->props.power = FB_BLANK_UNBLANK;
+	bd->props.brightness = max_brightness;
 	bd->props.max_brightness = max_brightness;
-	bd->props.brightness = read_brightness(NULL);
 	backlight_update_status(bd);
 	return 0;
 }
@@ -892,6 +962,28 @@ static ssize_t show_interface(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(interface, S_IWUGO | S_IRUGO | S_IWUSR,
 	show_interface, NULL);
+
+/*
+ * debugfs functions
+ */
+static u32 get_wmid_devices(void)
+{
+	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object *obj;
+	acpi_status status;
+
+	status = wmi_query_block(WMID_GUID2, 1, &out);
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	obj = (union acpi_object *) out.pointer;
+	if (obj && obj->type == ACPI_TYPE_BUFFER &&
+		obj->buffer.length == sizeof(u32)) {
+		return *((u32 *) obj->buffer.pointer);
+	} else {
+		return 0;
+	}
+}
 
 /*
  * Platform device
@@ -1052,12 +1144,40 @@ error_sysfs:
 	return retval;
 }
 
+static void remove_debugfs(void)
+{
+	debugfs_remove(interface->debug.devices);
+	debugfs_remove(interface->debug.root);
+}
+
+static int create_debugfs(void)
+{
+	interface->debug.root = debugfs_create_dir("acer-wmi", NULL);
+	if (!interface->debug.root) {
+		printk(ACER_ERR "Failed to create debugfs directory");
+		return -ENOMEM;
+	}
+
+	interface->debug.devices = debugfs_create_u32("devices", S_IRUGO,
+					interface->debug.root,
+					&interface->debug.wmid_devices);
+	if (!interface->debug.devices)
+		goto error_debugfs;
+
+	return 0;
+
+error_debugfs:
+		remove_debugfs();
+	return -ENOMEM;
+}
+
 static int __init acer_wmi_init(void)
 {
 	int err;
 
-	printk(ACER_INFO "Acer Laptop ACPI-WMI Extras version %s\n",
-			ACER_WMI_VERSION);
+	printk(ACER_INFO "Acer Laptop ACPI-WMI Extras\n");
+
+	find_quirks();
 
 	/*
 	 * Detect which ACPI-WMI interface we're using.
@@ -1092,8 +1212,6 @@ static int __init acer_wmi_init(void)
 	if (wmi_has_guid(AMW0_GUID1))
 		AMW0_find_mailled();
 
-	find_quirks();
-
 	if (!interface) {
 		printk(ACER_ERR "No or unsupported WMI interface, unable to "
 				"load\n");
@@ -1110,6 +1228,13 @@ static int __init acer_wmi_init(void)
 	err = create_sysfs();
 	if (err)
 		return err;
+
+	if (wmi_has_guid(WMID_GUID2)) {
+		interface->debug.wmid_devices = get_wmid_devices();
+		err = create_debugfs();
+		if (err)
+			return err;
+	}
 
 	/* Override any initial settings with values from the commandline */
 	acer_commandline_init();

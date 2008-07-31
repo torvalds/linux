@@ -146,6 +146,11 @@ static int ioapic_inj_irq(struct kvm_ioapic *ioapic,
 	return kvm_apic_set_irq(vcpu, vector, trig_mode);
 }
 
+static void ioapic_inj_nmi(struct kvm_vcpu *vcpu)
+{
+	kvm_inject_nmi(vcpu);
+}
+
 static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 				       u8 dest_mode)
 {
@@ -239,8 +244,19 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 			}
 		}
 		break;
-
-		/* TODO: NMI */
+	case IOAPIC_NMI:
+		for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
+			if (!(deliver_bitmask & (1 << vcpu_id)))
+				continue;
+			deliver_bitmask &= ~(1 << vcpu_id);
+			vcpu = ioapic->kvm->vcpus[vcpu_id];
+			if (vcpu)
+				ioapic_inj_nmi(vcpu);
+			else
+				ioapic_debug("NMI to vcpu %d failed\n",
+						vcpu->vcpu_id);
+		}
+		break;
 	default:
 		printk(KERN_WARNING "Unsupported delivery mode %d\n",
 		       delivery_mode);
@@ -269,38 +285,30 @@ void kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 	}
 }
 
-static int get_eoi_gsi(struct kvm_ioapic *ioapic, int vector)
+static void __kvm_ioapic_update_eoi(struct kvm_ioapic *ioapic, int gsi)
 {
-	int i;
-
-	for (i = 0; i < IOAPIC_NUM_PINS; i++)
-		if (ioapic->redirtbl[i].fields.vector == vector)
-			return i;
-	return -1;
-}
-
-void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
-{
-	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
 	union ioapic_redir_entry *ent;
-	int gsi;
-
-	gsi = get_eoi_gsi(ioapic, vector);
-	if (gsi == -1) {
-		printk(KERN_WARNING "Can't find redir item for %d EOI\n",
-		       vector);
-		return;
-	}
 
 	ent = &ioapic->redirtbl[gsi];
 	ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
 
 	ent->fields.remote_irr = 0;
 	if (!ent->fields.mask && (ioapic->irr & (1 << gsi)))
-		ioapic_deliver(ioapic, gsi);
+		ioapic_service(ioapic, gsi);
 }
 
-static int ioapic_in_range(struct kvm_io_device *this, gpa_t addr)
+void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
+{
+	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
+	int i;
+
+	for (i = 0; i < IOAPIC_NUM_PINS; i++)
+		if (ioapic->redirtbl[i].fields.vector == vector)
+			__kvm_ioapic_update_eoi(ioapic, i);
+}
+
+static int ioapic_in_range(struct kvm_io_device *this, gpa_t addr,
+			   int len, int is_write)
 {
 	struct kvm_ioapic *ioapic = (struct kvm_ioapic *)this->private;
 

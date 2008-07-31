@@ -410,7 +410,6 @@ void imx_dma_free(imx_dmach_t dma_ch)
 
 /**
  * imx_dma_request_by_prio - find and request some of free channels best suiting requested priority
- * @dma_ch: i.MX DMA channel number
  * @name: the driver/caller own non-%NULL identification
  * @prio: one of the hardware distinguished priority level:
  *        %DMA_PRIO_HIGH, %DMA_PRIO_MEDIUM, %DMA_PRIO_LOW
@@ -420,11 +419,9 @@ void imx_dma_free(imx_dmach_t dma_ch)
  * in the higher and then even lower priority groups.
  *
  * Return value: If there is no free channel to allocate, -%ENODEV is returned.
- *               Zero value indicates successful channel allocation.
+ *               On successful allocation channel is returned.
  */
-int
-imx_dma_request_by_prio(imx_dmach_t * pdma_ch, const char *name,
-			imx_dma_prio prio)
+imx_dmach_t imx_dma_request_by_prio(const char *name, imx_dma_prio prio)
 {
 	int i;
 	int best;
@@ -444,15 +441,13 @@ imx_dma_request_by_prio(imx_dmach_t * pdma_ch, const char *name,
 
 	for (i = best; i < IMX_DMA_CHANNELS; i++) {
 		if (!imx_dma_request(i, name)) {
-			*pdma_ch = i;
-			return 0;
+			return i;
 		}
 	}
 
 	for (i = best - 1; i >= 0; i--) {
 		if (!imx_dma_request(i, name)) {
-			*pdma_ch = i;
-			return 0;
+			return i;
 		}
 	}
 

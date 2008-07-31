@@ -178,6 +178,10 @@ static void dispatch_qp_event(struct ehca_shca *shca, struct ehca_qp *qp,
 {
 	struct ib_event event;
 
+	/* PATH_MIG without the QP ever having been armed is false alarm */
+	if (event_type == IB_EVENT_PATH_MIG && !qp->mig_armed)
+		return;
+
 	event.device = &shca->ib_device;
 	event.event = event_type;
 
@@ -531,7 +535,7 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 {
 	struct ehca_eq *eq = &shca->eq;
 	struct ehca_eqe_cache_entry *eqe_cache = eq->eqe_cache;
-	u64 eqe_value;
+	u64 eqe_value, ret;
 	unsigned long flags;
 	int eqe_cnt, i;
 	int eq_empty = 0;
@@ -583,8 +587,13 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 			ehca_dbg(&shca->ib_device,
 				 "No eqe found for irq event");
 		goto unlock_irq_spinlock;
-	} else if (!is_irq)
+	} else if (!is_irq) {
+		ret = hipz_h_eoi(eq->ist);
+		if (ret != H_SUCCESS)
+			ehca_err(&shca->ib_device,
+				 "bad return code EOI -rc = %ld\n", ret);
 		ehca_dbg(&shca->ib_device, "deadman found %x eqe", eqe_cnt);
+	}
 	if (unlikely(eqe_cnt == EHCA_EQE_CACHE_SIZE))
 		ehca_dbg(&shca->ib_device, "too many eqes for one irq event");
 	/* enable irq for new packets */
@@ -641,8 +650,8 @@ static inline int find_next_online_cpu(struct ehca_comp_pool *pool)
 		ehca_dmp(&cpu_online_map, sizeof(cpumask_t), "");
 
 	spin_lock_irqsave(&pool->last_cpu_lock, flags);
-	cpu = next_cpu(pool->last_cpu, cpu_online_map);
-	if (cpu == NR_CPUS)
+	cpu = next_cpu_nr(pool->last_cpu, cpu_online_map);
+	if (cpu >= nr_cpu_ids)
 		cpu = first_cpu(cpu_online_map);
 	pool->last_cpu = cpu;
 	spin_unlock_irqrestore(&pool->last_cpu_lock, flags);

@@ -8,6 +8,8 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
+#define DRV_NAME "ide-h8300"
+
 #define bswap(d) \
 ({					\
 	u16 r;				\
@@ -51,8 +53,6 @@ static void h8300_tf_load(ide_drive_t *drive, ide_task_t *task)
 
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		HIHI = 0xFF;
-
-	ide_set_irq(drive, 1);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DATA)
 		mm_outw((tf->hob_data << 8) | tf->data, io_ports->data_addr);
@@ -98,8 +98,10 @@ static void h8300_tf_read(ide_drive_t *drive, ide_task_t *task)
 	}
 
 	/* be sure we're looking at the low order bits */
-	outb(drive->ctl & ~0x80, io_ports->ctl_addr);
+	outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
+	if (task->tf_flags & IDE_TFLAG_IN_FEATURE)
+		tf->feature = inb(io_ports->feature_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = inb(io_ports->nsect_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAL)
@@ -112,7 +114,7 @@ static void h8300_tf_read(ide_drive_t *drive, ide_task_t *task)
 		tf->device = inb(io_ports->device_addr);
 
 	if (task->tf_flags & IDE_TFLAG_LBA48) {
-		outb(drive->ctl | 0x80, io_ports->ctl_addr);
+		outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
 
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
 			tf->hob_feature = inb(io_ports->feature_addr);
@@ -153,6 +155,21 @@ static void h8300_output_data(ide_drive_t *drive, struct request *rq,
 	mm_outsw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
 }
 
+static const struct ide_tp_ops h8300_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= ide_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= h8300_tf_load,
+	.tf_read		= h8300_tf_read,
+
+	.input_data		= h8300_input_data,
+	.output_data		= h8300_output_data,
+};
+
 #define H8300_IDE_GAP (2)
 
 static inline void hw_setup(hw_regs_t *hw)
@@ -167,23 +184,16 @@ static inline void hw_setup(hw_regs_t *hw)
 	hw->chipset = ide_generic;
 }
 
-static inline void hwif_setup(ide_hwif_t *hwif)
-{
-	default_hwif_iops(hwif);
-
-	hwif->tf_load = h8300_tf_load;
-	hwif->tf_read = h8300_tf_read;
-
-	hwif->input_data  = h8300_input_data;
-	hwif->output_data = h8300_output_data;
-}
+static const struct ide_port_info h8300_port_info = {
+	.tp_ops			= &h8300_tp_ops,
+	.host_flags		= IDE_HFLAG_NO_IO_32BIT | IDE_HFLAG_NO_DMA,
+};
 
 static int __init h8300_ide_init(void)
 {
-	hw_regs_t hw;
-	ide_hwif_t *hwif;
-	int index;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+
+	printk(KERN_INFO DRV_NAME ": H8/300 generic IDE interface\n");
 
 	if (!request_region(CONFIG_H8300_IDE_BASE, H8300_IDE_GAP*8, "ide-h8300"))
 		goto out_busy;
@@ -194,24 +204,7 @@ static int __init h8300_ide_init(void)
 
 	hw_setup(&hw);
 
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR "ide-h8300: IDE I/F register failed\n");
-		return -ENOENT;
-	}
-
-	index = hwif->index;
-	ide_init_port_data(hwif, index);
-	ide_init_port_hw(hwif, &hw);
-	hwif_setup(hwif);
-	hwif->host_flags = IDE_HFLAG_NO_IO_32BIT;
-	printk(KERN_INFO "ide%d: H8/300 generic IDE interface\n", index);
-
-	idx[0] = index;
-
-	ide_device_add(idx, NULL);
-
-	return 0;
+	return ide_host_add(&h8300_port_info, hws, NULL);
 
 out_busy:
 	printk(KERN_ERR "ide-h8300: IDE I/F resource already used.\n");

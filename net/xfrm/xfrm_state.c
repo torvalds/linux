@@ -538,7 +538,7 @@ EXPORT_SYMBOL(xfrm_state_alloc);
 
 void __xfrm_state_destroy(struct xfrm_state *x)
 {
-	BUG_TRAP(x->km.state == XFRM_STATE_DEAD);
+	WARN_ON(x->km.state != XFRM_STATE_DEAD);
 
 	spin_lock_bh(&xfrm_state_lock);
 	list_del(&x->all);

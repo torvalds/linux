@@ -43,9 +43,44 @@ struct sigcontext {
  * it must be copied via a vector register to/from storage) or as a word.
  * The entry with index 33 contains the vrsave as the first word (offset 0)
  * within the quadword.
+ *
+ * Part of the VSX data is stored here also by extending vmx_restore
+ * by an additional 32 double words.  Architecturally the layout of
+ * the VSR registers and how they overlap on top of the legacy FPR and
+ * VR registers is shown below:
+ *
+ *                    VSR doubleword 0               VSR doubleword 1
+ *           ----------------------------------------------------------------
+ *   VSR[0]  |             FPR[0]            |                              |
+ *           ----------------------------------------------------------------
+ *   VSR[1]  |             FPR[1]            |                              |
+ *           ----------------------------------------------------------------
+ *           |              ...              |                              |
+ *           |              ...              |                              |
+ *           ----------------------------------------------------------------
+ *   VSR[30] |             FPR[30]           |                              |
+ *           ----------------------------------------------------------------
+ *   VSR[31] |             FPR[31]           |                              |
+ *           ----------------------------------------------------------------
+ *   VSR[32] |                             VR[0]                            |
+ *           ----------------------------------------------------------------
+ *   VSR[33] |                             VR[1]                            |
+ *           ----------------------------------------------------------------
+ *           |                              ...                             |
+ *           |                              ...                             |
+ *           ----------------------------------------------------------------
+ *   VSR[62] |                             VR[30]                           |
+ *           ----------------------------------------------------------------
+ *   VSR[63] |                             VR[31]                           |
+ *           ----------------------------------------------------------------
+ *
+ * FPR/VSR 0-31 doubleword 0 is stored in fp_regs, and VMX/VSR 32-63
+ * is stored at the start of vmx_reserve.  vmx_reserve is extended for
+ * backwards compatility to store VSR 0-31 doubleword 1 after the VMX
+ * registers and vscr/vrsave.
  */
 	elf_vrreg_t	__user *v_regs;
-	long		vmx_reserve[ELF_NVRREG+ELF_NVRREG+1];
+	long		vmx_reserve[ELF_NVRREG+ELF_NVRREG+32+1];
 #endif
 };
 

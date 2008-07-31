@@ -1,25 +1,10 @@
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/major.h>
-#include <linux/errno.h>
-#include <linux/genhd.h>
-#include <linux/blkpg.h>
-#include <linux/slab.h>
-#include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/bitops.h>
-
-#include <asm/byteorder.h>
-#include <asm/irq.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
 
 static const char *udma_str[] =
 	 { "UDMA/16", "UDMA/25",  "UDMA/33",  "UDMA/44",
@@ -89,142 +74,6 @@ static u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 
 	return min(speed, mode);
 }
-
-/*
- * Standard (generic) timings for PIO modes, from ATA2 specification.
- * These timings are for access to the IDE data port register *only*.
- * Some drives may specify a mode, while also specifying a different
- * value for cycle_time (from drive identification data).
- */
-const ide_pio_timings_t ide_pio_timings[6] = {
-	{ 70,	165,	600 },	/* PIO Mode 0 */
-	{ 50,	125,	383 },	/* PIO Mode 1 */
-	{ 30,	100,	240 },	/* PIO Mode 2 */
-	{ 30,	80,	180 },	/* PIO Mode 3 with IORDY */
-	{ 25,	70,	120 },	/* PIO Mode 4 with IORDY */
-	{ 20,	50,	100 }	/* PIO Mode 5 with IORDY (nonstandard) */
-};
-
-EXPORT_SYMBOL_GPL(ide_pio_timings);
-
-/*
- * Shared data/functions for determining best PIO mode for an IDE drive.
- * Most of this stuff originally lived in cmd640.c, and changes to the
- * ide_pio_blacklist[] table should be made with EXTREME CAUTION to avoid
- * breaking the fragile cmd640.c support.
- */
-
-/*
- * Black list. Some drives incorrectly report their maximal PIO mode,
- * at least in respect to CMD640. Here we keep info on some known drives.
- */
-static struct ide_pio_info {
-	const char	*name;
-	int		pio;
-} ide_pio_blacklist [] = {
-	{ "Conner Peripherals 540MB - CFS540A", 3 },
-
-	{ "WDC AC2700",  3 },
-	{ "WDC AC2540",  3 },
-	{ "WDC AC2420",  3 },
-	{ "WDC AC2340",  3 },
-	{ "WDC AC2250",  0 },
-	{ "WDC AC2200",  0 },
-	{ "WDC AC21200", 4 },
-	{ "WDC AC2120",  0 },
-	{ "WDC AC2850",  3 },
-	{ "WDC AC1270",  3 },
-	{ "WDC AC1170",  1 },
-	{ "WDC AC1210",  1 },
-	{ "WDC AC280",   0 },
-	{ "WDC AC31000", 3 },
-	{ "WDC AC31200", 3 },
-
-	{ "Maxtor 7131 AT", 1 },
-	{ "Maxtor 7171 AT", 1 },
-	{ "Maxtor 7213 AT", 1 },
-	{ "Maxtor 7245 AT", 1 },
-	{ "Maxtor 7345 AT", 1 },
-	{ "Maxtor 7546 AT", 3 },
-	{ "Maxtor 7540 AV", 3 },
-
-	{ "SAMSUNG SHD-3121A", 1 },
-	{ "SAMSUNG SHD-3122A", 1 },
-	{ "SAMSUNG SHD-3172A", 1 },
-
-	{ "ST5660A",  3 },
-	{ "ST3660A",  3 },
-	{ "ST3630A",  3 },
-	{ "ST3655A",  3 },
-	{ "ST3391A",  3 },
-	{ "ST3390A",  1 },
-	{ "ST3600A",  1 },
-	{ "ST3290A",  0 },
-	{ "ST3144A",  0 },
-	{ "ST3491A",  1 },	/* reports 3, should be 1 or 2 (depending on */	
-				/* drive) according to Seagates FIND-ATA program */
-
-	{ "QUANTUM ELS127A", 0 },
-	{ "QUANTUM ELS170A", 0 },
-	{ "QUANTUM LPS240A", 0 },
-	{ "QUANTUM LPS210A", 3 },
-	{ "QUANTUM LPS270A", 3 },
-	{ "QUANTUM LPS365A", 3 },
-	{ "QUANTUM LPS540A", 3 },
-	{ "QUANTUM LIGHTNING 540A", 3 },
-	{ "QUANTUM LIGHTNING 730A", 3 },
-
-        { "QUANTUM FIREBALL_540", 3 }, /* Older Quantum Fireballs don't work */
-        { "QUANTUM FIREBALL_640", 3 }, 
-        { "QUANTUM FIREBALL_1080", 3 },
-        { "QUANTUM FIREBALL_1280", 3 },
-	{ NULL,	0 }
-};
-
-/**
- *	ide_scan_pio_blacklist 	-	check for a blacklisted drive
- *	@model: Drive model string
- *
- *	This routine searches the ide_pio_blacklist for an entry
- *	matching the start/whole of the supplied model name.
- *
- *	Returns -1 if no match found.
- *	Otherwise returns the recommended PIO mode from ide_pio_blacklist[].
- */
-
-static int ide_scan_pio_blacklist (char *model)
-{
-	struct ide_pio_info *p;
-
-	for (p = ide_pio_blacklist; p->name != NULL; p++) {
-		if (strncmp(p->name, model, strlen(p->name)) == 0)
-			return p->pio;
-	}
-	return -1;
-}
-
-unsigned int ide_pio_cycle_time(ide_drive_t *drive, u8 pio)
-{
-	struct hd_driveid *id = drive->id;
-	int cycle_time = 0;
-
-	if (id->field_valid & 2) {
-		if (id->capability & 8)
-			cycle_time = id->eide_pio_iordy;
-		else
-			cycle_time = id->eide_pio;
-	}
-
-	/* conservative "downgrade" for all pre-ATA2 drives */
-	if (pio < 3) {
-		if (cycle_time && cycle_time < ide_pio_timings[pio].cycle_time)
-			cycle_time = 0; /* use standard timing */
-	}
-
-	return cycle_time ? cycle_time : ide_pio_timings[pio].cycle_time;
-}
-
-EXPORT_SYMBOL_GPL(ide_pio_cycle_time);
 
 /**
  *	ide_get_best_pio_mode	-	get PIO mode from drive
@@ -417,21 +266,10 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 
 	rate = ide_rate_filter(drive, rate);
 
+	BUG_ON(rate < XFER_PIO_0);
+
 	if (rate >= XFER_PIO_0 && rate <= XFER_PIO_5)
 		return ide_set_pio_mode(drive, rate);
-
-	/*
-	 * TODO: transfer modes 0x00-0x07 passed from the user-space are
-	 * currently handled here which needs fixing (please note that such
-	 * case could happen iff the transfer mode has already been set on
-	 * the device by ide-proc.c::set_xfer_rate()).
-	 */
-	if (rate < XFER_PIO_0) {
-		if (hwif->host_flags & IDE_HFLAG_ABUSE_SET_DMA_MODE)
-			return ide_set_dma_mode(drive, rate);
-		else
-			return ide_config_drive_speed(drive, rate);
-	}
 
 	return ide_set_dma_mode(drive, rate);
 }
@@ -487,7 +325,7 @@ static void ide_dump_sector(ide_drive_t *drive)
 	else
 		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
 
-	drive->hwif->tf_read(drive, &task);
+	drive->hwif->tp_ops->tf_read(drive, &task);
 
 	if (lba48 || (tf->device & ATA_LBA))
 		printk(", LBAsect=%llu",

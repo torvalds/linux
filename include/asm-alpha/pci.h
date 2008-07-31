@@ -106,7 +106,7 @@ extern dma_addr_t pci_map_page(struct pci_dev *, struct page *,
 /* Test for pci_map_single or pci_map_page having generated an error.  */
 
 static inline int
-pci_dma_mapping_error(dma_addr_t dma_addr)
+pci_dma_mapping_error(struct pci_dev *pdev, dma_addr_t dma_addr)
 {
 	return dma_addr == 0;
 }

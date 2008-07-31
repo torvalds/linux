@@ -1,8 +1,6 @@
 /*
  *  UDPLITE     An implementation of the UDP-Lite protocol (RFC 3828).
  *
- *  Version:    $Id: udplite.c,v 1.25 2006/10/19 07:22:36 gerrit Exp $
- *
  *  Authors:    Gerrit Renker       <gerrit@erg.abdn.ac.uk>
  *
  *  Changes:
@@ -13,7 +11,6 @@
  *		2 of the License, or (at your option) any later version.
  */
 #include "udp_impl.h"
-DEFINE_SNMP_STAT(struct udp_mib, udplite_statistics)	__read_mostly;
 
 struct hlist_head 	udplite_hash[UDP_HTABLE_SIZE];
 

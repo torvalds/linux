@@ -1,8 +1,6 @@
 config DVB_USB
 	tristate "Support for various USB DVB devices"
 	depends on DVB_CORE && USB && I2C && INPUT
-	depends on HOTPLUG	# due to FW_LOADER
-	select FW_LOADER
 	help
 	  By enabling this you will be able to choose the various supported
 	  USB1.1 and USB2.0 DVB devices.
@@ -76,6 +74,7 @@ config DVB_USB_DIB0700
 	select DVB_DIB3000MC
 	select MEDIA_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_MT2266 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_XC2028 if !DVB_FE_CUSTOMISE
 	select DVB_TUNER_DIB0070
 	help
 	  Support for USB2.0/1.1 DVB receivers based on the DiB0700 USB bridge. The
@@ -107,6 +106,8 @@ config DVB_USB_CXUSB
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_SIMPLE if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_XC2028 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_MXL5005S if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Conexant USB2.0 hybrid reference design.
 	  Currently, only DVB and ATSC modes are supported, analog mode
@@ -120,6 +121,8 @@ config DVB_USB_M920X
 	depends on DVB_USB
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_QT1010 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_TDA827X if !DVB_FE_CUSTOMISE
+	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the MSI Mega Sky 580 USB2.0 DVB-T receiver.
 	  Currently, only devices with a product id of
@@ -241,3 +244,21 @@ config DVB_USB_AF9005_REMOTE
 	  Say Y here to support the default remote control decoding for the
 	  Afatech AF9005 based receiver.
 
+config DVB_USB_DW2102
+	tristate "DvbWorld 2102 DVB-S USB2.0 receiver"
+	depends on DVB_USB
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_PLL if !DVB_FE_CUSTOMISE
+	help
+	   Say Y here to support the DvbWorld 2102 DVB-S USB2.0 receiver.
+
+config DVB_USB_ANYSEE
+	tristate "Anysee DVB-T/C USB2.0 support"
+	depends on DVB_USB
+	select DVB_PLL if !DVB_FE_CUSTOMISE
+	select DVB_MT352 if !DVB_FE_CUSTOMISE
+	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
+	select DVB_TDA10023 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the Anysee E30, Anysee E30 Plus or
+	  Anysee E30 C Plus DVB USB2.0 receiver.

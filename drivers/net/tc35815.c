@@ -506,7 +506,7 @@ static void *alloc_rxbuf_page(struct pci_dev *hwdev, dma_addr_t *dma_handle)
 		return NULL;
 	*dma_handle = pci_map_single(hwdev, buf, PAGE_SIZE,
 				     PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(*dma_handle)) {
+	if (pci_dma_mapping_error(hwdev, *dma_handle)) {
 		free_page((unsigned long)buf);
 		return NULL;
 	}
@@ -536,7 +536,7 @@ static struct sk_buff *alloc_rxbuf_skb(struct net_device *dev,
 		return NULL;
 	*dma_handle = pci_map_single(hwdev, skb->data, RX_BUF_SIZE,
 				     PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(*dma_handle)) {
+	if (pci_dma_mapping_error(hwdev, *dma_handle)) {
 		dev_kfree_skb_any(skb);
 		return NULL;
 	}
@@ -672,7 +672,6 @@ static void tc_handle_link_change(struct net_device *dev)
 			if (dev->flags & IFF_PROMISC)
 				tc35815_set_multicast_list(dev);
 #endif
-			netif_schedule(dev);
 		} else {
 			lp->speed = 0;
 			lp->duplex = -1;
@@ -1394,6 +1393,7 @@ tc35815_open(struct net_device *dev)
 	tc35815_chip_init(dev);
 	spin_unlock_irq(&lp->lock);
 
+	netif_carrier_off(dev);
 	/* schedule a link state check */
 	phy_start(lp->phy_dev);
 
@@ -1735,7 +1735,6 @@ tc35815_rx(struct net_device *dev)
 			skb = lp->rx_skbs[cur_bd].skb;
 			prefetch(skb->data);
 			lp->rx_skbs[cur_bd].skb = NULL;
-			lp->fbl_count--;
 			pci_unmap_single(lp->pci_dev,
 					 lp->rx_skbs[cur_bd].skb_dma,
 					 RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
@@ -1791,6 +1790,7 @@ tc35815_rx(struct net_device *dev)
 #ifdef TC35815_USE_PACKEDBUFFER
 			while (lp->fbl_curid != id)
 #else
+			lp->fbl_count--;
 			while (lp->fbl_count < RX_BUF_NUM)
 #endif
 			{
@@ -2453,6 +2453,7 @@ static int tc35815_resume(struct pci_dev *pdev)
 		return 0;
 	pci_set_power_state(pdev, PCI_D0);
 	tc35815_restart(dev);
+	netif_carrier_off(dev);
 	if (lp->phy_dev)
 		phy_start(lp->phy_dev);
 	netif_device_attach(dev);

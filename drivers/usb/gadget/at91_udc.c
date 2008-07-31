@@ -888,7 +888,7 @@ static void pullup(struct at91_udc *udc, int is_on)
 		at91_udp_write(udc, AT91_UDP_TXVC, 0);
 		if (cpu_is_at91rm9200())
 			gpio_set_value(udc->board.pullup_pin, active);
-		else if (cpu_is_at91sam9260() || cpu_is_at91sam9263()) {
+		else if (cpu_is_at91sam9260() || cpu_is_at91sam9263() || cpu_is_at91sam9g20()) {
 			u32	txvc = at91_udp_read(udc, AT91_UDP_TXVC);
 
 			txvc |= AT91_UDP_TXVC_PUON;
@@ -906,7 +906,7 @@ static void pullup(struct at91_udc *udc, int is_on)
 		at91_udp_write(udc, AT91_UDP_TXVC, AT91_UDP_TXVC_TXVDIS);
 		if (cpu_is_at91rm9200())
 			gpio_set_value(udc->board.pullup_pin, !active);
-		else if (cpu_is_at91sam9260() || cpu_is_at91sam9263()) {
+		else if (cpu_is_at91sam9260() || cpu_is_at91sam9263() || cpu_is_at91sam9g20()) {
 			u32	txvc = at91_udp_read(udc, AT91_UDP_TXVC);
 
 			txvc &= ~AT91_UDP_TXVC_PUON;
@@ -1685,6 +1685,19 @@ static int __init at91udc_probe(struct platform_device *pdev)
 		}
 		gpio_direction_output(udc->board.pullup_pin,
 				udc->board.pullup_active_low);
+	}
+
+	/* newer chips have more FIFO memory than rm9200 */
+	if (cpu_is_at91sam9260()) {
+		udc->ep[0].maxpacket = 64;
+		udc->ep[3].maxpacket = 64;
+		udc->ep[4].maxpacket = 512;
+		udc->ep[5].maxpacket = 512;
+	} else if (cpu_is_at91sam9261()) {
+		udc->ep[3].maxpacket = 64;
+	} else if (cpu_is_at91sam9263()) {
+		udc->ep[0].maxpacket = 64;
+		udc->ep[3].maxpacket = 64;
 	}
 
 	udc->udp_baseaddr = ioremap(res->start, res->end - res->start + 1);

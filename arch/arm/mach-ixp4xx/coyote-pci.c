@@ -27,8 +27,8 @@
 
 void __init coyote_pci_preinit(void)
 {
-	set_irq_type(IRQ_COYOTE_PCI_SLOT0, IRQT_LOW);
-	set_irq_type(IRQ_COYOTE_PCI_SLOT1, IRQT_LOW);
+	set_irq_type(IRQ_COYOTE_PCI_SLOT0, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_COYOTE_PCI_SLOT1, IRQ_TYPE_LEVEL_LOW);
 
 	ixp4xx_pci_preinit();
 }

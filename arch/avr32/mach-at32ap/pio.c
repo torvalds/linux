@@ -318,6 +318,8 @@ static void pio_bank_show(struct seq_file *s, struct gpio_chip *chip)
 		const char *label;
 
 		label = gpiochip_is_requested(chip, i);
+		if (!label && (imr & mask))
+			label = "[irq]";
 		if (!label)
 			continue;
 
@@ -358,6 +360,8 @@ static int __init pio_probe(struct platform_device *pdev)
 	pio->chip.label = pio->name;
 	pio->chip.base = pdev->id * 32;
 	pio->chip.ngpio = 32;
+	pio->chip.dev = &pdev->dev;
+	pio->chip.owner = THIS_MODULE;
 
 	pio->chip.direction_input = direction_input;
 	pio->chip.get = gpio_get;

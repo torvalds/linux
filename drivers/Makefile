@@ -5,7 +5,7 @@
 # Rewritten to use lists instead of if-statements.
 #
 
-obj-$(CONFIG_HAVE_GPIO_LIB)	+= gpio/
+obj-y				+= gpio/
 obj-$(CONFIG_PCI)		+= pci/
 obj-$(CONFIG_PARISC)		+= parisc/
 obj-$(CONFIG_RAPIDIO)		+= rapidio/
@@ -21,6 +21,9 @@ obj-$(CONFIG_XEN)		+= xen/
 # char/ comes before serial/ etc so that the VT console is the boot-time
 # default.
 obj-y				+= char/
+
+# gpu/ comes after char for AGP vs DRM startup
+obj-y				+= gpu/
 
 obj-$(CONFIG_CONNECTOR)		+= connector/
 

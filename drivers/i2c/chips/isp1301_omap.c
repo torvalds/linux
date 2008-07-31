@@ -72,7 +72,7 @@ struct isp1301 {
 };
 
 
-/* bits in OTG_CTRL_REG */
+/* bits in OTG_CTRL */
 
 #define	OTG_XCEIV_OUTPUTS \
 	(OTG_ASESSVLD|OTG_BSESSEND|OTG_BSESSVLD|OTG_VBUSVLD|OTG_ID)
@@ -186,8 +186,8 @@ isp1301_clear_bits(struct isp1301 *isp, u8 reg, u8 bits)
 
 /* operational registers */
 #define	ISP1301_MODE_CONTROL_1		0x04	/* u8 read, set, +1 clear */
-#	define	MC1_SPEED_REG		(1 << 0)
-#	define	MC1_SUSPEND_REG		(1 << 1)
+#	define	MC1_SPEED		(1 << 0)
+#	define	MC1_SUSPEND		(1 << 1)
 #	define	MC1_DAT_SE0		(1 << 2)
 #	define	MC1_TRANSPARENT		(1 << 3)
 #	define	MC1_BDIS_ACON_EN	(1 << 4)
@@ -274,7 +274,7 @@ static void power_down(struct isp1301 *isp)
 	isp->otg.state = OTG_STATE_UNDEFINED;
 
 	// isp1301_set_bits(isp, ISP1301_MODE_CONTROL_2, MC2_GLOBAL_PWR_DN);
-	isp1301_set_bits(isp, ISP1301_MODE_CONTROL_1, MC1_SUSPEND_REG);
+	isp1301_set_bits(isp, ISP1301_MODE_CONTROL_1, MC1_SUSPEND);
 
 	isp1301_clear_bits(isp, ISP1301_OTG_CONTROL_1, OTG1_ID_PULLDOWN);
 	isp1301_clear_bits(isp, ISP1301_MODE_CONTROL_1, MC1_DAT_SE0);
@@ -283,7 +283,7 @@ static void power_down(struct isp1301 *isp)
 static void power_up(struct isp1301 *isp)
 {
 	// isp1301_clear_bits(isp, ISP1301_MODE_CONTROL_2, MC2_GLOBAL_PWR_DN);
-	isp1301_clear_bits(isp, ISP1301_MODE_CONTROL_1, MC1_SUSPEND_REG);
+	isp1301_clear_bits(isp, ISP1301_MODE_CONTROL_1, MC1_SUSPEND);
 
 	/* do this only when cpu is driving transceiver,
 	 * so host won't see a low speed device...
@@ -360,6 +360,8 @@ isp1301_defer_work(struct isp1301 *isp, int work)
 /* called from irq handlers */
 static void a_idle(struct isp1301 *isp, const char *tag)
 {
+	u32 l;
+
 	if (isp->otg.state == OTG_STATE_A_IDLE)
 		return;
 
@@ -373,13 +375,17 @@ static void a_idle(struct isp1301 *isp, const char *tag)
 		gadget_suspend(isp);
 	}
 	isp->otg.state = OTG_STATE_A_IDLE;
-	isp->last_otg_ctrl = OTG_CTRL_REG = OTG_CTRL_REG & OTG_XCEIV_OUTPUTS;
+	l = omap_readl(OTG_CTRL) & OTG_XCEIV_OUTPUTS;
+	omap_writel(l, OTG_CTRL);
+	isp->last_otg_ctrl = l;
 	pr_debug("  --> %s/%s\n", state_name(isp), tag);
 }
 
 /* called from irq handlers */
 static void b_idle(struct isp1301 *isp, const char *tag)
 {
+	u32 l;
+
 	if (isp->otg.state == OTG_STATE_B_IDLE)
 		return;
 
@@ -393,7 +399,9 @@ static void b_idle(struct isp1301 *isp, const char *tag)
 		gadget_suspend(isp);
 	}
 	isp->otg.state = OTG_STATE_B_IDLE;
-	isp->last_otg_ctrl = OTG_CTRL_REG = OTG_CTRL_REG & OTG_XCEIV_OUTPUTS;
+	l = omap_readl(OTG_CTRL) & OTG_XCEIV_OUTPUTS;
+	omap_writel(l, OTG_CTRL);
+	isp->last_otg_ctrl = l;
 	pr_debug("  --> %s/%s\n", state_name(isp), tag);
 }
 
@@ -406,7 +414,7 @@ dump_regs(struct isp1301 *isp, const char *label)
 	u8	src = isp1301_get_u8(isp, ISP1301_INTERRUPT_SOURCE);
 
 	pr_debug("otg: %06x, %s %s, otg/%02x stat/%02x.%02x\n",
-		OTG_CTRL_REG, label, state_name(isp),
+		omap_readl(OTG_CTRL), label, state_name(isp),
 		ctrl, status, src);
 	/* mode control and irq enables don't change much */
 #endif
@@ -429,7 +437,7 @@ dump_regs(struct isp1301 *isp, const char *label)
 static void check_state(struct isp1301 *isp, const char *tag)
 {
 	enum usb_otg_state	state = OTG_STATE_UNDEFINED;
-	u8			fsm = OTG_TEST_REG & 0x0ff;
+	u8			fsm = omap_readw(OTG_TEST) & 0x0ff;
 	unsigned		extra = 0;
 
 	switch (fsm) {
@@ -494,7 +502,8 @@ static void check_state(struct isp1301 *isp, const char *tag)
 	if (isp->otg.state == state && !extra)
 		return;
 	pr_debug("otg: %s FSM %s/%02x, %s, %06x\n", tag,
-		state_string(state), fsm, state_name(isp), OTG_CTRL_REG);
+		state_string(state), fsm, state_name(isp),
+		omap_readl(OTG_CTRL));
 }
 
 #else
@@ -508,10 +517,11 @@ static void update_otg1(struct isp1301 *isp, u8 int_src)
 {
 	u32	otg_ctrl;
 
-	otg_ctrl = OTG_CTRL_REG
-			& OTG_CTRL_MASK
-			& ~OTG_XCEIV_INPUTS
-			& ~(OTG_ID|OTG_ASESSVLD|OTG_VBUSVLD);
+	otg_ctrl = omap_readl(OTG_CTRL) & OTG_CTRL_MASK;
+	otg_ctrl &= ~OTG_XCEIV_INPUTS;
+	otg_ctrl &= ~(OTG_ID|OTG_ASESSVLD|OTG_VBUSVLD);
+
+
 	if (int_src & INTR_SESS_VLD)
 		otg_ctrl |= OTG_ASESSVLD;
 	else if (isp->otg.state == OTG_STATE_A_WAIT_VFALL) {
@@ -534,7 +544,7 @@ static void update_otg1(struct isp1301 *isp, u8 int_src)
 			return;
 		}
 	}
-	OTG_CTRL_REG = otg_ctrl;
+	omap_writel(otg_ctrl, OTG_CTRL);
 }
 
 /* outputs from ISP1301_OTG_STATUS */
@@ -542,15 +552,14 @@ static void update_otg2(struct isp1301 *isp, u8 otg_status)
 {
 	u32	otg_ctrl;
 
-	otg_ctrl = OTG_CTRL_REG
-			& OTG_CTRL_MASK
-			& ~OTG_XCEIV_INPUTS
-			& ~(OTG_BSESSVLD|OTG_BSESSEND);
+	otg_ctrl = omap_readl(OTG_CTRL) & OTG_CTRL_MASK;
+	otg_ctrl &= ~OTG_XCEIV_INPUTS;
+	otg_ctrl &= ~(OTG_BSESSVLD | OTG_BSESSEND);
 	if (otg_status & OTG_B_SESS_VLD)
 		otg_ctrl |= OTG_BSESSVLD;
 	else if (otg_status & OTG_B_SESS_END)
 		otg_ctrl |= OTG_BSESSEND;
-	OTG_CTRL_REG = otg_ctrl;
+	omap_writel(otg_ctrl, OTG_CTRL);
 }
 
 /* inputs going to ISP1301 */
@@ -559,7 +568,7 @@ static void otg_update_isp(struct isp1301 *isp)
 	u32	otg_ctrl, otg_change;
 	u8	set = OTG1_DM_PULLDOWN, clr = OTG1_DM_PULLUP;
 
-	otg_ctrl = OTG_CTRL_REG;
+	otg_ctrl = omap_readl(OTG_CTRL);
 	otg_change = otg_ctrl ^ isp->last_otg_ctrl;
 	isp->last_otg_ctrl = otg_ctrl;
 	otg_ctrl = otg_ctrl & OTG_XCEIV_INPUTS;
@@ -639,6 +648,8 @@ pulldown:
 
 	/* HNP switch to host or peripheral; and SRP */
 	if (otg_change & OTG_PULLUP) {
+		u32 l;
+
 		switch (isp->otg.state) {
 		case OTG_STATE_B_IDLE:
 			if (clr & OTG1_DP_PULLUP)
@@ -655,7 +666,9 @@ pulldown:
 		default:
 			break;
 		}
-		OTG_CTRL_REG |= OTG_PULLUP;
+		l = omap_readl(OTG_CTRL);
+		l |= OTG_PULLUP;
+		omap_writel(l, OTG_CTRL);
 	}
 
 	check_state(isp, __func__);
@@ -664,20 +677,20 @@ pulldown:
 
 static irqreturn_t omap_otg_irq(int irq, void *_isp)
 {
-	u16		otg_irq = OTG_IRQ_SRC_REG;
+	u16		otg_irq = omap_readw(OTG_IRQ_SRC);
 	u32		otg_ctrl;
 	int		ret = IRQ_NONE;
 	struct isp1301	*isp = _isp;
 
 	/* update ISP1301 transciever from OTG controller */
 	if (otg_irq & OPRT_CHG) {
-		OTG_IRQ_SRC_REG = OPRT_CHG;
+		omap_writew(OPRT_CHG, OTG_IRQ_SRC);
 		isp1301_defer_work(isp, WORK_UPDATE_ISP);
 		ret = IRQ_HANDLED;
 
 	/* SRP to become b_peripheral failed */
 	} else if (otg_irq & B_SRP_TMROUT) {
-		pr_debug("otg: B_SRP_TIMEOUT, %06x\n", OTG_CTRL_REG);
+		pr_debug("otg: B_SRP_TIMEOUT, %06x\n", omap_readl(OTG_CTRL));
 		notresponding(isp);
 
 		/* gadget drivers that care should monitor all kinds of
@@ -687,31 +700,31 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 		if (isp->otg.state == OTG_STATE_B_SRP_INIT)
 			b_idle(isp, "srp_timeout");
 
-		OTG_IRQ_SRC_REG = B_SRP_TMROUT;
+		omap_writew(B_SRP_TMROUT, OTG_IRQ_SRC);
 		ret = IRQ_HANDLED;
 
 	/* HNP to become b_host failed */
 	} else if (otg_irq & B_HNP_FAIL) {
 		pr_debug("otg: %s B_HNP_FAIL, %06x\n",
-				state_name(isp), OTG_CTRL_REG);
+				state_name(isp), omap_readl(OTG_CTRL));
 		notresponding(isp);
 
-		otg_ctrl = OTG_CTRL_REG;
+		otg_ctrl = omap_readl(OTG_CTRL);
 		otg_ctrl |= OTG_BUSDROP;
 		otg_ctrl &= OTG_CTRL_MASK & ~OTG_XCEIV_INPUTS;
-		OTG_CTRL_REG = otg_ctrl;
+		omap_writel(otg_ctrl, OTG_CTRL);
 
 		/* subset of b_peripheral()... */
 		isp->otg.state = OTG_STATE_B_PERIPHERAL;
 		pr_debug("  --> b_peripheral\n");
 
-		OTG_IRQ_SRC_REG = B_HNP_FAIL;
+		omap_writew(B_HNP_FAIL, OTG_IRQ_SRC);
 		ret = IRQ_HANDLED;
 
 	/* detect SRP from B-device ... */
 	} else if (otg_irq & A_SRP_DETECT) {
 		pr_debug("otg: %s SRP_DETECT, %06x\n",
-				state_name(isp), OTG_CTRL_REG);
+				state_name(isp), omap_readl(OTG_CTRL));
 
 		isp1301_defer_work(isp, WORK_UPDATE_OTG);
 		switch (isp->otg.state) {
@@ -719,49 +732,49 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 			if (!isp->otg.host)
 				break;
 			isp1301_defer_work(isp, WORK_HOST_RESUME);
-			otg_ctrl = OTG_CTRL_REG;
+			otg_ctrl = omap_readl(OTG_CTRL);
 			otg_ctrl |= OTG_A_BUSREQ;
 			otg_ctrl &= ~(OTG_BUSDROP|OTG_B_BUSREQ)
 					& ~OTG_XCEIV_INPUTS
 					& OTG_CTRL_MASK;
-			OTG_CTRL_REG = otg_ctrl;
+			omap_writel(otg_ctrl, OTG_CTRL);
 			break;
 		default:
 			break;
 		}
 
-		OTG_IRQ_SRC_REG = A_SRP_DETECT;
+		omap_writew(A_SRP_DETECT, OTG_IRQ_SRC);
 		ret = IRQ_HANDLED;
 
 	/* timer expired:  T(a_wait_bcon) and maybe T(a_wait_vrise)
 	 * we don't track them separately
 	 */
 	} else if (otg_irq & A_REQ_TMROUT) {
-		otg_ctrl = OTG_CTRL_REG;
+		otg_ctrl = omap_readl(OTG_CTRL);
 		pr_info("otg: BCON_TMOUT from %s, %06x\n",
 				state_name(isp), otg_ctrl);
 		notresponding(isp);
 
 		otg_ctrl |= OTG_BUSDROP;
 		otg_ctrl &= ~OTG_A_BUSREQ & OTG_CTRL_MASK & ~OTG_XCEIV_INPUTS;
-		OTG_CTRL_REG = otg_ctrl;
+		omap_writel(otg_ctrl, OTG_CTRL);
 		isp->otg.state = OTG_STATE_A_WAIT_VFALL;
 
-		OTG_IRQ_SRC_REG = A_REQ_TMROUT;
+		omap_writew(A_REQ_TMROUT, OTG_IRQ_SRC);
 		ret = IRQ_HANDLED;
 
 	/* A-supplied voltage fell too low; overcurrent */
 	} else if (otg_irq & A_VBUS_ERR) {
-		otg_ctrl = OTG_CTRL_REG;
+		otg_ctrl = omap_readl(OTG_CTRL);
 		printk(KERN_ERR "otg: %s, VBUS_ERR %04x ctrl %06x\n",
 			state_name(isp), otg_irq, otg_ctrl);
 
 		otg_ctrl |= OTG_BUSDROP;
 		otg_ctrl &= ~OTG_A_BUSREQ & OTG_CTRL_MASK & ~OTG_XCEIV_INPUTS;
-		OTG_CTRL_REG = otg_ctrl;
+		omap_writel(otg_ctrl, OTG_CTRL);
 		isp->otg.state = OTG_STATE_A_VBUS_ERR;
 
-		OTG_IRQ_SRC_REG = A_VBUS_ERR;
+		omap_writew(A_VBUS_ERR, OTG_IRQ_SRC);
 		ret = IRQ_HANDLED;
 
 	/* switch driver; the transciever code activates it,
@@ -770,7 +783,7 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 	} else if (otg_irq & DRIVER_SWITCH) {
 		int	kick = 0;
 
-		otg_ctrl = OTG_CTRL_REG;
+		otg_ctrl = omap_readl(OTG_CTRL);
 		printk(KERN_NOTICE "otg: %s, SWITCH to %s, ctrl %06x\n",
 				state_name(isp),
 				(otg_ctrl & OTG_DRIVER_SEL)
@@ -793,7 +806,7 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 		} else {
 			if (!(otg_ctrl & OTG_ID)) {
 				otg_ctrl &= OTG_CTRL_MASK & ~OTG_XCEIV_INPUTS;
-				OTG_CTRL_REG = otg_ctrl | OTG_A_BUSREQ;
+				omap_writel(otg_ctrl | OTG_A_BUSREQ, OTG_CTRL);
 			}
 
 			if (isp->otg.host) {
@@ -818,7 +831,7 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 			}
 		}
 
-		OTG_IRQ_SRC_REG = DRIVER_SWITCH;
+		omap_writew(DRIVER_SWITCH, OTG_IRQ_SRC);
 		ret = IRQ_HANDLED;
 
 		if (kick)
@@ -834,12 +847,15 @@ static struct platform_device *otg_dev;
 
 static int otg_init(struct isp1301 *isp)
 {
+	u32 l;
+
 	if (!otg_dev)
 		return -ENODEV;
 
 	dump_regs(isp, __func__);
 	/* some of these values are board-specific... */
-	OTG_SYSCON_2_REG |= OTG_EN
+	l = omap_readl(OTG_SYSCON_2);
+	l |= OTG_EN
 		/* for B-device: */
 		| SRP_GPDATA		/* 9msec Bdev D+ pulse */
 		| SRP_GPDVBUS		/* discharge after VBUS pulse */
@@ -849,18 +865,22 @@ static int otg_init(struct isp1301 *isp)
 		| SRP_DPW		/* detect 167+ns SRP pulses */
 		| SRP_DATA | SRP_VBUS	/* accept both kinds of SRP pulse */
 		;
+	omap_writel(l, OTG_SYSCON_2);
 
 	update_otg1(isp, isp1301_get_u8(isp, ISP1301_INTERRUPT_SOURCE));
 	update_otg2(isp, isp1301_get_u8(isp, ISP1301_OTG_STATUS));
 
 	check_state(isp, __func__);
 	pr_debug("otg: %s, %s %06x\n",
-			state_name(isp), __func__, OTG_CTRL_REG);
+			state_name(isp), __func__, omap_readl(OTG_CTRL));
 
-	OTG_IRQ_EN_REG = DRIVER_SWITCH | OPRT_CHG
+	omap_writew(DRIVER_SWITCH | OPRT_CHG
 			| B_SRP_TMROUT | B_HNP_FAIL
-			| A_VBUS_ERR | A_SRP_DETECT | A_REQ_TMROUT;
-	OTG_SYSCON_2_REG |= OTG_EN;
+			| A_VBUS_ERR | A_SRP_DETECT | A_REQ_TMROUT, OTG_IRQ_EN);
+
+	l = omap_readl(OTG_SYSCON_2);
+	l |= OTG_EN;
+	omap_writel(l, OTG_SYSCON_2);
 
 	return 0;
 }
@@ -927,7 +947,11 @@ static void otg_unbind(struct isp1301 *isp)
 
 static void b_peripheral(struct isp1301 *isp)
 {
-	OTG_CTRL_REG = OTG_CTRL_REG & OTG_XCEIV_OUTPUTS;
+	u32 l;
+
+	l = omap_readl(OTG_CTRL) & OTG_XCEIV_OUTPUTS;
+	omap_writel(l, OTG_CTRL);
+
 	usb_gadget_vbus_connect(isp->otg.gadget);
 
 #ifdef	CONFIG_USB_OTG
@@ -999,6 +1023,8 @@ static void isp_update_otg(struct isp1301 *isp, u8 stat)
 			isp_bstat = 0;
 		}
 	} else {
+		u32 l;
+
 		/* if user unplugged mini-A end of cable,
 		 * don't bypass A_WAIT_VFALL.
 		 */
@@ -1019,8 +1045,9 @@ static void isp_update_otg(struct isp1301 *isp, u8 stat)
 				isp1301_clear_bits(isp, ISP1301_MODE_CONTROL_1,
 						MC1_BDIS_ACON_EN);
 				isp->otg.state = OTG_STATE_B_IDLE;
-				OTG_CTRL_REG &= OTG_CTRL_REG & OTG_CTRL_MASK
-						& ~OTG_CTRL_BITS;
+				l = omap_readl(OTG_CTRL) & OTG_CTRL_MASK;
+				l &= ~OTG_CTRL_BITS;
+				omap_writel(l, OTG_CTRL);
 				break;
 			case OTG_STATE_B_IDLE:
 				break;
@@ -1046,7 +1073,8 @@ static void isp_update_otg(struct isp1301 *isp, u8 stat)
 			/* FALLTHROUGH */
 		case OTG_STATE_B_SRP_INIT:
 			b_idle(isp, __func__);
-			OTG_CTRL_REG &= OTG_CTRL_REG & OTG_XCEIV_OUTPUTS;
+			l = omap_readl(OTG_CTRL) & OTG_XCEIV_OUTPUTS;
+			omap_writel(l, OTG_CTRL);
 			/* FALLTHROUGH */
 		case OTG_STATE_B_IDLE:
 			if (isp->otg.gadget && (isp_bstat & OTG_B_SESS_VLD)) {
@@ -1130,11 +1158,11 @@ isp1301_work(struct work_struct *work)
 			case OTG_STATE_A_WAIT_VRISE:
 				isp->otg.state = OTG_STATE_A_HOST;
 				pr_debug("  --> a_host\n");
-				otg_ctrl = OTG_CTRL_REG;
+				otg_ctrl = omap_readl(OTG_CTRL);
 				otg_ctrl |= OTG_A_BUSREQ;
 				otg_ctrl &= ~(OTG_BUSDROP|OTG_B_BUSREQ)
 						& OTG_CTRL_MASK;
-				OTG_CTRL_REG = otg_ctrl;
+				omap_writel(otg_ctrl, OTG_CTRL);
 				break;
 			case OTG_STATE_B_WAIT_ACON:
 				isp->otg.state = OTG_STATE_B_HOST;
@@ -1274,7 +1302,7 @@ isp1301_set_host(struct otg_transceiver *otg, struct usb_bus *host)
 		return -ENODEV;
 
 	if (!host) {
-		OTG_IRQ_EN_REG = 0;
+		omap_writew(0, OTG_IRQ_EN);
 		power_down(isp);
 		isp->otg.host = 0;
 		return 0;
@@ -1325,12 +1353,13 @@ static int
 isp1301_set_peripheral(struct otg_transceiver *otg, struct usb_gadget *gadget)
 {
 	struct isp1301	*isp = container_of(otg, struct isp1301, otg);
+	u32 l;
 
 	if (!otg || isp != the_transceiver)
 		return -ENODEV;
 
 	if (!gadget) {
-		OTG_IRQ_EN_REG = 0;
+		omap_writew(0, OTG_IRQ_EN);
 		if (!isp->otg.default_a)
 			enable_vbus_draw(isp, 0);
 		usb_gadget_vbus_disconnect(isp->otg.gadget);
@@ -1351,9 +1380,11 @@ isp1301_set_peripheral(struct otg_transceiver *otg, struct usb_gadget *gadget)
 	isp->otg.gadget = gadget;
 	// FIXME update its refcount
 
-	OTG_CTRL_REG = (OTG_CTRL_REG & OTG_CTRL_MASK
-				& ~(OTG_XCEIV_OUTPUTS|OTG_CTRL_BITS))
-			| OTG_ID;
+	l = omap_readl(OTG_CTRL) & OTG_CTRL_MASK;
+	l &= ~(OTG_XCEIV_OUTPUTS|OTG_CTRL_BITS);
+	l |= OTG_ID;
+	omap_writel(l, OTG_CTRL);
+
 	power_up(isp);
 	isp->otg.state = OTG_STATE_B_IDLE;
 
@@ -1405,16 +1436,17 @@ isp1301_start_srp(struct otg_transceiver *dev)
 			|| isp->otg.state != OTG_STATE_B_IDLE)
 		return -ENODEV;
 
-	otg_ctrl = OTG_CTRL_REG;
+	otg_ctrl = omap_readl(OTG_CTRL);
 	if (!(otg_ctrl & OTG_BSESSEND))
 		return -EINVAL;
 
 	otg_ctrl |= OTG_B_BUSREQ;
 	otg_ctrl &= ~OTG_A_BUSREQ & OTG_CTRL_MASK;
-	OTG_CTRL_REG = otg_ctrl;
+	omap_writel(otg_ctrl, OTG_CTRL);
 	isp->otg.state = OTG_STATE_B_SRP_INIT;
 
-	pr_debug("otg: SRP, %s ... %06x\n", state_name(isp), OTG_CTRL_REG);
+	pr_debug("otg: SRP, %s ... %06x\n", state_name(isp),
+			omap_readl(OTG_CTRL));
 #ifdef	CONFIG_USB_OTG
 	check_state(isp, __func__);
 #endif
@@ -1426,6 +1458,7 @@ isp1301_start_hnp(struct otg_transceiver *dev)
 {
 #ifdef	CONFIG_USB_OTG
 	struct isp1301	*isp = container_of(dev, struct isp1301, otg);
+	u32 l;
 
 	if (!dev || isp != the_transceiver)
 		return -ENODEV;
@@ -1452,7 +1485,9 @@ isp1301_start_hnp(struct otg_transceiver *dev)
 #endif
 		/* caller must suspend then clear A_BUSREQ */
 		usb_gadget_vbus_connect(isp->otg.gadget);
-		OTG_CTRL_REG |= OTG_A_SETB_HNPEN;
+		l = omap_readl(OTG_CTRL);
+		l |= OTG_A_SETB_HNPEN;
+		omap_writel(l, OTG_CTRL);
 
 		break;
 	case OTG_STATE_A_PERIPHERAL:
@@ -1462,7 +1497,7 @@ isp1301_start_hnp(struct otg_transceiver *dev)
 		return -EILSEQ;
 	}
 	pr_debug("otg: HNP %s, %06x ...\n",
-		state_name(isp), OTG_CTRL_REG);
+		state_name(isp), omap_readl(OTG_CTRL));
 	check_state(isp, __func__);
 	return 0;
 #else

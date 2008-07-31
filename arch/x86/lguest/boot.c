@@ -607,7 +607,7 @@ static unsigned long lguest_get_wallclock(void)
  * what speed it runs at, or 0 if it's unusable as a reliable clock source.
  * This matches what we want here: if we return 0 from this function, the x86
  * TSC clock will give up and not register itself. */
-static unsigned long lguest_cpu_khz(void)
+static unsigned long lguest_tsc_khz(void)
 {
 	return lguest_data.tsc_khz;
 }
@@ -835,7 +835,7 @@ static __init char *lguest_memory_setup(void)
 
 	/* The Linux bootloader header contains an "e820" memory map: the
 	 * Launcher populated the first entry with our memory limit. */
-	add_memory_region(boot_params.e820_map[0].addr,
+	e820_add_region(boot_params.e820_map[0].addr,
 			  boot_params.e820_map[0].size,
 			  boot_params.e820_map[0].type);
 
@@ -991,14 +991,13 @@ __init void lguest_init(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* apic read/write intercepts */
 	pv_apic_ops.apic_write = lguest_apic_write;
-	pv_apic_ops.apic_write_atomic = lguest_apic_write;
 	pv_apic_ops.apic_read = lguest_apic_read;
 #endif
 
 	/* time operations */
 	pv_time_ops.get_wallclock = lguest_get_wallclock;
 	pv_time_ops.time_init = lguest_time_init;
-	pv_time_ops.get_cpu_khz = lguest_cpu_khz;
+	pv_time_ops.get_tsc_khz = lguest_tsc_khz;
 
 	/* Now is a good time to look at the implementations of these functions
 	 * before returning to the rest of lguest_init(). */
@@ -1012,7 +1011,11 @@ __init void lguest_init(void)
 	 * clobbered.  The Launcher places our initial pagetables somewhere at
 	 * the top of our physical memory, so we don't need extra space: set
 	 * init_pg_tables_end to the end of the kernel. */
+	init_pg_tables_start = __pa(pg0);
 	init_pg_tables_end = __pa(pg0);
+
+	/* As described in head_32.S, we map the first 128M of memory. */
+	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;
 
 	/* Load the %fs segment register (the per-cpu segment register) with
 	 * the normal data segment to get through booting. */
@@ -1065,9 +1068,9 @@ __init void lguest_init(void)
 	pm_power_off = lguest_power_off;
 	machine_ops.restart = lguest_restart;
 
-	/* Now we're set up, call start_kernel() in init/main.c and we proceed
+	/* Now we're set up, call i386_start_kernel() in head32.c and we proceed
 	 * to boot as normal.  It never returns. */
-	start_kernel();
+	i386_start_kernel();
 }
 /*
  * This marks the end of stage II of our journey, The Guest.

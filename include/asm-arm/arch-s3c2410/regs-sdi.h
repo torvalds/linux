@@ -28,9 +28,15 @@
 #define S3C2410_SDIDCNT               (0x30)
 #define S3C2410_SDIDSTA               (0x34)
 #define S3C2410_SDIFSTA               (0x38)
+
 #define S3C2410_SDIDATA               (0x3C)
 #define S3C2410_SDIIMSK               (0x40)
 
+#define S3C2440_SDIDATA               (0x40)
+#define S3C2440_SDIIMSK               (0x3C)
+
+#define S3C2440_SDICON_SDRESET        (1<<8)
+#define S3C2440_SDICON_MMCCLOCK       (1<<5)
 #define S3C2410_SDICON_BYTEORDER      (1<<4)
 #define S3C2410_SDICON_SDIOIRQ        (1<<3)
 #define S3C2410_SDICON_RWAITEN        (1<<2)
@@ -42,7 +48,8 @@
 #define S3C2410_SDICMDCON_LONGRSP     (1<<10)
 #define S3C2410_SDICMDCON_WAITRSP     (1<<9)
 #define S3C2410_SDICMDCON_CMDSTART    (1<<8)
-#define S3C2410_SDICMDCON_INDEX       (0xff)
+#define S3C2410_SDICMDCON_SENDERHOST  (1<<6)
+#define S3C2410_SDICMDCON_INDEX       (0x3f)
 
 #define S3C2410_SDICMDSTAT_CRCFAIL    (1<<12)
 #define S3C2410_SDICMDSTAT_CMDSENT    (1<<11)
@@ -51,6 +58,9 @@
 #define S3C2410_SDICMDSTAT_XFERING    (1<<8)
 #define S3C2410_SDICMDSTAT_INDEX      (0xff)
 
+#define S3C2440_SDIDCON_DS_BYTE       (0<<22)
+#define S3C2440_SDIDCON_DS_HALFWORD   (1<<22)
+#define S3C2440_SDIDCON_DS_WORD       (2<<22)
 #define S3C2410_SDIDCON_IRQPERIOD     (1<<21)
 #define S3C2410_SDIDCON_TXAFTERRESP   (1<<20)
 #define S3C2410_SDIDCON_RXAFTERCMD    (1<<19)
@@ -59,6 +69,7 @@
 #define S3C2410_SDIDCON_WIDEBUS       (1<<16)
 #define S3C2410_SDIDCON_DMAEN         (1<<15)
 #define S3C2410_SDIDCON_STOP          (1<<14)
+#define S3C2440_SDIDCON_DATSTART      (1<<14)
 #define S3C2410_SDIDCON_DATMODE	      (3<<12)
 #define S3C2410_SDIDCON_BLKNUM        (0x7ff)
 
@@ -68,6 +79,7 @@
 #define S3C2410_SDIDCON_XFER_RXSTART  (2<<12)
 #define S3C2410_SDIDCON_XFER_TXSTART  (3<<12)
 
+#define S3C2410_SDIDCON_BLKNUM_MASK   (0xFFF)
 #define S3C2410_SDIDCNT_BLKNUM_SHIFT  (12)
 
 #define S3C2410_SDIDSTA_RDYWAITREQ    (1<<10)
@@ -82,10 +94,12 @@
 #define S3C2410_SDIDSTA_TXDATAON      (1<<1)
 #define S3C2410_SDIDSTA_RXDATAON      (1<<0)
 
+#define S3C2440_SDIFSTA_FIFORESET      (1<<16)
+#define S3C2440_SDIFSTA_FIFOFAIL       (3<<14)  /* 3 is correct (2 bits) */
 #define S3C2410_SDIFSTA_TFDET          (1<<13)
 #define S3C2410_SDIFSTA_RFDET          (1<<12)
-#define S3C2410_SDIFSTA_TXHALF         (1<<11)
-#define S3C2410_SDIFSTA_TXEMPTY        (1<<10)
+#define S3C2410_SDIFSTA_TFHALF         (1<<11)
+#define S3C2410_SDIFSTA_TFEMPTY        (1<<10)
 #define S3C2410_SDIFSTA_RFLAST         (1<<9)
 #define S3C2410_SDIFSTA_RFFULL         (1<<8)
 #define S3C2410_SDIFSTA_RFHALF         (1<<7)

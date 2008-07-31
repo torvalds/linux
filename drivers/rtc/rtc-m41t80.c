@@ -13,20 +13,21 @@
  *
  */
 
-#include <linux/module.h>
+#include <linux/bcd.h>
+#include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/i2c.h>
+#include <linux/module.h>
 #include <linux/rtc.h>
-#include <linux/bcd.h>
+#include <linux/slab.h>
+#include <linux/smp_lock.h>
+#include <linux/string.h>
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
-#include <linux/miscdevice.h>
-#include <linux/watchdog.h>
-#include <linux/reboot.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
+#include <linux/miscdevice.h>
+#include <linux/reboot.h>
+#include <linux/watchdog.h>
 #endif
 
 #define M41T80_REG_SSEC	0
@@ -630,14 +631,12 @@ static int wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		if (rv & WDIOS_DISABLECARD) {
-			printk(KERN_INFO
-			       "rtc-m41t80: disable watchdog\n");
+			pr_info("rtc-m41t80: disable watchdog\n");
 			wdt_disable();
 		}
 
 		if (rv & WDIOS_ENABLECARD) {
-			printk(KERN_INFO
-			       "rtc-m41t80: enable watchdog\n");
+			pr_info("rtc-m41t80: enable watchdog\n");
 			wdt_ping();
 		}
 
@@ -655,12 +654,16 @@ static int wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 static int wdt_open(struct inode *inode, struct file *file)
 {
 	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR) {
-		if (test_and_set_bit(0, &wdt_is_open))
+		lock_kernel();
+		if (test_and_set_bit(0, &wdt_is_open)) {
+			unlock_kernel();
 			return -EBUSY;
+		}
 		/*
 		 *	Activate
 		 */
 		wdt_is_open = 1;
+		unlock_kernel();
 		return 0;
 	}
 	return -ENODEV;

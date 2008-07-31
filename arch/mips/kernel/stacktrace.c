@@ -7,6 +7,7 @@
  */
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
+#include <linux/module.h>
 #include <asm/stacktrace.h>
 
 /*
@@ -73,3 +74,4 @@ void save_stack_trace(struct stack_trace *trace)
 	prepare_frametrace(regs);
 	save_context_stack(trace, regs);
 }
+EXPORT_SYMBOL_GPL(save_stack_trace);

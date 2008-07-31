@@ -23,6 +23,8 @@
 #define ANOMALY_05000245 (1)
 /* Sensitivity To Noise with Slow Input Edge Rates on External SPORT TX and RX Clocks */
 #define ANOMALY_05000265 (1)
+/* New Feature: EMAC TX DMA Word Alignment */
+#define ANOMALY_05000285 (1)
 /* Errors when SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
 #define ANOMALY_05000312 (1)
 /* Incorrect Access of OTP_STATUS During otp_write() Function */

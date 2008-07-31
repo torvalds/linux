@@ -1624,25 +1624,25 @@ static int wl3501_get_scan(struct net_device *dev, struct iw_request_info *info,
 		iwe.cmd			= SIOCGIWAP;
 		iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 		memcpy(iwe.u.ap_addr.sa_data, this->bss_set[i].bssid, ETH_ALEN);
-		current_ev = iwe_stream_add_event(current_ev,
+		current_ev = iwe_stream_add_event(info, current_ev,
 						  extra + IW_SCAN_MAX_DATA,
 						  &iwe, IW_EV_ADDR_LEN);
 		iwe.cmd		  = SIOCGIWESSID;
 		iwe.u.data.flags  = 1;
 		iwe.u.data.length = this->bss_set[i].ssid.el.len;
-		current_ev = iwe_stream_add_point(current_ev,
+		current_ev = iwe_stream_add_point(info, current_ev,
 						  extra + IW_SCAN_MAX_DATA,
 						  &iwe,
 						  this->bss_set[i].ssid.essid);
 		iwe.cmd	   = SIOCGIWMODE;
 		iwe.u.mode = this->bss_set[i].bss_type;
-		current_ev = iwe_stream_add_event(current_ev,
+		current_ev = iwe_stream_add_event(info, current_ev,
 						  extra + IW_SCAN_MAX_DATA,
 						  &iwe, IW_EV_UINT_LEN);
 		iwe.cmd = SIOCGIWFREQ;
 		iwe.u.freq.m = this->bss_set[i].ds_pset.chan;
 		iwe.u.freq.e = 0;
-		current_ev = iwe_stream_add_event(current_ev,
+		current_ev = iwe_stream_add_event(info, current_ev,
 						  extra + IW_SCAN_MAX_DATA,
 						  &iwe, IW_EV_FREQ_LEN);
 		iwe.cmd = SIOCGIWENCODE;
@@ -1651,7 +1651,7 @@ static int wl3501_get_scan(struct net_device *dev, struct iw_request_info *info,
 		else
 			iwe.u.data.flags = IW_ENCODE_DISABLED;
 		iwe.u.data.length = 0;
-		current_ev = iwe_stream_add_point(current_ev,
+		current_ev = iwe_stream_add_point(info, current_ev,
 						  extra + IW_SCAN_MAX_DATA,
 						  &iwe, NULL);
 	}

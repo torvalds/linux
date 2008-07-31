@@ -15,6 +15,7 @@
 #ifdef __KERNEL__
 
 #include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
 
 /* firmware feature bitmask values */
 #define FIRMWARE_MAX_FEATURES 63
@@ -45,6 +46,7 @@
 #define FW_FEATURE_PS3_LV1	ASM_CONST(0x0000000000800000)
 #define FW_FEATURE_BEAT		ASM_CONST(0x0000000001000000)
 #define FW_FEATURE_BULK_REMOVE	ASM_CONST(0x0000000002000000)
+#define FW_FEATURE_CMO		ASM_CONST(0x0000000004000000)
 
 #ifndef __ASSEMBLY__
 
@@ -57,7 +59,7 @@ enum {
 		FW_FEATURE_MIGRATE | FW_FEATURE_PERFMON | FW_FEATURE_CRQ |
 		FW_FEATURE_VIO | FW_FEATURE_RDMA | FW_FEATURE_LLAN |
 		FW_FEATURE_BULK | FW_FEATURE_XDABR | FW_FEATURE_MULTITCE |
-		FW_FEATURE_SPLPAR | FW_FEATURE_LPAR,
+		FW_FEATURE_SPLPAR | FW_FEATURE_LPAR | FW_FEATURE_CMO,
 	FW_FEATURE_PSERIES_ALWAYS = 0,
 	FW_FEATURE_ISERIES_POSSIBLE = FW_FEATURE_ISERIES | FW_FEATURE_LPAR,
 	FW_FEATURE_ISERIES_ALWAYS = FW_FEATURE_ISERIES | FW_FEATURE_LPAR,
@@ -124,18 +126,6 @@ extern void machine_check_fwnmi(void);
 extern int fwnmi_active;
 
 extern unsigned int __start___fw_ftr_fixup, __stop___fw_ftr_fixup;
-
-#else /* __ASSEMBLY__ */
-
-#define BEGIN_FW_FTR_SECTION_NESTED(label)	label:
-#define BEGIN_FW_FTR_SECTION			BEGIN_FW_FTR_SECTION_NESTED(97)
-#define END_FW_FTR_SECTION_NESTED(msk, val, label) \
-	MAKE_FTR_SECTION_ENTRY(msk, val, label, __fw_ftr_fixup)
-#define END_FW_FTR_SECTION(msk, val)		\
-	END_FW_FTR_SECTION_NESTED(msk, val, 97)
-
-#define END_FW_FTR_SECTION_IFSET(msk)	END_FW_FTR_SECTION((msk), (msk))
-#define END_FW_FTR_SECTION_IFCLR(msk)	END_FW_FTR_SECTION((msk), 0)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

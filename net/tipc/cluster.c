@@ -238,7 +238,7 @@ static struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest)
 	if (buf) {
 		msg = buf_msg(buf);
 		memset((char *)msg, 0, size);
-		msg_init(msg, ROUTE_DISTRIBUTOR, 0, TIPC_OK, INT_H_SIZE, dest);
+		msg_init(msg, ROUTE_DISTRIBUTOR, 0, INT_H_SIZE, dest);
 	}
 	return buf;
 }
@@ -571,6 +571,6 @@ exit:
 int tipc_cltr_init(void)
 {
 	tipc_highest_allowed_slave = LOWEST_SLAVE + tipc_max_slaves;
-	return tipc_cltr_create(tipc_own_addr) ? TIPC_OK : -ENOMEM;
+	return tipc_cltr_create(tipc_own_addr) ? 0 : -ENOMEM;
 }
 

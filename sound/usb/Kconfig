@@ -1,11 +1,16 @@
 # ALSA USB drivers
 
-menu "USB devices"
-	depends on SND!=n && USB!=n
+menuconfig SND_USB
+	bool "USB sound devices"
+	depends on USB
+	default y
+	help
+	  Support for sound devices connected via the USB bus.
+
+if SND_USB && USB
 
 config SND_USB_AUDIO
 	tristate "USB Audio/MIDI driver"
-	depends on SND && USB
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_PCM
@@ -18,7 +23,7 @@ config SND_USB_AUDIO
 
 config SND_USB_USX2Y
 	tristate "Tascam US-122, US-224 and US-428 USB driver"
-	depends on SND && USB && (X86 || PPC || ALPHA)
+	depends on X86 || PPC || ALPHA
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_PCM
@@ -31,7 +36,6 @@ config SND_USB_USX2Y
 
 config SND_USB_CAIAQ
 	tristate "Native Instruments USB audio devices"
-	depends on SND && USB
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_PCM
@@ -63,5 +67,5 @@ config SND_USB_CAIAQ_INPUT
 	   * Native Instruments Kore Controller 2
 	   * Native Instruments Audio Kontrol 1
 
-endmenu
+endif	# SND_USB
 

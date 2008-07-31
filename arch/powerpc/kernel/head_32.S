@@ -421,8 +421,10 @@ BEGIN_FTR_SECTION
 	b 	ProgramCheck
 END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 	EXCEPTION_PROLOG
-	bne	load_up_fpu		/* if from user, just load it up */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	beq	1f
+	bl	load_up_fpu		/* if from user, just load it up */
+	b	fast_exception_return
+1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE_LITE(0x800, kernel_fp_unavailable_exception)
 
 /* Decrementer */

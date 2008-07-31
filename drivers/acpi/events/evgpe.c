@@ -256,7 +256,7 @@ acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 		return_ACPI_STATUS(status);
 	}
 
-	/* Mark wake-disabled or HW disable, or both */
+	/* Clear the appropriate enabled flags for this GPE */
 
 	switch (gpe_event_info->flags & ACPI_GPE_TYPE_MASK) {
 	case ACPI_GPE_TYPE_WAKE:
@@ -273,12 +273,22 @@ acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 		/* Disable the requested runtime GPE */
 
 		ACPI_CLEAR_BIT(gpe_event_info->flags, ACPI_GPE_RUN_ENABLED);
-
-		/* fallthrough */
+		break;
 
 	default:
-		acpi_hw_write_gpe_enable_reg(gpe_event_info);
+		break;
 	}
+
+	/*
+	 * Even if we don't know the GPE type, make sure that we always
+	 * disable it. low_disable_gpe will just clear the enable bit for this
+	 * GPE and write it. It will not write out the current GPE enable mask,
+	 * since this may inadvertently enable GPEs too early, if a rogue GPE has
+	 * come in during ACPICA initialization - possibly as a result of AML or
+	 * other code that has enabled the GPE.
+	 */
+	status = acpi_hw_low_disable_gpe(gpe_event_info);
+	return_ACPI_STATUS(status);
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -305,7 +315,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 {
 	union acpi_operand_object *obj_desc;
 	struct acpi_gpe_block_info *gpe_block;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -379,8 +389,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 	u32 status_reg;
 	u32 enable_reg;
 	acpi_cpu_flags flags;
-	acpi_native_uint i;
-	acpi_native_uint j;
+	u32 i;
+	u32 j;
 
 	ACPI_FUNCTION_NAME(ev_gpe_detect);
 
@@ -462,13 +472,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 					 */
 					int_status |=
 					    acpi_ev_gpe_dispatch(&gpe_block->
-								 event_info[(i *
-									     ACPI_GPE_REGISTER_WIDTH)
-									    +
-									    j],
-								 (u32) j +
-								 gpe_register_info->
-								 base_gpe_number);
+						event_info[((acpi_size) i * ACPI_GPE_REGISTER_WIDTH) + j], j + gpe_register_info->base_gpe_number);
 				}
 			}
 		}
@@ -555,10 +559,6 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 			 */
 			info->prefix_node =
 			    local_gpe_event_info.dispatch.method_node;
-			info->parameters =
-			    ACPI_CAST_PTR(union acpi_operand_object *,
-					  gpe_event_info);
-			info->parameter_type = ACPI_PARAM_GPE;
 			info->flags = ACPI_IGNORE_RETURN_VALUE;
 
 			status = acpi_ns_evaluate(info);

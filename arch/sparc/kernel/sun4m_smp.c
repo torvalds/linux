@@ -244,8 +244,9 @@ static struct smp_funcall {
 static DEFINE_SPINLOCK(cross_call_lock);
 
 /* Cross calls must be serialized, at least currently. */
-void smp4m_cross_call(smpfunc_t func, unsigned long arg1, unsigned long arg2,
-		    unsigned long arg3, unsigned long arg4, unsigned long arg5)
+static void smp4m_cross_call(smpfunc_t func, unsigned long arg1,
+			     unsigned long arg2, unsigned long arg3,
+			     unsigned long arg4, unsigned long arg5)
 {
 		register int ncpus = SUN4M_NCPUS;
 		unsigned long flags;
@@ -344,7 +345,7 @@ static void __init smp_setup_percpu_timer(void)
 		enable_pil_irq(14);
 }
 
-void __init smp4m_blackbox_id(unsigned *addr)
+static void __init smp4m_blackbox_id(unsigned *addr)
 {
 	int rd = *addr & 0x3e000000;
 	int rs1 = rd >> 11;
@@ -354,7 +355,7 @@ void __init smp4m_blackbox_id(unsigned *addr)
 	addr[2] = 0x80082003 | rd | rs1;	/* and reg, 3, reg */
 }
 
-void __init smp4m_blackbox_current(unsigned *addr)
+static void __init smp4m_blackbox_current(unsigned *addr)
 {
 	int rd = *addr & 0x3e000000;
 	int rs1 = rd >> 11;

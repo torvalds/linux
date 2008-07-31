@@ -1,6 +1,5 @@
 config SND_AOA_ONYX
 	tristate "support Onyx chip"
-	depends on SND_AOA
 	select I2C
 	select I2C_POWERMAC
 	---help---
@@ -10,7 +9,6 @@ config SND_AOA_ONYX
 
 #config SND_AOA_TOPAZ
 #	tristate "support Topaz chips"
-#	depends on SND_AOA
 #	---help---
 #	This option enables support for the Topaz (CS84xx)
 #	codec chips found in the latest Apple machines,
@@ -19,7 +17,6 @@ config SND_AOA_ONYX
 
 config SND_AOA_TAS
 	tristate "support TAS chips"
-	depends on SND_AOA
 	select I2C
 	select I2C_POWERMAC
 	---help---
@@ -29,7 +26,6 @@ config SND_AOA_TAS
 
 config SND_AOA_TOONIE
 	tristate "support Toonie chip"
-	depends on SND_AOA
 	---help---
 	This option enables support for the toonie codec
 	found in the Mac Mini. If you have a Mac Mini and

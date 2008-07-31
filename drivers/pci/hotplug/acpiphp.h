@@ -36,7 +36,7 @@
 #define _ACPIPHP_H
 
 #include <linux/acpi.h>
-#include <linux/kobject.h>	/* for KOBJ_NAME_LEN */
+#include <linux/kobject.h>
 #include <linux/mutex.h>
 #include <linux/pci_hotplug.h>
 
@@ -51,7 +51,7 @@
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
 /* name size which is used for entries in pcihpfs */
-#define SLOT_NAME_SIZE	KOBJ_NAME_LEN		/* {_SUN} */
+#define SLOT_NAME_SIZE	20		/* {_SUN} */
 
 struct acpiphp_bridge;
 struct acpiphp_slot;
@@ -215,7 +215,6 @@ extern u8 acpiphp_get_power_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_attention_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_latch_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_adapter_status (struct acpiphp_slot *slot);
-extern u32 acpiphp_get_address (struct acpiphp_slot *slot);
 
 /* variables */
 extern int acpiphp_debug;

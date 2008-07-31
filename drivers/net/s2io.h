@@ -75,10 +75,6 @@ static int debug_level = ERR_DBG;
 /* DEBUG message print. */
 #define DBG_PRINT(dbg_level, args...)  if(!(debug_level<dbg_level)) printk(args)
 
-#ifndef DMA_ERROR_CODE
-#define DMA_ERROR_CODE          (~(dma_addr_t)0x0)
-#endif
-
 /* Protocol assist features of the NIC */
 #define L3_CKSUM_OK 0xFFFF
 #define L4_CKSUM_OK 0xFFFF
@@ -752,7 +748,7 @@ struct ring_info {
 
 	/* interface MTU value */
         unsigned mtu;
-    
+
 	/* Buffer Address store. */
 	struct buffAdd **ba;
 
@@ -1111,6 +1107,7 @@ static int init_shared_mem(struct s2io_nic *sp);
 static void free_shared_mem(struct s2io_nic *sp);
 static int init_nic(struct s2io_nic *nic);
 static int rx_intr_handler(struct ring_info *ring_data, int budget);
+static void s2io_txpic_intr_handle(struct s2io_nic *sp);
 static void tx_intr_handler(struct fifo_info *fifo_data);
 static void s2io_handle_errors(void * dev_id);
 

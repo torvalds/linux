@@ -8,7 +8,7 @@ extern int pm_trace_enabled;
 
 struct device;
 extern void set_trace_device(struct device *);
-extern void generate_resume_trace(void *tracedata, unsigned int user);
+extern void generate_resume_trace(const void *tracedata, unsigned int user);
 
 #define TRACE_DEVICE(dev) do { \
 	if (pm_trace_enabled) \

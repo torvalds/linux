@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/mach-vr1000.c
  *
- * Copyright (c) 2003-2005 Simtec Electronics
+ * Copyright (c) 2003-2005,2008 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * Machine support for Thorcom VR1000 board. Designed for Thorcom by
@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/dm9000.h>
+#include <linux/i2c.h>
 
 #include <linux/serial.h>
 #include <linux/tty.h>
@@ -46,7 +47,9 @@
 #include <asm/plat-s3c24xx/clock.h>
 #include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/cpu.h>
+
 #include "usb-simtec.h"
+#include "nor-simtec.h"
 
 /* macros for virtual address mods for the io space entries */
 #define VA_C5(item) ((unsigned long)(item) + BAST_VAM_CS5)
@@ -97,34 +100,6 @@ static struct map_desc vr1000_iodesc[] __initdata = {
 	  .length	= SZ_1M,
 	  .type		= MT_DEVICE,
   },
-
-  /* peripheral space... one for each of fast/slow/byte/16bit */
-  /* note, ide is only decoded in word space, even though some registers
-   * are only 8bit */
-
-  /* slow, byte */
-  { VA_C2(VR1000_VA_IDEPRI),  PA_CS3(VR1000_PA_IDEPRI),	  SZ_1M,  MT_DEVICE },
-  { VA_C2(VR1000_VA_IDESEC),  PA_CS3(VR1000_PA_IDESEC),	  SZ_1M,  MT_DEVICE },
-  { VA_C2(VR1000_VA_IDEPRIAUX), PA_CS3(VR1000_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
-  { VA_C2(VR1000_VA_IDESECAUX), PA_CS3(VR1000_PA_IDESECAUX), SZ_1M, MT_DEVICE },
-
-  /* slow, word */
-  { VA_C3(VR1000_VA_IDEPRI),  PA_CS3(VR1000_PA_IDEPRI),	  SZ_1M,  MT_DEVICE },
-  { VA_C3(VR1000_VA_IDESEC),  PA_CS3(VR1000_PA_IDESEC),	  SZ_1M,  MT_DEVICE },
-  { VA_C3(VR1000_VA_IDEPRIAUX), PA_CS3(VR1000_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
-  { VA_C3(VR1000_VA_IDESECAUX), PA_CS3(VR1000_PA_IDESECAUX), SZ_1M, MT_DEVICE },
-
-  /* fast, byte */
-  { VA_C4(VR1000_VA_IDEPRI),  PA_CS5(VR1000_PA_IDEPRI),	  SZ_1M,  MT_DEVICE },
-  { VA_C4(VR1000_VA_IDESEC),  PA_CS5(VR1000_PA_IDESEC),	  SZ_1M,  MT_DEVICE },
-  { VA_C4(VR1000_VA_IDEPRIAUX), PA_CS5(VR1000_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
-  { VA_C4(VR1000_VA_IDESECAUX), PA_CS5(VR1000_PA_IDESECAUX), SZ_1M, MT_DEVICE },
-
-  /* fast, word */
-  { VA_C5(VR1000_VA_IDEPRI),  PA_CS5(VR1000_PA_IDEPRI),	  SZ_1M,  MT_DEVICE },
-  { VA_C5(VR1000_VA_IDESEC),  PA_CS5(VR1000_PA_IDESEC),	  SZ_1M,  MT_DEVICE },
-  { VA_C5(VR1000_VA_IDEPRIAUX), PA_CS5(VR1000_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
-  { VA_C5(VR1000_VA_IDESECAUX), PA_CS5(VR1000_PA_IDESECAUX), SZ_1M, MT_DEVICE },
 };
 
 #define UCON S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK
@@ -230,23 +205,6 @@ static struct platform_device serial_device = {
 	},
 };
 
-/* MTD NOR Flash */
-
-static struct resource vr1000_nor_resource[] = {
-	[0] = {
-		.start	= S3C2410_CS1 + 0x4000000,
-		.end	= S3C2410_CS1 + 0x4000000 + SZ_16M - 1,
-		.flags	= IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device vr1000_nor = {
-	.name		= "bast-nor",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(vr1000_nor_resource),
-	.resource	= vr1000_nor_resource,
-};
-
 /* DM9000 ethernet devices */
 
 static struct resource vr1000_dm9k0_resource[] = {
@@ -263,7 +221,7 @@ static struct resource vr1000_dm9k0_resource[] = {
 	[2] = {
 		.start = IRQ_VR1000_DM9000A,
 		.end   = IRQ_VR1000_DM9000A,
-		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	}
 
 };
@@ -282,7 +240,7 @@ static struct resource vr1000_dm9k1_resource[] = {
 	[2] = {
 		.start = IRQ_VR1000_DM9000N,
 		.end   = IRQ_VR1000_DM9000N,
-		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	}
 };
 
@@ -358,6 +316,18 @@ static struct platform_device vr1000_led3 = {
 	},
 };
 
+/* I2C devices. */
+
+static struct i2c_board_info vr1000_i2c_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("tlv320aic23", 0x1a),
+	}, {
+		I2C_BOARD_INFO("tmp101", 0x48),
+	}, {
+		I2C_BOARD_INFO("m41st87", 0x68),
+	},
+};
+
 /* devices for this board */
 
 static struct platform_device *vr1000_devices[] __initdata = {
@@ -367,7 +337,6 @@ static struct platform_device *vr1000_devices[] __initdata = {
 	&s3c_device_i2c,
 	&s3c_device_adc,
 	&serial_device,
-	&vr1000_nor,
 	&vr1000_dm9k0,
 	&vr1000_dm9k1,
 	&vr1000_led1,
@@ -416,6 +385,11 @@ static void __init vr1000_map_io(void)
 static void __init vr1000_init(void)
 {
 	platform_add_devices(vr1000_devices, ARRAY_SIZE(vr1000_devices));
+
+	i2c_register_board_info(0, vr1000_i2c_devs,
+				ARRAY_SIZE(vr1000_i2c_devs));
+
+	nor_simtec_init();
 }
 
 MACHINE_START(VR1000, "Thorcom-VR1000")

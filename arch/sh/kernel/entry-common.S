@@ -192,7 +192,7 @@ work_resched:
 	.align	2
 1:	.long	schedule
 2:	.long	do_notify_resume
-3:	.long	restore_all
+3:	.long	resume_userspace
 #ifdef CONFIG_TRACE_IRQFLAGS
 4:	.long	trace_hardirqs_on
 5:	.long	trace_hardirqs_off

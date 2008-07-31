@@ -5,7 +5,7 @@
  *          LSIFC9xx/LSI409xx Fibre Channel
  *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2007 LSI Corporation
+ *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -73,11 +73,11 @@
 #endif
 
 #ifndef COPYRIGHT
-#define COPYRIGHT	"Copyright (c) 1999-2007 " MODULEAUTHOR
+#define COPYRIGHT	"Copyright (c) 1999-2008 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.04.06"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.06"
+#define MPT_LINUX_VERSION_COMMON	"3.04.07"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.07"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -175,6 +175,8 @@
 
 /* debug print string length used for events and iocstatus */
 # define EVENT_DESCR_STR_SZ             100
+
+#define MPT_POLLING_INTERVAL		1000	/* in milliseconds */
 
 #ifdef __KERNEL__	/* { */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -705,10 +707,16 @@ typedef struct _MPT_ADAPTER
 	u8			 fc_link_speed[2];
 	spinlock_t		 fc_rescan_work_lock;
 	struct work_struct	 fc_rescan_work;
-	char			 fc_rescan_work_q_name[KOBJ_NAME_LEN];
+	char			 fc_rescan_work_q_name[20];
 	struct workqueue_struct *fc_rescan_work_q;
 	struct scsi_cmnd	**ScsiLookup;
 	spinlock_t		  scsi_lookup_lock;
+
+	char			 reset_work_q_name[20];
+	struct workqueue_struct *reset_work_q;
+	struct delayed_work	 fault_reset_work;
+	spinlock_t		 fault_reset_work_lock;
+
 } MPT_ADAPTER;
 
 /*
@@ -919,7 +927,6 @@ extern int	 mpt_raid_phys_disk_pg0(MPT_ADAPTER *ioc, u8 phys_disk_num, pRaidPhys
  *  Public data decl's...
  */
 extern struct list_head	  ioc_list;
-extern struct proc_dir_entry	*mpt_proc_root_dir;
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 #endif		/* } __KERNEL__ */

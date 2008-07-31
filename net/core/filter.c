@@ -68,7 +68,6 @@ static inline void *load_pointer(struct sk_buff *skb, int k,
  *	sk_filter - run a packet through a socket filter
  *	@sk: sock associated with &sk_buff
  *	@skb: buffer to filter
- *	@needlock: set to 1 if the sock is not locked by caller.
  *
  * Run the filter code and then cut skb->data to correct size returned by
  * sk_run_filter. If pkt_len is 0 we toss packet. If skb->len is smaller

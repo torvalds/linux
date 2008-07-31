@@ -41,6 +41,7 @@
 #include <asm/mach/flash.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/trizeps4.h>
 #include <asm/arch/audio.h>
@@ -121,7 +122,7 @@ static struct resource dm9000_resources[] = {
 	[2] = {
 		.start	= TRIZEPS4_ETH_IRQ,
 		.end	= TRIZEPS4_ETH_IRQ,
-		.flags	= (IORESOURCE_IRQ | IRQT_RISING),
+		.flags	= (IORESOURCE_IRQ | IRQ_TYPE_EDGE_RISING),
 	},
 };
 
@@ -175,19 +176,10 @@ static struct platform_device uart_devices = {
 	.resource	= NULL,
 };
 
-/********************************************************************************************
- * PXA270 ac97 sound codec
- ********************************************************************************************/
-static struct platform_device ac97_audio_device = {
-	.name		= "pxa2xx-ac97",
-	.id		= -1,
-};
-
 static struct platform_device * trizeps4_devices[] __initdata = {
 	&flash_device,
 	&uart_devices,
 	&dm9000_device,
-	&ac97_audio_device,
 };
 
 #ifdef CONFIG_MACH_TRIZEPS4_CONXS
@@ -262,6 +254,7 @@ static void board_irda_mode(struct device *dev, int mode)
 		/* Fast mode */
 		trizeps_conxs_ircr |= ConXS_IRCR_MODE;
 	}
+	pxa2xx_transceiver_mode(dev, mode);
 	if (mode & IR_OFF) {
 		trizeps_conxs_ircr |= ConXS_IRCR_SD;
 	} else {
@@ -438,6 +431,7 @@ static void __init trizeps4_init(void)
 	pxa_set_mci_info(&trizeps4_mci_platform_data);
 	pxa_set_ficp_info(&trizeps4_ficp_platform_data);
 	pxa_set_ohci_info(&trizeps4_ohci_platform_data);
+	pxa_set_ac97_info(NULL);
 }
 
 static void __init trizeps4_map_io(void)
@@ -487,6 +481,7 @@ static void __init trizeps4_map_io(void)
 	ConXS_BCR = trizeps_conxs_bcr;
 #endif
 
+#warning FIXME - accessing PM registers directly is deprecated
 	PWER  = 0x00000002;
 	PFER  = 0x00000000;
 	PRER  = 0x00000002;

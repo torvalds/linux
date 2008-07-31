@@ -29,14 +29,14 @@
 #define MC_DEBUG	1
 
 #define MC_BATCH	32
-#define MC_ARGS		(MC_BATCH * 16 / sizeof(u64))
+#define MC_ARGS		(MC_BATCH * 16)
 
 struct mc_buffer {
 	struct multicall_entry entries[MC_BATCH];
 #if MC_DEBUG
 	struct multicall_entry debug[MC_BATCH];
 #endif
-	u64 args[MC_ARGS];
+	unsigned char args[MC_ARGS];
 	struct callback {
 		void (*fn)(void *);
 		void *data;
@@ -76,6 +76,7 @@ void xen_mc_flush(void)
 		if (ret) {
 			printk(KERN_ERR "%d multicall(s) failed: cpu %d\n",
 			       ret, smp_processor_id());
+			dump_stack();
 			for (i = 0; i < b->mcidx; i++) {
 				printk("  call %2d/%d: op=%lu arg=[%lx] result=%ld\n",
 				       i+1, b->mcidx,
@@ -107,20 +108,48 @@ struct multicall_space __xen_mc_entry(size_t args)
 {
 	struct mc_buffer *b = &__get_cpu_var(mc_buffer);
 	struct multicall_space ret;
-	unsigned argspace = (args + sizeof(u64) - 1) / sizeof(u64);
+	unsigned argidx = roundup(b->argidx, sizeof(u64));
 
 	BUG_ON(preemptible());
-	BUG_ON(argspace > MC_ARGS);
+	BUG_ON(b->argidx > MC_ARGS);
 
 	if (b->mcidx == MC_BATCH ||
-	    (b->argidx + argspace) > MC_ARGS)
+	    (argidx + args) > MC_ARGS) {
 		xen_mc_flush();
+		argidx = roundup(b->argidx, sizeof(u64));
+	}
 
 	ret.mc = &b->entries[b->mcidx];
 	b->mcidx++;
-	ret.args = &b->args[b->argidx];
-	b->argidx += argspace;
+	ret.args = &b->args[argidx];
+	b->argidx = argidx + args;
 
+	BUG_ON(b->argidx > MC_ARGS);
+	return ret;
+}
+
+struct multicall_space xen_mc_extend_args(unsigned long op, size_t size)
+{
+	struct mc_buffer *b = &__get_cpu_var(mc_buffer);
+	struct multicall_space ret = { NULL, NULL };
+
+	BUG_ON(preemptible());
+	BUG_ON(b->argidx > MC_ARGS);
+
+	if (b->mcidx == 0)
+		return ret;
+
+	if (b->entries[b->mcidx - 1].op != op)
+		return ret;
+
+	if ((b->argidx + size) > MC_ARGS)
+		return ret;
+
+	ret.mc = &b->entries[b->mcidx - 1];
+	ret.args = &b->args[b->argidx];
+	b->argidx += size;
+
+	BUG_ON(b->argidx > MC_ARGS);
 	return ret;
 }
 

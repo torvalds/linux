@@ -132,6 +132,7 @@ errout:
  * @maxtype: maximum attribute type to be expected
  * @head: head of attribute stream
  * @len: length of attribute stream
+ * @policy: validation policy
  *
  * Parses a stream of attributes and stores a pointer to each attribute in
  * the tb array accessable via the attribute type. Attributes with a type
@@ -194,7 +195,7 @@ struct nlattr *nla_find(struct nlattr *head, int len, int attrtype)
 /**
  * nla_strlcpy - Copy string attribute payload into a sized buffer
  * @dst: where to copy the string to
- * @src: attribute to copy the string from
+ * @nla: attribute to copy the string from
  * @dstsize: size of destination buffer
  *
  * Copies at most dstsize - 1 bytes into the destination buffer.
@@ -340,9 +341,9 @@ struct nlattr *nla_reserve(struct sk_buff *skb, int attrtype, int attrlen)
 }
 
 /**
- * nla_reserve - reserve room for attribute without header
+ * nla_reserve_nohdr - reserve room for attribute without header
  * @skb: socket buffer to reserve room on
- * @len: length of attribute payload
+ * @attrlen: length of attribute payload
  *
  * Reserves room for attribute payload without a header.
  *

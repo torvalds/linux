@@ -12,7 +12,6 @@
 
 #include <linux/types.h>
 #include <linux/unistd.h>
-#include <linux/dirent.h>
 #include <linux/fs.h>
 #include <linux/posix_acl.h>
 #include <linux/mount.h>
@@ -28,20 +27,20 @@
 #define NFSD_SUPPORTED_MINOR_VERSION	0
 
 /*
- * Special flags for nfsd_permission. These must be different from MAY_READ,
- * MAY_WRITE, and MAY_EXEC.
+ * Flags for nfsd_permission
  */
-#define MAY_NOP			0
-#define MAY_SATTR		8
-#define MAY_TRUNC		16
-#define MAY_LOCK		32
-#define MAY_OWNER_OVERRIDE	64
-#define	MAY_LOCAL_ACCESS	128 /* IRIX doing local access check on device special file*/
-#if (MAY_SATTR | MAY_TRUNC | MAY_LOCK | MAY_OWNER_OVERRIDE | MAY_LOCAL_ACCESS) & (MAY_READ | MAY_WRITE | MAY_EXEC)
-# error "please use a different value for MAY_SATTR or MAY_TRUNC or MAY_LOCK or MAY_LOCAL_ACCESS or MAY_OWNER_OVERRIDE."
-#endif
-#define MAY_CREATE		(MAY_EXEC|MAY_WRITE)
-#define MAY_REMOVE		(MAY_EXEC|MAY_WRITE|MAY_TRUNC)
+#define NFSD_MAY_NOP		0
+#define NFSD_MAY_EXEC		1 /* == MAY_EXEC */
+#define NFSD_MAY_WRITE		2 /* == MAY_WRITE */
+#define NFSD_MAY_READ		4 /* == MAY_READ */
+#define NFSD_MAY_SATTR		8
+#define NFSD_MAY_TRUNC		16
+#define NFSD_MAY_LOCK		32
+#define NFSD_MAY_OWNER_OVERRIDE	64
+#define NFSD_MAY_LOCAL_ACCESS	128 /* IRIX doing local access check on device special file*/
+
+#define NFSD_MAY_CREATE		(NFSD_MAY_EXEC|NFSD_MAY_WRITE)
+#define NFSD_MAY_REMOVE		(NFSD_MAY_EXEC|NFSD_MAY_WRITE|NFSD_MAY_TRUNC)
 
 /*
  * Callback function for readdir
@@ -54,6 +53,7 @@ typedef int (*nfsd_dirop_t)(struct inode *, struct dentry *, int, int);
 extern struct svc_program	nfsd_program;
 extern struct svc_version	nfsd_version2, nfsd_version3,
 				nfsd_version4;
+extern struct mutex		nfsd_mutex;
 extern struct svc_serv		*nfsd_serv;
 
 extern struct seq_operations nfs_exports_op;

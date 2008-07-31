@@ -85,7 +85,7 @@ static irqreturn_t scc_rx_int(int irq, void *data);
 static irqreturn_t scc_stat_int(int irq, void *data);
 static irqreturn_t scc_spcond_int(int irq, void *data);
 static void scc_setsignals(struct scc_port *port, int dtr, int rts);
-static void scc_break_ctl(struct tty_struct *tty, int break_state);
+static int scc_break_ctl(struct tty_struct *tty, int break_state);
 
 static struct tty_driver *scc_driver;
 
@@ -183,8 +183,8 @@ static void scc_init_portstructs(void)
 #ifdef NEW_WRITE_LOCKING
 		port->gs.port_write_mutex = MUTEX;
 #endif
-		init_waitqueue_head(&port->gs.open_wait);
-		init_waitqueue_head(&port->gs.close_wait);
+		init_waitqueue_head(&port->gs.port.open_wait);
+		init_waitqueue_head(&port->gs.port.close_wait);
 	}
 }
 
@@ -422,7 +422,7 @@ static irqreturn_t scc_rx_int(int irq, void *data)
 {
 	unsigned char	ch;
 	struct scc_port *port = data;
-	struct tty_struct *tty = port->gs.tty;
+	struct tty_struct *tty = port->gs.port.tty;
 	SCC_ACCESS_INIT(port);
 
 	ch = SCCread_NB(RX_DATA_REG);
@@ -453,7 +453,7 @@ static irqreturn_t scc_rx_int(int irq, void *data)
 static irqreturn_t scc_spcond_int(int irq, void *data)
 {
 	struct scc_port *port = data;
-	struct tty_struct *tty = port->gs.tty;
+	struct tty_struct *tty = port->gs.port.tty;
 	unsigned char	stat, ch, err;
 	int		int_pending_mask = port->channel == CHANNEL_A ?
 			                   IPR_A_RX : IPR_B_RX;
@@ -500,7 +500,7 @@ static irqreturn_t scc_tx_int(int irq, void *data)
 	struct scc_port *port = data;
 	SCC_ACCESS_INIT(port);
 
-	if (!port->gs.tty) {
+	if (!port->gs.port.tty) {
 		printk(KERN_WARNING "scc_tx_int with NULL tty!\n");
 		SCCmod (INT_AND_DMA_REG, ~IDR_TX_INT_ENAB, 0);
 		SCCwrite(COMMAND_REG, CR_TX_PENDING_RESET);
@@ -512,8 +512,9 @@ static irqreturn_t scc_tx_int(int irq, void *data)
 			SCCwrite(TX_DATA_REG, port->x_char);
 			port->x_char = 0;
 		}
-		else if ((port->gs.xmit_cnt <= 0) || port->gs.tty->stopped ||
-				port->gs.tty->hw_stopped)
+		else if ((port->gs.xmit_cnt <= 0) ||
+			 port->gs.port.tty->stopped ||
+			 port->gs.port.tty->hw_stopped)
 			break;
 		else {
 			SCCwrite(TX_DATA_REG, port->gs.xmit_buf[port->gs.xmit_tail++]);
@@ -522,15 +523,15 @@ static irqreturn_t scc_tx_int(int irq, void *data)
 				break;
 		}
 	}
-	if ((port->gs.xmit_cnt <= 0) || port->gs.tty->stopped ||
-			port->gs.tty->hw_stopped) {
+	if ((port->gs.xmit_cnt <= 0) || port->gs.port.tty->stopped ||
+	    port->gs.port.tty->hw_stopped) {
 		/* disable tx interrupts */
 		SCCmod (INT_AND_DMA_REG, ~IDR_TX_INT_ENAB, 0);
 		SCCwrite(COMMAND_REG, CR_TX_PENDING_RESET);   /* disable tx_int on next tx underrun? */
-		port->gs.flags &= ~GS_TX_INTEN;
+		port->gs.port.flags &= ~GS_TX_INTEN;
 	}
-	if (port->gs.tty && port->gs.xmit_cnt <= port->gs.wakeup_chars)
-		tty_wakeup(port->gs.tty);
+	if (port->gs.port.tty && port->gs.xmit_cnt <= port->gs.wakeup_chars)
+		tty_wakeup(port->gs.port.tty);
 
 	SCCwrite_NB(COMMAND_REG, CR_HIGHEST_IUS_RESET);
 	return IRQ_HANDLED;
@@ -550,14 +551,14 @@ static irqreturn_t scc_stat_int(int irq, void *data)
 
 	if (changed & SR_DCD) {
 		port->c_dcd = !!(sr & SR_DCD);
-		if (!(port->gs.flags & ASYNC_CHECK_CD))
+		if (!(port->gs.port.flags & ASYNC_CHECK_CD))
 			;	/* Don't report DCD changes */
 		else if (port->c_dcd) {
-			wake_up_interruptible(&port->gs.open_wait);
+			wake_up_interruptible(&port->gs.port.open_wait);
 		}
 		else {
-			if (port->gs.tty)
-				tty_hangup (port->gs.tty);
+			if (port->gs.port.tty)
+				tty_hangup (port->gs.port.tty);
 		}
 	}
 	SCCwrite(COMMAND_REG, CR_EXTSTAT_RESET);
@@ -578,7 +579,7 @@ static void scc_disable_tx_interrupts(void *ptr)
 
 	local_irq_save(flags);
 	SCCmod(INT_AND_DMA_REG, ~IDR_TX_INT_ENAB, 0);
-	port->gs.flags &= ~GS_TX_INTEN;
+	port->gs.port.flags &= ~GS_TX_INTEN;
 	local_irq_restore(flags);
 }
 
@@ -636,8 +637,8 @@ static void scc_shutdown_port(void *ptr)
 {
 	struct scc_port *port = ptr;
 
-	port->gs.flags &= ~ GS_ACTIVE;
-	if (port->gs.tty && port->gs.tty->termios->c_cflag & HUPCL) {
+	port->gs.port.flags &= ~ GS_ACTIVE;
+	if (port->gs.port.tty && port->gs.port.tty->termios->c_cflag & HUPCL) {
 		scc_setsignals (port, 0, 0);
 	}
 }
@@ -652,14 +653,14 @@ static int scc_set_real_termios (void *ptr)
 	struct scc_port *port = ptr;
 	SCC_ACCESS_INIT(port);
 
-	if (!port->gs.tty || !port->gs.tty->termios) return 0;
+	if (!port->gs.port.tty || !port->gs.port.tty->termios) return 0;
 
 	channel = port->channel;
 
 	if (channel == CHANNEL_A)
 		return 0;		/* Settings controlled by boot PROM */
 
-	cflag  = port->gs.tty->termios->c_cflag;
+	cflag  = port->gs.port.tty->termios->c_cflag;
 	baud = port->gs.baud;
 	chsize = (cflag & CSIZE) >> 4;
 
@@ -678,9 +679,9 @@ static int scc_set_real_termios (void *ptr)
 	}
 
 	if (cflag & CLOCAL)
-		port->gs.flags &= ~ASYNC_CHECK_CD;
+		port->gs.port.flags &= ~ASYNC_CHECK_CD;
 	else
-		port->gs.flags |= ASYNC_CHECK_CD;
+		port->gs.port.flags |= ASYNC_CHECK_CD;
 
 #ifdef CONFIG_MVME147_SCC
 	if (MACH_IS_MVME147)
@@ -856,7 +857,7 @@ static int scc_open (struct tty_struct * tty, struct file * filp)
 		{ COMMAND_REG, CR_EXTSTAT_RESET },
 	};
 #endif
-	if (!(port->gs.flags & ASYNC_INITIALIZED)) {
+	if (!(port->gs.port.flags & ASYNC_INITIALIZED)) {
 		local_irq_save(flags);
 #if defined(CONFIG_MVME147_SCC) || defined(CONFIG_MVME162_SCC)
 		if (MACH_IS_MVME147 || MACH_IS_MVME16x) {
@@ -880,18 +881,18 @@ static int scc_open (struct tty_struct * tty, struct file * filp)
 	}
 
 	tty->driver_data = port;
-	port->gs.tty = tty;
-	port->gs.count++;
+	port->gs.port.tty = tty;
+	port->gs.port.count++;
 	retval = gs_init_port(&port->gs);
 	if (retval) {
-		port->gs.count--;
+		port->gs.port.count--;
 		return retval;
 	}
-	port->gs.flags |= GS_ACTIVE;
+	port->gs.port.flags |= GS_ACTIVE;
 	retval = gs_block_til_ready(port, filp);
 
 	if (retval) {
-		port->gs.count--;
+		port->gs.port.count--;
 		return retval;
 	}
 
@@ -942,7 +943,7 @@ static int scc_ioctl(struct tty_struct *tty, struct file *file,
 }
 
 
-static void scc_break_ctl(struct tty_struct *tty, int break_state)
+static int scc_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct scc_port *port = (struct scc_port *)tty->driver_data;
 	unsigned long	flags;
@@ -952,6 +953,7 @@ static void scc_break_ctl(struct tty_struct *tty, int break_state)
 	SCCmod(TX_CTRL_REG, ~TCR_SEND_BREAK, 
 			break_state ? TCR_SEND_BREAK : 0);
 	local_irq_restore(flags);
+	return 0;
 }
 
 

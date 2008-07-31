@@ -1,0 +1,26 @@
+#
+# Siano Mobile Silicon Digital TV device configuration
+#
+
+config DVB_SIANO_SMS1XXX
+	tristate "Siano SMS1XXX USB dongle support"
+	depends on DVB_CORE && USB
+	---help---
+	  Choose Y here if you have a USB dongle with a SMS1XXX chipset.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sms1xxx.
+
+config DVB_SIANO_SMS1XXX_SMS_IDS
+	bool "Enable support for Siano Mobile Silicon default USB IDs"
+	depends on DVB_SIANO_SMS1XXX
+	default y
+	---help---
+	  Choose Y here if you have a USB dongle with a SMS1XXX chipset
+	  that uses Siano Mobile Silicon's default usb vid:pid.
+
+	  Choose N here if you would prefer to use Siano's external driver.
+
+	  Further documentation on this driver can be found on the WWW at
+	  <http://www.siano-ms.com/>.
+

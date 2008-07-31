@@ -31,6 +31,7 @@ asmlinkage int sys_vfork(unsigned long p1, unsigned long p2,
 		unsigned long p3, unsigned long p4, unsigned long p5,
 		unsigned long p6, struct pt_regs *regs);
 asmlinkage long sys_pipe(int __user *fildes);
+asmlinkage long sys_pipe2(int __user *fildes, int flags);
 asmlinkage long sys_rt_sigaction(int sig,
 		const struct sigaction __user *act,
 		struct sigaction __user *oact, size_t sigsetsize);

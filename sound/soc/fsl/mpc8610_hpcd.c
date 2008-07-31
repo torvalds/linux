@@ -58,9 +58,9 @@ static int mpc8610_hpcd_machine_probe(struct platform_device *sound_device)
 		sound_device->dev.platform_data;
 
 	/* Program the signal routing between the SSI and the DMA */
-	guts_set_dmacr(machine_data->guts, machine_data->dma_id + 1,
+	guts_set_dmacr(machine_data->guts, machine_data->dma_id,
 		machine_data->dma_channel_id[0], CCSR_GUTS_DMACR_DEV_SSI);
-	guts_set_dmacr(machine_data->guts, machine_data->dma_id + 1,
+	guts_set_dmacr(machine_data->guts, machine_data->dma_id,
 		machine_data->dma_channel_id[1], CCSR_GUTS_DMACR_DEV_SSI);
 
 	guts_set_pmuxcr_dma(machine_data->guts, machine_data->dma_id,
@@ -96,62 +96,52 @@ static int mpc8610_hpcd_machine_probe(struct platform_device *sound_device)
 static int mpc8610_hpcd_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct mpc8610_hpcd_data *machine_data =
 		rtd->socdev->dev->platform_data;
 	int ret = 0;
 
 	/* Tell the CPU driver what the serial protocol is. */
-	if (cpu_dai->dai_ops.set_fmt) {
-		ret = cpu_dai->dai_ops.set_fmt(cpu_dai,
-			machine_data->dai_format);
-		if (ret < 0) {
-			dev_err(substream->pcm->card->dev,
-				"could not set CPU driver audio format\n");
-			return ret;
-		}
+	ret = snd_soc_dai_set_fmt(cpu_dai, machine_data->dai_format);
+	if (ret < 0) {
+		dev_err(substream->pcm->card->dev,
+			"could not set CPU driver audio format\n");
+		return ret;
 	}
 
 	/* Tell the codec driver what the serial protocol is. */
-	if (codec_dai->dai_ops.set_fmt) {
-		ret = codec_dai->dai_ops.set_fmt(codec_dai,
-			machine_data->dai_format);
-		if (ret < 0) {
-			dev_err(substream->pcm->card->dev,
-				"could not set codec driver audio format\n");
-			return ret;
-		}
+	ret = snd_soc_dai_set_fmt(codec_dai, machine_data->dai_format);
+	if (ret < 0) {
+		dev_err(substream->pcm->card->dev,
+			"could not set codec driver audio format\n");
+		return ret;
 	}
 
 	/*
 	 * Tell the CPU driver what the clock frequency is, and whether it's a
 	 * slave or master.
 	 */
-	if (cpu_dai->dai_ops.set_sysclk) {
-		ret = cpu_dai->dai_ops.set_sysclk(cpu_dai, 0,
-			machine_data->clk_frequency,
-			machine_data->cpu_clk_direction);
-		if (ret < 0) {
-			dev_err(substream->pcm->card->dev,
-				"could not set CPU driver clock parameters\n");
-			return ret;
-		}
+	ret = snd_soc_dai_set_sysclk(cpu_dai, 0,
+					machine_data->clk_frequency,
+					machine_data->cpu_clk_direction);
+	if (ret < 0) {
+		dev_err(substream->pcm->card->dev,
+			"could not set CPU driver clock parameters\n");
+		return ret;
 	}
 
 	/*
 	 * Tell the codec driver what the MCLK frequency is, and whether it's
 	 * a slave or master.
 	 */
-	if (codec_dai->dai_ops.set_sysclk) {
-		ret = codec_dai->dai_ops.set_sysclk(codec_dai, 0,
-			machine_data->clk_frequency,
-			machine_data->codec_clk_direction);
-		if (ret < 0) {
-			dev_err(substream->pcm->card->dev,
-				"could not set codec driver clock params\n");
-			return ret;
-		}
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+					machine_data->clk_frequency,
+					machine_data->codec_clk_direction);
+	if (ret < 0) {
+		dev_err(substream->pcm->card->dev,
+			"could not set codec driver clock params\n");
+		return ret;
 	}
 
 	return 0;
@@ -170,9 +160,9 @@ int mpc8610_hpcd_machine_remove(struct platform_device *sound_device)
 
 	/* Restore the signal routing */
 
-	guts_set_dmacr(machine_data->guts, machine_data->dma_id + 1,
+	guts_set_dmacr(machine_data->guts, machine_data->dma_id,
 		machine_data->dma_channel_id[0], 0);
-	guts_set_dmacr(machine_data->guts, machine_data->dma_id + 1,
+	guts_set_dmacr(machine_data->guts, machine_data->dma_id,
 		machine_data->dma_channel_id[1], 0);
 
 	switch (machine_data->ssi_id) {
@@ -182,7 +172,7 @@ int mpc8610_hpcd_machine_remove(struct platform_device *sound_device)
 		break;
 	case 1:
 		clrsetbits_be32(&machine_data->guts->pmuxcr,
-			CCSR_GUTS_PMUXCR_SSI2_MASK, CCSR_GUTS_PMUXCR_SSI1_LA);
+			CCSR_GUTS_PMUXCR_SSI2_MASK, CCSR_GUTS_PMUXCR_SSI2_LA);
 		break;
 	}
 

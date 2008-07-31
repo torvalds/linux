@@ -21,6 +21,8 @@ extern struct s3c24xx_uart_resources s3c2410_uart_resources[];
 extern struct platform_device *s3c24xx_uart_devs[];
 extern struct platform_device *s3c24xx_uart_src[];
 
+extern struct platform_device s3c_device_timer[];
+
 extern struct platform_device s3c_device_usb;
 extern struct platform_device s3c_device_lcd;
 extern struct platform_device s3c_device_wdt;
@@ -35,11 +37,6 @@ extern struct platform_device s3c_device_spi0;
 extern struct platform_device s3c_device_spi1;
 
 extern struct platform_device s3c_device_nand;
-
-extern struct platform_device s3c_device_timer0;
-extern struct platform_device s3c_device_timer1;
-extern struct platform_device s3c_device_timer2;
-extern struct platform_device s3c_device_timer3;
 
 extern struct platform_device s3c_device_usbgadget;
 

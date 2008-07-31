@@ -71,6 +71,23 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82378, quirk_i
 static void __init
 quirk_cypress(struct pci_dev *dev)
 {
+	/* The Notorious Cy82C693 chip.  */
+
+	/* The generic legacy mode IDE fixup in drivers/pci/probe.c
+	   doesn't work correctly with the Cypress IDE controller as
+	   it has non-standard register layout.  Fix that.  */
+	if (dev->class >> 8 == PCI_CLASS_STORAGE_IDE) {
+		dev->resource[2].start = dev->resource[3].start = 0;
+		dev->resource[2].end = dev->resource[3].end = 0;
+		dev->resource[2].flags = dev->resource[3].flags = 0;
+		if (PCI_FUNC(dev->devfn) == 2) {
+			dev->resource[0].start = 0x170;
+			dev->resource[0].end = 0x177;
+			dev->resource[1].start = 0x376;
+			dev->resource[1].end = 0x376;
+		}
+	}
+
 	/* The Cypress bridge responds on the PCI bus in the address range
 	   0xffff0000-0xffffffff (conventional x86 BIOS ROM).  There is no
 	   way to turn this off.  The bridge also supports several extended

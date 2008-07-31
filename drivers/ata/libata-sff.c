@@ -345,8 +345,8 @@ void ata_sff_dma_pause(struct ata_port *ap)
 /**
  *	ata_sff_busy_sleep - sleep until BSY clears, or timeout
  *	@ap: port containing status register to be polled
- *	@tmout_pat: impatience timeout
- *	@tmout: overall timeout
+ *	@tmout_pat: impatience timeout in msecs
+ *	@tmout: overall timeout in msecs
  *
  *	Sleep until ATA Status register bit BSY clears,
  *	or a timeout occurs.
@@ -365,7 +365,7 @@ int ata_sff_busy_sleep(struct ata_port *ap,
 
 	status = ata_sff_busy_wait(ap, ATA_BUSY, 300);
 	timer_start = jiffies;
-	timeout = timer_start + tmout_pat;
+	timeout = ata_deadline(timer_start, tmout_pat);
 	while (status != 0xff && (status & ATA_BUSY) &&
 	       time_before(jiffies, timeout)) {
 		msleep(50);
@@ -377,7 +377,7 @@ int ata_sff_busy_sleep(struct ata_port *ap,
 				"port is slow to respond, please be patient "
 				"(Status 0x%x)\n", status);
 
-	timeout = timer_start + tmout;
+	timeout = ata_deadline(timer_start, tmout);
 	while (status != 0xff && (status & ATA_BUSY) &&
 	       time_before(jiffies, timeout)) {
 		msleep(50);
@@ -390,7 +390,7 @@ int ata_sff_busy_sleep(struct ata_port *ap,
 	if (status & ATA_BUSY) {
 		ata_port_printk(ap, KERN_ERR, "port failed to respond "
 				"(%lu secs, Status 0x%x)\n",
-				tmout / HZ, status);
+				DIV_ROUND_UP(tmout, 1000), status);
 		return -EBUSY;
 	}
 
@@ -1094,6 +1094,7 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 		     u8 status, int in_wq)
 {
+	struct ata_eh_info *ehi = &ap->link.eh_info;
 	unsigned long flags = 0;
 	int poll_next;
 
@@ -1125,9 +1126,12 @@ fsm_start:
 			if (likely(status & (ATA_ERR | ATA_DF)))
 				/* device stops HSM for abort/error */
 				qc->err_mask |= AC_ERR_DEV;
-			else
+			else {
 				/* HSM violation. Let EH handle this */
+				ata_ehi_push_desc(ehi,
+					"ST_FIRST: !(DRQ|ERR|DF)");
 				qc->err_mask |= AC_ERR_HSM;
+			}
 
 			ap->hsm_task_state = HSM_ST_ERR;
 			goto fsm_start;
@@ -1146,9 +1150,9 @@ fsm_start:
 			 * the CDB.
 			 */
 			if (!(qc->dev->horkage & ATA_HORKAGE_STUCK_ERR)) {
-				ata_port_printk(ap, KERN_WARNING,
-						"DRQ=1 with device error, "
-						"dev_stat 0x%X\n", status);
+				ata_ehi_push_desc(ehi, "ST_FIRST: "
+					"DRQ=1 with device error, "
+					"dev_stat 0x%X", status);
 				qc->err_mask |= AC_ERR_HSM;
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
@@ -1205,9 +1209,9 @@ fsm_start:
 			 * let the EH abort the command or reset the device.
 			 */
 			if (unlikely(status & (ATA_ERR | ATA_DF))) {
-				ata_port_printk(ap, KERN_WARNING, "DRQ=1 with "
-						"device error, dev_stat 0x%X\n",
-						status);
+				ata_ehi_push_desc(ehi, "ST-ATAPI: "
+					"DRQ=1 with device error, "
+					"dev_stat 0x%X", status);
 				qc->err_mask |= AC_ERR_HSM;
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
@@ -1226,13 +1230,17 @@ fsm_start:
 				if (likely(status & (ATA_ERR | ATA_DF)))
 					/* device stops HSM for abort/error */
 					qc->err_mask |= AC_ERR_DEV;
-				else
+				else {
 					/* HSM violation. Let EH handle this.
 					 * Phantom devices also trigger this
 					 * condition.  Mark hint.
 					 */
+					ata_ehi_push_desc(ehi, "ST-ATA: "
+						"DRQ=1 with device error, "
+						"dev_stat 0x%X", status);
 					qc->err_mask |= AC_ERR_HSM |
 							AC_ERR_NODEV_HINT;
+				}
 
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
@@ -1257,8 +1265,12 @@ fsm_start:
 					status = ata_wait_idle(ap);
 				}
 
-				if (status & (ATA_BUSY | ATA_DRQ))
+				if (status & (ATA_BUSY | ATA_DRQ)) {
+					ata_ehi_push_desc(ehi, "ST-ATA: "
+						"BUSY|DRQ persists on ERR|DF, "
+						"dev_stat 0x%X", status);
 					qc->err_mask |= AC_ERR_HSM;
+				}
 
 				/* ata_pio_sectors() might change the
 				 * state to HSM_ST_LAST. so, the state
@@ -1876,7 +1888,7 @@ int ata_sff_wait_after_reset(struct ata_link *link, unsigned int devmask,
 	unsigned int dev1 = devmask & (1 << 1);
 	int rc, ret = 0;
 
-	msleep(ATA_WAIT_AFTER_RESET_MSECS);
+	msleep(ATA_WAIT_AFTER_RESET);
 
 	/* always check readiness of the master device */
 	rc = ata_sff_wait_ready(link, deadline);
@@ -2359,7 +2371,8 @@ void ata_bus_reset(struct ata_port *ap)
 
 	/* issue bus reset */
 	if (ap->flags & ATA_FLAG_SRST) {
-		rc = ata_bus_softreset(ap, devmask, jiffies + 40 * HZ);
+		rc = ata_bus_softreset(ap, devmask,
+				       ata_deadline(jiffies, 40000));
 		if (rc && rc != -ENODEV)
 			goto err_out;
 	}

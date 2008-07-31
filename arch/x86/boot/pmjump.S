@@ -33,6 +33,8 @@ protected_mode_jump:
 	movw	%cs, %bx
 	shll	$4, %ebx
 	addl	%ebx, 2f
+	jmp	1f			# Short jump to serialize on 386/486
+1:
 
 	movw	$__BOOT_DS, %cx
 	movw	$__BOOT_TSS, %di
@@ -40,8 +42,6 @@ protected_mode_jump:
 	movl	%cr0, %edx
 	orb	$X86_CR0_PE, %dl	# Protected mode
 	movl	%edx, %cr0
-	jmp	1f			# Short jump to serialize on 386/486
-1:
 
 	# Transition to 32-bit mode
 	.byte	0x66, 0xea		# ljmpl opcode

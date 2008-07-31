@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/rcupdate.h>
 #include <linux/kallsyms.h>
@@ -31,7 +32,7 @@
 #include <asm/idle.h>
 
 #define MISC_MCELOG_MINOR 227
-#define NR_BANKS 6
+#define NR_SYSFS_BANKS 6
 
 atomic_t mce_entry;
 
@@ -46,7 +47,7 @@ static int mce_dont_init;
  */
 static int tolerant = 1;
 static int banks;
-static unsigned long bank[NR_BANKS] = { [0 ... NR_BANKS-1] = ~0UL };
+static unsigned long bank[NR_SYSFS_BANKS] = { [0 ... NR_SYSFS_BANKS-1] = ~0UL };
 static unsigned long notify_user;
 static int rip_msr;
 static int mce_bootlog = -1;
@@ -209,7 +210,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	barrier();
 
 	for (i = 0; i < banks; i++) {
-		if (!bank[i])
+		if (i < NR_SYSFS_BANKS && !bank[i])
 			continue;
 
 		m.misc = 0;
@@ -363,7 +364,7 @@ static void mcheck_check_cpu(void *info)
 
 static void mcheck_timer(struct work_struct *work)
 {
-	on_each_cpu(mcheck_check_cpu, NULL, 1, 1);
+	on_each_cpu(mcheck_check_cpu, NULL, 1);
 
 	/*
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
@@ -444,9 +445,10 @@ static void mce_init(void *dummy)
 
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 	banks = cap & 0xff;
-	if (banks > NR_BANKS) {
-		printk(KERN_INFO "MCE: warning: using only %d banks\n", banks);
-		banks = NR_BANKS;
+	if (banks > MCE_EXTENDED_BANK) {
+		banks = MCE_EXTENDED_BANK;
+		printk(KERN_INFO "MCE: warning: using only %d banks\n",
+		       MCE_EXTENDED_BANK);
 	}
 	/* Use accurate RIP reporting if available. */
 	if ((cap & (1<<9)) && ((cap >> 16) & 0xff) >= 9)
@@ -462,7 +464,11 @@ static void mce_init(void *dummy)
 		wrmsr(MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
 
 	for (i = 0; i < banks; i++) {
-		wrmsrl(MSR_IA32_MC0_CTL+4*i, bank[i]);
+		if (i < NR_SYSFS_BANKS)
+			wrmsrl(MSR_IA32_MC0_CTL+4*i, bank[i]);
+		else
+			wrmsrl(MSR_IA32_MC0_CTL+4*i, ~0UL);
+
 		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
 	}
 }
@@ -527,10 +533,12 @@ static int open_exclu;	/* already open exclusive? */
 
 static int mce_open(struct inode *inode, struct file *file)
 {
+	lock_kernel();
 	spin_lock(&mce_state_lock);
 
 	if (open_exclu || (open_count && (file->f_flags & O_EXCL))) {
 		spin_unlock(&mce_state_lock);
+		unlock_kernel();
 		return -EBUSY;
 	}
 
@@ -539,6 +547,7 @@ static int mce_open(struct inode *inode, struct file *file)
 	open_count++;
 
 	spin_unlock(&mce_state_lock);
+	unlock_kernel();
 
 	return nonseekable_open(inode, file);
 }
@@ -571,7 +580,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	char __user *buf = ubuf;
 	int i, err;
 
-	cpu_tsc = kmalloc(NR_CPUS * sizeof(long), GFP_KERNEL);
+	cpu_tsc = kmalloc(nr_cpu_ids * sizeof(long), GFP_KERNEL);
 	if (!cpu_tsc)
 		return -ENOMEM;
 
@@ -612,7 +621,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	 * Collect entries that were still getting written before the
 	 * synchronize.
 	 */
-	on_each_cpu(collect_tscs, cpu_tsc, 1, 1);
+	on_each_cpu(collect_tscs, cpu_tsc, 1);
 	for (i = next; i < MCE_LOG_LEN; i++) {
 		if (mcelog.entry[i].finished &&
 		    mcelog.entry[i].tsc < cpu_tsc[mcelog.entry[i].cpu]) {
@@ -737,7 +746,7 @@ static void mce_restart(void)
 	if (next_interval)
 		cancel_delayed_work(&mcheck_work);
 	/* Timer race is harmless here */
-	on_each_cpu(mce_init, NULL, 1, 1);
+	on_each_cpu(mce_init, NULL, 1);
 	next_interval = check_interval * HZ;
 	if (next_interval)
 		schedule_delayed_work(&mcheck_work,
@@ -753,10 +762,14 @@ DEFINE_PER_CPU(struct sys_device, device_mce);
 
 /* Why are there no generic functions for this? */
 #define ACCESSOR(name, var, start) \
-	static ssize_t show_ ## name(struct sys_device *s, char *buf) {	\
+	static ssize_t show_ ## name(struct sys_device *s,		\
+				     struct sysdev_attribute *attr,	\
+				     char *buf) {			\
 		return sprintf(buf, "%lx\n", (unsigned long)var);	\
 	}								\
-	static ssize_t set_ ## name(struct sys_device *s,const char *buf,size_t siz) { \
+	static ssize_t set_ ## name(struct sys_device *s,		\
+				    struct sysdev_attribute *attr,	\
+				    const char *buf, size_t siz) {	\
 		char *end;						\
 		unsigned long new = simple_strtoul(buf, &end, 0);	\
 		if (end == buf) return -EINVAL;				\
@@ -766,7 +779,10 @@ DEFINE_PER_CPU(struct sys_device, device_mce);
 	}								\
 	static SYSDEV_ATTR(name, 0644, show_ ## name, set_ ## name);
 
-/* TBD should generate these dynamically based on number of available banks */
+/*
+ * TBD should generate these dynamically based on number of available banks.
+ * Have only 6 contol banks in /sysfs until then.
+ */
 ACCESSOR(bank0ctl,bank[0],mce_restart())
 ACCESSOR(bank1ctl,bank[1],mce_restart())
 ACCESSOR(bank2ctl,bank[2],mce_restart())
@@ -774,14 +790,16 @@ ACCESSOR(bank3ctl,bank[3],mce_restart())
 ACCESSOR(bank4ctl,bank[4],mce_restart())
 ACCESSOR(bank5ctl,bank[5],mce_restart())
 
-static ssize_t show_trigger(struct sys_device *s, char *buf)
+static ssize_t show_trigger(struct sys_device *s, struct sysdev_attribute *attr,
+				char *buf)
 {
 	strcpy(buf, trigger);
 	strcat(buf, "\n");
 	return strlen(trigger) + 1;
 }
 
-static ssize_t set_trigger(struct sys_device *s,const char *buf,size_t siz)
+static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
+				const char *buf,size_t siz)
 {
 	char *p;
 	int len;
@@ -794,12 +812,12 @@ static ssize_t set_trigger(struct sys_device *s,const char *buf,size_t siz)
 }
 
 static SYSDEV_ATTR(trigger, 0644, show_trigger, set_trigger);
-ACCESSOR(tolerant,tolerant,)
+static SYSDEV_INT_ATTR(tolerant, 0644, tolerant);
 ACCESSOR(check_interval,check_interval,mce_restart())
 static struct sysdev_attribute *mce_attributes[] = {
 	&attr_bank0ctl, &attr_bank1ctl, &attr_bank2ctl,
 	&attr_bank3ctl, &attr_bank4ctl, &attr_bank5ctl,
-	&attr_tolerant, &attr_check_interval, &attr_trigger,
+	&attr_tolerant.attr, &attr_check_interval, &attr_trigger,
 	NULL
 };
 

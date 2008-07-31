@@ -178,8 +178,7 @@ static int pci_vpd_pci22_read(struct pci_dev *dev, int pos, int size,
 	int ret;
 	int begin, end, i;
 
-	if (pos < 0 || pos > PCI_VPD_PCI22_SIZE ||
-	    size > PCI_VPD_PCI22_SIZE  - pos)
+	if (pos < 0 || pos > vpd->base.len || size > vpd->base.len  - pos)
 		return -EINVAL;
 	if (size == 0)
 		return 0;
@@ -223,8 +222,8 @@ static int pci_vpd_pci22_write(struct pci_dev *dev, int pos, int size,
 	u32 val;
 	int ret;
 
-	if (pos < 0 || pos > PCI_VPD_PCI22_SIZE || pos & 3 ||
-	    size > PCI_VPD_PCI22_SIZE - pos || size < 4)
+	if (pos < 0 || pos > vpd->base.len || pos & 3 ||
+	    size > vpd->base.len - pos || size < 4)
 		return -EINVAL;
 
 	val = (u8) *buf++;
@@ -255,11 +254,6 @@ out:
 	return 4;
 }
 
-static int pci_vpd_pci22_get_size(struct pci_dev *dev)
-{
-	return PCI_VPD_PCI22_SIZE;
-}
-
 static void pci_vpd_pci22_release(struct pci_dev *dev)
 {
 	kfree(container_of(dev->vpd, struct pci_vpd_pci22, base));
@@ -268,7 +262,6 @@ static void pci_vpd_pci22_release(struct pci_dev *dev)
 static struct pci_vpd_ops pci_vpd_pci22_ops = {
 	.read = pci_vpd_pci22_read,
 	.write = pci_vpd_pci22_write,
-	.get_size = pci_vpd_pci22_get_size,
 	.release = pci_vpd_pci22_release,
 };
 
@@ -284,6 +277,7 @@ int pci_vpd_pci22_init(struct pci_dev *dev)
 	if (!vpd)
 		return -ENOMEM;
 
+	vpd->base.len = PCI_VPD_PCI22_SIZE;
 	vpd->base.ops = &pci_vpd_pci22_ops;
 	spin_lock_init(&vpd->lock);
 	vpd->cap = cap;

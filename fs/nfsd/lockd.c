@@ -19,6 +19,13 @@
 
 #define NFSDDBG_FACILITY		NFSDDBG_LOCKD
 
+#ifdef CONFIG_LOCKD_V4
+#define nlm_stale_fh	nlm4_stale_fh
+#define nlm_failed	nlm4_failed
+#else
+#define nlm_stale_fh	nlm_lck_denied_nolocks
+#define nlm_failed	nlm_lck_denied_nolocks
+#endif
 /*
  * Note: we hold the dentry use count while the file is open.
  */
@@ -35,7 +42,7 @@ nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f, struct file **filp)
 	fh.fh_export = NULL;
 
 	exp_readlock();
-	nfserr = nfsd_open(rqstp, &fh, S_IFREG, MAY_LOCK, filp);
+	nfserr = nfsd_open(rqstp, &fh, S_IFREG, NFSD_MAY_LOCK, filp);
 	fh_put(&fh);
 	rqstp->rq_client = NULL;
 	exp_readunlock();
@@ -47,12 +54,10 @@ nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f, struct file **filp)
 		return 0;
 	case nfserr_dropit:
 		return nlm_drop_reply;
-#ifdef CONFIG_LOCKD_V4
 	case nfserr_stale:
-		return nlm4_stale_fh;
-#endif
+		return nlm_stale_fh;
 	default:
-		return nlm_lck_denied;
+		return nlm_failed;
 	}
 }
 

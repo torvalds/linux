@@ -24,8 +24,8 @@
 
 #define MSK(n) ((1 << (n)) - 1)
 #define REG32(addr)		(*(volatile unsigned int *) (addr))
-#define REG(base, offs)		REG32((unsigned int)(base) + offs##_##OFS)
-#define REGP(base, phys)	REG32((unsigned int)(base) + (phys))
+#define REG(base, offs)		REG32((unsigned long)(base) + offs##_##OFS)
+#define REGP(base, phys)	REG32((unsigned long)(base) + (phys))
 
 /* Accessors */
 #define GIC_REG(segment, offset) \

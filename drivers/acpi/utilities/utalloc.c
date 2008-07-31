@@ -242,6 +242,10 @@ acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
 {
 	acpi_status status = AE_OK;
 
+	if (!required_length) {
+		WARN_ON(1);
+		return AE_ERROR;
+	}
 	switch (buffer->length) {
 	case ACPI_NO_BUFFER:
 
@@ -309,7 +313,8 @@ acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
  *
  ******************************************************************************/
 
-void *acpi_ut_allocate(acpi_size size, u32 component, char *module, u32 line)
+void *acpi_ut_allocate(acpi_size size,
+		       u32 component, const char *module, u32 line)
 {
 	void *allocation;
 
@@ -353,7 +358,7 @@ void *acpi_ut_allocate(acpi_size size, u32 component, char *module, u32 line)
  ******************************************************************************/
 
 void *acpi_ut_allocate_zeroed(acpi_size size,
-			      u32 component, char *module, u32 line)
+			      u32 component, const char *module, u32 line)
 {
 	void *allocation;
 

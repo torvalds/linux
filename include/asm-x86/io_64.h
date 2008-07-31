@@ -175,6 +175,8 @@ extern void early_iounmap(void *addr, unsigned long size);
  */
 extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
 extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
+extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size,
+				unsigned long prot_val);
 
 /*
  * The default ioremap() behavior is non-cached:
@@ -203,77 +205,6 @@ extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
  */
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
-
-/*
- * readX/writeX() are used to access memory mapped devices. On some
- * architectures the memory mapped IO stuff needs to be accessed
- * differently. On the x86 architecture, we just read/write the
- * memory location directly.
- */
-
-static inline __u8 __readb(const volatile void __iomem *addr)
-{
-	return *(__force volatile __u8 *)addr;
-}
-
-static inline __u16 __readw(const volatile void __iomem *addr)
-{
-	return *(__force volatile __u16 *)addr;
-}
-
-static __always_inline __u32 __readl(const volatile void __iomem *addr)
-{
-	return *(__force volatile __u32 *)addr;
-}
-
-static inline __u64 __readq(const volatile void __iomem *addr)
-{
-	return *(__force volatile __u64 *)addr;
-}
-
-#define readb(x) __readb(x)
-#define readw(x) __readw(x)
-#define readl(x) __readl(x)
-#define readq(x) __readq(x)
-#define readb_relaxed(a) readb(a)
-#define readw_relaxed(a) readw(a)
-#define readl_relaxed(a) readl(a)
-#define readq_relaxed(a) readq(a)
-#define __raw_readb readb
-#define __raw_readw readw
-#define __raw_readl readl
-#define __raw_readq readq
-
-#define mmiowb()
-
-static inline void __writel(__u32 b, volatile void __iomem *addr)
-{
-	*(__force volatile __u32 *)addr = b;
-}
-
-static inline void __writeq(__u64 b, volatile void __iomem *addr)
-{
-	*(__force volatile __u64 *)addr = b;
-}
-
-static inline void __writeb(__u8 b, volatile void __iomem *addr)
-{
-	*(__force volatile __u8 *)addr = b;
-}
-
-static inline void __writew(__u16 b, volatile void __iomem *addr)
-{
-	*(__force volatile __u16 *)addr = b;
-}
-
-#define writeq(val, addr) __writeq((val), (addr))
-#define writel(val, addr) __writel((val), (addr))
-#define writew(val, addr) __writew((val), (addr))
-#define writeb(val, addr) __writeb((val), (addr))
-#define __raw_writeb writeb
-#define __raw_writew writew
-#define __raw_writel writel
-#define __raw_writeq writeq
 
 void __memcpy_fromio(void *, unsigned long, unsigned);
 void __memcpy_toio(unsigned long, const void *, unsigned);

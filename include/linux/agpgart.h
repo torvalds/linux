@@ -206,8 +206,8 @@ struct agp_front_data {
 	struct agp_controller *current_controller;
 	struct agp_controller *controllers;
 	struct agp_file_private *file_priv_list;
-	u8 used_by_controller;
-	u8 backend_acquired;
+	bool used_by_controller;
+	bool backend_acquired;
 };
 
 #endif				/* __KERNEL__ */

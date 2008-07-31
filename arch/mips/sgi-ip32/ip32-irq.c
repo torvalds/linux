@@ -425,6 +425,11 @@ static void ip32_irq0(void)
 	BUILD_BUG_ON(MACEISA_SERIAL2_RDMAOR_IRQ - MACEISA_AUDIO_SW_IRQ != 31);
 
 	crime_int = crime->istat & crime_mask;
+
+	/* crime sometime delivers spurious interrupts, ignore them */
+	if (unlikely(crime_int == 0))
+		return;
+
 	irq = MACE_VID_IN1_IRQ + __ffs(crime_int);
 
 	if (crime_int & CRIME_MACEISA_INT_MASK) {

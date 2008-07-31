@@ -37,19 +37,10 @@
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 
+#include <asm/arch/at91rm9200_mc.h>
+
 #include "generic.h"
 
-
-/*
- * Serial port configuration.
- *    0 .. 3 = USART0 .. USART3
- *    4      = DBGU
- */
-static struct at91_uart_config __initdata kb9202_uart_config = {
-	.console_tty	= 0,					/* ttyS0 */
-	.nr_tty		= 3,
-	.tty_map	= { 4, 0, 1, -1, -1 }			/* ttyS0, ..., ttyS4 */
-};
 
 static void __init kb9202_map_io(void)
 {
@@ -59,8 +50,20 @@ static void __init kb9202_map_io(void)
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
 
-	/* Setup the serial ports and console */
-	at91_init_serial(&kb9202_uart_config);
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1 (Rx & Tx only) */
+	at91_register_uart(AT91RM9200_ID_US0, 1, 0);
+
+	/* USART1 on ttyS2 (Rx & Tx only) - IRDA (optional) */
+	at91_register_uart(AT91RM9200_ID_US1, 2, 0);
+
+	/* USART3 on ttyS3 (Rx, Tx, CTS, RTS) - RS485 (optional) */
+	at91_register_uart(AT91RM9200_ID_US3, 3, ATMEL_UART_CTS | ATMEL_UART_RTS);
+
+	/* set serial console to ttyS0 (ie, DBGU) */
+	at91_set_serial_console(0);
 }
 
 static void __init kb9202_init_irq(void)
@@ -102,7 +105,7 @@ static struct mtd_partition * __init nand_partitions(int size, int *num_partitio
 	return kb9202_nand_partition;
 }
 
-static struct at91_nand_data __initdata kb9202_nand_data = {
+static struct atmel_nand_data __initdata kb9202_nand_data = {
 	.ale		= 22,
 	.cle		= 21,
 	// .det_pin	= ... not there

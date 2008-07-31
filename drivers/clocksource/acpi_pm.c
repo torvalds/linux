@@ -215,3 +215,22 @@ pm_good:
  * but we still need to load before device_initcall
  */
 fs_initcall(init_acpi_pm_clocksource);
+
+/*
+ * Allow an override of the IOPort. Stupid BIOSes do not tell us about
+ * the PMTimer, but we might know where it is.
+ */
+static int __init parse_pmtmr(char *arg)
+{
+	unsigned long base;
+
+	if (strict_strtoul(arg, 16, &base))
+		return -EINVAL;
+
+	printk(KERN_INFO "PMTMR IOPort override: 0x%04x -> 0x%04lx\n",
+	       (unsigned int)pmtmr_ioport, base);
+	pmtmr_ioport = base;
+
+	return 1;
+}
+__setup("pmtmr=", parse_pmtmr);

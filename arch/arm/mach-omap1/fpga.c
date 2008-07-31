@@ -32,7 +32,7 @@
 
 static void fpga_mask_irq(unsigned int irq)
 {
-	irq -= OMAP1510_IH_FPGA_BASE;
+	irq -= OMAP_FPGA_IRQ_BASE;
 
 	if (irq < 8)
 		__raw_writeb((__raw_readb(OMAP1510_FPGA_IMR_LO)
@@ -65,7 +65,7 @@ static void fpga_ack_irq(unsigned int irq)
 
 static void fpga_unmask_irq(unsigned int irq)
 {
-	irq -= OMAP1510_IH_FPGA_BASE;
+	irq -= OMAP_FPGA_IRQ_BASE;
 
 	if (irq < 8)
 		__raw_writeb((__raw_readb(OMAP1510_FPGA_IMR_LO) | (1 << irq)),
@@ -95,8 +95,8 @@ void innovator_fpga_IRQ_demux(unsigned int irq, struct irq_desc *desc)
 	if (!stat)
 		return;
 
-	for (fpga_irq = OMAP1510_IH_FPGA_BASE;
-	     (fpga_irq < (OMAP1510_IH_FPGA_BASE + NR_FPGA_IRQS)) && stat;
+	for (fpga_irq = OMAP_FPGA_IRQ_BASE;
+	     (fpga_irq < OMAP_FPGA_IRQ_END) && stat;
 	     fpga_irq++, stat >>= 1) {
 		if (stat & 1) {
 			d = irq_desc + fpga_irq;
@@ -151,7 +151,7 @@ void omap1510_fpga_init_irq(void)
 	__raw_writeb(0, OMAP1510_FPGA_IMR_HI);
 	__raw_writeb(0, INNOVATOR_FPGA_IMR2);
 
-	for (i = OMAP1510_IH_FPGA_BASE; i < (OMAP1510_IH_FPGA_BASE + NR_FPGA_IRQS); i++) {
+	for (i = OMAP_FPGA_IRQ_BASE; i < OMAP_FPGA_IRQ_END; i++) {
 
 		if (i == OMAP1510_INT_FPGA_TS) {
 			/*
@@ -181,7 +181,7 @@ void omap1510_fpga_init_irq(void)
 	 */
 	omap_request_gpio(13);
 	omap_set_gpio_direction(13, 1);
-	set_irq_type(OMAP_GPIO_IRQ(13), IRQT_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(13), IRQ_TYPE_EDGE_RISING);
 	set_irq_chained_handler(OMAP1510_INT_FPGA, innovator_fpga_IRQ_demux);
 }
 

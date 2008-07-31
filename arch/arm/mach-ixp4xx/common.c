@@ -142,23 +142,23 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 		return -EINVAL;
 
 	switch (type){
-	case IRQT_BOTHEDGE:
+	case IRQ_TYPE_EDGE_BOTH:
 		int_style = IXP4XX_GPIO_STYLE_TRANSITIONAL;
 		irq_type = IXP4XX_IRQ_EDGE;
 		break;
-	case IRQT_RISING:
+	case IRQ_TYPE_EDGE_RISING:
 		int_style = IXP4XX_GPIO_STYLE_RISING_EDGE;
 		irq_type = IXP4XX_IRQ_EDGE;
 		break;
-	case IRQT_FALLING:
+	case IRQ_TYPE_EDGE_FALLING:
 		int_style = IXP4XX_GPIO_STYLE_FALLING_EDGE;
 		irq_type = IXP4XX_IRQ_EDGE;
 		break;
-	case IRQT_HIGH:
+	case IRQ_TYPE_LEVEL_HIGH:
 		int_style = IXP4XX_GPIO_STYLE_ACTIVE_HIGH;
 		irq_type = IXP4XX_IRQ_LEVEL;
 		break;
-	case IRQT_LOW:
+	case IRQ_TYPE_LEVEL_LOW:
 		int_style = IXP4XX_GPIO_STYLE_ACTIVE_LOW;
 		irq_type = IXP4XX_IRQ_LEVEL;
 		break;
@@ -326,11 +326,11 @@ static struct resource ixp4xx_udc_resources[] = {
 };
 
 /*
- * USB device controller. The IXP4xx uses the same controller as PXA2XX,
+ * USB device controller. The IXP4xx uses the same controller as PXA25X,
  * so we just use the same device.
  */
 static struct platform_device ixp4xx_udc_device = {
-	.name           = "pxa2xx-udc",
+	.name           = "pxa25x-udc",
 	.id             = -1,
 	.num_resources  = 2,
 	.resource       = ixp4xx_udc_resources,

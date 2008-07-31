@@ -251,10 +251,13 @@ static int lm75_detach_client(struct i2c_client *client)
    the SMBus standard. */
 static int lm75_read_value(struct i2c_client *client, u8 reg)
 {
+	int value;
+
 	if (reg == LM75_REG_CONF)
 		return i2c_smbus_read_byte_data(client, reg);
-	else
-		return swab16(i2c_smbus_read_word_data(client, reg));
+
+	value = i2c_smbus_read_word_data(client, reg);
+	return (value < 0) ? value : swab16(value);
 }
 
 static int lm75_write_value(struct i2c_client *client, u8 reg, u16 value)
@@ -287,9 +290,16 @@ static struct lm75_data *lm75_update_device(struct device *dev)
 		int i;
 		dev_dbg(&client->dev, "Starting lm75 update\n");
 
-		for (i = 0; i < ARRAY_SIZE(data->temp); i++)
-			data->temp[i] = lm75_read_value(client,
-							LM75_REG_TEMP[i]);
+		for (i = 0; i < ARRAY_SIZE(data->temp); i++) {
+			int status;
+
+			status = lm75_read_value(client, LM75_REG_TEMP[i]);
+			if (status < 0)
+				dev_dbg(&client->dev, "reg %d, err %d\n",
+						LM75_REG_TEMP[i], status);
+			else
+				data->temp[i] = status;
+		}
 		data->last_updated = jiffies;
 		data->valid = 1;
 	}

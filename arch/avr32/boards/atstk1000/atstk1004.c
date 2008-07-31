@@ -29,6 +29,13 @@
 
 #include "atstk1000.h"
 
+/* Oscillator frequencies. These are board specific */
+unsigned long at32_board_osc_rates[3] = {
+	[0] = 32768,	/* 32.768 kHz on RTC osc */
+	[1] = 20000000,	/* 20 MHz on osc0 */
+	[2] = 12000000,	/* 12 MHz on osc1 */
+};
+
 #ifdef CONFIG_BOARD_ATSTK1000_EXTDAC
 static struct at73c213_board_info at73c213_data = {
 	.ssc_id		= 0,
@@ -130,10 +137,10 @@ static int __init atstk1004_init(void)
 	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));
 #endif
 #ifndef CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
-	at32_add_device_mci(0);
+	at32_add_device_mci(0, NULL);
 #endif
 	at32_add_device_lcdc(0, &atstk1000_lcdc_data,
-			     fbmem_start, fbmem_size);
+			     fbmem_start, fbmem_size, 0);
 	at32_add_device_usba(0, NULL);
 #ifndef CONFIG_BOARD_ATSTK100X_SW3_CUSTOM
 	at32_add_device_ssc(0, ATMEL_SSC_TX);

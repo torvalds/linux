@@ -110,7 +110,7 @@ static void qd65xx_select(ide_drive_t *drive)
 
 static u8 qd6500_compute_timing (ide_hwif_t *hwif, int active_time, int recovery_time)
 {
-	int clk = ide_vlb_clk ? ide_vlb_clk : system_bus_clock();
+	int clk = ide_vlb_clk ? ide_vlb_clk : 50;
 	u8 act_cyc, rec_cyc;
 
 	if (clk <= 33) {
@@ -132,7 +132,7 @@ static u8 qd6500_compute_timing (ide_hwif_t *hwif, int active_time, int recovery
 
 static u8 qd6580_compute_timing (int active_time, int recovery_time)
 {
-	int clk = ide_vlb_clk ? ide_vlb_clk : system_bus_clock();
+	int clk = ide_vlb_clk ? ide_vlb_clk : 50;
 	u8 act_cyc, rec_cyc;
 
 	act_cyc = 17 - IDE_IN(active_time   * clk / 1000 + 1, 2, 17);
@@ -207,6 +207,7 @@ static void qd6500_set_pio_mode(ide_drive_t *drive, const u8 pio)
 static void qd6580_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
 	unsigned int cycle_time;
 	int active_time   = 175;
 	int recovery_time = 415; /* worst case values from the dos driver */
@@ -236,7 +237,7 @@ static void qd6580_set_pio_mode(ide_drive_t *drive, const u8 pio)
 					active_time = 110;
 					recovery_time = cycle_time - 120;
 				} else {
-					active_time = ide_pio_timings[pio].active_time;
+					active_time = t->active;
 					recovery_time = cycle_time - active_time;
 				}
 		}
@@ -281,17 +282,18 @@ static int __init qd_testreg(int port)
 	return (readreg != QD_TESTVAL);
 }
 
-static void __init qd6500_port_init_devs(ide_hwif_t *hwif)
+static void __init qd6500_init_dev(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	u8 base = (hwif->config_data & 0xff00) >> 8;
 	u8 config = QD_CONFIG(hwif);
 
-	hwif->drives[0].drive_data = QD6500_DEF_DATA;
-	hwif->drives[1].drive_data = QD6500_DEF_DATA;
+	drive->drive_data = QD6500_DEF_DATA;
 }
 
-static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
+static void __init qd6580_init_dev(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	u16 t1, t2;
 	u8 base = (hwif->config_data & 0xff00) >> 8;
 	u8 config = QD_CONFIG(hwif);
@@ -302,18 +304,17 @@ static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
 	} else
 		t2 = t1 = hwif->channel ? QD6580_DEF_DATA2 : QD6580_DEF_DATA;
 
-	hwif->drives[0].drive_data = t1;
-	hwif->drives[1].drive_data = t2;
+	drive->drive_data = drive->select.b.unit ? t2 : t1;
 }
 
 static const struct ide_port_ops qd6500_port_ops = {
-	.port_init_devs		= qd6500_port_init_devs,
+	.init_dev		= qd6500_init_dev,
 	.set_pio_mode		= qd6500_set_pio_mode,
 	.selectproc		= qd65xx_select,
 };
 
 static const struct ide_port_ops qd6580_port_ops = {
-	.port_init_devs		= qd6580_port_init_devs,
+	.init_dev		= qd6580_init_dev,
 	.set_pio_mode		= qd6580_set_pio_mode,
 	.selectproc		= qd65xx_select,
 };

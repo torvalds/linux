@@ -100,15 +100,10 @@ static int xpram_page_in (unsigned long page_addr, unsigned int xpage_index)
 		: "+d" (cc) : "a" (__pa(page_addr)), "d" (xpage_index) : "cc");
 	if (cc == 3)
 		return -ENXIO;
-	if (cc == 2) {
-		PRINT_ERR("expanded storage lost!\n");
+	if (cc == 2)
 		return -ENXIO;
-	}
-	if (cc == 1) {
-		PRINT_ERR("page in failed for page index %u.\n",
-			  xpage_index);
+	if (cc == 1)
 		return -EIO;
-	}
 	return 0;
 }
 
@@ -135,15 +130,10 @@ static long xpram_page_out (unsigned long page_addr, unsigned int xpage_index)
 		: "+d" (cc) : "a" (__pa(page_addr)), "d" (xpage_index) : "cc");
 	if (cc == 3)
 		return -ENXIO;
-	if (cc == 2) {
-		PRINT_ERR("expanded storage lost!\n");
+	if (cc == 2)
 		return -ENXIO;
-	}
-	if (cc == 1) {
-		PRINT_ERR("page out failed for page index %u.\n",
-			  xpage_index);
+	if (cc == 1)
 		return -EIO;
-	}
 	return 0;
 }
 

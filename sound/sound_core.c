@@ -37,6 +37,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -170,8 +171,9 @@ static int sound_insert_unit(struct sound_unit **list, const struct file_operati
 	else
 		sprintf(s->name, "sound/%s%d", name, r / SOUND_STEP);
 
-	device_create(sound_class, dev, MKDEV(SOUND_MAJOR, s->unit_minor),
-		      s->name+6);
+	device_create_drvdata(sound_class, dev,
+			      MKDEV(SOUND_MAJOR, s->unit_minor),
+			      NULL, s->name+6);
 	return r;
 
  fail:
@@ -464,6 +466,8 @@ int soundcore_open(struct inode *inode, struct file *file)
 	struct sound_unit *s;
 	const struct file_operations *new_fops = NULL;
 
+	lock_kernel ();
+
 	chain=unit&0x0F;
 	if(chain==4 || chain==5)	/* dsp/audio/dsp16 */
 	{
@@ -511,9 +515,11 @@ int soundcore_open(struct inode *inode, struct file *file)
 			file->f_op = fops_get(old_fops);
 		}
 		fops_put(old_fops);
+		unlock_kernel();
 		return err;
 	}
 	spin_unlock(&sound_loader_lock);
+	unlock_kernel();
 	return -ENODEV;
 }
 

@@ -83,9 +83,6 @@ static unsigned int sonic_debug = 1;
 
 static int sonic_version_printed;
 
-extern int mac_onboard_sonic_probe(struct net_device* dev);
-extern int mac_nubus_sonic_probe(struct net_device* dev);
-
 /* For onboard SONIC */
 #define ONBOARD_SONIC_REGISTERS	0x50F0A000
 #define ONBOARD_SONIC_PROM_BASE	0x50f08000
@@ -170,7 +167,7 @@ static int macsonic_close(struct net_device* dev)
 	return err;
 }
 
-int __init macsonic_init(struct net_device* dev)
+static int __init macsonic_init(struct net_device *dev)
 {
 	struct sonic_local* lp = netdev_priv(dev);
 
@@ -218,7 +215,7 @@ int __init macsonic_init(struct net_device* dev)
 	return 0;
 }
 
-int __init mac_onboard_sonic_ethernet_addr(struct net_device* dev)
+static int __init mac_onboard_sonic_ethernet_addr(struct net_device *dev)
 {
 	struct sonic_local *lp = netdev_priv(dev);
 	const int prom_addr = ONBOARD_SONIC_PROM_BASE;
@@ -284,7 +281,7 @@ int __init mac_onboard_sonic_ethernet_addr(struct net_device* dev)
 	} else return 0;
 }
 
-int __init mac_onboard_sonic_probe(struct net_device* dev)
+static int __init mac_onboard_sonic_probe(struct net_device *dev)
 {
 	/* Bwahahaha */
 	static int once_is_more_than_enough;
@@ -405,9 +402,9 @@ int __init mac_onboard_sonic_probe(struct net_device* dev)
 	return macsonic_init(dev);
 }
 
-int __init mac_nubus_sonic_ethernet_addr(struct net_device* dev,
-					 unsigned long prom_addr,
-					 int id)
+static int __init mac_nubus_sonic_ethernet_addr(struct net_device *dev,
+						unsigned long prom_addr,
+						int id)
 {
 	int i;
 	for(i = 0; i < 6; i++)
@@ -420,7 +417,7 @@ int __init mac_nubus_sonic_ethernet_addr(struct net_device* dev,
 	return 0;
 }
 
-int __init macsonic_ident(struct nubus_dev* ndev)
+static int __init macsonic_ident(struct nubus_dev *ndev)
 {
 	if (ndev->dr_hw == NUBUS_DRHW_ASANTE_LC &&
 	    ndev->dr_sw == NUBUS_DRSW_SONIC_LC)
@@ -445,7 +442,7 @@ int __init macsonic_ident(struct nubus_dev* ndev)
 	return -1;
 }
 
-int __init mac_nubus_sonic_probe(struct net_device* dev)
+static int __init mac_nubus_sonic_probe(struct net_device *dev)
 {
 	static int slots;
 	struct nubus_dev* ndev = NULL;

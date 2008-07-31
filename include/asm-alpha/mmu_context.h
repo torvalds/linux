@@ -23,7 +23,7 @@
 #endif
 
 
-extern inline unsigned long
+static inline unsigned long
 __reload_thread(struct pcb_struct *pcb)
 {
 	register unsigned long a0 __asm__("$16");
@@ -114,7 +114,7 @@ extern unsigned long last_asn;
 #define __MMU_EXTERN_INLINE
 #endif
 
-static inline unsigned long
+extern inline unsigned long
 __get_new_mm_context(struct mm_struct *mm, long cpu)
 {
 	unsigned long asn = cpu_last_asn(cpu);
@@ -226,7 +226,7 @@ ev4_activate_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm)
 # endif
 #endif
 
-extern inline int
+static inline int
 init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	int i;

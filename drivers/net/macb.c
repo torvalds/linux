@@ -80,8 +80,12 @@ static void __init macb_get_hwaddr(struct macb *bp)
 	addr[4] = top & 0xff;
 	addr[5] = (top >> 8) & 0xff;
 
-	if (is_valid_ether_addr(addr))
+	if (is_valid_ether_addr(addr)) {
 		memcpy(bp->dev->dev_addr, addr, sizeof(addr));
+	} else {
+		dev_info(&bp->pdev->dev, "invalid hw address, using random\n");
+		random_ether_addr(bp->dev->dev_addr);
+	}
 }
 
 static int macb_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
@@ -160,9 +164,7 @@ static void macb_handle_link_change(struct net_device *dev)
 	}
 
 	if (phydev->link != bp->link) {
-		if (phydev->link)
-			netif_schedule(dev);
-		else {
+		if (!phydev->link) {
 			bp->speed = 0;
 			bp->duplex = -1;
 		}
@@ -1277,8 +1279,45 @@ static int __exit macb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int macb_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *netdev = platform_get_drvdata(pdev);
+	struct macb *bp = netdev_priv(netdev);
+
+	netif_device_detach(netdev);
+
+#ifndef CONFIG_ARCH_AT91
+	clk_disable(bp->hclk);
+#endif
+	clk_disable(bp->pclk);
+
+	return 0;
+}
+
+static int macb_resume(struct platform_device *pdev)
+{
+	struct net_device *netdev = platform_get_drvdata(pdev);
+	struct macb *bp = netdev_priv(netdev);
+
+	clk_enable(bp->pclk);
+#ifndef CONFIG_ARCH_AT91
+	clk_enable(bp->hclk);
+#endif
+
+	netif_device_attach(netdev);
+
+	return 0;
+}
+#else
+#define macb_suspend	NULL
+#define macb_resume	NULL
+#endif
+
 static struct platform_driver macb_driver = {
 	.remove		= __exit_p(macb_remove),
+	.suspend	= macb_suspend,
+	.resume		= macb_resume,
 	.driver		= {
 		.name		= "macb",
 		.owner	= THIS_MODULE,

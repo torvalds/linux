@@ -300,6 +300,35 @@ struct input_event_compat {
 	__s32 value;
 };
 
+struct ff_periodic_effect_compat {
+	__u16 waveform;
+	__u16 period;
+	__s16 magnitude;
+	__s16 offset;
+	__u16 phase;
+
+	struct ff_envelope envelope;
+
+	__u32 custom_len;
+	compat_uptr_t custom_data;
+};
+
+struct ff_effect_compat {
+	__u16 type;
+	__s16 id;
+	__u16 direction;
+	struct ff_trigger trigger;
+	struct ff_replay replay;
+
+	union {
+		struct ff_constant_effect constant;
+		struct ff_ramp_effect ramp;
+		struct ff_periodic_effect_compat periodic;
+		struct ff_condition_effect condition[2]; /* One for each axis */
+		struct ff_rumble_effect rumble;
+	} u;
+};
+
 /* Note to the author of this code: did it ever occur to
    you why the ifdefs are needed? Think about it again. -AK */
 #ifdef CONFIG_X86_64
@@ -368,6 +397,42 @@ static int evdev_event_to_user(char __user *buffer,
 	return 0;
 }
 
+static int evdev_ff_effect_from_user(const char __user *buffer, size_t size,
+				     struct ff_effect *effect)
+{
+	if (COMPAT_TEST) {
+		struct ff_effect_compat *compat_effect;
+
+		if (size != sizeof(struct ff_effect_compat))
+			return -EINVAL;
+
+		/*
+		 * It so happens that the pointer which needs to be changed
+		 * is the last field in the structure, so we can copy the
+		 * whole thing and replace just the pointer.
+		 */
+
+		compat_effect = (struct ff_effect_compat *)effect;
+
+		if (copy_from_user(compat_effect, buffer,
+				   sizeof(struct ff_effect_compat)))
+			return -EFAULT;
+
+		if (compat_effect->type == FF_PERIODIC &&
+		    compat_effect->u.periodic.waveform == FF_CUSTOM)
+			effect->u.periodic.custom_data =
+				compat_ptr(compat_effect->u.periodic.custom_data);
+	} else {
+		if (size != sizeof(struct ff_effect))
+			return -EINVAL;
+
+		if (copy_from_user(effect, buffer, sizeof(struct ff_effect)))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
 #else
 
 static inline size_t evdev_event_size(void)
@@ -388,6 +453,18 @@ static int evdev_event_to_user(char __user *buffer,
 				const struct input_event *event)
 {
 	if (copy_to_user(buffer, event, sizeof(struct input_event)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int evdev_ff_effect_from_user(const char __user *buffer, size_t size,
+				     struct ff_effect *effect)
+{
+	if (size != sizeof(struct ff_effect))
+		return -EINVAL;
+
+	if (copy_from_user(effect, buffer, sizeof(struct ff_effect)))
 		return -EFAULT;
 
 	return 0;
@@ -633,17 +710,6 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 
 		return input_set_keycode(dev, t, v);
 
-	case EVIOCSFF:
-		if (copy_from_user(&effect, p, sizeof(effect)))
-			return -EFAULT;
-
-		error = input_ff_upload(dev, &effect, file);
-
-		if (put_user(effect.id, &(((struct ff_effect __user *)p)->id)))
-			return -EFAULT;
-
-		return error;
-
 	case EVIOCRMFF:
 		return input_ff_erase(dev, (int)(unsigned long) p, file);
 
@@ -732,6 +798,19 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		if (_IOC_DIR(cmd) == _IOC_WRITE) {
+
+			if (_IOC_NR(cmd) == _IOC_NR(EVIOCSFF)) {
+
+				if (evdev_ff_effect_from_user(p, _IOC_SIZE(cmd), &effect))
+					return -EFAULT;
+
+				error = input_ff_upload(dev, &effect, file);
+
+				if (put_user(effect.id, &(((struct ff_effect __user *)p)->id)))
+					return -EFAULT;
+
+				return error;
+			}
 
 			if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCSABS(0))) {
 

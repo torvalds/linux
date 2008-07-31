@@ -38,6 +38,7 @@
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
 
+#define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 
 /* define exit reasons from vmm to kvm*/
 #define EXIT_REASON_VM_PANIC		0
@@ -520,5 +521,7 @@ int kvm_highest_pending_irq(struct kvm_vcpu *vcpu);
 int kvm_emulate_halt(struct kvm_vcpu *vcpu);
 int kvm_pal_emul(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run);
 void kvm_sal_emul(struct kvm_vcpu *vcpu);
+
+static inline void kvm_inject_nmi(struct kvm_vcpu *vcpu) {}
 
 #endif

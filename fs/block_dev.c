@@ -271,7 +271,7 @@ static void bdev_destroy_inode(struct inode *inode)
 	kmem_cache_free(bdev_cachep, bdi);
 }
 
-static void init_once(struct kmem_cache * cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct bdev_inode *ei = (struct bdev_inode *) foo;
 	struct block_device *bdev = &ei->bdev;
@@ -931,8 +931,16 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 	struct gendisk *disk;
 	int ret;
 	int part;
+	int perm = 0;
 
-	ret = devcgroup_inode_permission(bdev->bd_inode, file->f_mode);
+	if (file->f_mode & FMODE_READ)
+		perm |= MAY_READ;
+	if (file->f_mode & FMODE_WRITE)
+		perm |= MAY_WRITE;
+	/*
+	 * hooks: /n/, see "layering violations".
+	 */
+	ret = devcgroup_inode_permission(bdev->bd_inode, perm);
 	if (ret != 0)
 		return ret;
 

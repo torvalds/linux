@@ -14,12 +14,7 @@
 
 /* Characters that are undesirable in an MS-DOS file name */
 static unsigned char bad_chars[] = "*?<>|\"";
-static unsigned char bad_if_strict_pc[] = "+=,; ";
-/* GEMDOS is less restrictive */
-static unsigned char bad_if_strict_atari[] = " ";
-
-#define bad_if_strict(opts) \
-	((opts)->atari ? bad_if_strict_atari : bad_if_strict_pc)
+static unsigned char bad_if_strict[] = "+=,; ";
 
 /***** Formats an MS-DOS file name. Rejects invalid names. */
 static int msdos_format_name(const unsigned char *name, int len,
@@ -40,21 +35,20 @@ static int msdos_format_name(const unsigned char *name, int len,
 			/* Get rid of dot - test for it elsewhere */
 			name++;
 			len--;
-		} else if (!opts->atari)
+		} else
 			return -EINVAL;
 	}
 	/*
-	 * disallow names that _really_ start with a dot for MS-DOS,
-	 * GEMDOS does not care
+	 * disallow names that _really_ start with a dot
 	 */
-	space = !opts->atari;
+	space = 1;
 	c = 0;
 	for (walk = res; len && walk - res < 8; walk++) {
 		c = *name++;
 		len--;
 		if (opts->name_check != 'r' && strchr(bad_chars, c))
 			return -EINVAL;
-		if (opts->name_check == 's' && strchr(bad_if_strict(opts), c))
+		if (opts->name_check == 's' && strchr(bad_if_strict, c))
 			return -EINVAL;
 		if (c >= 'A' && c <= 'Z' && opts->name_check == 's')
 			return -EINVAL;
@@ -94,7 +88,7 @@ static int msdos_format_name(const unsigned char *name, int len,
 			if (opts->name_check != 'r' && strchr(bad_chars, c))
 				return -EINVAL;
 			if (opts->name_check == 's' &&
-			    strchr(bad_if_strict(opts), c))
+			    strchr(bad_if_strict, c))
 				return -EINVAL;
 			if (c < ' ' || c == ':' || c == '\\')
 				return -EINVAL;
@@ -214,7 +208,7 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 
 	dentry->d_op = &msdos_dentry_operations;
 
-	lock_kernel();
+	lock_super(sb);
 	res = msdos_find(dir, dentry->d_name.name, dentry->d_name.len, &sinfo);
 	if (res == -ENOENT)
 		goto add;
@@ -232,7 +226,7 @@ add:
 	if (dentry)
 		dentry->d_op = &msdos_dentry_operations;
 out:
-	unlock_kernel();
+	unlock_super(sb);
 	if (!res)
 		return dentry;
 	return ERR_PTR(res);
@@ -243,6 +237,7 @@ static int msdos_add_entry(struct inode *dir, const unsigned char *name,
 			   int is_dir, int is_hid, int cluster,
 			   struct timespec *ts, struct fat_slot_info *sinfo)
 {
+	struct msdos_sb_info *sbi = MSDOS_SB(dir->i_sb);
 	struct msdos_dir_entry de;
 	__le16 time, date;
 	int err;
@@ -252,7 +247,7 @@ static int msdos_add_entry(struct inode *dir, const unsigned char *name,
 	if (is_hid)
 		de.attr |= ATTR_HIDDEN;
 	de.lcase = 0;
-	fat_date_unix2dos(ts->tv_sec, &time, &date);
+	fat_date_unix2dos(ts->tv_sec, &time, &date, sbi->options.tz_utc);
 	de.cdate = de.adate = 0;
 	de.ctime = 0;
 	de.ctime_cs = 0;
@@ -286,7 +281,7 @@ static int msdos_create(struct inode *dir, struct dentry *dentry, int mode,
 	unsigned char msdos_name[MSDOS_NAME];
 	int err, is_hid;
 
-	lock_kernel();
+	lock_super(sb);
 
 	err = msdos_format_name(dentry->d_name.name, dentry->d_name.len,
 				msdos_name, &MSDOS_SB(sb)->options);
@@ -315,7 +310,7 @@ static int msdos_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	d_instantiate(dentry, inode);
 out:
-	unlock_kernel();
+	unlock_super(sb);
 	if (!err)
 		err = fat_flush_inodes(sb, dir, inode);
 	return err;
@@ -324,11 +319,12 @@ out:
 /***** Remove a directory */
 static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 {
+	struct super_block *sb = dir->i_sb;
 	struct inode *inode = dentry->d_inode;
 	struct fat_slot_info sinfo;
 	int err;
 
-	lock_kernel();
+	lock_super(sb);
 	/*
 	 * Check whether the directory is not in use, then check
 	 * whether it is empty.
@@ -349,9 +345,9 @@ static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 	inode->i_ctime = CURRENT_TIME_SEC;
 	fat_detach(inode);
 out:
-	unlock_kernel();
+	unlock_super(sb);
 	if (!err)
-		err = fat_flush_inodes(inode->i_sb, dir, inode);
+		err = fat_flush_inodes(sb, dir, inode);
 
 	return err;
 }
@@ -366,7 +362,7 @@ static int msdos_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	struct timespec ts;
 	int err, is_hid, cluster;
 
-	lock_kernel();
+	lock_super(sb);
 
 	err = msdos_format_name(dentry->d_name.name, dentry->d_name.len,
 				msdos_name, &MSDOS_SB(sb)->options);
@@ -404,14 +400,14 @@ static int msdos_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	d_instantiate(dentry, inode);
 
-	unlock_kernel();
+	unlock_super(sb);
 	fat_flush_inodes(sb, dir, inode);
 	return 0;
 
 out_free:
 	fat_free_clusters(dir, cluster);
 out:
-	unlock_kernel();
+	unlock_super(sb);
 	return err;
 }
 
@@ -419,10 +415,11 @@ out:
 static int msdos_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
+	struct super_block *sb= inode->i_sb;
 	struct fat_slot_info sinfo;
 	int err;
 
-	lock_kernel();
+	lock_super(sb);
 	err = msdos_find(dir, dentry->d_name.name, dentry->d_name.len, &sinfo);
 	if (err)
 		goto out;
@@ -434,9 +431,9 @@ static int msdos_unlink(struct inode *dir, struct dentry *dentry)
 	inode->i_ctime = CURRENT_TIME_SEC;
 	fat_detach(inode);
 out:
-	unlock_kernel();
+	unlock_super(sb);
 	if (!err)
-		err = fat_flush_inodes(inode->i_sb, dir, inode);
+		err = fat_flush_inodes(sb, dir, inode);
 
 	return err;
 }
@@ -618,10 +615,11 @@ error_inode:
 static int msdos_rename(struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry)
 {
+	struct super_block *sb = old_dir->i_sb;
 	unsigned char old_msdos_name[MSDOS_NAME], new_msdos_name[MSDOS_NAME];
 	int err, is_hid;
 
-	lock_kernel();
+	lock_super(sb);
 
 	err = msdos_format_name(old_dentry->d_name.name,
 				old_dentry->d_name.len, old_msdos_name,
@@ -640,9 +638,9 @@ static int msdos_rename(struct inode *old_dir, struct dentry *old_dentry,
 	err = do_msdos_rename(old_dir, old_msdos_name, old_dentry,
 			      new_dir, new_msdos_name, new_dentry, is_hid);
 out:
-	unlock_kernel();
+	unlock_super(sb);
 	if (!err)
-		err = fat_flush_inodes(old_dir->i_sb, old_dir, new_dir);
+		err = fat_flush_inodes(sb, old_dir, new_dir);
 	return err;
 }
 

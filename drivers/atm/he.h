@@ -51,8 +51,6 @@
 #define CONFIG_IRQ_SIZE		128
 #define CONFIG_IRQ_THRESH	(CONFIG_IRQ_SIZE/2)
 
-#define CONFIG_NUMTPDS		256
-
 #define CONFIG_TPDRQ_SIZE	512
 #define TPDRQ_MASK(x)		(((unsigned long)(x))&((CONFIG_TPDRQ_SIZE<<3)-1))
 
@@ -140,12 +138,7 @@ struct he_tpd {
 	struct sk_buff *skb;
 	struct atm_vcc *vcc;
 
-#ifdef USE_TPD_POOL
 	struct list_head entry;
-#else
-	u32 inuse;
-	char padding[32 - sizeof(u32) - (2*sizeof(void*))];
-#endif
 };
 
 #define TPD_ALIGNMENT	64
@@ -267,13 +260,7 @@ struct he_dev {
 
 	char prod_id[30];
 	char mac_addr[6];
-	int media;			/*  
-					 *  0x26 = HE155 MM 
-					 *  0x27 = HE622 MM 
-					 *  0x46 = HE155 SM 
-					 *  0x47 = HE622 SM 
-					 */
-
+	int media;
 
 	unsigned int vcibits, vpibits;
 	unsigned int cells_per_row;
@@ -297,16 +284,9 @@ struct he_dev {
 	volatile unsigned *irq_tailoffset;
 	int irq_peak;
 
-#ifdef USE_TASKLET
 	struct tasklet_struct tasklet;
-#endif
-#ifdef USE_TPD_POOL
 	struct pci_pool *tpd_pool;
 	struct list_head outstanding_tpds;
-#else
-	struct he_tpd *tpd_head, *tpd_base, *tpd_end;
-	dma_addr_t tpd_base_phys;
-#endif
 
 	dma_addr_t tpdrq_phys;
 	struct he_tpdrq *tpdrq_base, *tpdrq_tail, *tpdrq_head;
@@ -317,25 +297,13 @@ struct he_dev {
 	struct he_rbrq *rbrq_base, *rbrq_head;
 	int rbrq_peak;
 
-#ifdef USE_RBPL_POOL
 	struct pci_pool *rbpl_pool;
-#else
-	void *rbpl_pages;
-	dma_addr_t rbpl_pages_phys;
-#endif
 	dma_addr_t rbpl_phys;
 	struct he_rbp *rbpl_base, *rbpl_tail;
 	struct he_virt *rbpl_virt;
 	int rbpl_peak;
 
-#ifdef USE_RBPS
-#ifdef USE_RBPS_POOL
 	struct pci_pool *rbps_pool;
-#else
-	void *rbps_pages;
-	dma_addr_t rbps_pages_phys;
-#endif
-#endif
 	dma_addr_t rbps_phys;
 	struct he_rbp *rbps_base, *rbps_tail;
 	struct he_virt *rbps_virt;
@@ -392,6 +360,7 @@ struct he_vcc
 #define HE_DEV(dev) ((struct he_dev *) (dev)->dev_data)
 
 #define he_is622(dev)	((dev)->media & 0x1)
+#define he_isMM(dev)	((dev)->media & 0x20)
 
 #define HE_REGMAP_SIZE	0x100000
 
@@ -876,8 +845,8 @@ struct he_vcc
 #define M_SN		0x3a	/* integer */
 #define MEDIA		0x3e	/* integer */
 #define  HE155MM	0x26
-#define  HE155SM	0x27
-#define  HE622MM	0x46
+#define  HE622MM	0x27
+#define  HE155SM	0x46
 #define  HE622SM	0x47
 #define MAC_ADDR	0x42	/* char[] */
 
