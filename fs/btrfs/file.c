@@ -380,15 +380,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 			spin_unlock(&em_tree->lock);
 			break;
 		}
-		if (test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
-			printk(KERN_CRIT "inode %lu trying to drop pinned "
-			       "extent start %llu end %llu, em [%llu %llu]\n",
-			       inode->i_ino,
-			       (unsigned long long)start,
-			       (unsigned long long)end,
-			       (unsigned long long)em->start,
-			       (unsigned long long)em->len);
-		}
+		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
 		remove_extent_mapping(em_tree, em);
 
 		if (em->block_start < EXTENT_MAP_LAST_BYTE &&

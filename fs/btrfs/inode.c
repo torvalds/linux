@@ -505,15 +505,9 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_ordered_extent *ordered_extent;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
-	struct extent_map *em;
-	struct extent_map *em_orig;
 	u64 alloc_hint = 0;
-	u64 clear_start;
-	u64 clear_end;
 	struct list_head list;
 	struct btrfs_key ins;
-	struct rb_node *rb;
 	int ret;
 
 	ret = btrfs_dec_test_ordered_pending(inode, start, end - start + 1);
@@ -541,22 +535,6 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	BUG_ON(ret);
 
 	mutex_lock(&BTRFS_I(inode)->extent_mutex);
-
-	spin_lock(&em_tree->lock);
-	clear_start = ordered_extent->file_offset;
-	clear_end = ordered_extent->file_offset + ordered_extent->len;
-	em = lookup_extent_mapping(em_tree, clear_start,
-				   ordered_extent->len);
-	em_orig = em;
-	while(em && clear_start < extent_map_end(em) && clear_end > em->start) {
-		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
-		rb = rb_next(&em->rb_node);
-		if (!rb)
-			break;
-		em = rb_entry(rb, struct extent_map, rb_node);
-	}
-	free_extent_map(em_orig);
-	spin_unlock(&em_tree->lock);
 
 	ret = btrfs_drop_extents(trans, root, inode,
 				 ordered_extent->file_offset,
