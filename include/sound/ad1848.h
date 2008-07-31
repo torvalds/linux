@@ -27,15 +27,6 @@
 
 #include "wss.h"	/* temporary till the driver is removed */
 
-/* IO ports */
-
-#define AD1848P( chip, x ) ( (chip) -> port + c_d_c_AD1848##x )
-
-#define c_d_c_AD1848REGSEL	0
-#define c_d_c_AD1848REG		1
-#define c_d_c_AD1848STATUS	2
-#define c_d_c_AD1848PIO		3
-
 /* codec registers */
 
 #define AD1848_LEFT_INPUT	0x00	/* left input control */
