@@ -151,8 +151,8 @@ static char *dongle_types[] = {
 static chipio_t pnp_info;
 static const struct pnp_device_id nsc_ircc_pnp_table[] = {
 	{ .id = "NSC6001", .driver_data = 0 },
-	{ .id = "IBM0071", .driver_data = 0 },
 	{ .id = "HWPC224", .driver_data = 0 },
+	{ .id = "IBM0071", .driver_data = NSC_FORCE_DONGLE_TYPE9 },
 	{ }
 };
 
@@ -930,7 +930,10 @@ static int nsc_ircc_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *i
 	pnp_info.dma = -1;
 	pnp_succeeded = 1;
 
-	/* There don't seem to be any way to get the cfg_base.
+	if (id->driver_data & NSC_FORCE_DONGLE_TYPE9)
+		dongle_id = 0x9;
+
+	/* There doesn't seem to be any way of getting the cfg_base.
 	 * On my box, cfg_base is in the PnP descriptor of the
 	 * motherboard. Oh well... Jean II */
 
