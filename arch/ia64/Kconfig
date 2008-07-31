@@ -171,8 +171,8 @@ config IA64_SGI_SN2
 	  to select this option.  If in doubt, select ia64 generic support
 	  instead.
 
-config IA64_SGI_UV`
-	bool "SGI-UV`"
+config IA64_SGI_UV
+	bool "SGI-UV"
 	select NUMA
 	select ACPI_NUMA
 	select SWIOTLB
