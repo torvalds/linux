@@ -46,4 +46,12 @@
 #define DMAC_DMAREQ_2		9
 #define DMAC_DMAREQ_3		10
 
+/*
+ * Base addresses of controllers that may be accessed early by
+ * platform code.
+ */
+#define PM_BASE		0xfff00000
+#define HMATRIX_BASE	0xfff00800
+#define SDRAMC_BASE	0xfff03800
+
 #endif /* __ASM_ARCH_AT32AP700X_H__ */
