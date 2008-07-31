@@ -380,7 +380,7 @@ static void snd_wss_busy_wait(struct snd_wss *chip)
 	for (timeout = 5; timeout > 0; timeout--)
 		wss_inb(chip, CS4231P(REGSEL));
 	/* end of cleanup sequence */
-	for (timeout = 250;
+	for (timeout = 25000;
 	     timeout > 0 && (wss_inb(chip, CS4231P(REGSEL)) & CS4231_INIT);
 	     timeout--)
 		udelay(10);
@@ -413,6 +413,7 @@ void snd_wss_mce_down(struct snd_wss *chip)
 	unsigned long flags;
 	unsigned long end_time;
 	int timeout;
+	int hw_mask = WSS_HW_CS4231_MASK | WSS_HW_CS4232_MASK | WSS_HW_AD1848;
 
 	snd_wss_busy_wait(chip);
 
@@ -427,10 +428,8 @@ void snd_wss_mce_down(struct snd_wss *chip)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	if (timeout == 0x80)
 		snd_printk("mce_down [0x%lx]: serious init problem - codec still busy\n", chip->port);
-	if ((timeout & CS4231_MCE) == 0 ||
-	    !(chip->hardware & (WSS_HW_CS4231_MASK | WSS_HW_CS4232_MASK))) {
+	if ((timeout & CS4231_MCE) == 0 || !(chip->hardware & hw_mask))
 		return;
-	}
 
 	/*
 	 * Wait for (possible -- during init auto-calibration may not be set)
@@ -601,12 +600,14 @@ static void snd_wss_calibrate_mute(struct snd_wss *chip, int mute)
 		     mute ? 0x80 : chip->image[CS4231_LEFT_OUTPUT]);
 	snd_wss_dout(chip, CS4231_RIGHT_OUTPUT,
 		     mute ? 0x80 : chip->image[CS4231_RIGHT_OUTPUT]);
-	snd_wss_dout(chip, CS4231_LEFT_LINE_IN,
-		     mute ? 0x80 : chip->image[CS4231_LEFT_LINE_IN]);
-	snd_wss_dout(chip, CS4231_RIGHT_LINE_IN,
-		     mute ? 0x80 : chip->image[CS4231_RIGHT_LINE_IN]);
-	snd_wss_dout(chip, CS4231_MONO_CTRL,
-		     mute ? 0xc0 : chip->image[CS4231_MONO_CTRL]);
+	if (!(chip->hardware & WSS_HW_AD1848_MASK)) {
+		snd_wss_dout(chip, CS4231_LEFT_LINE_IN,
+			     mute ? 0x80 : chip->image[CS4231_LEFT_LINE_IN]);
+		snd_wss_dout(chip, CS4231_RIGHT_LINE_IN,
+			     mute ? 0x80 : chip->image[CS4231_RIGHT_LINE_IN]);
+		snd_wss_dout(chip, CS4231_MONO_CTRL,
+			     mute ? 0xc0 : chip->image[CS4231_MONO_CTRL]);
+	}
 	if (chip->hardware == WSS_HW_INTERWAVE) {
 		snd_wss_dout(chip, CS4231_LEFT_MIC_INPUT,
 			     mute ? 0x80 : chip->image[CS4231_LEFT_MIC_INPUT]);
@@ -706,7 +707,10 @@ static void snd_wss_capture_format(struct snd_wss *chip,
 			snd_wss_mce_up(chip);
 			spin_lock_irqsave(&chip->reg_lock, flags);
 		}
-		snd_wss_out(chip, CS4231_REC_FORMAT, cdfr);
+		if (chip->hardware & WSS_HW_AD1848_MASK)
+			snd_wss_out(chip, CS4231_PLAYBK_FORMAT, cdfr);
+		else
+			snd_wss_out(chip, CS4231_REC_FORMAT, cdfr);
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		snd_wss_mce_down(chip);
 	}
@@ -818,7 +822,9 @@ static void snd_wss_init(struct snd_wss *chip)
 
 	snd_wss_mce_up(chip);
 	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_wss_out(chip, CS4231_REC_FORMAT, chip->image[CS4231_REC_FORMAT]);
+	if (!(chip->hardware & WSS_HW_AD1848_MASK))
+		snd_wss_out(chip, CS4231_REC_FORMAT,
+			    chip->image[CS4231_REC_FORMAT]);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	snd_wss_mce_down(chip);
 
@@ -844,20 +850,24 @@ static int snd_wss_open(struct snd_wss *chip, unsigned int mode)
 	}
 	/* ok. now enable and ack CODEC IRQ */
 	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_wss_out(chip, CS4231_IRQ_STATUS,
-		    CS4231_PLAYBACK_IRQ |
-		    CS4231_RECORD_IRQ |
-		    CS4231_TIMER_IRQ);
-	snd_wss_out(chip, CS4231_IRQ_STATUS, 0);
+	if (!(chip->hardware & WSS_HW_AD1848_MASK)) {
+		snd_wss_out(chip, CS4231_IRQ_STATUS,
+			    CS4231_PLAYBACK_IRQ |
+			    CS4231_RECORD_IRQ |
+			    CS4231_TIMER_IRQ);
+		snd_wss_out(chip, CS4231_IRQ_STATUS, 0);
+	}
 	wss_outb(chip, CS4231P(STATUS), 0);	/* clear IRQ */
 	wss_outb(chip, CS4231P(STATUS), 0);	/* clear IRQ */
 	chip->image[CS4231_PIN_CTRL] |= CS4231_IRQ_ENABLE;
 	snd_wss_out(chip, CS4231_PIN_CTRL, chip->image[CS4231_PIN_CTRL]);
-	snd_wss_out(chip, CS4231_IRQ_STATUS,
-		    CS4231_PLAYBACK_IRQ |
-		    CS4231_RECORD_IRQ |
-		    CS4231_TIMER_IRQ);
-	snd_wss_out(chip, CS4231_IRQ_STATUS, 0);
+	if (!(chip->hardware & WSS_HW_AD1848_MASK)) {
+		snd_wss_out(chip, CS4231_IRQ_STATUS,
+			    CS4231_PLAYBACK_IRQ |
+			    CS4231_RECORD_IRQ |
+			    CS4231_TIMER_IRQ);
+		snd_wss_out(chip, CS4231_IRQ_STATUS, 0);
+	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	chip->mode = mode;
@@ -879,7 +889,8 @@ static void snd_wss_close(struct snd_wss *chip, unsigned int mode)
 
 	/* disable IRQ */
 	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_wss_out(chip, CS4231_IRQ_STATUS, 0);
+	if (!(chip->hardware & WSS_HW_AD1848_MASK))
+		snd_wss_out(chip, CS4231_IRQ_STATUS, 0);
 	wss_outb(chip, CS4231P(STATUS), 0);	/* clear IRQ */
 	wss_outb(chip, CS4231P(STATUS), 0);	/* clear IRQ */
 	chip->image[CS4231_PIN_CTRL] &= ~CS4231_IRQ_ENABLE;
@@ -902,7 +913,8 @@ static void snd_wss_close(struct snd_wss *chip, unsigned int mode)
 	}
 
 	/* clear IRQ again */
-	snd_wss_out(chip, CS4231_IRQ_STATUS, 0);
+	if (!(chip->hardware & WSS_HW_AD1848_MASK))
+		snd_wss_out(chip, CS4231_IRQ_STATUS, 0);
 	wss_outb(chip, CS4231P(STATUS), 0);	/* clear IRQ */
 	wss_outb(chip, CS4231P(STATUS), 0);	/* clear IRQ */
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -1023,7 +1035,13 @@ static int snd_wss_capture_prepare(struct snd_pcm_substream *substream)
 	chip->c_dma_size = size;
 	chip->image[CS4231_IFACE_CTRL] &= ~(CS4231_RECORD_ENABLE | CS4231_RECORD_PIO);
 	snd_dma_program(chip->dma2, runtime->dma_addr, size, DMA_MODE_READ | DMA_AUTOINIT);
-	count = snd_wss_get_count(chip->image[CS4231_REC_FORMAT], count) - 1;
+	if (chip->hardware & WSS_HW_AD1848_MASK)
+		count = snd_wss_get_count(chip->image[CS4231_PLAYBK_FORMAT],
+					  count);
+	else
+		count = snd_wss_get_count(chip->image[CS4231_REC_FORMAT],
+					  count);
+	count--;
 	if (chip->single_dma && chip->hardware != WSS_HW_INTERWAVE) {
 		snd_wss_out(chip, CS4231_PLY_LWR_CNT, (unsigned char) count);
 		snd_wss_out(chip, CS4231_PLY_UPR_CNT,
@@ -1341,6 +1359,11 @@ static int snd_wss_playback_open(struct snd_pcm_substream *substream)
 
 	runtime->hw = snd_wss_playback;
 
+	/* hardware limitation of older chipsets */
+	if (chip->hardware & WSS_HW_AD1848_MASK)
+		runtime->hw.formats &= ~(SNDRV_PCM_FMTBIT_IMA_ADPCM |
+					 SNDRV_PCM_FMTBIT_S16_BE);
+
 	/* hardware bug in InterWave chipset */
 	if (chip->hardware == WSS_HW_INTERWAVE && chip->dma1 > 3)
 		runtime->hw.formats &= ~SNDRV_PCM_FMTBIT_MU_LAW;
@@ -1378,6 +1401,11 @@ static int snd_wss_capture_open(struct snd_pcm_substream *substream)
 	int err;
 
 	runtime->hw = snd_wss_capture;
+
+	/* hardware limitation of older chipsets */
+	if (chip->hardware & WSS_HW_AD1848_MASK)
+		runtime->hw.formats &= ~(SNDRV_PCM_FMTBIT_IMA_ADPCM |
+					 SNDRV_PCM_FMTBIT_S16_BE);
 
 	/* hardware limitation of cheap chips */
 	if (chip->hardware == WSS_HW_CS4235 ||
@@ -1423,6 +1451,26 @@ static int snd_wss_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static void snd_wss_thinkpad_twiddle(struct snd_wss *chip, int on)
+{
+	int tmp;
+
+	if (!chip->thinkpad_flag)
+		return;
+
+	outb(0x1c, AD1848_THINKPAD_CTL_PORT1);
+	tmp = inb(AD1848_THINKPAD_CTL_PORT2);
+
+	if (on)
+		/* turn it on */
+		tmp |= AD1848_THINKPAD_CS4248_ENABLE_BIT;
+	else
+		/* turn it off */
+		tmp &= ~AD1848_THINKPAD_CS4248_ENABLE_BIT;
+
+	outb(tmp, AD1848_THINKPAD_CTL_PORT2);
+}
+
 #ifdef CONFIG_PM
 
 /* lowlevel suspend callback for CS4231 */
@@ -1436,6 +1484,8 @@ static void snd_wss_suspend(struct snd_wss *chip)
 	for (reg = 0; reg < 32; reg++)
 		chip->image[reg] = snd_wss_in(chip, reg);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	if (chip->thinkpad_flag)
+		snd_wss_thinkpad_twiddle(chip, 0);
 }
 
 /* lowlevel resume callback for CS4231 */
@@ -1445,6 +1495,8 @@ static void snd_wss_resume(struct snd_wss *chip)
 	unsigned long flags;
 	/* int timeout; */
 
+	if (chip->thinkpad_flag)
+		snd_wss_thinkpad_twiddle(chip, 1);
 	snd_wss_mce_up(chip);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	for (reg = 0; reg < 32; reg++) {
@@ -1542,6 +1594,14 @@ const char *snd_wss_chip_id(struct snd_wss *chip)
 		return "AD1845";
 	case WSS_HW_OPTI93X:
 		return "OPTi 93x";
+	case WSS_HW_AD1847:
+		return "AD1847";
+	case WSS_HW_AD1848:
+		return "AD1848";
+	case WSS_HW_CS4248:
+		return "CS4248";
+	case WSS_HW_CMI8330:
+		return "CMI8330/C3D";
 	default:
 		return "???";
 	}
@@ -1704,7 +1764,8 @@ int snd_wss_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(chip->card, "CS4231", device, 1, 1, &pcm)) < 0)
+	err = snd_pcm_new(chip->card, "WSS", device, 1, 1, &pcm);
+	if (err < 0)
 		return err;
 
 	spin_lock_init(&chip->reg_lock);
@@ -1714,6 +1775,12 @@ int snd_wss_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_wss_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_wss_capture_ops);
 
+	/* temporary */
+	if (chip->hardware & WSS_HW_AD1848_MASK) {
+		chip->rate_constraint = snd_wss_xrate;
+		chip->set_playback_format = snd_wss_playback_format;
+		chip->set_capture_format = snd_wss_capture_format;
+	}
 	/* global setup */
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
@@ -2133,6 +2200,13 @@ int snd_wss_mixer(struct snd_wss *chip)
 	return 0;
 }
 EXPORT_SYMBOL(snd_wss_mixer);
+
+const struct snd_pcm_ops *snd_wss_get_pcm_ops(int direction)
+{
+	return direction == SNDRV_PCM_STREAM_PLAYBACK ?
+		&snd_wss_playback_ops : &snd_wss_capture_ops;
+}
+EXPORT_SYMBOL(snd_wss_get_pcm_ops);
 
 /*
  *  INIT part

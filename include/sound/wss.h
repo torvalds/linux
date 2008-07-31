@@ -71,6 +71,11 @@
 #define WSS_HWSHARE_DMA1	(1<<1)
 #define WSS_HWSHARE_DMA2	(1<<2)
 
+/* IBM Thinkpad specific stuff */
+#define AD1848_THINKPAD_CTL_PORT1		0x15e8
+#define AD1848_THINKPAD_CTL_PORT2		0x15e9
+#define AD1848_THINKPAD_CS4248_ENABLE_BIT	0x02
+
 struct snd_wss {
 	unsigned long port;		/* base i/o port */
 	struct resource *res_port;
@@ -152,6 +157,8 @@ int snd_wss_create(struct snd_card *card,
 int snd_wss_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm);
 int snd_wss_timer(struct snd_wss *chip, int device, struct snd_timer **rtimer);
 int snd_wss_mixer(struct snd_wss *chip);
+
+const struct snd_pcm_ops *snd_wss_get_pcm_ops(int direction);
 
 int snd_cs4236_create(struct snd_card *card,
 		      unsigned long port,

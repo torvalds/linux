@@ -754,18 +754,15 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 #ifdef OPTi93X
 	chip->codec = codec;
 #endif
-	error = snd_wss_pcm(codec, 0, &pcm);
-	if (error < 0)
-		return error;
 #else
 	error = snd_ad1848_create(card, chip->wss_base + 4, chip->irq,
 				  chip->dma1, WSS_HW_DETECT, &codec);
 	if (error < 0)
 		return error;
-	error = snd_ad1848_pcm(codec, 0, &pcm);
+#endif
+	error = snd_wss_pcm(codec, 0, &pcm);
 	if (error < 0)
 		return error;
-#endif
 	error = snd_wss_mixer(codec);
 	if (error < 0)
 		return error;

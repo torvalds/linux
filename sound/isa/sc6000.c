@@ -554,10 +554,10 @@ static int __devinit snd_sc6000_probe(struct device *devptr, unsigned int dev)
 		goto err_unmap2;
 	card->private_data = chip;
 
-	err = snd_ad1848_pcm(chip, 0, NULL);
+	err = snd_wss_pcm(chip, 0, NULL);
 	if (err < 0) {
 		snd_printk(KERN_ERR PFX
-			   "error creating new ad1848 PCM device\n");
+			   "error creating new WSS PCM device\n");
 		goto err_unmap2;
 	}
 	err = snd_wss_mixer(chip);

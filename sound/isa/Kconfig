@@ -1,12 +1,13 @@
 # ALSA ISA drivers
 
-config SND_AD1848_LIB
-        tristate
-        select SND_PCM
-
 config SND_WSS_LIB
         tristate
         select SND_PCM
+
+config SND_AD1848_LIB
+        tristate
+        select SND_PCM
+        select SND_WSS_LIB
 
 config SND_SB_COMMON
         tristate

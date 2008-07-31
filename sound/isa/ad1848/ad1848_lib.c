@@ -46,34 +46,6 @@ MODULE_LICENSE("GPL");
  *  Some variables
  */
 
-static unsigned char freq_bits[14] = {
-	/* 5510 */	0x00 | AD1848_XTAL2,
-	/* 6620 */	0x0E | AD1848_XTAL2,
-	/* 8000 */	0x00 | AD1848_XTAL1,
-	/* 9600 */	0x0E | AD1848_XTAL1,
-	/* 11025 */	0x02 | AD1848_XTAL2,
-	/* 16000 */	0x02 | AD1848_XTAL1,
-	/* 18900 */	0x04 | AD1848_XTAL2,
-	/* 22050 */	0x06 | AD1848_XTAL2,
-	/* 27042 */	0x04 | AD1848_XTAL1,
-	/* 32000 */	0x06 | AD1848_XTAL1,
-	/* 33075 */	0x0C | AD1848_XTAL2,
-	/* 37800 */	0x08 | AD1848_XTAL2,
-	/* 44100 */	0x0A | AD1848_XTAL2,
-	/* 48000 */	0x0C | AD1848_XTAL1
-};
-
-static unsigned int rates[14] = {
-	5510, 6620, 8000, 9600, 11025, 16000, 18900, 22050,
-	27042, 32000, 33075, 37800, 44100, 48000
-};
-
-static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
-	.count = ARRAY_SIZE(rates),
-	.list = rates,
-	.mask = 0,
-};
-
 static unsigned char snd_ad1848_original_image[16] =
 {
 	0x00,			/* 00 - lic */
@@ -127,15 +99,6 @@ void snd_ad1848_out(struct snd_wss *chip,
 }
 
 EXPORT_SYMBOL(snd_ad1848_out);
-
-static void snd_ad1848_dout(struct snd_wss *chip,
-			    unsigned char reg, unsigned char value)
-{
-	snd_ad1848_wait(chip);
-	outb(chip->mce_bit | reg, chip->port + CS4231P(REGSEL));
-	outb(value, chip->port + CS4231P(REG));
-	mb();
-}
 
 static unsigned char snd_ad1848_in(struct snd_wss *chip, unsigned char reg)
 {
@@ -261,315 +224,6 @@ static void snd_ad1848_mce_down(struct snd_wss *chip)
 		   inb(chip->port + CS4231P(REGSEL)));
 }
 
-static unsigned int snd_ad1848_get_count(unsigned char format,
-				         unsigned int size)
-{
-	switch (format & 0xe0) {
-	case AD1848_LINEAR_16:
-		size >>= 1;
-		break;
-	}
-	if (format & AD1848_STEREO)
-		size >>= 1;
-	return size;
-}
-
-static int snd_ad1848_trigger(struct snd_wss *chip, unsigned char what,
-			      int channel, int cmd)
-{
-	int result = 0;
-
-#if 0
-	printk("codec trigger!!! - what = %i, enable = %i, status = 0x%x\n", what, enable, inb(AD1848P(card, STATUS)));
-#endif
-	spin_lock(&chip->reg_lock);
-	if (cmd == SNDRV_PCM_TRIGGER_START) {
-		if (chip->image[AD1848_IFACE_CTRL] & what) {
-			spin_unlock(&chip->reg_lock);
-			return 0;
-		}
-		snd_ad1848_out(chip, AD1848_IFACE_CTRL, chip->image[AD1848_IFACE_CTRL] |= what);
-	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
-		if (!(chip->image[AD1848_IFACE_CTRL] & what)) {
-			spin_unlock(&chip->reg_lock);
-			return 0;
-		}
-		snd_ad1848_out(chip, AD1848_IFACE_CTRL, chip->image[AD1848_IFACE_CTRL] &= ~what);
-	} else {
-		result = -EINVAL;
-	}
-	spin_unlock(&chip->reg_lock);
-	return result;
-}
-
-/*
- *  CODEC I/O
- */
-
-static unsigned char snd_ad1848_get_rate(unsigned int rate)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(rates); i++)
-		if (rate == rates[i])
-			return freq_bits[i];
-	snd_BUG();
-	return freq_bits[ARRAY_SIZE(rates) - 1];
-}
-
-static int snd_ad1848_ioctl(struct snd_pcm_substream *substream,
-			    unsigned int cmd, void *arg)
-{
-	return snd_pcm_lib_ioctl(substream, cmd, arg);
-}
-
-static unsigned char snd_ad1848_get_format(int format, int channels)
-{
-	unsigned char rformat;
-
-	rformat = AD1848_LINEAR_8;
-	switch (format) {
-	case SNDRV_PCM_FORMAT_A_LAW:	rformat = AD1848_ALAW_8; break;
-	case SNDRV_PCM_FORMAT_MU_LAW:	rformat = AD1848_ULAW_8; break;
-	case SNDRV_PCM_FORMAT_S16_LE:	rformat = AD1848_LINEAR_16; break;
-	}
-	if (channels > 1)
-		rformat |= AD1848_STEREO;
-#if 0
-	snd_printk("get_format: 0x%x (mode=0x%x)\n", format, mode);
-#endif
-	return rformat;
-}
-
-static void snd_ad1848_calibrate_mute(struct snd_wss *chip, int mute)
-{
-	unsigned long flags;
-	
-	mute = mute ? 1 : 0;
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	if (chip->calibrate_mute == mute) {
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		return;
-	}
-	if (!mute) {
-		snd_ad1848_dout(chip, AD1848_LEFT_INPUT, chip->image[AD1848_LEFT_INPUT]);
-		snd_ad1848_dout(chip, AD1848_RIGHT_INPUT, chip->image[AD1848_RIGHT_INPUT]);
-	}
-	snd_ad1848_dout(chip, AD1848_AUX1_LEFT_INPUT, mute ? 0x80 : chip->image[AD1848_AUX1_LEFT_INPUT]);
-	snd_ad1848_dout(chip, AD1848_AUX1_RIGHT_INPUT, mute ? 0x80 : chip->image[AD1848_AUX1_RIGHT_INPUT]);
-	snd_ad1848_dout(chip, AD1848_AUX2_LEFT_INPUT, mute ? 0x80 : chip->image[AD1848_AUX2_LEFT_INPUT]);
-	snd_ad1848_dout(chip, AD1848_AUX2_RIGHT_INPUT, mute ? 0x80 : chip->image[AD1848_AUX2_RIGHT_INPUT]);
-	snd_ad1848_dout(chip, AD1848_LEFT_OUTPUT, mute ? 0x80 : chip->image[AD1848_LEFT_OUTPUT]);
-	snd_ad1848_dout(chip, AD1848_RIGHT_OUTPUT, mute ? 0x80 : chip->image[AD1848_RIGHT_OUTPUT]);
-	chip->calibrate_mute = mute;
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-}
-
-static void snd_ad1848_set_data_format(struct snd_wss *chip,
-				       struct snd_pcm_hw_params *hw_params)
-{
-	if (hw_params == NULL) {
-		chip->image[AD1848_DATA_FORMAT] = 0x20;
-	} else {
-		chip->image[AD1848_DATA_FORMAT] =
-		    snd_ad1848_get_format(params_format(hw_params), params_channels(hw_params)) |
-		    snd_ad1848_get_rate(params_rate(hw_params));
-	}
-	// snd_printk(">>> pmode = 0x%x, dfr = 0x%x\n", pstr->mode, chip->image[AD1848_DATA_FORMAT]);
-}
-
-static int snd_ad1848_open(struct snd_wss *chip, unsigned int mode)
-{
-	unsigned long flags;
-
-	if (chip->mode & WSS_MODE_OPEN)
-		return -EAGAIN;
-
-	snd_ad1848_mce_down(chip);
-
-#ifdef SNDRV_DEBUG_MCE
-	snd_printk("open: (1)\n");
-#endif
-	snd_ad1848_mce_up(chip);
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	chip->image[AD1848_IFACE_CTRL] &= ~(AD1848_PLAYBACK_ENABLE | AD1848_PLAYBACK_PIO |
-			     AD1848_CAPTURE_ENABLE | AD1848_CAPTURE_PIO |
-			     AD1848_CALIB_MODE);
-	chip->image[AD1848_IFACE_CTRL] |= AD1848_AUTOCALIB;
-	snd_ad1848_out(chip, AD1848_IFACE_CTRL, chip->image[AD1848_IFACE_CTRL]);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	snd_ad1848_mce_down(chip);
-
-#ifdef SNDRV_DEBUG_MCE
-	snd_printk("open: (2)\n");
-#endif
-
-	snd_ad1848_set_data_format(chip, NULL);
-
-	snd_ad1848_mce_up(chip);
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_ad1848_out(chip, AD1848_DATA_FORMAT, chip->image[AD1848_DATA_FORMAT]);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	snd_ad1848_mce_down(chip);
-
-#ifdef SNDRV_DEBUG_MCE
-	snd_printk("open: (3)\n");
-#endif
-
-	/* ok. now enable and ack CODEC IRQ */
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	outb(0, chip->port + CS4231P(STATUS));	/* clear IRQ */
-	outb(0, chip->port + CS4231P(STATUS));	/* clear IRQ */
-	chip->image[AD1848_PIN_CTRL] |= AD1848_IRQ_ENABLE;
-	snd_ad1848_out(chip, AD1848_PIN_CTRL, chip->image[AD1848_PIN_CTRL]);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-
-	chip->mode = mode;
-
-	return 0;
-}
-
-static void snd_ad1848_close(struct snd_wss *chip)
-{
-	unsigned long flags;
-
-	if (!chip->mode)
-		return;
-	/* disable IRQ */
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	outb(0, chip->port + CS4231P(STATUS));	/* clear IRQ */
-	outb(0, chip->port + CS4231P(STATUS));	/* clear IRQ */
-	chip->image[AD1848_PIN_CTRL] &= ~AD1848_IRQ_ENABLE;
-	snd_ad1848_out(chip, AD1848_PIN_CTRL, chip->image[AD1848_PIN_CTRL]);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-
-	/* now disable capture & playback */
-
-	snd_ad1848_mce_up(chip);
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	chip->image[AD1848_IFACE_CTRL] &= ~(AD1848_PLAYBACK_ENABLE | AD1848_PLAYBACK_PIO |
-			     AD1848_CAPTURE_ENABLE | AD1848_CAPTURE_PIO);
-	snd_ad1848_out(chip, AD1848_IFACE_CTRL, chip->image[AD1848_IFACE_CTRL]);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	snd_ad1848_mce_down(chip);
-
-	/* clear IRQ again */
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	outb(0, chip->port + CS4231P(STATUS));	/* clear IRQ */
-	outb(0, chip->port + CS4231P(STATUS));	/* clear IRQ */
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-
-	chip->mode = 0;
-}
-
-/*
- *  ok.. exported functions..
- */
-
-static int snd_ad1848_playback_trigger(struct snd_pcm_substream *substream,
-				       int cmd)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-	return snd_ad1848_trigger(chip, AD1848_PLAYBACK_ENABLE, SNDRV_PCM_STREAM_PLAYBACK, cmd);
-}
-
-static int snd_ad1848_capture_trigger(struct snd_pcm_substream *substream,
-				      int cmd)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-	return snd_ad1848_trigger(chip, AD1848_CAPTURE_ENABLE, SNDRV_PCM_STREAM_CAPTURE, cmd);
-}
-
-static int snd_ad1848_playback_hw_params(struct snd_pcm_substream *substream,
-					 struct snd_pcm_hw_params *hw_params)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-	unsigned long flags;
-	int err;
-
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
-	snd_ad1848_calibrate_mute(chip, 1);
-	snd_ad1848_set_data_format(chip, hw_params);
-	snd_ad1848_mce_up(chip);
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_ad1848_out(chip, AD1848_DATA_FORMAT, chip->image[AD1848_DATA_FORMAT]);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	snd_ad1848_mce_down(chip);
-	snd_ad1848_calibrate_mute(chip, 0);
-	return 0;
-}
-
-static int snd_ad1848_playback_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
-static int snd_ad1848_playback_prepare(struct snd_pcm_substream *substream)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned long flags;
-	unsigned int size = snd_pcm_lib_buffer_bytes(substream);
-	unsigned int count = snd_pcm_lib_period_bytes(substream);
-
-	chip->p_dma_size = size;
-	chip->image[AD1848_IFACE_CTRL] &= ~(AD1848_PLAYBACK_ENABLE | AD1848_PLAYBACK_PIO);
-	snd_dma_program(chip->dma1, runtime->dma_addr, size,
-			DMA_MODE_WRITE | DMA_AUTOINIT);
-	count = snd_ad1848_get_count(chip->image[AD1848_DATA_FORMAT], count) - 1;
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_ad1848_out(chip, AD1848_DATA_LWR_CNT, (unsigned char) count);
-	snd_ad1848_out(chip, AD1848_DATA_UPR_CNT, (unsigned char) (count >> 8));
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	return 0;
-}
-
-static int snd_ad1848_capture_hw_params(struct snd_pcm_substream *substream,
-					struct snd_pcm_hw_params *hw_params)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-	unsigned long flags;
-	int err;
-
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
-	snd_ad1848_calibrate_mute(chip, 1);
-	snd_ad1848_set_data_format(chip, hw_params);
-	snd_ad1848_mce_up(chip);
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_ad1848_out(chip, AD1848_DATA_FORMAT, chip->image[AD1848_DATA_FORMAT]);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	snd_ad1848_mce_down(chip);
-	snd_ad1848_calibrate_mute(chip, 0);
-	return 0;
-}
-
-static int snd_ad1848_capture_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
-static int snd_ad1848_capture_prepare(struct snd_pcm_substream *substream)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned long flags;
-	unsigned int size = snd_pcm_lib_buffer_bytes(substream);
-	unsigned int count = snd_pcm_lib_period_bytes(substream);
-
-	chip->c_dma_size = size;
-	chip->image[AD1848_IFACE_CTRL] &= ~(AD1848_CAPTURE_ENABLE | AD1848_CAPTURE_PIO);
-	snd_dma_program(chip->dma2, runtime->dma_addr, size,
-			DMA_MODE_READ | DMA_AUTOINIT);
-	count = snd_ad1848_get_count(chip->image[AD1848_DATA_FORMAT], count) - 1;
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_ad1848_out(chip, AD1848_DATA_LWR_CNT, (unsigned char) count);
-	snd_ad1848_out(chip, AD1848_DATA_UPR_CNT, (unsigned char) (count >> 8));
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	return 0;
-}
-
 static irqreturn_t snd_ad1848_interrupt(int irq, void *dev_id)
 {
 	struct snd_wss *chip = dev_id;
@@ -580,28 +234,6 @@ static irqreturn_t snd_ad1848_interrupt(int irq, void *dev_id)
 		snd_pcm_period_elapsed(chip->capture_substream);
 	outb(0, chip->port + CS4231P(STATUS));	/* clear global interrupt bit */
 	return IRQ_HANDLED;
-}
-
-static snd_pcm_uframes_t snd_ad1848_playback_pointer(struct snd_pcm_substream *substream)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-	size_t ptr;
-	
-	if (!(chip->image[AD1848_IFACE_CTRL] & AD1848_PLAYBACK_ENABLE))
-		return 0;
-	ptr = snd_dma_pointer(chip->dma1, chip->p_dma_size);
-	return bytes_to_frames(substream->runtime, ptr);
-}
-
-static snd_pcm_uframes_t snd_ad1848_capture_pointer(struct snd_pcm_substream *substream)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-	size_t ptr;
-
-	if (!(chip->image[AD1848_IFACE_CTRL] & AD1848_CAPTURE_ENABLE))
-		return 0;
-	ptr = snd_dma_pointer(chip->dma2, chip->c_dma_size);
-	return bytes_to_frames(substream->runtime, ptr);
 }
 
 /*
@@ -728,6 +360,16 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 		snd_ad1848_out(chip, i, *ptr++);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	snd_ad1848_mce_up(chip);
+	/* init needed for WSS pcm */
+	spin_lock_irqsave(&chip->reg_lock, flags);
+	chip->image[AD1848_IFACE_CTRL] &= ~(AD1848_PLAYBACK_ENABLE |
+				AD1848_PLAYBACK_PIO |
+				AD1848_CAPTURE_ENABLE |
+				AD1848_CAPTURE_PIO |
+				AD1848_CALIB_MODE);
+	chip->image[AD1848_IFACE_CTRL] |= AD1848_AUTOCALIB;
+	snd_ad1848_out(chip, AD1848_IFACE_CTRL, chip->image[AD1848_IFACE_CTRL]);
+	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	snd_ad1848_mce_down(chip);
 	return 0;		/* all things are ok.. */
 }
@@ -735,102 +377,6 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 /*
 
  */
-
-static struct snd_pcm_hardware snd_ad1848_playback =
-{
-	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_MMAP_VALID),
-	.formats =		(SNDRV_PCM_FMTBIT_MU_LAW | SNDRV_PCM_FMTBIT_A_LAW |
-				 SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE),
-	.rates =		SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_48000,
-	.rate_min =		5510,
-	.rate_max =		48000,
-	.channels_min =		1,
-	.channels_max =		2,
-	.buffer_bytes_max =	(128*1024),
-	.period_bytes_min =	64,
-	.period_bytes_max =	(128*1024),
-	.periods_min =		1,
-	.periods_max =		1024,
-	.fifo_size =		0,
-};
-
-static struct snd_pcm_hardware snd_ad1848_capture =
-{
-	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_MMAP_VALID),
-	.formats =		(SNDRV_PCM_FMTBIT_MU_LAW | SNDRV_PCM_FMTBIT_A_LAW |
-				 SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE),
-	.rates =		SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_48000,
-	.rate_min =		5510,
-	.rate_max =		48000,
-	.channels_min =		1,
-	.channels_max =		2,
-	.buffer_bytes_max =	(128*1024),
-	.period_bytes_min =	64,
-	.period_bytes_max =	(128*1024),
-	.periods_min =		1,
-	.periods_max =		1024,
-	.fifo_size =		0,
-};
-
-/*
-
- */
-
-static int snd_ad1848_playback_open(struct snd_pcm_substream *substream)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int err;
-
-	err = snd_ad1848_open(chip, WSS_MODE_PLAY);
-	if (err < 0)
-		return err;
-	chip->playback_substream = substream;
-	runtime->hw = snd_ad1848_playback;
-	snd_pcm_limit_isa_dma_size(chip->dma1, &runtime->hw.buffer_bytes_max);
-	snd_pcm_limit_isa_dma_size(chip->dma1, &runtime->hw.period_bytes_max);
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
-	return 0;
-}
-
-static int snd_ad1848_capture_open(struct snd_pcm_substream *substream)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int err;
-
-	err = snd_ad1848_open(chip, WSS_MODE_RECORD);
-	if (err < 0)
-		return err;
-	chip->capture_substream = substream;
-	runtime->hw = snd_ad1848_capture;
-	snd_pcm_limit_isa_dma_size(chip->dma2, &runtime->hw.buffer_bytes_max);
-	snd_pcm_limit_isa_dma_size(chip->dma2, &runtime->hw.period_bytes_max);
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
-	return 0;
-}
-
-static int snd_ad1848_playback_close(struct snd_pcm_substream *substream)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-
-	chip->mode &= ~WSS_MODE_PLAY;
-	chip->playback_substream = NULL;
-	snd_ad1848_close(chip);
-	return 0;
-}
-
-static int snd_ad1848_capture_close(struct snd_pcm_substream *substream)
-{
-	struct snd_wss *chip = snd_pcm_substream_chip(substream);
-
-	chip->mode &= ~WSS_MODE_RECORD;
-	chip->capture_substream = NULL;
-	snd_ad1848_close(chip);
-	return 0;
-}
 
 static int snd_ad1848_free(struct snd_wss *chip)
 {
@@ -849,17 +395,6 @@ static int snd_ad1848_dev_free(struct snd_device *device)
 {
 	struct snd_wss *chip = device->device_data;
 	return snd_ad1848_free(chip);
-}
-
-static const char *snd_ad1848_chip_id(struct snd_wss *chip)
-{
-	switch (chip->hardware) {
-	case AD1848_HW_AD1847:	return "AD1847";
-	case AD1848_HW_AD1848:	return "AD1848";
-	case AD1848_HW_CS4248:	return "CS4248";
-	case AD1848_HW_CMI8330: return "CMI8330/C3D";
-	default:		return "???";
-	}
 }
 
 int snd_ad1848_create(struct snd_card *card,
@@ -934,65 +469,6 @@ int snd_ad1848_create(struct snd_card *card,
 }
 
 EXPORT_SYMBOL(snd_ad1848_create);
-
-static struct snd_pcm_ops snd_ad1848_playback_ops = {
-	.open =		snd_ad1848_playback_open,
-	.close =	snd_ad1848_playback_close,
-	.ioctl =	snd_ad1848_ioctl,
-	.hw_params =	snd_ad1848_playback_hw_params,
-	.hw_free =	snd_ad1848_playback_hw_free,
-	.prepare =	snd_ad1848_playback_prepare,
-	.trigger =	snd_ad1848_playback_trigger,
-	.pointer =	snd_ad1848_playback_pointer,
-};
-
-static struct snd_pcm_ops snd_ad1848_capture_ops = {
-	.open =		snd_ad1848_capture_open,
-	.close =	snd_ad1848_capture_close,
-	.ioctl =	snd_ad1848_ioctl,
-	.hw_params =	snd_ad1848_capture_hw_params,
-	.hw_free =	snd_ad1848_capture_hw_free,
-	.prepare =	snd_ad1848_capture_prepare,
-	.trigger =	snd_ad1848_capture_trigger,
-	.pointer =	snd_ad1848_capture_pointer,
-};
-
-int snd_ad1848_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
-{
-	struct snd_pcm *pcm;
-	int err;
-
-	if ((err = snd_pcm_new(chip->card, "AD1848", device, 1, 1, &pcm)) < 0)
-		return err;
-
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ad1848_playback_ops);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ad1848_capture_ops);
-
-	pcm->private_data = chip;
-	pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
-	strcpy(pcm->name, snd_ad1848_chip_id(chip));
-
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
-					      64 * 1024,
-					      chip->dma1 > 3 ?
-							128 * 1024 : 64 * 1024);
-
-	chip->pcm = pcm;
-	if (rpcm)
-		*rpcm = pcm;
-	return 0;
-}
-
-EXPORT_SYMBOL(snd_ad1848_pcm);
-
-const struct snd_pcm_ops *snd_ad1848_get_pcm_ops(int direction)
-{
-	return direction == SNDRV_PCM_STREAM_PLAYBACK ?
-		&snd_ad1848_playback_ops : &snd_ad1848_capture_ops;
-}
-
-EXPORT_SYMBOL(snd_ad1848_get_pcm_ops);
 
 /*
  *  INIT part

@@ -273,8 +273,9 @@ static int __devinit snd_sgalaxy_probe(struct device *devptr, unsigned int dev)
 		goto _err;
 	card->private_data = chip;
 
-	if ((err = snd_ad1848_pcm(chip, 0, NULL)) < 0) {
-		snd_printdd(PFX "error creating new ad1848 PCM device\n");
+	err = snd_wss_pcm(chip, 0, NULL);
+	if (err < 0) {
+		snd_printdd(PFX "error creating new WSS PCM device\n");
 		goto _err;
 	}
 	err = snd_wss_mixer(chip);

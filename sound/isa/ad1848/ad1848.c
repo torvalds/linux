@@ -102,7 +102,7 @@ static int __devinit snd_ad1848_probe(struct device *dev, unsigned int n)
 
 	card->private_data = chip;
 
-	error = snd_ad1848_pcm(chip, 0, &pcm);
+	error = snd_wss_pcm(chip, 0, &pcm);
 	if (error < 0)
 		goto out;
 

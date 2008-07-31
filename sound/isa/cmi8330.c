@@ -413,7 +413,7 @@ static int __devinit snd_cmi8330_pcm(struct snd_card *card, struct snd_cmi8330 *
 	chip->streams[CMI_SB_STREAM].private_data = chip->sb;
 
 	/* AD1848 */
-	ops = snd_ad1848_get_pcm_ops(CMI_AD_STREAM);
+	ops = snd_wss_get_pcm_ops(CMI_AD_STREAM);
 	chip->streams[CMI_AD_STREAM].ops = *ops;
 	chip->streams[CMI_AD_STREAM].open = ops->open;
 	chip->streams[CMI_AD_STREAM].ops.open = cmi_open_callbacks[CMI_AD_STREAM];

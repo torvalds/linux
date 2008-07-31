@@ -97,11 +97,6 @@
 #define AD1848_CALIB_IN_PROGRESS 0x20	/* auto calibrate in progress */
 #define AD1848_DMA_REQUEST	0x10	/* DMA request in progress */
 
-/* IBM Thinkpad specific stuff */
-#define AD1848_THINKPAD_CTL_PORT1		0x15e8
-#define AD1848_THINKPAD_CTL_PORT2		0x15e9
-#define AD1848_THINKPAD_CS4248_ENABLE_BIT	0x02
-
 /* exported functions */
 
 void snd_ad1848_out(struct snd_wss *chip, unsigned char reg,
@@ -112,8 +107,5 @@ int snd_ad1848_create(struct snd_card *card,
 		      int irq, int dma,
 		      unsigned short hardware,
 		      struct snd_wss **chip);
-
-int snd_ad1848_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm);
-const struct snd_pcm_ops *snd_ad1848_get_pcm_ops(int direction);
 
 #endif /* __SOUND_AD1848_H */
