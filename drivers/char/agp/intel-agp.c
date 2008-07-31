@@ -2244,6 +2244,7 @@ static void __devexit agp_intel_remove(struct pci_dev *pdev)
 static int agp_intel_resume(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
+	int ret_val;
 
 	pci_restore_state(pdev);
 
@@ -2270,6 +2271,10 @@ static int agp_intel_resume(struct pci_dev *pdev)
 		intel_i810_configure();
 	else if (bridge->driver == &intel_i965_driver)
 		intel_i915_configure();
+
+	ret_val = agp_rebind_memory();
+	if (ret_val != 0)
+		return ret_val;
 
 	return 0;
 }

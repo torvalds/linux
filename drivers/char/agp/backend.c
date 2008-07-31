@@ -185,6 +185,8 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 		rc = -EINVAL;
 		goto err_out;
 	}
+	INIT_LIST_HEAD(&bridge->mapped_list);
+	spin_lock_init(&bridge->mapped_lock);
 
 	return 0;
 
