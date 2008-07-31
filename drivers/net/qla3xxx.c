@@ -3730,14 +3730,6 @@ static int ql3xxx_open(struct net_device *ndev)
 	return (ql_adapter_up(qdev));
 }
 
-static void ql3xxx_set_multicast_list(struct net_device *ndev)
-{
-	/*
-	 * We are manually parsing the list in the net_device structure.
-	 */
-	return;
-}
-
 static int ql3xxx_set_mac_address(struct net_device *ndev, void *p)
 {
 	struct ql3_adapter *qdev = (struct ql3_adapter *)netdev_priv(ndev);
@@ -4007,7 +3999,11 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	ndev->open = ql3xxx_open;
 	ndev->hard_start_xmit = ql3xxx_send;
 	ndev->stop = ql3xxx_close;
-	ndev->set_multicast_list = ql3xxx_set_multicast_list;
+	/* ndev->set_multicast_list
+	 * This device is one side of a two-function adapter
+	 * (NIC and iSCSI).  Promiscuous mode setting/clearing is
+	 * not allowed from the NIC side.
+	 */
 	SET_ETHTOOL_OPS(ndev, &ql3xxx_ethtool_ops);
 	ndev->set_mac_address = ql3xxx_set_mac_address;
 	ndev->tx_timeout = ql3xxx_tx_timeout;
