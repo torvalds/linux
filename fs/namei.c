@@ -212,8 +212,7 @@ int generic_permission(struct inode *inode, int mask,
 	 * Read/write DACs are always overridable.
 	 * Executable DACs are overridable if at least one exec bit is set.
 	 */
-	if (!(mask & MAY_EXEC) ||
-	    (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode))
+	if (!(mask & MAY_EXEC) || execute_ok(inode))
 		if (capable(CAP_DAC_OVERRIDE))
 			return 0;
 
@@ -249,23 +248,11 @@ int inode_permission(struct inode *inode, int mask)
 	}
 
 	/* Ordinary permission routines do not understand MAY_APPEND. */
-	if (inode->i_op && inode->i_op->permission) {
+	if (inode->i_op && inode->i_op->permission)
 		retval = inode->i_op->permission(inode, mask);
-		if (!retval) {
-			/*
-			 * Exec permission on a regular file is denied if none
-			 * of the execute bits are set.
-			 *
-			 * This check should be done by the ->permission()
-			 * method.
-			 */
-			if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode) &&
-			    !(inode->i_mode & S_IXUGO))
-				return -EACCES;
-		}
-	} else {
+	else
 		retval = generic_permission(inode, mask, NULL);
-	}
+
 	if (retval)
 		return retval;
 
