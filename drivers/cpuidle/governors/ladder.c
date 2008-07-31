@@ -99,6 +99,18 @@ static int ladder_select_state(struct cpuidle_device *dev)
 
 	/* consider demotion */
 	if (last_idx > CPUIDLE_DRIVER_STATE_START &&
+	    dev->states[last_idx].exit_latency > latency_req) {
+		int i;
+
+		for (i = last_idx - 1; i > CPUIDLE_DRIVER_STATE_START; i--) {
+			if (dev->states[i].exit_latency <= latency_req)
+				break;
+		}
+		ladder_do_selection(ldev, last_idx, i);
+		return i;
+	}
+
+	if (last_idx > CPUIDLE_DRIVER_STATE_START &&
 	    last_residency < last_state->threshold.demotion_time) {
 		last_state->stats.demotion_count++;
 		last_state->stats.promotion_count = 0;
