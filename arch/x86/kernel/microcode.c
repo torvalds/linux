@@ -127,7 +127,8 @@ static int do_microcode_update(void)
 	old = current->cpus_allowed;
 
 	while ((cursor = microcode_ops->get_next_ucode(&new_mc, cursor)) > 0) {
-		error = microcode_ops->microcode_sanity_check(new_mc);
+		if (microcode_ops->microcode_sanity_check != NULL)
+			error = microcode_ops->microcode_sanity_check(new_mc);
 		if (error)
 			goto out;
 		/*
