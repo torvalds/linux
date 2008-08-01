@@ -1,8 +1,10 @@
 /*
  * vim: noexpandtab ts=8 sts=0 sw=8:
  *
- * configfs_example.c - This file is a demonstration module containing
- *      a number of configfs subsystems.
+ * configfs_example_explicit.c - This file is a demonstration module
+ *      containing a number of configfs subsystems.  It explicitly defines
+ *      each structure without using the helper macros defined in
+ *      configfs.h.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -281,7 +283,6 @@ static struct config_item *simple_children_make_item(struct config_group *group,
 	if (!simple_child)
 		return ERR_PTR(-ENOMEM);
 
-
 	config_item_init_type_name(&simple_child->item, name,
 				   &simple_child_type);
 
@@ -302,8 +303,8 @@ static struct configfs_attribute *simple_children_attrs[] = {
 };
 
 static ssize_t simple_children_attr_show(struct config_item *item,
-			   		 struct configfs_attribute *attr,
-			   		 char *page)
+					 struct configfs_attribute *attr,
+					 char *page)
 {
 	return sprintf(page,
 "[02-simple-children]\n"
@@ -318,7 +319,7 @@ static void simple_children_release(struct config_item *item)
 }
 
 static struct configfs_item_operations simple_children_item_ops = {
-	.release 	= simple_children_release,
+	.release	= simple_children_release,
 	.show_attribute	= simple_children_attr_show,
 };
 
@@ -368,7 +369,6 @@ static struct config_group *group_children_make_group(struct config_group *group
 	if (!simple_children)
 		return ERR_PTR(-ENOMEM);
 
-
 	config_group_init_type_name(&simple_children->group, name,
 				    &simple_children_type);
 
@@ -387,8 +387,8 @@ static struct configfs_attribute *group_children_attrs[] = {
 };
 
 static ssize_t group_children_attr_show(struct config_item *item,
-			   		struct configfs_attribute *attr,
-			   		char *page)
+					struct configfs_attribute *attr,
+					char *page)
 {
 	return sprintf(page,
 "[03-group-children]\n"
